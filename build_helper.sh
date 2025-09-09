@@ -18,6 +18,25 @@ duration_since() {
 	printf "%ds" "$dt"
 }
 
+resolve_make_vars() {
+	local kv_out
+	if ! kv_out=$(make -C "$PROJECT_DIR" "${MAKE_ARGS[@]}" print-vars 2>/dev/null); then
+		TARGET_NAME="best1306p"
+		OUTPUT_DIR="$PROJECT_DIR/project/bin"
+		return
+	fi
+	local key value
+	local parsed_t="" parsed_bin=""
+	while IFS='=' read -r key value; do
+		case "$key" in
+			T) parsed_t="$value" ;;
+			BIN_DIR) parsed_bin="$value" ;;
+		esac
+	done <<< "$kv_out"
+	TARGET_NAME=${parsed_t:-best1306p}
+	OUTPUT_DIR=${parsed_bin:-"$PROJECT_DIR/project/bin"}
+}
+
 ensure_share_dir() {
 	[[ -d "$SHARE_DIR" ]] || mkdir -p "$SHARE_DIR" || die "无法创建共享目录: $SHARE_DIR"
 	if ! (touch "$SHARE_DIR/.write_test" && rm -f "$SHARE_DIR/.write_test"); then
@@ -28,7 +47,8 @@ ensure_share_dir() {
 
 copy_artifacts() {
 	ensure_share_dir
-	local artifacts=("best1306p.bin" "best1306p.elf" "best1306p.map")
+	resolve_make_vars
+	local artifacts=("${TARGET_NAME}.bin" "${TARGET_NAME}.elf" "${TARGET_NAME}.map" "${TARGET_NAME}.lst")
 	local found_any=false
 	for f in "${artifacts[@]}"; do
 		if [[ -s "$OUTPUT_DIR/$f" ]]; then
@@ -78,23 +98,32 @@ do_build_best1306p() {
 
 do_bear_best1306p() {
 	local t0=$(date +%s)
-	echo "开始使用 bear 编译 best1306p 目标板（生成编译数据库）..."
-	bear -- make -C "$PROJECT_DIR" T=best1306p -j16
-	echo "bear best1306p 编译完成，用时: $(duration_since "$t0")"
+	echo "开始使用 bear 编译（生成编译数据库）..."
+	bear -- make -C "$PROJECT_DIR" "${MAKE_ARGS[@]}"
+	echo "bear 编译完成，用时: $(duration_since "$t0")"
+}
+
+do_bear_build() {
+	local t0=$(date +%s)
+	echo "开始使用 bear 编译（生成编译数据库）..."
+	bear -- make -C "$PROJECT_DIR" "${MAKE_ARGS[@]}"
+	echo "bear 编译完成，用时: $(duration_since "$t0")"
 }
 
 show_menu() {
+	resolve_make_vars
 	cat <<EOF
 ================ 一键编译工具 ================
 1) 编译
 2) 清理
 3) 重新编译（清理后编译）
 4) 仅拷贝编译产物到共享目录
-5) bear -- make T=best1306p（生成编译数据库）
+5) bear -- make（生成编译数据库）
 6) 编译（不拷贝到共享目录）
 0) 退出
 ---------------------------------------------
 目标共享目录: $SHARE_DIR
+当前目标板: $TARGET_NAME
 编译输出目录: $OUTPUT_DIR
 =============================================
 EOF
@@ -110,14 +139,14 @@ main() {
 				do_clean ;;
 			rebuild)
 				do_rebuild && copy_artifacts ;;
-			best1306p)
-				do_bear_best1306p && copy_artifacts ;;
+			best1306p|bear)
+				do_bear_build && copy_artifacts ;;
 			build-only)
 				do_build ;;
 			copy)
 				copy_artifacts ;;
 			*)
-				echo "用法: $0 --non-interactive [build|clean|rebuild|best1306p|build-only|copy]" ; exit 2 ;;
+				echo "用法: $0 --non-interactive [build|clean|rebuild|bear|best1306p|build-only|copy]" ; exit 2 ;;
 		esac
 		return 0
 	fi
@@ -141,7 +170,7 @@ main() {
 				copy_artifacts
 				;;
 			5)
-				do_bear_best1306p
+				do_bear_build
 				copy_artifacts
 				;;
 			6)

@@ -29,16 +29,10 @@
  * GLOBAL FUNCTION DEFINITIONS
  *****************************************************************************************
  */
-os_timer_id os_timer_create_wrapper(const os_timer_def_t *timer_def, os_timer_type type, void *argument)
-{
-    return osTimerNew((osTimerFunc_t)timer_def->ptimer, type, argument, NULL);
-}
-
 os_status_e os_timer_start_wrapper(os_timer_id timer_id, uint32_t millisec)
 {
     return osTimerStart(timer_id, millisec);
 }
-
 
 os_status_e os_timer_stop_wrapper(os_timer_id timer_id)
 {
@@ -60,22 +54,23 @@ bool os_timer_is_running_wrapper(os_timer_id timer_id)
     return osTimerIsRunning(timer_id);
 }
 
-int create_timer_wrapper(os_timer_id *timer_id, const char *name_s, void *user_data, int type, os_ptimer cb)
+int os_create_timer_wrapper(os_timer_id *timer_id, const char *name_s, void *user_data, int type, os_ptimer cb)
 {
     const os_timer_def_t def = {
         .ptimer = cb,
         .attr = {
             .name = (char *)name_s,
             .attr_bits = 0,
-            .cb_mem = user_data,
+            .cb_mem = NULL,
             .cb_size = 0,
         },
     };
 
-    *(timer_id) = osTimerCreate(&def, (os_timer_type )type, user_data);
+    *(timer_id) = osTimerNew((osTimerFunc_t)def.ptimer, (os_timer_type )type, user_data, &def.attr);
     if (*(timer_id) == NULL) {
-        LOGE("Oops! osTimerCreate(%s): fail", name_s);
+        LOGE("Oops! osTimerNew(%s): fail", name_s);
         return -1;
     }
+    
     return 0;
 }

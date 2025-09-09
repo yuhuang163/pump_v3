@@ -56,7 +56,7 @@
  {
     //  static thread_context_t init_thd = {0};
  
-    //  platform_prepare_init();
+   //   platform_prepare_init();
     //  reset_log_filter(LOG_FILTER);
  
     //  LOG_STEP("***********Welcome to mova develop platform.*********** (touch #1)");

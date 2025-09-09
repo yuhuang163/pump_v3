@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
+#include "cmsis_os_api.h"
 #include "root_common_api.h"
 
 /*
@@ -48,7 +49,7 @@ uint16_t get_log_output_level(void)
  
 void reset_log_filter(uint32_t filter) 
 {
-    PRINT_LOG("New log filter: 0x%lx\n", filter);
+    PRINT_LOG("New log filter: 0x%x\n", filter);
     g_log_filter = filter;
     if (filter == 0) {
         g_log_level_set = US_LOG_LEVEL_ERROR;
@@ -65,7 +66,7 @@ uint32_t get_log_filter(void)
 void init_user_log_filter(void) 
 {
     uint32_t filter = 0;
-    PRINT_LOG("PERSIST_KEY_LOG_FILTER: 0x%lx\n", filter);
+    PRINT_LOG("PERSIST_KEY_LOG_FILTER: 0x%x\n", filter);
     if (filter) {
         reset_log_filter(filter);
     }

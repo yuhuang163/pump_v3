@@ -9,12 +9,11 @@ extern "C" {
 /*******************************************************************************
  * Include files
  ******************************************************************************/
-#include <stdio.h>
+#include <stdio.h> 
 #include <stdint.h>
 #include <stddef.h>
-#include "project_log_filter.h"
+#include "project_log_filter.h" // IWYU pragma: keep
 #include "project_support_overlay.h"
-#include "cmsis_os_api.h"
 
 // 日志颜色.
 #if IS_SUPPORT_LOG_COLOR
@@ -47,9 +46,9 @@ extern "C" {
 extern uint16_t g_log_level_set;
 extern uint32_t g_log_filter;
 
-// uint64_t get_utc_time_ms(void);
-// uint32_t get_utc_time(void);
-int __gettid(void);
+uint64_t platform_get_utc_time_ms(void);
+uint32_t platform_get_utc_time(void);
+int platform_get_tid(void);
 void reset_log_filter(uint32_t filter);
 void init_user_log_filter(void);
 uint32_t get_log_filter(void);
@@ -101,21 +100,18 @@ typedef enum{
 #define IS_FILTER(x) if (g_log_filter & x)
 
 #ifndef FORMAT_LOG_OUT_SYMBOL
-#define FORMAT_LOG_OUT_SYMBOL "[%llu][%d]:"
+#define FORMAT_LOG_OUT_SYMBOL "[%d][%d]"
 #endif
 
 #ifndef FORMAT_LOG_OUT_OBJ
-// #define FORMAT_LOG_OUT_OBJ (get_utc_time_ms()), ((int)__gettid())
-#define FORMAT_LOG_OUT_OBJ ((0), (0))
+#define FORMAT_LOG_OUT_OBJ platform_get_utc_time(), platform_get_tid()
 #endif
 
-#if 0
-#define PRINT_FORMAT(letter, format) LOG_COLOR_##letter #letter FORMAT_LOG_OUT_SYMBOL "[%s][%s]%s(): " format LOG_RESET_COLOR "\n"
-#define PRINT_WRAPPER(letter, format, TAG) PRINT_FORMAT(letter, format), FORMAT_LOG_OUT_OBJ, TAG, LOG_TAG, __func__
-#else
-#define PRINT_FORMAT(letter, format) LOG_COLOR_##letter #letter FORMAT_LOG_OUT_SYMBOL "[%s]%s(): " format LOG_RESET_COLOR "\n"
-#define PRINT_WRAPPER(letter, format, TAG) PRINT_FORMAT(letter, format), FORMAT_LOG_OUT_OBJ, TAG, __func__
-#endif
+#define PRINT_FORMAT(letter, format) \
+  LOG_COLOR_##letter #letter FORMAT_LOG_OUT_SYMBOL "[%s][%s](): " format LOG_RESET_COLOR "\n"
+#define PRINT_WRAPPER(letter, format, TAG) \
+  PRINT_FORMAT(letter, format), FORMAT_LOG_OUT_OBJ, TAG, __func__
+
 /*
 * 基础日志输出.
 */
@@ -125,7 +121,6 @@ typedef enum{
 #define LOGD_TAG(TAG, format, args...) IS_LEVEL(US_LOG_LEVEL_DEBUG)    { PRINT_LOG(PRINT_WRAPPER(D, format, TAG), ##args); }
 #define LOGV_TAG(TAG, format, args...) IS_LEVEL(US_LOG_LEVEL_VERBOSE)  { PRINT_LOG(PRINT_WRAPPER(V, format, TAG), ##args); }
 #define LOGK_TAG(TAG, format, args...) IS_LEVEL(US_LOG_LEVEL_VERBOSE)  { PRINT_LOG(PRINT_WRAPPER(K, format, TAG), ##args); }
-
 /*
 * 模块日志输出.
 */

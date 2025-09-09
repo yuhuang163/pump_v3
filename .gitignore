@@ -3,3 +3,4 @@ project/bin/*
 project/logs/*
 Makefile copy
 compile_commands copy.json
+.cache/*

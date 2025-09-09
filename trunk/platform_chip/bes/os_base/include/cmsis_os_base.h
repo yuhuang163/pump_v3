@@ -15,6 +15,11 @@ extern "C" {
 
 #define OS_WAIT_FOREVER  osWaitForever     ///< wait forever timeout value
 
+typedef enum {
+  OS_TIMER_ONCE               = 0,        ///< One-shot timer.
+  OS_TIMER_PERIODIC           = 1         ///< Repeating timer.
+} os_timer_type_e;
+
 typedef osThreadId_t os_thread_id;
 typedef osMessageQId os_message_id;
 typedef osTimerId_t os_timer_id;
@@ -48,48 +53,60 @@ typedef enum {
   OS_THREAD_ERROR     = 0x7FFFFFFF
 } os_thread_state_e;
 
+// 操作系统线程
+typedef struct thread_context {
+  os_thread_id tid;
+  os_message_id msg_id;
+  os_mutex_id lock_id;
+  os_thread_def_t *p_thd;
+  uint32_t is_running;
+  void *user_data;
+  char *task_name;
+  uint8_t exclusive_task;
+  int8_t core_affinity;
+} thread_context_t;
 
 bool is_interrupt_handler_wrapper(void);
 uint32_t os_kernel_systick_wrapper(void);
 os_status_e os_kernel_start_wrapper (void);
+os_status_e os_delay_wrapper (uint32_t millisec);
 
-os_thread_id os_thread_create_wrapper (const os_thread_def_t *thread_def, void *argument);
-os_status_e os_thread_terminate_wrapper (os_thread_id thread_id);
+int run_new_thread_wrapper(thread_context_t *thd, const char *name_s, void *cb, int prio, int stack_s);
+int exit_thread_wrapper(thread_context_t *thd);
 os_thread_id os_thread_get_id_wrapper (void);
 os_status_e os_thread_set_priority_wrapper (os_thread_id thread_id, os_priority_e priority);
 os_priority_e os_thread_get_priority_wrapper (os_thread_id thread_id);
 os_status_e os_thread_yield_wrapper (void);
-os_status_e os_delay_wrapper (uint32_t millisec);
-os_thread_state_e os_thread_get_state_wrapper(os_thread_id thread_id);
 bool os_thread_is_suspended_wrapper(os_thread_id thread_id);
 os_status_e os_thread_suspend_wrapper (os_thread_id thread_id);
 os_status_e os_thread_resume_wrapper (os_thread_id thread_id);
+os_thread_state_e os_thread_get_state_wrapper(os_thread_id thread_id);
 
-int create_timer_wrapper(os_timer_id *timer_id, const char *name_s, void *user_data, int type, os_ptimer cb);
-os_timer_id os_timer_create_wrapper (const os_timer_def_t *timer_def, os_timer_type type, void *argument);
+int os_create_timer_wrapper(os_timer_id *timer_id, const char *name_s, void *user_data, int type, os_ptimer cb);
 os_status_e os_timer_start_wrapper (os_timer_id timer_id, uint32_t millisec);
 os_status_e os_timer_stop_wrapper (os_timer_id timer_id);
 os_status_e os_timer_delete_wrapper (os_timer_id timer_id);
 void *os_timer_get_name_wrapper (os_timer_id timer_id);
 bool os_timer_is_running_wrapper (os_timer_id timer_id);
 
-int queue_module_init(void);
+int os_create_msg_queue_wrapper(os_message_id *msg_ptr, int queue_num, int item_size);
 os_status_e os_message_put_wrapper (os_message_id queue_id, void *msg, uint32_t millisec);
 os_status_e os_message_get_wrapper (os_message_id queue_id, void *msg, uint32_t millisec);
 os_status_e os_message_delete_wrapper (os_message_id queue_id);
 os_status_e os_message_reset_wrapper (os_message_id queue_id);
-int os_create_msg_queue_wrapper(os_message_id *msg_ptr, int queue_num, int item_size);
 
 os_semaphore_id os_semaphore_create_wrapper (const os_semaphore_def_t *semaphore_def, int32_t count);
 os_status_e os_semaphore_wait_wrapper (os_semaphore_id semaphore_id, uint32_t millisec);
 os_status_e os_semaphore_release_wrapper (os_semaphore_id semaphore_id);
 os_status_e os_semaphore_delete_wrapper (os_semaphore_id semaphore_id);
 
-int mutex_module_init(void);
-os_mutex_id os_mutex_create_wrapper (const os_mutex_def_t *mutex_def);
+int os_mutex_module_init(void);
+int os_mutex_create_wrapper(os_mutex_id *mutex_id, const char *name);
 os_status_e os_mutex_wait_wrapper (os_mutex_id mutex_id, uint32_t millisec);
 os_status_e os_mutex_release_wrapper (os_mutex_id mutex_id);
 os_status_e os_mutex_delete_wrapper (os_mutex_id mutex_id); 
+
+void platform_printf(const char *fmt, ...);
 
 #ifdef __cplusplus
 }

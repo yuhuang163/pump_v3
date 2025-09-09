@@ -30,7 +30,8 @@
 */
 os_semaphore_id os_semaphore_create_wrapper (const os_semaphore_def_t *semaphore_def, int32_t count)
 { 
-    return osSemaphoreNew(count, 0, semaphore_def);
+    (void)semaphore_def;
+    return osSemaphoreNew(count, 0, NULL);
 }
 
 os_status_e os_semaphore_wait_wrapper (os_semaphore_id semaphore_id, uint32_t millisec)

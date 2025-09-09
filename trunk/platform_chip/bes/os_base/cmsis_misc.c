@@ -2,6 +2,9 @@
 * INCLUDE FILES
 *****************************************************************************************
 */
+#include "root_log_define.h"
+#include "stdio.h"
+#include "string.h" // IWYU pragma: keep
 #include "pmu.h"
 #include "watchdog/watchdog.h"
 
@@ -51,25 +54,18 @@ void msleep(uint32_t time_ms)
 
 void platform_prepare_init(void)
 {
-    // u_heap_init();
-    // queue_module_init();
-    // mutex_module_init();
-    // LOGW("*******this is bes chip platform!*******\n");
-    msleep(100);
-    PRINT_LOG("*******this is bes chip platform! start*******");
-    msleep(1000);
-    msleep(1000);
-    msleep(1000);
+    u_heap_init();
+    os_mutex_module_init();
 }
 
 void platform_post_init(void) 
 {
-
+    // TODO: Implement platform post-initialization logic
 }
 
 void platform_sysinfo_print(void *user_data)
 {
-    LOGE("dumpsys-memory:free(all):%lu", u_heap_free_size_get());
+    u_heap_info_output();
 }
 
 uint32_t get_timestamp(void)
@@ -77,9 +73,10 @@ uint32_t get_timestamp(void)
     return os_kernel_systick_wrapper();
 }
 
-int __gettid(void)
+int platform_get_tid(void)
 {
-    return (int)os_thread_get_id_wrapper() % 1000;
+    os_thread_id tid = os_thread_get_id_wrapper();
+    return ((int)tid) % 1000;
 }
 
 void platform_system_reboot(void)
@@ -98,14 +95,11 @@ uint64_t platform_get_utc_time_ms(void)
     return 0;
 }
 
-uint64_t get_utc_time_ms(void)
-{
-    return platform_get_utc_time_ms();
-}
-
 void platform_set_utc_time(uint32_t timestemp, int timezone)
 {
-
+    // TODO: Implement UTC time setting logic
+    (void)timestemp;  // Suppress unused parameter warning
+    (void)timezone;   // Suppress unused parameter warning
 }
 
 void platform_get_build_time(char *build_time)

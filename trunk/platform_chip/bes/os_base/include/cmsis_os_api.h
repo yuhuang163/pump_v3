@@ -9,8 +9,13 @@ extern "C" {
 /*******************************************************************************
  * Include files
  ******************************************************************************/
-#include "cmsis_os_base.h"
+#include "cmsis_os_base.h" // IWYU pragma: keep
 #include "hal_trace.h"
+
+// log define
+#ifndef PRINT_LOG
+#define PRINT_LOG(...)  platform_printf(__VA_ARGS__)
+#endif
 
 #define IS_SUPPORT_QUEUE           1
 #define IS_SUPPORT_TIME            1
@@ -20,24 +25,10 @@ extern "C" {
 
 #define TO_STR(str)                #str
 
-void platform_logf(const char *fmt, ...);
-
-// log define
-#ifndef PRINT_LOG
-#define PRINT_LOG(...) platform_logf(__VA_ARGS__)
-#endif
-
 #if IS_SUPPORT_THREAD
 // 创建新线程
 #define RUN_NEW_THREAD(thd, name_s, cb, prio, stack_s) \
-    RUN_NEW_THREAD_CORE_AFFINITY((thd), (name_s), (cb), (prio), (stack_s), -1)
-
-// 创建指定核心线程
-#define RUN_NEW_THREAD_CORE_AFFINITY(thd, name_s, cb, prio, stack_s, cpu_id) \
-    do { \
-        (thd)->core_affinity = cpu_id; \
-        run_new_thread_wrapper(thd, name_s, cb, prio, stack_s); \
-    } while (0)
+    run_new_thread_wrapper((thd), (name_s), (cb), (prio), (stack_s))
 
 // 退出线程
 #define EXIT_THREAD(thd) exit_thread_wrapper(thd)
@@ -50,7 +41,7 @@ void platform_logf(const char *fmt, ...);
 // 消息队列宏定义.
 #if IS_SUPPORT_QUEUE
 #define CREATE_MSG_TYPE_QUEUE(msg_id_ptr, queue_num, _size) \
-    create_msg_queue_wrapper(msg_id_ptr, queue_num, _size)
+    os_create_msg_queue_wrapper(msg_id_ptr, queue_num, _size)
 #define MSG_QUEUE_SEND(msg_id_ptr, msg_data, timeout) \
     os_message_put_wrapper(msg_id_ptr, msg_data, timeout)
 #define MSG_QUEUE_RECV(msg_id_ptr, msg_data, timeout) \
@@ -71,7 +62,7 @@ void platform_logf(const char *fmt, ...);
 // 定时器宏定义.
 #if IS_SUPPORT_TIME
 #define CREATE_TIMER(timer_id_ptr, name_s, user_data, type, cb) \
-    create_timer_wrapper(timer_id_ptr, name_s, user_data, type, (os_ptimer)cb)
+    os_create_timer_wrapper(timer_id_ptr, name_s, user_data, type, (os_ptimer)cb)
 #define START_TIMER(timer_id, period)   os_timer_start_wrapper(timer_id, period)
 #define STOP_TIMER(timer_id)            os_timer_stop_wrapper(timer_id)
 #define DELETE_TIMER(timer_id)          os_timer_delete_wrapper(timer_id)
@@ -84,7 +75,7 @@ void platform_logf(const char *fmt, ...);
 
 // 互斥锁宏定义.
 #if IS_SUPPORT_MUTEX
-#define MUTEX_INIT_HG(x, name)          mutex_init_wrapper((x), TO_STR(name))
+#define MUTEX_INIT_HG(x, name)          os_mutex_create_wrapper((x), TO_STR(name))
 #define MUTEX_LOCK_HG(x, timeout)       os_mutex_wait_wrapper((x), timeout)
 #define MUTEX_UNLOCK_HG(x)              os_mutex_release_wrapper((x))
 #define MUTEX_DELETE_HG(x)              os_mutex_delete_wrapper((x))
@@ -130,19 +121,6 @@ void platform_logf(const char *fmt, ...);
 #define U_SEM_DELETE(sem_id)            do { ; } while (0)
 #endif
 
-// 操作系统线程
-typedef struct thread_context {
-    os_thread_id tid;
-    os_message_id msg_id;
-    os_mutex_id lock_id;
-    os_thread_def_t *p_thd;
-    uint32_t is_running;
-    void *user_data;
-    char *task_name;
-    uint8_t exclusive_task;
-    int8_t core_affinity;
-} thread_context_t;
-
 /*
  * GLOBAL FUNCTION DECLARATION
  *****************************************************************************************
@@ -160,6 +138,14 @@ void *u_malloz(uint32_t size);
 void *u_realloc(void *p1, uint32_t size);
 // 释放内存.
 int u_free(void *p);
+// 分配内存并按指定对齐.
+void *u_malloc_align(uint32_t size, uint32_t align);
+// 分配内存并按指定对齐并初始化.
+void *u_malloz_align(uint32_t size, uint32_t align);
+// 释放对齐的内存.
+int u_free_align(void *p);
+// 输出堆信息.
+void u_heap_info_output(void);
 // 休眠毫秒.
 void msleep(uint32_t time_ms);
 // 早期初始化接口.
@@ -171,8 +157,6 @@ void platform_sysinfo_print(void *user_data);
 // 平台提供的获取UTC时间戳接口.
 uint32_t platform_get_utc_time(void);
 uint64_t platform_get_utc_time_ms(void);
-// 日志系统使用的UTC时间戳接口.
-uint64_t get_utc_time_ms(void);
 // 平台提供的设置UTC时间戳接口.
 void platform_set_utc_time(uint32_t timestemp, int timezone);
 // 平台提供的获取构建时间接口.
@@ -181,6 +165,8 @@ void platform_get_build_time(char *build_time);
 uint32_t get_timestamp(void);
 // 系统重启.
 void platform_system_reboot(void);
+// 平台提供的获取线程ID接口.
+int platform_get_tid(void);
 
 #ifdef __cplusplus
 }

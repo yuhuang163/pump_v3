@@ -48,11 +48,6 @@ static void *list_del_condition_callback(void *data, list_head_t *pos)
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-os_mutex_id os_mutex_create_wrapper(const os_mutex_def_t *mutex_def)
-{
-    return osMutexCreate(mutex_def);
-}
-
 os_status_e os_mutex_wait_wrapper(os_mutex_id mutex_id, uint32_t millisec)
 {
     return osMutexAcquire(mutex_id, millisec);
@@ -77,14 +72,14 @@ os_status_e os_mutex_delete_wrapper(os_mutex_id mutex_id)
     return status;
 }
 
-int mutex_init_wrapper(os_mutex_id *mutex_id, const char *name)
+int os_mutex_create_wrapper(os_mutex_id *mutex_id, const char *name)
 {
     os_mutex_def_t *def = (os_mutex_def_t *)u_malloz(sizeof(os_mutex_def_t));
     def->name = (char *)name;
-    def->attr_bits = 0;
-    def->cb_mem = def;
-    def->cb_size = sizeof(os_mutex_def_t);
-    *mutex_id = os_mutex_create_wrapper(def);
+    def->attr_bits = osMutexRecursive | osMutexPrioInherit | osMutexRobust;
+    def->cb_mem = NULL;
+    def->cb_size = 0;
+    *mutex_id = osMutexCreate(def);
     if (*mutex_id == NULL) {
         u_free(def);
         LOGE("Oops! osMutexCreate: fail %s", name);
@@ -102,11 +97,11 @@ int mutex_init_wrapper(os_mutex_id *mutex_id, const char *name)
     return 0;
 }
 
-int mutex_module(void)
+int os_mutex_module_init(void)
 {
     mutex_module_mutex_id = osMutexCreate((osMutex(mutex_module_mutex)));
     if (mutex_module_mutex_id == NULL) {
-        LOGE("Oops! osMutexCreate: fail %s", "mutex_module");
+        LOGE("mutex create failed: %s", "mutex_module");
         return -1;
     }
     return 0;
