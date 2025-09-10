@@ -9,7 +9,7 @@ extern "C" {
 /*******************************************************************************
  * Include files
  ******************************************************************************/
-#include "root_common_base.h"
+#include "root_common_base.h" // IWYU pragma: keep
 #include "storage_manager_api.h"
 #include "broadcast_manager_api.h"
 
@@ -20,18 +20,19 @@ typedef void (*key_input_evt_cb_fptr)(void *user_data, uint16_t keycode, uint16_
 */ 
 typedef enum {
     ID_DEVICE_BEGIN = 0,
-
     ID_DEVICE_IRQ,
     ID_DEVICE_LOG_UART,
     ID_DEVICE_POWER,
     ID_DEVICE_PMU,
-    ID_DEVICE_EXT_FLASH,
+    ID_DEVICE_FLASH,
+    ID_DEVICE_FATFS,
     ID_DEVICE_DB,
     ID_DEVICE_LED,
     ID_DEVICE_DISPLAY_PANEL,
     ID_DEVICE_INPUT_KEY,
     ID_DEVICE_BATTERY,
     ID_DEVICE_BLE,
+    ID_DEVICE_WIFI,
     ID_DEVICE_IMU,
     ID_DEVICE_FSENSOR,
     ID_DEVICE_MOTOR,

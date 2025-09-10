@@ -15,6 +15,9 @@ EXTRA_CFLAGS ?= -std=gnu99 $(EXTRA_SDK_ARCH_FLAGS)
 # Release trace switch for both EXTRA_LIB and SDK build
 REL_TRACE_ENABLE ?= 1
 
+# RTC calendar feature switch
+RTC_CALENDAR ?= 1
+
 # SDK 头文件（最小必需集）
 SDK_INCLUDE_PATHS := \
 	-I$(PROJECT_ROOT)/trunk/platform_chip/bes/sdk/include \
@@ -31,12 +34,50 @@ SDK_INCLUDE_PATHS := \
 	-I$(PROJECT_ROOT)/trunk/platform_chip/bes/sdk/utils/libc/inc \
 	-I$(PROJECT_ROOT)/trunk/platform_chip/bes/sdk/platform/cmsis/inc \
 	-I$(PROJECT_ROOT)/boards \
-	-I$(PROJECT_ROOT)/trunk/include
+	-I$(PROJECT_ROOT)/drivers/audio \
+	-I$(PROJECT_ROOT)/drivers/base \
+	-I$(PROJECT_ROOT)/drivers/battery \
+	-I$(PROJECT_ROOT)/drivers/ble \
+	-I$(PROJECT_ROOT)/drivers/common \
+	-I$(PROJECT_ROOT)/drivers/database \
+	-I$(PROJECT_ROOT)/drivers/fatfs \
+	-I$(PROJECT_ROOT)/drivers/flash \
+	-I$(PROJECT_ROOT)/drivers/force_sensor \
+	-I$(PROJECT_ROOT)/drivers/imu \
+	-I$(PROJECT_ROOT)/drivers/key \
+	-I$(PROJECT_ROOT)/drivers/lcd \
+	-I$(PROJECT_ROOT)/drivers/led \
+	-I$(PROJECT_ROOT)/drivers/motor \
+	-I$(PROJECT_ROOT)/drivers/wifi \
+	-I$(PROJECT_ROOT)/trunk/include \
+	-I$(PROJECT_ROOT)/trunk/extern \
+	-I$(PROJECT_ROOT)/trunk/root_source/airplane \
+	-I$(PROJECT_ROOT)/trunk/root_source/algorithm \
+	-I$(PROJECT_ROOT)/trunk/root_source/audio \
+	-I$(PROJECT_ROOT)/trunk/root_source/base \
+	-I$(PROJECT_ROOT)/trunk/root_source/ble \
+	-I$(PROJECT_ROOT)/trunk/root_source/breath_pump \
+	-I$(PROJECT_ROOT)/trunk/root_source/hal \
+	-I$(PROJECT_ROOT)/trunk/root_source/input \
+	-I$(PROJECT_ROOT)/trunk/root_source/misc \
+	-I$(PROJECT_ROOT)/trunk/root_source/motor \
+	-I$(PROJECT_ROOT)/trunk/root_source/network \
+	-I$(PROJECT_ROOT)/trunk/root_source/ota \
+	-I$(PROJECT_ROOT)/trunk/root_source/pm \
+	-I$(PROJECT_ROOT)/trunk/root_source/protocol \
+	-I$(PROJECT_ROOT)/trunk/root_source/resource \
+	-I$(PROJECT_ROOT)/trunk/root_source/storage \
+	-I$(PROJECT_ROOT)/trunk/root_source/utils \
+	-I$(PROJECT_ROOT)/trunk/root_source/windows
 
 CPPFLAGS ?= -I$(PROJECT_ROOT) -I$(PROJECT_ROOT)/trunk $(SDK_INCLUDE_PATHS)
 
 ifeq ($(REL_TRACE_ENABLE),1)
 CPPFLAGS += -DREL_TRACE_ENABLE
+endif
+
+ifeq ($(RTC_CALENDAR),1)
+CPPFLAGS += -DRTC_CALENDAR
 endif
 
 # 根据 T 映射芯片宏，确保与 SDK 头文件匹配
@@ -88,9 +129,25 @@ CPPFLAGS += $(CHIP_DEFINES)
 # 应用源码（满足链接 root_main 与 platform_prepare_init 等）
 EXTRA_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/trunk/platform_chip/bes/os_base/*.c) \
-	$(PROJECT_ROOT)/trunk/root_source/base/root_list.c \
-	$(PROJECT_ROOT)/trunk/root_source/base/root_main.c \
-	$(PROJECT_ROOT)/trunk/root_source/utils/log_utils.c \
+	$(wildcard $(PROJECT_ROOT)/trunk/root_source/utils/*.c) \
+	$(wildcard $(PROJECT_ROOT)/trunk/root_source/base/*.c) \
+	$(wildcard $(PROJECT_ROOT)/drivers/audio/*.c) \
+	$(wildcard $(PROJECT_ROOT)/drivers/base/*.c) \
+	$(wildcard $(PROJECT_ROOT)/drivers/battery/*.c) \
+	$(wildcard $(PROJECT_ROOT)/drivers/ble/*.c) \
+	$(wildcard $(PROJECT_ROOT)/drivers/common/*.c) \
+	$(wildcard $(PROJECT_ROOT)/drivers/database/*.c) \
+	$(wildcard $(PROJECT_ROOT)/drivers/fatfs/*.c) \
+	$(wildcard $(PROJECT_ROOT)/drivers/flash/*.c) \
+	$(wildcard $(PROJECT_ROOT)/drivers/force_sensor/*.c) \
+	$(wildcard $(PROJECT_ROOT)/drivers/i2c/*.c) \
+	$(wildcard $(PROJECT_ROOT)/drivers/imu/*.c) \
+	$(wildcard $(PROJECT_ROOT)/drivers/key/*.c) \
+	$(wildcard $(PROJECT_ROOT)/drivers/lcd/*.c) \
+	$(wildcard $(PROJECT_ROOT)/drivers/led/*.c) \
+	$(wildcard $(PROJECT_ROOT)/drivers/motor/*.c) \
+	$(wildcard $(PROJECT_ROOT)/drivers/wifi/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/framework_hooks/*.c) \
 	$(PROJECT_ROOT)/trunk/root_source/algorithm/algorithm_manager.c 
 
 CC := $(if $(strip $(CROSS_COMPILE)),$(CROSS_COMPILE)gcc,gcc)
@@ -106,7 +163,7 @@ all: extra sdk
 sdk: $(EXTRA_LIB) | $(BIN_DIR)
 	$(MAKE) -C $(SDK_SRCTREE) O=$(O) T=$(T) CONFIG_CROSS_COMPILE=$(CONFIG_CROSS_COMPILE) \
 	  C++_ONLY_FLAGS+=" -fno-threadsafe-statics " \
-	  LIB_LDFLAGS+=" $(EXTRA_LIB) -Wl,-defsym,__EXTRA_LIB_MTIME=$(shell stat -c %Y $(EXTRA_LIB)) " REL_TRACE_ENABLE=$(REL_TRACE_ENABLE)
+	  LIB_LDFLAGS+=" $(EXTRA_LIB) -Wl,-defsym,__EXTRA_LIB_MTIME=$(shell stat -c %Y $(EXTRA_LIB)) " REL_TRACE_ENABLE=$(REL_TRACE_ENABLE) RTC_CALENDAR=$(RTC_CALENDAR)
 	@set -e; \
 	  out_dir="$(O)/$(T)"; \
 	  for ext in elf bin map lst; do \
@@ -152,5 +209,6 @@ print-vars:
 	@echo EXTRA_LIB=$(EXTRA_LIB)
 	@echo EXTRA_OBJS=$(EXTRA_OBJS)
 	@echo REL_TRACE_ENABLE=$(REL_TRACE_ENABLE)
+	@echo RTC_CALENDAR=$(RTC_CALENDAR)
 
 

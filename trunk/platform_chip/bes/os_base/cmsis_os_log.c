@@ -3,8 +3,8 @@
 *****************************************************************************************
 */
 #include "stdio.h"
-#include "hal_trace.h"
 #include <stdarg.h>
+#include "hal_trace.h"
 #include "cmsis_os_api.h"
 
 /*

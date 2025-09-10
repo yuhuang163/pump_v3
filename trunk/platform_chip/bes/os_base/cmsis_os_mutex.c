@@ -2,9 +2,7 @@
 * INCLUDE FILES
 *****************************************************************************************
 */
-#include "cmsis_os_api.h" // IWYU pragma: keep
 #include "root_common_api.h" // IWYU pragma: keep
-#include "heap_api.h" // IWYU pragma: keep
 
 /*
 * DEFINES

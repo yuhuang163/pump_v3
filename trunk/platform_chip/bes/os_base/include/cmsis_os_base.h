@@ -34,13 +34,25 @@ typedef osStatus os_status_e;
 
 // Priority used for thread control.
 typedef enum  {
-  OS_PRIORITY_IDLE           = -3,          ///< priority: idle (lowest)
-  OS_PRIORITY_LOW            = -2,          ///< priority: low
-  OS_PRIORITY_BELOW_NORMAL   = -1,          ///< priority: below normal
-  OS_PRIORITY_NORMAL         =  0,          ///< priority: normal (default)
-  OS_PRIORITY_ABOVE_NORMAL   = +1,          ///< priority: above normal
-  OS_PRIORITY_HIGH           = +2,          ///< priority: high
-  OS_PRIORITY_REALTIME       = +3,          ///< priority: realtime (highest）
+  OS_PRIORITY_IDLE           = 0,          ///< priority: idle (lowest)
+  OS_PRIORITY_LOW            = 1,          ///< priority: low
+  OS_PRIORITY_BELOW_NORMAL   = 2,          ///< priority: below normal
+  OS_PRIORITY_NORMAL         = 3,          ///< priority: normal (default)
+  OS_PRIORITY_ABOVE_NORMAL   = 4,          ///< priority: above normal
+  OS_PRIORITY_HIGH           = 5,          ///< priority: high
+  OS_PRIORITY_REALTIME       = 6,          ///< priority: realtime (highest)
+  OS_PRIORITY_REALTIME1      = 7,          ///< priority: realtime (highest)
+  OS_PRIORITY_REALTIME2      = 8,          ///< priority: realtime (highest)
+  OS_PRIORITY_REALTIME3      = 9,          ///< priority: realtime (highest)
+  OS_PRIORITY_REALTIME4      = 10,         ///< priority: realtime (highest)
+  OS_PRIORITY_REALTIME5      = 11,         ///< priority: realtime (highest)
+  OS_PRIORITY_REALTIME6      = 12,         ///< priority: realtime (highest)
+  OS_PRIORITY_REALTIME7      = 13,         ///< priority: realtime (highest)
+  OS_PRIORITY_REALTIME8      = 14,         ///< priority: realtime (highest)
+  OS_PRIORITY_REALTIME9      = 15,         ///< priority: realtime (highest)
+  OS_PRIORITY_REALTIME10     = 16,         ///< priority: realtime (highest)
+  OS_PRIORITY_REALTIME11     = 17,         ///< priority: realtime (highest)
+  OS_PRIORITY_REALTIME12     = 18,         ///< priority: realtime (highest)
   OS_PRIORITY_ERROR         =  0x84        ///< system cannot determine priority or thread has illegal priority
 } os_priority_e;
 
@@ -63,17 +75,16 @@ typedef struct thread_context {
   void *user_data;
   char *task_name;
   uint8_t exclusive_task;
-  int8_t core_affinity;
 } thread_context_t;
 
 bool is_interrupt_handler_wrapper(void);
-uint32_t os_kernel_systick_wrapper(void);
 os_status_e os_kernel_start_wrapper (void);
-os_status_e os_delay_wrapper (uint32_t millisec);
+bool os_kernel_running_wrapper(void);
 
 int run_new_thread_wrapper(thread_context_t *thd, const char *name_s, void *cb, int prio, int stack_s);
 int exit_thread_wrapper(thread_context_t *thd);
 os_thread_id os_thread_get_id_wrapper (void);
+char *os_thread_get_name_wrapper(thread_context_t *thd);
 os_status_e os_thread_set_priority_wrapper (os_thread_id thread_id, os_priority_e priority);
 os_priority_e os_thread_get_priority_wrapper (os_thread_id thread_id);
 os_status_e os_thread_yield_wrapper (void);

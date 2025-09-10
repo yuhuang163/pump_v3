@@ -40,7 +40,7 @@ extern "C" {
 #define IS_SUPPORT_MODULE_OTA                            (1)
 #define IS_SUPPORT_MODULE_MISC                           (1)
 #define IS_SUPPORT_MODULE_MOTOR                          (1)
-#define IS_SUPPORT_MODULE_PUMP                          (1)
+#define IS_SUPPORT_MODULE_BREATH_PUMP                    (1)
 #define IS_SUPPORT_MODULE_US_ALGO                        (1)
 #define IS_SUPPORT_MODULE_AUDIO                          (1)
 #define IS_SUPPORT_MODULE_AIRPLANE                       (1)

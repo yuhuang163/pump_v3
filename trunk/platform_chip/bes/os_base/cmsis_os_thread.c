@@ -2,7 +2,6 @@
 * INCLUDE FILES
 *****************************************************************************************
 */
-#include "cmsis_os_api.h"
 #include "root_common_api.h" // IWYU pragma: keep
 
 /*
@@ -31,14 +30,24 @@ static uint8_t s_thd_total_num = 0;
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-os_status_e os_kernel_start (void)
+os_status_e os_kernel_start_wrapper(void)
 {
+    #if 0
     return osKernelStart();
+    #else
+    osThreadExit();
+    return osOK;
+    #endif
 }
 
-bool os_kernel_running(void)
+bool os_kernel_running_wrapper(void)
 {
     return osKernelGetState() == osKernelRunning ? 1 : 0;
+}
+
+char *os_thread_get_name_wrapper(thread_context_t *thd)
+{
+    return (char *)thd->p_thd->attr.name;
 }
 
 os_thread_id os_thread_create_wrapper(const os_thread_def_t *thread_def, void *argument)
@@ -64,11 +73,6 @@ os_status_e os_thread_set_priority_wrapper(os_thread_id thread_id, os_priority_e
 os_priority_e os_thread_get_priority_wrapper(os_thread_id thread_id)
 {
     return (os_priority_e)osThreadGetPriority(thread_id);
-}
-
-os_status_e os_delay_wrapper(uint32_t millisec)
-{
-    return osDelay(millisec);
 }
 
 os_thread_state_e os_thread_get_state_wrapper(os_thread_id thread_id)

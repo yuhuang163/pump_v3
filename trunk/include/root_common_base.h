@@ -13,9 +13,35 @@ extern "C" {
 #include <stdbool.h> // IWYU pragma: keep
 #include <stddef.h> // IWYU pragma: keep
 #include <string.h> // IWYU pragma: keep
+#include "time_utils.h" // IWYU pragma: keep
+#include "cmsis_os_api.h" // IWYU pragma: keep
 
 #include "root_list_api.h" // IWYU pragma: keep
 #include "root_log_define.h" // IWYU pragma: keep
+
+#include "product_info.h" // IWYU pragma: keep
+#include "project_config.h" // IWYU pragma: keep
+#include "project_log_filter.h" // IWYU pragma: keep
+#include "project_partitions.h" // IWYU pragma: keep
+#include "project_support_overlay.h" // IWYU pragma: keep
+
+#include "project_default_features.h" // IWYU pragma: keep
+#include "project_default_parameter.h" // IWYU pragma: keep
+
+#include "hal_audio.h" // IWYU pragma: keep
+#include "hal_battery.h" // IWYU pragma: keep
+#include "hal_ble.h" // IWYU pragma: keep
+#include "hal_database.h" // IWYU pragma: keep
+#include "hal_flash.h" // IWYU pragma: keep
+#include "hal_force_sensor.h" // IWYU pragma: keep
+#include "hal_imu.h" // IWYU pragma: keep
+#include "hal_input.h" // IWYU pragma: keep
+#include "hal_led.h" // IWYU pragma: keep
+#include "hal_motor.h" // IWYU pragma: keep
+#include "hal_panel.h" // IWYU pragma: keep
+#include "hal_pmu.h" // IWYU pragma: keep
+#include "hal_power.h" // IWYU pragma: keep
+#include "hal_uart.h" // IWYU pragma: keep
 
 // 内存申请宏定义.
 #define MALLOC_FOR_PTR(ptr, __struct_type) \

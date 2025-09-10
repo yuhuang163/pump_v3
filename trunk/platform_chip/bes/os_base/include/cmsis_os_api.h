@@ -11,8 +11,9 @@ extern "C" {
  ******************************************************************************/
 #include "cmsis_os_base.h" // IWYU pragma: keep
 #include "hal_trace.h"
+#include "cmsis.h"
 
-// log define
+/// log define
 #ifndef PRINT_LOG
 #define PRINT_LOG(...)  platform_printf(__VA_ARGS__)
 #endif
@@ -26,16 +27,18 @@ extern "C" {
 #define TO_STR(str)                #str
 
 #if IS_SUPPORT_THREAD
-// 创建新线程
+/// 创建新线程
 #define RUN_NEW_THREAD(thd, name_s, cb, prio, stack_s) \
     run_new_thread_wrapper((thd), (name_s), (cb), (prio), (stack_s))
 
-// 退出线程
+/// 退出线程
 #define EXIT_THREAD(thd) exit_thread_wrapper(thd)
+/// 获取线程名称
+#define THREAD_NAME_GET(thd) os_thread_get_name_wrapper(thd)
 #else
 #define RUN_NEW_THREAD(thd, name_s, cb, prio, stack_s) do { ; } while (0)
-#define RUN_NEW_THREAD_CORE_AFFINITY(thd, name_s, cb, prio, stack_s, cpu_id) do { ; } while (0)
 #define EXIT_THREAD(thd) do { ; } while (0)
+#define THREAD_NAME_GET(thd) do { ; } while (0)
 #endif
 
 // 消息队列宏定义.
@@ -59,7 +62,7 @@ extern "C" {
 #define DELETE_MSG_QUEUE(msg_id_ptr)                  do { ; } while (0)
 #endif
 
-// 定时器宏定义.
+/// 定时器宏定义.
 #if IS_SUPPORT_TIME
 #define CREATE_TIMER(timer_id_ptr, name_s, user_data, type, cb) \
     os_create_timer_wrapper(timer_id_ptr, name_s, user_data, type, (os_ptimer)cb)
@@ -73,7 +76,7 @@ extern "C" {
 #define DELETE_TIMER(timer_id)          do { ; } while (0)
 #endif
 
-// 互斥锁宏定义.
+/// 互斥锁宏定义.
 #if IS_SUPPORT_MUTEX
 #define MUTEX_INIT_HG(x, name)          os_mutex_create_wrapper((x), TO_STR(name))
 #define MUTEX_LOCK_HG(x, timeout)       os_mutex_wait_wrapper((x), timeout)
@@ -87,7 +90,7 @@ extern "C" {
     } while (0)
 
 #define MUTEX_INIT(x, name)             MUTEX_INIT_HOLD(x, name, 0)
-#define MUTEX_LOCK(x)                   MUTEX_LOCK_HG(x)
+#define MUTEX_LOCK(x)                   MUTEX_LOCK_HG(x, OS_WAIT_FOREVER)
 #define MUTEX_UNLOCK(x)                 MUTEX_UNLOCK_HG(x)
 
 #define MUTEX_DELETE(x) \
@@ -103,7 +106,7 @@ extern "C" {
 #define MUTEX_UNLOCK(x)         do { ; } while (0)
 #endif
 
-// 信号量宏定义.
+/// 信号量宏定义.
 #if IS_SUPPORT_SEM_T
 #define U_SEM_INIT(sem_id_p, count) \
     do { \
@@ -121,51 +124,53 @@ extern "C" {
 #define U_SEM_DELETE(sem_id)            do { ; } while (0)
 #endif
 
+typedef struct RTC_CALENDAR_FORMAT_T utc_time_t;
+
 /*
  * GLOBAL FUNCTION DECLARATION
  *****************************************************************************************
  */
 
-// 初始化u_heap.
+/// 初始化u_heap.
 void u_heap_init(void);
-// 获取u_heap的空闲空间大小.
+/// 获取u_heap的空闲空间大小.
 uint32_t u_heap_free_size_get(void);
-// 分配内存.
+/// 分配内存.
 void *u_malloc(uint32_t size);
-// 分配内存并初始化.
+/// 分配内存并初始化.
 void *u_malloz(uint32_t size);
-// 重新分配内存.
+/// 重新分配内存.
 void *u_realloc(void *p1, uint32_t size);
-// 释放内存.
+/// 释放内存.
 int u_free(void *p);
-// 分配内存并按指定对齐.
+/// 分配内存并按指定对齐.
 void *u_malloc_align(uint32_t size, uint32_t align);
-// 分配内存并按指定对齐并初始化.
+/// 分配内存并按指定对齐并初始化.
 void *u_malloz_align(uint32_t size, uint32_t align);
-// 释放对齐的内存.
+/// 释放对齐的内存.
 int u_free_align(void *p);
-// 输出堆信息.
+/// 输出堆信息.
 void u_heap_info_output(void);
-// 休眠毫秒.
+/// 休眠毫秒.
 void msleep(uint32_t time_ms);
-// 早期初始化接口.
+/// 早期初始化接口.
 void platform_prepare_init(void);
-// 后期初始化接口.
+/// 后期初始化接口.
 void platform_post_init(void);
-// 平台相关轮询信息打印接口.
+/// 平台相关轮询信息打印接口.
 void platform_sysinfo_print(void *user_data);
-// 平台提供的获取UTC时间戳接口.
+/// 平台提供的获取UTC时间戳接口.
 uint32_t platform_get_utc_time(void);
 uint64_t platform_get_utc_time_ms(void);
-// 平台提供的设置UTC时间戳接口.
+/// 平台提供的设置UTC时间戳接口.
 void platform_set_utc_time(uint32_t timestemp, int timezone);
-// 平台提供的获取构建时间接口.
+/// 平台提供的获取构建时间接口.
 void platform_get_build_time(char *build_time);
-// 平台提供的获取当前时间戳接口.
+/// 平台提供的获取当前时间戳接口.
 uint32_t get_timestamp(void);
-// 系统重启.
+/// 系统重启.
 void platform_system_reboot(void);
-// 平台提供的获取线程ID接口.
+/// 平台提供的获取线程ID接口.
 int platform_get_tid(void);
 
 #ifdef __cplusplus

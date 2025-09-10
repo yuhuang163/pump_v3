@@ -2,14 +2,9 @@
 * INCLUDE FILES
 *****************************************************************************************
 */
-#include "root_log_define.h"
-#include "stdio.h"
-#include "string.h" // IWYU pragma: keep
 #include "pmu.h"
-#include "watchdog/watchdog.h"
-
 #include "hal_trace.h"
-#include "cmsis_os_api.h"    // IWYU pragma: keep
+#include "watchdog/watchdog.h"
 #include "root_common_api.h" // IWYU pragma: keep
 
 /*
@@ -47,15 +42,12 @@ static void platform_wdt_refresh(void)
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-void msleep(uint32_t time_ms)
-{
-    os_delay_wrapper(time_ms);
-}
-
 void platform_prepare_init(void)
 {
     u_heap_init();
     os_mutex_module_init();
+    platform_set_utc_time(PRODUCT_BUILD_TIMESTAMP, 8);
+    LOGI("platform_prepare_init");
 }
 
 void platform_post_init(void) 
@@ -66,11 +58,6 @@ void platform_post_init(void)
 void platform_sysinfo_print(void *user_data)
 {
     u_heap_info_output();
-}
-
-uint32_t get_timestamp(void)
-{
-    return os_kernel_systick_wrapper();
 }
 
 int platform_get_tid(void)
@@ -87,19 +74,23 @@ void platform_system_reboot(void)
 
 uint32_t platform_get_utc_time(void)
 {
-    return 0;
+    utc_time_t utc_time = {0};
+    pmu_rtc_calendar_get(&utc_time);
+    return utc_time_to_timestamp(&utc_time);
 }
 
 uint64_t platform_get_utc_time_ms(void)
 {
-    return 0;
+    return platform_get_utc_time() * 1000;
 }
 
 void platform_set_utc_time(uint32_t timestemp, int timezone)
 {
-    // TODO: Implement UTC time setting logic
-    (void)timestemp;  // Suppress unused parameter warning
-    (void)timezone;   // Suppress unused parameter warning
+    utc_time_t utc_time = {0};
+    timestamp_to_utc_time(timestemp, &utc_time);
+    LOGI("utc_time: %d-%d-%d %d:%d:%d", utc_time.year, utc_time.month, 
+        utc_time.day, utc_time.hour, utc_time.minute, utc_time.second);
+    pmu_rtc_calendar_set(&utc_time);
 }
 
 void platform_get_build_time(char *build_time)

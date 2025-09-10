@@ -2,11 +2,11 @@
 * INCLUDE FILES
 *****************************************************************************************
 */
-#include <stdio.h>
+#include <stdio.h> // IWYU pragma: keep
 #include <stdint.h>
-#include <string.h>
-#include "cmsis_os_api.h"
-#include "root_common_api.h"
+#include <string.h> // IWYU pragma: keep
+#include "cmsis_os_api.h" // IWYU pragma: keep
+#include "root_common_api.h" // IWYU pragma: keep
 
 /*
 * DEFINES

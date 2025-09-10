@@ -9,7 +9,7 @@ extern "C" {
 /*******************************************************************************
  * Include files
  ******************************************************************************/
-#include "mova_common_api.h"
+#include "root_common_api.h"
 
 /*
  * GLOBAL FUNCTION DECLARATION

@@ -4,8 +4,8 @@
 */
 #include <stdint.h>
 #include <stdbool.h>
-#include "cmsis_os_api.h" 
-#include "rtx_lib.h" 
+#include "rtx_lib.h"  // IWYU pragma: keep
+#include "cmsis_os_api.h"  // IWYU pragma: keep
 
 /*
 * DEFINES
@@ -40,8 +40,12 @@ bool is_interrupt_handler_wrapper(void)
     }
 }
 
-uint32_t os_kernel_systick_wrapper(void)
+void msleep(uint32_t time_ms)
+{
+    osDelay(time_ms);
+}
+
+uint32_t get_timestamp(void)
 {
     return osKernelGetSysTimerCount();
 }
-

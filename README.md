@@ -22,8 +22,10 @@ FIRMWARE_V3/
 │   ├── ble/                         ← 低功耗蓝牙控制器相关适配
 │   ├── common/                      ← 驱动通用工具/适配层
 │   ├── database/                    ← 简易KV/参数存储（如有）
+│   ├── fatfs/                       ← FATFS 文件系统适配
 │   ├── flash/                       ← 外部/内部Flash访问
 │   ├── force_sensor/                ← 力传感器/压力传感器
+│   ├── i2c/                         ← 通用I2C总线驱动/适配
 │   ├── imu/                         ← 惯性传感器（加计/陀螺/融合）
 │   ├── key/                         ← 物理按键/触摸按键扫描
 │   ├── lcd/                         ← 显示屏/显示控制器
@@ -70,14 +72,20 @@ FIRMWARE_V3/
     │   ├── audio_manager_api.h      ← 音频管理接口
     │   ├── ble_manager_api.h        ← BLE管理接口
     │   ├── broadcast_manager_api.h  ← 广播管理接口
+    │   ├── handler_post.h           ← 任务/消息派发接口
+    │   ├── hang_detect.h            ← 卡死检测/线程看门狗
     │   ├── misc_manager_api.h       ← 杂项能力管理接口
     │   ├── motor_manager_api.h      ← 马达管理接口
     │   ├── ota_manager_api.h        ← OTA升级管理接口
     │   ├── peripheral_bus_api.h     ← 外设总线接口
     │   ├── power_manager_api.h      ← 电源管理接口
+    │   ├── time_system_api.h        ← 时间系统接口
+    │   ├── thread_api.h             ← 线程接口抽象
     │   ├── resource_manager_api.h   ← 资源管理接口
     │   ├── root_common.h            ← 通用接口集合
     │   ├── root_common_api.h        ← 通用接口集合（已统一命名）
+    │   ├── root_common_config.h     ← 统一配置/线程栈与优先级
+    │   ├── root_common_register.h   ← 模块注册/框架入口
     │   ├── root_common_base.h       ← 公共基类/宏/类型
     │   ├── root_list_api.h          ← 链表管理接口（新增）
     │   ├── root_log_define.h        ← 日志系统定义
@@ -90,6 +98,7 @@ FIRMWARE_V3/
     │   ├── audio/                   ← 音频子系统
     │   ├── base/                    ← 基础设施（初始化/错误码/工具）
     │   ├── ble/                     ← BLE主干（Host/Profile/Manager）
+    │   ├── breath_pump/             ← 吸奶泵示例模块（演示/占位）
     │   ├── hal/                     ← 面向上层的硬件抽象
     │   ├── input/                   ← 输入系统（按键/触摸）
     │   ├── misc/                    ← 杂项能力（时间/随机数/配置）
@@ -149,6 +158,30 @@ FIRMWARE_V3/
 ### 5. 链表管理接口
 - **文件**: `trunk/include/root_list_api.h`
 - **功能**: 通用链表数据结构管理接口
+
+### 6. 任务/消息派发（Handler Post）
+- **文件**: `trunk/include/handler_post.h`
+- **功能**: 轻量级任务/消息派发与异步执行，降低线程耦合
+
+### 7. 卡死检测（Hang Detect）
+- **文件**: `trunk/include/hang_detect.h`
+- **功能**: 线程卡死/超时检测，支持独立监控线程
+
+### 8. 通用I2C总线驱动
+- **目录**: `drivers/i2c/`
+- **功能**: 统一I2C适配层，支持后续多设备挂载
+
+### 9. FATFS 文件系统适配
+- **目录**: `drivers/fatfs/`
+- **功能**: 对接 FATFS，提供基础文件系统能力
+
+### 10. 吸奶泵示例模块（Breath Pump）
+- **目录**: `trunk/root_source/breath_pump/`
+- **功能**: 示例子系统结构与接入方式（占位/演示）
+
+### 11. 统一配置基座
+- **文件**: `trunk/include/root_common_config.h`
+- **功能**: 统一线程优先级、栈深与关键业务配置项
 
 ## 体系结构（逻辑分层）
 
