@@ -13,20 +13,31 @@ extern "C" {
 #include "root_common_config.h" // IWYU pragma: keep
 #include "root_common.h" // IWYU pragma: keep
 #include "root_message.h" // IWYU pragma: keep
+#include "root_storage_base.h" // IWYU pragma: keep
 #include "thread_api.h" // IWYU pragma: keep
 #include "handler_post.h" // IWYU pragma: keep
 #include "hang_detect.h" // IWYU pragma: keep
+#include "app_algo.h" // IWYU pragma: keep
+
+#include "system_persist_data.h" // IWYU pragma: keep
 
 #include "broadcast_manager_api.h" // IWYU pragma: keep
 #include "peripheral_bus_api.h" // IWYU pragma: keep
 #include "storage_manager_api.h" // IWYU pragma: keep
 #include "power_manager_api.h" // IWYU pragma: keep
 #include "time_system_api.h" // IWYU pragma: keep
+#include "misc_manager_api.h" // IWYU pragma: keep
+#include "windows_manager_api.h" // IWYU pragma: keep
+#include "ota_manager_api.h" // IWYU pragma: keep
+#include "resource_manager_api.h" // IWYU pragma: keep
+#include "key_input_manager_api.h" // IWYU pragma: keep
+#include "airplane_mode_api.h" // IWYU pragma: keep
+#include "sensor_manager_api.h" // IWYU pragma: keep
 
 #define ADD_MODULE(name, id, perpare_init_cb, post_init_cb, ptr, list_head, mem_usage) \
     add_new_module(name, id, perpare_init_cb, post_init_cb, ptr, list_head, mem_usage)
 
-// 定义各个组件id.
+/// 定义各个组件id.
 typedef enum {
     ID_MODULE_BEGIN = 0,
 
@@ -38,7 +49,8 @@ typedef enum {
 
     ID_MODULE_ALGO_HUB,
     ID_MODULE_STORAGE,
-    ID_MODULE_INPUT,
+    ID_MODULE_KEY_INPUT,
+    ID_MODULE_SENSOR,
     ID_MODULE_BLE,
     ID_MODULE_OTA,
 
@@ -60,7 +72,7 @@ typedef enum {
     ID_MODULE_MAX
 } module_desc_id_e;
 
-// 描述每个组件对象节点.
+/// 描述每个组件对象节点.
 typedef struct module_node {
     const char *name;
     module_desc_id_e id;
@@ -71,6 +83,8 @@ typedef struct module_node {
     list_head_t list;
 } module_node_t;
 
+#define CREATE_MSG_QUEUE(msg_id_ptr, queue_num) \
+    CREATE_MSG_TYPE_QUEUE(msg_id_ptr, queue_num, sizeof(multi_func_msg_data_t))
 /*
  * GLOBAL FUNCTION DECLARATION
  *****************************************************************************************
@@ -81,10 +95,6 @@ void framework_extra_hook(void);
 void __system_reboot(const char *reason);
 /// 注册接口.
 int register_interface_for_file_download(void *ptr);
-/// 注册rtc时间回调.
-// void register_rtc_time_elapsed_callback(rtc_bsp_interface_t *rtc_if);
-/// 注册ble回调.
-// void register_ble_opt_interface_callback(ble_opt_interface_t *ptr);
 /// 注册模块.
 int init_module(void);
 /// 注册模块.

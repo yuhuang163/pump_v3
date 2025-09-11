@@ -345,7 +345,6 @@ static int battery_voltage_poll(void)
         /// LOGE("battery poll error:%ld", poll_interval);
         return BSP_ERROR;
     }
-    bsp_motor_task_monitor();
     
     s_batt_poll_time = get_timestamp();
     log_timer++;

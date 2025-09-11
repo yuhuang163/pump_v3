@@ -49,6 +49,17 @@ SDK_INCLUDE_PATHS := \
 	-I$(PROJECT_ROOT)/drivers/led \
 	-I$(PROJECT_ROOT)/drivers/motor \
 	-I$(PROJECT_ROOT)/drivers/wifi \
+	-I$(PROJECT_ROOT)/overlay/framework_hooks \
+	-I$(PROJECT_ROOT)/overlay/framework_hooks/algo \
+	-I$(PROJECT_ROOT)/overlay/windows/battery \
+	-I$(PROJECT_ROOT)/overlay/windows/breath_pump \
+	-I$(PROJECT_ROOT)/overlay/windows/charge \
+	-I$(PROJECT_ROOT)/overlay/windows/dummy \
+	-I$(PROJECT_ROOT)/overlay/windows/home \
+	-I$(PROJECT_ROOT)/overlay/windows/logo \
+	-I$(PROJECT_ROOT)/overlay/windows/ota \
+	-I$(PROJECT_ROOT)/overlay/windows/pop_windows \
+	-I$(PROJECT_ROOT)/overlay/windows/setting \
 	-I$(PROJECT_ROOT)/trunk/include \
 	-I$(PROJECT_ROOT)/trunk/extern \
 	-I$(PROJECT_ROOT)/trunk/root_source/airplane \
@@ -134,6 +145,8 @@ EXTRA_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/drivers/audio/*.c) \
 	$(wildcard $(PROJECT_ROOT)/drivers/base/*.c) \
 	$(wildcard $(PROJECT_ROOT)/drivers/battery/*.c) \
+	$(wildcard $(PROJECT_ROOT)/drivers/battery/charge/*.c) \
+	$(wildcard $(PROJECT_ROOT)/drivers/battery/adc/*.c) \
 	$(wildcard $(PROJECT_ROOT)/drivers/ble/*.c) \
 	$(wildcard $(PROJECT_ROOT)/drivers/common/*.c) \
 	$(wildcard $(PROJECT_ROOT)/drivers/database/*.c) \
@@ -148,7 +161,32 @@ EXTRA_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/drivers/motor/*.c) \
 	$(wildcard $(PROJECT_ROOT)/drivers/wifi/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/framework_hooks/*.c) \
-	$(PROJECT_ROOT)/trunk/root_source/algorithm/algorithm_manager.c 
+	$(wildcard $(PROJECT_ROOT)/overlay/framework_hooks/algo/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/windows/battery/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/windows/breath_pump/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/windows/charge/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/windows/dummy/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/windows/home/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/windows/logo/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/windows/ota/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/windows/pop_windows/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/windows/setting/*.c) \
+	$(wildcard $(PROJECT_ROOT)/trunk/root_source/airplane/*.c) \
+	$(wildcard $(PROJECT_ROOT)/trunk/root_source/algorithm/*.c) \
+	$(wildcard $(PROJECT_ROOT)/trunk/root_source/audio/*.c) \
+	$(wildcard $(PROJECT_ROOT)/trunk/root_source/ble/*.c) \
+	$(wildcard $(PROJECT_ROOT)/trunk/root_source/breath_pump/*.c) \
+	$(wildcard $(PROJECT_ROOT)/trunk/root_source/key_input/*.c) \
+	$(wildcard $(PROJECT_ROOT)/trunk/root_source/misc/*.c) \
+	$(wildcard $(PROJECT_ROOT)/trunk/root_source/motor/*.c) \
+	$(wildcard $(PROJECT_ROOT)/trunk/root_source/network/*.c) \
+	$(wildcard $(PROJECT_ROOT)/trunk/root_source/ota/*.c) \
+	$(wildcard $(PROJECT_ROOT)/trunk/root_source/pm/*.c) \
+	$(wildcard $(PROJECT_ROOT)/trunk/root_source/protocol/*.c) \
+	$(wildcard $(PROJECT_ROOT)/trunk/root_source/resource/*.c) \
+	$(wildcard $(PROJECT_ROOT)/trunk/root_source/sensor/*.c) \
+	$(wildcard $(PROJECT_ROOT)/trunk/root_source/storage/*.c) \
+	$(wildcard $(PROJECT_ROOT)/trunk/root_source/windows/*.c) 
 
 CC := $(if $(strip $(CROSS_COMPILE)),$(CROSS_COMPILE)gcc,gcc)
 AR := $(if $(strip $(CROSS_COMPILE)),$(CROSS_COMPILE)ar,ar)

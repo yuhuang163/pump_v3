@@ -10,7 +10,6 @@ extern "C" {
  * Include files
  ******************************************************************************/
 #include "root_common_base.h" // IWYU pragma: keep
-#include "storage_manager_api.h"
 #include "broadcast_manager_api.h"
 
 typedef void (*key_input_evt_cb_fptr)(void *user_data, uint16_t keycode, uint16_t keytype);
@@ -146,7 +145,7 @@ do { \
 * 所有的外设驱动都挂在这个结构内部.
 */ 
 typedef struct peripheral_bus_context {
-// public:
+/// public:
     int (*resume)(void);
     int (*suspend)(void);
     int (*pmu_sleep_poll)(void);
@@ -155,10 +154,10 @@ typedef struct peripheral_bus_context {
     void *(*get_persist_memroy)(void);
     bool (*device_init_completed)(void);
 
-    // 通过ID获取对应的设备驱动实例.
+    /// 通过ID获取对应的设备驱动实例.
     void *(*find_device)(device_desc_id_e id);
 
-    // 外部钩子函数.
+    /// 外部钩子函数.
     struct __peripheral_bus_hook {
         int (*on_module_init)(struct peripheral_bus_context *context);
         int (*on_receiver_route)(broadcast_mask_id_t id, void *context, int arg1, int arg2, void *user_data);
@@ -167,7 +166,7 @@ typedef struct peripheral_bus_context {
         void (*wait_ship_mode_exit)(void);
     } *hook;
 
-// private:
+/// private:
     struct __peripheral_private {
         broadcast_obj_t *receiver;
         list_head_t device_obj_list;

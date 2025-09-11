@@ -10,10 +10,10 @@ extern "C" {
  ******************************************************************************/
 #include "cmsis_os_api.h" // IWYU pragma: keep
 
-// 各关键业务线程优先级定义.
+/// 各关键业务线程优先级定义.
 #define RT_PRIO_MAIN_THREAD                            OS_PRIORITY_REALTIME5
 #define RT_PRIO_MISC_DISPATCH_THREAD                   OS_PRIORITY_BELOW_NORMAL
-#define RT_PRIO_BREATH_PUMP_DISPATCH_THREAD             OS_PRIORITY_NORMAL
+#define RT_PRIO_BREATH_PUMP_DISPATCH_THREAD            OS_PRIORITY_NORMAL
 #define RT_PRIO_OTA_DISPATCH_THREAD                    OS_PRIORITY_REALTIME
 #define RT_PRIO_LVGL_HANDLER_THREAD                    OS_PRIORITY_REALTIME
 #define RT_PRIO_BRC_DISPATCH_THREAD                    OS_PRIORITY_REALTIME
@@ -51,7 +51,7 @@ extern "C" {
 #define RT_PRIO_MOTOR_DRIVER_THREAD                    OS_PRIORITY_NORMAL
 #endif
 
-//  各关键业务线程栈深度, 默认线程单位栈深1KB
+///  各关键业务线程栈深度, 默认线程单位栈深1KB
 #ifndef TASK_SIZE_DEFAULT
 #define TASK_SIZE_DEFAULT                              (1024)
 #endif
@@ -128,7 +128,7 @@ extern "C" {
 #define MOTOR_DRIVER_THREAD_STACKSIZE                  (TASK_SIZE_DEFAULT * 1 + 0)
 #endif
 
-// 各关键业务消息队列数量定义.
+/// 各关键业务消息队列数量定义.
 #define DISP_DISPATCH_EVT_MESQ_NUM                    (10)
 #define INPUT_DISPATCH_KEY_EVT_MESQ_NUM               (2)
 #define INPUT_DISPATCH_SENSOR_EVT_MESQ_NUM            (2)

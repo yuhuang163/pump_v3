@@ -9,13 +9,11 @@ extern "C" {
 /*******************************************************************************
  * Include files
  ******************************************************************************/
-#include <stdio.h> 
-#include <stdint.h>
-#include <stddef.h>
+#include "root_common_base.h" // IWYU pragma: keep
 #include "project_log_filter.h" // IWYU pragma: keep
 #include "project_support_overlay.h"
 
-// 日志颜色.
+/// 日志颜色.
 #if IS_SUPPORT_LOG_COLOR
 #define LOG_COLOR_BLACK   "30"
 #define LOG_COLOR_RED     "31"
@@ -40,9 +38,9 @@ extern "C" {
 #define LOG_COLOR_I
 #define LOG_COLOR_D
 #define LOG_COLOR_V
-#endif //LOG_COLOR_SUPPORT
+#endif /// LOG_COLOR_SUPPORT
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/// public
 extern uint16_t g_log_level_set;
 extern uint32_t g_log_filter;
 
@@ -52,9 +50,8 @@ int platform_get_tid(void);
 void reset_log_filter(uint32_t filter);
 void init_user_log_filter(void);
 uint32_t get_log_filter(void);
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-// log level define
+/// log level define
 typedef enum {
     US_LOG_LEVEL_NONE = 0,
     US_LOG_LEVEL_ERROR,
@@ -178,7 +175,7 @@ do { \
 
 
 
-#else // LOG_OUT_SUPPORT
+#else /// LOG_OUT_SUPPORT
 
 #define LOG_PM(...)         do { } while(0)
 #define LOG_PBUS(...)       do { } while(0)
@@ -211,7 +208,7 @@ do { \
 #define LOGD(format, args...) do { } while(0)
 #define LOGV(format, args...) do { } while(0)
 
-#endif // LOG_OUT_SUPPORT
+#endif /// LOG_OUT_SUPPORT
 
 
 #ifdef __cplusplus

@@ -2,7 +2,7 @@
 * INCLUDE FILES
 *****************************************************************************************
 */
-#include "root_common_api.h" // IWYU pragma: keep
+#include "root_common_api.h" 
 #include "root_common_register.h"
 
 /*
@@ -39,8 +39,11 @@ static const module_register_fptr s_module_register[] = {
     #if IS_SUPPORT_MODULE_WM
     register_module_for_window_manager_new,
     #endif
-    #if IS_SUPPORT_MODULE_INPUT
-    register_module_for_input_manager_new,
+    #if IS_SUPPORT_MODULE_KEY_INPUT
+    register_module_for_key_input_manager_new,
+    #endif
+    #if IS_SUPPORT_MODULE_SENSOR
+    register_module_for_sensor_manager_new,
     #endif
     #if IS_SUPPORT_MODULE_OTA
     register_module_for_ota_manager_new,

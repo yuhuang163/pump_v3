@@ -48,21 +48,21 @@ typedef enum {
     ID_BROADCAST_SYS_PERSIST_INFO_SAVE = (1 << 8),          // 持久化存储.
     ID_BROADCAST_REQ_PM_SUSPEND_BY_USER = (1 << 9),         // User请求主动睡下去.
     ID_BROADCAST_FACTORY_TEST_CMD = (1 << 10),              // 工厂测试指令.
-    ID_BROADCAST_SYS_BREATH_PUMP_MODE_CHANGE = (1 << 11),         // 吸奶模式切换.
+    ID_BROADCAST_BREATH_PUMP_MODE_CHANGE = (1 << 11),       // 吸奶模式切换.
     ID_BROADCAST_THEME_CHANGE = (1 << 12),                  // 主题切换
     ID_BROADCAST_DELETE_MODE_UPDATE = (1 << 13),            // 删除模式后刷新页面.
     ID_BROADCAST_OTA_UI_SCREEN_STATE_CHANGE = (1 << 14),    // ota升级ui进入/退出
-    ID_BROADCAST_SYS_BREATH_PUMP_MODE_SOUND = (1 << 15),          // 模式声音播放
+    ID_BROADCAST_BREATH_PUMP_MODE_SOUND = (1 << 15),        // 模式声音播放
     ID_BROADCAST_SYS_SHUTDOWN = (1 << 16),                  // 系统关机.
     ID_BROADCAST_SET_BLACKLIGHT_BY_USER = (1 << 17),        // 设置背光状态.
     ID_BROADCAST_PM_FREEZE_STATE_CHANGE = (1 << 18),        // PM freeze状态改变.
     ID_BROADCAST_VOICE_SWITCH_STATE_CHANGE = (1 << 19),     // 语音开关状态改变.
-    ID_BROADCAST_SYS_PLAY_SOUND = (1 << 20),                // 语音播放
-    ID_BROADCAST_SYS_PUMP_STATE_CHANGE = (1 << 21),         // 泵状态改变.
+    ID_BROADCAST_PLAY_SOUND = (1 << 20),                    // 语音播放
+    ID_BROADCAST_BREATH_PUMP_STATE_CHANGE = (1 << 21),      // 泵状态改变.
     ID_BROADCAST_AIRPLANE_MODE_STATE_CHANGE = (1 << 22),    // 飞行模式状态改变.
-    ID_BROADCAST_SYS_BREATH_PUMP_EVENT_SOUND_NOTIC = (1 << 23),   // 吸奶事件语音提醒
+    ID_BROADCAST_BREATH_PUMP_EVENT_SOUND_NOTIC = (1 << 23), // 吸奶事件语音提醒
     ID_BROADCAST_UPDATE_MOTOR_WORK_PARAMETER = (1 << 24),   // 更新马达运行参数.
-    ID_BROADCAST_BREATH_PUMP_AREA_CHANGE = (1 << 25),             // 吸奶面变化
+    ID_BROADCAST_BREATH_PUMP_AREA_CHANGE = (1 << 25),       // 吸奶面变化
     
     // add new broadcast id above this.
     ID_BROADCAST_END,

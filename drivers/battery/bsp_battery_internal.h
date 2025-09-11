@@ -11,6 +11,7 @@ extern "C" {
 ******************************************************************************/
 #include <stdio.h>
 #include <stdint.h>
+#include <stdbool.h>
 #include "bsp_internal.h"
 
 /**@brief Firmware information define*/
@@ -89,7 +90,7 @@ typedef struct {
 * GLOBAL FUNCTION DECLARATION
 *****************************************************************************************
 */
-int vbus_is_plug_in(void);
+bool vbus_is_plug_in(void);
 int get_charge_state(void);
 int get_charge_full_debounce(void);
 void add_charge_irq_callback(void (*cb)(void *param));

@@ -130,13 +130,24 @@ int run_new_thread_wrapper(thread_context_t *thd, const char *name_s, void *cb, 
         LOGE("Oops! osThreadNew: fail %s", "thd->tid");
         return -1;
     }
+    s_thd_total_statck_size += stack_s;
+    s_thd_total_num++;
+
+    LOGI("(%d)new:name:%s, tid:%ld, stacksize:%d/total_statck_size:%lu, free_heap_size:%lu\n", 
+        s_thd_total_num, name_s, (uint32_t)(thd->tid), stack_s, s_thd_total_statck_size, u_heap_free_size_get());
+    
     return 0;
 }
  
 int exit_thread_wrapper(thread_context_t *thd)
 {
     os_thread_id id = thd->tid;
-    LOGI("exit_thread_wrapper: %p, %p", thd, id);
+    int stack_s = thd->p_thd->attr.stack_size;
+    s_thd_total_statck_size -= stack_s;
+    s_thd_total_num--;
+    LOGI("(%d)exit:name:%s, tid:%ld, stacksize:%d/total_statck_size:%lu, free_heap_size:%lu\n", 
+        s_thd_total_num, thd->p_thd->attr.name, (uint32_t)(thd->tid), thd->p_thd->attr.stack_size, 
+        s_thd_total_statck_size, u_heap_free_size_get());
     u_free(thd->p_thd);
     u_free_align(thd->p_thd->attr.stack_mem);
     os_status_e status = osThreadTerminate(id);

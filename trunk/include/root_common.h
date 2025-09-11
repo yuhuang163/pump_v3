@@ -22,7 +22,7 @@ extern "C" {
 #define abs(x)                              ((x) < 0 ? -(x) : (x))
 #endif
 
-// 异常检查宏定义.
+/// 异常检查宏定义.
 #define LOG_EXCP      LOGW
 // #define LOG_EXCP(...)   do {} while (0)
 #define EXCEPTION_CHECK_VOID(x)     __EXCEPTION_POINTER_CHECK("", x, ;)
@@ -58,10 +58,10 @@ do { \
 #define BIT_MASK(x)                 (1 << (x))
 #endif
 
-// 计算CRC16.
+/// 计算CRC16.
 #define CRC16(data, len)            crc16_compute((const uint8_t *)(data), len, NULL)
 
-// 空指针检查判断.
+/// 空指针检查判断.
 #define CHECK_IF_VALID(x, closure) \
 do { \
     if (x) { \
@@ -69,7 +69,7 @@ do { \
     } \
 } while (0)
 
-#define INTERVAL_SECOND_EACH_TIME_ZONE  3600    // sec, (60*60)
+#define INTERVAL_SECOND_EACH_TIME_ZONE  3600    /// sec, (60*60)
 
 #if IS_SUPPORT_IMU_FIFO
 #define dump_imu(__imu) \

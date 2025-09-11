@@ -2,7 +2,7 @@
 * INCLUDE FILES
 *****************************************************************************************
 */
-#include "root_common_api.h" // IWYU pragma: keep
+#include "root_common_api.h" 
 #include "root_common_register.h"
 
 /*
@@ -31,7 +31,7 @@ static const device_register_fptr s_device_register[] = {
     register_device_for_irq,
     #endif
     #if IS_SUPPORT_DEVICE_LOG_UART
-    // register_device_for_log_uart,
+    register_device_for_log_uart,
     #endif
     #if IS_SUPPORT_DEVICE_POWER
     register_device_for_power,
@@ -42,8 +42,8 @@ static const device_register_fptr s_device_register[] = {
     #if IS_SUPPORT_DEVICE_DATABASE
     register_device_for_database,
     #endif
-    #if IS_SUPPORT_DEVICE_EXT_FLASH
-    register_device_for_extflash,
+    #if IS_SUPPORT_DEVICE_FLASH
+    register_device_for_flash,
     #endif
     #if IS_SUPPORT_DEVICE_LED
     register_device_for_led,
@@ -71,6 +71,9 @@ static const device_register_fptr s_device_register[] = {
     #endif
     #if IS_SUPPORT_DEVICE_BLE
     register_device_for_ble,
+    #endif
+    #if IS_SUPPORT_DEVICE_WIFI
+    register_device_for_wifi,
     #endif
 };
 
@@ -109,7 +112,7 @@ static bool device_init_completed(void)
     return 0;
 }
 
-static int on_post_init(void *ptr)
+static int on_post_pbus_init(void *ptr)
 {
     peripheral_bus_context_t *ctx = ptr;
     list_head_t *__list_head = &ctx->priv.device_obj_list;
@@ -288,6 +291,6 @@ void *register_module_for_peripheral_bus_new(list_head_t *list_head)
     ptr->device_init_completed = device_init_completed;
     register_everyone_device(&ptr->priv.device_obj_list);
 
-    return ADD_MODULE("device-bus", ID_MODULE_DEVICE_BUS, 0, on_post_init, 
+    return ADD_MODULE("device-bus", ID_MODULE_DEVICE_BUS, 0, on_post_pbus_init, 
         ptr, list_head, sizeof(peripheral_bus_context_t));
 }

@@ -9,26 +9,28 @@ extern "C" {
 /*******************************************************************************
  * Include files
  ******************************************************************************/
-#include "root_common_base.h"
+#include "root_common_base.h" // IWYU pragma: keep
 
 struct breath_pump_context;
 struct input_dispatcher_context;
 struct storage_context_struct;
 
-// 算法接口.
+/// 算法接口.
 typedef struct algo_fusion_context {
-// private
-    struct breath_pump_context *bth;
-    struct input_dispatcher_context *input;
-    struct storage_context_struct *st;
-    broadcast_obj_t mbrodadcast;
-    algo_breath_pump_data_t algo_breath_pump[ALGO_BREATH_PUMP_DATA_MAX];  
-    int algo_inited;
-#if ALGO_LIB_API_NORMALIZATION_SUPPORT
-    algo_result_fusion_t *out_result;
-#endif
+/// private
+    struct __airplane_private {
+        struct breath_pump_context *bth;
+        struct input_dispatcher_context *input;
+        struct storage_context_struct *st;
+        broadcast_obj_t mbrodadcast;
+        algo_breath_pump_data_t algo_breath_pump[ALGO_BREATH_PUMP_DATA_MAX];  
+        int algo_inited;
+    #if ALGO_LIB_API_NORMALIZATION_SUPPORT
+        algo_result_fusion_t *out_result;
+    #endif
+    } priv;
 
-// public
+/// public
     int (*get_version)(void);
     algo_breath_pump_data_t *(*get_algo_breath_pump_result)(void);
     algo_breath_pump_data_t *(*get_breath_pump_info)(int index);

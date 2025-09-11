@@ -38,9 +38,9 @@ static void init_thread(const void *thd)
      init_hang_detect_context();
      init_broadcast_context();
      init_handler_post_context();
-    //  register_module();
+     register_module();
      framework_extra_hook();
-    //  init_module();
+     init_module();
      init_user_log_filter();
      run_user_thread_dispatch();
      LOG_STEP("init escaped: %lu", (get_timestamp() - t0));

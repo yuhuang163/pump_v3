@@ -6,8 +6,8 @@ extern "C" {
 #endif
 
 /*******************************************************************************
- * Include files
- ******************************************************************************/
+* Include files
+******************************************************************************/
 #include "root_common_api.h" // IWYU pragma: keep
 
 // 调整休眠时间.
@@ -35,12 +35,6 @@ typedef enum {
     PM_RESUME_FINISH,       // 恢复完成
 } pm_wakeup_state_e;
 
-typedef enum {
-    ID_SYS_PM_RESUME = 110,
-    ID_SYS_PM_SUSPEND,
-    ID_SYS_PM_MAX
-} system_pm_state_e;
-    
 typedef struct {
     int timeout_s;
     char caller[32];

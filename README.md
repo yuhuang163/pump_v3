@@ -40,30 +40,17 @@ FIRMWARE_V3/
 │   ├── protocol_hooks/              ← 协议处理钩子（产品差异点）
 │   ├── resources/                   ← 图片/语言包/二进制资源
 │   └── windows/                     ← UI窗口/页面资源与布局
+│       ├── home/                    ← 主页/主屏窗口
+│       ├── battery/                 ← 电池状态/电量展示窗口
+│       ├── charge/                  ← 充电过程/满电提示窗口
+│       ├── ota/                     ← OTA升级流程窗口
+│       ├── setting/                 ← 设置/选项类窗口
+│       ├── breath_pump/             ← 吸奶泵业务相关窗口
+│       ├── logo/                    ← 开机Logo/品牌展示
+│       ├── pop_windows/             ← 通用弹窗集合（提示/确认/错误等）
+│       └── dummy/                   ← 占位/示例窗口（可根据产品裁剪）
 │
 ├── project/                         ← 构建产物与构建系统文件
-│   ├── bin/                         ← 可执行/固件镜像输出
-│   │   ├── best1306p.bin            ← 固件二进制文件
-│   │   ├── best1306p.elf            ← ELF可执行文件
-│   │   └── best1306p.map            ← 内存映射文件
-│   └── build/                       ← 中间产物/临时文件
-│       ├── extra/                   ← 框架代码编译产物
-│       │   └── trunk/               ← 框架主干编译输出
-│       ├── lib/                     ← 静态库文件
-│       │   └── libextra.a           ← 框架静态库
-│       └── sdk/                     ← SDK编译产物
-│           ├── best1306p/           ← 目标芯片编译输出
-│           │   ├── apps/            ← 应用层编译产物
-│           │   ├── bthost/          ← 蓝牙主机栈编译产物
-│           │   ├── config/          ← 配置相关编译产物
-│           │   ├── multimedia/      ← 多媒体模块编译产物
-│           │   ├── platform/        ← 平台相关编译产物
-│           │   ├── rtos/            ← 实时操作系统编译产物
-│           │   ├── services/        ← 服务层编译产物
-│           │   └── utils/           ← 工具库编译产物
-│           └── os_base/             ← 操作系统基础编译产物
-│               ├── built-in.a       ← 内置库文件
-│               └── cmsis_os_log.o   ← CMSIS-OS日志对象文件
 │
 └── trunk/                           ← 框架主干（平台与核心业务）
     ├── include/                     ← 对外API头文件（管理器/服务接口）
@@ -72,6 +59,8 @@ FIRMWARE_V3/
     │   ├── audio_manager_api.h      ← 音频管理接口
     │   ├── ble_manager_api.h        ← BLE管理接口
     │   ├── broadcast_manager_api.h  ← 广播管理接口
+    │   ├── root_message.h           ← 异步消息实体/统一消息封装
+    │   ├── root_storage_base.h      ← 存储分区/魔数基础定义
     │   ├── handler_post.h           ← 任务/消息派发接口
     │   ├── hang_detect.h            ← 卡死检测/线程看门狗
     │   ├── misc_manager_api.h       ← 杂项能力管理接口
@@ -100,13 +89,14 @@ FIRMWARE_V3/
     │   ├── ble/                     ← BLE主干（Host/Profile/Manager）
     │   ├── breath_pump/             ← 吸奶泵示例模块（演示/占位）
     │   ├── hal/                     ← 面向上层的硬件抽象
-    │   ├── input/                   ← 输入系统（按键/触摸）
+    │   ├── key_input/               ← 输入系统（按键/触摸）
     │   ├── misc/                    ← 杂项能力（时间/随机数/配置）
     │   ├── network/                 ← 网络与协议
     │   ├── ota/                     ← 升级子系统
     │   ├── pm/                      ← 电源管理/低功耗策略
     │   ├── protocol/                ← 应用/产测/私有协议
     │   ├── resource/                ← 资源管理/解压/缓存
+    │   ├── sensor/                  ← 传感器封装（IMU/FSensor汇聚）
     │   ├── storage/                 ← 存储抽象（KV/FS/分区）
     │   ├── utils/                   ← 通用工具集
     │   └── windows/                 ← UI窗口框架/页面管理

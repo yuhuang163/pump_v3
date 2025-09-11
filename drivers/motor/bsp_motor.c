@@ -65,6 +65,11 @@ static int motor_dev_resume(struct rt_device_node *dev)
  * GLOBAL FUNCTION DEFINITIONS
  *****************************************************************************************
  */
+bool bsp_motor_is_running(void)
+{
+    return false;
+}
+
 void *register_device_for_motor(list_head_t *list_head)
 {
     node = u_malloz(sizeof(rt_device_node_t));

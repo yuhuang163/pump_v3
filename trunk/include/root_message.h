@@ -13,7 +13,7 @@ extern "C" {
 #include "handler_post.h" // IWYU pragma: keep
 #include "broadcast_manager_api.h" // IWYU pragma: keep
 
-// 描述异步消息类型
+/// 描述异步消息类型
 typedef enum {
     MSG_TYPE_DEFAULT = 0,
     MSG_TYPE_WIN_DISPATCH,
@@ -26,7 +26,7 @@ typedef enum {
     MSG_TYPE_MAX
 } aync_msg_type_e;
 
-// 弹出框ID枚举.
+/// 弹出框ID枚举.
 typedef enum {
     ID_POPUP_WINDOW_BT_CONNECT,
     ID_POPUP_WINDOW_BT_DISCONNECT,
@@ -39,7 +39,7 @@ typedef enum {
     ID_POPUP_WINDOW_MAX
 } puoup_window_id_e;
 
-// 窗口屏幕进入参数描述,记录进入新窗口屏幕需要的参数.
+/// 窗口屏幕进入参数描述,记录进入新窗口屏幕需要的参数.
 typedef struct {
     uint8_t window_id;
     uint8_t pm_wakeup_reason;
@@ -56,27 +56,27 @@ typedef struct {
     uint8_t popup_bg_which;
     uint32_t popup_exit_time;
     int (*popup_exit_cb)(void *user_data, int args1, int args2);
-    // 泵奶头显示index
+    /// 泵奶头显示index
     uint8_t breath_pump_head_use_index;
     uint8_t is_background;
-    // 进入ota的异常类型.
+    /// 进入ota的异常类型.
     uint32_t ota_enter_exception_type;
 } window_entry_extra_t;
 
-// 牙菌斑窗口带入参数描述
+/// 牙菌斑窗口带入参数描述
 typedef struct {
     uint8_t window_id;
     uint8_t dental_plaque_level;
-    uint16_t popup_exit_timeout; // 弹出框窗口自动退出时间.
+    uint16_t popup_exit_timeout; /// 弹出框窗口自动退出时间.
 } window_entry_plaque_extra_t;
 
-// 描述窗口事件结构.
+/// 描述窗口事件结构.
 typedef struct window_event_data {
     uint8_t window_id;
     uint32_t args1;
     uint32_t args2;
     void *user_data;
-    void *wm;   // window_manager
+    void *wm;   /// window_manager
     void *window_ctx;
 } window_event_data_t;
 
@@ -86,39 +86,39 @@ typedef enum {
     ID_ENTRY_TYPE_MAX
 } window_entry_type_e;
 
-// 窗口进入类型
+/// 窗口进入类型
 typedef enum {
-    UI_MODE_ENTRY_WIZARD = 101,            // 向导进入吸奶界面展示风险提醒
-    UI_MODE_ENTRY_APP_SWITCH_MODE,   // APP切换模式唤醒进入模式界面
+    UI_MODE_ENTRY_WIZARD = 101,            /// 向导进入吸奶界面展示风险提醒
+    UI_MODE_ENTRY_APP_SWITCH_MODE,   /// APP切换模式唤醒进入模式界面
 } ui_mode_entry_e;
 
-// 窗口进入参数描述
+/// 窗口进入参数描述
 typedef struct {
     uint8_t window_id;
     uint8_t pm_wakeup_reason;
     ui_mode_entry_e mode_entry_type;
 } ui_mode_entry_extra_t;
 
-// sensor事件类型
+/// sensor事件类型
 typedef struct {
     uint8_t report_type;
 } sensor_event_type_t;
 
-// sensor数据集
+/// sensor数据集
 typedef struct {
     imu_wrapper_data_t imu_data;
     f_sensor_data_t force_raw_data;
-    uint8_t fsensor_pressure_level; // force_sensor_press_level_e
+    uint8_t fsensor_pressure_level; /// force_sensor_press_level_e
 } sensor_wrapper_data_t;
 
-// ble事件类型
+/// ble事件类型
 typedef struct {
     uint8_t msg_id;
     uint8_t data_len;
     void *ble_data;
 } ble_event_type_t;
 
-// 测试指令类型
+/// 测试指令类型
 typedef enum {
     FAC_TEST_NONE,
     FAC_TEST_SHOW_QRCODE,
@@ -136,7 +136,7 @@ typedef enum {
     FAC_TEST_MAX
 } factory_test_type_e;
 
-// 颜色测试类型
+/// 颜色测试类型
 typedef enum {
     FAC_TEST_DISPLAY_COLOR_RED = 0,
     FAC_TEST_DISPLAY_COLOR_GREEN,
@@ -147,27 +147,27 @@ typedef enum {
     FAC_TEST_DISPLAY_COLOR_MAX
 } factory_display_color_test_e;
 
-// 老化测试类型
+/// 老化测试类型
 typedef enum {
     FAC_AGING_TEST_TYPE_NONE = 0,
-    FAC_AGING_TEST_TYPE_1,     // 启动吸奶马达开始振动，工作两分钟停止两分钟，循环此过程15次后停止.
-    FAC_AGING_TEST_TYPE_2,     // 工作两分钟 停两分钟  一直循环
-    FAC_AGING_TEST_TYPE_3,     // 两分钟一个周期 一直工作  clean模式
-    FAC_AGING_TEST_TYPE_4,     // 两分钟一个周期 一直工作  soft模式
-    FAC_AGING_OVER,            // 老化完毕
+    FAC_AGING_TEST_TYPE_1,     /// 启动吸奶马达开始振动，工作两分钟停止两分钟，循环此过程15次后停止.
+    FAC_AGING_TEST_TYPE_2,     /// 工作两分钟 停两分钟  一直循环
+    FAC_AGING_TEST_TYPE_3,     /// 两分钟一个周期 一直工作  clean模式
+    FAC_AGING_TEST_TYPE_4,     /// 两分钟一个周期 一直工作  soft模式
+    FAC_AGING_OVER,            /// 老化完毕
     FAC_AGING_TEST_TYPE_MAX
 } factory_aging_test_e;
 
-// 工厂测试入口参数描述
+/// 工厂测试入口参数描述
 typedef struct {
     uint8_t window_id;
-    int factory_test_id;    // 工厂测试ID
-    uint32_t color_test_id;      // 颜色测试ID
-    int aging_test_id;      // 老化测试ID
-    int enter_from_source;  // 进入源来自哪里:开机自动0,按键进入1
+    int factory_test_id;    /// 工厂测试ID
+    uint32_t color_test_id;      /// 颜色测试ID
+    int aging_test_id;      /// 老化测试ID
+    int enter_from_source;  /// 进入源来自哪里:开机自动0,按键进入1
 } factory_test_entry_extra_t;
 
-//OTA 事件类型
+/// OTA 事件类型
 typedef enum {
     OTA_EVENT_TIMEOUT = 0,
     OTA_EVENT_START,
@@ -177,18 +177,18 @@ typedef enum {
 
 typedef struct {
     ota_event_type_e event;
-    bool result;         //事件结果
+    bool result;         ///事件结果
     int state;
     uint32_t sub_code;
 } ota_event_type_t;
 
-// 描述按键事件结构.
+/// 描述按键事件结构.
 typedef struct input_key_event_data {
     uint16_t keycode;
     uint16_t keytype;
 } input_key_event_data_t;
 
-// 消息实体封装
+/// 消息实体封装
 #define MULTI_FUNC_MSG_DATA_SIZE (48)
 typedef struct multi_func_msg_data {
     uint32_t msg_type;

@@ -28,7 +28,7 @@ typedef void *(*list_del_condition_cb_fptr)(void *data, list_head_t *pos);
     (head)->next = NULL
 #endif
 
-// 需要配置 CFLAGS += -std=c99
+/// 需要配置 CFLAGS += -std=c99
 #ifndef LIST_FOR_EACH
 #define LIST_FOR_EACH(pos, head) \
     for (list_head_t *(pos) = (head)->next; (pos) != NULL; (pos) = (pos)->next)

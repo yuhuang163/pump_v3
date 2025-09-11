@@ -6,16 +6,16 @@ extern "C" {
 #endif
 
 /*******************************************************************************
- * Include files
- ******************************************************************************/
+* Include files
+******************************************************************************/
 #include <stdint.h> // IWYU pragma: keep
 #include <string.h> // IWYU pragma: keep
 #include <ctype.h> // IWYU pragma: keep
 
 #define SEC_STRNCPY(_dest, _src, n) \
-    do { \
-        sec_strncpy((char *)_dest, (const char *)_src, n); \
-    } while (0)
+do { \
+    sec_strncpy((char *)_dest, (const char *)_src, n); \
+} while (0)
 
 char *sec_strncpy(char *dest, const char *src, size_t n);
 

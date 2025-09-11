@@ -71,8 +71,8 @@ extern "C" {
 #define STORAGE_SYS_STATE_MAGIC_NUM                                            (0xAFFA588C)
 #endif
 
-#ifndef STORAGE_SEC_SYS_BREATH_PUMP_MAGIC_NUM
-#define STORAGE_SEC_SYS_BREATH_PUMP_MAGIC_NUM                                        (0xAFFA5884)
+#ifndef STORAGE_BREATH_PUMP_MAGIC_NUM
+#define STORAGE_BREATH_PUMP_MAGIC_NUM                                      (0xAFFA5884)
 #endif
 
 #ifndef STORAGE_USER_BIND_MAGIC_NUM
@@ -96,11 +96,11 @@ extern "C" {
 #endif
 
 #ifndef STORAGE_BREATH_PUMP_DATA_HEAD_MAGIC_NUM
-#define STORAGE_BREATH_PUMP_DATA_HEAD_MAGIC_NUM                                      (0xAFFA588E)
+#define STORAGE_BREATH_PUMP_DATA_HEAD_MAGIC_NUM                                (0xAFFA588E)
 #endif
 
 #ifndef STORAGE_BREATH_PUMP_DATA_BODY_MAGIC_NUM
-#define STORAGE_BREATH_PUMP_DATA_BODY_MAGIC_NUM                                      (0xAFFA588F)
+#define STORAGE_BREATH_PUMP_DATA_BODY_MAGIC_NUM                                (0xAFFA588F)
 #endif
 
 #ifndef STORAGE_UTC_TIMESTAMP_MAGIC_NUM

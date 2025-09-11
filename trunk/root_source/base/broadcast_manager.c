@@ -2,7 +2,7 @@
  * INCLUDE FILES
  *****************************************************************************************
  */
- #include "root_common_api.h" // IWYU pragma: keep
+ #include "root_common_api.h"  // IWYU pragma: keep
  #include "broadcast_manager_api.h"
  
  /*
@@ -14,7 +14,7 @@
  #define DEBUG_BCR_DISPATCH (1)
  
  #if DEBUG_BROADCAST_LIST
- #define dump_node(tag, _node) \
+ #define DUMP_NODE(tag, _node) \
  do { \
      LOG_BCR("%s: node: %lx(%s), id: 0x%lx/0x%lx, context: %lx, receiver: %lx", \
          tag, \
@@ -26,7 +26,7 @@
          TO_PRINT(_node->obj.receiver_cb)); \
  } while (0)
  
- #define dump_obj_began(tag, _pkg, _tid, _thd_name) \
+ #define DUMP_OBJ_BEGAN(tag, _pkg, _tid, _thd_name) \
  do { \
      LOG_BCR("%s(%s:%d): bcr_id: 0x%lx/0x%lx, name: %s/time=%ld, context: 0x%lx, arg1: %ld, arg2: %ld", \
          tag, \
@@ -42,7 +42,7 @@
          ); \
  } while (0)
  
- #define dump_obj_end(tag, _pkg, _tid, _thd_name, _exec_time) \
+ #define DUMP_OBJ_END(tag, _pkg, _tid, _thd_name, _exec_time) \
  do { \
      LOG_BCR("%s(%s:%d): brc_id: 0x%lx/0x%lx, name: %s/time=%ld, exec_time: %ld(ms)", \
          tag, \
@@ -56,20 +56,19 @@
  } while (0)
  
  
- #define dump_all_list(head) \
+ #define DUMP_ALL_LIST(head) \
  do { \
      LIST_FOR_EACH(pos, (head)) {  \
          broadcast_node_t *_node = CONTAINER_OF(pos, broadcast_node_t, list);  \
-         dump_one_node("all", _node); \
+         DUMP_NODE("all", _node); \
      } \
  } while (0)
  
  #else
- #define dump_node(...)
- #define dump_obj_began(...)
- #define dump_obj_end(...)
- #define dump_one_node(...)
- #define dump_all_list(...)
+ #define DUMP_NODE(...)
+ #define DUMP_OBJ_BEGAN(...)
+ #define DUMP_OBJ_END(...)
+ #define DUMP_ALL_LIST(...)
  #endif
  
  #define BCR_OBJ_MARGIC_CODE (0x11223344)
@@ -124,7 +123,7 @@
          && (node->obj.id.code_v2 == obj->id.code_v2) 
          && (node->obj.receiver_cb == obj->receiver_cb)
          && (node->obj.context == obj->context)) {
-         dump_node("del", node);
+         DUMP_NODE("del", node);
          return node;
      }
  
@@ -204,12 +203,12 @@
                  LOGE("=====>CRC cmp fail: %s, timestamp: %ld", pkg->obj.name, pkg->timestamp);
              }
  
-             dump_obj_began("EXEC_BCR_TASK", pkg, (int)(thd->tid) % 1000, THREAD_NAME_GET(thd));
+             DUMP_OBJ_BEGAN("EXEC_BCR_TASK", pkg, (int)(thd->tid) % 1000, THREAD_NAME_GET(thd));
              pkg->obj.receiver_cb(pkg->id, pkg->obj.context, pkg->arg1, pkg->arg2, &pkg->priv_data);
  
              uint32_t diff_time = (get_timestamp() - exec_time);
              if (diff_time >= 10) {
-                 dump_obj_end("EXEC_BCR_TASK-endtime", pkg, (int)(thd->tid) % 1000, THREAD_NAME_GET(thd), diff_time);
+                 DUMP_OBJ_END("EXEC_BCR_TASK-endtime", pkg, (int)(thd->tid) % 1000, THREAD_NAME_GET(thd), diff_time);
              }
  
              thd->task_name = "idle";
@@ -310,10 +309,8 @@
      }
  
      __list_add_tail(&node->list, head);
- 
      MUTEX_UNLOCK(ctx->m_lock);
-     
-     dump_node("add", node);
+     DUMP_NODE("add", node);
  }
  
  /*

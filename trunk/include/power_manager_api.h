@@ -9,7 +9,7 @@ extern "C" {
 /*******************************************************************************
  * Include files
  ******************************************************************************/
-#include "root_common_base.h"
+#include "root_common_base.h" // IWYU pragma: keep
 
 typedef enum {
     PM_WAKEUP_REASON_BOOT = 80,
@@ -22,17 +22,25 @@ typedef enum {
     PM_WAKEUP_REASON_CHARGE_PLUG_IN,
     PM_WAKEUP_REASON_CHARGE_PLUG_OUI,
     PM_WAKEUP_REASON_BACKGROUND_TASK,
-    PM_WAKEUP_REASON_IOT,               // IOT任务周期更新.
+    PM_WAKEUP_REASON_IOT,               /// IOT任务周期更新.
     PM_WAKEUP_REASON_MAX,
 } pm_wakeup_reason_e;
 
+typedef enum {
+    ID_SYS_PM_RESUME = 110,
+    ID_SYS_PM_SUSPEND,
+    ID_SYS_PM_MAX
+} system_pm_state_e;
+
+struct broadcast_obj;
 typedef struct power_manager_context {
-// private:
+/// private:
     struct __pm_private {
         int pm_state;
         int pm_state_change_progress;
         int suspend_counter;
         pm_wakeup_reason_e wakeup_reason;
+        struct broadcast_obj *pm_bcd;
         os_mutex_id m_wake_lock;
         os_mutex_id m_suspend_lock;
         os_timer_id suspend_timer;
@@ -46,7 +54,7 @@ typedef struct power_manager_context {
         bool is_shutdown;
     } priv;
 
-// public:
+/// public:
     void (*init)(void);
     int (*is_pm_suspend)(void);
     int (*acquire_wakelock)(const char *caller, int timeout_s);

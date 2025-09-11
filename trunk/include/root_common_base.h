@@ -14,6 +14,7 @@ extern "C" {
 #include <stddef.h> // IWYU pragma: keep
 #include <string.h> // IWYU pragma: keep
 #include "time_utils.h" // IWYU pragma: keep
+#include "string_utils.h" // IWYU pragma: keep
 #include "cmsis_os_api.h" // IWYU pragma: keep
 
 #include "root_list_api.h" // IWYU pragma: keep
@@ -43,7 +44,7 @@ extern "C" {
 #include "hal_power.h" // IWYU pragma: keep
 #include "hal_uart.h" // IWYU pragma: keep
 
-// 内存申请宏定义.
+/// 内存申请宏定义.
 #define MALLOC_FOR_PTR(ptr, __struct_type) \
     __struct_type *ptr = u_malloz(sizeof(__struct_type)); \
     do { \
@@ -52,15 +53,15 @@ extern "C" {
         } \
     } while (0)
 
-// 全局查找模块.
+/// 全局查找模块.
 #define GLOBAL_FIND_MODULE(__P_MODULE, __TYPE_T, __ID) \
     __TYPE_T *__P_MODULE = (__TYPE_T *)find_module(__ID)
 
-// 全局获取模块.
+/// 全局获取模块.
 #define GLOBAL_GET_MODULE(__PP_MODULE, __TYPE_T, __ID) \
     *(__PP_MODULE) = (__TYPE_T *)find_module(__ID)
 
-// 经过x时间执行一次closure的代码.
+/// 经过x时间执行一次closure的代码.
 #define EXECUTE_EVERY_X_DELAY(dest_time, closure) \
 do { \
     static uint32_t __t0 = 0; \

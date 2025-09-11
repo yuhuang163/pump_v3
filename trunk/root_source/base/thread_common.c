@@ -2,7 +2,7 @@
 * INCLUDE FILES
 *****************************************************************************************
 */
-#include "root_common_api.h" // IWYU pragma: keep
+#include "root_common_base.h" // IWYU pragma: keep
 
 /*
 * DEFINES
