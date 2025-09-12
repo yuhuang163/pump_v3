@@ -14,11 +14,15 @@
  *****************************************************************************************
  */
 const static put_store_process_handle_t put_store_process_list[] = {
+    #if IS_SUPPORT_DEVICE_IMU
     {STORE_ID_FACTORY_IMU_CALI_DATA, storage_write_imu_cali_data},
+    #endif
     {STORE_ID_FACTORY_DEPLOY_FLAG, storage_write_factory_deploy_flag},
     {STORE_ID_FACTORY_AGE_FLAG, storage_write_factory_age_flag},
     {STORE_ID_FACTORY_AGE_DISPLAY_FLAG, storage_write_factory_age_display_flag},
+    #if IS_SUPPORT_DEVICE_FSENSOR
     {STORE_ID_FACTORY_FSENSOR_CALI_FLAG, storage_write_factory_fsensor_cali_flag},
+    #endif
     {STORE_ID_SYS_CONFIG_INFO, storage_write_sys_config_info},
     {STORE_ID_SYS_UTC_TIMESTAMP, storage_write_utc_timestamp},
     {STORE_ID_SYS_STATE_INFO, storage_write_sys_state_info},    
@@ -27,7 +31,9 @@ const static put_store_process_handle_t put_store_process_list[] = {
 
 const static get_store_process_handle_t get_store_process_list[] = {
     {STORE_ID_FACTORY_DEV_INFO, storage_read_factory_dev_info},
+    #if IS_SUPPORT_DEVICE_IMU
     {STORE_ID_FACTORY_IMU_CALI_DATA, storage_read_imu_cali_data},
+    #endif
     {STORE_ID_SYS_CONFIG_INFO, storage_read_sys_config_info},
     {STORE_ID_SYS_UTC_TIMESTAMP, storage_read_utc_timestamp},
     {STORE_ID_SYS_STATE_INFO, storage_read_sys_state_info},    
@@ -57,7 +63,9 @@ const static get_store_ram_val_handle_t get_store_ram_val_list[] = {
     {STORE_ID_FACTORY_DEPLOY_FLAG, storage_read_factory_deploy_flag},
     {STORE_ID_FACTORY_AGE_FLAG, storage_read_factory_age_flag},
     {STORE_ID_FACTORY_AGE_DISPLAY_FLAG, storage_read_factory_age_display_flag},
+    #if IS_SUPPORT_DEVICE_FSENSOR
     {STORE_ID_FACTORY_FSENSOR_CALI_FLAG, storage_read_factory_fsensor_cali_flag},
+    #endif
     {STORE_ID_SYS_TIME_ZONE, storage_read_sys_time_zone},
     {STORE_ID_SYS_AP_MODE_ONOFF, storage_read_ap_mode_onoff},
     {STORE_ID_SYS_SILENT_UPGRADE, storage_read_slient_upgrade_onoff},
@@ -72,6 +80,7 @@ const static get_store_ram_val_handle_t get_store_ram_val_list[] = {
     {STORE_ID_SYS_SYNC_SYS_TIME, storage_read_sync_sys_time},
     {STORE_ID_USER_BIND_INFO, storage_user_is_binded},
 };
+
 /*
  * GLOBAL VARIABLE DEFINITIONS
  *****************************************************************************************

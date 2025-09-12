@@ -60,6 +60,9 @@ SDK_INCLUDE_PATHS := \
 	-I$(PROJECT_ROOT)/overlay/windows/ota \
 	-I$(PROJECT_ROOT)/overlay/windows/pop_windows \
 	-I$(PROJECT_ROOT)/overlay/windows/setting \
+	-I$(PROJECT_ROOT)/overlay/sensor/imu \
+	-I$(PROJECT_ROOT)/overlay/sensor/force_sensor \
+	-I$(PROJECT_ROOT)/overlay/sensor/air_pressure \
 	-I$(PROJECT_ROOT)/trunk/include \
 	-I$(PROJECT_ROOT)/trunk/extern \
 	-I$(PROJECT_ROOT)/trunk/root_source/airplane \
@@ -69,7 +72,7 @@ SDK_INCLUDE_PATHS := \
 	-I$(PROJECT_ROOT)/trunk/root_source/ble \
 	-I$(PROJECT_ROOT)/trunk/root_source/breath_pump \
 	-I$(PROJECT_ROOT)/trunk/root_source/hal \
-	-I$(PROJECT_ROOT)/trunk/root_source/input \
+	-I$(PROJECT_ROOT)/trunk/root_source/key_input \
 	-I$(PROJECT_ROOT)/trunk/root_source/misc \
 	-I$(PROJECT_ROOT)/trunk/root_source/motor \
 	-I$(PROJECT_ROOT)/trunk/root_source/network \
@@ -77,6 +80,7 @@ SDK_INCLUDE_PATHS := \
 	-I$(PROJECT_ROOT)/trunk/root_source/pm \
 	-I$(PROJECT_ROOT)/trunk/root_source/protocol \
 	-I$(PROJECT_ROOT)/trunk/root_source/resource \
+	-I$(PROJECT_ROOT)/trunk/root_source/sensor \
 	-I$(PROJECT_ROOT)/trunk/root_source/storage \
 	-I$(PROJECT_ROOT)/trunk/root_source/utils \
 	-I$(PROJECT_ROOT)/trunk/root_source/windows
@@ -162,6 +166,9 @@ EXTRA_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/drivers/wifi/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/framework_hooks/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/framework_hooks/algo/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/sensor/imu/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/sensor/force_sensor/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/sensor/air_pressure/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/windows/battery/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/windows/breath_pump/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/windows/charge/*.c) \

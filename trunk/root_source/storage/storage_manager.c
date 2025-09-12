@@ -66,13 +66,13 @@ static void on_storage_save_receive(broadcast_mask_id_t id, void *context, int a
 static int on_post_init(void *ptr)
 {
     storage_context_t *ctx = ptr;
-    // 加载工厂数据
+    /// 加载工厂数据
     init_factory_persist_info(ctx);
-    // 加载系统用户数据 
+    /// 加载系统用户数据 
     init_system_persist_info(ctx);
-    // 加载系统版本信息
+    /// 加载系统版本信息
     init_system_ver_info(ctx);
-    // 注册存储更新广播.
+    /// 注册存储更新广播.
     ctx->priv.mbdc = u_malloz(sizeof(broadcast_obj_t));
     ctx->priv.mbdc->context = ctx;
     ctx->priv.mbdc->name = "storage_ctx";
@@ -103,7 +103,7 @@ static int factory_reset(factory_reset_type_e is_reboot)
     time_system_t *ts = (time_system_t *)find_module(ID_MODULE_TIME);
     LOG_STORE("reset db data.");
     user_database_reset(thiz);
-    //重置系统时间 
+    ///重置系统时间 
     ts->sync_time(PRODUCT_BUILD_TIMESTAMP); 
     if (is_reboot == RESET_NOT_REBOOT) {
         LOG_STORE("reset done,but not reboot.");
@@ -144,7 +144,7 @@ storage_context_t *get_storage_manager_context(void)
     return thiz;
 }
 
-// 存储实例注册接口.
+/// 存储实例注册接口.
 void *register_module_for_storage_new(list_head_t *list_head)
 {
     MALLOC_FOR_PTR(ptr, storage_context_t);

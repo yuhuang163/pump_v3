@@ -2,9 +2,10 @@
  * INCLUDE FILES
  *****************************************************************************************
  */
- #include "scan_key_base.h"
+ #include "cmsis_os_api.h"
+#include "scan_key_base.h"
  #include "scan_key.h"
- #include "root_common_base.h"
+ #include "root_common_api.h"// IWYU pragma: keep
  
  /*
   * DEFINES
@@ -93,7 +94,7 @@
      if(scan_key->event != 0 && scan_key->status == 0) {
          long_press_count[keycode] = 0;
          CLR_BIT(timer_flag, keycode);
-         printf("timer_flag:%x\r\n", timer_flag);
+         PRINT_LOG("timer_flag:%x\r\n", timer_flag);
      }
  }
  

@@ -13,8 +13,8 @@ extern "C" {
 
 typedef enum {
     AIRPLANE_MODE_EXIT = 0,
-    AIRPLANE_MODE_BY_USER_ACTIVE_ENTER = 1,       // 主动进入
-    AIRPLANE_MODE_BY_IMU_PASSIVE_ENTER = 2,      //IMU检查移动被动进入.
+    AIRPLANE_MODE_BY_USER_ACTIVE_ENTER = 1,       /// 主动进入
+    AIRPLANE_MODE_BY_IMU_PASSIVE_ENTER = 2,      ///IMU检查移动被动进入.
 } airplane_mode_state_e;
 
 typedef enum {
@@ -30,7 +30,7 @@ struct misc_manager_context;
 struct time_system_context;
 
 typedef struct airplane_mode_context {
-// private:
+/// private:
     struct __airplane_private {
         bool is_on;
         bool is_backgroud_check;
@@ -44,7 +44,7 @@ typedef struct airplane_mode_context {
         struct time_system_context *time_sys;
     } priv;
 
-// public:
+/// public:
     int (*enter)(void);
     int (*exit)(int wakeup_reason);
     int (*is_on_airplane_mode)(void);

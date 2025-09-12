@@ -41,11 +41,11 @@ typedef enum {
 
 typedef enum {
     KEY_TYPE_BEGIN = 0,
-    KEY_TYPE_DOWN = KEY_TYPE_BEGIN,     // 按下. 
-    KEY_TYPE_UP,                        // 抬起
-    KEY_TYPE_CLICK,                     // 单击
-    KEY_TYPE_DOUBLE,                    // 双击
-    KEY_TYPE_LONG_2S,                   // 长按2s
+    KEY_TYPE_DOWN = KEY_TYPE_BEGIN,     /// 按下. 
+    KEY_TYPE_UP,                        /// 抬起
+    KEY_TYPE_CLICK,                     /// 单击
+    KEY_TYPE_DOUBLE,                    /// 双击
+    KEY_TYPE_LONG_2S,                   /// 长按2s
     KEY_TYPE_LONG_3S,
     KEY_TYPE_LONG_4S,
     KEY_TYPE_LONG_5S,
@@ -65,11 +65,11 @@ struct rt_device_node;
  *****************************************************************************************
  */
 
-// 按键IRQ调用此接口,通知启动扫描定时器.
+/// 按键IRQ调用此接口,通知启动扫描定时器.
 void scan_key_timer_start(int key);
-// 具体平台读取io状态接口
+/// 具体平台读取io状态接口
 int platform_read_key_value(int type, int pin);
-// 初始化scankey
+/// 初始化scankey
 int scan_key_input_init(struct rt_device_node *key_dev);
 
 #ifdef __cplusplus

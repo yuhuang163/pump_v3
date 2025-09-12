@@ -59,7 +59,7 @@ retry:
     return err;
 }
 
-// 挂载fs
+/// 挂载fs
 static int fs_remount(void)
 {
     fs_interface_t *fs = thiz->get_fs();
@@ -76,7 +76,7 @@ static int fs_remount(void)
         err = fs->fs_mount(FS_PATH_ROOT, FS_PARTTION_USERDATA);
         if (err < 0) {
         retry_repair:
-            // 尝试格式化后再挂载.
+            /// 尝试格式化后再挂载.
             LOG_PBUS("retry fs_format: %d", retry_count);
             ret1 = fs->fs_format(FS_PATH_ROOT, FS_PARTTION_USERDATA);
             if (ret1 == 0) {
@@ -126,7 +126,7 @@ static int fs_remount(void)
     return err;
 }
 
-// 卸载fs
+/// 卸载fs
 static int fs_unmount(void)
 {
     fs_interface_t *fs = thiz->get_fs();

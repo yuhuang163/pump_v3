@@ -44,140 +44,140 @@ typedef enum {
     PERSIST_KEY_THEME_PACKET_DATA,
     PERSIST_KEY_BATTERY_HEALTH_COEFF,
 
-    PERSIST_KEY_UTC_TIMESTEMP = 150,             // 系统时间戳
+    PERSIST_KEY_UTC_TIMESTEMP = 150,             /// 系统时间戳
 
     PERSIST_KEY_BREATH_PUMP_INFO = 180,
 
-    PERSIST_KEY_BREATH_PUMP_HEAD_DATA = 200,          // 刷牙数据头
+    PERSIST_KEY_BREATH_PUMP_HEAD_DATA = 200,          /// 刷牙数据头
     PERSIST_KEY_BREATH_PUMP_BODY_DATA_BEGIN,
     PERSIST_KEY_BREATH_PUMP_BODY_DATA_END = PERSIST_KEY_BREATH_PUMP_BODY_DATA_BEGIN + ROOT_BREATH_PUMP_BODY_DATA_NUM,
     PERSIST_KEY_USER_ID,
     PERSIST_KEY_MAX,
 } persist_key_id_enum_t;
 
-// 写入存储处理接口.
+/// 写入存储处理接口.
 typedef int (*put_store_process_func)(int arg1, int arg2, const void *val_in);
 
-// 读取存储处理接口.
+/// 读取存储处理接口.
 typedef int (*get_store_process_func)(int arg1, int arg2, void *val_out);
 
-// 删除存储处理接口.
+/// 删除存储处理接口.
 typedef int (*del_store_process_func)(int arg1, int arg2, const void *val_in);
 
-// 写入系统ram值处理接口.
+/// 写入系统ram值处理接口.
 typedef void (*put_store_ram_val_func)(int args);
 
-// 读取存储处理接口.
+/// 读取存储处理接口.
 typedef int (*get_store_ram_val_func)(void);
 
-// 描述写入存储处理结构.
+/// 描述写入存储处理结构.
 typedef struct {
-    uint16_t store_id;                             // 存储id   
-    put_store_process_func store_process;   // 存储处理接口.
+    uint16_t store_id;                             /// 存储id   
+    put_store_process_func store_process;   /// 存储处理接口.
 } put_store_process_handle_t;
 
-// 描述读取存储处理结构.
+/// 描述读取存储处理结构.
 typedef struct {
-    uint16_t store_id;                             // 存储id   
-    get_store_process_func store_process;   // 存储处理接口.
+    uint16_t store_id;                             /// 存储id   
+    get_store_process_func store_process;   /// 存储处理接口.
 } get_store_process_handle_t;
 
-// 删除存储处理接口.
+/// 删除存储处理接口.
 typedef struct {
-    uint16_t store_id;                             // 存储id   
-    del_store_process_func store_process;   // 存储处理接口.
+    uint16_t store_id;                             /// 存储id   
+    del_store_process_func store_process;   /// 存储处理接口.
 } del_store_process_handle_t;
 
-// 描述写入系统ram值处理结构.
+/// 描述写入系统ram值处理结构.
 typedef struct {
-    uint16_t store_id;                             // 存储id   
-    put_store_ram_val_func store_process;    // 写入系统ram值接口.
+    uint16_t store_id;                             /// 存储id   
+    put_store_ram_val_func store_process;    /// 写入系统ram值接口.
 } put_store_ram_val_handle_t;
 
-// 描述读取存储处理结构.
+/// 描述读取存储处理结构.
 typedef struct {
-    uint16_t store_id;                             // 存储id   
-    get_store_ram_val_func store_process;    // 获取系统ram值接口.
+    uint16_t store_id;                             /// 存储id   
+    get_store_ram_val_func store_process;    /// 获取系统ram值接口.
 } get_store_ram_val_handle_t;
 
-// 描述用户绑定信息
+/// 描述用户绑定信息
 typedef struct {
     uint32_t magic;
     user_bind_info_t bind_info;
     uint16_t crc;
 } user_bind_persist_data_t;
 
-// 描述语音包信息
+/// 描述语音包信息
 typedef struct {
     uint32_t magic;
     audio_packet_info_t audio_packet;
     uint16_t crc;
 } audio_packet_persist_data_t;
 
-// 描述主题包信息
+/// 描述主题包信息
 typedef struct {
     uint32_t magic;
     theme_packet_info_t theme_packet;
     uint16_t crc;
 } theme_packet_persist_data_t;
 
-// 描述刷牙信息
+/// 描述刷牙信息
 typedef struct {
     uint32_t magic;
     breath_pump_info_t pump_info;
     uint16_t crc;
 } breath_pump_info_persist_data_t;
 
-// 描述系统配置
+/// 描述系统配置
 typedef struct {
     uint32_t magic;
     sys_config_info_t config;
     uint16_t crc;
 } sys_config_persist_data_t;
 
-// 描述系统状态
+/// 描述系统状态
 typedef struct {
     uint32_t magic;
     sys_state_info_t state;
     uint16_t crc;
 } sys_state_persist_data_t;
 
-// 描述工厂校准数据
+/// 描述工厂校准数据
 typedef struct {
     uint32_t magic;
     imu_cali_data_t imu_cali;
     uint16_t crc;
 } imu_cali_persist_data_t;
 
-// 描述工厂标志信息
+/// 描述工厂标志信息
 typedef struct {
     uint32_t magic;
     factory_flag_info_t flag_info;
     uint16_t crc;
 } factory_flag_persist_data_t;
 
-// 描述工厂设备信息
+/// 描述工厂设备信息
 typedef struct {
     uint32_t magic;
     factory_dev_info_t dev_info;
     uint16_t crc;
 } factory_dev_info_persist_data_t;
 
-// 描述泵奶数据头
+/// 描述泵奶数据头
 typedef struct {
     uint32_t magic;
     breath_pump_data_head_t pump_data_head;
     uint16_t crc;
 } breath_pump_head_persist_data_t;
 
-// 描述泵奶数据体
+/// 描述泵奶数据体
 typedef struct {
     uint32_t magic;
     breath_pump_data_body_t pump_data_body;
     uint16_t crc;
 } breath_pump_body_persist_data_t;
 
-// 描述系统时间戳
+/// 描述系统时间戳
 typedef struct {
     uint32_t magic;
     uint32_t utc_timestamp;

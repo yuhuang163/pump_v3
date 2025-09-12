@@ -40,6 +40,7 @@
 #include "watchdog/watchdog.h"
 #include "hal_evr.h"
 #include "factory_section.h"
+#include <cstdint>
 
 #ifdef RTOS
 #include "cmsis_os.h"
@@ -57,8 +58,6 @@
 #ifdef BTH_IN_ROM
 #include "bth_rom_init.h"
 #endif
-
-#include "string.h"
 
 #if defined(ARM_CMNS)
 extern "C" {
@@ -295,6 +294,7 @@ void boot_secure_nse_boot_init(void)
 }
 #endif
 
+extern "C" void root_main(int argc, const char *argv[]);
 #if RTT_APP_SUPPORT || defined(CHIP_SUBSYS_SENS)
 int main_enter(void)
 #else
@@ -327,6 +327,7 @@ int main(void)
 #endif
 
     main_thread_tid = osThreadGetId();
+  
 
     hwtimer_init();
 
@@ -350,15 +351,18 @@ int main(void)
 #endif
 
     app_reset_gpio_status();
-
+    TR_INFO(TR_MOD(MAIN), "uart init start");
+    uint32_t uart_flag = 0;
 #ifdef DEBUG
 #if (DEBUG_PORT == 1)
     hal_iomux_set_uart0();
+    uart_flag |= 1;
 #ifdef __FACTORY_MODE_SUPPORT__
     if (!(bootmode & HAL_SW_BOOTMODE_FACTORY))
 #endif
     {
         hal_trace_open(HAL_TRACE_TRANSPORT_UART0);
+        uart_flag |= 2;
     }
 #endif
 
@@ -368,8 +372,10 @@ int main(void)
 #endif
     {
         hal_iomux_set_analog_i2c();
+        uart_flag |= 4;
     }
     hal_iomux_set_uart1();
+    uart_flag |= 8;
     hal_trace_open(HAL_TRACE_TRANSPORT_UART1);
 #endif
 
@@ -379,20 +385,31 @@ int main(void)
 #endif
     {
         hal_iomux_set_analog_i2c();
+        uart_flag |= 16;
     }
     hal_iomux_set_uart2();
+    uart_flag |= 32;
     hal_trace_open(HAL_TRACE_TRANSPORT_UART2);
 #endif
-
+    uart_flag |= 64;
     hal_sleep_start_stats(10000, 10000);
     hal_trace_set_log_level(TR_LEVEL_DEBUG);
 #endif
 
+    TR_INFO(TR_MOD(MAIN), "uart init done");
+    TR_INFO(TR_MOD(MAIN), "uart_flag %d", uart_flag);
     hal_iomux_ispi_access_init();
-
+    #if RTT_APP_SUPPORT || defined(CHIP_SUBSYS_SENS)
+    TR_INFO(TR_MOD(MAIN), "RTT_APP_SUPPORT || defined(CHIP_SUBSYS_SENS)");
+    #endif
+    #ifdef RTOS
+    TR_INFO(TR_MOD(MAIN), "RTOS");
+    #endif
+    TR_INFO(TR_MOD(MAIN), "main_thread_tid %p", main_thread_tid);
     system_power_on_callback();
 
 #ifndef FPGA
+    TR_INFO(TR_MOD(MAIN), "hal_norflash_show_id_state start");
     hal_norflash_show_id_state(HAL_FLASH_ID_0, true);
 
     // Software will load the factory data and user data from the bottom TWO sectors from the flash,
@@ -406,34 +423,46 @@ int main(void)
         MAIN_TRACE_IMM(1,"Please change the FLASH_SIZE in common.mk to 0x%x to enable the OTA feature.", actualFlashSize);
         ASSERT(false, " ");
     }
+    TR_INFO(TR_MOD(MAIN), "hal_norflash_show_id_state done");
 #endif
 
+    TR_INFO(TR_MOD(MAIN), "mpu_cfg start");
     mpu_cfg();
 #if !defined(__SUBSYS_ONLY__)
+    TR_INFO(TR_MOD(MAIN), "pmu_open start");
     pmu_open();
+    TR_INFO(TR_MOD(MAIN), "pmu_open done");
     analog_open();
+    TR_INFO(TR_MOD(MAIN), "analog_open done");
 #endif
 
 #ifdef SBC_RAM_OPT_1306
     extern void init_1306_sbc_rom_api();
+    TR_INFO(TR_MOD(MAIN), "init_1306_sbc_rom_api start");
     init_1306_sbc_rom_api();
+    TR_INFO(TR_MOD(MAIN), "init_1306_sbc_rom_api done");
 #endif
 
 #ifdef BTH_IN_ROM
     bth_rom_init();
+    TR_INFO(TR_MOD(MAIN), "bth_rom_init done");
 #endif
-
+    TR_INFO(TR_MOD(MAIN), "srand start");
     srand(hal_sys_timer_get());
+    TR_INFO(TR_MOD(MAIN), "srand done");
 
 #ifdef EVR_TRACING
     hal_evr_init(0);
+    TR_INFO(TR_MOD(MAIN), "hal_evr_init done");
 #endif
 
 #if defined(_AUTO_TEST_)
     at_Init();
+    TR_INFO(TR_MOD(MAIN), "at_Init done");
 #endif
+    TR_INFO(TR_MOD(MAIN), "factory_section_open start");
     factory_section_open();
-
+    TR_INFO(TR_MOD(MAIN), "factory_section_open done");
 #ifdef FPGA
 
     TR_INFO(TR_MOD(MAIN), "\n[best of best of best...]\n");
@@ -461,21 +490,23 @@ int main(void)
     SAFE_PROGRAM_STOP();
 
 #else // !FPGA
-
+    TR_INFO(TR_MOD(MAIN), "factory mode init start");
 #if defined( __FACTORY_MODE_SUPPORT__) && !defined(SLIM_BTC_ONLY)
     if (bootmode & HAL_SW_BOOTMODE_FACTORY){
         hal_sw_bootmode_clear(HAL_SW_BOOTMODE_FACTORY);
         ret = app_factorymode_init(bootmode);
-
+        TR_INFO(TR_MOD(MAIN), "factorymode_init done");
     }else if(bootmode & HAL_SW_BOOTMODE_CALIB){
         hal_sw_bootmode_clear(HAL_SW_BOOTMODE_CALIB);
         ret = app_factorymode_calib_only();
+        TR_INFO(TR_MOD(MAIN), "factorymode_calib_only done");
     }
 #ifdef __USB_COMM__
     else if(bootmode & HAL_SW_BOOTMODE_CDC_COMM)
     {
         hal_sw_bootmode_clear(HAL_SW_BOOTMODE_CDC_COMM);
         ret = app_factorymode_cdc_comm();
+        TR_INFO(TR_MOD(MAIN), "factorymode_cdc_comm done");
     }
 #endif
     else
@@ -484,7 +515,14 @@ int main(void)
 //    demo_bin_aes_crypt_main();
 #if defined(ARM_CMNS)
     boot_secure_nse_boot_init();
+    TR_INFO(TR_MOD(MAIN), "boot");
 #endif
+
+    TR_INFO(TR_MOD(MAIN), "!!!!!!!!!!!!!!!enter debug mode!!!!!!!!!!!!!!!");
+    osDelay(1000);
+    root_main(0, NULL);
+    osDelay(1000);
+    TR_INFO(TR_MOD(MAIN), "!!!!!!!!!!!!!!!exit debug mode!!!!!!!!!!!!!!!");
 #ifdef SPA_AUDIO_SEC
     tz_customer_load_ram_ramx_section_info_t info = {0};
 #if defined(ARM_CMNS)

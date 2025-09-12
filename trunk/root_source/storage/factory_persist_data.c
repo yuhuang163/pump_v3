@@ -28,8 +28,8 @@
  * GLOBAL FUNCTION DEFINITIONS
  *****************************************************************************************
  */
-
-// 写入imu校准数据到flash
+#if IS_SUPPORT_DEVICE_IMU
+/// 写入imu校准数据到flash
 int storage_write_imu_cali_data(int arg1, int arg2, const void *val_in)
 {
     int ret = 0;
@@ -53,7 +53,7 @@ int storage_write_imu_cali_data(int arg1, int arg2, const void *val_in)
     return ret;
 }
 
-// 从flash中读取imu校准数据
+/// 从flash中读取imu校准数据
 int storage_read_imu_cali_data(int arg1, int arg2, void *val_in)
 {
     int ret = 0;
@@ -67,7 +67,7 @@ int storage_read_imu_cali_data(int arg1, int arg2, void *val_in)
     if (ret == 0 && store_imu->magic == STORAGE_IMU_CALIB_MAGIC_NUM && store_imu->crc == crc) {
         memcpy(imu_cali, &store_imu->imu_cali, sizeof(imu_cali_data_t));
     } else {
-        // 如果读取失败，尝试从旧的系统信息中读取
+        /// 如果读取失败，尝试从旧的系统信息中读取
         if (ctx->hook->read_old_sys_info) {
             ret = ctx->hook->read_old_sys_info(ctx, STORE_ID_FACTORY_IMU_CALI_DATA, (void *)imu_cali);
             if (ret == 0) {
@@ -83,8 +83,9 @@ CPL_EXIT:
 
     return ret;
 }
+#endif
 
-// 写入工厂部署标志到flash
+/// 写入工厂部署标志到flash
 int storage_write_factory_deploy_flag(int arg1, int arg2, const void *val_in)
 {
     int ret = 0;
@@ -105,7 +106,7 @@ int storage_write_factory_deploy_flag(int arg1, int arg2, const void *val_in)
     return ret;
 }
 
-// 写入工厂老化标志到flash
+/// 写入工厂老化标志到flash
 int storage_write_factory_age_flag(int arg1, int arg2, const void *val_in)
 {
     int ret = 0;
@@ -126,7 +127,7 @@ int storage_write_factory_age_flag(int arg1, int arg2, const void *val_in)
     return ret;
 }
 
-// 写入工厂老化展示标志到flash
+/// 写入工厂老化展示标志到flash
 int storage_write_factory_age_display_flag(int arg1, int arg2, const void *val_in)
 {
     int ret = 0;
@@ -147,7 +148,8 @@ int storage_write_factory_age_display_flag(int arg1, int arg2, const void *val_i
     return ret; 
 }
 
-// 写入工厂fsensor校准标志到flash
+#if IS_SUPPORT_DEVICE_FSENSOR
+/// 写入工厂fsensor校准标志到flash
 int storage_write_factory_fsensor_cali_flag(int arg1, int arg2, const void *val_in)
 {
     int ret = 0;
@@ -167,8 +169,9 @@ int storage_write_factory_fsensor_cali_flag(int arg1, int arg2, const void *val_
 
     return ret;
 }
+#endif
 
-// 写入工厂标志信息到flash
+/// 写入工厂标志信息到flash
 int storage_write_factory_flag_info(int arg1, int arg2, const void *val_in)
 {
     int ret = 0;
@@ -189,7 +192,7 @@ int storage_write_factory_flag_info(int arg1, int arg2, const void *val_in)
     return ret;
 }
 
-// 从flash中读取工厂标志信息
+/// 从flash中读取工厂标志信息
 int storage_read_factory_flag_info(int arg1, int arg2, void *val_in)
 {
     int ret = 0;
@@ -203,7 +206,7 @@ int storage_read_factory_flag_info(int arg1, int arg2, void *val_in)
     if (ret == 0 && store_flag->magic == STORAGE_FAC_FLAG_MAGIC_NUM && store_flag->crc == crc) {
         memcpy(flag_info, &store_flag->flag_info, sizeof(factory_flag_info_t));
     } else {
-        // 如果读取失败，尝试从旧的系统信息中读取
+        /// 如果读取失败，尝试从旧的系统信息中读取
         if (ctx->hook->read_old_sys_info) {
             ret = ctx->hook->read_old_sys_info(ctx, STORE_ID_FACTORY_FLAG_INFO, (void *)flag_info);
             if (ret == 0) {
@@ -220,13 +223,13 @@ CPL_EXIT:
     return ret;
 }
 
-// 写入工厂设备信息到flash
+/// 写入工厂设备信息到flash
 int storage_write_factory_dev_info(int arg1, int arg2, const void *val_in)
 {
     return 0; 
 }
 
-// 从flash中读取工厂设备信息到ram
+/// 从flash中读取工厂设备信息到ram
 int storage_read_factory_dev_info(int arg1, int arg2, void *val_in)
 {
     return 0;
@@ -256,25 +259,28 @@ int storage_read_factory_age_display_flag(void)
     return flag_info->age_display;
 }
 
+#if IS_SUPPORT_DEVICE_FSENSOR
 int storage_read_factory_fsensor_cali_flag(void)
 {
     storage_context_t *ctx = get_storage_manager_context();
     factory_flag_info_t *flag_info = &ctx->priv.factory_data.flag_info;
     return flag_info->fsensor_cali_flag;
 }
+#endif
 
-// 初始化工厂信息
+/// 初始化工厂信息
 int init_factory_persist_info(storage_context_t *ctx)
 {
     factory_data_store_t *factory_data = &ctx->priv.factory_data;
-    // 初始化工厂设备信息
+    /// 初始化工厂设备信息
     storage_read_factory_dev_info(0, 0, &factory_data->dev_info);
 
-    // 初始化工厂标志信息
+    /// 初始化工厂标志信息
     storage_read_factory_flag_info(0, 0, &factory_data->flag_info);
-
-    // 初始化工厂imu校准数据
+#if IS_SUPPORT_DEVICE_IMU
+    /// 初始化工厂imu校准数据
     storage_read_imu_cali_data(0, 0, &factory_data->imu);
+#endif
 
     return 0;
 }

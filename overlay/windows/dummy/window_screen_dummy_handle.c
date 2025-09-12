@@ -208,7 +208,7 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
     proc->res = (resource_manager_context_t *)find_module(ID_MODULE_RES);
     SET_WINDOW_CONTEXT(proc, LOG_UI);
 
-    // 监听PM状态改变.
+    /// 监听PM状态改变.
     LOG_UI("register receiver\n");
     proc->receiver.id.code = ID_BROADCAST_PM_STATE_CHANGE;
     proc->receiver.context = proc;

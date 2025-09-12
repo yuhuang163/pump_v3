@@ -12,7 +12,7 @@ extern "C" {
 #include <stdint.h>
 
 /**@brief Firmware information define*/
-// 要扫描的按键数
+/// 要扫描的按键数
 #define DE_SK_COUNT                          (1)           
 /**< 按键消抖需要的循环滴答次数(30ms,100ms) */
 #define DE_SK_DEBOUNCE_TICK                  (3)  
