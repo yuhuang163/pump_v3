@@ -358,7 +358,6 @@ static void wm_post_hdr_cb(hdr_post_args_t *args)
 {
     window_manager_context_t *wm = args->user_data;
     power_manager_context_t *pm = (power_manager_context_t *)find_module(ID_MODULE_POWER);
-    airplane_mode_context_t *ap = (airplane_mode_context_t *)find_module(ID_MODULE_AP_MODE);
 
     LOG_WM("task name: %s, arg2: %ld, arg1: %ld", args->name, args->arg2, args->arg1);
 
@@ -367,10 +366,13 @@ static void wm_post_hdr_cb(hdr_post_args_t *args)
         int val = args->arg1;
 
         if (val > 0) {
+            #if IS_SUPPORT_AIRPLANE_MODE
+            airplane_mode_context_t *ap = (airplane_mode_context_t *)find_module(ID_MODULE_AP_MODE);
             if (ap && ap->is_on_airplane_mode()) {
                 LOG_WM("is_on_airplane_mode not turn on bl");
                 return;
             }
+            #endif
             
             do {
                 LOG_WM("wait display_ready ready: %s, %d", args->name, counter);
@@ -444,13 +446,15 @@ static void on_wm_receive_internal(broadcast_mask_id_t id,
             LOG_WM("ID_BROADCAST_SYS_SHUTDOWN set_backlight 0");
             wm->set_backlight(0);
             break;
-
+            
+        #if IS_SUPPORT_AIRPLANE_MODE
         case ID_BROADCAST_AIRPLANE_MODE_STATE_CHANGE:
             LOG_WM("received ID_BROADCAST_AIRPLANE_MODE_STATE_CHANGE, arg1: %ld.", arg1);
             if (SETTINGS_AIRPLANE_MODE_ENTER == arg1) {
                 clear_window_history();
             }
             break;
+            #endif
 
         default:
             break;
@@ -493,12 +497,14 @@ static void play_boot_animation(void)
         msleep(50);
     } while (1);
 
+    #if IS_SUPPORT_MODULE_RES
     if (wm->priv.res) {
-        // MUST wait res ready!
         LOG_WM("wait res ready");
         wm->priv.res->wait_init_completed(wm->priv.res);
 
     }
+    #endif
+    
     POST_TASK_HANDLER_DELAYED_ARG5(wm_post_hdr_cb, 500, 100, ACTION_SET_BL,  thiz, "boot_set_bl-ON0");
     multi_func_msg_data_t __msg = {0};
     __msg.union_body.extra.window_id = ID_WINDOW_LOGO;
@@ -618,7 +624,9 @@ static int on_perpare_wm_init(void *self)
 {
     window_manager_context_t *wm = self;
     
+    #if IS_SUPPORT_MODULE_RES
     wm->priv.res = (resource_manager_context_t *)find_module(ID_MODULE_RES);
+    #endif
     peripheral_bus_context_t *pbus = (peripheral_bus_context_t *)find_module(ID_MODULE_DEVICE_BUS);
     wm->priv.panel_dev = pbus->find_device(ID_DEVICE_DISPLAY_PANEL);
     DEVICE_IOCTL_ARGS_NO_RET(wm->priv.panel_dev, OP_CODE_PANEL_ADD_READY_CB, display_device_ready_callback);

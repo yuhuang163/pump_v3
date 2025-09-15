@@ -4,6 +4,7 @@
 */
 #include "root_common_api.h" // IWYU pragma: keep
 #include "resource_manager.h" // IWYU pragma: keep
+#include "resource_manager_api.h" // IWYU pragma: keep
 
 /*
 * DEFINES

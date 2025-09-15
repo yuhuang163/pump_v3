@@ -75,7 +75,7 @@ typedef struct {
 } audio_sound_ctrl_t;
 
 /// 依赖模块
-struct storage_context_struct;
+struct storage_manager_context;
 struct resource_manager_context;
 struct rt_device_node;
 /// 描述音频管理上下文对象

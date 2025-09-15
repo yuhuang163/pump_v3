@@ -55,50 +55,7 @@ typedef enum {
     PERSIST_KEY_MAX,
 } persist_key_id_enum_t;
 
-/// 写入存储处理接口.
-typedef int (*put_store_process_func)(int arg1, int arg2, const void *val_in);
 
-/// 读取存储处理接口.
-typedef int (*get_store_process_func)(int arg1, int arg2, void *val_out);
-
-/// 删除存储处理接口.
-typedef int (*del_store_process_func)(int arg1, int arg2, const void *val_in);
-
-/// 写入系统ram值处理接口.
-typedef void (*put_store_ram_val_func)(int args);
-
-/// 读取存储处理接口.
-typedef int (*get_store_ram_val_func)(void);
-
-/// 描述写入存储处理结构.
-typedef struct {
-    uint16_t store_id;                             /// 存储id   
-    put_store_process_func store_process;   /// 存储处理接口.
-} put_store_process_handle_t;
-
-/// 描述读取存储处理结构.
-typedef struct {
-    uint16_t store_id;                             /// 存储id   
-    get_store_process_func store_process;   /// 存储处理接口.
-} get_store_process_handle_t;
-
-/// 删除存储处理接口.
-typedef struct {
-    uint16_t store_id;                             /// 存储id   
-    del_store_process_func store_process;   /// 存储处理接口.
-} del_store_process_handle_t;
-
-/// 描述写入系统ram值处理结构.
-typedef struct {
-    uint16_t store_id;                             /// 存储id   
-    put_store_ram_val_func store_process;    /// 写入系统ram值接口.
-} put_store_ram_val_handle_t;
-
-/// 描述读取存储处理结构.
-typedef struct {
-    uint16_t store_id;                             /// 存储id   
-    get_store_ram_val_func store_process;    /// 获取系统ram值接口.
-} get_store_ram_val_handle_t;
 
 /// 描述用户绑定信息
 typedef struct {

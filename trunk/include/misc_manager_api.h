@@ -10,10 +10,16 @@ extern "C" {
  * Include files
  ******************************************************************************/
 #include "root_common_base.h" // IWYU pragma: keep
-#include "system_persist_data.h" // IWYU pragma: keep
 
-#define EMPTY_BAT_PERCENTAGE                                  5
-#define LOW_BAT_PERCENTAGE                                    20
+/// 定义空电量百分比
+#ifndef EMPTY_BAT_PERCENTAGE
+#define EMPTY_BAT_PERCENTAGE              5
+#endif
+
+/// 定义低电量百分比
+#ifndef LOW_BAT_PERCENTAGE
+#define LOW_BAT_PERCENTAGE                20
+#endif
 
 /**
  * 描述充电相关

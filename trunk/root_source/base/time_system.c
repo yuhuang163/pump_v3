@@ -29,7 +29,7 @@ static void on_time_receive_internal(broadcast_mask_id_t id, void *context, int 
                     int wakeup_reason, broadcast_priv_data_t *pdata)
 {
     time_system_t *ts = context;
-    storage_context_t *ctx = (storage_context_t *)find_module(ID_MODULE_STORAGE);
+    storage_manager_context_t *ctx = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
     EXCEPTION_CHECK_VOID(ctx);
     if (id.code == ID_BROADCAST_SYS_SHUTDOWN) {
         LOG_TIME("=>shutdown save timestamp: %d", ts->priv.timestamp);
@@ -47,7 +47,7 @@ static int time_system_init(void *ptr)
 {
     time_system_t *ts = ptr;
     uint32_t timestamp = 0;
-    storage_context_t *ctx = (storage_context_t *)find_module(ID_MODULE_STORAGE);
+    storage_manager_context_t *ctx = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
     if (ctx && ctx->get_store_val) {
         ctx->get_store_val(STORE_ID_SYS_UTC_TIMESTAMP, 0, 0, &timestamp);
     }

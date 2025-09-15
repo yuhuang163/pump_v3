@@ -50,7 +50,7 @@ typedef struct resource_manager_context {
         os_mutex_id m_fs_rw_lock;
         os_semaphore_id sem_init;
         bool res_init_completed;
-        struct storage_context_struct *storage;
+        struct storage_manager_context *storage;
         struct power_manager_context *pm;
     } priv;
 } resource_manager_context_t;

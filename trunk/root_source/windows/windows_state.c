@@ -96,15 +96,15 @@ bool is_valid_window_id(uint8_t window_id)
 /// 是否完成首次开机部署.
 bool is_window_deployed(void)
 {
-    storage_context_t *st_ctx = (storage_context_t *)find_module(ID_MODULE_STORAGE);
-    return st_ctx->get_store_ram_val(STORE_ID_SYS_GUIDE_DEPLOYED) ? 1 : 0;
+    storage_manager_context_t *st_ctx = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
+    return st_ctx->get_store_ram_val(STORE_ID_SYS_GUIDE_DEPLOYED, 0, 0, NULL) ? 1 : 0;
 }
 
 /// 设置首次开机部署标志.
 void set_window_deployed_flag(void)
 {
-    storage_context_t *st_ctx = (storage_context_t *)find_module(ID_MODULE_STORAGE);
-    st_ctx->put_store_ram_val(STORE_ID_SYS_GUIDE_DEPLOYED, 1);
+    storage_manager_context_t *st_ctx = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
+    st_ctx->put_store_ram_val(STORE_ID_SYS_GUIDE_DEPLOYED, 1, 0, NULL);
 }
 
 bool window_system_is_ready(void)

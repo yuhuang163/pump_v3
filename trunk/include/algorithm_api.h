@@ -14,7 +14,7 @@ extern "C" {
 
 struct breath_pump_context;
 struct input_dispatcher_context;
-struct storage_context_struct;
+struct storage_manager_context;
 
 /// 算法接口.
 struct broadcast_obj;
@@ -23,7 +23,7 @@ typedef struct algo_fusion_context {
     struct __airplane_private {
         struct breath_pump_context *bth;
         struct input_dispatcher_context *input;
-        struct storage_context_struct *st;
+        struct storage_manager_context *st;
         struct broadcast_obj *mbroadcast;
         algo_breath_pump_data_t algo_breath_pump[ALGO_BREATH_PUMP_DATA_MAX];  
         int algo_inited;

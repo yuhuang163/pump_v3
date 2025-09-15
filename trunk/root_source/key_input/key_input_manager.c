@@ -116,7 +116,7 @@ static int on_spec_press_key_handler(void *user_data, uint16_t keycode, uint16_t
     pm->acquire_wakelock("reboot", 10);
 
     LOGE("(%ld)Oops! we will reset system!", diff_time);
-    storage_context_t *st = (storage_context_t *)find_module(ID_MODULE_STORAGE);
+    storage_manager_context_t *st = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
 
     LOGE("==========RESET_AND_REBOOT==========");
     st->factory_reset(RESET_AND_REBOOT);

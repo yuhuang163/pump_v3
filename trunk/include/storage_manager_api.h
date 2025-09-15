@@ -1,6 +1,7 @@
 #ifndef __STORAGE_MANAGER_API_H__
 #define __STORAGE_MANAGER_API_H__
 
+#include <stdint.h>
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -10,7 +11,7 @@ extern "C" {
  * Include files
  ******************************************************************************/
 #include "root_common_base.h" // IWYU pragma: keep
-#include "system_persist_data.h"
+#include "persist_storage.h"
 
 typedef uint16_t database_key_t;
 #define ADDR_FACTORY_DATA_OFFSET                          (0)
@@ -85,11 +86,65 @@ typedef enum {
     RESET_AND_NO_UNBIND = 2,  /// 仅重置不解绑
 } factory_reset_type_e;
 
+struct storage_manager_context;
+
+typedef struct {
+    struct storage_manager_context *ctx;
+    int arg1;
+    int arg2;
+    const void *val;
+} store_func_args_t;
+
+/// 写入存储处理接口.
+typedef int (*put_store_process_func)(store_func_args_t *args);
+
+/// 读取存储处理接口.
+typedef int (*get_store_process_func)(store_func_args_t *args);
+
+/// 删除存储处理接口.
+typedef int (*del_store_process_func)(store_func_args_t *args);
+
+/// 写入系统ram值处理接口.
+typedef int (*put_store_ram_val_func)(store_func_args_t *args);
+
+/// 读取存储处理接口.
+typedef int (*get_store_ram_val_func)(store_func_args_t *args);
+
+/// 描述写入存储处理结构.
+typedef struct {
+    uint16_t store_id;                             /// 存储id   
+    put_store_process_func store_process;   /// 存储处理接口.
+} put_store_process_handle_t;
+
+/// 描述读取存储处理结构.
+typedef struct {
+    uint16_t store_id;                             /// 存储id   
+    get_store_process_func store_process;   /// 存储处理接口.
+} get_store_process_handle_t;
+
+/// 删除存储处理接口.
+typedef struct {
+    uint16_t store_id;                             /// 存储id   
+    del_store_process_func store_process;   /// 存储处理接口.
+} del_store_process_handle_t;
+
+/// 描述写入系统ram值处理结构.
+typedef struct {
+    uint16_t store_id;                             /// 存储id   
+    put_store_ram_val_func store_process;    /// 写入系统ram值接口.
+} put_store_ram_val_handle_t;
+
+/// 描述读取存储处理结构.
+typedef struct {
+    uint16_t store_id;                             /// 存储id   
+    get_store_ram_val_func store_process;    /// 获取系统ram值接口.
+} get_store_ram_val_handle_t;
+
 struct rt_device_node;
 struct broadcast_obj;
 // struct extflash_interface;
 
-typedef struct storage_context_struct {
+typedef struct storage_manager_context {
 /// public
     int (*init)(void);
     int (*factory_reset)(factory_reset_type_e is_reboot);
@@ -100,15 +155,12 @@ typedef struct storage_context_struct {
     int (*put_store_val)(persist_store_id_e id, int arg1, int arg2,  const void *val_in);
     int (*get_store_val)(persist_store_id_e id, int arg1, int arg2,  void *val_out);
     int (*del_store_val)(persist_store_id_e id, int arg1, int arg2,  const void *val_in);
-    void (*put_store_ram_val)(persist_store_id_e id, int args);
-    int (*get_store_ram_val)(persist_store_id_e id);
-
-    int (*get_record_breath_pump_count)(void);
-    int (*get_record_breath_pump_info)(int num, void *pump_info);
-    int (*del_record_breath_pump_info)(int num);
+    void (*put_store_ram_val)(persist_store_id_e id, int arg1, int arg2,  const void *val_in);
+    int (*get_store_ram_val)(persist_store_id_e id, int arg1, int arg2, void *val_out);
+    int (*user_database_reset)(void);
     /// 外部hook点.
     struct __storage_hook {
-        int (*read_old_sys_info)(struct storage_context_struct *st, persist_store_id_e id, void *val_in);
+        int (*read_old_sys_info)(struct storage_manager_context *st, persist_store_id_e id, void *val_in);
     } *hook;
 
 /// private
@@ -130,8 +182,20 @@ typedef struct storage_context_struct {
         /// 工厂数据集合.
         factory_data_store_t factory_data;
         breath_pump_data_head_t pump_data_head;
+        /// 存储处理列表.
+        const put_store_process_handle_t *put_store_process_list;
+        const get_store_process_handle_t *get_store_process_list;
+        const del_store_process_handle_t *del_store_process_list;
+        const put_store_ram_val_handle_t *put_store_ram_val_list;
+        const get_store_ram_val_handle_t *get_store_ram_val_list;
+        /// 存储处理列表长度.
+        uint16_t put_store_process_list_len;
+        uint16_t get_store_process_list_len;
+        uint16_t del_store_process_list_len;
+        uint16_t put_store_ram_val_list_len;
+        uint16_t get_store_ram_val_list_len;
     } priv;
-} storage_context_t;
+} storage_manager_context_t;
 
 
 #ifdef __cplusplus

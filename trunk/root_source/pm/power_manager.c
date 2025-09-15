@@ -597,16 +597,19 @@ static int pm_release_wakelock(const char *caller)
 
 static int external_wakeup_policy(power_manager_context_t *ctx, pm_wakeup_reason_e reason)
 {
-    airplane_mode_context_t *airplane = (airplane_mode_context_t *)find_module(ID_MODULE_AP_MODE);
+
 
     ctx->priv.is_back_ground_wakeup = false;
 
     switch (reason) {
         case PM_WAKEUP_REASON_IMU_IRQ:
+            #if IS_SUPPORT_AIRPLANE_MODE
+            airplane_mode_context_t *airplane = (airplane_mode_context_t *)find_module(ID_MODULE_AP_MODE);
             if (airplane && airplane->is_on_airplane_mode()) {
                 LOGW("blocked by ap mode!");
                 return -1;
             }
+            #endif
             break;
 
         case PM_WAKEUP_REASON_BACKGROUND_TASK:
@@ -726,6 +729,7 @@ static int enable_pmu_sleep(const char *caller, bool enable)
 
 static int is_pmu_sleep(void)
 {
+    #if IS_SUPPORT_AIRPLANE_MODE
     if (!thiz->priv.pmu_sleep_enable) {
         airplane_mode_context_t *airplane = (airplane_mode_context_t *)find_module(ID_MODULE_AP_MODE);
         if (airplane && airplane->is_on_airplane_mode()) {
@@ -733,6 +737,7 @@ static int is_pmu_sleep(void)
             return 1;
         }
     }
+    #endif
     return thiz->priv.pmu_sleep_enable;
 }
 

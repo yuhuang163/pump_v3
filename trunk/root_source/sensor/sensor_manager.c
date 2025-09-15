@@ -14,6 +14,7 @@
 #if IS_SUPPORT_DEVICE_AIR_PRESSURE
 #include "air_pressure_module_internal.h"
 #endif
+#include "sensor_manager_api.h" // IWYU pragma: keep
 
 /*
 * DEFINES

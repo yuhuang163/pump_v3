@@ -63,6 +63,10 @@ SDK_INCLUDE_PATHS := \
 	-I$(PROJECT_ROOT)/overlay/sensor/imu \
 	-I$(PROJECT_ROOT)/overlay/sensor/force_sensor \
 	-I$(PROJECT_ROOT)/overlay/sensor/air_pressure \
+	-I$(PROJECT_ROOT)/overlay/storage/factory \
+	-I$(PROJECT_ROOT)/overlay/storage/breath_pump \
+	-I$(PROJECT_ROOT)/overlay/storage/resource \
+	-I$(PROJECT_ROOT)/overlay/storage\
 	-I$(PROJECT_ROOT)/trunk/include \
 	-I$(PROJECT_ROOT)/trunk/extern \
 	-I$(PROJECT_ROOT)/trunk/root_source/airplane \
@@ -169,6 +173,10 @@ EXTRA_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/overlay/sensor/imu/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/sensor/force_sensor/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/sensor/air_pressure/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/storage/factory/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/storage/breath_pump/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/storage/resource/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/storage/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/windows/battery/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/windows/breath_pump/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/windows/charge/*.c) \

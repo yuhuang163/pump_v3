@@ -52,7 +52,7 @@ static int popup_exit_cb(void *user_data, int args1, int args2)
     airplane_mode_context_t *thiz = user_data;
     power_manager_context_t *pm = (power_manager_context_t *)find_module(ID_MODULE_POWER);
     window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
-    storage_context_t *st = (storage_context_t *)find_module(ID_MODULE_STORAGE);
+    storage_manager_context_t *st = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
     int which_type = args1;
     pm->release_wakelock(AIRPLANE_PM_LOCK);
 

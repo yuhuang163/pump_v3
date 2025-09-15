@@ -17,9 +17,10 @@ typedef struct {
     window_context_t args;
     broadcast_obj_t receiver;
     misc_manager_context_t *misc;
-    storage_context_t *st;
-    airplane_mode_context_t *ap;
+    storage_manager_context_t *st;
+    #if IS_SUPPORT_MODULE_RES
     resource_manager_context_t *res;
+    #endif
 } ui_proc_dummy_t;
 
 /*
@@ -57,26 +58,12 @@ ui_page_handle_t PAGE_CONTEXT_NAME(PAGE_STATIC_NAME) = {
 static int wakup_enter_new_window_policy(ui_proc_dummy_t *proc, int wakeup_reason)
 {
     window_manager_context_t *wm = proc->args.wm;
-    airplane_mode_context_t *airplane = (airplane_mode_context_t *)find_module(ID_MODULE_AP_MODE);
     power_manager_context_t *pm =  (power_manager_context_t *)find_module(ID_MODULE_POWER);
-    storage_context_t *st = (storage_context_t *)find_module(ID_MODULE_STORAGE);
     multi_func_msg_data_t msg = {0};
-    
     if (!(pm && pm->is_background_wakeup())) {
-        if (airplane && airplane->is_on_airplane_mode()) {
-            LOG_UI("dispatch airplane mode exit ui");
-            if (wakeup_reason == PM_WAKEUP_REASON_CHARGE_PLUG_IN) {
-                proc->ap->exit(wakeup_reason);
-            } else {
-                LOG_UI("dispatch airplane mode");
-                msg.union_body.extra.window_id = ID_WINDOW_AIRPLANE_MODE;
-                wm->dispatch_new_window_args(wm, &msg);
-            }
-            return 0;
-        }
     }
 
-    if (!st->get_store_ram_val(STORE_ID_FACTORY_DEPLOY_FLAG)) {
+    if (!proc->st->get_store_ram_val(STORE_ID_FACTORY_DEPLOY_FLAG, 0, 0, NULL)) {
         LOG_UI("goto fac: true");
         msg.union_body.extra.window_id = ID_WINDOW_FACTORY_MODE;
         wm->dispatch_new_window_args(wm, &msg);
@@ -97,21 +84,6 @@ static int wakup_enter_new_window_policy(ui_proc_dummy_t *proc, int wakeup_reaso
         wm->dispatch_new_window_args(wm, &msg);
         return 0;
     }
-
-    if(wakeup_reason == PM_WAKEUP_REASON_IMU_IRQ) {
-        wm->priv.wake_up_without_operate ++;
-
-        if (wm->priv.wake_up_without_operate >= ENTRY_AP_MODE_TIMES) {
-            airplane_mode_context_t *ap = (airplane_mode_context_t *)find_module(ID_MODULE_AP_MODE);
-            LOG_UI("goto ap mode: true");
-            wm->priv.wake_up_without_operate = 0;
-            ap->enter();
-            return 0;
-        }
-    } else {
-        wm->priv.wake_up_without_operate = 0;
-    }
-
     return -1;
 }
 
@@ -203,9 +175,10 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
     wm->set_backlight(0);
     ui_proc_dummy_t *proc = u_malloz(sizeof(ui_proc_dummy_t));
     proc->misc = (misc_manager_context_t *)find_module(ID_MODULE_MISC);
-    proc->st = (storage_context_t *)find_module(ID_MODULE_STORAGE);
-    proc->ap = (airplane_mode_context_t *)find_module(ID_MODULE_AP_MODE);
+    proc->st = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
+    #if IS_SUPPORT_MODULE_RES
     proc->res = (resource_manager_context_t *)find_module(ID_MODULE_RES);
+    #endif
     SET_WINDOW_CONTEXT(proc, LOG_UI);
 
     /// 监听PM状态改变.

@@ -28,7 +28,7 @@ static sensor_manager_context_t *thiz = NULL;
 */
 static int write_imu_calibration(const imu_cali_data_t *cali)
 {
-    storage_context_t *st = (storage_context_t *)find_module(ID_MODULE_STORAGE);
+    storage_manager_context_t *st = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
     EXCEPTION_CHECK_INT(st);
     int ret = st->put_store_val(STORE_ID_FACTORY_IMU_CALI_DATA, 0, 0, (const void *)cali);
     LOG_SENSOR("write: ret=%d", ret);
@@ -38,7 +38,7 @@ static int write_imu_calibration(const imu_cali_data_t *cali)
 
 static const imu_cali_data_t *read_imu_cali_data(void)
 {
-    storage_context_t *st = (storage_context_t *)find_module(ID_MODULE_STORAGE);
+    storage_manager_context_t *st = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
     return (const imu_cali_data_t *)&st->priv.factory_data.imu;
 }
 

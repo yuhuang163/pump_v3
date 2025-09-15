@@ -94,12 +94,14 @@ static void polling_charge_status(misc_manager_context_t *ctx, window_manager_co
     }
     LOG_MISC("charge:%d", chage_state);
 
+    #if IS_SUPPORT_AIRPLANE_MODE
     /// 飞行模式下不弹充电界面
     airplane_mode_context_t *ap = (airplane_mode_context_t *)find_module(ID_MODULE_AP_MODE);
     if (ap && ap->is_on_airplane_mode()) {
         LOG_MISC("airplane_mode ignore");
         return;
     }
+    #endif
 
     *is_plug_state_changed = plug_status;
     if (chage_state != CHARGE_STATE_ERROR) {

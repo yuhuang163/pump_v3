@@ -233,13 +233,13 @@ typedef struct {
     motor_task_play_para_t para;
 } motor_history_node_desc_t;
 
-struct storage_context_struct;
+struct storage_manager_context;
 typedef struct motor_manager_context {
 /// private
     struct __storage_private {
         struct audio_manager_context *audio_ctx;
         struct breath_pump_context *breath_pump_ctx;
-        struct storage_context_struct *st_ctx;
+        struct storage_manager_context *st_ctx;
         struct algo_fusion_context *algo;
         /// 振动标志
         uint8_t set_shake_flag;
