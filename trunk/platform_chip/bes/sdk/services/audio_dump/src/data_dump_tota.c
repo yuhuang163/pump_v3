@@ -81,7 +81,7 @@ int32_t _write_data(uint8_t *buf, uint32_t len)
         g_write_pos = 0;
     }
 
-    // AUDIO_DUMP_TRACE(4, "[%s] g_write_pos: %d; len: %d; DUMP_BUF_SIZE: %d", __func__, g_write_pos, len, DUMP_BUF_SIZE);
+    // TRACE(4, "[%s] g_write_pos: %d; len: %d; DUMP_BUF_SIZE: %d", __func__, g_write_pos, len, DUMP_BUF_SIZE);
 
     uint32_t lock = int_lock();
     memcpy(&g_dump_buf[g_write_pos], buf, len);
@@ -95,7 +95,7 @@ static int32_t _read_data(uint8_t *buf, uint32_t len)
 {
     int32_t ret = 0;
 
-    // AUDIO_DUMP_TRACE(3, "[%s] g_write_pos: %d; len: %d", __func__, g_write_pos, len);
+    // TRACE(3, "[%s] g_write_pos: %d; len: %d", __func__, g_write_pos, len);
 
     if (len <= g_write_pos) {
         uint32_t lock = int_lock();
@@ -106,7 +106,7 @@ static int32_t _read_data(uint8_t *buf, uint32_t len)
         int_unlock(lock);
         ret = 1;
     } else {
-        // AUDIO_DUMP_TRACE(1, "[%s] SKIP...", __func__);
+        // TRACE(1, "[%s] SKIP...", __func__);
     }
 
     return ret;
@@ -119,16 +119,16 @@ static int32_t _send_data(void)
 #if 1
     while (1) {
         if (_tota_buf_is_available(TOTA_TX_BUF_SIZE) == false) {
-            AUDIO_DUMP_TRACE(1, "[%s] tota tx buffer is not available!!!", __func__);
+            TRACE(1, "[%s] tota tx buffer is not available!!!", __func__);
             break;
         } else if (_data_len() >= TOTA_TX_BUF_SIZE) {
             ret = _read_data(g_tota_tx_buf, TOTA_TX_BUF_SIZE);
             if (ret) {
                 _tota_tx_data_run(g_tota_tx_buf, TOTA_TX_BUF_SIZE);
-                // AUDIO_DUMP_TRACE(3, "[%s] %d, %d", __func__, g_tota_tx_buf[0], g_tota_tx_buf[1]);
+                // TRACE(3, "[%s] %d, %d", __func__, g_tota_tx_buf[0], g_tota_tx_buf[1]);
             }
         } else {
-            // AUDIO_DUMP_TRACE(1, "[%s] No data to send...", __func__);
+            // TRACE(1, "[%s] No data to send...", __func__);
             break;
         }
     }
@@ -136,7 +136,7 @@ static int32_t _send_data(void)
     ret = _read_data(g_tota_tx_buf, TOTA_TX_BUF_SIZE);
     if (ret) {
         _tota_tx_data_run(g_tota_tx_buf, TOTA_TX_BUF_SIZE);
-        AUDIO_DUMP_TRACE(3, "[%s] %d, %d", __func__, g_tota_tx_buf[0], g_tota_tx_buf[1]);
+        TRACE(3, "[%s] %d, %d", __func__, g_tota_tx_buf[0], g_tota_tx_buf[1]);
     }
 #endif
 
@@ -174,10 +174,10 @@ static void _dump_thread(void const *argument)
         //wait any signal
         evt = osSignalWait(0x0, osWaitForever);
         signals = evt.value.signals;
-        //AUDIO_DUMP_TRACE(3, "[%s] status = %x, signals = %d", __func__, evt.status, evt.value.signals);
+        //TRACE(3, "[%s] status = %x, signals = %d", __func__, evt.status, evt.value.signals);
 
         if (evt.status == osEventSignal) {
-            // AUDIO_DUMP_TRACE(1, "signal = %d", signals);
+            // TRACE(1, "signal = %d", signals);
             if (signals & (1 << TOTA_AUDIO_DUMP_SIGNAL_READY)) {
                 _send_data();
             }
@@ -190,7 +190,7 @@ static void _dump_thread(void const *argument)
 
 void _dump_thread_open(void)
 {
-    AUDIO_DUMP_TRACE(1, "[%s] ......", __func__);
+    TRACE(1, "[%s] ......", __func__);
 
     // if (voice_tx_mutex_id == NULL) {
     //     voice_tx_mutex_id = osMutexCreate((osMutex(voice_tx_mutex)));
@@ -204,7 +204,7 @@ void _dump_thread_open(void)
 
 void _dump_thread_close(void)
 {
-    AUDIO_DUMP_TRACE(1, "[%s] ......", __func__);
+    TRACE(1, "[%s] ......", __func__);
 
     osThreadTerminate(_dump_thread_tid);
 }
@@ -239,7 +239,7 @@ void data_dump_tota_start(void)
     // If this function can not start successfully, do not dump data
     connected_flag = _tota_is_connected();
     if (connected_flag == false) {
-        AUDIO_DUMP_TRACE(1, "[%s] TOTA is disconnected!!!", __func__);
+        TRACE(1, "[%s] TOTA is disconnected!!!", __func__);
         return;
     }
 

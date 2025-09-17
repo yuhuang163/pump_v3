@@ -155,9 +155,10 @@
 #define SDMMCIP_REG_CTYPE_8BIT          (1 << 16)
 
 /* Status Register */
-#define SDMMCIP_REG_BUSY                (1 << 9)
-#define SDMMCIP_REG_FIFO_FULL           (1 << 3)
 #define SDMMCIP_REG_FIFO_EMPTY          (1 << 2)
+#define SDMMCIP_REG_FIFO_FULL           (1 << 3)
+#define SDMMCIP_REG_DATA0_BUSY          (1 << 9)
+#define SDMMCIP_REG_STATE_MACHINE_BUSY  (1 << 10)
 #define SDMMCIP_REG_FIFO_COUNT_SHIFT    (17)
 #define SDMMCIP_REG_FIFO_COUNT_MASK     (0x1fff << SDMMCIP_REG_FIFO_COUNT_SHIFT)
 

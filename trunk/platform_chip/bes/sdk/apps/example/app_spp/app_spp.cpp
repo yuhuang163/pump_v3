@@ -35,6 +35,7 @@
 #define RFCOMM_CHANNEL_CUSTOM_PORT_1                30
 
 #define SERIA_PORT_SPP_CLIENT                       0
+#define SERIA_PORT_SPP_SERVICE                      1
 #define SERIAL_PORT_RX_BUFF_LEN                     (800*3)
 
 static APP_SPP_CLIENT_CALLBACK_IND     g_app_spp_serial_port_client_callback  = NULL;
@@ -43,8 +44,8 @@ static APP_SPP_CLIENT_CALLBACK_IND     g_app_spp_serial_port_server_callback  = 
 static bt_spp_channel_t *_app_spp_serial_port_client_dev[BT_DEVICE_NUM];
 static bool serial_port_client_is_connected[BT_DEVICE_NUM] = {false};
 
-bt_spp_channel_t *g_app_spp_serial_port_device[BT_DEVICE_NUM];
-bt_spp_channel_t *g_app_spp_serial_port_server_device[BT_DEVICE_NUM];
+static bool g_serial_server_is_connected[BT_DEVICE_NUM] = {false};
+static bt_spp_channel_t *g_app_spp_serial_port_server_device[BT_DEVICE_NUM];
 
 static const U8 SerialPortSppClassId[] = {
     SDP_ATTRIB_HEADER_8BIT(3),        /* Data Element Sequence, 6 bytes */
@@ -163,25 +164,30 @@ bool app_spp_serial_port_send_data(bt_bdaddr_t *remote, const uint8_t* ptrData, 
 {
     bt_status_t ret = BT_STS_SUCCESS;
     struct BT_ADAPTER_DEVICE_T *curr_device = NULL;
-    uint32_t rfcomm_handle = 0;
+    uint32_t client_handle = 0;
+    uint32_t server_handle = 0;
     curr_device = bt_adapter_get_connected_device_byaddr(remote);
     if (curr_device == NULL)
     {
-        EXAMPLE_TRACE(0, "app_spp_uart_client_open: no connection");
+        TRACE(0, "app_spp_uart_client_open: no connection");
         return false;
     }
 
-    if (serial_port_client_is_connected[curr_device->device_id] == false)
+    if (serial_port_client_is_connected[curr_device->device_id])
     {
-        EXAMPLE_TRACE(0, "app_spp_uart_client_open: no open");
-        return false;
+        client_handle = _app_spp_serial_port_client_dev[curr_device->device_id]->rfcomm_handle;
     }
-
-    rfcomm_handle = _app_spp_serial_port_client_dev[curr_device->device_id]->rfcomm_handle;
-
-    if (rfcomm_handle)
+    if (g_serial_server_is_connected[curr_device->device_id])
     {
-        ret = bta_spp_write(rfcomm_handle, ptrData, length);
+        server_handle = g_app_spp_serial_port_server_device[curr_device->device_id]->rfcomm_handle;
+    }
+    if (client_handle)
+    {
+        ret = bt_spp_write(client_handle, ptrData, length);
+    }
+    else if (server_handle)
+    {
+        ret = bt_spp_write(server_handle, ptrData, length);
     }
 
     if ((BT_STS_SUCCESS != ret) && (BT_STS_PENDING != ret))
@@ -209,13 +215,13 @@ void app_spp_close_serial_port(const bt_bdaddr_t *remote)
 
     if (curr_device == NULL)
     {
-        EXAMPLE_TRACE(0, "app_spp_close_serial_port: no connection");
+        TRACE(0, "app_spp_close_serial_port: no connection");
         return;
     }
 
     if (curr_device->device_id == BT_DEVICE_INVALID_ID)
     {
-        EXAMPLE_TRACE(0,"warning close serial port fail,remote device already disconnected!");
+        TRACE(0,"warning close serial port fail,remote device already disconnected!");
         return;
     }
 
@@ -223,12 +229,12 @@ void app_spp_close_serial_port(const bt_bdaddr_t *remote)
 
     if (serial_port_client_is_connected[device_id] == false)
     {
-        EXAMPLE_TRACE(0, "app_spp_close_serial_port: no open");
+        TRACE(0, "app_spp_close_serial_port: no open");
         return;
     }
 
-    EXAMPLE_TRACE(1,"app_spp_close_serial_portt device_id[%d]", device_id);
-    bta_spp_disconnect(_app_spp_serial_port_client_dev[device_id]->rfcomm_handle, BTIF_BEC_LOCAL_TERMINATED);
+    TRACE(1,"app_spp_close_serial_portt device_id[%d]", device_id);
+    bt_spp_disconnect(_app_spp_serial_port_client_dev[device_id]->rfcomm_handle, BTIF_BEC_LOCAL_TERMINATED);
 }
 
 /**********************************************************************************************
@@ -302,21 +308,21 @@ static int app_spp_serial_port_client_callback(const bt_bdaddr_t *remote, bt_spp
     {
         case BT_SPP_EVENT_OPENED:
             serial_port_client_is_connected[curr_device->device_id] = true;
-            EXAMPLE_TRACE(0, "app_spp_serial_port_client_callback ::SPP_EVENT_REMDEV_CONNECTED %02x", event);
+            TRACE(0, "app_spp_serial_port_client_callback ::SPP_EVENT_REMDEV_CONNECTED %02x", event);
             break;
 
         case BT_SPP_EVENT_CLOSED:
             serial_port_client_is_connected[curr_device->device_id] = false;
-            EXAMPLE_TRACE(0, "app_spp_serial_port_client_callback ::SPP_EVENT_REMDEV_DISCONNECTED %02x", event);
+            TRACE(0, "app_spp_serial_port_client_callback ::SPP_EVENT_REMDEV_DISCONNECTED %02x", event);
             break;
 
         case BT_SPP_EVENT_TX_DONE:
-            EXAMPLE_TRACE(0, "app_spp_serial_port_client_callback ::BT_SPP_EVENT_TX_DONE");
+            TRACE(0, "app_spp_serial_port_client_callback ::BT_SPP_EVENT_TX_DONE");
             break;
 
         case BT_SPP_EVENT_RX_DATA:
-            EXAMPLE_TRACE(0, "app_spp_serial_port_client_callback ::BT_SPP_EVENT_RX_DATA");
-            EXAMPLE_DUMP8("%02x ", param->rx_data_ptr, param->rx_data_len);
+            TRACE(0, "app_spp_serial_port_client_callback ::BT_SPP_EVENT_RX_DATA");
+            DUMP8("%02x ", param->rx_data_ptr, param->rx_data_len);
             break;
 
         default:
@@ -347,25 +353,32 @@ static int app_spp_serial_port_client_callback(const bt_bdaddr_t *remote, bt_spp
 
 static int app_spp_serial_port_server_callback(const bt_bdaddr_t *remote, bt_spp_event_t event, bt_spp_callback_param_t *param)
 {
+    struct BT_ADAPTER_DEVICE_T *curr_device = NULL;
+    curr_device = bt_adapter_get_connected_device_byaddr(remote);
+    if (curr_device == NULL)
+    {
+        return 0;
+    }
     if (param == NULL)
     {
         return 0;
     }
-
     switch (event)
     {
         case BT_SPP_EVENT_OPENED:
-            EXAMPLE_TRACE(0, "spp_serial_port_server_callback ::BTIF_SPP_EVENT_REMDEV_CONNECTED");
+            g_serial_server_is_connected[curr_device->device_id] = true;
+            TRACE(0, "spp_serial_port_server_callback ::BTIF_SPP_EVENT_REMDEV_CONNECTED");
             break;
         case BT_SPP_EVENT_CLOSED:
-            EXAMPLE_TRACE(0, "spp_serial_port_server_callback ::BTIF_SPP_EVENT_REMDEV_DISCONNECTED");
+            g_serial_server_is_connected[curr_device->device_id] = false;
+            TRACE(0, "spp_serial_port_server_callback ::BTIF_SPP_EVENT_REMDEV_DISCONNECTED");
             break;
         case BT_SPP_EVENT_TX_DONE:
-            EXAMPLE_TRACE(0, "spp_serial_port_server_callback ::BT_SPP_EVENT_TX_DONE");
+            TRACE(0, "spp_serial_port_server_callback ::BT_SPP_EVENT_TX_DONE");
             break;
         case BT_SPP_EVENT_RX_DATA:
-            EXAMPLE_TRACE(0, "spp_serial_port_server_callback ::BT_SPP_EVENT_RX_DATA");
-            EXAMPLE_DUMP8("%02x ", param->rx_data_ptr, param->rx_data_len);
+            TRACE(0, "spp_serial_port_server_callback ::BT_SPP_EVENT_RX_DATA");
+            DUMP8("%02x ", param->rx_data_ptr, param->rx_data_len);
             break;
         default:
             break;
@@ -373,7 +386,7 @@ static int app_spp_serial_port_server_callback(const bt_bdaddr_t *remote, bt_spp
 
     if (g_app_spp_serial_port_server_callback)
     {
-        g_app_spp_serial_port_server_callback(SERIA_PORT_SPP_CLIENT, remote, event, param);
+        g_app_spp_serial_port_server_callback(SERIA_PORT_SPP_SERVICE, remote, event, param);
     }
 
     return 0;
@@ -415,14 +428,14 @@ void app_spp_serial_port_server_init(void)
         if ((spp_port_record->client_spp_callback == NULL) && \
             (spp_port_record->app_spp_callback != app_spp_serial_port_server_callback))
         {
-            bta_spp_set_callback(RFCOMM_CHANNEL_SERIAL_PORT, SERIAL_PORT_RX_BUFF_LEN,
+            bt_spp_set_callback(RFCOMM_CHANNEL_SERIAL_PORT, SERIAL_PORT_RX_BUFF_LEN,
                                 app_spp_serial_port_server_callback, spp_port_record->client_spp_callback);
             spp_port_record->app_spp_callback = app_spp_serial_port_server_callback;
         }
     }
     else
     {
-        spp_port_record = (struct app_spp_port_record_t *)bes_bt_buf_malloc(sizeof(struct app_spp_port_record_t));
+        spp_port_record = (struct app_spp_port_record_t *)cobuf_malloc(sizeof(struct app_spp_port_record_t));
         if (spp_port_record)
         {
             memset(spp_port_record, 0, sizeof(struct app_spp_port_record_t));
@@ -431,15 +444,14 @@ void app_spp_serial_port_server_init(void)
             spp_port_record->client_spp_callback = NULL;
             colist_addto_tail(&spp_port_record->node, &g_app_spp_global.spp_port_list);
         }
-
-        bta_spp_create_port(RFCOMM_CHANNEL_SERIAL_PORT, SerialPortSppSdpAttributes1, ARRAY_SIZE(SerialPortSppSdpAttributes1));
-        bta_spp_set_callback(RFCOMM_CHANNEL_SERIAL_PORT, SERIAL_PORT_RX_BUFF_LEN, app_spp_serial_port_client_callback, NULL);
-        bta_spp_listen(RFCOMM_CHANNEL_SERIAL_PORT, true, NULL);
+        bt_spp_create_port(RFCOMM_CHANNEL_SERIAL_PORT, SerialPortSppSdpAttributes1, ARRAY_SIZE(SerialPortSppSdpAttributes1));
+        bt_spp_set_callback(RFCOMM_CHANNEL_SERIAL_PORT, SERIAL_PORT_RX_BUFF_LEN, app_spp_serial_port_server_callback, NULL);
+        bt_spp_listen(RFCOMM_CHANNEL_SERIAL_PORT, true, NULL);
     }
 
     for (uint8_t device_id = 0; device_id < BT_DEVICE_NUM; device_id++)
     {
-        g_app_spp_serial_port_server_device[device_id] = bta_spp_create_channel(device_id, RFCOMM_CHANNEL_SERIAL_PORT);
+        g_app_spp_serial_port_server_device[device_id] = bt_spp_create_channel(device_id, RFCOMM_CHANNEL_SERIAL_PORT);
     }
 }
 
@@ -480,12 +492,12 @@ void app_spp_serial_port_client_open_by_uuid(const bt_bdaddr_t *remote_addr, uin
     curr_device = bt_adapter_get_connected_device_byaddr(remote_addr);
     if (curr_device == NULL)
     {
-        EXAMPLE_TRACE(0, "app_spp_serial_port_client_open: fail,no acl connection!");
+        TRACE(0, "app_spp_serial_port_client_open: fail,no acl connection!");
         return;
     }
     if (curr_device->device_id == BT_DEVICE_INVALID_ID)
     {
-        EXAMPLE_TRACE(0,"warning serial port fail,remote device is disconnected!");
+        TRACE(0,"warning serial port fail,remote device is disconnected!");
         return;
     }
     device_id = curr_device->device_id;
@@ -509,17 +521,17 @@ void app_spp_serial_port_client_open_by_uuid(const bt_bdaddr_t *remote_addr, uin
         if ((spp_port_record->client_spp_callback == NULL) && \
             (spp_port_record->app_spp_callback != app_spp_serial_port_client_callback))
         {
-            bta_spp_set_callback(RFCOMM_CHANNEL_SERIAL_PORT, SERIAL_PORT_RX_BUFF_LEN,
+            bt_spp_set_callback(RFCOMM_CHANNEL_SERIAL_PORT, SERIAL_PORT_RX_BUFF_LEN,
                                 spp_port_record->app_spp_callback, app_spp_serial_port_client_callback);
             spp_port_record->client_spp_callback = app_spp_serial_port_client_callback;
         }
     }
     else
     {
-        spp_port_record = (struct app_spp_port_record_t *)bes_bt_buf_malloc(sizeof(struct app_spp_port_record_t));
+        spp_port_record = (struct app_spp_port_record_t *)cobuf_malloc(sizeof(struct app_spp_port_record_t));
         if (!spp_port_record)
         {
-            EXAMPLE_TRACE(0,"warning serial port malloc fail!");
+            TRACE(0,"warning serial port malloc fail!");
             return;
         }
         memset(spp_port_record, 0, sizeof(struct app_spp_port_record_t));
@@ -530,14 +542,14 @@ void app_spp_serial_port_client_open_by_uuid(const bt_bdaddr_t *remote_addr, uin
         spp_port_record->app_spp_callback = NULL;
         colist_addto_tail(&spp_port_record->node, &g_app_spp_global.spp_port_list);
         app_spp_client_init_tx_buff(NULL);
-        bta_spp_create_port(RFCOMM_CHANNEL_SERIAL_PORT, SerialPortSppSdpAttributes1, ARRAY_SIZE(SerialPortSppSdpAttributes1));
-        bta_spp_set_callback(RFCOMM_CHANNEL_SERIAL_PORT, SERIAL_PORT_RX_BUFF_LEN, app_spp_serial_port_client_callback, NULL);
-        bta_spp_listen(RFCOMM_CHANNEL_SERIAL_PORT, true, NULL);
+        bt_spp_create_port(RFCOMM_CHANNEL_SERIAL_PORT, SerialPortSppSdpAttributes1, ARRAY_SIZE(SerialPortSppSdpAttributes1));
+        bt_spp_set_callback(RFCOMM_CHANNEL_SERIAL_PORT, SERIAL_PORT_RX_BUFF_LEN, app_spp_serial_port_client_callback, NULL);
+        bt_spp_listen(RFCOMM_CHANNEL_SERIAL_PORT, true, NULL);
     }
-    _app_spp_serial_port_client_dev[device_id] = bta_spp_create_channel(device_id, RFCOMM_CHANNEL_SERIAL_PORT);
+    _app_spp_serial_port_client_dev[device_id] = bt_spp_create_channel(device_id, RFCOMM_CHANNEL_SERIAL_PORT);
     if (!snoop_spp)
     {
-        status = bta_spp_connect(&curr_device->remote, RFCOMM_CHANNEL_SERIAL_PORT, remote_uuid, sizeof(remote_uuid));
+        status = bt_spp_connect(&curr_device->remote, RFCOMM_CHANNEL_SERIAL_PORT, remote_uuid, sizeof(remote_uuid));
     }
     else
     {
@@ -550,7 +562,7 @@ void app_spp_serial_port_client_open_by_uuid(const bt_bdaddr_t *remote_addr, uin
         app_spp_serial_port_client_callback(remote_addr, BT_SPP_EVENT_OPENED, &spp_param);
         status = BT_STS_SUCCESS;
     }
-    EXAMPLE_TRACE(1,"serial port open return status is %d", status);
+    TRACE(1,"serial port open return status is %d", status);
 }
 
 /**********************************************************************************************
@@ -576,7 +588,7 @@ void app_spp_serial_port_client_open_by_port(const bt_bdaddr_t *remote_addr, uin
     curr_device = bt_adapter_get_connected_device_byaddr(remote_addr);
     if (curr_device == NULL)
     {
-        EXAMPLE_TRACE(0, "app_serial_port_client_open: fail,because of no acl connection");
+        TRACE(0, "app_serial_port_client_open: fail,because of no acl connection");
         return;
     }
 
@@ -601,18 +613,18 @@ void app_spp_serial_port_client_open_by_port(const bt_bdaddr_t *remote_addr, uin
         if ((spp_port_record->client_spp_callback == NULL) && \
             (spp_port_record->app_spp_callback != app_spp_serial_port_client_callback))
         {
-            bta_spp_set_callback(RFCOMM_CHANNEL_SERIAL_PORT, SERIAL_PORT_RX_BUFF_LEN,
+            bt_spp_set_callback(RFCOMM_CHANNEL_SERIAL_PORT, SERIAL_PORT_RX_BUFF_LEN,
                                 spp_port_record->app_spp_callback, app_spp_serial_port_client_callback);
             spp_port_record->client_spp_callback = app_spp_serial_port_client_callback;
         }
     }
     else
     {
-        spp_port_record = (struct app_spp_port_record_t *)bes_bt_buf_malloc(sizeof(struct app_spp_port_record_t));
+        spp_port_record = (struct app_spp_port_record_t *)cobuf_malloc(sizeof(struct app_spp_port_record_t));
 
         if (!spp_port_record)
         {
-            EXAMPLE_TRACE(0,"warning serial port malloc fail!");
+            TRACE(0,"warning serial port malloc fail!");
             return;
         }
 
@@ -623,15 +635,15 @@ void app_spp_serial_port_client_open_by_port(const bt_bdaddr_t *remote_addr, uin
         spp_port_record->app_spp_callback = NULL;
         colist_addto_tail(&spp_port_record->node, &g_app_spp_global.spp_port_list);
         app_spp_client_init_tx_buff(NULL);
-        bta_spp_create_port(RFCOMM_CHANNEL_SERIAL_PORT, SerialPortSppSdpAttributes1, ARRAY_SIZE(SerialPortSppSdpAttributes1));
-        bta_spp_set_callback(RFCOMM_CHANNEL_SERIAL_PORT, SERIAL_PORT_RX_BUFF_LEN, app_spp_serial_port_client_callback, NULL);
-        bta_spp_listen(RFCOMM_CHANNEL_SERIAL_PORT, true, NULL);
+        bt_spp_create_port(RFCOMM_CHANNEL_SERIAL_PORT, SerialPortSppSdpAttributes1, ARRAY_SIZE(SerialPortSppSdpAttributes1));
+        bt_spp_set_callback(RFCOMM_CHANNEL_SERIAL_PORT, SERIAL_PORT_RX_BUFF_LEN, app_spp_serial_port_client_callback, NULL);
+        bt_spp_listen(RFCOMM_CHANNEL_SERIAL_PORT, true, NULL);
     }
 
-    _app_spp_serial_port_client_dev[curr_device->device_id] = bta_spp_create_channel(curr_device->device_id, RFCOMM_CHANNEL_SERIAL_PORT);
+    _app_spp_serial_port_client_dev[curr_device->device_id] = bt_spp_create_channel(curr_device->device_id, RFCOMM_CHANNEL_SERIAL_PORT);
     if (!snoop_spp)
     {
-        status = bta_spp_connect_server_channel(&curr_device->remote, RFCOMM_CHANNEL_SERIAL_PORT, rfcomm_port);
+        status = bt_spp_connect_server_channel(&curr_device->remote, RFCOMM_CHANNEL_SERIAL_PORT, rfcomm_port);
     }
     else
     {
@@ -644,7 +656,7 @@ void app_spp_serial_port_client_open_by_port(const bt_bdaddr_t *remote_addr, uin
         app_spp_serial_port_client_callback(remote_addr, BT_SPP_EVENT_OPENED, &spp_param);
         status = BT_STS_SUCCESS;
     }
-    EXAMPLE_TRACE(1,"serial port open return status is %d", status);
+    TRACE(1,"serial port open return status is %d", status);
 }
 
 /**********************************************************************************************
@@ -664,7 +676,7 @@ void app_spp_restore_serial_port_ctx(bt_bdaddr_t *bdaddr_p, uint64_t app_id)
     struct list_node *head = NULL;
     app_spp_port_record_t *p_app_spp_port_record = NULL;
 
-    if (bta_spp_get_app_id_from_port(RFCOMM_CHANNEL_SERIAL_PORT) == app_id)
+    if (bt_spp_get_app_id_from_port(RFCOMM_CHANNEL_SERIAL_PORT) == app_id)
     {
         colist_iterate(node, head)
         {

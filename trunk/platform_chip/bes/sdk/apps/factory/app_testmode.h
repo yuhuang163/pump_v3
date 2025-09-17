@@ -193,6 +193,8 @@ int app_testmode_enable_dut(void);
 void app_enter_normal_mode(void);
 void app_enter_signal_testmode(void);
 void app_exit_signal_testmode(void);
+void app_reboot_and_enter_nosignal_testmode(void);
+void app_reboot_and_enter_signal_testmode(void);
 void app_enter_nosignal_tx_testmode(void);
 void app_enter_nosignal_rx_testmode(void);
 void app_exit_nosignal_trx_testmode(void);

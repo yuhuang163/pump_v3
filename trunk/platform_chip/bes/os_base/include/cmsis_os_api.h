@@ -124,7 +124,15 @@ extern "C" {
 #define U_SEM_DELETE(sem_id)            do { ; } while (0)
 #endif
 
-typedef struct RTC_CALENDAR_FORMAT_T utc_time_t;
+typedef struct __utc_time {
+    uint16_t year;
+    uint8_t month;
+    uint8_t day;
+    uint8_t week;
+    uint8_t hour;
+    uint8_t minute;
+    uint8_t second;
+} utc_time_t;
 
 /*
  * GLOBAL FUNCTION DECLARATION
@@ -172,6 +180,16 @@ uint32_t get_timestamp(void);
 void platform_system_reboot(void);
 /// 平台提供的获取线程ID接口.
 int platform_get_tid(void);
+/// 平台提供的全局中断锁接口.
+uint32_t platform_int_lock_global(void);
+/// 平台提供的全局中断解锁接口.
+void platform_int_unlock_global(uint32_t pri);
+/// 平台提供的读取闪存接口.
+int platform_flash_read(const char *partition, uint32_t addr, uint8_t *data, uint32_t size);
+/// 平台提供的写入闪存接口.
+int platform_flash_write(const char *partition, uint32_t addr, uint8_t *data, uint32_t size);
+/// 平台提供的擦除闪存接口.
+int platform_flash_erase(const char *partition, uint32_t addr, uint32_t size);
 
 #ifdef __cplusplus
 }

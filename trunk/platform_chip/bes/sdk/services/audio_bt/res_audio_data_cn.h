@@ -145,15 +145,19 @@ const uint8_t CN_BT_GSOUND_NC[] = {
 
 };
 
-const uint8_t CN_SOUND_CUSTOM_LEAK_DETECT [] = {
-#include "res/ld/SOUND_PROMPT_CUSTOM_LEAK.txt"
-};
-
 #ifdef __INTERACTION__
 const uint8_t CN_BT_FINDME[] = {
 #include "res/cn/SOUND_FINDME.txt"
 };
 #endif
+
+
+#ifdef SLT_AUTO_TEST
+const uint8_t CN_TONE_1K[] = {
+#include "res/cn/SOUND_1K_TONE.txt"
+};
+#endif
+
 
 /*doesn't have chinese version sound mute */
 const uint8_t CN_BT_MUTE[] = {

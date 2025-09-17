@@ -73,7 +73,7 @@ static void test_draw_gradient(struct fb_state_s* state,
     if (VG_LITE_SUCCESS != vg_lite_init_grad(&grad)) {
 
         //printf("Linear gradient is not supported.\n");
-        DRIVERS_TRACE(3,"Linear gradient is not supported.\n");
+        TRACE(3,"Linear gradient is not supported.\n");
         return 0;
     }
 
@@ -118,7 +118,7 @@ static void test_draw_gradient(struct fb_state_s* state,
                                * vg_lite_buffer->stride);
 
 
-    DRIVERS_TRACE(0,"%s  fb_mem:%p    height :%d stride:%d  size:%d " , __func__,  vg_lite_buffer->memory, vg_lite_buffer->height,
+    GPU_REP("%s  fb_mem:%p    height :%d stride:%d  size:%d " , __func__,  vg_lite_buffer->memory, vg_lite_buffer->height,
                             vg_lite_buffer->stride, (  vg_lite_buffer->height * vg_lite_buffer->stride )    );
 
 
@@ -139,7 +139,7 @@ static void test_draw_gradient_01(struct fb_state_s* state,
     memset(&grad, 0, sizeof(grad));
     if (VG_LITE_SUCCESS != vg_lite_init_grad(&grad)) {
         //printf("Linear gradient is not supported.\n");
-        DRIVERS_TRACE(3,"Linear gradient is not supported.\n");
+        TRACE(3,"Linear gradient is not supported.\n");
         return 0;
     }
 
@@ -195,7 +195,7 @@ static void test_draw_gradient_01(struct fb_state_s* state,
                                * vg_lite_buffer->stride);
 
 
-    DRIVERS_TRACE(0,"%s  fb_mem:%p    height :%d stride:%d  size:%d " , __func__,  vg_lite_buffer->memory, vg_lite_buffer->height,
+    GPU_REP("%s  fb_mem:%p    height :%d stride:%d  size:%d " , __func__,  vg_lite_buffer->memory, vg_lite_buffer->height,
                             vg_lite_buffer->stride, (  vg_lite_buffer->height * vg_lite_buffer->stride ) );
 while(1);
 
@@ -220,7 +220,7 @@ int rect_linergrad_test_main_entry(int argc, const char * argv[])
  
     // Initialize vg_lite engine.
     vg_lite_error_t error = VG_LITE_SUCCESS;
-    DRIVERS_TRACE(0,"%s", __func__);
+    GPU_REP("%s", __func__);
 
     CHECK_ERROR(vg_lite_init(fb_width, fb_height));
 
@@ -235,7 +235,7 @@ int rect_linergrad_test_main_entry(int argc, const char * argv[])
     // Clear the buffer with blue.
     CHECK_ERROR(vg_lite_allocate(&buffer));
 
-    DRIVERS_TRACE(0,"%s  fb_mem:%p    height :%d stride:%d  size:%d " , __func__,  buffer.memory, buffer.height,
+    GPU_REP("%s  fb_mem:%p    height :%d stride:%d  size:%d " , __func__,  buffer.memory, buffer.height,
                             buffer.stride, (  buffer.height * buffer.stride )    );
 
   CHECK_ERROR(vg_lite_clear(&buffer, NULL, 0xFFFF0000));
@@ -253,10 +253,10 @@ int rect_linergrad_test_main_entry(int argc, const char * argv[])
 
  uint32_t *ptr = (uint32_t *)buffer.memory;
 
- DRIVERS_TRACE(3,"%s 127:%x",__func__, ptr[127]);
- DRIVERS_TRACE(3,"%s 128:%x",__func__, ptr[128]);
- DRIVERS_TRACE(3,"%s 129:%x",__func__, ptr[129]);
- DRIVERS_TRACE(3,"%s 130:%x",__func__, ptr[130]);
+ TRACE(3,"%s 127:%x",__func__, ptr[127]);
+ TRACE(3,"%s 128:%x",__func__, ptr[128]);
+ TRACE(3,"%s 129:%x",__func__, ptr[129]);
+ TRACE(3,"%s 130:%x",__func__, ptr[130]);
 
   while(1);
 #endif
@@ -267,7 +267,7 @@ int rect_linergrad_test_main_entry(int argc, const char * argv[])
 
 ErrorHandler:
     cleanup();
-    DRIVERS_TRACE(0,"%s test pass", __func__);
+    GPU_REP("%s test pass", __func__);
 
     return 0;
 }

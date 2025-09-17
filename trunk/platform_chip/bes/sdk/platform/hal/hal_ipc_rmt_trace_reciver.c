@@ -52,7 +52,7 @@ static void trace_msg_handler(enum HAL_IPC_CORE_TYPE_T core, struct IPC_RMT_TRC_
     ctrl->discard_cnt_r = discard_cnt_w;
 
     if (discard_cnt) {
-        HAL_TRACE(0, "*** WARNING: SENSOR TRACE LOST %u", discard_cnt);
+        TRACE(0, "*** WARNING: SENSOR TRACE LOST %u", discard_cnt);
     }
 
     entry_rpos = ctrl->entry_rpos;
@@ -68,12 +68,12 @@ static void trace_msg_handler(enum HAL_IPC_CORE_TYPE_T core, struct IPC_RMT_TRC_
         trace_end = ipc_rmt_trace_ctx[core].entry_start[entry_rpos];
         if (trace_end <= trace_start) {
             // Trace starts from buffer head
-            // Sens trace will never wrap buffer so that one invokation of NORM_LOG_RAW_OUTPUT can process one trace.
+            // Sens trace will never wrap buffer so that one invokation of TRACE_OUTPUT can process one trace.
             trace_start = 0;
         }
         len = trace_end - trace_start;
         if (len) {
-            proc_len = NORM_LOG_RAW_OUTPUT(ipc_rmt_trace_ctx[core].buf_start + trace_start, len);
+            proc_len = TRACE_OUTPUT(ipc_rmt_trace_ctx[core].buf_start + trace_start, len);
             if (proc_len == 0) {
                 break;
             }
@@ -97,7 +97,7 @@ static unsigned int core_mcu2sys_rx_handler(const void *data, unsigned int len)
     case IPC_RMT_TRC_MSG_ID_CRASH_ASSERT_START:
     case IPC_RMT_TRC_MSG_ID_CRASH_FAULT_START:
     case IPC_RMT_TRC_MSG_ID_CRASH_END:
-        NORM_LOG_FLUSH();
+        TRACE_FLUSH();
         // FALL THROUGH
     case IPC_RMT_TRC_MSG_ID_TRACE:
         ctrl = (struct IPC_RMT_TRC_CTRL_T *)trc_msg->param;

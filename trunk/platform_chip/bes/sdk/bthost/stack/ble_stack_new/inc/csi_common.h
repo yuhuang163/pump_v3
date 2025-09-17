@@ -18,7 +18,9 @@
  ****************************************************************************/
 #ifndef __CSI_COMMON__
 #define __CSI_COMMON__
+#include "bluetooth.h"
 
+#include "gatt_service.h"
 #include "gaf_cfg.h"
 
 #define CSIS_INVALID_SET_LID                (GAF_INVALID_ANY_LID)

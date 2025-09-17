@@ -31,34 +31,19 @@ extern "C" {
 void app_ai_manager_key_event_handle(APP_KEY_STATUS *status, void *param);
 
 /*---------------------------------------------------------------------------
- *            app_ai_manager_gva_onoff_key
+ *            app_ai_manager_is_support_multi_point_ai
  *---------------------------------------------------------------------------
  *
  *Synopsis:
- *    to turn gva on or off
+ *    to know ai manager is support multi point ai
  *
  * Parameters:
- *    APP_KEY_STATUS *status
- *    void *param
- * Return:
  *    void
- */
-void app_ai_manager_gva_onoff_key(APP_KEY_STATUS *status, void *param);
-
-/*---------------------------------------------------------------------------
- *            app_ai_manager_ama_onoff_key
- *---------------------------------------------------------------------------
  *
- *Synopsis:
- *    to turn ama on or off
- *
- * Parameters:
- *    APP_KEY_STATUS *status
- *    void *param
  * Return:
- *    void
+ *    bool -- true is support multi point ai, up to two ai can be connected at the same time
  */
-void app_ai_manager_ama_onoff_key(APP_KEY_STATUS *status, void *param);
+bool app_ai_manager_is_support_multi_point_ai(void);
 
 /*---------------------------------------------------------------------------
  *            app_ai_manager_is_in_multi_ai_mode
@@ -241,7 +226,7 @@ bool app_ai_manager_spec_get_status_is_in_invalid(void);
  * Return:
  *    void
  */
-void app_ai_manager_set_spec_update_flag(uint8_t spec, bool onOff);
+void app_ai_manager_set_spec_update_flag(bool onOff);
 
 /*---------------------------------------------------------------------------
  *            app_ai_manager_get_spec_update_flag

@@ -13,11 +13,8 @@
  * trademark and other intellectual property rights.
  *
  ****************************************************************************/
-
-#include "tota_stream_data_transfer.h"
 #include "app_tota_cmd_code.h"
 #include "bluetooth_bt_api.h"
-#include "app_bt_stream.h"
 #include "app_audio.h"
 #include "nvrecord_bt.h"
 #include "nvrecord_env.h"
@@ -25,72 +22,48 @@
 #include "app_tota_cmd_handler.h"
 #include "apps.h"
 #include "cmsis_os.h"
-// #include "app_ibrt_nvrecord.h"
-#include "app_tota_common.h"
-#include "app_ibrt_customif_cmd.h"
-#include "bts_core_if.h"
-
-/**/
-static void _custom_cmd_handle(APP_TOTA_CMD_CODE_E funcCode, uint8_t* ptrParam, uint32_t paramLen);
-
-/*-----------------------------------------------------------------------------*/
-/*-----------------------------------------------------------------------------*/
-
-
-static void _custom_cmd_handle(APP_TOTA_CMD_CODE_E funcCode, uint8_t* ptrParam, uint32_t paramLen)
+#ifdef TOTA_CROSS_CHIP_OTA
+#include "app_tota_multi_chip_updata.h"
+#endif
+void _custom_cmd_handle(APP_TOTA_CMD_CODE_E funcCode, uint8_t* ptrParam, uint32_t paramLen)
 {
-    TOTA_V2_TRACE(3,"[%s]: opCode:0x%x, paramLen:%d", __func__, funcCode, paramLen);
-
-    if(funcCode != OP_TOTA_OTA)
-    {
-        app_tota_send_rsp(funcCode,TOTA_NO_ERROR,NULL,0);
-    }
+    TOTA_LOG_DBG(3,"[%s]: opCode:0x%x, paramLen:%d", __func__, funcCode, paramLen);
+#if !defined(OTA_OVER_TOTA_ENABLED)
+    app_tota_send_rsp(funcCode,TOTA_NO_ERROR,NULL,0);
+#endif
     switch (funcCode)
     {
         case OP_TOTA_FACTORY_RESET:
-            TOTA_V2_TRACE(1,"##### custom: factory reset  connect path %d",tota_get_connect_path());
-#ifdef CUSTOMER_APP_BOAT
-            if(APP_TOTA_VIA_NOTIFICATION == tota_get_connect_path()){
-                ///>send to slave
-                tws_ctrl_send_cmd(APP_TWS_CMD_SYNC_TOTA_FACTORY_RESET, NULL, 0);
-            }
-            nv_record_rebuild(NV_REBUILD_CUSTOMER_ONLY);
-#endif
+            TRACE(0,"##### custom: factory reset");
             app_reset();
-
             break;
         case OP_TOTA_CLEAR_PAIRING_INFO:
-            TOTA_V2_TRACE(0,"##### custom: clear pairing info");
+            TRACE(0,"##### custom: clear pairing info");
             //app_ibrt_nvrecord_delete_all_mobile_record();
             break;
         case OP_TOTA_SHUTDOWM:
-            TOTA_V2_TRACE(0,"##### custom: shutdown");
+            TRACE(0,"##### custom: shutdown");
             app_shutdown();
             break;
         case OP_TOTA_REBOOT:
-            TOTA_V2_TRACE(0,"##### custom: reboot");
+            TRACE(0,"##### custom: reboot");
             // TODO:
             break;
 #if defined(OTA_OVER_TOTA_ENABLED)
         case OP_TOTA_OTA:
-            TOTA_V2_TRACE(0,"##### custom: ota");
-            TOTA_V2_TRACE(2,"[OTA]: ota_opCode:0x%x, paramLen:%d", *ptrParam, paramLen);
+            TRACE(0,"##### custom: ota");
+            TOTA_LOG_DBG(2,"[OTA]: ota_opCode:0x%x, paramLen:%d", *ptrParam, paramLen);
+#ifdef TOTA_CROSS_CHIP_OTA
+            app_handle_multi_chip_tota_data(ptrParam,paramLen);
+#else
             app_ota_over_tota_receive_data(ptrParam, paramLen);
+#endif
             break;
 #endif
         default:
             ;
     }
 }
-
-#ifdef CUSTOMER_APP_BOAT
-void app_tota_sync_factory_reset_handle(uint8_t *key, uint16_t length)
-{
-    TOTA_V2_TRACE(0, "app_tota_sync_factory_reset_handle");
-    nv_record_rebuild(NV_REBUILD_CUSTOMER_ONLY);
-    app_reset();
-}
-#endif
 
 TOTA_COMMAND_TO_ADD(OP_TOTA_FACTORY_RESET, _custom_cmd_handle, false, 0, NULL );
 TOTA_COMMAND_TO_ADD(OP_TOTA_CLEAR_PAIRING_INFO, _custom_cmd_handle, false, 0, NULL );

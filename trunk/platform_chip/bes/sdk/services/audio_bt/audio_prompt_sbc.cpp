@@ -1,14 +1,15 @@
 #include "audio_prompt_sbc.h"
+#include "hal_codec.h"
 #include "hal_trace.h"
 #include "string.h"
-#include "bluetooth_bt_api.h"
 #include "app_bt_stream.h"
 #include "app_bt_media_manager.h"
 #include "app_utils.h"
 #include "cmsis.h"
 #include "hal_dma.h"
-#include "app_bt.h"
-
+#include "bluetooth_bt_api.h"
+#include "sbc_api.h"
+#include "sbc_error_code.h"
 
 #include "bt_drv_interface.h"
 #include "audioflinger.h"
@@ -16,17 +17,16 @@
 #if defined(IBRT)
 #include "app_tws_ibrt.h"
 #include "app_tws_ibrt_cmd_handler.h"
-#include "app_ibrt_internal.h"
-#include "bts_tws_if.h"
-#include "bts_core_if.h"
+#include "app_tws_ctrl_thread.h"
+#include "app_ibrt_middleware.h"
 #endif
 #include "app_audio.h"
 #include "apps.h"
 #include "ae_math.h"
-#include "sbc_api.h"
+#include "audio_manager.h"
 
-#if BLE_AUDIO_ENABLED
-#include "bluetooth_ble_api.h"
+#if defined(PROMPT_CTRL_ANC)
+#include "app_prompt_ctrl_anc.h"
 #endif
 
 #ifdef MIX_AUDIO_PROMPT_WITH_A2DP_MEDIA_ENABLED
@@ -53,17 +53,15 @@ static uint32_t audio_prompt_sbc_decode(uint8_t* pcm_buffer, uint32_t expectedOu
 
 static sbc_decoder_t audio_prompt_sbc_decoder;
 
-//static float audio_prompt_sbc_eq_band_gain[8] = {1, 1, 1, 1, 1, 1, 1, 1};
-
 // keep the current volume
 #define KEEP_CURRENT_VOLUME_FOR_MIX_PROMPT          -1
 
 // from TGT_VOLUME_LEVEL_T or KEEP_CURRENT_VOLUME_FOR_MIX_PROMPT
 #define DEFAULT_VOLUME_FOR_MIX_PROMPT               KEEP_CURRENT_VOLUME_FOR_MIX_PROMPT
 
-#define DEFAULT_COEFF_FOR_MIX_PROMPT_FOR_MUSIC      DB2LIN(codec_dac_vol[MEDIA_VOLUME_LEVEL_WARNINGTONE].sdac_volume)
+#define DEFAULT_COEFF_FOR_MIX_PROMPT_FOR_MUSIC      DB2LIN(hal_codec_get_dac_volume(MEDIA_VOLUME_LEVEL_WARNINGTONE))
 #define DEFAULT_COEFF_FOR_MIX_MUSIC_FOR_MUSIC       0.4
-#define DEFAULT_COEFF_FOR_MIX_PROMPT_FOR_CALL       DB2LIN(codec_dac_vol[MEDIA_VOLUME_LEVEL_WARNINGTONE].sdac_volume)
+#define DEFAULT_COEFF_FOR_MIX_PROMPT_FOR_CALL       DB2LIN(hal_codec_get_dac_volume(MEDIA_VOLUME_LEVEL_WARNINGTONE))
 #define DEFAULT_COEFF_FOR_MIX_CALL_FOR_CALL         0.4
 
 #define DEFAULT_OVERLAP_LENGTH 128
@@ -98,9 +96,6 @@ typedef struct
     uint8_t     targetChannelCnt;
     uint8_t     mixType;
     uint16_t    promptId;
-    uint8_t     mix_audio_con_id;
-    uint32_t    mix_audio_stream_lid;
-    void*       mix_audio_stop_func;
     int16_t     volume_level_override;
     uint16_t    promptPram;
     float       coeff_for_mix_prompt_for_music;
@@ -121,7 +116,7 @@ static AUDIO_PROMPT_ENV_T audio_prompt_env;
 static void audio_prompt_set_pending_stop_op(uint8_t op)
 {
     audio_prompt_env.pendingStopOp = op;
-    AUDIO_BT_TRACE(1,"pendingStopOp is set to %d", op);
+    TRACE(1,"pendingStopOp is set to %d", op);
 }
 
 static uint8_t audio_prompt_get_pending_stop_op(void)
@@ -132,7 +127,7 @@ static uint8_t audio_prompt_get_pending_stop_op(void)
 static void audio_prompt_set_saved_stopped_stream_id(int8_t id)
 {
     audio_prompt_env.savedStoppedStreamId = id;
-    AUDIO_BT_TRACE(1,"savedStoppedStreamId is set to %d", id);
+    TRACE(1,"savedStoppedStreamId is set to %d", id);
 }
 
 static int8_t audio_prompt_get_saved_stopped_stream_id(void)
@@ -201,14 +196,14 @@ bool tws_calculate_mix_prompt_trigger_ticks(uint16_t promptId)
             uint32_t ticks_offset = 0;
             uint32_t interval_count = 0;
 
-            if (bts_tws_if_is_tws_link_connected())
+            if (app_tws_ibrt_tws_link_connected())
             {
                 ibrt_ctrl_t *p_ibrt_ctrl = app_tws_ibrt_get_bt_ctrl_ctx();
                 tick_offset_us = APP_PROMPT_SBC_SYNC_DELAY_US;
-
+                
                 if(p_ibrt_ctrl->acl_interval > IBRT_UI_DEFAULT_POLL_INTERVAL)
                 {
-                    AUDIO_BT_TRACE(0, "[MIX][TRIG] add extra delay for tws interval\n");
+                    TRACE(0, "[MIX][TRIG] add extra delay for tws interval\n");
                     tick_offset_us += p_ibrt_ctrl->acl_interval * SLOT_SIZE;
                 }
                 ticks_offset = US_TO_BTCLKS(tick_offset_us);
@@ -220,7 +215,7 @@ bool tws_calculate_mix_prompt_trigger_ticks(uint16_t promptId)
                         interval_count += 1;
                     }
                     mix_prompt_trigger_ticks = playback_last_irq_ticks + interval_count * playback_interval_in_ticks;
-                    // AUDIO_BT_TRACE(2, "[MIX][TRIG] ticks_offset:%d, interval_count:%d", ticks_offset, interval_count);
+                    // TRACE(2, "[MIX][TRIG] ticks_offset:%d, interval_count:%d", ticks_offset, interval_count);
                 }
                 else
                 {
@@ -233,8 +228,8 @@ bool tws_calculate_mix_prompt_trigger_ticks(uint16_t promptId)
                 mix_prompt_trigger_ticks = playback_last_irq_ticks+
                     get_prompt_trigger_delay(promptId)*playback_interval_in_ticks;
             }
-            // AUDIO_BT_TRACE(1, "[MIX][TRIG] playback_last_irq_ticks %d", playback_last_irq_ticks);
-            // AUDIO_BT_TRACE(2, "[MIX][TRIG] playback_interval_in_ticks %d mix_prompt_trigger_ticks %d", playback_interval_in_ticks, mix_prompt_trigger_ticks);
+            // TRACE(1, "[MIX][TRIG] playback_last_irq_ticks %d", playback_last_irq_ticks);
+            // TRACE(2, "[MIX][TRIG] playback_interval_in_ticks %d mix_prompt_trigger_ticks %d", playback_interval_in_ticks, mix_prompt_trigger_ticks);
             return true;
         }
     }
@@ -244,7 +239,7 @@ bool tws_calculate_mix_prompt_trigger_ticks(uint16_t promptId)
 
 void tws_enable_mix_prompt(bool isEnable)
 {
-    // AUDIO_BT_TRACE(0，"isStartMixPrompt to %d.", isEnable);
+    // TRACE("isStartMixPrompt to %d.", isEnable);
     isStartMixPrompt = isEnable;
 }
 
@@ -255,7 +250,7 @@ void tws_set_mix_prompt_trigger_ticks(uint32_t ticks)
 
 void tws_sync_mix_prompt_start_handling(void)
 {
-    if (!bts_tws_if_is_tws_link_connected())
+    if (!app_tws_ibrt_tws_link_connected())
     {
         tws_enable_mix_prompt(true);
     }
@@ -272,15 +267,15 @@ bool tws_is_mix_prompt_allowed_to_start(void)
 
 void app_ibrt_send_mix_prompt_req(uint8_t device_id)
 {
-    if (bts_tws_if_is_tws_link_connected())
-    {
-        AUDIO_BT_TRACE(0, "send mx prompt req");
+    if (app_tws_ibrt_tws_link_connected())
+    {    
+        TRACE(0, "send mx prompt req");
         APP_TWS_CMD_MIX_PROMPT_SYNC_T req;
         req.promptId = audio_prompt_get_prompt_id();
         req.promptPram = audio_prompt_env.promptPram;
         req.trigger_time = mix_prompt_trigger_ticks;
         req.sampleRate = audio_prompt_get_sample_rate();
-        req.remote = app_bt_get_device(device_id)->remote;
+        req.remote = bt_adapter_get_device(device_id)->remote;
         voice_report_role_t report_role = app_ibrt_voice_report_get_role();
         if (VOICE_REPORT_MASTER == report_role)
         {
@@ -323,7 +318,7 @@ void tws_playback_ticks_check_for_mix_prompt(uint8_t device_id)
 {
     if ((!audio_prompt_is_playing_ongoing()) || tws_is_mix_prompt_allowed_to_start())
     {
-        //AUDIO_BT_TRACE(0,"check for mix prompt<1>");
+        //TRACE(0,"check for mix prompt<1>");
         return;
     }
 
@@ -331,11 +326,11 @@ void tws_playback_ticks_check_for_mix_prompt(uint8_t device_id)
     uint16_t btcnt;
     uint32_t master_btclk = 0;
     uint16_t master_btcnt = 0;
-    POSSIBLY_UNUSED struct BT_DEVICE_T *curr_device = app_bt_get_device(device_id);
+    POSSIBLY_UNUSED struct BT_ADAPTER_DEVICE_T *curr_device = bt_adapter_get_device(device_id);
 
-    if (!(bts_bt_if_is_dev_link_connected(&curr_device->remote)) && !(bts_ibrt_if_is_ibrt_link_connected(&curr_device->remote)))
+    if (!(app_tws_ibrt_mobile_link_connected(&curr_device->remote)) && !(app_tws_ibrt_slave_ibrt_link_connected(&curr_device->remote)))
     {
-        AUDIO_BT_TRACE(0,"check for mix prompt<2>");
+        TRACE(0,"check for mix prompt<2>");
         tws_enable_mix_prompt(true);
         return;
     }
@@ -357,13 +352,13 @@ void tws_playback_ticks_check_for_mix_prompt(uint8_t device_id)
     {
         if (master_btclk >= mix_prompt_trigger_ticks)
         {
-            AUDIO_BT_TRACE(2,"ticks<1> %d - trigger ticks %d", master_btclk,mix_prompt_trigger_ticks);
+            TRACE(2,"ticks<1> %d - trigger ticks %d", master_btclk,mix_prompt_trigger_ticks);
             tws_enable_mix_prompt(true);
         }
         else if ((master_btclk < mix_prompt_trigger_ticks) &&
                 ((mix_prompt_trigger_ticks - master_btclk) < PROMPT_TICKS_OFFSET_TO_TRIGGER_MIX))
         {
-            AUDIO_BT_TRACE(2,"ticks<2> %d - trigger ticks %d", master_btclk,mix_prompt_trigger_ticks);
+            TRACE(2,"ticks<2> %d - trigger ticks %d", master_btclk,mix_prompt_trigger_ticks);
             tws_enable_mix_prompt(true);
         }
     }
@@ -382,20 +377,20 @@ void app_tws_cmd_sync_mix_prompt_req_handler(uint8_t* ptrParam, uint16_t paramLe
     uint32_t curr_ticks = 0xFFFFFFFF;
 
     APP_TWS_CMD_MIX_PROMPT_SYNC_T* pReq = (APP_TWS_CMD_MIX_PROMPT_SYNC_T *)ptrParam;
-    AUDIO_BT_TRACE(2,"promptId, trigger_time:0x%x, %d",
+    TRACE(2,"promptId, trigger_time:0x%x, %d",
         pReq->promptId, pReq->trigger_time);
 
     audio_prompt_stop_playing();
 
-    if (bts_ibrt_if_is_ibrt_link_connected(&pReq->remote))
+    if (app_tws_ibrt_slave_ibrt_link_connected(&pReq->remote))
     {
-        curr_ticks = bt_syn_get_curr_ticks(bts_ibrt_if_get_dev_ibrt_handle(&pReq->remote));
-        AUDIO_BT_TRACE(2, "[%s] curr_ticks=%d", __func__, curr_ticks);
+        curr_ticks = bt_syn_get_curr_ticks(app_tws_ibrt_get_ibrt_handle(&pReq->remote));
+        TRACE(2, "[%s] curr_ticks=%d", __func__, curr_ticks);
     }
-    else if (bts_bt_if_is_dev_link_connected(&pReq->remote))
+    else if (app_tws_ibrt_mobile_link_connected(&pReq->remote))
     {
-        curr_ticks = bt_syn_get_curr_ticks(bts_bt_if_get_dev_acl_handle(&pReq->remote));
-        AUDIO_BT_TRACE(2, "[%s] curr_ticks=%d", __func__, curr_ticks);
+        curr_ticks = bt_syn_get_curr_ticks(app_tws_ibrt_get_mobile_connhandle(&pReq->remote));
+        TRACE(2, "[%s] curr_ticks=%d", __func__, curr_ticks);
     }
 
     voice_report_role_t report_role = app_ibrt_voice_report_get_role();        
@@ -404,13 +399,13 @@ void app_tws_cmd_sync_mix_prompt_req_handler(uint8_t* ptrParam, uint16_t paramLe
         ((curr_ticks > pReq->trigger_time) &&
          ((curr_ticks - pReq->trigger_time) > PROMPT_TICKS_OFFSET_TO_TRIGGER_MIX)))
     {
-        AUDIO_BT_TRACE(0,"return directly.");
+        TRACE(0,"return directly.");
         return;
     }
 
-    if((!bt_a2dp_is_run()) && (bt_media_is_music_media_active()))
+    if ((!amgr_is_bt_a2dp_on()) && (bt_media_is_music_media_active()))
     {
-        AUDIO_BT_TRACE(0,"sbc_player off, return directly.");
+        TRACE(0,"sbc_player off, return directly.");
         return;
     }
 
@@ -419,12 +414,12 @@ void app_tws_cmd_sync_mix_prompt_req_handler(uint8_t* ptrParam, uint16_t paramLe
     audio_prompt_start_playing(promptPram, pReq->sampleRate);
     if (curr_ticks >= pReq->trigger_time)
     {
-        AUDIO_BT_TRACE(1,"Instant passed %d",curr_ticks);
+        TRACE(1,"Instant passed %d",curr_ticks);
         tws_enable_mix_prompt(true);
     }
     else if ((curr_ticks < pReq->trigger_time) &&
         ((pReq->trigger_time - curr_ticks) < PROMPT_TICKS_OFFSET_TO_TRIGGER_MIX)){
-        AUDIO_BT_TRACE(1,"Instant near %d",curr_ticks);
+        TRACE(1,"Instant near %d",curr_ticks);
         tws_enable_mix_prompt(true);
     }
 }
@@ -434,7 +429,7 @@ static int audio_prompt_resample_iter(uint8_t *buf, uint32_t len)
 {
     if (!buf)
     {
-        AUDIO_BT_TRACE(0, "NULL pointer received in %s", __func__);
+        TRACE(0, "NULL pointer received in %s", __func__);
         return -1;
     }
 
@@ -505,26 +500,24 @@ uint32_t audio_prompt_get_sample_rate(void)
     return audio_prompt_env.targetSampleRate;
 }
 
-bool audio_prompt_start_playing(uint16_t promptPram, uint32_t targetSampleRate)
+bool audio_prompt_start_playing(uint32_t promptPram, uint32_t targetSampleRate)
 {
     uint16_t promptId = PROMPT_ID_FROM_ID_VALUE(promptPram);
 
     if (audio_prompt_is_playing_ongoing())
     {
-#if defined(PROMPT_CTRL_SWITCH_ANC_MODE)
-        extern uint16_t app_prompt_ctrl_anc_init(uint16_t aud_id);
-        extern void app_prompt_ctrl_anc_process(void);
+#if defined(PROMPT_CTRL_ANC)
         app_prompt_ctrl_anc_init(promptPram);
         app_prompt_ctrl_anc_process();
 #endif
         return false;
     }
 
-    AUDIO_BT_TRACE(0, "[%s]", __func__);
+    TRACE(0, "[%s]", __func__);
 
 #ifdef TWS_PROMPT_SYNC
     bool isPlayingLocally = false;
-    if (bts_tws_if_is_tws_link_connected())
+    if (app_tws_ibrt_tws_link_connected())
     {
         isPlayingLocally = false;
     }
@@ -545,7 +538,7 @@ bool audio_prompt_start_playing(uint16_t promptPram, uint32_t targetSampleRate)
     PROMPT_MIX_PROPERTY_T* pPromptProperty = NULL;
 
 #ifdef MEDIA_PLAYER_SUPPORT
-#if defined(PROMPT_CTRL_SWITCH_ANC_MODE)
+#if defined(PROMPT_CTRL_ANC)
     media_runtime_audio_prompt_update(promptPram, &promptDataPtr, &promptDataLen);
 #else
     media_runtime_audio_prompt_update(promptId, &promptDataPtr, &promptDataLen);
@@ -555,7 +548,7 @@ bool audio_prompt_start_playing(uint16_t promptPram, uint32_t targetSampleRate)
 
     if (NULL == pPromptProperty)
     {
-        AUDIO_BT_TRACE(0,"use default mix property");
+        TRACE(0,"use default mix property");
 
         // use default property
         audio_prompt_env.volume_level_override = DEFAULT_VOLUME_FOR_MIX_PROMPT;
@@ -620,7 +613,7 @@ bool audio_prompt_start_playing(uint16_t promptPram, uint32_t targetSampleRate)
 
     int_unlock(lock);
 
-    AUDIO_BT_TRACE(1,"start audio prompt. target sample rate %d", targetSampleRate);
+    TRACE(1,"start audio prompt. target sample rate %d", targetSampleRate);
 
     app_sysfreq_req(APP_SYSFREQ_USER_PROMPT_MIXER, APP_SYSFREQ_104M);
 
@@ -652,26 +645,6 @@ void audio_prompt_forcefully_stop(void)
 #endif
 }
 
-bool audio_prompt_check_on_stopping_ble_audio_stream(uint8_t pendingStopOp, uint8_t con_id,
-                                                     uint32_t stream_lid, void *mix_audio_stop_func)
-{
-    uint32_t lock = int_lock();
-    if (audio_prompt_env.isMixPromptOn)
-    {
-        AUDIO_BT_TRACE(1,"Prompt mixing ongoing, pending op:%d", pendingStopOp);
-        audio_prompt_env.pendingStopOp              = pendingStopOp;
-        audio_prompt_env.mix_audio_con_id           = con_id;
-        audio_prompt_env.mix_audio_stream_lid     = stream_lid;
-        audio_prompt_env.mix_audio_stop_func        = mix_audio_stop_func;
-        audio_prompt_set_saved_stopped_stream_id(0);
-        int_unlock(lock);
-        return false;
-    }
-
-    int_unlock(lock);
-    return true;
-}
-
 bool audio_prompt_check_on_stopping_stream(uint8_t pendingStopOp, uint8_t deviceId)
 {
     uint32_t lock = int_lock();
@@ -679,7 +652,7 @@ bool audio_prompt_check_on_stopping_stream(uint8_t pendingStopOp, uint8_t device
     {
         if (bt_is_playback_triggered())
         {
-            AUDIO_BT_TRACE(1,"Prompt mixing ongoing, pending op:%d", pendingStopOp);
+            TRACE(1,"Prompt mixing ongoing, pending op:%d", pendingStopOp);
             audio_prompt_env.pendingStopOp        = pendingStopOp;
             audio_prompt_set_saved_stopped_stream_id(deviceId);
             int_unlock(lock);
@@ -701,7 +674,7 @@ bool audio_prompt_clear_pending_stream(uint8_t op)
 {
     bool isToClearActiveMedia = false;
 
-    AUDIO_BT_TRACE(4,
+    TRACE(4,
           "%s stop_id %d pendingStopOp %d op %d",
           __func__,
           audio_prompt_get_saved_stopped_stream_id(),
@@ -738,7 +711,7 @@ void audio_prompt_stop_playing(void)
         return;
     }
 
-    AUDIO_BT_TRACE(0,"Stop audio prompt.");
+    TRACE(0,"Stop audio prompt.");
 
     app_playback_resample_close(audio_prompt_env.resampler);
 
@@ -761,17 +734,11 @@ void audio_prompt_stop_playing(void)
 
     uint8_t pendingStopOp;
     int8_t savedStoppedStreamId;
-    uint8_t con_id;
-    uint32_t context_type;
 
     lock = int_lock();
 
     pendingStopOp = audio_prompt_env.pendingStopOp;
     savedStoppedStreamId = audio_prompt_get_saved_stopped_stream_id();
-
-    con_id = audio_prompt_env.mix_audio_con_id;
-    context_type = audio_prompt_env.mix_audio_stream_lid;
-    void (*p_mix_audio_stop_func)(bool, uint8_t, uint32_t) = (void (*)(bool, uint8_t, uint32_t))audio_prompt_env.mix_audio_stop_func;
 
     audio_prompt_set_saved_stopped_stream_id(-1);
 
@@ -781,35 +748,15 @@ void audio_prompt_stop_playing(void)
     {
         if (PENDING_TO_STOP_A2DP_STREAMING == pendingStopOp)
         {
-            AUDIO_BT_TRACE(0,"Stop the pending stopped a2dp media stream.");
+            TRACE(0,"Stop the pending stopped a2dp media stream.");
             app_stop_a2dp_media_stream(savedStoppedStreamId);
         }
         else if (PENDING_TO_STOP_SCO_STREAMING == pendingStopOp)
         {
-            AUDIO_BT_TRACE(0,"Stop the pending stopped sco media stream.");
+            TRACE(0,"Stop the pending stopped sco media stream.");
             app_stop_sco_media_stream(savedStoppedStreamId);
         }
-        else if (PENDING_TO_STOP_BLE_AUDIO_STREAMING == pendingStopOp)
-        {
-            p_mix_audio_stop_func(false, con_id, context_type);
-        }
-        else if (PENDING_TO_STOP_BLE_AUDIO_SINGLE_STREAMING == pendingStopOp)
-        {
-            p_mix_audio_stop_func(true, con_id, context_type);
-        }
     }
-
-    if(audio_prompt_env.mix_audio_stop_func)
-    {
-        mix_audio_stop_func_t func_handler = (mix_audio_stop_func_t  )audio_prompt_env.mix_audio_stop_func;
-        func_handler(audio_prompt_env.pendingStopOp,audio_prompt_env.mix_audio_con_id,audio_prompt_env.mix_audio_stream_lid);
-
-        audio_prompt_env.pendingStopOp = 0;
-        audio_prompt_env.mix_audio_con_id = 0;
-        audio_prompt_env.mix_audio_stream_lid = 0;
-        audio_prompt_env.mix_audio_stop_func = 0;
-    }
-
     app_prompt_finish_callback(audio_prompt_get_prompt_id());
 
     app_sysfreq_req(APP_SYSFREQ_USER_PROMPT_MIXER, APP_SYSFREQ_32K);
@@ -823,7 +770,7 @@ void audio_prompt_stop_playing(void)
     aud_status.id = APP_PLAY_BACK_AUDIO;
     if (app_audio_list_rmv_callback(&aud_status, &status_next,APP_BT_SETTING_Q_POS_HEAD))
     {
-        AUDIO_BT_TRACE(4,"%s next id: 0x%x%s, aud_id %x", __func__, status_next.id, player2str(status_next.id), status_next.aud_id);
+        TRACE(4,"%s next id: 0x%x%s, aud_id %x", __func__, status_next.id, player2str(status_next.id), status_next.aud_id);
 #if defined(IBRT)
         if (status_next.id == APP_PLAY_BACK_AUDIO)
         {
@@ -955,7 +902,7 @@ static void audio_prompt_crossfade(DstType *dst_buf, DstType *src_buf1, int16_t 
 static void audio_prompt_processing_handler_func(uint32_t acquiredPcmDataLen, uint8_t* pcmDataToMerge)
 {
     if(audio_prompt_env.isMixPromptOn ==  false){
-        AUDIO_BT_TRACE(0, "[%s] WARNING: Mix is off", __func__);
+        TRACE(0, "[%s] WARNING: Mix is off", __func__);
         return;
     }
 
@@ -1058,8 +1005,7 @@ static void audio_prompt_processing_handler_func(uint32_t acquiredPcmDataLen, ui
         float coeff_for_prompt;
         float coeff_for_source;
 
-        if (MIX_WITH_A2DP_STREAMING == audio_prompt_env.mixType ||
-            MIX_WITH_BLE_AUDIO_MEDIA_STREAMING == audio_prompt_env.mixType) {
+        if (MIX_WITH_A2DP_STREAMING == audio_prompt_env.mixType) {
             coeff_for_prompt = audio_prompt_env.coeff_for_mix_prompt_for_music;
             coeff_for_source = audio_prompt_env.coeff_for_mix_music_for_music;
         } else {
@@ -1079,9 +1025,9 @@ static void audio_prompt_processing_handler_func(uint32_t acquiredPcmDataLen, ui
          */
         uint32_t merge_in_end = 0;
         if (audio_prompt_env.mergeInOverlapLength > 0) {
-            AUDIO_BT_TRACE(3, "[%s] bytes_per_sample %d, channel_num %d", __FUNCTION__,
+            TRACE(3, "[%s] bytes_per_sample %d, channel_num %d", __FUNCTION__,
                   audio_prompt_env.targetBytesCntPerSample, audio_prompt_env.targetChannelCnt);
-            AUDIO_BT_TRACE(2, "[%s] merge start, remain %d", __FUNCTION__, audio_prompt_env.mergeInOverlapLength);
+            TRACE(2, "[%s] merge start, remain %d", __FUNCTION__, audio_prompt_env.mergeInOverlapLength);
             merge_in_end = MIN(audio_prompt_env.mergeInOverlapLength, src_len);
         }
 
@@ -1089,13 +1035,13 @@ static void audio_prompt_processing_handler_func(uint32_t acquiredPcmDataLen, ui
         /* TODO: calc remain decoded pcm samples for DEFAULT_OVERLAP_LENGTH > 128 */
         if (audio_prompt_env.leftEncodedDataLen == 0) {
             if (LengthOfCQueue(&(audio_prompt_env.pcmDataQueue)) < audio_prompt_env.mergeOutOverlapLength / audio_prompt_env.targetChannelCnt * (int32_t)sizeof(uint16_t)) {
-                AUDIO_BT_TRACE(2, "[%s] merge end, remain %d", __FUNCTION__, audio_prompt_env.mergeOutOverlapLength);
+                TRACE(2, "[%s] merge end, remain %d", __FUNCTION__, audio_prompt_env.mergeOutOverlapLength);
                 merge_out_start = src_len - (audio_prompt_env.mergeOutOverlapLength - LengthOfCQueue(&(audio_prompt_env.pcmDataQueue)) / sizeof(uint16_t) * audio_prompt_env.targetChannelCnt);
             }
         }
 
-        //AUDIO_BT_TRACE(3, "[%s] merge_in_end = %d, merge_out_start = %d", __FUNCTION__, merge_in_end, merge_out_start);
-        //AUDIO_BT_TRACE(3, "[%s] pcm queue size = %d, src_len = %d", __FUNCTION__, LengthOfCQueue(&(audio_prompt_env.pcmDataQueue)), src_len);
+        //TRACE(3, "[%s] merge_in_end = %d, merge_out_start = %d", __FUNCTION__, merge_in_end, merge_out_start);
+        //TRACE(3, "[%s] pcm queue size = %d, src_len = %d", __FUNCTION__, LengthOfCQueue(&(audio_prompt_env.pcmDataQueue)), src_len);
 
         if (2 == audio_prompt_env.targetBytesCntPerSample)
         {
@@ -1140,8 +1086,7 @@ void audio_prompt_processing_handler(uint8_t device_id, uint32_t acquiredPcmData
     }
 #endif
 
-#if defined(PROMPT_CTRL_SWITCH_ANC_MODE)
-    extern void app_prompt_ctrl_anc_process(void);
+#if defined(PROMPT_CTRL_ANC)
     app_prompt_ctrl_anc_process();
 #endif
     uint32_t lock = int_lock();
@@ -1189,16 +1134,10 @@ static uint32_t audio_prompt_sbc_decode(uint8_t* pcm_buffer, uint32_t expectedOu
 
     uint32_t sbcDataBytesToDecode;
     unsigned int pcm_offset = 0;
-    uint16_t byte_decode;
     int8_t ret;
-    sbc_frame_t sbc_data;
     pcm_frame_t pcm_data;
-    pcm_data.pcm_data = (int16_t *)pcm_buffer;
-    pcm_data.buffer_size = expectedOutputSize;
-    pcm_data.valid_size = 0;
 
 get_again:
-
     if (audio_prompt_env.leftEncodedDataLen > AUDIO_PROMPT_SBC_ENCODED_DATA_SIZE_PER_FRAME)
     {
         sbcDataBytesToDecode = AUDIO_PROMPT_SBC_ENCODED_DATA_SIZE_PER_FRAME;
@@ -1207,15 +1146,16 @@ get_again:
     {
         sbcDataBytesToDecode = audio_prompt_env.leftEncodedDataLen;
     }
-    
+    pcm_data.pcm_data = (int16_t*)(pcm_buffer+pcm_offset);
+    pcm_data.buffer_size = expectedOutputSize-pcm_offset;
+    pcm_data.valid_size = 0;
+    sbc_frame_t sbc_data;
     sbc_data.sbc_data = audio_prompt_env.promptDataBuf+audio_prompt_env.wholeEncodedDataLen-audio_prompt_env.leftEncodedDataLen;
-    sbc_data.buffer_size = sbcDataBytesToDecode;
     sbc_data.valid_size = sbcDataBytesToDecode;
-    ret = sbc_decoder_process_frame(&audio_prompt_sbc_decoder,&sbc_data, &pcm_data);
-    byte_decode = sbc_data.buffer_size - sbc_data.valid_size;
-    audio_prompt_env.leftEncodedDataLen -= byte_decode;
-
-    pcm_offset = pcm_data.valid_size;
+    sbc_data.buffer_size = sbcDataBytesToDecode;
+    ret = sbc_decoder_process_frame(&audio_prompt_sbc_decoder, &sbc_data, &pcm_data);
+    audio_prompt_env.leftEncodedDataLen -= sbcDataBytesToDecode - sbc_data.valid_size;
+    pcm_offset += pcm_data.valid_size;
 
     if (0 == audio_prompt_env.leftEncodedDataLen)
     {
@@ -1227,7 +1167,7 @@ get_again:
         goto exit;
     }
 
-    if ((ret == BT_STS_CONTINUE) || (ret == BT_STS_SUCCESS))  {
+    if ((ret == SBC_CONTINUE) || (ret == SBC_OK))  {
         goto get_again;
     }
 
@@ -1235,3 +1175,78 @@ exit:
     return pcm_offset;
 }
 #endif // MIX_AUDIO_PROMPT_WITH_A2DP_MEDIA_ENABLED
+
+#if defined(IBRT)
+void app_tws_stop_peer_prompt(void)
+{
+    uint8_t stub_param = 0;
+
+    tws_ctrl_send_cmd(APP_TWS_CMD_STOP_PEER_PROMPT_REQ, &stub_param, sizeof(stub_param));
+}
+
+bool app_tws_let_peer_device_play_audio_prompt(uint32_t promptId,
+    uint16_t promptType, uint8_t dev_id)
+{
+    int ret = 0;
+    app_tws_voice_prompt_to_play_t req;
+    req.voicePrompt = promptId;
+    req.dev_id = dev_id;
+    req.prompt_type = promptType;
+    ret = tws_ctrl_send_cmd(APP_TWS_CMD_LET_PEER_PLAY_PROMPT, (uint8_t *)&req, sizeof(req));
+    if (0 == ret)
+    {
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}
+
+void app_tws_cmd_prompt_play_req_handler(uint8_t *ptrParam, uint32_t paramLen)
+{
+#ifdef MEDIA_PLAYER_SUPPORT
+    app_tws_voice_prompt_to_play_t *ptPlayReq = (app_tws_voice_prompt_to_play_t *)ptrParam;
+    TRACE(0, "Receive request to play prompt 0x%x%s prompt_type 0x%x",
+        ptPlayReq->voicePrompt, aud_id2str(ptPlayReq->voicePrompt & 0xFF),
+        ptPlayReq->prompt_type);
+    voice_report_role_t report_role =  app_ibrt_voice_report_get_role();
+
+    if (APP_PROMPT_LOCAL_PLAY == ptPlayReq->prompt_type)
+    {
+        ptPlayReq->prompt_type = APP_PROMPT_REMOTE_PLAY;
+    }
+    else if (APP_PROMPT_LOCAL_CONTINUOUS_NORMAL_PLAY == ptPlayReq->prompt_type)
+    {
+        ptPlayReq->prompt_type = APP_PROMPT_CONTINUOUS_REMOTE_PLAY;;
+    }
+    else if (APP_PROMPT_CONTINUOUS_NORMAL_PLAY == ptPlayReq->prompt_type)
+    {
+        media_playAudio_set_continous_prompt_env((AUD_ID_ENUM)ptPlayReq->voicePrompt);
+    }
+    else if (APP_PROMPT_REMOTE_PLAY == ptPlayReq->prompt_type)
+    {
+        ptPlayReq->prompt_type = APP_PROMPT_LOCAL_PLAY;
+    }
+    else if (APP_PROMPT_STANDALONE_LOCAL_PLAY == ptPlayReq->prompt_type)
+    {
+        ptPlayReq->prompt_type = APP_PROMPT_STANDALONE_REMOTE_PLAY;
+    }
+    else if (APP_PROMPT_STANDALONE_REMOTE_PLAY == ptPlayReq->prompt_type)
+    {
+        ptPlayReq->prompt_type = APP_PROMPT_STANDALONE_LOCAL_PLAY;
+    }
+
+    if (report_role == VOICE_REPORT_MASTER)
+    {
+        app_prompt_forware_play_handler((APP_PROMPT_PLAY_REQ_TYPE_E)ptPlayReq->prompt_type,
+            (AUD_ID_ENUM)ptPlayReq->voicePrompt, ptPlayReq->dev_id);
+    }
+    else
+    {
+        TRACE(1, "[%s] current role is slave", __func__);
+    }
+#endif
+}
+#endif
+

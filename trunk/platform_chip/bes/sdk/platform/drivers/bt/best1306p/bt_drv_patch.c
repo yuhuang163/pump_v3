@@ -216,12 +216,11 @@ void btdrv_ins_patch_init(void)
     enum HAL_CHIP_METAL_ID_T metal_id = hal_get_chip_metal_id();
     if (metal_id >= HAL_CHIP_METAL_ID_3) {
         btdrv_function_patch_init_common((uint32_t *)bt_patch_1306p_t1,sizeof(bt_patch_1306p_t1));
-        DRIVERS_TRACE(1,"BTC:1306p t1 work mode patch version:%08x", BTDIGITAL_REG(WORKMODE_PATCH_VERSION_1306P_T1_ADDR));
-        DRIVERS_TRACE(1,"BTC:1306p t1 commit id %s", BT_PATCH_1306P_T1_COMMIT_ID);
+        BT_DRV_TRACE(1,"BTC:1306p t1 work mode patch version:%08x", BTDIGITAL_REG(WORKMODE_PATCH_VERSION_1306P_T1_ADDR));
+        BT_DRV_TRACE(1,"BTC:1306p t1 commit id %s", BT_PATCH_1306P_T1_COMMIT_ID);
     } else if (metal_id >= HAL_CHIP_METAL_ID_0) {
         btdrv_function_patch_init_common((uint32_t *)bt_patch_1306p_t0,sizeof(bt_patch_1306p_t0));
-        DRIVERS_TRACE(1,"BTC:1306p t0 work mode patch version:%08x", BTDIGITAL_REG(WORKMODE_PATCH_VERSION_1306P_T0_ADDR));
-        DRIVERS_TRACE(1,"BTC:1306p t0 commit id %s", BT_PATCH_1306P_T0_COMMIT_ID);
+        BT_DRV_TRACE(1,"BTC:1306p t0 work mode patch version:%08x", BTDIGITAL_REG(WORKMODE_PATCH_VERSION_1306P_T0_ADDR));
     }
 
     //Enable patch module

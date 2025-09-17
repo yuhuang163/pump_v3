@@ -355,7 +355,7 @@ vg_lite_error_t createBuffers()
         return error;
     }
 
-    error = vg_lite_allocate(&render_buffer2);
+    error = p(&render_buffer2);
     if (error != VG_LITE_SUCCESS)
     {
         return error;
@@ -380,7 +380,7 @@ void cleanup(void)
     {
         vg_lite_free(&render_buffer);
     }
-    
+
     if (render_buffer2.handle != NULL)
     {
         vg_lite_free(&render_buffer2);
@@ -468,7 +468,7 @@ int main(int argc, const char * argv[])
         /* Blit the image using the matrix. */
         vg_lite_blit(&render_buffer, &image_buffer, &matrix, VG_LITE_BLEND_SRC_OVER, 0,filter);
         render_clock(&render_buffer, -160, 0, 0, 15, 8);
-        render_buttons(&render_buffer, -160, 0);        
+        render_buttons(&render_buffer, -160, 0);
         /* Draw 2nd part */
         vg_lite_identity(&matrix2);
         vg_lite_scale((vg_lite_float_t) fb->width / (vg_lite_float_t) image_buffer2.width,

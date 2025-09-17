@@ -509,6 +509,7 @@ osThreadDef_t os_thread_def_##name = \
 /// \return thread ID for reference by other functions or NULL in case of error.
 /// \note MUST REMAIN UNCHANGED: \b osThreadCreate shall be consistent in every CMSIS-RTOS.
 osThreadId osThreadCreate (osThreadDef_t *thread_def, void *argument);
+osThreadId osThreadCreateExt(osThreadDef_t *thread_def, void *argument, int arg2);
 
 /// Return the thread ID of the current running thread.
 /// \return thread ID for reference by other functions or NULL in case of error.

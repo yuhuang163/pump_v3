@@ -29,9 +29,12 @@
 #ifdef IBRT
 #include "app_ibrt_internal.h"
 #include "app_tws_ibrt_audio_analysis.h"
-#include "earbud_ux_api.h"
 #endif
-#define SCALABLE_MTU_LIMITER (28)
+#if defined(A2DP_SCALABLE_UHQ_SUPPORT)
+#define SCALABLE_MTU_LIMITER (56)
+#else
+#define SCALABLE_MTU_LIMITER (42)
+#endif
 #define SCALABLE_MEMPOOL_SIZE  1024
 
 #define SBM_DEBUG_ENABLEDx
@@ -65,9 +68,7 @@ static uint32_t currentTmpBufOffset = 0;
 static uint32_t currentTmpLeftBytes = 0;
 
 static A2DP_AUDIO_DECODER_LASTFRAME_INFO_T lastframe_info;
-#ifndef A2DP_DECODER_CROSS_CORE
 static void sbm_operation_env_reset(void);
-#endif
 static bool sbm_operation_pre_decoding_handler(uint32_t currentSeqNum);
 
 // macro to enable scalable PLC
@@ -89,7 +90,7 @@ static uint8_t* scalable_plc_a2dp_packet_buf_ptr = NULL;
 #ifdef IBRT
 uint32_t app_tws_ibrt_audio_analysis_tick_get(void);
 uint32_t app_tws_ibrt_audio_analysis_interval_get(void);
-extern "C" bool bts_tws_if_is_tws_link_connected(void);
+extern "C" bool app_tws_ibrt_tws_link_connected(void);
 #endif
 
 #ifdef A2DP_DECODER_CROSS_CORE_USE_M55
@@ -126,7 +127,7 @@ static void a2dp_audio_scalable_decoder_init(void)
         sbm_error_fast = 0;
         sbm_operation_slow = 0;
         sbm_error_slow = 0;
-        AUDIOPLAYERS_TRACE(0,"[SSC]ssc_decoder_init channels = %d, sample_rate=%d", output_config.num_channels, output_config.sample_rate);
+        TRACE(0,"[SSC]ssc_decoder_init channels = %d, sample_rate=%d", output_config.num_channels, output_config.sample_rate);
         ssc_decoder_init(scalableDec_handle, output_config.num_channels, output_config.sample_rate, true, output_config.bits_depth);
         sbm_operation_env_reset();
     }
@@ -153,7 +154,7 @@ static void a2dp_audio_scalable_decoder_deinit(void)
 
 static void a2dp_audio_scalable_decoder_reinit(void)
 {
-    AUDIOPLAYERS_TRACE(0,"[SSC]a2dp_audio_scalable_decoder_reinit()");
+    TRACE(0,"[SSC]a2dp_audio_scalable_decoder_reinit()");
     if (scalableDec_handle) {
     a2dp_audio_scalable_decoder_deinit();
     }
@@ -169,36 +170,56 @@ static bool is_valid_frame(a2dp_audio_scalable_decoder_frame_t * decoder_frame_p
 
     if ((0xFF != input_buf[0]) || (0xE0 != (input_buf[1] & 0xF0)))
     {
-        AUDIOPLAYERS_TRACE(0,"invalid scalable a2dp frame, sync words not right.");
+        TRACE_A2DP_DECODER_E("invalid scalable a2dp frame, sync words not right.");
         return false;
     }
 
     if (decoder_frame_p->header.dataLen < SCALABLE_HEAD_SIZE) {
-        AUDIOPLAYERS_TRACE(0,"invalid scalable a2dp frame, length < SCALABLE_HEAD_SIZE !!!!!!!");
+        TRACE_A2DP_DECODER_E("invalid scalable a2dp frame, length < SCALABLE_HEAD_SIZE !!!!!!!");
         return false;
     }
 
     scalable_uhq_flag = 0;
 
-    switch ((input_buf[3]&0xf7)) {
-        case 0xF0:
+    switch ((input_buf[3]&0x1f)) {
+        case 0x10:
             bitrate_bps = 88000;
             break;
-        case 0xF1:
+        case 0x11:
             bitrate_bps = 96000;
             break;
-        case 0xF2:
+        case 0x12:
             bitrate_bps = 128000;
             break;
-        case 0xF3:
+        case 0x13:
             bitrate_bps = 192000;
             break;
-        case 0xF4:
+        case 0x14:
             bitrate_bps = 229000;
             break;
-        case 0xF5:
+        case 0x15:
             scalable_uhq_flag = 1;
             bitrate_bps = 328000;
+            sampling_rate = 96000;
+            break;
+        case 0x16:
+            scalable_uhq_flag = 1;
+            bitrate_bps = 256000;
+            sampling_rate = 96000;
+            break;
+        case 0x03:
+            scalable_uhq_flag = 1;
+            bitrate_bps = 584000;
+            sampling_rate = 96000;
+            break;
+        case 0x00:
+            scalable_uhq_flag = 1;
+            bitrate_bps = 291000;
+            sampling_rate = 96000;
+            break;
+        case 0x06:
+            scalable_uhq_flag = 1;
+            bitrate_bps = 154000;
             sampling_rate = 96000;
             break;
         default:
@@ -214,16 +235,17 @@ static bool is_valid_frame(a2dp_audio_scalable_decoder_frame_t * decoder_frame_p
     len = hw_tmp + len;
     len = len + ((len & 1) ^ 1);
     } else {
-    len = 369;      //744/2-4+1
+    //len = 369;      //744/2-4+1
+    len = len + ((len & 1) ^ 1);
     }
-    AUDIOPLAYERS_TRACE
-    (0,"scalable a2dp frame, length:%d bitrate:%d sampling_rate:%d",
+    TRACE_A2DP_DECODER_D
+    ("scalable a2dp frame, length:%d bitrate:%d sampling_rate:%d",
      decoder_frame_p->header.dataLen, bitrate_bps, sampling_rate);
     frame_len = SCALABLE_HEAD_SIZE + len - 1;
 
     if (decoder_frame_p->header.dataLen < frame_len) {
-    AUDIOPLAYERS_TRACE
-        (0,"invalid scalable a2dp frame, length:%d  <  %d !!!!!!!", decoder_frame_p->header.dataLen, frame_len);
+    TRACE_A2DP_DECODER_E
+        ("invalid scalable a2dp frame, length:%d  <  %d !!!!!!!", decoder_frame_p->header.dataLen, frame_len);
     return false;
     }
     return true;
@@ -250,7 +272,6 @@ struct A2DP_CP_scalable_OUT_FRM_INFO_T {
 };
 
 static bool cp_codec_reset;
-extern uint32_t app_bt_stream_get_dma_buffer_samples(void);
 
 static int TEXT_AAC_LOC a2dp_cp_scalable_lc_after_cache_underflow(void)
 {
@@ -285,7 +306,7 @@ TEXT_SSC_LOC static int a2dp_cp_scalable_mcu_decode(uint8_t * buffer, uint32_t b
 
     ret = a2dp_cp_decoder_init(out_frame_len, cp_buffer_frames_max * 2);
     if (ret){
-        AUDIOPLAYERS_TRACE(0,"[MCU][SCALABLE] cp_decoder_init failed: ret=%d", ret);
+        TRACE_A2DP_DECODER_W("[MCU][SCALABLE] cp_decoder_init failed: ret=%d", ret);
         set_cp_reset_flag(true);
         return A2DP_DECODER_DECODE_ERROR;
     }
@@ -313,7 +334,7 @@ TEXT_SSC_LOC static int a2dp_cp_scalable_mcu_decode(uint8_t * buffer, uint32_t b
             a2dp_audio_list_node(node);
 
             if (false == is_valid_frame(decoder_frame_p)) {
-                AUDIOPLAYERS_TRACE(0,"[MCU][SCALABLE] invalid frame!");
+                TRACE_A2DP_DECODER_D("[MCU][SCALABLE] invalid frame!");
                 set_cp_reset_flag(true);
                 return A2DP_DECODER_DECODE_ERROR;
             }
@@ -323,9 +344,9 @@ TEXT_SSC_LOC static int a2dp_cp_scalable_mcu_decode(uint8_t * buffer, uint32_t b
 #ifdef SCALABLE_PLC_ENABLED
             in_info.isPLC = true;
             Frame_sequence_mismatch_Cnt++;
-            AUDIOPLAYERS_TRACE(0, "Frame sequence mismatch!!!!");
+            TRACE(0, "Frame sequence mismatch!!!!");
 #endif
-            AUDIOPLAYERS_TRACE(0, "seq %d time stamp %d", decoder_frame_p->header.sequenceNumber,
+            TRACE(0, "seq %d time stamp %d", decoder_frame_p->header.sequenceNumber,
                 decoder_frame_p->header.timestamp);
 
             while (1)
@@ -341,7 +362,7 @@ TEXT_SSC_LOC static int a2dp_cp_scalable_mcu_decode(uint8_t * buffer, uint32_t b
 
                 ret = a2dp_cp_put_in_frame(&in_info, sizeof(in_info), decoder_frame_p->header.ptrData, decoder_frame_p->header.dataLen);
                 if (ret) {
-                    AUDIOPLAYERS_TRACE(0,"[MCU][SCALABLE] piff !!!!!!ret: %d ", ret);
+                    TRACE_A2DP_DECODER_D("[MCU][SCALABLE] piff !!!!!!ret: %d ", ret);
                     break;
                 }
 
@@ -361,11 +382,11 @@ TEXT_SSC_LOC static int a2dp_cp_scalable_mcu_decode(uint8_t * buffer, uint32_t b
         a2dp_audio_list_node(node);
 
 #ifdef SBM_DEBUG_ENABLED
-        AUDIOPLAYERS_TRACE(0, "lastSequenceNum %d", lastframe_info.lastPopedSeqNum);
+        TRACE(0, "lastSequenceNum %d", lastframe_info.lastPopedSeqNum);
 #endif
 
         if (false == is_valid_frame(decoder_frame_p)) {
-            AUDIOPLAYERS_TRACE(0,"[MCU][SCALABLE] invalid frame at %d actual seq %d!",
+            TRACE_A2DP_DECODER_E("[MCU][SCALABLE] invalid frame at %d actual seq %d!",
                 lastframe_info.lastPopedSeqNum, decoder_frame_p->header.sequenceNumber);
         #ifdef SCALABLE_PLC_ENABLED
             if (scalable_plc_a2dp_packet_size > 0)
@@ -401,7 +422,7 @@ TEXT_SSC_LOC static int a2dp_cp_scalable_mcu_decode(uint8_t * buffer, uint32_t b
         ret = a2dp_cp_put_in_frame(&in_info, sizeof(in_info),
                                 a2dp_data_ptr, a2dp_data_len);
         if (ret) {
-            AUDIOPLAYERS_TRACE(0,"[MCU][SCALABLE] piff !!!!!!ret: %d ", ret);
+            TRACE_A2DP_DECODER_D("[MCU][SCALABLE] piff !!!!!!ret: %d ", ret);
             break;
         }
 
@@ -416,7 +437,7 @@ TEXT_SSC_LOC static int a2dp_cp_scalable_mcu_decode(uint8_t * buffer, uint32_t b
         a2dp_audio_list_node(node);
 
         if (false == is_valid_frame(decoder_frame_p)) {
-            AUDIOPLAYERS_TRACE(0,"[MCU][SCALABLE] invalid frame!");
+            TRACE_A2DP_DECODER_D("[MCU][SCALABLE] invalid frame!");
             set_cp_reset_flag(true);
             return A2DP_DECODER_DECODE_ERROR;
         }
@@ -427,7 +448,7 @@ TEXT_SSC_LOC static int a2dp_cp_scalable_mcu_decode(uint8_t * buffer, uint32_t b
 
         ret = a2dp_cp_put_in_frame(&in_info, sizeof(in_info), decoder_frame_p->header.ptrData, decoder_frame_p->header.dataLen);
         if (ret) {
-            AUDIOPLAYERS_TRACE(0,"[MCU][SCALABLE] piff !!!!!!ret: %d ", ret);
+            TRACE_A2DP_DECODER_D("[MCU][SCALABLE] piff !!!!!!ret: %d ", ret);
             break;
         }
 
@@ -458,7 +479,7 @@ TEXT_SSC_LOC static int a2dp_cp_scalable_mcu_decode(uint8_t * buffer, uint32_t b
 
                             if (0 == ret)
                             {
-                                AUDIOPLAYERS_TRACE(0, "scalable underflow plc %d %d", in_info.sequenceNumber,
+                                TRACE(0, "scalable underflow plc %d %d", in_info.sequenceNumber,
                                     in_info.timestamp);
                                 scalable_underflow_plc_count++;
                             }
@@ -468,12 +489,12 @@ TEXT_SSC_LOC static int a2dp_cp_scalable_mcu_decode(uint8_t * buffer, uint32_t b
                     if (ret)
                     {
                         scalable_underflow_plc_count = 0;
-                        AUDIOPLAYERS_TRACE(0,"[MCU][SCALABLE] cp cache underflow list:%d in_cp:%d",a2dp_audio_list_length(list), get_in_cp_frame_cnt());
+                        TRACE_A2DP_DECODER_I("[MCU][SCALABLE] cp cache underflow list:%d in_cp:%d",a2dp_audio_list_length(list), get_in_cp_frame_cnt());
                         return A2DP_DECODER_CACHE_UNDERFLOW_ERROR;
                     }
                 }
                 if (!a2dp_audio_sysfreq_boost_running()){
-                    a2dp_audio_sysfreq_boost_start(1);
+                    a2dp_audio_sysfreq_boost_start(1,false);
                 }
 
                 uint8_t delayCount = 0;
@@ -484,7 +505,7 @@ TEXT_SSC_LOC static int a2dp_cp_scalable_mcu_decode(uint8_t * buffer, uint32_t b
                     if (ret) {
                         if (delayCount >= 8)
                         {
-                            AUDIOPLAYERS_TRACE(0,"[MCU][SCALABLE] cp cache underflow list:%d in_cp:%d",a2dp_audio_list_length(list), get_in_cp_frame_cnt());
+                            TRACE_A2DP_DECODER_I("[MCU][SCALABLE] cp cache underflow list:%d in_cp:%d",a2dp_audio_list_length(list), get_in_cp_frame_cnt());
                             a2dp_cp_scalable_lc_after_cache_underflow();
                             if (get_in_cp_frame_cnt()) {
                                 return A2DP_DECODER_CACHE_UNDERFLOW_ERROR_SYS_BUSY;
@@ -494,7 +515,7 @@ TEXT_SSC_LOC static int a2dp_cp_scalable_mcu_decode(uint8_t * buffer, uint32_t b
                     }
                     else
                     {
-                        //AUDIOPLAYERS_TRACE(0, "=%d", (delayCount+1)*2);
+                        //TRACE(0, "=%d", (delayCount+1)*2);
                         break;
                     }
 
@@ -512,7 +533,7 @@ TEXT_SSC_LOC static int a2dp_cp_scalable_mcu_decode(uint8_t * buffer, uint32_t b
             if (ret && (get_in_cp_frame_cnt() > 0))
             {
                 if (!a2dp_audio_sysfreq_boost_running()){
-                    a2dp_audio_sysfreq_boost_start(1);
+                    a2dp_audio_sysfreq_boost_start(1,false);
                 }
 
                 uint8_t delayCount = 0;
@@ -523,7 +544,7 @@ TEXT_SSC_LOC static int a2dp_cp_scalable_mcu_decode(uint8_t * buffer, uint32_t b
                     if (ret) {
                         if (delayCount >= 8)
                         {
-                            AUDIOPLAYERS_TRACE(0,"[MCU][SCALABLE] cp cache underflow list:%d in_cp:%d",a2dp_audio_list_length(list), get_in_cp_frame_cnt());
+                            TRACE_A2DP_DECODER_I("[MCU][SCALABLE] cp cache underflow list:%d in_cp:%d",a2dp_audio_list_length(list), get_in_cp_frame_cnt());
                             a2dp_cp_scalable_lc_after_cache_underflow();
                             if (get_in_cp_frame_cnt()) {
                                 return A2DP_DECODER_CACHE_UNDERFLOW_ERROR_SYS_BUSY;
@@ -533,7 +554,7 @@ TEXT_SSC_LOC static int a2dp_cp_scalable_mcu_decode(uint8_t * buffer, uint32_t b
                     }
                     else
                     {
-                        //AUDIOPLAYERS_TRACE(0, "=%d", (delayCount+1)*2);
+                        //TRACE(0, "=%d", (delayCount+1)*2);
                         break;
                     }
 
@@ -547,14 +568,14 @@ TEXT_SSC_LOC static int a2dp_cp_scalable_mcu_decode(uint8_t * buffer, uint32_t b
         if (out_len == 0) {
             memset(buffer, 0, buffer_bytes);
             a2dp_cp_consume_full_out_frame();
-            AUDIOPLAYERS_TRACE(0,"[MCU][SCALABLE] olz!!!%d ", __LINE__);
+            TRACE_A2DP_DECODER_I("[MCU][SCALABLE] olz!!!%d ", __LINE__);
             return A2DP_DECODER_NO_ERROR;
         }
 
         p_out_info = (struct A2DP_CP_scalable_OUT_FRM_INFO_T *)out;
         if (p_out_info->pcm_len && (0 == p_out_info->fetchOffset)) {
         #ifdef SBM_DEBUG_ENABLED
-            AUDIOPLAYERS_TRACE(0, "SBM 0x%x seq %d", (uint32_t)p_out_info, p_out_info->in_info.sequenceNumber);
+            TRACE(0, "SBM 0x%x seq %d", (uint32_t)p_out_info, p_out_info->in_info.sequenceNumber);
         #endif
             lastframe_info.sequenceNumber = p_out_info->in_info.sequenceNumber;
             lastframe_info.timestamp = p_out_info->in_info.timestamp;
@@ -569,7 +590,7 @@ TEXT_SSC_LOC static int a2dp_cp_scalable_mcu_decode(uint8_t * buffer, uint32_t b
 
         uint32_t leftPcmData = p_out_info->pcm_len - p_out_info->fetchOffset;
 #ifdef SBM_DEBUG_ENABLED
-        AUDIOPLAYERS_TRACE(0, "SBM info 0x%x %d-%d-%d", (uint32_t)p_out_info, p_out_info->pcm_len, p_out_info->fetchOffset,
+        TRACE(0, "SBM info 0x%x %d-%d-%d", (uint32_t)p_out_info, p_out_info->pcm_len, p_out_info->fetchOffset,
             buffer_bytes);
 #endif
         if (leftPcmData > buffer_bytes)
@@ -579,7 +600,7 @@ TEXT_SSC_LOC static int a2dp_cp_scalable_mcu_decode(uint8_t * buffer, uint32_t b
             p_out_info->fetchOffset += buffer_bytes;
             dec_ret = A2DP_DECODER_NO_ERROR;
 #ifdef SBM_DEBUG_ENABLED
-            AUDIOPLAYERS_TRACE(0, "SBM execute 0x%x - %d", (uint32_t)p_out_info, p_out_info->fetchOffset);
+            TRACE(0, "SBM execute 0x%x - %d", (uint32_t)p_out_info, p_out_info->fetchOffset);
 #endif
             break;
         }
@@ -592,12 +613,12 @@ TEXT_SSC_LOC static int a2dp_cp_scalable_mcu_decode(uint8_t * buffer, uint32_t b
             buffer_bytes -= leftPcmData;
         }
 #ifdef SBM_DEBUG_ENABLED
-        AUDIOPLAYERS_TRACE(0, "SBM free 0x%x buffer_bytes %d", (uint32_t)p_out_info, buffer_bytes);
+        TRACE(0, "SBM free 0x%x buffer_bytes %d", (uint32_t)p_out_info, buffer_bytes);
 #endif
         ret = a2dp_cp_consume_full_out_frame();
         if (ret){
 
-            AUDIOPLAYERS_TRACE(0,"[MCU][SCALABLE] cp consume_full_out_frame() failed: ret=%d", ret);
+            TRACE_A2DP_DECODER_I("[MCU][SCALABLE] cp consume_full_out_frame() failed: ret=%d", ret);
             set_cp_reset_flag(true);
             return A2DP_DECODER_DECODE_ERROR;
         }
@@ -637,7 +658,7 @@ TEXT_SSC_LOC int a2dp_cp_scalable_cp_decode(void)
 
     if (cp_codec_reset)
     {
-        AUDIOPLAYERS_TRACE(0, "[SSC]a2dp_cp_scalable_cp_decode() - cp_codec_reset");
+        TRACE(0, "[SSC]a2dp_cp_scalable_cp_decode() - cp_codec_reset");
         cp_codec_reset      = false;
         a2dp_audio_scalable_decoder_init();
     }
@@ -664,7 +685,7 @@ TEXT_SSC_LOC int a2dp_cp_scalable_cp_decode(void)
 
     dec_start = (uint8_t *) (p_out_info + 1) + p_out_info->pcm_len;
     if (!scalableDec_handle) {
-        AUDIOPLAYERS_TRACE(0,"scalable_decode not ready");
+        TRACE(0,"scalable_decode not ready");
         return 3;
     }
 
@@ -702,9 +723,9 @@ TEXT_SSC_LOC int a2dp_cp_scalable_cp_decode(void)
 #endif
 
 #ifdef SCALABLE_PLC_ENABLED
-    output_samples = ssc_decode(scalableDec_handle,(const unsigned char*)in_buf, (unsigned char*)ss_pcm_buff, SCALABLE_FRAME_SIZE, p_in_info->isPLC, 2);
+    output_samples = ssc_decode(scalableDec_handle,(const unsigned char*)in_buf, ss_pcm_buff, SCALABLE_FRAME_SIZE, p_in_info->isPLC, 2);
 #else
-    output_samples = ssc_decode(scalableDec_handle,(const unsigned char*)in_buf, (unsigned char*)ss_pcm_buff, SCALABLE_FRAME_SIZE, 0, 2);
+    output_samples = ssc_decode(scalableDec_handle,(const unsigned char*)in_buf, ss_pcm_buff, SCALABLE_FRAME_SIZE, 0, 2);
 #endif
 
 #ifdef DEBUG_CALC_MCPS
@@ -715,7 +736,7 @@ TEXT_SSC_LOC int a2dp_cp_scalable_cp_decode(void)
         if(ptime > cp_peak_dec_time)
             cp_peak_dec_time = ptime;
     }
-    //AUDIOPLAYERS_TRACE(0, "ssc audio excution cycle(avg) : %5u -- %5u", ptime, cp_peak_dec_time);
+    //TRACE(0, "ssc audio excution cycle(avg) : %5u -- %5u", ptime, cp_peak_dec_time);
 #endif
 
     frame_cnt_audio++;
@@ -723,22 +744,22 @@ TEXT_SSC_LOC int a2dp_cp_scalable_cp_decode(void)
     if(frame_cnt_audio % 133 == 0)
     {
 #ifdef DEBUG_CALC_MCPS
-        AUDIOPLAYERS_TRACE(0, "[SSC]ssc audio excution us(Peak) : %5u", cp_peak_dec_time);
+        TRACE(0, "[SSC]ssc audio excution us(Peak) : %5u", cp_peak_dec_time);
 #endif
-        AUDIOPLAYERS_TRACE(0, "[SSC]ssc audio DBG_MSG Total Frame : %d, PLC Frame : %d, L/R Sequence mismatch : %d", FrameCnt, PLC_Frame, Frame_sequence_mismatch_Cnt);
-        AUDIOPLAYERS_TRACE(0, "[SSC]sbm operation_fast : %d, error data fast = %d", sbm_operation_fast, sbm_error_fast);
-        AUDIOPLAYERS_TRACE(0, "[SSC]sbm operation_slow : %d, error data slow = %d", sbm_operation_slow, sbm_error_slow);
+        TRACE(0, "[SSC]ssc audio DBG_MSG Total Frame : %d, PLC Frame : %d, L/R Sequence mismatch : %d", FrameCnt, PLC_Frame, Frame_sequence_mismatch_Cnt);
+        TRACE(0, "[SSC]sbm operation_fast : %d, error data fast = %d", sbm_operation_fast, sbm_error_fast);
+        TRACE(0, "[SSC]sbm operation_slow : %d, error data slow = %d", sbm_operation_slow, sbm_error_slow);
         frame_cnt_audio = 0;
     }
 
 #ifdef SBM_DEBUG_ENABLED
-    AUDIOPLAYERS_TRACE(0, "out:%d", output_samples);
+    TRACE(0, "out:%d", output_samples);
 #endif
 
     if (0 == output_samples)
     {
         a2dp_audio_scalable_decoder_reinit();
-        AUDIOPLAYERS_TRACE(0, "scalable_decode reinin codec \n");
+        TRACE(0, "scalable_decode reinin codec \n");
         error = A2DP_DECODER_DECODE_ERROR;
         goto exit;
     }
@@ -758,7 +779,7 @@ exit:
     p_out_info->pcm_len += dec_sum;
 
 #ifdef SBM_DEBUG_ENABLED
-    AUDIOPLAYERS_TRACE(0, "SBM add pcm 0x%x %d", (uint32_t)p_out_info, p_out_info->pcm_len);
+    TRACE(0, "SBM add pcm 0x%x %d", (uint32_t)p_out_info, p_out_info->pcm_len);
 #endif
     ret = a2dp_cp_consume_emtpy_out_frame();
     ASSERT(ret == 0, "%s: a2dp_cp_consume_emtpy_out_frame() failed: ret=%d", __func__, ret);
@@ -769,9 +790,9 @@ exit:
 
 static int a2dp_audio_scalable_init(A2DP_AUDIO_OUTPUT_CONFIG_T * config, void *context)
 {
-    AUDIOPLAYERS_TRACE(0,"%s", __func__);
+    TRACE_A2DP_DECODER_D("%s", __func__);
 
-    AUDIOPLAYERS_TRACE(0,"\n\nA2DP SSC-LC INIT\n");
+    TRACE(0,"\n\nA2DP SSC-LC INIT\n");
 
     a2dp_audio_context_p = (A2DP_AUDIO_CONTEXT_T *) context;
 
@@ -796,7 +817,7 @@ static int a2dp_audio_scalable_init(A2DP_AUDIO_OUTPUT_CONFIG_T * config, void *c
 
     decoder_size = ssc_decoder_get_size(output_config.num_channels, output_config.sample_rate); //todo:  get size with codec capability
 
-    AUDIOPLAYERS_TRACE(0, "decoder size %d", decoder_size);
+    TRACE(0, "decoder size %d", decoder_size);
 
     scalable_decoder_place = (unsigned char *)a2dp_audio_heap_malloc(decoder_size);
     ASSERT_A2DP_DECODER(scalable_decoder_place, "no memory resource for scalable_decoder_place");
@@ -812,7 +833,9 @@ static int a2dp_audio_scalable_init(A2DP_AUDIO_OUTPUT_CONFIG_T * config, void *c
 #else
     a2dp_audio_scalable_decoder_init();
 #endif
-#endif // #ifndef A2DP_DECODER_CROSS_CORE
+#else
+    sbm_operation_env_reset();
+#endif
     return A2DP_DECODER_NO_ERROR;
 }
 
@@ -824,7 +847,7 @@ static int a2dp_audio_scalable_deinit(void)
 
     a2dp_audio_scalable_decoder_deinit();
 
-    AUDIOPLAYERS_TRACE(0,"\n\nA2DP   SCALABLE  DEINIT\n");
+    TRACE(0,"\n\nA2DP   SCALABLE  DEINIT\n");
 
     return A2DP_DECODER_NO_ERROR;
 }
@@ -841,19 +864,19 @@ int a2dp_audio_scalable_mcu_decode_frame(uint8_t * buffer, uint32_t buffer_bytes
     uint8_t *output = buffer;
 
     if (buffer_bytes < (SCALABLE_FRAME_SIZE * output_config.num_channels * output_config.bits_depth / 8)) {
-        AUDIOPLAYERS_TRACE(1,"scalable_decode pcm_len = %d \n", buffer_bytes);
+        TRACE(1,"scalable_decode pcm_len = %d \n", buffer_bytes);
         return A2DP_DECODER_NO_ERROR;
     }
 
     if (!scalableDec_handle) {
-        AUDIOPLAYERS_TRACE(0,"scalable_decode not ready");
+        TRACE(0,"scalable_decode not ready");
         return A2DP_DECODER_NO_ERROR;
     }
 
     if (currentTmpLeftBytes > 0)
     {
     #ifdef SBM_DEBUG_ENABLED
-        AUDIOPLAYERS_TRACE(0, "SBM 1:%d %d %d", buffer_bytes, currentTmpLeftBytes,
+        TRACE(0, "SBM 1:%d %d %d", buffer_bytes, currentTmpLeftBytes,
             currentTmpBufOffset);
     #endif
         if (currentTmpLeftBytes < buffer_bytes)
@@ -877,7 +900,7 @@ int a2dp_audio_scalable_mcu_decode_frame(uint8_t * buffer, uint32_t buffer_bytes
         node = a2dp_audio_list_begin(list);
         if (!node)
         {
-            AUDIOPLAYERS_TRACE(0,"scalable_decode cache underflow");
+            TRACE(0,"scalable_decode cache underflow");
             cache_underflow = true;
             goto exit;
         }
@@ -888,7 +911,7 @@ int a2dp_audio_scalable_mcu_decode_frame(uint8_t * buffer, uint32_t buffer_bytes
                 a2dp_audio_list_node(node);
 
             if (false == is_valid_frame(decoder_frame_p)) {
-                AUDIOPLAYERS_TRACE(0,"%s %d invalid a2dp frame", __func__, __LINE__);
+                TRACE_A2DP_DECODER_E("%s %d invalid a2dp frame", __func__, __LINE__);
                 ret = A2DP_DECODER_DECODE_ERROR;
                 goto exit;
             }
@@ -904,15 +927,15 @@ int a2dp_audio_scalable_mcu_decode_frame(uint8_t * buffer, uint32_t buffer_bytes
                 ssc_decode(scalableDec_handle,
                    decoder_frame_p->header.ptrData, (uint8_t *)ss_pcm_buff, SCALABLE_FRAME_SIZE,0,2);
         #ifdef SBM_DEBUG_ENABLED
-            AUDIOPLAYERS_TRACE
+            TRACE
             (0, "scalable_decode seq:%d len:%d output_samples:%d buffer_bytes: %d",
              decoder_frame_p->header.sequenceNumber, decoder_frame_p->header.dataLen, output_samples, buffer_bytes);
         #endif
             if (0 == output_samples) {
-                AUDIOPLAYERS_TRACE(0,"scalable_decode failed  !!!!!!");
+                TRACE(0,"scalable_decode failed  !!!!!!");
                 //if  failed reopen it again
                 a2dp_audio_scalable_decoder_reinit();
-                AUDIOPLAYERS_TRACE(0,"scalable_decode reinin codec \n");
+                TRACE(0,"scalable_decode reinin codec \n");
                 ret = A2DP_DECODER_DECODE_ERROR;
                 goto exit;
             }
@@ -933,7 +956,7 @@ int a2dp_audio_scalable_mcu_decode_frame(uint8_t * buffer, uint32_t buffer_bytes
             currentTmpLeftBytes = output_byte - costedBytes;
             currentTmpBufOffset = costedBytes;
         #ifdef SBM_DEBUG_ENABLED
-            AUDIOPLAYERS_TRACE(0, "SBM 2:%d %d %d", currentTmpLeftBytes, currentTmpBufOffset,
+            TRACE(0, "SBM 2:%d %d %d", currentTmpLeftBytes, currentTmpBufOffset,
                 costedBytes);
         #endif
             output += costedBytes;
@@ -956,7 +979,7 @@ int a2dp_audio_scalable_mcu_decode_frame(uint8_t * buffer, uint32_t buffer_bytes
         a2dp_audio_decoder_internal_lastframe_info_set(&lastframe_info);
         ret = A2DP_DECODER_CACHE_UNDERFLOW_ERROR;
     }
-    //AUDIOPLAYERS_TRACE(0,"abd");
+    //TRACE(0,"abd");
     return ret;
 }
 
@@ -985,7 +1008,7 @@ static int a2dp_audio_scalable_preparse_packet(btif_media_header_t * header, uin
     lastframe_info.undecode_frames = 0;
     a2dp_audio_decoder_internal_lastframe_info_set(&lastframe_info);
 
-    AUDIOPLAYERS_TRACE(3,"%s seq:%d timestamp:%08x", __func__, header->sequenceNumber, header->timestamp);
+    TRACE(3,"%s seq:%d timestamp:%08x", __func__, header->sequenceNumber, header->timestamp);
 
     return A2DP_DECODER_NO_ERROR;
 }
@@ -1021,14 +1044,14 @@ static int a2dp_audio_scalable_store_packet(btif_media_header_t * header, uint8_
 
     if (buffer_bytes > SCALABLE_READBUF_SIZE)
     {
-        AUDIOPLAYERS_TRACE(0, "%s buffer_bytes(%d) > SCALABLE_READBUF_SIZE(%d), Limit it to SCALABLE_READBUF_SIZE",
+        TRACE(0, "%s buffer_bytes(%d) > SCALABLE_READBUF_SIZE(%d), Limit it to SCALABLE_READBUF_SIZE",
                                                         __func__, buffer_bytes, SCALABLE_READBUF_SIZE);
         buffer_bytes = SCALABLE_READBUF_SIZE;
     }
     a2dp_audio_scalable_decoder_frame_t *decoder_frame_p = (a2dp_audio_scalable_decoder_frame_t *)
         a2dp_audio_scalable_frame_malloc(buffer_bytes);
 #ifdef SBM_DEBUG_ENABLED
-    AUDIOPLAYERS_TRACE(0, "%s seq:%d len:%d", __func__, header->sequenceNumber, buffer_bytes);
+    TRACE(0, "%s seq:%d len:%d", __func__, header->sequenceNumber, buffer_bytes);
 #endif
     decoder_frame_p->header.sequenceNumber = header->sequenceNumber;
     decoder_frame_p->header.timestamp = header->timestamp;
@@ -1037,68 +1060,71 @@ static int a2dp_audio_scalable_store_packet(btif_media_header_t * header, uint8_
 
     if (false == is_valid_frame(decoder_frame_p))
     {
-        AUDIOPLAYERS_TRACE(0,"%s %d invalid a2dp frame", __func__, __LINE__);
+        TRACE_A2DP_DECODER_E("%s %d invalid a2dp frame", __func__, __LINE__);
         scalable_plc_a2dp_packet_size = scalable_last_received_a2dp_packet_size;
         scalable_plc_a2dp_packet_buf_ptr = scalable_last_received_a2dp_packet_buf_ptr;
     }
     else
     {
-        if (isFirstScalablePacketReceived)
+        if (a2dp_audio_context_p->output_cfg.sample_rate != 96000)
         {
-            // check whether the sequence number is consective
-            uint32_t seqNumGap;
-            if (decoder_frame_p->header.sequenceNumber > lastStoredScalablePacketSeqNum)
+            if (isFirstScalablePacketReceived)
             {
-                seqNumGap = decoder_frame_p->header.sequenceNumber-lastStoredScalablePacketSeqNum;
+                // check whether the sequence number is consective
+                uint32_t seqNumGap;
+                if (decoder_frame_p->header.sequenceNumber > lastStoredScalablePacketSeqNum)
+                {
+                    seqNumGap = decoder_frame_p->header.sequenceNumber-lastStoredScalablePacketSeqNum;
+                }
+                else
+                {
+                    seqNumGap = 0x10000+decoder_frame_p->header.sequenceNumber-lastStoredScalablePacketSeqNum;
+                }
+
+                if (seqNumGap > SCALABLE_NON_CONTINUOUS_SEQ_NUM_TOLERANCE_GAP)
+                {
+                    TRACE(0, "Scalable seq num gap %d, do retrigger", seqNumGap);
+                    a2dp_audio_scalable_free(decoder_frame_p);
+                    return A2DP_DECODER_NON_CONSECTIVE_SEQ;
+                }
+                else if (seqNumGap > 1)
+                {
+                    TRACE(0, "Scalable seq num gap %d, activate PLC!", seqNumGap);
+                    // append missing packets
+                    uint32_t filledUpCount = 0;
+                    uint16_t filledSeqNum = lastStoredScalablePacketSeqNum;
+
+                    TRACE(0, "insert invalid frame for following PLC handling");
+                    while (filledUpCount < (seqNumGap-1))
+                    {
+                        // reserve one slot for the received data packet
+                        if (a2dp_audio_list_length(list) >= (SCALABLE_MTU_LIMITER-1))
+                        {
+                            TRACE(2,"%s list full current len:%d", __func__, a2dp_audio_list_length(list));
+                            a2dp_audio_scalable_free(decoder_frame_p);
+                            return A2DP_DECODER_NON_CONSECTIVE_SEQ;
+                        }
+                        filledSeqNum++;
+                        filledUpCount++;
+                        a2dp_audio_scalable_decoder_frame_t *padding_decoder_frame_p = (a2dp_audio_scalable_decoder_frame_t *)
+                            a2dp_audio_scalable_frame_malloc(buffer_bytes);
+                        TRACE(0, "insert seq %d", filledSeqNum);
+                        padding_decoder_frame_p->header.sequenceNumber = filledSeqNum;
+                        padding_decoder_frame_p->header.timestamp = filledSeqNum;
+                        // invalid data length to let it processed by invalid packet PLC handling
+                        padding_decoder_frame_p->header.dataLen = 0;
+                        a2dp_audio_list_append(list, padding_decoder_frame_p);
+                    }
+
+                    lastStoredScalablePacketSeqNum = filledSeqNum;
+                    scalable_plc_a2dp_packet_size = scalable_last_received_a2dp_packet_size;
+                    scalable_plc_a2dp_packet_buf_ptr = scalable_last_received_a2dp_packet_buf_ptr;
+                }
             }
             else
             {
-                seqNumGap = 0x10000+decoder_frame_p->header.sequenceNumber-lastStoredScalablePacketSeqNum;
+                isFirstScalablePacketReceived = true;
             }
-
-            if (seqNumGap > SCALABLE_NON_CONTINUOUS_SEQ_NUM_TOLERANCE_GAP)
-            {
-                AUDIOPLAYERS_TRACE(0, "Scalable seq num gap %d, do retrigger", seqNumGap);
-                a2dp_audio_scalable_free(decoder_frame_p);
-                return A2DP_DECODER_NON_CONSECTIVE_SEQ;
-            }
-            else if (seqNumGap > 1)
-            {
-                AUDIOPLAYERS_TRACE(0, "Scalable seq num gap %d, activate PLC!", seqNumGap);
-                // append missing packets
-                uint32_t filledUpCount = 0;
-                uint16_t filledSeqNum = lastStoredScalablePacketSeqNum;
-
-                AUDIOPLAYERS_TRACE(0, "insert invalid frame for following PLC handling");
-                while (filledUpCount < (seqNumGap-1))
-                {
-                    // reserve one slot for the received data packet
-                    if (a2dp_audio_list_length(list) >= (SCALABLE_MTU_LIMITER-1))
-                    {
-                        AUDIOPLAYERS_TRACE(2,"%s list full current len:%d", __func__, a2dp_audio_list_length(list));
-                        a2dp_audio_scalable_free(decoder_frame_p);
-                        return A2DP_DECODER_NON_CONSECTIVE_SEQ;
-                    }
-                    filledSeqNum++;
-                    filledUpCount++;
-                    a2dp_audio_scalable_decoder_frame_t *padding_decoder_frame_p = (a2dp_audio_scalable_decoder_frame_t *)
-                        a2dp_audio_scalable_frame_malloc(buffer_bytes);
-                    AUDIOPLAYERS_TRACE(0, "insert seq %d", filledSeqNum);
-                    padding_decoder_frame_p->header.sequenceNumber = filledSeqNum;
-                    padding_decoder_frame_p->header.timestamp = filledSeqNum;
-                    // invalid data length to let it processed by invalid packet PLC handling
-                    padding_decoder_frame_p->header.dataLen = 0;
-                    a2dp_audio_list_append(list, padding_decoder_frame_p);
-                }
-
-                lastStoredScalablePacketSeqNum = filledSeqNum;
-                scalable_plc_a2dp_packet_size = scalable_last_received_a2dp_packet_size;
-                scalable_plc_a2dp_packet_buf_ptr = scalable_last_received_a2dp_packet_buf_ptr;
-            }
-        }
-        else
-        {
-            isFirstScalablePacketReceived = true;
         }
 
         lastStoredScalablePacketSeqNum = decoder_frame_p->header.sequenceNumber;
@@ -1109,7 +1135,7 @@ static int a2dp_audio_scalable_store_packet(btif_media_header_t * header, uint8_
     a2dp_audio_list_end(list);
     nRet = A2DP_DECODER_NO_ERROR;
     } else {
-        AUDIOPLAYERS_TRACE(2,"%s list full current len:%d", __func__, a2dp_audio_list_length(list));
+        TRACE(2,"%s list full current len:%d", __func__, a2dp_audio_list_length(list));
         nRet = A2DP_DECODER_MTU_LIMTER_ERROR;
     }
 
@@ -1138,7 +1164,7 @@ static int a2dp_audio_scalable_discards_packet(uint32_t packets)
     nRet = A2DP_DECODER_NO_ERROR;
     }
 
-    AUDIOPLAYERS_TRACE(3,"%s packets:%d nRet:%d", __func__, packets, nRet);
+    TRACE(3,"%s packets:%d nRet:%d", __func__, packets, nRet);
     return nRet;
 }
 
@@ -1148,7 +1174,7 @@ static int a2dp_audio_scalable_discards_packet(uint32_t packets)
 #define SBM_SLOW_SPEED 63730 // 888 2.76%
 #define SBM_NUM_NORMAL 100
 
-#define SBM_MIN_APPLY_SEQUENCE_GAP  20
+#define SBM_MIN_APPLY_SEQUENCE_GAP  30
 
 static SBM_OPERATION_ENV_T sbm_operation_env;
 #ifdef A2DP_DECODER_CROSS_CORE_USE_M55
@@ -1172,13 +1198,16 @@ static bool sbm_operation_pre_decoding_handler(uint32_t currentSeqNum)
 		{
 			if(ssc_SBM_getstatus() != 0)
 			{
-				AUDIOPLAYERS_TRACE(0, "[SSC] while SBM, request SBM again");
+				TRACE(0, "[SSC] while SBM, request SBM again");
 			}
             switch(sbm_operation_env.chunkOffset)
             {
+                case 3:
                 case 4:
                 case 5:
+                case 6:
                 case 7:
+                case 8:
                 case 9:
                 case 11:
                     //normal operation!!
@@ -1200,7 +1229,7 @@ static bool sbm_operation_pre_decoding_handler(uint32_t currentSeqNum)
                         }
                         sbm_error_slow = sbm_operation_env.chunkOffset;
                     }
-                    AUDIOPLAYERS_TRACE(0, "[SSC] SBM direction = %d, Offset = %d",sbm_operation_env.sbmOperationToDo, sbm_operation_env.chunkOffset);
+                    TRACE(0, "[SSC] SBM direction = %d, Offset = %d",sbm_operation_env.sbmOperationToDo, sbm_operation_env.chunkOffset);
                     break;
             }
 		}
@@ -1213,7 +1242,7 @@ static bool sbm_operation_pre_decoding_handler(uint32_t currentSeqNum)
         {
             if (!(sbm_operation_env.isSequenceNumToApplyRollBack))
             {
-                AUDIOPLAYERS_TRACE(0, "SBM: miss the applying speed sequence number!!!");
+                TRACE(0, "SBM: miss the applying speed sequence number!!!");
                 isNeedToRetrigger = true;
             }
             else
@@ -1230,8 +1259,8 @@ static bool sbm_operation_pre_decoding_handler(uint32_t currentSeqNum)
             return false;
         }
 
-        AUDIOPLAYERS_TRACE(0, "SBM start updating.");
-        AUDIOPLAYERS_TRACE(0, "SBM: expected seq %d current seq %d",
+        TRACE(0, "SBM start updating.");
+        TRACE(0, "SBM: expected seq %d current seq %d",
             sbm_operation_env.sequenceNumToApplyNewSpeed, currentSeqNum);
         sbm_operation_env.isToProcess = false;
     }
@@ -1243,12 +1272,13 @@ static bool sbm_operation_pre_decoding_handler(uint32_t currentSeqNum)
 
     return isNeedToRetrigger;
 }
-#ifndef A2DP_DECODER_CROSS_CORE
+
 static void sbm_operation_env_reset(void)
 {
+#ifndef A2DP_DECODER_CROSS_CORE_USE_M55
     currentTmpBufOffset = 0;
     currentTmpLeftBytes = 0;
-
+#endif
     uint32_t lock = int_lock();
     memset((uint8_t *)&sbm_operation_env, 0, sizeof(sbm_operation_env));
     sbm_operation_env.sbmOperationToDo = SBM_USE_NORMAL_SPEED;
@@ -1256,12 +1286,13 @@ static void sbm_operation_env_reset(void)
 
     sameStatusCount = 0;
     pendingOperation = SBM_USE_NORMAL_SPEED;
-
+#ifndef A2DP_DECODER_CROSS_CORE_USE_M55
     // play speed setting for slow and fast speed
     // when normal or game mode triggered and vice versa. Default +-2.76%
     ssc_set_SBMspeed_test(SBM_SLOW_SPEED, SBM_FAST_SPEED, SBM_NUM_NORMAL);
-}
 #endif
+}
+
 static void sbm_push_operation_request(SBM_OPERATION_E sbmOp, uint8_t chunkOffset, uint32_t seqNumToApplyNewSpeed)
 {
     uint32_t lock = int_lock();
@@ -1290,24 +1321,24 @@ static void sbm_push_operation_request(SBM_OPERATION_E sbmOp, uint8_t chunkOffse
 
     int_unlock(lock);
 
-    AUDIOPLAYERS_TRACE(0, "Push sbm op %d chunk offset %d", sbmOp, chunkOffset);
+    TRACE(0, "Push sbm op %d chunk offset %d", sbmOp, chunkOffset);
 #ifdef A2DP_DECODER_CROSS_CORE
     A2DP_AUDIO_LASTFRAME_INFO_T a2dp_audio_lastframe_info;
     a2dp_audio_lastframe_info_get(&a2dp_audio_lastframe_info);
-    AUDIOPLAYERS_TRACE(0, "Cur seqnum %d SBM shall be processed at seq %d",
+    TRACE(0, "Cur seqnum %d SBM shall be processed at seq %d",
         a2dp_audio_lastframe_info.sequenceNumber, seqNumToApplyNewSpeed);
 #else
-    AUDIOPLAYERS_TRACE(0, "Cur seqnum %d SBM shall be processed at seq %d",
+    TRACE(0, "Cur seqnum %d SBM shall be processed at seq %d",
         lastframe_info.sequenceNumber, seqNumToApplyNewSpeed);
 #endif
 }
 
-const uint8_t valid_sbm_offset[] = {4, 5, 7, 9, 11};
+const uint8_t valid_sbm_offset[] = {3, 4, 5, 6, 7, 8, 9, 11};
 static bool sbm_operation_get_expected_speed(float averageChunkCnt, uint16_t expectedChunkCnt,
     SBM_OPERATION_E* pOperation, uint8_t* pChunkGap)
 {
 #ifdef SBM_ENHANCED_DEBUG_ENABLED
-    AUDIOPLAYERS_TRACE(0, "SBM, avr %d/1000 tgt %d/1000",
+    TRACE(0, "SBM, avr %d/1000 tgt %d/1000",
             (uint32_t)(averageChunkCnt*1000), (uint32_t)(expectedChunkCnt*1000));
 #endif
 
@@ -1315,10 +1346,13 @@ static bool sbm_operation_get_expected_speed(float averageChunkCnt, uint16_t exp
 
     float chunkGap = abs(averageChunkCnt - expectedChunkCnt);
     uint8_t figuredOutOffset = (uint8_t)chunkGap;
+    TRACE(0, "SBM figuredOutOffset %d", figuredOutOffset);
     if (figuredOutOffset < valid_sbm_offset[0])
     {
         // if the offset is smaller than the least tunable offset,
         // let the SDK do the play speed tuning
+        TRACE(0, "let the SDK do the play speed tuning");
+        sbm_target_jitter_buffer_updating_completed();
         sbm_clear_manual_adjustment_on_going_flag();
         return false;
     }
@@ -1338,7 +1372,7 @@ static bool sbm_operation_get_expected_speed(float averageChunkCnt, uint16_t exp
         figuredOutOffset = valid_sbm_offset[sizeof(valid_sbm_offset)-1];
     }
 
-    AUDIOPLAYERS_TRACE(0, "SBM offset %d", figuredOutOffset);
+    TRACE(0, "SBM offset %d", figuredOutOffset);
 
     *pChunkGap = figuredOutOffset;
 
@@ -1411,8 +1445,11 @@ bool a2dp_audio_scalable_latency_custom_tune(uint8_t device_id, float averageChu
 #endif
 
 #ifdef SBM_ENHANCED_DEBUG_ENABLED
-    AUDIOPLAYERS_TRACE(0, "SBM, cur status %d last status %d isToProcess %d",
-        currentSbmStatus, lastSbmStatus, sbm_operation_env.isToProcess);
+    if (sbm_operation_env.isToProcess && (currentSbmStatus != lastSbmStatus))
+    {
+        TRACE(0, "SBM, cur status %d last status %d isToProcess %d",
+            currentSbmStatus, lastSbmStatus, sbm_operation_env.isToProcess);
+    }
 #endif
     if ((SBM_IN_NORMAL_SPEED != lastSbmStatus) &&
         (SBM_IN_NORMAL_SPEED == currentSbmStatus))
@@ -1441,7 +1478,7 @@ bool a2dp_audio_scalable_latency_custom_tune(uint8_t device_id, float averageChu
         }
 
 #ifdef SBM_ENHANCED_DEBUG_ENABLED
-        AUDIOPLAYERS_TRACE(0, "SBM cur op %d push op %d offset %d",
+        TRACE(0, "SBM cur op %d push op %d offset %d",
             currentSbmStatus, operation, (uint8_t)chunkGap);
 #endif
 
@@ -1451,10 +1488,10 @@ bool a2dp_audio_scalable_latency_custom_tune(uint8_t device_id, float averageChu
         a2dp_audio_lastframe_info_get(&a2dp_audio_lastframe_info);
 #endif
 #if defined(IBRT)
-        if (bts_tws_if_is_tws_link_connected())
+        if (app_tws_ibrt_tws_link_connected())
         {
             // only for master to trigger the tuning procedure
-            if (app_ibrt_if_is_ui_slave())
+            if (app_ibrt_middleware_is_ui_slave())
             {
                 return true;
             }
@@ -1494,7 +1531,7 @@ bool a2dp_audio_scalable_latency_custom_tune(uint8_t device_id, float averageChu
         sbm_push_operation_request(operation, (uint8_t)chunkGap, seqNumToBeApplied);
 
     #if defined(IBRT)
-        if (bts_tws_if_is_tws_link_connected())
+        if (app_tws_ibrt_tws_link_connected())
         {
             app_ibrt_request_peer_custom_play_speed_tuning();
         }
@@ -1575,10 +1612,10 @@ static int a2dp_audio_scalable_synchronize_packet(A2DP_AUDIO_SYNCFRAME_INFO_T * 
     if (node) {
         decoder_frame_p = (a2dp_audio_scalable_decoder_frame_t *)
             a2dp_audio_list_node(node);
-        AUDIOPLAYERS_TRACE(4,"%s nRet:%d SEQ:%d timestamp:%d", __func__, nRet,
+        TRACE(4,"%s nRet:%d SEQ:%d timestamp:%d", __func__, nRet,
             decoder_frame_p->header.sequenceNumber, decoder_frame_p->header.timestamp);
     } else {
-        AUDIOPLAYERS_TRACE(2,"%s nRet:%d", __func__, nRet);
+        TRACE(2,"%s nRet:%d", __func__, nRet);
     }
 
     return nRet;
@@ -1604,7 +1641,7 @@ static int a2dp_audio_scalable_synchronize_dest_packet_mut(uint16_t packet_mut)
     } while (a2dp_audio_list_length(list) > packet_mut);
     }
 
-    AUDIOPLAYERS_TRACE(2,"%s list:%d", __func__, a2dp_audio_list_length(list));
+    TRACE(2,"%s list:%d", __func__, a2dp_audio_list_length(list));
 
     return A2DP_DECODER_NO_ERROR;
 }
@@ -1617,7 +1654,7 @@ int a2dp_audio_scalable_convert_list_to_samples(uint32_t *samples)
     list_len = a2dp_audio_list_length(list);
     *samples = SCALABLE_FRAME_SIZE*list_len;
 
-    AUDIOPLAYERS_TRACE(3, "%s list:%d samples:%d", __func__, list_len, *samples);
+    TRACE(3, "%s list:%d samples:%d", __func__, list_len, *samples);
 
     return A2DP_DECODER_NO_ERROR;
 }
@@ -1672,3 +1709,5 @@ extern const A2DP_AUDIO_DECODER_T a2dp_audio_scalable_decoder_config = {
 #else
 A2DP_AUDIO_DECODER_T a2dp_audio_scalable_decoder_config = { 0, };
 #endif
+
+

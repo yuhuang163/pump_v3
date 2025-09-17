@@ -8,7 +8,6 @@ obj_cpp := $(patsubst $(cur_dir)%,%,$(wildcard $(cur_dir)*.cpp))
 obj-y := $(obj_c:.c=.o) $(obj_s:.S=.o) $(obj_cpp:.cpp=.o)
 obj-y += hear_process/
 ccflags-y := \
-    -Imultimedia/inc \
 	-Imultimedia/inc/speech/inc \
 	-Iapps/hearing_detec/hear_process
 

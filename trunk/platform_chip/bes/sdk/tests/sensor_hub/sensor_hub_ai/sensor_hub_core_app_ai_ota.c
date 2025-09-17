@@ -51,10 +51,10 @@ static dataUpdateSectionListStruct_T update_section_list =
 
 static inline void _update_section_infor_print(void)
 {
-    SENSOR_HUB_TRACE(2,"%s num = %d",__func__,update_section_list.section_num);
+    TRACE(2,"%s num = %d",__func__,update_section_list.section_num);
     uint32_t index ;
     for (index = 0; index < UPDATE_SECTION_LIST_NUM;index++){
-        SENSOR_HUB_TRACE(4,"magicCode = %d state = %d section = %p size = %d",update_section_list.section[index].magicCode,
+        TRACE(4,"magicCode = %d state = %d section = %p size = %d",update_section_list.section[index].magicCode,
             update_section_list.section[index].state,update_section_list.section[index].dataBufSection,update_section_list.section[index].dataBufSectionSize);
     }
 }
@@ -85,14 +85,14 @@ void app_sensor_hub_data_update_section_load_register(uint32_t magicCode,uint32_
     }else{
         section = &update_section_list.section[index];
     }
-    SENSOR_HUB_TRACE(4,"%s index = %d section = %p num = %d ",__func__,
+    TRACE(4,"%s index = %d section = %p num = %d ",__func__,
         index,section,update_section_list.section_num);
     if(section){
         section->dataBufSection = (uint8_t*)start_addr;
         section->dataBufSectionSize = size;
         section->state = SENSOR_HUB_UPDATE_SECTION_STATE_IDLE;
         section->magicCode = magicCode;
-        SENSOR_HUB_TRACE(4,"section: %p size = %d state = %d code = %x",section->dataBufSection,section->dataBufSectionSize,
+        TRACE(4,"section: %p size = %d state = %d code = %x",section->dataBufSection,section->dataBufSectionSize,
             section->state,section->magicCode);
     }
 }
@@ -140,8 +140,8 @@ static inline uint32_t _data_update_op_write_req(uint8_t* rxBuf,uint32_t rx_len,
     data_update_secton_operator.op.dataLenExpectToOp = header->dataLenExpectToWrite;
 
     index = _update_section_list_search(header->magicCode);
-    SENSOR_HUB_TRACE(2,"%s index = %d",__func__,index);
-    SENSOR_HUB_DUMP8("%x ",rxBuf,rx_len);
+    TRACE(2,"%s index = %d",__func__,index);
+    DUMP8("%x ",rxBuf,rx_len);
     if(index < UPDATE_SECTION_LIST_NUM){
         dataUpdateOpWriteOpReplyMsg_T *rely_msg = (dataUpdateOpWriteOpReplyMsg_T*)txBuf;
         osMutexWait(update_section_refer_mutex_id, osWaitForever);
@@ -176,7 +176,7 @@ static inline uint32_t _data_update_op_read_req(uint8_t* rxBuf,uint32_t rx_len,u
 
     index = _update_section_list_search(header->magicCode);
 
-    SENSOR_HUB_TRACE(2,"%s index = %d",__func__,index);
+    TRACE(2,"%s index = %d",__func__,index);
 
     if(index < UPDATE_SECTION_LIST_NUM){
         dataUpdateOpReadOpReplyMsg_T *rely_msg = (dataUpdateOpReadOpReplyMsg_T*)txBuf;
@@ -208,7 +208,7 @@ static inline uint32_t _data_update_op_write(uint8_t* buf,uint32_t len)
     uint8_t * opPosPtr = (uint8_t*)((uint32_t)data_update_secton_operator->section.dataBufSection + alreadyOpLen);
 
     if((uint32_t)opPosPtr + len) > bufferLimit{
-        SENSOR_HUB_TRACE(1,"%s overflow !!",__func__);
+        TRACE(1,"%s overflow !!",__func__);
         return SENSOR_HUB_DATA_OP_STATUS_TRANSFER_OVERFLOW;
     }
 
@@ -270,7 +270,7 @@ static inline uint32_t _data_update_op_verify(uint8_t* buf,uint32_t len)
             crc_val = crc32_c(crc_val,verifyPosPtr,verify_len - alreadyVerify);
         }
         if(crc_val != data_update_secton_operator.op.dataCrcVerify){
-            SENSOR_HUB_TRACE(2,"crc_val = %x expect = %x",crc_val,data_update_secton_operator.op.dataCrcVerify);
+            TRACE(2,"crc_val = %x expect = %x",crc_val,data_update_secton_operator.op.dataCrcVerify);
             status = SENSOR_HUB_DATA_OP_STATUS_VERIFY_FAIL;
         }
     }
@@ -285,7 +285,7 @@ static inline uint32_t _data_update_op_finish_handler(uint8_t* buf,uint32_t len)
 {
     _update_section_state_update(SENSOR_HUB_UPDATE_SECTION_STATE_IDLE);
 
-    SENSOR_HUB_TRACE(1,"%s finished",__func__);
+    TRACE(1,"%s finished",__func__);
 
     return SENSOR_HUB_DATA_OP_STATUS_OK;
 }
@@ -332,13 +332,13 @@ uint32_t app_sensor_hub_core_updating_section_data_process(uint8_t * buf, uint32
 
     memcpy((uint8_t*)replyMsg,(uint8_t*)payloadPtr,len);
 
-    SENSOR_HUB_TRACE(2,"%s cmd = %x",__func__,cmd);
+    TRACE(2,"%s cmd = %x",__func__,cmd);
 #if 0
     if(data_update_frame_payload.serviceId == 0xffffffff){
         _data_updata_frame_payload_reset();
         data_update_frame_payload.serviceId = service_id;
     }else if (data_update_frame_payload.serviceId != payloadPtr->serviceId){
-        SENSOR_HUB_TRACE(0,"not one same session op");
+        TRACE(0,"not one same session op");
         status = SENSOR_HUB_DATA_OP_STATUS_SESSION_ERR;
     }
 #endif
@@ -400,14 +400,14 @@ uint32_t app_sensor_hub_core_updating_section_data_process(uint8_t * buf, uint32
                 status = data_update_op_handler_instant.finishOp((uint8_t*)&(payloadPtr->data),payloadPtr->dataLen);
             }
             
-            SENSOR_HUB_TRACE(0,"finished");
+            TRACE(0,"finished");
             break;
         default:
             break;
     }
 
     if(status != SENSOR_HUB_DATA_OP_STATUS_OK){
-        SENSOR_HUB_TRACE(2,"%s op err opcode = %d ",__func__,status);
+        TRACE(2,"%s op err opcode = %d ",__func__,status);
     }
 
     replyMsg->dataLen = dataLen;

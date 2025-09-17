@@ -28,34 +28,43 @@
 #include "app_tota_data_handler.h"
 #include "app_spp_tota.h"
 #include "cqueue.h"
-#ifdef __IAG_BLE_INCLUDE__
-#include "app_ble_rx_handler.h"
-#include "bluetooth_ble_api.h"
-#endif
 #include "bluetooth_bt_api.h"
 #include "app_bt_audio.h"
-#include "btapp.h"
-#include "app_bt.h"
+
+#ifdef __IAG_BLE_INCLUDE__
+#include "bluetooth_ble_api.h"
+#endif
 #include "apps.h"
 #include "app_thread.h"
 #include "cqueue.h"
 #include "hal_location.h"
-#include "app_hfp.h"
 #include "bt_drv_reg_op.h"
-#if defined(IBRT)
+#if defined(IBRT) 
 #include "app_tws_ibrt.h"
 #include "app_ibrt_rssi.h"
-#include "app_tws_if.h"
 #endif
 #include "cmsis.h"
 #include "app_battery.h"
-#include "crc_c.h"
+#include "crc32_c.h"
 #include "factory_section.h"
 #if defined(TOTA_CRASH_DUMP_TOOL_ENABLE)
 #include "crash_dump_section.h"
 #endif
 
 #include "beslib_info.h"
+
+#ifdef BLE_TOTA_ENABLED
+/// health thermometer application environment structure
+struct ble_tota_env_info
+{
+    uint8_t  connectionIndex;
+    uint8_t  isNotificationEnabled;
+    uint16_t connhdl;
+    uint16_t mtu;
+};
+
+struct ble_tota_env_info ble_tota_env;
+#endif
 
 typedef struct
 {
@@ -73,20 +82,91 @@ bool app_is_in_tota_mode(void)
     return app_tota_env.connectedType;
 }
 
+#ifdef BLE_TOTA_ENABLED
+static void tota_ble_event_callback(bes_ble_tota_event_param_t *param)
+{
+    switch(param->event_type) {
+    case BES_BLE_TOTA_CCC_CHANGED:
+        if (param->param.ntf_en)
+        {
+            if (!ble_tota_env.isNotificationEnabled)
+            {
+                ble_tota_env.isNotificationEnabled =  param->param.ntf_en;
+                ble_tota_env.connectionIndex = param->conidx;
+                ble_tota_env.connhdl = param->connhdl;
+            }
+        }
+        else
+        {
+            if(ble_tota_env.isNotificationEnabled)
+            {
+                ble_tota_env.isNotificationEnabled = param->param.ntf_en;
+            }
+        }
+        break;
+    case BES_BLE_TOTA_DIS_CONN_EVENT:
+        TRACE(3,"[%s], condix = %d Index = %d",__func__, param->conidx, ble_tota_env.connectionIndex);
+        if (param->conidx == ble_tota_env.connectionIndex)
+        {
+            ble_tota_env.connectionIndex = INVALID_CONNECTION_INDEX;
+            ble_tota_env.isNotificationEnabled = false;
+            ble_tota_env.mtu = 0;
+        }
+        break;
+    case BES_BLE_TOTA_RECEVICE_DATA:
+        app_tota_handle_received_data(param->param.receive_data.data, param->param.receive_data.data_len);
+        break;
+    case BES_BLE_TOTA_MTU_UPDATE:
+        TRACE(1,"[%s]TOTA",__func__);
+        if (param->conidx == ble_tota_env.connectionIndex)
+        {
+            ble_tota_env.mtu = param->param.mtu;
+            TRACE(1,"updated data packet size is %d", ble_tota_env.mtu);
+        }
+        else
+        {
+            ble_tota_env.mtu = param->param.mtu;
+        }
+        break;
+    case BES_BLE_TOTA_SEND_DONE:
+        break;
+    default:
+        TOTA_LOG_DBG(0,"TOTA ble not find event %x", param->event_type);
+        break;
+    }
+}
+
+uint8_t tota_ble_get_conidx(void)
+{
+    return ble_tota_env.connectionIndex;
+}
+static void tota_ble_init(void)
+{
+    ble_tota_env.connectionIndex =  INVALID_CONNECTION_INDEX;
+    ble_tota_env.isNotificationEnabled = false;
+    ble_tota_env.mtu = 0;
+
+    bes_ble_tota_event_reg(tota_ble_event_callback);
+}
+#endif
+
+
 static bool _tota_connected_flag = false;
 
 void app_tota_init(void)
 {
-    TOTA_TRACE(0, "tota %s", BESLIB_INFO_STR);
-    TOTA_TRACE(0, "Init application test over the air.");
+    TOTA_LOG_DBG(0, "tota %s", BESLIB_INFO_STR);
+    TOTA_LOG_DBG(0, "Init application test over the air.");
     _tota_connected_flag = false;
     app_spp_tota_init();
 
     app_tota_cmd_handler_init();
     app_tota_data_reset_env();
-#if (BLE_APP_TOTA)
-    app_ble_rx_handler_init();
+
+#if defined(BLE_TOTA_ENABLED) || defined(OTA_OVER_TOTA_ENABLED)
+    tota_ble_init();
 #endif
+
 }
 
 extern "C" bool app_tota_is_connected(void)
@@ -98,7 +178,7 @@ extern "C" void bulk_read_done(void);
 void app_tota_connected(uint8_t connType)
 {
     app_tota_data_reset_env();
-    TOTA_TRACE(0,"Tota is connected.");
+    TOTA_LOG_DBG(0,"Tota is connected.");
     app_tota_env.connectedType |= connType;
 #if defined(APP_ANC_TEST)
 	app_spp_tota_register_tx_done(bulk_read_done);
@@ -109,7 +189,7 @@ void app_tota_connected(uint8_t connType)
 
 void app_tota_disconnected(uint8_t disconnType)
 {
-    TOTA_TRACE(0,"Tota is disconnected.");
+    TOTA_LOG_DBG(0,"Tota is disconnected.");
     _tota_connected_flag = false;
     app_tota_env.connectedType &= disconnType;
 
@@ -128,34 +208,26 @@ APP_TOTA_TRANSMISSION_PATH_E app_tota_get_datapath(void)
 
 void app_tota_data_ack_received(uint32_t dataLength)
 {
-    TOTA_TRACE(1,"%d bytes have been received by the peer device.", dataLength);
+    TOTA_LOG_DBG(1,"%d bytes have been received by the peer device.", dataLength);
 }
 
 static void app_tota_demo_cmd_handler(APP_TOTA_CMD_CODE_E funcCode, uint8_t* ptrParam, uint32_t paramLen)
 {
-    TOTA_TRACE(2,"Func code 0x%x, param len %d", funcCode, paramLen);
-    TOTA_TRACE(0,"Param content:");
-    TOTA_DUMP8("%02x ", ptrParam, paramLen);
+    TOTA_LOG_DBG(2,"Func code 0x%x, param len %d", funcCode, paramLen);
+    TOTA_LOG_DBG(0,"Param content:");
+    DUMP8("%02x ", ptrParam, paramLen);
 
 }
 
 TOTA_COMMAND_TO_ADD(OP_TOTA_DEMO_CMD, app_tota_demo_cmd_handler, false, 0, NULL );
 
-extern "C" int8_t app_battery_current_level(void);
-
-int app_bt_stream_local_volume_get(void);
-uint8_t app_audio_get_eq();
-int app_audio_set_eq(uint8_t index);
-bool app_meridian_eq(bool onoff);
-bool app_is_meridian_on();
-
 #define RES_DATA_LEN 48
 
 static void app_tota_vendor_cmd_handler(APP_TOTA_CMD_CODE_E funcCode, uint8_t* ptrParam, uint32_t paramLen)
 {
-    TOTA_TRACE(2,"Func code 0x%x, param len %d", funcCode, paramLen);
-    TOTA_TRACE(0,"Param content:");
-    TOTA_DUMP8("%02x ", ptrParam, paramLen);
+    TOTA_LOG_DBG(2,"Func code 0x%x, param len %d", funcCode, paramLen);
+    TOTA_LOG_DBG(0,"Param content:");
+    DUMP8("%02x ", ptrParam, paramLen);
     //uint8_t resData[20]={0};
     uint8_t resData[RES_DATA_LEN]={0};
     uint32_t resLen=1;
@@ -166,37 +238,36 @@ static void app_tota_vendor_cmd_handler(APP_TOTA_CMD_CODE_E funcCode, uint8_t* p
                 uint8_t level = app_battery_current_level();
                 resData[0] = level;
                 resLen = 1;
-                TOTA_TRACE(1,"battery_current = %d",level);
+                TRACE(1,"battery_current = %d",level);
             }
             break;
         case OP_TOTA_MERIDIAN_EFFECT_CMD:
-            resData[0] = app_meridian_eq(ptrParam[0]);
             break;
         case OP_TOTA_EQ_SELECT_CMD:
             break;
         case OP_TOTA_VOLUME_PLUS_CMD:
             {
-                app_bt_volumeup();
+                bt_adapter_local_volume_up();
                 uint8_t level = app_bt_stream_local_volume_get();
                 resData[0] = level;
-                TOTA_TRACE(1,"volume = %d",level);
+                TRACE(1,"volume = %d",level);
             }
             break;
         case OP_TOTA_VOLUME_DEC_CMD:
             {
-                app_bt_volumedown();
+                bt_adapter_local_volume_down();
                 uint8_t level = app_bt_stream_local_volume_get();
                 resData[0] = level;
                 resLen = 1;
-                TOTA_TRACE(1,"volume = %d",level);
+                TRACE(1,"volume = %d",level);
             }
             break;
         case OP_TOTA_VOLUME_SET_CMD:
             {
                 uint8_t scolevel = ptrParam[0];
                 uint8_t a2dplevel = ptrParam[1];
-                app_bt_set_volume(APP_BT_STREAM_HFP_PCM,scolevel);
-                app_bt_set_volume(APP_BT_STREAM_A2DP_SBC,a2dplevel);
+                app_bt_stream_volume_set_by_type(APP_BT_STREAM_HFP_PCM,scolevel);
+                app_bt_stream_volume_set_by_type(APP_BT_STREAM_A2DP_SBC,a2dplevel);
                 bes_bt_hfp_report_speak_gain();
                 bes_bt_a2dp_report_speak_gain();
             }
@@ -210,17 +281,13 @@ static void app_tota_vendor_cmd_handler(APP_TOTA_CMD_CODE_E funcCode, uint8_t* p
             break;
         case OP_TOTA_EQ_SET_CMD:
             {
-                int eq_index = ptrParam[0];
-                if (eq_index == 3)
-                    resData[0] = app_meridian_eq(true);
-                else
-                    resData[0] = app_audio_set_eq(eq_index);
+                resData[0] = audio_process_eq_set_index(ptrParam[0], ptrParam[1]);
                 resLen = 1;
             }
             break;
         case OP_TOTA_EQ_GET_CMD:
             {
-                resData[0] = app_audio_get_eq();
+                resData[0] = audio_process_eq_get_index(ptrParam[0]);
                 resLen = 1;
             }
             break;
@@ -234,9 +301,6 @@ static void app_tota_vendor_cmd_handler(APP_TOTA_CMD_CODE_E funcCode, uint8_t* p
             }
             break;
         case OP_TOTA_RAW_DATA_SET_CMD:
-            {
-
-            }
             break;
         case OP_TOTA_RSSI_GET_CMD:
 #if defined(CHIP_BEST1501)
@@ -258,7 +322,7 @@ static void app_tota_vendor_cmd_handler(APP_TOTA_CMD_CODE_E funcCode, uint8_t* p
             }
             break;
         default:
-            TOTA_TRACE(1,"wrong cmd 0x%x",funcCode);
+            TRACE(1,"wrong cmd 0x%x",funcCode);
             resData[0] = -1;
             return;
     }
@@ -282,27 +346,27 @@ static void tota_flush_data_to_flash(uint8_t* ptrSource, uint32_t lengthToBurn, 
 {
     uint32_t lock;
 	uint32_t flash_sector_size_in_bytes = FLASH_SECTOR_SIZE_IN_BYTES;
-    TOTA_TRACE(2,"flush %d bytes to flash offset 0x%x", lengthToBurn, offsetInFlashToProgram);
+    TRACE(2,"flush %d bytes to flash offset 0x%x", lengthToBurn, offsetInFlashToProgram);
 
     uint32_t preBytes = (flash_sector_size_in_bytes - (offsetInFlashToProgram%flash_sector_size_in_bytes))%flash_sector_size_in_bytes;
     if (lengthToBurn < preBytes)
     {
         preBytes = lengthToBurn;
     }
-	TOTA_TRACE(1,"preBytes = 0x%x",preBytes);
+	TRACE(1,"preBytes = 0x%x",preBytes);
 
     uint32_t middleBytes = 0;
     if (lengthToBurn > preBytes)
     {
        middleBytes = (lengthToBurn - preBytes);
-	   TOTA_TRACE(1,"middleBytes = 0x%x",middleBytes);
+	   TRACE(1,"middleBytes = 0x%x",middleBytes);
 	   middleBytes = middleBytes/flash_sector_size_in_bytes;
 
-	   TOTA_TRACE(1,"middleBytes = 0x%x",middleBytes);
+	   TRACE(1,"middleBytes = 0x%x",middleBytes);
 
 	   middleBytes = middleBytes*flash_sector_size_in_bytes;
 
-	   TOTA_TRACE(1,"middleBytes = 0x%x",middleBytes);
+	   TRACE(1,"middleBytes = 0x%x",middleBytes);
 //       middleBytes = ((lengthToBurn - preBytes)/FLASH_SECTOR_SIZE_IN_BYTES*FLASH_SECTOR_SIZE_IN_BYTES);
     }
     uint32_t postBytes = 0;
@@ -311,7 +375,7 @@ static void tota_flush_data_to_flash(uint8_t* ptrSource, uint32_t lengthToBurn, 
         postBytes = (offsetInFlashToProgram + lengthToBurn)%flash_sector_size_in_bytes;
     }
 
-    TOTA_TRACE(3,"Prebytes is %d middlebytes is %d postbytes is %d", preBytes, middleBytes, postBytes);
+    TRACE(3,"Prebytes is %d middlebytes is %d postbytes is %d", preBytes, middleBytes, postBytes);
 
     if (preBytes > 0)
     {
@@ -376,7 +440,7 @@ static void app_tota_data_xfer_init()
 
 static void app_tota_data_write_read_begin_addr_set(bool write_read,uint32_t address,uint32_t length)
 {
-    TOTA_TRACE(4,"%s write_read = 0x%x adress = 0x%x length =0x%x",__func__,write_read,address,length);
+    TRACE(4,"%s write_read = 0x%x adress = 0x%x length =0x%x",__func__,write_read,address,length);
     if(write_read == TOTA_SERVICE_DATA_XFER_ADDR_WRITE){
         g_tota_data_write.tota_data_need_write_flash_begin_addr = address;
         g_tota_data_write.tota_data_tota_need_write_lenth = length;
@@ -390,7 +454,7 @@ static void app_tota_data_write_read_begin_addr_set(bool write_read,uint32_t add
 
 static void app_tota_general_cmd_reset(void)
 {
-	TOTA_TRACE(1,"%s",__func__);
+	TRACE(1,"%s",__func__);
     memset((uint8_t*)&g_msg , 0 ,sizeof(g_msg));
     g_parset = TOTA_SERVICE_GENERAL_CMD_PARSER_NONE;
     g_running_cmd = TOTA_SERVICE_CMD_COUNT;
@@ -398,7 +462,7 @@ static void app_tota_general_cmd_reset(void)
 
 static void app_tota_tx_env_reset(void)
 {
-	TOTA_TRACE(1,"%s",__func__);
+	TRACE(1,"%s",__func__);
     //app_tota_general_cmd_reset();
     app_tota_data_received_callback_handler_register(NULL);
     memset((uint8_t*)&g_tota_data_write,0,sizeof(g_tota_data_write));
@@ -418,12 +482,12 @@ static void app_tota_rx_env_reset(void)
 #endif
 static void app_tota_service_data_receive_handler(uint8_t* ptrData, uint32_t dataLength)
 {
-    TOTA_TRACE(1,"%s",__func__);
+    TRACE(1,"%s",__func__);
     if(g_parset < TOTA_SERVICE_GENERAL_CMD_STATE_PARSER_DATA)
         return;
     if((g_running_cmd == TOTA_SERVICE_CMD_WRITE_AI_ENV_DATA)||(g_running_cmd == TOTA_SERVICE_CMD_WRITE_FLASH))
     {
-        TOTA_DUMP8("%02x ",ptrData,dataLength);
+        DUMP8("%02x ",ptrData,dataLength);
         uint32_t leftDataSize = dataLength;
         uint32_t offsetInReceivedRawData = 0;
         if(g_tota_data_write.tota_data_tota_already_receive_length < g_tota_data_write.tota_data_tota_need_write_lenth){
@@ -444,27 +508,27 @@ static void app_tota_service_data_receive_handler(uint8_t* ptrData, uint32_t dat
                 }
 
                 leftDataSize -= bytesToCopy;
-				TOTA_TRACE(2,"length = 0x%x leftDataSize = 0x%x",dataLength,leftDataSize);
-				TOTA_TRACE(1,"tota_data_write_buf_block_lenth = 0x%x",g_tota_data_write.tota_data_write_buf_block_lenth);
-            	TOTA_TRACE(3,"before memcpy lengthInblock = 0x%x offsetInReceivedRawData = 0x%x Copy = 0x%x",g_tota_data_write.tota_data_written_lenth_in_block,
+				TRACE(2,"length = 0x%x leftDataSize = 0x%x",dataLength,leftDataSize);
+				TRACE(1,"tota_data_write_buf_block_lenth = 0x%x",g_tota_data_write.tota_data_write_buf_block_lenth);
+            	TRACE(3,"before memcpy lengthInblock = 0x%x offsetInReceivedRawData = 0x%x Copy = 0x%x",g_tota_data_write.tota_data_written_lenth_in_block,
 					offsetInReceivedRawData,bytesToCopy);
 				osDelay(10);
                 memcpy(&g_tota_data_write.tota_write_buff_ptr[g_tota_data_write.tota_data_written_lenth_in_block],
                         &ptrData[offsetInReceivedRawData], bytesToCopy);
                 offsetInReceivedRawData += bytesToCopy;
                 g_tota_data_write.tota_data_written_lenth_in_block += bytesToCopy;
-                TOTA_TRACE(1,"tota_data_written_lenth_in_block is %d", g_tota_data_write.tota_data_written_lenth_in_block);
+                TRACE(1,"tota_data_written_lenth_in_block is %d", g_tota_data_write.tota_data_written_lenth_in_block);
 				osDelay(10);
 
                 if(g_tota_data_write.tota_data_tota_already_receive_length +  dataLength >= g_tota_data_write.tota_data_tota_need_write_lenth){
-                    TOTA_TRACE(0,"the last packet to flush");
+                    TRACE(0,"the last packet to flush");
                     tota_flush_data_to_flash(g_tota_data_write.tota_write_buff_ptr, g_tota_data_write.tota_data_tota_need_write_lenth - g_tota_data_write.tota_data_tota_already_receive_length,
                                             write_pos_in_flash);
                     g_tota_data_write.tota_data_written_in_flash_pos += g_tota_data_write.tota_data_tota_need_write_lenth - g_tota_data_write.tota_data_tota_already_receive_length;
                     g_tota_data_write.tota_data_written_lenth_in_block = 0;
                     break;
                 }else if (g_tota_data_write.tota_data_write_buf_block_lenth == g_tota_data_write.tota_data_written_lenth_in_block){
-                    TOTA_TRACE(0,"Program the image to flash.");
+                    TRACE(0,"Program the image to flash.");
                     tota_flush_data_to_flash(g_tota_data_write.tota_write_buff_ptr, TOTA_DATA_BUFFER_SIZE_FOR_BURNING,
                         write_pos_in_flash);
                     g_tota_data_write.tota_data_written_in_flash_pos += TOTA_DATA_BUFFER_SIZE_FOR_BURNING;
@@ -479,7 +543,7 @@ static void app_tota_service_data_receive_handler(uint8_t* ptrData, uint32_t dat
             }
         }
 
-        TOTA_TRACE(1,"Image already received %d", g_tota_data_write.tota_data_tota_already_receive_length);
+        TRACE(1,"Image already received %d", g_tota_data_write.tota_data_tota_already_receive_length);
     }
 }
 
@@ -499,7 +563,7 @@ void app_flash_flush_data_check_crc(void)
 		check_tmp_buf[i] = 0x55555555;
 	}
 	check_crc = crc32_c(0,(uint8_t*)check_tmp_buf,check_length);
-	TOTA_TRACE(1,"check_crc = 0x%x",check_crc);
+	TRACE(1,"check_crc = 0x%x",check_crc);
 }
 #endif
 
@@ -522,11 +586,11 @@ static APP_TOTA_CMD_RET_STATUS_E app_tota_service_receive_data_verify(APP_TOTA_C
 		g_tota_data_write.tota_data_written_in_flash_pos += g_tota_data_write.tota_data_tota_already_receive_length;
 	}
 
-    TOTA_TRACE(0,"Calculate the crc32 of the segment.");
+    TRACE(0,"Calculate the crc32 of the segment.");
 
     flash_crc32 = crc32_c(0, (uint8_t *)(startFlashAddr), lengthToDoCrcCheck);
-    TOTA_TRACE(1,"CRC32 of the segement is 0x%x", flash_crc32);
-    TOTA_TRACE(2,"startFlashAddr =0x%x  lengthToDoCrcCheck =0x%x",startFlashAddr,lengthToDoCrcCheck);
+    TRACE(1,"CRC32 of the segement is 0x%x", flash_crc32);
+    TRACE(2,"startFlashAddr =0x%x  lengthToDoCrcCheck =0x%x",startFlashAddr,lengthToDoCrcCheck);
 	//start_addr = startFlashAddr;
 	//check_length = lengthToDoCrcCheck;
 
@@ -552,7 +616,7 @@ static APP_TOTA_CMD_RET_STATUS_E app_tota_service_receive_data_verify(APP_TOTA_C
     }
 
     // reset the data buffer
-    TOTA_TRACE(2,"total size is %d already received %d", g_tota_data_write.tota_data_tota_need_write_lenth,
+    TRACE(2,"total size is %d already received %d", g_tota_data_write.tota_data_tota_need_write_lenth,
         g_tota_data_write.tota_data_tota_already_receive_length);
     return rsp_status;
 }
@@ -564,12 +628,12 @@ static TOTA_SERVICE_SEND_STATUS_E app_tota_service_read_flash_env_set(uint8_t* p
 
     if (read_flash->is_to_start)
     {
-        TOTA_TRACE(1,"is_to_start =0X%x",read_flash->is_to_start);
-        TOTA_TRACE(2,"Getreading flash content request start addr 0x%x size %d",
+        TRACE(1,"is_to_start =0X%x",read_flash->is_to_start);
+        TRACE(2,"Getreading flash content request start addr 0x%x size %d",
                     read_flash->start_addr, read_flash->len);
 
         // check the sanity of the request
-        TOTA_TRACE(1,"__custom_parameter_end =0X%x",(uint32_t)__custom_parameter_end);
+        TRACE(1,"__custom_parameter_end =0X%x",(uint32_t)__custom_parameter_end);
         if ((read_flash->start_addr >= (uint32_t)__custom_parameter_end) ||
             ((read_flash->start_addr + read_flash->len) >
             (uint32_t)__custom_parameter_end))
@@ -585,15 +649,15 @@ static TOTA_SERVICE_SEND_STATUS_E app_tota_service_read_flash_env_set(uint8_t* p
                 g_tota_data_read.tota_data_have_read_in_flash_pos = 0;
                 g_tota_data_read.tota_data_tota_already_sent_length = 0;
             }
-            TOTA_TRACE(1,"%s:", __func__);
-            TOTA_DUMP8("0x%02x ", (uint8_t*)g_tota_data_read.tota_data_need_read_flash_begin_addr, 32);
-            TOTA_TRACE(2,"Start sending flash content start addr 0x%x size %d",
+            TRACE(1,"%s:", __func__);
+            DUMP8("0x%02x ", (uint8_t*)g_tota_data_read.tota_data_need_read_flash_begin_addr, 32);
+            TRACE(2,"Start sending flash content start addr 0x%x size %d",
                 read_flash->start_addr, read_flash->len);
         }
     }
     else
     {
-        TOTA_TRACE(0,"Get stop reading flash content request.");
+        TRACE(0,"Get stop reading flash content request.");
         g_tota_data_read.tota_data_tota_need_read_lenth = 0;
 
     }
@@ -605,7 +669,7 @@ static void app_tota_service_data_packet_fill_in(uint8_t* send_data,uint16_t sen
     uint16_t packet_size = 0;
     uint32_t read_addr_offset = 0;
 
-    TOTA_TRACE(2,"have_read_in_flash_pos=0x%x, need_read_lenth=0x%x", g_tota_data_read.tota_data_have_read_in_flash_pos, 
+    TRACE(2,"have_read_in_flash_pos=0x%x, need_read_lenth=0x%x", g_tota_data_read.tota_data_have_read_in_flash_pos, 
         g_tota_data_read.tota_data_tota_need_read_lenth);
 
     packet_size = (g_tota_data_read.tota_data_tota_need_read_lenth > TOTA_SERVICE_XFER_OUT_DATA_SIZE)?(TOTA_SERVICE_XFER_OUT_DATA_SIZE):(g_tota_data_read.tota_data_tota_need_read_lenth);
@@ -617,10 +681,10 @@ static void app_tota_service_data_packet_fill_in(uint8_t* send_data,uint16_t sen
 static void app_tota_service_data_send(uint8_t* pData,uint16_t length)
 {
     APP_TOTA_TRANSMISSION_PATH_E dataPath = app_tota_get_datapath();
-    TOTA_TRACE(3,"dataPath=%d, already_sent_length=0x%x, need_read_lenth=0x%x", dataPath, g_tota_data_read.tota_data_tota_already_sent_length, 
+    TRACE(3,"dataPath=%d, already_sent_length=0x%x, need_read_lenth=0x%x", dataPath, g_tota_data_read.tota_data_tota_already_sent_length, 
         g_tota_data_read.tota_data_tota_need_read_lenth);
 
-    TOTA_TRACE(2,"tota_read_buff_ptr=0x%x, have_read_in_flash_pos=0x%x", (uint32_t)g_tota_data_read.tota_read_buff_ptr, 
+    TRACE(2,"tota_read_buff_ptr=0x%x, have_read_in_flash_pos=0x%x", (uint32_t)g_tota_data_read.tota_read_buff_ptr, 
         g_tota_data_read.tota_data_have_read_in_flash_pos);
     app_tota_send_data(dataPath,g_tota_data_read.tota_read_buff_ptr,g_tota_data_read.tota_data_tota_need_read_lenth);
     g_tota_data_read.tota_data_tota_already_sent_length = g_tota_data_read.tota_data_have_read_in_flash_pos;
@@ -630,7 +694,7 @@ static TOTA_SERVICE_SEND_STATUS_E app_tota_service_data_xfer_out_handler(uint8_t
 {
     TOTA_SERVICE_SEND_STATUS_E nRet = TOTA_SERVICE_SEND_STATUS_NO_ERROR;
     nRet = app_tota_service_read_flash_env_set(pData);
-    TOTA_TRACE(2,"%s nRet = %d",__func__,nRet);
+    TRACE(2,"%s nRet = %d",__func__,nRet);
     if(nRet == TOTA_SERVICE_SEND_STATUS_NO_ERROR){
         app_tota_service_data_packet_fill_in(NULL,0);
         app_tota_service_data_send(NULL,0);
@@ -659,7 +723,7 @@ static int app_tota_general_cmd_parser(APP_TOTA_CMD_CODE_E funcCode,uint8_t* ptr
 	uint16_t cmd = 0;
     uint8_t read_count = 0;
     msg_header_t *hdr;
-	TOTA_TRACE(3,"%s %d funcCode = 0x%x", __func__, __LINE__,funcCode);
+	TRACE(3,"%s %d funcCode = 0x%x", __func__, __LINE__,funcCode);
     if(paramLen > sizeof(g_msg)){
         status = TOTA_PARAM_LEN_OUT_OF_RANGE;
         goto error;
@@ -678,7 +742,7 @@ static int app_tota_general_cmd_parser(APP_TOTA_CMD_CODE_E funcCode,uint8_t* ptr
             goto error;;
         }
     }
-    TOTA_TRACE(1,"hdr->cmd = 0x%x",hdr->cmd);
+    TRACE(1,"hdr->cmd = 0x%x",hdr->cmd);
 	cmd = g_running_cmd;
     g_running_cmd = hdr->cmd;
     app_tota_data_xfer_init();
@@ -703,14 +767,14 @@ static int app_tota_general_cmd_parser(APP_TOTA_CMD_CODE_E funcCode,uint8_t* ptr
                 }
             break;
         case TOTA_SERVICE_CMD_WRITE_FLASH:
-            TOTA_TRACE(0,"currently do not support directly write flash");
+            TRACE(0,"currently do not support directly write flash");
             break;
         case TOTA_SERVICE_CMD_READ_FLASH:
-            TOTA_TRACE(0,"currently do not support directly read flash");
+            TRACE(0,"currently do not support directly read flash");
             break;
         case TOTA_SERVICE_CMD_WRITE_AI_ENV_DATA:
         	{
-                TOTA_TRACE(0,"write ai env data");
+                TRACE(0,"write ai env data");
                 if(hdr->len !=4 ){
                     status = TOTA_INVALID_CMD;
                     goto error;
@@ -765,7 +829,7 @@ static int app_tota_general_cmd_parser(APP_TOTA_CMD_CODE_E funcCode,uint8_t* ptr
 			nRet = app_tota_service_data_xfer_out_handler((uint8_t*)read_env);
             
             if(nRet == TOTA_SERVICE_SEND_STATUS_NO_ERROR){
-                TOTA_TRACE(1,"succussfully send out %d times.", read_count);
+                TRACE(1,"succussfully send out %d times.", read_count);
                 status =TOTA_NO_ERROR;
             }
 			else{
@@ -775,13 +839,13 @@ static int app_tota_general_cmd_parser(APP_TOTA_CMD_CODE_E funcCode,uint8_t* ptr
         	}
             break;
         case TOTA_SERVICE_CMD_READ_ACK:
-            TOTA_TRACE(0,"currently do not support read ack");
+            TRACE(0,"currently do not support read ack");
             break;
         case TOTA_SERVICE_CMD_GET_BAT:
             {
                 uint16_t bat_val = 0;
                 app_battery_get_info(&bat_val,NULL,NULL);
-				TOTA_TRACE(1,"bat_val = %04x",bat_val);
+				TRACE(1,"bat_val = %04x",bat_val);
                 TOTA_SERVICE_CMD_GET_BAT_VAL_BODY_STRUCT_T *bat_body_ptr = (TOTA_SERVICE_CMD_GET_BAT_VAL_BODY_STRUCT_T *)cmd_rsp_data_buf;
                 bat_body_ptr->bat_val = bat_val;
                 bat_body_ptr->cmd_rsp_header.cmd = hdr->cmd;
@@ -793,7 +857,7 @@ static int app_tota_general_cmd_parser(APP_TOTA_CMD_CODE_E funcCode,uint8_t* ptr
         	{
 #ifdef FIRMWARE_REV
                 system_get_info(&cmd_rsp_data_buf[0],&cmd_rsp_data_buf[1],&cmd_rsp_data_buf[2],&cmd_rsp_data_buf[3]);
-    			TOTA_TRACE(4,"firmware version = %d.%d.%d.%d",cmd_rsp_data_buf[0],cmd_rsp_data_buf[1],cmd_rsp_data_buf[2],cmd_rsp_data_buf[3]);
+    			TRACE(4,"firmware version = %d.%d.%d.%d",cmd_rsp_data_buf[0],cmd_rsp_data_buf[1],cmd_rsp_data_buf[2],cmd_rsp_data_buf[3]);
 #endif
     			TOTA_SERVICE_CMD_GET_FW_VERSION_BODY_STRUCT_T *fw_ptr = (TOTA_SERVICE_CMD_GET_FW_VERSION_BODY_STRUCT_T *)cmd_rsp_data_buf;
     			fw_ptr->fw_version[0] = cmd_rsp_data_buf[0];
@@ -836,25 +900,25 @@ static int app_tota_general_cmd_parser(APP_TOTA_CMD_CODE_E funcCode,uint8_t* ptr
 		    break;
         case TOTA_SERVICE_CMD_CLEAR_PAIRING_INFO:
             {
-                TOTA_TRACE(0,"clear all pairing info.");
+                TRACE(0,"clear all pairing info.");
             }
             break;
         case TOTA_SERVICE_CMD_GENERAL_TEST:
             {
-                TOTA_TRACE(0,"general test.");
+                TRACE(0,"general test.");
             }
             break;
         case TOTA_SERVICE_CMD_SHUTDOWM:
             {
-                TOTA_TRACE(0,"shutdown");
+                TRACE(0,"shutdown");
                 app_shutdown();
             }
             break;
         case TOTA_SERVICE_CMD_MIC_TEST_ON:
-            TOTA_TRACE(0,"#####mic test on:");
+            TRACE(0,"#####mic test on:");
             break;
         case TOTA_SERVICE_CMD_MIC_TEST_OFF:
-            TOTA_TRACE(0,"#####mic test off:");
+            TRACE(0,"#####mic test off:");
             break;
         default:
             break;
@@ -898,7 +962,7 @@ void app_tota_send_crash_dump_rsp(uint16_t rsp_code, uint8_t*buf, uint16_t len)
         case OP_TOTA_CRASH_DUMP_REQ:
         {
             crash_dump_generate_crash_dump_rsp(&data, &length);
-            TOTA_TRACE(1,"[TOTA_DUMP]send crash dump rsp %d",length);
+            TRACE(1,"[TOTA_DUMP]send crash dump rsp %d",length);
             app_tota_send_response_to_command(OP_TOTA_CRASH_DUMP_REQ,TOTA_NO_ERROR,resData,length,app_tota_get_datapath());
             break;
         }
@@ -928,19 +992,20 @@ void app_tota_crash_dump_send_data(uint16_t cmd_code,uint8_t type,uint8_t crash_
     int32_t status = 0;
     uint32_t length = 0;
     uint8_t resData[5]={0};
+    
 
     switch(cmd_code)
     {
         case OP_TOTA_CRASH_DUMP_START_REQ:
         {
             dump_offset = 0;
-            blk_offset = 0;
-            blk_len = 0;
+			blk_offset = 0;
+			blk_len = 0;
 
-            if(bts_tws_if_is_tws_link_connected()&&(BTIF_BCR_SLAVE == bts_tws_if_get_local_tws_role()))
-            {
-                total_dump_len = crash_dump_slave_get_totoal_len(crash_id);
-            }
+			if(app_tws_ibrt_tws_link_connected()&&(BTIF_BCR_SLAVE == app_tws_ibrt_get_local_tws_role()))
+			{
+			    total_dump_len = crash_dump_slave_get_totoal_len(crash_id);
+			}
 
             if(type == 0)
             {
@@ -950,7 +1015,7 @@ void app_tota_crash_dump_send_data(uint16_t cmd_code,uint8_t type,uint8_t crash_
             {
                 type_len = total_dump_len - 0x4000;
             }
-            TOTA_TRACE(2,"TOTA_DUMP : type %d , len %d",type,type_len);
+			TRACE(2,"TOTA_DUMP : type %d , len %d",type,type_len);
 
             status = crash_dump_get_assert_content(&dump_buffer,&blk_len,crash_id,type);
             if(0 == status)
@@ -991,7 +1056,7 @@ void app_tota_crash_dump_send_data(uint16_t cmd_code,uint8_t type,uint8_t crash_
         {
             if(dump_offset == type_len)
             {
-                TOTA_TRACE(2,"[TOTA_DUMP]finsih: %d %d",dump_offset,total_dump_len);
+                TRACE(2,"[TOTA_DUMP]finsih: %d %d",dump_offset,total_dump_len);
                 if(isforward)
                 {
                     resData[0] = TOTA_NO_ERROR;
@@ -1006,7 +1071,7 @@ void app_tota_crash_dump_send_data(uint16_t cmd_code,uint8_t type,uint8_t crash_
             }
             else
             {
-                TOTA_TRACE(3,"TOTA_DUMP %d,%d,%d",blk_offset,blk_len,dump_offset);
+                TRACE(3,"TOTA_DUMP %d,%d,%d",blk_offset,blk_len,dump_offset);
                 if(blk_offset != blk_len)
                 {
                     if((CRASHDUMP_SENDBLK_LEN <= (blk_len - blk_offset))&&(CRASHDUMP_SENDBLK_LEN <= (type_len - dump_offset)))
@@ -1046,7 +1111,7 @@ void app_tota_crash_dump_send_data(uint16_t cmd_code,uint8_t type,uint8_t crash_
                 }
                 dump_offset += length;
                 blk_offset += length;
-                TOTA_TRACE(2,"[TOTA_DUMP]len: %d %d",dump_offset,total_dump_len);
+                TRACE(2,"[TOTA_DUMP]len: %d %d",dump_offset,total_dump_len);
             }
             break;
         }
@@ -1059,14 +1124,14 @@ void app_tota_crash_dump_send_data(uint16_t cmd_code,uint8_t type,uint8_t crash_
 void app_tota_stay_active_mode(void)
 {
     ibrt_ctrl_t *p_ibrt_ctrl = app_tws_ibrt_get_bt_ctrl_ctx();
-    if(bts_tws_if_is_tws_link_connected()&&\
-        (BTIF_BCR_MASTER == bts_tws_if_get_local_tws_role()))
+    if(app_tws_ibrt_tws_link_connected()&&\
+      (BTIF_BCR_MASTER == app_tws_ibrt_get_local_tws_role()))
     {
-        bts_tws_if_tws_link_exit_sniff_mode();
+	    app_tws_ibrt_exit_sniff_with_tws();
     }
-
-    app_ibrt_if_exit_sniff_with_mobile();
-
+	
+	app_ibrt_middleware_exit_sniff_with_mobile(NULL);
+    
     p_ibrt_ctrl->config.delay_exit_sniff = false;
 }
 
@@ -1085,6 +1150,8 @@ void app_tota_crash_dump_heartbeat_timer_cb(void const *n)
 osTimerDef (APP_CRASH_HEARTBEAT_TIMER, app_tota_crash_dump_heartbeat_timer_cb);
 static void app_tota_crash_dump_handler(APP_TOTA_CMD_CODE_E funcCode, uint8_t* ptrParam, uint32_t paramLen)
 {
+    ibrt_ctrl_t *p_ibrt_ctrl = app_tws_ibrt_get_bt_ctrl_ctx();
+
     uint8_t resData[40]={0};
     uint32_t resLen=1;
     bool isneed_rsp = false;
@@ -1093,27 +1160,27 @@ static void app_tota_crash_dump_handler(APP_TOTA_CMD_CODE_E funcCode, uint8_t* p
     uint8_t cur_id = 0;
     uint8_t type = 0;
 
-    TOTA_TRACE(1,"[TOTA_DUMP]func code:%d",funcCode);
+    TRACE(1,"[TOTA_DUMP]func code:%d",funcCode);
 
     switch(funcCode)
     {
         case OP_TOTA_CRASH_DUMP_REQ:
         {
-            osTimerStop(app_tota_crash_heartbeat_timer_id);
-            app_tota_stay_active_mode();
-            if(bts_tws_if_is_tws_link_connected())
+			osTimerStop(app_tota_crash_heartbeat_timer_id);
+			app_tota_stay_active_mode();
+            if(app_tws_ibrt_tws_link_connected())
             {
-                if(BTIF_BCR_MASTER == bts_tws_if_get_local_tws_role())
+                if(BTIF_BCR_MASTER == app_tws_ibrt_get_local_tws_role())
                 {
                     crash_dump_get_info();
-                    TOTA_TRACE(1,"[TOTA_DUMP]Master send :%d",funcCode);
+                    TRACE(1,"[TOTA_DUMP]Master send :%d",funcCode);
                     app_tws_send_crash_dump_req_to_peer(OP_TOTA_CRASH_DUMP_REQ,0,0);
                 }
             }
             else
             {
                 crash_dump_get_info();
-                TOTA_TRACE(1,"[TOTA_DUMP]alone send :%d",funcCode);
+                TRACE(1,"[TOTA_DUMP]alone send :%d",funcCode);
                 app_tota_send_crash_dump_rsp(OP_TOTA_CRASH_DUMP_REQ,NULL,0);
             }
             break;
@@ -1121,13 +1188,14 @@ static void app_tota_crash_dump_handler(APP_TOTA_CMD_CODE_E funcCode, uint8_t* p
 
         case OP_TOTA_CRASH_DUMP_PARAM_REQ:
         {
-            if(BTIF_BCR_SLAVE == bts_tws_if_get_local_tws_role())
+            if(BTIF_BCR_SLAVE == app_tws_ibrt_get_local_tws_role())
             {
                 return;
             }
 
             isneed_rsp = true;
             length = crash_dump_check_param_is_vaild(ptrParam[1],ptrParam[0]);
+            
 
             if(length)
             {
@@ -1151,7 +1219,7 @@ static void app_tota_crash_dump_handler(APP_TOTA_CMD_CODE_E funcCode, uint8_t* p
                 isrefuse = true;
             }
 
-            TOTA_TRACE(2,"[TOTA_DUMP]%s addr:%p length %d",__func__,dump_buffer,length);
+            TRACE(2,"[TOTA_DUMP]%s addr:%p length %d",__func__,dump_buffer,length);
             resLen = 6  ;
             break;
         }
@@ -1163,22 +1231,22 @@ static void app_tota_crash_dump_handler(APP_TOTA_CMD_CODE_E funcCode, uint8_t* p
                 app_tota_send_response_to_command(OP_TOTA_CRASH_DUMP_END,TOTA_INVALID_CMD,NULL,0,app_tota_get_datapath());
                 return;
             }
-            TOTA_TRACE(2,"TOTA_DUMP dump %x %x",ptrParam[0],ptrParam[1]);
+            TRACE(2,"TOTA_DUMP dump %x %x",ptrParam[0],ptrParam[1]);
 
-            if(bts_tws_if_is_tws_link_connected()&&\
-              (BTIF_BCR_MASTER == bts_tws_if_get_local_tws_role())&&
+            if(app_tws_ibrt_tws_link_connected()&&\
+              (BTIF_BCR_MASTER == app_tws_ibrt_get_local_tws_role())&&
               (0x01 == ptrParam[0]))
             {
                 crash_dump_get_crash_id(&cur_id,NULL,&type);
                 app_tws_send_crash_dump_req_to_peer(OP_TOTA_CRASH_DUMP_START_REQ,ptrParam[1],cur_id);
             }
-            else if(((BTIF_BCR_UNKNOWN == bts_tws_if_get_local_tws_role()) ||
-                        (bts_tws_if_is_tws_link_connected()&&(BTIF_BCR_MASTER == bts_tws_if_get_local_tws_role())))
-                        &&(0x00 == ptrParam[0]))//litisheng
+            else if(((BTIF_BCR_UNKNOWN == app_tws_ibrt_get_local_tws_role()) ||
+				     (app_tws_ibrt_tws_link_connected()&&(BTIF_BCR_MASTER == app_tws_ibrt_get_local_tws_role())))
+				     &&(0x00 == ptrParam[0]))//litisheng
             {
                 if(ptrParam[1] == 1)
                 {
-                    crash_dump_reset_assert_offset();
+                   crash_dump_reset_assert_offset();
                 }
                 crash_dump_set_readtype(ptrParam[1]);
                 crash_dump_get_crash_id(&cur_id,NULL,&type);
@@ -1189,16 +1257,16 @@ static void app_tota_crash_dump_handler(APP_TOTA_CMD_CODE_E funcCode, uint8_t* p
 
         case OP_TOTA_CRASH_DUMP_RECEIVED_ACK:
         {
-            if(bts_tws_if_is_tws_link_connected()&&\
-              (BTIF_BCR_MASTER == bts_tws_if_get_local_tws_role())&&
+            if(app_tws_ibrt_tws_link_connected()&&\
+              (BTIF_BCR_MASTER == app_tws_ibrt_get_local_tws_role())&&
               (0x01 == ptrParam[0]))
             {
                 crash_dump_get_crash_id(&cur_id,NULL,&type);
                 app_tws_send_crash_dump_req_to_peer(OP_TOTA_CRASH_DUMP_RECEIVED_ACK,type,cur_id);
             }
-            else if(((BTIF_BCR_UNKNOWN == bts_tws_if_get_local_tws_role()) ||
-                    (bts_tws_if_is_tws_link_connected()&&(BTIF_BCR_MASTER == bts_tws_if_get_local_tws_role())))
-                    &&(0x00 == ptrParam[0]))
+            else if(((BTIF_BCR_UNKNOWN == app_tws_ibrt_get_local_tws_role()) ||
+				   (app_tws_ibrt_tws_link_connected()&&(BTIF_BCR_MASTER == app_tws_ibrt_get_local_tws_role())))
+				   &&(0x00 == ptrParam[0]))
             {
                 crash_dump_get_crash_id(&cur_id,NULL,&type);
                 app_tota_crash_dump_send_data(OP_TOTA_CRASH_DUMP_RECEIVED_ACK,type,cur_id,false);
@@ -1206,35 +1274,35 @@ static void app_tota_crash_dump_handler(APP_TOTA_CMD_CODE_E funcCode, uint8_t* p
             break;
         }
 
-        case OP_TOTA_CRASH_DUMP_ERASE_FLASH:
-        {
-            if(bts_tws_if_is_tws_link_connected()&&(BTIF_BCR_MASTER == bts_tws_if_get_local_tws_role()))
+		case OP_TOTA_CRASH_DUMP_ERASE_FLASH:
+		{
+			if(app_tws_ibrt_tws_link_connected()&&(BTIF_BCR_MASTER == app_tws_ibrt_get_local_tws_role()))
+			{
+			    app_tws_send_crash_dump_req_to_peer(OP_TOTA_CRASH_DUMP_ERASE_FLASH,0,0);
+			}
+            if (app_tws_ibrt_mobile_link_connected(&p_ibrt_ctrl->mobile_addr))
             {
-                app_tws_send_crash_dump_req_to_peer(OP_TOTA_CRASH_DUMP_ERASE_FLASH,0,0);
+			    crash_dump_erase_crash_info();
+			    osTimerStart(app_tota_crash_heartbeat_timer_id,60000);
             }
-            if (bts_bt_if_is_dev_link_connected())
-            {
-                crash_dump_erase_crash_info();
-                osTimerStart(app_tota_crash_heartbeat_timer_id,60000);
-            }
-        }
-        break;
-        
+		}
+		break;
+		
 
-        case OP_TOTA_CRASH_DUMP_HEART_BEAT:
-        {
-            if(bts_bt_if_is_dev_link_connected())
-            {
-                if(NULL == app_tota_crash_heartbeat_timer_id)
-                {
-                    app_tota_crash_heartbeat_timer_id = osTimerCreate(osTimer(APP_CRASH_HEARTBEAT_TIMER), \
-                                                                osTimerPeriodic, NULL);
-                }
-                osTimerStart(app_tota_crash_heartbeat_timer_id,15000);
-            }
-            break;
-        }
-            
+		case OP_TOTA_CRASH_DUMP_HEART_BEAT:
+		{
+			if(app_tws_ibrt_mobile_link_connected(&p_ibrt_ctrl->mobile_addr))
+			{
+			    if(NULL == app_tota_crash_heartbeat_timer_id)
+			    {
+			        app_tota_crash_heartbeat_timer_id = osTimerCreate(osTimer(APP_CRASH_HEARTBEAT_TIMER), \
+                                                             osTimerPeriodic, NULL);
+			    }
+			    osTimerStart(app_tota_crash_heartbeat_timer_id,15000);
+			}
+			break;
+		}
+			
         default:
             break;
     }

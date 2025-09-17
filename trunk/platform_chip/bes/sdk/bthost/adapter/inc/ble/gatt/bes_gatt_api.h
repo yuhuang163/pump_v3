@@ -16,7 +16,6 @@
 #ifndef __BES_GATT_API_H__
 #define __BES_GATT_API_H__
 #include "ble_gatt_common.h"
-
 #ifdef BLE_HOST_SUPPORT
 #ifdef __cplusplus
 extern "C" {
@@ -945,7 +944,6 @@ uint8_t bes_ble_gatt_user_register(bes_gatt_event_cb cb);
 void bes_ble_gatt_user_unreg(uint8_t gatt_user_id);
 
 void bes_ble_gatt_set_mtu(uint8_t conidx, uint16_t mtu);
-
 /// get connect device att mtu
 BES_GATT_ERR_CODE_E bes_ble_gatt_mtu_get(uint8_t conidx, uint16_t *mtu);
 

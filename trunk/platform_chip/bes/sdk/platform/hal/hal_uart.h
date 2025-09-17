@@ -25,6 +25,7 @@ extern "C" {
 #include "plat_types.h"
 #include "stdbool.h"
 #include "stdint.h"
+#include "hal_cmu.h"
 #include "hal_dma.h"
 
 //#define BT_UART
@@ -37,7 +38,9 @@ extern "C" {
 #endif
 
 enum HAL_UART_ID_T {
-    HAL_UART_ID_0 = 0,
+#ifdef UART0_BASE
+    HAL_UART_ID_0,
+#endif
 #ifdef UART1_BASE
     HAL_UART_ID_1,
 #endif
@@ -46,12 +49,6 @@ enum HAL_UART_ID_T {
 #endif
 #ifdef UART3_BASE
     HAL_UART_ID_3,
-#endif
-#ifdef UART4_BASE
-    HAL_UART_ID_4,
-#endif
-#ifdef UART5_BASE
-    HAL_UART_ID_5,
 #endif
 #ifdef BT_UART
     HAL_UART_ID_BT,
@@ -176,9 +173,9 @@ int hal_uart_close(enum HAL_UART_ID_T id);
 
 int hal_uart_opened(enum HAL_UART_ID_T id);
 
-void hal_uart_sleep(void);
+void hal_uart_sleep(enum HAL_CMU_LPU_SLEEP_MODE_T mode);
 
-void hal_uart_wakeup(void);
+void hal_uart_wakeup(enum HAL_CMU_LPU_SLEEP_MODE_T mode);
 
 int hal_uart_change_baud_rate(enum HAL_UART_ID_T id, uint32_t rate);
 
@@ -256,6 +253,10 @@ uint32_t hal_uart_stop_dma_send(enum HAL_UART_ID_T id);
 
 // ========================================================================
 // Test function
+
+enum HAL_UART_ID_T hal_uart_get_port(void);
+
+int hal_uart_set_port(enum HAL_UART_ID_T uart_id);
 
 int hal_uart_printf_init(void);
 

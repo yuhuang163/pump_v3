@@ -32,7 +32,7 @@ static float g_smooth_step = 0.0;
 
 int32_t audio_process_vol_init(uint32_t sample_rate, uint32_t bits, uint32_t ch, float gain)
 {
-    AUDIO_PROCESS_TRACE(0, "[%s] sample_rate: %d, bits: %d, ch: %d", __func__, sample_rate, bits, ch);
+    TRACE(0, "[%s] sample_rate: %d, bits: %d, ch: %d", __func__, sample_rate, bits, ch);
 
     ASSERT(bits == AUD_BITS_24, "[%s] bits(%d) != AUD_BITS_24", __func__, bits);
     ASSERT((ch == AUD_CHANNEL_NUM_1) || (ch == AUD_CHANNEL_NUM_2), "[%s] ch(%d) is invalid", __func__, ch);
@@ -56,15 +56,15 @@ int32_t audio_process_vol_start_impl(float gain, uint32_t ms)
     ASSERT(gain <= 1.0 && gain >= 0.0, "[%s] gain(%d) is invalid", __func__, (int32_t)(gain * 100));
     ASSERT(ms != 0, "[%s] ms(%d) is invalid", __func__, ms);
 
-    AUDIO_PROCESS_TRACE(0, "[%s] gain(x100): %d, ms: %d", __func__, (int32_t)(gain * 100), ms);
+    TRACE(0, "[%s] gain(x100): %d, ms: %d", __func__, (int32_t)(gain * 100), ms);
 
     if (_EQ_FLOAT(gain, g_tgt_gain)) {
-        AUDIO_PROCESS_TRACE(0, "[%s] WARNING: Don't need to change gain", __func__);
+        TRACE(0, "[%s] WARNING: Don't need to change gain", __func__);
         return -1;
     }
 
     if (g_smooth_num) {
-        AUDIO_PROCESS_TRACE(0, "[%s] Smoothing has not been finished", __func__);
+        TRACE(0, "[%s] Smoothing has not been finished", __func__);
     }
 
     uint32_t lock = int_lock();
@@ -111,7 +111,7 @@ int32_t audio_process_vol_run(int32_t *pcm_buf, uint32_t pcm_len)
     int_unlock(lock);
 
     if (smooth_finished) {
-        AUDIO_PROCESS_TRACE(2, "[%s] Finish smooth to gain(x100): %d", __func__, (int32_t)(g_curr_gain * 100));
+        TRACE(2, "[%s] Finish smooth to gain(x100): %d", __func__, (int32_t)(g_curr_gain * 100));
     }
 
     return 0;
@@ -120,7 +120,7 @@ int32_t audio_process_vol_run(int32_t *pcm_buf, uint32_t pcm_len)
 
 int32_t audio_process_vol_start_sync(float gain, uint32_t ms)
 {
-    AUDIO_PROCESS_TRACE(0,"[%s] ...", __func__);
+    TRACE(0,"[%s] ...", __func__);
 
     uint8_t buf[12];
 

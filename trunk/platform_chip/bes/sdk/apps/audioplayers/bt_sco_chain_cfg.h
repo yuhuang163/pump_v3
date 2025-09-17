@@ -34,11 +34,8 @@ typedef struct {
 #if defined(SPEECH_TX_AEC3)
     SubBandAecConfig        tx_aec3;
 #endif
-#if defined(SPEECH_TX_1MIC_NS)
-    Speech1MicNSConfig     tx_1mic_ns;
-#endif
 #if defined(SPEECH_TX_2MIC_NS)
-    DUAL_MIC_DENOISE_CFG_T  tx_2mic_ns;
+    Speech2MicNsConfig     tx_2mic_ns;
 #endif
 #if defined(SPEECH_TX_2MIC_NS2)
     Speech2MicNs2Config     tx_2mic_ns2;
@@ -55,14 +52,11 @@ typedef struct {
 #if defined(SPEECH_TX_2MIC_NS7)
     Speech2MicNs7Config     tx_2mic_ns7;
 #endif
-#if defined(SPEECH_TX_2MIC_PREAF)
-    Speech2MicPreafConfig     tx_2mic_preaf;
-#endif
 #if defined(SPEECH_TX_2MIC_NS8)
     Speech2MicNs8Config     tx_2mic_ns8;
 #endif
 #if defined(SPEECH_TX_3MIC_NS)
-    Speech3MicNsConfig      tx_3mic_ns[3];
+    Speech3MicNsConfig      tx_3mic_ns;
 #endif
 #if defined(SPEECH_TX_3MIC_NS2)
     Speech3MicNs2Config      tx_3mic_ns2;
@@ -93,6 +87,12 @@ typedef struct {
 #endif
 #if defined(SPEECH_TX_NS5)
     SpeechNs5Config         tx_ns5;
+#endif
+#if defined(SPEECH_TX_NS7)
+    SpeechNs7Config         tx_ns7;
+#endif
+#if defined(SPEECH_TX_NS8)
+    SpeechNs8Config         tx_ns8;
 #endif
 #if defined(SPEECH_TX_WNR)
     WnrConfig               tx_wnr;

@@ -17,7 +17,7 @@
 #include "ble_ai_voice.h"
 #include "gatt_service.h"
 
-#define SMART_VOICE_PREFERRED_MTU (512)
+#define SMART_VOICE_MAX_LEN (509)
 
 #define smart_service_uuid_128_le 0x00,0x00,0x82,0x6f,0x63,0x2e,0x74,0x6e,0x69,0x6f,0x70,0x6c,0x65,0x63,0x78,0x65
 #define smart_cmd_tx_char_uuid_128_le 0x01,0x00,0x82,0x6f,0x63,0x2e,0x74,0x6e,0x69,0x6f,0x70,0x6c,0x65,0x63,0x78,0x65
@@ -73,26 +73,17 @@ void ble_ai_smart_voice_send_data(app_ble_ai_data_send_param_t *param)
 {
     enum gatt_evt_type evt_type = param->gatt_event_type;
     const uint8_t *character = (param->data_type == BLE_AI_DATA_TYPE) ? g_ble_ai_smart_tx_data_character : g_ble_ai_smart_tx_cmd_character;
-
-    gatt_char_notify_t val_ind_ntf=
-    {
-        .character = character,
-        .service = g_ble_ai_smart_service,
-    };
-
     if (evt_type == GATT_NOTIFY)
     {
-        gatts_send_value_notification(gap_conn_bf(param->conidx), &val_ind_ntf, param->data, (uint16_t)param->data_len);
+        gatts_send_notification(gap_conn_bf(param->conidx), character, param->data, (uint16_t)param->data_len);
     }
     else
     {
-        gatts_send_value_indication(gap_conn_bf(param->conidx), &val_ind_ntf, param->data, (uint16_t)param->data_len);
+        gatts_send_indication(gap_conn_bf(param->conidx), character, param->data, (uint16_t)param->data_len);
     }
 }
 
-static uint16_t cccd_config[BLE_CONNECTION_MAX] = {0};
-
-static bool ble_ai_smart_server_callback(gatt_svc_t *svc, gatt_server_event_t event, gatt_server_callback_param_t param)
+static int ble_ai_smart_server_callback(gatt_svc_t *svc, gatt_server_event_t event, gatt_server_callback_param_t param)
 {
     switch (event)
     {
@@ -105,7 +96,6 @@ static bool ble_ai_smart_server_callback(gatt_svc_t *svc, gatt_server_event_t ev
                 return false;
             }
             ble_ai_report_data_received(APP_BLE_AI_SPEC_SMART, (svc->connhdl << 16)|p->con_idx, data_type, p);
-            gatts_send_write_rsp(p->conn->connhdl, p->token, p->rsp_error_code);
             return true;
         }
         case GATT_SERV_EVENT_DESC_WRITE:
@@ -117,19 +107,10 @@ static bool ble_ai_smart_server_callback(gatt_svc_t *svc, gatt_server_event_t ev
             {
                 notify_enabled = true;
             }
-            cccd_config[gap_zero_based_conidx(svc->con_idx)] = config;
-            if ((uint8_t *)p->desc_attr->attr_data == g_ble_ai_smart_tx_cmd_cccd && notify_enabled)
+            if (p->descriptor == g_ble_ai_smart_tx_cmd_cccd && notify_enabled)
             {
                 ble_ai_report_connected(APP_BLE_AI_SPEC_SMART, svc->con_idx, svc->connhdl);
             }
-            return true;
-        }
-        case GATT_SERV_EVENT_DESC_READ:
-        {
-            gatt_server_desc_read_t *p = param.desc_read;
-            uint16_t config = cccd_config[gap_zero_based_conidx(svc->con_idx)];
-            config = co_host_to_uint16_le(config);
-            gatts_send_read_rsp(p->conn->connhdl, p->token, 0, (uint8_t *)&config, sizeof(uint16_t));
             return true;
         }
         case GATT_SERV_EVENT_NTF_TX_DONE:
@@ -162,11 +143,7 @@ static bool ble_ai_smart_server_callback(gatt_svc_t *svc, gatt_server_event_t ev
 
 void ble_ai_smart_voice_init(void)
 {
-    gatts_cfg_t cfg = {0};
-    cfg.svc_size = sizeof(gatt_svc_t);
-    cfg.preferred_mtu = SMART_VOICE_PREFERRED_MTU;
-    cfg.btgatt_add_sdp = true;
-    gatts_register_service(g_ble_ai_smart_attr_list, ARRAY_SIZE(g_ble_ai_smart_attr_list), ble_ai_smart_server_callback, &cfg);
+    gatts_register_service(g_ble_ai_smart_attr_list, ARRAY_SIZE(g_ble_ai_smart_attr_list), ble_ai_smart_server_callback, NULL);
 }
 
 #endif /* __SMART_VOICE__ */

@@ -52,7 +52,7 @@ hw_filter_codec_iir_state *hw_filter_codec_iir_create(int32_t sample_rate, int32
 {
     hw_filter_codec_iir_state *st = &iir_st;
 
-    HW_DSP_TRACE(4,"[%s] sample_rate = %d, channel_num = %d, bits = %d", __func__, sample_rate, channel_num, bits);
+    TRACE(4,"[%s] sample_rate = %d, channel_num = %d, bits = %d", __func__, sample_rate, channel_num, bits);
 
     // Set parameters
     st->sample_rate = sample_rate;
@@ -90,7 +90,7 @@ int32_t hw_filter_codec_iir_set_config(hw_filter_codec_iir_state *st, hw_filter_
     st->bypass = cfg->bypass;
     st->iir_device = cfg->iir_device;
 
-    HW_DSP_TRACE(2,"[%s] iir device = %d", __func__, st->iir_device);
+    TRACE(2,"[%s] iir device = %d", __func__, st->iir_device);
 
     if (!st->iir_device_opened)
     {
@@ -126,7 +126,7 @@ int32_t hw_filter_codec_iir_set_config(hw_filter_codec_iir_state *st, hw_filter_
 //         break;
 
 //     default:
-//         HW_DSP_TRACE(2,"[%s] ctl(%d) is not valid", __func__, ctl);
+//         TRACE(2,"[%s] ctl(%d) is not valid", __func__, ctl);
 //         return -1;
 //     }
 
@@ -135,7 +135,7 @@ int32_t hw_filter_codec_iir_set_config(hw_filter_codec_iir_state *st, hw_filter_
 
 int32_t hw_filter_codec_iir_dump(hw_filter_codec_iir_state *st)
 {
-    HW_DSP_TRACE(1,"[%s]: ", __func__);
+    TRACE(1,"[%s]: ", __func__);
 
     // Add dump info
 

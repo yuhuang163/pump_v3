@@ -135,13 +135,6 @@ extern "C"
   @} end of cos group
  */
 
-/**
-   * @brief  Fast approximation to the trigonometric arctan function for floating-point data.
-   * @param[in] x  input value in radians.
-   * @return  arctan(x).
-   */
-  float32_t arm_atan_f32(
-  float32_t x);
 
 /**
   @brief         Floating-point vector of log values.

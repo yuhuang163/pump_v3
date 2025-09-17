@@ -7,15 +7,6 @@
  */
 #include "app_ai_if_config.h"
 
-/*
-    bisto model engine needs 67K bytes
-    bisto CP_PCM_DATA_CACHE_BUFFER_SIZE + HOTWORD_SBC_DATA_CACHE_BUF_MAX_LEN = 21.5K
-    alexa model cost 52K 
-    alexa WWE_BUF_SIZE cost 28K
-*/
-#define APP_AI_SHARE_MEM_POOL_MAXIAM_SIZE   (90*1024)
-
-typedef void (*ai_share_mem_monolized_user_update_callback_t)(uint8_t user,uint8_t exist_user);
 //the ai type now use
 typedef enum {
     AI_SPEC_INIT,
@@ -28,7 +19,6 @@ typedef enum {
     AI_SPEC_COMMON,
     AI_SPEC_BIXBY,
     AI_SPEC_RECORDING,
-    AI_SPEC_MMA,
     AI_SPEC_COUNT,
 } AI_SPEC_TYPE_E;
 
@@ -68,7 +58,7 @@ typedef enum {
     AI_CAPTURE_MEMPOOL_USER_ENCODE_STEREO_M_STORAGE,
     //LOCAL_ENCODED_DATA_STORAGE_BUF_SIZE
     AI_CAPTURE_MEMPOOL_USER_ENCODE_STEREO_S_STORAGE,
-    //STEREO_RECORD_PROCESS_BUF_SIZE
+    //BINAURAL_RECORD_PROCESS_BUF_SIZE
     AI_CAPTURE_MEMPOOL_USER_ENCODE_STEREO_PROCESS_HEAP,
     //VOICE_OPUS_HEAP_SIZE
     AI_CAPTURE_MEMPOOL_USER_ENCODE_OPUS_HEAP,
@@ -80,29 +70,28 @@ typedef enum {
     AI_CAPTURE_MEMPOOL_USER_MAX_COUNT,
 } AI_CAPTURE_MEMPOOL_TYPE_E;
 
-typedef struct{
-    uint32_t size_cost_phase_1;     //e.g bisto for text
-    uint32_t size_cost_phase_2;     //e.g bisto for data
-    uint32_t size_cost_phase_3;     //e.g bisto for pcm data cache
-    uint32_t size_cost_phase_4;     //e.g bisto for sbc enc cache
-}ai_spec_size_cost_t;
 
-typedef struct{
-    AI_SPEC_TYPE_E spec;
-    ai_spec_size_cost_t size_cost_info;
-    bool used;
-    ai_share_mem_monolized_user_update_callback_t callback;
-}ai_spec_share_mem_pool_monilized_info_t;
-
-typedef struct{
-    ai_spec_share_mem_pool_monilized_info_t user[AI_SPEC_COUNT];
-    AI_SPEC_TYPE_E monolized_user;
-}share_mem_pool_monolized_info_t;
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 const char *ai_spec_type2str(AI_SPEC_TYPE_E ai_spec);
+
+/*---------------------------------------------------------------------------
+ *            app_ai_key_event_handle
+ *---------------------------------------------------------------------------
+ *
+ *Synopsis:
+ *    for AI handle key event
+ *
+ * Parameters:
+ *    void *param1
+ *    uint32_t param2
+ *
+ * Return:
+ *    void
+ */
+void app_ai_key_event_handle(void *param1, uint32_t param2);
 
 /*---------------------------------------------------------------------------
  *            app_ai_if_get_ai_spec
@@ -239,25 +228,6 @@ void app_ai_voice_resume_sleep(uint8_t aiIndex);
  */
 uint8_t app_ai_get_codec_type(uint8_t spec);
 
-void app_ai_open_mic_user_set(uint8_t user);
-    
-uint8_t app_ai_open_mic_user_get();
-
-bool app_ai_share_mem_pool_monolize(AI_SPEC_TYPE_E user,uint8_t**buf,uint32_t size);
-
-void app_ai_share_mem_pool_info_print(void);
-
-uint32_t app_ai_share_mem_pool_free_size(void);
-
-uint32_t app_ai_share_mem_pool_total_size(void);
-
-void app_ai_share_mem_pool_init(void);
-
-void app_ai_share_pool_rebuild(void);
-
-bool app_ai_share_mem_pool_monolize_force(AI_SPEC_TYPE_E user,uint8_t**buf,uint32_t size);
-
-void app_ai_share_mem_pool_monolized_info_update_notify_callback_reg(AI_SPEC_TYPE_E user,uint32_t func);
 #ifdef __cplusplus
     }
 #endif

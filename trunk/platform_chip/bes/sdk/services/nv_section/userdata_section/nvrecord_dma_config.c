@@ -53,7 +53,7 @@ int nvrec_get_fm_freq(void)
 
     int _fmfreq = nvrecord_extension_p->dma_config.fmfreq;
 
-    NV_SECTION_TRACE(2,"%s:get fm freq %d", __func__, _fmfreq);
+    TRACE(2,"%s:get fm freq %d", __func__, _fmfreq);
     return _fmfreq;
 }
 
@@ -98,7 +98,7 @@ int nvrec_get_rand(char *rand)
     }
 
     memcpy(rand, _rand, BAIDU_DATA_RAND_LEN);
-    NV_SECTION_TRACE(2,"%s:rand %s", __func__, rand);
+    TRACE(2,"%s:rand %s", __func__, rand);
     return 0;
 }
 

@@ -38,31 +38,52 @@
 
 #define MAX_SEND_RECORD_COUNT               3
 
-#if defined (CHIP_SUBSYS_SENS) || defined(__SYS_AS_MAIN__)
+#ifndef BTCMU_INTERSYS_BIT_OFFSET
+#if defined (CHIP_SUBSYS_SENS)
 #define BTCMU_INTERSYS_BIT_OFFSET           16
 #else
 #define BTCMU_INTERSYS_BIT_OFFSET           0
 #endif
+#endif
 
+#if (defined(CHIP_HAS_PSRAM) && defined(PSRAM_ENABLE)) || \
+        (defined(CHIP_HAS_PSRAMUHS) && defined(PSRAMUHS_ENABLE))
+#ifndef     BTC_INTERSYS_DATA_RELAY
+#define     BTC_INTERSYS_DATA_RELAY
+#endif
+#define     DATA_NEED_TRANSFER(n)           !((uint32_t)(n) > RAM0_BASE && (uint32_t)(n) \
+                                                    < (RAM0_BASE + RAM_TOTAL_SIZE))
+#else
+#define     DATA_NEED_TRANSFER(n)           true
+#endif
+
+#if defined(BTC_INTERSYS_DATA_RELAY) && defined(AON_MAILBOX_BASE)
+#define     INTERSYS_FLAGS_LOC              AON_MBX_BSS_LOC
+#else
+#define     INTERSYS_FLAGS_LOC              SYNC_FLAGS_LOC
+#endif
+
+#if (CHIP_INTERSYS_VER <= 1)
 // BT-CMU ISIRQ_SET
-#define BTCMU_MCU2BT_DATA_DONE_SET          (1 << (0 + BTCMU_INTERSYS_BIT_OFFSET))
-#define BTCMU_MCU2BT_DATA1_DONE_SET         (1 << (1 + BTCMU_INTERSYS_BIT_OFFSET))
 #define BTCMU_BT2MCU_DATA_IND_SET           (1 << (2 + BTCMU_INTERSYS_BIT_OFFSET))
 #define BTCMU_BT2MCU_DATA1_IND_SET          (1 << (3 + BTCMU_INTERSYS_BIT_OFFSET))
 
 // BT-CMU ISIRQ_CLR
 #define BTCMU_MCU2BT_DATA_DONE_CLR          (1 << (0 + BTCMU_INTERSYS_BIT_OFFSET))
 #define BTCMU_MCU2BT_DATA1_DONE_CLR         (1 << (1 + BTCMU_INTERSYS_BIT_OFFSET))
+#endif
+
+// BT-CMU ISIRQ_CLR
 #define BTCMU_BT2MCU_DATA_IND_CLR           (1 << (2 + BTCMU_INTERSYS_BIT_OFFSET))
 #define BTCMU_BT2MCU_DATA1_IND_CLR          (1 << (3 + BTCMU_INTERSYS_BIT_OFFSET))
 
-
-#define BTCMU_BT2MCU_DATA2_IND_CLR           (1 << 2)
-#define BTCMU_BT2MCU_DATA3_IND_CLR          (1 << 3 )
+// BT-CMU ISIRQ1_CLR
+#define BTCMU_BT2MCU_DATA2_IND_CLR          (1 << (2 + BTCMU_INTERSYS_BIT_OFFSET))
+#define BTCMU_BT2MCU_DATA3_IND_CLR          (1 << (3 + BTCMU_INTERSYS_BIT_OFFSET))
 
 enum HAL_INTERSYS_IRQ_TYPE_T {
-    HAL_INTERSYS_IRQ_SEND_IND,
-    HAL_INTERSYS_IRQ_RECV_DONE,
+    HAL_INTERSYS_IRQ_DATA_IND,
+    HAL_INTERSYS_IRQ_DATA_DONE,
 
     HAL_INTERSYS_IRQ_TYPE_QTY
 };
@@ -82,74 +103,56 @@ struct HAL_INTERSYS_SEND_RECORD_T {
 static const IRQn_Type rx_irq_id[HAL_INTERSYS_ID_QTY] = {
     ISDATA_IRQn,
     ISDATA1_IRQn,
-#if defined(__FPGA_1501P__)
+#if defined(MCU2BTC_MSG_CHAN_CNT) && (MCU2BTC_MSG_CHAN_CNT >= 4)
     ISDATA2_IRQn,
     ISDATA3_IRQn,
 #endif
-
-
 };
 
 static const IRQn_Type tx_irq_id[HAL_INTERSYS_ID_QTY] = {
     ISDONE_IRQn,
     ISDONE1_IRQn,
-#if defined(__FPGA_1501P__)
+#if defined(MCU2BTC_MSG_CHAN_CNT) && (MCU2BTC_MSG_CHAN_CNT >= 4)
     ISDONE2_IRQn,
     ISDONE3_IRQn,
 #endif
-
-
-
 };
 
 static struct HAL_INTERSYS_MSG_T *** const bt_recv_msg_list_ppp[HAL_INTERSYS_ID_QTY] = {
-    (struct HAL_INTERSYS_MSG_T ***)(BT_RAM_BASE + BT_INTESYS_MEM_OFFSET + 0x4),
-    (struct HAL_INTERSYS_MSG_T ***)(BT_RAM_BASE+ BT_INTESYS_MEM_OFFSET + 0xC),
-#if defined(__FPGA_1501P__)
-    (struct HAL_INTERSYS_MSG_T ***)(BT_RAM_BASE+ BT_INTESYS_MEM_OFFSET + 0x14),
-    (struct HAL_INTERSYS_MSG_T ***)(BT_RAM_BASE+ BT_INTESYS_MEM_OFFSET + 0x1C),
+    (struct HAL_INTERSYS_MSG_T ***)(BT_RAM_BASE + BT_INTESYS_MEM_OFFSET + 0x04),
+    (struct HAL_INTERSYS_MSG_T ***)(BT_RAM_BASE + BT_INTESYS_MEM_OFFSET + 0x0C),
+#if defined(MCU2BTC_MSG_CHAN_CNT) && (MCU2BTC_MSG_CHAN_CNT >= 4)
+    (struct HAL_INTERSYS_MSG_T ***)(BT_RAM_BASE + BT_INTESYS_MEM_OFFSET + 0x14),
+    (struct HAL_INTERSYS_MSG_T ***)(BT_RAM_BASE + BT_INTESYS_MEM_OFFSET + 0x1C),
 #endif
 
 };
 
 static struct HAL_INTERSYS_MSG_T ** const recv_msg_list_p[HAL_INTERSYS_ID_QTY] = {
-    (struct HAL_INTERSYS_MSG_T **)(BT_RAM_BASE + BT_INTESYS_MEM_OFFSET),
-    (struct HAL_INTERSYS_MSG_T **)(BT_RAM_BASE + BT_INTESYS_MEM_OFFSET + 0x8),
-#if defined(__FPGA_1501P__)
+    (struct HAL_INTERSYS_MSG_T **)(BT_RAM_BASE + BT_INTESYS_MEM_OFFSET + 0x00),
+    (struct HAL_INTERSYS_MSG_T **)(BT_RAM_BASE + BT_INTESYS_MEM_OFFSET + 0x08),
+#if defined(MCU2BTC_MSG_CHAN_CNT) && (MCU2BTC_MSG_CHAN_CNT >= 4)
     (struct HAL_INTERSYS_MSG_T **)(BT_RAM_BASE + BT_INTESYS_MEM_OFFSET + 0x10),
     (struct HAL_INTERSYS_MSG_T **)(BT_RAM_BASE + BT_INTESYS_MEM_OFFSET + 0x18),
 #endif
 };
 
-SYNC_FLAGS_LOC static struct HAL_INTERSYS_MSG_T * send_msg_list_p[HAL_INTERSYS_ID_QTY];
+INTERSYS_FLAGS_LOC static struct HAL_INTERSYS_MSG_T * send_msg_list_p[HAL_INTERSYS_ID_QTY];
 
 static struct HAL_INTERSYS_MSG_T * send_pending_list_p[HAL_INTERSYS_ID_QTY];
 static struct HAL_INTERSYS_MSG_T recv_pending_head[HAL_INTERSYS_ID_QTY];
 
-SYNC_FLAGS_LOC static struct HAL_INTERSYS_SEND_RECORD_T send_msgs[HAL_INTERSYS_ID_QTY][MAX_SEND_RECORD_COUNT];
+INTERSYS_FLAGS_LOC static struct HAL_INTERSYS_SEND_RECORD_T send_msgs[HAL_INTERSYS_ID_QTY][MAX_SEND_RECORD_COUNT];
 
 static HAL_INTERSYS_RX_IRQ_HANDLER rx_irq_handler[HAL_INTERSYS_ID_QTY][HAL_INTERSYS_MSG_TYPE_QTY];
 static HAL_INTERSYS_TX_IRQ_HANDLER tx_irq_handler[HAL_INTERSYS_ID_QTY][HAL_INTERSYS_MSG_TYPE_QTY];
 
-#if defined(__FPGA_1501P__)
-static uint8_t chan_opened[HAL_INTERSYS_ID_QTY] = { 0, 0, 0,0};
-#else
-static uint8_t chan_opened[HAL_INTERSYS_ID_QTY] = { 0, 0, };
-#endif
+static uint8_t chan_opened[HAL_INTERSYS_ID_QTY];
 
 STATIC_ASSERT(sizeof(chan_opened[0]) * 8 >= HAL_INTERSYS_MSG_TYPE_QTY, "chan_opened size too small");
 
-#if defined(__FPGA_1501P__)
+static bool chan_tx_busy[HAL_INTERSYS_ID_QTY];
 
-static bool need_flow_ctrl[HAL_INTERSYS_ID_QTY] = { false, false, false,false};
-
-static bool chan_busy[HAL_INTERSYS_ID_QTY] = { false, false,false,false};
-#else
-static bool need_flow_ctrl[HAL_INTERSYS_ID_QTY] = { false, false, };
-
-static bool chan_busy[HAL_INTERSYS_ID_QTY] = { false, false, };
-
-#endif
 static bool busy_now = false;
 
 #ifdef CHIP_SUBSYS_SENS
@@ -162,34 +165,34 @@ static struct CMU_T * const cmu = (struct CMU_T *)CMU_BASE;
 
 static struct BTCMU_T * const btcmu = (struct BTCMU_T *)BT_CMU_BASE;
 
-static void hal_intersys_busy(enum HAL_INTERSYS_ID_T id, bool busy)
+static void hal_intersys_tx_busy(enum HAL_INTERSYS_ID_T id, bool busy)
 {
     int i;
     bool new_state;
 
-    if (chan_busy[id] == busy) {
+    if (chan_tx_busy[id] == busy) {
         return;
     }
 
-    chan_busy[id] = busy;
+    chan_tx_busy[id] = busy;
 
     if (busy_now == busy) {
         return;
     }
 
     if (busy) {
-        hal_sys_wake_lock(HAL_SYS_WAKE_LOCK_USER_INTERSYS);
+        hal_bus_wake_lock(HAL_BUS_WAKE_LOCK_USER_INTERSYS);
         busy_now = true;
     } else {
         new_state = false;
         for (i = 0; i < HAL_INTERSYS_ID_QTY; i++) {
-            if (chan_busy[i]) {
+            if (chan_tx_busy[i]) {
                 new_state = true;
                 break;
             }
         }
         if (!new_state) {
-            hal_sys_wake_unlock(HAL_SYS_WAKE_LOCK_USER_INTERSYS);
+            hal_bus_wake_unlock(HAL_BUS_WAKE_LOCK_USER_INTERSYS);
             busy_now = false;
         }
     }
@@ -201,13 +204,13 @@ static int hal_intersys_peer_irq_set(enum HAL_INTERSYS_ID_T id, enum HAL_INTERSY
 
 #if (CHIP_INTERSYS_VER <= 1)
     if (id == HAL_INTERSYS_ID_0) {
-        if (type == HAL_INTERSYS_IRQ_SEND_IND) {
+        if (type == HAL_INTERSYS_IRQ_DATA_IND) {
             value = CMU_MCU2BT_DATA_IND_SET;
         } else {
             value = CMU_BT2MCU_DATA_DONE_SET;
         }
     } else {
-        if (type == HAL_INTERSYS_IRQ_SEND_IND) {
+        if (type == HAL_INTERSYS_IRQ_DATA_IND) {
             value = CMU_MCU2BT_DATA1_IND_SET;
         } else {
             value = CMU_BT2MCU_DATA1_DONE_SET;
@@ -216,39 +219,32 @@ static int hal_intersys_peer_irq_set(enum HAL_INTERSYS_ID_T id, enum HAL_INTERSY
 
     cmu->ISIRQ_SET = value;
 #else // (CHIP_INTERSYS_VER >= 2)
-    if (type != HAL_INTERSYS_IRQ_SEND_IND) {
+    if (type != HAL_INTERSYS_IRQ_DATA_IND) {
         return 1;
     }
-#if defined(__FPGA_1501P__)
-    if (id == HAL_INTERSYS_ID_0) {
-        value = CMU_MCU2BT_DATA_IND_SET;
-    } else if(id == HAL_INTERSYS_ID_1){
-        value = CMU_MCU2BT_DATA1_IND_SET;
-    }else if(id == HAL_INTERSYS_ID_2){
-        value = CMU_MCU2BT_DATA2_IND_SET;
-    }else if(id == HAL_INTERSYS_ID_3){
-        value = CMU_MCU2BT_DATA3_IND_SET;
+
+#if defined(MCU2BTC_MSG_CHAN_CNT) && (MCU2BTC_MSG_CHAN_CNT >= 4)
+    if (id >= HAL_INTERSYS_ID_2) {
+        if (id == HAL_INTERSYS_ID_2) {
+            value = CMU_MCU2BT_DATA2_IND_SET;
+        } else {
+            value = CMU_MCU2BT_DATA3_IND_SET;
+        }
+
+        cmu->MCU_ISIRQ1_SET = value;
+        cmu->MCU_ISIRQ1_SET;
+        return 0;
     }
-    if(id < HAL_INTERSYS_ID_2)
-    {
-        cmu->ISIRQ_SET = value;
-        cmu->ISIRQ_SET;
-    }
-    else
-    {
-        cmu->ISIRQ_SET1 = value;
-        cmu->ISIRQ_SET1;
-    }
-#else
+#endif
+
     if (id == HAL_INTERSYS_ID_0) {
         value = CMU_MCU2BT_DATA_IND_SET;
     } else {
         value = CMU_MCU2BT_DATA1_IND_SET;
     }
+
     cmu->ISIRQ_SET = value;
     cmu->ISIRQ_SET;
-#endif
-
 #endif // (CHIP_INTERSYS_VER >= 2)
 
     return 0;
@@ -260,28 +256,19 @@ static inline void btcmu_reg_update_wait(void)
     btcmu->ISIRQ_CLR;
 }
 
-static inline void btcmu_reg_update_wait1(void)
-{
-#if defined(__FPGA_1501P__)
-    // Make sure BTCMU (26M clock domain) write opertions finish before return
-    btcmu->BT2MCUIRQ_CLR1;
-#endif
-}
-
-
 static int hal_intersys_local_irq_clear(enum HAL_INTERSYS_ID_T id, enum HAL_INTERSYS_IRQ_TYPE_T type)
 {
     uint32_t value;
 
 #if (CHIP_INTERSYS_VER <= 1)
     if (id == HAL_INTERSYS_ID_0) {
-        if (type == HAL_INTERSYS_IRQ_SEND_IND) {
+        if (type == HAL_INTERSYS_IRQ_DATA_IND) {
             value = BTCMU_BT2MCU_DATA_IND_CLR;
         } else {
             value = BTCMU_MCU2BT_DATA_DONE_CLR;
         }
     } else {
-        if (type == HAL_INTERSYS_IRQ_SEND_IND) {
+        if (type == HAL_INTERSYS_IRQ_DATA_IND) {
             value = BTCMU_BT2MCU_DATA1_IND_CLR;
         } else {
             value = BTCMU_MCU2BT_DATA1_DONE_CLR;
@@ -292,74 +279,52 @@ static int hal_intersys_local_irq_clear(enum HAL_INTERSYS_ID_T id, enum HAL_INTE
     btcmu_reg_update_wait();
 #else
 
-#if defined(__FPGA_1501P__)
-    value = 0;
-    if (id == HAL_INTERSYS_ID_0) {
-        if (type == HAL_INTERSYS_IRQ_SEND_IND) {
-            value = BTCMU_BT2MCU_DATA_IND_CLR;
+#if defined(MCU2BTC_MSG_CHAN_CNT) && (MCU2BTC_MSG_CHAN_CNT >= 4)
+    if (id >= HAL_INTERSYS_ID_2) {
+        if (id == HAL_INTERSYS_ID_2) {
+            if (type == HAL_INTERSYS_IRQ_DATA_IND) {
+                value = BTCMU_BT2MCU_DATA2_IND_CLR;
+            } else {
+                value = CMU_BT2MCU_DATA2_DONE_CLR;
+            }
         } else {
-            value = CMU_BT2MCU_DATA_DONE_CLR;
+            if (type == HAL_INTERSYS_IRQ_DATA_IND) {
+                value = BTCMU_BT2MCU_DATA3_IND_CLR;
+            } else {
+                value = CMU_BT2MCU_DATA3_DONE_CLR;
+            }
         }
-    } else if(id == HAL_INTERSYS_ID_1){
-        if (type == HAL_INTERSYS_IRQ_SEND_IND) {
-            value = BTCMU_BT2MCU_DATA1_IND_CLR;
-        } else {
-            value = CMU_BT2MCU_DATA1_DONE_CLR;
-        }
-    }else if(id == HAL_INTERSYS_ID_2){
-        if (type == HAL_INTERSYS_IRQ_SEND_IND) {
-            value = BTCMU_BT2MCU_DATA2_IND_CLR;
-        } else {
-            value = CMU_BT2MCU_DATA2_DONE_CLR;
-        }
-    }else if(id == HAL_INTERSYS_ID_3){
-        if (type == HAL_INTERSYS_IRQ_SEND_IND) {
-            value = BTCMU_BT2MCU_DATA3_IND_CLR;
-        } else {
-            value = CMU_BT2MCU_DATA3_DONE_CLR;
-        }
-    }
 
-    if(id < HAL_INTERSYS_ID_2)
-    {
-        if (type == HAL_INTERSYS_IRQ_SEND_IND) {
-            btcmu->ISIRQ_CLR = value;
+        if (type == HAL_INTERSYS_IRQ_DATA_IND) {
+            btcmu->ISIRQ1_CLR = value;
             btcmu_reg_update_wait();
         } else {
-            cmu->ISIRQ_CLR = value;
+            cmu->MCU_ISIRQ1_CLR = value;
         }
+        return 0;
     }
-    else
-    {
-        if (type == HAL_INTERSYS_IRQ_SEND_IND) {
-            btcmu->BT2MCUIRQ_CLR1 = value;
-            btcmu_reg_update_wait1();
-        } else {
-            cmu->ISIRQ_CLR1 = value;
-        }
-    }
-#else
+#endif
+
     if (id == HAL_INTERSYS_ID_0) {
-        if (type == HAL_INTERSYS_IRQ_SEND_IND) {
+        if (type == HAL_INTERSYS_IRQ_DATA_IND) {
             value = BTCMU_BT2MCU_DATA_IND_CLR;
         } else {
             value = CMU_BT2MCU_DATA_DONE_CLR;
         }
     } else {
-        if (type == HAL_INTERSYS_IRQ_SEND_IND) {
+        if (type == HAL_INTERSYS_IRQ_DATA_IND) {
             value = BTCMU_BT2MCU_DATA1_IND_CLR;
         } else {
             value = CMU_BT2MCU_DATA1_DONE_CLR;
         }
     }
 
-    if (type == HAL_INTERSYS_IRQ_SEND_IND) {
+    if (type == HAL_INTERSYS_IRQ_DATA_IND) {
         btcmu->ISIRQ_CLR = value;
         btcmu_reg_update_wait();
     } else {
         cmu->ISIRQ_CLR = value;
     }
-#endif
 #endif
 
     return 0;
@@ -370,7 +335,7 @@ static int hal_intersys_local_irq_set(enum HAL_INTERSYS_ID_T id, enum HAL_INTERS
 {
     uint32_t value;
 
-    if (type != HAL_INTERSYS_IRQ_SEND_IND) {
+    if (type != HAL_INTERSYS_IRQ_DATA_IND) {
         return 1;
     }
 
@@ -388,54 +353,36 @@ static int hal_intersys_local_irq_set(enum HAL_INTERSYS_ID_T id, enum HAL_INTERS
 static int hal_intersys_local_irq_mask_set(enum HAL_INTERSYS_ID_T id, enum HAL_INTERSYS_IRQ_TYPE_T type)
 {
     uint32_t value;
-#if defined(__FPGA_1501P__)
-    value = 0;
+
+#if defined(MCU2BTC_MSG_CHAN_CNT) && (MCU2BTC_MSG_CHAN_CNT >= 4)
+    if (id >= HAL_INTERSYS_ID_2) {
+        if (id == HAL_INTERSYS_ID_2) {
+            if (type == HAL_INTERSYS_IRQ_DATA_IND) {
+                value = CMU_BT2MCU_DATA2_MSK_SET;
+            } else {
+                value = CMU_MCU2BT_DATA2_MSK_SET;
+            }
+        } else {
+            if (type == HAL_INTERSYS_IRQ_DATA_IND) {
+                value = CMU_BT2MCU_DATA3_MSK_SET;
+            } else {
+                value = CMU_MCU2BT_DATA3_MSK_SET;
+            }
+        }
+
+        cmu->MCU_ISIRQ1_SET = value;
+        return 0;
+    }
+#endif
 
     if (id == HAL_INTERSYS_ID_0) {
-        if (type == HAL_INTERSYS_IRQ_SEND_IND) {
-            value = CMU_BT2MCU_DATA_MSK_SET;
-        } else {
-            value = CMU_MCU2BT_DATA_MSK_SET;
-        }
-    } else if (id == HAL_INTERSYS_ID_1) {
-        if (type == HAL_INTERSYS_IRQ_SEND_IND) {
-            value = CMU_BT2MCU_DATA1_MSK_SET;
-        } else {
-            value = CMU_MCU2BT_DATA1_MSK_SET;
-        }
-    } else if (id == HAL_INTERSYS_ID_2) {
-        if (type == HAL_INTERSYS_IRQ_SEND_IND) {
-            value = CMU_BT2MCU_DATA2_MSK_SET;
-        } else {
-            value = CMU_MCU2BT_DATA2_MSK_SET;
-        }
-    } else if (id == HAL_INTERSYS_ID_3) {
-        if (type == HAL_INTERSYS_IRQ_SEND_IND) {
-            value = CMU_BT2MCU_DATA3_MSK_SET;
-        } else {
-            value = CMU_MCU2BT_DATA3_MSK_SET;
-        }
-    }
-    if(id<HAL_INTERSYS_ID_2)
-    {
-        cmu->ISIRQ_SET = value;
-    }
-    else
-    {
-       HAL_TRACE(1,"INTERSY OPEN1 value=%x",value);
-
-        cmu->ISIRQ_SET1 = value;
-    }
-
-#else
-    if (id == HAL_INTERSYS_ID_0) {
-        if (type == HAL_INTERSYS_IRQ_SEND_IND) {
+        if (type == HAL_INTERSYS_IRQ_DATA_IND) {
             value = CMU_BT2MCU_DATA_MSK_SET;
         } else {
             value = CMU_MCU2BT_DATA_MSK_SET;
         }
     } else {
-        if (type == HAL_INTERSYS_IRQ_SEND_IND) {
+        if (type == HAL_INTERSYS_IRQ_DATA_IND) {
             value = CMU_BT2MCU_DATA1_MSK_SET;
         } else {
             value = CMU_MCU2BT_DATA1_MSK_SET;
@@ -443,59 +390,42 @@ static int hal_intersys_local_irq_mask_set(enum HAL_INTERSYS_ID_T id, enum HAL_I
     }
 
     cmu->ISIRQ_SET = value;
-#endif
     return 0;
 }
 
 static int hal_intersys_local_irq_mask_clear(enum HAL_INTERSYS_ID_T id, enum HAL_INTERSYS_IRQ_TYPE_T type)
 {
     uint32_t value;
-#if defined(__FPGA_1501P__)
-    value = 0;
+
+#if defined(MCU2BTC_MSG_CHAN_CNT) && (MCU2BTC_MSG_CHAN_CNT >= 4)
+    if (id >= HAL_INTERSYS_ID_2) {
+        if (id == HAL_INTERSYS_ID_2) {
+            if (type == HAL_INTERSYS_IRQ_DATA_IND) {
+                value = CMU_BT2MCU_DATA2_MSK_CLR;
+            } else {
+                value = CMU_MCU2BT_DATA2_MSK_CLR;
+            }
+        } else {
+            if (type == HAL_INTERSYS_IRQ_DATA_IND) {
+                value = CMU_BT2MCU_DATA3_MSK_CLR;
+            } else {
+                value = CMU_MCU2BT_DATA3_MSK_CLR;
+            }
+        }
+
+        cmu->MCU_ISIRQ1_CLR = value;
+        return 0;
+    }
+#endif
 
     if (id == HAL_INTERSYS_ID_0) {
-        if (type == HAL_INTERSYS_IRQ_SEND_IND) {
-            value = CMU_BT2MCU_DATA_MSK_CLR;
-        } else {
-            value = CMU_MCU2BT_DATA_MSK_CLR;
-        }
-    } else if(id == HAL_INTERSYS_ID_1){
-        if (type == HAL_INTERSYS_IRQ_SEND_IND) {
-            value = CMU_BT2MCU_DATA1_MSK_CLR;
-        } else {
-            value = CMU_MCU2BT_DATA1_MSK_CLR;
-        }
-    }else if(id == HAL_INTERSYS_ID_2){
-        if (type == HAL_INTERSYS_IRQ_SEND_IND) {
-            value = CMU_BT2MCU_DATA2_MSK_CLR;
-        } else {
-            value = CMU_MCU2BT_DATA2_MSK_CLR;
-        }
-    }else if(id == HAL_INTERSYS_ID_3){
-        if (type == HAL_INTERSYS_IRQ_SEND_IND) {
-            value = CMU_BT2MCU_DATA3_MSK_CLR;
-        } else {
-            value = CMU_MCU2BT_DATA3_MSK_CLR;
-        }
-    }
-    if(id<HAL_INTERSYS_ID_2)
-    {
-        cmu->ISIRQ_CLR = value;
-    }
-    else
-    {
-         cmu->ISIRQ_CLR1 = value;
-    }
-
-#else
-    if (id == HAL_INTERSYS_ID_0) {
-        if (type == HAL_INTERSYS_IRQ_SEND_IND) {
+        if (type == HAL_INTERSYS_IRQ_DATA_IND) {
             value = CMU_BT2MCU_DATA_MSK_CLR;
         } else {
             value = CMU_MCU2BT_DATA_MSK_CLR;
         }
     } else {
-        if (type == HAL_INTERSYS_IRQ_SEND_IND) {
+        if (type == HAL_INTERSYS_IRQ_DATA_IND) {
             value = CMU_BT2MCU_DATA1_MSK_CLR;
         } else {
             value = CMU_MCU2BT_DATA1_MSK_CLR;
@@ -503,21 +433,9 @@ static int hal_intersys_local_irq_mask_clear(enum HAL_INTERSYS_ID_T id, enum HAL
     }
 
     cmu->ISIRQ_CLR = value;
-#endif
     return 0;
 }
 #endif
-
-//static void hal_intersys_wait_done_idle(void)
-//{
-//    while(hal_cmu_get_address()->ISIRQ_SET & (CMU_BT2MCU_DATA_DONE_SET |CMU_BT2MCU_DATA1_DONE_SET));
-//}
-
-
-//static void hal_intersys_wait_data_idle(void)
-//{
-//    while(hal_cmu_get_address()->ISIRQ_SET & (CMU_MCU2BT_DATA_IND_SET |CMU_MCU2BT_DATA1_IND_SET));
-//}
 
 debug_intersys_type g_debug_intersys;
 
@@ -526,7 +444,7 @@ static int hal_intersys_irq_active(enum HAL_INTERSYS_ID_T id, enum HAL_INTERSYS_
 #if (CHIP_INTERSYS_VER <= 1)
     IRQn_Type irq;
 
-    if (type == HAL_INTERSYS_IRQ_SEND_IND) {
+    if (type == HAL_INTERSYS_IRQ_DATA_IND) {
         irq = rx_irq_id[id];
     } else {
         irq = tx_irq_id[id];
@@ -536,51 +454,34 @@ static int hal_intersys_irq_active(enum HAL_INTERSYS_ID_T id, enum HAL_INTERSYS_
 #else
     uint32_t value;
 
-#if defined(__FPGA_1501P__)
-    value = 0;
+#if defined(MCU2BTC_MSG_CHAN_CNT) && (MCU2BTC_MSG_CHAN_CNT >= 4)
+    if (id >= HAL_INTERSYS_ID_2) {
+        if (id == HAL_INTERSYS_ID_2) {
+            if (type == HAL_INTERSYS_IRQ_DATA_IND) {
+                value = CMU_BT2MCU_DATA2_INTR_MSK;
+            } else {
+                value = CMU_MCU2BT_DATA2_INTR_MSK;
+            }
+        } else {
+            if (type == HAL_INTERSYS_IRQ_DATA_IND) {
+                value = CMU_BT2MCU_DATA3_INTR_MSK;
+            } else {
+                value = CMU_MCU2BT_DATA3_INTR_MSK;
+            }
+        }
+
+        return !!(cmu->MCU_ISIRQ1_SET & value);
+    }
+#endif
 
     if (id == HAL_INTERSYS_ID_0) {
-        if (type == HAL_INTERSYS_IRQ_SEND_IND) {
-            value = CMU_BT2MCU_DATA_INTR_MSK;
-        } else {
-            value = CMU_MCU2BT_DATA_INTR_MSK;
-        }
-    } else if(id == HAL_INTERSYS_ID_1){
-        if (type == HAL_INTERSYS_IRQ_SEND_IND) {
-            value = CMU_BT2MCU_DATA1_INTR_MSK;
-        } else {
-            value = CMU_MCU2BT_DATA1_INTR_MSK;
-        }
-    }else if(id == HAL_INTERSYS_ID_2){
-        if (type == HAL_INTERSYS_IRQ_SEND_IND) {
-            value = CMU_BT2MCU_DATA2_INTR_MSK;
-        } else {
-            value = CMU_MCU2BT_DATA2_INTR_MSK;
-        }
-    }else if(id == HAL_INTERSYS_ID_3){
-        if (type == HAL_INTERSYS_IRQ_SEND_IND) {
-            value = CMU_BT2MCU_DATA3_INTR_MSK;
-        } else {
-            value = CMU_MCU2BT_DATA3_INTR_MSK;
-        }
-    }
-    if(id<HAL_INTERSYS_ID_2)
-    {
-        return !!(cmu->ISIRQ_SET & value);
-    }
-    else
-    {
-        return !!(cmu->ISIRQ_SET1 & value);
-    }
-#else
-    if (id == HAL_INTERSYS_ID_0) {
-        if (type == HAL_INTERSYS_IRQ_SEND_IND) {
+        if (type == HAL_INTERSYS_IRQ_DATA_IND) {
             value = CMU_BT2MCU_DATA_INTR_MSK;
         } else {
             value = CMU_MCU2BT_DATA_INTR_MSK;
         }
     } else {
-        if (type == HAL_INTERSYS_IRQ_SEND_IND) {
+        if (type == HAL_INTERSYS_IRQ_DATA_IND) {
             value = CMU_BT2MCU_DATA1_INTR_MSK;
         } else {
             value = CMU_MCU2BT_DATA1_INTR_MSK;
@@ -588,7 +489,6 @@ static int hal_intersys_irq_active(enum HAL_INTERSYS_ID_T id, enum HAL_INTERSYS_
     }
 
     return !!(cmu->ISIRQ_SET & value);
-#endif
 #endif
 }
 
@@ -604,11 +504,11 @@ static void hal_intersys_rx_irq_handler(void)
     }
 
     for (id = HAL_INTERSYS_ID_0; id < HAL_INTERSYS_ID_QTY; id++) {
-        if (hal_intersys_irq_active(id, HAL_INTERSYS_IRQ_SEND_IND)) {
+        if (hal_intersys_irq_active(id, HAL_INTERSYS_IRQ_DATA_IND)) {
 #if (CHIP_INTERSYS_VER <= 1)
-            hal_intersys_local_irq_clear(id, HAL_INTERSYS_IRQ_SEND_IND);
+            hal_intersys_local_irq_clear(id, HAL_INTERSYS_IRQ_DATA_IND);
 #else
-            hal_intersys_local_irq_mask_clear(id, HAL_INTERSYS_IRQ_SEND_IND);
+            hal_intersys_local_irq_mask_clear(id, HAL_INTERSYS_IRQ_DATA_IND);
 #endif
 
             if (recv_pending_head[id].data) {
@@ -637,8 +537,6 @@ static void hal_intersys_rx_irq_handler(void)
                     }
                 } else {
                     // Error
-                    HAL_TRACE(1,"INTERSYS-RX current id=%x",id);
-                    HAL_TRACE(1,"INTERSYS-RX current type=%x",type);
                     ASSERT(false, "INTERSYS-RX: Handler missing");
                     break;
                 }
@@ -646,9 +544,7 @@ static void hal_intersys_rx_irq_handler(void)
             }
 
             if (msg_ptr == NULL) {
-                if (!need_flow_ctrl[id]){
-                    hal_intersys_rx_done(id);
-                }
+                hal_intersys_rx_done(id);
                 recv_pending_head[id].data = NULL;
             }
         }
@@ -662,8 +558,8 @@ static void hal_intersys_tx_irq_handler(void)
     enum HAL_INTERSYS_MSG_TYPE_T type;
 
     for (id = HAL_INTERSYS_ID_0; id < HAL_INTERSYS_ID_QTY; id++) {
-        if (hal_intersys_irq_active(id, HAL_INTERSYS_IRQ_RECV_DONE)) {
-            hal_intersys_local_irq_clear(id, HAL_INTERSYS_IRQ_RECV_DONE);
+        if (hal_intersys_irq_active(id, HAL_INTERSYS_IRQ_DATA_DONE)) {
+            hal_intersys_local_irq_clear(id, HAL_INTERSYS_IRQ_DATA_DONE);
 
             msg_ptr = send_msg_list_p[id];
             while (msg_ptr) {
@@ -683,11 +579,12 @@ static void hal_intersys_tx_irq_handler(void)
             if (send_pending_list_p[id]) {
                 send_msg_list_p[id] = send_pending_list_p[id];
                 send_pending_list_p[id] = NULL;
-                hal_intersys_peer_irq_set(id, HAL_INTERSYS_IRQ_SEND_IND);
+                __DSB();
+                hal_intersys_peer_irq_set(id, HAL_INTERSYS_IRQ_DATA_IND);
             } else {
                 send_msg_list_p[id] = NULL;
                 // Allow sleep
-                hal_intersys_busy(id, false);
+                hal_intersys_tx_busy(id, false);
             }
         }
     }
@@ -700,8 +597,8 @@ static int hal_intersys_pm_notif_handler(enum HAL_PM_STATE_T state)
     if (state == HAL_PM_STATE_POWER_DOWN_WAKEUP) {
         for (int i = 0; i < HAL_INTERSYS_ID_QTY; i++) {
             if (chan_opened[i]) {
-                hal_intersys_local_irq_mask_set(i, HAL_INTERSYS_IRQ_SEND_IND);
-                hal_intersys_local_irq_mask_set(i, HAL_INTERSYS_IRQ_RECV_DONE);
+                hal_intersys_local_irq_mask_set(i, HAL_INTERSYS_IRQ_DATA_IND);
+                hal_intersys_local_irq_mask_set(i, HAL_INTERSYS_IRQ_DATA_DONE);
             }
         }
     }
@@ -712,7 +609,7 @@ static int hal_intersys_pm_notif_handler(enum HAL_PM_STATE_T state)
 #endif
 
 int hal_intersys_open(enum HAL_INTERSYS_ID_T id, enum HAL_INTERSYS_MSG_TYPE_T type,
-                      HAL_INTERSYS_RX_IRQ_HANDLER rxhandler, HAL_INTERSYS_TX_IRQ_HANDLER txhandler, bool rx_flowctrl)
+                      HAL_INTERSYS_RX_IRQ_HANDLER rxhandler, HAL_INTERSYS_TX_IRQ_HANDLER txhandler, bool manual_rx_done)
 {
     int i;
 
@@ -735,27 +632,22 @@ int hal_intersys_open(enum HAL_INTERSYS_ID_T id, enum HAL_INTERSYS_MSG_TYPE_T ty
         NVIC_SetPriority(tx_irq_id[id], IRQ_PRIORITY_NORMAL);
 
 #if (CHIP_INTERSYS_VER >= 2)
-        hal_intersys_local_irq_mask_set(id, HAL_INTERSYS_IRQ_SEND_IND);
-        hal_intersys_local_irq_mask_set(id, HAL_INTERSYS_IRQ_RECV_DONE);
+        hal_intersys_local_irq_mask_set(id, HAL_INTERSYS_IRQ_DATA_IND);
+        hal_intersys_local_irq_mask_set(id, HAL_INTERSYS_IRQ_DATA_DONE);
 #endif
-#if defined(__FPGA_1501P__)
+
         if (id == HAL_INTERSYS_ID_0) {
             cmu->ISIRQ_CLR = CMU_BT2MCU_DATA_DONE_CLR | CMU_MCU2BT_DATA_IND_CLR;
-        } else if(id == HAL_INTERSYS_ID_1){
+        } else if (id == HAL_INTERSYS_ID_1) {
             cmu->ISIRQ_CLR = CMU_BT2MCU_DATA1_DONE_CLR | CMU_MCU2BT_DATA1_IND_CLR;
-        } else if(id == HAL_INTERSYS_ID_2){
-            cmu->ISIRQ_CLR1 = CMU_BT2MCU_DATA2_DONE_CLR | CMU_MCU2BT_DATA2_IND_CLR;
-        } else if(id == HAL_INTERSYS_ID_3){
-            cmu->ISIRQ_CLR1 = CMU_BT2MCU_DATA3_DONE_CLR | CMU_MCU2BT_DATA3_IND_CLR;
+#if defined(MCU2BTC_MSG_CHAN_CNT) && (MCU2BTC_MSG_CHAN_CNT >= 4)
+        } else if (id == HAL_INTERSYS_ID_2) {
+            cmu->MCU_ISIRQ1_CLR = CMU_BT2MCU_DATA2_DONE_CLR | CMU_MCU2BT_DATA2_IND_CLR;
+        } else if (id == HAL_INTERSYS_ID_3) {
+            cmu->MCU_ISIRQ1_CLR = CMU_BT2MCU_DATA3_DONE_CLR | CMU_MCU2BT_DATA3_IND_CLR;
+#endif
         }
 
-#else
-        if (id == HAL_INTERSYS_ID_0) {
-            cmu->ISIRQ_CLR = CMU_BT2MCU_DATA_DONE_CLR | CMU_MCU2BT_DATA_IND_CLR;
-        } else {
-            cmu->ISIRQ_CLR = CMU_BT2MCU_DATA1_DONE_CLR | CMU_MCU2BT_DATA1_IND_CLR;
-        }
-#endif
         *bt_recv_msg_list_ppp[id] = &send_msg_list_p[id];
 
         send_msg_list_p[id] = NULL;
@@ -764,13 +656,11 @@ int hal_intersys_open(enum HAL_INTERSYS_ID_T id, enum HAL_INTERSYS_MSG_TYPE_T ty
         for (i = 0; i < MAX_SEND_RECORD_COUNT; i++) {
             send_msgs[id][i].in_use = false;
         }
-        need_flow_ctrl[id] = rx_flowctrl;
 
         // Enable TX IRQ
         NVIC_ClearPendingIRQ(tx_irq_id[id]);
         NVIC_EnableIRQ(tx_irq_id[id]);
     } else {
-        ASSERT(need_flow_ctrl[id] == rx_flowctrl, "INTERSYS-OPEN: rx_flowctrl=%d (should be %d)", rx_flowctrl, need_flow_ctrl[id]);
         return 3;
     }
 
@@ -810,14 +700,13 @@ int hal_intersys_close(enum HAL_INTERSYS_ID_T id,enum HAL_INTERSYS_MSG_TYPE_T ty
         NVIC_DisableIRQ(rx_irq_id[id]);
         NVIC_DisableIRQ(tx_irq_id[id]);
 #if (CHIP_INTERSYS_VER >= 2)
-        hal_intersys_local_irq_mask_clear(id, HAL_INTERSYS_IRQ_SEND_IND);
-        hal_intersys_local_irq_mask_clear(id, HAL_INTERSYS_IRQ_RECV_DONE);
+        hal_intersys_local_irq_mask_clear(id, HAL_INTERSYS_IRQ_DATA_IND);
+        hal_intersys_local_irq_mask_clear(id, HAL_INTERSYS_IRQ_DATA_DONE);
 #endif
 
         send_msg_list_p[id] = NULL;
         send_pending_list_p[id] = NULL;
         recv_pending_head[id].data = NULL;
-        need_flow_ctrl[id] = false;
 
 #ifdef CORE_SLEEP_POWER_DOWN
 #if (CHIP_INTERSYS_VER >= 2)
@@ -850,9 +739,9 @@ int hal_intersys_start_recv(enum HAL_INTERSYS_ID_T id)
     // Check if there is any previous unprocessed message
     if (recv_pending_head[id].data) {
 #if (CHIP_INTERSYS_VER <= 1)
-        hal_intersys_local_irq_set(id, HAL_INTERSYS_IRQ_SEND_IND);
+        hal_intersys_local_irq_set(id, HAL_INTERSYS_IRQ_DATA_IND);
 #else
-        hal_intersys_local_irq_mask_set(id, HAL_INTERSYS_IRQ_SEND_IND);
+        hal_intersys_local_irq_mask_set(id, HAL_INTERSYS_IRQ_DATA_IND);
 #endif
     }
 
@@ -870,11 +759,9 @@ int hal_intersys_stop_recv(enum HAL_INTERSYS_ID_T id)
     return 0;
 }
 
-#if (defined(CHIP_HAS_PSRAM) && defined(PSRAM_ENABLE)) || \
-        (defined(CHIP_HAS_PSRAMUHS) && defined(PSRAMUHS_ENABLE)) ||\
-        defined(CHIP_BEST1502X)
+#if defined(BTC_INTERSYS_DATA_RELAY)
 #define INTERSYS_BUF_LEN_MAX 1024
-SYNC_FLAGS_LOC static uint8_t intersys_buf_sram[HAL_INTERSYS_ID_QTY][MAX_SEND_RECORD_COUNT][INTERSYS_BUF_LEN_MAX];
+INTERSYS_FLAGS_LOC static uint8_t intersys_buf_sram[HAL_INTERSYS_ID_QTY][MAX_SEND_RECORD_COUNT][INTERSYS_BUF_LEN_MAX];
 #endif
 
 int hal_intersys_send(enum HAL_INTERSYS_ID_T id, enum HAL_INTERSYS_MSG_TYPE_T type,
@@ -906,23 +793,13 @@ int hal_intersys_send(enum HAL_INTERSYS_ID_T id, enum HAL_INTERSYS_MSG_TYPE_T ty
             continue;
         }
 
-#if (defined(CHIP_HAS_PSRAM) && defined(PSRAM_ENABLE)) || \
-        (defined(CHIP_HAS_PSRAMUHS) && defined(PSRAMUHS_ENABLE))
-        if (!((uint32_t)data > RAM0_BASE && (uint32_t)data < (RAM0_BASE + RAM_TOTAL_SIZE)) &&
-                len <= INTERSYS_BUF_LEN_MAX) {
-            memcpy(intersys_buf_sram[id][i], data, len);
-            data = (const unsigned char *)intersys_buf_sram[id][i];
-        }
-#elif defined(CHIP_BEST1502X)
-        if(len <= INTERSYS_BUF_LEN_MAX)
-        {
-            memcpy(intersys_buf_sram[id][i], data, len);
-            data = (const unsigned char *)intersys_buf_sram[id][i];
-        }
-        else
-        {
-            ASSERT(0,"err hci length");
-        }
+#if defined(BTC_INTERSYS_DATA_RELAY)
+    if (len <= INTERSYS_BUF_LEN_MAX && DATA_NEED_TRANSFER(data)) {
+        memcpy(intersys_buf_sram[id][i], data, len);
+        data = (const unsigned char *)intersys_buf_sram[id][i];
+    } else {
+        ASSERT(0,"err hci length");
+    }
 #endif
 
         record->in_use = true;
@@ -932,7 +809,8 @@ int hal_intersys_send(enum HAL_INTERSYS_ID_T id, enum HAL_INTERSYS_MSG_TYPE_T ty
         record->msg.data = data;
         if (send_msg_list_p[id] == NULL) {
             send_msg_list_p[id] = &record->msg;
-            hal_intersys_peer_irq_set(id, HAL_INTERSYS_IRQ_SEND_IND);
+            __DSB();
+            hal_intersys_peer_irq_set(id, HAL_INTERSYS_IRQ_DATA_IND);
         } else if (send_pending_list_p[id] == NULL) {
             send_pending_list_p[id] = &record->msg;
         } else {
@@ -944,7 +822,7 @@ int hal_intersys_send(enum HAL_INTERSYS_ID_T id, enum HAL_INTERSYS_MSG_TYPE_T ty
         }
         ret = 0;
         // Prohibit sleep here
-        hal_intersys_busy(id, true);
+        hal_intersys_tx_busy(id, true);
         break;
     }
     int_unlock(lock);
@@ -955,24 +833,23 @@ int hal_intersys_send(enum HAL_INTERSYS_ID_T id, enum HAL_INTERSYS_MSG_TYPE_T ty
 void hal_intersys_rx_done(enum HAL_INTERSYS_ID_T id)
 {
 #if (CHIP_INTERSYS_VER <= 1)
-    hal_intersys_peer_irq_set(id, HAL_INTERSYS_IRQ_RECV_DONE);
+    hal_intersys_peer_irq_set(id, HAL_INTERSYS_IRQ_DATA_DONE);
 #else
-    hal_intersys_local_irq_clear(id, HAL_INTERSYS_IRQ_SEND_IND);
-    hal_intersys_local_irq_mask_set(id, HAL_INTERSYS_IRQ_SEND_IND);
+    hal_intersys_local_irq_clear(id, HAL_INTERSYS_IRQ_DATA_IND);
+    hal_intersys_local_irq_mask_set(id, HAL_INTERSYS_IRQ_DATA_IND);
 #endif
 }
 
 #ifdef TX_RX_PCM_MASK
 static FRAME2BUFF_HANDLER DecQ;
 
-void hal_intersys_mic_rx_irq()
+void hal_intersys_mic_rx_irq(void)
 {
     int id;
     id = HAL_INTERSYS_ID_1;
-    if(NVIC_GetActive(rx_irq_id[id]))
-    {
-        hal_intersys_local_irq_clear(id, HAL_INTERSYS_IRQ_SEND_IND);
-        //HAL_TRACE(0,"HAL_INTERSYS_ID_1 CLEAR");
+    if (NVIC_GetActive(rx_irq_id[id])) {
+        hal_intersys_local_irq_clear(id, HAL_INTERSYS_IRQ_DATA_IND);
+        //TRACE(0,"HAL_INTERSYS_ID_1 CLEAR");
         //output data to buff
         DecQ();
     }
@@ -980,12 +857,11 @@ void hal_intersys_mic_rx_irq()
 
 int hal_intersys_mic_open(enum HAL_INTERSYS_ID_T id, FRAME2BUFF_HANDLER dch)
 {
-   // if(btdrv_is_pcm_mask_enable()==1)
+    // if (btdrv_is_pcm_mask_enable())
     {
-        DecQ= dch;
+        DecQ = dch;
         NVIC_EnableIRQ(rx_irq_id[id]);
-        if(id == HAL_INTERSYS_ID_1)
-        {
+        if (id == HAL_INTERSYS_ID_1) {
             cmu->ISIRQ_CLR = CMU_BT2MCU_DATA1_DONE_CLR | CMU_MCU2BT_DATA1_IND_CLR;
             NVIC_SetVector(rx_irq_id[id], (uint32_t)hal_intersys_mic_rx_irq);
             NVIC_SetPriority(rx_irq_id[id], IRQ_PRIORITY_NORMAL);
@@ -995,62 +871,28 @@ int hal_intersys_mic_open(enum HAL_INTERSYS_ID_T id, FRAME2BUFF_HANDLER dch)
 }
 #endif
 
-#ifdef SIMULTANEOUS_AWAKEN
-static WAKEUP_HANDLER WakeUp;
-
-void hal_intersys_wakeup_rx_irq()
-{
-    int id;
-    id = HAL_INTERSYS_ID_1;
-    if(NVIC_GetActive(rx_irq_id[id]))
-    {
-        hal_cmu_bt_sys_clock_force_on();
-        hal_intersys_local_irq_clear(id, HAL_INTERSYS_IRQ_SEND_IND);
-        WakeUp();
-        hal_cmu_bt_sys_clock_auto();
-    }
-}
-
-int hal_intersys_wakeup_open(enum HAL_INTERSYS_ID_T id, WAKEUP_HANDLER dch)
-{
-    WakeUp= dch;
-    NVIC_EnableIRQ(rx_irq_id[id]);
-    if(id == HAL_INTERSYS_ID_1)
-    {
-        cmu->ISIRQ_CLR = CMU_BT2MCU_DATA1_DONE_CLR | CMU_MCU2BT_DATA1_IND_CLR;
-        NVIC_SetVector(rx_irq_id[id], (uint32_t)hal_intersys_wakeup_rx_irq);
-        NVIC_SetPriority(rx_irq_id[id], IRQ_PRIORITY_NORMAL);
-        hal_intersys_local_irq_mask_set(id, HAL_INTERSYS_IRQ_SEND_IND);
-    }
-    return 0;
-}
-#endif
-
 void hal_intersys_wakeup_btcore(void)
 {
-    hal_intersys_peer_irq_set(HAL_INTERSYS_ID_1, HAL_INTERSYS_IRQ_SEND_IND);
+    hal_intersys_peer_irq_set(HAL_INTERSYS_ID_1, HAL_INTERSYS_IRQ_DATA_IND);
 }
 
 bool hal_intersys_get_wakeup_flag(void)
 {
-    if(cmu->ISIRQ_SET & CMU_MCU2BT_DATA1_IND_SET)
-    {
+    if (cmu->ISIRQ_SET & CMU_MCU2BT_DATA1_IND_SET) {
         return true;
-    }
-    else
-    {
+    } else {
         return false;
     }
 }
 
 void hal_intersys_dump_register(void)
 {
-    POSSIBLY_UNUSED uint32_t cmu_irq_set = cmu->ISIRQ_SET;
-    POSSIBLY_UNUSED uint32_t cmu_irq_clr = cmu->ISIRQ_CLR;
-    POSSIBLY_UNUSED uint32_t bt_cmu_irq_set = btcmu->ISIRQ_SET;
-    POSSIBLY_UNUSED uint32_t bt_cmu_irq_clr = btcmu->ISIRQ_CLR;
+    uint32_t cmu_irq_set = cmu->ISIRQ_SET;
+    uint32_t cmu_irq_clr = cmu->ISIRQ_CLR;
+    uint32_t bt_cmu_irq_set = btcmu->ISIRQ_SET;
+    uint32_t bt_cmu_irq_clr = btcmu->ISIRQ_CLR;
 
-    HAL_TRACE(2,"CMU addr=%p [set]:0x%x,[clr]:0x%x", cmu, cmu_irq_set, cmu_irq_clr);
-    HAL_TRACE(2,"BT CMU addr=%p [set]:0x%x,[clr]:0x%x", btcmu, bt_cmu_irq_set, bt_cmu_irq_clr);
+    TRACE(2,"CMU addr=%p [set]:0x%x,[clr]:0x%x", cmu, cmu_irq_set, cmu_irq_clr);
+    TRACE(2,"BT CMU addr=%p [set]:0x%x,[clr]:0x%x", btcmu, bt_cmu_irq_set, bt_cmu_irq_clr);
 }
 #endif // BT_CMU_BASE

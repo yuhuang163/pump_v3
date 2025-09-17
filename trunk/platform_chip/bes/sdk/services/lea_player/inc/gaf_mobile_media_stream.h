@@ -22,8 +22,6 @@
 #include "gaf_media_pid.h"
 
 /******************************macro defination*****************************/
-#define GAF_MOB_MAXIMUM_CONNECTION_COUNT            (2)
-
 #define GAF_MOBILE_AUDIO_STREAM_CAPTURE_CHANNEL_NUM      AUD_CHANNEL_NUM_2
 
 #if defined (BLE_AUDIO_USE_TWO_MIC_SRC_FOR_DONGLE) || defined (BLE_AUDIO_STEREO_CHAN_OVER_CIS_CNT)

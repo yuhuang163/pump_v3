@@ -24,6 +24,30 @@ extern "C" {
 
 #define LOG_TAG "[TOTA_CONTROL] "
 
+#define TOTA_CONTROL_DEBUG
+
+#ifdef TOTA_CONTROL_DEBUG
+#define TOTA_LOG_DBG(num,str,...)   TRACE(num,LOG_TAG"" str, ##__VA_ARGS__)             // DEBUG OUTPUT
+#define TOTA_LOG_MSG(num,str,...)   TRACE(num,LOG_TAG"" str, ##__VA_ARGS__)             // MESSAGE OUTPUT
+#define TOTA_LOG_ERR(num,str,...)   TRACE(num,LOG_TAG"err:""" str, ##__VA_ARGS__)       // ERROR OUTPUT
+
+#define TOTA_LOG_FUNC_LINE()    TRACE(2,LOG_TAG"%s:%d\n", __FUNCTION__, __LINE__)
+#define TOTA_LOG_FUNC_IN()      TRACE(1,LOG_TAG"%s ++++\n", __FUNCTION__)
+#define TOTA_LOG_FUNC_OUT()     TRACE(1,LOG_TAG"%s ----\n", __FUNCTION__)
+
+#define TOTA_LOG_DUMP		   DUMP8
+#else
+#define TOTA_LOG_DBG(str,...)
+#define TOTA_LOG_MSG(num,str,...)   TRACE(num,LOG_TAG"" str, ##__VA_ARGS__)
+#define TOTA_LOG_ERR(num,str,...)   TRACE(num,LOG_TAG"err:""" str, ##__VA_ARGS__)
+
+#define TOTA_LOG_FUNC_LINE()
+#define TOTA_LOG_FUNC_IN()
+#define TOTA_LOG_FUNC_OUT()
+
+#define TOTA_LOG_DUMP
+#endif
+
 extern uint32_t __tota_handler_table_start[];
 extern uint32_t __tota_handler_table_end[];
 

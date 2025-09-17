@@ -41,38 +41,6 @@
 *****************************************************************************/
 static uint32_t reg_op_clk_enb = 0;
 
-#ifdef MCU_WAKEUP_BT_V2
-#define BT_DRV_REG_OP_FORCE_WAKE_ENB()  do{\
-                                            uint32_t op_clk_lock = int_lock(); \
-                                            uint32_t local_enb = reg_op_clk_enb; \
-                                            bool need_en_wait_rsp = false; \
-                                            if (local_enb == 0){ \
-                                                bt_intersys_oper_btcore(WAKEUP_BT_USER_DRV, MSG_WAKEUP_BT_AND_DIS_SLP); \
-                                                need_en_wait_rsp = true; \
-                                            } \
-                                            reg_op_clk_enb++; \
-                                            int_unlock(op_clk_lock); \
-                                            if (need_en_wait_rsp){ \
-                                                bt_intersys_oper_wait_bt_response(); \
-                                            } \
-
-#define BT_DRV_REG_OP_FORCE_WAKE_DIB()      op_clk_lock = int_lock(); \
-                                            uint32_t local_dsb = --reg_op_clk_enb; \
-                                            bool need_dsb_wait_rsp = false; \
-                                            if (local_dsb == 0){ \
-                                                bt_intersys_oper_btcore(WAKEUP_BT_USER_DRV ,MSG_WAKEUP_BT_AND_EN_SLP); \
-                                                need_dsb_wait_rsp = true; \
-                                            } \
-                                            int_unlock(op_clk_lock); \
-                                            if (need_dsb_wait_rsp){ \
-                                                bt_intersys_oper_wait_bt_response(); \
-                                            } \
-                                        }while(0);
-
-#define BT_DRV_REG_OP_CLK_ENB()         BT_DRV_REG_OP_FORCE_WAKE_ENB()
-#define BT_DRV_REG_OP_CLK_TRY_ENB()     BT_DRV_REG_OP_FORCE_WAKE_ENB()
-#define BT_DRV_REG_OP_CLK_DIB()         BT_DRV_REG_OP_FORCE_WAKE_DIB()
-#else
 #define BT_DRV_REG_OP_FORCE_WAKE_ENB()  do{\
                                             uint32_t op_clk_lock = int_lock(); \
                                             uint32_t local_enb = reg_op_clk_enb; \
@@ -145,7 +113,7 @@ static uint32_t reg_op_clk_enb = 0;
                                                             loop_cnt++;\
                                                             if(loop_cnt >= 100) \
                                                             {\
-                                                                DRIVERS_TRACE(0,"TRY_ENB ERROR");\
+                                                                TRACE(0,"TRY_ENB ERROR");\
                                                                 break;\
                                                             }\
                                                         }  \
@@ -182,9 +150,13 @@ static uint32_t reg_op_clk_enb = 0;
                                     int_unlock(op_clk_lock); \
                                     }while(0);
 #endif
-#endif // MCU_WAKEUP_BT_V2
 
-#define GAIN_TBL_SIZE           0x0F
+static __INLINE uint32_t co_mod(uint32_t val, uint32_t div)
+{
+   ASSERT_ERR(div);
+   return ((val) % (div));
+}
+#define CO_MOD(val, div) co_mod(val, div)
 
 struct dbg_set_ebq_test_cmd
 {
@@ -340,15 +312,13 @@ static uint16_t off_gh_in_lbe_lld_val = 0;
 static uint16_t off_ah_in_lbe_lld_0_val = 0;
 static uint16_t off_ah_in_lbe_lld_1_val = 0;
 static uint16_t off_ii_in_lbe_lld_val = 0;
-static uint32_t host_set_srand_seed_addr = 0;
 
 void bt_drv_reg_op_global_symbols_init(void)
 {
     bt_ram_start_addr = BT_RAM_BASE;
 
     enum HAL_CHIP_METAL_ID_T metal_id = hal_get_chip_metal_id();
-    if (metal_id >= HAL_CHIP_METAL_ID_3)
-    {
+    if (metal_id >= HAL_CHIP_METAL_ID_3) {
 #ifdef __NEW_SWAGC_MODE__
         rf_rx_gain_ths_tbl_3m_addr = RF_RX_GAIN_THS_TBL_BT_3M_1306P_T1_ADDR;
         rx_monitor_3m_rxgain_addr = RX_MONITOR_3M_RXGAIN_1306P_T1_ADDR;
@@ -391,7 +361,6 @@ void bt_drv_reg_op_global_symbols_init(void)
         lld_big_env_addr = LLD_BIG_ENV_1306P_T1_ADDR;
         lld_cis_env_addr = LLD_CIS_ENV_1306P_T1_ADDR;
         lld_cig_env_addr = LLD_CIG_ENV_1306P_T1_ADDR;
-        rx_record_addr = RX_RECORD_1306P_T1_ADDR;
         //BT ROM 1306P_T1 struct offset
         off_rr_in_laet_ld_val = OFF_RR_IN_LAET_LD_1306P_T1;
         off_lsbo_in_laet_ld_val = OFF_LSBO_IN_LAET_LD_1306P_T1;
@@ -423,9 +392,7 @@ void bt_drv_reg_op_global_symbols_init(void)
         off_ah_in_lbe_lld_0_val = OFF_H_IN_LBE_LLD_0_1306P_T1;
         off_ah_in_lbe_lld_1_val = OFF_H_IN_LBE_LLD_1_1306P_T1;
         off_ii_in_lbe_lld_val = OFF_II_IN_LBE_LLD_1306P_T1;
-    }
-    else if (metal_id >= HAL_CHIP_METAL_ID_0)
-    {
+    } else if (metal_id >= HAL_CHIP_METAL_ID_0) {
 #ifdef __NEW_SWAGC_MODE__
         rf_rx_gain_ths_tbl_3m_addr = RF_RX_GAIN_THS_TBL_BT_3M_1306P_T0_ADDR;
         rx_monitor_3m_rxgain_addr = RX_MONITOR_3M_RXGAIN_1306P_T0_ADDR;
@@ -472,7 +439,6 @@ void bt_drv_reg_op_global_symbols_init(void)
         lld_big_env_addr = LLD_BIG_ENV_1306P_T0_ADDR;
         lld_cis_env_addr = LLD_CIS_ENV_1306P_T0_ADDR;
         lld_cig_env_addr = LLD_CIG_ENV_1306P_T0_ADDR;
-        rx_record_addr = RX_RECORD_1306P_T0_ADDR;
         //BT ROM 1306P_T0 struct offset
         off_rr_in_laet_ld_val = OFF_RR_IN_LAET_LD_1306P_T0;
         off_lsbo_in_laet_ld_val = OFF_LSBO_IN_LAET_LD_1306P_T0;
@@ -504,13 +470,12 @@ void bt_drv_reg_op_global_symbols_init(void)
         off_ah_in_lbe_lld_0_val = OFF_AH_IN_LBE_LLD_0_1306P_T0;
         off_ah_in_lbe_lld_1_val = OFF_AH_IN_LBE_LLD_1_1306P_T0;
         off_ii_in_lbe_lld_val = OFF_II_IN_LBE_LLD_1306P_T0;
-        host_set_srand_seed_addr = HOST_SET_SRAND_SEED_1306P_T0_ADDR;
     }
 }
 
 void bt_drv_reg_op_hci_vender_ibrt_ll_monitor(uint8_t* ptr, uint16_t* p_sum_err,uint16_t* p_rx_total)
 {
-    POSSIBLY_UNUSED const char * const monitor_str[METRIC_TYPE_MAX] =
+    const char * const monitor_str[METRIC_TYPE_MAX] =
     {
         "TX DM1",
         "TX DH1",
@@ -559,7 +524,7 @@ void bt_drv_reg_op_hci_vender_ibrt_ll_monitor(uint8_t* ptr, uint16_t* p_sum_err,
     uint32_t sum_err = 0;
     uint32_t rx_tx_data_sum = 0;
 
-    //DRIVERS_TRACE(0,"ibrt_ui_log:ll_monitor");
+    //BT_DRV_TRACE(0,"ibrt_ui_log:ll_monitor");
 
     for (uint8_t i = 0; i < METRIC_TYPE_MAX; i++)
     {
@@ -574,7 +539,7 @@ void bt_drv_reg_op_hci_vender_ibrt_ll_monitor(uint8_t* ptr, uint16_t* p_sum_err,
             {
                 sum_err += *p;
             }
-            DRIVERS_TRACE(2,"%s %d", monitor_str[i], *p);
+            BT_DRV_TRACE(2,"%s %d", monitor_str[i], *p);
         }
         p++;
     }
@@ -604,6 +569,7 @@ int bt_drv_reg_op_currentfreeaclbuf_get(void)
 #endif
     return nRet;
 }
+
 
 int bt_drv_reg_op_acl_chnmap(uint16_t hciHandle, uint8_t *chnmap, uint8_t chnmap_len)
 {
@@ -635,7 +601,7 @@ void bt_drv_reg_op_bt_info_checker(void)
         rx_buf_ptr = (uint32_t *)(*rx_buf_ptr);
     }
 
-    DRIVERS_TRACE(3,"BT_REG_OP:acl_rx_free ctrl rxbuff %d, host free %d", \
+    BT_DRV_TRACE(3,"BT_REG_OP:acl_rx_free ctrl rxbuff %d, host free %d", \
                  rx_free_buf_count, \
                  bt_drv_reg_op_currentfreeaclbuf_get());
 
@@ -646,12 +612,12 @@ void bt_drv_reg_op_bt_info_checker(void)
         tx_buf_ptr = (uint32_t *)(*tx_buf_ptr);
     }
 
-    DRIVERS_TRACE(2,"BT_REG_OP:acl_tx_free ctrl txbuff %d", \
+    BT_DRV_TRACE(2,"BT_REG_OP:acl_tx_free ctrl txbuff %d", \
                  tx_free_buf_count);
 
     if(lc_state_addr != 0)
     {
-        DRIVERS_TRACE(1,"BT_REG_OP:LC_STATE=0x%x",*(uint32_t *)lc_state_addr);
+        BT_DRV_TRACE(1,"BT_REG_OP:LC_STATE=0x%x",*(uint32_t *)lc_state_addr);
     }
 
     BT_DRV_REG_OP_CLK_DIB();
@@ -673,7 +639,7 @@ uint8_t bt_drv_reg_op_get_controller_tx_free_buffer(void)
     }
     else
     {
-        DRIVERS_TRACE(1, "BT_REG_OP:please fix %s", __func__);
+        BT_DRV_TRACE(1, "BT_REG_OP:please fix %s", __func__);
         tx_free_buf_count = 0;
         goto exit;
     }
@@ -698,7 +664,7 @@ void bt_drv_reg_op_controller_state_checker(void)
 
     if(lc_state_addr != 0)
     {
-        DRIVERS_TRACE(1,"BT_REG_OP: LC_STATE=0x%x",*(uint32_t *)lc_state_addr);
+        BT_DRV_TRACE(1,"BT_REG_OP: LC_STATE=0x%x",*(uint32_t *)lc_state_addr);
     }
 
     BT_DRV_REG_OP_CLK_DIB();
@@ -716,84 +682,75 @@ void bt_drv_reg_op_crash_dump(void)
     uint8_t *em_dump_area_2_start = (uint8_t*)EM_BASE_ADDR;
     uint32_t em_area_2_len_max = EM_SIZE;
     uint8_t metal_id = hal_get_chip_metal_id();
-    DRIVERS_TRACE(1,"BTC 1306p: metal id=%d", metal_id);
+    BT_DRV_TRACE(1,"BTC 1306p: metal id=%d", metal_id);
 
     if (workmode_patch_version_addr)
     {
-        DRIVERS_TRACE(1,"BT_REG_OP:BT 1306p: metal id=%d,patch version=%08x", hal_get_chip_metal_id(), BTDIGITAL_REG(workmode_patch_version_addr));
-        if (metal_id >= HAL_CHIP_METAL_ID_3)
-        {
-            DRIVERS_TRACE(1,"BT_REG_OP:commit id %s", BT_PATCH_1306P_T1_COMMIT_ID);
-        }
-        else if (metal_id >= HAL_CHIP_METAL_ID_0)
-        {
-            DRIVERS_TRACE(1,"BT_REG_OP:commit id %s", BT_PATCH_1306P_T0_COMMIT_ID);
-        }
+        BT_DRV_TRACE(1,"BT_REG_OP:BT 1306p: metal id=%d,patch version=%08x", hal_get_chip_metal_id(), BTDIGITAL_REG(workmode_patch_version_addr));
     }
-
     //first move R3 to R9, lost R9
-    DRIVERS_TRACE(1,"BT controller BusFault_Handler:\nREG:[PC] = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_PC));
-    DRIVERS_TRACE(1,"REG:[LR] = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE));
-    DRIVERS_TRACE(1,"REG:[R0] = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +160));
-    DRIVERS_TRACE(1,"REG:[R1] = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +164));
-    DRIVERS_TRACE(1,"REG:[R2] = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +168));
-    DRIVERS_TRACE(1,"REG:[R3] = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +172));
-    DRIVERS_TRACE(1,"REG:[R4] = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +4));
-    DRIVERS_TRACE(1,"REG:[R5] = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +8));
-    DRIVERS_TRACE(1,"REG:[R6] = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +12));
-    DRIVERS_TRACE(1,"REG:[R7] = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +16));
-    DRIVERS_TRACE(1,"REG:[R8] = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +20));
+    BT_DRV_TRACE(1,"BT controller BusFault_Handler:\nREG:[PC] = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_PC));
+    BT_DRV_TRACE(1,"REG:[LR] = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE));
+    BT_DRV_TRACE(1,"REG:[R0] = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +160));
+    BT_DRV_TRACE(1,"REG:[R1] = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +164));
+    BT_DRV_TRACE(1,"REG:[R2] = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +168));
+    BT_DRV_TRACE(1,"REG:[R3] = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +172));
+    BT_DRV_TRACE(1,"REG:[R4] = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +4));
+    BT_DRV_TRACE(1,"REG:[R5] = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +8));
+    BT_DRV_TRACE(1,"REG:[R6] = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +12));
+    BT_DRV_TRACE(1,"REG:[R7] = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +16));
+    BT_DRV_TRACE(1,"REG:[R8] = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +20));
     hal_sys_timer_delay(MS_TO_TICKS(100));
 
-    //DRIVERS_TRACE(1,"REG:[R9] = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +24));
-    DRIVERS_TRACE(1,"REG:[sl] = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +28));
-    DRIVERS_TRACE(1,"REG:[fp] = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +32));
-    DRIVERS_TRACE(1,"REG:[ip] = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +36));
-    DRIVERS_TRACE(1,"REG:[SP,#0] = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +40));
-    DRIVERS_TRACE(1,"REG:[SP,#4] = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +44));
-    DRIVERS_TRACE(1,"REG:[SP,#8] = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +48));
-    DRIVERS_TRACE(1,"REG:[SP,#12] = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +52));
-    DRIVERS_TRACE(1,"REG:[SP,#16] = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +56));
-    DRIVERS_TRACE(1,"REG:[SP,#20] = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +60));
-    DRIVERS_TRACE(1,"REG:[SP,#24] = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +64));
-    DRIVERS_TRACE(1,"REG:[SP,#28] = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +68));
+    //BT_DRV_TRACE(1,"REG:[R9] = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +24));
+    BT_DRV_TRACE(1,"REG:[sl] = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +28));
+    BT_DRV_TRACE(1,"REG:[fp] = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +32));
+    BT_DRV_TRACE(1,"REG:[ip] = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +36));
+    BT_DRV_TRACE(1,"REG:[SP,#0] = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +40));
+    BT_DRV_TRACE(1,"REG:[SP,#4] = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +44));
+    BT_DRV_TRACE(1,"REG:[SP,#8] = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +48));
+    BT_DRV_TRACE(1,"REG:[SP,#12] = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +52));
+    BT_DRV_TRACE(1,"REG:[SP,#16] = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +56));
+    BT_DRV_TRACE(1,"REG:[SP,#20] = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +60));
+    BT_DRV_TRACE(1,"REG:[SP,#24] = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +64));
+    BT_DRV_TRACE(1,"REG:[SP,#28] = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +68));
     hal_sys_timer_delay(MS_TO_TICKS(100));
 
-    DRIVERS_TRACE(1,"REG:[SP,#32] = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +72));
-    DRIVERS_TRACE(1,"REG:[SP,#36] = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +76));
-    DRIVERS_TRACE(1,"REG:[SP,#40] = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +80));
-    DRIVERS_TRACE(1,"REG:[SP,#44] = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +84));
-    DRIVERS_TRACE(1,"REG:[SP,#48] = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +88));
-    DRIVERS_TRACE(1,"REG:[SP,#52] = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +92));
-    DRIVERS_TRACE(1,"REG:[SP,#56] = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +96));
-    DRIVERS_TRACE(1,"REG:[SP,#60] = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +100));
-    DRIVERS_TRACE(1,"REG:[SP,#64] = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +104));
-    DRIVERS_TRACE(1,"REG:SP = 0x%08x",  BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +108));
-    DRIVERS_TRACE(1,"REG:MSP = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +112));
-    DRIVERS_TRACE(1,"REG:PSP = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +116));
-    DRIVERS_TRACE(1,"REG:CFSR = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +120));
-    DRIVERS_TRACE(1,"REG:BFAR = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +124));
-    DRIVERS_TRACE(1,"REG:HFSR = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +128));
-    DRIVERS_TRACE(1,"REG:ICSR = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +132));
-    DRIVERS_TRACE(1,"REG:AIRCR = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +136));
-    DRIVERS_TRACE(1,"REG:SCR = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +140));
-    DRIVERS_TRACE(1,"REG:CCR = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +144));
-    DRIVERS_TRACE(1,"REG:SHCSR = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +148));
-    DRIVERS_TRACE(1,"REG:AFSR = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +152));
-    DRIVERS_TRACE(1,"REG:MMFAR = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +156));
+    BT_DRV_TRACE(1,"REG:[SP,#32] = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +72));
+    BT_DRV_TRACE(1,"REG:[SP,#36] = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +76));
+    BT_DRV_TRACE(1,"REG:[SP,#40] = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +80));
+    BT_DRV_TRACE(1,"REG:[SP,#44] = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +84));
+    BT_DRV_TRACE(1,"REG:[SP,#48] = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +88));
+    BT_DRV_TRACE(1,"REG:[SP,#52] = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +92));
+    BT_DRV_TRACE(1,"REG:[SP,#56] = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +96));
+    BT_DRV_TRACE(1,"REG:[SP,#60] = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +100));
+    BT_DRV_TRACE(1,"REG:[SP,#64] = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +104));
+    BT_DRV_TRACE(1,"REG:SP = 0x%08x",  BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +108));
+    BT_DRV_TRACE(1,"REG:MSP = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +112));
+    BT_DRV_TRACE(1,"REG:PSP = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +116));
+    BT_DRV_TRACE(1,"REG:CFSR = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +120));
+    BT_DRV_TRACE(1,"REG:BFAR = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +124));
+    BT_DRV_TRACE(1,"REG:HFSR = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +128));
+    BT_DRV_TRACE(1,"REG:ICSR = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +132));
+    BT_DRV_TRACE(1,"REG:AIRCR = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +136));
+    BT_DRV_TRACE(1,"REG:SCR = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +140));
+    BT_DRV_TRACE(1,"REG:CCR = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +144));
+    BT_DRV_TRACE(1,"REG:SHCSR = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +148));
+    BT_DRV_TRACE(1,"REG:AFSR = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +152));
+    BT_DRV_TRACE(1,"REG:MMFAR = 0x%08x", BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE +156));
     hal_sys_timer_delay(MS_TO_TICKS(100));
 
-    DRIVERS_TRACE(1,"REG:IP_ERRORTYPESTAT: 0x%x",BTDIGITAL_REG(BT_ERRORTYPESTAT_ADDR));
-    DRIVERS_TRACE(1,"REG:IP_BLE_ERRORTYPESTAT: 0x%x",BTDIGITAL_REG(BLE_ERRORTYPESTAT_ADDR));
-    DRIVERS_TRACE(1,"REG:BT_CURRENTRXDESCPTR: 0x%x",BTDIGITAL_REG(BT_CURRENTRXDESCPTR_ADDR));
+    BT_DRV_TRACE(1,"REG:IP_ERRORTYPESTAT: 0x%x",BTDIGITAL_REG(BT_ERRORTYPESTAT_ADDR));
+    BT_DRV_TRACE(1,"REG:IP_BLE_ERRORTYPESTAT: 0x%x",BTDIGITAL_REG(BLE_ERRORTYPESTAT_ADDR));
+    BT_DRV_TRACE(1,"REG:BT_CURRENTRXDESCPTR: 0x%x",BTDIGITAL_REG(BT_CURRENTRXDESCPTR_ADDR));
 
-    DRIVERS_TRACE(1,"CONTROLLER RAM BASE:0x%08x",(uint32_t)bt_dump_mem_start);
+    BT_DRV_TRACE(1,"CONTROLLER RAM BASE:0x%08x",(uint32_t)bt_dump_mem_start);
 
     btdrv_dump_mem(bt_dump_mem_start, bt_dump_len_max, BT_SUB_SYS_TYPE);
 
     btdrv_dump_mem(em_dump_area_2_start, em_area_2_len_max, BT_EM_AREA_2_TYPE);
 
-    DRIVERS_TRACE(0,"BT crash dump complete!");
+    BT_DRV_TRACE(0,"BT crash dump complete!");
 
     BT_DRV_REG_OP_CLK_DIB();
 }
@@ -841,7 +798,7 @@ bool bt_drv_reg_op_read_rssi_in_dbm(uint16_t connHandle,rx_agc_t* rx_val)
         if(rssi_record_ptr != 0 && rx_monitor_env)
         {
             ret = true;
-            // DRIVERS_TRACE(1,"addr=%x,rssi=%d",rssi_record_ptr,*(int8 *)rssi_record_ptr);
+            // BT_DRV_TRACE(1,"addr=%x,rssi=%d",rssi_record_ptr,*(int8 *)rssi_record_ptr);
 #ifdef __NEW_SWAGC_MODE__
             if(bt_drv_reg_op_bt_sync_swagc_en_get())
             {
@@ -934,7 +891,7 @@ uint16_t bt_drv_reg_op_bitoff_getf(int elt_idx)
     }
     else
     {
-        DRIVERS_TRACE(1,"BT_REG_OP:ERROR LINK ID FOR RD bitoff %x", elt_idx);
+        BT_DRV_TRACE(1,"BT_REG_OP:ERROR LINK ID FOR RD bitoff %x", elt_idx);
     }
     BT_DRV_REG_OP_CLK_DIB();
 
@@ -947,7 +904,7 @@ void bt_drv_reg_op_set_tpoll(uint8_t linkid,uint16_t poll_interval)
     uint32_t poll_addr;
     if(linkid >= MAX_NB_ACTIVE_ACL)
     {
-        DRIVERS_TRACE(1,"BT_REG_OP:ERROR LINK ID FOR TPOLL %x", linkid);
+        BT_DRV_TRACE(1,"BT_REG_OP:ERROR LINK ID FOR TPOLL %x", linkid);
         return;
     }
     BT_DRV_REG_OP_CLK_ENB();
@@ -964,7 +921,7 @@ void bt_drv_reg_op_set_tpoll(uint8_t linkid,uint16_t poll_interval)
     }
     else
     {
-        DRIVERS_TRACE(1,"BT_REG_OP:ERROR LINK ID FOR TPOLL %x", linkid);
+        BT_DRV_TRACE(1,"BT_REG_OP:ERROR LINK ID FOR TPOLL %x", linkid);
     }
     BT_DRV_REG_OP_CLK_DIB();
 }
@@ -998,14 +955,14 @@ void bt_drv_reg_op_set_music_link(uint8_t link_id)
     if(dbg_bt_sche_setting_addr)
     {
         *(volatile uint8_t *)(dbg_bt_sche_setting_addr+off_mpl_in_dbssc_dbg_val) = link_id;
-        DRIVERS_TRACE(1,"%s:%d", __func__, link_id);
+        BT_DRV_TRACE(1,"%s:%d", __func__, link_id);
     }
     BT_DRV_REG_OP_CLK_DIB();
 }
 
 void bt_drv_reg_op_music_link_config(uint16_t active_link,uint8_t active_role,uint16_t inactive_link,uint8_t inactive_role)
 {
-    DRIVERS_TRACE(4,"BT_REG_OP:bt_drv_reg_op_music_link_config %x %d %x %d",active_link,active_role,inactive_link,inactive_role);
+    BT_DRV_TRACE(4,"BT_REG_OP:bt_drv_reg_op_music_link_config %x %d %x %d",active_link,active_role,inactive_link,inactive_role);
     BT_DRV_REG_OP_CLK_ENB();
     if (active_role == 0) //MASTER
     {
@@ -1043,13 +1000,13 @@ bool bt_drv_reg_op_check_bt_controller_state(void)
     }
     if (false == ret)
     {
-        DRIVERS_TRACE(1,"controller dead!!! data=%x",reg_data);
+        BT_DRV_TRACE(1,"controller dead!!! data=%x",reg_data);
     }
     reg_data = BTDIGITAL_REG(BT_ERRORTYPESTAT_ADDR);
     if((reg_data&(~0x40)) !=0)
     {
         ret = false;
-        DRIVERS_TRACE(1,"controller dead!!! BT_ERRORTYPESTAT=%x",reg_data);
+        BT_DRV_TRACE(1,"controller dead!!! BT_ERRORTYPESTAT=%x",reg_data);
     }
     BT_DRV_REG_OP_CLK_DIB();
     BT_DRV_REG_OP_EXIT();
@@ -1100,7 +1057,7 @@ void bt_drv_reg_op_enable_dma_tc(uint8_t adma_ch, uint32_t dma_base)
     if(dma_tc_used_index >= DMA_TC_MAX_CNT)
     {
         //  int_unlock(lock);
-        DRIVERS_TRACE(0,"enable_dma_tc err more than max ch");
+        TRACE(0,"enable_dma_tc err more than max ch");
         goto exit;
     }
     val = BTDIGITAL_REG(BT_CAP_SEL_ADDR);
@@ -1109,7 +1066,7 @@ void bt_drv_reg_op_enable_dma_tc(uint8_t adma_ch, uint32_t dma_base)
         if((val>>(i*8)&0x1F)==(uint32_t)(8+adma_ch))
         {
             // int_unlock(lock);
-            DRIVERS_TRACE(1,"enable_dma_tc err ch already enabled adma ch %d",adma_ch);
+            TRACE(1,"enable_dma_tc err ch already enabled adma ch %d",adma_ch);
             goto exit;
         }
     }
@@ -1121,14 +1078,14 @@ void bt_drv_reg_op_enable_dma_tc(uint8_t adma_ch, uint32_t dma_base)
     if(i >= DMA_TC_MAX_CNT)
     {
         //int_unlock(lock);
-        DRIVERS_TRACE(0,"enable_dma_tc err cannot find unused ch");
+        TRACE(0,"enable_dma_tc err cannot find unused ch");
         goto exit;
     }
     dma_tc_used_index++;
     BTDIGITAL_REG_SET_FIELD(BT_CAP_SEL_ADDR,1,31,1);//reg_trig_enable
     BTDIGITAL_REG_SET_FIELD(BT_CAP_SEL_ADDR,0x1F,(i*8),(8+adma_ch));//reg_trig_selx
     BTDIGITAL_REG_SET_FIELD(BT_BES_TOG_CNTL_ADDR,1,(i+4),1);//cap mode
-    DRIVERS_TRACE(2,"enable_dma_tc succ sel reg 0x%x/%x,toggle reg 0x%x,used %d",val,BTDIGITAL_REG(BT_CAP_SEL_ADDR),BTDIGITAL_REG(BT_BES_TOG_CNTL_ADDR),dma_tc_used_index);
+    BT_DRV_TRACE(2,"enable_dma_tc succ sel reg 0x%x/%x,toggle reg 0x%x,used %d",val,BTDIGITAL_REG(BT_CAP_SEL_ADDR),BTDIGITAL_REG(BT_BES_TOG_CNTL_ADDR),dma_tc_used_index);
 exit:
     int_unlock(lock);
     BT_DRV_REG_OP_CLK_DIB();
@@ -1145,7 +1102,7 @@ void bt_drv_reg_op_disable_dma_tc(uint8_t adma_ch, uint32_t dma_base)
     if(dma_tc_used_index == 0)
     {
         // int_unlock(lock);
-        DRIVERS_TRACE(0,"disable_dma_tc err no ch enabled");
+        TRACE(0,"disable_dma_tc err no ch enabled");
         goto exit;
     }
     val = BTDIGITAL_REG(BT_CAP_SEL_ADDR);
@@ -1157,13 +1114,13 @@ void bt_drv_reg_op_disable_dma_tc(uint8_t adma_ch, uint32_t dma_base)
     if(i >= DMA_TC_MAX_CNT)
     {
         // int_unlock(lock);
-        DRIVERS_TRACE(0,"disable_dma_tc err cannot find same ch id to disable");
+        TRACE(0,"disable_dma_tc err cannot find same ch id to disable");
         goto exit;
     }
     dma_tc_used_index--;
     BTDIGITAL_REG_SET_FIELD(BT_CAP_SEL_ADDR,0x1F,(i*8),0);//reg_trig_selx
     BTDIGITAL_REG_SET_FIELD(BT_BES_TOG_CNTL_ADDR,1,(i+4),0);//cap mode
-    DRIVERS_TRACE(2,"disable_dma_tc succ sel reg 0x%x/%x,used %d",val,BTDIGITAL_REG(BT_CAP_SEL_ADDR),dma_tc_used_index);
+    BT_DRV_TRACE(2,"disable_dma_tc succ sel reg 0x%x/%x,used %d",val,BTDIGITAL_REG(BT_CAP_SEL_ADDR),dma_tc_used_index);
 exit:
     int_unlock(lock);
     BT_DRV_REG_OP_CLK_DIB();
@@ -1175,7 +1132,7 @@ void bt_drv_reg_op_dma_tc_clkcnt_get(uint32_t *btclk, uint16_t *btcnt)
     BT_DRV_REG_OP_CLK_ENB();
     *btclk = BTDIGITAL_REG(BT_REG_CLKNCNT_CAP4_REG_ADDR);
     *btcnt = (BTDIGITAL_REG(BT_BES_FINECNT_CAP4_REG_ADDR) & 0x3ff);
-    DRIVERS_TRACE(2, "dma tc clk,cnt %d,%d", *btclk, *btcnt);
+    BT_DRV_TRACE(2, "dma tc clk,cnt %d,%d", *btclk, *btcnt);
     BT_DRV_REG_OP_CLK_DIB();
     BT_DRV_REG_OP_EXIT();
 }
@@ -1196,7 +1153,7 @@ void bt_drv_reg_op_dma_tc_clkcnt_get_by_ch(uint32_t *btclk, uint16_t *btcnt, uin
     }
     if(i >= DMA_TC_MAX_CNT)
     {
-        DRIVERS_TRACE(0,"get_dma_tc err cannot find same ch id, not enabled?");
+        TRACE(0,"get_dma_tc err cannot find same ch id, not enabled?");
         goto exit;
         return;
     }
@@ -1237,7 +1194,7 @@ void bt_drv_reg_op_sco_txfifo_reset(uint16_t codec_id)
     uint32_t reg_val = BTDIGITAL_REG(BT_E_SCOCURRENTTXPTR_ADDR);
     uint32_t reg_offset0, reg_offset1;
     uint16_t *patten_p = (uint16_t *)msbc_mute_patten;
-    DRIVERS_TRACE(2,"BT_REG_OP sco reset=%x", reg_val);
+    BT_DRV_TRACE(2,"BT_REG_OP sco reset=%x", reg_val);
 
     reg_offset0 = (reg_val & 0x3fff)<<(2+EM_SHIFT_EXT);
     reg_offset1 = ((reg_val >> 16) & 0x3fff)<<(2+EM_SHIFT_EXT);
@@ -1286,13 +1243,13 @@ void btdrv_reg_op_set_private_tws_poll_interval(uint16_t poll_interval, uint16_t
             if(BT_DRIVER_GET_U16_REG_VAL(interval_addr) != poll_interval && poll_interval!=0xffff)
             {
                 BT_DRIVER_PUT_U16_REG_VAL(interval_addr, poll_interval);
-                DRIVERS_TRACE(2,"BT_REG_OP:Set private tws interval,acl interv=%d", poll_interval);
+                BT_DRV_TRACE(2,"BT_REG_OP:Set private tws interval,acl interv=%d", poll_interval);
             }
             if(BT_DRIVER_GET_U16_REG_VAL(interval_insco_addr) != poll_interval_in_sco && poll_interval_in_sco!=0xffff)
             {
                 BT_DRIVER_PUT_U16_REG_VAL(interval_insco_addr, poll_interval_in_sco);
 
-                DRIVERS_TRACE(2," acl interv insco =%d", poll_interval_in_sco);
+                BT_DRV_TRACE(2," acl interv insco =%d", poll_interval_in_sco);
            }
         }while(0);
     }
@@ -1315,7 +1272,7 @@ void btdrv_reg_op_set_tws_link_duration(uint8_t slot_num)
     if(op_addr != 0 && slot_num != 0xff)
     {
         *(volatile uint8_t *)(op_addr+off_asiim_in_dbssc_dbg_val) = slot_num;//acl_slot_in_snoop_mode
-        DRIVERS_TRACE(1,"BT_REG_OP:Set private tws link duration,val=%d",slot_num);
+        BT_DRV_TRACE(1,"BT_REG_OP:Set private tws link duration,val=%d",slot_num);
     }
 
     BT_DRV_REG_OP_CLK_DIB();
@@ -1343,6 +1300,11 @@ uint16_t bt_drv_reg_op_get_ibrt_sco_hdl(uint16_t acl_hdl)
     return acl_hdl|0x100;
 }
 
+bool bt_drv_is_support_dual_sco(void)
+{
+    return true;
+}
+
 bool bt_drv_is_support_hci_set_tws_link(void)
 {
     return true;
@@ -1368,7 +1330,7 @@ bool bt_drv_is_support_hci_enable_btpcm(void)
 
 void bt_drv_reg_op_set_tws_link_id(uint8_t link_id)
 {
-    DRIVERS_TRACE(1,"set tws link id =%x",link_id);
+    BT_DRV_TRACE(1,"set tws link id =%x",link_id);
     ASSERT(link_id <MAX_NB_ACTIVE_ACL || link_id == 0xff,"BT_REG_OP:error tws link id set");
     uint32_t tws_link_id_addr = 0;
 
@@ -1435,7 +1397,7 @@ void bt_drv_reg_op_dgb_link_gain_ctrl_set(uint16_t connHandle, uint8_t bt_ble_mo
                     rx_gain_fixed_p->enable    = enable;
                     rx_gain_fixed_p->bt_or_ble = bt_ble_mode;
                     rx_gain_fixed_p->gain_idx = gain_idx;
-                    DRIVERS_TRACE(5,"BT_REG_OP:%s hdl:%x/%x mode:%d idx:%d", __func__, connHandle, cs_id, rx_gain_fixed_p->bt_or_ble, gain_idx);
+                    BT_DRV_TRACE(5,"BT_REG_OP:%s hdl:%x/%x mode:%d idx:%d", __func__, connHandle, cs_id, rx_gain_fixed_p->bt_or_ble, gain_idx);
                 }
                 rx_gain_fixed_p++;
             }
@@ -1509,7 +1471,7 @@ void bt_drv_reg_op_rx_gain_fix(uint16_t connHandle, uint8_t bt_ble_mode, uint8_t
         }
         else
         {
-            DRIVERS_TRACE(1,"BT_REG_OP:%s:fix gain fail",__func__);
+            BT_DRV_TRACE(1,"BT_REG_OP:%s:fix gain fail",__func__);
             goto exit;
         }
 
@@ -1535,7 +1497,7 @@ void bt_drv_reg_op_set_ibrt_reject_sniff_req(bool en)
 
     if (dbg_bt_ibrt_setting_addr == 0)
     {
-        DRIVERS_TRACE(1, "BT_REG_OP:set reject sniff req %d, please fix it", en);
+        BT_DRV_TRACE(1, "BT_REG_OP:set reject sniff req %d, please fix it", en);
         goto exit;
     }
 
@@ -1543,7 +1505,7 @@ void bt_drv_reg_op_set_ibrt_reject_sniff_req(bool en)
 
     if(BT_DRIVER_GET_U8_REG_VAL(sniff_policy_addr) == en)
     {
-        DRIVERS_TRACE(1, "BT_REG_OP:set reject sniff req %d", en);
+        BT_DRV_TRACE(1, "BT_REG_OP:set reject sniff req %d", en);
 
         accept_remote_enter_sniff_ptr = (uint8_t *)(sniff_policy_addr);
 
@@ -1562,7 +1524,7 @@ void bt_drv_reg_op_set_ibrt_second_sco_decision(uint8_t value)
 
     if (dbg_bt_ibrt_setting_addr == 0)
     {
-        DRIVERS_TRACE(1, "BT_REG_OP:set ibrt second sco decision %d, please fix it", value);
+        BT_DRV_TRACE(1, "BT_REG_OP:set ibrt second sco decision %d, please fix it", value);
         goto exit;
     }
 
@@ -1630,7 +1592,7 @@ uint8_t bt_drv_reg_op_get_sco_type(uint8_t sco_link_id)
         //m2s_pkt_type offset:57
         sco_type = BT_DRIVER_GET_U8_REG_VAL(p_nego_params_addr + off_mpt_in_lsnpt_lc_val);
 
-        DRIVERS_TRACE(1,"BT_REG_OP:Get nego sco type =%d",sco_type);
+        BT_DRV_TRACE(1,"BT_REG_OP:Get nego sco type =%d",sco_type);
     }
 
 exit:
@@ -1655,7 +1617,7 @@ uint8_t bt_drv_reg_op_get_esco_nego_airmode(uint8_t sco_link_id)
         //air_mode off:5e
         airmode = BT_DRIVER_GET_U8_REG_VAL(p_nego_params_addr + off_am_in_lsnpt_lc_val);
 
-        DRIVERS_TRACE(1,"BT_REG_OP:Get nego esco airmode=%d",airmode);
+        BT_DRV_TRACE(1,"BT_REG_OP:Get nego esco airmode=%d",airmode);
     }
 
 exit:
@@ -1692,7 +1654,7 @@ void bt_drv_reg_op_ebq_test_setting(void)
     struct dbg_set_ebq_test_cmd* set_ebq_test = (struct dbg_set_ebq_test_cmd*)hci_dbg_ebq_test_mode_addr;
     if(set_ebq_test)
     {
-        DRIVERS_TRACE(0,"BT_REG_OP:ebq_test_setting");
+        BT_DRV_TRACE(0,"BT_REG_OP:ebq_test_setting");
         set_ebq_test->ssr = 0;//ebq case bb/prot/ssr/bv03 06
         set_ebq_test->aes_ccm_daycounter = 1;
         set_ebq_test->bb_prot_flh_bv02 = 0;
@@ -1745,7 +1707,7 @@ void bt_drv_reg_op_ble_audio_config_init(void)
     struct hci_dbg_ble_cmd* dbg_ble_par = (struct hci_dbg_ble_cmd*)hci_dbg_ble_addr;
     if(set_ebq_test)
     {
-        DRIVERS_TRACE(0,"BT_REG_OP:ble audio config");
+        BT_DRV_TRACE(0,"BT_REG_OP:ble audio config");
         set_ebq_test->cis_offset_min = SLOT_SIZE*2;//us
         set_ebq_test->cis_sub_event_duration_config = 0;//24*HALF_SLOT_SIZE
         set_ebq_test->ll_bi_alarm_init_distance = 12;//(in half slots)
@@ -1779,7 +1741,7 @@ uint8_t bt_drv_reg_op_get_controller_ble_tx_free_buffer(void)
     }
     else
     {
-        DRIVERS_TRACE(1, "REG_OP: please fix %s", __func__);
+        BT_DRV_TRACE(1, "REG_OP: please fix %s", __func__);
         tx_free_buf_count =  0;
     }
 
@@ -1889,6 +1851,11 @@ uint32_t bt_drv_us_2_lpcycles(uint32_t us,uint32_t lp_clk)
     return((uint32_t)lpcycles);
 }
 
+static __INLINE uint32_t co_max(uint32_t a, uint32_t b)
+{
+    return a > b ? a : b;
+}
+
 void bt_drv_reg_op_data_bakeup_init(void)
 {
     BT_DRV_REG_OP_CLK_ENB();
@@ -1941,11 +1908,11 @@ uint16_t bt_drv_reg_op_rxbit_1us_get(uint16_t conhdl)
     if (acl_evt_ptr != 0)
     {
         rxbit_1us = *(uint16_t *)(acl_evt_ptr + off_r1_in_laet_ld_val);//acl_par->rxbit_1us
-        DRIVERS_TRACE(1,"[%s] rxbit_1us=%d\n",__func__,rxbit_1us);
+        BT_DRV_TRACE(1,"[%s] rxbit_1us=%d\n",__func__,rxbit_1us);
     }
     else
     {
-        DRIVERS_TRACE(1,"BT_REG_OP:ERROR LINK ID FOR RD rxbit_1us %x", conidx);
+        BT_DRV_TRACE(1,"BT_REG_OP:ERROR LINK ID FOR RD rxbit_1us %x", conidx);
     }
     BT_DRV_REG_OP_CLK_DIB();
 
@@ -1959,7 +1926,7 @@ void bt_drv_reg_op_set_btpcm_trig_flag(bool flag)
 
     if(pcm_need_start_flag_addr != 0)
     {
-        DRIVERS_TRACE(1,"Enable pcm %d", flag);
+        BT_DRV_TRACE(1,"Enable pcm %d", flag);
         BTDIGITAL_REG(pcm_need_start_flag_addr) = flag;
     }
     BT_DRV_REG_OP_CLK_DIB();
@@ -1975,7 +1942,7 @@ void bt_drv_reg_op_multi_ibrt_sche_adjust(struct sch_multi_ibrt_adjust_timeslice
         sch_multi_ibrt_adjust_env_ptr = (sch_multi_ibrt_adjust_timeslice_env_t *)sch_multi_ibrt_adjust_env_addr;
         if(sch_multi_ibrt_adjust_env_ptr->update)
         {
-            DRIVERS_TRACE(0,"WARNING: previous update sch not finished");
+            TRACE(0,"WARNING: previous update sch not finished");
         }
         memcpy(sch_multi_ibrt_adjust_env_ptr->ibrt_link,updated_sch_para->ibrt_link,sizeof(struct sch_adjust_timeslice_per_link)*MULTI_IBRT_SUPPORT_NUM);
         sch_multi_ibrt_adjust_env_ptr->update = 1;
@@ -1990,14 +1957,14 @@ void bt_drv_reg_op_multi_ibrt_music_config(uint8_t* link_id, uint8_t* active, ui
     uint8_t i = 0;
     if(link_id[i]>=MAX_NB_ACTIVE_ACL)
     {
-        DRIVERS_TRACE(1,"BT_REG_OP:ERROR LINK ID FOR multi_ibrt_music_config %x", link_id[i]);
+        BT_DRV_TRACE(1,"BT_REG_OP:ERROR LINK ID FOR multi_ibrt_music_config %x", link_id[i]);
         return;
     }
     BT_DRV_REG_OP_CLK_ENB();
 
     while(num > 0)
     {
-        DRIVERS_TRACE(0,"multi_ibrt_music linkid %d,active %d",link_id[i],active[i]);
+        TRACE(0,"multi_ibrt_music linkid %d,active %d",link_id[i],active[i]);
         updated_sch_para.ibrt_link[i].link_id = link_id[i];
         if(active[i] == 1)
         {
@@ -2048,62 +2015,18 @@ bool bt_drv_error_check_handler(void)
        (BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE) !=0 &&
         BTDIGITAL_REG(BT_CONTROLLER_CRASH_DUMP_ADDR_BASE) !=0x42))
     {
-        DRIVERS_TRACE(1,"BT_DRV:digital assert,error code=0x%x", BTDIGITAL_REG(BT_ERRORTYPESTAT_ADDR));
+        BT_DRV_TRACE(1,"BT_DRV:digital assert,error code=0x%x", BTDIGITAL_REG(BT_ERRORTYPESTAT_ADDR));
         ret = true;
     }
     BT_DRV_REG_OP_CLK_DIB();
     return ret;
 }
 
-#ifdef MCU_WAKEUP_BT_V2
-static uint32_t reg_op_trigger_clk_enb = 0;
-void bt_drv_i2v_disable_sleep_for_bt_access(void)
-{
-    uint32_t op_clk_lock = int_lock();
-    uint32_t local_enb = reg_op_trigger_clk_enb;
-    bool need_wait_rsp = false;
-    if (local_enb == 0)
-    {
-        bt_intersys_oper_btcore(WAKEUP_BT_USER_TRIG, MSG_WAKEUP_BT_AND_DIS_SLP);
-        need_wait_rsp = true;
-    }
-    reg_op_trigger_clk_enb++;
-    int_unlock(op_clk_lock);
-
-    if(need_wait_rsp)
-    {
-        bt_intersys_oper_wait_bt_response();
-    }
-
-    DRIVERS_TRACE(1,"BT:trigger req wakeup cnt=%d", reg_op_trigger_clk_enb);
-}
-#else
 void bt_drv_i2v_disable_sleep_for_bt_access(void)
 {
     hal_intersys_wakeup_btcore();
 }
-#endif
 
-#ifdef MCU_WAKEUP_BT_V2
-void bt_drv_i2v_enable_sleep_for_bt_access(void)
-{
-    uint32_t op_clk_lock = int_lock();
-    uint32_t local_enb = --reg_op_trigger_clk_enb;
-    bool need_wait_rsp = false;
-    if (!local_enb)
-    {
-        bt_intersys_oper_btcore(WAKEUP_BT_USER_TRIG, MSG_WAKEUP_BT_AND_EN_SLP);
-        need_wait_rsp = true;
-    }
-    int_unlock(op_clk_lock);
-    if(need_wait_rsp)
-    {
-        bt_intersys_oper_wait_bt_response();
-    }
-
-    DRIVERS_TRACE(1,"BT:resume sleep cnt=%d", reg_op_trigger_clk_enb);
-}
-#else
 void bt_drv_i2v_enable_sleep_for_bt_access(void)
 {
     uint32_t flag_addr = rt_sleep_flag_clear_addr;
@@ -2116,11 +2039,10 @@ void bt_drv_i2v_enable_sleep_for_bt_access(void)
         }
     }
 }
-#endif
 
 void bt_drv_reg_op_trigger_controller_assert(void)
 {
-    ASSERT(0, "Trigger BTC crash on purpose!")
+    ASSERT(0, "Trigger BTC crash on purpose!");
 }
 
 void bt_drv_reg_op_afh_assess_en(bool en)
@@ -2133,7 +2055,7 @@ void bt_drv_reg_op_afh_assess_en(bool en)
     }
     en_back = en;
 
-    DRIVERS_TRACE(1,"BT_REG_OP:set afh assess=%d",en);
+    BT_DRV_TRACE(1,"BT_REG_OP:set afh assess=%d",en);
 
     struct hci_dbg_set_afh_assess_params hci_afh_assess_init_config
     {
@@ -2227,7 +2149,7 @@ void btdrv_syn_clr_trigger(uint8_t trig_route)
             break;
         }
     }
-    DRIVERS_TRACE(2,"[%s] [%x]=0x%x",__func__,BT_BES_CNTL1_ADDR,*(volatile uint32_t *)(BT_BES_CNTL1_ADDR));
+    BT_DRV_TRACE(2,"[%s] [%x]=0x%x",__func__,BT_BES_CNTL1_ADDR,*(volatile uint32_t *)(BT_BES_CNTL1_ADDR));
     BT_DRV_REG_OP_CLK_DIB();
 }
 
@@ -2241,28 +2163,28 @@ void btdrv_reg_op_sw_trig_tg_finecnt_set(uint16_t tg_bitcnt, uint8_t trig_route)
         {
             //0xc98 bit[9:0]
             BTDIGITAL_REG(BT_BES_TG_FINECNT_ADDR) = (BTDIGITAL_REG(BT_BES_TG_FINECNT_ADDR) & 0xFFFFFC00) | tg_bitcnt;
-            DRIVERS_TRACE(1,"[%s] route0=%x, tg_bitcnt=%d\n",__func__,BTDIGITAL_REG(BT_BES_TG_FINECNT_ADDR), tg_bitcnt);
+            BT_DRV_TRACE(1,"[%s] route0=%x, tg_bitcnt=%d\n",__func__,BTDIGITAL_REG(BT_BES_TG_FINECNT_ADDR), tg_bitcnt);
             break;
         }
         case 1:
         {
             //0xd0c bit[9:0]
             BTDIGITAL_REG(BT_BES_TG_FINECNT1_ADDR) = (BTDIGITAL_REG(BT_BES_TG_FINECNT1_ADDR) & 0xFFFFFC00) | tg_bitcnt;
-            DRIVERS_TRACE(1,"[%s] route1=%x, tg_bitcnt=%d\n",__func__,BTDIGITAL_REG(BT_BES_TG_FINECNT1_ADDR), tg_bitcnt);
+            BT_DRV_TRACE(1,"[%s] route1=%x, tg_bitcnt=%d\n",__func__,BTDIGITAL_REG(BT_BES_TG_FINECNT1_ADDR), tg_bitcnt);
             break;
         }
         case 2:
         {
             //0xd14 bit[9:0]
             BTDIGITAL_REG(BT_BES_TG_FINECNT2_ADDR) = (BTDIGITAL_REG(BT_BES_TG_FINECNT2_ADDR) & 0xFFFFFC00) | tg_bitcnt;
-            DRIVERS_TRACE(1,"[%s] route2=%x, tg_bitcnt=%d\n",__func__,BTDIGITAL_REG(BT_BES_TG_FINECNT2_ADDR), tg_bitcnt);
+            BT_DRV_TRACE(1,"[%s] route2=%x, tg_bitcnt=%d\n",__func__,BTDIGITAL_REG(BT_BES_TG_FINECNT2_ADDR), tg_bitcnt);
             break;
         }
         case 3:
         {
             //0xd1c bit[9:0]
             BTDIGITAL_REG(BT_BES_TG_FINECNT3_ADDR) = (BTDIGITAL_REG(BT_BES_TG_FINECNT3_ADDR) & 0xFFFFFC00) | tg_bitcnt;
-            DRIVERS_TRACE(1,"[%s] route3=%x, tg_bitcnt=%d\n",__func__,BTDIGITAL_REG(BT_BES_TG_FINECNT3_ADDR), tg_bitcnt);
+            BT_DRV_TRACE(1,"[%s] route3=%x, tg_bitcnt=%d\n",__func__,BTDIGITAL_REG(BT_BES_TG_FINECNT3_ADDR), tg_bitcnt);
             break;
         }
     }
@@ -2297,7 +2219,7 @@ uint16_t btdrv_reg_op_sw_trig_tg_finecnt_get(uint8_t trig_route)
         }
     }
     BT_DRV_REG_OP_CLK_DIB();
-    DRIVERS_TRACE(1,"[%s] finecnt=%d\n",__func__,finecnt);
+    BT_DRV_TRACE(1,"[%s] finecnt=%d\n",__func__,finecnt);
     return finecnt;
 }
 
@@ -2310,28 +2232,28 @@ void btdrv_reg_op_sw_trig_tg_clkncnt_set(uint32_t num, uint8_t trig_route)
         {
             //0xc94 bit[27:0]
             BTDIGITAL_REG(BT_BES_TG_CLKNCNT_ADDR) = (BTDIGITAL_REG(BT_BES_TG_CLKNCNT_ADDR) & 0xf0000000) | (num & 0x0fffffff);
-            DRIVERS_TRACE(1,"[%s] route0=0x%x, num=%d\n",__func__,BTDIGITAL_REG(BT_BES_TG_CLKNCNT_ADDR), num);
+            BT_DRV_TRACE(1,"[%s] route0=0x%x, num=%d\n",__func__,BTDIGITAL_REG(BT_BES_TG_CLKNCNT_ADDR), num);
             break;
         }
         case 1:
         {
             //0xd08 bit[27:0]
             BTDIGITAL_REG(BT_BES_TG_CLKNCNT1_ADDR) = (BTDIGITAL_REG(BT_BES_TG_CLKNCNT1_ADDR) & 0xf0000000) | (num & 0x0fffffff);
-            DRIVERS_TRACE(1,"[%s] route1=0x%x, num=%d\n",__func__,BTDIGITAL_REG(BT_BES_TG_CLKNCNT1_ADDR), num);
+            BT_DRV_TRACE(1,"[%s] route1=0x%x, num=%d\n",__func__,BTDIGITAL_REG(BT_BES_TG_CLKNCNT1_ADDR), num);
             break;
         }
         case 2:
         {
             //0xd10 bit[27:0]
             BTDIGITAL_REG(BT_BES_TG_CLKNCNT2_ADDR) = (BTDIGITAL_REG(BT_BES_TG_CLKNCNT2_ADDR) & 0xf0000000) | (num & 0x0fffffff);
-            DRIVERS_TRACE(1,"[%s] route2=0x%x, num=%d\n",__func__,BTDIGITAL_REG(BT_BES_TG_CLKNCNT2_ADDR), num);
+            BT_DRV_TRACE(1,"[%s] route2=0x%x, num=%d\n",__func__,BTDIGITAL_REG(BT_BES_TG_CLKNCNT2_ADDR), num);
             break;
         }
         case 3:
         {
             //0xd18 bit[27:0]
             BTDIGITAL_REG(BT_BES_TG_CLKNCNT3_ADDR) = (BTDIGITAL_REG(BT_BES_TG_CLKNCNT3_ADDR) & 0xf0000000) | (num & 0x0fffffff);
-            DRIVERS_TRACE(1,"[%s] route3=0x%x, num=%d\n",__func__,BTDIGITAL_REG(BT_BES_TG_CLKNCNT3_ADDR), num);
+            BT_DRV_TRACE(1,"[%s] route3=0x%x, num=%d\n",__func__,BTDIGITAL_REG(BT_BES_TG_CLKNCNT3_ADDR), num);
             break;
         }
     }
@@ -2346,28 +2268,28 @@ void btdrv_sw_trig_en_set(uint8_t trig_route)
         case 0:
         {
             BTDIGITAL_REG(BT_BES_CNTLX_ADDR) |= 0x1;
-            DRIVERS_TRACE(1,"[%s] c7c=0x%x, c94=0x%x,c98=0x%x\n",__func__,
+            BT_DRV_TRACE(1,"[%s] c7c=0x%x, c94=0x%x,c98=0x%x\n",__func__,
                          BTDIGITAL_REG(BT_BES_CNTLX_ADDR),BTDIGITAL_REG(BT_BES_TG_CLKNCNT_ADDR),BTDIGITAL_REG(BT_BES_TG_FINECNT_ADDR));
             break;
         }
         case 1:
         {
             BTDIGITAL_REG(BT_BES_TG_FINECNT1_ADDR) |= (1<<31);
-            DRIVERS_TRACE(1,"[%s] d08=0x%x, d0c=0x%x\n",__func__,
+            BT_DRV_TRACE(1,"[%s] d08=0x%x, d0c=0x%x\n",__func__,
                          BTDIGITAL_REG(BT_BES_TG_CLKNCNT1_ADDR),BTDIGITAL_REG(BT_BES_TG_FINECNT1_ADDR));
             break;
         }
         case 2:
         {
             BTDIGITAL_REG(BT_BES_TG_FINECNT2_ADDR) |= (1<<31);
-            DRIVERS_TRACE(1,"[%s] d10=0x%x, d14=0x%x\n",__func__,
+            BT_DRV_TRACE(1,"[%s] d10=0x%x, d14=0x%x\n",__func__,
                          BTDIGITAL_REG(BT_BES_TG_CLKNCNT2_ADDR),BTDIGITAL_REG(BT_BES_TG_FINECNT2_ADDR));
             break;
         }
         case 3:
         {
             BTDIGITAL_REG(BT_BES_TG_FINECNT3_ADDR) |= (1<<31);
-            DRIVERS_TRACE(1,"[%s] d18=0x%x, d1c=0x%x\n",__func__,
+            BT_DRV_TRACE(1,"[%s] d18=0x%x, d1c=0x%x\n",__func__,
                          BTDIGITAL_REG(BT_BES_TG_CLKNCNT3_ADDR),BTDIGITAL_REG(BT_BES_TG_FINECNT3_ADDR));
             break;
         }
@@ -2383,28 +2305,28 @@ void btdrv_sw_trig_disable_set(uint8_t trig_route)
         case 0:
         {
             BTDIGITAL_REG(BT_BES_CNTLX_ADDR) &= ~0x1;
-            DRIVERS_TRACE(1,"[%s] c7c=0x%x, c94=0x%x, c98=0x%x\n",__func__,
+            BT_DRV_TRACE(1,"[%s] c7c=0x%x, c94=0x%x, c98=0x%x\n",__func__,
                          BTDIGITAL_REG(BT_BES_CNTLX_ADDR),BTDIGITAL_REG(BT_BES_TG_CLKNCNT_ADDR),BTDIGITAL_REG(BT_BES_TG_FINECNT_ADDR));
             break;
         }
         case 1:
         {
             BTDIGITAL_REG(BT_BES_TG_FINECNT1_ADDR) &= ~(1<<31);
-            DRIVERS_TRACE(1,"[%s] d08=0x%x, d0c=0x%x\n",__func__,
+            BT_DRV_TRACE(1,"[%s] d08=0x%x, d0c=0x%x\n",__func__,
                          BTDIGITAL_REG(BT_BES_TG_CLKNCNT1_ADDR),BTDIGITAL_REG(BT_BES_TG_FINECNT1_ADDR));
             break;
         }
         case 2:
         {
             BTDIGITAL_REG(BT_BES_TG_FINECNT2_ADDR) &= ~(1<<31);
-            DRIVERS_TRACE(1,"[%s] d10=0x%x, d14=0x%x\n",__func__,
+            BT_DRV_TRACE(1,"[%s] d10=0x%x, d14=0x%x\n",__func__,
                          BTDIGITAL_REG(BT_BES_TG_CLKNCNT2_ADDR),BTDIGITAL_REG(BT_BES_TG_FINECNT2_ADDR));
             break;
         }
         case 3:
         {
             BTDIGITAL_REG(BT_BES_TG_FINECNT3_ADDR) &= ~(1<<31);
-            DRIVERS_TRACE(1,"[%s] d18=0x%x, d1c=0x%x\n",__func__,
+            BT_DRV_TRACE(1,"[%s] d18=0x%x, d1c=0x%x\n",__func__,
                          BTDIGITAL_REG(BT_BES_TG_CLKNCNT3_ADDR),BTDIGITAL_REG(BT_BES_TG_FINECNT3_ADDR));
             break;
         }
@@ -2423,7 +2345,7 @@ void btdrv_reg_op_sw_trig_route_extra_set(uint8_t trig_route)
         BTDIGITAL_REG(BT_BES_SYNC_INTR_ADDR) |= (1<<31);
         BTDIGITAL_REG(BT_BES_TOG_CNTL_ADDR) &= ~(1<<9);
     }
-    DRIVERS_TRACE(1,"[%s] trig_route=%d d28=0x%x d70=0x%x\n",__func__,
+    BT_DRV_TRACE(1,"[%s] trig_route=%d d28=0x%x d70=0x%x\n",__func__,
                 trig_route,BTDIGITAL_REG(BT_BES_SYNC_INTR_ADDR),BTDIGITAL_REG(BT_BES_TOG_CNTL_ADDR));
 }
 
@@ -2432,7 +2354,7 @@ void btdrv_reg_op_sw_trig_route_extra_set(uint8_t trig_route)
 void btdrv_reg_op_syn_set_tg_ticks_master_role(void)
 {
     BT_DRV_REG_OP_CLK_ENB();
-    DRIVERS_TRACE(2,"primary c84:%x,c7c:%x\n",*(volatile uint32_t *)(BT_TWSBTCLKREG_ADDR),*(volatile uint32_t *)(BT_BES_CNTLX_ADDR));
+    BT_DRV_TRACE(2,"primary c84:%x,c7c:%x\n",*(volatile uint32_t *)(BT_TWSBTCLKREG_ADDR),*(volatile uint32_t *)(BT_BES_CNTLX_ADDR));
     BT_DRV_REG_OP_CLK_DIB();
 }
 
@@ -2444,7 +2366,7 @@ void btdrv_reg_op_syn_set_tg_ticks_slave_role(uint32_t num)
     BTDIGITAL_REG(BT_BES_CNTLX_ADDR) |= (1<<15);//rxbit sel en
     BTDIGITAL_REG(BT_BES_CNTLX_ADDR) = (BTDIGITAL_REG(BT_BES_CNTLX_ADDR) & 0xfffffffe) | (0x1);
     BTDIGITAL_REG(BT_BES_CNTL1_ADDR) |= (1<<7);
-    DRIVERS_TRACE(1,"secondary 0xc84:0x%x,c7c:0x%x,c08:0x%x\n",BTDIGITAL_REG(BT_TWSBTCLKREG_ADDR),BTDIGITAL_REG(BT_BES_CNTLX_ADDR),BTDIGITAL_REG(BT_BES_CNTL1_ADDR));
+    BT_DRV_TRACE(1,"secondary 0xc84:0x%x,c7c:0x%x,c08:0x%x\n",BTDIGITAL_REG(BT_TWSBTCLKREG_ADDR),BTDIGITAL_REG(BT_BES_CNTLX_ADDR),BTDIGITAL_REG(BT_BES_CNTL1_ADDR));
     BT_DRV_REG_OP_CLK_DIB();
 }
 
@@ -2486,7 +2408,7 @@ void btdrv_reg_op_enable_playback_triggler(uint8_t triggle_mode)
         BTDIGITAL_REG(BT_BES_CNTLX_ADDR) &= ~(1<<4|1<<3);
         BTDIGITAL_REG(BT_BES_CNTLX_ADDR) |= (1<<4);
     }
-    DRIVERS_TRACE(2,"[%s] c7c=%x",__func__,*(volatile uint32_t *)(BT_BES_CNTLX_ADDR));
+    BT_DRV_TRACE(2,"[%s] c7c=%x",__func__,*(volatile uint32_t *)(BT_BES_CNTLX_ADDR));
     BT_DRV_REG_OP_CLK_DIB();
 }
 
@@ -2502,7 +2424,7 @@ void btdrv_reg_op_disable_playback_triggler(void)
 {
     BT_DRV_REG_OP_CLK_ENB();
     BTDIGITAL_REG(BT_BES_CNTLX_ADDR) &= ~(1<<4|1<<3);
-    DRIVERS_TRACE(2,"[%s] c7c=%x\n",__func__,*(volatile uint32_t *)(BT_BES_CNTLX_ADDR));
+    BT_DRV_TRACE(2,"[%s] c7c=%x\n",__func__,*(volatile uint32_t *)(BT_BES_CNTLX_ADDR));
     BT_DRV_REG_OP_CLK_DIB();
 }
 
@@ -2519,7 +2441,7 @@ static uint16_t btdrv_Tbit_M_h_get(uint32_t Tclk_M, int16_t Tbit_M_h_ori)
 {
     uint16_t Tbit_M_h;
     Tbit_M_h = Tbit_M_h_ori;
-    DRIVERS_TRACE(1,"[%s]:%d\n",__func__,Tbit_M_h);
+    BT_DRV_TRACE(1,"[%s]:%d\n",__func__,Tbit_M_h);
     return Tbit_M_h;
 }
 
@@ -2534,7 +2456,7 @@ static uint16_t btdrv_Tbit_M_get(uint32_t Tclk_M, uint16_t Tbit_M_h)
     {
         Tbit_M = (uint16_t)ROUNDUP(Tbit_M_h/2);
     }
-    DRIVERS_TRACE(1,"[%s]:%d\n",__func__,Tbit_M);
+    BT_DRV_TRACE(1,"[%s]:%d\n",__func__,Tbit_M);
     return Tbit_M;
 }
 
@@ -2569,7 +2491,7 @@ int32_t btdrv_slotoff_get(uint16_t conhdl,int32_t clkoff)
             slotoff = (int32_t)ROUNDUP(clkoff/2);
         }
     }
-    DRIVERS_TRACE(1,"[%s]:%d\n",__func__,slotoff);
+    BT_DRV_TRACE(1,"[%s]:%d\n",__func__,slotoff);
     return slotoff;
 }
 
@@ -2578,12 +2500,12 @@ int16_t btdrv_bitoff_get(uint16_t rxbit_1us,int32_t clkoff)
     int16_t bitoff;
 
     bitoff = rxbit_1us - 68 - RF_DELAY;
-    DRIVERS_TRACE(1,"[%s] bitoff=%d\n",__func__,bitoff);
+    BT_DRV_TRACE(1,"[%s] bitoff=%d\n",__func__,bitoff);
     if((bitoff < 0) && (clkoff % 2))
     {
         bitoff += 624;
     }
-    DRIVERS_TRACE(1,"[%s]:%d\n",__func__,bitoff);
+    BT_DRV_TRACE(1,"[%s]:%d\n",__func__,bitoff);
     return bitoff;
 }
 
@@ -2600,7 +2522,7 @@ uint8_t btdrv_clk_adj_M_get(uint16_t Tbit_M,int16_t bitoff)
     {
         clk_adj_M = 0;
     }
-    DRIVERS_TRACE(1,"[%s]:%d\n",__func__,clk_adj_M);
+    BT_DRV_TRACE(1,"[%s]:%d\n",__func__,clk_adj_M);
     return clk_adj_M;
 }
 
@@ -2624,7 +2546,7 @@ static uint8_t btdrv_clk_adj_S_get(uint8_t clk_adj_M,uint16_t Tbit_M,int16_t bit
     {
         clk_adj_S = 0;
     }
-    DRIVERS_TRACE(1,"[%s]:%d\n",__func__,clk_adj_S);
+    BT_DRV_TRACE(1,"[%s]:%d\n",__func__,clk_adj_S);
     return clk_adj_S;
 }
 
@@ -2634,7 +2556,7 @@ static uint32_t btdrv_Tclk_S_get(uint32_t Tclk_M, uint8_t clk_adj_M,
     uint32_t Tclk_S;
     Tclk_S = Tclk_M - slotoff*2 + clk_adj_M + clk_adj_S;
     Tclk_S &= 0x0fffffff;
-    DRIVERS_TRACE(1,"[%s]:%d\n",__func__,Tclk_S);
+    BT_DRV_TRACE(1,"[%s]:%d\n",__func__,Tclk_S);
     return Tclk_S;
 }
 
@@ -2657,7 +2579,7 @@ static uint16_t btdrv_Tclk_S_h_get(uint8_t clk_adj_M,uint8_t clk_adj_S,
             Tclk_S_h = (624-(bitoff-Tbit_M)*2);
         }
     }
-    DRIVERS_TRACE(1,"[%s]:%d\n",__func__,Tclk_S_h);
+    BT_DRV_TRACE(1,"[%s]:%d\n",__func__,Tclk_S_h);
     return Tclk_S_h;
 }
 
@@ -2717,7 +2639,7 @@ static void btdrv_syn_set_tg_ticks(uint32_t num, uint8_t mode, uint16_t conhdl, 
     if (mode == BT_TRIG_MASTER_ROLE)
     {
 #ifdef __SW_TRIG__
-        DRIVERS_TRACE(1,"[%s] __SW_TRIG__ conhdl=0x%x num=%d trig_route=%d\n",__func__,conhdl,num,trig_route);
+        BT_DRV_TRACE(1,"[%s] __SW_TRIG__ conhdl=0x%x num=%d trig_route=%d\n",__func__,conhdl,num,trig_route);
         btdrv_sw_trig_master_set(num, Tbit_M_ori_flag, trig_route);
 #else
         btdrv_reg_op_syn_set_tg_ticks_master_role();
@@ -2726,7 +2648,7 @@ static void btdrv_syn_set_tg_ticks(uint32_t num, uint8_t mode, uint16_t conhdl, 
     else
     {
 #ifdef __SW_TRIG__
-        DRIVERS_TRACE(1,"[%s] __SW_TRIG__ conhdl=0x%x num=%d trig_route=%d\n",__func__,conhdl,num,trig_route);
+        BT_DRV_TRACE(1,"[%s] __SW_TRIG__ conhdl=0x%x num=%d trig_route=%d\n",__func__,conhdl,num,trig_route);
         btdrv_sw_trig_slave_calculate_and_set(conhdl, num, Tbit_M_ori_flag,trig_route);
 #else
         btdrv_reg_op_syn_set_tg_ticks_slave_role(num);
@@ -2748,7 +2670,7 @@ uint32_t bt_syn_get_curr_ticks(uint16_t conhdl)
         offset = bt_drv_reg_op_get_clkoffset(btdrv_conhdl_to_linkid(conhdl));
     else
         offset = 0;
-//    DRIVERS_TRACE(4,"[%s] curr(%d) + offset(%d) = %d", __func__, curr , offset,curr + offset);
+//    BT_DRV_TRACE(4,"[%s] curr(%d) + offset(%d) = %d", __func__, curr , offset,curr + offset);
     return (curr + offset) & 0x0fffffff;
 }
 // Ref: Master bt clk
@@ -2762,7 +2684,7 @@ void bt_syn_set_tg_ticks(uint32_t val,uint16_t conhdl, uint8_t mode, uint8_t tri
     {
         if(HCI_LINK_INDEX_INVALID == link_id)
         {
-            DRIVERS_TRACE(3,"%s,ERR INVALID CONHDL 0x%x!! ca=%p",__func__,conhdl, __builtin_return_address(0));
+            BT_DRV_TRACE(3,"%s,ERR INVALID CONHDL 0x%x!! ca=%p",__func__,conhdl, __builtin_return_address(0));
             return;
         }
     }
@@ -2781,7 +2703,7 @@ void bt_syn_set_tg_ticks(uint32_t val,uint16_t conhdl, uint8_t mode, uint8_t tri
 
     if ((mode == BT_TRIG_MASTER_ROLE) && (offset !=0))
     {
-        DRIVERS_TRACE(0,"ERROR OFFSET !!");
+        BT_DRV_TRACE(0,"ERROR OFFSET !!");
     }
 
 #if !defined(__SW_TRIG__)
@@ -2791,7 +2713,7 @@ void bt_syn_set_tg_ticks(uint32_t val,uint16_t conhdl, uint8_t mode, uint8_t tri
 #endif
 
     bt_syn_cancel_tg_ticks(trig_route);
-    DRIVERS_TRACE(4,"bt_syn_set_tg_ticks val:%d num:%d mode:%d conhdl:%02x", val, val - offset, mode, conhdl);
+    BT_DRV_TRACE(4,"bt_syn_set_tg_ticks val:%d num:%d mode:%d conhdl:%02x", val, val - offset, mode, conhdl);
     btdrv_syn_set_tg_ticks(val, mode, conhdl, trig_route);
     bt_syn_trig_checker(conhdl);
 
@@ -2822,7 +2744,7 @@ void bt_syn_ble_set_tg_ticks(uint32_t val,uint8_t trig_route)
 void btdrv_reg_op_open_pcm_fast_mode_enable(void)
 {
     BT_DRV_REG_OP_CLK_ENB();
-    DRIVERS_TRACE(0,"pcm fast mode %x,%x\n",BTDIGITAL_REG(BT_BES_PCMCNTL_ADDR),BTDIGITAL_REG(BT_PCMPHYSCNTL1_ADDR));
+    BT_DRV_TRACE(0,"pcm fast mode %x,%x\n",BTDIGITAL_REG(BT_BES_PCMCNTL_ADDR),BTDIGITAL_REG(BT_PCMPHYSCNTL1_ADDR));
     uint8_t esco_len;
     uint32_t val = 0xf00000cf;
     BTDIGITAL_REG_GET_FIELD(BT_E_SCOTRCNTL_ADDR,0x3FF,4,esco_len);
@@ -2830,7 +2752,7 @@ void btdrv_reg_op_open_pcm_fast_mode_enable(void)
     BTDIGITAL_REG_WR(BT_BES_PCMCNTL_ADDR,val);
     BTDIGITAL_REG_SET_FIELD(BT_PCMPHYSCNTL1_ADDR, 0x1FF, 0, 8);
     BTDIGITAL_REG_SET_FIELD(BT_PCMPHYSCNTL1_ADDR, 1, 31, 0);
-    DRIVERS_TRACE(0,"pcm fast mode config done %x,%x esco_len %d\n",BTDIGITAL_REG(BT_BES_PCMCNTL_ADDR),BTDIGITAL_REG(BT_PCMPHYSCNTL1_ADDR),esco_len);
+    BT_DRV_TRACE(0,"pcm fast mode config done %x,%x esco_len %d\n",BTDIGITAL_REG(BT_BES_PCMCNTL_ADDR),BTDIGITAL_REG(BT_PCMPHYSCNTL1_ADDR),esco_len);
     BT_DRV_REG_OP_CLK_DIB();
 }
 void btdrv_reg_op_open_pcm_fast_mode_disable(void)
@@ -2878,7 +2800,7 @@ void bt_drv_reg_op_ble_rx_gain_thr_tbl_set(void)
                             sizeof(btdrv_rxgain_ths_tbl_le));
         if (sRet)
         {
-            DRIVERS_TRACE(1, "%s line:%d sRet:%d", __func__, __LINE__, sRet);
+            TRACE(1, "%s line:%d sRet:%d", __func__, __LINE__, sRet);
         }
     }
 
@@ -2897,7 +2819,7 @@ void bt_drv_reg_op_ble_rx_gain_thr_tbl_2m_set(void)
                             sizeof(btdrv_rxgain_ths_tbl_le_2m));
         if (sRet)
         {
-            DRIVERS_TRACE(1, "%s line:%d sRet:%d", __func__, __LINE__, sRet);
+            TRACE(1, "%s line:%d sRet:%d", __func__, __LINE__, sRet);
         }
     }
 
@@ -2916,7 +2838,7 @@ void bt_drv_reg_op_ecc_rx_gain_thr_tbl_set(void)
                             sizeof(btdrv_rxgain_ths_tbl_ecc));
         if (sRet)
         {
-            DRIVERS_TRACE(1, "%s line:%d sRet:%d", __func__, __LINE__, sRet);
+            TRACE(1, "%s line:%d sRet:%d", __func__, __LINE__, sRet);
         }
     }
 
@@ -2943,7 +2865,7 @@ void btdrv_reg_op_bts_to_bt_time(uint32_t bts, uint32_t* p_hs, uint16_t* p_hus)
 
     uint32_t current_systick = hal_sys_timer_get();
 
-    if (__TICKS_TO_MS(current_systick - bt2bts_systick) > 15 * 60000)
+    if (TICKS_TO_MS(current_systick - bt2bts_systick) > 15 * 60000)
     {
         bt_time_recorded = false;
     }
@@ -3064,7 +2986,7 @@ uint32_t btdrv_reg_op_bt_time_to_bts(uint32_t hs, uint16_t hus)
 
     uint32_t current_systick = hal_sys_timer_get();
 
-    if (__TICKS_TO_MS(current_systick - systick) > 15 * 60000)
+    if (TICKS_TO_MS(current_systick - systick) > 15 * 60000)
     {
         bt_time_recorded = false;
     }
@@ -3194,7 +3116,7 @@ int32_t bt_drv_reg_op_get_clkoffset(uint16_t linkid)
     }
     else
     {
-        DRIVERS_TRACE(1,"BT_REG_OP:ERROR LINK ID FOR RD clkoff %x", linkid);
+        BT_DRV_TRACE(1,"BT_REG_OP:ERROR LINK ID FOR RD clkoff %x", linkid);
     }
 
     BT_DRV_REG_OP_CLK_DIB();
@@ -3207,30 +3129,24 @@ int32_t bt_drv_reg_op_get_clkoffset(uint16_t linkid)
 void btdrv_regop_dump_btpcm_reg(void)
 {
     BT_DRV_REG_OP_CLK_ENB();
-    DRIVERS_TRACE(2,"btpcm reg = %x,%x\n",BTDIGITAL_REG(BT_BES_PCMCNTL_ADDR),BTDIGITAL_REG(BT_PCMPHYSCNTL1_ADDR));
+    BT_DRV_TRACE(2,"btpcm reg = %x,%x\n",BTDIGITAL_REG(BT_BES_PCMCNTL_ADDR),BTDIGITAL_REG(BT_PCMPHYSCNTL1_ADDR));
     BT_DRV_REG_OP_CLK_DIB();
 }
 
 
 void btdrv_regop_host_set_txpwr(uint16_t acl_connhdl, uint8_t txpwr_idx)
 {
-    static uint8_t txpwr_buf[MAX_NB_ACTIVE_ACL] = {0, 0, 0, 0,};
-    uint8_t link_id = btdrv_conhdl_to_linkid(acl_connhdl);
-
-    if(HCI_LINK_INDEX_INVALID == link_id)
-    {
-        DRIVERS_TRACE(0,"set txpwr link_id is invalid");
-        return;
-    }
+    static uint8_t txpwr_buf[4] = {0, 0, 0, 0,};
 
     BT_DRV_REG_OP_ENTER();
     BT_DRV_REG_OP_CLK_ENB();
     if(txpwr_val_buf_addr)
     {
         uint8_t* p_txpwr_buf = (uint8_t*)txpwr_val_buf_addr;
+        uint8_t link_id = btdrv_conhdl_to_linkid(acl_connhdl);
 
         txpwr_buf[link_id] = txpwr_idx;
-        memcpy(p_txpwr_buf, txpwr_buf, MAX_NB_ACTIVE_ACL);
+        memcpy(p_txpwr_buf, txpwr_buf, 4);
     }
 
     btdrv_regop_set_txpwr_flg(1);
@@ -3292,7 +3208,7 @@ uint32_t btdrv_reg_op_cig_anchor_timestamp(uint8_t link_id)
         cig_timestamp = btdrv_reg_op_bt_time_to_bts(anchor_hs, anchor_hus);
     }
 
-    DRIVERS_TRACE(0,"BT_REG_OP:link %d,cis_cig_addr:0x%x,0x%x timestamp:%u\n",link_id, cis_addr, cig_addr, cig_timestamp);
+    BT_DRV_TRACE(0,"BT_REG_OP:link %d,cis_cig_addr:0x%x,0x%x timestamp:%u\n",link_id, cis_addr, cig_addr, cig_timestamp);
     return cig_timestamp;
 }
 
@@ -3337,13 +3253,13 @@ uint32_t btdrv_reg_op_big_anchor_timestamp(uint8_t link_id)
         big_timestamp = btdrv_reg_op_bt_time_to_bts(anchor_hs, anchor_hus);
     }
 
-    DRIVERS_TRACE(0,"BT_REG_OP:link %d,cis_cig_addr:0x%x,0x%x timestamp:%u\n",link_id, bis_addr, big_addr, big_timestamp);
+    BT_DRV_TRACE(0,"BT_REG_OP:link %d,cis_cig_addr:0x%x,0x%x timestamp:%u\n",link_id, bis_addr, big_addr, big_timestamp);
     return big_timestamp;
 }
 
 void bt_drv_reg_op_low_txpwr(uint8_t enable, uint8_t factor, uint8_t bt_or_ble, uint8_t link_id)
 {
-    DRIVERS_TRACE(3,"BT_REG_OP:low txpwr: %u %u ,link_id:%u", enable, bt_or_ble,link_id);
+    BT_DRV_TRACE(3,"BT_REG_OP:low txpwr: %u %u ,link_id:%u", enable, bt_or_ble,link_id);
 
     struct hci_dbg_set_txpwr_mode_cmd hci_param;
 
@@ -3449,8 +3365,8 @@ void bt_drv_reg_op_dump_rx_record(void)
     if(rx_record_addr)
     {
         struct ld_rx_status_record * rx_status_ptr = (struct ld_rx_status_record *)rx_record_addr;
-        POSSIBLY_UNUSED uint32_t current_clk = btdrv_reg_op_syn_get_curr_ticks();
-        DRIVERS_TRACE(2, "%s, Current CLK=0x%x",__func__, current_clk);
+        uint32_t current_clk = btdrv_reg_op_syn_get_curr_ticks();
+        BT_DRV_TRACE(2, "%s, Current CLK=0x%x",__func__, current_clk);
         for(uint8_t i=0; i < RX_RECORD_NUMBER; i++)
         {
             if (rx_status_ptr[i].link_id < MAX_NB_ACTIVE_ACL)
@@ -3463,7 +3379,7 @@ void bt_drv_reg_op_dump_rx_record(void)
                     refs_clk = CLK_SUB(refs_clk, 2*slot_nb);
                 }
 
-                DRIVERS_TRACE(9,"id=%d,clkn=0x%x,refs=0x%x,chanl=%d,snr=%d,gain=%d,sta=0x%0x,type=%x,fa=%d",
+                BT_DRV_TRACE(9,"id=%d,clkn=0x%x,refs=0x%x,chanl=%d,snr=%d,gain=%d,sta=0x%0x,type=%x,fa=%d",
                     rx_status_ptr[i].link_id,
                     rx_status_ptr[i].clock,
                     refs_clk,
@@ -3481,17 +3397,38 @@ void bt_drv_reg_op_dump_rx_record(void)
     BT_DRV_REG_OP_EXIT();
 }
 
-void btdrv_regop_set_btc_srand_seed_initial(void)
+void bt_drv_reg_op_config_tport_type(uint32_t tport_type, uint8_t iomux_type)
 {
     BT_DRV_REG_OP_ENTER();
     BT_DRV_REG_OP_CLK_ENB();
 
-    if(host_set_srand_seed_addr)
-    {
-        uint32_t seed = hal_sys_timer_get() * hal_fast_sys_timer_get();
-        *(uint32_t *)(host_set_srand_seed_addr) = seed;
-         DRIVERS_TRACE(2,"%s,%d", __func__,seed);
-    }
+    BTDIGITAL_REG(IP_DIAGCNTL_ADDR) = tport_type;
+
+    BT_DRV_TRACE(1,"%s:0x%x,iomux_type=%d", __func__, tport_type, iomux_type);
+
+    BT_DRV_REG_OP_CLK_DIB();
+    BT_DRV_REG_OP_EXIT();
+}
+
+void bt_drv_reg_op_read_register(uint32_t addr, uint32_t* reg_val)
+{
+    BT_DRV_REG_OP_ENTER();
+    BT_DRV_REG_OP_CLK_ENB();
+    uint32_t bt_addr = addr;
+    //TODO add address valid check
+    *reg_val = BTDIGITAL_REG(bt_addr);
+
+    BT_DRV_REG_OP_CLK_DIB();
+    BT_DRV_REG_OP_EXIT();
+}
+
+void bt_drv_reg_op_write_register(uint32_t addr, uint32_t reg_val)
+{
+    BT_DRV_REG_OP_ENTER();
+    BT_DRV_REG_OP_CLK_ENB();
+    uint32_t bt_addr = addr;
+    //TODO add address valid check
+    BTDIGITAL_REG(bt_addr) = reg_val ;
 
     BT_DRV_REG_OP_CLK_DIB();
     BT_DRV_REG_OP_EXIT();
@@ -3499,7 +3436,7 @@ void btdrv_regop_set_btc_srand_seed_initial(void)
 
 void bt_drv_reg_op_init(void)
 {
-    DRIVERS_TRACE(1,"%s", __func__);
+    BT_DRV_TRACE(1,"%s", __func__);
 
     bt_drv_reg_op_ble_rx_gain_thr_tbl_set();
 

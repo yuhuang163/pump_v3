@@ -66,10 +66,10 @@ static volatile unsigned int bt_rx_len = 0;
 static void uart_rx(uint32_t xfer_size, int dma_error, union HAL_UART_IRQ_T status)
 {
     if (dma_error) {
-        DRIVERS_TRACE(1,"uart_rx dma error: xfer_size=%d", xfer_size);
+        BT_DRV_TRACE(1,"uart_rx dma error: xfer_size=%d", xfer_size);
         uart_rx_len = 0;
     } else if (status.BE || status.FE || status.OE || status.PE) {
-        DRIVERS_TRACE(2,"uart_rx uart error: xfer_size=%d, status=0x%08x", xfer_size, status.reg);
+        BT_DRV_TRACE(2,"uart_rx uart error: xfer_size=%d, status=0x%08x", xfer_size, status.reg);
         uart_rx_len = 0;
     } else {
         uart_rx_len = xfer_size;
@@ -80,7 +80,7 @@ static void uart_rx(uint32_t xfer_size, int dma_error, union HAL_UART_IRQ_T stat
 static void uart_tx(uint32_t xfer_size, int dma_error)
 {
     if (dma_error) {
-        DRIVERS_TRACE(1,"uart_tx dma error: xfer_size=%d", xfer_size);
+        BT_DRV_TRACE(1,"uart_tx dma error: xfer_size=%d", xfer_size);
     }
     uart_tx_done = true;
 }
@@ -101,7 +101,7 @@ void vco_test_set_xtal_fcap_simu_bt_rx(void)
 
     nvrec_dev_get_xtal_fcap(&capval);
 
-    if ((capval > 511) || (capval < 0)) {
+    if ((capval > 511) && (capval < 0)) {
         capval = 0xFFFF;
     }
 
@@ -148,7 +148,7 @@ static void bt_bridge_mode_rx_callback(const unsigned char *data, unsigned int l
     if(len > 5 && data[0] == 0x04 && data[1] == 0xff &&
         data[3] == 0x01)
     {
-        DRIVERS_TRACE(2,"%s", &data[5]);
+        BT_DRV_TRACE(2,"%s", &data[5]);
     }
 
     if(le_test_cmd_complete_callback != NULL)
@@ -175,14 +175,14 @@ static unsigned int bt_rx(const unsigned char *data, unsigned int len)
 
     hal_intersys_stop_recv(br_intersys);
     if (bt_rx_len + processed > BT_UART_BRIDGE_BUF_LEN) {
-        DRIVERS_TRACE(3,"bt_rx data too long: bt_rx_len=%d, len=%d, limit=%d", bt_rx_len, processed, sizeof(bt_rx_data_p));
+        BT_DRV_TRACE(3,"bt_rx data too long: bt_rx_len=%d, len=%d, limit=%d", bt_rx_len, processed, sizeof(bt_rx_data_p));
         processed = BT_UART_BRIDGE_BUF_LEN-bt_rx_len;
     }
     if (processed > 0) {
         memcpy(bt_rx_data_p + bt_rx_len, data, processed);
 
-        DRIVERS_TRACE(0,"[RX]:");
-        DRIVERS_DUMP8("%02x ",bt_rx_data_p + bt_rx_len,processed);
+        BT_DRV_TRACE(0,"[RX]:");
+        DUMP8("%02x ",bt_rx_data_p + bt_rx_len,processed);
         bt_bridge_mode_rx_callback(data, len);
         bt_rx_len += processed;
         bt_rx_done = true;
@@ -201,7 +201,7 @@ static void bt_tx(const unsigned char *data, unsigned int len)
 
 void btdrv_bridge_send_data(const uint8_t *buff,uint8_t len)
 {
-    DRIVERS_TRACE(1,"%s", __func__ );
+    BT_DRV_TRACE(1,"%s", __func__ );
     BT_DRV_DUMP("%02x ", buff, len);
     hal_intersys_send(br_intersys, HAL_INTERSYS_MSG_HCI, buff, len);
 }
@@ -228,7 +228,7 @@ void btdrv_uart_bridge_loop(void)
 
     ret = hal_uart_open(br_uart, &uart_cfg);
     if (ret) {
-        DRIVERS_TRACE(0,"Failed to open uart");
+        BT_DRV_TRACE(0,"Failed to open uart");
         return;
     }
 
@@ -243,18 +243,18 @@ void btdrv_uart_bridge_loop(void)
 
     ret = hal_intersys_open(br_intersys, HAL_INTERSYS_MSG_HCI, bt_rx, bt_tx, false);
     if (ret) {
-        DRIVERS_TRACE(0,"Failed to open intersys");
+        BT_DRV_TRACE(0,"Failed to open intersys");
         return;
     }
     hal_intersys_start_recv(br_intersys);
-    DRIVERS_TRACE(0,"Enter bridge mode");
+    BT_DRV_TRACE(0,"Enter bridge mode");
 
     while (1) {
         if (uart_rx_done) {
             uart_rx_done = false;
             if (uart_rx_len > 0) {
-                DRIVERS_TRACE(0,"[TX]:");
-                DRIVERS_DUMP8("%02x ",uart_rx_data_p,uart_rx_len);
+                BT_DRV_TRACE(0,"[TX]:");
+                DUMP8("%02x ",uart_rx_data_p,uart_rx_len);
 
 #ifdef VCO_TEST_TOOL
                 if(btdrv_vco_test_bridge_intsys_callback(uart_rx_data_p))

@@ -20,9 +20,11 @@
 extern "C" {
 #endif
 
+#include "hal_cmu.h"
 #include "stdint.h"
 #include "stdbool.h"
 
+#ifndef HAL_MEMSC_ID_T
 enum HAL_MEMSC_ID_T {
     HAL_MEMSC_ID_0,
     HAL_MEMSC_ID_1,
@@ -31,13 +33,12 @@ enum HAL_MEMSC_ID_T {
 
     HAL_MEMSC_ID_QTY
 };
-
-#define HAL_MEMSC_ID_TRACE              HAL_MEMSC_ID_0
-#define HAL_MEMSC_ID_TRNG               HAL_MEMSC_ID_1
-#if defined(__NuttX__)
-#define HAL_MEMSC_ID_SPINLOCK           HAL_MEMSC_ID_2
 #endif
 
+#define HAL_MEMSC_ID_TRACE              HAL_MEMSC_ID_0
+#define HAL_MEMSC_ID_SPINLOCK           HAL_MEMSC_ID_1
+
+#ifndef HAL_MEMSC_AON_ID_T
 enum HAL_MEMSC_AON_ID_T {
     HAL_MEMSC_AON_ID_0,
     HAL_MEMSC_AON_ID_1,
@@ -46,6 +47,7 @@ enum HAL_MEMSC_AON_ID_T {
 
     HAL_MEMSC_AON_ID_QTY
 };
+#endif
 
 int hal_memsc_lock(enum HAL_MEMSC_ID_T id);
 

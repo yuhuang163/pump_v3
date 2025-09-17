@@ -213,10 +213,6 @@ struct obex_get_param_t {
     const char* object_type;
     const uint8_t *app_parameters;
     uint16_t app_parameters_length;
-    const char *img_handle;
-    uint8_t img_handle_length;
-    const uint8_t *img_descriptor;
-    uint16_t img_descriptor_length;
 };
 
 struct obex_put_param_t {

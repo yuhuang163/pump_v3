@@ -46,6 +46,8 @@ int rmt_trace_server_dump_register(RMT_TRC_SERVER_DUMP_CB cb);
 
 int rmt_trace_server_dump_deregister(RMT_TRC_SERVER_DUMP_CB cb);
 
+void rmt_trace_server_show_ctrl(const struct RMT_TRC_SERVER_CFG_T *cfg);
+
 #ifdef __cplusplus
 }
 #endif

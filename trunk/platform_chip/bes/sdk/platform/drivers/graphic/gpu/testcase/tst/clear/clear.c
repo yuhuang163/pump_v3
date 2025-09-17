@@ -17,6 +17,19 @@
 #include "gpu_common.h"
 
 //#define SIM_GPU
+
+
+#ifdef SIM_GPU
+
+#define GPU_REP(...)   //TR_INFO( TR_MOD(TEST), "//" __VA_ARGS__)
+#define GPU_ERR(...)   //TR_ERROR( TR_MOD(TEST), "//" __VA_ARGS__)
+#define TRACE(...)
+#else
+#define GPU_REP(...)   TR_INFO( TR_MOD(TEST), "//" __VA_ARGS__)
+#define GPU_ERR(...)   TR_ERROR( TR_MOD(TEST), "//" __VA_ARGS__)
+#endif
+
+
 #define DEFAULT_SIZE   454.0f;
 //#define DEFAULT_SIZE   256.0f;
 
@@ -260,7 +273,7 @@ int clear_test_main_entry(int argc, const char * argv[])
     vg_lite_error_t error = VG_LITE_SUCCESS;
 
     TC_INIT
-    DRIVERS_TRACE(0,"%s", __func__);
+    GPU_REP("%s", __func__);
     // Initialize the blitter.
     CHECK_ERROR(vg_lite_init(fb_width, fb_height));
 
@@ -276,7 +289,7 @@ int clear_test_main_entry(int argc, const char * argv[])
 
     // Clear the buffer with blue.
     CHECK_ERROR(vg_lite_clear(fb, NULL, 0xFFFF0000));
-    DRIVERS_TRACE(0,"%s %d fb: %p", __func__, __LINE__, fb->memory);
+    GPU_REP("%s %d fb: %p", __func__, __LINE__, fb->memory);
 
     // Clear a sub-rectangle of the buffer with red.
     CHECK_ERROR(vg_lite_clear(fb, &rect, 0xFF0000FF));
@@ -299,7 +312,7 @@ int clear_test_main_entry(int argc, const char * argv[])
 ErrorHandler:
     // Cleanup.
     cleanup();
-    DRIVERS_TRACE(0,"%s test pass", __func__);
+    GPU_REP("%s test pass", __func__);
 
     return 0;
 }

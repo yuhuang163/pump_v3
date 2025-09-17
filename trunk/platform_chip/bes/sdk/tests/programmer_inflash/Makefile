@@ -6,17 +6,10 @@ obj_cpp += $(patsubst $(cur_dir)%,%,$(wildcard $(cur_dir)*.cpp))
 
 obj_s += ../../platform/main/startup_main.S
 
-GEN_LIB_NAME := libprogrammer_inflash
+PROGRAMMER_INFLASH_LIB_NAME := libprogrammer_inflash
+$(PROGRAMMER_INFLASH_LIB_NAME)-y := $(obj_c:.c=.o) $(obj_cpp:.cpp=.o)
 
-ifeq ($(SECURE_BOOT),1)
-GEN_LIB_NAME := $(GEN_LIB_NAME)_scboot
-endif
-
-root_dir := $(abspath $(dir $(realpath $(firstword $(MAKEFILE_LIST))))/..)
-sinclude $(root_dir)/config/lib.mk
-$(GEN_LIB_NAME)-y := $(obj_c:.c=.o) $(obj_cpp:.cpp=.o)
-
-obj-y += $(obj_s:.S=.o) $(GEN_LIB_NAME).a
+obj-y += $(obj_s:.S=.o) $(PROGRAMMER_INFLASH_LIB_NAME).a
 
 BOOT_LOADER_PRE_INIT_HOOK := 1
 NO_NVIC_INIT := 1
@@ -45,9 +38,26 @@ endif
 ccflags-y := \
 	-Iutils/boot_struct
 
+CFLAGS_programmer_inflash_main.o += -DOTA_CODE_OFFSET=$(OTA_CODE_OFFSET)
+
+CFLAGS_programmer_inflash_main.o += -DDOWNLOAD_UART_BAUD_RATE=$(DOWNLOAD_UART_BAUD_RATE)
+
+ifneq ($(DEBUG_PORT),)
+CFLAGS_programmer_inflash_main.o += -DDEBUG_PORT=$(DEBUG_PORT)
+endif
 ifeq ($(SINGLE_WIRE_DOWNLOAD),1)
 CFLAGS_programmer_inflash_main.o += -DSINGLE_WIRE_DOWNLOAD
 endif
 ifeq ($(UNCONDITIONAL_ENTER_SINGLE_WIRE_DOWNLOAD),1)
 CFLAGS_programmer_inflash_main.o += -DUNCONDITIONAL_ENTER_SINGLE_WIRE_DOWNLOAD
+endif
+ifeq ($(OTA_BOOT_TO_DUAL_CHIP),1)
+CFLAGS_programmer_inflash_main.o += -DOTA_BOOT_TO_DUAL_CHIP
+endif
+ifeq ($(NO_DOWNLOAD_FEATURE),1)
+CFLAGS_programmer_inflash_main.o += -DNO_DOWNLOAD_FEATURE
+endif
+
+ifeq ($(USER_SECURE_BOOT),1)
+ccflags-y += -Iutils/user_secure_boot
 endif

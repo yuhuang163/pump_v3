@@ -37,7 +37,7 @@ extern "C" {
 #define A2DP_SCALABLE_SR_96000                    0x80
 #define A2DP_SCALABLE_SR_32000                    0x40
 #define A2DP_SCALABLE_SR_44100                    0x20
-#define A2DP_SCALABLE_SR_48000                    0x14
+#define A2DP_SCALABLE_SR_48000                    0x10
 #define A2DP_SCALABLE_SR_DATA(X)                  (X & (A2DP_SCALABLE_SR_96000 | A2DP_SCALABLE_SR_32000 | A2DP_SCALABLE_SR_44100 | A2DP_SCALABLE_SR_48000))
 
 //To indicate bits per sample.

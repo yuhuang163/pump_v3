@@ -31,7 +31,11 @@
 #define CP_IN_CACHE_SIZE                (1024 * 10)
 #endif
 
+#if defined(A2DP_LHDC_V3)
 #define CP_HEAP_MIN_SIZE                (1024 * 64)
+#else
+#define CP_HEAP_MIN_SIZE                (1024 * 32)
+#endif
 
 #define CP_SYS_HEAP_MIN_SIZE            (1024)
 
@@ -54,11 +58,11 @@ struct CP_OUT_FRAME_INFO_T {
     uint32_t pos;
     uint32_t len;
 };
-#if !defined(UNIFY_HEAP_ENABLED)
+
 static SRAM_BSS_LOC heap_handle_t cp_heap;
 static SRAM_BSS_LOC heap_handle_t cp_sys_heap;
 static SRAM_BSS_LOC uint8_t cp_heap_warn_cnt;
-#endif
+
 static CP_BSS_LOC uint16_t cp_in_widx;
 static CP_BSS_LOC uint16_t cp_in_ridx;
 
@@ -83,7 +87,7 @@ static A2DP_CP_DECODE_T decode_frame;
 static enum CP_PROC_DELAY_T proc_delay;
 
 static bool cp_need_reset;
-#if !defined(UNIFY_HEAP_ENABLED)
+
 void a2dp_cp_heap_init(void)
 {
     uint8_t *heap_addr;
@@ -112,18 +116,23 @@ void a2dp_cp_heap_init(void)
         if (sys_heap_addr) {
             cp_sys_heap = heap_register(sys_heap_addr, sys_heap_size);
             ASSERT(cp_sys_heap, "%s: Failed to register CP sys heap: ptr=%p size=%u", __func__, sys_heap_addr, sys_heap_size);
+        } if (heap_size == 0) {
+            ASSERT(false, "%s: Failed to alloc mem for CP in sys pool: %u", __func__, sys_heap_size);
         } else {
             TR_WARN(0, " ");
             TR_WARN(0, "*** WARNING:%s: Failed to alloc mem for CP in sys pool: %u", __func__, sys_heap_size);
             TR_WARN(0, " ");
         }
     }
-    cp_pool_get_buff(&heap_addr, heap_size);
-    ASSERT(heap_addr, "%s: Failed to get buffer from CP pool: size=%u", __func__, heap_size);
 
-    if (heap_addr) {
-        cp_heap = heap_register(heap_addr, heap_size);
-        ASSERT(cp_heap, "%s: Failed to register CP heap: ptr=%p size=%u", __func__, heap_addr, heap_size);
+    if (heap_size) {
+        cp_pool_get_buff(&heap_addr, heap_size);
+        ASSERT(heap_addr, "%s: Failed to get buffer from CP pool: size=%u", __func__, heap_size);
+
+        if (heap_addr) {
+            cp_heap = heap_register(heap_addr, heap_size);
+            ASSERT(cp_heap, "%s: Failed to register CP heap: ptr=%p size=%u", __func__, heap_addr, heap_size);
+        }
     }
 
     cp_heap_warn_cnt = 0;
@@ -146,14 +155,16 @@ void *a2dp_cp_heap_malloc(uint32_t size)
     void *ptr = NULL;
 
 #ifdef A2DP_CP_HEAP_DEBUG
-    AUDIOPLAYERS_TRACE(0, "[%s] ptr=%p size=%u user=%p", __func__, ptr, size, __builtin_return_address(0));
+    TRACE(0, "[%s] ptr=%p size=%u user=%p", __func__, ptr, size, __builtin_return_address(0));
 #endif
 
     if (cp_heap) {
         ptr = heap_malloc(cp_heap, size);
     }
     if (ptr == NULL) {
-        a2dp_cp_heap_full_warning(__func__, size);
+        if (cp_heap) {
+            a2dp_cp_heap_full_warning(__func__, size);
+        }
         ptr = heap_malloc(cp_sys_heap, size);
         ASSERT(ptr, "%s: Failed to alloc mem in cp_sys_heap: %u", __func__, size);
     }
@@ -166,17 +177,9 @@ void *a2dp_cp_heap_cmalloc(uint32_t size)
     void *ptr = NULL;
 
 #ifdef A2DP_CP_HEAP_DEBUG
-    AUDIOPLAYERS_TRACE(0, "[%s] ptr=%p size=%u user=%p", __func__, ptr, size, __builtin_return_address(0));
+    TRACE(0, "[%s] ptr=%p size=%u user=%p", __func__, ptr, size, __builtin_return_address(0));
 #endif
-
-    if (cp_heap) {
-        ptr = heap_malloc(cp_heap, size);
-    }
-    if (ptr == NULL) {
-        a2dp_cp_heap_full_warning(__func__, size);
-        ptr = heap_malloc(cp_sys_heap, size);
-        ASSERT(ptr, "%s: Failed to alloc mem in cp_sys_heap: %u", __func__, size);
-    }
+    ptr = a2dp_cp_heap_malloc(size);
     memset(ptr, 0, size);
     return ptr;
 }
@@ -187,13 +190,18 @@ void *a2dp_cp_heap_realloc(void *rmem, uint32_t newsize)
     void *ptr = NULL;
 
 #ifdef A2DP_CP_HEAP_DEBUG
-    AUDIOPLAYERS_TRACE(0, "[%s] ptr=%p/%p size=%u user=%p", __func__, rmem, ptr, newsize, __builtin_return_address(0));
+    TRACE(0, "[%s] ptr=%p/%p size=%u user=%p", __func__, rmem, ptr, newsize, __builtin_return_address(0));
 #endif
 
     if (heap_ptr_in_heap(cp_heap, rmem)) {
         ptr = heap_realloc(cp_heap, rmem, newsize);
+        if (ptr == NULL) {
+            a2dp_cp_heap_full_warning(__func__, newsize);
+            heap_free(cp_heap, rmem);
+            ptr = heap_malloc(cp_sys_heap, newsize);
+            ASSERT(ptr, "%s: Failed to alloc mem in cp_sys_heap: %u", __func__, newsize);
+        }
     } else {
-        a2dp_cp_heap_full_warning(__func__, newsize);
         ptr = heap_realloc(cp_sys_heap, rmem, newsize);
         ASSERT(ptr, "%s: Failed to realloc mem in cp_sys_heap: %u", __func__, newsize);
     }
@@ -204,7 +212,7 @@ SRAM_TEXT_LOC
 void a2dp_cp_heap_free(void *rmem)
 {
 #ifdef A2DP_CP_HEAP_DEBUG
-    AUDIOPLAYERS_TRACE(0, "[%s] ptr=%p user=%p", __func__, rmem, __builtin_return_address(0));
+    TRACE(0, "[%s] ptr=%p user=%p", __func__, rmem, __builtin_return_address(0));
 #endif
     if (heap_ptr_in_heap(cp_heap, rmem)) {
         heap_free(cp_heap, rmem);
@@ -212,7 +220,7 @@ void a2dp_cp_heap_free(void *rmem)
         heap_free(cp_sys_heap, rmem);
     }
 }
-#endif
+
 CP_TEXT_SRAM_LOC
 unsigned int set_cp_reset_flag(uint8_t evt)
 {
@@ -285,7 +293,7 @@ static unsigned int cp_a2dp_main(uint8_t event)
 
 #ifdef A2DP_TRACE_CP_DEC_TIME
             etime = hal_fast_sys_timer_get();
-            AUDIOPLAYERS_TRACE(0,"cp_decode: %5u us in %5u us", FAST_TICKS_TO_US(etime - stime), FAST_TICKS_TO_US(etime - cp_last_dec_time));
+            TRACE_A2DP_DECODER_I("cp_decode: %5u us in %5u us", FAST_TICKS_TO_US(etime - stime), FAST_TICKS_TO_US(etime - cp_last_dec_time));
             cp_last_dec_time = etime;
 #endif
         } while (ret == 0);
@@ -294,7 +302,7 @@ static unsigned int cp_a2dp_main(uint8_t event)
     if (reset_frames) {
         reset_frame_info();
 #ifdef A2DP_TRACE_CP_ACCEL
-        AUDIOPLAYERS_TRACE(0,"%s: Reset frames", __func__);
+        TRACE_A2DP_DECODER_I("%s: Reset frames", __func__);
 #endif
     }
 
@@ -321,7 +329,7 @@ int a2dp_cp_init(A2DP_CP_DECODE_T decode_func, enum CP_PROC_DELAY_T delay)
     cp_last_dec_time = hal_fast_sys_timer_get();
 #endif
 
-    norflash_api_flush_disable(NORFLASH_API_USER_CP,(uint32_t)cp_accel_init_done, false);
+    norflash_api_flush_disable(NORFLASH_API_USER_CP,(uint32_t)cp_accel_init_done);
     cp_accel_open(CP_TASK_A2DP_DECODE, &task_desc_a2dp);
     while(cp_accel_init_done() == false) {
         hal_sys_timer_delay_us(100);
@@ -336,9 +344,7 @@ int a2dp_cp_deinit(void)
 
     return 0;
 }
-#if defined(UNIFY_HEAP_ENABLED)
-extern void *a2dp_audio_heap_malloc(uint32_t size);
-#endif
+
 SRAM_TEXT_LOC
 int a2dp_cp_decoder_init(uint32_t out_frame_len, uint8_t max_frames)
 {
@@ -346,42 +352,29 @@ int a2dp_cp_decoder_init(uint32_t out_frame_len, uint8_t max_frames)
     max_buffer_frames = max_frames;
     if (!mcu_dec_inited) {
 #ifdef A2DP_TRACE_CP_ACCEL
-        AUDIOPLAYERS_TRACE(0,"%s: Decoder init", __func__);
+        TRACE_A2DP_DECODER_I("%s: Decoder init", __func__);
 #endif
         if(cp_accel_init_done() == false){
-            AUDIOPLAYERS_TRACE(0,"%s: CP ACCEL not init yet", __func__);
+            TRACE_A2DP_DECODER_I("%s: CP ACCEL not init yet", __func__);
             return 6;
         }
-#if defined(UNIFY_HEAP_ENABLED)
-        in_frames = a2dp_audio_heap_malloc(sizeof(in_frames[0]) * CP_IN_FRAME_CNT);
-#else
+
         in_frames = a2dp_cp_heap_malloc(sizeof(in_frames[0]) * CP_IN_FRAME_CNT);
-#endif
         if (in_frames == NULL) {
             return 2;
         }
-#if defined(UNIFY_HEAP_ENABLED)
-        out_frames = a2dp_audio_heap_malloc(sizeof(out_frames[0]) * CP_OUT_FRAME_CNT);
-#else
+
         out_frames = a2dp_cp_heap_malloc(sizeof(out_frames[0]) * CP_OUT_FRAME_CNT);
-#endif
         if (out_frames == NULL) {
             return 3;
         }
-#if defined(UNIFY_HEAP_ENABLED)
-        cp_in_cache = a2dp_audio_heap_malloc(CP_IN_CACHE_SIZE);
-#else
-        cp_in_cache = a2dp_cp_heap_malloc(CP_IN_CACHE_SIZE);
-#endif
 
+        cp_in_cache = a2dp_cp_heap_malloc(CP_IN_CACHE_SIZE);
         if (cp_in_cache == NULL) {
             return 4;
         }
-#if defined(UNIFY_HEAP_ENABLED)
-        cp_out_cache = a2dp_audio_heap_malloc(out_frame_len * CP_OUT_FRAME_CNT);
-#else
+
         cp_out_cache = a2dp_cp_heap_malloc(out_frame_len * CP_OUT_FRAME_CNT);
-#endif
         if (cp_out_cache == NULL) {
             return 5;
         }
@@ -605,7 +598,7 @@ SRAM_TEXT_LOC
 void a2dp_cp_reset_frame(void)
 {
 #ifdef A2DP_TRACE_CP_ACCEL
-    AUDIOPLAYERS_TRACE(0,"%s: Reset frames", __func__);
+    TRACE_A2DP_DECODER_I("%s: Reset frames", __func__);
 #endif
 
     reset_frames = true;
@@ -676,7 +669,7 @@ int a2dp_cp_consume_emtpy_out_frame(void)
     out_frames[out_widx].state = CP_DEC_STATE_DONE;
 
 #ifdef A2DP_TRACE_CP_ACCEL
-    AUDIOPLAYERS_TRACE(0,"AD2P-CP out frame W[%d]", out_widx);
+    TRACE_A2DP_DECODER_I("AD2P-CP out frame W[%d]", out_widx);
 #endif
 
     out_widx += 1;
@@ -751,7 +744,7 @@ int a2dp_cp_consume_full_out_frame(void)
     }
 
 #ifdef A2DP_TRACE_CP_ACCEL
-    AUDIOPLAYERS_TRACE(0,"AD2P-CP out frame R[%d]", out_ridx);
+    TRACE_A2DP_DECODER_I("AD2P-CP out frame R[%d]", out_ridx);
 #endif
 
     out_frames[out_ridx].state = CP_DEC_STATE_IDLE;

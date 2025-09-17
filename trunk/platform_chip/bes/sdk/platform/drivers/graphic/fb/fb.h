@@ -23,57 +23,22 @@
  ****************************************************************************/
 
 #include "stdint.h"
+#include "stdbool.h"
 #include "string.h"
 #include "graphic_conf.h"
-#include "hal_trace.h"
-#include "hal_timer.h"
-
-
-#ifdef GRAPHICDRV_TIME_STATIS
-
-#define _TEST_REP(...)  TR_INFO( TR_MOD(TEST), "//" __VA_ARGS__)
-
-#define TC_INIT  volatile uint32_t time_s; \
-                 volatile uint32_t time_e;
-#define TC_START time_s = hal_sys_timer_get();
-#define TC_END   time_e = hal_sys_timer_get();
-
-#define _TSTR(s) #s
-
-#define TC_REP(s) do{ \
-                      _TEST_REP(_TSTR(s)":%d us", TICKS_TO_US(time_e - time_s)); \
-                    }while(0)
-
-#else
-
-#define TC_INIT
-#define TC_START
-#define TC_END
-#define TC_REP(s)
-
-#endif
+#include "graphic_tc.h"
 
 #define _FBIOC(x)   (x)
 #define FAR
 
 enum Status {
+    ERROR = -1,
     OK = 0,
     ECANCELED = 1,
     ENOTTY = 2,
     EINVAL = 3,
     ENOSYS = 4,
 };
-
-typedef int16_t lv_coord_t;
-typedef uint8_t lv_opa_t;
-
-/** Represents an area of the screen. */
-typedef struct {
-    lv_coord_t x1;
-    lv_coord_t y1;
-    lv_coord_t x2;
-    lv_coord_t y2;
-} lv_area_t;
 
 #define LV_MATH_UDIV255(x) ((uint32_t)((uint32_t) (x) * 0x8081) >> 0x17)
 #define LV_MATH_ABS(x) ((x) > 0 ? (x) : (-(x)))
@@ -350,6 +315,13 @@ typedef struct {
 /**
  * Public Types
  */
+typedef enum {
+    PANNEL_ENTER_IDLE,
+    PANNEL_EXIT_IDLE,
+    PANNEL_ENTER_DEEPSLEEP,
+    PANNEL_EXIT_DEEPSLEEP,
+    PANNEL_READSTATUS,
+}PANNEL_IOCTL_CMD;
 
 /**
  * If any dimension of the display exceeds 65,536 pixels, then the following
@@ -745,6 +717,23 @@ struct fb_vtable_s {
     int (*blend) (FAR struct fb_vtable_s * vtable, FAR const struct fb_overlayblend_s * blend);
 #endif
 #endif
+/* Specific Controls ******************************************************/
+
+/* Set the frequency of the framebuffer update panel (0: disable refresh) */
+
+int (*setframerate)(FAR struct fb_vtable_s *vtable, int rate);
+
+/* Get the frequency of the framebuffer update panel (0: disable refresh) */
+
+int (*getframerate)(FAR struct fb_vtable_s *vtable);
+
+/* Get the panel power status (0: full off). */
+
+int (*getpower)(FAR struct fb_vtable_s *vtable);
+
+/* Enable/disable panel power (0: full off). */
+
+int (*setpower)(FAR struct fb_vtable_s *vtable, int power);
 };
 
 /**
@@ -928,6 +917,8 @@ struct lcd_dev_s
   /* Get LCD panel frame rate (0: disable refresh) */
 
   int (*getframerate)(struct lcd_dev_s *dev);
+
+  int (*pannel_ioctl)(struct lcd_dev_s *dev, PANNEL_IOCTL_CMD cmd);
 };
 
 /**
@@ -1001,6 +992,33 @@ extern "C" {
  ****************************************************************************/
 
     int fb_register(int display, int plane);
+
+/**
+ * fb_open - Initialize the default framebuffer character device.
+ * Returns: the framebuffer device fd number;
+ *
+ */
+    int fb_open(void);
+
+/**
+ * fb_close - Uninitialize the default framebuffer character device.
+ *
+ */
+    void fb_close(int display);
+
+/**
+ * get_fb_base - Get the fb buffer base address.
+ *
+ */
+    uint32_t get_fb_base(void);
+
+/**
+ * fb_lcdc_vmirro_enable - enable lcdc vmirro mode.
+ *
+ */
+   int fb_lcdc_vmirro_enable(bool vmirro);
+
+   void fb_pollnotify(FAR struct fb_vtable_s *vtable);
 
 #ifdef __cplusplus
 }

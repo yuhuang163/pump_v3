@@ -25,9 +25,9 @@ typedef enum
 {
     APP_SPP_CONNECTION_STATE_DISCONNECTED = 0,
     APP_SPP_CONNECTION_STATE_CONNECTED,
-} bta_spp_connection_state_t;
+} bt_spp_connection_state_t;
 
-typedef void (*app_spp_server_connection_state_callback)(bta_spp_connection_state_t state);
+typedef void (*app_spp_server_connection_state_callback)(bt_spp_connection_state_t state);
 typedef void (*app_spp_server_receive_data_callback)(uint8_t *data, uint16_t data_len);
 typedef void (*app_spp_server_tx_done_callback)(void);
 

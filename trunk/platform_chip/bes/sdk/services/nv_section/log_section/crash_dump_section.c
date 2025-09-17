@@ -44,6 +44,7 @@ static uint32_t crash_dump_type;
 HAL_TRACE_APP_NOTIFY_T crash_dump_notify_cb = NULL;
 HAL_TRACE_APP_OUTPUT_T crash_dump_output_cb = NULL;
 HAL_TRACE_APP_OUTPUT_T crash_dump_fault_cb = NULL;
+
 static enum NORFLASH_API_RET_T _flash_api_read(uint32_t addr, uint8_t* buffer, uint32_t len)
 {
     return norflash_api_read(NORFLASH_API_MODULE_ID_CRASH_DUMP,
@@ -51,7 +52,6 @@ static enum NORFLASH_API_RET_T _flash_api_read(uint32_t addr, uint8_t* buffer, u
                 buffer,
                 len);
 }
-
 
 static int32_t _crash_dump_get_seqnum(uint32_t * dump_seqnum, uint32_t *sector_seqnum)
 {
@@ -89,6 +89,7 @@ static int32_t _crash_dump_get_seqnum(uint32_t * dump_seqnum, uint32_t *sector_s
             ASSERT(0,"_crash_dump_get_seqnum: _flash_api_read failed!result = %d.",result);
         }
     }
+
     if(is_existed)
     {
         *dump_seqnum = max_dump_seqnum + 1;
@@ -101,8 +102,10 @@ static int32_t _crash_dump_get_seqnum(uint32_t * dump_seqnum, uint32_t *sector_s
     }
     return 0;
 }
+
 static void _crash_dump_notify(enum HAL_TRACE_STATE_T state)
 {
+    // uint32_t lock;
     CRASH_DATA_BUFFER *data_buff;
 
     if(!crash_dump_is_init)
@@ -117,17 +120,19 @@ static void _crash_dump_notify(enum HAL_TRACE_STATE_T state)
     {
         crash_dump_type = CRASH_DUMP_EXCEPTION_CODE;
     }
-    NV_SECTION_TRACE(2,"__CRASH_DUMP:%s: state = %d.",__func__,state);
-    NV_SECTION_TRACE(3,"__CRASH_DUMP:%s: start_addr = 0x%x,end_addr = 0x%x.",
+    CRASH_DUMP_TRACE(2,"__CRASH_DUMP:%s: state = %d.",__func__,state);
+    CRASH_DUMP_TRACE(3,"__CRASH_DUMP:%s: start_addr = 0x%x,end_addr = 0x%x.",
                 __func__,crash_dump_flash_start_addr,crash_dump_flash_end_addr);
-    NV_SECTION_TRACE(3,"__CRASH_DUMP:%s: dump_seqnum = 0x%x,flash_offset = 0x%x.",
+    CRASH_DUMP_TRACE(3,"__CRASH_DUMP:%s: dump_seqnum = 0x%x,flash_offset = 0x%x.",
                 __func__,crash_dump_cur_dump_seqnum,crash_dump_flash_offs);
 
     if(HAL_TRACE_STATE_CRASH_END == state)
     {
+        //lock = int_lock_global();
         data_buff = &crash_data_buffer;
         crash_dump_write(crash_dump_flash_start_addr + crash_dump_flash_offs,
                                  data_buff->buffer,data_buff->offset);
+        //int_unlock_global(lock);
     }
 }
 
@@ -155,6 +160,8 @@ static void _crash_dump_fault(const unsigned char *buf, unsigned int buf_len)
     do{
         if(data_buff->offset ==  0)
         {
+            // CRASH_DUMP_TRACE(4,"__CRASH_DUMP:%s:%d offset = 0.w_seqnum = %d,dump_seqnum = %d.",
+            //     __func__,__LINE__,crash_dump_w_seqnum,crash_dump_cur_dump_seqnum);
             memset((uint8_t*)&log_header,0,sizeof(log_header));
             log_header.magic = CRASH_DUMP_MAGIC_CODE;
             log_header.version = CRASH_DUMP_VERSION;
@@ -179,6 +186,7 @@ static void _crash_dump_fault(const unsigned char *buf, unsigned int buf_len)
         {
             uint_len = remain_len;
         }
+
         if(uint_len > 0)
         {
             memcpy(data_buff->buffer + data_buff->offset,
@@ -202,6 +210,7 @@ static void _crash_dump_fault(const unsigned char *buf, unsigned int buf_len)
     }while(remain_len > 0);
 }
 
+
 void crash_dump_init(void)
 {
     uint32_t block_size = 0;
@@ -216,7 +225,7 @@ void crash_dump_init(void)
     flash_id = norflash_api_get_dev_id_by_addr(crash_dump_flash_start_addr);
     hal_norflash_get_size(flash_id, NULL, &block_size, &sector_size, &page_size);
     buffer_len = CRASH_DUMP_NORFALSH_BUFFER_LEN;
-    NV_SECTION_TRACE(4,"__CRASH_DUMP:%s: crash_dump_start = 0x%x, crash_dump_end = 0x%x, buff_len = 0x%x.",
+    CRASH_DUMP_TRACE(4,"__CRASH_DUMP:%s: crash_dump_start = 0x%x, crash_dump_end = 0x%x, buff_len = 0x%x.",
                     __func__,
                     crash_dump_flash_start_addr,
                     crash_dump_flash_end_addr,
@@ -236,11 +245,11 @@ void crash_dump_init(void)
 
     if(result == NORFLASH_API_OK)
     {
-        NV_SECTION_TRACE(1,"__CRASH_DUMP:%s: norflash_api_register ok.", __func__);
+        CRASH_DUMP_TRACE(1,"__CRASH_DUMP:%s: norflash_api_register ok.", __func__);
     }
     else
     {
-        NV_SECTION_TRACE(2,"__CRASH_DUMP:%s: norflash_api_register failed,result = %d", __func__, result);
+        CRASH_DUMP_TRACE(2,"__CRASH_DUMP:%s: norflash_api_register failed,result = %d", __func__, result);
         return;
     }
 
@@ -254,14 +263,17 @@ void crash_dump_init(void)
     crash_dump_flash_len = crash_dump_flash_end_addr - crash_dump_flash_start_addr;
     crash_dump_flash_offs = sector_seqnum*CRASH_DUMP_BUFFER_LEN;
     crash_data_buffer.offset = 0;
+    //crash_data_buffer.buffer = NULL;
     crash_dump_w_seqnum = 0;
     crash_dump_total_len = 0;
     crash_dump_is_init = true;
 }
 
 void crash_dump_init_buffer(void)
-{
-  return;
+{   return;
+    crash_data_buffer.offset = 0;
+    syspool_init_specific_size(CRASH_DUMP_BUFFER_LEN);
+    //syspool_get_buff(&(crash_data_buffer.buffer), CRASH_DUMP_BUFFER_LEN);
 }
 
 int32_t crash_dump_read(uint32_t addr,uint8_t* ptr,uint32_t len)
@@ -274,7 +286,7 @@ int32_t crash_dump_read(uint32_t addr,uint8_t* ptr,uint32_t len)
                 len);
     if(ret != NORFLASH_API_OK)
     {
-        NV_SECTION_TRACE(4,"__CRASH_DUMP:%s: norflash_sync_read,addr = 0x%x,len = 0x%x,ret = %d.",
+        CRASH_DUMP_TRACE(4,"__CRASH_DUMP:%s: norflash_sync_read,addr = 0x%x,len = 0x%x,ret = %d.",
                         __func__,addr,len,ret);
         return ret;
     }
@@ -287,16 +299,17 @@ int32_t crash_dump_write(uint32_t addr,uint8_t* ptr,uint32_t len)
 
     if(CRASH_LOG_ALIGN(addr,CRASH_DUMP_SECTOR_SIZE) != addr)
     {
-        NV_SECTION_TRACE(2,"__CRASH_DUMP:%s: addr not aligned! addr = 0x%x.",__func__,addr);
+        CRASH_DUMP_TRACE(2,"__CRASH_DUMP:%s: addr not aligned! addr = 0x%x.",__func__,addr);
         return (int32_t)NORFLASH_API_BAD_ADDR;
     }
+
     ret = norflash_api_erase(NORFLASH_API_MODULE_ID_CRASH_DUMP,
                         addr,
                         CRASH_DUMP_SECTOR_SIZE,
                         false);
     if(ret != NORFLASH_API_OK)
     {
-        NV_SECTION_TRACE(3,"__CRASH_DUMP:%s: norflash_api_erase failed! addr = 0x%x,ret = %d.",
+        CRASH_DUMP_TRACE(3,"__CRASH_DUMP:%s: norflash_api_erase failed! addr = 0x%x,ret = %d.",
                         __func__,addr,ret);
         return (int32_t)ret;
     }
@@ -308,7 +321,7 @@ int32_t crash_dump_write(uint32_t addr,uint8_t* ptr,uint32_t len)
                 false);
     if(ret != NORFLASH_API_OK)
     {
-        NV_SECTION_TRACE(4,"__CRASH_DUMP:%s: norflash_api_write,addr = 0x%x,len = 0x%x,ret = %d.",
+        CRASH_DUMP_TRACE(4,"__CRASH_DUMP:%s: norflash_api_write,addr = 0x%x,len = 0x%x,ret = %d.",
                         __func__,addr,len,ret);
         return (int32_t)ret;
     }
@@ -358,5 +371,4 @@ uint32_t crash_dump_get_type(void)
 {
     return crash_dump_type;
 }
-
 

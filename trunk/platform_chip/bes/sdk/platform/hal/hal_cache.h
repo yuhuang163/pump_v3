@@ -25,20 +25,6 @@ extern "C" {
 #include "plat_addr_map.h"
 #include "plat_types.h"
 
-#ifndef MAX_CACHE_LINE_SIZE
-#if defined(FLASH_CACHE_DOUBLE_LINEFILL) || defined(PSRAM_CACHE_DOUBLE_LINEFILL) || \
-    (defined(L1CACHE_API_CTRL_L2CACHE) && defined(L2CC0_BASE))
-#define MAX_CACHE_LINE_SIZE             64U
-#else
-#define MAX_CACHE_LINE_SIZE             32U
-#endif
-#endif
-
-#define LEN_ALIGN_TO_CACHE(len, addr)   (((uint32_t)(len) + \
-                                          ((uint32_t)(addr) & (MAX_CACHE_LINE_SIZE - 1)) + \
-                                          (MAX_CACHE_LINE_SIZE - 1)) & ~(MAX_CACHE_LINE_SIZE - 1))
-#define ADDR_ALIGN_TO_CACHE(addr)       ((uint32_t)(addr) & ~(MAX_CACHE_LINE_SIZE - 1))
-
 #if (defined(ICACHE_CTRL_BASE) || defined(DCACHE_CTRL_BASE)) || \
         (defined(__ICACHE_PRESENT) && (__ICACHE_PRESENT == 1U)) || \
         (defined(__DCACHE_PRESENT) && (__DCACHE_PRESENT == 1U))
@@ -57,18 +43,6 @@ extern "C" {
 #define BESCACHE_FUNC_DECLARE(d, r)     d
 #else
 #define BESCACHE_FUNC_DECLARE(d, r)     __STATIC_FORCEINLINE d { r; }
-#endif
-
-#if (defined(ICACHE_CTRL_BASE) || defined(DCACHE_CTRL_BASE)) && !(defined(CHIP_BEST1502P) || defined(CHIP_BEST2001))
-#define HAL_CACHE_ID_FLASH_EXEC         HAL_CACHE_ID_I_CACHE
-#define HAL_CACHE_ID_FLASH_DATA         HAL_CACHE_ID_I_CACHE
-#define HAL_CACHE_ID_PSRAM_EXEC         HAL_CACHE_ID_D_CACHE
-#define HAL_CACHE_ID_PSRAM_DATA         HAL_CACHE_ID_D_CACHE
-#else
-#define HAL_CACHE_ID_FLASH_EXEC         HAL_CACHE_ID_I_CACHE
-#define HAL_CACHE_ID_FLASH_DATA         HAL_CACHE_ID_D_CACHE
-#define HAL_CACHE_ID_PSRAM_EXEC         HAL_CACHE_ID_I_CACHE
-#define HAL_CACHE_ID_PSRAM_DATA         HAL_CACHE_ID_D_CACHE
 #endif
 
 enum HAL_CACHE_ID_T {

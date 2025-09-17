@@ -31,6 +31,14 @@ extern uint32_t __rel_dyn_end[];
 
 #define RELOC_STACK_SYMBOL
 
+#ifdef RELOC_TRACE
+#define RELOC_LOG(n, str, ...)              TRACE_IMM(n, str, ##__VA_ARGS__)
+#elif defined(RELOC_PRINTF)
+#define RELOC_LOG(n, str, ...)              hal_uart_printf(str, ##__VA_ARGS__)
+#else
+#define RELOC_LOG(n, str, ...)              TRACE_DUMMY(n, str, ##__VA_ARGS__)
+#endif
+
 enum R_ARM_RELOC_T {
     R_ARM_REL32 = 3,
     R_ARM_RELATIVE = 23,
@@ -90,13 +98,13 @@ void reloc_run(const struct RELOC_RUN_CFG_T *cfg)
     struct ELF_RELOC_T *new_reloc;
     uint32_t sym_addr;
 
-    CMSIS_TRACE_IMM(0, "RELOC_RUN_CFG:");
-    CMSIS_TRACE_IMM(0, "  reloc_start = %08X", cfg->reloc_start);
-    CMSIS_TRACE_IMM(0, "  reloc_end   = %08X", cfg->reloc_end);
-    CMSIS_TRACE_IMM(0, "  offset      = %08X", cfg->offset);
-    CMSIS_TRACE_IMM(0, "  new_sp      = %08X", cfg->new_sp);
-    CMSIS_TRACE_IMM(0, "  new_sp_lim  = %08X", cfg->new_sp_lim);
-    CMSIS_TRACE_IMM(0, "  new_entry   = %08X", cfg->new_entry);
+    RELOC_LOG(0, "RELOC_RUN_CFG:");
+    RELOC_LOG(0, "  reloc_start = %08X", cfg->reloc_start);
+    RELOC_LOG(0, "  reloc_end   = %08X", cfg->reloc_end);
+    RELOC_LOG(0, "  offset      = %08X", cfg->offset);
+    RELOC_LOG(0, "  new_sp      = %08X", cfg->new_sp);
+    RELOC_LOG(0, "  new_sp_lim  = %08X", cfg->new_sp_lim);
+    RELOC_LOG(0, "  new_entry   = %08X", cfg->new_entry);
 
     // Copy code and data
     dst = (uint32_t *)(cfg->reloc_start + cfg->offset);
@@ -107,7 +115,7 @@ void reloc_run(const struct RELOC_RUN_CFG_T *cfg)
     }
 
     // Relocate symbols
-    CMSIS_TRACE_IMM(0, "Relocating:");
+    RELOC_LOG(0, "Relocating:");
     reloc = (struct ELF_RELOC_T *)__rel_dyn_start;
     for (; reloc < (struct ELF_RELOC_T *)__rel_dyn_end; reloc++) {
         if (GET_RELOC_TYPE(reloc->info) == R_ARM_RELATIVE) {
@@ -118,25 +126,25 @@ void reloc_run(const struct RELOC_RUN_CFG_T *cfg)
                 if (0) {
                 } else if (addr_need_reloc(sym_addr, cfg->reloc_start, cfg->reloc_end)) {
                     *(uint32_t *)(reloc->offset + cfg->offset) = sym_addr + cfg->offset;
-                    CMSIS_TRACE_IMM(0, "  [%08X] %08X/%08X: %08X -> %08X", (uint32_t)reloc, reloc->offset, reloc->info, sym_addr, (sym_addr + cfg->offset));
+                    RELOC_LOG(0, "  [%08X] %08X/%08X: %08X -> %08X", (uint32_t)reloc, reloc->offset, reloc->info, sym_addr, (sym_addr + cfg->offset));
 #ifdef RELOC_STACK_SYMBOL
                 } else if (sym_addr == (uint32_t)__StackTop) {
                     *(uint32_t *)(reloc->offset + cfg->offset) = cfg->new_sp;
-                    CMSIS_TRACE_IMM(0, "  [%08X] %08X/%08X: %08X -> %08X (SP)", (uint32_t)reloc, reloc->offset, reloc->info, sym_addr, cfg->new_sp);
+                    RELOC_LOG(0, "  [%08X] %08X/%08X: %08X -> %08X (SP)", (uint32_t)reloc, reloc->offset, reloc->info, sym_addr, cfg->new_sp);
                 } else if (sym_addr == (uint32_t)__StackLimit) {
                     // NOTE:
                     // If (__StackLimit == cfg->reloc_end), cfg->reloc_end will take precedence
                     *(uint32_t *)(reloc->offset + cfg->offset) = cfg->new_sp_lim;
-                    CMSIS_TRACE_IMM(0, "  [%08X] %08X/%08X: %08X -> %08X (SPLIM)", (uint32_t)reloc, reloc->offset, reloc->info, sym_addr, cfg->new_sp_lim);
+                    RELOC_LOG(0, "  [%08X] %08X/%08X: %08X -> %08X (SPLIM)", (uint32_t)reloc, reloc->offset, reloc->info, sym_addr, cfg->new_sp_lim);
 #endif
                 } else {
-                    CMSIS_TRACE_IMM(0, "  [%08X] %08X/%08X: %08X: Addr out of range", (uint32_t)reloc, reloc->offset, reloc->info, sym_addr);
+                    RELOC_LOG(0, "  [%08X] %08X/%08X: %08X: Addr out of range", (uint32_t)reloc, reloc->offset, reloc->info, sym_addr);
                 }
             } else {
-                CMSIS_TRACE_IMM(0, "  [%08X] %08X/%08X: Offset out of range", (uint32_t)reloc, reloc->offset, reloc->info);
+                RELOC_LOG(0, "  [%08X] %08X/%08X: Offset out of range", (uint32_t)reloc, reloc->offset, reloc->info);
             }
         } else {
-            CMSIS_TRACE_IMM(0, "  [%08X] %08X/%08X: Bad type", (uint32_t)reloc, reloc->offset, reloc->info);
+            RELOC_LOG(0, "  [%08X] %08X/%08X: Bad type", (uint32_t)reloc, reloc->offset, reloc->info);
             hal_cmu_simu_set_val(0xEEEE6E10);
 #if 0
             hal_iomux_set_analog_i2c();

@@ -21,11 +21,11 @@ endif
 ifeq ($(CODEC_DAC_DC_DYN_BUF),1)
 ccflags-y += -DCODEC_DAC_DC_DYN_BUF
 endif
-ifeq ($(CODEC_ADC_DC_DYN_BUF),1)
-ccflags-y += -DCODEC_ADC_DC_DYN_BUF
-endif
 ifeq ($(AUDIO_OUTPUT_SET_LARGE_ANA_DC),1)
 ccflags-y += -DAUDIO_OUTPUT_SET_LARGE_ANA_DC
+endif
+ifeq ($(AUDIO_ANA_DC_CALIB_USE_COMP),1)
+ccflags-y += -DAUDIO_ANA_DC_CALIB_USE_COMP
 endif
 ifeq ($(AUDIO_OUTPUT_ERROR_LARGE_DC),1)
 ccflags-y += -DAUDIO_OUTPUT_ERROR_LARGE_DC

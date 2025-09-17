@@ -231,7 +231,6 @@ enum HAL_CMU_MOD_ID_T {
     HAL_CMU_MOD_O_SPI_DPD = HAL_CMU_MOD_OX_SPI2,
     HAL_CMU_MOD_O_UART3 = HAL_CMU_MOD_OX_UART3,
     HAL_CMU_MOD_H_PSRAM = HAL_CMU_MOD_X_PSRAM,
-    HAL_CMU_MOD_H_GPU = HAL_CMU_MOD_O_GPU,
     HAL_CMU_MOD_H_DMA2D = HAL_CMU_MOD_O_2DPNTV,
     HAL_CMU_MOD_X_DMA2D = HAL_CMU_MOD_X_GA2D,
     HAL_CMU_MOD_Q_DISPN2D = HAL_CMU_MOD_QTY,
@@ -374,16 +373,13 @@ enum HAL_CMU_FREQ_T {
     HAL_CMU_FREQ_52M,
     HAL_CMU_FREQ_78M,
     HAL_CMU_FREQ_104M,
+    HAL_CMU_FREQ_144M,
     HAL_CMU_FREQ_208M,
-#ifdef AUD_PLL_DOUBLE
     HAL_CMU_FREQ_390M,
-#endif
+
     HAL_CMU_FREQ_QTY
 };
-
-#ifdef AUD_PLL_DOUBLE
 #define HAL_CMU_FREQ_390M                   HAL_CMU_FREQ_390M
-#endif
 #define HAL_CMU_FREQ_T                      HAL_CMU_FREQ_T
 
 enum HAL_CMU_RAM_CFG_SEL_T {
@@ -499,8 +495,6 @@ void hal_cmu_cp_beco_enable(void);
 
 void hal_cmu_cp_beco_disable(void);
 
-uint32_t hal_cmu_cpudump_get_last_pc_addr(void);
-
 void hal_cmu_dcdc_clock_enable(enum HAL_CMU_DCDC_CLOCK_USER_T user);
 
 void hal_cmu_dcdc_clock_disable(enum HAL_CMU_DCDC_CLOCK_USER_T user);
@@ -551,13 +545,17 @@ void hal_cmu_rom_start_wdt(uint32_t time);
 
 void hal_cmu_rom_stop_wdt(void);
 
+void hal_cmu_rom_startup_global_reset(void);
+
+void hal_cmu_rom_startup_wdt_reset(void);
+
+void hal_cmu_psram_clock_enable(void);
+
+void hal_cmu_psram_clock_disable(void);
+
 void hal_cmu_programmer_chip_init(void);
 
-typedef int (*HAL_CMU_CP_SYS_SET_FREQ_CB_T)(enum HAL_CMU_FREQ_T freq);
-
-void hal_cmu_cp_sys_set_freq_register(HAL_CMU_CP_SYS_SET_FREQ_CB_T cb);
-
-void hal_cmu_cp_sleep_signal_set(void);
+void hal_cmu_global_reset(void);
 
 void hal_cmu_acquire_x2_x4(void);
 
@@ -566,8 +564,6 @@ void hal_cmu_release_x2_x4(void);
 void hal_cmu_low_freq_mode_enable(enum HAL_CMU_FREQ_T old_freq, enum HAL_CMU_FREQ_T new_freq);
 
 void hal_cmu_low_freq_mode_disable(enum HAL_CMU_FREQ_T old_freq, enum HAL_CMU_FREQ_T new_freq);
-
-void hal_cmu_global_reset(void);
 
 #ifdef __cplusplus
 }

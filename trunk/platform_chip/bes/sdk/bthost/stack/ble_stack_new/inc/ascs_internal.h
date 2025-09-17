@@ -20,6 +20,8 @@
 #ifndef __BAP_ASCS__
 #define __BAP_ASCS__
 
+#include "bluetooth.h"
+
 #include "gaf_prf.h"
 #include "gaf_cfg.h"
 #include "generic_audio.h"
@@ -37,15 +39,13 @@
 typedef void (*ascs_cb_get_ase_value_buf)(uint8_t con_lid, uint8_t ase_id,
                                           const uint8_t **p_ase_value_buf, const uint8_t *p_buf_len);
 /// ASCS callback for write ase cp char
-typedef int (*ascs_cb_set_ase_cp_value)(uint32_t token, uint8_t con_lid, const uint8_t *char_value_buf, uint8_t buf_len);
+typedef int (*ascs_cb_set_ase_cp_value)(gatt_server_write_ctx_t *p_wr_ctx, uint8_t con_lid, const uint8_t *char_value_buf, uint8_t buf_len);
 /// ASCS callback for bond data
 typedef void (*ascs_cb_bond_data)(uint8_t con_lid, uint8_t char_type, uint16_t cli_cfg_bf);
 /// ASCS callback for character value notify sent, ase_id < MIN means ase cp
 typedef void (*ascs_cb_val_ntf_sent)(uint8_t con_lid, uint8_t ase_id);
 /// ASCS callback for service disconnect
-typedef void (*ascs_cb_disconnected)(uint8_t con_lid);
-/// ASCS callback for service connected
-typedef void (*ascs_cb_connected)(uint8_t con_lid);
+typedef void (*ascs_cb_disconnect)(uint8_t con_lid);
 
 typedef struct ascs_upper_callback
 {
@@ -58,9 +58,7 @@ typedef struct ascs_upper_callback
     /// val ntf sent
     ascs_cb_val_ntf_sent cb_val_ntf_sent;
     /// ascs disconnect
-    ascs_cb_disconnected cb_disconnected;
-    /// ascs connected
-    ascs_cb_connected cb_connected;
+    ascs_cb_disconnect cb_disconnect;
 } ascs_upper_cb_t;
 
 typedef struct ascs_init_cfg

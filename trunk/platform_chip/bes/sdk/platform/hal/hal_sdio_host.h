@@ -50,40 +50,52 @@ enum HAL_SDIO_DEVICE_RW {
 };
 
 enum HAL_SDIO_BUS_SPEED_MODE {
-    HAL_SDIO_BUS_DS_MODE    = 6,
-    HAL_SDIO_BUS_HS_MODE    = 7,
-    HAL_SDIO_BUS_SDR12_MODE = 0,
-    HAL_SDIO_BUS_SDR25_MODE = 1,
-    HAL_SDIO_BUS_SDR50_MODE = 2,
-    HAL_SDIO_BUS_SDR104_MODE= 3,
-    HAL_SDIO_BUS_DDR50_MODE = 4,
+    HAL_SDIO_BUS_DS_MODE    = 6,    //clk 25Mhz, 3.3v
+    HAL_SDIO_BUS_HS_MODE    = 7,    //clk 50Mhz, 3.3v
+    HAL_SDIO_BUS_SDR12_MODE = 0,    //clk 25Mhz, 1.8v
+    HAL_SDIO_BUS_SDR25_MODE = 1,    //clk 50Mhz, 1.8v
+    HAL_SDIO_BUS_SDR50_MODE = 2,    //clk 100Mhz, 1.8v
+    HAL_SDIO_BUS_SDR104_MODE= 3,    //clk 208Mhz, 1.8v
+    HAL_SDIO_BUS_DDR50_MODE = 4,    //clk 50Mhz, 1.8v
 };
 
 enum HAL_SDIO_ERR {
-    HAL_SDIO_NONE = 0,
+    HAL_SDIO_ERR_NONE = 0,
     HAL_SDIO_CMD3_FAIL,
     HAL_SDIO_CMD5_FAIL,
     HAL_SDIO_CMD7_FAIL,
     HAL_SDIO_CMD52_FAIL,
     HAL_SDIO_CMD53_FAIL,
     HAL_SDIO_DMA_IN_USE,
+    HAL_SDIO_DMA_RX_ERR,
+    HAL_SDIO_DMA_TX_ERR,
+    HAL_SDIO_DMA_CH_ERR,
+    HAL_SDIO_DMA_DESC_ERR,
+    HAL_SDIO_DMA_START_ERR,
     HAL_SDIO_RESET_FAIL,
     HAL_SDIO_SET_OCR_FAIL,
     HAL_SDIO_RESPONSE_ERR,
-    HAL_SDIO_RESPONSE_BUSY,
     HAL_SDIO_RESPONSE_TIMEOUT,
+    HAL_SDIO_DATA0_BUSY,
+    HAL_SDIO_DMA_XFER_TIMEOUT,
+    HAL_SDIO_TIMER_ALLOC_ERR,
+    HAL_SDIO_FIFO_DATA_CNT_ERR,
+    HAL_SDIO_FIFO_XFER_TIMEOUT,
+    HAL_SDIO_DATA_STE_MACHINE_BUSY,
     HAL_SDIO_READ_DATA_ERR,
     HAL_SDIO_FIFO_OVERFLOW,
     HAL_SDIO_SET_ABORT_FAIL,
+    HAL_SDIO_READ_DEVICE_ERR,
     HAL_SDIO_BLOCK_SIZE_ZERO,
     HAL_SDIO_GET_VERSION_FAIL,
+    HAL_SDIO_FRAME_HEADER_ERR,
+    HAL_SDIO_FRAME_LENGTH_ERR,
+    HAL_SDIO_FRAME_PAYLOAD_ERR,
+    HAL_SDIO_FIRMWARE_HEAD_ERR,
+    HAL_SDIO_DEVICE_NO_RESPONSE,
     HAL_SDIO_CMD_SEND_TIMEOUT,
-    HAL_SDIO_CMD_START_TIMEOUT1,
-    HAL_SDIO_CMD_START_TIMEOUT2,
-    HAL_SDIO_CMD_START_TIMEOUT3,
-    HAL_SDIO_CMD_START_TIMEOUT4,
-    HAL_SDIO_CMD_START_TIMEOUT5,
-    HAL_SDIO_CMD_START_TIMEOUT6,
+    HAL_SDIO_CMD_START_ERROR,
+    HAL_SDIO_CMD_START_TIMEOUT,
     HAL_SDIO_INVALID_PARAMETER,
     HAL_SDIO_SET_BUS_SPEED_FAIL,
     HAL_SDIO_GET_BUS_SPEED_FAIL,
@@ -122,7 +134,6 @@ enum HAL_SDIO_HOST_ERR {
 
 struct HAL_SDIO_HOST_CB_T {
     void (*hal_sdio_host_card_detect)(void);
-    void (*hal_sdio_host_vdd_voltage_switch)(void);
     void (*hal_sdio_host_signal_voltage_switch)(void);
     void (*hal_sdio_host_error)(enum HAL_SDIO_HOST_ERR error);
     void (*hal_sdio_host_func_int)(enum HAL_SDIO_FUNC_NUM_T func_num);
@@ -130,20 +141,61 @@ struct HAL_SDIO_HOST_CB_T {
     void (*hal_sdio_host_dma_rx_done)(uint32_t remain_size, uint32_t error);
 };
 
-int32_t hal_sdio_host_open(enum HAL_SDIO_HOST_ID_T id, struct HAL_SDIO_HOST_CB_T *callback, bool blocking_en);
+enum HAL_SDIO_HOST_BUS_WIDTH {
+    HAL_SDIO_HOST_BUS_WIDTH_1 = 1,
+    HAL_SDIO_HOST_BUS_WIDTH_4 = 4,
+};
+
+struct HAL_SDIO_HOST_CONFIG_T {
+    bool yield;         /* whether to enable task switching in blocking mode */
+    bool dma_en;
+    bool ddr_mode;
+    bool func_en;       /* enable function 1 ~ N */
+    bool send_abort;    /* send an abort once after initialization */
+    bool func1_only;    /* only func1 */
+    bool async_int_en;  /* sdio asynchronous interrupt */
+    bool set_func_blks; /* set function 1 ~ N block size */
+    bool volt_switch;   /* cmd11 voltage switch */
+    bool blocking_init_en;/* wait until success when enumerating the device */
+    uint16_t block_size;/* function block size, Maximum cannot exceed 1024 */
+    uint32_t bus_speed;
+    enum HAL_SDIO_HOST_BUS_WIDTH bus_width;
+    struct HAL_SDIO_HOST_CB_T *callback;
+};
+
+enum HAL_SDIO_STATUS {
+    HAL_SDIO_STATUS_UN_INIT = 0,
+    HAL_SDIO_STATUS_HAS_INIT,
+    HAL_SDIO_STATUS_UNKNOWN,
+};
+
+enum HAL_SDIO_ERR hal_sdio_host_open(enum HAL_SDIO_HOST_ID_T id, const struct HAL_SDIO_HOST_CONFIG_T *cfg);
+enum HAL_SDIO_ERR hal_sdio_host_reopen(enum HAL_SDIO_HOST_ID_T id, struct HAL_SDIO_HOST_CB_T *callback);
 void hal_sdio_host_close(enum HAL_SDIO_HOST_ID_T id);
-int hal_sdio_get_host_status(enum HAL_SDIO_HOST_ID_T id);
+
+enum HAL_SDIO_ERR hal_sdio_host_init(enum HAL_SDIO_HOST_ID_T id, const struct HAL_SDIO_HOST_CONFIG_T *cfg);
+enum HAL_SDIO_ERR hal_sdio_device_init(enum HAL_SDIO_HOST_ID_T id);
+enum HAL_SDIO_ERR hal_sdio_host_int_enable(enum HAL_SDIO_HOST_ID_T id);
+enum HAL_SDIO_ERR hal_sdio_host_int_disable(enum HAL_SDIO_HOST_ID_T id);
+
+enum HAL_SDIO_ERR hal_sdio_set_clock(enum HAL_SDIO_HOST_ID_T id, uint32_t clock);//clock: min 400KHz
+enum HAL_SDIO_ERR hal_sdio_set_bus_width(enum HAL_SDIO_HOST_ID_T id, enum HAL_SDIO_HOST_BUS_WIDTH width);
+
+enum HAL_SDIO_STATUS hal_sdio_get_host_status(enum HAL_SDIO_HOST_ID_T id);
 uint32_t hal_sdio_get_host_speed(enum HAL_SDIO_HOST_ID_T id);
+bool hal_sdio_host_get_dma_cfg(enum HAL_SDIO_HOST_ID_T id);
+struct HAL_SDIO_HOST_CB_T *hal_sdio_host_get_callback_addr(enum HAL_SDIO_HOST_ID_T id);
+enum HAL_SDIO_ERR hal_sdio_host_signal_out(enum HAL_SDIO_HOST_ID_T id, const struct HAL_SDIO_HOST_CONFIG_T *cfg);
 
 enum HAL_SDIO_ERR hal_sdio_reset(enum HAL_SDIO_HOST_ID_T id);
 enum HAL_SDIO_ERR hal_sdio_set_func_abort(enum HAL_SDIO_HOST_ID_T id, enum HAL_SDIO_FUNC_NUM_T func_num);
 
-int hal_sdio_host_send_cmd(enum HAL_SDIO_HOST_ID_T id, uint8_t cmdindex, uint32_t cmdarg,
-                           uint8_t rsp_type, uint32_t *rsp);
-int hal_sdio_io_rw_direct(enum HAL_SDIO_HOST_ID_T id, enum HAL_SDIO_DEVICE_RW read0_write1, enum HAL_SDIO_FUNC_NUM_T func_num,
-                          uint32_t addr, uint8_t data, uint8_t *rsp);
-int hal_sdio_io_rw_extended(enum HAL_SDIO_HOST_ID_T id, enum HAL_SDIO_DEVICE_RW read0_write1, enum HAL_SDIO_FUNC_NUM_T func_num,
-                            uint32_t addr, uint8_t *rsp, uint8_t incr_addr, uint8_t *data_buff, uint32_t data_size);
+enum HAL_SDIO_ERR hal_sdio_host_send_cmd(enum HAL_SDIO_HOST_ID_T id, uint8_t cmdindex, uint32_t cmdarg,
+        uint8_t rsp_type, uint32_t *rsp);
+enum HAL_SDIO_ERR hal_sdio_io_rw_direct(enum HAL_SDIO_HOST_ID_T id, enum HAL_SDIO_DEVICE_RW read0_write1, enum HAL_SDIO_FUNC_NUM_T func_num,
+                                        uint32_t addr, uint8_t data, uint8_t *rsp);
+enum HAL_SDIO_ERR hal_sdio_io_rw_extended(enum HAL_SDIO_HOST_ID_T id, enum HAL_SDIO_DEVICE_RW read0_write1, enum HAL_SDIO_FUNC_NUM_T func_num,
+        uint32_t addr, uint8_t *rsp, uint8_t incr_addr, uint8_t *data_buff, uint32_t data_size);
 
 enum HAL_SDIO_ERR hal_sdio_get_cccr_version(enum HAL_SDIO_HOST_ID_T id, uint8_t *cccr_version);
 enum HAL_SDIO_ERR hal_sdio_get_sdio_version(enum HAL_SDIO_HOST_ID_T id, uint8_t *sdio_version);
@@ -165,10 +217,11 @@ enum HAL_SDIO_ERR hal_sdio_disable_asyn_int(enum HAL_SDIO_HOST_ID_T id);
 enum HAL_SDIO_ERR hal_sdio_set_bus_speed(enum HAL_SDIO_HOST_ID_T id, enum HAL_SDIO_BUS_SPEED_MODE bus_speed);
 enum HAL_SDIO_ERR hal_sdio_get_bus_speed(enum HAL_SDIO_HOST_ID_T id, uint8_t *bus_speed);
 enum HAL_SDIO_ERR hal_sdio_get_capability(enum HAL_SDIO_HOST_ID_T id, uint8_t *cap);
-enum HAL_SDIO_ERR hal_sdio_host_gen_int_to_device(enum HAL_SDIO_HOST_ID_T id);
-enum HAL_SDIO_ERR hal_sdio_host_get_func1_rx_buf_cfg(enum HAL_SDIO_HOST_ID_T id, uint8_t *buf_cnt, uint16_t *buf_len);
+void hal_sdio_dump_run_record(enum HAL_SDIO_HOST_ID_T id);
 
 //Special purpose use
+enum HAL_SDIO_ERR hal_sdio_host_gen_int_to_device(enum HAL_SDIO_HOST_ID_T id);
+enum HAL_SDIO_ERR hal_sdio_host_get_func1_rx_buf_cfg(enum HAL_SDIO_HOST_ID_T id, uint8_t *buf_cnt, uint16_t *buf_len);
 enum HAL_SDIO_ERR hal_sdio_host_check_device_load_ready(enum HAL_SDIO_HOST_ID_T id, uint8_t *status);
 enum HAL_SDIO_ERR hal_sdio_host_check_device_rx_success(enum HAL_SDIO_HOST_ID_T id, uint8_t *status);
 enum HAL_SDIO_ERR hal_sdio_host_check_device_fw_status(enum HAL_SDIO_HOST_ID_T id, uint32_t *status);

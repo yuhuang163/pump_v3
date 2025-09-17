@@ -15,7 +15,7 @@
  ****************************************************************************/
 #ifndef _APP_HAP_H_
 #define _APP_HAP_H_
-#if BLE_AUDIO_ENABLED
+#ifdef BLE_AUDIO_ENABLED
 #include "bluetooth.h"
 
 #ifdef __cplusplus

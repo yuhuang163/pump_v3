@@ -224,6 +224,8 @@ int hal_usb_send_epn(uint8_t ep, const uint8_t *buffer, uint32_t size, enum ZLP_
 
 uint32_t hal_usb_get_soffn(void);
 
+int hal_usb_irq_run(void);
+
 #ifdef __cplusplus
 }
 #endif

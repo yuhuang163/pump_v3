@@ -18,6 +18,7 @@
  ****************************************************************************/
 #ifndef __ARC_VOCC__
 #define __ARC_VOCC__
+#include "bluetooth.h"
 
 #include "gaf_prf.h"
 #include "gaf_cfg.h"
@@ -55,8 +56,6 @@ typedef struct vocc_init_cfg
 {
     /// Max support number to found aics
     uint8_t vocs_found_num_supp_max;
-    /// Preferred MTU size
-    uint16_t pref_mtu;
 } vocc_init_cfg_t;
 
 typedef struct vocc_evt_cb

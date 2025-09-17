@@ -19,23 +19,17 @@
 #include "cmsis_os.h"
 #endif
 #include "bluetooth.h"
+#include "app_key.h"
 #include "hfp_api.h"
 #include "a2dp_api.h"
 #include "app_a2dp_codecs.h"
+#include "bluetooth.h"
 #include "a2dp_common_define.h"
 #include "app_audio_focus_control.h"
 #include "app_audio_control.h"
 
-#ifdef APP_KEY_ENABLE
-#include "app_key.h"
-#endif
-
-#if defined(BT_HID_DEVICE)
-#include "app_hid_device.h"
-#endif
-
-#if defined(BT_HID_HOST)
-#include "app_hid_host.h"
+#ifdef BT_HID_DEVICE
+#include "app_bt_hid.h"
 #endif
 
 #if defined(BT_MAP_SUPPORT)
@@ -53,10 +47,6 @@
 #if defined(BT_PAN_SUPPORT)
 #include "app_pan.h"
 #endif
-
-#if defined(A2DP_STREAM_DETECT_NO_DECODE)
-#include "app_a2dp_stream_detect.h"
-#endif // A2DP_STREAM_DETECT_NO_DECODE
 
 //#define __EARPHONE_STAY_BOTH_SCAN__
 
@@ -89,6 +79,13 @@
 #ifdef A2DP_LDAC_ON
 #ifndef A2DP_LDAC_OCTET_NUMBER
 #define A2DP_LDAC_OCTET_NUMBER                     (8)
+#endif
+
+#ifndef A2D_SBC_IE_SAMP_FREQ_96
+#define A2D_SBC_IE_SAMP_FREQ_96     0x08    /* b4:96  kHz */
+#endif
+#ifndef A2D_SBC_IE_SAMP_FREQ_88
+#define A2D_SBC_IE_SAMP_FREQ_88     0x04    /* b4:88.2  kHz */
 #endif
 #endif
 
@@ -127,12 +124,38 @@ extern "C" {
 extern const unsigned char a2dp_codec_elements[];
 //extern enum AUD_SAMPRATE_T a2dp_sample_rate;
 
+//#define AVRCP_TRACK_CHANGED
+
+
 //hsp
 #define HSP_KEY_CKPD_CONTROL     	21
 #define HSP_KEY_ADD_TO_EARPHONE 	22
 #define HSP_KEY_CHANGE_TO_PHONE	23
 
 typedef void (*btapp_on_audio_focus_change_listener)(uint8_t device_id, AUDIO_USAGE_TYPE_E media_type,int audio_focus_change);
+
+typedef enum
+{
+    HFCALL_MACHINE_CURRENT_IDLE = 0,                                //0
+    HFCALL_MACHINE_CURRENT_INCOMMING,                               //1
+    HFCALL_MACHINE_CURRENT_OUTGOING,                                //2
+    HFCALL_MACHINE_CURRENT_CALLING,                                 //3
+    HFCALL_MACHINE_CURRENT_3WAY_INCOMMING,                          //4
+    HFCALL_MACHINE_CURRENT_3WAY_HOLD_CALLING,                       //5
+    HFCALL_MACHINE_CURRENT_IDLE_ANOTHER_IDLE,                       //6
+    HFCALL_MACHINE_CURRENT_INCOMMING_ANOTHER_IDLE,                  //7
+    HFCALL_MACHINE_CURRENT_OUTGOING_ANOTHER_IDLE,                   //8
+    HFCALL_MACHINE_CURRENT_CALLING_ANOTHER_IDLE,                    //9
+    HFCALL_MACHINE_CURRENT_3WAY_INCOMMING_ANOTHER_IDLE,             //10
+    HFCALL_MACHINE_CURRENT_3WAY_HOLD_CALLING_ANOTHER_IDLE,          //11
+    HFCALL_MACHINE_CURRENT_INCOMMING_ANOTHER_INCOMMING,             //12
+    HFCALL_MACHINE_CURRENT_CALLING_ANOTHER_INCOMMING,               //13
+    HFCALL_MACHINE_CURRENT_CALLING_ANOTHER_CHANGETOPHONE,           //14
+    HFCALL_MACHINE_CURRENT_OUTGOING_ANOTHER_INCOMMING,              //15
+    HFCALL_MACHINE_CURRENT_CALLING_ANOTHER_HOLD,                    //16
+    HFCALL_MACHINE_CURRENT_INCOMMING_ANOTHER_CALLING,               //17
+    HFCALL_MACHINE_NUM
+} HFCALL_MACHINE_ENUM;
 
 typedef enum
 {
@@ -186,10 +209,12 @@ struct app_bt_profile_manager
     APP_BT_CONNECTING_STATE_E connectingState;
 };
 
+bool app_bt_source_is_enabled(void);
+bool app_bt_sink_is_enabled(void);
+
 #define BT_AVDTP_CP_VALUE_SIZE 10
 
 typedef uint8_t a2dp_sync_status_recheck;
-typedef uint8_t hfp_sync_status_recheck;
 
 #define A2DP_STATUS_SYNC_A2DP_STATE    0x01
 #define A2DP_STATUS_SYNC_AVRCP_STATE   0x02
@@ -197,11 +222,6 @@ typedef uint8_t hfp_sync_status_recheck;
 #define A2DP_STATUS_ALL_RECHECK A2DP_STATUS_SYNC_A2DP_STATE|A2DP_STATUS_SYNC_AVRCP_STATE|A2DP_STATUS_SYNC_CODEC_STATE
 
 typedef uint8_t remote_class_of_device;
-#define HFP_STATUS_SYNC_CALL_STATE        0x01
-#define HFP_STATUS_SYNC_CALLSETUP_STATE   0x02
-#define HFP_STATUS_SYNC_CALLHOLD_STATE    0x04
-#define HFP_STATUS_ALL_RECHECK HFP_STATUS_SYNC_CALL_STATE|HFP_STATUS_SYNC_CALLSETUP_STATE|HFP_STATUS_SYNC_CALLHOLD_STATE
-
 #define APP_BT_COD_MISCELLANEOUS       0x00
 #define APP_BT_COD_COMPUTER            0x01
 #define APP_BT_COD_PHONE               0x02
@@ -210,25 +230,6 @@ typedef uint8_t remote_class_of_device;
 #define APP_BT_COD_PERIPHERAL          0x05
 #define APP_BT_COD_IMAGING             0x06
 
-#define MAX_SIM_CARD_NUMBER (2)
-
-#if defined(A2DP_STREAM_DETECT_NO_DECODE)
-typedef struct {
-    app_bt_mute_detect_t result;
-    // For filter when: detect_result is: n*true,false,n*true
-    // the sample_count will reset to 0 when recv false.it will increase detection time
-    stream_t pre_packet_state;
-    uint16_t sbc_mute_detect_time;  // ms
-    uint16_t sbc_normal_detect_time; // ms
-    uint16_t aac_mute_detect_time; // ms
-    uint16_t aac_normal_detect_time; // ms
-    uint32_t mute_sample_count;
-    uint32_t normal_sample_count;
-    uint32_t a2dp_start_time;
-    bool can_start_detect;
-} a2dp_stream_detect_t;
-
-#endif // A2DP_STREAM_DETECT_NO_DECODE
 struct BT_DEVICE_T {
     bt_bdaddr_t remote;
     bool acl_is_connected;
@@ -245,14 +246,12 @@ struct BT_DEVICE_T {
     uint8_t a2dp_non_type;
     uint8_t lhdc_ext_flags;
     uint8_t channel_mode;
-    uint32_t sample_rate;
-    uint8_t a2dp_frame_dr; // uint: 1/10ms
+    uint8_t sample_rate;
     uint8_t sample_bit;
     uint8_t vbr_support;
     uint8_t a2dp_channel_num;
     uint8_t a2dp_conn_flag;
     uint8_t a2dp_streamming;
-    uint8_t isUseLocalSBM;
     uint8_t a2dp_session;
     uint8_t a2dp_play_pause_flag;
     uint8_t a2dp_need_resume_flag;
@@ -274,15 +273,18 @@ struct BT_DEVICE_T {
     uint8_t a2dp_initial_volume;
     uint8_t a2dp_default_abs_volume;
     uint8_t a2dp_current_abs_volume;
+	uint8_t a2dp_lc3_frame_dms;
     uint16_t a2dp_lc3_bitrate;
     uint32_t a2dp_stream_start_time;
     uint32_t a2dp_stream_suspend_time;
     uint32_t a2dp_stream_start_repeat_count;
     uint32_t a2dp_stream_suspend_repeat_count;
 
+#ifdef __A2DP_AVDTP_CP__
     bool avdtp_cp;
     btif_avdtp_content_prot_t a2dp_avdtp_cp;
     uint8_t a2dp_avdtp_cp_security_data[BT_AVDTP_CP_VALUE_SIZE];
+#endif
 
     btif_avrcp_channel_t *avrcp_channel;
     avrcp_media_status_t avrcp_playback_status;
@@ -300,7 +302,9 @@ struct BT_DEVICE_T {
     osTimerId avrcp_play_status_wait_timer;
     osTimerId a2dp_stream_recheck_timer;
     osTimerId a2dp_delay_reconnect_timer;
-    osTimerId hfp_delay_send_hold_timer;
+    osTimerId a2dp_delay_disconnect_timer;
+    osTimerId a2dp_delay_disconnect_timer1;
+
 #ifndef IBRT
     osTimerId avrcp_reconnect_timer;
 #endif
@@ -327,14 +331,11 @@ struct BT_DEVICE_T {
     bt_hfp_call_active_t hfchan_call;
     bt_audio_state_t hf_audio_state;
     bt_hfp_call_held_t hf_callheld;
-    struct hfp_sim_card_number card_number;
-    bool waiting_sco_accept;
+    bool is_accepting_sco_request;
     bool disc_sco_when_it_connected;
     uint8_t hf_conn_flag;
     uint8_t switch_sco_to_earbud;
     uint8_t battery_level;
-
-    uint16_t media_active;
 
     osTimerId hfp_delay_conn_timer;
     osTimerId a2dp_delay_conn_timer;
@@ -343,7 +344,7 @@ struct BT_DEVICE_T {
     osTimerId a2dp_delay_disc_timer;
     osTimerId avrcp_delay_disc_timer;
 
-#if defined(BT_HID_HOST) || defined(BT_HID_DEVICE)
+#ifdef BT_HID_DEVICE
     hid_channel_t hid_channel;
     osTimerId capture_wait_timer_id;
     osTimerId hid_wait_disc_timer_id;
@@ -373,28 +374,16 @@ struct BT_DEVICE_T {
     btapp_on_audio_focus_change_listener a2dp_focus_changed_listener;
     btapp_on_audio_focus_change_listener sco_focus_changed_listener;
     btapp_on_audio_focus_change_listener ring_focus_changed_listener;
+    a2dp_sync_status_recheck a2dp_status_recheck;
     bool ignore_ring_and_play_tone_self;
     osTimerId self_ring_tone_play_timer;
-    a2dp_sync_status_recheck a2dp_status_recheck;
     osTimerId abandon_focus_timer;
     bool waiting_pause_suspend;
     int8_t tx_power_idx;
-    hfp_sync_status_recheck hfp_status_recheck;
     osTimerId clcc_timer;
-    osTimerId check_a2dp_restreaming_timer;
 
     void *pcustom_param;
     osTimerId delay_play_a2dp_timer;
-
-    uint16_t l2hc_bitrate;          // Bit field
-    bool is_need_recon_hfp_after_hfp_dis;
-    osTimerId reconn_hfp_timer;
-
-    bool is_pc_device;
-
-#if defined(A2DP_STREAM_DETECT_NO_DECODE)
-    a2dp_stream_detect_t stream_detect;
-#endif // A2DP_STREAM_DETECT_NO_DECODE
 };
 
 struct BT_DEVICE_RECONNECT_T {
@@ -412,8 +401,9 @@ struct app_bt_config {
     uint8_t a2dp_force_use_the_codec;
     bool a2dp_force_use_prev_codec;
     bool hid_capture_non_invade_mode;
-    bool music_preempt_play_mode; //new music disruppt old music automatically
-    bool call_preempt_play_mode; //new call disruppt old call automatically
+    bool a2dp_prompt_play_mode; //new a2dp disruppt old a2dp automatically
+    bool sco_prompt_play_mode; //new sco disruppt old sco automatically
+    bool keep_only_one_sco_link; //only one sco link support in controller
     bool dont_auto_play_bg_a2dp;
     uint8_t second_sco_handle_mode;
     bool a2dp_prompt_play_only_when_avrcp_play_received;
@@ -423,20 +413,15 @@ struct app_bt_config {
     bool pause_a2dp_stream;
     bool close_a2dp_stream;
     bool keep_only_one_stream_close_connected_a2dp;
-    bool pause_a2dp_when_call_exist;
+    bool pause_old_a2dp_when_new_sco_connected;
     bool reconn_sco_if_fast_disc_after_call_active_for_iphone_auto_mode;
     uint8_t hfp_default_volume;
     bool host_reject_unexcept_sco_packet;
     uint8_t second_sco_bg_action;
-    bool allow_duck_ringtone;
+    bool pause_a2dp_when_call_exist;
     uint8_t virtual_call_handle;
     bool pc_second_sco_discon_acl;
-    bool create_sco_for_call_active_device;
     bool prompt_tone_cant_preempt_music;
-    bool dont_resume_music_when_preempted_by_another_music;
-    bool resume_pc_sco_by_dis_then_conn_hfp;
-    bool only_use_avrcp_to_preempt_a2dp;
-    bool reject_sco_req_within_a_certain_time_after_it_be_preempted;
 };
 
 #ifdef IBRT
@@ -449,18 +434,13 @@ struct app_bt_tws_conn_info {
 };
 #endif
 
-typedef struct {
-    uint16_t link_handle;
-    link_traffic_mode_t traffic_mode;
-} bt_ble_active_link_info_t;
-
 struct BT_DEVICE_MANAGER_T {
     struct BT_DEVICE_T bt_devices[BT_DEVICE_NUM];
 #if defined(BT_SOURCE)
-    struct BT_DEVICE_T source_base_devices[BT_DEVICE_NUM];
+    struct BT_DEVICE_T source_base_devices[BT_SOURCE_DEVICE_NUM];
 #endif
-    uint8_t curr_hf_channel_id;
-    uint8_t curr_a2dp_stream_id;
+    enum BT_DEVICE_ID_T curr_hf_channel_id;
+    enum BT_DEVICE_ID_T curr_a2dp_stream_id;
     uint8_t curr_playing_sco_id;
     uint8_t curr_playing_a2dp_id;
     uint8_t interrupted_a2dp_id;
@@ -473,9 +453,6 @@ struct BT_DEVICE_MANAGER_T {
     uint8_t a2dp_switch_trigger_device;
     uint32_t a2dp_switch_trigger_btclk;
     uint32_t sco_switch_trigger_btclk;
-    bool trigger_a2dp_cis_toggle;
-    uint8_t a2dp_cis_toggle_trigger_device;
-    uint32_t a2dp_cis_toggle_trigger_btclk;
     osTimerId wait_sco_connected_timer;
     uint8_t wait_sco_connected_device_id;
 
@@ -499,8 +476,6 @@ struct BT_DEVICE_MANAGER_T {
 #ifdef IBRT
     struct app_bt_tws_conn_info tws_conn;
 #endif
-
-    bt_ble_active_link_info_t active_link_info;
 };
 
 void app_bt_manager_init(void);
@@ -512,6 +487,7 @@ extern struct BT_DEVICE_MANAGER_T app_bt_manager;
 void a2dp_handleKey(uint8_t a2dp_key);
 void hfp_handle_key(uint8_t hfp_key);
 void hsp_handle_key(uint8_t hsp_key);
+void btapp_a2dp_report_speak_gain(void);
 
 #ifdef __POWERKEY_CTRL_ONOFF_ONLY__
 #define   BTAPP_FUNC_KEY			APP_KEY_CODE_FN1
@@ -528,8 +504,6 @@ void hsp_handle_key(uint8_t hsp_key);
 #define   BTAPP_RELEASE_KEY			APP_KEY_CODE_NONE
 #endif
 #endif
-
-#ifdef APP_KEY_ENABLE
 void bt_key_init(void);
 void bt_key_send(APP_KEY_STATUS *status);
 void bt_key_handle(void);
@@ -541,9 +515,7 @@ void bt_key_handle_source_func_key(enum APP_KEY_EVENT_T event);
 void bt_key_handle_bt_func_click(void);
 void bt_drv_accessmode_switch_test(void);
 void bt_key_handle_siri_key(enum APP_KEY_EVENT_T event);
-#endif
 
-#ifdef BT_A2DP_SUPPORT
 void a2dp_callback(uint8_t device_id, a2dp_stream_t *Stream, const a2dp_callback_parms_t *Info);
 void avrcp_init(void);
 
@@ -554,7 +526,7 @@ void a2dp_volume_local_set(int id, uint8_t vol);
 void a2dp_update_local_volume(int id, uint8_t localVol);
 
 bool avrcp_get_tg_play_status_play_pause(void);
-
+void a2dp_volume_local_set(int id, uint8_t vol);
 uint8_t a2dp_volume_local_get(int id);
 
 void a2dp_abs_volume_set(int id, uint8_t vol);
@@ -563,16 +535,13 @@ uint8_t a2dp_abs_volume_get(int id);
 uint8_t a2dp_convert_local_vol_to_bt_vol(uint8_t localVol);
 uint8_t a2dp_convert_bt_vol_to_local_vol(uint8_t btVol);
 
-#endif
-
-#ifdef BT_HFP_SUPPORT
 void hfp_volume_set(int id, uint8_t btVol);
 uint8_t hfp_volume_get(int id);
 void hfp_update_local_volume(int id, uint8_t localVol);
+uint8_t hfp_volume_local_get(int id);
 
 uint8_t hfp_convert_local_vol_to_bt_vol(uint8_t localVol);
 uint8_t hfp_convert_bt_vol_to_local_vol(uint8_t btVol);
-#endif
 
 /**
  * Convert BES BD_ADDR to virtual
@@ -582,38 +551,28 @@ bool a2dp_id_from_bdaddr(bt_bdaddr_t *bd_addr, uint8_t *id);
 
 void bt_key_handle_func_click();
 void bt_key_handle_func_doubleclick();
-void bt_key_handle_func_tripleclick();
 void bt_key_handle_func_longpress();
-
-void bt_key_handle_customer_doubleclick();
-
 
 void app_bt_print_buff_status(void);
 
-void bt_a2dp_player_set_codec_type(uint8_t type);
-uint8_t bt_a2dp_player_get_sample_bit(void);
-uint8_t bt_a2dp_player_get_duration(void);
+void bt_sbc_player_set_codec_type(uint8_t type);
+uint8_t bt_sbc_player_get_codec_type(void);
+uint8_t bt_sbc_player_get_sample_bit(void);
+#if defined(A2DP_LDAC_ON)
+int bt_ldac_player_get_channelmode(void);
+int bt_get_ladc_sample_rate(void);
+#endif
 
 uint8_t app_bt_avrcp_get_volume_change_trans_id(uint8_t device_id);
 void app_bt_avrcp_set_volume_change_trans_id(uint8_t device_id, uint8_t trans_id);
 uint8_t app_bt_avrcp_get_ctl_trans_id(uint8_t device_id);
 void app_bt_avrcp_set_ctl_trans_id(uint8_t device_id, uint8_t trans_id);
 
-void app_bt_profile_connect_manager_a2dp(int id, a2dp_stream_t *Stream, const a2dp_callback_parms_t *Info);
+void app_bt_profile_connect_manager_a2dp(enum BT_DEVICE_ID_T id, a2dp_stream_t *Stream, const a2dp_callback_parms_t *Info);
 void app_bt_profile_connect_manager_avrcp(uint8_t device_id, btif_avctp_event_t event);
-void app_bt_profile_connect_manager_hf(int id, btif_hf_channel_t* Chan, struct hfp_context *ctx);
 
 bool app_bt_device_is_computer(uint8_t device_id);
-void app_audio_policy_set_bt_ble_active_link(link_traffic_mode_t traffic_mode, uint16_t link_handle);
-const bt_ble_active_link_info_t *app_audio_policy_get_bt_ble_active_link_info(void);
 void app_bt_multi_ibrt_music_config(uint8_t* link_id, uint8_t* active, uint8_t num);
-struct app_bt_config *app_bt_get_config(void);
-int besmain_sysfreq_get(void);
-
-#ifdef CUSTOM_BITRATE
-uint8_t app_audio_a2dp_player_playback_delay_mtu_get(uint16_t codec_type);
-void app_audio_dynamic_update_dest_packet_mtu_set(uint8_t codec_index, uint8_t packet_mtu, uint8_t user_configure);
-#endif
 #ifdef __cplusplus
 }
 #endif

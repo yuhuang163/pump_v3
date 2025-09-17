@@ -15,7 +15,11 @@
  ****************************************************************************/
 #ifndef __APP_CMD_H__
 #define __APP_CMD_H__
-#ifdef __PC_CMD_UART__
+#ifdef PC_CMD_UART_ID
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 #include "hal_cmd.h"
 typedef struct {
@@ -25,5 +29,10 @@ typedef struct {
 void app_cmd_open(void);
 
 void app_cmd_close(void);
+
+#if defined(__cplusplus)
+}
 #endif
-#endif//__FMDEC_H__
+
+#endif
+#endif//__APP_CMD_H__

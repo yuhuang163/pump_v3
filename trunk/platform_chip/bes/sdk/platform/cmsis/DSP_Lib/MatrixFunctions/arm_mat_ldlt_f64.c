@@ -102,26 +102,26 @@ arm_status arm_mat_ldlt_f64(
   {
 
     const int n=pSrc->numRows;
-    int fullRank = 1, diag,k;
+    int fullRank = 1, diag, k;
     float64_t *pA;
 
     memcpy(pl->pData,pSrc->pData,n*n*sizeof(float64_t));
     pA = pl->pData;
 
-    for(int k=0;k < n; k++)
+    for(k = 0; k < n; k++)
     {
       pp[k] = k;
     }
 
 
-    for(k=0;k < n; k++)
+    for(k = 0; k < n; k++)
     {
         /* Find pivot */
         float64_t m=F64_MIN,a;
         int j=k; 
 
 
-        for(int r=k;r<n;r++)
+        for(int r = k; r < n; r++)
         {
            if (pA[r*n+r] > m)
            {

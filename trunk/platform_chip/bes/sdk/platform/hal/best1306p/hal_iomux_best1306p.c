@@ -26,6 +26,10 @@
 #include "hal_uart.h"
 #include "pmu.h"
 #include "tgt_hardware.h"
+#ifdef I2C_RECOVERY
+#include "hal_i2c.h"
+#include "string.h"
+#endif
 
 #define MEMSC_ID_IOMUX                      HAL_MEMSC_AON_ID_0
 
@@ -177,7 +181,7 @@
 #endif
 
 #ifndef I2C1_IOMUX_INDEX
-#define I2C1_IOMUX_INDEX                    20
+#define I2C1_IOMUX_INDEX                    0
 #endif
 
 #ifndef I2C2_IOMUX_INDEX
@@ -432,6 +436,8 @@ void hal_iomux_set_default_config(void)
 #ifdef CLKOUT_PU_RC
     hal_iomux_set_pu_rc();
 #endif
+
+    hal_iomux_ispi_access_init();
 }
 
 uint32_t hal_iomux_check(const struct HAL_IOMUX_PIN_FUNCTION_MAP *map, uint32_t count)
@@ -931,10 +937,10 @@ enum HAL_IOMUX_ISPI_ACCESS_T hal_iomux_ispi_access_disable(enum HAL_IOMUX_ISPI_A
     return v;
 }
 
-void hal_iomux_ispi_access_init(void)
+void BOOT_TEXT_FLASH_LOC hal_iomux_ispi_access_init(void)
 {
     // Disable bt spi access ana/pmu interface
-    hal_iomux_ispi_access_disable(HAL_IOMUX_ISPI_BT_ANA | HAL_IOMUX_ISPI_BT_PMU);
+    iomux->REG_044 &= ~(HAL_IOMUX_ISPI_BT_ANA | HAL_IOMUX_ISPI_BT_PMU);
 }
 
 void hal_iomux_set_i2s0(void)
@@ -1132,18 +1138,27 @@ void hal_iomux_set_i2c0(void)
     hal_iomux_set_analog_i2c();
     // IOMUX_GPIO_I2C_MODE should be kept in disabled state
     iomux->REG_050 &= ~IOMUX_I2C0_M_SEL_GPIO;
-#elif (I2C0_IOMUX_INDEX == 4)
+#else
+#if (I2C0_IOMUX_INDEX == 4)
     static const struct HAL_IOMUX_PIN_FUNCTION_MAP pinmux_i2c[] = {
         {HAL_IOMUX_PIN_P0_4, HAL_IOMUX_FUNC_MCU_I2C_M0_SCL, I2C0_VOLTAGE_SEL, HAL_IOMUX_PIN_PULLUP_ENABLE},
         {HAL_IOMUX_PIN_P0_5, HAL_IOMUX_FUNC_MCU_I2C_M0_SDA, I2C0_VOLTAGE_SEL, HAL_IOMUX_PIN_PULLUP_ENABLE},
     };
-
-    hal_iomux_init(pinmux_i2c, ARRAY_SIZE(pinmux_i2c));
 #else
     static const struct HAL_IOMUX_PIN_FUNCTION_MAP pinmux_i2c[] = {
         {HAL_IOMUX_PIN_P0_0, HAL_IOMUX_FUNC_MCU_I2C_M0_SCL, I2C0_VOLTAGE_SEL, HAL_IOMUX_PIN_PULLUP_ENABLE},
         {HAL_IOMUX_PIN_P0_1, HAL_IOMUX_FUNC_MCU_I2C_M0_SDA, I2C0_VOLTAGE_SEL, HAL_IOMUX_PIN_PULLUP_ENABLE},
     };
+#endif
+
+#if defined(I2C_RECOVERY) && (I2C_RECOVERY & (1 << 0))
+    struct HAL_GPIO_I2C_CONFIG_T cfg;
+
+    memset(&cfg, 0, sizeof(struct HAL_GPIO_I2C_CONFIG_T));
+    cfg.scl = pinmux_i2c[0].pin;
+    cfg.sda = pinmux_i2c[1].pin;
+    hal_gpio_i2c_recovery(&cfg, 0);
+#endif
 
     hal_iomux_init(pinmux_i2c, ARRAY_SIZE(pinmux_i2c));
 #endif
@@ -1161,6 +1176,15 @@ void hal_iomux_set_i2c1(void)
 #endif
     };
 
+#if defined(I2C_RECOVERY) && (I2C_RECOVERY & (1 << 1))
+    struct HAL_GPIO_I2C_CONFIG_T cfg;
+
+    memset(&cfg, 0, sizeof(struct HAL_GPIO_I2C_CONFIG_T));
+    cfg.scl = pinmux_i2c[0].pin;
+    cfg.sda = pinmux_i2c[1].pin;
+    hal_gpio_i2c_recovery(&cfg, 0);
+#endif
+
     hal_iomux_init(pinmux_i2c, ARRAY_SIZE(pinmux_i2c));
     iomux->REG_050 |= IOMUX_I2C1_M_SEL_GPIO;
 }
@@ -1176,6 +1200,15 @@ void hal_iomux_set_i2c2(void)
         {HAL_IOMUX_PIN_P0_5, HAL_IOMUX_FUNC_MCU_I2C_M2_SDA, I2C2_VOLTAGE_SEL, HAL_IOMUX_PIN_PULLUP_ENABLE},
 #endif
     };
+
+#if defined(I2C_RECOVERY) && (I2C_RECOVERY & (1 << 2))
+    struct HAL_GPIO_I2C_CONFIG_T cfg;
+
+    memset(&cfg, 0, sizeof(struct HAL_GPIO_I2C_CONFIG_T));
+    cfg.scl = pinmux_i2c[0].pin;
+    cfg.sda = pinmux_i2c[1].pin;
+    hal_gpio_i2c_recovery(&cfg, 0);
+#endif
 
     hal_iomux_init(pinmux_i2c, ARRAY_SIZE(pinmux_i2c));
     iomux->REG_050 |= IOMUX_I2C2_M_SEL_GPIO;
@@ -1193,6 +1226,15 @@ void hal_iomux_set_i2c3(void)
 #endif
     };
 
+#if defined(I2C_RECOVERY) && (I2C_RECOVERY & (1 << 3))
+    struct HAL_GPIO_I2C_CONFIG_T cfg;
+
+    memset(&cfg, 0, sizeof(struct HAL_GPIO_I2C_CONFIG_T));
+    cfg.scl = pinmux_i2c[0].pin;
+    cfg.sda = pinmux_i2c[1].pin;
+    hal_gpio_i2c_recovery(&cfg, 0);
+#endif
+
     hal_iomux_init(pinmux_i2c, ARRAY_SIZE(pinmux_i2c));
     iomux->REG_050 |= IOMUX_I2C3_M_SEL_GPIO;
 }
@@ -1208,6 +1250,15 @@ void hal_iomux_set_i2c4(void)
         {HAL_IOMUX_PIN_P1_1, HAL_IOMUX_FUNC_MCU_I2C_M4_SDA, I2C4_VOLTAGE_SEL, HAL_IOMUX_PIN_PULLUP_ENABLE},
 #endif
     };
+
+#if defined(I2C_RECOVERY) && (I2C_RECOVERY & (1 << 4))
+    struct HAL_GPIO_I2C_CONFIG_T cfg;
+
+    memset(&cfg, 0, sizeof(struct HAL_GPIO_I2C_CONFIG_T));
+    cfg.scl = pinmux_i2c[0].pin;
+    cfg.sda = pinmux_i2c[1].pin;
+    hal_gpio_i2c_recovery(&cfg, 0);
+#endif
 
     hal_iomux_init(pinmux_i2c, ARRAY_SIZE(pinmux_i2c));
     iomux->REG_050 |= IOMUX_I2C4_M_SEL_GPIO;
@@ -1292,24 +1343,6 @@ void hal_iomux_set_clock_out(void)
     };
 
     hal_iomux_init(pinmux_clkout, ARRAY_SIZE(pinmux_clkout));
-}
-
-void hal_iomux_clr_clock_out(void)
-{
-    static const struct HAL_IOMUX_PIN_FUNCTION_MAP pinmux_clkout[] = {
-#if (CLKOUT_IOMUX_INDEX == 5)
-        {HAL_IOMUX_PIN_P0_5, HAL_IOMUX_FUNC_GPIO, CLKOUT_VOLTAGE_SEL, HAL_IOMUX_PIN_PULLDOWN_ENABLE},
-#elif (CLKOUT_IOMUX_INDEX == 24)
-        {HAL_IOMUX_PIN_P2_4, HAL_IOMUX_FUNC_GPIO, CLKOUT_VOLTAGE_SEL, HAL_IOMUX_PIN_PULLDOWN_ENABLE},
-#elif (CLKOUT_IOMUX_INDEX == 34)
-        {HAL_IOMUX_PIN_P3_4, HAL_IOMUX_FUNC_GPIO, CLKOUT_VOLTAGE_SEL, HAL_IOMUX_PIN_PULLDOWN_ENABLE},
-#else
-        {HAL_IOMUX_PIN_P1_3, HAL_IOMUX_FUNC_GPIO, CLKOUT_VOLTAGE_SEL, HAL_IOMUX_PIN_PULLDOWN_ENABLE},
-#endif
-    };
-    hal_iomux_init(pinmux_clkout, ARRAY_SIZE(pinmux_clkout));
-    hal_gpio_pin_set_dir((enum HAL_GPIO_PIN_T)pinmux_clkout[0].pin, HAL_GPIO_DIR_IN, 0);
-
 }
 
 void hal_iomux_set_mcu_clock_out(void)

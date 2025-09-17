@@ -24,15 +24,12 @@
 #include "hal_chipid.h"
 #include "app_thread.h"
 #include "app_battery.h"
-#include "audio_policy.h"
-#include "app_bt.h"
+#include "app_bt_audio.h"
 #include "apps.h"
-#include "app_hfp.h"
-
+#include "audio_player_adapter.h"
 #ifdef APP_BATTERY_ENABLE
 #include "app_status_ind.h"
 #include "bluetooth_bt_api.h"
-#include "app_media_player.h"
 #ifdef BT_USB_AUDIO_DUAL_MODE
 #include "btusb_audio.h"
 #endif
@@ -46,21 +43,8 @@
 extern "C" bool app_usbaudio_mode_on(void);
 #endif
 
-#ifdef MORE_THAN_ONE_TYPE_OF_CHARGER
-#include CHIP_SPECIFIC_HDR(charger)
-#endif
-
-#ifndef APP_BATTERY_GPADC_CH_NUM
-#define APP_BATTERY_GPADC_CH_NUM (HAL_GPADC_CHAN_BATTERY)
-#endif
-
-#ifndef GPADC_VBAT_VOLT_DIV
-#define GPADC_VBAT_VOLT_DIV (4)
-#endif
-
-#ifndef APP_BATTERY_ERR_MV
-#define APP_BATTERY_ERR_MV (2800)
-#endif
+#define APP_BATTERY_TRACE(s,...)
+// TRACE(s, ##__VA_ARGS__)
 
 #ifndef APP_BATTERY_MIN_MV
 #define APP_BATTERY_MIN_MV (3200)
@@ -179,16 +163,6 @@ static osTimerId app_battery_pluginout_debounce_timer = NULL;
 static uint32_t app_battery_pluginout_debounce_ctx = 0;
 static uint32_t app_battery_pluginout_debounce_cnt = 0;
 
-#ifndef MORE_THAN_ONE_TYPE_OF_CHARGER
-const
-#endif
-static enum HAL_GPADC_CHAN_T app_vbat_ch = APP_BATTERY_GPADC_CH_NUM;
-
-#ifndef MORE_THAN_ONE_TYPE_OF_CHARGER
-const
-#endif
-static uint8_t app_vbat_volt_div = GPADC_VBAT_VOLT_DIV;
-
 static void app_battery_timer_handler(void const *param);
 osTimerDef (APP_BATTERY, app_battery_timer_handler);
 static osTimerId app_battery_timer = NULL;
@@ -203,13 +177,14 @@ uint8_t* app_battery_get_mobile_support_self_defined_command_p(void)
 }
 #endif
 
+
 void app_battery_irqhandler(uint16_t irq_val, HAL_GPADC_MV_T volt)
 {
     uint8_t i;
     uint32_t meanBattVolt = 0;
     HAL_GPADC_MV_T vbat = volt;
-    BATTERY_TRACE(2,"%s %d",__func__, vbat);
-    if ((vbat == HAL_GPADC_BAD_VALUE) || ((vbat * app_vbat_volt_div) <= APP_BATTERY_ERR_MV))
+    APP_BATTERY_TRACE(2,"%s %d",__func__, vbat);
+    if (vbat == HAL_GPADC_BAD_VALUE)
     {
         app_battery_measure.cb(APP_BATTERY_STATUS_INVALID, vbat);
         return;
@@ -218,7 +193,8 @@ void app_battery_irqhandler(uint16_t irq_val, HAL_GPADC_MV_T volt)
 #if (defined(BTUSB_AUDIO_MODE) || defined(BTUSB_AUDIO_MODE))
     if(app_usbaudio_mode_on()) return ;
 #endif
-    app_battery_measure.voltage[app_battery_measure.index++%APP_BATTERY_STABLE_COUNT] = vbat * app_vbat_volt_div;
+    app_battery_measure.voltage[app_battery_measure.index++%APP_BATTERY_STABLE_COUNT] = vbat<<2;
+
     if (app_battery_measure.index > APP_BATTERY_STABLE_COUNT)
     {
         for (i=0; i<APP_BATTERY_STABLE_COUNT; i++)
@@ -249,7 +225,7 @@ void app_battery_irqhandler(uint16_t irq_val, HAL_GPADC_MV_T volt)
     else
     {
         int8_t level = 0;
-        meanBattVolt = vbat * app_vbat_volt_div;
+        meanBattVolt = vbat<<2;
         level = (meanBattVolt-APP_BATTERY_PD_MV)/APP_BATTERY_MV_BASE;
 
         if (level<APP_BATTERY_LEVEL_MIN)
@@ -293,11 +269,13 @@ static void app_battery_timer_start(enum APP_BATTERY_MEASURE_PERIODIC_T periodic
 
 static void app_battery_timer_handler(void const *param)
 {
+#ifndef NO_APP_BATTERY
 #ifdef CHARGER_1802
     charger_vbat_div_adc_enable(true);
     hal_gpadc_open(HAL_GPADC_CHAN_5, HAL_GPADC_ATP_ONESHOT, app_battery_irqhandler);
 #else
-    hal_gpadc_open(app_vbat_ch, HAL_GPADC_ATP_ONESHOT, app_battery_irqhandler);
+    hal_gpadc_open(HAL_GPADC_CHAN_BATTERY, HAL_GPADC_ATP_ONESHOT, app_battery_irqhandler);
+#endif
 #endif
 }
 
@@ -306,11 +284,8 @@ static void app_battery_event_process(enum APP_BATTERY_STATUS_T status, APP_BATT
     uint32_t app_battevt;
     APP_MESSAGE_BLOCK msg;
 
-    BATTERY_TRACE(3,"%s %d,%d",__func__, status, volt);
+    APP_BATTERY_TRACE(3,"%s %d,%d",__func__, status, volt);
     msg.mod_id = APP_MODULE_BATTERY;
-#if defined(USE_BASIC_THREADS)
-    msg.mod_level = APP_MOD_LEVEL_0;
-#endif
     APP_BATTERY_SET_MESSAGE(app_battevt, status, volt);
     msg.msg_body.message_id = app_battevt;
     msg.msg_body.message_ptr = (uint32_t)NULL;
@@ -318,15 +293,9 @@ static void app_battery_event_process(enum APP_BATTERY_STATUS_T status, APP_BATT
 
 }
 
-#ifdef BT_BUILD_WITH_CUSTOMER_HOST
-int app_status_battery_report(uint8_t level)
+static int app_status_battery_report(uint8_t level)
 {
-    return 0;
-}
-#else
-int app_status_battery_report(uint8_t level)
-{
-#if defined(APP_10_SECOND_TIMER_EN)
+#if defined(__BTIF_EARPHONE__)
     app_10_second_timer_check();
 #endif
 
@@ -334,24 +303,22 @@ int app_status_battery_report(uint8_t level)
     {
 // #if (HF_CUSTOM_FEATURE_SUPPORT & HF_CUSTOM_FEATURE_BATTERY_REPORT) || (HF_SDK_FEATURES & HF_FEATURE_HF_INDICATORS)
 #if defined(SUPPORT_BATTERY_REPORT) || defined(SUPPORT_HF_INDICATORS)
-#if defined(IBRT)
-        uint8_t hfp_device = app_bt_audio_get_curr_hfp_device();
-        struct BT_DEVICE_T *curr_device = app_bt_get_device(hfp_device);
-        if (curr_device->hf_conn_flag)
+#if defined(IBRT) && !defined(BT_SOURCE) && defined(BT_HFP_SUPPORT)
+        int hfp_device_id = bes_bt_me_select_device(BT_SELECT_CURR_A2DP_DEVICE);
+        if (hfp_device_id != BT_DEVICE_INVALID_ID && bes_bt_hfp_get_state(hfp_device_id).hfp_is_connected)
         {
-            app_hfp_set_battery_level(level);
+            bes_bt_hfp_set_battery_level(level);
         }
 #elif defined(BT_HFP_SUPPORT)
-        app_hfp_set_battery_level(level);
+        bes_bt_hfp_set_battery_level(level);
 #endif
 #else
-        BATTERY_TRACE(1,"[%s] Can not enable SUPPORT_BATTERY_REPORT", __func__);
+        TRACE(1,"[%s] Can not enable SUPPORT_BATTERY_REPORT", __func__);
 #endif
         bes_bt_osapi_notify_evm();
     }
     return 0;
 }
-#endif
 
 int app_battery_handle_process_normal(uint32_t status,  union APP_BATTERY_MSG_PRAMS prams)
 {
@@ -360,13 +327,13 @@ int app_battery_handle_process_normal(uint32_t status,  union APP_BATTERY_MSG_PR
     switch (status)
     {
         case APP_BATTERY_STATUS_UNDERVOLT:
-            BATTERY_TRACE(1,"UNDERVOLT:%d", prams.volt);
+            TRACE(1,"UNDERVOLT:%d", prams.volt);
             app_status_indication_set(APP_STATUS_INDICATION_CHARGENEED);
 #ifdef MEDIA_PLAYER_SUPPORT
 #if defined(IBRT)
 
 #else
-            media_PlayAudio(AUD_ID_BT_CHARGE_PLEASE, 0);
+            audio_player_play_prompt(AUD_ID_BT_CHARGE_PLEASE, 0);
 #endif
 #endif
             // FALLTHROUGH
@@ -398,17 +365,17 @@ int app_battery_handle_process_normal(uint32_t status,  union APP_BATTERY_MSG_PR
             break;
         case APP_BATTERY_STATUS_PDVOLT:
 #ifndef BT_USB_AUDIO_DUAL_MODE
-            BATTERY_TRACE(1,"PDVOLT-->POWEROFF:%d", prams.volt);
+            TRACE(1,"PDVOLT-->POWEROFF:%d", prams.volt);
             osTimerStop(app_battery_timer);
             app_shutdown();
 #endif
             break;
         case APP_BATTERY_STATUS_CHARGING:
-            BATTERY_TRACE(1,"CHARGING-->APP_BATTERY_CHARGER :%d", prams.charger);
+            TRACE(1,"CHARGING-->APP_BATTERY_CHARGER :%d", prams.charger);
             if (prams.charger == APP_BATTERY_CHARGER_PLUGIN)
             {
 #ifdef BT_USB_AUDIO_DUAL_MODE
-                BATTERY_TRACE(1,"%s:PLUGIN.", __func__);
+                TRACE(1,"%s:PLUGIN.", __func__);
                 btusb_switch(BTUSB_MODE_USB);
 #else
 #if CHARGER_PLUGINOUT_RESET
@@ -439,12 +406,12 @@ int app_battery_handle_process_charging(uint32_t status,  union APP_BATTERY_MSG_
             app_status_battery_report(prams.volt);
             break;
         case APP_BATTERY_STATUS_CHARGING:
-            BATTERY_TRACE(1,"CHARGING:%d", prams.charger);
+            TRACE(1,"CHARGING:%d", prams.charger);
             if (prams.charger == APP_BATTERY_CHARGER_PLUGOUT)
             {
 #ifndef BT_USB_AUDIO_DUAL_MODE
 #if CHARGER_PLUGINOUT_RESET
-                BATTERY_TRACE(0,"CHARGING-->RESET");
+                TRACE(0,"CHARGING-->RESET");
                 osTimerStop(app_battery_timer);
                 app_shutdown();
 #else
@@ -455,7 +422,7 @@ int app_battery_handle_process_charging(uint32_t status,  union APP_BATTERY_MSG_
             else if (prams.charger == APP_BATTERY_CHARGER_PLUGIN)
             {
 #if defined(BT_USB_AUDIO_DUAL_MODE)
-                BATTERY_TRACE(1,"%s:PLUGIN.", __func__);
+                TRACE(1,"%s:PLUGIN.", __func__);
                 btusb_switch(BTUSB_MODE_USB);
 #endif
             }
@@ -469,12 +436,12 @@ int app_battery_handle_process_charging(uint32_t status,  union APP_BATTERY_MSG_
     {
         if (app_status_indication_get() != APP_STATUS_INDICATION_FULLCHARGE)
         {
-            BATTERY_TRACE(1,"FULL_CHARGING:%d", app_battery_measure.currvolt);
+            TRACE(1,"FULL_CHARGING:%d", app_battery_measure.currvolt);
             app_status_indication_set(APP_STATUS_INDICATION_FULLCHARGE);
 #ifdef MEDIA_PLAYER_SUPPORT
 #if defined(BT_USB_AUDIO_DUAL_MODE) || defined(IBRT)
 #else
-            media_PlayAudio(AUD_ID_BT_CHARGE_FINISH, 0);
+            audio_player_play_prompt(AUD_ID_BT_CHARGE_FINISH, 0);
 #endif
 #endif
         }
@@ -485,7 +452,6 @@ int app_battery_handle_process_charging(uint32_t status,  union APP_BATTERY_MSG_
     return 0;
 }
 
-extern "C"     bool pmu_ana_volt_is_high(void);
 static int app_battery_handle_process(APP_MESSAGE_BODY *msg_body)
 {
     uint8_t status;
@@ -510,13 +476,6 @@ static int app_battery_handle_process(APP_MESSAGE_BODY *msg_body)
         {
             case APP_BATTERY_STATUS_NORMAL:
                 app_battery_handle_process_normal((uint32_t)status, msg_prams);
-#if defined(CHIP_BEST1501P)
-                if(pmu_ana_volt_is_high() == false){
-                    pmu_ntc_capture_start(NULL);
-                }else{
-                    BATTERY_TRACE(1,"%s stop ana check",__func__);
-                }
-#endif
                 break;
 
             case APP_BATTERY_STATUS_CHARGING:
@@ -580,28 +539,13 @@ int app_battery_get_info(APP_BATTERY_MV_T *currvolt, uint8_t *currlevel, enum AP
     return 0;
 }
 
-#ifdef MORE_THAN_ONE_TYPE_OF_CHARGER
-static void app_battery_gpadc_configuration_init(void)
-{
-    if (charger_package_type_get() == CHARGER_PACKAGE_TYPE_SIP_1620)
-    {
-        app_vbat_ch = HAL_GPADC_CHAN_BATTERY;
-        app_vbat_volt_div = 4;
-    }
-}
-#endif
-
 int app_battery_open(void)
 {
-    BATTERY_TRACE(3,"%s batt range:%d~%d",__func__, APP_BATTERY_MIN_MV, APP_BATTERY_MAX_MV);
-
-    int nRet = APP_BATTERY_OPEN_MODE_INVALID;
-
-#ifdef MORE_THAN_ONE_TYPE_OF_CHARGER
-    app_battery_gpadc_configuration_init();
+#ifdef NO_APP_BATTERY
+    return 0;
 #endif
-
-    BATTERY_TRACE(0, "%s: app_vbat_ch=%d app_vbat_volt_div=%d", __func__, app_vbat_ch, app_vbat_volt_div);
+    APP_BATTERY_TRACE(3,"%s batt range:%d~%d",__func__, APP_BATTERY_MIN_MV, APP_BATTERY_MAX_MV);
+    int nRet = APP_BATTERY_OPEN_MODE_INVALID;
 
     if (app_battery_timer == NULL)
         app_battery_timer = osTimerCreate (osTimer(APP_BATTERY), osTimerPeriodic, NULL);
@@ -672,7 +616,7 @@ int app_battery_open(void)
 
 int app_battery_start(void)
 {
-    BATTERY_TRACE(2,"%s %d",__func__, APP_BATTERY_MEASURE_PERIODIC_FAST_MS);
+    APP_BATTERY_TRACE(2,"%s %d",__func__, APP_BATTERY_MEASURE_PERIODIC_FAST_MS);
 
     app_battery_timer_start(APP_BATTERY_MEASURE_PERIODIC_FAST);
 
@@ -681,8 +625,10 @@ int app_battery_start(void)
 
 int app_battery_stop(void)
 {
-    osTimerStop(app_battery_timer);
-
+    if (app_battery_timer)
+    {
+        osTimerStop(app_battery_timer);
+    }
     return 0;
 }
 
@@ -714,7 +660,7 @@ static int app_battery_charger_handle_process(void)
     charging_min = TICKS_TO_MS(charging_min)/1000/60;
     if (charging_min >= app_battery_measure.chargetimeout)
     {
-        // BATTERY_TRACE(0,"TIMEROUT-->FULL_CHARGING");
+        // TRACE(0,"TIMEROUT-->FULL_CHARGING");
         nRet = -1;
         goto exit;
     }
@@ -731,7 +677,7 @@ static int app_battery_charger_handle_process(void)
         }
         if (overvolt_full_charge_cnt>=APP_BATTERY_CHARGING_OVERVOLT_DEDOUNCE_CNT)
         {
-            //BATTERY_TRACE(0,"OVERVOLT-->FULL_CHARGING");
+            //TRACE(0,"OVERVOLT-->FULL_CHARGING");
             nRet = -1;
             goto exit;
         }
@@ -751,7 +697,7 @@ static int app_battery_charger_handle_process(void)
             }
             if (ext_pin_full_charge_cnt>=APP_BATTERY_CHARGING_EXTPIN_DEDOUNCE_CNT)
             {
-                BATTERY_TRACE(0,"EXT PIN-->FULL_CHARGING");
+                TRACE(0,"EXT PIN-->FULL_CHARGING");
                 nRet = -1;
                 goto exit;
             }
@@ -781,9 +727,9 @@ static int app_battery_charger_handle_process(void)
                     cnt++;
                 else
                     cnt--;
-                BATTERY_TRACE(3,"slope_1000[%d]=%d cnt:%d", i,app_battery_measure.charger_status.slope_1000[i], cnt);
+                TRACE(3,"slope_1000[%d]=%d cnt:%d", i,app_battery_measure.charger_status.slope_1000[i], cnt);
             }
-            BATTERY_TRACE(3,"app_battery_charger_slope_proc slope*1000=%d cnt:%d nRet:%d", slope_1000, cnt, nRet);
+            TRACE(3,"app_battery_charger_slope_proc slope*1000=%d cnt:%d nRet:%d", slope_1000, cnt, nRet);
             if (cnt>1)
             {
                 nRet = 1;
@@ -793,7 +739,7 @@ static int app_battery_charger_handle_process(void)
             {
                 if (app_battery_measure.currvolt>=(app_battery_measure.highvolt-APP_BATTERY_CHARGE_OFFSET_MV))
                 {
-                    BATTERY_TRACE(0,"SLOPE-->FULL_CHARGING");
+                    TRACE(0,"SLOPE-->FULL_CHARGING");
                     nRet = -1;
                 }
             }
@@ -814,12 +760,12 @@ static enum APP_BATTERY_CHARGER_T app_battery_charger_forcegetstatus(void)
     if (charger == PMU_CHARGER_PLUGIN)
     {
         status = APP_BATTERY_CHARGER_PLUGIN;
-        // BATTERY_TRACE(0,"force APP_BATTERY_CHARGER_PLUGIN");
+        // TRACE(0,"force APP_BATTERY_CHARGER_PLUGIN");
     }
     else
     {
         status = APP_BATTERY_CHARGER_PLUGOUT;
-        // BATTERY_TRACE(0,"force APP_BATTERY_CHARGER_PLUGOUT");
+        // TRACE(0,"force APP_BATTERY_CHARGER_PLUGOUT");
     }
 
     return status;
@@ -827,7 +773,7 @@ static enum APP_BATTERY_CHARGER_T app_battery_charger_forcegetstatus(void)
 
 static void app_battery_charger_handler(enum PMU_CHARGER_STATUS_T status)
 {
-    BATTERY_TRACE(2,"%s: status=%d", __func__, status);
+    TRACE(2,"%s: status=%d", __func__, status);
     pmu_charger_set_irq_handler(NULL);
     app_battery_event_process(APP_BATTERY_STATUS_PLUGINOUT,
                               (status == PMU_CHARGER_PLUGIN) ? APP_BATTERY_CHARGER_PLUGIN : APP_BATTERY_CHARGER_PLUGOUT);
@@ -835,7 +781,7 @@ static void app_battery_charger_handler(enum PMU_CHARGER_STATUS_T status)
 
 static void app_battery_pluginout_debounce_start(void)
 {
-    BATTERY_TRACE(1,"%s", __func__);
+    TRACE(1,"%s", __func__);
 #if defined(BT_USB_AUDIO_DUAL_MODE)
     btusb_switch(BTUSB_MODE_BT);
 #endif
@@ -853,13 +799,13 @@ static void app_battery_pluginout_debounce_handler(void const *param)
     }
     else
     {
-        BATTERY_TRACE(2,"%s dithering cnt %u", __func__, app_battery_pluginout_debounce_cnt);
+        TRACE(2,"%s dithering cnt %u", __func__, app_battery_pluginout_debounce_cnt);
         app_battery_pluginout_debounce_cnt = 0;
         app_battery_pluginout_debounce_ctx = (uint32_t)status_charger;
     }
 
     if (app_battery_pluginout_debounce_cnt >= CHARGER_PLUGINOUT_DEBOUNCE_CNT){
-        BATTERY_TRACE(2,"%s %s", __func__, status_charger == APP_BATTERY_CHARGER_PLUGOUT ? "PLUGOUT" : "PLUGIN");
+        TRACE(2,"%s %s", __func__, status_charger == APP_BATTERY_CHARGER_PLUGOUT ? "PLUGOUT" : "PLUGIN");
         if (status_charger == APP_BATTERY_CHARGER_PLUGIN)
         {
             if (app_battery_ext_charger_enable_cfg.pin != HAL_IOMUX_PIN_NUM)
@@ -888,7 +834,7 @@ int app_battery_charger_indication_open(void)
     enum APP_BATTERY_CHARGER_T status = APP_BATTERY_CHARGER_QTY;
     uint8_t cnt = 0;
 
-    BATTERY_TRACE(1,"%s",__func__);
+    APP_BATTERY_TRACE(1,"%s",__func__);
 
     pmu_charger_init();
 
@@ -951,7 +897,7 @@ static struct NTC_CAPTURE_MEASURE_T ntc_capture_measure;
 void ntc_capture_irqhandler(uint16_t irq_val, HAL_GPADC_MV_T volt)
 {
     uint32_t meanVolt = 0;
-    BATTERY_TRACE(3,"%s %d irq:0x%04x",__func__, volt, irq_val);
+    TRACE(3,"%s %d irq:0x%04x",__func__, volt, irq_val);
 
     if (volt == HAL_GPADC_BAD_VALUE)
     {
@@ -975,7 +921,7 @@ void ntc_capture_irqhandler(uint16_t irq_val, HAL_GPADC_MV_T volt)
     }
     ntc_capture_measure.temperature = ((int32_t)ntc_capture_measure.currvolt - NTC_CAPTURE_VOLTAGE_REF)/NTC_CAPTURE_TEMPERATURE_STEP + NTC_CAPTURE_TEMPERATURE_REF;
     pmu_ntc_capture_disable();
-    BATTERY_TRACE(3,"%s ad:%d temperature:%d",__func__, ntc_capture_measure.currvolt, ntc_capture_measure.temperature);
+    TRACE(3,"%s ad:%d temperature:%d",__func__, ntc_capture_measure.currvolt, ntc_capture_measure.temperature);
 }
 
 int ntc_capture_open(void)
@@ -1036,11 +982,8 @@ static void app_battery_event_process(enum APP_BATTERY_STATUS_T status, APP_BATT
     uint32_t app_battevt;
     APP_MESSAGE_BLOCK msg;
 
-    BATTERY_TRACE(3,"%s %d,%d",__func__, status, volt);
+    APP_BATTERY_TRACE(3,"%s %d,%d",__func__, status, volt);
     msg.mod_id = APP_MODULE_BATTERY;
-#if defined(USE_BASIC_THREADS)
-    msg.mod_level = APP_MOD_LEVEL_0;
-#endif
     APP_BATTERY_SET_MESSAGE(app_battevt, status, volt);
     msg.msg_body.message_id = app_battevt;
     msg.msg_body.message_ptr = (uint32_t)NULL;
@@ -1049,7 +992,7 @@ static void app_battery_event_process(enum APP_BATTERY_STATUS_T status, APP_BATT
 
 static void app_battery_charger_handler(enum PMU_CHARGER_STATUS_T status)
 {
-    BATTERY_TRACE(2,"%s: status=%d", __func__, status);
+    TRACE(2,"%s: status=%d", __func__, status);
     pmu_charger_set_irq_handler(NULL);
     app_battery_event_process(APP_BATTERY_STATUS_PLUGINOUT,
                               (status == PMU_CHARGER_PLUGIN) ? APP_BATTERY_CHARGER_PLUGIN : APP_BATTERY_CHARGER_PLUGOUT);
@@ -1076,7 +1019,7 @@ static enum APP_BATTERY_CHARGER_T app_battery_charger_forcegetstatus(void)
 
 static void app_battery_pluginout_debounce_start(void)
 {
-    BATTERY_TRACE(1,"%s", __func__);
+    TRACE(1,"%s", __func__);
 
     app_battery_pluginout_debounce_ctx = (uint32_t)app_battery_charger_forcegetstatus();
     app_battery_pluginout_debounce_cnt = 1;
@@ -1094,13 +1037,13 @@ static void app_battery_pluginout_debounce_handler(void const *param)
     }
     else
     {
-        BATTERY_TRACE(2,"%s dithering cnt %u", __func__, app_battery_pluginout_debounce_cnt);
+        TRACE(2,"%s dithering cnt %u", __func__, app_battery_pluginout_debounce_cnt);
         app_battery_pluginout_debounce_cnt = 0;
         app_battery_pluginout_debounce_ctx = (uint32_t)status_charger;
     }
 
     if (app_battery_pluginout_debounce_cnt >= CHARGER_PLUGINOUT_DEBOUNCE_CNT){
-        BATTERY_TRACE(2,"%s %s", __func__, status_charger == APP_BATTERY_CHARGER_PLUGOUT ? "PLUGOUT" : "PLUGIN");
+        TRACE(2,"%s %s", __func__, status_charger == APP_BATTERY_CHARGER_PLUGOUT ? "PLUGOUT" : "PLUGIN");
 
         app_battery_pluginout_event_callback(status_charger);
         pmu_charger_set_irq_handler(app_battery_charger_handler);
@@ -1114,7 +1057,7 @@ int app_battery_charger_indication_open(void)
 {
     enum APP_BATTERY_CHARGER_T status = APP_BATTERY_CHARGER_QTY;
 
-    BATTERY_TRACE(1,"%s",__func__);
+    APP_BATTERY_TRACE(1,"%s",__func__);
 
     pmu_charger_init();
 
@@ -1126,6 +1069,9 @@ int app_battery_charger_indication_open(void)
 
 int app_battery_open(void)
 {
+#ifdef NO_APP_BATTERY
+    return 0;
+#endif
     app_battery_opened_callback();
 #ifdef IS_USE_SOC_PMU_PLUGINOUT
     if (app_battery_pluginout_debounce_timer == NULL)
@@ -1173,11 +1119,11 @@ static void app_battery_pluginout_event_callback(enum APP_BATTERY_CHARGER_T even
 {
     if (APP_BATTERY_CHARGER_PLUGOUT == event)
     {
-        BATTERY_TRACE(0, "Charger plug out.");
+        TRACE(0, "Charger plug out.");
     }
     else if (APP_BATTERY_CHARGER_PLUGIN == event)
     {
-        BATTERY_TRACE(0, "Charger plug in.");
+        TRACE(0, "Charger plug in.");
     }
 }
 #endif
@@ -1202,6 +1148,16 @@ int app_battery_open(void)
 }
 
 int app_battery_start(void)
+{
+    return 0;
+}
+
+int app_battery_stop(void)
+{
+    return 0;
+}
+
+int app_battery_close(void)
 {
     return 0;
 }

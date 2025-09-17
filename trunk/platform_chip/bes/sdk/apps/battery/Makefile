@@ -6,22 +6,33 @@ obj-y := $(obj-y:.cpp=.o)
 obj-y := $(obj-y:.S=.o)
 
 subdir-ccflags-y += -Iplatform/drivers/ana \
-                    $(BLUETOOTH_ADAPTER_INCLUDES)
+                    $(BLUETOOTH_ADAPTER_INCLUDES) \
+                    -Iservices/ble_app/app_main
 
 
 ifeq ($(VOICE_PROMPT),1)
 CFLAGS_app_battery.o += -DMEDIA_PLAYER_SUPPORT
 endif
 
+ifeq ($(IBRT),1)
+ifeq ($(IBRT_UI),1)
+subdir-ccflags-y += \
+    -Iservices/ux/common/ibrt/app_ibrt/inc \
+    -Iservices/ux/common/ibrt/ibrt_core/inc
+endif
+endif
+
 ifeq ($(CHARGER_1802),1)
 CFLAGS_app_battery.o += -DCHARGER_1802
 endif
 
-subdir-ccflags-y += \
+ifeq ($(NO_APP_BATTERY),1)
+CFLAGS_app_battery.o += -DNO_APP_BATTERY
+endif
+
+ccflags-y += \
     $(BLUETOOTH_ADAPTER_INCLUDES) \
-    $(BT_SERVICE_UX_INCLUDES) \
-    -Iutils/cqueue \
-    -Iservices/audio_manager/audio_policy/bredr_policy/inc \
-    -Iservices/audio_bt
+    -Iservices/audio_bt \
+    -Iservices/audio_manager
 
 

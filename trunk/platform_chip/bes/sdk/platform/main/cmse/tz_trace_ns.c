@@ -27,10 +27,13 @@ static uint8_t cmns_trc_buf[200];
 static int cmns_trace_global_tag_handler(char *buf, unsigned int buf_len)
 {
 #ifdef USE_TRACE_ID
-    uint32_t id = hal_trace_get_id(buf);
-    hal_trace_set_id(buf, SET_BITFIELD(id, USER_ID_SECURE, USER_ID_SECURE_NS));
-    return (int)id;
-#else
+    if (buf_len == 0) {
+        uint32_t tag = hal_trace_get_tag(buf);
+        hal_trace_set_tag(buf, SET_BITFIELD(tag, TAG_VAL_SECURE, TAG_VAL_SECURE_NS));
+        return 0;
+    }
+#endif
+
     unsigned int len;
     const char tag[] = "NS/";
     const unsigned int tag_len = sizeof(tag) - 1;
@@ -42,7 +45,6 @@ static int cmns_trace_global_tag_handler(char *buf, unsigned int buf_len)
     }
 
     return 0;
-#endif
 }
 
 static void cmns_trace_notify_handler(enum HAL_TRACE_STATE_T state)
@@ -51,20 +53,20 @@ static void cmns_trace_notify_handler(enum HAL_TRACE_STATE_T state)
     int_lock_global();
 
     if (state == HAL_TRACE_STATE_CRASH_END) {
-        MAIN_TRACE_IMM(TR_ATTR_NO_TS, " ");
-        MAIN_TRACE_IMM(TR_ATTR_NO_TS, "------------------------------------------");
-        MAIN_TRACE_IMM(TR_ATTR_NO_TS, "Start of non-secure application crash dump");
-        MAIN_TRACE_IMM(TR_ATTR_NO_TS, "------------------------------------------");
-        MAIN_TRACE_IMM(TR_ATTR_NO_TS, " ");
+        TRACE_IMM(TR_ATTR_NO_TS, " ");
+        TRACE_IMM(TR_ATTR_NO_TS, "------------------------------------------");
+        TRACE_IMM(TR_ATTR_NO_TS, "Start of non-secure application crash dump");
+        TRACE_IMM(TR_ATTR_NO_TS, "------------------------------------------");
+        TRACE_IMM(TR_ATTR_NO_TS, " ");
 
         hal_trace_crash_dump_callback();
-        NORM_LOG_FLUSH();
+        TRACE_FLUSH();
 
-        MAIN_TRACE_IMM(0, " ");
-        MAIN_TRACE_IMM(0, "----------------------------------------");
-        MAIN_TRACE_IMM(0, "End of non-secure application crash dump");
-        MAIN_TRACE_IMM(0, "----------------------------------------");
-        MAIN_TRACE_IMM(0, " ");
+        TRACE_IMM(0, " ");
+        TRACE_IMM(0, "----------------------------------------");
+        TRACE_IMM(0, "End of non-secure application crash dump");
+        TRACE_IMM(0, "----------------------------------------");
+        TRACE_IMM(0, " ");
     }
 
 #if !(defined(ROM_BUILD) || defined(PROGRAMMER))
@@ -76,8 +78,8 @@ static void cmns_trace_notify_handler(enum HAL_TRACE_STATE_T state)
 
 static void cmns_trace_output_handler(const unsigned char *buf, unsigned int len)
 {
-    NORM_LOG_RAW_OUTPUT(buf, len);
-    NORM_LOG_FLUSH();
+    TRACE_OUTPUT(buf, len);
+    TRACE_FLUSH();
 }
 
 void cmns_trace_init()

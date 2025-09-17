@@ -4,6 +4,11 @@ obj-y := $(patsubst $(cur_dir)%,%,$(wildcard $(cur_dir)*.c $(cur_dir)*.S))
 obj-y := $(obj-y:.c=.o)
 obj-y := $(obj-y:.S=.o)
 
+ifneq ($(LTO_CFLAGS),)
+KBUILD_CFLAGS := $(filter-out $(LTO_CFLAGS),$(KBUILD_CFLAGS))
+KBUILD_CPPFLAGS := $(filter-out $(LTO_CPPFLAGS),$(KBUILD_CPPFLAGS))
+endif
+
 ccflags-y := -I$(obj)/inc -Itests/programmer/inc -Iutils/boot_struct
 
 CFLAGS_norflash_drv.o += -DCHIP_FLASH_CTRL_VER=$(CHIP_FLASH_CTRL_VER)
@@ -58,16 +63,21 @@ ccflags-y += -DFLASH_DTR
 endif
 ifeq ($(FLASH_SECURITY_REGISTER),1)
 CFLAGS_norflash_drv.o += -DFLASH_SECURITY_REGISTER
+ifeq ($(FLASH_SEC_REG_DUAL_CHIP),1)
+CFLAGS_norflash_drv.o += -DFLASH_SEC_REG_DUAL_CHIP
 endif
-ifeq ($(FLASH_LOCK_CP_ACCESS),1)
-CFLAGS_norflash_drv.o += -DFLASH_LOCK_CP_ACCESS
 endif
-ifeq ($(CP_IN_SAME_EE),1)
-CFLAGS_norflash_drv.o += -DCP_IN_SAME_EE
+ifeq ($(FLASH_LOCK_MEM_READ),1)
+CFLAGS_norflash_drv.o += -DFLASH_LOCK_MEM_READ
 endif
-
+ifeq ($(FLASH_FETCH_64B),1)
+CFLAGS_norflash_drv.o += -DFLASH_FETCH_64B
+endif
 ifeq ($(PUYA_FLASH_ERASE_PAGE_ENABLE),1)
 CFLAGS_norflash_drv.o += -DPUYA_FLASH_ERASE_PAGE_ENABLE
+endif
+ifeq ($(FLASH_DEC_ENABLE), 1)
+CFLAGS_norflash_drv.o += -DFLASH_DEC_ENABLE
 endif
 
 ifeq ($(FLASH_PAGE_MPM_ENABLE),1)
@@ -82,4 +92,4 @@ ifeq ($(FLASH_CHIP_LIST),)
 $(error *** Error: FLASH_CHIP_LIST is NOT defined!)
 endif
 
-CFLAGS_norflash_drv.o += $(foreach flash,$(FLASH_CHIP_LIST),-D__NORFLASH_$(flash)__)
+ccflags-y += $(foreach flash,$(FLASH_CHIP_LIST),-D__NORFLASH_$(flash)__)

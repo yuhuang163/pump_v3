@@ -6,8 +6,11 @@ obj_s := $(patsubst $(cur_dir)%,%,$(wildcard $(cur_dir)*.S))
 
 src_obj := $(obj_c:.c=.o) $(obj_s:.S=.o) $(obj_cpp:.cpp=.o)
 
-GEN_LIB_NAME := libhsm
-root_dir := $(abspath $(dir $(realpath $(firstword $(MAKEFILE_LIST))))/..)
-sinclude $(root_dir)/config/lib.mk
-$(GEN_LIB_NAME)-y := $(src_obj)
-obj-y += $(GEN_LIB_NAME).a
+HSM_LIB_NAME := libhsm
+
+ifeq ($(USE_TRACE_ID), 1)
+HSM_LIB_NAME := $(HSM_LIB_NAME)_log_compressed
+endif
+
+$(HSM_LIB_NAME)-y := $(src_obj)
+obj-y += $(HSM_LIB_NAME).a

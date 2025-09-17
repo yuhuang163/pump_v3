@@ -16,19 +16,22 @@
 #ifdef CHIP_HAS_USB
 
 #include "plat_addr_map.h"
-#include "reg_usb.h"
+
 #ifdef USB_BASE
-#include "hal_usb.h"
-#include "hal_trace.h"
-#include "hal_cmu.h"
-#include "hal_timer.h"
-#include "hal_sysfreq.h"
-#include "hal_chipid.h"
-#include "usb_descriptor.h"
-#include "string.h"
+
 #include "cmsis_nvic.h"
+#include "hal_chipid.h"
+#include "hal_cmu.h"
+#include "hal_location.h"
+#include "hal_sysfreq.h"
+#include "hal_timer.h"
+#include "hal_trace.h"
+#include "hal_usb.h"
 #include "hwtimer_list.h"
 #include "pmu.h"
+#include "reg_usb.h"
+#include "string.h"
+#include "usb_descriptor.h"
 #ifdef CHIP_HAS_USBPHY
 #include "usbphy.h"
 #endif
@@ -42,6 +45,7 @@
 // GHWCFG3 = 0x03f404e8
 // GHWCFG4 = 0x16108020
 
+#define USB_TRACE(mask, str, ...)           { if (usb_trmask & (1 << mask)) { TR_INFO(TR_MOD(HAL), str, ##__VA_ARGS__); } }
 #define USB_FUNC_ENTRY_TRACE(mask)          { if (usb_trmask & (1 << mask)) { FUNC_ENTRY_TRACE(); } }
 
 #define GLOBAL_OUT_NAK_WORKAROUND
@@ -100,6 +104,8 @@
 #define USB_SYS_FREQ                        HAL_CMU_FREQ_52M
 #endif
 
+#define USB_BUF_LOC                         SYNC_FLAGS_LOC
+
 enum DEVICE_STATE {
     ATTACHED,
     POWERED,
@@ -147,7 +153,9 @@ static struct USBIF_T * const usbif = (struct USBIF_T *)(USB_BASE + 0x00040000);
 
 static uint16_t fifo_addr;
 
+USB_BUF_LOC
 static uint32_t ep0_out_buffer[EP0_OUT_BUF_SIZE / 4];
+USB_BUF_LOC
 static uint32_t ep0_in_buffer[EP0_IN_BUF_SIZE / 4];
 
 static struct EPN_OUT_TRANSFER epn_out_transfer[USB_MAX_OUT_EP_NUM - 1];
@@ -180,7 +188,7 @@ static void hal_usb_stop_usbdev_timer(void);
 #endif
 
 static void hal_usb_irq_handler(void);
-static void hal_usb_recv_ep0(void);
+static void hal_usb_recv_ep0(bool clear_nak);
 
 static void hal_usb_init_ep0_transfer(void)
 {
@@ -277,7 +285,7 @@ static void _set_global_out_nak(void)
         dma0 = usbc->DOEPDMA0;
 
         usbc->DOEPTSIZ0 = USBC_SUPCNT(3) | USBC_OEPXFERSIZE0(USB_MAX_PACKET_SIZE_CTRL) | USBC_OEPPKTCNT0;
-        usbc->DOEPDMA0 =  (uint32_t)&ep0_out_buffer[USB_MAX_PACKET_SIZE_CTRL / 4];
+        usbc->DOEPDMA0 =  ADDR_CPU_TO_DEV((uint32_t)&ep0_out_buffer[USB_MAX_PACKET_SIZE_CTRL / 4]);
         // Restart EP0 RX DMA to consume the status entries in RX FIFO, but NOT expect to receive any real data.
         // Keep the old interrupt status to ensure the existing RX data can be processed in the future
         usbc->DOEPCTL0 |= USBC_SNAK | USBC_EPENA;
@@ -294,7 +302,11 @@ static void _set_global_out_nak(void)
                 // The normal EP0 RX DMA will be started in IRQ handler later
             } else {
                 // Stop the temporary RX DMA and start a normal one
-                hal_usb_recv_ep0();
+                if (ep0_transfer.stage == DATA_OUT_STAGE || ep0_transfer.stage == DATA_IN_STAGE) {
+                    hal_usb_recv_ep0(true);
+                } else {
+                    hal_usb_recv_ep0(false);
+                }
             }
         } else {
             uint32_t remain;
@@ -306,8 +318,9 @@ static void _set_global_out_nak(void)
                 usbc->DOEPDMA0 = dma0;
             } else if (remain < USB_MAX_PACKET_SIZE_CTRL) {
                 // Move the new data to the normal RX buffer (which should be a setup packet)
-                memcpy(&ep0_out_buffer[0], &ep0_out_buffer[USB_MAX_PACKET_SIZE_CTRL / 4], (USB_MAX_PACKET_SIZE_CTRL - remain));
                 // DMA address will be aligned to 4-byte boundary
+                memcpy(&ep0_out_buffer[0], &ep0_out_buffer[USB_MAX_PACKET_SIZE_CTRL / 4], (USB_MAX_PACKET_SIZE_CTRL - remain));
+                __DMB();
                 usbc->DOEPDMA0 -= USB_MAX_PACKET_SIZE_CTRL;
             }
         }
@@ -432,7 +445,7 @@ _exit:
 
 void hal_usb_disable_ep(enum EP_DIR dir, uint8_t ep)
 {
-    HAL_TRACE(14, "%s: %d ep%d", __FUNCTION__, dir, ep);
+    USB_TRACE(14, "%s: %d ep%d", __FUNCTION__, dir, ep);
 
     if (dir == EP_OUT) {
         _disable_out_ep(ep, USBC_SNAK, 0);
@@ -446,7 +459,7 @@ void hal_usb_stall_ep(enum EP_DIR dir, uint8_t ep)
     uint32_t set;
     uint32_t clr;
 
-    HAL_TRACE(13, "%s: %d ep%d", __FUNCTION__, dir, ep);
+    USB_TRACE(13, "%s: %d ep%d", __FUNCTION__, dir, ep);
 
     set = USBC_STALL;
     clr = 0;
@@ -464,7 +477,7 @@ void hal_usb_unstall_ep(enum EP_DIR dir, uint8_t ep)
     uint32_t clr;
     uint8_t type;
 
-    HAL_TRACE(12, "%s: %d ep%d", __FUNCTION__, dir, ep);
+    USB_TRACE(12, "%s: %d ep%d", __FUNCTION__, dir, ep);
 
     set = USBC_SNAK;
     clr = USBC_STALL;
@@ -522,7 +535,7 @@ int hal_usb_get_ep_stall_state(enum EP_DIR dir, uint8_t ep)
 
 void hal_usb_stop_ep(enum EP_DIR dir, uint8_t ep)
 {
-    HAL_TRACE(11, "%s: %d ep%d", __FUNCTION__, dir, ep);
+    USB_TRACE(11, "%s: %d ep%d", __FUNCTION__, dir, ep);
 
     hal_usb_disable_ep(dir, ep);
 }
@@ -620,7 +633,7 @@ static void hal_usb_stop_all_in_eps(void)
     usbc->DCTL |= USBC_CGNPINNAK;
 }
 
-static void hal_usb_flush_tx_fifo(uint8_t ep)
+void hal_usb_flush_tx_fifo(uint8_t ep)
 {
     usbc->DCTL |= USBC_SGNPINNAK;
     while ((usbc->GINTSTS & USBC_GINNAKEFF) == 0);
@@ -635,12 +648,12 @@ static void hal_usb_flush_tx_fifo(uint8_t ep)
     usbc->DCTL |= USBC_CGNPINNAK;
 }
 
-static void hal_usb_flush_all_tx_fifos(void)
+void hal_usb_flush_all_tx_fifos(void)
 {
     hal_usb_flush_tx_fifo(0x10);
 }
 
-static void POSSIBLY_UNUSED hal_usb_flush_rx_fifo(void)
+void POSSIBLY_UNUSED hal_usb_flush_rx_fifo(void)
 {
     _set_global_out_nak();
 
@@ -744,7 +757,7 @@ static void hal_usb_init_phy(void)
     usbc->GUSBCFG |= USBC_USBTRDTIM(5);
 }
 
-static void hal_usb_device_init(void)
+void hal_usb_device_init(void)
 {
     int i;
     uint8_t speed;
@@ -764,6 +777,9 @@ static void hal_usb_device_init(void)
 #ifdef USB_HIGH_SPEED
     usbif->USBIF_00 &= ~(USBIF_00_CFG_DR_SUSPEND | USBIF_00_CFG_REG_SUSPEND);
     usbif->USBIF_08 &= ~USBIF_08_CFG_SEL48M;
+#ifdef CHIP_BEST2009
+    usbif->USBIF_08 &= ~USBIF_08_CFG_PHY_TXTIMING;
+#endif
 #else
     usbif->USBIF_00 |= USBIF_00_CFG_DR_SUSPEND | USBIF_00_CFG_REG_SUSPEND;
     usbif->USBIF_08 |= USBIF_08_CFG_SEL48M;
@@ -821,7 +837,12 @@ static void hal_usb_device_init(void)
     usbc->GAHBCFG |= USBC_GLBLINTRMSK;
 }
 
-static void hal_usb_soft_disconnect(void)
+void hal_usb_soft_connect(void)
+{
+    usbc->DCTL &= ~USBC_SFTDISCON;
+}
+
+void hal_usb_soft_disconnect(void)
 {
     // Disable global interrupt
     usbc->GAHBCFG &= ~USBC_GLBLINTRMSK;
@@ -858,6 +879,11 @@ int hal_usb_open(const struct HAL_USB_CALLBACKS *c, enum HAL_USB_API_MODE m)
     if (device_state != ATTACHED) {
         return 3;
     }
+
+#if !defined(NO_PMU) && (!defined(ROM_BUILD) || defined(USB_PMU_CFG))
+    pmu_usb_config(PMU_USB_CONFIG_TYPE_DEVICE);
+#endif
+
     device_state = POWERED;
     device_sleep_status = USB_SLEEP_NONE;
 
@@ -913,7 +939,7 @@ int hal_usb_reopen(const struct HAL_USB_CALLBACKS *c, uint8_t dcfg, uint8_t alt,
 
     // Update the ep0 DMA address
     // WARNING: Data will be corrupted if ep0 rx is working!
-    hal_usb_recv_ep0();
+    hal_usb_recv_ep0(false);
 
     enable_usb_irq();
 
@@ -957,6 +983,10 @@ void hal_usb_close(void)
     memset(&callbacks, 0, sizeof(callbacks));
 
     hal_sysfreq_req(HAL_SYSFREQ_USER_USB, HAL_CMU_FREQ_32K);
+
+#if !defined(NO_PMU) && (!defined(ROM_BUILD) || defined(USB_PMU_CFG))
+    pmu_usb_config(PMU_USB_CONFIG_TYPE_NONE);
+#endif
 }
 
 void hal_usb_detect_disconn(void)
@@ -1010,7 +1040,7 @@ int hal_usb_activate_epn(enum EP_DIR dir, uint8_t ep, uint8_t type, uint16_t mps
 {
     uint32_t fifo_mps;
 
-    HAL_TRACE(10, "%s: %d ep%d", __FUNCTION__, dir, ep);
+    USB_TRACE(10, "%s: %d ep%d", __FUNCTION__, dir, ep);
 
     if (ep == 0) {
         return 1;
@@ -1066,7 +1096,7 @@ int hal_usb_activate_epn(enum EP_DIR dir, uint8_t ep, uint8_t type, uint16_t mps
 
 int hal_usb_deactivate_epn(enum EP_DIR dir, uint8_t ep)
 {
-    HAL_TRACE(9, "%s: %d ep%d", __FUNCTION__, dir, ep);
+    USB_TRACE(9, "%s: %d ep%d", __FUNCTION__, dir, ep);
 
     if (ep == 0) {
         return 1;
@@ -1101,7 +1131,7 @@ int hal_usb_update_recv_epn_mps(uint8_t ep, uint16_t mps)
 {
     uint8_t type;
 
-    HAL_TRACE(9, "%s: ep%d mps=%u", __FUNCTION__, ep, mps);
+    USB_TRACE(9, "%s: ep%d mps=%u", __FUNCTION__, ep, mps);
 
     if (ep == 0 || ep >= USB_MAX_OUT_EP_NUM) {
         return 1;
@@ -1132,7 +1162,7 @@ int hal_usb_update_send_epn_mc(uint8_t ep, uint8_t mc)
 #ifdef USB_HIGH_SPEED
     uint8_t type;
 
-    HAL_TRACE(9, "%s: ep%d mc=%u", __FUNCTION__, ep, mc);
+    USB_TRACE(9, "%s: ep%d mc=%u", __FUNCTION__, ep, mc);
 
     if (ep == 0 || ep >= USB_MAX_IN_EP_NUM) {
         return 1;
@@ -1156,29 +1186,36 @@ int hal_usb_update_send_epn_mc(uint8_t ep, uint8_t mc)
     return 4;
 }
 
-static void hal_usb_recv_ep0(void)
+static void hal_usb_recv_ep0(bool clear_nak)
 {
     USB_FUNC_ENTRY_TRACE(8);
 
+    __DMB();
     // Enable EP0 to receive a new setup packet
     usbc->DOEPTSIZ0 = USBC_SUPCNT(3) | USBC_OEPXFERSIZE0(USB_MAX_PACKET_SIZE_CTRL) | USBC_OEPPKTCNT0;
-    usbc->DOEPDMA0 =  (uint32_t)ep0_out_buffer;
+    usbc->DOEPDMA0 = ADDR_CPU_TO_DEV((uint32_t)ep0_out_buffer);
     usbc->DOEPINT0 = usbc->DOEPINT0;
-    usbc->DOEPCTL0 |= USBC_CNAK | USBC_EPENA;
+    usbc->DOEPCTL0 |= USBC_EPENA;
+    if (clear_nak) {
+        usbc->DOEPCTL0 |= USBC_CNAK;
+    } else {
+        usbc->DOEPCTL0 |= USBC_SNAK;
+    }
 }
 
 static void hal_usb_send_ep0(const uint8_t *data, uint16_t size)
 {
-    HAL_TRACE(8, "%s: %d", __FUNCTION__, size);
+    USB_TRACE(8, "%s: %d", __FUNCTION__, size);
     ASSERT(size <= USB_MAX_PACKET_SIZE_CTRL, "Invalid ep0 send size: %d", size);
 
     if (data && size) {
         memcpy(ep0_in_buffer, data, size);
     }
 
+    __DMB();
     // Enable EP0 to send one packet
     usbc->DIEPTSIZ0 = USBC_IEPXFERSIZE0(size) | USBC_IEPPKTCNT0(1);
-    usbc->DIEPDMA0 =  (uint32_t)ep0_in_buffer;
+    usbc->DIEPDMA0 = ADDR_CPU_TO_DEV((uint32_t)ep0_in_buffer);
     usbc->DIEPINT0 = usbc->DIEPINT0;
     usbc->DIEPCTL0 |= USBC_CNAK | USBC_EPENA;
 }
@@ -1194,7 +1231,7 @@ int hal_usb_recv_epn(uint8_t ep, uint8_t *buffer, uint32_t size)
     uint32_t lock;
 #endif
 
-    HAL_TRACE(7, "%s: ep%d %d", __FUNCTION__, ep, size);
+    USB_TRACE(7, "%s: ep%d %d", __FUNCTION__, ep, size);
 
     if (device_state != CONFIGURED) {
         return 1;
@@ -1230,7 +1267,7 @@ int hal_usb_recv_epn(uint8_t ep, uint8_t *buffer, uint32_t size)
     }
 
     usbc->DOEPnCONFIG[ep - 1].DOEPTSIZ = USBC_OEPXFERSIZE(xfer) | USBC_OEPPKTCNT(pkt);
-    usbc->DOEPnCONFIG[ep - 1].DOEPDMA = (uint32_t)buffer;
+    usbc->DOEPnCONFIG[ep - 1].DOEPDMA = ADDR_CPU_TO_DEV((uint32_t)buffer);
     usbc->DOEPnCONFIG[ep - 1].DOEPINT = usbc->DOEPnCONFIG[ep - 1].DOEPINT;
 
     epn_out_transfer[ep - 1].data = buffer;
@@ -1255,6 +1292,7 @@ int hal_usb_recv_epn(uint8_t ep, uint8_t *buffer, uint32_t size)
     }
 #endif
 
+    __DMB();
     usbc->DOEPnCONFIG[ep - 1].DOEPCTL |= USBC_EPENA | USBC_CNAK | fn;
 
 #ifdef USB_ISO
@@ -1277,7 +1315,7 @@ int hal_usb_send_epn(uint8_t ep, const uint8_t *buffer, uint32_t size, enum ZLP_
     uint32_t lock;
 #endif
 
-    HAL_TRACE(6, "%s: ep%d %d", __FUNCTION__, ep, size);
+    USB_TRACE(6, "%s: ep%d %d", __FUNCTION__, ep, size);
 
     if (device_state != CONFIGURED) {
         return 1;
@@ -1336,7 +1374,7 @@ int hal_usb_send_epn(uint8_t ep, const uint8_t *buffer, uint32_t size, enum ZLP_
         }
         usbc->DIEPnCONFIG[ep - 1].DIEPTSIZ = USBC_IEPXFERSIZE(size) | USBC_IEPPKTCNT(pkt);
     }
-    usbc->DIEPnCONFIG[ep - 1].DIEPDMA = (uint32_t)buffer;
+    usbc->DIEPnCONFIG[ep - 1].DIEPDMA = ADDR_CPU_TO_DEV((uint32_t)buffer);
     usbc->DIEPnCONFIG[ep - 1].DIEPINT = usbc->DIEPnCONFIG[ep - 1].DIEPINT;
 
     epn_in_transfer[ep - 1].data = buffer;
@@ -1362,6 +1400,7 @@ int hal_usb_send_epn(uint8_t ep, const uint8_t *buffer, uint32_t size, enum ZLP_
     }
 #endif
 
+    __DMB();
     usbc->DIEPnCONFIG[ep - 1].DIEPCTL |= USBC_EPENA | USBC_CNAK | fn;
 
 #ifdef USB_ISO
@@ -1380,7 +1419,7 @@ static void hal_usb_recv_epn_complete(uint8_t ep, uint32_t statusEp)
     uint32_t doeptsiz;
     enum XFER_COMPL_STATE state = XFER_COMPL_SUCCESS;
 
-    HAL_TRACE(5, "%s: ep%d 0x%08x", __FUNCTION__, ep, statusEp);
+    USB_TRACE(5, "%s: ep%d 0x%08x", __FUNCTION__, ep, statusEp);
 
     if (!epn_out_transfer[ep - 1].enabled) {
         return;
@@ -1439,7 +1478,7 @@ static void hal_usb_send_epn_complete(uint8_t ep, uint32_t statusEp)
     uint32_t mc;
     enum XFER_COMPL_STATE state = XFER_COMPL_SUCCESS;
 
-    HAL_TRACE(4, "%s: ep%d 0x%08x", __FUNCTION__, ep, statusEp);
+    USB_TRACE(4, "%s: ep%d 0x%08x", __FUNCTION__, ep, statusEp);
 
     if (!epn_in_transfer[ep - 1].enabled) {
         return;
@@ -1450,14 +1489,14 @@ static void hal_usb_send_epn_complete(uint8_t ep, uint32_t statusEp)
     }
 
     pkt = GET_BITFIELD(usbc->DIEPnCONFIG[ep - 1].DIEPTSIZ, USBC_IEPPKTCNT);
-    if (pkt != 0) {
+    if (pkt == 0) {
+        size = epn_in_transfer[ep - 1].length;
+    } else {
         state = XFER_COMPL_ERROR;
         mps = GET_BITFIELD(usbc->DIEPnCONFIG[ep - 1].DIEPCTL, USBC_EPN_MPS);
         ASSERT(pkt <= epn_in_transfer[ep - 1].pkt_cnt, "Invalid pkt cnt: pkt=%d, pkt_cnt=%d",
             pkt, epn_in_transfer[ep - 1].pkt_cnt);
         size = (epn_in_transfer[ep - 1].pkt_cnt - pkt) * mps;
-    } else {
-        size = epn_in_transfer[ep - 1].length;
     }
 
     if (state == XFER_COMPL_SUCCESS && epn_in_transfer[ep - 1].zero_len_pkt) {
@@ -1503,12 +1542,9 @@ static bool requestSetAddress(void)
     usbc->DCFG = SET_BITFIELD(usbc->DCFG, USBC_DEVADDR, ep0_transfer.setup_pkt.wValue);
     ep0_transfer.stage = STATUS_IN_STAGE;
 
-    if (ep0_transfer.setup_pkt.wValue == 0)
-    {
+    if (ep0_transfer.setup_pkt.wValue == 0) {
         device_state = DEFAULT;
-    }
-    else
-    {
+    } else {
         device_state = ADDRESS;
     }
 
@@ -1518,26 +1554,26 @@ static bool requestSetAddress(void)
 static bool requestSetConfiguration(void)
 {
     USB_FUNC_ENTRY_TRACE(24);
+    enum DEVICE_STATE device_old_state = device_state;
 
     device_cfg = ep0_transfer.setup_pkt.wValue;
-    /* Set the device configuration */
-    if (device_cfg == 0)
-    {
-        /* Not configured */
-        device_state = ADDRESS;
+
+    if (device_state != ADDRESS && device_state != CONFIGURED) {
+        return false;
     }
-    else
-    {
-        if (callbacks.setcfg && callbacks.setcfg(device_cfg))
-        {
+
+    /* Set the device configuration */
+    ep0_transfer.stage = STATUS_IN_STAGE;
+    if (device_cfg) {
+        device_state = CONFIGURED; // here need to modify device_state first and then execute callback for adaptive nuttx
+        if (callbacks.setcfg && callbacks.setcfg(device_cfg)) {
             /* Valid configuration */
-            device_state = CONFIGURED;
-            ep0_transfer.stage = STATUS_IN_STAGE;
-        }
-        else
-        {
+        } else {
+            device_state = device_old_state;
             return false;
         }
+    } else {
+        device_state = ADDRESS;
     }
 
     return true;
@@ -1755,7 +1791,7 @@ static bool requestGetDescriptor(void)
     type = DESCRIPTOR_TYPE(ep0_transfer.setup_pkt.wValue);
     index = DESCRIPTOR_INDEX(ep0_transfer.setup_pkt.wValue);
 
-    HAL_TRACE(3, "%s: %d %d", __FUNCTION__, type, index);
+    USB_TRACE(3, "%s: %d %d", __FUNCTION__, type, index);
 
     switch (type)
     {
@@ -1835,7 +1871,7 @@ static bool requestGetDescriptor(void)
         default:
             // Might be a class or vendor specific descriptor, which
             // should be handled in setuprecv callback
-            HAL_TRACE(0, "*** Error: Unknown desc type: %d", type);
+            USB_TRACE(0, "*** Error: Unknown desc type: %d", type);
             break;
     }
 
@@ -1940,7 +1976,7 @@ static int hal_usb_ep0_setup_stage(uint32_t statusEp)
         setup_cnt = 0;
     }
     if (setup_cnt == 0) {
-        HAL_TRACE(0, "*** Error: Setup remain size: %u", pkt_len);
+        USB_TRACE(0, "*** Error: Setup remain size: %u", pkt_len);
         return 1;
     }
 
@@ -1951,7 +1987,7 @@ static int hal_usb_ep0_setup_stage(uint32_t statusEp)
     ep0_transfer.stage = SETUP_STAGE;
     get_setup_packet(data, &ep0_transfer.setup_pkt);
 
-    HAL_TRACE(2, "Got SETUP type=%d, req=0x%x, val=0x%x, idx=0x%x, len=%d",
+    USB_TRACE(2, "Got SETUP type=%d, req=0x%x, val=0x%x, idx=0x%x, len=%d",
         ep0_transfer.setup_pkt.bmRequestType.type,
         ep0_transfer.setup_pkt.bRequest,
         ep0_transfer.setup_pkt.wValue,
@@ -1959,7 +1995,7 @@ static int hal_usb_ep0_setup_stage(uint32_t statusEp)
         ep0_transfer.setup_pkt.wLength);
 
     if (ep0_transfer.setup_pkt.wLength == 0 && ep0_transfer.setup_pkt.bmRequestType.direction != EP_OUT) {
-        HAL_TRACE(0, "*** Error: Ep0 dir should be out if wLength=0");
+        USB_TRACE(0, "*** Error: Ep0 dir should be out if wLength=0");
         return 1;
     }
 
@@ -1991,7 +2027,7 @@ static int hal_usb_ep0_setup_stage(uint32_t statusEp)
     } else if(ep0_transfer.stage == STATUS_IN_STAGE) {
         hal_usb_send_ep0(NULL, 0);
     } else {
-        HAL_TRACE(0, "*** Setup stage switches to invalid stage: %d", ep0_transfer.stage);
+        USB_TRACE(0, "*** Setup stage switches to invalid stage: %d", ep0_transfer.stage);
         return 1;
     }
 
@@ -2021,10 +2057,10 @@ static int hal_usb_ep0_data_out_stage(void)
     //          patterns are popped by the core (DMA reading) or the application (usbc->GRXSTSP reading).
     //          E.g., Global OUT NAK (DCTL.SGOUTNak) triggers GINTSTS.GOUTNakEff, but the interrupt will
     //          never raise in data out stage without DMA or usbc->GRXSTSP reading.
-    hal_usb_recv_ep0();
 
     pkt_len = ep0_transfer.length - ep0_transfer.trx_len;
     if (pkt_len == 0) {
+        hal_usb_recv_ep0(false);
         if (callbacks.datarecv == NULL || !callbacks.datarecv(&ep0_transfer)) {
             //hal_usb_stall_ep(EP_OUT, 0);
             //hal_usb_stall_ep(EP_IN, 0);
@@ -2033,10 +2069,9 @@ static int hal_usb_ep0_data_out_stage(void)
         ep0_transfer.stage = STATUS_IN_STAGE;
         // Check error on IN/OUT tokens
         usbc->DOEPMSK |= USBC_OUTTKNEPDISMSK;
-        // Send status packet
-        hal_usb_send_ep0(NULL, 0);
     } else {
         // Receive next data packet
+        hal_usb_recv_ep0(true);
     }
 
     return 0;
@@ -2057,7 +2092,7 @@ static int hal_usb_ep0_data_in_stage(void)
         // Receive status packet (receiving is always enabled)
     } else {
         // Update sent count
-        if (pkt_len == USB_MAX_PACKET_SIZE_CTRL) {
+        if (pkt_len == USB_MAX_PACKET_SIZE_CTRL && ep0_transfer.length < ep0_transfer.setup_pkt.wLength) {
             zero_len_pkt = true;
         } else if (pkt_len > USB_MAX_PACKET_SIZE_CTRL) {
             pkt_len = USB_MAX_PACKET_SIZE_CTRL;
@@ -2113,7 +2148,7 @@ static void hal_usb_handle_ep0_packet(enum EP_DIR dir, uint32_t statusEp)
     int ret;
     uint32_t doeptsiz0;
 
-    HAL_TRACE(16, "%s: dir=%d, statusEp=0x%08x", __FUNCTION__, dir, statusEp);
+    USB_TRACE(16, "%s: dir=%d, statusEp=0x%08x", __FUNCTION__, dir, statusEp);
 
     if (dir == EP_OUT) {
         if ((statusEp & (USBC_XFERCOMPL | USBC_STSPHSERCVD)) == (USBC_XFERCOMPL | USBC_STSPHSERCVD)) {
@@ -2121,12 +2156,9 @@ static void hal_usb_handle_ep0_packet(enum EP_DIR dir, uint32_t statusEp)
             doeptsiz0 = usbc->DOEPTSIZ0;
             if (GET_BITFIELD(doeptsiz0, USBC_OEPXFERSIZE0) == USB_MAX_PACKET_SIZE_CTRL &&
                     (doeptsiz0 & USBC_OEPPKTCNT0)) {
-                // Abnormal case
-                HAL_TRACE(0, "*** EP0 OUT empty compl with stsphsercvd: stage=%d, doeptsiz0=0x%08X",
-                    ep0_transfer.stage, doeptsiz0);
+                statusEp &= ~USBC_XFERCOMPL;
                 // Always enable setup packet receiving
-                hal_usb_recv_ep0();
-                return;
+                hal_usb_recv_ep0(false);
             }
         }
 
@@ -2135,7 +2167,7 @@ static void hal_usb_handle_ep0_packet(enum EP_DIR dir, uint32_t statusEp)
             if (statusEp & USBC_SETUP) {
                 // Clean previous transfer
                 if (ep0_transfer.stage != NONE_STAGE) {
-                    HAL_TRACE(0, "*** Setup stage breaks previous stage %d", ep0_transfer.stage);
+                    USB_TRACE(0, "*** Setup stage breaks previous stage %d", ep0_transfer.stage);
                     hal_usb_stop_ep(EP_IN, 0);
                 }
                 // New setup packet
@@ -2143,7 +2175,7 @@ static void hal_usb_handle_ep0_packet(enum EP_DIR dir, uint32_t statusEp)
             } else if (statusEp & USBC_STUPPKTRCVD) {
                 // Clean previous transfer
                 if (ep0_transfer.stage != NONE_STAGE) {
-                    HAL_TRACE(0, "*** Wait setup stage breaks previous stage %d", ep0_transfer.stage);
+                    USB_TRACE(0, "*** Wait setup stage breaks previous stage %d", ep0_transfer.stage);
                     hal_usb_stop_ep(EP_IN, 0);
                 }
                 // New setup packet received, and wait for USBC h/w state machine finished
@@ -2160,11 +2192,11 @@ static void hal_usb_handle_ep0_packet(enum EP_DIR dir, uint32_t statusEp)
                     // Previous packet is setup packet
                     ep0_transfer.stage = SETUP_STAGE;
                 } else {
-                    HAL_TRACE(0, "*** Setup interrupt occurs in stage %d", ep0_transfer.stage);
+                    USB_TRACE(0, "*** Setup interrupt occurs in stage %d", ep0_transfer.stage);
                     // The setup packet has been processed
                     if ((usbc->DOEPCTL0 & USBC_EPENA) == 0 && (usbc->DOEPINT0 & USBC_XFERCOMPL) == 0) {
                         // Always enable setup packet receiving
-                        hal_usb_recv_ep0();
+                        hal_usb_recv_ep0(false);
                     }
                     return;
                 }
@@ -2185,12 +2217,11 @@ static void hal_usb_handle_ep0_packet(enum EP_DIR dir, uint32_t statusEp)
             //hal_usb_recv_ep0();
         }
         // Always enable setup packet receiving
-        hal_usb_recv_ep0();
-
-        if(statusEp & USBC_STSPHSERCVD) {
-            goto _out_usb_statusphse;
+        if (ep0_transfer.stage == DATA_OUT_STAGE || ep0_transfer.stage == DATA_IN_STAGE) {
+            hal_usb_recv_ep0(true);
+        } else {
+            hal_usb_recv_ep0(false);
         }
-
         return;
     }
 
@@ -2201,12 +2232,12 @@ static void hal_usb_handle_ep0_packet(enum EP_DIR dir, uint32_t statusEp)
             } else if (ep0_transfer.stage == STATUS_OUT_STAGE) {
                 hal_usb_ep0_status_stage();
                 // Always enable setup packet receiving
-                hal_usb_recv_ep0();
+                hal_usb_recv_ep0(false);
             } else {
                 // Abnormal case
-                HAL_TRACE(0, "*** EP0 OUT compl in stage %d with size 0x%08x", ep0_transfer.stage, usbc->DOEPTSIZ0);
+                USB_TRACE(0, "*** EP0 OUT compl in stage %d with size 0x%08x", ep0_transfer.stage, usbc->DOEPTSIZ0);
                 // Always enable setup packet receiving
-                hal_usb_recv_ep0();
+                hal_usb_recv_ep0(false);
             }
         } else {
             if (ep0_transfer.stage == DATA_IN_STAGE) {
@@ -2216,18 +2247,20 @@ static void hal_usb_handle_ep0_packet(enum EP_DIR dir, uint32_t statusEp)
                 hal_usb_ep0_test_mode_check();
             } else {
                 // Abnormal case
-                HAL_TRACE(0, "*** EP0 IN compl in stage %d with size 0x%08x", ep0_transfer.stage, usbc->DIEPTSIZ0);
+                USB_TRACE(0, "*** EP0 IN compl in stage %d with size 0x%08x", ep0_transfer.stage, usbc->DIEPTSIZ0);
             }
         }
     }
 
-_out_usb_statusphse:
     if ((dir == EP_OUT) && (statusEp & USBC_STSPHSERCVD)) {
-        if ((STATUS_IN_STAGE != ep0_transfer.stage) && (NONE_STAGE != ep0_transfer.stage)) {
-            // Abnormal case
-            HAL_TRACE(0, "*** Status stage breaks previous stage %d", ep0_transfer.stage);
-            ep0_transfer.stage = STATUS_IN_STAGE;
+        if (STATUS_IN_STAGE == ep0_transfer.stage) {
+            // Skip the check on OUT tokens
+            usbc->DOEPMSK &= ~USBC_OUTTKNEPDISMSK;
             hal_usb_send_ep0(NULL, 0);
+        } else {
+            // Abnormal case
+            USB_TRACE(0, "*** Status stage breaks previous stage %d", ep0_transfer.stage);
+            hal_usb_stall_ep(EP_IN, 0);
         }
     }
 }
@@ -2235,6 +2268,10 @@ _out_usb_statusphse:
 static void hal_usb_irq_reset(void)
 {
     USB_FUNC_ENTRY_TRACE(2);
+
+    if (device_sleep_status != USB_SLEEP_NONE) {
+        hal_sysfreq_req(HAL_SYSFREQ_USER_USB, USB_SYS_FREQ);
+    }
 
     device_state = DEFAULT;
     device_pwr_wkup_status = 0;
@@ -2306,7 +2343,7 @@ static void hal_usb_irq_enum_done(void)
     usbc->DIEPCTL0 = USBC_EP0_MPS(mps) | USBC_USBACTEP | USBC_EPTXFNUM(0) | USBC_SNAK;
     usbc->DOEPCTL0 = USBC_EP0_MPS(mps) | USBC_USBACTEP | USBC_SNAK;
 
-    hal_usb_recv_ep0();
+    hal_usb_recv_ep0(false);
 }
 
 #ifdef ISO_INCOMP_IRQ
@@ -2330,9 +2367,9 @@ static void hal_usb_irq_incomp_iso_out(void)
     }
 
     if (i < USB_MAX_OUT_EP_NUM - 1) {
-        HAL_TRACE(17, "%s ep%d: INT=0x%08x, SOF=0x%04x", __FUNCTION__, i + 1, statusEp, sof_fn);
+        USB_TRACE(17, "%s ep%d: INT=0x%08x, SOF=0x%04x", __FUNCTION__, i + 1, statusEp, sof_fn);
     } else {
-        HAL_TRACE(17, "%s: No valid ISO ep", __FUNCTION__);
+        USB_TRACE(17, "%s: No valid ISO ep", __FUNCTION__);
     }
 }
 
@@ -2356,9 +2393,9 @@ static void hal_usb_irq_incomp_iso_in(void)
     }
 
     if (i < USB_MAX_IN_EP_NUM - 1) {
-        HAL_TRACE(17, "%s ep%d: INT=0x%08x, SOF=0x%04x", __FUNCTION__, i + 1, statusEp, sof_fn);
+        USB_TRACE(17, "%s ep%d: INT=0x%08x, SOF=0x%04x", __FUNCTION__, i + 1, statusEp, sof_fn);
     } else {
-        HAL_TRACE(17, "%s: No valid ISO ep", __FUNCTION__);
+        USB_TRACE(17, "%s: No valid ISO ep", __FUNCTION__);
     }
 }
 #endif
@@ -2424,7 +2461,7 @@ static void hal_usb_pin_check_cancel_resume(void *param)
 
     dsts = usbc->DSTS;
 
-    HAL_TRACE(18, "[%X] %s: DSTS=0x%08x", hal_sys_timer_get(), __FUNCTION__, dsts);
+    USB_TRACE(18, "[%X] %s: DSTS=0x%08x", hal_sys_timer_get(), __FUNCTION__, dsts);
 
     usbdev_timer_active = 0;
 
@@ -2439,7 +2476,7 @@ static void hal_usb_pin_check_cancel_resume(void *param)
 
 static void hal_usb_pin_status_resume(enum PMU_USB_PIN_CHK_STATUS_T status)
 {
-    HAL_TRACE(18, "%s: %d", __FUNCTION__, status);
+    USB_TRACE(18, "%s: %d", __FUNCTION__, status);
 
     // Start timer to check resume status, so as to avoid fake pin resume signal
     if (usbdev_timer_active) {
@@ -2535,7 +2572,7 @@ static void hal_usb_send_resume_signal(int enable)
 int hal_usb_remote_wakeup(int signal)
 {
 #ifdef USB_SUSPEND
-    HAL_TRACE(15, "%s: %d", __FUNCTION__, signal);
+    USB_TRACE(15, "%s: %d", __FUNCTION__, signal);
 
     if (signal) {
         if (device_sleep_status != USB_SLEEP_SUSPEND) {
@@ -2618,14 +2655,14 @@ void hal_usb_lpm_sleep_disable(void)
                 }
 #endif
             } else if ((lpm & (USBC_BREMOTEWAKE | USBC_L1RESUMEOK)) == USBC_BREMOTEWAKE) {
-                HAL_TRACE(1,"\n*** ERROR: LPM Disable: Failed to wait L1 resume OK: 0x%08X\n", lpm);
+                TRACE(1,"\n*** ERROR: LPM Disable: Failed to wait L1 resume OK: 0x%08X\n", lpm);
             }
         }
 
         int_unlock(lock);
 
         if (rmtWake) {
-            HAL_TRACE(0, "LPM RmtWake: 0x%08X", lpm);
+            USB_TRACE(0, "LPM RmtWake: 0x%08X", lpm);
         }
     }
 #endif
@@ -2685,7 +2722,7 @@ static void hal_usb_irq_lpm(void)
     time = hal_sys_timer_get();
     if (time - last_lpm_irq_time >= lpm_trace_interval || GET_BITFIELD(lpm, USBC_HIRD) >= USB_L1_DEEP_SLEEP_BESL) {
         last_lpm_irq_time = time;
-        HAL_TRACE(0, "LPM IRQ: 0x%08X rmtWake=%d hird=0x%x l1Res=%d slpSts=%d cnt=%u",
+        USB_TRACE(0, "LPM IRQ: 0x%08X rmtWake=%d hird=0x%x l1Res=%d slpSts=%d cnt=%u",
             lpm, !!(lpm & USBC_BREMOTEWAKE), GET_BITFIELD(lpm, USBC_HIRD),
             GET_BITFIELD(lpm, USBC_COREL1RES), !!(lpm & USBC_SLPSTS), cnt);
     }
@@ -2711,7 +2748,7 @@ static void hal_usb_irq_handler(void)
         | USBC_ERLYSUSP | USBC_USBSUSP | USBC_WKUPINT
         | USBC_LPM_INT));
 
-    HAL_TRACE(1, "%s: 0x%08x / 0x%08x", __FUNCTION__, status, rawStatus);
+    USB_TRACE(1, "%s: 0x%08x / 0x%08x", __FUNCTION__, status, rawStatus);
 
 #if defined(USB_SUSPEND) && (defined(PMU_USB_PIN_CHECK) || defined(USB_LPM))
     bool stop_timer = true;
@@ -2803,7 +2840,7 @@ static void hal_usb_irq_handler(void)
                         hal_usb_stall_ep(EP_OUT, i);
                         if (statusEp & USBC_XFERCOMPL) {
                             // Always enable setup packet receiving
-                            hal_usb_recv_ep0();
+                            hal_usb_recv_ep0(false);
                         }
                     } else if (statusEp & (USBC_XFERCOMPL | USBC_SETUP | USBC_STSPHSERCVD)) {
                         // Handle ep0 command
@@ -2846,5 +2883,16 @@ static void hal_usb_irq_handler(void)
 #endif
 }
 
+int hal_usb_irq_run(void)
+{
+    if (device_state != CONFIGURED) {
+        return 1;
+    }
+
+    hal_usb_irq_handler();
+    return 0;
+}
+
 #endif // USB_BASE
+
 #endif // CHIP_HAS_USB

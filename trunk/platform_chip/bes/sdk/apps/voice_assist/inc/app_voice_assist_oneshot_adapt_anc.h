@@ -22,19 +22,9 @@
 extern "C" {
 #endif
 
-enum ONESHOT_ADAPTIVE_ANC_STATE
-{
-    ONESHOT_ADAPTIVE_ANC_STATE_RUNNING = 0,
-    ONESHOT_ADAPTIVE_ANC_STATE_STOP,
-    ONESHOT_ADAPTIVE_ANC_STATE_POST_STOP,
-
-    ONESHOT_ADAPTIVE_ANC_STATE_NONE,
-};
-
 int32_t app_voice_assist_oneshot_adapt_anc_init(void);
-int32_t app_voice_assist_oneshot_adapt_anc_open(int mode);
+int32_t app_voice_assist_oneshot_adapt_anc_open(bool gain_on,bool mode_on);
 int32_t app_voice_assist_oneshot_adapt_anc_close(void);
-bool app_voice_assist_oneshot_adapt_anc_work_status(void);
 
 #ifdef __cplusplus
 }

@@ -19,6 +19,8 @@
 #ifndef __AICS_COMMON__
 #define __AICS_COMMON__
 
+#include "bluetooth.h"
+
 #include "gaf_cfg.h"
 
 /*ENUMERATIONS*/

@@ -1,6 +1,6 @@
 /***************************************************************************
  *
- * Copyright 2015-2019 BES.
+ * Copyright 2015-2024 BES.
  * All rights reserved. All unpublished rights reserved.
  *
  * No part of this work may be used or reproduced in any form or by any
@@ -56,6 +56,26 @@ const uint8_t *cdc_string_desc(uint8_t index);
 const uint8_t *uaud_dev_desc(uint8_t type);
 
 const uint8_t *uaud_string_desc(uint8_t index);
+
+const uint8_t *mtp_dev_desc(uint8_t type);
+
+const uint8_t *mtp_string_desc(uint8_t index);
+
+const uint8_t * uwifi_dev_desc(uint8_t type);
+
+const uint8_t *uwifi_string_desc(uint8_t index);
+
+const uint8_t * ubt_dev_desc(uint8_t type);
+
+const uint8_t *ubt_string_desc(uint8_t index);
+
+const uint8_t *u_general_dev_desc(uint8_t type);
+
+const uint8_t *u_general_string_desc(uint8_t index);
+
+const uint8_t *adb_dev_desc(uint8_t type);
+
+const uint8_t *adb_string_desc(uint8_t index);
 
 #ifdef __cplusplus
 }

@@ -18,6 +18,7 @@
  ****************************************************************************/
 #ifndef __ARC_VCC_INT__
 #define __ARC_VCC_INT__
+#include "bluetooth.h"
 
 #include "gaf_cfg.h"
 #include "gaf_prf.h"

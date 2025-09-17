@@ -13,13 +13,13 @@
  * trademark and other intellectual property rights.
  *
  ****************************************************************************/
+#ifdef __HAL_IPC_NOTIFY_SUPPORT__
 #include "plat_addr_map.h"
 
 #if defined(BTH_CMU_BASE) && !defined(CHIP_SUBSYS_SENS)
 
 #include "cmsis_nvic.h"
-#include "hal_mcu2btc.h"
-#include "hal_rmt_ipc.h"
+#include "hal_rmt_ipc_pri.h"
 #include "hal_ipc_notify_api.h"
 #include "hal_ipc_notify.h"
 #include "hal_trace.h"
@@ -32,6 +32,7 @@
 #include CHIP_SPECIFIC_HDR(reg_cmu)
 #endif
 
+#define MCU2BTC_CHAN_QTY                    (HAL_RMT_IPC_CHAN_1 + 1)
 
 #ifdef CHIP_SUBSYS_SENS
 static struct SENSCMU_T * const cmu = (struct SENSCMU_T *)SENS_CMU_BASE;
@@ -45,26 +46,26 @@ static struct CMU_T * const cmu = (struct CMU_T *)CMU_BASE;
 
 static struct BTCMU_T * const btcmu = (struct BTCMU_T *)BT_CMU_BASE;
 
-static const IRQn_Type rx_irq_id[HAL_MCU2BTC_ID_QTY] = {
+static const IRQn_Type rx_irq_id[MCU2BTC_CHAN_QTY] = {
     ISDATA_IRQn,
     ISDATA1_IRQn,
 };
 
-static const IRQn_Type tx_irq_id[HAL_MCU2BTC_ID_QTY] = {
+static const IRQn_Type tx_irq_id[MCU2BTC_CHAN_QTY] = {
     ISDONE_IRQn,
     ISDONE1_IRQn,
 };
 
-static int hal_mcu2btc_peer_irq_set(enum HAL_MCU2BTC_ID_T id, enum HAL_RMT_IPC_IRQ_TYPE_T type)
+static int hal_mcu2btc_peer_irq_set(enum HAL_RMT_IPC_CHAN_T id, enum HAL_RMT_IPC_IRQ_TYPE_T type)
 {
     uint32_t value;
 
-    if (type != HAL_RMT_IPC_IRQ_SEND_IND) {
+    if (type != HAL_RMT_IPC_IRQ_DATA_IND) {
         return 1;
     }
 
 #ifdef CHIP_AS_BTH
-    if (id == HAL_MCU2BTC_ID_0) {
+    if (id == HAL_RMT_IPC_CHAN_0) {
         value = CMU_MCU2BT_DATA_IND_SET;
     } else {
         value = CMU_MCU2BT_DATA1_IND_SET;
@@ -73,7 +74,7 @@ static int hal_mcu2btc_peer_irq_set(enum HAL_MCU2BTC_ID_T id, enum HAL_RMT_IPC_I
     cmu->ISIRQ_SET = value;
     cmu->ISIRQ_SET;
 #else
-    if (id == HAL_MCU2BTC_ID_0) {
+    if (id == HAL_RMT_IPC_CHAN_0) {
         value = BT_CMU_BT2MCU_DATA_IND_SET;
     } else {
         value = BT_CMU_BT2MCU_DATA1_IND_SET;
@@ -85,26 +86,26 @@ static int hal_mcu2btc_peer_irq_set(enum HAL_MCU2BTC_ID_T id, enum HAL_RMT_IPC_I
     return 0;
 }
 
-static int hal_mcu2btc_local_irq_clear(enum HAL_MCU2BTC_ID_T id, enum HAL_RMT_IPC_IRQ_TYPE_T type)
+static int hal_mcu2btc_local_irq_clear(enum HAL_RMT_IPC_CHAN_T id, enum HAL_RMT_IPC_IRQ_TYPE_T type)
 {
     uint32_t value;
 
 #ifdef CHIP_AS_BTH
-    if (id == HAL_MCU2BTC_ID_0) {
-        if (type == HAL_RMT_IPC_IRQ_SEND_IND) {
+    if (id == HAL_RMT_IPC_CHAN_0) {
+        if (type == HAL_RMT_IPC_IRQ_DATA_IND) {
             value = BT_CMU_BT2MCU_DATA_IND_CLR;
         } else {
             value = CMU_BT2MCU_DATA_DONE_CLR;
         }
     } else {
-        if (type == HAL_RMT_IPC_IRQ_SEND_IND) {
+        if (type == HAL_RMT_IPC_IRQ_DATA_IND) {
             value = BT_CMU_BT2MCU_DATA1_IND_CLR;
         } else {
             value = CMU_BT2MCU_DATA1_DONE_CLR;
         }
     }
 
-    if (type == HAL_RMT_IPC_IRQ_SEND_IND) {
+    if (type == HAL_RMT_IPC_IRQ_DATA_IND) {
         btcmu->ISIRQ_CLR = value;
         // Flush the clear operation immediately
         btcmu->ISIRQ_CLR;
@@ -112,21 +113,21 @@ static int hal_mcu2btc_local_irq_clear(enum HAL_MCU2BTC_ID_T id, enum HAL_RMT_IP
         cmu->ISIRQ_CLR = value;
     }
 #else
-    if (id == HAL_MCU2BTC_ID_0) {
-        if (type == HAL_RMT_IPC_IRQ_SEND_IND) {
+    if (id == HAL_RMT_IPC_CHAN_0) {
+        if (type == HAL_RMT_IPC_IRQ_DATA_IND) {
             value = CMU_MCU2BT_DATA_IND_CLR;
         } else {
             value = BT_CMU_MCU2BT_DATA_DONE_CLR;
         }
     } else {
-        if (type == HAL_RMT_IPC_IRQ_SEND_IND) {
+        if (type == HAL_RMT_IPC_IRQ_DATA_IND) {
             value = CMU_MCU2BT_DATA1_IND_CLR;
         } else {
             value = BT_CMU_MCU2BT_DATA1_DONE_CLR;
         }
     }
 
-    if (type == HAL_RMT_IPC_IRQ_SEND_IND) {
+    if (type == HAL_RMT_IPC_IRQ_DATA_IND) {
         cmu->ISIRQ_CLR = value;
         // Flush the clear operation immediately
         cmu->ISIRQ_CLR;
@@ -138,19 +139,19 @@ static int hal_mcu2btc_local_irq_clear(enum HAL_MCU2BTC_ID_T id, enum HAL_RMT_IP
     return 0;
 }
 
-static int hal_mcu2btc_local_irq_mask_set(enum HAL_MCU2BTC_ID_T id, enum HAL_RMT_IPC_IRQ_TYPE_T type)
+static int hal_mcu2btc_local_irq_mask_set(enum HAL_RMT_IPC_CHAN_T id, enum HAL_RMT_IPC_IRQ_TYPE_T type)
 {
     uint32_t value;
 
 #ifdef CHIP_AS_BTH
-    if (id == HAL_MCU2BTC_ID_0) {
-        if (type == HAL_RMT_IPC_IRQ_SEND_IND) {
+    if (id == HAL_RMT_IPC_CHAN_0) {
+        if (type == HAL_RMT_IPC_IRQ_DATA_IND) {
             value = CMU_BT2MCU_DATA_MSK_SET;
         } else {
             value = CMU_MCU2BT_DATA_MSK_SET;
         }
     } else {
-        if (type == HAL_RMT_IPC_IRQ_SEND_IND) {
+        if (type == HAL_RMT_IPC_IRQ_DATA_IND) {
             value = CMU_BT2MCU_DATA1_MSK_SET;
         } else {
             value = CMU_MCU2BT_DATA1_MSK_SET;
@@ -159,14 +160,14 @@ static int hal_mcu2btc_local_irq_mask_set(enum HAL_MCU2BTC_ID_T id, enum HAL_RMT
 
     cmu->ISIRQ_SET = value;
 #else
-    if (id == HAL_MCU2BTC_ID_0) {
-        if (type == HAL_RMT_IPC_IRQ_SEND_IND) {
+    if (id == HAL_RMT_IPC_CHAN_0) {
+        if (type == HAL_RMT_IPC_IRQ_DATA_IND) {
             value = BT_CMU_MCU2BT_DATA_MSK_SET;
         } else {
             value = BT_CMU_BT2MCU_DATA_MSK_SET;
         }
     } else {
-        if (type == HAL_RMT_IPC_IRQ_SEND_IND) {
+        if (type == HAL_RMT_IPC_IRQ_DATA_IND) {
             value = BT_CMU_MCU2BT_DATA1_MSK_SET;
         } else {
             value = BT_CMU_BT2MCU_DATA1_MSK_SET;
@@ -178,19 +179,19 @@ static int hal_mcu2btc_local_irq_mask_set(enum HAL_MCU2BTC_ID_T id, enum HAL_RMT
     return 0;
 }
 
-static int hal_mcu2btc_local_irq_mask_clear(enum HAL_MCU2BTC_ID_T id, enum HAL_RMT_IPC_IRQ_TYPE_T type)
+static int hal_mcu2btc_local_irq_mask_clear(enum HAL_RMT_IPC_CHAN_T id, enum HAL_RMT_IPC_IRQ_TYPE_T type)
 {
     uint32_t value;
 
 #ifdef CHIP_AS_BTH
-    if (id == HAL_MCU2BTC_ID_0) {
-        if (type == HAL_RMT_IPC_IRQ_SEND_IND) {
+    if (id == HAL_RMT_IPC_CHAN_0) {
+        if (type == HAL_RMT_IPC_IRQ_DATA_IND) {
             value = CMU_BT2MCU_DATA_MSK_CLR;
         } else {
             value = CMU_MCU2BT_DATA_MSK_CLR;
         }
     } else {
-        if (type == HAL_RMT_IPC_IRQ_SEND_IND) {
+        if (type == HAL_RMT_IPC_IRQ_DATA_IND) {
             value = CMU_BT2MCU_DATA1_MSK_CLR;
         } else {
             value = CMU_MCU2BT_DATA1_MSK_CLR;
@@ -199,14 +200,14 @@ static int hal_mcu2btc_local_irq_mask_clear(enum HAL_MCU2BTC_ID_T id, enum HAL_R
 
     cmu->ISIRQ_CLR = value;
 #else
-    if (id == HAL_MCU2BTC_ID_0) {
-        if (type == HAL_RMT_IPC_IRQ_SEND_IND) {
+    if (id == HAL_RMT_IPC_CHAN_0) {
+        if (type == HAL_RMT_IPC_IRQ_DATA_IND) {
             value = BT_CMU_MCU2BT_DATA_MSK_CLR;
         } else {
             value = BT_CMU_BT2MCU_DATA_MSK_CLR;
         }
     } else {
-        if (type == HAL_RMT_IPC_IRQ_SEND_IND) {
+        if (type == HAL_RMT_IPC_IRQ_DATA_IND) {
             value = BT_CMU_MCU2BT_DATA1_MSK_CLR;
         } else {
             value = BT_CMU_BT2MCU_DATA1_MSK_CLR;
@@ -221,76 +222,76 @@ static int hal_mcu2btc_local_irq_mask_clear(enum HAL_MCU2BTC_ID_T id, enum HAL_R
 
 static void hal_mcu2btc_irq_init(uint32_t id32)
 {
-    enum HAL_MCU2BTC_ID_T id = (enum HAL_MCU2BTC_ID_T)id32;
+    enum HAL_RMT_IPC_CHAN_T id = (enum HAL_RMT_IPC_CHAN_T)id32;
 
 #ifdef CHIP_AS_BTH
-    if (id == HAL_MCU2BTC_ID_0) {
+    if (id == HAL_RMT_IPC_CHAN_0) {
         cmu->ISIRQ_CLR = CMU_BT2MCU_DATA_DONE_CLR | CMU_MCU2BT_DATA_IND_CLR;
     } else {
         cmu->ISIRQ_CLR = CMU_BT2MCU_DATA1_DONE_CLR | CMU_MCU2BT_DATA1_IND_CLR;
     }
 #else
-    if (id == HAL_MCU2BTC_ID_0) {
+    if (id == HAL_RMT_IPC_CHAN_0) {
         btcmu->ISIRQ_CLR = BT_CMU_MCU2BT_DATA_DONE_CLR|BT_CMU_BT2MCU_DATA_IND_CLR;
     } else {
         btcmu->ISIRQ_CLR = BT_CMU_MCU2BT_DATA1_DONE_CLR|BT_CMU_BT2MCU_DATA1_IND_CLR;
     }
 #endif
 
-    hal_mcu2btc_local_irq_mask_set(id, HAL_RMT_IPC_IRQ_SEND_IND);
-    hal_mcu2btc_local_irq_mask_set(id, HAL_RMT_IPC_IRQ_RECV_DONE);
+    hal_mcu2btc_local_irq_mask_set(id, HAL_RMT_IPC_IRQ_DATA_IND);
+    hal_mcu2btc_local_irq_mask_set(id, HAL_RMT_IPC_IRQ_DATA_DONE);
 }
 
 static void hal_mcu2btc_peer_tx_irq_set(uint32_t id32)
 {
-    enum HAL_MCU2BTC_ID_T id = (enum HAL_MCU2BTC_ID_T)id32;
+    enum HAL_RMT_IPC_CHAN_T id = (enum HAL_RMT_IPC_CHAN_T)id32;
 
-    hal_mcu2btc_peer_irq_set(id, HAL_RMT_IPC_IRQ_SEND_IND);
+    hal_mcu2btc_peer_irq_set(id, HAL_RMT_IPC_IRQ_DATA_IND);
 }
 
 static void hal_mcu2btc_local_tx_irq_clear(uint32_t id32)
 {
-    enum HAL_MCU2BTC_ID_T id = (enum HAL_MCU2BTC_ID_T)id32;
+    enum HAL_RMT_IPC_CHAN_T id = (enum HAL_RMT_IPC_CHAN_T)id32;
 
-    hal_mcu2btc_local_irq_clear(id, HAL_RMT_IPC_IRQ_RECV_DONE);
+    hal_mcu2btc_local_irq_clear(id, HAL_RMT_IPC_IRQ_DATA_DONE);
 }
 
 POSSIBLY_UNUSED static void hal_mcu2btc_rx_irq_suspend(uint32_t id32)
 {
-    enum HAL_MCU2BTC_ID_T id = (enum HAL_MCU2BTC_ID_T)id32;
+    enum HAL_RMT_IPC_CHAN_T id = (enum HAL_RMT_IPC_CHAN_T)id32;
 
-    hal_mcu2btc_local_irq_mask_clear(id, HAL_RMT_IPC_IRQ_SEND_IND);
+    hal_mcu2btc_local_irq_mask_clear(id, HAL_RMT_IPC_IRQ_DATA_IND);
 }
 
 POSSIBLY_UNUSED static void hal_mcu2btc_rx_irq_resume(uint32_t id32)
 {
-    enum HAL_MCU2BTC_ID_T id = (enum HAL_MCU2BTC_ID_T)id32;
+    enum HAL_RMT_IPC_CHAN_T id = (enum HAL_RMT_IPC_CHAN_T)id32;
 
-    hal_mcu2btc_local_irq_mask_set(id, HAL_RMT_IPC_IRQ_SEND_IND);
+    hal_mcu2btc_local_irq_mask_set(id, HAL_RMT_IPC_IRQ_DATA_IND);
 }
 
 static void hal_mcu2btc_rx_done_id32(uint32_t id32)
 {
-    enum HAL_MCU2BTC_ID_T id = (enum HAL_MCU2BTC_ID_T)id32;
+    enum HAL_RMT_IPC_CHAN_T id = (enum HAL_RMT_IPC_CHAN_T)id32;
 
-    hal_mcu2btc_local_irq_clear(id, HAL_RMT_IPC_IRQ_SEND_IND);
-    hal_mcu2btc_local_irq_mask_set(id, HAL_RMT_IPC_IRQ_SEND_IND);
+    hal_mcu2btc_local_irq_clear(id, HAL_RMT_IPC_IRQ_DATA_IND);
+    hal_mcu2btc_local_irq_mask_set(id, HAL_RMT_IPC_IRQ_DATA_IND);
 }
 
 static int hal_mcu2btc_irq_active(uint32_t id32, uint32_t type)
 {
-    enum HAL_MCU2BTC_ID_T id = (enum HAL_MCU2BTC_ID_T)id32;
+    enum HAL_RMT_IPC_CHAN_T id = (enum HAL_RMT_IPC_CHAN_T)id32;
     uint32_t value;
 
 #ifdef CHIP_AS_BTH
-    if (id == HAL_MCU2BTC_ID_0) {
-        if (type == HAL_RMT_IPC_IRQ_SEND_IND) {
+    if (id == HAL_RMT_IPC_CHAN_0) {
+        if (type == HAL_RMT_IPC_IRQ_DATA_IND) {
             value = CMU_BT2MCU_DATA_INTR_MSK;
         } else {
             value = CMU_MCU2BT_DATA_INTR_MSK;
         }
     } else {
-        if (type == HAL_RMT_IPC_IRQ_SEND_IND) {
+        if (type == HAL_RMT_IPC_IRQ_DATA_IND) {
             value = CMU_BT2MCU_DATA1_INTR_MSK;
         } else {
             value = CMU_MCU2BT_DATA1_INTR_MSK;
@@ -299,14 +300,14 @@ static int hal_mcu2btc_irq_active(uint32_t id32, uint32_t type)
 
     return !!(cmu->ISIRQ_SET & value);
 #else
-    if (id == HAL_MCU2BTC_ID_0) {
-        if (type == HAL_RMT_IPC_IRQ_SEND_IND) {
+    if (id == HAL_RMT_IPC_CHAN_0) {
+        if (type == HAL_RMT_IPC_IRQ_DATA_IND) {
             value = BT_CMU_MCU2BT_DATA_INTR_MSK;
         } else {
             value = BT_CMU_BT2MCU_DATA_INTR_MSK;
         }
     } else {
-        if (type == HAL_RMT_IPC_IRQ_SEND_IND) {
+        if (type == HAL_RMT_IPC_IRQ_DATA_IND) {
             value = BT_CMU_MCU2BT_DATA1_INTR_MSK;
         } else {
             value = BT_CMU_BT2MCU_DATA1_INTR_MSK;
@@ -318,7 +319,7 @@ static int hal_mcu2btc_irq_active(uint32_t id32, uint32_t type)
 }
 
 
-static struct HAL_IPC_NOTIFY_CH_CFG_T sys2bth_ipc_notify_chan_cfg[HAL_MCU2BTC_ID_QTY];
+static struct HAL_IPC_NOTIFY_CH_CFG_T sys2bth_ipc_notify_chan_cfg[MCU2BTC_CHAN_QTY];
 static void hal_mcu2btc_ipc_notify_rx_irq_handler(void);
 static void hal_mcu2btc_ipc_notify_tx_irq_handler(void);
 
@@ -335,7 +336,7 @@ static const struct HAL_IPC_NOTIFY_CFG_T mcu2btc_ipc_notify_cfg = {
     .irq_active = hal_mcu2btc_irq_active,
     .rx_irq_entry = hal_mcu2btc_ipc_notify_rx_irq_handler,
     .tx_irq_entry = hal_mcu2btc_ipc_notify_tx_irq_handler,
-    .chan_num = HAL_MCU2BTC_ID_QTY,
+    .chan_num = MCU2BTC_CHAN_QTY,
     .chan_cfg = &sys2bth_ipc_notify_chan_cfg[0],
 
     .rx_irq_id = &rx_irq_id[0],
@@ -353,25 +354,25 @@ static void hal_mcu2btc_ipc_notify_tx_irq_handler(void)
     hal_ipc_notify_internal_tx_irq_handler(&mcu2btc_ipc_notify_cfg);
 }
 
-int hal_mcu2btc_ipc_notify_open(enum HAL_MCU2BTC_ID_T id, HAL_MCU2BTC_NOTIFY_IRQ_HANDLER rxhandler, HAL_MCU2BTC_NOTIFY_IRQ_HANDLER txhandler)
+int hal_mcu2btc_ipc_notify_open(enum HAL_RMT_IPC_CHAN_T id, HAL_MCU2BTC_NOTIFY_IRQ_HANDLER rxhandler, HAL_MCU2BTC_NOTIFY_IRQ_HANDLER txhandler)
 {
     return hal_ipc_notify_internal_open(&mcu2btc_ipc_notify_cfg, id, rxhandler, txhandler);
 }
 
-int hal_mcu2btc_ipc_notify_start_recv(enum HAL_MCU2BTC_ID_T id)
+int hal_mcu2btc_ipc_notify_start_recv(enum HAL_RMT_IPC_CHAN_T id)
 {
     return hal_ipc_notify_internal_start_recv(&mcu2btc_ipc_notify_cfg, id);
 }
 
-int hal_mcu2btc_ipc_notify_interrupt_core(enum HAL_MCU2BTC_ID_T id)
+int hal_mcu2btc_ipc_notify_interrupt_core(enum HAL_RMT_IPC_CHAN_T id)
 {
     return hal_ipc_notify_internal_peer_irq_set(&mcu2btc_ipc_notify_cfg, (uint32_t)id);
 }
 
-int hal_mcu2btc_ipc_notify_close(enum HAL_MCU2BTC_ID_T id)
+int hal_mcu2btc_ipc_notify_close(enum HAL_RMT_IPC_CHAN_T id)
 {
     return hal_ipc_notify_internal_close(&mcu2btc_ipc_notify_cfg, (uint32_t)id);
 }
 
 #endif
-
+#endif

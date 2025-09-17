@@ -57,7 +57,7 @@ void sensor_hub_minima_setup_freq(int idx, enum HAL_CMU_FREQ_T freq)
         app_sensor_hub_minima_set_freq(freq);
     }
 #if (MINIMA_VERBOSE > 0)
-    SENSOR_HUB_TRACE(0, "%s:[%d],freq=%d,cur_freq=%d,cnt=%d",
+    TRACE(0, "%s:[%d],freq=%d,cur_freq=%d,cnt=%d",
         __func__,idx,freq,sysfreq_cur_freq,sysfreq_req_cnt);
 #endif
 }
@@ -66,19 +66,20 @@ static void minima_set_idle_freq(void)
 {
     uint32_t freq_mhz, i;
     enum HAL_CMU_FREQ_T freq = hal_sysfreq_get();
-    uint32_t arr[] = {26,6,13,26,52,78,104,208};
+    static const uint32_t arr[] = {26,6,13,26,52,78,104,208};
     MinimaDvfsFreqVoltageOP_t *p;
 
     ASSERT(freq < ARRAY_SIZE(arr),"%s: invalid freq=%d", __func__, freq);
     freq_mhz = arr[freq];
 
-    SENSOR_HUB_TRACE(0, "%s:freq_mz=%d", __func__,freq_mhz);
+    TRACE(0, "%s:freq_mz=%d", __func__,freq_mhz);
 
     setDvfsIdleFreq(freq_mhz);
-    for (i = 0; i <= getDvfsVoltageOPNum(); i++) {
+    uint32_t op_num = getDvfsVoltageOPNum();
+    for (i = 0; i <= op_num; i++) {
         p = getDvfsVoltageOP(i);
         if (p) {
-            SENSOR_HUB_TRACE(0,"DVFS OP[%d]: freq=%d,vol=[%d,%d]",i,p->freq,p->voltage,p->voltageMin);
+            TRACE(0,"DVFS OP[%d]: freq=%d,vol=[%d,%d]",i,p->freq,p->voltage,p->voltageMin);
             if (p->freq == freq_mhz) {
                 minimaAvsSetSWVoltage(p->voltage);
             }
@@ -102,7 +103,7 @@ void app_sensor_hub_minima_init(void)
 #endif
     m_enabled = true;
     m_inited = true;
-    SENSOR_HUB_TRACE(0, "%s: done", __func__);
+    TRACE(0, "%s: done", __func__);
 }
 
 void app_sensor_hub_minima_exit(void)
@@ -133,7 +134,7 @@ static bool app_sensor_hub_minima_set_volt_op(uint32_t new_volt_op)
     }
     if (set) {
 #if (MINIMA_VERBOSE > 0)
-        SENSOR_HUB_TRACE(0, "%s:last_volt_op=%d,cur_volt_op=%d", __func__,m_last_volt_op,m_cur_volt_op);
+        TRACE(0, "%s:last_volt_op=%d,cur_volt_op=%d", __func__,m_last_volt_op,m_cur_volt_op);
 #endif
         //return false;
         setCurrentOp(m_cur_volt_op);
@@ -156,7 +157,7 @@ bool app_sensor_hub_minima_set_freq(uint8_t freq)
         return false;
     }
 #if (MINIMA_VERBOSE > 0)
-    SENSOR_HUB_TRACE(0, "%s:freq=%d", __func__,freq);
+    TRACE(0, "%s:freq=%d", __func__,freq);
 #endif
 
     // find the volt_op

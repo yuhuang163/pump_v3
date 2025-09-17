@@ -3,10 +3,16 @@
 #include <stdlib.h>
 #include "vg_lite.h"
 #include "vg_lite_util.h"
+#include "hal_trace.h"
+#include "gpu_port.h"
+#include "gpu_common.h"
 
-#define DEFAULT_SIZE   256.0f;
+#define GPU_REP(...)   TR_INFO( TR_MOD(TEST), "//" __VA_ARGS__)
+#define GPU_ERR(...)   TR_ERROR( TR_MOD(TEST), "//" __VA_ARGS__)
+
+#define DEFAULT_SIZE   454.0f;
 #define __func__ __FUNCTION__
-char *error_type[] =
+static char *error_type[] =
 {
     "VG_LITE_SUCCESS",
     "VG_LITE_INVALID_ARGUMENT",
@@ -25,7 +31,7 @@ char *error_type[] =
         printf("[%s: %d] failed.error type is %s\n", __func__, __LINE__,error_type[error]);\
         goto ErrorHandler; \
     }
-static int   fb_width = 256, fb_height = 256;
+static int   fb_width = GPU_FB_WIDTH, fb_height = GPU_FB_HEIGHT;
 static float fb_scale = 1.0f;
 
 static vg_lite_buffer_t buffer;
@@ -56,7 +62,7 @@ float sides_data_left[] = {
 };
 
 static vg_lite_path_t path;
-void cleanup(void)
+static void cleanup(void)
 {
     if (buffer.handle != NULL) {
         vg_lite_free(&buffer);
@@ -67,7 +73,7 @@ void cleanup(void)
     vg_lite_close();
 }
 
-int main(int argc, const char * argv[])
+int arcpath_test_main_entry(int argc, const char * argv[])
 {
     uint32_t feature_check = 0;
     vg_lite_filter_t filter;
@@ -85,7 +91,7 @@ int main(int argc, const char * argv[])
     /* Allocate the off-screen buffer. */
     buffer.width  = fb_width;
     buffer.height = fb_height;
-    buffer.format = VG_LITE_RGB565;
+    buffer.format = GPU_FB_FORMAT;
     CHECK_ERROR(vg_lite_allocate(&buffer));
     fb = &buffer;
 
@@ -101,7 +107,8 @@ int main(int argc, const char * argv[])
     CHECK_ERROR(vg_lite_draw(fb, &path, VG_LITE_FILL_EVEN_ODD, &matrix, VG_LITE_BLEND_NONE, 0xFF0000FF));
 
     CHECK_ERROR(vg_lite_finish());
-    vg_lite_save_png("arc_path.png", fb);
+    gpu_lcdc_display(fb);
+    gpu_save_raw("arcpath.raw", fb);
 
 ErrorHandler:
     cleanup();

@@ -232,6 +232,8 @@ extern uint32_t SystemCoreClock;
 #define xPortPendSVHandler                      PendSV_Handler
 #define vPortSVCHandler                         SVC_Handler
 
+extern uint32_t vPortTickClockGet(void);
+
 /* Include debug event definitions */
 #include "freertos_evr.h"
 

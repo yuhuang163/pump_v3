@@ -18,5 +18,5 @@
 #define __APP_TOTA_CUSTOM_H__
 
 void app_tota_custom_init();
-
+void _custom_cmd_handle(APP_TOTA_CMD_CODE_E funcCode, uint8_t* ptrParam, uint32_t paramLen);
 #endif

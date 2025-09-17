@@ -19,8 +19,6 @@
 #include "hal_timer.h"
 #include "hal_trace.h"
 #include "string.h"
-#include "hal_mcu2sens.h"
-#include "hal_sys2bth.h"
 #include "app_rpc_api.h"
 #include "app_rpc_demo.h"
 
@@ -36,7 +34,7 @@ static void rpc_test_timer_handler(void const *param)
 
 void app_rpc_test_demo(void)
 {
-    APP_RPC_TRACE(0, "%s", __func__);
+    TRACE(0, "%s", __func__);
 
     rpc_test_timer_id = osTimerCreate(osTimer(rpc_test_timer), osTimerPeriodic, NULL);
     if (rpc_test_timer_id != NULL) {

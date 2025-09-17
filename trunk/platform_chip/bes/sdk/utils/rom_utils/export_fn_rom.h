@@ -102,9 +102,6 @@ struct EXPORT_FN_ROM_T {
 };
 
 extern struct EXPORT_FN_ROM_T __export_fn_rom;
-#ifdef CHIP_BEST1306
-extern struct EXPORT_FN_ROM_T* export_fn_rom;
-#endif
 
 #ifdef __cplusplus
 }

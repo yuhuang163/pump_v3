@@ -40,15 +40,29 @@
 #define APP_BAP_DFT_ASCC_TOTAL_NB_ASE_CFG         (APP_BAP_DFT_ASCC_NB_ASE_CFG * BLE_AUDIO_CONNECTION_CNT)
 #define APP_BAP_DFT_ASCC_SUPP_PHY_BF              APP_PHY_ALL
 #define APP_BAP_DFT_ASCC_PRFE_PHY                 APP_PHY_2MBPS_VALUE
-#define APP_BAP_DFT_ASCC_PRFE_RATES_BF            APP_GAF_PHY_RATES_BIT_LE_HDT_3
 #define APP_BAP_DFT_ASCC_DP_ID                    0
 #define APP_BAP_DFT_ASCC_CTL_DELAY_US             0x0102
 #define APP_BAP_DFT_ASCC_PACKING_TYPE             APP_ISO_PACKING_SEQUENTIAL
 #define APP_BAP_DFT_ASCC_FRAMING_TYPE             APP_ISO_UNFRAMED_MODE
 #define APP_BAP_DFT_ASCC_SCA                      4
+
+#if defined (BLE_USB_AUDIO_SUPPORT) && (BLE_AUDIO_STEREO_CHAN_OVER_CIS_CNT == 1)
+#define APP_BAP_DFT_ASCC_CIS_NUM                  1
+#else
 /// we prepare two cis in cig for rejoin situation
 #define APP_BAP_DFT_ASCC_CIS_NUM                  2
+#endif
+
+#ifdef AOB_LOW_LATENCY_MODE
+#define APP_BAP_DFT_ASCC_SDU_INTERVAL_US          5000
+#define APP_BAP_DFT_ASCC_MAX_SDU_SIZE             (160)
+#else
+#ifdef BLE_AUDIO_FRAME_DUR_7_5MS
+#define APP_BAP_DFT_ASCC_SDU_INTERVAL_US          7500
+#else
 #define APP_BAP_DFT_ASCC_SDU_INTERVAL_US          10000
+#endif // BLE_AUDIO_FRAME_DUR_7_5MS
+#endif // AOB_LOW_LATENCY_MODE
 
 typedef enum
 {
@@ -165,18 +179,20 @@ typedef struct app_bap_ascc_grp
 /// Audio Stream Control Service Client environment structure
 typedef struct app_bap_ascc_env
 {
+    /// Preferred Mtu
+    uint8_t preferred_mtu;
     /// Number of ASE configurations that can be maintained
     uint8_t nb_ases_cfg;
     /// Supported PHY Bitfield
     uint8_t phy_bf;
     /// Preferred PHY
     uint8_t phy;
-    /// Preferred PHY Rates bitfield
-    uint8_t rates_bf;
     /// Group Information
     app_bap_ascc_grp_t grp_info;
     /// ASE Information
     app_bap_ascc_ase_t *ase_info;
+    /// test mode enable flag
+    bool tm_enable;
 } app_bap_ascc_env_t;
 
 typedef struct
@@ -208,7 +224,6 @@ uint8_t app_bap_uc_cli_iso_send_data_to_all_channel(uint8_t **payload, uint16_t 
 int app_bap_uc_cli_update_metadata(uint8_t ase_lid, app_gaf_bap_cfg_metadata_t *metadata);
 int app_bap_uc_cli_set_sdu_intv(uint32_t sdu_intv_m2s_us, uint32_t sdu_intv_s2m_us);
 int app_bap_uc_cli_set_cis_num_in_cig(uint8_t cis_num);
-int app_bap_uc_cli_set_preferred_phy_rates(uint8_t phy, uint8_t rates_bf);
 int app_bap_uc_cli_increase_cis_num_in_cig(uint8_t step);
 
 int app_bap_uc_cli_discovery_start(uint8_t con_lid);

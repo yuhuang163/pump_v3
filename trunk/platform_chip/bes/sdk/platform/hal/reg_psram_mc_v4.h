@@ -376,9 +376,9 @@ struct PSRAM_MC_T {
 #define PSRAM_ULP_MC_CMD_DMY_CYC(n)                         (((n) & 0xFF) << 8)
 #define PSRAM_ULP_MC_CMD_DMY_CYC_MASK                       (0xFF << 8)
 #define PSRAM_ULP_MC_CMD_DMY_CYC_SHIFT                      (8)
-#define PSRAM_ULP_MC_STOP_CLK_IN_NOP                        (1 << 0)
 
 // reg_0a0
+#define PSRAM_ULP_MC_STOP_CLK_IN_NOP                        (1 << 0)
 #define PSRAM_ULP_MC_NOP_DMY_CYC(n)                         (((n) & 0xFF) << 1)
 #define PSRAM_ULP_MC_NOP_DMY_CYC_MASK                       (0xFF << 1)
 #define PSRAM_ULP_MC_NOP_DMY_CYC_SHIFT                      (1)

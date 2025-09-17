@@ -9,6 +9,25 @@
 #define WITH_OS
 #endif
 
+#ifdef __NuttX__
+static __inline int lcdc_sem_timewait(sem_t *sem, uint32_t us)
+{
+    return nxsem_tickwait(sem,USEC2TICK(us));
+}
+#else
+static __inline int lcdc_sem_timewait(volatile int *sem, uint32_t us)
+{
+    uint32_t sticks = hal_sys_timer_get();
+    while (1) {
+        if (*sem || TICKS_TO_US(hal_sys_timer_get() - sticks) > us) {
+            *sem = 0;
+            break;
+        }
+    }
+    return 0;
+}
+#endif
+
 #if defined(WITH_OS)
 #ifdef __NuttX__
 #define lcdc_sem_post       nxsem_post
@@ -17,14 +36,7 @@
 #define lcdc_sem_trywait    nxsem_trywait
 #define lcdc_sem_reset      nxsem_reset
 #define lcdc_sem_get_value  nxsem_get_value
-#elif defined(KERNEL_RTX5)
-#include "semaphore.h"
-#define lcdc_sem_post       sem_post
-#define lcdc_sem_wait       sem_wait
-#define lcdc_sem_init       sem_init
-#define lcdc_sem_trywait    sem_trywait
-#define lcdc_sem_reset      sem_reset
-#define lcdc_sem_get_value  sem_getvalue
+#define lcdc_sem_destroy    nxsem_destroy
 #elif defined(KERNEL_LITEOS_M)
 #include "graphic_conf.h"
 #include "semaphore.h"
@@ -35,16 +47,39 @@
 #define lcdc_sem_init        sem_init
 #define lcdc_sem_reset       sem_reset
 #define lcdc_sem_get_value   sem_getvalue
+#define lcdc_sem_destroy     sem_destroy
 #else
-#define lcdc_sem_post(...)      0
-#define lcdc_sem_wait(...)      0
-#define lcdc_sem_trywait(...)   0
+static __inline int lcdc_sem_wait_null(sem_t *sem)
+{
+    return 0;
+}
+
+static __inline int lcdc_sem_trywait_null(sem_t *sem)
+{
+    return 0;
+}
+
+static __inline int lcdc_sem_post_null(sem_t *sem)
+{
+    return 0;
+}
+#define lcdc_sem_post       lcdc_sem_post_null
+#define lcdc_sem_wait       lcdc_sem_wait_null
+#define lcdc_sem_trywait    lcdc_sem_trywait_null
 #define lcdc_sem_init(...)
 #define lcdc_sem_reset(...)
 #define lcdc_sem_get_value(...)
+#define lcdc_sem_destroy(...)
 #endif
 #else
-#error("Invalid OS SELECTED")
+#include "semaphore.h"
+#define lcdc_sem_post       sem_post
+#define lcdc_sem_wait       sem_wait
+#define lcdc_sem_init       sem_init
+#define lcdc_sem_trywait    sem_trywait
+#define lcdc_sem_reset      sem_reset
+#define lcdc_sem_get_value  sem_getvalue
+#define lcdc_sem_destroy    sem_destroy
 #endif
 #else
 
@@ -88,6 +123,17 @@ static __inline int no_os_lcdc_sem_reset(volatile int *sem, int count)
     return 0;
 }
 
+static __inline int no_os_lcdc_sem_destory(volatile int *sem)
+{
+    if (!sem) {
+        return -1;
+    }
+
+    *sem = 0;
+
+    return 0;
+}
+
 static __inline int no_os_lcdc_sem_trywait(volatile int *sem)
 {
 
@@ -118,6 +164,7 @@ static __inline int no_os_lcdc_sem_get_value(volatile int *sem, FAR int *sval)
 #define lcdc_sem_init      no_os_lcdc_sem_init
 #define lcdc_sem_reset     no_os_lcdc_sem_reset
 #define lcdc_sem_get_value no_os_lcdc_sem_get_value
+#define lcdc_sem_destroy   no_os_lcdc_sem_destory
 #endif
 
 #endif /* __LOCAL_SEM_H */

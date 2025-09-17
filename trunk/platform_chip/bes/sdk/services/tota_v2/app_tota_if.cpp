@@ -1,6 +1,5 @@
 
 #include "bluetooth_bt_api.h"
-#include "app_bt.h"
 #include "app_tota_if.h"
 
 

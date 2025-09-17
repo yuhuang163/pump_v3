@@ -27,13 +27,10 @@
 #include "string.h"
 #include "sens_msg.h"
 #include "mcu_sensor_hub_app_soundplus.h"
-#include "crc_c.h"
+#include "crc32_c.h"
 #include "app_utils.h"
 #include "app_key.h"
 #include "bluetooth_bt_api.h"
-#include "btapp.h"
-#include "app_bt_func.h"
-#include "app_hfp.h"
 
 #define CASE_ENUM(e) case e: return "["#e"]"
 
@@ -78,18 +75,15 @@ static const char *sens_ai_evt_to_str(SENSOR_HUB_SNDP_MSG_TYPE_E id)
 void bt_key_handle_up_key(enum APP_KEY_EVENT_T event);
 void bt_key_handle_down_key(enum APP_KEY_EVENT_T event);
 extern void bt_key_handle_func_key(enum APP_KEY_EVENT_T event);
-extern void app_ibrt_if_enable_hfp_voice_assistant(bool isEnable);
 
 int virtual_key_handle(uint32_t id)
 {
-    SENSORHUB_TRACE(2,"%s, id=%d", __func__, id);
+    TRACE(2,"%s, id=%d", __func__, id);
     switch (id)
     {
-#ifdef BT_HFP_SUPPORT
         case 0:
-            app_ibrt_if_enable_hfp_voice_assistant(TRUE);
+            bes_bt_hfp_enable_siri_voice(TRUE);
             break;
-#endif
         case 1:
             bes_bt_a2dp_key_handler(AVRCP_KEY_BACKWARD);
             break;
@@ -121,16 +115,16 @@ int virtual_key_handle(uint32_t id)
 static void app_sensor_hub_sndp_mcu_vad_event_handler(enum APP_VAD_EVENT_T event, uint8_t *param)
 {
     uint32_t *param_s =  (uint32_t *)param;
-    SENSORHUB_TRACE(0, "%s: event=%d,param:0x%x,0x%x,0x%x", __func__, event,param_s[0],param_s[1],param_s[2]);
+    TRACE(0, "%s: event=%d,param:0x%x,0x%x,0x%x", __func__, event,param_s[0],param_s[1],param_s[2]);
     if (APP_VAD_EVT_VOICE_CMD == event) {
 //        app_mcu_sensor_hub_request_vad_data(true,0);
-        app_bt_start_custom_function_in_bt_thread(param_s[0]-1,0,(uint32_t)(uintptr_t)virtual_key_handle);
+        bes_bt_call_custom_function_in_bt_thread(param_s[0]-1,0,(uint32_t)(uintptr_t)virtual_key_handle);
     }
 }
 
 static void app_sensor_hub_sndp_mcu_vad_data_handler(uint32_t pkt_id, uint8_t *payload, uint32_t bytes)
 {
-    SENSORHUB_TRACE(4, "%s: pkt_id=%d, payload = %p bytes=%d", __func__, pkt_id, payload,bytes);
+    TRACE(4, "%s: pkt_id=%d, payload = %p bytes=%d", __func__, pkt_id, payload,bytes);
 
 #ifdef MCU_SENSOR_HUB_AUDIO_DUMP_EN
     audio_dump_add_channel_data(0, (void *)payload, bytes/2);
@@ -147,7 +141,7 @@ static void app_sensor_hub_mcu_sndp_msg_handler(uint8_t* buf, uint16_t len)
     //uint16_t param_len = rpc_msg->param_len;
 
     //uint8_t *param = (uint8_t *)rpc_msg->param_buf;
-    SENSORHUB_TRACE(0, "%s: %s", __func__, sens_ai_evt_to_str(evt));
+    TRACE(0, "%s: %s", __func__, sens_ai_evt_to_str(evt));
 
     app_sensor_hub_mcu_sndp_reply_msg(0, evt);
 
@@ -169,8 +163,8 @@ static void app_sensor_hub_mcu_sndp_cmd_received_handler(uint8_t* ptr, uint16_t 
 
     memcpy((uint8_t*)req_msg,ptr,len);
 
-    SENSORHUB_TRACE(0, "%s: len=%d", __func__, len);
-    SENSORHUB_DUMP8("%02x ",(uint8_t*)req_msg,MIN(len,32));
+    TRACE(0, "%s: len=%d", __func__, len);
+    DUMP8("%02x ",(uint8_t*)req_msg,MIN(len,32));
 
     if (req_msg->hdr.reply) {
         ASSERT(false, "%s: Bad reply msg: id=%d", __func__, req_msg->hdr.id);
@@ -253,7 +247,7 @@ static void app_sensor_hub_mcu_sndp_cmd_transmit_handler(uint8_t* ptr, uint16_t 
 
 static void app_sensor_hub_mcu_sndp_cmd_wait_rsp_timeout(uint8_t* ptr, uint16_t len)
 {
-    SENSORHUB_TRACE(0, "%s: len=%d", __func__, len);
+    TRACE(0, "%s: len=%d", __func__, len);
 }
 
 static void app_sensor_hub_mcu_sndp_cmd_rsp_received_handler(uint8_t* ptr, uint16_t len)
@@ -262,8 +256,8 @@ static void app_sensor_hub_mcu_sndp_cmd_rsp_received_handler(uint8_t* ptr, uint1
 
     memcpy((uint8_t*)rsp_msg,ptr,len);
 
-    SENSORHUB_TRACE(0, "%s: len=%d", __func__, len);
-    SENSORHUB_DUMP8("%02x ",(uint8_t*)rsp_msg,MIN(len,32));
+    TRACE(0, "%s: len=%d", __func__, len);
+    DUMP8("%02x ",(uint8_t*)rsp_msg,MIN(len,32));
 
     if (rsp_msg->hdr.reply == 0) {
         ASSERT(false, "%s: Bad reply msg: id=%d", __func__, rsp_msg->hdr.id);
@@ -282,7 +276,7 @@ static void app_sensor_hub_mcu_sndp_cmd_rsp_received_handler(uint8_t* ptr, uint1
 
 static void app_sensor_hub_mcu_sndp_cmd_tx_done_handler(uint16_t cmdCode, uint8_t* ptr, uint16_t len)
 {
-    SENSORHUB_TRACE(0, "%s: cmdCode 0x%x tx done", __func__, cmdCode);
+    TRACE(0, "%s: cmdCode 0x%x tx done", __func__, cmdCode);
 }
 
 CORE_BRIDGE_TASK_COMMAND_TO_ADD(MCU_SENSOR_HUB_TASK_CMD_SNDP,

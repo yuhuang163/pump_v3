@@ -16,7 +16,11 @@
 
 #include "plat_addr_map.h"
 
+#ifdef NOSTD
 #define HEAP_SECTION_SIZE			0x40
+#else
+#define HEAP_SECTION_SIZE			0x2000
+#endif
 
 #define STACK_SECTION_SIZE			0xD00
 #define CP_STACK_SECTION_SIZE		0x1000
@@ -72,7 +76,7 @@ LR_boot FLASHX_REGION_BASE NOCOMPRESS
 		*(.boot_rodata_flash*)
 	}
 
-	vector_table RAM_BASE UNINIT VECTOR_SECTION_SIZE
+	vector_table RAM_REGION_BASE UNINIT VECTOR_SECTION_SIZE
 	{
 		*(.bss.vector_table, +FIRST)
 	}
@@ -87,12 +91,17 @@ LR_boot FLASHX_REGION_BASE NOCOMPRESS
 		*(.bss.userdata_pool)
 	}
 
-	boot_text_sram RAM_TO_RAMX(ImageLimit(userdata_pool))
+	boot_text_sram
+#if defined(SEPARATE_RAM_RAMX) || defined(MAIN_RAM_USE_TCM)
+		(AlignExpr(RAMX_REGION_BASE, 32))
+#else
+		RAM_TO_RAMX(ImageLimit(userdata_pool))
+#endif
 	{
 		*armlib/c_*(:gdef:*memcpy*)
 		*armlib/c_*(:gdef:*memset*)
-		memcpy.o(.text*)
-		memset.o(.text*)
+		memcpy*.o(.text*)
+		memset*.o(.text*)
 		libc_rom.o(.text*)
 
 		hal_norflash*.o(.text*)
@@ -109,7 +118,16 @@ LR_boot FLASHX_REGION_BASE NOCOMPRESS
 		/* *libgcc.a:((.text*)) */
 	}
 
-	boot_data_sram RAMX_TO_RAM(+0)
+	boot_text_sram_data_start RAMX_TO_RAM(ImageBase(boot_text_sram)) EMPTY 0
+	{
+	}
+
+	boot_data_sram
+#if defined(SEPARATE_RAM_RAMX) || defined(MAIN_RAM_USE_TCM)
+		ImageLimit(userdata_pool)
+#else
+		RAMX_TO_RAM(ImageLimit(boot_text_sram))
+#endif
 	{
 		hal_norflash*.o(.data*, .rodata*)
 		norflash_*.o(.data*, .rodata*)
@@ -134,18 +152,39 @@ LR_boot FLASHX_REGION_BASE NOCOMPRESS
 		*(.bss.boot_bss*)
 	}
 
-	fast_text_sram (RAMX_BASE + RAM_SIZE - FAST_XRAM_SECTION_SIZE)
+	fast_text_sram
+#if defined(SEPARATE_RAM_RAMX) || defined(MAIN_RAM_USE_TCM)
+		AlignExpr(ImageLimit(boot_text_sram), 32) ALIGN 32
+#else
+		AlignExpr((RAMX_REGION_BASE + RAMX_REGION_SIZE - FAST_XRAM_SECTION_SIZE), 32) ALIGN 32
+#endif
 	{
 		*(.fast_text_sram)
 	}
 
+	fast_text_sram_end AlignExpr(+0, 32) EMPTY 0
+	{
+	}
+
+	fast_text_sram_data_start RAMX_TO_RAM(ImageBase(fast_text_sram)) EMPTY 0
+	{
+	}
+
+	fast_text_sram_data_end RAMX_TO_RAM(ImageLimit(fast_text_sram_end)) EMPTY 0
+	{
+	}
+
 #if defined(CP_IN_SAME_EE) && (RAMCP_SIZE > 0)
-	cp_text_sram RAMCPX_BASE
+	cp_text_sram RAMCPX_BASE ALIGN 32
 	{
 		*(.cp_text_sram*)
 	}
 
-	cp_text_sram_start RAMX_TO_RAM(ImageBase(cp_text_sram)) EMPTY ImageLength(cp_text_sram)
+	cp_text_sram_start RAMX_TO_RAM(ImageBase(cp_text_sram)) EMPTY 0
+	{
+	}
+
+	cp_text_sram_end RAMX_TO_RAM(ImageLimit(cp_text_sram)) EMPTY 0
 	{
 	}
 
@@ -154,7 +193,7 @@ LR_boot FLASHX_REGION_BASE NOCOMPRESS
 		*(.vector_table_cp)
 	}
 
-	cp_data_sram (ImageBase(vector_table_cp) + VECTOR_SECTION_SIZE)
+	cp_data_sram AlignExpr((ImageBase(vector_table_cp) + VECTOR_SECTION_SIZE), 32) ALIGN 32
 	{
 		*(.cp_data*)
 	}
@@ -170,13 +209,17 @@ LR_boot FLASHX_REGION_BASE NOCOMPRESS
 
 	ScatterAssert(ImageLimit(cp_stack) <= RAMCP_BASE + RAMCP_SIZE)
 
-#define OVERLAY_TEXT_EXEC_START			ImageLimit(cp_text_sram)
-#define OVERLAY_DATA_START				ImageLimit(cp_bss_sram)
-#define SRAM_TEXT_START					RAM_TO_RAMX(ImageLimit(boot_bss_sram))
+#define OVERLAY_TEXT_EXEC_START			AlignExpr(ImageLimit(cp_text_sram), 32)
+#define OVERLAY_DATA_START				AlignExpr(ImageLimit(cp_bss_sram), 32)
+#define SRAM_TEXT_START					AlignExpr(RAM_TO_RAMX(ImageLimit(boot_bss_sram)), 32)
 #else
-#define OVERLAY_TEXT_EXEC_START			ImageLimit(fast_text_sram)
-#define OVERLAY_DATA_START				ImageLimit(boot_bss_sram)
-#define SRAM_TEXT_START					RAM_TO_RAMX(ImageLimit(overlay_data_end))
+#define OVERLAY_TEXT_EXEC_START			AlignExpr(ImageLimit(fast_text_sram), 32)
+#define OVERLAY_DATA_START				AlignExpr(ImageLimit(boot_bss_sram), 32)
+#if defined(SEPARATE_RAM_RAMX) || defined(MAIN_RAM_USE_TCM)
+#define SRAM_TEXT_START					AlignExpr(ImageLimit(overlay_text_end), 32)
+#else
+#define SRAM_TEXT_START					AlignExpr(RAM_TO_RAMX(ImageLimit(overlay_data_end)), 32)
+#endif
 #endif
 #define OVERLAY_TEXT_START				RAMX_TO_RAM(OVERLAY_TEXT_EXEC_START)
 
@@ -281,7 +324,7 @@ LR_boot FLASHX_REGION_BASE NOCOMPRESS
 	ScatterAssert(ImageLimit(overlay_data_end) <= ImageBase(cp_stack))
 #endif
 
-	sram_text AlignExpr(SRAM_TEXT_START, 8)
+	sram_text AlignExpr(SRAM_TEXT_START, 32) ALIGN 32
 	{
 		*(InRoot$$Sections)
 		*armlib*(+TEXT)
@@ -293,10 +336,22 @@ LR_boot FLASHX_REGION_BASE NOCOMPRESS
 
 		*(.text*)
 		*(.flash_text*)
-
 	}
 
-	sram_data RAMX_TO_RAM(+0)
+	sram_text_end AlignExpr(+0, 32) EMPTY 0
+	{
+	}
+
+	sram_text_data_start RAMX_TO_RAM(ImageBase(sram_text)) EMPTY 0
+	{
+	}
+
+	sram_data
+#if defined(SEPARATE_RAM_RAMX) || defined(MAIN_RAM_USE_TCM)
+		AlignExpr(ImageLimit(overlay_data_end), 32) ALIGN 32
+#else
+		AlignExpr(RAMX_TO_RAM(ImageLimit(sram_text_end)), 32) ALIGN 32
+#endif
 	{
 		*armlib*(+DATA +CONST)
 
@@ -341,13 +396,23 @@ LR_boot FLASHX_REGION_BASE NOCOMPRESS
 	{
 	}
 
-	ARM_LIB_STACK (RAM_BASE + RAM_SIZE - FAST_XRAM_SECTION_SIZE - STACK_SECTION_SIZE) ALIGN 8 EMPTY STACK_SECTION_SIZE
+	ARM_LIB_STACK
+#if defined(SEPARATE_RAM_RAMX) || defined(MAIN_RAM_USE_TCM)
+		(RAM_REGION_BASE + RAM_REGION_SIZE - STACK_SECTION_SIZE)
+#else
+		(RAM_REGION_BASE + RAM_REGION_SIZE - FAST_XRAM_SECTION_SIZE - STACK_SECTION_SIZE)
+#endif
+		ALIGN 8 EMPTY STACK_SECTION_SIZE
 	{
 	}
 
 	/* Check if data + heap + stack exceeds RAM limit */
 	ScatterAssert(ImageBase(ARM_LIB_STACK) >= ImageLimit(ARM_LIB_HEAP))
-	ScatterAssert(ImageLimit(ARM_LIB_STACK) <= (RAM_BASE + RAM_SIZE - FAST_XRAM_SECTION_SIZE))
+#if defined(SEPARATE_RAM_RAMX) || defined(MAIN_RAM_USE_TCM)
+	ScatterAssert(ImageLimit(ARM_LIB_STACK) <= (RAM_REGION_BASE + RAM_REGION_SIZE))
+#else
+	ScatterAssert(ImageLimit(ARM_LIB_STACK) <= (RAM_REGION_BASE + RAM_REGION_SIZE - FAST_XRAM_SECTION_SIZE))
+#endif
 
 	free_ram ImageLimit(ARM_LIB_HEAP) EMPTY (ImageBase(ARM_LIB_STACK) - ImageLimit(ARM_LIB_HEAP))
 	{
@@ -375,6 +440,7 @@ LR_text +0
 	rodata FLASHX_TO_FLASH(+0) :
 	{
 		*(.flash_rodata*)
+		*(.flash_nc_rodata*)
 		*(.eh_frame*)
 		*(.note.gnu.build-id)
 	}

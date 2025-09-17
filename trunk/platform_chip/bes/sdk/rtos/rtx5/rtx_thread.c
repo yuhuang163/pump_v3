@@ -26,6 +26,7 @@
 #include "rtx_lib.h"
 #include "cmsis.h"
 #include "hal_timer.h"
+#include "hal_trace.h"
 
 //  OS Runtime Object Memory Usage
 #if ((defined(OS_OBJ_MEM_USAGE) && (OS_OBJ_MEM_USAGE != 0)))
@@ -160,7 +161,6 @@ void osRtxThreadListPut (os_object_t *object, os_thread_t *thread) {
   }
   thread->thread_prev = prev;
   thread->thread_next = next;
-  thread->name_mutex = object->name;
   prev->thread_next = thread;
   if (next != NULL) {
     next->thread_prev = thread;
@@ -430,8 +430,12 @@ void osRtxThreadSwitch (os_thread_t *thread) {
   osRtxInfo.thread.run.next = thread;
 #if __RTX_CPU_STATISTICS__
   if (osRtxInfo.thread.run.curr != thread) {
-    if (osRtxInfo.thread.run.curr)
-      osRtxInfo.thread.run.curr->swap_out_time = rtx_get_hwticks();
+      if (osRtxInfo.thread.run.curr) {
+        os_thread_t *curr = osRtxInfo.thread.run.curr;
+        curr->swap_out_time = rtx_get_hwticks();
+        if ((curr->swap_out_time - curr->swap_in_time) < UINT32_MAX / 2)
+          curr->rtime += curr->swap_out_time - curr->swap_in_time;
+      }
     thread->swap_in_time = rtx_get_hwticks();
   }
 #endif
@@ -517,6 +521,8 @@ bool_t osRtxThreadWaitEnter (uint8_t state, uint32_t timeout) {
   EvrRtxThreadBlocked(thread, timeout);
 
   thread->state = state;
+  // Clear thread atomic flag, for it go to the blocked state now
+  atomic_clr32(&thread->thread_atomic, 1);
   osRtxThreadDelayInsert(thread, timeout);
   thread = osRtxThreadListGet(&osRtxInfo.thread.ready);
   osRtxThreadSwitch(thread);
@@ -797,7 +803,7 @@ static osThreadId_t svcRtxThreadNew (osThreadFunc_t func, void *argument, const 
   #endif
 #if __RTX_CPU_STATISTICS__
   thread->rtime           = 0;
-  thread->step_rtime      = 0;
+  thread->sample_rtime      = 0;
 #endif
     // Initialize stack
     //lint --e{613} false detection: "Possible use of null pointer"
@@ -829,7 +835,7 @@ static osThreadId_t svcRtxThreadNew (osThreadFunc_t func, void *argument, const 
         EvrRtxThreadError(NULL, (int32_t)osError);
         return NULL;
     }
-    os_active_TCB[tsk-1] = thread;
+    os_active_TCB[tsk - 1] = thread;
     thread->task_id = tsk;
 
     EvrRtxThreadCreated(thread, thread->thread_addr, thread->name);
@@ -1116,6 +1122,13 @@ static osStatus_t svcRtxThreadResume (osThreadId_t thread_id) {
 /// \param[in]  thread          thread object.
 static void osRtxThreadFree (os_thread_t *thread) {
 
+  // Clear the task_id and the TCB in os_active_TCB[].
+  uint32_t tid = rt_get_TID(thread);
+  if (1 <= tid && tid <= ARRAY_SIZE(os_active_TCB)) {
+      os_active_TCB[tid - 1] = NULL;
+  }
+  thread->task_id = 0;
+
   // Mark object as inactive and invalid
   thread->state = osRtxThreadInactive;
   thread->id    = osRtxIdInvalid;
@@ -1314,13 +1327,6 @@ static osStatus_t svcRtxThreadTerminate (osThreadId_t thread_id) {
   }
 
   if (status == osOK) {
-
-    uint32_t tid = rt_get_TID(thread);
-    if (tid != 0) {
-        os_active_TCB[tid-1] = NULL;
-        thread->task_id = 0;
-    }
-
     // Release owned Mutexes
     osRtxMutexOwnerRelease(thread->mutex_list);
 
@@ -1982,6 +1988,9 @@ uint32_t osThreadFlagsWait (uint32_t flags, uint32_t options, uint32_t timeout) 
   EvrRtxThreadFlagsWait(flags, options, timeout);
   if (IsIrqMode() || IsIrqMasked()) {
     EvrRtxThreadFlagsError(NULL, (int32_t)osErrorISR);
+#ifdef DEBUG
+    ASSERT(false, "Calling %s in ISR or IntLockedState", __func__);
+#endif
     thread_flags = (uint32_t)osErrorISR;
   } else {
     thread_flags = __svcThreadFlagsWait(flags, options, timeout);
@@ -1992,8 +2001,8 @@ uint32_t osThreadFlagsWait (uint32_t flags, uint32_t options, uint32_t timeout) 
 static uint32_t rt_alloc_TID (void) {
   uint32_t tid;
 
-  for (tid = 1; tid <= OS_TASK_CNT; tid++) {
-    if (os_active_TCB[tid-1] == NULL) {
+  for (tid = 1; tid <= ARRAY_SIZE(os_active_TCB); tid++) {
+    if (os_active_TCB[tid - 1] == NULL) {
       return tid;
     }
   }
@@ -2007,6 +2016,19 @@ uint32_t rt_get_TID (const osThreadId_t id) {
       return (thread->task_id);
     else
       return (0);
+}
+
+int osRtxThreadAtomicSet (osThreadId_t thread_id) {
+    os_thread_t *thread = (os_thread_t *)thread_id;
+
+    atomic_set32(&thread->thread_atomic, 1);
+    return (0);
+}
+
+bool_t osRtxThreadAtomicCheck (osThreadId_t thread_id) {
+    os_thread_t *thread = (os_thread_t *)thread_id;
+
+    return !!thread->thread_atomic;
 }
 
 #if TASK_HUNG_CHECK_ENABLED

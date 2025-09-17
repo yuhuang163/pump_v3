@@ -22,13 +22,12 @@ extern "C" {
 
 #include "bluetooth_bt_api.h"
 #include "hal_aud.h"
+#include "hal_dma.h"
 #include "stdint.h"
+
 #define BT_AUDIO_BUFF_AAC_SIZE (1024*2*2*2)
-#ifdef DOLBY_AUDIO_ENABLE
-#define BT_AUDIO_BUFF_SBC_44P1K_SIZE (128*8*2*2*2)
-#else
+
 #define BT_AUDIO_BUFF_SBC_44P1K_SIZE (128*5*2*2*2)
-#endif
 #define BT_AUDIO_BUFF_SBC_48K_SIZE (128*6*2*2*2)
 
 #ifdef A2DP_LHDC_ON
@@ -53,11 +52,14 @@ extern "C" {
 #define LHDCV5_AUDIO_48K_LLC_BUFF_SIZE             (240*2*2*2)
 #endif
 
+#if defined(A2DP_LHDC_ON) || defined(A2DP_LHDCV5_ON)
+#define A2DP_NON_CODEC_TYPE_NON         0
+#define A2DP_NON_CODEC_TYPE_LHDC        1
+#define A2DP_NON_CODEC_TYPE_LHDCV5      2
+#endif
+
 #if defined(A2DP_LDAC_ON)
-#define BT_AUDIO_BUFF_SIZE_192K_LDAC (512*4*2*2*2)
-#define BT_AUDIO_BUFF_SIZE_96K_LDAC (256*4*2*2*2)
-#define BT_AUDIO_BUFF_SIZE_48K_LDAC (128*4*2*2*2)
-#define LDAC_CC_MEM_POOL_SIZE (36*1024)
+#define BT_AUDIO_BUFF_SIZE_LDAC (256*4*2*2*2)
 #endif
 
 #ifdef A2DP_LC3_ON
@@ -103,22 +105,15 @@ extern "C" {
 #define APP_A2DP_SOURCE_USB_AUDIO           (1 << 13)
 #endif
 #ifdef AUDIO_PCM_PLAYER
-#define APP_PLAY_PCM_PLAYER                 (1 << 12)
+#define APP_PLAY_PCM_PLAYER                 (1 << 14)
 #endif
+
 // input streams
 #ifdef __AI_VOICE__
 #define APP_BT_STREAM_AI_VOICE             (1 << APP_BT_STREAM_BORDER_BIT_OFFSET)
 #endif
 
 #define APP_BT_STREAM_INVALID               0
-
-#if defined (SPEECH_TX_3MIC_NS) || !defined (SCO_CP_ACCEL)
-#define APP_SYSFREQ_USER_BT_SCO_MASTER APP_SYSFREQ_208M
-#else
-#define APP_SYSFREQ_USER_BT_SCO_MASTER APP_SYSFREQ_104M
-#endif
-
-#define APP_SYSFREQ_USER_BT_SCO_SLAVE APP_SYSFREQ_52M
 
 #if defined(AUDIO_PROMPT_USE_DAC2_ENABLED)
 #define APP_BT_OUTPUT_STREAM_INDEX(player)  ((player) & ((1 << APP_BT_STREAM_BORDER_BIT_OFFSET) - 1) & (~APP_PLAY_BACK_AUDIO))
@@ -177,10 +172,6 @@ const char *audio_op_to_str(enum APP_BT_SETTING_T op);
 
 const char *player2str(uint16_t player_type);
 
-bool bt_a2dp_is_run(void);
-
-bool media_stream_is_running(void);
-
 int app_bt_stream_init(void);
 
 int app_bt_stream_open(APP_AUDIO_STATUS* status);
@@ -195,7 +186,7 @@ int app_bt_stream_closeall();
 
 bool app_bt_stream_isrun(uint16_t player);
 
-void app_bt_set_volume(uint16_t type,uint8_t level);
+void app_bt_stream_volume_set_by_type(uint16_t type,uint8_t level);
 
 void  app_bt_stream_bt_volumeup(void);
 
@@ -212,8 +203,6 @@ void app_bt_stream_volume_ptr_update(uint8_t *bdAddr);
 struct btdevice_volume * app_bt_stream_volume_get_ptr(void);
 
 int app_bt_stream_volumeset(int8_t vol);
-
-void app_bt_stream_set_tune_samplerate_ratio(enum AUD_STREAM_T stream, float ratio);
 
 void app_bt_stream_set_output_route(void *route_info);
 
@@ -235,32 +224,26 @@ enum AUD_SAMPRATE_T bt_get_sbc_sample_rate(void);
 
 void bt_store_music_sample_rate(enum AUD_SAMPRATE_T sample_rate);
 
-enum AUD_SAMPRATE_T bt_parse_store_music_sample_rate(uint32_t sbc_samp_rate);
+enum AUD_SAMPRATE_T bt_parse_store_music_sample_rate(uint8_t sbc_samp_rate);
 
 bool app_bt_stream_is_mic_mix_during_music_enabled(void);
 void app_bt_sream_set_mix_mic_flag(bool isEnable);
 void bt_sbc_mix_mic_init(void);
 void bt_sbc_mix_mic_deinit(void);
 uint32_t bt_sbc_codec_capture_data(uint8_t *buf, uint32_t len);
-uint16_t app_bt_get_curr_sco_hci_handle(uint8_t curr_sco_device_id);
-uint8_t app_bt_get_curr_a2dp_sample_rate(uint8_t curr_a2dp_device_id);
-uint16_t app_bt_get_conhandle_by_device_id(uint8_t device_id);
-bool app_bt_is_curr_a2dp_streaming(uint8_t curr_a2dp_device_id);
-uint16_t a2dp_Get_curr_a2dp_conhdl(void);
+uint32_t app_bt_stream_get_dma_buffer_samples(void);
+uint32_t app_bt_stream_get_dma_buffer_delay_us(void);
 
 void app_audio_buffer_check(void);
-uint8_t app_audio_get_eq();
-int app_audio_set_eq(uint8_t index);
+
+uint8_t is_a2dp_mode(void);
 
 bool bt_sco_codec_is_cvsd(void);
 bool bt_sco_codec_is_msbc(void);
 
-uint8_t amgr_is_bluetooth_sco_on();
-#if defined(__VIRTUAL_SURROUND__) || defined(__VIRTUAL_SURROUND_CP__) || defined(__VIRTUAL_SURROUND_HWFIR__) || defined(__VIRTUAL_SURROUND_STEREO__)
-int32_t stereo_surround_is_ldac(void);
-#endif
+bool app_meridian_eq(bool onoff);
+bool app_is_meridian_on(void);
 
-bool app_is_in_multipoint_timer(void);
 // =======================================================
 // APP RESAMPLE
 // =======================================================
@@ -272,7 +255,14 @@ typedef int (*APP_RESAMPLE_BUF_ALLOC_CALLBACK)(uint8_t **buff, uint32_t size);
 typedef int (*APP_RESAMPLE_ITER_CALLBACK)(uint8_t *buf, uint32_t len);
 
 typedef uint8_t (*APP_STREAM_GET_A2DP_PARAM_CALLBACK)(uint8_t);
+
+typedef int (*RMT_SCO_STREAM_CALLBACK)(bool);
+
+typedef int (*RMT_A2DP_SINK_DEV_ONOFF_CALLBACK)(bool);
+
 typedef int (*RMT_A2DP_SINK_DEV_DATA_IND_CALLBACK)(uint8_t *buffer, uint32_t size);
+
+typedef int (*RMT_A2DP_SINK_DEV_VOL_SET_CALLBACK)(uint8_t vol);
 
 struct APP_RESAMPLE_T {
     enum AUD_STREAM_T stream;
@@ -319,13 +309,18 @@ bool bt_is_playback_triggered(void);
 
 int app_bt_stream_register_a2dp_param_callback(APP_STREAM_GET_A2DP_PARAM_CALLBACK callback);
 
-int app_bt_stream_register_get_a2dp_non_type_callback(APP_STREAM_GET_A2DP_PARAM_CALLBACK callback);
-
 void app_bt_stream_volume_edge_check(void);
 
 typedef void (*APP_STREAM_NOTIFY_TRIGGER_STATUS_CALLBACK)(bool status);
-
 void app_bt_stream_register_notify_trigger_status_callback(APP_STREAM_NOTIFY_TRIGGER_STATUS_CALLBACK callback);
+
+void rmt_sco_stream_callback_register(RMT_SCO_STREAM_CALLBACK func);
+
+hfp_sco_codec_t bt_sco_codec_get_type(void);
+
+void app_bt_stream_sco_trigger_btpcm_start(void );
+
+void app_bt_stream_sco_trigger_codecpcm_stop(void);
 
 typedef bool (*app_bt_sco_switch_trigger_t)(void);
 
@@ -333,13 +328,16 @@ void app_bt_sco_switch_trigger_init(app_bt_sco_switch_trigger_t sco_switch_trigg
 
 void app_bt_sco_switch_trigger_deinit(void);
 
-void app_bt_stream_set_ext_sco_data_path(void(*playback_cb)(uint8_t *buf, uint32_t len),
-        uint32_t (*capture_cb)(uint8_t *buf, uint32_t len));
+void rmt_a2dp_sink_dev_onoff_callback_register(RMT_A2DP_SINK_DEV_ONOFF_CALLBACK onoff_cb);
 
-#if defined(A2DP_LHDC_ON) || defined(A2DP_LHDCV5_ON)
+void rmt_a2dp_sink_dev_data_ind_callback_register(RMT_A2DP_SINK_DEV_DATA_IND_CALLBACK data_ind_cb);
+
+void rmt_a2dp_sink_dev_vol_set_callback_register(RMT_A2DP_SINK_DEV_VOL_SET_CALLBACK vol_cb);
+
+int app_bt_stream_register_get_a2dp_non_type_callback(APP_STREAM_GET_A2DP_PARAM_CALLBACK callback);
+
+#if defined(A2DP_LHDCV5_ON)
 bool app_bt_stream_lhdc_get_ext_flags(uint32_t flags);
-
-uint8_t app_bt_stream_lhdc_config_llc_get(void);
 #endif
 
 #ifdef __cplusplus

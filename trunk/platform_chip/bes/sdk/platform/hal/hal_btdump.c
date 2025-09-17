@@ -30,6 +30,8 @@
 #define BTDUMP_FM_PSD_EN            (1 << 5)
 #define BTDUMP_DMA_CTL_DISABLE      (0 << 0)
 #define BTDUMP_DEVICE_DISABLE       (0 << 0)
+#define BTDUMP_RXON_EN              (1 << 6)
+#define BTDUMP_RXON_SYNC_EN         (1 << 7)
 
 #define btdump_read32(b,a) \
      (*(volatile uint32_t *)(b+a))
@@ -83,6 +85,18 @@ void hal_btdump_disable(void)
     val  = btdump_read32(BTDUMP_BASE,0);
     val &= BTDUMP_DEVICE_EN_MASK;
     val |= BTDUMP_DEVICE_DISABLE;
+    btdump_write32(val,BTDUMP_BASE,0);
+}
+
+void hal_bt_dump_set_mode(enum BTDUMP_MODE_T mode)
+{
+    if(mode > BT_DUMP_RXON_SYNC_DUMP){
+        return;
+    }
+    uint32_t val;
+    val  = btdump_read32(BTDUMP_BASE,0);
+    val &= ~(BTDUMP_RXON_EN | BTDUMP_RXON_SYNC_EN);
+    val |= (mode << 6);
     btdump_write32(val,BTDUMP_BASE,0);
 }
 

@@ -5,7 +5,7 @@
 #include "cmsis_nvic.h"
 #include "string.h"
 #include "stdio.h"
-#include "crc_c.h"
+#include "crc32_c.h"
 #include "hal_trace.h"
 #include "hal_iomux.h"
 #include "hal_gpio.h"
@@ -18,11 +18,8 @@
 #include "communication_svr.h"
 #include "communication_sysapi.h"
 
-
-#if defined(CHIP_BEST2300P) || defined(CHIP_BEST2300A) || (defined(CHIP_BEST1501) && defined(SINGLE_WIRE_UART_PMU_1803))
-#define UART_DEVICE_UART2
-#elif defined(CHIP_BEST1600) && defined(SINGLE_WIRE_UART_PMU_1803)
-#define UART_DEVICE_UART0
+#ifndef SINGLE_WIRE_UART_PORT
+#define SINGLE_WIRE_UART_PORT               1
 #endif
 
 //======================================================================================================
@@ -91,12 +88,12 @@ osThreadDef(communication_thread, osPriorityHigh, 1, 2048, "communication_server
 static bool uart_opened = false;
 static int uart_error_detected = 0;
 
-#if defined(UART_DEVICE_UART2)
-static const enum HAL_UART_ID_T comm_uart = HAL_UART_ID_2;
-#elif defined(UART_DEVICE_UART0)
+#if (SINGLE_WIRE_UART_PORT == 0)
 static const enum HAL_UART_ID_T comm_uart = HAL_UART_ID_0;
-#else
+#elif (SINGLE_WIRE_UART_PORT == 1)
 static const enum HAL_UART_ID_T comm_uart = HAL_UART_ID_1;
+#elif (SINGLE_WIRE_UART_PORT == 2)
+static const enum HAL_UART_ID_T comm_uart = HAL_UART_ID_2;
 #endif
 
 static const struct HAL_UART_CFG_T uart_cfg = {
@@ -158,7 +155,7 @@ static void uart_rx_dma_stop(void)
     union HAL_UART_IRQ_T mask;
 
     uint32_t lock = int_lock();
-    //COMMUNICATION_TRACE(1,"uart_rx_dma_stop:%d", uart_rx_dma_is_running);
+    //TRACE(1,"uart_rx_dma_stop:%d", uart_rx_dma_is_running);
     if (uart_rx_dma_is_running){
         mask.reg = 0;
         hal_uart_irq_set_mask(comm_uart, mask);
@@ -175,7 +172,7 @@ static void uart_rx_dma_start(void)
 
     uint32_t lock = int_lock();
 
-    //COMMUNICATION_TRACE(1,"uart_rx_dma_start:%d", uart_rx_dma_is_running);
+    //TRACE(1,"uart_rx_dma_start:%d", uart_rx_dma_is_running);
 
     hal_uart_flush(comm_uart, 0);
     mask.reg = 0;
@@ -191,7 +188,7 @@ static void uart_break_handler(void)
     COMMUNICATION_MAIL msg;
     memset(&msg, 0, sizeof(msg));
 
-    COMMUNICATION_TRACE(0,"UART-BREAK");
+    TRACE(0,"UART-BREAK");
     mask.reg = 0;
     hal_uart_irq_set_mask(comm_uart, mask);
     hal_uart_flush(comm_uart, 0);
@@ -204,7 +201,7 @@ static void uart_rx_dma_handler(uint32_t xfer_size, int dma_error, union HAL_UAR
 {
     COMMUNICATION_MAIL msg;
 
-    //COMMUNICATION_TRACE(8,"UART-RX size:%d dma_error=%d, status rt:%d fe:%d pe:%d be:%d oe:%d", xfer_size, dma_error, status.RT, status.FE, status.PE, status.BE, status.OE);
+    //TRACE(8,"UART-RX size:%d dma_error=%d, status rt:%d fe:%d pe:%d be:%d oe:%d", xfer_size, dma_error, status.RT, status.FE, status.PE, status.BE, status.OE);
 
     if (status.BE) {
         uart_break_handler();
@@ -239,7 +236,7 @@ static void uart_tx_dma_handler(uint32_t xfer_size, int dma_error)
 
     memset(&msg, 0, sizeof(COMMUNICATION_MAIL));
 
-    //COMMUNICATION_TRACE(2,"UART-TX size:%d dma_error=%d", xfer_size, dma_error);
+    //TRACE(2,"UART-TX size:%d dma_error=%d", xfer_size, dma_error);
 
     osSignalSet(communication_tid, COMMAND_TRANSMITTED_SIGNAL);
 
@@ -273,7 +270,7 @@ static void uart_deinit(void)
 static void uart_rx_idle_timer_start(void)
 {
     uart_rx_idle_counter = 0;
-    COMMUNICATION_TRACE(1,"[%s] enter...", __func__);
+    TRACE(1,"[%s] enter...", __func__);
 
     if (uart_rx_idle_timer_id != NULL) {
         osTimerStop(uart_rx_idle_timer_id);
@@ -284,7 +281,7 @@ static void uart_rx_idle_timer_start(void)
 static void uart_rx_edge_detect_handler(enum HAL_GPIO_PIN_T pin)
 {
     COMMUNICATION_MAIL msg = {0};
-    COMMUNICATION_TRACE(1,"[%s] enter...", __func__);
+    TRACE(1,"[%s] enter...", __func__);
 
     //disable led2 pin external interrupt mode...
     communication_io_mode_switch(COMMUNICATION_MODE_DISABLE_IRQ);
@@ -296,9 +293,9 @@ static void uart_rx_edge_detect_handler(enum HAL_GPIO_PIN_T pin)
 
 static void uart_rx_idle_handler(void const *param)
 {
-    if(uart_rx_idle_counter++ >= 150)//150 * 100 = 15s
+    if (uart_rx_idle_counter++ >= 150)//150 * 100 = 15s
     {
-        COMMUNICATION_TRACE(1,"[%s] enter...", __func__);
+        TRACE(1,"[%s] enter...", __func__);
 
         uart_rx_idle_counter = 0;
 
@@ -371,11 +368,11 @@ inline int communication_mailbox_put(COMMUNICATION_MAIL* msg_src)
     mail_p = (COMMUNICATION_MAIL*)osMailAlloc(communication_mailbox, 0);
     if (!mail_p){
         osEvent evt;
-        COMMUNICATION_TRACE(0,"communication_mailbox");
+        TRACE(0,"communication_mailbox");
         for (uint8_t i=0; i<COMMUNICATION_MAILBOX_MAX; i++){
             evt = osMailGet(communication_mailbox, 0);
             if (evt.status == osEventMail) {
-                COMMUNICATION_TRACE(4,"msg cnt:%d msg:%d parms:%08x/%08x", i,
+                TRACE(4,"msg cnt:%d msg:%d parms:%08x/%08x", i,
                                                               ((COMMUNICATION_MAIL *)(evt.value.p))->message,
                                                               ((COMMUNICATION_MAIL *)(evt.value.p))->parms1,
                                                               ((COMMUNICATION_MAIL *)(evt.value.p))->parms2);
@@ -460,14 +457,14 @@ static void communication_process(COMMUNICATION_MAIL* mail_p)
     COMMUNICATION_MAIL msg;
     uint32_t lock;
 
-    COMMUNICATION_TRACE(2,"[%s]: %s", __func__, communication_process_log[mail_p->message]);
+    TRACE(2,"[%s]: %s", __func__, communication_process_log[mail_p->message]);
 
     memset(&msg, 0, sizeof(COMMUNICATION_MAIL));
     switch (mail_p->message) {
         case COMMUNICATION_MSG_TX_REQ:
             command_block_p = (COMMAND_BLOCK *)mail_p->parms2;
-            COMMUNICATION_TRACE(1,"UART TX:%d", command_block_p->cmd_len);
-            COMMUNICATION_DUMP8("%02x ", command_block_p->cmd_buf, command_block_p->cmd_len);
+            TRACE(1,"UART TX:%d", command_block_p->cmd_len);
+            DUMP8("%02x ", command_block_p->cmd_buf, command_block_p->cmd_len);
             uart_rx_dma_stop();
             communication_io_mode_switch(COMMUNICATION_MODE_TX);
             osSignalClear(communication_tid, COMMAND_TRANSMITTED_SIGNAL);
@@ -495,9 +492,9 @@ static void communication_process(COMMUNICATION_MAIL* mail_p)
             uart_rx_idle_timer_start();
             break;
         case COMMUNICATION_MSG_RX_DONE:
-            COMMUNICATION_TRACE(2,"UART RX status:%d len:%d", mail_p->parms1, mail_p->parms2);
-            COMMUNICATION_DUMP8("%02x ", rx_command_block_p->cmd_buf, mail_p->parms2);
-            COMMUNICATION_TRACE(1,"%s", rx_command_block_p->cmd_buf);
+            TRACE(2,"UART RX status:%d len:%d", mail_p->parms1, mail_p->parms2);
+            DUMP8("%02x ", rx_command_block_p->cmd_buf, mail_p->parms2);
+            TRACE(1,"%s", rx_command_block_p->cmd_buf);
 
             if(communication_receive_cb != NULL)
                 (*communication_receive_cb)(rx_command_block_p->cmd_buf, mail_p->parms2);
@@ -543,7 +540,7 @@ void communication_init(void)
     COMMUNICATION_MAIL msg;
 
     memset(&msg, 0, sizeof(COMMUNICATION_MAIL));
-    COMMUNICATION_TRACE(1,"%s", __func__);
+    TRACE(1,"%s", __func__);
 
     if (command_mempool == NULL){
         command_mempool = osPoolCreate(osPool(command_mempool));
@@ -574,7 +571,7 @@ int communication_receive_register_callback(communication_receive_func_typedef p
 
     communication_receive_cb = p;
 
-    COMMUNICATION_TRACE(1,"[%s] register receive callback success\n", __func__);
+    TRACE(1,"[%s] register receive callback success\n", __func__);
 
     return 0;
 }
@@ -592,24 +589,54 @@ int communication_send_buf(uint8_t * buf, uint8_t len)
 
 static const struct HAL_IOMUX_PIN_FUNCTION_MAP pinmux_gpio[] = {
 #if defined(CHIP_BEST2300P) || defined(CHIP_BEST2300A)
+#if (SINGLE_WIRE_UART_PORT == 2)
     {HAL_IOMUX_PIN_P2_2, HAL_IOMUX_FUNC_GPIO, HAL_IOMUX_PIN_VOLTAGE_VIO, HAL_IOMUX_PIN_PULLUP_ENABLE},
     {HAL_IOMUX_PIN_P2_3, HAL_IOMUX_FUNC_GPIO, HAL_IOMUX_PIN_VOLTAGE_VIO, HAL_IOMUX_PIN_PULLUP_ENABLE},
-#elif defined(CHIP_BEST1400) || defined(CHIP_BEST1402) || defined(CHIP_BEST1305) || defined(UARTCOM_USE_LED2)
+#endif
+
+#elif defined(CHIP_BEST1400) || defined(CHIP_BEST1402) || defined(CHIP_BEST1305) || defined(CHIP_BEST1501P) ||\
+    defined(CHIP_BEST1502X) || defined(CHIP_BEST1503)
     {HAL_IOMUX_PIN_LED2, HAL_IOMUX_FUNC_GPIO, HAL_IOMUX_PIN_VOLTAGE_VBAT, HAL_IOMUX_PIN_PULLUP_ENABLE},
-#elif (defined(CHIP_BEST1501) && defined(SINGLE_WIRE_UART_PMU_1803))
+
+#elif (defined(CHIP_BEST1501) && defined(SINGLE_WIRE_UART_PMU))
+#if (SINGLE_WIRE_UART_PORT == 2)
     {HAL_IOMUX_PIN_P6_4, HAL_IOMUX_FUNC_GPIO, HAL_IOMUX_PIN_VOLTAGE_VIO, HAL_IOMUX_PIN_PULLUP_ENABLE},
     {HAL_IOMUX_PIN_P6_5, HAL_IOMUX_FUNC_GPIO, HAL_IOMUX_PIN_VOLTAGE_VIO, HAL_IOMUX_PIN_PULLUP_ENABLE},
-#elif defined(CHIP_BEST1600)
-#if defined(SINGLE_WIRE_UART_PMU_1803)
-    {HAL_IOMUX_PIN_P9_6, HAL_IOMUX_FUNC_GPIO, HAL_IOMUX_PIN_VOLTAGE_VIO, HAL_IOMUX_PIN_PULLUP_ENABLE},
-    {HAL_IOMUX_PIN_P9_7, HAL_IOMUX_FUNC_GPIO, HAL_IOMUX_PIN_VOLTAGE_VIO, HAL_IOMUX_PIN_PULLUP_ENABLE},
-#elif defined(CHIP_SUBSYS_BTH)
-    {HAL_IOMUX_PIN_P2_6, HAL_IOMUX_FUNC_GPIO, HAL_IOMUX_PIN_VOLTAGE_VIO, HAL_IOMUX_PIN_PULLUP_ENABLE},
-    {HAL_IOMUX_PIN_P2_7, HAL_IOMUX_FUNC_GPIO, HAL_IOMUX_PIN_VOLTAGE_VIO, HAL_IOMUX_PIN_PULLUP_ENABLE},
-#endif
-#elif (defined(CHIP_BEST1501) && defined(SINGLE_WIRE_UART_PMU_1802))
+#else
     {HAL_IOMUX_PIN_P2_0, HAL_IOMUX_FUNC_GPIO, HAL_IOMUX_PIN_VOLTAGE_VIO, HAL_IOMUX_PIN_PULLUP_ENABLE},
     {HAL_IOMUX_PIN_P2_1, HAL_IOMUX_FUNC_GPIO, HAL_IOMUX_PIN_VOLTAGE_VIO, HAL_IOMUX_PIN_PULLUP_ENABLE},
+#endif
+
+#elif (defined(CHIP_BEST1600) && defined(SINGLE_WIRE_UART_PMU))
+#if defined(CHIP_SUBSYS_BTH)
+#if (UART1_IOMUX_INDEX == 26)
+    {HAL_IOMUX_PIN_P2_6, HAL_IOMUX_FUNC_GPIO, HAL_IOMUX_PIN_VOLTAGE_VIO, HAL_IOMUX_PIN_PULLUP_ENABLE},
+    {HAL_IOMUX_PIN_P2_7, HAL_IOMUX_FUNC_GPIO, HAL_IOMUX_PIN_VOLTAGE_VIO, HAL_IOMUX_PIN_PULLUP_ENABLE},
+#else
+    {HAL_IOMUX_PIN_P0_2, HAL_IOMUX_FUNC_GPIO, HAL_IOMUX_PIN_VOLTAGE_VIO, HAL_IOMUX_PIN_PULLUP_ENABLE},
+    {HAL_IOMUX_PIN_P0_3, HAL_IOMUX_FUNC_GPIO, HAL_IOMUX_PIN_VOLTAGE_VIO, HAL_IOMUX_PIN_PULLUP_ENABLE},
+#endif
+#elif !(defined(CHIP_SUBSYS_BTH) || defined(CHIP_SUBSYS_SENS))
+#if (SINGLE_WIRE_UART_PORT == 0)
+    {HAL_IOMUX_PIN_P9_6, HAL_IOMUX_FUNC_GPIO, HAL_IOMUX_PIN_VOLTAGE_VIO, HAL_IOMUX_PIN_PULLUP_ENABLE},
+    {HAL_IOMUX_PIN_P9_7, HAL_IOMUX_FUNC_GPIO, HAL_IOMUX_PIN_VOLTAGE_VIO, HAL_IOMUX_PIN_PULLUP_ENABLE},
+#endif
+#endif
+
+#elif (defined(CHIP_BEST1603) && defined(CHIP_SUBSYS_BTH))
+#ifdef SINGLE_WIRE_UART_PMU
+    {HAL_IOMUX_PIN_P4_2, HAL_IOMUX_FUNC_GPIO, HAL_IOMUX_PIN_VOLTAGE_VIO, HAL_IOMUX_PIN_PULLUP_ENABLE},
+    {HAL_IOMUX_PIN_P4_3, HAL_IOMUX_FUNC_GPIO, HAL_IOMUX_PIN_VOLTAGE_VIO, HAL_IOMUX_PIN_PULLUP_ENABLE},
+#elif (UART1_IOMUX_INDEX == 26)
+    {HAL_IOMUX_PIN_P2_6, HAL_IOMUX_FUNC_GPIO, HAL_IOMUX_PIN_VOLTAGE_VIO, HAL_IOMUX_PIN_PULLUP_ENABLE},
+#endif
+#elif (defined(CHIP_BEST1700) && defined(CHIP_SUBSYS_BTH))
+#ifdef SINGLE_WIRE_UART_PMU
+    {HAL_IOMUX_PIN_P0_2, HAL_IOMUX_FUNC_GPIO, HAL_IOMUX_PIN_VOLTAGE_VIO, HAL_IOMUX_PIN_PULLUP_ENABLE},
+    {HAL_IOMUX_PIN_P0_3, HAL_IOMUX_FUNC_GPIO, HAL_IOMUX_PIN_VOLTAGE_VIO, HAL_IOMUX_PIN_PULLUP_ENABLE},
+#elif (UART1_IOMUX_INDEX == 30)
+    {HAL_IOMUX_PIN_P3_0, HAL_IOMUX_FUNC_GPIO, HAL_IOMUX_PIN_VOLTAGE_VIO, HAL_IOMUX_PIN_PULLUP_ENABLE},
+#endif
 #endif
 };
 
@@ -626,12 +653,8 @@ void communication_enable_irq(void (* irq_cb)(enum HAL_GPIO_PIN_T pin))
 
     gpiocfg.irq_enable = true;
     gpiocfg.irq_debounce = true;
-#ifdef SINGLE_UART_IO_INSTEAD_ACON_INTR
-    gpiocfg.irq_polarity = HAL_GPIO_IRQ_POLARITY_HIGH_RISING;
-#else
-    gpiocfg.irq_polarity = HAL_GPIO_IRQ_POLARITY_LOW_FALLING;
-#endif
     gpiocfg.irq_type = HAL_GPIO_IRQ_TYPE_EDGE_SENSITIVE;
+    gpiocfg.irq_polarity = HAL_GPIO_IRQ_POLARITY_LOW_FALLING;
     gpiocfg.irq_handler = irq_cb;
 
     hal_gpio_setup_irq((enum HAL_GPIO_PIN_T)pinmux_gpio[0].pin, &gpiocfg);
@@ -647,11 +670,7 @@ void communication_disable_irq(void)
 
     gpiocfg.irq_enable = false;
     gpiocfg.irq_debounce = false;
-#ifdef SINGLE_UART_IO_INSTEAD_ACON_INTR
-    gpiocfg.irq_polarity = HAL_GPIO_IRQ_POLARITY_HIGH_RISING;
-#else
     gpiocfg.irq_polarity = HAL_GPIO_IRQ_POLARITY_LOW_FALLING;
-#endif
     gpiocfg.irq_handler = NULL;
     gpiocfg.irq_type = HAL_GPIO_IRQ_TYPE_EDGE_SENSITIVE;
 
@@ -663,7 +682,7 @@ void communication_disable_irq(void)
 
 void uart_audio_init()
 {
-    COMMUNICATION_TRACE(1,"%s run!!!", __func__);
+    TRACE(1,"%s run!!!", __func__);
     init_transport();
 }
 

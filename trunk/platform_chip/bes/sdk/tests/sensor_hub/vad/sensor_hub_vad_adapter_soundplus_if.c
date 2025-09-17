@@ -66,12 +66,12 @@ uint32_t sensor_hub_vad_adpt_sndp_capture_stream(uint8_t *buf, uint32_t len)
 {
 #if 0
     int16_t *pd = (int16_t *)buf;
-    SENSOR_HUB_TRACE(4,"buf=%x, len=%d, mic data=[%d %d %d %d]", (int)pd,len,pd[0],pd[1],pd[2],pd[3]);
+    TRACE(4,"buf=%x, len=%d, mic data=[%d %d %d %d]", (int)pd,len,pd[0],pd[1],pd[2],pd[3]);
 #endif
     int ret= soundplus_kws_recognition((short *)buf, len/2);
     if(ret != -1) {
-        //SENSOR_HUB_TRACE(2,"retcode: %d, %d", retcode, sndp_counter);
-        SENSOR_HUB_TRACE(1,"retcode: %d", ret);
+        //TRACE(2,"retcode: %d, %d", retcode, sndp_counter);
+        TRACE(1,"retcode: %d", ret);
         app_sensor_hub_core_vad_send_evt_msg(SENS_EVT_ID_VAD_VOICE_CMD, ret+1, 0, 0);
     }
     return 0;
@@ -93,7 +93,7 @@ uint32_t sensor_hub_vad_adpt_sndp_stream_prepare_stop(uint8_t *buf, uint32_t len
 
 void sensor_hub_vad_adpt_sndp_init_capture_stream(struct AF_STREAM_CONFIG_T *cfg)
 {
-    SENSOR_HUB_TRACE(0, "%s:", __func__);
+    TRACE(0, "%s:", __func__);
 
     memset(cfg, 0, sizeof(struct AF_STREAM_CONFIG_T));
 

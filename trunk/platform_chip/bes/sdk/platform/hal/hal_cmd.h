@@ -44,10 +44,6 @@ void hal_cmd_tx_process(uint8_t **ppbuf, uint16_t *plen);
 bool hal_cmd_debug_check(uint8_t *cmd, uint16_t len);
 uint8_t *hal_cmd_debug_process(uint8_t *cmd, uint16_t len, uint16_t *out_len);
 
-#if defined(TOTA_EQ_TUNING) && defined(AUDIO_SECTION_ENABLE)
-int app_tota_audio_EQ(uint8_t *buf, uint16_t len);
-#endif
-
 #ifdef __cplusplus
 }
 #endif

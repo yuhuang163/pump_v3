@@ -1,0 +1,238 @@
+cur_dir := $(dir $(lastword $(MAKEFILE_LIST)))
+
+obj-y := $(patsubst $(cur_dir)%,%,$(wildcard $(cur_dir)*.c $(cur_dir)*.S))
+
+ifeq ($(CHIP_SUBSYS),sensor_hub)
+obj-y := $(filter analog_sens_$(CHIP).c, $(obj-y))
+else
+obj-y := $(filter-out analog_sens_$(CHIP).c, $(obj-y))
+endif
+
+obj-y := $(obj-y:.c=.o)
+obj-y := $(obj-y:.S=.o)
+
+PMU_VMEM_PWR_SUPPLY_IO ?= 0
+ifeq ($(PMU_VMEM_PWR_SUPPLY_IO),1)
+# LDO_MEM power supply gpio
+PMU_CFG_FLAGS += -DPMU_VMEM_PWR_SUPPLY_IO
+VMEM_VOLT ?= 1.7V
+ifneq ($(filter-out 1.6V 1.7V 1.8V,$(VMEM_VOLT)),)
+$(error Invalid VMEM_VOLT=$(VMEM_VOLT))
+endif
+ifneq ($(VMEM_VOLT),)
+PMU_CFG_FLAGS += -DVMEM_VOLT=$(subst V,,$(VMEM_VOLT))
+endif
+endif
+
+VCODEC_VOLT ?= 1.7V
+ifneq ($(filter-out 1.4V 1.45V 1.5V 1.55V 1.6V 1.65V 1.7V 1.75V 1.8V 1.9V,$(VCODEC_VOLT)),)
+$(error Invalid VCODEC_VOLT=$(VCODEC_VOLT))
+endif
+ifneq ($(VCODEC_VOLT),)
+ANA_CFG_FLAGS += -DVCODEC_VOLT=$(subst V,,$(VCODEC_VOLT))
+PMU_CFG_FLAGS += -DVCODEC_VOLT=$(subst V,,$(VCODEC_VOLT))
+ifeq ($(VHPPA_VOLT),)
+VHPPA_VOLT := $(VCODEC_VOLT)
+endif
+ifneq ($(VCODEC_VOLT),$(VHPPA_VOLT))
+$(error Incompatible VCODEC_VOLT=$(VCODEC_VOLT) with VHPPA_VOLT=$(VHPPA_VOLT))
+endif
+endif
+
+ifneq (PSRAM_SPEED,)
+PMU_CFG_FLAGS += -DPSRAM_SPEED=$(PSRAM_SPEED)
+endif
+
+ifeq ($(HPPA_LDO_ON),1)
+PMU_CFG_FLAGS += -DHPPA_LDO_ON
+endif
+
+ifeq ($(PMU_IRQ_UNIFIED),1)
+PMU_CFG_FLAGS += -DPMU_IRQ_UNIFIED
+endif
+
+ifeq ($(PMU_REG_DUMP),1)
+PMU_CFG_FLAGS += -DPMU_REG_DUMP
+endif
+
+ifeq ($(BT_RCOSC_CAL),1)
+PMU_CFG_FLAGS += -DBT_RCOSC_CAL
+endif
+
+VHPPA_VOLT ?= 1.7V
+ifneq ($(filter-out 1.4V 1.45V 1.5V 1.55V 1.6V 1.65V 1.7V 1.75V 1.8V 1.9V,$(VHPPA_VOLT)),)
+$(error Invalid VHPPA_VOLT=$(VHPPA_VOLT))
+endif
+ifneq ($(VHPPA_VOLT),)
+PMU_CFG_FLAGS += -DVHPPA_VOLT=$(subst V,,$(VHPPA_VOLT))
+endif
+
+HIGH_VCORE ?= 0
+ifeq ($(HIGH_VCORE),1)
+PMU_CFG_FLAGS += -DHIGH_VCORE
+endif
+
+SPLIT_CORE_M_CORE_L ?= 0
+ifeq ($(SPLIT_CORE_M_CORE_L),1)
+PMU_CFG_FLAGS += -DSPLIT_CORE_M_CORE_L
+endif
+
+ifeq ($(USE_CYBERON),1)
+PMU_CFG_FLAGS += -DUSE_CYBERON
+endif
+
+ifneq ($(EFUSE_BLOCK_NUM),)
+PMU_CFG_FLAGS += -DEFUSE_BLOCK_NUM=$(EFUSE_BLOCK_NUM)
+endif
+
+ifeq ($(LBRT),1)
+VANA_VOLT ?= 1.4V
+else
+VANA_VOLT ?= 1.3V
+endif
+ifneq ($(filter-out 1.2V 1.3V 1.35V 1.4V 1.5V 1.6V,$(VANA_VOLT)),)
+$(error Invalid VANA_VOLT=$(VANA_VOLT))
+endif
+ifneq ($(VANA_VOLT),)
+VANA_STEM := $(subst .,P,$(VANA_VOLT))
+PMU_CFG_FLAGS += -DVANA_$(VANA_STEM)
+endif
+
+ifneq ($(MTEST_LOGIC_VCORE),)
+VCORE_STEM :=$(subst .,_,$(MTEST_LOGIC_VCORE))
+PMU_CFG_FLAGS += -DMTEST_LOGIC_VCORE=PMU_ITN_VDIG_$(VCORE_STEM)
+endif
+
+ifeq ($(LOW_POWER_ADC),1)
+ANA_CFG_FLAGS += -DLOW_POWER_ADC
+endif
+
+ifeq ($(DAC_DRE_GAIN_DC_UPDATE),1)
+ANA_CFG_FLAGS += -DDAC_DRE_GAIN_DC_UPDATE
+endif
+
+ifeq ($(CLASSD_PA_ENABLE),1)
+ANA_CFG_FLAGS += -DCLASSD_PA_ENABLE
+endif
+
+ifeq ($(MCU_HIGH_PERFORMANCE_MODE),1)
+ANA_CFG_FLAGS += -DMCU_HIGH_PERFORMANCE_MODE
+endif
+
+ifeq ($(RC_CLK_ENABLE),1)
+PMU_CFG_FLAGS += -DRC_CLK_ENABLE
+endif
+
+ifeq ($(CAP_RC_CLK_DR_PU),1)
+PMU_CFG_FLAGS += -DCAP_RC_CLK_DR_PU
+endif
+
+ifeq ($(SYS_RC_ENABLE),1)
+PMU_CFG_FLAGS += -DSYS_RC_ENABLE
+endif
+
+ifeq ($(AUDIO_USE_BBPLL),1)
+ANA_CFG_FLAGS += -DAUDIO_USE_BBPLL
+PMU_CFG_FLAGS += -DAUDIO_USE_BBPLL
+endif
+
+ifeq ($(USB_USE_USBPLL),1)
+PMU_CFG_FLAGS += -DUSB_USE_USBPLL
+USBPHY_CFG_FLAGS += -DUSB_USE_USBPLL
+endif
+
+ifeq ($(NO_EXT_PMU),1)
+ANA_CFG_FLAGS += -DNO_EXT_PMU
+PMU_CFG_FLAGS += -DNO_EXT_PMU
+endif
+
+ifeq ($(PMU_FORCE_LP_MODE),1)
+PMU_CFG_FLAGS += -DPMU_FORCE_LP_MODE
+endif
+ifeq ($(PMU_DCDC_ULP_MODE),1)
+PMU_CFG_FLAGS += -DPMU_DCDC_ULP_MODE
+endif
+
+ifeq ($(ITN_PMU_FORCE_LP_MODE),1)
+PMU_CFG_FLAGS += -DITN_PMU_FORCE_LP_MODE
+endif
+
+ifeq ($(NO_VMIC2_BG_CHECK),1)
+PMU_CFG_FLAGS += -DNO_VMIC2_BG_CHECK
+endif
+
+ifeq ($(DCDC_HIGH_EFFICIENCY),1)
+PMU_CFG_FLAGS += -DDCDC_HIGH_EFFICIENCY
+endif
+
+ifeq ($(FORCE_BIG_BANDGAP),1)
+PMU_CFG_FLAGS += -DFORCE_BIG_BANDGAP
+endif
+
+ifneq ($(BBPLL_MHZ),)
+PMU_CFG_FLAGS += -DBBPLL_MHZ=$(BBPLL_MHZ)
+endif
+ifneq ($(DSIPLL_MHZ),)
+PMU_CFG_FLAGS += -DDSIPLL_MHZ=$(DSIPLL_MHZ)
+endif
+
+IBRT_DUAL_ANT_CTRL ?= 0
+ifeq ($(IBRT_DUAL_ANT_CTRL),1)
+PMU_CFG_FLAGS += -DIBRT_DUAL_ANT_CTRL
+endif
+
+ifeq ($(SENSOR_HUB_MINIMA),1)
+PMU_CFG_FLAGS += -DSENSOR_HUB_MINIMA
+endif
+
+ifeq ($(FORCE_VIO_1P8V),1)
+PMU_CFG_FLAGS += -DFORCE_VIO_1P8V
+endif
+
+ifneq ($(DEBUG_PORT),)
+CHARGER_CFG_FLAGS += -DDEBUG_PORT=$(DEBUG_PORT)
+endif
+
+ifeq ($(RC_FAST_WAKEUP),1)
+PMU_CFG_FLAGS += -DRC_FAST_WAKEUP
+endif
+
+ifeq ($(PMU_REG_CFG_DUMP),1)
+PMU_CFG_FLAGS += -DPMU_REG_CFG_DUMP
+endif
+
+ifeq ($(RTC_CLK_USE_EXT_CRYSTAL),1)
+PMU_CFG_FLAGS += -DRTC_CLK_USE_EXT_CRYSTAL
+endif
+
+ifeq ($(DCDC_VOLT_HW_RAMP_ONLY),1)
+$(error Invalid Config! $(CHIP) can not use hw ramp!)
+PMU_CFG_FLAGS += -DDCDC_VOLT_HW_RAMP_ONLY
+endif
+
+ifeq ($(PMU_ALREADY_INIT),1)
+PMU_CFG_FLAGS += -DPMU_ALREADY_INIT
+endif
+
+ifeq ($(PMU_VSENSOR_ON),1)
+PMU_CFG_FLAGS += -DPMU_VSENSOR_ON
+endif
+
+ifeq ($(ACIN_PATTERN_DISABLE),1)
+PMU_CFG_FLAGS += -DACIN_PATTERN_DISABLE
+CHARGER_CFG_FLAGS += -DACIN_PATTERN_DISABLE
+endif
+
+ifeq ($(CHG_FORCE_LOW_CV_CURRENT),1)
+CHARGER_CFG_FLAGS += -DCHG_FORCE_LOW_CV_CURRENT
+endif
+
+CFLAGS_pmu_$(CHIP).o += $(PMU_CFG_FLAGS)
+CFLAGS_pmu_itn_$(CHIP).o += $(PMU_CFG_FLAGS)
+
+CFLAGS_analog_$(CHIP).o += $(ANA_CFG_FLAGS)
+CFLAGS_analog_sens_$(CHIP).o += $(ANA_CFG_FLAGS)
+
+CFLAGS_usbphy_$(CHIP).o += $(USBPHY_CFG_FLAGS)
+
+CFLAGS_charger_$(CHIP).o += $(CHARGER_CFG_FLAGS)

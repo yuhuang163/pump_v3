@@ -17,7 +17,6 @@
 #define __APP_TOTA_H__
 
 #include "app_tota_cmd_code.h"
-#include "app_tota_cmd_handler.h"
 
 
 #ifdef __cplusplus
@@ -51,18 +50,16 @@ APP_TOTA_MODULE_E tota_callback_module_get();
 
 
 void app_tota_init(void);
-void app_tota_payload_set(APP_TOTA_CMD_PAYLOAD_T* buf);
 
 void app_tota_handle_received_data(uint8_t* buffer, uint16_t maxBytes);
 void app_tota_ble_disconnected(void);
 
 /* interface */
 bool is_tota_connected();
-uint8_t tota_ble_get_conidx(void);
 
 /**/
 bool app_tota_send(uint8_t * pdata, uint16_t dataLen, APP_TOTA_CMD_CODE_E opCode );
-bool app_tota_v2_send_data(APP_TOTA_CMD_CODE_E opCode, uint8_t * data, uint32_t dataLen);
+bool app_tota_send_data(APP_TOTA_CMD_CODE_E opCode, uint8_t * data, uint32_t dataLen);
 bool app_tota_send_rsp(APP_TOTA_CMD_CODE_E rsp_opCode, APP_TOTA_CMD_RET_STATUS_E rsp_status, uint8_t * pdata, uint16_t dataLen);
 
 void tota_printf(const char * format, ...);
@@ -70,14 +67,12 @@ void tota_print(const char * format, ...);
 bool app_tota_if_customers_access_valid(uint8_t access_code);
 #if defined(OTA_OVER_TOTA_ENABLED)
 void app_ota_over_tota_receive_data(uint8_t* ota_packet, uint32_t ota_packet_len);
-void ota_spp_tota_send_data(uint8_t* ptrData, uint16_t length);
-void ota_tota_send_notification(uint8_t* ptrData, uint16_t length);
+void ota_spp_tota_send_data(uint8_t* ptrData, uint32_t length);
+void ota_tota_send_notification(uint8_t* ptrData, uint32_t length);
 #endif
 
-#ifdef TOTA_FACTORY_USED
-bool is_in_tota_mode(void);
-void set_in_tota_mode(bool en);
-void reboot_to_enter_tota_mode(void);
+#ifdef BLE_TOTA_ENABLED
+uint8_t tota_ble_get_conidx(void);
 #endif
 
 #ifdef __cplusplus

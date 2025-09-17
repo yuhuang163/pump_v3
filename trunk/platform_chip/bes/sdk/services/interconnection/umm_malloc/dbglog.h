@@ -50,7 +50,7 @@
 #undef DBGLOG_CRITICAL
 #undef DBGLOG_ERROR
 #undef DBGLOG_WARNING
-#undef DBVOICEPATH_TRACENFO
+#undef DBGLOG_INFO
 #undef DBGLOG_FORCE
 
 #define DBGLOG_LEVEL 3
@@ -96,9 +96,9 @@
 #endif
 
 #if DBGLOG_LEVEL >= 1
-#  define DBVOICEPATH_TRACENFO(num,format, ...) DBGLOG_FUNCTION(num,format, ## __VA_ARGS__)
+#  define DBGLOG_INFO(num,format, ...) DBGLOG_FUNCTION(num,format, ## __VA_ARGS__)
 #else
-#  define DBVOICEPATH_TRACENFO(format, ...)
+#  define DBGLOG_INFO(format, ...)
 #endif
 
 #endif

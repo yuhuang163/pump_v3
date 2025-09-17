@@ -168,6 +168,7 @@ typedef enum IRQn
 #define TIMER20_IRQn            MCU_TIMER10_IRQn
 #define TIMER21_IRQn            MCU_TIMER11_IRQn
 #define WDT_IRQn                AON_WDT_IRQn
+#define DSP_WDT_IRQn            SYS_WDT_IRQn
 
 #ifdef BTH_USE_SYS_PERIPH
 #define EMMC_IRQn               SYS_EMMC_IRQn

@@ -6,7 +6,7 @@ CONFIG_FORCE_WIN_SHELL ?= y
 
 ifneq ($(CONFIG_ARCH_BOARD),)
 T := $(CONFIG_ARCH_BOARD)
-export __NuttX__ :=1
+export NUTTX_BUILD :=1
 export KERNEL := NUTTX
 export NUTTX_ROOT := $(TOPDIR)
 NUTTX_LIBS := $(patsubst %,$(NUTTX_ROOT)/staging/%,$(LINKLIBS))
@@ -273,7 +273,6 @@ NON_CLEAN_GOALS := $(filter-out $(CLEAN_GOALS),$(MAKECMDGOALS))
 endif
 
 sub-make: FORCE
-	@python $(CURDIR)/tools/change_git_filemode.py
 	@echo MAKE START: $(START_DATE_TIME)
 ifneq ($(CLEAN_GOALS),)
 ifeq ($(wildcard $(KBUILD_OUTPUT)),)
@@ -440,12 +439,20 @@ KBUILD_CFLAGS	:= -fno-common -fmessage-length=0 -Wall \
 KBUILD_CFLAGS	+= -fsigned-char
 
 ifneq ($(TOOLCHAIN),armclang)
-# 1) Avoid checking out-of-bound array accesses in a loop
-#    (and unrolling/peeling/exiting the loop based on the check)
-# 2) Avoid detecting paths dereferencing a NULL pointer
-#    (and turning the problematic statement into a trap)
-KBUILD_CFLAGS	+= -fno-aggressive-loop-optimizations \
-		   -fno-isolate-erroneous-paths-dereference
+# Avoid checking out-of-bound array accesses in a loop
+# (and unrolling/peeling/exiting the loop based on the check)
+KBUILD_CFLAGS	+= -fno-aggressive-loop-optimizations
+# Avoid detecting paths dereferencing a NULL pointer
+# (and turning the problematic statement into a trap)
+KBUILD_CFLAGS	+= -fno-isolate-erroneous-paths-dereference
+# Never change loops to C library calls like memcpy/memset, otherwise
+# it will be enabled by -O2 in GCC 10
+KBUILD_CFLAGS	+= -fno-tree-loop-distribute-patterns
+# Avoid emitting .rodata.CSWTCH.xxx sections (optimizing switch-case
+# statements), otherwise it might lead to error if these sections
+# are NOT placed in a desired location.
+# (seeing errors in -O2 since GCC 11)
+KBUILD_CFLAGS	+= -fno-tree-switch-conversion
 endif
 
 # Treat floating-point constants as float instead of double
@@ -492,6 +499,8 @@ export RCS_TAR_IGNORE := --exclude SCCS --exclude BitKeeper --exclude .svn \
 init-y		:= init/
 core-y		:= main/
 
+include $(srctree)/scripts/include.mk
+
 # Link flags for all LD processes
 LINK_CFLAGS	:=
 export LINK_CFLAGS
@@ -503,9 +512,13 @@ ifeq ($(TOOLCHAIN),armclang)
 LDFLAGS_IMAGE	:= --no_locals
 else
 LDFLAGS_IMAGE	:= -X --no-wchar-size-warning --print-memory-usage
+# Sections .preinit_array*/.init_array*/.fini_array*/.ctors*/.dtors* are data sections and
+# not constant, but they are used as rodata in most embedded systems, so they are
+# put in text or rodata section in the final image.
+# Since binutils v2.39, there will be a warning against rwx segment for the above text/rodata
+# by default. Linker option --no-warn-rwx-segments can disable the warning.
+LDFLAGS_IMAGE	+= $(call ld-option,--no-warn-rwx-segments)
 endif
-
-include $(srctree)/scripts/include.mk
 
 # Include target definitions
 include $(srctree)/$(TARGET_CFG_FILE)
@@ -535,7 +548,7 @@ endif
 else # !ROM_BUILD
 entry-y		+= platform/cmsis/retarget_armclang_asm.o
 ifeq ($(PROGRAMMER),1)
-entry-y		+= tests/programmer/sys_api_programmer.o
+entry-y		+= tests/programmer/src/sys_api_programmer.o
 else
 entry-y		+= platform/main/startup_main.o
 endif
@@ -558,7 +571,7 @@ endif
 ifeq ($(USE_ROM_ENTRY),1)
 CFLAGS_IMAGE	+= -e Reset_Handler
 else ifeq ($(PROGRAMMER),1)
-CFLAGS_IMAGE	+= -e programmer_start
+CFLAGS_IMAGE	+= -e armcc_programmer_start
 else
 CFLAGS_IMAGE	+= -e __main
 endif
@@ -685,13 +698,9 @@ else
 all: $(IMAGE_BIN) ;
 endif
 
-ifneq ($(LTO_CFLAGS),)
-	@python $(srctree)/tools/generate_macro_for_lto_restore.py $(KBUILD_OUTPUT)
-endif
-
 ifeq ($(filter 1,$(ROM_BUILD) $(PROGRAMMER)),)
 ifeq ($(CHIP_SUBSYS),)
-ifneq ($(BTH_AS_MAIN_MCU),1)
+ifeq ($(filter 1,$(CHIP_ROLE_CP) $(BTH_AS_MAIN_MCU)),)
 IMAGE_IN_FLASH := 1
 endif
 endif
@@ -704,7 +713,7 @@ IMAGE_IN_FLASH := 1
 endif
 endif # ROM_BUILD || PROGRAMMER
 ifeq ($(CHIP_SUBSYS)-$(BTH_AS_MAIN_MCU),bth-1)
-ifneq ($(PROGRAMMER),1)
+ifeq ($(filter 1,$(PROGRAMMER) $(CHIP_ROLE_CP)),)
 IMAGE_IN_FLASH := 1
 endif
 endif
@@ -725,10 +734,19 @@ else
 IMAGE_ORG_BIN := $(IMAGE_BIN)
 endif
 
+ifneq ($(GENBIN_STANDALONE_SECTION),)
+GENBIN_RM_SECTION += $(GENBIN_STANDALONE_SECTION)
+GENBIN_STANDALONE_CMD = $(foreach m,$(GENBIN_STANDALONE_SECTION),$(OBJCOPY) -j $(m) -O binary $< $(patsubst .%,%,$(m)).bin && )
+GENRCF_STANDALONE_CMD = $(foreach m,$(GENBIN_STANDALONE_SECTION),$(TO_RCF) $(patsubst .%,%,$(m)).bin $(patsubst .%,%,$(m)).rcf && )
+endif
+
+GENBIN_RM_SECTION += .trc_str
+GENBIN_OPTS += $(foreach m,$(GENBIN_RM_SECTION),-R $(m) )
+
 ifeq ($(TOOLCHAIN),armclang)
       cmd_gen-IMAGE_BIN = $(OBJCOPY) --bincombined -o $@ $<
 else
-      cmd_gen-IMAGE_BIN = $(OBJCOPY) -R .trc_str -O binary $< $@
+      cmd_gen-IMAGE_BIN = $(GENBIN_STANDALONE_CMD)$(OBJCOPY) $(GENBIN_OPTS) -O binary $< $@
 endif
 quiet_cmd_gen-IMAGE_BIN = GENBIN  $@
 
@@ -742,11 +760,10 @@ endif
 ifeq ($(TOOLCHAIN),armclang)
       cmd_gen-STR_BIN = $(OBJCOPY) --bincombined -o $@ $<
 else
-      cmd_gen-STR_BIN = $(OBJCOPY) -j .code_start_addr -j .rodata_str -j .sram_data -j .trc_str\
+      cmd_gen-STR_BIN = $(OBJCOPY) -j .code_start_addr -j .rodata_str  -j .trc_str \
           --change-section-lma .code_start_addr=0x00000000 \
-          --change-section-lma .rodata_str=0x00000080 \
-          --change-section-lma .sram_data=0x00030000 \
-          --change-section-lma .trc_str=0x00060000 \
+          --change-section-lma .rodata_str=0x00000010 \
+          --change-section-lma .trc_str=0x00030000 \
           -O binary $< $@
 endif
 quiet_cmd_gen-STR_BIN = GENBIN  $@
@@ -781,7 +798,7 @@ RCF_OPTIONS := 1 -flash
 endif
 endif
 
-      cmd_gen-IMAGE_RCF = $(TO_RCF) $< $@ $(RCF_OPTIONS)
+      cmd_gen-IMAGE_RCF = $(GENRCF_STANDALONE_CMD)$(TO_RCF) $< $@ $(RCF_OPTIONS)
 quiet_cmd_gen-IMAGE_RCF = GENRCF  $@
 
 $(IMAGE_RCF): $(IMAGE_BIN)
@@ -832,7 +849,7 @@ C_ONLY_FLAGS   += -Werror=implicit-int
 # require functions to have arguments in prototypes, not empty 'int foo()'
 #C_ONLY_FLAGS    += -Werror=strict-prototypes
 
-ifneq ($(__NuttX__),1)
+ifneq ($(NUTTX_BUILD),1)
 C_ONLY_FLAGS    += -Werror-implicit-function-declaration
 endif
 
@@ -849,13 +866,7 @@ endif
 KBUILD_CFLAGS	+= -Wno-trigraphs \
 		   -fno-strict-aliasing
 
-# Never change loops to C library calls like memcpy/memset
-# (otherwise it will be enabled by -O2 in GCC 10)
-ifneq ($(TOOLCHAIN),armclang)
-KBUILD_CFLAGS	+= -fno-tree-loop-distribute-patterns
-endif
-
-#KBUILD_CFLAGS	+= Wundef
+#KBUILD_CFLAGS	+= -Wundef
 
 # use the deterministic mode of AR if available
 KBUILD_ARFLAGS := D
@@ -896,7 +907,7 @@ IMAGE_INIT := $(init-y)
 IMAGE_MAIN := $(core-y)
 
 ifeq ($(ARM_CMNS),1)
-ifneq ($(__NuttX__),1)
+ifneq ($(NUTTX_BUILD),1)
 IMAGE_MAIN += ../$(ARM_CMSE_TARGET)/$(ARM_CMSE_TARGET)_CMSE_Lib.o
 endif
 endif
@@ -913,7 +924,6 @@ endif
 
 BUILD_INFO_FLAGS := \
 	-DREVISION_INFO=$(REVISION_INFO) \
-	-DOTA_UPGRADE_CRC_LOG_SIZE=$(OTA_UPGRADE_CRC_LOG_SIZE) \
 	-DNV_REC_DEV_VER=$(NV_REC_DEV_VER) \
 	-I$(srctree)/platform/hal
 
@@ -939,15 +949,16 @@ ifeq ($(TRACE_CRLF),1)
 BUILD_INFO_FLAGS += -DTRACE_CRLF
 endif
 
-MAIN_MCU_IMAGE := 0
 ifeq ($(CHIP_SUBSYS)-$(BTH_AS_MAIN_MCU),bth-1)
-MAIN_MCU_IMAGE := 1
+ifeq ($(filter 1,$(PROGRAMMER) $(CHIP_ROLE_CP)),)
+SECTION_FLAGS_IN_IMAGE := 1
+endif
 else ifeq ($(CHIP_SUBSYS),)
-ifneq ($(BTH_AS_MAIN_MCU),1)
-MAIN_MCU_IMAGE := 1
+ifeq ($(filter 1,$(CHIP_ROLE_CP) $(BTH_AS_MAIN_MCU)),)
+SECTION_FLAGS_IN_IMAGE := 1
 endif
 endif
-ifeq ($(MAIN_MCU_IMAGE),1)
+ifeq ($(SECTION_FLAGS_IN_IMAGE),1)
 BUILD_INFO_FLAGS += $(LDS_SECTION_FLAGS)
 endif
 
@@ -975,6 +986,9 @@ quiet_cmd_cpp_lds_S = LDS     $@
                              -MD -MP -MF $(depfile) -MT $@ \
                              $(NOSTDINC_FLAGS) \
                              -P -C -E -x c -o $@ $<
+ifeq ($(TOOLCHAIN),armclang)
+      cmd_cpp_lds_S += && sed -i '/\#/! { s/|/OR/g; s/&/AND/g }' $@
+endif
 
 LDS_SRC_STEM := $(src)/scripts/link/$(REAL_LDS_FILE)
 LDS_SRC := $(firstword $(wildcard $(LDS_SRC_STEM).S $(LDS_SRC_STEM).sx) $(LDS_SRC_STEM).S)
@@ -985,8 +999,8 @@ $(LDS_TARGET): $(LDS_SRC) FORCE
 PHONY += lds
 lds: $(LDS_TARGET) ;
 
-ifeq ($(__NuttX__),1)
-KBUILD_CPPFLAGS += -D__NuttX__ -Dnuttx_build -D__NuttX__
+ifeq ($(NUTTX_BUILD),1)
+KBUILD_CPPFLAGS += -Dnuttx_build -D__NuttX__
 NUTTX_INCLUDE :=  \
 	-I$(NUTTX_ROOT)/include/libcxx \
 	-I$(NUTTX_ROOT)/include\
@@ -1089,14 +1103,9 @@ endif
 # tweaks to this spot to avoid wrong language settings when running
 # make menuconfig etc.
 # Error messages still appears in the original language
-PHONY += run_python_scripts
-run_python_scripts: scripts
-ifneq ($(LTO_CFLAGS),)
-	@python $(srctree)/tools/generate_macro_for_lto.py $(srctree) $(srctree)/scripts/link/$(LDS_FILE).S
-endif
 
 PHONY += $(IMAGE-dirs)
-$(IMAGE-dirs): run_python_scripts 
+$(IMAGE-dirs): scripts
 	$(Q)$(MAKE) $(build)=$@ $(submodgoals)
 
 # clean - Delete most, but leave enough to build external modules

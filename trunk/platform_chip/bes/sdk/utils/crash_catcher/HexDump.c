@@ -17,8 +17,23 @@
 #include "hal_trace.h"
 #include <string.h>
 #include "cmsis.h"
-#include "coredump_section.h"
 #include "xyzmodem.h"
+#ifdef CORE_DUMP_TO_FLASH
+#include "coredump_section.h"
+#endif
+#ifdef __ARMCC_VERSION
+#include "link_sym_armclang.h"
+#endif
+#ifdef CORE_DUMP_TO_SPI
+#include "test_spi_slave.h"
+#endif
+#ifdef USER_DATA_TO_FLASH
+#include "user_data_section.h"
+#endif
+#include "app_flash_api.h"
+#include "crc32_c.h"
+
+static DUMP_INFO_T dump_info = {0};
 
 #ifdef TRACE_CRLF
 #define NEW_LINE_STR                    "\r\n"
@@ -49,7 +64,11 @@ extern uint32_t __HeapLimit[];
 
 const CrashCatcherMemoryRegion* CrashCatcher_GetMemoryRegions(void)
 {
+#ifdef PSRAM_ENABLE
+    static CrashCatcherMemoryRegion regions[5];
+#else
     static CrashCatcherMemoryRegion regions[4];
+#endif
     int j=0;
 
     regions[j].startAddress = (uint32_t)RAM0_BASE;
@@ -67,6 +86,29 @@ const CrashCatcherMemoryRegion* CrashCatcher_GetMemoryRegions(void)
     regions[j].elementSize = CRASH_CATCHER_BYTE;
     j++;
 
+#ifdef PSRAM_ENABLE
+    regions[j].startAddress = (uint32_t)PSRAM_BASE;
+    regions[j].endAddress = (uint32_t)(PSRAM_BASE + PSRAM_SIZE);
+    regions[j].elementSize = CRASH_CATCHER_BYTE;
+    j++;
+#endif
+
+    regions[j].startAddress = 0xFFFFFFFF;
+    regions[j].endAddress = 0xFFFFFFFF;
+    regions[j].elementSize = CRASH_CATCHER_BYTE;
+    return regions;
+}
+
+const CrashCatcherMemoryRegion* CrashCatcher_GetSramMemoryRegions(void)
+{
+    static CrashCatcherMemoryRegion regions[2];
+    int j=0;
+
+    regions[j].startAddress = (uint32_t)RAM0_BASE;
+    regions[j].endAddress = (uint32_t)(RAM0_BASE + RAM_TOTAL_SIZE);
+    regions[j].elementSize = CRASH_CATCHER_BYTE;
+    j++;
+
     regions[j].startAddress = 0xFFFFFFFF;
     regions[j].endAddress = 0xFFFFFFFF;
     regions[j].elementSize = CRASH_CATCHER_BYTE;
@@ -76,7 +118,8 @@ const CrashCatcherMemoryRegion* CrashCatcher_GetMemoryRegions(void)
 static enum {
     DUMP_TERM,
     DUMP_XMODEM,
-    DUMP_FLASH
+    DUMP_FLASH,
+    DUMP_SPI,
 } dump_direction = DUMP_TERM;
 
 int CrashCatcher_DumpStart(const CrashCatcherInfo* pInfo)
@@ -89,6 +132,9 @@ int CrashCatcher_DumpStart(const CrashCatcherInfo* pInfo)
 #ifdef CORE_DUMP_TO_FLASH
     core_dump_erase_section();
     dump_direction = DUMP_FLASH;
+    return 0;
+#elif defined (CORE_DUMP_TO_SPI)
+    dump_direction = DUMP_SPI;
     return 0;
 #else
     int ret;
@@ -145,6 +191,15 @@ void CrashCatcher_DumpMemory(const void* pvMemory, CrashCatcherElementSizes elem
     {
         core_dump_write(pvMemory, elementSize * elementCount);
     }
+    uint8_t norflash_read_buf[1024] = {0};
+    uint32_t read_cnt = (elementSize * elementCount + 1024 - 1) / 1024;
+    for (uint32_t i=0; i<read_cnt; i++) {
+        core_dump_read_data(norflash_read_buf, 1024, i*1024);
+        dump_info.crc = crc32_c(dump_info.crc, norflash_read_buf, 1024);
+    }
+    dump_info.len += (elementSize * elementCount);
+#elif defined (CORE_DUMP_TO_SPI)
+    xtc_spi_slave_dump_crash(pvMemory, elementSize * elementCount, NULL);
 #endif
 }
 
@@ -220,7 +275,15 @@ CrashCatcherReturnCodes CrashCatcher_DumpEnd(void)
         static const char end_info[] = NEW_LINE_STR "End of crash dump" NEW_LINE_STR;
 
         printString(end_info);
+
+#ifdef CORE_DUMP_TO_SPI
+        xtc_spi_slave_dump_crash(NULL, NULL, DUMP_CRASH_END);
+#endif
     }
 
+#ifdef USER_DATA_TO_FLASH
+    dump_info.dump_flag = CRASH_MAGIC;
+    user_data_write(&dump_info, sizeof(dump_info));
+#endif
     return CRASH_CATCHER_EXIT;
 }

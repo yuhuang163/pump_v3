@@ -6,4 +6,5 @@ obj_cpp := $(patsubst $(cur_dir)%,%,$(wildcard $(cur_dir)*.cpp))
 
 obj-y := $(obj_c:.c=.o) $(obj_s:.S=.o) $(obj_cpp:.cpp=.o)
 
-ccflags-y +=
+ccflags-y += -Iutils/hwtimer_list -Irtos -Iinclude/rtos/rtx5/ -Irtos/rtx5/rtx_config/
+

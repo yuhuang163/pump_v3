@@ -29,7 +29,7 @@
 
 #define DLY_1S 1000
 #define MAXRETRANS 25
-//#define TRANSMIT_XMODEM_1K
+#define TRANSMIT_XMODEM_1K
 
 /* CRC16 implementation acording to CCITT standards */
 
@@ -118,11 +118,7 @@ static void flushinput(void)
 }
 
 static unsigned char packet_no = 1;
-#ifdef TRANSMIT_XMODEM_1K
 static unsigned char xbuff[1030]; /* 1024 for XModem 1k + 3 head chars + 2 crc + nul */
-#else
-static unsigned char xbuff[134]; /* 128 for XModem 1k + 3 head chars + 2 crc + nul */
-#endif
 static uint32_t packet_size  = 1024;
 static int crc_enabled;
 static int packet_idx;
@@ -141,7 +137,7 @@ static int xmodem_fill_packet(uint8_t *buff, uint8_t packetno, int len, int crc)
     buff[1] = packetno;
     buff[2] = ~packetno;
 
-    //XYZMODEM_TRACE_IMM(4,"buff %p, packetno %d, len %d, crc %d", buff, packetno, len, crc);
+    //TRACE_IMM(4,"buff %p, packetno %d, len %d, crc %d", buff, packetno, len, crc);
     if (c < bufsz)
         memset(&buff[3 + c], CTRLZ, bufsz);
 
@@ -286,9 +282,10 @@ int xmodem_send_stream(const uint8_t *data, size_t size, int ascii)
         else
             xfer = left;
 
-        // XYZMODEM_TRACE_IMM(2,"left %d packet room %d", left, packet_room);
-        // XYZMODEM_TRACE_IMM(1,"xfer %d", xfer);
-        
+        /*
+        TRACE_IMM(2,"left %d packet room %d", left, packet_room);
+        TRACE_IMM(1,"xfer %d", xfer);
+        */
         dst = payload + packet_idx;
         filled = filled_one_payload(dst, src, xfer, ascii);
         src += xfer;

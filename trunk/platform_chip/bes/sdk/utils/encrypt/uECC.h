@@ -354,7 +354,7 @@ Returns 1 if the signature is valid, 0 if it is invalid.
 */
 int uECC_verify(const uint8_t *public_key,
                 const uint8_t *message_hash,
-                unsigned int hash_size,
+                unsigned hash_size,
                 const uint8_t *signature,
                 uECC_Curve curve);
 

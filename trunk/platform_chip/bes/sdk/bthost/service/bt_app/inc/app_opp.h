@@ -66,6 +66,66 @@ void app_bt_opp_send_obex_disc_req(struct btif_opp_channel_t *opp_channel);
 
 void app_bt_opp_send_obex_abort_req(struct btif_opp_channel_t *opp_channel);
 
+void app_bt_pts_opp_push_vcard_object(void);
+
+void app_bt_pts_opp_push_vcard_object2(void);
+
+void app_bt_pts_opp_push_two_vcard_on_single_put_operation(void);
+
+void app_bt_pts_opp_push_two_vcard_on_single_put_operation_countinue(void);
+
+void app_bt_pts_opp_push_vcal_object(void);
+
+void app_bt_pts_opp_push_vcal_object2(void);
+
+void app_bt_pts_opp_push_two_vcal_on_single_put_operation(void);
+
+void app_bt_pts_opp_push_two_vcal_on_single_put_operation_countinue(void);
+
+void app_bt_pts_opp_push_both_vcal_on_once_object(void);
+
+void app_bt_pts_opp_push_both_vcard_on_once_put(void);
+
+void app_bt_pts_opp_push_vmsg_object(void);
+
+void app_bt_pts_opp_push_vmsg_object2(void);
+
+void app_bt_pts_opp_push_two_vmsg_on_single_put_operation(void);
+
+void app_bt_pts_opp_push_two_vmsg_on_single_put_operation_countinue(void);
+
+void app_bt_pts_opp_push_both_vmsg_on_once_object(void);
+
+void app_bt_pts_opp_push_vnt_object(void);
+
+void app_bt_pts_opp_push_vnt_object2(void);
+
+void app_bt_pts_opp_push_two_vnt_on_single_put_operation(void);
+
+void app_bt_pts_opp_push_two_vnt_on_single_put_operation_countinue(void);
+
+void app_bt_pts_opp_push_both_vnt_on_once_object(void);
+
+void app_bt_pts_opp_push_unsupport_object(void);
+
+void app_bt_pts_opp_object_status_mgr(void);
+
+void app_bt_pts_opp_create_channel(void);
+
+void app_bt_pts_opp_disconnect_channel(void);
+
+void app_bt_pts_opp_pull_vcard_object(void);
+
+void app_bt_pts_opp_push_1kfile_start_object(void);
+
+void app_bt_pts_opp_send_obex_disc_req(void);
+
+void app_bt_pts_opp_send_obex_abort_req(void);
+
+void app_bt_pts_opp_send_pull_reject_rsp(void);
+
+void app_bt_pts_opp_exchange_vcard_object(void);
+
 #ifdef __cplusplus
 }
 #endif

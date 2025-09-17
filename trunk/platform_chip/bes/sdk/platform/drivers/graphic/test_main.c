@@ -25,7 +25,7 @@
 #ifdef RTOS
 #include "cmsis_os.h"
 
-static osThreadId main_thread_tid = NULL;
+static osThreadId_t main_thread_tid = NULL;
 
 
 extern int gpu_test(void);
@@ -35,20 +35,31 @@ static void gpu_test_thread(void const *argument)
     gpu_test();
     while(1){
 
-        DRIVERS_TRACE(3,"gpu test thread\n");
+        TRACE(3,"gpu test thread\n");
         osDelay(1000);
     }
 }
 
-osThreadDef(gpu_test_thread, osPriorityHigh, 1, 4012, "gpu_test_thread");
+static uint64_t os_thread_def_stack_gpu_test_thread [ROUND_UP(4012, 8) / sizeof(uint64_t)];
+static const osThreadAttr_t ThreadAttrGpu = {
+    .name = "gpu_test_thread",
+    .attr_bits = osThreadDetached,
+    .cb_mem = NULL,
+    .cb_size = 0U,
+    .stack_mem = os_thread_def_stack_gpu_test_thread,
+    .stack_size = ROUND_UP(4012, 8),
+    .priority = osPriorityHigh,
+    .tz_module = 1U,                  // indicate calls to secure mode
+    .reserved = 0U,
+};
 
 static int start_gpu_test(void)
 {
-    osThreadId thread_tid;
-    thread_tid = osThreadCreate(osThread(gpu_test_thread), NULL);
+    osThreadId_t thread_tid;
+    thread_tid = osThreadNew(gpu_test_thread, NULL, &ThreadAttrGpu);
 
     if (thread_tid == NULL)  {
-        DRIVERS_TRACE(0,"Failed to Create gpu test thread\n");
+        TRACE(0,"Failed to Create gpu test thread\n");
         return 0;
     }
     return 0;
@@ -60,20 +71,31 @@ static void lcdc_test_thread(void const *argument)
 {
     fb_lcdc_test();
     while(1){
-        DRIVERS_TRACE(3,"lcdc test thread\n");
+        TRACE(3,"lcdc test thread\n");
         osDelay(1000);
     }
 }
 
-osThreadDef(lcdc_test_thread, osPriorityHigh, 1, 4012, "lcdc_test_thread");
+static uint64_t os_thread_def_stack_lcdc_test_thread [ROUND_UP(4012, 8) / sizeof(uint64_t)];
+static const osThreadAttr_t ThreadAttrLcdc = {
+    .name = "lcdc_test_thread",
+    .attr_bits = osThreadDetached,
+    .cb_mem = NULL,
+    .cb_size = 0U,
+    .stack_mem = os_thread_def_stack_lcdc_test_thread,
+    .stack_size = ROUND_UP(4012, 8),
+    .priority = osPriorityHigh,
+    .tz_module = 1U,                  // indicate calls to secure mode
+    .reserved = 0U,
+};
 
 static int start_lcdc_test(void)
 {
-    osThreadId thread_tid;
-    thread_tid = osThreadCreate(osThread(lcdc_test_thread), NULL);
+    osThreadId_t thread_tid;
+    thread_tid = osThreadNew(lcdc_test_thread, NULL, &ThreadAttrLcdc);
 
     if (thread_tid == NULL)  {
-        DRIVERS_TRACE(0,"Failed to Create lcdc test thread\n");
+        TRACE(0,"Failed to Create lcdc test thread\n");
         return 0;
     }
     return 0;
@@ -86,20 +108,31 @@ static void dma2d_test_thread(void const *argument)
 {
     fb_dma2d_test();
     while(1){
-        DRIVERS_TRACE(3,"dma2d test thread\n");
+        TRACE(3,"dma2d test thread\n");
         osDelay(2000);
     }
 }
 
-osThreadDef(dma2d_test_thread, osPriorityHigh, 1, 4012, "dma2d_test_thread");
+static uint64_t os_thread_def_stack_dma2d_test_thread [ROUND_UP(4012, 8) / sizeof(uint64_t)];
+static const osThreadAttr_t ThreadAttrDma2d = {
+    .name = "dma2d_test_thread",
+    .attr_bits = osThreadDetached,
+    .cb_mem = NULL,
+    .cb_size = 0U,
+    .stack_mem = os_thread_def_stack_dma2d_test_thread,
+    .stack_size = ROUND_UP(4012, 8),
+    .priority = osPriorityHigh,
+    .tz_module = 1U,                  // indicate calls to secure mode
+    .reserved = 0U,
+};
 
 static int start_dma2d_test(void)
 {
-    osThreadId thread_tid;
-    thread_tid = osThreadCreate(osThread(dma2d_test_thread), NULL);
+    osThreadId_t thread_tid;
+    thread_tid = osThreadNew(dma2d_test_thread, NULL, &ThreadAttrDma2d);
 
     if (thread_tid == NULL)  {
-        DRIVERS_TRACE(0,"Failed to Create dma2d test thread\n");
+        TRACE(0,"Failed to Create dma2d test thread\n");
         return 0;
     }
     return 0;
@@ -112,16 +145,14 @@ int gra_test_main(void)
     gra_task_started = 1;
 
     main_thread_tid = osThreadGetId();
-    hal_psram_init();
-  //  hal_sysfreq_req(HAL_SYSFREQ_USER_APP_8, HAL_CMU_FREQ_104M);
-    hal_sysfreq_req(HAL_SYSFREQ_USER_APP_8, HAL_CMU_FREQ_78M);
+    //hal_psram_init();
 
-    //start_gpu_test();
+    start_gpu_test();
     start_lcdc_test();
     osDelay(100);
     start_dma2d_test();
     while(1){
-        DRIVERS_TRACE(3, "%s %d ", __func__, __LINE__);
+        TRACE(3, "%s %d ", __func__, __LINE__);
         osDelay(1000);
     }
 

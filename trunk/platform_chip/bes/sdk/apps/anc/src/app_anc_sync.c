@@ -13,7 +13,6 @@
  * trademark and other intellectual property rights.
  *
  ****************************************************************************/
-#include <string.h>
 #include "app_anc.h"
 #include "app_anc_sync.h"
 #include "hal_trace.h"
@@ -22,11 +21,7 @@
 #include "app_tws_ibrt.h"
 #include "app_tws_ibrt_cmd_handler.h"
 #include "app_ibrt_customif_cmd.h"
-#include "bts_core_if.h"
-#endif
-
-#ifdef VOICE_ASSIST_FF_FIR_LMS
-extern int32_t app_voice_assist_fir_lms_switch_locally(app_anc_mode_t mode);
+#include "app_tws_ctrl_thread.h"
 #endif
 
 int32_t app_anc_sync_init(void)
@@ -82,18 +77,6 @@ int32_t app_anc_sync_psap_bands_gain_array(float *gain)
     return 0;
 }
 
-int32_t app_anc_sync_fir_lms_mode(int32_t mode)
-{
-    uint8_t buf[4 + 4];
-
-    *((uint32_t *)&buf[0]) = APP_ANC_SYNC_FIR_LMS_MODE;
-    *((uint32_t *)&buf[4]) = mode;
-
-    app_anc_sync_send(buf, sizeof(buf));
-
-    return 0;
-}
-
 #if defined(PSAP_APP)
 extern void psap_set_bands_same_gain_f32(float gain_l, float gain_r, uint32_t index_start, uint32_t index_end);
 extern void psap_set_bands_gain_f32(float *gain_l, float *gain_r);
@@ -102,14 +85,15 @@ int32_t app_anc_tws_sync_change(uint8_t *buf, uint32_t len)
 {
     app_anc_sync_t sync_type = *((uint32_t *)buf);
     buf += sizeof(uint32_t);
+    len -= sizeof(uint32_t);
 
-    ANC_TRACE(0, "[%s] sync_type: %d, len: %d", __func__, sync_type, len);
+    TRACE(0, "[%s] sync_type: %d, len: %d", __func__, sync_type, len);
 
     switch (sync_type) {
         case APP_ANC_SYNC_MODE: {
             uint32_t mode = *((uint32_t *)buf);
 
-            ANC_TRACE(0, "[%s] sync mode: %d", __func__, mode);
+            TRACE(0, "[%s] sync mode: %d", __func__, mode);
             app_anc_switch_locally(mode);
             break;
         }
@@ -133,17 +117,9 @@ int32_t app_anc_tws_sync_change(uint8_t *buf, uint32_t len)
             break;
         }
         case APP_ANC_SYNC_PSAP_BANDS_GAIN_ARRAY: {
-            ASSERT(len == 4 + 17 * 4, "[%s] Invalid len: %d", __func__, len);
+            ASSERT(len == 17 * 4, "[%s] Invalid len: %d", __func__, len);
             psap_set_bands_gain_f32((float *)buf, NULL);
             break;
-        }
-#endif
-#ifdef VOICE_ASSIST_FF_FIR_LMS
-        case APP_ANC_SYNC_FIR_LMS_MODE: {
-            uint32_t mode = *((uint32_t *)buf);
-
-            ANC_TRACE(0, "[%s].. sync fir lms status with peer bud! mode = %d", __func__, mode);
-            app_voice_assist_fir_lms_switch_locally(mode);
         }
 #endif
         default:

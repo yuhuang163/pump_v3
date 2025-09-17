@@ -16,7 +16,11 @@
 
 #include "plat_addr_map.h"
 
+#ifdef NOSTD
 #define HEAP_SECTION_SIZE			0x40
+#else
+#define HEAP_SECTION_SIZE			0x2000
+#endif
 
 #if defined(ROM_IN_FLASH) && (SECURE_BOOT_VER >= 3)
 #define STACK_SECTION_SIZE			0x1800
@@ -27,12 +31,6 @@
 #define OVERLAY_DATA_SECTION_SIZE	0x1000
 
 #define FAST_XRAM_SECTION_SIZE		0x0020
-
-#ifdef RAM_NC_BASE
-#define REGION_VECTOR				RAM_NC
-#else
-#define REGION_VECTOR				RAM
-#endif
 
 #if !defined(OTA_BOOT_SIZE) && defined(OTA_CODE_OFFSET)
 #define FLASH_REGION_BASE			(FLASH_BASE + OTA_CODE_OFFSET)
@@ -53,11 +51,17 @@
 #define FLASH_NC_REGION_BASE		FLASH_C_TO_NC(FLASH_REGION_BASE)
 #define FLASHX_REGION_BASE			FLASH_TO_FLASHX(FLASH_REGION_BASE)
 
+#ifdef RAM_NC_BASE
+#define REGION_VECTOR				RAM_NC
+#else
+#define REGION_VECTOR				RAM
+#endif
+
 #if (FLASH_BASE == FLASHX_BASE)
 #define FLASHX						FLASH
 #endif
 
-#ifdef MAIN_RAM_USE_TCM
+#if defined(SEPARATE_RAM_RAMX) || defined(MAIN_RAM_USE_TCM)
 #define FRAMX						RAMX
 #endif
 
@@ -66,18 +70,20 @@
 MEMORY
 {
 	ROM			(rx)	: ORIGIN = ROM_BASE,				LENGTH = ROM_SIZE
-	FLASH 		(r)		: ORIGIN = FLASH_REGION_BASE,		LENGTH = FLASH_REGION_SIZE
-	FLASH_NC	(r)		: ORIGIN = FLASH_NC_REGION_BASE,	LENGTH = FLASH_REGION_SIZE
-#ifdef MAIN_RAM_USE_TCM
-	RAM			(rwx)	: ORIGIN = RAM_BASE,				LENGTH = RAM_SIZE
-	RAMX		(rx)	: ORIGIN = RAMX_BASE,				LENGTH = RAMX_SIZE
+#if (FLASH_BASE == FLASHX_BASE)
+	FLASH 		(rx)	: ORIGIN = FLASH_REGION_BASE,		LENGTH = FLASH_REGION_SIZE
 #else
-#ifndef FLASHX
+	FLASH 		(r)		: ORIGIN = FLASH_REGION_BASE,		LENGTH = FLASH_REGION_SIZE
 	FLASHX		(rx)	: ORIGIN = FLASHX_REGION_BASE,		LENGTH = FLASH_REGION_SIZE
 #endif
-	RAM			(rwx)	: ORIGIN = RAM_BASE,				LENGTH = RAM_SIZE - FAST_XRAM_SECTION_SIZE
-	RAMX		(rx)	: ORIGIN = RAMX_BASE,				LENGTH = RAM_SIZE - FAST_XRAM_SECTION_SIZE
-	FRAMX		(rwx)	: ORIGIN = RAMX_BASE + RAM_SIZE - FAST_XRAM_SECTION_SIZE,	LENGTH = FAST_XRAM_SECTION_SIZE
+	FLASH_NC	(r)		: ORIGIN = FLASH_NC_REGION_BASE,	LENGTH = FLASH_REGION_SIZE
+#if defined(SEPARATE_RAM_RAMX) || defined(MAIN_RAM_USE_TCM)
+	RAM			(rwx)	: ORIGIN = RAM_REGION_BASE,			LENGTH = RAM_REGION_SIZE
+	RAMX		(rx)	: ORIGIN = RAMX_REGION_BASE,		LENGTH = RAMX_REGION_SIZE
+#else
+	RAM			(rwx)	: ORIGIN = RAM_REGION_BASE,			LENGTH = RAM_REGION_SIZE - FAST_XRAM_SECTION_SIZE
+	RAMX		(rx)	: ORIGIN = RAMX_REGION_BASE,		LENGTH = RAM_REGION_SIZE - FAST_XRAM_SECTION_SIZE
+	FRAMX		(rwx)	: ORIGIN = RAMX_REGION_BASE + RAM_REGION_SIZE - FAST_XRAM_SECTION_SIZE,	LENGTH = FAST_XRAM_SECTION_SIZE
 #endif
 #ifdef RAM_NC_BASE
 	RAM_NC		(rw)	: ORIGIN = RAM_NC_BASE,				LENGTH = RAM_NC_SIZE
@@ -86,6 +92,9 @@ MEMORY
 	PSRAM 		(rwx)	: ORIGIN = PSRAM_BASE,				LENGTH = PSRAM_SIZE
 	PSRAM_NC	(rwx)	: ORIGIN = PSRAM_NC_BASE,			LENGTH = PSRAM_SIZE
 	PSRAMX		(rx)	: ORIGIN = PSRAMX_BASE,				LENGTH = PSRAM_SIZE
+#endif
+#ifdef AON_MAILBOX_BASE
+	AON_MAILBOX	(rw)	: ORIGIN = AON_MAILBOX_BASE,		LENGTH = AON_MAILBOX_SIZE
 #endif
 }
 
@@ -130,17 +139,22 @@ GROUP(libgcc.a libc.a libm.a libnosys.a)
  *   __flash_start
  *   __flash_end
  *   __free_flash
- *   __boot_sram_start_flash__
- *   __boot_sram_end_flash__
- *   __boot_sram_start__
+ *   __boot_text_sram_start_flash__
+ *   __boot_text_sram_end_flash__
+ *   __boot_text_sram_start__
+ *   __boot_text_sram_end__
+ *   __boot_data_sram_start_flash__
+ *   __boot_data_sram_end_flash__
+ *   __boot_data_sram_start__
+ *   __boot_data_sram_end__
  *   __boot_bss_sram_start__
  *   __boot_bss_sram_end__
- *   __sram_text_data_start_flash__
- *   __sram_text_data_end_flash__
+ *   __sram_text_start_flash__
+ *   __sram_data_end_flash__
  *   __fast_sram_text_data_start__
  *   __fast_sram_text_data_end__
- *   __fast_sram_text_data_start_flash__
- *   __fast_sram_text_data_end_flash__
+ *   __fast_sram_text_start_flash__
+ *   __fast_sram_text_end_flash__
  *   __sram_text_data_start__
  *   __sram_bss_start__
  *   __sram_bss_end__
@@ -204,21 +218,17 @@ SECTIONS
 	{
 		*(.userdata_pool)
 		. = ALIGN(4);
-		__userdata_pool_end__ = .;
 	} > RAM
 
-	__boot_sram_start_flash__ = LOADADDR(.got_info) + SIZEOF(.got_info);
-#ifndef MAIN_RAM_USE_TCM
-	__boot_sram_start__ = __userdata_pool_end__;
-#endif
+	__boot_text_sram_start_flash__ = LOADADDR(.got_info) + SIZEOF(.got_info);
 
 	.boot_text_sram
-#ifdef MAIN_RAM_USE_TCM
+#if defined(SEPARATE_RAM_RAMX) || defined(MAIN_RAM_USE_TCM)
 		(ALIGN(ORIGIN(RAMX), 32))
 #else
-		(RAM_TO_RAMX(__boot_sram_start__))
+		(ALIGN(RAM_TO_RAMX(.), 32))
 #endif
-		: AT (__boot_sram_start_flash__)
+		: AT (__boot_text_sram_start_flash__)
 	{
 		__boot_text_sram_start__ = .;
 		_stext = __boot_text_sram_start__;
@@ -252,11 +262,12 @@ SECTIONS
 		__boot_text_sram_end__ = .;
 	} > RAMX
 
-	__boot_text_sram_end_flash__ = __boot_sram_start_flash__ + SIZEOF(.boot_text_sram);
+	__boot_text_data_sram_start__ = RAMX_TO_RAM(__boot_text_sram_start__);
+	__boot_text_sram_end_flash__ = __boot_text_sram_start_flash__ + SIZEOF(.boot_text_sram);
 	__boot_data_sram_start_flash__ = __boot_text_sram_end_flash__;
 
 	.boot_data_sram
-#ifndef MAIN_RAM_USE_TCM
+#if !(defined(SEPARATE_RAM_RAMX) || defined(MAIN_RAM_USE_TCM))
 		(RAMX_TO_RAM(ADDR(.boot_text_sram) + SIZEOF(.boot_text_sram)))
 #endif
 		: AT (__boot_data_sram_start_flash__)
@@ -279,7 +290,7 @@ SECTIONS
 		__boot_data_sram_end__ = .;
 	} > RAM
 
-	__boot_sram_end_flash__ = __boot_data_sram_start_flash__ + SIZEOF(.boot_data_sram);
+	__boot_data_sram_end_flash__ = __boot_data_sram_start_flash__ + SIZEOF(.boot_data_sram);
 
 	.boot_bss_sram (.) (NOLOAD) :
 	{
@@ -292,21 +303,21 @@ SECTIONS
 		__boot_bss_sram_end__ = .;
 	} > RAM
 
-	__fast_sram_text_data_start_flash__ = __boot_sram_end_flash__;
-	.fast_text_sram : AT (__fast_sram_text_data_start_flash__)
+	__fast_sram_text_start_flash__ = __boot_data_sram_end_flash__;
+	.fast_text_sram : AT (__fast_sram_text_start_flash__)
 	{
 		__fast_sram_text_exec_start__ = .;
 		. = ALIGN(4);
 		__fast_sram_text_exec_end__ = .;
 	} > FRAMX
-	__fast_sram_text_data_end_flash__ = __fast_sram_text_data_start_flash__ + SIZEOF(.fast_text_sram);
+	__fast_sram_text_end_flash__ = __fast_sram_text_start_flash__ + SIZEOF(.fast_text_sram);
 	__fast_sram_text_data_start__ = RAMX_TO_RAM(__fast_sram_text_exec_start__);
 	__fast_sram_text_data_end__ = RAMX_TO_RAM(__fast_sram_text_exec_end__);
 
 	__overlay_text_start__ = __fast_sram_text_data_end__;
 	__overlay_text_exec_start__ = RAM_TO_RAMX(__overlay_text_start__);
 
-	OVERLAY (__overlay_text_exec_start__) : NOCROSSREFS AT (__fast_sram_text_data_end_flash__)
+	OVERLAY (__overlay_text_exec_start__) : NOCROSSREFS AT (__fast_sram_text_end_flash__)
 	{
 		.overlay_text0
 		{
@@ -370,7 +381,7 @@ SECTIONS
 
 	__fast_sram_end__ = RAMX_TO_RAM(__overlay_text_exec_end__);
 
-#ifndef MAIN_RAM_USE_TCM
+#if !(defined(SEPARATE_RAM_RAMX) || defined(MAIN_RAM_USE_TCM))
 	ASSERT(__fast_sram_end__ - __fast_sram_text_data_start__ <= FAST_XRAM_SECTION_SIZE, "fast xram sections too large")
 	__free_fram = FAST_XRAM_SECTION_SIZE - (__fast_sram_end__ - __fast_sram_text_data_start__);
 #endif
@@ -442,14 +453,14 @@ SECTIONS
 
 	ASSERT(__dummy_overlay_data_end__ - __overlay_data_start__ <= OVERLAY_DATA_SECTION_SIZE, "overlay sections too large")
 
-	__sram_text_data_start_flash__ = __load_stop_overlay_data_end;
-#ifdef MAIN_RAM_USE_TCM
+	__sram_text_start_flash__ = __load_stop_overlay_data_end;
+#if defined(SEPARATE_RAM_RAMX) || defined(MAIN_RAM_USE_TCM)
 	__sram_text_data_start__ = ALIGN(__fast_sram_end__, 32);
 #else
 	__sram_text_data_start__ = ALIGN(__dummy_overlay_data_end__, 32);
 #endif
 
-	.sram_text (RAM_TO_RAMX(__sram_text_data_start__)) : AT (__sram_text_data_start_flash__)
+	.sram_text (RAM_TO_RAMX(__sram_text_data_start__)) : AT (__sram_text_start_flash__)
 	{
 		__sram_text_start__ = .;
 		*(.sram_text*)
@@ -481,16 +492,16 @@ SECTIONS
 		__sram_text_end__ = .;
 	} > RAMX
 
-#ifdef MAIN_RAM_USE_TCM
+#if defined(SEPARATE_RAM_RAMX) || defined(MAIN_RAM_USE_TCM)
 	__ramx_end = __sram_text_end__;
 	__ramx_top = ORIGIN(RAMX) + LENGTH(RAMX);
 	__free_ramx = __ramx_top - __ramx_end;
 #endif
-	__sram_text_end_flash__ = __sram_text_data_start_flash__ + SIZEOF(.sram_text);
+	__sram_text_end_flash__ = __sram_text_start_flash__ + SIZEOF(.sram_text);
 	__sram_data_start_flash__ = __sram_text_end_flash__;
 
 	.sram_data
-#ifndef MAIN_RAM_USE_TCM
+#if !(defined(SEPARATE_RAM_RAMX) || defined(MAIN_RAM_USE_TCM))
 		(RAMX_TO_RAM(ADDR(.sram_text) + SIZEOF(.sram_text)))
 #endif
 		: AT (__sram_data_start_flash__)
@@ -503,7 +514,7 @@ SECTIONS
 		__sram_data_end__ = .;
 	} > RAM
 
-	__sram_text_data_end_flash__ = __sram_data_start_flash__ + SIZEOF(.sram_data);
+	__sram_data_end_flash__ = __sram_data_start_flash__ + SIZEOF(.sram_data);
 
 	.sram_bss (.) (NOLOAD) :
 	{
@@ -513,7 +524,7 @@ SECTIONS
 		__sram_bss_end__ = .;
 	} > RAM
 
-	.text (FLASH_TO_FLASHX(__sram_text_data_end_flash__)) : AT (FLASHX_TO_FLASH(ADDR(.text)))
+	.text (FLASH_TO_FLASHX(__sram_data_end_flash__)) : AT (FLASHX_TO_FLASH(ADDR(.text)))
 	{
 		__dummy_text = .;
 	} > FLASHX
@@ -538,6 +549,7 @@ SECTIONS
 	{
 		__dummy_rodata = .;
 		*(.flash_rodata*)
+		*(.flash_nc_rodata*)
 		KEEP(*(.eh_frame*))
 		*(.note.gnu.build-id)
 	} > FLASH
@@ -669,6 +681,19 @@ SECTIONS
 	__free_ram = __StackLimit - __HeapLimit;
 
 #ifdef RAM_NC_BASE
+	__sram_nc_data_start_flash__ = __etext + SIZEOF(.data);
+
+	.sram_nc_data : AT (__sram_nc_data_start_flash__)
+	{
+		__sram_nc_data_start__ = .;
+		*(.sram_nc_rodata*)
+		. = ALIGN(4);
+		*(.sram_nc_data*)
+		__sram_nc_data_end__ = .;
+	} > RAM_NC
+
+	__sram_nc_data_end_flash__ = __sram_nc_data_start_flash__ + SIZEOF(.sram_nc_data);
+
 	.sram_nc_bss (NOLOAD) : AT (ADDR(.sram_nc_bss))
 	{
 		__sram_nc_bss_start__ = .;
@@ -680,20 +705,53 @@ SECTIONS
 
 	__ram_nc_top = ORIGIN(RAM_NC) + LENGTH(RAM_NC);
 	__free_ram_nc = __ram_nc_top - __sram_nc_bss_end__;
+#else /* !RAM_NC_BASE */
+	__sram_nc_data_end_flash__ = __etext + SIZEOF(.data);
+#endif /* !RAM_NC_BASE */
+
+	__aon_mbx_data_start_load__ = __sram_nc_data_end_flash__;
+
+#ifdef AON_MAILBOX_BASE
+	.aon_mbx_data (ORIGIN(AON_MAILBOX)) : AT (__aon_mbx_data_start_load__)
+	{
+		__aon_mbx_data_start__ = .;
+		*(.aon_mbx_data*)
+		. = ALIGN(4);
+		__aon_mbx_data_end__ = .;
+	} > AON_MAILBOX
+
+	__aon_mbx_data_end_load__ = __aon_mbx_data_start_load__ + SIZEOF(.aon_mbx_data);
+
+	.aon_mbx_bss (.) (NOLOAD) :
+	{
+		__aon_mbx_bss_start__ = .;
+		*(.aon_mbx_bss*)
+		. = ALIGN(4);
+		__aon_mbx_bss_end__ = .;
+		*(.aon_mbx_buf*);
+		. = ALIGN(4);
+	} > AON_MAILBOX
+
+	__aon_mbx_heap_start__ = .;
+	__aon_mbx_heap_end__ = ORIGIN(AON_MAILBOX) + LENGTH(AON_MAILBOX);
+	__aon_mbx_heap_size__ = __aon_mbx_heap_end__ - __aon_mbx_heap_start__;
+#else
+	__aon_mbx_data_end_load__ = __aon_mbx_data_start_load__;
 #endif
 
-	. = __etext + SIZEOF(.data);
-	.build_info (.) :
+	.build_info (__aon_mbx_data_end_load__) :
 	{
 		KEEP(*(.build_info))
 		. = ALIGN(4);
 	} > FLASH = 0x00000000
 
+	__boot_struct_build_info = FLASH_C_TO_NC(LOADADDR(.build_info));
+
 	/* The following section be the last loaded section */
 	.code_start_addr (.) :
 	{
 		LONG(BUILD_INFO_MAGIC);
-		LONG(ABSOLUTE(__flash_start));
+		LONG(FLASH_C_TO_NC(ABSOLUTE(__flash_start)));
 	} > FLASH
 
 	__flash_end = .;

@@ -34,6 +34,7 @@ extern "C" {
 int32_t app_voice_assist_ai_voice_init(void);
 int32_t app_voice_assist_ai_voice_open(assist_ai_voice_mode_t mode, struct AF_STREAM_CONFIG_T *stream_cfg, mempool_get_buff_t mempool_get_buff);
 int32_t app_voice_assist_ai_voice_close(void);
+int32_t app_voice_assist_ai_voice_ctrl(uint32_t ctrl_cmd, void *cfg, uint32_t cfg_len);
 
 #ifdef __cplusplus
 }

@@ -72,11 +72,12 @@ extern "C"
 #define __STATIC_FORCEINLINE static inline __attribute__((always_inline)) 
 #define __STATIC_INLINE static inline
 
+#elif defined (__ARM_ARCH_ISA_ARM)
+#include "cmsis.h"
+
 #else
 #include "cmsis_compiler.h"
 #endif
-
-
 
 #include <string.h>
 #include <math.h>

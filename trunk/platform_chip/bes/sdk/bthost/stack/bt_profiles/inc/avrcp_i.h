@@ -72,14 +72,13 @@ extern "C" {
 #define AVRCP_OP_CHANGE_PATH                    0x72
 #define AVRCP_OP_GET_ITEM_ATTRIBUTES            0x73
 #define AVRCP_OP_PLAY_ITEM                      0x74
-#define AVRCP_OP_GET_ITEMS_NUM                  0x75
 #define AVRCP_OP_SEARCH                         0x80
 #define AVRCP_OP_ADD_TO_NOW_PLAYING             0x90
 #define AVRCP_OP_GENERAL_REJECT                 0xA0
-#define AVRCP_OP_CUSTOM_CMD                     0xF0
+#define AVRCP_OP_CUSTOM_CMD						0xF0
 
 #define AVRCP_BT_COMPANY_ID "\x00\x19\x58"
-
+ 
  /* Define Opcode */
 #define AVRCP_OPCODE_UNIT_INFO       0x30
 #define AVRCP_OPCODE_SUBUNIT_INFO    0x31
@@ -111,22 +110,11 @@ extern "C" {
 #define AVRCP_BTN_PUSHED	0x00
 #define AVRCP_BTN_RELEASED	0x80
 
-//Supports Cover Art GetImage feature
-#define AVRCP_TG_COVER_ART_SUPPORT_MASK    0x0100
-#define AVRCP_TG_BROWSING_SUPPORT_MASK     0x0040
-
-#define AVRCP_OBEX_RSP_SUCCESS                0xa0
-#define AVRCP_OBEX_RSP_CONTINUE               0x90
-
 enum avctp_event_enum {
     AVCTP_CHANNEL_OPEN,
     AVCTP_CHANNEL_NEW_OPENED,
     AVCTP_CHANNEL_TX_HANDLED,
-    AVCTP_CHANNEL_CLOSED,
-    AVCTP_BROWSING_CHANNEL_OPEN,
-    AVCTP_BROWSING_CHANNEL_NEW_OPENED,
-    AVCTP_BROWSING_CHANNEL_TX_HANDLED,
-    AVCTP_BROWSING_CHANNEL_CLOSED
+    AVCTP_CHANNEL_CLOSED
 };
 
 enum avctp_ctl_state_enum {
@@ -190,7 +178,6 @@ struct avctp_frame_t {
     uint8 *data;
     uint32 data_len;
     uint32 data_offset;
-    bool is_browsing_frame;
 };
 
 struct avctp_resp {
@@ -201,18 +188,17 @@ struct avctp_resp {
 struct avctp_control_t {
     struct list_node node;
     struct list_node tx_list;
-
+    
     struct bdaddr_t remote;
     struct avctp_header header;
     int8 server_channel;
     uint32 l2cap_handle;
-    uint32 browsing_l2cap_handle;
 
     int8 tx_status;
     bool ibrt_slave_force_disc_avrcp_dont_modify_tx_list;
 
     enum avctp_ctl_state_enum ctl_state;
-
+    
     enum avctp_role_enum role;
     int (*notify_callback)(uint8 device_id, struct avctp_control_t *avctp_ctl, uint8 event, uint32 handle, void *pdata);
     void (*datarecv_callback)(uint8 device_id, struct avctp_control_t *avctp_ctl, uint32 handle, struct pp_buff *ppb);
@@ -230,6 +216,7 @@ enum avrcp_role_enum {
     AVRCP_SLAVE
 };
 
+
 enum avrcp_state_enum {
     AVRCP_STOP,
     AVRCP_STANDBY = 1,  //ready
@@ -246,56 +233,6 @@ enum music_state_enum {
     MUSIC_RESUME,
     MUSIC_STOP
 };
-
-typedef enum {
-    AVRCP_OBEX_STATE_CLOSED,
-    AVRCP_OBEX_STATE_STANDBY = 1, // ready
-    AVRCP_OBEX_STATE_QUERING,
-    AVRCP_OBEX_STATE_CONNECTING,
-    AVRCP_OBEX_STATE_OPEN,
-    AVRCP_OBEX_STATE_DISCONNECTING,
-} avrcp_obex_state_t;
-
-typedef enum {
-    AVRCP_OBEX_OP_NULL,
-    AVRCP_OBEX_OP_GET_IMAGE = 1,
-    AVRCP_OBEX_OP_GET_THM,
-    AVRCP_OBEX_OP_GET_IMAGE_PROPERTIES,
-    AVRCP_OBEX_OP_ABORT,
-} avrcp_obex_op_enum_t;
-
-typedef enum {
-    AVRCP_OBEX_CHANNEL_CLOSED = 0,
-    AVRCP_OBEX_CONNECTED,
-    AVRCP_OBEX_CHANNEL_OPENED,
-    AVRCP_OBEX_RECEIVED_GET_REQ,
-    AVRCP_OBEX_RECEIVED_GET_RSP,
-
-    AVRCP_OBEX_ABORT_DONE,
-    AVRCP_OBEX_GET_IMAGE_DONE,
-    AVRCP_OBEX_GET_THM_DONE,
-    AVRCP_OBEX_GET_IMAGE_PROPERTIES_DONE,
-} avrcp_obex_event_t;
-
-struct avrcp_pull_object_context_t {
-    bool is_final_packet;
-    uint16_t body_data_length;
-    uint8_t *body_data;
-    uint16_t obex_num_recv_times;
-};
-
-struct avrcp_obex_callback_parm_t {
-    avrcp_obex_event_t event;
-    uint8_t error_code;
-    uint8_t opcode;
-    struct avrcp_pull_object_context_t *pull_context;
-};
-
-#ifdef BT_BROWSING_SUPPORT
-#define AVRCP_MAX_BODY_CONTENT_BUFFER_SIZE   2048
-#else
-#define AVRCP_MAX_BODY_CONTENT_BUFFER_SIZE   2
-#endif
 
 struct avrcp_control_t {
     struct list_node node;
@@ -329,25 +266,7 @@ struct avrcp_control_t {
     uint16 remote_ct_avrcp_version;
     uint16 remote_ct_support_features;
     bool get_remote_ct_info_done;
-
-    uint32 browsing_handle; //l2cap handle
-    bool browsing_conn_flag;
-
-    bool wait_flag;
-    bool abort_curr_operation;
-    struct obex_conn_t *obex_conn;
-    uint16 remote_l2cap_psm;
-    avrcp_obex_state_t obex_state;
-    char image_handle[7];
-    struct list_node avrcp_obex_op_list;
-    avrcp_obex_op_enum_t curr_obex_op;
-    void (*obex_callback)(uint8_t device_id, struct avrcp_control_t *avrcp_ctl, const struct avrcp_obex_callback_parm_t *parm);
-    uint8 body_content_buffer[AVRCP_MAX_BODY_CONTENT_BUFFER_SIZE];
-    uint16 content_length;
-    uint16_t obex_num_recv_times;
 };
-
-typedef void (*free_cb)(void *);
 
 struct avrcp_advanced_cmd_pdu {
     struct list_node node;
@@ -367,8 +286,6 @@ struct avrcp_advanced_cmd_pdu {
     U8 error;
     BOOL is_cmd;
     U8  ctype;          /* 4 bits */
-    BOOL is_browsing_cmd;
-    free_cb free; //free malloc buf
 };
 
 struct avrcp_adv_cmd_rsp_cb_parms {
@@ -379,7 +296,6 @@ struct avrcp_adv_cmd_rsp_cb_parms {
     uint8 *origin_data;
     uint8 *op_data;
     uint16 op_data_len;
-    BOOL is_browsing;
 };
 
 struct avrcp_adv_cmd_cb_parms {
@@ -391,7 +307,6 @@ struct avrcp_adv_cmd_cb_parms {
     uint8 *op_data;
     uint16 op_data_len;
     uint8 cmd_trans_id;
-    BOOL is_browsing;
 };
 
 struct avrcp_ctx_input {
@@ -456,8 +371,6 @@ void avrcp_query_remote_control_sdp(struct avrcp_control_t *avrcp_ctl);
 /* Used by Controller to Send Command */
 bool avrcp_is_advanced_command_can_send(struct avrcp_control_t * avrcp_ctl, bool is_cmd);
 int8 avrcp_send_advanced_command(struct avrcp_control_t *avrcp_ctl, struct avrcp_advanced_cmd_pdu *pdu);
-int8 avrcp_send_advanced_browsing_command(struct avrcp_control_t *avrcp_ctl, struct avrcp_advanced_cmd_pdu *pdu);
-int8 avrcp_send_advanced_browsing_response(struct avrcp_control_t *avrcp_ctl, struct avrcp_advanced_cmd_pdu *pdu);
 int8 avrcp_send_advanced_response(struct avrcp_control_t *avrcp_ctl, struct avrcp_advanced_cmd_pdu *pdu);
 int8 avrcp_send_panel_key(struct avrcp_control_t *avrcp_ctl, uint16 op, uint8 press);
 bool avrcp_is_control_channel_connected(struct avrcp_control_t *avrcp_ctl);
@@ -466,29 +379,12 @@ int8 avrcp_send_panel_response(struct avrcp_control_t *avrcp_ctl, uint8 trans_id
 int8 avrcp_send_unit_info_cmd(struct avrcp_control_t *avrcp_ctl);
 int8 avrcp_send_unit_info_response(struct avrcp_control_t *avrcp_ctl, uint8 trans_id);
 int8 avrcp_send_subunit_info_response(struct avrcp_control_t *avrcp_ctl, uint8 trans_id);
+void avrcp_register_panel_command_tx_handled_callback(void (*cb)(uint8_t device_id, struct avrcp_control_t *avrcp_ctl, void *pdata));
 
 struct avctp_control_t *avrcp_get_avctp_control(struct avrcp_control_t *avrcp_ctl);
 uint32 avrcp_save_ctx(struct avrcp_control_t *avrcp_ctl, uint8_t *buf, uint32_t buf_len);
 uint32 avrcp_restore_ctx(struct avrcp_ctx_input *input, struct avrcp_ctx_output *output);
 
-void avctp_send_get_folder_items_test(struct avctp_control_t *avctp_ctl);
-
-bool avrcp_send_obex_get_image_properties(uint8_t device_id, struct avrcp_control_t *avrcp_ctl, const char *image_handle);
-
-bool avrcp_send_obex_get_image(uint8_t device_id, struct avrcp_control_t *avrcp_ctl, const char *image_handle, const char *descriptor, uint16_t descriptor_len);
-
-bool avrcp_send_obex_get_link_thumbnail_by_art_handle(uint8_t device_id, struct avrcp_control_t *avrcp_ctl, const char *image_handle);
-
-bool avrcp_send_obex_get_link_thumbnail(uint8_t device_id, struct avrcp_control_t *avrcp_ctl);
-
-void avrcp_start_avctp_browsing_connect(struct avrcp_control_t *avrcp_ctl);
-int avrcp_create_obex_channel(uint8_t device_id, struct avrcp_control_t *avrcp_ctl);
-int8 avctp_browsing_init_service(struct avctp_control_t* (*accept)(uint8_t device_id, void* remote),
-                                      struct avctp_control_t* (*search)(uint8_t device_id, uint32 l2cap_handle));
-void avrcp_obex_init(struct avrcp_control_t *avrcp_ctl, struct avrcp_control_t* (*search)(uint8_t device_id));
-
-void avrcp_register_obex_callback(void);
-void avrcp_set_srm_in_wait(struct avrcp_control_t *avrcp_ctl, bool wait_flag);
 #endif /* BT_AVRCP_SUPPORT */
 #if defined(__cplusplus)
 }

@@ -19,38 +19,22 @@
 
 void SHA256_init(SHA256_CTX* ctx)
 {
-#ifdef CHIP_BEST1306
-    export_fn_rom->SHA256_init(ctx);
-#else
     __export_fn_rom.SHA256_init(ctx);
-#endif
 }
 
 void SHA256_update(SHA256_CTX* ctx, const void* data, uint32_t len)
 {
-#ifdef CHIP_BEST1306
-    export_fn_rom->SHA256_update(ctx, data, len);
-#else
     __export_fn_rom.SHA256_update(ctx, data, len);
-#endif
 }
 
 const uint8_t* SHA256_final(SHA256_CTX* ctx)
 {
-#ifdef CHIP_BEST1306
-    return export_fn_rom->SHA256_final(ctx);
-#else
     return __export_fn_rom.SHA256_final(ctx);
-#endif
 }
 
 const uint8_t* SHA256_hash(const void* data, uint32_t len, uint8_t* digest)
 {
-#ifdef CHIP_BEST1306
-    return export_fn_rom->SHA256_hash(data, len, digest);
-#else
     return __export_fn_rom.SHA256_hash(data, len, digest);
-#endif
 }
 
 

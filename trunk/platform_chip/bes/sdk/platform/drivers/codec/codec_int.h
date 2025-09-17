@@ -55,9 +55,6 @@ int codec_anc_open(enum ANC_TYPE_T type, enum AUD_SAMPRATE_T dac_rate,
 	enum AUD_SAMPRATE_T adc_rate, CODEC_ANC_HANDLER hdlr);
 int codec_anc_close(enum ANC_TYPE_T type);
 
-int codec_pressure_open(enum AUD_SAMPRATE_T adc_rate);
-int codec_pressure_close(void);
-
 int codec_vad_open(const struct AUD_VAD_CONFIG_T *cfg);
 int codec_vad_close(void);
 

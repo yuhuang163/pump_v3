@@ -15,6 +15,11 @@
  ****************************************************************************/
 #ifndef __BES_GFPS_API_H__
 #define __BES_GFPS_API_H__
+#include "ble_gfps_common.h"
+
+#ifdef BLE_STACK_NEW_DESIGN
+#include "app_ble.h"
+#endif
 
 #ifdef BLE_HOST_SUPPORT
 #ifdef GFPS_ENABLED
@@ -22,14 +27,9 @@
 extern "C" {
 #endif
 
-#include "ble_gfps_common.h"
-#include "app_ble.h"
-
-#ifdef SPOT_ENABLED
-#include "ble_dult.h"
-#endif
-
+#ifdef BLE_STACK_NEW_DESIGN
 void bes_ble_gfps_init(app_ble_adv_activity_func func);
+#endif
 
 void bes_ble_gfps_send_keybase_pairing(uint8_t conidx, uint8_t *data, uint16_t length);
 
@@ -40,7 +40,6 @@ void bes_ble_gfps_l2cap_disconnect(uint8_t conidx);
 #ifdef SPOT_ENABLED
 void bes_ble_gfps_send_beacon_data(uint8_t conidx, uint8_t *data, uint16_t length);
 void bes_ble_spot_init(app_ble_adv_activity_func func);
-void bes_ble_dult_init(struct ble_dult_cb_t *cb);
 #endif
 
 #ifdef __cplusplus

@@ -20,6 +20,19 @@
 extern "C" {
 #endif
 
+typedef enum
+{
+    BES_BT_AVRCP_USER_EVENT_CONNECTION_STATE = 0x00,
+    BES_BT_AVRCP_USER_EVENT_KEY_PRESS_STATE = 0x01,
+    BES_BT_AVRCP_USER_EVENT_KEY_RELEASE_STATE = 0x02,
+    BES_BT_AVRCP_USER_EVENT_COMPANY_ID = 0x03,
+    BES_BT_AVRCP_USER_EVENT_CAPABILITY = 0x04,
+    BES_BT_AVRCP_USER_EVENT_MEDIA_INFO  = 0x05,
+    BES_BT_AVRCP_USER_EVENT_PLAY_STATUS = 0x06,
+    BES_BT_AVRCP_USER_EVENT_NOTIFICATION = 0x07
+} bes_bt_avrcp_user_event_e;
+
+
 typedef U16 bes_avrcp_panel_operation_t;
 
 #define BES_BT_AVRCP_POP_SELECT            0x0000
@@ -110,19 +123,27 @@ typedef enum {
     BES_BT_AVRCP_ATTR_MASK_COVER_HANDLE     = 0x80,
 } bes_bt_avrcp_attr_masks_t;
 
+typedef struct
+{
+    unsigned char companyNum;
+    unsigned int companyId[12];
+} bes_bt_avrcp_support_company_para;
+
+typedef struct
+{
+    /* The number of elements returned */
+    uint8_t numIds;
+    /* An array of element value text information */
+    avrcp_media_attr_t txt[BTIF_AVRCP_NUM_MEDIA_ATTRIBUTES];
+} bes_bt_avrcp_media_info_element;
+
+typedef void (*bes_bt_avrcp_user_event_callback)(bes_bt_avrcp_user_event_e type, uint8_t* addr, uint32_t para);
+
 bool bt_export_avrcp_channel_is_open(int device_id);
 bt_status_t bes_bt_avrcp_profile_connect(const bt_bdaddr_t *remote);
 bt_status_t bes_bt_avrcp_profile_disconnect(const bt_bdaddr_t *remote);
 bt_status_t bes_bt_avrcp_send_play_cmd(const bt_bdaddr_t *remote);
 bt_status_t bes_bt_avrcp_send_pause_cmd(const bt_bdaddr_t *remote);
-bt_status_t bes_bt_avrcp_send_volume_up_cmd(const bt_bdaddr_t *remote);
-bt_status_t bes_bt_avrcp_send_volume_down_cmd(const bt_bdaddr_t *remote);
-bt_status_t bes_bt_avrcp_send_forward_cmd(const bt_bdaddr_t *remote);
-bt_status_t bes_bt_avrcp_send_backward_cmd(const bt_bdaddr_t *remote);
-bt_status_t bes_bt_avrcp_send_fast_forward_press_cmd(const bt_bdaddr_t *remote);
-bt_status_t bes_bt_avrcp_send_fast_forward_release_cmd(const bt_bdaddr_t *remote);
-bt_status_t bes_bt_avrcp_send_rewind_press_cmd(const bt_bdaddr_t *remote);
-bt_status_t bes_bt_avrcp_send_rewind_release_cmd(const bt_bdaddr_t *remote);
 bt_avrcp_state_t bes_bt_avrcp_get_state(int device_id);
 bool bes_bt_avrcp_channel_is_open(int device_id);
 uint8_t bes_bt_avrcp_cb_get_event(const avrcp_callback_parms_t * parms);
@@ -139,32 +160,20 @@ void bes_bt_avrcp_set_volume_change_trans_id(uint8_t device_id, uint8_t trans_id
 uint8_t bes_bt_avrcp_get_ctl_trans_id(uint8_t device_id);
 void bes_bt_avrcp_set_ctl_trans_id(uint8_t device_id, uint8_t trans_id);
 bt_bdaddr_t *bes_bt_avrcp_get_remote_device_addr(btif_avrcp_channel_t* handle);
+
+void bes_bt_avcp_register_user_event_callback(bes_bt_avrcp_user_event_callback cb);
 btif_avrcp_channel_t *bes_bt_get_avrcp_channel_by_addr(uint8_t* addr);
 bt_status_t bes_bt_avrcp_send_volume_notify_rsp(const bt_bdaddr_t *bd_addr, uint8_t volume);
 uint8_t bes_bt_avcp_get_connect_status(uint8_t* addr);
 bt_status_t bes_bt_avrcp_key_operation(const bt_bdaddr_t *remote, bes_avrcp_panel_operation_t key, bool is_press);
 bt_status_t bes_bt_avrcp_ct_get_capabilities(const bt_bdaddr_t *remote, bes_bt_avrcp_capabilityId capabilityId);
+bt_status_t bes_bt_avrcp_ct_get_media_Info(const bt_bdaddr_t *remote, bes_bt_avrcp_attr_masks_t mediaMask);
 void bes_bt_avrcp_ct_callback(uint8_t device_id, btif_avrcp_channel_t* btif_avrcp, const avrcp_callback_parms_t* parms);
 bt_status_t bes_bt_avrcp_ct_register_play_pos_notification(const bt_bdaddr_t *remote, uint32_t interval);
 bt_status_t bes_bt_avrcp_ct_register_media_status_notification(const bt_bdaddr_t *remote, uint32_t interval);
 bt_status_t bes_bt_avrcp_ct_register_track_change_notification(const bt_bdaddr_t *remote, uint32_t interval);
 bt_status_t bes_bt_avrcp_ct_register_volume_change_notification(const bt_bdaddr_t *remote, uint32_t interval);
-bt_status_t bta_avrcp_send_get_media_status(const bt_bdaddr_t *bd_addr, uint32_t attr_masks);
-bt_status_t bta_avrcp_set_addressed_player(const bt_bdaddr_t *remote, uint16_t player_id);
-bt_status_t bta_avrcp_set_browsed_player(const bt_bdaddr_t *remote, uint16_t player_id);
-bt_status_t bta_avrcp_ct_get_folder_items(const bt_bdaddr_t *remote, void *param);
-bt_status_t bta_avrcp_ct_send_change_patch(const bt_bdaddr_t *remote, void *param);
-bt_status_t bta_avrcp_ct_send_get_item_attributes(const bt_bdaddr_t *remote, void *param);
-bt_status_t bta_avrcp_ct_send_search(const bt_bdaddr_t *remote, const char * string, uint16_t string_len);
-bt_status_t bta_avrcp_ct_get_total_number_of_items(const bt_bdaddr_t *remote, uint8_t scope);
-bt_status_t bta_avrcp_send_cover_art_get_image_properties(const bt_bdaddr_t *remote, const char *image_handle);
-bt_status_t bta_avrcp_send_cover_art_get_image(const bt_bdaddr_t *remote, const char *image_handle, const char *descriptor, uint16_t descriptor_len);
-bt_status_t bta_avrcp_send_cover_art_get_linked_thumbnail(const bt_bdaddr_t *remote, const char *image_handle);
-bt_status_t bta_avrcp_set_obex_srm_mode(const bt_bdaddr_t *remote, bool srm_mode_enable);
-void bta_avrcp_connect_browsing_channel(const bt_bdaddr_t *remote);
-void bta_avrcp_connect_obex_channel(const bt_bdaddr_t *remote);
-bool bta_avrcp_browsing_channel_is_connected(const bt_bdaddr_t *remote);
-bool bta_avrcp_obex_channel_is_connected(const bt_bdaddr_t *remote);
+
 #ifdef __cplusplus
 }
 #endif

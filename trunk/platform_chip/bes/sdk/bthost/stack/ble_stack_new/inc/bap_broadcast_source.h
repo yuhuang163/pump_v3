@@ -18,6 +18,7 @@
  ****************************************************************************/
 #ifndef __BAP_BC_SOURCE_INC__
 #define __BAP_BC_SOURCE_INC__
+#include "bluetooth.h"
 
 #include "gaf_cfg.h"
 #include "generic_audio.h"
@@ -223,30 +224,6 @@ int bap_bc_src_update_group_metadata(uint8_t grp_lid,
                                      uint8_t subgrp_lid_update,
                                      // Metadata Info for subgrp
                                      const gen_aud_metadata_t *p_md_subgrp);
-
-/**
- * @brief BAP broadcast Source update group additional ea data
- *
- * @param  grp_lid     Group local index
- * @param  p_add_pa_data
- *                     Additional EA data
- *
- * @return int         status
- */
-int bap_bc_src_update_group_additional_ea_data(uint8_t grp_lid,
-                                               const gen_aud_var_info_t *p_add_ea_data);
-
-/**
- * @brief BAP broadcast Source update group additional pa data
- *
- * @param  grp_lid     Group local index
- * @param  p_add_pa_data
- *                     Additional PA data
- *
- * @return int         status
- */
-int bap_bc_src_update_group_additional_pa_data(uint8_t grp_lid,
-                                               const gen_aud_var_info_t *p_add_pa_data);
 
 /**
  * @brief BAP broadcast Source disable group stream with iso datapath remove

@@ -17,7 +17,6 @@
 #define __APP_AUDIO_H__
 
 #include "bluetooth_bt_api.h"
-#include "app_bt_stream.h"
 #include "heap_api.h"
 
 //should solve this problem
@@ -28,12 +27,48 @@
 extern "C" {
 #endif
 
+//This buff is used as queue
+#ifndef APP_AUDIO_BUFFER_SIZE
+#if (RAM_SIZE >= 0x48000)
+
+#if defined(AUDIO_ANC_FB_MC) && defined(ANC_APP) && !defined(__AUDIO_RESAMPLE__)
+
+#if defined(A2DP_EQ_24BIT)
+#define APP_AUDIO_BUFFER_SIZE (1024 * 210)
+#else
+#define APP_AUDIO_BUFFER_SIZE (1024 * 140)
+#endif
+
+#else
+#define APP_AUDIO_BUFFER_SIZE (1024 * 100)
+#endif
+
+#elif (RAM_SIZE >= 0x40000)
+
+#ifdef NEW_NV_RECORD_ENABLED
+#define APP_AUDIO_BUFFER_SIZE (1024 * 62)
+#else
+#define APP_AUDIO_BUFFER_SIZE (1024 * 59)
+#endif
+
+#else // RAM_SIZE < 0x40000
+
+#ifdef APP_TEST_AUDIO
+#define APP_AUDIO_BUFFER_SIZE (1024 * 10)
+#elif defined(SPEECH_RX_NS)
+#define APP_AUDIO_BUFFER_SIZE (1024 * 37)
+#else
+#define APP_AUDIO_BUFFER_SIZE (1024 * 32)
+#endif
+
+#endif // RAM_SIZE < 0x40000
+#endif
+
 /// buffer size for hotword engine
 #if defined(__ALEXA_WWE)
-// #define HW_ENGINE_BUF_SIZE      (67 * 1024)
-#define HW_ENGINE_BUF_SIZE      (0)
+#define HW_ENGINE_BUF_SIZE      (67 * 1024)
 #define HW_MODEL_FILE_BUF_SIZE  (0)
-#elif defined(__BIXBY)
+#elif defined(__BIXBY_VOICE__)
 #define HW_ENGINE_BUF_SIZE      (20 * 1024)          //should >= BIXBY_AUDIO_BUF_SIZE
 #define HW_MODEL_FILE_BUF_SIZE  (0)
 #else
@@ -42,7 +77,6 @@ extern "C" {
 #endif
 
 /// buffer size for encode
-#ifndef ENCODE_BUF_SIZE
 #if defined(VOC_ENCODE_ENABLE)
 #if defined(__BIXBY_VOICE__)
 #define ENCODE_BUF_SIZE         (24 * 1024)
@@ -55,7 +89,6 @@ extern "C" {
 #endif
 #else
 #define ENCODE_BUF_SIZE         (0)
-#endif
 #endif
 
 /// encoded data cache buffer size
@@ -74,21 +107,17 @@ extern "C" {
 #endif
 
 /// buffer size for PCM data cache queue
-#ifndef PCM_DATA_CACHE_BUF_SIZE
 #ifdef __AI_VOICE__
-#define PCM_DATA_CACHE_BUF_SIZE     (32000)
+#define PCM_DATA_CACHE_BUF_SIZE     (64000)
 #else
 #define PCM_DATA_CACHE_BUF_SIZE     (0)
 #endif
-#endif
 
 /// buffer size for audio flinger cache PCM data
-#ifndef PCM_AUDIO_FLINGER_BUF_SIZE
 #ifdef __AI_VOICE__
 #define PCM_AUDIO_FLINGER_BUF_SIZE  (4 * 1024)
 #else
 #define PCM_AUDIO_FLINGER_BUF_SIZE  (0)
-#endif
 #endif
 
 /// buffer sizr for VAD
@@ -110,22 +139,26 @@ extern "C" {
 #define ANC_ASSIST_RESAMPLE_BUF_SIZE (0)
 #endif
 
-#if defined(STEREO_RECORD_PROCESS) && defined(DUAL_MIC_RECORDING)
-#define STEREO_RECORD_PROCESS_BUF_SIZE  (10 * 1024)
+#if defined(BINAURAL_RECORD_PROCESS) && defined(DUAL_MIC_RECORDING)
+#define BINAURAL_RECORD_PROCESS_BUF_SIZE  (10 * 1024)
 #else
-#define STEREO_RECORD_PROCESS_BUF_SIZE  (0)
+#define BINAURAL_RECORD_PROCESS_BUF_SIZE  (0)
 #endif
 
 #define APP_CAPTURE_AUDIO_BUFFER_SIZE   (HW_ENGINE_BUF_SIZE + ENCODE_BUF_SIZE + ENCODED_DATA_BUF_SIZE + \
                                         ENCODE_CODEC_BUF_SIZE + PCM_DATA_CACHE_BUF_SIZE + PCM_AUDIO_FLINGER_BUF_SIZE + \
                                         VAD_BUF_SIZE + ANC_ASSIST_BUF_SIZE + ANC_ASSIST_RESAMPLE_BUF_SIZE + \
-                                        STEREO_RECORD_PROCESS_BUF_SIZE + HW_MODEL_FILE_BUF_SIZE)
+                                        BINAURAL_RECORD_PROCESS_BUF_SIZE + HW_MODEL_FILE_BUF_SIZE)
 
 #if defined(A2DP_SCALABLE_ON)
 #define SCALABLE_MAX_FRAME_SIZE (900)
 #define SCALABLE_FRAME_SIZE     (864)
 #define SCALABLE_HEAD_SIZE      (4)     /* pick something big enough to hold a bunch of frames */
+#if defined(A2DP_SCALABLE_UHQ_SUPPORT)
+#define SCALABLE_READBUF_SIZE   (800)
+#else
 #define SCALABLE_READBUF_SIZE   (600)   /* pick something big enough to hold a bunch of frames */
+#endif
 #define SCALABLE_DECODER_SIZE   (17456) /* pick something big enough to hold a bunch of frames */
 #endif
 
@@ -163,24 +196,20 @@ enum APP_AUDIO_CACHE_T {
 
 #define app_audio_mempool_calloc syspool_calloc
 
+#define app_audio_mempool_init_with_specific_size syspool_init_specific_size
+
 #if defined(A2DP_LDAC_ON)
 #define  app_audio_mempool_total_buf              syspool_total_size
 #define  app_audio_mempool_force_set_buff_used    syspool_force_used_size
 #endif
 
-typedef void (*app_ble_audio_callback_t)(uint8_t conlid);
+typedef void (*APP_BLE_AUDIO_CALLBACK_T)(uint8_t con_id, uint32_t data);
 
 void UNLOCK_APP_AUDIO_QUEUE();
 
 void LOCK_APP_AUDIO_QUEUE();
 
 uint32_t app_audio_lr_balance(uint8_t *buf, uint32_t len, int8_t balance);
-
-uint32_t app_audio_mempool_original_size(void);
-
-uint32_t app_audio_mempool_size(void);
-
-void app_audio_mempool_init_with_specific_size(uint32_t size);
 
 int app_audio_pcmbuff_init(uint8_t *buff, uint16_t len);
 
@@ -236,34 +265,11 @@ void app_start_post_chopping_timer(void);
 
 void a2dp_audio_retrigger_set_on_process(bool flag);
 
-int app_anc_assist_mempool_init(uint32_t buff_size);
+void app_ble_audio_register_start_callback(APP_BLE_AUDIO_CALLBACK_T cb);
 
-uint32_t app_anc_assist_mempool_free_buff_size(void);
+void app_ble_audio_register_stop_callback(APP_BLE_AUDIO_CALLBACK_T cb);
 
-int app_anc_assist_mempool_get_buff(uint8_t **buff, uint32_t size);
-
-#if defined(TOTA_FACTORY_USED)
-int app_tota_mempool_init(uint32_t buff_size);
-
-uint32_t app_tota_mempool_free_buff_size();
-
-int app_tota_mempool_get_buff(uint8_t **buff, uint32_t size);
-#endif
-
-void app_ble_audio_register_start_callback(app_ble_audio_callback_t cb);
-
-void app_ble_audio_register_stop_callback(app_ble_audio_callback_t cb);
-
-void app_ble_audio_register_stop_single_stream_callback(app_ble_audio_callback_t cb);
-
-#if defined(APP_ANC_TEST)
-int app_anc_test_mempool_init(uint32_t buff_size);
-
-uint32_t app_anc_test_mempool_free_buff_size();
-
-int app_anc_test_mempool_get_buff(uint8_t **buff, uint32_t size);
-#endif
-
+void app_ble_audio_register_stop_single_stream_callback(APP_BLE_AUDIO_CALLBACK_T cb);
 #ifdef __cplusplus
 }
 #endif

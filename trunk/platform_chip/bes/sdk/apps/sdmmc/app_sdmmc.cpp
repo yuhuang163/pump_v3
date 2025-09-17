@@ -35,19 +35,19 @@ int sd_open()
     DIR *d = opendir("/sd");
     if (!d)
     {
-        SDMMC_TRACE(0,"sd file system borked\n");
+        TRACE(0,"sd file system borked\n");
         return -1;
     }
 
-    SDMMC_TRACE(0,"---------root---------\n");
+    TRACE(0,"---------root---------\n");
     struct dirent *p;
     while ((p = readdir(d)))
     {
         int len = sizeof( dirent);
-        SDMMC_TRACE(2,"%s %d\n", p->d_name, len);
+        TRACE(2,"%s %d\n", p->d_name, len);
     }
     closedir(d);
-    SDMMC_TRACE(0,"--------root end-------\n");
+    TRACE(0,"--------root end-------\n");
 
     return 0;
 }
@@ -73,7 +73,7 @@ void test_wave_play(bool  on)
         isRun=on;
 
 
-    SDMMC_TRACE(2,"%s %d\n", __func__, on);
+    TRACE(2,"%s %d\n", __func__, on);
     memset(&stream_cfg, 0, sizeof(stream_cfg));
     if (on){
         play_wav_file(wave);
@@ -107,13 +107,13 @@ FRESULT pcm_res;
 UINT pcm_num;
 uint32_t pcm_save_more_data(uint8_t *buf, uint32_t len)
 {
-//    SDMMC_TRACE(2,"%s\n len:%d", __func__, len);
+//    TRACE(2,"%s\n len:%d", __func__, len);
 
     audio_buffer_set_stereo2mono_16bits(buf, len, 1);
     pcm_res = f_write(&pcm_fil,(uint8_t *)buf,len>>1,&pcm_num);
     if(pcm_res != FR_OK)
     {
-        SDMMC_TRACE(2,"[%s]:error-->res = %d", __func__, pcm_res);
+        TRACE(2,"[%s]:error-->res = %d", __func__, pcm_res);
     }
     return 0;
 }
@@ -124,13 +124,13 @@ void  ad_tester(bool run)
 
     struct AF_STREAM_CONFIG_T stream_cfg;
 
-    SDMMC_TRACE(2,"%s %d\n", __func__, run);
+    TRACE(2,"%s %d\n", __func__, run);
 
     if (run){
         memset(&stream_cfg, 0, sizeof(stream_cfg));
         pcm_res = f_open(&pcm_fil,"test2.bin",FA_CREATE_ALWAYS | FA_WRITE);
         if (pcm_res) {
-            SDMMC_TRACE(2,"[%s]:Cannot creat test2.bin...%d",__func__, pcm_res);
+            TRACE(2,"[%s]:Cannot creat test2.bin...%d",__func__, pcm_res);
             return;
         }
 
@@ -193,10 +193,10 @@ void dump_data2sd(enum APP_SDMMC_DUMP_T opt, uint8_t *buf, uint32_t len)
 
     if(res == FR_OK)
     {
-        SDMMC_TRACE(3,"[%s] SUCESS: opt = %d, res = %d",__func__, opt, res);
+        TRACE(3,"[%s] SUCESS: opt = %d, res = %d",__func__, opt, res);
     }
     else
     {
-        SDMMC_TRACE(3,"[%s] ERROR: opt = %d, res = %d",__func__, opt, res);
+        TRACE(3,"[%s] ERROR: opt = %d, res = %d",__func__, opt, res);
     }
 }

@@ -16,7 +16,7 @@
 #include "bt_drv.h"
 
 #ifndef ASSERT_ERR
-#define ASSERT_ERR(cond)                             { if (!(cond)) { DRIVERS_TRACE(2,"line is %d file is %s", __LINE__, __FILE__); } }
+#define ASSERT_ERR(cond)                             { if (!(cond)) { BT_DRV_TRACE(2,"line is %d file is %s", __LINE__, __FILE__); } }
 #endif
 
 #define REG_RPL_WR(reg, mask, shift, v)\

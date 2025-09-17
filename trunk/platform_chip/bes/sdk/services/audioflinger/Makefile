@@ -14,7 +14,8 @@ ccflags-y := \
 	-Imultimedia/inc/audio/process/floatlimiter/include \
 	-Iplatform/drivers/ana \
 	-Imultimedia/inc/audio/process/filters/cfg \
-	-Imultimedia/inc/audio/process/filters/include
+	-Imultimedia/inc/audio/process/filters/include \
+	-Itests/besair_platform/bsp_tester/dac_eq_interface/cfg
 
 ifeq ($(DMA_RPC_CLI),1)
 ccflags-y += -Iplatform/drivers/stream_dma_rpc
@@ -38,6 +39,10 @@ endif
 
 ifeq ($(AUDIO_OUTPUT_I2S_SW_GAIN),1)
 CFLAGS_audioflinger.o += -DAUDIO_OUTPUT_I2S_SW_GAIN
+endif
+
+ifeq ($(AUDIO_OUTPUT_TDM_SW_GAIN),1)
+CFLAGS_audioflinger.o += -DAUDIO_OUTPUT_TDM_SW_GAIN
 endif
 
 ifeq ($(AUDIO_OUTPUT_SW_GAIN),1)
@@ -132,11 +137,7 @@ ifeq ($(AUDIO_OUTPUT_CALIB_GAIN_MISSMATCH),1)
 CFLAGS_audioflinger.o += -DAUDIO_OUTPUT_CALIB_GAIN_MISSMATCH
 endif
 
-ifneq ($(CHIP_HAS_I2S),)
-CFLAGS_audioflinger.o += -DCHIP_HAS_I2S=$(CHIP_HAS_I2S)
-endif
-
-ifneq ($(I2S_RESAMPLE),)
+ifeq ($(call value_zero,$(I2S_RESAMPLE)),n)
 CFLAGS_audioflinger.o += -DI2S_RESAMPLE
 endif
 
@@ -156,6 +157,9 @@ AF_DEVICE_BT_PCM ?= 1
 endif
 
 # Individual device macro
+ifeq ($(FPGA),1)
+AF_DEVICE_EXT_CODEC ?= 1
+endif
 ifeq ($(AF_DEVICE_EXT_CODEC),1)
 CFLAGS_audioflinger.o += -DAF_DEVICE_EXT_CODEC
 endif

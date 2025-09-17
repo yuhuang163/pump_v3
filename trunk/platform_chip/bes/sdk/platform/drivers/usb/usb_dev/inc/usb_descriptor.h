@@ -1,6 +1,6 @@
 /***************************************************************************
  *
- * Copyright 2015-2019 BES.
+ * Copyright 2015-2024 BES.
  * All rights reserved. All unpublished rights reserved.
  *
  * No part of this work may be used or reproduced in any form or by any
@@ -108,6 +108,11 @@ extern "C" {
 #define LSB1(n) (((n) >> 8) & 0xFF)
 #define LSB2(n) (((n) >> 16) & 0xFF)
 #define LSB3(n) (((n) >> 24) & 0xFF)
+
+#define LSB4(n) (((n) >> 32) & 0xFF)
+#define LSB5(n) (((n) >> 40) & 0xFF)
+#define LSB6(n) (((n) >> 48) & 0xFF)
+#define LSB7(n) (((n) >> 56) & 0xFF)
 
 /* Convert physical endpoint number to descriptor endpoint number */
 #define PHY_TO_DESC(endpoint, dir) (((endpoint) & 0xF) | ((dir == EP_OUT) ? 0 : 0x80))

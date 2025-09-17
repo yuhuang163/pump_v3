@@ -44,11 +44,11 @@ void ohos_walkie_talkie_stream_start(uint8_t device_id, void* fifo)
     walkie_talkie_stream_t  pcm_msg;
     walkie_talkie_stream_info *p_pcm_info;
 
-    OHOS_WALKIE_TALKIE_STREAM_TRACE(3,"%s  %d device id %d", __FUNCTION__, __LINE__, device_id);
+    TRACE(3,"%s  %d device id %d", __FUNCTION__, __LINE__, device_id);
 
     if(device_id >= OHOS_MEDIA_WALKIE_TALKIE_NUMBER)
     {
-        OHOS_WALKIE_TALKIE_STREAM_TRACE(3, "%s device id to large id %d > max %d ", __func__, device_id, OHOS_MEDIA_WALKIE_TALKIE_NUMBER);
+        TRACE(3, "%s device id to large id %d > max %d ", __func__, device_id, OHOS_MEDIA_WALKIE_TALKIE_NUMBER);
         return;
     }
     if (send_walkie_talkie_stream_msg) 
@@ -65,7 +65,7 @@ void ohos_walkie_talkie_stream_start(uint8_t device_id, void* fifo)
         pcm_msg.msg_type = WALKIE_TALKIE_PCM_STREAM_START;
         pcm_msg.msg_arg_len = sizeof(walkie_talkie_stream_info);
         send_walkie_talkie_stream_msg(&pcm_msg);
-        OHOS_WALKIE_TALKIE_STREAM_TRACE(4, "%s %d device id %d, kfifo id = %p\n", __func__, __LINE__, device_id, walkie_talkie_fifo[device_id]);
+        TRACE(4, "%s %d device id %d, kfifo id = %p\n", __func__, __LINE__, device_id, walkie_talkie_fifo[device_id]);
     }
     return;
 }
@@ -74,11 +74,11 @@ void ohos_walkie_talkie_stream_stop(uint8_t device_id)
 {
     walkie_talkie_stream_t  pcm_msg;
 
-    OHOS_WALKIE_TALKIE_STREAM_TRACE(3,"%s  %d device id %d", __FUNCTION__, __LINE__, device_id);
+    TRACE(3,"%s  %d device id %d", __FUNCTION__, __LINE__, device_id);
 
     if(device_id >= OHOS_MEDIA_WALKIE_TALKIE_NUMBER)
     {
-        OHOS_WALKIE_TALKIE_STREAM_TRACE(3, "%s device id to large id %d > max %d ", __func__, device_id, OHOS_MEDIA_WALKIE_TALKIE_NUMBER);
+        TRACE(3, "%s device id to large id %d > max %d ", __func__, device_id, OHOS_MEDIA_WALKIE_TALKIE_NUMBER);
         return;
     }
     if (send_walkie_talkie_stream_msg) 
@@ -98,10 +98,10 @@ void walkie_talkie_write_data_to_ohos(uint8_t device_id)
 
     if(device_id >= OHOS_MEDIA_WALKIE_TALKIE_NUMBER)
     {
-        OHOS_WALKIE_TALKIE_STREAM_TRACE(3, "%s device id to large id %d > max %d ", __func__, device_id, OHOS_MEDIA_WALKIE_TALKIE_NUMBER);
+        TRACE(3, "%s device id to large id %d > max %d ", __func__, device_id, OHOS_MEDIA_WALKIE_TALKIE_NUMBER);
         return;
     }
-    OHOS_WALKIE_TALKIE_STREAM_TRACE(3,"%s  %d device id %d", __FUNCTION__, __LINE__, device_id);
+    TRACE(3,"%s  %d device id %d", __FUNCTION__, __LINE__, device_id);
     if (send_walkie_talkie_stream_msg) 
     {
         pcm_msg.msg_data[0] = device_id;
@@ -130,14 +130,14 @@ uint32_t ohos_walkie_talkie_updata_stream(uint8_t device_id, uint8_t *pcm_buf, u
 
     if (walkie_talkie_fifo[device_id] == NULL)
     {
-        OHOS_WALKIE_TALKIE_STREAM_TRACE(2,"%s  line %d ",__func__, __LINE__);
+        TRACE(2,"%s  line %d ",__func__, __LINE__);
         return 0;
     }
 
     data_len = kfifo_len(walkie_talkie_fifo[device_id]);
-    // OHOS_WALKIE_TALKIE_STREAM_TRACE(4,"%s  line %d data_len %d, len %d ",__func__, __LINE__,data_len, len);
-    // OHOS_WALKIE_TALKIE_STREAM_TRACE(4, "%s kfifo = %p in %d out %d", __func__, walkie_talkie_fifo[device_id], walkie_talkie_fifo[device_id]->in, walkie_talkie_fifo[device_id]->out);
-    // OHOS_WALKIE_TALKIE_STREAM_DUMP8("%02x", (uint8_t *)walkie_talkie_fifo[device_id], 16);
+    // TRACE(4,"%s  line %d data_len %d, len %d ",__func__, __LINE__,data_len, len);
+    // TRACE(4, "%s kfifo = %p in %d out %d", __func__, walkie_talkie_fifo[device_id], walkie_talkie_fifo[device_id]->in, walkie_talkie_fifo[device_id]->out);
+    // DUMP8("%02x", (uint8_t *)walkie_talkie_fifo[device_id], 16);
     if (len <= data_len)
     {
         kfifo_get(walkie_talkie_fifo[device_id], pcm_buf, len);
@@ -145,7 +145,7 @@ uint32_t ohos_walkie_talkie_updata_stream(uint8_t device_id, uint8_t *pcm_buf, u
     }
     else if (data_len > 0)
     {
-        //OHOS_WALKIE_TALKIE_STREAM_TRACE(2,"kfifo data_len %d  len %d", data_len, len);
+        //TRACE(2,"kfifo data_len %d  len %d", data_len, len);
         kfifo_get(walkie_talkie_fifo[device_id], pcm_buf, data_len);
         real_len = data_len;
     }

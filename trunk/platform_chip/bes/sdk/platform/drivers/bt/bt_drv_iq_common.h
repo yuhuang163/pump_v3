@@ -21,13 +21,13 @@
 #define BTRF_REG_DUMP(addr) do{ \
                                 uint16_t rf_reg_val = 0; \
                                 btdrv_read_rf_reg(addr, &rf_reg_val); \
-                                DRIVERS_TRACE(2,"btrf reg addr:%04x val:%04x", addr, rf_reg_val); \
+                                TRACE_IMM(2,"btrf reg addr:%04x val:%04x", addr, rf_reg_val); \
                             }while(0);
 
 #define BTRF_DIG_DUMP(addr) do{ \
                                 uint32_t dig_reg_val = 0; \
                                 dig_reg_val = BTDIGITAL_REG(addr); \
-                                DRIVERS_TRACE(2,"dig reg addr:%08x val:%08x", addr, dig_reg_val); \
+                                TRACE_IMM(2,"dig reg addr:%08x val:%08x", addr, dig_reg_val); \
                             }while(0);
 
 void bt_drv_rx_iq_datasort(int *arry,int len);

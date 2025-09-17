@@ -65,10 +65,10 @@ static uint32_t g_extern_data_size  = 0;
 static AF_STREAM_HANDLER_T g_extern_handler = NULL;
 static mempool_get_buff_t g_mempool_get_buff = NULL;
 
-static int16_t POSSIBLY_UNUSED *g_ai_buf = NULL;
+static int16_t  *g_ai_buf = NULL;
 static uint32_t g_ext_buf_used_size = 0;
 
-static void POSSIBLY_UNUSED *_get_ext_buf(int size, uint8_t user_index)
+static void *_get_ext_buf(int size, uint8_t user_index)
 {
     uint8_t *pBuf = NULL;
 
@@ -89,7 +89,7 @@ static void _ext_buf_usage_start(void)
 
 static void _ext_buf_usage_end(void)
 {
-    VOICE_ASSIST_TRACE(0, "[AI VOICE Rsample] RAM usage: %d bytes", g_ext_buf_used_size);
+    TRACE(0, "[AI VOICE Rsample] RAM usage: %d bytes", g_ext_buf_used_size);
 }
 
 #if _RESAMPLE_ENABLE
@@ -270,7 +270,7 @@ static void _resample_get_data(uint8_t *buf, uint32_t len)
 
 static int _resample_cb(uint8_t *buf, uint32_t len)
 {
-    // VOICE_ASSIST_TRACE(2,"[%s] len = %d", __func__, len);
+    // TRACE(2,"[%s] len = %d", __func__, len);
 
     _resample_store_data(buf, len);
 
@@ -397,7 +397,7 @@ int32_t assist_ai_voice_record_open(struct AF_STREAM_CONFIG_T *stream_cfg, mempo
 
     _ext_buf_usage_end();
 
-    VOICE_ASSIST_TRACE(0, "[%s]: sample rate: %d, bits: %d, channel number: %d, data size:%d",
+    TRACE(0, "[%s]: sample rate: %d, bits: %d, channel number: %d, data size:%d",
         __func__,
         g_stream_cfg.sample_rate,
         g_stream_cfg.bits,

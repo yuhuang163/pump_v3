@@ -21,6 +21,7 @@ unsigned int kfifo_peek(struct kfifo *k, unsigned int len_want, unsigned char **
 unsigned int kfifo_peek_to_buf(struct kfifo *fifo, unsigned char *buff, unsigned int len);
 unsigned int kfifo_len(struct kfifo *fifo);
 unsigned int kfifo_get_free_space(struct kfifo *fifo);
+unsigned int kfifo_available(struct kfifo *fifo);
 
 #if defined(__cplusplus)
 }

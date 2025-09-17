@@ -19,7 +19,7 @@
 #ifndef __GAF_DBG_INC__
 #define __GAF_DBG_INC__
 
-#include <stdint.h>
+#include "bluetooth.h"
 
 /*ENUM*/
 #define GAF_LOG_LEVEL_CRITICAL  (0)
@@ -31,18 +31,19 @@
 #define GAF_LOG_LEVEL_MAX       (5)
 
 /*DEFINE*/
-#if (DEBUG)
 #define GAF_LOG_LEVEL           GAF_LOG_LEVEL_DEBUG
-#else
-#define GAF_LOG_LEVEL           GAF_LOG_LEVEL_CRITICAL
-#endif
 
 #ifndef GAF_LOG_MODULE
 #define GAF_LOG_MODULE          "GAF_LOG_UNDEF"
 #endif /// GAF_LOG_MODULE
 
+#if defined (BUILD_BTH_ROM)
 #define GAF_PRINTF(lvl, str, ...)\
                                 gaf_log_printf(lvl, str, ##__VA_ARGS__)
+#else
+#define GAF_PRINTF(lvl, str, ...)\
+                                TRACE(TR_MOD(BLESTACK), str, ##__VA_ARGS__)
+#endif
 
 #if (GAF_LOG_LEVEL >= GAF_LOG_LEVEL_DEBUG)
 #define GAF_LOG_D(str, ...)     GAF_PRINTF(GAF_LOG_LEVEL_DEBUG, "[D][%s][%d]"str, GAF_LOG_MODULE, __LINE__, ##__VA_ARGS__)

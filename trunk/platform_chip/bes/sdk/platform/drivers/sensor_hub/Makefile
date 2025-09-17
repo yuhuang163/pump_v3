@@ -16,9 +16,23 @@ CFLAGS_rx_sens_trc.o += -Iplatform/drivers/rmt_trace -DSENS_TRC_TO_MCU
 CFLAGS_sensor_hub.o += -DSENS_TRC_TO_MCU
 endif
 
-ifeq ($(filter 1,$(SENS_FLASH_BOOT) $(SENSOR_HUB_LOAD_FROM_FLASH_ADDR)),)
+ifeq ($(SENS_FLASH_BOOT),1)
+CFLAGS_sensor_hub.o += -DSENS_FLASH_BOOT
+INCLUDE_SENS_BIN := 0
+else ifneq ($(SENS_LOAD_FILE_NAME),)
+CFLAGS_sensor_hub.o += -DSENS_LOAD_FILE_NAME=$(SENS_LOAD_FILE_NAME)
+INCLUDE_SENS_BIN := 0
+else ifneq ($(SENS_LOAD_FLASH_ADDR),)
+CFLAGS_sensor_hub.o += \
+	-DSENS_LOAD_FLASH_ADDR=$(SENS_LOAD_FLASH_ADDR) \
+	-DSENS_LOAD_FLASH_SIZE=$(SENS_LOAD_FLASH_SIZE)
+INCLUDE_SENS_BIN := 0
+endif
+INCLUDE_SENS_BIN ?= 1
 
-ifeq ($(__NuttX__),1)
+ifeq ($(INCLUDE_SENS_BIN),1)
+
+ifeq ($(NUTTX_BUILD),1)
 SENSOR_HUB_TGT ?= vela_sensor
 $(obj)/sensor_hub_bin.o : $(NUTTX_ROOT)/$(SENSOR_HUB_TGT).bin
 AFLAGS_sensor_hub_bin.o += -DSENSOR_HUB_BIN_NAME=$(SENSOR_HUB_TGT).bin -Wa,-I$(NUTTX_ROOT)
@@ -28,20 +42,16 @@ $(obj)/sensor_hub_bin.o : out/$(SENSOR_HUB_TGT)/$(SENSOR_HUB_TGT).bin
 AFLAGS_sensor_hub_bin.o += -DSENSOR_HUB_BIN_NAME=$(SENSOR_HUB_TGT).bin -Wa,-Iout/$(SENSOR_HUB_TGT)
 endif
 
-else # SENS_FLASH_BOOT || SENSOR_HUB_LOAD_FROM_FLASH_ADDR
-
-ifeq ($(SENS_FLASH_BOOT),1)
-CFLAGS_sensor_hub.o += -DSENS_FLASH_BOOT
-endif
+else # !INCLUDE_SENS_BIN
 
 EXCLUDE_OBJS += sensor_hub_bin.o
 obj-y := $(filter-out $(EXCLUDE_OBJS),$(obj-y))
 
-endif # SENS_FLASH_BOOT || SENSOR_HUB_LOAD_FROM_FLASH_ADDR
+endif # !INCLUDE_SENS_BIN
 
-#ifeq ($(CAPSENSOR_ENABLE),1)
+ifeq ($(CAPSENSOR_ENABLE),1)
 ccflags-y += \
 -Iplatform/drivers/ana/ \
 -Iplatform/drivers/bt
 CFLAGS_sensor_hub.o += -DCAPSENSOR_ENABLE
-#endif
+endif

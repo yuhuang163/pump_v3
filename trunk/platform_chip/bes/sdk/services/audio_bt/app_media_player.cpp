@@ -22,12 +22,11 @@
 #include "list.h"
 
 #ifdef MEDIA_PLAYER_SUPPORT
-#if defined(USE_BASIC_THREADS)
-#include "app_thread.h"
-#endif
+
 #include "hal_uart.h"
 #include "hal_timer.h"
 #include "audioflinger.h"
+#include "af_stream_sw_gain.h"
 #include "lockcqueue.h"
 #include "hal_trace.h"
 #include "hal_cmu.h"
@@ -36,18 +35,13 @@
 #include "app_overlay.h"
 #include "app_audio.h"
 #include "app_utils.h"
+#include "app_bt_stream.h"
 #include "bluetooth_bt_api.h"
 #include "app_media_player.h"
 #include "res_audio_ring.h"
 #include "audio_prompt_sbc.h"
-#include "app_bt.h"
-#include "besbt.h"
-#include "audio_policy.h"
-#if defined(BT_SOURCE)
-#include "bt_source.h"
-#endif
+#include "bt_drv_interface.h"
 #include "cqueue.h"
-#include "btapp.h"
 #include "app_bt_media_manager.h"
 #include "a2dp_decoder.h"
 #ifdef PROMPT_IN_FLASH
@@ -81,15 +75,17 @@
 
 #if defined(IBRT)
 #include "app_tws_ibrt.h"
-#include "app_ibrt_internal.h"
 #include "app_tws_ibrt_cmd_handler.h"
+#include "app_tws_ctrl_thread.h"
 #include "app_ibrt_voice_report.h"
-#include "bts_core_if.h"
-#include "bts_tws_if.h"
 #endif
 
 #if defined(ANC_ASSIST_ENABLED) && defined(ANC_ASSIST_USE_INT_CODEC)
 #include "app_anc_assist.h"
+#endif
+
+#if defined(PROMPT_CTRL_ANC)
+#include "app_prompt_ctrl_anc.h"
 #endif
 
 #if defined(__SW_IIR_PROMPT_EQ_PROCESS__)
@@ -100,20 +96,21 @@
 #define MEDIA_PLAYER_USE_CODEC2
 #endif
 
-#if defined(FREEMAN_ENABLED_STERO)
-#define MEDIA_PLAYER_CHANNEL_NUM (AUD_CHANNEL_NUM_2)
-#elif defined(PLAYBACK_USE_I2S)
-#define MEDIA_PLAYER_CHANNEL_NUM (AUD_CHANNEL_NUM_2)
-#else
-#define MEDIA_PLAYER_CHANNEL_NUM (AUD_CHANNEL_NUM_1)
+#ifdef ADVANCE_FILL_ENABLED
+extern void app_bt_stream_advance_fill_handler(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T stream);
 #endif
+
+#if defined(IBRT)
+/* When trigger time is possible timeout in Secondary bud, will try to lost some pcm to play */
+#define PROMPT_SUPPORT_SE_JOIN
+#endif
+
+#define MEDIA_PLAYER_CHANNEL_NUM (AUD_CHANNEL_NUM_2)
 
 #ifdef MEDIA_PLAYER_USE_CODEC2
 #define MEDIA_PLAYER_OUTPUT_DEVICE (AUD_STREAM_USE_INT_CODEC2)
-#define AF_CODEC_TUNE af_codec_tune_dac2
 #else
 #define MEDIA_PLAYER_OUTPUT_DEVICE (AUD_STREAM_USE_INT_CODEC)
-#define AF_CODEC_TUNE af_codec_tune
 #endif
 
 #ifdef __INTERACTION__
@@ -125,59 +122,15 @@ static char need_init_decoder = 1;
 static sbc_decoder_t *media_sbc_decoder = NULL;
 
 #define SBC_TEMP_BUFFER_SIZE 64
-#define SBC_QUEUE_SIZE (SBC_TEMP_BUFFER_SIZE*4)
+#define SBC_QUEUE_SIZE (SBC_TEMP_BUFFER_SIZE*16)
 static CQueue media_sbc_queue;
 
 #define CFG_HW_AUD_EQ_NUM_BANDS (8)
-static const float media_sbc_eq_band_gain[CFG_HW_AUD_EQ_NUM_BANDS] = {1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0};
+static float * media_sbc_eq_band_gain = NULL;
 
 // 128 * 2: 16ms for 16k sample rate
-#if defined(PROMPT_USE_AAC)
-#include "aac_api.h"
-#include "aac_error_code.h"
-#include "heap_api.h"
-static void * aacDec_handle = NULL;
-static heap_handle_t aac_memhandle = NULL;
-static uint8_t *aac_mempoll = NULL;
-static heap_api_t aac_heap_api;
-static void * aac_malloc(const unsigned size)
-{
-    void * ptr = NULL;
-    multi_heap_info_t info;
-    heap_get_info(aac_memhandle, &info);
-    if (size >= info.total_free_bytes){
-        AUDIO_BT_TRACE(0, "aac_malloc failed need:%d, free_bytes:%d \n", size, info.total_free_bytes);
-        return ptr;
-    }
-    AUDIO_BT_TRACE(0, "aac_malloc size=%u free=%u alloc=%u", size, info.total_free_bytes, info.total_allocated_bytes);
-    ptr = heap_malloc(aac_memhandle,size);
-    return ptr;
-}
-
-static void aac_free(void * ptr)
-{
-    heap_free(aac_memhandle, (int*)ptr);
-}
-
-static void *aac_calloc(const unsigned n, const unsigned size)
-{
-    void * ptr = aac_malloc(n*size);
-    if(ptr != NULL) {
-        memset(ptr,0,n*size);
-    }
-    return ptr;
-}
-
-static heap_api_t aac_get_heap_api()
-{
-    heap_api_t api;
-    api.malloc = &aac_malloc;
-    api.free = &aac_free;
-    api.calloc = &aac_calloc;
-    return api;
-}
-
-#define APP_AUDIO_PLAYBACK_BUFF_SIZE        (1024 * 1 * sizeof(int16_t) * MEDIA_PLAYER_CHANNEL_NUM * 2)
+#if defined(__BT_ANC__) || defined(PSAP_FORCE_STREAM_48K)
+#define APP_AUDIO_PLAYBACK_BUFF_SIZE        (128 * 2 * sizeof(int16_t) * MEDIA_PLAYER_CHANNEL_NUM * 2 * 3)
 #else
 #define APP_AUDIO_PLAYBACK_BUFF_SIZE        (128 * 2 * sizeof(int16_t) * MEDIA_PLAYER_CHANNEL_NUM * 2)
 #endif
@@ -198,10 +151,10 @@ static enum AUD_CHANNEL_NUM_T  playback_ch_num_bt;
 
 #if defined(ANC_ASSIST_ENABLED)
 #include "app_voice_assist_prompt_leak_detect.h"
-#include "app_voice_assist_custom_leak_detect.h"
 #endif
 
 typedef void (*media_PlayAudio_api)(AUD_ID_ENUM id,uint8_t device_id);
+
 typedef struct {
     uint8_t  reqType;    // one of APP_PROMPT_PLAY_REQ_TYPE_E
     uint8_t  isLocalPlaying;
@@ -217,21 +170,16 @@ typedef struct {
 
 static list_t *app_prompt_list;
 static bool app_prompt_is_on_going = false;
-static bool app_prompt_receive_let_peer = false;
-static AUD_ID_ENUM app_prompt_wait_forward_play_id = AUD_ID_INVALID;
+static bool app_prompt_wait_forware_play = false;
 
 static list_node_t *app_prompt_list_begin(const list_t *list);
 static APP_PROMPT_PLAY_REQ_T *app_prompt_list_node(const list_node_t *node);
 static bool app_prompt_list_prepend(list_t *list, APP_PROMPT_PLAY_REQ_T *req);
 static bool app_prompt_list_append(list_t *list, APP_PROMPT_PLAY_REQ_T *req);
 
-#if defined(USE_BASIC_THREADS)
-static int app_prompt_handler(APP_MESSAGE_BODY *msg_body);
-#else
 static osThreadId app_prompt_handler_tid;
 static void app_prompt_handler_thread(void const *argument);
 osThreadDef(app_prompt_handler_thread, osPriorityHigh, 1, 1536, "app_prompt_handler");
-#endif
 
 #define  SBC_FRAME_LEN  64 //0x5c   /* pcm 512 bytes*/
 static uint8_t* g_app_audio_data = NULL;
@@ -246,9 +194,6 @@ static bool g_is_local_continuous_prompt_on_going = false;
 #if defined(__SW_IIR_PROMPT_EQ_PROCESS__)
 extern IIR_CFG_T * const POSSIBLY_UNUSED audio_eq_hw_dac_iir_cfg_list[EQ_HW_DAC_IIR_LIST_NUM];
 #endif
-
-osMutexId promptMutexId = NULL;
-osMutexDef(promptMutex);
 
 static void app_prompt_start_continuous_checker(void);
 static void app_prompt_stop_continuous_checker(void);
@@ -289,7 +234,6 @@ enum sound_id {
     SOUND_NINE,
 #if defined ANC_ASSIST_ENABLED
     SOUND_PROMPT_ADAPTIVE_ANC,
-    SOUND_CUSTOM_LEAK_DETECT,
 #endif
 
     POWER_ON,
@@ -326,6 +270,10 @@ enum sound_id {
 #ifdef __INTERACTION__
     BT_FINDME,
 #endif
+
+#ifdef SLT_AUTO_TEST
+    TONE_1K,
+#endif
     MAX_SOUND_ID
 };
 
@@ -350,7 +298,6 @@ static const media_sound_map_t media_sound_map_cn[] =
     SOUND_ITEM_DEF(CN_, SOUND_NINE),
 #if defined ANC_ASSIST_ENABLED
     SOUND_ITEM_DEF(CN_, SOUND_PROMPT_ADAPTIVE_ANC),
-    SOUND_ITEM_DEF(CN_, SOUND_CUSTOM_LEAK_DETECT),
 #endif
 
     SOUND_ITEM_DEF(CN_, POWER_ON),
@@ -388,6 +335,10 @@ static const media_sound_map_t media_sound_map_cn[] =
     SOUND_ITEM_DEF(CN_, BT_FINDME),
 #endif
 
+#ifdef SLT_AUTO_TEST
+    SOUND_ITEM_DEF(CN_, TONE_1K),
+#endif
+
 };
 #endif
 
@@ -406,7 +357,6 @@ static const media_sound_map_t media_sound_map_en[] =
     SOUND_ITEM_DEF(EN_, SOUND_NINE),
 #if defined ANC_ASSIST_ENABLED
     SOUND_ITEM_DEF(EN_, SOUND_PROMPT_ADAPTIVE_ANC),
-    SOUND_ITEM_DEF(EN_, SOUND_CUSTOM_LEAK_DETECT),
 #endif
 
     SOUND_ITEM_DEF(EN_, POWER_ON),
@@ -444,6 +394,10 @@ static const media_sound_map_t media_sound_map_en[] =
     SOUND_ITEM_DEF(EN_, BT_FINDME),
 #endif
 
+#ifdef SLT_AUTO_TEST
+    SOUND_ITEM_DEF(EN_, TONE_1K),
+#endif
+
 };
 
 #endif
@@ -477,84 +431,25 @@ static enum AUD_SAMPRATE_T app_play_audio_sample_rate = AUD_SAMPRATE_16000;
 #if defined(MEDIA_PLAYER_USE_CODEC2)
 #undef app_audio_mempool_get_buff
 #define app_audio_mempool_get_buff app_media_mempool_get_buff
-#define MEDIA_PLAY_STREAM_ID (AUD_STREAM_ID_3)
+#define MEDIA_PLAY_STREAM_ID (AUD_STREAM_ID_2)
 #else
 #define MEDIA_PLAY_STREAM_ID (AUD_STREAM_ID_0)
 #endif
 
-#define APP_PROMPT_WAIT_MASTER_SYNC_PLAY_REQ_TIMEOUT_MS  3000
-
-static void app_prompt_wait_master_sync_play_req_timeout_handler(void const *param);
-osTimerDef(app_prompt_wait_master_sync_play_req_timer,
-    app_prompt_wait_master_sync_play_req_timeout_handler);
-static osTimerId app_prompt_wait_master_sync_play_req_timer_id = NULL;
-
-static void app_prompt_start_wait_master_sync_play_req_timer(void)
-{
-    if (NULL == app_prompt_wait_master_sync_play_req_timer_id)
-    {
-        app_prompt_wait_master_sync_play_req_timer_id =
-            osTimerCreate(osTimer(app_prompt_wait_master_sync_play_req_timer), osTimerOnce, NULL);
-    }
-
-    osTimerStart(app_prompt_wait_master_sync_play_req_timer_id, APP_PROMPT_WAIT_MASTER_SYNC_PLAY_REQ_TIMEOUT_MS);
-}
-
-static void app_prompt_wait_master_sync_play_req_timeout_handler(void const *param)
-{
-    AUDIO_BT_TRACE(0, "wait master sync play req timeout!!!");
-    app_prompt_inform_completed_event();
-}
-
-void app_prompt_stop_wait_master_sync_play_req_timer(void)
-{
-    if (app_prompt_wait_master_sync_play_req_timer_id)
-    {
-        osTimerStop(app_prompt_wait_master_sync_play_req_timer_id);
-    }
-}
-
-#define APP_PROMPT_WAIT_SLAVE_PLAY_REQ_TIMEOUT_MS  3000
-
-static void app_prompt_wait_slave_play_req_timeout_handler(void const *param);
-osTimerDef(app_prompt_wait_slave_play_req_timer,
-    app_prompt_wait_slave_play_req_timeout_handler);
-static osTimerId app_prompt_wait_slave_play_req_timer_id = NULL;
-
-static void app_prompt_start_wait_slave_play_req_timer(void)
-{
-    if (NULL == app_prompt_wait_slave_play_req_timer_id)
-    {
-        app_prompt_wait_slave_play_req_timer_id =
-            osTimerCreate(osTimer(app_prompt_wait_slave_play_req_timer), osTimerOnce, NULL);
-    }
-
-    osTimerStart(app_prompt_wait_slave_play_req_timer_id, APP_PROMPT_WAIT_SLAVE_PLAY_REQ_TIMEOUT_MS);
-}
-
-static void app_prompt_wait_slave_play_req_timeout_handler(void const *param)
-{
-    AUDIO_BT_TRACE(0, "wait slave play req timeout!!!");
-    app_prompt_wait_forward_play_id = AUD_ID_INVALID;
-    app_prompt_inform_completed_event();
-}
-
-void app_prompt_stop_wait_slave_play_req_timer(void)
-{
-    app_prompt_wait_forward_play_id = AUD_ID_INVALID;
-    if (app_prompt_wait_slave_play_req_timer_id)
-    {
-        osTimerStop(app_prompt_wait_slave_play_req_timer_id);
-    }
-}
-
 int media_audio_init(void)
 {
-#if !defined(PROMPT_USE_AAC)
     uint8_t *buff = NULL;
+    uint8_t i;
+
+    app_audio_mempool_get_buff((uint8_t **)&media_sbc_eq_band_gain, CFG_HW_AUD_EQ_NUM_BANDS*sizeof(float));
+
+    for (i=0; i<CFG_HW_AUD_EQ_NUM_BANDS; i++){
+        media_sbc_eq_band_gain[i] = 1.0;
+    }
+
     app_audio_mempool_get_buff(&buff, SBC_QUEUE_SIZE);
     if (!buff) {
-        AUDIO_BT_TRACE(2,"buff is NULL");
+        TRACE(2,"buff is NULL");
         return -1;
     }
     memset(buff, 0, SBC_QUEUE_SIZE);
@@ -564,7 +459,7 @@ int media_audio_init(void)
     UNLOCK_APP_AUDIO_QUEUE();
 
     app_audio_mempool_get_buff((uint8_t **)&media_sbc_decoder, sizeof(sbc_decoder_t) + 4);
-#endif
+
     need_init_decoder = 1;
 
     app_play_sbc_stop_proc_cnt = 0;
@@ -593,7 +488,6 @@ again:
         pcm_data.pcm_data = (int16_t *)pcm_buffer;
         pcm_data.valid_size = 0;
         sbc_decoder_open(media_sbc_decoder);
-
     }
 
 get_again:
@@ -603,7 +497,7 @@ get_again:
         need_init_decoder = 1;
         underflow = 1;
         r = pcm_data.valid_size;
-        AUDIO_BT_TRACE(0,"last chunk of prompt");
+        TRACE(0,"last chunk of prompt");
         goto exit;
     }
 
@@ -611,7 +505,7 @@ get_again:
     ASSERT(r == CQ_OK, "[%s] peek queue should not failed", __FUNCTION__);
 
     if (!len1){
-        AUDIO_BT_TRACE(2,"len1 %d/%d\n", len1, len2);
+        TRACE(2,"len1 %d/%d\n", len1, len2);
         goto get_again;
     }
 
@@ -635,14 +529,14 @@ get_again:
 
         APP_AUDIO_DeCQueue(&media_sbc_queue, 0, byte_decode);
 
-        //AUDIO_BT_TRACE(1,"p %d\n", pcm_data.sampleFreq);
+        //TRACE(1,"p %d\n", pcm_data.sampleFreq);
 
         /* leave */
     }
     else if(ret == BT_STS_FAILED) {
         need_init_decoder = 1;
         r = pcm_data.valid_size;
-        AUDIO_BT_TRACE(0,"err\n");
+        TRACE(0,"err\n");
 
         APP_AUDIO_DeCQueue(&media_sbc_queue, 0, byte_decode);
 
@@ -651,7 +545,7 @@ get_again:
     else if(ret == BT_STS_NO_RESOURCES) {
         need_init_decoder = 0;
 
-        AUDIO_BT_TRACE(0,"no\n");
+        TRACE(0,"no\n");
 
         /* leav */
         r = 0;
@@ -659,7 +553,7 @@ get_again:
 
 exit:
     if (underflow){
-        AUDIO_BT_TRACE(1,"media_sbc_decoder len:%d\n ", pcm_len);
+        TRACE(1,"media_sbc_decoder len:%d\n ", pcm_len);
     }
     UNLOCK_APP_AUDIO_QUEUE();
     return r;
@@ -695,10 +589,10 @@ void app_tws_sync_prompt_check(void)
 {
     if (0 == pending_sync_prompt_cnt)
     {
-        app_bt_active_mode_clear(BT_ACTIVE_MODE_KEEP_USER_SYNC_VOICE_PROMPT, UPDATE_ACTIVE_MODE_FOR_ALL_LINKS);
+        bes_aud_bt->aud_set_stay_active_mode(false);
     }
 
-    if (IBRT_ACTIVE_MODE != app_ibrt_if_get_bt_ctrl_ctx()->tws_mode)
+    if (IBRT_ACTIVE_MODE != app_tws_ibrt_get_bt_ctrl_ctx()->tws_mode)
     {
         return;
     }
@@ -722,7 +616,7 @@ void app_tws_sync_prompt_check(void)
 
     if (isPlayPendingPrompt)
     {
-        AUDIO_BT_TRACE(1,"pop pending prompt 0x%x to play", promptIdToPlay);
+        TRACE(1,"pop pending prompt 0x%x to play", promptIdToPlay);
         app_audio_manager_sendrequest(APP_BT_STREAM_MANAGER_START,
             BT_STREAM_MEDIA, 0, promptIdToPlay);
     }
@@ -734,7 +628,7 @@ void trigger_media_play(AUD_ID_ENUM id, uint8_t device_id, uint16_t aud_pram)
     uint32_t convertedId = (uint32_t)id;
     convertedId |= aud_pram;
 
-#if (!defined(PROMPT_SELF_MANAGEMENT))
+#if (!defined(PROMPT_SELF_MANAGEMENT))    
     app_audio_manager_sendrequest(APP_BT_STREAM_MANAGER_START,BT_STREAM_MEDIA,device_id,convertedId);
 #else
     app_audio_sendrequest(APP_PLAY_BACK_AUDIO, APP_BT_SETTING_START_PROMPT, convertedId);
@@ -749,19 +643,30 @@ void trigger_media_stop(AUD_ID_ENUM id, uint8_t device_id)
 }
 
 #if defined(IBRT)
-static bool isProcessCache = false;
-void cache_prompt_flag(bool isProcess)
+static bool isTriggerPromptLocal = false;
+void trigger_prompt_local(bool isTriggerLocal)
 {
-    isProcessCache = isProcess;
+    isTriggerPromptLocal = isTriggerLocal;
 }
 
-bool is_cache_prompt_in_processing(void)
+bool is_trigger_prompt_local(void)
 {
-    return isProcessCache;
+    return isTriggerPromptLocal;
 }
 
 static bool is_prompt_playing_handling_locally(AUD_ID_ENUM promptId, bool iscached)
 {
+    if ((AUDIO_ID_BT_MUTE != promptId) && isTriggerPromptLocal && (!iscached))
+    {
+        return true;
+    }
+
+#if defined(PROMPT_CTRL_ANC)
+    if (is_prompt_ctrl_anc((uint32_t)promptId)) {
+        return false;
+    }
+#endif
+
     switch ((uint16_t)PROMPT_ID_FROM_ID_VALUE(promptId))
     {
         case AUDIO_ID_FIND_MY_BUDS:
@@ -801,7 +706,7 @@ void media_PlayAudio_continuous_start(AUD_ID_ENUM id, uint8_t device_id)
 {
     if (g_is_continuous_prompt_on_going)
     {
-        AUDIO_BT_TRACE(0, "A continuous prompt is already on-going!");
+        TRACE(0, "A continuous prompt is already on-going!");
         return;
     }
 
@@ -810,7 +715,7 @@ void media_PlayAudio_continuous_start(AUD_ID_ENUM id, uint8_t device_id)
 #ifdef IBRT
     isLocalPlaying = is_prompt_playing_handling_locally(id, false);
 
-    if (bts_tws_if_is_tws_link_connected()&&(!isLocalPlaying))
+    if (app_tws_ibrt_tws_link_connected()&&(!isLocalPlaying))
     {
         voice_report_role_t report_role = app_ibrt_voice_report_get_role();
         if (VOICE_REPORT_SLAVE == report_role)
@@ -823,11 +728,14 @@ void media_PlayAudio_continuous_start(AUD_ID_ENUM id, uint8_t device_id)
 
     media_playAudio_set_continous_prompt_env(id);
     app_prompt_push_request(APP_PROMPT_CONTINUOUS_NORMAL_PLAY, id, device_id, isLocalPlaying);
+#if defined(IBRT)
+    trigger_prompt_local(false);
+#endif
 }
 
 static bool media_PlayAudio_stop_continuous_prompt(void)
 {
-    AUDIO_BT_TRACE(0, "stop_continuous_prompt:%d", g_is_continuous_prompt_on_going);
+    TRACE(0, "stop_continuous_prompt:%d", g_is_continuous_prompt_on_going);
     if (g_is_continuous_prompt_on_going)
     {
         g_is_continuous_prompt_on_going = false;
@@ -862,136 +770,82 @@ static bool media_playAudio_pre_processing(AUD_ID_ENUM id, uint8_t device_id, me
 {
     if (app_prompt_is_on_going && (AUDIO_ID_BT_MUTE != id))
     {
-        APP_PROMPT_PLAY_REQ_T req;
-        req.reqType = APP_PROMPT_CACHED_ORG_REQUEST;
-        req.deviceId = device_id;
-        req.promptId = (uint32_t)id;
-        req.isLocalPlaying = is_prompt_playing_handling_locally(id, true);
-        req.func = func;
-
-        AUDIO_BT_TRACE(0, "push org prompt request devId %d promptId 0x%x isLocalPlaying %d func 0x%x",
-            device_id, id, req.isLocalPlaying, (uint32_t)func);
-
-        bool ret = true;
-        list_t *list = app_prompt_list;
-
-        ret = app_prompt_list_append(list, &req);
-
-        if (ret)
+        if (app_tws_ibrt_tws_link_connected())
         {
-#if defined(USE_BASIC_THREADS)
-            app_prompt_inform_new_prompt_event();
-#else
-            osSignalSet(app_prompt_handler_tid, PROMPT_HANDLER_SIGNAL_NEW_PROMPT_REQ);
-#endif
-            // do not handle but push it into pending queue
+            //voice_report_role_t report_role =  app_ibrt_voice_report_get_role();
+            //if (VOICE_REPORT_SLAVE == report_role)
+            {
+                // for voice report slave role, always wait for the former prompt
+                // to be completed before processing the new prompt.
+                // otherwise following issue may happen:
+                // 1. slave role starts a local prompt playing
+                // 2. slave role tries to start a sync prompt playing
+                // 3. slave role sends request to master role, asking the master to
+                //    trigger sync prompt playing
+                // 4. master role has no on-going prompt, so it will send prompt trigger
+                //    request to slave role
+                // 5. slave role processes the prompt trigger request but finds that an on-going prompt
+                //    exist, so this new prompt trigger request is missing
+                APP_PROMPT_PLAY_REQ_T req;
+                req.reqType = APP_PROMPT_CACHED_ORG_REQUEST;
+                req.deviceId = device_id;
+                req.promptId = (uint32_t)id;
+                req.isLocalPlaying = is_prompt_playing_handling_locally(id, true);
+                req.func = func;
+                trigger_prompt_local(false);
+                TRACE(0, "push org prompt request devId %d promptId 0x%x isLocalPlaying %d func 0x%x",
+                    device_id, id, req.isLocalPlaying, (uint32_t)func);
+
+                bool ret = true;
+                list_t *list = app_prompt_list;
+                list_node_t *node = NULL;
+                APP_PROMPT_PLAY_REQ_T* pPlayReq = NULL;
+                if ((node = app_prompt_list_begin(list)) != NULL)
+                {
+                    pPlayReq = app_prompt_list_node(node);
+                    TRACE(0, "%s first reqType %d", __func__, pPlayReq->reqType);
+                    if (pPlayReq->reqType==APP_PROMPT_LOCAL_CONTINUOUS_NORMAL_PLAY)
+                    {
+                        ret = app_prompt_list_prepend(list, &req);
+                    }
+                    else
+                    {
+                        ret = app_prompt_list_append(list, &req);
+                    }
+                }
+                else
+                {
+                    ret = app_prompt_list_append(list, &req);
+                }
+
+                if (ret)
+                {
+                    osSignalSet(app_prompt_handler_tid, PROMPT_HANDLER_SIGNAL_NEW_PROMPT_REQ);
+                    // do not handle but push it into pending queue
+                    return false;
+                }
+            }
         }
-        return false;
     }
 
     return true;
 }
 
-void app_tws_stop_peer_prompt(void)
+static void media_playAudio_forware_playing_request_to_peer_dev(AUD_ID_ENUM id)
 {
-    uint8_t stub_param = 0;
-
-    tws_ctrl_send_cmd(APP_TWS_CMD_STOP_PEER_PROMPT_REQ, &stub_param, sizeof(stub_param));
-}
-
-bool app_tws_let_peer_device_play_audio_prompt(uint32_t promptId,
-    uint16_t promptType, uint8_t dev_id)
-{
-    int ret = 0;
-    app_tws_voice_prompt_to_play_t req;
-    req.voicePrompt = promptId;
-    req.dev_id = dev_id;
-    req.prompt_type = promptType;
-    ret = tws_ctrl_send_cmd(APP_TWS_CMD_LET_PEER_PLAY_PROMPT, (uint8_t *)&req, sizeof(req));
-    if (0 == ret)
-    {
-        return true;
-    }
-    else
-    {
-        return false;
-    }
-}
-
-void app_tws_cmd_prompt_play_req_handler(uint8_t *ptrParam, uint32_t paramLen)
-{
-#ifdef MEDIA_PLAYER_SUPPORT
-    app_tws_voice_prompt_to_play_t *ptPlayReq = (app_tws_voice_prompt_to_play_t *)ptrParam;
-    AUDIO_BT_TRACE(0, "Receive request to play prompt 0x%x%s prompt_type 0x%x",
-        ptPlayReq->voicePrompt, aud_id2str(ptPlayReq->voicePrompt & 0xFF),
-        ptPlayReq->prompt_type);
-    voice_report_role_t report_role =  app_ibrt_voice_report_get_role();
-
-    if (APP_PROMPT_LOCAL_PLAY == ptPlayReq->prompt_type)
-    {
-        ptPlayReq->prompt_type = APP_PROMPT_REMOTE_PLAY;
-    }
-    else if (APP_PROMPT_LOCAL_CONTINUOUS_NORMAL_PLAY == ptPlayReq->prompt_type)
-    {
-        ptPlayReq->prompt_type = APP_PROMPT_CONTINUOUS_REMOTE_PLAY;;
-    }
-    else if (APP_PROMPT_CONTINUOUS_NORMAL_PLAY == ptPlayReq->prompt_type)
-    {
-        media_playAudio_set_continous_prompt_env((AUD_ID_ENUM)ptPlayReq->voicePrompt);
-    }
-    else if (APP_PROMPT_REMOTE_PLAY == ptPlayReq->prompt_type)
-    {
-        ptPlayReq->prompt_type = APP_PROMPT_LOCAL_PLAY;
-    }
-    else if (APP_PROMPT_STANDALONE_LOCAL_PLAY == ptPlayReq->prompt_type)
-    {
-        ptPlayReq->prompt_type = APP_PROMPT_STANDALONE_REMOTE_PLAY;
-    }
-    else if (APP_PROMPT_STANDALONE_REMOTE_PLAY == ptPlayReq->prompt_type)
-    {
-        ptPlayReq->prompt_type = APP_PROMPT_STANDALONE_LOCAL_PLAY;
-    }
-
-    if (report_role == VOICE_REPORT_MASTER)
-    {
-        app_prompt_forward_play_handler((APP_PROMPT_PLAY_REQ_TYPE_E)ptPlayReq->prompt_type,
-            (AUD_ID_ENUM)ptPlayReq->voicePrompt, ptPlayReq->dev_id);
-    }
-    else
-    {
-        AUDIO_BT_TRACE(1, "[%s] current role is slave", __func__);
-    }
-#endif
-}
-
-static bool media_playAudio_forward_playing_request_to_peer_dev(uint16_t promptId, uint16_t promptType, uint8_t device_id)
-{
-    AUDIO_BT_TRACE(0, "(d%d)Let peer bud play prompt 0x%x", device_id, promptId);
-
-    app_tws_voice_prompt_to_play_t req;
-    req.voicePrompt = promptId;
-    req.dev_id = device_id;
-    req.prompt_type = promptType;
-    int ret = tws_ctrl_send_cmd(APP_TWS_CMD_FORWARD_PROMPT_PLAYING_REQ, (uint8_t *)&req, sizeof(req));
-    if (0 == ret)
-    {
-        return true;
-    }
-    else
-    {
-        return false;
-    }
+    TRACE(0, "Let peer bud play prompt 0x%x", id);
+    tws_ctrl_send_cmd(APP_TWS_CMD_FORWARD_PROMPT_PLAYING_REQ, \
+                   (uint8_t *)&id, \
+                   sizeof(id));
 }
 #endif
 
 void media_PlayAudio(AUD_ID_ENUM id,uint8_t device_id)
 {
-    osMutexWait(promptMutexId, osWaitForever);
 #ifdef IBRT
     bool isToBeProcessed = media_playAudio_pre_processing(id, device_id, media_PlayAudio);
     if (!isToBeProcessed)
     {
-        osMutexRelease(promptMutexId);
         return;
     }
 #endif
@@ -1000,14 +854,13 @@ void media_PlayAudio(AUD_ID_ENUM id,uint8_t device_id)
     bool is_ignore_prompt = false;
     is_ignore_prompt = media_check_is_prompt_obsolete(id);
     if (is_ignore_prompt){
-        osMutexRelease(promptMutexId);
         return;
     }
 
 #ifdef IBRT
     isLocalPlaying = is_prompt_playing_handling_locally(id, false);
 
-    if (bts_tws_if_is_tws_link_connected()&&(!isLocalPlaying))
+    if (app_tws_ibrt_tws_link_connected()&&(!isLocalPlaying))
     {
         voice_report_role_t report_role =  app_ibrt_voice_report_get_role();
         if (VOICE_REPORT_SLAVE == report_role)
@@ -1022,25 +875,14 @@ void media_PlayAudio(AUD_ID_ENUM id,uint8_t device_id)
                 // until the sync prompt play handling is completed
                 app_prompt_push_request(APP_PROMPT_PENDING_FOR_MASTER_SYNC_PLAY_REQ, id, device_id, isLocalPlaying);
             }
-            osMutexRelease(promptMutexId);
             return;
         }
         else if (VOICE_REPORT_MASTER == report_role)
         {
-            if (AUDIO_ID_BT_MUTE != id)
+            if ((!app_prompt_is_on_going) && (AUDIO_ID_BT_MUTE != id))
             {
-                if (!media_playAudio_forward_playing_request_to_peer_dev((uint16_t)id, APP_PROMPT_NORMAL_PLAY, device_id))
-                {
-                    goto prompt_local;
-                }
-                else
-                {
-                    // push this request to assure that following prompt request will be in pending queue,
-                    // until the sync prompt play handling is completed
-                    app_prompt_wait_forward_play_id = id;
-                    app_prompt_push_request(APP_PROMPT_PENDING_FOR_SLAVE_PLAY_REQ, id, device_id, isLocalPlaying);
-                }
-                osMutexRelease(promptMutexId);
+                app_prompt_wait_forware_play = true;
+                media_playAudio_forware_playing_request_to_peer_dev(id);
                 return;
             }
         }
@@ -1050,7 +892,9 @@ prompt_local:
 #endif
 
     app_prompt_push_request(APP_PROMPT_NORMAL_PLAY, id, device_id, isLocalPlaying);
-    osMutexRelease(promptMutexId);
+#if defined(IBRT)
+    trigger_prompt_local(false);
+#endif
 }
 
 static bool media_PlayAudio_standalone_handler(AUD_ID_ENUM id, uint8_t device_id, bool isLocalPlaying)
@@ -1067,12 +911,10 @@ static bool media_PlayAudio_standalone_handler(AUD_ID_ENUM id, uint8_t device_id
 
 void media_PlayAudio_standalone(AUD_ID_ENUM id, uint8_t device_id)
 {
-    osMutexWait(promptMutexId, osWaitForever);
 #ifdef IBRT
     bool isToBeProcessed = media_playAudio_pre_processing(id, device_id, media_PlayAudio);
     if (!isToBeProcessed)
     {
-        osMutexRelease(promptMutexId);
         return;
     }
 #endif
@@ -1084,7 +926,6 @@ void media_PlayAudio_standalone(AUD_ID_ENUM id, uint8_t device_id)
     bool is_ignore_prompt = false;
     is_ignore_prompt = media_check_is_prompt_obsolete(id);
     if (is_ignore_prompt){
-        osMutexRelease(promptMutexId);
         return;
     }
 
@@ -1093,7 +934,7 @@ void media_PlayAudio_standalone(AUD_ID_ENUM id, uint8_t device_id)
 #ifdef IBRT
     isLocalPlaying = is_prompt_playing_handling_locally(id, false);
 
-    if (bts_tws_if_is_tws_link_connected()&&(!isLocalPlaying))
+    if (app_tws_ibrt_tws_link_connected()&&(!isLocalPlaying))
     {
         voice_report_role_t report_role =  app_ibrt_voice_report_get_role();
         if (VOICE_REPORT_SLAVE == report_role)
@@ -1101,16 +942,17 @@ void media_PlayAudio_standalone(AUD_ID_ENUM id, uint8_t device_id)
             if (!app_tws_let_peer_device_play_audio_prompt((uint32_t)id, APP_PROMPT_STANDALONE_PLAY, device_id)) {
                 goto prompt_local;
             }
-            osMutexRelease(promptMutexId);
             return;
         }
     }
-
+    
 prompt_local:
 #endif
 
     app_prompt_push_request(APP_PROMPT_STANDALONE_PLAY, id, device_id, isLocalPlaying);
-    osMutexRelease(promptMutexId);
+#if defined(IBRT)
+    trigger_prompt_local(false);
+#endif
 }
 
 
@@ -1121,12 +963,10 @@ bool media_playAudio_locally_is_continuous_prompt_on_going(void)
 
 void media_PlayAudio_locally_continuous_start(AUD_ID_ENUM id, uint8_t device_id)
 {
-    osMutexWait(promptMutexId, osWaitForever);
 #ifdef IBRT
     bool isToBeProcessed = media_playAudio_pre_processing(id, device_id, media_PlayAudio);
     if (!isToBeProcessed)
     {
-        osMutexRelease(promptMutexId);
         return;
     }
 #endif
@@ -1134,13 +974,12 @@ void media_PlayAudio_locally_continuous_start(AUD_ID_ENUM id, uint8_t device_id)
     bool is_ignore_prompt = false;
     is_ignore_prompt = media_check_is_prompt_obsolete(id);
     if (is_ignore_prompt){
-        osMutexRelease(promptMutexId);
         return;
     }
+
     if (g_is_local_continuous_prompt_on_going)
     {
-        AUDIO_BT_TRACE(0, "A local continuous prompt is already on-going!");
-        osMutexRelease(promptMutexId);
+        TRACE(0, "A local continuous prompt is already on-going!");
         return;
     }
 
@@ -1148,7 +987,6 @@ void media_PlayAudio_locally_continuous_start(AUD_ID_ENUM id, uint8_t device_id)
     g_is_local_continuous_prompt_on_going = true;
     continuous_prompt_id = id;
     app_prompt_push_request(APP_PROMPT_LOCAL_CONTINUOUS_NORMAL_PLAY, id, device_id, true);
-    osMutexRelease(promptMutexId);
 }
 
 static void media_PlayAudio_stop_local_continuous_prompt(void)
@@ -1195,17 +1033,40 @@ static bool media_PlayAudio_locally_handler(AUD_ID_ENUM id, uint8_t device_id, b
 
 void media_PlayAudio_locally(AUD_ID_ENUM id, uint8_t device_id)
 {
-    osMutexWait(promptMutexId, osWaitForever);
-#ifdef BT_SERVICE_ENABLE
+#ifdef IBRT
     bool isToBeProcessed = media_playAudio_pre_processing(id, device_id, media_PlayAudio);
     if (!isToBeProcessed)
     {
-        osMutexRelease(promptMutexId);
         return;
     }
 #endif
-    app_prompt_push_request(APP_PROMPT_LOCAL_PLAY, id, device_id, true);
-    osMutexRelease(promptMutexId);
+
+    bool is_ignore_prompt = false;
+    is_ignore_prompt = media_check_is_prompt_obsolete(id);
+    if (is_ignore_prompt){
+        return;
+    }
+
+    bool isLocalPlaying = true;
+
+#ifdef IBRT
+    isLocalPlaying = is_prompt_playing_handling_locally(id, false);
+
+    if (app_tws_ibrt_tws_link_connected()&&(!isLocalPlaying))
+    {
+        voice_report_role_t report_role =  app_ibrt_voice_report_get_role();
+        if (VOICE_REPORT_SLAVE == report_role)
+        {
+            app_tws_let_peer_device_play_audio_prompt((uint32_t)id, APP_PROMPT_LOCAL_PLAY, device_id);
+            return;
+        }
+    }
+#endif
+
+    app_prompt_push_request(APP_PROMPT_LOCAL_PLAY, id, device_id, isLocalPlaying);
+#if defined(IBRT)
+    trigger_prompt_local(false);
+#endif
 }
 
 static bool media_PlayAudio_standalone_locally_handler(AUD_ID_ENUM id, uint8_t device_id, bool isLocalPlaying)
@@ -1237,12 +1098,10 @@ static bool media_PlayAudio_standalone_locally_handler(AUD_ID_ENUM id, uint8_t d
 
 void media_PlayAudio_standalone_locally(AUD_ID_ENUM id, uint8_t device_id)
 {
-    osMutexWait(promptMutexId, osWaitForever);
 #ifdef IBRT
     bool isToBeProcessed = media_playAudio_pre_processing(id, device_id, media_PlayAudio);
     if (!isToBeProcessed)
     {
-        osMutexRelease(promptMutexId);
         return;
     }
 #endif
@@ -1252,20 +1111,21 @@ void media_PlayAudio_standalone_locally(AUD_ID_ENUM id, uint8_t device_id)
 #ifdef IBRT
     isLocalPlaying = is_prompt_playing_handling_locally(id, false);
 
-    if (bts_tws_if_is_tws_link_connected()&&(!isLocalPlaying))
+    if (app_tws_ibrt_tws_link_connected()&&(!isLocalPlaying))
     {
         voice_report_role_t report_role =  app_ibrt_voice_report_get_role();
         if (VOICE_REPORT_SLAVE == report_role)
         {
             app_tws_let_peer_device_play_audio_prompt((uint32_t)id, APP_PROMPT_STANDALONE_LOCAL_PLAY, device_id);
-            osMutexRelease(promptMutexId);
             return;
         }
     }
 #endif
 
     app_prompt_push_request(APP_PROMPT_STANDALONE_LOCAL_PLAY, id, device_id, isLocalPlaying);
-    osMutexRelease(promptMutexId);
+#if defined(IBRT)
+    trigger_prompt_local(false);
+#endif
 }
 
 static bool media_PlayAudio_remotely_handler(AUD_ID_ENUM id, uint8_t device_id, bool isLocalPlaying)
@@ -1298,12 +1158,10 @@ static bool media_PlayAudio_remotely_handler(AUD_ID_ENUM id, uint8_t device_id, 
 
 void media_PlayAudio_remotely(AUD_ID_ENUM id, uint8_t device_id)
 {
-    osMutexWait(promptMutexId, osWaitForever);
 #ifdef IBRT
     bool isToBeProcessed = media_playAudio_pre_processing(id, device_id, media_PlayAudio);
     if (!isToBeProcessed)
     {
-        osMutexRelease(promptMutexId);
         return;
     }
 #endif
@@ -1313,20 +1171,21 @@ void media_PlayAudio_remotely(AUD_ID_ENUM id, uint8_t device_id)
 #ifdef IBRT
     isLocalPlaying = is_prompt_playing_handling_locally(id, false);
 
-    if (bts_tws_if_is_tws_link_connected()&&(!isLocalPlaying))
+    if (app_tws_ibrt_tws_link_connected()&&(!isLocalPlaying))
     {
         voice_report_role_t report_role =  app_ibrt_voice_report_get_role();
         if (VOICE_REPORT_SLAVE == report_role)
         {
             app_tws_let_peer_device_play_audio_prompt((uint32_t)id, APP_PROMPT_REMOTE_PLAY, device_id);
-            osMutexRelease(promptMutexId);
             return;
         }
     }
 #endif
 
     app_prompt_push_request(APP_PROMPT_REMOTE_PLAY, id, device_id, isLocalPlaying);
-    osMutexRelease(promptMutexId);
+#if defined(IBRT)
+    trigger_prompt_local(false);
+#endif
 }
 
 static bool media_PlayAudio_standalone_remotely_handler(AUD_ID_ENUM id, uint8_t device_id, bool isLocalPlaying)
@@ -1359,12 +1218,10 @@ static bool media_PlayAudio_standalone_remotely_handler(AUD_ID_ENUM id, uint8_t 
 
 void media_PlayAudio_standalone_remotely(AUD_ID_ENUM id, uint8_t device_id)
 {
-    osMutexWait(promptMutexId, osWaitForever);
 #ifdef IBRT
     bool isToBeProcessed = media_playAudio_pre_processing(id, device_id, media_PlayAudio);
     if (!isToBeProcessed)
     {
-        osMutexRelease(promptMutexId);
         return;
     }
 #endif
@@ -1374,20 +1231,21 @@ void media_PlayAudio_standalone_remotely(AUD_ID_ENUM id, uint8_t device_id)
 #ifdef IBRT
     isLocalPlaying = is_prompt_playing_handling_locally(id, false);
 
-    if (bts_tws_if_is_tws_link_connected()&&(!isLocalPlaying))
+    if (app_tws_ibrt_tws_link_connected()&&(!isLocalPlaying))
     {
         voice_report_role_t report_role =  app_ibrt_voice_report_get_role();
         if (VOICE_REPORT_SLAVE == report_role)
         {
             app_tws_let_peer_device_play_audio_prompt((uint32_t)id, APP_PROMPT_STANDALONE_REMOTE_PLAY, device_id);
-            osMutexRelease(promptMutexId);
             return;
         }
     }
 #endif
 
     app_prompt_push_request(APP_PROMPT_STANDALONE_REMOTE_PLAY, id, device_id, isLocalPlaying);
-    osMutexRelease(promptMutexId);
+#if defined(IBRT)
+    trigger_prompt_local(false);
+#endif
 }
 
 AUD_ID_ENUM app_get_current_standalone_promptId(void)
@@ -1422,7 +1280,7 @@ void media_Set_IncomingNumber(const char* pNumber)
 
         if(IsDigit(*(pNumber + idx))) {
             *(p_num + cnt) = *(pNumber + idx);
-            AUDIO_BT_TRACE(2,"media_Set_IncomingNumber: cnt %d ,p_num  %d", cnt, *(p_num + cnt));
+            TRACE(2,"media_Set_IncomingNumber: cnt %d ,p_num  %d", cnt, *(p_num + cnt));
             cnt ++;
         }
     }
@@ -1473,10 +1331,9 @@ static int get_sound_id_info(enum sound_id id, uint8_t **sound_data, uint32_t *l
 }
 #endif
 
-void media_runtime_audio_prompt_update(uint16_t id, uint8_t** ptr, uint32_t* len)
+void media_runtime_audio_prompt_update(uint32_t id, uint8_t** ptr, uint32_t* len)
 {
-#if defined(PROMPT_CTRL_SWITCH_ANC_MODE)
-    uint16_t app_prompt_ctrl_anc_init(uint16_t aud_id);
+#if defined(PROMPT_CTRL_ANC)
     id = app_prompt_ctrl_anc_init(id);
 #endif
 
@@ -1599,9 +1456,6 @@ void media_runtime_audio_prompt_update(uint16_t id, uint8_t** ptr, uint32_t* len
     case AUD_ID_ANC_PROMPT:
         get_sound_id_info(SOUND_PROMPT_ADAPTIVE_ANC, &sound_data, &length);
         break;
-    case AUD_ID_CUSTOM_LEAK_DETECT:
-        get_sound_id_info(SOUND_CUSTOM_LEAK_DETECT, &sound_data, &length);
-        break;
 #endif
 #ifdef __BT_WARNING_TONE_MERGE_INTO_STREAM_SBC__
     case AUD_ID_RING_WARNING:
@@ -1612,6 +1466,22 @@ void media_runtime_audio_prompt_update(uint16_t id, uint8_t** ptr, uint32_t* len
     case AUD_ID_BT_FINDME:
         get_sound_id_info(BT_FINDME, &sound_data, &length);
         break;
+#endif
+#if defined(PROMPT_CTRL_ANC)
+    case AUD_ID_ANC_MUTE:
+        get_sound_id_info(BT_MUTE, &sound_data, &length);
+        break;
+    case AUD_ID_ANC_MODE0:
+        get_sound_id_info(POWER_OFF, &sound_data, &length);
+        break;
+    case AUD_ID_ANC_MODE1:
+        get_sound_id_info(POWER_ON, &sound_data, &length);
+        break;
+#endif
+#ifdef SLT_AUTO_TEST
+    case AUD_ID_TONE_1K:
+       get_sound_id_info(TONE_1K, &sound_data, &length);
+       break;
 #endif
     default:
         g_app_audio_length = 0;
@@ -1669,7 +1539,7 @@ static void media_Play_init_audio(uint32_t aud_id)
         {
             pCont_context.g_play_continue_array[i] = Media_player_number[i] - '0';
 
-            AUDIO_BT_TRACE(3, "media_PlayNumber, pCont_context.g_play_continue_array[%d] = %d, total =%d",
+            TRACE(3, "media_PlayNumber, pCont_context.g_play_continue_array[%d] = %d, total =%d",
                   i, pCont_context.g_play_continue_array[i], pCont_context.g_play_continue_total);
         }
     }
@@ -1679,9 +1549,6 @@ static void media_Play_init_audio(uint32_t aud_id)
         g_play_continue_mark = 0;
 
         media_runtime_audio_prompt_update(aud_id, &g_app_audio_data, &g_app_audio_length);
-#if defined(PROMPT_USE_AAC)
-        g_app_audio_read = g_app_audio_length;
-#endif
     }
 }
 
@@ -1703,7 +1570,7 @@ static uint32_t need_fadein_len_processed = 0;
 
 int app_play_sbc_more_data_fadein_config(uint32_t len)
 {
-    AUDIO_BT_TRACE(1,"fadein_config l:%d", len);
+    TRACE(1,"fadein_config l:%d", len);
     need_fadein_len = len;
     need_fadein_len_processed = 0;
     return 0;
@@ -1721,12 +1588,12 @@ uint32_t app_play_sbc_more_data_fadein(int16_t *buf, uint32_t len)
            need_fadein_len_processed;
 
     if (base >= dest){
-//        AUDIO_BT_TRACE(0,"skip fadein");
+//        TRACE(0,"skip fadein");
         return len;
     }
-//    AUDIO_BT_TRACE(3,"fadein l:%d base:%d dest:%d", len, base, dest);
-//    AUDIO_BT_DUMP16("%5d ", buf, 20);
-//    AUDIO_BT_DUMP16("%5d ", buf+len-19, 20);
+//    TRACE(3,"fadein l:%d base:%d dest:%d", len, base, dest);
+//    DUMP16("%5d ", buf, 20);
+//    DUMP16("%5d ", buf+len-19, 20);
 
     for (i = base; i < dest; i++){
         *(buf+j) = *(buf+j)*i/need_fadein_len;
@@ -1734,8 +1601,8 @@ uint32_t app_play_sbc_more_data_fadein(int16_t *buf, uint32_t len)
     }
 
     need_fadein_len_processed += j;
-//    AUDIO_BT_DUMP16("%05d ", buf, 20);
-//    AUDIO_BT_DUMP16("%5d ", buf+len-19, 20);
+//    DUMP16("%05d ", buf, 20);
+//    DUMP16("%5d ", buf+len-19, 20);
     return len;
 }
 
@@ -1743,39 +1610,9 @@ static uint32_t app_play_single_sbc_more_data(uint8_t device_id, uint8_t *buf, u
 {
     //int32_t stime, etime;
     //U16 byte_decode;
-#if defined(PROMPT_USE_AAC)
-    aac_frame_t aac_data;
-    aac_data.aac_data = g_app_audio_data;
-    aac_data.buffer_size = g_app_audio_length;
-    aac_data.valid_size = g_app_audio_read;
-    aac_pcm_frame_t pcm_data;
-    pcm_data.pcm_data = (short*)buf;
-    pcm_data.buffer_size = len;
-    pcm_data.valid_size = 0;
-    /* decode one AAC frame */
-    int decoder_err = aac_decoder_process_frame(aacDec_handle, &aac_data, &pcm_data);
-    g_app_audio_read = aac_data.valid_size;
-    if (decoder_err != AAC_OK){
-        if(decoder_err == AAC_NOT_ENOUGH_BITS)
-            AUDIO_BT_TRACE(0,"aac_lc_decode, not enough bits");
-        else
-            AUDIO_BT_TRACE(0,"aac_lc_decode failed:0x%x", decoder_err);
-        return 0;
-    }
-
-    uint32_t free_bytes = 0;
-    bool ret = aac_decoder_get(aacDec_handle, AAC_VALID_BYTES, &free_bytes);
-    //decoder_err = aacDecoder_GetFreeBytes(aacDec_handle,&free_bytes);
-    if (ret == false){
-        AUDIO_BT_TRACE(0,"decoder_GetFreeBytes failed");
-        return 0;
-    }
-    //AUDIO_BT_TRACE(2,"app_play_sbc_more_data2 : %d, %d %d", g_app_audio_length, g_app_audio_read,free_bytes);
-    return len;
-#else
     uint32_t l = 0;
 
-    //AUDIO_BT_TRACE(2,"app_play_sbc_more_data : %d, %d", g_app_audio_read, g_app_audio_length);
+    //TRACE(2,"app_play_sbc_more_data : %d, %d", g_app_audio_read, g_app_audio_length);
 
     if (g_app_audio_read < g_app_audio_length){
         unsigned int available_len = 0;
@@ -1795,11 +1632,10 @@ static uint32_t app_play_single_sbc_more_data(uint8_t device_id, uint8_t *buf, u
         g_app_audio_read = g_app_audio_length;
         //af_stream_stop(AUD_STREAM_PLAYBACK);
         //af_stream_close(AUD_STREAM_PLAYBACK);
-        AUDIO_BT_TRACE(4,"[%s]-->need close, length:%d len:%d l:%d", __func__,g_app_audio_length, len, l);
+        TRACE(4,"[%s]-->need close, length:%d len:%d l:%d", __func__,g_app_audio_length, len, l);
     }
 
     return l;
-#endif
 }
 
 
@@ -1838,7 +1674,7 @@ static uint32_t app_play_continue_sbc_more_data(uint8_t device_id, uint8_t *buf,
     l = decode_sbc_frame(buf, len);
 
     if (l !=len){
-        AUDIO_BT_TRACE(0,"continue sbc decode ---> APP_BT_SETTING_CLOSE");
+        TRACE(0,"continue sbc decode ---> APP_BT_SETTING_CLOSE");
     }
 
     return l;
@@ -1910,81 +1746,30 @@ extern uint32_t us_fir_run(short *src_buf, short *dst_buf, uint32_t in_samp_num)
 
 uint32_t g_cache_buff_sz = 0;
 
-#if defined(PROMPT_CTRL_SWITCH_ANC_MODE)
-#include "app_anc.h"
-#include "app_anc_utils.h"
-static app_anc_mode_t g_anc_mode    = APP_ANC_MODE_QTY;
-
-#define PROMOT_ID_ANC_MASK                      (0x0FFF)
-
-#define PROMOT_ID_ANC_FLAG                      (0x01 << 7)
-
-#define PROMOT_ID_SET_ANC_MODE(mode)            (((uint16_t)mode & 0x07) << 8)
-#define PROMOT_ID_GET_ANC_MODE(id)              ((id >> 8) & 0x07)
-
-extern "C" void app_prompt_ctrl_anc(app_anc_mode_t mode)
-{
-    uint16_t aud_id = PROMOT_ID_ANC_FLAG;
-
-    aud_id |= PROMOT_ID_SET_ANC_MODE(mode);
-
-    AUDIO_BT_TRACE(5, "[%s] aud_id: 0x%x, mode: %d", __func__, aud_id, mode);
-
-    media_PlayAudio((AUD_ID_ENUM)aud_id, 0);
-}
-
-uint16_t app_prompt_ctrl_anc_init(uint16_t aud_id)
-{
-    if ((aud_id & PROMOT_ID_ANC_FLAG) == false) {
-        return PROMPT_ID_FROM_ID_VALUE(aud_id);
-    }
-
-    aud_id &= PROMOT_ID_ANC_MASK;
-    g_anc_mode = (app_anc_mode_t)PROMOT_ID_GET_ANC_MODE(aud_id);
-
-    if (g_anc_mode == APP_ANC_MODE_OFF) {
-        //TODO: replace with needed one
-        aud_id = AUDIO_ID_BT_MUTE;
-    } else if (g_anc_mode == APP_ANC_MODE1) {
-        //TODO:
-        aud_id = AUDIO_ID_BT_MUTE;
-    } else {
-        //TODO:
-        aud_id = AUDIO_ID_BT_MUTE;
-    }
-
-    return aud_id;
-}
-
-void app_prompt_ctrl_anc_process(void)
-{
-    if (g_anc_mode < APP_ANC_MODE_QTY) {
-        AUDIO_BT_TRACE(2, "[%s] Mode: %d", __func__, g_anc_mode);
-        app_anc_switch_locally(g_anc_mode);
-        g_anc_mode = APP_ANC_MODE_QTY;
-    }
-}
-#endif
-
 static int16_t *app_play_sbc_cache = NULL;
 uint32_t app_play_sbc_more_data(uint8_t *buf, uint32_t len)
 {
-    uint8_t device_id = app_bt_audio_get_curr_a2dp_device();
+    uint8_t device_id = bes_aud_bt->aud_get_curr_a2dp_device();
 #if defined(IBRT)
     app_ibrt_voice_report_trigger_checker();
 #endif
 
-#if defined(PROMPT_CTRL_SWITCH_ANC_MODE)
+#if defined(PROMPT_CTRL_ANC)
     app_prompt_ctrl_anc_process();
+#if defined(ANC_PROMPT_CTRL_MUSIC)
+    if (app_prompt_ctrl_music_process()) {
+        return len;
+    }
+#endif
+#endif
+#ifdef AUDIO_OUTPUT_SW_GAIN
+    af_stream_sw_gain_set_second_coef(AUD_STREAM_ID_0, AUD_STREAM_PLAYBACK, 0.1);
 #endif
 
-#if defined(AUDIO_OUTPUT_SW_GAIN) && defined(MEDIA_PLAYER_USE_CODEC2)
-    af_codec_dac1_set_algo_gain(0.1);
-#endif
     uint32_t l = 0;
 
     memset(buf, 0, len);
-#if defined(VOICE_ASSIST_PROMPT_LEAK_DETECT)
+#if defined(ANC_ASSIST_ENABLED)
     app_voice_assist_prompt_leak_detect_set_working_status(1);
 #endif
 
@@ -2004,11 +1789,13 @@ uint32_t app_play_sbc_more_data(uint8_t *buf, uint32_t len)
             app_play_sbc_stop_proc_cnt = 2;
         } else if (app_play_sbc_stop_proc_cnt == 2) {
             app_play_sbc_stop_proc_cnt = 3;
-
-#if defined(AUDIO_OUTPUT_SW_GAIN) && defined(MEDIA_PLAYER_USE_CODEC2)
-            af_codec_dac1_set_algo_gain(1.0);
+#ifdef AUDIO_OUTPUT_SW_GAIN
+            af_stream_sw_gain_set_second_coef(AUD_STREAM_ID_0, AUD_STREAM_PLAYBACK, 1.0);
 #endif
 
+#if defined(ANC_PROMPT_CTRL_MUSIC)
+            app_prompt_ctrl_music_check_stop();
+#endif
             // For 8K sample rate data, it takes about 4ms (or 12ms if h/w resample in use) from codec to DAC PA.
             // The playback stream should be stopped after the last data arrives at DAC PA, otherwise there
             // might be some pop sound.
@@ -2037,30 +1824,12 @@ uint32_t app_play_sbc_more_data(uint8_t *buf, uint32_t len)
             us_fir_run((short*)app_play_sbc_cache, (short*)buf, dec_len/MEDIA_PLAYER_CHANNEL_NUM/sizeof(int16_t));
             if (MEDIA_PLAYER_CHANNEL_NUM == AUD_CHANNEL_NUM_2) {
                 app_play_sbc_channel_select((int16_t*)buf, (int16_t*)buf, len/MEDIA_PLAYER_CHANNEL_NUM/sizeof(int16_t));
-            } else if (MEDIA_PLAYER_CHANNEL_NUM == AUD_CHANNEL_NUM_1) {
-                if (IS_PROMPT_CHNLSEl_ALL(g_prompt_chnlsel)
-#ifdef IBRT
-                    || app_ibrt_voice_report_is_me(PROMPT_CHNLSEl_FROM_ID_VALUE(g_prompt_chnlsel))
-#endif
-                    ) {
-                    memcpy(buf, app_play_sbc_cache, len);
-                } else {
-                    memset(buf, 0, len);
-                }
             }
 #else
             if (MEDIA_PLAYER_CHANNEL_NUM == AUD_CHANNEL_NUM_2) {
                 app_play_sbc_channel_select((int16_t *)buf, app_play_sbc_cache, len/MEDIA_PLAYER_CHANNEL_NUM/sizeof(int16_t));
-            } else if (MEDIA_PLAYER_CHANNEL_NUM == AUD_CHANNEL_NUM_1) {
-                if (IS_PROMPT_CHNLSEl_ALL(g_prompt_chnlsel)
-#ifdef IBRT
-                    || app_ibrt_voice_report_is_me(PROMPT_CHNLSEl_FROM_ID_VALUE(g_prompt_chnlsel))
-#endif
-                    ) {
-                    memcpy(buf, app_play_sbc_cache, len);
-                } else {
-                    memset(buf, 0, len);
-                }
+            } else {
+                memcpy(buf, app_play_sbc_cache, len);
             }
 #endif
 
@@ -2122,7 +1891,7 @@ uint32_t app_play_audio_lineinmode_more_data(uint8_t *buf, uint32_t len)
 {
     uint32_t l = 0;
     if (app_play_lineinmode_merge && app_play_sbc_cache){
-        AUDIO_BT_TRACE(1,"line in mode:%d ", len);
+        TRACE(1,"line in mode:%d ", len);
         if (app_play_lineinmode_mode == 1){
             if (g_play_continue_mark){
                 l = app_play_continue_sbc_more_data(BT_DEVICE_ID_1, (uint8_t *)app_play_sbc_cache, len);
@@ -2153,7 +1922,7 @@ uint32_t app_play_audio_lineinmode_more_data(uint8_t *buf, uint32_t len)
 
 int app_play_audio_lineinmode_init(uint8_t mode, uint32_t buff_len)
 {
-    AUDIO_BT_TRACE(1,"lapp_play_audio_lineinmode_init:%d ", buff_len);
+    TRACE(1,"lapp_play_audio_lineinmode_init:%d ", buff_len);
     app_play_lineinmode_mode = mode;
     app_audio_mempool_get_buff((uint8_t **)&app_play_sbc_cache, buff_len);
     media_audio_init();
@@ -2189,7 +1958,7 @@ static uint32_t audio_mc_data_playback_media(uint8_t *buf, uint32_t mc_len_bytes
    uint32_t begin_time;
    //uint32_t end_time;
    begin_time = hal_sys_timer_get();
-   AUDIO_BT_TRACE(1,"media cancel: %d",begin_time);
+   TRACE(1,"media cancel: %d",begin_time);
 
    float left_gain;
    float right_gain;
@@ -2201,10 +1970,10 @@ static uint32_t audio_mc_data_playback_media(uint8_t *buf, uint32_t mc_len_bytes
 
    hal_codec_get_dac_gain(&left_gain,&right_gain);
 
-   //AUDIO_BT_TRACE(1,"playback_samplerate_ratio:  %d",playback_samplerate_ratio);
+   //TRACE(1,"playback_samplerate_ratio:  %d",playback_samplerate_ratio);
 
-  // AUDIO_BT_TRACE(1,"left_gain:  %d",(int)(left_gain*(1<<12)));
-  // AUDIO_BT_TRACE(1,"right_gain: %d",(int)(right_gain*(1<<12)));
+  // TRACE(1,"left_gain:  %d",(int)(left_gain*(1<<12)));
+  // TRACE(1,"right_gain: %d",(int)(right_gain*(1<<12)));
 
    playback_len_bytes=mc_len_bytes/playback_samplerate_ratio_bt;
 
@@ -2341,7 +2110,7 @@ static uint32_t audio_mc_data_playback_media(uint8_t *buf, uint32_t mc_len_bytes
 
   //  end_time = hal_sys_timer_get();
 
- //   AUDIO_BT_TRACE(2,"%s:run time: %d", __FUNCTION__, end_time-begin_time);
+ //   TRACE(2,"%s:run time: %d", __FUNCTION__, end_time-begin_time);
 
     return 0;
 }
@@ -2363,7 +2132,7 @@ int app_play_audio_stop(void)
     bt_media_clear_current_media(BT_STREAM_MEDIA);
     for(uint8_t i = 0; i < BT_DEVICE_NUM; i++)
     {
-        bt_media_clear_media_type(BT_STREAM_MEDIA, i);
+        bt_media_clear_media_type(BT_STREAM_MEDIA, (enum BT_DEVICE_ID_T)i);
     }
 #else
     app_audio_sendrequest(APP_PLAY_BACK_AUDIO, APP_BT_SETTING_STOP_PROMPT, 0);
@@ -2388,7 +2157,7 @@ int app_play_audio_get_aud_id(void)
 void app_play_audio_set_lang(int L)
 {
     g_language = L;
-    AUDIO_BT_TRACE(1, "language is set to: %d", g_language);
+    TRACE(1, "language is set to: %d", g_language);
 }
 
 int app_play_audio_get_lang()
@@ -2414,7 +2183,7 @@ static int copy_prompt_sw_eq_band(enum AUD_SAMPRATE_T sample_rate, IIR_CFG_T *pr
 #endif
 
 static bool isPromptStreamingOn = false;
-bool app_prompt_is_streaming_on(void)
+static bool app_prompt_is_streaming_on(void)
 {
     return isPromptStreamingOn;
 }
@@ -2425,7 +2194,7 @@ void app_prompt_config_sample_rate(uint32_t new_sample_rate)
     prompt_sample_rate = new_sample_rate;
 }
 
-static enum AUD_SAMPRATE_T app_prompt_get_current_sample_rate(void)
+static POSSIBLY_UNUSED enum AUD_SAMPRATE_T app_prompt_get_current_sample_rate(void)
 {
     return (enum AUD_SAMPRATE_T)prompt_sample_rate;
 }
@@ -2462,16 +2231,98 @@ int app_prompt_start_callback(int aud_id)
     return 0;
 }
 
-extern "C" uint8_t is_a2dp_mode(void);
+#ifdef PROMPT_SUPPORT_SE_JOIN
+static POSSIBLY_UNUSED uint32_t app_prompt_se_join_handler(uint32_t curr_ticks, uint32_t tgt_ticks)
+{
+    /**
+     * The frame len of prompt stream is 16ms. For 16k sample rate, the frame len of PCM is 256 samples
+     * The frame len of sbc is 8ms, can use btif_sbc_frame_len to get frame bytes
+     *
+     * _PCM_FRAME_MS is related with APP_AUDIO_PLAYBACK_BUFF_SIZE
+     * ticks = (_PCM_FRAME_MS * _PCM_FRAME_CNT) * 1000 / 312.5, which should be a integer
+     * DAC start will consume ~10ms, so _SE_JOIN_THD_MS > 10ms
+     * If the prompt just remain _REMAIN_PCM_THD_MS, don't do se jion method
+     */
+    #define _PCM_FRAME_MS       (16)
+    #define _PCM_FRAME_CNT      (5)
+    #define _UNIT_FRAME_MS      (_PCM_FRAME_MS * _PCM_FRAME_CNT)
+    #define _SE_JOIN_THD_MS     (20)
+    #define _REMAIN_PCM_THD_MS  (100)
+    #define MS_TO_BTCLKS(ms)    US_TO_BTCLKS((ms * 1000))
+
+    uint32_t lost_pcm_ms = 0;
+    uint32_t pcm_total_ms = 0;
+    uint32_t sbc_frame_lenx2 = 0;
+
+    ASSERT(media_sbc_decoder != NULL, "[%s] media_sbc_decoder is NULL", __func__);
+
+    sbc_stream_info_t info;
+    sbc_decoder_get_stream_info(media_sbc_decoder, &info);
+    sbc_frame_lenx2 = sbc_get_frame_len(info) * 2;
+
+    // This handler is just called in SE, and don't want to print log in get_role function
+#if 0
+    if (app_ibrt_voice_report_get_role() != VOICE_REPORT_SLAVE) {
+        TRACE(0, "[%s] WARNING: Invalid role: %d", __func__, app_ibrt_voice_report_get_role());
+        return 0;
+    }
+#endif
+
+    if (tgt_ticks == 0) {
+        TRACE(0, "[%s] WARNING: Don't need to call this function", __func__);
+        return 0;
+    }
+
+    if (curr_ticks + MS_TO_BTCLKS(_SE_JOIN_THD_MS) < tgt_ticks) {
+        TRACE(0, "[%s] Time diff is enough to trigger: %dus", __func__, (uint32_t)BTCLKS_TO_US(tgt_ticks - curr_ticks));
+        return 0;
+    }
+
+    // Calcute prompt total play time
+    pcm_total_ms = (g_app_audio_length / sbc_frame_lenx2) * _PCM_FRAME_MS;
+    TRACE(0, "[%s] pcm: %dms, sbc frame lenx2: %d, read pos: %d/%d", __func__, pcm_total_ms, sbc_frame_lenx2, g_app_audio_read, g_app_audio_length);
+
+    // If the prompt is too short, will bypass join
+    if (pcm_total_ms < _REMAIN_PCM_THD_MS) {
+        TRACE(0, "[%s] pcm_total_ms is too short: %d", __func__, pcm_total_ms);
+        return 0;
+    }
+
+    // If the curr time is too long which causes the left prompt is too short, will bypass join
+    if (curr_ticks > tgt_ticks + MS_TO_BTCLKS(pcm_total_ms - _REMAIN_PCM_THD_MS)) {
+        TRACE(0, "[%s] There is not enough pcm to play: %d, %d", __func__, curr_ticks, tgt_ticks);
+        return 0;
+    }
+
+    // Find how long time need to be added
+    for (lost_pcm_ms = 0; lost_pcm_ms <= pcm_total_ms - _REMAIN_PCM_THD_MS; lost_pcm_ms += _UNIT_FRAME_MS) {
+        if (curr_ticks + MS_TO_BTCLKS(_SE_JOIN_THD_MS) <= tgt_ticks + MS_TO_BTCLKS(lost_pcm_ms)) {
+            // Set sbc read offset to skip some data
+            g_app_audio_read += (lost_pcm_ms / _UNIT_FRAME_MS) * sbc_frame_lenx2 * _PCM_FRAME_CNT;
+            break;
+        }
+    }
+
+    if (g_app_audio_read == 0 && lost_pcm_ms != 0) {
+        TRACE(0, "[%s] WARNING: Should add trigger time", __func__);
+    }
+
+    TRACE(0, "[%s] SE lost pcm: %dms, set read pos: %d", __func__, lost_pcm_ms, g_app_audio_read);
+
+    return lost_pcm_ms;
+}
+#endif
+
 int app_play_audio_onoff(bool onoff, APP_AUDIO_STATUS* status)
 {
     struct AF_STREAM_CONFIG_T stream_cfg;
     uint8_t* bt_audio_buff = NULL;
+    enum AUD_SAMPRATE_T sample_rate POSSIBLY_UNUSED = AUD_SAMPRATE_16000;
     uint32_t aud_id = 0;
     uint16_t aud_pram = 0;
     int ret = 0;
 
-    AUDIO_BT_TRACE(2,"Audio prompt stream state %s, to %s it",
+    TRACE(2,"Audio prompt stream state %s, to %s it",
         isPromptStreamingOn?"Running":"Idle", onoff?"start":"stop");
 
     if (isPromptStreamingOn == onoff)
@@ -2480,7 +2331,7 @@ int app_play_audio_onoff(bool onoff, APP_AUDIO_STATUS* status)
     }
 
     if (onoff) {
-        app_sysfreq_req(APP_SYSFREQ_USER_PROMPT_MIXER, APP_SYSFREQ_104M);
+        // app_sysfreq_req(APP_SYSFREQ_USER_APP_0, APP_SYSFREQ_104M);
 #if defined(__THIRDPARTY)
         app_thirdparty_specific_lib_event_handle(THIRDPARTY_FUNC_NO1,THIRDPARTY_STOP, 0);
 #endif
@@ -2502,38 +2353,32 @@ int app_play_audio_onoff(bool onoff, APP_AUDIO_STATUS* status)
         aud_pram = PROMPT_PRAM_FROM_ID_VALUE(status->aud_id);
         g_prompt_chnlsel = PROMPT_CHNLSEl_FROM_ID_VALUE(aud_pram);
         app_prompt_id_on_going = aud_id;
-        AUDIO_BT_TRACE(4,"aud_id:%04x %s aud_pram:%04x chnlsel:%d", status->aud_id, aud_id2str(aud_id), aud_pram, g_prompt_chnlsel);
+        TRACE(4,"aud_id:%04x %s aud_pram:%04x chnlsel:%d", status->aud_id, aud_id2str(aud_id), aud_pram, g_prompt_chnlsel);
 
-#if defined(PROMPT_CTRL_SWITCH_ANC_MODE)
+#if defined(PROMPT_CTRL_ANC)
         media_Play_init_audio(status->aud_id);
 #else
         media_Play_init_audio(aud_id);
 #endif
 
-#if defined(VOICE_ASSIST_PROMPT_LEAK_DETECT)
+#if defined(ANC_ASSIST_ENABLED)
         if(aud_id == AUD_ID_ANC_PROMPT){
             app_voice_assist_prompt_leak_detect_open();
             app_voice_assist_prompt_leak_detect_set_working_status(0);
-            // AUDIO_BT_TRACE(0,"!!!!!!!!!!#################");
-        }
-#endif
-
-#if defined(VOICE_ASSIST_CUSTOM_LEAK_DETECT)
-        if(aud_id == AUD_ID_CUSTOM_LEAK_DETECT){
-            app_voice_assist_custom_leak_detect_open();
+            // TRACE(0,"!!!!!!!!!!#################");
         }
 #endif
         app_play_audio_set_aud_id(aud_id);
         if (!g_app_audio_length){
-#if defined(PROMPT_CTRL_SWITCH_ANC_MODE)
+#if defined(PROMPT_CTRL_ANC)
             app_prompt_ctrl_anc_process();
 #endif
-            isPromptStreamingOn = onoff;
 #if (!defined(PROMPT_SELF_MANAGEMENT))
             app_audio_sendrequest(APP_PLAY_BACK_AUDIO, APP_BT_SETTING_CLOSE, 0);
 #else
             app_audio_sendrequest(APP_PLAY_BACK_AUDIO, APP_BT_SETTING_STOP_PROMPT, 0);
 #endif
+            // app_sysfreq_req(APP_SYSFREQ_USER_APP_0, APP_SYSFREQ_32K);
             return 0;
         }
 
@@ -2541,26 +2386,10 @@ int app_play_audio_onoff(bool onoff, APP_AUDIO_STATUS* status)
 #if defined(MEDIA_PLAYER_USE_CODEC2)
         app_media_mempool_init();
 #else
-        app_audio_mempool_init_with_specific_size(app_audio_mempool_size());
+        app_audio_mempool_init_with_specific_size(APP_AUDIO_BUFFER_SIZE);
 #endif
         media_audio_init();
-#if defined(PROMPT_USE_AAC)
-        if(aac_mempoll == NULL)
-            app_audio_mempool_get_buff(&aac_mempoll, AAC_MEMPOOL_SIZE);
 
-        if(aac_memhandle == NULL) {
-            aac_memhandle = heap_register(aac_mempoll, AAC_MEMPOOL_SIZE);
-            aac_heap_api = aac_get_heap_api();
-        }
-        if (aacDec_handle == NULL){
-            aac_dec_para_t dec_para;
-            dec_para.package = AAC_PACKAGE_ADTS;
-            dec_para.channel_select = 0;
-            aacDec_handle = aac_decoder_open(aac_heap_api, dec_para);
-            ASSERT(aacDec_handle, "aacDecoder_Open failed");
-        }
-#else
-        enum AUD_SAMPRATE_T sample_rate POSSIBLY_UNUSED = AUD_SAMPRATE_16000;
         sbc_decoder_open(media_sbc_decoder);
 
         sbc_frame_t sbc_data;
@@ -2588,7 +2417,7 @@ int app_play_audio_onoff(bool onoff, APP_AUDIO_STATUS* status)
                 sample_rate = AUD_SAMPRATE_16000;
                 break;
         }
-#endif
+
 #ifdef PLAYBACK_USE_I2S
         hal_cmu_audio_resample_disable();
 #endif
@@ -2605,9 +2434,8 @@ int app_play_audio_onoff(bool onoff, APP_AUDIO_STATUS* status)
         stream_cfg.sample_rate =  AUD_SAMPRATE_48000;
 #else
         stream_cfg.sample_rate =  AUD_SAMPRATE_16000;
-#endif
-
         stream_cfg.sample_rate = app_prompt_get_current_sample_rate();
+#endif
 
 #ifdef PLAYBACK_USE_I2S
         stream_cfg.device = AUD_STREAM_USE_I2S0_MASTER;
@@ -2663,7 +2491,7 @@ int app_play_audio_onoff(bool onoff, APP_AUDIO_STATUS* status)
         app_anc_assist_set_mode(ANC_ASSIST_MODE_NONE);
 #endif
 
-        AUDIO_BT_TRACE(0, "[%s]: sample rate: %d, bits: %d, channel number: %d, data size:%d",
+        TRACE(0, "[%s]: sample rate: %d, bits: %d, channel number: %d, data size:%d",
             __func__,
             stream_cfg.sample_rate,
             stream_cfg.bits,
@@ -2671,17 +2499,15 @@ int app_play_audio_onoff(bool onoff, APP_AUDIO_STATUS* status)
             stream_cfg.data_size);
 
 #if defined(__SW_IIR_PROMPT_EQ_PROCESS__)
-        uint32_t sw_iir_overlap_size = stream_cfg.data_size / 2;
-        uint8_t *sw_iir_overlap = NULL;
-        app_audio_mempool_get_buff(&sw_iir_overlap, sw_iir_overlap_size);
         IIR_CFG_T prompt_iir_cfg;
         copy_prompt_sw_eq_band(stream_cfg.sample_rate, &prompt_iir_cfg, audio_eq_hw_dac_iir_cfg_list[0]);
-        iir_set_buf(sw_iir_overlap, sw_iir_overlap_size);
         iir_open(stream_cfg.sample_rate, stream_cfg.bits, stream_cfg.channel_num);
         iir_set_cfg(&prompt_iir_cfg);
 #endif
         af_stream_open(MEDIA_PLAY_STREAM_ID, AUD_STREAM_PLAYBACK, &stream_cfg);
-
+#ifdef ADVANCE_FILL_ENABLED
+        //app_bt_stream_advance_fill_handler(MEDIA_PLAY_STREAM_ID, AUD_STREAM_PLAYBACK);
+#endif
 #if defined(AUDIO_ANC_FB_MC_MEDIA) && defined(ANC_APP) && !defined(__AUDIO_RESAMPLE__)
         stream_cfg.bits = sample_size_play_bt;
         stream_cfg.channel_num = playback_ch_num_bt;
@@ -2703,7 +2529,7 @@ int app_play_audio_onoff(bool onoff, APP_AUDIO_STATUS* status)
 #endif
 
 #if !(defined(__AUDIO_RESAMPLE__) && defined(SW_PLAYBACK_RESAMPLE))
-        AF_CODEC_TUNE(AUD_STREAM_PLAYBACK, 0);
+        af_stream_tune(MEDIA_PLAY_STREAM_ID, AUD_STREAM_PLAYBACK, 0);
 #endif
 
 #if defined(IBRT)
@@ -2738,37 +2564,26 @@ int app_play_audio_onoff(bool onoff, APP_AUDIO_STATUS* status)
             af_stream_start(AUD_STREAM_ID_2, AUD_STREAM_PLAYBACK);
 #endif
         } else {
-#if defined(PROMPT_CTRL_SWITCH_ANC_MODE)
+#if defined(PROMPT_CTRL_ANC)
             app_prompt_ctrl_anc_process();
 #endif
         }
     }
     else
     {
-
-#if defined(AUDIO_OUTPUT_SW_GAIN) && defined(MEDIA_PLAYER_USE_CODEC2)
-        af_codec_dac1_set_algo_gain(1.0);
+#ifdef AUDIO_OUTPUT_SW_GAIN
+        af_stream_sw_gain_set_second_coef(AUD_STREAM_ID_0, AUD_STREAM_PLAYBACK, 1.0);
 #endif
-
 #if !(defined(__AUDIO_RESAMPLE__) && defined(SW_PLAYBACK_RESAMPLE))
-        AF_CODEC_TUNE(AUD_STREAM_PLAYBACK, 0);
-#endif
-#ifdef AF_STREAM_ID_0_PLAYBACK_FADEOUT
-	if((is_a2dp_mode()==false) && (app_play_audio_get_aud_id() == AUD_ID_BT_CALL_INCOMING_CALL)){
-    	af_stream_playback_fadeout(MEDIA_PLAY_STREAM_ID, 7);
-	}
+        af_stream_tune(MEDIA_PLAY_STREAM_ID, AUD_STREAM_PLAYBACK, 0);
 #endif
 
         af_stream_stop(MEDIA_PLAY_STREAM_ID, AUD_STREAM_PLAYBACK);
         af_stream_close(MEDIA_PLAY_STREAM_ID, AUD_STREAM_PLAYBACK);
 
-#if defined(VOICE_ASSIST_PROMPT_LEAK_DETECT)
+#if defined(ANC_ASSIST_ENABLED)
         app_voice_assist_prompt_leak_detect_close();
 #endif
-#if defined(VOICE_ASSIST_CUSTOM_LEAK_DETECT)
-        app_voice_assist_custom_leak_detect_set_working_status(0);
-#endif
-
 #if defined(__SW_IIR_PROMPT_EQ_PROCESS__)
         iir_close();
 #endif
@@ -2787,6 +2602,10 @@ int app_play_audio_onoff(bool onoff, APP_AUDIO_STATUS* status)
         hal_cmu_audio_resample_enable();
 #endif
 
+#if defined(PROMPT_CTRL_ANC)
+        app_prompt_ctrl_anc_process();
+#endif
+
         app_play_sbc_cache = NULL;
         g_cache_buff_sz = 0;
         g_prompt_chnlsel = PROMOT_ID_BIT_MASK_CHNLSEl_ALL;
@@ -2802,20 +2621,11 @@ int app_play_audio_onoff(bool onoff, APP_AUDIO_STATUS* status)
         app_anc_assist_set_playback_info(AUD_SAMPRATE_NULL);
         app_anc_assist_set_mode(ANC_ASSIST_MODE_STANDALONE);
 #endif
-
-#if defined(PROMPT_USE_AAC)
-        if (aacDec_handle){
-            aac_decoder_close(aacDec_handle);
-            aacDec_handle = NULL;
-        }
-
-        aac_memhandle = NULL;
-        aac_mempoll = NULL;
-#endif
+        // app_sysfreq_req(APP_SYSFREQ_USER_APP_0, APP_SYSFREQ_32K);
     }
 
 #if defined(ENABLE_CALCU_CPU_FREQ_LOG)
-    AUDIO_BT_TRACE(0, "[%s] sysfreq calc : %d", __FUNCTION__, hal_sys_timer_calc_cpu_freq(5, 0));
+    TRACE(0, "[%s] sysfreq calc : %d", __FUNCTION__, hal_sys_timer_calc_cpu_freq(5, 0));
 #endif
 
     isPromptStreamingOn = onoff;
@@ -2825,7 +2635,6 @@ int app_play_audio_onoff(bool onoff, APP_AUDIO_STATUS* status)
     if (!onoff)
     {
         app_prompt_finish_callback(app_prompt_id_on_going);
-        app_sysfreq_req(APP_SYSFREQ_USER_PROMPT_MIXER, APP_SYSFREQ_32K);
     }
 
     return 0;
@@ -2838,7 +2647,7 @@ POSSIBLY_UNUSED static void app_stop_local_prompt_playing(void)
 #ifdef MIX_AUDIO_PROMPT_WITH_A2DP_MEDIA_ENABLED
     audio_prompt_stop_playing();
 #endif
-#else
+#else            
     app_audio_sendrequest(APP_PLAY_BACK_AUDIO, APP_BT_SETTING_STOP_PROMPT, 0);
 #endif
 }
@@ -2846,7 +2655,7 @@ POSSIBLY_UNUSED static void app_stop_local_prompt_playing(void)
 void app_stop_both_prompt_playing(void)
 {
     app_prompt_stop_all();
-#if defined(IBRT)
+#ifdef IBRT
     app_tws_stop_peer_prompt();
 #endif
     media_PlayAudio_stop_continuous_prompt();
@@ -2855,7 +2664,7 @@ void app_stop_both_prompt_playing(void)
 
 void app_tws_cmd_stop_prompt_handler(uint8_t* ptrParam, uint16_t paramLen)
 {
-    AUDIO_BT_TRACE(1,"%s", __func__);
+    TRACE(1,"%s", __func__);
     //app_stop_local_prompt_playing();
 
     media_PlayAudio_stop_continuous_prompt();
@@ -2863,13 +2672,13 @@ void app_tws_cmd_stop_prompt_handler(uint8_t* ptrParam, uint16_t paramLen)
 
 static void app_prompt_continuous_checker_callback(bool status)
 {
-    AUDIO_BT_TRACE(0, "continuous_checker: %d", status);
+    TRACE(0, "continuous_checker: %d", status);
     app_prompt_inform_completed_event();
 }
 
 static void app_prompt_start_continuous_checker(void)
 {
-    AUDIO_BT_TRACE(0, "start continuous prompt checker");
+    TRACE(0, "start continuous prompt checker");
     app_bt_stream_register_notify_trigger_status_callback(app_prompt_continuous_checker_callback);
 }
 static void app_prompt_stop_continuous_checker(void)
@@ -2903,7 +2712,7 @@ static void app_prompt_start_protector(void)
 
 static void app_prompt_protector_timer_handler(void const *param)
 {
-    AUDIO_BT_TRACE(0, "a wild prompt has blocked system for %d ms!",
+    TRACE(0, "a wild prompt has blocked system for %d ms!",
         APP_PROMPT_PROTECTOR_EXPIRE_TIMEOUT_MS);
     // timeout, clear the prompt list
     for (uint32_t i = 0;i < ARRAY_SIZE(app_prompt_continous_id); i++)
@@ -2935,6 +2744,14 @@ static list_node_t *app_prompt_list_begin(const list_t *list)
 {
     uint32_t lock = int_lock();
     list_node_t *node = list_begin(list);
+    int_unlock(lock);
+    return node;
+}
+
+static list_node_t *app_prompt_list_end(const list_t *list)
+{
+    uint32_t lock = int_lock();
+    list_node_t *node = list_end(list);
     int_unlock(lock);
     return node;
 }
@@ -2982,28 +2799,25 @@ static bool app_prompt_list_node_cmp(const void *x,const void *y)
 
 static bool app_prompt_list_append(list_t *list, APP_PROMPT_PLAY_REQ_T *req)
 {
-    APP_PROMPT_PLAY_REQ_T* reqToAppendList = NULL;
-    bool nRet = false;
+    APP_PROMPT_PLAY_REQ_T* reqToAppend =
+        (APP_PROMPT_PLAY_REQ_T *)osPoolCAlloc (app_prompt_request_mempool);
+    if (NULL == reqToAppend)
+    {
+        TRACE(0, "prompt request memory pool is full.");
+        return false;
+    }
+
+    memcpy((uint8_t *)reqToAppend,  (uint8_t *)req, sizeof(APP_PROMPT_PLAY_REQ_T));
 
     uint32_t lock = int_lock();
-    if (!list_find(list, app_prompt_list_node_cmp, (void*)req))
+    bool nRet = false;
+    if (!list_find(list,app_prompt_list_node_cmp,(void*)reqToAppend))
     {
-        reqToAppendList = (APP_PROMPT_PLAY_REQ_T *)osPoolCAlloc (app_prompt_request_mempool);
-        if (NULL == reqToAppendList)
-        {
-            AUDIO_BT_TRACE(0, "prompt request memory pool is full.");
-            int_unlock(lock);
-            return false;
-        }
-
-        memcpy((uint8_t *)reqToAppendList, (uint8_t *)req, sizeof(APP_PROMPT_PLAY_REQ_T));
-        nRet = list_append(list, (void *)reqToAppendList);
+        nRet = list_append(list, (void *)reqToAppend);
     }
     else
     {
-        AUDIO_BT_TRACE(0, "duplicated prompt request.");
-        int_unlock(lock);
-        return true;
+        TRACE(0, "duplicated prompt request.");
     }
     int_unlock(lock);
     return nRet;
@@ -3011,37 +2825,36 @@ static bool app_prompt_list_append(list_t *list, APP_PROMPT_PLAY_REQ_T *req)
 
 static bool app_prompt_list_prepend(list_t *list, APP_PROMPT_PLAY_REQ_T *req)
 {
-    APP_PROMPT_PLAY_REQ_T* reqToAppendList = NULL;
-    bool nRet = false;
+    APP_PROMPT_PLAY_REQ_T* reqToAppend =
+        (APP_PROMPT_PLAY_REQ_T *)osPoolCAlloc (app_prompt_request_mempool);
+    if (NULL == reqToAppend)
+    {
+        TRACE(0, "prompt request memory pool is full.");
+        return false;
+    }
+
+    memcpy((uint8_t *)reqToAppend,  (uint8_t *)req, sizeof(APP_PROMPT_PLAY_REQ_T));
 
     uint32_t lock = int_lock();
-    if (!list_find(list, app_prompt_list_node_cmp, (void*)req))
-    {
-        reqToAppendList = (APP_PROMPT_PLAY_REQ_T *)osPoolCAlloc (app_prompt_request_mempool);
-        if (NULL == reqToAppendList)
-        {
-            AUDIO_BT_TRACE(0, "prompt request memory pool is full.");
-            int_unlock(lock);
-            return false;
-        }
-
-        memcpy((uint8_t *)reqToAppendList, (uint8_t *)req, sizeof(APP_PROMPT_PLAY_REQ_T));
-        nRet = list_prepend(list, (void *)reqToAppendList);
-    }
-    else
-    {
-        AUDIO_BT_TRACE(0, "duplicated prompt request.");
-        nRet = true;
-    }
+    bool nRet = list_prepend(list, (void *)reqToAppend);
     int_unlock(lock);
     return nRet;
 }
 
-static void app_prompt_list_foreach(list_t *list, list_iter_cb callback, void *ctx)
+POSSIBLY_UNUSED static void app_prompt_list_push_end_to_begin(void)
 {
-    uint32_t lock = int_lock();
-    list_foreach(list, callback, ctx);
-    int_unlock(lock);
+    list_t *list = app_prompt_list;
+    APP_PROMPT_PLAY_REQ_T* pPlayReq = NULL;
+    list_node_t *node = NULL;
+    if ((node = app_prompt_list_end(list)) != NULL)
+    {
+        pPlayReq = app_prompt_list_node(node);
+        TRACE(0, "%s end list reqType %d", __func__, pPlayReq->reqType);
+
+        APP_PROMPT_PLAY_REQ_T promptReq = *pPlayReq;
+        app_prompt_list_remove(list, pPlayReq);
+        app_prompt_list_prepend(list, &promptReq);
+    }
 }
 
 static void app_prompt_list_clear(list_t *list)
@@ -3056,11 +2869,6 @@ static void app_prompt_list_free(void* data)
     osPoolFree (app_prompt_request_mempool, data);
 }
 
-WEAK void app_ibrt_voice_report_register_slave_request_start_callback(void (*)(void))
-{
-
-}
-
 void app_prompt_list_init(void)
 {
     if (NULL == app_prompt_request_mempool)
@@ -3073,23 +2881,14 @@ void app_prompt_list_init(void)
     {
         app_prompt_list = list_new(app_prompt_list_free, NULL, NULL);
     }
-    AUDIO_BT_TRACE(2, "%s ca %p", __func__, __builtin_return_address(0));
+    TRACE(2, "%s ca %p", __func__, __builtin_return_address(0));
 
-#if defined(USE_BASIC_THREADS)
-    app_set_threadhandle(APP_MODULE_MEDIA, app_prompt_handler);
-#else
+#ifdef PROMPT_SUPPORT_SE_JOIN
+    app_ibrt_voice_report_register_se_join_callback(app_prompt_se_join_handler);
+#endif
+
     app_prompt_handler_tid =
         osThreadCreate(osThread(app_prompt_handler_thread), NULL);
-#endif
-
-#ifdef IBRT
-    app_ibrt_voice_report_register_slave_request_start_callback(app_prompt_stop_wait_master_sync_play_req_timer);
-#endif
-
-    if (NULL == promptMutexId)
-    {
-        promptMutexId = osMutexCreate(osMutex(promptMutex));
-    }
 }
 
 static void app_prompt_clear_prompt_list(void);
@@ -3104,13 +2903,13 @@ void app_prompt_push_request(APP_PROMPT_PLAY_REQ_TYPE_E reqType,
     req.reqType = reqType;
     req.isLocalPlaying = isLocalPlaying;
 
-    AUDIO_BT_TRACE(0, "push prompt request type %d devId %d promptId 0x%x isLocal %d cache %d",
-        reqType, device_id, id, isLocalPlaying, is_cache_prompt_in_processing());
+    TRACE(0, "push prompt request type %d devId %d promptId 0x%x isLocalPlaying %d",
+        reqType, device_id, id, isLocalPlaying);
 
     if (AUDIO_ID_BT_MUTE == id)
     {
 
-        AUDIO_BT_TRACE(2, "%s ca %p", __func__, __builtin_return_address(0));
+        TRACE(2, "%s ca %p", __func__, __builtin_return_address(0));
         // keep the continuous prompt if any
         if (media_playAudio_is_continuous_prompt_on_going())
         {
@@ -3122,70 +2921,58 @@ void app_prompt_push_request(APP_PROMPT_PLAY_REQ_TYPE_E reqType,
         }
     }
 
-    bool ret = false;
-    if ((is_cache_prompt_in_processing() && !isLocalPlaying)
-        || app_prompt_receive_let_peer)
+    bool ret = app_prompt_list_append(app_prompt_list, &req);
+    if (ret)
     {
-        ret = app_prompt_list_prepend(app_prompt_list, &req);
+        osSignalSet(app_prompt_handler_tid, PROMPT_HANDLER_SIGNAL_NEW_PROMPT_REQ);
+    }
+}
+
+void app_prompt_push_to_head_request(APP_PROMPT_PLAY_REQ_TYPE_E reqType,
+    AUD_ID_ENUM id, uint8_t device_id, bool isLocalPlaying)
+{
+    APP_PROMPT_PLAY_REQ_T req;
+    req.deviceId = device_id;
+    req.promptId = (uint32_t)id;
+    req.reqType = reqType;
+    req.isLocalPlaying = isLocalPlaying;
+
+    TRACE(0, "push head prompt request type %d devId %d promptId 0x%x isLocalPlaying %d",
+        reqType, device_id, id, isLocalPlaying);
+
+    if (AUDIO_ID_BT_MUTE == id)
+    {
+
+        TRACE(2, "%s ca %p", __func__, __builtin_return_address(0));
+        // keep the continuous prompt if any
+        if (media_playAudio_is_continuous_prompt_on_going())
+        {
+            app_prompt_clear_non_continuous_prompt();
+        }
+        else
+        {
+            app_prompt_clear_prompt_list();
+        }
+    }
+
+    bool ret = app_prompt_list_prepend(app_prompt_list, &req);
+    if (ret)
+    {
+        osSignalSet(app_prompt_handler_tid, PROMPT_HANDLER_SIGNAL_NEW_PROMPT_REQ);
+    }
+}
+
+void app_prompt_forware_play_handler(APP_PROMPT_PLAY_REQ_TYPE_E prompt_type, AUD_ID_ENUM voicePrompt, uint8_t dev_id)
+{
+    if (app_prompt_wait_forware_play)
+    {
+        app_prompt_wait_forware_play = false;
+        app_prompt_push_to_head_request(prompt_type, voicePrompt, dev_id, false);
     }
     else
     {
-        ret = app_prompt_list_append(app_prompt_list, &req);
-
+        app_prompt_push_request(prompt_type, voicePrompt, dev_id, false);
     }
-
-    if (ret)
-    {
-#if defined(USE_BASIC_THREADS)
-        app_prompt_inform_new_prompt_event();
-#else
-        osSignalSet(app_prompt_handler_tid, PROMPT_HANDLER_SIGNAL_NEW_PROMPT_REQ);
-#endif
-    }
-}
-
-static bool app_prompt_list_iter_clear_specific_cb(void *data, void *ctx)
-{
-    if (ctx == NULL)
-    {
-        AUDIO_BT_TRACE(0, "prompt_list_iter_delete error!");
-        return false;
-    }
-
-    APP_PROMPT_PLAY_REQ_T *pPlayReq = (APP_PROMPT_PLAY_REQ_T *)data;
-    APP_PROMPT_PLAY_REQ_T *pDeleReq = (APP_PROMPT_PLAY_REQ_T *)ctx;
-    if ((pPlayReq->promptId == pDeleReq->promptId) &&
-        (pPlayReq->deviceId == pDeleReq->deviceId))
-    {
-        AUDIO_BT_TRACE(0, "prompt_list_iter_delete %d %d", pPlayReq->promptId, pPlayReq->deviceId);
-        return list_remove(app_prompt_list, data);
-    }
-
-    return false;
-}
-
-void app_prompt_list_clear_specific_prompt(uint8_t deviceId, uint16_t promptId)
-{
-    APP_PROMPT_PLAY_REQ_T deleReq = {0};
-    deleReq.deviceId = deviceId;
-    deleReq.promptId = promptId;
-    app_prompt_list_foreach(app_prompt_list, app_prompt_list_iter_clear_specific_cb, (void *)(&deleReq));
-}
-
-void app_prompt_forward_play_handler(APP_PROMPT_PLAY_REQ_TYPE_E prompt_type, AUD_ID_ENUM voicePrompt, uint8_t dev_id)
-{
-    AUDIO_BT_TRACE(0, "voicePrompt %x app_prompt_wait_forward_play_id %x", voicePrompt, app_prompt_wait_forward_play_id);
-    if (app_prompt_wait_forward_play_id != AUD_ID_INVALID)
-    {
-        app_prompt_is_on_going = false;
-    }
-    if (app_prompt_wait_forward_play_id == voicePrompt)
-    {
-        app_prompt_stop_wait_slave_play_req_timer();
-    }
-    app_prompt_receive_let_peer = true;
-    app_prompt_push_request(prompt_type, voicePrompt, dev_id, false);
-    app_prompt_receive_let_peer = false;
 }
 
 AUD_ID_ENUM app_prompt_get_current_prompt_id(void)
@@ -3195,9 +2982,9 @@ AUD_ID_ENUM app_prompt_get_current_prompt_id(void)
 
 static bool app_prompt_refresh_list(void)
 {
-    if (app_prompt_is_on_going)
+    if (app_prompt_is_on_going || app_prompt_wait_forware_play)
     {
-        AUDIO_BT_TRACE(0, "A prompt playing is on-going.");
+        TRACE(0, "A prompt playing is on-going.");
         return false;
     }
 
@@ -3207,22 +2994,45 @@ static bool app_prompt_refresh_list(void)
 
     if ((node = app_prompt_list_begin(list)) != NULL) {
         pPlayReq = app_prompt_list_node(node);
-        AUDIO_BT_TRACE(0, "%s reqType %d local %d", __func__, pPlayReq->reqType, pPlayReq->isLocalPlaying);
+        TRACE(0, "%s reqType %d", __func__, pPlayReq->reqType);
 #ifdef IBRT
         if (APP_PROMPT_CACHED_ORG_REQUEST == pPlayReq->reqType)
         {
             APP_PROMPT_PLAY_REQ_T localReq = *pPlayReq;
             app_prompt_list_remove(list, pPlayReq);
-
-            cache_prompt_flag(true);
+            bool isLocalPlaying = false;
+            trigger_prompt_local(false);
+            if (localReq.isLocalPlaying)
+            {
+                isLocalPlaying = true;
+                trigger_prompt_local(true);
+            }
             localReq.func((AUD_ID_ENUM)(localReq.promptId), localReq.deviceId);
-            cache_prompt_flag(false);
-            return true;
-        }
+            if ((node = app_prompt_list_begin(list)) != NULL)
+            {
+                pPlayReq = app_prompt_list_node(node);
+                TRACE(0, "%s in cache next reqType %d", __func__, pPlayReq->reqType);
+                if((pPlayReq->reqType==APP_PROMPT_CACHED_ORG_REQUEST)
+                    || (pPlayReq->reqType==APP_PROMPT_LOCAL_CONTINUOUS_NORMAL_PLAY))
+                {
+                    app_prompt_is_on_going = false;
+                    app_prompt_list_push_end_to_begin();
+                }
+                else if ((pPlayReq->reqType==APP_PROMPT_PENDING_FOR_MASTER_SYNC_PLAY_REQ)
+                        ||(app_prompt_list_length(list)<=1))
+                {
+                    app_prompt_is_on_going = false;
+                }
+                else
+                {
+                    app_prompt_is_on_going = true;
+                }
+            }
 
-        if ((app_prompt_wait_forward_play_id != AUD_ID_INVALID)&& pPlayReq->isLocalPlaying)
-        {
-            AUDIO_BT_TRACE(0, "waiting for slave play req, block loacl play");
+            if (isLocalPlaying)
+            {
+                trigger_prompt_local(false);
+            }
             return true;
         }
 #endif
@@ -3302,12 +3112,7 @@ static bool app_prompt_refresh_list(void)
                     (AUD_ID_ENUM)pPlayReq->promptId, pPlayReq->deviceId, pPlayReq->isLocalPlaying);
                 break;
             case APP_PROMPT_PENDING_FOR_MASTER_SYNC_PLAY_REQ:
-                AUDIO_BT_TRACE(0, "Wait for master to send sync play request");
-                app_prompt_start_wait_master_sync_play_req_timer();
-                break;
-            case APP_PROMPT_PENDING_FOR_SLAVE_PLAY_REQ:
-                AUDIO_BT_TRACE(0, "Wait for slave to send play request");
-                app_prompt_start_wait_slave_play_req_timer();
+                TRACE(0, "Wait for master to send sync play request");
                 break;
             default:
                 ASSERT(false, "Invalid prompt req type %d.", pPlayReq->reqType);
@@ -3321,7 +3126,7 @@ static bool app_prompt_refresh_list(void)
 
         return true;
     }else {
-        AUDIO_BT_TRACE(0, "Prompt list is empty");
+        TRACE(0, "Prompt list is empty");
     }
 
     return false;
@@ -3329,41 +3134,17 @@ static bool app_prompt_refresh_list(void)
 
 void app_prompt_inform_completed_event(void)
 {
-#if defined(USE_BASIC_THREADS)
-    APP_MESSAGE_BLOCK msg;
-    msg.mod_id = APP_MODULE_MEDIA;
-    msg.mod_level = APP_MOD_LEVEL_2;
-    msg.msg_body.message_Param0 = PROMPT_HANDLER_SIGNAL_PLAYING_COMPLETED;
-    app_mailbox_put(&msg);
-#else
     osSignalSet(app_prompt_handler_tid, PROMPT_HANDLER_SIGNAL_PLAYING_COMPLETED);
-#endif
 }
 
 void app_prompt_stop_all(void)
 {
-#if defined(USE_BASIC_THREADS)
-    APP_MESSAGE_BLOCK msg;
-    msg.mod_id = APP_MODULE_MEDIA;
-    msg.mod_level = APP_MOD_LEVEL_2;
-    msg.msg_body.message_Param0 = PROMPT_HANDLER_SIGNAL_CLEAR_REQ;
-    app_mailbox_put(&msg);
-#else
     osSignalSet(app_prompt_handler_tid, PROMPT_HANDLER_SIGNAL_CLEAR_REQ);
-#endif
 }
 
 void app_prompt_inform_new_prompt_event(void)
 {
-#if defined(USE_BASIC_THREADS)
-    APP_MESSAGE_BLOCK msg;
-    msg.mod_id = APP_MODULE_MEDIA;
-    msg.mod_level = APP_MOD_LEVEL_2;
-    msg.msg_body.message_Param0 = PROMPT_HANDLER_SIGNAL_NEW_PROMPT_REQ;
-    app_mailbox_put(&msg);
-#else
     osSignalSet(app_prompt_handler_tid, PROMPT_HANDLER_SIGNAL_NEW_PROMPT_REQ);
-#endif
 }
 
 // assure that all pending prompts especailly power-off can be played
@@ -3390,7 +3171,7 @@ static void app_prompt_clear_non_continuous_prompt(void)
     list_t *list = app_prompt_list;
     list_node_t *node = NULL;
     APP_PROMPT_PLAY_REQ_T* pPlayReq = NULL;
-    AUDIO_BT_TRACE(2, "%s ca %p", __func__, __builtin_return_address(0));
+    TRACE(2, "%s ca %p", __func__, __builtin_return_address(0));
     if ((node = app_prompt_list_begin(list)) != NULL) {
         pPlayReq = app_prompt_list_node(node);
         if (APP_PROMPT_CONTINUOUS_NORMAL_PLAY != pPlayReq->reqType)
@@ -3402,7 +3183,7 @@ static void app_prompt_clear_non_continuous_prompt(void)
 
 static void app_prompt_clear_prompt_list(void)
 {
-    bool POSSIBLY_UNUSED stop_prompt_immediately = true;
+    POSSIBLY_UNUSED bool stop_prompt_immediately = true;
     list_t *list = app_prompt_list;
     list_node_t *node = NULL;
     APP_PROMPT_PLAY_REQ_T* pPlayReq = NULL;
@@ -3414,11 +3195,11 @@ static void app_prompt_clear_prompt_list(void)
         if (APP_PROMPT_CONTINUOUS_NORMAL_PLAY == pPlayReq->reqType)
         {
             stop_prompt_immediately = false;
-            AUDIO_BT_TRACE(0,"don't stop prompt immediately");
+            TRACE(0,"don't stop prompt immediately");
         }
     }
 
-    AUDIO_BT_TRACE(2, "%s ca %p", __func__, __builtin_return_address(0));
+    TRACE(2, "%s ca %p", __func__, __builtin_return_address(0));
 
     // clear the request list
     app_prompt_list_clear(app_prompt_list);
@@ -3439,39 +3220,9 @@ static void app_prompt_clear_prompt_list(void)
 #endif
 }
 
-#if defined(USE_BASIC_THREADS)
-static int app_prompt_handler(APP_MESSAGE_BODY *msg_body)
-{
-    if (msg_body->message_Param0 & PROMPT_HANDLER_SIGNAL_NEW_PROMPT_REQ)
-    {
-        app_prompt_refresh_list();
-    }
-    else if (msg_body->message_Param0 & PROMPT_HANDLER_SIGNAL_CLEAR_REQ)
-    {
-        app_prompt_clear_prompt_list();
-
-        if (g_is_local_continuous_prompt_on_going && (continuous_prompt_id != AUD_ID_INVALID))
-        {
-            app_prompt_push_request(APP_PROMPT_LOCAL_CONTINUOUS_NORMAL_PLAY, continuous_prompt_id, 0, true);
-        }
-        else if (g_is_continuous_prompt_on_going && (continuous_prompt_id != AUD_ID_INVALID))
-        {
-            app_prompt_push_request(APP_PROMPT_CONTINUOUS_NORMAL_PLAY, continuous_prompt_id, 0, false);
-        }
-    }
-    else if (msg_body->message_Param0 & PROMPT_HANDLER_SIGNAL_PLAYING_COMPLETED)
-    {
-        app_prompt_is_on_going = false;
-        app_prompt_on_going_prompt_id = AUD_ID_INVALID;
-        app_prompt_stop_protector();
-        app_prompt_refresh_list();
-    }
-    return 0;
-}
-#else
 static void app_prompt_handler_thread(void const *argument)
 {
-    AUDIO_BT_TRACE(0, "enter prompt handler thread.");
+    TRACE(0, "enter prompt handler thread.");
     while(1)
     {
         osEvent evt;
@@ -3481,7 +3232,7 @@ static void app_prompt_handler_thread(void const *argument)
         // get role from signal value
         if (evt.status == osEventSignal)
         {
-            AUDIO_BT_TRACE(0, "prompt handler thread gets signal 0x%x", evt.value.signals);
+            TRACE(0, "prompt handler thread gets signal 0x%x", evt.value.signals);
 
             if (evt.value.signals & PROMPT_HANDLER_SIGNAL_NEW_PROMPT_REQ)
             {
@@ -3510,10 +3261,10 @@ static void app_prompt_handler_thread(void const *argument)
         }
     }
 }
-#endif
+
 static void demo_prompt_user_callback_func(PROMPT_CHECK_USER_E user)
 {
-    AUDIO_BT_TRACE(0, "prompt is completed!");
+    TRACE(0, "prompt is completed!");
 }
 
 static PROMPT_CHECK_USER_ENV_T promptCheckUserEnv[PROMPT_CHECK_USER_NUM];
@@ -3543,10 +3294,10 @@ static void prompt_check_user_when_streaming_is_completed(void)
             promptCheckUserEnv[user].isPendingForPromptCompleted = false;
             if (promptCheckUserEnv[user].postPromptFunc)
             {
-                AUDIO_BT_TRACE(0, "Blocked user %d can be processed when prompt is completed",
+                TRACE(0, "Blocked user %d can be processed when prompt is completed",
                     user);
                 promptCheckUserEnv[user].postPromptFunc((PROMPT_CHECK_USER_E)user);
-                AUDIO_BT_TRACE(0, "Post prompt handling of user %d done", user);
+                TRACE(0, "Post prompt handling of user %d done", user);
             }
         }
     }

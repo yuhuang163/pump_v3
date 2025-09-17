@@ -29,9 +29,9 @@ extern "C" {
 
 struct lockcqueue {
     CQueue cqueue;
-    osMutexId queue_mutex_id;
+    osMutexId_t queue_mutex_id;
     uint32_t os_mutex_cb_name[3];
-    osMutexDef_t os_mutex_def_name;
+    osMutexAttr_t os_mutex_def_name;
 };
 
 int lockcqueue_init(struct lockcqueue *q, uint32_t size, uint8_t *buf);

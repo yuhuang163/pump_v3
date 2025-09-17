@@ -113,9 +113,10 @@ struct HAL_USBHOST_CHAN_TYPE_T {
 struct HAL_USBHOST_XFER_T {
     uint8_t *buf;
     uint32_t size;
+    HAL_USBHOST_XFER_COMPL_HANDLER handler;
+    uint16_t timeout_ms;
     uint8_t multi_cnt;
     enum HAL_USBHOST_PID_TYPE_T pid;
-    HAL_USBHOST_XFER_COMPL_HANDLER handler;
 };
 
 struct HAL_USBHOST_SETUP_PKT_T {
@@ -130,9 +131,11 @@ struct HAL_USBHOST_SETUP_XFER_T {
     struct HAL_USBHOST_SETUP_PKT_T setup_pkt;
     enum HAL_USBHOST_SETUP_STAGE_T next_stage;
     HAL_USBHOST_SETUP_COMPL_HANDLER handler;
-    uint8_t *data_buf;
     uint8_t chan_out;
     uint8_t chan_in;
+    uint8_t *data_buf;
+    uint16_t buf_len;
+    uint16_t rx_len;
 };
 
 int hal_usbhost_open(HAL_USBHOST_PORT_HANDLER port_cb, HAL_USBHOST_DELAY_FUNC delay_fn);
@@ -154,6 +157,8 @@ int hal_usbhost_update_chan_dev_addr(uint8_t chan, uint8_t dev_addr);
 int hal_usbhost_update_chan_mps(uint8_t chan, uint16_t mps);
 
 int hal_usbhost_start_xfer(uint8_t chan, const struct HAL_USBHOST_XFER_T *xfer);
+
+int hal_usbhost_xfer_busy(uint8_t chan);
 
 int hal_usbhost_start_setup_xfer(const struct HAL_USBHOST_SETUP_XFER_T *setup, uint32_t *recv_len);
 

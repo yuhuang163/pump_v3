@@ -22,14 +22,17 @@ extern "C" {
 #endif
 
 #include "cmsis.h"
+#include "hal_rmt_ipc.h"
+#include "hal_ipc_notify_api.h"
+#include "hal_sleep.h"
 
 #define TRACE_HAL_IPC_NOTIFY_D(str, ...) TR_INFO(TR_ATTR_ARG_NUM(COUNT_ARG_NUM(unused, ##__VA_ARGS__)),     "[HAL][IPC]" str, ##__VA_ARGS__)
 //hal_trace_dummy(str, ##__VA_ARGS__)
 #define TRACE_HAL_IPC_NOTIFY_I(str, ...) TR_INFO(TR_ATTR_ARG_NUM(COUNT_ARG_NUM(unused, ##__VA_ARGS__)),     "[HAL][IPC]" str, ##__VA_ARGS__)
 
 enum HAL_IPC_NOTIFY_IRQ_TYPE_T {
-    HAL_IPC_NOTIFY_IRQ_SEND_IND,
-    HAL_IPC_NOTIFY_IRQ_RECV_DONE,
+    HAL_IPC_NOTIFY_IRQ_DATA_IND,
+    HAL_IPC_NOTIFY_IRQ_DATA_DONE,
 
     HAL_IPC_NOTIFY_IRQ_TYPE_QTY
 };
@@ -41,6 +44,7 @@ typedef void (*HAL_IPC_NOTIFY_LOCAL_TX_IRQ_CLEAR)(uint32_t id);
 typedef void (*HAL_IPC_NOTIFY_RX_DONE)(uint32_t id);
 typedef int (*HAL_IPC_NOTIFY_IRQ_ACTIVE)(uint32_t id, uint32_t type);
 typedef void (*HAL_IPC_NOTIFY_RX_IRQ_HANDLER)(uint32_t core, uint32_t id);
+typedef int (*HAL_IPC_NOTIFY_PM_NOTIF_HANDLER)(enum HAL_PM_STATE_T state);
 
 struct HAL_IPC_NOTIFY_CH_CFG_T {
     HAL_IPC_NOTIFY_RX_IRQ_HANDLER rx_irq_handler;
@@ -60,6 +64,7 @@ struct HAL_IPC_NOTIFY_CFG_T {
     HAL_IPC_NOTIFY_IRQ_ENTRY tx_irq_entry;
     uint8_t chan_num;
     struct HAL_IPC_NOTIFY_CH_CFG_T *chan_cfg;
+    HAL_IPC_NOTIFY_PM_NOTIF_HANDLER pm_notif_handler;
     const IRQn_Type * rx_irq_id;
     const IRQn_Type * tx_irq_id;
 };
@@ -71,7 +76,49 @@ int hal_ipc_notify_internal_start_recv(const struct HAL_IPC_NOTIFY_CFG_T *cfg, u
 int hal_ipc_notify_internal_peer_irq_set(const struct HAL_IPC_NOTIFY_CFG_T *cfg, uint32_t id);
 int hal_ipc_notify_internal_close(const struct HAL_IPC_NOTIFY_CFG_T *cfg, uint32_t id);
 int hal_ipc_notify_internal_opened(const struct HAL_IPC_NOTIFY_CFG_T *cfg, uint32_t id);
+int hal_ipc_notify_pm_notif_handler(const struct HAL_IPC_NOTIFY_CFG_T *cfg, enum HAL_PM_STATE_T state);
 
+typedef void (*HAL_MCU2SENS_NOTIFY_IRQ_HANDLER)(uint32_t core, uint32_t id);
+int hal_mcu2sens_ipc_notify_open(enum HAL_RMT_IPC_CHAN_T id, HAL_MCU2SENS_NOTIFY_IRQ_HANDLER rxhandler, HAL_MCU2SENS_NOTIFY_IRQ_HANDLER txhandler);
+int hal_mcu2sens_ipc_notify_start_recv(enum HAL_RMT_IPC_CHAN_T id);
+int hal_mcu2sens_ipc_notify_interrupt_core(enum HAL_RMT_IPC_CHAN_T id);
+int hal_mcu2sens_ipc_notify_close(enum HAL_RMT_IPC_CHAN_T id);
+
+typedef void (*HAL_MCU2BTC_NOTIFY_IRQ_HANDLER)(uint32_t core, uint32_t id);
+int hal_mcu2btc_ipc_notify_open(enum HAL_RMT_IPC_CHAN_T id, HAL_MCU2BTC_NOTIFY_IRQ_HANDLER rxhandler, HAL_MCU2BTC_NOTIFY_IRQ_HANDLER txhandler);
+int hal_mcu2btc_ipc_notify_start_recv(enum HAL_RMT_IPC_CHAN_T id);
+int hal_mcu2btc_ipc_notify_interrupt_core(enum HAL_RMT_IPC_CHAN_T id);
+int hal_mcu2btc_ipc_notify_close(enum HAL_RMT_IPC_CHAN_T id);
+
+typedef void (*HAL_MCU2BTC2_NOTIFY_IRQ_HANDLER)(uint32_t core, uint32_t id);
+int hal_mcu2btc2_ipc_notify_open(enum HAL_RMT_IPC_CHAN_T id, HAL_MCU2BTC2_NOTIFY_IRQ_HANDLER rxhandler, HAL_MCU2BTC2_NOTIFY_IRQ_HANDLER txhandler);
+int hal_mcu2btc2_ipc_notify_start_recv(enum HAL_RMT_IPC_CHAN_T id);
+int hal_mcu2btc2_ipc_notify_interrupt_core(enum HAL_RMT_IPC_CHAN_T id);
+int hal_mcu2btc2_ipc_notify_close(enum HAL_RMT_IPC_CHAN_T id);
+
+typedef void (*HAL_MCU2DSP_NOTIFY_IRQ_HANDLER)(uint32_t core, uint32_t id);
+int hal_mcu2dsp_ipc_notify_open(enum HAL_RMT_IPC_CHAN_T id, HAL_MCU2DSP_NOTIFY_IRQ_HANDLER rxhandler, HAL_MCU2DSP_NOTIFY_IRQ_HANDLER txhandler);
+int hal_mcu2dsp_ipc_notify_start_recv(enum HAL_RMT_IPC_CHAN_T id);
+int hal_mcu2dsp_ipc_notify_interrupt_core(enum HAL_RMT_IPC_CHAN_T id);
+int hal_mcu2dsp_ipc_notify_close(enum HAL_RMT_IPC_CHAN_T id);
+
+typedef void (*HAL_SYS2BTH_NOTIFY_IRQ_HANDLER)(uint32_t core, uint32_t id);
+int hal_sys2bth_ipc_notify_open(enum HAL_RMT_IPC_CHAN_T id, HAL_SYS2BTH_NOTIFY_IRQ_HANDLER rxhandler, HAL_SYS2BTH_NOTIFY_IRQ_HANDLER txhandler);
+int hal_sys2bth_ipc_notify_start_recv(enum HAL_RMT_IPC_CHAN_T id);
+int hal_sys2bth_ipc_notify_interrupt_core(enum HAL_RMT_IPC_CHAN_T id);
+int hal_sys2bth_ipc_notify_close(enum HAL_RMT_IPC_CHAN_T id);
+
+typedef void (*HAL_SYS2SENS_NOTIFY_IRQ_HANDLER)(uint32_t core, uint32_t id);
+int hal_sys2sens_ipc_notify_open(enum HAL_RMT_IPC_CHAN_T id, HAL_SYS2SENS_NOTIFY_IRQ_HANDLER rxhandler, HAL_SYS2SENS_NOTIFY_IRQ_HANDLER txhandler);
+int hal_sys2sens_ipc_notify_start_recv(enum HAL_RMT_IPC_CHAN_T id);
+int hal_sys2sens_ipc_notify_interrupt_core(enum HAL_RMT_IPC_CHAN_T id);
+int hal_sys2sens_ipc_notify_close(enum HAL_RMT_IPC_CHAN_T id);
+
+typedef void (*HAL_BTH2SENS_NOTIFY_IRQ_HANDLER)(uint32_t core, uint32_t id);
+int hal_bth2sens_ipc_notify_open(enum HAL_RMT_IPC_CHAN_T id, HAL_BTH2SENS_NOTIFY_IRQ_HANDLER rxhandler, HAL_BTH2SENS_NOTIFY_IRQ_HANDLER txhandler);
+int hal_bth2sens_ipc_notify_start_recv(enum HAL_RMT_IPC_CHAN_T id);
+int hal_bth2sens_ipc_notify_interrupt_core(enum HAL_RMT_IPC_CHAN_T id);
+int hal_bth2sens_ipc_notify_close(enum HAL_RMT_IPC_CHAN_T id);
 
 #ifdef __cplusplus
 }

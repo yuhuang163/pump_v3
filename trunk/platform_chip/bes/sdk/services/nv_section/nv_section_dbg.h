@@ -28,6 +28,13 @@ extern "C"{
 /*****************************header include********************************/
 #include "hal_trace.h"
 
+/******************************macro defination*****************************/
+#define LOG_V(str, ...) TR_VERBOSE(TR_MOD(NV_SEC), str, ##__VA_ARGS__)
+#define LOG_D(str, ...) TR_DEBUG(TR_MOD(NV_SEC), str, ##__VA_ARGS__)
+#define LOG_I(str, ...) TR_INFO(TR_MOD(NV_SEC), str, ##__VA_ARGS__)
+#define LOG_W(str, ...) TR_WARN(TR_MOD(NV_SEC), str, ##__VA_ARGS__)
+#define LOG_E(str, ...) TR_ERROR(TR_MOD(NV_SEC), str, ##__VA_ARGS__)
+
 /******************************type defination******************************/
 
 /****************************function declearation**************************/

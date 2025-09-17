@@ -136,7 +136,7 @@ static uint32_t app_ring_merge_oneshot_more_data(uint8_t *buf, uint32_t len)
     else if (app_ring_merge_config.bits == AUD_BITS_24)
         ret = app_ring_merge_oneshot_more_data_impl<int32_t>(buf, len);
     else
-        AUDIO_BT_TRACE(1,"[%s] warning not suitable callback available", __func__);
+        TRACE(1,"[%s] warning not suitable callback available", __func__);
 
     return ret;
 }
@@ -200,7 +200,7 @@ static uint32_t app_ring_merge_periodic_more_data(uint8_t *buf, uint32_t len)
     else if (app_ring_merge_config.bits == AUD_BITS_24)
         ret = app_ring_merge_periodic_more_data_impl<int32_t>(buf, len);
     else
-        AUDIO_BT_TRACE(1,"[%s] warning not suitable callback available", __func__);
+        TRACE(1,"[%s] warning not suitable callback available", __func__);
 
     return ret;
 }
@@ -227,7 +227,7 @@ uint32_t app_ring_merge_more_data(uint8_t *buf, uint32_t len)
 
 int app_ring_merge_setup(int16_t *buf, uint32_t len, enum APP_RING_MERGE_PLAY_T play)
 {
-    AUDIO_BT_TRACE(3,"%s mode:%d len:%d", __func__, play, len);
+    TRACE(3,"%s mode:%d len:%d", __func__, play, len);
 
     osMutexWait(app_ring_merge_mutex_id, osWaitForever);
 
@@ -289,10 +289,10 @@ int app_ring_merge_start(void)
 
     ret = af_stream_get_cfg(AUD_STREAM_ID_0, AUD_STREAM_PLAYBACK, &stream_cfg, true);
     if(ret != 0){
-        AUDIO_BT_TRACE(0,"Failed to get stream cfg");
+        TRACE(0,"Failed to get stream cfg");
         return 0;
     }
-    AUDIO_BT_TRACE(4,"%s: sample_rate: %d, bits: %d, channel: %d\n",
+    TRACE(4,"%s: sample_rate: %d, bits: %d, channel: %d\n",
           __func__,
           stream_cfg->sample_rate,
           stream_cfg->bits,
@@ -308,7 +308,7 @@ int app_ring_merge_start(void)
         app_ring_merge_config.status = APP_RING_MERGE_STATUS_START;
         break;
     case AUD_SAMPRATE_16000:
-        AUDIO_BT_TRACE(0,"sample rate 16000 merge");
+        TRACE(0,"sample rate 16000 merge");
         app_ring_merge_setup(( int16_t * )RES_AUD_RING_SAMPRATE_16000, sizeof(RES_AUD_RING_SAMPRATE_16000) / sizeof(int16_t), APP_RING_MERGE_PLAY_ONESHOT);
         app_ring_merge_config.next    = 0;
         app_ring_merge_config.status = APP_RING_MERGE_STATUS_START;
@@ -383,19 +383,19 @@ void app_ring_merge_save_pending_start_stream_op(uint8_t pendingStopOp, uint8_t 
 
 static void app_ring_merge_finished_callback(void)
 {
-    AUDIO_BT_TRACE(1,"%s", __func__);
+    TRACE(1,"%s", __func__);
     app_ring_merge_config.status = APP_RING_MERGE_STATUS_STOP;
 
     if (app_ring_merge_config.savedStoppedStreamId >= 0)
     {
         if (PENDING_TO_STOP_A2DP_STREAMING == app_ring_merge_config.pendingStopOp)
         {
-            AUDIO_BT_TRACE(0,"Stop the pending stopped a2dp media stream.");
+            TRACE(0,"Stop the pending stopped a2dp media stream.");
             app_stop_a2dp_media_stream(app_ring_merge_config.savedStoppedStreamId);
         }
         else if (PENDING_TO_STOP_SCO_STREAMING == app_ring_merge_config.pendingStopOp)
         {
-            AUDIO_BT_TRACE(0,"Stop the pending stopped sco media stream.");
+            TRACE(0,"Stop the pending stopped sco media stream.");
             app_stop_sco_media_stream(app_ring_merge_config.savedStoppedStreamId);
         }
     }

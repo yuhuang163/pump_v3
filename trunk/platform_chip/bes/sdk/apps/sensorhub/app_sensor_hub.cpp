@@ -18,12 +18,22 @@
 #include "cmsis_os.h"
 #endif
 #include "hal_trace.h"
-#include "app_sensor_hub.h"
 #include "sensor_hub.h"
+#include "hal_cmu.h"
+#include "app_sensor_hub.h"
 #include "cqueue.h"
 #include "heap_api.h"
 
 //#define SENSOR_HUB_CORE_BRIDGE_RAW_LOG_DUMP_EN
+
+#define MODULE_TRACE_LIMIT      TR_LEVEL_INFO
+
+#define LOG_V(str, ...) if (MODULE_TRACE_LIMIT >= TR_LEVEL_VERBOSE) TR_VERBOSE(TR_MOD(RPC_SENSOR), str, ##__VA_ARGS__)
+#define LOG_D(str, ...) if (MODULE_TRACE_LIMIT >= TR_LEVEL_DEBUG) TR_DEBUG(TR_MOD(RPC_SENSOR), str, ##__VA_ARGS__)
+#define LOG_I(str, ...) if (MODULE_TRACE_LIMIT >= TR_LEVEL_INFO) TR_INFO(TR_MOD(RPC_SENSOR), str, ##__VA_ARGS__)
+#define LOG_W(str, ...) if (MODULE_TRACE_LIMIT >= TR_LEVEL_WARN) TR_WARN(TR_MOD(RPC_SENSOR), str, ##__VA_ARGS__)
+#define LOG_E(str, ...) if (MODULE_TRACE_LIMIT >= TR_LEVEL_ERROR) TR_ERROR(TR_MOD(RPC_SENSOR), str, ##__VA_ARGS__)
+
 
 extern uint32_t __core_bridge_task_cmd_table_start[];
 extern uint32_t __core_bridge_task_cmd_table_end[];
@@ -56,12 +66,9 @@ static CQueue app_core_bridge_receive_queue;
 static uint8_t app_core_bridge_rx_buff[APP_CORE_BRIDGE_RX_BUFF_SIZE];
 static uint16_t g_sensor_hub_cmdseq = 0;
 
-osSemaphoreDef(app_core_bridge_wait_tx_done);
-osSemaphoreId app_core_bridge_wait_tx_done_id = NULL;
+static osSemaphoreId_t app_core_bridge_wait_tx_done_id = NULL;
 
-osSemaphoreDef(app_core_bridge_wait_cmd_rsp);
-osSemaphoreId app_core_bridge_wait_cmd_rsp_id = NULL;
-
+static osSemaphoreId_t app_core_bridge_wait_cmd_rsp_id = NULL;
 
 static app_core_bridge_task_cmd_instance_t* app_core_bridge_get_task_cmd_entry(uint16_t cmdcode);
 static int32_t app_core_bridge_queue_push(CQueue* ptrQueue, const void* ptrData, uint32_t length);
@@ -69,6 +76,11 @@ static uint16_t app_core_bridge_queue_get_next_entry_length(CQueue* ptrQueue);
 static void app_core_bridge_queue_pop(CQueue* ptrQueue, uint8_t *buff, uint32_t len);
 static int32_t app_core_bridge_get_queue_length(CQueue *ptrQueue);
 static app_core_bridge_instant_cmd_instance_t* app_core_bridge_get_instant_cmd_entry(uint16_t cmdcode);
+
+static int app_sensor_hub_send(const void *data, unsigned int len)
+{
+    return sensor_hub_send(data, len);
+}
 
 static void app_core_bridge_print_cmdcode(uint16_t cmdCode, uint16_t seq,uint8_t *p_buff)
 {
@@ -78,13 +90,13 @@ static void app_core_bridge_print_cmdcode(uint16_t cmdCode, uint16_t seq,uint8_t
     if (CORE_BRIDGE_CMD_CODE(CORE_BRIDGE_CMD_GROUP_TASK, MCU_SENSOR_HUB_TASK_CMD_RSP)
         != cmdCode)
     {
-        SENSORHUB_TRACE(1,"core bridge:-------TRS: cmdcode=%s seq = %d ------->", \
+        LOG_D("core bridge:-------TRS: cmdcode=%s seq = %d ------->", \
               pInstance->log_cmd_code_str,seq);
     }
     else
     {
         uint16_t responsedCmd = ((p_buff[1] << 8) | p_buff[0]);
-        SENSORHUB_TRACE(1,"core bridge:transmit RSP to cmdcode=0x%x seq = %d", responsedCmd,seq);
+        LOG_D("core bridge:transmit RSP to cmdcode=0x%x seq = %d", responsedCmd,seq);
     }
 }
 
@@ -92,6 +104,9 @@ static void app_core_bridge_transmit_data(
     app_core_bridge_task_cmd_instance_t* pCmdInstance,
     uint16_t cmdcode, uint8_t *p_buff, uint16_t length)
 {
+    int ret;
+    uint32_t retry = 0;
+
     if (!app_core_bridge_inited)
     {
         return;
@@ -107,17 +122,48 @@ static void app_core_bridge_transmit_data(
 
     memcpy(dataPacket.content, p_buff, length);
 
-    sensor_hub_send((const uint8_t *)&dataPacket, length+sizeof(dataPacket.cmdcode) + sizeof(dataPacket.cmdseq));
+    do {
+        ret = app_sensor_hub_send((const uint8_t *)&dataPacket, length+sizeof(dataPacket.cmdcode) + sizeof(dataPacket.cmdseq));
+        if (ret) {
+            osDelay(1);
+        }
+    } while (ret && ++retry < 10);
+    ASSERT(ret == 0, "%s: Failed to send msg: %d", __func__, ret);
 
     app_core_bridge_print_cmdcode(cmdcode, dataPacket.cmdseq,p_buff);
 #ifdef SENSOR_HUB_CORE_BRIDGE_RAW_LOG_DUMP_EN
-    SENSORHUB_DUMP8("%02x ", (uint8_t*)(&dataPacket), length + sizeof(dataPacket.cmdcode) + sizeof(dataPacket.cmdseq));
+    DUMP8("%02x ", (uint8_t*)(&dataPacket), length + sizeof(dataPacket.cmdcode) + sizeof(dataPacket.cmdseq));
 #endif
     //uint32_t currentMs = hal_sys_timer_get();
 
-    osSemaphoreWait(app_core_bridge_wait_tx_done_id, osWaitForever);
+    //debug method to profile remote cpu core hungup issue.
+    POSSIBLY_UNUSED osStatus_t status;
+    status = osSemaphoreAcquire(app_core_bridge_wait_tx_done_id, 5000);
 
-    //SENSORHUB_TRACE(0, "tx cost %d", hal_sys_timer_get()-currentMs);
+#if defined(CHIP_BEST1501) || defined(CHIP_BEST1502X) || defined(CHIP_BEST1600) || defined(CHIP_BEST1603)
+#ifdef CHIP_SUBSYS_SENSORHUB
+    //sensorhub -> mcu core
+    if (status != osOK)
+    {
+        TRACE(1, "[%s] wait sensorhub->mcu rpc tx done timeout", __func__);
+        uint32_t mcu_pc = hal_cmu_get_cpu_reg(HAL_CMU_CPU_MCU_CORE0, HAL_CMU_CPU_REG_PC);
+        uint32_t mcu_lr = hal_cmu_get_cpu_reg(HAL_CMU_CPU_MCU_CORE0, HAL_CMU_CPU_REG_LR);
+        uint32_t mcu_sp = hal_cmu_get_cpu_reg(HAL_CMU_CPU_MCU_CORE0, HAL_CMU_CPU_REG_SP);
+        ASSERT(0, "dump mcu info, PC:0x%x LR:0x%x SP:0x%x", mcu_pc, mcu_lr, mcu_sp);
+    }
+#elif defined(CHIP_SUBSYS_MCU)
+    //mcu -> sensorhub core
+    if (status != osOK)
+    {
+        TRACE(1, "[%s] wait mcu->sensorhub rpc tx done timeout", __func__);
+        uint32_t sen_pc = hal_cmu_get_cpu_reg(HAL_CMU_CPU_SENS_CORE0, HAL_CMU_CPU_REG_PC);
+        uint32_t sen_lr = hal_cmu_get_cpu_reg(HAL_CMU_CPU_SENS_CORE0, HAL_CMU_CPU_REG_LR);
+        uint32_t sen_sp = hal_cmu_get_cpu_reg(HAL_CMU_CPU_SENS_CORE0, HAL_CMU_CPU_REG_SP);
+        ASSERT(0, "dump sensor info, PC:0x%x LR:0x%x SP:0x%x", sen_pc, sen_lr, sen_sp);
+    }
+#endif
+#endif
+    //LOG_D("tx cost %d", hal_sys_timer_get()-currentMs);
 
     if (pCmdInstance->app_core_bridge_transmisson_done_handler)
     {
@@ -128,11 +174,14 @@ static void app_core_bridge_transmit_data(
 
 void app_core_bridge_send_instant_cmd_data(uint16_t cmdcode, uint8_t *p_buff, uint16_t length)
 {
+    int ret;
+    uint32_t retry = 0;
+
     if (!app_core_bridge_inited)
     {
         return;
     }
-    
+
     app_core_bridge_data_packet_t dataPacket;
     dataPacket.cmdcode = cmdcode;
     dataPacket.cmdseq = g_sensor_hub_cmdseq++;
@@ -143,9 +192,15 @@ void app_core_bridge_send_instant_cmd_data(uint16_t cmdcode, uint8_t *p_buff, ui
 
     memcpy(dataPacket.content, p_buff, length);
 
-    sensor_hub_send((const uint8_t *)&dataPacket, length+sizeof(dataPacket.cmdcode) + sizeof(dataPacket.cmdseq));
+    do {
+        ret = app_sensor_hub_send((const uint8_t *)&dataPacket, length+sizeof(dataPacket.cmdcode) + sizeof(dataPacket.cmdseq));
+        if (ret) {
+            osDelay(1);
+        }
+    } while (ret && ++retry < 10);
+    ASSERT(ret == 0, "%s: Failed to send msg: %d", __func__, ret);
 
-    osSemaphoreWait(app_core_bridge_wait_tx_done_id, osWaitForever);
+    osSemaphoreAcquire(app_core_bridge_wait_tx_done_id, osWaitForever);
 }
 
 void app_core_bridge_send_data_without_waiting_rsp(uint16_t cmdcode, uint8_t *p_buff, uint16_t length)
@@ -177,16 +232,16 @@ void app_core_bridge_send_data_with_waiting_rsp(uint16_t cmdcode, uint8_t *p_buf
 
     stime = hal_sys_timer_get();
 
-    int32_t returnValue = 0;
-    returnValue = osSemaphoreWait(app_core_bridge_wait_cmd_rsp_id,
-        pInstance->wait_rsp_timeout_ms);
+    osStatus_t status;
+    status = osSemaphoreAcquire(app_core_bridge_wait_cmd_rsp_id,
+                                     pInstance->wait_rsp_timeout_ms);
 
     etime = hal_sys_timer_get();
 
-    if ((0 == returnValue) || (-1 == returnValue))
+    if (status != osOK)
     {
-        SENSORHUB_TRACE(2,"%s err = %d",__func__,returnValue);
-        SENSORHUB_TRACE(2,"core bridge:wait rsp to cmdcode=%s timeout(%d)", \
+        LOG_W("%s err = %d",__func__,status);
+        LOG_W("core bridge:wait rsp to cmdcode=%s timeout(%d)", \
               pInstance->log_cmd_code_str, \
               (etime-stime)/16000);
 
@@ -218,7 +273,7 @@ unsigned int app_core_bridge_data_received(const void* data, unsigned int len)
         }
         else
         {
-            SENSORHUB_TRACE(1,"core bridge:%s cmd not handled",__func__);
+            LOG_E("core bridge:%s cmd not handled",__func__);
         }
     }
     else
@@ -244,18 +299,18 @@ static void app_core_bridge_rx_handler(uint8_t* p_data_buff, uint16_t length)
     {
         app_core_bridge_task_cmd_instance_t* pInstance =
             app_core_bridge_get_task_cmd_entry(pDataPacket->cmdcode);
-        
+
         if (MCU_SENSOR_HUB_TASK_CMD_RSP != pDataPacket->cmdcode)
         {
-            SENSORHUB_TRACE(0,"core bridge:<-----------RCV:cmdcode=%s seq = %d len=%d-------", \
+            LOG_D("core bridge:<-----------RCV:cmdcode=%s seq = %d len=%d-------", \
                   pInstance->log_cmd_code_str, pDataPacket->cmdseq ,length);
         }else{
-            SENSORHUB_TRACE(2,"core bridge:<-----------RCV_RSP: cmdcode=%s seq = %d len %d-------", \
+            LOG_D("core bridge:<-----------RCV_RSP: cmdcode=%s seq = %d len %d-------", \
                  pInstance->log_cmd_code_str,pDataPacket->cmdseq,length);
         }
 
 #ifdef SENSOR_HUB_CORE_BRIDGE_RAW_LOG_DUMP_EN
-        SENSORHUB_DUMP8("%02x ", p_data_buff, length);
+        DUMP8("%02x ", p_data_buff, length);
 #endif
         if (pInstance->cmdhandler)
         {
@@ -263,7 +318,7 @@ static void app_core_bridge_rx_handler(uint8_t* p_data_buff, uint16_t length)
         }
         else
         {
-            SENSORHUB_TRACE(1,"core bridge:%s cmd not handled",__func__);
+            LOG_E("core bridge:%s cmd not handled",__func__);
         }
     }
     else
@@ -272,10 +327,22 @@ static void app_core_bridge_rx_handler(uint8_t* p_data_buff, uint16_t length)
     }
 }
 
-static osThreadId app_core_bridge_rx_thread_id = NULL;
+static osThreadId_t app_core_bridge_rx_thread_id = NULL;
 static void app_core_bridge_rx_thread(const void *arg);
-osThreadDef(app_core_bridge_rx_thread, osPriorityHigh, 1,
-    (APP_CORE_BRIDGE_RX_THREAD_STACK_SIZE), "core_bridge_rx_thread");
+#define APP_CORE_RX_TASK_STACK_SZ ROUND_UP(APP_CORE_BRIDGE_RX_THREAD_STACK_SIZE, 8)
+static uint64_t os_thread_def_stack_app_core_bridge_rx_thread
+                [APP_CORE_RX_TASK_STACK_SZ / sizeof(uint64_t)];
+static const osThreadAttr_t ThreadAttr_App_Core_Bridge_Rx = {
+    .name = "core_bridge_rx_thread",
+    .attr_bits = osThreadDetached,
+    .cb_mem = NULL,
+    .cb_size = 0U,
+    .stack_mem = os_thread_def_stack_app_core_bridge_rx_thread,
+    .stack_size = APP_CORE_RX_TASK_STACK_SZ,
+    .priority = osPriorityHigh,
+    .tz_module = 1U,                  // indicate calls to secure mode
+    .reserved = 0U,
+};
 #define APP_CORE_BRIDGE_RX_THREAD_SIGNAL_DATA_RECEIVED  0x01
 
 static void app_core_bridge_rx_thread(const void *arg)
@@ -283,14 +350,15 @@ static void app_core_bridge_rx_thread(const void *arg)
 
     while(1)
     {
-        osEvent evt;
+        uint32_t flags;
         // wait any signal
-        evt = osSignalWait(0x0, osWaitForever);
+
+        flags = osThreadFlagsWait(CMSIS_V1_SIGNAL_ANY, osFlagsWaitAny, osWaitForever);
 
         // get role from signal value
-        if (osEventSignal == evt.status)
+        if ((flags > 0U) && (flags < 0x80000000U))
         {
-            if (evt.value.signals & APP_CORE_BRIDGE_RX_THREAD_SIGNAL_DATA_RECEIVED)
+            if ((int32_t)flags & APP_CORE_BRIDGE_RX_THREAD_SIGNAL_DATA_RECEIVED)
             {
                 while (app_core_bridge_get_queue_length(&app_core_bridge_receive_queue) > 0)
                 {
@@ -317,10 +385,22 @@ static void app_core_bridge_rx_thread(const void *arg)
     }
 }
 
-static osThreadId app_core_bridge_tx_thread_id = NULL;
+static osThreadId_t app_core_bridge_tx_thread_id = NULL;
 static void app_core_bridge_tx_thread(const void *arg);
-osThreadDef(app_core_bridge_tx_thread, osPriorityHigh, 1,
-    (APP_CORE_BRIDGE_TX_THREAD_STACK_SIZE), "core_bridge_tx_thread");
+#define APP_CORE_TX_TASK_STACK_SZ ROUND_UP(APP_CORE_BRIDGE_TX_THREAD_STACK_SIZE, 8)
+static uint64_t os_thread_def_stack_app_core_bridge_tx_thread
+                [APP_CORE_TX_TASK_STACK_SZ / sizeof(uint64_t)];
+static const osThreadAttr_t ThreadAttr_App_Core_Bridge_Tx = {
+    .name = "core_bridge_tx_thread",
+    .attr_bits = osThreadDetached,
+    .cb_mem = NULL,
+    .cb_size = 0U,
+    .stack_mem = os_thread_def_stack_app_core_bridge_tx_thread,
+    .stack_size = APP_CORE_TX_TASK_STACK_SZ,
+    .priority = osPriorityHigh,
+    .tz_module = 1U,                  // indicate calls to secure mode
+    .reserved = 0U,
+};
 
 typedef struct
 {
@@ -329,13 +409,38 @@ typedef struct
     uint8_t *cmd_buffer;
 } APP_CORE_BRIDGE_TX_MAILBOX_PARAM_T;
 
-osMailQDef (app_core_bridge_tx_mailbox, APP_CORE_BRIDGE_TX_MAILBOX_MAX,
-            APP_CORE_BRIDGE_TX_MAILBOX_PARAM_T);
+static const osMemoryPoolAttr_t MPAttr_app_sensor_hub = {
+    .name = NULL,
+    .attr_bits = 0,
+    .cb_mem = NULL,
+    .cb_size = 0,
+    .mp_mem = NULL,
+    .mp_size = 0,
+};
+static const osMessageQueueAttr_t MQAttr_app_sensor_hub = {
+    .name = "app_core_bridge_tx_mailbox",
+    .attr_bits = 0,
+    .cb_mem = NULL,
+    .cb_size = 0,
+    .mq_mem = NULL,
+    .mq_size = 0,
+};
 
-static osMutexId app_core_bridge_tx_mutex_id = NULL;
-osMutexDef(app_core_bridge_tx_mutex);
+static osMutexId_t app_core_bridge_tx_mutex_id = NULL;
+static const osMutexAttr_t MutexAttr_App_Core_Bridge = {
+    .name = "app_core_bridge_tx_mutex",
+    .attr_bits = osMutexRecursive | osMutexPrioInherit | osMutexRobust,
+    .cb_mem = NULL,
+    .cb_size = 0U,
+};
 
-static osMailQId app_core_bridge_tx_mailbox_id = NULL;
+
+typedef struct os_mail_queue_s {
+  osMemoryPoolId_t   mp_id;
+  osMessageQueueId_t mq_id;
+} os_mail_queue_t;
+static osMemoryPoolId_t   app_sensor_hub_mp_id;
+static osMessageQueueId_t app_sensor_hub_mq_id;
 
 static heap_handle_t app_core_bridge_tx_mailbox_heap;
 static uint8_t app_core_bridge_tx_mailbox_heap_pool[APP_CORE_BRIDGE_MAX_XFER_DATA_SIZE*(APP_CORE_BRIDGE_TX_MAILBOX_MAX/2)];
@@ -366,12 +471,13 @@ void app_core_bridge_tx_mailbox_heap_free(void *rmem)
 
 static int32_t app_core_bridge_tx_mailbox_get(APP_CORE_BRIDGE_TX_MAILBOX_PARAM_T** msg_p)
 {
-    osEvent evt;
+    osStatus_t status;
+    void *mail;
 
-    evt = osMailGet(app_core_bridge_tx_mailbox_id, osWaitForever);
-    if (evt.status == osEventMail)
+    status = osMessageQueueGet(app_sensor_hub_mq_id, &mail, NULL, osWaitForever);
+    if (status == osOK)
     {
-        *msg_p = (APP_CORE_BRIDGE_TX_MAILBOX_PARAM_T *)evt.value.p;
+        *msg_p = (APP_CORE_BRIDGE_TX_MAILBOX_PARAM_T *)mail;
         return 0;
     }
     return -1;
@@ -379,11 +485,12 @@ static int32_t app_core_bridge_tx_mailbox_get(APP_CORE_BRIDGE_TX_MAILBOX_PARAM_T
 
 static int32_t app_core_bridge_tx_mailbox_raw(APP_CORE_BRIDGE_TX_MAILBOX_PARAM_T** msg_p)
 {
-    osEvent evt;
-    evt = osMailGet(app_core_bridge_tx_mailbox_id, 0);
-    if (evt.status == osEventMail)
+    osStatus_t status;
+    void *mail;
+    status = osMessageQueueGet(app_sensor_hub_mq_id, &mail, NULL, 0);
+    if (status == osOK)
     {
-        *msg_p = (APP_CORE_BRIDGE_TX_MAILBOX_PARAM_T *)evt.value.p;
+        *msg_p = (APP_CORE_BRIDGE_TX_MAILBOX_PARAM_T *)mail;
         return 0;
     }
     return -1;
@@ -393,31 +500,31 @@ static int32_t app_core_bridge_tx_mailbox_free(APP_CORE_BRIDGE_TX_MAILBOX_PARAM_
 {
     osStatus status;
     app_core_bridge_tx_mailbox_heap_free((void *)msg_p->cmd_buffer);
-    status = osMailFree(app_core_bridge_tx_mailbox_id, msg_p);
+    status = osMemoryPoolFree(app_sensor_hub_mp_id, msg_p);
     return (int32_t)status;
 }
 
 static int32_t app_core_bridge_tx_mailbox_put(APP_CORE_BRIDGE_TX_MAILBOX_PARAM_T* msg_src)
 {
     APP_CORE_BRIDGE_TX_MAILBOX_PARAM_T *msg_p = NULL;
-    osStatus status;
+    osStatus_t status;
 
-    msg_p = (APP_CORE_BRIDGE_TX_MAILBOX_PARAM_T*)osMailAlloc(app_core_bridge_tx_mailbox_id, 0);
+    msg_p = (APP_CORE_BRIDGE_TX_MAILBOX_PARAM_T*)osMemoryPoolAlloc(app_sensor_hub_mp_id, 0);
 
     if (!msg_p){
 
-        SENSORHUB_TRACE_IMM(0, "core bridge mailbox alloc error dump");
+        LOG_E("core bridge mailbox alloc error dump");
         for (uint8_t i=0; i<APP_CORE_BRIDGE_TX_MAILBOX_MAX; i++){
             app_core_bridge_tx_mailbox_raw(&msg_p);
             app_core_bridge_task_cmd_instance_t* cmdEntry;
             cmdEntry = app_core_bridge_get_task_cmd_entry(msg_p->cmdCode);
 
-            SENSORHUB_TRACE(3, "ctrl_mailbox:DUMP: cmdcode=%s", \
+            LOG_I("ctrl_mailbox:DUMP: cmdcode=%s", \
                   cmdEntry->log_cmd_code_str);
         }
-        SENSORHUB_TRACE_IMM(0,"core bridge mailbox Alloc error dump end");
-        SENSORHUB_TRACE_IMM(0,"core bridge mailbox reAlloc New");
-        msg_p = (APP_CORE_BRIDGE_TX_MAILBOX_PARAM_T*)osMailAlloc(app_core_bridge_tx_mailbox_id, 0);
+        LOG_E("core bridge mailbox Alloc error dump end");
+        LOG_E("core bridge mailbox reAlloc New");
+        msg_p = (APP_CORE_BRIDGE_TX_MAILBOX_PARAM_T*)osMemoryPoolAlloc(app_sensor_hub_mp_id, 0);
     }
 
     ASSERT(msg_p, "core bridge mailbox Alloc error");
@@ -426,19 +533,20 @@ static int32_t app_core_bridge_tx_mailbox_put(APP_CORE_BRIDGE_TX_MAILBOX_PARAM_T
     msg_p->cmd_len = msg_src->cmd_len ;
     msg_p->cmd_buffer = msg_src->cmd_buffer;
 
-    status = osMailPut(app_core_bridge_tx_mailbox_id, msg_p);
-
+    status = osMessageQueuePut(app_sensor_hub_mq_id, &msg_p, 0U, 0U);
 
     return (int32_t)status;
 }
 
 static int32_t app_core_bridge_tx_mailbox_init(void)
 {
-    if (app_core_bridge_tx_mailbox_id == NULL){
-        app_core_bridge_tx_mailbox_id = osMailCreate(osMailQ(app_core_bridge_tx_mailbox), NULL);
-        if (NULL == app_core_bridge_tx_mailbox_id)
-        {
-            SENSORHUB_TRACE(1, "Failed to Create core bridge mailbox\n");
+    if (app_sensor_hub_mp_id == NULL && app_sensor_hub_mq_id == NULL){
+        app_sensor_hub_mp_id = osMemoryPoolNew(APP_CORE_BRIDGE_TX_MAILBOX_MAX,
+                                        sizeof(APP_CORE_BRIDGE_TX_MAILBOX_PARAM_T), &MPAttr_app_sensor_hub);
+        app_sensor_hub_mq_id = osMessageQueueNew(APP_CORE_BRIDGE_TX_MAILBOX_MAX,
+                                        sizeof(void *), &MQAttr_app_sensor_hub);
+        if (NULL == app_sensor_hub_mp_id || NULL == app_sensor_hub_mq_id){
+            LOG_E("Failed to Create core bridge mailbox\n");
             return -1;
         }
     }
@@ -448,14 +556,15 @@ static int32_t app_core_bridge_tx_mailbox_init(void)
 static void app_core_bridge_tx_thread_init(void)
 {
     if (app_core_bridge_tx_mutex_id == NULL) {
-        app_core_bridge_tx_mutex_id = osMutexCreate(osMutex(app_core_bridge_tx_mutex));
+        app_core_bridge_tx_mutex_id = osMutexNew(&MutexAttr_App_Core_Bridge);
     }
 
     app_core_bridge_tx_mailbox_heap_init();
     app_core_bridge_tx_mailbox_init();
     if (app_core_bridge_tx_thread_id == NULL) {
         app_core_bridge_tx_thread_id =
-            osThreadCreate(osThread(app_core_bridge_tx_thread), NULL);
+            osThreadNew((osThreadFunc_t)app_core_bridge_tx_thread,
+                        NULL, &ThreadAttr_App_Core_Bridge_Tx);
     }
 }
 
@@ -549,7 +658,7 @@ int32_t app_core_bridge_send_cmd(uint16_t cmd_code, uint8_t *p_buff, uint16_t le
         msg.cmd_buffer = NULL;
     }
 
-    osMutexWait(app_core_bridge_tx_mutex_id, osWaitForever);
+    osMutexAcquire(app_core_bridge_tx_mutex_id, osWaitForever);
     nRet = app_core_bridge_tx_mailbox_put(&msg);
     osMutexRelease(app_core_bridge_tx_mutex_id);
 
@@ -565,28 +674,33 @@ int32_t app_core_bridge_send_rsp(uint16_t rsp_code, uint8_t *p_buff, uint16_t le
 
     APP_CORE_BRIDGE_TX_MAILBOX_PARAM_T msg = {0,};
     app_core_bridge_task_cmd_instance_t* cmdEntry;
+    uint16_t reserved = 0x00;
 
-    ASSERT(length + sizeof(rsp_code) <= APP_CORE_BRIDGE_MAX_XFER_DATA_SIZE, \
+    ASSERT(length + sizeof(rsp_code) + sizeof(reserved)<= APP_CORE_BRIDGE_MAX_XFER_DATA_SIZE, \
            "%s p_buff overflow: %u", \
            __func__, \
            length);
 
-    msg.cmd_len = length + sizeof(rsp_code);
+    msg.cmd_len = length + sizeof(rsp_code) + sizeof(reserved);
     msg.cmd_buffer = (uint8_t *)app_core_bridge_tx_mailbox_heap_malloc(msg.cmd_len);
     *(uint16_t *)msg.cmd_buffer = rsp_code;
-    memcpy(msg.cmd_buffer + sizeof(rsp_code), p_buff, length);
+    *(uint16_t *)(msg.cmd_buffer + sizeof(rsp_code)) = reserved;
+    memcpy(msg.cmd_buffer + sizeof(rsp_code) + sizeof(reserved), p_buff, length);
 
     msg.cmdCode = MCU_SENSOR_HUB_TASK_CMD_RSP;
 
     cmdEntry = app_core_bridge_get_task_cmd_entry(msg.cmdCode);
     cmdEntry->core_bridge_cmd_transmit_handler(msg.cmd_buffer, msg.cmd_len);
-    app_core_bridge_tx_mailbox_heap_free(msg.cmd_buffer);
+
+    app_core_bridge_tx_mailbox_heap_free((void *)msg.cmd_buffer);
 
     return 0;
 }
 
 static void app_core_bridge_send_cmd_rsp_handler(uint8_t *p_buff, uint16_t length)
 {
+    int ret;
+    uint32_t retry = 0;
     app_core_bridge_task_cmd_instance_t* cmdEntry;
     app_core_bridge_data_packet_t cmddata;
 
@@ -597,33 +711,40 @@ static void app_core_bridge_send_cmd_rsp_handler(uint8_t *p_buff, uint16_t lengt
     cmddata.cmdcode = MCU_SENSOR_HUB_TASK_CMD_RSP;
     cmddata.cmdseq = g_sensor_hub_cmdseq++;
     memcpy(cmddata.content, p_buff, length);
-    sensor_hub_send((const uint8_t *)&cmddata, length+sizeof(cmddata.cmdcode) + sizeof(cmddata.cmdseq));
+
+    do {
+        ret = app_sensor_hub_send((const uint8_t *)&cmddata, length+sizeof(cmddata.cmdcode) + sizeof(cmddata.cmdseq));
+        if (ret) {
+            osDelay(1);
+        }
+    } while (ret && ++retry < 10);
+    ASSERT(ret == 0, "%s: Failed to send msg: %d", __func__, ret);
 
     cmdEntry = app_core_bridge_get_task_cmd_entry(*(uint16_t *)p_buff);
 
-    SENSORHUB_TRACE(2,"core bridge:-------TRS RSP to cmdcode=%s seq = %d------->", \
+    LOG_D("core bridge:-------TRS RSP to cmdcode=%s seq = %d------->", \
           cmdEntry->log_cmd_code_str,cmddata.cmdseq);
 #ifdef SENSOR_HUB_CORE_BRIDGE_RAW_LOG_DUMP_EN
-    SENSORHUB_DUMP8("%02x ", (uint8_t*)&cmddata, length + sizeof(cmddata.cmdseq) + sizeof(cmddata.cmdcode));
+    DUMP8("%02x ", (uint8_t*)&cmddata, length + sizeof(cmddata.cmdseq) + sizeof(cmddata.cmdcode));
 #endif
-    osSemaphoreWait(app_core_bridge_wait_tx_done_id, osWaitForever);
+    osSemaphoreAcquire(app_core_bridge_wait_tx_done_id, osWaitForever);
 }
 
 static void app_core_bridge_cmd_rsp_handler(uint8_t *p_buff, uint16_t length)
 {
     //real cmd code responsed
-    uint16_t rspcode = ((p_buff[1] << 8) | p_buff[0]);
+    uint16_t rspcode = *(uint16_t*)p_buff;
     app_core_bridge_task_cmd_instance_t* pInstance =
                 app_core_bridge_get_task_cmd_entry(rspcode);
 
-     SENSORHUB_TRACE(2,"core bridge:<-----------RCV_RSP: cmdcode=%s-------", \
+     LOG_D("core bridge:<-----------RCV_RSP: cmdcode=%s-------", \
           pInstance->log_cmd_code_str);
 
     uint32_t timeout_ms = pInstance->wait_rsp_timeout_ms;
     if (pInstance->app_core_bridge_rsp_handle)
     {
-        pInstance->app_core_bridge_rsp_handle(&p_buff[2],
-            length - 2);
+        pInstance->app_core_bridge_rsp_handle(&p_buff[4],
+            length - 4);
 
         if (timeout_ms > 0)
         {
@@ -632,7 +753,7 @@ static void app_core_bridge_cmd_rsp_handler(uint8_t *p_buff, uint16_t length)
     }
     else
     {
-        SENSORHUB_TRACE(0,"ibrt_ui_log:rsp no handler");
+        LOG_E("ibrt_ui_log:rsp no handler");
     }
 }
 
@@ -672,7 +793,7 @@ static int32_t app_core_bridge_queue_push(CQueue* ptrQueue, const void* ptrData,
         }
     }
     int_unlock(lock);
-    osSignalSet(app_core_bridge_rx_thread_id, APP_CORE_BRIDGE_RX_THREAD_SIGNAL_DATA_RECEIVED);
+    osThreadFlagsSet(app_core_bridge_rx_thread_id, APP_CORE_BRIDGE_RX_THREAD_SIGNAL_DATA_RECEIVED);
 
     return nRet;
 }
@@ -739,12 +860,12 @@ void app_core_bridge_free_tx_mailbox(void)
 
     while(1)
     {
-        osEvent evt;
-
-        evt = osMailGet(app_core_bridge_tx_mailbox_id, 5);
-        if (evt.status == osEventMail)
+        osStatus_t status;
+        void *mail;
+        status = osMessageQueueGet(app_sensor_hub_mq_id, &mail, NULL, 5);
+        if (status == osOK)
         {
-            msg_p = (APP_CORE_BRIDGE_TX_MAILBOX_PARAM_T *)evt.value.p;
+            msg_p = (APP_CORE_BRIDGE_TX_MAILBOX_PARAM_T *)mail;
             app_core_bridge_tx_mailbox_free(msg_p);
         }
         else
@@ -789,16 +910,17 @@ void app_core_bridge_init(void)
     g_sensor_hub_cmdseq = 0;
 
     app_core_bridge_wait_tx_done_id =
-        osSemaphoreCreate(osSemaphore(app_core_bridge_wait_tx_done), 0);
+        osSemaphoreNew(65535U, (uint32_t)0, NULL);
 
     app_core_bridge_wait_cmd_rsp_id =
-        osSemaphoreCreate(osSemaphore(app_core_bridge_wait_cmd_rsp), 0);
+        osSemaphoreNew(65535U, (uint32_t)0, NULL);
 
     app_core_bridge_tx_thread_init();
 
     if (app_core_bridge_rx_thread_id == NULL) {
         app_core_bridge_rx_thread_id =
-            osThreadCreate(osThread(app_core_bridge_rx_thread), NULL);
+            osThreadNew((osThreadFunc_t)app_core_bridge_rx_thread,
+                        NULL, &ThreadAttr_App_Core_Bridge_Rx);
     }
 
     app_core_bridge_inited = true;

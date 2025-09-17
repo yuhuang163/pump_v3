@@ -5,11 +5,14 @@ obj_c := $(patsubst $(cur_dir)%,%,$(wildcard $(cur_dir)*.c))
 obj_cpp := $(patsubst $(cur_dir)%,%,$(wildcard $(cur_dir)*.cpp))
 src_obj := $(obj_c:.c=.o) $(obj_s:.S=.o) $(obj_cpp:.cpp=.o)
 
-GEN_LIB_NAME := libcryption
-root_dir := $(abspath $(dir $(realpath $(firstword $(MAKEFILE_LIST))))/..)
-sinclude $(root_dir)/config/lib.mk
-$(GEN_LIB_NAME)-y := $(src_obj)
-obj-y += $(GEN_LIB_NAME).a
+ENCRYPT_LIB_NAME := libcryption
+
+ifeq ($(USE_TRACE_ID), 1)
+ENCRYPT_LIB_NAME := $(ENCRYPT_LIB_NAME)_log_compressed
+endif
+
+$(ENCRYPT_LIB_NAME)-y := $(src_obj)
+obj-y += $(ENCRYPT_LIB_NAME).a
 
 ccflags-y := \
     -Iservices/bt_profiles/inc/ \

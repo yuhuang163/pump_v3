@@ -5,7 +5,7 @@
 #include "hal_norflash.h"
 #include "hal_cmu.h"
 #include "pmu.h"
-#include "crc_c.h"
+#include "crc32_c.h"
 #include "cmsis_nvic.h"
 #include "string.h"
 #include "ota_control.h"
@@ -13,6 +13,7 @@
 #include "factory_section.h"
 #include "bt_drv_interface.h"
 #include "ota_spp.h"
+#include "ota_bes.h"
 #include "ota_dbg.h"
 #include "hal_wdt.h"
 #include "norflash_api.h"
@@ -25,25 +26,14 @@
 #include "app_bt.h"
 #include "hal_aud.h"
 #include "btapp.h"
+#include "btgatt_api.h"
 #include "watchdog.h"
-
-#ifdef __IAG_BLE_INCLUDE__
-#include "bluetooth_ble_api.h"
-#include "app_ble.h"
-#ifdef OTA_OVER_TOTA_ENABLED
-#include "app_tota.h"
-#endif
-#endif
+#include "ota_ble_adapter.h"
 
 #ifdef IBRT
-#include "bts_core_if.h"
+#include "app_tws_ctrl_thread.h"
 #include "app_ibrt_ota_cmd.h"
-#include "app_tws_ibrt_cmd_handler.h"
 #include "app_ibrt_internal.h"
-#include "bts_tws_if.h"
-#if defined(BT_SVC_MODULE_IBRT_ENABLED)
-#include "bts_ibrt_tws_switch.h"
-#endif
 #endif
 
 #ifdef COMBO_CUSBIN_IN_FLASH
@@ -86,16 +76,11 @@ static uint8_t upsize_erase_cnt = 0;
 #endif
 
 #define PING_WD_PERIOD_TICKS (5000)
-#define OTA_APP_PACKET_INTERVAL_FOR_I6_BELOW    (80)    //app default packet sending interval(ms)
-#define OTA_I6_BELOW_DEFAULT_MTU                (185)
 
 extern uint32_t __ota_upgrade_log_start[];
-
 extern OtaContext ota;
 #ifdef COMBO_CUSBIN_IN_FLASH
-#define COMBO_BIN_HEADER_TOTAL_LEN      256
-#define COMBO_BIN_HEADER_OFFSET_OF_INFO (sizeof(uint32_t)*3)    //NV_COMBO_IMAGE_INFO_T:sizeof(mainInfo)+sizeof(version)+sizeof(contentNum)
-void _combo_bin_erase_segment(uint32_t addr, uint32_t length);
+#define COMBO_BIN_HEADER_TOTAL_LEN   256
 #endif
 static uint8_t ota_role_switch_req_timer_num = 1;
 static bool ota_get_pkt_in_role_switch = false;
@@ -112,7 +97,14 @@ uint8_t peerFwRevInfo[HW_VERSION_LENTH] = {0};
 static uint8_t otaVersion[OTA_VERSION_INFO_LEN] = {0,0,0,1}; //!< current OTA version is 0.0.0.1
 
 #ifdef IBRT
+#if defined(IBRT_UI)
 static OTA_BASIC_TWS_ROLE_E ibrt_tws_mode = OTA_BASIC_TWS_INVALID_ROLE;
+#endif
+#endif
+
+#if defined(TOTA_CROSS_CHIP_OTA)
+#include "app_tota_multi_chip_updata.h"
+extern APP_CROSS_CHIP_OTA_ROLE_E tota_cross_chip_ota_role;
 #endif
 
 OTA_IBRT_TWS_CMD_EXECUTED_RESULT_FROM_SLAVE_T receivedResultAlreadyProcessedBySlave = {0xFF, 0, 0, 0};
@@ -129,6 +121,7 @@ static void app_update_magic_number_of_app_image(uint32_t newMagicNumber);
 static bool _tws_is_master(void);
 static bool _tws_is_slave(void);
 static void ota_control_opera_callback(void* param);
+static void _init_flash_offset(void);
 
 static uint8_t ota_role_switch_flag = 0;
 static bool ota_role_switch_initiator = false;
@@ -136,7 +129,7 @@ osTimerId ota_role_switch_req_timer_id = NULL;
 static int app_forbidden_roleswitch_handling_timer_handler(void const *param);
 osTimerDef (APP_POST_ROLESWITCH_FORRIDEN_TIMER, (void (*)(void const *))app_forbidden_roleswitch_handling_timer_handler);
 
-POSSIBLY_UNUSED static const char *typeCode2Str(uint8_t typeCode) {
+static const char *typeCode2Str(uint8_t typeCode) {
     #define CASE_M(s) \
         case s: return "["#s"]";
 
@@ -171,7 +164,7 @@ POSSIBLY_UNUSED static const char *typeCode2Str(uint8_t typeCode) {
     return "[]";
 }
 
-POSSIBLY_UNUSED static char *_user2str(uint8_t user)
+static char *_user2str(uint8_t user)
 {
     const char *str = NULL;
 
@@ -181,7 +174,8 @@ POSSIBLY_UNUSED static char *_user2str(uint8_t user)
         CASES(BES_OTA_USER_, LANGUAGE_PACKAGE);
         CASES(BES_OTA_USER_, COMBOFIRMWARE);
         // CASES(BES_OTA_USER_, );
-
+        CASES(BES_OTA_USER_, UPGRADE_LOG);
+        CASES(BES_OTA_USER_, CROSS_CHIP);
     default:
         str = "INVALID";
         break;
@@ -216,13 +210,15 @@ static int app_forbidden_roleswitch_handling_timer_handler(void const *param)
 
 void bes_ota_send_role_switch_req(void)
 {
-#ifdef BT_SVC_MODULE_IBRT_ENABLED
+#ifdef IBRT
     if(ota_role_switch_req_timer_id == NULL)
     {
         ota_role_switch_req_timer_id = osTimerCreate(osTimer(APP_POST_ROLESWITCH_FORRIDEN_TIMER), osTimerOnce, NULL);
     }
 
-    if (!bts_ibrt_conn_any_role_switch_running())
+#if defined(IBRT_UI)
+    if (!app_ibrt_conn_any_role_switch_running())
+#endif
     {
         osTimerStart(ota_role_switch_req_timer_id, 200);
         ota_control_send_start_role_switch();
@@ -231,6 +227,21 @@ void bes_ota_send_role_switch_req(void)
 #endif
 }
 
+
+#ifndef __IAG_BLE_INCLUDE__
+#define VOICEPATH_COMMON_OTA_BUFF_SIZE 4096
+
+uint8_t* ota_voicepath_get_common_ota_databuf(void)
+{
+#ifndef AI_OTA
+    static uint8_t voicepath_common_ota_buf[VOICEPATH_COMMON_OTA_BUFF_SIZE];
+    return voicepath_common_ota_buf;
+#else
+    return ota_common_get_buff_cache();
+#endif
+}
+#endif
+
 /**
  * @brief Update the user of OTA progress.
  *
@@ -238,15 +249,24 @@ void bes_ota_send_role_switch_req(void)
  */
 static void _update_user(uint8_t user)
 {
-    OTA_TRACE(0,"try to update user:%s->%s", _user2str(ota_control_env.currentUser), _user2str(user));
+    LOG_I("try to update user:%s->%s", _user2str(ota_control_env.currentUser), _user2str(user));
 
-    ota_control_env.currentUser = user;
+    if (BES_OTA_USER_INVALID == ota_control_env.currentUser ||
+        BES_OTA_USER_INVALID == user ||
+        ota_control_env.currentUser == user)
+    {
+        ota_control_env.currentUser = user;
+    }
+    else
+    {
+        ASSERT(0, "Invalid user transition.");
+    }
 }
 
 // TODO: make an API decouple with IBRT version
 static POSSIBLY_UNUSED void Bes_enter_ota_state(void)
 {
-    OTA_TRACE(0,"%s state %d", __func__, isInBesOtaState);
+    LOG_D("%s state %d", __func__, isInBesOtaState);
 
     if (isInBesOtaState)
     {
@@ -254,24 +274,28 @@ static POSSIBLY_UNUSED void Bes_enter_ota_state(void)
     }
 
     // 1. switch to the highest freq
-    app_sysfreq_req(APP_SYSFREQ_USER_OTA, APP_SYSFREQ_104M);
+    app_sysfreq_req(APP_SYSFREQ_USER_OTA, APP_SYSFREQ_208M);
 
     // 2. exit bt sniff mode
-#if defined(IBRT) && !defined(FREEMAN_OTA_ENABLED)
-    if(DATA_PATH_SPP != ota_control_get_datapath_type()){
-        bts_tws_if_request_modify_tws_bandwidth(TWS_TIMING_CONTROL_USER_OTA, true);
+#ifdef IBRT
+    if(DATA_PATH_BLE == ota_control_get_datapath_type()){
+        app_ibrt_if_request_modify_tws_bandwidth(TWS_TIMING_CONTROL_USER_OTA, true);
     }
-    bts_tws_if_tws_link_exit_sniff_mode();
+    app_tws_ibrt_exit_sniff_with_tws();
+#if defined(IBRT_UI)
     uint8_t* mobileAddr = ota_basic_get_mac_addr();
     app_ibrt_if_exit_sniff_with_mobile(mobileAddr);
 
-    if (DATA_PATH_SPP == app_ota_get_connected_type())
+    if (OTA_BASIC_SPP_DATAPATH_ENABLED == ota_basic_get_datapath())
     {
-        app_ibrt_if_prevent_sniff_set(mobileAddr, OTA_ONGOING);
+        app_ibrt_middleware_prevent_sniff_set(mobileAddr, OTA_ONGOING);
     }
+#endif
 
 #else
+#ifndef BLE_ONLY_ENABLED
     app_bt_active_mode_set(BT_ACTIVE_MODE_KEEP_USER_OTA, UPDATE_ACTIVE_MODE_FOR_ALL_LINKS);
+#endif
 #endif
 
 #ifdef __IAG_BLE_INCLUDE__
@@ -287,7 +311,7 @@ static POSSIBLY_UNUSED void Bes_enter_ota_state(void)
 
 void Bes_exit_ota_state(void)
 {
-    OTA_TRACE(0,"%s state %d", __func__, isInBesOtaState);
+    LOG_D("%s state %d", __func__, isInBesOtaState);
     if (!isInBesOtaState)
     {
         return;
@@ -295,15 +319,14 @@ void Bes_exit_ota_state(void)
 
     app_sysfreq_req(APP_SYSFREQ_USER_OTA, APP_SYSFREQ_32K);
 
-#if defined(IBRT) && !defined(FREEMAN_OTA_ENABLED)
-    app_ibrt_if_prevent_sniff_clear(ota_basic_get_mac_addr(), OTA_ONGOING);
+#ifdef IBRT
+    app_ibrt_middleware_prevent_sniff_clear(ota_basic_get_mac_addr(), OTA_ONGOING);
 
-    bts_tws_if_request_modify_tws_bandwidth(TWS_TIMING_CONTROL_USER_OTA, false);
-
-    tws_ctrl_free_cmd(APP_TWS_CMD_OTA_IMAGE_BUFF);
-    tws_ctrl_free_cmd(APP_TWS_CMD_OTA_SEGMENT_CRC_CMD);
+    app_ibrt_if_request_modify_tws_bandwidth(TWS_TIMING_CONTROL_USER_OTA, false);
 #else
+#ifndef BLE_ONLY_ENABLED
     app_bt_active_mode_clear(BT_ACTIVE_MODE_KEEP_USER_OTA, UPDATE_ACTIVE_MODE_FOR_ALL_LINKS);
+#endif
 #endif
 
 #ifdef __IAG_BLE_INCLUDE__
@@ -328,10 +351,12 @@ void ota_control_send_start_role_switch(void)
         return;
     }
 
+#if defined(IBRT_UI)
     if ((OTA_BASIC_TWS_MASTER == ota_basic_get_tws_role()) &&
         (ota_control_env.transmitHander != NULL))
+#endif
     {
-        OTA_TRACE(0,"tws cmd : send 0x95 cmd complete");
+        LOG_D("tws cmd : send 0x95 cmd complete");
         if (OTA_PACKET_STRUCTURE_TLV == ota_control_env.packetStructureType)
         {
             OTA_PACKET_T rsp = {
@@ -353,12 +378,14 @@ void ota_control_send_start_role_switch(void)
             ota_control_env.transmitHander((uint8_t *)&rsp, len);
         }
     }
+#if defined(IBRT_UI)
     else if ((OTA_BASIC_TWS_SLAVE == ota_basic_get_tws_role()) &&
-        (bts_tws_if_is_tws_link_connected()))
+        (app_tws_ibrt_tws_link_connected()))
+#endif
     {
         osTimerStop(ota_role_switch_req_timer_id);
-        OTA_TRACE(0,"[OTA] tws cmd : info send 0x95 cmd complete");
-        tws_ctrl_send_cmd(APP_TWS_CMD_OTA_ROLE_SWITCH_CMD,&ibrt_role_switch_parm,1);
+        LOG_D("[OTA] tws cmd : info send 0x95 cmd complete");
+        tws_ctrl_send_cmd(IBRT_OTA_TWS_ROLE_SWITCH_CMD,&ibrt_role_switch_parm,1);
     }
 #endif
 }
@@ -370,14 +397,14 @@ void ota_control_send_role_switch_complete(void)
 
     if(!app_get_bes_ota_state())
     {
-        OTA_TRACE(0,"[OTA] not in ota");
+        LOG_W("[OTA] not in ota");
         return;
     }
 
     if(ota_control_get_datapath_type() == DATA_PATH_SPP)
     {
         uint32_t len = 0;
-        OTA_TRACE(0,"[OTA] send 0x96 cmd complete");
+        LOG_D("[OTA] send 0x96 cmd complete");
 #if defined(IBRT_UI)
         if((OTA_BASIC_TWS_MASTER == ota_basic_get_tws_role()) &&
             (ota_control_env.transmitHander != NULL))
@@ -406,18 +433,36 @@ void ota_control_send_role_switch_complete(void)
         }
 #if defined(IBRT_UI)
         else if ((OTA_BASIC_TWS_SLAVE == ota_basic_get_tws_role()) && \
-                 (bts_tws_if_is_tws_link_connected()) && \
+                 (app_tws_ibrt_tws_link_connected()) && \
                   ota_get_pkt_in_role_switch)
 #endif
         {
-            OTA_TRACE(0,"[OTA]info master disconnect");
-            tws_ctrl_send_cmd(APP_TWS_CMD_OTA_ROLE_SWITCH_CMD,&ibrt_role_switch_parm,1);
+            LOG_D("[OTA]info master disconnect");
+            tws_ctrl_send_cmd(IBRT_OTA_TWS_ROLE_SWITCH_CMD,&ibrt_role_switch_parm,1);
             ota_get_pkt_in_role_switch = false;
         }
     }
     ota_role_switch_flag = 0;
 #endif
 }
+
+/**
+ * @brief update MTU, called when the MTU exchange indication is received. The MTU exchange request is sent
+ *       right after connection is created.
+ *
+ * @param mtu    MTU size to update
+ *
+ */
+void ota_control_update_MTU(uint16_t mtu)
+{
+    // remove the 3 bytes of overhead
+#if defined(OTA_OVER_TOTA_ENABLED)
+    mtu = (mtu / 16) * 16 - 4;
+#endif
+    ota_control_env.dataPacketSize = mtu;
+    LOG_D("updated ota data packet size is %d", ota_control_env.dataPacketSize);
+}
+
 
 /**
  * @brief Register the data transmission handler. Called from SPP or BLE layer
@@ -488,13 +533,111 @@ static POSSIBLY_UNUSED uint32_t _get_user_start_addr(uint8_t user)
     return addr;
 }
 
+static void ota_update_userdata_pool(void)
+{
+/// I don't think this API can still work as expected, so disable it
+#if 0
+    NORFLASH_API_MODULE_ID_T mod = NORFLASH_API_MODULE_ID_USERDATA;
+    uint32_t addr = 0;
+
+    if (ota_control_env.configuration.isToClearUserData)
+    {
+        nv_record_rebuild();
+    }
+
+    if (ota_control_env.configuration.isToRenameBT ||
+        ota_control_env.configuration.isToRenameBLE ||
+        ota_control_env.configuration.isToUpdateBTAddr ||
+        ota_control_env.configuration.isToUpdateBLEAddr)
+    {
+        app_flash_read(mod, addr, ota_control_env.dataBufferForBurning, FLASH_SECTOR_SIZE_IN_BYTES);
+
+        factory_section_t *pUpdatedFactoryData = (factory_section_t *)(ota_control_env.dataBufferForBurning);
+        uint32_t nv_record_dev_rev = factory_section_get_version();
+
+        if (1 == nv_record_dev_rev)
+        {
+            if (ota_control_env.configuration.isToRenameBT)
+            {
+                // memset(pUpdatedFactoryData->data.device_name, 0, sizeof(pUpdatedFactoryData->data.device_name));
+                memcpy(pUpdatedFactoryData->data.device_name,
+                       (uint8_t *)(ota_control_env.configuration.newBTName),
+                       BES_OTA_NAME_LENGTH);
+            }
+
+            if (ota_control_env.configuration.isToUpdateBTAddr)
+            {
+                memcpy(pUpdatedFactoryData->data.bt_address,
+                       (uint8_t *)(ota_control_env.configuration.newBTAddr),
+                       BD_ADDR_LEN);
+            }
+
+            if (ota_control_env.configuration.isToUpdateBLEAddr)
+            {
+                memcpy(pUpdatedFactoryData->data.ble_address,
+                       (uint8_t *)(ota_control_env.configuration.newBLEAddr),
+                       BD_ADDR_LEN);
+            }
+
+            pUpdatedFactoryData->head.crc =
+                crc32_c(0,(unsigned char *)(&(pUpdatedFactoryData->head.reserved0)),
+                    sizeof(factory_section_t)-2-2-4-(5+63+2+2+2+1+8)*sizeof(int));
+        }
+        else
+        {
+            if (ota_control_env.configuration.isToRenameBT) {
+                // memset(pUpdatedFactoryData->data.rev2_bt_name, 0,
+                //        sizeof(pUpdatedFactoryData->data.rev2_bt_name));
+                memcpy(pUpdatedFactoryData->data.rev2_bt_name,
+                       (uint8_t *)(ota_control_env.configuration.newBTName),
+                       BES_OTA_NAME_LENGTH);
+            }
+
+            if (ota_control_env.configuration.isToRenameBLE) {
+                memset(pUpdatedFactoryData->data.rev2_ble_name,
+                    0, sizeof(pUpdatedFactoryData->data.rev2_ble_name));
+                memcpy(pUpdatedFactoryData->data.rev2_ble_name,
+                    (uint8_t *)(ota_control_env.configuration.newBLEName),
+                    BES_OTA_NAME_LENGTH);
+            }
+
+            if (ota_control_env.configuration.isToUpdateBTAddr) {
+              memcpy(pUpdatedFactoryData->data.rev2_bt_addr,
+                     (uint8_t *) (ota_control_env.configuration.newBTAddr),
+                     BD_ADDR_LEN);
+            }
+
+            if (ota_control_env.configuration.isToUpdateBLEAddr) {
+              memcpy(pUpdatedFactoryData->data.rev2_ble_addr,
+                     (uint8_t *) (ota_control_env.configuration.newBLEAddr),
+                     BD_ADDR_LEN);
+            }
+
+             pUpdatedFactoryData->head.crc =
+                crc32_c(0,(unsigned char *)(&(pUpdatedFactoryData->head.reserved0)),
+                    sizeof(factory_section_t)-2-2-4-(5+63+2+2+2+1+8)*sizeof(int));
+            pUpdatedFactoryData->data.rev2_crc =
+                crc32_c(0,(unsigned char *)(&(pUpdatedFactoryData->data.rev2_reserved0)),
+                pUpdatedFactoryData->data.rev2_data_len);
+        }
+
+        app_flash_sector_erase(mod,
+                             addr);
+        app_flash_program(mod,
+                          addr,
+                          (uint8_t *)pUpdatedFactoryData,
+                          FLASH_SECTOR_SIZE_IN_BYTES,
+                          true);
+    }
+#endif
+}
 /**
  * @brief Reset the environment of the OTA handling
  *
  */
 void ota_control_reset_env(bool resetUser)
 {
-    OTA_TRACE(0,"%s resetUser %d", __func__, resetUser);
+    LOG_D("%s resetUser %d", __func__, resetUser);
 
     InitCQueue(&otaCmdQueue, sizeof(accumulatedOtaBuf), accumulatedOtaBuf);
     ota_control_env.configuration.isToClearUserData = true;
@@ -503,6 +646,7 @@ void ota_control_reset_env(bool resetUser)
     ota_control_env.configuration.isToUpdateBLEAddr = false;
     ota_control_env.configuration.isToUpdateBTAddr = false;
     ota_control_env.configuration.lengthOfFollowingData = 0;
+    ota_control_env.AlreadyReceivedConfigurationLength = 0;
     ota_control_env.crc32OfSegment = 0;
     ota_control_env.crc32OfImage = 0;
     ota_control_env.offsetInDataBufferForBurning = 0;
@@ -513,11 +657,10 @@ void ota_control_reset_env(bool resetUser)
     ota_control_env.leftSizeOfFlashContentToRead = 0;
 
 #ifdef COMBO_CUSBIN_IN_FLASH
-    ota_control_env.is_crossregion = false;
+    ota_control_env.is_crossregion = 0;
     ota_control_env.blockid = 0;
     ota_control_env.currentlengthlimit = 0;
     ota_control_env.lastdstFlashOffsetForNewImage = 0;
-    ota_control_env.combinedSize = 0;
 #endif
 
     if(ota_control_env.resume_at_breakpoint == false)
@@ -526,72 +669,20 @@ void ota_control_reset_env(bool resetUser)
         ota_control_env.i_log = -1;
     }
 
-    ota_control_env.dataBufferForBurning = app_ota_get_common_databuf();
+#ifndef __IAG_BLE_INCLUDE__
+    ota_control_env.dataBufferForBurning = ota_voicepath_get_common_ota_databuf();
+#endif
 
-    memset(&receivedResultAlreadyProcessedBySlave, 0xFF, sizeof(receivedResultAlreadyProcessedBySlave));
+#ifdef TOTA_CROSS_CHIP_OTA
+    _init_flash_offset();
+    app_tota_set_pending_for_reboot_flag(false);
+    ota_control_env.dataBufferForBurning = ota_voicepath_get_common_ota_databuf();
+#endif
 
     if (resetUser)
     {
         ota_control_env.packetStructureType = OTA_PACKET_STRUCTURE_LEGACY;
-        ota_control_env.isOneBudOTA = 0;
         _update_user(BES_OTA_USER_INVALID);
-    }
-}
-
-/**
- * @brief Set the packet interval for app
- *
- *
- */
-static void ota_control_set_packet_interval()
-{
-    // Suitable for i6 and below
-    if (ota_basic_mtu_get() > OTA_I6_BELOW_DEFAULT_MTU)
-    {
-        return;
-    }
-
-    // tws mode and isn't master
-    if (!_tws_is_master())
-    {
-        /// do nothing
-    }
-    else
-    {
-        uint32_t len = 0;
-
-        if (OTA_PACKET_STRUCTURE_TLV == ota_control_env.packetStructureType)
-        {
-            OTA_PACKET_T cmd = {
-                .packetType = OTA_SET_PACKET_INTERVAL,
-                .length = 0,
-                .rfu = 0,
-            };
-            len += OTA_TLV_PACKET_HEADER_LEN;
-
-            cmd.payload.cmdOtaInterval.interval = OTA_APP_PACKET_INTERVAL_FOR_I6_BELOW;
-            len += sizeof(cmd.payload.cmdOtaInterval.interval);
-
-            cmd.length = len - OTA_TLV_PACKET_HEADER_LEN;
-            ota_control_env.transmitHander((uint8_t *)&cmd, len);
-
-            OTA_TRACE(0,"%s transmit data to APP(tlv):", __func__);
-            OTA_DUMP8("%x ", (uint8_t *)&cmd, len);
-        }
-        else
-        {
-            OTA_LEGACY_PACKET_T cmd = {
-                .packetType = OTA_SET_PACKET_INTERVAL,
-            };
-            len += OTA_LEGACY_PACKET_HEADER_LEN;
-
-            cmd.payload.cmdOtaInterval.interval = OTA_APP_PACKET_INTERVAL_FOR_I6_BELOW;
-            len += sizeof(cmd.payload.cmdOtaInterval.interval);
-
-            ota_control_env.transmitHander((uint8_t *)&cmd, len);
-            OTA_TRACE(0,"%s transmit data to APP(legacy):", __func__);
-            OTA_DUMP8("%x ", (uint8_t *)&cmd, len);
-        }
     }
 }
 
@@ -602,6 +693,39 @@ static void ota_control_set_packet_interval()
  */
 static void ota_control_send_start_response(bool isViaBle)
 {
+#ifdef TOTA_CROSS_CHIP_OTA
+    //TOTA_LOG_DBG(1,"[%s] datapath %d", __func__, tota_get_connect_path());
+    switch (tota_get_connect_path())
+    {
+        case APP_TOTA_VIA_SPP:
+             ota_control_env.dataPacketSize = BES_OTA_BT_DATA_PACKET_MAX_SIZE;
+            break;
+#if (BLE_TOTA_ENABLED)
+        case APP_TOTA_VIA_NOTIFICATION:
+             ota_control_env.dataPacketSize = BES_OTA_BLE_DATA_PACKET_MAX_SIZE;
+            break;
+#endif
+        case APP_TOTA_VIA_USB:
+             ota_control_env.dataPacketSize = BES_OTA_USB_DATA_PACKET_MAX_SIZE;
+            break;
+        default:
+            break;
+    }
+#else
+    if (isViaBle)
+    {
+        if (ota_control_env.dataPacketSize > BES_OTA_BLE_DATA_PACKET_MAX_SIZE)
+        {
+            ota_control_env.dataPacketSize = BES_OTA_BLE_DATA_PACKET_MAX_SIZE;
+        }
+    }
+    else
+    {
+    #if !defined(OTA_OVER_TOTA_ENABLED)
+        ota_control_env.dataPacketSize = BES_OTA_BT_DATA_PACKET_MAX_SIZE;
+    #endif
+    }
+#endif
     // tws mode and isn't master
     if (!_tws_is_master())
     {
@@ -629,14 +753,14 @@ static void ota_control_send_start_response(bool isViaBle)
             rsp.payload.rspOtaStart.hwVersion = OTA_HW_VERSION;
             len += 2;
 
-            rsp.payload.rspOtaStart.MTU = ota_basic_mtu_get();
+            rsp.payload.rspOtaStart.MTU = ota_control_env.dataPacketSize;
             len += 2;
 
             rsp.length = len - OTA_TLV_PACKET_HEADER_LEN;
             ota_control_env.transmitHander((uint8_t *)&rsp, len);
 
-            OTA_TRACE(0,"%s transmit data to APP(tlv):", __func__);
-            OTA_DUMP8("%x ", (uint8_t *)&rsp, len);
+            LOG_D("%s transmit data to APP(tlv):", __func__);
+            DUMP8("%x ", (uint8_t *)&rsp, len);
         }
         else
         {
@@ -654,12 +778,12 @@ static void ota_control_send_start_response(bool isViaBle)
             rsp.payload.rspOtaStart.hwVersion = OTA_HW_VERSION;
             len += 2;
 
-            rsp.payload.rspOtaStart.MTU = ota_basic_mtu_get();
+            rsp.payload.rspOtaStart.MTU = ota_control_env.dataPacketSize;
             len += 2;
 
             ota_control_env.transmitHander((uint8_t *)&rsp, len);
-            OTA_TRACE(0,"%s transmit data to APP(legacy):", __func__);
-            OTA_DUMP8("%x ", (uint8_t *)&rsp, len);
+            LOG_D("%s transmit data to APP(legacy):", __func__);
+            DUMP8("%x ", (uint8_t *)&rsp, len);
         }
     }
 }
@@ -695,8 +819,8 @@ static void ota_control_send_configuration_response(bool isDone)
 
             rsp.length = len - OTA_TLV_PACKET_HEADER_LEN;
             ota_control_env.transmitHander((uint8_t *)&rsp, len);
-            OTA_TRACE(0,"%s transmit data to APP(tlv):", __func__);
-            OTA_DUMP8("%x ", (uint8_t *)&rsp, len);
+            LOG_D("%s transmit data to APP(tlv):", __func__);
+            DUMP8("%x ", (uint8_t *)&rsp, len);
         }
         else
         {
@@ -710,8 +834,8 @@ static void ota_control_send_configuration_response(bool isDone)
             len += sizeof(isDone);
 
             ota_control_env.transmitHander((uint8_t *)&rsp, len);
-            OTA_TRACE(0,"%s transmit data to APP(legacy):", __func__);
-            OTA_DUMP8("%x ", (uint8_t *)&rsp, len);
+            LOG_D("%s transmit data to APP(legacy):", __func__);
+            DUMP8("%x ", (uint8_t *)&rsp, len);
         }
     }
 }
@@ -743,8 +867,8 @@ static void ota_control_send_data_ack_response(void)
             len += OTA_TLV_PACKET_HEADER_LEN;
 
             ota_control_env.transmitHander((uint8_t *)&rsp, len);
-            OTA_TRACE(0,"%s transmit data to APP(tlv):", __func__);
-            OTA_DUMP8("%x ", (uint8_t *)&rsp, len);
+            LOG_D("%s transmit data to APP(tlv):", __func__);
+            DUMP8("%x ", (uint8_t *)&rsp, len);
         }
         else
         {
@@ -754,8 +878,8 @@ static void ota_control_send_data_ack_response(void)
             len += OTA_LEGACY_PACKET_HEADER_LEN;
 
             ota_control_env.transmitHander((uint8_t *)&rsp, len);
-            OTA_TRACE(0,"%s transmit data to APP(legacy):", __func__);
-            OTA_DUMP8("%x ", (uint8_t *)&rsp, len);
+            LOG_D("%s transmit data to APP(legacy):", __func__);
+            DUMP8("%x ", (uint8_t *)&rsp, len);
         }
     }
 }
@@ -772,7 +896,9 @@ static void ota_control_send_version_rsp(void)
     {
         uint32_t len = 0;
         uint8_t fw_rev[4];
+#ifdef FIRMWARE_REV
         system_get_info(&fw_rev[0], &fw_rev[1], &fw_rev[2], &fw_rev[3]);
+#endif
         char git_version[255] = TO_STR(GIT_VERSION);
 
         if (OTA_PACKET_STRUCTURE_TLV == ota_control_env.packetStructureType)
@@ -806,8 +932,8 @@ static void ota_control_send_version_rsp(void)
 
             rsp.length = len - OTA_TLV_PACKET_HEADER_LEN;
             ota_control_env.transmitHander((uint8_t *)&rsp, len);
-            OTA_TRACE(0,"%s transmit data to APP(tlv):", __func__);
-            OTA_DUMP8("%x ", (uint8_t *)&rsp, len);
+            LOG_D("%s transmit data to APP(tlv):", __func__);
+            DUMP8("%x ", (uint8_t *)&rsp, len);
         }
         else
         {
@@ -830,8 +956,8 @@ static void ota_control_send_version_rsp(void)
             len += HW_VERSION_LENTH * 2;
 
             ota_control_env.transmitHander((uint8_t *)&rsp, len);
-            OTA_TRACE(0,"%s transmit data to APP(legacy):", __func__);
-            OTA_DUMP8("%x ", (uint8_t *)&rsp, len);
+            LOG_D("%s transmit data to APP(legacy):", __func__);
+            DUMP8("%x ", (uint8_t *)&rsp, len);
         }
     }
 }
@@ -867,8 +993,8 @@ void ota_control_side_selection_rsp(uint8_t success)
 
             rsp.length = len - OTA_TLV_PACKET_HEADER_LEN;
             ota_control_env.transmitHander((uint8_t *)&rsp, len);
-            OTA_TRACE(0,"%s transmit data to APP(tlv):", __func__);
-            OTA_DUMP8("%x ", (uint8_t *)&rsp, len);
+            LOG_D("%s transmit data to APP(tlv):", __func__);
+            DUMP8("%x ", (uint8_t *)&rsp, len);
         }
         else
         {
@@ -882,38 +1008,9 @@ void ota_control_side_selection_rsp(uint8_t success)
             len += sizeof(success);
 
             ota_control_env.transmitHander((uint8_t *)&rsp, len);
-            OTA_TRACE(0,"%s transmit data to APP(legacy):", __func__);
-            OTA_DUMP8("%x ", (uint8_t *)&rsp, len);
+            LOG_D("%s transmit data to APP(legacy):", __func__);
+            DUMP8("%x ", (uint8_t *)&rsp, len);
         }
-    }
-}
-
-void ota_control_single_bud_upgrade_rsp(uint8_t success)
-{
-    // tws mode and isn't master
-    if (!_tws_is_master())
-    {
-        /// do nothing
-    }
-    else
-    {
-        /// only support tlv packet
-        uint32_t len = 0;
-        OTA_PACKET_T rsp = {
-            .packetType = OTA_SET_ONE_BUD_UPGRADE_RSP,
-            .length = 0,
-            .rfu = 0,
-        };
-        len += OTA_TLV_PACKET_HEADER_LEN;
-
-        /// update execution result
-        rsp.payload.rspOneBudSelect.success = success;
-        len += sizeof(success);
-
-        rsp.length = len - OTA_TLV_PACKET_HEADER_LEN;
-        ota_control_env.transmitHander((uint8_t *)&rsp, len);
-        OTA_TRACE(0,"%s transmit data to APP(tlv):", __func__);
-        OTA_DUMP8("%x ", (uint8_t *)&rsp, len);
     }
 }
 
@@ -943,8 +1040,8 @@ void ota_control_image_apply_rsp(uint8_t success)
 
             rsp.length = len - OTA_TLV_PACKET_HEADER_LEN;
             ota_control_env.transmitHander((uint8_t *)&rsp, len);
-            OTA_TRACE(0,"%s transmit data to APP(tlv):", __func__);
-            OTA_DUMP8("%x ", (uint8_t *)&rsp, len);
+            LOG_D("%s transmit data to APP(tlv):", __func__);
+            DUMP8("%x ", (uint8_t *)&rsp, len);
         }
         else
         {
@@ -958,8 +1055,8 @@ void ota_control_image_apply_rsp(uint8_t success)
             len += sizeof(success);
 
             ota_control_env.transmitHander((uint8_t *)&rsp, len);
-            OTA_TRACE(0,"%s transmit data to APP(legacy):", __func__);
-            OTA_DUMP8("%x ", (uint8_t *)&rsp, len);
+            LOG_D("%s transmit data to APP(legacy):", __func__);
+            DUMP8("%x ", (uint8_t *)&rsp, len);
         }
     }
 }
@@ -972,7 +1069,7 @@ void ota_control_image_apply_rsp(uint8_t success)
  */
 static void ota_control_send_segment_verification_response(bool isPass)
 {
-    OTA_TRACE(0,"Segment of image's verification pass status is %d (1:pass 0:failed)", isPass);
+    LOG_D("Segment of image's verification pass status is %d (1:pass 0:failed)", isPass);
 
     // tws mode and isn't master
     if (!_tws_is_master())
@@ -994,13 +1091,12 @@ static void ota_control_send_segment_verification_response(bool isPass)
 
             /// update execution result
             rsp.payload.rspSegmentVerify.isVerificationPassed = isPass;
-            rsp.payload.rspSegmentVerify.crc32OfSegment = ota_control_env.receivedCrc32OfSegment;
-            len += (sizeof(isPass)+sizeof(ota_control_env.receivedCrc32OfSegment));
+            len += sizeof(isPass);
 
             rsp.length = len - OTA_TLV_PACKET_HEADER_LEN;
             ota_control_env.transmitHander((uint8_t *)&rsp, len);
-            OTA_TRACE(0,"%s transmit data to APP(tlv):", __func__);
-            OTA_DUMP8("%x ", (uint8_t *)&rsp, len);
+            LOG_D("%s transmit data to APP(tlv):", __func__);
+            DUMP8("%x ", (uint8_t *)&rsp, len);
         }
         else
         {
@@ -1014,17 +1110,14 @@ static void ota_control_send_segment_verification_response(bool isPass)
             len += sizeof(isPass);
 
             ota_control_env.transmitHander((uint8_t *)&rsp, len);
-            OTA_TRACE(0,"%s transmit data to APP(legacy):", __func__);
-            OTA_DUMP8("%x ", (uint8_t *)&rsp, len);
+            LOG_D("%s transmit data to APP(legacy):", __func__);
+            DUMP8("%x ", (uint8_t *)&rsp, len);
         }
     }
 }
 
 void ibrt_ota_send_segment_verification_response(bool isPass)
 {
-    tws_ctrl_free_cmd(APP_TWS_CMD_OTA_IMAGE_BUFF);
-    tws_ctrl_free_cmd(APP_TWS_CMD_OTA_SEGMENT_CRC_CMD);
-
     ota_control_send_segment_verification_response(isPass);
 }
 
@@ -1060,8 +1153,8 @@ void ota_control_send_result_response(uint8_t isSuccessful)
 
             rsp.length = len - OTA_TLV_PACKET_HEADER_LEN;
             ota_control_env.transmitHander((uint8_t *)&rsp, len);
-            OTA_TRACE(0,"%s transmit data to APP(tlv):", __func__);
-            OTA_DUMP8("%x ", (uint8_t *)&rsp, len);
+            LOG_D("%s transmit data to APP(tlv):", __func__);
+            DUMP8("%x ", (uint8_t *)&rsp, len);
         }
         else
         {
@@ -1075,8 +1168,8 @@ void ota_control_send_result_response(uint8_t isSuccessful)
             len += sizeof(isSuccessful);
 
             ota_control_env.transmitHander((uint8_t *)&rsp, len);
-            OTA_TRACE(0,"%s transmit data to APP(legacy):", __func__);
-            OTA_DUMP8("%x ", (uint8_t *)&rsp, len);
+            LOG_D("%s transmit data to APP(legacy):", __func__);
+            DUMP8("%x ", (uint8_t *)&rsp, len);
         }
     }
 }
@@ -1113,8 +1206,8 @@ void ota_control_send_get_random_response(uint32_t ota_rv)
 
             rsp.length = len - OTA_TLV_PACKET_HEADER_LEN;
             ota_control_env.transmitHander((uint8_t *)&rsp, len);
-            OTA_TRACE(0,"%s transmit data to APP(tlv):", __func__);
-            OTA_DUMP8("%x ", (uint8_t *)&rsp, len);
+            LOG_D("%s transmit data to APP(tlv):", __func__);
+            DUMP8("%x ", (uint8_t *)&rsp, len);
         }
         else
         {
@@ -1128,8 +1221,8 @@ void ota_control_send_get_random_response(uint32_t ota_rv)
             len += 2;
 
             ota_control_env.transmitHander((uint8_t *)&rsp, len);
-            OTA_TRACE(0,"%s transmit data to APP(legacy):", __func__);
-            OTA_DUMP8("%x ", (uint8_t *)&rsp, len);
+            LOG_D("%s transmit data to APP(legacy):", __func__);
+            DUMP8("%x ", (uint8_t *)&rsp, len);
 
         }
     }
@@ -1167,8 +1260,8 @@ static void _send_set_user_response(uint8_t isSuccessful)
 
         rsp.length = len - OTA_TLV_PACKET_HEADER_LEN;
         ota_control_env.transmitHander((uint8_t *)&rsp, len);
-        OTA_TRACE(0,"%s transmit data to APP(tlv):", __func__);
-        OTA_DUMP8("%x ", (uint8_t *)&rsp, len);
+        LOG_D("%s transmit data to APP(tlv):", __func__);
+        DUMP8("%x ", (uint8_t *)&rsp, len);
     }
 }
 
@@ -1184,6 +1277,9 @@ static void _send_ota_version_rsp(uint8_t *buf, uint16_t length)
 {
     ASSERT(OTA_VERSION_INFO_LEN == length, "INVALID OTA version info len");
     ASSERT(buf, "NULL pointer received in %s", __func__);
+
+    ota_control_env.packetStructureType = OTA_PACKET_STRUCTURE_TLV;
+    LOG_D("OTA packet type update to tlv");
 
     // tws mode and isn't master
     if (!_tws_is_master())
@@ -1219,8 +1315,8 @@ static void _send_ota_version_rsp(uint8_t *buf, uint16_t length)
 
         rsp.length = len - OTA_TLV_PACKET_HEADER_LEN;
         ota_control_env.transmitHander((uint8_t *)&rsp, OTA_TLV_PACKET_HEADER_LEN + rsp.length);
-        OTA_TRACE(0,"%s transmit data to APP(tlv):", __func__);
-        OTA_DUMP8("%x ", (uint8_t *)&rsp, len);
+        LOG_D("%s transmit data to APP(tlv):", __func__);
+        DUMP8("%x ", (uint8_t *)&rsp, len);
     }
 }
 
@@ -1244,90 +1340,74 @@ void ibrt_ota_send_ota_version_rsp(uint8_t *buf, uint16_t len)
  */
 static void ota_control_flush_data_to_flash(uint8_t* ptrSource, uint32_t lengthToBurn, uint32_t offsetInFlashToProgram)
 {
-    OTA_TRACE(0,"flush %d bytes to flash offset 0x%x", lengthToBurn, offsetInFlashToProgram);
-    #if defined(ARM_CMNS) && defined(OTA_TZ_ENABLE)
-    if(BES_OTA_USER_COMBOFIRMWARE == ota_control_env.currentUser &&
-        nv_record_combo_bin_get_fw_id(ota_control_env.blockid) == COMBO_TZ_SB)
+    LOG_D("flush %d bytes to flash offset 0x%x", lengthToBurn, offsetInFlashToProgram);
+    NORFLASH_API_MODULE_ID_T mod = _get_user_flash_module(ota_control_env.currentUser);
+
+    uint32_t preBytes = (FLASH_SECTOR_SIZE_IN_BYTES - (offsetInFlashToProgram % FLASH_SECTOR_SIZE_IN_BYTES)) % FLASH_SECTOR_SIZE_IN_BYTES;
+    if (lengthToBurn < preBytes)
     {
-        app_flash_tz_ota_program(offsetInFlashToProgram, ptrSource, lengthToBurn);
+        preBytes = lengthToBurn;
     }
-    else
-    #endif
+
+    uint32_t middleBytes = 0;
+    if (lengthToBurn > preBytes)
     {
-        NORFLASH_API_MODULE_ID_T mod = _get_user_flash_module(ota_control_env.currentUser);
+        middleBytes = ((lengthToBurn - preBytes) / FLASH_SECTOR_SIZE_IN_BYTES * FLASH_SECTOR_SIZE_IN_BYTES);
+    }
 
-        uint8_t i = _get_user_index(ota_control_env.currentUser);
+    uint32_t postBytes = 0;
+    if (lengthToBurn > (preBytes + middleBytes))
+    {
+        postBytes = (offsetInFlashToProgram + lengthToBurn) % FLASH_SECTOR_SIZE_IN_BYTES;
+    }
 
-        offsetInFlashToProgram = ota_control_env.dstFlashOffsetForNewImage - 
-                                (ota_control_env.userInfo[i].startAddr&0xFFFFFF) + 
-                                offsetInFlashToProgram;
+    LOG_D("Prebytes is %d middlebytes is %d postbytes is %d", preBytes, middleBytes, postBytes);
 
-        uint32_t preBytes = (FLASH_SECTOR_SIZE_IN_BYTES - (offsetInFlashToProgram % FLASH_SECTOR_SIZE_IN_BYTES)) % FLASH_SECTOR_SIZE_IN_BYTES;
-        if (lengthToBurn < preBytes)
-        {
-            preBytes = lengthToBurn;
-        }
+    if (preBytes > 0)
+    {
+        app_flash_program(mod,
+                          offsetInFlashToProgram,
+                          ptrSource,
+                          preBytes,
+                          false);
 
-        uint32_t middleBytes = 0;
-        if (lengthToBurn > preBytes)
-        {
-            middleBytes = ((lengthToBurn - preBytes) / FLASH_SECTOR_SIZE_IN_BYTES * FLASH_SECTOR_SIZE_IN_BYTES);
-        }
+        ptrSource += preBytes;
+        offsetInFlashToProgram += preBytes;
+    }
 
-        uint32_t postBytes = 0;
-        if (lengthToBurn > (preBytes + middleBytes))
-        {
-            postBytes = (offsetInFlashToProgram + lengthToBurn) % FLASH_SECTOR_SIZE_IN_BYTES;
-        }
+    uint32_t sectorIndexInFlash = offsetInFlashToProgram/FLASH_SECTOR_SIZE_IN_BYTES;
 
-        OTA_TRACE(0,"Prebytes is %d middlebytes is %d postbytes is %d", preBytes, middleBytes, postBytes);
-
-        if (preBytes > 0)
-        {
-            app_flash_program(mod,
-                            offsetInFlashToProgram,
-                            ptrSource,
-                            preBytes,
-                            false);
-
-            ptrSource += preBytes;
-            offsetInFlashToProgram += preBytes;
-        }
-
-        uint32_t sectorIndexInFlash = offsetInFlashToProgram/FLASH_SECTOR_SIZE_IN_BYTES;
-
-        if (middleBytes > 0)
-        {
-            uint32_t sectorCntToProgram = middleBytes/FLASH_SECTOR_SIZE_IN_BYTES;
-            for (uint32_t sector = 0;sector < sectorCntToProgram;sector++)
-            {
-                app_flash_sector_erase(mod,
-                                    sectorIndexInFlash * FLASH_SECTOR_SIZE_IN_BYTES);
-                app_flash_program(mod,
-                                sectorIndexInFlash * FLASH_SECTOR_SIZE_IN_BYTES,
-                                ptrSource + sector * FLASH_SECTOR_SIZE_IN_BYTES, FLASH_SECTOR_SIZE_IN_BYTES,
-                                false);
-
-                sectorIndexInFlash++;
-            }
-
-            ptrSource += middleBytes;
-        }
-
-        if (postBytes > 0)
+    if (middleBytes > 0)
+    {
+        uint32_t sectorCntToProgram = middleBytes/FLASH_SECTOR_SIZE_IN_BYTES;
+        for (uint32_t sector = 0;sector < sectorCntToProgram;sector++)
         {
             app_flash_sector_erase(mod,
-                                sectorIndexInFlash * FLASH_SECTOR_SIZE_IN_BYTES);
+                                 sectorIndexInFlash * FLASH_SECTOR_SIZE_IN_BYTES);
             app_flash_program(mod,
-                            sectorIndexInFlash * FLASH_SECTOR_SIZE_IN_BYTES,
-                            ptrSource,
-                            postBytes,
-                            false);
+                              sectorIndexInFlash * FLASH_SECTOR_SIZE_IN_BYTES,
+                              ptrSource + sector * FLASH_SECTOR_SIZE_IN_BYTES, FLASH_SECTOR_SIZE_IN_BYTES,
+                              false);
+
+            sectorIndexInFlash++;
         }
 
-        app_flash_flush_pending_op(mod,
-                                NORFLASH_API_ALL);
+        ptrSource += middleBytes;
     }
+
+    if (postBytes > 0)
+    {
+        app_flash_sector_erase(mod,
+                             sectorIndexInFlash * FLASH_SECTOR_SIZE_IN_BYTES);
+        app_flash_program(mod,
+                          sectorIndexInFlash * FLASH_SECTOR_SIZE_IN_BYTES,
+                          ptrSource,
+                          postBytes,
+                          false);
+    }
+
+    app_flash_flush_pending_op(mod,
+                               NORFLASH_API_ALL);
 }
 
 /**
@@ -1336,20 +1416,11 @@ static void ota_control_flush_data_to_flash(uint8_t* ptrSource, uint32_t lengthT
  */
 void erase_segment(uint32_t addr, uint32_t length)
 {
-    NORFLASH_API_MODULE_ID_T mod = _get_user_flash_module(ota_control_env.currentUser);
-
-    uint32_t bytes = 0, sector_num = 0;
-
     /// The number of bytes current address minus the previous sector boundary address.
-    bytes = addr & (FLASH_SECTOR_SIZE_IN_BYTES - 1);
+    uint32_t bytes = addr & (FLASH_SECTOR_SIZE_IN_BYTES - 1);
     ///The number of sectors to be erased
-    sector_num = (bytes + length)/FLASH_SECTOR_SIZE_IN_BYTES + 1;
-
-    if(bytes)
-    {
-        //save original data-----first, read
-        app_flash_read(mod, addr - bytes, ota_control_env.dataBufferForBurning, FLASH_SECTOR_SIZE_IN_BYTES);
-    }
+    uint32_t sector_num = (bytes + length)/FLASH_SECTOR_SIZE_IN_BYTES + 1;
+    NORFLASH_API_MODULE_ID_T mod = _get_user_flash_module(ota_control_env.currentUser);
 
     if(bytes)
     {
@@ -1365,20 +1436,6 @@ void erase_segment(uint32_t addr, uint32_t length)
             app_flash_sector_erase(mod, (addr + i * FLASH_SECTOR_SIZE_IN_BYTES));
         }
     }
-
-    if(bytes)
-    {
-        //save original data ---- second write back
-        app_flash_program(mod, addr - bytes, ota_control_env.dataBufferForBurning, bytes, false);
-    }
-}
-
-void ota_control_erase_segment(uint32_t offset, uint32_t length)
-{
-    uint8_t i = _get_user_index(ota_control_env.currentUser);
-
-    uint32_t addr = ota_control_env.dstFlashOffsetForNewImage - (ota_control_env.userInfo[i].startAddr&0xFFFFFF) + offset;
-    erase_segment(addr, length);
 }
 
 uint32_t ota_get_current_start_addr(void)
@@ -1424,16 +1481,16 @@ static bool ota_control_check_image_crc(void)
 
     uint32_t *pData = (uint32_t *)ota_control_env.dataBufferForBurning;
 
-    OTA_TRACE(0,"%s:start word: 0x%x", __func__, *pData);
+    LOG_D("%s:start word: 0x%x", __func__, *pData);
 
     if (*pData != NORMAL_BOOT)
     {
-        OTA_TRACE(0,"%s@%d,Wrong Boot = %p.",
+        LOG_D("%s@%d,Wrong Boot = %p.",
               __func__, __LINE__, ota_control_env.dataBufferForBurning);
 
         return false;
     }
-    OTA_TRACE(0,"ota_control_env.totalImageSize:0x%x", ota_control_env.totalImageSize);
+    LOG_D("ota_control_env.totalImageSize:0x%x", ota_control_env.totalImageSize);
 
     while (verifiedDataSize < ota_control_env.totalImageSize)
     {
@@ -1455,15 +1512,15 @@ static bool ota_control_check_image_crc(void)
         {
             if (*(uint32_t *)ota_control_env.dataBufferForBurning != NORMAL_BOOT)
             {
-                OTA_TRACE(0,"%s:%d,Wrong Boot = 0x%p.",
+                LOG_D("%s:%d,Wrong Boot = 0x%p.",
                       __func__, __LINE__, ota_control_env.dataBufferForBurning);
                 return false;
             }
             else
             {
                 *(uint32_t *)ota_control_env.dataBufferForBurning = 0xFFFFFFFF;
-                OTA_TRACE(0,"first 50 byte in flash:");
-                OTA_DUMP8("0x%02x ", ota_control_env.dataBufferForBurning, 50);
+                LOG_D("first 50 byte in flash:");
+                DUMP8("0x%02x ", ota_control_env.dataBufferForBurning, 50);
             }
         }
 
@@ -1474,7 +1531,7 @@ static bool ota_control_check_image_crc(void)
                              verifiedBytes);
     }
 
-    OTA_TRACE(0,"Original CRC32 is 0x%x Confirmed CRC32 is 0x%x.", ota_control_env.crc32OfImage, crc32Value);
+    LOG_D("Original CRC32 is 0x%x Confirmed CRC32 is 0x%x.", ota_control_env.crc32OfImage, crc32Value);
     if (crc32Value == ota_control_env.crc32OfImage)
     {
         return true;
@@ -1487,16 +1544,8 @@ static bool ota_control_check_image_crc(void)
 
 void ota_update_info(void)
 {
-#if defined(ARM_CMNS) && defined(OTA_TZ_ENABLE)
-#ifdef FLASH_REMAP
-    app_flash_tz_ota_apply(OTA_CODE_OFFSET, OTA_REMAP_OFFSET, ota_control_env.crc32OfImage);
-#else
-    app_flash_tz_ota_apply(ota_control_env.dstFlashOffsetForNewImage, 
-            ota_control_env.totalImageSize, ota_control_env.crc32OfImage);
-#endif
-#else
     app_update_ota_boot_info();
-#endif
+    ota_update_userdata_pool();
 }
 
 void ota_check_and_reboot_to_use_new_image(void)
@@ -1515,6 +1564,40 @@ bool ota_is_in_progress(void)
 void ota_status_change(bool status)
 {
     ota_control_env.isOTAInProgress = status;
+}
+
+static void ota_control_sending_flash_content(OTA_READ_FLASH_CONTENT_REQ_T* pReq)
+{
+    OTA_READ_FLASH_CONTENT_RSP_T rsp = {OTA_READ_FLASH_CONTENT, true};
+
+    if (pReq->isToStart)
+    {
+        LOG_D("Getreading flash content request start addr 0x%x size %d",
+                    pReq->startAddr, pReq->lengthToRead);
+
+        // check the sanity of the request
+        if ((pReq->startAddr >= hal_norflash_get_flash_total_size(HAL_FLASH_ID_0)) ||
+            ((pReq->startAddr + pReq->lengthToRead) >
+            hal_norflash_get_flash_total_size(HAL_FLASH_ID_0)))
+        {
+            LOG_D("%s %d total:%d",__func__,__LINE__,hal_norflash_get_flash_total_size(HAL_FLASH_ID_0));
+            rsp.isReadingReqHandledSuccessfully = false;
+        }
+        else
+        {
+            ota_control_env.offsetInFlashToRead = pReq->startAddr;
+            ota_control_env.leftSizeOfFlashContentToRead = pReq->lengthToRead;
+            LOG_D("Start sending flash content start addr 0x%x size %d",
+                pReq->startAddr, pReq->lengthToRead);
+        }
+    }
+    else
+    {
+        LOG_D("Get stop reading flash content request.");
+        ota_control_env.leftSizeOfFlashContentToRead = 0;
+    }
+    LOG_D("%s %d",__func__,__LINE__);
+    ota_control_env.transmitHander((uint8_t *)&rsp, sizeof(rsp));
 }
 
 static int32_t find_key_word(uint8_t *targetArray, uint32_t targetArrayLen,
@@ -1598,7 +1681,7 @@ POSSIBLY_UNUSED static bool ota_check_image_data_sanity_crc(void)
         return true;
     }
 
-    OTA_TRACE(0,"sanity_crc_location is %d", sanity_crc_location);
+    LOG_D("sanity_crc_location is %d", sanity_crc_location);
 
     uint8_t *crcString = (uint8_t *)(ptrOfTheLast4KImage + sanity_crc_location + strlen(image_info_sanity_crc_key_word));
 
@@ -1607,12 +1690,12 @@ POSSIBLY_UNUSED static bool ota_check_image_data_sanity_crc(void)
         sanityCrc32 |= (asciiToHex(crcString[index]) << (28 - 4 * index));
     }
 
-    OTA_TRACE(0,"sanityCrc32 is 0x%x", sanityCrc32);
+    LOG_D("sanityCrc32 is 0x%x", sanityCrc32);
 
     // generate the CRC from image data
     lengthToDoCrcCheck = sanity_crc_location + ota_control_env.totalImageSize -
                          LEN_OF_IMAGE_TAIL_TO_FIND_SANITY_CRC + strlen(image_info_sanity_crc_key_word);
-    OTA_TRACE(0,"Bytes to generate crc32 is %d", lengthToDoCrcCheck);
+    LOG_D("Bytes to generate crc32 is %d", lengthToDoCrcCheck);
 
     uint32_t last_ping_time_ms = 0;
     uint32_t current_time_ms  = 0;
@@ -1623,7 +1706,7 @@ POSSIBLY_UNUSED static bool ota_check_image_data_sanity_crc(void)
         lengthCrcCheckNow = (lengthToDoCrcCheck - lengthCrcCheckDone) > OTA_DATA_BUFFER_SIZE_FOR_BURNING
                                 ? OTA_DATA_BUFFER_SIZE_FOR_BURNING
                                 : (lengthToDoCrcCheck - lengthCrcCheckDone);
-                                // OTA_TRACE(2,"lengthCrcCheckNow 0x%x", lengthCrcCheckNow);
+                                // LOG_D(2,"lengthCrcCheckNow 0x%x", lengthCrcCheckNow);
 
         app_flash_read(mod,
                        lengthCrcCheckDone,
@@ -1643,7 +1726,7 @@ POSSIBLY_UNUSED static bool ota_check_image_data_sanity_crc(void)
         calculatedCrc32 = crc32_c(calculatedCrc32, ota_control_env.dataBufferForBurning, lengthCrcCheckNow);
     }
 
-    OTA_TRACE(0,"calculatedCrc32 is 0x%x", calculatedCrc32);
+    LOG_D("calculatedCrc32 is 0x%x", calculatedCrc32);
 
     return (sanityCrc32 == calculatedCrc32);
 }
@@ -1693,10 +1776,9 @@ void ota_update_start_message(void)
                           OFFSETOF(FLASH_OTA_UPGRADE_LOG_FLASH_T, crc32OfImage),
                           (uint8_t *)&ota_control_env.crc32OfImage,
                           sizeof(ota_control_env.crc32OfImage),
-                          false);
-        app_flash_flush_pending_op(mod, NORFLASH_API_ALL);  //!< force flush the flash op
+                          true); //!< force flush the flash op
 
-        OTA_TRACE(0,"update upgrade info: totalImageSize->0x%08x, crc32OfImage->0x%08x",
+        LOG_I("update upgrade info: totalImageSize->0x%08x, crc32OfImage->0x%08x",
               otaUpgradeLog.totalImageSize, otaUpgradeLog.crc32OfImage);
     }
 }
@@ -1705,47 +1787,77 @@ void ota_get_start_message(void)
 {
     ota_control_env.totalImageSize = otaUpgradeLog.totalImageSize;
     ota_control_env.crc32OfImage = otaUpgradeLog.crc32OfImage;
-    OTA_TRACE(0,"[%s] totalImageSize = 0x%x, crc32OfImage = 0x%x",
+    LOG_D("[%s] totalImageSize = 0x%x, crc32OfImage = 0x%x",
           __func__, ota_control_env.totalImageSize, ota_control_env.crc32OfImage);
 }
 
-
 uint32_t ota_common_get_boot_info_flash_offset(void)
 {
-    #ifdef OTA_SEC_BOOT_INFO_OFFSET
-    return (FLASH_NC_BASE + OTA_SEC_BOOT_INFO_OFFSET);
-    #endif
-
     FLASH_OTA_BOOT_INFO_T otaBootInfo;
     uint32_t otaBootInfoAddr = OTA_INFO_IN_OTA_BOOT_SEC;
 
     memcpy((uint8_t *)&otaBootInfo, (uint8_t *)otaBootInfoAddr, sizeof(FLASH_OTA_BOOT_INFO_T));
-    OTA_TRACE(0,"[%s],otaBootInfo.magicNumber = 0x%04X", __func__, otaBootInfo.magicNumber);
-    OTA_TRACE(0,"0x%02x ",otaBootInfoAddr);
+    LOG_D("[%s],otaBootInfo.magicNumber = 0x%04X", __func__, otaBootInfo.magicNumber);
     if ((NORMAL_BOOT == otaBootInfo.magicNumber) || (COPY_NEW_IMAGE == otaBootInfo.magicNumber))
     {
         return OTA_INFO_IN_OTA_BOOT_SEC;
     }
     else
     {
-        ASSERT(0, "OTA bootinfo addr is wrong");
-        return 0;
+        return (OTA_INFO_IN_OTA_BOOT_SEC - OTA_OFFSET/2);
     }
 }
 void ota_upgradeSize_log(void)
 {
-    OTA_TRACE(0,"[%s] totalImageSize = 0x%x, crc32OfImage = 0x%x",
+    LOG_D("[%s] totalImageSize = 0x%x, crc32OfImage = 0x%x",
           __func__, ota_control_env.totalImageSize, ota_control_env.crc32OfImage);
-
-    #if defined(ARM_CMNS) && defined(OTA_TZ_ENABLE)
-    if(BES_OTA_USER_COMBOFIRMWARE == ota_control_env.currentUser &&
-        nv_record_combo_bin_get_fw_id(ota_control_env.blockid) == COMBO_TZ_SB)
-    {
-        return;
-    }
-    #endif
     NORFLASH_API_MODULE_ID_T mod = NORFLASH_API_MODULE_ID_UPGRADE_LOG;
 
+#if PUYA_FLASH_ERASE_LIMIT
+    if(upsize_segment_cnt < UPSIZE_WRITE_FREQ)
+    {
+        upsize_segment_cnt++;
+        LOG_D("PUYA upgradesize return");
+        return;
+    }
+    else if((upsize_segment_cnt == UPSIZE_WRITE_FREQ) && (upsize_erase_cnt < UPSIZE_ELEMENT_LIMIT))
+    {
+        upsize_segment_cnt = 0;
+        upsize_erase_cnt++;
+        app_flash_program(mod,
+                          OFFSETOF(FLASH_OTA_UPGRADE_LOG_FLASH_T, upgradeSize) + (sizeof(uint32_t) * (++ota_control_env.i_log)),
+                          (uint8_t *)&ota_control_env.alreadyReceivedDataSizeOfImage,
+                          sizeof(ota_control_env.alreadyReceivedDataSizeOfImage),
+                          false);
+        LOG_D("PUYA WRITE {i_log: %d, RecSize: 0x%x, FlashWrSize: 0x%x}", ota_control_env.i_log,
+              ota_control_env.alreadyReceivedDataSizeOfImage, otaUpgradeLog.upgradeSize[ota_control_env.i_log]);
+    }
+    else if((upsize_segment_cnt == UPSIZE_WRITE_FREQ) && (upsize_erase_cnt == UPSIZE_ELEMENT_LIMIT))
+    {
+        ota_control_env.i_log = 0;
+        upsize_erase_cnt = 0;
+        upsize_segment_cnt = 0;
+        app_flash_read(mod,
+                       0,
+                       ota_control_env.dataBufferForBurning,
+                       OTAUPLOG_HEADSIZE);
+
+        app_flash_sector_erase(mod,
+                             (uint32_t)&otaUpgradeLog);
+        app_flash_program(mod,
+                          (uint32_t)&otaUpgradeLog,
+                          ota_control_env.dataBufferForBurning,
+                          OTAUPLOG_HEADSIZE,
+                          false);
+        app_flash_program(mod,
+                          (uint32_t)&otaUpgradeLog.upgradeSize[ota_control_env.i_log],
+                          (uint8_t *)&ota_control_env.alreadyReceivedDataSizeOfImage,
+                          sizeof(ota_control_env.alreadyReceivedDataSizeOfImage),
+                          false);
+        LOG_D("PUYA ERASE WRITE {i_log: %d, RecSize: 0x%x, FlashWrSize: 0x%x}", ota_control_env.i_log,
+              ota_control_env.alreadyReceivedDataSizeOfImage, otaUpgradeLog.upgradeSize[ota_control_env.i_log]);
+    }
+#else
     if(++ota_control_env.i_log >= sizeof(otaUpgradeLog.upgradeSize)/(sizeof(uint32_t)/sizeof(uint8_t)))
     {
         ota_control_env.i_log = 0;
@@ -1767,17 +1879,17 @@ void ota_upgradeSize_log(void)
                       OFFSETOF(FLASH_OTA_UPGRADE_LOG_FLASH_T, upgradeSize) + (sizeof(uint32_t) * (ota_control_env.i_log)),
                       (uint8_t *)&ota_control_env.alreadyReceivedDataSizeOfImage,
                       sizeof(ota_control_env.alreadyReceivedDataSizeOfImage),
-                      false);
-    app_flash_flush_pending_op(mod, NORFLASH_API_ALL);  //!< force flush the flash op
+                      true);
 
-    OTA_TRACE(0,"{i_log: %d, RecSize: 0x%x, FlashWrSize: 0x%x}",
+    LOG_D("{i_log: %d, RecSize: 0x%x, FlashWrSize: 0x%x}",
           ota_control_env.i_log, ota_control_env.alreadyReceivedDataSizeOfImage,
           otaUpgradeLog.upgradeSize[ota_control_env.i_log]);
+#endif
 }
 
 void ota_upgradeLog_destroy(void)
 {
-    OTA_TRACE(0,"Destroyed upgrade log in flash.");
+    LOG_D("Destroyed upgrade log in flash.");
     NORFLASH_API_MODULE_ID_T mod = NORFLASH_API_MODULE_ID_UPGRADE_LOG;
 
     ota_control_env.resume_at_breakpoint = false;
@@ -1811,7 +1923,7 @@ uint32_t get_upgradeSize_log(void)
     ota_control_env.breakPoint = left!=-1 ? p[left] : 0;
     ota_control_env.resume_at_breakpoint = ota_control_env.breakPoint?true:false;
 
-    OTA_TRACE(0,"ota_control_env.i_log: %d", ota_control_env.i_log);
+    LOG_D("ota_control_env.i_log: %d", ota_control_env.i_log);
     return ota_control_env.breakPoint;
 }
 
@@ -1892,15 +2004,7 @@ void ota_update_flash_offset_after_segment_crc(bool flag)
     {
         uint32_t lengthToDoCrcCheck = ota_control_env.alreadyReceivedDataSizeOfImage -
                                         ota_control_env.offsetOfImageOfCurrentSegment;
-#if COMBO_CUSBIN_IN_FLASH
-        if(BES_OTA_USER_COMBOFIRMWARE == ota_control_env.currentUser)
-        {
-            _combo_bin_erase_segment(ota_control_env.offsetInFlashOfCurrentSegment, lengthToDoCrcCheck);
-        }
-#else
-        ota_control_erase_segment(ota_control_env.offsetInFlashOfCurrentSegment, lengthToDoCrcCheck);
-#endif
-
+        erase_segment(ota_control_env.offsetOfImageOfCurrentSegment, lengthToDoCrcCheck);
         // restore the offset
         ota_control_env.offsetInFlashToProgram = ota_control_env.offsetInFlashOfCurrentSegment;
         ota_control_env.alreadyReceivedDataSizeOfImage = ota_control_env.offsetOfImageOfCurrentSegment;
@@ -1935,13 +2039,14 @@ void ibrt_tws_ota_breakPoint_resume(uint32_t breakPoint, uint8_t randomCode[])
                   sizeof(packet.payload.rspResumeBreakpoint.randomCode));
     len += sizeof(packet.payload.rspResumeBreakpoint.crc32);
 
-    tws_ctrl_send_cmd(APP_TWS_CMD_OTA_BP_CHECK_CMD, (uint8_t*)&packet, len);
+    tws_ctrl_send_cmd(IBRT_OTA_TWS_BP_CHECK_CMD, (uint8_t*)&packet, len);
 }
 
+#if defined(IBRT_UI)
 static void _tws_get_role(void)
 {
     ibrt_tws_mode = ota_basic_get_tws_role();
-    OTA_TRACE(0,"Role is update to %d", ibrt_tws_mode);
+    LOG_D("Role is update to %d", ibrt_tws_mode);
 }
 
 // not tws mode or is master
@@ -1950,277 +2055,174 @@ static bool _tws_is_master(void)
 #if defined(FREEMAN_ENABLED_STERO) || defined(FREEMAN_OTA_ENABLED)
     return true;
 #endif
-    return (OTA_BASIC_TWS_MASTER == ibrt_tws_mode || OTA_BASIC_TWS_UNKNOWN == ibrt_tws_mode);
-}
-
-// not tws mode or is slave
-static POSSIBLY_UNUSED bool _tws_is_slave(void)
-{
-    return (OTA_BASIC_TWS_SLAVE == ibrt_tws_mode);
-}
-
-#else //IBRT
-static void _tws_get_role(void)
-{
-    // not in tws mode
-}
-
-// not tws mode or is master
-static bool _tws_is_master(void)
-{
-    return true;
+    return (OTA_BASIC_TWS_MASTER == ibrt_tws_mode);
 }
 
 // not tws mode or is slave
 static bool _tws_is_slave(void)
 {
-    return true;
-}
-
-#endif //IBRT
-
-void ota_send_rsp_handle(uint8_t typeCode, uint8_t *buff, uint16_t length, uint32_t cmd_dode)
-{
-#if defined(IBRT) && !defined(FREEMAN_OTA_ENABLED)
-
-    if (_tws_is_master())
-    {
-        if (ota_control_env.isOneBudOTA || OTA_SET_ONE_BUD_UPGRADE_RSP == typeCode) {
-            goto single_device_process;
-        }
-
-        OTA_TRACE(0,"master send ota info to slave");
-        tws_ctrl_send_cmd(cmd_dode, (uint8_t *)buff, length);
-        return;
-    }
-    else if (_tws_is_slave())
-    {
-        OTA_TRACE(0,"slave wait for ota info from master");
-        ibrt_ota_cmd_type = typeCode;
-
-        if ((receivedResultAlreadyProcessedBySlave.typeCode == 0xFF)
-            || (receivedResultAlreadyProcessedBySlave.typeCode != typeCode))
-        {
-            OTA_TRACE(0,"slave wait for ota info from master!");
-        }
-        else
-        {
-            switch (typeCode)
-            {
-            case OTA_RSP_SEGMENT_VERIFY:
-            {
-                app_ibrt_ota_segment_crc_cmd_send_handler(receivedResultAlreadyProcessedBySlave.rsp_seq,
-                                                            receivedResultAlreadyProcessedBySlave.p_buff,
-                                                            receivedResultAlreadyProcessedBySlave.length);
-            }
-            break;
-            case OTA_RSP_START:
-            {
-                app_ibrt_ota_start_cmd_send_handler(receivedResultAlreadyProcessedBySlave.rsp_seq,
-                                                    receivedResultAlreadyProcessedBySlave.p_buff,
-                                                    receivedResultAlreadyProcessedBySlave.length);
-            }
-            break;
-            case OTA_RSP_CONFIG:
-            {
-                app_ibrt_ota_config_cmd_send_handler(receivedResultAlreadyProcessedBySlave.rsp_seq,
-                                                        receivedResultAlreadyProcessedBySlave.p_buff,
-                                                        receivedResultAlreadyProcessedBySlave.length);
-            }
-            break;
-            case OTA_RSP_RESULT:
-            {
-                app_ibrt_ota_image_crc_cmd_send_handler(receivedResultAlreadyProcessedBySlave.rsp_seq,
-                                                        receivedResultAlreadyProcessedBySlave.p_buff,
-                                                        receivedResultAlreadyProcessedBySlave.length);
-            }
-            break;
-            case OTA_RSP_VERSION:
-            {
-                app_ibrt_ota_get_version_cmd_send_handler(receivedResultAlreadyProcessedBySlave.rsp_seq,
-                                                            receivedResultAlreadyProcessedBySlave.p_buff,
-                                                            receivedResultAlreadyProcessedBySlave.length);
-            }
-            break;
-            case OTA_RSP_SIDE_SELECTION:
-            {
-                app_ibrt_ota_select_side_cmd_send_handler(receivedResultAlreadyProcessedBySlave.rsp_seq,
-                                                            receivedResultAlreadyProcessedBySlave.p_buff,
-                                                            receivedResultAlreadyProcessedBySlave.length);
-            }
-            break;
-            case OTA_RSP_IMAGE_APPLY:
-            {
-                app_ibrt_ota_image_overwrite_cmd_send_handler(receivedResultAlreadyProcessedBySlave.rsp_seq,
-                                                                receivedResultAlreadyProcessedBySlave.p_buff,
-                                                                receivedResultAlreadyProcessedBySlave.length);
-            }
-            break;
-            case OTA_RSP_GET_OTA_VERSION:
-            {
-                app_ibrt_ota_get_ota_version_cmd_handler(receivedResultAlreadyProcessedBySlave.rsp_seq,
-                                                            receivedResultAlreadyProcessedBySlave.p_buff,
-                                                            receivedResultAlreadyProcessedBySlave.length);
-            }
-            break;
-            case OTA_RSP_SET_USER:
-            {
-                app_ibrt_ota_set_user_cmd_handler(receivedResultAlreadyProcessedBySlave.rsp_seq,
-                                                    receivedResultAlreadyProcessedBySlave.p_buff,
-                                                    receivedResultAlreadyProcessedBySlave.length);
-            }
-            break;
-            default:
-            break;
-            }
-            receivedResultAlreadyProcessedBySlave.typeCode = 0XFF;
-        }
-    }
-single_device_process:
-    if (!ota_control_env.isOneBudOTA) {
-        return;
-    }
+#if defined(FREEMAN_ENABLED_STERO) || defined(FREEMAN_OTA_ENABLED)
+    return false;
 #endif
-
-    switch (typeCode)
-    {
-    case OTA_RSP_SEGMENT_VERIFY:
-    {
-        OTA_REQ_RESULT_E ota_segment_crc = (OTA_REQ_RESULT_E)*buff;
-        if (OTA_RESULT_PASSED == ota_segment_crc ||
-            OTA_RESULT_ERR == ota_segment_crc)
-        {
-            ota_update_flash_offset_after_segment_crc((bool)ota_segment_crc);
-            ota_control_send_segment_verification_response((bool)ota_segment_crc);
-        }
-        else
-        {
-            ota_control_send_result_response(ota_segment_crc);
-        }
-    }
-    break;
-    case OTA_RSP_START:
-    {
-        bool isViaBle = (bool)(*buff);
-        ota_control_send_start_response(isViaBle);
-    }
-    break;
-    case OTA_RSP_CONFIG:
-    {
-        OTA_REQ_RESULT_E ota_config = (OTA_REQ_RESULT_E)*buff;
-        if (OTA_RESULT_PASSED == ota_config ||
-            OTA_RESULT_ERR == ota_config)
-        {
-            ota_control_send_configuration_response((bool)ota_config);
-        }
-        else
-        {
-            ota_control_send_result_response(ota_config);
-        }
-    }
-    break;
-    case OTA_RSP_RESULT:
-    {
-        OTA_REQ_RESULT_E whole_image_crc = (OTA_REQ_RESULT_E)*buff;
-        if (OTA_RESULT_ERR == whole_image_crc)
-        {
-            ota_control_reset_env(true);
-        }
-        ota_upgradeLog_destroy();
-        ota_control_send_result_response(whole_image_crc);
-    }
-    break;
-    case OTA_RSP_VERSION:
-    {
-        ota_control_send_version_rsp();
-    }
-    break;
-    case OTA_RSP_SIDE_SELECTION:
-    {
-        ota_control_side_selection_rsp(true);
-    }
-    break;
-    case OTA_RSP_IMAGE_APPLY:
-    {
-        OTA_REQ_RESULT_E overWrite = (OTA_REQ_RESULT_E)*buff;
-        ota_control_image_apply_rsp((bool)overWrite);
-        if (OTA_RESULT_PASSED == overWrite)
-        {
-            ota_apply();
-        }
-        else
-        {
-            Bes_exit_ota_state();
-        }
-    }
-    break;
-    case OTA_RSP_GET_OTA_VERSION:
-    {
-        _send_ota_version_rsp(otaVersion, ARRAY_SIZE(otaVersion));
-    }
-    break;
-    case OTA_RSP_SET_USER:
-    {
-        _send_set_user_response(true);
-    }
-    break;
-    case OTA_SET_ONE_BUD_UPGRADE_RSP:
-    {
-        ota_control_single_bud_upgrade_rsp(true);
-    }
-    break;
-    default:
-    break;
-    }
+    return (OTA_BASIC_TWS_SLAVE == ibrt_tws_mode);
 }
 
-void breakPoint_confirm(uint32_t breakPoint, uint8_t randomCode[])
+
+#endif //IBRT_UI
+
+void tws_breakPoint_confirm(uint32_t breakPoint, uint8_t randomCode[])
 {
-#if defined(IBRT) && !defined(FREEMAN_OTA_ENABLED)
     if (_tws_is_slave())
     {
         ibrt_ota_cmd_type = OTA_RSP_RESUME_VERIFY;
         twsBreakPoint = breakPoint;
         if(receivedResultAlreadyProcessedBySlave.typeCode == OTA_RSP_RESUME_VERIFY)
         {
-            app_ibrt_ota_bp_check_cmd_send_handler(receivedResultAlreadyProcessedBySlave.rsp_seq,
+            app_ibrt_ota_segment_crc_cmd_send_handler(receivedResultAlreadyProcessedBySlave.rsp_seq,
                                                 receivedResultAlreadyProcessedBySlave.p_buff,
                                                 receivedResultAlreadyProcessedBySlave.length);
         }
         else
         {
-            OTA_TRACE(0,"slave wait for ota info from master");
+            LOG_D("slave wait for ota info from master");
         }
     }
-    else if (_tws_is_master() && !ota_control_env.isOneBudOTA)
+    else if (_tws_is_master())
     {
         ibrt_tws_ota_breakPoint_resume(breakPoint, randomCode);
     }
-    else
-#endif
+}
+
+void ota_tws_send_handle(uint8_t typeCode, uint8_t *buff, uint16_t length, uint32_t cmd_dode)
+{
+    if (_tws_is_master())
     {
-        ota_control_send_resume_response(breakPoint, randomCode);
+        LOG_D("master send ota info to slave");
+        tws_ctrl_send_cmd(cmd_dode, (uint8_t *)buff, length);
+    }
+    else if (_tws_is_slave())
+    {
+        LOG_D("slave wait for ota info from master");
+        ibrt_ota_cmd_type = typeCode;
+
+        if ((receivedResultAlreadyProcessedBySlave.typeCode == 0xFF)
+            || (receivedResultAlreadyProcessedBySlave.typeCode != typeCode))
+        {
+            LOG_D("slave wait for ota info from master!");
+        }
+        else
+        {
+            switch (typeCode)
+            {
+                case OTA_RSP_SEGMENT_VERIFY:
+                {
+                    app_ibrt_ota_segment_crc_cmd_send_handler(receivedResultAlreadyProcessedBySlave.rsp_seq,
+                                                              receivedResultAlreadyProcessedBySlave.p_buff,
+                                                              receivedResultAlreadyProcessedBySlave.length);
+                }
+                break;
+                case OTA_RSP_START:
+                {
+                    app_ibrt_ota_start_cmd_send_handler(receivedResultAlreadyProcessedBySlave.rsp_seq,
+                                                        receivedResultAlreadyProcessedBySlave.p_buff,
+                                                        receivedResultAlreadyProcessedBySlave.length);
+                }
+                break;
+                case OTA_RSP_CONFIG:
+                {
+                    app_ibrt_ota_config_cmd_send_handler(receivedResultAlreadyProcessedBySlave.rsp_seq,
+                                                         receivedResultAlreadyProcessedBySlave.p_buff,
+                                                         receivedResultAlreadyProcessedBySlave.length);
+                }
+                break;
+                case OTA_RSP_RESULT:
+                {
+                    app_ibrt_ota_image_crc_cmd_send_handler(receivedResultAlreadyProcessedBySlave.rsp_seq,
+                                                            receivedResultAlreadyProcessedBySlave.p_buff,
+                                                            receivedResultAlreadyProcessedBySlave.length);
+                }
+                break;
+                case OTA_RSP_VERSION:
+                {
+                    app_ibrt_ota_get_version_cmd_send_handler(receivedResultAlreadyProcessedBySlave.rsp_seq,
+                                                              receivedResultAlreadyProcessedBySlave.p_buff,
+                                                              receivedResultAlreadyProcessedBySlave.length);
+                }
+                break;
+                case OTA_RSP_SIDE_SELECTION:
+                {
+                    app_ibrt_ota_select_side_cmd_send_handler(receivedResultAlreadyProcessedBySlave.rsp_seq,
+                                                              receivedResultAlreadyProcessedBySlave.p_buff,
+                                                              receivedResultAlreadyProcessedBySlave.length);
+                }
+                break;
+                case OTA_RSP_IMAGE_APPLY:
+                {
+                    app_ibrt_ota_image_overwrite_cmd_send_handler(receivedResultAlreadyProcessedBySlave.rsp_seq,
+                                                                  receivedResultAlreadyProcessedBySlave.p_buff,
+                                                                  receivedResultAlreadyProcessedBySlave.length);
+                }
+                break;
+                case OTA_RSP_GET_OTA_VERSION:
+                {
+                    app_ibrt_ota_get_ota_version_cmd_handler(receivedResultAlreadyProcessedBySlave.rsp_seq,
+                                                             receivedResultAlreadyProcessedBySlave.p_buff,
+                                                             receivedResultAlreadyProcessedBySlave.length);
+                }
+                break;
+                case OTA_RSP_SET_USER:
+                {
+                    app_ibrt_ota_set_user_cmd_handler(receivedResultAlreadyProcessedBySlave.rsp_seq,
+                                                      receivedResultAlreadyProcessedBySlave.p_buff,
+                                                      receivedResultAlreadyProcessedBySlave.length);
+                }
+                break;
+                default:
+                break;
+            }
+            receivedResultAlreadyProcessedBySlave.typeCode = 0XFF;
+        }
     }
 }
 
+#else //IBRT
+POSSIBLY_UNUSED static void _tws_get_role(void)
+{
+    // not in tws mode
+}
+
+// not tws mode or is master
+POSSIBLY_UNUSED static bool _tws_is_master(void)
+{
+    return true;
+}
+
+// not tws mode or is slave
+POSSIBLY_UNUSED static bool _tws_is_slave(void)
+{
+    return true;
+}
+
+#endif //IBRT
+
 static void ota_control_opera_callback(void* param)
 {
-    POSSIBLY_UNUSED NORFLASH_API_OPERA_RESULT *opera_result;
+    NORFLASH_API_OPERA_RESULT *opera_result;
 
     opera_result = (NORFLASH_API_OPERA_RESULT*)param;
 
-    OTA_TRACE(0,"%s type:%d, addr:0x%x",
+    LOG_D("%s type:%d, addr:0x%x",
           __func__,
           opera_result->type,
           opera_result->addr);
-    OTA_TRACE(0,"len:0x%x, result:%d.",
+    LOG_D("len:0x%x, result:%d.",
           opera_result->len,
           opera_result->result);
 }
 
 static void _init_flash_offset(void)
 {
-    OTA_TRACE(0,"[%s].",__func__);
+    LOG_D("[%s].",__func__);
 
     /// use firmware OTA as default user for compatibility
     if (BES_OTA_USER_INVALID == ota_control_env.currentUser)
@@ -2228,11 +2230,16 @@ static void _init_flash_offset(void)
 #ifdef COMBO_CUSBIN_IN_FLASH
         _update_user(BES_OTA_USER_COMBOFIRMWARE);
 #else
+#ifdef TOTA_CROSS_CHIP_OTA
+        _update_user(BES_OTA_USER_CROSS_CHIP);
+#else
         _update_user(BES_OTA_USER_FIRMWARE);
 #endif
+#endif
+
     }
 
-    OTA_TRACE(0,"current OTA user:%s", _user2str(ota_control_env.currentUser));
+    LOG_D("current OTA user:%s", _user2str(ota_control_env.currentUser));
 
     uint8_t i = _get_user_index(ota_control_env.currentUser);
 
@@ -2251,23 +2258,25 @@ static void _calcute_segment_crc32(uint32_t offset)
     uint32_t lengthCrcCheckNow = 0;
     NORFLASH_API_MODULE_ID_T mod = _get_user_flash_module(ota_control_env.currentUser);
 
-    uint8_t i = _get_user_index(ota_control_env.currentUser);
-
-    uint32_t startFlashAddr = ota_control_env.dstFlashOffsetForNewImage - 
-                            (ota_control_env.userInfo[i].startAddr&0xFFFFFF) + 
-                            ota_control_env.offsetInFlashOfCurrentSegment - offset;
-    OTA_TRACE(0,"Calculate the crc32 of the segment, startAddr:0x%x, curSeg:0x%x, offset:0x%x",
-            startFlashAddr, ota_control_env.offsetInFlashOfCurrentSegment, offset);
+    uint32_t startFlashAddr = ota_control_env.offsetOfImageOfCurrentSegment - offset;
+    LOG_D("Calculate the crc32 of the segment, startAddr:0x%x, curSeg:0x%x, offset:0x%x",
+            startFlashAddr, ota_control_env.offsetOfImageOfCurrentSegment, offset);
 
     uint32_t lengthToDoCrcCheck = ota_control_env.alreadyReceivedDataSizeOfImage -
                                   ota_control_env.offsetOfImageOfCurrentSegment;
+
+// #if OTA_NON_CACHE_READ_ISSUE_WORKAROUND
+//     hal_cache_invalidate(HAL_CACHE_ID_D_CACHE,
+//                          (uint32_t)startFlashAddr,
+//                           lengthToDoCrcCheck);
+// #endif
 
     while (lengthToDoCrcCheck > lengthCrcCheckDone)
     {
         lengthCrcCheckNow = (lengthToDoCrcCheck - lengthCrcCheckDone) > OTA_DATA_BUFFER_SIZE_FOR_BURNING
                                 ? OTA_DATA_BUFFER_SIZE_FOR_BURNING
                                 : lengthToDoCrcCheck - lengthCrcCheckDone;
-        // OTA_TRACE(0,"lengthCrcCheckNow 0x%x", lengthCrcCheckNow);
+        // LOG_D("lengthCrcCheckNow 0x%x", lengthCrcCheckNow);
 
         app_flash_read(mod,
                        (startFlashAddr + lengthCrcCheckDone),
@@ -2287,31 +2296,28 @@ static void _handle_received_data(uint8_t *otaBuf, bool isViaBle,uint16_t dataLe
     /// use the legacy manner parsing the received data on this layer
     OTA_LEGACY_PACKET_T *packet = (OTA_LEGACY_PACKET_T *)otaBuf;
 
-    OTA_TRACE(0,"[%s],case = 0x%x%s", __func__,
+    LOG_D("[%s],case = 0x%x%s", __func__,
           packet->packetType,
           typeCode2Str(packet->packetType));
-
-    if (ota_control_env.isPendingForReboot && OTA_COMMAND_IMAGE_APPLY != packet->packetType)
-    {
-        OTA_TRACE(0,"WARMING: ota is pending for reboot and can not handle 0x%x now.",packet->packetType);
-        return;
-    }
 
     switch (packet->packetType)
     {
         case OTA_DATA_PACKET:
         {
+#if defined(IBRT)
+#if defined(IBRT_UI)
             if (!ota_is_in_progress()
-#if defined(IBRT) && !defined(FREEMAN_OTA_ENABLED)
-                || (OTA_BASIC_TWS_MASTER == ota_basic_get_tws_role() &&
-                 !bts_tws_if_is_tws_link_connected())
+#if !defined(FREEMAN_OTA_ENABLED)
+            || (OTA_BASIC_TWS_MASTER == ota_basic_get_tws_role()
+            && !app_tws_ibrt_tws_link_connected())
 #endif
-                 )
+            )
+#endif
             {
                 ota_control_send_result_response(false);
                 return;
             }
-
+#endif
 #ifdef COMBO_CUSBIN_IN_FLASH
             if (BES_OTA_USER_COMBOFIRMWARE == ota_control_env.currentUser)
             {
@@ -2323,7 +2329,7 @@ static void _handle_received_data(uint8_t *otaBuf, bool isViaBle,uint16_t dataLe
             uint8_t* rawDataPtr = &otaBuf[1];
             uint32_t rawDataSize = dataLenth - 1;
 
-            OTA_TRACE(0,"Received image data size %d", rawDataSize);
+            LOG_D("Received image data size %d", rawDataSize);
 
             uint32_t leftDataSize = rawDataSize;
             uint32_t offsetInReceivedRawData = 0;
@@ -2347,21 +2353,21 @@ static void _handle_received_data(uint8_t *otaBuf, bool isViaBle,uint16_t dataLe
                         &rawDataPtr[offsetInReceivedRawData], bytesToCopy);
                 offsetInReceivedRawData += bytesToCopy;
                 ota_control_env.offsetInDataBufferForBurning += bytesToCopy;
-                OTA_TRACE(0,"offsetInDataBufferForBurning is %d", ota_control_env.offsetInDataBufferForBurning);
+                LOG_D("offsetInDataBufferForBurning is %d", ota_control_env.offsetInDataBufferForBurning);
                 if (OTA_DATA_BUFFER_SIZE_FOR_BURNING <= ota_control_env.offsetInDataBufferForBurning)
                 {
-                    OTA_TRACE(0,"Program the image to flash.");
+                    LOG_D("Program the image to flash.");
 
                     #if (IMAGE_RECV_FLASH_CHECK == 1)
                     if((ota_control_env.offsetInFlashToProgram > ota_control_env.totalImageSize) ||
                         (ota_control_env.totalImageSize > MAX_IMAGE_SIZE) ||
                         (ota_control_env.offsetInFlashToProgram & (MIN_SEG_ALIGN - 1)))
                     {
-                        OTA_TRACE(0,"ERROR: IMAGE_RECV_FLASH_CHECK");
-                        OTA_TRACE(0," ota_control_env(.offsetInFlashToProgram >= .totalImageSize)");
-                        OTA_TRACE(0," or (ota_control_env.totalImageSize > %d)", MAX_IMAGE_SIZE);
-                        OTA_TRACE(0," or .offsetInFlashToProgram isn't segment aligned");
-                        OTA_TRACE(0,".offsetInFlashToProgram:0x%x, .dstFlashOffsetForNewImage:0x%x, .totalImageSize:%d",
+                        LOG_D("ERROR: IMAGE_RECV_FLASH_CHECK");
+                        LOG_D(" ota_control_env(.offsetInFlashToProgram >= .totalImageSize)");
+                        LOG_D(" or (ota_control_env.totalImageSize > %d)", MAX_IMAGE_SIZE);
+                        LOG_D(" or .offsetInFlashToProgram isn't segment aligned");
+                        LOG_D(".offsetInFlashToProgram:0x%x, .dstFlashOffsetForNewImage:0x%x, .totalImageSize:%d",
                               ota_control_env.offsetInFlashToProgram,
                               ota_control_env.dstFlashOffsetForNewImage,
                               ota_control_env.totalImageSize);
@@ -2386,16 +2392,16 @@ static void _handle_received_data(uint8_t *otaBuf, bool isViaBle,uint16_t dataLe
             } while (offsetInReceivedRawData < rawDataSize);
 
             ota_control_env.alreadyReceivedDataSizeOfImage += rawDataSize;
-            OTA_TRACE(0,"Image already received %d", ota_control_env.alreadyReceivedDataSizeOfImage);
+            LOG_D("Image already received %d", ota_control_env.alreadyReceivedDataSizeOfImage);
 
             #if (IMAGE_RECV_FLASH_CHECK == 1)
             if((ota_control_env.alreadyReceivedDataSizeOfImage > ota_control_env.totalImageSize) ||
                 (ota_control_env.totalImageSize > MAX_IMAGE_SIZE))
             {
-                OTA_TRACE(0,"ERROR: IMAGE_RECV_FLASH_CHECK");
-                OTA_TRACE(0," ota_control_env(.alreadyReceivedDataSizeOfImage > .totalImageSize)");
-                OTA_TRACE(0," or (ota_control_env.totalImageSize > %d)", MAX_IMAGE_SIZE);
-                OTA_TRACE(0,".alreadyReceivedDataSizeOfImage:%d, .totalImageSize:%d",
+                LOG_D("ERROR: IMAGE_RECV_FLASH_CHECK");
+                LOG_D(" ota_control_env(.alreadyReceivedDataSizeOfImage > .totalImageSize)");
+                LOG_D(" or (ota_control_env.totalImageSize > %d)", MAX_IMAGE_SIZE);
+                LOG_D(".alreadyReceivedDataSizeOfImage:%d, .totalImageSize:%d",
                       ota_control_env.alreadyReceivedDataSizeOfImage,
                       ota_control_env.totalImageSize);
 
@@ -2422,23 +2428,32 @@ static void _handle_received_data(uint8_t *otaBuf, bool isViaBle,uint16_t dataLe
             {
                 break;
             }
-            ota_control_env.receivedCrc32OfSegment = packet->payload.cmdSegmentVerify.crc32OfSegment;
-
             if((ota_control_env.offsetInDataBufferForBurning == 0) &&
                 (ota_control_env.alreadyReceivedDataSizeOfImage == ota_control_env.offsetOfImageOfCurrentSegment))
             {
                 //there is no new data, it is app resend 82 cmd
-                OTA_TRACE(0,"resend 82 cmd, CRC32 of the segement:0x%x, received num:0x%x",
+                LOG_D("resend 82 cmd, CRC32 of the segement:0x%x, received num:0x%x",
                     ota_control_env.crc32OfSegment,
-                    ota_control_env.receivedCrc32OfSegment);
+                    packet->payload.cmdSegmentVerify.crc32OfSegment);
                 if((BES_OTA_START_MAGIC_CODE == packet->payload.cmdSegmentVerify.magicCode) &&
-                    (ota_control_env.receivedCrc32OfSegment == ota_control_env.crc32OfSegment))
+                    (packet->payload.cmdSegmentVerify.crc32OfSegment == ota_control_env.crc32OfSegment))
                 {
+#if defined(IBRT) && !defined(FREEMAN_OTA_ENABLED)
+                    uint8_t ota_segment_crc = 1;
+                    errOtaCode = 1;
+                    ota_tws_send_handle(OTA_RSP_SEGMENT_VERIFY, (uint8_t *)&ota_segment_crc, 1, IBRT_OTA_TWS_SEGMENT_CRC_CMD);
+#else
                     ota_control_send_segment_verification_response(true);
+#endif
                 }
                 else
                 {
+#if defined(IBRT) && !defined(FREEMAN_OTA_ENABLED)
+                    uint8_t ota_segment_crc = 0;
+                    ota_tws_send_handle(OTA_RSP_SEGMENT_VERIFY, (uint8_t *)&ota_segment_crc, 1, IBRT_OTA_TWS_SEGMENT_CRC_CMD);
+#else
                     ota_control_send_segment_verification_response(false);
+#endif
                 }
                 break;
             }
@@ -2447,11 +2462,11 @@ static void _handle_received_data(uint8_t *otaBuf, bool isViaBle,uint16_t dataLe
                 (ota_control_env.totalImageSize > MAX_IMAGE_SIZE) ||
                 (ota_control_env.offsetInFlashToProgram & (MIN_SEG_ALIGN - 1)))
             {
-                OTA_TRACE(0,"ERROR: IMAGE_RECV_FLASH_CHECK");
-                OTA_TRACE(0," ota_control_env(.offsetInFlashToProgram - .dstFlashOffsetForNewImage >= .totalImageSize)");
-                OTA_TRACE(0," or (ota_control_env.totalImageSize > %d)", MAX_IMAGE_SIZE);
-                OTA_TRACE(0," or .offsetInFlashToProgram isn't segment aligned");
-                OTA_TRACE(0,".offsetInFlashToProgram:0x%x, .dstFlashOffsetForNewImage:0x%x, .totalImageSize:%d",
+                LOG_D("ERROR: IMAGE_RECV_FLASH_CHECK");
+                LOG_D(" ota_control_env(.offsetInFlashToProgram - .dstFlashOffsetForNewImage >= .totalImageSize)");
+                LOG_D(" or (ota_control_env.totalImageSize > %d)", MAX_IMAGE_SIZE);
+                LOG_D(" or .offsetInFlashToProgram isn't segment aligned");
+                LOG_D(".offsetInFlashToProgram:0x%x, .dstFlashOffsetForNewImage:0x%x, .totalImageSize:%d",
                       ota_control_env.offsetInFlashToProgram,
                       ota_control_env.dstFlashOffsetForNewImage,
                       ota_control_env.totalImageSize);
@@ -2459,8 +2474,13 @@ static void _handle_received_data(uint8_t *otaBuf, bool isViaBle,uint16_t dataLe
                 /// In order to reduce unnecessary erasures and retransmissions we don't imeediately destory the log
                 /// but reset ota, because a boundary check is performed before flashing and if there is really wrong
                 /// we'll catch when an image CRC32 check finally.
+                //ota_upgradeLog_destroy();
+#if defined(IBRT) && !defined(FREEMAN_OTA_ENABLED)
                 errOtaCode = OTA_RESULT_ERR_FLASH_OFFSET;
-                ota_send_rsp_handle(OTA_RSP_SEGMENT_VERIFY, (uint8_t *)&errOtaCode, 1, APP_TWS_CMD_OTA_SEGMENT_CRC_CMD);
+                ota_tws_send_handle(OTA_RSP_SEGMENT_VERIFY, (uint8_t *)&errOtaCode, 1, IBRT_OTA_TWS_SEGMENT_CRC_CMD);
+#else
+                ota_control_send_result_response(OTA_RESULT_ERR_FLASH_OFFSET);
+#endif
                 return;
             }
 #endif
@@ -2473,6 +2493,11 @@ static void _handle_received_data(uint8_t *otaBuf, bool isViaBle,uint16_t dataLe
                 ota_control_env.offsetInDataBufferForBurning = 0;
             }
             ota_control_env.crc32OfSegment = 0;
+            uint32_t lengthToDoCrcCheck = ota_control_env.alreadyReceivedDataSizeOfImage -
+                                          ota_control_env.offsetOfImageOfCurrentSegment;
+            uint32_t startFlashAddr = ota_control_env.offsetOfImageOfCurrentSegment;
+
+            ota_control_env.crc32OfSegment = 0;
 #ifdef COMBO_CUSBIN_IN_FLASH
             if(BES_OTA_USER_COMBOFIRMWARE == ota_control_env.currentUser)
             {
@@ -2484,15 +2509,51 @@ static void _handle_received_data(uint8_t *otaBuf, bool isViaBle,uint16_t dataLe
                 _calcute_segment_crc32(0);
             }
 
-            OTA_TRACE(0,"CRC32 of the segement:0x%x, received num:0x%x",
+            LOG_D("CRC32 of the segement:0x%x, received num:0x%x",
                   ota_control_env.crc32OfSegment,
-                  ota_control_env.receivedCrc32OfSegment);
+                  packet->payload.cmdSegmentVerify.crc32OfSegment);
             if ((BES_OTA_START_MAGIC_CODE == packet->payload.cmdSegmentVerify.magicCode) &&
-                (ota_control_env.receivedCrc32OfSegment == ota_control_env.crc32OfSegment))
+                (packet->payload.cmdSegmentVerify.crc32OfSegment == ota_control_env.crc32OfSegment))
             {
-                uint8_t ota_segment_crc = OTA_RESULT_PASSED;
+#if defined(IBRT) && !defined(FREEMAN_OTA_ENABLED)
+                uint8_t ota_segment_crc = 1;
                 errOtaCode = 1;
-                ota_send_rsp_handle(OTA_RSP_SEGMENT_VERIFY, (uint8_t *)&ota_segment_crc, 1, APP_TWS_CMD_OTA_SEGMENT_CRC_CMD);
+                ota_tws_send_handle(OTA_RSP_SEGMENT_VERIFY, (uint8_t *)&ota_segment_crc, 1, IBRT_OTA_TWS_SEGMENT_CRC_CMD);
+#else
+#ifndef TOTA_CROSS_CHIP_OTA
+                ota_upgradeSize_log();
+#endif
+                ota_control_env.offsetInFlashOfCurrentSegment = ota_control_env.offsetInFlashToProgram;
+                ota_control_env.offsetOfImageOfCurrentSegment = ota_control_env.alreadyReceivedDataSizeOfImage;
+
+#ifdef TOTA_CROSS_CHIP_OTA
+                ota_control_env.accumulateCurrentReciveNumber = ota_control_env.alreadyReceivedDataSizeOfImage;
+                LOG_D("%s:accumulateCurrentReciveNumber %d", __func__, ota_control_env.accumulateCurrentReciveNumber);
+                app_tota_store_written_sum_image_size_to_flash(ota_control_env.accumulateCurrentReciveNumber);
+#if defined(TOTA_CROSS_CHIP_OTA_ROLE_IS_DONGLE)
+#else
+                 struct{
+                    uint8_t packet_type;
+                    uint8_t ota_role;
+                    uint32_t current_recv_num;
+                }__packed tota_rsp;
+                tota_rsp.ota_role = tota_cross_chip_ota_role;
+                tota_rsp.current_recv_num = ota_control_env.accumulateCurrentReciveNumber;
+#if defined(TOTA_CROSS_CHIP_OTA_ROLE_IS_MASTER)
+                BLE_send_custom_command(OP_DONGLE_TOTA_RECEIVE_DATA,
+                                        (uint8_t*)&tota_rsp + sizeof(tota_rsp.packet_type),
+                                        sizeof(tota_rsp) - sizeof(tota_rsp.packet_type),
+                                        TRANSMISSION_VIA_NOTIFICATION);
+#elif defined(TOTA_CROSS_CHIP_OTA_ROLE_IS_SLAVE)
+                tota_rsp.packet_type = OTA_COMMAND_SEGMENT_VERIFY;
+                void send_tota_data_to_dongle_by_uart(uint8_t* ptrParam, uint32_t paramLen);
+                send_tota_data_to_dongle_by_uart((uint8_t*)&tota_rsp, sizeof(tota_rsp));
+                osDelay(100);
+#endif
+#endif
+#endif
+                ota_control_send_segment_verification_response(true);
+#endif
                 ota_status_change(true);
                 seg_verify_retry = MAX_SET_VERIFY_RETRY;
             }
@@ -2502,19 +2563,31 @@ static void _handle_received_data(uint8_t *otaBuf, bool isViaBle,uint16_t dataLe
                 {
                     seg_verify_retry = MAX_SET_VERIFY_RETRY;
 
-                    OTA_TRACE(0,"ERROR: segment verification retry too much!");
+                    LOG_D("ERROR: segment verification retry too much!");
                     ota_upgradeLog_destroy();  // Yes, destory it and retransmit the entire image.
+#if defined(IBRT) && !defined(FREEMAN_OTA_ENABLED)
                     errOtaCode = OTA_RESULT_ERR_SEG_VERIFY;
-                    ota_send_rsp_handle(OTA_RSP_SEGMENT_VERIFY, (uint8_t *)&errOtaCode, 1, APP_TWS_CMD_OTA_SEGMENT_CRC_CMD);
+                    ota_tws_send_handle(OTA_RSP_SEGMENT_VERIFY, (uint8_t *)&errOtaCode, 1, IBRT_OTA_TWS_SEGMENT_CRC_CMD);
+#else
+                    ota_control_send_result_response(OTA_RESULT_ERR_SEG_VERIFY);
+#endif
                     return;
                 }
 
-                uint8_t ota_segment_crc = OTA_RESULT_ERR;
-                ota_send_rsp_handle(OTA_RSP_SEGMENT_VERIFY, (uint8_t *)&ota_segment_crc, 1, APP_TWS_CMD_OTA_SEGMENT_CRC_CMD);
+                erase_segment(startFlashAddr, lengthToDoCrcCheck);
+
+#if defined(IBRT) && !defined(FREEMAN_OTA_ENABLED)
+                uint8_t ota_segment_crc = 0;
+                ota_tws_send_handle(OTA_RSP_SEGMENT_VERIFY, (uint8_t *)&ota_segment_crc, 1, IBRT_OTA_TWS_SEGMENT_CRC_CMD);
+#else
+                ota_control_env.offsetInFlashToProgram = ota_control_env.offsetInFlashOfCurrentSegment;
+                ota_control_env.alreadyReceivedDataSizeOfImage = ota_control_env.offsetOfImageOfCurrentSegment;
+                ota_control_send_segment_verification_response(false);
+#endif
             }
 
             // reset the data buffer
-            OTA_TRACE(0,"total size is %d already received %d",
+            LOG_D("total size is %d already received %d",
                   ota_control_env.totalImageSize,
                   ota_control_env.alreadyReceivedDataSizeOfImage);
 
@@ -2527,23 +2600,26 @@ static void _handle_received_data(uint8_t *otaBuf, bool isViaBle,uint16_t dataLe
 #endif
             if (BES_OTA_START_MAGIC_CODE == packet->payload.cmdOtaStart.magicCode)
             {
-                OTA_TRACE(0,"Receive command start request:");
+                LOG_D("Receive command start request:");
                 ota_control_reset_env(false);
-                /// init flash offset to write data
-                _init_flash_offset();
 
                 ota_control_env.totalImageSize = packet->payload.cmdOtaStart.imageSize;
                 ota_control_env.crc32OfImage = packet->payload.cmdOtaStart.crc32OfImage;
                 ota_status_change(true);
 
+                ota_control_env.AlreadyReceivedConfigurationLength = 0;
                 seg_verify_retry = MAX_SET_VERIFY_RETRY;
-                OTA_TRACE(0,"Image size is 0x%x, crc32 of image is 0x%x",
+                LOG_D("Image size is 0x%x, crc32 of image is 0x%x",
                       ota_control_env.totalImageSize,
                       ota_control_env.crc32OfImage);
 
                 ota_update_start_message();
 
-                ota_send_rsp_handle(OTA_RSP_START, (uint8_t *)&isViaBle, 1, APP_TWS_CMD_OTA_START_OTA_CMD);
+#if defined(IBRT) && !defined(FREEMAN_OTA_ENABLED)
+                ota_tws_send_handle(OTA_RSP_START, (uint8_t *)&isViaBle, 1, IBRT_OTA_TWS_START_OTA_CMD);
+#else
+                ota_control_send_start_response(isViaBle);
+#endif
                 ota_start();
             }
             break;
@@ -2552,60 +2628,63 @@ static void _handle_received_data(uint8_t *otaBuf, bool isViaBle,uint16_t dataLe
         {
             /// init flash offset to write data
             _init_flash_offset();
-            ota_control_set_packet_interval();
-            Bes_enter_ota_state();
 
             if (BES_OTA_START_MAGIC_CODE == packet->payload.cmdResumeBreakpoint.magicCode)
             {
                 uint32_t breakPoint;
                 uint8_t *randomCode = NULL;
-                uint8_t zeroCode[32] = {0};
+                POSSIBLY_UNUSED uint8_t zeroCode[32] = {0};
 
                 if (ota_control_env.dataBufferForBurning == NULL) {
-                    OTA_TRACE(0,"%s:randomCode buffer is NULL,reset buffer here!", __func__);
+                    LOG_D("%s:randomCode buffer is NULL,reset buffer here!", __func__);
 
-                    ota_control_env.dataBufferForBurning = app_ota_get_common_databuf();
+                    ota_control_env.dataBufferForBurning = ota_voicepath_get_common_ota_databuf();
                 }
 
                 randomCode = ota_control_env.dataBufferForBurning;
                 memset(randomCode, 0, sizeof(otaUpgradeLog.randomCode));
 
-                OTA_TRACE(0,"Receive command resuming verification:");
+                LOG_D("Receive command resuming verification:");
                 if (packet->payload.cmdResumeBreakpoint.crc32 !=
                     crc32_c(0, packet->payload.cmdResumeBreakpoint.randomCode,
                           sizeof(packet->payload.cmdResumeBreakpoint.randomCode) +
                               sizeof(packet->payload.cmdResumeBreakpoint.segmentSize)))
                 {
-                    OTA_TRACE(0,"Received crc32 0x%x, cal 0x%x, segSize %d",
+                    LOG_D("Received crc32 0x%x, cal 0x%x, segSize %d",
                           packet->payload.cmdResumeBreakpoint.crc32,
                           (uint32_t)crc32_c(0, packet->payload.cmdResumeBreakpoint.randomCode,
                                             sizeof(packet->payload.cmdResumeBreakpoint.randomCode) +
                                                 sizeof(packet->payload.cmdResumeBreakpoint.segmentSize)),
                           (uint32_t)packet->payload.cmdResumeBreakpoint.segmentSize);
                     breakPoint = -1;
-                    OTA_TRACE(0,"Resuming verification crc32 check fail.");
+                    LOG_D("Resuming verification crc32 check fail.");
                     goto resume_response;
                 }
 
-                OTA_TRACE(0,"Resuming verification crc32 check pass.");
+                LOG_D("Resuming verification crc32 check pass.");
 
-                OTA_TRACE(0,"Receive segment size 0x%x.", packet->payload.cmdResumeBreakpoint.segmentSize);
+                LOG_D("Receive segment size 0x%x.", packet->payload.cmdResumeBreakpoint.segmentSize);
 
-                OTA_TRACE(0,"Receive random code:");
-                OTA_DUMP8("%02x ", packet->payload.cmdResumeBreakpoint.randomCode, sizeof(otaUpgradeLog.randomCode));
+                LOG_D("Receive random code:");
+                DUMP8("%02x ", packet->payload.cmdResumeBreakpoint.randomCode, sizeof(otaUpgradeLog.randomCode));
 
-                OTA_TRACE(0,"Device's random code:");
-                OTA_DUMP8("%02x ", otaUpgradeLog.randomCode, sizeof(otaUpgradeLog.randomCode));
+                LOG_D("Device's random code:");
+                DUMP8("%02x ", otaUpgradeLog.randomCode, sizeof(otaUpgradeLog.randomCode));
 
                 breakPoint = get_upgradeSize_log();
 
 #ifdef COMBO_CUSBIN_IN_FLASH
-                if(breakPoint)
-                    breakPoint = ota_bin_breakpoint_update(breakPoint);
+                breakPoint = ota_bin_breakpoint_update(breakPoint);
 #endif
-                if(breakPoint & (MIN_SEG_ALIGN - 1))  // Minimum segment alignment.
+#ifdef TOTA_CROSS_CHIP_OTA
+                breakPoint = app_tota_get_written_sum_image_size_via_flash();
+                ota_control_env.breakPoint = breakPoint;
+                ota_control_env.resume_at_breakpoint = ota_control_env.breakPoint ? true : false;
+                LOG_D("%s:accumulateCurrentReciveNumber %d", __func__,ota_control_env.accumulateCurrentReciveNumber);
+#else
+                if (breakPoint & (MIN_SEG_ALIGN - 1))  // Minimum segment alignment.
                 {
-                    OTA_TRACE(0,"Breakpoint:0x%x isn't minimum segment alignment!", breakPoint);
+                    LOG_D("Breakpoint:0x%x isn't minimum segment alignment!", breakPoint);
                     ota_upgradeLog_destroy();  // Error in log, we'd better try to retransmit the entire image.
                     #if 1
                     breakPoint = get_upgradeSize_log();
@@ -2614,50 +2693,74 @@ static void _handle_received_data(uint8_t *otaBuf, bool isViaBle,uint16_t dataLe
                     return;
                     #endif
                 }
+#endif
 
                 if (breakPoint)
                 {
-                    if (!memcmp(otaUpgradeLog.randomCode, packet->payload.cmdResumeBreakpoint.randomCode,
+#ifndef TOTA_CROSS_CHIP_OTA
+                if (!memcmp(otaUpgradeLog.randomCode, packet->payload.cmdResumeBreakpoint.randomCode,
                     sizeof(otaUpgradeLog.randomCode)) && memcmp(otaUpgradeLog.randomCode, zeroCode, sizeof(zeroCode)))
                     {
                         ota_control_reset_env(false);
                         ota_status_change(true);
                         ota_get_start_message();
-                        OTA_TRACE(0,"OTA can resume. Resuming from the breakpoint at: 0x%x.", breakPoint);
+                        LOG_D("OTA can resume. Resuming from the breakpoint at: 0x%x.", breakPoint);
                     }
                     else
                     {
-                        OTA_TRACE(0,"OTA can't resume because the randomCode is inconsistent. [breakPoint: 0x%x]", breakPoint);
+                        LOG_D("OTA can't resume because the randomCode is inconsistent. [breakPoint: 0x%x]", breakPoint);
 
                         breakPoint = ota_control_env.breakPoint = ota_control_env.resume_at_breakpoint = 0;
                     }
-                }
-                // not in tws mode or is slave
-                if (breakPoint == 0 && _tws_is_master())
-                {
-                    OTA_TRACE(0,"OTA resume none. Generate new random code for the new transmisson now. [breakPoint: 0x%x]", breakPoint);
-                    for(uint32_t i = 0; i < sizeof(otaUpgradeLog.randomCode); i++)
+#else
+                    LOG_D("otaUpgradeLog.randomCode:");
+                    DUMP8("%02x ", otaUpgradeLog.randomCode, sizeof(otaUpgradeLog.randomCode));
+                    LOG_D("packet->payload.cmdResumeBreakpoint.randomCode:");
+                    DUMP8("%02x ", packet->payload.cmdResumeBreakpoint.randomCode, sizeof(otaUpgradeLog.randomCode));
+                    // if (!memcmp(otaUpgradeLog.randomCode, packet->payload.cmdResumeBreakpoint.randomCode,
+                    // sizeof(otaUpgradeLog.randomCode)) && memcmp(otaUpgradeLog.randomCode, zeroCode, sizeof(zeroCode)))
                     {
-                        set_rand_seed(hal_sys_timer_get());
-                        randomCode[i] = get_rand();
-                        DelayMs(1);
+                        ota_control_reset_env(false);
+                        ota_status_change(true);
+                        ota_get_start_message();
+                        LOG_D("OTA can resume. Resuming from the breakpoint at: 0x%x.", breakPoint);
+                        memcpy(randomCode, packet->payload.cmdResumeBreakpoint.randomCode, sizeof(otaUpgradeLog.randomCode));
                     }
+#endif
+                }
+                if (breakPoint == 0)
+                {
+                    // not in tws mode or is slave
+                    if (_tws_is_master())
+                    {
+                        LOG_D("OTA resume none. Generate new random code for the new transmisson now. [breakPoint: 0x%x]", breakPoint);
+                        for(uint32_t i = 0; i < sizeof(otaUpgradeLog.randomCode); i++)
+                        {
+                            set_rand_seed(hal_sys_timer_get());
+                            randomCode[i] = get_rand();
+                            DelayMs(1);
+                        }
 
-                    ota_randomCode_log(randomCode);
+                        ota_randomCode_log(randomCode);
 
-                    OTA_TRACE(0,"New random code:");
-                    OTA_DUMP8("%02x ", randomCode, sizeof(otaUpgradeLog.randomCode));
+                        LOG_D("New random code:");
+                        DUMP8("%02x ", randomCode, sizeof(otaUpgradeLog.randomCode));
+                    }
                 }
 
             resume_response:
+#if defined(IBRT) && !defined(FREEMAN_OTA_ENABLED)
                 if(breakPoint == 0)
                 {
-                    breakPoint_confirm(breakPoint, randomCode);
+                    tws_breakPoint_confirm(breakPoint, randomCode);
                 }
                 else
                 {
-                    breakPoint_confirm(breakPoint, packet->payload.cmdResumeBreakpoint.randomCode);
+                    tws_breakPoint_confirm(breakPoint, packet->payload.cmdResumeBreakpoint.randomCode);
                 }
+#else
+                ota_control_send_resume_response(breakPoint, randomCode);
+#endif
             }
             break;
         }
@@ -2665,36 +2768,41 @@ static void _handle_received_data(uint8_t *otaBuf, bool isViaBle,uint16_t dataLe
         {
             uint32_t cfg_len = 0;
             OTA_FLOW_CONFIGURATION_T* ptConfig = (OTA_FLOW_CONFIGURATION_T *)&(ota_control_env.configuration);
+            Bes_enter_ota_state();
             cfg_len = dataLenth - 1;
             ASSERT(cfg_len==sizeof(OTA_FLOW_CONFIGURATION_T), "plaese check config len. %d != %d",\
                     cfg_len, sizeof(OTA_FLOW_CONFIGURATION_T));
             memcpy((uint8_t *)ptConfig, &packet->payload.cmdFlowControl.config, cfg_len);
 
-            if ((ptConfig->lengthOfFollowingData + 4) <= cfg_len)
+            ota_control_env.AlreadyReceivedConfigurationLength = cfg_len;
+            if ((ptConfig->lengthOfFollowingData + 4) <= ota_control_env.AlreadyReceivedConfigurationLength)
             {
                 uint32_t localCrc = crc32_c(0, (uint8_t *)ptConfig, sizeof(OTA_FLOW_CONFIGURATION_T) - sizeof(uint32_t));
 
-                OTA_TRACE(0,"lengthOfFollowingData 0x%x", ptConfig->lengthOfFollowingData);
-                OTA_TRACE(0,"startLocationToWriteImage 0x%x", ptConfig->startLocationToWriteImage);
-                OTA_TRACE(0,"isToClearUserData %d", ptConfig->isToClearUserData);
-                OTA_TRACE(0,"isToRenameBT %d", ptConfig->isToRenameBT);
-                OTA_TRACE(0,"isToRenameBLE %d", ptConfig->isToRenameBLE);
-                OTA_TRACE(0,"isToUpdateBTAddr %d", ptConfig->isToUpdateBTAddr);
-                OTA_TRACE(0,"isToUpdateBLEAddr %d", ptConfig->isToUpdateBLEAddr);
-                OTA_TRACE(0,"New BT name:");
-                OTA_DUMP8("0x%02x ", ptConfig->newBTName, BES_OTA_NAME_LENGTH);
-                OTA_TRACE(0,"New BLE name:");
-                OTA_DUMP8("0x%02x ", ptConfig->newBLEName, BES_OTA_NAME_LENGTH);
-                OTA_TRACE(0,"New BT addr:");
-                OTA_DUMP8("0x%02x ", ptConfig->newBTAddr, BT_ADDR_OUTPUT_PRINT_NUM);
-                OTA_TRACE(0,"New BLE addr:");
-                OTA_DUMP8("0x%02x ", ptConfig->newBLEAddr, BT_ADDR_OUTPUT_PRINT_NUM);
-                OTA_TRACE(0,"crcOfConfiguration:0x%x", ptConfig->crcOfConfiguration);
-                OTA_TRACE(0,"local calculated crc:0x%x", localCrc);
+                LOG_D("lengthOfFollowingData 0x%x", ptConfig->lengthOfFollowingData);
+                LOG_D("startLocationToWriteImage 0x%x", ptConfig->startLocationToWriteImage);
+                LOG_D("isToClearUserData %d", ptConfig->isToClearUserData);
+                LOG_D("isToRenameBT %d", ptConfig->isToRenameBT);
+                LOG_D("isToRenameBLE %d", ptConfig->isToRenameBLE);
+                LOG_D("isToUpdateBTAddr %d", ptConfig->isToUpdateBTAddr);
+                LOG_D("isToUpdateBLEAddr %d", ptConfig->isToUpdateBLEAddr);
+                LOG_D("New BT name:");
+                DUMP8("0x%02x ", ptConfig->newBTName, BES_OTA_NAME_LENGTH);
+                LOG_D("New BLE name:");
+                DUMP8("0x%02x ", ptConfig->newBLEName, BES_OTA_NAME_LENGTH);
+                LOG_D("New BT addr:");
+                DUMP8("0x%02x ", ptConfig->newBTAddr, BT_ADDR_OUTPUT_PRINT_NUM);
+                LOG_D("New BLE addr:");
+                DUMP8("0x%02x ", ptConfig->newBLEAddr, BT_ADDR_OUTPUT_PRINT_NUM);
+                LOG_D("crcOfConfiguration:0x%x", ptConfig->crcOfConfiguration);
+                LOG_D("local calculated crc:0x%x", localCrc);
 
                 if(ota_control_env.configuration.startLocationToWriteImage != ota_control_env.offsetInFlashToProgram)
                 {
-                    OTA_TRACE(0,"APP Start Location is unused");
+                    LOG_D("Wrong Start Location. Check OTA Flash Offset of Update Image!");
+                    // ota_control_send_result_response(OTA_RESULT_ERR_IMAGE_SIZE);
+                    // ota_control_reset_env();
+                    // return;
                 }
 
                 // check CRC
@@ -2702,18 +2810,35 @@ static void _handle_received_data(uint8_t *otaBuf, bool isViaBle,uint16_t dataLe
                 {
                     if(ota_control_env.totalImageSize > MAX_IMAGE_SIZE)
                     {
-                        OTA_TRACE(0,"ImageSize 0x%x greater than 0x%x! Terminate the upgrade.",
+                        LOG_D("ImageSize 0x%x greater than 0x%x! Terminate the upgrade.",
                               ota_control_env.totalImageSize, MAX_IMAGE_SIZE);
+                        // ota_control_send_result_response(OTA_RESULT_ERR_IMAGE_SIZE);
+                        // uint8_t err_image_size = OTA_RESULT_ERR_IMAGE_SIZE;
+#if defined(IBRT) && !defined(FREEMAN_OTA_ENABLED)
                         errOtaCode = OTA_RESULT_ERR_IMAGE_SIZE;
-                        ota_send_rsp_handle(OTA_RSP_CONFIG, (uint8_t *)&errOtaCode, 1, APP_TWS_CMD_OTA_OTA_CONFIG_CMD);
+                        ota_tws_send_handle(OTA_RSP_CONFIG, (uint8_t *)&errOtaCode, 1, IBRT_OTA_TWS_OTA_CONFIG_CMD);
+#else
+                        ota_control_send_result_response(OTA_RESULT_ERR_IMAGE_SIZE);
+#endif
                         return;
                     }
 
+#ifdef TOTA_CROSS_CHIP_OTA
+                    uint32_t breakpoint = app_tota_get_written_sum_image_size_via_flash();
+                    ota_control_env.breakPoint = breakpoint;
+                    ota_control_env.resume_at_breakpoint = ota_control_env.breakPoint ? true : false;
+#endif
                     if(ota_control_env.breakPoint > ota_control_env.totalImageSize)
                     {
+                        LOG_D("breakPoint 0x%x totalImageSize 0x%x!", ota_control_env.breakPoint, ota_control_env.totalImageSize);
                         ota_upgradeLog_destroy(); // Error in log, we'd better try to retransmit the entire image.
+                        // ota_control_send_result_response(OTA_RESULT_ERR_BREAKPOINT);
+#if defined(IBRT) && !defined(FREEMAN_OTA_ENABLED)
                         errOtaCode = OTA_RESULT_ERR_BREAKPOINT;
-                        ota_send_rsp_handle(OTA_RSP_CONFIG, (uint8_t *)&errOtaCode, 1, APP_TWS_CMD_OTA_OTA_CONFIG_CMD);
+                        ota_tws_send_handle(OTA_RSP_CONFIG, (uint8_t *)&errOtaCode, 1, IBRT_OTA_TWS_OTA_CONFIG_CMD);
+#else
+                        ota_control_send_result_response(OTA_RESULT_ERR_BREAKPOINT);
+#endif
                         return;
                     }
 
@@ -2723,25 +2848,30 @@ static void _handle_received_data(uint8_t *otaBuf, bool isViaBle,uint16_t dataLe
                         ota_control_env.offsetOfImageOfCurrentSegment = ota_control_env.alreadyReceivedDataSizeOfImage;
                         ota_control_env.offsetInFlashOfCurrentSegment = ota_control_env.offsetOfImageOfCurrentSegment;
                         ota_control_env.offsetInFlashToProgram = ota_control_env.offsetInFlashOfCurrentSegment;
-                        #ifdef COMBO_CUSBIN_IN_FLASH
-                        _combo_bin_breakpoint_recovery(ota_control_env.alreadyReceivedDataSizeOfImage);
-                        #endif
                     }
 
-                    OTA_TRACE(0,"OTA config pass.");
-                    OTA_TRACE(0,"Start writing the received image to flash offset 0x%x", ota_control_env.offsetInFlashToProgram);
+                    LOG_D("OTA config pass.");
+                    LOG_D("Start writing the received image to flash offset 0x%x", ota_control_env.offsetInFlashToProgram);
 
+#if defined(IBRT) && !defined(FREEMAN_OTA_ENABLED)
                     errOtaCode = 1;
-                    bool ota_config = OTA_RESULT_PASSED;
-                    ota_send_rsp_handle(OTA_RSP_CONFIG, (uint8_t *)&ota_config, 1, APP_TWS_CMD_OTA_OTA_CONFIG_CMD);
+                    bool ota_config = 1;
+                    ota_tws_send_handle(OTA_RSP_CONFIG, (uint8_t *)&ota_config, 1, IBRT_OTA_TWS_OTA_CONFIG_CMD);
+#else
+                    ota_control_send_configuration_response(true);
+#endif
                 }
                 else
                 {
-                    OTA_TRACE(0,"OTA config failed.");
+                    LOG_D("OTA config failed.");
 
                     /// inform APP OTA configure failed, APP should abort the OTA progress immediately
-                    bool ota_config = OTA_RESULT_ERR;
-                    ota_send_rsp_handle(OTA_RSP_CONFIG, (uint8_t *)&ota_config, 1, APP_TWS_CMD_OTA_OTA_CONFIG_CMD);
+#if defined(IBRT) && !defined(FREEMAN_OTA_ENABLED)
+                    bool ota_config = 0;
+                    ota_tws_send_handle(OTA_RSP_CONFIG, (uint8_t *)&ota_config, 1, IBRT_OTA_TWS_OTA_CONFIG_CMD);
+#else
+                    ota_control_send_configuration_response(false);
+#endif
                 }
             }
             break;
@@ -2755,9 +2885,18 @@ static void _handle_received_data(uint8_t *otaBuf, bool isViaBle,uint16_t dataLe
             }
             else
             {
-                bool whole_image_crc = OTA_RESULT_ERR;
-                ota_send_rsp_handle(OTA_RSP_RESULT, (uint8_t *)&whole_image_crc, 1, APP_TWS_CMD_OTA_IMAGE_CRC_CMD);
+#if defined(IBRT) && !defined(FREEMAN_OTA_ENABLED)
+                bool whole_image_crc = 0;
+                ota_tws_send_handle(OTA_RSP_RESULT, (uint8_t *)&whole_image_crc, 1, IBRT_OTA_TWS_IMAGE_CRC_CMD);
+#else
+                ota_control_send_result_response(false);
+#endif
             }
+            break;
+        }
+        case OTA_READ_FLASH_CONTENT:
+        {
+            ota_control_sending_flash_content((OTA_READ_FLASH_CONTENT_REQ_T*)otaBuf);
             break;
         }
         case OTA_COMMAND_GET_VERSION:
@@ -2766,94 +2905,153 @@ static void _handle_received_data(uint8_t *otaBuf, bool isViaBle,uint16_t dataLe
 
             if (BES_OTA_START_MAGIC_CODE == packet->payload.cmdGetVision.magicCode)
             {
+#if defined(IBRT) && !defined(FREEMAN_OTA_ENABLED)
                 uint8_t fw_rev[4];
-                #ifdef FIRMWARE_REV
                 system_get_info(&fw_rev[0], &fw_rev[1], &fw_rev[2], &fw_rev[3]);
-                #endif
-                OTA_DUMP8("%02x ", fw_rev, ARRAY_SIZE(fw_rev));
-                ota_send_rsp_handle(OTA_RSP_VERSION, fw_rev, ARRAY_SIZE(fw_rev), APP_TWS_CMD_OTA_GET_VERSION_CMD);
+                ota_tws_send_handle(OTA_RSP_VERSION, fw_rev, ARRAY_SIZE(fw_rev), IBRT_OTA_TWS_GET_VERSION_CMD);
+#else
+                ota_control_send_version_rsp();
+#endif
             }
             else
             {
-                OTA_TRACE(0,"invalid magic code:%x", packet->payload.cmdGetVision.magicCode);
+                LOG_D("invalid magic code:%x", packet->payload.cmdGetVision.magicCode);
             }
             break;
         }
         case OTA_COMMAND_SIDE_SELECTION:
         {
+#if defined(IBRT) && !defined(FREEMAN_OTA_ENABLED)
             uint8_t selectSide[2] = {0x91, 0x01};
-            ota_send_rsp_handle(OTA_RSP_SIDE_SELECTION, selectSide, ARRAY_SIZE(selectSide), APP_TWS_CMD_OTA_SELECT_SIDE_CMD);
+            ota_tws_send_handle(OTA_RSP_SIDE_SELECTION, selectSide, ARRAY_SIZE(selectSide), IBRT_OTA_TWS_SELECT_SIDE_CMD);
+#else
+            ota_control_side_selection_rsp(true);
+#endif
             break;
         }
         case OTA_COMMAND_IMAGE_APPLY:
         {
+#ifdef TOTA_CROSS_CHIP_OTA
+            FLASH_OTA_BOOT_INFO_T flash_ota_boot_info;
+            if (app_tota_get_pending_for_reboot_flag(&flash_ota_boot_info))
+            {
+                ota_control_env.isPendingForReboot = true;
+                ota_control_env.crc32OfImage = flash_ota_boot_info.imageCrc;
+                ota_control_env.totalImageSize = flash_ota_boot_info.imageSize;
+                ota_control_env.dstFlashOffsetForNewImage = flash_ota_boot_info.newImageFlashOffset;
+            }
+#endif
             if (BES_OTA_START_MAGIC_CODE == packet->payload.cmdApply.magicCode && ota_control_env.isPendingForReboot)
             {
                 ota.permissionToApply = 1;
-                bool overWrite = OTA_RESULT_PASSED;
+#if defined(IBRT) && !defined(FREEMAN_OTA_ENABLED)
+                bool overWrite = 1;
                 errOtaCode = 1;
-                ota_send_rsp_handle(OTA_RSP_IMAGE_APPLY, (uint8_t *)&overWrite, 1, APP_TWS_CMD_OTA_IMAGE_OVERWRITE_CMD);
+                ota_tws_send_handle(OTA_RSP_IMAGE_APPLY, (uint8_t *)&overWrite, 1, IBRT_OTA_TWS_IMAGE_OVERWRITE_CMD);
+#else
+                ota_control_image_apply_rsp(true);
+                ota_apply();
+                //Bes_exit_ota_state();
+#endif
             }
             else
             {
                 ota.permissionToApply = 0;
-                bool overWrite = OTA_RESULT_ERR;
-                ota_send_rsp_handle(OTA_RSP_IMAGE_APPLY, (uint8_t *)&overWrite, 1, APP_TWS_CMD_OTA_IMAGE_OVERWRITE_CMD);
+#if defined(IBRT) && !defined(FREEMAN_OTA_ENABLED)
+                bool overWrite = 0;
+                ota_tws_send_handle(OTA_RSP_IMAGE_APPLY, (uint8_t *)&overWrite, 1, IBRT_OTA_TWS_IMAGE_OVERWRITE_CMD);
+#else
+                ota_control_image_apply_rsp(false);
+                Bes_exit_ota_state();
+#endif
             }
             break;
         }
+
+#ifdef IBRT
+        case OTA_RSP_START_ROLE_SWITCH:
+        {
+            uint8_t ota_connected = ota_control_get_datapath_type();
+            LOG_D("%s ota_connected %d", __func__, ota_connected);
+
+#ifdef __IAG_BLE_INCLUDE__
+            if ((ota_connected == DATA_PATH_BLE) && _tws_is_master())
+            {
+
+                uint16_t ble_Conhandle = 0;
+            #if defined(BES_OTA) && (!defined(OTA_OVER_TOTA_ENABLED))
+                ble_Conhandle = ota_ble_get_conidx();
+            #else
+                ble_Conhandle = tota_ble_get_conidx();
+            #endif
+                bt_drv_reg_op_ble_sup_timeout_set(ble_Conhandle, 15); //fix ble disconnection takes long time:connSupervisionTime=150ms
+
+                // disconnect ble connection if existing
+                bes_ble_gap_disconnect_all();
+                ota_control_set_datapath_type(0);
+            }
+#endif
+            break;
+        }
+#ifdef __IAG_BLE_INCLUDE__
+#ifdef BLE_RPA_OTA_WORKROUND
+        case OTA_GET_LOCAL_RD_RSQ:
+        {
+            uint32_t ota_rv = 0;
+            if (_tws_is_slave())
+            {
+                nv_record_update_self_ble_rand(true,0);
+                ota_rv = nv_record_get_self_ble_rand();
+            }
+
+            TRACE(2,"[%s],9b = 0x%x", __func__, ota_rv);
+            ota_tws_send_handle(OTA_GET_LOCAL_RD_RSQ, (uint8_t *)&ota_rv, 4, IBRT_OTA_TWS_UPDATE_RD_CMD);
+            break;
+        }
+#endif
+#endif
+
+#endif /// #ifdef IBRT
 
         /*****************************************************************************/
         //                      OTA protocol version: 0.0.0.1                        //
         /*****************************************************************************/
         case OTA_CMD_GET_OTA_VERSION:
+#if defined(IBRT) && !defined(FREEMAN_OTA_ENABLED)
             /// update local error code to no_error
             errOtaCode = 1;
 
             /// TWS sync command from phone
-            ota_send_rsp_handle(OTA_RSP_GET_OTA_VERSION,
+            ota_tws_send_handle(OTA_RSP_GET_OTA_VERSION,
                                 otaVersion,
                                 ARRAY_SIZE(otaVersion),
-                                APP_TWS_CMD_OTA_GET_OTA_VERSION_CMD);
+                                IBRT_OTA_TWS_GET_OTA_VERSION_CMD);
+#else
+            _send_ota_version_rsp(otaVersion, ARRAY_SIZE(otaVersion));
+#endif
             break;
         case OTA_CMD_SET_USER:
             /// update OTA user
             _update_user(packet->payload.cmdSetUser.user);
 
+#if defined(IBRT) && !defined(FREEMAN_OTA_ENABLED)
             /// update local error code to no_error
             errOtaCode = 1;
 
             /// TWS sync command from phone
-            ota_send_rsp_handle(OTA_RSP_SET_USER,
+            ota_tws_send_handle(OTA_RSP_SET_USER,
                                 &(packet->payload.cmdSetUser.user),
                                 sizeof(packet->payload.cmdSetUser.user),
-                                APP_TWS_CMD_OTA_SET_USER_CMD);
-            break;
-        case OTA_SET_ONE_BUD_UPGRADE_CMD:
-        {
-            ota_control_env.isOneBudOTA = packet->payload.cmdOneBudSelect.selectOneBud;
-            ota_send_rsp_handle(OTA_SET_ONE_BUD_UPGRADE_RSP, NULL, 0, 0);   // this cmd needn't send to tws-slave
-#if defined(IBRT) && !defined(FREEMAN_OTA_ENABLED)
-            if (bts_tws_if_is_tws_link_connected() && ota_control_env.isOneBudOTA)
-            {
-                ota_control_send_result_response(false);
-                ota_control_env.isOneBudOTA = 0;
-                return;
-            }
+                                IBRT_OTA_TWS_SET_USER_CMD);
+#else
+            _send_set_user_response(true);
 #endif
             break;
-        }
+        /*****************************************************************************/
+        //                      OTA protocol version: 0.0.0.1                        //
+        /*****************************************************************************/
         default:
-            if (packet->packetType < 0x70 || packet->packetType > 0x9F)
-            {
-                OTA_TRACE(0,"[%s] UNKNOWN CMD, EXIT OTA", __func__);
-
-                // if (_tws_is_master())
-                // {
-                //     ota_control_send_result_response(OTA_RESULT_ERR_RECV_SIZE);
-                // }
-                // Bes_exit_ota_state();
-            }
+            break;
     }
 }
 
@@ -2861,8 +3059,21 @@ static void _handle_received_data(uint8_t *otaBuf, bool isViaBle,uint16_t dataLe
 static void _relay_ota_data(uint8_t *otaBuf, uint16_t len)
 {
     // TODO: enable gatt over br/edr for new ble stack
-
-        tws_ctrl_send_cmd(APP_TWS_CMD_OTA_IMAGE_BUFF, otaBuf, len);
+#if 0
+    if (btif_is_gatt_over_br_edr_enabled())
+    {
+    #if defined(BLE_APP_OTA) && !defined(OTA_OVER_TOTA_ENABLED)
+        if (app_btgatt_is_connected_by_conidx(ota_ble_get_conidx()))
+        {
+            tws_ctrl_send_cmd(IBRT_OTA_TWS_IMAGE_BUFF, otaBuf, len);
+        }
+    #endif
+    }
+    else
+#endif
+    {
+        tws_ctrl_send_cmd(IBRT_OTA_TWS_IMAGE_BUFF, otaBuf, len);
+    }
 }
 #endif
 
@@ -2899,8 +3110,8 @@ static void _packet_structure_convert(uint8_t *otaBuf, bool isViaBle, uint16_t l
                 queueLeftDataLen = LengthOfCQueue(&otaCmdQueue);
                 extractedOtaRequestBuf[OTA_PACKET_LENGTH_FIELD_LEN] = extractedOtaRequestBuf[0];
                 cmdLength = payloadLen + sizeof(packet->packetType);
-                //OTA_TRACE(0,"received len:%d, data:", cmdLength);
-                //OTA_DUMP8("0x%02x ", extractedOtaRequestBuf, (cmdLength > 20 ? 20: cmdLength));
+                //LOG_D("received len:%d, data:", cmdLength);
+                //DUMP8("0x%02x ", extractedOtaRequestBuf, (cmdLength > 20 ? 20: cmdLength));
                 _handle_received_data(&extractedOtaRequestBuf[OTA_PACKET_LENGTH_FIELD_LEN], isViaBle, cmdLength);
             }
             else
@@ -2923,19 +3134,36 @@ static void _packet_structure_convert(uint8_t *otaBuf, bool isViaBle, uint16_t l
 void ota_control_handle_received_data(uint8_t *otaBuf, bool isViaBle, uint16_t len)
 {
     uint16_t length = len;
-    OTA_TRACE(0,"[%s]type:0x%x, len:%d", __func__, otaBuf[0], length);
+    LOG_D("[%s]type:0x%x, len:%d", __func__, otaBuf[0], length);
 
+    static uint8_t stop_receive = 0;
+    if(OTA_COMMAND_IMAGE_APPLY == otaBuf[0])
+    {
+        stop_receive = 1;
+    }
+    else if(stop_receive == 1)
+    {
+        stop_receive = 0;
+        return;
+    }
+
+#ifdef TOTA_CROSS_CHIP_OTA
+    ota_control_env.packetStructureType = OTA_PACKET_STRUCTURE_TLV;
+#else
     /// get role for OTA progress
     _tws_get_role();
 
-    /// NOTE: if APP support OTA_CMD_GET_OTA_VERSION or OTA_SET_ONE_BUD_UPGRADE_CMD, then it must use TLV packet structure
-    if (OTA_CMD_GET_OTA_VERSION == otaBuf[0] || OTA_SET_ONE_BUD_UPGRADE_CMD == otaBuf[0])
+    // not tws mode or is slave
+    if (_tws_is_slave())
     {
-        ota_control_env.packetStructureType = OTA_PACKET_STRUCTURE_TLV;
-        OTA_TRACE(0,"OTA packet type update to tlv");
+        /// NOTE: if APP support OTA_CMD_GET_OTA_VERSION, then it must use TLV packet structure
+        if (OTA_CMD_GET_OTA_VERSION == otaBuf[0])
+        {
+            ota_control_env.packetStructureType = OTA_PACKET_STRUCTURE_TLV;
+            LOG_D("OTA packet type update to tlv");
+        }
     }
-
-    if (_tws_is_master())
+    else if (_tws_is_master())
     {
 #ifdef __IAG_BLE_INCLUDE__
 #if defined(IBRT) && !defined(FREEMAN_OTA_ENABLED)
@@ -2947,6 +3175,7 @@ void ota_control_handle_received_data(uint8_t *otaBuf, bool isViaBle, uint16_t l
 #endif
 #endif
     }
+#endif
 
     /// convert packet type into legacy manner
     if (ota_control_env.packetStructureType == OTA_PACKET_STRUCTURE_TLV)
@@ -2963,9 +3192,10 @@ void ota_control_handle_received_data(uint8_t *otaBuf, bool isViaBle, uint16_t l
 
 static void app_update_magic_number_of_app_image(uint32_t newMagicNumber)
 {
+    LOG_D("%s", __func__);
+
     NORFLASH_API_MODULE_ID_T mod = _get_user_flash_module(ota_control_env.currentUser);
-    uint8_t i = _get_user_index(ota_control_env.currentUser);
-    uint32_t flashOffset = ota_control_env.dstFlashOffsetForNewImage - (ota_control_env.userInfo[i].startAddr&0xFFFFFF);
+    uint32_t flashOffset = 0;
 
     app_flash_read(mod,
                    flashOffset,
@@ -2979,12 +3209,26 @@ static void app_update_magic_number_of_app_image(uint32_t newMagicNumber)
                       flashOffset,
                       ota_control_env.dataBufferForBurning,
                       FLASH_SECTOR_SIZE_IN_BYTES,
-                      false);
+                      true);
 
-    app_flash_flush_pending_op(mod, NORFLASH_API_ALL);
-
-    OTA_TRACE(0,"%s flash_offset:0x%x, data:0x%x",
+    LOG_D("%s flash_offset:0x%x, data:0x%x",
             __func__, flashOffset, *(uint32_t *)ota_control_env.dataBufferForBurning);
+}
+
+uint32_t app_get_magic_number(void)
+{
+    // Workaround for reboot: controller in standard SPI mode while FLASH in QUAD mode
+    // First read will fail when FLASH in QUAD mode, but it will make FLASH roll back to standard SPI mode
+    // Second read will succeed
+
+    uint32_t magic;
+
+    magic = (uint32_t)&otaBootInfoInFlash;
+
+    // First read (and also flush the controller prefetch buffer)
+    *(volatile uint32_t *)(magic + 0x400);
+
+    return *(volatile uint32_t *)magic;
 }
 
 uint32_t app_get_boot_word(void)
@@ -2993,7 +3237,7 @@ uint32_t app_get_boot_word(void)
     {
         FLASH_OTA_BOOT_INFO_T otaBootInfo;
         app_flash_read(NORFLASH_API_MODULE_ID_BOOTUP_INFO, 0, (uint8_t*)&otaBootInfo, sizeof(FLASH_OTA_BOOT_INFO_T));
-        OTA_TRACE(0,"%s boot word 0x%x", __func__, otaBootInfo.boot_word);
+        LOG_D("%s boot word 0x%x", __func__, otaBootInfo.boot_word);
         return otaBootInfo.boot_word;
     }
     else
@@ -3002,7 +3246,7 @@ uint32_t app_get_boot_word(void)
     }
 }
 
-POSSIBLY_UNUSED static void app_update_ota_boot_info(void)
+static void app_update_ota_boot_info(void)
 {
     FLASH_OTA_BOOT_INFO_T otaBootInfo;
     NORFLASH_API_MODULE_ID_T mod = NORFLASH_API_MODULE_ID_BOOTUP_INFO;
@@ -3015,7 +3259,7 @@ POSSIBLY_UNUSED static void app_update_ota_boot_info(void)
 
     if (ota_basic_is_remap_enabled())
     {
-        OTA_TRACE(0,"%s boot_word 0x%x", __func__, otaBootInfo.boot_word);
+        LOG_D("%s boot_word 0x%x", __func__, otaBootInfo.boot_word);
         if (otaBootInfo.boot_word == BOOT_WORD_B)
         {
             otaBootInfo.boot_word = BOOT_WORD_A;
@@ -3032,18 +3276,15 @@ POSSIBLY_UNUSED static void app_update_ota_boot_info(void)
         otaBootInfo.newImageFlashOffset = ota_control_env.dstFlashOffsetForNewImage;
     }
 
-    OTA_TRACE(0, "new image flash offset 0x%x", otaBootInfo.newImageFlashOffset);
+    TRACE(0, "new image flash offset 0x%x", otaBootInfo.newImageFlashOffset);
 
-    // OTA_TRACE(0,"%s magic 0x%x addr 0x%x", __func__, otaBootInfo->magicNumber, OTA_INFO_IN_OTA_BOOT_SEC);
+    // LOG_D("%s magic 0x%x addr 0x%x", __func__, otaBootInfo->magicNumber, OTA_INFO_IN_OTA_BOOT_SEC);
     app_flash_sector_erase(mod,0);
     app_flash_program(mod,
                       0,
                       (uint8_t *)&otaBootInfo,
                       sizeof(FLASH_OTA_BOOT_INFO_T),
-                      false);
-
-    app_flash_flush_pending_op(mod, NORFLASH_API_ALL);  //!< force flush the flash op
-
+                      true);
 }
 
 void ota_control_register_ota_user(BES_OTA_USER_INFO_T info)
@@ -3065,13 +3306,11 @@ void ota_control_register_ota_user(BES_OTA_USER_INFO_T info)
         ASSERT(BES_OTA_USER_NUM > ota_control_env.userNum, "OTA user number exceeds");
         ota_control_env.userInfo[ota_control_env.userNum] = info;
         ota_control_env.userNum++;
-        OTA_TRACE(0,"current supported OTA user number:%d", ota_control_env.userNum);
-        OTA_TRACE(0,"info.norflashId:%d", info.norflashId);
-        OTA_TRACE(0,"app_flash_get_dev_id_by_addr(info.startAddr):%d", app_flash_get_dev_id_by_addr(info.startAddr));
-#if defined(PROMPT_IN_FLASH)
-        if(BES_OTA_USER_LANGUAGE_PACKAGE != info.user)
-#endif
-        {
+        LOG_D("current supported OTA user number:%d", ota_control_env.userNum);
+        LOG_D("info.norflashId:%d", info.norflashId);
+        LOG_D("app_flash_get_dev_id_by_addr(info.startAddr):%d", app_flash_get_dev_id_by_addr(info.startAddr));
+
+        if(BES_OTA_USER_LANGUAGE_PACKAGE != info.user){
             app_flash_register_module(info.norflashId, app_flash_get_dev_id_by_addr(info.startAddr), info.startAddr, info.length, (uint32_t)ota_control_opera_callback);
         }
     }
@@ -3087,32 +3326,56 @@ void ota_start(void)
     }
     else
     {
-        OTA_TRACE(0,"START callback for %s is null",
+        LOG_W("START callback for %s is null",
               _user2str(ota_control_env.currentUser));
     }
 }
 
 void ota_data_check_image_crc_handler(bool ret)
 {
-    errOtaCode = ret;
     if (ret)
     {
-        OTA_TRACE(0,"Whole image verification pass.");
+        LOG_D("Whole image verification pass.");
         ota_control_env.isPendingForReboot = true;
-        ota_send_rsp_handle(OTA_RSP_RESULT, (uint8_t *)&ret, 1, APP_TWS_CMD_OTA_IMAGE_CRC_CMD);
+
+#if defined(IBRT) && !defined(FREEMAN_OTA_ENABLED)
+        errOtaCode = ret;
+        ota_tws_send_handle(OTA_RSP_RESULT, (uint8_t *)&ret, 1, IBRT_OTA_TWS_IMAGE_CRC_CMD);
+#else
+        // if(ota_control_env.currentUser == BES_OTA_USER_FIRMWARE)
+        // {
+        //     app_update_ota_boot_info();
+        //     ota_update_userdata_pool();
+        // }
+
+        ota_control_send_result_response(ret);
+#ifndef TOTA_CROSS_CHIP_OTA
+        ota_upgradeLog_destroy();
+#else
+        app_tota_set_pending_for_reboot_flag(ota_control_env.isPendingForReboot);
+#endif
+#endif
+
     }
     else
     {
-        OTA_TRACE(0,"Whole image verification failed.");
+        LOG_D("Whole image verification failed.");
         ibrt_ota_send_result_response(false);
         Bes_exit_ota_state();
-        ota_send_rsp_handle(OTA_RSP_RESULT, (uint8_t *)&ret, 1, APP_TWS_CMD_OTA_IMAGE_CRC_CMD);
+#if defined(IBRT) && !defined(FREEMAN_OTA_ENABLED)
+        errOtaCode = ret;
+        ota_tws_send_handle(OTA_RSP_RESULT, (uint8_t *)&ret, 1, IBRT_OTA_TWS_IMAGE_CRC_CMD);
+#else
+        ota_control_send_result_response(ret);
+        ota_upgradeLog_destroy();
+        ota_control_reset_env(true);
+#endif
     }
 }
 
 void ota_data_reception_done(void)
 {
-    OTA_TRACE(0,"%s", __func__);
+    LOG_D("%s", __func__);
 
     // flush the remaining data to flash
     if (0 != ota_control_env.offsetInDataBufferForBurning)
@@ -3122,7 +3385,7 @@ void ota_data_reception_done(void)
                                         ota_control_env.offsetInFlashToProgram);
     }
 
-    if (BES_OTA_USER_FIRMWARE == ota_control_env.currentUser)
+    if (BES_OTA_USER_FIRMWARE == ota_control_env.currentUser || BES_OTA_USER_CROSS_CHIP == ota_control_env.currentUser)
     {
         bool Ret = 1; //ota_check_image_data_sanity_crc();
         if (Ret)
@@ -3132,7 +3395,7 @@ void ota_data_reception_done(void)
         }
         else
         {
-            OTA_TRACE(0,"data sanity crc failed.");
+            LOG_D("data sanity crc failed.");
             ota_data_check_image_crc_handler(Ret);
             return;
         }
@@ -3159,8 +3422,8 @@ void ota_data_reception_done(void)
 
 void ota_apply(void)
 {
-    // uint32_t _boot_word = app_get_boot_word();
-    // OTA_TRACE(0,"[%s] _boot_word 0x%x",__func__, _boot_word);
+    uint32_t _boot_word = app_get_boot_word();
+    LOG_D("[%s] _boot_word 0x%x",__func__, _boot_word);
 
     uint8_t i = _get_user_index(ota_control_env.currentUser);
 
@@ -3171,6 +3434,10 @@ void ota_apply(void)
     }
 #endif
 
+#ifdef TOTA_CROSS_CHIP_OTA
+    ota_upgradeLog_destroy();
+#endif
+
     if (BES_OTA_USER_INDEX_INVALID != i && ota_control_env.userInfo[i].apply)
     {
         ota_control_env.userInfo[i].apply(ota_control_env.dstFlashOffsetForNewImage,
@@ -3178,7 +3445,7 @@ void ota_apply(void)
     }
     else
     {
-        OTA_TRACE(0,"APPLY callback for %s is null",
+        LOG_W("APPLY callback for %s is null",
               _user2str(ota_control_env.currentUser));
     }
 }
@@ -3186,10 +3453,10 @@ void ota_apply(void)
 void ota_control_update_flash_offset(uint32_t addr)
 {
     /// set default value of flash related ota_control_env context
-    ota_control_env.offsetInFlashToProgram = 0;
-    ota_control_env.offsetInFlashOfCurrentSegment = 0;
+    ota_control_env.offsetInFlashToProgram = addr;
+    ota_control_env.offsetInFlashOfCurrentSegment = addr;
     ota_control_env.dstFlashOffsetForNewImage = addr;
-    OTA_TRACE(0,"[%s]start address 0x%x",__func__, addr);
+    LOG_D("[%s]start address 0x%x",__func__, addr);
 }
 
 uint8_t app_get_bes_ota_state(void)
@@ -3210,11 +3477,13 @@ void app_set_ota_role_switch_initiator(bool is_initiate)
 void app_statistics_get_ota_pkt_in_role_switch(void)
 {
 #ifdef IBRT
-    if (bts_ibrt_conn_any_role_switch_running() && \
+#if defined(IBRT_UI)
+    if (app_ibrt_conn_any_role_switch_running() && \
          (OTA_BASIC_TWS_MASTER == ota_basic_get_tws_role()) && \
           (ota_control_get_datapath_type() == DATA_PATH_SPP))
+#endif
     {
-        OTA_TRACE(0,"GET PKT IN OTA");
+        LOG_D("GET PKT IN OTA");
         ota_get_pkt_in_role_switch = true;
     }
 #endif
@@ -3223,8 +3492,10 @@ void app_statistics_get_ota_pkt_in_role_switch(void)
 bool app_check_user_can_role_switch_in_ota(void)
 {
 #ifdef IBRT
+#if defined(IBRT_UI)
     return (app_get_bes_ota_state() && ota_role_switch_flag &&
-            bts_ibrt_conn_any_role_switch_running());
+            app_ibrt_conn_any_role_switch_running());
+#endif
 #else
     return false;
 #endif
@@ -3258,7 +3529,7 @@ void ota_language_copy_prompt(uint32_t prompt_start, uint32_t prompt_end, uint32
         postBytes = (offsetInFlashToProgram + lengthToBurn) % FLASH_SECTOR_SIZE_IN_BYTES;
     }
 
-    OTA_TRACE(0,"Prebytes is %d middlebytes is %d postbytes is %d", preBytes, middleBytes, postBytes);
+    LOG_D("Prebytes is %d middlebytes is %d postbytes is %d", preBytes, middleBytes, postBytes);
 
     if (preBytes > 0)
     {
@@ -3316,7 +3587,7 @@ static bool ota_control_check_language_crc(void)
     uint32_t verifiedBytes = 0;
     NORFLASH_API_MODULE_ID_T mod = _get_user_flash_module(ota_control_env.currentUser);
 
-    OTA_TRACE(0,"ota_control_env.totalImageSize:0x%x", ota_control_env.totalImageSize);
+    LOG_D("ota_control_env.totalImageSize:0x%x", ota_control_env.totalImageSize);
 
     while (verifiedDataSize < ota_control_env.totalImageSize)
     {
@@ -3341,7 +3612,7 @@ static bool ota_control_check_language_crc(void)
                              verifiedBytes);
     }
 
-    OTA_TRACE(0,"Original CRC32 is 0x%x Confirmed CRC32 is 0x%x.", ota_control_env.crc32OfImage, crc32Value);
+    LOG_D("Original CRC32 is 0x%x Confirmed CRC32 is 0x%x.", ota_control_env.crc32OfImage, crc32Value);
     if (crc32Value == ota_control_env.crc32OfImage)
     {
         return true;
@@ -3365,7 +3636,7 @@ void ota_data_reception_languange_check(void)
 
 #ifdef IBRT
     errOtaCode = Ret ? 1 : 0;
-    ota_send_rsp_handle(OTA_RSP_RESULT, (uint8_t *)&errOtaCode, 1, APP_TWS_CMD_OTA_IMAGE_CRC_CMD);
+    ota_tws_send_handle(OTA_RSP_RESULT, (uint8_t *)&errOtaCode, 1, IBRT_OTA_TWS_IMAGE_CRC_CMD);
 #else
     ota_control_send_result_response(Ret);
 #endif
@@ -3387,7 +3658,9 @@ void ota_check_and_reboot_to_copy_language(void)
 void _combo_bin_exception_disconnect(void)
 {
 #ifdef IBRT
+#if defined(IBRT_UI)
     if (OTA_BASIC_TWS_MASTER == ota_basic_get_tws_role())
+#endif
 #endif
     {
         //ota disconnect
@@ -3414,25 +3687,17 @@ uint8_t _combo_bin_start_load(uint8_t* buf,uint32_t* len)
     {
         index = _get_user_index(BES_OTA_USER_COMBOFIRMWARE);
         status = ota_control_env.userInfo[index].process(COMBIN_PARASE_HEADER_EVT,buf,0);
-        // calculate combo bin header crc
-        ota_control_env.crc32OfHeader = crc32_c(ota_control_env.crc32OfSegment,
-                                                (uint8_t *)buf,
-                                                COMBO_BIN_HEADER_TOTAL_LEN);
         if(!status)
         {
-            OTA_TRACE(0,"[COMBO]0x%x",nv_record_combo_bin_get_hearlen());
+            LOG_D("[COMBO]0x%x",nv_record_combo_bin_get_hearlen());
             //memcpy(tmp_buf,buf,nv_record_combo_bin_get_hearlen());
-            //OTA_DUMP8("%02x ",tmp_buf,0x28);
-            if (0 == ota_control_env.blockid)
-            {
-                ota_control_env.totalImageSize -= nv_record_combo_bin_get_hearlen();
-            }
-            ota_control_env.crc32OfImage = nv_record_combo_bin_get_whole_crc32();
+            //DUMP8("%02x ",tmp_buf,0x28);
+            ota_control_env.totalImageSize -= nv_record_combo_bin_get_hearlen();
+            ota_control_env.crc32OfImage = nv_record_combo_bin_get_crc32();
             ota_control_env.blockid = 1;
-            ota_control_env.is_started = true;
             ota_control_env.currentlengthlimit = nv_record_combo_bin_get_datalen(ota_control_env.blockid);
 
-            OTA_TRACE(0,"%s: Image size is 0x%x, crc32 of image is 0x%x start 0x%x",
+            LOG_D("%s: Image size is 0x%x, crc32 of image is 0x%x start 0x%x",
                   __func__,
                   ota_control_env.totalImageSize,
                   ota_control_env.crc32OfImage,
@@ -3440,14 +3705,9 @@ uint8_t _combo_bin_start_load(uint8_t* buf,uint32_t* len)
         }
         else
         {
-            OTA_TRACE(0,"[%s] status:%d",__func__, status);
             status = OTA_COMBO_PROCESS_EXPCEPTION;
             _combo_bin_exception_disconnect();
         }
-    }else{
-        OTA_TRACE(0,"[%s] alreadyReceivedData:%d %d user:%d",__func__, \
-            ota_control_env.alreadyReceivedDataSizeOfImage, nv_record_combo_bin_get_hearlen(),
-            BES_OTA_USER_COMBOFIRMWARE);
     }
 
     return status;
@@ -3458,15 +3718,13 @@ static uint32_t _combo_bin_common_crc32(uint32_t start_addr, uint32_t need_check
     uint32_t tmp = 0;
     uint32_t crc = crc_src;
     uint32_t need_check_len_done = 0;
-    NORFLASH_API_MODULE_ID_T mod = _get_user_flash_module(ota_control_env.currentUser);
 
-    OTA_TRACE(3, "%s start addr 0x%x len 0x%x", __func__, start_addr, need_check_len);
     while (need_check_len > need_check_len_done)
     {
         tmp = (need_check_len - need_check_len_done) > OTA_DATA_BUFFER_SIZE_FOR_BURNING
                   ? OTA_DATA_BUFFER_SIZE_FOR_BURNING
                   : need_check_len - need_check_len_done;
-        app_flash_read(mod,
+        app_flash_read(NORFLASH_API_MODULE_ID_OTA,
                        start_addr + need_check_len_done,
                        ota_control_env.dataBufferForBurning,
                        tmp);
@@ -3477,139 +3735,70 @@ static uint32_t _combo_bin_common_crc32(uint32_t start_addr, uint32_t need_check
     return crc;
 }
 
-#if defined(ARM_CMNS) && defined(OTA_TZ_ENABLE)
-static void app_cmse_initial_crc_set(void)
+static void _combo_bin_cross_regional_crc32_c(void)
 {
     uint8_t index  = 0;
     uint32_t startFlashAddr = 0;
     uint32_t total_len = 0;
     uint32_t tmp,need_check_len = 0;
-    uint32_t crc32 = 0;
-    uint8_t i = _get_user_index(ota_control_env.currentUser);
 
-    if (ota_control_env.is_crossregion)
+    LOG_D("[COMBO]_combo_bin_cross_regional_crc32");
+    if ((ota_control_env.is_crossregion)&&(BES_OTA_USER_COMBOFIRMWARE == ota_control_env.currentUser))
     {
-        OTA_TRACE(0,"[COMBO]cross regional crc32 calcuate");
-        // get previous region data crc
         for(index = 1; index <= ota_control_env.blockid-1; index++)
         {
             total_len += nv_record_combo_bin_get_datalen(index);
-            OTA_TRACE(0,"[COMBO]%x %x",total_len,index);
         }
-        OTA_TRACE(0,"[COMBO]region crc32 %x %x",total_len,ota_control_env.offsetOfImageOfCurrentSegment);
+        LOG_D("[COMBO]region crc32 %x %x",total_len,ota_control_env.offsetOfImageOfCurrentSegment);
         need_check_len = total_len - ota_control_env.offsetOfImageOfCurrentSegment;
         tmp = nv_record_combo_bin_get_datalen(ota_control_env.blockid-1) - need_check_len;
-        OTA_TRACE(0,"[COMBO] %x %x",nv_record_combo_bin_get_datalen(ota_control_env.blockid-1),(ota_control_env.blockid-1));
-        OTA_TRACE(0,"n:%x t:%x",need_check_len,tmp);
-        startFlashAddr = ota_control_env.lastdstFlashOffsetForNewImage - (ota_control_env.userInfo[i].startAddr&0xFFFFFF) + tmp;
-        OTA_TRACE(0,"[COMBO]start address %x %x",startFlashAddr,ota_control_env.lastdstFlashOffsetForNewImage);
-        crc32 = _combo_bin_common_crc32(startFlashAddr,need_check_len, 0);
-        app_flash_tz_ota_set_segment_crc(crc32);
+        LOG_D("n:%x t:%x",need_check_len,tmp);
+        startFlashAddr = OTA_FLASH_LOGIC_ADDR+ ota_control_env.lastdstFlashOffsetForNewImage + tmp;
+        LOG_D("[COMBO]start address %x %x",startFlashAddr,ota_control_env.lastdstFlashOffsetForNewImage);
+
+        ota_control_env.crc32OfSegment = _combo_bin_common_crc32(startFlashAddr,need_check_len,ota_control_env.crc32OfSegment);
+
+        need_check_len = ota_control_env.alreadyReceivedDataSizeOfImage - total_len;
+        startFlashAddr = OTA_FLASH_LOGIC_ADDR +\
+                         ota_control_env.dstFlashOffsetForNewImage;
+
+        ota_control_env.crc32OfSegment = _combo_bin_common_crc32(startFlashAddr,need_check_len,ota_control_env.crc32OfSegment);
+
+        LOG_D("[COMBO]region crc32 val %x",ota_control_env.crc32OfSegment);
     }
 }
-#endif
 
 void _combo_bin_calc_crc32(void)
 {
-    uint8_t index  = 0;
-    uint32_t startFlashAddr = 0;
-    uint32_t total_len = 0;
-    uint32_t tmp,need_check_len = 0;
-    uint8_t i = _get_user_index(ota_control_env.currentUser);
+    uint8_t  index = 0;
+    uint32_t offset = 0;
+    //LOG_D(1,"id %d %d",ota_control_env.blockid,ota_control_env.offsetOfImageOfCurrentSegment);
+    if(ota_control_env.offsetOfImageOfCurrentSegment == 0)
+    {
+        uint8_t tmp_buf[240] = {0x00};
+        uint16_t headerlen = (1+nv_record_combo_bin_get_content_num())*sizeof(uint32_t)*3;
+        uint32_t crc = nv_record_combo_bin_get_crc32();
+        memset(tmp_buf,0xFF,sizeof(tmp_buf)/sizeof(uint8_t));
+        memcpy(tmp_buf,(uint8_t*)(&crc),4);
+        ota_control_env.crc32OfSegment = crc32_c(ota_control_env.crc32OfSegment,(uint8_t*)nv_record_combo_bin_rec_get_ptr(),headerlen);
+        ota_control_env.crc32OfSegment = crc32_c(ota_control_env.crc32OfSegment,tmp_buf,(COMBO_BIN_HEADER_TOTAL_LEN - headerlen));
+        LOG_D("crc start %x", ota_control_env.crc32OfSegment);
+    }
 
     if (ota_control_env.is_crossregion)
     {
-        OTA_TRACE(0,"[COMBO]cross regional crc32 calcuate");
-        // get previous region data crc
+        LOG_D("crc start - region calcuate");
+        _combo_bin_cross_regional_crc32_c();
+        ota_control_env.is_crossregion = 0;
+    }
+    else
+    {
+        LOG_D("crc start - common calcuate");
         for(index = 1; index <= ota_control_env.blockid-1; index++)
         {
-            total_len += nv_record_combo_bin_get_datalen(index);
-            OTA_TRACE(0,"[COMBO]%x %x",total_len,index);
+            offset += nv_record_combo_bin_get_datalen(index);
         }
-        OTA_TRACE(0,"[COMBO]region crc32 %x %x",total_len,ota_control_env.offsetOfImageOfCurrentSegment);
-        need_check_len = total_len - ota_control_env.offsetOfImageOfCurrentSegment;
-        tmp = nv_record_combo_bin_get_datalen(ota_control_env.blockid-1) - need_check_len;
-        OTA_TRACE(0,"[COMBO] %x %x",nv_record_combo_bin_get_datalen(ota_control_env.blockid-1),(ota_control_env.blockid-1));
-        OTA_TRACE(0,"n:%x t:%x",need_check_len,tmp);
-        startFlashAddr = ota_control_env.lastdstFlashOffsetForNewImage - (ota_control_env.userInfo[i].startAddr&0xFFFFFF) + tmp;
-        OTA_TRACE(0,"[COMBO]start address %x %x",startFlashAddr,ota_control_env.lastdstFlashOffsetForNewImage);
-        ota_control_env.crc32OfSegment = _combo_bin_common_crc32(startFlashAddr,need_check_len,ota_control_env.crc32OfSegment);
-
-        // get current region data crc
-        need_check_len = ota_control_env.alreadyReceivedDataSizeOfImage - total_len;
-        startFlashAddr = ota_control_env.dstFlashOffsetForNewImage - (ota_control_env.userInfo[i].startAddr&0xFFFFFF);
-        #if defined(ARM_CMNS) && defined(OTA_TZ_ENABLE)
-        if(nv_record_combo_bin_get_fw_id(ota_control_env.blockid) == COMBO_TZ_SB)
-        {
-            ota_control_env.crc32OfSegment = app_flash_tz_ota_get_segment_crc();
-        }
-        else
-        #endif
-        {
-            ota_control_env.crc32OfSegment = _combo_bin_common_crc32(startFlashAddr,need_check_len,ota_control_env.crc32OfSegment);
-        }
-
-        OTA_TRACE(0,"[COMBO]region crc32 val %x",ota_control_env.crc32OfSegment);
-        ota_control_env.is_crossregion = false;
-    }
-    else
-    {
-        OTA_TRACE(0,"[COMBO]cross common crc32 calcuate");
-        startFlashAddr = ota_control_env.dstFlashOffsetForNewImage - 
-                        (ota_control_env.userInfo[i].startAddr&0xFFFFFF) + 
-                        ota_control_env.offsetInFlashOfCurrentSegment;
-        OTA_TRACE(0,"Calculate the crc32 of the segment, startAddr:0x%x, curSeg:0x%x",
-                startFlashAddr, ota_control_env.offsetInFlashOfCurrentSegment);
-        need_check_len = ota_control_env.alreadyReceivedDataSizeOfImage - ota_control_env.offsetOfImageOfCurrentSegment;
-        if (ota_control_env.offsetOfImageOfCurrentSegment == 0)
-        {
-            ota_control_env.crc32OfSegment = ota_control_env.crc32OfHeader;
-        }
-
-        #if defined(ARM_CMNS) && defined(OTA_TZ_ENABLE)
-        if(nv_record_combo_bin_get_fw_id(ota_control_env.blockid) == COMBO_TZ_SB)
-        {
-            ota_control_env.crc32OfSegment = app_flash_tz_ota_get_segment_crc();
-        }
-        else
-        #endif
-        {
-            ota_control_env.crc32OfSegment = _combo_bin_common_crc32(startFlashAddr,need_check_len,ota_control_env.crc32OfSegment);
-        }
-    }
-}
-
-void _combo_bin_erase_segment(uint32_t addr, uint32_t length)
-{
-    OTA_TRACE(0,"%s addr 0x%x length 0x%x", __func__, addr, length);
-
-    if(ota_control_env.offsetInFlashToProgram >= length)
-    {
-        OTA_TRACE(0,"erase start - common calcuate");
-    }
-    else
-    {
-        if (1 == ota_control_env.blockid)
-        {
-            return;
-        }
-
-        uint32_t total_len = 0;
-        OTA_TRACE(0,"erase start - region calcuate");
-        for(uint8_t index = 1; index <= ota_control_env.blockid-1; index++)
-        {
-            total_len += nv_record_combo_bin_get_datalen(index);
-        }
-
-        uint32_t need_check_len = total_len - ota_control_env.offsetOfImageOfCurrentSegment;
-        uint32_t offsetInFlashOfpreSegment = nv_record_combo_bin_get_datalen(ota_control_env.blockid-1) - need_check_len;
-        OTA_TRACE(0,"n:0x%x t:0x%x",need_check_len,offsetInFlashOfpreSegment);
-
-        //restore param
-        ota_control_env.blockid--;
-        ota_control_env.currentlengthlimit = total_len;
-        ota_control_env.dstFlashOffsetForNewImage = ota_control_env.lastdstFlashOffsetForNewImage;
-        ota_control_env.offsetInFlashOfCurrentSegment = offsetInFlashOfpreSegment;
+        _calcute_segment_crc32(offset);
     }
 }
 
@@ -3619,7 +3808,7 @@ uint8_t  _combo_bin_update_data_block(void)
     uint8_t index= 0;
     uint32_t num = nv_record_combo_bin_get_content_num();
     uint32_t id = 0;
-    OTA_TRACE(0,"block num %d",num);
+    LOG_D("block num %d",num);
     if (num > ota_control_env.blockid)
     {
         ota_control_env.blockid += 1;
@@ -3628,7 +3817,7 @@ uint8_t  _combo_bin_update_data_block(void)
         for(i = 1; i <= ota_control_env.blockid; i++)
         {
             ota_control_env.currentlengthlimit += nv_record_combo_bin_get_datalen(i);
-            //OTA_TRACE(1,"[OTA]current limit %d",ota_control_env.currentlengthlimit);
+            //LOG_D(1,"[OTA]current limit %d",ota_control_env.currentlengthlimit);
         }
         ota_control_env.lastdstFlashOffsetForNewImage = ota_control_env.dstFlashOffsetForNewImage;
         id = nv_record_combo_bin_get_fw_id(ota_control_env.blockid);
@@ -3637,7 +3826,7 @@ uint8_t  _combo_bin_update_data_block(void)
         status = ota_control_env.userInfo[index].process(COMBIN_SET_START_ADDRESS,NULL,&id);
         if(status)
         {
-            OTA_TRACE(0,"[OTA]exception!!");
+            LOG_D("[OTA]exception!!");
             _combo_bin_exception_disconnect();
             return  OTA_COMBO_PROCESS_FAILED;
         }
@@ -3650,13 +3839,12 @@ void _combo_bin_breakpoint_recovery(uint32_t breakpoint)
     uint8_t i = 0;
     uint8_t num = nv_record_combo_bin_get_content_num();
     uint32_t length = 0;
-    uint32_t offset = 0;
+    uint16_t offset = 0;
     bool is_update = false;
     bool is_find = false;
 
-    OTA_TRACE(0,"%s %d %d %d",__func__,num,breakpoint,ota_control_env.offsetInFlashOfCurrentSegment);
+    LOG_D("%s %d %d %d",__func__,num,breakpoint,ota_control_env.offsetInFlashOfCurrentSegment);
 
-    ota_control_env.is_started = true;
     for (i = 0; i < num; i++)
     {
         offset = length;
@@ -3667,22 +3855,12 @@ void _combo_bin_breakpoint_recovery(uint32_t breakpoint)
             is_find = true;
             ota_control_env.blockid = i+1;
             ota_control_env.currentlengthlimit = length;
+            ota_control_env.offsetInFlashToProgram -= offset;
 
             if(breakpoint == length)
             {
                 is_update = true;
             }
-            else
-            {
-                uint32_t id = nv_record_combo_bin_get_fw_id(ota_control_env.blockid);
-                uint8_t index = _get_user_index(BES_OTA_USER_COMBOFIRMWARE);
-                ota_control_env.userInfo[index].process(COMBIN_SET_START_ADDRESS,NULL,&id);
-                ota_control_env.offsetInFlashToProgram = breakpoint - offset;
-                ota_control_env.offsetInFlashOfCurrentSegment = ota_control_env.offsetInFlashToProgram;
-                OTA_TRACE(4, "%s offset %d id %d dst %x",
-                        __func__,ota_control_env.offsetInFlashToProgram, ota_control_env.blockid, ota_control_env.dstFlashOffsetForNewImage);
-            }
-            break;
         }
     }
 
@@ -3705,45 +3883,25 @@ void _combo_bin_package_handler(uint8_t *buf, bool isViaBle,uint16_t length)
     uint32_t leftDataSize = rawDataSize;
     uint32_t offsetInReceivedRawData = 0;
 
-    OTA_TRACE(0,"Received image data size %d %d %d",
+    LOG_D("Received image data size %d %d %d",
           rawDataSize,
           ota_control_env.currentlengthlimit,
           ota_control_env.resume_at_breakpoint);
 
     if(ota_control_env.resume_at_breakpoint)
     {
+        _combo_bin_breakpoint_recovery(ota_control_env.alreadyReceivedDataSizeOfImage);
         ota_control_env.resume_at_breakpoint = false;
     }
     else
     {
-        if (COMBO_BIN_HEADER_TOTAL_LEN < rawDataSize) {
-            status = _combo_bin_start_load(rawDataPtr,&rawDataSize);
-            if(OTA_COMBO_PROCESS_SUCCESS == status)
-            {
-                offset = nv_record_combo_bin_get_hearlen();
-                rawDataPtr = &buf[offset+1];
-                rawDataSize = rawDataSize-offset;
-            }
-        } else if(!ota_control_env.is_started){
-
-            if (0 == ota_control_env.alreadyReceivedDataSizeOfImage)
-            {
-                memcpy(&ota_control_env.dataBufferForBurning[ota_control_env.combinedSize],
-                    &rawDataPtr[offsetInReceivedRawData], rawDataSize);
-                ota_control_env.combinedSize += rawDataSize;
-            }
-            if (COMBO_BIN_HEADER_TOTAL_LEN < ota_control_env.combinedSize)
-            {
-                status = _combo_bin_start_load(ota_control_env.dataBufferForBurning, &ota_control_env.combinedSize);
-                if(OTA_COMBO_PROCESS_SUCCESS == status)
-                {
-                    offset = nv_record_combo_bin_get_hearlen();
-                    rawDataSize = ota_control_env.combinedSize-offset;
-                    rawDataPtr = &buf[length-rawDataSize];
-                }
-            }else{
-                return;
-            }
+        status = _combo_bin_start_load(rawDataPtr,&rawDataSize);
+        if(OTA_COMBO_PROCESS_SUCCESS == status)
+        {
+            offset = nv_record_combo_bin_get_hearlen();
+            rawDataPtr = &buf[offset+1];
+            rawDataSize -= offset;
+            status = 0;
         }
     }
 
@@ -3760,28 +3918,29 @@ void _combo_bin_package_handler(uint8_t *buf, bool isViaBle,uint16_t length)
         {
             bytesToCopy = leftDataSize;
         }
-        // OTA_TRACE(0,"byte cpy 1 %d %d %d %d",bytesToCopy,ota_control_env.alreadyReceivedDataSizeOfImage, ota_control_env.blockid, nv_record_combo_bin_get_content_num());
-        // OTA_TRACE(0,"curret buffer offset %d %d %d",offsetInReceivedRawData, ota_control_env.offsetInDataBufferForBurning,ota_control_env.currentlengthlimit);
+        //LOG_D("byte cpy 1 %d %d",bytesToCopy,ota_control_env.alreadyReceivedDataSizeOfImage);
+        //LOG_D("curret buffer offset %d %d",ota_control_env.offsetInDataBufferForBurning,ota_control_env.currentlengthlimit);
         if ((ota_control_env.alreadyReceivedDataSizeOfImage + bytesToCopy >= ota_control_env.currentlengthlimit)&&\
-            ota_control_env.blockid && (ota_control_env.blockid != nv_record_combo_bin_get_content_num()))
+            (ota_control_env.blockid != nv_record_combo_bin_get_content_num()))
         {
             bytesToCopy = ota_control_env.currentlengthlimit - ota_control_env.alreadyReceivedDataSizeOfImage;
             detech_cross_region = true;
-            ota_control_env.is_crossregion = true;
+            ota_control_env.is_crossregion = 1;
         }
 
         leftDataSize -= bytesToCopy;
-        // OTA_TRACE(0,"byte cpy %d,%d",bytesToCopy,offsetInReceivedRawData);
+        //LOG_D("byte cpy %d,%d",bytesToCopy,offsetInReceivedRawData);
         memcpy(&ota_control_env.dataBufferForBurning[ota_control_env.offsetInDataBufferForBurning],
                &rawDataPtr[offsetInReceivedRawData], bytesToCopy);
         offsetInReceivedRawData += bytesToCopy;
         ota_control_env.offsetInDataBufferForBurning += bytesToCopy;
         ota_control_env.alreadyReceivedDataSizeOfImage += bytesToCopy;
 
-        // OTA_TRACE(0,"offsetInDataBufferForBurning is %d %d",ota_control_env.offsetInDataBufferForBurning,offsetInReceivedRawData);
+        //LOG_D(1,"offsetInDataBufferForBurning is %d %d",ota_control_env.offsetInDataBufferForBurning,offsetInReceivedRawData);
         if (detech_cross_region)
         {
-            OTA_TRACE(0,"detech cross region");
+            LOG_D("detech cross region");
+
             detech_cross_region = false;
             ota_control_flush_data_to_flash(ota_control_env.dataBufferForBurning,
                                             ota_control_env.offsetInDataBufferForBurning,
@@ -3789,37 +3948,33 @@ void _combo_bin_package_handler(uint8_t *buf, bool isViaBle,uint16_t length)
             ota_control_env.offsetInFlashToProgram += ota_control_env.offsetInDataBufferForBurning;
             ota_control_env.offsetInDataBufferForBurning = 0;
             _combo_bin_update_data_block();
-            #if defined(ARM_CMNS) && defined(OTA_TZ_ENABLE)
-            if(nv_record_combo_bin_get_fw_id(ota_control_env.blockid) == COMBO_TZ_SB)
-            {
-                app_cmse_initial_crc_set();
-            }
-            #endif
+            //ASSERT(0,"YIHENG");
         }
         else if (OTA_DATA_BUFFER_SIZE_FOR_BURNING <= ota_control_env.offsetInDataBufferForBurning)
         {
-            OTA_TRACE(0,"Program the image to flash.");
+            LOG_D("Program the image to flash.");
 #if (IMAGE_RECV_FLASH_CHECK == 1)
             if ((ota_control_env.offsetInFlashToProgram > ota_control_env.totalImageSize) ||
                 (ota_control_env.totalImageSize > MAX_IMAGE_SIZE) ||
                 (ota_control_env.offsetInFlashToProgram & (MIN_SEG_ALIGN - 1)))
             {
-                OTA_TRACE(0,"ERROR: IMAGE_RECV_FLASH_CHECK");
-                OTA_TRACE(0,"ota_control_env(.offsetInFlashToProgram >= .totalImageSize)");
-                OTA_TRACE(0,"or (ota_control_env.totalImageSize > %d)", MAX_IMAGE_SIZE);
-                OTA_TRACE(0,"or .offsetInFlashToProgram isn't segment aligned");
-                OTA_TRACE(0,".offsetInFlashToProgram:0x%x  .dstFlashOffsetForNewImage:0x%x  .totalImageSize:%d",
+                LOG_D("ERROR: IMAGE_RECV_FLASH_CHECK");
+                LOG_D("ota_control_env(.offsetInFlashToProgram - .dstFlashOffsetForNewImage >= .totalImageSize)");
+                LOG_D("or (ota_control_env.totalImageSize > %d)", MAX_IMAGE_SIZE);
+                LOG_D("or .offsetInFlashToProgram isn't segment aligned");
+                LOG_D(".offsetInFlashToProgram:0x%x  .dstFlashOffsetForNewImage:0x%x  .totalImageSize:%d",
                       ota_control_env.offsetInFlashToProgram,
                       ota_control_env.dstFlashOffsetForNewImage,
                       ota_control_env.totalImageSize);
                 /// In order to reduce unnecessary erasures and retransmissions we don't imeediately destory the log
                 /// but reset ota, because a boundary check is performed before flashing and if there is really wrong
                 /// we'll catch when an image CRC32 check finally.
+                // ota_upgradeLog_destroy();
                 ota_control_send_result_response(OTA_RESULT_ERR_FLASH_OFFSET);
                 return;
             }
 #endif
-            //OTA_TRACE(0,"Program start address %x",ota_control_env.offsetInFlashToProgram);
+            //LOG_D(0,"Program start address %x",ota_control_env.offsetInFlashToProgram);
             ota_control_flush_data_to_flash(ota_control_env.dataBufferForBurning,
                                             OTA_DATA_BUFFER_SIZE_FOR_BURNING,
                                             ota_control_env.offsetInFlashToProgram);
@@ -3828,16 +3983,16 @@ void _combo_bin_package_handler(uint8_t *buf, bool isViaBle,uint16_t length)
         }
     } while (offsetInReceivedRawData < rawDataSize);
 
-    OTA_TRACE(0,"Image already received %d", ota_control_env.alreadyReceivedDataSizeOfImage);
+    LOG_D("Image already received %d", ota_control_env.alreadyReceivedDataSizeOfImage);
 
 #if (IMAGE_RECV_FLASH_CHECK == 1)
     if((ota_control_env.alreadyReceivedDataSizeOfImage > ota_control_env.totalImageSize) ||
         (ota_control_env.totalImageSize > MAX_IMAGE_SIZE))
     {
-        OTA_TRACE(0,"ERROR: IMAGE_RECV_FLASH_CHECK");
-        OTA_TRACE(0,"ota_control_env(.alreadyReceivedDataSizeOfImage > .totalImageSize)");
-        OTA_TRACE(0,"or (ota_control_env.totalImageSize > %d)", MAX_IMAGE_SIZE);
-        OTA_TRACE(0,".alreadyReceivedDataSizeOfImage:%d. totalImageSize:%d",
+        LOG_D("ERROR: IMAGE_RECV_FLASH_CHECK");
+        LOG_D("ota_control_env(.alreadyReceivedDataSizeOfImage > .totalImageSize)");
+        LOG_D("or (ota_control_env.totalImageSize > %d)", MAX_IMAGE_SIZE);
+        LOG_D(".alreadyReceivedDataSizeOfImage:%d. totalImageSize:%d",
               ota_control_env.alreadyReceivedDataSizeOfImage,
               ota_control_env.totalImageSize);
         /// In order to reduce unnecessary erasures and retransmissions we don't imeediately destory the log but reset
@@ -3859,9 +4014,10 @@ void _combo_bin_package_handler(uint8_t *buf, bool isViaBle,uint16_t length)
 
 void  ota_combo_bin_data_check_image_crc(void)
 {
-    bool ret = false;
+    bool ret = true;
+    bool soc_fw_is_exist = false;
     uint8_t num ,i ,index = 0;
-    uint32_t startaddr,crc32 = 0;
+    uint32_t startaddr,crc32 = WHOLE_CRC_DEFAULT_INITIAL_VALUE;
 
     if (BES_OTA_USER_COMBOFIRMWARE == ota_control_env.currentUser)
     {
@@ -3870,42 +4026,36 @@ void  ota_combo_bin_data_check_image_crc(void)
 
         index = _get_user_index(BES_OTA_USER_COMBOFIRMWARE);
 
-        //sanity crc check
-        for(i = 1; i <= num; i++)
+        for(i = 1; i <= num -1; i++)
         {
-            ota_control_env.userInfo[index].process(COMBIN_GET_START_ADDRESS,&i,&startaddr);
-            #if defined(ARM_CMNS) && defined(OTA_TZ_ENABLE)
-            if (nv_record_combo_bin_get_fw_id(i) == COMBO_TZ_SB)
-            {
-                crc32 = app_flash_tz_ota_get_whole_crc();
-            }
-            else
-            #endif
-            {
-                if (nv_record_combo_bin_get_fw_id(i) == COMBO_SOC_FW || nv_record_combo_bin_get_fw_id(i) == COMBO_TZ_NSB)
-                {
-                    ota_control_env.dstFlashOffsetForNewImage = startaddr&0xFFFFFF;
-                    app_update_magic_number_of_app_image(WHOLE_CRC_DEFAULT_INITIAL_VALUE);
-                }
-                crc32 = _combo_bin_common_crc32((startaddr-ota_control_env.userInfo[index].startAddr)&0xFFFFFF,\
-                                                nv_record_combo_bin_get_datalen(i),0);
-            }
+            ota_control_env.totalImageSize -= nv_record_combo_bin_get_datalen(i);
+        }
 
-            OTA_TRACE(0,"[%s] %x == %x? len:%x offset:%x",__func__, crc32, nv_record_combo_bin_get_id_crc32(i),
-                    nv_record_combo_bin_get_datalen(i), (startaddr-ota_control_env.userInfo[index].startAddr)&0xFFFFFF);
-            ret = (crc32==nv_record_combo_bin_get_id_crc32(i)) ? true : false;
-            if (!ret)
-            {
-                break;
-            }
+        //sanity crc check
+        if(nv_record_combo_bin_get_fw_id(num) == COMBO_SOC_FW)
+        {
+            ret = ota_check_image_data_sanity_crc();
+            soc_fw_is_exist = true;
+        }
 
-            if (nv_record_combo_bin_get_fw_id(i) == COMBO_SOC_FW || nv_record_combo_bin_get_fw_id(i) == COMBO_TZ_NSB)
+        if(ret)
+        {
+            for(i = 1; i <= num; i++)
             {
-                ota_control_env.crc32OfImage = crc32;
-                ota_control_env.totalImageSize = nv_record_combo_bin_get_datalen(i);
-                ota_control_env.dstFlashOffsetForNewImage = startaddr&0xFFFFFF;
-                app_update_magic_number_of_app_image(NORMAL_BOOT);
+               crc32 = ~crc32;
+               ota_control_env.userInfo[index].process(COMBIN_GET_START_ADDRESS,&i,&startaddr);
+               crc32 = _combo_bin_common_crc32(startaddr,nv_record_combo_bin_get_datalen(i),crc32);
             }
+        }
+
+        ret = (ret && (crc32 == nv_record_combo_bin_get_crc32()));
+        if(ret && soc_fw_is_exist)
+        {
+            ota_control_env.userInfo[index].process(COMBIN_GET_START_ADDRESS,&num,&startaddr);
+            LOG_D("soc info num %x, address %x",num,startaddr);
+            ota_control_env.crc32OfImage = _combo_bin_common_crc32(startaddr,ota_control_env.totalImageSize,0);
+            LOG_D("soc info crc %x, len %x",ota_control_env.crc32OfImage,ota_control_env.totalImageSize);
+            app_update_magic_number_of_app_image(NORMAL_BOOT);
         }
 
         ota_data_check_image_crc_handler(ret);
@@ -3922,5 +4072,17 @@ uint32_t ota_bin_breakpoint_update(uint32_t breakpoint)
     {
         return breakpoint;
     }
+}
+#endif
+
+#ifdef TOTA_CROSS_CHIP_OTA
+uint32_t get_tota_ota_current_recive_number(void)
+{
+    return ota_control_env.accumulateCurrentReciveNumber;
+}
+
+void updata_tota_ota_current_recive_number(uint32_t CurrentReciveNumber)
+{
+    ota_control_env.accumulateCurrentReciveNumber = CurrentReciveNumber;
 }
 #endif

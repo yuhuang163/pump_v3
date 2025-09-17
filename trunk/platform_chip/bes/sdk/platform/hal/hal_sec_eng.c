@@ -21,11 +21,20 @@
 #include "reg_sec_eng.h"
 #include "reg_dma.h"
 #include "cmsis_nvic.h"
+#ifdef RTOS
+#include "cmsis_os.h"
+#endif
 #include "hal_cmu.h"
 #include "hal_dma.h"
 #include "hal_timer.h"
 #include "hal_trace.h"
 #include "string.h"
+
+#ifdef SEC_ENG_DEBUG
+#define HAL_SEC_ENG_TRACE(n, s, ...)        TRACE(n, s , ##__VA_ARGS__)
+#else
+#define HAL_SEC_ENG_TRACE(n, s, ...)        TRACE_DUMMY(n, s, ##__VA_ARGS__)
+#endif
 
 #define SE_OPER_TIMEOUT                     MS_TO_TICKS(100)
 
@@ -110,6 +119,23 @@ enum SE_HASH_OP_T {
     SE_HASH_OP_FINAL,
 };
 
+enum SE_SP_ACCESS_MODE_T {
+    SE_SP_ACCESS_FIFO   = 0,
+    SE_SP_ACCESS_RANDOM,
+    SE_SP_ACCESS_CPU,
+    SE_SP_ACCESS_2W_REVERSE,
+};
+
+enum SE_ZMODP_CMD_STATUS_T {
+    SE_ZMODP_CMD_STATUS_NONE            = 0,
+    SE_ZMODP_CMD_STATUS_ZERORIZE_START  = (1 << 0),
+    SE_ZMODP_CMD_STATUS_CMD_START       = (1 << 1),
+    SE_ZMODP_CMD_STATUS_ZERORIZE_DONE   = (1 << 8),
+    SE_ZMODP_CMD_STATUS_CMD_DONE        = (1 << 9),
+
+    SE_ZMODP_CMD_STATUS_START_MASK      = SE_ZMODP_CMD_STATUS_ZERORIZE_START | SE_ZMODP_CMD_STATUS_CMD_START,
+};
+
 struct SE_HASH_INIT_CB_PARAM_T {
     const void *seg_ctx_buf;
     uint32_t seg_ctx_len;
@@ -125,8 +151,11 @@ static struct SE_ADEC_T * const se_adec = (struct SE_ADEC_T *)SE_ADEC_BASE;
 POSSIBLY_UNUSED static struct SE_ACB_T * const se_acb = (struct SE_ACB_T *)SE_ACB_BASE;
 static struct SE_DMACFG_T * const se_dmacfg = (struct SE_DMACFG_T *)SE_DMACFG_BASE;
 POSSIBLY_UNUSED static struct SE_CRYPT_T * const se_crypt = (struct SE_CRYPT_T *)SE_CRYPT_BASE;
+POSSIBLY_UNUSED static struct SE_ECP_T * const se_ecp = (struct SE_ECP_T *)SE_ECP_BASE;
 POSSIBLY_UNUSED static struct SE_HASH_T * const se_hash = (struct SE_HASH_T *)SE_HASH_BASE;
 POSSIBLY_UNUSED static struct SE_OTP_T * const se_otp = (struct SE_OTP_T *)SE_OTP_BASE;
+POSSIBLY_UNUSED static struct SE_ZMODP_T * const se_zmodp = (struct SE_ZMODP_T *)SE_ZMODP_BASE;
+POSSIBLY_UNUSED static struct SE_SCRATCH_T * const se_scratch = (struct SE_SCRATCH_T *)SE_SCRATCH_BASE;
 
 #ifndef SEC_ENG_ROM_ONLY
 static bool se_enabled;
@@ -251,7 +280,41 @@ static void sec_eng_irq_handler(void)
     }
 #endif
 
-    TR_INFO(0, "%s: all_int=0x%08X aes_int=0x%08X hash_int=%d", __func__, all_int, aes_int, hash_int);
+#if defined(SEC_ENG_HAS_ZMODP) && defined(SEC_ENG_ZMODP_CHECK_IRQ)
+    if (all_int & SE_ACC_INT_ZMODP) {
+        uint32_t zmodp_int = se_zmodp->ZMODP_INTRPT_SRC;
+
+        // Clear IRQs
+        se_zmodp->ZMODP_INTRPT_SRC = zmodp_int;
+        se_adec->ADEC_INT = SE_ACC_INT_ZMODP;
+
+        if (se_done_hdlr) {
+            if (zmodp_int & ZMODP_INTRPT_SRC_CMD_DONE) {
+                se_done_hdlr(NULL, 0, HAL_SE_DONE_OK);
+            }
+        }
+    }
+#endif
+
+#if defined(SEC_ENG_HAS_ECP) && defined(SEC_ENG_ECP_CHECK_IRQ)
+    if (all_int & SE_ACC_INT_ECP) {
+        uint32_t ecp_int = se_ecp->ECP_INTRPT;
+
+        // Clear IRQs
+        se_ecp->ECP_INTRPT = ecp_int;
+        se_adec->ADEC_INT = SE_ACC_INT_ECP;
+
+        if (se_done_hdlr) {
+            if (ecp_int & ECP_INTRPT_CMD_DONE_INT) {
+                se_done_hdlr(NULL, 0, HAL_SE_DONE_OK);
+            } else {
+                se_done_hdlr(NULL, ecp_int, HAL_SE_DONE_ERR_ECP);
+            }
+        }
+    }
+#endif
+
+    HAL_SEC_ENG_TRACE(0, "%s: all_int=0x%08X aes_int=0x%08X hash_int=%d", __func__, all_int, aes_int, hash_int);
 }
 
 static void sedma_irq_handler(void)
@@ -326,7 +389,7 @@ static void sedma_irq_handler(void)
                     if (se_cur_in_len < se_total_in_len) {
                         len = se_total_in_len - se_cur_in_len;
                         ctrl = se_dma->CH[hwch].CONTROL & ~DMA_CONTROL_TC_IRQ;
-                        se_cur_in_len += se_dma_init_tx_desc(se_in_addr + se_cur_in_len, len, se_dma->CH[hwch].DSTADDR, ctrl);
+                        se_cur_in_len += se_dma_init_tx_desc(se_in_addr + se_cur_in_len, len, ADDR_DEV_TO_CPU(se_dma->CH[hwch].DSTADDR), ctrl);
                         se_dma->CH[SE_DMA_TX_CHAN].CONFIG |= DMA_CONFIG_EN;
                     } else {
                         if (remains) {
@@ -337,7 +400,7 @@ static void sedma_irq_handler(void)
                     }
                 }
             }
-            TR_INFO(0, "%s: ch=%d tcint=%d errint=%d remains=%u", __func__, hwch, tcint, errint, remains);
+            HAL_SEC_ENG_TRACE(0, "%s: ch=%d tcint=%d errint=%d remains=%u", __func__, hwch, tcint, errint, remains);
         }
     }
 }
@@ -422,8 +485,8 @@ static uint32_t se_dma_init_rx_desc(uint32_t out, uint32_t out_len, uint32_t src
         ctrl |= DMA_CONTROL_TC_IRQ;
     }
     se_dma->CH[SE_DMA_RX_CHAN].CONTROL = ctrl;
-    se_dma->CH[SE_DMA_RX_CHAN].SRCADDR = src;
-    se_dma->CH[SE_DMA_RX_CHAN].DSTADDR = out;
+    se_dma->CH[SE_DMA_RX_CHAN].SRCADDR = ADDR_CPU_TO_DEV(src);
+    se_dma->CH[SE_DMA_RX_CHAN].DSTADDR = ADDR_CPU_TO_DEV(out);
 
     if (len >= out_len) {
         se_dma->CH[SE_DMA_RX_CHAN].LLI = 0;
@@ -489,6 +552,7 @@ static void se_dma_enable_rx(void *out, uint32_t out_len)
     se_dma->CH[SE_DMA_RX_CHAN].CONFIG  = DMA_CONFIG_SRCPERIPH(SE_DMA_PERIPH_RX) |
                                          DMA_CONFIG_TRANSFERTYPE(HAL_DMA_FLOW_P2M_DMA) |
                                          DMA_CONFIG_ERR_IRQMASK | DMA_CONFIG_TC_IRQMASK;
+    __DMB();
     se_dma->CH[SE_DMA_RX_CHAN].CONFIG |= DMA_CONFIG_EN;
 }
 
@@ -505,8 +569,8 @@ static uint32_t se_dma_init_tx_desc(uint32_t in, uint32_t in_len, uint32_t dst, 
     }
     ctrl = SET_BITFIELD(ctrl, DMA_CONTROL_TRANSFERSIZE, len);
     se_dma->CH[SE_DMA_TX_CHAN].CONTROL = ctrl;
-    se_dma->CH[SE_DMA_TX_CHAN].SRCADDR = in;
-    se_dma->CH[SE_DMA_TX_CHAN].DSTADDR = dst;
+    se_dma->CH[SE_DMA_TX_CHAN].SRCADDR = ADDR_CPU_TO_DEV(in);
+    se_dma->CH[SE_DMA_TX_CHAN].DSTADDR = ADDR_CPU_TO_DEV(dst);
 
     if (len >= in_len) {
         se_dma->CH[SE_DMA_TX_CHAN].LLI = 0;
@@ -569,6 +633,7 @@ static void se_dma_enable_tx(const void *in, uint32_t in_len)
     se_dma->CH[SE_DMA_TX_CHAN].CONFIG  = DMA_CONFIG_DSTPERIPH(SE_DMA_PERIPH_TX) |
                                          DMA_CONFIG_TRANSFERTYPE(HAL_DMA_FLOW_M2P_DMA) |
                                          DMA_CONFIG_ERR_IRQMASK | DMA_CONFIG_TC_IRQMASK;
+    __DMB();
     se_dma->CH[SE_DMA_TX_CHAN].CONFIG |= DMA_CONFIG_EN;
 }
 #endif
@@ -594,11 +659,12 @@ POSSIBLY_UNUSED static uint32_t se_dma_enable_tx_no_irq(const void *in, uint32_t
            DMA_CONTROL_SI;
 
     se_dma->CH[SE_DMA_TX_CHAN].CONTROL = ctrl;
-    se_dma->CH[SE_DMA_TX_CHAN].SRCADDR = (uint32_t)in;
-    se_dma->CH[SE_DMA_TX_CHAN].DSTADDR = (uint32_t)&se_dmacfg->DMA_TXFIFO;
+    se_dma->CH[SE_DMA_TX_CHAN].SRCADDR = (uint32_t)ADDR_CPU_TO_DEV(in);
+    se_dma->CH[SE_DMA_TX_CHAN].DSTADDR = (uint32_t)ADDR_CPU_TO_DEV(&se_dmacfg->DMA_TXFIFO);
 
     se_dma->CH[SE_DMA_TX_CHAN].CONFIG  = DMA_CONFIG_DSTPERIPH(SE_DMA_PERIPH_TX) |
                                          DMA_CONFIG_TRANSFERTYPE(HAL_DMA_FLOW_M2P_DMA);
+    __DMB();
     se_dma->CH[SE_DMA_TX_CHAN].CONFIG |= DMA_CONFIG_EN;
 
     return len;
@@ -1075,6 +1141,12 @@ static enum HAL_SE_RET_T se_hash_prepare_start_cmd(const struct HAL_SE_HASH_CFG_
 static void se_hash_set_start_cmd(const struct HAL_SE_HASH_CFG_T *cfg, enum SE_HASH_OP_T op, uint64_t in_len)
 {
     uint32_t val;
+
+    se_acb->ACB_CTRL |= ACB_CTRL_RD_CB_CTRL;
+
+    se_hash->HASH_STATUS = ~0UL;
+    se_adec->ADEC_INT = SE_ACC_INT_HASH;
+    se_adec->ADEC_INT_MSK &= ~SE_ACC_INT_HASH;
 
     val = se_hash->HASH_CTRL;
     val = SET_BITFIELD(val, HASH_CTRL_HASH_OP_MODE, op);
@@ -1647,6 +1719,605 @@ enum HAL_SE_RET_T hal_se_hmac_reset(void) __attribute__((alias("hal_se_hash_rese
 #endif // !SEC_ENG_ROM_ONLY
 
 #endif // SEC_ENG_HAS_HASH
+
+#if defined(SEC_ENG_HAS_ZMODP) && !defined(SEC_ENG_ROM_ONLY)
+
+#define ZMODP_X_REG                         (&se_zmodp->ZMODP_MEM[0])
+#define ZMODP_X1_REG                        (&se_zmodp->ZMODP_MEM[0x40])
+#define ZMODP_EXP_REG                       (&se_zmodp->ZMODP_MEM[0x80])
+#define ZMODP_M_REG                         (&se_zmodp->ZMODP_MEM[0xC0])
+#define ZMODP_Y_REG                         (&se_zmodp->ZMODP_MEM[0xC1])
+#define ZMODP_Z_REG                         (&se_zmodp->ZMODP_MEM[0xC2])
+
+static volatile int zmodp_cmd_status;
+static int zmodp_secure_mode;
+
+static void se_zmodp_reset(void)
+{
+    se_zmodp->ZMODP_CTRL = ZMODP_CTRL_RESET;
+    se_zmodp->ZMODP_CTRL = 0;
+}
+
+static void se_zmodp_write_X(uint32_t buf[], int len)
+{
+    int i;
+    for (i = 0; i < len; i++)
+        ZMODP_X_REG[i] = buf[i];
+}
+
+static void se_zmodp_write_X1(uint32_t buf[], int len)
+{
+    int i;
+    for (i = 0; i < len; i++)
+        ZMODP_X1_REG[i] = buf[i];
+}
+
+static void se_zmodp_write_EXP(uint32_t buf[], int len)
+{
+    int i;
+    for (i = 0; i < len; i++)
+        ZMODP_EXP_REG[i] = buf[i];
+}
+
+static void se_zmodp_write_M(uint32_t buf[], int len)
+{
+    int i;
+    for (i = 0; i < len; i++)
+        ZMODP_M_REG[0] = buf[i];
+}
+
+static void se_zmodp_write_Y(uint32_t buf[], int len)
+{
+    int i;
+    for (i = 0; i < len; i++)
+        ZMODP_Y_REG[0] = buf[i];
+}
+
+static void se_zmodp_read_Z(uint32_t buf[], int len)
+{
+    int i;
+    for (i = 0; i < len; i++) {
+        buf[i] = ZMODP_Z_REG[0];
+    }
+}
+
+/* op_mode:
+ *   000: Montgomery Multiplication
+ *   001: Modular Multiplication
+ *   010: Modular Exponentiation
+ *   011: Modular Inverse
+ *   1xx: Pre-Computation of R
+ */
+static int se_zmodp_setup_configure(int num_coefs, int mod_size, int op_mode)
+{
+    unsigned int reg = 0;
+    int numsz_bit = 0;
+    int modsz_bit = 0;
+
+    numsz_bit = (num_coefs + 31) / 32;
+
+    switch (mod_size) {
+    case 128:
+        modsz_bit = 0x0;
+        break;
+    case 256:
+        modsz_bit = 0x1;
+        break;
+    case 512:
+        modsz_bit = 0x2;
+        break;
+    case 1024:
+        modsz_bit = 0x3;
+        break;
+    case 2048:
+        modsz_bit = 0x4;
+        break;
+    default:
+        return -1;
+    }
+
+    reg = ZMODP_CFG_NUM_COEFS(numsz_bit) | ZMODP_CFG_MOD_SIZE(modsz_bit) | ZMODP_CFG_OP_MODE(op_mode);
+    if (zmodp_secure_mode) {
+        // Counter against simple powering analysis (SPA)
+        reg |= ZMODP_CFG_CODE_MODE;
+    }
+
+    se_zmodp->ZMODP_CFG = reg;
+
+    return 0;
+}
+
+static int se_zmodp_busy(void)
+{
+    return !!(se_zmodp->ZMODP_STATUS & ZMODP_STATUS_BUSY);
+}
+
+static int se_zmodp_wait_cmd_done(void)
+{
+    uint32_t time;
+    uint32_t timeout = MS_TO_TICKS(200);
+
+    time = hal_sys_timer_get();
+
+    if ((zmodp_cmd_status & SE_ZMODP_CMD_STATUS_START_MASK) == SE_ZMODP_CMD_STATUS_CMD_START) {
+        uint32_t cfg = se_zmodp->ZMODP_CFG;
+        if (GET_BITFIELD(cfg, ZMODP_CFG_OP_MODE) == 3) {
+            // Modular Inverse
+            uint32_t size = GET_BITFIELD(cfg, ZMODP_CFG_MOD_SIZE);
+            if (size == 3) {
+                // 1024 bits: 210 ms on 24M clock
+                timeout = MS_TO_TICKS(400);
+            } else if (size >= 4) {
+                // 2048 bits: 800 ms on 24M clock
+                timeout = MS_TO_TICKS(1200);
+            }
+        }
+    }
+
+    do {
+        if (hal_sys_timer_get() - time >= timeout) {
+            TR_INFO(0, "se_zmodp_wait_cmd_done timeout: cmdSR=0x%X opMode=%u",
+                zmodp_cmd_status, GET_BITFIELD(se_zmodp->ZMODP_CFG, ZMODP_CFG_OP_MODE));
+            return -1;
+        }
+#ifdef SEC_ENG_ZMODP_CHECK_IRQ
+        if (zmodp_cmd_status & SE_ZMODP_CMD_STATUS_CMD_DONE) {
+            break;
+        }
+        if (zmodp_cmd_status & SE_ZMODP_CMD_STATUS_ZERORIZE_DONE) {
+            break;
+        }
+        if (se_zmodp_busy()) {
+            TR_INFO(0, "se_zmodp_wait_cmd_done error!");
+        }
+#else
+        if (!se_zmodp_busy()) {
+            break;
+        }
+#endif
+        osDelay(1);
+    } while (1);
+
+    zmodp_cmd_status = SE_ZMODP_CMD_STATUS_NONE;
+    return 0;
+}
+
+static void se_zmodp_cmd_clear()
+{
+    se_zmodp->ZMODP_CMD = ZMODP_CMD_ZERORIZE_START; /* clear zmodp memory */
+    zmodp_cmd_status = SE_ZMODP_CMD_STATUS_ZERORIZE_START;
+    se_zmodp_wait_cmd_done();
+}
+
+static void se_zmodp_cmd_start()
+{
+    se_zmodp->ZMODP_CMD = ZMODP_CMD_GEN_START; /* start zmodp command */
+    zmodp_cmd_status = SE_ZMODP_CMD_STATUS_CMD_START;
+}
+
+#ifdef SEC_ENG_ZMODP_CHECK_IRQ
+static void se_zmodp_cmd_done_isr(void *buf, uint32_t len, enum HAL_SE_DONE_ERR_T err)
+{
+    uint32_t start_cmd;
+
+    start_cmd = zmodp_cmd_status & SE_ZMODP_CMD_STATUS_START_MASK;
+    /*
+     *  If zmodp is in wrong stat, should clear it bit first.
+     *  And don't forget to set this bit again after clear int.
+     *  Or we can't receive irq from zmodp again.
+     */
+    if (start_cmd == SE_ZMODP_CMD_STATUS_CMD_START) {
+        zmodp_cmd_status |= SE_ZMODP_CMD_STATUS_CMD_DONE;
+    } else if (start_cmd == SE_ZMODP_CMD_STATUS_ZERORIZE_START) {
+        zmodp_cmd_status |= SE_ZMODP_CMD_STATUS_ZERORIZE_DONE;
+    } else {
+        TR_INFO(0, "Error ISR, NO CMD!\r\n");
+    }
+}
+#endif
+
+/*
+ * Montgomery Multiplication
+ * Z = X * Y * 2^(-n) mod M
+ */
+enum HAL_SE_RET_T hal_se_zmodp_montgomery_mul(uint32_t M[], uint32_t X[],
+                  uint32_t Y[], uint32_t Z[],
+                  uint32_t num_coefs, uint32_t mod_size)
+{
+    se_zmodp_cmd_clear();
+    se_zmodp_setup_configure(num_coefs, mod_size, 0x0);
+    se_zmodp_write_M(M, mod_size / 32);
+    se_zmodp_write_X(X, num_coefs / 32);
+    se_zmodp_write_Y(Y, num_coefs / 32);
+    se_zmodp_cmd_start();
+    if (se_zmodp_wait_cmd_done() != 0) {
+        se_zmodp_reset();
+        return HAL_SE_ERR;
+    }
+    se_zmodp_read_Z(Z, mod_size / 32);
+
+    return HAL_SE_OK;
+}
+
+/*
+ * Modular Multiplication
+ * Given M, X, Y and r = 2^(2n) mod M: Z = X * Y mod M
+ */
+enum HAL_SE_RET_T hal_se_zmodp_modular_mul(uint32_t M[], uint32_t X[],
+               uint32_t Y[], uint32_t X1[],
+               uint32_t Z[], uint32_t num_coefs, uint32_t mod_size)
+{
+    se_zmodp_cmd_clear();
+    se_zmodp_setup_configure(num_coefs, mod_size, 0x1);
+    se_zmodp_write_M(M, mod_size / 32);
+    se_zmodp_write_X(X, num_coefs / 32);
+    se_zmodp_write_Y(Y, num_coefs / 32);
+    se_zmodp_write_X1(X1, mod_size / 32);
+    se_zmodp_cmd_start();
+    if (se_zmodp_wait_cmd_done() != 0) {
+        se_zmodp_reset();
+        return HAL_SE_ERR;
+    }
+    se_zmodp_read_Z(Z, mod_size / 32);
+
+    return HAL_SE_OK;
+}
+
+/*
+ * Modular Exponentiation
+ * Given M, X, r = 2^(2n) mod M and EXP. compute Z = X^(EXP) mod M
+ */
+enum HAL_SE_RET_T hal_se_zmodp_modular_exp(uint32_t M[], uint32_t X[],
+               uint32_t Y[], uint32_t EXP[],
+               uint32_t Z[], uint32_t num_coefs, uint32_t mod_size)
+{
+    /*
+    * modular exp can only pass on first time running.
+    * unless do zmodp_reset before modular exp.
+    */
+    se_zmodp_reset();
+    se_zmodp_cmd_clear();
+    se_zmodp_setup_configure(num_coefs, mod_size, 0x2);
+    se_zmodp_write_M(M, mod_size / 32);
+    se_zmodp_write_X(X, num_coefs / 32);
+    se_zmodp_write_Y(Y, num_coefs / 32);
+    se_zmodp_write_EXP(EXP, 32 / 32);
+    se_zmodp_cmd_start();
+    if (se_zmodp_wait_cmd_done() != 0) {
+        se_zmodp_reset();
+        return HAL_SE_ERR;
+    }
+    se_zmodp_read_Z(Z, mod_size / 32);
+
+    return HAL_SE_OK;
+}
+
+/*
+ * Modular Inverse
+ * Given M, X and  r = 2^(2n) mod M. compute Z = X^(-1) mod M
+ */
+enum HAL_SE_RET_T hal_se_zmodp_modular_inv(uint32_t M[], uint32_t X[],
+               uint32_t Y[], uint32_t Z[],
+               uint32_t num_coefs, uint32_t mod_size)
+{
+    se_zmodp_cmd_clear();
+    se_zmodp_setup_configure(num_coefs, mod_size, 0x3);
+    se_zmodp_write_M(M, mod_size / 32);
+    se_zmodp_write_X(X, num_coefs / 32);
+    se_zmodp_write_Y(Y, num_coefs / 32);
+    se_zmodp_cmd_start();
+    if (se_zmodp_wait_cmd_done() != 0) {
+        se_zmodp_reset();
+        return HAL_SE_ERR;
+    }
+    se_zmodp_read_Z(Z, mod_size / 32);
+
+    return HAL_SE_OK;
+}
+
+/*
+ * Pre-computation of R (=2^(2n))
+ * Given M, compute Z = 2^(2n) mod M
+ */
+enum HAL_SE_RET_T hal_se_zmodp_pre_comput(uint32_t M[], uint32_t Z[],
+              uint32_t num_coefs, uint32_t mod_size)
+{
+    se_zmodp_cmd_clear();
+    se_zmodp_setup_configure(mod_size, mod_size, 0x4);
+    se_zmodp_write_M(M, mod_size / 32);
+    se_zmodp_cmd_start();
+    if (se_zmodp_wait_cmd_done() != 0) {
+        se_zmodp_reset();
+        return HAL_SE_ERR;
+    }
+    se_zmodp_read_Z(Z, mod_size / 32);
+
+    return HAL_SE_OK;
+}
+
+enum HAL_SE_RET_T hal_se_zmodp_init(int secure_mode)
+{
+    if (!se_enabled) {
+        return HAL_SE_NOT_OPENED;
+    }
+
+    se_adec->ADEC_CTRL |= ADEC_CTRL_CLK_EN_15_0(SE_ACC_CLK_SCRATCH | SE_ACC_CLK_ZMODP) |
+        ADEC_CTRL_RST_15_0(SE_ACC_RST_SCRATCH | SE_ACC_RST_ZMODP);
+    se_adec->ADEC_CTRL &= ~ADEC_CTRL_RST_15_0(SE_ACC_RST_SCRATCH | SE_ACC_RST_ZMODP);
+
+    /* reset */
+    se_zmodp_reset();
+
+    /* clear zmodp cmd done int */
+    se_zmodp->ZMODP_INTRPT_SRC_EN = 0;
+    se_zmodp->ZMODP_INTRPT_SRC = ZMODP_INTRPT_SRC_CMD_DONE;
+    se_adec->ADEC_INT = SE_ACC_INT_ZMODP;
+
+    /* bus ctrl */
+    se_acb->ACB_CTRL = (se_acb->ACB_CTRL &
+        ~(ACB_CTRL_GROUPA_SELECT_MASK | ACB_CTRL_GROUPB_SELECT_MASK | ACB_CTRL_WR_CB_CTRL | ACB_CTRL_RD_CB_CTRL)) |
+        ACB_CTRL_GROUPA_SELECT(6) | ACB_CTRL_GROUPB_SELECT(2);
+
+    se_scratch->SP_CTRL = SP_CTRL_SP_ACCESS_SELECT(SE_SP_ACCESS_RANDOM);
+
+    zmodp_cmd_status = SE_ZMODP_CMD_STATUS_NONE;
+    zmodp_secure_mode = secure_mode;
+
+#ifdef SEC_ENG_ZMODP_CHECK_IRQ
+    se_adec->ADEC_INT_MSK &= ~SE_ACC_INT_ZMODP;
+    se_zmodp->ZMODP_INTRPT_SRC_EN = ZMODP_INTRPT_SRC_EN_DONE;
+
+    se_done_hdlr = se_zmodp_cmd_done_isr;
+#else
+    se_done_hdlr = NULL;
+#endif
+
+    return HAL_SE_OK;
+}
+#endif // SEC_ENG_HAS_ZMODP && !SEC_ENG_ROM_ONLY
+
+#if defined(SEC_ENG_HAS_ECP) && !defined(SEC_ENG_ROM_ONLY)
+
+#define ECP_A_REG                           (&se_ecp->ECP_SRAM[0])
+#define ECP_B_REG                           (&se_ecp->ECP_SRAM[0x11])
+#define ECP_X1_REG                          (&se_ecp->ECP_SRAM[0x22])
+#define ECP_Y1_REG                          (&se_ecp->ECP_SRAM[0x33])
+#define ECP_X2_REG                          (&se_ecp->ECP_SRAM[0x44])
+#define ECP_Y2_REG                          (&se_ecp->ECP_SRAM[0x55])
+#define ECP_RX_REG                          (&se_ecp->ECP_SRAM[0x66])
+#define ECP_RY_REG                          (&se_ecp->ECP_SRAM[0x77])
+
+static void se_ecp_write_A(uint32_t buf[], int len)
+{
+    int i;
+    for (i = 0; i < len; i++)
+        ECP_A_REG[i] = buf[i];
+}
+
+static void se_ecp_write_B(uint32_t buf[], int len)
+{
+    int i;
+    for (i = 0; i < len; i++)
+        ECP_B_REG[i] = buf[i];
+}
+
+static void se_ecp_write_X1(uint32_t buf[], int len)
+{
+    int i;
+    for (i = 0; i < len; i++)
+        ECP_X1_REG[i] = buf[i];
+}
+
+static void se_ecp_write_Y1(uint32_t buf[], int len)
+{
+    int i;
+    for (i = 0; i < len; i++)
+        ECP_Y1_REG[i] = buf[i];
+}
+
+static void se_ecp_write_X2(uint32_t buf[], int len)
+{
+    int i;
+    for (i = 0; i < len; i++)
+        ECP_X2_REG[i] = buf[i];
+}
+
+static void se_ecp_write_Y2(uint32_t buf[], int len)
+{
+    int i;
+    for (i = 0; i < len; i++)
+        ECP_Y2_REG[i] = buf[i];
+}
+
+static void se_ecp_read_RX(uint32_t buf[], int len)
+{
+    int i;
+    for (i = 0; i < len; i++) {
+        buf[i] = ECP_RX_REG[i];
+    }
+}
+
+static void se_ecp_read_RY(uint32_t buf[], int len)
+{
+    int i;
+    for (i = 0; i < len; i++) {
+        buf[i] = ECP_RY_REG[i];
+    }
+}
+
+static void se_ecp_reset(void)
+{
+    se_ecp->ECP_CTRL = ECP_CTRL_RESET;
+    se_ecp->ECP_CTRL = 0;
+}
+
+static int se_ecp_busy(void)
+{
+    return !!(se_ecp->ECP_STATUS & ECP_STATUS_BUSY);
+}
+
+static int se_ecp_wait_cmd_done(void)
+{
+    uint32_t time;
+    uint32_t timeout = MS_TO_TICKS(200);
+
+    time = hal_sys_timer_get();
+
+    do {
+        if (hal_sys_timer_get() - time >= timeout) {
+            TR_INFO(0, "se_ecp_wait_cmd_done timeout: type=%u op=%u",
+                GET_BITFIELD(se_ecp->ECP_CFG, ECP_CFG_PFIELD_SEL),
+                GET_BITFIELD(se_ecp->ECP_CFG, ECP_CFG_OP_MODE));
+            return -1;
+        }
+        if (!se_ecp_busy()) {
+            if (se_ecp->ECP_INTRPT & ECP_INTRPT_CMD_DONE_INT) {
+                break;
+            }
+            TR_INFO(0, "se_ecp_wait_cmd_done error: type=%u op=%u status=0x%X",
+                GET_BITFIELD(se_ecp->ECP_CFG, ECP_CFG_PFIELD_SEL),
+                GET_BITFIELD(se_ecp->ECP_CFG, ECP_CFG_OP_MODE),
+                se_ecp->ECP_INTRPT);
+            return -2;
+        }
+        osDelay(1);
+    } while (1);
+
+    return 0;
+}
+
+static void se_ecp_setup(enum HAL_SE_ECP_TYPE_T type, enum HAL_SE_ECP_OP_MODE_T op)
+{
+    se_ecp->ECP_CFG = ECP_CFG_PFIELD_SEL(type) | ECP_CFG_OP_MODE(op);
+}
+
+static void se_ecp_isr_clear(void)
+{
+    se_ecp->ECP_INTRPT = ~0UL;
+    se_adec->ADEC_INT = SE_ACC_INT_ECP;
+}
+
+static void se_ecp_cmd_start(void)
+{
+    se_ecp_isr_clear();
+    se_ecp->ECP_CMD = ECP_CMD_CMD_START;
+}
+
+static void se_ecp_cmd_clear(void)
+{
+    se_ecp_setup(HAL_SE_ECP_P521, HAL_SE_ECP_OP_ZERO);
+    se_ecp_cmd_start();
+    se_ecp_wait_cmd_done();
+}
+
+#ifdef SEC_ENG_ECP_CHECK_IRQ
+static void se_ecp_cmd_done_isr(void *buf, uint32_t len, enum HAL_SE_DONE_ERR_T err)
+{
+    if (err == HAL_SE_DONE_OK) {
+        TR_INFO(0, "se_ecp_cmd_done_isr: OK");
+        return;
+    }
+
+    TR_INFO(0, "se_ecp_cmd_done_isr:ERROR: status=0x%X", len);
+}
+#endif
+
+enum HAL_SE_RET_T hal_se_ecp_calc(enum HAL_SE_ECP_TYPE_T type,
+                                  enum HAL_SE_ECP_OP_MODE_T op,
+                                  const struct HAL_SE_ECP_POINT_T *ab,
+                                  const struct HAL_SE_ECP_POINT_T *xy1,
+                                  const struct HAL_SE_ECP_POINT_T *xy2,
+                                  struct HAL_SE_ECP_POINT_T *r)
+{
+    uint32_t nwords;
+
+    if (type >= HAL_SE_ECP_TYPE_QTY) {
+        return HAL_SE_BAD_ECP_TYPE;
+    }
+    if (op >= HAL_SE_ECP_OP_QTY) {
+        return HAL_SE_BAD_OP;
+    }
+    if (ab == NULL || xy1 == NULL || r == NULL) {
+        return HAL_SE_BAD_ECP_POINT;
+    }
+    if (op != HAL_SE_ECP_OP_DBL && xy2 == NULL) {
+        return HAL_SE_BAD_ECP_POINT;
+    }
+
+    if (type == HAL_SE_ECP_P224) {
+        nwords = 7;
+    } else if (type == HAL_SE_ECP_P256) {
+        nwords = 8;
+    } else if (type == HAL_SE_ECP_P384) {
+        nwords = 12;
+    } else {
+        // P521
+        nwords = 17;
+    }
+
+    se_ecp_cmd_clear();
+
+    se_ecp_setup(type, op);
+    se_ecp_write_A(ab->x, nwords);
+    se_ecp_write_B(ab->y, nwords);
+    se_ecp_write_X1(xy1->x, nwords);
+    se_ecp_write_Y1(xy1->y, nwords);
+    if (op != HAL_SE_ECP_OP_DBL) {
+        se_ecp_write_X2(xy2->x, nwords);
+        se_ecp_write_Y2(xy2->y, nwords);
+    }
+
+    se_ecp_cmd_start();
+    if (se_ecp_wait_cmd_done() != 0) {
+        se_ecp_reset();
+        return HAL_SE_ERR;
+    }
+
+    se_ecp_read_RX(r->x, nwords);
+    se_ecp_read_RY(r->y, nwords);
+
+    return HAL_SE_OK;
+}
+
+enum HAL_SE_RET_T hal_se_ecp_init(void)
+{
+    if (!se_enabled) {
+        return HAL_SE_NOT_OPENED;
+    }
+
+    se_adec->ADEC_CTRL |= ADEC_CTRL_CLK_EN_15_0(SE_ACC_CLK_SCRATCH | SE_ACC_CLK_ECP) |
+        ADEC_CTRL_RST_15_0(SE_ACC_RST_SCRATCH | SE_ACC_RST_ECP);
+    se_adec->ADEC_CTRL &= ~ADEC_CTRL_RST_15_0(SE_ACC_RST_SCRATCH | SE_ACC_RST_ECP);
+
+    /* reset */
+    se_ecp_reset();
+
+    /* clear ecp int */
+    se_ecp_isr_clear();
+
+    /* bus ctrl */
+    se_acb->ACB_CTRL = (se_acb->ACB_CTRL &
+        ~(ACB_CTRL_GROUPA_SELECT_MASK | ACB_CTRL_GROUPB_SELECT_MASK | ACB_CTRL_WR_CB_CTRL | ACB_CTRL_RD_CB_CTRL)) |
+        ACB_CTRL_GROUPA_SELECT(5) | ACB_CTRL_GROUPB_SELECT(2);
+
+    se_scratch->SP_CTRL = SP_CTRL_SP_ACCESS_SELECT(SE_SP_ACCESS_RANDOM);
+
+#ifdef SEC_ENG_ECP_CHECK_IRQ
+    se_adec->ADEC_INT_MSK &= ~SE_ACC_INT_ECP;
+    se_ecp->ECP_INTRPT_MASK = ~(ECP_INTRPT_MASK_CAL_ZERO_INV |
+        ECP_INTRPT_MASK_ZERO_OUTPUT |
+        ECP_INTRPT_MASK_ZERO_KEY |
+        ECP_INTRPT_MASK_INVALID_MODE |
+        ECP_INTRPT_MASK_CMD_DONE_INT);
+
+    se_done_hdlr = se_ecp_cmd_done_isr;
+#else
+    se_done_hdlr = NULL;
+#endif
+
+    return HAL_SE_OK;
+}
+#endif // SEC_ENG_HAS_ECP && !SEC_ENG_ROM_ONLY
 
 #endif // SEC_ENG_BASE
 

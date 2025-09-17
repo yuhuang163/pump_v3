@@ -19,102 +19,88 @@
 extern "C" {
 #endif
 
+#include "plat_types.h"
 #include "stdio.h"
 #include "stdarg.h"
 
-// #define LITE_VERSION
+// Binary frame format:
+// <Magic> <FrameType> <FrameLenLowByte> <FrameLenHighByte> <FrameData> ...
+// Magic    : 0xB7
+// FrameType: e.g, 0xA5 for trace
+// FrameLen : 16-bit frame length including 2 bytes of this frame len field
+// FrameData: Content of frame
 
-#ifdef LITE_VERSION
-#define USE_ID_1_AS_CRC
-//#define USE_ID_2_AS_CRC
-#define ID1_CRC             0x15
+#define TRACE_BIN_MAGIC                     0xB7
+#define TRACE_ID_MAGIC                      ((0xA5 << 8) | TRACE_BIN_MAGIC)
 
-typedef struct {
-    unsigned int crc:5;     //5 bit crc
-    unsigned int count:4;   //16 param list
-    unsigned int tskid:5;   //32 taskid
-    unsigned int addr:18;   //256 KB trace space support
-}trace_info_t;
+#define TRACE_ID_MAX_ARG_NUM                15
 
-typedef struct {
-    unsigned int id:8;
-    unsigned int timestamp:24; // 4 hours support
-}trace_head_t;
+// TAG
+#define TAG_VAL_TWS_LR_SHIFT                (0)
+#define TAG_VAL_TWS_LR_MASK                 (0x03<<TAG_VAL_TWS_LR_SHIFT)   //2 bit ,L,R,N
+#define TAG_VAL_TWS_LR(n)                   (((n) & 0x03) << 0)
+#define TAG_VAL_TWS_TWS_N                   0
+#define TAG_VAL_TWS_TWS_R                   1
+#define TAG_VAL_TWS_TWS_L                   2
 
-#else
-//define USE_ID_1_AS_CRC
-#define USE_ID_2_AS_CRC
-//define USE_CRC_CHECK
-#define ID2_CRC             0xA5BE
+#define TAG_VAL_TWS_ROLE_SHIFT              (2)
+#define TAG_VAL_TWS_ROLE_MASK               (0x03<<TAG_VAL_TWS_ROLE_SHIFT) //2 bit ,M,S,U,F
+#define TAG_VAL_TWS_ROLE(n)                 (((n) & 0x03) << 2)
+#define TAG_VAL_ROLE_UNKNOWN                0
+#define TAG_VAL_ROLE_MASTER                 1
+#define TAG_VAL_ROLE_SLAVE                  2
+#define TAG_VAL_ROLE_FREEMAN                3
 
-typedef struct {
-    unsigned int count:4;   //16 param list
-    unsigned int tskid:7;   //128 taskid
-    unsigned int addr:21;   //2048 KB trace space support
-}trace_info_t;
+#define TAG_VAL_CPUID_SHIFT                 (4)
+#define TAG_VAL_CPUID_MASK                  (0x07<<TAG_VAL_CPUID_SHIFT) //3 bit
+#define TAG_VAL_CPUID(n)                    (((n) & 0x07) << 4)
+#define TAG_VAL_CPU_DSPM                    0
+#define TAG_VAL_CPU_DSPH                    1
+#define TAG_VAL_CPU_DSPA0                   0
+#define TAG_VAL_CPU_DSPA1                   1
+#define TAG_VAL_CPU_SYS0                    2
+#define TAG_VAL_CPU_SYS1                    3
+#define TAG_VAL_CPU_MCU0                    2
+#define TAG_VAL_CPU_MCU1                    3
+#define TAG_VAL_CPU_BTH0                    4
+#define TAG_VAL_CPU_BTH1                    5
+#define TAG_VAL_CPU_SENS0                   6
+#define TAG_VAL_CPU_SENS1                   7
 
-typedef struct {
-    unsigned int id_reserved:8;
-    unsigned int timestamp:24; // 4 hours support
-    unsigned int id:16;
-#ifdef USE_ID_2_AS_CRC
-    unsigned int crc:16;
-#endif
-}trace_head_t;
+#define TAG_VAL_SECURE_SHIFT                (7)
+#define TAG_VAL_SECURE_MASK                 (1<<TAG_VAL_SECURE_SHIFT) //1 bit, NS/,SE/
+#define TAG_VAL_SECURE(n)                   (((n) & 0x01) << 7)
+#define TAG_VAL_SECURE_NS                   0
+#define TAG_VAL_SECURE_SE                   1
 
-#endif
+#define ATTR_VAL_LEVEL_SHIFT                0
+#define ATTR_VAL_LEVEL_MASK                 (0x7 << ATTR_VAL_LEVEL_SHIFT)
+#define ATTR_VAL_LEVEL(n)                   BITFIELD_VAL(ATTR_VAL_LEVEL, n)
+#define ATTR_VAL_MOD_SHIFT                  3
+#define ATTR_VAL_MOD_MASK                   (0x7F << ATTR_VAL_MOD_SHIFT)
+#define ATTR_VAL_MOD(n)                     BITFIELD_VAL(ATTR_VAL_MOD, n)
+#define ATTR_VAL_NO_LF                      (1 << 10)
+#define ATTR_VAL_NO_TS                      (1 << 11)
 
-typedef struct {
-    trace_head_t trace_head;
-    trace_info_t trace_info;
-}__attribute__((packed)) LOG_DATA_T;
+struct LOG_HDR_T {
+    uint16_t magic;
+    uint16_t len;
 
-void hal_trace_set_id(char *buf, unsigned int value);
-unsigned int hal_trace_get_id(char *buf);
+    uint32_t ver        :  4;
+    uint32_t time       : 28;
 
-#define USER_ID_TWS_LR_SHIFT                (0)
-#define USER_ID_TWS_LR_MASK                 (0x03<<USER_ID_TWS_LR_SHIFT)   //2 bit ,L,R,N
-#define USER_ID_TWS_LR(n)                   (((n) & 0x03) << 0)
-#define USER_ID_TWS_TWS_L                   0
-#define USER_ID_TWS_TWS_R                   1
-#define USER_ID_TWS_TWS_N                   2
+    uint32_t tag        :  8;
+    uint32_t attr       : 12;
+    uint32_t seq        : 11;
+    uint32_t is_irq     :  1;
 
-#define USER_ID_TWS_ROLE_SHIFT              (2)
-#define USER_ID_TWS_ROLE_MASK               (0x03<<USER_ID_TWS_ROLE_SHIFT) //2 bit ,M,S,U,F
-#define USER_ID_TWS_ROLE(n)                 (((n) & 0x03) << 2)
-#define USER_ID_ROLE_MASTER                 0
-#define USER_ID_ROLE_SLAVE                  1
-#define USER_ID_ROLE_UNKNOW                 2
-#define USER_ID_ROLE_FREEMAN                3
+    uint32_t task       :  8;
+    uint32_t addr       : 24;
+};
 
-#define USER_ID_CPUID_SHIFT                 (4)
-#define USER_ID_CPUID_MASK                  (0x07<<USER_ID_CPUID_SHIFT) //3 bit
-#define USER_ID_CPUID(n)                    (((n) & 0x07) << 4)
-#define USER_ID_CPU_DSPM                    0
-#define USER_ID_CPU_DSPH                    1
-#define USER_ID_CPU_DSPA0                   0
-#define USER_ID_CPU_DSPA1                   1
-#define USER_ID_CPU_SYS0                    2
-#define USER_ID_CPU_SYS1                    3
-#define USER_ID_CPU_MCU0                    2
-#define USER_ID_CPU_MCU1                    3
-#define USER_ID_CPU_BTH0                    4
-#define USER_ID_CPU_BTH1                    5
-#define USER_ID_CPU_SENS0                   6
-#define USER_ID_CPU_SENS1                   7
+void hal_trace_set_tag(char *buf, unsigned int value);
 
-#define USER_ID_SECURE_SHIFT                (7)
-#define USER_ID_SECURE_MASK                 (1<<USER_ID_SECURE_SHIFT) //1 bit, NS/,SE/
-#define USER_ID_SECURE(n)                   (((n) & 0x01) << 7)
-#define USER_ID_SECURE_NS                   0
-#define USER_ID_SECURE_SE                   1
-
-#define USER_ID_SN_SHIFT                    (8)
-#define USER_ID_SN_MASK                     (0xff<<USER_ID_SN_SHIFT) //8 bit
-#define USER_ID_SN(n)                       (((n) & 0xff) << 8)
-
-#define USER_ID_RESERVED_SHIFT              (16)
-#define USER_ID_RESERVED                    (1<<USER_ID_RESERVED_SHIFT) //0 bit
+unsigned int hal_trace_get_tag(char *buf);
 
 #ifdef __cplusplus
 }

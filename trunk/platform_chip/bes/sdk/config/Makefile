@@ -18,23 +18,18 @@ obj-y := $(obj-y:.cpp=.o)
 obj-y := $(obj-y:.S=.o)
 
 ccflags-y += \
+	-Iutils/heap \
 	-Iplatform/hal \
 	-Iplatform/drivers/ana \
 	-Iplatform/drivers/usb/usb_dev/inc \
 	-Iservices/nv_section/aud_section \
 	-Iservices/nv_section/include \
-	-Imultimedia/inc \
 	-Imultimedia/inc/speech/inc \
 	-Imultimedia/inc/audio/process/filters/include \
 	-Imultimedia/inc/audio/process/drc/include \
 	-Imultimedia/inc/audio/process/limiter/include \
 	-Imultimedia/inc/audio/process/reverb/include \
-	-Iutils/heap \
-	-Imultimedia/inc/audio/process/bass_enhancer/include \
-	-Imultimedia/inc/audio/process/dynamic_boost/include \
-	-Imultimedia/inc/audio/process/dynamic_eq/include \
-	-Imultimedia/inc/audio/process/virtual_surround_process/include\
-	-Imultimedia/inc/audio/process/adj_mc/inc
+	-Imultimedia/inc/audio/process/bass_enhancer/include
 
 ifeq ($(BT_DEV_NAME),)
 BT_DEV_NAME := $(T).$(BUILD_HOSTNAME).$(BUILD_USERNAME)
@@ -117,4 +112,8 @@ endif
 
 ifeq ($(CHARGER_1802),1)
 CFLAGS_tgt_hardware.o  += -DCHARGER_1802
+endif
+
+ifeq ($(OTA_BOOT_TO_DUAL_CHIP),1)
+CFLAGS_tgt_hardware.o  += -DOTA_BOOT_TO_DUAL_CHIP
 endif

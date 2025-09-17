@@ -27,7 +27,6 @@
 #include "app_audio.h"
 #include "app_status_ind.h"
 #include "bluetooth_bt_api.h"
-#include "app_bt_stream.h"
 #include "nvrecord_bt.h"
 #include "nvrecord_env.h"
 #include "cqueue.h"
@@ -36,16 +35,18 @@
 #include "app_tota.h"
 #include "app_tota_cmd_handler.h"
 #include "plat_types.h"
-#include "spp_api.h"
-#include "sdp_api.h"
-#include "tota_stream_data_transfer.h"
+#include "app_tota_audio_dump.h"
 #include "app_tota_common.h"
 #include "heap_api.h"
 #if defined(OTA_OVER_TOTA_ENABLED)
 #include "ota_control.h"
+#include "ota_bes.h"
 #include "ota_basic.h"
 #endif
 
+#ifdef SPP_DEBUG_TOOL
+extern uint8_t *app_spp_debug_cmd_process(uint8_t *cmd, uint16_t len, uint16_t *out_len, uint16_t *ret);
+#endif
 
 typedef struct{
     bool isConnected;
@@ -58,20 +59,6 @@ static tota_spp_ctl_t tota_spp_ctl = {
     .pSppDevice     = NULL,
     .callBack       = NULL,
 };
-
-// static inline void _update_tx_buf(void);
-// static inline uint8_t * _get_tx_buf_ptr(void);
-
-#ifdef SPP_DEBUG_TOOL
-extern bool app_spp_debug_cmd_check(uint8_t *cmd, uint16_t len);
-extern uint8_t *app_spp_debug_cmd_process(uint8_t *cmd, uint16_t len, uint16_t *out_len);
-#endif
-
-/* is tota busy, use to handle sniff */
-bool spp_tota_in_progress(void)
-{
-    return is_stream_data_running();
-}
 
 /****************************************************************************
  * TOTA SPP SDP Entries
@@ -191,20 +178,24 @@ static int tota_spp_handle_data_event_func(const bt_bdaddr_t *remote, bt_spp_eve
     uint8_t *pData = (uint8_t *)param->rx_data_ptr;
     uint16_t dataLen = param->rx_data_len;
 
-    TOTA_V2_TRACE(1,"spp tota v2 rx:%d", dataLen);
-    //TOTA_V2_DUMP8("[0x%x]", pData, dataLen);
+    TOTA_LOG_DBG(1,"spp tota v2 rx:%d", dataLen);
+    //TOTA_LOG_DUMP("[0x%x]", pData, dataLen);
 
 #ifdef SPP_DEBUG_TOOL
-    if (app_spp_debug_cmd_check(pData, dataLen)) {
-        uint8_t *ret_buf = app_spp_debug_cmd_process(pData, dataLen, &dataLen);
+    uint16_t ret = 0;
+    uint8_t *ret_buf = app_spp_debug_cmd_process(pData, dataLen, &dataLen, &ret);
+    if (ret == 0) {
         if (ret_buf != NULL) {
-            bta_spp_write(param->spp_chan->rfcomm_handle, ret_buf, dataLen);
+            bt_spp_write(param->spp_chan->rfcomm_handle, ret_buf, dataLen);
         }
-        TOTA_V2_TRACE(0, "[%s] Bypass TOTA.", __func__);
+
+        TRACE(0, "[%s] v2 Bypass TOTA.", __func__);
         return 0;
     }
 #endif
+
     tota_spp_ctl.callBack->rx_cb(pData, dataLen);
+
     return 0;
 }
 
@@ -214,15 +205,16 @@ static int spp_tota_callback(const bt_bdaddr_t *remote, bt_spp_event_t event, bt
     switch (event)
     {
     case BT_SPP_EVENT_OPENED:
-        TOTA_V2_TRACE(0, "spp_tota_callback v2 ::BTIF_SPP_EVENT_REMDEV_CONNECTED");
+        TOTA_LOG_DBG(0, "spp_tota_callback v2 ::BTIF_SPP_EVENT_REMDEV_CONNECTED");
+#if defined(OTA_OVER_TOTA_ENABLED)
+        ota_basic_enable_datapath_status(OTA_BASIC_SPP_DATAPATH_ENABLED, (uint8_t*)&param->spp_chan->remote);
+#endif
         tota_spp_ctl.isConnected = true;
         tota_spp_ctl.pSppDevice = param->spp_chan;
+
 #if defined(OTA_OVER_TOTA_ENABLED)
-        bes_ota_event_param_t otaParam;
-        otaParam.pathType = DATA_PATH_SPP;
-        memcpy(otaParam.param.address, (uint8_t*)&param->spp_chan->remote, sizeof(otaParam.param.address));
-        otaParam.event = BES_OTA_CONN;
-        app_ota_push_rx_data(SPP_RX_DATA_SELF_OTA_OVER_TOTA, &otaParam);
+        ota_control_update_MTU(MAX_SPP_PACKET_SIZE - TOTA_PACKET_VERIFY_SIZE);
+        ota_control_register_transmitter(ota_spp_tota_send_data);
 #endif
         if (tota_spp_ctl.callBack->connected_cb)
         {
@@ -230,12 +222,10 @@ static int spp_tota_callback(const bt_bdaddr_t *remote, bt_spp_event_t event, bt
         }
         break;
     case BT_SPP_EVENT_CLOSED:
-        TOTA_V2_TRACE(0, "spp_tota_callback v2 ::BTIF_SPP_EVENT_REMDEV_DISCONNECTED");
+        TOTA_LOG_DBG(0, "spp_tota_callback v2 ::BTIF_SPP_EVENT_REMDEV_DISCONNECTED");
         tota_spp_ctl.isConnected = false;
 #if defined(OTA_OVER_TOTA_ENABLED)
-        otaParam.pathType = DATA_PATH_SPP;
-        otaParam.event = BES_OTA_DISCONN;
-        app_ota_push_rx_data(SPP_RX_DATA_SELF_OTA_OVER_TOTA, &otaParam);
+        ota_control_set_datapath_type(NO_OTA_CONNECTION);
 #endif
         if (tota_spp_ctl.callBack->disconnected_cb)
         {
@@ -243,7 +233,7 @@ static int spp_tota_callback(const bt_bdaddr_t *remote, bt_spp_event_t event, bt
         }
         break;
     case BT_SPP_EVENT_TX_DONE:
-        TOTA_V2_TRACE(0, "spp_tota_callback v2 ::BTIF_SPP_EVENT_DATA_SENT");
+        TOTA_LOG_DBG(0, "spp_tota_callback v2 ::BTIF_SPP_EVENT_DATA_SENT");
         //osSemaphoreRelease(tota_spp_ctl.txSem);
         if (tota_spp_ctl.callBack->tx_done_cb)
         {
@@ -265,13 +255,13 @@ void app_spp_tota_init(const tota_callback_func_t *tota_callback_func)
     //tota_spp_ctl.txMutex = osMutexCreate(osMutex(tota_spp_tx_mutex));
     tota_spp_ctl.callBack = tota_callback_func;
 
-    bta_spp_create_port(RFCOMM_CHANNEL_TOTA, TotaSppSdpAttributes1, ARRAY_SIZE(TotaSppSdpAttributes1));
+    bt_spp_create_port(RFCOMM_CHANNEL_TOTA, TotaSppSdpAttributes1, ARRAY_SIZE(TotaSppSdpAttributes1));
 
-    bta_spp_set_callback(RFCOMM_CHANNEL_TOTA, TOTA_RX_BUF_SIZE, spp_tota_callback, NULL);
+    bt_spp_set_callback(RFCOMM_CHANNEL_TOTA, TOTA_RX_BUF_SIZE, spp_tota_callback, NULL);
 
-    bta_spp_listen(RFCOMM_CHANNEL_TOTA, false, NULL);
+    bt_spp_listen(RFCOMM_CHANNEL_TOTA, false, NULL);
 
-    tota_spp_ctl.pSppDevice = bta_spp_create_channel(BT_DEVICE_ID_1, RFCOMM_CHANNEL_TOTA);
+    tota_spp_ctl.pSppDevice = bt_spp_create_channel(BT_DEVICE_ID_1, RFCOMM_CHANNEL_TOTA);
 }
 
 /* this func is safe in thread */
@@ -295,8 +285,8 @@ bool app_spp_tota_send_data(uint8_t* ptrData, uint16_t length)
     //osMutexWait(tota_spp_ctl.txMutex, osWaitForever);
     //osSemaphoreWait(tota_spp_ctl.txSem, osWaitForever);
 
-    TOTA_V2_TRACE(1, "spp tx:%d", length);
-    ret = bta_spp_write(tota_spp_ctl.pSppDevice->rfcomm_handle, ptrData, length);
+    TOTA_LOG_DBG(1, "spp tx:%d", length);
+    ret = bt_spp_write(tota_spp_ctl.pSppDevice->rfcomm_handle, ptrData, length);
 
     //osMutexRelease(tota_spp_ctl.txMutex);
 
@@ -310,14 +300,20 @@ bool app_spp_tota_send_data(uint8_t* ptrData, uint16_t length)
     }
 }
 
-// static inline void _update_tx_buf(void)
-// {
-//     tota_spp_ctl.txIndex = (tota_spp_ctl.txIndex + 1) % MAX_SPP_PACKET_NUM;
-// }
+bool app_spp_tota_send_via_spp_direct(uint8_t *ptrData, uint16_t length)
+{
+    if (!tota_spp_ctl.isConnected) {
+        return false;
+    }
 
-// static inline uint8_t * _get_tx_buf_ptr(void)
-// {
-//     return (tota_spp_ctl.txBuff + tota_spp_ctl.txIndex*MAX_SPP_PACKET_SIZE);
-// }
+    bt_status_t ret = BT_STS_SUCCESS;
+    TOTA_LOG_DBG(1, "spp tx:%d", length);
+    ret = bt_spp_write(tota_spp_ctl.pSppDevice->rfcomm_handle, ptrData, length);
 
+    if (BT_STS_SUCCESS != ret) {
+        return false;
+    }
+
+    return true;
+}
 #endif /* BT_SPP_SUPPORT */

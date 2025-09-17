@@ -875,7 +875,7 @@ uint32_t btdrv_rf_get_xtal_fcap(void)
 struct btdrv_customer_rf_config_t btdrv_rf_customer_config;
 void bt_drv_rf_sdk_init(void)
 {
-    DRIVERS_TRACE(0,"SDK default rf config");
+    BT_DRV_TRACE(0,"SDK default rf config");
     btdrv_rf_customer_config.config_xtal_en = false;//get value from NV
     btdrv_rf_customer_config.xtal_cap_val = 0;//get value from NV
 
@@ -1033,7 +1033,7 @@ static void bt_drv_rf_bt_txpwr_set(uint8_t idx, int8_t val_in_dbm)
     btdrv_write_rf_reg(txgain_tbl1_addr, txgain_tbl1_val);
     btdrv_write_rf_reg(txgain_tbl2_addr, txgain_tbl2_val);
 
-    DRIVERS_TRACE(2, "BT:TX pwr in:%d dbm,[reg0=0x%x,out:0x%04x][reg1=0x%x,out:0x%04x][reg1=0x%x,out:0x%04x]",
+    BT_DRV_TRACE(2, "BT:TX pwr in:%d dbm,[reg0=0x%x,out:0x%04x][reg1=0x%x,out:0x%04x][reg1=0x%x,out:0x%04x]",
     val_in_dbm, txgain_tbl0_addr, txgain_tbl0_val, txgain_tbl1_addr, txgain_tbl1_val, txgain_tbl2_addr, txgain_tbl2_val);
 }
 
@@ -1056,7 +1056,7 @@ static void bt_drv_rf_ble_txpwr_set(uint8_t idx, int8_t val_in_dbm)
     btdrv_write_rf_reg(txgain_tbl1_addr, txgain_tbl1_val);
     btdrv_write_rf_reg(txgain_tbl2_addr, txgain_tbl2_val);
 
-    DRIVERS_TRACE(2, "BT:TX pwr in:%d dbm,[reg0=0x%x,out:0x%04x][reg1=0x%x,out:0x%04x][reg1=0x%x,out:0x%04x]",
+    BT_DRV_TRACE(2, "BT:TX pwr in:%d dbm,[reg0=0x%x,out:0x%04x][reg1=0x%x,out:0x%04x][reg1=0x%x,out:0x%04x]",
     val_in_dbm, txgain_tbl0_addr, txgain_tbl0_val, txgain_tbl1_addr, txgain_tbl1_val, txgain_tbl2_addr, txgain_tbl2_val);
 }
 
@@ -1131,7 +1131,7 @@ static void bt_drv_rf_bt_edge_chl_txpwr_set(uint8_t idx, int8_t val_in_dbm)
     btdrv_write_rf_reg(txgain_tbl1_addr, txgain_tbl1_val);
     btdrv_write_rf_reg(txgain_tbl2_addr, txgain_tbl2_val);
 
-    DRIVERS_TRACE(2, "BT:TX pwr in:%d dbm,[reg0=0x%x,out:0x%04x][reg1=0x%x,out:0x%04x]",
+    BT_DRV_TRACE(2, "BT:TX pwr in:%d dbm,[reg0=0x%x,out:0x%04x][reg1=0x%x,out:0x%04x]",
     val_in_dbm, txgain_tbl0_addr, txgain_tbl0_val, txgain_tbl1_addr, txgain_tbl1_val);
 }
 #endif
@@ -1183,20 +1183,20 @@ void bt_drv_rf_init_xtal_fcap(void)
     if(btdrv_rf_customer_config.config_xtal_en == true)
     {
         xtal_fcap_temp = btdrv_rf_customer_config.xtal_cap_val;
-        DRIVERS_TRACE(1,"btdrv customer set xtal fcap=0x%x", xtal_fcap_temp);
+        BT_DRV_TRACE(1,"btdrv customer set xtal fcap=0x%x", xtal_fcap_temp);
     }
     else
     {
 #ifdef __RF_INIT_XTAL_CAP_FROM_NV__
         if (!nvrec_dev_get_xtal_fcap(&xtal_fcap_temp))
         {
-            DRIVERS_TRACE(2,"%s xtal cap=0x%x", __func__, xtal_fcap_temp);
+            BT_DRV_TRACE(2,"%s xtal cap=0x%x", __func__, xtal_fcap_temp);
         }
         else
 #endif
         {
             xtal_fcap_temp = DEFAULT_XTAL_FCAP;
-            DRIVERS_TRACE(1,"%s failed", __func__);
+            BT_DRV_TRACE(1,"%s failed", __func__);
         }
     }
 
@@ -1212,7 +1212,7 @@ void bt_drv_rf_init_xtal_fcap(void)
 void bt_drv_ble_adv_txpwr_via_advhdl(uint8_t adv_hdl, uint8_t idx, int8_t txpwr_dbm)
 {
 
-    DRIVERS_TRACE(2,"set adv_txpwr_via_advhdl hdl 0x%02x idx %d dbm %d", adv_hdl, idx, txpwr_dbm);
+    BT_DRV_TRACE(2,"set adv_txpwr_via_advhdl hdl 0x%02x idx %d dbm %d", adv_hdl, idx, txpwr_dbm);
 
     if(idx > 5)
     {
@@ -1242,7 +1242,7 @@ void btdrv_rf_register_init(const uint16_t rf_init_tbl_p[][3], uint16_t tbl_size
         if(rf_init_tbl_p[i][2] !=0)
             btdrv_delay(rf_init_tbl_p[i][2]);//delay
         btdrv_read_rf_reg(rf_init_tbl_p[i][0],&value);
-        DRIVERS_TRACE(2,"reg=%x,v=%x",rf_init_tbl_p[i][0],value);
+        BT_DRV_TRACE(2,"reg=%x,v=%x",rf_init_tbl_p[i][0],value);
     }
 }
 
@@ -1372,7 +1372,7 @@ void btdrv_txpower_calib(void)
         calib_val = (int16_t) (bt_pwr_avg - 0.5f);
     }
 
-    DRIVERS_TRACE(3, "%s efuse 5 val=0x%x, calib_val=%d",__func__, read_val, calib_val);
+    TRACE(3, "%s efuse 5 val=0x%x, calib_val=%d",__func__, read_val, calib_val);
 
     if (calib_val > 4) {
         calib_val = 4;

@@ -18,6 +18,7 @@
  ****************************************************************************/
 #ifndef __BAP_BC_ASSIST_INC__
 #define __BAP_BC_ASSIST_INC__
+#include "bluetooth.h"
 
 #include "gaf_cfg.h"
 
@@ -82,15 +83,12 @@ typedef struct bap_bc_assist_init_cfg
     bool cp_write_reliable;
     /// PA sync timeout ms
     uint16_t pa_sync_timeout_10ms;
-    /// PA sync estb timeout ms
-    uint16_t pa_sync_estb_to_10ms;
     /// Scan for PA timeout
     uint16_t scan_for_pa_to_10ms;
     /// Scan for PA use filter list
     bool scan_pa_use_filter_list;
-    /// Preferred MTU size
-    uint16_t pref_mtu;
 } bap_bc_assist_init_cfg_t;
+
 
 /*FUNCTIONS*/
 /**

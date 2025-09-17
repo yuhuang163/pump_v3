@@ -26,20 +26,12 @@ memset(dst0, c0, length)
     int c0;
     size_t length;
 {
-#ifdef CHIP_BEST1306
-    return export_fn_rom->memset(dst0, c0, length);
-#else
     return __export_fn_rom.memset(dst0, c0, length);
-#endif
 }
 
 void * memcpy(void *dst,const void *src, size_t length)
 {
-#ifdef CHIP_BEST1306
-    return export_fn_rom->memcpy(dst, src, length);
-#else
     return __export_fn_rom.memcpy(dst, src, length);
-#endif
 }
 
 #ifdef NO_MEMMOVE
@@ -51,11 +43,7 @@ void * memcpy(void *dst,const void *src, size_t length)
 #else
 void * memmove(void *dst,const void *src, size_t length)
 {
-#ifdef CHIP_BEST1306
-    return export_fn_rom->memmove(dst, src, length);
-#else
     return __export_fn_rom.memmove(dst, src, length);
-#endif
 }
 #endif
 

@@ -91,7 +91,7 @@ int imgA4_test_main_entry(int argc, const char * argv[])
     vg_lite_matrix_t matrix;
 
     vg_lite_error_t error = VG_LITE_SUCCESS;
-    DRIVERS_TRACE(0,"%s", __func__);
+    GPU_REP("%s", __func__);
     CHECK_ERROR(vg_lite_init(fb_width, fb_height));
 
     filter = VG_LITE_FILTER_BI_LINEAR;
@@ -138,7 +138,7 @@ int imgA4_test_main_entry(int argc, const char * argv[])
 ErrorHandler:
     // Cleanup.
     cleanup();
-    DRIVERS_TRACE(0,"%s test pass", __func__);
+    GPU_REP("%s test pass", __func__);
     return 0;
 }
 

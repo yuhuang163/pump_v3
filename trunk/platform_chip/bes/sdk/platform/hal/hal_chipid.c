@@ -15,13 +15,8 @@
  ****************************************************************************/
 #include "hal_chipid.h"
 #include "hal_location.h"
-#include "export_fn_rom.h"
 
 enum HAL_CHIP_METAL_ID_T BOOT_BSS_LOC metal_id;
-#ifdef CHIP_BEST1306
-#define EXPORT_FN_ROM_ADDR    (ROM_BASE + ROM_SIZE - ROM_BUILD_INFO_SECTION_SIZE - ROM_EXPORT_FN_SECTION_SIZE)
-BOOT_BSS_LOC struct EXPORT_FN_ROM_T* export_fn_rom = NULL;
-#endif
 
 uint32_t WEAK BOOT_TEXT_FLASH_LOC read_hw_metal_id(void)
 {
@@ -35,12 +30,6 @@ void WEAK BOOT_TEXT_FLASH_LOC save_hw_metal_id(uint32_t id)
 void BOOT_TEXT_FLASH_LOC hal_chipid_init(void)
 {
     metal_id = read_hw_metal_id();
-#ifdef CHIP_BEST1306
-    if(metal_id >= HAL_CHIP_METAL_ID_1)
-        export_fn_rom = (struct EXPORT_FN_ROM_T*)(EXPORT_FN_ROM_ADDR - 0x7000);
-    else
-        export_fn_rom = (struct EXPORT_FN_ROM_T*)(EXPORT_FN_ROM_ADDR);
-#endif
     // Main CPU saves the id to a pre-defined location so that other subsys can get it when they startup
     save_hw_metal_id(metal_id);
 }

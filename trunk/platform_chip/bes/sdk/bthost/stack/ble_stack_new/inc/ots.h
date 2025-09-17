@@ -19,6 +19,8 @@
 #ifndef __ACC_OTS__
 #define __ACC_OTS__
 
+#include "bluetooth.h"
+
 #include "gaf_cfg.h"
 #include "gaf_prf.h"
 
@@ -142,9 +144,9 @@ typedef void (*ots_cb_list)(uint16_t req_ind_code, uint8_t con_lid, uint8_t tran
 /// Callback function called when a peer Client requests to set one of the
 /// current filter rules for an instance of the Object Transfer Service
 typedef void (*ots_cb_filter_set)(uint16_t req_ind_code, uint8_t con_lid, uint8_t transfer_lid, uint8_t filter_lid, uint8_t filter_val, const void *p_value1, const void *p_value2);
-/// Callback function called when a local requests to handle the establishment of a LE
-/// Credit Based Connection Oriented Link for an instance of the Object Transfer Service
-typedef void (*ots_cb_coc_conn_handle)(uint8_t con_lid, uint32_t token, uint16_t peer_mtu);
+/// Callback function called when a peer Client requests to establish a LE Credit
+/// Based Connection Oriented Link for an instance of the Object Transfer Service
+typedef void (*ots_cb_coc_connect)(uint8_t con_lid, uint16_t token, uint16_t peer_mtu);
 /// Callback function called when a command has been handled
 typedef void (*ots_cb_cmp_evt)(uint16_t cmd_code, uint16_t status, uint8_t con_lid);
 
@@ -194,9 +196,9 @@ typedef struct ots_cb
     /// Callback function called when a peer Client requests to set one of the
     /// current filter rules for an instance of the Object Transfer Service
     ots_cb_filter_set cb_filter_set;
-    /// Callback function called when a local requests to handle the establishment of a LE
-    /// Credit Based Connection Oriented Link for an instance of the Object Transfer Service
-    ots_cb_coc_conn_handle cb_coc_conn_handle;
+    /// Callback function called when a peer Client requests to establish a LE Credit
+    /// Based Connection Oriented Link for an instance of the Object Transfer Service
+    ots_cb_coc_connect cb_coc_connect;
     /// Callback function called when a command has been handled
     ots_cb_cmp_evt cb_cmp_evt;
 } ots_evt_cb_t;
@@ -242,6 +244,6 @@ int ots_cfm_filter_get_type(uint16_t status, uint8_t con_lid, uint8_t transfer_l
 int ots_cfm_list_control(uint16_t status, uint8_t con_lid, uint8_t transfer_lid,
                          uint8_t result_code, uint32_t nb_object);
 int ots_cfm_filter_set(uint16_t status, uint8_t con_lid, uint8_t transfer_lid);
-int ots_cfm_coc_connect(uint16_t status, uint8_t con_lid, uint32_t token);
+void ots_cfm_coc_connect(uint16_t status, uint8_t con_lid, uint16_t token);
 
 #endif /// __ACC_OTS__

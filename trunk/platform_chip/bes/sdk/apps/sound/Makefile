@@ -9,7 +9,6 @@ obj-y := $(obj_c:.c=.o) $(obj_s:.S=.o) $(obj_cpp:.cpp=.o)
 ccflags-y := \
     -Iservices/resources \
     $(BLUETOOTH_ADAPTER_INCLUDES) \
-    $(BT_SERVICE_UX_INCLUDES) \
     -Iplatform/drivers/bt \
     -Iutils/cqueue \
     -Iutils/heap \
@@ -25,19 +24,27 @@ ccflags-y := \
     -Iapps/anc/inc	\
     -Iapps/audioplayers/a2dp_decoder \
     -Iservices/ai_voice/manager \
+    -Iservices/ux/common/ibrt/ibrt_middleware/inc \
     -Iservices/nv_section/factory_section \
     -Iservices/nv_section/log_section \
     -Iservices/bt_app/a2dp_codecs/include \
+    -Imultimedia/inc/audio/codec/sbc/inc \
+    -Iservices/voicepath	\
+    -Iservices/ux/common/sound \
+    -Iservices/ux/common/ibrt/custom_api \
+    -Iservices/ux/common/ibrt/ibrt_core/inc \
+    -Iservices/ux/common/ibrt/ibrt_ui/inc \
+    -Iservices/ux/common/ibrt/app_ibrt/inc \
     -Iservices/audio_manager \
     -Iservices/audio_bt \
     -Iservices/bis_transport/inc \
     -Iservices/osif \
     -Iutils/cppobject
 
+
 # ifeq ($(BLE_AUDIO_ENABLED),1)
 # ccflags-y += \
-#     -I$(BLE_AUDIO_CORE_DIR_PATH)/inc \
-#     -I$(BLE_AOB_APP_DIR_PATH)/gaf_app
+#     -Iservices/ux/common/ble_audio_core/inc
 # endif
 
 ifeq ($(WIFI_SOUND_UI_ENABLE),1)

@@ -62,7 +62,7 @@ void nv_record_combo_bin_update_info(void* combo_bin_info,uint32_t crc)
     NV_COMBO_IMAGE_INFO_T* pcombo_src =(NV_COMBO_IMAGE_INFO_T*)combo_bin_info;
     NV_COMBO_IMAGE_INFO_T *pcombo_dst= nvrecord_combo_p;
 
-    NV_SECTION_TRACE(0,"%s", __func__);
+    LOG_I("%s", __func__);
 
     lock = nv_record_pre_write_operation();
     pcombo_src->crc32 = crc;
@@ -76,7 +76,7 @@ void nv_record_combo_bin_update_info(void* combo_bin_info,uint32_t crc)
         memcpy(pcombo_dst,pcombo_src,3*sizeof(uint32_t));
         memcpy(pcombo_dst->info,pcombo_src->info,(pcombo_src->contentNum*sizeof(COMBO_CONTENT_INFO_T)));
         pcombo_dst->crc32 = pcombo_src->crc32;
-        NV_SECTION_TRACE(0,"%s %x ", __func__,pcombo_dst->crc32);
+        LOG_I("%s %x ", __func__,pcombo_dst->crc32);
         update = true;
     }
 
@@ -84,7 +84,7 @@ void nv_record_combo_bin_update_info(void* combo_bin_info,uint32_t crc)
 
     if (update)
     {
-        NV_SECTION_TRACE(0,"will update info into flash.");
+        LOG_I("will update info into flash.");
         nv_record_update_runtime_userdata();
         nv_record_flash_flush();
     }
@@ -117,7 +117,7 @@ void nv_record_combo_bin_clear_info(void)
     lock = nv_record_pre_write_operation();
     memset(pcombo,0x00,sizeof(NV_COMBO_IMAGE_INFO_T));
     nv_record_post_write_operation(lock);
-    NV_SECTION_TRACE(0,"will update info into flash.");
+    LOG_I("will update info into flash.");
     nv_record_update_runtime_userdata();
     nv_record_flash_flush();
 }
@@ -140,7 +140,7 @@ uint32_t nv_record_combo_bin_get_datalen(uint8_t id)
     return pcombo->info[id -1].length;
 }
 
-uint32_t nv_record_combo_bin_get_whole_crc32(void)
+uint32_t nv_record_combo_bin_get_crc32(void)
 {
     NV_COMBO_IMAGE_INFO_T *pcombo= nvrecord_combo_p;
     return pcombo->crc32;
@@ -150,11 +150,5 @@ uint32_t nv_record_combo_bin_get_fw_id(uint8_t id)
 {
     NV_COMBO_IMAGE_INFO_T *pcombo= nvrecord_combo_p;
     return pcombo->info[id -1].id;
-}
-
-uint32_t nv_record_combo_bin_get_id_crc32(uint8_t id)
-{
-    NV_COMBO_IMAGE_INFO_T *pcombo= nvrecord_combo_p;
-    return pcombo->info[id -1].crc32;
 }
 #endif

@@ -16,7 +16,40 @@
 #ifndef __APP_IBRT_OTA_CMD__
 #define __APP_IBRT_OTA_CMD__
 
+#include "app_ibrt_custom_cmd.h"
+
 #define RESEND_TIME 2
+
+#define app_ibrt_ota_image_buff_cmd_rsp_timeout_handler_null   (0)
+#define app_ibrt_ota_image_buff_cmd_rsp_handler_null           (0)
+
+typedef enum
+{
+    IBRT_OTA_TWS_GET_VERSION_CMD     = APP_IBRT_CMD_BASE|APP_IBRT_OTA_TWS_CMD_PREFIX|0x01,
+    IBRT_OTA_TWS_SELECT_SIDE_CMD     = APP_IBRT_CMD_BASE|APP_IBRT_OTA_TWS_CMD_PREFIX|0x02,
+    IBRT_OTA_TWS_BP_CHECK_CMD        = APP_IBRT_CMD_BASE|APP_IBRT_OTA_TWS_CMD_PREFIX|0x03,
+    IBRT_OTA_TWS_START_OTA_CMD       = APP_IBRT_CMD_BASE|APP_IBRT_OTA_TWS_CMD_PREFIX|0x04,
+    IBRT_OTA_TWS_OTA_CONFIG_CMD      = APP_IBRT_CMD_BASE|APP_IBRT_OTA_TWS_CMD_PREFIX|0x05,
+    IBRT_OTA_TWS_SEGMENT_CRC_CMD     = APP_IBRT_CMD_BASE|APP_IBRT_OTA_TWS_CMD_PREFIX|0x06,
+    IBRT_OTA_TWS_IMAGE_CRC_CMD       = APP_IBRT_CMD_BASE|APP_IBRT_OTA_TWS_CMD_PREFIX|0x07,
+    IBRT_OTA_TWS_IMAGE_OVERWRITE_CMD = APP_IBRT_CMD_BASE|APP_IBRT_OTA_TWS_CMD_PREFIX|0x08,
+    IBRT_OTA_TWS_SET_USER_CMD        = APP_IBRT_CMD_BASE|APP_IBRT_OTA_TWS_CMD_PREFIX|0x0D,
+    IBRT_OTA_TWS_GET_OTA_VERSION_CMD = APP_IBRT_CMD_BASE|APP_IBRT_OTA_TWS_CMD_PREFIX|0x0E,
+    IBRT_OTA_TWS_ROLE_SWITCH_CMD     = APP_IBRT_CMD_BASE|APP_IBRT_OTA_TWS_CMD_PREFIX|0x0F,
+    IBRT_OTA_TWS_MOBILE_DISC_CMD     = APP_IBRT_CMD_BASE|APP_IBRT_OTA_TWS_CMD_PREFIX|0x10,
+    IBRT_OTA_TWS_UPDATE_RD_CMD       = APP_IBRT_CMD_BASE|APP_IBRT_OTA_TWS_CMD_PREFIX|0x11,
+    IBRT_OTA_TWS_IMAGE_BUFF          = APP_IBRT_CMD_BASE|APP_IBRT_OTA_TWS_CMD_PREFIX|0x09,
+#ifdef __GMA_OTA_TWS__
+    IBRT_GMA_OTA                     = APP_IBRT_CMD_BASE|APP_IBRT_OTA_TWS_CMD_PREFIX|0x0A,
+//    IBRT_IMAGE_CHECK_GMA_OTA         = APP_IBRT_CMD_BASE|APP_IBRT_OTA_TWS_CMD_PREFIX|0x0B,
+//    IBRT_CRC_CHECK_GMA_OTA           = APP_IBRT_CMD_BASE|APP_IBRT_OTA_TWS_CMD_PREFIX|0x0C,
+#endif
+#ifdef BISTO_ENABLED
+    IBRT_COMMON_OTA                   = APP_IBRT_CMD_BASE|APP_IBRT_OTA_TWS_CMD_PREFIX|0x0B,
+#endif
+//    IBRT_OTA_TWS_IMAGE_BUFF_SLAVE    = APP_IBRT_CMD_BASE|APP_IBRT_OTA_TWS_CMD_PREFIX|0x0A,
+} app_ibrt_ota_tws_cmd_code_e;
+
 
 #ifndef OTA_TWS_INFO_SIZE
 #define OTA_TWS_INFO_SIZE 128
@@ -30,83 +63,6 @@ extern uint8_t errOtaCode;
 #ifdef __GMA_OTA_TWS__
 extern uint8_t gma_start_ota;
 extern bool gma_crc;
-#endif
-
-#if defined(BES_OTA)
-void app_ibrt_ota_cache_slave_info(uint8_t typeCode, uint16_t rsp_seq, uint8_t *p_buff, uint16_t length);
-
-void app_ibrt_ota_get_version_cmd_send(uint8_t *p_buff, uint16_t length);
-void app_ibrt_ota_get_version_cmd_send_handler(uint16_t rsp_seq, uint8_t *p_buff, uint16_t length);
-void app_ibrt_ota_get_version_cmd_send_rsp_handler(uint16_t rsp_seq, uint8_t *p_buff, uint16_t length);
-void app_ibrt_ota_get_version_cmd_send_rsp_timeout_handler(uint16_t rsp_seq, uint8_t *p_buff, uint16_t length);
-
-void app_ibrt_ota_select_side_cmd_send(uint8_t *p_buff, uint16_t length);
-void app_ibrt_ota_select_side_cmd_send_handler(uint16_t rsp_seq, uint8_t *p_buff, uint16_t length);
-void app_ibrt_ota_select_side_cmd_send_rsp_handler(uint16_t rsp_seq, uint8_t *p_buff, uint16_t length);
-void app_ibrt_ota_select_side_cmd_send_rsp_timeout_handler(uint16_t rsp_seq, uint8_t *p_buff, uint16_t length);
-
-void app_ibrt_ota_bp_check_cmd_send(uint8_t *p_buff, uint16_t length);
-void app_ibrt_ota_bp_check_cmd_send_handler(uint16_t rsp_seq, uint8_t *p_buff, uint16_t length);
-void app_ibrt_ota_bp_check_cmd_send_rsp_handler(uint16_t rsp_seq, uint8_t *p_buff, uint16_t length);
-void app_ibrt_ota_bp_check_cmd_send_rsp_timeout_handler(uint16_t rsp_seq, uint8_t *p_buff, uint16_t length);
-
-void app_ibrt_ota_start_cmd_send(uint8_t *p_buff, uint16_t length);
-void app_ibrt_ota_start_cmd_send_handler(uint16_t rsp_seq, uint8_t *p_buff, uint16_t length);
-void app_ibrt_ota_start_cmd_send_rsp_handler(uint16_t rsp_seq, uint8_t *p_buff, uint16_t length);
-void app_ibrt_ota_start_cmd_send_rsp_timeout_handler(uint16_t rsp_seq, uint8_t *p_buff, uint16_t length);
-
-void app_ibrt_ota_config_cmd_send(uint8_t *p_buff, uint16_t length);
-void app_ibrt_ota_config_cmd_send_handler(uint16_t rsp_seq, uint8_t *p_buff, uint16_t length);
-void app_ibrt_ota_config_cmd_send_rsp_handler(uint16_t rsp_seq, uint8_t *p_buff, uint16_t length);
-void app_ibrt_ota_config_cmd_send_rsp_timeout_handler(uint16_t rsp_seq, uint8_t *p_buff, uint16_t length);
-
-void app_ibrt_ota_segment_crc_cmd_send(uint8_t *p_buff, uint16_t length);
-void app_ibrt_ota_segment_crc_cmd_send_handler(uint16_t rsp_seq, uint8_t *p_buff, uint16_t length);
-void app_ibrt_ota_segment_crc_cmd_send_rsp_handler(uint16_t rsp_seq, uint8_t *p_buff, uint16_t length);
-void app_ibrt_ota_segment_crc_cmd_send_rsp_timeout_handler(uint16_t rsp_seq, uint8_t *p_buff, uint16_t length);
-
-void app_ibrt_ota_image_crc_cmd_send(uint8_t *p_buff, uint16_t length);
-void app_ibrt_ota_image_crc_cmd_send_handler(uint16_t rsp_seq, uint8_t *p_buff, uint16_t length);
-void app_ibrt_ota_image_crc_cmd_send_rsp_handler(uint16_t rsp_seq, uint8_t *p_buff, uint16_t length);
-void app_ibrt_ota_image_crc_cmd_send_rsp_timeout_handler(uint16_t rsp_seq, uint8_t *p_buff, uint16_t length);
-
-void app_ibrt_ota_image_overwrite_cmd_send(uint8_t *p_buff, uint16_t length);
-void app_ibrt_ota_image_overwrite_cmd_send_handler(uint16_t rsp_seq, uint8_t *p_buff, uint16_t length);
-void app_ibrt_ota_image_overwrite_cmd_send_rsp_handler(uint16_t rsp_seq, uint8_t *p_buff, uint16_t length);
-void app_ibrt_ota_image_overwrite_cmd_send_rsp_timeout_handler(uint16_t rsp_seq, uint8_t *p_buff, uint16_t length);
-
-void app_ibrt_ota_set_user_cmd_send(uint8_t *p_buff, uint16_t length);
-void app_ibrt_ota_set_user_cmd_handler(uint16_t rsp_seq, uint8_t *p_buff, uint16_t length);
-void app_ibrt_ota_set_user_send_rsp_timeout_handler(uint16_t rsp_seq, uint8_t *p_buff, uint16_t length);
-void app_ibrt_ota_set_user_send_rsp_handler(uint16_t rsp_seq, uint8_t *p_buff, uint16_t length);
-
-void app_ibrt_ota_get_ota_version_cmd_send(uint8_t *p_buff, uint16_t length);
-void app_ibrt_ota_get_ota_version_cmd_handler(uint16_t rsp_seq, uint8_t *p_buff, uint16_t length);
-void app_ibrt_ota_get_ota_version_send_rsp_timeout_handler(uint16_t rsp_seq, uint8_t *p_buff, uint16_t length);
-void app_ibrt_ota_get_ota_version_send_rsp_handler(uint16_t rsp_seq, uint8_t *p_buff, uint16_t length);
-
-void app_ibrt_ota_start_role_switch_cmd_send(uint8_t *p_buff, uint16_t length);
-void app_ibrt_ota_start_role_switch_cmd_send_handler(uint16_t rsp_seq, uint8_t *p_buff, uint16_t length);
-
-void app_ibrt_ota_mobile_disconnected_cmd_send(uint8_t *p_buff, uint16_t length);
-void app_ibrt_ota_mobile_disconnected_cmd_send_handler(uint16_t rsp_seq, uint8_t *p_buff, uint16_t length);
-
-void app_ibrt_ota_update_rd_cmd_send(uint8_t *p_buff, uint16_t length);
-void app_ibrt_ota_update_rd_cmd_send_handler(uint16_t rsp_seq, uint8_t *p_buff, uint16_t length);
-
-void app_ibrt_ota_image_buff_cmd_send(uint8_t *p_buff, uint16_t length);
-void app_ibrt_ota_image_buff_cmd_send_handler(uint16_t rsp_seq, uint8_t *p_buff, uint16_t length);
-#endif
-
-#ifdef __GMA_OTA_TWS__
-void app_ibrt_gmaOta_cmd_send(uint8_t *p_buff, uint16_t length);
-void app_ibrt_gmaOta_cmd_send_handler(uint16_t rsp_seq, uint8_t *p_buff, uint16_t length);
-void app_ibrt_gmaOta_cmd_send_rsp_handler(uint16_t rsp_seq, uint8_t *p_buff, uint16_t length);
-void app_ibrt_gmaOta_cmd_send_rsp_timeout_handler(uint16_t rsp_seq, uint8_t *p_buff, uint16_t length);
-#endif
-#if defined(BISTO_ENABLED) || defined(__MMA_VOICE__) && !defined(FREEMAN_ENABLED_STERO) 
-void app_ibrt_common_ota_cmd_send(uint8_t *p_buff, uint16_t length);
-void app_ibrt_common_ota_cmd_received(uint16_t rsp_seq, uint8_t *p_buff, uint16_t length);
 #endif
 
 #endif

@@ -19,6 +19,8 @@
 #ifndef __BAP_BC_COMMON__
 #define __BAP_BC_COMMON__
 
+#include "bluetooth.h"
+
 #include "gaf_cfg.h"
 
 #include "generic_audio.h"
@@ -49,6 +51,7 @@
 #define BAP_BC_INVALID_PA_SYNC_HDL                (0xFFFF)
 
 #define BAP_BC_PA_SYNC_PARAM_CTE_TYPE             (0)
+
 
 /*
  * ENUMERATIONS
@@ -134,7 +137,7 @@ typedef struct bap_bc_big_info
     uint8_t   pto;
     /// Initial retransmission count (Range 0x01-0x0F)
     uint8_t   irc;
-    /// PHY used for transmission (0x01: 1M, 0x02: 2M, 0x03: Coded, 0x05: HDT, All other values: RFU)
+    /// PHY used for transmission (0x01: 1M, 0x02: 2M, 0x03: Coded, All other values: RFU)
     uint8_t   phy;
     /// Framing mode (0x00: Unframed, 0x01: Framed, All other values: RFU)
     uint8_t   framing;

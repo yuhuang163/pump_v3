@@ -25,7 +25,7 @@
 #if BLE_AUDIO_ENABLED
 #include "bluetooth.h"
 
-#define APP_ARC_VCS_DFT_STEP_SIZE           16
+#define APP_ARC_VCS_DFT_STEP_SIZE           15
 #define APP_ARC_VCS_DFT_VOLUME              225
 #define APP_ARC_VOCS_DESC_MAX_LEN           50
 #define APP_ARC_VOCS_DFT_NB_OUTPUTS         1

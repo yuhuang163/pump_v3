@@ -20,17 +20,21 @@
 #include "me_api.h"
 #include "me_common_define.h"
 
+
+
+
 typedef U8 btif_cmgr_sniff_exit_policy_t;
 
 #define BTIF_CMGR_SNIFF_EXIT_ON_SEND     0x01
 
 #define BTIF_CMGR_SNIFF_EXIT_ON_AUDIO    0x02
 
+/* End of CmgrSniffExitPolicy */
+
+
 #ifdef __cplusplus
 extern "C" {
 #endif                          /*  */
-
-    bool btif_cmgr_is_snifff_timer_running(btif_cmgr_handler_t * cmgr_handler);
 
     bt_status_t btif_cmgr_set_sniff_timer(btif_cmgr_handler_t * cmgr_handler,
                                           btif_sniff_info_t * SniffInfo, void *sniff_mgr);
@@ -87,7 +91,7 @@ extern "C" {
                                            btif_cmgr_callback callback);
 
     bt_status_t btif_cmgr_create_data_link(btif_cmgr_handler_t *cmgr_handler,
-                                           const bt_bdaddr_t *bd_addr, uint16_t page_timeout);
+                                           const bt_bdaddr_t *bd_addr);
 
     bt_status_t btif_cmgr_remove_data_link(const bt_bdaddr_t *remote);
 
@@ -98,7 +102,6 @@ extern "C" {
     btif_cmgr_handler_t * btif_cmgr_get_conn_ind_handler(uint16_t conn_handle);
 
     bool btif_cmgr_is_link_up(btif_cmgr_handler_t *cmgr_handler);
-    btif_remote_device_t *btif_cmgr_pts_get_remDev(btif_cmgr_handler_t *cmgr_handler);
 
 #ifdef __cplusplus
 }

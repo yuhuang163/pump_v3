@@ -68,10 +68,6 @@ void app_gaf_evt_report(uint16_t evt, uint8_t *param, uint32_t length);
 void app_gaf_mobile_evt_report(uint16_t evt, uint8_t *param, uint32_t length);
 #endif
 
-void *app_gaf_malloc_buff(uint16_t size);
-
-void app_gaf_free_buff(void *mem_ptr);
-
 #ifdef __cplusplus
 }
 #endif

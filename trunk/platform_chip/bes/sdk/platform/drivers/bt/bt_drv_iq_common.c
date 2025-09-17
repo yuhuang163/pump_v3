@@ -48,7 +48,7 @@ void bt_drv_rx_iq_datasort(int *arry,int len)
         }
 
         arry[i] = reversebit(arry[i], 15); //3>reverse bit15
-        DRIVERS_TRACE(2, "arry[%d]=0x%x", i, arry[i]);
+        TRACE(2, "arry[%d]=0x%x", i, arry[i]);
     }
 
     //sort after convert
@@ -68,7 +68,7 @@ void bt_drv_rx_iq_datasort(int *arry,int len)
     for(int i=0; i<len; i++)
     {
         arry[i] &= 0x0FFF;
-        DRIVERS_TRACE(2, "after sort : arry[%d]=0x%x", i, arry[i]);
+        TRACE(2, "after sort : arry[%d]=0x%x", i, arry[i]);
     }
 }
 
@@ -76,7 +76,7 @@ void bt_drv_rx_iq_datawrite(int * gain_arr, int * phy_arr, int len)
 {
     for (int i=0; i<len; i++)
     {
-        DRIVERS_TRACE(2, "fina: gain:0x%x phy: 0x%x", gain_arr[i], phy_arr[i]);
+        TRACE(2, "fina: gain:0x%x phy: 0x%x", gain_arr[i], phy_arr[i]);
         uint32_t addr = 0xd0360000;
         int chs = 27;
         uint32_t iq_rx_val = 0;
@@ -101,7 +101,7 @@ void bt_drv_rx_iq_datawrite(int * gain_arr, int * phy_arr, int len)
             iq_rx_val = val_gain;
 
             WRITE_REG(iq_rx_val, addr, 0);
-            //DRIVERS_TRACE(2, "addr:0x%x, val=0x%x", addr, iq_rx_val);
+            //TRACE(2, "addr:0x%x, val=0x%x", addr, iq_rx_val);
             addr += 4;
         }
     }
@@ -236,7 +236,7 @@ void lib_iqmis_esti(float *din_i, float *din_q, int din_length, int *gain_comp_r
     int_mag_sum = 0.0;
     for (ii=0;ii<int_samples;ii++)
     {
-        int_mag[ii] = (float)sqrtf((float)pow(int_i[ii],2.0)+(float)pow(int_q[ii],2.0));
+        int_mag[ii] = sqrtf(powf(int_i[ii],2.0)+powf(int_q[ii],2.0));
         int_mag_sum += int_mag[ii];
     }
     int_mag_mean = int_mag_sum/(float) int_samples;
@@ -252,7 +252,7 @@ void lib_iqmis_esti(float *din_i, float *din_q, int din_length, int *gain_comp_r
     pwr_dif_sum = 0.0;
     for (ii=0;ii<int_samples;ii++)
     {
-        pwr_dif = (float)pow(int_i[ii],2.0) - (float)pow(int_q[ii],2.0);
+        pwr_dif = powf(int_i[ii],2.0) - powf(int_q[ii],2.0);
         pwr_dif_sum += pwr_dif;
     }
 
@@ -289,20 +289,20 @@ void lib_iqmis_esti(float *din_i, float *din_q, int din_length, int *gain_comp_r
     }
 #endif
 
-    gain_comp_fxpt = (int)round(gain_comp*(float)pow(2.0,10.0));
+    gain_comp_fxpt = (int)roundf(gain_comp * powf(2.0f, 10.0f));
     if (gain_comp_fxpt<0)
     {
-        *gain_comp_reg = gain_comp_fxpt + (int)pow(2.0,12.0);
+        *gain_comp_reg = gain_comp_fxpt + (int)powf(2.0,12.0);
     }
     else
     {
         *gain_comp_reg = gain_comp_fxpt;
     }
 
-    phi_comp_fxpt = (int)round(phi_comp*(float)pow(2.0,10.0));
+    phi_comp_fxpt = (int)roundf(phi_comp * powf(2.0,10.0));
     if (phi_comp_fxpt<0)
     {
-        *phi_comp_reg = phi_comp_fxpt + (int)pow(2.0,12.0);
+        *phi_comp_reg = phi_comp_fxpt + (int)powf(2.0,12.0);
     }
     else
     {
@@ -353,12 +353,20 @@ void btdrv_set_iq_rx_val_to_nv(BT_IQ_RX_CALIBRATION_CONFIG_T* pConfig)
 #define DPD_REF_PHA_UP      3.1415926
 #define DPD_AM_PM_LUT_LEN   128
 #define DPD_COEF_MODE       2           // 0:down; 1: up; 2: down & up
-#define DPD_PM_CLIP_POSI    89
+#define DPD_PM_CLIP_POSI    10
 #define DPD_PM_CLIP_MAX     4289        // round(15/180*pi*2^14); 15 degree
 #define DPD_PI              3.1415926
 #define DPD_DC_RMV_EN       1
-#define DPD_PM_SIGN         0           // 1: normal; 0:negative
+#define DPD_PM_SIGN         1           // 1: normal; 0:negative
 
+#define DPD_AM_LINE_POSI    64
+#define DPD_AM_LINE_EN      0
+
+#define DPD_PM_LINE_POSI_LEFT    40
+#define DPD_PM_LINE_POSI_RIGHT   60
+#define DPD_PM_LINE_EN           1
+
+// void lib_bt_cal_dpd_coef_core(float *din_i, float *din_q, int din_length, int *am_lut_base, int *am_lut, int *pm_lut, int *data_valid_flag, uint16_t DPD_PM_LINE_POSI_LEFT,uint16_t DPD_PM_LINE_POSI_RIGHT,uint16_t DPD_PM_LINE_EN)
 void lib_bt_cal_dpd_coef_core(float *din_i, float *din_q, int din_length, int *am_lut_base, int *am_lut, int *pm_lut, int *data_valid_flag)
 {
     int ii;
@@ -392,8 +400,9 @@ void lib_bt_cal_dpd_coef_core(float *din_i, float *din_q, int din_length, int *a
     float ref_pha;
     int step_len;
     int index_left;
+    float slope;
 
-    DRIVERS_TRACE(2, "%s DPD_PEAK_MIN*100=%d",__func__,(int)(DPD_PEAK_MIN*100));
+    TRACE(2, "%s DPD_PEAK_MIN*100=%d",__func__,(int)(DPD_PEAK_MIN*100));
 
     // noise filtering
     if (DPD_LPF_EN==1) {
@@ -420,7 +429,7 @@ void lib_bt_cal_dpd_coef_core(float *din_i, float *din_q, int din_length, int *a
     }
 
     for (ii=0;ii<din_length;ii++) {
-        mag[ii] = (float)sqrtf((float)pow(din_i[ii],2.0)+(float)pow(din_q[ii],2.0));
+        mag[ii] = sqrtf(powf(din_i[ii],2.0) + powf(din_q[ii],2.0));
     }
 
     for (ii=0;ii<8;ii++) {
@@ -461,7 +470,7 @@ void lib_bt_cal_dpd_coef_core(float *din_i, float *din_q, int din_length, int *a
 
     for (ii=0;ii<7;ii++) {
         if ((peak_value_tab[ii]>max_peak_value*DPD_PEAK_MIN) && (peak_value_tab[ii+1]>max_peak_value*DPD_PEAK_MIN)) {
-            if ((int) fabs((float)(peak_index_tab[ii+1]-peak_index_tab[ii]-DPD_PEAK_PERIOD))<=DPD_PEAK_OFFSET) {
+            if ((int) fabsf((float)(peak_index_tab[ii+1]-peak_index_tab[ii]-DPD_PEAK_PERIOD))<=DPD_PEAK_OFFSET) {
                 left_peak_index = peak_index_tab[ii];
                 right_peak_index = peak_index_tab[ii+1];
                 *data_valid_flag = 1;
@@ -480,11 +489,15 @@ void lib_bt_cal_dpd_coef_core(float *din_i, float *din_q, int din_length, int *a
 
     if(*data_valid_flag==1) {
         for (ii=0;ii<DPD_PEAK_PERIOD/2;ii++) {
-            tri_mag_down[ii] = (float)sqrtf((float)pow((din_i[left_peak_index+(DPD_PEAK_PERIOD/2-1)-ii]-dc_i),2.0)+(float)pow((din_q[left_peak_index+(DPD_PEAK_PERIOD/2-1)-ii]-dc_q),2.0));
-            tri_mag_up[ii] = (float)sqrtf((float)pow((din_i[right_peak_index-(DPD_PEAK_PERIOD/2-1)+ii]-dc_i),2.0)+(float)pow((din_q[right_peak_index-(DPD_PEAK_PERIOD/2-1)+ii]-dc_q),2.0));
+            tri_mag_down[ii] = sqrtf(powf((din_i[left_peak_index+(DPD_PEAK_PERIOD/2-1)-ii]-dc_i),2.0)
+                                + powf((din_q[left_peak_index+(DPD_PEAK_PERIOD/2-1)-ii]-dc_q),2.0));
+            tri_mag_up[ii] = sqrtf(powf((din_i[right_peak_index-(DPD_PEAK_PERIOD/2-1)+ii]-dc_i),2.0)
+                                + powf((din_q[right_peak_index-(DPD_PEAK_PERIOD/2-1)+ii]-dc_q),2.0));
 
-            tri_pha_down[ii] = (float) atan2((din_q[left_peak_index+(DPD_PEAK_PERIOD/2-1)-ii]-dc_q),(din_i[left_peak_index+(DPD_PEAK_PERIOD/2-1)-ii]-dc_i));
-            tri_pha_up[ii] = (float) atan2((din_q[right_peak_index-(DPD_PEAK_PERIOD/2-1)+ii]-dc_q),(din_i[right_peak_index-(DPD_PEAK_PERIOD/2-1)+ii]-dc_i));
+            tri_pha_down[ii] = (float) atan2f((din_q[left_peak_index+(DPD_PEAK_PERIOD/2-1)-ii]-dc_q),
+                                            (din_i[left_peak_index+(DPD_PEAK_PERIOD/2-1)-ii]-dc_i));
+            tri_pha_up[ii] = (float) atan2f((din_q[right_peak_index-(DPD_PEAK_PERIOD/2-1)+ii]-dc_q),
+                                            (din_i[right_peak_index-(DPD_PEAK_PERIOD/2-1)+ii]-dc_i));
             tri_pha_down[ii] -= DPD_REF_PHA_DOWN;
             tri_pha_up[ii] -= DPD_REF_PHA_UP;
         }
@@ -546,6 +559,24 @@ void lib_bt_cal_dpd_coef_core(float *din_i, float *din_q, int din_length, int *a
             pa_am_lut[ii] /= pa_am_lut[DPD_AM_PM_LUT_LEN-1];
         }
 
+       // am linearization
+        if (DPD_AM_LINE_EN==1)
+        {
+            for (ii=0; ii<DPD_AM_LINE_POSI;ii++)
+            {
+                pa_am_lut[ii] = ((float)(ii+1)/(float)DPD_AM_LINE_POSI)*pa_am_lut[DPD_AM_LINE_POSI-1];
+            }
+        }
+
+        // pm linearization
+        if (DPD_PM_LINE_EN==1 && DPD_PM_LINE_POSI_RIGHT>DPD_PM_LINE_POSI_LEFT)
+        {
+            slope = (pa_pm_lut[DPD_PM_LINE_POSI_RIGHT-1] - pa_pm_lut[DPD_PM_LINE_POSI_LEFT-1])/(float)(DPD_PM_LINE_POSI_RIGHT - DPD_PM_LINE_POSI_LEFT);
+            for (ii=0;ii<DPD_PM_LINE_POSI_LEFT;ii++)
+            {
+                pa_pm_lut[ii] = (float)(ii-DPD_PM_LINE_POSI_LEFT+1)*slope + pa_pm_lut[DPD_PM_LINE_POSI_LEFT-1];
+            }
+        }
         // pm clip
         for (ii=0;ii<DPD_PM_CLIP_POSI;ii++) {
             pa_pm_lut[ii] = pa_pm_lut[DPD_PM_CLIP_POSI-1];
@@ -605,17 +636,17 @@ void lib_bt_cal_dpd_coef_core(float *din_i, float *din_q, int din_length, int *a
 
     // fxpt
     for (ii=0;ii<DPD_AM_PM_LUT_LEN;ii++) {
-        am_lut[ii] = (int) round(dpd_am_lut[ii]*(float)pow(2.0,14.0));  // <u,0,14>
+        am_lut[ii] = (int) roundf(dpd_am_lut[ii] * powf(2.0,14.0));  // <u,0,14>
         if (am_lut[ii]>16383) {
             am_lut[ii] = 16383;
         }
 
-        am_lut_base[ii] = (int) round(dpd_am_lut_base[ii]*(float)pow(2.0,14.0));  // <u,0,14>
+        am_lut_base[ii] = (int) roundf(dpd_am_lut_base[ii] * powf(2.0,14.0));  // <u,0,14>
         if (am_lut_base[ii]>16383) {
             am_lut_base[ii] = 16383;
         }
 
-        pm_lut[ii] = (int) round(dpd_pm_lut[ii]*(float)pow(2.0,14.0));             // <u,0,14>
+        pm_lut[ii] = (int) roundf(dpd_pm_lut[ii] * powf(2.0,14.0));             // <u,0,14>
 
         if (pm_lut[ii]>DPD_PM_CLIP_MAX) {
             pm_lut[ii] = DPD_PM_CLIP_MAX;

@@ -24,11 +24,7 @@
 #endif
 #include "a2dp_decoder_trace.h"
 
-#ifdef A2DP_CP_ACCEL
-#define TEXT_A2DP_LOC_A(n, l)
-#else
 #define TEXT_A2DP_LOC_A(n, l)               __attribute__((section(#n "." #l)))
-#endif
 #define TEXT_A2DP_LOC(n, l)                 TEXT_A2DP_LOC_A(n, l)
 
 #define TEXT_SBC_LOC                        TEXT_A2DP_LOC(.overlay_a2dp_sbc, __LINE__)
@@ -144,7 +140,6 @@ typedef struct {
     uint32_t undecode_frames;
     uint32_t check_sum;
     A2DP_AUDIO_OUTPUT_CONFIG_T stream_info;
-    A2DP_AUDIO_CHANNEL_SELECT_E  chnl_sel;
 } A2DP_AUDIO_DECODER_LASTFRAME_INFO_T;
 
 typedef struct {
@@ -157,6 +152,7 @@ typedef struct {
     A2DP_AUDIO_OUTPUT_CONFIG_T output_cfg;
     float init_factor_reference;
     A2DP_AUDIO_CHANNEL_SELECT_E chnl_sel;
+    A2DP_AUDIO_CHANNEL_SELECT_E chnl_sel_new;
     uint16_t dest_packet_mut;
     uint16_t not_chopping_dest_mut;
     float average_packet_mut;
@@ -168,9 +164,13 @@ typedef struct {
     bool retrigger_onprocess;
     uint16_t custom_delay_ms;
     bool underflow_inprocess;
+    uint16_t force_audio_retrigger_cnt;
     bool preparse_stop;
     uint32_t skip_frame_cnt_after_no_cache;
     uint32_t mute_frame_cnt_after_no_cache;
+    uint32_t skip_mute_cnt;
+    uint32_t mute_frame_seq;
+    A2DP_AUDIO_STARTFRAME_INFO_T start_seq_header;
     void *audio_buffer_mutex;
     void *audio_status_mutex;
     void *audio_stop_mutex;
@@ -188,13 +188,7 @@ typedef struct {
 #endif
     uint8_t historySeq_idx;
 #endif
-#ifdef BT_DONT_PLAY_MUTE_WHEN_A2DP_STUCK_PATCH
-    int8_t adjust_frame_cnt_after_no_cache;
-    uint16_t max_waterline_packet_mtu;
-    uint16_t min_waterline_packet_mtu;
-    uint16_t water_line_mut;
-    uint8_t water_line_delay_cache_cnt;
-#endif
+    uint16_t max_seq_num;
 } A2DP_AUDIO_CONTEXT_T;
 
 typedef enum
@@ -222,13 +216,6 @@ typedef struct
     uint8_t         isSequenceNumToApplyRollBack;
 } SBM_OPERATION_ENV_T;
 
-
-typedef struct
-{
-    SBM_STATUS_E    sbm_status;
-    int             sbm_param[3];
-} SBM_STATUS_MSG_T;
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -241,13 +228,16 @@ void a2dp_audio_heap_free(void *rmem);
 list_node_t *a2dp_audio_list_begin(const list_t *list);
 list_node_t *a2dp_audio_list_end(const list_t *list);
 uint32_t a2dp_audio_list_length(const list_t *list);
-void *a2dp_audio_list_front(const list_t *list);
 void *a2dp_audio_list_node(const list_node_t *node);
 list_node_t *a2dp_audio_list_next(const list_node_t *node);
 bool a2dp_audio_list_remove(list_t *list, void *data);
+bool a2dp_audio_list_remove_generic(list_t *list, void *data);
+#ifdef A2DP_DECODER_CROSS_CORE
+void a2dp_decoder_remove_from_list(void *data);
+bool a2dp_audio_list_remove_special(list_t *list, void *data);
+#endif
 bool a2dp_audio_list_append(list_t *list, void *data);
-bool a2dp_audio_list_insert_after(list_t *list, list_node_t *node, void *data);
-bool a2dp_audio_list_prepend(list_t *list, void *data);
+void a2dp_audio_list_feed_off_core(void);;
 void a2dp_audio_list_clear(list_t *list);
 void a2dp_audio_list_free(list_t *list);
 list_t *a2dp_audio_list_new(list_free_cb callback, list_mempool_zmalloc zmalloc, list_mempool_free free);
@@ -255,9 +245,12 @@ list_t *a2dp_audio_list_new(list_free_cb callback, list_mempool_zmalloc zmalloc,
 int a2dp_audio_decoder_internal_lastframe_info_set(A2DP_AUDIO_DECODER_LASTFRAME_INFO_T *lastframe_info);
 uint32_t a2dp_audio_get_passed(uint32_t curr_ticks, uint32_t prev_ticks, uint32_t max_ticks);
 uint32_t a2dp_audio_decoder_internal_check_sum_generate(const uint8_t *buf, uint32_t len);
+void a2dp_audio_update_mtu_per_frame(uint32_t frameCnt);
+bool a2dp_audio_is_started(void);
 
 #ifdef __cplusplus
 }
 #endif
 
 #endif//__A2DPPLAY_H__
+

@@ -18,6 +18,7 @@
  ****************************************************************************/
 #ifndef __ATC_CSISC__
 #define __ATC_CSISC__
+#include "bluetooth.h"
 
 #include "gaf_cfg.h"
 #include "gaf_log.h"
@@ -26,6 +27,40 @@
 #include "csisc.h"
 
 #define CSISC_CONNECTION_MAX            (GAF_CONNECTION_MAX)
+
+/*
+typedef int (*csisc_atc_cb_bond_data)(uint8_t con_lid, uint8_t set_lid, const csisc_prf_svc_t *param);
+
+typedef int (*csisc_atc_cb_ltk_get)(uint8_t con_lid, uint8_t *ltk);
+
+typedef int (*csisc_atc_cb_rsi_resolved)(uint8_t con_lid, uint16_t err_code, const uint8_t *p_rsi);
+
+typedef int (*csisc_atc_cb_sirk_decrypted)(uint8_t con_lid, uint16_t err_code, const uint8_t *p_sirk);
+
+typedef int (*csisc_atc_cb_lock_state)(uint8_t con_lid, uint8_t err_code, bool lock);
+
+typedef int (*csisc_atc_cb_set_size)(uint8_t con_lid, uint8_t err_code, uint8_t size);
+
+typedef int (*csisc_atc_cb_set_rank)(uint8_t con_lid, uint8_t err_code, uint8_t rank);
+
+typedef struct
+{
+    csisc_atc_cb_bond_data cb_bond_data;
+
+    csisc_atc_cb_ltk_get cb_ltk_get;
+
+    csisc_atc_cb_rsi_resolved cb_rsi;
+
+    csisc_atc_cb_sirk_decrypted cb_sirk;
+
+    csisc_atc_cb_lock_state cb_lock;
+
+    csisc_atc_cb_set_size cb_size;
+
+    csisc_atc_cb_set_rank cb_rank;
+
+} csisc_atc_evt_callback_t;
+*/
 
 /**
  * @brief ATC Coordinator Initilization

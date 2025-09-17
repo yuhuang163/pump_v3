@@ -63,7 +63,7 @@ static struct bt_drv_capval_calc_t capval_calc ={
 #define bt_drv_calib_capval_calc_reset() do{ \
                                     int sRet = memset_s(&capval_calc, sizeof(capval_calc), 0, sizeof(capval_calc)); \
                                     if (sRet){ \
-                                        DRIVERS_TRACE(1, "%s line:%d sRet:%d", __func__, __LINE__, sRet);  \
+                                        TRACE(1, "%s line:%d sRet:%d", __func__, __LINE__, sRet);  \
                                     }  \
                                  }while(0)
 #ifdef RTOS
@@ -165,7 +165,7 @@ static void bt_drv_rfcal_timer_handler(void const *start)
         btdrv_SendData(calib_hci_cmd_nonsig_rx_2dh1_pn9_t5, sizeof(calib_hci_cmd_nonsig_rx_2dh1_pn9_t5));
         btdrv_delay(100);
 
-        DRIVERS_TRACE(0,"bt_drv_cal start nonsig rx\n");
+        BT_DRV_TRACE(0,"bt_drv_cal start nonsig rx\n");
 
         BTRF_REG_SET_FIELD(0x20, 0x1, 13, 0x1);
         btdrv_write_rf_reg(0x7F, 0xAAAA);
@@ -184,7 +184,7 @@ static void bt_drv_rfcal_timer_handler(void const *start)
         btdrv_SendData(stop_nonsig_rx_cmd, sizeof(stop_nonsig_rx_cmd));
         btdrv_delay(2);
 
-        DRIVERS_TRACE(0,"bt_drv_cal stop nonsig rx\n");
+        BT_DRV_TRACE(0,"bt_drv_cal stop nonsig rx\n");
 
         osTimerStart(bt_drv_rfcal_timer, 300);
     }
@@ -263,7 +263,7 @@ static bool bt_drv_calib_capval_calc_run(uint16_t *capval_step_hz, int16_t estsw
         estsw_diff = ABS(capval_calc.estsw_b - capval_calc.estsw_a);
         cdac_diff = ABS((int16_t)(capval_calc.cdac_b) - (int16_t)(capval_calc.cdac_a));
         *capval_step_hz = estsw_diff*BT_DRV_CALIB_MDM_FREQ_STEP_HZ/cdac_diff;
-        DRIVERS_TRACE(7,"%d/%d %d/%d estsw_diff:%d cdac_diff:%d capval_step_hz:%d",
+        BT_DRV_TRACE(7,"%d/%d %d/%d estsw_diff:%d cdac_diff:%d capval_step_hz:%d",
                                                                     capval_calc.estsw_a,
                                                                     capval_calc.estsw_b,
                                                                     capval_calc.cdac_a,
@@ -293,7 +293,7 @@ void bt_drv_calib_rxonly_porc(void)
             break;
         }
         btdrv_delay(10);
-        DRIVERS_TRACE(7,"result cnt:%d head:%d payload:%d estsw:%d esttpl:%d bit:%d est:%d", nonsig_tester_result.pkt_counters,
+        BT_DRV_TRACE(7,"result cnt:%d head:%d payload:%d estsw:%d esttpl:%d bit:%d est:%d", nonsig_tester_result.pkt_counters,
                                                                                 nonsig_tester_result.head_errors,
                                                                                 nonsig_tester_result.payload_errors,
                                                                                 nonsig_tester_result.avg_estsw,
@@ -353,16 +353,16 @@ int bt_drv_calib_result_porc(uint32_t *capval)
     bt_drv_start_calib();
 
 check_again:
-    DRIVERS_TRACE(0,"calib run !!!");
+    BT_DRV_TRACE(0,"calib run !!!");
     do{
 calib_again:
         BT_DRV_MUTUX_WAIT(evt);
         if(evt.status != osEventSignal){
             nRet = -1;
-            DRIVERS_TRACE(1,"evt:%d", evt.status);
+            BT_DRV_TRACE(1,"evt:%d", evt.status);
             goto  exit;
         }
-        DRIVERS_TRACE(7,"result cnt:%d head:%d payload:%d estsw:%d esttpl:%d bit:%d est:%d",  nonsig_tester_result.pkt_counters,
+        BT_DRV_TRACE(7,"result cnt:%d head:%d payload:%d estsw:%d esttpl:%d bit:%d est:%d",  nonsig_tester_result.pkt_counters,
                                                                                         nonsig_tester_result.head_errors,
                                                                                         nonsig_tester_result.payload_errors,
                                                                                         nonsig_tester_result.avg_estsw,
@@ -418,7 +418,7 @@ calib_again:
                 next_step = 200;
             }
         }
-        DRIVERS_TRACE(4,"diff:%d cdac:%x next_step:%d", diff, cdac, next_step);
+        BT_DRV_TRACE(4,"diff:%d cdac:%x next_step:%d", diff, cdac, next_step);
         if (est == calib_mdm_freq_reference){
             if (!chk_flag){
                 chk_flag = 1;
@@ -440,7 +440,7 @@ calib_again:
                 cdac -= next_step;
             }
 
-            DRIVERS_TRACE(2,"-----: cdac:%d", cdac);
+            BT_DRV_TRACE(2,"-----: cdac:%d", cdac);
         }else if (est < calib_mdm_freq_reference){
             if (cdac>(BT_DRV_CALIB_BTANA_CAPVAL_MAX-next_step)){
                 if (cdac == BT_DRV_CALIB_BTANA_CAPVAL_MAX)
@@ -451,7 +451,7 @@ calib_again:
                 cdac += next_step;
             }
 
-            DRIVERS_TRACE(2,"+++++:cdac:%d",  cdac);
+            BT_DRV_TRACE(2,"+++++:cdac:%d",  cdac);
         }
 
         btdrv_rf_init_xtal_fcap(cdac);
@@ -463,7 +463,7 @@ exit:
     /*pa open*/
     bt_drv_calib_txpa_restore();
 
-    DRIVERS_TRACE(3,"capval:0x%x cnt:%d nRet:%d", *capval, cnt, nRet);
+    BT_DRV_TRACE(3,"capval:0x%x cnt:%d nRet:%d", *capval, cnt, nRet);
     return nRet;
 }
 
@@ -475,16 +475,16 @@ static unsigned int bt_drv_calib_rx(const unsigned char *data, unsigned int len)
 
     hal_intersys_stop_recv(HAL_INTERSYS_ID_0);
 
-//    DRIVERS_TRACE(2,"%s len:%d", __func__, len);
+//    BT_DRV_TRACE(2,"%s len:%d", __func__, len);
     BT_DRV_DUMP("%02x ", data, len);
     if (0 == memcmp(data, nonsig_test_report, sizeof(nonsig_test_report))){
-//        DRIVERS_TRACE(0,"dbg_nonsig_tester_result !!!!!");
+//        BT_DRV_TRACE(0,"dbg_nonsig_tester_result !!!!!");
         pResult = (struct dbg_nonsig_tester_result_tag *)(data + 7);
         if (pResult->pkt_counters != 0)
         {
             sRet = memcpy_s(&nonsig_tester_result, sizeof(nonsig_tester_result), pResult, sizeof(nonsig_tester_result));
             if (sRet){
-                DRIVERS_TRACE(1, "%s line:%d sRet:%d", __func__, __LINE__, sRet);
+                TRACE(1, "%s line:%d sRet:%d", __func__, __LINE__, sRet);
             }
             BT_DRV_MUTUX_SET();
         }
@@ -498,7 +498,7 @@ void btdrv_tx(const unsigned char *data, unsigned int len);
 void bt_drv_calib_open(void)
 {
     int ret = 0;
-    DRIVERS_TRACE(1,"%s", __func__);
+    BT_DRV_TRACE(1,"%s", __func__);
 #ifdef RTOS
     if (calib_thread_tid == NULL){
         calib_thread_tid = osThreadGetId();
@@ -508,7 +508,7 @@ void bt_drv_calib_open(void)
     ret = hal_intersys_open(HAL_INTERSYS_ID_0, HAL_INTERSYS_MSG_HCI, bt_drv_calib_rx, btdrv_tx, false);
 
     if (ret) {
-        DRIVERS_TRACE(0,"Failed to open intersys");
+        BT_DRV_TRACE(0,"Failed to open intersys");
         return;
     }
     hal_intersys_start_recv(HAL_INTERSYS_ID_0);

@@ -149,8 +149,8 @@ static void vad_codec_test_cmd_loop(void)
 
 void vad_test_env_init(void)
 {
-    sensor_hub_core_register_rx_irq_handler(vad_codec_test_rx_handler);
-    sensor_hub_core_register_tx_done_irq_handler(vad_codec_test_tx_handler);
+    sensor_hub_core_register_rx_irq_handler(CORE_IRQ_HDLR_PRIO_LOW, vad_codec_test_rx_handler);
+    sensor_hub_core_register_tx_done_irq_handler(CORE_IRQ_HDLR_PRIO_LOW, vad_codec_test_tx_handler);
 
     analog_aud_register_rpc_callback(analog_rpc);
 }

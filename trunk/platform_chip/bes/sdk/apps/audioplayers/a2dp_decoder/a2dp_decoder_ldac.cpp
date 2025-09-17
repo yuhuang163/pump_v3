@@ -19,36 +19,25 @@
 #include <string.h>
 #include "heap_api.h"
 #include "hal_location.h"
-#include "bluetooth_bt_api.h"
 #include "a2dp_decoder_internal.h"
 #include "btapp.h"
-#include"ldacBT.h"
-#include "bes_mem_api.h"
+#include "ldacBT.h"
 
 typedef struct
 {
-    uint16_t sequenceNumber;
-    uint32_t timestamp;
+    A2DP_COMMON_MEDIA_FRAME_HEADER_T header;
     uint32_t frame_samples;
-    uint16_t curSubSequenceNumber;
-    uint16_t totalSubSequenceNumber;
-    uint8_t *buffer;
-    uint32_t buffer_len;
+
 } a2dp_audio_ldac_decoder_frame_t;
-
-
 
 #ifndef LDAC_MTU_LIMITER
 #define LDAC_MTU_LIMITER (200)
 #endif
-static uint16_t DECODE_LDAC_PCM_FRAME_LENGTH = 256*4*2*2;
-static uint16_t LDAC_LIST_SAMPLES = 256;
+#define DECODE_LDAC_PCM_FRAME_LENGTH  (256*4*2*2)
 
-static int a2dp_audio_ldac_decoder_init(void);
-static void a2dp_audio_ldac_decoder_deinit(void);
-#ifdef A2DP_CP_ACCEL
-static bool cp_codec_reset;
-#endif
+#define LDAC_LIST_SAMPLES (256)
+
+
 static A2DP_AUDIO_CONTEXT_T *a2dp_audio_context_p = NULL;
 static A2DP_AUDIO_DECODER_LASTFRAME_INFO_T a2dp_audio_ldac_lastframe_info;
 
@@ -61,14 +50,7 @@ HANDLE_LDAC_BT LdacDecHandle = NULL;
 //static uint8_t *ldac_mempoll = NULL;
 heap_handle_t ldac_memhandle = NULL;
 
-#ifdef A2DP_LDAC_BCO
-extern "C" HANDLE_LDAC_BT ldac_BCO_init_and_start(int32_t sample_rate, int32_t bits_per_sample, int32_t channel_mode);
-extern "C" void ldac_BCO_deinit(void);
-extern "C" int32_t ldac_BCO_decoder_packet_fill(int32_t frames, void *data, int32_t length);
-extern "C" int32_t ldac_BCO_decoder_get_frame_number(void);
-extern "C" int32_t ldac_BCO_data_peek_one_frame(uint8_t *p_buffer, uint16_t buffer_max_len, uint8_t update_bc);
-extern "C" int32_t ldac_BCO_bc_pop_one_frame(void);
-#endif
+static uint32_t l2cap_frame_samples = LDAC_LIST_SAMPLES;
 
 /* Convert LDAC Error Code to string */
 #define CASE_RETURN_STR(const) case const: return #const;
@@ -159,17 +141,25 @@ const char * get_error_code_string( int error_code )
 #define LDAC_FRAME_LEN_INDEX_216         216
 #define LDAC_FRAME_LEN_INDEX_326         326
 #define LDAC_FRAME_LEN_INDEX_161         161
-
+#define LDAC_FRAME_LEN_INDEX_143         143
+#define LDAC_FRAME_LEN_INDEX_69          69
 
 uint8_t get_ldac_frame_num(uint16_t frame_length_index)
 {
+    // TRACE(1,"######frame_length_index: %d !!!!!",frame_length_index);
     uint8_t frame_num = 0;
     switch(frame_length_index)
     {
+        case LDAC_FRAME_LEN_INDEX_69:
+            frame_num = 9;
+            break;
         case LDAC_FRAME_LEN_INDEX_106:
             frame_num = 6;
             break;
         case LDAC_FRAME_LEN_INDEX_128:
+            frame_num = 5;
+            break;
+        case LDAC_FRAME_LEN_INDEX_143:
             frame_num = 5;
             break;
         case LDAC_FRAME_LEN_INDEX_160:
@@ -185,31 +175,11 @@ uint8_t get_ldac_frame_num(uint16_t frame_length_index)
             frame_num = 2;
             break;
         default:
-            AUDIOPLAYERS_TRACE(1,"######Unknown ldac frame format: %d !!!!!",frame_length_index);
+            TRACE(1,"######Unknown ldac frame format: %d !!!!!",frame_length_index);
             break;
     }
     return frame_num;
 }
-static uint8_t get_ldac_frame_num_by_rawdata(uint8_t *buffer, uint32_t buffer_bytes)
-{
-    uint32_t frame_len = 0;
-    uint32_t frame_len_with_head = 0;
-    uint16_t data1 = 0;
-    uint16_t data2 = 0;
-    uint8_t frame_cnt = 0;
-    for(uint32_t i=0; i<buffer_bytes; i+=frame_len_with_head,frame_cnt++)
-    {
-        //AUDIOPLAYERS_TRACE(4,"buffer:%x %x %x %x ",buffer[i],buffer[i+1],buffer[i+2],buffer[i+3]);
-        data1 = (uint16_t)(buffer[i+1]&0x07);
-        data2 = (uint16_t)buffer[i+2];
-        frame_len = ((data1<< 6 &0xFFFF) | (data2 >> 2 & 0xFFFF));
-        //AUDIOPLAYERS_TRACE(0,"#frame len:%d",frame_len);
-        //for ldac head
-        frame_len_with_head = frame_len + 4;
-    }
-    return frame_cnt;
-}
-
 #define LDAC_READBUF_SIZE   1024    /* pick something big enough to hold a bunch of frames */
 
 
@@ -224,18 +194,14 @@ extern const char * get_error_code_string( int error_code );
 
 int check_ldac_header(uint8_t *buffer,uint32_t buff_len)
 {
-    int channel_mode = 0;
-    uint32_t sample_rate = 0;
-    int sample_count = 0;
+    int channel_mode =0;
+    int sample_rate=0;
     int ret=0;
-
     if(buff_len <2)
         ret=-1;
-
-    sample_rate = bta_get_curr_a2dp_sample_rate();
-    sample_count = bta_sample_rate_convert_to_sample_count(sample_rate);
-    channel_mode = bta_get_curr_a2dp_channel_mode();
-    //AUDIOPLAYERS_TRACE(3,"%s,%d,%d",__func__,sample_count,channel_mode);
+    sample_rate=bt_get_ladc_sample_rate();
+    channel_mode=bt_ldac_player_get_channelmode();
+    //TRACE(3,"%s,%d,%d",__func__,sample_rate,channel_mode);
 
     uint32_t i=0;
     unsigned char sync2 = 0;
@@ -256,25 +222,25 @@ int check_ldac_header(uint8_t *buffer,uint32_t buff_len)
             break;
     }
 
-    if(sample_count == 1*44100)
+    if(sample_rate == 1*44100)
     {
         sync2 = (0 << 5) | (cci << 3);
     }
-    else if(sample_count == 1*48000)
+    else if(sample_rate == 1*48000)
     {
         sync2 = (1 << 5) | (cci << 3);
     }
-    else if(sample_count == 2*44100)
+    else if(sample_rate == 2*44100)
     {
         sync2 = (2 << 5) | (cci << 3);
     }
-    else if(sample_count == 2*48000)
+    else if(sample_rate == 2*48000)
     {
         sync2 = (3 << 5) | (cci << 3);
     }
     else
     {
-        AUDIOPLAYERS_TRACE(0,"sample rate not surpoort !");
+        TRACE(0,"sample rate not surpoort !");
         ret=-2;
         return ret;
     }
@@ -285,7 +251,7 @@ int check_ldac_header(uint8_t *buffer,uint32_t buff_len)
         {
             if((buffer[i+1] & 0xF8)==sync2)
             {
-                //AUDIOPLAYERS_TRACE(0,"find ldac header ");
+                //TRACE(0,"find ldac header ");
                 break;
             }
 
@@ -293,7 +259,7 @@ int check_ldac_header(uint8_t *buffer,uint32_t buff_len)
     }
     if(i>=buff_len)
     {
-        AUDIOPLAYERS_TRACE(0,"no find ldac header fs[0x%02x][0x%02x] sync2 = 0x%02x len = %d",sample_count,cci,sync2,buff_len);
+        TRACE(0,"no find ldac header ");
         ret=-3;
     }
 
@@ -320,18 +286,20 @@ struct A2DP_CP_LDAC_OUT_FRM_INFO_T
 
 extern "C" uint32_t get_in_cp_frame_cnt(void);
 extern "C" unsigned int set_cp_reset_flag(uint8_t evt);
-extern uint32_t app_bt_stream_get_dma_buffer_samples(void);
+extern "C" uint32_t app_bt_stream_get_dma_buffer_samples(void);
 
 int a2dp_cp_ldac_cp_decode(void);
 
 TEXT_LDAC_LOC
-POSSIBLY_UNUSED static int a2dp_cp_ldac_after_cache_underflow(void)
+static int a2dp_cp_ldac_after_cache_underflow(void)
 {
-    AUDIOPLAYERS_TRACE(1,"%s", __func__);
-#ifdef A2DP_CP_ACCEL
-    cp_codec_reset = true;
-#endif
-    return 0;
+    TRACE(1,"%s", __func__);
+    int ret = 0;
+    a2dp_cp_deinit();
+    ret = a2dp_cp_init(a2dp_cp_ldac_cp_decode, CP_PROC_DELAY_2_FRAMES);
+    ASSERT(ret == 0, "%s: a2dp_cp_init() failed: ret=%d", __func__, ret);
+
+    return ret;
 }
 
 static int a2dp_cp_ldac_mcu_decode(uint8_t *buffer, uint32_t buffer_bytes)
@@ -350,21 +318,15 @@ static int a2dp_cp_ldac_mcu_decode(uint8_t *buffer, uint32_t buffer_bytes)
 
     uint32_t cp_buffer_frames_max = 0;
 
-     if (cp_codec_reset) {
-        cp_codec_reset = false;
-        // a2dp_audio_ldac_decoder_deinit();
-        a2dp_audio_ldac_decoder_init();
-    }
-    if((buffer_bytes < DECODE_LDAC_PCM_FRAME_LENGTH && (LDACBT_CHANNEL_MODE_MONO != bta_get_curr_a2dp_channel_mode()))
-        || (buffer_bytes < DECODE_LDAC_PCM_FRAME_LENGTH/2 && (LDACBT_CHANNEL_MODE_MONO == bta_get_curr_a2dp_channel_mode())))
+    if(buffer_bytes < DECODE_LDAC_PCM_FRAME_LENGTH)
     {
-        AUDIOPLAYERS_TRACE(1,"ldac_decode pcm_len = %d \n", buffer_bytes);
+        TRACE(1,"ldac_decode pcm_len = %d \n", buffer_bytes);
         return A2DP_DECODER_NO_ERROR;
     }
 
     if(!LdacDecHandle)
     {
-        AUDIOPLAYERS_TRACE(0,"ldac decode not ready");
+        TRACE(0,"ldac decode not ready");
         return A2DP_DECODER_NO_ERROR;
     }
 
@@ -385,85 +347,38 @@ static int a2dp_cp_ldac_mcu_decode(uint8_t *buffer, uint32_t buffer_bytes)
 
     if (ret)
     {
-        AUDIOPLAYERS_TRACE(2,"%s: a2dp_cp_decoder_init() failed: ret=%d", __func__, ret);
+        TRACE(2,"%s: a2dp_cp_decoder_init() failed: ret=%d", __func__, ret);
         set_cp_reset_flag(true);
         return A2DP_DECODER_DECODE_ERROR;
     }
 
-#ifdef A2DP_LDAC_BCO
-    uint8_t update_bc = true;
-    while (ldac_BCO_decoder_get_frame_number() > 0)
-    {
-        uint8_t data[LDACBT_MAX_NBYTES + 2];
-        int32_t size;
-        // temp_buf_ptr1=data;
-        // temp_buf_ptr2=buffer+wrote_bytes*output_count;
-        size = ldac_BCO_data_peek_one_frame(data, sizeof(data), update_bc);
-        update_bc = false;
-        if(size <= 0)
-        {
-            if(-1 == size)
-                AUDIOPLAYERS_TRACE(0, "BCO is CACHING");
-            else
-                AUDIOPLAYERS_TRACE(1, "BCO is empty: %d", size);
-            //  return A2DP_DECODER_CACHE_UNDERFLOW_ERROR;
-            return 0;
-        }
-
-        ldac_decoder_frame_p = NULL;
-        if((node = a2dp_audio_list_begin(list)) != NULL)
-        {
-            ldac_decoder_frame_p = (a2dp_audio_ldac_decoder_frame_t *)a2dp_audio_list_node(node);
-            in_info.sequenceNumber = ldac_decoder_frame_p->sequenceNumber;
-            in_info.timestamp = ldac_decoder_frame_p->timestamp;
-            in_info.curSubSequenceNumber = ldac_decoder_frame_p->curSubSequenceNumber;
-            in_info.totalSubSequenceNumber = ldac_decoder_frame_p->totalSubSequenceNumber;
-        }
-        ret = a2dp_cp_put_in_frame(&in_info, sizeof(in_info), data, size);
-
-        if (ret)
-        {
-            //AUDIOPLAYERS_TRACE(2,"%s  piff  !!!!!!ret: %d ",__func__, ret);
-            break;
-        }
-
-        ldac_BCO_bc_pop_one_frame();
-
-        // count++;
-        // AUDIOPLAYERS_TRACE(2,"%s  count  !!!!!!: %d ",__func__,count);
-        //AUDIOPLAYERS_TRACE(3,"put seq:%d %d %d",in_info.sequenceNumber,in_info.curSubSequenceNumber,in_info.totalSubSequenceNumber);
-        if(NULL != ldac_decoder_frame_p)
-            a2dp_audio_list_remove(list, ldac_decoder_frame_p);
-    }
-#else
     while ((node = a2dp_audio_list_begin(list)) != NULL)
     {
         ldac_decoder_frame_p = (a2dp_audio_ldac_decoder_frame_t *)a2dp_audio_list_node(node);
 
-        in_info.sequenceNumber = ldac_decoder_frame_p->sequenceNumber;
-        in_info.timestamp = ldac_decoder_frame_p->timestamp;
-        in_info.curSubSequenceNumber = ldac_decoder_frame_p->curSubSequenceNumber;
-        in_info.totalSubSequenceNumber = ldac_decoder_frame_p->totalSubSequenceNumber;
-        ret = a2dp_cp_put_in_frame(&in_info, sizeof(in_info), ldac_decoder_frame_p->buffer, ldac_decoder_frame_p->buffer_len);
+        in_info.sequenceNumber = ldac_decoder_frame_p->header.sequenceNumber;
+        in_info.timestamp = ldac_decoder_frame_p->header.timestamp;
+        in_info.curSubSequenceNumber = ldac_decoder_frame_p->header.curSubSequenceNumber;
+        in_info.totalSubSequenceNumber = ldac_decoder_frame_p->header.totalSubSequenceNumber;
+        ret = a2dp_cp_put_in_frame(&in_info, sizeof(in_info), ldac_decoder_frame_p->header.ptrData, ldac_decoder_frame_p->header.dataLen);
 
         if (ret)
         {
-            //AUDIOPLAYERS_TRACE(2,"%s  piff  !!!!!!ret: %d ",__func__, ret);
+            //TRACE(2,"%s  piff  !!!!!!ret: %d ",__func__, ret);
             break;
         }
         // count++;
-        // AUDIOPLAYERS_TRACE(2,"%s  count  !!!!!!: %d ",__func__,count);
-        //AUDIOPLAYERS_TRACE(3,"put seq:%d %d %d",in_info.sequenceNumber,in_info.curSubSequenceNumber,in_info.totalSubSequenceNumber);
+        // TRACE(2,"%s  count  !!!!!!: %d ",__func__,count);
+        //TRACE(3,"put seq:%d %d %d",in_info.sequenceNumber,in_info.curSubSequenceNumber,in_info.totalSubSequenceNumber);
         a2dp_audio_list_remove(list, ldac_decoder_frame_p);
     }
-#endif
 
     ret = a2dp_cp_get_full_out_frame((void **)&out, &out_len);
 
     if (ret)
     {
-        AUDIOPLAYERS_TRACE(0,"%s %d cp find cache underflow",__func__, __LINE__);
-        AUDIOPLAYERS_TRACE(2,"aud_list_len:%d. cp_get_in_frame:%d", a2dp_audio_list_length(list), get_in_cp_frame_cnt());
+        TRACE(0,"%s %d cp find cache underflow",__func__, __LINE__);
+        TRACE(2,"aud_list_len:%d. cp_get_in_frame:%d", a2dp_audio_list_length(list), get_in_cp_frame_cnt());
         a2dp_cp_ldac_after_cache_underflow();
         return A2DP_DECODER_CACHE_UNDERFLOW_ERROR;
     }
@@ -472,12 +387,12 @@ static int a2dp_cp_ldac_mcu_decode(uint8_t *buffer, uint32_t buffer_bytes)
     {
         memset(buffer, 0, buffer_bytes);
         a2dp_cp_consume_full_out_frame();
-        AUDIOPLAYERS_TRACE(1,"%s  olz!!!",__func__);
+        TRACE(1,"%s  olz!!!",__func__);
         return A2DP_DECODER_NO_ERROR;
     }
     if (out_len != out_frame_len)
     {
-        AUDIOPLAYERS_TRACE(3,"%s: Bad out len %u (should be %u)", __func__, out_len, out_frame_len);
+        TRACE(3,"%s: Bad out len %u (should be %u)", __func__, out_len, out_frame_len);
         set_cp_reset_flag(true);
         return A2DP_DECODER_DECODE_ERROR;
     }
@@ -502,7 +417,7 @@ static int a2dp_cp_ldac_mcu_decode(uint8_t *buffer, uint32_t buffer_bytes)
     }
     else
     {
-        AUDIOPLAYERS_TRACE(2,"%s  %d cp decoder error  !!!!!!", __func__, __LINE__);
+        TRACE(2,"%s  %d cp decoder error  !!!!!!", __func__, __LINE__);
         set_cp_reset_flag(true);
         return A2DP_DECODER_DECODE_ERROR;
     }
@@ -511,18 +426,11 @@ static int a2dp_cp_ldac_mcu_decode(uint8_t *buffer, uint32_t buffer_bytes)
     if (ret)
     {
 
-        AUDIOPLAYERS_TRACE(2,"%s: a2dp_cp_consume_full_out_frame() failed: ret=%d", __func__, ret);
+        TRACE(2,"%s: a2dp_cp_consume_full_out_frame() failed: ret=%d", __func__, ret);
         set_cp_reset_flag(true);
         return A2DP_DECODER_DECODE_ERROR;
     }
     return dec_ret;
-}
-
-static void inline a2dp_audio_convert_16bit_to_24bit(int32_t *out, int16_t *in, int len)
-{
-    for (int i = len - 1; i >= 0; i--) {
-        out[i] = ((int32_t)in[i] << 8);
-    }
 }
 
 TEXT_LDAC_LOC
@@ -565,19 +473,17 @@ int a2dp_cp_ldac_cp_decode(void)
     dec_start = (uint8_t *)(p_out_info + 1) + p_out_info->pcm_len;
     dec_len = out_len - (dec_start - (uint8_t *)out);
 
-    if(a2dp_audio_context_p->audio_decoder.stream_info.bits_depth == 24) {
-        dec_len /= 2;
-    }
-
     dec_sum = 0;
 
     while (dec_sum < (int32_t)dec_len)
     {
         ret = a2dp_cp_get_in_frame((void **)&in_buf, &in_len);
 
+
+
         if (ret)
         {
-            AUDIOPLAYERS_TRACE(1,"cp_get_int_frame fail, ret=%d", ret);
+            TRACE(1,"cp_get_int_frame fail, ret=%d", ret);
             return 4;
         }
 
@@ -586,20 +492,20 @@ int a2dp_cp_ldac_cp_decode(void)
         p_in_info = (struct A2DP_CP_LDAC_IN_FRM_INFO_T *)in_buf;
         in_buf += sizeof(*p_in_info);
         in_len -= sizeof(*p_in_info);
-        //AUDIOPLAYERS_TRACE(2,"decode:seq %d %d %d", p_in_info->sequenceNumber, p_in_info->curSubSequenceNumber,p_in_info->totalSubSequenceNumber);
+        //TRACE(2,"decode:seq %d %d %d", p_in_info->sequenceNumber, p_in_info->curSubSequenceNumber,p_in_info->totalSubSequenceNumber);
 
         if(in_buf[0] != 0xaa)
         {
-            AUDIOPLAYERS_TRACE(2,"decode:seq %d %d", p_in_info->sequenceNumber, p_in_info->curSubSequenceNumber);
-            AUDIOPLAYERS_DUMP8("%x ",in_buf,30);
+            TRACE(2,"decode:seq %d %d", p_in_info->sequenceNumber, p_in_info->curSubSequenceNumber);
+            DUMP8("%x ",in_buf,30);
         }
 
         ret = ldacBT_decode(LdacDecHandle, in_buf, dec_start+dec_sum, LDACBT_SMPL_FMT_S16, in_len, &used_bytes, &wrote_bytes);
-        //AUDIOPLAYERS_TRACE(0,"%s wb:%d bb:%d pb:%d",__func__,wrote_bytes,dec_len,dec_sum);
+        //TRACE("%s wb:%d bb:%d pb:%d",__func__,wrote_bytes,dec_len,dec_sum);
         dec_sum += wrote_bytes;
         if(ret !=0)
         {
-            AUDIOPLAYERS_TRACE(1,"ldac decode error %d",ret);
+            TRACE(1,"ldac decode error %d",ret);
             ret=A2DP_DECODER_DECODE_ERROR;
             return -1;
         }
@@ -608,26 +514,20 @@ int a2dp_cp_ldac_cp_decode(void)
 
         if (ret != 0)
         {
-            AUDIOPLAYERS_TRACE(2,"%s: a2dp_cp_consume_in_frame() failed: ret=%d", __func__, ret);
+            TRACE(2,"%s: a2dp_cp_consume_in_frame() failed: ret=%d", __func__, ret);
         }
         ASSERT(ret == 0, "%s: a2dp_cp_consume_in_frame() failed: ret=%d", __func__, ret);
 
         memcpy(&p_out_info->in_info, p_in_info, sizeof(*p_in_info));
         p_out_info->decoded_frames++;
-        p_out_info->frame_samples = LDAC_LIST_SAMPLES;
+        p_out_info->frame_samples = 256;
         p_out_info->frame_idx = a2dp_cp_get_in_frame_index();
     }
 
     if ( dec_sum != (int32_t)dec_len )
     {
-        AUDIOPLAYERS_TRACE(2,"error!!! dec_sum:%d  != dec_len:%d", dec_sum, dec_len);
+        TRACE(2,"error!!! dec_sum:%d  != dec_len:%d", dec_sum, dec_len);
         ASSERT(0, "%s", __func__);
-    }
-
-    if(a2dp_audio_context_p->output_cfg.bits_depth == 24 &&
-        a2dp_audio_context_p->audio_decoder.stream_info.bits_depth == 24) {
-        a2dp_audio_convert_16bit_to_24bit((int32_t *)dec_start, (int16_t *)dec_start, dec_sum / sizeof(int16_t));
-        dec_sum *= 2;
     }
 
     p_out_info->pcm_len += dec_sum;
@@ -643,13 +543,21 @@ int a2dp_cp_ldac_cp_decode(void)
 
 #endif
 
+static void inline a2dp_audio_convert_16bit_to_24bit(int32_t *out, int16_t *in, int pcm_len)
+{
+    for (int i = pcm_len - 1; i >= 0; i--) {
+        out[i] = ((int32_t)in[i] << 8);
+    }
+}
+
 int a2dp_audio_ldac_mcu_decode_frame(uint8_t *buffer,uint32_t buffer_bytes)
 {
-
+#ifndef A2DP_DECODER_CROSS_CORE
     list_node_t *node=NULL;
     uint8_t *temp_buf_ptr1=NULL;
     uint8_t *temp_buf_ptr2=NULL;
     uint16_t pcm_output_bytes;
+    uint32_t lock;
 
     a2dp_audio_ldac_decoder_frame_t *ldac_decoder_frame_p=NULL;
     int used_bytes=0;
@@ -658,89 +566,71 @@ int a2dp_audio_ldac_mcu_decode_frame(uint8_t *buffer,uint32_t buffer_bytes)
     int output_count = 0;
     int result=0;
 
-
-    if((buffer_bytes < DECODE_LDAC_PCM_FRAME_LENGTH && (LDACBT_CHANNEL_MODE_MONO != bta_get_curr_a2dp_channel_mode()))
-        || (buffer_bytes < DECODE_LDAC_PCM_FRAME_LENGTH/2 && (LDACBT_CHANNEL_MODE_MONO == bta_get_curr_a2dp_channel_mode())))
+    if(buffer_bytes < DECODE_LDAC_PCM_FRAME_LENGTH)
     {
-        AUDIOPLAYERS_TRACE(1,"ldac_decode pcm_len = %d \n", buffer_bytes);
+        TRACE(1,"ldac_decode pcm_len = %d \n", buffer_bytes);
         return A2DP_DECODER_NO_ERROR;
     }
 
     if(!LdacDecHandle)
     {
-        AUDIOPLAYERS_TRACE(0,"ldac decode not ready");
+        TRACE(0,"ldac decode not ready");
         return A2DP_DECODER_NO_ERROR;
     }
 
     list_t *list=a2dp_audio_context_p->audio_datapath.input_raw_packet_list;
-
-
-    //AUDIOPLAYERS_TRACE(0,"jtx~~");
-
+    int bits_depth = a2dp_audio_context_p->audio_decoder.stream_info.bits_depth;
     for(pcm_output_bytes=0; pcm_output_bytes<buffer_bytes; pcm_output_bytes +=wrote_bytes)
     {
         node =a2dp_audio_list_begin(list);
         if(!node)
         {
-            AUDIOPLAYERS_TRACE(0,"ldac decode cache underflow !");
+            TRACE(0,"ldac decode cache underflow !");
             cache_underflow=true;
             goto exit;
         }
         else
         {
             ldac_decoder_frame_p = (a2dp_audio_ldac_decoder_frame_t *)a2dp_audio_list_node(node);
-            temp_buf_ptr1=ldac_decoder_frame_p->buffer;
+            temp_buf_ptr1=ldac_decoder_frame_p->header.ptrData;
             temp_buf_ptr2=buffer+wrote_bytes*output_count;
 
             if(temp_buf_ptr1[0] != 0xaa)
             {
-                AUDIOPLAYERS_TRACE(2,"decode:seq %d %d",ldac_decoder_frame_p->sequenceNumber,ldac_decoder_frame_p->curSubSequenceNumber);
-                AUDIOPLAYERS_DUMP8("%x ",temp_buf_ptr1,30);
+                TRACE(2,"decode:seq %d %d",ldac_decoder_frame_p->header.sequenceNumber,ldac_decoder_frame_p->header.curSubSequenceNumber);
+                DUMP8("%x ",temp_buf_ptr1,30);
 
             }
-
-            result = ldacBT_decode(LdacDecHandle,temp_buf_ptr1,temp_buf_ptr2, LDACBT_SMPL_FMT_S16, ldac_decoder_frame_p->buffer_len, &used_bytes, &wrote_bytes);
+            lock = int_lock();
+            result = ldacBT_decode(LdacDecHandle,temp_buf_ptr1,temp_buf_ptr2, LDACBT_SMPL_FMT_S16, ldac_decoder_frame_p->header.dataLen, &used_bytes, &wrote_bytes);
+            if(bits_depth == 24){
+                a2dp_audio_convert_16bit_to_24bit((int32_t *)temp_buf_ptr2, (int16_t *)temp_buf_ptr2, 1024 / sizeof(int16_t));
+                wrote_bytes*=2;
+            }
             output_count++;
-
-            //  AUDIOPLAYERS_TRACE(0,"%s wb:%d bb:%d pb:%d",__func__,wrote_bytes,buffer_bytes,pcm_output_bytes);
-
-            // AUDIOPLAYERS_DUMP8("%x ",temp_buf_ptr2,10);
-
+            int_unlock(lock);
 
             if(result !=0)
             {
                 output_count=0;
-                AUDIOPLAYERS_TRACE(4,"%s wb:%d bb:%d pb:%d",__func__,wrote_bytes,buffer_bytes,pcm_output_bytes);
-                AUDIOPLAYERS_TRACE(2,"decode:seq %d %d",ldac_decoder_frame_p->sequenceNumber,ldac_decoder_frame_p->curSubSequenceNumber);
-                AUDIOPLAYERS_DUMP8("%x ",temp_buf_ptr1,10);
-                AUDIOPLAYERS_TRACE(1,"ldac decode error %d",result);
+                TRACE(4,"%s wb:%d bb:%d pb:%d",__func__,wrote_bytes,buffer_bytes,pcm_output_bytes);
+                TRACE(2,"decode:seq %d %d",ldac_decoder_frame_p->header.sequenceNumber,ldac_decoder_frame_p->header.curSubSequenceNumber);
+                DUMP8("%x ",temp_buf_ptr1,10);
+                TRACE(1,"ldac decode error %d",result);
                 result=A2DP_DECODER_DECODE_ERROR;
                 goto exit;
             }
         }
-        a2dp_audio_ldac_lastframe_info.sequenceNumber=ldac_decoder_frame_p->sequenceNumber;
-        a2dp_audio_ldac_lastframe_info.timestamp=ldac_decoder_frame_p->timestamp;
-        a2dp_audio_ldac_lastframe_info.curSubSequenceNumber = ldac_decoder_frame_p->curSubSequenceNumber;
-        a2dp_audio_ldac_lastframe_info.totalSubSequenceNumber = ldac_decoder_frame_p->totalSubSequenceNumber;
+        a2dp_audio_ldac_lastframe_info.sequenceNumber=ldac_decoder_frame_p->header.sequenceNumber;
+        a2dp_audio_ldac_lastframe_info.timestamp=ldac_decoder_frame_p->header.timestamp;
+        a2dp_audio_ldac_lastframe_info.curSubSequenceNumber = ldac_decoder_frame_p->header.curSubSequenceNumber;
+        a2dp_audio_ldac_lastframe_info.totalSubSequenceNumber = ldac_decoder_frame_p->header.totalSubSequenceNumber;
         a2dp_audio_ldac_lastframe_info.frame_samples =ldac_decoder_frame_p->frame_samples ;
         a2dp_audio_ldac_lastframe_info.decoded_frames++;
         a2dp_audio_ldac_lastframe_info.undecode_frames = a2dp_audio_list_length(list)-1;
         a2dp_audio_decoder_internal_lastframe_info_set(&a2dp_audio_ldac_lastframe_info);
         a2dp_audio_list_remove(list, ldac_decoder_frame_p);
     }
-    /*
-    used_bytes:�Ѿ����˶��ٸ��ֽ�
-    wrote_bytes:��������ٸ��ֽ�?
-        if (p_out_len)
-        {
-            *p_out_len = wrote_bytes;
-        }
-        if (p_consume_len)
-        {
-            *p_consume_len = used_bytes;
-        }
-    */
-
 
 exit:
     if(cache_underflow)
@@ -750,133 +640,19 @@ exit:
         result = A2DP_DECODER_CACHE_UNDERFLOW_ERROR;
     }
     return result;
-
+#else
+    return 0;
+#endif
 }
 
-#ifdef A2DP_LDAC_BCO
-int a2dp_audio_bco_ldac_mcu_decode_frame(uint8_t *buffer,uint32_t buffer_bytes)
+static int a2dp_audio_ldac_decode_frame(uint8_t *buffer, uint32_t buffer_bytes)
 {
-    list_node_t *node=NULL;
-    uint8_t *temp_buf_ptr1=NULL;
-    uint8_t *temp_buf_ptr2=NULL;
-    uint16_t pcm_output_bytes;
-
-    a2dp_audio_ldac_decoder_frame_t *ldac_decoder_frame_p=NULL;
-    int used_bytes=0;
-    int wrote_bytes=0;
-    // bool cache_underflow=false;
-    int result=0;
-
-    if((buffer_bytes < DECODE_LDAC_PCM_FRAME_LENGTH && (LDACBT_CHANNEL_MODE_MONO != bta_get_curr_a2dp_channel_mode()))
-        || (buffer_bytes < DECODE_LDAC_PCM_FRAME_LENGTH/2 && (LDACBT_CHANNEL_MODE_MONO == bta_get_curr_a2dp_channel_mode())))
-    {
-        AUDIOPLAYERS_TRACE(1,"ldac_decode pcm_len = %d \n", buffer_bytes);
-        return A2DP_DECODER_NO_ERROR;
-    }
-
-    if(!LdacDecHandle)
-    {
-        AUDIOPLAYERS_TRACE(0,"ldac decode not ready");
-        return A2DP_DECODER_NO_ERROR;
-    }
-
-    list_t *list=a2dp_audio_context_p->audio_datapath.input_raw_packet_list;
-    uint8_t update_bc = true;
-    for(pcm_output_bytes=0; pcm_output_bytes<buffer_bytes; pcm_output_bytes +=wrote_bytes)
-    {
-        uint8_t data[LDACBT_MAX_NBYTES + 2];
-        int32_t size;
-        temp_buf_ptr1=data;
-        temp_buf_ptr2=buffer+pcm_output_bytes;
-
-        size = ldac_BCO_data_peek_one_frame(data, sizeof(data), update_bc);
-        update_bc = false;
-        if(size <= 0)
-        {
-            if(-1 == size)
-                AUDIOPLAYERS_TRACE(2, "BCO is CACHING");
-            else
-                AUDIOPLAYERS_TRACE(2, "BCO is empty: %d", size);
-            //  return A2DP_DECODER_CACHE_UNDERFLOW_ERROR;
-            goto exit;
-        }
-
-        result = ldacBT_decode(LdacDecHandle,temp_buf_ptr1,temp_buf_ptr2, LDACBT_SMPL_FMT_S16, size, &used_bytes, &wrote_bytes);
-
-        ldac_BCO_bc_pop_one_frame();
-
-        if(result !=0)
-        {
-            AUDIOPLAYERS_TRACE(4,"%s wb:%d bb:%d pb:%d",__func__,wrote_bytes,buffer_bytes,pcm_output_bytes);
-            // AUDIOPLAYERS_TRACE(2,"decode:seq %d %d",ldac_decoder_frame_p->sequenceNumber,ldac_decoder_frame_p->curSubSequenceNumber);
-            AUDIOPLAYERS_DUMP8("%x ",temp_buf_ptr1,10);
-            AUDIOPLAYERS_TRACE(1,"ldac decode error %d",result);
-            result=A2DP_DECODER_DECODE_ERROR;
-            goto exit;
-        }
-
-        node =a2dp_audio_list_begin(list);
-        if(node)
-        {
-            ldac_decoder_frame_p = (a2dp_audio_ldac_decoder_frame_t *)a2dp_audio_list_node(node);
-            a2dp_audio_ldac_lastframe_info.sequenceNumber=ldac_decoder_frame_p->sequenceNumber;
-            a2dp_audio_ldac_lastframe_info.timestamp=ldac_decoder_frame_p->timestamp;
-            a2dp_audio_ldac_lastframe_info.curSubSequenceNumber = ldac_decoder_frame_p->curSubSequenceNumber;
-            a2dp_audio_ldac_lastframe_info.totalSubSequenceNumber = ldac_decoder_frame_p->totalSubSequenceNumber;
-            a2dp_audio_ldac_lastframe_info.frame_samples =ldac_decoder_frame_p->frame_samples ;
-            a2dp_audio_ldac_lastframe_info.decoded_frames++;
-            a2dp_audio_ldac_lastframe_info.undecode_frames = a2dp_audio_list_length(list)-1;
-            a2dp_audio_decoder_internal_lastframe_info_set(&a2dp_audio_ldac_lastframe_info);
-            a2dp_audio_list_remove(list, ldac_decoder_frame_p);
-        }
-    }
- exit:
-//     if(cache_underflow)
-//     {
-//         a2dp_audio_ldac_lastframe_info.undecode_frames = 0;
-//         a2dp_audio_decoder_internal_lastframe_info_set(&a2dp_audio_ldac_lastframe_info);
-//         result = A2DP_DECODER_CACHE_UNDERFLOW_ERROR;
-//     }
-//     return result;
-
+#ifdef A2DP_CP_ACCEL
+    return a2dp_cp_ldac_mcu_decode(buffer, buffer_bytes);
+#else
+    return a2dp_audio_ldac_mcu_decode_frame(buffer, buffer_bytes);
+#endif
     return A2DP_DECODER_NO_ERROR;
-}
-#endif
-
-int a2dp_audio_ldac_decode_frame(uint8_t *buffer, uint32_t buffer_bytes)
-{
-    int ret = A2DP_DECODER_NO_ERROR;
-    if (bta_get_curr_a2dp_channel_mode() == LDACBT_CHANNEL_MODE_MONO)
-    {
-#ifdef A2DP_CP_ACCEL
-        ret = a2dp_cp_ldac_mcu_decode(buffer, buffer_bytes / sizeof(int16_t));
-#else
-#ifdef A2DP_LDAC_BCO
-        ret = a2dp_audio_bco_ldac_mcu_decode_frame(buffer, buffer_bytes / sizeof(int16_t));
-#else
-        ret = a2dp_audio_ldac_mcu_decode_frame(buffer, buffer_bytes / sizeof(int16_t));
-#endif
-#endif
-        int16_t *out_int16 = (int16_t *)buffer;
-        int16_t wrote_samples = buffer_bytes / sizeof(int16_t);
-        for (int32_t i = wrote_samples - 1; i >= 0; i--) {
-            out_int16[2 * i + 1] = out_int16[i];
-            out_int16[2 * i] = out_int16[i];
-        }
-    }
-    else
-    {
-#ifdef A2DP_CP_ACCEL
-        ret = a2dp_cp_ldac_mcu_decode(buffer, buffer_bytes);
-#else
-#ifdef A2DP_LDAC_BCO
-        ret = a2dp_audio_bco_ldac_mcu_decode_frame(buffer, buffer_bytes);
-#else
-        ret = a2dp_audio_ldac_mcu_decode_frame(buffer, buffer_bytes);
-#endif
-#endif
-    }
-    return ret;
 }
 
 int a2dp_audio_ldac_preparse_packet(btif_media_header_t * header, uint8_t *buffer, uint32_t buffer_bytes)
@@ -891,10 +667,9 @@ int a2dp_audio_ldac_preparse_packet(btif_media_header_t * header, uint8_t *buffe
     a2dp_audio_ldac_lastframe_info.undecode_frames = 0;
     a2dp_audio_decoder_internal_lastframe_info_set(&a2dp_audio_ldac_lastframe_info);
 
-    AUDIOPLAYERS_TRACE(4,"%s seq:%d timestamp:%d frame samples:%d", __func__, header->sequenceNumber, header->timestamp, a2dp_audio_ldac_lastframe_info.frame_samples);
+    TRACE(4,"%s seq:%d timestamp:%d frame samples:%d", __func__, header->sequenceNumber, header->timestamp, a2dp_audio_ldac_lastframe_info.frame_samples);
 
     return A2DP_DECODER_NO_ERROR;
-
 }
 
 
@@ -905,15 +680,15 @@ static void *a2dp_audio_ldac_frame_malloc(uint32_t packet_len)
 
     buffer = (uint8_t *)a2dp_audio_heap_malloc(packet_len);
     decoder_frame_p = (a2dp_audio_ldac_decoder_frame_t *)a2dp_audio_heap_malloc(sizeof(a2dp_audio_ldac_decoder_frame_t));
-    decoder_frame_p->buffer = buffer;
-    decoder_frame_p->buffer_len = packet_len;
+    decoder_frame_p->header.ptrData = buffer;
+    decoder_frame_p->header.dataLen = packet_len;
     return (void *)decoder_frame_p;
 }
 
 void a2dp_audio_ldac_free(void *packet)
 {
     a2dp_audio_ldac_decoder_frame_t *decoder_frame_p = (a2dp_audio_ldac_decoder_frame_t *)packet;
-    a2dp_audio_heap_free(decoder_frame_p->buffer);
+    a2dp_audio_heap_free(decoder_frame_p->header.ptrData);
     a2dp_audio_heap_free(decoder_frame_p);
 }
 
@@ -925,132 +700,81 @@ int a2dp_audio_ldac_header_parser(btif_media_header_t *header,uint32_t frame_num
 
 int a2dp_audio_ldac_store_packet(btif_media_header_t * header, uint8_t *buffer, uint32_t buffer_bytes)
 {
-
     int nRet = A2DP_DECODER_NOT_SUPPORT;
     int check_header_status=0;
 
     uint32_t frame_cnt = 0;
+    uint32_t frame_num_start = 0;
     uint32_t frame_num = 0;
+    uint32_t frame_len_start = 0;
     uint32_t frame_len = 0;
     uint32_t frame_len_with_head = 0;
     uint16_t data1 = 0;
     uint16_t data2 = 0;
 
-
     buffer++;
     buffer_bytes--;
     list_t *list = a2dp_audio_context_p->audio_datapath.input_raw_packet_list;
 
-    // AUDIOPLAYERS_TRACE(0,"buffer:%x %x %x %x %x %x %x",buffer[0],buffer[1],buffer[2],buffer[3],buffer[4],buffer[5],buffer[6]);
-    //AUDIOPLAYERS_TRACE(1,"buffer:%x",buffer[2]);
-
-    // data1 = (uint16_t)(buffer[1]&0x07);
-    // data2 = (uint16_t)buffer[2];
-    // frame_len = ((data1<< 6 &0xFFFF) | (data2 >> 2 & 0xFFFF));
-    //AUDIOPLAYERS_TRACE(0,"#frame len:%d",frame_len);
-    frame_num = get_ldac_frame_num_by_rawdata(buffer, buffer_bytes);
-
-#ifdef A2DP_LDAC_BCO
-    int32_t frames_in_bco;
-    frames_in_bco = ldac_BCO_decoder_packet_fill(frame_num, buffer, buffer_bytes);
-    // ldac_BCO_decoder_packet_fill(frame_num, buffer, buffer_bytes);
-    AUDIOPLAYERS_TRACE(3, "BCO_fill_in:%d, bytes:%d, now_frames=%d", frame_num, buffer_bytes, frames_in_bco);
-    nRet = A2DP_DECODER_NO_ERROR;
-
-    if ((a2dp_audio_list_length(list)+frame_num) < ldac_mtu_limiter)
-    {
-        for(uint32_t i=0; i<buffer_bytes; i+=frame_len_with_head,frame_cnt++)
-        {
-            //AUDIOPLAYERS_TRACE(4,"buffer:%x %x %x %x ",buffer[i],buffer[i+1],buffer[i+2],buffer[i+3]);
-            data1 = (uint16_t)(buffer[i+1]&0x07);
-            data2 = (uint16_t)buffer[i+2];
-            frame_len = ((data1<< 6 &0xFFFF) | (data2 >> 2 & 0xFFFF));
-            //AUDIOPLAYERS_TRACE(0,"#frame len:%d",frame_len);
-            // frame_num = get_ldac_frame_num(frame_len);
-            // if (!frame_num)
-            // {
-            //     AUDIOPLAYERS_TRACE(1,"ERROR LDAC FRAME !!! frame_num:%d", frame_num);
-            //     AUDIOPLAYERS_DUMP8("%02x ", buffer, 4);
-            //     return A2DP_DECODER_DECODE_ERROR;
-            // }
-            //for ldac head
-            frame_len_with_head =frame_len+4;
-            //AUDIOPLAYERS_TRACE(2,"frame len:%d num:%d %d",frame_len,frame_num,a2dp_audio_list_length(list));
-            //AUDIOPLAYERS_TRACE(0,"i %d buffer bytes:%d",i,buffer_bytes);
-            check_header_status=check_ldac_header(buffer+i,frame_len_with_head);
-            if(!check_header_status)
-            {
-                a2dp_audio_ldac_decoder_frame_t *ldac_decoder_frame_p=(a2dp_audio_ldac_decoder_frame_t *)a2dp_audio_ldac_frame_malloc(4);
-
-                ldac_decoder_frame_p->sequenceNumber=header->sequenceNumber;
-                ldac_decoder_frame_p->curSubSequenceNumber=frame_cnt;
-                ldac_decoder_frame_p->totalSubSequenceNumber=frame_num;
-                ldac_decoder_frame_p->timestamp=header->timestamp;
-                ldac_decoder_frame_p->buffer_len=4;
-                ldac_decoder_frame_p->frame_samples=0;
-                memcpy(ldac_decoder_frame_p->buffer,buffer+i,4);
-                //AUDIOPLAYERS_TRACE(5,"seq:%d len:%d i:%d buffer bytes:%d data:%x",header->sequenceNumber, frame_len,i,buffer_bytes,ldac_decoder_frame_p->buffer[0]);
-                //AUDIOPLAYERS_TRACE(5,"store seq:%d %d %d",header->sequenceNumber,ldac_decoder_frame_p->curSubSequenceNumber,ldac_decoder_frame_p->totalSubSequenceNumber);
-                a2dp_audio_list_append(list, ldac_decoder_frame_p);
-            }
-            else
-            {
-                AUDIOPLAYERS_TRACE(1,"ERROR LDAC FRAME ret:%d",check_header_status);
-                AUDIOPLAYERS_DUMP8("%02x ",buffer+i, 6);
-                break;
-            }
-        }
-    }
-#else
-    if ((a2dp_audio_list_length(list)+frame_num) < ldac_mtu_limiter)
+    data1 = (uint16_t)(buffer[1]&0x07);
+    data2 = (uint16_t)buffer[2];
+    frame_len_start = ((data1<< 6 &0xFFFF) | (data2 >> 2 & 0xFFFF));
+    frame_num_start = get_ldac_frame_num(frame_len_start);
+    // TRACE(1, "[Chris_Debug][111], frame_num_start: %d, frame_len_start: %d", frame_num_start, frame_len_start);
+    if ((a2dp_audio_list_length(list)+frame_num_start) < ldac_mtu_limiter)
     {
         for(uint32_t i=0; i<buffer_bytes; i+=frame_len_with_head,frame_cnt++)
         {
 
 
-            //AUDIOPLAYERS_TRACE(4,"buffer:%x %x %x %x ",buffer[i],buffer[i+1],buffer[i+2],buffer[i+3]);
             data1 = (uint16_t)(buffer[i+1]&0x07);
             data2 = (uint16_t)buffer[i+2];
             frame_len = ((data1<< 6 &0xFFFF) | (data2 >> 2 & 0xFFFF));
-            //AUDIOPLAYERS_TRACE(0,"#frame len:%d",frame_len);
-            // frame_num = get_ldac_frame_num(frame_len);
-            // if (!frame_num)
-            // {
-            //     AUDIOPLAYERS_TRACE(1,"ERROR LDAC FRAME !!! frame_num:%d", frame_num);
-            //     AUDIOPLAYERS_DUMP8("%02x ", buffer, 4);
-            //     return A2DP_DECODER_DECODE_ERROR;
-            // }
+
+            frame_num = get_ldac_frame_num(frame_len);
+            if (!frame_num)
+            {
+                TRACE(1,"ERROR LDAC FRAME !!! frame_num:%d", frame_num);
+                DUMP8("%02x ", buffer, 4);
+                return A2DP_DECODER_DECODE_ERROR;
+            }else if(frame_num != frame_num_start){
+                /*This aim to reslove: A hole ldac packet may have different sub packet len(which means frame len may changed)*/
+                TRACE(1,"[Chris_Debug]WARRING FRAME LEN CHANGED, NEED REBUILD SEQ NUM!!!, changed: %d --> %d", frame_num_start, frame_num);
+                frame_num = (buffer_bytes - (frame_len_start+4)*(frame_cnt))/(frame_len+4);
+                frame_cnt = 0;
+                header->sequenceNumber++;
+            }else{
+                //do hothing
+            }
             //for ldac head
             frame_len_with_head =frame_len+4;
-            //AUDIOPLAYERS_TRACE(2,"frame len:%d num:%d %d",frame_len,frame_num,a2dp_audio_list_length(list));
-            //AUDIOPLAYERS_TRACE(0,"i %d buffer bytes:%d",i,buffer_bytes);
+            //TRACE(2,"frame len:%d num:%d %d",frame_len,frame_num,a2dp_audio_list_length(list));
+            l2cap_frame_samples=256*frame_num;
+
+            //TRACE("i %d buffer bytes:%d",i,buffer_bytes);
             check_header_status=check_ldac_header(buffer+i,frame_len_with_head);
             if(!check_header_status)
             {
                 a2dp_audio_ldac_decoder_frame_t *ldac_decoder_frame_p=(a2dp_audio_ldac_decoder_frame_t *)a2dp_audio_ldac_frame_malloc(frame_len_with_head);
-
-                ldac_decoder_frame_p->sequenceNumber=header->sequenceNumber;
-                ldac_decoder_frame_p->curSubSequenceNumber=frame_cnt;
-                ldac_decoder_frame_p->totalSubSequenceNumber=frame_num;
-                ldac_decoder_frame_p->timestamp=header->timestamp;
-                ldac_decoder_frame_p->buffer_len=frame_len_with_head;
-                ldac_decoder_frame_p->frame_samples = LDAC_LIST_SAMPLES;
-                memcpy(ldac_decoder_frame_p->buffer,buffer+i,frame_len_with_head);
-                //AUDIOPLAYERS_TRACE(5,"seq:%d len:%d i:%d buffer bytes:%d data:%x",header->sequenceNumber, frame_len,i,buffer_bytes,ldac_decoder_frame_p->buffer[0]);
-                //AUDIOPLAYERS_TRACE(5,"store seq:%d %d %d",header->sequenceNumber,ldac_decoder_frame_p->curSubSequenceNumber,ldac_decoder_frame_p->totalSubSequenceNumber);
+                ldac_decoder_frame_p->header.sequenceNumber=header->sequenceNumber;
+                ldac_decoder_frame_p->header.curSubSequenceNumber=frame_cnt;
+                ldac_decoder_frame_p->header.totalSubSequenceNumber=frame_num;
+                ldac_decoder_frame_p->header.timestamp=header->timestamp;
+                ldac_decoder_frame_p->header.dataLen=frame_len_with_head;
+                ldac_decoder_frame_p->frame_samples=256;
+                memcpy(ldac_decoder_frame_p->header.ptrData,buffer+i,frame_len_with_head);
+                //TRACE(5,"seq:%d len:%d i:%d buffer bytes:%d data:%x",header->sequenceNumber, frame_len,i,buffer_bytes,ldac_decoder_frame_p->header.ptrData[0]);
+                //TRACE(5,"store seq:%d %d %d",header->sequenceNumber,ldac_decoder_frame_p->header.curSubSequenceNumber,ldac_decoder_frame_p->header.totalSubSequenceNumber);
                 a2dp_audio_list_append(list, ldac_decoder_frame_p);
             }
             else
             {
-                AUDIOPLAYERS_TRACE(1,"ERROR LDAC FRAME ret:%d",check_header_status);
-                AUDIOPLAYERS_DUMP8("%02x ",buffer+i, 6);
+                TRACE(1,"ERROR LDAC FRAME ret:%d",check_header_status);
+                DUMP8("%02x ",buffer+i, 6);
                 break;
             }
             nRet = A2DP_DECODER_NO_ERROR;
-
-
         }
-
     }
     else
     {
@@ -1060,20 +784,15 @@ int a2dp_audio_ldac_store_packet(btif_media_header_t * header, uint8_t *buffer, 
         do
         {
             ldac_decoder_frame_p = (a2dp_audio_ldac_decoder_frame_t *)a2dp_audio_list_back(list);
-            AUDIOPLAYERS_TRACE(3,"remov seq:%d %d %d",ldac_decoder_frame_p->sequenceNumber,ldac_decoder_frame_p->curSubSequenceNumber,ldac_decoder_frame_p->totalSubSequenceNumber);
+            TRACE(3,"remov seq:%d %d %d",ldac_decoder_frame_p->header.sequenceNumber,ldac_decoder_frame_p->header.curSubSequenceNumber,ldac_decoder_frame_p->header.totalSubSequenceNumber);
             a2dp_audio_list_remove(list, ldac_decoder_frame_p);
         }
-        while(ldac_decoder_frame_p->curSubSequenceNumber!=0);
+        while(ldac_decoder_frame_p->header.curSubSequenceNumber!=0);
 #endif
-        AUDIOPLAYERS_TRACE(3,"%s list full current list_len step1:%d buff_len:%d", __func__, a2dp_audio_list_length(list), buffer_bytes);
+        TRACE(3,"%s list full current list_len step1:%d buff_len:%d", __func__, a2dp_audio_list_length(list), buffer_bytes);
         nRet = A2DP_DECODER_MTU_LIMTER_ERROR;
 
     }
-
-
-#endif // A2DP_LDAC_BCO
-
-
 
     return nRet;
 
@@ -1093,15 +812,12 @@ int a2dp_audio_ldac_discards_packet(uint32_t packets)
         for (uint8_t i=0; i<packets; i++)
         {
             node = a2dp_audio_list_begin(list);
-            if (node)
-            {
-                ldac_decoder_frame_p = (a2dp_audio_ldac_decoder_frame_t *)a2dp_audio_list_node(node);
-                a2dp_audio_list_remove(list, ldac_decoder_frame_p);
-            }
+            ldac_decoder_frame_p = (a2dp_audio_ldac_decoder_frame_t *)a2dp_audio_list_node(node);
+            a2dp_audio_list_remove(list, ldac_decoder_frame_p);
         }
         nRet = A2DP_DECODER_NO_ERROR;
     }
-    AUDIOPLAYERS_TRACE(3,"%s packets:%d nRet:%d", __func__, packets, nRet);
+    TRACE(3,"%s packets:%d nRet:%d", __func__, packets, nRet);
     return nRet;
 
 }
@@ -1113,51 +829,39 @@ int a2dp_audio_ldac_info_get(void *info)
 
 
 
-
+#ifndef A2DP_DECODER_CROSS_CORE
+extern "C" void ldac_cc_mem_init();
 static int a2dp_audio_ldac_decoder_init(void)
 {
-    int sample_count = 0;
-    uint32_t sample_rate = bta_get_curr_a2dp_sample_rate();
-    int channel_mode = bta_get_curr_a2dp_channel_mode();
-    sample_count = bta_sample_rate_convert_to_sample_count(sample_rate);
 
-#ifdef A2DP_LDAC_BCO
-    LdacDecHandle = ldac_BCO_init_and_start(sample_count, 16, channel_mode);
-    AUDIOPLAYERS_TRACE(2, "a2dp_audio_init sample Rate 01 =%d, channel_mode = %d\n", sample_count, channel_mode);
-    if (LdacDecHandle == (HANDLE_LDAC_BT)NULL){
-        AUDIOPLAYERS_TRACE(2, "Error: Can not Get LDAC Handle!\n");
-        return 1;
-    }
-//    a2dp_cache_status = APP_AUDIO_CACHE_CACHEING;
-#else
-    if (LdacDecHandle == NULL)
+    int sample_rate = bt_get_ladc_sample_rate();
+    int channel_mode = bt_ldac_player_get_channelmode();
+    if(LdacDecHandle==NULL)
     {
-        if(LdacDecHandle==NULL)
+        ldac_cc_mem_init();
+        if (( LdacDecHandle= ldacBT_get_handle()) == (HANDLE_LDAC_BT)NULL)
         {
-            ldac_cc_mem_init();
-            if (( LdacDecHandle= ldacBT_get_handle()) == (HANDLE_LDAC_BT)NULL)
-            {
-                AUDIOPLAYERS_TRACE(0,"Error: Can not Get LDAC Handle!\n");
-                return 1;
-            }
-        }
-
-        AUDIOPLAYERS_TRACE(2,"a2dp_audio_ldac_decoder_init sample Rate=%d, channel_mode = %d\n", sample_count, channel_mode);
-        //AUDIOPLAYERS_TRACE(1,"sys freq calc : %d\n", hal_sys_timer_calc_cpu_freq(0));
-        AUDIOPLAYERS_TRACE(0,"ldac need init here!!!! \n");
-        if ((LdacDecHandle = ldacBT_get_handle()) == (HANDLE_LDAC_BT)NULL)
-        {
-            AUDIOPLAYERS_TRACE(0,"Error: Can not Get LDAC Handle!\n");
+            TRACE(0,"Error: Can not Get LDAC Handle!\n");
             return 1;
         }
-        int result = ldacBT_init_handle_decode(LdacDecHandle,channel_mode,sample_count,0,0,0);
-        if (result)
-        {
-            AUDIOPLAYERS_TRACE(1,"[ERR] Initializing LDAC Handle for synthesis! Error code %s\n", get_error_code_string(ldacBT_get_error_code(LdacDecHandle)));
-            return 2;
-        }
+
     }
-#endif
+
+    TRACE(2,"a2dp_audio_ldac_decoder_init sample Rate=%d, channel_mode = %d\n", sample_rate, channel_mode);
+    //TRACE(1,"sys freq calc : %d\n", hal_sys_timer_calc_cpu_freq(0));
+    TRACE(0,"ldac need init here!!!! \n");
+    if ((LdacDecHandle = ldacBT_get_handle()) == (HANDLE_LDAC_BT)NULL)
+    {
+        TRACE(0,"Error: Can not Get LDAC Handle!\n");
+        return 1;
+    }
+    int result = ldacBT_init_handle_decode(LdacDecHandle,channel_mode,sample_rate,0,0,0);
+    if (result)
+    {
+        TRACE(1,"[ERR] Initializing LDAC Handle for synthesis! Error code %s\n", get_error_code_string(ldacBT_get_error_code(LdacDecHandle)));
+        return 2;
+    }
+
     return 0;
 }
 
@@ -1168,16 +872,10 @@ static void a2dp_audio_ldac_decoder_deinit(void)
         ldacBT_free_handle(LdacDecHandle);
         LdacDecHandle = NULL;
     }
-#ifdef A2DP_LDAC_BCO
-    ldac_BCO_deinit();
-#endif
 }
-
 
 static int a2dp_audio_ldac_list_checker(void)
 {
-
-//return 0;
     list_t *list = a2dp_audio_context_p->audio_datapath.input_raw_packet_list;
     list_node_t *node = NULL;
     a2dp_audio_ldac_decoder_frame_t *ldac_decoder_frame_p = NULL;
@@ -1186,12 +884,8 @@ static int a2dp_audio_ldac_list_checker(void)
     do
     {
 
-        //AUDIOPLAYERS_TRACE(1,"cnt:%d",cnt);
-#ifdef A2DP_LDAC_BCO
-        ldac_decoder_frame_p = (a2dp_audio_ldac_decoder_frame_t *)a2dp_audio_ldac_frame_malloc(4);
-#else
+        TRACE(1,"cnt:%d",cnt);
         ldac_decoder_frame_p = (a2dp_audio_ldac_decoder_frame_t *)a2dp_audio_ldac_frame_malloc(216+4);
-#endif
         if (ldac_decoder_frame_p)
         {
             a2dp_audio_list_append(list, ldac_decoder_frame_p);
@@ -1211,65 +905,78 @@ static int a2dp_audio_ldac_list_checker(void)
     }
     while(node);
 
-    AUDIOPLAYERS_TRACE(3,"%s cnt:%d list:%d", __func__, cnt, a2dp_audio_list_length(list));
+    TRACE(3,"%s cnt:%d list:%d", __func__, cnt, a2dp_audio_list_length(list));
 
 
     return 0;
 }
+#endif
 
+int a2dp_audio_ldac_channel_select(A2DP_AUDIO_CHANNEL_SELECT_E chnl_sel)
+{
+#ifndef A2DP_DECODER_CROSS_CORE
+    LDAC_DECODER_CHANNEL_SELECT_E ldac_decoder_channel_select = LDAC_DECODER_CHANNEL_SELECT_SELECT_STEREO;
+    switch(chnl_sel)
+    {
+        case A2DP_AUDIO_CHANNEL_SELECT_STEREO:
+            ldac_decoder_channel_select = LDAC_DECODER_CHANNEL_SELECT_SELECT_STEREO;
+            break;
+        case A2DP_AUDIO_CHANNEL_SELECT_LRMERGE:
+            ldac_decoder_channel_select = LDAC_DECODER_CHANNEL_SELECT_SELECT_LRMERGE;
+            break;
+        case A2DP_AUDIO_CHANNEL_SELECT_LCHNL:
+            ldac_decoder_channel_select = LDAC_DECODER_CHANNEL_SELECT_LCHNL;
+           break;
+        case A2DP_AUDIO_CHANNEL_SELECT_RCHNL:
+            ldac_decoder_channel_select = LDAC_DECODER_CHANNEL_SELECT_RCHNL;
+        default:
+            break;
+    }
+    ldacBT_set_channel_sel(ldac_decoder_channel_select);
 
+    TRACE(2, "[%s] chnl sel: %d", __FUNCTION__, chnl_sel);
+#endif
+    return 0;
+}
 
 int a2dp_audio_ldac_init(A2DP_AUDIO_OUTPUT_CONFIG_T *config, void *context)
 {
-    AUDIOPLAYERS_TRACE(1,"%s", __func__);
-    a2dp_audio_context_p = (A2DP_AUDIO_CONTEXT_T *)context;
-    int sample_count = 0;
-    uint32_t sample_rate = bta_get_curr_a2dp_sample_rate();
-    sample_count = bta_sample_rate_convert_to_sample_count(sample_rate);
+    TRACE_A2DP_DECODER_I("[LDAC INIT]");
 
-    if (sample_count > 96000) {
-        LDAC_LIST_SAMPLES = 512;
-        DECODE_LDAC_PCM_FRAME_LENGTH = 512*4*2*2;
-    } else if (sample_count > 48000) {
-        LDAC_LIST_SAMPLES = 256;
-        DECODE_LDAC_PCM_FRAME_LENGTH = 256*4*2*2;
-    } else {
-        LDAC_LIST_SAMPLES = 128;
-        DECODE_LDAC_PCM_FRAME_LENGTH = 128*4*2*2;
-    }
+    a2dp_audio_context_p = (A2DP_AUDIO_CONTEXT_T *)context;
 
     memset(&a2dp_audio_ldac_lastframe_info, 0, sizeof(A2DP_AUDIO_DECODER_LASTFRAME_INFO_T));
     a2dp_audio_ldac_lastframe_info.stream_info = *config;
-    a2dp_audio_ldac_lastframe_info.frame_samples = LDAC_LIST_SAMPLES;
-    a2dp_audio_ldac_lastframe_info.list_samples = LDAC_LIST_SAMPLES;
+    a2dp_audio_ldac_lastframe_info.frame_samples= 256;
+    a2dp_audio_ldac_lastframe_info.list_samples = 256;
     a2dp_audio_decoder_internal_lastframe_info_set(&a2dp_audio_ldac_lastframe_info);
 
     ASSERT(a2dp_audio_context_p->dest_packet_mut < LDAC_MTU_LIMITER, "%s MTU OVERFLOW:%u/%u", __func__, a2dp_audio_context_p->dest_packet_mut, LDAC_MTU_LIMITER);
 
+#ifndef A2DP_DECODER_CROSS_CORE
 #ifdef A2DP_CP_ACCEL
     int ret;
-    cp_codec_reset = true;
     ret = a2dp_cp_init(a2dp_cp_ldac_cp_decode, CP_PROC_DELAY_2_FRAMES);
     ASSERT(ret == 0, "%s: a2dp_cp_init() failed: ret=%d", __func__, ret);
 #endif
     a2dp_audio_ldac_decoder_init();
     a2dp_audio_ldac_list_checker();
-
+#endif
     return A2DP_DECODER_NO_ERROR;
 }
 
 
 int a2dp_audio_ldac_deinit(void)
 {
+#ifndef A2DP_DECODER_CROSS_CORE
 
 #ifdef A2DP_CP_ACCEL
     a2dp_cp_deinit();
 #endif
     a2dp_audio_ldac_decoder_deinit();
+#endif
     return A2DP_DECODER_NO_ERROR;
 }
-
-
 
 
 int  a2dp_audio_ldac_synchronize_packet(A2DP_AUDIO_SYNCFRAME_INFO_T *sync_info,uint32_t mask)
@@ -1285,38 +992,37 @@ int  a2dp_audio_ldac_synchronize_packet(A2DP_AUDIO_SYNCFRAME_INFO_T *sync_info,u
     for (uint16_t i=0; i<list_len; i++)
     {
         node = a2dp_audio_list_begin(list);
-        if (node)
+        ldac_decoder_frame_p = (a2dp_audio_ldac_decoder_frame_t *)a2dp_audio_list_node(node);
+        //  if (A2DP_AUDIO_SYNCFRAME_CHK(ldac_decoder_frame_p->header.sequenceNumber  == sync_info->sequenceNumber, A2DP_AUDIO_SYNCFRAME_MASK_SEQ,       mask)&&
+        //      A2DP_AUDIO_SYNCFRAME_CHK(ldac_decoder_frame_p->header.timestamp       == sync_info->timestamp,      A2DP_AUDIO_SYNCFRAME_MASK_TIMESTAMP, mask))
+
+        if(A2DP_AUDIO_SYNCFRAME_CHK(ldac_decoder_frame_p->header.sequenceNumber         == sync_info->sequenceNumber,        A2DP_AUDIO_SYNCFRAME_MASK_SEQ,        mask)&&
+           A2DP_AUDIO_SYNCFRAME_CHK(ldac_decoder_frame_p->header.curSubSequenceNumber   == sync_info->curSubSequenceNumber,  A2DP_AUDIO_SYNCFRAME_MASK_CURRSUBSEQ, mask)&&
+           A2DP_AUDIO_SYNCFRAME_CHK(ldac_decoder_frame_p->header.totalSubSequenceNumber == sync_info->totalSubSequenceNumber,A2DP_AUDIO_SYNCFRAME_MASK_TOTALSUBSEQ,mask))
         {
-            ldac_decoder_frame_p = (a2dp_audio_ldac_decoder_frame_t *)a2dp_audio_list_node(node);
-        //  if (A2DP_AUDIO_SYNCFRAME_CHK(ldac_decoder_frame_p->sequenceNumber  == sync_info->sequenceNumber, A2DP_AUDIO_SYNCFRAME_MASK_SEQ,       mask)&&
-        //      A2DP_AUDIO_SYNCFRAME_CHK(ldac_decoder_frame_p->timestamp       == sync_info->timestamp,      A2DP_AUDIO_SYNCFRAME_MASK_TIMESTAMP, mask))
-
-            if(A2DP_AUDIO_SYNCFRAME_CHK(ldac_decoder_frame_p->sequenceNumber         == sync_info->sequenceNumber,        A2DP_AUDIO_SYNCFRAME_MASK_SEQ,        mask)&&
-            A2DP_AUDIO_SYNCFRAME_CHK(ldac_decoder_frame_p->curSubSequenceNumber   == sync_info->curSubSequenceNumber,  A2DP_AUDIO_SYNCFRAME_MASK_CURRSUBSEQ, mask)&&
-            A2DP_AUDIO_SYNCFRAME_CHK(ldac_decoder_frame_p->totalSubSequenceNumber == sync_info->totalSubSequenceNumber,A2DP_AUDIO_SYNCFRAME_MASK_TOTALSUBSEQ,mask))
-            {
-                nRet = A2DP_DECODER_NO_ERROR;
-                break;
-            }
-            a2dp_audio_list_remove(list, ldac_decoder_frame_p);
+            nRet = A2DP_DECODER_NO_ERROR;
+            break;
         }
-
+        a2dp_audio_list_remove(list, ldac_decoder_frame_p);
     }
 
     node = a2dp_audio_list_begin(list);
     if (node)
     {
         ldac_decoder_frame_p = (a2dp_audio_ldac_decoder_frame_t *)a2dp_audio_list_node(node);
-        AUDIOPLAYERS_TRACE(4,"%s nRet:%d SEQ:%d timestamp:%d", __func__, nRet, ldac_decoder_frame_p->sequenceNumber, ldac_decoder_frame_p->timestamp);
+        TRACE(4,"%s nRet:%d SEQ:%d timestamp:%d", __func__, nRet, ldac_decoder_frame_p->header.sequenceNumber, ldac_decoder_frame_p->header.timestamp);
     }
     else
     {
-        //AUDIOPLAYERS_TRACE(2,"%s nRet:%d", __func__, nRet);
-        AUDIOPLAYERS_TRACE(5,"nRet:%d SEQ:%d timestamp:%d sync %d/%d", nRet, ldac_decoder_frame_p->sequenceNumber, ldac_decoder_frame_p->timestamp,sync_info->sequenceNumber,sync_info->timestamp);
+        //TRACE(2,"%s nRet:%d", __func__, nRet);
+        if((ldac_decoder_frame_p != NULL) && (sync_info != NULL))
+        {
+            TRACE(5,"%s, nRet:%d SEQ:%d timestamp:%d sync %d/%d", __func__, \
+                nRet, ldac_decoder_frame_p->header.sequenceNumber, ldac_decoder_frame_p->header.timestamp,sync_info->sequenceNumber,sync_info->timestamp);
+        }
     }
 
     return nRet;
-
 }
 
 int a2dp_audio_ldac_synchronize_dest_packet_mut(uint16_t packet_mut)
@@ -1332,16 +1038,13 @@ int a2dp_audio_ldac_synchronize_dest_packet_mut(uint16_t packet_mut)
         do
         {
             node = a2dp_audio_list_begin(list);
-            if (node)
-            {
-                ldac_decoder_frame_p = (a2dp_audio_ldac_decoder_frame_t *)a2dp_audio_list_node(node);
-                a2dp_audio_list_remove(list, ldac_decoder_frame_p);
-            }
+            ldac_decoder_frame_p = (a2dp_audio_ldac_decoder_frame_t *)a2dp_audio_list_node(node);
+            a2dp_audio_list_remove(list, ldac_decoder_frame_p);
         }
         while(a2dp_audio_list_length(list) > packet_mut);
     }
 
-    AUDIOPLAYERS_TRACE(2,"%s list:%d", __func__, a2dp_audio_list_length(list));
+    TRACE(2,"%s list:%d", __func__, a2dp_audio_list_length(list));
     return A2DP_DECODER_NO_ERROR;
 
 }
@@ -1355,14 +1058,16 @@ static int a2dp_audio_ldac_headframe_info_get(A2DP_AUDIO_HEADFRAME_INFO_T* headf
     if (a2dp_audio_list_length(list))
     {
         node = a2dp_audio_list_begin(list);
-        if (node)
+        if(!node)
         {
-            decoder_frame_p = (a2dp_audio_ldac_decoder_frame_t *)a2dp_audio_list_node(node);
-            headframe_info->sequenceNumber = decoder_frame_p->sequenceNumber;
-            headframe_info->timestamp = decoder_frame_p->timestamp;
-            headframe_info->curSubSequenceNumber = decoder_frame_p->curSubSequenceNumber;
-            headframe_info->totalSubSequenceNumber = decoder_frame_p->totalSubSequenceNumber;
+            memset(headframe_info, 0, sizeof(A2DP_AUDIO_HEADFRAME_INFO_T));
+            return A2DP_DECODER_DECODE_ERROR;
         }
+        decoder_frame_p = (a2dp_audio_ldac_decoder_frame_t *)a2dp_audio_list_node(node);
+        headframe_info->sequenceNumber = decoder_frame_p->header.sequenceNumber;
+        headframe_info->timestamp = decoder_frame_p->header.timestamp;
+        headframe_info->curSubSequenceNumber = decoder_frame_p->header.curSubSequenceNumber;
+        headframe_info->totalSubSequenceNumber = decoder_frame_p->header.totalSubSequenceNumber;
     }
     else
     {
@@ -1380,7 +1085,7 @@ int a2dp_audio_ldac_convert_list_to_samples(uint32_t *samples)
     list_len = a2dp_audio_list_length(list);
     *samples = LDAC_LIST_SAMPLES*list_len;
 
-    AUDIOPLAYERS_TRACE(3, "%s list:%d samples:%d", __func__, list_len, *samples);
+    TRACE(3, "%s list:%d samples:%d", __func__, list_len, *samples);
 
     return A2DP_DECODER_NO_ERROR;
 }
@@ -1402,13 +1107,10 @@ int a2dp_audio_ldac_discards_samples(uint32_t samples)
         for (int i=0; i<need_remove_list; i++)
         {
             node = a2dp_audio_list_begin(list);
-            if (node)
-            {
-                ldac_decoder_frame = (a2dp_audio_ldac_decoder_frame_t *)a2dp_audio_list_node(node);
+            ldac_decoder_frame = (a2dp_audio_ldac_decoder_frame_t *)a2dp_audio_list_node(node);
 
-                AUDIOPLAYERS_TRACE(1,"discard seq:%d %d %d",ldac_decoder_frame->sequenceNumber,ldac_decoder_frame->curSubSequenceNumber,ldac_decoder_frame->totalSubSequenceNumber);
-                a2dp_audio_list_remove(list, ldac_decoder_frame);
-            }
+            TRACE(1,"discard seq:%d %d %d",ldac_decoder_frame->header.sequenceNumber,ldac_decoder_frame->header.curSubSequenceNumber,ldac_decoder_frame->header.totalSubSequenceNumber);
+            a2dp_audio_list_remove(list, ldac_decoder_frame);
         }
         nRet = A2DP_DECODER_NO_ERROR;
     }
@@ -1434,5 +1136,6 @@ extern const A2DP_AUDIO_DECODER_T a2dp_audio_ldac_decoder_config =
     a2dp_audio_ldac_headframe_info_get,
     a2dp_audio_ldac_info_get,
     a2dp_audio_ldac_free,
+    a2dp_audio_ldac_channel_select,
 };
 

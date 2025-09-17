@@ -6,7 +6,3 @@ obj-y := $(obj-y:.S=.o)
 obj-y := $(obj-y:.cpp=.o)
 
 ccflags-y := -I$(obj)/../inc/ca
-
-ifeq ($(CHIP_HAS_PSRAMUHS),1)
-CFLAGS_system_ARMCA.o += -DCHIP_HAS_PSRAMUHS
-endif

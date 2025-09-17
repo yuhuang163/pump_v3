@@ -22,12 +22,6 @@
  * Version 1.0
  *    Initial Release
  *---------------------------------------------------------------------------*/
-#ifndef __TZ_INTERFACE_H__
-#define __TZ_INTERFACE_H__
-
-#ifdef __cplusplus
-extern "C"{
-#endif
 
 /* Function pointer declaration */
 typedef int (*funcptr)(int);
@@ -36,9 +30,3 @@ typedef int (*funcptr)(int);
 extern int func1(int x);
 extern int func2(funcptr callback, int x);
 extern int get_demo_string (char *dst, uint32_t len);
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif

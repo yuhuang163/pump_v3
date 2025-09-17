@@ -10,27 +10,28 @@ obj_cpp := $(filter-out a2dpplay.cpp,$(obj_cpp))
 obj_cpp += a2dp_decoder/
 endif
 
-ifneq ($(APP_BT_STREAM_USE_BUF_SIZE),)
-KBUILD_CPPFLAGS += -DAPP_BT_STREAM_USE_BUF_SIZE=$(APP_BT_STREAM_USE_BUF_SIZE)
-endif
-
 ifeq ($(AUDIO_TRIGGER_VER),1)
 obj_cpp += audio_trigger/version1/
 else ifeq ($(AUDIO_TRIGGER_VER),2)
 obj_cpp += audio_trigger/version2/
 endif
 
-bt_sco_chain_obj = bt_sco_chain.c bt_sco_chain_cp.c bt_sco_chain_cp_fifo.c bt_sco_chain_thirdparty.c bt_sco_chain_cp_thirdparty.c bt_sco_chain_reframe.c bt_sco_chain_lea_reframe.c
+ifeq ($(A2DP_DECODER_CROSS_CORE),1)
+obj_cpp += a2dp_decoder_off_bth/a2dp_decoder_cc_common.o
+endif
+
+ifeq ($(A2DP_ENCODER_CROSS_CORE),1)
+obj_cpp += a2dp_encoder_cc/
+obj_cpp += a2dp_encoder_off_bth/a2dp_encoder_cc_common.o
+endif
+
+bt_sco_chain_obj = bt_sco_chain.c bt_sco_chain_cp.c bt_sco_chain_cp_fifo.c bt_sco_chain_thirdparty.c bt_sco_chain_cp_thirdparty.c bt_sco_chain_reframe.c
 bt_sco_chain_obj += bt_sco_chain_thirdparty_alango.c
-bt_sco_chain_obj += bt_sco_chain_thirdparty_xiaomi.c bt_sco_chain_cp_xiaomi.c
 bt_sco_chain_obj += bt_sco_chain_thirdparty_soundplus.c bt_sco_chain_cp_soundplus.c
 obj_c := $(filter-out $(bt_sco_chain_obj),$(obj_c))
 
 ifeq ($(SPEECH_TX_THIRDPARTY_ALANGO),1)
 obj_c += bt_sco_chain_thirdparty_alango.c
-else ifeq ($(SPEECH_TX_THIRDPARTY_XIAOMI),1)
-obj_c += bt_sco_chain_thirdparty_xiaomi.c
-obj_c += bt_sco_chain_cp_xiaomi.c
 else ifeq ($(SPEECH_TX_THIRDPARTY_SNDP),1)
 obj_c += bt_sco_chain_thirdparty_soundplus.c
 obj_c += bt_sco_chain_cp_soundplus.c
@@ -44,16 +45,10 @@ obj_c += bt_sco_chain.c
 obj_c += bt_sco_chain_cp.c
 endif
 
-ifeq ($(GAF_CONVERSATIONAL_STREAM_PROCESS_ENABLE),1)
-obj_c += bt_sco_chain_lea_reframe.c
-endif
-
 ifeq ($(SCO_CP_ACCEL_FIFO),1)
 ifeq ($(findstring bt_sco_chain_cp.c,$(obj_c)),bt_sco_chain_cp.c)
 obj_c := $(filter-out bt_sco_chain_cp.c,$(obj_c))
 obj_c += bt_sco_chain_cp_fifo.c
-CFLAGS_voicebtpcmplay_sco_dma_snapshot.o += -DSCO_CP_ACCEL_FIFO
-CFLAGS_bt_sco_chain.o += -DSCO_CP_ACCEL_FIFO
 endif
 endif
 
@@ -71,30 +66,36 @@ ifeq ($(RB_CODEC),1)
 obj_cpp += $(patsubst $(cur_dir)%,%,$(wildcard $(cur_dir)rbplay/*.cpp))
 endif
 
+ifeq ($(ONLY_BUILD_SCO_CODEC),1)
+obj_codec := bt_sco_chain.c plc_utils.c  bt_sco_codec_msbc.c  bt_sco_codec_cvsd.c
+obj_codec_cpp := voicebtpcmplay_sco_dma_snapshot.cpp
+obj-y := $(obj_codec:.c=.o) $(obj_codec_cpp:.cpp=.o)
+else
 obj-y := $(obj_c:.c=.o) $(obj_s:.S=.o) $(obj_cpp:.cpp=.o)
+endif
 
 ifeq ($(OPT_LEVEL),)
 CFLAGS_a2dpplay.o += -O3
 endif
 
+AAC_INCLUDES =
+
 ccflags-y := \
+	$(AAC_INCLUDES) \
 	-Iservices/audio_bt \
+	-Iservices/audio_manager \
 	-Iservices/audio_process \
-	-Iapps/dsp_m55 \
-	-Iutils/kfifo \
-	-Iutils/mfifo \
 	-Iservices/bone_sensor \
 	-Iservices/resources \
 	$(BLUETOOTH_ADAPTER_INCLUDES) \
-	$(BT_SERVICE_UX_INCLUDES) \
 	-Iplatform/drivers/uarthci \
 	-Iutils/cqueue \
-	-Iservices/mcpp \
+	-Iutils/kfifo \
+	-Iapps/dsp_m55 \
 	-Iservices/audio_dump/include \
-    -Imultimedia/inc \
 	-Imultimedia/inc/speech/inc \
-	-Imultimedia/rbcodec/inc \
-	-Imultimedia/audio/process/eq/include \
+	-Imultimedia/inc/rbcodec/inc \
+	-Imultimedia/inc/audio/process/eq/include \
 	-Imultimedia/inc/audio/process/resample/include \
 	-Imultimedia/inc/audio/process/filters/include \
 	-Imultimedia/inc/fm/inc \
@@ -108,10 +109,11 @@ ccflags-y := \
 	-Iapps/audioplayers/a2dp_decoder \
 	-Iutils/list \
 	-Iutils/heap \
+	-Iutils/stream_mcps \
 	-Iplatform/drivers/ana \
 	-Ithirdparty/audio_codec_lib/scalable/ \
 	-Ithirdparty/audio_codec_lib/liblhdc-dec/inc \
-	-Iapps/app_test/apptester \
+	-Iapps/apptester \
 	-Iapps/key  \
 	-Iplatform/drivers/bt \
 	-Iapps/anc/inc \
@@ -119,16 +121,21 @@ ccflags-y := \
 	-Iservices/app_ai/inc\
 	-Iinclude/cmsis_dsp/ \
 	-Iapps/app_rpc/ \
-	-Iapps/app_rpc/rpc_speech_dsp/ \
 	-Ithirdparty/tflite \
 	-Ithirdparty/tflite/tensorflow/lite/micro/src/dtln_denoise/ \
-	-Iservices/audio_manager \
-	-Iservices/audio_manager/audio_policy/bredr_policy/inc \
-	-Iapps/sensorhub \
+	-Iservices/mcpp \
 	-Imultimedia/inc/audio/codec/lc3/inc \
 	-Imultimedia/inc/audio/process/sbcplc/include/
 
-ccflags-y += $(BES_MULTIMEDIA_INCLUDES)
+ccflags-y += -Imultimedia/inc/
+
+ifeq ($(IBRT),1)
+ifeq ($(IBRT_UI),1)
+subdir-ccflags-y += \
+    -Iservices/ux/common/ibrt/app_ibrt/inc \
+    -Iservices/ux/common/ibrt/ibrt_core/inc
+endif
+endif
 
 ifeq ($(A2DP_LDAC_ON),1)
 ccflags-y += -Ithirdparty/audio_codec_lib/ldac/inc
@@ -136,6 +143,11 @@ endif
 
 ifeq ($(A2DP_LHDCV5_ON),1)
 ccflags-y += -Ithirdparty/audio_codec_lib/liblhdcv5-dec/inc
+endif
+
+ifeq ($(BLE_AUDIO_ENABLED),1)
+ccflags-y += \
+    -Iservices/audio_manager
 endif
 
 ifeq ($(A2DP_CP_ACCEL),1)
@@ -170,10 +182,6 @@ endif
 
 ifeq ($(SPEECH_TX_THIRDPARTY_ALANGO),1)
 CFLAGS_bt_sco_chain_thirdparty_alango.o += -Ithirdparty/alango_lib/include
-endif
-
-ifeq ($(SPEECH_TX_THIRDPARTY_XIAOMI),1)
-CFLAGS_bt_sco_chain_thirdparty_xiaomi.o += -Ithirdparty/xiaomi_enc
 endif
 
 ifeq ($(SPEECH_TX_THIRDPARTY_SNDP),1)
@@ -256,10 +264,10 @@ ifeq ($(CALL_BYPASS_SLAVE_TX_PROCESS),1)
 CFLAGS_voicebtpcmplay_sco_dma_snapshot.o += -DCALL_BYPASS_SLAVE_TX_PROCESS
 endif
 
-ifeq ($(SCO_CP_ACCEL_RPC),1)
-subdir-ccflags-y += \
-    -Iapps/audioplayers/speech_sco_chain_3rd
-obj-y += speech_sco_chain_3rd/
+ifeq ($(SPEECH_ALGO_DSP_TEST),1)
+CFLAGS_bt_sco_chain.o += -DSPEECH_ALGO_DSP_TEST
+CFLAGS_bt_sco_chain_thirdparty.o += -DSPEECH_ALGO_DSP_TEST
+ccflags-y += -Iservices/speech_algo_dsp_test
 endif
 
 ifeq ($(DSP_HIFI4_TRC_TO_MCU),1)
@@ -267,6 +275,7 @@ TRC_FLAGS := -DDSP_HIFI4_TRC_TO_MCU
 ifeq ($(RMT_TRC_IN_MSG_CHAN),1)
 TRC_FLAGS += -DRMT_TRC_IN_MSG_CHAN
 endif
+CFLAGS_speech_algo_dsp_test.o += $(TRC_FLAGS) -Iplatform/drivers/hifi4
 endif
 
 ifeq ($(BT_SCO_CHAIN_AUDIO_DUMP),1)

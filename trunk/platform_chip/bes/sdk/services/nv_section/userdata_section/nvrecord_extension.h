@@ -19,16 +19,12 @@
 #define __NVRECORD_EXTENSION_H__
 #include "plat_types.h"
 #include "bluetooth_bt_api.h"
-#include "me_api.h"
 #include "ble_device_info.h"
-#ifdef CUSTOMER_APP_BOAT
-#include "app_key.h"
-#endif
 
 // increase by 1 if the nvrecord's whole data structure is changed and the content needs to be rebuilt
-#define NV_EXTENSION_MAJOR_VERSION 18
+#define NV_EXTENSION_MAJOR_VERSION 17
 // increase by 1 if the new items are appended to the tail of the former nvrecord's data structure
-#define NV_EXTENSION_MINOR_VERSION 1
+#define NV_EXTENSION_MINOR_VERSION 3
 
 #define NV_EXTENSION_SIZE NORFLASH_API_SECTOR_MAX_SIZE       // one flash sector size
 #define NV_EXTENSION_PAGE_SIZE NORFLASH_API_PAGE_MAX_SIZE    // one flash page size
@@ -46,10 +42,9 @@
 #define BLE_RECORD_NUM 5
 #define BLE_GATT_CACHE_NUM 1
 
-#define BLE_ADDR_SIZE 6
-#define BLE_ENC_RANDOM_SIZE 8
-#define BLE_LTK_SIZE 16
-#define BLE_IRK_SIZE 16
+#ifdef BLE_STACK_NEW_DESIGN
+#define BLE_GATT_CLIENT_CACHE   1
+#endif
 
 #define BLE_STATIC_ADDR 0
 #define BLE_RANDOM_ADDR 1
@@ -87,25 +82,15 @@
 #endif
 
 #ifdef COMBO_CUSBIN_IN_FLASH
-#define COMBO_INFO_NUM_MAX   4 // current :soc firmware + mcu firmware
+#define COMBO_INFO_NUM_MAX   2 // current :soc firmware + mcu firmware
 #endif
 
 /* tws name max length */
 #define TWS_NAME_MAX_LENGTH   32
 
-#ifdef FINDMY_ENABLED
-#define FINDMY_NV_ENC_KEY_LEN       (28)
-#define FINDMY_NV_PUB_KEY_LEN       (28 * 2 + 1)
-#define FINDMY_NV_P256_KEY_LEN      (32)
-#define FINDMY_NV_SK_LEN            (32)
-#define FINDMY_NV_IK_LEN            (32)
-#define FINDMY_NV_iCLOUD_ID_LEN     (60)
-#endif
-
 // TODO: should be increased if NV_EXTENSION_MIRROR_RAM_SIZE exceeds this value
-#ifndef NV_EXTENSION_MIRROR_RAM_SIZE
+
 #define NV_EXTENSION_MIRROR_RAM_SIZE 0x1000
-#endif
 
 #define set_bit(x, y)         ((x)|=(1<<(y)))
 #define clr_bit(x, y)         ((x)&=~(1<<(y)))
@@ -243,14 +228,6 @@ typedef struct {
     uint8_t amaAssistantEnableStatus;   //ama enable flag
 } AI_MANAGER_INFO_T;
 
-#ifdef CUSTOMER_APP_BOAT
-typedef struct {
-    APP_KEY_STATUS status;
-    uint8_t lr;
-    uint8_t button_set_event;
-}BUTTON_SET_EVENT_INFO_T;
-#endif
-
 struct nvrecord_env_t {
     // if len of nvrecord_env_t in flash is the same as current firmware and the CRC check
     // of the nv extension info in flash gets pass, copy the information of
@@ -265,11 +242,6 @@ struct nvrecord_env_t {
 #if defined(__TENCENT_VOICE__)
     uint8_t flag_value[8];
 #endif
-#ifdef CUSTOMER_APP_BOAT
-    BUTTON_SET_EVENT_INFO_T buttonInfo_left[2];
-    BUTTON_SET_EVENT_INFO_T buttonInfo_right[2];
-#endif
-
     AI_MANAGER_INFO_T aiManagerInfo;
     test_scenarios_t factory_test_env;
     le_rx_nonsignaling_test_t le_rx_env;
@@ -288,15 +260,6 @@ typedef struct btdevice_profile {
     bool a2dp_act;
     uint8_t a2dp_codectype;
 } btdevice_profile;
-
-#ifdef CUSTOM_BITRATE
-typedef struct
-{
-    uint32_t aac_bitrate;
-    uint32_t sbc_bitpool;
-    uint32_t audio_latentcy;
-} nv_codec_user_info_t;
-#endif
 
 typedef struct {
     btif_device_record_t record;
@@ -322,7 +285,9 @@ typedef struct {
     BLE_BASIC_INFO_T self_info;
     uint8_t local_database_hash[16];
     BleDeviceinfo ble_nv[BLE_RECORD_NUM];
-    gattc_nv_cache_t gatt_cache[BLE_GATT_CACHE_NUM];
+#ifdef BLE_GATT_CLIENT_CACHE
+    gatt_client_cache_t client_cache[BLE_GATT_CACHE_NUM];
+#endif
 } __attribute__ ((packed)) NV_RECORD_PAIRED_BLE_DEV_INFO_T;
 
 typedef struct {
@@ -333,7 +298,6 @@ typedef struct {
 typedef enum {
     NV_APP_MONE_MIN = 0,
     /// earbud
-    NV_APP_EARBUDS = NV_APP_MONE_MIN,
     NV_APP_EARBUDS_MONO = NV_APP_MONE_MIN,
     NV_APP_EARBUDS_STEREO_ONE_CIS,
     NV_APP_EARBUDS_STEREO_TWO_CIS,
@@ -342,17 +306,7 @@ typedef enum {
     NV_APP_HEADSET_STEREO_TWO_CIS,
     /// walkie talkie
     NV_APP_WALKIE_TALKIE,
-    /// dongle
-    NV_APP_DONGLE_A2DP,
-    NV_APP_DONGLE_SCO,
-    NV_APP_DONGLE_LEA_UC,
-    NV_APP_DONGLE_LEA_BC,
-    /// watch
-    NV_APP_WATCH,
-    /// sound
-    NV_APP_SOUND,
-    /// glasses
-    NV_APP_GLASSES,
+
     NV_APP_MONE_MAX,
 } nvrec_appmode_e;
 
@@ -383,9 +337,6 @@ typedef struct {
     uint8_t spot_adv_data[FP_SPOT_ADV_DATA_LEN];
     bool spot_adv_enabled;
     uint32_t beacon_time;
-    uint8_t hashed_value;
-    uint32_t poweroff_time;
-    uint32_t has_poweredoff_time;
 } NV_FP_ACCOUNT_KEY_RECORD_T;
 #endif  // #ifdef GFPS_ENABLED
 
@@ -404,6 +355,7 @@ typedef struct {
 } NV_TILE_INFO_CONFIG_T;
 #endif
 
+#if defined(AI_OTA)
 typedef struct {
     // hotword model ID, arry size should equal to GSOUND_HOTWORD_MODEL_ID_BYTES
     char modelId[5];
@@ -413,9 +365,8 @@ typedef struct {
 
     // length of model file
     uint32_t len;
-} HOTWORD_MODEL_INFO_T;
+}HOTWORD_MODEL_INFO_T;
 
-#if defined(AI_OTA)
 typedef struct {
     uint32_t imageSize; //!< image size of ongoing upgrade
     uint32_t breakPoint; //!< break point of ongoing upgrade
@@ -474,7 +425,6 @@ typedef struct
     uint32_t id;
     uint32_t offset;
     uint32_t length;
-    uint32_t crc32;
 } COMBO_CONTENT_INFO_T;
 
 typedef struct
@@ -506,41 +456,24 @@ struct HAL_CODEC_DAC_DRE_CALIB_CFG_NV_T {
 };
 #endif
 
-#ifdef FINDMY_ENABLED
-typedef struct
-{
-    uint32_t index;
-    uint8_t  key[FINDMY_NV_ENC_KEY_LEN];
-} NV_FINDMY_KEY_INFO_T;
+#if BLE_AUDIO_ENABLED
+
+#if 0
 
 typedef struct
 {
-    bool  isPairingComplete;
-    bool  connPersistent;
-    bt_bdaddr_t  pairedAddr;
+  uint16_t uuid;
+  uint16_t s_handle;
+  uint16_t e_handle;         /* used for service only */
+  uint8_t attr_type;         /* <Primary/ Service/Secondary Service ...> */
+  uint8_t id;
+  uint8_t prop;              /* used when attribute type is characteristic */
+  bool is_primary;           /* used when attribute type is service */
+  uint16_t incl_srvc_handle; /* used when attribute type is included service */
+} GATTC_NV_ATTR;
 
-    /* FindMy Pairing Information */
-    uint8_t  state;
-    NV_FINDMY_KEY_INFO_T  priKeyInfo;
-    NV_FINDMY_KEY_INFO_T  secKeyInfo;
-    NV_FINDMY_KEY_INFO_T  separateKeyInfo;
-    uint8_t  finalPubKey[FINDMY_NV_PUB_KEY_LEN];
-    uint8_t  currSKN[FINDMY_NV_SK_LEN];
-    uint8_t  currSKS[FINDMY_NV_SK_LEN];
-    uint8_t  currIK[FINDMY_NV_IK_LEN];
-    uint8_t  currLTK[BLE_LTK_SIZE];
-    uint8_t  currKSN[FINDMY_NV_P256_KEY_LEN];
-    uint8_t  iCloudId[FINDMY_NV_iCLOUD_ID_LEN];
-
-    uint32_t  next4AM; //uint: ms(Jan 1 2001 Epoch)
-    uint32_t  rollTime;
-    uint32_t  nextSecKeyRollIdx;
-    uint64_t  snQueryCnt;
-} NV_FINDMY_INFO_T;
-#endif
-
-#if BLE_AUDIO_ENABLED || defined(KEEP_BLE_AUDIO_IN_NV_RECORD)
-#define BLE_GATT_CACHE_REC_NUM    (2)
+#else
+#define BLE_GATT_CACHE_REC_NUM    (3)
 #define ACC_MCS_DFT_MEDIA_NUM     (2)
 #define ACC_TBS_DFT_BEARER_NUM    (2)
 #define ACC_MCS_CHAR_TYPE_NV_MAX  (22)
@@ -629,11 +562,22 @@ typedef struct
     /// The number of server(Local device)
     uint8_t            srv_nb;
 } gapc_nv_bond_data_t;
+#endif
 
 typedef struct
 {
     /// Use Public Addr to recognize a dev
     uint8_t peer_addr[6];
+    // Database hash
+    uint8_t database_hash[GATT_DB_HASH_NV_LEN];
+
+#ifndef BLE_STACK_NEW_DESIGN
+    /// Service bond data cache
+    acc_mcc_nv_bond_data_t acc_mcc_cache_data;
+    acc_tbc_nv_bond_data_t acc_tbc_cache_data;
+    gapc_nv_bond_data_t gapc_cache_bond_data;
+#endif
+
     /// Client characteristic configuration
     // VCS
     uint8_t vcs_cli_cfg_bf;
@@ -655,7 +599,7 @@ typedef struct
     /// Add other services here
 } GATTC_SRV_ATTR_t;
 
-typedef struct
+typedef struct GATTC_NV_SRV_ATTR_t
 {
     /// idx start at 0 to BLE_GATT_CACHE_REC_NUM wrap to 0
     uint8_t wrap_idx;
@@ -671,7 +615,7 @@ typedef struct
     // 94 bytes are from MAX_BT_PAIRED_DEVICE_COUNT times of bt_dip_pnp_info_t
     #define NV_SDK_RESERVED_LEN  (368-106)
 #else
-    #define NV_SDK_RESERVED_LEN  368
+    #define NV_SDK_RESERVED_LEN  (368)
 #endif
 
 #ifdef CODEC_ADC_DC_NV_DATA
@@ -698,6 +642,7 @@ typedef struct {
 
 typedef struct{
     TOTA_ADDA_TEST_T adda_test;
+    uint32_t mem_scan_result;
     // TODO: add other items for SDK.
 }NV_SDK_INFO_T;
 
@@ -714,9 +659,7 @@ typedef struct {
     struct nvrecord_env_t system_info;
 
     NV_RECORD_PAIRED_BT_DEV_INFO_T bt_pair_info;
-#ifdef APP_SOUND_ENABLE
     NV_RECORD_PAIRED_BT_DEV_INFO_T bt_pair_info_cache;
-#endif
     NV_RECORD_PAIRED_BLE_DEV_INFO_T ble_pair_info;
     NV_RECORD_APP_MODE_INFO_T app_mode_info;
 
@@ -744,10 +687,6 @@ typedef struct {
     NV_GSOUND_INFO_T gsound_info;
 #endif
 
-#ifdef FINDMY_ENABLED
-    NV_FINDMY_INFO_T findmy_info;
-#endif
-
 #if 1//def TX_IQ_CAL
     BT_IQ_CALIBRATION_CONFIG_T btIqCalConfig;
 #endif
@@ -772,16 +711,13 @@ typedef struct {
     BT_DC_CALIBRATION_CONFIG_T btDcCalibConfig;
 #endif
 
-#if BLE_AUDIO_ENABLED || defined(KEEP_BLE_AUDIO_IN_NV_RECORD)
+#if BLE_AUDIO_ENABLED
     NV_RECORD_BLE_AUDIO_DEV_INFO_T  ble_audio_dev_info;
 
     GATTC_NV_SRV_ATTR_t             srv_cache_attr;
 #endif
 #ifdef CODEC_ADC_DC_NV_DATA
     HAL_CODEC_ADC_DC_CALIB_CFG_NV_T adc_dc_calib_cfg_info[ADC_DC_CALIB_DATA_NV_NUM];
-#endif
-#ifdef CUSTOM_BITRATE
-    nv_codec_user_info_t codec_user_info;
 #endif
     // reserve space for sdk info, if need to add new data structure
     // grab space from the reserve space, but must assure that the whole space
@@ -852,6 +788,12 @@ int nvrecord_adc_dc_calib_info_set(uint32_t channel_index, HAL_CODEC_ADC_DC_CALI
 int nvrecord_adc_dc_calib_info_get(uint32_t channel_index, HAL_CODEC_ADC_DC_CALIB_CFG_NV_T *adc_dc_calib_info);
 int nvrecord_adc_dc_calib_info_dump(uint32_t channel_index);
 #endif
+
+#ifdef MTEST_BUILTIN
+uint32_t nv_extention_get_mem_scan_result(void);
+void nv_extention_set_mem_scan_result(uint32_t result);
+#endif
+
 #ifdef __cplusplus
 }
 #endif

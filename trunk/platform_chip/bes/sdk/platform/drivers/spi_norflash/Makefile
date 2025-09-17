@@ -11,14 +11,7 @@ CFLAGS_spi_norflash_drv.o += -DFLASH_UNIQUE_ID
 endif
 
 ifeq ($(SPI_NORFLASH_USING_SPILCD),1)
-ifneq ($(CHIP_HAS_SPILCD),1)
-$(error *** Error: $(CHIP) not support spilcd!)
-endif
 CFLAGS_spi_norflash_drv.o += -DSPI_NORFLASH_USING_SPILCD
-endif
-
-ifeq ($(CHIP_HAS_SPILCD),1)
-CFLAGS_spi_norflash_drv.o += -DCHIP_HAS_SPILCD
 endif
 
 ifeq ($(SPI_NORFLASH_DRV_DEBUG),1)

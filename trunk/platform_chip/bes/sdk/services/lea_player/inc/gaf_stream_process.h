@@ -25,7 +25,6 @@ extern "C" {
 #endif
 
 bool gaf_stream_process_context_is_call(uint16_t context);
-bool gaf_stream_process_context_is_binaural_record(uint16_t context);
 
 int32_t gaf_stream_process_init(void);
 int32_t gaf_stream_process_deinit(void);

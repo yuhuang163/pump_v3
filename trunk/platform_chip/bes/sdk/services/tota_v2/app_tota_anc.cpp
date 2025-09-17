@@ -13,7 +13,7 @@
  * trademark and other intellectual property rights.
  *
  ****************************************************************************/
-
+#if defined(APP_ANC_TEST)
 #include "app_tota.h"
 #include <stdio.h>
 #include "cmsis_os.h"
@@ -21,14 +21,18 @@
 #include "anc_parse_data.h"
 #include "app_tota_anc.h"
 #include "bluetooth_bt_api.h"
-#include "btapp.h"
 #include "app_ibrt_middleware.h"
 #include "hal_norflash.h"
 
-#if defined(APP_ANC_TEST)
 osTimerId app_check_send_synccmd_timer = NULL;
 static void app_synccmd_timehandler(void const *param);
 osTimerDef (APP_SYNCCMD, app_synccmd_timehandler);
+
+#if 0
+#define TOTA_ANC_LOG_DBG TOTA_LOG_DBG
+#else
+#define TOTA_ANC_LOG_DBG(level,...)
+#endif
 
 static void app_synccmd_timehandler(void const *param)
 {
@@ -40,10 +44,10 @@ static void app_synccmd_timehandler(void const *param)
 
 APP_TOTA_CMD_RET_STATUS_E app_anc_tota_cmd_received(uint8_t* ptrData, uint32_t dataLength)
 {
-    TOTA_V2_TRACE(2,"[%s] length:%d", __func__, dataLength);
-    TOTA_V2_TRACE(1,"[%s] data:", __func__);
-    //TOTA_V2_DUMP8("0x%02x ", ptrData, dataLength);
-    TOTA_V2_DUMP8("0x%02x ", ptrData, dataLength>20?20:dataLength);
+    TOTA_LOG_DBG(2,"[%s] length:%d", __func__, dataLength);
+    TOTA_LOG_DBG(1,"[%s] data:", __func__);
+    //TOTA_LOG_DUMP("0x%02x ", ptrData, dataLength);
+    TOTA_LOG_DUMP("0x%02x ", ptrData, dataLength>20?20:dataLength);
 
     //APP_TOTA_CMD_PAYLOAD_T* pPayload = (APP_TOTA_CMD_PAYLOAD_T *)ptrData;
     // TODO:
@@ -83,7 +87,7 @@ void app_tota_anc_init()
     app_tota_callback_module_register(APP_TOTA_ANC, &s_func);
     // TODO:
     reset_programmer_state(&g_buf, &g_len);
-    TOTA_V2_TRACE(1,"[%s] g_len: %d", __func__, g_len);
+    TOTA_LOG_DBG(1,"[%s] g_len: %d", __func__, g_len);
 
     //reset_programmer_state(&g_buf, &g_len);
     if (app_check_send_synccmd_timer == NULL)
@@ -94,8 +98,8 @@ static void _tota_spp_connected(void)
 {
     // TODO:
     anc_data_buff_init();
-    struct BT_DEVICE_T *curr_device = app_bt_get_device(0);
-    app_ibrt_if_prevent_sniff_set((uint8_t *)&curr_device->remote, AVRCP_STATUS_CHANING);
+    bt_acl_state_t acl_state = bes_bt_me_acl_get_state(BT_DEVICE_ID_1);
+    app_ibrt_middleware_prevent_sniff_set((uint8_t *)&acl_state.remote, AVRCP_STATUS_CHANING);
 
     //add a send sync timer
     osTimerStop(app_check_send_synccmd_timer);
@@ -127,7 +131,7 @@ static void _tota_spp_data_receive_handle(uint8_t * buf, uint16_t len)
 extern uint32_t __aud_start[];
 static void _anc_cmd_control(APP_TOTA_CMD_CODE_E funcCode, uint8_t* ptrParam, uint32_t paramLen)
 {
-    TOTA_V2_TRACE(1,"[%s] funcCode: 0x%x, paramLen: %d", __func__, funcCode, paramLen);
+    TOTA_ANC_LOG_DBG(1,"[%s] funcCode: 0x%x, paramLen: %d", __func__, funcCode, paramLen);
     uint8_t resData[48] = {0};
     uint32_t resLen = 1;
     switch(funcCode) {
@@ -138,19 +142,19 @@ static void _anc_cmd_control(APP_TOTA_CMD_CODE_E funcCode, uint8_t* ptrParam, ui
             anc_data_buff_init();
 
             /* ban bt sniff */
-            struct BT_DEVICE_T *curr_device = app_bt_get_device(0);
-            app_ibrt_if_prevent_sniff_set((uint8_t *)&curr_device->remote, AVRCP_STATUS_CHANING);
+            bt_acl_state_t acl_state = bes_bt_me_acl_get_state(BT_DEVICE_ID_1);
+            app_ibrt_middleware_prevent_sniff_set((uint8_t *)&acl_state.remote, AVRCP_STATUS_CHANING);
             hal_norflash_disable_protection(HAL_FLASH_ID_0);
 
-            app_tota_v2_send_data(funcCode, resData, resLen);
+            app_tota_send_data(funcCode, resData, resLen);
             break;
         }
         case OP_TOTA_ANC_CONTROL_DATA_CMD:
         {
-            TOTA_V2_DUMP8("0x%02x ", ptrParam, paramLen>20?20:paramLen);
+            TOTA_LOG_DUMP("0x%02x ", ptrParam, paramLen>20?20:paramLen);
             anc_handle_received_data(ptrParam, paramLen);
 
-            app_tota_v2_send_data(funcCode, resData, resLen);
+            app_tota_send_data(funcCode, resData, resLen);
             break;
         }
         case OP_TOTA_ANC_CONTROL_DEINIT_CMD:
@@ -158,7 +162,7 @@ static void _anc_cmd_control(APP_TOTA_CMD_CODE_E funcCode, uint8_t* ptrParam, ui
             anc_data_buff_deinit();
             is_connected = false;
 
-            app_tota_v2_send_data(funcCode, resData, resLen);
+            app_tota_send_data(funcCode, resData, resLen);
             break;
         }
         case OP_TOTA_ANC_CONTROL_ADDR_CMD:
@@ -167,14 +171,14 @@ static void _anc_cmd_control(APP_TOTA_CMD_CODE_E funcCode, uint8_t* ptrParam, ui
             resLen = sizeof(uint32_t);
             memcpy(resData, &audio_start_int, resLen);
             resData[resLen] = '\0';
-            TOTA_V2_DUMP8("0x%02x ", resData, resLen);
-            app_tota_v2_send_data(funcCode, resData, resLen);
+            TOTA_LOG_DUMP("0x%02x ", resData, resLen);
+            app_tota_send_data(funcCode, resData, resLen);
             break;
         }
         default:
         {
             resData[0] = 0x01;
-            app_tota_v2_send_data(funcCode, resData, resLen);
+            app_tota_send_data(funcCode, resData, resLen);
             break;
         }
     }

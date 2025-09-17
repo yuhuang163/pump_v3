@@ -39,7 +39,6 @@ typedef struct
     uint32_t id;
     uint32_t offset;
     uint32_t length;
-    uint32_t crc32;
 } PROMPT_CONTENT_INFO_T;
 
 typedef struct
@@ -53,7 +52,6 @@ typedef struct
 
 /****************************function declearation**************************/
 void nv_record_prompt_rec_init(void);
-
 void nv_record_prompt_parse_file(void *addr, PROMPT_IMAGE_HEADER_T *info);
 bool nv_record_prompt_check_crc(uint32_t startAddr, PROMPT_IMAGE_HEADER_T *info);
 uint32_t nv_record_prompt_get_language_packet_size(PROMPT_IMAGE_HEADER_T *info);
@@ -67,7 +65,6 @@ void nv_record_prompt_get_prompt_info(uint8_t language, uint16_t id, uint8_t **d
 uint8_t nv_record_prompt_get_prompt_num(void);
 uint8_t nv_record_prompt_get_prompt_language(uint8_t num);
 void nv_record_prompt_set_new_language_flag(void);
-
 #ifdef __cplusplus
 }
 #endif

@@ -104,7 +104,7 @@ uint32_t wav_file_audio_more_data(uint8_t *buf, uint32_t len)
         return (len);
     }
 
-//  AUDIOPLAYERS_TRACE(5,"wav_file_audio_more_data irqDur:%d fsSpend:%d, readbuff:0x%08x %d/%d\n ", TICKS_TO_MS(stime - g_preIrqTime),TICKS_TO_MS(etime - stime),buf,reallen,len);
+//  TRACE(5,"wav_file_audio_more_data irqDur:%d fsSpend:%d, readbuff:0x%08x %d/%d\n ", TICKS_TO_MS(stime - g_preIrqTime),TICKS_TO_MS(etime - stime),buf,reallen,len);
 //    g_preIrqTime = stime;
 
     /* walk index */
@@ -129,7 +129,7 @@ uint32_t get_wav_data(wave_file_t *waveFile)
     memcpy(&waveFile->header.size, dataTemp, 4);
     dataTemp += 4;
 
-    AUDIOPLAYERS_TRACE(1,"WAV header size [%d]\n", waveFile->header.size);
+    TRACE(1,"WAV header size [%d]\n", waveFile->header.size);
 
     // .wav file flag
     memcpy(waveFile->header.waveFlag, dataTemp, 4);
@@ -159,7 +159,7 @@ uint32_t get_wav_data(wave_file_t *waveFile)
     memcpy(&waveFile->header.channels, dataTemp, 4);
     dataTemp += 2;
 
-    AUDIOPLAYERS_TRACE(1,"WAV channels [%d]\n", waveFile->header.channels);
+    TRACE(1,"WAV channels [%d]\n", waveFile->header.channels);
 
     // Sample Rate in Hz
     memcpy(&waveFile->header.sampFreq, dataTemp, 4);
@@ -167,8 +167,8 @@ uint32_t get_wav_data(wave_file_t *waveFile)
     memcpy(&waveFile->header.byteRate, dataTemp, 4);
     dataTemp += 4;
 
-    AUDIOPLAYERS_TRACE(1,"WAV sample_rate [%d]\n", waveFile->header.sampFreq);
-    AUDIOPLAYERS_TRACE(1,"WAV byteRate [%d]\n", waveFile->header.byteRate);
+    TRACE(1,"WAV sample_rate [%d]\n", waveFile->header.sampFreq);
+    TRACE(1,"WAV byteRate [%d]\n", waveFile->header.byteRate);
 
     // quantize bytes for per samp point
     memcpy(&waveFile->header.blockAlign, dataTemp, 4);
@@ -176,7 +176,7 @@ uint32_t get_wav_data(wave_file_t *waveFile)
     memcpy(&waveFile->header.bitSamp, dataTemp, 4);
     dataTemp += 2;
 
-    AUDIOPLAYERS_TRACE(1,"WAV bitSamp [%d]\n", waveFile->header.bitSamp);
+    TRACE(1,"WAV bitSamp [%d]\n", waveFile->header.bitSamp);
 
     // Data
     memcpy(waveFile->header.dataFlag, dataTemp, 4);
@@ -214,12 +214,12 @@ uint32_t play_wav_file(char *file_path)
     g_wave_file_handle = fopen(file_path, "rb");
 
     if(g_wave_file_handle == NULL) {
-        AUDIOPLAYERS_TRACE(0, "[%s] ERROR: Can't open %s", __func__, file_path);
+        TRACE(0, "[%s] ERROR: Can't open %s", __func__, file_path);
         return 1;
     }
 
     if (fread(&g_wav_header, WAVE_FILE_HEADER_SIZE, 1, g_wave_file_handle) != WAVE_FILE_HEADER_SIZE) {
-        AUDIOPLAYERS_TRACE(0, "[%s] ERROR: Can't read %s", __func__, file_path);
+        TRACE(0, "[%s] ERROR: Can't read %s", __func__, file_path);
         return 2;
     }
 

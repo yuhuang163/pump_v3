@@ -16,18 +16,7 @@
 #ifndef __APP_SPP_TOTA_H__
 #define __APP_SPP_TOTA_H__
 
-#include "bt_sys_config.h"
-
-#define MAX_SPP_PACKET_SIZE          RFCOMM_DEFAULT_MTU
-
-#define MAX_SPP_PACKET_NUM           2
-
-#define TOTA_SPP_TX_BUF_SIZE        (MAX_SPP_PACKET_SIZE*MAX_SPP_PACKET_NUM)
-
-#define TOTA_RX_BUF_SIZE            (MAX_SPP_PACKET_SIZE*MAX_SPP_PACKET_NUM)
-
 using namespace std;
-
 
 typedef struct{
     void (*connected_cb)(void);
@@ -38,10 +27,6 @@ typedef struct{
 
 void app_spp_tota_init(const tota_callback_func_t *tota_callback_func);
 bool app_spp_tota_send_data(uint8_t* ptrData, uint16_t length);
-
-/* for sniff */
-bool spp_tota_in_progress();
-
+bool app_spp_tota_send_via_spp_direct(uint8_t* ptrData, uint16_t length);
 
 #endif
-

@@ -724,11 +724,6 @@ typedef struct {
 } bt_sdp_attr_list_t;
 
 typedef struct {
-    int total_len; // The length of des
-    const uint8_t *des; // include of the type_size field of des
-} bt_sdp_des_t;
-
-typedef struct {
     bt_sdp_response_type_t type;
     uint16_t handle_count;
     uint32_t *handle_list;
@@ -752,7 +747,6 @@ typedef struct {
     uint16_t avrcp_version;
     uint16_t avctp_version;
     uint16_t supported_features;
-    uint16_t l2cap_psm;
 } bt_sdp_avrcp_record_t;
 
 typedef struct {
@@ -771,13 +765,6 @@ typedef struct {
     uint8_t server_channel;
 } bt_sdp_opp_record_t;
 
-#define MAX_DESCRIPTOR_COUNT 6
-typedef struct {
-    uint8_t descriptor_type;
-    uint16_t descriptor_list_len;
-    const uint8_t *descriptor_list_data;
-}hid_descriptorlist_t;
-
 typedef struct {
     bt_sdp_remote_record_t head;
     uint16_t hid_version;
@@ -789,8 +776,8 @@ typedef struct {
     bool virtual_cable;
     bool reconnect_initiate;
     bool boot_device;
-    uint8_t decrp_count;
-    hid_descriptorlist_t decrp[MAX_DESCRIPTOR_COUNT];
+    uint16_t descriptor_list_len;
+    uint8_t *descriptor_list_data;
 } bt_sdp_hid_record_t;
 
 #define BT_SDP_PAN_MAX_SUPPORT_NETWORK_PROTOCOLS 16

@@ -27,49 +27,37 @@ typedef struct {
    ///
    int (*stop_ind)(uint8_t actv_idx);
    ///
-   int (*per_sync_est_evt)(uint8_t actv_idx, uint8_t *addr);
+   int (*per_sync_est_evt)(uint8_t actv_idx);
 }bes_if_walie_gap_cb_func_t;
 
-typedef struct
-{
-    bool is_contain_pa;
-    uint16_t pa_interval_1_25ms; // unit 1.25ms
-    uint32_t ea_max_interval_ms; // unit ms
-    uint32_t ea_min_interval_ms;
-    uint8_t primary_adv_phy; // see gap_le_phy_t
-    uint8_t secondary_adv_phy; //
-}bes_if_ble_walkie_gap_adv_param;// see ble_walkie_gap_adv_param
+void bes_ble_walkie_stop_activity(uint8_t actv_idx);
+void bes_ble_walkie_delete_activity(uint8_t actv_idx);
+void bes_ble_walkie_adv_creat(uint8_t *adv_para);
+void bes_ble_walkie_adv_enable(uint16_t duration, uint8_t max_adv_evt, uint8_t actv_idx);
+void bes_ble_walkie_set_adv_data_cmd(uint8_t operation, uint8_t actv_idx,
+                                      uint8_t *adv_data, uint8_t data_len);
+void bes_ble_walkie_periodic_sync_create(uint8_t own_addr_type);
+void bes_ble_walkie_periodic_sync_enable(uint8_t actv_idx, uint8_t *per_para);
+void bes_ble_walkie_scan_creat(uint8_t own_addr_type);
+void bes_ble_walkie_scan_enable(uint8_t actv_idx,uint8_t *scan_para);
+void bes_ble_walkie_set_device_list(uint8_t list_type, uint8_t *bdaddr, uint8_t size);
+void bes_ble_walkie_ble_gapm_task_init(bes_if_walie_gap_cb_func_t * cb);
 
-typedef struct
-{
-    void (*adv_start)(uint8_t adv_hdl, uint8_t error_code_ea, uint8_t error_code_pa);
-    void (*adv_stop)(uint8_t adv_hdl, uint8_t error_code, uint8_t error_code_pa);
-    void (*scan_evt)(bool enable, uint8_t error_code);
-    void (*recv_ea_data)(const uint8_t *data, uint8_t date_len, const uint8_t *mac, uint8_t rssi);
-    void (*recv_pa_data)(uint16_t pa_handle, const uint8_t *data, uint8_t date_len, const uint8_t *mac, uint8_t rssi);
-    void (*pa_sync_est)(uint16_t pa_handle, uint8_t *mac, uint8_t status);
-    void (*pa_sync_lost)(uint16_t pa_handle, uint8_t *mac);
-    void (*pa_sync_terminate)(uint16_t pa_handle, uint8_t *mac);
-    void (*add_mesh_list)(uint8_t status);
-    void (*clear_mesh_list)(uint8_t status);
-}bes_if_ble_walkie_gap_callback;// see ble_walkie_gap_callback
+#ifdef BLE_ISO_ENABLED
+// BIS full duplex mode
+bool bes_ble_walkie_send_big_create_sync_hci_cmd(const bes_if_walkie_gap_big_info_t* p_big_info);
+void bes_ble_walkie_talkie_print_big_info(const bes_if_walkie_gap_big_info_t* p_big_info);
+void bes_ble_walkie_talkie_big_src_create();
+bool bes_ble_walkie_bc_src_start_streaming();
+void bes_ble_walkie_bc_src_stop_streaming();
+void bes_ble_walkie_bc_src_send_data(uint8_t *payload, uint16_t payload_len);
 
-int bta_walkie_gap_init(bes_if_ble_walkie_gap_callback *cb);
-int bta_walkie_gap_deinit();
-uint8_t bta_walkie_gap_adv_creat(bes_if_ble_walkie_gap_adv_param* param);
-int bta_walkie_gap_adv_start(uint8_t adv_handle, uint32_t duartion);
-int bta_walkie_gap_adv_stop(uint8_t adv_handle);
-int bta_talkie_gap_adv_set_data(uint8_t adv_handle, uint8_t *data, uint8_t data_len);
-int bta_walkie_gap_scan_creat(uint16_t interval_ms, uint16_t windows_ms, bool use_filter_list);
-int bta_walkie_gap_scan_start(bool filter_duplicates, uint32_t duration_ms);
-int bta_walkie_gap_scan_stop();
-int bta_walkie_gap_pa_sync_create(const uint8_t *mac_addr);
-int bta_walkie_gap_pa_sync_stop(uint16_t pa_sync_hdl);
-int bta_walkie_gap_pa_set_data(uint8_t adv_handle, const uint8_t *pa_data, uint8_t data_len);
-int bta_walkie_gap_set_white_list(uint8_t *mac_addr, uint8_t count);
-int bta_walkie_gap_clear_white_list();
-int bta_walkie_gap_set_mesh_list(uint8_t *mac_addr, uint8_t count);
-int bta_walkie_gap_clear_mesh_list();
+uint8_t bes_ble_walkie_bis_rx_stream_start_by_con_hdl(uint16_t con_hdl);
+uint8_t bes_ble_walkie_bis_rx_stream_start(uint8_t actv_idx);
+void bes_ble_walkie_bis_rx_stream_stop(uint8_t actv_idx);
+void bes_ble_walkie_bis_register_recv_iso_data_callback();
+void bes_ble_walkie_bis_unregister_recv_iso_data_callback();
+#endif
 
 #ifdef __cplusplus
 }

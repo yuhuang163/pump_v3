@@ -19,6 +19,8 @@
 #ifndef __VOCS_COMMON__
 #define __VOCS_COMMON__
 
+#include "bluetooth.h"
+
 #include "gaf_cfg.h"
 
 /*TYPEDEF*/

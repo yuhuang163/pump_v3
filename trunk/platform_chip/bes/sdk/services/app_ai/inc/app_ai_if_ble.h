@@ -14,8 +14,11 @@ extern "C" {
 
 #define AI_BLE_ADVERTISING_INTERVAL (160)
 
+#ifdef __IAG_BLE_INCLUDE__
+
 #if 0
 #include "bluetooth_ble_api.h"
+
 typedef ke_state_t ai_ble_ke_state_t;
 typedef ke_task_id_t ai_ble_ke_task_id_t;
 typedef ke_msg_id_t ai_ble_ke_msg_id_t;
@@ -116,6 +119,7 @@ typedef struct
     /// note: for included service, contains target service handle
     uint16_t max_size;
 } ai_ble_attm_desc_128_t;
+#endif
 
 
 bool app_ai_if_ble_check_if_notification_processing_is_busy(uint8_t conidx);

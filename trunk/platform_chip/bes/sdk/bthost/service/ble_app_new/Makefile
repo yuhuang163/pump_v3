@@ -22,17 +22,31 @@ endif
 
 obj-y += ../../../utils/retention_ram/
 
-subdir-ccflags-y += -UMODULE -DMODULE=APP_BLE
-
 subdir-ccflags-y += \
     $(BLUETOOTH_ADAPTER_INCLUDES) \
     $(BLE_APP_INCLUDES) \
     $(BLE_STACK_INCLUDES) \
-    $(BT_SERVICE_UX_INCLUDES) \
-    $(BES_STACK_ADAPTER_INCLUDES) \
+    -I$(BLE_PROFILES_DIR_PATH)/hogp \
+    -I$(BLE_PROFILES_DIR_PATH)/hogp/hogpbh/api \
+    -I$(BLE_PROFILES_DIR_PATH)/hogp/hogpbh/src \
+    -I$(BLE_PROFILES_DIR_PATH)/hogp/hogpd/api \
+    -I$(BLE_PROFILES_DIR_PATH)/hogp/hogpd/src \
+    -I$(BLE_PROFILES_DIR_PATH)/hogp/hogprh/api \
+    -I$(BLE_PROFILES_DIR_PATH)/hogp/hogprh/src \
+    -I$(BLE_PROFILES_DIR_PATH)/bas/basc/api \
+    -I$(BLE_PROFILES_DIR_PATH)/bas/basc/src \
+    -I$(BLE_PROFILES_DIR_PATH)/bas/bass/api \
+    -I$(BLE_PROFILES_DIR_PATH)/bas/bass/src \
+    -I$(BLE_PROFILES_DIR_PATH)/dis/diss/api  \
+    -I$(BLE_PROFILES_DIR_PATH)/dis/diss/src  \
+    -I$(BLE_PROFILES_DIR_PATH)/sas/api  \
     -I$(BLE_APP_DIR_PATH)/app_dis/ \
-    -I$(BLE_APP_DIR_PATH)/app_shp \
+    -I$(BLE_APP_DIR_PATH)/app_ahp \
     -I$(BLE_APP_DIR_PATH)/app_sas \
+    -Ibthost/stack/dbg/ \
+    -Ibthost/rom \
+    -Ibthost/stack/ble_if/inc \
+    -Ibthost/porting/ \
     -Iservices/voicepath/$(VOICE_DATAPATH_TYPE) \
     -Iservices/audio_process \
     -Iapps/audioplayers/a2dp_decoder \
@@ -44,6 +58,8 @@ subdir-ccflags-y += \
     -Iservices/nvrecord \
     -Iservices/resources \
     -Iservices/voicepath/ \
+    -Iservices/ux/product/earbud_tws/inc \
+    -Iapps/earbuds/conn/ \
     -Iplatform/drivers/uarthci \
     -Iplatform/drivers/ana \
     -Iplatform/drivers/bt \
@@ -54,7 +70,7 @@ subdir-ccflags-y += \
     -Iutils/intersyshci \
     -Iutils/heap \
     -Iutils/hsm \
-    -Iutils/crc \
+    -Iutils/crc16 \
     -Iutils/hwtimer_list \
     -Iutils/aes_cmac \
     -Iutils/ \
@@ -62,9 +78,7 @@ subdir-ccflags-y += \
     -Iapps/key \
     -Iapps/main \
     -Iapps/common \
-    -Iapps/bt_sync \
     -Iapps/audioplayers \
-    -Iapps/earbuds/conn \
     -Iapps/factory \
     -Iservices/audio_dump/include \
     -Iservices/bridge/ \
@@ -77,9 +91,8 @@ subdir-ccflags-y += \
     -Iservices/ai_voice/manager \
     -Iservices/ai_voice/transport \
     -Iservices/app_ai/inc \
-    -Iservices/app_custom \
-    -Iservices/app_custom/ble_custom \
-    $(SMF_DEFINES) \
+    -Imultimedia/inc/audio/codec/lc3/inc \
+    -Iservices/ux/common/ibrt/ibrt_middleware/inc \
     -Iservices/bt_app/a2dp_codecs/include \
     -Iservices/voicepath/gsound/gsound_target \
     -Ithirdparty/tile \
@@ -96,25 +109,7 @@ subdir-ccflags-y += \
     -Iservices/app_debug_info_system/inc \
     -Iutils/encrypt \
     -Iapps/anc/inc \
-    -Iservices/osif \
-    -Iservices/gfps/inc \
-    -Imesh/adapter \
-    -Imesh/system \
-    -Imesh/stack \
-    -Iplatform/drivers/ana/best1700 \
-    -Ibthost/stack/common
-
-ifeq ($(CONFIG_BT_MESH_USES_EXTERNAL_PSA),1)
-ccflags-y += -Iutils/mbedtls/include \
-    -Iutils/mbedtls/include/mbedtls \
-    -Iutils/mbedtls/include/psa \
-    -Iutils/mbedtls/library
-else
-ccflags-y += -Imesh/system/mbedtls/include \
-    -Imesh/system/mbedtls/include/mbedtls \
-    -Imesh/system/mbedtls/include/psa \
-    -Imesh/system/mbedtls/library
-endif
+    -Iservices/osif
 
 ifeq ($(AUDIO_RESAMPLE),1)
 CFLAGS_voice_over_ble.o += -D__AUDIO_RESAMPLE__
@@ -133,6 +128,16 @@ ccflags-y += -Iservices/ota
 endif
 endif
 
+ifeq ($(IBRT),1)
+ifeq ($(IBRT_UI),1)
+subdir-ccflags-y += \
+    -Iservices/ux/common/ibrt/ibrt_core/inc \
+    -Iservices/ux/common/ibrt/ibrt_ui/inc \
+    -Iservices/ux/common/ibrt/app_ibrt/inc
+
+endif
+endif
+
 ifeq ($(BES_OTA),1)
 ccflags-y += -Iservices/ota/bes_ota/inc
 endif
@@ -144,5 +149,12 @@ endif
 
 ifeq ($(BLE_AUDIO_ENABLED),1)
 ccflags-y += \
-    -Iservices/audio_manager
+    -Iservices/audio_manager \
+    -Iservices/ux/common/ble_audio_core/inc
+endif
+
+
+ifeq ($(mHDT_LE_SUPPORT),1)
+ccflags-y += \
+    -I$(BLE_STACK_DIR_PATH)/inc/mhdt
 endif

@@ -22,7 +22,6 @@ typedef enum {
     APP_ANC_SYNC_MODE,
     APP_ANC_SYNC_PSAP_BANDS_GAIN,
     APP_ANC_SYNC_PSAP_BANDS_GAIN_ARRAY,
-    APP_ANC_SYNC_FIR_LMS_MODE,
     APP_ANC_SYNC_QTY
 } app_anc_sync_t;
 
@@ -36,7 +35,6 @@ int32_t app_anc_sync_send(uint8_t *buf, uint32_t len);
 int32_t app_anc_sync_mode(uint32_t mode);
 int32_t app_anc_sync_psap_bands_gain(float gain_l, float gain_r, uint32_t index_start, uint32_t index_end);
 int32_t app_anc_sync_psap_bands_gain_array(float *gain);
-int32_t app_anc_sync_fir_lms_mode(int32_t mode);
 
 int32_t app_anc_tws_sync_change(uint8_t *buf, uint32_t len);
 

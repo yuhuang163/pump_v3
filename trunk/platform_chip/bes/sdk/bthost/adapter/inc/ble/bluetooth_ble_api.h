@@ -27,9 +27,6 @@ extern "C" {
 #include "bes_gap_api.h"
 #include "bes_gatt_api.h"
 #include "bes_aob_api.h"
-#ifdef GFPS_ENABLED
-#include "bes_gfps_api.h"
-#endif
 #include "bes_dp_api.h"
 #ifdef __AI_VOICE_BLE_ENABLE__
 #include "bes_ai_api.h"
@@ -40,6 +37,10 @@ extern "C" {
 #ifdef BLE_WALKIE_TALKIE
 #include "bes_walkie_talkie_ble_gap_api.h"
 #endif
+
+void bes_ble_app_init(nvrec_appmode_e app_mode);
+
+void bes_ble_app_reinit();
 
 #ifdef __cplusplus
 }

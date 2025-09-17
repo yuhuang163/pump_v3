@@ -120,7 +120,7 @@ typedef enum IRQn
     MCU2CP_DONE1_IRQn           =  49,      /*!< Intersys MCU2CP Data Done Interrupt */
     MCU2CP_DONE2_IRQn           =  50,      /*!< Intersys MCU2CP Data Done Interrupt */
     MCU2CP_DONE3_IRQn           =  51,      /*!< Intersys MCU2CP Data Done Interrupt */
-    CHKSUM_IRQn                 =  52,      /*!< CHECKSUM Interrupt                 */
+    CRC_IRQn                    =  52,      /*!< CRC Interrupt                      */
     I2C4_IRQn                   =  53,      /*!< I2C4 Interrupt                     */
     I2C5_IRQn                   =  54,      /*!< I2C5 Interrupt                     */
     I2C6_IRQn                   =  55,      /*!< I2C6 Interrupt                     */
@@ -138,12 +138,12 @@ typedef enum IRQn
     VMM_IRQn                    =  66,      /*!< VMM Interrupt                      */
     DISPLAY_IRQn                =  67,      /*!< Display Interrupt                  */
     LCD_FRAME_DONE_IRQn         =  68,      /*!< Lcd Frame Done Interrupt           */
-    CRC_IRQn                    =  69,      /*!< CRC Interrupt                      */
+    NONE69_IRQn                 =  69,      /*!< None69 Interrupt                   */
     GPU_IRQn                    =  70,      /*!< GPU Interrupt                      */
     SDMMC0_IRQn                 =  71,      /*!< SDMMC Interrupt                    */
     BTTIME_IRQn                 =  72,      /*!< Bttime Interrupt                   */
     BT2MCU_SLP_IRQn             =  73,      /*!< BT2MCU Slp Interrupt               */
-    USB_PHY_IRQn                =  74,      /*!< USB PHY Interrupt                  */
+    CHARGER_IRQn                =  74,      /*!< Charger Interrupt                  */
     CORDIC_IRQn                 =  75,      /*!<  Cordic Interrupt                  */
     MCU_PPI_IRQn                =  76,      /*!< MCU PPI Interrupt                  */
     JPEG_DEC_IRQn               =  77,      /*!< JPEG Dec Interrupt                 */
@@ -161,8 +161,7 @@ typedef enum IRQn
     CAM_SPI_IRQn                =  89,      /*!< Cam SPI Interrupt                  */
     SHANHAI_N_IRQn              =  90,      /*!< Shanhai N Interrupt                */
     SHANHAI_S_IRQn              =  91,      /*!< Shanhai S Interrupt                */
-    SDMMC1_IRQn                 =  92,      /*!< Sdmmc1 Interrupt                   */
-    I3C0_IRQn                   =  93,      /*!< I3C0 Interrupt                     */
+    SDEMMC_IRQn                 =  92,      /*!< Sdemmc Interrupt                   */
 
     USER_IRQn_QTY,
     INVALID_IRQn                = USER_IRQn_QTY,

@@ -80,14 +80,14 @@ extern uint32_t __nsc_text_end__[];
 //     <o>End Address <0x1F-0xFFFFFFFF>
 */
 //#define SAU_INIT_END0       (FLASHX_BASE-1) //0x0BFFFFFF
-#define SAU_INIT_END0       (RAMX0_BASE+RAM_S_SIZE+RAM_NSC_SIZE-1) //0x0401ffff
+#define SAU_INIT_END0       (RAM_NS_TO_S(ROMX_BASE)-1) //0x0401ffff
 
 /*
 //     <o>Region is
 //         <0=>Non-Secure
 //         <1=>Secure, Non-Secure Callable
 */
-#define SAU_INIT_NSC0       1
+#define SAU_INIT_NSC0       0
 /*
 //   </e>
 */
@@ -101,19 +101,19 @@ extern uint32_t __nsc_text_end__[];
 /*
 //     <o>Start Address <0-0xFFFFFFE0>
 */
-#define SAU_INIT_START1     (RAMX0_BASE+RAM_S_SIZE+RAM_NSC_SIZE)
+#define SAU_INIT_START1     ((uint32_t)__nsc_text_start__)
 
 /*
 //     <o>End Address <0x1F-0xFFFFFFFF>
 */
-#define SAU_INIT_END1       (RAM_NS_TO_S(ROMX_BASE)-1)
+#define SAU_INIT_END1       ((uint32_t)__nsc_text_end__ - 1)
 
 /*
 //     <o>Region is
 //         <0=>Non-Secure
 //         <1=>Secure, Non-Secure Callable
 */
-#define SAU_INIT_NSC1       0
+#define SAU_INIT_NSC1       1
 /*
 //   </e>
 */

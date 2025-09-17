@@ -19,7 +19,6 @@
 #include "cmsis_os.h"
 #endif
 #include "string.h"
-#include "hal_mcu2sens.h"
 #include "hal_sleep.h"
 #include "hal_sysfreq.h"
 #include "hal_timer.h"
@@ -57,7 +56,7 @@ int sensor_hub_add_workload(enum WORKLOAD_ID_T id, WORKLOAD_FUNCTION_T func, voi
 {
     workload_func_t *l = &workload_list[id];
 
-    SENSOR_HUB_TRACE(1, "%s: id=%d,func=%x,param=%x", __func__, id, (int)func, (int)param);
+    TRACE(1, "%s: id=%d,func=%x,param=%x", __func__, id, (int)func, (int)param);
     ASSERT(id < WORKLOAD_ID_QTY, "%s: invalid id=%d", __func__, id);
 
     workload_mutex_lock();
@@ -73,7 +72,7 @@ int sensor_hub_remove_workload(enum WORKLOAD_ID_T id)
 {
     workload_func_t *l = &workload_list[id];
 
-    SENSOR_HUB_TRACE(1, "%s: id=%d", __func__, id);
+    TRACE(1, "%s: id=%d", __func__, id);
     ASSERT(id < WORKLOAD_ID_QTY, "%s: invalid id=%d", __func__, id);
 
     workload_mutex_lock();
@@ -90,7 +89,7 @@ void sensor_hub_enable_workload(enum WORKLOAD_ID_T id)
 {
     workload_func_t *l = &workload_list[id];
 
-    SENSOR_HUB_TRACE(1, "%s: id=%d", __func__, id);
+    TRACE(1, "%s: id=%d", __func__, id);
     ASSERT(id < WORKLOAD_ID_QTY, "%s: invalid id=%d", __func__, id);
 
     workload_mutex_lock();
@@ -107,7 +106,7 @@ void sensor_hub_disable_workload(enum WORKLOAD_ID_T id)
 {
     workload_func_t *l = &workload_list[id];
 
-    SENSOR_HUB_TRACE(1, "%s: id=%d", __func__, id);
+    TRACE(1, "%s: id=%d", __func__, id);
     ASSERT(id < WORKLOAD_ID_QTY, "%s: invalid id=%d", __func__, id);
 
     workload_mutex_lock();

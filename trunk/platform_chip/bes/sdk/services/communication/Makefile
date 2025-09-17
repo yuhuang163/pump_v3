@@ -9,6 +9,14 @@ ifeq ($(USE_KNOWLES),1)
 obj-y += comminication_knowles/
 endif
 
+ifneq ($(SINGLE_WIRE_UART_PORT),)
+ccflags-y += -DSINGLE_WIRE_UART_PORT=$(SINGLE_WIRE_UART_PORT)
+endif
+
+ifneq ($(UART1_IOMUX_INDEX),)
+ccflags-y += -DUART1_IOMUX_INDEX=$(UART1_IOMUX_INDEX)
+endif
+
 ccflags-y += \
 	-Iapps/common \
 	-Iplatform/drivers/usb/usb_dev/inc \
@@ -16,10 +24,6 @@ ccflags-y += \
 	$(BLUETOOTH_ADAPTER_INCLUDES) \
 	-Iservices/communication/comminication_knowles \
 	-Ithirdparty/knowles_uart_lib \
-	-Iutils/crc \
+	-Iutils/crc32 \
 	-Iservices/app_ai/inc
-
-ifeq ($(SINGLE_UART_IO_INSTEAD_ACON_INTR),1)
-CFLAGS_communication_svr.o += -DSINGLE_UART_IO_INSTEAD_ACON_INTR
-endif
 

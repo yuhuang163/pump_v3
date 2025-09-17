@@ -29,7 +29,7 @@ int send_reply(const unsigned char *payload, unsigned int len)
     int ret = 0;
 
     if (len + 1 > sizeof(send_msg.data)) {
-        FACTORY_TRACE(1,"Packet length too long: %u", len);
+        TRACE(1,"Packet length too long: %u", len);
         return -1;
     }
 
@@ -60,19 +60,19 @@ static enum ERR_CODE check_msg_hdr(void)
     switch (recv_msg.hdr.type) {
         case TYPE_SYS:
             if (recv_msg.hdr.len != 1 && recv_msg.hdr.len != 5) {
-                //FACTORY_TRACE(1,"SYS msg length error: %u", recv_msg.hdr.len);
+                //TRACE(1,"SYS msg length error: %u", recv_msg.hdr.len);
                 errcode = ERR_LEN;
             }
             break;
         case TYPE_READ:
             if (recv_msg.hdr.len != 4) {
-                //FACTORY_TRACE(1,"READ msg length error: %u", recv_msg.hdr.len);
+                //TRACE(1,"READ msg length error: %u", recv_msg.hdr.len);
                 errcode = ERR_LEN;
             }
             break;
         case TYPE_WRITE:
             if (recv_msg.hdr.len <= 4 || recv_msg.hdr.len > 20) {
-                //FACTORY_TRACE(1,"WRITE msg length error: %u", recv_msg.hdr.len);
+                //TRACE(1,"WRITE msg length error: %u", recv_msg.hdr.len);
                 errcode = ERR_LEN;
             }
             break;
@@ -96,52 +96,52 @@ static enum ERR_CODE handle_sys_cmd(enum SYS_CMD_TYPE cmd, unsigned char *param,
 
     if (cmd == SYS_CMD_SET_BOOTMODE || cmd == SYS_CMD_CLR_BOOTMODE) {
         if (len != 4) {
-            FACTORY_TRACE(2,"Invalid SYS CMD len %u for cmd: 0x%x", len, cmd);
+            TRACE(2,"Invalid SYS CMD len %u for cmd: 0x%x", len, cmd);
             return ERR_DATA_LEN;
         }
     } else {
         if (len != 0) {
-            FACTORY_TRACE(2,"Invalid SYS CMD len %u for cmd: 0x%x", len, cmd);
+            TRACE(2,"Invalid SYS CMD len %u for cmd: 0x%x", len, cmd);
             return ERR_DATA_LEN;
         }
     }
 
     switch (cmd) {
         case SYS_CMD_REBOOT: {
-            FACTORY_TRACE(0,"--- Reboot---");
+            TRACE(0,"--- Reboot---");
             send_reply(cret, 1);
             system_reboot();
             break;
         }
         case SYS_CMD_SHUTDOWN: {
-            FACTORY_TRACE(0,"--- Shutdown ---");
+            TRACE(0,"--- Shutdown ---");
             send_reply(cret, 1);
             system_shutdown();
             break;
         }
         case SYS_CMD_SET_BOOTMODE: {
-            FACTORY_TRACE(0,"--- Set bootmode ---");
+            TRACE(0,"--- Set bootmode ---");
             memcpy(&bootmode, param, 4);
             system_set_bootmode(bootmode);
             send_reply(cret, 1);
             break;
         }
         case SYS_CMD_CLR_BOOTMODE: {
-            FACTORY_TRACE(0,"--- Clear bootmode ---");
+            TRACE(0,"--- Clear bootmode ---");
             memcpy(&bootmode, param, 4);
             system_clear_bootmode(bootmode);
             send_reply(cret, 1);
             break;
         }
         case SYS_CMD_GET_BOOTMODE: {
-            FACTORY_TRACE(0,"--- Get bootmode ---");
+            TRACE(0,"--- Get bootmode ---");
             bootmode = system_get_bootmode();
             memcpy(&cret[1], &bootmode, 4);
             send_reply(cret, 5);
             break;
         }
         default: {
-            FACTORY_TRACE(1,"Invalid command: 0x%x", recv_msg.data[0]);
+            TRACE(1,"Invalid command: 0x%x", recv_msg.data[0]);
             return ERR_SYS_CMD;
         }
     }
@@ -159,13 +159,13 @@ static enum ERR_CODE handle_data(unsigned char **buf, size_t *len, int *extra)
 
     // Checksum
     if (check_sum((unsigned char *)&recv_msg, MSG_TOTAL_LEN(&recv_msg)) != 0xFF) {
-        FACTORY_TRACE(0,"Checksum error");
+        TRACE(0,"Checksum error");
         return ERR_CHECKSUM;
     }
 
     switch (recv_msg.hdr.type) {
         case TYPE_SYS: {
-            FACTORY_TRACE(0,"------ SYS CMD ------");
+            TRACE_TIME(0,"------ SYS CMD ------");
             errcode = handle_sys_cmd((enum SYS_CMD_TYPE)recv_msg.data[0], &recv_msg.data[1], recv_msg.hdr.len - 1);
             if (errcode != ERR_NONE) {
                 return errcode;
@@ -173,7 +173,7 @@ static enum ERR_CODE handle_data(unsigned char **buf, size_t *len, int *extra)
             break;
         }
         case TYPE_READ: {
-            FACTORY_TRACE(0,"------ READ CMD ------");
+            TRACE_TIME(0,"------ READ CMD ------");
 #if 0
             uint32_t addr = (recv_msg.data[0] << 16) | (recv_msg.data[1] << 8) | recv_msg.data[2];
             uint8_t data[4] = {0};
@@ -187,7 +187,7 @@ static enum ERR_CODE handle_data(unsigned char **buf, size_t *len, int *extra)
             break;
         }
         case TYPE_WRITE: {
-            FACTORY_TRACE(0,"------ WRITE CMD ------");
+            TRACE_TIME(0,"------ WRITE CMD ------");
 #if 0
             uint32_t addr = (recv_msg.data[0] << 16) | (recv_msg.data[1] << 8) | recv_msg.data[2];
             uint32_t wdata = (recv_msg.data[3] << 24) | (recv_msg.data[4] << 16) | (recv_msg.data[5] << 8) | recv_msg.data[6];
@@ -250,7 +250,7 @@ static int parse_packet(unsigned char **buf, size_t *len)
             reset_parse_state(buf, len);
             break;
         default:
-            FACTORY_TRACE(1,"Invalid parse_state: %d", parse_state);
+            TRACE(1,"Invalid parse_state: %d", parse_state);
             break;
     }
 
@@ -286,18 +286,18 @@ _sync:
 
         ret = recv_data_ex(buf, buf_len, len, &rlen);
         if (ret) {
-            FACTORY_TRACE(1,"Receiving data failed: %d", ret);
+            TRACE(1,"Receiving data failed: %d", ret);
             goto _err;
         }
 
         if (len != rlen) {
-            FACTORY_TRACE(2,"Receiving part of the data: expect=%u real=%u", len, rlen);
+            TRACE(2,"Receiving part of the data: expect=%u real=%u", len, rlen);
             goto _err;
         }
 
         ret = parse_packet(&buf, &len);
         if (ret) {
-            FACTORY_TRACE(0,"Parsing packet failed");
+            TRACE(0,"Parsing packet failed");
             goto _err;
         }
     }
@@ -305,7 +305,7 @@ _sync:
 _err:
     ret = handle_error();
     if (ret == 0) {
-        FACTORY_TRACE(0,"retry ...");
+        TRACE(0,"retry ...");
         goto _sync;
     }
 

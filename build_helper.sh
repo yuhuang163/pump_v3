@@ -4,7 +4,7 @@ set -euo pipefail
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 OUTPUT_DIR="$PROJECT_DIR/project/bin"
 SHARE_DIR="/mnt/hgfs/ubuntu_share/v3_firmware"
-MAKE_ARGS=("T=best1306p" "-j16")
+MAKE_ARGS=("T=ble_only_lt" "-j16")
 
 die() {
 	echo "错误: $*"

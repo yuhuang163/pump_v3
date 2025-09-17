@@ -31,35 +31,23 @@ extern "C" {
 #define emmcphy_read(reg, val)           hal_analogif_reg_read(ISPI_EMMCPHY_REG(reg), val)
 #define emmcphy_write(reg, val)          hal_analogif_reg_write(ISPI_EMMCPHY_REG(reg), val)
 
-void emmcphy_open(void);
-
+void emmcphy_open(void *host);
 void emmcphy_close(void);
-
-void emmcphy_hs_host_mode_enable(void);
-
-void emmcphy_hs_host_mode_disable(void);
-
 void emmcphy_sleep(void);
-
 void emmcphy_wakeup(void);
-
-void emmcphy_pin_pull_up_enable(void);
-
-void emmcphy_pin_pull_up_disable(void);
-
-void emmcphy_pin_set_io_drv(uint8_t drv);
-
+void emmcphy_hs_host_mode_enable(void);
+void emmcphy_hs_host_mode_disable(void);
+void emmcphy_pin_pull_config(void);
+void emmcphy_pin_pull_clear_all(void);
+void emmcphy_pin_pull_down_all(void);
+void emmcphy_pin_set_io_drv(void);
 void emmcphy_clk_sel_pck(void);
-
 void emmcphy_clk_sel_pck_delay(void);
-
 void emmcphy_clk_sel_ds_delay(void);
-
 void emmcphy_tuning_correct(void);
-
-void emmcphy_pck_reverse(void);
-
-void emmcphy_rd_tune_dly_cali(uint8_t cali_val);
+void emmcphy_pck_reverse(int rev_cmd_en, int rev_data_en);
+void emmcphy_rd_tune_dly_cali(uint8_t cali_val_cmd, uint8_t cali_val_data);
+void emmcphy_rd_tune_dly_read(uint8_t *cmd_dly, uint8_t *data_dly);
 
 #ifdef __cplusplus
 }

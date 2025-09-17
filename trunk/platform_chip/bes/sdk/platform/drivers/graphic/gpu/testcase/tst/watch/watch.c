@@ -48,7 +48,7 @@ int watch_main_entry(int argc, const char * argv[])
     uint32_t feature_check = 0;
     vg_lite_matrix_t matrix;
     TC_INIT
-    DRIVERS_TRACE(0,"%s", __func__);
+    GPU_REP("%s", __func__);
 
 #ifdef GPU_TEST_LOOP
  __test_again:
@@ -118,7 +118,7 @@ int watch_main_entry(int argc, const char * argv[])
 ErrorHandler:
     // Cleanup.
     cleanup();
-    DRIVERS_TRACE(0,"%s test pass", __func__);
+    GPU_REP("%s test pass", __func__);
 #ifdef GPU_TEST_LOOP
     goto __test_again;
 #endif

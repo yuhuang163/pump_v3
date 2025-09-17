@@ -15,7 +15,6 @@
 #ifndef CO_BT_DEFINES_H_
 #define CO_BT_DEFINES_H_
 
-#include "plat_types.h"
 
 /**
  ****************************************************************************************
@@ -32,10 +31,6 @@
  * DEFINES
  ****************************************************************************************
  */
-
-#ifndef __ARRAY_EMPTY
-#define __ARRAY_EMPTY                     (0)
-#endif
 
 /// Bluetooth technologies version
 #define BT40_VERSION                      (6)
@@ -2062,7 +2057,7 @@ enum le_evt_mask_bit
 /// Minimum Subevent interval value - 400us
 #define BLE_CIS_MIN_SUBEVENT_INTV                (400)
 /// Maximum number of retransmission
-#define BLE_CIS_MAX_RTN                          (0xFF)
+#define BLE_CIS_MAX_RTN                          (0x0F)
 
 /// Maximum BIG Handle value
 #define BLE_BIG_MAX_HANDLE                       (0xEF)
@@ -2201,8 +2196,9 @@ enum le_phy_value
     PHY_1MBPS_VALUE    = 1,
     PHY_2MBPS_VALUE    = 2,
     PHY_CODED_VALUE    = 3,
-    PHY_HDT_VALUE      = 5,
-    PHY_4MBPS_VALUE    = 8,
+#if (mHDT_LE_SUPPORT)
+    PHY_4MBPS_VALUE    = 128,
+#endif
 };
 
 /// Specify what PHY Host prefers to use for RX or TX HCI:7.8.48 / HCI:7.8.49
@@ -2217,18 +2213,12 @@ enum le_phy_mask
     /// The Host prefers to use the LE Coded transmitter/receiver PHY (possibly among others)
     PHY_CODED_BIT      = (1<<2),
     PHY_CODED_POS      = (2),
-    /// The Host prefers to use the LE HDT transmitter/receiver PHY (possibly among others)
-    PHY_HDT_BIT         = (1<<4),
-    PHY_HDT_POS         = (4),
-    /// The Host prefers to use the LE 4M transmitter/receiver PHY (possibly among others)
+#if (mHDT_LE_SUPPORT)
     PHY_4MBPS_BIT      = (1<<7),
     PHY_4MBPS_POS      = (7),
-
+#endif
     /// The Host prefers to use the LE Coded transmitter/receiver PHY (possibly among others)
     PHY_ALL        = (PHY_1MBPS_BIT | PHY_2MBPS_BIT | PHY_CODED_BIT
-#if (HDT_LE_SUPPORT)
-                    | PHY_HDT_BIT
-#endif
 #if (mHDT_LE_SUPPORT)
                     | PHY_4MBPS_BIT
 #endif

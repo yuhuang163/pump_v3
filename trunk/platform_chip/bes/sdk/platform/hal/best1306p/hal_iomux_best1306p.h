@@ -326,8 +326,6 @@ void hal_iomux_clear_spi_slave(void);
 void hal_iomux_set_i2c6(void);
 void hal_iomux_set_i2c7(void);
 
-void hal_iomux_set_spi2(void);
-
 void hal_iomux_set_uart4(void);
 void hal_iomux_set_uart5(void);
 

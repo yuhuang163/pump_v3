@@ -29,6 +29,18 @@
 //#define DUMP_MIC_DATA
 //#define VAD_WAKEUP_TIMER
 
+#ifdef VD_DEBUG
+#define VD_LOG TRACE
+#else
+#define VD_LOG(...) do{}while(0)
+#endif
+
+#ifdef VD_TEST
+#define VD_TRACE TRACE
+#else
+#define VD_TRACE(...) do{}while(0)
+#endif
+
 #define CMD_QUEUE_DATA_SIZE 15
 
 #ifdef __CYBERON
@@ -82,14 +94,14 @@ static void voice_detector_exec_callback(struct voice_detector_dev *pdev,
 static int cmd_queue_enqueue(struct command_queue *q, int c)
 {
     if (q->idx >= CMD_QUEUE_DATA_SIZE) {
-        VOICE_DETECTOR_TRACE(2, "%s, overflow cmd=%d", __func__, c);
+        VD_LOG(2, "%s, overflow cmd=%d", __func__, c);
         return -2;
     }
     if (q->idx < 0) {
         q->idx = 0;
     }
     q->data[q->idx++] = c;
-//    VOICE_DETECTOR_TRACE(2, "%s, cmd=%d", __func__, c);
+//    VD_LOG(2, "%s, cmd=%d", __func__, c);
     return 0;
 }
 
@@ -98,7 +110,7 @@ static int cmd_queue_dequeue(struct command_queue *q)
     int cmd;
 
     if (q->idx < 0) {
-//        VOICE_DETECTOR_TRACE(1, "%s, empty", __func__);
+//        VD_LOG(1, "%s, empty", __func__);
         return -2;
     }
     if (q->out < 0) {
@@ -109,7 +121,7 @@ static int cmd_queue_dequeue(struct command_queue *q)
         q->out = -1;
         q->idx = -1;
     }
-//    VOICE_DETECTOR_TRACE(2, "%s, cmd=%d", __func__, cmd);
+//    VD_LOG(2, "%s, cmd=%d", __func__, cmd);
     return cmd;
 }
 
@@ -135,7 +147,11 @@ static void voice_detector_init_vad(struct AUD_VAD_CONFIG_T *c, int id, enum AUD
 #else
         c->sample_rate = AUD_SAMPRATE_16000;
 #endif
+#if defined(VAD_USE_32_BITS)
+        c->bits        = AUD_BITS_32;
+#else
         c->bits        = AUD_BITS_16;
+#endif
         c->handler     = voice_detector_vad_callback;
         c->udc         = VAD_DEFAULT_UDC;
         c->upre        = VAD_DEFAULT_UPRE;
@@ -166,17 +182,17 @@ int voice_detector_open(enum voice_detector_id id, enum AUD_VAD_TYPE_T vad_type)
     struct voice_detector_dev *pdev;
 
     if (id >= VOICE_DETECTOR_QTY) {
-        VOICE_DETECTOR_TRACE(1, "%s, invalid id=%d", __func__, id);
+        VD_LOG(1, "%s, invalid id=%d", __func__, id);
         return -1;
     }
 
     pdev = to_voice_dev(id);
     if (pdev->init) {
-        VOICE_DETECTOR_TRACE(1, "%s, dev already open", __func__);
+        VD_LOG(1, "%s, dev already open", __func__);
         return -2;
     }
     if (pdev->run) {
-        VOICE_DETECTOR_TRACE(1, "%s, dev not stoped", __func__);
+        VD_LOG(1, "%s, dev not stoped", __func__);
         return -3;
     }
 
@@ -198,7 +214,7 @@ void voice_detector_close(enum voice_detector_id id)
     struct voice_detector_dev *pdev;
 
     if (id >= VOICE_DETECTOR_QTY) {
-        VOICE_DETECTOR_TRACE(2, "%s, invalid id=%d", __func__, id);
+        VD_LOG(2, "%s, invalid id=%d", __func__, id);
         return;
     }
 
@@ -217,13 +233,13 @@ int voice_detector_setup_vad(enum voice_detector_id id,
     struct voice_detector_dev *pdev;
 
     if (id >= VOICE_DETECTOR_QTY) {
-        VOICE_DETECTOR_TRACE(2, "%s, invalid id=%d", __func__, id);
+        VD_LOG(2, "%s, invalid id=%d", __func__, id);
         return -1;
     }
 
     pdev = to_voice_dev(id);
     if (!pdev->init) {
-        VOICE_DETECTOR_TRACE(1, "%s, dev not open", __func__);
+        VD_LOG(1, "%s, dev not open", __func__);
         return -2;
     }
 
@@ -241,13 +257,13 @@ int voice_detector_setup_stream(enum voice_detector_id id,
     struct voice_detector_dev *pdev;
 
     if (id >= VOICE_DETECTOR_QTY) {
-        VOICE_DETECTOR_TRACE(2, "%s, invalid id=%d", __func__, id);
+        VD_LOG(2, "%s, invalid id=%d", __func__, id);
         return -1;
     }
 
     pdev = to_voice_dev(id);
     if (!pdev->init) {
-        VOICE_DETECTOR_TRACE(1, "%s, dev not open", __func__);
+        VD_LOG(1, "%s, dev not open", __func__);
         return -2;
     }
 
@@ -265,18 +281,18 @@ int voice_detector_setup_callback(enum voice_detector_id id,
     struct voice_detector_dev *pdev;
 
     if (id >= VOICE_DETECTOR_QTY) {
-        VOICE_DETECTOR_TRACE(2, "%s, invalid id=%d", __func__, id);
+        VD_LOG(2, "%s, invalid id=%d", __func__, id);
         return -1;
     }
 
     pdev = to_voice_dev(id);
     if (!pdev->init) {
-        VOICE_DETECTOR_TRACE(1, "%s, dev not open", __func__);
+        VD_LOG(1, "%s, dev not open", __func__);
         return -2;
     }
 
     if (func_id >= VOICE_DET_CB_QTY) {
-        VOICE_DETECTOR_TRACE(2, "%s, invalid func_id=%d", __func__, func_id);
+        VD_LOG(2, "%s, invalid func_id=%d", __func__, func_id);
         return -3;
     }
     pdev->arguments[func_id] = (uint32_t)param;
@@ -290,7 +306,7 @@ int voice_detector_send_cmd(enum voice_detector_id id, enum voice_detector_cmd c
     struct voice_detector_dev *pdev;
 
     if (id >= VOICE_DETECTOR_QTY) {
-        VOICE_DETECTOR_TRACE(2, "%s, invalid id=%d", __func__, id);
+        VD_LOG(2, "%s, invalid id=%d", __func__, id);
         return -1;
     }
     pdev = to_voice_dev(id);
@@ -305,7 +321,7 @@ int voice_detector_send_cmd_array(enum voice_detector_id id, int *cmd_array, int
     struct voice_detector_dev *pdev;
 
     if (id >= VOICE_DETECTOR_QTY) {
-        VOICE_DETECTOR_TRACE(2, "%s, invalid id=%d", __func__, id);
+        VD_LOG(2, "%s, invalid id=%d", __func__, id);
         return -1;
     }
     pdev = to_voice_dev(id);
@@ -327,7 +343,7 @@ enum voice_detector_state voice_detector_query_status(enum voice_detector_id id)
     }
     pdev = to_voice_dev(id);
 
-    VOICE_DETECTOR_TRACE(2, "%s, state=%d", __func__, pdev->state);
+    VD_LOG(2, "%s, state=%d", __func__, pdev->state);
     return pdev->state;
 }
 
@@ -340,7 +356,7 @@ static void voice_detector_vad_callback(int found)
 
     pdev->wakeup_cnt++;
 
-    VOICE_DETECTOR_TRACE(3, "%s, voice detector[%d], wakeup_cnt=%d",
+    VD_LOG(3, "%s, voice detector[%d], wakeup_cnt=%d",
             __func__, id, pdev->wakeup_cnt);
 
     if (pdev->wakeup_cnt == 1) {
@@ -358,7 +374,7 @@ static int voice_detector_vad_open(struct voice_detector_dev *pdev)
     struct AUD_VAD_CONFIG_T *c = &pdev->conf;
 
     if (pdev->dfl) {
-        VOICE_DETECTOR_TRACE(1, "%s, use dfl vad", __func__);
+        VD_LOG(1, "%s, use dfl vad", __func__);
     }
     af_vad_open(c);
 #ifdef I2C_VAD
@@ -387,7 +403,7 @@ static int voice_detector_vad_stop(struct voice_detector_dev *pdev)
 #else
     /* get vad buf info after stopping it */
     af_vad_get_data_info(&(pdev->vad_buf_info));
-    VOICE_DETECTOR_TRACE(4,"vad_buf base_addr:0x%x, buf_size:0x%x, data_count:%d, addr_count:%d",
+    TRACE(4,"vad_buf base_addr:0x%x, buf_size:0x%x, data_count:%d, addr_count:%d",
         pdev->vad_buf_info.base_addr, pdev->vad_buf_info.buf_size,
         pdev->vad_buf_info.data_count, pdev->vad_buf_info.addr_count);
     vad_buf_len = pdev->vad_buf_info.data_count;
@@ -422,7 +438,7 @@ static int voice_detector_aud_cap_open(struct voice_detector_dev *pdev)
     struct AF_STREAM_CONFIG_T *conf = &pdev->cap_conf;
 
     if ((!conf->handler) || (!conf->data_ptr)) {
-        VOICE_DETECTOR_TRACE(1, "%s, capture stream is null", __func__);
+        VD_LOG(1, "%s, capture stream is null", __func__);
         return -1;
     }
     af_stream_open(AUD_STREAM_ID_0, AUD_STREAM_CAPTURE, conf);
@@ -454,7 +470,7 @@ static int voice_detector_sys_clk(struct voice_detector_dev *pdev)
 #else
     app_sysfreq_req(APP_SYSFREQ_USER_AI_VOICE, (enum APP_SYSFREQ_FREQ_T)(pdev->sys_clk));
 #endif
-//    VOICE_DETECTOR_TRACE(2,"%s, cpu freq=%d", __func__, hal_sys_timer_calc_cpu_freq(5,0));
+//    VD_TRACE(2,"%s, cpu freq=%d", __func__, hal_sys_timer_calc_cpu_freq(5,0));
     return 0;
 }
 
@@ -497,7 +513,7 @@ static int voice_detector_process_cmd(struct voice_detector_dev *pdev, int cmd)
 {
     int err;
 
-    VOICE_DETECTOR_TRACE(3, "%s, cmd[%d]: %s", __func__, cmd, cmd_vectors[(int)cmd].name);
+    VD_LOG(3, "%s, cmd[%d]: %s", __func__, cmd, cmd_vectors[(int)cmd].name);
 
     switch(cmd) {
     case VOICE_DET_CMD_SYS_CLK_32K:
@@ -528,7 +544,7 @@ static void voice_detector_set_status(struct voice_detector_dev *pdev, enum voic
         return;
     }
     pdev->state = s;
-    VOICE_DETECTOR_TRACE(2, "%s, state=%d", __func__, pdev->state);
+    VD_LOG(2, "%s, state=%d", __func__, pdev->state);
 }
 
 static void voice_detector_exec_callback(struct voice_detector_dev *pdev,
@@ -585,7 +601,7 @@ int voice_detector_run(enum voice_detector_id id, int continous)
                 voice_detector_exec_callback(pdev, VOICE_DET_CB_RUN_DONE);
             } else {
                 voice_detector_exec_callback(pdev, VOICE_DET_CB_ERROR);
-                VOICE_DETECTOR_TRACE(3, "%s, process cmd %d error, %d", __func__, cmd, err);
+                VD_LOG(3, "%s, process cmd %d error, %d", __func__, cmd, err);
             }
         }
         switch(continous) {
@@ -643,21 +659,21 @@ POSSIBLY_UNUSED static void vad_dump_data(uint8_t *dst, uint32_t dst_size)
     uint32_t i;
     uint32_t bsize = dst_size / 2 / 8;
 
-    VOICE_DETECTOR_TRACE(5, "VAD DUMP DATA:dst=%x,size=%d",(int)dst,dst_size);
+    TRACE(5, "VAD DUMP DATA:dst=%x,size=%d",(int)dst,dst_size);
     if (bsize > 0) {
         int16_t *d16 = (int16_t *)dst;
         for (i = 0 ;i < bsize; i++) {
-            VOICE_DETECTOR_TRACE(5,"%8d, %8d, %8d, %8d, %8d, %8d, %8d, %8d",
+            TRACE(5,"%8d, %8d, %8d, %8d, %8d, %8d, %8d, %8d",
             d16[0],d16[1],d16[2],d16[3],d16[4],d16[5],d16[6],d16[7]);
             d16 += 8;
         }
     }
-    VOICE_DETECTOR_TRACE(5, "DUMP END:");
+    TRACE(5, "DUMP END:");
 }
 
 static void print_vad_raw_data(enum voice_detector_id id, uint8_t *buf, uint32_t len)
 {
-    VOICE_DETECTOR_TRACE(0 ,"%s: buf=%p len=%u", __func__, buf, len);
+    VD_TRACE(0 ,"%s: buf=%p len=%u", __func__, buf, len);
 
 #ifdef VD_TEST_DUMP_DATA
     struct voice_detector_dev *pdev;
@@ -680,19 +696,19 @@ static void print_vad_raw_data(enum voice_detector_id id, uint8_t *buf, uint32_t
     len &= ~(data_size - 1);
     for (i = 0; i + bytes_per_line <= len; i += bytes_per_line) {
         if (data_size == 2) {
-            VOICE_DETECTOR_DUMP16(fmt, buf + i, cnt);
+            DUMP16(fmt, buf + i, cnt);
         } else {
-            VOICE_DETECTOR_DUMP32(fmt, buf + i, cnt);
+            DUMP32(fmt, buf + i, cnt);
         }
-        NORM_LOG_FLUSH();
+        TRACE_FLUSH();
     }
     if (i + data_size <= len) {
         if (data_size == 2) {
-            VOICE_DETECTOR_DUMP16(fmt, buf + i, (len - i) / data_size);
+            DUMP16(fmt, buf + i, (len - i) / data_size);
         } else {
-            VOICE_DETECTOR_DUMP32(fmt, buf + i, (len - i) / data_size);
+            DUMP32(fmt, buf + i, (len - i) / data_size);
         }
-        NORM_LOG_FLUSH();
+        TRACE_FLUSH();
     }
 #else
     vad_dump_data(buf, 256);
@@ -720,7 +736,7 @@ POSSIBLY_UNUSED static uint32_t mic_data_come(uint8_t *buf, uint32_t len)
     uint32_t sample_len = len / 2;
 
 #ifdef DUMP_MIC_DATA
-    VOICE_DETECTOR_TRACE(1, "%s: come_cnt=%d", __func__, come_cnt);
+    TRACE(1, "%s: come_cnt=%d", __func__, come_cnt);
     vad_dump_data(buf, 32);
 #else
     come_cnt++;
@@ -742,25 +758,25 @@ POSSIBLY_UNUSED static uint32_t mic_data_come(uint8_t *buf, uint32_t len)
         int id, score;
 
         id = CSpotter_GetResult(h_CSpotter);
-        VOICE_DETECTOR_TRACE(1,"##### CSpotterGetResult return ID : %d\n", id);
+        TRACE(1,"##### CSpotterGetResult return ID : %d\n", id);
 
         score = CSpotter_GetResultScore(h_CSpotter);
-        VOICE_DETECTOR_TRACE(1,"CSpotter_GetResultScore return Score: %d", score);
+        TRACE(1,"CSpotter_GetResultScore return Score: %d", score);
 
         CSpotter_Reset(h_CSpotter);
     }
 
     if (come_cnt % (VAD_RESTART_FRAME_CNT / 3) == 0) {
-        VOICE_DETECTOR_TRACE(1,"retcode: %d", retcode);
+        TRACE(1,"retcode: %d", retcode);
     }
 #endif
 
     if ((come_cnt > 0) && ((come_cnt % VAD_RESTART_FRAME_CNT) == 0)) {
         come_cnt = 0;
         voice_detector_send_evt(VOICE_DET_EVT_VAD_START);
-        VOICE_DETECTOR_TRACE(0, "@@@@@@");
-        VOICE_DETECTOR_TRACE(1, "%s: close audio stream ...", __func__);
-        VOICE_DETECTOR_TRACE(0, "@@@@@@");
+        VD_TRACE(0, "@@@@@@");
+        VD_TRACE(1, "%s: close audio stream ...", __func__);
+        VD_TRACE(0, "@@@@@@");
     }
 
     return 0;
@@ -775,26 +791,26 @@ static int CSpotter_Init_bes()
     uint8_t *state_buffer, *mem_pool;
     uint8_t *p_combuf = (uint8_t *)cyb_buf;
 
-    VOICE_DETECTOR_TRACE(1,"%s",__func__);
+    TRACE(1,"%s",__func__);
 
     state_size = CSpotter_GetStateSize((BYTE*)COMMAND_MODEL_DATA);
-    VOICE_DETECTOR_TRACE(2,"%s, state_size=%d",__func__, state_size);
+    TRACE(2,"%s, state_size=%d",__func__, state_size);
 
     state_buffer = p_combuf+ cyb_buf_used;
     cyb_buf_used += state_size;
     if (!state_buffer) {
-        VOICE_DETECTOR_TRACE(0,"alloc state buff failed");
+        TRACE(0,"alloc state buff failed");
         err = -1;
         goto fail;
     }
 
     mem_size = CSpotter_GetMemoryUsage_Sep((BYTE*)BASE_MODEL_DATA, (BYTE*)COMMAND_MODEL_DATA, TIMES);
-    VOICE_DETECTOR_TRACE(1,"mem_size=%d",mem_size);
+    TRACE(1,"mem_size=%d",mem_size);
 
     mem_pool = p_combuf+ cyb_buf_used;
     cyb_buf_used += mem_size;
     if (!mem_pool) {
-        VOICE_DETECTOR_TRACE(0,"alloc mem pool failed");
+        TRACE(0,"alloc mem pool failed");
         err = -2;
         goto fail;
     }
@@ -802,7 +818,7 @@ static int CSpotter_Init_bes()
     h_CSpotter = CSpotter_Init_Sep((BYTE*)BASE_MODEL_DATA, (BYTE*)COMMAND_MODEL_DATA,
             TIMES, mem_pool, mem_size, state_buffer, state_size, &err);
     if (!h_CSpotter) {
-        VOICE_DETECTOR_TRACE(1,"CSpotter Init fail! err : %d\n", err);
+        TRACE(1,"CSpotter Init fail! err : %d\n", err);
         err = -3;
         goto fail;
     }
@@ -818,7 +834,7 @@ static void cmd_wait_handler(int state, void *param)
 {
     voice_detector_send_evt(VOICE_DET_EVT_IDLE);
 
-    VOICE_DETECTOR_TRACE(2,"%s, state=%d", __func__, state);
+    VD_TRACE(2,"%s, state=%d", __func__, state);
 //    hal_sys_timer_delay(MS_TO_TICKS(100));
 //    while(1);
 
@@ -827,7 +843,7 @@ static void cmd_wait_handler(int state, void *param)
 
 static void cmd_done_handler(int state, void *param)
 {
-    VOICE_DETECTOR_TRACE(2,"%s, state=%d", __func__, state);
+    VD_TRACE(2,"%s, state=%d", __func__, state);
 }
 
 static bool get_vad_data = false;
@@ -837,8 +853,8 @@ static void cpu_det_find_wakeup_handler(int state, void *param)
     static uint32_t cpu_wakeup_cnt = 0;
 
     cpu_wakeup_cnt++;
-    VOICE_DETECTOR_TRACE(3,"%s, state=%d, cnt=%d", __func__, state, cpu_wakeup_cnt);
-    //VOICE_DETECTOR_TRACE(2,"%s, calc sys freq=%d", __func__, hal_sys_timer_calc_cpu_freq(5,0));
+    VD_TRACE(3,"%s, state=%d, cnt=%d", __func__, state, cpu_wakeup_cnt);
+    //VD_TRACE(2,"%s, calc sys freq=%d", __func__, hal_sys_timer_calc_cpu_freq(5,0));
     hal_sysfreq_print_user_freq();
 #ifdef GET_VAD_DATA_BEFORE_CAP_STREAM
     get_vad_data = true;
@@ -849,8 +865,8 @@ static void cpu_det_find_wakeup_handler(int state, void *param)
 
 static void cpu_det_notfind_wakeup_handler(int state, void *param)
 {
-    VOICE_DETECTOR_TRACE(2,"%s, state=%d", __func__, state);
-    //VOICE_DETECTOR_TRACE(2,"%s, calc sys freq=%d", __func__, hal_sys_timer_calc_cpu_freq(5,0));
+    VD_TRACE(2,"%s, state=%d", __func__, state);
+    //VD_TRACE(2,"%s, calc sys freq=%d", __func__, hal_sys_timer_calc_cpu_freq(5,0));
 
 //    voice_detector_send_evt(VOICE_DET_EVT_VAD_START);
 }
@@ -860,7 +876,7 @@ static void cpu_det_notfind_wakeup_handler(int state, void *param)
 static HWTIMER_ID vad_wakeup_timer = NULL;
 static void vad_wakeup_timer_handler(void *param)
 {
-    VOICE_DETECTOR_TRACE(3, "vad wakeup timer handler: start VAD again");
+    VD_TRACE(3, "vad wakeup timer handler: start VAD again");
     voice_detector_send_evt(VOICE_DET_EVT_VAD_START);
 }
 #endif
@@ -870,7 +886,7 @@ uint32_t codec_cap_data_handler(uint8_t *buf, uint32_t len)
 {
     uint32_t time = TICKS_TO_MS(hal_sys_timer_get());
 
-    VOICE_DETECTOR_TRACE(1, "[%8u] CAP_HDLR: buf=%x, len=%d", time, (int)buf, len);
+    TRACE(1, "[%8u] CAP_HDLR: buf=%x, len=%d", time, (int)buf, len);
     vad_dump_data(buf, 32);
     return 0;
 }
@@ -896,7 +912,7 @@ void vad_cap_stream_test(void)
     af_stream_open(AUD_STREAM_ID_0, AUD_STREAM_CAPTURE, &stream_cfg);
     af_stream_start(AUD_STREAM_ID_0, AUD_STREAM_CAPTURE);
 
-    VOICE_DETECTOR_TRACE(1, "%s: done", __func__);
+    TRACE(1, "%s: done", __func__);
 }
 #endif
 
@@ -921,13 +937,13 @@ void voice_detector_test(void)
     vad_type = AUD_VAD_TYPE_MIX;
 #endif
 
-    VOICE_DETECTOR_TRACE(1,"%s, start", __func__);
+    VD_TRACE(1,"%s, start", __func__);
 
     hal_sleep_start_stats(10000, 10000);
     hal_sysfreq_req(HAL_SYSFREQ_USER_INIT, HAL_CMU_FREQ_32K);
 
 #if 0
-    VOICE_DETECTOR_TRACE(1, "sleep test");
+    VD_TRACE(1, "sleep test");
     while (1) {
         hal_sleep_enter_sleep();
     }
@@ -935,7 +951,7 @@ void voice_detector_test(void)
 
 #ifdef VAD_OPEN_AF
     ret = af_open();
-    VOICE_DETECTOR_TRACE(1, "af_open: ret=%d",  ret);
+    VD_TRACE(1, "af_open: ret=%d",  ret);
 #endif
 
 #ifdef VAD_CAP_STREAM_TEST
@@ -968,7 +984,7 @@ void voice_detector_test(void)
 
     r = voice_detector_open(id, vad_type);
     if (r) {
-        VOICE_DETECTOR_TRACE(2,"%s, error %d", __func__, r);
+        VD_TRACE(2,"%s, error %d", __func__, r);
         return;
     }
 
@@ -978,7 +994,7 @@ void voice_detector_test(void)
     voice_detector_setup_callback(id, VOICE_DET_FIND_APP, cpu_det_find_wakeup_handler, NULL);
     voice_detector_setup_callback(id, VOICE_DET_NOT_FIND_APP, cpu_det_notfind_wakeup_handler, NULL);
 
-    VOICE_DETECTOR_TRACE(2,"%s, calc sys freq=%d", __func__, hal_sys_timer_calc_cpu_freq(5,0));
+    VD_TRACE(2,"%s, calc sys freq=%d", __func__, hal_sys_timer_calc_cpu_freq(5,0));
     hal_sysfreq_print_user_freq();
 
     voice_detector_send_cmd(id, VOICE_DET_CMD_AUD_CAP_OPEN);
@@ -1006,7 +1022,7 @@ void voice_detector_test(void)
                     vad_wakeup_timer = hwtimer_alloc(vad_wakeup_timer_handler,NULL);
                 }
                 hwtimer_start(vad_wakeup_timer, MS_TO_TICKS(VAD_WAKEUP_TIMER_PERIOD));
-                VOICE_DETECTOR_TRACE(1, "vad wakeup timer starts, period=%d MS", VAD_WAKEUP_TIMER_PERIOD);
+                VD_TRACE(1, "vad wakeup timer starts, period=%d MS", VAD_WAKEUP_TIMER_PERIOD);
 #endif
                 voice_detector_send_cmd(id, VOICE_DET_CMD_SYS_CLK_26M);
                 voice_detector_send_cmd(id, VOICE_DET_CMD_AUD_CAP_OPEN);
@@ -1036,7 +1052,7 @@ void voice_detector_test(void)
 
         sleep = hal_sleep_enter_sleep();
         if (sleep == HAL_SLEEP_STATUS_DEEP) {
-            //VOICE_DETECTOR_TRACE(0,"exit deep sleep");
+            //VD_TRACE(0,"exit deep sleep");
         }
 
         if (get_vad_data) {

@@ -20,6 +20,8 @@
 #ifndef __BAP_BASS__
 #define __BAP_BASS__
 
+#include "bluetooth.h"
+
 #include "gaf_prf.h"
 #include "gaf_cfg.h"
 #include "generic_audio.h"
@@ -38,7 +40,7 @@ typedef bool (*bass_cb_check_src_id_existence)(uint8_t con_lid, uint8_t rx_src_i
 typedef void (*bass_cb_get_rx_state_value_buf)(uint8_t con_lid, uint8_t rx_src_id,
                                                const uint8_t **p_rx_state_value_buf, uint16_t *p_buf_len);
 /// BASS callback for scan cp write
-typedef void (*bass_cb_scan_cp_write)(uint32_t token, uint8_t con_lid, const uint8_t *char_value_buf, uint16_t buf_len);
+typedef void (*bass_cb_scan_cp_write)(gatt_server_write_ctx_t *p_wr_ctx, uint8_t con_lid, const uint8_t *char_value_buf, uint16_t buf_len);
 /// BASS callback for bond data
 typedef void (*bass_cb_bond_data)(uint8_t con_lid, uint8_t char_type, uint8_t cli_cfg_bf);
 /// BASS callback for service disconnect

@@ -47,7 +47,7 @@ static int hear_result_map(int pwr_val)
     else if( 0 == pwr_val)
         pwr_lvl = 0;
     else
-        HEARING_DETEC_TRACE(1,"[%s] invalid pwr result = %d",__func__,pwr_val);
+        TRACE(1,"[%s] invalid pwr result = %d",__func__,pwr_val);
 
     return pwr_lvl;
 }
@@ -58,13 +58,13 @@ float level_lut0[12] = {0.0F, 1.0F, 2.0F, 3.0F, 4.5F, 5.0F,
 float get_hear_compen_val_fir(int *test_buf, float *gain_buf, int num)
 {
     ASSERT(num==6,"[%s]num = %d should be 6",__func__,num);
-    HEARING_DETEC_TRACE(0,"HEARING COMP VERSION : %s",HEAR_LOG_VERSION);
+    TRACE(0,"HEARING COMP VERSION : %s",HEAR_LOG_VERSION);
     float* level_lut = NULL;
     level_lut = level_lut0;
 
     for(int i=0;i<num;i++)
         test_buf[i] = hear_result_map(test_buf[i]);
-    HEARING_DETEC_TRACE(1,"hearing level is [%d,%d,%d,%d,%d,%d]",
+    TRACE(1,"hearing level is [%d,%d,%d,%d,%d,%d]",
                test_buf[0],test_buf[1],test_buf[2],
                test_buf[3],test_buf[4],test_buf[5]);
 
@@ -101,14 +101,14 @@ short get_hear_level(void)
 float get_hear_compen_val_multi_level(int *test_buf, float *gain_buf, int num)
 {
     ASSERT(num==6,"[%s]num = %d should be 6",__func__,num);
-    HEARING_DETEC_TRACE(0,"HEARING COMP VERSION : %s",HEAR_LOG_VERSION);
+    TRACE(0,"HEARING COMP VERSION : %s",HEAR_LOG_VERSION);
     float* level_lut = NULL;
     for(int i=0;i<num;i++)
     {
        test_buf[i] = hear_result_map(test_buf[i]);
     }
 
-    HEARING_DETEC_TRACE(1,"hearing level is [%d,%d,%d,%d,%d,%d]",
+    TRACE(1,"hearing level is [%d,%d,%d,%d,%d,%d]",
                test_buf[0],test_buf[1],test_buf[2],
                test_buf[3],test_buf[4],test_buf[5]);
     //combine 4K&6K
@@ -168,7 +168,7 @@ float get_hear_compen_val_multi_level(int *test_buf, float *gain_buf, int num)
     else
         ASSERT(0,"test level(band[%d]=%d) should be in range [0,11]",4,tmp_band);
 
-    HEARING_DETEC_TRACE(1,"gain_buf is [%d,%d,%d,%d,%d]e-2",
+    TRACE(1,"gain_buf is [%d,%d,%d,%d,%d]e-2",
                (int)(gain_buf[0]*100),(int)(gain_buf[1]*100),
                (int)(gain_buf[2]*100),(int)(gain_buf[3]*100),
                (int)(gain_buf[4]*100));
@@ -188,7 +188,7 @@ float get_hear_compen_val_multi_level(int *test_buf, float *gain_buf, int num)
         if(max_gain < gain_buf[i])
             gain_buf[i] = max_gain;
     }
-    HEARING_DETEC_TRACE(1,"min=%d,max=%d",(int)min_in_buf,(int)max_in_buf);
+    TRACE(1,"min=%d,max=%d",(int)min_in_buf,(int)max_in_buf);
     if( (max_in_buf - min_in_buf) < 2)
     {
         gain_buf[0] -= mean_gain;
@@ -215,7 +215,7 @@ float get_hear_compen_val_multi_level(int *test_buf, float *gain_buf, int num)
         max_tmp = gain2;
     }
     hear_comp_level = max_idx;
-    HEARING_DETEC_TRACE(1,"| --- hear_comp_level = %d --- |",hear_comp_level);
+    TRACE(1,"| --- hear_comp_level = %d --- |",hear_comp_level);
 
     return 0;
 }

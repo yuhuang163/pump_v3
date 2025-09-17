@@ -21,7 +21,7 @@
 #include "cmsis.h"
 #include "nv_section_dbg.h"
 #include "nvrecord_prompt.h"
-#include "crc_c.h"
+#include "crc32_c.h"
 
 /*********************external function declearation************************/
 
@@ -74,32 +74,29 @@ void nv_record_prompt_parse_file(void *addr, PROMPT_IMAGE_HEADER_T *info)
     const uint8_t *pRead = (const uint8_t *)addr;
 
     info->mainInfo = _read_uint32_little_endian_and_increment(&pRead);
-    NV_SECTION_TRACE(0,"main-info:0x%x", info->mainInfo);
+    LOG_D("main-info:0x%x", info->mainInfo);
 
     info->version = _read_uint32_little_endian_and_increment(&pRead);
-    NV_SECTION_TRACE(0,"version:0x%x", info->version);
+    LOG_D("version:0x%x", info->version);
 
     info->contentNum = _read_uint32_little_endian_and_increment(&pRead);
-    NV_SECTION_TRACE(0,"content number:0x%x", info->contentNum);
+    LOG_D("content number:0x%x", info->contentNum);
     ASSERT(PROMPT_INFO_MAX >= info->contentNum, "content number exceed %d", PROMPT_INFO_MAX);
 
     for (uint8_t i = 0; i < info->contentNum; i++)
     {
         info->info[i].id = _read_uint32_little_endian_and_increment(&pRead);
-        NV_SECTION_TRACE(0,"content %d id:0x%x", i, info->info[i].id);
+        LOG_D("content %d id:0x%x", i, info->info[i].id);
 
         info->info[i].offset = _read_uint32_little_endian_and_increment(&pRead);
-        NV_SECTION_TRACE(0,"content %d offset:0x%x", i, info->info[i].offset);
+        LOG_D("content %d offset:0x%x", i, info->info[i].offset);
 
         info->info[i].length = _read_uint32_little_endian_and_increment(&pRead);
-        NV_SECTION_TRACE(0,"content %d len:0x%x", i, info->info[i].length);
-
-        info->info[i].crc32 = _read_uint32_little_endian_and_increment(&pRead);
-        NV_SECTION_TRACE(0,"content %d crc32:0x%x", i, info->info[i].crc32);
+        LOG_D("content %d len:0x%x", i, info->info[i].length);
     }
 
     info->crc32 =  _read_uint32_little_endian_and_increment(&pRead);
-    NV_SECTION_TRACE(0,"crc32:0x%x", info->crc32);
+    LOG_D("crc32:0x%x", info->crc32);
 }
 
 bool nv_record_prompt_check_crc(uint32_t startAddr, PROMPT_IMAGE_HEADER_T *info)
@@ -112,9 +109,9 @@ bool nv_record_prompt_check_crc(uint32_t startAddr, PROMPT_IMAGE_HEADER_T *info)
     for (uint8_t i = 0; i < info->contentNum; i++)
     {
         crc32 = crc32_c(crc32, (uint8_t*)(startAddr + info->info[i].offset), info->info[i].length);
-        NV_SECTION_TRACE(4,"[%d] crc:0x%x offset:%d len:%d",i, crc32, info->info[i].offset, info->info[i].length);
+        TRACE(4,"[%d] crc:0x%x offset:%d len:%d",i, crc32, info->info[i].offset, info->info[i].length);
     }
-    NV_SECTION_TRACE(0,"%s flash crc:0x%x calcute crc 0x%x", __func__, info->crc32, crc32);
+    LOG_I("%s flash crc:0x%x calcute crc 0x%x", __func__, info->crc32, crc32);
     return crc32 == info->crc32 ? true : false;
 }
 
@@ -148,9 +145,7 @@ void nv_record_prompt_rec_init(void)
     {
         flush = 1;
         //copy new packet.
-#if defined(PROMPT_IN_FLASH)&&defined(BES_OTA)
         app_prompt_apply();
-#endif
         uint32_t lock = nv_record_pre_write_operation();
         nvrecord_prompt_p->newFlag = 0;
         nv_record_post_write_operation(lock);
@@ -176,7 +171,7 @@ void nv_record_prompt_rec_init(void)
             //flash has no language packet, register default
             for (uint8_t i = 0; i < DEFAULT_PROMPT_NUM; i++)
             {
-                NV_SECTION_TRACE(0,"%s set default language, language: %d prompt_package_start:0x%x", \
+                LOG_I("%s set default language, language: %d prompt_package_start:0x%x", \
                     __func__, defaultPromptInfo[i].id, defaultPromptInfo[i].startAddr);
                 nv_record_prompt_rec_add_new_package((void *)&defaultPromptInfo[i]);
             }
@@ -187,7 +182,6 @@ void nv_record_prompt_rec_init(void)
     {
         //flush userdata
         nv_record_update_runtime_userdata();
-        nv_record_execute_async_flush();
     }
 }
 
@@ -211,7 +205,7 @@ bool nv_record_prompt_rec_add_new_package(void *pInfo)
         {
              if (nvrecord_prompt_p->packageInfo[i].id == info->id)
             {
-                NV_SECTION_TRACE(0,"info->startAddr:%x", info->startAddr);
+                LOG_I("info->startAddr:%x", info->startAddr);
 
                 ///.update the start address
                 if (info->startAddr)
@@ -219,7 +213,7 @@ bool nv_record_prompt_rec_add_new_package(void *pInfo)
                     nvrecord_prompt_p->packageInfo[i].startAddr = info->startAddr;
                 }
 
-                NV_SECTION_TRACE(0,"package already exist in user section, id:%d, startAddr:%x",
+                LOG_I("package already exist in user section, id:%d, startAddr:%x",
                       nvrecord_prompt_p->packageInfo[i].id,
                       nvrecord_prompt_p->packageInfo[i].startAddr);
                 found = true;
@@ -227,7 +221,7 @@ bool nv_record_prompt_rec_add_new_package(void *pInfo)
             }
         }
 
-        NV_SECTION_TRACE(0,"current supported package cnt:%d", nvrecord_prompt_p->num);
+        LOG_I("current supported package cnt:%d", nvrecord_prompt_p->num);
 
         /// brand new model insert
         if (!found)
@@ -236,7 +230,7 @@ bool nv_record_prompt_rec_add_new_package(void *pInfo)
                    info,
                    sizeof(PACKAGE_NODE_T));
 
-            NV_SECTION_TRACE(0,"new added package:%x, startAddr:%x, len:%x", info->id, info->startAddr, info->len);
+            LOG_I("new added package:%x, startAddr:%x, len:%x", info->id, info->startAddr, info->len);
             nvrecord_prompt_p->num++;
         }
         nv_record_post_write_operation(lock);
@@ -246,14 +240,13 @@ bool nv_record_prompt_rec_add_new_package(void *pInfo)
         {
             /// flush the hotword info to flash
             nv_record_update_runtime_userdata();
-            nv_record_execute_async_flush();
         }
 
-        NV_SECTION_TRACE(0,"current supported package Cnt:%d", nvrecord_prompt_p->num);
+        LOG_I("current supported package Cnt:%d", nvrecord_prompt_p->num);
     }
     else
     {
-        NV_SECTION_TRACE(0,"NULL pointer received in %s", __func__);
+        LOG_W("NULL pointer received in %s", __func__);
         ret = false;
     }
 
@@ -265,7 +258,7 @@ uint32_t nv_record_prompt_get_package_addr(uint8_t language, bool addNew, uint32
     uint32_t addr = 0;
     uint8_t index = 0xFF;
 
-    NV_SECTION_TRACE(0,"%s revceived language ID: %d", __func__, language);
+    LOG_I("%s revceived language ID: %d", __func__, language);
     ASSERT(nvrecord_prompt_p, "nvrecord_prompt_p is null");
     ASSERT(nvrecord_prompt_p->num, "no local supported package");
 
@@ -275,7 +268,7 @@ uint32_t nv_record_prompt_get_package_addr(uint8_t language, bool addNew, uint32
         {
             addr = nvrecord_prompt_p->packageInfo[i].startAddr;
             index = i;
-            NV_SECTION_TRACE(0,"found saved package, index:%d", index);
+            LOG_I("found saved package, index:%d", index);
             break;
         }
     }
@@ -307,7 +300,6 @@ uint32_t nv_record_prompt_get_package_addr(uint8_t language, bool addNew, uint32
 
                 /// flush the hotword info to flash
                 nv_record_update_runtime_userdata();
-                nv_record_execute_async_flush();
             }
             else //!< there is free slot(s)
             {
@@ -318,10 +310,10 @@ uint32_t nv_record_prompt_get_package_addr(uint8_t language, bool addNew, uint32
                 }
                 else
                 {
-                    NV_SECTION_TRACE(0,"%s error: nvrecord_prompt_p->num = 0", __func__);
+                    LOG_I("%s error: nvrecord_prompt_p->num = 0", __func__);
                 }
                     
-                NV_SECTION_TRACE(0,"start_addr:%x, prompt_start:%x", addr, (uint32_t)__prompt_start);
+                LOG_I("start_addr:%x, prompt_start:%x", addr, (uint32_t)__prompt_start);
 
                 /// address belongs to embeded one
                 if ((addr & 0xFFFFFF) < ((uint32_t)__prompt_start & 0xFFFFFF))
@@ -333,7 +325,7 @@ uint32_t nv_record_prompt_get_package_addr(uint8_t language, bool addNew, uint32
                     addr += LANGUAGE_PACKAGE_SIZE;
                 }
 
-                NV_SECTION_TRACE(0,"address is 0x%x", addr);
+                LOG_I("address is 0x%x", addr);
             }
         }
         else
@@ -361,7 +353,7 @@ void nv_record_prompt_get_prompt_info(uint8_t language, uint16_t id, uint8_t **d
     {
         *length = 0;
         *data = NULL;
-        NV_SECTION_TRACE(0,"%s language %d not found", __func__, language);
+        LOG_I("%s language %d not found", __func__, language);
         return;
     }
 
@@ -380,8 +372,8 @@ void nv_record_prompt_get_prompt_info(uint8_t language, uint16_t id, uint8_t **d
 
     if (found)
     {
-        NV_SECTION_TRACE(0,"prompt addr: %p", *data);
-        NV_SECTION_TRACE(0,"prompt length: %d", *length);
+        LOG_I("prompt addr: %p", *data);
+        LOG_I("prompt length: %d", *length);
     }
     else
     {
@@ -413,5 +405,4 @@ void nv_record_prompt_set_new_language_flag(void)
     nv_record_post_write_operation(lock);
     /// flush the hotword info to flash
     nv_record_update_runtime_userdata();
-    nv_record_execute_async_flush();
 }

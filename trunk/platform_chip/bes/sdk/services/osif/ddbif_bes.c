@@ -19,7 +19,6 @@
 
 #include "hal_trace.h"
 #include "bluetooth_bt_api.h"
-#include "me_api.h"
 
 #if 1//ndef FPGA
 #include "cmsis_os.h"
@@ -28,16 +27,16 @@
 
 //static int DDB_Print_Node(BtDeviceRecord* record)
 //{
-//    OSIF_TRACE(0,"record_bdAddr = ");
-//    OSIF_DUMP8("%x ",record->bdAddr.addr,sizeof(record->bdAddr.addr));
-//    OSIF_TRACE(0,"record_trusted = ");
-//    OSIF_DUMP8("%d ",&record->trusted,sizeof((uint8_t)record->trusted));
-//    OSIF_TRACE(0,"record_linkKey = ");
-//    OSIF_DUMP8("%x ",record->linkKey,sizeof(record->linkKey));
-//    OSIF_TRACE(0,"record_keyType = ");
-//    OSIF_DUMP8("%x ",&record->keyType,sizeof(record->keyType));
-//    OSIF_TRACE(0,"record_pinLen = ");
-//    OSIF_DUMP8("%x ",&record->pinLen,sizeof(record->pinLen));
+//    nvrec_trace(0,"record_bdAddr = ");
+//    OS_DUMP8("%x ",record->bdAddr.addr,sizeof(record->bdAddr.addr));
+//    nvrec_trace(0,"record_trusted = ");
+//    OS_DUMP8("%d ",&record->trusted,sizeof((uint8_t)record->trusted));
+//    nvrec_trace(0,"record_linkKey = ");
+//    OS_DUMP8("%x ",record->linkKey,sizeof(record->linkKey));
+//    nvrec_trace(0,"record_keyType = ");
+//    OS_DUMP8("%x ",&record->keyType,sizeof(record->keyType));
+//    nvrec_trace(0,"record_pinLen = ");
+//    OS_DUMP8("%x ",&record->pinLen,sizeof(record->pinLen));
 //    return 1;
 //}
 
@@ -55,11 +54,6 @@ bt_status_t ddbif_close(void)
 bt_status_t ddbif_add_record(btif_device_record_t *record)
 {
     return nv_record_add(section_usrdata_ddbrecord,(void *)record);
-}
-
-bt_status_t ddbif_change_records_order(const btif_device_record_t *record, uint8_t index)
-{
-    return nv_record_change_order(record, index);
 }
 
 bt_status_t ddbif_open(const bt_bdaddr_t *bdAddr)
@@ -161,7 +155,7 @@ bt_status_t ddbif_close(void)
 
         Close_tmp = Close_tmp->next;
         if(Close_tmp == NULL) {
-            OSIF_TRACE(0,"DDB_Close.\n");
+            TRACE(0,"DDB_Close.\n");
             break;
         }
     }
@@ -178,14 +172,14 @@ bt_status_t ddbif_add_record(btif_device_record_t *record)
 
     tmp = (DDB_List *)DDB_Malloc(sizeof(DDB_List));
     if(tmp == NULL) {
-        OSIF_TRACE(0,"DDB_AddRecord head == NULL:There is no enough space for DDB_List.\n");
+        TRACE(0,"DDB_AddRecord head == NULL:There is no enough space for DDB_List.\n");
         return BT_STS_FAILED;
     }
     tmp->next = NULL;
 
     tmp->record = (btif_device_record_t *)DDB_Malloc(sizeof(btif_device_record_t));
     if(NULL == tmp->record) {
-        OSIF_TRACE(0,"DDB_AddRecord head == NULL:There is no enough space for DDB_List.record.\n");
+        TRACE(0,"DDB_AddRecord head == NULL:There is no enough space for DDB_List.record.\n");
         return BT_STS_FAILED;
     }
 
@@ -199,7 +193,7 @@ bt_status_t ddbif_add_record(btif_device_record_t *record)
 
         head = tmp;
         memcpy(remDev_addr.address,tmp->record->bdAddr.address,sizeof(tmp->record->bdAddr.address));
-        OSIF_TRACE(0,"DDB_AddRecord head:\n");
+        TRACE(0,"DDB_AddRecord head:\n");
         DDB_Print_Node(tmp->record);
         DDB_Print();
 
@@ -219,7 +213,7 @@ bt_status_t ddbif_add_record(btif_device_record_t *record)
         ptr->record->pinLen = record->pinLen;
         ptr->record->trusted = record->trusted;
         ptr->record->for_bt_source = record->for_bt_source;
-        OSIF_TRACE(0,"DDB_AddRecord head::\n");
+        TRACE(0,"DDB_AddRecord head::\n");
         DDB_Print_Node(ptr->record);
         DDB_Print();
         free(tmp->record);
@@ -239,7 +233,7 @@ bt_status_t ddbif_add_record(btif_device_record_t *record)
         memcpy(remDev_addr.address,tmp->record->bdAddr.address,sizeof(tmp->record->bdAddr.address));
 
         ptr->next = tmp;
-        OSIF_TRACE(0,"DDB_AddRecord head:::\n");
+        TRACE(0,"DDB_AddRecord head:::\n");
         DDB_Print_Node(tmp->record);
         DDB_Print();
 
@@ -261,17 +255,17 @@ static int DDB_Print_Node(btif_device_record_t *record)
     int i;
 
     for(i = 0; i < 6; i++) {
-        OSIF_TRACE(1,"%x ",record->bdAddr.address[i]);
+        TRACE(1,"%x ",record->bdAddr.address[i]);
     }
-    OSIF_TRACE(0,"\n");
+    TRACE(0,"\n");
 /*
     for(i=0; i<16; i++)
     {
-        OSIF_TRACE(1,"%x ",record->linkKey[i]);
+        TRACE(1,"%x ",record->linkKey[i]);
     }
-    OSIF_TRACE(0,"\n");
+    TRACE(0,"\n");
 
-    OSIF_TRACE(3,"%d,%d,%d\n",record->keyType,record->pinLen,record->trusted);
+    TRACE(3,"%d,%d,%d\n",record->keyType,record->pinLen,record->trusted);
     */
     return 1;
 
@@ -283,16 +277,16 @@ static int DDB_Print()
     Print_tmp = head;
 
     if(Print_tmp == NULL) {
-        OSIF_TRACE(0,"DDB list is null!\n");
+        TRACE(0,"DDB list is null!\n");
         return 0;
     }
 
-    OSIF_TRACE(0,"-----------------DDB list-------------------\n");
+    TRACE(0,"-----------------DDB list-------------------\n");
     while(Print_tmp != NULL) {
         DDB_Print_Node(Print_tmp->record);
         Print_tmp = Print_tmp->next;
     }
-    OSIF_TRACE(0,"--------------------end---------------------\n");
+    TRACE(0,"--------------------end---------------------\n");
     return 0;
 }
 
@@ -302,7 +296,7 @@ bt_status_t ddbif_find_record(const bt_bdaddr_t *bdAddr, btif_device_record_t *r
     FindRecord_tmp = head;
 
     if(head == NULL) {
-        OSIF_TRACE(0,"DDB_FindRecord:DDB is null!\n");
+        TRACE(0,"DDB_FindRecord:DDB is null!\n");
         return BT_STS_FAILED;
     }
 
@@ -321,13 +315,13 @@ bt_status_t ddbif_find_record(const bt_bdaddr_t *bdAddr, btif_device_record_t *r
         record->pinLen = FindRecord_tmp->record->pinLen;
         record->trusted = FindRecord_tmp->record->trusted;
         record->for_bt_source = FindRecord_tmp->record->for_bt_source;
-        OSIF_TRACE(0,"DDB_FindRecord:\n");
+        TRACE(0,"DDB_FindRecord:\n");
         DDB_Print_Node(record);
         return BT_STS_SUCCESS;
     }
 
     if(FindRecord_tmp->next == NULL) {
-        OSIF_TRACE(0,"DDB_FindRecord ends.\n");
+        TRACE(0,"DDB_FindRecord ends.\n");
         return BT_STS_FAILED;
     }
 
@@ -341,7 +335,7 @@ bt_status_t ddbif_delete_record(const bt_bdaddr_t *bdAddr)
     checkingAddr = head;
 
     if(head == NULL) {
-        OSIF_TRACE(0,"DDB_DeleteRecord:list is null!\n");
+        TRACE(0,"DDB_DeleteRecord:list is null!\n");
         return BT_STS_FAILED;
     }
 
@@ -383,11 +377,11 @@ bt_status_t ddbif_enum_device_records(I16 index, btif_device_record_t *record)
     databaselist = head;
 
     if(head == NULL) {
-        OSIF_TRACE(0,"DDB_EnumDeviceRecords:No records!\n");
+        TRACE(0,"DDB_EnumDeviceRecords:No records!\n");
         return BT_STS_FAILED;
     }
 
-    OSIF_TRACE(1,"index=%d\n",(uint32_t)index);
+    TRACE(1,"index=%d\n",(uint32_t)index);
     while(databaselist != NULL) {
         if(!index) {
             break;
@@ -397,14 +391,14 @@ bt_status_t ddbif_enum_device_records(I16 index, btif_device_record_t *record)
     }
 
     if((index == 0) && (databaselist != NULL)) {
-        OSIF_TRACE(0,"Enum record:\n");
+        TRACE(0,"Enum record:\n");
         DDB_Print_Node(databaselist->record);
-        OSIF_TRACE(0,"Enumeration ends!\n\n");
+        TRACE(0,"Enumeration ends!\n\n");
         return BT_STS_SUCCESS;
     }
 
     if(databaselist == NULL) {
-        OSIF_TRACE(0,"Enumeration failed.\n");
+        TRACE(0,"Enumeration failed.\n");
         return BT_STS_FAILED;
     }
 

@@ -12,7 +12,7 @@
 #ifdef VQE_SIMULATE
 #include <stdio.h>
 #define ASSERT(cond, str, ...)      { if (!(cond)) { fprintf(stderr, str, ##__VA_ARGS__); while(1); } }
-#define AUDIOPLAYERS_TRACE(num, str, ...)             do { fprintf(stdout, str, ##__VA_ARGS__); fprintf(stdout, "\n"); } while (0)
+#define TRACE(num, str, ...)             do { fprintf(stdout, str, ##__VA_ARGS__); fprintf(stdout, "\n"); } while (0)
 #endif
 
 #define MSBC_PKTSIZE (60)
@@ -42,32 +42,7 @@
 #define ENABLE_SEQ_CHECK
 
 #ifdef ENABLE_CRC_CHECK
-
-#if defined(ROM_UTILS_ON) && defined(CHIP_BEST1306)
-#include "hal_chipid.h"
-extern const uint8_t sbc_crc_tbl_v1[256];
-extern const uint8_t sbc_crc_tbl_v2[256];
-extern const uint8_t sbc_crc_tbl_v3[256];
-static uint8_t* sbc_crc_tbl = NULL;
-static void sbc_crc_tbl_init()
-{
-    if(sbc_crc_tbl == NULL){
-        int metal_id = hal_get_chip_metal_id();
-        if(metal_id == HAL_CHIP_METAL_ID_0){
-            sbc_crc_tbl = (uint8_t *)sbc_crc_tbl_v1;
-        } else if(metal_id == HAL_CHIP_METAL_ID_1) {
-            sbc_crc_tbl = (uint8_t *)sbc_crc_tbl_v2;
-        } else if(metal_id == HAL_CHIP_METAL_ID_2) {
-            sbc_crc_tbl = (uint8_t *)sbc_crc_tbl_v3;
-        }
-    }
-}
-#else
 extern const uint8_t sbc_crc_tbl[256];
-static void sbc_crc_tbl_init()
-{
-}
-#endif
 #endif
 
 // #define MONITOR_PLC_RESTART_STREAM
@@ -138,8 +113,8 @@ int32_t plc_monitor_dump_data(uint8_t *buf, uint32_t len)
 {
 #ifdef MONITOR_PLC_DUMP_PACKET
     if (g_monitor_dump_frame_cnt > 0) {
-        AUDIOPLAYERS_DUMP16("%04x,", buf, len / 2);
-        AUDIOPLAYERS_TRACE(0, " END: %d", g_monitor_dump_frame_cnt);
+        DUMP16("%04x,", buf, len / 2);
+        TRACE(0, " END: %d", g_monitor_dump_frame_cnt);
         g_monitor_dump_frame_cnt--;
     }
 #endif
@@ -151,7 +126,6 @@ static int sco_parse_synchronization_header(uint8_t *buf, uint8_t *sn)
 {
     uint8_t sn1, sn2;
 #ifdef ENABLE_CRC_CHECK
-    sbc_crc_tbl_init();
     uint8_t fcs = 0x0F;
     uint8_t crc = 0;
     uint8_t i, sb, bit, shift;
@@ -215,7 +189,7 @@ static int sco_parse_synchronization_header(uint8_t *buf, uint8_t *sn)
 
         bitOffset += 4;
     }
-    //AUDIOPLAYERS_TRACE(2,"msbc crc:%d fcs:%d", crc,fcs);
+    //TRACE(2,"msbc crc:%d fcs:%d", crc,fcs);
     if (crc != fcs)
         return -4;
 #endif
@@ -297,14 +271,14 @@ static bool msbc_check_transmitter_offset(uint8_t *pkt, uint8_t pattern, uint32_
         for (int i = 0; i < MSBC_PKTSIZE - index; i++)
             if (pkt[i] != pattern)
                 return false;
-        // AUDIOPLAYERS_TRACE(0, "front part mute");
+        // TRACE(0, "front part mute");
     }
     else if (pkt[MSBC_PKTSIZE - 1] == pattern)
     {
         for (int i = MSBC_PKTSIZE - index; i < MSBC_PKTSIZE; i++)
             if (pkt[i] != pattern)
                 return false;
-        // AUDIOPLAYERS_TRACE(0, "behind part mute");
+        // TRACE(0, "behind part mute");
     }
     else
     {
@@ -432,7 +406,7 @@ plc_type_t packet_loss_detection_process(PacketLossState *st, uint8_t *sbc_buf, 
 void packet_loss_detection_update_histogram(PacketLossState *st, plc_type_t plc_type)
 {
     if (plc_type < 0 || plc_type >= PLC_TYPE_NUM) {
-        AUDIOPLAYERS_TRACE(2,"[%s] plc type %d is invalid", __FUNCTION__, plc_type);
+        TRACE(2,"[%s] plc type %d is invalid", __FUNCTION__, plc_type);
         return;
     }
 
@@ -449,11 +423,11 @@ void packet_loss_detection_report(PacketLossState *st)
     uint32_t packet_loss_num = 0;
 
     for (uint8_t i = 1; i < PLC_TYPE_NUM; i++) {
-        AUDIOPLAYERS_TRACE(3,"[%s] plc type %d occurs %d times", __FUNCTION__, i, st->hist[i]);
+        TRACE(3,"[%s] plc type %d occurs %d times", __FUNCTION__, i, st->hist[i]);
         packet_loss_num += st->hist[i];
     }
 
-    POSSIBLY_UNUSED uint32_t packet_total_num = st->hist[0] + packet_loss_num;
-    AUDIOPLAYERS_TRACE(4,"[%s] packet loss percent %d/10000(%d/%d)", __FUNCTION__,
+    uint32_t packet_total_num = st->hist[0] + packet_loss_num;
+    TRACE(4,"[%s] packet loss percent %d/10000(%d/%d)", __FUNCTION__,
           (int32_t)(10000.f * packet_loss_num/ packet_total_num), packet_loss_num, packet_total_num);
 }

@@ -12,7 +12,7 @@ subdir-ccflags-y += \
 	-Iapps/common \
 	-Iplatform/drivers/usb/usb_dev/inc \
 	-Iplatform/drivers/ana \
-	-Iutils/crc \
+	-Iutils/crc32 \
 	-Iservices/bt_app \
 	-Iservices/communication/comminication_knowles \
 	-Iservices/audio_dump/include \

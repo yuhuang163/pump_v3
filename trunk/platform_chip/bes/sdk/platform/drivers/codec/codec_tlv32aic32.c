@@ -195,11 +195,11 @@ uint32_t tlv32aic32_stream_setup(enum AUD_STREAM_T stream, struct tlv32aic32_con
     /* right adc pga mute : 16 */
     codec_write(RADC_VOL, 0x0);
     /* adc flag : 36 */
-    //DRIVERS_TRACE(1,"tlv adc flag 0x%x", codec_read(ADC_FLAG));
+    //TRACE(1,"tlv adc flag 0x%x", codec_read(ADC_FLAG));
     /* left adc pga mute : 15 */
-    //DRIVERS_TRACE(1,"tlv left adc pga 0x%x", codec_read(LADC_VOL));
+    //TRACE(1,"tlv left adc pga 0x%x", codec_read(LADC_VOL));
     /* right adc pga mute : 16 */
-    //DRIVERS_TRACE(1,"tlv right adc pga 0x%x", codec_read(RADC_VOL));
+    //TRACE(1,"tlv right adc pga 0x%x", codec_read(RADC_VOL));
     /* input end */
 
     struct HAL_I2S_CONFIG_T i2s_cfg;

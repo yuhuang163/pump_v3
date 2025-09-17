@@ -20,7 +20,7 @@
 extern "C" {
 #endif
 
-#include CHIP_SPECIFIC_HDR(hal_ipc_mcu2sys)
+//#include CHIP_SPECIFIC_HDR(hal_ipc_mcu2sys)
 
 #include "hal_cmu.h"
 #include "stdbool.h"
@@ -59,15 +59,17 @@ struct HAL_IPC_MSG_T{
     HAL_IPC_MSG_RX_IRQ_HANDLER rx_irq_handler[HAL_IPC_SUB_ID_QTY];
     HAL_IPC_MSG_TX_IRQ_HANDLER tx_irq_handler[HAL_IPC_SUB_ID_QTY];
     bool chan_opened[HAL_IPC_SUB_ID_QTY];
-    bool need_flow_ctrl[HAL_IPC_SUB_ID_QTY];
-    bool chan_busy[HAL_IPC_SUB_ID_QTY];
+    bool chan_manual_rx_done[HAL_IPC_SUB_ID_QTY];
+    bool chan_in_rx_hdlr[HAL_IPC_SUB_ID_QTY];
+    bool chan_rx_busy[HAL_IPC_SUB_ID_QTY];
+    bool chan_tx_busy[HAL_IPC_SUB_ID_QTY];
     bool busy_now;
-    struct IPC_HALOP_T hal_op; 
+    struct IPC_HALOP_T hal_op;
 };
 
 void *hal_ipc_msg_ctx_get(enum HAL_IPC_CORE_TYPE_T core);
 
-int hal_ipc_msg_open(struct HAL_IPC_MSG_T *ipc_msg_ctx, enum HAL_IPC_SUB_ID_T id, bool rx_flowctrl);
+int hal_ipc_msg_open(struct HAL_IPC_MSG_T *ipc_msg_ctx, enum HAL_IPC_SUB_ID_T id, bool manual_rx_done);
 
 int hal_ipc_msg_close(struct HAL_IPC_MSG_T *ipc_msg_ctx, enum HAL_IPC_SUB_ID_T id);
 

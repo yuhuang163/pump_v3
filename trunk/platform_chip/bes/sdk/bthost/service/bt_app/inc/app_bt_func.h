@@ -17,6 +17,7 @@
 #define __APP_BT_FUNC_H__
 
 #include "cmsis_os.h"
+#include "hal_trace.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -45,6 +46,7 @@ typedef enum _bt_fn_req {
         BT_Custom_Func_req,
         BT_Thread_Defer_Func_req,
         ME_StartSniff_req,
+        DIP_QuryService_req,
         A2DP_Force_OpenStream_req,
         HF_Force_CreateServiceLink_req,
         BT_Red_Ccmp_Client_Open,
@@ -52,8 +54,6 @@ typedef enum _bt_fn_req {
         BT_Set_Adv_Mode_Test,
         Write_Controller_Memory_Test,
         Read_Controller_Memory_Test,
-        GATT_Connect_Req,
-        GATT_Disconnect_Req,
 }bt_fn_req;
 
 typedef void (*APP_BT_REQ_CUSTOMER_CALl_CB_T)(void *, void *, void *, void *);
@@ -130,7 +130,6 @@ typedef union _bt_fn_param {
     struct {
         a2dp_stream_t *Stream;
         bt_bdaddr_t Addr;
-        enum A2DP_ROLE role_expected;
     } A2DP_OpenStream_param;
 
     //bt_status_t A2DP_CloseStream(a2dp_stream_t *Stream);
@@ -148,7 +147,6 @@ typedef union _bt_fn_param {
     struct {
         btif_hf_channel_t* Chan;
         bt_bdaddr_t Addr;
-        enum HFP_ROLE role_expected;
     } HF_CreateServiceLink_param;
 
     //bt_status_t HF_DisconnectServiceLink(btif_hf_channel_t* Chan)
@@ -178,6 +176,13 @@ typedef union _bt_fn_param {
         BOOL Flag;
     } HF_SetMasterRole_param;
 
+#ifdef BT_DIP_SUPPORT
+    struct {
+        uint16_t conn_handle;
+        btif_dip_client_t *dip_client;
+    } DIP_QuryService_param;
+#endif
+
     struct {
         uint32_t func_ptr;
         uint32_t param0;
@@ -198,11 +203,6 @@ typedef union _bt_fn_param {
         uint8_t type;
     } Me_readcontrollermem_param;
 
-#ifdef __GATT_OVER_BR_EDR__
-    struct {
-        bt_bdaddr_t Addr;
-    } GATT_param;
-#endif
 } bt_fn_param;
 
 typedef struct {
@@ -241,12 +241,11 @@ int app_bt_CMGR_SetSniffTimer(btif_cmgr_handler_t *Handler,
 
 int app_bt_CMGR_SetSniffInfoToAllHandlerByRemDev(uint16_t conn_handle, btif_sniff_info_t* SniffInfo);
 
-int app_bt_A2DP_OpenStream(a2dp_stream_t *Stream, bt_bdaddr_t *Addr, enum A2DP_ROLE role_expected);
+int app_bt_A2DP_OpenStream(a2dp_stream_t *Stream, bt_bdaddr_t *Addr);
 
 int app_bt_A2DP_CloseStream(a2dp_stream_t *Stream);
 
 int app_bt_HF_CreateServiceLink(btif_hf_channel_t* Chan, bt_bdaddr_t *Addr);
-int app_bt_AG_CreateServiceLink(btif_hf_channel_t* Chan, bt_bdaddr_t *Addr);
 
 int app_bt_HF_DisconnectServiceLink(btif_hf_channel_t* Chan);
 
@@ -259,6 +258,10 @@ void app_bt_sniff_manager_process(const btif_event_t *Event);
 //void app_bt_golbal_handle_hook(const btif_event_t *Event);
 
 int app_bt_ME_ControlSleepMode(bool isEnabled);
+
+#ifdef BT_DIP_SUPPORT
+int app_bt_dip_QuryService(uint16_t conn_handle, btif_dip_client_t *client);
+#endif
 
 void app_bt_set_linkpolicy(uint16_t conn_handle, btif_link_policy_t policy);
 void app_check_pending_stop_sniff_op(void);
@@ -277,8 +280,6 @@ int app_bt_ME_Write_Controller_Memory_Fortest(uint32_t addr,uint32_t val,uint8_t
 
 int app_bt_ME_Read_Controller_Memory_Fortest(uint32_t addr,uint32_t len,uint8_t type);
 #endif
-
-int app_bt_GATT_Connect(const bt_bdaddr_t *Addr);
 
 #ifdef __cplusplus
 }

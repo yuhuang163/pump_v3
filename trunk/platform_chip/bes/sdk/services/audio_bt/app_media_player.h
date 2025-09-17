@@ -16,7 +16,6 @@
 #ifndef __APP_MEDIA_PLAYER_H__
 #define __APP_MEDIA_PLAYER_H__
 
-#include "bluetooth_bt_api.h"
 #include "app_bt_stream.h"
 
 #ifdef PROMPT_IN_FLASH
@@ -49,7 +48,7 @@ typedef enum
 
 // Customized warning tone volume should be defined in tgt_hardware.h
 #ifndef MEDIA_VOLUME_LEVEL_WARNINGTONE
-#define MEDIA_VOLUME_LEVEL_WARNINGTONE TGT_VOLUME_LEVEL_8
+#define MEDIA_VOLUME_LEVEL_WARNINGTONE TGT_VOLUME_LEVEL_12
 #endif
 
 #define MAX_PHB_NUMBER 20
@@ -79,11 +78,10 @@ typedef enum
     APP_PROMPT_STANDALONE_LOCAL_PLAY    = 4,
     APP_PROMPT_STANDALONE_REMOTE_PLAY   = 5,
     APP_PROMPT_CONTINUOUS_NORMAL_PLAY   = 6,
-    APP_PROMPT_LOCAL_CONTINUOUS_NORMAL_PLAY = 7,
-    APP_PROMPT_CONTINUOUS_REMOTE_PLAY       = 8,
-    APP_PROMPT_CACHED_ORG_REQUEST       = 9,
+    APP_PROMPT_LOCAL_CONTINUOUS_NORMAL_PLAY     = 7,
+    APP_PROMPT_CONTINUOUS_REMOTE_PLAY           = 8,
+    APP_PROMPT_CACHED_ORG_REQUEST               = 9,
     APP_PROMPT_PENDING_FOR_MASTER_SYNC_PLAY_REQ = 10,
-    APP_PROMPT_PENDING_FOR_SLAVE_PLAY_REQ       = 11,
 } APP_PROMPT_PLAY_REQ_TYPE_E;
 
 typedef struct 
@@ -176,14 +174,7 @@ void media_PlayAudio_locally_continuous_end(AUD_ID_ENUM id, uint8_t device_id);
 void app_prompt_push_request(APP_PROMPT_PLAY_REQ_TYPE_E reqType,
     AUD_ID_ENUM id, uint8_t device_id, bool isLocalPlaying);
 
-void app_prompt_list_clear_specific_prompt(uint8_t deviceId, uint16_t promptId);
-
-void app_tws_cmd_prompt_play_req_handler(uint8_t *ptrParam, uint32_t paramLen);
-
-bool app_tws_let_peer_device_play_audio_prompt(uint32_t promptId,
-    uint16_t promptType, uint8_t dev_id);
-
-void app_prompt_forward_play_handler(APP_PROMPT_PLAY_REQ_TYPE_E prompt_type, AUD_ID_ENUM voicePrompt, uint8_t dev_id);
+void app_prompt_forware_play_handler(APP_PROMPT_PLAY_REQ_TYPE_E prompt_type, AUD_ID_ENUM voicePrompt, uint8_t dev_id);
 
 void media_Set_IncomingNumber(const char* pNumber);
 
@@ -199,7 +190,7 @@ int app_play_audio_get_lang();
 
 void app_audio_playback_done(void);
 
-void media_runtime_audio_prompt_update(uint16_t id, uint8_t** ptr, uint32_t* len);
+void media_runtime_audio_prompt_update(uint32_t id, uint8_t** ptr, uint32_t* len);
 
 PROMPT_MIX_PROPERTY_T* get_prompt_mix_property(uint16_t promptId);
 
@@ -221,6 +212,11 @@ int app_play_audio_get_aud_id(void);
 
 void trigger_media_play(AUD_ID_ENUM id, uint8_t device_id, uint16_t aud_pram);
 void trigger_media_stop(AUD_ID_ENUM id, uint8_t device_id);
+
+#ifdef IBRT
+void trigger_prompt_local(bool isTriggerLocal);
+bool is_trigger_prompt_local(void);
+#endif
 
 #ifdef AUDIO_LINEIN
 uint32_t app_play_audio_lineinmode_more_data(uint8_t *buf, uint32_t len);

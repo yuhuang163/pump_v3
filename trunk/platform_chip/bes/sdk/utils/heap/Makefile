@@ -9,7 +9,7 @@ obj-y := $(obj_c:.c=.o) $(obj_s:.S=.o) $(obj_cpp:.cpp=.o)
 ccflags-y := \
 	-Iplatform/cmsis/inc/ \
 	-Iutils/heap/ \
-	$(BECO_INCLUDE)
+	-Iinclude/beco
 
 ifeq ($(HEAP_DEBUG),1)
 ccflags-y += -DHEAP_DEBUG

@@ -15,18 +15,19 @@
  ****************************************************************************/
 #ifndef __BT_COMMON_DEFINE_H__
 #define __BT_COMMON_DEFINE_H__
-#include <stdio.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
 #ifdef RTOS
 #include "cmsis_os.h"
 #endif
-#include "cmsis.h"
 #include "hal_aud.h"
 #include "hal_trace.h"
 #include "hal_timer.h"
 #include "bt_sys_config.h"
+
+#include "debug_cfg.h"
+#include "besbt_cfg.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -97,10 +98,6 @@ typedef unsigned char I8;
 #else
 #error No XA_INTEGER_SIZE specified!
 #endif
-
-typedef uint8_t UINT8;
-typedef uint16_t UINT16;
-typedef uint32_t UINT32;
 
 #ifndef NULL
 #define NULL 0
@@ -211,27 +208,9 @@ static inline uint32_t co_round_size(uint32_t a)
     return ((a + 3) / 4) * 4;
 }
 
-static inline uint32_t co_range_value_map(uint32_t from_val, uint32_t from_min,
-                                          uint32_t from_max, uint32_t to_min, uint32_t to_max)
-{
-    if (from_val <= from_min)
-    {
-        return to_min;
-    }
-
-    if (from_val >= from_max)
-    {
-        return to_max;
-    }
-
-    return ((from_val - from_min) * (to_max - to_min) + (from_max - from_min) / 2) / (from_max - from_min) + to_min;
-}
-
 #define CO_BIT_MASK(bit_index) (1 << bit_index)
 
 #define CO_MIN_VALUE(a, b) ((a)<=(b) ? (a) : (b))
-
-#define CO_MAX_VALUE(a, b) ((a)>(b) ? (a) : (b))
 
 #define CO_UINT_TO_PTR(a) ((void *)(uintptr_t)(a))
 
@@ -297,27 +276,6 @@ static inline uint32_t co_host_to_uint24_be(uint32_t n) { return n; }
 static inline uint32_t co_uint24_be_to_host(uint32_t n) { return n; }
 #endif
 
-static inline void co_host_uint16_to_ptr_le(uint16_t n, uint8_t *p) {
-    p[0] = (uint8_t)(n & 0xFF);
-    p[1] = (uint8_t)((n >> 8) & 0xFF);
-}
-static inline void co_host_uint32_to_ptr_le(uint32_t n, uint8_t *p) {
-    p[0] = (uint8_t)(n & 0xFF);
-    p[1] = (uint8_t)((n >> 8) & 0xFF);
-    p[2] = (uint8_t)((n >> 16) & 0xFF);
-    p[3] = (uint8_t)((n >> 24) & 0xFF);
-}
-static inline void co_host_uint16_to_ptr_be(uint16_t n, uint8_t *p) {
-    p[1] = (uint8_t)(n & 0xFF);
-    p[0] = (uint8_t)((n >> 8) & 0xFF);
-}
-static inline void co_host_uint32_to_ptr_be(uint32_t n, uint8_t *p) {
-    p[3] = (uint8_t)(n & 0xFF);
-    p[2] = (uint8_t)((n >> 8) & 0xFF);
-    p[1] = (uint8_t)((n >> 16) & 0xFF);
-    p[0] = (uint8_t)((n >> 24) & 0xFF);
-}
-
 /**
  * list entry
  */
@@ -353,7 +311,7 @@ BOOL is_list_circular(list_entry_t * list);
 BOOL btif_is_list_circular(list_entry_t * list);
 void btif_insert_tail_list(list_entry_t * head, list_entry_t * entry);
 
-#define list_assert(exp) ({ASSERT(exp, "%s %s, %d\n", #exp, __func__, __LINE__);})
+#define list_assert(exp) (ASSERT(exp, "%s %s, %d\n", #exp, __func__, __LINE__))
 
 void _insert_tail_list(list_entry_t * head, list_entry_t * entry);
 
@@ -438,14 +396,6 @@ U32 be_to_host32(const U8* ptr);
 #define LEtoHost16(ptr)  (U16)(((U16) *((U8*)(ptr)+1) << 8) | \
         (U16) *((U8*)(ptr)))
 
-#define LETOHOST16(ptr)  (uint16_t)( ((uint16_t) *((uint8_t*)(ptr)+1) << 8) | \
-                                ((uint16_t) *((uint8_t*)(ptr))) )
-
-#define LETOHOST32(ptr)  (uint32_t)( ((uint32_t) *((uint8_t*)(ptr)+3) << 24) | \
-                                ((uint32_t) *((uint8_t*)(ptr)+2) << 16) | \
-                                ((uint32_t) *((uint8_t*)(ptr)+1) << 8)  | \
-                                ((uint32_t) *((uint8_t*)(ptr))) )
-
 /**
  * list node
  */
@@ -505,7 +455,7 @@ static inline void ITERM_ASSERT(uintptr_t count)
     ASSERT(0, "list too much loop %d", count);
 }
 
-#define COLIST_MAX_NODES_ON_LIST 1500
+#define COLIST_MAX_NODES_ON_LIST 1000
 #define ITER_CHK(count) (count>COLIST_MAX_NODES_ON_LIST?ITERM_ASSERT(count):(void)(count++))
 
 struct single_link_node_t {
@@ -531,14 +481,7 @@ struct single_link_head_t {
          (pos = (struct single_link_node_t *)__link__node_next_item), \
          (__link__node_next_item = (uintptr_t)(pos->next)), ITER_CHK(__list__node__iter__cnt))
 
-#define colist_single_link_iterate_trace(tag, pos, list) \
-    for (uintptr_t __link__node_next_item = ((pos = (list)->head.next), (uintptr_t)(pos->next)), __list__node__iter__cnt = 0; \
-         (pos != &((list)->head)) ? (DEBUG_INFO(0, tag " slink_list: %d %d %p ca=%x %d", (list)->size, __list__node__iter__cnt+1, pos, CO_LR_ADDRESS, __LINE__), true) : (false); \
-         (pos = (struct single_link_node_t *)__link__node_next_item), \
-         (__link__node_next_item = (uintptr_t)(pos->next)), ITER_CHK(__list__node__iter__cnt))
-
 void colist_single_link_push_head(struct single_link_node_t *new_node, struct single_link_head_t *list);
-void colist_single_link_check_push_tail(struct single_link_node_t *new_node, struct single_link_head_t *head, bool check_exist);
 void colist_single_link_push_tail(struct single_link_node_t *new_node, struct single_link_head_t *list);
 void colist_single_link_push_after(struct single_link_node_t *new_node, struct single_link_node_t *exist_node, struct single_link_head_t *list);
 void colist_single_link_delete_entry(struct single_link_head_t *list, struct single_link_node_t *entry);
@@ -654,14 +597,168 @@ typedef enum {
 #endif
     AUD_ID_CUSTOM_LEAK_DETECT = 0x2E,
     MAX_RECORD_NUM = 0x2F,
-    AUD_ID_WT_FIND_DIVICE = 0x32,//walkie build process find divce
-    AUD_ID_WT_ERROR = 0x3f,//walkie build process error
-	AUD_ID_OPENEAR_PROMPT = 0x40,
-
     AUD_ID_ENUM_BOTTOM = 0x10000000,    // AUD_ID_ENUM is uint32_t
 } AUD_ID_ENUM;
 
 const char *aud_id2str(uint16_t aud_id);
+
+/**
+ * BLE Debug
+ */
+
+const char *DebugMask2Prefix(uint8_t mask);
+
+#define DEBUG_PREFIX_FORMAT         "%s<%s> "
+#define DEBUG_SUFFIX_FORMAT         "\n"
+
+#define LOG_HCI_TAG  "[BLE HCI]: "
+#define LOG_L2C_TAG  "[BLE L2C]: "
+#define LOG_ATT_TAG  "[BLE ATT]: "
+#define LOG_GATT_TAG "[BLE GATT]: "
+#define LOG_SMP_TAG  "[BLE SMP]: "
+
+#define LOG_GAP_TAG "[BLE GAP]: "
+#define LOG_APP_TAG "[BLE APP]: "
+#define LOG_BLE_TAG "[BLE]: "
+#define LOG_HTP_TAG "[BLE HTP]: "
+
+#define GAP_ERROR   1
+#define GAP_OUT     2
+#define GATT_ERROR  3
+#define GATT_OUT    4
+#define ATT_ERROR   5
+#define ATT_OUT     6
+#define L2C_ERROR   7
+#define L2C_OUT     8
+#define HCI_ERROR   9
+#define HCI_OUT     10
+#define SMP_ERROR   11
+#define SMP_OUT     12
+#define APP_ERROR   13
+#define APP_OUT     14
+#define PRF_HT_ERROR    15
+#define PRF_HT_OUT      16
+#define BLE_ERROR       30
+#define BLE_OUT         31
+
+#define DebugOut(mask, str, ...)                             \
+    do                                                       \
+    {                                                        \
+        const char *prefix = NULL;                           \
+        prefix             = DebugMask2Prefix(mask);         \
+        TRACE(1, DEBUG_PREFIX_FORMAT, prefix, __FUNCTION__); \
+        TRACE(1, str, ##__VA_ARGS__);                        \
+    } while (0)
+
+#if DEBUG_BLE_HCI_DBG
+#define BLE_HCI_DBG(str,...)     DebugOut(HCI_OUT, str, ##__VA_ARGS__)
+#define BLE_HCI_ERR(str,...)     DebugOut(HCI_ERROR, str, ##__VA_ARGS__)
+#define BLE_HCI_FUNC_ENTER()     TRACE(LOG_BLE_TAG"%s line: %d +++\n", __FUNCTION__, __LINE__)
+#define BLE_HCI_FUNC_LEAVE()     TRACE(LOG_BLE_TAG"%s line: %d ---\n", __FUNCTION__, __LINE__)
+#else
+#define BLE_HCI_DBG(str,...)
+#define BLE_HCI_ERR(str,...)     DebugOut(HCI_ERROR, str, ##__VA_ARGS__)
+#define BLE_HCI_FUNC_ENTER()
+#define BLE_HCI_FUNC_LEAVE()
+#endif
+
+#if DEBUG_BLE_GAP_DBG
+#define BLE_GAP_DBG(str,...)     DebugOut(GAP_OUT, str, ##__VA_ARGS__)
+#define BLE_GAP_ERR(str,...)     DebugOut(GAP_ERROR, str, ##__VA_ARGS__)
+#define BLE_GAP_FUNC_ENTER()     TRACE(LOG_GAP_TAG"%s line: %d +++\n", __FUNCTION__, __LINE__)
+#define BLE_GAP_FUNC_LEAVE()     TRACE(LOG_GAP_TAG"%s line: %d ---\n", __FUNCTION__, __LINE__)
+#else
+#define BLE_GAP_DBG(str,...)
+#define BLE_GAP_ERR(str,...)     DebugOut(GAP_ERROR, str, ##__VA_ARGS__)
+#define BLE_GAP_FUNC_ENTER()
+#define BLE_GAP_FUNC_LEAVE()
+#endif
+
+#if DEBUG_BLE_GATT_DBG
+#define BLE_GATT_DBG(str,...)    DebugOut(GATT_OUT, str, ##__VA_ARGS__)
+#define BLE_GATT_ERR(str,...)    DebugOut(GATT_ERROR, str, ##__VA_ARGS__)
+#define BLE_GATT_FUNC_ENTER()    TRACE(LOG_GATT_TAG"%s line: %d +++\n", __FUNCTION__, __LINE__)
+#define BLE_GATT_FUNC_LEAVE()    TRACE(LOG_GATT_TAG"%s line: %d ---\n", __FUNCTION__, __LINE__)
+#else
+#define BLE_GATT_DBG(str,...)
+#define BLE_GATT_ERR(str,...)    DebugOut(GATT_ERROR, str, ##__VA_ARGS__)
+#define BLE_GATT_FUNC_ENTER()
+#define BLE_GATT_FUNC_LEAVE()
+#endif
+
+#if DEBUG_BLE_ATT_DBG
+#define BLE_ATT_DBG(str,...)     DebugOut(ATT_OUT, str, ##__VA_ARGS__)
+#define BLE_ATT_ERR(str,...)     DebugOut(ATT_ERROR, str, ##__VA_ARGS__)
+#define BLE_ATT_FUNC_ENTER()     TRACE(LOG_ATT_TAG"%s line: %d +++\n", __FUNCTION__, __LINE__)
+#define BLE_ATT_FUNC_LEAVE()     TRACE(LOG_ATT_TAG"%s line: %d ---\n", __FUNCTION__, __LINE__)
+#else
+#define BLE_ATT_DBG(str,...)
+#define BLE_ATT_ERR(str,...)     DebugOut(ATT_ERROR, str, ##__VA_ARGS__)
+#define BLE_ATT_FUNC_ENTER()
+#define BLE_ATT_FUNC_LEAVE()
+#endif
+
+#if DEBUG_BLE_L2C_DBG
+#define BLE_L2C_DBG(str,...)     DebugOut(L2C_OUT, str, ##__VA_ARGS__)
+#define BLE_L2C_ERR(str,...)     DebugOut(L2C_ERROR, str, ##__VA_ARGS__)
+#define BLE_L2C_FUNC_ENTER()     TRACE(LOG_L2C_TAG"%s line: %d +++\n", __FUNCTION__, __LINE__)
+#define BLE_L2C_FUNC_LEAVE()     TRACE(LOG_L2C_TAG"%s line: %d ---\n", __FUNCTION__, __LINE__)
+#else
+#define BLE_L2C_DBG(str,...)
+#define BLE_L2C_ERR(str,...)     DebugOut(L2C_ERROR, str, ##__VA_ARGS__)
+#define BLE_L2C_FUNC_ENTER()
+#define BLE_L2C_FUNC_LEAVE()
+#endif
+
+#if DEBUG_BLE_SMP_DBG
+#define BLE_SMP_DBG(str,...)     DebugOut(SMP_OUT, str, ##__VA_ARGS__)
+#define BLE_SMP_ERR(str,...)     DebugOut(SMP_ERROR, str, ##__VA_ARGS__)
+#define BLE_SMP_FUNC_ENTER()     TRACE(LOG_SMP_TAG"%s line: %d +++\n", __FUNCTION__, __LINE__)
+#define BLE_SMP_FUNC_LEAVE()     TRACE(LOG_SMP_TAG"%s line: %d ---\n", __FUNCTION__, __LINE__)
+#else
+#define BLE_SMP_DBG(str,...) 
+#define BLE_SMP_ERR(str,...)     DebugOut(SMP_ERROR, str, ##__VA_ARGS__)
+#define BLE_SMP_FUNC_ENTER()
+#define BLE_SMP_FUNC_LEAVE()
+#endif
+
+#if DEBUG_BLE_APP_DBG
+#define BLE_APP_DBG(str,...)     DebugOut(APP_OUT, str, ##__VA_ARGS__)
+#define BLE_APP_ERR(str,...)     DebugOut(APP_ERROR, str, ##__VA_ARGS__)
+#define BLE_APP_FUNC_ENTER()     TRACE(LOG_APP_TAG"%s line: %d +++\n", __FUNCTION__, __LINE__)
+#define BLE_APP_FUNC_LEAVE()     TRACE(LOG_APP_TAG"%s line: %d ---\n", __FUNCTION__, __LINE__)
+#else
+#define BLE_APP_DBG(str,...)
+#define BLE_APP_ERR(str,...)     DebugOut(APP_ERROR, str, ##__VA_ARGS__)
+#define BLE_APP_FUNC_ENTER()
+#define BLE_APP_FUNC_LEAVE()
+#endif
+
+#if DEBUG_BLE_PRF_DBG
+#define BLE_PRF_HP_DBG(str,...)  DebugOut(PRF_HT_OUT, str, ##__VA_ARGS__)
+#define BLE_PRF_HP_ERR(str,...)  DebugOut(PRF_HT_ERROR, str, ##__VA_ARGS__)
+#define BLE_PRF_HP_FUNC_ENTER()  TRACE(LOG_HTP_TAG"%s line: %d +++\n", __FUNCTION__, __LINE__)
+#define BLE_PRF_HP_FUNC_LEAVE()  TRACE(LOG_HTP_TAG"%s line: %d ---\n", __FUNCTION__, __LINE__)
+#else
+#define BLE_PRF_HP_DBG(str,...)
+#define BLE_PRF_HP_ERR(str,...)  DebugOut(PRF_HT_ERROR, str, ##__VA_ARGS__)
+#define BLE_PRF_HP_FUNC_ENTER()
+#define BLE_PRF_HP_FUNC_LEAVE()
+#endif
+
+#if DEBUG_BLE_BLE_DBG
+#define BLE_DBG(str,...)         DebugOut(BLE_OUT, str, ##__VA_ARGS__)
+#define BLE_ERR(str,...)         DebugOut(BLE_ERROR, str, ##__VA_ARGS__)
+#define BLE_FUNC_ENTER()         TRACE(LOG_BLE_TAG"%s line: %d +++\n", __FUNCTION__, __LINE__)
+#define BLE_FUNC_LEAVE()         TRACE(LOG_BLE_TAG"%s line: %d ---\n", __FUNCTION__, __LINE__)
+#define BLE_DUMP8(x,y,z)         DUMP8(x,y,z)
+#else
+#define BLE_DBG(str,...)
+#define BLE_ERR(str,...)         DebugOut(BLE_ERROR, str, ##__VA_ARGS__)
+#define BLE_FUNC_ENTER() 
+#define BLE_FUNC_LEAVE()
+#define BLE_DUMP8(x,y,z)
+#endif
 
 /**
  * error code
@@ -722,8 +819,8 @@ typedef uint8_t btif_error_code_t;
 #define BTIF_BEC_BT_CANCEL_PAGE       0xb9
 
 //BES vendor error code
-#define BT_ECODE_DISCONNECT_ITSELF      0xba
-#define BT_ECODE_IBRT_SLAVE_CLEANUP     0xbb
+#define BT_ECODE_DISCONNECT_ITSELF  0xba
+#define BT_ECODE_IBRT_SLAVE_CLEANUP 0xbb
 #define BT_ECODE_SDP_OPEN_TIMEOUT       0xbc
 #define BT_ECODE_SDP_ClIENT_TX_TIMEOUT  0xbd
 
@@ -737,11 +834,11 @@ typedef uint8_t btif_error_code_t;
 #define BTIF_LINK_KEY_SIZE  16
 
 typedef struct {
-    uint8_t addr[BTIF_BD_ADDR_SIZE];
+    uint8_t addr[6];
 } __attribute__((packed)) bd_addr_t;
 
 struct bdaddr_t {
-    uint8_t address[BTIF_BD_ADDR_SIZE];
+    uint8_t address[6];
 }__attribute__ ((packed));
 
 typedef struct bdaddr_t bt_bdaddr_t;
@@ -755,7 +852,7 @@ typedef enum {
 
 typedef struct ble_bdaddr_t
 {
-    uint8_t addr[BTIF_BD_ADDR_SIZE];
+    uint8_t addr[6];
     uint8_t addr_type;
 } __attribute__ ((packed)) ble_bdaddr_t;
 
@@ -809,32 +906,344 @@ enum BT_DEVICE_ID_T {
 #define BT_SOURCE_DEVICE_NUM 0
 #endif
 
+#define BT_SOURCE_DEVICE_ID_BASE 0x10
 
 #define BT_INVALID_CONN_HANDLE 0xFFFF
 
-#define GAP_LE_CONN_ID_PREFIX 0x8000
-#define GAP_LE_CONN_ID_1 (GAP_LE_CONN_ID_PREFIX|BLE_DEVICE_ID_1)
-#define GAP_LE_CONN_ID_2 (GAP_LE_CONN_ID_PREFIX|BLE_DEVICE_ID_2)
-#define GAP_LE_CONN_ID_3 (GAP_LE_CONN_ID_PREFIX|BLE_DEVICE_ID_3)
-
-#define GAP_BT_CONN_ID_PREFIX 0x4000
-#define GAP_BT_CONN_ID_1 (GAP_BT_CONN_ID_PREFIX|BT_DEVICE_ID_1)
-#define GAP_BT_CONN_ID_2 (GAP_BT_CONN_ID_PREFIX|BT_DEVICE_ID_2)
-#define GAP_BT_CONN_ID_3 (GAP_BT_CONN_ID_PREFIX|BT_DEVICE_ID_3)
-
-#ifndef BTM_MAX_LINK_NUMS
-#define BTM_MAX_LINK_NUMS      3
-#endif
+enum BT_SOURCE_DEVICE_ID_T {
+    BT_SOURCE_DEVICE_ID_1 = BT_SOURCE_DEVICE_ID_BASE,
+    BT_SOURCE_DEVICE_ID_2 = BT_SOURCE_DEVICE_ID_BASE + 1,
+    BT_SOURCE_DEVICE_ID_N = BT_SOURCE_DEVICE_ID_BASE + BT_SOURCE_DEVICE_NUM,
+    BT_SOURCE_DEVICE_INVALID_ID = 0xff,
+};
 
 #ifndef BT_ACL_MAX_LINK_NUMS
 #if defined(IBRT_UI) || defined(BT_MULTI_SOURCE)
-#define BT_ACL_MAX_LINK_NUMS   (BTM_MAX_LINK_NUMS)
+#define BT_ACL_MAX_LINK_NUMS   0x03
 #else
-#define BT_ACL_MAX_LINK_NUMS   (BTM_MAX_LINK_NUMS - 1)
+#define BT_ACL_MAX_LINK_NUMS   0x02
 #endif
 #endif
 
-#define Plt_TICKS_TO_MS(ticks) TICKS_TO_MS(ticks)
+#ifdef MOUDLE
+#define CO_LOG_MODULE BT_DBG_CONCAT(MOUDLE, _MODULE)
+#else
+#define CO_LOG_MODULE NULL_MODULE
+#endif
+
+typedef union {
+    uint32_t data;
+    struct {
+    uint32_t module_id  : 6;    // max 1 ~ 63
+    uint32_t line       : 14;   // max 16383
+    uint32_t status     : 9;    // status code
+    uint32_t log_level  : 3;    // max 7
+    } s;
+} bt_log_mod_t;
+
+#define CO_GEN_LOG_MODULE(log_level, status) ((uint32_t)(\
+        (((CO_LOG_MODULE) & 0x3F) << 0) | \
+        (((__LINE__) & 0x3FFF) << 6) | \
+        (((status) & 0x1FF) << 20) | \
+        (((log_level) & 0x7) << 29) \
+    ))
+
+typedef struct {
+    char str[4];
+} bt_log_tag_t;
+
+#ifdef BT_LOG_SIMPLIFY
+void co_func_log_trace_simplify(uint32_t mod);
+#define co_func_log_trace_0(mod) co_func_log_trace_simplify(mod)
+#define co_func_log_trace_1(mod, a) co_func_log_trace_simplify(mod)
+#define co_func_log_trace_2(mod, a, b) co_func_log_trace_simplify(mod)
+#define co_func_log_trace_3(mod, a, b, c) co_func_log_trace_simplify(mod)
+#define co_func_log_trace_4(mod, a, b, c, d) co_func_log_trace_simplify(mod)
+#else
+void co_func_log_trace_0(uint32_t mod);
+void co_func_log_trace_1(uint32_t mod, uintptr_t a);
+void co_func_log_trace_2(uint32_t mod, uintptr_t a, uintptr_t b);
+void co_func_log_trace_3(uint32_t mod, uintptr_t a, uintptr_t b, uintptr_t c);
+void co_func_log_trace_4(uint32_t mod, uintptr_t a, uintptr_t b, uintptr_t c, uintptr_t d);
+#endif
+void co_func_log_str_0(uint32_t mod, const char *s);
+void co_func_log_str_1(uint32_t mod, const char *s, uintptr_t a);
+void co_func_log_str_2(uint32_t mod, const char *s, uintptr_t a, uintptr_t b);
+void co_func_log_str_3(uint32_t mod, const char *s, uintptr_t a, uintptr_t b, uintptr_t c);
+void co_func_log_trace_with_tag_0(uint32_t mod, bt_log_tag_t tag);
+void co_func_log_trace_with_tag_1(uint32_t mod, bt_log_tag_t tag, uintptr_t a);
+void co_func_log_trace_with_tag_2(uint32_t mod, bt_log_tag_t tag, uintptr_t a, uintptr_t b);
+void co_func_log_trace_with_tag_3(uint32_t mod, bt_log_tag_t tag, uintptr_t a, uintptr_t b, uintptr_t c);
+const char *co_log_module_str(void);
+
+#define CO_LR_ADDRESS (uintptr_t)__builtin_return_address(0)
+
+#define CO_ASSERT_0(e) { if (!(e)) { \
+        co_func_log_trace_1(CO_GEN_LOG_MODULE(DBG_ASSERT_LEVEL, 0), CO_LR_ADDRESS); \
+        Plt_Assert(0, co_log_module_str(), CO_LOG_MODULE, __LINE__, CO_LR_ADDRESS); \
+    }}
+
+#define CO_ASSERT_1(e, a) { if (!(e)) { \
+        co_func_log_trace_2(CO_GEN_LOG_MODULE(DBG_ASSERT_LEVEL, 0), (uintptr_t)(a), CO_LR_ADDRESS); \
+        Plt_Assert(0, co_log_module_str(), CO_LOG_MODULE, __LINE__, CO_LR_ADDRESS); \
+    }}
+
+#define CO_ASSERT_2(e, a, b) { if (!(e)) { \
+        co_func_log_trace_3(CO_GEN_LOG_MODULE(DBG_ASSERT_LEVEL, 0), (uintptr_t)(a), (uintptr_t)(b), CO_LR_ADDRESS); \
+        Plt_Assert(0, co_log_module_str(), CO_LOG_MODULE, __LINE__, CO_LR_ADDRESS); \
+    }}
+
+#define CO_ASSERT_3(e, a, b, c) { if (!(e)) { \
+        co_func_log_trace_4(CO_GEN_LOG_MODULE(DBG_ASSERT_LEVEL, 0), (uintptr_t)(a), (uintptr_t)(b), (uintptr_t)(c), CO_LR_ADDRESS); \
+        Plt_Assert(0, co_log_module_str(), CO_LOG_MODULE, __LINE__, CO_LR_ADDRESS); \
+    }}
+
+#define CO_LOG_MAIN_0(status) \
+    co_func_log_trace_0(CO_GEN_LOG_MODULE(DBG_MAIN_FLOW_LEVEL, (status)))
+#define CO_LOG_MAIN_1(status, a) \
+    co_func_log_trace_1(CO_GEN_LOG_MODULE(DBG_MAIN_FLOW_LEVEL, (status)), (uintptr_t)(a))
+#define CO_LOG_MAIN_2(status, a, b) \
+    co_func_log_trace_2(CO_GEN_LOG_MODULE(DBG_MAIN_FLOW_LEVEL, (status)), (uintptr_t)(a), (uintptr_t)(b))
+#define CO_LOG_MAIN_3(status, a, b, c) \
+    co_func_log_trace_3(CO_GEN_LOG_MODULE(DBG_MAIN_FLOW_LEVEL, (status)), (uintptr_t)(a), (uintptr_t)(b), (uintptr_t)(c))
+#define CO_LOG_MAIN_4(status, a, b, c, d) \
+    co_func_log_trace_4(CO_GEN_LOG_MODULE(DBG_MAIN_FLOW_LEVEL, (status)), (uintptr_t)(a), (uintptr_t)(b), (uintptr_t)(c), (uintptr_t)(d))
+#define CO_LOG_MAIN_S_0(status, tag) \
+    co_func_log_trace_with_tag_0(CO_GEN_LOG_MODULE(DBG_MAIN_FLOW_LEVEL, (status)), (bt_log_tag_t){#tag})
+#define CO_LOG_MAIN_S_1(status, tag, a) \
+    co_func_log_trace_with_tag_1(CO_GEN_LOG_MODULE(DBG_MAIN_FLOW_LEVEL, (status)), (bt_log_tag_t){#tag}, (uintptr_t)(a))
+#define CO_LOG_MAIN_S_2(status, tag, a, b) \
+    co_func_log_trace_with_tag_2(CO_GEN_LOG_MODULE(DBG_MAIN_FLOW_LEVEL, (status)), (bt_log_tag_t){#tag}, (uintptr_t)(a), (uintptr_t)(b))
+#define CO_LOG_MAIN_S_3(status, tag, a, b, c) \
+    co_func_log_trace_with_tag_3(CO_GEN_LOG_MODULE(DBG_MAIN_FLOW_LEVEL, (status)), (bt_log_tag_t){#tag}, (uintptr_t)(a), (uintptr_t)(b), (uintptr_t)(c))
+#define CO_LOG_MAIN_WITH_STR_0(status, s) \
+    co_func_log_str_0(CO_GEN_LOG_MODULE(DBG_MAIN_FLOW_LEVEL, (status)), (s))
+#define CO_LOG_MAIN_WITH_STR_1(status, s, a) \
+    co_func_log_str_1(CO_GEN_LOG_MODULE(DBG_MAIN_FLOW_LEVEL, (status)), (s), (uintptr_t)(a))
+#define CO_LOG_MAIN_WITH_STR_2(status, s, a, b) \
+    co_func_log_str_2(CO_GEN_LOG_MODULE(DBG_MAIN_FLOW_LEVEL, (status)), (s), (uintptr_t)(a), (uintptr_t)(b))
+#define CO_LOG_MAIN_WITH_STR_3(status, s, a, b, c) \
+    co_func_log_str_3(CO_GEN_LOG_MODULE(DBG_MAIN_FLOW_LEVEL, (status)), (s), (uintptr_t)(a), (uintptr_t)(b), (uintptr_t)(c))
+
+/**
+ * Usage:
+ *
+ * 0. make sure globle cfg control DBG_DEBUG_PRINT_ENABLE is 1
+ *
+ * 1. set your  module in your source code file at the top(MUST).
+ *      #undef MOUDLE
+ *      #define MOUDLE BB
+ *
+ * 2. define the module debug level in debug_cfg.h,
+ *      NOTICE,if no define, then no print
+ *      #define BB_LEVEL INFO_LEVEL
+ *
+ * 3. use DEBUG_INFO,DEBUG_WARNING,and DEBUG_ERROR in your module's codes
+ *
+ */
+
+#if DBG_DEBUG_PRINT_ENABLE == 1
+
+#define DEBUGPRINT2(num,...) TRACE(num,__VA_ARGS__)
+#define CO_DEBUG_PRINTF(num,...) do { DEBUGPRINT2(num,__VA_ARGS__); } while(0);
+
+#if (BT_DBG_CONCAT(MOUDLE, _LEVEL) >= DBG_ERROR_LEVEL)
+#define DEBUG_ERROR(num,...) CO_DEBUG_PRINTF(num, __VA_ARGS__)
+#define CO_LOG_ERR_0(status) \
+    co_func_log_trace_0(CO_GEN_LOG_MODULE(DBG_ERROR_LEVEL, (status)))
+#define CO_LOG_ERR_1(status, a) \
+    co_func_log_trace_1(CO_GEN_LOG_MODULE(DBG_ERROR_LEVEL, (status)), (uintptr_t)(a))
+#define CO_LOG_ERR_2(status, a, b) \
+    co_func_log_trace_2(CO_GEN_LOG_MODULE(DBG_ERROR_LEVEL, (status)), (uintptr_t)(a), (uintptr_t)(b))
+#define CO_LOG_ERR_3(status, a, b, c) \
+    co_func_log_trace_3(CO_GEN_LOG_MODULE(DBG_ERROR_LEVEL, (status)), (uintptr_t)(a), (uintptr_t)(b), (uintptr_t)(c))
+#define CO_LOG_ERR_4(status, a, b, c, d) \
+    co_func_log_trace_4(CO_GEN_LOG_MODULE(DBG_ERROR_LEVEL, (status)), (uintptr_t)(a), (uintptr_t)(b), (uintptr_t)(c), (uintptr_t)(d))
+#define CO_LOG_ERR_S_0(status, tag) \
+    co_func_log_trace_with_tag_0(CO_GEN_LOG_MODULE(DBG_ERROR_LEVEL, (status)), (bt_log_tag_t){#tag})
+#define CO_LOG_ERR_S_1(status, tag, a) \
+    co_func_log_trace_with_tag_1(CO_GEN_LOG_MODULE(DBG_ERROR_LEVEL, (status)), (bt_log_tag_t){#tag}, (uintptr_t)(a))
+#define CO_LOG_ERR_S_2(status, tag, a, b) \
+    co_func_log_trace_with_tag_2(CO_GEN_LOG_MODULE(DBG_ERROR_LEVEL, (status)), (bt_log_tag_t){#tag}, (uintptr_t)(a), (uintptr_t)(b))
+#define CO_LOG_ERR_S_3(status, tag, a, b, c) \
+    co_func_log_trace_with_tag_3(CO_GEN_LOG_MODULE(DBG_ERROR_LEVEL, (status)), (bt_log_tag_t){#tag}, (uintptr_t)(a), (uintptr_t)(b), (uintptr_t)(c))
+#else
+#define DEBUG_ERROR(...)
+#define CO_LOG_ERR_0(status)
+#define CO_LOG_ERR_1(status, a)
+#define CO_LOG_ERR_2(status, a, b)
+#define CO_LOG_ERR_3(status, a, b, c)
+#define CO_LOG_ERR_4(status, a, b, c, d)
+#define CO_LOG_ERR_S_0(status, tag)
+#define CO_LOG_ERR_S_1(status, tag, a)
+#define CO_LOG_ERR_S_2(status, tag, a, b)
+#define CO_LOG_ERR_S_3(status, tag, a, b, c)
+#endif
+
+#if (BT_DBG_CONCAT(MOUDLE, _LEVEL) >= DBG_WARNING_LEVEL)
+#define DEBUG_WARNING(num,...) CO_DEBUG_PRINTF(num, __VA_ARGS__)
+#define CO_LOG_WAR_0(status) \
+    co_func_log_trace_0(CO_GEN_LOG_MODULE(DBG_WARNING_LEVEL, (status)))
+#define CO_LOG_WAR_1(status, a) \
+    co_func_log_trace_1(CO_GEN_LOG_MODULE(DBG_WARNING_LEVEL, (status)), (uintptr_t)(a))
+#define CO_LOG_WAR_2(status, a, b) \
+    co_func_log_trace_2(CO_GEN_LOG_MODULE(DBG_WARNING_LEVEL, (status)), (uintptr_t)(a), (uintptr_t)(b))
+#define CO_LOG_WAR_3(status, a, b, c) \
+    co_func_log_trace_3(CO_GEN_LOG_MODULE(DBG_WARNING_LEVEL, (status)), (uintptr_t)(a), (uintptr_t)(b), (uintptr_t)(c))
+#define CO_LOG_WAR_4(status, a, b, c, d) \
+    co_func_log_trace_4(CO_GEN_LOG_MODULE(DBG_WARNING_LEVEL, (status)), (uintptr_t)(a), (uintptr_t)(b), (uintptr_t)(c), (uintptr_t)(d))
+#define CO_LOG_WAR_S_0(status, tag) \
+    co_func_log_trace_with_tag_0(CO_GEN_LOG_MODULE(DBG_WARNING_LEVEL, (status)), (bt_log_tag_t){#tag})
+#define CO_LOG_WAR_S_1(status, tag, a) \
+    co_func_log_trace_with_tag_1(CO_GEN_LOG_MODULE(DBG_WARNING_LEVEL, (status)), (bt_log_tag_t){#tag}, (uintptr_t)(a))
+#define CO_LOG_WAR_S_2(status, tag, a, b) \
+    co_func_log_trace_with_tag_2(CO_GEN_LOG_MODULE(DBG_WARNING_LEVEL, (status)), (bt_log_tag_t){#tag}, (uintptr_t)(a), (uintptr_t)(b))
+#define CO_LOG_WAR_S_3(status, tag, a, b, c) \
+    co_func_log_trace_with_tag_3(CO_GEN_LOG_MODULE(DBG_WARNING_LEVEL, (status)), (bt_log_tag_t){#tag}, (uintptr_t)(a), (uintptr_t)(b), (uintptr_t)(c))
+#else
+#define DEBUG_WARNING(...)
+#define CO_LOG_WAR_0(status)
+#define CO_LOG_WAR_1(status, a)
+#define CO_LOG_WAR_2(status, a, b)
+#define CO_LOG_WAR_3(status, a, b, c)
+#define CO_LOG_WAR_4(status, a, b, c, d)
+#define CO_LOG_WAR_S_0(status, tag)
+#define CO_LOG_WAR_S_1(status, tag, a)
+#define CO_LOG_WAR_S_2(status, tag, a, b)
+#define CO_LOG_WAR_S_3(status, tag, a, b, c)
+#endif
+
+#if (BT_DBG_CONCAT(MOUDLE, _LEVEL) >= DBG_INFO_LEVEL)
+#define DEBUG_INFO(num,...) CO_DEBUG_PRINTF(num, __VA_ARGS__)
+#define CO_LOG_INFO_0(status) \
+    co_func_log_trace_0(CO_GEN_LOG_MODULE(DBG_INFO_LEVEL, (status)))
+#define CO_LOG_INFO_1(status, a) \
+    co_func_log_trace_1(CO_GEN_LOG_MODULE(DBG_INFO_LEVEL, (status)), (uintptr_t)(a))
+#define CO_LOG_INFO_2(status, a, b) \
+    co_func_log_trace_2(CO_GEN_LOG_MODULE(DBG_INFO_LEVEL, (status)), (uintptr_t)(a), (uintptr_t)(b))
+#define CO_LOG_INFO_3(status, a, b, c) \
+    co_func_log_trace_3(CO_GEN_LOG_MODULE(DBG_INFO_LEVEL, (status)), (uintptr_t)(a), (uintptr_t)(b), (uintptr_t)(c))
+#define CO_LOG_INFO_4(status, a, b, c, d) \
+    co_func_log_trace_4(CO_GEN_LOG_MODULE(DBG_INFO_LEVEL, (status)), (uintptr_t)(a), (uintptr_t)(b), (uintptr_t)(c), (uintptr_t)(d))
+#define CO_LOG_INFO_S_0(status, tag) \
+    co_func_log_trace_with_tag_0(CO_GEN_LOG_MODULE(DBG_INFO_LEVEL, (status)), (bt_log_tag_t){#tag})
+#define CO_LOG_INFO_S_1(status, tag, a) \
+    co_func_log_trace_with_tag_1(CO_GEN_LOG_MODULE(DBG_INFO_LEVEL, (status)), (bt_log_tag_t){#tag}, (uintptr_t)(a))
+#define CO_LOG_INFO_S_2(status, tag, a, b) \
+    co_func_log_trace_with_tag_2(CO_GEN_LOG_MODULE(DBG_INFO_LEVEL, (status)), (bt_log_tag_t){#tag}, (uintptr_t)(a), (uintptr_t)(b))
+#define CO_LOG_INFO_S_3(status, tag, a, b, c) \
+    co_func_log_trace_with_tag_3(CO_GEN_LOG_MODULE(DBG_INFO_LEVEL, (status)), (bt_log_tag_t){#tag}, (uintptr_t)(a), (uintptr_t)(b), (uintptr_t)(c))
+#else
+#define DEBUG_INFO(...)
+#define CO_LOG_INFO_0(status)
+#define CO_LOG_INFO_1(status, a)
+#define CO_LOG_INFO_2(status, a, b)
+#define CO_LOG_INFO_3(status, a, b, c)
+#define CO_LOG_INFO_4(status, a, b, c, d)
+#define CO_LOG_INFO_S_0(status, tag)
+#define CO_LOG_INFO_S_1(status, tag, a)
+#define CO_LOG_INFO_S_2(status, tag, a, b)
+#define CO_LOG_INFO_S_3(status, tag, a, b, c)
+#endif
+
+#if (BT_DBG_CONCAT(MOUDLE, _LEVEL) >= DBG_VERBOSE_LEVEL)
+#define DEBUG_VERBOSE(num,...) CO_DEBUG_PRINTF(num, __VA_ARGS__)
+#define CO_LOG_VBS_0(status) \
+    co_func_log_trace_0(CO_GEN_LOG_MODULE(DBG_VERBOSE_LEVEL, (status)))
+#define CO_LOG_VBS_1(status, a) \
+    co_func_log_trace_1(CO_GEN_LOG_MODULE(DBG_VERBOSE_LEVEL, (status)), (uintptr_t)(a))
+#define CO_LOG_VBS_2(status, a, b) \
+    co_func_log_trace_2(CO_GEN_LOG_MODULE(DBG_VERBOSE_LEVEL, (status)), (uintptr_t)(a), (uintptr_t)(b))
+#define CO_LOG_VBS_3(status, a, b, c) \
+    co_func_log_trace_3(CO_GEN_LOG_MODULE(DBG_VERBOSE_LEVEL, (status)), (uintptr_t)(a), (uintptr_t)(b), (uintptr_t)(c))
+#define CO_LOG_VBS_4(status, a, b, c, d) \
+    co_func_log_trace_4(CO_GEN_LOG_MODULE(DBG_VERBOSE_LEVEL, (status)), (uintptr_t)(a), (uintptr_t)(b), (uintptr_t)(c), (uintptr_t)(d))
+#define CO_LOG_VBS_S_0(status, tag) \
+    co_func_log_trace_with_tag_0(CO_GEN_LOG_MODULE(DBG_VERBOSE_LEVEL, (status)), (bt_log_tag_t){#tag})
+#define CO_LOG_VBS_S_1(status, tag, a) \
+    co_func_log_trace_with_tag_1(CO_GEN_LOG_MODULE(DBG_VERBOSE_LEVEL, (status)), (bt_log_tag_t){#tag}, (uintptr_t)(a))
+#define CO_LOG_VBS_S_2(status, tag, a, b) \
+    co_func_log_trace_with_tag_2(CO_GEN_LOG_MODULE(DBG_VERBOSE_LEVEL, (status)), (bt_log_tag_t){#tag}, (uintptr_t)(a), (uintptr_t)(b))
+#define CO_LOG_VBS_S_3(status, tag, a, b, c) \
+    co_func_log_trace_with_tag_3(CO_GEN_LOG_MODULE(DBG_VERBOSE_LEVEL, (status)), (bt_log_tag_t){#tag}, (uintptr_t)(a), (uintptr_t)(b), (uintptr_t)(c))
+#else
+#define DEBUG_VERBOSE(...)
+#define CO_LOG_VBS_0(status)
+#define CO_LOG_VBS_1(status, a)
+#define CO_LOG_VBS_2(status, a, b)
+#define CO_LOG_VBS_3(status, a, b, c)
+#define CO_LOG_VBS_4(status, a, b, c, d)
+#define CO_LOG_VBS_S_0(status, tag)
+#define CO_LOG_VBS_S_1(status, tag, a)
+#define CO_LOG_VBS_S_2(status, tag, a, b)
+#define CO_LOG_VBS_S_3(status, tag, a, b, c)
+#endif
+
+#if (BT_DBG_CONCAT(MOUDLE, _LEVEL) >= INFO_LEVEL)
+void _debug_print_dump_data(char *mem, int mem_size);
+#define DEBUG_DUMP_DATA(memaddr, memlen) do { \
+        DEBUGPRINT2(2,"\r\n"  "module %s #%d: ", BT_DBG_GET_NAME(MOUDLE), __LINE__);\
+        DEBUGPRINT2(0,"\r\n");\
+        Plt_DUMP8("%02x ", (char *)memaddr,memlen);\
+    } while(0);
+#else
+#define DEBUG_DUMP_DATA(...)
+#endif
+
+#define DEBUG_RAW(...) DEBUG_PRINT(__VA_ARGS__)
+#define DEBUG_IMM(...) TRACE_IMM(__VA_ARGS__)
+
+#else
+
+#define DEBUG_ERROR(...)
+#define CO_LOG_ERR_0(status)
+#define CO_LOG_ERR_1(status, a)
+#define CO_LOG_ERR_2(status, a, b)
+#define CO_LOG_ERR_3(status, a, b, c)
+#define CO_LOG_ERR_4(status, a, b, c, d)
+#define CO_LOG_ERR_S_0(status, tag)
+#define CO_LOG_ERR_S_1(status, tag, a)
+#define CO_LOG_ERR_S_2(status, tag, a, b)
+#define CO_LOG_ERR_S_3(status, tag, a, b, c)
+
+#define DEBUG_WARNING(...)
+#define CO_LOG_WAR_0(status)
+#define CO_LOG_WAR_1(status, a)
+#define CO_LOG_WAR_2(status, a, b)
+#define CO_LOG_WAR_3(status, a, b, c)
+#define CO_LOG_WAR_4(status, a, b, c, d)
+#define CO_LOG_WAR_S_0(status, tag)
+#define CO_LOG_WAR_S_1(status, tag, a)
+#define CO_LOG_WAR_S_2(status, tag, a, b)
+#define CO_LOG_WAR_S_3(status, tag, a, b, c)
+
+#define DEBUG_INFO(...)
+#define CO_LOG_INFO_0(status)
+#define CO_LOG_INFO_1(status, a)
+#define CO_LOG_INFO_2(status, a, b)
+#define CO_LOG_INFO_3(status, a, b, c)
+#define CO_LOG_INFO_4(status, a, b, c, d)
+#define CO_LOG_INFO_S_0(status, tag)
+#define CO_LOG_INFO_S_1(status, tag, a)
+#define CO_LOG_INFO_S_2(status, tag, a, b)
+#define CO_LOG_INFO_S_3(status, tag, a, b, c)
+
+#define DEBUG_VERBOSE(...)
+#define CO_LOG_VBS_0(status)
+#define CO_LOG_VBS_1(status, a)
+#define CO_LOG_VBS_2(status, a, b)
+#define CO_LOG_VBS_3(status, a, b, c)
+#define CO_LOG_VBS_4(status, a, b, c, d)
+#define CO_LOG_VBS_S_0(status, tag)
+#define CO_LOG_VBS_S_1(status, tag, a)
+#define CO_LOG_VBS_S_2(status, tag, a, b)
+#define CO_LOG_VBS_S_3(status, tag, a, b, c)
+
+#define DEBUG_ASSERT(expr)
+#define DEBUG_DUMP_DATA(...)
+#define DEBUG_RAW(...)
+#define DEBUG_IMM(...)
+#endif /* DBG_DEBUG_PRINT_ENABLE */
 
 bool co_uuid_is_equal_le(const uint8_t *uuid_a_le, uint16_t a, const uint8_t *uuid_b_le, uint16_t b);
 bool co_uuid_16_equal_le(uint16_t uuid_16_bit, const uint8_t *uuid_b_le, uint16_t b);
@@ -844,7 +1253,7 @@ typedef struct btif_event_t btif_event_t;
 enum BESBT_HOOK_USER_T {
     BESBT_HOOK_USER_0 = 0,
     BESBT_HOOK_USER_1,
-    BESBT_HOOK_USER_2,
+    BESBT_HOOK_USER_2,    
     BESBT_HOOK_USER_3,
     BESBT_HOOK_USER_QTY
 };
@@ -853,11 +1262,20 @@ typedef void (*BESBT_HOOK_HANDLER)(void);
 
 typedef struct APP_KEY_STATUS APP_KEY_STATUS;
 
+typedef void (*app_bt_cmd_function_handle)(void);
+
 typedef struct
 {
     const char* string;
-    void (*cmd_function)(const char* param, uint32_t param_len);
+    app_bt_cmd_function_handle function;
 } app_bt_cmd_handle_t;
+
+enum APP_BT_REQ_T {
+    APP_BT_REQ_ACCESS_MODE_SET,
+    APP_BT_REQ_AUTO_TEST,
+    APP_BT_DO_FUNCTION,
+    APP_BT_REQ_NUM
+};
 
 enum BT_ACL_CONN_TYPE
 {
@@ -915,16 +1333,17 @@ typedef struct {
 
 struct BT_DEVICE_T;
 struct BT_SOURCE_DEVICE_T;
+struct coheap_global_t;
 
 typedef struct _evm_timer evm_timer_t;
 typedef void (*evm_timer_notify) (evm_timer_t *);
 typedef struct { /* empty */ } btif_remote_device_t;
 typedef bool (*ibrt_rx_data_filter_func)(const bt_bdaddr_t *bdaddr,uint8_t rx_filter_type,void*para);
+typedef void (*ibrt_cmd_complete_callback)(const uint8_t *para);
 typedef void (*l2cap_sdp_disconnect_callback)(const bt_bdaddr_t *bdaddr);
 typedef uint8 (*bt_get_ibrt_role_callback)(const bt_bdaddr_t *para);
 typedef uint8 (*bt_get_ui_role_callback)(void);
 typedef uint8_t (*bt_get_tss_state_callback)(const bt_bdaddr_t *para);
-typedef bool (*bt_user_allow_accept_sco_callback)(uint8_t device_id, void *addr);
 typedef bool (*extra_acl_conn_req_callback)(uint8_t *remote, uint8_t *cod);
 typedef void (*bt_cmgr_sniff_timeout_ext_handler)(evm_timer_t * timer, unsigned int* skipInternalHandler);
 typedef bool (*bt_remote_is_mobile_callback_t)(const bt_bdaddr_t *remote);
@@ -946,7 +1365,9 @@ typedef void (*bt_hci_tx_tss_process_callback_t)(void);
 typedef void (*bt_stack_create_acl_failed_callback_t)(const bt_bdaddr_t *);
 typedef void (*bt_acl_conn_state_change_cb_t)(uint8_t type,bt_bdaddr_t* addr, uint32_t para);
 typedef void (*bt_pair_state_change_cb_t)(bt_bdaddr_t* addr, uint32_t para);
+typedef void (*btif_hci_vendor_event_callback_func)(uint8_t* pbuf, uint32_t length);
 typedef uint8_t (*btif_hci_sync_airmode_check_ind_func)(uint8_t status, bt_bdaddr_t *bdaddr);
+typedef bt_iocap_requirement_t *(*bt_iocap_request_callback_func)(uint8_t device_id, uint16_t connhdl, const bt_bdaddr_t *remote, const bt_iocap_requirement_t *remote_initiate);
 
 struct bt_defer_param_t {
     bool is_fixed_param;
@@ -957,9 +1378,6 @@ struct bt_defer_param_t {
 #define BT_DONT_CALL_FUNC_IN_BT_THREAD 0x01
 #define BT_CALL_FUNC_BY_MAIL_IN_BT_THREAD 0x02
 #define BT_LOCK_CALL_FUNC_IN_OTHER_THREAD 0x04
-#define BT_DELAY_CALL_FUNC_IN_BT_THREAD 0x08
-
-#define BT_DELAY_CALL_TIME_U24_MAX 0x00FFFFFF
 
 struct bt_defer_param_t bt_fixed_param_impl(uint32_t param);
 struct bt_defer_param_t bt_alloc_param_size(const void *data_ptr, uint16_t alloc_size);
@@ -996,17 +1414,6 @@ uint32_t bt_defer_curr_func_4_impl(uintptr_t func, struct bt_defer_param_t param
 #define bt_thread_call_func_2(func,a,b)      do { (void)bt_defer_curr_func_2_impl((uintptr_t)(func),(a),(b), BT_CALL_FUNC_BY_MAIL_IN_BT_THREAD); } while (0)
 #define bt_thread_call_func_3(func,a,b,c)    do { (void)bt_defer_curr_func_3_impl((uintptr_t)(func),(a),(b),(c), BT_CALL_FUNC_BY_MAIL_IN_BT_THREAD); } while (0)
 #define bt_thread_call_func_4(func,a,b,c,d)  do { (void)bt_defer_curr_func_4_impl((uintptr_t)(func),(a),(b),(c),(d), BT_CALL_FUNC_BY_MAIL_IN_BT_THREAD); } while (0)
-
-#define bt_delay_call_func_0(func,delay_ms_u24)          do { (void)bt_defer_curr_func_0_impl((uintptr_t)(func), \
-                                                                (CO_MIN_VALUE(delay_ms_u24, BT_DELAY_CALL_TIME_U24_MAX) << 8) | BT_DELAY_CALL_FUNC_IN_BT_THREAD); } while (0)
-#define bt_delay_call_func_1(func,delay_ms_u24,a)        do { (void)bt_defer_curr_func_1_impl((uintptr_t)(func),(a), \
-                                                                (CO_MIN_VALUE(delay_ms_u24, BT_DELAY_CALL_TIME_U24_MAX) << 8) | BT_DELAY_CALL_FUNC_IN_BT_THREAD); } while (0)
-#define bt_delay_call_func_2(func,delay_ms_u24,a,b)      do { (void)bt_defer_curr_func_2_impl((uintptr_t)(func),(a),(b), \
-                                                                (CO_MIN_VALUE(delay_ms_u24, BT_DELAY_CALL_TIME_U24_MAX) << 8) | BT_DELAY_CALL_FUNC_IN_BT_THREAD); } while (0)
-#define bt_delay_call_func_3(func,delay_ms_u24,a,b,c)    do { (void)bt_defer_curr_func_3_impl((uintptr_t)(func),(a),(b),(c), \
-                                                                (CO_MIN_VALUE(delay_ms_u24, BT_DELAY_CALL_TIME_U24_MAX) << 8) | BT_DELAY_CALL_FUNC_IN_BT_THREAD); } while (0)
-#define bt_delay_call_func_4(func,delay_ms_u24,a,b,c,d)  do { (void)bt_defer_curr_func_4_impl((uintptr_t)(func),(a),(b),(c),(d), \
-                                                                (CO_MIN_VALUE(delay_ms_u24, BT_DELAY_CALL_TIME_U24_MAX) << 8) | BT_DELAY_CALL_FUNC_IN_BT_THREAD); } while (0)
 
 #ifdef __cplusplus
 }

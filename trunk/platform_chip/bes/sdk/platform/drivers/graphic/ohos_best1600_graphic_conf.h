@@ -24,7 +24,7 @@
 
 /**
  *
- * LCDC/DMA2D Feature Configuration
+ * LCDC Feature Configuration
  *
  */
 // #define CONFIG_LCDC_AUTOREFRESH_MODE
@@ -34,9 +34,7 @@
 #define CONFIG_FB_OVERLAY_BLIT
 #define CONFIG_FB_OVERLAY
 
-// #define CONFIG_DMA2D_FB_CMAP
 // #define CONFIG_LCDC_DITHER
-// #define CONFIG_DMA2D_FB_COLORDITHER
 // #define CONFIG_FB_CMAP
 // #define CONFIG_FB_COLORDITHER
 // #define CONFIG_FB_COLORADJCURVE
@@ -52,21 +50,25 @@
 // #define CONFIG_PM
 // #define CONFIG_FB_VMIRRO
 
-//#define CONFIG_DMA2D /*used by lcdc driver*/
-
 /**
  * Board  Configuration
  */
 
 /* lcdc write back test switch, should removed at release */
 //#define  WB_TEST
-#ifdef TEST_WITH_GPU //if use gpu,Width should be 16-pixel aligned
-#define BOARD_LCDC_WIDTH               464 //gpu width
-#define BOARD_LCDC_HEIGHT              454
-#define SCREEN_WIDTH                   454 //screen 
+#if defined(CONFIG_DISPLAY_NT38350)
+    #define BOARD_LCDC_WIDTH               480 //gpu width
+    #define BOARD_LCDC_HEIGHT              480
+    #define SCREEN_WIDTH                   480 //screen
 #else
-#define BOARD_LCDC_WIDTH               454
-#define BOARD_LCDC_HEIGHT              454
+  #ifdef TEST_WITH_GPU //if use gpu,Width should be 16-pixel aligned
+    #define BOARD_LCDC_WIDTH               464 //gpu width
+    #define BOARD_LCDC_HEIGHT              454
+    #define SCREEN_WIDTH                   454 //screen
+  #else
+    #define BOARD_LCDC_WIDTH               454
+    #define BOARD_LCDC_HEIGHT              454
+  #endif
 #endif
 
 #define BOARD_LCDC_HFP 12
@@ -88,10 +90,6 @@
 #define CONFIG_LCDC_FBWB_BASE (CONFIG_LCDC_FB_BASE + \
                                CONFIG_LCDC_FBWB_BPP / 4 * BOARD_LCDC_WIDTH * BOARD_LCDC_HEIGHT)
 
-#define CONFIG_DMA2D_NLAYERS 1
-
-#define CONFIG_DMA2D_FB_BASE CONFIG_LCDC_FBWB_BASE
-
 #define CONFIG_LCDC_L1
 //#define CONFIG_LCDC_L2
 //#define CONFIG_LCDC_LWB
@@ -106,9 +104,5 @@
 
 //#define CONFIG_LCDC_LO_RGB565
 #define CONFIG_LCDC_LO_RGB888
-
-#define CONFIG_DMA2D_ARGB8888
-//#define CONFIG_DMA2D_RGB888
-//#define CONFIG_DMA2D_RGB565
 
 #endif //_OHOS_BEST1600_GRAPHIC_CONF_H

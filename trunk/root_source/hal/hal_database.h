@@ -16,7 +16,7 @@ extern "C" {
 */
 typedef enum {
     OP_CODE_DB_DELETE_ALL = (1 << 1),
-    OP_CODE_DB_REMOTE = (1 << 2),
+    OP_CODE_DB_DELETE = (1 << 2),
 } db_dev_op_code_e;
 
 #ifdef __cplusplus

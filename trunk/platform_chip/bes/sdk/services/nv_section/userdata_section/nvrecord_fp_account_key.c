@@ -1,6 +1,6 @@
 /***************************************************************************
  *
- * Copyright 2015-2019 BES.
+ * Copyright 2020-2025 BES.
  * All rights reserved. All unpublished rights reserved.
  *
  * No part of this work may be used or reproduced in any form or by any
@@ -47,7 +47,7 @@ void nv_record_update_fp_data_structure(NV_FP_ACCOUNT_KEY_RECORD_T* pFpData)
     else
     {
         uint32_t lock = nv_record_pre_write_operation();
-        NV_SECTION_TRACE(0,"Fast pair non-volatile data needs to be updated to aligned with peer device.");
+        TRACE(0,"Fast pair non-volatile data needs to be updated to aligned with peer device.");
         *nvrecord_fp_account_key_p = *pFpData;
         nv_record_post_write_operation(lock);
         nv_record_update_runtime_userdata();
@@ -64,8 +64,8 @@ void nv_record_fp_account_key_init(void)
 
 void nv_record_fp_account_key_add(NV_FP_ACCOUNT_KEY_ENTRY_T* param_rec)
 {
-    NV_SECTION_TRACE(0,"Add account key:");
-    NV_SECTION_DUMP8("0x%02x ", param_rec->key, FP_ACCOUNT_KEY_SIZE);
+    TRACE(0,"Add account key:");
+    DUMP8("0x%02x ", param_rec->key, FP_ACCOUNT_KEY_SIZE);
     uint32_t lock = nv_record_pre_write_operation();
     for(uint8_t index = 0; index < nvrecord_fp_account_key_p->key_count; index++)
     {
@@ -97,7 +97,7 @@ void nv_record_fp_account_key_add(NV_FP_ACCOUNT_KEY_ENTRY_T* param_rec)
 
 void nv_record_fp_update_addr(uint8_t i, uint8_t* addr)
 {
-    NV_SECTION_TRACE(1,"%s", __func__);
+    TRACE(1,"%s", __func__);
     uint8_t devCount;
     uint32_t lock = nv_record_pre_write_operation();
 
@@ -169,7 +169,7 @@ void nv_record_fp_get_key_by_addr(uint8_t* addr, uint8_t* key)
 
 void nv_record_fp_delete_addr(uint8_t* addr, uint8_t* key)
 {
-    NV_SECTION_TRACE(1,"%s", __func__);
+    TRACE(1,"%s", __func__);
     uint8_t keyCount, devCount;
     uint32_t lock = nv_record_pre_write_operation();
 
@@ -245,8 +245,8 @@ bool nv_record_fp_account_key_get_by_index(uint8_t index, uint8_t* outputKey)
     memcpy(outputKey, (uint8_t *)&(nvrecord_fp_account_key_p->accountKey[index].key),
         FP_ACCOUNT_KEY_SIZE);
 
-    NV_SECTION_TRACE(1,"Get account key %d as:", index);
-    NV_SECTION_DUMP8("0x%02x ", outputKey, FP_ACCOUNT_KEY_SIZE);
+    TRACE(1,"Get account key %d as:", index);
+    DUMP8("0x%02x ", outputKey, FP_ACCOUNT_KEY_SIZE);
 
     return true;
 }
@@ -272,13 +272,13 @@ uint8_t nv_record_fp_account_key_count(void)
 
 void nv_record_fp_update_name(uint8_t* ptrName, uint32_t nameLen)
 {
-    NV_SECTION_TRACE(1,"update name len %d", nameLen);
+    TRACE(1,"update name len %d", nameLen);
     uint32_t lock = nv_record_pre_write_operation();
 
     memset(nvrecord_fp_account_key_p->name, 0, FP_MAX_NAME_LEN);
     if (nameLen > 0)
     {
-        NV_SECTION_DUMP8("0x%02x ", ptrName, nameLen);
+        DUMP8("0x%02x ", ptrName, nameLen);
         memcpy(nvrecord_fp_account_key_p->name, ptrName, nameLen);
     }
     nvrecord_fp_account_key_p->nameLen = nameLen;
@@ -302,7 +302,7 @@ void nv_record_fp_update_all(uint8_t *info)
         uint32_t lock = nv_record_pre_write_operation();
         memcpy(nvrecord_fp_account_key_p, info, sizeof(NV_FP_ACCOUNT_KEY_RECORD_T));
         nv_record_update_runtime_userdata();
-        NV_SECTION_TRACE(1,"received fp count num:%d", nvrecord_fp_account_key_p->key_count);
+        TRACE(1,"received fp count num:%d", nvrecord_fp_account_key_p->key_count);
         nv_record_post_write_operation(lock);
     }
 }
@@ -370,7 +370,7 @@ void nv_record_fp_update_spot_adv_eanbled(bool spot_adv_enable)
 }
 bool nv_record_fp_get_spot_adv_enable_value(void)
 {
-    NV_SECTION_TRACE(1,"nv_record_fp_get_spot_adv_enable_value,%d",nvrecord_fp_account_key_p->spot_adv_enabled);
+    TRACE(1,"nv_record_fp_get_spot_adv_enable_value,%d",nvrecord_fp_account_key_p->spot_adv_enabled);
     return nvrecord_fp_account_key_p->spot_adv_enabled;
 }
 void nv_record_fp_reset_spot_adv_enable_value(void)
@@ -380,20 +380,6 @@ void nv_record_fp_reset_spot_adv_enable_value(void)
     nvrecord_fp_account_key_p->spot_adv_enabled = false;
     nv_record_post_write_operation(lock);
     nv_record_update_runtime_userdata();
-}
-
-void nv_record_fp_update_spot_hash_value(uint8_t hashed_value)
-{
-    uint32_t lock = nv_record_pre_write_operation();
-
-    nvrecord_fp_account_key_p->hashed_value = hashed_value;
-    nv_record_post_write_operation(lock);
-    nv_record_update_runtime_userdata();
-}
-
-uint8_t nv_record_fp_get_hash_value(void)
-{
-    return nvrecord_fp_account_key_p->hashed_value;
 }
 
 //when device power off to call this function
@@ -409,33 +395,6 @@ uint32_t nv_record_fp_get_current_beacon_time(void)
 {
     return nvrecord_fp_account_key_p->beacon_time;
 }
-
-uint32_t nv_record_fp_get_current_poweroff_time(void)
-{
-    return nvrecord_fp_account_key_p->poweroff_time;
-}
-
-void nv_record_fp_update_poweroff_time(uint32_t time)
-{
-    uint32_t lock = nv_record_pre_write_operation();
-    nvrecord_fp_account_key_p->poweroff_time = time;
-    nv_record_post_write_operation(lock);
-    nv_record_update_runtime_userdata();
-}
-
-uint32_t nv_record_fp_get_has_poweredoff_time(void)
-{
-    return nvrecord_fp_account_key_p->has_poweredoff_time;
-}
-
-void nv_record_fp_update_has_poweredoff_time(uint32_t time)
-{
-    uint32_t lock = nv_record_pre_write_operation();
-    nvrecord_fp_account_key_p->has_poweredoff_time += time;
-    nv_record_post_write_operation(lock);
-    nv_record_update_runtime_userdata();
-}
-
 
 #endif
 

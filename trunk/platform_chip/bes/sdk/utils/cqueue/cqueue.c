@@ -108,7 +108,7 @@ int EnCQueue_AI(CQueue *Q, CQItemType *e, unsigned int len, FRAME_LEN_GETTER_T g
             {
                 uint16_t frameLen = getter(Q);
                 DeCQueue(Q, NULL, frameLen);
-                CQUEUE_TRACE(1, "Warning: discard %d bytes from queue according getter", frameLen);
+                TRACE(1, "Warning: discard %d bytes from queue according getter", frameLen);
             } while (AvailableOfCQueue(Q) < len);
         }
         else
@@ -511,8 +511,8 @@ int DumpCQueue(CQueue *Q)
     {
         e = Q->base[i];
 
-        CQUEUE_TRACE(stderr, "-0x%x", e);
-        CQUEUE_TRACE(stderr, "-%c", e);
+        TRACE(stderr, "-0x%x", e);
+        TRACE(stderr, "-%c", e);
 
         ++i;
         --len;

@@ -33,23 +33,18 @@
 
 static void init_thread(const void *thd)
 {
-     platform_post_init();
-     uint32_t t0 = get_timestamp();
-     init_hang_detect_context();
-     init_broadcast_context();
-     init_handler_post_context();
-     register_module();
-     framework_extra_hook();
-     init_module();
-     init_user_log_filter();
-     run_user_thread_dispatch();
-     LOG_STEP("init escaped: %lu", (get_timestamp() - t0));
-    //  EXIT_THREAD((thread_context_t *)thd);
-    static uint32_t count = 0;
-    while (1) {
-        msleep(1000);
-        LOGI("init thread running count: %d", count++);
-    }
+    platform_post_init();
+    uint32_t t0 = get_timestamp();
+    init_hang_detect_context();
+    init_broadcast_context();
+    init_handler_post_context();
+    register_module();
+    framework_extra_hook();
+    init_module();
+    init_user_log_filter();
+    run_user_thread_dispatch();
+    LOG_STEP("init escaped: %lu", (get_timestamp() - t0));
+    EXIT_THREAD((thread_context_t *)thd);
 }
 
 /*

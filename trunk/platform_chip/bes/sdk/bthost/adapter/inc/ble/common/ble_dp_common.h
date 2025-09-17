@@ -43,14 +43,13 @@ typedef struct {
 typedef struct {
     uint8_t  *data;
     uint16_t data_len;
-    uint8_t  conidx;
 }app_dp_rec_data_msg_t;
 
 typedef union{
-    uint8_t connect_index;
-    uint8_t disconnect_index;
-    app_dp_mtu_exchange_msg_t dp_mtu_exchange;
-    app_dp_rec_data_msg_t dp_recv_data;
+    uint8_t* connect_index;
+    uint8_t* disconnect_index;
+    app_dp_mtu_exchange_msg_t* dp_mtu_exchange;
+    app_dp_rec_data_msg_t* dp_recv_data;
 }ble_if_app_dp_param_u;
 
 typedef void(*app_datapath_event_cb)(DP_EVENT_TYPE_E event_type, ble_if_app_dp_param_u *para_p);

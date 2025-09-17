@@ -14,7 +14,7 @@
  *
  *******************************************************************************/
 #include "app_tws_ibrt_cmd_handler.h"
-#include "bts_core_if.h"
+#include "app_tws_ctrl_thread.h"
 #include "app_tota_conn.h"
 #include "app_tota_cmd_code.h"
 #include "app_tota.h"
@@ -64,10 +64,10 @@ static void _calculate_encrypt_key();
 
 void app_tota_sync_encode_status_handle(uint8_t *key, uint16_t length)
 {
-    TOTA_V2_TRACE(0, "app_tota_sync_encode_status_handle");
+    TOTA_LOG_DBG(0, "app_tota_sync_encode_status_handle");
     tota_set_encrypt_key_from_hash_key(key);
     tota_set_connect_status(TOTA_SHAKE_HANDED);
-    TOTA_V2_TRACE(0, "get remote conn para");
+    TOTA_LOG_DBG(0, "get remote conn para");
 }
 
 
@@ -106,8 +106,8 @@ static void _generate_random_key()
     {
         prandom[i] = rand();
     }
-    TOTA_V2_TRACE(1,"generate random list, len=0x%x", random_length);
-    TOTA_V2_DUMP8("%02x ", keyManager.random_a.random_key, random_length);
+    TOTA_LOG_DBG(1,"generate random list, len=0x%x", random_length);
+    TOTA_LOG_DUMP("%02x ", keyManager.random_a.random_key, random_length);
 }
 
 static void _calculate_encrypt_key()
@@ -129,12 +129,12 @@ static void _calculate_encrypt_key()
     }
     else
     {
-        TOTA_V2_TRACE(0, "random list is the same size");
+        TOTA_LOG_DBG(0, "random list is the same size");
     }
-    TOTA_V2_TRACE(1,"random list a, len=0x%x", prandom_a->length);
-    TOTA_V2_DUMP8("%02x ", keyManager.random_a.random_key, prandom_a->length);
-    TOTA_V2_TRACE(1,"random list b, len=0x%x", prandom_b->length);
-    TOTA_V2_DUMP8("%02x ", keyManager.random_b.random_key, prandom_b->length);
+    TOTA_LOG_DBG(1,"random list a, len=0x%x", prandom_a->length);
+    TOTA_LOG_DUMP("%02x ", keyManager.random_a.random_key, prandom_a->length);
+    TOTA_LOG_DBG(1,"random list b, len=0x%x", prandom_b->length);
+    TOTA_LOG_DUMP("%02x ", keyManager.random_b.random_key, prandom_b->length);
 
     /* calculate random_key */
     for ( uint8_t i = 0; i < prandom_a->length; i ++ )
@@ -142,18 +142,18 @@ static void _calculate_encrypt_key()
         random_key[i] = _generate_random_algorithm(i,prandom_a->random_key[i], prandom_b->random_key[i]);
     }
 
-    TOTA_V2_TRACE(0,"generate random key:");
-    TOTA_V2_DUMP8("%02x ", random_key, prandom_a->length);
+    TOTA_LOG_DBG(0,"generate random key:");
+    TOTA_LOG_DUMP("%02x ", random_key, prandom_a->length);
 
     SHA256_hash(random_key, prandom_a->length, keyManager.hash_key);
 
-    TOTA_V2_TRACE(0,"generate hash key:");
-    TOTA_V2_DUMP8("%02x", keyManager.hash_key, HASH_KEY_SIZE);
+    TOTA_LOG_DBG(0,"generate hash key:");
+    TOTA_LOG_DUMP("%02x", keyManager.hash_key, HASH_KEY_SIZE);
 }
 
 static void _tota_conn_and_update_key_handle(APP_TOTA_CMD_CODE_E funcCode, uint8_t* ptrParam, uint32_t paramLen)
 {
-    TOTA_V2_TRACE(3,"[%s]: opCode:0x%x, paramLen:%d", __func__, funcCode, paramLen);
+    TOTA_LOG_DBG(3,"[%s]: opCode:0x%x, paramLen:%d", __func__, funcCode, paramLen);
     TOTA_CONN_STRUCT_T * pConn = (TOTA_CONN_STRUCT_T *)ptrParam;
 
     switch ( funcCode )
@@ -176,21 +176,19 @@ static void _tota_conn_and_update_key_handle(APP_TOTA_CMD_CODE_E funcCode, uint8
 #ifdef IBRT
                     tws_ctrl_send_cmd(APP_TWS_CMD_SYNC_TOTA_ENCODE_STATUS, keyManager.hash_key, HASH_KEY_SIZE);
 #endif
-                    TOTA_V2_TRACE(0, "tota connect success");
-                    unsigned char str[] = "connect success.";
-                    app_tota_send(str, strlen((const char*)str), OP_TOTA_STRING);
+                    TOTA_LOG_DBG(0, "tota connect success");
+                    tota_print("connect success.");
                 }
                 else
                 {
                     tota_set_connect_status(TOTA_CONNECTED);
-                    TOTA_V2_TRACE(0, "tota connect failed");
-                    unsigned char str[] = "shake hand failed.";
-                    app_tota_send(str, strlen((const char*)str), OP_TOTA_STRING);
+                    TOTA_LOG_DBG(0, "tota connect failed");
+                    tota_print("shake hand failed.");
                 }
             }
             break;
         default:
-            TOTA_V2_TRACE(1, "Unhandled OpCode:0x%x", funcCode);
+            TOTA_LOG_DBG(1, "Unhandled OpCode:0x%x", funcCode);
     }
 }
 

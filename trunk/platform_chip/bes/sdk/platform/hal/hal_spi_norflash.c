@@ -22,6 +22,12 @@
 #include "hal_trace.h"
 #include "string.h"
 
+#ifdef SPI_NORFLASH_DEBUG
+    #define HAL_SPI_NORFLASH_TRACE(n, s, ...)    TRACE(n, s, ##__VA_ARGS__)
+#else
+    #define HAL_SPI_NORFLASH_TRACE(n, s, ...)    TRACE_DUMMY(n, s, ##__VA_ARGS__)
+#endif
+
 static const struct HAL_SPI_CFG_T _spi_cfg_default = {
     .rate = 24 * 1000000,
     .clk_delay_half = true,
@@ -67,7 +73,7 @@ enum HAL_SPI_NORFLASH_RET_T _spi_norflash_open(enum HAL_SPI_NORFLASH_ID_T id, co
     uint32_t page_size = 0;
     struct HAL_SPI_CFG_T spi_cfg;
 
-    HAL_TRACE(2, "%s:%d", __func__, __LINE__);
+    HAL_SPI_NORFLASH_TRACE(2, "%s:%d", __func__, __LINE__);
     ASSERT(id < HAL_SPI_NORFLASH_ID_NUM, "%s: id error! id = %d", __func__, id);
     ASSERT(!spi_norflash_ctx[id].opened, "%s: flash is opened!", __func__);
 
@@ -76,13 +82,13 @@ enum HAL_SPI_NORFLASH_RET_T _spi_norflash_open(enum HAL_SPI_NORFLASH_ID_T id, co
 
     result = spi_norflash_drv_spi_init(&spi_cfg);
     if (result) {
-        HAL_TRACE(1, "%s: spi_norflash_drv_spi_init failed! result = %d", __func__, result);
+        HAL_SPI_NORFLASH_TRACE(1, "%s: spi_norflash_drv_spi_init failed! result = %d", __func__, result);
         return HAL_SPI_NORFLASH_SPI_INIT_ERROR;
     }
 
     result = spi_norflash_drv_get_id(flash_id, sizeof(flash_id));
     if (result) {
-        HAL_TRACE(1, "%s: spi_norflash_drv_get_id failed! ret = %d", __func__, result);
+        HAL_SPI_NORFLASH_TRACE(1, "%s: spi_norflash_drv_get_id failed! ret = %d", __func__, result);
         return HAL_SPI_NORFLASH_GET_ID_FAIL;
     }
 
@@ -98,11 +104,11 @@ enum HAL_SPI_NORFLASH_RET_T _spi_norflash_open(enum HAL_SPI_NORFLASH_ID_T id, co
             spi_norflash_ctx[id].opened = true;
             ret = HAL_SPI_NORFLASH_OK;
         } else {
-            HAL_TRACE(1, "%s: spi_norflash_get_size failed! result = %d", __func__, result);
+            HAL_SPI_NORFLASH_TRACE(1, "%s: spi_norflash_get_size failed! result = %d", __func__, result);
             ret = HAL_SPI_NORFLASH_BAD_IDX;
         }
     } else {
-        HAL_TRACE(1, "%s: spi_norflash_match_chip false! ", __func__);
+        HAL_SPI_NORFLASH_TRACE(1, "%s: spi_norflash_match_chip false! ", __func__);
         ret = HAL_SPI_NORFLASH_BAD_ID;
     }
 
@@ -122,10 +128,10 @@ enum HAL_SPI_NORFLASH_RET_T hal_spi_norflash_init(void)
 {
     enum HAL_SPI_NORFLASH_RET_T ret;
 
-    HAL_TRACE(2, "%s:%d", __func__, __LINE__);
+    HAL_SPI_NORFLASH_TRACE(2, "%s:%d", __func__, __LINE__);
     ret = hal_spi_norflash_open(HAL_SPI_NORFLASH_ID_0, &spi_norflash_cfg, _spi_cfg_default.rate);
     if (ret != HAL_SPI_NORFLASH_OK) {
-        HAL_TRACE(1, "%s: hal_spi_norflash_open failed! ret = %d", __func__, ret);
+        HAL_SPI_NORFLASH_TRACE(1, "%s: hal_spi_norflash_open failed! ret = %d", __func__, ret);
     }
 
     return ret;
@@ -144,7 +150,7 @@ enum HAL_SPI_NORFLASH_RET_T hal_spi_norflash_open(enum HAL_SPI_NORFLASH_ID_T id,
 
 enum HAL_SPI_NORFLASH_RET_T hal_spi_norflash_close(enum HAL_SPI_NORFLASH_ID_T id)
 {
-    HAL_TRACE(2, "%s:%d", __func__, __LINE__);
+    HAL_SPI_NORFLASH_TRACE(2, "%s:%d", __func__, __LINE__);
     ASSERT(id < HAL_SPI_NORFLASH_ID_NUM, "%s: id error! id = %d", __func__, id);
     ASSERT(spi_norflash_ctx[id].opened, "%s: flash not opened!", __func__);
 
@@ -158,13 +164,13 @@ enum HAL_SPI_NORFLASH_RET_T hal_spi_norflash_get_id(enum HAL_SPI_NORFLASH_ID_T i
 {
     int32_t ret;
 
-    HAL_TRACE(2, "%s:%d", __func__, __LINE__);
+    HAL_SPI_NORFLASH_TRACE(2, "%s:%d", __func__, __LINE__);
     ASSERT(id < HAL_SPI_NORFLASH_ID_NUM, "%s: id error! id = %d", __func__, id);
     ASSERT(spi_norflash_ctx[id].opened, "%s: flash not opened!", __func__);
 
     ret = spi_norflash_drv_get_id(value, len);
     if (ret) {
-        HAL_TRACE(1, "%s: spi_norflash_drv_get_id failed! ret = %d.", __func__, ret);
+        HAL_SPI_NORFLASH_TRACE(1, "%s: spi_norflash_drv_get_id failed! ret = %d.", __func__, ret);
         return HAL_SPI_NORFLASH_ERR;
     }
 
@@ -186,7 +192,7 @@ enum HAL_SPI_NORFLASH_RET_T hal_spi_norflash_get_unique_id(enum HAL_SPI_NORFLASH
 
 enum HAL_SPI_NORFLASH_RET_T hal_spi_norflash_get_size(enum HAL_SPI_NORFLASH_ID_T id, uint32_t *total_size, uint32_t *block_size, uint32_t *sector_size, uint32_t *page_size)
 {
-    HAL_TRACE(2, "%s:%d", __func__, __LINE__);
+    HAL_SPI_NORFLASH_TRACE(2, "%s:%d", __func__, __LINE__);
     ASSERT(id < HAL_SPI_NORFLASH_ID_NUM, "%s: id error! id = %d", __func__, id);
     ASSERT(spi_norflash_ctx[id].opened, "%s: spi norflash not opened", __func__);
 
@@ -202,28 +208,28 @@ enum HAL_SPI_NORFLASH_RET_T hal_spi_norflash_read(enum HAL_SPI_NORFLASH_ID_T id,
 {
     int32_t ret;
 
-    HAL_TRACE(2, "%s:%d", __func__, __LINE__);
+    HAL_SPI_NORFLASH_TRACE(2, "%s:%d", __func__, __LINE__);
     ASSERT(id < HAL_SPI_NORFLASH_ID_NUM, "%s: id error! id = %d", __func__, id);
     ASSERT(spi_norflash_ctx[id].opened, "%s: spi norflash not opened", __func__);
 
     if (addr + len > spi_norflash_ctx[id].total_size) {
-        HAL_TRACE(1, "%s: addr error! add = 0x%x,len = 0x%x.", __func__, addr, len);
+        HAL_SPI_NORFLASH_TRACE(1, "%s: addr error! add = 0x%x,len = 0x%x.", __func__, addr, len);
         return HAL_SPI_NORFLASH_BAD_ADDR;
     }
 
     if (buff == NULL) {
-        HAL_TRACE(1, "%s: buff is null!", __func__);
+        HAL_SPI_NORFLASH_TRACE(1, "%s: buff is null!", __func__);
         return HAL_SPI_NORFLASH_BUFF_IS_NULL;
     }
 
     if (len == 0) {
-        HAL_TRACE(1, "%s: len = 0!", __func__);
+        HAL_SPI_NORFLASH_TRACE(1, "%s: len = 0!", __func__);
         return HAL_SPI_NORFLASH_BAD_LEN;
     }
 
     ret = spi_norflash_drv_read(addr, buff, len);
     if (ret) {
-        HAL_TRACE(1, "%s: spi_norflash_drv_read failed! ret = %d", __func__, ret);
+        HAL_SPI_NORFLASH_TRACE(1, "%s: spi_norflash_drv_read failed! ret = %d", __func__, ret);
         return HAL_SPI_NORFLASH_READ_ERROR;
     }
 
@@ -234,28 +240,28 @@ enum HAL_SPI_NORFLASH_RET_T hal_spi_norflash_write(enum HAL_SPI_NORFLASH_ID_T id
 {
     int32_t ret;
 
-    HAL_TRACE(2, "%s:%d", __func__, __LINE__);
+    HAL_SPI_NORFLASH_TRACE(2, "%s:%d", __func__, __LINE__);
     ASSERT(id < HAL_SPI_NORFLASH_ID_NUM, "%s: id error! id = %d", __func__, id);
     ASSERT(spi_norflash_ctx[id].opened, "%s: spi norflash not opened", __func__);
 
     if (addr + len > spi_norflash_ctx[id].total_size) {
-        HAL_TRACE(1, "%s: addr error! add = 0x%x,len = 0x%x.", __func__, addr, len);
+        HAL_SPI_NORFLASH_TRACE(1, "%s: addr error! add = 0x%x,len = 0x%x.", __func__, addr, len);
         return HAL_SPI_NORFLASH_BAD_ADDR;
     }
 
     if (buff == NULL) {
-        HAL_TRACE(1, "%s: buff is null!", __func__);
+        HAL_SPI_NORFLASH_TRACE(1, "%s: buff is null!", __func__);
         return HAL_SPI_NORFLASH_BUFF_IS_NULL;
     }
 
     if (len == 0) {
-        HAL_TRACE(1, "%s: len = 0!", __func__);
+        HAL_SPI_NORFLASH_TRACE(1, "%s: len = 0!", __func__);
         return HAL_SPI_NORFLASH_BAD_LEN;
     }
 
     ret = spi_norflash_drv_write(addr, buff, len);
     if (ret) {
-        HAL_TRACE(1, "%s: spi_norflash_drv_write failed! ret = %d", __func__, ret);
+        HAL_SPI_NORFLASH_TRACE(1, "%s: spi_norflash_drv_write failed! ret = %d", __func__, ret);
         return HAL_SPI_NORFLASH_WRITE_ERROR;
     }
 
@@ -266,44 +272,44 @@ enum HAL_SPI_NORFLASH_RET_T hal_spi_norflash_erase(enum HAL_SPI_NORFLASH_ID_T id
 {
     int32_t ret;
 
-    HAL_TRACE(2, "%s:%d", __func__, __LINE__);
+    HAL_SPI_NORFLASH_TRACE(2, "%s:%d", __func__, __LINE__);
     ASSERT(id < HAL_SPI_NORFLASH_ID_NUM, "%s: id error! id = %d", __func__, id);
     ASSERT(spi_norflash_ctx[id].opened, "%s: spi norflash not opened", __func__);
 
     if (addr + len > spi_norflash_ctx[id].total_size) {
-        HAL_TRACE(1, "%s: addr error! add = 0x%x,len = 0x%x.", __func__, addr, len);
+        HAL_SPI_NORFLASH_TRACE(1, "%s: addr error! add = 0x%x,len = 0x%x.", __func__, addr, len);
         return HAL_SPI_NORFLASH_BAD_ADDR;
     }
 
     if (len == 0) {
-        HAL_TRACE(1, "%s: len = 0!", __func__);
+        HAL_SPI_NORFLASH_TRACE(1, "%s: len = 0!", __func__);
         return HAL_SPI_NORFLASH_BAD_LEN;
     }
 #ifdef FLASH_ERASE_PAGE_ENABLE
     if (addr & (spi_norflash_ctx[id].page_size - 1)) {
-        HAL_TRACE(1, "%s: addr no alignment.addr = 0x%x!", __func__, addr);
+        HAL_SPI_NORFLASH_TRACE(1, "%s: addr no alignment.addr = 0x%x!", __func__, addr);
         return HAL_SPI_NORFLASH_BAD_ADDR;
     }
 
     if (len & (spi_norflash_ctx[id].page_size - 1)) {
-        HAL_TRACE(1, "%s: len no alignment.addr = 0x%x!", __func__, len);
+        HAL_SPI_NORFLASH_TRACE(1, "%s: len no alignment.addr = 0x%x!", __func__, len);
         return HAL_SPI_NORFLASH_BAD_ADDR;
     }
 #else
     if (addr & (spi_norflash_ctx[id].sector_size - 1)) {
-        HAL_TRACE(1, "%s: addr no alignment.addr = 0x%x!", __func__, addr);
+        HAL_SPI_NORFLASH_TRACE(1, "%s: addr no alignment.addr = 0x%x!", __func__, addr);
         return HAL_SPI_NORFLASH_BAD_ADDR;
     }
 
     if (len & (spi_norflash_ctx[id].sector_size - 1)) {
-        HAL_TRACE(1, "%s: len no alignment.addr = 0x%x!", __func__, len);
+        HAL_SPI_NORFLASH_TRACE(1, "%s: len no alignment.addr = 0x%x!", __func__, len);
         return HAL_SPI_NORFLASH_BAD_ADDR;
     }
 #endif
 
     ret = spi_norflash_drv_erase(addr, len);
     if (ret) {
-        HAL_TRACE(1, "%s: spi_norflash_drv_erase failed! ret = %d", __func__, ret);
+        HAL_SPI_NORFLASH_TRACE(1, "%s: spi_norflash_drv_erase failed! ret = %d", __func__, ret);
         return HAL_SPI_NORFLASH_ERASE_ERROR;
     }
 
@@ -314,10 +320,10 @@ enum HAL_SPI_NORFLASH_RET_T hal_spi_norflash_reset(enum HAL_SPI_NORFLASH_ID_T id
 {
     int ret;
 
-    HAL_TRACE(2, "%s:%d", __func__, __LINE__);
+    HAL_SPI_NORFLASH_TRACE(2, "%s:%d", __func__, __LINE__);
     ret = spi_norflash_drv_reset();
     if (ret) {
-        HAL_TRACE(1, "%s: spi_norflash_drv_reset failed! ret = %d", __func__, ret);
+        HAL_SPI_NORFLASH_TRACE(1, "%s: spi_norflash_drv_reset failed! ret = %d", __func__, ret);
         return HAL_SPI_NORFLASH_RESET_ERROR;
     }
 

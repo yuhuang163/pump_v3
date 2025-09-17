@@ -19,9 +19,7 @@
 #include "bluetooth.h"
 
 #include "bth_patch_basic.h"
-#if BLE_AUDIO_ENABLED
 #include "bth_patch_gaf.h"
-#endif
 #include "bth_patch_l2cap.h"
 #include "bth_patch_hci.h"
 #include "bth_patch_btprf.h"
@@ -30,21 +28,19 @@
 extern "C" {
 #endif
 
+#if defined (BLE_STACK_NEW_DESIGN)
 #if defined (BUILD_BTH_ROM)
 
 #define __BTH_STATIC
-#define call_wrapper(module, func, ...)         (((func##_func_t)(g_patch_tbl_##module[FUNC_ID_##module##_##func]))(__VA_ARGS__))
-#define call_get_func(module, func)             ((func##_func_t)(g_patch_tbl_##module[FUNC_ID_##module##_##func]))
+#define call_wrapper(module, func, ...)         (((func##_func_t)(g_patch_tbl_##module[FUNC_ID_##func]))(__VA_ARGS__))
+#define call_get_func(module, func)             ((func##_func_t)(g_patch_tbl_##module[FUNC_ID_##func]))
 #else
 #define __BTH_STATIC                            static
 #define call_wrapper(module, func, ...)         func(__VA_ARGS__)
 #define call_get_func(module, func)             func
 
 #endif  /* BUILD_BTH_ROM */
-
-#define patch_place_func(module, func, patch)   do { \
-                                                        g_patch_tbl_##module[FUNC_ID_##module##_##func] = (uint32_t)patch; \
-                                                } while (0)
+#endif  /* BLE_STACK_NEW_DESIGN */
 
 #ifdef __cplusplus
 }

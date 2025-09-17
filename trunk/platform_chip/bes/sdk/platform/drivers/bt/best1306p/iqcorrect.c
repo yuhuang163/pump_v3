@@ -68,7 +68,7 @@ static float get_DC_energy(uint32_t addr, short dc_i, short dc_q,int num)
         float E = sqrtf(i_data*i_data + q_data*q_data);
 
 #ifdef IQ_DEBUG
-        DRIVERS_TRACE(3,"geti=%d,q=%d,e_tmp=%d",dc_i,dc_q,(int)E);
+        BT_DRV_TRACE(3,"geti=%d,q=%d,e_tmp=%d",dc_i,dc_q,(int)E);
 #endif
         E_ave += E;
     }
@@ -116,7 +116,7 @@ static float get_iq_energy(uint32_t addr, short gain,short phase,int num, uint32
 
         i_data = BTDIGITAL_REG(BESMDM_ONE_TONE_ENERGY_GET_I_ADDR) & 0x3FFFFF;
         q_data = BTDIGITAL_REG(BESMDM_ONE_TONE_ENERGY_GET_Q_ADDR) & 0x3FFFFF;
-        //DRIVERS_TRACE(2,"i=0x%x,q=0x%x",i_data,q_data);
+        //BT_DRV_TRACE(2,"i=0x%x,q=0x%x",i_data,q_data);
         if(0x200000 <= i_data)
             i_data -= 0x400000;
         if(0x200000 <= q_data)
@@ -126,7 +126,7 @@ static float get_iq_energy(uint32_t addr, short gain,short phase,int num, uint32
         float E = sqrtf(i_data*i_data + q_data*q_data);
 
 #ifdef IQ_DEBUG
-        DRIVERS_TRACE(3,"n=%d,g=%d,p=%d,e=%d",cc,gain,phase,(int)E);
+        BT_DRV_TRACE(3,"n=%d,g=%d,p=%d,e=%d",cc,gain,phase,(int)E);
 #endif
         E_ave += E;
     }
@@ -159,8 +159,8 @@ static int get_best_i(int min_i,float min_energy,int base_q,int step,int* im, fl
             energy_middle = get_DC_energy(e_addr, i_middle, base_q, 2);
         }
 #ifdef DC_DEBUG
-        DRIVERS_TRACE(4,"Mi=%d,q=%d,e=%d,DC_Emin=%d",i_middle,base_q,(int)energy_middle,(int)*em);
-        DRIVERS_TRACE(4,"Li=%d,ri=%d,le=%d,re=%d",i_left,i_right,(int)energy_left,(int)energy_right);
+        BT_DRV_TRACE(4,"Mi=%d,q=%d,e=%d,DC_Emin=%d",i_middle,base_q,(int)energy_middle,(int)*em);
+        BT_DRV_TRACE(4,"Li=%d,ri=%d,le=%d,re=%d",i_left,i_right,(int)energy_left,(int)energy_right);
 #endif
         if(energy_left > energy_right) {
             i_left = i_middle;
@@ -178,7 +178,7 @@ static int get_best_i(int min_i,float min_energy,int base_q,int step,int* im, fl
             *em = min_energy;
         }
 #ifdef DC_DEBUG
-        //DRIVERS_TRACE(4,"DICHOTOMY_best_i=%d,best_q=%d,energy_min=%d,DC_Emin=%d",min_i,base_q,(int)min_energy,(int)*em);
+        //BT_DRV_TRACE(4,"DICHOTOMY_best_i=%d,best_q=%d,energy_min=%d,DC_Emin=%d",min_i,base_q,(int)min_energy,(int)*em);
 #endif
         if(ABS(i_left - i_right) < 2)
             break;
@@ -196,7 +196,7 @@ static int get_best_i(int min_i,float min_energy,int base_q,int step,int* im, fl
         *em = min_energy;
     }
 #ifdef DC_DEBUG
-    DRIVERS_TRACE(4,"LAST_i=%d,q=%d,e=%d,DC_Emin=%d",min_i,base_q,(int)min_energy,(int)*em);
+    BT_DRV_TRACE(4,"LAST_i=%d,q=%d,e=%d,DC_Emin=%d",min_i,base_q,(int)min_energy,(int)*em);
 #endif
     if(min_i != *im) {
         *em = get_DC_energy(e_addr, *im, base_q, 3);
@@ -232,10 +232,10 @@ static int get_best_q(int min_q,float min_energy,int base_i,int step,int* qm, fl
             energy_middle = get_DC_energy(e_addr, base_i, q_middle, 2);
         }
 #ifdef DC_DEBUG
-        DRIVERS_TRACE(4,"Mi=%d,q=%d,e=%d,DC_Emin=%d",base_i,q_middle,(int)energy_middle,(int)*em);
+        BT_DRV_TRACE(4,"Mi=%d,q=%d,e=%d,DC_Emin=%d",base_i,q_middle,(int)energy_middle,(int)*em);
 #endif
 #ifdef DC_DEBUG
-        DRIVERS_TRACE(4,"Lq=%d,rq=%d,le=%d,re=%d",q_left,q_right,(int)energy_left,(int)energy_right);
+        BT_DRV_TRACE(4,"Lq=%d,rq=%d,le=%d,re=%d",q_left,q_right,(int)energy_left,(int)energy_right);
 #endif
         if(energy_left > energy_right) {
             q_left = q_middle;
@@ -253,7 +253,7 @@ static int get_best_q(int min_q,float min_energy,int base_i,int step,int* qm, fl
             *em = min_energy;
         }
 #ifdef DC_DEBUG
-        //DRIVERS_TRACE(4,"DICHOTOMY_best_i=%d,best_q=%d,energy_min=%d,DC_Emin=%d",base_i,min_q,(int)min_energy,(int)*em);
+        //BT_DRV_TRACE(4,"DICHOTOMY_best_i=%d,best_q=%d,energy_min=%d,DC_Emin=%d",base_i,min_q,(int)min_energy,(int)*em);
 #endif
         if(ABS(q_left - q_right) < 2)
             break;
@@ -271,7 +271,7 @@ static int get_best_q(int min_q,float min_energy,int base_i,int step,int* qm, fl
         *em = min_energy;
     }
 #ifdef DC_DEBUG
-    DRIVERS_TRACE(4,"LAST_i=%d,q=%d,e=%d,DC_Emin=%d",base_i,min_q,(int)min_energy,(int)*em);
+    BT_DRV_TRACE(4,"LAST_i=%d,q=%d,e=%d,DC_Emin=%d",base_i,min_q,(int)min_energy,(int)*em);
 #endif
     if(min_q != *qm) {
         *em = get_DC_energy(e_addr, base_i, *qm, 3);
@@ -306,8 +306,8 @@ static int get_best_gain(uint32_t addr,int min_gain,float min_energy,int base_ph
             energy_middle = get_iq_energy(en_addr, gain_middle, base_phase, 2, freq_addr);
         }
 #ifdef IQ_DEBUG
-        DRIVERS_TRACE(4,"Mg=%d,p=%d,e=%d,IQ_Emin=%d",gain_middle,base_phase,(int)energy_middle,(int)*em);
-        DRIVERS_TRACE(4,"Lg=%d,rg=%d,le=%d,re=%d",gain_left,gain_right,(int)energy_left,(int)energy_right);
+        BT_DRV_TRACE(4,"Mg=%d,p=%d,e=%d,IQ_Emin=%d",gain_middle,base_phase,(int)energy_middle,(int)*em);
+        BT_DRV_TRACE(4,"Lg=%d,rg=%d,le=%d,re=%d",gain_left,gain_right,(int)energy_left,(int)energy_right);
 #endif
         if(energy_left > energy_right) {
             gain_left = gain_middle;
@@ -326,7 +326,7 @@ static int get_best_gain(uint32_t addr,int min_gain,float min_energy,int base_ph
         }
 
 #ifdef IQ_DEBUG
-        //DRIVERS_TRACE(4,"DICHOTOMY_best_gain=%d,best_phase=%d,energy_min=%d,IQ_Emin=%d",min_gain,base_phase,(int)min_energy,(int)*em);
+        //BT_DRV_TRACE(4,"DICHOTOMY_best_gain=%d,best_phase=%d,energy_min=%d,IQ_Emin=%d",min_gain,base_phase,(int)min_energy,(int)*em);
 #endif
         if(ABS(gain_left-gain_right) < 2)
             break;
@@ -344,7 +344,7 @@ static int get_best_gain(uint32_t addr,int min_gain,float min_energy,int base_ph
         *em = min_energy;
     }
 #ifdef IQ_DEBUG
-    //DRIVERS_TRACE(4,"LAST_DICHOTOMY_best_gain=%d,best_phase=%d,energy_min=%d,IQ_Emin=%d",min_gain,base_phase,(int)min_energy,(int)*em);
+    //BT_DRV_TRACE(4,"LAST_DICHOTOMY_best_gain=%d,best_phase=%d,energy_min=%d,IQ_Emin=%d",min_gain,base_phase,(int)min_energy,(int)*em);
 #endif
     if(min_gain != *gm) {
         *em = get_DC_energy(en_addr, *gm, base_phase, 3);
@@ -379,8 +379,8 @@ static int get_best_phase(uint32_t addr,int min_phase,float min_energy,int base_
             energy_middle = get_iq_energy(en_addr,base_gain,phase_middle,2, freq_addr);
         }
 #ifdef IQ_DEBUG
-        DRIVERS_TRACE(4,"Mg=%d,p=%d,e=%d,IQ_Emin=%d",base_gain,phase_middle,(int)energy_middle,(int)*em);
-        DRIVERS_TRACE(4,"Lp=%d,rp=%d,le=%d,re=%d",phase_left,phase_right,(int)energy_left,(int)energy_right);
+        BT_DRV_TRACE(4,"Mg=%d,p=%d,e=%d,IQ_Emin=%d",base_gain,phase_middle,(int)energy_middle,(int)*em);
+        BT_DRV_TRACE(4,"Lp=%d,rp=%d,le=%d,re=%d",phase_left,phase_right,(int)energy_left,(int)energy_right);
 #endif
         if(energy_left > energy_right) {
             phase_left = phase_middle;
@@ -398,7 +398,7 @@ static int get_best_phase(uint32_t addr,int min_phase,float min_energy,int base_
             *em = min_energy;
         }
 #ifdef IQ_DEBUG
-        //DRIVERS_TRACE(4,"DICHOTOMY_best_gain=%d,best_phase=%d,energy_min=%d,IQ_Emin=%d",base_gain,min_phase,(int)min_energy,(int)*em);
+        //BT_DRV_TRACE(4,"DICHOTOMY_best_gain=%d,best_phase=%d,energy_min=%d,IQ_Emin=%d",base_gain,min_phase,(int)min_energy,(int)*em);
 #endif
         if(ABS(phase_left - phase_right) < 2)
             break;
@@ -416,7 +416,7 @@ static int get_best_phase(uint32_t addr,int min_phase,float min_energy,int base_
         *em = min_energy;
     }
 #ifdef IQ_DEBUG
-    //DRIVERS_TRACE(4,"LAST_DICHOTOMY_best_gain=%d,best_phase=%d,energy_min=%d,IQ_Emin=%d",base_gain,min_phase,(int)min_energy,(int)*em);
+    //BT_DRV_TRACE(4,"LAST_DICHOTOMY_best_gain=%d,best_phase=%d,energy_min=%d,IQ_Emin=%d",base_gain,min_phase,(int)min_energy,(int)*em);
 #endif
     if(min_phase != *pm) {
         *em = get_DC_energy(en_addr, base_gain, *pm, 3);
@@ -431,7 +431,7 @@ static int get_best_phase(uint32_t addr,int min_phase,float min_energy,int base_
 
 void dc_iq_calib_1306p(void)
 {
-    POSSIBLY_UNUSED uint32_t time_start = hal_sys_timer_get();
+    uint32_t time_start = hal_sys_timer_get();
     BTDIGITAL_REG_WR(BESMDM_ONE_TONE_SET_GAIN_ADDR, 0x02500012);        //one tone set gain
     BTDIGITAL_REG_WR(BESMDM_ONE_TONE_SET_FREQ_ADDR, 0x7);	        //187.5k tone	bit7:0 0x3
 #ifdef DC_CALIB
@@ -456,17 +456,17 @@ void dc_iq_calib_1306p(void)
             DC_energy_min = min_energy;
         }
 #ifdef DC_DEBUG
-    //DRIVERS_TRACE(4,"i=%d,q=%d,e_tmp=%d,DC_Emin=%d",base_i,q1,(int)e_tmp,(int)DC_energy_min);
+    //BT_DRV_TRACE(4,"i=%d,q=%d,e_tmp=%d,DC_Emin=%d",base_i,q1,(int)e_tmp,(int)DC_energy_min);
 #endif
     }
 #ifdef DC_DEBUG
-    DRIVERS_TRACE(4,"--------------SWEEP q=%d,e_tmp=%d--------------",min_q,(int)min_energy);
+    BT_DRV_TRACE(4,"--------------SWEEP q=%d,e_tmp=%d--------------",min_q,(int)min_energy);
 #endif
 
     base_q=get_best_q(min_q,min_energy,base_i,step,&DC_q_min,&DC_energy_min);
 
 #ifdef DC_DEBUG
-    DRIVERS_TRACE(2,"Step1:best_q=%d,energy_min=%d",base_q,(int)DC_energy_min);
+    BT_DRV_TRACE(2,"Step1:best_q=%d,energy_min=%d",base_q,(int)DC_energy_min);
 #endif
 
     if(DC_ENERGY_THD < DC_energy_min) {
@@ -480,29 +480,29 @@ void dc_iq_calib_1306p(void)
                 DC_energy_min = min_energy;
             }
 #ifdef DC_DEBUG
-            //DRIVERS_TRACE(4,"i=%d,q=%d,e_tmp=%d,DC_Emin=%d",i1,base_q,(int)e_tmp,(int)DC_energy_min);
+            //BT_DRV_TRACE(4,"i=%d,q=%d,e_tmp=%d,DC_Emin=%d",i1,base_q,(int)e_tmp,(int)DC_energy_min);
 #endif
         }
 #ifdef DC_DEBUG
-        DRIVERS_TRACE(4,"--------------SWEEP i=%d,e_tmp=%d--------------",min_i,(int)min_energy);
+        BT_DRV_TRACE(4,"--------------SWEEP i=%d,e_tmp=%d--------------",min_i,(int)min_energy);
 #endif
         base_i=get_best_i(min_i,min_energy,base_q,step,&DC_i_min,&DC_energy_min);
 #ifdef DC_DEBUG
-        DRIVERS_TRACE(3,"Step2:abest_i=%d,best_q=%d,energy_min=%d",base_i,base_q,(int)DC_energy_min);
+        BT_DRV_TRACE(3,"Step2:abest_i=%d,best_q=%d,energy_min=%d",base_i,base_q,(int)DC_energy_min);
 #endif
         if(DC_ENERGY_THD < DC_energy_min) {
             base_q=get_best_q(min_q,min_energy,base_i,step,&DC_q_min,&DC_energy_min);
 #ifdef DC_DEBUG
-            DRIVERS_TRACE(3,"Step3:abest_i=%d,best_q=%d,energy_min=%d",base_i,base_q,(int)DC_energy_min);
+            BT_DRV_TRACE(3,"Step3:abest_i=%d,best_q=%d,energy_min=%d",base_i,base_q,(int)DC_energy_min);
 #endif
         }
     }
 #endif
 
-    DRIVERS_TRACE(3,"FINAL DC best_i=%d,best_q=%d", base_i,base_q);
-    POSSIBLY_UNUSED float teste=get_DC_energy(e_addr,base_i,base_q,1);
+    BT_DRV_TRACE(3,"FINAL DC best_i=%d,best_q=%d", base_i,base_q);
+    float teste=get_DC_energy(e_addr,base_i,base_q,1);
 
-    DRIVERS_TRACE(3,"FINAL limit DC best_i=%d,best_q=%d,e=%d,energy_min=%d", base_i,base_q,(int)teste,(int)DC_energy_min);
+    BT_DRV_TRACE(3,"FINAL limit DC best_i=%d,best_q=%d,e=%d,energy_min=%d", base_i,base_q,(int)teste,(int)DC_energy_min);
 
     //IQ
     BTDIGITAL_REG_WR(BESMDM_ONE_TONE_SET_FREQ_ADDR, 0x3);          //160K
@@ -539,15 +539,15 @@ void dc_iq_calib_1306p(void)
                 iq_energy_min = min_energy;
             }
 #ifdef IQ_DEBUG
-        //DRIVERS_TRACE(4,"gain=%d,phase=%d,e_tmp=%d,IQ_Emin=%d",gain1,base_phase,(int)e_tmp,(int)iq_energy_min);
+        //BT_DRV_TRACE(4,"gain=%d,phase=%d,e_tmp=%d,IQ_Emin=%d",gain1,base_phase,(int)e_tmp,(int)iq_energy_min);
 #endif
         }
 #ifdef IQ_DEBUG
-        DRIVERS_TRACE(4,"--------------SWEEP gain=%d,e_tmp=%d--------------",min_gain,(int)min_energy);
+        BT_DRV_TRACE(4,"--------------SWEEP gain=%d,e_tmp=%d--------------",min_gain,(int)min_energy);
 #endif
         base_gain=get_best_gain(en_addr,min_gain,min_energy,base_phase,step,&iq_gain_min,&iq_energy_min, freq_add);
 #ifdef IQ_DEBUG
-        DRIVERS_TRACE(2,"Step1:best_gain=%d,energy_min=%d",base_gain,(int)iq_energy_min);
+        BT_DRV_TRACE(2,"Step1:best_gain=%d,energy_min=%d",base_gain,(int)iq_energy_min);
 #endif
 
         if(IQ_ENERGY_THD < iq_energy_min) {
@@ -561,27 +561,27 @@ void dc_iq_calib_1306p(void)
                     iq_energy_min = min_energy;
                 }
 #ifdef IQ_DEBUG
-            //DRIVERS_TRACE(4,"gain=%d,phase=%d,e_tmp=%d,IQ_Emin=%d",base_gain,phase1,(int)e_tmp,(int)iq_energy_min);
+            //BT_DRV_TRACE(4,"gain=%d,phase=%d,e_tmp=%d,IQ_Emin=%d",base_gain,phase1,(int)e_tmp,(int)iq_energy_min);
 #endif
             }
 #ifdef IQ_DEBUG
-            DRIVERS_TRACE(4,"--------------SWEEP phase=%d,e_tmp=%d--------------",min_phase,(int)min_energy);
+            BT_DRV_TRACE(4,"--------------SWEEP phase=%d,e_tmp=%d--------------",min_phase,(int)min_energy);
 #endif
             base_phase=get_best_phase(en_addr,min_phase,min_energy,base_gain,step,&iq_phase_min,&iq_energy_min, freq_add);
 #ifdef IQ_DEBUG
-            DRIVERS_TRACE(3,"Step2:best_gain=%d,best_phase=%d,energy_min=%d",base_gain,base_phase,(int)iq_energy_min);
+            BT_DRV_TRACE(3,"Step2:best_gain=%d,best_phase=%d,energy_min=%d",base_gain,base_phase,(int)iq_energy_min);
 #endif
 
             if(IQ_ENERGY_THD < iq_energy_min) {
                 base_gain=get_best_gain(en_addr,min_gain,min_energy,base_phase,step,&iq_gain_min,&iq_energy_min, freq_add);
 #ifdef IQ_DEBUG
-                DRIVERS_TRACE(3,"Step3:best_gain=%d,best_phase=%d,energy_min=%d",base_gain,base_phase,(int)iq_energy_min);
+                BT_DRV_TRACE(3,"Step3:best_gain=%d,best_phase=%d,energy_min=%d",base_gain,base_phase,(int)iq_energy_min);
 #endif
             }
         }
 
-        POSSIBLY_UNUSED float testen=get_iq_energy(en_addr,base_gain,base_phase,1, freq_add);
-        DRIVERS_TRACE(3,"FINAL %d,best_g=%d,best_p=%d,e=%d,energy_min=%d", k,base_gain,base_phase,(int)testen,(int)iq_energy_min);
+        float testen=get_iq_energy(en_addr,base_gain,base_phase,1, freq_add);
+        BT_DRV_TRACE(3,"FINAL %d,best_g=%d,best_p=%d,e=%d,energy_min=%d", k,base_gain,base_phase,(int)testen,(int)iq_energy_min);
 
         int ch1 = 0;
         int ch2 = 0;
@@ -600,13 +600,13 @@ void dc_iq_calib_1306p(void)
             set_gain_phase(addre,base_gain,base_phase);
         }
 #ifdef IQ_DEBUG
-        DRIVERS_TRACE(3,"aaaaaaa--FINAL %d,best_g=%d,best_p=%d--aaaaaaa", k,base_gain,base_phase);
+        BT_DRV_TRACE(3,"aaaaaaa--FINAL %d,best_g=%d,best_p=%d--aaaaaaa", k,base_gain,base_phase);
 #endif
     }
 #endif
     //common RF register init
     BTDIGITAL_REG_SET_FIELD(BESMDM_IQMCNTL_ADDR_CT_ADDR, 0x1, 31, 1);
-    DRIVERS_TRACE(1,"use time: %d ms", TICKS_TO_MS(hal_sys_timer_get()-time_start));
+    BT_DRV_TRACE(1,"use time: %d ms", TICKS_TO_MS(hal_sys_timer_get()-time_start));
 }
 
 #define RX_AGC_IDX      7
@@ -617,7 +617,7 @@ void rx_dc_cal_1306p(void)
     uint16_t i_value = 0;
     uint16_t q_value = 0;
     uint16_t i2v_dciq_addr_base = 0;
-    POSSIBLY_UNUSED uint32_t time_start = hal_sys_timer_get();
+    uint32_t time_start = hal_sys_timer_get();
 
 #ifdef __HW_AGC__
     i2v_dciq_addr_base = 0xD5;
@@ -651,12 +651,12 @@ void rx_dc_cal_1306p(void)
         if (calib_flag) {
             BTRF_REG_GET_FIELD(0x55, 0x3F, 0, q_value);
             BTRF_REG_GET_FIELD(0x55, 0x3F, 6, i_value);
-            DRIVERS_TRACE(0,"%s, agc gain%d, i2v_dc_i:0x%x, i2v_dc_q:0x%x", __func__, i, i_value, q_value);
+            BT_DRV_TRACE(0,"%s, agc gain%d, i2v_dc_i:0x%x, i2v_dc_q:0x%x", __func__, i, i_value, q_value);
         } else {
             // use default value
             q_value = 0x20;
             i_value = 0x20;
-            DRIVERS_TRACE(0,"%s, agc gain%d, use default value:0x%x", __func__, i, q_value);
+            BT_DRV_TRACE(0,"%s, agc gain%d, use default value:0x%x", __func__, i, q_value);
         }
 
         BTRF_REG_SET_FIELD(i2v_dciq_addr_base + i, 0x3F, 0, i_value);
@@ -668,7 +668,7 @@ void rx_dc_cal_1306p(void)
         //dccal_dac_en
         BTRF_REG_SET_FIELD(0x409, 0x3, 6, 3);
     }
-    DRIVERS_TRACE(1,"use time: %d ms", TICKS_TO_MS(hal_sys_timer_get()-time_start));
+    BT_DRV_TRACE(1,"use time: %d ms", TICKS_TO_MS(hal_sys_timer_get()-time_start));
 }
 #endif
 #endif

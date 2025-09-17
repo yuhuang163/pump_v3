@@ -271,7 +271,7 @@ int user_database_remove(storage_manager_context_t *ctx, database_key_t key)
 
     MUTEX_LOCK(ctx->priv.db_rw_lock);
     if (db_dev && db_dev->ioctl) {
-        ret = DEVICE_IOCTL_ARGS(db_dev, OP_CODE_DB_REMOTE, &key);
+        ret = DEVICE_IOCTL_ARGS(db_dev, OP_CODE_DB_DELETE, &key);
     }
     MUTEX_UNLOCK(ctx->priv.db_rw_lock);
     

@@ -16,5 +16,8 @@ ccflags-y := \
 	-Iservices/nv_section/log_section \
 	-Irtos/rtx/TARGET_CORTEX_M/ \
 	-Iutils/xyzmodem/ \
-	-Iinclude/
+	-Iinclude/ \
+	-Itests/besair_platform/bsp_tester \
+	-Iutils/crc32 \
+	-Iservices/norflash_api
 

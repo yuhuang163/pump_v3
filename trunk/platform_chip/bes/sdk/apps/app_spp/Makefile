@@ -12,7 +12,11 @@ endif
 
 subdir-ccflags-y += \
     $(BLUETOOTH_ADAPTER_INCLUDES) \
-    $(BT_SERVICE_UX_INCLUDES) \
+    -Iservices/ibrt/ibrt_core/inc/ \
     -Iutils/cqueue \
     -Iutils/hsm \
-    -Iplatform/drivers/bt
+    -Imultimedia/inc/audio/codec/sbc/inc/ \
+    -Iplatform/drivers/bt/ \
+    -Iservices/ibrt_middleware/inc \
+    -Iservices/ibrt/ibrt_middleware/inc/ \
+    -Iservices/audio_manager/

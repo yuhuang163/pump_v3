@@ -44,8 +44,8 @@ static void POSSIBLY_UNUSED en25s80b_en25s80b_reset(enum HAL_FLASH_ID_T id)
 
     // ip spi mode
     norflaship_quad_mode(id, 0);
-    norflaship_hold_pin(id, 0);
-    norflaship_wpr_pin(id, 0);
+    norflaship_hold_pin(id, 1);
+    norflaship_wpr_pin(id, 1);
     norflaship_busy_wait(id);
 
     hal_sys_timer_delay(20);

@@ -16,8 +16,6 @@
 #include "cmsis_os.h"
 #include "hal_trace.h"
 #include "bluetooth_bt_api.h"
-#include "app_bt_stream.h"
-#include "app_media_player.h"
 #include "app_factory.h"
 #include "string.h"
 
@@ -25,7 +23,7 @@
 #include "audioflinger.h"
 #include "app_audio.h"
 #include "app_utils.h"
-
+#include "app_bt_stream.h"
 #include "app_factory_audio.h"
 
 
@@ -60,7 +58,7 @@ int app_factorymode_audioloop(bool on, enum APP_SYSFREQ_FREQ_T freq)
     uint8_t *buff_loop = NULL;
     struct AF_STREAM_CONFIG_T stream_cfg;
     static bool isRun =  false;
-    FACTORY_TRACE(3,"app_factorymode_audioloop work:%d op:%d freq:%d", isRun, on, freq);
+    APP_FACTORY_TRACE(3,"app_factorymode_audioloop work:%d op:%d freq:%d", isRun, on, freq);
 
     if (isRun==on)
         return 0;
@@ -97,7 +95,7 @@ int app_factorymode_audioloop(bool on, enum APP_SYSFREQ_FREQ_T freq)
 #else
         stream_cfg.device = AUD_STREAM_USE_EXT_CODEC;
 #endif
-        stream_cfg.vol = TGT_VOLUME_LEVEL_15;
+        stream_cfg.vol = TGT_ADC_VOL_LEVEL_MAX;
         stream_cfg.io_path = AUD_INPUT_PATH_MAINMIC;
         stream_cfg.handler = app_factorymode_data_come;
 
@@ -106,6 +104,7 @@ int app_factorymode_audioloop(bool on, enum APP_SYSFREQ_FREQ_T freq)
         af_stream_open(AUD_STREAM_ID_0, AUD_STREAM_CAPTURE, &stream_cfg);
 
         stream_cfg.channel_num = AUD_CHANNEL_NUM_2;
+        stream_cfg.vol = TGT_VOLUME_LEVEL_MAX;
         stream_cfg.io_path = AUD_OUTPUT_PATH_SPEAKER;
         stream_cfg.handler = app_factorymode_more_data;
 
@@ -115,13 +114,13 @@ int app_factorymode_audioloop(bool on, enum APP_SYSFREQ_FREQ_T freq)
 
         af_stream_start(AUD_STREAM_ID_0, AUD_STREAM_PLAYBACK);
         af_stream_start(AUD_STREAM_ID_0, AUD_STREAM_CAPTURE);
-        FACTORY_TRACE(0,"app_factorymode_audioloop on");
+        APP_FACTORY_TRACE(0,"app_factorymode_audioloop on");
     } else {
         af_stream_stop(AUD_STREAM_ID_0, AUD_STREAM_CAPTURE);
         af_stream_stop(AUD_STREAM_ID_0, AUD_STREAM_PLAYBACK);
         af_stream_close(AUD_STREAM_ID_0, AUD_STREAM_CAPTURE);
         af_stream_close(AUD_STREAM_ID_0, AUD_STREAM_PLAYBACK);
-        FACTORY_TRACE(0,"app_factorymode_audioloop off");
+        APP_FACTORY_TRACE(0,"app_factorymode_audioloop off");
 
         app_sysfreq_req(APP_SYSFREQ_USER_APP_0, APP_SYSFREQ_32K);
     }

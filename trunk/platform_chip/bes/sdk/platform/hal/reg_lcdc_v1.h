@@ -160,6 +160,11 @@
 #define lcdc_tvd_ctrl             (LCDC_REG_BASE + (0x260))
 #define lcdc_pn_gra_ctrl          (LCDC_REG_BASE + (0x264))
 
+#define lcdc_dec_ctrl             (LCDC_REG_BASE + (0x2d0))
+#define lcdc_deczm_hpxl_vln       (LCDC_REG_BASE + (0x2d4))
+#define lcdc_dec_start_addr0      (LCDC_REG_BASE + (0x2d8))
+#define lcdc_dec_hpxl_vln         (LCDC_REG_BASE + (0x2dc))
+
 #define lcdc_vdma_sel_ctrl          (LCDC_REG_BASE + (0x2F0))
 #define lcdc_vdma_burst_cnt_rdy      (LCDC_REG_BASE + (0x2F4))
 #define timing_master_control      (LCDC_REG_BASE + (0x2F8))
@@ -188,6 +193,8 @@
 /*Layer Size Register Address*/
 #define LCDC_PDMAAWCR           (lcdc_dma_hpxl_vln)
 #define LCDC_PGRAAWCR           (lcdc_gra_hpxl_vln)
+#define LCDC_PTVGAWCR           (lcdc_tvg_hpxl_vln)
+#define LCDC_PDECAWCR           (lcdc_dec_hpxl_vln)
 #define LCDC_SPUAWCR            (lcdc_pn_v_h_active)
 #define LCDC_WBAWCR             (lcdc_wdma_v_h)
 
@@ -203,6 +210,8 @@
 /*Layer pitch Register Address*/
 #define LCDC_PDMAPCHCR           (lcdc_dma_pitch_y)
 #define LCDC_PGRAPCHCR           (lcdc_gra_pitch)
+#define LCDC_PTVGPCHCR           (lcdc_tvg_pitch)
+#define LCDC_PDECPCHCR           (lcdc_tvg_pitch)
 #define LCDC_SPUPCHCR            (NULL)
 #define LCDC_WBPCHCR             (lcdc_wdma_ctrl)
 
@@ -213,15 +222,22 @@
 #define LCDC_FGPFCCR         (lcdc_pn_ctrl0)
 #define LCDC_FGPFCCR1        (lcdc_pn_ctrl1)
 #define LCDC_BGPFCCR         (lcdc_pn_gra_ctrl)
+#define LCDC_TVGPFCCR        (lcdc_tv_ctrl0)
+#define LCDC_TVGPFCCR1       (lcdc_tv_ctrl1)
+#define LCDC_DECCTRL         (lcdc_dec_ctrl)
 #define LCDC_OPFCCR          (lcdc_wdma_ctrl)
 
 /*F/B Layer dma zoom Register Address*/
 #define LCDC_DMAZOOMCR       (lcdc_dmazm_hpxl_vln)
 #define LCDC_GRAZOOMCR       (lcdc_grazm_hpxl_vln)
+#define LCDC_TVGZOOMCR       (lcdc_tvgzm_hpxl_vln)
+#define LCDC_DECZOOMCR       (lcdc_deczm_hpxl_vln)
 
 /*Layer Start mem adress Register Address*/
 #define LCDC_FGMAR           (lcdc_dma_start_addr_y0)
 #define LCDC_BGMAR           (lcdc_gra_start_addr0)
+#define LCDC_TVGMAR          (lcdc_tvg_start_addr0)
+#define LCDC_DECMAR          (lcdc_dec_start_addr0)
 #define LCDC_OMAR            (lcdc_wdma_start_addr)
 
 /*Layer Color Register Address*/
@@ -258,6 +274,8 @@
 
 #define LCDC_CFG_PDMA_SPONSCREENCR     (lcdc_dma_ovsa_hpxl_vln)
 #define LCDC_CFG_PGRA_SPONSCREENCR     (lcdc_gra_ovsa_hpxl_vln)
+#define LCDC_CFG_TVG_SPONSCREENCR      (lcdc_tvg_ovsa_hpxl_vln)
+#define LCDC_CFG_DEC_SPONSCREENCR      (lcdc_tvg_ovsa_hpxl_vln)
 
 /* LCDC F/B CLUT Table Set Register Address*/
 #define LCDC_FBLCLUTCR     (lcdc_sram_ctrl)
@@ -427,6 +445,9 @@
 #define LCDC_CFG_YUV2RGB_ENA_SHIFT   (1)
 #define LCDC_CFG_YUV2RGB_ENA_MASK    ( 0x01 << LCDC_CFG_YUV2RGB_ENA_SHIFT)
 #define LCDC_CFG_YUV2RGB_ENA(n)      ( (0x01 &(n)) << LCDC_CFG_YUV2RGB_ENA_SHIFT)
+
+#define LCDC_CFG_YUV2RGB_SWAP_YU     (1 << 2)
+#define LCDC_CFG_YUV2RGB_SWAP_UV     (1 << 3)
 
 #define LCDC_xGPFCCR_CM_SHIFT      (8)    /* Bits 8-11 Color Mode */
                      /* Panel Path Video memory Color Format */
@@ -1094,6 +1115,30 @@ POSSIBLY_UNUSED static uint8_t dither_mode_high[] = {
 #define LCDC_RESERVED_15CBIT8_SHIFT     (8)
 #define LCDC_RESERVED_15CBIT8(n)                (((n) & 0xFFFFFF) << LCDC_RESERVED_15CBIT8_SHIFT)
 #define LCDC_RESERVED_15CBIT8_MASK              (0xFFFFFF << LCDC_RESERVED_15CBIT8_SHIFT)
+
+/* LCDC DECNANO control register */
+#define LCDC_CFG_DEC_ENA                                    (1 << 0)
+#define LCDC_CFG_DEC_SWAP_RB                                (1 << 1)
+#define LCDC_CFG_DEC_LINEAR                                 (0 << 2)  /* 0: linear mode */
+#define LCDC_CFG_DEC_TILED                                  (1 << 2)  /* 1: tiled mode */
+#define LCDC_CFG_DEC_BYPASS                                 (1 << 3)
+#define LCDC_CFG_DEC_COMPRESS_MODE(n)                       (((n) & 0x3) << 4) /* 0: non sample, 1: h-sample, 2: hv-sample */
+#define LCDC_CFG_DEC_COMPRESS_MODE_MASK                     (0x3 << 4)
+#define LCDC_CFG_DEC_COMPRESS_MODE_SHIFT                    (4)
+#define LCDC_CFG_DEC_BURST_LEN_SEL(n)                       (((n) & 0x3) << 6) /* 0: 16 bytes, 1: 24 bytes, 2: 32 bytes, 3: 40 bytes*/
+#define LCDC_CFG_DEC_BURST_LEN_SEL_MASK                     (0x3 << 6)
+#define LCDC_CFG_DEC_BURST_LEN_SEL_SHIFT                    (6)
+#define LCDC_CFG_DEC_FORMAT(n)                              (((n) & 0xf) << 8)  /* 0: ARGB, 1: XRGB */
+#define LCDC_CFG_DEC_FORMAT_MASK                            (0xf << 8)
+#define LCDC_CFG_DEC_FORMAT_SHIFT                           (8)
+#define LCDC_CFG_DEC_HLEN_DR                                (1 << 12) /* 0: hardware auto set hlen, 1: software set hlen in bit28:16 */
+#define LCDC_CFG_DEC_SYNC_FIFO_FLUSH                        (1 << 13)
+#define LCDC_CFG_DEC_HLEN(n)                                (((n) & 0x1fff) << 16) /* compressed size in bytes of one line, set by sw */
+#define LCDC_CFG_DEC_HLEN_MASK                              (0x1fff << 16)
+#define LCDC_CFG_DEC_HLEN_SHIFT                             (16)
+#define LCDC_CFG_DEC_DATA_DELAY(n)                          (((n) & 0x3) << 29)
+#define LCDC_CFG_DEC_DATA_DELAY_MASK                        (0x3 << 29)
+#define LCDC_CFG_DEC_DATA_DELAY_SHIFT                       (29)
 
 /*LCDC Panel IO Register Address*/
 //#define LCDC_PNIOCR      (cdc_pnio_ctrl)

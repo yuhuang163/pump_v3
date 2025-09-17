@@ -78,7 +78,7 @@
 //  <o>Timer queue length <0-1024>
 //  <i> Timer command queue length.
 //  <i> Default: 5
-#define configTIMER_QUEUE_LENGTH                25
+#define configTIMER_QUEUE_LENGTH                64
 
 //  <o>Preemption interrupt priority
 //  <i> Maximum priority of interrupts that are safe to call FreeRTOS API.
@@ -135,7 +135,14 @@
 //  <i> Default: 0
 #define configQUEUE_REGISTRY_SIZE               0
 
-//#define configGENERATE_RUN_TIME_STATS           1
+#define configGENERATE_RUN_TIME_STATS           1
+/* Run time stats gathering definitions. */
+extern void vPortRunTimeInit(void);
+extern uint32_t vPortRunTimeGet(void);
+extern uint32_t vPortTickClockGet(void);
+#define portCONFIGURE_TIMER_FOR_RUN_TIME_STATS    vPortRunTimeInit
+#define portGET_RUN_TIME_COUNTER_VALUE    vPortRunTimeGet
+
 #define configUSE_STATS_FORMATTING_FUNCTIONS    1
 
 //   Used for the minist time for enter deep sleep
@@ -279,4 +286,7 @@ extern uint32_t SystemCoreClock;
 #include "SEGGER_SYSVIEW_FreeRTOS.h"
 #endif
 
+#ifdef OS_HAVE_POSIX
+#include "FreeRTOS-Plus-POSIX/FreeRTOS_POSIX_portable.h"
+#endif
 #endif /* FREERTOS_CONFIG_H */

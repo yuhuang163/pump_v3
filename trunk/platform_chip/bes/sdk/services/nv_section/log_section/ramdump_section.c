@@ -60,7 +60,7 @@ void ramdump_to_flash_init(void)
 
     hal_norflash_get_size(HAL_FLASH_ID_0,NULL, &block_size, &sector_size, &page_size);
     buffer_len = sector_size;
-    NV_SECTION_TRACE(4,RAM_DUMP_PREFIX"%s: ramdump_flash_start_addr = 0x%x, ramdump_flash_end_addr = 0x%x, buff_len = 0x%x.",
+    RAM_DUMP_TRACE(4,RAM_DUMP_PREFIX"%s: ramdump_flash_start_addr = 0x%x, ramdump_flash_end_addr = 0x%x, buff_len = 0x%x.",
                     __func__,
                     ramdump_flash_start_addr,
                     ramdump_flash_end_addr,
@@ -80,16 +80,14 @@ void ramdump_to_flash_init(void)
                     );
     if(result == NORFLASH_API_OK)
     {
-        NV_SECTION_TRACE(0,RAM_DUMP_PREFIX"ramdump_to_flash_init ok.");
+        RAM_DUMP_TRACE(0,RAM_DUMP_PREFIX"ramdump_to_flash_init ok.");
     }
     else
     {
-        NV_SECTION_TRACE(4,RAM_DUMP_PREFIX"ramdump_to_flash_init failed,result = %d.",result);
+        RAM_DUMP_TRACE(4,RAM_DUMP_PREFIX"ramdump_to_flash_init failed,result = %d.",result);
     }
 
-#if !(defined(DUMP_LOG_ENABLE) || defined(DUMP_CRASH_ENABLE) || defined(TOTA_CRASH_DUMP_TOOL_ENABLE))
     hal_trace_app_register(HAL_TRACE_APP_REG_ID_2, ramdump_to_flash_handler, NULL);
-#endif
 
     ramdump_update_execute_state_machine(HAL_TRACE_STATE_CRASH_END);
 }
@@ -136,7 +134,7 @@ static void ramdump_flash_write(uint32_t startFlashAddress, uint32_t sourceRamSt
                                     false);
         if(result != NORFLASH_API_OK)
         {
-            NV_SECTION_TRACE(0,RAM_DUMP_PREFIX"ram dump: erase failed, result = %d, addr = 0x%x", result,addr);
+            RAM_DUMP_TRACE(0,RAM_DUMP_PREFIX"ram dump: erase failed, result = %d, addr = 0x%x", result,addr);
             break;
         }
 
@@ -147,7 +145,7 @@ static void ramdump_flash_write(uint32_t startFlashAddress, uint32_t sourceRamSt
                                     false);
         if(result != NORFLASH_API_OK)
         {
-            NV_SECTION_TRACE(0,RAM_DUMP_PREFIX"ram dump: write failed, result = %d, addr = 0x%x", result,addr);
+            RAM_DUMP_TRACE(0,RAM_DUMP_PREFIX"ram dump: write failed, result = %d, addr = 0x%x", result,addr);
             break;
         }
     }
@@ -157,11 +155,11 @@ void ramdump_to_flash_handler(enum HAL_TRACE_STATE_T ramdump_executor)
 {
     if (HAL_TRACE_STATE_CRASH_END == ramdump_executor)
     {
-        NV_SECTION_TRACE(0,RAM_DUMP_PREFIX"%s: end ramdump!", __func__);
+        RAM_DUMP_TRACE(0,RAM_DUMP_PREFIX"%s: end ramdump!", __func__);
         return;
     }
 
-    NV_SECTION_TRACE(1,RAM_DUMP_PREFIX"%s: RAM: 0x%x-0x%x,FLASH: 0x%x-0x%x",
+    RAM_DUMP_TRACE(1,RAM_DUMP_PREFIX"%s: RAM: 0x%x-0x%x,FLASH: 0x%x-0x%x",
             __func__,
             ramdump_ram_start,
             ramdump_ram_start + ramdump_ram_size,
@@ -171,13 +169,13 @@ void ramdump_to_flash_handler(enum HAL_TRACE_STATE_T ramdump_executor)
 
     if (HAL_TRACE_STATE_CRASH_UNINITIALIZED == ramdump_get_execute_state_machine())
     {
-        NV_SECTION_TRACE(0,RAM_DUMP_PREFIX"%s: uninit!", __func__);
+        RAM_DUMP_TRACE(0,RAM_DUMP_PREFIX"%s: uninit!", __func__);
         return;
     }
 
     if (HAL_TRACE_STATE_CRASH_END != ramdump_get_execute_state_machine())
     {
-        NV_SECTION_TRACE(0,RAM_DUMP_PREFIX"%s: execution may ERROR!!!", __func__);
+        RAM_DUMP_TRACE(0,RAM_DUMP_PREFIX"%s: execution may ERROR!!!", __func__);
         return;
     }
 
@@ -206,7 +204,7 @@ void ramdump_to_flash_handler(enum HAL_TRACE_STATE_T ramdump_executor)
     watchdog_hw_start(15);
 
     ramdump_update_execute_state_machine(HAL_TRACE_STATE_CRASH_END);
-    NV_SECTION_TRACE(1,RAM_DUMP_PREFIX"%s done", __func__);
+    RAM_DUMP_TRACE(1,RAM_DUMP_PREFIX"%s done", __func__);
 
 }
 

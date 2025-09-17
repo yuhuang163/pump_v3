@@ -38,12 +38,12 @@
 /// @private
 #define SWAP_ROWS_F32(A,i,j)                 \
   {                                      \
-    int cnt = n;                         \
+    int temp_cnt = n;                         \
                                          \
     for(int w=0;w < n; w+=4)             \
     {                                    \
        f32x4_t tmpa,tmpb;                \
-       mve_pred16_t p0 = vctp32q(cnt);   \
+       mve_pred16_t p0 = vctp32q(temp_cnt);   \
                                          \
        tmpa=vldrwq_z_f32(&A[i*n + w],p0);\
        tmpb=vldrwq_z_f32(&A[j*n + w],p0);\
@@ -51,7 +51,7 @@
        vstrwq_p(&A[i*n + w], tmpb, p0);  \
        vstrwq_p(&A[j*n + w], tmpa, p0);  \
                                          \
-       cnt -= 4;                         \
+       temp_cnt -= 4;                         \
     }                                    \
   }
 
@@ -116,7 +116,7 @@ arm_status arm_mat_ldlt_f32(
   {
 
     const int n=pSrc->numRows;
-    int fullRank = 1, diag,k;
+    int fullRank = 1, diag, k;
     float32_t *pA;
 
     memcpy(pl->pData,pSrc->pData,n*n*sizeof(float32_t));
@@ -125,7 +125,7 @@ arm_status arm_mat_ldlt_f32(
     int cnt = n;
     uint16x8_t vecP;
 
-    for(int k=0;k < n; k+=8)
+    for(k = 0; k < n; k+=8)
     {
       mve_pred16_t p0;
       p0 = vctp16q(cnt);
@@ -138,14 +138,14 @@ arm_status arm_mat_ldlt_f32(
     }
 
 
-    for(k=0;k < n; k++)
+    for(k = 0; k < n; k++)
     {
         /* Find pivot */
         float32_t m=F32_MIN,a;
         int j=k; 
 
 
-        for(int r=k;r<n;r++)
+        for(int r = k; r < n; r++)
         {
            if (pA[r*n+r] > m)
            {
@@ -183,7 +183,7 @@ arm_status arm_mat_ldlt_f32(
 
         for(w=k+1; w<n; w+=4)
         {
-          int cnt = n - k - 1;
+          cnt = n - k - 1;
 
           f32x4_t vecX;
 
@@ -207,22 +207,22 @@ arm_status arm_mat_ldlt_f32(
              vecX = vldrwq_gather_shifted_offset_z_f32(&pA[x*n+k], vecOffs, p0);
              vecX = vmulq_m_n_f32(vuninitializedq_f32(),vecX,invA,p0);
 
-             
+
              vecA = vldrwq_z_f32(&pA[(w + 0)*n+x],p0);
              vecA = vfmsq_m(vecA, vecW0, vecX, p0);
-             vstrwq_p(&pA[(w + 0)*n+x], vecA, p0);  
+             vstrwq_p(&pA[(w + 0)*n+x], vecA, p0);
 
              vecA = vldrwq_z_f32(&pA[(w + 1)*n+x],p0);
              vecA = vfmsq_m(vecA, vecW1, vecX, p0);
-             vstrwq_p(&pA[(w + 1)*n+x], vecA, p0);  
+             vstrwq_p(&pA[(w + 1)*n+x], vecA, p0);
 
              vecA = vldrwq_z_f32(&pA[(w + 2)*n+x],p0);
              vecA = vfmsq_m(vecA, vecW2, vecX, p0);
-             vstrwq_p(&pA[(w + 2)*n+x], vecA, p0);  
+             vstrwq_p(&pA[(w + 2)*n+x], vecA, p0);
 
              vecA = vldrwq_z_f32(&pA[(w + 3)*n+x],p0);
              vecA = vfmsq_m(vecA, vecW3, vecX, p0);
-             vstrwq_p(&pA[(w + 3)*n+x], vecA, p0);  
+             vstrwq_p(&pA[(w + 3)*n+x], vecA, p0);
 
              cnt -= 4;
           }
@@ -230,7 +230,7 @@ arm_status arm_mat_ldlt_f32(
 
         for(; w<n; w++)
         {
-          int cnt = n - k - 1;
+          cnt = n - k - 1;
 
           f32x4_t vecA,vecX,vecW;
 
@@ -258,9 +258,9 @@ arm_status arm_mat_ldlt_f32(
           }
         }
 
-        for(int w=k+1;w<n;w++)
+        for(int t=k+1;t<n;t++)
         {
-               pA[w*n+k] = pA[w*n+k] * invA;
+               pA[t*n+k] = pA[t*n+k] * invA;
         }
 
         
@@ -275,15 +275,15 @@ arm_status arm_mat_ldlt_f32(
       diag--;
       for(int row=0; row < n;row++)
       {
-        mve_pred16_t p0; 
-        int cnt= n-k;
+        mve_pred16_t p0;
+        cnt= n-k;
         f32x4_t zero=vdupq_n_f32(0.0f);
 
         for(int col=k; col < n;col += 4)
         {
            p0 = vctp32q(cnt);
-         
-           vstrwq_p(&pl->pData[row*n+col], zero, p0);  
+
+           vstrwq_p(&pl->pData[row*n+col], zero, p0);
 
            cnt -= 4;
         }
@@ -292,15 +292,15 @@ arm_status arm_mat_ldlt_f32(
 
     for(int row=0; row < n;row++)
     {
-       mve_pred16_t p0; 
-       int cnt= n-row-1;
+       mve_pred16_t p0;
+       cnt= n-row-1;
        f32x4_t zero=vdupq_n_f32(0.0f);
-       
+
        for(int col=row+1; col < n;col+=4)
        {
          p0 = vctp32q(cnt);
-         
-         vstrwq_p(&pl->pData[row*n+col], zero, p0);  
+
+         vstrwq_p(&pl->pData[row*n+col], zero, p0);
 
          cnt -= 4;
        }
@@ -399,13 +399,13 @@ arm_status arm_mat_ldlt_f32(
     memcpy(pl->pData,pSrc->pData,n*n*sizeof(float32_t));
     pA = pl->pData;
 
-    for(int k=0;k < n; k++)
+    for(k = 0;k < n; k++)
     {
       pp[k] = k;
     }
 
 
-    for(k=0;k < n; k++)
+    for(k = 0;k < n; k++)
     {
         /* Find pivot */
         float32_t m=F32_MIN,a;

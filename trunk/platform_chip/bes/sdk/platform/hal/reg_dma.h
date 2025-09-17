@@ -102,6 +102,9 @@ struct DMA_T {
 #define DMA_CONFIG_ACTIVE                   ((1UL << 17))         // Active
 #define DMA_CONFIG_HALT                     ((1UL << 18))         // Halt
 #define DMA_CONFIG_TRY_BURST                ((1UL << 19))         // Try burst
+#define DMA_CONFIG_PROTSTAT(n)              ((((n) & 0x7) << 20)) // ProtStat
+#define DMA_CONFIG_PROTSTAT_MASK            (0x7 << 20)
+#define DMA_CONFIG_PROTSTAT_SHIFT           (20)
 
 #define DMA_STAT_CHAN(n)                    ((1 << (n)) & 0xFF)
 #define DMA_STAT_CHAN_ALL                   (0xFF)
@@ -120,6 +123,7 @@ struct DMA_T {
 #define DMA_DMACONFIG_CLK_EN_MASK           (0xFF << DMA_DMACONFIG_CLK_EN_SHIFT)
 #define DMA_DMACONFIG_CLK_EN(n)             BITFIELD_VAL(DMA_DMACONFIG_CLK_EN, n)
 
+#define DMA_DMACONFIG_ROUND_ROBIN_PRIO      (1 << 30)
 #define DMA_DMACONFIG_CLK_MANUAL            (1 << 31)
 
 // Macro defines for DMA 2D Configuration registers

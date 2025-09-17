@@ -14,15 +14,11 @@
  *
  ****************************************************************************/
 
-#include "crc_c.h"
+#include "crc32_c.h"
 #include "export_fn_rom.h"
 
 unsigned long crc32_c(unsigned long crc, const unsigned char *buf, unsigned int len)
 {
-#ifdef CHIP_BEST1306
-    return export_fn_rom->crc32(crc, buf, len);
-#else
     return __export_fn_rom.crc32(crc, buf, len);
-#endif
 }
 

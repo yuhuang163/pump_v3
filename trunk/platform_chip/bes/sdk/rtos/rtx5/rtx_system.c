@@ -24,7 +24,6 @@
  */
 
 #include "rtx_lib.h"
-#include "hal_timer.h"
 
 
 //  ==== Helper functions ====
@@ -117,30 +116,11 @@ static os_object_t *isr_queue_get (void) {
 //lint -esym(714,osRtxTick_Handler) "Referenced by Exception handlers"
 //lint -esym(759,osRtxTick_Handler) "Prototype in header"
 //lint -esym(765,osRtxTick_Handler) "Global scope"
-extern uint32_t SystemCoreClock;
-extern uint32_t Remainder;
-extern uint32_t Load;
-
 void osRtxTick_Handler (void) {
   os_thread_t *thread;
 
   OS_Tick_AcknowledgeIRQ();
-  if(Remainder){
-    static uint32_t accumulation = 0;
-    accumulation += Remainder;
-
-    if(accumulation >= OS_TICK_FREQ){
-      accumulation -= OS_TICK_FREQ;
-      SysTick->LOAD = Load + 1;
-    }else{
-      SysTick->LOAD = Load;
-    }
-  }
   osRtxInfo.kernel.tick++;
-
-#if __RTX_CPU_STATISTICS__
-  osRtxInfo.thread.run.curr->rtime += 1;
-#endif
 
   // Process Timers
   if (osRtxInfo.timer.tick != NULL) {

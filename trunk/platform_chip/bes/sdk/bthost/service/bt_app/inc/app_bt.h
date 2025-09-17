@@ -22,7 +22,7 @@ extern "C" {
 #include "me_api.h"
 #include "a2dp_api.h"
 #include "hfp_api.h"
-#include "avrcp_api.h"
+#include "audio_policy.h"
 
 typedef uint8_t second_sco_decision_t;
 #define IBRT_REJECT_SECOND_SCO                   0x00
@@ -39,6 +39,8 @@ typedef uint8_t virtual_call_handle_t;
 #define VIRTUAL_HANDLE_NORMAL_WAY      0x00
 #define VIRTUAL_HANDLE_NON_PROMPT      0x01
 #define VIRTUAL_HANDLE_NON_PROMPTED    0x02
+
+voice_report_role_t app_ibrt_voice_report_get_role(void);
 
 enum APP_BT_GOLBAL_HANDLE_HOOK_USER_T {
     APP_BT_GOLBAL_HANDLE_HOOK_USER_0 = 0,
@@ -58,6 +60,15 @@ enum BT_PAIR_TYPE
     APP_BT_PAIR_NONE      = 0,
     APP_BT_PAIRED         = 1
 };
+
+enum APP_BT_BUSINESS
+{
+    APP_BT_COEX_IDLE                   = 0, // bt idle state
+    APP_BT_COEX_A2DP_START             = 1, // bt a2dp start
+    APP_BT_COEX_SCO_START              = 2, // bt sco start
+    APP_BT_COEX_RECONNECT_START        = 3, // bt reconnect decice
+    APP_BT_COEX_MAX,
+} ;
 
 #define GET_HCI_HANDLE(ptr)    ((unsigned short)(((unsigned short) *((ptr)+1) << 8) | ((unsigned short) *(ptr))))
 
@@ -79,7 +90,6 @@ enum BT_PAIR_TYPE
 #define HCI_DBG_FA_TO_EVT_SUBCODE                     0x14
 #define HCI_DBG_ECC_DATA_TEST_EVT_SUBCODE             0x15
 #define HCI_DBG_MULTI_IBRT_ACL_SCH_CHG_EVT_SUBCODE    0x16
-#define HCI_DBG_PERIODIC_ADVERT_CONFLICT_EVT_SUBCODE  0x1f
 #define HCI_DBG_TX_PWR_CHG_EVT_SUBCODE                0x24
 
 #ifdef IS_TWS_IBRT_DEBUG_SYSTEM_ENABLED
@@ -100,12 +110,10 @@ enum BT_PAIR_TYPE
 // status reason.
 typedef void (*bt_acl_conn_state_change_cb_t)(uint8_t type,bt_bdaddr_t* addr, uint32_t para);
 typedef void (*bt_pair_state_change_cb_t)(bt_bdaddr_t* addr, uint32_t para);
-typedef void (*bt_sink_event_global_cb_t)(const btif_event_t * event);
-typedef void (*bt_audio_coex_event_cb_t)(bt_bdaddr_t* addr, enum app_bt_audio_event_t event, uint32_t data);
 
-void app_bt_reconnect_a2dp_profile(const bt_bdaddr_t *mobile_addr, enum A2DP_ROLE role_expected);
-void app_bt_reconnect_hfp_profile(const bt_bdaddr_t * mobile_addr);
-void app_bt_reconnect_avrcp_profile(const bt_bdaddr_t *mobile_addr);
+void app_bt_reconnect_a2dp_profile(bt_bdaddr_t *mobile_addr);
+void app_bt_reconnect_hfp_profile(bt_bdaddr_t * mobile_addr);
+void app_bt_reconnect_avrcp_profile(bt_bdaddr_t *mobile_addr);
 
 void app_bt_disconnect_a2dp_profile(a2dp_stream_t * a2dp);
 void app_bt_disconnect_avrcp_profile(btif_avrcp_channel_t * avrcp);
@@ -139,12 +147,11 @@ void app_bt_link_state_checker(void);
 bool app_bt_checker_print_link_state(const char* tag, btif_remote_device_t *btm_conn);
 
 const char* app_bt_get_active_media_state(void);
+void app_bt_active_mode_clear(BT_ACTIVE_MODE_KEEP_USER_T user, uint32_t link_id);
 
 void app_bt_a2dp_send_set_abs_volume(uint8_t device_id, uint8_t volume);
 
 void app_bt_a2dp_send_key_request(uint8_t device_id, uint8_t a2dp_key);
-
-bool app_bt_get_io_capability_for_special_services(uint16_t connhdl, bt_iocap_requirement_t *p_iocap);
 
 bool app_bt_a2dp_service_is_connected(uint8_t device_id);
 uint16_t app_bt_get_handle_by_device_id(uint8_t device_id);
@@ -152,7 +159,6 @@ void app_bt_active_mode_set(BT_ACTIVE_MODE_KEEP_USER_T user, uint32_t link_id);
 void app_bt_active_mode_clear(BT_ACTIVE_MODE_KEEP_USER_T user, uint32_t link_id);
 
 void app_disconnect_all_bt_connections(bool power_off_flag);
-struct BT_DEVICE_MANAGER_T *app_bt_get_bt_manager(void);
 void app_bt_local_volume_up(void (*cb)(uint8_t device_id));
 void app_bt_local_volume_down(void (*cb)(uint8_t device_id));
 void app_bt_local_volume_set(uint16_t volume, void (*cb)(uint8_t device_id));
@@ -163,7 +169,6 @@ void app_bt_set_a2dp_current_abs_volume(int device_id, uint8_t volume);
 uint8_t app_bt_get_a2dp_current_abs_volume(int device_id);
 void app_bt_a2dp_current_abs_volume_just_set(int device_id, uint8_t volume);
 void app_bt_a2dp_abs_volume_mix_version_handled(int device_id);
-a2dp_stream_t *app_bt_get_mobile_a2dp_stream(uint32_t deviceId);
 
 void app_bt_volumeup(void);
 void app_bt_volumedown(void);
@@ -171,10 +176,6 @@ void app_bt_volumedown(void);
 bool app_bt_get_tx_power_idx(uint16_t handle, int8_t *tx_power_idx);
 
 bool app_bt_update_tx_power_idx(uint16_t handle, int8_t tx_power_idx);
-
-#ifdef BT_AVRCP_SUPPORT
-bt_status_t app_bt_avrcp_key_operation(const bt_bdaddr_t *remote, avrcp_panel_operation_t key, bool is_press);
-#endif
 
 #ifdef IBRT
 const char *app_bt_get_profile_exchanged_state(void);
@@ -186,7 +187,10 @@ void app_bt_ibrt_reconnect_mobile_profile(const bt_bdaddr_t *mobile_addr);
 
 typedef void (*APP_BT_REQ_CONNECT_PROFILE_FN_T)(void *, void *);
 typedef bt_status_t  (*APP_BT_REQ_HF_OP_FN_T)(void *);
+typedef void (*APP_BT_GOLBAL_HANDLE_HOOK_HANDLER)(const btif_event_t*Event);
 typedef void (*APP_BT_LE_READ_CHANNEL_MAP_CALLBACK) (void *);
+
+#define app_bt_accessmode_set_req(accmode) do{app_bt_send_request(APP_BT_REQ_ACCESS_MODE_SET, accmode, 0, 0,0);}while(0)
 
 #ifdef __SOURCE_TRACE_RX__
 typedef struct
@@ -214,6 +218,8 @@ int bes_bt_a2dp_get_last_paused_device(void);
 
 int bes_bt_a2dp_set_last_paused_device(int device_id);
 
+bt_status_t LinkDisconnectDirectly(bool PowerOffFlag);
+
 void app_bt_process_cmd_complete_read_le_host_chnl_map(uint8 *data);
 
 void app_bt_host_fault_dump_trace(void);
@@ -234,7 +240,7 @@ void app_bt_global_handle(const btif_event_t *Event);
 
 bool is_app_bt_pairing_running(void);
 
-void PairingTransferToConnectable(void);
+void app_bt_set_acl_connectable_as_no_link(void);
 
 bt_status_t LinkDisconnectDirectly(bool PowerOffFlag);
 
@@ -242,9 +248,13 @@ void app_bt_global_handle_init(void);
 
 void app_bt_opening_reconnect(void);
 
+int app_bt_send_request(uint32_t message_id, uint32_t param0, uint32_t param1, uint32_t param2,uint32_t ptr);
+
 void app_bt_init(void);
 
 int app_bt_state_checker(void);
+
+void app_start_fast_connectable_ble_adv(uint16_t advInterval);
 
 void app_start_fast_connectable_ble_adv(uint16_t advInterval);
 
@@ -253,6 +263,10 @@ void *app_bt_profile_active_store_ptr_get(uint8_t *bdAddr);
 void app_bt_profile_connect_manager_opening_reconnect(void);
 
 BOOL app_bt_profile_connect_openreconnecting(void *ptr);
+
+int app_bt_global_handle_hook_set(enum APP_BT_GOLBAL_HANDLE_HOOK_USER_T user, APP_BT_GOLBAL_HANDLE_HOOK_HANDLER handler);
+
+APP_BT_GOLBAL_HANDLE_HOOK_HANDLER app_bt_global_handle_hook_get(enum APP_BT_GOLBAL_HANDLE_HOOK_USER_T user);
 
 bool app_is_hfp_service_connected(uint8_t device_id);
 
@@ -324,12 +338,6 @@ bool app_bt_is_hfp_connected(uint8_t device_id);
 
 uint8_t app_bt_get_device_id_byaddr(const bt_bdaddr_t *remote);
 
-uint16_t app_bt_get_handle_byaddr(const bt_bdaddr_t *remote);
-
-uint8_t* app_bt_get_addr_byhandle(uint16_t conn_hdl);
-
-uint8_t app_bt_get_device_id_byhandle(uint16_t conn_handle);
-
 uint8_t app_bt_get_connected_device_id_byaddr(const bt_bdaddr_t *remote);
 
 bool app_bt_is_a2dp_connected(uint8_t device_id);
@@ -353,8 +361,6 @@ void fast_pair_enter_pairing_mode_handler(void);
 bool app_bt_is_in_reconnecting(void);
 
 bool app_bt_is_profile_connected_before(uint8_t device_id);
-
-bool btapp_hfp_is_dev_sco_connected(uint8_t devId);
 
 bool btapp_hfp_current_is_virtual_call(uint8_t device_id);
 
@@ -458,7 +464,7 @@ uint32_t app_bt_restore_spp_app_ctx(const bt_bdaddr_t *bdaddr_p, uint8_t *buf, u
 uint32_t app_bt_save_map_app_ctx(const bt_bdaddr_t *remote, uint8_t *buf, uint32_t buf_len);
 uint32_t app_bt_restore_map_app_ctx(const bt_bdaddr_t *bdaddr_p, uint8_t *buf, uint32_t buf_len);
 #endif
-#if defined(BT_HID_DEVICE)
+#ifdef BT_HID_DEVICE
 uint32_t app_bt_save_hid_app_ctx(btif_remote_device_t *rem_dev, uint8_t *buf, uint32_t buf_len);
 uint32_t app_bt_restore_hid_app_ctx(bt_bdaddr_t *bdaddr_p, uint8_t *buf, uint32_t buf_len);
 #endif
@@ -467,10 +473,6 @@ bool app_bt_is_any_connection(void);
 
 void app_stop_fast_connectable_ble_adv_timer(void);
 int8_t app_bt_get_rssi(void);
-
-#ifdef  TILE_DATAPATH
-int8_t app_tile_get_ble_rssi(void);
-#endif
 
 #ifdef CTKD_ENABLE
 bool app_bt_ctkd_is_connecting_mobile_pending(void);
@@ -489,7 +491,6 @@ void app_bt_resume_music_after_crash_reboot(uint8_t device_id);
 void app_bt_resume_music_after_crash_reboot_init(void);
 void app_bt_reset_curr_playback_device(uint8_t device_id);
 #endif
-void app_bt_sleep_init(void);
 void app_bt_reset_rssi_collector(void);
 int32_t app_bt_tx_rssi_analyzer(int8_t rssi);
 void app_bt_user_passkey_notify_callback(btif_remote_device_t *remdev,uint32_t passkey);
@@ -499,16 +500,7 @@ struct BT_DEVICE_T *app_bt_manager_get_device_all_start(void);
 
 struct BT_DEVICE_T *app_bt_manager_get_device_all_end(void);
 
-bool app_bt_need_disconnect_profiles_before_acl(btif_remote_device_t *remote_device);
-void app_bt_disconnect_all_profiles_and_acl(btif_remote_device_t *remote_device);
-
 bool app_bt_is_remote_device_support_le_audio(const bt_bdaddr_t *p_addr);
-
-#if BLE_AUDIO_ENABLED
-void app_bt_set_device_support_le_audio(const bt_bdaddr_t *p_addr);
-#endif
-
-bool app_bt_is_sco_connected_exist(void);
 
 uint8_t app_bt_find_connected_device(void);
 
@@ -522,11 +514,13 @@ void app_bt_disconnect_all_acl_link(void);
 
 uint8_t app_bt_audio_count_connected_hfp(void);
 
-void app_bt_enable_bt_pcm(bool en);
-
-void app_bt_reset_device_info(uint8_t device_id);
-
 uint8_t app_bt_a2dp_hfp_adjust_volume(uint8_t device_id, uint8_t stream_player, uint8_t vol);
+
+void app_bt_get_local_device_address(void *bd_addr);
+
+void app_bt_acl_conn_callback_register(bt_acl_conn_state_change_cb_t cb);
+
+void app_bt_acl_conn_callback_deregister(void);
 
 void app_bt_pair_state_callback_register(bt_pair_state_change_cb_t cb);
 
@@ -538,9 +532,7 @@ bt_pair_state_change_cb_t app_bt_get_pair_state_callback(void);
 
 int bt_pairing_init(void);
 
-#ifdef NV_RECORD_DEV_NAME
 uint8_t *app_get_current_remote_device_name(void);
-#endif
 
 btif_accessible_mode_t app_bt_get_curr_access_mode(void);
 
@@ -550,79 +542,10 @@ btif_accessible_mode_t app_bt_access_mode_pickup(void);
 
 bt_status_t app_bt_set_access_mode(btif_accessible_mode_t mode);
 
-bt_status_t app_bt_accessmode_set_req(btif_accessible_mode_t accmode);
-
 void app_bt_access_mode_change_event_handle(const btif_event_t *event, uint8_t error_code);
 
-uint8_t app_bt_hfp_streaming_sco_count(void);
+void app_bt_coex_ts_request(uint8_t type, uint8_t percentage, bool use_default);
 
-bool app_bt_check_is_ios_device(const bt_bdaddr_t *remote_addr);
-
-void app_bt_register_coex_sink_global_event_handle(bt_sink_event_global_cb_t func);
-
-void app_bt_register_coex_audio_sink_event_handler(bt_audio_coex_event_cb_t func);
-
-void app_bt_coex_sink_global_event_ind(const btif_event_t * event);
-
-void app_bt_coex_audio_sink_event_ind(bt_bdaddr_t *addr, enum app_bt_audio_event_t event, uint32_t data);
-
-void app_bt_coex_register_page_event_handle(void (*func)(uint8_t is_page));
-
-uint32_t app_bt_get_class_of_device_headset(void);
-
-uint32_t app_bt_get_class_of_device_watch(void);
-
-
-/**
- * @brief bt sink core event callback structure define
-*/
-typedef struct
-{
-    void (*profile_callback)(uint8_t device_id, uint64_t profile,void *param1,void *param2,void* param3);
-    void (*global_callback)(const btif_event_t *event);
-    void (*l2cap_sdp_disconnect_callback)(const bt_bdaddr_t *bdaddr);
-    void (*create_acl_failed_callback)(const bt_bdaddr_t *);
-    int  (*spp_callback)(const bt_bdaddr_t *remote, bt_spp_event_t event, bt_spp_callback_param_t *param);
-    void (*cmd_status_callback)(const void *para);
-    bool (*avrcp_notify_send_callback)(uint8_t event);
-    void (*avrcp_notify_resp_callback)(uint8_t event);
-    uint16_t (*get_ibrt_handle_callback)(const bt_bdaddr_t *bd_addr);
-} bts_bt_sink_cb_t;
-
-typedef struct
-{
-    void (*global_callback)(const btif_event_t *event);
-    void (*rs_profile_protect)(uint8_t device_id, int profile_id, bool enable, bool is_connect_profile);
-    int (*a2dp_command_accept_event)(void* p_remote, uint8_t transaction, uint8_t signal_id);
-} bts_ibrt_cb_t;
-
-typedef struct
-{
-    void (*global_callback)(const btif_event_t *event);
-    void (*cmd_status_callback)(const void *para);
-    void (*acl_disconnected_callback)(const btif_event_t *event);
-} bts_tws_cb_t;
-
-typedef struct
-{
-    void (*global_callback)(const btif_event_t *event);
-} app_ibrt_search_ui_cb_t;
-
-typedef struct
-{
-    bts_bt_sink_cb_t *bts_bt_sink_cbs;
-    bts_ibrt_cb_t *bts_ibrt_cbs;
-    bts_tws_cb_t  *bts_tws_cbs;
-    app_ibrt_search_ui_cb_t *search_ui;
-} bts_cb_t;
-
-void app_bt_register_bt_sink_callback(bts_bt_sink_cb_t *cbs);
-void app_bt_register_ibrt_callback(bts_ibrt_cb_t *cbs);
-void app_bt_register_tws_callback(bts_tws_cb_t *cbs);
-void app_bt_register_search_ui_callback(app_ibrt_search_ui_cb_t *cbs);
-void app_bt_notify_profile_evt_callback(uint8_t device_id, uint64_t profile,void *param1,void *param2,void* param3);
-void app_bt_notify_global_callback(const btif_event_t *event);
-void app_bt_rs_profile_protect_ind(uint8_t device_id, int profile_id, uint8_t enable, bool is_connect_profile);
 #ifdef __cplusplus
 }
 #endif

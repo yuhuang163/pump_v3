@@ -132,7 +132,7 @@ struct SE_ZMODP_T {
     __IO uint32_t ZMODP_STATUS;             // 0x00C
     __IO uint32_t ZMODP_INTRPT_SRC;         // 0x010
     __IO uint32_t ZMODP_INTRPT_SRC_EN;      // 0x014
-    __IO uint32_t ZMODP_MEM[196];           // 0x018
+    __IO uint32_t ZMODP_MEM[195];           // 0x018
 };
 
 struct SE_MCT_T {
@@ -276,6 +276,38 @@ struct SE_EBG_T {
 #define ENGINE_SELECT_SELECT_MASK           (0x3 << ENGINE_SELECT_SELECT_SHIFT)
 #define ENGINE_SELECT_SELECT(n)             BITFIELD_VAL(ENGINE_SELECT_SELECT, n)
 
+// ECP_CFG
+#define ECP_CFG_USE_OTP_EC521_DK            (1 << 5)
+#define ECP_CFG_OP_MODE_SHIFT               2
+#define ECP_CFG_OP_MODE_MASK                (0x7 << ECP_CFG_OP_MODE_SHIFT)
+#define ECP_CFG_OP_MODE(n)                  BITFIELD_VAL(ECP_CFG_OP_MODE, n)
+#define ECP_CFG_PFIELD_SEL_SHIFT            0
+#define ECP_CFG_PFIELD_SEL_MASK             (0x3 << ECP_CFG_PFIELD_SEL_SHIFT)
+#define ECP_CFG_PFIELD_SEL(n)               BITFIELD_VAL(ECP_CFG_PFIELD_SEL, n)
+
+// ECP_CTRL
+#define ECP_CTRL_RESET                      (1 << 0)
+
+// ECP_CMD
+#define ECP_CMD_CMD_START                   (1 << 0)
+
+// ECP_INTRPT
+#define ECP_INTRPT_CAL_ZERO_INV             (1 << 4)
+#define ECP_INTRPT_ZERO_OUTPUT              (1 << 3)
+#define ECP_INTRPT_ZERO_KEY                 (1 << 2)
+#define ECP_INTRPT_INVALID_MODE             (1 << 1)
+#define ECP_INTRPT_CMD_DONE_INT             (1 << 0)
+
+// ECP_STATUS
+#define ECP_STATUS_BUSY                     (1 << 0)
+
+// ECP_INTRPT_MASK
+#define ECP_INTRPT_MASK_CAL_ZERO_INV        (1 << 4)
+#define ECP_INTRPT_MASK_ZERO_OUTPUT         (1 << 3)
+#define ECP_INTRPT_MASK_ZERO_KEY            (1 << 2)
+#define ECP_INTRPT_MASK_INVALID_MODE        (1 << 1)
+#define ECP_INTRPT_MASK_CMD_DONE_INT        (1 << 0)
+
 // HASH_CFG
 #define HASH_CFG_RSVD_31_5_SHIFT            5
 #define HASH_CFG_RSVD_31_5_MASK             (0x7FFFFFF << HASH_CFG_RSVD_31_5_SHIFT)
@@ -330,7 +362,51 @@ struct SE_EBG_T {
 #define EBG_RNG_CTRL_SEED_MASK              (0xFFFF << EBG_RNG_CTRL_SEED_SHIFT)
 #define EBG_RNG_CTRL_SEED(n)                BITFIELD_VAL(EBG_RNG_CTRL_SEED, n)
 
+// SP_CTRL
+#define SP_CTRL_RSVD_31_8_SHIFT             8
+#define SP_CTRL_RSVD_31_8_MASK              (0xFFFFFF << SP_CTRL_RSVD_31_8_SHIFT)
+#define SP_CTRL_RSVD_31_8(n)                BITFIELD_VAL(SP_CTRL_RSVD_31_8, n)
+#define SP_CTRL_SP_REV_MODE_SELECT          (1 << 7)
+#define SP_CTRL_RSVD_6                      (1 << 6)
+#define SP_CTRL_SP_ACCESS_SELECT_SHIFT      4
+#define SP_CTRL_SP_ACCESS_SELECT_MASK       (0x3 << SP_CTRL_SP_ACCESS_SELECT_SHIFT)
+#define SP_CTRL_SP_ACCESS_SELECT(n)         BITFIELD_VAL(SP_CTRL_SP_ACCESS_SELECT, n)
+#define SP_CTRL_RSVD_3                      (1 << 3)
+#define SP_CTRL_SP_ACC_ERR_CPU_INT_EN       (1 << 2)
+#define SP_CTRL_SP_ACC_ERR_ENG_INT_EN       (1 << 1)
+#define SP_CTRL_SP_RESET                    (1 << 0)
 
+// ZMODP_CFG
+#define ZMODP_CFG_USE_OPT_EC521_DK          (1 << 15)
+#define ZMODP_CFG_CODE_MODE                 (1 << 13)
+#define ZMODP_CFG_NUM_COEFS_SHIFT           6
+#define ZMODP_CFG_NUM_COEFS_MASK            (0x7F << ZMODP_CFG_NUM_COEFS_SHIFT)
+#define ZMODP_CFG_NUM_COEFS(n)              BITFIELD_VAL(ZMODP_CFG_NUM_COEFS, n)
+#define ZMODP_CFG_MOD_SIZE_SHIFT            3
+#define ZMODP_CFG_MOD_SIZE_MASK             (0x7 << ZMODP_CFG_MOD_SIZE_SHIFT)
+#define ZMODP_CFG_MOD_SIZE(n)               BITFIELD_VAL(ZMODP_CFG_MOD_SIZE, n)
+#define ZMODP_CFG_OP_MODE_SHIFT             0
+#define ZMODP_CFG_OP_MODE_MASK              (0x7 << ZMODP_CFG_OP_MODE_SHIFT)
+#define ZMODP_CFG_OP_MODE(n)                BITFIELD_VAL(ZMODP_CFG_OP_MODE, n)
+
+// ZMODP_CTRL
+#define ZMODP_CTRL_RESET                    (1 << 0)
+
+// ZMODP_CMD
+#define ZMODP_CMD_GEN_START                 (1 << 1)
+#define ZMODP_CMD_ZERORIZE_START            (1 << 0)
+
+// ZMODP_STATUS
+#define ZMODP_STATUS_MFSM_SHIFT              1
+#define ZMODP_STATUS_MFSM_MASK               (0x1F << ZMODP_STATUS_MFSM_SHIFT)
+#define ZMODP_STATUS_MFSM(n)                 BITFIELD_VAL(ZMODP_STATUS_MFSM, n)
+#define ZMODP_STATUS_BUSY                    (1 << 0)
+
+// ZMODP_INTRPT_SRC
+#define ZMODP_INTRPT_SRC_CMD_DONE            (1 << 0)
+
+// ZMODP_INTRPT_SRC_EN
+#define ZMODP_INTRPT_SRC_EN_DONE             (1 << 0)
 
 #endif
 

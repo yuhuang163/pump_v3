@@ -23,15 +23,10 @@
 #include "app_anc.h"
 
 static int32_t _voice_assist_prompt_leak_detect_callback(void *buf, uint32_t len, void *other);
-extern int32_t assist_prompt_set_working_status(uint32_t status);
-extern int32_t assist_prompt_get_mode_index(int *mode_index);
 
 static int is_running= 0;
 static int cfg_set_flag = 0;
 static int output_mode_num = 0;
-
-POSSIBLY_UNUSED static int32_t mode_l = -1;
-POSSIBLY_UNUSED static int32_t mode_r = -1;
 int32_t app_voice_assist_prompt_leak_detect_init(void)
 {
     is_running = 0;
@@ -50,8 +45,8 @@ int32_t app_voice_assist_prompt_leak_detect_open(void)
 {
     is_running = 1;
     output_mode_num = 0;
-    VOICE_ASSIST_TRACE(0,"[%s] @@@@@@@ open",__func__);
-    VOICE_ASSIST_TRACE(0,"@@@@@@@ before %d",output_mode_num);
+    TRACE(0,"[%s] @@@@@@@ open",__func__);
+    TRACE(0,"@@@@@@@ before %d",output_mode_num);
     cfg_set_flag = 0;
       
     app_anc_assist_open(ANC_ASSIST_USER_PROMPT_LEAK_DETECT);
@@ -62,11 +57,13 @@ int32_t app_voice_assist_prompt_leak_detect_close(void)
 {
     if(is_running == 1) {
         is_running = 0;
-        VOICE_ASSIST_TRACE(0,"[%s] @@@@@@@ close",__func__);
-        float band1,band2,band3;
-        app_anc_assist_get_prompt_anc_index(&output_mode_num,&band1,&band2,&band3,0);
-        VOICE_ASSIST_TRACE(0,"[%s] @@@@@@@ mode_index %d band value = %d %d %d",__func__,output_mode_num,(int)(band1*100),(int)(band2*100),(int)(band3*100));
-        // app_anc_switch(1);
+        TRACE(0,"[%s] @@@@@@@ close",__func__);
+        
+        app_anc_assist_get_prompt_anc_index(&output_mode_num,0);
+        TRACE(0,"@@@@@@@ mode_index %d",output_mode_num);
+#if defined(ANC_APP)
+        app_anc_switch(1);
+#endif
         app_anc_assist_close(ANC_ASSIST_USER_PROMPT_LEAK_DETECT);
     }
     return 0;
@@ -74,16 +71,7 @@ int32_t app_voice_assist_prompt_leak_detect_close(void)
 
 static int32_t _voice_assist_prompt_leak_detect_callback(void *buf, uint32_t len, void *other)
 {
-    int32_t *res = (int32_t *)buf;
-#if defined(FREEMAN_ENABLED_STERO)
-    mode_l = res[0];
-    mode_r = res[1];
-    VOICE_ASSIST_TRACE(0, "[%s] select mode_l = %d , mode_r = %d", __FUNCTION__, mode_l, mode_r);
-#else
-    mode_l = res[0];
-    VOICE_ASSIST_TRACE(0, "[%s] select mode = %d ", __FUNCTION__, mode_l);
-#endif
-
+    
     return 0;
 }
 

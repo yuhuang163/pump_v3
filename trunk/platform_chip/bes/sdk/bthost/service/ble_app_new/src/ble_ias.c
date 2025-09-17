@@ -16,8 +16,6 @@
  * trademark and other intellectual property rights.
  *
  ****************************************************************************/
-#include "bthost_logger.h"
-
 #ifdef BLE_HOST_SUPPORT
 
 #ifdef BLE_IAS_ENABLED
@@ -29,8 +27,8 @@ typedef struct ias_env
     uint8_t alert_level;
 } ias_env_t;
 
-static bool ias_gatt_server_callback(gatt_svc_t *svc, gatt_server_event_t event,
-                                     gatt_server_callback_param_t param);
+static int ias_gatt_server_callback(gatt_svc_t *svc, gatt_server_event_t event,
+                                       gatt_server_callback_param_t param);
 
 /*IAS environment*/
 static ias_env_t ias_env;
@@ -50,8 +48,8 @@ static const gatt_attribute_t ia_service_attr_list[] =
 };
 
 /*IAS gatt service callback*/
-static bool ias_gatt_server_callback(gatt_svc_t *svc, gatt_server_event_t event,
-                                     gatt_server_callback_param_t param)
+static int ias_gatt_server_callback(gatt_svc_t *svc, gatt_server_event_t event,
+                                       gatt_server_callback_param_t param)
 {
     switch (event)
     {
@@ -72,7 +70,7 @@ static bool ias_gatt_server_callback(gatt_svc_t *svc, gatt_server_event_t event,
                 if (ias_env.alert_level != alert_level)
                 {
                     ias_env.alert_level = alert_level;
-                    CO_LOG_INFO_0(alert_level);
+                    CO_LOG_MAIN_0(alert_level);
                 }
             }
             else

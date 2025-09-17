@@ -24,18 +24,18 @@
 
 static void demo_no_rsp_cmd_transmit_handler(uint8_t* ptr, uint16_t len)
 {
-    APP_RPC_TRACE(0, "%s: len=%d", ptr, len);
+    TRACE(0, "%s: len=%d", ptr, len);
     app_rpc_send_data_no_rsp(APP_RPC_CORE_BTH_DSP, BTH_DSP_TASK_CMD_DEMO_REQ_NO_RSP, ptr, len);
 }
 
 static void demo_no_rsp_cmd_received_handler(uint8_t* ptr, uint16_t len)
 {
-    APP_RPC_TRACE(0, "%s: len=%d", ptr, len);
+    TRACE(0, "%s: len=%d", ptr, len);
 }
 
 static void demo_no_rsp_cmd_tx_done_handler(uint16_t cmdCode, uint8_t* ptr, uint16_t len)
 {
-    APP_RPC_TRACE(0, "%s: cmdCode 0x%x tx done", __func__, cmdCode);
+    TRACE(0, "%s: cmdCode 0x%x tx done", __func__, cmdCode);
 }
 
 RPC_BTH_DSP_TASK_CMD_TO_ADD(BTH_DSP_TASK_CMD_DEMO_REQ_NO_RSP,

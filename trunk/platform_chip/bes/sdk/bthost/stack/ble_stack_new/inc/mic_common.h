@@ -19,6 +19,8 @@
 #ifndef __MICS_COMMON__
 #define __MICS_COMMON__
 
+#include "bluetooth.h"
+
 #include "gaf_cfg.h"
 
 /*DEFINE*/

@@ -9,6 +9,10 @@ filtout_c :=
 filtout_cpp :=
 filtout_s :=
 
+ifeq ($(CHIP_ROLE_CP),1)
+filtout_c += $(patsubst $(cur_dir)%,%,$(wildcard $(cur_dir)*bixby_model_file.c))
+endif
+
 ifneq ($(BISTO_ENABLE),1)
 filtout_c += $(patsubst $(cur_dir)%,%,$(wildcard $(cur_dir)*gsound.c))
 filtout_cpp += $(patsubst $(cur_dir)%,%,$(wildcard $(cur_dir)*gsound.cpp))
@@ -44,9 +48,8 @@ ccflags-y := \
     -I$(obj)/../../nv_section/userdata_section \
     -I$(obj)/../../nv_section/include \
     -I$(obj)/../platform/cmsis/inc \
-    -Iutils/crc \
+    -Iutils/crc32 \
     $(BLUETOOTH_ADAPTER_INCLUDES) \
-    $(BT_SERVICE_UX_INCLUDES) \
     -Iutils/hexdump \
     -Iapps/key \
     -Iservices/bt_app \
@@ -57,6 +60,8 @@ ccflags-y := \
     -Iutils/heap \
     -Iservices/norflash_api \
     -Iservices/nv_setion/userdata_section \
+    -Iservices/voicepath/gsound/gsound_target_api_read_only \
+    -Iservices/voicepath/gsound/gsound_custom/inc \
     -Iplatform/drivers/norflash \
     -Iplatform/hal \
     -Iplatform/cmsis/inc \
@@ -64,20 +69,12 @@ ccflags-y := \
     -Iservices/ota/ai_ota \
     -Iutils/cqueue \
     -Iservices/nv_section \
+    -Imultimedia/inc/audio/codec/sbc/inc \
     -Iservices/bt_app/a2dp_codecs/include \
-    -Iutils/aes_cmac \
-    -Iservices/audio_manager \
-    -Iapps/key \
-    -Ibthost/service/ble_app_new/inc 
+    -Iutils/aes_cmac
 
 ifeq ($(FLASH_SUSPEND),1)
 ccflags-y += -DFLASH_SUSPEND
-endif
-
-ifeq ($(BISTO_ENABLE),1)
-ccflags-y += \
-    -Iservices/ai_voice/protocol/gva/gsound_target_api_read_only \
-    -Iservices/ai_voice/protocol/gva/gsound_custom/inc
 endif
 
 export NV_RECORD_FLUSH_EXECUTION_INTERVAL_MS ?= 1200000
@@ -85,21 +82,6 @@ ccflags-y += -DNV_RECORD_FLUSH_EXECUTION_INTERVAL_MS=$(NV_RECORD_FLUSH_EXECUTION
 
 export NV_RECORD_ASYNC_FLUSH_CONFIRM_TIME_MS ?= 5000
 ccflags-y += -DNV_RECORD_ASYNC_FLUSH_CONFIRM_TIME_MS=$(NV_RECORD_ASYNC_FLUSH_CONFIRM_TIME_MS)
-
-# bit0-3:multipoint support; bit4-7:leaudio support
-
-# support two bt connections by default
-ifndef BT_MULTIPOINT_NUMBER
-BT_MULTIPOINT_NUMBER := 2
-endif
-
-ifeq ($(BLE_AUDIO_ENABLED),1)
-export NV_DEFAULT_EVN_LEA_ENABLED ?= 0x10
-else
-export NV_DEFAULT_EVN_LEA_ENABLED ?= 0
-endif
-
-KBUILD_CPPFLAGS += -DNV_DEFAULT_EVN_TWS_CONN_MODE=$(shell echo $$(($(BT_MULTIPOINT_NUMBER) + $(NV_DEFAULT_EVN_LEA_ENABLED))))
 
 ifeq ($(NORFLASH_API_FLUSH_IN_SLEEP_HOOK),1)
 ccflags-y += -DNORFLASH_API_FLUSH_IN_SLEEP_HOOK
@@ -111,15 +93,10 @@ endif
 
 ifeq ($(BLE_AUDIO_ENABLED),1)
 ccflags-y += \
-    -Iservices/audio_manager
+    -Iservices/audio_manager \
+    -Iservices/ux/common/ble_audio_core/inc
 endif
 
 ifeq ($(PROMPT_IN_FLASH),1)
 AFLAGS_prompt.o += -Wa,-Iconfig/_default_cfg_src_/res/prompt_package
-endif
-
-ifeq ($(FINDMY_ENABLE),1)
-ccflags-y += \
-    -Ithirdparty/ios-find-my/inc \
-    -Iutils/kfifo
 endif

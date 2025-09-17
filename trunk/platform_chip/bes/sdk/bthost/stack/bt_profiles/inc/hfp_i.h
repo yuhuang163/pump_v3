@@ -9,8 +9,6 @@
 extern "C" {
 #endif
 
-#define AT_CMD_UPPER_HANDLE 0XFF
-
 struct hfp_response {
     const char *data;
     unsigned int offset;
@@ -34,7 +32,6 @@ enum hfp_result {
     HFP_RESULT_DELAYED      = 9,
     HFP_RESULT_BLACKLISTED  = 10,
     HFP_RESULT_CME_ERROR    = 11,
-    HFP_RESULT_OESF         = 12,
 };
 
 enum hfp_error {
@@ -117,13 +114,11 @@ enum hshf_event_t {
     HF_CIEV_ROAM_IND,
     HF_CIEV_BATTCHG_IND,
     HF_CIEV_CALLSETUP_IND,
-    HF_CLCC_IND,
-    HF_CLIP_IND,
-    HF_RESP_HOLD_STATUS,
-    HF_OPERATOR_NAME,
-    HF_LAST_VOICE_TAG,
+    HF_CALLER_ID_IND,
     HSHF_VOICE_REC_STATUS_IND,
     HSHF_RING_IND,  //46
+    HSHF_AUDIOCONN_OPENED,
+    HSHF_AUDIOCONN_CLOSED,
     HSHF_SPK_VOL_IND,
     HSHF_MIC_VOL_IND,
     HF_IN_BAND_RING_IND,
@@ -138,7 +133,6 @@ enum hshf_event_t {
     // for enter pairing and test mode by combkey
     HSHF_ENTER_TESTMODE,
     HF_EVENT_AT_RESULT_DATA,
-    HF_EVENT_CNUM_IND,
 };
 
 enum hshf_callsetup {
@@ -150,8 +144,8 @@ enum hshf_callsetup {
 };
 
 enum hshf_call {
-    CALL_NONE = 0,
-    CALL_ESTABLISHED
+	CALL_NONE = 0,
+	CALL_ESTABLISHED
 };
 
 enum hshf_profile {
@@ -200,6 +194,11 @@ enum hfp_indicator {
     HFP_INDICATOR_UNKNOWN = HFP_INDICATOR_LAST,
 };
 
+enum sco_event_enum{
+    SCO_OPENED,
+    SCO_CLOSED
+};
+
 #define AG_MAX_RX_AT_CMD_SIZE (64)
 
 struct ag_at_cmd_rx_buffer {
@@ -207,6 +206,11 @@ struct ag_at_cmd_rx_buffer {
     uint16_t at_cmd_start;
     uint16_t at_cmd_end;
 };
+
+int8 sco_open_link(struct bdaddr_t *bdaddr);
+int8 sco_close_link(struct bdaddr_t *bdaddr1, uint8 reason);
+void sco_conn_opened_ind(uint8_t device_id, struct bdaddr_t *bdaddr_remote, uint8 codec);
+void sco_conn_closed_ind(uint8_t device_id, struct bdaddr_t *bdaddr_remote);
 
 struct hshf_control;
 
@@ -232,11 +236,6 @@ struct hf_ind_enhanced_safety {
     bool enabled;
     uint8_t value; /* 0 or 1 */
 };
-
-typedef struct {
-    const char *number;
-    uint8_t service;
-} hf_subscriber_info_t;
 
 struct hf_ind_battery_level {
     bool local_support;
@@ -270,7 +269,6 @@ struct hfp_codec {
 #define HF_RC_CTX_BIND_GET_STATE    3
 #define HF_RC_CTX_BIND_QUERY        4
 
-#define SIM_CARD_NUMBER_MAX     (2)
 struct hshf_control {
     struct bdaddr_t remote;
     uint16_t conn_handle;
@@ -292,7 +290,7 @@ struct hshf_control {
 
     uint8_t rc_process_context;
     uint8_t negotiated_codec;
-    enum HFP_ROLE role;
+    bool is_ag_role;
     bool sco_wait_codec_sync;
 #if defined(HFP_SUPPORT_LC3_SWB)
     struct hfp_codec hfp_codecs[3];
@@ -350,7 +348,6 @@ struct hshf_control {
     uint8 voice_rec_param;
     uint8 ciev_status;
     uint8 cmd_result;
-    uint8 delay_send_speak_volume_timer; //When device continue change volume, just send last change result
     bool is_cust_cmd_done;
     bool client_enabled;
     bool last_dial_number;
@@ -381,14 +378,6 @@ typedef struct {
     char *caller_id;
 } hf_caller_id_ind_t;
 
-typedef struct {
-    uint8_t device_id;
-    struct bdaddr_t *remote;
-    // 0: connect_fail or disconnected, 1:connected
-    uint8_t connected;
-    uint8_t* connected_codec;
-} hf_set_sco_state_param_t;
-
 typedef void (*hfp_destroy_func_t)(void *user_data);
 typedef void (*hfp_debug_func_t)(const char *str, void *user_data);
 typedef void (*hfp_command_func_t)(const char *command, void *user_data);
@@ -401,6 +390,7 @@ enum hshf_conn_state hshf_get_state(struct hshf_control *chan);
 void hshf_set_state(struct hshf_control *chan, enum hshf_conn_state state);
 const char *hshf_state2str(enum hshf_conn_state state);
 const char *hshf_event2str(enum hshf_event_t event);
+int8 hf_release_sco(struct bdaddr_t *bdaddr, uint8 reason);
 int8 hf_disconnect_req(struct hshf_control *chan);
 int8 hf_disconnect_req_v2(struct hshf_control *chan,uint8 reason);
 int8 hshf_exit_sniff(struct hshf_control *chan);
@@ -428,6 +418,7 @@ bool hshf_batt_report(struct hshf_control *chan, uint8_t level);
 bool hshf_call_hold(struct hshf_control *chan, int8 action, int8 index);
 void hshf_set_hf_indicator_enabled(bool enable);
 bool hshf_report_enhanced_safety(struct hshf_control *chan, uint8_t value);
+bool hshf_report_battery_level(struct hshf_control* chan, uint8_t value);
 bool hshf_update_indicators_value(struct hshf_control *chan, uint8_t assigned_num, uint8_t level);
 bool hshf_hf_indicators_1(struct hshf_control *chan);
 bool hshf_hf_indicators_2(struct hshf_control *chan);
@@ -440,10 +431,7 @@ uint32 hfp_get_rfcomm_handle(struct hshf_control *hfp_ctl);
 uint32 hfp_save_ctx(struct hshf_control *hfp_ctl, uint8_t *buf, uint32_t buf_len);
 uint32 hfp_restore_ctx(struct hfp_ctx_input *input, struct hfp_ctx_output *output);
 void hshf_register_tws_current_ibrt_slave_role_callback(bool (*cb)(void* addr));
-typedef void (*hshf_command_result_callback)(char *data, uint8_t device_id, uint8_t result);
-void hfp_command_response_result_callback(hshf_command_result_callback result_cb);
 bool hshf_hsp_send_key_pressed(struct hshf_control *chan);
-void hshf_ibrt_role_switch_handle(struct hshf_control *chan, bt_bdaddr_t *remote);
 
 void ag_process_input(struct hshf_control *hfp, const char *data, size_t len);
 void hf_register_peer_sco_codec_receive_handler(void (*cb)(uint8_t device_id,void * chan,uint8_t codec));
@@ -461,20 +449,11 @@ bool hfp_context_get_unquoted_string(struct hfp_response *context, char *buf, ui
 bool hfp_context_has_next(struct hfp_response *context);
 bool hfp_context_get_range(struct hfp_response *context, unsigned int *min, unsigned int *max);
 bool hfp_context_get_number(struct hfp_response *context, unsigned int *val);
-void hf_set_sco_path_status(hf_set_sco_state_param_t *param);
 
+struct hshf_control *hfp_search_address(struct bdaddr_t *bdaddr);
 bool hfp_msbc_is_enable(uint8_t device_id, struct bdaddr_t *bdaddr);
+bool hfp_lc3_swb_is_enable(uint8_t device_id, struct bdaddr_t *bdaddr);
 bool hf_indicator_feat_supported(struct hshf_control *chan);
-
-struct hfp_cur_call_info
-{
-    uint8 idx;
-    uint8_t direction; // 0 outgoing, 1 incoming
-    uint8_t state; // 0 active, 1 held, 2 outgoing dialing, 3 outgoing alerting, 4 incoming, 5 waiting, 6 held by Response and Hold
-    uint8_t mode; // 0 voice, 1 data, 2 fax
-    uint8_t multiparty; // 0 is not one of multiparty call parties, 1 is one of.
-    const char* number; // calling number, optional
-};
 
 struct hfp_ag_call_info
 {
@@ -513,10 +492,6 @@ struct hfp_ag_module_handler
     hfp_ag_handler_str handle_at_command;
     hfp_ag_query_operator_handler query_current_operator;
     hfp_ag_iterate_call_handler iterate_current_call;
-    hfp_ag_handler cind_req;
-    hfp_ag_handler clcc_req;
-    hfp_ag_handler cops_req;
-    hfp_ag_handler_int hf_enhance_safety_change;
 };
 
 struct hfp_ag_module_handler;

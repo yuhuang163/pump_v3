@@ -39,6 +39,10 @@ void data_dump_init(void);
 void data_dump_deinit(void);
 void data_dump_run(uint32_t ch, const char *str, void *data_buf, uint32_t data_len);
 
+#ifdef SYSTEM_USE_FILE
+void audio_dump_data(uint8_t *buff, uint32_t len);
+#endif
+
 #ifdef __cplusplus
 }
 #endif

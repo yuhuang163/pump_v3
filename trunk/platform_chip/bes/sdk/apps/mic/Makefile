@@ -6,7 +6,6 @@ obj-y := $(obj-y:.cpp=.o)
 obj-y := $(obj-y:.S=.o)
 
 ccflags-y += \
-        -Iservices/audio_bt \
 	-Iservices/audio_process \
     -Iservices/app_ai/inc \
 	-Iservices/bt_app \
@@ -33,14 +32,28 @@ ccflags-y += \
 	-Iapps/audioplayers \
 	-Iapps/audioplayers/rbplay \
 	-Iapps/factory \
+	-Iservices/ble_app \
 	-Iservices/tws/inc \
 	-Iutils/hwtimer_list \
+	-Iservices/ble_stack/ble_ip \
+	-Iservices/ble_stack/hl/api \
+	-Iservices/ble_stack/app/api/  \
+	-Iservices/ble_stack/common/api/ \
+	-Iservices/ble_stack/hl/inc/ \
+	-Iservices/ble_stack/ke/api \
+	-Iservices/ble_app/app_tws \
 	-Iapps/wings \
 	-Iapps/battery \
 	-Iapps/ota \
 	-Iapps/mic \
 	-Ithirdparty/audio_codec_lib/liblhdc-dec/inc \
 	-Ithirdparty/cyberon/cspotter/src \
-	-Iutils/crc \
-	-Iservices/bt_app/a2dp_codecs/include \
-	-Iservices/audio_manager
+	-Iutils/crc32 \
+	-Imultimedia/inc/audio/codec/sbc/inc \
+	-Imultimedia/audio/codec/sbc/src/inc \
+	-Iservices/bt_app/a2dp_codecs/include
+
+ifeq ($(BLE_AUDIO_ENABLED),1)
+ccflags-y += \
+    -Iservices/audio_manager
+endif

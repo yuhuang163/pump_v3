@@ -20,13 +20,41 @@
 extern "C" {
 #endif
 
-void hal_cpudump_clk_enable(void);
-void hal_cpudump_clk_disable(void);
-void hal_cpudump_enable(void);
-void hal_cpudump_disable(void);
-uint32_t hal_cpudump_get_last_pc_addr(void);
+#include "plat_addr_map.h"
+#include "plat_types.h"
+
+enum HAL_CPUDUMP_ID_T {
+#ifdef CPUDUMP_BASE
+    HAL_CPUDUMP_ID_0,
+#endif
+#ifdef BTC_CPUDUMP_BASE
+    HAL_CPUDUMP_ID_BTC,
+#endif
+#ifdef WIFI_CPUDUMP_BASE
+    HAL_CPUDUMP_ID_WF,
+#endif
+#ifdef SENS_CPUDUMP_BASE
+    HAL_CPUDUMP_ID_SENS,
+#endif
+#if defined(SYS_CPUDUMP_BASE) && defined(BTH_AS_MAIN_MCU)
+    HAL_CPUDUMP_ID_SYS,
+#endif
+#if defined(BTH_CPUDUMP_BASE) && !defined(BTH_AS_MAIN_MCU)
+    HAL_CPUDUMP_ID_BTH,
+#endif
+
+    HAL_CPUDUMP_ID_QTY
+};
+
+void hal_cpudump_enable(enum HAL_CPUDUMP_ID_T id);
+void hal_cpudump_disable(enum HAL_CPUDUMP_ID_T id);
+void hal_cpudump_dump_pc(enum HAL_CPUDUMP_ID_T id);
+void hal_cpudump_dump_lr(enum HAL_CPUDUMP_ID_T id);
+
+int hal_cpudump_pc_read(enum HAL_CPUDUMP_ID_T id, uint32_t *buff, uint16_t size);
+int hal_cpudump_lr_read(enum HAL_CPUDUMP_ID_T id, uint32_t *buff, uint16_t size);
+
 #ifdef __cplusplus
 }
 #endif
-
 #endif

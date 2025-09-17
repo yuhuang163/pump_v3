@@ -23,49 +23,88 @@
 #include "hal_timer.h"
 #include "audioflinger.h"
 #include "bluetooth_bt_api.h"
-#include "app_bt_media_manager.h"
-#include "app_bt.h"
 #include "bt_drv_reg_op.h"
 #include "bt_drv_interface.h"
 #include "app_audio.h"
-#include "a2dp_api.h"
 #include "a2dp_decoder.h"
 #include "a2dp_decoder_internal.h"
-#include "app_a2dp.h"
+#include "app_bt_audio.h"
 #include "audio_policy.h"
-#if defined(IBRT)
 #include "btapp.h"
+#include "app_bt.h"
+
+#if defined(IBRT)
 #include "app_ibrt_internal.h"
-#include "earbud_ux_api.h"
+#include "app_tws_ctrl_thread.h"
 #include "app_tws_ibrt_cmd_handler.h"
 #include "app_tws_ibrt_audio_analysis.h"
 #include "app_tws_ibrt_audio_sync.h"
 #include "app_ibrt_customif_cmd.h"
-#include "bts_module_if.h"
+#if defined(IBRT_UI)
+#include "app_tws_ibrt_retrigger.h"
 #endif
-#include "crc_c.h"
-#include "audio_prompt_sbc.h"
+#endif
+#include "crc32_c.h"
 #ifdef __AI_VOICE__
 #include "app_ai_voice.h"
 #endif
-#ifdef __BIXBY
+#ifdef __BIXBY_VOICE__
 #include "app_bixby_thirdparty_if.h"
 #endif
+#ifdef A2DP_DECODER_CROSS_CORE
+#include "a2dp_decoder_cc_common.h"
+#include "a2dp_decoder_cc_bth.h"
+#endif
+#ifdef A2DP_DECODER_CROSS_CORE_USE_M55
+#include "mcu_dsp_m55_app.h"
+#include "app_dsp_m55.h"
+#endif
 
-#include "hal_overlay.h"
+#if defined(A2DP_AUDIO_STEREO_MIX_CTRL)
+// NOTE: If sinTable_f32 in RAM, will consume 2k RAM. Can define local arm_cos_f32 to free 2k RAM.
+#include "arm_math.h"
+#ifndef PI
+#define PI      3.14159265358979f
+#endif
+
+static float *g_mix_cos_coeff = NULL;
+static uint32_t g_mix_coeff_len = 0;
+#endif
+
 #ifdef A2DP_CP_ACCEL
 #define A2DP_HEAP_API_LOC                               SRAM_TEXT_LOC
 #else
 #define A2DP_HEAP_API_LOC
 #endif
 
+#ifndef A2DP_AUDIO_MEMPOOL_SIZE
+#if defined(A2DP_LHDC_ON) || defined(A2DP_LHDCV5_ON)
+#define A2DP_AUDIO_MEMPOOL_SIZE                         (86*1024)  //TODO
+#elif defined(A2DP_LDAC_ON)
+#define A2DP_AUDIO_MEMPOOL_SIZE                         (76*1024)
+#elif defined(A2DP_LC3_ON)
+#define A2DP_AUDIO_MEMPOOL_SIZE                        (120*1024)
+#elif defined(A2DP_DECODER_CROSS_CORE_USE_M55)
+#define A2DP_AUDIO_MEMPOOL_SIZE                         (70*1024)
+#elif defined(A2DP_AAC_ON)                                      
+#define A2DP_AUDIO_MEMPOOL_SIZE                         (72*1024)
+#else  //only sbc
+#define A2DP_AUDIO_MEMPOOL_SIZE                         (57*1024)
+#endif
+#endif
 #define A2DP_AUDIO_WAIT_TIMEOUT_MS                      (500)
+#define A2DP_ADUIO_MUTE_JITTER_BUFFER_THRESHOLD         (6)
+#define A2DP_ADUIO_MUTE_LOW_LATENCY_RECOVER_FRAME       (1)
+#define A2DP_ADUIO_MUTE_NORMAL_RECOVER_FRAME            (3)
 #if defined(BT_DONT_PLAY_MUTE_WHEN_A2DP_STUCK_PATCH)
 #define A2DP_AUDIO_MUTE_FRAME_CNT_AFTER_NO_CACHE        (0)
+#define A2DP_ADUIO_FORCE_RETRIGGER_TIMEOUT              (1000)
+#define A2DP_ADUIO_FORCE_RETRIGGER_MAX_CNT              (25)
 #else
 #define A2DP_AUDIO_MUTE_FRAME_CNT_AFTER_NO_CACHE        (25)
 #endif
 #define A2DP_AUDIO_SKIP_FRAME_LIMIT_AFTER_NO_CACHE      (50)
+#define A2DP_AUDIO_SKIP_FRAME_MAX_JITTER_BUFFER         (3)
 
 #define A2DP_AUDIO_REFILL_AFTER_NO_CACHE                (1)
 
@@ -107,6 +146,7 @@ extern const A2DP_AUDIO_DECODER_T a2dp_audio_ldac_decoder_config;
 extern const A2DP_AUDIO_DECODER_T a2dp_audio_scalable_decoder_config;
 extern bool a2dp_audio_scalable_latency_custom_tune(uint8_t device_id,
     float averageChunkCnt, uint16_t expectedChunkCnt);
+extern void audio_audio_scalable_get_sync_custom_data(uint8_t* custom_data);
 #endif
 
 #if defined(A2DP_LC3_ON)
@@ -115,7 +155,18 @@ extern const A2DP_AUDIO_DECODER_T a2dp_audio_lc3_decoder_config;
 
 osMutexDef(audio_buffer_mutex);
 osMutexDef(audio_status_mutex);
-osMutexDef(audio_stop_mutex);
+
+#ifdef ADVANCE_FILL_ENABLED
+bool is_doing_pre_fill = false;
+#define pingpang_cnt    2
+#endif
+
+#ifdef A2DP_DECODER_CROSS_CORE
+extern void a2dp_decoder_bth_set_first_run(A2DP_AUDIO_STARTFRAME_INFO_T headframe);
+extern uint16_t a2dp_decoder_get_off_bth_encoded_list_len(void);
+#endif
+
+extern uint32_t app_bt_stream_get_dma_buffer_delay_us(void);
 
 #ifdef __A2DP_AUDIO_SYNC_FIX_DIFF_NOPID__
 //#define A2DP_AUDIO_SYNC_FIX_DIFF_INTERVA_PRINT_FLOAT (1)
@@ -124,12 +175,21 @@ osMutexDef(audio_stop_mutex);
 #define A2DP_AUDIO_SYNC_FIX_DIFF_FAST_LIMIT    ( 0.003f)
 #define A2DP_AUDIO_SYNC_FIX_DIFF_SLOW_LIMIT    (-0.003f)
 
-extern uint32_t app_bt_stream_get_dma_buffer_samples(void);
 static int a2dp_audio_sync_fix_diff_proc(uint32_t tick);
 static int a2dp_audio_sync_fix_diff_stop(uint32_t tick);
 static int32_t a2dp_audio_sync_fix_diff_reset(void);
 static int32_t a2dp_audio_sync_fix_diff_start(uint32_t tick);
 
+#ifdef A2DP_DECODER_CROSS_CORE
+typedef struct {
+    uint8_t device_id;
+    btif_media_header_t header;
+    uint8_t data[2*1024];
+    uint32_t len;
+}A2DP_AUDIO_LAST_PACKET_T;
+
+A2DP_AUDIO_LAST_PACKET_T a2dp_audio_packet_last_cache;
+#endif
 typedef enum{
     A2DP_AUDIO_SYNC_FIX_DIFF_STATUS_IDLE,
     A2DP_AUDIO_SYNC_FIX_DIFF_STATUS_START,
@@ -144,27 +204,22 @@ typedef struct {
 static A2DP_AUDIO_SYNC_FIX_DIFF_T a2dp_audio_sync_fix_diff;
 #endif
 
-A2DP_AUDIO_CONTEXT_T a2dp_audio_context;
-
-#if defined(USE_OVERLAY_TXT_GAP)
-#define A2DP_HEAP_NUM 2
-#else
-#define A2DP_HEAP_NUM 1
+A2DP_AUDIO_CONTEXT_T a2dp_audio_context = {
+#if defined(A2DP_AUDIO_STEREO_MIX_CTRL)
+    .chnl_sel_new = A2DP_AUDIO_CHANNEL_SELECT_LRMERGE,
 #endif
+    .custom_delay_ms = A2DP_INVALID_DELAY_MS,
+};
 
-typedef struct {
-    uint8_t a2dp_audio_heap_index;
-    void* a2dp_audio_heap_addr[A2DP_HEAP_NUM];
-    uint32_t a2dp_audio_heap_size[A2DP_HEAP_NUM];
-    heap_handle_t a2dp_audio_heap[A2DP_HEAP_NUM];
-}A2DP_AUDIO_HEAP_INFO_T;
-static A2DP_AUDIO_HEAP_INFO_T a2dp_audio_heap_more_info;
+
+static heap_handle_t a2dp_audio_heap;
 
 static A2DP_AUDIO_LASTFRAME_INFO_T a2dp_audio_lastframe_info;
 
 static A2DP_AUDIO_DETECT_NEXT_PACKET_CALLBACK a2dp_audio_detect_next_packet_callback = NULL;
 static A2DP_AUDIO_DETECT_NEXT_PACKET_CALLBACK a2dp_audio_store_packet_callback = NULL;
 static A2DP_AUDIO_STORE_DATA_NTF_CALLBACK a2dp_audio_store_packet_ntf_callback = NULL;
+
 
 static float a2dp_audio_latency_factor = A2DP_AUDIO_LATENCY_LOW_FACTOR;
 static float sync_tune_dest_ratio = 1.0f;
@@ -173,12 +228,7 @@ static uint32_t store_packet_history_loctime = 0;
 
 static uint32_t check_sum_seed = 0;
 
-#ifdef AUDIO_RMS_MONITOR_ENABLE
-extern int32_t rms_dac_volume;
-extern uint32_t rms_debug_cnt;
-#endif
-
-extern APP_STREAM_GET_A2DP_PARAM_CALLBACK app_stream_get_a2dp_non_type_callback;
+static uint32_t start_force_retrigger_ms = 0;
 
 static bool isInPostChoppingPeriod = false;
 
@@ -193,92 +243,58 @@ static void sbm_default_jitter_buf_level_update_completed_callback(
 
 SBM_JITTER_BUF_LEVEL_UPDATE_COMPLETED_FUNC sbmJitterBufLevelUpdatedCompletedCallback = sbm_default_jitter_buf_level_update_completed_callback;
 
-void a2dp_audio_heap_register(void *begin_addr, uint32_t size)
-{
-    if(a2dp_audio_heap_more_info.a2dp_audio_heap_index >= A2DP_HEAP_NUM)
-        return;
-    a2dp_audio_heap_more_info.a2dp_audio_heap[a2dp_audio_heap_more_info.a2dp_audio_heap_index] = heap_register(begin_addr,size);
-    a2dp_audio_heap_more_info.a2dp_audio_heap_addr[a2dp_audio_heap_more_info.a2dp_audio_heap_index] = begin_addr;
-    a2dp_audio_heap_more_info.a2dp_audio_heap_size[a2dp_audio_heap_more_info.a2dp_audio_heap_index] = size;
-    a2dp_audio_heap_more_info.a2dp_audio_heap_index++;
-}
-
 void a2dp_audio_heap_init(void *begin_addr, uint32_t size)
 {
-    memset(&a2dp_audio_heap_more_info,0,sizeof(a2dp_audio_heap_more_info));
-    a2dp_audio_heap_register(begin_addr,size);
-#if defined(USE_OVERLAY_TXT_GAP)
-    enum HAL_OVERLAY_ID_T id = hal_overlay_get_curr_id();
-    if(id != HAL_OVERLAY_ID_QTY){
-        a2dp_audio_heap_register((void*)hal_overlay_get_text_free_addr(id), hal_overlay_get_text_free_size(id));
-    }
-#endif
+    a2dp_audio_heap = heap_register(begin_addr,size);
 }
 
 A2DP_HEAP_API_LOC
 void *a2dp_audio_heap_malloc(uint32_t size)
 {
-    void *ptr = NULL;
-    int i = 0;
-    for(; i<a2dp_audio_heap_more_info.a2dp_audio_heap_index ;i++)
+    void *ptr = heap_malloc(a2dp_audio_heap, size);
+    if (!ptr)
     {
-        ptr = heap_malloc(a2dp_audio_heap_more_info.a2dp_audio_heap[i], size);
-        if(ptr)
-            break;
+        TRACE(0, "[%s] ptr=%p size=%u user=%p left/mini left=%u/%u",
+            __func__, ptr, size, __builtin_return_address(0),
+            heap_free_size(a2dp_audio_heap),
+            heap_minimum_free_size(a2dp_audio_heap));
     }
-#ifdef A2DP_HEAP_DEBUG
-    AUDIOPLAYERS_TRACE(0, "[%s] ptr=%p size=%u user=%p left/mini left=%u/%u index %d",
-        __func__, ptr, size, __builtin_return_address(0),
-        heap_free_size(a2dp_audio_heap_more_info.a2dp_audio_heap[i]),
-        heap_minimum_free_size(a2dp_audio_heap_more_info.a2dp_audio_heap[i]),
-        i);
-#endif
     ASSERT_A2DP_DECODER(ptr, "%s size:%d", __func__, size);
+#ifdef A2DP_HEAP_DEBUG
+    TRACE(0, "[%s] ptr=%p size=%u user=%p left/mini left=%u/%u",
+        __func__, ptr, size, __builtin_return_address(0),
+        heap_free_size(a2dp_audio_heap),
+        heap_minimum_free_size(a2dp_audio_heap));
+#endif
     return ptr;
 }
 
 A2DP_HEAP_API_LOC
 void *a2dp_audio_heap_cmalloc(uint32_t size)
 {
-    void *ptr = NULL;
-    int i =0;
-    for(; i<a2dp_audio_heap_more_info.a2dp_audio_heap_index ;i++)
-    {
-        ptr = heap_malloc(a2dp_audio_heap_more_info.a2dp_audio_heap[i], size);
-        if(ptr)
-            break;
-    }
-#ifdef A2DP_HEAP_DEBUG
-    AUDIOPLAYERS_TRACE(0, "[%s] ptr=%p size=%u user=%p left/mini left=%u/%u index %d",
-        __func__, ptr, size, __builtin_return_address(0),
-        heap_free_size(a2dp_audio_heap_more_info.a2dp_audio_heap[i]),
-        heap_minimum_free_size(a2dp_audio_heap_more_info.a2dp_audio_heap[i]),
-        i);
-#endif
+    void *ptr = heap_malloc(a2dp_audio_heap, size);
     ASSERT_A2DP_DECODER(ptr, "%s size:%d", __func__, size);
     memset(ptr, 0, size);
+#ifdef A2DP_HEAP_DEBUG
+    TRACE(0, "[%s] ptr=%p size=%u user=%p left/mini left=%u/%u",
+        __func__, ptr, size, __builtin_return_address(0),
+        heap_free_size(a2dp_audio_heap),
+        heap_minimum_free_size(a2dp_audio_heap));
+#endif
     return ptr;
 }
 
 A2DP_HEAP_API_LOC
 void *a2dp_audio_heap_realloc(void *rmem, uint32_t newsize)
 {
-    void *ptr = NULL;
-    int i = 0;
-    for(; i<a2dp_audio_heap_more_info.a2dp_audio_heap_index ;i++)
-    {
-        ptr = heap_realloc(a2dp_audio_heap_more_info.a2dp_audio_heap[i], rmem, newsize);
-        if(ptr)
-            break;
-    }
-#ifdef A2DP_HEAP_DEBUG
-    AUDIOPLAYERS_TRACE(0, "[%s] ptr=%p/%p size=%u user=%p left/mini left=%u/%u index %d",
-        __func__, rmem, ptr, newsize, __builtin_return_address(0),
-        heap_free_size(a2dp_audio_heap_more_info.a2dp_audio_heap[i]),
-        heap_minimum_free_size(a2dp_audio_heap_more_info.a2dp_audio_heap[i]),
-        i);
-#endif
+    void *ptr = heap_realloc(a2dp_audio_heap, rmem, newsize);
     ASSERT_A2DP_DECODER(ptr, "%s rmem:%p size:%d", __func__, rmem,newsize);
+#ifdef A2DP_HEAP_DEBUG
+    TRACE(0, "[%s] ptr=%p/%p size=%u user=%p left/mini left=%u/%u",
+        __func__, rmem, ptr, newsize, __builtin_return_address(0),
+        heap_free_size(a2dp_audio_heap),
+        heap_minimum_free_size(a2dp_audio_heap));
+#endif
     return ptr;
 }
 
@@ -286,44 +302,25 @@ A2DP_HEAP_API_LOC
 void a2dp_audio_heap_free(void *rmem)
 {
 #ifdef A2DP_HEAP_DEBUG
-    AUDIOPLAYERS_TRACE(0, "[%s] ptr=%p user=%p", __func__, rmem, __builtin_return_address(0));
+    TRACE(0, "[%s] ptr=%p user=%p", __func__, rmem, __builtin_return_address(0));
 #endif
     ASSERT_A2DP_DECODER(rmem, "%s rmem:%p", __func__, rmem);
-    int i = 0,diff_addr = 0;
-    for (i = 0; i < a2dp_audio_heap_more_info.a2dp_audio_heap_index; i++)
-    {
-        diff_addr = (char *)rmem - (char *)a2dp_audio_heap_more_info.a2dp_audio_heap[i];
-#ifdef A2DP_HEAP_DEBUG
-        AUDIOPLAYERS_TRACE(0, "[%s] i=%d diff_addr=%d", __func__, i, diff_addr);
-#endif
-        if ((diff_addr > 0) && (diff_addr < (int)a2dp_audio_heap_more_info.a2dp_audio_heap_size[i]))
-            break;
-    }
-    ASSERT(i < a2dp_audio_heap_more_info.a2dp_audio_heap_index, "[%s] Can not find ptr=%p", __func__, rmem);
-    heap_free(a2dp_audio_heap_more_info.a2dp_audio_heap[i], rmem);
-    rmem = NULL;
+    heap_free(a2dp_audio_heap,rmem);
 }
 
 void a2dp_audio_heap_info(size_t *total, size_t *used, size_t *max_used)
 {
     multi_heap_info_t info;
-    info.total_bytes = 0;
-    info.total_allocated_bytes = 0;
-    info.minimum_free_bytes = 0;
+    heap_get_info(a2dp_audio_heap, &info);
 
-    for(int i=0; i<a2dp_audio_heap_more_info.a2dp_audio_heap_index ;i++)
-    {
-        heap_get_info(a2dp_audio_heap_more_info.a2dp_audio_heap[i], &info);
+    if (total != NULL)
+        *total = info.total_bytes;
 
-        if (total != NULL)
-            *total += info.total_bytes;
+    if (used  != NULL)
+        *used = info.total_allocated_bytes;
 
-        if (used  != NULL)
-            *used += info.total_allocated_bytes;
-
-        if (max_used != NULL)
-            *max_used += info.total_bytes - info.minimum_free_bytes;
-    }
+    if (max_used != NULL)
+        *max_used = info.total_bytes - info.minimum_free_bytes;
 }
 
 int inline a2dp_audio_buffer_mutex_init(void)
@@ -336,13 +333,19 @@ int inline a2dp_audio_buffer_mutex_init(void)
 
 int inline a2dp_audio_buffer_mutex_lock(void)
 {
-    osMutexWait((osMutexId)a2dp_audio_context.audio_buffer_mutex, osWaitForever);
+    if (!(in_isr() || in_int_locked())) {
+        osMutexWait((osMutexId)a2dp_audio_context.audio_buffer_mutex, osWaitForever);
+    }
+
     return 0;
 }
 
 int inline a2dp_audio_buffer_mutex_unlock(void)
 {
-    osMutexRelease((osMutexId)a2dp_audio_context.audio_buffer_mutex);
+    if (!(in_isr() || in_int_locked())) {
+        osMutexRelease((osMutexId)a2dp_audio_context.audio_buffer_mutex);
+    }
+
     return 0;
 }
 
@@ -356,17 +359,20 @@ int inline a2dp_audio_status_mutex_init(void)
 
 int inline a2dp_audio_status_mutex_lock(void)
 {
-    if (a2dp_audio_context.audio_status_mutex != NULL){
+    if (!(in_isr() || in_int_locked())) {
+        a2dp_audio_status_mutex_init();
         osMutexWait((osMutexId)a2dp_audio_context.audio_status_mutex, osWaitForever);
     }
+
     return 0;
 }
 
 int inline a2dp_audio_status_mutex_unlock(void)
 {
-    if (a2dp_audio_context.audio_status_mutex != NULL){
+    if (!(in_isr() || in_int_locked())) {
         osMutexRelease((osMutexId)a2dp_audio_context.audio_status_mutex);
     }
+
     return 0;
 }
 
@@ -394,16 +400,6 @@ uint32_t a2dp_audio_list_length(const list_t *list)
     return length;
 }
 
-void *a2dp_audio_list_front(const list_t *list)
-{
-    a2dp_audio_buffer_mutex_lock();
-    void *data = NULL;
-    if(list_length(list) > 0)
-        data = list_front(list);
-    a2dp_audio_buffer_mutex_unlock();
-    return data;
-}
-
 void *a2dp_audio_list_node(const list_node_t *node)
 {
     a2dp_audio_buffer_mutex_lock();
@@ -420,27 +416,133 @@ list_node_t *a2dp_audio_list_next(const list_node_t *node)
     return next;
 }
 
-bool a2dp_audio_list_remove(list_t *list, void *data)
+bool a2dp_audio_list_remove_generic(list_t *list, void *data)
 {
     a2dp_audio_buffer_mutex_lock();
     bool nRet = list_remove(list, data);
+#ifdef A2DP_DECODER_CROSS_CORE
+    if (nRet)
+    {
+        a2dp_audio_list_feed_off_core();
+    }
+#endif
     a2dp_audio_buffer_mutex_unlock();
     return nRet;
 }
 
-bool a2dp_audio_list_prepend(list_t *list, void *data)
+#ifdef A2DP_DECODER_CROSS_CORE
+void a2dp_audio_list_feed_off_core(void)
 {
-    a2dp_audio_buffer_mutex_lock();
-    bool nRet = list_prepend(list,data);
-    a2dp_audio_buffer_mutex_unlock();
+    list_t *list = a2dp_audio_context.audio_datapath.input_raw_packet_list;
+    list_node_t *node = a2dp_audio_list_begin(list);
+    A2DP_COMMON_MEDIA_FRAME_HEADER_T* pFrameHeader = NULL;
+    bool ret = true;
+    uint8_t cnt = 0;
+
+    if (node == NULL) {
+        return;
+    }
+
+    do {
+        pFrameHeader = (A2DP_COMMON_MEDIA_FRAME_HEADER_T *)list_node(node);
+        if (!pFrameHeader->isFeedoffCore) {
+            if (a2dp_decoder_get_off_bth_encoded_list_len() + cnt > 200)
+            {
+                TRACE(0, "off bth too many packet");
+                break;
+            }
+            ret = a2dp_decoder_bth_feed_encoded_data_into_off_core(
+                (uint8_t *)pFrameHeader,
+                pFrameHeader->timestamp, pFrameHeader->sequenceNumber,
+                pFrameHeader->totalSubSequenceNumber,
+                pFrameHeader->curSubSequenceNumber,
+                pFrameHeader->dataLen,
+                pFrameHeader->ptrData);
+            if (!ret) {
+                break;
+            }
+            pFrameHeader->isFeedoffCore = true;
+            cnt++;
+        }
+        node = a2dp_audio_list_next(node);
+    } while(node);
+}
+
+bool a2dp_audio_list_remove_special(list_t *list, void *data)
+{
+    A2DP_COMMON_MEDIA_FRAME_HEADER_T header =
+        *(A2DP_COMMON_MEDIA_FRAME_HEADER_T *)data;
+    bool is_remove_off_core = header.isFeedoffCore;
+    bool nRet = a2dp_audio_list_remove_generic(list, data);
+
+    if (nRet&&is_remove_off_core)
+    {
+        TRACE(2, "%s, seq:%u-%u-%u, ca:%p", __func__,
+            header.sequenceNumber, header.curSubSequenceNumber,
+            header.totalSubSequenceNumber,
+             __builtin_return_address(0));
+
+        A2DP_DECODER_CC_FLUSH_T flushInfo;
+        flushInfo.flushFrame = data;
+        flushInfo.seqNum = header.sequenceNumber;
+        flushInfo.totalSubSeq = header.totalSubSequenceNumber;
+        flushInfo.subSeq = header.curSubSequenceNumber;
+
+        a2dp_decoder_bth_remove_specifc_frame(flushInfo);
+    }
+
     return nRet;
 }
 
-bool a2dp_audio_list_insert_after(list_t *list, list_node_t *node, void *data)
+void a2dp_decoder_remove_from_list(void *data)
 {
-    a2dp_audio_buffer_mutex_lock();
-    bool nRet = list_insert_after(list,node,data);
-    a2dp_audio_buffer_mutex_unlock();
+    a2dp_audio_list_remove_generic(
+        a2dp_audio_context.audio_datapath.input_raw_packet_list, data);
+}
+
+bool a2dp_audio_ibrt_is_slave(void)
+{
+    bool result = false;
+    uint8_t device_id = app_bt_audio_get_curr_a2dp_device();
+    struct BT_DEVICE_T * curr_device = app_bt_get_device(device_id);
+    if (app_tws_ibrt_slave_ibrt_link_connected(&curr_device->remote))
+    {
+        result = true;
+    }
+    return result;
+}
+
+void a2dp_audio_send_master_refill(uint8_t *refill)
+{
+    tws_ctrl_send_cmd(APP_TWS_CMD_REFILL_FRAMES, \
+                   refill, \
+                   sizeof(uint8_t));
+}
+
+void a2dp_decoder_update_last_frame_info(
+    uint16_t sequenceNumber,
+    uint32_t timestamp,
+    uint16_t curSubSequenceNumber,
+    uint16_t totalSubSequenceNumber)
+{
+    uint32_t lock = int_lock();
+    a2dp_audio_lastframe_info.sequenceNumber = sequenceNumber;
+    a2dp_audio_lastframe_info.timestamp = timestamp;
+    a2dp_audio_lastframe_info.curSubSequenceNumber = curSubSequenceNumber;
+    a2dp_audio_lastframe_info.totalSubSequenceNumber = totalSubSequenceNumber;
+    a2dp_audio_lastframe_info.decoded_frames++;
+    int_unlock(lock);
+}
+#endif
+
+bool a2dp_audio_list_remove(list_t *list, void *data)
+{
+#ifdef A2DP_DECODER_CROSS_CORE
+    bool nRet = a2dp_audio_list_remove_special(list, data);
+#else
+    bool nRet = a2dp_audio_list_remove_generic(list, data);
+#endif
+
     return nRet;
 }
 
@@ -448,7 +550,17 @@ bool a2dp_audio_list_append(list_t *list, void *data)
 {
     a2dp_audio_buffer_mutex_lock();
     bool nRet = list_append(list, data);
+#ifdef A2DP_DECODER_CROSS_CORE
+    A2DP_COMMON_MEDIA_FRAME_HEADER_T* pFrameHeader =
+                (A2DP_COMMON_MEDIA_FRAME_HEADER_T *)data;
+    pFrameHeader->isFeedoffCore = false;
+    if (nRet)
+    {
+        a2dp_audio_list_feed_off_core();
+    }
+#endif
     a2dp_audio_buffer_mutex_unlock();
+
     return nRet;
 }
 
@@ -506,13 +618,13 @@ osTimerId  a2dp_audio_throughput_timer = NULL;
 static void a2dp_audio_throughput_checker_timehandler(void const *param)
 {
     uint64_t crrThroughputTestBufCnt = 0;
-    POSSIBLY_UNUSED int64_t crrThroughput_bps = 0;
+    int64_t crrThroughput_bps = 0;
 
     crrThroughputTestBufCnt = throughputTestBufCnt;
     throughputTestBufCnt = 0;
     crrThroughput_bps = crrThroughputTestBufCnt*8/THROUGHPUT_CHECKER_INTERVAL;
 
-    AUDIOPLAYERS_TRACE(0,"[INPUT][THROUGHPUT] cnt:%d/%dK Bbps/%d kbps",
+    TRACE_A2DP_DECODER_I("[INPUT][THROUGHPUT] cnt:%d/%dK Bbps/%d kbps",
                         (uint32_t)crrThroughputTestBufCnt,
                         (uint32_t)(crrThroughputTestBufCnt/THROUGHPUT_CHECKER_INTERVAL),
                         (uint32_t)crrThroughput_bps);
@@ -545,7 +657,7 @@ int a2dp_audio_throughput_checker_stop(void)
 int inline a2dp_audio_set_status(enum A2DP_AUDIO_DECODER_STATUS decoder_status)
 {
     a2dp_audio_status_mutex_lock();
-    AUDIOPLAYERS_TRACE(2, "a2dp audio status update:%d->%d", a2dp_audio_context.audio_decoder_status, decoder_status);
+    TRACE(2, "a2dp audio status update:%d->%d", a2dp_audio_context.audio_decoder_status, decoder_status);
     a2dp_audio_context.audio_decoder_status = decoder_status;
     a2dp_audio_status_mutex_unlock();
 
@@ -560,6 +672,14 @@ enum A2DP_AUDIO_DECODER_STATUS inline a2dp_audio_get_status(void)
     a2dp_audio_status_mutex_unlock();
 
     return decoder_status;
+}
+
+bool a2dp_audio_is_started(void)
+{
+    if (A2DP_AUDIO_DECODER_STATUS_START == a2dp_audio_get_status()) {
+        return true;
+    }
+    return false;
 }
 
 int inline a2dp_audio_set_store_packet_status(enum A2DP_AUDIO_DECODER_STORE_PACKET_STATUS store_packet_status)
@@ -630,27 +750,27 @@ int a2dp_audio_sync_reset_data(void)
 #endif
     a2dp_audio_status_mutex_unlock();
 
-    AUDIOPLAYERS_TRACE(0,"[SYNC]reset_data");
+    TRACE_A2DP_DECODER_I("[SYNC]reset_data");
     return 0;
 }
 
-int a2dp_audio_sync_init(double ratio)
+int a2dp_audio_sync_init(float ratio)
 {
 #ifdef __A2DP_AUDIO_SYNC_FIX_DIFF_NOPID__
     a2dp_audio_sync_fix_diff_reset();
 #endif
     a2dp_audio_sync_reset_data();
     a2dp_audio_sync_tune_sample_rate(ratio);
-    sync_tune_dest_ratio = (float)ratio;
+    sync_tune_dest_ratio = ratio;
     return 0;
 }
 
-int a2dp_audio_sync_tune_sample_rate(double ratio)
+int a2dp_audio_sync_tune_sample_rate(float ratio)
 {
     float resample_rate_ratio;
     bool need_tune = false;
 
-    float convertedRatio = (float)ratio;
+    float convertedRatio = ratio;
     a2dp_audio_status_mutex_lock();
     if (a2dp_audio_context.output_cfg.factor_reference != convertedRatio){
         a2dp_audio_context.output_cfg.factor_reference = convertedRatio;
@@ -659,34 +779,35 @@ int a2dp_audio_sync_tune_sample_rate(double ratio)
         need_tune = true;
     }
 
-    a2dp_audio_status_mutex_unlock();
+    //a2dp_audio_status_mutex_unlock();
 
     if (need_tune){
-        AUDIOPLAYERS_TRACE(0,"[SYNC] %s ppb:%d ratio:%08d", __func__, 
+        app_audio_manager_tune_samplerate_ratio(AUD_STREAM_PLAYBACK, resample_rate_ratio);
+        TRACE_A2DP_DECODER_I("[SYNC] ppb:%d ratio:%08d",
                                                    (int32_t)(resample_rate_ratio * 10000000),
                                                    (int32_t)(ratio * 10000000));
-        app_audio_manager_tune_samplerate_ratio(AUD_STREAM_PLAYBACK, resample_rate_ratio);
     }
+    a2dp_audio_status_mutex_unlock();
 
     return 0;
 }
 
-int a2dp_audio_sync_direct_tune_sample_rate(double ratio)
+int a2dp_audio_sync_direct_tune_sample_rate(float ratio)
 {
     float resample_rate_ratio;
     bool need_tune = false;
 
     a2dp_audio_status_mutex_lock();
-    if (a2dp_audio_context.output_cfg.factor_reference != (float)ratio){
-        a2dp_audio_context.output_cfg.factor_reference = (float)ratio;
-        resample_rate_ratio = (float)(ratio - (double)1.0);
+    if (a2dp_audio_context.output_cfg.factor_reference != ratio){
+        a2dp_audio_context.output_cfg.factor_reference = ratio;
+        resample_rate_ratio = ratio - 1.0;
         need_tune = true;
     }
 
     if (need_tune){
-        af_codec_direct_tune(AUD_STREAM_PLAYBACK, resample_rate_ratio);
+        af_stream_direct_tune(AUD_STREAM_ID_0, AUD_STREAM_PLAYBACK, resample_rate_ratio);
 
-        AUDIOPLAYERS_TRACE(0,"[SYNC] %s, ppb:%d ratio:%08d", __func__, 
+        TRACE_A2DP_DECODER_I("[SYNC] ppb:%d ratio:%08d",
                                        (int32_t)(resample_rate_ratio * 10000000),
                                        (int32_t)(ratio * 10000000));
     }
@@ -707,31 +828,25 @@ bool a2dp_audio_sync_tune_onprocess(void)
 int a2dp_audio_sync_tune(uint8_t device_id, float ratio)
 {
     int nRet = 0;
-    POSSIBLY_UNUSED struct BT_DEVICE_T *curr_device = NULL;
+    POSSIBLY_UNUSED int ret = 0;
+    POSSIBLY_UNUSED bt_acl_state_t acl_link_info = {0};
 
-    if ((sync_tune_dest_ratio == ratio)){
+    if (sync_tune_dest_ratio == ratio){
         goto exit;
     }
-
-#ifdef BT_SVC_MODULE_IBRT_ENABLED
-    if(app_ibrt_if_is_tws_role_switching()){
-        app_tws_ibrt_audio_sync_tune_skip_next_cnt(APP_TWS_IBRT_AUDIO_SYNC_TUNE_SKIP_NEXT_CNT);
-        goto exit;
-    }
-#endif
 
     sync_tune_dest_ratio = ratio;
 #if defined(IBRT)
-    curr_device = app_bt_get_device(device_id);
-    if (bts_ibrt_if_is_profile_exchanged(&curr_device->remote)){
-        if (bts_bt_if_is_dev_link_connected(&curr_device->remote)){
+    acl_link_info = bes_bt_me_acl_get_state(device_id);
+    if (app_ibrt_conn_is_profile_exchanged(&acl_link_info.remote)){
+        if (app_tws_ibrt_mobile_link_connected(&acl_link_info.remote)){
             APP_TWS_IBRT_AUDIO_SYNC_TUNE_T sync_tune;
             sync_tune.factor_reference = ratio;
 #ifdef IBRT_UI
-            sync_tune.mobile_addr = curr_device->remote;
+            sync_tune.mobile_addr = acl_link_info.remote;
 #endif
             if (!app_tws_ibrt_audio_sync_tune_need_skip()){
-                int ret = tws_ctrl_send_cmd(APP_TWS_CMD_SYNC_TUNE, (uint8_t*)&sync_tune, sizeof(APP_TWS_IBRT_AUDIO_SYNC_TUNE_T));
+                ret = tws_ctrl_send_cmd(APP_TWS_CMD_SYNC_TUNE, (uint8_t*)&sync_tune, sizeof(APP_TWS_IBRT_AUDIO_SYNC_TUNE_T));
                 if (0 != ret)
                 {
                     a2dp_audio_sync_tune_cancel();
@@ -755,8 +870,6 @@ exit:
 
 int a2dp_audio_sync_tune_cancel(void)
 {
-    AUDIOPLAYERS_TRACE(0,"[SYNC] cancel sync tune dest ratio:%d cfg ratio:%d",
-        (int32_t)(sync_tune_dest_ratio* 10000000), (int32_t)(a2dp_audio_context.output_cfg.factor_reference* 10000000));
     sync_tune_dest_ratio = a2dp_audio_context.output_cfg.factor_reference;
     return 0;
 }
@@ -796,7 +909,7 @@ static int a2dp_audio_sync_fix_diff_proc(uint32_t tick)
 
 static int32_t a2dp_audio_sync_fix_diff_start(uint32_t tick)
 {
-    AUDIOPLAYERS_TRACE(0,"[SYNC] fix diff start");
+    TRACE_A2DP_DECODER_I("[SYNC] fix diff start");
 
     a2dp_audio_sync_fix_diff.status = A2DP_AUDIO_SYNC_FIX_DIFF_STATUS_START;
     a2dp_audio_sync_fix_diff.tick = tick;
@@ -805,7 +918,7 @@ static int32_t a2dp_audio_sync_fix_diff_start(uint32_t tick)
 
 static int a2dp_audio_sync_fix_diff_stop(uint32_t tick)
 {
-    AUDIOPLAYERS_TRACE(0,"[SYNC] fix diff stop");
+    TRACE_A2DP_DECODER_I("[SYNC] fix diff stop");
 
     a2dp_audio_sync_fix_diff.status = A2DP_AUDIO_SYNC_FIX_DIFF_STATUS_STOP;
     a2dp_audio_sync_fix_diff.tick = 0;
@@ -815,7 +928,7 @@ static int a2dp_audio_sync_fix_diff_stop(uint32_t tick)
 
 static int32_t a2dp_audio_sync_fix_diff_reset(void)
 {
-    AUDIOPLAYERS_TRACE(0,"[SYNC] fix diff reset");
+    TRACE_A2DP_DECODER_I("[SYNC] fix diff reset");
 
     a2dp_audio_sync_fix_diff.status = A2DP_AUDIO_SYNC_FIX_DIFF_STATUS_IDLE;
     a2dp_audio_sync_fix_diff.tick = 0;
@@ -830,23 +943,20 @@ static A2DP_AUDIO_SYNC_FIX_DIFF_STATUS a2dp_audio_sync_fix_diff_status_get(void)
 
 static int a2dp_audio_sync_handler(uint8_t device_id, uint8_t *buffer, uint32_t buffer_bytes)
 {
-#if defined(A2DP_LDAC_ON) && defined(A2DP_LDAC_BCO)
-    if(bta_get_curr_a2dp_codec_type() == BT_A2DP_CODEC_TYPE_NON_A2DP)
-        return 0;
-#endif
-
     A2DP_AUDIO_LASTFRAME_INFO_T *lastframe_info = NULL;
     A2DP_AUDIO_SYNC_T *audio_sync = &a2dp_audio_context.audio_sync;
     float diff_mtu = 0;
     bool need_tune = false;
     bool force_slow = false;
+    bool force_fast = false;
     A2DP_AUDIO_SYNC_FIX_DIFF_STATUS fix_diff_status;
     bool a2dp_tune_onprocess;
 #if defined(IBRT)
     bool ibrt_tune_onprocess;
+    bool role_switch_on = false;
     ibrt_tune_onprocess = app_tws_ibrt_audio_sync_tune_onprocess();
-    POSSIBLY_UNUSED struct BT_DEVICE_T *curr_device = app_bt_get_device(device_id);
-    if (!bts_bt_if_is_dev_link_connected(&curr_device->remote)){
+    POSSIBLY_UNUSED bt_acl_state_t acl_link_info = bes_bt_me_acl_get_state(device_id);
+    if (!app_tws_ibrt_mobile_link_connected(&acl_link_info.remote)){
         return -1;
     }
 #endif
@@ -857,11 +967,12 @@ static int a2dp_audio_sync_handler(uint8_t device_id, uint8_t *buffer, uint32_t 
     a2dp_audio_sync_fix_diff_proc(audio_sync->tick);
     fix_diff_status = a2dp_audio_sync_fix_diff_status_get();
     a2dp_tune_onprocess = a2dp_audio_sync_tune_onprocess();
+    role_switch_on = app_ibrt_conn_any_role_switch_running();
     if (fix_diff_status == A2DP_AUDIO_SYNC_FIX_DIFF_STATUS_STOP){
-#if defined(BT_SVC_MODULE_IBRT_ENABLED)
+#if defined(IBRT)
         if (!ibrt_tune_onprocess &&
             !a2dp_tune_onprocess &&
-            !app_ibrt_if_is_tws_role_switching()
+            !role_switch_on
 #else
         if (!a2dp_tune_onprocess
 #endif
@@ -873,37 +984,35 @@ static int a2dp_audio_sync_handler(uint8_t device_id, uint8_t *buffer, uint32_t 
             if (!sync_tune_result){
                 a2dp_audio_sync_fix_diff_reset();
 #ifdef A2DP_AUDIO_SYNC_FIX_DIFF_INTERVA_PRINT_FLOAT
-                AUDIOPLAYERS_TRACE(0,"[SYNC] tune ratio normal %f mut:%5.3f->%d",
+                TRACE_A2DP_DECODER_I("[SYNC] tune ratio normal %f mut:%5.3f->%d",
                                     (double)a2dp_audio_context.init_factor_reference,
                                     (double)a2dp_audio_context.average_packet_mut,
                                     a2dp_audio_context.dest_packet_mut);
 #else
-                AUDIOPLAYERS_TRACE(0,"[SYNC] tune ratio normal %d mut:%d->%d",
+                TRACE_A2DP_DECODER_I("[SYNC] tune ratio normal %d mut:%d->%d",
                                     (int32_t)(a2dp_audio_context.init_factor_reference * 10000000),
                                     (int32_t)(a2dp_audio_context.average_packet_mut+0.5f),
                                     a2dp_audio_context.dest_packet_mut);
 #endif
             }else{
-                AUDIOPLAYERS_TRACE(0,"[SYNC] tune ratio normal busy");
+                TRACE_A2DP_DECODER_I("[SYNC] tune ratio normal busy");
             }
 
         }else{
 #ifdef A2DP_AUDIO_SYNC_FIX_DIFF_INTERVA_PRINT_FLOAT
-                AUDIOPLAYERS_TRACE(0,"[SYNC] tune ratio busy %f mut:%5.3f->%d",
+                TRACE_A2DP_DECODER_I("[SYNC] tune ratio busy %f mut:%5.3f->%d",
                                     (double)a2dp_audio_context.init_factor_reference,
                                     (double)a2dp_audio_context.average_packet_mut,
                                     a2dp_audio_context.dest_packet_mut);
 #else
-                AUDIOPLAYERS_TRACE(0,"[SYNC] tune ratio busy %d mut:%d->%d",
+                TRACE_A2DP_DECODER_I("[SYNC] tune ratio busy %d mut:%d->%d",
                                     (int32_t)(a2dp_audio_context.init_factor_reference * 10000000),
                                     (int32_t)(a2dp_audio_context.average_packet_mut+0.5f),
                                     a2dp_audio_context.dest_packet_mut);
 #endif
-#if defined(BT_SVC_MODULE_IBRT_ENABLED)
-            AUDIOPLAYERS_TRACE(0,"[SYNC] tune busy reason %d-%d-%d",
-              app_tws_ibrt_audio_sync_tune_onprocess(),
-              a2dp_audio_sync_tune_onprocess(),
-              app_ibrt_if_is_tws_role_switching());
+#if defined(IBRT)
+            TRACE_A2DP_DECODER_I("[SYNC] tune busy reason %d-%d-%d",
+              ibrt_tune_onprocess, a2dp_tune_onprocess, role_switch_on);
 #endif
         }
         goto exit;
@@ -913,9 +1022,9 @@ static int a2dp_audio_sync_handler(uint8_t device_id, uint8_t *buffer, uint32_t 
         diff_mtu = a2dp_audio_context.average_packet_mut-(float)a2dp_audio_context.dest_packet_mut;
         if (ABS(diff_mtu) < 0.6f){
 #ifdef A2DP_AUDIO_SYNC_FIX_DIFF_INTERVA_PRINT_FLOAT
-            AUDIOPLAYERS_TRACE(0,"[SYNC] skip mut:%5.3f", (double)diff_mtu);
+            TRACE_A2DP_DECODER_I("[SYNC] skip mut:%5.3f", (double)diff_mtu);
 #else
-            AUDIOPLAYERS_TRACE(0,"[SYNC] skip mut:0.%d", (int32_t)(diff_mtu*10));
+            TRACE_A2DP_DECODER_I("[SYNC] skip mut:0.%d", (int32_t)(diff_mtu*10));
 #endif
             sbm_target_jitter_buffer_updating_completed();
             goto exit;
@@ -924,17 +1033,29 @@ static int a2dp_audio_sync_handler(uint8_t device_id, uint8_t *buffer, uint32_t 
             float ref_ratio  = a2dp_audio_context.init_factor_reference;
             if (curr_ratio != (ref_ratio + A2DP_AUDIO_SYNC_FIX_DIFF_SLOW_LIMIT)){
 #ifdef A2DP_AUDIO_SYNC_FIX_DIFF_INTERVA_PRINT_FLOAT
-                AUDIOPLAYERS_TRACE(0,"[SYNC] force slow mut:%5.3f", (double)diff_mtu);
+                TRACE_A2DP_DECODER_I("[SYNC] force slow mut:%5.3f", (double)diff_mtu);
 #else
-                AUDIOPLAYERS_TRACE(0,"[SYNC] force slow mut:0.%d", (int32_t)(diff_mtu*10));
+                TRACE_A2DP_DECODER_I("[SYNC] force slow mut:0.%d", (int32_t)(diff_mtu*10));
 #endif
                 force_slow = true;
             }
             sbm_set_auto_adjustment();
+        } else if (diff_mtu/a2dp_audio_context.dest_packet_mut > 0.2f) {
+            float curr_ratio = a2dp_audio_context.output_cfg.factor_reference;
+            float ref_ratio  = a2dp_audio_context.init_factor_reference;
+            if (curr_ratio != (ref_ratio + A2DP_AUDIO_SYNC_FIX_DIFF_FAST_LIMIT)){
+#ifdef A2DP_AUDIO_SYNC_FIX_DIFF_INTERVA_PRINT_FLOAT
+                TRACE_A2DP_DECODER_I("[SYNC] force fast mut:%5.3f", (double)diff_mtu);
+#else
+                TRACE_A2DP_DECODER_I("[SYNC] force fast mut:0.%d", (int32_t)(diff_mtu*10));
+#endif
+                force_fast = true;
+            }
+            sbm_set_auto_adjustment();
         }
-        if (fix_diff_status == A2DP_AUDIO_SYNC_FIX_DIFF_STATUS_IDLE || force_slow){
+        if (fix_diff_status == A2DP_AUDIO_SYNC_FIX_DIFF_STATUS_IDLE || force_slow || force_fast){
             uint32_t dma_buffer_samples, samples, dma_interval;
-            double ratio = 1.0, limit_ratio = 1.0;
+            float ratio = 1.0, limit_ratio = 1.0;
             float sampleRate, ref_ratio, curr_ratio;
             float ref_us  = 0;
             float dest_us  = 0;
@@ -954,23 +1075,23 @@ static int a2dp_audio_sync_handler(uint8_t device_id, uint8_t *buffer, uint32_t 
             dest_us = sample_us * (float)(lastframe_info->frame_samples * diff_mtu);
             ratio = ref_us/(ref_us - dest_us)*curr_ratio;
 
-            if (ratio > (double)(ref_ratio + A2DP_AUDIO_SYNC_FIX_DIFF_FAST_LIMIT)){
+            if (ratio > (ref_ratio + A2DP_AUDIO_SYNC_FIX_DIFF_FAST_LIMIT)){
                 limit_ratio = ref_ratio + A2DP_AUDIO_SYNC_FIX_DIFF_FAST_LIMIT;
-            }else if (ratio < double(ref_ratio + A2DP_AUDIO_SYNC_FIX_DIFF_SLOW_LIMIT)){
+            }else if (ratio < (ref_ratio + A2DP_AUDIO_SYNC_FIX_DIFF_SLOW_LIMIT)){
                 limit_ratio = ref_ratio + A2DP_AUDIO_SYNC_FIX_DIFF_SLOW_LIMIT;
             }else{
                 limit_ratio = ratio;
             }
-            AUDIOPLAYERS_TRACE(0,"[SYNC] sampleRate:%d ref_ratio:%d samples:%d %d->%d", (int32_t)sampleRate,
+            TRACE_A2DP_DECODER_I("[SYNC] sampleRate:%d ref_ratio:%d samples:%d %d->%d", (int32_t)sampleRate,
                                                                                                (int32_t)(ref_ratio * 10000000),
                                                                                                samples,
                                                                                                (int32_t)ref_us,
                                                                                                (int32_t)dest_us);
             need_tune = true;
-#if defined(BT_SVC_MODULE_IBRT_ENABLED)
+#if defined(IBRT)
             if (!ibrt_tune_onprocess &&
                 !a2dp_tune_onprocess &&
-                !app_ibrt_if_is_tws_role_switching() &&
+                !role_switch_on &&
 #else
             if (!a2dp_tune_onprocess &&
 #endif
@@ -978,20 +1099,20 @@ static int a2dp_audio_sync_handler(uint8_t device_id, uint8_t *buffer, uint32_t 
                 if (!a2dp_audio_sync_tune(device_id, (float)limit_ratio)){
                     a2dp_audio_sync_fix_diff_start(dma_interval);
 #ifdef A2DP_AUDIO_SYNC_FIX_DIFF_INTERVA_PRINT_FLOAT
-                    AUDIOPLAYERS_TRACE(0,"[SYNC] tune ratio %f  mut:%5.3f->%d", limit_ratio,
+                    TRACE_A2DP_DECODER_I("[SYNC] tune ratio %f  mut:%5.3f->%d", limit_ratio,
                                                                                (double)a2dp_audio_context.average_packet_mut,
                                                                                a2dp_audio_context.dest_packet_mut);
 #else
-                    AUDIOPLAYERS_TRACE(0,"[SYNC] tune ratio %d  mut:%d->%d", (int32_t)(limit_ratio * 10000000),
+                    TRACE_A2DP_DECODER_I("[SYNC] tune ratio %d  mut:%d->%d", (int32_t)(limit_ratio * 10000000),
                                                                                (int32_t)(a2dp_audio_context.average_packet_mut+0.5f),
                                                                                a2dp_audio_context.dest_packet_mut);
 #endif
                 }else{
-                    AUDIOPLAYERS_TRACE(0,"[SYNC] tune ratio busy");
+                    TRACE_A2DP_DECODER_I("[SYNC] tune ratio busy");
                 }
             }
         }else{
-            AUDIOPLAYERS_TRACE(0,"[SYNC] avg_mut:%d dest_mtu:%d", (int32_t)(a2dp_audio_context.average_packet_mut+0.5f),
+            TRACE_A2DP_DECODER_I("[SYNC] avg_mut:%d dest_mtu:%d", (int32_t)(a2dp_audio_context.average_packet_mut+0.5f),
                                                                                       a2dp_audio_context.dest_packet_mut);
         }
     }else{
@@ -1015,11 +1136,14 @@ static int a2dp_audio_sync_handler(uint8_t device_id, uint8_t *buffer, uint32_t 
 
 #if defined(IBRT)
     bool ibrt_tune_onprocess;
-    POSSIBLY_UNUSED struct BT_DEVICE_T *curr_device = app_bt_get_device(device_id);
-    if (!bts_bt_if_is_dev_link_connected(&curr_device->remote)){
+    bool role_switch_on = false;
+    POSSIBLY_UNUSED bt_acl_state_t acl_link_info = bes_bt_me_acl_get_state(device_id);
+    if (!app_tws_ibrt_mobile_link_connected(&acl_link_info.remote)){
         return -1;
     }
     ibrt_tune_onprocess = app_tws_ibrt_audio_sync_tune_onprocess();
+    role_switch_on = app_ibrt_conn_any_role_switch_running();
+
 #endif
     if (a2dp_audio_internal_lastframe_info_ptr_get(&lastframe_info) < 0){
         return -1;
@@ -1038,7 +1162,7 @@ static int a2dp_audio_sync_handler(uint8_t device_id, uint8_t *buffer, uint32_t 
         total_mtu = audio_sync->cnt * frame_mtu;
         diff_mtu = a2dp_audio_context.average_packet_mut-(float)a2dp_audio_context.dest_packet_mut;
 #if 1
-        AUDIOPLAYERS_TRACE(0,"[SYNC] sample:%d/%d diff:%d/%d/%d/%d curr:%d", lastframe_info->frame_samples,
+        TRACE_A2DP_DECODER_I("[SYNC] sample:%d/%d diff:%d/%d/%d/%d curr:%d", lastframe_info->frame_samples,
                                                              lastframe_info->stream_info.frame_samples,
                                                              (int32_t)(diff_mtu+0.5f),
                                                              (int32_t)(a2dp_audio_context.average_packet_mut+0.5f),
@@ -1046,17 +1170,17 @@ static int a2dp_audio_sync_handler(uint8_t device_id, uint8_t *buffer, uint32_t 
                                                              total_mtu,
                                                              a2dp_audio_list_length(list) +  get_in_cp_frame_cnt());
 #else
-        AUDIOPLAYERS_TRACE(0,"[SYNC] diff:%10.9f/%10.9f frame_mut:%d dest:%d total:%d curr:%d", (double)diff_mtu, (double)a2dp_audio_context.average_packet_mut, frame_mtu,
+        TRACE_A2DP_DECODER_I("[SYNC] diff:%10.9f/%10.9f frame_mut:%d dest:%d total:%d curr:%d", (double)diff_mtu, (double)a2dp_audio_context.average_packet_mut, frame_mtu,
                                                                                       a2dp_audio_context.dest_packet_mut, total_mtu, a2dp_audio_list_length(list));
-        AUDIOPLAYERS_TRACE(0,"[SYNC] try tune:%d, %10.9f %10.9f",  diff_mtu != 0.f && audio_sync->tick != 1 ? ABS(diff_mtu) > ((float)frame_mtu * 0.2f): 0,
+        TRACE_A2DP_DECODER_I("[SYNC] try tune:%d, %10.9f %10.9f",  diff_mtu != 0.f && audio_sync->tick != 1 ? ABS(diff_mtu) > ((float)frame_mtu * 0.2f): 0,
                                                         (double)ABS(diff_mtu), (double)((float)frame_mtu * 0.2f));
 #endif
-        //AUDIOPLAYERS_TRACE(2,"audio_sync tune %d/%d tick", ibrt_tune_onprocess, a2dp_tune_onprocess, audio_sync->tick);
+        //TRACE(2,"audio_sync tune %d/%d tick", ibrt_tune_onprocess, a2dp_tune_onprocess, audio_sync->tick);
 
-#if defined(BT_SVC_MODULE_IBRT_ENABLED)
+#if defined(IBRT)
         if ((!ibrt_tune_onprocess &&
              !a2dp_tune_onprocess) &&
-             !app_ibrt_if_is_tws_role_switching() &&
+             !role_switch_on &&
 #else
         if (!a2dp_tune_onprocess &&
 #endif
@@ -1078,15 +1202,15 @@ static int a2dp_audio_sync_handler(uint8_t device_id, uint8_t *buffer, uint32_t 
                     if (!a2dp_audio_sync_tune(device_id, dest_pid_result)){
                         audio_sync->cnt = 0;
                     }
-                    AUDIOPLAYERS_TRACE(0,"[SYNC] tune diff_factor:%10.9f pid:%10.9f tune:%10.9f", (double)diff_factor, (double)pid->result, (double)dest_pid_result);
+                    TRACE_A2DP_DECODER_I("[SYNC] tune diff_factor:%10.9f pid:%10.9f tune:%10.9f", (double)diff_factor, (double)pid->result, (double)dest_pid_result);
                 }else{
-                    AUDIOPLAYERS_TRACE(0,"[SYNC] tune skip same");
+                    TRACE_A2DP_DECODER_I("[SYNC] tune skip same");
                 }
             }
         }else{
             sbm_target_jitter_buffer_updating_completed();
 /*
-            AUDIOPLAYERS_TRACE(0,"[SYNC] tune busy skip proc:%d/%d mtu:%d tick:%d >0:%d <0:%d tick:%d", ibrt_tune_onprocess,
+            TRACE_A2DP_DECODER_I("[SYNC] tune busy skip proc:%d/%d mtu:%d tick:%d >0:%d <0:%d tick:%d", ibrt_tune_onprocess,
                                                 a2dp_tune_onprocess,
                                                 diff_mtu != 0.f,
                                                 audio_sync->tick != 1,
@@ -1104,10 +1228,10 @@ static int a2dp_audio_sync_handler(uint8_t device_id, uint8_t *buffer, uint32_t 
             dest_pid_result = a2dp_audio_context.init_factor_reference + A2DP_AUDIO_SYNC_FACTOR_SLOW_LIMIT;
             need_tune = true;
         }
-#if defined(BT_SVC_MODULE_IBRT_ENABLED)
+#if defined(IBRT)
         if (!ibrt_tune_onprocess &&
             !a2dp_tune_onprocess &&
-            !app_ibrt_if_is_tws_role_switching() &&
+            !role_switch_on &&
 #else
         if (!a2dp_tune_onprocess &&
 #endif
@@ -1116,7 +1240,7 @@ static int a2dp_audio_sync_handler(uint8_t device_id, uint8_t *buffer, uint32_t 
             if (a2dp_audio_context.output_cfg.factor_reference != dest_pid_result){
                 a2dp_audio_sync_reset_data();
                 a2dp_audio_sync_tune(device_id, dest_pid_result);
-                AUDIOPLAYERS_TRACE(0,"[SYNC] tune ratio force slow %d/%d->%d", lastframe_info->undecode_min_frames,
+                TRACE_A2DP_DECODER_I("[SYNC] tune ratio force slow %d/%d->%d", lastframe_info->undecode_min_frames,
                                                                     lastframe_info->undecode_max_frames,
                                                                     a2dp_audio_context.dest_packet_mut);
             }
@@ -1150,16 +1274,28 @@ static int a2dp_audio_save_history_seq(btif_media_header_t *header, unsigned cha
 {
     uint16_t historySeqPre = 0;
     uint8_t historySeq_idx = 0;
+    uint8_t ret = 0;
+    int16_t diff_seq = 0;
 
     a2dp_audio_status_mutex_lock();
     historySeq_idx = a2dp_audio_context.historySeq_idx;
     if (historySeq_idx){
         historySeq_idx = (historySeq_idx-1)%A2DP_DECODER_HISTORY_SEQ_SAVE;
         historySeqPre = a2dp_audio_context.historySeq[historySeq_idx];
-        if ((header->sequenceNumber - historySeqPre)!= 1){
-            AUDIOPLAYERS_TRACE(0,"[INPUT] SEQ ERR %d/%d",historySeqPre, header->sequenceNumber);
-            a2dp_audio_show_history_seq();
+        diff_seq = header->sequenceNumber - historySeqPre;
+        if (diff_seq!= 1){
+            if ((a2dp_audio_context.max_seq_num==UINT16_MAX)||(a2dp_audio_context.max_seq_num==UINT8_MAX&&diff_seq!=UINT8_MAX))
+            {
+                TRACE_A2DP_DECODER_W("[INPUT] SEQ ERR %d/%d",historySeqPre, header->sequenceNumber);
+                app_start_post_chopping_timer();
+                a2dp_audio_show_history_seq();
+            }
         }
+    }
+    if (a2dp_audio_context.historySeq[historySeq_idx] == header->sequenceNumber)
+    {
+        TRACE_A2DP_DECODER_W("[INPUT] receive same seq");
+        ret = A2DP_DECODER_HISTORY_SAME_SEQ;
     }
     historySeq_idx = a2dp_audio_context.historySeq_idx%A2DP_DECODER_HISTORY_SEQ_SAVE;
     a2dp_audio_context.historySeq[historySeq_idx] = header->sequenceNumber;
@@ -1172,7 +1308,7 @@ static int a2dp_audio_save_history_seq(btif_media_header_t *header, unsigned cha
     a2dp_audio_context.historySeq_idx++;
     a2dp_audio_status_mutex_unlock();
 
-    return 0;
+    return ret;
 }
 
 int a2dp_audio_show_history_seq(void)
@@ -1231,18 +1367,18 @@ int a2dp_audio_show_history_seq(void)
             diff_max_idx = i;
         }
         if (tmp_ms > (int32_t)MS_TO_FAST_TICKS(50)){
-            AUDIOPLAYERS_TRACE(0,"[INPUT] > 30ms seq:%d diff:%d :%d / %d", reordHistorySeq[i], FAST_TICKS_TO_MS(tmp_ms), historyLoctime[i], historyLoctime[j]);
+            TRACE_A2DP_DECODER_I("[INPUT] > 30ms seq:%d diff:%d :%d / %d", reordHistorySeq[i], FAST_TICKS_TO_MS(tmp_ms), historyLoctime[i], historyLoctime[j]);
         }
     }
     diff_avg_ms /= diff_avg_cnt;
-    AUDIOPLAYERS_TRACE(0,"[INPUT] max_diff:%dms idx:%d avg:%dus", FAST_TICKS_TO_MS(diff_max_ms), diff_max_idx, FAST_TICKS_TO_US(diff_avg_ms));
+    TRACE_A2DP_DECODER_I("[INPUT] max_diff:%dms idx:%d avg:%dus", FAST_TICKS_TO_MS(diff_max_ms), diff_max_idx, FAST_TICKS_TO_US(diff_avg_ms));
 #endif
-//    AUDIOPLAYERS_DUMP16("%d ", reordHistorySeq, A2DP_DECODER_HISTORY_SEQ_SAVE);
+//    DUMP16("%d ", reordHistorySeq, A2DP_DECODER_HISTORY_SEQ_SAVE);
 #ifdef A2DP_DECODER_HISTORY_LOCTIME_SAVE
-    AUDIOPLAYERS_DUMP32("%x ", historyLoctime, A2DP_DECODER_HISTORY_SEQ_SAVE);
+    DUMP32("%x ", historyLoctime, A2DP_DECODER_HISTORY_SEQ_SAVE);
 #endif
 #ifdef A2DP_DECODER_HISTORY_CHECK_SUM_SAVE
-    AUDIOPLAYERS_DUMP32("%x ", historyChecksum, A2DP_DECODER_HISTORY_SEQ_SAVE);
+    DUMP32("%x ", historyChecksum, A2DP_DECODER_HISTORY_SEQ_SAVE);
 #endif
     a2dp_audio_status_mutex_unlock();
 
@@ -1278,80 +1414,130 @@ static void inline a2dp_audio_convert_16bit_to_24bit(int32_t *out, int16_t *in, 
     }
 }
 
-static void a2dp_audio_channel_update(A2DP_AUDIO_CHANNEL_SELECT_E audio_channel)
+#if defined(A2DP_AUDIO_STEREO_MIX_CTRL)
+void a2dp_audio_stereo_mix_init(uint32_t smooth_len)
 {
-    a2dp_audio_context.chnl_sel = audio_channel;
+    TRACE(3, "[%s] smooth_len: %d, chnl_sel: %d", __func__,
+        smooth_len,
+        a2dp_audio_context.chnl_sel);
+
+    g_mix_cos_coeff = (float *)a2dp_audio_heap_cmalloc(smooth_len * sizeof(float));
+    for (uint32_t i=0; i<smooth_len; i++) {
+        g_mix_cos_coeff[i] = arm_cos_f32(PI * i / smooth_len) / 2 + 0.5;
+    }
+
+    g_mix_coeff_len = smooth_len;
 }
 
-void change_a2dp_audio_channel(const char* cmd, uint32_t cmd_len)
+template<typename PcmType>
+void stereo_mix_smooth(PcmType *pcm_buf, uint32_t frame_len, uint32_t ch)
 {
-    do {
-        int audio_channel = 0;
-        sscanf(cmd, "%d", &audio_channel);
+    float alpha = 1.0f;
 
-        AUDIOPLAYERS_TRACE(0, "[%s] audio_channel %d", __func__, audio_channel);
-        a2dp_audio_channel_update((A2DP_AUDIO_CHANNEL_SELECT_E)audio_channel);
-    } while(0);
+    ASSERT(ch < 2, "[%s] ch(%d) is invalid.", __func__, ch);
+    ASSERT(frame_len == g_mix_coeff_len, "[%s] frame_len(%d) is invalid.", __func__, frame_len);
+
+    for (uint32_t i=0; i<frame_len; i++) {
+        alpha = 0.5 + 0.5 * g_mix_cos_coeff[i];
+        pcm_buf[2 * i] = (PcmType)(pcm_buf[2 * i + ch] * alpha + pcm_buf[2 * i + 1 - ch] * (1.0f - alpha));
+        pcm_buf[2 * i + 1] = pcm_buf[2 * i];
+    }
 }
 
-static void inline a2dp_audio_channel_select(A2DP_AUDIO_CHANNEL_SELECT_E chnl_sel, uint8_t *buffer, uint32_t buffer_bytes, AUDIO_DECODER_STREAM_INFO_T *stream_info)
+template<typename PcmType>
+void stereo_demix_smooth(PcmType *pcm_buf, uint32_t frame_len, uint32_t ch)
 {
-    uint32_t samples;
-    uint32_t i;
-    static A2DP_AUDIO_CHANNEL_SELECT_E chnl_sel_old = A2DP_AUDIO_CHANNEL_SELECT_STEREO;
-    ASSERT_A2DP_DECODER(stream_info->num_channels == 2, "%s num_channels:%d", __func__, stream_info->num_channels);
+    float alpha = 0.0f;
 
-#if defined(__AUDIO_REVERB__) || defined(__AUDIO_DYNAMIC_BOOST__) || defined(__AUDIO_BASS_ENHANCER__)
-    ibrt_ctrl_t *p_ibrt_ctrl = app_tws_ibrt_get_bt_ctrl_ctx();
-    // AUDIOPLAYERS_TRACE(3, "[%s] nv_role: %d, chnl_sel: %d", __FUNCTION__, p_ibrt_ctrl->nv_role, chnl_sel);
+    ASSERT(ch < 2, "[%s] ch(%d) is invalid.", __func__, ch);
+    ASSERT(frame_len == g_mix_coeff_len, "[%s] frame_len(%d) is invalid.", __func__, frame_len);
+
+    for (uint32_t i=0; i<frame_len; i++) {
+        alpha = 1.0 - 0.5 * g_mix_cos_coeff[i];
+        pcm_buf[2 * i] = (PcmType)(pcm_buf[2 * i + ch] * alpha + pcm_buf[2 * i + 1 - ch] * (1.0f - alpha));
+        pcm_buf[2 * i + 1] = pcm_buf[2 * i];
+    }
+}
 #endif
 
-    if (stream_info->bits_depth == 24){
-        int32_t *buf_l_p = (int32_t *)buffer;
-        int32_t *buf_r_p = (int32_t *)buffer + 1;
+bool a2dp_audio_stereo_is_mixed(void)
+{
+#if defined(A2DP_AUDIO_STEREO_MIX_CTRL)
+    return (a2dp_audio_context.chnl_sel == A2DP_AUDIO_CHANNEL_SELECT_LRMERGE);
+#else
+    return false;
+#endif
+}
 
-        samples = buffer_bytes/4/2;
-        switch (chnl_sel)
-        {
+void a2dp_audio_stereo_set_mix(bool enable)
+{
+#if defined(A2DP_AUDIO_STEREO_MIX_CTRL)
+
+    ibrt_ctrl_t *p_ibrt_ctrl = app_tws_ibrt_get_bt_ctrl_ctx();
+    A2DP_AUDIO_CHANNEL_SELECT_E aud_chan = (A2DP_AUDIO_CHANNEL_SELECT_E)p_ibrt_ctrl->audio_chnl_sel;
+    a2dp_audio_context.chnl_sel_new = enable ? A2DP_AUDIO_CHANNEL_SELECT_LRMERGE : aud_chan;
+
+    TRACE(4, "[%s] enable: %d, channel: %d --> %d", __func__,
+        enable,
+        a2dp_audio_context.chnl_sel,
+        a2dp_audio_context.chnl_sel_new);
+#endif
+}
+
+template<typename PcmType>
+static void inline a2dp_audio_channel_select(A2DP_AUDIO_CHANNEL_SELECT_E chnl_sel, PcmType *pcm_buf, uint32_t pcm_len)
+{
+    uint32_t i;
+    uint32_t ch_num = a2dp_audio_context.output_cfg.num_channels;
+    uint32_t frame_len = pcm_len / ch_num;
+
+#ifdef PLAYBACK_FORCE_48K
+    // When resample is enabled, data depth conversion should be done after resample as resample only support 16bit
+    ch_num = a2dp_audio_context.audio_decoder.stream_info.num_channels;
+#endif
+
+    ASSERT_A2DP_DECODER(ch_num == 2, "%s num_channels:%d", __func__, ch_num);
+
+#if defined(A2DP_AUDIO_STEREO_MIX_CTRL)
+    bool chnl_sel_changed = false;
+    uint32_t lock = int_lock_global();
+    if (a2dp_audio_context.chnl_sel != a2dp_audio_context.chnl_sel_new) {
+        a2dp_audio_context.chnl_sel = a2dp_audio_context.chnl_sel_new;
+        chnl_sel = a2dp_audio_context.chnl_sel;
+        chnl_sel_changed = true;
+    }
+    int_unlock_global(lock);
+
+    ibrt_ctrl_t *p_ibrt_ctrl = app_tws_ibrt_get_bt_ctrl_ctx();
+    if (chnl_sel_changed == false) {
+#endif
+        PcmType *pcm_buf_l_p = pcm_buf;
+        PcmType *pcm_buf_r_p = pcm_buf + 1;
+        switch (chnl_sel) {
             case A2DP_AUDIO_CHANNEL_SELECT_LRMERGE:
-                switch((uint8)chnl_sel_old)
-                {
-                case A2DP_AUDIO_CHANNEL_SELECT_LCHNL:
-                    for (i = 0; i<samples; i++, buf_l_p+=2, buf_r_p+=2){
-                        *buf_r_p = *buf_l_p;
-                    }
-                    break;
-                case A2DP_AUDIO_CHANNEL_SELECT_RCHNL:
-                    for (i = 0; i<samples; i++, buf_l_p+=2, buf_r_p+=2){
-                        *buf_l_p = *buf_r_p;
-                    }
-                    break;
-                }
-                buf_l_p = (int32_t *)buffer;
-                buf_r_p = (int32_t *)buffer + 1;
-                for (i = 0; i<samples; i++, buf_l_p+=2, buf_r_p+=2){
-                    int32_t tmp_sample = (*buf_l_p + *buf_r_p)>>1;
-                    *buf_l_p = tmp_sample;
-                    *buf_r_p = tmp_sample;
+                for (i = 0; i<frame_len; i++, pcm_buf_l_p+=ch_num, pcm_buf_r_p+=ch_num){
+                    PcmType tmp_sample = ((int32_t)*pcm_buf_l_p + (int32_t)*pcm_buf_r_p) >> 1;
+                    *pcm_buf_l_p = tmp_sample;
+                    *pcm_buf_r_p = tmp_sample;
                 }
                 break;
             case A2DP_AUDIO_CHANNEL_SELECT_LCHNL:
-                for (i = 0; i<samples; i++, buf_l_p+=2, buf_r_p+=2){
-                    *buf_r_p = *buf_l_p;
+                for (i = 0; i<frame_len; i++, pcm_buf_l_p+=ch_num, pcm_buf_r_p+=ch_num){
+                    *pcm_buf_r_p = *pcm_buf_l_p;
                 }
                 break;
             case A2DP_AUDIO_CHANNEL_SELECT_RCHNL:
-                for (i = 0; i<samples; i++, buf_l_p+=2, buf_r_p+=2){
-                    *buf_l_p = *buf_r_p;
+                for (i = 0; i<frame_len; i++, pcm_buf_l_p+=ch_num, pcm_buf_r_p+=ch_num){
+                    *pcm_buf_l_p = *pcm_buf_r_p;
                 }
                 break;
             case A2DP_AUDIO_CHANNEL_SELECT_STEREO:
-#if defined(__AUDIO_REVERB__) || defined(__AUDIO_DYNAMIC_BOOST__) || defined(__AUDIO_BASS_ENHANCER__)
+#if defined(__AUDIO_REVERB__) || defined(__AUDIO_BASS_ENHANCER__)
                 if (p_ibrt_ctrl->nv_role == IBRT_SLAVE) {
-                    for (i = 0; i<samples; i++, buf_l_p+=2, buf_r_p+=2){
-                        int32_t tmp = *buf_r_p;
-                        *buf_r_p = *buf_l_p;
-                        *buf_l_p = tmp;
+                    for (i = 0; i<frame_len; i++, pcm_buf_l_p+=ch_num, pcm_buf_r_p+=ch_num){
+                        int32_t tmp = *pcm_buf_r_p;
+                        *pcm_buf_r_p = *pcm_buf_l_p;
+                        *pcm_buf_l_p = tmp;
                     }
                 }
                 break;
@@ -1359,67 +1545,36 @@ static void inline a2dp_audio_channel_select(A2DP_AUDIO_CHANNEL_SELECT_E chnl_se
             default:
                 break;
         }
-    }else{
-        int16_t *buf_l_p = (int16_t *)buffer;
-        int16_t *buf_r_p = (int16_t *)buffer + 1;
-
-        samples = buffer_bytes/2/2;
-        switch (chnl_sel)
-        {
+#if defined(A2DP_AUDIO_STEREO_MIX_CTRL)
+    } else {
+        switch (chnl_sel) {
             case A2DP_AUDIO_CHANNEL_SELECT_LRMERGE:
-                switch((uint8)chnl_sel_old)
-                {
-                case A2DP_AUDIO_CHANNEL_SELECT_LCHNL:
-                    for (i = 0; i<samples; i++, buf_l_p+=2, buf_r_p+=2){
-                        *buf_r_p = *buf_l_p;
-                    }
-                    break;
-                case A2DP_AUDIO_CHANNEL_SELECT_RCHNL:
-                    for (i = 0; i<samples; i++, buf_l_p+=2, buf_r_p+=2){
-                        *buf_l_p = *buf_r_p;
-                    }
-                    break;
-                }
-                buf_l_p = (int16_t *)buffer;
-                buf_r_p = (int16_t *)buffer + 1;
-                for (i = 0; i<samples; i++, buf_l_p+=2, buf_r_p+=2){
-                    int16_t tmp_sample = ((int32_t)*buf_l_p + (int32_t)*buf_r_p)>>1;
-                    *buf_l_p = tmp_sample;
-                    *buf_r_p = tmp_sample;
+                if (p_ibrt_ctrl->audio_chnl_sel == A2DP_AUDIO_CHANNEL_SELECT_LCHNL) {
+                    TRACE(1, "[%s] Left mix", __func__);
+                    stereo_mix_smooth<PcmType>(pcm_buf, frame_len, 0);
+                } else {
+                    TRACE(1, "[%s] Right mix", __func__);
+                    stereo_mix_smooth<PcmType>(pcm_buf, frame_len, 1);
                 }
                 break;
             case A2DP_AUDIO_CHANNEL_SELECT_LCHNL:
-                for (i = 0; i<samples; i++, buf_l_p+=2, buf_r_p+=2){
-                    *buf_r_p = *buf_l_p;
-                }
+                TRACE(1, "[%s] Left demix", __func__);
+                stereo_demix_smooth<PcmType>(pcm_buf, frame_len, 0);
                 break;
             case A2DP_AUDIO_CHANNEL_SELECT_RCHNL:
-                for (i = 0; i<samples; i++, buf_l_p+=2, buf_r_p+=2){
-                    *buf_l_p = *buf_r_p;
-                }
+                TRACE(1, "[%s] Right demix", __func__);
+                stereo_demix_smooth<PcmType>(pcm_buf, frame_len, 1);
                 break;
             case A2DP_AUDIO_CHANNEL_SELECT_STEREO:
-#if defined(__AUDIO_REVERB__) || defined(__AUDIO_DYNAMIC_BOOST__)
-                if (p_ibrt_ctrl->nv_role == IBRT_SLAVE) {
-                    for (i = 0; i<samples; i++, buf_l_p+=2, buf_r_p+=2){
-                        int16_t tmp = *buf_r_p;
-                        *buf_r_p = *buf_l_p;
-                        *buf_l_p = tmp;
-                    }
-                }
-                break;
-#endif
             default:
                 break;
         }
     }
-    chnl_sel_old = chnl_sel;
+#endif
 }
 
 
 #ifdef A2DP_CP_ACCEL
-extern uint32_t app_bt_stream_get_dma_buffer_samples(void);
-
 static uint32_t get_cp_frame_mtus(A2DP_AUDIO_LASTFRAME_INFO_T*  info)
 {
     uint32_t cp_frame_mtus = app_bt_stream_get_dma_buffer_samples()/2;
@@ -1429,7 +1584,7 @@ static uint32_t get_cp_frame_mtus(A2DP_AUDIO_LASTFRAME_INFO_T*  info)
         cp_frame_mtus = cp_frame_mtus /(info->frame_samples);
     }
 
-    //AUDIOPLAYERS_TRACE(0,"[CP] cp_frame_mtus:%d", cp_frame_mtus);
+    TRACE_A2DP_DECODER_I("[CP] cp_frame_mtus:%d", cp_frame_mtus);
 
     return cp_frame_mtus;
 }
@@ -1448,6 +1603,22 @@ static uint32_t a2dp_audio_sysfreq_cnt = UINT32_MAX;
 static uint32_t a2dp_audio_sysfreq_dest_boost_cnt = 0;
 static APP_SYSFREQ_FREQ_T a2dp_audio_sysfreq_normalfreq = APP_SYSFREQ_52M;
 
+#ifdef A2DP_DECODER_CROSS_CORE
+static const enum APP_SYSFREQ_FREQ_T a2dp_audio_freq_table[] =  {
+    //A2DP_AUDIO_MINIMUM_NORMAL_FREQ_WITH_ONE_MOBILE_LINK*A2DP_AUDIO_DYNAMIC_FREQ_RSSI_CASE_CNT+A2DP_AUDIO_DYNAMIC_FREQ_HIGH_RSSI_CASE
+    APP_SYSFREQ_26M,
+    //A2DP_AUDIO_MINIMUM_NORMAL_FREQ_WITH_ONE_MOBILE_LINK*A2DP_AUDIO_DYNAMIC_FREQ_RSSI_CASE_CNT+A2DP_AUDIO_DYNAMIC_FREQ_LOW_RSSI_CASE
+    APP_SYSFREQ_52M,
+    //A2DP_AUDIO_MINIMUM_NORMAL_FREQ_WITH_TWO_MOBILE_LINK*A2DP_AUDIO_DYNAMIC_FREQ_RSSI_CASE_CNT+A2DP_AUDIO_DYNAMIC_FREQ_HIGH_RSSI_CASE
+    APP_SYSFREQ_26M,
+    //A2DP_AUDIO_MINIMUM_NORMAL_FREQ_WITH_TWO_MOBILE_LINK*A2DP_AUDIO_DYNAMIC_FREQ_RSSI_CASE_CNT+A2DP_AUDIO_DYNAMIC_FREQ_LOW_RSSI_CASE
+    APP_SYSFREQ_52M,
+    //A2DP_AUDIO_BOOST_MODE_FREQ*A2DP_AUDIO_DYNAMIC_FREQ_RSSI_CASE_CNT+A2DP_AUDIO_DYNAMIC_FREQ_HIGH_RSSI_CASE
+    APP_SYSFREQ_104M,
+    //A2DP_AUDIO_BOOST_MODE_FREQ*A2DP_AUDIO_DYNAMIC_FREQ_RSSI_CASE_CNT+A2DP_AUDIO_DYNAMIC_FREQ_LOW_RSSI_CASE
+    APP_SYSFREQ_104M,
+};
+#else
 static const enum APP_SYSFREQ_FREQ_T a2dp_audio_freq_table[] =  {
     //A2DP_AUDIO_MINIMUM_NORMAL_FREQ_WITH_ONE_MOBILE_LINK*A2DP_AUDIO_DYNAMIC_FREQ_RSSI_CASE_CNT+A2DP_AUDIO_DYNAMIC_FREQ_HIGH_RSSI_CASE
     APP_SYSFREQ_26M,
@@ -1462,10 +1633,14 @@ static const enum APP_SYSFREQ_FREQ_T a2dp_audio_freq_table[] =  {
     //A2DP_AUDIO_BOOST_MODE_FREQ*A2DP_AUDIO_DYNAMIC_FREQ_RSSI_CASE_CNT+A2DP_AUDIO_DYNAMIC_FREQ_LOW_RSSI_CASE
     APP_SYSFREQ_104M,
 };
+#endif
 
 static A2DP_AUDIO_FREQ_USER_CASE_INDEX_E a2dp_audio_current_freq_user_case = A2DP_AUDIO_FREQ_USER_CASE_INVALID;
 static A2DP_AUDIO_DYNAMIC_FREQ_RSSI_CASE_INDEX_E a2dp_audio_current_freq_rssi_case = A2DP_AUDIO_DYNAMIC_FREQ_RSSI_CASE_INVALID;
 static enum APP_SYSFREQ_FREQ_T a2dp_audio_current_sysfreq = APP_SYSFREQ_32K;
+
+#define A2DP_AUDIO_ACCUMULCATED_CONTINUOUS_HIGH_RSSI_COUNT_THR_TO_SWITCH_FREQ_CASE   100
+static uint32_t a2dp_audio_accumulated_continuous_high_rssi_count = 0;
 
 static void a2dp_audio_sysfreq_refesh(void)
 {
@@ -1493,6 +1668,12 @@ void a2dp_audio_set_freq_user_case(A2DP_AUDIO_FREQ_USER_CASE_INDEX_E userCase)
     {
         a2dp_audio_current_freq_user_case = userCase;
         a2dp_audio_sysfreq_refesh();
+
+#ifdef A2DP_DECODER_CROSS_CORE
+        if (a2dp_audio_current_freq_user_case == A2DP_AUDIO_BOOST_MODE_FREQ) {
+            a2dp_decoder_bth_a2dp_boost_freq_req();
+        }
+#endif
     }
 }
 
@@ -1501,15 +1682,24 @@ void a2dp_audio_set_freq_rssi_case(A2DP_AUDIO_DYNAMIC_FREQ_RSSI_CASE_INDEX_E rss
     if (a2dp_audio_current_freq_rssi_case != rssiCase)
     {
         a2dp_audio_current_freq_rssi_case = rssiCase;
+        a2dp_audio_accumulated_continuous_high_rssi_count = 0;
         a2dp_audio_sysfreq_refesh();
+
+#ifdef A2DP_DECODER_CROSS_CORE
+        if (a2dp_audio_current_freq_rssi_case == A2DP_AUDIO_DYNAMIC_FREQ_LOW_RSSI_CASE) {
+            a2dp_decoder_bth_a2dp_boost_freq_req();
+        }
+#endif
+
     }
 }
+
 int a2dp_audio_sysfreq_boost_init(uint32_t normalfreq)
 {
     a2dp_audio_sysfreq_cnt = UINT32_MAX;
     a2dp_audio_sysfreq_dest_boost_cnt = 0;
     a2dp_audio_sysfreq_normalfreq = (APP_SYSFREQ_FREQ_T)normalfreq;
-    AUDIOPLAYERS_TRACE(0,"[BOOST] freq:%d", normalfreq);
+    TRACE_A2DP_DECODER_I("[BOOST] freq:%d", normalfreq);
     a2dp_audio_sysfreq_reset();
     return 0;
 }
@@ -1520,11 +1710,12 @@ void a2dp_audio_sysfreq_update_normalfreq(void)
     {
         if (!a2dp_audio_sysfreq_boost_running())
         {
-            if (1 == app_bt_audio_count_straming_mobile_links())
+            uint8_t streaming_link_count = bes_bt_me_count_link(BT_COUNT_STREAMING_LINK);
+            if (streaming_link_count == 1)
             {
                 a2dp_audio_set_freq_user_case(A2DP_AUDIO_MINIMUM_NORMAL_FREQ_WITH_ONE_MOBILE_LINK);
             }
-            else if (app_bt_audio_count_straming_mobile_links() > 1)
+            else if (streaming_link_count > 1)
             {
                 a2dp_audio_set_freq_user_case(A2DP_AUDIO_MINIMUM_NORMAL_FREQ_WITH_TWO_MOBILE_LINK);
             }
@@ -1543,12 +1734,23 @@ void a2dp_audio_sysfreq_reset(void)
     a2dp_audio_sysfreq_update_normalfreq();
 }
 
-int a2dp_audio_sysfreq_boost_start(uint32_t boost_cnt)
+int a2dp_audio_sysfreq_boost_init_start(uint32_t boost_cnt)
+{
+    enum APP_SYSFREQ_FREQ_T sysfreq = APP_SYSFREQ_104M;
+
+    a2dp_audio_sysfreq_cnt = 0;
+    a2dp_audio_sysfreq_dest_boost_cnt = boost_cnt;
+    TRACE_A2DP_DECODER_I("[BOOST] init freq:%d cnt:%d", sysfreq, boost_cnt);
+    app_audio_set_a2dp_freq(sysfreq);
+    return 0;
+}
+
+int a2dp_audio_sysfreq_boost_start(uint32_t boost_cnt,bool is_init_boost)
 {
     a2dp_audio_sysfreq_cnt = 0;
     a2dp_audio_sysfreq_dest_boost_cnt = boost_cnt;
+
     a2dp_audio_set_freq_user_case(A2DP_AUDIO_BOOST_MODE_FREQ);
-    AUDIOPLAYERS_TRACE(0,"[BOOST] freq:%d cnt:%d", a2dp_audio_current_sysfreq, boost_cnt);
     return 0;
 }
 
@@ -1558,7 +1760,8 @@ static int a2dp_audio_sysfreq_boost_porc(void)
         //do nothing
     }else if (a2dp_audio_sysfreq_cnt >= a2dp_audio_sysfreq_dest_boost_cnt){
             a2dp_audio_sysfreq_cnt = UINT32_MAX;
-            a2dp_audio_sysfreq_reset();
+            a2dp_audio_set_freq_user_case(A2DP_AUDIO_FREQ_USER_CASE_INVALID);
+            a2dp_audio_sysfreq_update_normalfreq();
     }else{
         a2dp_audio_sysfreq_cnt++;
     }
@@ -1590,7 +1793,7 @@ int a2dp_audio_store_packet_checker(btif_media_header_t *header)
     }
 
     if (show_info){
-        //AUDIOPLAYERS_TRACE(0,"[INPUT] >50ms seq:%d diff:%d", header->sequenceNumber, FAST_TICKS_TO_MS(tmp_ms));
+        //TRACE_A2DP_DECODER_I("[INPUT] >50ms seq:%d diff:%d", header->sequenceNumber, FAST_TICKS_TO_MS(tmp_ms));
         a2dp_decoder_info_checker();
     }
 
@@ -1603,6 +1806,116 @@ int a2dp_audio_store_packet_checker(btif_media_header_t *header)
 
     return 0;
 }
+
+#ifdef A2DP_DECODER_CROSS_CORE
+void a2dp_audio_store_fake_packet(uint16_t sequencenumber)
+{
+    uint8_t device_id = a2dp_audio_packet_last_cache.device_id;
+    btif_media_header_t *header = &a2dp_audio_packet_last_cache.header;
+    header->sequenceNumber = sequencenumber;
+    header->timestamp = UINT32_MAX;
+    unsigned char *buf = a2dp_audio_packet_last_cache.data;
+    unsigned int len = a2dp_audio_packet_last_cache.len;
+    TRACE(0, "fill fake frame seq %d",header->sequenceNumber);
+    a2dp_audio_store_packet(device_id,header,buf,len);
+}
+#endif
+
+POSSIBLY_UNUSED static int get_frame_index_num(unsigned char *data)
+{
+	int index_num = 0;
+	unsigned char tmp1, tmp2;
+
+////////////////  sync 12bit check (0xFF, 0xE*) //////////////////
+	if (data[0] != 0xff)
+	{
+		return -1;
+	}
+	tmp1 = (data[1] & 0xF0);
+	if (tmp1 != 0xE0)
+	{
+		return -2;
+	}
+////////////////////////////////////////////////////////////////
+
+	tmp1 = ((data[3] >> 4) & 0x01);
+	if (tmp1 == 0x01)   //  Normal case
+	{
+		index_num = (int)((data[2] >> 4) & 0xFF);
+	}
+	else if (tmp1 == 0x00)  // UHQ case
+	{
+		tmp2 = ((data[2] >> 4) & 0x0F);
+		index_num = (int)((data[1] << 4) & 0xF0);
+		index_num = index_num + (int)(tmp2);
+	}
+	else
+	{
+		index_num = -3;
+	}
+
+	return index_num;
+}
+
+#if defined(A2DP_SCALABLE_UHQ_SUPPORT)
+int a2dp_audio_uhq_store_packet(uint8_t device_id, btif_media_header_t * header, unsigned char *buf, unsigned int len)
+{
+    if ((0xFF != buf[0]) || (0xE0 != (buf[1] & 0xF0)))
+    {
+        TRACE_A2DP_DECODER_E("invalid scalable a2dp frame, sync words not right.");
+        return -1;
+    }
+    TRACE(0, "UHQ PACKET SEQ %d TIMESTAMP %d", header->sequenceNumber, header->timestamp);
+    unsigned char uhq_syncword = buf[3] & 0x1F;
+    if((uhq_syncword == 0x00) || (uhq_syncword == 0x03) || (uhq_syncword == 0x06))
+    {
+        int bit_size;
+        int num_frame_per_packet = 2;
+        uint8_t uhq_seq = 0;
+
+        if(uhq_syncword == 0x03)
+        {
+            bit_size = 660;
+            num_frame_per_packet = 1;
+        }
+        else if(uhq_syncword == 0x00)
+        {
+            bit_size = 330;
+            if(len<506)
+            {
+              num_frame_per_packet = 1;
+            }
+        }
+        else if(uhq_syncword == 0x06)
+        {
+            bit_size = 176;
+            if(len<352)
+            {
+              num_frame_per_packet = 1;
+            }
+        }
+
+        uhq_seq = get_frame_index_num(buf);
+        header->sequenceNumber = uhq_seq;
+        header->timestamp = uhq_seq;
+        a2dp_audio_store_packet(device_id, header, buf, bit_size);
+        TRACE(0,"UHQ first bit_size = %d, num_frame_per_packet = %d",bit_size,num_frame_per_packet);
+        TRACE(0,"first data[0] = %x,data[1] = %x,data[2] = %x,data[3] = %x,UHQ seq = %d",buf[0],buf[1],buf[2],buf[3],uhq_seq);
+
+        if (2 == num_frame_per_packet)
+        {
+            uhq_seq = get_frame_index_num(buf+bit_size);
+            header->sequenceNumber = uhq_seq;
+            header->timestamp = uhq_seq;
+            a2dp_audio_store_packet(device_id, header, buf+bit_size, len-bit_size);
+            TRACE(0,"UHQ second bit_size = %d, num_frame_per_packet = %d",len-bit_size,num_frame_per_packet);
+    	    TRACE(0,"second data[0] = %x,data[1] = %x,data[2] = %x,data[3]=%x,UHQ seq = %d",buf[bit_size],buf[bit_size+1],buf[bit_size+2],buf[bit_size+3],uhq_seq);
+        }
+    }
+    return 0;
+}
+#endif
+
 //#define DECODER_ERR_TEST
 int a2dp_audio_store_packet(uint8_t device_id, btif_media_header_t * header, unsigned char *buf, unsigned int len)
 {
@@ -1616,11 +1929,15 @@ int a2dp_audio_store_packet(uint8_t device_id, btif_media_header_t * header, uns
         limit = rand()%500;
         uint16_t len2 = rand()%len;
         memset(buf+len-len2,0,len2);
-        AUDIOPLAYERS_TRACE(0,"[INPUT] Fill Err!!!! seq:%d", header->sequenceNumber);
+        TRACE_A2DP_DECODER_I("[INPUT] Fill Err!!!! seq:%d", header->sequenceNumber);
     }
 #endif
 #if A2DP_DECODER_HISTORY_SEQ_SAVE
-    a2dp_audio_save_history_seq(header, buf, len);
+    uint8_t ret = a2dp_audio_save_history_seq(header, buf, len);
+    if (ret == A2DP_DECODER_HISTORY_SAME_SEQ)
+    {
+        return nRet;
+    }
 #endif
     a2dp_audio_set_store_packet_status(A2DP_AUDIO_DECODER_STORE_PACKET_STATUS_BUSY);
     if (a2dp_audio_get_status() == A2DP_AUDIO_DECODER_STATUS_START){
@@ -1631,11 +1948,21 @@ int a2dp_audio_store_packet(uint8_t device_id, btif_media_header_t * header, uns
             a2dp_audio_context.audio_decoder.audio_decoder_preparse_packet(header, buf, len);
         }
 
+        nRet = a2dp_audio_context.audio_decoder.audio_decoder_store_packet(header, buf, len);
+        A2DP_AUDIO_HEADFRAME_INFO_T headframe_info;
+        a2dp_audio_decoder_headframe_info_get(&headframe_info);
+
+#ifdef A2DP_DECODER_CROSS_CORE
+        int lock = int_lock();
+        a2dp_audio_packet_last_cache.device_id = device_id;
+        memcpy(&a2dp_audio_packet_last_cache.header, header, sizeof(btif_media_header_t));
+        memcpy(a2dp_audio_packet_last_cache.data, buf, len);
+        a2dp_audio_packet_last_cache.len = len;
+        int_unlock(lock);
+#endif
         if (a2dp_audio_detect_next_packet_callback){
             a2dp_audio_detect_next_packet_callback(device_id, header, buf, len);
         }
-
-        nRet = a2dp_audio_context.audio_decoder.audio_decoder_store_packet(header, buf, len);
 
 #if defined(IBRT)
         if (A2DP_DECODER_NON_CONSECTIVE_SEQ == nRet)
@@ -1644,60 +1971,59 @@ int a2dp_audio_store_packet(uint8_t device_id, btif_media_header_t * header, uns
         }
 
         if (is_cp_need_reset()){
-            AUDIOPLAYERS_TRACE(0,"[CP] find cp error need restart");
+            TRACE_A2DP_DECODER_I("[CP] find cp error need restart");
             app_ibrt_if_force_audio_retrigger(RETRIGGER_BY_DECODE_ERROR);
+
         }
-#if defined(BT_DONT_PLAY_MUTE_WHEN_A2DP_STUCK_PATCH)
-        if (nRet == A2DP_DECODER_SYNC_ERROR){
-            AUDIOPLAYERS_TRACE(0,"adjust mtu over buff need restart");
-            app_ibrt_if_force_audio_retrigger(RETRIGGER_BY_SYNC_FAIL);
-        }
-#endif
         if (nRet == A2DP_DECODER_MTU_LIMTER_ERROR){
-            POSSIBLY_UNUSED struct BT_DEVICE_T *curr_device = app_bt_get_device(device_id);
-            if (bts_bt_if_is_dev_link_connected(&curr_device->remote)){
+            POSSIBLY_UNUSED bt_acl_state_t acl_link_info = bes_bt_me_acl_get_state(device_id);
+            if (app_tws_ibrt_mobile_link_connected(&acl_link_info.remote)){
                 // try again
                 //a2dp_audio_semaphore_wait(A2DP_AUDIO_WAIT_TIMEOUT_MS);
                 nRet = a2dp_audio_context.audio_decoder.audio_decoder_store_packet(header, buf, len);
             }
             if (nRet == A2DP_DECODER_MTU_LIMTER_ERROR){
+                if (headframe_info.sequenceNumber > (a2dp_audio_lastframe_info.sequenceNumber+1))
+                {
+                    app_ibrt_if_force_audio_retrigger(RETRIGGER_BY_DECODE_STATUS_ERROR);
+                }
                 int dest_discards_samples = 0;
                 ibrt_ctrl_t *p_ibrt_ctrl = app_tws_ibrt_get_bt_ctrl_ctx();
                 if(p_ibrt_ctrl == NULL)
                 {
                     return A2DP_DECODER_NOT_SUPPORT;
                 }
-                if (bts_bt_if_is_dev_link_connected(&curr_device->remote)){
-                    bt_syn_trig_checker(bts_bt_if_get_dev_acl_handle(&curr_device->remote));
-                }else if (bts_ibrt_if_is_ibrt_link_connected(&curr_device->remote)){
-                    bt_syn_trig_checker(bts_ibrt_if_get_dev_ibrt_handle(&curr_device->remote));
+                if (app_tws_ibrt_mobile_link_connected(&acl_link_info.remote)){
+                    bt_syn_trig_checker(app_tws_ibrt_get_mobile_connhandle(&acl_link_info.remote));
+                }else if (app_tws_ibrt_slave_ibrt_link_connected(&acl_link_info.remote)){
+                    bt_syn_trig_checker(app_tws_ibrt_get_ibrt_handle(&acl_link_info.remote));
                 }
                 dest_discards_samples = app_bt_stream_get_dma_buffer_samples()/2;
                 a2dp_audio_discards_samples(dest_discards_samples*2);
                 a2dp_audio_context.audio_decoder.audio_decoder_store_packet(header, buf, len);
-                AUDIOPLAYERS_TRACE(0,"[INPUT] MTU_LIMTER so discards_packet");
+                TRACE_A2DP_DECODER_I("[INPUT] MTU_LIMTER so discards_packet");
             }
         }
 #else
         if (A2DP_DECODER_NON_CONSECTIVE_SEQ == nRet)
         {
-            AUDIOPLAYERS_TRACE(0,"Find non-consective frame sequence number, do retrigger!");
+            TRACE_A2DP_DECODER_I("Find non-consective frame sequence number, do retrigger!");
             app_audio_decode_err_force_trigger();
         }
 
         if (is_cp_need_reset()){
-            AUDIOPLAYERS_TRACE(0,"[CP] find cp error need restart");
+            TRACE_A2DP_DECODER_I("[CP] find cp error need restart");
             app_audio_decode_err_force_trigger();
         }
 
         if (nRet == A2DP_DECODER_MTU_LIMTER_ERROR){
             a2dp_audio_synchronize_dest_packet_mut(a2dp_audio_context.dest_packet_mut);
             a2dp_audio_context.audio_decoder.audio_decoder_store_packet(header, buf, len);
-            AUDIOPLAYERS_TRACE(0,"[INPUT] MTU_LIMTER so discards_packet");
+            TRACE_A2DP_DECODER_W("[INPUT] MTU_LIMTER so discards_packet");
         }
 #endif
     }else{
-        //AUDIOPLAYERS_TRACE(2,"[INPUT] skip packet status:%d", a2dp_audio_get_status());
+        //TRACE(2,"[INPUT] skip packet status:%d", a2dp_audio_get_status());
     }
 
     if (a2dp_audio_store_packet_ntf_callback)
@@ -1718,7 +2044,7 @@ void increase_dst_mtu(void)
     int32_t currentTargetBufLen = sbm_get_current_target_jitter_buf_length();
     currentTargetBufLen += 30;
     sbm_update_target_jitter_buf_length(currentTargetBufLen);
-    AUDIOPLAYERS_TRACE(0, "increase dst to %d", a2dp_audio_context.dest_packet_mut);
+    TRACE(0, "increase dst to %d", a2dp_audio_context.dest_packet_mut);
 }
 
 void decrease_dst_mtu(void)
@@ -1730,65 +2056,8 @@ void decrease_dst_mtu(void)
         currentTargetBufLen -= 30;
         sbm_update_target_jitter_buf_length(currentTargetBufLen);
     }
-    AUDIOPLAYERS_TRACE(0, "decrease dst to %d", a2dp_audio_context.dest_packet_mut);
+    TRACE(0, "decrease dst to %d", a2dp_audio_context.dest_packet_mut);
 }
-
-#if defined(MUTE_FRAME_DETECT)
-static A2DP_AUDIO_MUTE_DETECT_T mute_detect = {0};
-void mute_frame_detect(uint8_t* buffer, uint32_t samples, uint8_t device_id)
-{
-    uint8_t bits_depth = a2dp_audio_context.output_cfg.bits_depth;
-    uint32_t sample_rate = a2dp_audio_context.output_cfg.sample_rate;
-    uint8_t ch = a2dp_audio_context.output_cfg.num_channels;
-    int data = 0;
-
-    int* buffer_32 = 0;
-    int16_t* buffer_16 = 0;
-    if (bits_depth == 24)
-        buffer_32 = (int*)buffer;
-    else {
-        buffer_16 = (short*)buffer;
-    }
-    //AUDIOPLAYERS_DUMP8("%02x ", buffer, 128);
-    for (unsigned int i = 0; i < samples / ch; i++) {
-        if (bits_depth == 24)
-            data = buffer_32[i*ch] >> 8;
-        else 
-            data = buffer_16[i*ch];
-        mute_detect.val_sum += abs(data);
-        mute_detect.sample_count++;
-        mute_detect.total_sample_count++;
-        if (mute_detect.sample_count >= 500) {
-            //val_sum_32 = val_sum;
-            //AUDIOPLAYERS_TRACE(0, "val_sum_32:%d", val_sum_32);
-            if (mute_detect.val_sum < 10000) {
-                mute_detect.mute_count++;
-            } else {
-                mute_detect.mute_count = 0;
-            }
-            //AUDIOPLAYERS_TRACE(2,"%s,sum =0x%08x",__func__,(uint32_t)(val_sum&0xFFFFFFFF));
-            mute_detect.sample_count = 0;
-            mute_detect.val_sum = 0;
-            if (mute_detect.total_sample_count >= sample_rate) {
-                if (mute_detect.mute_count >= sample_rate / 500) {
-                    AUDIOPLAYERS_TRACE(0, "!!!!meet mute frame\n");
-                    mute_detect.mute_count = 0;
-                    mute_detect.mute_frame_flag[device_id] = true;
-                }
-                else {
-                    mute_detect.mute_frame_flag[device_id] = false;
-                }
-                mute_detect.total_sample_count = 0;
-            }
-        }
-    }
-}
-
-bool a2dp_audio_is_mute_frame(uint8_t device_id)
-{
-    return mute_detect.mute_frame_flag[device_id];
-}
-#endif
 
 uint32_t a2dp_audio_playback_handler(uint8_t device_id, uint8_t *buffer, uint32_t buffer_bytes)
 {
@@ -1797,56 +2066,44 @@ uint32_t a2dp_audio_playback_handler(uint8_t device_id, uint8_t *buffer, uint32_
     A2DP_AUDIO_LASTFRAME_INFO_T *lastframe_info = NULL;
     list_t *list = a2dp_audio_context.audio_datapath.input_raw_packet_list;
     enum A2DP_AUDIO_DECODER_STATUS status;
-    POSSIBLY_UNUSED uint8_t codec_type = bta_get_curr_a2dp_codec_type();
-#if defined(BT_DONT_PLAY_MUTE_WHEN_A2DP_STUCK_PATCH)
-#if defined(A2DP_CP_ACCEL)
-    uint16_t cp_frame_mtus = get_cp_frame_mtus(&a2dp_audio_lastframe_info);
-#endif
-#endif
+    POSSIBLY_UNUSED int a2dp_curr_device = bes_bt_me_select_device(BT_SELECT_CURR_A2DP_DEVICE);
 
     a2dp_audio_set_playback_status(A2DP_AUDIO_DECODER_PLAYBACK_STATUS_BUSY);
-    uint32_t list_len = a2dp_audio_list_length(list);
     status = a2dp_audio_get_status();
     if (status != A2DP_AUDIO_DECODER_STATUS_START){
-        AUDIOPLAYERS_TRACE(0,"[PLAYBACK] skip handler status:%d", status);
+        TRACE_A2DP_DECODER_W("[PLAYBACK] skip handler status:%d", status);
         goto exit;
     }
 
     a2dp_audio_sysfreq_boost_porc();
     if (a2dp_audio_context.average_packet_mut == 0){
-        A2DP_AUDIO_HEADFRAME_INFO_T headframe_info;
-        a2dp_audio_decoder_headframe_info_get(&headframe_info);
-        a2dp_audio_context.average_packet_mut = list_len;
-        AUDIOPLAYERS_TRACE(0,"[PLAYBACK] init average_packet_mut:%d seq:%d", (uint16_t)(a2dp_audio_context.average_packet_mut+0.5f), headframe_info.sequenceNumber);
-#if defined(BT_BUILD_WITH_CUSTOMER_HOST) || defined(BLE_ONLY_ENABLED)
-#else // bes classic bt is disabled
-        POSSIBLY_UNUSED struct BT_DEVICE_T *curr_device = app_bt_get_device(device_id);
-        if (curr_device->rsv_avdtp_start_signal)
-        {
-            sbm_target_jitter_buffer_initiative_approached();
-            curr_device->rsv_avdtp_start_signal = false;
-        }
-#endif
     }else{
         if (!a2dp_audio_refill_packet()){
             uint16_t packet_mut = 0;
             if (!a2dp_audio_internal_lastframe_info_ptr_get(&lastframe_info)){
-                packet_mut = list_len +  get_in_cp_frame_cnt() + get_in_cp_frame_delay() * (lastframe_info->frame_samples  /lastframe_info->list_samples);
+                packet_mut = a2dp_audio_list_length(list);
                 a2dp_audio_context.average_packet_mut = a2dp_audio_alpha_filter((float)a2dp_audio_context.average_packet_mut, (float)packet_mut);
 
-                bool isProcessedByCodecAlg = false;
-                if (a2dp_audio_context.audio_decoder.audio_decoder_custom_latency_tuning)
+#ifdef ADVANCE_FILL_ENABLED
+                if (!is_doing_pre_fill)
+#endif
                 {
-                    isProcessedByCodecAlg = a2dp_audio_context.audio_decoder.audio_decoder_custom_latency_tuning(device_id,
-                        a2dp_audio_context.average_packet_mut, a2dp_audio_context.dest_packet_mut);
-                }
-
-                // sbm is not processed by codec algorithm, shall be done by SDK
-                if (!isProcessedByCodecAlg)
-                {
-                    a2dp_audio_status_mutex_lock();
-                    a2dp_audio_sync_handler(device_id, buffer, buffer_bytes);
-                    a2dp_audio_status_mutex_unlock();
+                    bool isProcessedByCodecAlg = false;
+                    if (a2dp_audio_context.audio_decoder.audio_decoder_custom_latency_tuning)
+                    {
+                        if (a2dp_audio_context.max_seq_num == UINT16_MAX)
+                        {
+                            isProcessedByCodecAlg = a2dp_audio_context.audio_decoder.audio_decoder_custom_latency_tuning(device_id,
+                                a2dp_audio_context.average_packet_mut, a2dp_audio_context.dest_packet_mut);
+                        }
+                    }
+                    // sbm is not processed by codec algorithm, shall be done by SDK
+                    if (!isProcessedByCodecAlg)
+                    {
+                        a2dp_audio_status_mutex_lock();
+                        a2dp_audio_sync_handler(device_id, buffer, buffer_bytes);
+                        a2dp_audio_status_mutex_unlock();
+                    }
                 }
             }
         }
@@ -1856,115 +2113,142 @@ uint32_t a2dp_audio_playback_handler(uint8_t device_id, uint8_t *buffer, uint32_
     }
 #if defined(A2DP_AUDIO_REFILL_AFTER_NO_CACHE)
     if (a2dp_audio_context.skip_frame_cnt_after_no_cache){
-#if defined(BT_DONT_PLAY_MUTE_WHEN_A2DP_STUCK_PATCH)
-        if(list_len == a2dp_audio_context.mute_frame_cnt_after_no_cache){
-#if defined(A2DP_CP_ACCEL) 
-            if(a2dp_audio_context.water_line_mut < (a2dp_audio_context.max_waterline_packet_mtu - cp_frame_mtus)){
-                a2dp_audio_context.water_line_mut += cp_frame_mtus;
-            }else{
-                a2dp_audio_context.water_line_mut = a2dp_audio_context.max_waterline_packet_mtu;
-            }
-#else
-            a2dp_audio_context.water_line_mut = a2dp_audio_context.max_waterline_packet_mtu;
-#endif
-        }else{
-            if(list_len > a2dp_audio_context.water_line_mut){
-                a2dp_audio_context.skip_frame_cnt_after_no_cache = 0;
-                a2dp_audio_context.mute_frame_cnt_after_no_cache = 0;
-#if defined(A2DP_CP_ACCEL)
-                a2dp_audio_context.water_line_delay_cache_cnt = (uint8_t)CP_PROC_DELAY_2_FRAMES;
-#else
-                a2dp_audio_context.water_line_delay_cache_cnt = 0;
-#endif
-                a2dp_audio_sysfreq_boost_start(A2DP_AUDIO_SYSFREQ_BOOST_RESUME_CNT);
-            }else{
-                a2dp_audio_context.mute_frame_cnt_after_no_cache = list_len;
-            }
-        }
-#else
 #if defined(A2DP_CP_ACCEL)
         uint32_t cp_delay_mtus = get_in_cp_frame_delay();
+        uint32_t list_len = a2dp_audio_list_length(list);
+
         cp_delay_mtus  *= get_cp_frame_mtus(&a2dp_audio_lastframe_info);
         if (list_len >= (a2dp_audio_context.dest_packet_mut - cp_delay_mtus)){
             a2dp_audio_context.skip_frame_cnt_after_no_cache = 0;
             a2dp_audio_context.underflow_inprocess = false;
+        }
+#else  // A2DP_CP_ACCEL
+        A2DP_AUDIO_HEADFRAME_INFO_T headframe_info;
+        uint32_t list_len = 0;
+        a2dp_audio_decoder_headframe_info_get(&headframe_info);
+        A2DP_AUDIO_SYNCFRAME_INFO_T sync_info;
+        sync_info.sequenceNumber = a2dp_audio_context.mute_frame_seq + a2dp_audio_context.skip_mute_cnt;
+        if (a2dp_audio_context.max_seq_num == UINT8_MAX)
+        {
+            sync_info.sequenceNumber &= 0x00FF;
+        }
+        uint8_t recover_list_len = a2dp_audio_context.dest_packet_mut;
+
+        TRACE_A2DP_DECODER_I("exp_seq %d skip_cnt:%d rec_len:%d, dstMTU:%d head %d",
+            sync_info.sequenceNumber, a2dp_audio_context.skip_mute_cnt,
+            recover_list_len, a2dp_audio_context.dest_packet_mut, headframe_info.sequenceNumber);
+
+        if (1 != a2dp_audio_context.skip_frame_cnt_after_no_cache)
+        {
+            sync_info.sequenceNumber++; // The currently expected packet won't be playback
+            if (a2dp_audio_context.max_seq_num == UINT8_MAX)
+            {
+                sync_info.sequenceNumber &= 0x00FF;
+            }
+            a2dp_audio_synchronize_packet(&sync_info, A2DP_AUDIO_SYNCFRAME_MASK_SEQ);
+        }
+
+        list_len = a2dp_audio_list_length(list);
+        TRACE_A2DP_DECODER_I("[PLAYBACK] decode refill skip_cnt:%d, list:%d",
+                a2dp_audio_context.skip_frame_cnt_after_no_cache, list_len);
+
+        if (list_len >= recover_list_len){
+            // When the length in the audio list matches the recovery length,
+            // start normal playback
+#ifdef A2DP_DECODER_CROSS_CORE
+            A2DP_AUDIO_STARTFRAME_INFO_T start_frame_info;
+            start_frame_info.sequenceNumber = sync_info.sequenceNumber;
+            start_frame_info.curSubSequenceNumber = 0;
+            if (1 == a2dp_audio_context.skip_frame_cnt_after_no_cache)
+            {
+                start_frame_info.is_ignore = true;
+            }
+            else
+            {
+                start_frame_info.is_ignore = false;
+            }
+            a2dp_decoder_bth_set_first_run(start_frame_info);
+            a2dp_audio_internal_lastframe_info_ptr_get(&lastframe_info);
+            if (start_frame_info.is_ignore)
+            {
+                lastframe_info->sequenceNumber = headframe_info.sequenceNumber-1;
+            }
+            else
+            {
+                lastframe_info->sequenceNumber = sync_info.sequenceNumber-1;
+            }
+#endif
+            a2dp_audio_context.skip_frame_cnt_after_no_cache = 0;
+            a2dp_audio_context.skip_mute_cnt = 0;
+#if defined(IBRT)
+            TRACE_A2DP_DECODER_I("start playback seq;%d, analysisTick:%d",
+                sync_info.sequenceNumber, app_tws_ibrt_audio_analysis_tick_get());
+#endif
             app_start_post_chopping_timer();
         }
-#else
-        if (list_len >= a2dp_audio_context.dest_packet_mut){
-            a2dp_audio_context.skip_frame_cnt_after_no_cache = 0;
-        }
-#endif
-#endif
-
+#endif // A2DP_CP_ACCEL
         memset(buffer, 0, buffer_bytes);
         a2dp_decoder_info_checker();
-#if defined(BT_DONT_PLAY_MUTE_WHEN_A2DP_STUCK_PATCH)
-        AUDIOPLAYERS_TRACE(0,"[PLAYBACK] refill list:%d waterline:%d", list_len,a2dp_audio_context.water_line_mut);
-#else
-        AUDIOPLAYERS_TRACE(0,"[PLAYBACK] decode refill skip_cnt:%d, list:%d", a2dp_audio_context.skip_frame_cnt_after_no_cache, a2dp_audio_list_length(list));
-        if (a2dp_audio_context.skip_frame_cnt_after_no_cache > 0){
+        if (a2dp_audio_context.skip_frame_cnt_after_no_cache > 1){
             a2dp_audio_context.skip_frame_cnt_after_no_cache--;
-        }else{
+            a2dp_audio_context.skip_mute_cnt++;
+        } else {
             a2dp_audio_context.mute_frame_cnt_after_no_cache = A2DP_AUDIO_MUTE_FRAME_CNT_AFTER_NO_CACHE;
-        }
+#if defined(BT_DONT_PLAY_MUTE_WHEN_A2DP_STUCK_PATCH)
+            a2dp_audio_sysfreq_boost_init_start(A2DP_AUDIO_SYSFREQ_BOOST_RESUME_CNT);
 #endif
+        }
     }else
 #endif
     {
-#if defined(BT_DONT_PLAY_MUTE_WHEN_A2DP_STUCK_PATCH)
-#if defined(A2DP_CP_ACCEL)
-        if(a2dp_audio_context.water_line_mut > a2dp_audio_context.min_waterline_packet_mtu + cp_frame_mtus){
-            a2dp_audio_context.water_line_mut -= cp_frame_mtus;
+#ifdef ADVANCE_FILL_ENABLED
+        if (!is_doing_pre_fill)
+#endif
+        {
+            if (a2dp_audio_context.average_packet_mut == 0){
+                A2DP_AUDIO_HEADFRAME_INFO_T headframe_info;
+                a2dp_audio_decoder_headframe_info_get(&headframe_info);
+                // currently filled pcm data will be played in one chunk later,
+                // so add 1 frame owned mtu count here
+                // also on streaming started, cp delay needs to be taken into account
+                a2dp_audio_context.average_packet_mut =
+                    a2dp_audio_list_length(list) + get_in_cp_frame_cnt();
+                TRACE_A2DP_DECODER_I("[PLAYBACK] main mcu list cnt %d; dma playback delay %d",
+                    a2dp_audio_list_length(list), a2dp_audio_context.output_cfg.mtu_per_frame);
+                TRACE_A2DP_DECODER_I("[PLAYBACK] init average_packet_mut:%d seq:%d",
+                    (uint16_t)(a2dp_audio_context.average_packet_mut+0.5f), headframe_info.sequenceNumber);
+                if (bes_bt_a2dp_is_first_packet_after_stream_start(device_id))
+                {
+                    sbm_target_jitter_buffer_initiative_approached();
+                }
+            }
         }
-#endif
-#endif
 #ifndef PLAYBACK_FORCE_48K
         if (a2dp_audio_context.output_cfg.bits_depth == 24 &&
             a2dp_audio_context.audio_decoder.stream_info.bits_depth == 16){
 
             len = len / (sizeof(int32_t) / sizeof(int16_t));
 
+#ifdef A2DP_DECODER_CROSS_CORE
+            nRet = a2dp_decoder_bth_fetch_pcm_data(
+                a2dp_audio_lastframe_info.sequenceNumber,
+                a2dp_audio_lastframe_info.totalSubSequenceNumber,
+                a2dp_audio_lastframe_info.curSubSequenceNumber,
+                buffer, len);
+#else
             nRet = a2dp_audio_context.audio_decoder.audio_decoder_decode_frame(buffer, len);
-
-#ifdef AUDIO_RMS_MONITOR_ENABLE
-            if(codec_type == BT_A2DP_CODEC_TYPE_SBC)
-            {
-                rms_debug_cnt++;
-                if(rms_debug_cnt >= 256)
-                {
-                    int16_t* rms_buff = (int16_t*)buffer;
-                    rms_debug_cnt = 0;
-                    AUDIOPLAYERS_TRACE(7, "RMS SBC:%d dbfs %d %d %d %d %d %d", rms_dac_volume, rms_buff[0], rms_buff[1], rms_buff[2], rms_buff[3], rms_buff[4], rms_buff[5]);
-                }  
-            }
-            else if(codec_type == BT_A2DP_CODEC_TYPE_MPEG2_4_AAC)
-            {
-                rms_debug_cnt++;
-                if(rms_debug_cnt >= 256)
-                {
-                    int16_t* rms_buff = (int16_t*)buffer;
-                    rms_debug_cnt = 0;
-                    AUDIOPLAYERS_TRACE(7, "RMS AAC:%d dbfs %d %d %d %d %d %d", rms_dac_volume, rms_buff[0], rms_buff[1], rms_buff[2], rms_buff[3], rms_buff[4], rms_buff[5]);
-                }
-            }
-#endif
-
             if  (nRet < 0 || a2dp_audio_context.mute_frame_cnt_after_no_cache){
-                AUDIOPLAYERS_TRACE(0,"[PLAYBACK] decode failed nRet=%d mute_cnt:%d", nRet, a2dp_audio_context.mute_frame_cnt_after_no_cache);
+                TRACE_A2DP_DECODER_I("[PLAYBACK] decode failed nRet=%d mute_cnt:%d", nRet, a2dp_audio_context.mute_frame_cnt_after_no_cache);
                 a2dp_decoder_info_checker();
                 if (nRet == -5){
-#if defined(BT_BUILD_WITH_CUSTOMER_HOST) || defined(BLE_ONLY_ENABLED)
-#else // bes classic bt is disabled
-                    struct BT_DEVICE_T *curr_device = app_bt_get_device(app_bt_audio_get_curr_a2dp_device());
-                    if (curr_device){
-                        bt_drv_rx_status_dump(curr_device->acl_conn_hdl);
+                    if (a2dp_curr_device != BT_DEVICE_INVALID_ID) {
+                        bt_drv_rx_status_dump(bes_bt_me_acl_get_state(a2dp_curr_device).acl_conn_hdl);
                     }
-#endif
                 }
                 //mute frame
                 memset(buffer, 0, len);
             }
+#endif
             a2dp_audio_convert_16bit_to_24bit((int32_t *)buffer, (int16_t *)buffer, len / sizeof(int16_t));
 
             // Restore len to 24-bit sample buffer length
@@ -1976,116 +2260,89 @@ uint32_t a2dp_audio_playback_handler(uint8_t device_id, uint8_t *buffer, uint32_
         if (1)
 #endif
         {
+#ifdef A2DP_DECODER_CROSS_CORE
+            nRet = a2dp_decoder_bth_fetch_pcm_data(
+                a2dp_audio_lastframe_info.sequenceNumber,
+                a2dp_audio_lastframe_info.totalSubSequenceNumber,
+                a2dp_audio_lastframe_info.curSubSequenceNumber,
+                buffer, len);
 
+#else
             nRet = a2dp_audio_context.audio_decoder.audio_decoder_decode_frame(buffer, len);
-
-#ifdef AUDIO_RMS_MONITOR_ENABLE
-            if(codec_type == BT_A2DP_CODEC_TYPE_SBC)
-            {
-                rms_debug_cnt ++;
-                if(rms_debug_cnt >= 256)
-                {
-                    int16_t* rms_buff = (int16_t*)buffer;
-                    rms_debug_cnt = 0;
-                    AUDIOPLAYERS_TRACE(7, "RMS SBC:%d dbfs %d %d %d %d %d %d", rms_dac_volume, rms_buff[0], rms_buff[1], rms_buff[2], rms_buff[3], rms_buff[4], rms_buff[5]);
-                }
-            }
-            else if(codec_type == BT_A2DP_CODEC_TYPE_MPEG2_4_AAC)
-            {
-                rms_debug_cnt ++;
-                if(rms_debug_cnt >= 256)
-                {
-                    int16_t* rms_buff = (int16_t*)buffer;
-                    rms_debug_cnt = 0;
-                    AUDIOPLAYERS_TRACE(7, "RMS SBC:%d dbfs %d %d %d %d %d %d", rms_dac_volume, rms_buff[0], rms_buff[1], rms_buff[2], rms_buff[3], rms_buff[4], rms_buff[5]);
-                }
-            }
-#endif
-
             if  (nRet < 0 || a2dp_audio_context.mute_frame_cnt_after_no_cache){
                 //mute frame
-                AUDIOPLAYERS_TRACE(0,"[PLAYBACK] decode failed nRet=%d mute_cnt:%d", nRet, a2dp_audio_context.mute_frame_cnt_after_no_cache);
+                TRACE_A2DP_DECODER_I("[PLAYBACK] decode failed nRet=%d mute_cnt:%d", nRet, a2dp_audio_context.mute_frame_cnt_after_no_cache);
                 a2dp_decoder_info_checker();
-                if (nRet == -5)
-                {
-#if defined(BT_BUILD_WITH_CUSTOMER_HOST) || defined(BLE_ONLY_ENABLED)
-#else // bes classic bt is disabled
-                    struct BT_DEVICE_T *curr_device = app_bt_get_device(app_bt_audio_get_curr_a2dp_device());
-                    if (curr_device)
-                    {
-                        bt_drv_rx_status_dump(curr_device->acl_conn_hdl);
+                if (nRet == -5){
+                    if (a2dp_curr_device != BT_DEVICE_INVALID_ID) {
+                        bt_drv_rx_status_dump(bes_bt_me_acl_get_state(a2dp_curr_device).acl_conn_hdl);
                     }
-#endif
                 }
                 memset(buffer, 0, len);
             }
-
+#endif
         }else{
             ASSERT_A2DP_DECODER(0, "[PLAYBACK] output bit_depth(%d) not matched with stream bit_depth(%d)",
                 a2dp_audio_context.output_cfg.bits_depth,
                 a2dp_audio_context.audio_decoder.stream_info.bits_depth);
         }
-#ifdef AUDIO_RMS_MONITOR_ENABLE
-        uint8_t nonType = bta_get_curr_a2dp_vender_codec_type();
-        if( (nonType != BT_A2DP_CODEC_NONE_TYPE_LHDCV5) || (codec_type != BT_A2DP_CODEC_TYPE_NON_A2DP))
-#endif
-        {
-            A2DP_AUDIO_CHANNEL_SELECT_E chnl_sel;
-            if (!a2dp_audio_internal_lastframe_info_ptr_get(&lastframe_info))
-                chnl_sel = lastframe_info->chnl_sel;
-            else
-                chnl_sel = a2dp_audio_context.chnl_sel;
+
 #ifdef PLAYBACK_FORCE_48K
-            // When resample is enabled, data depth conversion should be done after resample as resample only support 16bit
-            a2dp_audio_channel_select(chnl_sel, buffer, buffer_bytes, &a2dp_audio_context.audio_decoder.stream_info);
+        ASSERT(a2dp_audio_context.audio_decoder.stream_info.bits_depth == 16, "[%s] bits != 16", __func__);
+        a2dp_audio_channel_select<int16_t>(a2dp_audio_context.chnl_sel, (int16_t *)buffer, buffer_bytes / sizeof(int16_t));
 #else
-            a2dp_audio_channel_select(chnl_sel, buffer, buffer_bytes, &a2dp_audio_context.output_cfg);
-#endif
-        }
-#if defined(MUTE_FRAME_DETECT)
-        if(a2dp_audio_context.output_cfg.bits_depth == 16)
-        {
-            mute_frame_detect(buffer, buffer_bytes / sizeof(int16_t), device_id);
-        }else
-        {
-            mute_frame_detect(buffer, buffer_bytes / sizeof(int32_t), device_id);
+        if (a2dp_audio_context.output_cfg.bits_depth == 24) {
+            a2dp_audio_channel_select<int32_t>(a2dp_audio_context.chnl_sel, (int32_t *)buffer, buffer_bytes / sizeof(int32_t));
+        } else {
+            a2dp_audio_channel_select<int16_t>(a2dp_audio_context.chnl_sel, (int16_t *)buffer, buffer_bytes / sizeof(int16_t));
         }
 #endif
-    }
 
-#if defined(BT_DONT_PLAY_MUTE_WHEN_A2DP_STUCK_PATCH)
-    if((a2dp_audio_context.water_line_delay_cache_cnt > 0)&& ((nRet == A2DP_DECODER_CACHE_UNDERFLOW_ERROR) || (nRet == A2DP_DECODER_CACHE_UNDERFLOW_ERROR_SYS_BUSY))){
-        a2dp_audio_context.water_line_delay_cache_cnt --;
-        nRet = A2DP_DECODER_NO_ERROR;
-    }
-#endif
+/*
+        uint8_t codec_type = BT_A2DP_CODEC_TYPE_SBC;
+        uint8_t nonType = 0;
+        if(app_stream_get_a2dp_param_callback)
+        {
+            uint8_t device_id = app_bt_audio_get_curr_a2dp_device();
+            codec_type = app_stream_get_a2dp_param_callback(device_id);
+        }
+        else
+        {
+            codec_type = bt_sbc_player_get_codec_type();
+        }
 
+        nonType = bes_aud_bt->a2dp_lhdc_get_non_type_by_device_id(device_id);
+
+        if( (nonType != A2DP_NON_CODEC_TYPE_LHDCV5) || (codec_type != BT_A2DP_CODEC_TYPE_NON_A2DP))
+        {
+            if (a2dp_audio_context.output_cfg.bits_depth == 24) {
+                a2dp_audio_channel_select(a2dp_audio_context.chnl_sel, (int32_t *)buffer, buffer_bytes / sizeof(int32_t));
+            } else {
+                a2dp_audio_channel_select(a2dp_audio_context.chnl_sel, (int16_t *)buffer, buffer_bytes / sizeof(int16_t));
+            }
+       }
+       */
+    }
     if ((nRet == A2DP_DECODER_CACHE_UNDERFLOW_ERROR) || (nRet == A2DP_DECODER_CACHE_UNDERFLOW_ERROR_SYS_BUSY))
     {
         if (a2dp_audio_internal_lastframe_info_ptr_get(&lastframe_info) < 0)
         {
             goto exit;
         }
-        AUDIOPLAYERS_TRACE(2,"CACHE_UNDERFLOW lastseq:%d ftick:%d", lastframe_info->sequenceNumber, hal_fast_sys_timer_get());
-#if defined(BT_BUILD_WITH_CUSTOMER_HOST) || defined(BLE_ONLY_ENABLED)
-#else // bes classic bt is disabled
+        TRACE(2,"CACHE_UNDERFLOW lastseq:%d ftick:%d", lastframe_info->sequenceNumber, hal_fast_sys_timer_get());
         app_bt_print_buff_status();
-#endif
         a2dp_audio_show_history_seq();
-#if defined(BT_DONT_PLAY_MUTE_WHEN_A2DP_STUCK_PATCH)
-        a2dp_audio_context.skip_frame_cnt_after_no_cache = A2DP_AUDIO_SKIP_FRAME_LIMIT_AFTER_NO_CACHE;
-        a2dp_audio_context.mute_frame_cnt_after_no_cache = 0;
-#else
         uint32_t mute_frames = A2DP_AUDIO_MUTE_FRAME_CNT_AFTER_NO_CACHE;
         uint32_t skip_frames =  A2DP_AUDIO_SKIP_FRAME_LIMIT_AFTER_NO_CACHE - get_in_cp_frame_delay();
         a2dp_audio_context.mute_frame_cnt_after_no_cache = (uint32_t)((float)mute_frames *
                                                                         a2dp_audio_latency_factor_get());
         a2dp_audio_context.skip_frame_cnt_after_no_cache = (uint32_t)((float)skip_frames *
                                                                         a2dp_audio_latency_factor_get());
-#endif
+        a2dp_audio_context.skip_mute_cnt = 1;
         a2dp_audio_context.average_packet_mut = 0;
+        a2dp_audio_context.mute_frame_seq = lastframe_info->sequenceNumber + 1;
+        lastframe_info->sequenceNumber = UINT16_MAX;
         a2dp_audio_sync_reset_data();
-        a2dp_audio_sync_tune_cancel();
 #if defined(IBRT)
 
         a2dp_audio_sync_tune_sample_rate(app_tws_ibrt_audio_sync_config_factor_reference_get());
@@ -2095,7 +2352,6 @@ uint32_t a2dp_audio_playback_handler(uint8_t device_id, uint8_t *buffer, uint32_
         a2dp_audio_sync_tune_cancel();
         a2dp_decoder_info_checker();
     }else{
-#if !defined(BT_DONT_PLAY_MUTE_WHEN_A2DP_STUCK_PATCH)
         if (a2dp_audio_context.mute_frame_cnt_after_no_cache > 0){
             a2dp_audio_context.mute_frame_cnt_after_no_cache--;
             a2dp_audio_context.average_packet_mut = 0;
@@ -2103,7 +2359,6 @@ uint32_t a2dp_audio_playback_handler(uint8_t device_id, uint8_t *buffer, uint32_
                 a2dp_audio_synchronize_dest_packet_mut(a2dp_audio_context.dest_packet_mut);
             }
         }
-#endif
     }
     if (!a2dp_audio_internal_lastframe_info_ptr_get(&lastframe_info)){
         lastframe_info->stream_info.factor_reference = a2dp_audio_context.output_cfg.factor_reference;
@@ -2114,13 +2369,13 @@ exit:
     if (a2dp_audio_context.preparse_stop){
         nRet = A2DP_DECODER_NO_ERROR;
         A2DP_AUDIO_HEADFRAME_INFO_T headframe_info;
-        POSSIBLY_UNUSED uint32_t list_size = 0;
+        uint32_t list_size = 0;
         a2dp_audio_decoder_headframe_info_get(&headframe_info);
         list_size = a2dp_audio_list_length(list);
-        AUDIOPLAYERS_TRACE(0,"[PREPARSE_STOP][PLAYBACK]list:%d seq:%d", list_size, headframe_info.sequenceNumber);
+        TRACE_A2DP_DECODER_I("[PREPARSE_STOP][PLAYBACK]list:%d seq:%d", list_size, headframe_info.sequenceNumber);
     }
 #if defined(IBRT)
-    POSSIBLY_UNUSED struct BT_DEVICE_T *curr_device = app_bt_get_device(device_id);
+    POSSIBLY_UNUSED bt_acl_state_t curr_device_acl_info = bes_bt_me_acl_get_state(device_id);
     if ((nRet == A2DP_DECODER_CACHE_UNDERFLOW_ERROR) || (nRet == A2DP_DECODER_CACHE_UNDERFLOW_ERROR_SYS_BUSY)){
 #if defined(A2DP_AUDIO_UNDERFLOW_CAUSE_AUDIO_RETRIGGER)
         bool force_audio_retrigger = true;
@@ -2128,10 +2383,10 @@ exit:
         bool force_audio_retrigger = false;
 #endif
         if (a2dp_audio_latency_factor_get() == A2DP_AUDIO_LATENCY_LOW_FACTOR &&
-            bts_bt_if_is_dev_link_connected(&curr_device->remote)){
+            app_tws_ibrt_mobile_link_connected(&curr_device_acl_info.remote)){
             a2dp_audio_latency_factor_sethigh();
-            if (bts_tws_if_is_tws_link_connected() &&
-                bts_ibrt_if_is_profile_exchanged(&curr_device->remote)){
+            if (app_tws_ibrt_tws_link_connected() &&
+                app_ibrt_conn_is_profile_exchanged(&curr_device_acl_info.remote)){
                 float latency_factor = a2dp_audio_latency_factor_get();
                 tws_ctrl_send_cmd(APP_TWS_CMD_SET_LATENCYFACTOR, (uint8_t*)&latency_factor, sizeof(latency_factor));
                 force_audio_retrigger = true;
@@ -2139,11 +2394,39 @@ exit:
         }
         if (force_audio_retrigger && !a2dp_audio_context.underflow_inprocess){
             a2dp_audio_context.underflow_inprocess = true;
+            a2dp_audio_context.force_audio_retrigger_cnt++;
 #if defined(BT_DONT_PLAY_MUTE_WHEN_A2DP_STUCK_PATCH)
-            //app_ibrt_if_force_audio_retrigger();
+            uint32_t passedTimerMs;
+            uint32_t currentTimerMs = GET_CURRENT_MS();
+            if (0 == start_force_retrigger_ms)
+            {
+               start_force_retrigger_ms = currentTimerMs;
+               passedTimerMs = 0;
+            }
+            else
+            {
+               if (currentTimerMs > start_force_retrigger_ms)
+               {
+                   passedTimerMs = currentTimerMs - start_force_retrigger_ms;
+               }
+               else
+               {
+                   passedTimerMs = TICKS_TO_MS(0xFFFFFFFF) - start_force_retrigger_ms + currentTimerMs + 1;
+               }
+            }
+            if (passedTimerMs > A2DP_ADUIO_FORCE_RETRIGGER_TIMEOUT)
+            {
+               a2dp_audio_context.force_audio_retrigger_cnt = 0;
+               start_force_retrigger_ms = currentTimerMs;
+            }
+
+            if (a2dp_audio_context.force_audio_retrigger_cnt>A2DP_ADUIO_FORCE_RETRIGGER_MAX_CNT)
+            {
+                app_ibrt_if_force_audio_retrigger((nRet == A2DP_DECODER_CACHE_UNDERFLOW_ERROR) ? RETRIGGER_BY_LOW_BUFFER : RETRIGGER_BY_SYS_BUSY);
 #if defined(__AUDIO_RETRIGGER_REPORT__)
-            app_ibrt_if_report_audio_retrigger((nRet == A2DP_DECODER_CACHE_UNDERFLOW_ERROR) ? RETRIGGER_BY_LOW_BUFFER : RETRIGGER_BY_SYS_BUSY);
+                app_ibrt_if_report_audio_retrigger((nRet == A2DP_DECODER_CACHE_UNDERFLOW_ERROR) ? RETRIGGER_BY_LOW_BUFFER : RETRIGGER_BY_SYS_BUSY);
 #endif
+            }
 #else
             app_ibrt_if_force_audio_retrigger((nRet == A2DP_DECODER_CACHE_UNDERFLOW_ERROR) ? RETRIGGER_BY_LOW_BUFFER : RETRIGGER_BY_SYS_BUSY);
 #endif
@@ -2173,41 +2456,28 @@ void a2dp_audio_clear_input_raw_packet_list(void)
         a2dp_audio_list_clear(a2dp_audio_context.audio_datapath.input_raw_packet_list);
 }
 
-#if defined(BT_DONT_PLAY_MUTE_WHEN_A2DP_STUCK_PATCH)
-void a2dp_audio_max_waterline_init(uint16_t max_waterline_packet_mtu)
+int a2dp_audio_init(uint32_t sysfreq, A2DP_AUDIO_CODEC_TYPE codec_type, A2DP_AUDIO_OUTPUT_CONFIG_T *config, A2DP_AUDIO_CHANNEL_SELECT_E chnl_sel, uint16_t dest_packet_mut, uint16_t chopping_dest_mut)
 {
-    a2dp_audio_context.max_waterline_packet_mtu = max_waterline_packet_mtu;
-}
-
-void a2dp_audio_min_waterline_init(uint16_t min_waterline_packet_mtu)
-{
-    a2dp_audio_context.min_waterline_packet_mtu = min_waterline_packet_mtu;
-}
-#endif
-
-#if defined(__VIRTUAL_SURROUND__) || defined(__VIRTUAL_SURROUND_CP__) || defined(__VIRTUAL_SURROUND_HWFIR__) || defined(__VIRTUAL_SURROUND_STEREO__) || defined(__AUDIO_BASS_ENHANCER__)
-int stereo_surround_freq_controller(uint32_t freq){
-    a2dp_audio_sysfreq_boost_init(freq);
-    return 0;
-}
-#endif
-
-int a2dp_audio_init(uint32_t sysfreq, A2DP_AUDIO_CODEC_TYPE codec_type, A2DP_AUDIO_OUTPUT_CONFIG_T *config,
-                           A2DP_AUDIO_CHANNEL_SELECT_E chnl_sel, uint16_t dest_packet_mut, uint16_t chopping_dest_mut)
-{
-    uint8_t *heap_buff = NULL;
-    uint32_t heap_size = 0;
-    double ratio = 0;
-
-#ifdef IBRT
-    if (a2dp_audio_retrigger_is_on_process()) {
-        bts_tws_if_request_modify_tws_bandwidth(TWS_TIMING_CONTROL_USER_FAST_COMMUNICATION, true);
+#ifdef A2DP_DECODER_CROSS_CORE
+#ifdef A2DP_DECODER_CROSS_CORE_USE_M55
+    if (!a2dp_audio_retrigger_is_on_process()) {
+        a2dp_decoder_cc_sema_init();
+        app_dsp_m55_init(APP_DSP_M55_USER_A2DP);
+    } else {
+        app_tws_ibrt_request_modify_tws_bandwidth(TWS_TIMING_CONTROL_USER_FAST_COMMUNICATION, true);
     }
 #endif
+#endif
+    uint8_t *heap_buff = NULL;
+    uint32_t heap_size = 0;
+    float ratio = 0;
 
+#ifdef ADVANCE_FILL_ENABLED
+    is_doing_pre_fill = false;
+#endif
     A2DP_AUDIO_OUTPUT_CONFIG_T decoder_output_config;
-    AUDIOPLAYERS_TRACE(0,"[INIT] freq:%d codec:%d chnl:%d", sysfreq, codec_type, chnl_sel);
-    AUDIOPLAYERS_TRACE(0,"[INIT] out:%d-%d-%d smp:%d dest:%d dest2:%d",
+    TRACE_A2DP_DECODER_I("[INIT] freq:%d codec:%d chnl:%d", sysfreq, codec_type, chnl_sel);
+    TRACE_A2DP_DECODER_I("[INIT] out:%d-%d-%d smp:%d dest:%d dest2:%d",
                                                                config->sample_rate,
                                                                config->num_channels,
                                                                config->bits_depth,
@@ -2215,7 +2485,7 @@ int a2dp_audio_init(uint32_t sysfreq, A2DP_AUDIO_CODEC_TYPE codec_type, A2DP_AUD
                                                                dest_packet_mut,
                                                                chopping_dest_mut);
     a2dp_audio_sysfreq_boost_init(sysfreq);
-    a2dp_audio_sysfreq_boost_start(A2DP_AUDIO_SYSFREQ_BOOST_RESUME_CNT);
+    a2dp_audio_sysfreq_boost_init_start(A2DP_AUDIO_SYSFREQ_BOOST_RESUME_CNT);
     a2dp_audio_buffer_mutex_init();
     a2dp_audio_status_mutex_init();
 
@@ -2227,13 +2497,29 @@ int a2dp_audio_init(uint32_t sysfreq, A2DP_AUDIO_CODEC_TYPE codec_type, A2DP_AUD
 
     a2dp_audio_detect_next_packet_callback_register(NULL);
     a2dp_audio_detect_store_packet_callback_register(NULL);
-    heap_size = app_audio_mempool_free_buff_size();
+
+    heap_size = A2DP_AUDIO_MEMPOOL_SIZE;
+
     app_audio_mempool_get_buff(&heap_buff, heap_size);
     ASSERT_A2DP_DECODER(heap_buff, "%s size:%d", __func__, heap_size);
     a2dp_audio_heap_init(heap_buff, heap_size);
 
-#if defined(A2DP_CP_ACCEL)&&!defined(UNIFY_HEAP_ENABLED)
+#ifdef A2DP_CP_ACCEL
     a2dp_cp_heap_init();
+#endif
+
+    if ((codec_type==A2DP_AUDIO_CODEC_TYPE_SCALABL)&&(config->sample_rate==96000))
+    {
+        a2dp_audio_context.max_seq_num = UINT8_MAX;
+    }
+    else
+    {
+        a2dp_audio_context.max_seq_num = UINT16_MAX;
+    }
+
+#ifdef A2DP_DECODER_CROSS_CORE
+    a2dp_decoder_bth_start_stream((A2DP_DECODER_CODEC_TYPE_E)codec_type,
+        (A2DP_DECODER_CHANNEL_SELECT_E)chnl_sel, (A2DP_AUDIO_CC_OUTPUT_CONFIG_T *)config, a2dp_audio_context.max_seq_num);
 #endif
 
     memset(&a2dp_audio_lastframe_info, 0, sizeof(A2DP_AUDIO_LASTFRAME_INFO_T));
@@ -2251,61 +2537,118 @@ int a2dp_audio_init(uint32_t sysfreq, A2DP_AUDIO_CODEC_TYPE codec_type, A2DP_AUD
     a2dp_audio_context.output_cfg.factor_reference = 0;
 
     a2dp_audio_context.init_factor_reference = config->factor_reference;
+#if defined(A2DP_AUDIO_STEREO_MIX_CTRL)
+    a2dp_audio_context.chnl_sel = a2dp_audio_context.chnl_sel_new;
+    a2dp_audio_stereo_mix_init(config->frame_samples);
+#else
     a2dp_audio_context.chnl_sel = chnl_sel;
-    a2dp_audio_context.dest_packet_mut = dest_packet_mut;
-    a2dp_audio_context.average_packet_mut = 0;
-#if defined(BT_DONT_PLAY_MUTE_WHEN_A2DP_STUCK_PATCH)
-    a2dp_audio_context.water_line_mut = a2dp_audio_context.min_waterline_packet_mtu;
+#endif
+    a2dp_audio_context.audio_decoder_status = A2DP_AUDIO_DECODER_STATUS_READY;
+    if (A2DP_INVALID_DELAY_MS == a2dp_audio_context.custom_delay_ms)
+    {
+        TRACE_A2DP_DECODER_I("[INIT] default mtu %d", dest_packet_mut);
+        a2dp_audio_context.dest_packet_mut = dest_packet_mut;
+    }
+    else
+    {
+        uint8_t custom_mtu = sbm_convert_targetMs_to_mtu(a2dp_audio_context.custom_delay_ms);
+        if (custom_mtu)
+        {
+            a2dp_audio_context.dest_packet_mut = custom_mtu;
+        }
+        else
+        {
+            a2dp_audio_context.dest_packet_mut = dest_packet_mut;
+        }
+        TRACE_A2DP_DECODER_I("[INIT] custom mtu %d", a2dp_audio_context.dest_packet_mut);
+    }
+
+#if defined(IBRT)
+    uint8_t device_id = bes_aud_bt->aud_get_curr_a2dp_device();
+    POSSIBLY_UNUSED struct BT_ADAPTER_DEVICE_T* curr_device = bt_adapter_get_device(device_id);
+    if (!app_tws_ibrt_slave_ibrt_link_connected(&curr_device->remote)){
+        sbm_set_manual_adjustment_on_going_flag();
+    }
+#else
+    sbm_set_manual_adjustment_on_going_flag();
 #endif
 
     a2dp_audio_context.not_chopping_dest_mut = a2dp_audio_context.dest_packet_mut;
     if (chopping_dest_mut)
     {
         a2dp_audio_context.dest_packet_mut = chopping_dest_mut;
-        AUDIOPLAYERS_TRACE(0,"[INIT] chopping mtu %d", a2dp_audio_context.dest_packet_mut);
+        TRACE_A2DP_DECODER_I("[INIT] chopping mtu %d", a2dp_audio_context.dest_packet_mut);
     }
 
-    decoder_output_config.sample_rate = config->sample_rate;
-    decoder_output_config.num_channels = 2;
-    decoder_output_config.bits_depth = bt_a2dp_player_get_sample_bit();
-    decoder_output_config.frame_samples = config->frame_samples;
-    decoder_output_config.factor_reference = 1.0f;
+    a2dp_audio_context.average_packet_mut = 0;
 
     switch (codec_type)
     {
         case A2DP_AUDIO_CODEC_TYPE_SBC:
+            decoder_output_config.sample_rate = config->sample_rate;
+            decoder_output_config.num_channels = 2;
+            decoder_output_config.bits_depth = bes_bt_a2dp_get_curr_sample_bit();
+            decoder_output_config.frame_samples = config->frame_samples;
+            decoder_output_config.factor_reference = 1.0f;
             memcpy(&(a2dp_audio_context.audio_decoder), &a2dp_audio_sbc_decoder_config, sizeof(A2DP_AUDIO_DECODER_T));
-            decoder_output_config.bits_depth = a2dp_audio_sbc_decoder_config.stream_info.bits_depth;
             break;
 #if defined(A2DP_AAC_ON)
         case A2DP_AUDIO_CODEC_TYPE_MPEG2_4_AAC:
+            decoder_output_config.sample_rate = config->sample_rate;
+            decoder_output_config.num_channels = 2;
+            decoder_output_config.bits_depth = bes_bt_a2dp_get_curr_sample_bit();
+            decoder_output_config.frame_samples = config->frame_samples;
+            decoder_output_config.factor_reference = 1.0f;
             memcpy(&(a2dp_audio_context.audio_decoder), &a2dp_audio_aac_lc_decoder_config, sizeof(A2DP_AUDIO_DECODER_T));
-            decoder_output_config.bits_depth = a2dp_audio_aac_lc_decoder_config.stream_info.bits_depth;
             break;
 #endif
 #if defined(A2DP_SCALABLE_ON)
         case A2DP_AUDIO_CODEC_TYPE_SCALABL:
+            decoder_output_config.sample_rate = config->sample_rate;
+            decoder_output_config.num_channels = 2;
+            decoder_output_config.bits_depth = bes_bt_a2dp_get_curr_sample_bit();
+            decoder_output_config.frame_samples = config->frame_samples;
+            decoder_output_config.factor_reference = 1.0f;
             memcpy(&(a2dp_audio_context.audio_decoder), &a2dp_audio_scalable_decoder_config, sizeof(A2DP_AUDIO_DECODER_T));
        break;
 #endif
 #if defined(A2DP_LHDC_ON)
         case A2DP_AUDIO_CODEC_TYPE_LHDC:
+            decoder_output_config.sample_rate = config->sample_rate;
+            decoder_output_config.num_channels = 2;
+            decoder_output_config.bits_depth = bes_bt_a2dp_get_curr_sample_bit();
+            decoder_output_config.frame_samples = config->frame_samples;
+            decoder_output_config.factor_reference = 1.0f;
             memcpy(&(a2dp_audio_context.audio_decoder), &a2dp_audio_lhdc_decoder_config, sizeof(A2DP_AUDIO_DECODER_T));
             break;
 #endif
 #if defined(A2DP_LHDCV5_ON)
         case A2DP_AUDIO_CODEC_TYPE_LHDCV5:
+            decoder_output_config.sample_rate = config->sample_rate;
+            decoder_output_config.num_channels = 2;
+            decoder_output_config.bits_depth = bes_bt_a2dp_get_curr_sample_bit();
+            decoder_output_config.frame_samples = config->frame_samples;
+            decoder_output_config.factor_reference = 1.0f;
             memcpy(&(a2dp_audio_context.audio_decoder), &a2dp_audio_lhdcv5_decoder_config, sizeof(A2DP_AUDIO_DECODER_T));
             break;
 #endif
 #if defined(A2DP_LDAC_ON)
         case A2DP_AUDIO_CODEC_TYPE_LDAC:
+            decoder_output_config.sample_rate = config->sample_rate;
+            decoder_output_config.num_channels = 2;
+            decoder_output_config.bits_depth = bes_bt_a2dp_get_curr_sample_bit();
+            decoder_output_config.frame_samples = config->frame_samples;
+            decoder_output_config.factor_reference = 1.0f;
             memcpy(&(a2dp_audio_context.audio_decoder), &a2dp_audio_ldac_decoder_config, sizeof(A2DP_AUDIO_DECODER_T));
-            decoder_output_config.bits_depth = a2dp_audio_ldac_decoder_config.stream_info.bits_depth;
             break;
 #endif
 #if defined(A2DP_LC3_ON)
         case A2DP_AUDIO_CODEC_TYPE_LC3:
+            decoder_output_config.sample_rate = config->sample_rate;
+            decoder_output_config.num_channels = 2;
+            decoder_output_config.bits_depth = bes_bt_a2dp_get_curr_sample_bit();
+            decoder_output_config.frame_samples = config->frame_samples;
+            decoder_output_config.factor_reference = 1.0f;
             memcpy(&(a2dp_audio_context.audio_decoder), &a2dp_audio_lc3_decoder_config, sizeof(A2DP_AUDIO_DECODER_T));
             break;
 #endif
@@ -2319,12 +2662,12 @@ int a2dp_audio_init(uint32_t sysfreq, A2DP_AUDIO_CODEC_TYPE codec_type, A2DP_AUD
     a2dp_audio_context.audio_decoder.audio_decoder_init(&decoder_output_config, (void *)&a2dp_audio_context);
     a2dp_audio_context.need_detect_first_packet = true;
     a2dp_audio_context.underflow_inprocess = false;
+    a2dp_audio_context.force_audio_retrigger_cnt = 0;
+    start_force_retrigger_ms = 0;
     a2dp_audio_context.preparse_stop = false;
     a2dp_audio_context.skip_frame_cnt_after_no_cache = 0;
     a2dp_audio_context.mute_frame_cnt_after_no_cache = 0;
-
-    a2dp_audio_context.audio_decoder_status = A2DP_AUDIO_DECODER_STATUS_READY;
-
+    a2dp_audio_context.skip_mute_cnt = 0;
     a2dp_audio_context.store_packet_status = A2DP_AUDIO_DECODER_STORE_PACKET_STATUS_IDLE;
     a2dp_audio_context.playback_status = A2DP_AUDIO_DECODER_PLAYBACK_STATUS_IDLE;
 
@@ -2336,15 +2679,13 @@ int a2dp_audio_init(uint32_t sysfreq, A2DP_AUDIO_CODEC_TYPE codec_type, A2DP_AUD
     a2dp_audio_store_packet_checker_start();
 
     a2dp_audio_status_mutex_unlock();
-#if defined(MUTE_FRAME_DETECT)
-    memset(&mute_detect, 0, sizeof(A2DP_AUDIO_MUTE_DETECT_T));
-#endif // MUTE_FRAME_DETECT
+
     return 0;
 }
 
 int a2dp_audio_deinit(void)
 {
-    AUDIOPLAYERS_TRACE(0,"[DEINIT]");
+    TRACE_A2DP_DECODER_I("[DEINIT]");
 
     sbm_release_cpu_freq_during_speed_tuning();
 
@@ -2352,6 +2693,15 @@ int a2dp_audio_deinit(void)
 
     a2dp_audio_detect_next_packet_callback_register(NULL);
     a2dp_audio_detect_store_packet_callback_register(NULL);
+#ifdef A2DP_DECODER_CROSS_CORE
+    a2dp_decoder_bth_stop_stream();
+#ifdef A2DP_DECODER_CROSS_CORE_USE_M55
+    if (!a2dp_audio_retrigger_is_on_process()) {
+        app_dsp_m55_deinit(APP_DSP_M55_USER_A2DP);
+        a2dp_decoder_cc_sema_deinit();
+    }
+#endif
+#endif
     sbm_reset_target_jitter_adjustment_env();
     a2dp_audio_context.audio_decoder.audio_decoder_deinit();
     memset(&(a2dp_audio_context.audio_decoder), 0, sizeof(A2DP_AUDIO_DECODER_T));
@@ -2362,10 +2712,12 @@ int a2dp_audio_deinit(void)
     a2dp_audio_list_clear(a2dp_audio_context.audio_datapath.output_pcm_packet_list);
     a2dp_audio_list_free(a2dp_audio_context.audio_datapath.output_pcm_packet_list);
     a2dp_audio_context.audio_datapath.output_pcm_packet_list = NULL;
-
+#ifndef IS_ALWAYS_KEEP_A2DP_TARGET_BUFFER_COUNT
+    a2dp_audio_context.custom_delay_ms = A2DP_INVALID_DELAY_MS;
+#endif
     size_t total = 0, used = 0, max_used = 0;
     a2dp_audio_heap_info(&total, &used, &max_used);
-    AUDIOPLAYERS_TRACE(0,"[DEINIT] heap info: total - %d, used - %d, max_used - %d.", total, used, max_used);
+    TRACE_A2DP_DECODER_I("[DEINIT] heap info: total - %d, used - %d, max_used - %d.", total, used, max_used);
     //ASSERT_A2DP_DECODER(used == 0, "[%s] used != 0", __func__);
 
     a2dp_audio_set_store_packet_status(A2DP_AUDIO_DECODER_STORE_PACKET_STATUS_IDLE);
@@ -2386,18 +2738,18 @@ int a2dp_audio_deinit(void)
 int a2dp_audio_preparse_stop(void)
 {
     int cnt = 0;
-    a2dp_audio_sysfreq_boost_start(5);
+    a2dp_audio_sysfreq_boost_start(5,false);
     cnt = 50;
     do {
         if (a2dp_audio_get_playback_status() == A2DP_AUDIO_DECODER_PLAYBACK_STATUS_IDLE){
             a2dp_audio_context.preparse_stop = true;
-            AUDIOPLAYERS_TRACE(0,"[PREPARSE_STOP] PLAYBACK_STATUS_IDLE cnt:%d", cnt);
+            TRACE_A2DP_DECODER_I("[PREPARSE_STOP] PLAYBACK_STATUS_IDLE cnt:%d", cnt);
             A2DP_AUDIO_HEADFRAME_INFO_T headframe_info;
             list_t *list = a2dp_audio_context.audio_datapath.input_raw_packet_list;
-            POSSIBLY_UNUSED uint32_t list_size = 0;
+            uint32_t list_size = 0;
             a2dp_audio_decoder_headframe_info_get(&headframe_info);
             list_size = a2dp_audio_list_length(list);
-            AUDIOPLAYERS_TRACE(0,"[PREPARSE_STOP] list:%d seq:%d", list_size, headframe_info.sequenceNumber);
+            TRACE_A2DP_DECODER_I("[PREPARSE_STOP] list:%d seq:%d", list_size, headframe_info.sequenceNumber);
             break;
         }else{
             osDelay(1);
@@ -2409,7 +2761,7 @@ int a2dp_audio_preparse_stop(void)
 
 int a2dp_audio_stop(void)
 {
-    AUDIOPLAYERS_TRACE(0,"[STOP]");
+    TRACE_A2DP_DECODER_I("[STOP]");
     int cnt = 0;
 
     a2dp_audio_throughput_checker_stop();
@@ -2418,7 +2770,7 @@ int a2dp_audio_stop(void)
     cnt = 50;
     do {
         if (a2dp_audio_get_playback_status() == A2DP_AUDIO_DECODER_PLAYBACK_STATUS_IDLE){
-            AUDIOPLAYERS_TRACE(0,"[DEINIT]PLAYBACK_STATUS_IDLE cnt:%d", cnt);
+            TRACE_A2DP_DECODER_I("[DEINIT]PLAYBACK_STATUS_IDLE cnt:%d", cnt);
             break;
         }else{
             osDelay(1);
@@ -2427,7 +2779,7 @@ int a2dp_audio_stop(void)
     cnt = 50;
     do {
         if (a2dp_audio_get_store_packet_status() == A2DP_AUDIO_DECODER_STORE_PACKET_STATUS_IDLE){
-            AUDIOPLAYERS_TRACE(0,"[DEINIT] STORE_PACKET_STATUS_IDLE cnt:%d", cnt);
+            TRACE_A2DP_DECODER_I("[DEINIT] STORE_PACKET_STATUS_IDLE cnt:%d", cnt);
             break;
         }else{
             osDelay(1);
@@ -2439,7 +2791,7 @@ int a2dp_audio_stop(void)
 
 int a2dp_audio_start(void)
 {
-    AUDIOPLAYERS_TRACE(0,"[START]");
+    TRACE_A2DP_DECODER_I("[START]");
     a2dp_audio_throughput_checker_start();
     a2dp_audio_status_mutex_lock();
     a2dp_audio_set_status(A2DP_AUDIO_DECODER_STATUS_START);
@@ -2626,7 +2978,6 @@ int a2dp_audio_decoder_internal_lastframe_info_set(A2DP_AUDIO_DECODER_LASTFRAME_
     a2dp_audio_buffer_mutex_lock();
     a2dp_audio_lastframe_info.sequenceNumber        = lastframe_info->sequenceNumber;
     a2dp_audio_lastframe_info.timestamp             = lastframe_info->timestamp;
-    a2dp_audio_lastframe_info.chnl_sel              = lastframe_info->chnl_sel;
     a2dp_audio_lastframe_info.curSubSequenceNumber  = lastframe_info->curSubSequenceNumber;
     a2dp_audio_lastframe_info.totalSubSequenceNumber= lastframe_info->totalSubSequenceNumber;
     a2dp_audio_lastframe_info.frame_samples         = lastframe_info->frame_samples;
@@ -2771,12 +3122,46 @@ int a2dp_audio_dest_packet_mut_get(void)
     return a2dp_audio_context.dest_packet_mut;
 }
 
+void a2dp_audio_dest_packet_mut_set(uint16_t custom_mtu)
+{
+    a2dp_audio_context.dest_packet_mut = custom_mtu;
+}
+
+int a2dp_audio_custom_delay_ms_get(void)
+{
+    return a2dp_audio_context.custom_delay_ms;
+}
+
+void a2dp_audio_custom_delay_ms_set(uint16_t custom_delay_ms)
+{
+    a2dp_audio_context.custom_delay_ms = custom_delay_ms;
+}
+
+#ifdef A2DP_DECODER_CROSS_CORE
+void a2dp_audio_start_seq_get(A2DP_AUDIO_STARTFRAME_INFO_T *headframe_info)
+{
+    headframe_info->sequenceNumber = a2dp_audio_context.start_seq_header.sequenceNumber;
+    headframe_info->curSubSequenceNumber = a2dp_audio_context.start_seq_header.curSubSequenceNumber;
+    headframe_info->is_ignore = a2dp_audio_context.start_seq_header.is_ignore;
+}
+
+void a2dp_audio_start_seq_set(A2DP_AUDIO_STARTFRAME_INFO_T headframe_info)
+{
+    a2dp_audio_context.start_seq_header.sequenceNumber = headframe_info.sequenceNumber;
+    a2dp_audio_context.start_seq_header.curSubSequenceNumber = headframe_info.curSubSequenceNumber;
+    a2dp_audio_context.start_seq_header.is_ignore = headframe_info.is_ignore;
+}
+#endif
+
 int a2dp_audio_set_channel_select(A2DP_AUDIO_CHANNEL_SELECT_E chnl_sel)
 {
     int nRet = A2DP_DECODER_NO_ERROR;
 
     if (a2dp_audio_get_status() == A2DP_AUDIO_DECODER_STATUS_START){
         a2dp_audio_context.chnl_sel = chnl_sel;
+        if (a2dp_audio_context.audio_decoder.audio_decoder_channel_select) {
+             nRet = a2dp_audio_context.audio_decoder.audio_decoder_channel_select(chnl_sel);
+        }
     }
 
     return nRet;
@@ -2784,13 +3169,13 @@ int a2dp_audio_set_channel_select(A2DP_AUDIO_CHANNEL_SELECT_E chnl_sel)
 
 float a2dp_audio_get_sample_reference(void)
 {
-    AUDIOPLAYERS_TRACE(1,"a2dp_audio_get_sample_reference:%d", (int32_t)(a2dp_audio_context.output_cfg.factor_reference * 10000000));
+    TRACE(1,"a2dp_audio_get_sample_reference:%d", (int32_t)(a2dp_audio_context.output_cfg.factor_reference * 10000000));
     return a2dp_audio_context.output_cfg.factor_reference;
 }
 
 int8_t a2dp_audio_get_current_buf_size(void)
 {
-    AUDIOPLAYERS_TRACE(1,"a2dp_audio_get_current_buf_size:%d",(int8_t)(a2dp_audio_context.average_packet_mut+0.5f));
+    TRACE(1,"a2dp_audio_get_current_buf_size:%d",(int8_t)(a2dp_audio_context.average_packet_mut+0.5f));
     return (int8_t)(a2dp_audio_context.average_packet_mut+0.5f);
 }
 
@@ -2800,12 +3185,25 @@ void a2dp_audio_update_latency_chunk_count(uint16_t chunkCount)
 }
 
 #if defined(IBRT)
+void app_ibrt_request_peer_custom_play_speed_tuning(void)
+{
+    if (a2dp_audio_context.audio_decoder.audio_decoder_get_sync_custom_data)
+    {
+        AUDIO_SYNC_CUSTOM_DATA_T req;
+        a2dp_audio_context.audio_decoder.audio_decoder_get_sync_custom_data(
+            req.custom_data);
+
+        tws_ctrl_send_cmd_high_priority(APP_TWS_CMD_SEND_CUSTOM_PLAY_SPEED_TUNING_REQ,
+            (uint8_t *)&req, sizeof(AUDIO_SYNC_CUSTOM_DATA_T));
+    }
+}
 
 void app_ibrt_custom_play_speed_tuning_req_process(uint16_t rsp_seq, uint8_t *ptrParam, uint16_t paramLen)
 {
     if (a2dp_audio_context.audio_decoder.audio_decoder_push_sync_custom_data)
     {
-        a2dp_audio_context.audio_decoder.audio_decoder_push_sync_custom_data(ptrParam);
+        a2dp_audio_context.audio_decoder.audio_decoder_push_sync_custom_data(
+            ptrParam);
     }
 
 #ifdef A2DP_DECODER_CROSS_CORE
@@ -2818,81 +3216,18 @@ void app_ibrt_custom_play_speed_tuning_req_process(uint16_t rsp_seq, uint8_t *pt
 #endif
 #endif
 }
+
+void app_ibrt_request_peer_sync_target_buf_ms(void)
+{
+    uint16_t target_buf_ms = a2dp_audio_context.custom_delay_ms;
+    TRACE(0, "%s send targetms %d", __func__, target_buf_ms);
+    tws_ctrl_send_cmd(APP_TWS_CMD_SYNC_TARGET_BUF_MS_REQ,
+        (uint8_t *)&target_buf_ms, sizeof(target_buf_ms));
+}
+
 void app_ibrt_sync_target_buf_ms_req_process(uint16_t rsp_seq, uint8_t *ptrParam, uint16_t paramLen)
 {
-
-}
-
-void app_ibrt_send_custom_play_speed_tuning_req(uint8_t *p_buff, uint16_t length)
-{
-    app_ibrt_send_cmd_with_rsp(APP_TWS_CMD_SEND_CUSTOM_PLAY_SPEED_TUNING_REQ, p_buff, length);
-}
-
-void app_ibrt_request_peer_custom_play_speed_tuning(void)
-{
-    if (a2dp_audio_context.audio_decoder.audio_decoder_get_sync_custom_data)
-    {
-        AUDIO_SYNC_CUSTOM_DATA_T req;
-        a2dp_audio_context.audio_decoder.audio_decoder_get_sync_custom_data(
-            req.custom_data);
-
-        tws_ctrl_send_cmd(APP_TWS_CMD_SEND_CUSTOM_PLAY_SPEED_TUNING_REQ,
-            (uint8_t *)&req, sizeof(AUDIO_SYNC_CUSTOM_DATA_T));
-    }
-}
-
-void app_ibrt_custom_play_speed_tuning_req_handler(uint16_t rsp_seq, uint8_t *ptrParam, uint16_t paramLen)
-{
-    if (a2dp_audio_context.audio_decoder.audio_decoder_push_sync_custom_data)
-    {
-        a2dp_audio_context.audio_decoder.audio_decoder_push_sync_custom_data(
-            ptrParam);
-    }
-
-    tws_ctrl_send_rsp(APP_TWS_CMD_SEND_CUSTOM_PLAY_SPEED_TUNING_REQ, \
-                  rsp_seq, NULL, 0);
-}
-
-void app_ibrt_custom_play_speed_tuning_rsp_timeout_handler(uint16_t rsp_seq, uint8_t *p_buff, uint16_t length)
-{
-    AUDIOPLAYERS_TRACE(0, "timeout on waiting for play speed ruing response, retrigger.");
-    app_ibrt_if_force_audio_retrigger(RETRIGGER_BY_L_R_SYNC_DETECT);
-}
-
-void app_ibrt_custom_play_speed_tuning_rsp_handler(uint16_t rsp_seq, uint8_t *p_buff, uint16_t length)
-{
-
-}
-
-void app_ibrt_sync_target_buf_cnt_req(uint8_t *p_buff, uint16_t length)
-{
-    app_ibrt_send_cmd_with_rsp(APP_TWS_CMD_SYNC_TARGET_BUF_CNT_REQ, p_buff, length);
-}
-
-void app_ibrt_request_peer_sync_target_buf_cnt(void)
-{
-    uint16_t target_buf_cnt = a2dp_audio_context.dest_packet_mut;
-
-    tws_ctrl_send_cmd(APP_TWS_CMD_SYNC_TARGET_BUF_CNT_REQ,
-        (uint8_t *)&target_buf_cnt, sizeof(target_buf_cnt));
-}
-
-void app_ibrt_sync_target_buf_cnt_req_handler(uint16_t rsp_seq, uint8_t *ptrParam, uint16_t paramLen)
-{
-    sbm_update_local_target_jitter_buf_cnt(*(uint16_t *)ptrParam);
-    tws_ctrl_send_rsp(APP_TWS_CMD_SYNC_TARGET_BUF_CNT_REQ, \
-                  rsp_seq, NULL, 0);
-}
-
-void app_ibrt_sync_target_buf_cnt_rsp_timeout_handler(uint16_t rsp_seq, uint8_t *p_buff, uint16_t length)
-{
-    AUDIOPLAYERS_TRACE(0, "timeout on waiting for sync target buf cnt response.");
-    app_ibrt_if_force_audio_retrigger(RETRIGGER_BY_SYNC_TARGET_CNT_ERROR);
-}
-
-void app_ibrt_sync_target_buf_cnt_rsp_handler(uint16_t rsp_seq, uint8_t *p_buff, uint16_t length)
-{
-
+    sbm_update_local_target_jitter_buf_ms(*(uint16_t *)ptrParam);
 }
 #endif
 
@@ -2905,8 +3240,8 @@ static void sbm_default_jitter_buf_level_update_completed_callback(
     SBM_JITTER_BUF_LEVEL_UPDATE_COMPLETED_EVENT_E type,
     int32_t target_ms, int32_t current_average_ms)
 {
-    AUDIOPLAYERS_TRACE(0, "SBM jitter buf level updated completed: Type %d (0:init,1:manual,2:auto)", type);
-    AUDIOPLAYERS_TRACE(0, "Target jitter buf is %d ms, current average jitter buf is %d ms",
+    TRACE(0, "SBM jitter buf level updated completed: Type %d (0:init,1:manual,2:auto)", type);
+    TRACE(0, "Target jitter buf is %d ms, current average jitter buf is %d ms",
         target_ms, current_average_ms);
 }
 
@@ -2915,8 +3250,8 @@ static int32_t sbm_convert_jitter_buf_count_to_ms(float bufCount)
     uint32_t currentSampleRate = (uint32_t)bt_get_sbc_sample_rate();
     uint32_t sampleCountPerBuf;
 
-    uint8_t codecType = bta_get_curr_a2dp_codec_type();
-    uint8_t nonType =0;
+    uint8_t codecType = bes_bt_a2dp_get_curr_codec_type();
+
     switch (codecType)
     {
         case BT_A2DP_CODEC_TYPE_SBC:
@@ -2926,16 +3261,11 @@ static int32_t sbm_convert_jitter_buf_count_to_ms(float bufCount)
             sampleCountPerBuf = 1024;
             break;
         case BT_A2DP_CODEC_TYPE_NON_A2DP:
-            nonType = bta_get_curr_a2dp_vender_codec_type();
-            if (BT_A2DP_CODEC_NONE_TYPE_LHDC == nonType) {
-                sampleCountPerBuf = 256;
-            } else if (BT_A2DP_CODEC_NONE_TYPE_LHDCV5 == nonType) {
-                sampleCountPerBuf = 240;
-            } else if (BT_A2DP_CODEC_NONE_TYPE_LDAC == nonType) {
-                sampleCountPerBuf = 256;
-            } else {
-                sampleCountPerBuf = 864;
-            }
+#ifdef A2DP_SCALABLE_ON
+            sampleCountPerBuf = 864;
+#else
+            sampleCountPerBuf = 256;
+#endif
             break;
         default:
             return -1;
@@ -2973,7 +3303,7 @@ void sbm_register_jittr_buf_level_update_completed_event_cb(SBM_JITTER_BUF_LEVEL
 
 void sbm_reset_target_jitter_adjustment_env(void)
 {
-    AUDIOPLAYERS_TRACE(0, "Reset SBM env.");
+    TRACE(0, "Reset SBM env.");
     uint32_t lock = int_lock();
     sbm_clear_manual_adjustment_on_going_flag();
     sbm_is_auto_ajdusting_on_going = false;
@@ -2990,6 +3320,11 @@ bool sbm_is_manual_adjustment_on_going(void)
 void sbm_clear_manual_adjustment_on_going_flag(void)
 {
     sbm_is_manual_ajdusting_on_going = false;
+}
+
+void sbm_set_manual_adjustment_on_going_flag(void)
+{
+    sbm_is_manual_ajdusting_on_going = true;
 }
 
 bool sbm_is_algorithm_adjustment_enabled(void)
@@ -3032,14 +3367,18 @@ void sbm_target_jitter_buffer_initiative_approached(void)
 
 void sbm_bump_cpu_freq_during_speed_tuning(void)
 {
-    AUDIOPLAYERS_TRACE(0, "set sbm manual flag and bump up freq.");
-    sbm_is_manual_ajdusting_on_going = true;
+    TRACE(0, "set sbm manual flag and bump up freq.");
+    sbm_set_manual_adjustment_on_going_flag();
+#ifndef A2DP_DECODER_CROSS_CORE
     app_sysfreq_req(APP_SYSFREQ_USER_SBM, APP_SYSFREQ_208M);
+#endif
 }
 
 void sbm_release_cpu_freq_during_speed_tuning(void)
 {
+#ifndef A2DP_DECODER_CROSS_CORE
     app_sysfreq_req(APP_SYSFREQ_USER_SBM, APP_SYSFREQ_32K);
+#endif
 }
 
 void sbm_target_jitter_buffer_updating_completed(void)
@@ -3058,7 +3397,7 @@ void sbm_target_jitter_buffer_updating_completed(void)
         return;
     }
 
-    AUDIOPLAYERS_TRACE(0, "SBM updating completed.");
+    TRACE(0, "SBM updating completed.");
     sbm_release_cpu_freq_during_speed_tuning();
     uint32_t lock = int_lock();
     sbm_clear_manual_adjustment_on_going_flag();
@@ -3076,111 +3415,130 @@ void sbm_target_jitter_buffer_updating_completed(void)
         average_ms);
 }
 
-bool sbm_update_local_target_jitter_buf_cnt(uint8_t targetCount)
+bool sbm_update_local_target_jitter_buf_ms(uint16_t targetMs)
 {
-    if (A2DP_AUDIO_DECODER_STATUS_START != a2dp_audio_get_status())
-    {
-        return false;
-    }
+    a2dp_audio_context.custom_delay_ms = targetMs;
 
-    AUDIOPLAYERS_TRACE(0, "current average jitter buf count %d dst jitter buffer count %d",
-        (uint8_t)a2dp_audio_context.average_packet_mut, a2dp_audio_context.dest_packet_mut);
-    AUDIOPLAYERS_TRACE(0, "start updating jitter buf count to new dst buffer count %d", targetCount);
-    if ((uint8_t)a2dp_audio_context.average_packet_mut != targetCount)
+    if (A2DP_AUDIO_DECODER_STATUS_READY >= a2dp_audio_get_status())
     {
+        TRACE(0,"ADUIO_STATUS <= READY ");
+        TRACE(0, "start updating jitter buf ms to new dst buffer ms %d", targetMs);
         sbm_bump_cpu_freq_during_speed_tuning();
         uint32_t lock = int_lock();
-        sbm_is_manual_ajdusting_on_going = true;
-        a2dp_audio_context.not_chopping_dest_mut = targetCount;
-        if (!a2dp_audio_chopping_is_in_post())
-        {
-            a2dp_audio_context.dest_packet_mut = targetCount;
-        }
+        sbm_set_manual_adjustment_on_going_flag();
         int_unlock(lock);
 
         return true;
     }
     else
     {
-        int32_t target_ms =
-            sbm_convert_jitter_buf_count_to_ms(a2dp_audio_context.dest_packet_mut);
-        int32_t average_ms =
-            sbm_convert_jitter_buf_count_to_ms(a2dp_audio_context.average_packet_mut);
+        TRACE(0, "start updating jitter buf ms to new dst buffer ms %d", targetMs);
+        uint8_t targetCount = sbm_convert_targetMs_to_mtu(targetMs);
+        TRACE(0, "current average jitter buf count %d and former dst jitter buffer count %d",
+            (uint8_t)a2dp_audio_context.average_packet_mut, a2dp_audio_context.dest_packet_mut);
+        TRACE(0, "start updating jitter buf count to new dst buffer count %d", targetCount);
+        if ((uint8_t)a2dp_audio_context.average_packet_mut != targetCount)
+        {
+            sbm_bump_cpu_freq_during_speed_tuning();
+            uint32_t lock = int_lock_global();
+            sbm_set_manual_adjustment_on_going_flag();
+            a2dp_audio_context.not_chopping_dest_mut = targetCount;
+            if (!a2dp_audio_chopping_is_in_post())
+            {
+                a2dp_audio_context.dest_packet_mut = targetCount;
+            }
+            int_unlock_global(lock);
+            return true;
+        }
+        else
+        {
+            a2dp_audio_context.dest_packet_mut = targetCount;
+            TRACE(0, "average_packet_mut = targetCount, do not need update");
+            int32_t target_ms =
+                sbm_convert_jitter_buf_count_to_ms(a2dp_audio_context.dest_packet_mut);
+            int32_t average_ms =
+                sbm_convert_jitter_buf_count_to_ms(a2dp_audio_context.average_packet_mut);
 
-        sbmJitterBufLevelUpdatedCompletedCallback(
-            SBM_MANUAL_TARGET_BUF_CNT_APPROACHED,
-            target_ms,
-            average_ms);
-        return false;
+            sbmJitterBufLevelUpdatedCompletedCallback(
+                SBM_MANUAL_TARGET_BUF_CNT_APPROACHED,
+                target_ms,
+                average_ms);
+            return false;
+        }
     }
 }
 
-void sbm_update_target_jitter_buf_length(uint16_t targetMs)
+uint8_t sbm_convert_targetMs_to_mtu(uint16_t targetMs)
 {
     uint32_t currentSampleRate = (uint32_t)bt_get_sbc_sample_rate();
     uint32_t targetBufCount;
     uint32_t sampleCountPerBuf;
 
-    AUDIOPLAYERS_TRACE(0, "Target jitter buf %d ms", targetMs);
+    uint8_t codecType = bes_bt_a2dp_get_curr_codec_type();
 
-    uint8_t codecType = bta_get_curr_a2dp_codec_type();
-    uint8_t nonType =0;
     switch (codecType)
     {
         case BT_A2DP_CODEC_TYPE_SBC:
             sampleCountPerBuf = 128;
-            AUDIOPLAYERS_TRACE(0, "Current Codec: SBC, sample rate %d", currentSampleRate);
+            TRACE(0, "Current Codec: SBC, sample rate %d", currentSampleRate);
             break;
         case BT_A2DP_CODEC_TYPE_MPEG2_4_AAC:
             sampleCountPerBuf = 1024;
-            AUDIOPLAYERS_TRACE(0, "Current Codec: AAC, sample rate %d", currentSampleRate);
+            TRACE(0, "Current Codec: AAC, sample rate %d", currentSampleRate);
             break;
         case BT_A2DP_CODEC_TYPE_NON_A2DP:
-            nonType = bta_get_curr_a2dp_vender_codec_type();
-            if (BT_A2DP_CODEC_NONE_TYPE_LHDC == nonType) {
-                sampleCountPerBuf = 256;
-                AUDIOPLAYERS_TRACE(0, "Current Codec: LHDC, sample rate %d", currentSampleRate);
-            } else if (BT_A2DP_CODEC_NONE_TYPE_LHDCV5 == nonType) {
-                sampleCountPerBuf = 240;
-                AUDIOPLAYERS_TRACE(0, "Current Codec: LHDCV5, sample rate %d", currentSampleRate);
-            } else if (BT_A2DP_CODEC_NONE_TYPE_LDAC == nonType) {
-                sampleCountPerBuf = 256;
-                AUDIOPLAYERS_TRACE(0, "Current Codec: LDAC, sample rate %d", currentSampleRate);
-            } else {
-                sampleCountPerBuf = 864;
-                AUDIOPLAYERS_TRACE(0, "Current Codec: Scalable, sample rate %d", currentSampleRate);
-            }
+            sampleCountPerBuf = 864;
+            TRACE(0, "Current Codec: Scalable, sample rate %d", currentSampleRate);
             break;
         default:
-            return;
+            return a2dp_audio_context.dest_packet_mut;
     }
 
     targetBufCount = (targetMs*currentSampleRate/1000)/sampleCountPerBuf;
 
-    switch (codecType)
+    uint8_t min_targetBufCount = 0;
+
+#ifdef ADVANCE_FILL_ENABLED
+    min_targetBufCount = 5;
+#else
+    min_targetBufCount = 3;
+#endif
+
+    if (targetBufCount < min_targetBufCount)
     {
-        case BT_A2DP_CODEC_TYPE_SBC:
-            break;
-        case BT_A2DP_CODEC_TYPE_MPEG2_4_AAC:
-            break;
-        case BT_A2DP_CODEC_TYPE_NON_A2DP:
-            if (targetBufCount < 3)
-            {
-                targetBufCount = 3;
-            }
-            break;
-        default:
-            return;
+        targetBufCount = min_targetBufCount;
     }
 
-    AUDIOPLAYERS_TRACE(0, "Converted target buf count %d", targetBufCount);
-    AUDIOPLAYERS_TRACE(0, "Actual target jitter buffer %d ms",
+    TRACE(0, "Converted target buf count %d", targetBufCount);
+    TRACE(0, "Actual target jitter buffer %d ms",
         (targetBufCount*sampleCountPerBuf*1000)/currentSampleRate);
 
-    if (sbm_update_local_target_jitter_buf_cnt(targetBufCount))
+    return targetBufCount;
+}
+
+void sbm_update_target_jitter_buf_length(uint16_t targetMs)
+{
+    TRACE(0, "[%s] targetMs %d", __func__, targetMs);
+    a2dp_audio_context.custom_delay_ms = targetMs;
+    if (A2DP_AUDIO_DECODER_STATUS_READY >= a2dp_audio_get_status())
+    {
+        TRACE(0,"ADUIO_STATUS <= READY ");
+
+        sbm_bump_cpu_freq_during_speed_tuning();
+        uint32_t lock = int_lock_global();
+        sbm_set_manual_adjustment_on_going_flag();
+        int_unlock_global(lock);
+#if defined(IBRT)
+        app_ibrt_request_peer_sync_target_buf_ms();
+#endif
+        return;
+   }
+
+    TRACE(0,"ADUIO_STATUS > READY ");
+    if (sbm_update_local_target_jitter_buf_ms(targetMs))
     {
 #if defined(IBRT)
-        app_ibrt_request_peer_sync_target_buf_cnt();
+        app_ibrt_request_peer_sync_target_buf_ms();
 #endif
     }
 }
@@ -3198,12 +3556,12 @@ void a2dp_audio_status_updated_callback(bool isA2dpAudioOn)
     {
         if (isA2dpAudioOn)
         {
-            AUDIOPLAYERS_TRACE(0, "a2dp audio is started.");
+            TRACE(0, "a2dp audio is started.");
             a2dp_audio_status_updated_cb_func(A2DP_AUDIO_STARTED);
         }
         else
         {
-            AUDIOPLAYERS_TRACE(0, "a2dp audio is stopped.");
+            TRACE(0, "a2dp audio is stopped.");
             a2dp_audio_status_updated_cb_func(A2DP_AUDIO_STOPPED);
         }
     }
@@ -3213,24 +3571,21 @@ static sbm_feature_updated_callback_func_t sbm_feature_updated_cb = NULL;
 
 void sbm_control_local_scalable_sbm_feature_handler(uint8_t device_id, bool isEnable)
 {
-#if defined(BT_BUILD_WITH_CUSTOMER_HOST) || defined(BLE_ONLY_ENABLED)
-#else // bes classic bt is disabled
-    struct BT_DEVICE_T* curr_device = app_bt_get_device(device_id);
+    struct BT_ADAPTER_DEVICE_T* curr_device = bt_adapter_get_device(device_id);
     if (curr_device)
     {
-        if (isEnable != curr_device->isUseLocalSBM)
+        if (isEnable != curr_device->is_use_local_sbm)
         {
-            AUDIOPLAYERS_TRACE(0, "isUseLocalSBM of device %d is changed from %d to %d",
+            TRACE(0, "is_use_local_sbm of device %d is changed from %d to %d",
                 device_id, !isEnable, isEnable);
         }
-        curr_device->isUseLocalSBM = isEnable;
+        curr_device->is_use_local_sbm = isEnable;
     }
-#endif
 }
 
 void sbm_local_scalable_sbm_feature_updated_callback(uint8_t device_id, bool isEnable, bool isSuccessful)
 {
-    AUDIOPLAYERS_TRACE(0, "SBM feature on dev %d updated to isEnable %d isSuccessful %d",
+    TRACE(0, "SBM feature on dev %d updated to isEnable %d isSuccessful %d",
         device_id, isEnable, isSuccessful);
     if (isSuccessful)
     {
@@ -3251,7 +3606,7 @@ void sbm_register_local_scalable_sbm_feature_updated_callback(sbm_feature_update
 void sbm_control_local_scalable_sbm_feature(uint8_t device_id, bool isEnable)
 {
 #ifdef IBRT
-    if (bts_tws_if_is_tws_link_connected())
+    if (app_tws_ibrt_tws_link_connected())
     {
         SBM_CONTROL_REQ_T req;
         req.device_id = device_id;
@@ -3270,14 +3625,12 @@ void sbm_control_local_scalable_sbm_feature(uint8_t device_id, bool isEnable)
 
 bool sbm_is_local_scalable_sbm_enabled(uint8_t device_id)
 {
-#if defined(BT_BUILD_WITH_CUSTOMER_HOST) || defined(BLE_ONLY_ENABLED)
-#else // bes classic bt is disabled
-    struct BT_DEVICE_T* curr_device = app_bt_get_device(device_id);
+    struct BT_ADAPTER_DEVICE_T* curr_device = bt_adapter_get_device(device_id);
     if (curr_device)
     {
-        return curr_device->isUseLocalSBM;
+        return curr_device->is_use_local_sbm;
     }
-#endif
+
     return false;
 }
 
@@ -3286,12 +3639,12 @@ void a2dp_audio_scalable_update_local_scalable_sbm_feature(bool isEnable)
 #if defined(A2DP_SCALABLE_ON)
     if (isEnable)
     {
-        AUDIOPLAYERS_TRACE(0, "Enable local scalable SBM.");
+        TRACE(0, "Enable local scalable SBM.");
         sbm_is_algorithm_adjusting_enabled = true;
     }
     else
     {
-        AUDIOPLAYERS_TRACE(0, "Disable local scalable SBM.");
+        TRACE(0, "Disable local scalable SBM.");
         sbm_is_algorithm_adjusting_enabled = false;
     }
 #endif
@@ -3330,7 +3683,7 @@ void app_a2dp_audio_use_lower_frequency_flag_set(bool lower_freq_flag)
 #define APP_AUDIO_LOWER_RSSI_THRESHOLD  (-70)
 #define APP_AUDIO_UPPER_RSSI_THRESHOLD  (-45)
 
-#define APP_AUDIO_LOW_POWER_TX_PA_RSSI_THRESHOLD    (-60)
+#define APP_AUDIO_LOW_POWER_TX_PA_RSSI_THRESHOLD    (-70)
 
 #ifdef IS_USE_MIXING_FRQ_FOR_A2DP_STREAMING
 static bool app_audio_is_mixing_freq_activated(void)
@@ -3342,28 +3695,28 @@ static bool app_audio_is_mixing_freq_activated(void)
 
 void app_audio_rssi_based_env_ajdustment_handler(void)
 {
-    struct BT_DEVICE_T *curr_device = app_bt_get_device(app_bt_audio_get_curr_a2dp_device());
-
-    if (curr_device)
+    int curr_a2dp_device_id = bes_bt_me_select_device(BT_SELECT_CURR_A2DP_DEVICE);
+    bt_acl_state_t acl_state = bes_bt_me_acl_get_state(curr_a2dp_device_id);
+    if (acl_state.acl_is_connected)
     {
         rx_agc_t mobile_agc;
-        bool ret = bt_drv_reg_op_read_rssi_in_dbm(curr_device->acl_conn_hdl, &mobile_agc);
+        bool ret = bt_drv_reg_op_read_rssi_in_dbm(acl_state.acl_conn_hdl, &mobile_agc);
         if (ret)
         {
             int32_t average_rssi = app_bt_tx_rssi_analyzer(mobile_agc.rssi);
-            //AUDIOPLAYERS_TRACE(0, "A:    %d  db:  %d  db", average_rssi, mobile_agc.rssi);
+            //TRACE(0, "A:    %d  db:  %d  db", average_rssi, mobile_agc.rssi);
 
         #if defined(HIGH_EFFICIENCY_TX_PWR_CTRL)
             if ((average_rssi < APP_AUDIO_LOW_POWER_TX_PA_RSSI_THRESHOLD) && isSwitchedToLowRssiTxGain)
             {
-                AUDIOPLAYERS_TRACE(0, "switch to normal mode tx gain as rssi is %d", average_rssi);
+                TRACE(0, "switch to normal mode tx gain as rssi is %d", average_rssi);
                 isSwitchedToLowRssiTxGain = false;
 
                 bt_drv_rf_high_efficency_tx_pwr_ctrl(false, false);
             }
             else if ((average_rssi >= APP_AUDIO_LOW_POWER_TX_PA_RSSI_THRESHOLD) && !isSwitchedToLowRssiTxGain)
             {
-                AUDIOPLAYERS_TRACE(0, "switch to low power mode tx gain as rssi is %d", average_rssi);
+                TRACE(0, "switch to low power mode tx gain as rssi is %d", average_rssi);
                 isSwitchedToLowRssiTxGain = true;
 
                 bt_drv_rf_high_efficency_tx_pwr_ctrl(true, true);
@@ -3382,6 +3735,18 @@ void app_audio_rssi_based_env_ajdustment_handler(void)
                 {
                     isUseLowerA2dpFreq = true;
                     app_audio_set_a2dp_freq(APP_SYSFREQ_26M);
+                }
+            }
+            else
+            {
+                if (A2DP_AUDIO_DYNAMIC_FREQ_LOW_RSSI_CASE == a2dp_audio_current_freq_rssi_case)
+                {
+                    a2dp_audio_accumulated_continuous_high_rssi_count++;
+                    if (a2dp_audio_accumulated_continuous_high_rssi_count >
+                        A2DP_AUDIO_ACCUMULCATED_CONTINUOUS_HIGH_RSSI_COUNT_THR_TO_SWITCH_FREQ_CASE)
+                    {
+                        a2dp_audio_set_freq_rssi_case(A2DP_AUDIO_DYNAMIC_FREQ_HIGH_RSSI_CASE);
+                    }
                 }
             }
         #endif
@@ -3411,20 +3776,26 @@ void app_audio_set_a2dp_freq(uint32_t freq)
     app_sysfreq_req(APP_SYSFREQ_USER_BT_A2DP, configuredFreq);
 }
 
-extern "C" uint8_t is_a2dp_mode(void);
 static void app_post_chopping_timer_handler(void const *param);
 osTimerDef (APP_POST_CHOPPING_TIMER, app_post_chopping_timer_handler);
 osTimerId app_post_chopping_timer_id = NULL;
 static void app_post_chopping_timer_handler(void const *param)
 {
-    AUDIOPLAYERS_TRACE(0, "%s", __func__);
+    TRACE(0, "%s", __func__);
     isInPostChoppingPeriod = false;
     a2dp_audio_latency_factor_setlow();
     a2dp_audio_context.dest_packet_mut = a2dp_audio_context.not_chopping_dest_mut;
-    if (!is_a2dp_mode())
+    if (a2dp_audio_sysfreq_boost_running()||!is_a2dp_mode())
     {
         return;
     }
+
+#if defined(IS_USE_MIXING_FRQ_FOR_A2DP_STREAMING)
+    if (!isUseLowerA2dpFreq)
+    {
+        return;
+    }
+#endif
 
     a2dp_audio_sysfreq_reset();
 }
@@ -3439,9 +3810,9 @@ void app_start_post_chopping_timer(void)
     }
 
     isInPostChoppingPeriod = true;
-    AUDIOPLAYERS_TRACE(0, "%s", __func__);
+    TRACE(0, "%s", __func__);
     a2dp_audio_set_freq_user_case(A2DP_AUDIO_BOOST_MODE_FREQ);
-    osTimerStart(app_post_chopping_timer_id, 10000);
+    osTimerStart(app_post_chopping_timer_id, 30000);
 }
 
 bool a2dp_audio_chopping_is_in_post(void)
@@ -3459,7 +3830,6 @@ void a2dp_audio_retrigger_set_on_process(bool flag)
     a2dp_audio_status_mutex_lock();
     a2dp_audio_context.retrigger_onprocess = flag;
     a2dp_audio_status_mutex_unlock();
-    AUDIOPLAYERS_TRACE(0, "%s retrigger_onprocess %d", __func__, a2dp_audio_context.retrigger_onprocess);
 }
 
 bool a2dp_audio_is_underflow_in_processing(void)
@@ -3477,8 +3847,7 @@ uint32_t a2dp_audio_list_length_TWP(void)
     return  a2dp_audio_list_length(list);
 }
 
-int a2dp_audio_custom_delay_ms_get(void)
+void a2dp_audio_update_mtu_per_frame(uint32_t frameCnt)
 {
-    return a2dp_audio_context.custom_delay_ms;
+    a2dp_audio_context.output_cfg.mtu_per_frame = frameCnt;
 }
-

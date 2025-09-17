@@ -184,7 +184,7 @@ void InvCipher(const unsigned char* in, unsigned char* out, unsigned char* w,
     memcpy(state, in, 16);
 
     AddRoundKey(state, w + (Nr * 16));
-    for (unsigned char round = Nr - 1; round >= 0; round--) {
+    for (signed char round = Nr - 1; round >= 0; round--) {
         InvShiftRows(state);
         InvSubBytes(state);
         AddRoundKey(state, (unsigned char*)(w + round * 16));

@@ -35,7 +35,7 @@ endif
 # Remove/copy commands
 ifeq ($(WIN_PLAT),y)
 CMDRMFILE   = del /f /q $(subst /,\,$1) >nul 2>&1
-CMDRMFILERi = cd $(subst /,\,$1) && del /f /q /s $(subst /,\,$2)
+CMDRMFILER  = cd $(subst /,\,$1) && del /f /q /s $(subst /,\,$2)
 CMDRMDIR    = rmdir /s /q $(subst /,\,$1) >nul 2>&1 || del /f /q /s $(subst /,\,$1)\*
 CMDCPFILE   = copy /y $(subst /,\,$1 $2)
 else
@@ -140,6 +140,10 @@ endif
 cc-option = $(call try-run, \
 	$(CC) $(KBUILD_CPPFLAGS) $(KBUILD_CFLAGS) $(1) -c -x c \
 		-o $(devnull) $(devnull),$(1),$(2))
+
+###
+# ld-option
+ld-option = $(call try-run,$(LD:gcc=ld) -v $(1),$(1),$(2))
 
 ###
 # Shorthand for $(Q)$(MAKE) -f scripts/build.mk obj=

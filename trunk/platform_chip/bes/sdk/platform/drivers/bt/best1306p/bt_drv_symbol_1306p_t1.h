@@ -134,6 +134,5 @@
 #define LLD_CIG_ENV_1306P_T1_ADDR                                     0XC0006BF0
 #define RX_MONITOR_3M_RXGAIN_1306P_T1_ADDR                            0XC000477D
 #define INTERSYS_MSG_TX_MODE_1306P_T1_ADDR                            0XC0004030
-#define RX_RECORD_1306P_T1_ADDR                                       0XC00056A4
 
 #endif

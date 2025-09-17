@@ -18,7 +18,8 @@ extern "C" {
 #define PARTITION_OTA_UPGRADE_NAME                                              "ota_upgrade"
 #define PARTITION_USERDATA_NAME                                                 "userdata"
 #define PARTITION_FDS_NAME                                                      "littleFs"
-#define PARTITION_DEV_INFO_NAME                                               "dev_info"
+#define PARTITION_FACTORY_DATA_NAME                                             "factory_data"
+#define PARTITION_DEV_INFO_NAME                                                 "dev_info"
 #endif
 
 // 文件系统分区定义.

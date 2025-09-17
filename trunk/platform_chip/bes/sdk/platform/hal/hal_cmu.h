@@ -26,10 +26,20 @@ extern "C" {
 #include "plat_types.h"
 #ifdef CHIP_SUBSYS_SENS
 #include CHIP_SPECIFIC_HDR(hal_senscmu)
+#elif defined(CHIP_SUBSYS_CSP)
+#include CHIP_SPECIFIC_HDR(hal_cspcmu)
 #elif defined(CHIP_SUBSYS_BTH)
 #include CHIP_SPECIFIC_HDR(hal_bthcmu)
 #else
 #include CHIP_SPECIFIC_HDR(hal_cmu)
+#endif
+
+#ifdef CPU_TO_DEV_ADDR_REMAP
+#define ADDR_CPU_TO_DEV(a)                  ((typeof(a))addr_remap_cpu_to_dev((uint32_t)(a)))
+#define ADDR_DEV_TO_CPU(a)                  ((typeof(a))addr_remap_dev_to_cpu((uint32_t)(a)))
+#else
+#define ADDR_CPU_TO_DEV(a)                  (a)
+#define ADDR_DEV_TO_CPU(a)                  (a)
 #endif
 
 #ifndef HAL_CMU_DEFAULT_CRYSTAL_FREQ
@@ -41,6 +51,7 @@ extern "C" {
 // SIMU_RES
 #define CMU_SIMU_RES_PASSED                 (0x9A55)
 #define CMU_SIMU_RES_FAILED                 (0xFA11)
+#define CMU_SIMU_RES_FINISHED               (0xAA66)
 
 enum HAL_CMU_CLK_STATUS_T {
     HAL_CMU_CLK_DISABLED,
@@ -99,12 +110,14 @@ enum HAL_CMU_PLL_USER_T {
 };
 #endif
 
+#ifndef HAL_CMU_PERIPH_FREQ_T
 enum HAL_CMU_PERIPH_FREQ_T {
     HAL_CMU_PERIPH_FREQ_26M,
     HAL_CMU_PERIPH_FREQ_52M,
 
     HAL_CMU_PERIPH_FREQ_QTY
 };
+#endif
 
 enum HAL_CMU_LPU_CLK_CFG_T {
     HAL_CMU_LPU_CLK_NONE,
@@ -126,6 +139,7 @@ enum HAL_CMU_LPU_SLEEP_MODE_T {
     HAL_CMU_LPU_SLEEP_MODE_CHIP = HAL_CMU_LPU_SLEEP_MODE_SUBSYS_32K,
     HAL_CMU_LPU_SLEEP_MODE_POWER_DOWN = HAL_CMU_LPU_SLEEP_MODE_SUBSYS_PD,
 };
+
 #ifndef HAL_PWM_ID_T
 enum HAL_PWM_ID_T {
     HAL_PWM_ID_0,
@@ -172,18 +186,44 @@ enum HAL_FLASH_ID_T {
     HAL_FLASH_ID_NUM,
 };
 
+enum HAL_SDIO_ID_T {
+    HAL_SDIO_ID_0 = 0,
+#ifdef SDIO1_DEVICE_BASE
+    HAL_SDIO_ID_1 = 1,
+#endif
+    HAL_SDIO_ID_NUM,
+};
+
+#ifndef HAL_CMU_I2S_MCLK_ID_T
+enum HAL_CMU_I2S_MCLK_ID_T {
+    HAL_CMU_I2S_MCLK_QTY,
+};
+#endif
+
 struct CORE_STARTUP_CFG_T {
     __IO uint32_t stack;
     __IO uint32_t reset_hdlr;
 };
 
+#ifdef HAL_CMU_VALID_CRYSTAL_FREQ
 void hal_cmu_set_crystal_freq_index(uint32_t index);
-
-uint32_t hal_cmu_get_crystal_freq(void);
 
 uint32_t hal_cmu_get_default_crystal_freq(void);
 
+uint32_t hal_cmu_get_crystal_freq(void);
+#else
+//__STATIC_FORCEINLINE void hal_cmu_set_crystal_freq_index(uint32_t index) {}
+
+//__STATIC_FORCEINLINE uint32_t hal_cmu_get_default_crystal_freq(void) {return HAL_CMU_DEFAULT_CRYSTAL_FREQ;}
+
+__STATIC_FORCEINLINE uint32_t hal_cmu_get_crystal_freq(void) {return HAL_CMU_DEFAULT_CRYSTAL_FREQ;}
+#endif
+
+#ifdef CMU_FAST_TIMER_WITH_LOW_SYS_FREQ
 uint32_t hal_cmu_get_fast_timer_freq(void);
+#else
+__STATIC_FORCEINLINE uint32_t hal_cmu_get_fast_timer_freq(void) {return hal_cmu_get_crystal_freq() / 4;}
+#endif
 
 int hal_cmu_clock_enable(enum HAL_CMU_MOD_ID_T id);
 
@@ -225,6 +265,10 @@ void hal_cmu_dsp_timer1_select_fast(void);
 
 void hal_cmu_dsp_timer1_select_slow(void);
 
+int hal_cmu_timer_clock_enable(uint32_t timer_base);
+
+int hal_cmu_timer_clock_disable(uint32_t timer_base);
+
 int hal_cmu_periph_set_div(uint32_t div);
 
 int hal_cmu_uart0_set_div(uint32_t div);
@@ -239,6 +283,8 @@ int hal_cmu_spi_set_div(uint32_t div);
 
 int hal_cmu_slcd_set_div(uint32_t div);
 
+int hal_cmu_spidpd_set_div(uint32_t div);
+
 int hal_cmu_sdio_set_div(uint32_t div);
 
 int hal_cmu_sdmmc0_set_div(uint32_t div);
@@ -246,6 +292,8 @@ int hal_cmu_sdmmc0_set_div(uint32_t div);
 int hal_cmu_sdmmc1_set_div(uint32_t div);
 
 int hal_cmu_i2c_set_div(uint32_t div);
+
+int hal_cmu_i3c_set_div(uint32_t div);
 
 int hal_cmu_uart0_set_freq(enum HAL_CMU_PERIPH_FREQ_T freq);
 
@@ -255,11 +303,9 @@ int hal_cmu_uart2_set_freq(enum HAL_CMU_PERIPH_FREQ_T freq);
 
 int hal_cmu_uart3_set_freq(enum HAL_CMU_PERIPH_FREQ_T freq);
 
-int hal_cmu_uart4_set_freq(enum HAL_CMU_PERIPH_FREQ_T freq);
-
-int hal_cmu_uart5_set_freq(enum HAL_CMU_PERIPH_FREQ_T freq);
-
 int hal_cmu_spi_set_freq(enum HAL_CMU_PERIPH_FREQ_T freq);
+
+int hal_cmu_spidpd_set_freq(enum HAL_CMU_PERIPH_FREQ_T freq);
 
 int hal_cmu_slcd_set_freq(enum HAL_CMU_PERIPH_FREQ_T freq);
 
@@ -270,6 +316,8 @@ int hal_cmu_sdmmc1_set_freq(enum HAL_CMU_PERIPH_FREQ_T freq);
 int hal_cmu_emmc_set_freq(enum HAL_CMU_PERIPH_FREQ_T freq);
 
 int hal_cmu_i2c_set_freq(enum HAL_CMU_PERIPH_FREQ_T freq);
+
+int hal_cmu_i3c_set_freq(enum HAL_CMU_PERIPH_FREQ_T freq);
 
 int hal_cmu_ispi_set_freq(enum HAL_CMU_PERIPH_FREQ_T freq);
 
@@ -379,6 +427,10 @@ void hal_cmu_i2s_clock_out_enable(enum HAL_I2S_ID_T id);
 
 void hal_cmu_i2s_clock_out_disable(enum HAL_I2S_ID_T id);
 
+void hal_cmu_i2s_pol_clock_out_enable(enum HAL_I2S_ID_T id);
+
+void hal_cmu_i2s_pol_clock_out_disable(enum HAL_I2S_ID_T id);
+
 void hal_cmu_i2s_set_slave_mode(enum HAL_I2S_ID_T id);
 
 void hal_cmu_i2s_set_master_mode(enum HAL_I2S_ID_T id);
@@ -401,6 +453,10 @@ int hal_cmu_i2s_mclk_enable(enum HAL_CMU_I2S_MCLK_ID_T id);
 
 void hal_cmu_i2s_mclk_disable(void);
 
+int hal_cmu_sci_set_div(uint32_t div);
+
+int hal_cmu_sci_reset(bool reset);
+
 void hal_cmu_pcm_clock_out_enable(void);
 
 void hal_cmu_pcm_clock_out_disable(void);
@@ -421,9 +477,25 @@ int hal_cmu_spdif_clock_disable(enum HAL_SPDIF_ID_T id);
 
 int hal_cmu_spdif_set_div(enum HAL_SPDIF_ID_T id, uint32_t div);
 
-void hal_cmu_emmc_clock_enable(void);
+void hal_cmu_emmc_clock_enable(uint32_t freq);
 
 void hal_cmu_emmc_clock_disable(void);
+
+void hal_cmu_emmc_clock_continue(void);
+
+void hal_cmu_emmc_clock_pause(void);
+
+void hal_cmu_emmc_clock_switch(uint32_t freq);
+
+void hal_cmu_emmc_phy_open(void);
+
+void hal_cmu_emmc_phy_close(void);
+
+void hal_cmu_emmc_phy_start(int on);
+
+void hal_cmu_emmc_phy_sleep(void);
+
+void hal_cmu_emmc_phy_wakeup(void);
 
 void hal_cmu_sdmmc0_clock_enable(void);
 
@@ -432,6 +504,22 @@ void hal_cmu_sdmmc0_clock_disable(void);
 void hal_cmu_sdmmc1_clock_enable(void);
 
 void hal_cmu_sdmmc1_clock_disable(void);
+
+void hal_cmu_i3c0_clock_enable(void);
+
+void hal_cmu_i3c0_clock_disable(void);
+
+void hal_cmu_i3c1_clock_enable(void);
+
+void hal_cmu_i3c1_clock_disable(void);
+
+void hal_cmu_sdio_device_clock_enable(void);
+
+void hal_cmu_sdio_device_clock_disable(void);
+
+void hal_cmu_sdio1_device_clock_enable(void);
+
+void hal_cmu_sdio1_device_clock_disable(void);
 
 void hal_cmu_usb_set_device_mode(void);
 
@@ -445,6 +533,10 @@ void hal_cmu_usb_clock_enable(void);
 
 void hal_cmu_usb_clock_disable(void);
 
+void hal_cmu_usb3_clock_enable(void);
+
+void hal_cmu_usb3_clock_disable(void);
+
 void hal_cmu_bt_clock_enable(void);
 
 void hal_cmu_bt_clock_disable(void);
@@ -456,8 +548,6 @@ void hal_cmu_bt_reset_clear(void);
 void hal_cmu_bt_sys_reset_clear(void);
 
 void hal_cmu_bt_cpu_reset_clear(void);
-
-void hal_cmu_bt_cpu_reset_set(void);
 
 void hal_cmu_bt_module_init(void);
 
@@ -498,6 +588,8 @@ void hal_cmu_simu_init(void);
 void hal_cmu_simu_pass(void);
 
 void hal_cmu_simu_fail(void);
+
+void hal_cmu_simu_finish(void);
 
 void hal_cmu_simu_tag(uint8_t shift);
 
@@ -553,31 +645,59 @@ void hal_cmu_set_wakeup_pc(uint32_t pc);
 
 void hal_cmu_set_wakeup_vector(uint32_t vector);
 
-void hal_cmu_gpu_clock_enable(void);
+void hal_cmu_lcdc_clock_enable(uint32_t pixmhz);
 
-void hal_cmu_dma2d_clock_enable(void);
+void hal_cmu_lcdc_clock_disable(void);
 
-void hal_cmu_lcdc_clock_enable(uint32_t pixmhz_speed);
+void hal_cmu_lcdc_sleep(void);
+
+void hal_cmu_lcdc_wakeup(void);
+
+uint32_t hal_cmu_lcdc_get_pixmhz(void);
+
+int hal_cmu_lcdc_set_pixmhz(uint32_t freqmhz);
+
+uint32_t hal_cmu_lcdc_get_qspimhz(void);
+
+int hal_cmu_lcdc_set_qspimhz(uint32_t freqmhz);
+
+void hal_cmu_lcdc_qspi_clock_enable(uint32_t freqmhz);
+
+void hal_cmu_lcdc_qspi_clock_disable(void);
+
+void hal_cmu_lcdc_qspi_sleep(void);
+
+void hal_cmu_lcdc_qspi_wakeup(void);
+
+void hal_cmu_gpu_set_mhz(uint32_t freqmhz);
+
+void hal_cmu_gpu_clock_enable(uint32_t freqmhz);
 
 void hal_cmu_gpu_clock_disable(void);
 
-void hal_cmu_dma2d_clock_disable(void);
+void hal_cmu_gpu_wakeup(void);
 
-void hal_cmu_lcdc_clock_disable(void);
+void hal_cmu_gpu_sleep(void);
 
 void hal_cmu_sec_eng_clock_enable(void);
 
 void hal_cmu_sec_eng_clock_disable(void);
 
+void hal_cmu_dma2d_clock_enable(uint32_t freqmhz);
+
+void hal_cmu_dma2d_clock_disable(void);
+
 void hal_cmu_dma2d_reset_set(void);
 
 void hal_cmu_dma2d_reset_clear(void);
 
+void hal_cmu_dma2d_wakeup(void);
+
+void hal_cmu_dma2d_sleep(void);
+
 uint32_t addr_remap_cpu_to_dev(uint32_t addr);
 
 uint32_t addr_remap_dev_to_cpu(uint32_t addr);
-
-uint32_t hal_cmu_get_26m_ready_timeout_us(void);
 
 void hal_cmu_gamu_clock_enable(void);
 
@@ -586,8 +706,26 @@ void hal_cmu_gamu_clock_disable(void);
 void hal_cmu_gamu_sleep(void);
 
 void hal_cmu_gamu_wakeup(void);
+
+void hal_cmu_crc_clock_enable(void);
+
+void hal_cmu_crc_clock_disable(void);
+
+void hal_cmu_checksum_clock_enable(void);
+
+void hal_cmu_checksum_clock_disable(void);
+
+void hal_cmu_shanhai_clock_enable(void);
+
+void hal_cmu_shanhai_clock_disable(void);
+
+void hal_cmu_wdt_sleep(void);
+
+void hal_cmu_wdt_wakeup(void);
+
 #ifdef __cplusplus
 }
 #endif
 
 #endif
+

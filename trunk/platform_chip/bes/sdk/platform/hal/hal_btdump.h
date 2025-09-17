@@ -20,11 +20,19 @@
 extern "C" {
 #endif
 
+enum BTDUMP_MODE_T{
+    BT_DUMP_ORI_DUMP = 0,
+    BT_DUMP_RXON_DUMP,
+    BT_DUMP_RXON_SYNC_DUMP,
+};
+
 void hal_btdump_clk_enable(void);
 void hal_btdump_clk_disable(void);
 
 void hal_btdump_enable(void);
 void hal_btdump_disable(void);
+
+void hal_bt_dump_set_mode(enum BTDUMP_MODE_T mode);
 
 #ifdef __cplusplus
 }

@@ -26,6 +26,7 @@
 #include "plat_types.h"
 #include <arm_cmse.h>     // CMSE definitions
 #include "tz_interface.h"    // Header file with secure interface API
+#include "hal_location.h"
 #include "hal_sleep.h"
 #include "hal_trace.h"
 #include "hal_timer.h"
@@ -34,10 +35,10 @@
 typedef funcptr funcptr_NS __attribute__((cmse_nonsecure_call));
 
 /* Non-secure callable (entry) function */
-__attribute__((cmse_nonsecure_entry))
+CMSE_API
 int func1(int x)
 {
-    MAIN_TRACE(0, "FUNC:%s", __func__);
+    TRACE(0, "FUNC:%s", __func__);
 #ifndef SIMU
     hal_sys_timer_delay(MS_TO_TICKS(100));
 #endif
@@ -45,13 +46,13 @@ int func1(int x)
 }
 
 /* Non-secure callable (entry) function, calling a non-secure callback function */
-__attribute__((cmse_nonsecure_entry))
+CMSE_API
 int func2(funcptr callback, int x)
 {
     funcptr_NS callback_NS;               // non-secure callback function pointer
     int y;
 
-    MAIN_TRACE(0, "FUNC:%s", __func__);
+    TRACE(0, "FUNC:%s", __func__);
 #ifndef SIMU
     hal_sys_timer_delay(MS_TO_TICKS(200));
 #endif
@@ -64,8 +65,9 @@ int func2(funcptr callback, int x)
     return (y+2);
 }
 
-char *sec_demo_string = "CMSE SECURE STRING\r\n";
-__attribute__((cmse_nonsecure_entry))
+static const char *sec_demo_string = "CMSE SECURE STRING";
+
+CMSE_API
 int get_demo_string (char *dst, uint32_t len)
 {
     char *dst_p_ok;

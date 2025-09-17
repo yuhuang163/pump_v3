@@ -20,6 +20,7 @@
 #define __ATC_CSISM__
 #include "gaf_cfg.h"
 #include "gaf_log.h"
+#include "gatt_service.h"
 #include "csis.h"
 
 typedef void (*csism_atc_cb_bond_data)(uint8_t con_lid, uint8_t char_type_written,
@@ -27,7 +28,7 @@ typedef void (*csism_atc_cb_bond_data)(uint8_t con_lid, uint8_t char_type_writte
 
 typedef void (*csism_atc_cb_char_val_sent)(uint8_t con_lid, bool is_read_rsp, uint8_t char_type, const uint8_t *p_val_rsp);
 
-typedef void (*csism_atc_cb_ltk_request)(uint8_t con_lid);
+typedef void (*csism_atc_cb_ltk_get)(uint8_t con_lid, uint16_t *status, uint8_t *ltk);
 
 typedef void (*csism_atc_cb_rsi_generated)(uint16_t err_code, uint8_t *rsi);
 
@@ -39,7 +40,7 @@ typedef struct csism_atc_evt_callback
 
     csism_atc_cb_char_val_sent cb_val_sent;
 
-    csism_atc_cb_ltk_request cb_ltk_req;
+    csism_atc_cb_ltk_get cb_ltk_get;
 
     csism_atc_cb_rsi_generated cb_rsi;
 
@@ -92,12 +93,10 @@ int csism_atc_restore_cli_cfg_cache(uint8_t con_lid, bool lock, uint8_t cli_cfg_
  * @brief ATC set member set SIRK value
  *
  * @param  sirk        Value
- * @param  enc_sirk_needed
- *                     Present encrypted or plain text sirk
  *
  * @return int         status
  */
-int csism_atc_set_sirk(uint8_t *sirk, bool enc_sirk_needed);
+int csism_atc_set_sirk(uint8_t *sirk);
 
 /**
  * @brief ATC set member set size value
@@ -107,15 +106,6 @@ int csism_atc_set_sirk(uint8_t *sirk, bool enc_sirk_needed);
  * @return int         status
  */
 int csism_atc_set_size(uint8_t size);
-
-/**
- * @brief ATC set member set rank value
- *
- * @param  rank        Rank value
- *
- * @return int         status
- */
-int csism_atc_set_rank(uint8_t rank);
 
 /**
  * @brief ATC set member set lock value
@@ -133,15 +123,5 @@ int csism_atc_set_lock(uint8_t con_lid, bool lock);
  * @return int         status
  */
 int csism_atc_generate_rsi(void);
-
-/**
- * @brief ATC confirm the ltk value request
- *
- * @param  con_lid     Connection local index
- * @param  ltk         LTK value if found, NULL means not found
- *
- * @return int         status
- */
-int csism_atc_ltk_upper_cfm(uint8_t con_lid, const uint8_t *ltk);
 
 #endif /// __ATC_CSISM__

@@ -20,13 +20,8 @@
 extern "C" {
 #endif
 #include "tool_msg.h"
-#include "crc_c.h"
-
-#include <stdbool.h>
-#include "speech_eq_cfg.h"
-#include "anc_ff_fir_lms.h"
+#include "crc32_c.h"
 // #include "app_tws.h"
-#define VIRTUAL_FILTER_LEN (FIR_BLOCK_SIZE)
 
 #define COMMAND_PARSER_VERSION          0x0100
 
@@ -39,9 +34,8 @@ extern "C" {
 
 enum PROGRAMMER_STATE{
     PROGRAMMER_NONE,
-    PROGRAMMER_ERASE_BURN,
-    PROGRAMMER_ANC_WRITE,
-    PROGRAMMER_FIR_WRITE,
+    PROGRAMMER_ERASE_BURN_START,
+    PROGRAMMER_BULK_WRITE_START,
 };
 
 enum DATA_BUF_STATE {
@@ -89,6 +83,7 @@ extern struct message_t recv_msg;
  */
 extern void anc_data_buff_init(void);
 extern void anc_data_buff_deinit(void);
+
 
 #ifdef __cplusplus
 }

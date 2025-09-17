@@ -24,21 +24,22 @@ extern "C" {
 #endif
 
 #define SENSOR_HUB_BUFFER_LOCATION __attribute__((used, section(".buffer_section")))
-#if (SENS_FIR_LMS_SIZE > 0)
-#define FIR_LMS_TEXT_LOCATION __attribute__((used, section(".fir_lms_text_section")))
-#define FIR_LMS_DATA_LOCATION __attribute__((used, section(".fir_lms_data_section")))
-#define FIR_LMS_BSS_LOCATION __attribute__((used, section(".fir_lms_bss_section")))
-#else
-#define FIR_LMS_TEXT_LOCATION
-#define FIR_LMS_DATA_LOCATION
-#define FIR_LMS_BSS_LOCATION
-#endif
+
+enum CORE_IRQ_HDLR_ID_T {
+    CORE_IRQ_HDLR_ID_0,
+    CORE_IRQ_HDLR_ID_1,
+
+    CORE_IRQ_HDLR_ID_QTY
+};
+
+#define CORE_IRQ_HDLR_PRIO_HIGH CORE_IRQ_HDLR_ID_0
+#define CORE_IRQ_HDLR_PRIO_LOW  CORE_IRQ_HDLR_ID_1
 
 typedef unsigned int (*sensor_hub_core_rx_irq_handler_t)(const void*, unsigned int);
 typedef void (*sensor_hub_core_tx_done_irq_handler_t)(const void*, unsigned int);
 
-void sensor_hub_core_register_rx_irq_handler(sensor_hub_core_rx_irq_handler_t irqHandler);
-void sensor_hub_core_register_tx_done_irq_handler(sensor_hub_core_tx_done_irq_handler_t irqHandler);
+void sensor_hub_core_register_rx_irq_handler(enum CORE_IRQ_HDLR_ID_T id, sensor_hub_core_rx_irq_handler_t irqHandler);
+void sensor_hub_core_register_tx_done_irq_handler(enum CORE_IRQ_HDLR_ID_T id, sensor_hub_core_tx_done_irq_handler_t irqHandler);
 
 #ifdef __cplusplus
 }

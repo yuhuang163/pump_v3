@@ -178,7 +178,6 @@ int hal_btpcm_setup_stream(enum HAL_BTPCM_ID_T id, enum AUD_STREAM_T stream, str
             hal_cmu_pcm_set_slave_mode(true);
         }
 #endif
-        
     }
     else
     {

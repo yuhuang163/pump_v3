@@ -25,61 +25,55 @@
 #include "besaud_api.h"
 #include "app_battery.h"
 #include "app_tws_ibrt_cmd_handler.h"
-#include "bts_core_if.h"
+#include "app_tws_ctrl_thread.h"
 #include "app_hfp.h"
 #include "app_a2dp.h"
 #include "app_bt_media_manager.h"
 #include "app_dip.h"
+#include "btgatt_api.h"
 #include "app_bt.h"
 #include "audio_policy.h"
 #include "app_ibrt_configure.h"
 #include "app_ui_param_config.h"
-#include "bts_module_if.h"
-#if defined(IBRT_UI)
-#include "app_ui_tws_fsm.h"
-#endif
-#include "dip_api.h"
-#include "app_ibrt_debug.h"
+#include "app_tws_ibrt_conn_api.h"
+#include "a2dp_decoder.h"
+#include "app_bt_audio.h"
 #include "earbud_profiles_api.h"
 #include "earbud_ux_api.h"
-#ifdef MEDIA_PLAYER_SUPPORT
-#include "app_media_player.h"
+#ifdef __IAG_BLE_INCLUDE__
+#include "bluetooth_ble_api.h"
 #endif
-#include "ble_core_common.h"
-#include "bes_gap_api.h"
-
 #if defined(SNDP_VAD_ENABLE)
 #include "mcu_sensor_hub_app_soundplus.h"
 #endif
 
-#ifdef __BIXBY
+#ifdef __BIXBY_VOICE__
 #include "app_bixby_thirdparty_if.h"
 #endif
 
 #ifdef IBRT_UI
 #include "app_ui_api.h"
-#include "app_bt.h"
 
 #ifdef GFPS_ENABLED
 #include "gfps.h"
 #endif
 
-#ifdef __AI_VOICE__
-#include "ai_spp.h"
+#if BLE_AUDIO_ENABLED
+#include "app_ui_api.h"
 #endif
 
-#ifdef CUSTOMER_APP_BOAT
-#ifdef TOTA_v2
-#include "app_tota_general.h"
-#endif
+#if defined(__CONNECTIVITY_LOG_REPORT__)
+#include "app_ibrt_link_monitor.h"
 #endif
 
-#ifdef FINDMY_ENABLED
-#include "findmy.h"
-#endif
+#include "audio_player_adapter.h"
 
-#if (BLE_AUDIO_ENABLED)
-#include "bt_svc_lea_api.h"
+#define CUSTOMIF_TRACE_ENABLE
+
+#ifdef CUSTOMIF_TRACE_ENABLE
+#define LOG_I(str, ...) TRACE(0, str, ##__VA_ARGS__)
+#else
+#define LOG_I(str, ...)
 #endif
 
 extern ibrt_link_status_changed_cb_t* ibrt_link_status_changed_client_cb;
@@ -87,6 +81,7 @@ extern ibrt_mgr_status_changed_cb_t *ibrt_mgr_status_changed_client_cb;
 extern ibrt_ext_conn_policy_cb_t *ibrt_ext_conn_policy_client_cb;
 
 uint32_t app_ibrt_customif_set_profile_delaytime_on_spp_connect(const uint8_t *uuid_data_ptr, uint8_t uuid_len);
+
 
 static uint8_t g_device_id_need_resume_sco = BT_DEVICE_INVALID_ID;
 
@@ -153,12 +148,11 @@ void app_ibrt_customif_pairing_mode_entry()
 {
     app_ui_config_t* p_app_ui_config = app_ui_get_config();
     uint8_t select_sco_device = app_bt_audio_get_curr_playing_sco();
-    uint8_t select_a2dp_device = app_bt_audio_get_curr_playing_a2dp();
     struct BT_DEVICE_T *curr_device = NULL;
 
-    EARBUDS_TRACE(0,"custom_ui pairing mode entry: disc_sco_during_paring %d", p_app_ui_config->pairing_with_disc_hf_cfg);
+    LOG_I("custom_ui pairing mode entry: disc_sco_during_paring %d", p_app_ui_config->pairing_with_disc_sco);
 
-    if (p_app_ui_config->pairing_with_disc_hf_cfg == IBRT_PAIRING_DISC_SCO && select_sco_device != BT_DEVICE_INVALID_ID)
+    if (p_app_ui_config->pairing_with_disc_sco && select_sco_device != BT_DEVICE_INVALID_ID)
     {
         g_device_id_need_resume_sco = select_sco_device;
 
@@ -168,26 +162,6 @@ void app_ibrt_customif_pairing_mode_entry()
             if (curr_device->hf_audio_state == BT_HFP_AUDIO_CON)
             {
                 app_ibrt_if_hf_disc_audio_link(i);
-            }
-        }
-    } else if (p_app_ui_config->pairing_with_disc_hf_cfg == IBRT_PAIRING_HF_HUNGUP) {
-        for (int i = 0; i < BT_DEVICE_NUM; ++i)
-        {
-            curr_device = app_bt_get_device(i);
-            if (curr_device->hf_audio_state == BT_HFP_AUDIO_CON)
-            {
-                app_ibrt_if_hf_call_hangup(i);
-            }
-        }
-    }
-
-    if (p_app_ui_config->pairing_with_pause_music && select_a2dp_device != BT_DEVICE_INVALID_ID ) {
-        for (int i = 0; i < BT_DEVICE_NUM; ++i)
-        {
-            curr_device = app_bt_get_device(i);
-            if (curr_device->a2dp_streamming)
-            {
-                app_ibrt_if_a2dp_send_pause(i);
             }
         }
     }
@@ -221,9 +195,9 @@ void app_ibrt_customif_pairing_mode_exit()
     app_ui_config_t* p_app_ui_config = app_ui_get_config();
     uint8_t resume_sco_device = g_device_id_need_resume_sco;
 
-    EARBUDS_TRACE(0,"custom_ui pairing mode exit: resume_sco_device %x", resume_sco_device);
+    LOG_I("custom_ui pairing mode exit: resume_sco_device %x", resume_sco_device);
 
-    if (p_app_ui_config->pairing_with_disc_hf_cfg == IBRT_PAIRING_DISC_SCO && resume_sco_device != BT_DEVICE_INVALID_ID)
+    if (p_app_ui_config->pairing_with_disc_sco && resume_sco_device != BT_DEVICE_INVALID_ID)
     {
         app_ibrt_if_hf_create_audio_link(resume_sco_device);
     }
@@ -236,7 +210,7 @@ void app_ibrt_customif_pairing_mode_exit()
 
 void app_ibrt_customif_pairing_mode_timeout_pre_callback()
 {
-    EARBUDS_TRACE(0,"custom_ui pairing timeout pre");
+    LOG_I("custom_ui pairing timeout pre");
     if (ibrt_mgr_status_changed_client_cb && ibrt_mgr_status_changed_client_cb->ibrt_mgr_pairing_mode_timeout_pre_hook) {
         ibrt_mgr_status_changed_client_cb->ibrt_mgr_pairing_mode_timeout_pre_hook();
     }
@@ -244,7 +218,7 @@ void app_ibrt_customif_pairing_mode_timeout_pre_callback()
 
 void app_ibrt_customif_pairing_mode_timeout_post_callback()
 {
-    EARBUDS_TRACE(0,"custom_ui pairing timeout post");
+    LOG_I("custom_ui pairing timeout post");
     if (ibrt_mgr_status_changed_client_cb && ibrt_mgr_status_changed_client_cb->ibrt_mgr_pairing_mode_timeout_post_hook) {
         ibrt_mgr_status_changed_client_cb->ibrt_mgr_pairing_mode_timeout_post_hook();
     }
@@ -252,7 +226,7 @@ void app_ibrt_customif_pairing_mode_timeout_post_callback()
 
 void app_ibrt_customif_global_state_callback(ibrt_global_state_change_event *state)
 {
-    EARBUDS_TRACE(0,"custom_ui global_status changed = %d", state->state);
+    LOG_I("custom_ui global_status changed = %d", state->state);
 
     switch (state->state)
     {
@@ -268,50 +242,37 @@ void app_ibrt_customif_global_state_callback(ibrt_global_state_change_event *sta
     }
 }
 
-
-static void _close_some_chnls_when_both_a2dp_hfp_closed(const bt_bdaddr_t *addr, uint8_t device_id)
-{
-#ifdef __IAG_BLE_INCLUDE__
-    if (app_bt_is_a2dp_disconnected(device_id) &&
-#ifdef BT_HFP_SUPPORT
-        app_bt_is_hfp_disconnected(device_id) &&
-#endif
-        app_bt_is_profile_connected_before(device_id)) {
-
-#if defined(__GATT_OVER_BR_EDR__)
-        if (app_btgatt_over_br_edr_enabled() &&
-            app_btgatt_is_connected(device_id)) {
-            app_btgatt_disconnect(device_id);
-        }
-#endif
-
-#ifdef __AI_VOICE__
-        ai_spp_enumerate_disconnect_service((uint8_t *)addr, device_id);
-#endif
-#ifdef GFPS_ENABLED
-        gfps_disconnect(SET_BT_ID(device_id));
-#endif
-    }
-#endif
-}
-
 void app_ibrt_customif_a2dp_callback(const bt_bdaddr_t* addr, ibrt_conn_a2dp_state_change *state)
 {
     if (addr != NULL)
     {
-        EARBUDS_TRACE(0,"(d%x) custom_ui a2dp_status changed = %d addr:%02x:%02x:*:*:*:%02x",
+        LOG_I("(d%x) custom_ui a2dp_status changed = %d addr:%02x:%02x:*:*:*:%02x",
             state->device_id, state->a2dp_state, addr->address[0], addr->address[1], addr->address[5]);
     }
     else
     {
-        EARBUDS_TRACE(0,"(d%x) custom_ui a2dp_status changed = %d addr is NULL",
+        LOG_I("(d%x) custom_ui a2dp_status changed = %d addr is NULL",
             state->device_id, state->a2dp_state);
     }
-
+#ifdef __IAG_BLE_INCLUDE__
     if (state->a2dp_state == IBRT_CONN_A2DP_IDLE || state->a2dp_state == IBRT_CONN_A2DP_CLOSED)
     {
-        _close_some_chnls_when_both_a2dp_hfp_closed(addr, state->device_id);
+        if (app_bt_is_a2dp_disconnected(state->device_id) &&
+#ifdef BT_HFP_SUPPORT
+            app_bt_is_hfp_disconnected(state->device_id) &&
+#endif
+            app_bt_is_profile_connected_before(state->device_id)){
+
+#if defined(__GATT_OVER_BR_EDR__)
+            if(app_btgatt_over_br_edr_enabled() &&
+                app_btgatt_is_connected(state->device_id))
+            {
+                app_btgatt_disconnect(state->device_id);
+            }
+#endif
+        }
     }
+#endif
 
     switch(state->a2dp_state)
     {
@@ -320,10 +281,10 @@ void app_ibrt_customif_a2dp_callback(const bt_bdaddr_t* addr, ibrt_conn_a2dp_sta
         case IBRT_CONN_A2DP_OPEN:
             break;
         case IBRT_CONN_A2DP_CODEC_CONFIGURED:
-            EARBUDS_TRACE(0,"custom_ui delay report support %d", state->delay_report_support);
+            LOG_I("custom_ui delay report support %d", state->delay_report_support);
             break;
         case IBRT_CONN_A2DP_STREAMING:
-            if (bts_ibrt_if_is_ibrt_link_connected(addr)) {
+            if (app_ibrt_conn_is_ibrt_slave(addr)) {
                 bt_drv_reg_op_afh_assess_en(false);
             } else {
                 bt_drv_reg_op_afh_assess_en(true);
@@ -332,17 +293,6 @@ void app_ibrt_customif_a2dp_callback(const bt_bdaddr_t* addr, ibrt_conn_a2dp_sta
             //app_ibrt_if_update_mobile_link_qos(state->device_id, 40);
             break;
         case IBRT_CONN_A2DP_SUSPENED:
-#ifdef CUSTOMER_APP_BOAT
-#if defined(VOICE_ASSIST_CUSTOM_LEAK_DETECT)
-            //start to open deteck;
-            if(app_tota_get_detect_flag())
-            {
-                app_tota_start_leak_detect();
-                app_tota_set_leak_detect_value();
-            }
-#endif
-#endif
-            break;
         case IBRT_CONN_A2DP_CLOSED:
             if (app_bt_audio_count_streaming_a2dp() == 0) {
                 bt_drv_reg_op_afh_assess_en(false);
@@ -361,18 +311,30 @@ void app_ibrt_customif_hfp_callback(const bt_bdaddr_t* addr, ibrt_conn_hfp_state
 #ifdef BT_HFP_SUPPORT
     if (addr != NULL)
     {
-        EARBUDS_TRACE(0,"(d%x) custom_ui hfp_status changed = %d addr:%02x:%02x:*:*:*:%02x",
+        LOG_I("(d%x) custom_ui hfp_status changed = %d addr:%02x:%02x:*:*:*:%02x",
             state->device_id, state->hfp_state, addr->address[0], addr->address[1], addr->address[5]);
     }
     else
     {
-        EARBUDS_TRACE(0,"(d%x) custom_ui hfp_status changed = %d addr is NULL",
+        LOG_I("(d%x) custom_ui hfp_status changed = %d addr is NULL",
             state->device_id, state->hfp_state);
     }
     switch(state->hfp_state)
     {
         case IBRT_CONN_HFP_SLC_DISCONNECTED:
-            _close_some_chnls_when_both_a2dp_hfp_closed(addr, state->device_id);
+#ifdef __IAG_BLE_INCLUDE__
+            if (app_bt_is_a2dp_disconnected(state->device_id) && app_bt_is_hfp_disconnected(state->device_id) &&
+                app_bt_is_profile_connected_before(state->device_id)){
+
+#if defined(__GATT_OVER_BR_EDR__)
+                if(app_btgatt_over_br_edr_enabled() &&
+                    app_btgatt_is_connected(state->device_id))
+                {
+                    app_btgatt_disconnect(state->device_id);
+                }
+#endif
+            }
+#endif
             break;
         case IBRT_CONN_HFP_SLC_OPEN:
             break;
@@ -412,7 +374,7 @@ void app_ibrt_customif_hfp_callback(const bt_bdaddr_t* addr, ibrt_conn_hfp_state
             break;
 
         case IBRT_CONN_HFP_IN_BAND_RING_IND:
-            EARBUDS_TRACE(0,"%s is in-band ring %d",__func__, state->in_band_ring_enable);
+            LOG_I("%s is in-band ring %d",__func__, state->in_band_ring_enable);
             app_ibrt_if_BSIR_command_event(state->in_band_ring_enable);
             break;
 
@@ -435,12 +397,12 @@ void app_ibrt_customif_avrcp_callback(const bt_bdaddr_t* addr, ibrt_conn_avrcp_s
 {
     if (addr != NULL)
     {
-        EARBUDS_TRACE(0,"(d%x) custom_ui avrcp_status changed = %d addr:%02x:%02x:*:*:*:%02x",
+        LOG_I("(d%x) custom_ui avrcp_status changed = %d addr:%02x:%02x:*:*:*:%02x",
             state->device_id, state->avrcp_state, addr->address[0], addr->address[1], addr->address[5]);
     }
     else
     {
-        EARBUDS_TRACE(0,"(d%x) custom_ui avrcp_status changed = %d addr is NULL",
+        LOG_I("(d%x) custom_ui avrcp_status changed = %d addr is NULL",
             state->device_id, state->avrcp_state);
     }
 
@@ -451,22 +413,22 @@ void app_ibrt_customif_avrcp_callback(const bt_bdaddr_t* addr, ibrt_conn_avrcp_s
         case IBRT_CONN_AVRCP_CONNECTED:
             break;
         case IBRT_CONN_AVRCP_VOLUME_UPDATED:
-            EARBUDS_TRACE(0,"custom_ui volume %d %d%%", state->volume, state->volume*100/128);
+            LOG_I("custom_ui volume %d %d%%", state->volume, state->volume*100/128);
             break;
         case IBRT_CONN_AVRCP_REMOTE_CT_0104:
-            EARBUDS_TRACE(0,"custom_ui remote ct 1.4 support %d volume %d", state->support, state->volume);
+            LOG_I("custom_ui remote ct 1.4 support %d volume %d", state->support, state->volume);
             break;
         case IBRT_CONN_AVRCP_REMOTE_SUPPORT_PLAYBACK_STATUS_CHANGED_EVENT:
-            EARBUDS_TRACE(0,"custom_ui playback status support %d", state->support);
+            LOG_I("custom_ui playback status support %d", state->support);
             break;
         case IBRT_CONN_AVRCP_PLAYBACK_STATUS_CHANGED:
-            EARBUDS_TRACE(0,"custom_ui playback status %d", state->playback_status);
+            LOG_I("custom_ui playback status %d", state->playback_status);
             break;
         case IBRT_CONN_AVRCP_PLAY_STATUS_CHANGED:
-            EARBUDS_TRACE(0,"custom_ui playStatus=%d, pos/totle=[%d/%d]", state->playback_status, state->play_position, state->play_length);
+            LOG_I("custom_ui playStatus=%d, pos/totle=[%d/%d]", state->playback_status, state->play_position, state->play_length);
             break;
         case IBRT_CONN_AVRCP_PLAY_POS_CHANGED:
-            EARBUDS_TRACE(0,"custom_ui playPos=%d", state->play_position);
+            LOG_I("custom_ui playPos=%d", state->play_position);
         default:
             break;
     }
@@ -477,13 +439,13 @@ void app_ibrt_customif_avrcp_callback(const bt_bdaddr_t* addr, ibrt_conn_avrcp_s
 
 void app_ibrt_customif_avrcp_media_info_callback(const bt_bdaddr_t *addr, const avrcp_adv_rsp_parms_t *mediainforsp)
 {
-    EARBUDS_TRACE(0,"custom_ui [%02x:%02x:*:*:*:%02x] Media info update.",
+    LOG_I("custom_ui [%02x:%02x:*:*:*:%02x] Media info update.",
           addr->address[0], addr->address[1], addr->address[5]);
 
     uint8_t num_of_elements = mediainforsp->element.numIds;
     for (int i = 0; i < num_of_elements && i < BTIF_AVRCP_NUM_MEDIA_ATTRIBUTES; i++) {
         if (mediainforsp->element.txt[i].length > 0) {
-            EARBUDS_TRACE(0,"custom_ui MediaInfo:[%d] %s %d: %s", i,
+            LOG_I("custom_ui MediaInfo:[%d] %s %d: %s", i,
                   avrcp_get_track_element_name(mediainforsp->element.txt[i].attrId),
                   mediainforsp->element.txt[i].length, mediainforsp->element.txt[i].string);
         }
@@ -492,9 +454,9 @@ void app_ibrt_customif_avrcp_media_info_callback(const bt_bdaddr_t *addr, const 
 
 void app_ibrt_customif_tws_on_paring_state_changed(ibrt_conn_pairing_state state,uint8_t reason_code)
 {
-    POSSIBLY_UNUSED TWS_UI_ROLE_E ui_role = bts_core_get_ui_role();
+    TWS_UI_ROLE_E ui_role = app_ibrt_conn_get_ui_role();
 
-    EARBUDS_TRACE(0,"custom_ui tws pairing_state changed = %d with reason 0x%x,role=%d",state,reason_code, ui_role);
+    LOG_I("custom_ui tws pairing_state changed = %d with reason 0x%x,role=%d",state,reason_code, ui_role);
 
     switch(state)
     {
@@ -504,11 +466,13 @@ void app_ibrt_customif_tws_on_paring_state_changed(ibrt_conn_pairing_state state
             break;
         case IBRT_CONN_PAIRING_COMPLETE:
 #ifdef MEDIA_PLAYER_SUPPORT
-            if (app_ibrt_if_is_ui_slave() && (bes_bt_tws_besaud_is_connected()))
+            if (app_ibrt_middleware_is_ui_slave() && (btif_besaud_is_connected()))
             {
-                media_PlayAudio(AUD_ID_BT_PAIRING_SUC, 0);
+                audio_player_play_prompt(AUD_ID_BT_PAIRING_SUC, 0);
             }
 #endif
+            break;
+        case IBRT_CONN_PAIRING_TIMEOUT:
             break;
         default:
             break;
@@ -520,7 +484,7 @@ void app_ibrt_customif_tws_on_paring_state_changed(ibrt_conn_pairing_state state
 
 void app_ibrt_customif_tws_on_acl_state_changed(ibrt_conn_tws_conn_state_event *state, uint8_t reason_code)
 {
-    EARBUDS_TRACE(0,"custom_ui tws acl state changed = %d with reason 0x%x role %d", state->state.acl_state, reason_code, state->current_role);
+    LOG_I("custom_ui tws acl state changed = %d with reason 0x%x role %d", state->state.acl_state, reason_code, state->current_role);
 
 #if defined(A2DP_AUDIO_STEREO_MIX_CTRL)
     if (state->state.acl_state == IBRT_CONN_ACL_CONNECTED) {
@@ -552,16 +516,17 @@ void app_ibrt_customif_on_mobile_acl_state_changed(const bt_bdaddr_t *addr, ibrt
 {
     if (addr != NULL)
     {
-        EARBUDS_TRACE(0,"(d%x) custom_ui mobile acl state changed = %d reason 0x%x, addr:%02x:%02x:*:*:*:%02x",
+        LOG_I("(d%x) custom_ui mobile acl state changed = %d reason 0x%x, addr:%02x:%02x:*:*:*:%02x",
             state->device_id, state->state.acl_state, reason_code, addr->address[0], addr->address[1], addr->address[5]);
     }
     else
     {
-        EARBUDS_TRACE(0,"(d%x) custom_ui mobile acl state changed = %d reason 0x%x, addr is NULL",
+        LOG_I("(d%x) custom_ui mobile acl state changed = %d reason 0x%x, addr is NULL",
             state->device_id, state->state.acl_state, reason_code);
     }
 
 #ifdef BT_DIP_SUPPORT
+    ibrt_mobile_info_t *p_mobile_info = NULL;
     bt_remver_t rem_ver;
 #endif
 
@@ -584,16 +549,15 @@ void app_ibrt_customif_on_mobile_acl_state_changed(const bt_bdaddr_t *addr, ibrt
         case IBRT_CONN_ACL_CONNECTING_FAILURE:
             break;
         case IBRT_CONN_ACL_CONNECTED:
-        {
         #ifdef BT_DIP_SUPPORT
-            uint16_t mobile_conhandle = bts_bt_if_get_dev_acl_handle(addr);
-            if(mobile_conhandle != 0 && mobile_conhandle != BT_INVALID_CONN_HANDLE)
+            p_mobile_info = app_ibrt_conn_get_mobile_info_by_addr(addr);
+            if(p_mobile_info != NULL)
             {
-                rem_ver = btif_me_get_remote_version_by_handle(mobile_conhandle);
+                rem_ver = btif_me_get_remote_version_by_handle(p_mobile_info->mobile_conhandle);
                 if ((rem_ver.compid == 0xa) && (rem_ver.subvers == 0x2918)) {
-                    EARBUDS_TRACE(0,"<Sony S313>: don't send dip request to avoid profile connection failure");
+                    LOG_I("<Sony S313>: don't send dip request to avoid profile connection failure");
                 } else {
-                    app_dip_query_remote_info(state->device_id);
+                    app_dip_get_remote_info(state->device_id);
                 }
             }
         #endif
@@ -605,15 +569,16 @@ void app_ibrt_customif_on_mobile_acl_state_changed(const bt_bdaddr_t *addr, ibrt
 #ifdef GFPS_ENABLED
             gfps_link_connect_handler(SET_BT_ID(state->device_id), addr);
 #endif
-
-#ifdef FINDMY_ENABLED
-            findmy_bt_connected_handler((bt_bdaddr_t *)addr);
-#endif
-        }
             break;
         case IBRT_CONN_ACL_PROFILES_CONNECTED:
             break;
         case IBRT_CONN_ACL_AUTH_COMPLETE:
+       #if defined(__GATT_OVER_BR_EDR__)
+            if ((btif_is_gatt_over_br_edr_enabled()) && !app_btgatt_is_connected(state->device_id))
+            {
+                app_btgatt_client_create(addr);
+            }
+        #endif
             break;
         case IBRT_CONN_ACL_DISCONNECTING:
             break;
@@ -629,7 +594,7 @@ void app_ibrt_customif_on_mobile_acl_state_changed(const bt_bdaddr_t *addr, ibrt
 
 void app_ibrt_customif_sco_state_changed(const bt_bdaddr_t *addr, ibrt_sco_conn_state_event *state, uint8_t reason_code)
 {
-    EARBUDS_TRACE(0,"custom_ui sco state changed = %d with reason 0x%x", state->state.sco_state, reason_code);
+    LOG_I("custom_ui sco state changed = %d with reason 0x%x", state->state.sco_state, reason_code);
 
     switch (state->state.sco_state)
     {
@@ -667,12 +632,12 @@ void app_ibrt_customif_on_tws_role_switch_status_ind(const bt_bdaddr_t *addr,ibr
 {
     if(addr != NULL)
     {
-        EARBUDS_TRACE(0,"custom_ui tws role switch changed = %d with role 0x%x addr: %02x:%02x:*:*:*:%02x",
+        LOG_I("custom_ui tws role switch changed = %d with role 0x%x addr: %02x:%02x:*:*:*:%02x",
             state, role, addr->address[0], addr->address[1], addr->address[5]);
     }
     else
     {
-        EARBUDS_TRACE(0,"custom_ui tws role switch changed = %d with role 0x%x addr is NULL", state, role);
+        LOG_I("custom_ui tws role switch changed = %d with role 0x%x addr is NULL", state, role);
     }
 
     switch (state)
@@ -680,6 +645,7 @@ void app_ibrt_customif_on_tws_role_switch_status_ind(const bt_bdaddr_t *addr,ibr
         case IBRT_CONN_ROLE_SWAP_INITIATED: //this msg will be notified if initiate role switch
             break;
         case IBRT_CONN_ROLE_SWAP_COMPLETE: //role switch complete,both sides will receice this msg
+            app_ibrt_middleware_role_switch_complete_handler(role);
             if (app_bt_audio_count_streaming_a2dp()) {
                 if (role == IBRT_MASTER) {
                     bt_drv_reg_op_afh_assess_en(true);
@@ -702,43 +668,43 @@ void app_ibrt_customif_on_ibrt_state_changed(const bt_bdaddr_t *addr, ibrt_conne
 {
     if (addr != NULL)
     {
-        EARBUDS_TRACE(0,"(d%x) custom_ui ibrt state changed = %d with reason 0x%x role=%d addr: %02x:%02x:*:*:*:%02x",
+        LOG_I("(d%x) custom_ui ibrt state changed = %d with reason 0x%x role=%d addr: %02x:%02x:*:*:*:%02x",
             state->device_id, state->state.ibrt_state, reason_code,role,
             addr->address[0], addr->address[1], addr->address[5]);
     }
     else
     {
-        EARBUDS_TRACE(0,"(d%x) custom_ui ibrt state changed = %d with reason 0x%x role=%d addr is NULL",
+        LOG_I("(d%x) custom_ui ibrt state changed = %d with reason 0x%x role=%d addr is NULL",
             state->device_id, state->state.ibrt_state, reason_code,role);
     }
 
     switch(state->state.ibrt_state)
     {
         case IBRT_CONN_IBRT_DISCONNECTED:
-            bts_ibrt_clear_profile_connect_protect(state->device_id, APP_IBRT_HFP_PROFILE_ID);
-            bts_ibrt_clear_profile_connect_protect(state->device_id, APP_IBRT_A2DP_PROFILE_ID);
-            bts_ibrt_clear_profile_connect_protect(state->device_id, APP_IBRT_AVRCP_PROFILE_ID);
-            bts_ibrt_clear_profile_disconnect_protect(state->device_id, APP_IBRT_HFP_PROFILE_ID);
-            bts_ibrt_clear_profile_disconnect_protect(state->device_id, APP_IBRT_A2DP_PROFILE_ID);
-            bts_ibrt_clear_profile_disconnect_protect(state->device_id, APP_IBRT_AVRCP_PROFILE_ID);
+            app_ibrt_clear_profile_connect_protect(state->device_id, APP_IBRT_HFP_PROFILE_ID);
+            app_ibrt_clear_profile_connect_protect(state->device_id, APP_IBRT_A2DP_PROFILE_ID);
+            app_ibrt_clear_profile_connect_protect(state->device_id, APP_IBRT_AVRCP_PROFILE_ID);
+            app_ibrt_clear_profile_disconnect_protect(state->device_id, APP_IBRT_HFP_PROFILE_ID);
+            app_ibrt_clear_profile_disconnect_protect(state->device_id, APP_IBRT_A2DP_PROFILE_ID);
+            app_ibrt_clear_profile_disconnect_protect(state->device_id, APP_IBRT_AVRCP_PROFILE_ID);
             break;
         case IBRT_CONN_IBRT_CONNECTED:
             if(IBRT_SLAVE == role)
             {
             #ifdef BT_DIP_SUPPORT
-                btif_dip_set_state(addr, DIP_CTRL_ST_IDLE);
+                btif_me_set_remote_dip_queried(addr, false);
             #endif
             }
             break;
         case IBRT_CONN_IBRT_START_FAIL:
             break;
         case IBRT_CONN_IBRT_ACL_CONNECTED:
-            bts_ibrt_clear_profile_connect_protect(state->device_id, APP_IBRT_HFP_PROFILE_ID);
-            bts_ibrt_clear_profile_connect_protect(state->device_id, APP_IBRT_A2DP_PROFILE_ID);
-            bts_ibrt_clear_profile_connect_protect(state->device_id, APP_IBRT_AVRCP_PROFILE_ID);
-            bts_ibrt_clear_profile_disconnect_protect(state->device_id, APP_IBRT_HFP_PROFILE_ID);
-            bts_ibrt_clear_profile_disconnect_protect(state->device_id, APP_IBRT_A2DP_PROFILE_ID);
-            bts_ibrt_clear_profile_disconnect_protect(state->device_id, APP_IBRT_AVRCP_PROFILE_ID);
+            app_ibrt_clear_profile_connect_protect(state->device_id, APP_IBRT_HFP_PROFILE_ID);
+            app_ibrt_clear_profile_connect_protect(state->device_id, APP_IBRT_A2DP_PROFILE_ID);
+            app_ibrt_clear_profile_connect_protect(state->device_id, APP_IBRT_AVRCP_PROFILE_ID);
+            app_ibrt_clear_profile_disconnect_protect(state->device_id, APP_IBRT_HFP_PROFILE_ID);
+            app_ibrt_clear_profile_disconnect_protect(state->device_id, APP_IBRT_A2DP_PROFILE_ID);
+            app_ibrt_clear_profile_disconnect_protect(state->device_id, APP_IBRT_AVRCP_PROFILE_ID);
             break;
         default:
             break;
@@ -750,7 +716,7 @@ void app_ibrt_customif_on_ibrt_state_changed(const bt_bdaddr_t *addr, ibrt_conne
 
 void app_ibrt_customif_on_access_mode_changed(btif_accessible_mode_t newAccessibleMode)
 {
-    EARBUDS_TRACE(0,"Access mode changed to %d", newAccessibleMode);
+    LOG_I("Access mode changed to %d", newAccessibleMode);
     if (ibrt_link_status_changed_client_cb && ibrt_link_status_changed_client_cb->ibrt_access_mode_changed) {
         ibrt_link_status_changed_client_cb->ibrt_access_mode_changed(newAccessibleMode);
     }
@@ -760,10 +726,10 @@ bool app_ibrt_customif_incoming_conn_req_callback(const bt_bdaddr_t* addr)
 {
     if (addr == NULL)
     {
-        EARBUDS_TRACE(0,"custom_ui incoming_conn_req addr is NULL, reject");
+        LOG_I("custom_ui incoming_conn_req addr is NULL, reject");
         return false;
     }
-    EARBUDS_TRACE(0,"custom_ui incoming_conn_req addr: %02x:%02x:*:*:*:%02x", addr->address[0], addr->address[1], addr->address[5]);
+    LOG_I("custom_ui incoming_conn_req addr: %02x:%02x:*:*:*:%02x", addr->address[0], addr->address[1], addr->address[5]);
     if (ibrt_ext_conn_policy_client_cb && ibrt_ext_conn_policy_client_cb->accept_incoming_conn_req_hook) {
         return ibrt_ext_conn_policy_client_cb->accept_incoming_conn_req_hook(addr);
     }
@@ -774,10 +740,10 @@ bool app_ibrt_customif_extra_incoming_conn_req_callback(const bt_bdaddr_t* incom
 {
     if (incoming_addr == NULL)
     {
-        EARBUDS_TRACE(0,"custom_ui incoming_conn_req addr is NULL, reject");
+        LOG_I("custom_ui incoming_conn_req addr is NULL, reject");
         return false;
     }
-    EARBUDS_TRACE(0,"custom_ui extra_incoming_conn_req addr: %02x:%02x:*:*:*:%02x",
+    LOG_I("custom_ui extra_incoming_conn_req addr: %02x:%02x:*:*:*:%02x",
         incoming_addr->address[0], incoming_addr->address[1], incoming_addr->address[5]);
     if (ibrt_ext_conn_policy_client_cb && ibrt_ext_conn_policy_client_cb->accept_extra_incoming_conn_req_hook) {
         return ibrt_ext_conn_policy_client_cb->accept_extra_incoming_conn_req_hook(incoming_addr, steal_addr);
@@ -791,7 +757,7 @@ bool app_ibrt_customif_custom_disallow_reconnect_mob_callback(const bt_bdaddr_t*
     if (ibrt_ext_conn_policy_client_cb && ibrt_ext_conn_policy_client_cb->disallow_start_reconnect_mob_hook) {
         ret = ibrt_ext_conn_policy_client_cb->disallow_start_reconnect_mob_hook(addr, active_event);
     }
-    EARBUDS_TRACE(0,"custom_ui reconnect dev addr: %02x:%02x:*:*:*:%02x, event:0x%02x, ret: %d",
+    LOG_I("custom_ui reconnect dev addr: %02x:%02x:*:*:*:%02x, event:0x%02x, ret: %d",
         addr->address[0], addr->address[1], addr->address[5], active_event, ret);
     return ret;
 }
@@ -802,13 +768,13 @@ bool app_ibrt_customif_custom_disallow_reconnect_tws_callback(void)
     if (ibrt_ext_conn_policy_client_cb && ibrt_ext_conn_policy_client_cb->disallow_start_reconnect_tws_hook) {
         ret = ibrt_ext_conn_policy_client_cb->disallow_start_reconnect_tws_hook();
     }
-    EARBUDS_TRACE(0,"custom_ui reconnect tws: %d", ret);
+    LOG_I("custom_ui reconnect tws: %d", ret);
     return ret;
 }
 
 bool app_ibrt_customif_disallow_tws_role_switch_callback()
 {
-    EARBUDS_TRACE(0,"custom_ui:tws role switch ext-policy");
+    LOG_I("custom_ui:tws role switch ext-policy");
 
     /*
      * So procedure may not working well when tws role switch happen, return
@@ -837,7 +803,7 @@ bool app_ibrt_customif_disallow_tws_role_switch_callback()
 *****************************************************************************/
 void app_ibrt_customif_case_open_run_complete_callback()
 {
-    EARBUDS_TRACE(0,"custom_ui:case open run complete");
+    LOG_I("custom_ui:case open run complete");
 }
 
 /*****************************************************************************
@@ -857,7 +823,7 @@ void app_ibrt_customif_case_open_run_complete_callback()
 *****************************************************************************/
 void app_ibrt_customif_case_close_run_complete_callback()
 {
-    EARBUDS_TRACE(0,"custom_ui:case close run complete");
+    LOG_I("custom_ui:case close run complete");
 }
 
 /*****************************************************************************
@@ -876,7 +842,7 @@ void app_ibrt_customif_case_close_run_complete_callback()
 *****************************************************************************/
 void app_ibrt_customif_exit_earbud_mode_run_complete_callback()
 {
-    EARBUDS_TRACE(0,"custom_ui:exit earbude mode run complete");
+    LOG_I("custom_ui:exit earbude mode run complete");
 }
 
 static void app_ibrt_customif_evt_run_complete_callback(app_ui_evt_t evt)
@@ -891,11 +857,6 @@ static void app_ibrt_customif_evt_run_complete_callback(app_ui_evt_t evt)
             break;
         case APP_UI_EV_EXIT_EARBUD_MODE:
             app_ibrt_customif_exit_earbud_mode_run_complete_callback();
-            break;
-        case APP_UI_EV_DESTROY_DEVICE:
-#ifdef GFPS_ENABLED
-            gfps_link_destory_handler();
-#endif
             break;
         default:
             break;
@@ -924,11 +885,11 @@ void app_ibrt_customif_switch_ui_role_run_complete_callback(TWS_UI_ROLE_E curren
 {
     if (!errCode)
     {
-        EARBUDS_TRACE(0,"custom_ui:switch ibrt role to %d run complete", current_role);
+        LOG_I("custom_ui:switch ibrt role to %d run complete", current_role);
     }
     else
     {
-        EARBUDS_TRACE(0,"custom_ui:exist device doing ibrt role switch to %d failed", current_role);
+        LOG_I("custom_ui:exist device doing ibrt role switch to %d failed", current_role);
     }
     if (ibrt_mgr_status_changed_client_cb && ibrt_mgr_status_changed_client_cb->ibrt_mgr_tws_role_switch_comp_hook) {
         ibrt_mgr_status_changed_client_cb->ibrt_mgr_tws_role_switch_comp_hook(current_role, errCode);
@@ -937,7 +898,7 @@ void app_ibrt_customif_switch_ui_role_run_complete_callback(TWS_UI_ROLE_E curren
 
 void app_ibrt_customif_peer_box_state_update_callback(bud_box_state box_state)
 {
-    EARBUDS_TRACE(0,"custom_ui:peer box state update=%s", app_ui_box_state_to_string(box_state));
+    LOG_I("custom_ui:peer box state update=%s", app_ui_box_state_to_string(box_state));
     if (ibrt_mgr_status_changed_client_cb && ibrt_mgr_status_changed_client_cb->peer_box_state_update_hook) {
         ibrt_mgr_status_changed_client_cb->peer_box_state_update_hook(box_state);
     }
@@ -945,7 +906,7 @@ void app_ibrt_customif_peer_box_state_update_callback(bud_box_state box_state)
 
 void app_ibrt_customif_pre_handle_box_event_callback(app_ui_evt_t box_evt)
 {
-    EARBUDS_TRACE(0,"custom_ui:pre handle event=%s", app_ui_event_to_string(box_evt));
+    LOG_I("custom_ui:pre handle event=%s", app_ui_event_to_string(box_evt));
     if (ibrt_mgr_status_changed_client_cb && ibrt_mgr_status_changed_client_cb->pre_handle_box_event_hook) {
         ibrt_mgr_status_changed_client_cb->pre_handle_box_event_hook(box_evt);
     }
@@ -957,6 +918,15 @@ void app_ibrt_customif_pre_handle_box_event_callback(app_ui_evt_t box_evt)
 void app_ibrt_customif_ui_tws_switch(void)
 {
     app_ibrt_if_tws_role_switch_request();
+}
+
+/*
+* custom tws switching check interface
+* whether doing tws switch now, return true, else return false
+*/
+bool app_ibrt_customif_ui_is_tws_switching(void)
+{
+    return app_ibrt_conn_any_role_switch_running();
 }
 
 /*
@@ -1002,8 +972,8 @@ uint32_t app_ibrt_customif_set_profile_delaytime_on_spp_connect(const uint8_t *u
     // just return a none-zero value. For example, "return 1" will be the fastest.
     // return t : wait t ms to start profile exchange
     // return 0 : will not change the process of "profile exchange"
-    EARBUDS_TRACE(0,"spp_uuid len=%d bytes, uuid:", uuid_len);
-    EARBUDS_DUMP8("0x%x ", uuid_data_ptr, uuid_len);
+    LOG_I("spp_uuid len=%d bytes, uuid:", uuid_len);
+    DUMP8("0x%x ", uuid_data_ptr, uuid_len);
 
     return 0;
 }
@@ -1016,52 +986,52 @@ WEAK void app_ibrt_customif_ui_update_mgr_config(app_ui_config_t* pConfig)
 #ifdef IS_REGISTER_TWP_TEST_FUNCTION
 static void app_ibrt_customif_ui_link_loss_universal_info_handle_test(ANALYSISING_INFO_TYPE info_type, uint16_t conn_hdl, uint8_t* info, uint8_t info_len)
 {
-    EARBUDS_TRACE(0,"Link loss universal info received: type=%d", info_type);
+    LOG_I("Link loss universal info received: type=%d", info_type);
     tws_ibrt_link_loss_universal_info_t *univ_info = (tws_ibrt_link_loss_universal_info_t*)info;
-    EARBUDS_TRACE(0,"conn_hdl=0x%x       num_conns=0x%x      link_role=%d", univ_info->conn_hdl, univ_info->num_conn_role.num_conns, univ_info->num_conn_role.link_role);
-    EARBUDS_TRACE(0,"LST_RSSI=%d         LSR_RSSI=%d       LS_clk=0x%x", univ_info->LST_RSSI, univ_info->LSR_RSSI, univ_info->LS_clk);
-    EARBUDS_TRACE(0,"AFH_state=0x%x AFH_MAP:", univ_info->AFH_state);
-    EARBUDS_DUMP8("%02x ", univ_info->AFH_MAP, BT_LINK_LOSS_AFH_MAP_LEN);
-    EARBUDS_TRACE(0,"super_tmot=0x%x     sniff_mode=0x%x     sniff_offset=0x%x", univ_info->super_tmot, univ_info->sniff_mode, univ_info->sniff_offset);
-    EARBUDS_TRACE(0,"super_interval=0x%x sniff_atmt=%0xx     sniff_tmot=0x%x", univ_info->sniff_interval, univ_info->sniff_atmt, univ_info->sniff_tmot);
-    EARBUDS_TRACE(0,"sub_latency=0x%x    sub_min_Rmt_to=0x%x sub_min_Lcl_to=0x%x", univ_info->sub_latency, univ_info->sub_min_Rmt_to, univ_info->sub_min_Lcl_to);
-    EARBUDS_TRACE(0,"lsto_tx_info:       type=%d BR_EDR=%d BB_flow_stop=%d l2cap_stop_flag=%d",
+    LOG_I("conn_hdl=0x%x       num_conns=0x%x      link_role=%d", univ_info->conn_hdl, univ_info->num_conn_role.num_conns, univ_info->num_conn_role.link_role);
+    LOG_I("LST_RSSI=%d         LSR_RSSI=%d       LS_clk=0x%x", univ_info->LST_RSSI, univ_info->LSR_RSSI, univ_info->LS_clk);
+    LOG_I("AFH_state=0x%x AFH_MAP:", univ_info->AFH_state);
+    DUMP8("%02x ", univ_info->AFH_MAP, BT_LINK_LOSS_AFH_MAP_LEN);
+    LOG_I("super_tmot=0x%x     sniff_mode=0x%x     sniff_offset=0x%x", univ_info->super_tmot, univ_info->sniff_mode, univ_info->sniff_offset);
+    LOG_I("super_interval=0x%x sniff_atmt=%0xx     sniff_tmot=0x%x", univ_info->sniff_interval, univ_info->sniff_atmt, univ_info->sniff_tmot);
+    LOG_I("sub_latency=0x%x    sub_min_Rmt_to=0x%x sub_min_Lcl_to=0x%x", univ_info->sub_latency, univ_info->sub_min_Rmt_to, univ_info->sub_min_Lcl_to);
+    LOG_I("lsto_tx_info:       type=%d BR_EDR=%d BB_flow_stop=%d l2cap_stop_flag=%d",
             univ_info->lsto_tx_info.lsto_tx_type, univ_info->lsto_tx_info.lsto_tx_br_edr, univ_info->lsto_tx_info.lsto_tx_BB_flow_stop, univ_info->lsto_tx_info.lsto_tx_l2cap_flow_stop);
-    EARBUDS_TRACE(0,"lsto_tx_pwr=%d      lsto_tx_lmp=0x%x    lsto_tx_retr_tx=0x%x", univ_info->lsto_tx_pwr, univ_info->lsto_tx_lmp, univ_info->lsto_tx_retr_tx);
-    EARBUDS_TRACE(0,"lsto_rx_info:       type=%d BR_EDR=%d BB_flow_stop=%d l2cap_stop_flag=%d",
+    LOG_I("lsto_tx_pwr=%d      lsto_tx_lmp=0x%x    lsto_tx_retr_tx=0x%x", univ_info->lsto_tx_pwr, univ_info->lsto_tx_lmp, univ_info->lsto_tx_retr_tx);
+    LOG_I("lsto_rx_info:       type=%d BR_EDR=%d BB_flow_stop=%d l2cap_stop_flag=%d",
             univ_info->lsto_rx_info.lsto_rx_type, univ_info->lsto_rx_info.lsto_rx_br_edr, univ_info->lsto_rx_info.lsto_rx_BB_flow_stop, univ_info->lsto_rx_info.lsto_rx_l2cap_flow_stop);
-    EARBUDS_TRACE(0,"lsto_rx_lmp=%x      lsto_op_tmot=%x", univ_info->lsto_rx_lmp, univ_info->lmp_op_tmot);
+    LOG_I("lsto_rx_lmp=%x      lsto_op_tmot=%x", univ_info->lsto_rx_lmp, univ_info->lmp_op_tmot);
     for (int i = 0;i < BT_NETWORK_TOPOLOGY_MAX_ACTIVE_CONN_NUM;i++)
     {
-        EARBUDS_TRACE(0,"conn%d: net_topo_info: handle=0x%x role=%d", i, univ_info->net_topo_info.nt_conn_hdl[i], univ_info->net_topo_info.nt_role[i]);
+        LOG_I("conn%d: net_topo_info: handle=0x%x role=%d", i, univ_info->net_topo_info.nt_conn_hdl[i], univ_info->net_topo_info.nt_role[i]);
     }
-    EARBUDS_DUMP8("%02x ", &(univ_info->net_topo_info), 21);
+    DUMP8("%02x ", &(univ_info->net_topo_info), 21);
 }
 
 static void app_ibrt_customif_ui_link_loss_clock_info_handle_test(ANALYSISING_INFO_TYPE info_type, uint16_t conn_hdl, uint8_t* info, uint8_t info_len)
 {
-    EARBUDS_TRACE(0,"Link loss clock info received: type=%d", info_type);
+    LOG_I("Link loss clock info received: type=%d", info_type);
     tws_ibrt_link_loss_clock_info_t *clock_info = (tws_ibrt_link_loss_clock_info_t*)info;
-    EARBUDS_TRACE(0,"conn_hdl:0x%x nmu_no_sync_anchor=0x%x", conn_hdl, clock_info->nmu_no_sync_anchor);
-    EARBUDS_TRACE(0,"Number of Clock:%d", BT_LINK_LOSS_RX_CLOCK_INFO_SIZE);
+    LOG_I("conn_hdl:0x%x nmu_no_sync_anchor=0x%x", conn_hdl, clock_info->nmu_no_sync_anchor);
+    LOG_I("Number of Clock:%d", BT_LINK_LOSS_RX_CLOCK_INFO_SIZE);
     for (int i = 0;i < BT_LINK_LOSS_RX_CLOCK_INFO_SIZE;i++)
     {
-        EARBUDS_TRACE(0,"Piconet RX/TX Clock#%d: 0x%x(ch:%d)", i, clock_info->Rx_clk[i], clock_info->rf_channel_num[i]);
+        LOG_I("Piconet RX/TX Clock#%d: 0x%x(ch:%d)", i, clock_info->Rx_clk[i], clock_info->rf_channel_num[i]);
     }
 }
 
 static void app_ibrt_customif_ui_a2dp_sink_info_handle_test(ANALYSISING_INFO_TYPE info_type, uint16_t conn_hdl, uint8_t* info, uint8_t info_len)
 {
-    EARBUDS_TRACE(0,"A2DP sink info received: type=%d", info_type);
+    LOG_I("A2DP sink info received: type=%d", info_type);
     tws_ibrt_a2dp_sink_info_t *a2dp_sink_info = (tws_ibrt_a2dp_sink_info_t*)info;
-    EARBUDS_TRACE(0,"conn_hdl=0x%x      retran_cnt=0x%x  ant_gt=0x%x", a2dp_sink_info->conn_hdl, a2dp_sink_info->retran_cnt, a2dp_sink_info->ant_gt);
-    EARBUDS_TRACE(0,"hec_cnt=0x%x       crc_cnt=0x%x     st_cnt=0x%x", a2dp_sink_info->hec_cnt, a2dp_sink_info->crc_cnt, a2dp_sink_info->sync_tmot_cnt);
-    EARBUDS_TRACE(0,"lmp_tx_cnt=%x      pull_tx_cnt=0x%x null_tx_cnt=0x%x", a2dp_sink_info->lmp_tx_cnt, a2dp_sink_info->pull_tx_cnt, a2dp_sink_info->null_tx_cnt);
-    EARBUDS_TRACE(0,"lmp_rx_cnt=%x      pull_rx_cnt=0x%x null_rx_cnt=0x%x", a2dp_sink_info->lmp_rx_cnt, a2dp_sink_info->pull_rx_cnt, a2dp_sink_info->null_rx_cnt);
-    EARBUDS_TRACE(0,"last_txpwr=%d      last_rssi=%d   last_channel=0x%x", a2dp_sink_info->last_txpwr, a2dp_sink_info->last_rssi, a2dp_sink_info->last_channel);
-    EARBUDS_TRACE(0,"last_pic_clk=%x    last_jitter_buf_cnt=0x%x", a2dp_sink_info->last_pic_clk, a2dp_sink_info->last_jitter_buf_cnt);
-    EARBUDS_TRACE(0,"pre_txpwr=%d       pre_rssi=%d    pre_channel=0x%x", a2dp_sink_info->pre_txpwr, a2dp_sink_info->pre_rssi, a2dp_sink_info->pre_channel);
-    EARBUDS_TRACE(0,"pre_pic_clk=%x     pre_jitter_buf_cnt=0x%x", a2dp_sink_info->pre_pic_clk, a2dp_sink_info->pre_jitter_buf_cnt);
+    LOG_I("conn_hdl=0x%x      retran_cnt=0x%x  ant_gt=0x%x", a2dp_sink_info->conn_hdl, a2dp_sink_info->retran_cnt, a2dp_sink_info->ant_gt);
+    LOG_I("hec_cnt=0x%x       crc_cnt=0x%x     st_cnt=0x%x", a2dp_sink_info->hec_cnt, a2dp_sink_info->crc_cnt, a2dp_sink_info->sync_tmot_cnt);
+    LOG_I("lmp_tx_cnt=%x      pull_tx_cnt=0x%x null_tx_cnt=0x%x", a2dp_sink_info->lmp_tx_cnt, a2dp_sink_info->pull_tx_cnt, a2dp_sink_info->null_tx_cnt);
+    LOG_I("lmp_rx_cnt=%x      pull_rx_cnt=0x%x null_rx_cnt=0x%x", a2dp_sink_info->lmp_rx_cnt, a2dp_sink_info->pull_rx_cnt, a2dp_sink_info->null_rx_cnt);
+    LOG_I("last_txpwr=%d      last_rssi=%d   last_channel=0x%x", a2dp_sink_info->last_txpwr, a2dp_sink_info->last_rssi, a2dp_sink_info->last_channel);
+    LOG_I("last_pic_clk=%x    last_jitter_buf_cnt=0x%x", a2dp_sink_info->last_pic_clk, a2dp_sink_info->last_jitter_buf_cnt);
+    LOG_I("pre_txpwr=%d       pre_rssi=%d    pre_channel=0x%x", a2dp_sink_info->pre_txpwr, a2dp_sink_info->pre_rssi, a2dp_sink_info->pre_channel);
+    LOG_I("pre_pic_clk=%x     pre_jitter_buf_cnt=0x%x", a2dp_sink_info->pre_pic_clk, a2dp_sink_info->pre_jitter_buf_cnt);
 }
 #endif
 
@@ -1101,7 +1071,7 @@ static ibrt_ext_conn_policy_cb_t conn_policy_cbs = {
 #if BLE_AUDIO_ENABLED
 static void app_ble_aud_adv_state_changed(AOB_ADV_STATE_T state, uint8_t err_code)
 {
-    EARBUDS_TRACE(0,"custom_ui:leaudio adv state changed = %d", state);
+    LOG_I("custom_ui:leaudio adv state changed = %d", state);
     switch (state)
     {
         case AOB_ADV_START:
@@ -1117,7 +1087,7 @@ static void app_ble_aud_adv_state_changed(AOB_ADV_STATE_T state, uint8_t err_cod
 
 static void app_ble_aud_mob_acl_state_changed(uint8_t conidx, const ble_bdaddr_t* addr, AOB_ACL_STATE_T state, uint8_t errCode)
 {
-    EARBUDS_TRACE(0,"custom_ui:d(%d) le mobile acl state changed = %d, errCode = %d", conidx, state, errCode);
+    LOG_I("custom_ui:d(%d) le mobile acl state changed = %d, errCode = %d", conidx, state, errCode);
     static bool first_bond = true;
 
     switch (state)
@@ -1140,7 +1110,7 @@ static void app_ble_aud_mob_acl_state_changed(uint8_t conidx, const ble_bdaddr_t
             break;
         case AOB_ACL_ATTR_BOND:
             if (first_bond) {
-                EARBUDS_TRACE(0,"LE AUDIO ATTR BOND!!!");
+                LOG_I("LE AUDIO ATTR BOND!!!");
                 first_bond = false;
                 app_ui_keep_only_the_leaudio_device(conidx);
             }
@@ -1177,7 +1147,7 @@ static void app_ble_aud_media_stream_status_change_cb(uint8_t con_lid, uint8_t a
 
 static void app_ble_aud_media_playback_status_change_cb(uint8_t con_lid, AOB_MGR_PLAYBACK_STATE_E state)
 {
-    EARBUDS_TRACE(0,"custom_ui:d(%d) media_pb_status_changed= %d",con_lid,state);
+    LOG_I("custom_ui:d(%d) media_pb_status_changed= %d",con_lid,state);
 
     switch (state)
     {
@@ -1200,7 +1170,7 @@ static void app_ble_aud_media_mic_state_cb(uint8_t mute)
 
 }
 
-static void app_ble_aud_media_iso_link_quality_cb(AOB_ISO_LINK_QUALITY_INFO_T *param)
+static void app_ble_aud_media_iso_link_quality_cb(AOB_ISO_LINK_QUALITY_INFO_T param)
 {
 
 }
@@ -1214,7 +1184,7 @@ static void app_ble_aud_call_state_change_cb(uint8_t con_lid, void *param)
 {
     AOB_SINGLE_CALL_INFO_T * call_state_changed = (AOB_SINGLE_CALL_INFO_T*)param;
 
-    EARBUDS_TRACE(0,"custom_ui:d(%d) call_state_changed = %d",con_lid,call_state_changed->state);
+    LOG_I("custom_ui:d(%d) call_state_changed = %d",con_lid,call_state_changed->state);
 
     switch (call_state_changed->state)
     {
@@ -1277,7 +1247,7 @@ static void app_ble_aud_call_action_result_ind_cb(uint8_t con_lid, void *param)
 
 }
 
-const static bts_ble_audio_event_cb_t custom_ui_le_audio_event_cb = {
+static app_ble_audio_event_cb_t custom_ui_le_audio_event_cb = {
     .ble_audio_adv_state_changed  = app_ble_aud_adv_state_changed,
     .mob_acl_state_changed = app_ble_aud_mob_acl_state_changed,
     .vol_changed_cb = app_ble_aud_vol_changed_cb,
@@ -1344,16 +1314,10 @@ int app_ibrt_customif_ui_start(void)
     config.exit_pairing_on_streaming                = true;
 
     //disconnect remote devices when entering pairing mode actively
-    config.paring_with_disc_mob_num                 = IBRT_PAIRING_DISC_ONE_MOB;
-
-    //disconnect remote le devices when entering pairing mode actively
-    config.paring_with_disc_le_mob_num              = IBRT_PAIRING_DISC_NONE;
+    config.paring_with_disc_mob_num                 = IBRT_PAIRING_DISC_ALL_MOB;
 
     //disconnect SCO or not when accepting phone connection in pairing mode
-    config.pairing_with_disc_hf_cfg                 = IBRT_PAIRING_HF_HUNGUP;
-
-    //pause current music when entering pairing mode
-    config.pairing_with_pause_music                 = true;
+    config.pairing_with_disc_sco                    = true;
 
     //not start ibrt in pairing mode, the default should be false
     config.pairing_without_start_ibrt               = false;
@@ -1366,6 +1330,9 @@ int app_ibrt_customif_ui_start(void)
 
     //disconnect tws immediately when single bud closed in box
     config.disc_tws_imm_on_single_bud_closed        = false;
+
+    //reverse the bt device priority, the latest connected device has high priority by default
+    config.bt_device_priority_reverse               = false;
 
     //do tws switch when RSII value change, default should be true
     config.tws_switch_according_to_rssi_value       = false;
@@ -1398,6 +1365,7 @@ int app_ibrt_customif_ui_start(void)
 
     config.check_plugin_excute_closedbox_event            = true;
     config.ibrt_with_ai                                   = false;
+    config.giveup_reconn_when_peer_unpaired               = false;
 
     //if tws&mobile disc, reconnect tws first until tws connected then reconn mobile
     config.delay_reconn_mob_until_tws_connected           = false;
@@ -1472,9 +1440,7 @@ int app_ibrt_customif_ui_start(void)
 
     config.always_interlaced_scan                         = true;
 
-    config.disallow_reconnect_bt_device_in_streaming_state = true;
-
-    config.disallow_reconnect_tws_in_streaming_state      = true;
+    config.disallow_reconnect_in_streaming_state          = false;
 
     config.open_without_auto_reconnect                    = false;
 
@@ -1494,18 +1460,12 @@ int app_ibrt_customif_ui_start(void)
     config.is_changed_to_ui_master_on_tws_disconnected    = false;
 #endif
 
-    config.connected_max_device_num_allow_new_connect     = true;
-
-    config.lea_connected_allow_new_connect                = true;
-
-    config.dev_idle_allow_nonsupport_stay_connected       = true;
-
     app_ibrt_customif_ui_update_mgr_config(&config);
     app_ui_register_link_status_callback(&link_status_cbs);
     app_ui_register_mgr_status_callback(&mgr_status_cbs);
     app_ui_register_ext_conn_policy_callback(&conn_policy_cbs);
 #if BLE_AUDIO_ENABLED
-    bts_lea_register_audio_event_callback(&custom_ui_le_audio_event_cb);
+    app_ui_register_custom_ui_le_aud_callback(&custom_ui_le_audio_event_cb);
 #endif
     app_ibrt_if_register_vender_handler_ind(app_ibrt_customif_ui_vender_event_handler_ind);
 
@@ -1514,42 +1474,30 @@ int app_ibrt_customif_ui_start(void)
     app_ibrt_if_register_link_loss_clock_info_received_cb(app_ibrt_customif_ui_link_loss_clock_info_handle_test);
     app_ibrt_if_register_a2dp_sink_info_received_cb(app_ibrt_customif_ui_a2dp_sink_info_handle_test);
 #endif
-    bts_core_register_tws_ui_role_update_handle(app_ibrt_customif_tws_ui_role_updated);
+    app_ibrt_middleware_register_set_tws_side_handler(app_ibrt_customif_get_tws_side_handler);
+    app_ibrt_internal_register_tws_ui_role_update_handle(app_ibrt_customif_tws_ui_role_updated);
     app_ibrt_if_config(&config);
 
 #ifdef BT_ALWAYS_IN_DISCOVERABLE_MODE
     btif_me_configure_keeping_both_scan(true);
 #endif
 
+    app_avrcp_reg_media_info_report_callback(app_ibrt_customif_avrcp_media_info_callback);
     app_spp_is_connected_register(app_ibrt_customif_set_profile_delaytime_on_spp_connect);
 
     return 0;
 }
 #endif // IBRT_UI
 
+void app_ibrt_customif_get_tws_side_handler(APP_TWS_SIDE_T* twsSide)
+{
+    // TODO: update the tws side
+}
+
 void app_ibrt_customif_tws_ui_role_updated(uint8_t newRole)
 {
     app_ibrt_middleware_ui_role_updated_handler(newRole);
 
-    extern int bt_sco_chain_set_master_role(bool is_master);
-    bt_sco_chain_set_master_role(newRole == TWS_UI_MASTER);
     // to add custom implementation here
 }
 
-bool app_ibrt_customif_disallow_pagescan()
-{
-    return false;
-}
-
-bool app_ibrt_customif_disallow_reconnect_mobile()
-{
-#ifdef AUDIO_LINEIN
-    if (bt_media_cur_is_linein_stream())
-    {
-        EARBUDS_TRACE(0,"aux mode, disallow reconnect mobile");
-        return true;
-    }
-#endif
-
-    return false;
-}

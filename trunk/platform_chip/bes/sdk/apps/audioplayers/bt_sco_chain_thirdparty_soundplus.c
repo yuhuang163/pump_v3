@@ -12,10 +12,6 @@
 #endif
 #include "app_anc.h"
 
-#if (defined(RPC_SUPPORT) && defined(SCO_CP_ACCEL_RPC))
-#include "speech_sco_chain_3rd.h"
-#endif
-
 short *aec_echo_buf = NULL;
 
 // Use to free buffer
@@ -36,31 +32,13 @@ int speech_init(int tx_sample_rate, int rx_sample_rate,
     speech_heap_init(buf, len);
 
     int frame_len = SPEECH_FRAME_MS_TO_LEN(tx_sample_rate, tx_frame_ms);
-	//AUDIOPLAYERS_TRACE(1,"speech_init buf_len=%d,frame_len=%d,is_cvsd=%d,is_ancon=%d",len,frame_len,bt_sco_codec_is_cvsd(),app_anc_work_status());
+	//TRACE(1,"speech_init buf_len=%d,frame_len=%d,is_cvsd=%d,is_ancon=%d",len,frame_len,bt_sco_codec_is_cvsd(),app_anc_work_status());
 
     aec_echo_buf = (short *)speech_calloc(frame_len, sizeof(short));
     aec_echo_buf_ptr = aec_echo_buf;    
 #if defined(SCO_CP_ACCEL)
     //if (frame_len == FRAME_LEN_16K)
     sco_cp_init(240, 3);
-#endif
-
-#if (defined(RPC_SUPPORT) && defined(SCO_CP_ACCEL_RPC))
-    sco_3rd_init_data_st param = {0};
-    sco_3rd_init_data_st out_param = {0};
-    param.tx_sample_rate    = tx_sample_rate;
-    param.rx_sample_rate    = rx_sample_rate;
-    param.tx_frame_ms       = tx_frame_ms;
-    param.rx_frame_ms       = rx_frame_ms;
-    param.buf               = buf;
-    param.len               = len;
-    rpc_sco_3rd_init(&param, &out_param);
-
-    AUDIOPLAYERS_TRACE(0, "#### [%s] out_param->rx_sample_rate: %d", __func__, out_param.rx_sample_rate);
-    AUDIOPLAYERS_TRACE(0, "#### [%s] out_param->tx_sample_rate: %d", __func__, out_param.tx_sample_rate);
-    AUDIOPLAYERS_TRACE(0, "#### [%s] out_param->rx_frame_ms: %d", __func__, out_param.rx_frame_ms);
-    AUDIOPLAYERS_TRACE(0, "#### [%s] out_param->tx_frame_ms: %d", __func__, out_param.tx_frame_ms);
-    AUDIOPLAYERS_TRACE(0, "#### [%s] out_param->len: %d", __func__, out_param.len);
 #endif
 
 #if defined(SNDP_TX_3MIC_ENABLE)
@@ -81,8 +59,8 @@ int speech_init(int tx_sample_rate, int rx_sample_rate,
 int speech_deinit(void)
 {
 #if defined(SCO_CP_ACCEL) 
-	sco_cp_deinit();
-#endif
+    sco_cp_deinit();
+#endif 
 
     speech_free(aec_echo_buf_ptr);
 
@@ -90,13 +68,9 @@ int speech_deinit(void)
     soundplus_deinit();
 #endif
 
-#if (defined(RPC_SUPPORT) && defined(SCO_CP_ACCEL_RPC))
-    rpc_sco_3rd_deinit();
-#endif
-
     size_t total = 0, used = 0, max_used = 0;
     speech_memory_info(&total, &used, &max_used);
-    AUDIOPLAYERS_TRACE(4,"SPEECH MALLOC MEM: total - %d, used - %d, max_used - %d.", total, used, max_used);
+    TRACE(4,"SPEECH MALLOC MEM: total - %d, used - %d, max_used - %d.", total, used, max_used);
     ASSERT(used == 0, "[%s] used != 0", __func__);
 
     return 0;
@@ -108,7 +82,7 @@ int speech_tx_process(void *pcm_buf, void *ref_buf, int *pcm_len)
     int16_t *ref_dump = (int16_t *)ref_buf;
 	int pcm16_len = *pcm_len;
     int tmp_len;
-    AUDIOPLAYERS_TRACE(1,"speech_tx_process pcm_len=%d",pcm16_len);
+    TRACE(1,"speech_tx_process pcm_len=%d",pcm16_len);
 #if defined(SNDP_TX_3MIC_DUMP_ENABLE)
     int frame_len = *pcm_len/SPEECH_CODEC_CAPTURE_CHANNEL_NUM;
     int16_t pcm_dump[720]={0};
@@ -128,11 +102,6 @@ int speech_tx_process(void *pcm_buf, void *ref_buf, int *pcm_len)
 #if defined(SNDP_TX_3MIC_TIME_ENABLE)
      uint32_t start_ticks, end_ticks;    
      start_ticks = hal_fast_sys_timer_get();
-#endif
-
-#if (defined(RPC_SUPPORT) && defined(SCO_CP_ACCEL_RPC))
-    int out_pcm_len = rpc_sco_3rd_process_tx(buf, ref_buf, pcm16_len);
-    AUDIOPLAYERS_TRACE(1, "[%s] rpc_sco_3rd_process_tx out pcm_len=%d", __func__, out_pcm_len);
 #endif
 
 #if defined(SNDP_TX_3MIC_BYPASS_ENABLE)  //bypass
@@ -158,7 +127,7 @@ int speech_tx_process(void *pcm_buf, void *ref_buf, int *pcm_len)
 
 #if defined(SNDP_TX_3MIC_TIME_ENABLE)
     end_ticks = hal_fast_sys_timer_get();
-    AUDIOPLAYERS_TRACE(4,"[sco_ap_process] takes %d us\n", FAST_TICKS_TO_US(end_ticks - start_ticks));
+    TRACE(4,"[sco_ap_process] takes %d us\n", FAST_TICKS_TO_US(end_ticks - start_ticks));
 #endif
 
 #if defined(SNDP_TX_3MIC_DUMP_ENABLE)    
@@ -171,13 +140,5 @@ int speech_tx_process(void *pcm_buf, void *ref_buf, int *pcm_len)
 int speech_rx_process(void *pcm_buf, int *pcm_len)
 {
     //int16_t *pcm16_buf = (int16_t *)pcm_buf;
-
-#if (defined(RPC_SUPPORT) && defined(SCO_CP_ACCEL_RPC))
-    int pcm16_len = *pcm_len;
-
-    int out_pcm_len = rpc_sco_3rd_process_rx(pcm_buf, pcm16_len);
-    AUDIOPLAYERS_TRACE(1, "[%s] rpc_sco_3rd_process_rx out pcm_len=%d", __func__, out_pcm_len);
-#endif
-
     return 0;
 }

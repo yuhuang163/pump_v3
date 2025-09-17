@@ -120,19 +120,23 @@ SECTIONS
 		. = ALIGN(4);
 	} > RAM AT > EXEC_REGION
 
-	__sram_text_data_start_load__ = LOADADDR(.sram_text);
+	__sram_text_start_load__ = LOADADDR(.sram_text);
+	__sram_text_end_load__ = LOADADDR(.sram_text) + SIZEOF(.sram_text);
 
 	.sram_data :
 	{
+		__sram_data_start__ = .;
 		*(.boot_rodata_sram*)
 		*(.boot_data*)
 		. = ALIGN(4);
 		*(.sram_rodata*)
 		*(.sram_data*)
 		. = ALIGN(4);
+		__sram_data_end__ = .;
 	} > RAM AT > EXEC_REGION
 
-	__sram_text_data_end_load__ = LOADADDR(.sram_data) + SIZEOF(.sram_data);
+	__sram_data_start_load__ = LOADADDR(.sram_data);
+	__sram_data_end_load__ = LOADADDR(.sram_data) + SIZEOF(.sram_data);
 
 	.text :
 	{
@@ -167,8 +171,6 @@ SECTIONS
 		. = ALIGN(4);
 
 		KEEP(*(.eh_frame*))
-		KEEP(*(.build_info))
-
 		*(.note.gnu.build-id)
 
 		. = ALIGN(4);
@@ -241,6 +243,32 @@ SECTIONS
 
 	} > EXEC_REGION
 
+	__psramuhs_text_data_start_load__ = LOADADDR(.data) + SIZEOF(.data);
+	.psramuhs_text (ORIGIN(PSRAMUHSX)) : AT (__psramuhs_text_data_start_load__)
+	{
+		__psramuhs_text_start = PSRAMUHSX_TO_PSRAMUHS(.);
+		*(.psramuhs_text*)
+		. = ALIGN(4);
+		__psramuhs_text_end = PSRAMUHSX_TO_PSRAMUHS(.);
+	} > PSRAMUHSX
+	__psramuhs_text_data_end_load__ = __psramuhs_text_data_start_load__ + SIZEOF(.psramuhs_text);
+
+	. = __psramuhs_text_data_end_load__;
+
+	.build_info (.) :
+	{
+		KEEP(*(.build_info))
+		. = ALIGN(4);
+	} > EXEC_REGION
+
+	__boot_struct_build_info = ADDR(.build_info);
+
+	/* The following section MUST be the last loaded section */
+	.code_start_addr (.) :
+	{
+		LONG(ADDR(.boot_loader));
+	} > EXEC_REGION
+
 	.sram_bss (NOLOAD) : AT (ADDR(.sram_bss))
 	{
 		__sram_bss_start__ = .;
@@ -255,12 +283,14 @@ SECTIONS
 	__ram_end = .;
 #endif
 
-	.bss ALIGN(0x400) (NOLOAD) :
+	.bss (NOLOAD) :
 	{
+		/* . = ALIGN(0x400); */
 		Image$$ZI_DATA$$Base = .;
 		__bss_start__ = .;
 		*(.bss*)
 		*(COMMON)
+		. = ALIGN(4);
 		__bss_end__ = .;
 		Image$$ZI_DATA$$Limit = .;
 		__end__ = .;
@@ -278,8 +308,9 @@ SECTIONS
 	} > EXEC_REGION
 #endif
 
-	.sync_flags_sram ALIGN(0x1000) (NOLOAD) :
+	.sync_flags_sram (NOLOAD) :
 	{
+		. = ALIGN(0x1000);
 		__sync_flags_sram_start = .;
 		*(.sync_flags_sram*)
 		. = ALIGN(0x1000);
@@ -291,22 +322,6 @@ SECTIONS
 #else
 	__free_exec_region = ORIGIN(EXEC_REGION) + LENGTH(EXEC_REGION) - .;
 #endif
-
-	__psramuhs_text_data_start_load__ = LOADADDR(.data) + SIZEOF(.data);
-	.psramuhs_text (ORIGIN(PSRAMUHSX)) : AT (__psramuhs_text_data_start_load__)
-	{
-		__psramuhs_text_start = PSRAMUHSX_TO_PSRAMUHS(.);
-		*(.psramuhs_text*)
-		. = ALIGN(4);
-		__psramuhs_text_end = PSRAMUHSX_TO_PSRAMUHS(.);
-	} > PSRAMUHSX
-	__psramuhs_text_data_end_load__ = __psramuhs_text_data_start_load__ + SIZEOF(.psramuhs_text);
-
-	/* The following section MUST be the last loaded section */
-	.code_start_addr : AT (__psramuhs_text_data_end_load__)
-	{
-		LONG(ADDR(.boot_loader));
-	} > EXEC_REGION
 
 	.stack (ORIGIN(RAM) + LENGTH(RAM) - __STACK_SIZE - __FIQ_STACK_SIZE - __IRQ_STACK_SIZE - __SVC_STACK_SIZE - __ABT_STACK_SIZE - __UND_STACK_SIZE) (NOLOAD) : AT (ADDR(.stack))
 	{

@@ -16,20 +16,22 @@
 
 #include "plat_addr_map.h"
 
+#ifdef NOSTD
 #define HEAP_SECTION_SIZE			0x40
+#else
+#define HEAP_SECTION_SIZE			0x2000
+#endif
+
 #if (SECURE_BOOT_VER >= 3)
 #define STACK_SECTION_SIZE			0x1800
 #else
 #define STACK_SECTION_SIZE			0x1000
 #endif
+
 #define CP_STACK_SECTION_SIZE		0x1000
 
 #if !(defined(ROMX_BASE) && (ROMX_BASE != ROM_BASE))
 #define ROMX						ROM
-#endif
-
-#ifndef RAMX_SIZE
-#define RAMX_SIZE					RAM_SIZE
 #endif
 
 /* Linker script to configure memory regions. */
@@ -41,6 +43,9 @@ MEMORY
 #endif
 	RAM    		(rwx) 	: ORIGIN = RAM_BASE,    			LENGTH = RAM_SIZE
 	RAMX   		(rwx) 	: ORIGIN = RAMX_BASE,   			LENGTH = RAMX_SIZE
+#ifdef RAM_NC_BASE
+	RAM_NC		(rw)	: ORIGIN = RAM_NC_BASE,				LENGTH = RAM_NC_SIZE
+#endif
 #if defined(CP_IN_SAME_EE) && (RAMCP_SIZE > 0)
 	RAMCP 		(rwx)	: ORIGIN = RAMCP_BASE,				LENGTH = RAMCP_SIZE
 	RAMCPX 		(rwx)	: ORIGIN = RAMCPX_BASE,				LENGTH = RAMCPX_SIZE
@@ -124,6 +129,8 @@ SECTIONS
 	{
 		__rom_rodata_start = .;
 		*(.rodata*)
+		*(.flash_rodata*)
+		*(.flash_nc_rodata*)
 
 #ifdef CHIP_HAS_AUDIO_CONST_ROM
 		__audio_const_rom_start = .;
@@ -300,6 +307,7 @@ SECTIONS
 	__rom_StackLimit = __rom_StackTop - SIZEOF(.rom_stack_dummy);
 	PROVIDE(__rom_stack = __rom_StackTop);
 #ifndef NOSTD
+	__StackLimit = __rom_StackLimit;
 	__StackTop = __rom_StackTop;
 	PROVIDE(__stack = __rom_StackTop);
 #endif
@@ -313,7 +321,36 @@ SECTIONS
 	__free_rom_ramx = __rom_ramx_top - __rom_ramx_end;
 #endif
 
+#ifdef RAM_NC_BASE
+	__sram_nc_data_start_flash__ = __rom_etext + SIZEOF(.rom_data);
+
+	.sram_nc_data : AT (__sram_nc_data_start_flash__)
+	{
+		__sram_nc_data_start__ = .;
+		*(.sram_nc_rodata*)
+		. = ALIGN(4);
+		*(.sram_nc_data*)
+		__sram_nc_data_end__ = .;
+	} > RAM_NC
+
+	__sram_nc_data_end_flash__ = __sram_nc_data_start_flash__ + SIZEOF(.sram_nc_data);
+
+	.sram_nc_bss (NOLOAD) : AT (ADDR(.sram_nc_bss))
+	{
+		__sram_nc_bss_start__ = .;
+		*(.sram_nc_bss*)
+		*(.sync_flags_sram*)
+		. = ALIGN(4);
+		__sram_nc_bss_end__ = .;
+	} > RAM_NC
+
+	__ram_nc_top = ORIGIN(RAM_NC) + LENGTH(RAM_NC);
+	__free_ram_nc = __ram_nc_top - __sram_nc_bss_end__;
+
+	__rom_end = __sram_nc_data_end_flash__;
+#else /* !RAM_NC_BASE */
 	__rom_end = __rom_etext + SIZEOF(.rom_data);
+#endif /* !RAM_NC_BASE */
 
 #if defined(CP_IN_SAME_EE) && (RAMCP_SIZE > 0)
 	.cp_ramx_last_dummy (NOLOAD) :

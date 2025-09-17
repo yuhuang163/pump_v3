@@ -307,6 +307,39 @@ typedef struct prf_desc_def
     uint8_t char_code;
 } prf_desc_def_t;
 
+
+/*
+ * CALLBACK FUNCTION DEFINITIONS
+ ****************************************************************************************
+ */
+
+/**
+ ****************************************************************************************
+ * @brief Callback function to call when an included service attribute is found
+ *
+ * @param[in] con_lid   Connection local index
+ * @param[in] uuid      Service UUID
+ * @param[in] shdl      Service start handle
+ * @param[in] ehdl      Service end handle
+ ****************************************************************************************
+ */
+typedef void (*prf_inc_svc_cb)(uint8_t con_lid, uint16_t uuid, uint16_t shdl, uint16_t ehdl);
+
+/**
+ ****************************************************************************************
+ * @brief Callback function to call when a multi-instantiated attribute is found
+ *
+ * @param[in] con_lid   Connection local index
+ * @param[in] hdl       Characteristic value handle or Descriptor handle
+ * @param[in] desc      Indicate if found attribute is a descriptor (True) or a characteristic
+ * @param[in] idx       Index
+ * @param[in] prop      Characteristic properties
+ ****************************************************************************************
+ */
+typedef void (*prf_multi_att_cb)(uint8_t con_lid, uint16_t hdl, bool desc, uint8_t idx,
+                                 uint8_t prop);
+
+
 /// @} PROFILE_TYPES_API
 
 #endif /* _PRF_TYPES_INC_ */

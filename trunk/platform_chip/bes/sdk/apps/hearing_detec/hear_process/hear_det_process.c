@@ -33,7 +33,7 @@ int tone_wav_step = 1;
 
 int get_cur_step(void)
 {
-    HEARING_DETEC_TRACE(0,"HEARING DET VERSION : %s",HEAR_DET_LOG_VERSION);
+    TRACE(0,"HEARING DET VERSION : %s",HEAR_DET_LOG_VERSION);
     int cur_step = 1;
     int cur_tone_freq = hear_tone_freq;
     switch (cur_tone_freq)
@@ -61,7 +61,7 @@ int get_cur_step(void)
             ASSERT(0,"cur_tone_freq(%d) not support",cur_tone_freq);
             break;
     }
-    HEARING_DETEC_TRACE(2,"[%s] cur_step = %d",__func__,cur_step);
+    TRACE(2,"[%s] cur_step = %d",__func__,cur_step);
     tone_wav_step = cur_step;
     return cur_step;
 }
@@ -72,7 +72,7 @@ void update_spk_calib_gain(float *input_buf)
 {
     for(int i=0;i<6;i++)
         hear_spk_calib_gain_buf[i] = input_buf[i];
-    HEARING_DETEC_TRACE(1,"spk_calib[0]=%d,[1]=%d,[2]=%d,[3]=%d,[4]=%d,[5]=%d",
+    TRACE(1,"spk_calib[0]=%d,[1]=%d,[2]=%d,[3]=%d,[4]=%d,[5]=%d",
         (int)hear_spk_calib_gain_buf[0],(int)hear_spk_calib_gain_buf[1],
         (int)hear_spk_calib_gain_buf[2],(int)hear_spk_calib_gain_buf[3],
         (int)hear_spk_calib_gain_buf[4],(int)hear_spk_calib_gain_buf[5]);
@@ -109,9 +109,9 @@ float get_cur_amp(void)
             break;
     }
 
-    HEARING_DETEC_TRACE(2,"cur_amp_dB = %d+%de-2",hear_tone_amp_dB,(int)(speaker_calib_gain*100));
+    TRACE(2,"cur_amp_dB = %d+%de-2",hear_tone_amp_dB,(int)(speaker_calib_gain*100));
     tmp_amp = DB2LIN((float)hear_tone_amp_dB + speaker_calib_gain);
-    HEARING_DETEC_TRACE(2,"[%s] cur_amp = %de-4",__func__,(int)(tmp_amp*10000));
+    TRACE(2,"[%s] cur_amp = %de-4",__func__,(int)(tmp_amp*10000));
     hear_tone_amp = tmp_amp;
     return tmp_amp;
 }
@@ -153,7 +153,7 @@ int hear_rx_process(int *pcm_buf, int pcm_len)
         else
         {
             play_rx_gain = 1.0;
-            HEARING_DETEC_TRACE(0,"ERROR!! play_rx_gain=0!!");
+            TRACE(0,"ERROR!! play_rx_gain=0!!");
         }
         pcm_buf[i] = (int)(play_rx_gain*hear_tone_amp*loc_wav[loc_wav_idx]*256*1);
         loc_wav_idx = (loc_wav_idx + tone_wav_step) % WAV_BUF_SIZE;

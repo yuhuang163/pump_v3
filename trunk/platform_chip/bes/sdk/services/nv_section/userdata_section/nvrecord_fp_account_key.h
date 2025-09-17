@@ -1,6 +1,6 @@
 /***************************************************************************
  *
- * Copyright 2015-2019 BES.
+ * Copyright 2020-2025 BES.
  * All rights reserved. All unpublished rights reserved.
  *
  * No part of this work may be used or reproduced in any form or by any
@@ -57,12 +57,7 @@ uint8_t* nv_record_fp_get_spot_adv_data(void);
 void nv_record_fp_reset_spot_adv_data(void);
 void nv_record_fp_update_spot_beacon_time(void);
 uint32_t nv_record_fp_get_current_beacon_time(void);
-uint32_t nv_record_fp_get_current_poweroff_time(void);
-uint32_t nv_record_fp_get_has_poweredoff_time(void);
-void nv_record_fp_update_poweroff_time(uint32_t time);
-void nv_record_fp_update_has_poweredoff_time(uint32_t time);
-void nv_record_fp_update_spot_hash_value(uint8_t hashed_value);
-uint8_t nv_record_fp_get_hash_value(void);
+
 #endif
 
 

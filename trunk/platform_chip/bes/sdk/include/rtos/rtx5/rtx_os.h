@@ -130,14 +130,14 @@ typedef struct osRtxThread_s {
   uint32_t               swap_in_time;  ///< the task schedule in time
   uint32_t              swap_out_time;  ///< the task schedule out time
   uint32_t                      rtime;  ///< the task runing time after startup
-  uint32_t                 step_rtime;  ///< the task runing time tile last show
+  uint32_t               sample_rtime;  ///< the task runing time used for sample
 #if TASK_HUNG_CHECK_ENABLED
   uint32_t                 hung_check;
   uint32_t         hung_check_timeout;
 #endif
   uint32_t                    task_id;  ///< task's tcb number
+  uint32_t              thread_atomic;  ///< task's in atomic state
 #endif /* __RTX_CPU_STATISTICS__*/
-  const char              *name_mutex;  ///< the name of mutex in waiting
 } osRtxThread_t;
 
 

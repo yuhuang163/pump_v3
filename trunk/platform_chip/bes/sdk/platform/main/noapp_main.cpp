@@ -13,6 +13,7 @@
  * trademark and other intellectual property rights.
  *
  ****************************************************************************/
+#include "plat_addr_map.h"
 #include "cmsis.h"
 #include "analog.h"
 #include "hal_bootmode.h"
@@ -30,6 +31,10 @@
 #include "mpu_cfg.h"
 #include "pmu.h"
 #include "hal_evr.h"
+
+#if defined(AON_MAILBOX_SIZE) && (AON_MAILBOX_SIZE > 0)
+#include "heap_api.h"
+#endif
 
 #ifdef SENSOR_TEST
 #include "sensor_test.h"
@@ -49,10 +54,6 @@
 #endif
 #endif
 
-#ifdef DSP_TEST
-#include "dsp_loader.h"
-#endif
-
 #ifdef LIS25BA_TEST
 #include "sensor_test.h"
 #endif
@@ -65,11 +66,24 @@
 #include "chip_function_test.h"
 #endif
 
-#ifdef SLEEP_SIMU
+#ifdef BTHCI_ENABLE
+#include "bthci.h"
+#endif
+
+#ifdef LOAD_LINUX
+#include "fw_linux_loader.h"
+#endif
+
+#if (defined(WIFI_TEST) || defined(BTHCI_ENABLE)) && defined(FLASH_NV_FACTORY)
+#include "norflash_api.h"
+#include "factory_section.h"
+#endif
+
+#ifdef SIMU
 #define TIMER_IRQ_PERIOD_MS             3
 #define DELAY_PERIOD_MS                 4
 #elif defined(SLEEP_TEST) && (SLEEP_TEST)
-#define TIMER_IRQ_PERIOD_MS             3000
+#define TIMER_IRQ_PERIOD_MS             2000
 #define DELAY_PERIOD_MS                 4000
 #else
 #define TIMER_IRQ_PERIOD_MS             1000
@@ -100,9 +114,9 @@
 #endif
 
 #ifdef DEBUG_TIME
-#define TR_INFO_TIME(attr, str, ...)    MAIN_TRACE(attr, TIME_STR " " str, CUR_TIME, ##__VA_ARGS__)
+#define TR_INFO_TIME(attr, str, ...)    TRACE(attr, TIME_STR " " str, CUR_TIME, ##__VA_ARGS__)
 #else
-#define TR_INFO_TIME(attr, str, ...)    MAIN_TRACE(attr, str, ##__VA_ARGS__)
+#define TR_INFO_TIME(attr, str, ...)    TRACE(attr, str, ##__VA_ARGS__)
 #endif
 
 const static unsigned char bytes[FLASH_FILL] = { 0x1, };
@@ -119,7 +133,7 @@ static void switch_between_i2c_and_uart(bool to_i2c, bool flush_trace)
     if (to_i2c) {
         TR_INFO(TR_MOD(MAIN), "Switch to I2C");
         if (flush_trace) {
-            NORM_LOG_FLUSH();
+            TRACE_FLUSH();
         }
         while (hal_trace_busy());
         hal_trace_pause();
@@ -130,7 +144,7 @@ static void switch_between_i2c_and_uart(bool to_i2c, bool flush_trace)
 
         hal_trace_continue();
         if (flush_trace) {
-            NORM_LOG_FLUSH();
+            TRACE_FLUSH();
         }
         TR_INFO(TR_MOD(MAIN), "Switch to UART0");
     }
@@ -198,21 +212,59 @@ static void sleep_test_exec_loop_callback(void)
 static bool wakeup_flag = false;
 #endif
 #else
-static HWTIMER_ID hw_timer = NULL;
-static void timer_handler(void *param)
+POSSIBLY_UNUSED static HWTIMER_ID hw_timer = NULL;
+
+volatile static uint32_t start = 0;
+void timer_handler(void *param)
 {
-    TR_INFO_TIME(TR_MOD(MAIN), "Timer handler: %u", (uint32_t)param);
-
-    sleep_test_exec_timer_callback(param);
-
-    hwtimer_start(hw_timer, MS_TO_TICKS(TIMER_IRQ_PERIOD_MS));
-    TR_INFO_TIME(TR_MOD(MAIN), "Start timer %u ms", TIMER_IRQ_PERIOD_MS);
-}
+    TR_INFO_TIME(TR_MOD(MAIN), "gpio toggle: %u", (uint32_t)param);
+    start = 1;
+    }
 #endif
+
+static int (*key_cb[3])(uint32_t, uint8_t);
+
+#ifdef __cplusplus
+extern "C"
+#endif
+void hwtest_register_key_callback(int (*cb)(uint32_t, uint8_t))
+{
+    for (uint32_t i = 0; i < ARRAY_SIZE(key_cb); i++) {
+        if (!key_cb[i]) {
+            key_cb[i] = cb;
+            return;
+        }
+    }
+
+    ASSERT(false, "%s: failed", __func__);
+}
+
+static int hwtest_exec_key_callback(uint32_t key_code, uint8_t key_event)
+{
+    int ret;
+
+    for (uint32_t i = 0; i < ARRAY_SIZE(key_cb); i++) {
+        if (key_cb[i]) {
+            ret = key_cb[i](key_code, key_event);
+            if (ret == 0) {
+                return 0;
+            }
+        }
+    }
+
+    return 1;
+}
 
 static int key_event_process(uint32_t key_code, uint8_t key_event)
 {
+    int ret;
+
     TR_INFO(TR_MOD(MAIN), "%s: code=0x%X event=%u", __FUNCTION__, key_code, key_event);
+
+    ret = hwtest_exec_key_callback(key_code, key_event);
+    if (ret == 0) {
+        return 0;
+    }
 
     if (key_code == HAL_KEY_CODE_PWR) {
         if (0) {
@@ -241,87 +293,60 @@ static int key_event_process(uint32_t key_code, uint8_t key_event)
     return 0;
 }
 
-// GDB can set a breakpoint on the main function only if it is
-// declared as below, when linking with STD libraries.
-
-int MAIN_ENTRY(void)
+#if (defined(WIFI_TEST) || defined(BTHCI_ENABLE)) && defined(FLASH_NV_FACTORY)
+static void flash_init_factory()
 {
-    int POSSIBLY_UNUSED ret;
-
-    hwtimer_init();
-    hal_audma_open();
-    hal_gpdma_open();
-#ifdef DEBUG
-#if (DEBUG_PORT == 3)
-    hal_iomux_set_analog_i2c();
-    hal_iomux_set_uart2();
-    hal_trace_open(HAL_TRACE_TRANSPORT_UART2);
-#elif (DEBUG_PORT == 2)
-    hal_iomux_set_analog_i2c();
-    hal_iomux_set_uart1();
-    hal_trace_open(HAL_TRACE_TRANSPORT_UART1);
-#else
-    hal_iomux_set_uart0();
-    hal_trace_open(HAL_TRACE_TRANSPORT_UART0);
-#endif
+    norflash_api_init();
+    factory_section_init();
+    factory_section_open();
+}
 #endif
 
-#ifdef EVR_TRACING
-    hal_evr_init(0);
-#endif
+#if defined(RTOS) && defined(THREAD_CREATION_TEST)
+static void test_thread(void const *argument);
+osThreadDef(test_thread, osPriorityNormal, 1, 2048, "test_thread");
+static osThreadId test_thread_tid;
 
-#if !defined(SIMU) && !defined(FPGA) && !defined(BT_CONN_SIMU)
-    hal_norflash_show_id_state(HAL_FLASH_ID_0, true);
-#endif
+static void test_thread(void const *argument)
+{
+    TRACE(0, "%s starts", __func__);
+    osDelay(5);
+    TRACE(0, "%s quits", __func__);
+}
 
-    TR_INFO_TIME(TR_MOD(MAIN), "main started: filled@0x%08x", (uint32_t)bytes);
-
-    mpu_cfg();
-#ifndef NO_PMU
-    ret = pmu_open();
-    ASSERT(ret == 0, "Failed to open pmu");
-#endif
-    analog_open();
-
-#ifdef REBOOT_TEST
-    if (!hal_hw_bootmode_get().global) {
-        hal_sw_bootmode_set(HAL_SW_BOOTMODE_FLASH_BOOT);
-        pmu_reboot();
-        ASSERT(false, "%s: Reboot failed", __func__);
+static void thread_creation_test(void)
+{
+    test_thread_tid = osThreadCreate(osThread(test_thread), NULL);
+    if (test_thread_tid == NULL)  {
+        TRACE(0, "Failed to create test_thread");
+        return;
     }
+
+    TRACE(0, "Create test_thread: tid=0x%X", (uint32_t)test_thread_tid);
+    osDelay(1);
+}
 #endif
 
-    hal_cmu_simu_pass();
-
-    enum HAL_CMU_FREQ_T sys_freq;
-
-#if defined(SLEEP_TEST) && (SLEEP_TEST)
-    sys_freq = HAL_CMU_FREQ_32K;
-#elif defined(ULTRA_LOW_POWER)
-    sys_freq = HAL_CMU_FREQ_52M;
-#else
-    sys_freq = HAL_CMU_FREQ_104M;
-#endif
-
-    hal_sysfreq_req(HAL_SYSFREQ_USER_INIT, sys_freq);
-
-    TR_INFO(TR_MOD(MAIN), "CPU freq: %u", hal_sys_timer_calc_cpu_freq(5, 0));
-
-#ifdef CHIP_WAKE_TEST
-    hal_chip_wake_lock(HAL_CHIP_WAKE_LOCK_USER_31);
-#endif
-
-    hal_sleep_start_stats(10000, 10000);
-
+static void run_test_cases(void)
+{
 #ifdef HWTEST
+
+#ifdef BT_HOST_TEST
+    bt_host_test();
+#endif
 
 #ifdef CMSIS_TEST
     cmsis_test();
 #endif
 
-#ifdef SBC_ROM_TEST
-    sbc_rom_test();
+#ifdef CRC_TEST
+    crc_test();
 #endif
+
+#ifdef CHECKSUM_TEST
+    checksum_test();
+#endif
+
 #ifdef LC3_TEST
     lc3_test();
 #endif
@@ -330,22 +355,47 @@ int MAIN_ENTRY(void)
     sbc_test();
 #endif
 
-#ifdef ACCDEC_TEST
-    acc_dec_test();
+#ifdef SBC_ROM_TEST
+    sbc_rom_test();
+#endif
+
+#ifdef AACDEC_TEST
+    aac_dec_test();
+#endif
+
+#ifdef USB3_SPEED_TEST
+    usb3_speed_test();
+#endif
+
+#ifdef USB3_CDC_TEST
+    usb3_serial_test();
 #endif
 
 #ifdef USB_SERIAL_TEST
-    pmu_usb_config(PMU_USB_CONFIG_TYPE_DEVICE);
     usb_serial_test();
 #endif
 
+#ifdef USB_MTP_TEST
+    usb_mtp_test();
+#endif
+
 #ifdef USB_SERIAL_DIRECT_XFER_TEST
-    pmu_usb_config(PMU_USB_CONFIG_TYPE_DEVICE);
     usb_serial_direct_xfer_test();
 #endif
 
+#ifdef USB_SERIAL_SPEED_TEST
+    usb_serial_speed_test();
+#endif
+
+#ifdef USB_GENERAL_SPEED_TEST
+    usb_general_speed_test();
+#endif
+
+#ifdef SDIO_THROUGHPUT_TEST
+    sdio_throughput_test();
+#endif
+
 #ifdef USB_AUDIO_TEST
-    pmu_usb_config(PMU_USB_CONFIG_TYPE_DEVICE);
     usb_audio_test();
 #endif
 
@@ -361,6 +411,10 @@ int MAIN_ENTRY(void)
     i2c_slave_test();
 #endif
 
+#ifdef I3C_TEST
+    i3c_test();
+#endif
+
 #ifdef AF_TEST
     af_test();
 #endif
@@ -371,6 +425,14 @@ int MAIN_ENTRY(void)
 
 #ifdef CP_TEST
     cp_test();
+#endif
+
+#ifdef CP_SUBSYS_TEST
+    cp_subsys_test();
+#endif
+
+#ifdef CSP_SUBSYS_TEST
+    csp_subsys_test();
 #endif
 
 #ifdef SEC_ENG_TEST
@@ -385,6 +447,10 @@ int MAIN_ENTRY(void)
     a7_dsp_test();
 #endif
 
+#ifdef A55_TEST
+    a55_test();
+#endif
+
 #ifdef TRANSQ_TEST
     transq_test();
 #endif
@@ -397,8 +463,16 @@ int MAIN_ENTRY(void)
     nandflash_test();
 #endif
 
+#ifdef FULLMAP_MMU_TEST
+    fullmap_mmu_test();
+#endif
+
 #ifdef PSRAM_TEST
     psram_test();
+#endif
+
+#ifdef DDR_TEST
+    ddr_test();
 #endif
 
 #ifdef PSRAM_WINDOW_TEST
@@ -429,10 +503,6 @@ int MAIN_ENTRY(void)
     sensor_hub_test();
 #endif
 
-#ifdef BT_HOST_TEST
-    bt_host_test();
-#endif
-
 #ifdef DSP_HIFI4_TEST
     dsp_hifi4_test();
 #ifdef HIFI4_ADDA_LOOP_TEST
@@ -442,6 +512,10 @@ int MAIN_ENTRY(void)
 
 #ifdef DSP_M55_TEST
     dsp_m55_test();
+#endif
+
+#ifdef DSP_M55C1_TEST
+    dsp_m55c1_test();
 #endif
 
 #ifdef CODEC_SIMU
@@ -497,7 +571,7 @@ int MAIN_ENTRY(void)
 #endif
 
 #ifdef RSA_TEST
-    test_rsa();
+    rsa_test();
 #endif
 
 #ifdef DAC_TEST
@@ -556,6 +630,18 @@ int MAIN_ENTRY(void)
     qspi_lcdc_test();
 #endif
 
+#ifdef QSPI_TEST
+    qspi_test();
+#endif
+
+#ifdef JPEG_TEST
+    jpeg_test();
+#endif
+
+#ifdef PNG_TEST
+    png_test();
+#endif
+
 #ifdef I2S_HOST_TEST
     i2s_host_test();
 #endif
@@ -568,6 +654,10 @@ int MAIN_ENTRY(void)
     spi2sdio_test();
 #endif
 
+#ifdef SPI_MODEM_TEST
+    spi_modem_test();
+#endif
+
 #ifdef SPI_DEBUG_SLAVE_TEST
     spi_debug_slave_test();
 #endif
@@ -576,8 +666,12 @@ int MAIN_ENTRY(void)
     uart_test();
 #endif
 
-#ifdef MAX_POWER_TEST
-    max_power_test();
+#ifdef SCI_TEST
+    sci_test();
+#endif
+
+#ifdef CPU_MAX_POWER_TEST
+    cpu_max_power_test();
 #endif
 
 #ifdef GPIO_TEST
@@ -586,6 +680,14 @@ int MAIN_ENTRY(void)
 
 #ifdef GPU_TEST
     gpu_test();
+#endif
+
+#ifdef DMA2D_TEST
+    dma2d_test();
+#endif
+
+#ifdef GAMU_TEST
+    gamu_test();
 #endif
 
 #ifdef GRAPHIC_TEST
@@ -620,8 +722,72 @@ int MAIN_ENTRY(void)
     mbedtls_test();
 #endif
 
-#ifdef CP_SUBSYS_TEST
-    cp_subsys_test();
+#ifdef SHANHAI_TEST
+    shanhai_test();
+#endif
+
+#ifdef JIAYU_TEST
+    jiayu_test();
+#endif
+
+#if (defined(WIFI_TEST) || defined(BTHCI_ENABLE)) && defined(FLASH_NV_FACTORY)
+    flash_init_factory();
+#endif
+
+#if defined(BTHCI_ENABLE) && !defined(CONN_HOST_POWER_CTRL)
+    hci_open();
+#endif
+
+#ifdef WIFI_TEST
+    wifi_test();
+#endif
+
+#ifdef PCIE_TEST
+    pcie_test();
+#endif
+
+#ifdef PVT_TEST
+    pvt_test();
+#endif
+
+#ifdef SINGLE_WIRE_UART_TEST
+    single_wire_uart_test();
+#endif
+
+#ifdef EXT_CRYSTAL_TEST
+    ext_crystal_test();
+#endif
+
+#ifdef RTC_TEST
+    rtc_test();
+#endif
+
+#ifdef BOOT_REASON_TEST
+    boot_reason_test();
+#endif
+
+#ifdef TIMER_TEST
+    timer_test();
+#endif
+
+#ifdef POWER_PROTECT_TEST
+    power_protect_test();
+#endif
+
+#ifdef CPUDUMP_TEST
+    cpudump_test();
+#endif
+
+#ifdef PMU_WDT_TEST
+    pmu_wdt_test();
+#endif
+
+#if defined(LOAD_LINUX)
+    fw_linux_main();
+#endif
+
+#ifdef OSC_WAKEUP_TEST
+    osc_wakeup_test();
 #endif
 
 #if !(defined(SLEEP_TEST) && (SLEEP_TEST))
@@ -630,14 +796,117 @@ int MAIN_ENTRY(void)
 
 #endif // HWTEST
 
-    hal_key_open(false, key_event_process);
+#if defined(RTOS) && defined(THREAD_CREATION_TEST)
+    thread_creation_test();
+#endif
 
-#if defined(DEBUG) && (DEBUG_PORT == 1)
-    TR_INFO(TR_MOD(MAIN), "TIP: Long press PwrKey to switch between I2C and UART0");
+#ifdef FLASH_BOOT_TEST
+    hal_cmu_simu_pass();
+#endif
+
+#ifdef CHIP_WAKE_TEST
+    hal_subsys_wake_lock(HAL_SUBSYS_WAKE_LOCK_USER_31);
 #endif
 
 #ifdef CHIP_FUNCTION_TEST
     chip_function_test();
+#endif
+}
+
+// GDB can set a breakpoint on the main function only if it is
+// declared as below, when linking with STD libraries.
+
+int MAIN_ENTRY(void)
+{
+    int POSSIBLY_UNUSED ret;
+    POSSIBLY_UNUSED enum HAL_CMU_FREQ_T sys_freq;
+
+    hwtimer_init();
+    hal_audma_open();
+    hal_gpdma_open();
+
+#if defined(AON_MAILBOX_SIZE) && (AON_MAILBOX_SIZE > 0)
+    aon_mbx_heap_init();
+#endif
+
+#ifdef DEBUG
+#if (DEBUG_PORT == 3)
+    hal_iomux_set_analog_i2c();
+    hal_iomux_set_uart2();
+    hal_trace_open(HAL_TRACE_TRANSPORT_UART2);
+#elif (DEBUG_PORT == 2)
+    hal_iomux_set_analog_i2c();
+    hal_iomux_set_uart1();
+    hal_trace_open(HAL_TRACE_TRANSPORT_UART1);
+#elif (DEBUG_PORT == 1)
+    hal_iomux_set_uart0();
+    hal_trace_open(HAL_TRACE_TRANSPORT_UART0);
+#elif (DEBUG_PORT == 0)
+    hal_trace_open(HAL_TRACE_TRANSPORT_NULL);
+#endif
+#endif
+
+#ifdef EVR_TRACING
+    hal_evr_init(0);
+#endif
+
+#if !defined(SIMU) && !defined(FPGA) && !defined(BT_CONN_SIMU)
+    hal_norflash_show_id_state(HAL_FLASH_ID_0, true);
+#endif
+
+    TR_INFO_TIME(TR_MOD(MAIN), "main started: filled@0x%08x", (uint32_t)bytes);
+
+    mpu_cfg();
+#ifndef NO_PMU
+    ret = pmu_open();
+    ASSERT(ret == 0, "Failed to open pmu");
+#endif
+#if defined(DEBUG) && (DEBUG_PORT == 0)
+    hal_trace_open(HAL_TRACE_TRANSPORT_USB);
+#endif
+    analog_open();
+
+#if defined(CHIP_BEST1503) && defined(RC_CLK_ENABLE)
+    hal_sysfreq_select_clock(HAL_SYSFREQ_SELECT_CLOCK_RC);
+#endif
+
+#ifdef REBOOT_TEST
+    if (!hal_hw_bootmode_get().global) {
+        hal_sw_bootmode_set(HAL_SW_BOOTMODE_FLASH_BOOT);
+        pmu_reboot();
+        ASSERT(false, "%s: Reboot failed", __func__);
+    }
+#endif
+
+#if defined(SLEEP_TEST) && (SLEEP_TEST)
+    sys_freq = HAL_CMU_FREQ_32K;
+#elif defined(ULTRA_LOW_POWER)
+    sys_freq = HAL_CMU_FREQ_52M;
+#else
+    sys_freq = HAL_CMU_FREQ_104M;
+#endif
+    hal_sysfreq_req(HAL_SYSFREQ_USER_INIT, sys_freq);
+    TR_INFO(TR_MOD(MAIN), "CPU freq: %u", hal_sys_timer_calc_cpu_freq(5, 0));
+
+    hal_sleep_start_stats(10000, 10000);
+
+    hal_key_open(false, key_event_process);
+#if defined(DEBUG) && (DEBUG_PORT == 1)
+    TR_INFO(TR_MOD(MAIN), "TIP: Long press PwrKey to switch between I2C and UART0");
+#endif
+
+    run_test_cases();
+
+#if defined(CP_AS_SUBSYS)
+    *((volatile uint32_t*)0x40085080) = 0xFFFFFFFF;
+    *((volatile uint32_t*)0x40085084) = 0xFFFFFFFF;
+    *((volatile uint32_t*)0x40085088) |= 0xFFFF;
+    hal_sysfreq_req(HAL_SYSFREQ_USER_INIT, HAL_CMU_FREQ_32K);
+
+    while(1) {
+        osSignalWait(0x0, osWaitForever);
+    }
+
 #endif
 
 #ifdef NO_TIMER
@@ -652,9 +921,13 @@ int MAIN_ENTRY(void)
 #endif
 #else
     hw_timer = hwtimer_alloc(timer_handler, 0);
-    hwtimer_start(hw_timer, MS_TO_TICKS(TIMER_IRQ_PERIOD_MS));
+  //  hwtimer_start(hw_timer, MS_TO_TICKS(TIMER_IRQ_PERIOD_MS));
     TR_INFO(TR_MOD(MAIN), TIME_STR " Start timer %u ms", CUR_TIME, TIMER_IRQ_PERIOD_MS);
 #endif
+//    hal_sysfreq_req(HAL_SYSFREQ_USER_INIT, HAL_CMU_FREQ_26M);
+
+    hal_sysfreq_req(HAL_SYSFREQ_USER_INIT, HAL_CMU_FREQ_32K);
+    TR_INFO(TR_MOD(MAIN), "CPU freq: %u", hal_sys_timer_calc_cpu_freq(5, 0));
 
     while (1) {
         sleep_test_exec_loop_callback();
@@ -662,10 +935,13 @@ int MAIN_ENTRY(void)
         hal_sleep_enter_sleep();
 #else
 #if defined(NO_TIMER) && defined(RTOS)
+#if (osCMSIS < 0x20000)
         osSignalWait(0x0, osWaitForever);
+#else
+        osThreadFlagsWait(CMSIS_V1_SIGNAL_ANY, osFlagsWaitAny, osWaitForever);
+#endif
 #elif !defined(NO_TIMER)
-        osDelay(DELAY_PERIOD_MS);
-        TR_INFO(TR_MOD(MAIN), TIME_STR " Delay %u ms done", CUR_TIME, DELAY_PERIOD_MS);
+
 #endif
 #endif
     }

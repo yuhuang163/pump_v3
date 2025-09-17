@@ -32,7 +32,8 @@ struct btif_spp_global_t {
     bool spp_is_initialized;
     uint8_t bt_spp_server_listen_used_instance_cnt;
     bt_spp_callback_t bt_spp_server_listen_callbacks[BT_SPP_MAX_SERVER_LISTEN_INSTANCES];
-    struct btif_spp_list_t devices[BTIF_SPP_MAX_DEVICE_NUM];
+    struct btif_spp_list_t sink_device[BTIF_SPP_MAX_DEVICE_NUM];
+    struct btif_spp_list_t source_device[BTIF_SPP_MAX_DEVICE_NUM];
     struct btif_spp_list_t tws_device;
 };
 
@@ -56,7 +57,7 @@ bt_status_t btif_spp_give_handled_credits(uint32_t rfcomm_handle, uint16_t handl
 bt_spp_channel_t *btif_spp_create_channel(uint8_t device_id, uint8_t local_server_channel);
 bool btif_spp_is_connected(uint32_t rfcomm_handle);
 bool btif_spp_is_port_connected(const bt_bdaddr_t *remote, uint8_t local_server_channel);
-uint16_t btif_spp_count_free_tx_buf_cnt(uint32_t rfcomm_handle);
+uint16_t btif_spp_count_free_tx_packets(uint32_t rfcomm_handle);
 uint64_t btif_spp_get_app_id_from_port(uint8_t local_server_channel);
 uint8_t btif_spp_get_port_from_app_id(uint64_t spp_app_id);
 

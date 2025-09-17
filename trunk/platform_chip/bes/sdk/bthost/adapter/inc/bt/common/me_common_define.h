@@ -22,146 +22,217 @@ extern "C" {
 
 typedef uint8_t btif_event_type_t;
 
-#define BTIF_BTEVENT_INQUIRY_RESULT                     1
-#define BTIF_BTEVENT_INQUIRY_COMPLETE                   2
-#define BTIF_BTEVENT_INQUIRY_CANCELED                   3
-#define BTIF_BTEVENT_LINK_CONNECT_IND                   4
-#define BTIF_BTEVENT_SCO_CONNECT_IND                    5
-#define BTIF_BTEVENT_LINK_DISCONNECT                    6
-#define BTIF_BTEVENT_LINK_CONNECT_CNF                   7
-#define BTIF_BTEVENT_ROLE_DISCOVERED                    8
-#define BTIF_BTEVENT_MODE_CHANGE                        9
-#define BTIF_BTEVENT_ACCESSIBLE_CHANGE                  10
-#define BTIF_BTEVENT_AUTHENTICATED                      11
-#define BTIF_BTEVENT_ENCRYPTION_CHANGE                  12
-#define BTIF_BTEVENT_SECURITY_CHANGE                    13
-#define BTIF_BTEVENT_ROLE_CHANGE                        14
-#define BTIF_BTEVENT_SCO_DISCONNECT                     15
-#define BTIF_BTEVENT_SCO_CONNECT_CNF                    16
-#define BTIF_BTEVENT_SIMPLE_PAIRING_COMPLETE            17
-#define BTIF_BTEVENT_REMOTE_FEATURES                    18
-#define BTIF_BTEVENT_REM_HOST_FEATURES                  19
-#define BTIF_BTEVENT_LINK_SUPERV_TIMEOUT_CHANGED        20
-#define BTIF_BTEVENT_SET_SNIFF_SUBRATING_PARMS_CNF      21
-#define BTIF_BTEVENT_SNIFF_SUBRATE_INFO                 22
-#define BTIF_BTEVENT_SET_INQUIRY_MODE_CNF               23
-#define BTIF_BTEVENT_SET_INQ_TX_PWR_LVL_CNF             24
-#define BTIF_BTEVENT_SET_EXT_INQUIRY_RESP_CNF           25
-#define BTIF_BTEVENT_SET_ERR_DATA_REPORTING_CNF         26
-#define BTIF_BTEVENT_KEY_PRESSED                        27
-#define BTIF_BTEVENT_QOS_SETUP_COMPLETE                 28
+#define BTIF_BTEVENT_INQUIRY_RESULT       1
 
-/* Indicates the name of a remote device or cancellation of a name request. */
-#define BTIF_BTEVENT_NAME_RESULT                        30
-#define BTIF_BTEVENT_SCO_DATA_IND                       31
-/**
- * Outgoing SCO data has been sent and the packet is free for re-use by
+#define BTIF_BTEVENT_INQUIRY_COMPLETE     2
+
+#define BTIF_BTEVENT_INQUIRY_CANCELED     3
+
+#define BTIF_BTEVENT_LINK_CONNECT_IND     4
+
+#define BTIF_BTEVENT_SCO_CONNECT_IND      5
+
+#define BTIF_BTEVENT_LINK_DISCONNECT      6
+
+#define BTIF_BTEVENT_LINK_CONNECT_CNF     7
+
+#define BTIF_BTEVENT_ROLE_DISCOVERED      8
+
+#define BTIF_BTEVENT_MODE_CHANGE          9
+
+#define BTIF_BTEVENT_ACCESSIBLE_CHANGE   10
+
+#define BTIF_BTEVENT_AUTHENTICATED       11
+
+#define BTIF_BTEVENT_ENCRYPTION_CHANGE   12
+
+#define BTIF_BTEVENT_SECURITY_CHANGE     13
+
+#define BTIF_BTEVENT_ROLE_CHANGE         14
+
+#define BTIF_BTEVENT_SCO_DISCONNECT      15
+
+#define BTIF_BTEVENT_SCO_CONNECT_CNF     16
+
+#define BTIF_BTEVENT_SIMPLE_PAIRING_COMPLETE       17
+
+#define BTIF_BTEVENT_REMOTE_FEATURES               18
+
+#define BTIF_BTEVENT_REM_HOST_FEATURES             19
+
+#define BTIF_BTEVENT_LINK_SUPERV_TIMEOUT_CHANGED   20
+
+#define BTIF_BTEVENT_SET_SNIFF_SUBRATING_PARMS_CNF 21
+
+#define BTIF_BTEVENT_SNIFF_SUBRATE_INFO            22
+
+#define BTIF_BTEVENT_SET_INQUIRY_MODE_CNF          23
+
+#define BTIF_BTEVENT_SET_INQ_TX_PWR_LVL_CNF        24
+
+#define BTIF_BTEVENT_SET_EXT_INQUIRY_RESP_CNF      25
+
+#define BTIF_BTEVENT_SET_ERR_DATA_REPORTING_CNF    26
+
+#define BTIF_BTEVENT_KEY_PRESSED                   27
+
+#define BTIF_BTEVENT_QOS_SETUP_COMPLETE            28
+
+#ifdef __TWS_RECONNECT_USE_BLE__
+#define BTIF_BTEVENT_TWS_BLE_ADV_REPORT_EVENT      29
+#endif /*  */
+
+/**  an ACL connection has received an internal data transmit
+ *  request while it is in hold, park or sniff mode. The data will still be
+ *  passed to the radio in park and sniff modes. However, hold mode will
+ *  block data transmit. It may be necessary to return the ACL to active
+ *  mode to restore normal data transfer.
+ */
+#define BTIF_BTEVENT_ACL_DATA_NOT_ACTIVE 99
+
+/*
+Indicate that an ACL connection is sending or receiving data
+while it is in active mode. Then, keep resetting the sniff timer.
+*/
+#define BTIF_BTEVENT_ACL_DATA_ACTIVE 98
+/** Indicates that the HCI failed to initialize.
+ */
+#define BTIF_BTEVENT_HCI_INIT_ERROR      100
+
+#define BTIF_BTEVENT_HCI_INITIALIZED     101
+/** Indicates that a fatal error has occurred in the radio or the HCI transport.
+ */
+#define BTIF_BTEVENT_HCI_FATAL_ERROR     102
+
+/** Indicates that the HCI has been deinitialized.
+ */
+#define BTIF_BTEVENT_HCI_DEINITIALIZED   103
+
+/** Indicates that the HCI cannot be initialized.
+ */
+#define BTIF_BTEVENT_HCI_FAILED          104
+
+#define BTIF_BTEVENT_HCI_COMMAND_SENT    105
+
+/** Indicates the name of a remote device or cancellation of a name request.
+ */
+#define BTIF_BTEVENT_NAME_RESULT         30
+
+#define BTIF_BTEVENT_SCO_DATA_IND        31
+
+/** Outgoing SCO data has been sent and the packet is free for re-use by
  *  the application.
  */
-#define BTIF_BTEVENT_SCO_DATA_CNF                       32
-#define BTIF_BTEVENT_LINK_CONNECT_REQ                   33
-/* Incoming link accept complete.  */
-#define BTIF_BTEVENT_LINK_ACCEPT_RSP                    34
-/* Incoming link reject complete. . */
-#define BTEVENT_LINK_REJECT_RSP                         35
-#define BTIF_BTEVENT_COMMAND_COMPLETE                   36
-#define BTIF_BTEVENT_SCO_CONNECT_REQ                    37
-/* Set Audio/Voice settings complete.  */
-#define BTIF_BTEVENT_SCO_VSET_COMPLETE                  38
-/* SCO link connection process started. */
-#define BTIF_BTEVENT_SCO_STARTED                        39
-/* Select Device operation complete, "p.select" is valid. */
-#define BTIF_BTEVENT_DEVICE_SELECTED                    40
-/* The eSCO connection has changed. "p.scoConnect" is valid. */
-#define BTIF_BTEVENT_SCO_CONN_CHNG                      41
+#define BTIF_BTEVENT_SCO_DATA_CNF        32
+
+#define BTIF_BTEVENT_LINK_CONNECT_REQ    33
+
+/** Incoming link accept complete.  */
+#define BTIF_BTEVENT_LINK_ACCEPT_RSP     34
+
+/** Incoming link reject complete. . */
+#define BTEVENT_LINK_REJECT_RSP     35
+
+#define BTIF_BTEVENT_COMMAND_COMPLETE    36
+
+#define BTIF_BTEVENT_SCO_CONNECT_REQ     37
+
+/** Set Audio/Voice settings complete.  */
+#define BTIF_BTEVENT_SCO_VSET_COMPLETE   38
+
+/** SCO link connection process started. */
+#define BTIF_BTEVENT_SCO_STARTED         39
+
+/** Select Device operation complete, "p.select" is valid. */
+#define BTIF_BTEVENT_DEVICE_SELECTED     40
+
+/** The eSCO connection has changed. "p.scoConnect" is valid.
+ */
+#define BTIF_BTEVENT_SCO_CONN_CHNG       41
 
 /* Group: Security-related events. */
 
-/* Indicates access request is successful. "p.secToken" is valid. */
-#define BTIF_BTEVENT_ACCESS_APPROVED                    50
+/** Indicates access request is successful. "p.secToken" is valid. */
+#define BTIF_BTEVENT_ACCESS_APPROVED     50
 
-/* Indicates access request failed. "p.secToken" is valid. */
-#define BTIF_BTEVENT_ACCESS_DENIED                      51
-/**
- * Request authorization when "errCode" is BEC_NO_ERROR.
- * "p.remDev" is valid.
- */
-#define BTIF_BTEVENT_AUTHORIZATION_REQ                  52
-/**
- * Request a Pin for pairing when "errCode" is BEC_NO_ERROR.
- * "p.pinReq" is valid. If p.pinReq.pinLen is > 0 then SEC_SetPin()
- * must be called in response to this event with a pin length >=
- * p.pinReq.pinLen.
- */
-#define BTIF_BTEVENT_PIN_REQ                            53
-/* Pairing operation is complete. */
-#define BTIF_BTEVENT_PAIRING_COMPLETE                   54
-/* Authentication operation complete. "p.remDev" is valid. */
-#define BTIF_BTEVENT_AUTHENTICATE_CNF                   55
-/* Encryption operation complete. "p.remDev" is valid. */
-#define BTIF_BTEVENT_ENCRYPT_COMPLETE                   56
-/* Security mode 3 operation complete. "p.secMode" is valid. */
-#define BTIF_BTEVENT_SECURITY3_COMPLETE                 57
-/* A link key is returned. "p.bdLinkKey" is valid.  */
-#define BTIF_BTEVENT_RETURN_LINK_KEYS                   58
-/* Out of Band data has been received from the host controller. */
-#define BTIF_BTEVENT_LOCAL_OOB_DATA                     59
-/**
- * Request a Pass Key for simple pairing when "errCode" is BEC_NO_ERROR. The
- * application should call SEC_SetPassKey() to provide the passkey or reject
- * the request, and optionally save the link key.
- */
-#define BTIF_BTEVENT_PASS_KEY_REQ                       60
-/**
- * Request a User Confirmation for simple pairing when "errCode" is
- * BEC_NO_ERROR.
- */
-#define BTIF_BTEVENT_CONFIRM_NUMERIC_REQ                61
-#define BTIF_BTEVENT_DISPLAY_NUMERIC_IND                62
-#define BTIF_BTEVENT_CONN_PACKET_TYPE_CHNG              63
-#define BTIF_SDEVENT_QUERY_RSP                          70
-#define BTIF_SDEVENT_QUERY_ERR                          71
-#define BTIF_SDEVENT_QUERY_FAILED                       72
-#define BTIF_BTEVENT_SELECT_DEVICE_REQ                  80
-#define BTIF_BTEVENT_DEVICE_ADDED                       81
-#define BTIF_BTEVENT_DEVICE_DELETED                     82
-#define BTIF_BTEVENT_MAX_SLOT_CHANGED                   83
-#define BTIF_BTEVENT_SNIFFER_CONTROL_DONE               84
-#define BTIF_BTEVENT_LINK_POLICY_CHANGED                85
-#define BTIF_BTEVENT_DEFAULT_LINK_POLICY_CHANGED        86
-#define BTIF_BTEVENT_USER_PASSKEY_NOTIFY_EVENT          89
-#define BTIF_BTEVENT_USER_PASSKEY_REQUEST_EVENT         90
-#define BTIF_BTEVENT_IBRT_CONNECT_EVENT                 91
-#define BTIF_BTEVENT_IBRT_DISCONNECT_EVENT              92
-#define BTIF_BTEVENT_SET_BT_BLE_ACTIVE_LINK_COMPLETE    93
-/**
- * an ACL connection has received an internal data transmit
- * request while it is in hold, park or sniff mode. The data will still be
- * passed to the radio in park and sniff modes. However, hold mode will
- * block data transmit. It may be necessary to return the ACL to active
- * mode to restore normal data transfer.
- */
-#define BTIF_BTEVENT_ACL_DATA_NOT_ACTIVE                99
-/**
- * Indicate that an ACL connection is sending or receiving data
- * while it is in active mode. Then, keep resetting the sniff timer.
- */
-#define BTIF_BTEVENT_ACL_DATA_ACTIVE                    98
-/* Indicates that the HCI failed to initialize. */
-#define BTIF_BTEVENT_HCI_INIT_ERROR                     100
-#define BTIF_BTEVENT_HCI_INITIALIZED                    101
-/* Indicates that a fatal error has occurred in the radio or the HCI transport. */
-#define BTIF_BTEVENT_HCI_FATAL_ERROR                    102
-/* Indicates that the HCI has been deinitialized. */
-#define BTIF_BTEVENT_HCI_DEINITIALIZED                  103
-/* Indicates that the HCI cannot be initialized. */
-#define BTIF_BTEVENT_HCI_FAILED                         104
-#define BTIF_BTEVENT_HCI_COMMAND_SENT                   105
+/** Indicates access request failed. "p.secToken" is valid. */
+#define BTIF_BTEVENT_ACCESS_DENIED       51
 
-#define BTIF_BTEVENT_BES_AUD_CONNECTED                  200
-#define BTIF_BTEVENT_BES_AUD_DISCONNECTED               201
-#define BTIF_STACK_LINK_DISCONNECT_COMPLETE             220
+/** Request authorization when "errCode" is BEC_NO_ERROR.
+ *  "p.remDev" is valid.
+ */
+#define BTIF_BTEVENT_AUTHORIZATION_REQ   52
 
+/** Request a Pin for pairing when "errCode" is BEC_NO_ERROR.
+ *  "p.pinReq" is valid. If p.pinReq.pinLen is > 0 then SEC_SetPin()
+ *  must be called in response to this event with a pin length >=
+ *  p.pinReq.pinLen.
+ */
+#define BTIF_BTEVENT_PIN_REQ             53
+
+/** Pairing operation is complete.
+ */
+#define BTIF_BTEVENT_PAIRING_COMPLETE    54
+
+/** Authentication operation complete. "p.remDev" is valid. */
+#define BTIF_BTEVENT_AUTHENTICATE_CNF    55
+
+/** Encryption operation complete. "p.remDev" is valid. */
+#define BTIF_BTEVENT_ENCRYPT_COMPLETE    56
+
+/** Security mode 3 operation complete. "p.secMode" is valid. */
+#define BTIF_BTIF_BTEVENT_SECURITY3_COMPLETE  57
+
+/** A link key is returned. "p.bdLinkKey" is valid.  */
+#define BTIF_BTEVENT_RETURN_LINK_KEYS    58
+
+/** Out of Band data has been received from the host controller. */
+#define BTIF_BTEVENT_LOCAL_OOB_DATA      59
+
+/** Request a Pass Key for simple pairing when "errCode" is BEC_NO_ERROR. The
+ *  application should call SEC_SetPassKey() to provide the passkey or reject
+ *  the request, and optionally save the link key.
+ */
+#define BTIF_BTEVENT_PASS_KEY_REQ        60
+
+/** Request a User Confirmation for simple pairing when "errCode" is
+ *  BEC_NO_ERROR.
+ */
+#define BTIF_BTEVENT_CONFIRM_NUMERIC_REQ            61
+
+#define BTIF_BTEVENT_DISPLAY_NUMERIC_IND            62
+
+#define BTIF_BTEVENT_CONN_PACKET_TYPE_CHNG          63
+
+#define BTIF_SDEVENT_QUERY_RSP                      70
+
+#define BTIF_SDEVENT_QUERY_ERR                      71
+
+#define BTIF_SDEVENT_QUERY_FAILED                   72
+
+#define BTIF_BTEVENT_SELECT_DEVICE_REQ              80
+
+#define BTIF_BTEVENT_DEVICE_ADDED                   81
+
+#define BTIF_BTEVENT_DEVICE_DELETED                 82
+
+#define BTIF_BTEVENT_MAX_SLOT_CHANGED               83
+
+#define BTIF_BTEVENT_SNIFFER_CONTROL_DONE           84
+
+#define BTIF_BTEVENT_LINK_POLICY_CHANGED            85
+
+#define BTIF_BTEVENT_DEFAULT_LINK_POLICY_CHANGED    86
+
+#define BTIF_BTEVENT_USER_PASSKEY_NOTIFY_EVENT      89
+
+#define BTIF_BTEVENT_USER_PASSKEY_REQUEST_EVENT     90
+
+#define BTIF_BTEVENT_BES_AUD_CONNECTED              200
+
+#define BTIF_BTEVENT_BES_AUD_DISCONNECTED           201
+
+#define BTIF_STACK_LINK_DISCONNECT_COMPLETE         220
 
 /*---------------------------------------------------------------------------
  * btif_class_of_device_t type
@@ -372,6 +443,8 @@ typedef uint8_t cmgr_event_t;
 
 typedef void btif_cmgr_handler_t;
 
+typedef void (*btif_cmgr_callback) (void *handler, uint8_t event, int status);
+
 typedef void (*btif_confirmation_req_callback_t)(struct bdaddr_t *bdaddr, uint32 numeric_value);
 
 typedef struct {
@@ -523,28 +596,16 @@ enum app_bt_audio_event_t {
     APP_BT_AUDIO_EVENT_ROUTE_CALL_TO_LE                           = 0x20,
     APP_BT_AUDIO_EVENT_ACL_CONNECTED                              = 0x21,
     APP_BT_AUDIO_EVENT_ACL_DISC                                   = 0x22,
-    APP_BT_AUDIO_EVENT_SNOOP_DISC                                 = 0x23,
-    APP_BT_AUDIO_EVENT_AUTHENTICATED                              = 0x24,
-    APP_BT_AUDIO_EVENT_HFP_CALL_MOCK                              = 0x25,
-    APP_BT_AUDIO_EVENT_HFP_CALLSETUP_MOCK                         = 0x26,
-    APP_BT_AUDIO_EVENT_HFP_CALLHOLD_MOCK                          = 0x27,
-    APP_BT_AUDIO_EVENT_HUNGUP_INCOMING_CALL                       = 0x28,
-    APP_BT_AUDIO_EVENT_HUNGUP_ACTIVE_CALL                         = 0x29,
-    APP_BT_AUDIO_HOLD_SWICTH_BACKGROUND                           = 0x2A,
-    APP_BT_AUDIO_BG_TO_FG_COMPLETE                                = 0x2B,
-    APP_BT_AUDIO_EVENT_AVRCP_PLAY_STATUS_CHANGED_MOCK             = 0x2C,
-    APP_BT_AUDIO_EVENT_A2DP_SYNC_STREAMING_COMPLETE               = 0x2D,
-    APP_BT_AUDIO_EVENT_A2DP_MUTE_FRAME                            = 0x2E,
-    APP_BT_AUDIO_EVENT_HFP_SCO_CON_FAIL_IND                       = 0x2F,
-    APP_BT_AUDIO_EVENT_MUTE_STREAM_DETECT_NOTIFY                  = 0x30,
-    APP_BT_AUDIO_EVENT_SET_BT_BLE_ACTIVE_LINK_COMPLETE            = 0x31,
-};
+    APP_BT_AUDIO_EVENT_AUTHENTICATED                              = 0x23,
+    APP_BT_AUDIO_EVENT_HFP_CALL_MOCK                              = 0x24,
+    APP_BT_AUDIO_EVENT_HFP_CALLSETUP_MOCK                         = 0x25,
+    APP_BT_AUDIO_EVENT_HFP_CALLHOLD_MOCK                          = 0x26,
+    APP_BT_AUDIO_EVENT_HUNGUP_INCOMING_CALL                       = 0x27,
+    APP_BT_AUDIO_EVENT_HUNGUP_ACTIVE_CALL                         = 0x28,
+    APP_BT_AUDIO_HOLD_SWICTH_BACKGROUND                           = 0x29,
+    APP_BT_AUDIO_BG_TO_FG_COMPLETE                                = 0x2A,
 
-typedef enum {
-    APP_BT_A2DP_STREAM_DETECT_STOP           = 0x00,    // Final test result: stop
-    APP_BT_A2DP_STREAM_DETECT_PLAYING        = 0x01,    // Final test result: playing
-    APP_BT_A2DP_STREAM_DETECT_INVALID        = 0xFF,
-} app_bt_mute_detect_t;
+};
 
 typedef struct {
     uint16_t id;
@@ -569,7 +630,6 @@ typedef enum {
     BT_ACTIVE_MODE_KEEP_USER_OTA,               // stay in active mode for 15 seconds after role switch
     BT_ACTIVE_MODE_KEEP_USER_ROLE_SWITCH,       // stay in active mode during synchronous voice prompt playing
     BT_ACTIVE_MODE_KEEP_USER_SYNC_VOICE_PROMPT, // always in active mode during phone call
-    BT_ACTIVE_MODE_KEEP_USER_SPP,               // stay in active mode for speed
 } BT_ACTIVE_MODE_KEEP_USER_T;
 
 typedef enum {
@@ -622,6 +682,7 @@ typedef uint8_t voice_report_role_t;
 #define VOICE_REPORT_SLAVE    0x01
 #define VOICE_REPORT_LOCAL    0x02
 
+typedef bool (*ibrt_io_capbility_callback)(void *bdaddr);
 typedef void (*btif_cmgr_callback) (void *handler, uint8_t event, int status);
 typedef void (*btif_global_handle)(const btif_event_t *Event);
 
@@ -691,7 +752,6 @@ void app_bt_write_controller_memory_for_test(uint32_t addr,uint32_t val,uint8_t 
 void app_bt_read_controller_memory_for_test(uint32_t addr,uint32_t len,uint8_t type);
 #endif
 
-bool app_bt_get_io_capability_for_special_devices(uint16_t connhdl, bt_iocap_requirement_t *p_iocap);
 #ifdef __cplusplus
 }
 #endif

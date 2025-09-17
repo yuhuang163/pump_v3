@@ -32,6 +32,8 @@ typedef enum {
     MOBILE_CONNECT_ANDROID,
 } MOBILE_CONN_TYPE_E;
 
+typedef void btif_dip_client_t;
+
 typedef struct
 {
     uint16_t spec_id;

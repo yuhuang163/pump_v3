@@ -46,6 +46,12 @@
 
 #define SYSFREQ_USER_APP_VAD_ADPT HAL_SYSFREQ_USER_APP_2
 
+#if 1
+#define ADPT_LOG TRACE
+#else
+#define ADPT_LOG(...) do{}while(0)
+#endif
+
 static enum voice_detector_id act_vd_id = VOICE_DETECTOR_ID_0;
 static enum APP_VAD_ADPT_ID_T act_adpt_id;
 static app_vad_adpt_info_list_t app_vad_adpt_info_list;
@@ -141,7 +147,7 @@ POSSIBLY_UNUSED static void vad_adapter_timer_callback(uint32_t period)
     app_vad_adpt_state_t *state = to_vad_adpt_state(l,act_adpt_id);
     app_vad_adpt_record_t *rec = to_vad_adpt_record();
 
-    SENSOR_HUB_TRACE(0, "%s: period=%d, vad_active=%d", __func__, period, state->vad_active);
+    ADPT_LOG(0, "%s: period=%d, vad_active=%d", __func__, period, state->vad_active);
     if (state->vad_active) {
         /* timer is timed up: send event msg to MCU core */
         rec->request = false;
@@ -164,7 +170,7 @@ POSSIBLY_UNUSED static int app_vad_adapter_start_timer(uint32_t period, vad_adpt
         if (vad_timer == NULL) {
             vad_timer = hwtimer_alloc(app_vad_adapter_time_timeout, NULL);
         }
-        SENSOR_HUB_TRACE(0, "%s: period=%d", __func__, period);
+        ADPT_LOG(0, "%s: period=%d", __func__, period);
         hwtimer_start(vad_timer, MS_TO_TICKS(period));
         vad_adpt_timer_cb = callback;
         vad_adpt_timer_period = period;
@@ -184,7 +190,7 @@ POSSIBLY_UNUSED static int app_vad_adapter_stop_timer(void)
 
 POSSIBLY_UNUSED static void vad_adpt_codec_vad_hw_irq_handler(int find)
 {
-    SENSOR_HUB_TRACE(1, "%s: find=%d", __func__, find);
+    ADPT_LOG(1, "%s: find=%d", __func__, find);
 
     app_sensor_hub_core_vad_send_evt_msg(SENS_EVT_ID_VAD_IRQ_TRIG, find, 0, 0);
 }
@@ -213,7 +219,7 @@ POSSIBLY_UNUSED static void app_vad_adapter_init_vad_hw_cfg(struct AUD_VAD_CONFI
     c->psd_th[0]   = VAD_HW_PARAM_PSD_TH0;
     c->psd_th[1]   = VAD_HW_PARAM_PSD_TH1;
 
-    SENSOR_HUB_TRACE(0, "%s: frame_len=%d, mvad=%d, sth=%d", __func__, c->frame_len, c->mvad, c->sth);
+    ADPT_LOG(0, "%s: frame_len=%d, mvad=%d, sth=%d", __func__, c->frame_len, c->mvad, c->sth);
 }
 
 /*
@@ -224,7 +230,7 @@ static int app_vad_adapter_record_init(void)
 {
     app_vad_adpt_record_t *rec = to_vad_adpt_record();
 
-    SENSOR_HUB_TRACE(0, "%s:", __func__);
+    ADPT_LOG(0, "%s:", __func__);
     if (!rec->inited) {
         memset((void*)&rec->d, 0, sizeof(app_vad_adpt_record_data_t)*APP_VAD_ADPT_REC_QTY);
         rec->inited = true;
@@ -248,12 +254,12 @@ static int app_vad_adapter_record_setup(enum APP_VAD_ADPT_REC_T type, app_vad_ad
     app_vad_adpt_record_data_t *pd = to_vad_adpt_rec(type);
     struct AF_STREAM_CONFIG_T *cfg = &info->itf->stream_cfg;
 
-    SENSOR_HUB_TRACE(0, "%s: type=%d", __func__, type);
+    ADPT_LOG(0, "%s: type=%d", __func__, type);
 
     rec->info = info;
     pd->buf   = buf;
     pd->size  = size;
-    SENSOR_HUB_TRACE(0, "info(0x%x),record:buf(start=%x,end=%x),size=%d", (int)info,(int)buf,(int)(buf+size), size);
+    ADPT_LOG(0, "info(0x%x),record:buf(start=%x,end=%x),size=%d", (int)info,(int)buf,(int)(buf+size), size);
 
     // init record info
     uint32_t samp_size = sample_bit_to_size(cfg->bits);
@@ -261,7 +267,7 @@ static int app_vad_adapter_record_setup(enum APP_VAD_ADPT_REC_T type, app_vad_ad
     uint32_t frm_num = cfg->data_size / frm_size;
     uint32_t coef = VAD_ADPT_REC_REQ_PERIOD_COEF;
 
-    SENSOR_HUB_TRACE(0, "samp_size=%d B, frm_size=%d B/ms, frm_num=%d ms", samp_size, frm_size, frm_num);
+    ADPT_LOG(0, "samp_size=%d B, frm_size=%d B/ms, frm_num=%d ms", samp_size, frm_size, frm_num);
 
     rec->request = false;
     rec->frm_period = frm_num / 2;
@@ -271,7 +277,7 @@ static int app_vad_adapter_record_setup(enum APP_VAD_ADPT_REC_T type, app_vad_ad
     rec->frm_counter = 0;
     rec->seek_size   = 0;
 
-    SENSOR_HUB_TRACE(0, "frm_period=%d ms, req_period=%d ms, data_size=%d B, coef=%d",
+    ADPT_LOG(0, "frm_period=%d ms, req_period=%d ms, data_size=%d B, coef=%d",
         rec->frm_period, rec->req_period, rec->data_size, coef);
     return 0;
 }
@@ -341,7 +347,7 @@ int app_vad_adapter_request_record_process(enum APP_VAD_ADPT_REC_T type, uint8_t
         if (pd->rpos >= pd->size) {
             pd->rpos -= pd->size;
         }
-        SENSOR_HUB_TRACE(0,"[%u] RD_REC: idx=%d,addr=%x,size=%d,rpos=%d",time,data_idx,start_addr,data_size,pd->rpos);
+        ADPT_LOG(0,"[%u] RD_REC: idx=%d,addr=%x,size=%d,rpos=%d",time,data_idx,start_addr,data_size,pd->rpos);
         app_sensor_hub_core_vad_send_data_msg(data_idx, start_addr, data_size);
     }
     return 0;
@@ -351,7 +357,7 @@ static int app_vad_adapter_record_clear(enum APP_VAD_ADPT_REC_T type)
 {
     app_vad_adpt_record_data_t *pd = to_vad_adpt_rec(type);
 
-    SENSOR_HUB_TRACE(0, "%s:", __func__);
+    ADPT_LOG(0, "%s:", __func__);
     ASSERT((pd->size>0)&&(pd->buf!=NULL), "%s: bad size(%d) or buf(%x)", __func__, pd->size, (int)(pd->buf));
     pd->wpos = 0;
     pd->rpos = 0;
@@ -392,7 +398,7 @@ static int app_vad_adapter_record_write(enum APP_VAD_ADPT_REC_T type, uint8_t *b
     }
 
 #ifdef VAD_TEST_PATT_EN
-    SENSOR_HUB_TRACE(0, "WR_REC: buf=%x,len=%d,wpos=%d",(int)buf,len,pd->wpos);
+    ADPT_LOG(0, "WR_REC: buf=%x,len=%d,wpos=%d",(int)buf,len,pd->wpos);
 #endif
     return 0;
 }
@@ -456,7 +462,7 @@ POSSIBLY_UNUSED static uint32_t vad_get_tail_raw_data(uint8_t *buf, uint32_t tot
     int16_t *src_end = (int16_t *)(buf+total_len);
     uint32_t real_len = tail_len;
 
-    SENSOR_HUB_TRACE(0, "%s:dst=%x,src=%x,src_end=%x,total_len=%d,tail_len=%d", __func__,
+    ADPT_LOG(0, "%s:dst=%x,src=%x,src_end=%x,total_len=%d,tail_len=%d", __func__,
         (uint32_t)dst, (uint32_t)src, (uint32_t)src_end, total_len, tail_len);
     if (total_len <= tail_len) {
         real_len = total_len;
@@ -469,6 +475,24 @@ _exit:
     return real_len;
 }
 
+#if defined(VAD_USE_32_BITS)
+static uint32_t app_vad_adapter_vad_data_32bit_to_16bit(uint8_t *buf, uint32_t len, int right_shift)
+{
+    uint32_t temp32 = 0, rlen = 0;
+    uint32_t *src = (uint32_t *)buf;
+    uint16_t *dst = (uint16_t *)buf;
+
+    rlen = len;
+
+    for (uint16_t i = 0; i < rlen / 4; i ++) {
+        temp32 = src[i];
+        dst[i] = (uint16_t)(temp32 >> right_shift) & 0xFFFF;
+    }
+
+    return rlen / 2;
+}
+#endif
+
 POSSIBLY_UNUSED static uint32_t app_vad_adapter_load_vad_private_buffer(enum APP_VAD_ADPT_ID_T id)
 {
     struct CODEC_VAD_BUF_INFO_T vad_info;
@@ -477,22 +501,32 @@ POSSIBLY_UNUSED static uint32_t app_vad_adapter_load_vad_private_buffer(enum APP
     uint32_t rec_buf_len = pd->size;
     uint32_t vad_buf_len, rlen, reqlen;
 
-    SENSOR_HUB_TRACE(0, "%s:rec_buf=%x,rec_buf_len=%d", __func__,(int)rec_buf,rec_buf_len);
+    ADPT_LOG(0, "%s:rec_buf=%x,rec_buf_len=%d", __func__,(int)rec_buf,rec_buf_len);
 
     // get vad buffer info
     af_vad_get_data_info(&vad_info);
     vad_buf_len = vad_info.buf_size;
-    SENSOR_HUB_TRACE(0, "vad_buf=%x,vad_buf_len=%d,data_cnt=%d,addr_cnt=%d",
+    ADPT_LOG(0, "vad_buf=%x,vad_buf_len=%d,data_cnt=%d,addr_cnt=%d",
         vad_info.base_addr,vad_buf_len,vad_info.data_count,vad_info.addr_count);
-    ASSERT(rec_buf_len>=vad_buf_len, "rec_buf_len(%d)<vad_buf_len(%d)",rec_buf_len,vad_buf_len);
 
+#if 1
+    //get newest 500ms vad buff data
+    reqlen = VAD_ADPT_REC_FRAME * 500;
+    reqlen = vad_info.data_count > reqlen ? reqlen : vad_info.data_count;
+
+    rlen = af_vad_get_data(rec_buf, reqlen);
+#else
     // get total vad buffer data
     reqlen = vad_info.data_count;
     rlen = af_vad_get_data(rec_buf, reqlen);
 
     // get tail vad buffer data
     rlen = vad_get_tail_raw_data(rec_buf, rlen, VAD_PRIV_BUFF_TAIL_DATA_LEN);
+#endif
 
+#if defined(VAD_USE_32_BITS)
+    rlen = app_vad_adapter_vad_data_32bit_to_16bit(rec_buf, rlen, 16);
+#endif
     // update wpos
     pd->wpos += rlen;
     if (pd->wpos >= pd->size) {
@@ -505,7 +539,7 @@ POSSIBLY_UNUSED static uint32_t app_vad_adapter_load_vad_private_buffer(enum APP
     //update rpos to zero, read from first position
     pd->rpos = 0;
 
-    SENSOR_HUB_TRACE(0, "reqlen=%d,rlen=%d,rpos=%d, wpos=%d",reqlen,rlen,pd->rpos,pd->wpos);
+    ADPT_LOG(0, "reqlen=%d,rlen=%d,rpos=%d, wpos=%d",reqlen,rlen,pd->rpos,pd->wpos);
     return rlen;
 }
 
@@ -521,14 +555,15 @@ static int app_vad_adapter_open_record(enum APP_VAD_ADPT_ID_T id)
     uint32_t samp_rate, samp_size, frm_num, chnum, len;
     uint8_t *buf = app_vad_adpt_kw_buf;
 
-    SENSOR_HUB_TRACE(0, "%s:id=%d", __func__,id);
+    ADPT_LOG(0, "%s:id=%d", __func__,id);
 
     samp_size = sample_bit_to_size(cfg->bits);
     samp_rate = cfg->sample_rate;
     chnum     = cfg->channel_num;
     frm_num   = VAD_ADPT_REC_LEN_MS;
     len = app_vad_adapter_calc_buf_size(samp_rate, samp_size, chnum, frm_num);
-    SENSOR_HUB_TRACE(0, "%s: id=%d,sr=%d,ch=%d,frm=%d,len=%d", __func__,id,samp_rate,chnum,frm_num,len);
+    ADPT_LOG(0, "%s: id=%d,sr=%d,ch=%d,frm=%d,len=%d", __func__,id,samp_rate,chnum,frm_num,len);
+    ASSERT(sizeof(app_vad_adpt_kw_buf) >= len, "%s bad record len %d", __func__, sizeof(app_vad_adpt_kw_buf));
 
 #ifdef VAD_TEST_PATT_EN
     // initialize record buffer with data pattern:1,2,3 ...
@@ -546,7 +581,7 @@ static int app_vad_adapter_start_record(enum APP_VAD_ADPT_ID_T id)
 {
     app_vad_adpt_record_t *rec = to_vad_adpt_record();
 
-    SENSOR_HUB_TRACE(0, "%s:id=%d", __func__,id);
+    ADPT_LOG(0, "%s:id=%d", __func__,id);
     if (!rec->started) {
         rec->started = true;
         app_vad_adapter_record_clear(APP_VAD_ADPT_REC_KW);
@@ -558,7 +593,7 @@ static int app_vad_adapter_stop_record(enum APP_VAD_ADPT_ID_T id)
 {
     app_vad_adpt_record_t *rec = to_vad_adpt_record();
 
-    SENSOR_HUB_TRACE(0, "%s:id=%d", __func__,id);
+    ADPT_LOG(0, "%s:id=%d", __func__,id);
     if (rec->started) {
         rec->started = false;
     }
@@ -572,7 +607,7 @@ static int app_vad_adapter_close_record(enum APP_VAD_ADPT_ID_T id)
     if (rec->started) {
         app_vad_adapter_stop_record(id);
     }
-    SENSOR_HUB_TRACE(0, "%s:id=%d", __func__,id);
+    ADPT_LOG(0, "%s:id=%d", __func__,id);
     return 0;
 }
 
@@ -596,7 +631,7 @@ int app_vad_adapter_init(void)
 {
     app_vad_adpt_info_list_t *l = to_vad_adpt_list();
 
-    SENSOR_HUB_TRACE(0, "%s:", __func__);
+    ADPT_LOG(0, "%s:", __func__);
 
     if (!l->inited) {
         // init adapter info
@@ -620,7 +655,7 @@ int app_vad_adapter_register_stream_handler(enum APP_VAD_ADPT_ID_T id, app_vad_a
     app_vad_adpt_stream_handler_t *sh = to_vad_stream_handler(l,id,0);
     ASSERT(l->inited==true, "%s:no inited", __func__);
 
-    SENSOR_HUB_TRACE(0, "%s:id=%d, h=%x", __func__, id, (int)h);
+    ADPT_LOG(0, "%s:id=%d, h=%x", __func__, id, (int)h);
     *sh = *h;
     return 0;
 }
@@ -631,7 +666,7 @@ int app_vad_adapter_unregister_stream_handler(enum APP_VAD_ADPT_ID_T id, app_vad
     app_vad_adpt_stream_handler_t *sh = to_vad_stream_handler(l,id,0);
     ASSERT(l->inited==true, "%s:no inited", __func__);
 
-    SENSOR_HUB_TRACE(0, "%s:id=%d, h=%x", __func__, id, (int)h);
+    ADPT_LOG(0, "%s:id=%d, h=%x", __func__, id, (int)h);
     sh->active = false;
     sh->stream_handler = NULL;
     sh->priv = NULL;
@@ -644,7 +679,7 @@ int app_vad_adapter_enable_stream_handler(enum APP_VAD_ADPT_ID_T id)
     app_vad_adpt_stream_handler_t *sh = to_vad_stream_handler(l,id,0);
     ASSERT(l->inited==true, "%s:no inited", __func__);
 
-    SENSOR_HUB_TRACE(0, "%s:id=%d", __func__,id);
+    ADPT_LOG(0, "%s:id=%d", __func__,id);
     sh->active = true;
     return 0;
 }
@@ -655,7 +690,7 @@ int app_vad_adapter_disable_stream_handler(enum APP_VAD_ADPT_ID_T id)
     app_vad_adpt_stream_handler_t *sh = to_vad_stream_handler(l,id,0);
     ASSERT(l->inited==true, "%s:no inited", __func__);
 
-    SENSOR_HUB_TRACE(0, "%s:id=%d", __func__,id);
+    ADPT_LOG(0, "%s:id=%d", __func__,id);
     sh->active = false;
     return 0;
 }
@@ -666,7 +701,7 @@ int app_vad_adapter_register_word_handler(enum APP_VAD_ADPT_ID_T id, app_vad_adp
     app_vad_adpt_word_handler_t *wh = to_vad_word_handler(l,id,0);
     ASSERT(l->inited==true, "%s:no inited", __func__);
 
-    SENSOR_HUB_TRACE(0, "%s:id=%d, h=%x", __func__, id, (int)h);
+    ADPT_LOG(0, "%s:id=%d, h=%x", __func__, id, (int)h);
     *wh = *h;
     return 0;
 }
@@ -677,7 +712,7 @@ int app_vad_adapter_unregister_word_handler(enum APP_VAD_ADPT_ID_T id, app_vad_a
     app_vad_adpt_word_handler_t *wh = to_vad_word_handler(l,id,0);
     ASSERT(l->inited==true, "%s:no inited", __func__);
 
-    SENSOR_HUB_TRACE(0, "%s:id=%d, h=%x", __func__, id, (int)h);
+    ADPT_LOG(0, "%s:id=%d, h=%x", __func__, id, (int)h);
     wh->active = false;
     wh->word_handler = NULL;
     return 0;
@@ -746,7 +781,7 @@ static int app_vad_adapter_check_bad_adc_data(uint8_t *buf, uint32_t len,
                 break;
             }
             if (ABS(pcm[i]) > 32700) {
-                SENSOR_HUB_TRACE(0, "=====> WARNING: bad adc data[%d]=%d",i,pcm[i]);
+                ADPT_LOG(0, "=====> WARNING: bad adc data[%d]=%d",i,pcm[i]);
                 err++;
             }
         }
@@ -764,7 +799,11 @@ static uint32_t vad_adpt_codec_cap_data_handler(uint8_t *buf, uint32_t len)
 #endif
 
     // check bad adc data
-    app_vad_adapter_check_bad_adc_data(buf, len, 2, 32);
+    app_vad_adapter_check_bad_adc_data(buf, len, VAD_ADPT_REC_SSIZE, 32);
+
+#if defined(VAD_USE_32_BITS)
+    len = app_vad_adapter_vad_data_32bit_to_16bit(buf, len, 4);
+#endif
 
     // save data into record buffer
     app_vad_adapter_write_record(APP_VAD_ADPT_REC_KW, buf, len);
@@ -776,7 +815,7 @@ static uint32_t vad_adpt_codec_cap_data_handler(uint8_t *buf, uint32_t len)
     app_vad_adapter_request_record_process(APP_VAD_ADPT_REC_KW, buf, len);
 
 #if (VAD_ADPT_DEBUG == 1)
-    SENSOR_HUB_TRACE(0, "[%d] ADPT CODEC_CAP: buf=%x, len=%d", curtime, (int)buf, len);
+    ADPT_LOG(0, "[%d] ADPT CODEC_CAP: buf=%x, len=%d", curtime, (int)buf, len);
 #endif
     return 0;
 }
@@ -807,7 +846,7 @@ static int app_vad_adapter_init_interface(enum APP_VAD_ADPT_ID_T id)
     sh->stream_handler = pif->stream_handler;
     sh->active = true;
 
-    SENSOR_HUB_TRACE(0, "%s:done, id=%d", __func__, id);
+    ADPT_LOG(0, "%s:done, id=%d", __func__, id);
     return 0;
 }
 
@@ -816,13 +855,13 @@ static enum HAL_CMU_FREQ_T app_vad_adapter_get_vad_freq(void)
     app_vad_adpt_info_list_t *l = to_vad_adpt_list();
     app_vad_adpt_info_t *info = to_vad_adpt_info(l,act_adpt_id);
 
-    SENSOR_HUB_TRACE(0, "%s:freq=%d", __func__, info->itf->cap_freq);
+    ADPT_LOG(0, "%s:freq=%d", __func__, info->itf->cap_freq);
     return info->itf->cap_freq;
 }
 
 static void app_vad_adapter_cb_cmd_run_done(int state, void *param)
 {
-    SENSOR_HUB_TRACE(0, "%s: state=%d", __func__, state);
+    ADPT_LOG(0, "%s: state=%d", __func__, state);
 
     /* this callback can moniters the voice detector runing process
      */
@@ -871,7 +910,7 @@ static void app_vad_adapter_cb_vad_find(int state, void *param)
      * The sensor hub core will send RPC cmd to MCU core;
      * The sensor hub core will start capture stream for listening voice cmd;
      */
-    SENSOR_HUB_TRACE(0, "%s: state=%d", __func__, state);
+    ADPT_LOG(0, "%s: state=%d", __func__, state);
 
     /* increase system frequency */
     hal_sysfreq_req(SYSFREQ_USER_APP_VAD_ADPT, freq);
@@ -888,7 +927,7 @@ static int app_vad_adapter_start_interface(enum APP_VAD_ADPT_ID_T id, struct AF_
 {
     enum voice_detector_id vd_id = act_vd_id;
 
-    SENSOR_HUB_TRACE(0, "%s:adpt_id=%d,vd_id=%d", __func__, id, vd_id);
+    ADPT_LOG(0, "%s:adpt_id=%d,vd_id=%d", __func__, id, vd_id);
 
     app_voice_detector_open(vd_id, AUD_VAD_TYPE_DIG);
     //app_voice_detector_setup_vad(vd_id, &vad_cfg);
@@ -923,7 +962,7 @@ int app_vad_adapter_open(enum APP_VAD_ADPT_ID_T id)
     app_vad_adpt_state_t *ps = to_vad_adpt_state(l,id);
     ASSERT(l->inited==true, "%s:no inited", __func__);
 
-    SENSOR_HUB_TRACE(0, "%s:id=%d open=%d", __func__, id,ps->open);
+    ADPT_LOG(0, "%s:id=%d open=%d", __func__, id,ps->open);
     if (!ps->open) {
         app_vad_adapter_init_interface(id);
         app_vad_adapter_open_record(id);
@@ -940,7 +979,7 @@ int app_vad_adapter_start(enum APP_VAD_ADPT_ID_T id)
     ASSERT(l->inited==true, "%s:no inited", __func__);
     ASSERT(ps->open != 0, "%s:no opened", __func__);
 
-    SENSOR_HUB_TRACE(0, "%s:id=%d start?= %d", __func__,id,ps->start);
+    ADPT_LOG(0, "%s:id=%d start?= %d", __func__,id,ps->start);
     if (!ps->start) {
         struct AF_STREAM_CONFIG_T *cfg = to_vad_stream_cfg(l,id);
 
@@ -960,7 +999,7 @@ int app_vad_adapter_stop(enum APP_VAD_ADPT_ID_T id)
     ASSERT(l->inited==true, "%s:no inited", __func__);
     ASSERT(ps->open != 0, "%s:no opened", __func__);
 
-    SENSOR_HUB_TRACE(0, "%s:id=%d", __func__,id);
+    ADPT_LOG(0, "%s:id=%d", __func__,id);
     if (ps->start) {
         app_vad_adapter_set_vad_active(id, false);
         app_vad_adapter_stop_interface(id);
@@ -975,7 +1014,7 @@ int app_vad_adapter_close(enum APP_VAD_ADPT_ID_T id)
     app_vad_adpt_state_t *ps = to_vad_adpt_state(l,id);
     ASSERT(l->inited==true, "%s:no inited", __func__);
 
-    SENSOR_HUB_TRACE(0, "%s:id=%d", __func__,id);
+    ADPT_LOG(0, "%s:id=%d", __func__,id);
     if (ps->open) {
         ps->open = 0;
         app_vad_adapter_close_record(id);
@@ -986,7 +1025,7 @@ int app_vad_adapter_close(enum APP_VAD_ADPT_ID_T id)
 int app_vad_adapter_event_handler(enum APP_VAD_ADPT_ID_T id, enum SENS_VAD_EVT_ID_T evt_id,
         uint32_t p0, uint32_t p1, uint32_t p2)
 {
-    SENSOR_HUB_TRACE(0, "%s:evt=%d", __func__, evt_id);
+    ADPT_LOG(0, "%s:evt=%d", __func__, evt_id);
     /*
      * When key word is recognized, vad will not active again, this means
      * the codec capture stream will always on
@@ -1005,13 +1044,13 @@ int app_vad_adapter_set_vad_active(enum APP_VAD_ADPT_ID_T id, bool active)
     app_vad_adpt_state_t *s = to_vad_adpt_state(l,id);
 
     if(s->start == 0){
-        SENSOR_HUB_TRACE(0,"%s:not start",__func__);
+        ADPT_LOG(0,"%s:not start",__func__);
     }
 
-    SENSOR_HUB_TRACE(0, "%s:id=%d,active=%d", __func__, id, active);
+    ADPT_LOG(0, "%s:id=%d,active=%d", __func__, id, active);
 #if 0
     if (active == (!!s->vad_active)) {
-        SENSOR_HUB_TRACE(0, "%s: already active", __func__);
+        ADPT_LOG(0, "%s: already active", __func__);
         return 0;
     }
 #endif
@@ -1030,7 +1069,7 @@ int app_vad_adapter_set_vad_request(enum APP_VAD_ADPT_ID_T id, bool request, uin
     app_vad_adpt_info_list_t *l = to_vad_adpt_list();
     struct AF_STREAM_CONFIG_T *cfg = to_vad_stream_cfg(l,id);
 
-    SENSOR_HUB_TRACE(0, "%s:id=%d,request=%d,data_size=%d seek_size = %d", __func__, id, request, data_size,seek_size);
+    ADPT_LOG(0, "%s:id=%d,request=%d,data_size=%d seek_size = %d", __func__, id, request, data_size,seek_size);
 
     rec->request = request;
     if (request) {
@@ -1040,8 +1079,8 @@ int app_vad_adapter_set_vad_request(enum APP_VAD_ADPT_ID_T id, bool request, uin
 
         ASSERT((data_size%frm_size) == 0, "%s: bad data_size %d/%d != 0", __func__, data_size, frm_size);
         ASSERT((req_period >= rec->frm_period), "%s: bad req_period(%d), frm_period=%d", __func__, req_period, rec->frm_period);
-        SENSOR_HUB_TRACE(0, "update data_size: %d --> %d", rec->data_size, data_size);
-        SENSOR_HUB_TRACE(0, "update req_period : %d --> %d", rec->req_period, req_period);
+        ADPT_LOG(0, "update data_size: %d --> %d", rec->data_size, data_size);
+        ADPT_LOG(0, "update req_period : %d --> %d", rec->req_period, req_period);
         rec->data_size = data_size;
         rec->req_period = req_period;
         rec->seek_size = NON_EXP_ALIGN(seek_size,data_size);

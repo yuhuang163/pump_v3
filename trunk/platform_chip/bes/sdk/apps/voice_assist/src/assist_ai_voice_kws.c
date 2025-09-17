@@ -37,7 +37,7 @@ int32_t assist_ai_voice_kws_open(struct AF_STREAM_CONFIG_T *stream_cfg)
     ASSERT(stream_cfg->bits == AUD_BITS_16, "[%s] bits(%d) is invalid", __func__, stream_cfg->bits);
     ASSERT(stream_cfg->channel_num == AUD_CHANNEL_NUM_1, "[%s] ch(%d) is invalid", __func__, stream_cfg->channel_num);
 
-    VOICE_ASSIST_TRACE(0, "[%s] KWS open stream: fs: %d, ch: %d, bits: %d, size: %d", __func__,
+    TRACE(0, "[%s] KWS open stream: fs: %d, ch: %d, bits: %d, size: %d", __func__,
         stream_cfg->sample_rate,
         stream_cfg->channel_num,
         stream_cfg->bits,
@@ -53,11 +53,12 @@ int32_t assist_ai_voice_kws_open(struct AF_STREAM_CONFIG_T *stream_cfg)
 
 int32_t assist_ai_voice_kws_close(void)
 {
-    VOICE_ASSIST_TRACE(0, "[%s] KWS close stream", __func__);
+    TRACE(0, "[%s] KWS close stream", __func__);
 
-    app_anc_assist_close(ANC_ASSIST_USER_KWS);
     g_stream_buf_ptr = NULL;
     g_stream_handler = NULL;
+
+    app_anc_assist_close(ANC_ASSIST_USER_KWS);
 
     return 0;
 }
@@ -76,7 +77,7 @@ int32_t assist_ai_voice_kws_close(void)
 
 static int32_t _assist_ai_voice_kws_callback(void *buf, uint32_t len, void *other)
 {
-    // VOICE_ASSIST_TRACE(0, "[%s] len = %d", __func__, len);
+    // TRACE(0, "[%s] len = %d", __func__, len);
 
     if ((g_stream_handler == NULL) || (g_stream_buf_ptr == NULL)) {
         return 1;
@@ -86,11 +87,10 @@ static int32_t _assist_ai_voice_kws_callback(void *buf, uint32_t len, void *othe
     int16_t *out_pcm_buf = (int16_t *)g_stream_buf_ptr;
 
     for (uint32_t i=0; i<len; i++) {
-        out_pcm_buf[i] = speech_ssat_int16((int32_t)(input_pcm_buf[i] / (256 / 1)));   // 1: 0dB
+        out_pcm_buf[i] = speech_ssat_int16((int32_t)(input_pcm_buf[i] / (256 / 1)));   // 1:0dB; 16:24db; 8:18
     }
     g_stream_handler((uint8_t *)out_pcm_buf, len * sizeof(int16_t));
 
-    // VOICE_ASSIST_TRACE(0, "[%s] Max: %d", __func__, (uint32_t)_get_max_pcm_val(out_pcm_buf, len));
-
     return 0;
 }
+

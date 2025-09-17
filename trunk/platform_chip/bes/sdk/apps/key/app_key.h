@@ -16,6 +16,10 @@
 #ifndef __APP_KEY_H__
 #define __APP_KEY_H__
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #include "hal_key.h"
 
 #define APP_KEY_SET_MESSAGE(appevt, code, evt) (appevt = (((uint32_t)code&0xffffff)<<8)|(evt&0xff))
@@ -25,7 +29,6 @@
 #define APP_KEY_CODE_GOOGLE                 APP_KEY_CODE_FN15
 #define APP_KEY_CODE_VOICEPATH              APP_KEY_CODE_FN15
 #define APP_KEY_CODE_TILE                   APP_KEY_CODE_FN15
-#define APP_KEY_CODEC_WALKIE_TALKIE         APP_KEY_CODE_FN1
 
 enum APP_KEY_CODE_T {
     APP_KEY_CODE_NONE = HAL_KEY_CODE_NONE,
@@ -106,4 +109,9 @@ void app_key_simulate_key_event(uint32_t key_code, uint8_t key_event);
 #if defined(_AUTO_TEST_)
 int simul_key_event_process(uint32_t key_code, uint8_t key_event);
 #endif
-#endif//__FMDEC_H__
+
+#if defined(__cplusplus)
+}
+#endif
+
+#endif//__APP_KEY_H__

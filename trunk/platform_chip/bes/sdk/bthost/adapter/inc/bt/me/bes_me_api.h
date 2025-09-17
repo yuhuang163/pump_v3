@@ -20,9 +20,25 @@
 extern "C" {
 #endif
 
-int bt_audio_event_handler(uint8_t device_id, enum app_bt_audio_event_t event, uint32_t data);
+#define ble_buffer_malloc(size) ble_buffer_malloc_with_ca((size), (uint32_t)(uintptr_t)__builtin_return_address(0), __LINE__)
+#define ble_buffer_free(buffer) ble_buffer_free_with_ca((buffer), (uint32_t)(uintptr_t)__builtin_return_address(0), __LINE__)
+void *ble_buffer_malloc_with_ca(uint16_t size, uint32_t ca, uint32_t line);
+void ble_buffer_free_with_ca(void *buffer, uint32_t ca, uint32_t line);
 
+int bt_audio_event_handler(uint8_t device_id, enum app_bt_audio_event_t event, uint32_t data);
 void bt_audio_set_event_handler(int (*hdlr)(uint8_t device_id, enum app_bt_audio_event_t event, uint32_t data));
+
+#if defined(APP_TRACE_RX_ENABLE) || defined(IBRT)
+void bes_bt_me_init_cmd(void);
+void bes_bt_me_add_cmd_test_table(const app_bt_cmd_handle_t *start_cmd, uint16_t cmd_count);
+#endif
+
+#define BT_BES_CFG_VENDOR_CODEC_EN 1
+#define BT_BES_CFG_DONT_PLAY_MUTE_WHEN_A2DP_STUCK 2
+#define BT_BES_CFG_MARK_CODE_FOR_FUZZ_TEST 3
+#define BT_BES_CFG_KEEP_ONLY_ONE_STREAM_CLOSE_CONNECTED_A2DP 4
+#define BT_BES_CFG_BT_SINK_ENABLED 5
+#define BT_BES_CFG_PTS_TEST_DONT_ROLE_SWITCH 6
 
 void bes_bt_app_start_inquiry(void);
 
@@ -48,9 +64,7 @@ bt_status_t bes_bt_me_read_ble_chnle_map(uint16_t conn_handle);
 
 bt_status_t bes_bt_me_set_ble_host_chnl_classification(uint8_t *chnl_map);
 
-void bes_bt_sco_response(uint8_t device_id, uint8_t accept);
-
-void bes_bt_sco_connect_req(bt_bdaddr_t *bdaddr);
+void bes_bt_me_finish_pending_sco_request(void *remote);
 
 bt_status_t bes_bt_me_setup_acl_qos_with_tpoll_generic(uint16_t conn_handle, uint32_t tpoll_slot, uint8_t service_type);
 
@@ -72,7 +86,13 @@ int bes_bt_me_set_bt_local_name(const unsigned char *device_name, uint8_t len);
 
 void bes_bt_me_set_extended_inquiry_response(uint8_t* eir, uint32_t len);
 
+uint8_t* bes_bt_me_cobuf_malloc(uint16_t size);
+
+void bes_bt_me_cobuf_free(uint8_t*buf_ptr);
+
 void bes_bt_me_send_bt_key(APP_KEY_STATUS *status);
+
+uint32_t bes_bt_me_bes_cfg_get(int cfg);
 
 void bes_bt_me_reset_bt_controller(void);
 
@@ -187,21 +207,13 @@ uint8_t bes_bt_me_get_event_access_mode(const btif_event_t *event);
 
 uint8_t bes_bt_me_get_event_encrypt_mode(const btif_event_t *event);
 
-/**
- * @brief Write automatic flush timeout on BR/EDR acl
- *
- * @param[in] connhandle     Conn handle
- * @param[in] flush_timeout  Rang 0x0001 to 0x07FF, in unit 0.625ms, 0x0000 is No Automatic Flush
- *
- * @return bt_status_t
- */
-bt_status_t bes_bt_me_write_automatic_flush_timeout(uint16 connhandle, uint16 flush_timeout);
-
 bt_bdaddr_t *bes_bt_me_get_addr_by_sco_handle(uint16_t handle);
 
 void bes_bt_me_report_inquiry_result(uint8_t *inquiry_buff, bool rssi, bool extended_mode);
 
 void bes_bt_me_handle_bt_key_click(void);
+
+int bes_bt_call_func_in_app_thread(uint32_t message_id, uint32_t param0, uint32_t param1, uint32_t param2,uint32_t ptr);
 
 int bes_bt_call_func_in_bt_thread(uint32_t param0, uint32_t param1, uint32_t param2, uint32_t param3, uint32_t funcPtr);
 
@@ -209,17 +221,33 @@ int bes_bt_call_custom_function_in_bt_thread(uint32_t param0, uint32_t param1, u
 
 void bes_bt_app_init(void);
 
+void bes_bt_thread_init(void);
+
+void bes_bt_init_global_handle(void);
+
 void bes_bt_sleep_init(void);
 
 bool bes_bt_me_is_bt_thread(void);
 
+void bes_bt_me_add_string_test_table(void);
+
 void bes_bt_me_gen_addr_for_debug(void);
 
+void bes_bt_me_gen_ecdh_key_pair(void);
+
+void bes_bt_me_gen_full_ecdh_key_pair(void);
+
 void bes_bt_me_transfer_pairing_to_connectable(void);
+
+void bes_bt_me_cmd_line_handler(char *cmd, unsigned int cmd_length);
 
 int8_t bes_bt_me_get_bt_rssi(void);
 
 void bes_bt_me_opening_reconnect(void);
+
+void bes_bt_me_acl_conn_state_callback_register(bt_acl_conn_state_change_cb_t cb);
+
+void bes_bt_me_acl_conn_callback_deregister(void);
 
 void bes_bt_me_pair_state_callback_deregister(void);
 
@@ -235,9 +263,15 @@ bool bes_bt_me_get_remote_cod_by_addr(const bt_bdaddr_t *bd_ddr, uint8_t *cod);
 
 void *bes_bt_me_cmgr_create_handler(void);
 
+void bes_bt_me_apply_full_ecdh_key_pair(void);
+
+void bes_bt_me_apply_ecdh_key_pair(void);
+
 btif_remote_device_t* bes_bt_get_remote_dev_by_handle(uint16_t hci_handle);
 
 uint8_t bes_bt_get_active_cons(void);
+
+int bes_bt_check_buffer_available(int size);
 
 int8 bes_bt_l2cap_send_data( uint32 l2cap_handle, uint8 *data, uint32 datalen, void *context);
 
@@ -260,17 +294,7 @@ void bes_bt_device_snoop_acl_disconnected(uint8_t device_id, void* addr);
 bt_status_t bes_bt_me_set_accessible_mode(btif_accessible_mode_t mode,
                                         const btif_access_mode_info_t *info);
 
-bt_status_t bes_bt_me_cancel_create_connection(const bt_bdaddr_t *remote);
-
 bt_status_t bes_bt_get_remote_dev_addr_by_device_id(uint8_t deviceId, uint8_t* btAddr);
-
-bt_status_t bes_bt_get_remote_device_id_by_addr(uint8_t* btAddr, uint8_t *deviceId);
-
-uint8_t bes_bt_get_remote_device_id_by_handle(uint16_t conn_hdl);
-
-uint16_t bes_bt_get_remote_conn_handle_by_addr(uint8_t* btAddr);
-
-bt_status_t bes_bt_get_remote_addr_by_conn_handle( uint16_t conn_hdl, uint8_t* btAddr);
 
 void bes_bt_me_confirmation_register_callback(btif_confirmation_req_callback_t callback);
 
@@ -282,23 +306,11 @@ void bes_bt_me_stop_fast_connectable_ble_adv(void);
 
 #ifdef __INTERACTION__
 uint8_t bes_bt_me_get_findme_fadein_vol(void);
-
 void bes_bt_me_set_findme_fadein_vol(uint8_t vol);
 #endif
 
 void *bes_bt_me_profile_active_store_ptr_get(uint8_t *bdAddr);
-
 int Besbt_hook_handler_set(enum BESBT_HOOK_USER_T user, BESBT_HOOK_HANDLER handler);
-
-/// @see buf_porting.h
-
-unsigned char *bt_app_buf_malloc(uint16 size, uint32 ca, uint32 line);
-
-void bt_app_buf_free(unsigned char *buf, uint32 ca, uint32 line);
-
-#define bes_bt_buf_malloc(size) bt_app_buf_malloc((size), (uint32_t)(uintptr_t)__builtin_return_address(0), __LINE__)
-
-#define bes_bt_buf_free(buf) bt_app_buf_free((unsigned char *)buf, (uint32_t)(uintptr_t)__builtin_return_address(0), __LINE__)
 
 #ifdef __cplusplus
 }

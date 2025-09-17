@@ -13,14 +13,11 @@
  * trademark and other intellectual property rights.
  *
  ****************************************************************************/
-#if !defined(USE_BASIC_THREADS)
+#ifdef USE_APP_AUDIO_THREAD
 #ifndef __APP_AUDIO_THREAD_H__
 #define __APP_AUDIO_THREAD_H__
 
 #include "stdbool.h"
-#ifdef RTOS
-#include "cmsis_os.h"
-#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -31,8 +28,7 @@ extern "C" {
 enum APP_AUDIO_MODULE_ID_T {
     APP_AUDIO_MODULE_KEY = 0,
     APP_AUDIO_MODULE_AUDIO,
-    APP_AUDIO_MODULE_AUDIO_MANAGE,
-    APP_AUDIO_MODULE_VOICE_ASSIST,
+    APP_MODULE_AUDIO_MANAGE,
 
     APP_AUDIO_MODULE_NUM
 };
@@ -44,7 +40,6 @@ typedef struct {
     uint32_t message_Param1;
     uint32_t message_Param2;
     float    message_Param3;
-    osThreadId thread_id;
 } APP_AUDIO_MESSAGE_BODY;
 
 typedef struct {

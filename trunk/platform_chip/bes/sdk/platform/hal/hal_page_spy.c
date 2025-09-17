@@ -23,13 +23,22 @@
 
 #define MAX_PAGE_SPY_ID                     2
 
-static uint32_t *valid_base;
+static const uint32_t *valid_base;
 static uint32_t valid_cnt;
 static HAL_PAGE_SPY_IRQ_HANDLER_T spy_handler;
+
+WEAK int hal_sec_spy_irq_on(uint32_t spy_base)
+{
+    return true;
+}
 
 static int page_spy_irq_on(uint32_t spy_base, uint32_t id)
 {
     struct PAGE_SPY_T *base = (struct PAGE_SPY_T *)spy_base;
+
+    if (!hal_sec_spy_irq_on(spy_base)) {
+        return false;
+    }
 
     if (id == 0) {
         return !!(base->REG_018 & PAGE_SPY_HIT_INT0);
@@ -38,8 +47,7 @@ static int page_spy_irq_on(uint32_t spy_base, uint32_t id)
     }
 }
 
-POSSIBLY_UNUSED
-static int proc_page_spy_callback(void)
+int hal_page_spy_proc_callback(void)
 {
     struct HAL_PAGE_SPY_HIT_INFO_T info;
     uint32_t i;
@@ -54,35 +62,44 @@ static int proc_page_spy_callback(void)
                 hal_page_spy_get_hit_info(valid_base[i], j, &info);
                 // Clear IRQ
                 hal_page_spy_clear(valid_base[i], j);
+
+                if (spy_handler) {
+                    ret = spy_handler(&info);
+                } else {
+                    TRACE_IMM(0, "*** PAGE-SPY HIT: spy_base=0x%08X addr=0x%08X len=0x%08X master_id=%u flags=0x%X",
+                        info.spy_base, info.addr, info.len, info.master_id, info.flags);
+                }
             }
         }
-    }
-
-    if (spy_handler) {
-        ret = spy_handler(&info);
-    } else {
-        HAL_TRACE(0, "*** PAGE-SPY HIT: addr=0x%08X len=0x%08X master_id=%u flags=0x%X", info.addr, info.len, info.master_id, info.flags);
     }
 
     return ret;
 }
 
 POSSIBLY_UNUSED NAKED
-static void page_spy_irq_handler(void)
+static void NAKED page_spy_irq_handler(void)
 {
     asm volatile (
-        "push {r0-r3, r4, lr};"
-        "bl proc_page_spy_callback;"
+        "push {r1, lr};"
+        "blx hal_page_spy_proc_callback;"
+#ifdef __ARM_ARCH_ISA_ARM
+        "cmp r0, #0;"
+        "bne _fault;"
+#else
         "cbnz r0, _fault;"
-        "pop {r0-r3};"
+#endif
+        "pop {r1, lr};"
         "bx lr;"
         "_fault:;"
         // Branch to MemManage_Handler
         "bl NVIC_GetVectorTab;"
-        "ldr r1, [r0, #(4*4)];"
-        "str r1, [sp, #-4];"
-        "pop {r0-r3, r4, lr};"
-        "ldr pc, [sp, #-(4*7)];"
+        "pop {r1, lr};"
+#if defined(COMMON_IRQ_ENTRY) && !defined(NO_IRQ_EXIT_CB)
+        // Remove stack changes in vector_common_entry() and
+        // restore the stack when spy irq occurred
+        "pop {r1, r2};"
+#endif
+        "ldr pc, [r0, #(4*4)];"
     );
 }
 
@@ -230,6 +247,7 @@ int hal_page_spy_get_hit_info(uint32_t spy_base, uint32_t id, struct HAL_PAGE_SP
 
     memset(info, 0, sizeof(*info));
 
+    info->spy_base = spy_base;
     if (id == 0) {
         val = base->REG_018;
         if (val & PAGE_SPY_HIT_READ0) {

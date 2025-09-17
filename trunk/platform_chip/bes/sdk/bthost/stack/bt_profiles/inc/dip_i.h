@@ -18,7 +18,6 @@
 
 #include "bluetooth.h"
 #include "sdp_i.h"
-#include "btm_i.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -50,19 +49,12 @@ extern "C" {
 
 enum dip_event {
     DIP_EVENT_SDP_REQ_FAIL,
-    DIP_EVENT_SDP_QUERYING,
     DIP_EVENT_SDP_REQ_SUCCESS,
 };
 
-enum dip_sdp_req_fail_reason {
-    DIP_FAIL_REASON_NO_ERROR = 0,
-    DIP_FAIL_REASON_SDP_ERROR,
-    DIP_FAIL_REASON_SDP_CHANNEL_CLOSE,
-    DIP_FAIL_REASON_DIP_INFO_INVALID,
-};
-
-struct dip_sdp_req_fail {
-    enum dip_sdp_req_fail_reason reason;
+enum dip_ctrl_state {
+    DIP_CTRL_ST_IDLE = 0,
+    DIP_CTRL_ST_SDP_REQUESTING,
 };
 
 struct dip_device_info
@@ -75,29 +67,39 @@ struct dip_device_info
     uint16 vend_id_source;
 };
 
+enum dip_sdp_req_fail_reason {
+    DIP_FAIL_REASON_NO_ERROR = 0,
+    DIP_FAIL_REASON_SDP_ERROR,
+    DIP_FAIL_REASON_SDP_CHANNEL_CLOSE,
+};
+
+struct dip_sdp_req_fail {
+    enum dip_sdp_req_fail_reason reason;
+};
+
 struct dip_callback_param {
     enum dip_event event;
     union {
         struct dip_sdp_req_fail fail;
-        struct dip_device_info info;
     }p;
 };
 
-enum dip_ctrl_state {
-    DIP_CTRL_ST_IDLE = 0,
-    DIP_CTRL_ST_SDP_QUERYING,
-    DIP_CTRL_ST_SDP_QUERIED,
-};
+struct dip_control_t;
+typedef void (*dip_callback_t)(struct dip_control_t *ctrl, struct dip_callback_param *param);
 
 struct dip_control_t {
     struct bdaddr_t remote;
     enum dip_ctrl_state state;
     struct dip_device_info device_info;
+    uint8 device_info_valid;
+    dip_callback_t callback;
 };
 
 int8 dip_register_sdp(void);
 int8 dip_deregister_sdp(void);
-int8 dip_send_sdp_request(struct bdaddr_t *remote);
+int8 dip_init(struct dip_control_t *ctrl, dip_callback_t callback);
+int8 dip_send_sdp_request(struct dip_control_t *ctrl, struct bdaddr_t *remote);
+int8 dip_is_idle(struct dip_control_t *ctrl);
 
 #ifdef __cplusplus
 }

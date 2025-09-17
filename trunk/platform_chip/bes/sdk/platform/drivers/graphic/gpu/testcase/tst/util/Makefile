@@ -4,6 +4,8 @@ cur_dir := $(dir $(lastword $(MAKEFILE_LIST)))
 obj_c := $(patsubst $(cur_dir)%,%,$(wildcard $(cur_dir)*.c))
 obj_cpp := $(patsubst $(cur_dir)%,%,$(wildcard $(cur_dir)*.cpp))
 
+#obj_c += Elementary/
+
 obj_c += libpng-1.6.1/
 
 obj_c += zlib-1.2.7/

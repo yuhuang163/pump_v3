@@ -24,7 +24,7 @@ extern "C" {
 void amgr_init();
 void amgr_set_bt_sco_ringtone_mode(bool en);
 bool amgr_is_bt_sco_ringtone_mode(void);
-//uint8_t amgr_is_bluetooth_sco_on();
+uint8_t amgr_is_bluetooth_sco_on();
 void amgr_set_bluetooth_sco_on(uint8_t sco_on);
 void amgr_set_bt_a2dp_is_on(bool a2dp_on);
 bool amgr_is_bt_a2dp_on(void);

@@ -23,6 +23,16 @@ extern "C" {
 #define XA_INTEGER_SIZE     4
 #endif
 
+#define DEBUG_BLE_HCI_DBG   0
+#define DEBUG_BLE_GAP_DBG   0
+#define DEBUG_BLE_GATT_DBG  0
+#define DEBUG_BLE_ATT_DBG   0
+#define DEBUG_BLE_L2C_DBG   0
+#define DEBUG_BLE_SMP_DBG   0
+#define DEBUG_BLE_APP_DBG   0
+#define DEBUG_BLE_PRF_DBG   0
+#define DEBUG_BLE_BLE_DBG   0
+
 #define BTIF_DISABLED       0
 #define BTIF_ENABLED        1
 #define BTIF_SBC_ENCODER    BTIF_ENABLED
@@ -35,7 +45,6 @@ extern "C" {
 #define BTIF_BT_DEFAULT_INQ_SCAN_WINDOW     0x12
 #define BTIF_BT_DEFAULT_INQ_SCAN_INTERVAL   0x800
 #define BTIF_BT_DEFAULT_PAGE_TIMEOUT_IN_MS  5000
-#define BTIF_BT_DEFAULT_ACCESSMODE_TIMEOUT_MS  10000
 
 #define BTIF_HF_CUSTOM_FEATURE_BATTERY_REPORT    (0x03 << 0)
 #define BTIF_HF_CUSTOM_FEATURE_DOCK              (0x01 << 2)
@@ -44,21 +53,54 @@ extern "C" {
 #define BTIF_HF_CUSTOM_FEATURE_SUPPORT \
     (BTIF_HF_CUSTOM_FEATURE_BATTERY_REPORT | BTIF_HF_CUSTOM_FEATURE_SIRI_REPORT)
 
+#define  __BTIF_EARPHONE__
+
 /* for debug usage */
 #if !defined(DEBUG)
-#define BTHOST_DEBUG 0
+#define DEBUG 0
 #endif
 
-#if BTHOST_DEBUG == 1
+#if DEBUG == 1
 #define DBG_DEBUG_PRINT_ENABLE                  1
+#define DBG_COBUF_NEED_STATISTIC                1
 #else
 #define DBG_DEBUG_PRINT_ENABLE                  0
+#define DBG_COBUF_NEED_STATISTIC                0
 #endif
 
 #define HCI_TX_BUFF_SIZE_CHECK 128
 #define HCI_TX_BUFF_SIZE_NO_LESS_COUNT 8
 
+/* config memory block size and count */
+#define COBUF_SIZE_N1    8
+#define COBUF_SIZE_N2    16
+#define COBUF_SIZE_N3    32
+#define COBUF_SIZE_N4    48
+#define COBUF_SIZE_N5    64
+#define COBUF_SIZE_N6    160
+#define COBUF_SIZE_N7    ((L2CAP_CFG_MTU+3)/4*4)
+
+#if defined(CHIP_BEST1402) || defined(CHIP_BEST1400)
+#define COBUF_NUMS_N1    32
+#define COBUF_NUMS_N2    45
+#define COBUF_NUMS_N3    39
+#define COBUF_NUMS_N4    40
+#define COBUF_NUMS_N5    20
+#define COBUF_NUMS_N6    10
+#define COBUF_NUMS_N7    6
+#else
+#define COBUF_NUMS_N1    90
+#define COBUF_NUMS_N2    90
+#define COBUF_NUMS_N3    80
+#define COBUF_NUMS_N4    90
+#define COBUF_NUMS_N5    60
+#define COBUF_NUMS_N6    20
+#define COBUF_NUMS_N7    12
+#endif
+
+#ifdef BT_USE_COHEAP_ALLOC
 #define BT_DYNAMIC_ALLOC_HCI_RX_BUFF
+#endif
 
 #define BLE_USE_ENC_DATA_KEY_MATERIAL_CHAR   0
 #define BLE_LOCAL_USE_RPA_ONLY_AFTER_BONDING 0
@@ -81,22 +123,29 @@ extern "C" {
 #define BLE_GATT_CLIENT_SUPPORT 1
 #endif
 
-#if BLE_CHANNEL_SOUDING_ENABLED
-#define BLE_GAP_CS_SUPPORT   (1)
+#if BLE_AUDIO_ENABLED
+#define BLE_PA_SUPPORT 1
 #else
-#define BLE_GAP_CS_SUPPORT   (0)
+#ifdef BLE_PERIODIC_ADV_DISABLE
+#define BLE_PA_SUPPORT 0
+#else
+#define BLE_PA_SUPPORT 1
+#endif
 #endif
 
-#ifdef CFG_APP_AHP_SERVER
-#define BLE_SHP_SERVER_SUPPORT   (1)
-#else
-#define BLE_SHP_SERVER_SUPPORT   (0)
+#if defined(EP_1306_SMALL_CODE) && (!BLE_AUDIO_ENABLED)
+#undef BLE_GAP_CENTRAL_ROLE
+#undef BLE_GATT_CLIENT_SUPPORT
+#undef BLE_PA_SUPPORT
+#undef BT_LOG_SIMPLIFY
+#undef BT_REDUCE_CALLBACK_FUNC
+#define BLE_GAP_CENTRAL_ROLE 0
+#define BLE_GATT_CLIENT_SUPPORT 0
+#define BLE_PA_SUPPORT 0
+#define BT_LOG_SIMPLIFY
+#ifndef BTH_IN_ROM
+#define BT_REDUCE_CALLBACK_FUNC
 #endif
-
-#ifdef CFG_APP_AHP_CLIENT
-#define BLE_SHP_CLIENT_SUPPORT   (1)
-#else
-#define BLE_SHP_CLIENT_SUPPORT   (0)
 #endif
 
 #ifdef BT_OBEX_SUPPORT
@@ -139,13 +188,6 @@ extern "C" {
 #define BT_MAP_TEST_SUPPORT
 #endif
 #endif
-
-#undef LOCAL_AUDIO_TEST_ENABLE
-#ifdef LOCAL_AUDIO_SUPPORT
-#if 1
-#define LOCAL_AUDIO_TEST_ENABLE
-#endif
-#endif // LOCAL_AUDIO_SUPPORT
 
 #define ESCO_ENABLE 1
 
@@ -222,6 +264,7 @@ extern "C" {
 #define HFP_AG_SDP_FEAT_LC3_SWB 0x0100
 #endif
 
+#if defined(HFP_1_6_ENABLE)
 #define HFP_HF_FEATURES ( \
                 HFP_HF_FEAT_CLI   | \
                 HFP_HF_FEAT_RVC   | \
@@ -233,7 +276,6 @@ extern "C" {
                 HFP_HF_FEAT_VR    | \
                 HFP_HF_FEAT_ESCO_S4_T2 \
                 )
-#if defined(HFP_1_9_ENABLE)
 #if defined(HFP_SUPPORT_LC3_SWB)
 #define HFP_HF_SDP_FEATURES ((HFP_HF_FEATURES & HFP_HF_SDP_FEAT_MASK) | HFP_HF_SDP_FEAT_WBS | HFP_HF_SDP_FEAT_LC3_SWB)
 #else
@@ -254,11 +296,17 @@ extern "C" {
 #define HFP_AG_SDP_FEATURES ((HFP_AG_FEATURES & HFP_AG_SDP_FEAT_MASK) | HFP_AG_SDP_FEAT_WBS)
 #endif
 #else
+#define HFP_HF_FEATURES ( \
+                HFP_HF_FEAT_CLI   | \
+                HFP_HF_FEAT_RVC   | \
+                HFP_HF_FEAT_ECS   | \
+                HFP_HF_FEAT_ECC     \
+                )
 #define HFP_HF_SDP_FEATURES (HFP_HF_FEATURES & HFP_HF_SDP_FEAT_MASK)
 
 #define HFP_AG_FEATURES ( \
                 HFP_AG_FEAT_REJ_CALL | \
-                HFP_AG_FEAT_ECS        \
+                HFP_AG_FEAT_ECS      | \
                 )
 #define HFP_AG_SDP_FEATURES ((HFP_AG_FEATURES & HFP_AG_SDP_FEAT_MASK) | HFP_AG_SDP_FEAT_WBS)
 #endif
@@ -295,7 +343,7 @@ extern "C" {
 #define HCI_CFG_INPUT_CODING                 INPUT_CODING_LINEAR
 #define HCI_CFG_INPUT_DATA_FORMAT            INPUT_DATA_FORMAT_1S
 #define HCI_CFG_INPUT_SAMPLE_SIZE            INPUT_SAMPLE_SIZE_8BITS
-#if defined(HFP_1_9_ENABLE)
+#if defined(HFP_1_6_ENABLE)
 #define HCI_CFG_AIR_CODING_FORMAT            AIR_CODING_FORMAT_MSBC
 #else
 #define HCI_CFG_AIR_CODING_FORMAT            AIR_CODING_FORMAT_CVSD
@@ -333,7 +381,6 @@ extern "C" {
 
 // Major service classes (can be OR together)
 #define CFG_COD_LIMITED_DISCOVERABLE_MODE    0x00002000
-#define CFG_COD_MAJOR_LE_AUDIO               0x00004000
 #define CFG_COD_POSITIONING                  0x00010000
 #define CFG_COD_NETWORKING                   0x00020000
 #define CFG_COD_RENDERING                    0x00040000
@@ -351,9 +398,6 @@ extern "C" {
 #define CFG_COD_MAJOR_AUDIO                  0x00000400
 #define CFG_COD_MAJOR_PERIPHERAL             0x00000500
 #define CFG_COD_MAJOR_IMAGING                0x00000600
-#define CFG_COD_MAJOR_WEARABLE               0x00000700
-#define CFG_COD_MAJOR_TOY                    0x00000800
-#define CFG_COD_MAJOR_HEALTH                 0x00000900
 #define CFG_COD_MAJOR_UNCLASSIFIED           0x00001F00
 #define CFG_COD_MAJOR_LE_AUDIO               0x00004000
 
@@ -419,38 +463,6 @@ extern "C" {
 #define CFG_COD_MINOR_IMAGE_SCANNER       0x00000040
 #define CFG_COD_MINOR_IMAGE_PRINTER       0x00000080
 
-// Minor device class for CFG_COD_MAJOR_WEARABLE
-#define CFG_COD_MINOR_WEARABLE_WRISTWATCH    0x00000004
-#define CFG_COD_MINOR_WEARABLE_PAGER         0x00000008
-#define CFG_COD_MINOR_WEARABLE_JACKET        0x0000000C
-#define CFG_COD_MINOR_WEARABLE_HELMET        0x00000010
-#define CFG_COD_MINOR_WEARABLE_GLASSES       0x00000014
-#define CFG_COD_MINOR_WEARABLE_PIN           0x00000018
-
-// Minor device class for CFG_COD_MAJOR_TOY
-#define CFG_COD_MINOR_TOY_ROBOT        0x00000004
-#define CFG_COD_MINOR_TOY_VEHICLE      0x00000008
-#define CFG_COD_MINOR_TOY_DOLL         0x0000000C
-#define CFG_COD_MINOR_TOY_CONTROLLER   0x00000010
-#define CFG_COD_MINOR_TOY_GAME         0x00000014
-
-// Minor device class for CFG_COD_MAJOR_HEALTH
-#define CFG_COD_MINOR_HEALTH_UNDEFINED                   0x00000000
-#define CFG_COD_MINOR_HEALTH_BLOOD_PRESSURE_MONITOR      0x00000004
-#define CFG_COD_MINOR_HEALTH_THERMOMETER                 0x00000008
-#define CFG_COD_MINOR_HEALTH_WEIGHING_SCALE              0x0000000C
-#define CFG_COD_MINOR_HEALTH_GLUCOSE_METER               0x00000010
-#define CFG_COD_MINOR_HEALTH_PULSE_OXIMETER              0x00000014
-#define CFG_COD_MINOR_HEALTH_PULSE_RATE_MONITOR          0x00000018
-#define CFG_COD_MINOR_HEALTH_HEALTH_DATA_DISPLAY         0x0000001C
-#define CFG_COD_MINOR_HEALTH_STEP_COUNTER                0x00000020
-#define CFG_COD_MINOR_HEALTH_BODY_COMPOSITION_ANALYZER   0x00000024
-#define CFG_COD_MINOR_HEALTH_PEAK_FLOW_MONITOR           0x00000028
-#define CFG_COD_MINOR_HEALTH_MEDICATION_MONITOR          0x0000002C
-#define CFG_COD_MINOR_HEALTH_KNEE_PROSTHESIS             0x00000030
-#define CFG_COD_MINOR_HEALTH_ANKLE_PROSTHESIS            0x00000034
-#define CFG_COD_MINOR_HEALTH_GENERIC_HEALTH_MANAGER      0x00000038
-#define CFG_COD_MINOR_HEALTH_PERSONAL_MOBILITY_DEVICE    0x0000003C
 
 #ifdef _SCO_BTPCM_CHANNEL_
 #define CFG_SYNC_CONFIG_PATH                 (0<<8|1<<4|1<<0) /* all links use hci */
@@ -458,7 +470,7 @@ extern "C" {
 #define CFG_SYNC_CONFIG_PATH                 (0<<8|0<<4|0<<0) /* all links use hci */
 #endif
 #define CFG_SYNC_CONFIG_MAX_BUFFER           (0) /* (e)sco use Packet size */
-#ifdef CVSD_BYPASS
+#ifdef _CVSD_BYPASS_
 #define CFG_SYNC_CONFIG_CVSD_BYPASS          (1) /* use pcm over hci */
 #else
 #define CFG_SYNC_CONFIG_CVSD_BYPASS          (0) /* use pcm over hci */
@@ -549,12 +561,6 @@ extern "C" {
    place of the RTC timer when a L2CAP_ConnectRspPnd event is received
    (min 60s, max 300s) */
 #define L2CAP_CFG_ERTX 300
-
-#if !defined(BLE_ONLY_ENABLED) && !defined(BT_SERVICE_ENABLE)
-#define  __BTIF_BT_RECONNECT__
-#endif
-
-#define __BTIF_SNIFF__
 
 #ifdef __cplusplus
 }

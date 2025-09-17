@@ -111,6 +111,8 @@ int CrashCatcher_DumpStart(const CrashCatcherInfo* pInfo);
    If NULL is returned from this function, the core will only dump the registers. */
 const CrashCatcherMemoryRegion* CrashCatcher_GetMemoryRegions(void);
 
+const CrashCatcherMemoryRegion* CrashCatcher_GetSramMemoryRegions(void);
+
 /* Called to dump the next chunk of memory to the dump (this memory may point to register contents which has been copied
    to memory by CrashCatcher already.  The element size will be 8-bits, 16-bits, or 32-bits.  The implementation should
    use reads of the specified size since some memory locations may only support the indicated size. */

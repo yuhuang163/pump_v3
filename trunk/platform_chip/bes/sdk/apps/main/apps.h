@@ -18,6 +18,9 @@
 
 #include "app_status_ind.h"
 
+#define STACK_READY_BT  0x01
+#define STACK_READY_BLE 0x02
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -41,6 +44,7 @@ int app_voice_stop(APP_STATUS_INDICATION_T status, uint8_t device_id);
 void app_enter_signalingtest_mode(void);
 void app_enter_non_signalingtest_mode(void);
 
+void app_trace_port_config(uint32_t bootmode);
 
 /*FixME*/
 void app_status_set_num(const char* p);
@@ -48,7 +52,6 @@ void app_status_set_num(const char* p);
 ////////////10 second tiemr///////////////
 #define APP_FAST_PAIRING_TIMEOUT_IN_SECOND  120
 
-#define APP_10_SECOND_TIMER_EN  1
 #define APP_PAIR_TIMER_ID       0
 #define APP_POWEROFF_TIMER_ID   1
 #define APP_FASTPAIR_LASTING_TIMER_ID   2
@@ -56,7 +59,10 @@ void app_status_set_num(const char* p);
 void app_stop_10_second_timer(uint8_t timer_id);
 void app_start_10_second_timer(uint8_t timer_id);
 
+void app_notify_stack_ready(uint8_t ready_flag);
+
 void app_start_postponed_reset(void);
+
 #ifdef PROMPT_IN_FLASH
 void app_start_ota_language_reset(void);
 #endif
@@ -75,23 +81,25 @@ void app_reset_gpio_status(void);
 int app_init_btc(void);
 int app_deinit_btc(int deinit_case);
 
-void app_application_ready_to_start_callback(void);
-
 void system_power_on_callback(void);
 
 void system_power_off_callback(uint8_t sys_case);
 
 void hw_revision_checker(void);
 
+void ble_uart_cmd_init(void);
+
+int app_bluetooth_application_init(void);
+
+void app_application_ready_to_start_callback(void);
+
+void app_usbaudio_entry(void);
+////////////////////
+
 void app_enter_fastpairing_mode(void);
 
 void app_exit_fastpairing_mode(void);
 
-
-////////////////////
-#if defined(DOLBY_AUDIO_ENABLE)
-bool algo_role_get(void);
-#endif
 
 #ifdef __cplusplus
 }

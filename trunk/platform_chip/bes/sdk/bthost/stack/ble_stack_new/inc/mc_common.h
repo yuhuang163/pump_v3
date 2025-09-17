@@ -19,6 +19,8 @@
 #ifndef __MCS_COMMON__
 #define __MCS_COMMON__
 
+#include "bluetooth.h"
+#include "gatt_service.h"
 #include "gaf_cfg.h"
 
 #if (ACC_OTS_ENABLE) || (ACC_OTC_ENABLE)
@@ -157,7 +159,6 @@ enum mcs_desc_type
 /// Operation code values
 enum mcs_opcode
 {
-    MCS_OPCODE_MIN = 0,
     /// Start playing the current track
     MCS_OPCODE_PLAY = 1,
     /// Pause playing the current track
@@ -200,8 +201,6 @@ enum mcs_opcode
     MCS_OPCODE_LAST_GROUP,
     /// Set the current group to the nth group in the sequence of groups
     MCS_OPCODE_GOTO_GROUP,
-
-    MCS_OPCODE_MAX,
 
     MCS_MEDIA_CP_OPCODES_SUPP_MASK = 0x001FFFFF,
 };

@@ -141,7 +141,7 @@ static int ble_anc_server_callback(gatt_svc_t *svc, gatt_server_event_t event, g
             if (p->character == g_ble_anc_ready_character)
             {
                 uint8_t ready_value[2] = {CO_SPLIT_UINT16_LE(anc->ready)};
-                gatts_send_read_rsp(p->conn->connhdl, p->token, 0, ready_value, sizeof(ready_value));
+                gatts_write_read_rsp_data(p->ctx, ready_value, sizeof(ready_value));
                 return true;
             }
             break;
@@ -169,42 +169,21 @@ static int ble_anc_server_callback(gatt_svc_t *svc, gatt_server_event_t event, g
             {
                 notify_enabled = true;
             }
-            if ((uint8_t *)p->desc_attr->attr_data == g_ble_anc_ready_cccd)
+            if (p->descriptor == g_ble_anc_ready_cccd)
             {
                 anc->ready_notify_enabled = notify_enabled;
             }
-            else if ((uint8_t *)p->desc_attr->attr_data == g_ble_anc_data_source_cccd)
+            else if (p->descriptor == g_ble_anc_data_source_cccd)
             {
                 anc->data_source_enabled = notify_enabled;
                 ancs_proxy_deliver_write(svc->connhdl, ANC_CHAR_DATA_SOURCE, p->value, p->value_len);
             }
-            else if ((uint8_t *)p->desc_attr->attr_data == g_ble_anc_notify_source_cccd)
+            else if (p->descriptor == g_ble_anc_notify_source_cccd)
             {
                 anc->notify_source_enabled = notify_enabled;
                 ancs_proxy_deliver_write(svc->connhdl, ANC_CHAR_NTFY_SOURCE, p->value, p->value_len);
             }
             break;
-        }
-        case GATT_SERV_EVENT_DESC_READ:
-        {
-            gatt_server_desc_read_t *p = param.desc_read;
-            uint16_t cccd_config = 0;
-            if ((uint8_t *)p->desc_attr->attr_data == g_ble_anc_ready_cccd)
-            {
-                cccd_config = anc->ready_notify_enabled ? 0x0001 : 0;
-            }
-            else if ((uint8_t *)p->desc_attr->attr_data == g_ble_anc_data_source_cccd)
-            {
-                cccd_config = anc->data_source_enabled ? 0x0001 : 0;
-            }
-            else if ((uint8_t *)p->desc_attr->attr_data == g_ble_anc_notify_source_cccd)
-            {
-                cccd_config = anc->notify_source_enabled ? 0x0001 : 0;
-            }
-
-            cccd_config = co_host_to_uint16_le(cccd_config);
-            gatts_send_read_rsp(p->conn->connhdl, p->token, 0, (uint8_t *)&cccd_config, sizeof(uint16_t));
-            return true;
         }
         default:
         {
@@ -225,23 +204,12 @@ void ble_ancs_init(void)
     gatts_register_service(g_ble_anc_attr_list, ARRAY_SIZE(g_ble_anc_attr_list), ble_anc_server_callback, &cfg);
 }
 
-static void ancs_send_char_notify(uint8_t conidx, const uint8_t *character, uint8_t *val, uint16_t len)
-{
-    gatt_char_notify_t val_ntf =
-    {
-        .character = character,
-        .service = g_ble_anc_service,
-    };
-
-    gatts_send_value_indication(gap_conn_bf(conidx), &val_ntf, val, len);
-}
-
 static void ancs_send_ready_notification(ble_anc_t *svc)
 {
     if (svc->ready_notify_enabled)
     {
         uint8_t ready_value[2] = {CO_SPLIT_UINT16_LE(svc->ready)};
-        ancs_send_char_notify(svc->head.con_idx, g_ble_anc_ready_character, ready_value, sizeof(ready_value));
+        gatts_send_notification(gap_conn_bf(svc->head.con_idx), g_ble_anc_ready_character, ready_value, sizeof(ready_value));
     }
 }
 
@@ -271,11 +239,11 @@ void ancs_proxy_send_notification(uint16_t connhdl, anc_char_enum_t char_enum, c
 
     if (char_enum == ANC_CHAR_DATA_SOURCE)
     {
-        ancs_send_char_notify(anc->head.con_idx, g_ble_anc_data_source_character, value, len);
+        gatts_send_notification(gap_conn_bf(anc->head.con_idx), g_ble_anc_data_source_character, value, len);
     }
     else if (char_enum == ANC_CHAR_NTFY_SOURCE)
     {
-        ancs_send_char_notify(anc->head.con_idx, g_ble_anc_notify_source_character, value, len);
+        gatts_send_notification(gap_conn_bf(anc->head.con_idx), g_ble_anc_notify_source_character, value, len);
     }
 }
 

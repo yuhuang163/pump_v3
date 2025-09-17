@@ -28,7 +28,7 @@
 #include "sens_msg.h"
 #include "mcu_sensor_hub_app_ai.h"
 #include "sensor_hub_core_app_ai_ota.h"
-#include "crc_c.h"
+#include "crc32_c.h"
 #include "app_utils.h"
 #include "mcu_sensor_hub_app_ai_ota.h"
 
@@ -60,11 +60,11 @@ static uint8_t pending_data_update_op_out_cursor = 0;
 
 static void app_print_pending_data_update_op_req(void)
 {
-    SENSORHUB_TRACE(0,"Pending data update op requests:");
+    TRACE(0,"Pending data update op requests:");
     uint8_t index = pending_data_update_op_out_cursor;
     while (index != pending_data_update_op_in_cursor)
     {
-        SENSORHUB_TRACE(4,"index %d magicCode %x src %p size %d", index,
+        TRACE(4,"index %d magicCode %x src %p size %d", index,
             pending_data_update_op_req[index].magicCode,
             pending_data_update_op_req[index].src,
             pending_data_update_op_req[index].size);
@@ -178,10 +178,10 @@ static uint32_t _data_update_op_write_req(uint8_t* rxBuf,uint32_t rx_len,uint8_t
     data_update_secton_operator.section->dataBufSection = (uint8_t*)dst_pos;
     data_update_secton_operator.section->dataBufSectionSize = dst_size;
 
-    SENSORHUB_TRACE(3,"%s dst = %p dst_size = %d",__func__,data_update_secton_operator.section->dataBufSection,data_update_secton_operator.section->dataBufSectionSize);
+    TRACE(3,"%s dst = %p dst_size = %d",__func__,data_update_secton_operator.section->dataBufSection,data_update_secton_operator.section->dataBufSectionSize);
 
     if(data_update_secton_operator.op.dataLenExpectToOp > dst_size){
-        SENSORHUB_TRACE(2,"%s dst buf size not enough. stop %d ",__func__,data_update_secton_operator.op.dataLenExpectToOp);
+        TRACE(2,"%s dst buf size not enough. stop %d ",__func__,data_update_secton_operator.op.dataLenExpectToOp);
         status = SENSOR_HUB_DATA_OP_STATUS_TRANSFER_OVERFLOW;
     }
 
@@ -198,7 +198,7 @@ static inline uint32_t _data_update_op_read_req(uint8_t* rxBuf,uint32_t rx_len,u
     data_update_secton_operator.section->dataBufSection = (uint8_t*)src_pos;
     data_update_secton_operator.section->dataBufSectionSize = src_size;
 
-    SENSORHUB_TRACE(3,"%s dst = %p dst_size = %d",__func__,data_update_secton_operator.section->dataBufSection,data_update_secton_operator.section->dataBufSectionSize);
+    TRACE(3,"%s dst = %p dst_size = %d",__func__,data_update_secton_operator.section->dataBufSection,data_update_secton_operator.section->dataBufSectionSize);
 
     return SENSOR_HUB_DATA_OP_STATUS_OK;
 }
@@ -213,7 +213,7 @@ static inline uint32_t _data_update_op_write(uint8_t* buf,uint32_t len)
     uint32_t expectOp = data_update_secton_operator.op.dataLenExpectToOp;
     uint32_t crc = data_update_secton_operator.op.dataCrcVerify;
 
-    SENSORHUB_TRACE(6,"%s len %d expect %d already %d dst %p buf %p crc %d",__func__,len,
+    TRACE(6,"%s len %d expect %d already %d dst %p buf %p crc %d",__func__,len,
         expectOp,alreadyOp,dst,buf,crc);
     len = MIN(len,expectOp - alreadyOp);
 
@@ -221,7 +221,7 @@ static inline uint32_t _data_update_op_write(uint8_t* buf,uint32_t len)
 
     crc = crc32_c(crc, buf, len);
 
-    SENSORHUB_TRACE(1,"crc = %x",crc);
+    TRACE(1,"crc = %x",crc);
 
     data_update_secton_operator.op.dataCrcVerify = crc;
     data_update_secton_operator.op.dataLenAlreadyOp += len;
@@ -252,10 +252,10 @@ static inline uint32_t _data_update_op_verify(uint8_t* buf,uint32_t len)
         crc_val = crc32_c(crc_val,verifyPosPtr,verify_len - alreadyVerify);
     }
 
-    SENSORHUB_TRACE(2,"%s computed crc = %x",__func__,crc_val);
+    TRACE(2,"%s computed crc = %x",__func__,crc_val);
 
     if(crc_val != data_update_secton_operator.op.dataCrcVerify){
-        SENSORHUB_TRACE(1,"expect = %x",data_update_secton_operator.op.dataCrcVerify);
+        TRACE(1,"expect = %x",data_update_secton_operator.op.dataCrcVerify);
         status = SENSOR_HUB_DATA_OP_STATUS_VERIFY_FAIL;
     }
 
@@ -271,7 +271,7 @@ static inline uint32_t _data_update_op_finish_handler(uint8_t* buf,uint32_t len)
     memset((uint8_t*)(&ota_cb),0,sizeof(sensorHubOtaOpCbType));
     app_sensor_hub_data_update_section_reset();
     app_sensor_hub_data_update_operator_reset();
-    SENSORHUB_TRACE(1,"%s finished!",__func__);
+    TRACE(1,"%s finished!",__func__);
     dataUpdateSectionOpHandlerInfo_T *info = app_bt_pop_pending_data_update_op();
     if(info){
         app_sensor_hub_mcu_data_update_write_start(info->magicCode,info->src,info->size,info->ota_cb);    
@@ -314,7 +314,7 @@ uint32_t app_sensor_hub_mcu_updating_section_data_process(uint8_t * buf, uint32_
     uint8_t * send_ptr = (uint8_t*)&(payload->data);
     bool need_update = false;
 
-    SENSORHUB_TRACE(3,"%s cmd = %x cmdLen = %d %d ",__func__,cmd,payloadPtr->dataLen,status);
+    TRACE(3,"%s cmd = %x cmdLen = %d %d ",__func__,cmd,payloadPtr->dataLen,status);
 
 
     switch(cmd)
@@ -345,7 +345,7 @@ uint32_t app_sensor_hub_mcu_updating_section_data_process(uint8_t * buf, uint32_
                     data_update_op_handler_instant.writeOp((uint8_t*)data_update_secton_operator.op.dataStartOpPos,data_update_secton_operator.op.dataLenExpectToOp);
                 }
                 next_cmd = SENSOR_HUB_DATA_UPDATE_SINGALING_CMD_DATA_TRANSFERING;
-                SENSORHUB_TRACE(2,"expect = %d already = %d",data_update_secton_operator.op.dataLenExpectToOp,data_update_secton_operator.op.dataLenAlreadyOp);
+                TRACE(2,"expect = %d already = %d",data_update_secton_operator.op.dataLenExpectToOp,data_update_secton_operator.op.dataLenAlreadyOp);
                 if(data_update_secton_operator.op.dataLenAlreadyOp == data_update_secton_operator.op.dataLenExpectToOp){
                     //next state : verify
                     next_cmd = SENSOR_HUB_DATA_UPDATE_SIGNALING_CMD_VERIFY;
@@ -384,7 +384,7 @@ uint32_t app_sensor_hub_mcu_updating_section_data_process(uint8_t * buf, uint32_
     data_update_opeator_err_ticks(status);
 
     if(status != SENSOR_HUB_DATA_OP_STATUS_OK){
-        SENSORHUB_TRACE(2,"status = %d cmd = %x",status,cmd);
+        TRACE(2,"status = %d cmd = %x",status,cmd);
         bool reset = data_update_operator_check_and_reusme();
         if(reset){
             need_update = true;
@@ -443,8 +443,8 @@ uint32_t app_sensor_hub_mcu_data_update_write_start(uint32_t magicCode,uint8_t* 
         writeReq->dataCrcVerify = 0;
         len = OFFSETOF(dataUpdateFramePayloadStruct_T, data);
         len += sizeof(dataUpdateOpWriteReqHeader_T);
-        SENSORHUB_TRACE(1,"%s",__func__);
-        SENSORHUB_TRACE(5,"len = %d magicCode = %x src = %x expect = %d crc = %d",len,writeReq->magicCode,data_update_secton_operator.op.dataStartOpPos,writeReq->dataLenExpectToWrite,writeReq->dataCrcVerify);
+        TRACE(1,"%s",__func__);
+        TRACE(5,"len = %d magicCode = %x src = %x expect = %d crc = %d",len,writeReq->magicCode,data_update_secton_operator.op.dataStartOpPos,writeReq->dataLenExpectToWrite,writeReq->dataCrcVerify);
         app_sensor_hub_mcu_ai_send_msg(SENSOR_HUB_AI_DATA_UPDATE_OP,(uint8_t*)payload,len);
         return 0;
     }else{

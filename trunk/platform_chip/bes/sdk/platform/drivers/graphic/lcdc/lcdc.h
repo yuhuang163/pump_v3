@@ -78,9 +78,12 @@ extern "C" {
 #include "plat_types.h"
 #ifdef __NuttX__
 #include <nuttx/power/pm.h>
+#include <nuttx/video/fb.h>
 #else
+#include "lcdc_fb.h"
 #include "pm.h"
 #endif
+
 /*
  * Pre-processor Definitions
  */
@@ -90,11 +93,24 @@ extern "C" {
 
 #define IRQ_LCDCINT
 
+#ifndef PRIu32
+#define PRIu32      "u"
+#endif
+
+#if defined(CONFIG_DSIPHY_OUTFMT_RGB565)
+typedef uint16_t FB_PIX_TYPE ;
+#else
+typedef uint32_t FB_PIX_TYPE ;
+#endif
+
+#define FB_PIX_BYTE (sizeof(FB_PIX_TYPE))
+
 /*
  * Public Types
  */
 
 typedef void (*LCDC_IRQ_CALLBACK)(int error);
+typedef void (*DMA_DONE_IRQ_CALLBACK)(void *dstbuf);
 
 /*
  * lcdc driver api
@@ -137,35 +153,56 @@ void lcdcuninitialize(void);
 struct fb_vtable_s *lcdcgetvplane(int vplane);
 
 /**
- * lcdc_update - trigger lcdc to generate one frame for display
+ * lcdc_trigger_frame - trigger lcdc to generate one frame for display
+ */
+void lcdc_trigger_frame(void);
+
+/**
+ * lcdc_update - wait lcdc idle and trigger lcdc to generate one frame for display
+ * wait the lcdc framedone(previous or current irq) and exit lowpower first
  */
 int lcdc_update(void);
+
+/**
+ * lcdc_update_area - tirger color_p as the fb frame for display
+ */
+int lcdc_update_area(const struct fb_area_s *area, const uint32_t *color_p);
+
+uint8_t lcdc_cache_sync(uint32_t start_address, uint32_t len);
+
+uint8_t lcdc_cache_invalidate(uint32_t start_address, uint32_t len);
+
+/**
+ * is_lcdc_busy - return ture when fb frame is in transmission
+ */
+bool is_lcdc_busy(void);
+
+bool lcdc_lock(void);
+
+bool lcdc_unlock(void);
 
 #ifdef CONFIG_PM
 
 /**
- * @brief lcdc_pmcb_early_register - register pm callbacks by touchdev
- *
- * @param cb  : pm callbacks
- * @return int : (OK) success; (<0) failed
+ * lcdc_pm_ref_cnt_increase - increase lcdc reference cnt
  */
-int lcdc_pmcb_early_register(struct pm_callback_s *cb);
+void lcdc_pm_ref_cnt_increase(void);
 
 /**
- * @brief lcdc_pmcb_register - register pm callbacks by lcddev
- *
- * @param cb : pm callbacks
- * @return int : (OK) success; (<0) failed
+ * lcdc_pm_ref_cnt_decrease - decrease lcdc reference cnt
  */
-int lcdc_pmcb_register(struct pm_callback_s *cb);
+void lcdc_pm_ref_cnt_decrease(void);
 
 /**
- * @brief lcdc_pmcb_unregister - unregister pm callbacks
- *
- * @param cb : callbacks
- * @return int : always success
+ * lcdc_wakeup_disp_domain - exit ulps and wakeup lcdc and dsi
  */
-int lcdc_pmcb_unregister(struct pm_callback_s *cb);
+void lcdc_wakeup_disp_domain(void);
+
+/**
+ * lcd_sleep_disp_domain - enter ulps and let lcdc and dsi sleep
+ */
+void lcd_sleep_disp_domain(void);
+
 #endif
 
 void lcdc_enter_lowpower(void);
@@ -173,6 +210,24 @@ void lcdc_enter_lowpower(void);
 void lcdc_exit_lowpower(void);
 
 void lcdc_exit_lowpower_with_cb(LCDC_IRQ_CALLBACK cb, void *param);
+
+void lcdc_pannel_entery_idle_mode(void);
+
+void lcdc_pannel_exit_idle_mode(void);
+
+void lcdc_pannel_enter_deepstandby(void);
+
+void lcdc_pannel_exit_deepstandby(void);
+
+int lcdc_pannel_read_status(void);
+
+int lcdc_pannel_setpower(int power);
+
+bool in_vmirro_mode(void);
+
+void dma2d_rotate_90(uint32_t src_ptr, uint32_t dst_ptr,uint32_t src_width, uint32_t src_hight, DMA_DONE_IRQ_CALLBACK irq_cb);
+void cpu_rotate_90(uint32_t src_ptr, uint32_t dst_ptr,uint32_t src_width, uint32_t src_height);
+
 
 #ifdef __cplusplus
 }

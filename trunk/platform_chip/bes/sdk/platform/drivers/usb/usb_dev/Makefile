@@ -8,6 +8,12 @@ cfg_obj := $(patsubst $(cur_dir)%,%,$(wildcard $(cur_dir)cfg/*.c $(cur_dir)cfg/*
 cfg_obj := $(cfg_obj:.c=.o)
 cfg_obj := $(cfg_obj:.S=.o)
 
+ifeq ($(MTP_ENABLE),1)
+os_port_obj := $(patsubst $(cur_dir)%,%,$(wildcard $(cur_dir)cfg/os_port/*.c $(cur_dir)cfg/os_port/*.S))
+os_port_obj := $(os_port_obj:.c=.o)
+os_port_obj := $(os_port_obj:.S=.o)
+endif
+
 ifneq ($(RTOS),1)
 EXCLUDE_OBJS := src/usb_msd.o
 src_obj := $(filter-out $(EXCLUDE_OBJS),$(src_obj))
@@ -18,7 +24,7 @@ EXCLUDE_OBJS := usb_audio.o usb_audio_sync.o
 cfg_obj := $(filter-out $(EXCLUDE_OBJS),$(cfg_obj))
 endif
 
-GEN_LIB_NAME := libusbdev
+USB_DEV_LIB_NAME := libusbdev
 
 ccflags-y += -Iplatform/drivers/usb/usb_dev/inc
 
@@ -26,7 +32,15 @@ ifeq ($(USB_HIGH_SPEED),1)
 ccflags-y += -DUSB_HIGH_SPEED
 endif
 
-CFLAGS_usb_cdc.o += -Itests/programmer/inc
+ifeq ($(MTP_ENABLE),1)
+ccflags-y += -Iutils/list
+ccflags-y += -Iutils/heap
+ccflags-y += -Iutils/string_convert
+ccflags-y += -Iservices/fs
+ccflags-y += -DMTP_ENABLE
+endif
+
+CFLAGS_usb_cdc.o += -Itests/programmer/inc -Iutils/hwtimer_list
 
 CFLAGS_usb_audio.o += -Iutils/hwtimer_list
 
@@ -64,52 +78,63 @@ CFLAGS_usb_dev_desc.o += -DUSB_LPM_DEEP_BESL
 endif
 endif
 
+ifneq ($(USB_CDC_RNDIS_COMPOSITE),1)
+ifeq ($(CUSTOM_CDC_HID),1)
+CFLAGS_usb_dev_desc.o += -DCUSTOM_CDC_HID
+CFLAGS_usb_cdc.o += -DCUSTOM_CDC_HID
+endif
+endif
+
 include $(cur_dir)uaud_cfg_flags.mk
 
 $(cur_dir)uaud_cfg_flags.mk: ;
 
 ifeq ($(USB_AUDIO_DYN_CFG),1)
 
-GEN_LIB_NAME := $(GEN_LIB_NAME)_dyn
+USB_DEV_LIB_NAME := $(USB_DEV_LIB_NAME)_dyn
 
 else # USB_AUDIO_DYN_CFG != 1
 
 ifeq ($(USB_AUDIO_384K),1)
-GEN_LIB_NAME := $(GEN_LIB_NAME)_384k
+USB_DEV_LIB_NAME := $(USB_DEV_LIB_NAME)_384k
 else ifeq ($(USB_AUDIO_352_8K),1)
-GEN_LIB_NAME := $(GEN_LIB_NAME)_352p8k
+USB_DEV_LIB_NAME := $(USB_DEV_LIB_NAME)_352p8k
 else ifeq ($(USB_AUDIO_192K),1)
-GEN_LIB_NAME := $(GEN_LIB_NAME)_192k
+USB_DEV_LIB_NAME := $(USB_DEV_LIB_NAME)_192k
 else ifeq ($(USB_AUDIO_176_4K),1)
-GEN_LIB_NAME := $(GEN_LIB_NAME)_176p4k
+USB_DEV_LIB_NAME := $(USB_DEV_LIB_NAME)_176p4k
 else ifeq ($(USB_AUDIO_96K),1)
-GEN_LIB_NAME := $(GEN_LIB_NAME)_96k
+USB_DEV_LIB_NAME := $(USB_DEV_LIB_NAME)_96k
 else ifeq ($(USB_AUDIO_44_1K),1)
-GEN_LIB_NAME := $(GEN_LIB_NAME)_44p1k
+USB_DEV_LIB_NAME := $(USB_DEV_LIB_NAME)_44p1k
 else ifeq ($(USB_AUDIO_32K),1)
-GEN_LIB_NAME := $(GEN_LIB_NAME)_32k
+USB_DEV_LIB_NAME := $(USB_DEV_LIB_NAME)_32k
 else ifeq ($(USB_AUDIO_16K),1)
-GEN_LIB_NAME := $(GEN_LIB_NAME)_16k
+USB_DEV_LIB_NAME := $(USB_DEV_LIB_NAME)_16k
 else ifeq ($(USB_AUDIO_8K),1)
-GEN_LIB_NAME := $(GEN_LIB_NAME)_8k
+USB_DEV_LIB_NAME := $(USB_DEV_LIB_NAME)_8k
 endif
 
 ifeq ($(USB_AUDIO_32BIT),1)
-GEN_LIB_NAME := $(GEN_LIB_NAME)_32b
+USB_DEV_LIB_NAME := $(USB_DEV_LIB_NAME)_32b
 else
 ifeq ($(USB_AUDIO_24BIT),1)
-GEN_LIB_NAME := $(GEN_LIB_NAME)_24b
+USB_DEV_LIB_NAME := $(USB_DEV_LIB_NAME)_24b
 endif
 endif
 
 endif # USB_AUDIO_DYN_CFG != 1
 
 ifneq ($(USB_AUDIO_SEND_CHAN),)
-GEN_LIB_NAME := $(GEN_LIB_NAME)_s$(USB_AUDIO_SEND_CHAN)
+USB_DEV_LIB_NAME := $(USB_DEV_LIB_NAME)_s$(USB_AUDIO_SEND_CHAN)
 endif
 
 ifeq ($(USB_AUDIO_UAC2),1)
-GEN_LIB_NAME := $(GEN_LIB_NAME)_uac2
+USB_DEV_LIB_NAME := $(USB_DEV_LIB_NAME)_uac2
+endif
+
+ifeq ($(USE_TRACE_ID), 1)
+USB_DEV_LIB_NAME := $(USB_DEV_LIB_NAME)_log_compressed
 endif
 
 CFLAGS_usb_audio.o += $(UAUD_CFG_FLAGS)
@@ -138,9 +163,35 @@ CFLAGS_usb_audio.o += -DUSB_AUDIO_SEND_ENABLE
 CFLAGS_usb_audio_sync.o += -DUSB_AUDIO_SEND_ENABLE
 endif
 
-root_dir := $(abspath $(dir $(realpath $(firstword $(MAKEFILE_LIST))))/..)
-sinclude $(root_dir)/config/lib.mk
-$(GEN_LIB_NAME)-y := $(src_obj)
+ifneq ($(USB_WIFI_TEST),1)
+ifneq ($(BTHCI_IO_USB),1)
+EXCLUDE_OBJS := usb_wifi_conn.o
+src_obj := $(filter-out $(EXCLUDE_OBJS),$(src_obj))
+endif
+ifneq ($(BTHCI_IO_USB_WIN),1)
+EXCLUDE_OBJS := usb_bt_win.o
+src_obj := $(filter-out $(EXCLUDE_OBJS),$(src_obj))
+endif
+ifneq ($(USB_WIFI_VENDOR_ID),)
+CFLAGS_usb_dev_desc.o +=-DUSB_WIFI_VENDOR_ID=$(USB_WIFI_VENDOR_ID)
+endif
+ifneq ($(USB_WIFI_PRODUCT_ID),)
+CFLAGS_usb_dev_desc.o +=-DUSB_WIFI_PRODUCT_ID=$(USB_WIFI_PRODUCT_ID)
+endif
+endif
 
-obj-y := $(GEN_LIB_NAME).a $(cfg_obj)
+$(USB_DEV_LIB_NAME)-y := $(src_obj)
 
+obj-y := $(USB_DEV_LIB_NAME).a $(cfg_obj)
+
+ifeq ($(MTP_ENABLE),1)
+obj-y += $(os_port_obj)
+endif
+
+ifeq ($(BTHCI_IO_USB),1)
+ccflags-y += -Iservices/bthci
+endif
+
+ifneq ($(CONN_HOST_POWER_CTRL),0)
+ccflags-y += -Inet/wifi_stack/v2/drv/rwnx_drv/conn
+endif

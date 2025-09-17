@@ -18,6 +18,7 @@
  ****************************************************************************/
 #ifndef __BAP_UC_SRV_INC__
 #define __BAP_UC_SRV_INC__
+#include "bluetooth.h"
 
 #include "pacs.h"
 #include "ascs_internal.h"
@@ -59,14 +60,6 @@ typedef struct
 
 typedef struct
 {
-    /// ASE ID
-    uint8_t  ase_id;
-    /// Metadata pointer
-    gen_aud_metadata_ptr_t metadata;
-} bap_uc_srv_metadata_req_t;
-
-typedef struct
-{
     /// Framing Type
     uint8_t  framing_type;
     /// PHY
@@ -95,8 +88,8 @@ typedef struct
     uint32_t sdu_interval;
     /// Framing Type
     uint8_t  framing;
-    /// PHY Bitfield
-    uint8_t  phy_bf;
+    /// PHY
+    uint8_t  phy;
     /// Max SDU size
     uint16_t max_sdu_size;
     /// Retranssmision number
@@ -116,17 +109,17 @@ typedef struct
     /// CIS handle
     uint16_t cis_hdl;
     /// CIS timing
-    const bap_cis_timing_t *cis_timing;
+    const void *cis_timing;
 } bap_uc_srv_cis_info_t;
 
 /// Callback for ascs bond data
-typedef void (*bap_uc_srv_cb_bond_data)(uint8_t con_lid, uint8_t char_type, uint16_t cli_cfg_bf, bool connected);
+typedef void (*bap_uc_srv_cb_bond_data)(uint8_t con_lid, uint8_t char_type, uint16_t cli_cfg_bf);
 
 typedef void (*bap_uc_srv_cb_ase_codec_cfg_req)(uint8_t con_lid, uint8_t ase_num, const bap_uc_srv_codec_cfg_req_t *p_codec_cfg_req);
 
-typedef void (*bap_uc_srv_cb_ase_enable_req)(uint8_t con_lid, uint8_t ase_num, const bap_uc_srv_metadata_req_t *param);
+typedef void (*bap_uc_srv_cb_ase_enable_req)(uint8_t con_lid, uint8_t ase_num, const ascs_metadata_p_t *param);
 
-typedef void (*bap_uc_srv_cb_ase_update_metadata_req)(uint8_t con_lid, uint8_t ase_num, const bap_uc_srv_metadata_req_t *param);
+typedef void (*bap_uc_srv_cb_ase_update_metadata_req)(uint8_t con_lid, uint8_t ase_num, const ascs_metadata_p_t *param);
 
 typedef void (*bap_uc_srv_cb_ase_state_ind)(uint8_t con_lid, uint8_t ase_id, uint8_t ase_state, const bap_uc_srv_qos_cfg_ind_t *p_qos_cfg_ind);
 
@@ -141,7 +134,7 @@ typedef void (*bap_uc_srv_cb_cig_term_ind)(uint8_t con_lid, uint8_t cig_id);
 /// Structure
 typedef struct bap_uc_srv_ascs_evt_cb
 {
-    /// Callback function called when client configuration for ASCS has been updated
+    /// Callback function called when client configuration for PACS has been updated
     bap_uc_srv_cb_bond_data cb_bond_data;
 
     bap_uc_srv_cb_ase_codec_cfg_req cb_ase_codec_cfg_req;
@@ -171,8 +164,6 @@ typedef struct bap_uc_srv_init_cfg
     uint8_t num_src_ase_supp;
     /// Auto disconnect cis when stream is close
     bool auto_cis_disconn;
-    /// Accept cis request when ase is in qos configured state
-    bool accpet_qos_cis_req;
 } bap_uc_srv_init_cfg_t;
 
 #endif /// (BAP_ASCS_ENABLE)
@@ -189,15 +180,15 @@ typedef pacs_init_cfg_t bap_uc_srv_capa_init_cfg_t;
 /**
  * @brief BAP unicast server initilization
  *
- * @param  p_init_cfg
+ * @param  bap_uc_srv_init_cfg
  *                 Initilization configuration
- * @param  p_evt_cb
+ * @param  bap_uc_srv_evt_cb
  *                 Event callbacks
  *
  * @return int         status
  */
-int bap_uc_srv_ascs_init(const bap_uc_srv_init_cfg_t *p_init_cfg,
-                         const bap_uc_srv_ascs_evt_cb_t *p_evt_cb);
+int bap_uc_srv_ascs_init(const bap_uc_srv_init_cfg_t *bap_uc_srv_init_cfg,
+                         const bap_uc_srv_ascs_evt_cb_t *bap_uc_srv_evt_cb);
 
 /**
  * @brief BAP unicast client deinitilization
@@ -244,16 +235,13 @@ int bap_uc_srv_release_ase_local(uint8_t con_lid, uint8_t ase_id);
  * @brief BAP unicast client confirm codec cfg request
  *
  * @param  con_lid     Connection local index
- * @param  ase_id      ASE ID (>=1)
  * @param  accept      Accpet or not
- * @param  rsp_code    Upper specifc rsp code when rejected
- * @param  reason      Upper specifc reason when rejected
+ * @param  ase_id      ASE ID (>=1)
  * @param  p_qos_req   Qos request
  *
  * @return int         status
  */
-int bap_uc_srv_configure_codec_req_upper_cfm(uint8_t con_lid, uint8_t ase_id, bool accept,
-                                             uint8_t rsp_code, uint8_t reason,
+int bap_uc_srv_configure_codec_req_upper_cfm(uint8_t con_lid, bool accept, uint8_t ase_id,
                                              const bap_uc_srv_codec_cfg_qos_req_t *p_qos_req);
 
 /**
@@ -261,15 +249,14 @@ int bap_uc_srv_configure_codec_req_upper_cfm(uint8_t con_lid, uint8_t ase_id, bo
  *
  * @param  con_lid     Connection local index
  * @param  accept      Accpet or not
- * @param  rsp_code    Upper specifc rsp code when rejected
- * @param  reason      Upper specifc reason when rejected
+ * @param  reject_reason
+ *                     Reject Reason
  * @param  ase_num     Number of ASE ID
  * @param  ase_id_list ASE ID list to be confirmed
  *
  * @return int         status
  */
-int bap_uc_srv_enable_req_upper_cfm(uint8_t con_lid, bool accept,
-                                    uint8_t rsp_code, uint8_t reason,
+int bap_uc_srv_enable_req_upper_cfm(uint8_t con_lid, bool accept, uint8_t reject_reason,
                                     uint8_t ase_num, const uint8_t *ase_id_list);
 
 /**
@@ -277,15 +264,14 @@ int bap_uc_srv_enable_req_upper_cfm(uint8_t con_lid, bool accept,
  *
  * @param  con_lid     Connection local index
  * @param  accept      Accpet or not
- * @param  rsp_code    Upper specifc rsp code when rejected
- * @param  reason      Upper specifc reason when rejected
+ * @param  reject_reason
+ *                     Reject Reason
  * @param  ase_num     Number of ASE ID
  * @param  ase_id_list ASE ID list to be confirmed
  *
  * @return int         status
  */
-int bap_uc_srv_update_metadata_req_upper_cfm(uint8_t con_lid, bool accept,
-                                             uint8_t rsp_code, uint8_t reason,
+int bap_uc_srv_update_metadata_req_upper_cfm(uint8_t con_lid, bool accept, uint8_t reject_reason,
                                              uint8_t ase_num, const uint8_t *ase_id_list);
 #if 0
 int bap_uc_srv_disonnect_ase_cis(uint8_t con_lid, uint8_t ase_id);
@@ -300,10 +286,8 @@ int bap_uc_srv_disonnect_ase_cis(uint8_t con_lid, uint8_t ase_id);
 #define bap_uc_srv_pacs_deinit()            pacs_deinit()
 
 #if (GAF_USE_CACHE_GATT_CCCD)
-#define bap_uc_srv_restore_pacs_cli_cfg_cache(con_lid, cli_cfg_bf)\
+#define bap_uc_srv_restore_cli_cfg_cache(con_lid, cli_cfg_bf)\
                                             pacs_restore_cli_cfg_cache((uint8_t)con_lid, (uint16_t)cli_cfg_bf)
-#define bap_uc_srv_restore_ascs_cli_cfg_cache(con_lid, cli_cfg_bf)\
-                                            ascs_restore_cli_cfg_cache((uint8_t)con_lid, (uint16_t)cli_cfg_bf)
 #endif /// (GAF_USE_CACHE_GATT_CCCD)
 
 #define bap_uc_srv_set_ava_audio_context(con_lid, direction, ava_audio_context_bf)\

@@ -25,8 +25,17 @@ extern "C" {
 
 #include "plat_addr_map.h"
 
+#define aud_section_debug
+#ifdef aud_section_debug
+#define aud_trace     TRACE
+#else
+#define aud_trace(...)
+#endif
 #include "hal_aud.h"
 #define audsec_tag  "audsec_tag"
+
+#define aud_section_magic               0xdad1
+#define aud_section_struct_version      1
 
 #define AUD_COEF_LEN        (500)
 #if (AUD_SECTION_STRUCT_VERSION == 1)
@@ -183,6 +192,7 @@ typedef struct {
     aud_item_psap psap_cfg_r;
 } struct_psap_cfg;
 
+
 enum ANC_INDEX {
     ANC_INDEX_0 = 0,
     ANC_INDEX_1,
@@ -223,12 +233,16 @@ typedef struct {
 } pctool_struct_psap_cfg;
 
 #if ((AUD_SECTION_STRUCT_VERSION == 3) || (AUD_SECTION_STRUCT_VERSION == 4))
-#define PCTOOL_ANC_APPMODE_COUNT        10
+#define PCTOOL_ANC_APPMODE_COUNT      10
+#define ANC_SECTIONE_SIZE      (64*1024)
 #else
-#define PCTOOL_ANC_APPMODE_COUNT        4
+#define PCTOOL_ANC_APPMODE_COUNT      4
+#define ANC_SECTIONE_SIZE      (64*1024)
 #endif
-#define PCTOOL_PSAP_APPMODE_COUNT       4
-#define PCTOOL_SPKCALIB_APPMODE_COUNT   2
+
+#define PCTOOL_PSAP_APPMODE_COUNT      4
+
+#define PCTOOL_SPKCALIB_APPMODE_COUNT      2
 
 typedef struct {
     pctool_struct_anc_cfg anc_config_arr[PCTOOL_ANC_APPMODE_COUNT];
@@ -242,27 +256,19 @@ typedef struct {
     pctool_struct_psap_cfg psap_config_arr[PCTOOL_PSAP_APPMODE_COUNT];
 } pctool_psap_config_t;
 
-#ifndef ANC_SECTIONE_SIZE
-#define ANC_SECTIONE_SIZE 0
-#endif
 
 #define PCTOOL_AUDSEC_PSAP_LEN (sizeof(pctool_psap_config_t))
 #define PCTOOL_AUDSEC_SPKCALIB_LEN (sizeof(pctool_spkcalib_config_t))
 
-#if ANC_SECTIONE_SIZE != 0
 #define PCTOOL_AUDSEC_RESERVED_LEN (ANC_SECTIONE_SIZE -sizeof(section_head_t) - sizeof(anc_ident) - sizeof(pctool_anc_config_t)-PCTOOL_AUDSEC_SPKCALIB_LEN-PCTOOL_AUDSEC_PSAP_LEN)
-#else
-#define PCTOOL_AUDSEC_RESERVED_LEN 0
-#endif
+
 
 typedef struct {
-    anc_ident ancIdent;
-    pctool_anc_config_t anc_config;
-#ifndef CHIP_BEST1306
+    anc_ident               ancIdent;
+    pctool_anc_config_t   anc_config;
     pctool_spkcalib_config_t spkcalib_config;
-    pctool_psap_config_t psap_config;
-#endif
-    uint8_t reserved[PCTOOL_AUDSEC_RESERVED_LEN];
+    pctool_psap_config_t   psap_config;
+    unsigned char           reserved[PCTOOL_AUDSEC_RESERVED_LEN];
 } audsec_body;
 
 typedef struct {
@@ -274,13 +280,35 @@ typedef struct {
     uint8_t     io_pin;
     uint8_t     set_flag;
 } pctool_iocfg;
+/*
+typedef struct{
+    uint8_t digmic_ck_iomux_pin;
+    uint8_t digmic_d0_iomux_pin;
+    uint8_t digmic_d1_iomux_pin;
+    uint8_t digmic_d2_iomux_pin;
+    uint8_t digmic_phase;
+}digital_mic_cfg;
+*/
+
+// Add audio and speech support
+#define AUDIO_SECTION_DEBUG
+
+// Device
+#define AUDIO_SECTION_DEVICE_ANC            (0)
+#define AUDIO_SECTION_DEVICE_AUDIO          (1)
+#define AUDIO_SECTION_DEVICE_SPEECH         (2)
+#define AUDIO_SECTION_DEVICE_NUM            (3)
+
+// If add device, need add length to section_device_length
+#define AUDIO_SECTION_LENGTH_ANC            (1024*8)
+#define AUDIO_SECTION_LENGTH_AUDIO          (1024*8)
+#define AUDIO_SECTION_LENGTH_SPEECH         (1024*8)
 
 #define AUDIO_SECTION_CFG_RESERVED_LEN      (sizeof(audio_section_t))
-#define AUDIO_SECTION_HEAD_LEN              (sizeof(section_head_t))
 
 typedef struct {
     section_head_t      head;
-    uint32_t            user;
+    uint32_t            device;
     uint32_t            cfg_len;
 } audio_section_t;
 
@@ -291,19 +319,14 @@ typedef struct {
 //     custom_cfg_t    custom_cfg;
 // } audio_section_custom_cfg_t;
 
-int32_t audio_section_register_user(uint32_t cfg_len);
-int32_t audio_section_store_user_cfg(uint32_t user, uint8_t *cfg, uint32_t len);
-int32_t audio_section_load_user_cfg(uint32_t user, uint8_t *cfg, uint32_t len);
-
+int audio_section_store_cfg(uint32_t device, uint8_t *cfg, uint32_t len);
+int audio_section_load_cfg(uint32_t device, uint8_t *cfg, uint32_t len);
 int psapcfg_loadfrom_audsec(const struct_psap_cfg *list[], const struct_psap_cfg *list_44p1k[], uint32_t count);
 int spkcalibcfg_loadfrom_audsec(const struct_spkcalib_cfg *list[], const struct_spkcalib_cfg *list_44p1k[], uint32_t count);
 
 void audio_section_nv_register(void);
-int anc_section_nv_erase(uint32_t start_addr, uint32_t len, bool is_async);
-int anc_section_nv_write(uint32_t start_addr, uint8_t* ptr, uint32_t len, bool is_async);
 int audio_section_nv_erase(uint32_t start_addr, uint32_t len, bool is_async);
 int audio_section_nv_write(uint32_t start_addr, uint8_t* ptr, uint32_t len, bool is_async);
-uint32_t audio_section_get_device_size(uint8_t device);
 #ifdef __cplusplus
 }
 #endif

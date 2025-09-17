@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2017 ARM Limited. All rights reserved.
+ * Copyright (c) 2013-2019 ARM Limited. All rights reserved.
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -125,9 +125,9 @@
 
 #define osCMSIS             0x20001U    ///< API version (main[31:16].sub[15:0])
 
-#define osCMSIS_FreeRTOS    0x90000U    ///< RTOS identification and version (main[31:16].sub[15:0])
+#define osCMSIS_FreeRTOS    0xA0000U    ///< RTOS identification and version (main[31:16].sub[15:0])
 
-#define osKernelSystemId    "FreeRTOS V9.0.0" ///< RTOS identification string
+#define osKernelSystemId    "FreeRTOS V10.5.1" ///< RTOS identification string
 
 // The stack space occupied is mainly dependent on the underling C standard library
 #if defined(__GNUC__) || defined(__CC_ARM) || defined(__ARMCC_VERSION) || defined(__ICCARM__)
@@ -146,6 +146,7 @@
 #define osFeature_Pool        1         ///< Memory Pools:    1=available, 0=not available
 #define osFeature_MessageQ    1         ///< Message Queues:  1=available, 0=not available
 #define osFeature_MailQ       1         ///< Mail Queues:     1=available, 0=not available
+#define CMSIS_V1_SIGNAL_ANY   ((1u<<24)-1u) ///< thread flags: Flags zero, wait for any signal
 
 #if   defined(__CC_ARM)
 #define os_InRegs __value_in_regs

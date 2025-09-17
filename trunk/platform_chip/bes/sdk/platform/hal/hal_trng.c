@@ -26,11 +26,8 @@
 #include "hal_timer.h"
 #include "hal_trace.h"
 #include "reg_trng.h"
-#include "hal_memsc.h"
 #include "hal_trng.h"
 #include "string.h"
-
-//#define TRNG_STATS
 
 #define MIN_SAMPLE_CNT1                     0x100
 
@@ -43,28 +40,10 @@ static struct TRNG_T * const trng = (struct TRNG_T *)TRNG_BASE;
 static uint32_t timeout_val = 2560;
 static HAL_TRNG_RUN_CB_T run_cb;
 
-static int hal_trng_lock()
-{
-    uint32_t start_time;
-    const uint32_t timeout = MS_TO_TICKS(500);
-
-    start_time = hal_sys_timer_get();
-    while (hal_memsc_lock(HAL_MEMSC_ID_TRNG) == 0) {
-        if (hal_sys_timer_get() - start_time >= timeout) {
-            return -1;
-        }
-    }
-    return 0;
-}
-
-static void hal_trng_unlock()
-{
-    hal_memsc_unlock(HAL_MEMSC_ID_TRNG);
-}
-
 static bool g_trng_opened = false;
 static uint32_t g_trng_rnd_src_sel;
 static uint32_t g_trng_sample_cnt1;
+
 int hal_trng_open(const struct HAL_TRNG_CFG_T *cfg)
 {
     uint32_t sample_cntr1;
@@ -113,15 +92,16 @@ static void hal_trng_start(int irq_en)
         hal_sys_timer_delay(MS_TO_TICKS(1));
     }
     trng->RST_BITS_COUNTER = 1; // reset the bits counter and TRNG valid registers
-    trng->RND_SOURCE_ENABLE = RND_SOURCE_EN;
     if (irq_en) {
         trng->RNG_IMR = 0;
     } else {
         trng->RNG_IMR = 0xF;
     }
+    __DMB();
+    trng->RND_SOURCE_ENABLE = RND_SOURCE_EN;
 }
 
-static void hal_trng_stop()
+static void hal_trng_stop(void)
 {
     trng->RND_SOURCE_ENABLE = 0;
     trng->RNG_ICR = 0xF;
@@ -144,7 +124,7 @@ void hal_trng_close(void)
     return;
 }
 
-int hal_get_trngdata(uint8_t *buf, uint32_t buf_len)
+int hal_trng_get_data(uint8_t *buf, uint32_t buf_len)
 {
     uint32_t i;
     uint32_t len;
@@ -157,14 +137,12 @@ int hal_get_trngdata(uint8_t *buf, uint32_t buf_len)
     uint32_t total_err = 0;
 #endif
 
-    hal_trng_lock();
-
     err_cnt = 0;
 
     while (buf < buf_end) {
-    uint32_t time = hal_sys_timer_get();
+        uint32_t time = hal_sys_timer_get();
 #ifdef TRNG_STATS
-    uint32_t fast_time = hal_fast_sys_timer_get();
+        uint32_t fast_time = hal_fast_sys_timer_get();
 #endif
         hal_trng_start(false);
 
@@ -174,9 +152,6 @@ int hal_get_trngdata(uint8_t *buf, uint32_t buf_len)
                 TR_ERROR(0, "TRNG timeout");
                 goto _exit;
             }
-#ifndef TRNG_STATS
-            osDelay(4);
-#endif
         };
         if (trng->RNG_ISR & 0xE) { //error
             if (++err_cnt > MAX_ERROR_CNT) {
@@ -188,7 +163,7 @@ int hal_get_trngdata(uint8_t *buf, uint32_t buf_len)
         }
 #ifdef TRNG_STATS
         fast_time = hal_fast_sys_timer_get() - fast_time;
-        HAL_TRACE(0, "TRNG fast_time consumed: %u ticks / %u us", fast_time, FAST_TICKS_TO_US(fast_time));
+        TRACE(0, "TRNG fast_time consumed: %u ticks / %u us", fast_time, FAST_TICKS_TO_US(fast_time));
         total_err += err_cnt;
 #endif
         err_cnt = 0;
@@ -223,9 +198,8 @@ _exit:
     hal_trng_stop();
     // clear EHR_DATA reg
     ehr_data = trng->EHR_DATA[5];
-    hal_trng_unlock();
 #ifdef TRNG_STATS
-    HAL_TRACE(0, "TRNG total_err=%u", total_err);
+    TRACE(0, "TRNG total_err=%u", total_err);
 #endif
     return ret;
 }
@@ -248,8 +222,6 @@ static void hal_trng_irq_handler(void)
 
     hal_sysfreq_req(HAL_SYSFREQ_USER_TRNG, HAL_CMU_FREQ_32K);
 
-    hal_trng_unlock();
-
     if (run_cb) {
         if (status == 0x1) {
             run_cb(buf, HAL_TRNG_DATA_LEN, 0);
@@ -264,9 +236,8 @@ int hal_trng_run(HAL_TRNG_RUN_CB_T cb)
     if (!cb) {
         return -1;
     }
-
-    if (hal_trng_lock()) {
-        return 1;
+    if (TRNG_IRQn == INVALID_IRQn) {
+        return -2;
     }
 
     hal_sysfreq_req(HAL_SYSFREQ_USER_TRNG, TRNG_SYSFREQ);
@@ -285,13 +256,15 @@ int hal_trng_run(HAL_TRNG_RUN_CB_T cb)
 
 void hal_trng_cancel(void)
 {
+    if (TRNG_IRQn == INVALID_IRQn) {
+        return;
+    }
+
     hal_trng_stop();
 
     NVIC_DisableIRQ(TRNG_IRQn);
 
     hal_sysfreq_req(HAL_SYSFREQ_USER_TRNG, HAL_CMU_FREQ_32K);
-
-    hal_trng_unlock();
 }
 
 #endif

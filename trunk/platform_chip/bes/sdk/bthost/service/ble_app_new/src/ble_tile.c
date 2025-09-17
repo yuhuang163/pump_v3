@@ -26,8 +26,6 @@
 #define tile_rx_cmd_char_uuid_128_le 0xC0,0x91,0xC4,0x8D,0xBD,0xE7,0x60,0xBA,0xDD,0xF4,0xD6,0x35,0x18,0x00,0x41,0x9D
 #define tile_id_char_uuid_128_le 0xC0,0x91,0xC4,0x8D,0xBD,0xE7,0x60,0xBA,0xDD,0xF4,0xD6,0x35,0x07,0x00,0x41,0x9D
 
-static bool ntf_enabled[BLE_CONNECTION_MAX] = {0};
-
 GATT_DECL_PRI_SERVICE(g_ble_tile_service,
     tile_service_uuid_16);
 
@@ -185,7 +183,6 @@ static int ble_tile_server_callback(gatt_svc_t *svc, gatt_server_event_t event, 
             {
                 notify_enabled = true;
             }
-            ntf_enabled[gap_zero_based_conidx(svc->con_idx)] = notify_enabled;
             if (notify_enabled)
             {
                 app_tile_channel_connected_handler(svc->con_idx, svc->connhdl, 0, 0);
@@ -199,19 +196,12 @@ static int ble_tile_server_callback(gatt_svc_t *svc, gatt_server_event_t event, 
         case GATT_SERV_EVENT_CHAR_READ:
         {
             gatt_server_char_read_t *p = param.char_read;
-            uint16_t cccd_config = ntf_enabled[gap_zero_based_conidx(svc->con_idx)] ? 0x0001 : 0x0000;
-            uint8_t buf_rsp[sizeof(cccd_config) + TILE_ID_LEN] = {0};
-            *(uint16_t *)buf_rsp = co_host_to_uint16_le(cccd_config);
-            app_tile_get_device_id(buf_rsp + sizeof(uint16_t));
-            gatts_send_read_rsp(p->conn->connhdl, p->token, 0, buf_rsp, sizeof(buf_rsp));
-            return true;
-        }
-        case GATT_SERV_EVENT_DESC_READ:
-        {
-            gatt_server_desc_read_t *p = param.desc_read;
-            uint16_t cccd_config = ntf_enabled[gap_zero_based_conidx(svc->con_idx)] ? 0x0001 : 0x0000;
+            uint16_t cccd_config = gatts_get_curr_cccd_config(svc->connhdl, g_ble_tile_service, 0, g_ble_tile_tx_rsp_character, 0);
+            uint8_t tile_id[TILE_ID_LEN] = {0};
             cccd_config = co_host_to_uint16_le(cccd_config);
-            gatts_send_read_rsp(p->conn->connhdl, p->token, 0, (uint8_t *)&cccd_config, sizeof(uint16_t));
+            app_tile_get_device_id(tile_id);
+            gatts_write_read_rsp_data(p->ctx, (uint8_t *)&cccd_config, sizeof(uint16_t));
+            gatts_write_read_rsp_data(p->ctx, tile_id, TILE_ID_LEN);
             return true;
         }
         case GATT_SERV_EVENT_NTF_TX_DONE:
@@ -256,13 +246,7 @@ void ble_tile_init(void)
 
 void app_tile_send_ntf(uint8_t conidx, uint8_t* data, uint32_t len)
 {
-    gatt_char_notify_t val_ntf=
-    {
-        .character = g_ble_tile_tx_rsp_character,
-        .service = g_ble_tile_service,
-    };
-
-    gatts_send_value_notification(gap_conn_bf(conidx), &val_ntf, data, (uint16_t)len);
+    gatts_send_notification(gap_conn_bf(conidx), g_ble_tile_tx_rsp_character, data, (uint16_t)len);
 }
 
 void app_tile_event_cb_reg(app_ble_tile_event_cb cb)

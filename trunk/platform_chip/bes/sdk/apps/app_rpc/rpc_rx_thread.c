@@ -6,11 +6,14 @@
 #include "string.h"
 #include "cqueue.h"
 
-#include "hal_sys2bth.h"
 #include "app_rpc_api.h"
 #include "rpc_queue.h"
 #include "rpc_bth_dsp.h"
 #include "rpc_rx_thread.h"
+
+#ifdef APP_RPC_M55_DSP_EN
+#include "rpc_m55_dsp.h"
+#endif
 
 #ifndef RPC_RX_MAILBOX_MAX
 #define RPC_RX_MAILBOX_MAX          (10)
@@ -21,7 +24,8 @@ static osMailQId rpc_rx_mailbox_id = NULL;
 
 static osThreadId rpc_rx_thread_id = NULL;
 static void rpc_rx_thread(const void *arg);
-osThreadDef(rpc_rx_thread, osPriorityHigh, 1, (4096), "rpc_rx_thread");
+
+osThreadDef(rpc_rx_thread, osPriorityNormal, 1, (32*1024), "rpc_rx_thread");
 
 int32_t rpc_rx_mailbox_put(RPC_RX_MAILBOX_PARAM_T* msg_src)
 {
@@ -58,11 +62,10 @@ int32_t rpc_rx_mailbox_free(RPC_RX_MAILBOX_PARAM_T* msg_p)
 
 int32_t rpc_rx_mailbox_init(void)
 {
-    if (NULL == rpc_rx_mailbox_id)
-    {
+    if (rpc_rx_mailbox_id == NULL){
         rpc_rx_mailbox_id = osMailCreate(osMailQ(rpc_rx_mailbox), NULL);
         if (NULL == rpc_rx_mailbox_id) {
-            APP_RPC_TRACE(0,"Failed to Create rpc mailbox\n");
+            TRACE(0,"Failed to Create rpc mailbox\n");
             return -1;
         }
     }
@@ -83,6 +86,9 @@ static void rpc_rx_thread(const void *arg)
                 rpc_bth_dsp_rx_queue_data_process_handler();
                 break;
             case APP_RPC_CORE_DSP_M55:
+#ifdef APP_RPC_M55_DSP_EN
+                rpc_m55_dsp_rx_queue_data_process_handler();
+#endif
                 break;
             default:
                 ASSERT(false, "Wrong rpc core id 0x%x", msg_p->rpc_core_id);
@@ -96,7 +102,7 @@ static void rpc_rx_thread(const void *arg)
 void rpc_rx_thread_init(void)
 {
     rpc_rx_mailbox_init();
-    APP_RPC_TRACE(0, "%s", __func__);
+    TRACE_IMM(0, "%s", __func__);
     if (rpc_rx_thread_id == NULL) {
         rpc_rx_thread_id = osThreadCreate(osThread(rpc_rx_thread), NULL);
         ASSERT(rpc_rx_thread_id, "creatte rx thread fail!");

@@ -13,6 +13,7 @@
  * trademark and other intellectual property rights.
  *
  ****************************************************************************/
+#ifdef BT_XTAL_SYNC
 #include "plat_types.h"
 #include "hal_chipid.h"
 #include "hal_trace.h"
@@ -20,10 +21,8 @@
 #include "bt_drv_interface.h"
 #include "bt_xtal_sync.h"
 #include "cmsis_os.h"
+
 #include "bluetooth_bt_api.h"
-#include "me_api.h"
-#include "a2dp_api.h"
-#include "btapp.h"
 
 //#define FIXED_XTAL_TUNE_FACTOR
 
@@ -37,11 +36,17 @@
 #define FIXED_BIT_OFFSET_TARGET
 #endif
 #define TARGET_TO_INIT_BIT_OFFSET
+#ifdef BT_XTAL_SYNC_NEW_METHOD
 #define TWS_MASTER_USE_AFC
+#else
+//#define TWS_MASTER_USE_AFC
+#endif
 //#define TWS_SYNC_SYNC_1_STEP
 #endif
 
 //#define BTDRV_XTAL_FCAP_DIRECT_UPDATE
+
+#define SYNC_TRACE(str, ...)    //TRACE(str, ##__VA_ARGS__)
 
 #define BIT_OFFSET_BIT_WIDTH    10
 #define BT_TICK_BIT_WIDTH       22
@@ -190,7 +195,7 @@ static int bt_tune_xtal(int ppb)
 
     offset = (ppb + round) / (int)tune_factor;
     if (offset == 0) {
-        AUDIO_BT_TRACE(2,"%s: offset=%d\n\n", __func__, offset);
+        SYNC_TRACE(2,"%s: offset=%d\n\n", __func__, offset);
         return 0;
     }
 
@@ -225,7 +230,7 @@ static int bt_tune_xtal(int ppb)
         uint32_t init_val;
         init_val = btdrv_rf_get_init_xtal_fcap();
         if (ABS((int)(new_val - init_val)) > (btdrv_rf_get_max_xtal_tune_ppb() / tune_factor)) {
-            AUDIO_BT_TRACE(4,"%s: BAD new_val=%u init_val=%u tune_factor=%u\n\n", __func__, new_val, init_val, tune_factor);
+            SYNC_TRACE(4,"%s: BAD new_val=%u init_val=%u tune_factor=%u\n\n", __func__, new_val, init_val, tune_factor);
             return 0;
         }
     }
@@ -242,7 +247,7 @@ static int bt_tune_xtal(int ppb)
         btdrv_rf_set_xtal_fcap(new_val, true);
     }
 
-    AUDIO_BT_TRACE(4,"%s: offset=%d old=%u new=%u\n\n", __func__, offset, old_val, new_val);
+    SYNC_TRACE(4,"%s: offset=%d old=%u new=%u\n\n", __func__, offset, old_val, new_val);
     return new_val - old_val;
 }
 
@@ -261,7 +266,7 @@ static void bt_reset_xtal_to_default(void)
     in_range = IN_RANGE_NO;
 #endif
     fcap_val = btdrv_rf_get_init_xtal_fcap();
-    AUDIO_BT_TRACE(2,"%s: Reset xtal to default %u", __func__, fcap_val);
+    SYNC_TRACE(2,"%s: Reset xtal to default %u", __func__, fcap_val);
     btdrv_rf_set_xtal_fcap(fcap_val, true);
 }
 
@@ -333,7 +338,7 @@ static int get_bit_offset_target(uint32_t bit_offset, int cur_ppb)
     if (target_to_init_enabled) {
         if (init_bit_offset == BAD_BIT_OFFSET) {
             init_bit_offset = bit_offset;
-            AUDIO_BT_TRACE(2,"%s: init_bit_offset=%u", __func__, init_bit_offset);
+            SYNC_TRACE(2,"%s: init_bit_offset=%u", __func__, init_bit_offset);
         }
         return init_bit_offset;
     }
@@ -427,7 +432,7 @@ static int get_diff_value(int a, int b, uint32_t size)
     if (diff_value_valid(diff, size)) {
         return diff;
     } else {
-        AUDIO_BT_TRACE(3,"%s: Bad diff=%d size=%u\n\n", __func__, diff, size);
+        SYNC_TRACE(3,"%s: Bad diff=%d size=%u\n\n", __func__, diff, size);
         return 0;
     }
 }
@@ -458,24 +463,24 @@ static void update_xtal_tune_factor(int offset, int prev_ppb, int cur_ppb)
     //uint32_t old_factor;
 
     if (ABS(offset) < 4) {
-        AUDIO_BT_TRACE(2,"%s: Offset too small: %d\n\n", __func__, offset);
+        SYNC_TRACE(2,"%s: Offset too small: %d\n\n", __func__, offset);
         return;
     }
 
     diff = prev_ppb - cur_ppb;
     if (diff == 0) {
-        AUDIO_BT_TRACE(2,"%s: Same PPB:offset %d ppb=%d\n\n", __func__, offset, prev_ppb);
+        SYNC_TRACE(2,"%s: Same PPB: ppb=%d\n\n", __func__, offset, prev_ppb);
         return;
     }
 
     if ((offset < 0 && diff > 0) ||
             (offset > 0 && diff < 0)) {
-        AUDIO_BT_TRACE(3,"%s: Incompatible factor offset %d and ppb diff %d\n\n", __func__, offset, diff);
+        SYNC_TRACE(3,"%s: Incompatible factor offset %d and ppb diff %d\n\n", __func__, offset, diff);
         return;
     }
 
     if (ABS(diff) < 1000) {
-        AUDIO_BT_TRACE(2,"%s: Deviation might be large: diff=%d\n\n", __func__, diff);
+        SYNC_TRACE(2,"%s: Deviation might be large: diff=%d\n\n", __func__, diff);
         return;
     }
 
@@ -486,9 +491,9 @@ static void update_xtal_tune_factor(int offset, int prev_ppb, int cur_ppb)
         if (tune_factor_trust < 2) {
             tune_factor_trust++;
         }
-        AUDIO_BT_TRACE(6,"%s: offset=%d prev=%d cur=%d factor=%u/%u/\n\n", __func__, offset, prev_ppb, cur_ppb, factor, tune_factor);
+        SYNC_TRACE(6,"%s: offset=%d prev=%d cur=%d factor=%u/%u/\n\n", __func__, offset, prev_ppb, cur_ppb, factor, tune_factor);
     } else {
-        AUDIO_BT_TRACE(5,"%s: BAD FACTOR: offset=%d prev=%d cur=%d factor=%u\n\n", __func__, offset, prev_ppb, cur_ppb, factor);
+        SYNC_TRACE(5,"%s: BAD FACTOR: offset=%d prev=%d cur=%d factor=%u\n\n", __func__, offset, prev_ppb, cur_ppb, factor);
     }
 #endif
 }
@@ -534,10 +539,10 @@ uint8_t check_init_rxbit(int32_t rxbit)
         int32_t diff = 0;
         if((last_rxbit>622)&&(rxbit<3)){
             rxbit+=624;
-            AUDIO_BT_TRACE(2,"xtal_sync: last_rxbit %d rxbit %d",last_rxbit,rxbit);
+            SYNC_TRACE(2,"xtal_sync: last_rxbit %d rxbit %d",last_rxbit,rxbit);
         }else if((last_rxbit<3)&&(rxbit>622)){
             rxbit-=624;
-            AUDIO_BT_TRACE(2,"xtal_sync: last_rxbit %d rxbit %d",last_rxbit,rxbit);
+            SYNC_TRACE(2,"xtal_sync: last_rxbit %d rxbit %d",last_rxbit,rxbit);
         }
         diff = rxbit - last_rxbit;
         if(ABS(diff)<5){
@@ -574,7 +579,7 @@ void bt_xtal_sync_new(int32_t rxbit)
         init_rxbit = rxbit;
         last_rxbit = rxbit;
         first_offset_lock = 1;
-        AUDIO_BT_TRACE(1,"xtal_sync: init_rxbit %d",init_rxbit);
+        SYNC_TRACE(1,"xtal_sync: init_rxbit %d",init_rxbit);
     }
     else
     {
@@ -583,12 +588,12 @@ void bt_xtal_sync_new(int32_t rxbit)
         if((last_rxbit>622)&&(rxbit<3))
         {
             cross_slot += 1;
-            AUDIO_BT_TRACE(2,"xtal_sync: last_rxbit %d rxbit %d",last_rxbit,rxbit);
+            SYNC_TRACE(2,"xtal_sync: last_rxbit %d rxbit %d",last_rxbit,rxbit);
         }
         else if((last_rxbit<3)&&(rxbit>622))
         {
             cross_slot -= 1;
-            AUDIO_BT_TRACE(2,"xtal_sync: last_rxbit %d rxbit %d",last_rxbit,rxbit);
+            SYNC_TRACE(2,"xtal_sync: last_rxbit %d rxbit %d",last_rxbit,rxbit);
         }
         rxbit_diff = rxbit-init_rxbit+cross_slot*625;
         if(init_rxbit != rxbit)
@@ -603,7 +608,7 @@ void bt_xtal_sync_new(int32_t rxbit)
             }
             btdrv_rf_set_xtal_fcap(new_val,true);
             old_xtal_fcap = new_val;
-            AUDIO_BT_TRACE(3,"xtal_sync: old_val %d new_val %d rxbit %d",old_val,new_val,rxbit);
+            SYNC_TRACE(3,"xtal_sync: old_val %d new_val %d rxbit %d",old_val,new_val,rxbit);
         }
         last_rxbit = rxbit;
     }
@@ -625,7 +630,7 @@ void bt_xtal_sync_new(int32_t rxbit, bool fix_rxbit_en, enum BT_XTAL_SYNC_MODE_T
                 return;
             }
         }
-        
+
         if(fix_rxbit_en)
         {
             init_rxbit = FIX_TARTGET_RXBIT;
@@ -636,7 +641,7 @@ void bt_xtal_sync_new(int32_t rxbit, bool fix_rxbit_en, enum BT_XTAL_SYNC_MODE_T
         }
         last_rxbit = rxbit;
         first_offset_lock = 1;
-        AUDIO_BT_TRACE(2,"xtal_sync: init_rxbit %d,fix rxbit en=%d",init_rxbit,fix_rxbit_en);
+        SYNC_TRACE(2,"xtal_sync: init_rxbit %d,fix rxbit en=%d",init_rxbit,fix_rxbit_en);
     }
     else
     {
@@ -649,18 +654,18 @@ void bt_xtal_sync_new(int32_t rxbit, bool fix_rxbit_en, enum BT_XTAL_SYNC_MODE_T
         }else{
             rxbit_diff = ABS(rxbit_diff);
         }
-        if(rxbit_diff>20){
+        if(rxbit_diff>10){
             return;
         }
         if((last_rxbit>624-BITOFFSET_CROSS_THRESHOLD)&&(rxbit<BITOFFSET_CROSS_THRESHOLD))
         {
             cross_slot += 1;
-            AUDIO_BT_TRACE(2,"xtal_sync: last_rxbit %d rxbit %d",last_rxbit,rxbit);
+            SYNC_TRACE(2,"xtal_sync: last_rxbit %d rxbit %d",last_rxbit,rxbit);
         }
         else if((last_rxbit<BITOFFSET_CROSS_THRESHOLD)&&(rxbit>624-BITOFFSET_CROSS_THRESHOLD))
         {
             cross_slot -= 1;
-            AUDIO_BT_TRACE(2,"xtal_sync: last_rxbit %d rxbit %d",last_rxbit,rxbit);
+            SYNC_TRACE(2,"xtal_sync: last_rxbit %d rxbit %d",last_rxbit,rxbit);
         }
         rxbit_diff = rxbit-init_rxbit+cross_slot*625;
         if(init_rxbit != rxbit)
@@ -676,17 +681,17 @@ void bt_xtal_sync_new(int32_t rxbit, bool fix_rxbit_en, enum BT_XTAL_SYNC_MODE_T
             }
             old_val = btdrv_rf_get_xtal_fcap();
             new_val = (int32_t)(old_val+rxbit_diff*pid_para_ptr->Kp+(rxbit_diff-last_rxbit_diff)*pid_para_ptr->Kd);
-            
+
             if(new_val < xtal_fcap_min){
                 new_val = xtal_fcap_min;
             }
             else if(new_val > xtal_fcap_max){
                 new_val = xtal_fcap_max;
             }
-            
+
             btdrv_rf_set_xtal_fcap(new_val,true);
             old_xtal_fcap = new_val;
-            AUDIO_BT_TRACE(5,"xtal_sync: old_val %d new_val %d rxbit %d [%d:%d]",old_val,new_val,rxbit, xtal_fcap_min, xtal_fcap_max);
+            SYNC_TRACE(5,"xtal_sync: old_val %d new_val %d rxbit %d [%d:%d]",old_val,new_val,rxbit, xtal_fcap_min, xtal_fcap_max);
         }
         last_rxbit = rxbit;
     }
@@ -742,7 +747,7 @@ void bt_xtal_sync(enum BT_XTAL_SYNC_MODE_T mode)
     last_check_time = cur_time;
 #endif
     if (last_check_offset != cur_offset) {
-        AUDIO_BT_TRACE(3,"%s: ms=%u bit_offset=%u", __func__, ticks_to_ms(get_real_ticks(cur_time)), cur_offset);
+        SYNC_TRACE(3,"%s: ms=%u bit_offset=%u", __func__, ticks_to_ms(get_real_ticks(cur_time)), cur_offset);
         if (last_check_offset == BAD_BIT_OFFSET) {
             consec_diff = 0;
         } else {
@@ -753,7 +758,7 @@ void bt_xtal_sync(enum BT_XTAL_SYNC_MODE_T mode)
         // Check bit offset validity
         if (ABS(consec_diff) > MAX_VALID_CONSEC_DIFF) {
             err_consec_diff++;
-            AUDIO_BT_TRACE(3,"%s: Bad consec_diff=%d (%u)", __func__, consec_diff, err_consec_diff);
+            SYNC_TRACE(3,"%s: Bad consec_diff=%d (%u)", __func__, consec_diff, err_consec_diff);
             if (err_consec_diff > MAX_CONSEC_DIFF_ERR) {
                 bt_reset_xtal_to_default();
             }
@@ -785,11 +790,11 @@ void bt_xtal_sync(enum BT_XTAL_SYNC_MODE_T mode)
                 bt_tune_xtal(ppb);
                 //reset_xtal_sync();
                 //update_factor = 0;
-                AUDIO_BT_TRACE(1,"\n\nBit offset in range or near range: try_ppb=%d\n\n", ppb);
+                SYNC_TRACE(1,"\n\nBit offset in range or near range: try_ppb=%d\n\n", ppb);
             } else {
-                AUDIO_BT_TRACE(0,"\n\nBit offset is good\n\n");
+                SYNC_TRACE(0,"\n\nBit offset is good\n\n");
             }
-            AUDIO_BT_TRACE(3,"Init tgt=%u cur=%u in_range=%d\n\n", target_bit_offset, cur_offset, in_range);
+            SYNC_TRACE(3,"Init tgt=%u cur=%u in_range=%d\n\n", target_bit_offset, cur_offset, in_range);
         } else if (in_range == IN_RANGE_YES_INIT) {
             // Check if bit offset is unchanged for a long time
             if (hal_sys_timer_get() - target_valid_time >= MS_TO_TICKS(IN_RANGE_TIMEOUT_MS)) {
@@ -797,7 +802,7 @@ void bt_xtal_sync(enum BT_XTAL_SYNC_MODE_T mode)
                 bt_tune_xtal(ppb);
                 reset_xtal_sync();
                 update_factor = 0;
-                AUDIO_BT_TRACE(1,"\n\nIn range init timeout: try_ppb=%d\n\n", ppb);
+                SYNC_TRACE(1,"\n\nIn range init timeout: try_ppb=%d\n\n", ppb);
                 // Update the target bit offset
                 target_bit_offset = get_bit_offset_target(cur_offset, 0);
                 diff_with_target = get_diff_value(cur_offset, target_bit_offset, (MAX_BIT_OFFSET + 1));
@@ -807,7 +812,7 @@ void bt_xtal_sync(enum BT_XTAL_SYNC_MODE_T mode)
                 } else {
                     in_range = IN_RANGE_NO;
                 }
-                AUDIO_BT_TRACE(3,"Update tgt=%u cur=%d in_range=%d\n\n", target_bit_offset, cur_offset, in_range);
+                SYNC_TRACE(3,"Update tgt=%u cur=%d in_range=%d\n\n", target_bit_offset, cur_offset, in_range);
             }
         }
     }
@@ -895,7 +900,7 @@ void bt_xtal_sync(enum BT_XTAL_SYNC_MODE_T mode)
                     // Current ppb is not accurate
                     update_factor = 0;
                 }
-                AUDIO_BT_TRACE(3,"\n\nUpdate 26M: diff=%d ms=%u ppb=%d\n\n", diff, ticks_to_ms(get_real_ticks(cur_time) - prev_time), ppb);
+                SYNC_TRACE(3,"\n\nUpdate 26M: diff=%d ms=%u ppb=%d\n\n", diff, ticks_to_ms(get_real_ticks(cur_time) - prev_time), ppb);
 
                 // Check ppb validity
                 ppb_valid = 1;
@@ -930,7 +935,7 @@ void bt_xtal_sync(enum BT_XTAL_SYNC_MODE_T mode)
                     last_valid_ppb = ppb;
                 } else {
                     err_ppb++;
-                    AUDIO_BT_TRACE(5,"%s: Bad ppb=%d last_valid_ppb=%d last_tune_ppb=%d (%u)", __func__, ppb, last_valid_ppb, last_tune_ppb, err_ppb);
+                    SYNC_TRACE(5,"%s: Bad ppb=%d last_valid_ppb=%d last_tune_ppb=%d (%u)", __func__, ppb, last_valid_ppb, last_tune_ppb, err_ppb);
                     if (err_ppb > MAX_PPB_ERR) {
                         bt_reset_xtal_to_default();
                     }
@@ -962,13 +967,13 @@ void bt_xtal_sync(enum BT_XTAL_SYNC_MODE_T mode)
                             old_xtal_fcap = btdrv_rf_get_xtal_fcap();
                             in_range = IN_RANGE_YES;
                             cur_to_target = diff_with_target;
-                            AUDIO_BT_TRACE(4,"In range: tgt=%u avg=%u diff2tgt=%d cur2tgt=%d",
+                            SYNC_TRACE(4,"In range: tgt=%u avg=%u diff2tgt=%d cur2tgt=%d",
                                 target_bit_offset, avg, diff_with_target, cur_to_target);
                         }
                     } else {
                         if (cur_out_of_range) {
                             in_range = IN_RANGE_NO;
-                            AUDIO_BT_TRACE(4,"Out of range: tgt=%u avg=%u diff2tgt=%d cur2tgt=%d",
+                            SYNC_TRACE(4,"Out of range: tgt=%u avg=%u diff2tgt=%d cur2tgt=%d",
                                 target_bit_offset, avg, diff_with_target, cur_to_target);
                         } else if (in_range == IN_RANGE_YES_INIT) {
                             in_range = IN_RANGE_YES;
@@ -976,7 +981,7 @@ void bt_xtal_sync(enum BT_XTAL_SYNC_MODE_T mode)
                             target_bit_offset = get_bit_offset_target(avg, ppb);
                             diff_with_target = get_diff_value(avg, target_bit_offset, (MAX_BIT_OFFSET + 1));
                             cur_to_target = diff_with_target;
-                            AUDIO_BT_TRACE(1,"Update tgt=%u with cur ppb\n\n", target_bit_offset);
+                            SYNC_TRACE(1,"Update tgt=%u with cur ppb\n\n", target_bit_offset);
                         }
                     }
                     if (in_range == IN_RANGE_NO) {
@@ -1014,7 +1019,7 @@ void bt_xtal_sync(enum BT_XTAL_SYNC_MODE_T mode)
                             }
                         }
                     }
-                    AUDIO_BT_TRACE(4,"real_ppb=%d try_ppb=%d cur2tgt=%d in_range=%d\n\n", prev_real_ppb, ppb, cur_to_target, in_range);
+                    SYNC_TRACE(4,"real_ppb=%d try_ppb=%d cur2tgt=%d in_range=%d\n\n", prev_real_ppb, ppb, cur_to_target, in_range);
                 }
 #endif // FIXED_BIT_OFFSET_TARGET
 
@@ -1026,7 +1031,7 @@ void bt_xtal_sync(enum BT_XTAL_SYNC_MODE_T mode)
                 if (stable_state && ABS(ppb) > MAX_PPB_AFTER_STABLE) {
                     old_ppb = ppb;
                     ppb = (ppb > 0) ? MAX_PPB_AFTER_STABLE : -MAX_PPB_AFTER_STABLE;
-                    AUDIO_BT_TRACE(2,"Bad ppb=%d in stable state. Set to %d\n\n", old_ppb, ppb);
+                    SYNC_TRACE(2,"Bad ppb=%d in stable state. Set to %d\n\n", old_ppb, ppb);
                     update_factor = 0;
                 } else {
                     if (stable_state == 0) {
@@ -1048,7 +1053,7 @@ void bt_xtal_sync(enum BT_XTAL_SYNC_MODE_T mode)
                 last_tune_ppb = bt_xtal_offset_to_ppb(prev_tune_offset);
                 // Restart ppb calculation
                 reset_xtal_sync();
-                AUDIO_BT_TRACE(1,"tune_ppb=%d\n\n", last_tune_ppb);
+                SYNC_TRACE(1,"tune_ppb=%d\n\n", last_tune_ppb);
             }
         }
     }
@@ -1056,7 +1061,6 @@ void bt_xtal_sync(enum BT_XTAL_SYNC_MODE_T mode)
 
 bool bt_xtal_sync_allow(void)
 {
-#ifndef BT_BUILD_WITH_CUSTOMER_HOST
 #if defined(IBRT)
 #if !defined(TWS_MASTER_USE_AFC) && !defined(FPGA)
     btif_remote_device_t *remDev = 0;
@@ -1069,25 +1073,19 @@ bool bt_xtal_sync_allow(void)
         return false;
 #endif
 #else
-    btif_remote_device_t *remDev = NULL;
     if(bt_adapter_count_mobile_link() == 1) {
+        struct BT_ADAPTER_DEVICE_T *connected_device = NULL;
         for (uint8_t i = 0; i < BT_DEVICE_NUM; i++) {
-            remDev = btif_me_enumerate_remote_devices(i);
-            if(NULL == remDev){
-                continue;
-            }
-
-            if (btif_me_get_remote_device_state(remDev) == BTIF_BDS_CONNECTED)
+            if (bt_adapter_get_device(i)->acl_is_connected) {
+                connected_device = bt_adapter_get_device(i);
                 break;
-            else
-                remDev = NULL;
+            }
         }
-        if (remDev == NULL)
+        if (connected_device == NULL)
             return false;
-        if (btif_me_get_current_role(remDev) != BTIF_BCR_SLAVE)
+        if (connected_device->acl_bt_role != BTIF_BCR_SLAVE)
             return false;
     }
-#endif
 #endif
     return true;
 }
@@ -1099,7 +1097,7 @@ void bt_init_xtal_sync(enum BT_XTAL_SYNC_MODE_T mode, int range_min, int range_m
         return;
     }
 
-    AUDIO_BT_TRACE(1,"%s",__FUNCTION__);
+    SYNC_TRACE(1,"%s",__FUNCTION__);
 
     if (tune_factor == 0) {
         tune_factor = btdrv_rf_get_xtal_tune_factor();
@@ -1171,9 +1169,11 @@ static void wait_xtal_tuning_done(uint8_t is_direct)
 
 void bt_term_xtal_sync(bool xtal_term_default)
 {
+    bool track;
     bool need_term = false;
     if (sync_enabled == SYNC_STATE_ENABLED){
         // Always stay in tracking mode (instead of switching to locking mode)
+        track = true;
 
         wait_xtal_tuning_done(true);
 #ifdef FIXED_BIT_OFFSET_TARGET
@@ -1184,13 +1184,13 @@ void bt_term_xtal_sync(bool xtal_term_default)
     }
     if (need_term || xtal_term_default){
         if (xtal_term_default){
-            AUDIO_BT_TRACE(1,"%s: Restore init_xtal_fcap", __func__);
+            SYNC_TRACE(1,"%s: Restore init_xtal_fcap", __func__);
             btdrv_rf_set_xtal_fcap(btdrv_rf_get_init_xtal_fcap(),true);
             wait_xtal_tuning_done(true);
         }else{
   #ifdef FIXED_BIT_OFFSET_TARGET
             // Restore a workable xtal fcap setting
-            AUDIO_BT_TRACE(2,"%s: Restore old_xtal_fcap=%u", __func__, old_xtal_fcap);
+            SYNC_TRACE(2,"%s: Restore old_xtal_fcap=%u", __func__, old_xtal_fcap);
             btdrv_rf_set_xtal_fcap(old_xtal_fcap,true);
             wait_xtal_tuning_done(true);
   #endif
@@ -1203,7 +1203,7 @@ void bt_term_xtal_sync_default(void)
 {
     uint32_t init_val, curr_val;
 
-    AUDIO_BT_TRACE(1,"%s",__func__);
+    SYNC_TRACE(1,"%s",__func__);
 #ifdef FIXED_BIT_OFFSET_TARGET
     in_range = IN_RANGE_NO;
 #endif
@@ -1217,3 +1217,4 @@ void bt_term_xtal_sync_default(void)
         wait_xtal_tuning_done(true);
     }
 }
+#endif //BT_XTAL_SYNC

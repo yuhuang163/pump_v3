@@ -18,6 +18,7 @@
  ****************************************************************************/
 #ifndef __HAP_HAS_INC__
 #define __HAP_HAS_INC__
+#include "bluetooth.h"
 
 #include "gaf_cfg.h"
 

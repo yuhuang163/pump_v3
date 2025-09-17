@@ -69,12 +69,12 @@ static uint32_t next_frame_flag = 0;
 // ------------------------------ Memory Alloc ------------------------------
 
 static void *lc3_alloc(void *pool, unsigned size){
-    AUDIOPLAYERS_TRACE(0, "lc3_alloc(%d)", size);
+    TRACE(0, "lc3_alloc(%d)", size);
     void *data = speech_calloc(1, size);
     return data;
 }
 static void lc3_free(void *pool,void *data){
-    AUDIOPLAYERS_TRACE(0, "lc3_free");
+    TRACE(0, "lc3_free");
     speech_free(data);
     return ;
 }
@@ -97,7 +97,7 @@ static int lc3_smooth_len = 0;
  **/
 static int32_t bt_sco_codec_lc3_swb_init(uint32_t sample_rate)
 {
-    AUDIOPLAYERS_TRACE(0, "[%s] SCO: LC3...", __func__);
+    TRACE(0, "[%s] SCO: LC3...", __func__);
 
     ASSERT(SCO_PACKET_SIZE == sizeof(sco_lc3_packet_t),
         "[%s] SCO_PACKET_SIZE != sizeof(sco_lc3_packet_t)", __func__);
@@ -133,16 +133,16 @@ static int32_t bt_sco_codec_lc3_swb_init(uint32_t sample_rate)
     ASSERT(lc3_encoder->frame_size, "%s/%d", __func__, __LINE__);
 
     /* Print info */
-    AUDIOPLAYERS_TRACE(0, "[lc3]");
-    AUDIOPLAYERS_TRACE(0, "Encoder size:     %d", lc3_encoder->instance_size);
-    AUDIOPLAYERS_TRACE(0, "Scratch size:     %d", lc3_encoder->scratch_size);
-    AUDIOPLAYERS_TRACE(0, "Sample rate:      %d", lc3_encoder->sample_rate);
-    AUDIOPLAYERS_TRACE(0, "Channels:         %d", lc3_encoder->channels);
-    AUDIOPLAYERS_TRACE(0, "Frame samples:    %d", lc3_encoder->frame_samples);
-    AUDIOPLAYERS_TRACE(0, "Frame length:     %d", lc3_encoder->frame_size);
-    AUDIOPLAYERS_TRACE(0, "Output format:    %d bits", lc3_encoder->bitwidth);
-    AUDIOPLAYERS_TRACE(0, "Output format:    %d bits align", lc3_encoder->bitalign);
-    AUDIOPLAYERS_TRACE(0, "Target bitrate:   %d", lc3_encoder->bitrate);
+    TRACE(0, "[lc3]");
+    TRACE(0, "Encoder size:     %d", lc3_encoder->instance_size);
+    TRACE(0, "Scratch size:     %d", lc3_encoder->scratch_size);
+    TRACE(0, "Sample rate:      %d", lc3_encoder->sample_rate);
+    TRACE(0, "Channels:         %d", lc3_encoder->channels);
+    TRACE(0, "Frame samples:    %d", lc3_encoder->frame_samples);
+    TRACE(0, "Frame length:     %d", lc3_encoder->frame_size);
+    TRACE(0, "Output format:    %d bits", lc3_encoder->bitwidth);
+    TRACE(0, "Output format:    %d bits align", lc3_encoder->bitalign);
+    TRACE(0, "Target bitrate:   %d", lc3_encoder->bitrate);
 
 
     lc3_decoder = (LC3_Dec_Info *)speech_calloc(1, sizeof(LC3_Dec_Info));
@@ -167,17 +167,17 @@ static int32_t bt_sco_codec_lc3_swb_init(uint32_t sample_rate)
     ASSERT(LC3_API_OK == err, "%s err %d", __func__, err);
 
     /* Print info */
-    AUDIOPLAYERS_TRACE(0, "[lc3]");
-    AUDIOPLAYERS_TRACE(0, "Decoder size:     %d", lc3_decoder->instance_size);
-    AUDIOPLAYERS_TRACE(0, "Scratch size:     %d", lc3_decoder->scratch_size);
-    AUDIOPLAYERS_TRACE(0, "Bits:             %d", lc3_decoder->bitwidth);
-    AUDIOPLAYERS_TRACE(0, "Bits align:       %d", lc3_decoder->bitalign);
-    AUDIOPLAYERS_TRACE(0, "Sample rate:      %d", lc3_decoder->sample_rate);
-    AUDIOPLAYERS_TRACE(0, "Channels:         %d", lc3_decoder->channels);
-    AUDIOPLAYERS_TRACE(0, "Frame samples:    %d", lc3_decoder->frame_samples);
-    AUDIOPLAYERS_TRACE(0, "Frame length:     %d", lc3_decoder->frame_size);
-    AUDIOPLAYERS_TRACE(0, "PLC mode:         %d", lc3_decoder->plcMeth);
-    AUDIOPLAYERS_TRACE(0, "Bitrate:          %d", lc3_decoder->bitrate);
+    TRACE(0, "[lc3]");
+    TRACE(0, "Decoder size:     %d", lc3_decoder->instance_size);
+    TRACE(0, "Scratch size:     %d", lc3_decoder->scratch_size);
+    TRACE(0, "Bits:             %d", lc3_decoder->bitwidth);
+    TRACE(0, "Bits align:       %d", lc3_decoder->bitalign);
+    TRACE(0, "Sample rate:      %d", lc3_decoder->sample_rate);
+    TRACE(0, "Channels:         %d", lc3_decoder->channels);
+    TRACE(0, "Frame samples:    %d", lc3_decoder->frame_samples);
+    TRACE(0, "Frame length:     %d", lc3_decoder->frame_size);
+    TRACE(0, "PLC mode:         %d", lc3_decoder->plcMeth);
+    TRACE(0, "Bitrate:          %d", lc3_decoder->bitrate);
 
 #if defined(SCO_LC3_BES_PLC_ON)
     lc3_packet_len = lc3_decoder->sample_rate * lc3_decoder->frame_dms / 10000 * 2;
@@ -193,18 +193,16 @@ static int32_t bt_sco_codec_lc3_swb_init(uint32_t sample_rate)
 
 static int32_t bt_sco_codec_lc3_swb_deinit(void)
 {
-    AUDIOPLAYERS_TRACE(0, "[%s] ...", __func__);
+    TRACE(0, "[%s] ...", __func__);
 
     if(lc3_encoder->cb_uninit)
     {
         lc3_encoder->cb_uninit(lc3_encoder);
-        lc3_api_encoder_extra_buf_deinit(lc3_encoder);
     }
 
     if(lc3_decoder->cb_uninit)
     {
         lc3_decoder->cb_uninit(lc3_decoder);
-        lc3_api_decoder_extra_buf_deinit(lc3_decoder);
     }
 
     speech_free(lc3_buf_all);
@@ -240,7 +238,7 @@ static int32_t bt_sco_codec_lc3_swb_encoder(uint8_t *lc3_buf, uint32_t lc3_size,
             pcm_buf, sco_packet_ptr->payload, CODEC_PACKET_SIZE);
 
         if(err){
-            AUDIOPLAYERS_TRACE(0, "lc3 enc err:%d\n",err);
+            TRACE(0, "lc3 enc err:%d\n",err);
         }
         sco_packet_ptr++;
         pcm_buf += LC3_PCM_FRAME_SIZE;
@@ -280,7 +278,7 @@ static int32_t bt_sco_codec_lc3_swb_decoder(uint8_t *lc3_buf, uint32_t lc3_size,
                 break;
         }
 
-        AUDIOPLAYERS_TRACE(1, "sync......:%d", i);
+        TRACE(1, "sync......:%d", i);
 
         if (i < lc3_size) {
             lc3_find_first_sync = 1;
@@ -328,13 +326,13 @@ static int32_t bt_sco_codec_lc3_swb_decoder(uint8_t *lc3_buf, uint32_t lc3_size,
                 frame_flag[j] = 0;
                 // It seems that offset is reduced by 1
                 lc3_offset_drift[j] = -1;
-                AUDIOPLAYERS_TRACE(1, "[%s] lc3_offset is reduced by 1", __FUNCTION__);
+                TRACE(1, "[%s] lc3_offset is reduced by 1", __FUNCTION__);
             } else if ((header0 == 0x01) && ((header1 & 0x0f) == 0x08)) {
                 frame_flag[j] = 0;
             } else if ((header1 == 0x01) && ((header2 & 0x0f) == 0x08)) {
                 frame_flag[j] = 0;
                 lc3_offset_drift[j] = 1;
-                AUDIOPLAYERS_TRACE(1, "[%s] lc3_offset is increased by 1", __FUNCTION__);
+                TRACE(1, "[%s] lc3_offset is increased by 1", __FUNCTION__);
             } else {
                 if ((header0 == LC3_MUTE_PATTERN) && ((header1 & 0x0f) == (LC3_MUTE_PATTERN & 0x0f))) {
                     frame_flag[j] = 1;
@@ -378,7 +376,7 @@ static int32_t bt_sco_codec_lc3_swb_decoder(uint8_t *lc3_buf, uint32_t lc3_size,
             CODEC_PACKET_SIZE, dec_pcm_buf, bfi_ext);
         if (err)
         {
-            AUDIOPLAYERS_TRACE(0, "lc3 dec err:%d", err);
+            TRACE(0, "lc3 dec err:%d", err);
             bfi_ext = 1;
         }
 #if defined(SCO_LC3_BES_PLC_ON)

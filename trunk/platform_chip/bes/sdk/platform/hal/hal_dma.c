@@ -1,6 +1,6 @@
 /***************************************************************************
  *
- * Copyright 2015-2019 BES.
+ * Copyright 2015-2022 BES.
  * All rights reserved. All unpublished rights reserved.
  *
  * No part of this work may be used or reproduced in any form or by any
@@ -24,6 +24,30 @@
 #include "hal_trace.h"
 #include "reg_dma.h"
 
+#if defined(CHIP_DMA_CFG_IDX) && (CHIP_DMA_CFG_IDX == 1)
+    #ifdef CHIP_ROLE_CP
+        // To be compatible with old chip definitions
+        #ifdef AUDMA_BASE
+        #define DMA0_BASE                           AUDMA_BASE
+        #define DMA0_IRQn                           AUDMA_IRQn
+        #define dma0_fifo_addr                      audma_fifo_addr
+        #define dma0_fifo_periph                    audma_fifo_periph
+        #define dma0_fifo_periph_remap              audma_fifo_periph_remap
+        #define DMA0_CHAN_START                     AUDMA_CHAN_START
+        #define DMA0_CHAN_NUM                       AUDMA_CHAN_NUM
+        #endif
+    #else
+        #ifdef GPDMA_BASE
+        #define DMA0_BASE                           GPDMA_BASE
+        #define DMA0_IRQn                           GPDMA_IRQn
+        #define dma0_fifo_addr                      gpdma_fifo_addr
+        #define dma0_fifo_periph                    gpdma_fifo_periph
+        #define dma0_fifo_periph_remap              gpdma_fifo_periph_remap
+        #define DMA0_CHAN_START                     GPDMA_CHAN_START
+        #define DMA0_CHAN_NUM                       GPDMA_CHAN_NUM
+        #endif
+    #endif
+#else
 // To be compatible with old chip definitions
 #ifdef AUDMA_BASE
 #define DMA0_BASE                           AUDMA_BASE
@@ -44,12 +68,17 @@
 #define DMA1_CHAN_START                     GPDMA_CHAN_START
 #define DMA1_CHAN_NUM                       GPDMA_CHAN_NUM
 #endif
+#endif
 
 #ifdef DMA0_BASE
 
 #if (defined(CHIP_BEST1000) || defined(CHIP_BEST2000) || defined(CHIP_BEST2300)) && !(defined(ROM_BUILD) || defined(PROGRAMMER))
 #define DMA_REMAP
 #endif
+
+#define DMA_2D_MAX_COUNT                    (DMA_2D_COUNT_MASK >> DMA_2D_COUNT_SHIFT)
+#define DMA_2D_MAX_MODIFY                   ((int)(((uint32_t)DMA_2D_MODIFY_MASK >> DMA_2D_MODIFY_SHIFT) / 2))
+#define DMA_2D_MIN_MODIFY                   (-(int)(((uint32_t)DMA_2D_MODIFY_MASK >> DMA_2D_MODIFY_SHIFT) / 2) - 1)
 
 #if (defined(CHIP_BEST1501SIMU) && !defined(__FPGA_1501P__)) || defined(CHIP_BEST1600SIMU)
 enum HAL_DMA_INST_T {
@@ -65,6 +94,9 @@ enum HAL_DMA_INST_T {
 #endif
 #ifdef DMA2_BASE
     HAL_DMA_INST_2,
+#endif
+#ifdef DMA3_BASE
+    HAL_DMA_INST_3,
 #endif
 
     HAL_DMA_INST_QTY
@@ -98,6 +130,9 @@ static struct DMA_T * const dma[HAL_DMA_INST_QTY] = {
 #ifdef DMA2_BASE
     (struct DMA_T *)DMA2_BASE,
 #endif
+#ifdef DMA3_BASE
+    (struct DMA_T *)DMA3_BASE,
+#endif
 };
 
 static const int16_t irq_type[HAL_DMA_INST_QTY] = {
@@ -108,6 +143,9 @@ static const int16_t irq_type[HAL_DMA_INST_QTY] = {
 #ifdef DMA2_BASE
     DMA2_IRQn,
 #endif
+#ifdef DMA3_BASE
+    DMA3_IRQn,
+#endif
 };
 
 static void hal_dma0_irq_handler(void);
@@ -117,6 +155,9 @@ static void hal_dma1_irq_handler(void);
 #ifdef DMA2_BASE
 static void hal_dma2_irq_handler(void);
 #endif
+#ifdef DMA3_BASE
+static void hal_dma3_irq_handler(void);
+#endif
 
 static const uint32_t irq_entry[HAL_DMA_INST_QTY] = {
     (uint32_t)hal_dma0_irq_handler,
@@ -125,6 +166,9 @@ static const uint32_t irq_entry[HAL_DMA_INST_QTY] = {
 #endif
 #ifdef DMA2_BASE
     (uint32_t)hal_dma2_irq_handler,
+#endif
+#ifdef DMA3_BASE
+    (uint32_t)hal_dma3_irq_handler,
 #endif
 };
 
@@ -143,6 +187,12 @@ static const struct HAL_DMA_FIFO_ADDR_T fifo_addr[HAL_DMA_INST_QTY] = {
     {
         .count = ARRAY_SIZE(dma2_fifo_addr),
         .addr = dma2_fifo_addr,
+    },
+#endif
+#ifdef DMA3_BASE
+    {
+        .count = ARRAY_SIZE(dma3_fifo_addr),
+        .addr = dma3_fifo_addr,
     },
 #endif
 };
@@ -173,6 +223,15 @@ static const struct HAL_DMA_FIFO_PERIPH_T fifo_periph[HAL_DMA_INST_QTY] = {
 #endif
     },
 #endif
+#ifdef DMA3_BASE
+    {
+        .count = ARRAY_SIZE(dma3_fifo_periph),
+        .periph = dma3_fifo_periph,
+#ifdef DMA_REMAP
+        .periph_remap = dma3_fifo_periph_remap,
+#endif
+    },
+#endif
 };
 
 static const uint8_t chan_start[HAL_DMA_INST_QTY] = {
@@ -183,6 +242,9 @@ static const uint8_t chan_start[HAL_DMA_INST_QTY] = {
 #ifdef DMA2_BASE
     DMA2_CHAN_START,
 #endif
+#ifdef DMA3_BASE
+    DMA3_CHAN_START,
+#endif
 };
 
 static const uint8_t chan_num[HAL_DMA_INST_QTY] = {
@@ -192,6 +254,9 @@ static const uint8_t chan_num[HAL_DMA_INST_QTY] = {
 #endif
 #ifdef DMA2_BASE
     DMA2_CHAN_NUM,
+#endif
+#ifdef DMA3_BASE
+    DMA3_CHAN_NUM,
 #endif
 };
 
@@ -216,12 +281,17 @@ static bool dma_opened = false;
 static HAL_DMA_DELAY_FUNC dma_delay = NULL;
 
 #ifdef DMA_DEBUG
-#ifdef DMA2_BASE && (DMA2_CHAN_NUM > DMA0_CHAN_NUM)
+#if defined(DMA3_BASE) && (DMA3_CHAN_NUM > DMA0_CHAN_NUM)
+#define MAX_CHAN_NUM03                      DMA3_CHAN_NUM
+#else
+#define MAX_CHAN_NUM03                      DMA0_CHAN_NUM
+#endif
+#if defined(DMA2_BASE) && (DMA2_CHAN_NUM > MAX_CHAN_NUM03)
 #define MAX_CHAN_NUM02                      DMA2_CHAN_NUM
 #else
-#define MAX_CHAN_NUM02                      DMA0_CHAN_NUM
+#define MAX_CHAN_NUM02                      MAX_CHAN_NUM03
 #endif
-#ifdef DMA1_BASE && (DMA1_CHAN_NUM > MAX_CHAN_NUM02)
+#if defined(DMA1_BASE) && (DMA1_CHAN_NUM > MAX_CHAN_NUM02)
 #define MAX_CHAN_NUM_PER_INST               DMA1_CHAN_NUM
 #else
 #define MAX_CHAN_NUM_PER_INST               MAX_CHAN_NUM02
@@ -318,6 +388,8 @@ static inline uint32_t hal_dma_get_periph_addr(enum HAL_DMA_PERIPH_T periph)
 static void hal_dma_open_inst(enum HAL_DMA_INST_T inst)
 {
     uint8_t i;
+    uint32_t clr_val;
+    uint32_t set_val;
 
     /* Reset all channel configuration register */
     for (i = 0; i < DMA_NUMBER_CHANNELS; i++) {
@@ -328,16 +400,22 @@ static void hal_dma_open_inst(enum HAL_DMA_INST_T inst)
     dma[inst]->INTTCCLR = ~0UL;
     dma[inst]->INTERRCLR = ~0UL;
 
-    dma[inst]->DMACONFIG = (dma[inst]->DMACONFIG & ~(DMA_DMACONFIG_AHB1_BIGENDIAN |
-        DMA_DMACONFIG_AHB2_BIGENDIAN | DMA_DMACONFIG_CLK_EN_MASK | DMA_DMACONFIG_CLK_MANUAL)) |
-        DMA_DMACONFIG_EN | DMA_DMACONFIG_CROSS_1KB_EN |
+    clr_val = DMA_DMACONFIG_AHB1_BIGENDIAN | DMA_DMACONFIG_AHB2_BIGENDIAN | DMA_DMACONFIG_CLK_EN_MASK | DMA_DMACONFIG_CLK_MANUAL;
+    set_val = DMA_DMACONFIG_EN | DMA_DMACONFIG_CROSS_1KB_EN | /* DMA_DMACONFIG_ROUND_ROBIN_PRIO | */
 #ifdef CHIP_BEST3001
         DMA_DMACONFIG_TC_IRQ_EN_MASK |
 #endif
         0;
 
 #ifdef CHIP_BEST1400
-    dma[inst]->DMACONFIG &= ~DMA_DMACONFIG_TC_IRQ_EN_MASK;
+    clr_val |= DMA_DMACONFIG_TC_IRQ_EN_MASK;
+    set_val &= ~DMA_DMACONFIG_TC_IRQ_EN_MASK;
+#endif
+
+#ifdef DMA_INST_CUST_DMACONFIG
+    hal_dma_cust_set_dmaconfig((uint32_t)dma[inst], clr_val, set_val);
+#else
+    dma[inst]->DMACONFIG = (dma[inst]->DMACONFIG & ~clr_val) | set_val;
 #endif
 
     /* Reset all channels are free */
@@ -346,11 +424,7 @@ static void hal_dma_open_inst(enum HAL_DMA_INST_T inst)
     }
 
     NVIC_SetVector(irq_type[inst], irq_entry[inst]);
-    if (inst == HAL_DMA_INST_0) {
-        NVIC_SetPriority(irq_type[inst], IRQ_PRIORITY_ABOVENORMAL);
-    } else {
-        NVIC_SetPriority(irq_type[inst], IRQ_PRIORITY_NORMAL);
-    }
+    NVIC_SetPriority(irq_type[inst], IRQ_PRIORITY_NORMAL);
     NVIC_ClearPendingIRQ(irq_type[inst]);
     NVIC_EnableIRQ(irq_type[inst]);
 }
@@ -359,7 +433,9 @@ static void hal_dma_open_inst(enum HAL_DMA_INST_T inst)
 static void hal_dma_close_inst(enum HAL_DMA_INST_T inst)
 {
     NVIC_DisableIRQ(irq_type[inst]);
+#ifndef DMA_INST_CUST_DMACONFIG
     dma[inst]->DMACONFIG = 0;
+#endif
 }
 
 static bool hal_dma_chan_busy_inst(enum HAL_DMA_INST_T inst, uint8_t hwch)
@@ -391,6 +467,7 @@ static void hal_dma_handle_chan_irq(enum HAL_DMA_INST_T inst, uint8_t hwch)
         if (handler[inst][hwch]) {
             remains = GET_BITFIELD(dma[inst]->CH[hwch].CONTROL, DMA_CONTROL_TRANSFERSIZE);
             lli = (struct HAL_DMA_DESC_T *)dma[inst]->CH[hwch].LLI;
+            lli = ADDR_DEV_TO_CPU(lli);
             handler[inst][hwch](generate_chan(inst, hwch), remains, errint, lli);
         }
     }
@@ -427,15 +504,25 @@ static void hal_dma2_irq_handler(void)
 }
 #endif
 
+#ifdef DMA3_BASE
+static void hal_dma3_irq_handler(void)
+{
+    hal_dma_irq_handler(HAL_DMA_INST_3);
+}
+#endif
+
 static enum HAL_DMA_RET_T hal_dma_init_control(uint32_t *ctrl,
                                                const struct HAL_DMA_CH_CFG_T *cfg,
                                                int tc_irq)
 {
+    uint32_t master;
     uint32_t addr_inc;
+    uint32_t src_bsize;
+    uint32_t dst_bsize;
     enum HAL_DMA_FLOW_CONTROL_T type;
 
     if (cfg->src_tsize > HAL_DMA_MAX_DESC_XFER_SIZE) {
-        return HAL_DMA_ERR;
+        return HAL_DMA_ERR_TSIZE;
     }
 
 #ifdef CHIP_BEST1000
@@ -462,7 +549,7 @@ static enum HAL_DMA_RET_T hal_dma_init_control(uint32_t *ctrl,
             addr_inc = 0;
             break;
         default:
-            return HAL_DMA_ERR;
+            return HAL_DMA_ERR_TYPE;
     }
 
 #ifndef CHIP_BEST1000
@@ -472,14 +559,81 @@ static enum HAL_DMA_RET_T hal_dma_init_control(uint32_t *ctrl,
     if (cfg->type & HAL_DMA_FLOW_FLAG_DI) {
         addr_inc |= DMA_CONTROL_DI;
     }
+    if (cfg->type & HAL_DMA_FLOW_FLAG_NO_SI) {
+        addr_inc &= ~DMA_CONTROL_SI;
+    }
+    if (cfg->type & HAL_DMA_FLOW_FLAG_NO_DI) {
+        addr_inc &= ~DMA_CONTROL_DI;
+    }
+#endif
+
+    if (cfg->master == HAL_DMA_MASTER_DEFAULT) {
+#ifdef AHB_DMA_MULTI_MASTER
+        master = DMA_CONTROL_PROT1;                     //sel master0 and master1: src=master1, dst=master0, bit28=1, bit29=0
+#else
+        master = 0;                                     //sel master0
+#endif
+    } else if (cfg->master == HAL_DMA_MASTER_1) {
+        master = DMA_CONTROL_PROT1 | DMA_CONTROL_PROT2; //sel master1
+    } else if (cfg->master == HAL_DMA_MASTER_SRC1_DST0) {
+        master = DMA_CONTROL_PROT1;                     //sel master0 and master1: src=master1, dst=master0, bit28=1, bit29=0
+    } else if (cfg->master == HAL_DMA_MASTER_SRC0_DST1) {
+        master = DMA_CONTROL_PROT2;                     //sel master0 and master1: src=master0, dst=master1, bit28=0, bit29=1
+    } else {
+        master = 0;                                     //sel master0
+    }
+
+    src_bsize = cfg->src_bsize;
+    dst_bsize = cfg->dst_bsize;
+#ifdef DMA_BSIZE_HALF_FIFO
+#if defined(DMA_FIFO_SIZE) && (DMA_FIFO_SIZE == 64)
+    if (src_bsize == HAL_DMA_BSIZE_HALF_FIFO) {
+        if (cfg->src_width == HAL_DMA_WIDTH_BYTE) {
+            src_bsize = HAL_DMA_BSIZE_32;
+        } else if (cfg->src_width == HAL_DMA_WIDTH_HALFWORD) {
+            src_bsize = HAL_DMA_BSIZE_16;
+        } else {
+            src_bsize = HAL_DMA_BSIZE_8;
+        }
+    }
+    if (dst_bsize == HAL_DMA_BSIZE_HALF_FIFO) {
+        if (cfg->dst_width == HAL_DMA_WIDTH_BYTE) {
+            dst_bsize = HAL_DMA_BSIZE_32;
+        } else if (cfg->dst_width == HAL_DMA_WIDTH_HALFWORD) {
+            dst_bsize = HAL_DMA_BSIZE_16;
+        } else {
+            dst_bsize = HAL_DMA_BSIZE_8;
+        }
+    }
+#else
+    if (src_bsize == HAL_DMA_BSIZE_HALF_FIFO) {
+        if (cfg->src_width == HAL_DMA_WIDTH_BYTE) {
+            src_bsize = HAL_DMA_BSIZE_8;
+        } else if (cfg->src_width == HAL_DMA_WIDTH_HALFWORD) {
+            src_bsize = HAL_DMA_BSIZE_4;
+        } else {
+            src_bsize = HAL_DMA_BSIZE_1;
+        }
+    }
+    if (dst_bsize == HAL_DMA_BSIZE_HALF_FIFO) {
+        if (cfg->dst_width == HAL_DMA_WIDTH_BYTE) {
+            dst_bsize = HAL_DMA_BSIZE_8;
+        } else if (cfg->dst_width == HAL_DMA_WIDTH_HALFWORD) {
+            dst_bsize = HAL_DMA_BSIZE_4;
+        } else {
+            dst_bsize = HAL_DMA_BSIZE_1;
+        }
+    }
+#endif
 #endif
 
     *ctrl = DMA_CONTROL_TRANSFERSIZE(cfg->src_tsize) |
-            DMA_CONTROL_SBSIZE(cfg->src_bsize) |
-            DMA_CONTROL_DBSIZE(cfg->dst_bsize) |
+            DMA_CONTROL_SBSIZE(src_bsize) |
+            DMA_CONTROL_DBSIZE(dst_bsize) |
             DMA_CONTROL_SWIDTH(cfg->src_width) |
             DMA_CONTROL_DWIDTH(cfg->dst_width) |
             (tc_irq ? DMA_CONTROL_TC_IRQ : 0) |
+            master |
             addr_inc;
 
     return HAL_DMA_OK;
@@ -511,17 +665,27 @@ enum HAL_DMA_RET_T hal_dma_init_desc(struct HAL_DMA_DESC_T *desc,
 
     if (type == HAL_DMA_FLOW_M2M_DMA || type == HAL_DMA_FLOW_M2P_DMA ||
             type == HAL_DMA_FLOW_M2P_PERIPH) {
-        desc->src = cfg->src;
+        desc->src = ADDR_CPU_TO_DEV(cfg->src);
+#ifdef DMA_MEM_ADDR_CHECK
+        if (!hal_cmu_dma_mem_addr_valid(desc->src)) {
+            return HAL_DMA_ERR_SRC_ADDR;
+        }
+#endif
     } else {
         desc->src = hal_dma_get_periph_addr(cfg->src_periph);
     }
     if (type == HAL_DMA_FLOW_M2M_DMA || type == HAL_DMA_FLOW_P2M_DMA ||
             type == HAL_DMA_FLOW_P2M_PERIPH) {
-        desc->dst = cfg->dst;
+        desc->dst = ADDR_CPU_TO_DEV(cfg->dst);
+#ifdef DMA_MEM_ADDR_CHECK
+        if (!hal_cmu_dma_mem_addr_valid(desc->dst)) {
+            return HAL_DMA_ERR_DST_ADDR;
+        }
+#endif
     } else {
         desc->dst = hal_dma_get_periph_addr(cfg->dst_periph);
     }
-    desc->lli = (uint32_t)next;
+    desc->lli = (uint32_t)ADDR_CPU_TO_DEV(next);
     desc->ctrl = ctrl;
 
     return HAL_DMA_OK;
@@ -586,12 +750,53 @@ enum HAL_DMA_RET_T hal_dma_sg_2d_start(const struct HAL_DMA_DESC_T *desc,
 
     if (!chan_enabled[inst][hwch]) {
         // Not acquired
-        return HAL_DMA_ERR;
+        return HAL_DMA_ERR_NOT_EN;
     }
     if (hal_dma_chan_busy_inst(inst, hwch)) {
         // Busy
-        return HAL_DMA_ERR;
+        return HAL_DMA_ERR_BUSY;
     }
+
+#ifndef CHIP_BEST1000
+    if (src_2d) {
+        if (src_2d->xmodify < DMA_2D_MIN_MODIFY || src_2d->xmodify > DMA_2D_MAX_MODIFY) {
+            return HAL_DMA_ERR_SRC_XMOD;
+        }
+        if (src_2d->xcount > DMA_2D_MAX_COUNT) {
+            return HAL_DMA_ERR_SRC_XCNT;
+        }
+        if (src_2d->ymodify < DMA_2D_MIN_MODIFY || src_2d->ymodify > DMA_2D_MAX_MODIFY) {
+            return HAL_DMA_ERR_SRC_YMOD;
+        }
+        if (src_2d->ycount > DMA_2D_MAX_COUNT) {
+            return HAL_DMA_ERR_SRC_YCNT;
+        }
+        dma[inst]->_2D[hwch].SRCX = DMA_2D_MODIFY(src_2d->xmodify) | DMA_2D_COUNT(src_2d->xcount);
+        dma[inst]->_2D[hwch].SRCY = DMA_2D_MODIFY(src_2d->ymodify) | DMA_2D_COUNT(src_2d->ycount);
+        dma[inst]->_2D[hwch].CTRL |= DMA_2D_CTRL_SRC_EN;
+    } else {
+        dma[inst]->_2D[hwch].CTRL &= ~DMA_2D_CTRL_SRC_EN;
+    }
+    if (dst_2d) {
+        if (dst_2d->xmodify < DMA_2D_MIN_MODIFY || dst_2d->xmodify > DMA_2D_MAX_MODIFY) {
+            return HAL_DMA_ERR_DST_XMOD;
+        }
+        if (dst_2d->xcount > DMA_2D_MAX_COUNT) {
+            return HAL_DMA_ERR_DST_XCNT;
+        }
+        if (dst_2d->ymodify < DMA_2D_MIN_MODIFY || dst_2d->ymodify > DMA_2D_MAX_MODIFY) {
+            return HAL_DMA_ERR_DST_YMOD;
+        }
+        if (dst_2d->ycount > DMA_2D_MAX_COUNT) {
+            return HAL_DMA_ERR_DST_YCNT;
+        }
+        dma[inst]->_2D[hwch].DSTX = DMA_2D_MODIFY(dst_2d->xmodify) | DMA_2D_COUNT(dst_2d->xcount);
+        dma[inst]->_2D[hwch].DSTY = DMA_2D_MODIFY(dst_2d->ymodify) | DMA_2D_COUNT(dst_2d->ycount);
+        dma[inst]->_2D[hwch].CTRL |= DMA_2D_CTRL_DST_EN;
+    } else {
+        dma[inst]->_2D[hwch].CTRL &= ~DMA_2D_CTRL_DST_EN;
+    }
+#endif
 
     if (cfg->handler == NULL) {
         irq_mask = 0;
@@ -613,25 +818,11 @@ enum HAL_DMA_RET_T hal_dma_sg_2d_start(const struct HAL_DMA_DESC_T *desc,
     dma[inst]->CH[hwch].CONFIG = DMA_CONFIG_SRCPERIPH(src_periph) |
                                  DMA_CONFIG_DSTPERIPH(dst_periph) |
                                  DMA_CONFIG_TRANSFERTYPE(type) |
+#ifdef AHB_DMA_WRITE_EARLY_RESP
+                                 DMA_CONFIG_PROTSTAT(4) |   /* early response */
+#endif
                                  irq_mask |
                                  try_burst;
-
-#ifndef CHIP_BEST1000
-    if (src_2d) {
-        dma[inst]->_2D[hwch].SRCX = DMA_2D_MODIFY(src_2d->xmodify) | DMA_2D_COUNT(src_2d->xcount);
-        dma[inst]->_2D[hwch].SRCY = DMA_2D_MODIFY(src_2d->ymodify) | DMA_2D_COUNT(src_2d->ycount);
-        dma[inst]->_2D[hwch].CTRL |= DMA_2D_CTRL_SRC_EN;
-    } else {
-        dma[inst]->_2D[hwch].CTRL &= ~DMA_2D_CTRL_SRC_EN;
-    }
-    if (dst_2d) {
-        dma[inst]->_2D[hwch].DSTX = DMA_2D_MODIFY(dst_2d->xmodify) | DMA_2D_COUNT(dst_2d->xcount);
-        dma[inst]->_2D[hwch].DSTY = DMA_2D_MODIFY(dst_2d->ymodify) | DMA_2D_COUNT(dst_2d->ycount);
-        dma[inst]->_2D[hwch].CTRL |= DMA_2D_CTRL_DST_EN;
-    } else {
-        dma[inst]->_2D[hwch].CTRL &= ~DMA_2D_CTRL_DST_EN;
-    }
-#endif
 
     lock = int_lock();
     if (cfg->start_cb) {
@@ -733,6 +924,7 @@ uint8_t hal_dma_get_chan(enum HAL_DMA_PERIPH_T periph, enum HAL_DMA_GET_CHAN_T p
     uint32_t lock;
     uint32_t start;
     uint32_t end;
+    uint32_t set_val;
 
     ASSERT(policy == HAL_DMA_HIGH_PRIO || policy == HAL_DMA_LOW_PRIO || policy == HAL_DMA_LOW_PRIO_ONLY,
         "Invalid DMA policy: %d", policy);
@@ -750,6 +942,10 @@ uint8_t hal_dma_get_chan(enum HAL_DMA_PERIPH_T periph, enum HAL_DMA_GET_CHAN_T p
 #ifdef DMA2_BASE
         } else if (periph == HAL_DMA2_MEM) {
             inst = HAL_DMA_INST_2;
+#endif
+#ifdef DMA3_BASE
+        } else if (periph == HAL_DMA3_MEM) {
+            inst = HAL_DMA_INST_3;
 #endif
         } else {
             inst = HAL_DMA_INST_0;
@@ -781,7 +977,12 @@ uint8_t hal_dma_get_chan(enum HAL_DMA_PERIPH_T periph, enum HAL_DMA_GET_CHAN_T p
         if (!chan_enabled[inst][hwch] && !hal_dma_chan_busy_inst(inst, hwch)) {
             chan_enabled[inst][hwch] = true;
             got = generate_chan(inst, hwch);
-            dma[inst]->DMACONFIG |= DMA_DMACONFIG_CLK_EN(1 << hwch);
+            set_val = DMA_DMACONFIG_CLK_EN(1 << hwch);
+#ifdef DMA_INST_CUST_DMACONFIG
+            hal_dma_cust_set_dmaconfig((uint32_t)dma[inst], 0, set_val);
+#else
+            dma[inst]->DMACONFIG |= set_val;
+#endif
             break;
         }
     }
@@ -801,6 +1002,7 @@ void hal_dma_free_chan(uint8_t ch)
     enum HAL_DMA_INST_T inst;
     uint8_t hwch;
     uint32_t lock;
+    uint32_t clr_val;
 
     inst = get_inst_from_chan(ch);
     hwch = get_hwch_from_chan(ch);
@@ -813,7 +1015,12 @@ void hal_dma_free_chan(uint8_t ch)
 
     lock = int_lock();
     chan_enabled[inst][hwch] = false;
-    dma[inst]->DMACONFIG &= ~DMA_DMACONFIG_CLK_EN(1 << hwch);
+    clr_val = DMA_DMACONFIG_CLK_EN(1 << hwch);
+#ifdef DMA_INST_CUST_DMACONFIG
+    hal_dma_cust_set_dmaconfig((uint32_t)dma[inst], clr_val, 0);
+#else
+    dma[inst]->DMACONFIG &= ~clr_val;
+#endif
     int_unlock(lock);
 }
 
@@ -828,7 +1035,7 @@ uint32_t hal_dma_get_cur_src_addr(uint8_t ch)
     ASSERT(inst < HAL_DMA_INST_QTY, err_invalid_inst, inst);
     ASSERT(hwch < DMA_NUMBER_CHANNELS, err_invalid_chan, inst, hwch);
 
-    return dma[inst]->CH[hwch].SRCADDR;
+    return ADDR_DEV_TO_CPU(dma[inst]->CH[hwch].SRCADDR);
 }
 
 uint32_t hal_dma_get_cur_dst_addr(uint8_t ch)
@@ -842,7 +1049,7 @@ uint32_t hal_dma_get_cur_dst_addr(uint8_t ch)
     ASSERT(inst < HAL_DMA_INST_QTY, err_invalid_inst, inst);
     ASSERT(hwch < DMA_NUMBER_CHANNELS, err_invalid_chan, inst, hwch);
 
-    return dma[inst]->CH[hwch].DSTADDR;
+    return ADDR_DEV_TO_CPU(dma[inst]->CH[hwch].DSTADDR);
 }
 
 void SRAM_TEXT_LOC hal_dma_get_cur_src_remain_and_addr(uint8_t ch, uint32_t *remain, uint32_t *src)
@@ -871,10 +1078,10 @@ void SRAM_TEXT_LOC hal_dma_get_cur_src_remain_and_addr(uint8_t ch, uint32_t *rem
 
     if (size[0] == size[1]) {
         *remain = size[0];
-        *src = srcaddr[0];
+        *src = ADDR_DEV_TO_CPU(srcaddr[0]);
     } else {
         *remain = size[1];
-        *src = srcaddr[1];
+        *src = ADDR_DEV_TO_CPU(srcaddr[1]);
     }
 
     return;
@@ -900,7 +1107,7 @@ enum HAL_DMA_RET_T hal_dma_irq_run_chan(uint8_t ch)
     ASSERT(hwch < DMA_NUMBER_CHANNELS, err_invalid_chan, inst, hwch);
 
     if ((dma[inst]->INTSTAT & DMA_STAT_CHAN(hwch)) == 0) {
-        return HAL_DMA_ERR;
+        return HAL_DMA_ERR_NO_IRQ;
     }
 
     hal_dma_handle_chan_irq(inst, hwch);
@@ -957,10 +1164,12 @@ uint32_t hal_dma_get_sg_remain_size(uint8_t ch)
 
     remains = GET_BITFIELD(dma[inst]->CH[hwch].CONTROL, DMA_CONTROL_TRANSFERSIZE);
     first = (const struct HAL_DMA_DESC_T *)dma[inst]->CH[hwch].LLI;
+    first = ADDR_DEV_TO_CPU(first);
     desc = first;
     while (desc) {
         remains += GET_BITFIELD(desc->ctrl, DMA_CONTROL_TRANSFERSIZE);
         desc = (const struct HAL_DMA_DESC_T *)desc->lli;
+        desc = ADDR_DEV_TO_CPU(desc);
         if (desc == first) {
             break;
         }
@@ -975,6 +1184,9 @@ void hal_dma_tc_irq_enable(uint8_t ch)
     enum HAL_DMA_INST_T inst;
     uint8_t hwch;
     uint32_t lock;
+#ifndef CHIP_BEST2300
+    uint32_t set_val;
+#endif
 
     inst = get_inst_from_chan(ch);
     hwch = get_hwch_from_chan(ch);
@@ -988,7 +1200,12 @@ void hal_dma_tc_irq_enable(uint8_t ch)
         hal_cmu_dma_tc_irq_set_chan(hwch);
     }
 #else
-    dma[inst]->DMACONFIG |= DMA_DMACONFIG_TC_IRQ_EN(1 << hwch);
+    set_val = DMA_DMACONFIG_TC_IRQ_EN(1 << hwch);
+#ifdef DMA_INST_CUST_DMACONFIG
+    hal_dma_cust_set_dmaconfig((uint32_t)dma[inst], 0, set_val);
+#else
+    dma[inst]->DMACONFIG |= set_val;
+#endif
 #endif
     int_unlock(lock);
 #endif
@@ -1000,6 +1217,9 @@ void hal_dma_tc_irq_disable(uint8_t ch)
     enum HAL_DMA_INST_T inst;
     uint8_t hwch;
     uint32_t lock;
+#ifndef CHIP_BEST2300
+    uint32_t clr_val;
+#endif
 
     inst = get_inst_from_chan(ch);
     hwch = get_hwch_from_chan(ch);
@@ -1013,7 +1233,12 @@ void hal_dma_tc_irq_disable(uint8_t ch)
         hal_cmu_dma_tc_irq_clear_chan(hwch);
     }
 #else
-    dma[inst]->DMACONFIG &= ~DMA_DMACONFIG_TC_IRQ_EN(1 << hwch);
+    clr_val = DMA_DMACONFIG_TC_IRQ_EN(1 << hwch);
+#ifdef DMA_CUST_SET_DMACONFIG
+    hal_dma_cust_set_dmaconfig((uint32_t)dma[inst], clr_val, 0);
+#else
+    dma[inst]->DMACONFIG &= ~clr_val;
+#endif
 #endif
     int_unlock(lock);
 #endif
@@ -1153,20 +1378,28 @@ void hal_dma_close(void)
 }
 
 #ifdef CORE_SLEEP_POWER_DOWN
-void hal_dma_sleep(void)
+void hal_dma_sleep(enum HAL_CMU_LPU_SLEEP_MODE_T mode)
 {
     enum HAL_DMA_INST_T inst;
 
-    for (inst = 0; inst < HAL_DMA_INST_QTY; inst++) {
+    if (mode != HAL_CMU_LPU_SLEEP_MODE_SUBSYS_PD) {
+        return;
+    }
+
+    for (inst = (enum HAL_DMA_INST_T)0; inst < HAL_DMA_INST_QTY; inst++) {
         saved_dma_regs[inst] = dma[inst]->DMACONFIG;
     }
 }
 
-void hal_dma_wakeup(void)
+void hal_dma_wakeup(enum HAL_CMU_LPU_SLEEP_MODE_T mode)
 {
     enum HAL_DMA_INST_T inst;
 
-    for (inst = 0; inst < HAL_DMA_INST_QTY; inst++) {
+    if (mode != HAL_CMU_LPU_SLEEP_MODE_SUBSYS_PD) {
+        return;
+    }
+
+    for (inst = (enum HAL_DMA_INST_T)0; inst < HAL_DMA_INST_QTY; inst++) {
         dma[inst]->DMACONFIG = saved_dma_regs[inst];
     }
 }
@@ -1196,16 +1429,6 @@ void hal_dma_record_busy_chan(void)
 #endif
 }
 
-void hal_dma_sync_for_cpu(const void *buf, uint32_t len)
-{
-    hal_cache_invalidate(HAL_CACHE_ID_D_CACHE, (uint32_t)buf, len);
-}
-
-void hal_dma_sync_for_device(const void *buf, uint32_t len)
-{
-    hal_cache_sync(HAL_CACHE_ID_D_CACHE, (uint32_t)buf, len);
-}
-
 void hal_dma_print_busy_chan(void)
 {
 #ifdef DMA_DEBUG
@@ -1215,14 +1438,14 @@ void hal_dma_print_busy_chan(void)
     for (inst = HAL_DMA_INST_0; inst < HAL_DMA_INST_QTY; inst++) {
         for (hwch = chan_start[inst]; hwch < chan_num[inst]; hwch++) {
             if (debug_user_map[inst] & (1 << hwch)) {
-                HAL_TRACE(0, "*** DMA CHAN BUSY: %u-%u %8X", inst, hwch, (uint32_t)chan_user[inst][hwch]);
+                TRACE(0, "*** DMA CHAN BUSY: %u-%u %8X", inst, hwch, (uint32_t)chan_user[inst][hwch]);
             }
         }
     }
 #endif
 }
 
-#else// !DMA0_BASE
+#else // !DMA0_BASE
 
 void hal_dma_open(void)
 {
@@ -1232,11 +1455,11 @@ void hal_dma_close(void)
 {
 }
 
-void hal_dma_sleep(void)
+void hal_dma_sleep(enum HAL_CMU_LPU_SLEEP_MODE_T mode)
 {
 }
 
-void hal_dma_wakeup(void)
+void hal_dma_wakeup(enum HAL_CMU_LPU_SLEEP_MODE_T mode)
 {
 }
 
@@ -1258,4 +1481,14 @@ void hal_dma_print_busy_chan(void)
 {
 }
 
-#endif
+#endif // !DMA0_BASE
+
+void hal_dma_sync_for_cpu(const void *buf, uint32_t len)
+{
+    hal_cache_invalidate(HAL_CACHE_ID_D_CACHE, (uint32_t)buf, len);
+}
+
+void hal_dma_sync_for_device(const void *buf, uint32_t len)
+{
+    hal_cache_sync(HAL_CACHE_ID_D_CACHE, (uint32_t)buf, len);
+}

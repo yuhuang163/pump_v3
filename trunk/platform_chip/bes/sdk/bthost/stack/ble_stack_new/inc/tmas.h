@@ -42,13 +42,4 @@ int tmas_init(uint16_t role_bf, uint16_t pref_mtu_size);
  */
 int tmas_deinit(void);
 
-/**
- * @brief Telephony and Media Audio server set tmap role
- *
- * @param[in] role_bf  Role bitfield @see enum tmap_role_bf
- *
- * @return int         status
- */
-int tmas_set_role(uint16_t role_bf);
-
 #endif /// __GAF_TMAS_INC__

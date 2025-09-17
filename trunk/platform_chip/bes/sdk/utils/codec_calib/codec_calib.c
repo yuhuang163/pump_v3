@@ -32,7 +32,7 @@
 #include "nvrecord_env.h"
 #include "nvrecord_dev.h"
 #endif
-#if defined(CODEC_DAC_DC_DYN_BUF) || defined(CODEC_ADC_DC_DYN_BUF)
+#ifdef CODEC_DAC_DC_DYN_BUF
 #include "heap_api.h"
 #endif
 #ifdef CODEC_DAC_ON_OFF_TEST
@@ -40,7 +40,6 @@
 #endif
 #include "tgt_hardware.h"
 #include "plat_types.h"
-#include "bluetooth_bt_api.h"
 
 #ifdef AUDIO_OUTPUT_DC_AUTO_CALIB
 //#define CODEC_DAC_DC_MUTE_TEST
@@ -146,14 +145,14 @@ static int codec_dac_dc_check_calib_cfg(struct HAL_CODEC_DAC_DRE_CALIB_CFG_T *cf
 
     r = hal_codec_check_dac_dc_offset(true, 1, dc_val_l, dc_val_r);
     if (r) {
-        CODEC_CALIB_TRACE(0, "[%s]: DC err1, r=0x%x", __func__, r);
+        TRACE(0, "[%s]: DC err1, r=0x%x", __func__, r);
         return r;
     }
     for (i = 0; i < num; i++) {
         int32_t dc_l = (int32_t)(cfg[i].dc_l) - dc_val_l;
         r = hal_codec_check_dac_dc_offset(false, 1, dc_l, 0);
         if (r) {
-            CODEC_CALIB_TRACE(0, "[%s]: DC err2, r=0x%x", __func__, r);
+            TRACE(0, "[%s]: DC err2, r=0x%x", __func__, r);
             return r;
         }
     }
@@ -166,7 +165,7 @@ static int codec_dac_dc_check(void)
     uint32_t num = 0, i;
     int r;
 
-    CODEC_CALIB_TRACE(0, "[%s]: ", __func__);
+    TRACE(0, "[%s]: ", __func__);
 
     cfg = hal_codec_dac_dre_get_calib_cfg(&num);
     for (i = 0; i < num; i++) {
@@ -184,9 +183,9 @@ static int codec_dac_dc_check(void)
 #endif
 
     if (r) {
-        CODEC_CALIB_TRACE(0, "#### CHECK CALIB CFG ERROR ###, r=0x%x", r);
+        ASSERT(0, "#### CHECK CALIB CFG ERROR ###, r=0x%x", r);
     } else {
-        CODEC_CALIB_TRACE(0, ">>>> CHECK CALIB CFG SUCCESS <<<<");
+        TRACE(0, ">>>> CHECK CALIB CFG SUCCESS <<<<");
     }
     return 0;
 }
@@ -202,19 +201,19 @@ int codec_dac_dc_check_nv(void)
     int r = 0;
     uint32_t num = 0, i;
 
-    CODEC_CALIB_TRACE(0, "[%s]: ", __func__);
+    TRACE(0, "[%s]: ", __func__);
 
     cfg = hal_codec_dac_dre_get_calib_cfg(&num);
     nv_cfg = nv_record_get_extension_entry_ptr()->dac_dre_calib_cfg_nv;
     if (nv_cfg==NULL) {
-        CODEC_CALIB_TRACE(0, "[%s]: null ptr", __func__);
+        TRACE(0, "[%s]: null ptr", __func__);
         return -1;
     }
     for (i = 0; i < num; i++) {
         cfg = (struct HAL_CODEC_DAC_DRE_CALIB_CFG_T *)&nv_cfg[i];
         r = hal_codec_dac_dre_check_calib_cfg(cfg);
         if (r) {
-            CODEC_CALIB_TRACE(0, "[%s]: DRE param err, r=%d", __func__, r);
+            TRACE(0, "[%s]: DRE param err, r=%d", __func__, r);
             return DRE_ERR_RET(r);
         }
         memcpy((void *)&tmp_cfg[i], cfg, sizeof(struct HAL_CODEC_DAC_DRE_CALIB_CFG_T));
@@ -222,7 +221,7 @@ int codec_dac_dc_check_nv(void)
     }
     r = codec_dac_dc_check_calib_cfg(tmp_cfg, num);
     if (r) {
-        CODEC_CALIB_TRACE(0, "[%s]: DC param err, r=%d", __func__, r);
+        TRACE(0, "[%s]: DC param err, r=%d", __func__, r);
         return DC_ERR_RET(r);
     }
     return 0;
@@ -250,7 +249,7 @@ static int codec_dac_dc_do_calib(uint32_t *status)
 
     hal_sysfreq_req(user, HAL_CMU_FREQ_104M);
     hal_sysfreq_print_user_freq();
-    CODEC_CALIB_TRACE(1, "cpu clock: %u", hal_sys_timer_calc_cpu_freq(5, 0));
+    TRACE(1, "cpu clock: %u", hal_sys_timer_calc_cpu_freq(5, 0));
 
 #ifdef ANC_PROD_TEST
     codec_calib_save_anc_prod_param();
@@ -264,7 +263,7 @@ static int codec_dac_dc_do_calib(uint32_t *status)
     hal_codec_set_dac_calib_status(true);
     calib_cfg = hal_codec_dac_dre_get_calib_cfg(&num);
     if (calib_cfg == NULL || num == 0) {
-        CODEC_CALIB_TRACE(1, "%s: invalid calib_cfg=%x or num=%d", __func__, (int)calib_cfg, num);
+        TRACE(1, "%s: invalid calib_cfg=%x or num=%d", __func__, (int)calib_cfg, num);
         ret = -1;
         goto _exit0;
     }
@@ -291,7 +290,7 @@ static int codec_dac_dc_do_calib(uint32_t *status)
         af_codec_calib_param_setup(DAC_PARAM_ANA_GAIN, ana_gain, ini_gain, gain_offs);
         ret = af_codec_calib_dac_dc(CODEC_CALIB_CMD_SET_LARGE_ANA_DC, afcfg);
         if (ret) {
-            CODEC_CALIB_TRACE(1, "%s: error1 %d", __func__, ret);
+            TRACE(1, "%s: error1 %d", __func__, ret);
             ret = -2;
             goto _exit1;
         }
@@ -311,7 +310,7 @@ static int codec_dac_dc_do_calib(uint32_t *status)
     for (i = 0, cfg = calib_cfg; i < num; i++, cfg++) {
         cfg->ana_dc_l = max_l;
         cfg->ana_dc_r = max_r;
-        CODEC_CALIB_TRACE(1, "AUTO CALIB ANA DAC DC: ana_gain=%d, L=0x%04X R=0x%04X, ret=%d",
+        TRACE(1, "AUTO CALIB ANA DAC DC: ana_gain=%d, L=0x%04X R=0x%04X, ret=%d",
             cfg->ana_gain, cfg->ana_dc_l, cfg->ana_dc_r, ret);
     }
     ana_dc_l = max_l;
@@ -325,13 +324,13 @@ static int codec_dac_dc_do_calib(uint32_t *status)
         af_codec_calib_param_setup(DAC_PARAM_ANA_DC, ana_dc_l, ana_dc_r, 0);
         ret = af_codec_calib_dac_dc(CODEC_CALIB_CMD_DIG_DC, afcfg);
         if (ret) {
-            CODEC_CALIB_TRACE(1, "%s: error2 %d", __func__, ret);
+            TRACE(1, "%s: error2 %d", __func__, ret);
             ret = -3;
             goto _exit1;
         }
 #ifdef AUDIO_OUTPUT_ERROR_LARGE_DC
         if (afcfg->state) {
-            CODEC_CALIB_TRACE(1, "DAC CALIB DC ERR: state=%d, i=%d, gain=%d", afcfg->state, i, ana_gain);
+            TRACE(1, "DAC CALIB DC ERR: state=%d, i=%d, gain=%d", afcfg->state, i, ana_gain);
             ret = afcfg->state;
             goto _exit1;
         }
@@ -346,7 +345,7 @@ static int codec_dac_dc_do_calib(uint32_t *status)
         if (calib_ch_r) {
             cfg->valid |= DAC_DC_SET_VALID_CH(1<<1);
         }
-        CODEC_CALIB_TRACE(1, "AUTO CALIB DAC DC: ana_gain=%d, L=0x%08X R=0x%08X, ret=%d",
+        TRACE(1, "AUTO CALIB DAC DC: ana_gain=%d, L=0x%08X R=0x%08X, ret=%d",
             cfg->ana_gain, dc_l, dc_r, ret);
     }
     int32_t first_dc_l, first_dc_r;
@@ -365,7 +364,7 @@ static int codec_dac_dc_do_calib(uint32_t *status)
         af_codec_calib_param_setup(DAC_PARAM_OUT_DC, DC_OUT_VALUE, 0, 0);
         ret = af_codec_calib_dac_dc(CODEC_CALIB_CMD_DIG_GAIN, afcfg);
         if (ret) {
-            CODEC_CALIB_TRACE(1, "%s: error3 %d", __func__, ret);
+            TRACE(1, "%s: error3 %d", __func__, ret);
             ret = -4;
             goto _exit1;
         }
@@ -390,7 +389,7 @@ static int codec_dac_dc_do_calib(uint32_t *status)
         if (calib_ch_r) {
             cfg->valid |= DAC_DC_SET_VALID_CH(1<<3);
         }
-        CODEC_CALIB_TRACE(1, "AUTO CALIB DAC GAIN: ana_gain=%d, L*1000=%d R*1000=%d",
+        TRACE(1, "AUTO CALIB DAC GAIN: ana_gain=%d, L*1000=%d R*1000=%d",
             cfg->ana_gain, (int)(gain_comp_l*1000), (int)(gain_comp_r*1000));
     }
 #if !defined(CODEC_DAC_DC_NV_DATA)
@@ -418,22 +417,22 @@ _exit0:
 
 static void codec_dac_dc_dump_param(char *s, void *cfg)
 {
-    POSSIBLY_UNUSED struct HAL_CODEC_DAC_DRE_CALIB_CFG_T *c = (struct HAL_CODEC_DAC_DRE_CALIB_CFG_T *)cfg;
+    struct HAL_CODEC_DAC_DRE_CALIB_CFG_T *c = (struct HAL_CODEC_DAC_DRE_CALIB_CFG_T *)cfg;
 
-    CODEC_CALIB_TRACE(1, "--------DUMP DAC DC param: %s, cfg=%x--------", s, (uint32_t)cfg);
-    CODEC_CALIB_TRACE(1, "valid:        0x%x", c->valid);
-    CODEC_CALIB_TRACE(1, "dc_l:         0x%x(%d)", c->dc_l, c->dc_l);
-    CODEC_CALIB_TRACE(1, "dc_r:         0x%x(%d)", c->dc_r, c->dc_r);
-    CODEC_CALIB_TRACE(1, "ana_dc_l:     0x%x", c->ana_dc_l);
-    CODEC_CALIB_TRACE(1, "ana_dc_r:     0x%x", c->ana_dc_r);
-    CODEC_CALIB_TRACE(1, "gain_l*1000:  %d", (int)(c->gain_l*1000));
-    CODEC_CALIB_TRACE(1, "gain_r*1000:  %d", (int)(c->gain_r*1000));
-    CODEC_CALIB_TRACE(1, "ana_gain:     0x%x", c->ana_gain);
-    CODEC_CALIB_TRACE(1, "ini_ana_gain: 0x%x", c->ini_ana_gain);
-    CODEC_CALIB_TRACE(1, "gain_offset:  0x%x", c->gain_offset);
-    CODEC_CALIB_TRACE(1, "step_mode:    0x%x", c->step_mode);
-    CODEC_CALIB_TRACE(1, "top_gain:     0x%x", c->top_gain);
-    CODEC_CALIB_TRACE(1, "--------DUMP END--------");
+    TRACE(1, "--------DUMP DAC DC param: %s, cfg=%x--------", s, (uint32_t)cfg);
+    TRACE(1, "valid:        0x%x", c->valid);
+    TRACE(1, "dc_l:         0x%x(%d)", c->dc_l, c->dc_l);
+    TRACE(1, "dc_r:         0x%x(%d)", c->dc_r, c->dc_r);
+    TRACE(1, "ana_dc_l:     0x%x", c->ana_dc_l);
+    TRACE(1, "ana_dc_r:     0x%x", c->ana_dc_r);
+    TRACE(1, "gain_l*1000:  %d", (int)(c->gain_l*1000));
+    TRACE(1, "gain_r*1000:  %d", (int)(c->gain_r*1000));
+    TRACE(1, "ana_gain:     0x%x", c->ana_gain);
+    TRACE(1, "ini_ana_gain: 0x%x", c->ini_ana_gain);
+    TRACE(1, "gain_offset:  0x%x", c->gain_offset);
+    TRACE(1, "step_mode:    0x%x", c->step_mode);
+    TRACE(1, "top_gain:     0x%x", c->top_gain);
+    TRACE(1, "--------DUMP END--------");
 }
 
 static bool codec_dac_dc_load_calib_value(void)
@@ -445,30 +444,30 @@ static bool codec_dac_dc_load_calib_value(void)
     uint32_t num, i, valid = 0;
     bool success = false;
 
-    CODEC_CALIB_TRACE(1, "%s: start", __func__);
+    TRACE(1, "%s: start", __func__);
     cfg = hal_codec_dac_dre_get_calib_cfg(&num);
     nv_cfg = nv_record_get_extension_entry_ptr()->dac_dre_calib_cfg_nv;
-    CODEC_CALIB_TRACE(1, "cfg=%x, nv_cfg=%x, num=%d", (int)cfg, (int)nv_cfg, num);
+    TRACE(1, "cfg=%x, nv_cfg=%x, num=%d", (int)cfg, (int)nv_cfg, num);
 
     for (i = 0; i < num; i++) {
         int error = 0;
         codec_dac_dc_dump_param("NV", (void *)&nv_cfg[i]);
         error = hal_codec_dac_dre_check_calib_cfg((struct HAL_CODEC_DAC_DRE_CALIB_CFG_T *)&nv_cfg[i]);
         if (!error) {
-            CODEC_CALIB_TRACE(1, "nv_cfg[%d](%x) -> tmp[%d](%x)", i, (int)(&nv_cfg[i]), i, (int)(&tmp[i]));
+            TRACE(1, "nv_cfg[%d](%x) -> tmp[%d](%x)", i, (int)(&nv_cfg[i]), i, (int)(&tmp[i]));
             memcpy((void *)&tmp[i], (void *)&nv_cfg[i], sizeof(struct HAL_CODEC_DAC_DRE_CALIB_CFG_T));
             valid++;
         }
     }
     if (valid == num) {
         for (i = 0; i < num; i++) {
-            CODEC_CALIB_TRACE(1, "tmp[%d](%x) -> cfg[%d](%x)", i, (int)(&tmp[i]), i, (int)(&cfg[i]));
+            TRACE(1, "tmp[%d](%x) -> cfg[%d](%x)", i, (int)(&tmp[i]), i, (int)(&cfg[i]));
             memcpy((void *)&cfg[i], (void *)&tmp[i], sizeof(struct HAL_CODEC_DAC_DRE_CALIB_CFG_T));
             codec_dac_dc_dump_param("NV->DC", (void *)&cfg[i]);
         }
         success = true;
     }
-    CODEC_CALIB_TRACE(1, "%s: success=%d, valid=%d, num=%d", __func__, success, valid, num);
+    TRACE(1, "%s: success=%d, valid=%d, num=%d", __func__, success, valid, num);
     return success;
 #else
     return false;
@@ -485,14 +484,14 @@ static bool codec_dac_dc_save_calib_value(void)
 
     cfg = hal_codec_dac_dre_get_calib_cfg(&num);
     nv_cfg = nv_record_get_extension_entry_ptr()->dac_dre_calib_cfg_nv;
-    CODEC_CALIB_TRACE(1, "%s: cfg=%x, nv_cfg=%x, num=%d", __func__, (int)cfg, (int)nv_cfg, num);
+    TRACE(1, "%s: cfg=%x, nv_cfg=%x, num=%d", __func__, (int)cfg, (int)nv_cfg, num);
 
     lock = nv_record_pre_write_operation();
     for (i = 0; i < num; i++) {
         int error = hal_codec_dac_dre_check_calib_cfg(&cfg[i]);
         ASSERT(!error, "%s: invalid param %x", __func__, error);
 
-        CODEC_CALIB_TRACE(1, "nv_cfg[%d]=%x, cfg[%d]=%x", i, (int)(&nv_cfg[i]), i, (int)(&cfg[i]));
+        TRACE(1, "nv_cfg[%d]=%x, cfg[%d]=%x", i, (int)(&nv_cfg[i]), i, (int)(&cfg[i]));
         memcpy((void *)&nv_cfg[i], (void *)&cfg[i], sizeof(struct HAL_CODEC_DAC_DRE_CALIB_CFG_T));
         codec_dac_dc_dump_param("DC->NV", (void *)&cfg[i]);
     }
@@ -501,7 +500,7 @@ static bool codec_dac_dc_save_calib_value(void)
     nv_record_flash_flush();
     osDelay(50);
 #endif
-    CODEC_CALIB_TRACE(1, "%s: done", __func__);
+    TRACE(1, "%s: done", __func__);
     return true;
 }
 
@@ -513,7 +512,7 @@ static uint32_t play_data_handler(uint8_t *buf, uint32_t len)
     memset((void*)buf, 0, len);
 
     (void)curtime;
-    //CODEC_CALIB_TRACE(1, "[%8d] PLAY: buf=%x, len=%d", curtime, (int)buf, len);
+    //TRACE(1, "[%8d] PLAY: buf=%x, len=%d", curtime, (int)buf, len);
     return 0;
 }
 #endif
@@ -529,7 +528,7 @@ int codec_dac_play_mute(bool on)
 #define PLAY_CHMAP (AUD_CHANNEL_MAP_CH0 | AUD_CHANNEL_MAP_CH1)
     int ret = 0;
 
-    CODEC_CALIB_TRACE(1, "%s: on=%d", __func__, on);
+    TRACE(1, "%s: on=%d", __func__, on);
     if (on) {
         struct AF_STREAM_CONFIG_T stream_cfg;
         uint32_t play_buf_size = (PLAY_RATE/1000)*PLAY_SIZE*PLAY_CHNUM*PLAY_FRM;
@@ -550,7 +549,7 @@ int codec_dac_play_mute(bool on)
         stream_cfg.io_path     = AUD_OUTPUT_PATH_SPEAKER;
         stream_cfg.data_ptr    = play_buf;
         stream_cfg.data_size   = play_buf_size;
-        CODEC_CALIB_TRACE(1,"playback rate: %d, bits = %d, buf_size=%d",
+        TRACE(1,"playback rate: %d, bits = %d, buf_size=%d",
             stream_cfg.sample_rate, stream_cfg.bits, play_buf_size);
         ret = af_stream_open(AUD_STREAM_ID_0, AUD_STREAM_PLAYBACK, &stream_cfg);
         ASSERT(ret == 0, "af_stream_open playback failed: %d", ret);
@@ -637,7 +636,7 @@ static int sw_timer_run_tick(void)
         if (elapsed_ms >= sw_timer_period_ms) {
             sw_timer_fired = 1;
             sw_timer_cnt++;
-            CODEC_CALIB_TRACE(1, "========> [%d] CODEC SW TIMER FIRED [%d]", sw_timer_cnt, elapsed_ms);
+            TRACE(1, "========> [%d] CODEC SW TIMER FIRED [%d]", sw_timer_cnt, elapsed_ms);
         }
         return sw_timer_fired;
     }
@@ -696,7 +695,7 @@ int codec_dac_on_off_test(void)
     stream_cfg.io_path     = AUD_OUTPUT_PATH_SPEAKER;
     stream_cfg.data_ptr    = play_buf;
     stream_cfg.data_size   = play_buf_size;
-    CODEC_CALIB_TRACE(1,"playback rate: %d, bits = %d, buf_size=%d",
+    TRACE(1,"playback rate: %d, bits = %d, buf_size=%d",
         stream_cfg.sample_rate, stream_cfg.bits, play_buf_size);
 
     sw_timer_init(SW_TIMER_PERIOD_TIME);
@@ -715,6 +714,18 @@ int codec_dac_on_off_test(void)
 }
 #endif /* CODEC_DAC_ON_OFF_TEST */
 
+#ifdef AUDIO_ANA_DC_CALIB_USE_COMP
+#include CHIP_SPECIFIC_HDR(analog)
+
+static int codec_dac_dc_do_calib_use_comp(void)
+{
+    int ret = 0;
+
+    ret = analog_aud_comparator_calib_dac_dc();
+    return ret;
+}
+#endif
+
 int codec_dac_dc_auto_load(bool open_af, bool reboot, bool init_nv)
 {
     static int done = 0;
@@ -725,11 +736,11 @@ int codec_dac_dc_auto_load(bool open_af, bool reboot, bool init_nv)
     hal_cmu_simu_set_val(0xCAFE);
 #endif
     if (done) {
-        CODEC_CALIB_TRACE(1, "%s: already done", __func__);
+        TRACE(1, "%s: already done", __func__);
         return 0;
     }
     af_open_for_dac_dc_calib = open_af;
-    CODEC_CALIB_TRACE(1, "%s: start: open_af=%d, reboot=%d", __func__, open_af, reboot);
+    TRACE(1, "%s: start: open_af=%d, reboot=%d", __func__, open_af, reboot);
 #ifdef CODEC_DAC_DC_NV_DATA
     if (init_nv) {
         nv_record_init();
@@ -737,9 +748,12 @@ int codec_dac_dc_auto_load(bool open_af, bool reboot, bool init_nv)
 #endif
     if (!codec_dac_dc_load_calib_value()) {
         r = codec_dac_dc_do_calib(NULL);
+#ifdef AUDIO_ANA_DC_CALIB_USE_COMP
+        r |= codec_dac_dc_do_calib_use_comp();
+#endif
 #ifdef AUDIO_OUTPUT_ERROR_LARGE_DC
         if (r) {
-            CODEC_CALIB_TRACE(1, "%s: calib DAC DC again !!", __func__);
+            TRACE(1, "%s: calib DAC DC again !!", __func__);
             r = codec_dac_dc_do_calib(NULL);
         }
 #endif
@@ -756,7 +770,7 @@ int codec_dac_dc_auto_load(bool open_af, bool reboot, bool init_nv)
         }
     }
     time = hal_sys_timer_get() - time;
-    CODEC_CALIB_TRACE(1, "%s: CALIB_COST_TIME=%d, r=%d", __func__, TICKS_TO_MS(time), r);
+    TRACE(1, "%s: CALIB_COST_TIME=%d, r=%d", __func__, TICKS_TO_MS(time), r);
 
 #ifdef CODEC_DAC_DC_MUTE_TEST
     codec_dac_play_mute(true);
@@ -789,7 +803,7 @@ int codec_dac_dc_prod_test(int cmd)
     bool calib_chan_l, calib_chan_r;
     struct AF_CODEC_CALIB_CFG_T acfg, *pcfg;
 
-    CODEC_CALIB_TRACE(1, "%s: start", __func__);
+    TRACE(1, "%s: start", __func__);
 
     pcfg = &acfg;
     memset((void*)&acfg, 0, sizeof(acfg));
@@ -830,14 +844,14 @@ int codec_dac_dc_prod_test(int cmd)
 
     cfg = calib_cfg;
     for (i = 0; i < num; i++) {
-        CODEC_CALIB_TRACE(1, "set ana_gain=%d, ini_gain=%d, gain_offset=%d",
+        TRACE(1, "set ana_gain=%d, ini_gain=%d, gain_offset=%d",
             cfg->ana_gain, cfg->ini_ana_gain, cfg->gain_offset);
         af_codec_calib_param_setup(DAC_PARAM_ANA_GAIN,
             cfg->ana_gain, cfg->ini_ana_gain, cfg->gain_offset);
 
         err = af_codec_calib_dac_dc(CODEC_CALIB_CMD_GET_CUR_DC, pcfg);
         if (err) {
-            CODEC_CALIB_TRACE(1, "%s: get cur dc failed %d", __func__, err);
+            TRACE(1, "%s: get cur dc failed %d", __func__, err);
             goto _exit;
         }
         adc_dc[i][CHAN_L] = pcfg->dig_dc_l;
@@ -851,20 +865,20 @@ int codec_dac_dc_prod_test(int cmd)
 
         // check adc dc l & r
         max = (int32_t)DC_COMP_ABS;
-        CODEC_CALIB_TRACE(1, "DC_COMP_ABS=%d, DC_RANGE_THRES=%d",DC_COMP_ABS, DC_RANGE_THRES);
+        TRACE(1, "DC_COMP_ABS=%d, DC_RANGE_THRES=%d",DC_COMP_ABS, DC_RANGE_THRES);
 
         if (calib_chan_l) {
             tmp = ABS(adc_dc[i][CHAN_L]);
             if (tmp > max) {
                 err |= (1<<(i*4+CHAN_L));
-                CODEC_CALIB_TRACE(1, "adc_dc_l is too large: %d", tmp);
+                TRACE(1, "adc_dc_l is too large: %d", tmp);
             }
         }
         if (calib_chan_r) {
             tmp = ABS(adc_dc[i][CHAN_R]);
             if (tmp > max) {
                 err |= (1<<(i*4+CHAN_R));
-                CODEC_CALIB_TRACE(1, "adc_dc_r is too large: %d", tmp);
+                TRACE(1, "adc_dc_r is too large: %d", tmp);
             }
         }
         // check adc dc l & r
@@ -872,21 +886,21 @@ int codec_dac_dc_prod_test(int cmd)
             tmp = ABS(dac_dc[i][CHAN_L]);
             if (tmp > max) {
                 err |= (1<<(i*4+CHAN_L+2));
-                CODEC_CALIB_TRACE(1, "dac_dc_l is too large: %d", tmp);
+                TRACE(1, "dac_dc_l is too large: %d", tmp);
             }
         }
         if (calib_chan_r) {
             tmp = ABS(dac_dc[i][CHAN_R]);
             if (tmp > max) {
                 err |= (1<<(i*4+CHAN_R+2));
-                CODEC_CALIB_TRACE(1, "dac_dc_r is too large: %d", tmp);
+                TRACE(1, "dac_dc_r is too large: %d", tmp);
             }
         }
         if (err) {
-            CODEC_CALIB_TRACE(1, "======== FIND LARGE DC: err=%x, ========", err);
-            CODEC_CALIB_TRACE(1, "adc_dc_l=%d, adc_dc_r=%d", adc_dc[i][CHAN_L], adc_dc[i][CHAN_R]);
-            CODEC_CALIB_TRACE(1, "dac_dc_l=%d, dac_dc_r=%d", dac_dc[i][CHAN_L], dac_dc[i][CHAN_R]);
-            CODEC_CALIB_TRACE(1, "========================================");
+            TRACE(1, "======== FIND LARGE DC: err=%x, ========", err);
+            TRACE(1, "adc_dc_l=%d, adc_dc_r=%d", adc_dc[i][CHAN_L], adc_dc[i][CHAN_R]);
+            TRACE(1, "dac_dc_l=%d, dac_dc_r=%d", dac_dc[i][CHAN_L], dac_dc[i][CHAN_R]);
+            TRACE(1, "========================================");
             goto _exit;
         }
         cfg++;
@@ -895,26 +909,26 @@ int codec_dac_dc_prod_test(int cmd)
 
     if (calib_chan_l) {
         diff_dc = ABS(det_dc[1][CHAN_L] - det_dc[0][CHAN_L]);
-        CODEC_CALIB_TRACE(1, "L: diff_dc=%d, det_max=%d", diff_dc, det_max);
+        TRACE(1, "L: diff_dc=%d, det_max=%d", diff_dc, det_max);
         if (diff_dc > det_max) {
-            CODEC_CALIB_TRACE(1, "L: diff dc is too large: [%d, %d]",det_dc[1][CHAN_L],det_dc[0][CHAN_L]);
+            TRACE(1, "L: diff dc is too large: [%d, %d]",det_dc[1][CHAN_L],det_dc[0][CHAN_L]);
             err |= 0x100;
         }
     }
     if (calib_chan_r) {
         diff_dc = ABS(det_dc[1][CHAN_R] - det_dc[0][CHAN_R]);
-        CODEC_CALIB_TRACE(1, "R: diff_dc=%d, det_max=%d", diff_dc, det_max);
+        TRACE(1, "R: diff_dc=%d, det_max=%d", diff_dc, det_max);
         if (diff_dc > det_max) {
-            CODEC_CALIB_TRACE(1, "R: diff dc is too large: [%d, %d]",det_dc[1][CHAN_R],det_dc[0][CHAN_R]);
+            TRACE(1, "R: diff dc is too large: [%d, %d]",det_dc[1][CHAN_R],det_dc[0][CHAN_R]);
             err |= 0x200;
         }
     }
     if (err) {
-        CODEC_CALIB_TRACE(1, "======== FIND LARGE DET DC: err=%x, ========", err);
+        TRACE(1, "======== FIND LARGE DET DC: err=%x, ========", err);
         goto _exit;
     }
 
-    CODEC_CALIB_TRACE(1, "DAC DC TEST SUCCESS !!");
+    TRACE(1, "DAC DC TEST SUCCESS !!");
 _exit:
     af_codec_calib_dac_dc(CODEC_CALIB_CMD_CLOSE, pcfg);
     hal_sysfreq_req(user, HAL_CMU_FREQ_32K);
@@ -934,21 +948,21 @@ _exit:
 #define CFG_ADC_DC_CALIB_CH_NUM                 (AUD_CHANNEL_NUM_2)
 #endif
 
-#define ADC_DC_SET_VALID_CH(c)                  (ADC_DC_VALID_MARK | ((c) & 0x1F))
-#define ADC_DC_GET_VALID_CH(v)                  ((v) & 0x1F)
-#define ADC_DC_GET_VALID_MARK(v)                ((v) & (~(0x1F)))
+#define ADC_DC_SET_VALID_CH(c)                  (ADC_DC_VALID_MARK|((c)&0x1F))
+#define ADC_DC_GET_VALID_CH(v)                  ((v)&0x1F)
+#define ADC_DC_GET_VALID_MARK(v)                ((v)&(~(0x1F)))
 
 #define NORMAL_ADC_CH_NUM                       (5)
 
 #define ADC_DMA_DC_VALUE_INVALID                (0x7FFFFFFF)
-#define ADC_CALIB_DMA_DATA_READY_SIGNAL         (0x01 << 13)
+#define ADC_CALIB_DMA_DATA_READY_SIGNAL         (0x01<<13)
 
 #define CAPTURE_SAMPLE_RATE                     (AUD_SAMPRATE_8000)
 #define CAPTURE_BITS_SIZE                       (AUD_BITS_24)
 #define CAPTURE_CHANNEL_NUM                     (CFG_ADC_DC_CALIB_CH_NUM)
 #define CAPTURE_DMA_FRAME_MS                    (5) //ms
 
-#define ADC_DC_CALIB_GET_BIT_OFFSET_DELAY_MS    (CAPTURE_DMA_FRAME_MS * 6)
+#define ADC_DC_CALIB_GET_BIT_OFFSET_DELAY_MS    (CAPTURE_DMA_FRAME_MS*2)
 #define APP_AUTO_CALIB_ADC_DC_CH_MAP            (CFG_ADC_DC_CALIB_MIC_DEV)
 
 static int32_t  adc_avg[NORMAL_ADC_CH_NUM], adc_max[NORMAL_ADC_CH_NUM], adc_min[NORMAL_ADC_CH_NUM];
@@ -978,17 +992,15 @@ static enum APP_AUDIO_CACHE_T play_data_cache_status = APP_AUDIO_CACHE_QTY;
 
 static void codec_adc_dc_dump_param(char *s, void *cfg)
 {
-    osDelay(5);
-    POSSIBLY_UNUSED struct HAL_CODEC_ADC_DC_CALIB_CFG_T *c = (struct HAL_CODEC_ADC_DC_CALIB_CFG_T *)cfg;
-    CODEC_CALIB_TRACE(1, "--------DUMP ADC DC param: %s, cfg=%x--------", s, (uint32_t)cfg);
-    CODEC_CALIB_TRACE(1, "calib_valid:                  0x%x",      c->valid);
-    CODEC_CALIB_TRACE(1, "channel_map:                  0x%04x",    c->adc_channel_map);
-    CODEC_CALIB_TRACE(1, "dc_origin_value:              %d",        c->adc_dc_original);
-    CODEC_CALIB_TRACE(1, "dc_calib_result:              %d",        c->adc_dc_calib_result);
-    CODEC_CALIB_TRACE(1, "dc_calib_reg_offset:          0x%04x",    c->adc_dc_calib_offset);
-    CODEC_CALIB_TRACE(1, "dc_calib_reg_step:            0x%04x",    c->adc_dc_calib_step);
-    CODEC_CALIB_TRACE(1, "dc_calib_fixed_dc_offset:     0x%04x",    c->rsvd0);
-    CODEC_CALIB_TRACE(1, "--------DUMP END--------");
+    struct HAL_CODEC_ADC_DC_CALIB_CFG_T *c = (struct HAL_CODEC_ADC_DC_CALIB_CFG_T *)cfg;
+    TRACE(1, "--------DUMP ADC DC param: %s, cfg=%x--------", s, (uint32_t)cfg);
+    TRACE(1, "calib_valid:                  0x%x",      c->valid);
+    TRACE(1, "channel_map:                  0x%04x",    c->adc_channel_map);
+    TRACE(1, "dc_origin_value:              %d",        c->adc_dc_original);
+    TRACE(1, "dc_calib_result:              %d",        c->adc_dc_calib_result);
+    TRACE(1, "dc_calib_reg_offset:          0x%04x",    c->adc_dc_calib_offset);
+    TRACE(1, "dc_calib_reg_step:            0x%04x",    c->adc_dc_calib_step);
+    TRACE(1, "--------DUMP END--------");
 }
 
 static bool codec_adc_dc_load_calib_value(void)
@@ -1000,36 +1012,35 @@ static bool codec_adc_dc_load_calib_value(void)
     uint32_t num, i, valid = 0;
     bool success = false;
 
-    osDelay(5);
-    CODEC_CALIB_TRACE(1, "%s: start", __func__);
+    TRACE(1, "%s: start", __func__);
     cfg = hal_codec_adc_get_calib_cfg(&num);
     ASSERT(num <= ARRAY_SIZE(tmp), "calib_cfg too large, tmp_size = %d, cfg_size = %d", ARRAY_SIZE(tmp), num);
 
     nv_cfg = nv_record_get_extension_entry_ptr()->adc_dc_calib_cfg_info;
-    CODEC_CALIB_TRACE(1, "cfg=%x, nv_cfg=%x, num=%d", (int)cfg, (int)nv_cfg, num);
+    TRACE(1, "cfg=%x, nv_cfg=%x, num=%d", (int)cfg, (int)nv_cfg, num);
 
     for (i = 0; i < num; i++) {
         codec_adc_dc_dump_param("NV", (void *)&nv_cfg[i]);
         if(ADC_DC_GET_VALID_MARK(nv_cfg[i].valid) != ADC_DC_VALID_MARK) {
-            CODEC_CALIB_TRACE(0, "valid mark update, old_mark = 0x%x, new_mark = 0x%x",ADC_DC_GET_VALID_MARK(nv_cfg[i].valid), ADC_DC_VALID_MARK);
+            TRACE(0, "valid mark update, old_mark = 0x%x, new_mark = 0x%x",ADC_DC_GET_VALID_MARK(nv_cfg[i].valid), ADC_DC_VALID_MARK);
             break;
         }
         if (ADC_DC_GET_VALID_CH(nv_cfg[i].valid)) {
             valid++;
         }
-        CODEC_CALIB_TRACE(1, "nv_cfg[%d](%x) -> tmp[%d](%x)", i, (int)(&nv_cfg[i]), i, (int)(&tmp[i]));
+        TRACE(1, "nv_cfg[%d](%x) -> tmp[%d](%x)", i, (int)(&nv_cfg[i]), i, (int)(&tmp[i]));
         memcpy((void *)&tmp[i], (void *)&nv_cfg[i], sizeof(struct HAL_CODEC_ADC_DC_CALIB_CFG_T));
     }
-    CODEC_CALIB_TRACE(1, " load calib val valid=%d, num=%d", valid, num);
+    TRACE(1, " load calib val valid=%d, num=%d", valid, num);
     if (valid == CAPTURE_CHANNEL_NUM) {
         for (i = 0; i < num; i++) {
-            CODEC_CALIB_TRACE(1, "tmp[%d](%x) -> cfg[%d](%x)", i, (int)(&tmp[i]), i, (int)(&cfg[i]));
+            TRACE(1, "tmp[%d](%x) -> cfg[%d](%x)", i, (int)(&tmp[i]), i, (int)(&cfg[i]));
             memcpy((void *)&cfg[i], (void *)&tmp[i], sizeof(struct HAL_CODEC_ADC_DC_CALIB_CFG_T));
             codec_adc_dc_dump_param("NV->DC", (void *)&cfg[i]);
         }
         success = true;
     }
-    CODEC_CALIB_TRACE(1, "%s: success=%d, valid=%d, num=%d", __func__, success, valid, num);
+    TRACE(1, "%s: success=%d, valid=%d, num=%d", __func__, success, valid, num);
     return success;
 #else
     return false;
@@ -1046,11 +1057,11 @@ static bool codec_adc_dc_save_calib_value(void)
 
     cfg = hal_codec_adc_get_calib_cfg(&num);
     nv_cfg = nv_record_get_extension_entry_ptr()->adc_dc_calib_cfg_info;
-    CODEC_CALIB_TRACE(1, "%s: cfg=%x, nv_cfg=%x, num=%d", __func__, (int)cfg, (int)nv_cfg, num);
+    TRACE(1, "%s: cfg=%x, nv_cfg=%x, num=%d", __func__, (int)cfg, (int)nv_cfg, num);
 
     lock = nv_record_pre_write_operation();
     for (i = 0; i < num; i++) {
-        CODEC_CALIB_TRACE(1, "nv_cfg[%d]=%x, cfg[%d]=%x", i, (int)(&nv_cfg[i]), i, (int)(&cfg[i]));
+        TRACE(1, "nv_cfg[%d]=%x, cfg[%d]=%x", i, (int)(&nv_cfg[i]), i, (int)(&cfg[i]));
         memcpy((void *)&nv_cfg[i], (void *)&cfg[i], sizeof(struct HAL_CODEC_ADC_DC_CALIB_CFG_T));
         codec_adc_dc_dump_param("DC->NV", (void *)&cfg[i]);
     }
@@ -1059,7 +1070,7 @@ static bool codec_adc_dc_save_calib_value(void)
     nv_record_flash_flush();
     osDelay(50);
 #endif
-    CODEC_CALIB_TRACE(1, "%s: done", __func__);
+    TRACE(1, "%s: done", __func__);
     return true;
 }
 
@@ -1092,6 +1103,38 @@ static uint32_t adc_dc_calib_stream_data_come(uint8_t *buf, uint32_t len)
 
     if (adc_dc_data_state == ADC_DC_VALUE_READ_STATE_WAIT_READY)
     {
+#if 0
+        //average calibrate method
+        int64_t adc_sum_tmp[CAPTURE_CHANNEL_NUM] = {0};
+        for (j = 0; j < CAPTURE_CHANNEL_NUM; j++)
+        {
+            adc_max_tmp[j] = adc_min_tmp[j] = samp[j];
+            adc_max_index_tmp[j] = adc_min_index_tmp[j] = j;
+        }
+        for (i = 0; i < samp_cnt; i++)
+        {
+            for (j = 0; j < CAPTURE_CHANNEL_NUM; j++)
+            {
+                adc_sum_tmp[j] += samp[i*CAPTURE_CHANNEL_NUM + j];
+                if (samp[i*CAPTURE_CHANNEL_NUM + j] > adc_max_tmp[j])
+                {
+                    adc_max_tmp[j] = samp[i*CAPTURE_CHANNEL_NUM + j];
+                    adc_max_index_tmp[j] = i*CAPTURE_CHANNEL_NUM + j;
+                }
+                else if (samp[i*CAPTURE_CHANNEL_NUM + j] < adc_min_tmp[j])
+                {
+                    adc_min_tmp[j] = samp[i*CAPTURE_CHANNEL_NUM + j];
+                    adc_min_index_tmp[j] = i*CAPTURE_CHANNEL_NUM + j;
+                }
+            }
+        }
+        for (j = 0; j < CAPTURE_CHANNEL_NUM; j++)
+        {
+            adc_avg_tmp[j] = (adc_sum_tmp[j] - adc_max_tmp[j] - adc_min_tmp[j])/(i-2)/9;
+            adc_max_tmp[j] = adc_max_tmp[j]/9;
+            adc_min_tmp[j] = adc_min_tmp[j]/9;
+        }
+#else
         //mid-value calibrate method
         bool sort_done;
         int32_t tmp;
@@ -1114,7 +1157,6 @@ static uint32_t adc_dc_calib_stream_data_come(uint8_t *buf, uint32_t len)
             if (sort_done == true)
                 break;
         }
-
         for (j = 0; j < CAPTURE_CHANNEL_NUM; j++)
         {
             adc_avg_tmp[j] = samp[samp_cnt/2*CAPTURE_CHANNEL_NUM + j]/9;
@@ -1123,7 +1165,7 @@ static uint32_t adc_dc_calib_stream_data_come(uint8_t *buf, uint32_t len)
             adc_min_index_tmp[j] = j;
             adc_max_index_tmp[j] = (samp_cnt-1)*CAPTURE_CHANNEL_NUM + j;
         }
-
+#endif
         //remap dma channel to mic channel
         for (mic_ch = 0; mic_ch < NORMAL_ADC_CH_NUM; mic_ch++)
         {
@@ -1136,8 +1178,8 @@ static uint32_t adc_dc_calib_stream_data_come(uint8_t *buf, uint32_t len)
                 adc_min_index[mic_ch] = adc_min_index_tmp[dma_ch_index];
                 dma_ch_index++;
 
-                CODEC_CALIB_TRACE(1, "#### adc_ch=%d ####", mic_ch);
-                CODEC_CALIB_TRACE(6, "ADC avg=%d max[%d]=%d min[%d]=%d delta=%d",
+                TRACE(1, "#### adc_ch=%d ####", mic_ch);
+                TRACE(6, "ADC avg=%d max[%d]=%d min[%d]=%d delta=%d",
                         adc_avg[mic_ch], adc_max_index[mic_ch], adc_max[mic_ch],
                         adc_min_index[mic_ch], adc_min[mic_ch], adc_max[mic_ch]-adc_min[mic_ch]);
             }
@@ -1146,7 +1188,7 @@ static uint32_t adc_dc_calib_stream_data_come(uint8_t *buf, uint32_t len)
 #ifdef RTOS
         if (adc_dc_calib_thread_tid != NULL)
         {
-            osSignalSet(adc_dc_calib_thread_tid, ADC_CALIB_DMA_DATA_READY_SIGNAL);
+            osThreadFlagsSet(adc_dc_calib_thread_tid, ADC_CALIB_DMA_DATA_READY_SIGNAL);
         }
 #endif
     }
@@ -1165,34 +1207,18 @@ static uint32_t adc_dc_calib_stream_data_come(uint8_t *buf, uint32_t len)
     if (value_print_int%100 == 0)
     {
         value_print_int = 0;
-        CODEC_CALIB_TRACE(0, "\n\n");
-        CODEC_CALIB_TRACE(4, "capture sample: %d %d %d %d len=%d",
+        TRACE(0, "\n\n");
+        TRACE(4, "capture sample: %d %d %d %d len=%d",
                     samp[0]/9, samp[1]/9, samp[2]/9, samp[3]/9, len);
-        CODEC_CALIB_TRACE(0, "\n\n");
+        TRACE(0, "\n\n");
     }
 #endif
     return len;
 }
 
-#define REAL_CAPTURE_BUFF_SIZE         (48 * CAPTURE_CHANNEL_NUM * CAPTURE_DMA_FRAME_MS * 4)
-#define ALIGNED4                       ALIGNED(4)
-
-static uint8_t *codec_adc_dc_calib_malloc(uint32_t len)
-{
-#if !defined(CODEC_ADC_DC_DYN_BUF)
-    static uint8_t ALIGNED4 cap_adc_buff[REAL_CAPTURE_BUFF_SIZE];
-    ASSERT(len <= REAL_CAPTURE_BUFF_SIZE, "%s: len=%d out of range %d", __func__, len, REAL_CAPTURE_BUFF_SIZE);
-    return (uint8_t *)cap_adc_buff;
-#else
-    uint8_t *cap_adc_buff = NULL;
-
-    ASSERT(len <= REAL_CAPTURE_BUFF_SIZE, "%s: len=%d out of range %d", __func__, len, REAL_CAPTURE_BUFF_SIZE);
-    syspool_init_specific_size(REAL_CAPTURE_BUFF_SIZE);
-    syspool_get_buff(&cap_adc_buff, len);
-    ASSERT(cap_adc_buff != NULL, "%s: alloc buff failed", __func__);
-    return cap_adc_buff;
-#endif
-}
+#define ALIGNED4                        ALIGNED(4)
+#define REAL_PLAYBACK_BUFF_SIZE         48*CAPTURE_CHANNEL_NUM*CAPTURE_DMA_FRAME_MS*4
+static uint8_t ALIGNED4 app_test_playback_buff[REAL_PLAYBACK_BUFF_SIZE];
 
 static int start_adc_dc_calib_capture_stream(bool on, enum APP_SYSFREQ_FREQ_T freq)
 {
@@ -1200,12 +1226,10 @@ static int start_adc_dc_calib_capture_stream(bool on, enum APP_SYSFREQ_FREQ_T fr
     uint8_t *buff_play = NULL;
     uint8_t *buff_loop = NULL;
 #endif
-    uint8_t *buff_cap = codec_adc_dc_calib_malloc(REAL_CAPTURE_BUFF_SIZE);
-
     struct AF_STREAM_CONFIG_T stream_cfg;
     static bool isRun =  false;
     enum HAL_SYSFREQ_USER_T user = HAL_SYSFREQ_USER_APP_7;
-    CODEC_CALIB_TRACE(3, "start_adc_capture_stream work:%d op:%d freq:%d", isRun, on, freq);
+    TRACE(3, "start_adc_capture_stream work:%d op:%d freq:%d", isRun, on, freq);
 
     if (isRun==on)
         return 0;
@@ -1214,7 +1238,7 @@ static int start_adc_dc_calib_capture_stream(bool on, enum APP_SYSFREQ_FREQ_T fr
     {
         hal_sysfreq_req(user, HAL_CMU_FREQ_104M);
         hal_sysfreq_print_user_freq();
-        CODEC_CALIB_TRACE(1, "cpu clock: %u", hal_sys_timer_calc_cpu_freq(5, 0));
+        TRACE(1, "cpu clock: %u", hal_sys_timer_calc_cpu_freq(5, 0));
 
         memset(&stream_cfg, 0, sizeof(stream_cfg));
         stream_cfg.bits = CAPTURE_BITS_SIZE;
@@ -1225,17 +1249,17 @@ static int start_adc_dc_calib_capture_stream(bool on, enum APP_SYSFREQ_FREQ_T fr
 #else
         stream_cfg.device = AUD_STREAM_USE_EXT_CODEC;
 #endif
-        stream_cfg.vol = TGT_VOLUME_LEVEL_15;
+        stream_cfg.vol = TGT_ADC_VOL_LEVEL_MAX;
         stream_cfg.io_path = AUD_INPUT_PATH_DC_CALIB;
         stream_cfg.handler = adc_dc_calib_stream_data_come;
 
-        stream_cfg.data_size = REAL_CAPTURE_BUFF_SIZE;
-        stream_cfg.data_ptr = buff_cap;
+        stream_cfg.data_size = REAL_PLAYBACK_BUFF_SIZE;
+        stream_cfg.data_ptr = app_test_playback_buff;
         af_stream_open(AUD_STREAM_ID_0, AUD_STREAM_CAPTURE, &stream_cfg);
 
 #ifdef AD_DA_AF_STREAM_LOOP_TEST
         stream_cfg.data_size = dma_size*2;
-        stream_cfg.vol = TGT_VOLUME_LEVEL_15;
+        stream_cfg.vol = TGT_VOLUME_LEVEL_MAX;
         stream_cfg.io_path = AUD_OUTPUT_PATH_SPEAKER;
         stream_cfg.handler = adc_dc_calib_stream_loop_play_more_data;
 
@@ -1250,9 +1274,7 @@ static int start_adc_dc_calib_capture_stream(bool on, enum APP_SYSFREQ_FREQ_T fr
 #endif
         af_stream_start(AUD_STREAM_ID_0, AUD_STREAM_CAPTURE);
         af_stream_set_chan_vol(AUD_STREAM_ID_0, AUD_STREAM_CAPTURE, APP_AUTO_CALIB_ADC_DC_CH_MAP, 1);
-
-        osDelay(300);
-        CODEC_CALIB_TRACE(0, "start_adc_capture_stream on");
+        TRACE(0, "start_adc_capture_stream on");
     }
     else
     {
@@ -1262,7 +1284,7 @@ static int start_adc_dc_calib_capture_stream(bool on, enum APP_SYSFREQ_FREQ_T fr
         af_stream_stop(AUD_STREAM_ID_0, AUD_STREAM_PLAYBACK);
         af_stream_close(AUD_STREAM_ID_0, AUD_STREAM_PLAYBACK);
 #endif
-        CODEC_CALIB_TRACE(0, "start_adc_capture_stream off");
+        TRACE(0, "start_adc_capture_stream off");
         hal_sysfreq_req(user, HAL_CMU_FREQ_32K);
     }
 
@@ -1286,10 +1308,10 @@ static uint32_t adc_dc_calib_porc(uint32_t mic_ch, int32_t dc_val, int32_t offse
         {
             dc_val = dc_val + offset_gain[i];
             reg_val |= (1<<i);
-            CODEC_CALIB_TRACE(3, "bit:%d dc_val:%d offset:%d", i, dc_val, offset_gain[i]);
+            TRACE(3, "bit:%d dc_val:%d offset:%d", i, dc_val, offset_gain[i]);
         }
     }
-    CODEC_CALIB_TRACE(3, "dc calib channel:%d calib_offset:0x%04x calib_result:%d", mic_ch, reg_val, dc_val);
+    TRACE(3, "dc calib channel:%d calib_offset:0x%04x calib_result:%d", mic_ch, reg_val, dc_val);
     return reg_val;
 }
 
@@ -1297,10 +1319,10 @@ static int32_t adc_dc_value_wait_signal_ready_get(int32_t wait_signal)
 {
     int32_t ret = -1;
 #ifdef RTOS
-    osEvent evt = osSignalWait(0x00, osWaitForever);
-    if(osEventSignal == evt.status)
+    uint32_t flags = osThreadFlagsWait(CMSIS_V1_SIGNAL_ANY, osFlagsWaitAny, osWaitForever);
+    if((flags > 0U) && (flags < 0x80000000U))
     {
-        switch (evt.value.signals)
+        switch ((int32_t)flags)
         {
             case ADC_CALIB_DMA_DATA_READY_SIGNAL:
                 ret = 0;
@@ -1315,118 +1337,6 @@ static int32_t adc_dc_value_wait_signal_ready_get(int32_t wait_signal)
 #endif
     return ret;
 }
-
-#ifdef AUDIO_ADC_DIG_DC_CALIB
-static int codec_adc_dig_dc_do_calib(bool on)
-{
-    int16_t reg_bit = 0;
-    enum AUD_CHANNEL_MAP_T calib_ch_map = APP_AUTO_CALIB_ADC_DC_CH_MAP;
-    struct HAL_CODEC_ADC_DC_CALIB_CFG_T *cfg, *calib_cfg;
-    int32_t adc_dc_value[NORMAL_ADC_CH_NUM] = {0};
-    int16_t adc_dc_offset[NORMAL_ADC_CH_NUM] = {0};
-    int32_t adc_dc_result[NORMAL_ADC_CH_NUM] = {0};
-    bool adc_dc_calib_done[NORMAL_ADC_CH_NUM] = {0};
-    int ret = 0;
-    uint32_t num = 0;
-    uint16_t comp_val[NORMAL_ADC_CH_NUM] = {0};
-
-#ifdef RTOS
-    adc_dc_calib_thread_tid = osThreadGetId();
-#endif
-    if (on)
-    {
-#ifdef RTOS
-        af_set_priority(AF_USER_TEST, osPriorityHigh);
-#endif
-        hal_codec_set_adc_calib_status(true);
-        start_adc_dc_calib_capture_stream(true, APP_SYSFREQ_104M);
-
-        hal_codec_adc_dc_auto_calib_enable(calib_ch_map);
-        osDelay(ADC_DC_CALIB_GET_BIT_OFFSET_DELAY_MS);
-
-        calib_cfg = hal_codec_adc_get_calib_cfg(&num);
-
-        hal_codec_adc_dig_dc_offset_enable(calib_ch_map, 0);
-        for (reg_bit = 15; reg_bit >= 0; ) {
-            osDelay(ADC_DC_CALIB_GET_BIT_OFFSET_DELAY_MS);
-            adc_dc_data_state = ADC_DC_VALUE_READ_STATE_WAIT_READY;
-            adc_dc_value_wait_signal_ready_get(ADC_CALIB_DMA_DATA_READY_SIGNAL);
-
-            for (uint32_t ch_index = 0; ch_index < num; ch_index++) {
-                if (calib_ch_map & (AUD_CHANNEL_MAP_CH0 << ch_index)) {
-                    adc_dc_value[ch_index] = adc_avg[ch_index];
-
-                    if (adc_dc_value[ch_index] < 0) {
-                        if (reg_bit < 15) {
-                            comp_val[ch_index] &= ~(1 << (reg_bit + 1));
-                            comp_val[ch_index] |= (1 << reg_bit);
-                        } else {
-                            comp_val[ch_index] |= (1 << reg_bit);
-                        }
-                    } else {
-                        if (reg_bit < 15) {
-                            comp_val[ch_index] |= (1 << reg_bit);
-                        } else {
-                            comp_val[ch_index] &= ~(1 << reg_bit);
-                        }
-                    }
-
-                    if (ABS(adc_dc_value[ch_index]) < 50) {
-                        adc_dc_calib_done[ch_index] = true;
-                        adc_dc_result[ch_index] = adc_dc_value[ch_index];
-                    }
-
-                    if (!adc_dc_calib_done[ch_index]) {
-                        adc_dc_offset[ch_index] = (int16_t)(comp_val[ch_index]);
-                        hal_codec_adc_dig_dc_offset_enable((AUD_CHANNEL_MAP_CH0 << ch_index), adc_dc_offset[ch_index]);
-                    }
-
-                    CODEC_CALIB_TRACE(2, "[%d] dc calib mic_ch:%d adc_dc_value:%d adc_dc_offset:0x%04x",
-                        reg_bit, ch_index, adc_dc_value[ch_index], adc_dc_offset[ch_index]);
-                }
-            }
-            reg_bit--;
-        }
-
-        for (uint32_t ch_index = 0; ch_index < num; ch_index++) {
-            if (calib_ch_map & (AUD_CHANNEL_MAP_CH0 << ch_index)) {
-                if ((ABS(adc_dc_value[ch_index]) < 200) && !adc_dc_calib_done[ch_index]) {
-                    adc_dc_calib_done[ch_index] = true;
-                    adc_dc_result[ch_index] = adc_dc_value[ch_index];
-                }
-                ret |= adc_dc_calib_done[ch_index] ? 0 : 1;
-                CODEC_CALIB_TRACE(2, "CALIB CHECK mic_ch:%d adc_dc_result:%d adc_dc_calib_done:%d",
-                        ch_index, adc_dc_result[ch_index], adc_dc_calib_done[ch_index]);
-            }
-        }
-
-        cfg = calib_cfg;
-        for (uint32_t ch_index = 0; ch_index < num; ch_index++, cfg++) {
-            if (calib_ch_map & (AUD_CHANNEL_MAP_CH0 << ch_index)) {
-                cfg->rsvd0 = adc_dc_offset[ch_index];
-            }
-        }
-
-        // close audio stream before operate NV record
-        hal_codec_adc_dc_auto_calib_disable(calib_ch_map);
-        start_adc_dc_calib_capture_stream(false, APP_SYSFREQ_32K);
-        hal_codec_set_adc_calib_status(false);
-#ifdef RTOS
-        af_reset_priority();
-#endif
-
-        //flush result to nv and dump nv info
-        codec_adc_dc_save_calib_value();
-
-        //dump adc calib param
-        cfg = calib_cfg;
-        for (uint16_t i = 0; i < num; i++) {
-            codec_adc_dc_dump_param("ADC_CALIB_PARAM", (void *)&cfg[i]);
-        }
-    }
-    return ret;
-}
-#endif
 
 static int codec_adc_dc_do_calib(bool on)
 {
@@ -1463,11 +1373,11 @@ static int codec_adc_dc_do_calib(bool on)
 
 dc_calib_recheck:
         dc_calib_cnt++;
-        //CODEC_CALIB_TRACE(2, "dc calib test_times=%d dc_calib_cnt=%d", dc_calib_test_times, dc_calib_cnt);
+        //TRACE(2, "dc calib test_times=%d dc_calib_cnt=%d", dc_calib_test_times, dc_calib_cnt);
 
         calib_cfg = hal_codec_adc_get_calib_cfg(&num);
         //get the original dc value
-        CODEC_CALIB_TRACE(0, "===========Get the original adc dc value===========");
+        TRACE(0, "===========Get the original adc dc value===========");
         for (uint32_t ch_index = 0; ch_index < num; ch_index++)
         {
             if (calib_ch_map & (AUD_CHANNEL_MAP_CH0 << ch_index))
@@ -1477,7 +1387,6 @@ dc_calib_recheck:
                 hal_codec_adc_dc_offset_update(active_ch_map, dc_reg_step, dc_reg_offset);
             }
         }
-
         osDelay(ADC_DC_CALIB_GET_BIT_OFFSET_DELAY_MS);
         adc_dc_data_state = ADC_DC_VALUE_READ_STATE_WAIT_READY;
         adc_dc_value_wait_signal_ready_get(ADC_CALIB_DMA_DATA_READY_SIGNAL);
@@ -1486,7 +1395,7 @@ dc_calib_recheck:
             if (calib_ch_map & (AUD_CHANNEL_MAP_CH0 << ch_index))
             {
                 adc_dc_value[ch_index][13] = adc_avg[ch_index];
-                CODEC_CALIB_TRACE(2, "dc calib mic_ch:%d original_dc:%d", ch_index, adc_dc_value[ch_index][13]);
+                TRACE(2, "dc calib mic_ch:%d original_dc:%d", ch_index, adc_dc_value[ch_index][13]);
             }
         }
 
@@ -1504,12 +1413,11 @@ dc_calib_recheck:
                         dc_reg_offset |= (1<<13);
                     }
                     dc_reg_offset |= (1<<reg_bit);
-                    CODEC_CALIB_TRACE(2, "===========Set the ret bit adc dc mic_ch:%d value:0x%04x===========",
+                    TRACE(2, "===========Set the ret bit adc dc mic_ch:%d value:0x%04x===========",
                             ch_index, dc_reg_offset);
                     hal_codec_adc_dc_offset_update(active_ch_map, dc_reg_step, dc_reg_offset);
                 }
             }
-
             osDelay(ADC_DC_CALIB_GET_BIT_OFFSET_DELAY_MS);
             adc_dc_data_state = ADC_DC_VALUE_READ_STATE_WAIT_READY;
             adc_dc_value_wait_signal_ready_get(ADC_CALIB_DMA_DATA_READY_SIGNAL);
@@ -1541,10 +1449,10 @@ dc_calib_recheck:
                     adc_dc_offset[ch_index][reg_bit] = adc_dc_value[ch_index][reg_bit] - adc_dc_value[ch_index][13];
                     adc_dc_offset_max[ch_index] += adc_dc_offset[ch_index][reg_bit];
                 }
-                CODEC_CALIB_TRACE(1, "===========Dump adc dc register info: %d===========", ch_index);
+                TRACE(1, "===========Dump adc dc register info: %d===========", ch_index);
                 for (reg_bit = 0; reg_bit < 14; reg_bit++)
                 {
-                    CODEC_CALIB_TRACE(3, "%d:   %d:      %d",
+                    TRACE(3, "%d:   %d:      %d",
                             reg_bit, adc_dc_value[ch_index][reg_bit], adc_dc_offset[ch_index][reg_bit]);
                 }
 
@@ -1552,7 +1460,7 @@ dc_calib_recheck:
                 if (ABS(adc_dc_value[ch_index][13]) >
                                 ABS(adc_dc_offset_max[ch_index]) + ADC_DC_CALIB_MAX_THRESOLD_VALUE)
                 {
-                    CODEC_CALIB_TRACE(3, "[ERROR] channel(%d) dc value exceeds the max calib value, dc_orig=%d offset_max=%d!!\n",
+                    TRACE(3, "[ERROR] channel(%d) dc value exceeds the max calib value, dc_orig=%d offset_max=%d!!\n",
                                 ch_index, adc_dc_value[ch_index][13], adc_dc_offset_max[ch_index]);
                     cfg->valid = ADC_DC_SET_VALID_CH(0);
                     dc_reg_offset = 0x1FFF;
@@ -1586,7 +1494,6 @@ dc_calib_recheck:
                 hal_codec_adc_dc_offset_update(active_ch_map, dc_reg_step, cfg->adc_dc_calib_offset);
             }
         }
-
         osDelay(ADC_DC_CALIB_GET_BIT_OFFSET_DELAY_MS);
         adc_dc_data_state = ADC_DC_VALUE_READ_STATE_WAIT_READY;
         adc_dc_value_wait_signal_ready_get(ADC_CALIB_DMA_DATA_READY_SIGNAL);
@@ -1648,15 +1555,14 @@ int codec_adc_dc_auto_load(bool open_af, bool reboot, bool init_nv)
     static int done = 0;
     int ret = 0;
     uint32_t time = hal_sys_timer_get();
-
     if (done) {
-        CODEC_CALIB_TRACE(1, "%s: already done", __func__);
+        TRACE(1, "%s: already done", __func__);
         return 0;
     }
     if (open_af) {
         af_open();
     }
-    CODEC_CALIB_TRACE(1, "%s: start: open_af=%d, reboot=%d", __func__, open_af, reboot);
+    TRACE(1, "%s: start: open_af=%d, reboot=%d", __func__, open_af, reboot);
 #ifdef CODEC_ADC_DC_NV_DATA
     if (init_nv) {
         nv_record_init();
@@ -1665,14 +1571,8 @@ int codec_adc_dc_auto_load(bool open_af, bool reboot, bool init_nv)
 
     if (!codec_adc_dc_load_calib_value()) {
         ret = codec_adc_dc_do_calib(true);
-#ifdef AUDIO_ADC_DIG_DC_CALIB
-        ret |= codec_adc_dig_dc_do_calib(true);
-        if (ret) {
-            CODEC_CALIB_TRACE(1, "%s: calib ADC DC again !!", __func__);
-            ret = codec_adc_dig_dc_do_calib(true);
-        }
-#endif
         if (!ret) {
+            codec_adc_dc_do_calib(false);
             codec_adc_dc_load_calib_value();
             done = 1;
             if (reboot) {
@@ -1680,11 +1580,11 @@ int codec_adc_dc_auto_load(bool open_af, bool reboot, bool init_nv)
                 pmu_reboot();
             }
         } else {
-            ASSERT(false, "%s: calib ADC DC failed !!", __func__);
+            ASSERT(false, "%s: calib DAC DC failed !!", __func__);
         }
     }
     time = hal_sys_timer_get() - time;
-    CODEC_CALIB_TRACE(1, "%s: CALIB_COST_TIME=%d, r=%d", __func__, TICKS_TO_MS(time), ret);
+    TRACE(1, "%s: CALIB_COST_TIME=%d, r=%d", __func__, TICKS_TO_MS(time), ret);
 
     if (open_af) {
         af_close();

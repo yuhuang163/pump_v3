@@ -41,10 +41,9 @@ void* nv_record_combo_bin_rec_get_ptr(void);
 void* nv_record_combo_bin_info_get_ptr(void);
 uint16_t nv_record_combo_bin_get_hearlen(void);
 uint32_t nv_record_combo_bin_get_content_num(void);
-uint32_t nv_record_combo_bin_get_whole_crc32(void);
+uint32_t nv_record_combo_bin_get_crc32(void);
 uint32_t nv_record_combo_bin_get_datalen(uint8_t id);
 uint32_t nv_record_combo_bin_get_fw_id(uint8_t id);
-uint32_t nv_record_combo_bin_get_id_crc32(uint8_t id);
 #endif
 
 #ifdef __cplusplus

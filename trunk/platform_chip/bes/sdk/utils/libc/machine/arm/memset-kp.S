@@ -22,7 +22,9 @@
 #define EXPORT_NAME memset
 /* #define EXPORT_NAME memsetx */
 #define MEMSET_UNROLL_64BYTES
-
+#if (__ARM_FEATURE_MVE)        //MVE OPTION FOR OPTIMIZATION
+#define HAVE_MVE_ISA
+#endif
 
 #ifdef MEMSET_UNROLL_64BYTES
 #define BLOCK_SIZE 16
@@ -34,12 +36,32 @@
         .align    1
         .p2align 2,,3
         .global    EXPORT_NAME
+#ifdef HAVE_MVE_ISA
+#ifndef __ARMCC_VERSION
+        .arch     armv8.1-m.main
+        .arch_extension        mve.fp
+#endif
+#else
         .arch armv8-m.main
+#endif
         .syntax unified
         .thumb
         .thumb_func
         .type    EXPORT_NAME, %function
 EXPORT_NAME:
+#ifdef HAVE_MVE_ISA
+        push       {lr}
+        vpush      {d0,d1}
+        mov        r3, r0
+        vdup.8     q0, r1
+        wlstp.8    lr, r2, go_out
+m55_loop:
+        vstrb.8    q0, [r3], #16
+        letp       lr, m55_loop
+go_out:
+        vpop       {d0,d1}
+        pop        {pc}
+#else
         cmp    r2, #3
         add    ip, r0, r2      @ ip = p_end
         bls    .small_block
@@ -158,6 +180,6 @@ EXPORT_NAME:
 
 .exit:
         bx     lr
-
+#endif
         .size  EXPORT_NAME, .-EXPORT_NAME
 

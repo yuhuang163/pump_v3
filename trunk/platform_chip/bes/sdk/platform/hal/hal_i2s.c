@@ -31,19 +31,25 @@
 #ifdef I2S0_BASE
 
 // Trigger DMA request when TX-FIFO count <= threshold
-#define HAL_I2S_TX_FIFO_TRIGGER_LEVEL   (I2SIP_FIFO_DEPTH/2)
+#define HAL_I2S_TX_FIFO_TRIGGER_LEVEL   (I2SIP_FIFO_DEPTH / 2)
 // Trigger DMA request when RX-FIFO count >= threshold
-#define HAL_I2S_RX_FIFO_TRIGGER_LEVEL   (I2SIP_FIFO_DEPTH/2)
+#define HAL_I2S_RX_FIFO_TRIGGER_LEVEL   (I2SIP_FIFO_DEPTH / 2)
 
 #define HAL_I2S_YES 1
 #define HAL_I2S_NO 0
 
 #ifdef CHIP_BEST1000
 #define I2S_CMU_DIV                     CODEC_PLL_DIV
-#define I2S_CHAN_NUM                    1
 #else
 #define I2S_CMU_DIV                     CODEC_CMU_DIV
-#define I2S_CHAN_NUM                    4
+#endif
+
+#ifndef I2S_LINE_NUM
+#ifdef CHIP_BEST1000
+#define I2S_LINE_NUM                    1
+#else
+#define I2S_LINE_NUM                    4
+#endif
 #endif
 
 #ifndef I2S_MCLK_DIV
@@ -69,7 +75,7 @@ struct HAL_I2S_MOD_NAME_T {
 };
 
 #ifndef FPGA
-static const struct I2S_SAMPLE_RATE_T i2s_sample_rate[]={
+static const struct I2S_SAMPLE_RATE_T i2s_sample_rate[] = {
     {AUD_SAMPRATE_8000,   CODEC_FREQ_48K_SERIES,   CODEC_PLL_DIV, I2S_CMU_DIV},
     {AUD_SAMPRATE_16000,  CODEC_FREQ_48K_SERIES,   CODEC_PLL_DIV, I2S_CMU_DIV},
     {AUD_SAMPRATE_32000,  CODEC_FREQ_48K_SERIES,   CODEC_PLL_DIV, I2S_CMU_DIV},
@@ -98,14 +104,15 @@ static bool i2s_dma[HAL_I2S_ID_QTY][AUD_STREAM_NUM];
 static bool sync_start[HAL_I2S_ID_QTY][AUD_STREAM_NUM];
 #ifdef I2S_TX_MULTI_CHAN
 static uint8_t i2s_tx_line_map[HAL_I2S_ID_QTY];
-STATIC_ASSERT(sizeof(i2s_tx_line_map) * 8 >= I2S_CHAN_NUM, "i2s_tx_line_map size too small");
+STATIC_ASSERT(sizeof(i2s_tx_line_map) * 8 >= I2S_LINE_NUM, "i2s_tx_line_map size too small");
 #endif
 #ifdef I2S_RX_MULTI_CHAN
 static uint8_t i2s_rx_line_map[HAL_I2S_ID_QTY];
-STATIC_ASSERT(sizeof(i2s_rx_line_map) * 8 >= I2S_CHAN_NUM, "i2s_rx_line_map size too small");
+STATIC_ASSERT(sizeof(i2s_rx_line_map) * 8 >= I2S_LINE_NUM, "i2s_rx_line_map size too small");
 #endif
 #ifdef I2S_RESAMPLE
-static bool master_resamp_req[HAL_I2S_ID_QTY];
+static uint8_t master_resamp_req = I2S_RESAMPLE;
+STATIC_ASSERT(sizeof(master_resamp_req) * 8 >= HAL_I2S_ID_QTY, "master_resamp_req size too small");
 #endif
 #if !(defined(SIMU) || defined(FPGA))
 static uint8_t master_pll_map;
@@ -119,16 +126,22 @@ static const struct HAL_I2S_MOD_NAME_T i2s_mod[HAL_I2S_ID_QTY] = {
         .mod = HAL_CMU_MOD_O_I2S0,
         .apb = HAL_CMU_MOD_P_I2S0,
     },
-#if defined(CHIP_HAS_I2S) && (CHIP_HAS_I2S > 1)
+#ifdef I2S1_BASE
     {
         .mod = HAL_CMU_MOD_O_I2S1,
         .apb = HAL_CMU_MOD_P_I2S1,
     },
 #endif
-#if defined(CHIP_HAS_I2S) && (CHIP_HAS_I2S > 2)
+#ifdef I2S2_BASE
     {
         .mod = HAL_CMU_MOD_O_I2S2,
         .apb = HAL_CMU_MOD_P_I2S2,
+    },
+#endif
+#ifdef I2S3_BASE
+    {
+        .mod = HAL_CMU_MOD_O_I2S3,
+        .apb = HAL_CMU_MOD_P_I2S3,
     },
 #endif
 };
@@ -140,20 +153,25 @@ static inline uint32_t _i2s_get_reg_base(enum HAL_I2S_ID_T id)
         case HAL_I2S_ID_0:
             return I2S0_BASE;
             break;
-#if defined(CHIP_HAS_I2S) && (CHIP_HAS_I2S > 1)
+#ifdef I2S1_BASE
         case HAL_I2S_ID_1:
             return I2S1_BASE;
             break;
 #endif
-#if defined(CHIP_HAS_I2S) && (CHIP_HAS_I2S > 2)
+#ifdef I2S2_BASE
         case HAL_I2S_ID_2:
             return I2S2_BASE;
+            break;
+#endif
+#ifdef I2S3_BASE
+        case HAL_I2S_ID_3:
+            return I2S3_BASE;
             break;
 #endif
         default:
             break;
     }
-	return 0;
+    return 0;
 }
 
 #ifdef I2S_RESAMPLE
@@ -162,7 +180,9 @@ void hal_i2s_resample_enable(enum HAL_I2S_ID_T id)
     if (id >= HAL_I2S_ID_QTY) {
         return;
     }
-    master_resamp_req[id] = true;
+    uint32_t lock = int_lock();
+    master_resamp_req |= (1 << id);
+    int_unlock(lock);
 }
 
 void hal_i2s_resample_disable(enum HAL_I2S_ID_T id)
@@ -170,7 +190,9 @@ void hal_i2s_resample_disable(enum HAL_I2S_ID_T id)
     if (id >= HAL_I2S_ID_QTY) {
         return;
     }
-    master_resamp_req[id] = false;
+    uint32_t lock = int_lock();
+    master_resamp_req &= ~(1 << id);
+    int_unlock(lock);
 }
 #endif
 
@@ -186,7 +208,7 @@ int hal_i2s_open(enum HAL_I2S_ID_T id, enum AUD_STREAM_T stream, enum HAL_I2S_MO
         "Incompatible I2S mode for stream %d: prev=%d cur=%d", stream, i2s_mode[id], mode);
 
     if (i2s_status[id][stream] != HAL_I2S_STATUS_NULL) {
-        HAL_TRACE(2,"Invalid I2S opening status for stream %d: %d", stream, i2s_status[id][stream]);
+        TRACE(2,"Invalid I2S opening status for stream %d: %d", stream, i2s_status[id][stream]);
         return 1;
     }
 
@@ -196,15 +218,18 @@ int hal_i2s_open(enum HAL_I2S_ID_T id, enum AUD_STREAM_T stream, enum HAL_I2S_MO
 #if !defined(FPGA)
             hal_iomux_set_i2s0();
 #endif
-#if defined(CHIP_HAS_I2S) && (CHIP_HAS_I2S > 1)
-        } else if(id == HAL_I2S_ID_1){
+#ifdef I2S1_BASE
+        } else if (id == HAL_I2S_ID_1) {
             hal_iomux_set_i2s1();
 #endif
-#if defined(CHIP_HAS_I2S) && (CHIP_HAS_I2S > 2)
-        } else {
+#ifdef I2S2_BASE
+        } else if (id == HAL_I2S_ID_2) {
             hal_iomux_set_i2s2();
 #endif
-
+#ifdef I2S3_BASE
+        } else {
+            hal_iomux_set_i2s3();
+#endif
         }
 
         hal_cmu_clock_enable(i2s_mod[id].mod);
@@ -213,7 +238,7 @@ int hal_i2s_open(enum HAL_I2S_ID_T id, enum AUD_STREAM_T stream, enum HAL_I2S_MO
         hal_cmu_reset_clear(i2s_mod[id].apb);
         i2sip_w_enable_i2sip(reg_base, HAL_I2S_YES);
 
-        for (uint32_t i = 0; i < I2S_CHAN_NUM; i++) {
+        for (uint32_t i = 0; i < I2S_LINE_NUM; i++) {
             i2sip_w_enable_rx_channel(reg_base, i, HAL_I2S_NO);
             i2sip_w_enable_tx_channel(reg_base, i, HAL_I2S_NO);
             i2sip_w_rx_fifo_reset(reg_base, i);
@@ -250,7 +275,7 @@ int hal_i2s_close(enum HAL_I2S_ID_T id, enum AUD_STREAM_T stream)
     reg_base = _i2s_get_reg_base(id);
 
     if (i2s_status[id][stream] != HAL_I2S_STATUS_OPENED) {
-        HAL_TRACE(2,"Invalid I2S closing status for stream %d: %d", stream, i2s_status[id][stream]);
+        TRACE(2,"Invalid I2S closing status for stream %d: %d", stream, i2s_status[id][stream]);
         return 1;
     }
 
@@ -265,12 +290,16 @@ int hal_i2s_close(enum HAL_I2S_ID_T id, enum AUD_STREAM_T stream)
         hal_cmu_clock_disable(i2s_mod[id].mod);
 
         if (i2s_mode[id] == HAL_I2S_MODE_MASTER) {
-            if (master_clk_map & (1 << id)) {
-                hal_cmu_i2s_clock_disable(id);
-                master_clk_map &= ~(1 << id);
-            }
+            hal_cmu_i2s_clock_disable(id);
+#ifdef I2S_RESAMPLE
+            hal_cmu_i2s_resample_disable(id);
+#endif
 
-#if defined(I2S_MCLK_FROM_SPDIF) || defined(I2S_MCLK_FROM_I2S)
+            master_clk_map &= ~(1 << id);
+
+#ifdef I2S_MCLK_FROM_CMU
+            hal_cmu_i2s_mclk_set_src(id, HAL_CMU_I2S_MCLK_SRC_NONE);
+#elif defined(I2S_MCLK_FROM_SPDIF) || defined(I2S_MCLK_FROM_I2S)
             if (master_clk_map == 0) {
 #ifdef I2S_MCLK_FROM_SPDIF
                 hal_spdif_clock_out_disable(HAL_SPDIF_ID_0);
@@ -324,7 +353,7 @@ int hal_i2s_start_stream(enum HAL_I2S_ID_T id, enum AUD_STREAM_T stream)
     reg_base = _i2s_get_reg_base(id);
 
     if (i2s_status[id][stream] != HAL_I2S_STATUS_OPENED) {
-        HAL_TRACE(2,"Invalid I2S starting status for stream %d: %d", stream, i2s_status[id][stream]);
+        TRACE(2,"Invalid I2S starting status for stream %d: %d", stream, i2s_status[id][stream]);
         return 1;
     }
 
@@ -345,7 +374,7 @@ int hal_i2s_start_stream(enum HAL_I2S_ID_T id, enum AUD_STREAM_T stream)
     if (stream == AUD_STREAM_PLAYBACK) {
         lock = int_lock();
 #ifdef I2S_TX_MULTI_CHAN
-        for (uint32_t i = 0; i < I2S_CHAN_NUM; i++) {
+        for (uint32_t i = 0; i < I2S_LINE_NUM; i++) {
             if (i2s_tx_line_map[id] & (1 << i)) {
                 i2sip_w_tx_fifo_reset(reg_base, i);
                 i2sip_w_enable_tx_channel(reg_base, i, HAL_I2S_YES);
@@ -358,6 +387,9 @@ int hal_i2s_start_stream(enum HAL_I2S_ID_T id, enum AUD_STREAM_T stream)
         if (xfer_en[stream]) {
             i2sip_w_enable_tx_block(reg_base, HAL_I2S_YES);
             if (i2s_dma[id][stream]) {
+#ifdef I2S_TX_MULTI_CHAN
+                i2sip_w_tx_dma_chan_sel(reg_base, get_msb_pos(i2s_tx_line_map[id]));
+#endif
                 i2sip_w_enable_tx_dma(reg_base, HAL_I2S_YES);
             }
         }
@@ -371,10 +403,13 @@ int hal_i2s_start_stream(enum HAL_I2S_ID_T id, enum AUD_STREAM_T stream)
         }
     } else {
         if (i2s_dma[id][stream]) {
+#ifdef I2S_RX_MULTI_CHAN
+            i2sip_w_rx_dma_chan_sel(reg_base, get_msb_pos(i2s_rx_line_map[id]));
+#endif
             i2sip_w_enable_rx_dma(reg_base, HAL_I2S_YES);
         }
 #ifdef I2S_RX_MULTI_CHAN
-        for (uint32_t i = 0; i < I2S_CHAN_NUM; i++) {
+        for (uint32_t i = 0; i < I2S_LINE_NUM; i++) {
             if (i2s_rx_line_map[id] & (1 << i)) {
                 i2sip_w_rx_fifo_reset(reg_base, i);
                 i2sip_w_enable_rx_channel(reg_base, i, HAL_I2S_YES);
@@ -391,6 +426,9 @@ int hal_i2s_start_stream(enum HAL_I2S_ID_T id, enum AUD_STREAM_T stream)
         if (xfer_en[!stream]) {
             i2sip_w_enable_tx_block(reg_base, HAL_I2S_YES);
             if (i2s_dma[id][!stream]) {
+#ifdef I2S_TX_MULTI_CHAN
+                i2sip_w_tx_dma_chan_sel(reg_base, get_msb_pos(i2s_tx_line_map[id]));
+#endif
                 i2sip_w_enable_tx_dma(reg_base, HAL_I2S_YES);
             }
         }
@@ -424,7 +462,7 @@ int hal_i2s_stop_stream(enum HAL_I2S_ID_T id, enum AUD_STREAM_T stream)
     reg_base = _i2s_get_reg_base(id);
 
     if (i2s_status[id][stream] != HAL_I2S_STATUS_STARTED) {
-        HAL_TRACE(2,"Invalid I2S stopping status for stream %d: %d", stream, i2s_status[id][stream]);
+        TRACE(2,"Invalid I2S stopping status for stream %d: %d", stream, i2s_status[id][stream]);
         return 1;
     }
 
@@ -445,7 +483,7 @@ int hal_i2s_stop_stream(enum HAL_I2S_ID_T id, enum AUD_STREAM_T stream)
         i2sip_w_enable_tx_block(reg_base, HAL_I2S_NO);
         i2sip_w_enable_tx_dma(reg_base, HAL_I2S_NO);
 #ifdef I2S_TX_MULTI_CHAN
-        for (uint32_t i = 0; i < I2S_CHAN_NUM; i++) {
+        for (uint32_t i = 0; i < I2S_LINE_NUM; i++) {
             i2sip_w_enable_tx_channel(reg_base, i, HAL_I2S_NO);
             i2sip_w_tx_fifo_reset(reg_base, i);
         }
@@ -457,7 +495,7 @@ int hal_i2s_stop_stream(enum HAL_I2S_ID_T id, enum AUD_STREAM_T stream)
         i2sip_w_enable_rx_block(reg_base, HAL_I2S_NO);
         i2sip_w_enable_rx_dma(reg_base, HAL_I2S_NO);
 #ifdef I2S_RX_MULTI_CHAN
-        for (uint32_t i = 0; i < I2S_CHAN_NUM; i++) {
+        for (uint32_t i = 0; i < I2S_LINE_NUM; i++) {
             i2sip_w_enable_rx_channel(reg_base, i, HAL_I2S_NO);
             i2sip_w_rx_fifo_reset(reg_base, i);
         }
@@ -481,8 +519,12 @@ int hal_i2s_setup_stream(enum HAL_I2S_ID_T id, enum AUD_STREAM_T stream, const s
 
     reg_base = _i2s_get_reg_base(id);
 
+    if (stream >= AUD_STREAM_NUM) {
+        return -1;
+    }
+
     if (i2s_status[id][stream] != HAL_I2S_STATUS_OPENED) {
-        HAL_TRACE(2,"Invalid I2S setup status for stream %d: %d", stream, i2s_status[id][stream]);
+        TRACE(2,"Invalid I2S setup status for stream %d: %d", stream, i2s_status[id][stream]);
         return 1;
     }
 
@@ -561,7 +603,7 @@ int hal_i2s_setup_stream(enum HAL_I2S_ID_T id, enum AUD_STREAM_T stream, const s
         uint32_t sclk = cfg->sample_rate * cycles * AUD_CHANNEL_NUM_2;
 #define I2S_CLOCK_SOURCE 22579200	//44100*512
         div  = I2S_CLOCK_SOURCE / sclk - 1;
-        HAL_TRACE(1,"div = %x",div);
+        TRACE(1,"div = %x",div);
 #else
         uint32_t i2s_clock;
         uint32_t bit_rate;
@@ -576,7 +618,7 @@ int hal_i2s_setup_stream(enum HAL_I2S_ID_T id, enum AUD_STREAM_T stream, const s
             "%s: Invalid codec div for rate %u: codec_div=%u cmu_div=%u", __func__, cfg->sample_rate,
             i2s_sample_rate[i].codec_div, i2s_sample_rate[i].cmu_div);
 
-        HAL_TRACE(3,"[%s] stream=%d sample_rate=%d", __func__, stream, cfg->sample_rate);
+        TRACE(3,"[%s] stream=%d sample_rate=%d", __func__, stream, cfg->sample_rate);
 
         bit_rate = i2s_sample_rate[i].sample_rate * AUD_CHANNEL_NUM_2 * cycles;
 
@@ -586,7 +628,7 @@ int hal_i2s_setup_stream(enum HAL_I2S_ID_T id, enum AUD_STREAM_T stream, const s
             i2s_clock = cfg->ext_mclk_freq;
 #endif
 #ifdef I2S_RESAMPLE
-        } else if (master_resamp_req[id]) {
+        } else if (master_resamp_req & (1 << id)) {
             i2s_clock = i2s_sample_rate[i].codec_freq;
 #endif
         } else {
@@ -601,24 +643,16 @@ int hal_i2s_setup_stream(enum HAL_I2S_ID_T id, enum AUD_STREAM_T stream, const s
 
         hal_cmu_i2s_set_div(id, div);
 
-#ifdef I2S_RESAMPLE
-        if (master_resamp_req[id]) {
-#ifdef I2S_MCLK_IN
-            ASSERT(cfg->ext_mclk_freq == 0, "%s: resample with ext_mclk_freq=%u", __func__, cfg->ext_mclk_freq);
-#endif
-            hal_cmu_i2s_resample_enable(id);
-        } else {
-            hal_cmu_i2s_resample_disable(id);
-        }
-#endif
-
         bool mclk_enable = true;
 
 #ifdef I2S_MCLK_IN
         if (cfg->ext_mclk_freq) {
+#ifdef I2S_RESAMPLE
+            ASSERT((master_resamp_req & (1 << id)) == 0, "%s:%u: I2S resamp while ext_mclk_freq=%u", __func__, id, cfg->ext_mclk_freq);
+#endif
             mclk_enable = false;
             hal_cmu_i2s_clock_select_external(id);
-            hal_iomux_set_i2s_mclk_in();
+            hal_iomux_set_i2s0_mclk_in();
         } else {
             hal_cmu_i2s_clock_select_internal(id);
         }
@@ -627,7 +661,7 @@ int hal_i2s_setup_stream(enum HAL_I2S_ID_T id, enum AUD_STREAM_T stream, const s
         if (mclk_enable) {
 #if !(defined(SIMU) || defined(FPGA))
 #ifdef I2S_RESAMPLE
-            if(!master_resamp_req[id])
+            if ((master_resamp_req & (1 << id)) == 0)
 #endif
             {
                 if (master_pll_map == 0) {
@@ -642,9 +676,32 @@ int hal_i2s_setup_stream(enum HAL_I2S_ID_T id, enum AUD_STREAM_T stream, const s
 #endif
 
             if ((master_clk_map & (1 << id)) == 0) {
-                hal_cmu_i2s_clock_enable(id);
+                if (0) {
+#ifdef I2S_RESAMPLE
+                } else if (master_resamp_req & (1 << id)) {
+                    hal_cmu_i2s_resample_enable(id);
+#endif
+                } else { 
+                    hal_cmu_i2s_clock_enable(id);
+                }
 
-#if defined(I2S_MCLK_FROM_SPDIF) || defined(I2S_MCLK_FROM_I2S)
+#ifdef I2S_MCLK_FROM_CMU
+                // By default MCLK is half of (CODEC_FREQ_24P576M or CODEC_FREQ_22P5792M)
+                hal_cmu_i2s_mclk_set_div(id, i2s_sample_rate[i].cmu_div * I2S_MCLK_DIV);
+                hal_cmu_i2s_mclk_set_src(id, HAL_CMU_I2S_MCLK_SRC_PLL);
+                if (0) {
+#ifdef I2S1_BASE
+                } else if (id == HAL_I2S_ID_1) {
+                    hal_iomux_set_i2s1_mclk();
+#endif
+#ifdef I2S2_BASE
+                } else if (id == HAL_I2S_ID_2) {
+                    hal_iomux_set_i2s2_mclk();
+#endif
+                } else {
+                    hal_iomux_set_i2s0_mclk();
+                }
+#elif defined(I2S_MCLK_FROM_SPDIF) || defined(I2S_MCLK_FROM_I2S)
                 if (master_clk_map == 0) {
 #ifdef I2S_MCLK_FROM_SPDIF
                     // By default MCLK is half of (CODEC_FREQ_24P576M or CODEC_FREQ_22P5792M)
@@ -664,14 +721,15 @@ int hal_i2s_setup_stream(enum HAL_I2S_ID_T id, enum AUD_STREAM_T stream, const s
 #endif
 #endif
 #ifdef I2S_MCLK_PIN
-                    hal_iomux_set_i2s_mclk();
+                    hal_iomux_set_i2s0_mclk();
 #else
                     hal_iomux_set_clock_out();
 #endif
                 }
 #endif
+
+                master_clk_map |= (1 << id);
             }
-            master_clk_map |= (1 << id);
         }
 #endif
     }
@@ -691,7 +749,7 @@ int hal_i2s_setup_stream(enum HAL_I2S_ID_T id, enum AUD_STREAM_T stream, const s
 
         i2s_tx_line_map[id] = 0;
 
-        for (i = 0; i < I2S_CHAN_NUM; i++) {
+        for (i = 0; i < I2S_LINE_NUM; i++) {
             ch = (cfg->channel_map >> (i * 2)) & 3;
             ASSERT(ch == 0 || ch == 3, "[%s] Stream %d Bad Chan Map 0x%04X", __func__, stream, cfg->channel_map);
             if (ch == 3) {
@@ -702,7 +760,14 @@ int hal_i2s_setup_stream(enum HAL_I2S_ID_T id, enum AUD_STREAM_T stream, const s
         ASSERT(cnt == cfg->channel_num, "[%s] Stream %d Unmatched Chan Num (%u) and Map (0x%04X)",
             __func__, stream, cfg->channel_num, cfg->channel_map);
 
-        for (i = 0; i < I2S_CHAN_NUM; i++) {
+        if (cfg->chan_sep_buf) {
+            i2sip_w_tx_dma_blk_size(reg_base, HAL_I2S_TX_FIFO_TRIGGER_LEVEL);
+            i2sp_w_enable_tx_dma_block(reg_base, HAL_I2S_YES);
+        } else {
+            i2sp_w_enable_tx_dma_block(reg_base, HAL_I2S_NO);
+        }
+
+        for (i = 0; i < I2S_LINE_NUM; i++) {
             if (i2s_tx_line_map[id] & (1 << i)) {
                 i2sip_w_tx_resolution(reg_base, i, resolution);
                 i2sip_w_tx_fifo_threshold(reg_base, i, HAL_I2S_TX_FIFO_TRIGGER_LEVEL);
@@ -722,7 +787,7 @@ int hal_i2s_setup_stream(enum HAL_I2S_ID_T id, enum AUD_STREAM_T stream, const s
 
         i2s_rx_line_map[id] = 0;
 
-        for (i = 0; i < I2S_CHAN_NUM; i++) {
+        for (i = 0; i < I2S_LINE_NUM; i++) {
             ch = (cfg->channel_map >> (i * 2)) & 3;
             ASSERT(ch == 0 || ch == 3, "[%s] Stream %d Bad Chan Map 0x%04X", __func__, stream, cfg->channel_map);
             if (ch == 3) {
@@ -740,7 +805,7 @@ int hal_i2s_setup_stream(enum HAL_I2S_ID_T id, enum AUD_STREAM_T stream, const s
             i2sp_w_enable_rx_dma_block(reg_base, HAL_I2S_NO);
         }
 
-        for (i = 0; i < I2S_CHAN_NUM; i++) {
+        for (i = 0; i < I2S_LINE_NUM; i++) {
             if (i2s_rx_line_map[id] & (1 << i)) {
                 i2sip_w_rx_resolution(reg_base, i, resolution);
                 i2sip_w_rx_fifo_threshold(reg_base, i, HAL_I2S_RX_FIFO_TRIGGER_LEVEL);
@@ -774,12 +839,46 @@ int hal_i2s_send(enum HAL_I2S_ID_T id, const uint8_t *value, uint32_t value_len)
 
     return 0;
 }
+
 uint8_t hal_i2s_recv(enum HAL_I2S_ID_T id, uint8_t *value, uint32_t value_len)
 {
     //uint32_t reg_base;
 
     //reg_base = _i2s_get_reg_base(id);
 
+    return 0;
+}
+
+enum HAL_I2S_FIFO_STATUS_T hal_i2s_get_fifo_status(enum HAL_I2S_ID_T id)
+{
+    enum HAL_I2S_FIFO_STATUS_T status = 0;
+    uint32_t reg_base = _i2s_get_reg_base(id);
+
+    if (i2s_status[id][AUD_STREAM_PLAYBACK] == HAL_I2S_STATUS_NULL &&
+            i2s_status[id][AUD_STREAM_CAPTURE] == HAL_I2S_STATUS_NULL) {
+        return status;
+    }
+
+    for (uint32_t i = 0; i < I2S_LINE_NUM; i++) {
+        status |= i2sip_r_int_status(reg_base, i);
+    }
+
+    return status;
+}
+
+int hal_i2s_clear_fifo_error_status(enum HAL_I2S_ID_T id)
+{
+    uint32_t reg_base = _i2s_get_reg_base(id);
+
+    if (i2s_status[id][AUD_STREAM_PLAYBACK] == HAL_I2S_STATUS_NULL &&
+            i2s_status[id][AUD_STREAM_CAPTURE] == HAL_I2S_STATUS_NULL) {
+        return 1;
+    }
+
+    for (uint32_t i = 0; i < I2S_LINE_NUM; i++) {
+        i2sip_r_rx_overflow_clear(reg_base, i);
+        i2sip_r_tx_overflow_clear(reg_base, i);
+    }
     return 0;
 }
 
@@ -793,6 +892,83 @@ void hal_i2s_ws_codec_disable(enum HAL_I2S_ID_T id)
 {
     uint32_t reg_base = _i2s_get_reg_base(id);
     i2sip_w_enable_ws_codec(reg_base, HAL_I2S_NO);
+}
+
+#ifdef WIFITSF_TRIGGER
+void hal_i2s_tsf_event_config(enum HAL_I2S_ID_T id, uint32_t tsf_event)
+{
+    uint32_t reg_base = _i2s_get_reg_base(id);
+    i2sip_w_tsf_event_sel(reg_base, tsf_event);
+}
+
+static void hal_i2s_wifi_tsf_trig(enum HAL_I2S_ID_T id)
+{
+#ifdef WIFITSF_TRIGGER
+    uint32_t tsf_event = 0;
+#if defined(CHIP_BEST2003) || defined(CHIP_BEST2005)
+    tsf_event = 1;
+#endif
+    hal_i2s_tsf_event_config(id, tsf_event);
+#endif
+}
+#endif
+
+void hal_i2s_tx_sync_enable(enum HAL_I2S_ID_T id, enum HAL_I2S_SYNC_TYPE_T type)
+{
+    uint32_t reg_base = _i2s_get_reg_base(id);
+    i2sip_w_tx_sync_enable(reg_base, type);
+    hal_iomux_set_i2s_tx_trig();
+#ifdef WIFITSF_TRIGGER
+    hal_i2s_wifi_tsf_trig(id);
+#endif
+}
+
+void hal_i2s_tx_sync_disable(enum HAL_I2S_ID_T id)
+{
+    uint32_t reg_base = _i2s_get_reg_base(id);
+    i2sip_w_tx_sync_disable(reg_base);
+}
+
+void hal_i2s_rx_sync_enable(enum HAL_I2S_ID_T id, enum HAL_I2S_SYNC_TYPE_T type)
+{
+    uint32_t reg_base = _i2s_get_reg_base(id);
+    i2sip_w_rx_sync_enable(reg_base, type);
+#ifdef WIFITSF_TRIGGER
+    hal_i2s_wifi_tsf_trig(id);
+#endif
+}
+
+void hal_i2s_rx_sync_disable(enum HAL_I2S_ID_T id)
+{
+    uint32_t reg_base = _i2s_get_reg_base(id);
+    i2sip_w_rx_sync_disable(reg_base);
+}
+
+void hal_i2s_clk_sync_enable(enum HAL_I2S_ID_T id, enum HAL_I2S_SYNC_TYPE_T type)
+{
+    uint32_t reg_base = _i2s_get_reg_base(id);
+    i2sip_w_clk_sync_enable(reg_base, type);
+#ifdef WIFITSF_TRIGGER
+    hal_i2s_wifi_tsf_trig(id);
+#endif
+}
+
+void hal_i2s_clk_sync_disable(enum HAL_I2S_ID_T id)
+{
+    uint32_t reg_base = _i2s_get_reg_base(id);
+    i2sip_w_clk_sync_disable(reg_base);
+}
+
+void hal_i2s_event_config(enum HAL_I2S_ID_T id, uint32_t event)
+{
+    uint32_t reg_base = _i2s_get_reg_base(id);
+    i2sip_w_event_sel(reg_base, event);
+}
+
+void hal_i2s_trig_route_config(enum HAL_I2S_ID_T id, uint32_t route)
+{
+    uint32_t reg_base = _i2s_get_reg_base(id);
+    i2sip_w_trig_route_sel(reg_base, route);
 }
 
 //================================================================================
@@ -823,7 +999,7 @@ int hal_i2s_packet_open(void)
     hal_cmu_reset_clear(i2s_mod[HAL_I2S_ID_0].apb);
     i2sip_w_enable_i2sip(reg_base, HAL_I2S_YES);
 
-    for (uint32_t i = 0; i < I2S_CHAN_NUM; i++) {
+    for (uint32_t i = 0; i < I2S_LINE_NUM; i++) {
         i2sip_w_enable_rx_channel(reg_base, i, HAL_I2S_NO);
         i2sip_w_enable_tx_channel(reg_base, i, HAL_I2S_NO);
         i2sip_w_rx_fifo_reset(reg_base, i);
@@ -915,42 +1091,6 @@ int hal_i2s_stop_transfer(void)
     i2sip_w_rx_fifo_reset(reg_base, 0);
 
     return 0;
-}
-
-void hal_i2s_tx_sync_enable(enum HAL_I2S_SYNC_TYPE_T type)
-{
-    uint32_t reg_base = _i2s_get_reg_base(HAL_I2S_ID_0);
-    i2sip_w_tx_sync_enable(reg_base, type);
-}
-
-void hal_i2s_tx_sync_disable(void)
-{
-    uint32_t reg_base = _i2s_get_reg_base(HAL_I2S_ID_0);
-    i2sip_w_tx_sync_disable(reg_base);
-}
-
-void hal_i2s_rx_sync_enable(enum HAL_I2S_SYNC_TYPE_T type)
-{
-    uint32_t reg_base = _i2s_get_reg_base(HAL_I2S_ID_0);
-    i2sip_w_rx_sync_enable(reg_base, type);
-}
-
-void hal_i2s_rx_sync_disable(void)
-{
-    uint32_t reg_base = _i2s_get_reg_base(HAL_I2S_ID_0);
-    i2sip_w_rx_sync_disable(reg_base);
-}
-
-void hal_i2s_clk_sync_enable(enum HAL_I2S_SYNC_TYPE_T type)
-{
-    uint32_t reg_base = _i2s_get_reg_base(HAL_I2S_ID_0);
-    i2sip_w_clk_sync_enable(reg_base, type);
-}
-
-void hal_i2s_clk_sync_disable(void)
-{
-    uint32_t reg_base = _i2s_get_reg_base(HAL_I2S_ID_0);
-    i2sip_w_clk_sync_disable(reg_base);
 }
 
 #endif

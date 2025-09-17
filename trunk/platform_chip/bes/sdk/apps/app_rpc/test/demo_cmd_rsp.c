@@ -24,14 +24,14 @@
 
 static void demo_rsp_cmd_transmit_handler(uint8_t* ptr, uint16_t len)
 {
-    APP_RPC_TRACE(0, "%s: len=%d", __func__, len);
+    TRACE(0, "%s: len=%d", __func__, len);
     app_rpc_send_data_waiting_rsp(APP_RPC_CORE_BTH_DSP, BTH_DSP_TASK_CMD_DEMO_REQ_RSP, ptr, len);
 }
 
 static void demo_rsp_cmd_received_handler(uint8_t* ptr, uint16_t len)
 {
-    APP_RPC_TRACE(0, "%s: len=%d", __func__, len);
-    APP_RPC_TRACE(0, "%s", ptr);
+    TRACE(0, "%s: len=%d", __func__, len);
+    TRACE(0, "%s", ptr);
     char* rsp_str = "Okay! rsp from bth!";
     app_rpc_send_cmd_rsp(APP_RPC_CORE_BTH_DSP, BTH_DSP_TASK_CMD_DEMO_REQ_RSP, \
                                 (uint8_t*)rsp_str, strlen(rsp_str) + 1);
@@ -39,18 +39,18 @@ static void demo_rsp_cmd_received_handler(uint8_t* ptr, uint16_t len)
 
 static void demo_rsp_cmd_wait_rsp_timeout(uint8_t* ptr, uint16_t len)
 {
-    APP_RPC_TRACE(0, "%s: len=%d", __func__, len);
+    TRACE(0, "%s: len=%d", __func__, len);
 }
 
 static void demo_rsp_cmd_rsp_received_handler(uint8_t* ptr, uint16_t len)
 {
-    APP_RPC_TRACE(0, "%s: len=%d", __func__, len);
-    APP_RPC_TRACE(0, "%s", ptr);
+    TRACE(0, "%s: len=%d", __func__, len);
+    TRACE(0, "%s", ptr);
 }
 
 static void demo_rsp_cmd_tx_done_handler(uint16_t cmdCode, uint8_t* ptr, uint16_t len)
 {
-    APP_RPC_TRACE(0, "%s: cmdCode 0x%x tx done", __func__, cmdCode);
+    TRACE(0, "%s: cmdCode 0x%x tx done", __func__, cmdCode);
 }
 
 RPC_BTH_DSP_TASK_CMD_TO_ADD(BTH_DSP_TASK_CMD_DEMO_REQ_RSP,

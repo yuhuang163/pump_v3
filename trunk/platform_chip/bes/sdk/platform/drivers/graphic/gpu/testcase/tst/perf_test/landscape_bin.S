@@ -19,10 +19,9 @@
 
 .globl __landscape_start_flash
 .globl __landscape_end_flash
-.section .rodata, "a", %progbits
+.section .flash_nc_rodata_landscape, "a", %progbits
 .balign 4
 
 __landscape_start_flash:
 	.incbin TO_STRING(landscape.bin)
 __landscape_end_flash:
-

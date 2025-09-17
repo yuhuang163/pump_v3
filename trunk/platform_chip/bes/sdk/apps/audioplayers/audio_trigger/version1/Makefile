@@ -7,19 +7,22 @@ obj-y := $(obj-y:.S=.o)
 
 ccflags-y += \
 	$(BLUETOOTH_ADAPTER_INCLUDES) \
-	$(BT_SERVICE_UX_INCLUDES) \
+	-Iservices/ux/common/ibrt/ibrt_middleware/inc \
 	-Iapps/audioplayers/a2dp_decoder \
 	-Iservices/bt_app \
 	-Iservices/audio_bt \
+	-Iservices/audio_manager \
 	-Iservices/resources \
 	-Iplatform/drivers/bt \
 	-Iutils/cqueue \
-	-Iutils/list \
-	-Iservices/audio_manager/audio_policy/bredr_policy/inc \
-	-Iservices/audio_manager
+	-Iutils/list
 
-ifeq ($(A2DP_LDAC_ON),1)
-ifeq ($(A2DP_LDAC_BCO),1)
-ccflags-y += -DA2DP_LDAC_BCO
+ifeq ($(IBRT_UI),1)
+ccflags-y += \
+    -Iservices/ux/common/ibrt/ibrt_ui/inc
 endif
+
+ifeq ($(BLE_AUDIO_ENABLED),1)
+ccflags-y += \
+    -Iservices/audio_manager
 endif

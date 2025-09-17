@@ -33,19 +33,19 @@
 
 #if BLE_AUDIO_ENABLED
 #include "app_gaf_define.h"
+#include "app_gaf_common.h"
 
 #define APP_BAP_DFT_BC_SCAN_CACHE_SIZE                 2
 #define APP_BAP_DFT_BC_SCAN_NB_SYNC                    1
 #define APP_BAP_DFT_BC_SCAN_SCAN_TIMEOUT_S             600
-#define APP_BAP_DFT_BC_SCAN_INTV_1M_SLOT               0x20
+#define APP_BAP_DFT_BC_SCAN_INTV_1M_SLOT               0x30
 #define APP_BAP_DFT_BC_SCAN_WD_1M_SLOT                 0x20
 #define APP_BAP_DFT_BC_SCAN_INTV_CODED_SLOT            0
 #define APP_BAP_DFT_BC_SCAN_WD_CODED_SLOT              0
 #define APP_BAP_DFT_BC_SCAN_SKIP                       1
 #define APP_BAP_DFT_BC_SCAN_REPORT_FILTER_BF           0x1F
 #define APP_BAP_DFT_BC_SCAN_SYNC_TO_10MS               1000
-#define APP_BAP_DFT_BC_PA_RESYNC_TO_10MS               600
-#define APP_BAP_DFT_BC_SCAN_TIMEOUT_S                  2 //Always scan periodic adv
+#define APP_BAP_DFT_BC_SCAN_TIMEOUT_S                  2
 
 /// Content of Broadcast Scan environment
 typedef struct app_bap_bc_scan_env
@@ -77,11 +77,6 @@ extern "C" {
 #endif
 
 app_bap_bc_scan_env_t *app_bap_bc_scan_get_scan_env(void);
-
-uint8_t app_bap_bc_scan_get_scan_state(void);
-uint8_t app_bap_bc_scan_get_sync_state(void);
-void app_bap_bc_scan_set_scan_state(uint8_t scan_state);
-void app_bap_bc_scan_set_sync_state(uint8_t sync_state);
 
 #ifdef __cplusplus
 }

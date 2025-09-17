@@ -15,17 +15,21 @@
  ****************************************************************************/
 #include "plat_addr_map.h"
 #include "audioflinger.h"
+#include "af_stream_sw_gain.h"
 #include "analog.h"
 #include "cmsis.h"
-#include "codec_tlv32aic32.h"
 #ifdef AF_DEVICE_INT_CODEC
 #include "codec_int.h"
+#endif
+#ifdef AF_DEVICE_EXT_CODEC
+#include "codec_tlv32aic32.h"
 #endif
 #include "hal_btpcm.h"
 #include "hal_cmu.h"
 #include "hal_codec.h"
 #include "hal_dma.h"
 #include "hal_i2s.h"
+#include "hal_location.h"
 #include "hal_spdif.h"
 #include "hal_tdm.h"
 #include "hal_timer.h"
@@ -45,10 +49,6 @@
 #include "hal_sleep.h"
 #endif
 
-#if defined(AUDIO_OUTPUT_I2S_SW_GAIN)
-#include"af_stream_sw_gain.h"
-#endif
-
 #if defined(AUDIO_OUTPUT_SW_LIMITER) || defined(AUDIO_OUTPUT_DAC2_SW_LIMITER) \
     || defined(AUDIO_OUTPUT_DAC3_SW_LIMITER)
 #include "floatlimiter.h"
@@ -58,15 +58,11 @@
 #undef FPGA
 #endif
 
-#define AF_TRACE_DEBUG()   // AUDIOFLINGER_TRACE(2,"%s:%d\n", __func__, __LINE__)
+#define AF_TRACE_DEBUG()   // TRACE(2,"%s:%d\n", __func__, __LINE__)
 
 //#define AF_STREAM_ID_0_PLAYBACK_FADEOUT
 
 //#define CORRECT_SAMPLE_VALUE
-
-#ifdef FPGA
-#define AF_DEVICE_EXT_CODEC
-#endif
 
 #ifdef AUDIO_OUTPUT_DC_CALIB
 #ifdef CHIP_BEST1000
@@ -85,15 +81,17 @@
 #if (defined(AUDIO_OUTPUT_PA_ON_FADE_IN) || defined(AUDIO_OUTPUT_PA_OFF_FADE_OUT)) \
     && (defined(AUDIO_OUTPUT_DAC2) || defined(AUDIO_OUTPUT_DAC3))
 #error "AUDIO_OUTPUT_PA_ON_FADE_IN or AUDIO_OUTPUT_PA_OFF_FADE_OUT will" \
-        "conflict with AUDIO_OUTPUT_DAC2 or AUDIO_OUTPUT_DAC3 "
+    "conflict with AUDIO_OUTPUT_DAC2 or AUDIO_OUTPUT_DAC3 "
 #endif
 
 #define AF_FADE_OUT_SIGNAL_ID           15
 #define AF_FADE_IN_SIGNAL_ID            14
 
 /* config params */
-#define AF_CODEC_INST HAL_CODEC_ID_0
-#define AF_BTPCM_INST HAL_BTPCM_ID_0
+#define AF_CODEC_INST                   HAL_CODEC_ID_0
+#define AF_BTPCM_INST                   HAL_BTPCM_ID_0
+
+#define AF_DESC_LOC                     SYNC_FLAGS_LOC
 
 #define AF_CPU_WAKE_USER                HAL_CPU_WAKE_LOCK_USER_AUDIOFLINGER
 
@@ -123,12 +121,14 @@
 #define PP_PINGPANG(v)                  (v == PP_PING ? PP_PANG : PP_PING)
 
 #ifndef AF_STACK_SIZE
-#if defined(AUDIO_ANC_FB_ADJ_MC) || defined(BLE_AUDIO_ENABLED)
+#if BLE_AUDIO_ENABLED
+#define AF_STACK_SIZE                   (1024*10)
+#elif defined(AUDIO_ANC_FB_ADJ_MC) || defined(AUDIO_ADJ_EQ)
 #define AF_STACK_SIZE                   (1024*10)
 #elif defined(BLE_WALKIE_TALKIE)
 #define AF_STACK_SIZE                   (1024*32)
 #else
-#define AF_STACK_SIZE                   (1024*4)
+#define AF_STACK_SIZE                   (1024*3)
 #endif
 #endif
 
@@ -149,12 +149,12 @@
 #endif
 
 /* internal use */
-enum AF_BOOL_T{
+enum AF_BOOL_T {
     AF_FALSE = 0,
     AF_TRUE = 1
 };
 
-enum AF_RESULT_T{
+enum AF_RESULT_T {
     AF_RES_SUCCESS = 0,
     AF_RES_FAILD = 1
 };
@@ -170,7 +170,7 @@ enum AF_DAC_PA_STATE_T {
 };
 
 //status machine
-enum AF_STATUS_T{
+enum AF_STATUS_T {
     AF_STATUS_NULL = 0x00,
     AF_STATUS_OPEN_CLOSE = 0x01,
     AF_STATUS_STREAM_OPEN_CLOSE = 0x02,
@@ -179,7 +179,7 @@ enum AF_STATUS_T{
     AF_STATUS_MASK = 0x0F,
 };
 
-struct af_stream_ctl_t{
+struct af_stream_ctl_t {
     enum AF_PP_T pp_index;      //pingpong operate
     uint8_t pp_cnt;             //use to count the lost signals
     uint8_t status;             //status machine
@@ -214,6 +214,7 @@ struct af_stream_cfg_t {
     AF_STREAM_HANDLER_T handler;
 };
 
+AF_DESC_LOC
 static struct af_stream_cfg_t af_stream[AUD_STREAM_ID_NUM][AUD_STREAM_NUM];
 static uint8_t af_sig_lost_cnt[AUD_STREAM_ID_NUM][AUD_STREAM_NUM];
 
@@ -230,121 +231,20 @@ enum AF_CODEC_PLAY_HDLR_ID_T {
 
 static AF_CODEC_PLAYBACK_POST_HANDLER_T codec_play_post_hdlr[AF_CODEC_PLAY_HDLR_ID_QTY];
 
-typedef struct {
-    float coefs_b[3];
-    float coefs_a[3];
-    float history_x[2];
-    float history_y[2];
-}SW_GAIN_IIR_T;
-
-//#define SW_GAIN_OPTI_MIPS_FOR_ALIGN_4
-
-#ifdef AUDIO_OUTPUT_SW_GAIN
-#ifndef AUDIO_OUTPUT_SW_GAIN_BEFORE_DRC
-const
-#endif
-static bool dac1_sw_gain_enabled = true;
-volatile static float dac1_saved_output_coef, dac1_algo_gain, custom_eq_peak = 1.f;
 #ifdef AUDIO_OUTPUT_SW_LIMITER
 static uint8_t FloatLimiterMem[FL_STATE_SIZE];
 static FloatLimiterPtr FloatLimiterP;
-#else
-SW_GAIN_IIR_T sw_gain_iir=
-    {
-        // .coefs_b={0.00000042780818597736f,   0.00000085561637195472f,   0.00000042780818597736f},
-        // .coefs_a={1.00000000000000000000f, -1.99738371810092970000f,   0.99738542933367369000f},
-        .coefs_b={0.0000452390567342137f, 0.0001890478113468427f, 0.00009452390567342137f},
-        .coefs_a={1.00000000000000000000f, -1.961110637819907f, 0.961488733442601f},
-        .history_x={0,0},
-        .history_y={0,0},
-    };
-
-typedef struct {
-    uint32_t samples;
-    float step;
-    float curr_gain;
-    float new_gain;
-    bool finished;
-} fade_context_t;
-
-static fade_context_t dac1_fade;
-
-void fade_reset(fade_context_t *ctx, uint32_t sample_rate, uint32_t ms)
-{
-    ctx->samples = (uint32_t)(sample_rate * ms / 1000);
-    ctx->step = 0.f;
-    ctx->curr_gain = 1.f;
-    ctx->new_gain = 1.f;
-    ctx->finished = true;
-}
-
-void fade_update_gain(fade_context_t *ctx, float gain)
-{
-    if (ABS(gain - ctx->new_gain) < 1e-4) {
-        return;
-    }
-
-    ctx->new_gain = gain;
-    ctx->step = (ctx->new_gain - ctx->curr_gain) / ctx->samples;
-    ctx->finished = false;
-}
-
-float fade_smooth_gain(fade_context_t *ctx, float gain)
-{
-    if (ctx->finished)
-        return ctx->curr_gain;
-
-    ctx->curr_gain = ctx->curr_gain + ctx->step;
-
-    if (ctx->step > 0 && ctx->curr_gain > gain) {
-        ctx->curr_gain = gain;
-        ctx->finished = true;
-    } else if (ctx->step < 0 && ctx->curr_gain < gain) {
-        ctx->curr_gain = gain;
-        ctx->finished = true;
-    }
-
-    return ctx->curr_gain;
-}
-
-#endif
 #endif
 
-#ifdef AUDIO_OUTPUT_DAC2_SW_GAIN
-volatile static float dac2_saved_output_coef;
 #ifdef AUDIO_OUTPUT_DAC2_SW_LIMITER
 static uint8_t Dac2FloatLimiterMem[FL_STATE_SIZE];
 static FloatLimiterPtr Dac2FloatLimiterP;
-#else
-SW_GAIN_IIR_T dac2_sw_gain_iir=
-    {
-        // .coefs_b={0.00000042780818597736f,   0.00000085561637195472f,   0.00000042780818597736f},
-        // .coefs_a={1.00000000000000000000f,  -1.99738371810092970000f,   0.99738542933367369000f},
-        .coefs_b={0.0000452390567342137f, 0.0001890478113468427f, 0.00009452390567342137f},
-        .coefs_a={1.00000000000000000000f, -1.961110637819907f, 0.961488733442601f},
-        .history_x={0,0},
-        .history_y={0,0},
-    };
 #endif
-#endif /* AUDIO_OUTPUT_DAC2_SW_GAIN */
 
-#ifdef AUDIO_OUTPUT_DAC3_SW_GAIN
-volatile static float dac3_saved_output_coef;
 #ifdef AUDIO_OUTPUT_DAC3_SW_LIMITER
 static uint8_t Dac3FloatLimiterMem[FL_STATE_SIZE];
 static FloatLimiterPtr Dac3FloatLimiterP;
-#else
-SW_GAIN_IIR_T dac3_sw_gain_iir=
-    {
-        // .coefs_b={0.00000042780818597736f,   0.00000085561637195472f,   0.00000042780818597736f},
-        // .coefs_a={1.00000000000000000000f,  -1.99738371810092970000f,   0.99738542933367369000f},
-        .coefs_b={0.0000452390567342137f, 0.0001890478113468427f, 0.00009452390567342137f},
-        .coefs_a={1.00000000000000000000f, -1.961110637819907f, 0.961488733442601f},
-        .history_x={0,0},
-        .history_y={0,0},
-    };
 #endif
-#endif /* AUDIO_OUTPUT_DAC3_SW_GAIN */
 
 #ifdef AUDIO_OUTPUT_DC_CALIB
 static bool dac_dc_valid;
@@ -372,7 +272,7 @@ static osThreadId fade_thread_id;
 
 #define AF_STREAM_ID_0_PLAYBACK_FADEOUT_TIMEOUT (100)
 
-struct af_stream_fade_out_t{
+struct af_stream_fade_out_t {
     bool stop_on_process;
     uint8_t stop_process_cnt;
     osThreadId stop_request_tid;
@@ -382,19 +282,19 @@ struct af_stream_fade_out_t{
     float weight;
 };
 
-static struct af_stream_fade_out_t af_stream_fade_out ={
-                                                .stop_on_process = false,
-                                                .stop_process_cnt = 0,
-                                                .stop_request_tid = NULL,
-                                                .need_fadeout_samples = 0,
-                                                .need_fadeout_samples_processed = 0,
+static struct af_stream_fade_out_t af_stream_fade_out = {
+    .stop_on_process = false,
+    .stop_process_cnt = 0,
+    .stop_request_tid = NULL,
+    .need_fadeout_samples = 0,
+    .need_fadeout_samples_processed = 0,
 };
 #endif
 
 static osThreadId af_thread_tid = NULL;
 
 static void af_thread(void const *argument);
-osThreadDef(af_thread, osPriorityHigh, 1, AF_STACK_SIZE, "audio_flinger");
+osThreadDef(af_thread, osPriorityAboveNormal, 1, AF_STACK_SIZE, "audio_flinger");
 static int af_default_priority;
 
 osMutexId audioflinger_mutex_id = NULL;
@@ -406,14 +306,14 @@ static volatile uint32_t af_flag_lock;
 
 #endif // RTOS
 
-#ifdef AUDIO_RMS_MONITOR_ENABLE
-extern uint32_t rms_debug_cnt;
-#endif
-
 static AF_IRQ_NOTIFICATION_T irq_notif;
 
 #ifdef CODEC_DSD
 static bool af_dsd_enabled;
+#endif
+
+#ifdef AUDIO_OUTPUT_DC_AUTO_CALIB
+static enum AF_CODEC_CALIB_CMD_T af_codec_calib_cmd = CODEC_CALIB_CMD_CLOSE;
 #endif
 
 #ifdef CODEC_ERROR_HANDLING
@@ -421,6 +321,8 @@ static void af_supervisor_init(void);
 static void af_ping_supervisor(enum AUD_STREAM_ID_T streamId, enum AUD_STREAM_T streamType);
 static void af_update_stream_state(enum AUD_STREAM_ID_T streamId, enum AUD_STREAM_T streamType, bool isOn);
 #endif
+
+static uint32_t af_stream_setup_internal(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T stream, const struct AF_STREAM_CONFIG_T *cfg);
 
 void af_lock_thread(void)
 {
@@ -434,10 +336,6 @@ void af_lock_thread(void)
     locked_lr = lr;
 #endif
 }
-
-#ifdef AUDIO_OUTPUT_DC_AUTO_CALIB
-enum AF_CODEC_CALIB_CMD_T af_codec_calib_cmd = CODEC_CALIB_CMD_CLOSE;
-#endif
 
 void af_unlock_thread(void)
 {
@@ -455,7 +353,7 @@ void af_unlock_thread(void)
 #if defined(RTOS) && defined(AF_STREAM_ID_0_PLAYBACK_FADEOUT)
 int af_stream_fadeout_start(uint32_t sample)
 {
-    AUDIOFLINGER_TRACE(2,"%s, fadeout sample: %d", __func__, sample);
+    TRACE(1,"fadeout sample:%d", sample);
     af_lock_thread();
     af_stream_fade_out.stop_process_cnt = 0;
     af_stream_fade_out.need_fadeout_samples = sample;
@@ -468,7 +366,6 @@ int af_stream_fadeout_start(uint32_t sample)
 
 int af_stream_fadeout_stop(void)
 {
-    AUDIOFLINGER_TRACE(2,"%s, stop_process_cnt: %d", __func__, af_stream_fade_out.stop_process_cnt);
     af_lock_thread();
     af_stream_fade_out.stop_process_cnt = 0;
     af_stream_fade_out.stop_on_process = false;
@@ -483,47 +380,46 @@ static uint32_t af_stream_fadeout(uint8_t *buf, uint32_t len, enum AUD_CHANNEL_N
     uint32_t end;
 
     if (af_stream_fade_out.need_fadeout_samples_processed == 0) {
-        AUDIOFLINGER_TRACE(4 ,"%s end, fade ch:%d bit:%d weight:%d(/10000)",
-            __func__, num, bits, (int32_t)(af_stream_fade_out.weight * 10000));
+        TRACE(2,"fade ch:%d bit:%d weight:%d(/10000)", num, bits, (int32_t)(af_stream_fade_out.weight * 10000));
         memset(buf, 0, len);
         af_stream_fade_out.stop_process_cnt += 1;
         return 0;
     }
 
-    if (bits == AUD_BITS_16){
+    if (bits == AUD_BITS_16) {
         sample_len = len/num/2;
-    }else if (bits >= AUD_BITS_16){
+    } else if (bits >= AUD_BITS_16) {
         sample_len = len/num/4;
     }
 
     end = MIN(af_stream_fade_out.need_fadeout_samples_processed, sample_len);
 
-    AUDIOFLINGER_TRACE(2 ,"fade ch:%d bit:%d samples:%d/%d weight:%d(/10000)",
-            num, bits, end, sample_len, (int32_t)(af_stream_fade_out.weight * 10000));
+    TRACE(2,"fade ch:%d bit:%d samples:%d/%d weight:%d(/10000)",
+          num, bits, end, sample_len, (int32_t)(af_stream_fade_out.weight * 10000));
 
     if (bits == AUD_BITS_16) {
         int16_t *sample_p = (int16_t *)buf;
-        if (num == AUD_CHANNEL_NUM_1){
-            for (i = 0; i < end * num; i += 1){
+        if (num == AUD_CHANNEL_NUM_1) {
+            for (i = 0; i < end * num; i += 1) {
                 sample_p[i + 0] = (int16_t)(sample_p[i + 0]*af_stream_fade_out.weight);
                 af_stream_fade_out.weight -= af_stream_fade_out.step;
             }
-        }else if (num == AUD_CHANNEL_NUM_2){
-            for (i = 0; i < end * num; i += 2){
+        } else if (num == AUD_CHANNEL_NUM_2) {
+            for (i = 0; i < end * num; i += 2) {
                 sample_p[i + 0] = (int16_t)(sample_p[i + 0]*af_stream_fade_out.weight);
                 sample_p[i + 1] = (int16_t)(sample_p[i + 1]*af_stream_fade_out.weight);
                 af_stream_fade_out.weight -= af_stream_fade_out.step;
             }
-        }else if (num == AUD_CHANNEL_NUM_4){
-            for (i = 0; i < end * num; i += 4){
+        } else if (num == AUD_CHANNEL_NUM_4) {
+            for (i = 0; i < end * num; i += 4) {
                 sample_p[i + 0] = (int16_t)(sample_p[i + 0]*af_stream_fade_out.weight);
                 sample_p[i + 1] = (int16_t)(sample_p[i + 1]*af_stream_fade_out.weight);
                 sample_p[i + 2] = (int16_t)(sample_p[i + 2]*af_stream_fade_out.weight);
                 sample_p[i + 3] = (int16_t)(sample_p[i + 3]*af_stream_fade_out.weight);
                 af_stream_fade_out.weight -= af_stream_fade_out.step;
             }
-        }else if (num == AUD_CHANNEL_NUM_8){
-            for (i = 0; i < end * num; i += 8){
+        } else if (num == AUD_CHANNEL_NUM_8) {
+            for (i = 0; i < end * num; i += 8) {
                 sample_p[i + 0] = (int16_t)(sample_p[i + 0]*af_stream_fade_out.weight);
                 sample_p[i + 1] = (int16_t)(sample_p[i + 1]*af_stream_fade_out.weight);
                 sample_p[i + 2] = (int16_t)(sample_p[i + 2]*af_stream_fade_out.weight);
@@ -539,29 +435,29 @@ static uint32_t af_stream_fadeout(uint8_t *buf, uint32_t len, enum AUD_CHANNEL_N
         for (; i < sample_len * num; i++) {
             sample_p[i] = 0;
         }
-    }else if (bits >= AUD_BITS_16){
+    } else if (bits >= AUD_BITS_16) {
         int32_t *sample_p = (int32_t *)buf;
-        if (num == AUD_CHANNEL_NUM_1){
-            for (i = 0; i < end * num; i += 1){
+        if (num == AUD_CHANNEL_NUM_1) {
+            for (i = 0; i < end * num; i += 1) {
                 sample_p[i + 0] = (int32_t)(sample_p[i + 0]*af_stream_fade_out.weight);
                 af_stream_fade_out.weight -= af_stream_fade_out.step;
             }
-        }else if (num == AUD_CHANNEL_NUM_2){
-            for (i = 0; i < end * num; i += 2){
+        } else if (num == AUD_CHANNEL_NUM_2) {
+            for (i = 0; i < end * num; i += 2) {
                 sample_p[i + 0] = (int32_t)(sample_p[i + 0]*af_stream_fade_out.weight);
                 sample_p[i + 1] = (int32_t)(sample_p[i + 1]*af_stream_fade_out.weight);
                 af_stream_fade_out.weight -= af_stream_fade_out.step;
             }
-        }else if (num == AUD_CHANNEL_NUM_4){
-            for (i = 0; i < end * num; i += 4){
+        } else if (num == AUD_CHANNEL_NUM_4) {
+            for (i = 0; i < end * num; i += 4) {
                 sample_p[i + 0] = (int32_t)(sample_p[i + 0]*af_stream_fade_out.weight);
                 sample_p[i + 1] = (int32_t)(sample_p[i + 1]*af_stream_fade_out.weight);
                 sample_p[i + 2] = (int32_t)(sample_p[i + 2]*af_stream_fade_out.weight);
                 sample_p[i + 3] = (int32_t)(sample_p[i + 3]*af_stream_fade_out.weight);
                 af_stream_fade_out.weight -= af_stream_fade_out.step;
             }
-        }else if (num == AUD_CHANNEL_NUM_8){
-            for (i = 0; i < end * num; i += 8){
+        } else if (num == AUD_CHANNEL_NUM_8) {
+            for (i = 0; i < end * num; i += 8) {
                 sample_p[i + 0] = (int32_t)(sample_p[i + 0]*af_stream_fade_out.weight);
                 sample_p[i + 1] = (int32_t)(sample_p[i + 1]*af_stream_fade_out.weight);
                 sample_p[i + 2] = (int32_t)(sample_p[i + 2]*af_stream_fade_out.weight);
@@ -594,37 +490,33 @@ void af_stream_fadeout_wait_finish()
 
 void af_stream_fadeout_process(struct af_stream_cfg_t *af_cfg, uint8_t *buf, uint32_t len)
 {
-    if (af_stream_fade_out.stop_on_process){
-        AUDIOFLINGER_TRACE(5,"fadeout num:%d size:%d len:%d cnt:%d",
-				af_cfg->cfg.channel_num, af_cfg->cfg.data_size, len,  af_stream_fade_out.stop_process_cnt);
+    if (af_stream_fade_out.stop_on_process) {
         uint32_t ret = af_stream_fadeout(buf, len, af_cfg->cfg.channel_num, af_cfg->cfg.bits);
-        AUDIOFLINGER_TRACE(3,"process ret:%d %d %d",
-				*(int16_t *)(buf+len-2-2-2), *(int16_t *)(buf+len-2-2), *(int16_t *)(buf+len-2));
         // Wait an extra handler to stop fadeout
         if (ret == 0 && af_stream_fade_out.stop_process_cnt == 2) {
-            AUDIOFLINGER_TRACE(0,"fadeout_process end");
+            TRACE(0,"fadeout_process end");
             osSignalSet(af_stream_fade_out.stop_request_tid, (1 << AF_FADE_OUT_SIGNAL_ID));
         }
     }
 }
 
-uint32_t af_stream_playback_fadeout(enum AUD_STREAM_ID_T id, uint32_t ms)
+uint32_t af_stream_playback_fadeout(uint32_t ms)
 {
     ASSERT(ms <= AF_STREAM_ID_0_PLAYBACK_FADEOUT_TIMEOUT, "[%s] ms(%d) should be less than %d",
-        __FUNCTION__, ms, AF_STREAM_ID_0_PLAYBACK_FADEOUT_TIMEOUT);
+           __FUNCTION__, ms, AF_STREAM_ID_0_PLAYBACK_FADEOUT_TIMEOUT);
 
     struct AF_STREAM_CONFIG_T *stream_cfg = NULL;
     enum AF_RESULT_T ret;
     uint32_t fadt_out_samples = 0;
-    ret = af_stream_get_cfg(id, AUD_STREAM_PLAYBACK, &stream_cfg, false);
-    if (ret == AF_RES_FAILD ){
+    ret = af_stream_get_cfg(AUD_STREAM_ID_0, AUD_STREAM_PLAYBACK, &stream_cfg, false);
+    if (ret == AF_RES_FAILD ) {
         ret = AF_RES_FAILD;
         goto exit;
     }
 
     fadt_out_samples = (uint32_t)(ms * stream_cfg->sample_rate / 1000);
-    AUDIOFLINGER_TRACE(3,"[%s] ms:%d sample:%d bit:%d ch:%d", __func__, ms, (uint32_t)fadt_out_samples,
-                                            stream_cfg->bits, stream_cfg->channel_num);
+    TRACE(3,"[%s] ms:%d sample:%d bit:%d ch:%d", __func__, ms, (uint32_t)fadt_out_samples,
+          stream_cfg->bits, stream_cfg->channel_num);
 
     af_stream_fadeout_start(fadt_out_samples);
     af_stream_fadeout_wait_finish();
@@ -635,7 +527,7 @@ exit:
 #endif // RTOS && AF_STREAM_ID_0_PLAYBACK_FADEOUT
 
 static inline int af_get_role_id_stream(const struct af_stream_cfg_t *role,
-                            enum AUD_STREAM_ID_T *rid, enum AUD_STREAM_T *rstream)
+                                        enum AUD_STREAM_ID_T *rid, enum AUD_STREAM_T *rstream)
 {
     enum AUD_STREAM_ID_T id;
     enum AUD_STREAM_T stream;
@@ -652,14 +544,6 @@ static inline int af_get_role_id_stream(const struct af_stream_cfg_t *role,
 
     return -1;
 }
-
-#ifdef AUDIO_OUTPUT_I2S_SW_GAIN
-POSSIBLY_UNUSED
-static void sw_gain_i2s_set_volume(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T stream, uint32_t vol)
-{
-    af_stream_sw_gain_set_volume_level(id, stream, vol);
-}
-#endif
 
 //used by dma irq and af_thread
 static inline struct af_stream_cfg_t *af_get_stream_role(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T stream)
@@ -690,7 +574,7 @@ static void af_clear_status(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T stream, e
 
 //get current stream config parameters
 uint32_t af_stream_get_cfg(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T stream,
-                                    struct AF_STREAM_CONFIG_T **cfg, bool needlock)
+                           struct AF_STREAM_CONFIG_T **cfg, bool needlock)
 {
     AF_TRACE_DEBUG();
 
@@ -719,399 +603,98 @@ static void af_dump_cfg()
 {
     struct af_stream_cfg_t *role = NULL;
 
-    AUDIOFLINGER_TRACE(0,"dump cfg.........start");
+    TRACE(0,"dump cfg.........start");
     //initial parameter
-    for(uint8_t id=0; id< AUD_STREAM_ID_NUM; id++)
-    {
-        for(uint8_t stream=0; stream < AUD_STREAM_NUM; stream++)
-        {
+    for (uint8_t id=0; id< AUD_STREAM_ID_NUM; id++) {
+        for (uint8_t stream=0; stream < AUD_STREAM_NUM; stream++) {
             role = af_get_stream_role((enum AUD_STREAM_ID_T)id, (enum AUD_STREAM_T)stream);
 
-            AUDIOFLINGER_TRACE(2,"id = %d, stream = %d:", id, stream);
-            AUDIOFLINGER_TRACE(1,"ctl.use_device = %d", role->ctl.use_device);
-            AUDIOFLINGER_TRACE(1,"cfg.device = %d", role->cfg.device);
-            AUDIOFLINGER_TRACE(1,"dma_cfg.ch = %d", role->dma_cfg.ch);
+            TRACE(2,"id = %d, stream = %d:", id, stream);
+            TRACE(1,"ctl.use_device = %d", role->ctl.use_device);
+            TRACE(1,"cfg.device = %d", role->cfg.device);
+            TRACE(1,"dma_cfg.ch = %d", role->dma_cfg.ch);
         }
     }
-    AUDIOFLINGER_TRACE(0,"dump cfg.........end");
+    TRACE(0,"dump cfg.........end");
 }
 #endif
+
+#ifdef AUDIO_OUTPUT_I2S_SW_GAIN
+POSSIBLY_UNUSED
+static void sw_gain_i2s_set_volume(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T stream, uint32_t vol)
+{
+    af_stream_sw_gain_set_volume_level(id, stream, vol);
+}
+#endif
+
+#ifdef AUDIO_OUTPUT_TDM_SW_GAIN
+POSSIBLY_UNUSED
+static void sw_gain_tdm_set_volume(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T stream, uint32_t vol)
+{
+    af_stream_sw_gain_set_volume_level(id, stream, vol);
+}
+#endif
+
+POSSIBLY_UNUSED
+static enum AUD_STREAM_ID_T af_codec_get_stream_id(enum AUD_STREAM_USE_DEVICE_T device, enum AUD_STREAM_T stream)
+{
+    enum AUD_STREAM_ID_T id;
+    struct af_stream_cfg_t *role;
+
+    for (id = AUD_STREAM_ID_0; id < AUD_STREAM_ID_NUM; id++) {
+        role = af_get_stream_role(id, stream);
+        if (role->ctl.status & AF_STATUS_STREAM_OPEN_CLOSE) {
+            if (role->cfg.device == device) {
+                break;
+            }
+        }
+    }
+
+    return id;
+}
 
 #ifdef AUDIO_OUTPUT_SW_GAIN
 static void af_codec_dac1_output_gain_changed(float coef)
 {
-    dac1_saved_output_coef = coef;
-    AUDIOFLINGER_TRACE(1, "output_gain_change da1:%08d, final:%08d", (int32_t)(coef * 10000000), (int32_t)(dac1_saved_output_coef * 10000000));
-}
+    enum AUD_STREAM_ID_T id;
 
-void af_codec_dac1_set_algo_gain(float coef)
-{
-    AUDIOFLINGER_TRACE(1, "algo_gain da1:%08d", (int32_t)(coef * 10000000));
-    dac1_algo_gain = coef;
-    fade_update_gain(&dac1_fade, dac1_algo_gain);
-}
+    id = af_codec_get_stream_id(AUD_STREAM_USE_INT_CODEC, AUD_STREAM_PLAYBACK);
+    if (id >= AUD_STREAM_ID_NUM) {
+        return;
+    }
 
-void af_codec_dac1_set_custom_eq_peak(float peak)
-{
-    AUDIOFLINGER_TRACE(1, "eq_master_gain:%08d", (int32_t)(peak * 10000000));
-    custom_eq_peak = peak;
+    TRACE(1, "output_gain_change da1:%08d", (int32_t)(coef * 10000000));
+    af_stream_sw_gain_set_gain_coef(id, AUD_STREAM_PLAYBACK, coef);
 }
 #endif /* AUDIO_OUTPUT_SW_GAIN */
 
 #ifdef AUDIO_OUTPUT_DAC2_SW_GAIN
 static void af_codec_dac2_output_gain_changed(float coef)
 {
-    AUDIOFLINGER_TRACE(1, "output_gain_change da2:%08d", (int32_t)(coef * 10000000));
-    dac2_saved_output_coef = coef;
+    enum AUD_STREAM_ID_T id;
+
+    id = af_codec_get_stream_id(AUD_STREAM_USE_INT_CODEC2, AUD_STREAM_PLAYBACK);
+    if (id >= AUD_STREAM_ID_NUM) {
+        return;
+    }
+
+    af_stream_sw_gain_set_gain_coef(id, AUD_STREAM_PLAYBACK, coef);
 }
 #endif /* AUDIO_OUTPUT_DAC2_SW_GAIN */
 
 #ifdef AUDIO_OUTPUT_DAC3_SW_GAIN
 static void af_codec_dac3_output_gain_changed(float coef)
 {
-	AUDIOFLINGER_TRACE(1, "output_gain_change da3:%08d", (int32_t)(coef * 10000000));
-    dac3_saved_output_coef = coef;
+    enum AUD_STREAM_ID_T id;
+
+    id = af_codec_get_stream_id(AUD_STREAM_USE_INT_CODEC3, AUD_STREAM_PLAYBACK);
+    if (id >= AUD_STREAM_ID_NUM) {
+        return;
+    }
+
+    af_stream_sw_gain_set_gain_coef(id, AUD_STREAM_PLAYBACK, coef);
 }
 #endif /* AUDIO_OUTPUT_DAC3_SW_GAIN */
-
-#if defined(AUDIO_OUTPUT_SW_GAIN) || defined(AUDIO_OUTPUT_DAC2_SW_GAIN)
-/*static inline float af_codec_sw_gain_filter(SW_GAIN_IIR_T *iir, float gain_in)
-{
-    float gain_out = gain_in*iir->coefs_b[0]
-                            +iir->history_x[0]*iir->coefs_b[1]
-                            +iir->history_x[1]*iir->coefs_b[2]
-                            -iir->history_y[0]*iir->coefs_a[1]
-                            -iir->history_y[1]*iir->coefs_a[2];
-
-    iir->history_y[1]=iir->history_y[0];
-    iir->history_y[0]=gain_out;
-    iir->history_x[1]=iir->history_x[0];
-    iir->history_x[0]=gain_in;
-
-    return gain_out;
-}*/
-static void af_codec_sw_gain_process(uint8_t *buf, uint32_t size, enum AUD_BITS_T bits,
-                            enum AUD_CHANNEL_NUM_T chans, SW_GAIN_IIR_T *iir, float coef)
-{
-    uint32_t i,pcm_len;
-    int32_t pcm_out_l;
-    int32_t pcm_out_r;
-
-    float output_gain=1.0f;
-
-    //AUDIOFLINGER_TRACE(1,"af_codec_sw_gain_process:%d",(int32_t)(saved_output_coef*1000));
-
-    float coefs_b0,coefs_b1,coefs_b2;
-    float coefs_a1,coefs_a2;
-    float history_x0,history_x1;
-    float history_y0,history_y1;
-
-    coefs_b0=iir->coefs_b[0];
-    coefs_b1=iir->coefs_b[1];
-    coefs_b2=iir->coefs_b[2];
-
-    coefs_a1=iir->coefs_a[1];
-    coefs_a2=iir->coefs_a[2];
-
-    history_x0=iir->history_x[0];
-    history_x1=iir->history_x[1];
-
-    history_y0=iir->history_y[0];
-    history_y1=iir->history_y[1];
-
-   //AUDIOFLINGER_TRACE(1,"chans:%d,bits:%d,size:%d",chans,bits,size);
-
-   // uint32_t lock;
-
-   // lock = int_lock();
-
-   // uint32_t start_ticks = hal_fast_sys_timer_get();
-
-    if(chans==AUD_CHANNEL_NUM_1)
-    {
-        if (bits <= AUD_BITS_16)
-        {
-            pcm_len = size / sizeof(int16_t);
-            int16_t *pcm_buf = (int16_t *)buf;
-            for (i = 0; i < pcm_len;) {
-                output_gain = coef * coefs_b0 + history_x0 * coefs_b1 + history_x1 * coefs_b2
-                                              - history_y0 * coefs_a1 - history_y1 * coefs_a2;
-
-                history_y1 = history_y0;
-                history_y0 = output_gain;
-                history_x1 = history_x0;
-                history_x0 = coef;
-
-                output_gain *= fade_smooth_gain(&dac1_fade, dac1_algo_gain);
-                pcm_out_l = (int32_t)(pcm_buf[i] * output_gain);
-                pcm_buf[i] = __SSAT(pcm_out_l, 16);
-                i++;
-
-#ifdef SW_GAIN_OPTI_MIPS_FOR_ALIGN_4
-                output_gain = coef * coefs_b0 + history_x0 * coefs_b1 + history_x1 * coefs_b2
-                                              - history_y0 * coefs_a1 - history_y1 * coefs_a2;
-
-                history_y1 = history_y0;
-                history_y0 = output_gain;
-                history_x1 = history_x0;
-                history_x0 = coef;
-
-                output_gain *= fade_smooth_gain(&dac1_fade, dac1_algo_gain);
-                pcm_out_l = (int32_t)(pcm_buf[i] * output_gain);
-                pcm_buf[i] = __SSAT(pcm_out_l, 16);
-                i++;
-
-                output_gain = coef * coefs_b0 + history_x0 * coefs_b1 + history_x1 * coefs_b2
-                                              - history_y0 * coefs_a1 - history_y1 * coefs_a2;
-
-                history_y1 = history_y0;
-                history_y0 = output_gain;
-                history_x1 = history_x0;
-                history_x0 = coef;
-
-                output_gain *= fade_smooth_gain(&dac1_fade, dac1_algo_gain);
-                pcm_out_l = (int32_t)(pcm_buf[i] * output_gain);
-                pcm_buf[i] = __SSAT(pcm_out_l, 16);
-                i++;
-
-                output_gain = coef * coefs_b0 + history_x0 * coefs_b1 + history_x1 * coefs_b2
-                                              - history_y0 * coefs_a1 - history_y1 * coefs_a2;
-
-                history_y1 = history_y0;
-                history_y0 = output_gain;
-                history_x1 = history_x0;
-                history_x0 = coef;
-
-                output_gain *= fade_smooth_gain(&dac1_fade, dac1_algo_gain);
-                pcm_out_l = (int32_t)(pcm_buf[i] * output_gain);
-                pcm_buf[i] = __SSAT(pcm_out_l, 16);
-                i++;
-#endif
-            }
-        }
-        else
-        {
-            pcm_len = size / sizeof(int32_t);
-            int32_t *pcm_buf = (int32_t *)buf;
-            for (i = 0; i < pcm_len;) {
-                output_gain = coef * coefs_b0 + history_x0 * coefs_b1 + history_x1 * coefs_b2
-                                              - history_y0 * coefs_a1 - history_y1 * coefs_a2;
-
-                history_y1 = history_y0;
-                history_y0 = output_gain;
-                history_x1 = history_x0;
-                history_x0 = coef;
-
-                output_gain *= fade_smooth_gain(&dac1_fade, dac1_algo_gain);
-                pcm_out_l = (int32_t)(pcm_buf[i] * output_gain);
-                pcm_buf[i] = __SSAT(pcm_out_l, 24);
-                i++;
-#ifdef SW_GAIN_OPTI_MIPS_FOR_ALIGN_4
-                output_gain = coef * coefs_b0 + history_x0 * coefs_b1 + history_x1 * coefs_b2
-                                              - history_y0 * coefs_a1 - history_y1 * coefs_a2;
-
-                history_y1 = history_y0;
-                history_y0 = output_gain;
-                history_x1 = history_x0;
-                history_x0 = coef;
-
-                output_gain *= fade_smooth_gain(&dac1_fade, dac1_algo_gain);
-                pcm_out_l = (int32_t)(pcm_buf[i] * output_gain);
-                pcm_buf[i] = __SSAT(pcm_out_l, 24);
-                i++;
-
-                output_gain = coef * coefs_b0 + history_x0 * coefs_b1 + history_x1 * coefs_b2
-                                              - history_y0 * coefs_a1 - history_y1 * coefs_a2;
-
-                history_y1 = history_y0;
-                history_y0 = output_gain;
-                history_x1 = history_x0;
-                history_x0 = coef;
-
-                output_gain *= fade_smooth_gain(&dac1_fade, dac1_algo_gain);
-                pcm_out_l = (int32_t)(pcm_buf[i] * output_gain);
-                pcm_buf[i] = __SSAT(pcm_out_l, 24);
-                i++;
-
-                output_gain = coef * coefs_b0 + history_x0 * coefs_b1 + history_x1 * coefs_b2
-                                              - history_y0 * coefs_a1 - history_y1 * coefs_a2;
-
-                history_y1 = history_y0;
-                history_y0 = output_gain;
-                history_x1 = history_x0;
-                history_x0 = coef;
-
-                output_gain *= fade_smooth_gain(&dac1_fade, dac1_algo_gain);
-                pcm_out_l = (int32_t)(pcm_buf[i] * output_gain);
-                pcm_buf[i] = __SSAT(pcm_out_l, 24);
-                i++;
-#endif
-            }
-        }
-    }
-    else if(chans == AUD_CHANNEL_NUM_2)
-    {
-        if (bits <= AUD_BITS_16)
-        {
-            pcm_len = size / sizeof(int16_t);
-            int16_t *pcm_buf = (int16_t *)buf;
-            for (i = 0; i < pcm_len;)
-            {
-                output_gain = coef * coefs_b0 + history_x0 * coefs_b1 + history_x1 * coefs_b2
-                                              - history_y0 * coefs_a1 - history_y1 * coefs_a2;
-
-                history_y1 = history_y0;
-                history_y0 = output_gain;
-                history_x1 = history_x0;
-                history_x0 = coef;
-
-                output_gain *= fade_smooth_gain(&dac1_fade, dac1_algo_gain);
-                pcm_out_l = (int32_t)(pcm_buf[i] * output_gain);
-                pcm_out_r = (int32_t)(pcm_buf[i+1] * output_gain);
-                pcm_buf[i] = __SSAT(pcm_out_l, 16);
-                pcm_buf[i+1] = __SSAT(pcm_out_r, 16);
-                i=i+2;
-
-#ifdef SW_GAIN_OPTI_MIPS_FOR_ALIGN_4
-                output_gain = coef * coefs_b0 + history_x0 * coefs_b1 + history_x1 * coefs_b2
-                                              - history_y0 * coefs_a1 - history_y1 * coefs_a2;
-
-                history_y1 = history_y0;
-                history_y0 = output_gain;
-                history_x1 = history_x0;
-                history_x0 = coef;
-
-                output_gain *= fade_smooth_gain(&dac1_fade, dac1_algo_gain);
-                pcm_out_l = (int32_t)(pcm_buf[i] * output_gain);
-                pcm_out_r = (int32_t)(pcm_buf[i+1] * output_gain);
-                pcm_buf[i] = __SSAT(pcm_out_l, 16);
-                pcm_buf[i+1] = __SSAT(pcm_out_r, 16);
-                i=i+2;
-
-                output_gain = coef * coefs_b0 + history_x0 * coefs_b1 + history_x1 * coefs_b2
-                                              - history_y0 * coefs_a1 - history_y1 * coefs_a2;
-
-                history_y1 = history_y0;
-                history_y0 = output_gain;
-                history_x1 = history_x0;
-                history_x0 = coef;
-
-                output_gain *= fade_smooth_gain(&dac1_fade, dac1_algo_gain);
-                pcm_out_l = (int32_t)(pcm_buf[i] * output_gain);
-                pcm_out_r = (int32_t)(pcm_buf[i+1] * output_gain);
-                pcm_buf[i] = __SSAT(pcm_out_l, 16);
-                pcm_buf[i+1] = __SSAT(pcm_out_r, 16);
-                i=i+2;
-
-                output_gain = coef * coefs_b0 + history_x0 * coefs_b1 + history_x1 * coefs_b2
-                                              - history_y0 * coefs_a1 - history_y1 * coefs_a2;
-
-                history_y1 = history_y0;
-                history_y0 = output_gain;
-                history_x1 = history_x0;
-                history_x0 = coef;
-
-                output_gain *= fade_smooth_gain(&dac1_fade, dac1_algo_gain);
-                pcm_out_l = (int32_t)(pcm_buf[i] * output_gain);
-                pcm_out_r = (int32_t)(pcm_buf[i+1] * output_gain);
-                pcm_buf[i] = __SSAT(pcm_out_l, 16);
-                pcm_buf[i+1] = __SSAT(pcm_out_r, 16);
-                i=i+2;
-#endif
-            }
-        }
-        else
-        {
-            pcm_len = size / sizeof(int32_t);
-            int32_t *pcm_buf = (int32_t *)buf;
-            for (i = 0; i < pcm_len;) {
-                output_gain = coef * coefs_b0 + history_x0 * coefs_b1 + history_x1 * coefs_b2
-                                              - history_y0 * coefs_a1 - history_y1 * coefs_a2;
-
-                history_y1 = history_y0;
-                history_y0 = output_gain;
-                history_x1 = history_x0;
-                history_x0 = coef;
-
-                output_gain *= fade_smooth_gain(&dac1_fade, dac1_algo_gain);
-                pcm_out_l = (int32_t)(pcm_buf[i] * output_gain);
-                pcm_out_r = (int32_t)(pcm_buf[i+1] * output_gain);
-                pcm_buf[i] = __SSAT(pcm_out_l, 24);
-                pcm_buf[i+1] = __SSAT(pcm_out_r, 24);
-                i=i+2;
-#ifdef SW_GAIN_OPTI_MIPS_FOR_ALIGN_4
-                output_gain = coef * coefs_b0 + history_x0 * coefs_b1 + history_x1 * coefs_b2
-                                              - history_y0 * coefs_a1 - history_y1 * coefs_a2;
-
-                history_y1 = history_y0;
-                history_y0 = output_gain;
-                history_x1 = history_x0;
-                history_x0 = coef;
-
-                output_gain *= fade_smooth_gain(&dac1_fade, dac1_algo_gain);
-                pcm_out_l = (int32_t)(pcm_buf[i] * output_gain);
-                pcm_out_r = (int32_t)(pcm_buf[i+1] * output_gain);
-                pcm_buf[i] = __SSAT(pcm_out_l, 24);
-                pcm_buf[i+1] = __SSAT(pcm_out_r, 24);
-                i=i+2;
-
-                output_gain = coef * coefs_b0 + history_x0 * coefs_b1 + history_x1 * coefs_b2
-                                              - history_y0 * coefs_a1 - history_y1 * coefs_a2;
-
-                history_y1 = history_y0;
-                history_y0 = output_gain;
-                history_x1 = history_x0;
-                history_x0 = coef;
-
-                output_gain *= fade_smooth_gain(&dac1_fade, dac1_algo_gain);
-                pcm_out_l = (int32_t)(pcm_buf[i] * output_gain);
-                pcm_out_r = (int32_t)(pcm_buf[i+1] * output_gain);
-                pcm_buf[i] = __SSAT(pcm_out_l, 24);
-                pcm_buf[i+1] = __SSAT(pcm_out_r, 24);
-                i=i+2;
-
-                output_gain = coef * coefs_b0 + history_x0 * coefs_b1 + history_x1 * coefs_b2
-                                              - history_y0 * coefs_a1 - history_y1 * coefs_a2;
-
-                history_y1 = history_y0;
-                history_y0 = output_gain;
-                history_x1 = history_x0;
-                history_x0 = coef;
-
-                output_gain *= fade_smooth_gain(&dac1_fade, dac1_algo_gain);
-                pcm_out_l = (int32_t)(pcm_buf[i] * output_gain);
-                pcm_out_r = (int32_t)(pcm_buf[i+1] * output_gain);
-                pcm_buf[i] = __SSAT(pcm_out_l, 24);
-                pcm_buf[i+1] = __SSAT(pcm_out_r, 24);
-                i=i+2;
-#endif
-            }
-        }
-    }
-
-    iir->history_y[1] = history_y1;
-    iir->history_y[0] = history_y0;
-    iir->history_x[1] = history_x1;
-    iir->history_x[0] = history_x0;
-
-    //uint32_t end_ticks = hal_fast_sys_timer_get();
-
-    //int_unlock(lock);
-}
-#endif /* #if defined(AUDIO_OUTPUT_SW_GAIN) || defined(AUDIO_OUTPUT_DAC2_SW_GAIN) */
-
-#if defined(AUDIO_OUTPUT_SW_GAIN) && defined(AUDIO_OUTPUT_SW_GAIN_BEFORE_DRC)
-void af_codec_dac1_sw_gain_process(uint8_t *buf, uint32_t len, enum AUD_BITS_T bits, enum AUD_CHANNEL_NUM_T chans)
-{
-    af_codec_sw_gain_process(buf,len,bits,chans,&sw_gain_iir,dac1_saved_output_coef);
-}
-
-void af_codec_dac1_sw_gain_enable(bool enable)
-{
-    dac1_sw_gain_enabled = enable;
-}
-#endif
-
 static uint32_t POSSIBLY_UNUSED af_codec_get_sample_count(uint32_t size, enum AUD_BITS_T bits, enum AUD_CHANNEL_NUM_T chans)
 {
     uint32_t div;
@@ -1139,8 +722,8 @@ static bool af_codec_playback_pre_handler(uint8_t *buf, uint32_t len, const stru
 {
     uint32_t POSSIBLY_UNUSED time;
 
-    if ((role->cfg.device == AUD_STREAM_USE_INT_CODEC2)
-        || (role->cfg.device == AUD_STREAM_USE_INT_CODEC3)) {
+    if ((role->cfg.device == AUD_STREAM_USE_INT_CODEC2) ||
+            (role->cfg.device == AUD_STREAM_USE_INT_CODEC3)) {
         return false;
     }
     if (0) {
@@ -1269,16 +852,15 @@ static void af_codec_playback_sw_dc_calib(uint8_t *buf, uint32_t len, enum AUD_B
 }
 #endif // AUDIO_OUTPUT_DC_CALIB_SW
 
-static void af_codec_playback_post_handler(uint8_t *buf, uint32_t len, const struct af_stream_cfg_t *role)
+static void af_codec_playback_post_handler(uint8_t *buf, uint32_t len, enum AUD_STREAM_ID_T id,
+                                            const struct af_stream_cfg_t *role)
 {
-    POSSIBLY_UNUSED bool sw_gain_process_flag = false;
     POSSIBLY_UNUSED enum AUD_BITS_T bits;
     POSSIBLY_UNUSED enum AUD_CHANNEL_NUM_T chans;
     POSSIBLY_UNUSED uint32_t cnt;
-    POSSIBLY_UNUSED enum AF_CODEC_PLAY_HDLR_ID_T id = AF_CODEC_PLAY_HDLR_ID_0;
+    POSSIBLY_UNUSED enum AF_CODEC_PLAY_HDLR_ID_T hdlr_id = AF_CODEC_PLAY_HDLR_ID_0;
 #if defined(AUDIO_OUTPUT_SW_GAIN) || defined(AUDIO_OUTPUT_DAC2_SW_GAIN)
     POSSIBLY_UNUSED float saved_output_coef;
-    POSSIBLY_UNUSED SW_GAIN_IIR_T *gain_iir = NULL;
 #if defined(AUDIO_OUTPUT_SW_LIMITER) || defined(AUDIO_OUTPUT_DAC2_SW_LIMITER) \
     || defined(AUDIO_OUTPUT_DAC3_SW_LIMITER)
     POSSIBLY_UNUSED FloatLimiterPtr pFLimiter = NULL;
@@ -1296,42 +878,43 @@ static void af_codec_playback_post_handler(uint8_t *buf, uint32_t len, const str
     if (0) {
 #ifdef AUDIO_OUTPUT_DAC2
     } else if (role->cfg.device == AUD_STREAM_USE_INT_CODEC2) {
-        id = AF_CODEC_PLAY_HDLR_ID_1;
+        hdlr_id = AF_CODEC_PLAY_HDLR_ID_1;
 #endif
 #ifdef AUDIO_OUTPUT_DAC3
     } else if (role->cfg.device == AUD_STREAM_USE_INT_CODEC3) {
-        id = AF_CODEC_PLAY_HDLR_ID_2;
+        hdlr_id = AF_CODEC_PLAY_HDLR_ID_2;
 #endif
     } else {
-        id = AF_CODEC_PLAY_HDLR_ID_0;
+        hdlr_id = AF_CODEC_PLAY_HDLR_ID_0;
     }
 
+    POSSIBLY_UNUSED bool sw_gain_process_flag = false;
     if (0) {
 #if defined(AUDIO_OUTPUT_SW_GAIN)
-    } else if (role->cfg.device == AUD_STREAM_USE_INT_CODEC && dac1_sw_gain_enabled) {
-        saved_output_coef = MIN(dac1_saved_output_coef, 1.f / custom_eq_peak);
+    } else if (role->cfg.device == AUD_STREAM_USE_INT_CODEC) {
 #if defined(AUDIO_OUTPUT_SW_LIMITER)
+        saved_output_coef = af_stream_sw_gain_get_gain_coef(id, AUD_STREAM_PLAYBACK);
         pFLimiter = FloatLimiterP;
 #else
-        gain_iir = &sw_gain_iir;
+        sw_gain_process_flag = true;
 #endif
 #endif /* AUDIO_OUTPUT_SW_GAIN */
 #ifdef AUDIO_OUTPUT_DAC2_SW_GAIN
     } else if (role->cfg.device == AUD_STREAM_USE_INT_CODEC2) {
-        saved_output_coef = dac2_saved_output_coef;
 #if defined(AUDIO_OUTPUT_DAC2_SW_LIMITER)
+        saved_output_coef = af_stream_sw_gain_get_gain_coef(id, AUD_STREAM_PLAYBACK);
         pFLimiter = Dac2FloatLimiterP;
 #else
-        gain_iir = &dac2_sw_gain_iir;
+        sw_gain_process_flag = true;
 #endif
 #endif /* AUDIO_OUTPUT_DAC2_SW_GAIN */
 #ifdef AUDIO_OUTPUT_DAC3_SW_GAIN
     } else if (role->cfg.device == AUD_STREAM_USE_INT_CODEC3) {
-        saved_output_coef = dac3_saved_output_coef;
 #if defined(AUDIO_OUTPUT_DAC3_SW_LIMITER)
+        saved_output_coef = af_stream_sw_gain_get_gain_coef(id, AUD_STREAM_PLAYBACK);
         pFLimiter = Dac3FloatLimiterP;
 #else
-        gain_iir = &dac3_sw_gain_iir;
+        sw_gain_process_flag = true;
 #endif
 #endif /* AUDIO_OUTPUT_DAC3_SW_GAIN */
 #ifdef AUDIO_OUTPUT_I2S_SW_GAIN
@@ -1339,8 +922,16 @@ static void af_codec_playback_post_handler(uint8_t *buf, uint32_t len, const str
                 role->cfg.device == AUD_STREAM_USE_I2S1_MASTER) {
         sw_gain_process_flag = true;
 #endif /* AUDIO_OUTPUT_I2S_SW_GAIN */
+#ifdef AUDIO_OUTPUT_TDM_SW_GAIN
+    } else if (role->cfg.device == AUD_STREAM_USE_TDM0_MASTER ||
+                role->cfg.device == AUD_STREAM_USE_TDM1_MASTER) {
+        sw_gain_process_flag = true;
+#endif /* AUDIO_OUTPUT_TDM_SW_GAIN */
     }
-#if defined(AUDIO_OUTPUT_I2S_SW_GAIN)
+
+#if defined(AUDIO_OUTPUT_SW_GAIN) || defined(AUDIO_OUTPUT_DAC2_SW_GAIN)\
+    || defined(AUDIO_OUTPUT_DAC3_SW_GAIN) || defined(AUDIO_OUTPUT_I2S_SW_GAIN)\
+    || defined(AUDIO_OUTPUT_TDM_SW_GAIN)
     if (sw_gain_process_flag && af_stream_sw_gain_get_enable(id, AUD_STREAM_PLAYBACK)){
         af_stream_sw_gain_process(id, AUD_STREAM_PLAYBACK, buf, len);
     }
@@ -1348,11 +939,9 @@ static void af_codec_playback_post_handler(uint8_t *buf, uint32_t len, const str
 
 #if defined(AUDIO_OUTPUT_SW_GAIN) || defined(AUDIO_OUTPUT_DAC2_SW_GAIN) \
     || defined(AUDIO_OUTPUT_DAC3_SW_GAIN)
-    if (gain_iir != NULL) {
-        af_codec_sw_gain_process(buf,len,bits,chans,gain_iir,saved_output_coef);
 #if defined(AUDIO_OUTPUT_SW_LIMITER) || defined(AUDIO_OUTPUT_DAC2_SW_LIMITER) \
     || defined(AUDIO_OUTPUT_DAC3_SW_LIMITER)
-    } else if (pFLimiter != NULL) {
+    if (pFLimiter != NULL) {
         if (bits <= AUD_BITS_16) {
             cnt = len / sizeof(int16_t);
         } else {
@@ -1360,22 +949,12 @@ static void af_codec_playback_post_handler(uint8_t *buf, uint32_t len, const str
         }
 
         ApplyFloatLimiter(pFLimiter, buf, saved_output_coef, cnt);
-#endif
     }
 #endif
-
-    if (codec_play_post_hdlr[id]) {
-#ifdef CODEC_VCM_CHECK
-        extern uint8_t vcm_sta;
-        if(!vcm_sta)
-        {
-            vcm_sta = 1;
-            analog_vcm_status_check();
-            //AUDIOFLINGER_TRACE(0, "analog_vcm_status_check\n");
-            //hal_sys_timer_delay(MS_TO_TICKS(3));
-        }
 #endif
-        codec_play_post_hdlr[id](buf, len, (void *)&role->cfg);
+
+    if (codec_play_post_hdlr[hdlr_id]) {
+        codec_play_post_hdlr[hdlr_id](buf, len, (void *)&role->cfg);
     }
 
 #if defined(AUDIO_OUTPUT_INVERT_RIGHT_CHANNEL)
@@ -1442,7 +1021,7 @@ static void af_codec_playback_post_handler(uint8_t *buf, uint32_t len, const str
 #endif
 }
 
-static void _config_handler_interval_check(struct af_stream_cfg_t *role)
+static void _config_handler_interval_check(struct af_stream_cfg_t *role, const struct AF_STREAM_CONFIG_T *cfg)
 {
     uint32_t rate;
     uint32_t samp_size;
@@ -1458,19 +1037,19 @@ static void _config_handler_interval_check(struct af_stream_cfg_t *role)
 
     role->ctl.intvl_check_en = true;
 
-    rate = role->cfg.sample_rate;
+    rate = cfg->sample_rate;
     if (role->ctl.use_device == AUD_STREAM_USE_BT_PCM) {
         // BT-PCM is not a real PCM stream, but a CVSD or MSBC stream
         rate = AUD_SAMPRATE_8000;
     }
 
-    if (role->cfg.bits == AUD_BITS_24 || role->cfg.bits == AUD_BITS_32) {
+    if (cfg->bits == AUD_BITS_24 || cfg->bits == AUD_BITS_32) {
         samp_size = 4;
     } else {
         samp_size = 2;
     }
 
-    tmp_samp_cnt = role->cfg.data_size / 2 / samp_size / role->cfg.channel_num;
+    tmp_samp_cnt = cfg->data_size / 2 / samp_size / cfg->channel_num;
     us = (uint32_t)((float)(tmp_samp_cnt) * 1000 / ((float)rate / 1000) + 0.5);
 #ifdef TIMER1_BASE
     ticks = US_TO_FAST_TICKS(us);
@@ -1486,8 +1065,8 @@ static void _config_handler_interval_check(struct af_stream_cfg_t *role)
 
     af_get_role_id_stream(role, &id, &stream);
 
-    AUDIOFLINGER_TRACE(0, "[%s] id=%d stream=%d rate=%u samp_size=%d chans=%d size=%u us=%d",
-        __func__, id, stream, rate, samp_size, role->cfg.channel_num, role->cfg.data_size, us);
+    TRACE(0, "[%s] id=%d stream=%d rate=%u samp_size=%d chans=%d size=%u us=%d",
+          __func__, id, stream, rate, samp_size, role->cfg.channel_num, role->cfg.data_size, us);
 #endif
 }
 
@@ -1500,7 +1079,7 @@ static uint32_t _get_fast_time_stamp(void)
 #endif
 }
 
-POSSIBLY_UNUSED static uint32_t _fast_time_to_us(uint32_t ticks)
+static uint32_t _fast_time_to_us(uint32_t ticks)
 {
 #ifdef TIMER1_BASE
     return FAST_TICKS_TO_US(ticks);
@@ -1512,7 +1091,6 @@ POSSIBLY_UNUSED static uint32_t _fast_time_to_us(uint32_t ticks)
 #ifdef ADVANCE_FILL_ENABLED
 void af_pre_fill_handler(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T stream, uint8_t pre_fill_seq)
 {
-    af_lock_thread();
     uint8_t *buf=NULL;
     uint32_t len;
     struct af_stream_cfg_t *role=NULL;
@@ -1520,14 +1098,18 @@ void af_pre_fill_handler(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T stream, uint
     role = af_get_stream_role(id, stream);
     bool skip_handler = false;
     len = role->dma_buf_size / 2;
-
-    buf = role->dma_buf_ptr + pre_fill_seq * len;
-    skip_handler = af_codec_playback_pre_handler(buf, len, role);
-    if (!skip_handler) {
+    //for cp delay
+    if (0 == pre_fill_seq) {
+        buf = role->dma_buf_ptr;
         role->handler(buf, len);
+    } else {
+        buf = role->dma_buf_ptr + (pre_fill_seq-1)*len;
+        skip_handler = af_codec_playback_pre_handler(buf, len, role);
+        if (!skip_handler) {
+            role->handler(buf, len);
+        }
+        af_codec_playback_post_handler(buf, len, id, role);
     }
-    af_codec_playback_post_handler(buf, len, role);
-    af_unlock_thread();
 }
 #endif
 
@@ -1535,7 +1117,7 @@ static inline void af_thread_stream_handler(enum AUD_STREAM_ID_T id, enum AUD_ST
 {
     uint32_t lock;
     struct af_stream_cfg_t *role=NULL;
-    uint32_t dma_addr, hw_pos;
+    uint32_t dma_addr=0, hw_pos=0;
     uint8_t *buf=NULL;
     uint32_t len;
     uint32_t pp_cnt;
@@ -1555,16 +1137,23 @@ static inline void af_thread_stream_handler(enum AUD_STREAM_ID_T id, enum AUD_ST
 
         af_sig_lost_cnt[id][stream] = pp_cnt - 1;
         if (af_sig_lost_cnt[id][stream]) {
-            AUDIOFLINGER_TRACE(3,"af_thread:WARNING: id=%d stream=%d lost %u signals", id, stream, af_sig_lost_cnt[id][stream]);
+            TRACE(3,"af_thread:WARNING: id=%d stream=%d lost %u signals", id, stream, af_sig_lost_cnt[id][stream]);
         }
 
         pp_index = role->ctl.pp_index;
 
         // Get PP index from accurate DMA pos
-        dma_addr = af_stream_get_cur_dma_addr(id, stream);
+#ifdef DMA_RPC_CLI
+        if (dma_rpcif_forward_enabled(id, stream)) {
+            dma_addr = dma_rpc_get_cur_dma_addr(id, stream);
+        } else
+#endif
+        {
+            dma_addr = af_stream_get_cur_dma_addr(id, stream);
+        }
         hw_pos = dma_addr - (uint32_t)role->dma_buf_ptr;
         if (hw_pos > role->dma_buf_size) {
-            AUDIOFLINGER_TRACE(3,"af_thread: Failed to get valid dma addr for id=%d stream=%d: 0x%08x", id, stream, dma_addr);
+            TRACE(3,"af_thread: Failed to get valid dma addr for id=%d stream=%d: 0x%08x", id, stream, dma_addr);
         }
 #ifndef CHIP_BEST1000
         if (role->cfg.chan_sep_buf && role->cfg.channel_num > AUD_CHANNEL_NUM_1) {
@@ -1615,8 +1204,8 @@ static inline void af_thread_stream_handler(enum AUD_STREAM_ID_T id, enum AUD_ST
                 role->ctl.first_hdlr_proc = false;
             } else {
                 if (intvl_err) {
-                    AUDIOFLINGER_TRACE(3,"af_thread:WARNING: id=%d stream=%d hdlr intvl ERROR: %u us (expecting %u)",
-                        id, stream, _fast_time_to_us(cur_fast_time - role->ctl.prev_hdlr_time), _fast_time_to_us(role->ctl.hdlr_intvl_ticks));
+                    TRACE(3,"af_thread:WARNING: id=%d stream=%d hdlr intvl ERROR: %u us (expecting %u)",
+                          id, stream, _fast_time_to_us(cur_fast_time - role->ctl.prev_hdlr_time), _fast_time_to_us(role->ctl.hdlr_intvl_ticks));
                 }
             }
             role->ctl.prev_hdlr_time = cur_fast_time;
@@ -1625,11 +1214,13 @@ static inline void af_thread_stream_handler(enum AUD_STREAM_ID_T id, enum AUD_ST
         role->ctl.pp_index = PP_PINGPANG(pp_index);
 
         if (stream == AUD_STREAM_PLAYBACK
-            && ((role->ctl.use_device == AUD_STREAM_USE_INT_CODEC)
-                || (role->ctl.use_device == AUD_STREAM_USE_INT_CODEC2)
-                || (role->ctl.use_device == AUD_STREAM_USE_INT_CODEC3)
-                || (role->ctl.use_device == AUD_STREAM_USE_I2S0_MASTER)
-                || (role->ctl.use_device == AUD_STREAM_USE_I2S1_MASTER))) {
+                && ((role->ctl.use_device == AUD_STREAM_USE_INT_CODEC)
+                    || (role->ctl.use_device == AUD_STREAM_USE_INT_CODEC2)
+                    || (role->ctl.use_device == AUD_STREAM_USE_INT_CODEC3)
+                    || (role->ctl.use_device == AUD_STREAM_USE_I2S0_MASTER)
+                    || (role->ctl.use_device == AUD_STREAM_USE_I2S1_MASTER)
+                    || (role->ctl.use_device == AUD_STREAM_USE_TDM0_MASTER)
+                    || (role->ctl.use_device == AUD_STREAM_USE_TDM1_MASTER))) {
             codec_playback = true;
         } else {
             codec_playback = false;
@@ -1647,49 +1238,18 @@ static inline void af_thread_stream_handler(enum AUD_STREAM_ID_T id, enum AUD_ST
         }
 
         if (codec_playback) {
-            af_codec_playback_post_handler(buf, len, role);
+            af_codec_playback_post_handler(buf, len, id, role);
         }
 
 #if defined(RTOS) && defined(AF_STREAM_ID_0_PLAYBACK_FADEOUT)
-        if (((id == AUD_STREAM_ID_0) || (id == AUD_STREAM_ID_3)) && stream == AUD_STREAM_PLAYBACK
-            && (role->ctl.use_device == AUD_STREAM_USE_INT_CODEC || role->ctl.use_device == AUD_STREAM_USE_INT_CODEC2)) {
+        if (id == AUD_STREAM_ID_0 && stream == AUD_STREAM_PLAYBACK
+                && role->ctl.use_device == AUD_STREAM_USE_INT_CODEC) {
             af_stream_fadeout_process(role, buf, len);
         }
 #endif
 
-#ifdef AUDIO_RMS_MONITOR_ENABLE
-        if (codec_playback) {
-            if(rms_debug_cnt == 0)
-            {
-            #ifdef AUDIO_OUTPUT_SW_GAIN
-                if (role->cfg.bits <= AUD_BITS_16) {
-                    int16_t* rms_buff = (int16_t*)buf;
-                    rms_debug_cnt = 0;
-                    AUDIOFLINGER_TRACE(1, "RMS AF:%d coef %d %d %d %d %d %d",(int32_t)(dac1_saved_output_coef * 10000000), rms_buff[0], rms_buff[1], rms_buff[2], rms_buff[3], rms_buff[4], rms_buff[5]);
-                }
-                else {
-                    int32_t* rms_buff = (int32_t*)buf;
-                    rms_debug_cnt = 0;
-                    AUDIOFLINGER_TRACE(1, "RMS AF:%d coef %d %d %d %d %d %d",(int32_t)(dac1_saved_output_coef * 10000000), rms_buff[0], rms_buff[1], rms_buff[2], rms_buff[3], rms_buff[4], rms_buff[5]);
-                }
-            #else
-                if (role->cfg.bits <= AUD_BITS_16) {
-                    int16_t* rms_buff = (int16_t*)buf;
-                    rms_debug_cnt = 0;
-                    AUDIOFLINGER_TRACE(1, "RMS AF: %d %d %d %d %d %d", rms_buff[0], rms_buff[1], rms_buff[2], rms_buff[3], rms_buff[4], rms_buff[5]);
-                }
-                else {
-                    int32_t* rms_buff = (int32_t*)buf;
-                    rms_debug_cnt = 0;
-                    AUDIOFLINGER_TRACE(1, "RMS AF: %d %d %d %d %d %d", rms_buff[0], rms_buff[1], rms_buff[2], rms_buff[3], rms_buff[4], rms_buff[5]);
-                }
-            #endif
-            }
-        }
-#endif
-
         if (role->ctl.pp_cnt) {
-            AUDIOFLINGER_TRACE(3,"af_thread:WARNING: id=%d stream=%d hdlr ran too long (pp_cnt=%u)", id, stream, role->ctl.pp_cnt);
+            TRACE(3,"af_thread:WARNING: id=%d stream=%d hdlr ran too long (pp_cnt=%u)", id, stream, role->ctl.pp_cnt);
         }
     }
 
@@ -1697,7 +1257,7 @@ static inline void af_thread_stream_handler(enum AUD_STREAM_ID_T id, enum AUD_ST
 }
 
 #ifdef RTOS
-extern void hal_trace_fault_dump_cp_print();
+
 static void af_thread(void const *argument)
 {
     osEvent evt;
@@ -1705,33 +1265,25 @@ static void af_thread(void const *argument)
     enum AUD_STREAM_ID_T id;
     enum AUD_STREAM_T stream;
 
-    while(1)
-    {
+    while (1) {
         //wait any signal
-        hal_trace_fault_dump_cp_print();
         evt = osSignalWait(0x0, osWaitForever);
         signals = evt.value.signals;
-//        AUDIOFLINGER_TRACE(3,"[%s] status = %x, signals = %d", __func__, evt.status, evt.value.signals);
+        // TRACE(3,"[%s] status = %x, signals = %d", __func__, evt.status, evt.value.signals);
 
-        if(evt.status == osEventSignal)
-        {
-            for(uint8_t i=0; i<AUD_STREAM_ID_NUM * AUD_STREAM_NUM; i++)
-            {
-                if(signals & (1 << i))
-                {
+        if (evt.status == osEventSignal) {
+            for (uint8_t i=0; i<AUD_STREAM_ID_NUM * AUD_STREAM_NUM; i++) {
+                if (signals & (1 << i)) {
                     id = (enum AUD_STREAM_ID_T)(i >> 1);
                     stream = (enum AUD_STREAM_T)(i & 1);
-                #ifdef CODEC_ERROR_HANDLING
+#ifdef CODEC_ERROR_HANDLING
                     af_ping_supervisor(id, stream);
-                #endif
+#endif
                     af_thread_stream_handler(id, stream);
-
                 }
             }
-        }
-        else
-        {
-            AUDIOFLINGER_TRACE(2,"[%s] ERROR: evt.status = %d", __func__, evt.status);
+        } else {
+            TRACE(2,"[%s] ERROR: evt.status = %d", __func__, evt.status);
             continue;
         }
     }
@@ -1789,7 +1341,6 @@ void af_thread(void const *argument)
 #ifdef CODEC_ERROR_HANDLING
         af_ping_supervisor(id, stream);
 #endif
-
         af_thread_stream_handler(id, stream);
     }
 
@@ -1807,17 +1358,14 @@ static void af_dma_irq_handler(uint8_t ch, uint32_t remain_dst_tsize, uint32_t e
     struct af_stream_cfg_t *role = NULL;
 
     //initial parameter
-    for (uint8_t id = 0; id < AUD_STREAM_ID_NUM; id++)
-    {
-        for (uint8_t stream = 0; stream < AUD_STREAM_NUM; stream++)
-        {
+    for (uint8_t id = 0; id < AUD_STREAM_ID_NUM; id++) {
+        for (uint8_t stream = 0; stream < AUD_STREAM_NUM; stream++) {
             role = af_get_stream_role((enum AUD_STREAM_ID_T)id, (enum AUD_STREAM_T)stream);
 
-            if (role->dma_cfg.ch == ch)
-            {
+            if (role->dma_cfg.ch == ch) {
                 role->ctl.pp_cnt++;
-                //AUDIOFLINGER_TRACE(4,"[%s] id = %d, stream = %d, ch = %d", __func__, id, stream, ch);
-                //AUDIOFLINGER_TRACE(2,"[%s] PLAYBACK pp_cnt = %d", __func__, role->ctl.pp_cnt);
+                // TRACE(4,"[%s] id = %d, stream = %d, ch = %d", __func__, id, stream, ch);
+                // TRACE(2,"[%s] PLAYBACK pp_cnt = %d", __func__, role->ctl.pp_cnt);
                 if (irq_notif) {
                     irq_notif(id, stream);
                 }
@@ -1898,8 +1446,7 @@ uint32_t af_open(void)
     struct af_stream_cfg_t *role = NULL;
 
 #ifdef RTOS
-    if (audioflinger_mutex_id == NULL)
-    {
+    if (audioflinger_mutex_id == NULL) {
         audioflinger_mutex_id = osMutexCreate((osMutex(audioflinger_mutex)));
     }
 #endif
@@ -1913,9 +1460,7 @@ uint32_t af_open(void)
     }
 #endif
 
-#ifdef AUDIO_OUTPUT_I2S_SW_GAIN
-af_stream_sw_gain_init();
-#endif
+    af_stream_sw_gain_init();
 
 #ifdef AUDIO_OUTPUT_SW_GAIN
     hal_codec_set_sw_output_coef_callback(af_codec_dac1_output_gain_changed);
@@ -1934,22 +1479,17 @@ af_stream_sw_gain_init();
 #endif
 
     //initial parameters
-    for(uint8_t id=0; id< AUD_STREAM_ID_NUM; id++)
-    {
-        for(uint8_t stream=0; stream < AUD_STREAM_NUM; stream++)
-        {
+    for (uint8_t id=0; id< AUD_STREAM_ID_NUM; id++) {
+        for (uint8_t stream=0; stream < AUD_STREAM_NUM; stream++) {
             role = af_get_stream_role((enum AUD_STREAM_ID_T)id, (enum AUD_STREAM_T)stream);
 
-            if(role->ctl.status == AF_STATUS_NULL)
-            {
+            if (role->ctl.status == AF_STATUS_NULL) {
                 role->dma_buf_ptr = NULL;
                 role->dma_buf_size = 0;
                 role->ctl.status = AF_STATUS_OPEN_CLOSE;
                 role->ctl.use_device = AUD_STREAM_USE_DEVICE_NULL;
                 role->dma_cfg.ch = HAL_DMA_CHAN_NONE;
-            }
-            else
-            {
+            } else {
                 ASSERT(0, "[%s] ERROR: id = %d, stream = %d", __func__, id, stream);
             }
         }
@@ -1981,7 +1521,7 @@ static void af_stream_update_dma_buffer(enum AUD_STREAM_ID_T id, enum AUD_STREAM
     uint32_t desc_xfer_size;
     uint32_t align;
     uint8_t samp_size;
-    enum HAL_DMA_WDITH_T width;
+    enum HAL_DMA_WIDTH_T width;
 #ifndef CHIP_BEST1000
     bool dma_2d_en;
     uint32_t chan_desc_xfer_size = 0;
@@ -2000,8 +1540,7 @@ static void af_stream_update_dma_buffer(enum AUD_STREAM_ID_T id, enum AUD_STREAM
     }
 #endif
 
-    if(role->cfg.device == AUD_STREAM_USE_BT_PCM)
-     {
+    if (role->cfg.device == AUD_STREAM_USE_BT_PCM) {
         dma_cfg->dst_bsize = HAL_DMA_BSIZE_1;
         dma_cfg->src_bsize = HAL_DMA_BSIZE_1;
         dma_cfg->try_burst = 0;
@@ -2018,6 +1557,8 @@ static void af_stream_update_dma_buffer(enum AUD_STREAM_ID_T id, enum AUD_STREAM
         samp_size = 2;
     } else {
         ASSERT(false, "%s: Invalid stream config bits=%d", __func__, cfg->bits);
+        width = HAL_DMA_WIDTH_BYTE;
+        samp_size = 1;
     }
 
 #ifdef DYNAMIC_AUDIO_BUFFER_COUNT
@@ -2029,7 +1570,7 @@ static void af_stream_update_dma_buffer(enum AUD_STREAM_ID_T id, enum AUD_STREAM
     } else if (desc_cnt & (desc_cnt - 1)) {
         desc_cnt = 1 << (31 - __CLZ(desc_cnt) + 1);
     }
-    AUDIOFLINGER_TRACE(4,"%s: desc_cnt=%u data_size=%u samp_size=%u", __func__, desc_cnt, cfg->data_size, samp_size);
+    TRACE(4,"%s: desc_cnt=%u data_size=%u samp_size=%u", __func__, desc_cnt, cfg->data_size, samp_size);
     ASSERT(MIN_AUDIO_BUFFER_COUNT <= desc_cnt && desc_cnt <= MAX_AUDIO_BUFFER_COUNT, "%s: Bad desc_cnt=%u", __func__, desc_cnt);
     role->dma_desc_cnt = desc_cnt;
 #endif
@@ -2074,8 +1615,8 @@ static void af_stream_update_dma_buffer(enum AUD_STREAM_ID_T id, enum AUD_STREAM
         align = 4;
     }
     ASSERT(desc_xfer_size * AUDIO_BUFFER_COUNT == cfg->data_size && (desc_xfer_size % align) == 0,
-        "%s: Dma data size is not aligned: data_size=%u AUDIO_BUFFER_COUNT=%u align=%u",
-        __func__, cfg->data_size, AUDIO_BUFFER_COUNT, align);
+           "%s: Dma data size is not aligned: data_size=%u AUDIO_BUFFER_COUNT=%u align=%u",
+           __func__, cfg->data_size, AUDIO_BUFFER_COUNT, align);
 
     dma_cfg->dst_width = width;
     dma_cfg->src_width = width;
@@ -2114,8 +1655,7 @@ static void af_stream_update_dma_buffer(enum AUD_STREAM_ID_T id, enum AUD_STREAM
             }
         }
 #ifdef DMA_RPC_CLI
-        if (dma_rpcif_enabled(id, stream))
-        {
+        if (dma_rpcif_enabled(id, stream)) {
             dma_ret = dma_rpc_init_desc(&dma_desc[i], dma_cfg, next_desc, irq);
         } else
 #endif
@@ -2125,7 +1665,7 @@ static void af_stream_update_dma_buffer(enum AUD_STREAM_ID_T id, enum AUD_STREAM
         ASSERT(dma_ret == HAL_DMA_OK, "[%s] Failed to init dma desc for stream %d: ret=%d", __func__, stream, dma_ret);
     }
 
-    _config_handler_interval_check(role);
+    _config_handler_interval_check(role, cfg);
 }
 
 // Support memory<-->peripheral
@@ -2140,7 +1680,7 @@ uint32_t af_stream_open(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T stream, const
     struct HAL_DMA_CH_CFG_T *dma_cfg = NULL;
 
     role = af_get_stream_role(id, stream);
-    AUDIOFLINGER_TRACE(3,"[%s] id = %d, stream = %d", __func__, id, stream);
+    TRACE(3,"[%s] id = %d, stream = %d", __func__, id, stream);
 
     ASSERT(cfg->data_ptr != NULL, "[%s] ERROR: data_ptr == NULL!!!", __func__);
     ASSERT(((uint32_t)cfg->data_ptr) % 4 == 0, "[%s] ERROR: data_ptr(%p) is not align!!!", __func__, cfg->data_ptr);
@@ -2153,7 +1693,7 @@ uint32_t af_stream_open(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T stream, const
                cfg->device == AUD_STREAM_USE_I2S1_MASTER || cfg->device == AUD_STREAM_USE_I2S1_SLAVE ||
                cfg->device == AUD_STREAM_USE_TDM0_MASTER || cfg->device == AUD_STREAM_USE_TDM0_SLAVE ||
                cfg->device == AUD_STREAM_USE_TDM1_MASTER || cfg->device == AUD_STREAM_USE_TDM1_SLAVE,
-                "[%s] ERROR: Unsupport chan_sep_buf for device %d", __func__, cfg->device);
+               "[%s] ERROR: Unsupport chan_sep_buf for device %d", __func__, cfg->device);
     }
 #endif
 
@@ -2162,9 +1702,8 @@ uint32_t af_stream_open(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T stream, const
     af_lock_thread();
 
     //check af is open
-    if(role->ctl.status != AF_STATUS_OPEN_CLOSE)
-    {
-        AUDIOFLINGER_TRACE(2,"[%s] ERROR: status = %d",__func__, role->ctl.status);
+    if (role->ctl.status != AF_STATUS_OPEN_CLOSE) {
+        TRACE(2,"[%s] ERROR: status = %d",__func__, role->ctl.status);
         goto _exit;
     }
 
@@ -2176,14 +1715,11 @@ uint32_t af_stream_open(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T stream, const
     dma_cfg = &role->dma_cfg;
     memset(dma_cfg, 0, sizeof(*dma_cfg));
 
-    if(device == AUD_STREAM_USE_BT_PCM)
-    {
+    if (device == AUD_STREAM_USE_BT_PCM) {
         dma_cfg->dst_bsize = HAL_DMA_BSIZE_1;
         dma_cfg->src_bsize = HAL_DMA_BSIZE_1;
         dma_cfg->try_burst = 0;
-    }
-    else
-    {
+    } else {
         dma_cfg->dst_bsize = HAL_DMA_BSIZE_4;
 
 #ifndef CHIP_BEST1000
@@ -2191,10 +1727,11 @@ uint32_t af_stream_open(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T stream, const
         // 1) all playback streams with 2D DMA enabled; or
         // 2) internal codec capture streams with 2D DMA disabled.
         if (cfg->channel_num > AUD_CHANNEL_NUM_1 &&
-            ((stream == AUD_STREAM_PLAYBACK && cfg->chan_sep_buf) ||
-             (stream == AUD_STREAM_CAPTURE && !cfg->chan_sep_buf &&
-                 (device == AUD_STREAM_USE_INT_CODEC
-                     || device == AUD_STREAM_USE_INT_CODEC2)))) {
+                ((stream == AUD_STREAM_PLAYBACK && cfg->chan_sep_buf) ||
+                 (stream == AUD_STREAM_CAPTURE && !cfg->chan_sep_buf &&
+                  (device == AUD_STREAM_USE_INT_CODEC
+                   || device == AUD_STREAM_USE_INT_CODEC2
+                   || device == AUD_STREAM_USE_INT_CODEC3)))) {
             dma_cfg->src_bsize = HAL_DMA_BSIZE_1;
         } else
 #endif
@@ -2206,30 +1743,23 @@ uint32_t af_stream_open(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T stream, const
 
     dma_cfg->handler = af_dma_irq_handler;
 
-    if (stream == AUD_STREAM_PLAYBACK)
-    {
+    if (stream == AUD_STREAM_PLAYBACK) {
         AF_TRACE_DEBUG();
         dma_cfg->src_periph = (enum HAL_DMA_PERIPH_T)0;
         dma_cfg->type = HAL_DMA_FLOW_M2P_DMA;
 
         //open device and stream
-        if(0)
-        {
-
-        }
+        if (0) {
 #ifdef AF_DEVICE_EXT_CODEC
-        else if(device == AUD_STREAM_USE_EXT_CODEC)
-        {
+        } else if (device == AUD_STREAM_USE_EXT_CODEC) {
             AF_TRACE_DEBUG();
             tlv32aic32_open();
             tlv32aic32_stream_open(stream);
 
             dma_cfg->dst_periph = HAL_AUDMA_I2S0_TX;
-        }
 #endif
 #ifdef AF_DEVICE_I2S
-        else if(device == AUD_STREAM_USE_I2S0_MASTER)
-        {
+        } else if (device == AUD_STREAM_USE_I2S0_MASTER) {
             AF_TRACE_DEBUG();
             hal_i2s_open(HAL_I2S_ID_0, stream, HAL_I2S_MODE_MASTER);
             dma_cfg->dst_periph = HAL_AUDMA_I2S0_TX;
@@ -2237,16 +1767,12 @@ uint32_t af_stream_open(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T stream, const
             af_stream_sw_gain_open(id, stream, cfg->sample_rate, cfg->bits, cfg->channel_num,
                                     AUDIO_OUTPUT_SW_GAIN_MODE_IIR);
 #endif
-        }
-        else if(device == AUD_STREAM_USE_I2S0_SLAVE)
-        {
+        } else if (device == AUD_STREAM_USE_I2S0_SLAVE) {
             AF_TRACE_DEBUG();
             hal_i2s_open(HAL_I2S_ID_0, stream, HAL_I2S_MODE_SLAVE);
             dma_cfg->dst_periph = HAL_AUDMA_I2S0_TX;
-        }
-#if defined(CHIP_HAS_I2S) && (CHIP_HAS_I2S > 1)
-        else if(device == AUD_STREAM_USE_I2S1_MASTER)
-        {
+#ifdef I2S1_BASE
+        } else if (device == AUD_STREAM_USE_I2S1_MASTER) {
             AF_TRACE_DEBUG();
             hal_i2s_open(HAL_I2S_ID_1, stream, HAL_I2S_MODE_MASTER);
             dma_cfg->dst_periph = HAL_AUDMA_I2S1_TX;
@@ -2254,46 +1780,42 @@ uint32_t af_stream_open(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T stream, const
             af_stream_sw_gain_open(id, stream, cfg->sample_rate, cfg->bits, cfg->channel_num,
                                     AUDIO_OUTPUT_SW_GAIN_MODE_IIR);
 #endif
-        }
-        else if(device == AUD_STREAM_USE_I2S1_SLAVE)
-        {
+        } else if (device == AUD_STREAM_USE_I2S1_SLAVE) {
             AF_TRACE_DEBUG();
             hal_i2s_open(HAL_I2S_ID_1, stream, HAL_I2S_MODE_SLAVE);
             dma_cfg->dst_periph = HAL_AUDMA_I2S1_TX;
-        }
 #endif
 #endif
 #ifdef AF_DEVICE_TDM
-        else if(device == AUD_STREAM_USE_TDM0_MASTER)
-        {
+        } else if (device == AUD_STREAM_USE_TDM0_MASTER) {
             AF_TRACE_DEBUG();
             hal_tdm_open(HAL_I2S_ID_0, stream, HAL_I2S_MODE_MASTER);
             dma_cfg->dst_periph = HAL_AUDMA_I2S0_TX;
-        }
-        else if(device == AUD_STREAM_USE_TDM0_SLAVE)
-        {
+#ifdef AUDIO_OUTPUT_TDM_SW_GAIN
+            af_stream_sw_gain_open(id, stream, cfg->sample_rate, cfg->bits, cfg->channel_num,
+                                    AUDIO_OUTPUT_SW_GAIN_MODE_IIR);
+#endif
+        } else if (device == AUD_STREAM_USE_TDM0_SLAVE) {
             AF_TRACE_DEBUG();
             hal_tdm_open(HAL_I2S_ID_0, stream, HAL_I2S_MODE_SLAVE);
             dma_cfg->dst_periph = HAL_AUDMA_I2S0_TX;
-        }
-#if defined(CHIP_HAS_I2S) && (CHIP_HAS_I2S > 1)
-        else if(device == AUD_STREAM_USE_TDM1_MASTER)
-        {
+#ifdef I2S1_BASE
+        } else if (device == AUD_STREAM_USE_TDM1_MASTER) {
             AF_TRACE_DEBUG();
             hal_tdm_open(HAL_I2S_ID_1, stream, HAL_I2S_MODE_MASTER);
             dma_cfg->dst_periph = HAL_AUDMA_I2S1_TX;
-        }
-        else if(device == AUD_STREAM_USE_TDM1_SLAVE)
-        {
+#ifdef AUDIO_OUTPUT_TDM_SW_GAIN
+            af_stream_sw_gain_open(id, stream, cfg->sample_rate, cfg->bits, cfg->channel_num,
+                                    AUDIO_OUTPUT_SW_GAIN_MODE_IIR);
+#endif
+        } else if (device == AUD_STREAM_USE_TDM1_SLAVE) {
             AF_TRACE_DEBUG();
             hal_tdm_open(HAL_I2S_ID_1, stream, HAL_I2S_MODE_SLAVE);
             dma_cfg->dst_periph = HAL_AUDMA_I2S1_TX;
-        }
 #endif
 #endif
 #ifdef AF_DEVICE_INT_CODEC
-        else if(device == AUD_STREAM_USE_INT_CODEC)
-        {
+        } else if (device == AUD_STREAM_USE_INT_CODEC) {
             AF_TRACE_DEBUG();
             codec_int_open();
             codec_int_stream_open(stream);
@@ -2316,26 +1838,11 @@ uint32_t af_stream_open(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T stream, const
             if (limiter_err != FLOATLIMIT_OK) {
                 goto _exit;
             }
-#else
-            float coefs[6], gain = 0.f, f0 = 30.f, Q = 0.5f;                            //f0 larger means converge faster
-            sw_gain_iir.history_x[0]=0.0f;
-            sw_gain_iir.history_x[1]=0.0f;
-            sw_gain_iir.history_y[0]=0.0f;
-            sw_gain_iir.history_y[1]=0.0f;
-
-            iir_lowspass_coefs_generate(gain, f0 / cfg->sample_rate, Q, coefs);
-            sw_gain_iir.coefs_b[0] = coefs[3];
-            sw_gain_iir.coefs_b[1] = coefs[4];
-            sw_gain_iir.coefs_b[2] = coefs[5];
-            sw_gain_iir.coefs_a[0] = coefs[0];
-            sw_gain_iir.coefs_a[1] = coefs[1];
-            sw_gain_iir.coefs_a[2] = coefs[2];
-
-            fade_reset(&dac1_fade, cfg->sample_rate, 100);
-            dac1_algo_gain = 1.f;
 #endif
+            af_stream_sw_gain_open(id, stream, cfg->sample_rate, cfg->bits, cfg->channel_num,
+                                    AUDIO_OUTPUT_SW_GAIN_MODE_IIR);
 #ifdef AUDIO_OUTPUT_SW_GAIN_BEFORE_DRC
-            af_codec_dac1_sw_gain_enable(true);
+            af_stream_sw_gain_enable(id, stream, true);
 #endif
 #endif
 
@@ -2349,11 +1856,9 @@ uint32_t af_stream_open(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T stream, const
             {
                 dma_cfg->dst_periph = HAL_AUDMA_CODEC_TX;
             }
-        }
 #endif
 #ifdef AUDIO_OUTPUT_DAC2
-        else if(device == AUD_STREAM_USE_INT_CODEC2)
-        {
+        } else if (device == AUD_STREAM_USE_INT_CODEC2) {
             AF_TRACE_DEBUG();
             codec2_int_open();
             codec2_int_stream_open(stream);
@@ -2376,27 +1881,13 @@ uint32_t af_stream_open(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T stream, const
             if (limiter_err != FLOATLIMIT_OK) {
                 goto _exit;
             }
-#else
-            float coefs[6], gain = 0.f, f0 = 30.f, Q = 0.5f;                            //f0 larger means converge faster
-            dac2_sw_gain_iir.history_x[0]=0.0f;
-            dac2_sw_gain_iir.history_x[1]=0.0f;
-            dac2_sw_gain_iir.history_y[0]=0.0f;
-            dac2_sw_gain_iir.history_y[1]=0.0f;
-
-            iir_lowspass_coefs_generate(gain, f0 / cfg->sample_rate, Q, coefs);
-            dac2_sw_gain_iir.coefs_b[0] = coefs[3];
-            dac2_sw_gain_iir.coefs_b[1] = coefs[4];
-            dac2_sw_gain_iir.coefs_b[2] = coefs[5];
-            dac2_sw_gain_iir.coefs_a[0] = coefs[0];
-            dac2_sw_gain_iir.coefs_a[1] = coefs[1];
-            dac2_sw_gain_iir.coefs_a[2] = coefs[2];
 #endif
+            af_stream_sw_gain_open(id, stream, cfg->sample_rate, cfg->bits, cfg->channel_num,
+                                    AUDIO_OUTPUT_SW_GAIN_MODE_IIR);
 #endif /* #ifdef AUDIO_OUTPUT_DAC2_SW_GAIN */
-        }
 #endif
 #ifdef AUDIO_OUTPUT_DAC3
-        else if(device == AUD_STREAM_USE_INT_CODEC3)
-        {
+        } else if (device == AUD_STREAM_USE_INT_CODEC3) {
             AF_TRACE_DEBUG();
             codec3_int_open();
             codec3_int_stream_open(stream);
@@ -2419,63 +1910,41 @@ uint32_t af_stream_open(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T stream, const
             if (limiter_err != FLOATLIMIT_OK) {
                 goto _exit;
             }
-#else
-            float coefs[6], gain = 0.f, f0 = 30.f, Q = 0.5f;                            //f0 larger means converge faster
-            dac3_sw_gain_iir.history_x[0]=0.0f;
-            dac3_sw_gain_iir.history_x[1]=0.0f;
-            dac3_sw_gain_iir.history_y[0]=0.0f;
-            dac3_sw_gain_iir.history_y[1]=0.0f;
-
-            iir_lowspass_coefs_generate(gain, f0 / cfg->sample_rate, Q, coefs);
-            dac3_sw_gain_iir.coefs_b[0] = coefs[3];
-            dac3_sw_gain_iir.coefs_b[1] = coefs[4];
-            dac3_sw_gain_iir.coefs_b[2] = coefs[5];
-            dac3_sw_gain_iir.coefs_a[0] = coefs[0];
-            dac3_sw_gain_iir.coefs_a[1] = coefs[1];
-            dac3_sw_gain_iir.coefs_a[2] = coefs[2];
 #endif
+            af_stream_sw_gain_open(id, stream, cfg->sample_rate, cfg->bits, cfg->channel_num,
+                                    AUDIO_OUTPUT_SW_GAIN_MODE_IIR);
 #endif /* #ifdef AUDIO_OUTPUT_DAC3_SW_GAIN */
-        }
 #endif
 #ifdef AF_DEVICE_SPDIF
-        else if(device == AUD_STREAM_USE_SPDIF0)
-        {
+        } else if (device == AUD_STREAM_USE_SPDIF0) {
             AF_TRACE_DEBUG();
             hal_spdif_open(HAL_SPDIF_ID_0, stream);
             dma_cfg->dst_periph = HAL_AUDMA_SPDIF0_TX;
-        }
 #ifdef SPDIF1_BASE
-        else if(device == AUD_STREAM_USE_SPDIF1)
-        {
+        } else if (device == AUD_STREAM_USE_SPDIF1) {
             AF_TRACE_DEBUG();
             hal_spdif_open(HAL_SPDIF_ID_1, stream);
             dma_cfg->dst_periph = HAL_AUDMA_SPDIF1_TX;
-        }
 #endif
 #endif
 #ifdef AF_DEVICE_BT_PCM
-        else if(device == AUD_STREAM_USE_BT_PCM)
-        {
+        } else if (device == AUD_STREAM_USE_BT_PCM) {
             AF_TRACE_DEBUG();
             hal_btpcm_open(AF_BTPCM_INST, stream);
             dma_cfg->dst_periph = HAL_AUDMA_BTPCM_TX;
-        }
 #endif
 #ifdef AUDIO_ANC_FB_MC
-        else if(device == AUD_STREAM_USE_MC)
-        {
+        } else if (device == AUD_STREAM_USE_MC) {
             AF_TRACE_DEBUG();
             hal_codec_mc_enable();
             dma_cfg->dst_periph = HAL_AUDMA_MC_RX;
-        }
 #endif
-        else
-        {
+        } else {
             ASSERT(0, "[%s] ERROR: device %d is not defined!", __func__, device);
         }
+
 #ifdef DMA_RPC_CLI
-        if (dma_rpcif_enabled(id, stream))
-        {
+        if (dma_rpcif_enabled(id, stream)) {
             dma_cfg->ch = dma_rpc_get_chan(dma_cfg->dst_periph, HAL_DMA_HIGH_PRIO);
             role->dma_base = dma_rpc_get_base_addr(dma_cfg->ch);
         } else
@@ -2484,142 +1953,114 @@ uint32_t af_stream_open(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T stream, const
             dma_cfg->ch = hal_audma_get_chan(dma_cfg->dst_periph, HAL_DMA_HIGH_PRIO);
             role->dma_base = hal_audma_get_base_addr(dma_cfg->ch);
         }
-    }
-    else
-    {
+
+    } else { // CAPTURE
         AF_TRACE_DEBUG();
         dma_cfg->dst_periph = (enum HAL_DMA_PERIPH_T)0;
         dma_cfg->type = HAL_DMA_FLOW_P2M_DMA;
 
         //open device and stream
-        if(0)
-        {
-        }
+        if (0) {
 #ifdef AF_DEVICE_EXT_CODEC
-        else if(device == AUD_STREAM_USE_EXT_CODEC)
-        {
+        } else if (device == AUD_STREAM_USE_EXT_CODEC) {
             AF_TRACE_DEBUG();
             tlv32aic32_open();
             tlv32aic32_stream_open(stream);
 
             dma_cfg->src_periph = HAL_AUDMA_I2S0_RX;
-        }
 #endif
 #ifdef AF_DEVICE_I2S
-        else if(device == AUD_STREAM_USE_I2S0_MASTER)
-        {
+        } else if (device == AUD_STREAM_USE_I2S0_MASTER) {
             AF_TRACE_DEBUG();
             hal_i2s_open(HAL_I2S_ID_0, stream, HAL_I2S_MODE_MASTER);
             dma_cfg->src_periph = HAL_AUDMA_I2S0_RX;
-        }
-        else if(device == AUD_STREAM_USE_I2S0_SLAVE)
-        {
+        } else if (device == AUD_STREAM_USE_I2S0_SLAVE) {
             AF_TRACE_DEBUG();
             hal_i2s_open(HAL_I2S_ID_0, stream, HAL_I2S_MODE_SLAVE);
             dma_cfg->src_periph = HAL_AUDMA_I2S0_RX;
-        }
-#if defined(CHIP_HAS_I2S) && (CHIP_HAS_I2S > 1)
-        else if(device == AUD_STREAM_USE_I2S1_MASTER)
-        {
+#ifdef I2S1_BASE
+        } else if (device == AUD_STREAM_USE_I2S1_MASTER) {
             AF_TRACE_DEBUG();
             hal_i2s_open(HAL_I2S_ID_1, stream, HAL_I2S_MODE_MASTER);
             dma_cfg->src_periph = HAL_AUDMA_I2S1_RX;
-        }
-        else if(device == AUD_STREAM_USE_I2S1_SLAVE)
-        {
+        } else if (device == AUD_STREAM_USE_I2S1_SLAVE) {
             AF_TRACE_DEBUG();
             hal_i2s_open(HAL_I2S_ID_1, stream, HAL_I2S_MODE_SLAVE);
             dma_cfg->src_periph = HAL_AUDMA_I2S1_RX;
-        }
 #endif
 #endif
 #ifdef AF_DEVICE_TDM
-        else if(device == AUD_STREAM_USE_TDM0_MASTER)
-        {
+        } else if (device == AUD_STREAM_USE_TDM0_MASTER) {
             AF_TRACE_DEBUG();
             hal_tdm_open(HAL_I2S_ID_0, stream, HAL_I2S_MODE_MASTER);
             dma_cfg->src_periph = HAL_AUDMA_I2S0_RX;
             AF_TRACE_DEBUG();
-        }
-        else if(device == AUD_STREAM_USE_TDM0_SLAVE)
-        {
+        } else if (device == AUD_STREAM_USE_TDM0_SLAVE) {
             AF_TRACE_DEBUG();
             hal_tdm_open(HAL_I2S_ID_0, stream, HAL_I2S_MODE_SLAVE);
             dma_cfg->src_periph = HAL_AUDMA_I2S0_RX;
-        }
-#if defined(CHIP_HAS_I2S) && (CHIP_HAS_I2S > 1)
-        else if(device == AUD_STREAM_USE_TDM1_MASTER)
-        {
+#ifdef I2S1_BASE
+        } else if (device == AUD_STREAM_USE_TDM1_MASTER) {
             AF_TRACE_DEBUG();
             hal_tdm_open(HAL_I2S_ID_1, stream, HAL_I2S_MODE_MASTER);
             dma_cfg->src_periph = HAL_AUDMA_I2S1_RX;
-        }
-        else if(device == AUD_STREAM_USE_TDM1_SLAVE)
-        {
+        } else if (device == AUD_STREAM_USE_TDM1_SLAVE) {
             AF_TRACE_DEBUG();
             hal_tdm_open(HAL_I2S_ID_1, stream, HAL_I2S_MODE_SLAVE);
             dma_cfg->src_periph = HAL_AUDMA_I2S1_RX;
-        }
 #endif
 #endif
 #ifdef AF_DEVICE_INT_CODEC
-        else if(device == AUD_STREAM_USE_INT_CODEC)
-        {
+        } else if (device == AUD_STREAM_USE_INT_CODEC) {
             AF_TRACE_DEBUG();
             codec_int_open();
             codec_int_stream_open(stream);
             dma_cfg->src_periph = HAL_AUDMA_CODEC_RX;
-        }
 #endif
 #ifdef AUDIO_OUTPUT_DAC2
-        else if(device == AUD_STREAM_USE_INT_CODEC2)
-        {
+        } else if (device == AUD_STREAM_USE_INT_CODEC2) {
             AF_TRACE_DEBUG();
             codec2_int_open();
             codec2_int_stream_open(stream);
             dma_cfg->src_periph = HAL_AUDMA_CODEC_RX2;
-        }
+#endif
+#ifdef AUDIO_OUTPUT_DAC3
+        } else if (device == AUD_STREAM_USE_INT_CODEC3) {
+            AF_TRACE_DEBUG();
+            codec3_int_open();
+            codec3_int_stream_open(stream);
+            dma_cfg->src_periph = HAL_AUDMA_CODEC_RX3;
 #endif
 #ifdef AF_DEVICE_SPDIF
-        else if(device == AUD_STREAM_USE_SPDIF0)
-        {
+        } else if (device == AUD_STREAM_USE_SPDIF0) {
             AF_TRACE_DEBUG();
             hal_spdif_open(HAL_SPDIF_ID_0, stream);
             dma_cfg->src_periph = HAL_AUDMA_SPDIF0_RX;
-        }
 #ifdef SPDIF1_BASE
-        else if(device == AUD_STREAM_USE_SPDIF1)
-        {
+        } else if (device == AUD_STREAM_USE_SPDIF1) {
             AF_TRACE_DEBUG();
             hal_spdif_open(HAL_SPDIF_ID_1, stream);
             dma_cfg->src_periph = HAL_AUDMA_SPDIF1_RX;
-        }
 #endif
 #endif
 #ifdef AF_DEVICE_BT_PCM
-        else if(device == AUD_STREAM_USE_BT_PCM)
-        {
+        } else if (device == AUD_STREAM_USE_BT_PCM) {
             AF_TRACE_DEBUG();
             hal_btpcm_open(AF_BTPCM_INST, stream);
 
             dma_cfg->src_periph = HAL_AUDMA_BTPCM_RX;
-        }
 #endif
 #ifdef AF_DEVICE_DPD_RX
-        else if(device == AUD_STREAM_USE_DPD_RX)
-        {
+        } else if (device == AUD_STREAM_USE_DPD_RX) {
             AF_TRACE_DEBUG();
             dma_cfg->src_periph = HAL_AUDMA_DPD_RX;
-        }
 #endif
-        else
-        {
+        } else {
             ASSERT(0, "[%s] ERROR: device %d is not defined!", __func__, device);
         }
 
 #ifdef DMA_RPC_CLI
-        if (dma_rpcif_enabled(id, stream))
-        {
+        if (dma_rpcif_enabled(id, stream)) {
             dma_cfg->ch = dma_rpc_get_chan(dma_cfg->src_periph, HAL_DMA_HIGH_PRIO);
             role->dma_base = dma_rpc_get_base_addr(dma_cfg->ch);
         } else
@@ -2629,36 +2070,34 @@ uint32_t af_stream_open(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T stream, const
             role->dma_base = hal_audma_get_base_addr(dma_cfg->ch);
         }
     }
+
     af_stream_update_dma_buffer(id, stream, role, cfg);
     role->handler = cfg->handler;
 
     af_set_status(id, stream, AF_STATUS_STREAM_OPEN_CLOSE);
+
 #ifndef RTOS
     af_clear_flag(&af_flag_signal, 1 << (id * 2 + stream));
     af_set_flag(&af_flag_open, 1 << (id * 2 + stream));
 #endif
 #ifdef DMA_RPC_CLI
-    if (dma_rpcif_enabled(id, stream))
-    {
-        dma_rpc_stream_open(id, stream);
+    if (dma_rpcif_enabled(id, stream)) {
+        dma_rpc_stream_open(id, stream, (void *)&role->cfg);
     }
 #endif
 
     AF_TRACE_DEBUG();
-    ret = AF_RES_SUCCESS;
+
+    ret = af_stream_setup_internal(id, stream, &role->cfg);
 
 _exit:
-
-    if (ret == AF_RES_SUCCESS) {
-        af_stream_setup(id, stream, &role->cfg);
-    }
     af_unlock_thread();
 
     return ret;
 }
 
 //volume, path, sample rate, channel num ...
-uint32_t af_stream_setup(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T stream, const struct AF_STREAM_CONFIG_T *cfg)
+static uint32_t af_stream_setup_internal(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T stream, const struct AF_STREAM_CONFIG_T *cfg)
 {
     AF_TRACE_DEBUG();
 
@@ -2667,16 +2106,13 @@ uint32_t af_stream_setup(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T stream, cons
     enum AUD_STREAM_USE_DEVICE_T device;
 
     role = af_get_stream_role(id, stream);
-    AUDIOFLINGER_TRACE(3,"[%s] id = %d, stream = %d", __func__, id, stream);
+    TRACE(3,"[%s] id = %d, stream = %d", __func__, id, stream);
 
     ret = AF_RES_FAILD;
 
-    af_lock_thread();
-
     //check stream is open
-    if(!(role->ctl.status & AF_STATUS_STREAM_OPEN_CLOSE))
-    {
-        AUDIOFLINGER_TRACE(2,"[%s] ERROR: status = %d", __func__, role->ctl.status);
+    if (!(role->ctl.status & AF_STATUS_STREAM_OPEN_CLOSE)) {
+        TRACE(2,"[%s] ERROR: status = %d", __func__, role->ctl.status);
         goto _exit;
     }
 
@@ -2687,35 +2123,35 @@ uint32_t af_stream_setup(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T stream, cons
         bool update_intvl_chk = false;
 
         if (role->cfg.bits != cfg->bits) {
-            AUDIOFLINGER_TRACE(4,"[%s] Change bits from %d to %d for stream %d", __func__, role->cfg.bits, cfg->bits, stream);
+            TRACE(4,"[%s] Change bits from %d to %d for stream %d", __func__, role->cfg.bits, cfg->bits, stream);
             update_dma = true;
         }
         if (role->cfg.data_ptr != cfg->data_ptr) {
-            AUDIOFLINGER_TRACE(4,"[%s] Change data_ptr from %p to %p for stream %d",
-                            __func__, role->cfg.data_ptr, cfg->data_ptr, stream);
+            TRACE(4,"[%s] Change data_ptr from %p to %p for stream %d",
+                  __func__, role->cfg.data_ptr, cfg->data_ptr, stream);
             update_dma = true;
         }
         if (role->cfg.data_size != cfg->data_size) {
-            AUDIOFLINGER_TRACE(4,"[%s] Change data_size from %d to %d for stream %d",
-                            __func__, role->cfg.data_size, cfg->data_size, stream);
+            TRACE(4,"[%s] Change data_size from %d to %d for stream %d",
+                  __func__, role->cfg.data_size, cfg->data_size, stream);
             update_dma = true;
         }
         if (update_dma) {
             // To avoid FIFO corruption, streams must be stopped before changing sample size
             ASSERT((role->ctl.status & AF_STATUS_STREAM_START_STOP) == 0,
-                "[%s] ERROR: Update dma while stream %d started", __func__, stream);
+                   "[%s] ERROR: Update dma while stream %d started", __func__, stream);
 
             af_stream_update_dma_buffer(id, stream, role, cfg);
         }
 
         if (role->cfg.sample_rate != cfg->sample_rate) {
-            AUDIOFLINGER_TRACE(4,"[%s] Change sample rate from %d to %d for stream %d",
-                    __func__, role->cfg.sample_rate, cfg->sample_rate, stream);
+            TRACE(4,"[%s] Change sample rate from %d to %d for stream %d",
+                  __func__, role->cfg.sample_rate, cfg->sample_rate, stream);
 
             // To avoid L/R sample misalignment, streams must be stopped before changing sample rate
             ASSERT((role->ctl.status & AF_STATUS_STREAM_START_STOP) == 0,
-                "[%s] ERROR: Change sample rate from %d to %d while stream %d started",
-                __func__, role->cfg.sample_rate, cfg->sample_rate, stream);
+                   "[%s] ERROR: Change sample rate from %d to %d while stream %d started",
+                   __func__, role->cfg.sample_rate, cfg->sample_rate, stream);
         }
 
         if (role->cfg.sample_rate != cfg->sample_rate || role->cfg.channel_num != cfg->channel_num) {
@@ -2727,17 +2163,14 @@ uint32_t af_stream_setup(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T stream, cons
         role->cfg = *cfg;
 
         if (update_intvl_chk) {
-            _config_handler_interval_check(role);
+            _config_handler_interval_check(role, cfg);
         }
     }
 
     AF_TRACE_DEBUG();
-    if(0)
-    {
-    }
+    if (0) {
 #ifdef AF_DEVICE_EXT_CODEC
-    else if(device == AUD_STREAM_USE_EXT_CODEC)
-    {
+    } else if (device == AUD_STREAM_USE_EXT_CODEC) {
         AF_TRACE_DEBUG();
 
         struct tlv32aic32_config_t tlv32aic32_cfg;
@@ -2752,23 +2185,21 @@ uint32_t af_stream_setup(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T stream, cons
         tlv32aic32_cfg.sync_start = cfg->sync_start;
         tlv32aic32_cfg.slot_cycles = cfg->slot_cycles;
         tlv32aic32_stream_setup(stream, &tlv32aic32_cfg);
-    }
 #endif
 #ifdef AF_DEVICE_I2S
-    else if(device == AUD_STREAM_USE_I2S0_MASTER || device == AUD_STREAM_USE_I2S0_SLAVE
-#if defined(CHIP_HAS_I2S) && (CHIP_HAS_I2S > 1)
-            || device == AUD_STREAM_USE_I2S1_MASTER || device == AUD_STREAM_USE_I2S1_SLAVE
+    } else if (device == AUD_STREAM_USE_I2S0_MASTER || device == AUD_STREAM_USE_I2S0_SLAVE
+#ifdef I2S1_BASE
+             || device == AUD_STREAM_USE_I2S1_MASTER || device == AUD_STREAM_USE_I2S1_SLAVE
 #endif
-            )
-    {
+            ) {
         AF_TRACE_DEBUG();
 
         struct HAL_I2S_CONFIG_T i2s_cfg;
         enum HAL_I2S_ID_T i2s_id;
 
         i2s_id = HAL_I2S_ID_0;
-#if defined(CHIP_HAS_I2S) && (CHIP_HAS_I2S > 1)
-        if(device == AUD_STREAM_USE_I2S1_MASTER || device == AUD_STREAM_USE_I2S1_SLAVE) {
+#ifdef I2S1_BASE
+        if (device == AUD_STREAM_USE_I2S1_MASTER || device == AUD_STREAM_USE_I2S1_SLAVE) {
             i2s_id = HAL_I2S_ID_1;
         }
 #endif
@@ -2793,24 +2224,21 @@ uint32_t af_stream_setup(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T stream, cons
             sw_gain_i2s_set_volume(id, stream, cfg->vol);
         }
 #endif
-}
 #endif
-
 #ifdef AF_DEVICE_TDM
-    else if(device == AUD_STREAM_USE_TDM0_MASTER || device == AUD_STREAM_USE_TDM0_SLAVE
-#if defined(CHIP_HAS_I2S) && (CHIP_HAS_I2S > 1)
-            || device == AUD_STREAM_USE_TDM1_MASTER || device == AUD_STREAM_USE_TDM1_SLAVE
+    } else if (device == AUD_STREAM_USE_TDM0_MASTER || device == AUD_STREAM_USE_TDM0_SLAVE
+#ifdef I2S1_BASE
+             || device == AUD_STREAM_USE_TDM1_MASTER || device == AUD_STREAM_USE_TDM1_SLAVE
 #endif
-            )
-    {
+            ) {
         AF_TRACE_DEBUG();
 
         struct HAL_TDM_CONFIG_T tdm_cfg;
         enum HAL_I2S_ID_T i2s_id;
 
         i2s_id = HAL_I2S_ID_0;
-#if defined(CHIP_HAS_I2S) && (CHIP_HAS_I2S > 1)
-        if(device == AUD_STREAM_USE_TDM1_MASTER || device == AUD_STREAM_USE_TDM1_SLAVE) {
+#ifdef I2S1_BASE
+        if (device == AUD_STREAM_USE_TDM1_MASTER || device == AUD_STREAM_USE_TDM1_SLAVE) {
             i2s_id = HAL_I2S_ID_1;
         }
 #endif
@@ -2827,15 +2255,21 @@ uint32_t af_stream_setup(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T stream, cons
         tdm_cfg.chan_sep_buf = cfg->chan_sep_buf;
         tdm_cfg.sync_start = cfg->sync_start;
         tdm_cfg.ext_mclk_freq = cfg->ext_mclk_freq;
-        AUDIOFLINGER_TRACE(5,"%s: cycle=%d fs_cycles=%d slot_cycles=%d wait=%d",
-            __func__, tdm_cfg.cycles, tdm_cfg.fs_cycles, tdm_cfg.slot_cycles,tdm_cfg.sync_start);
+        TRACE(5,"%s: cycle=%d fs_cycles=%d slot_cycles=%d wait=%d",
+              __func__, tdm_cfg.cycles, tdm_cfg.fs_cycles, tdm_cfg.slot_cycles,tdm_cfg.sync_start);
         hal_tdm_setup_stream(i2s_id, stream, cfg->sample_rate, &tdm_cfg);
-    }
-
+#ifdef AUDIO_OUTPUT_TDM_SW_GAIN
+        if (device == AUD_STREAM_USE_TDM0_MASTER
+#ifdef I2S1_BASE
+            || device == AUD_STREAM_USE_TDM1_MASTER
+#endif
+        ) {
+            sw_gain_tdm_set_volume(id, stream, cfg->vol);
+        }
+#endif
 #endif
 #ifdef AF_DEVICE_INT_CODEC
-    else if(device == AUD_STREAM_USE_INT_CODEC)
-    {
+    } else if (device == AUD_STREAM_USE_INT_CODEC) {
         AF_TRACE_DEBUG();
         struct HAL_CODEC_CONFIG_T codec_cfg;
         memset(&codec_cfg, 0, sizeof(codec_cfg));
@@ -2848,13 +2282,11 @@ uint32_t af_stream_setup(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T stream, cons
         codec_cfg.io_path = cfg->io_path;
 
         AF_TRACE_DEBUG();
-        AUDIOFLINGER_TRACE(2, "[%s] current vol:%d", __func__, cfg->vol);
+        TRACE(2, "[%s] current vol:%d", __func__, cfg->vol);
         codec_int_stream_setup(stream, &codec_cfg);
-    }
 #endif
 #ifdef AUDIO_OUTPUT_DAC2
-    else if(device == AUD_STREAM_USE_INT_CODEC2)
-    {
+    } else if (device == AUD_STREAM_USE_INT_CODEC2) {
         AF_TRACE_DEBUG();
         struct HAL_CODEC_CONFIG_T codec_cfg;
         memset(&codec_cfg, 0, sizeof(codec_cfg));
@@ -2867,13 +2299,11 @@ uint32_t af_stream_setup(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T stream, cons
         codec_cfg.io_path = cfg->io_path;
 
         AF_TRACE_DEBUG();
-        AUDIOFLINGER_TRACE(2, "[%s] current vol:%d", __func__, cfg->vol);
+        TRACE(2, "[%s] current vol:%d", __func__, cfg->vol);
         codec2_int_stream_setup(stream, &codec_cfg);
-    }
 #endif
 #ifdef AUDIO_OUTPUT_DAC3
-    else if(device == AUD_STREAM_USE_INT_CODEC3)
-    {
+    } else if (device == AUD_STREAM_USE_INT_CODEC3) {
         AF_TRACE_DEBUG();
         struct HAL_CODEC_CONFIG_T codec_cfg;
         memset(&codec_cfg, 0, sizeof(codec_cfg));
@@ -2886,17 +2316,15 @@ uint32_t af_stream_setup(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T stream, cons
         codec_cfg.io_path = cfg->io_path;
 
         AF_TRACE_DEBUG();
-        AUDIOFLINGER_TRACE(2, "[%s] current vol:%d", __func__, cfg->vol);
+        TRACE(2, "[%s] current vol:%d", __func__, cfg->vol);
         codec3_int_stream_setup(stream, &codec_cfg);
-    }
 #endif
 #ifdef AF_DEVICE_SPDIF
-    else if(device == AUD_STREAM_USE_SPDIF0
+    } else if (device == AUD_STREAM_USE_SPDIF0
 #ifdef SPDIF1_BASE
-            || device == AUD_STREAM_USE_SPDIF1
+             || device == AUD_STREAM_USE_SPDIF1
 #endif
-            )
-    {
+            ) {
         AF_TRACE_DEBUG();
         struct HAL_SPDIF_CONFIG_T spdif_cfg;
         enum HAL_SPDIF_ID_T spdif_id;
@@ -2914,11 +2342,9 @@ uint32_t af_stream_setup(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T stream, cons
         spdif_cfg.channel_num = cfg->channel_num;
         spdif_cfg.sample_rate = cfg->sample_rate;
         hal_spdif_setup_stream(spdif_id, stream, &spdif_cfg);
-    }
 #endif
 #ifdef AF_DEVICE_BT_PCM
-    else if(device == AUD_STREAM_USE_BT_PCM)
-    {
+    } else if (device == AUD_STREAM_USE_BT_PCM) {
         AF_TRACE_DEBUG();
         struct HAL_BTPCM_CONFIG_T btpcm_cfg;
 
@@ -2928,23 +2354,17 @@ uint32_t af_stream_setup(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T stream, cons
         btpcm_cfg.channel_num = cfg->channel_num;
         btpcm_cfg.sample_rate = cfg->sample_rate;
         hal_btpcm_setup_stream(AF_BTPCM_INST, stream, &btpcm_cfg);
-    }
 #endif
 #ifdef AF_DEVICE_DPD_RX
-    else if(device == AUD_STREAM_USE_DPD_RX)
-    {
+    } else if (device == AUD_STREAM_USE_DPD_RX) {
         AF_TRACE_DEBUG();
-    }
 #endif
 #ifdef AUDIO_ANC_FB_MC
-    else if(device == AUD_STREAM_USE_MC)
-    {
+    } else if (device == AUD_STREAM_USE_MC) {
         AF_TRACE_DEBUG();
         hal_codec_setup_mc(cfg->channel_num, cfg->bits);
-    }
 #endif
-    else
-    {
+    } else {
         ASSERT(0, "[%s] ERROR: device %d is not defined!", __func__, device);
     }
 
@@ -2953,6 +2373,17 @@ uint32_t af_stream_setup(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T stream, cons
     ret = AF_RES_SUCCESS;
 
 _exit:
+    return ret;
+}
+
+uint32_t af_stream_setup(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T stream, const struct AF_STREAM_CONFIG_T *cfg)
+{
+    enum AF_RESULT_T ret;
+
+    af_lock_thread();
+
+    ret = af_stream_setup_internal(id, stream, cfg);
+
     af_unlock_thread();
 
     return ret;
@@ -2972,7 +2403,7 @@ uint32_t af_stream_mute(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T stream, bool 
     af_lock_thread();
 
     if ((role->ctl.status & AF_STATUS_STREAM_OPEN_CLOSE) == 0) {
-        AUDIOFLINGER_TRACE(2,"[%s] ERROR: status = %d", __func__, role->ctl.status);
+        TRACE(2,"[%s] ERROR: status = %d", __func__, role->ctl.status);
         goto _exit;
     }
 
@@ -3015,7 +2446,7 @@ uint32_t af_stream_set_chan_vol(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T strea
     af_lock_thread();
 
     if ((role->ctl.status & AF_STATUS_STREAM_OPEN_CLOSE) == 0) {
-        AUDIOFLINGER_TRACE(2,"[%s] ERROR: status = %d", __func__, role->ctl.status);
+        TRACE(2,"[%s] ERROR: status = %d", __func__, role->ctl.status);
         goto _exit;
     }
 
@@ -3058,7 +2489,7 @@ uint32_t af_stream_restore_chan_vol(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T s
     af_lock_thread();
 
     if ((role->ctl.status & AF_STATUS_STREAM_OPEN_CLOSE) == 0) {
-        AUDIOFLINGER_TRACE(2,"[%s] ERROR: status = %d", __func__, role->ctl.status);
+        TRACE(2,"[%s] ERROR: status = %d", __func__, role->ctl.status);
         goto _exit;
     }
 
@@ -3098,8 +2529,7 @@ static void af_codec_stream_pre_start(enum AUD_STREAM_T stream)
         return;
     }
 
-    for(uint8_t id=0; id< AUD_STREAM_ID_NUM; id++)
-    {
+    for (uint8_t id=0; id< AUD_STREAM_ID_NUM; id++) {
         role = af_get_stream_role((enum AUD_STREAM_ID_T)id, AUD_STREAM_CAPTURE);
         if (role->cfg.device == AUD_STREAM_USE_INT_CODEC &&
                 role->ctl.status == (AF_STATUS_OPEN_CLOSE | AF_STATUS_STREAM_OPEN_CLOSE | AF_STATUS_STREAM_START_STOP)) {
@@ -3132,8 +2562,7 @@ static void af_codec_stream_pre_stop(enum AUD_STREAM_T stream)
         return;
     }
 
-    for(uint8_t id=0; id< AUD_STREAM_ID_NUM; id++)
-    {
+    for (uint8_t id=0; id< AUD_STREAM_ID_NUM; id++) {
         role = af_get_stream_role((enum AUD_STREAM_ID_T)id, AUD_STREAM_CAPTURE);
         if (role->cfg.device == AUD_STREAM_USE_INT_CODEC &&
                 role->ctl.status == (AF_STATUS_OPEN_CLOSE | AF_STATUS_STREAM_OPEN_CLOSE | AF_STATUS_STREAM_START_STOP)) {
@@ -3167,14 +2596,13 @@ uint32_t af_stream_start(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T stream)
     enum HAL_DMA_RET_T dma_ret;
 
     role = af_get_stream_role(id, stream);
-    AUDIOFLINGER_TRACE(3,"[%s] id = %d, stream = %d", __func__, id, stream);
+    TRACE(3,"[%s] id = %d, stream = %d", __func__, id, stream);
 
     af_lock_thread();
 
     //check stream is open and not start.
-    if(role->ctl.status != (AF_STATUS_OPEN_CLOSE | AF_STATUS_STREAM_OPEN_CLOSE))
-    {
-        AUDIOFLINGER_TRACE(2,"[%s] ERROR: status = %d",__func__, role->ctl.status);
+    if (role->ctl.status != (AF_STATUS_OPEN_CLOSE | AF_STATUS_STREAM_OPEN_CLOSE)) {
+        TRACE(2,"[%s] ERROR: status = %d",__func__, role->ctl.status);
         ret = AF_RES_FAILD;
         goto _exit;
     }
@@ -3214,14 +2642,14 @@ uint32_t af_stream_start(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T stream)
         if (stream == AUD_STREAM_PLAYBACK) {
             if (role->cfg.channel_num == AUD_CHANNEL_NUM_2) {
                 ASSERT(role->dma_cfg.src_bsize == HAL_DMA_BSIZE_1,
-                    "Play 2D DMA: Bad src burst size: %d", role->dma_cfg.src_bsize);
+                       "Play 2D DMA: Bad src burst size: %d", role->dma_cfg.src_bsize);
                 burst_size = 1;
                 src = &dma_2d_cfg;
             }
         } else {
             if (role->cfg.channel_num > AUD_CHANNEL_NUM_1) {
                 ASSERT(role->dma_cfg.src_bsize == role->dma_cfg.dst_bsize,
-                    "Cap 2D DMA: src burst size (%d) != dst (%d)", role->dma_cfg.src_bsize, role->dma_cfg.dst_bsize);
+                       "Cap 2D DMA: src burst size (%d) != dst (%d)", role->dma_cfg.src_bsize, role->dma_cfg.dst_bsize);
                 if (role->dma_cfg.dst_bsize == HAL_DMA_BSIZE_1) {
                     burst_size = 1;
                 } else if (role->dma_cfg.dst_bsize == HAL_DMA_BSIZE_4) {
@@ -3243,8 +2671,7 @@ uint32_t af_stream_start(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T stream)
             dma_2d_cfg.ymodify = -chan_xfer_cnt * (role->cfg.channel_num - 1);
         }
 #ifdef DMA_RPC_CLI
-        if (dma_rpcif_enabled(id, stream))
-        {
+        if (dma_rpcif_enabled(id, stream)) {
             dma_ret = dma_rpc_sg_2d_start(&role->dma_desc[0], &role->dma_cfg, src, dst);
         } else
 #endif
@@ -3255,8 +2682,7 @@ uint32_t af_stream_start(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T stream)
 #endif
     {
 #ifdef DMA_RPC_CLI
-        if (dma_rpcif_enabled(id, stream))
-        {
+        if (dma_rpcif_enabled(id, stream)) {
             dma_ret = dma_rpc_sg_start(&role->dma_desc[0], &role->dma_cfg);
         } else
 #endif
@@ -3267,43 +2693,30 @@ uint32_t af_stream_start(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T stream)
     ASSERT(dma_ret == HAL_DMA_OK, "[%s] Failed to start dma for stream %d: ret=%d", __func__, stream, dma_ret);
 
     AF_TRACE_DEBUG();
-    if(0)
-    {
-    }
+    if (0) {
 #ifdef AF_DEVICE_EXT_CODEC
-    else if(device == AUD_STREAM_USE_EXT_CODEC)
-    {
+    } else if (device == AUD_STREAM_USE_EXT_CODEC) {
         AF_TRACE_DEBUG();
         tlv32aic32_stream_start(stream);
-    }
 #endif
 #ifdef AF_DEVICE_I2S
-    else if(device == AUD_STREAM_USE_I2S0_MASTER || device == AUD_STREAM_USE_I2S0_SLAVE)
-    {
+    } else if (device == AUD_STREAM_USE_I2S0_MASTER || device == AUD_STREAM_USE_I2S0_SLAVE) {
         hal_i2s_start_stream(HAL_I2S_ID_0, stream);
-    }
-#if defined(CHIP_HAS_I2S) && (CHIP_HAS_I2S > 1)
-    else if(device == AUD_STREAM_USE_I2S1_MASTER || device == AUD_STREAM_USE_I2S1_SLAVE)
-    {
+#ifdef I2S1_BASE
+    } else if (device == AUD_STREAM_USE_I2S1_MASTER || device == AUD_STREAM_USE_I2S1_SLAVE) {
         hal_i2s_start_stream(HAL_I2S_ID_1, stream);
-    }
 #endif
 #endif
 #ifdef AF_DEVICE_TDM
-    else if(device == AUD_STREAM_USE_TDM0_MASTER || device == AUD_STREAM_USE_TDM0_SLAVE)
-    {
+    } else if (device == AUD_STREAM_USE_TDM0_MASTER || device == AUD_STREAM_USE_TDM0_SLAVE) {
         hal_tdm_start_stream(HAL_I2S_ID_0, stream);
-    }
-#if defined(CHIP_HAS_I2S) && (CHIP_HAS_I2S > 1)
-    else if(device == AUD_STREAM_USE_TDM1_MASTER || device == AUD_STREAM_USE_TDM1_SLAVE)
-    {
+#ifdef I2S1_BASE
+    } else if (device == AUD_STREAM_USE_TDM1_MASTER || device == AUD_STREAM_USE_TDM1_SLAVE) {
         hal_tdm_start_stream(HAL_I2S_ID_1, stream);
-    }
 #endif
 #endif
 #ifdef AF_DEVICE_INT_CODEC
-    else if(device == AUD_STREAM_USE_INT_CODEC)
-    {
+    } else if (device == AUD_STREAM_USE_INT_CODEC) {
         AF_TRACE_DEBUG();
 #ifdef CODEC_PLAY_BEFORE_CAPTURE
         af_codec_stream_pre_start(stream);
@@ -3315,73 +2728,57 @@ uint32_t af_stream_start(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T stream)
 #ifdef CODEC_ERROR_HANDLING
         af_update_stream_state(id, stream, true);
 #endif
-    }
 #endif
 #ifdef AUDIO_OUTPUT_DAC2
-    else if(device == AUD_STREAM_USE_INT_CODEC2)
-    {
+    } else if (device == AUD_STREAM_USE_INT_CODEC2) {
         AF_TRACE_DEBUG();
         codec2_int_stream_start(stream);
 #ifdef CODEC_ERROR_HANDLING
         af_update_stream_state(id, stream, true);
 #endif
-    }
 #endif
 #ifdef AUDIO_OUTPUT_DAC3
-    else if(device == AUD_STREAM_USE_INT_CODEC3)
-    {
+    } else if (device == AUD_STREAM_USE_INT_CODEC3) {
         AF_TRACE_DEBUG();
         codec3_int_stream_start(stream);
 #ifdef CODEC_ERROR_HANDLING
         af_update_stream_state(id, stream, true);
 #endif
-    }
 #endif
 #ifdef AF_DEVICE_SPDIF
-    else if(device == AUD_STREAM_USE_SPDIF0)
-    {
+    } else if (device == AUD_STREAM_USE_SPDIF0) {
         AF_TRACE_DEBUG();
         hal_spdif_start_stream(HAL_SPDIF_ID_0, stream);
-    }
 #ifdef SPDIF1_BASE
-    else if(device == AUD_STREAM_USE_SPDIF1)
-    {
+    } else if (device == AUD_STREAM_USE_SPDIF1) {
         AF_TRACE_DEBUG();
         hal_spdif_start_stream(HAL_SPDIF_ID_1, stream);
-    }
 #endif
 #endif
 #ifdef AF_DEVICE_BT_PCM
-    else if(device == AUD_STREAM_USE_BT_PCM)
-    {
+    } else if (device == AUD_STREAM_USE_BT_PCM) {
         AF_TRACE_DEBUG();
         hal_btpcm_start_stream(AF_BTPCM_INST, stream);
-    }
 #endif
 #ifdef AF_DEVICE_DPD_RX
-    else if(device == AUD_STREAM_USE_DPD_RX)
-    {
+    } else if (device == AUD_STREAM_USE_DPD_RX) {
         AF_TRACE_DEBUG();
         hal_btpcm_start_stream(AF_BTPCM_INST, stream);
-    }
 #endif
 #ifdef AUDIO_ANC_FB_MC
-    else if(device == AUD_STREAM_USE_MC)
-    {
+    } else if (device == AUD_STREAM_USE_MC) {
         AF_TRACE_DEBUG();
-    }
 #endif
-    else
-    {
+    } else {
         ASSERT(0, "[%s] ERROR: device %d is not defined!", __func__, device);
     }
 
     AF_TRACE_DEBUG();
     af_set_status(id, stream, AF_STATUS_STREAM_START_STOP);
+
 #ifdef DMA_RPC_CLI
-    if (dma_rpcif_enabled(id, stream))
-    {
-        dma_rpc_sync_data((void *)af_stream, sizeof(af_stream));
+    if (dma_rpcif_enabled(id, stream)) {
+        dma_rpc_sync_data(id, stream, (void *)&af_stream[id][stream], sizeof(struct af_stream_cfg_t));
         dma_rpc_stream_start(id, stream);
     }
 #endif
@@ -3401,23 +2798,21 @@ uint32_t af_stream_stop(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T stream)
     enum AUD_STREAM_USE_DEVICE_T device;
 
     role = af_get_stream_role(id, stream);
-    AUDIOFLINGER_TRACE(3,"[%s] id = %d, stream = %d", __func__, id, stream);
+    TRACE(3,"[%s] id = %d, stream = %d", __func__, id, stream);
 
     af_lock_thread();
 
     device = role->ctl.use_device;
 
     if (device == AUD_STREAM_USE_INT_CODEC &&
-            role->ctl.status == (AF_STATUS_OPEN_CLOSE | AF_STATUS_STREAM_OPEN_CLOSE | AF_STATUS_STREAM_START_STOP | AF_STATUS_STREAM_PAUSE_RESTART))
-    {
+            role->ctl.status == (AF_STATUS_OPEN_CLOSE | AF_STATUS_STREAM_OPEN_CLOSE | AF_STATUS_STREAM_START_STOP | AF_STATUS_STREAM_PAUSE_RESTART)) {
         af_clear_status(id, stream, AF_STATUS_STREAM_PAUSE_RESTART);
         goto _pause_stop;
     }
 
     //check stream is start and not stop
-    if (role->ctl.status != (AF_STATUS_OPEN_CLOSE | AF_STATUS_STREAM_OPEN_CLOSE | AF_STATUS_STREAM_START_STOP))
-    {
-        AUDIOFLINGER_TRACE(2,"[%s] ERROR: status = %d",__func__, role->ctl.status);
+    if (role->ctl.status != (AF_STATUS_OPEN_CLOSE | AF_STATUS_STREAM_OPEN_CLOSE | AF_STATUS_STREAM_START_STOP)) {
+        TRACE(2,"[%s] ERROR: status = %d",__func__, role->ctl.status);
         ret = AF_RES_FAILD;
         goto _exit;
     }
@@ -3427,17 +2822,13 @@ uint32_t af_stream_stop(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T stream)
 #endif
 
 #if defined(RTOS) && defined(AF_STREAM_ID_0_PLAYBACK_FADEOUT)
-    if (((id == AUD_STREAM_ID_0) || (id == AUD_STREAM_ID_3)) && stream == AUD_STREAM_PLAYBACK){
+    if (id == AUD_STREAM_ID_0 && stream == AUD_STREAM_PLAYBACK) {
         af_stream_fadeout_stop();
     }
 #endif
 
     if (device == AUD_STREAM_USE_INT_CODEC && stream == AUD_STREAM_PLAYBACK) {
 #ifdef AUDIO_OUTPUT_PA_OFF_FADE_OUT
-#ifdef RTOS
-        fade_thread_id = osThreadGetId();
-        osSignalClear(fade_thread_id, (1 << AF_FADE_OUT_SIGNAL_ID));
-#endif
         dac_pa_state = AF_DAC_PA_OFF_TRIGGER;
         af_unlock_thread();
         while (dac_pa_state != AF_DAC_PA_NULL) {
@@ -3457,8 +2848,7 @@ uint32_t af_stream_stop(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T stream)
     }
 
 #ifdef DMA_RPC_CLI
-    if (dma_rpcif_enabled(id,stream))
-    {
+    if (dma_rpcif_enabled(id,stream)) {
         dma_rpc_stop(role->dma_cfg.ch);
     } else
 #endif
@@ -3467,52 +2857,39 @@ uint32_t af_stream_stop(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T stream)
     }
 
 #if defined(RTOS) && defined(AF_STREAM_ID_0_PLAYBACK_FADEOUT)
-    if (((id == AUD_STREAM_ID_0) || (id == AUD_STREAM_ID_3)) && stream == AUD_STREAM_PLAYBACK){
+    if (id == AUD_STREAM_ID_0 && stream == AUD_STREAM_PLAYBACK) {
         af_stream_fadeout_stop();
     }
 #endif
 
-    if(0)
-    {
-    }
+    if (0) {
 #ifdef AF_DEVICE_EXT_CODEC
-    else if(device == AUD_STREAM_USE_EXT_CODEC)
-    {
+    } else if (device == AUD_STREAM_USE_EXT_CODEC) {
         AF_TRACE_DEBUG();
         tlv32aic32_stream_stop(stream);
-    }
 #endif
 #ifdef AF_DEVICE_I2S
-    else if(device == AUD_STREAM_USE_I2S0_MASTER || device == AUD_STREAM_USE_I2S0_SLAVE)
-    {
+    } else if (device == AUD_STREAM_USE_I2S0_MASTER || device == AUD_STREAM_USE_I2S0_SLAVE) {
         AF_TRACE_DEBUG();
         hal_i2s_stop_stream(HAL_I2S_ID_0, stream);
-    }
-#if defined(CHIP_HAS_I2S) && (CHIP_HAS_I2S > 1)
-    else if(device == AUD_STREAM_USE_I2S1_MASTER || device == AUD_STREAM_USE_I2S1_SLAVE)
-    {
+#ifdef I2S1_BASE
+    } else if (device == AUD_STREAM_USE_I2S1_MASTER || device == AUD_STREAM_USE_I2S1_SLAVE) {
         AF_TRACE_DEBUG();
         hal_i2s_stop_stream(HAL_I2S_ID_1, stream);
-    }
 #endif
 #endif
 #ifdef AF_DEVICE_TDM
-    else if(device == AUD_STREAM_USE_TDM0_MASTER || device == AUD_STREAM_USE_TDM0_SLAVE)
-    {
+    } else if (device == AUD_STREAM_USE_TDM0_MASTER || device == AUD_STREAM_USE_TDM0_SLAVE) {
         AF_TRACE_DEBUG();
         hal_tdm_stop_stream(HAL_I2S_ID_0, stream);
-    }
-#if defined(CHIP_HAS_I2S) && (CHIP_HAS_I2S > 1)
-    else if(device == AUD_STREAM_USE_TDM1_MASTER || device == AUD_STREAM_USE_TDM1_SLAVE)
-    {
+#ifdef I2S1_BASE
+    } else if (device == AUD_STREAM_USE_TDM1_MASTER || device == AUD_STREAM_USE_TDM1_SLAVE) {
         AF_TRACE_DEBUG();
         hal_tdm_stop_stream(HAL_I2S_ID_1, stream);
-    }
 #endif
 #endif
 #ifdef AF_DEVICE_INT_CODEC
-    else if(device == AUD_STREAM_USE_INT_CODEC)
-    {
+    } else if (device == AUD_STREAM_USE_INT_CODEC) {
         AF_TRACE_DEBUG();
 #ifdef CODEC_PLAY_BEFORE_CAPTURE
         af_codec_stream_pre_stop(stream);
@@ -3521,58 +2898,42 @@ uint32_t af_stream_stop(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T stream)
 #ifdef CODEC_PLAY_BEFORE_CAPTURE
         af_codec_stream_post_stop(stream);
 #endif
-    }
 #endif
 #ifdef AUDIO_OUTPUT_DAC2
-    else if(device == AUD_STREAM_USE_INT_CODEC2)
-    {
+    } else if (device == AUD_STREAM_USE_INT_CODEC2) {
         AF_TRACE_DEBUG();
         codec2_int_stream_stop(stream);
-    }
 #endif
 #ifdef AUDIO_OUTPUT_DAC3
-    else if(device == AUD_STREAM_USE_INT_CODEC3)
-    {
+    } else if (device == AUD_STREAM_USE_INT_CODEC3) {
         AF_TRACE_DEBUG();
         codec3_int_stream_stop(stream);
-    }
 #endif
 #ifdef AF_DEVICE_SPDIF
-    else if(device == AUD_STREAM_USE_SPDIF0)
-    {
+    } else if (device == AUD_STREAM_USE_SPDIF0) {
         AF_TRACE_DEBUG();
         hal_spdif_stop_stream(HAL_SPDIF_ID_0, stream);
-    }
 #ifdef SPDIF1_BASE
-    else if(device == AUD_STREAM_USE_SPDIF1)
-    {
+    } else if (device == AUD_STREAM_USE_SPDIF1) {
         AF_TRACE_DEBUG();
         hal_spdif_stop_stream(HAL_SPDIF_ID_1, stream);
-    }
 #endif
 #endif
 #ifdef AF_DEVICE_BT_PCM
-    else if(device == AUD_STREAM_USE_BT_PCM)
-    {
+    } else if (device == AUD_STREAM_USE_BT_PCM) {
         AF_TRACE_DEBUG();
         hal_btpcm_stop_stream(AF_BTPCM_INST, stream);
-    }
 #endif
 #ifdef AF_DEVICE_DPD_RX
-    else if(device == AUD_STREAM_USE_DPD_RX)
-    {
+    } else if (device == AUD_STREAM_USE_DPD_RX) {
         AF_TRACE_DEBUG();
         hal_btpcm_stop_stream(AF_BTPCM_INST, stream);
-    }
 #endif
 #ifdef AUDIO_ANC_FB_MC
-    else if(device == AUD_STREAM_USE_MC)
-    {
+    } else if (device == AUD_STREAM_USE_MC) {
         AF_TRACE_DEBUG();
-    }
 #endif
-    else
-    {
+    } else {
         ASSERT(0, "[%s] ERROR: device %d is not defined!", __func__, device);
     }
 
@@ -3583,11 +2944,11 @@ _pause_stop:
 #ifndef RTOS
     af_clear_flag(&af_flag_signal, 1 << (id * 2 + stream));
 #endif
+
 #ifdef DMA_RPC_CLI
-    if (dma_rpcif_enabled(id, stream))
-    {
+    if (dma_rpcif_enabled(id, stream)) {
         dma_rpc_stream_stop(id, stream);
-        dma_rpc_sync_data((void *)af_stream, sizeof(af_stream));
+        dma_rpc_sync_data(id, stream, (void *)&af_stream[id][stream], sizeof(struct af_stream_cfg_t));
     }
 #endif
 
@@ -3606,28 +2967,26 @@ uint32_t af_stream_close(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T stream)
     enum AUD_STREAM_USE_DEVICE_T device;
 
     role = af_get_stream_role(id, stream);
-    AUDIOFLINGER_TRACE(3,"[%s] id = %d, stream = %d", __func__, id, stream);
+    TRACE(3,"[%s] id = %d, stream = %d", __func__, id, stream);
 
     af_lock_thread();
 
     //check stream is stop and not close.
-    if(role->ctl.status != (AF_STATUS_OPEN_CLOSE | AF_STATUS_STREAM_OPEN_CLOSE))
-    {
-        AUDIOFLINGER_TRACE(2,"[%s] ERROR: status = %d",__func__, role->ctl.status);
+    if (role->ctl.status != (AF_STATUS_OPEN_CLOSE | AF_STATUS_STREAM_OPEN_CLOSE)) {
+        TRACE(2,"[%s] ERROR: status = %d",__func__, role->ctl.status);
         ret = AF_RES_FAILD;
         goto _exit;
     }
 
     device = role->ctl.use_device;
 
-    memset(role->dma_buf_ptr, 0, role->dma_buf_size);
 #ifdef DMA_RPC_CLI
-    if (dma_rpcif_enabled(id,stream))
-    {
+    if (dma_rpcif_enabled(id,stream)) {
         dma_rpc_free_chan(role->dma_cfg.ch);
     } else
 #endif
     {
+        memset(role->dma_buf_ptr, 0, role->dma_buf_size);
         hal_audma_free_chan(role->dma_cfg.ch);
     }
 
@@ -3641,19 +3000,14 @@ uint32_t af_stream_close(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T stream)
 
     role->dma_cfg.ch = HAL_DMA_CHAN_NONE;
 
-    if(0)
-    {
-    }
+    if (0) {
 #ifdef AF_DEVICE_EXT_CODEC
-    else if(device == AUD_STREAM_USE_EXT_CODEC)
-    {
+    } else if (device == AUD_STREAM_USE_EXT_CODEC) {
         AF_TRACE_DEBUG();
         tlv32aic32_stream_close(stream);
-    }
 #endif
 #ifdef AF_DEVICE_I2S
-    else if(device == AUD_STREAM_USE_I2S0_MASTER || device == AUD_STREAM_USE_I2S0_SLAVE)
-    {
+    } else if (device == AUD_STREAM_USE_I2S0_MASTER || device == AUD_STREAM_USE_I2S0_SLAVE) {
         AF_TRACE_DEBUG();
 #ifdef AUDIO_OUTPUT_I2S_SW_GAIN
         if (device == AUD_STREAM_USE_I2S0_MASTER) {
@@ -3661,94 +3015,89 @@ uint32_t af_stream_close(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T stream)
         }
 #endif
         hal_i2s_close(HAL_I2S_ID_0, stream);
-    }
-#if defined(CHIP_HAS_I2S) && (CHIP_HAS_I2S > 1)
-    else if(device == AUD_STREAM_USE_I2S1_MASTER || device == AUD_STREAM_USE_I2S1_SLAVE)
-    {
+#ifdef I2S1_BASE
+    } else if (device == AUD_STREAM_USE_I2S1_MASTER || device == AUD_STREAM_USE_I2S1_SLAVE) {
         AF_TRACE_DEBUG();
 #ifdef AUDIO_OUTPUT_I2S_SW_GAIN
-        if (device == AUD_STREAM_USE_I2S0_MASTER) {
+        if (device == AUD_STREAM_USE_I2S1_MASTER) {
             af_stream_sw_gain_close(id, stream);
         }
 #endif
         hal_i2s_close(HAL_I2S_ID_1, stream);
-    }
 #endif
 #endif
 #ifdef AF_DEVICE_TDM
-    else if(device == AUD_STREAM_USE_TDM0_MASTER || device == AUD_STREAM_USE_TDM0_SLAVE)
-    {
+    } else if (device == AUD_STREAM_USE_TDM0_MASTER || device == AUD_STREAM_USE_TDM0_SLAVE) {
         AF_TRACE_DEBUG();
+#ifdef AUDIO_OUTPUT_TDM_SW_GAIN
+        if (device == AUD_STREAM_USE_TDM0_MASTER) {
+            af_stream_sw_gain_close(id, stream);
+        }
+#endif
         hal_tdm_close(HAL_I2S_ID_0, stream);
-    }
-#if defined(CHIP_HAS_I2S) && (CHIP_HAS_I2S > 1)
-    else if(device == AUD_STREAM_USE_TDM1_MASTER || device == AUD_STREAM_USE_TDM1_SLAVE)
-    {
+#ifdef I2S1_BASE
+    } else if (device == AUD_STREAM_USE_TDM1_MASTER || device == AUD_STREAM_USE_TDM1_SLAVE) {
         AF_TRACE_DEBUG();
+#ifdef AUDIO_OUTPUT_TDM_SW_GAIN
+        if (device == AUD_STREAM_USE_TDM1_MASTER) {
+            af_stream_sw_gain_close(id, stream);
+        }
+#endif
         hal_tdm_close(HAL_I2S_ID_1, stream);
-    }
 #endif
 #endif
 #ifdef AF_DEVICE_INT_CODEC
-    else if(device == AUD_STREAM_USE_INT_CODEC)
-    {
+    } else if (device == AUD_STREAM_USE_INT_CODEC) {
         AF_TRACE_DEBUG();
+#ifdef AUDIO_OUTPUT_SW_GAIN
+        af_stream_sw_gain_close(id, stream);
+#endif
         codec_int_stream_close(stream);
         codec_int_close(CODEC_CLOSE_NORMAL);
-    }
 #endif
 #ifdef AUDIO_OUTPUT_DAC2
-    else if(device == AUD_STREAM_USE_INT_CODEC2)
-    {
+    } else if (device == AUD_STREAM_USE_INT_CODEC2) {
         AF_TRACE_DEBUG();
+#ifdef AUDIO_OUTPUT_DAC2_SW_GAIN
+        af_stream_sw_gain_close(id, stream);
+#endif
         codec2_int_stream_close(stream);
         codec2_int_close(CODEC_CLOSE_NORMAL);
-    }
 #endif
 #ifdef AUDIO_OUTPUT_DAC3
-    else if(device == AUD_STREAM_USE_INT_CODEC3)
-    {
+    } else if (device == AUD_STREAM_USE_INT_CODEC3) {
         AF_TRACE_DEBUG();
+#ifdef AUDIO_OUTPUT_DAC3_SW_GAIN
+        af_stream_sw_gain_close(id, stream);
+#endif
         codec3_int_stream_close(stream);
         codec3_int_close(CODEC_CLOSE_NORMAL);
-    }
 #endif
 #ifdef AF_DEVICE_SPDIF
-    else if(device == AUD_STREAM_USE_SPDIF0)
-    {
+    } else if (device == AUD_STREAM_USE_SPDIF0) {
         AF_TRACE_DEBUG();
         hal_spdif_close(HAL_SPDIF_ID_0, stream);
-    }
 #ifdef SPDIF1_BASE
-    else if(device == AUD_STREAM_USE_SPDIF1)
-    {
+    } else if (device == AUD_STREAM_USE_SPDIF1) {
         AF_TRACE_DEBUG();
         hal_spdif_close(HAL_SPDIF_ID_1, stream);
-    }
 #endif
 #endif
 #ifdef AF_DEVICE_BT_PCM
-    else if(device == AUD_STREAM_USE_BT_PCM)
-    {
+    } else if (device == AUD_STREAM_USE_BT_PCM) {
         AF_TRACE_DEBUG();
         hal_btpcm_close(AF_BTPCM_INST, stream);
-    }
 #endif
 #ifdef AF_DEVICE_DPD_RX
-    else if(device == AUD_STREAM_USE_DPD_RX)
-    {
+    } else if (device == AUD_STREAM_USE_DPD_RX) {
         AF_TRACE_DEBUG();
-    }
 #endif
 #ifdef AUDIO_ANC_FB_MC
-    else if(device == AUD_STREAM_USE_MC)
-    {
+    } else if (device == AUD_STREAM_USE_MC) {
         AF_TRACE_DEBUG();
         hal_codec_mc_disable();
-    }
 #endif
-    else
-    {
+    } else {
         ASSERT(0, "[%s] ERROR: device %d is not defined!", __func__, device);
     }
 
@@ -3761,9 +3110,9 @@ uint32_t af_stream_close(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T stream)
         hal_cpu_wake_unlock(AF_CPU_WAKE_USER);
     }
 #endif
+
 #ifdef DMA_RPC_CLI
-    if (dma_rpcif_enabled(id, stream))
-    {
+    if (dma_rpcif_enabled(id, stream)) {
         dma_rpc_stream_close(id, stream);
     }
 #endif
@@ -3783,10 +3132,8 @@ uint32_t af_close(void)
     // Avoid blocking shutdown process
     //af_lock_thread();
 
-    for (uint8_t id=0; id < AUD_STREAM_ID_NUM; id++)
-    {
-        for (uint8_t stream=0; stream < AUD_STREAM_NUM; stream++)
-        {
+    for (uint8_t id=0; id < AUD_STREAM_ID_NUM; id++) {
+        for (uint8_t stream=0; stream < AUD_STREAM_NUM; stream++) {
             role = af_get_stream_role((enum AUD_STREAM_ID_T)id, (enum AUD_STREAM_T)stream);
             role->ctl.status = AF_STATUS_NULL;
         }
@@ -3948,7 +3295,14 @@ uint32_t af_stream_dma_tc_irq_enable(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T 
     // Check if opened
     if ((role->ctl.status & (AF_STATUS_OPEN_CLOSE | AF_STATUS_STREAM_OPEN_CLOSE)) ==
             (AF_STATUS_OPEN_CLOSE | AF_STATUS_STREAM_OPEN_CLOSE)) {
-        hal_dma_tc_irq_enable(role->dma_cfg.ch);
+#ifdef DMA_RPC_CLI
+        if (dma_rpcif_forward_enabled(id, stream)) {
+            dma_rpc_tc_irq_enable(role->dma_cfg.ch);
+        } else
+#endif
+        {
+            hal_dma_tc_irq_enable(role->dma_cfg.ch);
+        }
         return AF_RES_SUCCESS;
     }
 
@@ -3964,7 +3318,14 @@ uint32_t af_stream_dma_tc_irq_disable(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T
     // Check if opened
     if ((role->ctl.status & (AF_STATUS_OPEN_CLOSE | AF_STATUS_STREAM_OPEN_CLOSE)) ==
             (AF_STATUS_OPEN_CLOSE | AF_STATUS_STREAM_OPEN_CLOSE)) {
-        hal_dma_tc_irq_disable(role->dma_cfg.ch);
+#ifdef DMA_RPC_CLI
+        if (dma_rpcif_forward_enabled(id, stream)) {
+            dma_rpc_tc_irq_disable(role->dma_cfg.ch);
+        } else
+#endif
+        {
+            hal_dma_tc_irq_disable(role->dma_cfg.ch);
+        }
         return AF_RES_SUCCESS;
     }
 
@@ -4001,11 +3362,6 @@ uint8_t af_stream_get_dma_chan(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T stream
     return HAL_DMA_CHAN_NONE;
 }
 
-void af_stream_tune(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T stream, float ratio)
-{
-    af_codec_tune(stream, ratio);
-}
-
 void af_set_irq_notification(AF_IRQ_NOTIFICATION_T notif)
 {
     irq_notif = notif;
@@ -4020,16 +3376,13 @@ void af_set_priority(AF_USER_E user, int priority)
     int max_priority = 0;
     af_priority[user] = priority;
 
-    for (i=0; i<AF_USER_NUM; i++)
-    {
-        if (max_priority < af_priority[i])
-        {
+    for (i=0; i<AF_USER_NUM; i++) {
+        if (max_priority < af_priority[i]) {
             max_priority = af_priority[i];
         }
     }
 
-    if (max_priority != af_get_priority())
-    {
+    if (max_priority != af_get_priority()) {
         osThreadSetPriority(af_thread_tid, max_priority);
     }
 }
@@ -4050,59 +3403,8 @@ void af_reset_priority(void)
 }
 #endif
 
-void af_codec_tune_resample_rate(enum AUD_STREAM_T stream, float ratio)
-{
-    af_lock_thread();
-
-    af_codec_direct_tune_resample_rate(stream, ratio);
-
-    af_unlock_thread();
-}
-
-void af_codec_direct_tune_resample_rate(enum AUD_STREAM_T stream, float ratio)
-{
-    ASSERT(stream < AUD_STREAM_NUM, "[%s] Bad stream=%d", __func__, stream);
-
-    hal_codec_tune_resample_rate(stream, ratio);
-}
-
-void af_codec_tune_both_resample_rate(float ratio)
-{
-    af_lock_thread();
-
-    hal_codec_tune_both_resample_rate(ratio);
-
-    af_unlock_thread();
-}
-
-void af_codec_tune_pll(float ratio)
-{
-    af_lock_thread();
-
-    analog_aud_pll_tune(ratio);
-
-    af_unlock_thread();
-}
-
-void af_codec_tune_xtal(float ratio)
-{
-    af_lock_thread();
-
-    analog_aud_xtal_tune(ratio);
-
-    af_unlock_thread();
-}
-
-void af_codec_tune(enum AUD_STREAM_T stream, float ratio)
-{
-    af_lock_thread();
-
-    af_codec_direct_tune(stream, ratio);
-
-    af_unlock_thread();
-}
-
-void af_codec_direct_tune(enum AUD_STREAM_T stream, float ratio)
+#ifdef AF_DEVICE_INT_CODEC
+static void af_codec_direct_tune(enum AUD_STREAM_T stream, float ratio)
 {
     ASSERT(stream <= AUD_STREAM_NUM, "[%s] Bad stream=%d", __func__, stream);
 
@@ -4121,38 +3423,15 @@ void af_codec_direct_tune(enum AUD_STREAM_T stream, float ratio)
 }
 
 #ifdef AUDIO_OUTPUT_DAC2
-void af_codec_tune_dac2_resample_rate(enum AUD_STREAM_T stream, float ratio)
+static void af_codec2_direct_tune(enum AUD_STREAM_T stream, float ratio)
 {
-    af_lock_thread();
-
-    af_codec_direct_tune_dac2_resample_rate(stream, ratio);
-
-    af_unlock_thread();
-}
-
-void af_codec_direct_tune_dac2_resample_rate(enum AUD_STREAM_T stream, float ratio)
-{
-    ASSERT(stream == AUD_STREAM_PLAYBACK, "[%s] Bad stream=%d", __func__, stream);
-
-    hal_codec_tune_dac2_resample_rate(stream, ratio);
-}
-
-void af_codec_tune_dac2(enum AUD_STREAM_T stream, float ratio)
-{
-    af_lock_thread();
-
-    af_codec_direct_tune_dac2(stream, ratio);
-
-    af_unlock_thread();
-}
-
-void af_codec_direct_tune_dac2(enum AUD_STREAM_T stream, float ratio)
-{
-    ASSERT(stream == AUD_STREAM_PLAYBACK, "[%s] Bad stream=%d", __func__, stream);
-
 #ifdef __AUDIO_RESAMPLE__
     if (hal_cmu_get_audio_resample_status()) {
-        hal_codec_tune_dac2_resample_rate(stream, ratio);
+        if (stream == AUD_STREAM_PLAYBACK) {
+            hal_codec_tune_dac2_resample_rate(stream, ratio);
+        } else {
+            hal_codec_tune_adc2_resample_rate(stream, ratio);
+        }
     } else
 #endif
     {
@@ -4160,6 +3439,77 @@ void af_codec_direct_tune_dac2(enum AUD_STREAM_T stream, float ratio)
     }
 }
 #endif
+
+#ifdef AUDIO_OUTPUT_DAC3
+static void af_codec3_direct_tune(enum AUD_STREAM_T stream, float ratio)
+{
+#ifdef __AUDIO_RESAMPLE__
+    if (hal_cmu_get_audio_resample_status()) {
+        if (stream == AUD_STREAM_PLAYBACK) {
+            hal_codec_tune_dac3_resample_rate(stream, ratio);
+        } else {
+            hal_codec_tune_adc3_resample_rate(stream, ratio);
+        }
+    } else
+#endif
+    {
+        analog_aud_pll_tune(ratio);
+    }
+}
+#endif
+#endif
+
+uint32_t af_stream_direct_tune(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T stream, float ratio)
+{
+    enum AUD_STREAM_T role_stream;
+    struct af_stream_cfg_t *role;
+    POSSIBLY_UNUSED enum AUD_STREAM_USE_DEVICE_T device;
+
+    if (stream < AUD_STREAM_NUM) {
+        role_stream = stream;
+    } else {
+        role_stream = AUD_STREAM_PLAYBACK;
+    }
+
+    role = af_get_stream_role(id, role_stream);
+    if ((role->ctl.status & AF_STATUS_STREAM_OPEN_CLOSE) == 0) {
+        return AF_RES_FAILD;
+    }
+
+    device = role->cfg.device;
+
+    if (0) {
+#ifdef AF_DEVICE_INT_CODEC
+    } else if (device == AUD_STREAM_USE_INT_CODEC) {
+        af_codec_direct_tune(stream, ratio);
+#ifdef AUDIO_OUTPUT_DAC2
+    } else if (device == AUD_STREAM_USE_INT_CODEC2) {
+        af_codec2_direct_tune(stream, ratio);
+#endif
+#ifdef AUDIO_OUTPUT_DAC3
+    } else if (device == AUD_STREAM_USE_INT_CODEC3) {
+        af_codec3_direct_tune(stream, ratio);
+#endif
+#endif
+    } else {
+        analog_aud_pll_tune(ratio);
+    }
+
+    return AF_RES_SUCCESS;
+}
+
+uint32_t af_stream_tune(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T stream, float ratio)
+{
+    uint32_t ret;
+
+    af_lock_thread();
+
+    ret = af_stream_direct_tune(id, stream, ratio);
+
+    af_unlock_thread();
+
+    return ret;
+}
 
 void af_codec_set_perf_test_power(int type)
 {
@@ -4181,13 +3531,10 @@ void af_codec_set_noise_reduction(bool enable)
 
 void af_codec_bt_trigger_config(bool en, AF_CODEC_BT_TRIGGER_CALLBACK callback)
 {
-    if (en)
-    {
+    if (en) {
         hal_codec_set_bt_trigger_callback(callback);
         hal_codec_bt_trigger_start();
-    }
-    else
-    {
+    } else {
         hal_codec_bt_trigger_stop();
     }
 }
@@ -4195,6 +3542,7 @@ void af_codec_bt_trigger_config(bool en, AF_CODEC_BT_TRIGGER_CALLBACK callback)
 void af_codec_set_bt_sync_source(enum AUD_STREAM_T stream, uint32_t src)
 {
 #ifndef CHIP_BEST1000
+#ifdef AF_DEVICE_INT_CODEC
     af_lock_thread();
     if (stream == AUD_STREAM_PLAYBACK) {
         hal_codec_set_dac_bt_sync_source(src);
@@ -4202,6 +3550,7 @@ void af_codec_set_bt_sync_source(enum AUD_STREAM_T stream, uint32_t src)
         hal_codec_set_adc_bt_sync_source(src);
     }
     af_unlock_thread();
+#endif
 #endif
 }
 
@@ -4275,18 +3624,20 @@ void af_codec_sync_gain_config(enum AUD_STREAM_T stream, enum AF_CODEC_SYNC_TYPE
 }
 
 #ifdef AUDIO_OUTPUT_DAC2
-void af_codec_set_dac2_bt_sync_source(enum AUD_STREAM_T stream, uint32_t src)
+void af_codec2_set_bt_sync_source(enum AUD_STREAM_T stream, uint32_t src)
 {
     af_lock_thread();
 
     if (stream == AUD_STREAM_PLAYBACK) {
         hal_codec_set_dac2_bt_sync_source(src);
+    } else {
+        hal_codec_set_adc2_bt_sync_source(src);
     }
 
     af_unlock_thread();
 }
 
-void af_codec_sync_dac2_config(enum AUD_STREAM_T stream, enum AF_CODEC_SYNC_TYPE_T type, bool enable)
+void af_codec2_sync_config(enum AUD_STREAM_T stream, enum AF_CODEC_SYNC_TYPE_T type, bool enable)
 {
     af_lock_thread();
 
@@ -4296,12 +3647,18 @@ void af_codec_sync_dac2_config(enum AUD_STREAM_T stream, enum AF_CODEC_SYNC_TYPE
         } else {
             hal_codec_sync_dac2_disable();
         }
+    } else {
+        if (enable) {
+            hal_codec_sync_adc2_enable((enum HAL_CODEC_SYNC_TYPE_T)type);
+        } else {
+            hal_codec_sync_adc2_disable();
+        }
     }
 
     af_unlock_thread();
 }
 
-void af_codec_sync_dac2_resample_rate_config(enum AUD_STREAM_T stream, enum AF_CODEC_SYNC_TYPE_T type, bool enable)
+void af_codec2_sync_resample_rate_config(enum AUD_STREAM_T stream, enum AF_CODEC_SYNC_TYPE_T type, bool enable)
 {
     af_lock_thread();
 
@@ -4311,12 +3668,18 @@ void af_codec_sync_dac2_resample_rate_config(enum AUD_STREAM_T stream, enum AF_C
         } else {
             hal_codec_sync_dac2_resample_rate_disable();
         }
+    } else {
+        if (enable) {
+            hal_codec_sync_adc2_resample_rate_enable((enum HAL_CODEC_SYNC_TYPE_T)type);
+        } else {
+            hal_codec_sync_adc2_resample_rate_disable();
+        }
     }
 
     af_unlock_thread();
 }
 
-void af_codec_sync_dac2_gain_config(enum AUD_STREAM_T stream, enum AF_CODEC_SYNC_TYPE_T type, bool enable)
+void af_codec2_sync_gain_config(enum AUD_STREAM_T stream, enum AF_CODEC_SYNC_TYPE_T type, bool enable)
 {
     af_lock_thread();
 
@@ -4325,6 +3688,78 @@ void af_codec_sync_dac2_gain_config(enum AUD_STREAM_T stream, enum AF_CODEC_SYNC
             hal_codec_sync_dac2_gain_enable((enum HAL_CODEC_SYNC_TYPE_T)type);
         } else {
             hal_codec_sync_dac2_gain_disable();
+        }
+    } else {
+        if (enable) {
+            hal_codec_sync_adc2_gain_enable((enum HAL_CODEC_SYNC_TYPE_T)type);
+        } else {
+            hal_codec_sync_adc2_gain_disable();
+        }
+    }
+
+    af_unlock_thread();
+}
+#endif
+
+#ifdef AUDIO_OUTPUT_DAC3
+void af_codec3_set_bt_sync_source(enum AUD_STREAM_T stream, uint32_t src)
+{
+    af_lock_thread();
+
+    ASSERT(stream == AUD_STREAM_PLAYBACK, "[%s]: Invalid stream %d", __func__, stream);
+
+    if (stream == AUD_STREAM_PLAYBACK) {
+        hal_codec_set_dac3_bt_sync_source(src);
+    }
+
+    af_unlock_thread();
+}
+
+void af_codec3_sync_config(enum AUD_STREAM_T stream, enum AF_CODEC_SYNC_TYPE_T type, bool enable)
+{
+    af_lock_thread();
+
+    ASSERT(stream == AUD_STREAM_PLAYBACK, "[%s]: Invalid stream %d", __func__, stream);
+
+    if (stream == AUD_STREAM_PLAYBACK) {
+        if (enable) {
+            hal_codec_sync_dac3_enable((enum HAL_CODEC_SYNC_TYPE_T)type);
+        } else {
+            hal_codec_sync_dac3_disable();
+        }
+    }
+
+    af_unlock_thread();
+}
+
+void af_codec3_sync_resample_rate_config(enum AUD_STREAM_T stream, enum AF_CODEC_SYNC_TYPE_T type, bool enable)
+{
+    af_lock_thread();
+
+    ASSERT(stream == AUD_STREAM_PLAYBACK, "[%s]: Invalid stream %d", __func__, stream);
+
+    if (stream == AUD_STREAM_PLAYBACK) {
+        if (enable) {
+            hal_codec_sync_dac3_resample_rate_enable((enum HAL_CODEC_SYNC_TYPE_T)type);
+        } else {
+            hal_codec_sync_dac3_resample_rate_disable();
+        }
+    }
+
+    af_unlock_thread();
+}
+
+void af_codec3_sync_gain_config(enum AUD_STREAM_T stream, enum AF_CODEC_SYNC_TYPE_T type, bool enable)
+{
+    af_lock_thread();
+
+    ASSERT(stream == AUD_STREAM_PLAYBACK, "[%s]: Invalid stream %d", __func__, stream);
+
+    if (stream == AUD_STREAM_PLAYBACK) {
+        if (enable) {
+            hal_codec_sync_dac3_gain_enable((enum HAL_CODEC_SYNC_TYPE_T)type);
+        } else {
+            hal_codec_sync_dac3_gain_disable();
         }
     }
 
@@ -4337,25 +3772,31 @@ void af_codec_set_device_bt_sync_source(enum AUD_STREAM_USE_DEVICE_T device,
 {
     if (device == AUD_STREAM_USE_INT_CODEC) {
         af_codec_set_bt_sync_source(stream, src);
-    }
 #ifdef AUDIO_OUTPUT_DAC2
-    else if (device == AUD_STREAM_USE_INT_CODEC2) {
-        af_codec_set_dac2_bt_sync_source(stream, src);
-    }
+    } else if (device == AUD_STREAM_USE_INT_CODEC2) {
+        af_codec2_set_bt_sync_source(stream, src);
 #endif
+#ifdef AUDIO_OUTPUT_DAC3
+    } else if (device == AUD_STREAM_USE_INT_CODEC3) {
+        af_codec3_set_bt_sync_source(stream, src);
+#endif
+    }
 }
 
 void af_codec_sync_device_config(enum AUD_STREAM_USE_DEVICE_T device,
-                enum AUD_STREAM_T stream, enum AF_CODEC_SYNC_TYPE_T type, bool enable)
+                                 enum AUD_STREAM_T stream, enum AF_CODEC_SYNC_TYPE_T type, bool enable)
 {
     if (device == AUD_STREAM_USE_INT_CODEC) {
         af_codec_sync_config(stream, type, enable);
-    }
 #ifdef AUDIO_OUTPUT_DAC2
-    else if (device == AUD_STREAM_USE_INT_CODEC2) {
-        af_codec_sync_dac2_config(stream, type, enable);
-    }
+    } else if (device == AUD_STREAM_USE_INT_CODEC2) {
+        af_codec2_sync_config(stream, type, enable);
 #endif
+#ifdef AUDIO_OUTPUT_DAC3
+    } else if (device == AUD_STREAM_USE_INT_CODEC3) {
+        af_codec3_sync_config(stream, type, enable);
+#endif
+    }
 }
 
 void af_codec_swap_output(bool swap)
@@ -4379,6 +3820,13 @@ void af_codec_set_playback2_post_handler(AF_CODEC_PLAYBACK_POST_HANDLER_T hdlr)
 }
 #endif
 
+#ifdef AUDIO_OUTPUT_DAC3
+void af_codec_set_playback3_post_handler(AF_CODEC_PLAYBACK_POST_HANDLER_T hdlr)
+{
+    codec_play_post_hdlr[AF_CODEC_PLAY_HDLR_ID_2] = hdlr;
+}
+#endif
+
 void af_codec_min_phase_mode_enable(enum AUD_STREAM_T stream)
 {
     af_lock_thread();
@@ -4398,7 +3846,7 @@ void af_codec_min_phase_mode_disable(enum AUD_STREAM_T stream)
 }
 
 int af_anc_open(enum ANC_TYPE_T type, enum AUD_SAMPRATE_T play_rate,
-                    enum AUD_SAMPRATE_T capture_rate, AF_ANC_HANDLER handler)
+                enum AUD_SAMPRATE_T capture_rate, AF_ANC_HANDLER handler)
 {
     FUNC_ENTRY_TRACE();
 
@@ -4537,7 +3985,7 @@ void af_dsd_enable(void)
         if (role->ctl.status & AF_STATUS_STREAM_OPEN_CLOSE) {
             if (role->cfg.device == AUD_STREAM_USE_INT_CODEC && role->dma_cfg.dst_periph == HAL_AUDMA_CODEC_TX) {
                 ASSERT(role->ctl.status == (AF_STATUS_OPEN_CLOSE | AF_STATUS_STREAM_OPEN_CLOSE),
-                    "Bad stream status when DSD enabled: 0x%X", role->ctl.status);
+                       "Bad stream status when DSD enabled: 0x%X", role->ctl.status);
                 role->dma_cfg.dst_periph = HAL_AUDMA_DSD_TX;
                 af_stream_update_dma_buffer(id, AUD_STREAM_PLAYBACK, role, &role->cfg);
                 opened = true;
@@ -4570,7 +4018,7 @@ void af_dsd_disable(void)
         if (role->ctl.status & AF_STATUS_STREAM_OPEN_CLOSE) {
             if (role->cfg.device == AUD_STREAM_USE_INT_CODEC && role->dma_cfg.dst_periph == HAL_AUDMA_DSD_TX) {
                 ASSERT(role->ctl.status == (AF_STATUS_OPEN_CLOSE | AF_STATUS_STREAM_OPEN_CLOSE),
-                    "Bad stream status when DSD disabled: 0x%X", role->ctl.status);
+                       "Bad stream status when DSD disabled: 0x%X", role->ctl.status);
                 role->dma_cfg.dst_periph = HAL_AUDMA_CODEC_TX;
                 af_stream_update_dma_buffer(id, AUD_STREAM_PLAYBACK, role, &role->cfg);
                 opened = true;
@@ -4592,19 +4040,17 @@ void af_dsd_disable(void)
 #endif
 
 #if defined(AF_DEVICE_I2S) || defined(AF_DEVICE_TDM)
-void af_i2s_sync_config(enum AUD_STREAM_T stream, enum AF_I2S_SYNC_TYPE_T type, bool enable)
+void af_i2s_sync_config(enum AUD_STREAM_ID_T id,enum AUD_STREAM_T stream, enum AF_I2S_SYNC_TYPE_T type, bool enable)
 {
-#if defined(HW_I2S_TDM_TRIGGER)
     af_lock_thread();
 
     if (enable) {
-        hal_i2s_clk_sync_enable((enum HAL_I2S_SYNC_TYPE_T)type);
+        hal_i2s_clk_sync_enable(id,(enum HAL_I2S_SYNC_TYPE_T)type);
     } else {
-        hal_i2s_clk_sync_disable();
+        hal_i2s_clk_sync_disable(id);
     }
 
     af_unlock_thread();
-#endif
 }
 
 #ifdef I2S_RESAMPLE
@@ -4614,7 +4060,7 @@ int af_i2s_resample_enable(enum AUD_STREAM_USE_DEVICE_T dev)
 
     if (dev == AUD_STREAM_USE_I2S0_MASTER) {
         id = HAL_I2S_ID_0;
-#if defined(CHIP_HAS_I2S) && (CHIP_HAS_I2S > 1)
+#ifdef I2S1_BASE
     } else if (dev == AUD_STREAM_USE_I2S1_MASTER) {
         id = HAL_I2S_ID_1;
 #endif
@@ -4631,7 +4077,7 @@ int af_i2s_resample_disable(enum AUD_STREAM_USE_DEVICE_T dev)
 
     if (dev == AUD_STREAM_USE_I2S0_MASTER) {
         id = HAL_I2S_ID_0;
-#if defined(CHIP_HAS_I2S) && (CHIP_HAS_I2S > 1)
+#ifdef I2S1_BASE
     } else if (dev == AUD_STREAM_USE_I2S1_MASTER) {
         id = HAL_I2S_ID_1;
 #endif
@@ -4652,7 +4098,7 @@ int af_tdm_resample_enable(enum AUD_STREAM_USE_DEVICE_T dev)
 
     if (dev == AUD_STREAM_USE_TDM0_MASTER) {
         id = HAL_I2S_ID_0;
-#if defined(CHIP_HAS_I2S) && (CHIP_HAS_I2S > 1)
+#ifdef I2S1_BASE
     } else if (dev == AUD_STREAM_USE_TDM1_MASTER) {
         id = HAL_I2S_ID_1;
 #endif
@@ -4669,7 +4115,7 @@ int af_tdm_resample_disable(enum AUD_STREAM_USE_DEVICE_T dev)
 
     if (dev == AUD_STREAM_USE_TDM0_MASTER) {
         id = HAL_I2S_ID_0;
-#if defined(CHIP_HAS_I2S) && (CHIP_HAS_I2S > 1)
+#ifdef I2S1_BASE
     } else if (dev == AUD_STREAM_USE_TDM1_MASTER) {
         id = HAL_I2S_ID_1;
 #endif
@@ -4680,11 +4126,6 @@ int af_tdm_resample_disable(enum AUD_STREAM_USE_DEVICE_T dev)
     return 0;
 }
 #endif
-#endif
-
-#ifndef DAC_DC_CALIB_MIC_CHAN_MAP
-#define DAC_DC_CALIB_MIC_CHAN_MAP (AUD_CHANNEL_MAP_CH0 | AUD_CHANNEL_MAP_CH1)
-//#define DAC_DC_CALIB_MIC_CHAN_MAP (AUD_CHANNEL_MAP_CH0 | AUD_CHANNEL_MAP_CH1)
 #endif
 
 #ifdef AUDIO_OUTPUT_DC_AUTO_CALIB
@@ -4732,7 +4173,7 @@ static uint32_t codec_dac_calc_dc_handler(uint8_t *buf, uint32_t len)
     uint32_t samp_cnt;
 //    uint32_t time = TICKS_TO_MS(hal_sys_timer_get());
 
-//    AUDIOFLINGER_TRACE(1, "[%d] CODEC_CAP: %s, buf=%x, len=%d", time, __func__, (int)buf, len);
+//    TRACE(1, "[%d] CODEC_CAP: %s, buf=%x, len=%d", time, __func__, (int)buf, len);
 
     if (dc_calib_first_irq) {
         dc_calib_first_irq = false;
@@ -4786,7 +4227,7 @@ static uint32_t codec_dac_calc_dc_handler(uint8_t *buf, uint32_t len)
     dc_l /= (int)i;
     dc_r /= (int)i;
 
-    AUDIOFLINGER_TRACE(1, "[%4u] DC_L=%6d (%6d/%6d) DC_R=%6d (%6d/%6d)", dc_calib_loop_cnt, dc_l, min_l, max_l, dc_r, min_r, max_r);
+    TRACE(1, "[%4u] DC_L=%6d (%6d/%6d) DC_R=%6d (%6d/%6d)", dc_calib_loop_cnt, dc_l, min_l, max_l, dc_r, min_r, max_r);
 #endif
 
     return 0;
@@ -4810,14 +4251,14 @@ static void get_codec_dac_dc(int32_t *dc_l, int32_t *dc_r)
 #ifdef DEBUG_DAC_DC_AUTO_CALIB
             || dc_calib_loop_cnt < DAC_DC_CALIB_GET_DC_CNT
 #endif
-            ) {
+          ) {
 #ifdef RTOS
         osStatus_t r;
         r = osDelay(2);
         if (r != osOK) {
-            AUDIOFLINGER_TRACE(1, "osDelay failed %d", (int)r);
+            TRACE(1, "osDelay failed %d", (int)r);
         } else {
-//            AUDIOFLINGER_TRACE(1, "dc_calib_samp_cnt=%d", dc_calib_samp_cnt);
+//            TRACE(1, "dc_calib_samp_cnt=%d", dc_calib_samp_cnt);
         }
 #else
         af_thread(NULL);
@@ -4829,7 +4270,7 @@ static void get_codec_dac_dc(int32_t *dc_l, int32_t *dc_r)
     *dc_r = (int32_t)(dc_calib_sum_r / (int64_t)dc_calib_samp_cnt);
     int_unlock(lock);
 
-    AUDIOFLINGER_TRACE(1, "Dac dc_l=%d dc_r=%d cnt=%u", *dc_l, *dc_r, dc_calib_samp_cnt);
+    TRACE(1, "Dac dc_l=%d dc_r=%d cnt=%u", *dc_l, *dc_r, dc_calib_samp_cnt);
 }
 #endif
 
@@ -4893,7 +4334,7 @@ static uint32_t codec_dac_output_dc_handler(uint8_t *buf, uint32_t len)
         for (i = 0; i < n; i++) {
             p[i] = outval;
         }
-//        AUDIOFLINGER_TRACE(0,"DC OUTPUT: 0x%x, len=%d", outval, len);
+//        TRACE("DC OUTPUT: 0x%x, len=%d", outval, len);
     }
     return 0;
 }
@@ -4901,12 +4342,11 @@ static uint32_t codec_dac_output_dc_handler(uint8_t *buf, uint32_t len)
 
 #ifdef AUDIO_OUTPUT_DIG_DC_DEEP_CALIB
 int codec_calib_dac_dig_dc(uint32_t ch_l_en, uint32_t ch_r_en,
-    int32_t tgt_dc_l, int32_t tgt_dc_r,
-    uint32_t *comp_dc_l, uint32_t *comp_dc_r)
+                           int32_t tgt_dc_l, int32_t tgt_dc_r,
+                           uint32_t *comp_dc_l, uint32_t *comp_dc_r)
 {
 #define DC_CALIB_DEBUG
 #define DC_DET_GATE    (10)
-#define DC_DET_GATE_ERR (100)
 #define DC_REG_MSB_POS (18)
 #define DC_REG_EXT(v)  (((v)<<(31-(DC_REG_MSB_POS)))>>(31-(DC_REG_MSB_POS)))
     int i;
@@ -4922,7 +4362,7 @@ int codec_calib_dac_dig_dc(uint32_t ch_l_en, uint32_t ch_r_en,
     if ((!ch_l_en) && (!ch_r_en)) {
         return 0;
     }
-    AUDIOFLINGER_TRACE(1, "CALIB: TGT_DC: tgt_dc_l=%d, tgt_dc_r=%d", tgt_dc_l, tgt_dc_r);
+    TRACE(1, "CALIB: TGT_DC: tgt_dc_l=%d, tgt_dc_r=%d", tgt_dc_l, tgt_dc_r);
 
     analog_aud_dac_dc_auto_calib_set_mode(ANA_DAC_DC_CALIB_MODE_DAC_TO_ADC);
     osDelay(10);
@@ -4933,14 +4373,14 @@ int codec_calib_dac_dig_dc(uint32_t ch_l_en, uint32_t ch_r_en,
 
     for (i = DC_REG_MSB_POS; i >= 0;) {
 #ifdef DC_CALIB_DEBUG
-        AUDIOFLINGER_TRACE(1, "[%d]:dc_l=%d,tgt_dc_l=%d,det_l=%d",i,dc_l,tgt_dc_l,det_l);
-        AUDIOFLINGER_TRACE(1, "[%d]:dc_r=%d,tgt_dc_r=%d,det_r=%d",i,dc_r,tgt_dc_r,det_r);
+        TRACE(1, "[%d]:dc_l=%d,tgt_dc_l=%d,det_l=%d",i,dc_l,tgt_dc_l,det_l);
+        TRACE(1, "[%d]:dc_r=%d,tgt_dc_r=%d,det_r=%d",i,dc_r,tgt_dc_r,det_r);
 #endif
         if (ch_l_en) {
             if (!ch_l_done) {
                 if (ABS(det_l) < det_gate_l) {
                     ch_l_done = 1;
-                    AUDIOFLINGER_TRACE(1, "[%d]: DONE: comp_val_l=%x", i, comp_val_l);
+                    TRACE(1, "[%d]: DONE: comp_val_l=%x", i, comp_val_l);
                 }
                 if (!ch_l_done) {
                     if (det_l < 0) {
@@ -4958,14 +4398,14 @@ int codec_calib_dac_dig_dc(uint32_t ch_l_en, uint32_t ch_r_en,
                 }
             }
 #ifdef DC_CALIB_DEBUG
-            AUDIOFLINGER_TRACE(1, "[%d]:comp_val_l=%x,regval_l=%x",i,comp_val_l,regval_l);
+            TRACE(1, "[%d]:comp_val_l=%x,regval_l=%x",i,comp_val_l,regval_l);
 #endif
         }
         if (ch_r_en) {
             if (!ch_r_done) {
                 if (ABS(det_r) < det_gate_r) {
                     ch_r_done = 1;
-                    AUDIOFLINGER_TRACE(1, "[%d]: DONE: comp_val_r=%x", i, comp_val_r);
+                    TRACE(1, "[%d]: DONE: comp_val_r=%x", i, comp_val_r);
                 }
                 if (!ch_r_done) {
                     if (det_r < 0) {
@@ -4983,24 +4423,24 @@ int codec_calib_dac_dig_dc(uint32_t ch_l_en, uint32_t ch_r_en,
                 }
             }
 #ifdef DC_CALIB_DEBUG
-            AUDIOFLINGER_TRACE(1, "[%d]:comp_val_r=%x,regval_r=%x",i,comp_val_r,regval_r);
+            TRACE(1, "[%d]:comp_val_r=%x,regval_r=%x",i,comp_val_r,regval_r);
 #endif
         }
         if (ch_l_en && ch_r_en) {
             if (ch_l_done && ch_r_done) {
-                AUDIOFLINGER_TRACE(1, "DAC CH L/R DC calib done");
+                TRACE(1, "DAC CH L/R DC calib done");
                 success = 1;
                 break;
             }
         } else if (ch_l_en) {
             if (ch_l_done) {
-                AUDIOFLINGER_TRACE(1, "DAC CH L DC calib done");
+                TRACE(1, "DAC CH L DC calib done");
                 success = 1;
                 break;
             }
         } else if (ch_r_en) {
             if (ch_r_done) {
-                AUDIOFLINGER_TRACE(1, "DAC CH R DC calib done");
+                TRACE(1, "DAC CH R DC calib done");
                 success = 1;
                 break;
             }
@@ -5013,30 +4453,10 @@ int codec_calib_dac_dig_dc(uint32_t ch_l_en, uint32_t ch_r_en,
         det_r = dc_r - tgt_dc_r;
         i--;
 #ifdef DC_CALIB_DEBUG
-        AUDIOFLINGER_TRACE(1,"-----------------------");
+        TRACE(1,"-----------------------");
 #endif
     }
-    // DC CALIB CHECK
-    if (!success) {
-        if (ch_l_en && !ch_l_done) {
-            if (ABS(det_l) > DC_DET_GATE_ERR) {
-                AUDIOFLINGER_TRACE(false, " ** L DAC CALIB FAIL det_l=%d **", det_l);
-            } else {
-                ch_l_done = 1;
-            }
-        }
-        if (ch_r_en && !ch_r_done) {
-            if (ABS(det_r) > DC_DET_GATE_ERR) {
-                AUDIOFLINGER_TRACE(false, " ** R DAC CALIB FAIL det_l=%d **", det_r);
-            } else {
-                ch_r_done = 1;
-            }
-        }
-        success = (ch_l_en ? ch_l_done : 1) && (ch_r_en ? ch_r_done : 1);
-        AUDIOFLINGER_TRACE(1, "DAC DC CALIB CHECK success = %d", success);
-    }
-
-    AUDIOFLINGER_TRACE(1, "FINAL DIG DC: regval_l=%x, regval_r=%x", regval_l, regval_r);
+    TRACE(1, "FINAL DIG DC: regval_l=%x, regval_r=%x", regval_l, regval_r);
     if (comp_dc_l) {
         *comp_dc_l = regval_l;
     }
@@ -5047,10 +4467,13 @@ int codec_calib_dac_dig_dc(uint32_t ch_l_en, uint32_t ch_r_en,
 }
 #endif /* AUDIO_OUTPUT_DIG_DC_DEEP_CALIB */
 
+#ifndef DAC_DC_CALIB_MIC_CHAN_MAP
+#define DAC_DC_CALIB_MIC_CHAN_MAP (AUD_CHANNEL_MAP_CH0 | AUD_CHANNEL_MAP_CH1)
+#endif
 #define DAC_DC_CALIB_SPK_CHAN_MAP (AUD_CHANNEL_MAP_CH0 | AUD_CHANNEL_MAP_CH1)
 
 int af_codec_calib_dac_dc(enum AF_CODEC_CALIB_CMD_T calib_cmd,
-    struct AF_CODEC_CALIB_CFG_T *cfg)
+                          struct AF_CODEC_CALIB_CFG_T *cfg)
 {
 #ifdef AUDIO_OUTPUT_DC_AUTO_CALIB
     const uint32_t dc_avg_samp_cnt = DAC_DC_CALIB_BUF_SAMP_CNT;
@@ -5072,10 +4495,10 @@ int af_codec_calib_dac_dc(enum AF_CODEC_CALIB_CMD_T calib_cmd,
 #ifdef AUDIO_OUTPUT_DC_CALIB_ANA
     int16_t dc_step_old_l = 0, dc_step_old_r = 0;
 #else
-    POSSIBLY_UNUSED uint32_t comp_gate_l = 0, comp_gate_r = 0;
+    uint32_t comp_gate_l = 0, comp_gate_r = 0;
 #endif
 
-    POSSIBLY_UNUSED uint32_t time = hal_fast_sys_timer_get();
+    uint32_t time = hal_fast_sys_timer_get();
 
     en_l = (cal_dac_chan_enable >> 0)&0x1;
     en_r = (cal_dac_chan_enable >> 1)&0x1;
@@ -5084,18 +4507,18 @@ int af_codec_calib_dac_dc(enum AF_CODEC_CALIB_CMD_T calib_cmd,
     // open stream for dac calibration
     if (calib_cmd == CODEC_CALIB_CMD_OPEN) {
         if (cal_stream_is_opened) {
-            AUDIOFLINGER_TRACE(1, "dac calib stream already opened");
+            TRACE(1, "dac calib stream already opened");
             goto _end;
         }
-        AUDIOFLINGER_TRACE(1, "\nOPEN CALIB STREAM\n");
+        TRACE(1, "\nOPEN CALIB STREAM\n");
 
         play_buf = (uint8_t *)(((uint32_t)buf + 0x3) & ~0x3);
         play_buf_len = DAC_DC_CALIB_SAMP_RATE / 1000 * 2 * 2 * 10; //48K,16bit,2ch,10 frame
         cap_buf = play_buf + play_buf_len;
         cap_buf_len = dc_avg_samp_cnt * 2 * 4; //48K, 24bit, 2ch, 4 frame
 
-        AUDIOFLINGER_TRACE(1, "playback stream: play_buf=%x, play_buf_len=%d", (int)play_buf, play_buf_len);
-        AUDIOFLINGER_TRACE(1, "capture  stream: cap_buf=%x,  cap_buf_len=%d",  (int)cap_buf,  cap_buf_len);
+        TRACE(1, "playback stream: play_buf=%x, play_buf_len=%d", (int)play_buf, play_buf_len);
+        TRACE(1, "capture  stream: cap_buf=%x,  cap_buf_len=%d",  (int)cap_buf,  cap_buf_len);
 
         ASSERT(cap_buf + cap_buf_len <= buf + len, "buf too small: len=%u but needs %u", len, cap_buf + cap_buf_len - buf);
 
@@ -5114,7 +4537,7 @@ int af_codec_calib_dac_dc(enum AF_CODEC_CALIB_CMD_T calib_cmd,
         stream_cfg.handler     = codec_dac_output_dc_handler;
         stream_cfg.data_ptr    = play_buf;
         stream_cfg.data_size   = play_buf_len;
-        AUDIOFLINGER_TRACE(1, "PLAY_BUF:%x, LEN=%d", (uint32_t)play_buf, play_buf_len);
+        TRACE(1, "PLAY_BUF:%x, LEN=%d", (uint32_t)play_buf, play_buf_len);
 
         ret = af_stream_open(AUD_STREAM_ID_0, AUD_STREAM_PLAYBACK, &stream_cfg);
         ASSERT(ret == 0, "af_stream_open playback failed: %d", ret);
@@ -5126,11 +4549,11 @@ int af_codec_calib_dac_dc(enum AF_CODEC_CALIB_CMD_T calib_cmd,
         stream_cfg.sample_rate = DAC_DC_CALIB_SAMP_RATE;
         stream_cfg.device      = AUD_STREAM_USE_INT_CODEC;
         stream_cfg.vol         = 0;
-        stream_cfg.io_path     = AUD_INPUT_PATH_MAINMIC;
+        stream_cfg.io_path     = AUD_INPUT_PATH_DC_CALIB;
         stream_cfg.handler     = codec_dac_calc_dc_handler;
         stream_cfg.data_ptr    = cap_buf;
         stream_cfg.data_size   = cap_buf_len;
-        AUDIOFLINGER_TRACE(1, "CAP_BUF:%x, LEN=%d", (uint32_t)cap_buf, cap_buf_len);
+        TRACE(1, "CAP_BUF:%x, LEN=%d", (uint32_t)cap_buf, cap_buf_len);
 
         ret = af_stream_open(AUD_STREAM_ID_0, AUD_STREAM_CAPTURE, &stream_cfg);
         ASSERT(ret == 0, "af_stream_open playback failed: %d", ret);
@@ -5154,7 +4577,7 @@ int af_codec_calib_dac_dc(enum AF_CODEC_CALIB_CMD_T calib_cmd,
     }
 
     if (calib_cmd == CODEC_CALIB_CMD_CLOSE) {
-        AUDIOFLINGER_TRACE(1, "\nCLOSE CALIB STREAM\n");
+        TRACE(1, "\nCLOSE CALIB STREAM\n");
         ret = af_stream_stop(AUD_STREAM_ID_0, AUD_STREAM_CAPTURE);
         ASSERT(ret == 0, "af_stream_stop capture failed: %d", ret);
 
@@ -5173,7 +4596,7 @@ int af_codec_calib_dac_dc(enum AF_CODEC_CALIB_CMD_T calib_cmd,
         codec_int_stream_reset_state(AUD_STREAM_CAPTURE);
         codec_int_stream_reset_state(AUD_STREAM_PLAYBACK);
 
-        AUDIOFLINGER_TRACE(1, "\nDC auto calib consumes %u ms\n", FAST_TICKS_TO_MS(hal_fast_sys_timer_get() - time));
+        TRACE(1, "\nDC auto calib consumes %u ms\n", FAST_TICKS_TO_MS(hal_fast_sys_timer_get() - time));
 
         cal_stream_is_opened = false;
 
@@ -5183,7 +4606,7 @@ int af_codec_calib_dac_dc(enum AF_CODEC_CALIB_CMD_T calib_cmd,
 
     ASSERT(cal_stream_is_opened == true, "calib stream is not opend");
 
-    AUDIOFLINGER_TRACE(1, "\nADC only\n");
+    TRACE(1, "\nADC only\n");
     analog_aud_dac_dc_auto_calib_set_mode(ANA_DAC_DC_CALIB_MODE_ADC_ONLY);
 #ifdef AUDIO_OUTPUT_DEBUG_ANA_ADC
     osDelay(3000);
@@ -5192,7 +4615,7 @@ int af_codec_calib_dac_dc(enum AF_CODEC_CALIB_CMD_T calib_cmd,
     get_codec_dac_dc(&dc_target_l, &dc_target_r);
 #ifdef AUDIO_OUTPUT_USE_FIXED_DC
     analog_aud_dc_calib_get_fixed_comp_value(cal_dac_ana_gain, &dc_l, &dc_r);
-    AUDIOFLINGER_TRACE(1, "FIXED DC: GAIN=%d, L=%d, R=%d", cal_dac_ana_gain, dc_l, dc_r);
+    TRACE(1, "FIXED DC: GAIN=%d, L=%d, R=%d", cal_dac_ana_gain, dc_l, dc_r);
     dc_target_l += dc_l;
     dc_target_r += dc_r;
 #endif
@@ -5201,28 +4624,28 @@ int af_codec_calib_dac_dc(enum AF_CODEC_CALIB_CMD_T calib_cmd,
 #ifdef AUDIO_OUTPUT_ASSERT_LARGE_DC
         if (en_l) {
             ASSERT(ABS(dc_target_l) <= ADC_DC_CALIB_MAX_ABS,
-                "ADC_DC_L too large: %d", dc_target_l);
+                   "ADC_DC_L too large: %d", dc_target_l);
         }
         if (en_r) {
             ASSERT(ABS(dc_target_r) <= ADC_DC_CALIB_MAX_ABS,
-                "ADC_DC_R too large: %d", dc_target_r);
+                   "ADC_DC_R too large: %d", dc_target_r);
         }
 #elif defined(AUDIO_OUTPUT_ERROR_LARGE_DC)
         if (en_l) {
-            if(ABS(dc_target_l) > ADC_DC_CALIB_MAX_ABS) {
+            if (ABS(dc_target_l) > ADC_DC_CALIB_MAX_ABS) {
                 cfg->state = CODEC_CALIB_STATE_ERR_ADC_DC_L;
                 goto _end;
             }
         }
         if (en_r) {
-            if(ABS(dc_target_r) > ADC_DC_CALIB_MAX_ABS) {
+            if (ABS(dc_target_r) > ADC_DC_CALIB_MAX_ABS) {
                 cfg->state = CODEC_CALIB_STATE_ERR_ADC_DC_R;
                 goto _end;
             }
         }
 #endif
     }
-    AUDIOFLINGER_TRACE(1, "\nDAC TO ADC\n");
+    TRACE(1, "\nDAC TO ADC\n");
     analog_aud_dac_dc_auto_calib_set_mode(ANA_DAC_DC_CALIB_MODE_DAC_TO_ADC);
 #ifdef AUDIO_OUTPUT_DC_CALIB_ANA
     analog_aud_dc_calib_set_value(0, 0);
@@ -5238,7 +4661,7 @@ int af_codec_calib_dac_dc(enum AF_CODEC_CALIB_CMD_T calib_cmd,
         comp_gate_l = dc_step_l * 50 ;//0.049*50=2.45
         comp_gate_r = dc_step_r * 50 ;
     }
-    AUDIOFLINGER_TRACE(1, "comp_gate_l=%d, comp_gate_r=%d", comp_gate_l, comp_gate_r);
+    TRACE(1, "comp_gate_l=%d, comp_gate_r=%d", comp_gate_l, comp_gate_r);
     hal_codec_set_dac_ana_gain(cal_dac_ini_ana_gain, cal_dac_gain_offset);
     hal_codec_dac_dc_offset_enable(0, 0);
     analog_aud_dc_calib_set_value(0, 0);
@@ -5249,18 +4672,18 @@ int af_codec_calib_dac_dc(enum AF_CODEC_CALIB_CMD_T calib_cmd,
 #ifdef AUDIO_OUTPUT_SET_LARGE_ANA_DC
         bool ok_l = false, ok_r = false;
 
-        AUDIOFLINGER_TRACE(1,"\nSET LARGE ANA DC\n");
-        AUDIOFLINGER_TRACE(1,"dc_target_l=%d,dc_target_r=%d", dc_target_l, dc_target_r);
+        TRACE(1,"\nSET LARGE ANA DC\n");
+        TRACE(1,"dc_target_l=%d,dc_target_r=%d", dc_target_l, dc_target_r);
         dc_l = dc_r = 0;
         get_codec_dac_dc(&dc_l, &dc_r);
-        AUDIOFLINGER_TRACE(1,"INIT DAC DC dc_l=%d,dc_r=%d", dc_l, dc_r);
+        TRACE(1,"INIT DAC DC dc_l=%d,dc_r=%d", dc_l, dc_r);
         analog_aud_dc_calib_get_large_ana_dc_value(&ana_dc_l, dc_l, dc_target_l, 0, true);
         analog_aud_dc_calib_get_large_ana_dc_value(&ana_dc_r, dc_r, dc_target_r, 1, true);
-        AUDIOFLINGER_TRACE(1, "ANA_DC init: ana_dc_l=%d,ana_dc_r=%d", ana_dc_l, ana_dc_r);
+        TRACE(1, "ANA_DC init: ana_dc_l=%d,ana_dc_r=%d", ana_dc_l, ana_dc_r);
         ana_reg_val_l = analog_aud_dac_dc_diff_to_val(ana_dc_l);
         ana_reg_val_r = analog_aud_dac_dc_diff_to_val(ana_dc_r);
         analog_aud_dc_calib_set_value(ana_reg_val_l, ana_reg_val_r);
-        AUDIOFLINGER_TRACE(1, "ANA_DC init: ana_reg_val_l=0x%x,ana_reg_val_l=0x%x", ana_reg_val_l, ana_reg_val_l);
+        TRACE(1, "ANA_DC init: ana_reg_val_l=0x%x,ana_reg_val_l=0x%x", ana_reg_val_l, ana_reg_val_l);
         analog_aud_dc_calib_enable(true);
         for (i = 0; i < SET_LARGE_ANA_DC_CNT; i++) {
             osDelay(5);
@@ -5282,38 +4705,38 @@ int af_codec_calib_dac_dc(enum AF_CODEC_CALIB_CMD_T calib_cmd,
                     break;
                 }
             }
-            AUDIOFLINGER_TRACE(1, "ANA_DC[%d]: ana_dc_l=%d,ana_dc_r=%d,dc_l=%d,dc_r=%d", i, ana_dc_l, ana_dc_r, dc_l, dc_r);
+            TRACE(1, "ANA_DC[%d]: ana_dc_l=%d,ana_dc_r=%d,dc_l=%d,dc_r=%d", i, ana_dc_l, ana_dc_r, dc_l, dc_r);
             ana_reg_val_l = analog_aud_dac_dc_diff_to_val(ana_dc_l);
             ana_reg_val_r = analog_aud_dac_dc_diff_to_val(ana_dc_r);
             analog_aud_dc_calib_set_value(ana_reg_val_l, ana_reg_val_r);
-            AUDIOFLINGER_TRACE(1, "ANA_DC[%d]: ana_reg_val_l=0x%x,ana_reg_val_r=0x%x,dc_l=%d,dc_r=%d", i, ana_reg_val_l, ana_reg_val_r, dc_l, dc_r);
+            TRACE(1, "ANA_DC[%d]: ana_reg_val_l=0x%x,ana_reg_val_r=0x%x,dc_l=%d,dc_r=%d", i, ana_reg_val_l, ana_reg_val_r, dc_l, dc_r);
         }
 #endif /* AUDIO_OUTPUT_SET_LARGE_ANA_DC */
         ana_reg_val_l = analog_aud_dac_dc_diff_to_val(ana_dc_l);
         ana_reg_val_r = analog_aud_dac_dc_diff_to_val(ana_dc_r);
         cfg->ana_dc_l = ana_reg_val_l;
         cfg->ana_dc_r = ana_reg_val_r;
-        AUDIOFLINGER_TRACE(1, "====>Final ana_dc_l=0x%x, ana_dc_r=0x%x",cfg->ana_dc_l, cfg->ana_dc_r);
+        TRACE(1, "====>Final ana_dc_l=0x%x, ana_dc_r=0x%x",cfg->ana_dc_l, cfg->ana_dc_r);
         goto _end;
     }
 #endif
 
-    AUDIOFLINGER_TRACE(1, "\nSET ANA DC\n");
-    AUDIOFLINGER_TRACE(1, "cal_dac_ana_dc_l=0x%x, cal_dac_ana_dc_r=0x%x", cal_dac_ana_dc_l, cal_dac_ana_dc_r);
+    TRACE(1, "\nSET ANA DC\n");
+    TRACE(1, "cal_dac_ana_dc_l=0x%x, cal_dac_ana_dc_r=0x%x", cal_dac_ana_dc_l, cal_dac_ana_dc_r);
     analog_aud_dc_calib_set_value(cal_dac_ana_dc_l, cal_dac_ana_dc_r);
     analog_aud_dc_calib_enable(true);
 
     if (calib_cmd == CODEC_CALIB_CMD_DIG_GAIN) {
         int32_t dc_out_l = 0, dc_out_r = 0;
 
-        AUDIOFLINGER_TRACE(1, "\nCALIB DAC GAIN\n");
-        AUDIOFLINGER_TRACE(1, "cal_dac_dig_dc_l=%d, cal_dac_dig_dc_r=%d",cal_dac_dig_dc_l, cal_dac_dig_dc_r);
+        TRACE(1, "\nCALIB DAC GAIN\n");
+        TRACE(1, "cal_dac_dig_dc_l=%d, cal_dac_dig_dc_r=%d",cal_dac_dig_dc_l, cal_dac_dig_dc_r);
         hal_codec_dac_dc_offset_enable(cal_dac_dig_dc_l, cal_dac_dig_dc_r);
         hal_codec_set_dig_dac_gain_dr(DAC_DC_CALIB_SPK_CHAN_MAP, 0);
         cal_dac_out_enable = true;
         osDelay(5);
         get_codec_dac_dc(&dc_l, &dc_r);
-        for (i = 0; i < DAC_GAIN_CALIB_AUTO_CNT;i++) {
+        for (i = 0; i < DAC_GAIN_CALIB_AUTO_CNT; i++) {
             get_codec_dac_dc(&dc_l, &dc_r);
             dc_out_l += (dc_l - dc_target_l);
             dc_out_r += (dc_r - dc_target_r);
@@ -5323,7 +4746,7 @@ int af_codec_calib_dac_dc(enum AF_CODEC_CALIB_CMD_T calib_cmd,
         dc_out_r /= DAC_GAIN_CALIB_AUTO_CNT;
         cfg->out_dc_l = dc_out_l;
         cfg->out_dc_r = dc_out_r;
-        AUDIOFLINGER_TRACE(1, "====>Final dc_out_l=%d, dc_out_r=%d", dc_out_l, dc_out_r);
+        TRACE(1, "====>Final dc_out_l=%d, dc_out_r=%d", dc_out_l, dc_out_r);
         goto _end;
     }
 
@@ -5334,12 +4757,12 @@ int af_codec_calib_dac_dc(enum AF_CODEC_CALIB_CMD_T calib_cmd,
         cfg->dig_dc_r = dc_target_r;
         cfg->out_dc_l = dc_l;
         cfg->out_dc_r = dc_r;
-        AUDIOFLINGER_TRACE(1, "====>GET_CUR_DC: tgt_l=%d, tgt_r=%d, dc_l=%d, dc_r=%d",
-            dc_target_l, dc_target_r, dc_l, dc_r);
+        TRACE(1, "====>GET_CUR_DC: tgt_l=%d, tgt_r=%d, dc_l=%d, dc_r=%d",
+              dc_target_l, dc_target_r, dc_l, dc_r);
         goto _end;
     }
 
-    AUDIOFLINGER_TRACE(1, "\nCALIB DIG DC\n");
+    TRACE(1, "\nCALIB DIG DC\n");
     val_l = val_r = 0;
     diff_l = diff_r = 0;
     comp_old_l = comp_old_r = 0;
@@ -5347,14 +4770,11 @@ int af_codec_calib_dac_dc(enum AF_CODEC_CALIB_CMD_T calib_cmd,
     do {
         osDelay(5);
         get_codec_dac_dc(&dc_l, &dc_r);
-        AUDIOFLINGER_TRACE(1, "dc_tgt_l=%d, dc_tgt_r=%d", dc_target_l, dc_target_r);
+        TRACE(1, "dc_tgt_l=%d, dc_tgt_r=%d", dc_target_l, dc_target_r);
     } while (1);
 #endif
 #ifdef AUDIO_OUTPUT_DIG_DC_DEEP_CALIB
-    ret = codec_calib_dac_dig_dc(en_l, en_r, dc_target_l, dc_target_r, &val_l, &val_r);
-    if (!ret) {
-        cfg->state = CODEC_CALIB_STATE_ERR_DAC_DC_L | CODEC_CALIB_STATE_ERR_DAC_DC_R;
-    }
+    codec_calib_dac_dig_dc(en_l, en_r, dc_target_l, dc_target_r, &val_l, &val_r);
     (void)diff_l;
     (void)diff_r;
     (void)comp_old_l;
@@ -5376,7 +4796,7 @@ int af_codec_calib_dac_dc(enum AF_CODEC_CALIB_CMD_T calib_cmd,
         if (en_r) {
             comp_r = dc_target_r - dc_r;
         }
-        AUDIOFLINGER_TRACE(1, "[%u] comp_l=%d comp_r=%d", i, comp_l, comp_r);
+        TRACE(1, "[%u] comp_l=%d comp_r=%d", i, comp_l, comp_r);
 
 #ifdef AUDIO_OUTPUT_DC_CALIB_ANA
         if (i == 1) {
@@ -5388,7 +4808,7 @@ int af_codec_calib_dac_dc(enum AF_CODEC_CALIB_CMD_T calib_cmd,
                 dc_step_old_r = dc_step_r;
                 dc_step_r -= diff_r ? comp_r / diff_r : 0;
             }
-            AUDIOFLINGER_TRACE(1, "Update dc_step_l=%d->%d dc_step_r=%d->%d", dc_step_old_l, dc_step_l, dc_step_old_r, dc_step_r);
+            TRACE(1, "Update dc_step_l=%d->%d dc_step_r=%d->%d", dc_step_old_l, dc_step_l, dc_step_old_r, dc_step_r);
         }
 #endif
 
@@ -5396,29 +4816,29 @@ int af_codec_calib_dac_dc(enum AF_CODEC_CALIB_CMD_T calib_cmd,
         if (en_l && !en_r) {
             if ((ABS(comp_l) <= dc_step_l)
 #ifndef AUDIO_OUTPUT_DC_CALIB_ANA
-                || (ABS(comp_l) <= comp_gate_l)
+                    || (ABS(comp_l) <= comp_gate_l)
 #endif
-                ) {
-                AUDIOFLINGER_TRACE(1, "break: comp_l=%d, dc_step_l=%d", comp_l, dc_step_l);
+               ) {
+                TRACE(1, "break: comp_l=%d, dc_step_l=%d", comp_l, dc_step_l);
                 break;
             }
         } else if (en_l && en_r) {
             if ((ABS(comp_l) < dc_step_l && ABS(comp_r) < dc_step_r)
 #ifndef AUDIO_OUTPUT_DC_CALIB_ANA
-                || (ABS(comp_l) <= comp_gate_l && ABS(comp_r) <= comp_gate_r)
+                    || (ABS(comp_l) <= comp_gate_l && ABS(comp_r) <= comp_gate_r)
 #endif
-                ) {
-                AUDIOFLINGER_TRACE(1, "break: comp_l=%d, dc_step_l=%d", comp_l, dc_step_l);
-                AUDIOFLINGER_TRACE(1, "break: comp_r=%d, dc_step_r=%d", comp_r, dc_step_r);
+               ) {
+                TRACE(1, "break: comp_l=%d, dc_step_l=%d", comp_l, dc_step_l);
+                TRACE(1, "break: comp_r=%d, dc_step_r=%d", comp_r, dc_step_r);
                 break;
             }
         } else if (!en_l && en_r) {
             if ((ABS(comp_r) <= dc_step_r)
 #ifndef AUDIO_OUTPUT_DC_CALIB_ANA
-                || ABS(comp_r) <= comp_gate_r
+                    || ABS(comp_r) <= comp_gate_r
 #endif
-                ) {
-                AUDIOFLINGER_TRACE(1, "break: comp_r=%d, dc_step_r=%d", comp_r, dc_step_r);
+               ) {
+                TRACE(1, "break: comp_r=%d, dc_step_r=%d", comp_r, dc_step_r);
                 break;
             }
         }
@@ -5426,13 +4846,13 @@ int af_codec_calib_dac_dc(enum AF_CODEC_CALIB_CMD_T calib_cmd,
             if (en_l) {
                 if (ABS(comp_l) > 5 * ABS(comp_old_l) && ABS(comp_l) > 5 * dc_step_l) {
                     comp_l = dc_step_l * ((comp_l > 0) ? 1 : -1);
-                    AUDIOFLINGER_TRACE(1, "[%u] ERROR: comp_l too large -- reset to %d", i, comp_l);
+                    TRACE(1, "[%u] ERROR: comp_l too large -- reset to %d", i, comp_l);
                 }
             }
             if (en_r) {
                 if (ABS(comp_r) > 5 * ABS(comp_old_r) && ABS(comp_r) > 5 * dc_step_r) {
                     comp_r = dc_step_r * ((comp_r > 0) ? 1 : -1);
-                    AUDIOFLINGER_TRACE(1, "[%u] ERROR: comp_r too large -- reset to %d", i, comp_r);
+                    TRACE(1, "[%u] ERROR: comp_r too large -- reset to %d", i, comp_r);
                 }
             }
         }
@@ -5476,7 +4896,7 @@ int af_codec_calib_dac_dc(enum AF_CODEC_CALIB_CMD_T calib_cmd,
 #endif
         hal_codec_dac_dc_offset_enable(val_l, val_r);
 #endif
-        AUDIOFLINGER_TRACE(1, "[%u] val_l=0x%08X val_r=0x%08X diff_l=%d diff_r=%d", i, val_l, val_r, diff_l, diff_r);
+        TRACE(1, "[%u] val_l=0x%08X val_r=0x%08X diff_l=%d diff_r=%d", i, val_l, val_r, diff_l, diff_r);
     }
 #endif /* AUDIO_OUTPUT_DIG_DC_DEEP_CALIB */
     if (calib_cmd == CODEC_CALIB_CMD_DIG_DC) {
@@ -5502,15 +4922,15 @@ int af_codec_calib_dac_dc(enum AF_CODEC_CALIB_CMD_T calib_cmd,
         }
 #endif
     }
-    AUDIOFLINGER_TRACE(1, "Final analog_gain: %d", cal_dac_ana_gain);
-    AUDIOFLINGER_TRACE(1, "Final comp_l=%d, comp_r=%d", comp_l, comp_r);
-    AUDIOFLINGER_TRACE(1, "Final diff_l=%d, diff_r=%d", diff_l, diff_r);
-    AUDIOFLINGER_TRACE(1, "Final val_l  =0x%08X val_r  =0x%08X", val_l, val_r);
+    TRACE(1, "Final analog_gain: %d", cal_dac_ana_gain);
+    TRACE(1, "Final comp_l=%d, comp_r=%d", comp_l, comp_r);
+    TRACE(1, "Final diff_l=%d, diff_r=%d", diff_l, diff_r);
+    TRACE(1, "Final val_l  =0x%08X val_r  =0x%08X", val_l, val_r);
 #ifdef AUDIO_OUTPUT_DC_CALIB_ANA
-    AUDIOFLINGER_TRACE(1, "Final efuse_l=0x%04X efuse_r=0x%04X", analog_aud_dc_calib_val_to_efuse(val_l), analog_aud_dc_calib_val_to_efuse(val_r));
+    TRACE(1, "Final efuse_l=0x%04X efuse_r=0x%04X", analog_aud_dc_calib_val_to_efuse(val_l), analog_aud_dc_calib_val_to_efuse(val_r));
 #endif
 
-    AUDIOFLINGER_TRACE(1, "\nGetting final values consumes %u ms\n", FAST_TICKS_TO_MS(hal_fast_sys_timer_get() - time));
+    TRACE(1, "\nGetting final values consumes %u ms\n", FAST_TICKS_TO_MS(hal_fast_sys_timer_get() - time));
 
     //hal_codec_set_dac_dc_offset(val_l, val_r);
     //hal_codec_dac_dc_offset_enable(val_l, val_r);
@@ -5561,18 +4981,13 @@ void af_register_enter_abnormal_state_callback(af_enter_abnormal_state_callback_
 
 static void af_supervisor_timer_cb(void const *n)
 {
-    for (uint8_t id = 0;id < AUD_STREAM_ID_NUM; id++)
-    {
-        for (uint8_t type = 0; type < AUD_STREAM_NUM; type++)
-        {
-            if (is_audio_stream_on[id][type])
-            {
+    for (uint8_t id = 0; id < AUD_STREAM_ID_NUM; id++) {
+        for (uint8_t type = 0; type < AUD_STREAM_NUM; type++) {
+            if (is_audio_stream_on[id][type]) {
                 af_supervisor_period_cnt_since_last_dma_irq[id][type]++;
                 if (af_supervisor_period_cnt_since_last_dma_irq[id][type] >=
-                    AF_SUPERVISOR_TIMOUT_PERIOD_CNT_SINCE_LAST_DMA_IRQ)
-                {
-                    if (af_enter_abnormal_state_cb_handler != NULL)
-                    {
+                        AF_SUPERVISOR_TIMOUT_PERIOD_CNT_SINCE_LAST_DMA_IRQ) {
+                    if (af_enter_abnormal_state_cb_handler != NULL) {
                         af_enter_abnormal_state_cb_handler(id, type);
                     }
                 }
@@ -5583,32 +4998,24 @@ static void af_supervisor_timer_cb(void const *n)
 
 static void af_update_stream_state(enum AUD_STREAM_ID_T streamId, enum AUD_STREAM_T streamType, bool isOn)
 {
-    if (is_audio_stream_on[streamId][streamType] ^ isOn)
-    {
+    if (is_audio_stream_on[streamId][streamType] ^ isOn) {
         is_audio_stream_on[streamId][streamType] = isOn;
         af_supervisor_period_cnt_since_last_dma_irq[streamId][streamType] = 0;
 
         uint8_t formerAliveStreamCount = alive_audio_stream_count;
 
-        if (isOn)
-        {
-            if (alive_audio_stream_count < (AUD_STREAM_ID_NUM * AUD_STREAM_NUM))
-            {
+        if (isOn) {
+            if (alive_audio_stream_count < (AUD_STREAM_ID_NUM * AUD_STREAM_NUM)) {
                 alive_audio_stream_count++;
 
-                if (0 == formerAliveStreamCount)
-                {
+                if (0 == formerAliveStreamCount) {
                     osTimerStart(af_supervisor_timer_id, AF_SUPERVISOR_PERIOD_IN_MS);
                 }
             }
-        }
-        else
-        {
-            if (alive_audio_stream_count > 0)
-            {
+        } else {
+            if (alive_audio_stream_count > 0) {
                 alive_audio_stream_count--;
-                if (0 == alive_audio_stream_count)
-                {
+                if (0 == alive_audio_stream_count) {
                     osTimerStop(af_supervisor_timer_id);
                 }
             }

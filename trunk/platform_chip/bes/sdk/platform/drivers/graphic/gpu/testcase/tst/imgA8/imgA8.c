@@ -6,6 +6,7 @@
 #include "vg_lite_util.h"
 #include "hal_trace.h"
 #include "gpu_common.h"
+#include "gpu_port.h"
 
 //#define GPU_INFO(...)
 #define GPU_INFO(...)  TR_INFO( TR_MOD(TEST), "//" __VA_ARGS__)
@@ -39,8 +40,10 @@ static int   fb_width = GPU_FB_WIDTH, fb_height = GPU_FB_HEIGHT;
 //static float fb_scale = 1.0f;
 
 static vg_lite_buffer_t buffer;     //offscreen framebuffer object for rendering.
+static vg_lite_buffer_t buffer_24;     //offscreen framebuffer object for rendering.
+static vg_lite_buffer_t buffer_a8;     //offscreen framebuffer object for rendering.
 //static vg_lite_buffer_t * sys_fb;   //system framebuffer object to show the rendering result.
-//static vg_lite_buffer_t * fb;
+static vg_lite_buffer_t * fb;
 
 vg_lite_matrix_t matrix;
 
@@ -711,10 +714,11 @@ static vg_lite_error_t render()
     unsigned char * ptr;
     int i;
 
-//    buffer.format = VG_LITE_RGB565;
-
-    buffer.format = VG_LITE_RGBA8888;
-    buffer.width = ALIGMENT(fb_width,64);
+    //buffer.format = VG_LITE_RGB565;
+    //buffer.format = VG_LITE_RGBA8888;
+    buffer.format = VG_LITE_RGB888;
+    //buffer.format = GPU_FB_FORMAT;
+    buffer.width = ALIGMENT(fb_width,16);
     buffer.height = fb_height;
     ptr = offscreenBuf.memory;
 
@@ -722,24 +726,72 @@ static vg_lite_error_t render()
     memset(offscreenBuf.memory,0,test_raster_stride*TEST_RASTER_HEIGHT);
     for(i = 0; i < TEST_RASTER_HEIGHT; i++)
     {
-        memcpy(ptr,&test_a8_raster[i*TEST_RASTER_OFFSET], TEST_RASTER_HEIGHT);
+        memcpy(ptr,&test_a8_raster[i*TEST_RASTER_OFFSET], TEST_RASTER_WIDTH);
         ptr += test_raster_stride;
     }
     CHECK_ERROR(vg_lite_allocate(&buffer));
+
+
+    buffer_a8.width  = fb_width;
+    buffer_a8.height = fb_height;
+    buffer_a8.format = VG_LITE_A8;
+    //buffer.format = GPU_FB_FORMAT;
+    CHECK_ERROR(vg_lite_allocate(&buffer_a8));
+
+    buffer_24.width  = fb_width;
+    buffer_24.height = fb_height;
+    buffer_24.format = VG_LITE_RGB888;
+    //buffer.format = GPU_FB_FORMAT;
+    CHECK_ERROR(vg_lite_allocate(&buffer_24));
+
     fb_imgA8_test = (char *)buffer.memory;
     //Clear surface with red
     CHECK_ERROR(vg_lite_clear( &buffer, NULL, 0xFF0000FF));
 
-    CHECK_ERROR(vg_lite_finish());
     vg_lite_identity(&matrix);
-    vg_lite_scale(1, 1, &matrix);
-//    vg_lite_scale(2, 2, &matrix);
-    vg_lite_translate(20.0f, 20.0f, &matrix);
-//    vg_lite_translate(0, 0, &matrix);
 
+    vg_lite_translate(0, fb_height/2.0f - offscreenBuf.height/2.0f, &matrix);
+
+    CHECK_ERROR(vg_lite_blit( &buffer, &offscreenBuf, &matrix, blend, 0xFF00FF00, VG_LITE_FILTER_POINT));
+
+    vg_lite_identity(&matrix);
+    vg_lite_translate(offscreenBuf.width, fb_height/2.0f - offscreenBuf.height/2.0f , &matrix);
+    vg_lite_scale(0.5f,0.5f, &matrix);
+    CHECK_ERROR(vg_lite_blit( &buffer, &offscreenBuf, &matrix, blend, 0xFF00FF00, VG_LITE_FILTER_POINT));
+
+    vg_lite_identity(&matrix);
+    vg_lite_translate(offscreenBuf.width*2, fb_height/2.0f - offscreenBuf.height/2.0f , &matrix);
+    CHECK_ERROR(vg_lite_blit( &buffer, &offscreenBuf, &matrix, blend, 0xFF00FF00, VG_LITE_FILTER_POINT));
+
+    vg_lite_identity(&matrix);
+    vg_lite_translate(offscreenBuf.width*3, fb_height/2.0f - offscreenBuf.height/2.0f , &matrix);
+    vg_lite_scale(0.5f,0.5f, &matrix);
     CHECK_ERROR(vg_lite_blit( &buffer, &offscreenBuf, &matrix, blend, 0xFF00FF00, VG_LITE_FILTER_POINT));
     CHECK_ERROR(vg_lite_finish());
 
+    fb = &buffer;
+    GPU_REP("%s fb mem w:%d h:%d", __func__, fb->width,fb->height);
+    GPU_REP("%s fb mem start:%p  end:%p", __func__, fb->memory, (uint32_t)(fb->memory) + fb->height * fb->stride );
+
+#ifdef PLD_PSRAMDUMP
+    set_pld_dump_mem_description(fb->memory, fb->height * fb->stride, 0, 1);
+    trigger_pld_dump_mem();
+#endif
+    vg_lite_identity(&matrix);
+    CHECK_ERROR(vg_lite_blit(&buffer_24, &buffer, &matrix, VG_LITE_BLEND_NONE, 0, VG_LITE_FILTER_POINT));
+    CHECK_ERROR(vg_lite_finish());
+
+    fb = &buffer_24;
+
+    GPU_REP("%s fb mem w:%d h:%d", __func__, fb->width,fb->height);
+    GPU_REP("%s fb mem start:%p  end:%p", __func__, fb->memory, (uint32_t)(fb->memory) + fb->height * fb->stride );
+
+#ifdef PLD_PSRAMDUMP
+    set_pld_dump_mem_description(fb->memory, fb->height * fb->stride, 1, 1);
+    trigger_pld_dump_mem();
+#else
+    vg_lite_save_raw("imga8.raw", &buffer);
+#endif   // while(1);
 ErrorHandler:
     return error;
 }
@@ -747,7 +799,7 @@ ErrorHandler:
 int imgA8_test_main_entry(int argc, const char * argv[])
 {
     vg_lite_error_t error;
-    DRIVERS_TRACE(0,"%s", __func__);
+    GPU_REP("%s", __func__);
 
     CHECK_ERROR(init_vg_lite());
 
@@ -762,6 +814,6 @@ int imgA8_test_main_entry(int argc, const char * argv[])
 
 ErrorHandler:
     cleanup();
-    DRIVERS_TRACE(0,"%s test pass", __func__);
+    GPU_REP("%s test pass", __func__);
     return 0;
 }

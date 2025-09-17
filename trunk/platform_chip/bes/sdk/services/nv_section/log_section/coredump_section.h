@@ -23,10 +23,13 @@
 extern "C" {
 #endif
 
+#define CRASH_MAGIC 0x11223344
+
 void coredump_to_flash_init();
 void core_dump_erase_section();
 int32_t core_dump_write_large(const uint8_t* ptr,uint32_t len);
 int32_t core_dump_write(const uint8_t* ptr,uint32_t len);
+int32_t core_dump_read_data(uint8_t *ptr, uint32_t len, uint32_t offset);
 
 #if defined(__cplusplus)
 }

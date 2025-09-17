@@ -19,7 +19,7 @@
 
 .globl __tiger_fbdata_start_flash
 .globl __tiger_fbdata_end_flash
-.section .rodata, "a", %progbits
+.section .flash_nc_rodata_tiger, "a", %progbits
 .balign 4
 
 __tiger_fbdata_start_flash:

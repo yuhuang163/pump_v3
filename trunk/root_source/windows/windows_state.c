@@ -35,35 +35,7 @@ void set_is_playing_rt_ani(bool flag)
     thiz->priv.is_playing_realtime_ani = flag;
 }
 
-const char *to_window_name(uint8_t window_id) 
-{
-    switch (window_id) {
-        case ID_WINDOW_DUMMY:
-            return "dummy";
-        case ID_WINDOW_LOGO:
-            return "logo";
-        case ID_WINDOW_GUIDE:
-            return "guide";
-        case ID_WINDOW_CHARGE:
-            return "charging";
-        case ID_WINDOW_BATTERY:
-            return "battery";
-        case ID_WINDOW_BREATH_PUMP:
-            return "breath_pump";
-        case ID_WINDOW_SETTINGS:
-            return "setting";
-        case ID_WINDOW_OTA_UPGRADE:
-            return "ota_upgrade";
-        case ID_WINDOW_FACTORY_MODE:
-            return "factory_mode";
-        case ID_WINDOW_POPUP_WINDOW:
-            return "popup_window";
-        case ID_WINDOW_AIRPLANE_MODE:
-            return "airplane_mode";
-        default:
-            return "unknow";
-    }
-}
+
 
 bool is_window_backlight_on(void)
 {

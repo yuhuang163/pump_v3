@@ -24,6 +24,9 @@
 #include <stdbool.h>       // boolean definitions
 #include <stdlib.h>        // standard library
 
+#include "compiler.h"      // for __INLINE
+#include "arch.h"          // for ASSERT_ERR
+
 #define CO_BIT(pos) (1UL<<(pos))
 
 #define CO_BIT_GET(bf, pos) (((((uint8_t*)bf)[((pos) >> 3)])>>((pos) & 0x7)) & 0x1)
@@ -58,6 +61,7 @@
 /// @param[in] __v value to put in field
 #define SETF(__r, __f, __v)                                                      \
     do {                                                                         \
+        ASSERT_INFO( ( ( ( (__v) << (__f##_LSB) ) & ( ~(__f##_MASK) ) ) ) == 0 ,(__f##_MASK), (__v)); \
         __r = (((__r) & ~(__f##_MASK)) | (__v) << (__f##_LSB));                  \
     } while (0)
 
@@ -74,6 +78,7 @@
 /// @param[in] __v value to put in field
 #define SETB(__r, __b, __v)                                                      \
     do {                                                                         \
+        ASSERT_ERR( ( ( ( (__v ? 1 : 0) << (__b##_POS) ) & ( ~(__b##_BIT) ) ) ) == 0 ); \
         __r = (((__r) & ~(__b##_BIT)) | (__v ? 1 : 0) << (__b##_POS));                  \
     } while (0)
 
@@ -111,14 +116,15 @@
     if((_val) < (_sub)) (_val) += _max;   \
     (_val) = (_val) - (_sub)
 
-static inline uint32_t co_mod(uint32_t val, uint32_t div)
+static __INLINE uint32_t co_mod(uint32_t val, uint32_t div)
 {
+    ASSERT_ERR(div);
     return ((val) % (div));
 }
 
 #define CO_MOD(val, div) co_mod(val, div)
 
-inline uint32_t co_clz(uint32_t val)
+__INLINE uint32_t co_clz(uint32_t val)
 {
 #if defined(__arm__)
     return __builtin_clz(val);
@@ -141,7 +147,7 @@ inline uint32_t co_clz(uint32_t val)
 #endif // defined(__arm__)
 }
 
-inline uint32_t co_ctz(uint32_t val)
+__INLINE uint32_t co_ctz(uint32_t val)
 {
 #if defined(__arm__)
     return __builtin_ctz(val);
@@ -164,27 +170,27 @@ inline uint32_t co_ctz(uint32_t val)
 #endif // defined(__arm__)
 }
 
-inline uint32_t co_min(uint32_t a, uint32_t b)
+__INLINE uint32_t co_min(uint32_t a, uint32_t b)
 {
     return a < b ? a : b;
 }
 
-inline int32_t co_min_s(int32_t a, int32_t b)
+__INLINE int32_t co_min_s(int32_t a, int32_t b)
 {
     return a < b ? a : b;
 }
 
-inline uint32_t co_max(uint32_t a, uint32_t b)
+__INLINE uint32_t co_max(uint32_t a, uint32_t b)
 {
     return a > b ? a : b;
 }
 
-inline int co_abs(int val)
+__INLINE int co_abs(int val)
 {
     return (val < 0) ? (0 - val) : val;
 }
 
-static inline uint8_t co_bit_cnt(const uint8_t *p_val, uint8_t size)
+static __INLINE uint8_t co_bit_cnt(const uint8_t *p_val, uint8_t size)
 {
     uint8_t nb_bit = 0;
 

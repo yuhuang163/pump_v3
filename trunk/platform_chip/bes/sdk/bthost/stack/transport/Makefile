@@ -6,42 +6,34 @@ obj_c := $(patsubst $(cur_dir)%,%,$(wildcard $(cur_dir)hci_transport.c))
 obj_c += $(patsubst $(cur_dir)%,%,$(wildcard $(cur_dir)hci.c))
 
 ifeq ($(IBRT), 1)
-GEN_LIB_NAME := ibrt_libbt_hci
+BTHCI_LIB_NAME := ibrt_libbt_hci
 else
-GEN_LIB_NAME := $(CHIP)_libbt_hci
+BTHCI_LIB_NAME := $(CHIP)_libbt_hci
 endif
 
-ifeq ($(HFP_1_9_ENABLE), 1)
-GEN_LIB_NAME := $(GEN_LIB_NAME)_sbc_enc
+ifeq ($(HFP_1_6_ENABLE), 1)
+BTHCI_LIB_NAME := $(BTHCI_LIB_NAME)_sbc_enc
 endif
 
 ifeq ($(BTH_IN_ROM),1)
-GEN_LIB_NAME := $(GEN_LIB_NAME)_romaac
+BTHCI_LIB_NAME := $(BTHCI_LIB_NAME)_romaac
 endif
 
-ifeq ($(BT_RF_PREFER), 2M)
-GEN_LIB_NAME := $(GEN_LIB_NAME)_2m
+ifeq ($(BLE),1)
+BTHCI_LIB_NAME := $(BTHCI_LIB_NAME)_ble
 endif
 
-ifeq ($(BT_RF_PREFER), 3M)
-GEN_LIB_NAME := $(GEN_LIB_NAME)_3m
+ifeq ($(USE_TRACE_ID), 1)
+BTHCI_LIB_NAME := $(BTHCI_LIB_NAME)_log_compressed
 endif
 
 ifeq ($(BLE_AUDIO_ENABLED), 1)
-GEN_LIB_NAME := $(GEN_LIB_NAME)_aob
+BTHCI_LIB_NAME := $(BTHCI_LIB_NAME)_aob
 endif
 
-ifeq ($(ARM_CMNS), 1)
-GEN_LIB_NAME := $(GEN_LIB_NAME)_ARM_CMNS
-endif
+$(BTHCI_LIB_NAME)-y := $(obj_c:.c=.o)
 
-ifeq ($(mHDT_LE_SUPPORT),1)
-GEN_LIB_NAME := $(GEN_LIB_NAME)_mhdt
-endif
-
-$(GEN_LIB_NAME)-y := $(obj_c:.c=.o)
-
-obj-y := $(GEN_LIB_NAME).a
+obj-y := $(BTHCI_LIB_NAME).a
 
 CFLAGS_hci.o += -DBESLIB_INFO=$(BESLIB_INFO)
 
@@ -52,10 +44,8 @@ ccflags-y += \
 	-Iutils/cqueue/ \
 	-Iplatform/drivers/bt/ \
 	-Iservices/osif/ \
-	-Iservices/audio_manager/ \
 	-Iapps/common/ \
 	-Iutils/heap/ \
-	-Ibthost/stack/common \
 	-Ibthost/stack/common/patch \
 	$(BLUETOOTH_ADAPTER_INCLUDES) \
 	$(BES_BT_IMPL_INCLUDES) \

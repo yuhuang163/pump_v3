@@ -18,6 +18,7 @@
  ****************************************************************************/
 #ifndef __BAP_BC_SCAN_INC__
 #define __BAP_BC_SCAN_INC__
+#include "bluetooth.h"
 
 #include "bap_broadcast_common.h"
 #include "public_broadcast_audio.h"
@@ -105,12 +106,12 @@ int bap_bc_scan_callback_unregister(bap_bc_common_user_e user);
  *
  * @param  timeout_10ms
  *                     Timeout 10ms
- * @param  filter_policy
- *                     scanning filter policy
+ * @param  use_filter_list
+ *                     Use filter list or not
  *
  * @return int         status
  */
-int bap_bc_scan_start_scan(uint16_t timeout_10ms, uint8_t filter_policy);
+int bap_bc_scan_start_scan(uint16_t timeout_10ms, bool use_filter_list);
 
 /**
  * @brief BAP broadcast Scan Stop scan
@@ -126,12 +127,10 @@ int bap_bc_scan_stop_scan(void);
  * @param  skip        Skip event
  * @param  timeout_10ms
  *                     Sync timeput 10ms
- * @param  wait_sync_estb_to_10ms
- *                     Wait PA Sync estb timeput 10ms, 0 means no wait
  *
  * @return int         status
  */
-int bap_bc_scan_sync_pa(const bap_bc_pa_addr_t *p_pa_addr, uint16_t skip, uint16_t timeout_10ms, uint16_t wait_sync_estb_to_10ms);
+int bap_bc_scan_sync_pa(const bap_bc_pa_addr_t *p_pa_addr, uint16_t skip, uint16_t timeout_10ms);
 
 /**
  * @brief BAP broadcast Cancel Scan Sync PA
@@ -140,18 +139,6 @@ int bap_bc_scan_sync_pa(const bap_bc_pa_addr_t *p_pa_addr, uint16_t skip, uint16
  *                      generate estb event with err 0x44
  */
 void bap_bc_scan_cancel_sync_pa(void);
-
-/**
- * @brief BAP broadcast Control PA report
- *
- * @param  pa_sync_hdl PA sync handle
- * @param  enable      Enable or not enable report
- * @param  filter_duplicated
- *                     Filter duplicated packet according to ADI if support
- *
- * @return int         status
- */
-int bap_bc_scan_pa_receive_enable(uint16_t pa_sync_hdl, bool enable, bool filter_duplicated);
 
 /**
  * @brief BAP broadcast Scan PA sync terminate

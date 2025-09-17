@@ -39,6 +39,13 @@ extern "C" {
 #if defined(CHIP_BEST1000) || defined(CHIP_BEST2000) || defined(CHIP_BEST2300) || defined(CHIP_BEST2300P) || \
     defined(CHIP_BEST2300A) || defined(CHIP_BEST2300A)
 #define BTDRV_ISPI_RF_REG(reg)                  (reg)
+#elif defined(CHIP_BEST1700)
+#define BTDRV_ISPI_RF_REG(r)                           (((r) & 0x3FF) | (0 << 10) | 0x2000)
+#define BTDRV_ISPI_RF1_REG(r)                          (((r) & 0x3FF) | (1 << 10) | 0x2000)
+#define BTDRV_ISPI_RF2_REG(r)                          (((r) & 0x3FF) | (2 << 10) | 0x2000)
+#define BTDRV_ISPI_RF3_REG(r)                          (((r) & 0x3FF) | (3 << 10) | 0x2000)
+#elif defined(CHIP_BEST2007) || defined(CHIP_BEST2007H) || defined(CHIP_BEST2007P)
+#define BTDRV_ISPI_RF_REG(r)                           (((r) & 0xF3FF) | 0x800)
 #else
 #define BTDRV_ISPI_RF_REG(reg)                  (((reg) & 0xFFF) | 0x2000)
 #endif
@@ -65,8 +72,38 @@ extern "C" {
 #define MSBC_MUTE_PATTERN (0x55)
 #endif
 
+#if defined(CHIP_BEST1700)
+#define btdrv_read_rf_reg(reg,val)\
+                                do{ \
+                                    uint16_t page = (reg & 0x3000) >> 12; \
+                                    if (page == 0) { \
+                                        hal_analogif_reg_read(BTDRV_ISPI_RF_REG(reg),val); \
+                                    } else if(page == 1) { \
+                                        hal_analogif_reg_read(BTDRV_ISPI_RF1_REG(reg),val); \
+                                    } else if(page == 2) { \
+                                        hal_analogif_reg_read(BTDRV_ISPI_RF2_REG(reg),val); \
+                                    } else if(page == 3) { \
+                                        hal_analogif_reg_read(BTDRV_ISPI_RF3_REG(reg),val); \
+                                    }\
+                                }while(0)
+
+#define btdrv_write_rf_reg(reg,val)\
+                                do{ \
+                                    uint16_t page = (reg & 0x3000) >> 12; \
+                                    if (page == 0) { \
+                                        hal_analogif_reg_write(BTDRV_ISPI_RF_REG(reg),val); \
+                                    } else if(page == 1) { \
+                                        hal_analogif_reg_write(BTDRV_ISPI_RF1_REG(reg),val); \
+                                    } else if(page == 2) { \
+                                        hal_analogif_reg_write(BTDRV_ISPI_RF2_REG(reg),val); \
+                                    } else if(page == 3) { \
+                                        hal_analogif_reg_write(BTDRV_ISPI_RF3_REG(reg),val); \
+                                    }\
+                                }while(0)
+#else
 #define btdrv_read_rf_reg(reg,val)              hal_analogif_reg_read(BTDRV_ISPI_RF_REG(reg),val)
 #define btdrv_write_rf_reg(reg,val)             hal_analogif_reg_write(BTDRV_ISPI_RF_REG(reg),val)
+#endif
 
 #define btdrv_delay(ms)                         hal_sys_timer_delay(MS_TO_TICKS(ms))
 #define btdrv_delay_us(us)                         hal_sys_timer_delay(US_TO_TICKS(us))
@@ -113,15 +150,17 @@ extern "C" {
 
 #define BT_DRV_DEBUG  1
 #if BT_DRV_DEBUG
-#define BT_DRV_DUMP(s,buff,len) DRIVERS_DUMP8(s,buff,len)
+#define BT_DRV_TRACE(n, fmt, ...) TRACE(n, fmt, ##__VA_ARGS__)
+#define BT_DRV_DUMP(s,buff,len) DUMP8(s,buff,len)
 #ifndef TOTA_CRASH_DUMP_TOOL_ENABLE
-#define BT_TRACE_CRASH_DUMP(n, fmt, ...)  DRIVERS_TRACE(n, fmt, ##__VA_ARGS__)
+#define BT_DRV_TRACE_CRASH_DUMP(n, fmt, ...)  TRACE(n, fmt, ##__VA_ARGS__)
 #else
-#define BT_TRACE_CRASH_DUMP(n, fmt, ...)  REL_TRACE_IMM(n, fmt, ##__VA_ARGS__)
+#define BT_DRV_TRACE_CRASH_DUMP(n, fmt, ...)  REL_TRACE_IMM(n, fmt, ##__VA_ARGS__)
 #endif
 #else
+#define BT_DRV_TRACE(n, fmt, ...) hal_trace_dummy(NULL, ##__VA_ARGS__)
 #define BT_DRV_DUMP(s,buff,len)
-#define BT_TRACE_CRASH_DUMP(n, fmt, ...) hal_trace_dummy(NULL, ##__VA_ARGS__)
+#define BT_DRV_TRACE_CRASH_DUMP(n, fmt, ...) hal_trace_dummy(NULL, ##__VA_ARGS__)
 #endif
 
 #ifndef HCI_HOST_NB_CMP_PKTS_CMD_OPCODE

@@ -18,6 +18,7 @@
  ****************************************************************************/
 #ifndef __BAP_BC_SINK_INC__
 #define __BAP_BC_SINK_INC__
+#include "bluetooth.h"
 
 #include "bap_broadcast_common.h"
 
@@ -98,7 +99,6 @@ int bap_bc_sink_callback_register(bap_bc_common_user_e user, const bap_bc_sink_c
  */
 int bap_bc_sink_callback_unregister(bap_bc_common_user_e user);
 
-
 /**
  * @brief BAP broadcast SINK sync BIG
  *
@@ -110,14 +110,10 @@ int bap_bc_sink_callback_unregister(bap_bc_common_user_e user);
  * @param  bis_idx     BIS index list
  * @param  broadcast_code
  *                     Broadcast Code to decrypt BIG
- * @param  wait_big_sync_estb_to_10ms
- *                     Wait BIG sync estb timeout 10ms, 0 means no wait
  *
  * @return int         status
  */
-int bap_bc_sink_sync_big(uint16_t pa_sync_hdl, uint16_t timeout_10ms, uint8_t mse, uint8_t bis_cnt, 
-                         const uint8_t *bis_idx, const uint8_t *broadcast_code,
-                         uint16_t wait_big_sync_estb_to_10ms);
+int bap_bc_sink_sync_big(uint16_t pa_sync_hdl, uint16_t timeout_10ms, uint8_t mse, uint8_t bis_cnt, const uint8_t *bis_idx, const uint8_t *broadcast_code);
 
 /**
  * @brief BAP broadcast SINK BIG sync terminate
@@ -127,15 +123,6 @@ int bap_bc_sink_sync_big(uint16_t pa_sync_hdl, uint16_t timeout_10ms, uint8_t ms
  * @return int         status
  */
 int bap_bc_sink_termiante_big_sync(uint8_t big_id);
-
-/**
- * @brief BAP broadcast SINK BIG sync terminate by pa sync handle
- *
- * @param  sync_hdl    PA sync handle
- *
- * @return int         status
- */
-int bap_bc_sink_termiante_big_sync_by_sync_hdl(uint16_t sync_hdl);
 
 /**
  * @brief BAP broadcast SINK setup iso datapath

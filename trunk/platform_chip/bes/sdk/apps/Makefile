@@ -1,25 +1,36 @@
-obj-y := audioplayers/ common/ main/ key/ pwl/ battery/ factory/ cmd/ mic/ app_test/audio_test/ bt_sync/ btapp/
+obj-y := common/ main/ key/ battery/ pwl/ cmd/
 
-ifeq ($(CAPSENSOR_ENABLE),1)
+ifneq ($(BTH_SUBSYS_ONLY),1)
+obj-y += \
+    audioplayers/   \
+    audio_test/
+endif
+
+ifeq ($(FACTORY_MODE),1)
+obj-y += factory/
+endif
+
 ifeq ($(CAPSENSOR_SPP_SERVER),1)
 obj-y += app_spp/
 endif
-endif
 
 ifeq ($(APP_TEST_AUDIO),1)
-obj-y += app_test/apptester/
+obj-y += apptester/
 endif
 
-ifeq ($(A2DP_KARAOKE),1)
-obj-y +=  karaoke/
+ifneq ($(filter 1,$(BTUSB_AUDIO_MODE) $(BT_USB_AUDIO_DUAL_MODE) $(BLE_USB_AUDIO_SUPPORT)),)
+obj-y += usbaudio/
 endif
 
-ifeq ($(BTUSB_AUDIO_MODE),1)
-obj-y += usbaudio/
+ifeq ($(BLE), 1)
+ifeq ($(BLE_AUDIO_ENABLED),1)
+obj-y += ble_audio_test/
 endif
-ifeq ($(BT_USB_AUDIO_DUAL_MODE),1)
-obj-y += btusbaudio/
-obj-y += usbaudio/
+endif
+
+ifeq ($(USB_DISK_TEST),1)
+obj-y += usbhost/
+ccflags-y += -DUSB_DISK_TEST
 endif
 
 ifeq ($(APP_TEST_SDMMC),1)
@@ -30,13 +41,17 @@ ifeq ($(MSD_MODE),1)
 obj-y += sdmmc_msd/
 endif
 
+ifeq ($(PSAP_SW_APP),1)
+obj-y += psap_sw/
+endif
+
 ifeq ($(ANC_APP),1)
 obj-y += anc/
 endif
 
 ifeq ($(ANC_ASSIST_ENABLED),1)
+obj-y += anc_assist/
 obj-y += voice_assist/
-obj-y += anc/src/assist/
 endif
 
 ifeq ($(VOICE_DETECTOR_EN),1)
@@ -47,8 +62,20 @@ ifeq ($(SENSOR_HUB),1)
 obj-y += sensorhub/
 endif
 
+ifeq ($(DSP_HIFI4),1)
+obj-y += dsp_hifi4/
+endif
+
 ifeq ($(DSP_M55),1)
 obj-y += dsp_m55/
+endif
+
+ifeq ($(DMA_AUDIO_APP)-$(DMA_RPC_CLI),1-1)
+obj-y += ../services/dma_audio/app/
+endif
+
+ifeq ($(MTEST_BUILTIN),1)
+obj-y += mem_scan/
 endif
 
 ifeq ($(AUDIO_HEARING_COMPSATN),1)
@@ -74,22 +101,39 @@ ifeq ($(APP_SOUND_ENABLE),1)
 obj-y += sound/
 endif
 
+ifeq ($(BLE_WALKIE_TALKIE),1)
+obj-y += ble_walkie_talkie/
+endif
+
+ifeq ($(BTH_IF_COMM_RPC_EN),1)
+obj-y += bth_if/
+endif
+
+ifeq ($(A7_DSP_ENABLE),1)
+obj-y += mic/
+endif
+
+ifeq ($(VOWLAN_SUPPORT),1)
+obj-y += vowlan/
+endif
+
+ifeq ($(WIRELESS_MIC),1)
+obj-y += wireless_mic/
+endif
+
 ifeq ($(BES_OTA),1)
 obj-y += ota/
 endif
 
-# include earbud in default
+ifeq ($(ANDROID_TEST),1)
+obj-y += android_test/
+endif
 
-ifeq ($(BT_SVC_FW_PRODUCT),BT_SVC_FW_PRODUCT_EARBUDS)
+# include earbud in default
+ifneq ($(BT_WATCH_APP),1)
+ifeq ($(IBRT_UI),1)
 obj-y += earbuds/
 endif
-
-ifeq ($(BT_SVC_FW_PRODUCT),BT_SVC_FW_PRODUCT_DONGLE)
-#obj-y += dongle/
-endif
-
-ifeq ($(BT_SVC_FW_PRODUCT),BT_SVC_FW_PRODUCT_HEADSET)
-obj-y += headset/
 endif
 
 export APP_SPP_DEMO ?= 0
@@ -97,11 +141,7 @@ ifeq ($(APP_SPP_DEMO),1)
 obj-y += example/app_spp/
 endif
 
-ifeq ($(HEAD_TRACK_ENABLE),1)
-obj-y += head_track_3dof/
-endif
-
-subdir-ccflags-y += -Iapps/app_test/apptester \
+subdir-ccflags-y += -Iapps/apptester \
 					-Iapps/audioplayers \
 					-Iapps/anc/inc \
 					-Iapps/voice_assist/inc \
@@ -113,23 +153,25 @@ subdir-ccflags-y += -Iapps/app_test/apptester \
 					-Iapps/key \
 					-Iapps/pwl \
 					-Iapps/battery \
+					-Iservices/voicepath \
 					-Iservices/audio_dump/include \
 					$(BLUETOOTH_ADAPTER_INCLUDES) \
-					$(BT_SERVICE_UX_INCLUDES) \
-					-Iutils/list \
 					-Iutils/heap \
-					-Iservices/audio_manager \
-					-Imultimedia/inc/audio/process/filters/include\
-					-Ibthost/service/ble_app_new/inc
+					-Imultimedia/inc/audio/process/filters/include 
 
 ifeq ($(BT_USB_AUDIO_DUAL_MODE),1)
-subdir-ccflags-y += -Iapps/btusbaudio
+subdir-ccflags-y += -Iapps/usbaudio/bt_usb_audio
 endif
 
 ifeq ($(A2DP_LDAC_ON),1)
 subdir-ccflags-y += -Ithirdparty/audio_codec_lib/ldac/inc
 endif
 
-ifeq ($(HEAD_TRACK_ENABLE),1)
-subdir-ccflags-y += -Imultimedia/audio/process/head_track
+ifneq ($(HCI_BRIDGE_MODE),0)
+subdir-ccflags-y += -Iapps/common/hci_bridge
+endif
+
+ifeq ($(APP_SAMPLES),1)
+obj-y += samples/
+subdir-ccflags-y += -Iapps/samples
 endif

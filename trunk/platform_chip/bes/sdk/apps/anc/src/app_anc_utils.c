@@ -68,7 +68,7 @@ int32_t app_anc_utils_init(void)
 
 int32_t app_anc_reset_gain(enum ANC_TYPE_T type, float gain_l, float gain_r)
 {
-    ANC_TRACE(0, "[%s] type: %d, gain_l: %d, gain_r: %d", __func__, anc_type_to_index(type), (int32_t)(gain_l * 100), (int32_t)(gain_r * 100));
+    TRACE(0, "[%s] type: %d, gain_l: %d, gain_r: %d", __func__, anc_type_to_index(type), (int32_t)(gain_l * 100), (int32_t)(gain_r * 100));
 
     uint32_t lock = int_lock();
     uint32_t index = anc_type_to_index(type);
@@ -83,14 +83,14 @@ int32_t app_anc_reset_gain(enum ANC_TYPE_T type, float gain_l, float gain_r)
 
 int32_t app_anc_dump_gain(void)
 {
-    ANC_TRACE(0, "#################### %s ####################", __func__);
+    TRACE(0, "#################### %s ####################", __func__);
     for (uint32_t index=0; index<ANC_TYPE_NUM; index++) {
-        ANC_TRACE(0, "-------------------- Type: %d --------------------", index);
+        TRACE(0, "-------------------- Type: %d --------------------", index);
         for (uint32_t user=0; user<ANC_GAIN_USER_QTY; user++) {
-            ANC_TRACE(0, "%d: %d,\t%d", user, (int32_t)(g_anc_gain[user][index][ANC_CHANNEL_LEFT] * 100), (int32_t)(g_anc_gain[user][index][ANC_CHANNEL_RIGHT] * 100));
+            TRACE(0, "%d: %d,\t%d", user, (int32_t)(g_anc_gain[user][index][ANC_CHANNEL_LEFT] * 100), (int32_t)(g_anc_gain[user][index][ANC_CHANNEL_RIGHT] * 100));
         }
     }
-    ANC_TRACE(0, "#################### END ####################");
+    TRACE(0, "#################### END ####################");
 
     return 0;
 }
@@ -177,7 +177,7 @@ int32_t app_anc_get_gain_f32(anc_gain_user_t user, enum ANC_TYPE_T type, float *
 
 int32_t app_anc_set_global_gain_f32(enum ANC_TYPE_T type, float gain_l, float gain_r)
 {
-    ANC_TRACE(3, "[%s] type: 0x%x, gain(x100): %d, %d", __func__, type, (int32_t)(gain_l * 100), (int32_t)(gain_r * 100));
+    TRACE(3, "[%s] type: 0x%x, gain(x100): %d, %d", __func__, type, (int32_t)(gain_l * 100), (int32_t)(gain_r * 100));
 
     uint32_t lock = int_lock();
     uint32_t index = anc_type_to_index(type);
@@ -200,12 +200,23 @@ int32_t app_anc_get_global_gain_f32(enum ANC_TYPE_T type, float *gain_l, float *
 
     return 0;
 }
+
 // ******************** SYNC ********************
 int32_t app_anc_sync_set_psap_bands_gain(float gain_l, float gain_r, uint32_t index_start, uint32_t index_end)
 {
     app_anc_sync_psap_bands_gain(gain_l, gain_r, index_start, index_end);
 #if defined(PSAP_APP)
     psap_set_bands_same_gain_f32(gain_l, gain_r, index_start, index_end);
+#endif
+
+    return 0;
+}
+
+int32_t app_anc_sync_set_psap_bands_gain_array(float *gain)
+{
+    app_anc_sync_psap_bands_gain_array(gain);
+#if defined(PSAP_APP)
+    psap_set_bands_gain_f32(gain, NULL);
 #endif
 
     return 0;

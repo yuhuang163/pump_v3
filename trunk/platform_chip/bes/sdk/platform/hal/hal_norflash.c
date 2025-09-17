@@ -43,18 +43,13 @@
  *  memset(data, 0xcc, 1024);
  *  hal_norflash_write(HAL_I2C_ID_0, 0, data, 1024);
  *  for (i = 0; i < 10; ++i) {
- *      HAL_TRACE(2,"[0x%x] - 0x%x\n", 0x08000000 + i, *((volatile uint8_t *)(0x08000000 + i)));
+ *      TRACE(2,"[0x%x] - 0x%x\n", 0x08000000 + i, *((volatile uint8_t *)(0x08000000 + i)));
  *  }
 */
 
-#if defined(ARM_CMSE) || (defined(FLASH_LOCK_CP_ACCESS) && defined(CP_IN_SAME_EE) && (CHIP_FLASH_CTRL_VER >= 4))
-#define FLASH_MEM_READ_BUS_LOCK
+// ARM_CMSE on best1306/best1501/best1502x cannot access flash mem space
+#if (defined(ARM_CMSE) || defined(FLASH_MEM_READ_BUS_LOCK)) && !defined(FLASH_SEC_REG_FIFO_READ)
 #define FLASH_SEC_REG_FIFO_READ
-#endif
-
-#if (defined(ROM_BUILD) || defined(PROGRAMMER) || defined(NANDFLASH_BUILD) || defined(SUBSYS_FLASH_BOOT)) && \
-        !(defined(PROGRAMMER_INFLASH) || defined(FLASH_CALIB_MAGIC_WORD))
-#define FLASH_CALIB_FLASH_ID_ONLY
 #endif
 
 #define HAL_NORFLASH_CP_ID_LEN              2
@@ -152,18 +147,20 @@ static const struct HAL_NORFLASH_CONFIG_T norflash_cfg = {
 #endif
             0,
     .opt =  HAL_NORFLASH_OPT_CALIB_FLASH_ID |
-#ifndef FLASH_CALIB_FLASH_ID_ONLY
+#if defined(FLASH_CALIB_MAGIC_WORD) && defined(FLASH_INIT_CALIB_MAGIC_WORD)
             HAL_NORFLASH_OPT_CALIB_MAGIC_WORD |
 #endif
-#if !(defined(ROM_BUILD) || (defined(PROGRAMMER) && !defined(PROGRAMMER_INFLASH)) || defined(NANDFLASH_BUILD))
-          // HAL_NORFLASH_OPT_CALIB_SEQ_PATTERN |
-
+#if defined(FLASH_CALIB_SEQ_PATTERN) && defined(FLASH_INIT_CALIB_SEQ_PATTERN)
+            HAL_NORFLASH_OPT_CALIB_SEQ_PATTERN |
 #endif
 #if defined(FLASH_DUAL_CHIP) && defined(FLASH_DUAL_CHIP_INIT_ON)
             HAL_NORFLASH_OPT_DUAL_CHIP |
 #if defined(FLASH_SECURITY_REGISTER) && defined(FLASH_SEC_REG_DUAL_CHIP)
             HAL_NORFLASH_OPT_SEC_REG_DUAL_CHIP |
 #endif
+#endif
+#if defined(FLASH_DEC_ENABLE) && defined(FLASH_DEC_INIT_ON)
+            HAL_NORFLASH_OPT_DECODE |
 #endif
             0,
 };
@@ -177,6 +174,35 @@ static const uint32_t norflash_base[HAL_FLASH_ID_NUM][4] = {
     { FLASH2_BASE, FLASH2X_BASE, FLASH2_NC_BASE, FLASH2X_NC_BASE, },
 #endif
 };
+
+STATIC_ASSERT((FLASH_BASE & HAL_NORFLASH0_ADDR_MASK) == 0, "Bad FLASH_BASE");
+#ifdef FLASH1_CTRL_BASE
+STATIC_ASSERT((FLASH1_BASE & HAL_NORFLASH1_ADDR_MASK) == 0, "Bad FLASH1_BASE");
+#endif
+#ifdef FLASH2_CTRL_BASE
+STATIC_ASSERT((FLASH2_BASE & HAL_NORFLASH2_ADDR_MASK) == 0, "Bad FLASH2_BASE");
+#endif
+#ifndef CHIP_BEST1501SIMU
+STATIC_ASSERT((FLASH_SIZE & (FLASH_SIZE - 1)) == 0, "Bad FLASH_SIZE");
+#if defined(FLASH1_CTRL_BASE) && defined(FLASH1_SIZE)
+STATIC_ASSERT((FLASH1_SIZE & (FLASH1_SIZE - 1)) == 0, "Bad FLASH1_SIZE");
+#endif
+#if defined(FLASH2_CTRL_BASE) && defined(FLASH2_SIZE)
+STATIC_ASSERT((FLASH2_SIZE & (FLASH2_SIZE - 1)) == 0, "Bad FLASH2_SIZE");
+#endif
+#endif
+
+#ifdef HAL_NORFLASH_ADDR_MASK_BY_CTRL_ID
+static const uint32_t norflash_addr_mask[] = {
+    HAL_NORFLASH0_ADDR_MASK,
+#ifdef FLASH1_CTRL_BASE
+    HAL_NORFLASH1_ADDR_MASK,
+#endif
+#ifdef FLASH2_CTRL_BASE
+    HAL_NORFLASH2_ADDR_MASK,
+#endif
+};
+#endif
 
 #ifdef FLASH_SUSPEND
 enum SUSPEND_STATE_T {
@@ -202,6 +228,15 @@ static uint16_t sec_reg_pp_size[HAL_FLASH_ID_NUM];
 static bool sec_reg_enabled[HAL_FLASH_ID_NUM];
 #endif
 
+__STATIC_FORCEINLINE uint32_t norflash_get_addr_mask(enum HAL_FLASH_ID_T id)
+{
+#ifdef HAL_NORFLASH_ADDR_MASK_BY_CTRL_ID
+    return norflash_addr_mask[id];
+#else
+    return HAL_NORFLASH_ADDR_MASK;
+#endif
+}
+
 enum HAL_CMU_FREQ_T hal_norflash_clk_to_cmu_freq(uint32_t clk)
 {
     enum HAL_CMU_FREQ_T freq;
@@ -218,22 +253,6 @@ enum HAL_CMU_FREQ_T hal_norflash_clk_to_cmu_freq(uint32_t clk)
         freq = HAL_CMU_FREQ_26M;
     }
 
-#if defined(CHIP_BEST1000) && defined(AUD_PLL_DOUBLE)
-    if (freq == HAL_CMU_FREQ_208M) {
-        freq = HAL_CMU_FREQ_104M;
-    }
-#endif
-#ifdef SIMU
-#ifdef SIMU_FAST_FLASH
-#define MAX_SIMU_FLASH_FREQ     HAL_CMU_FREQ_104M
-#else
-#define MAX_SIMU_FLASH_FREQ     HAL_CMU_FREQ_52M
-#endif
-    if (freq > MAX_SIMU_FLASH_FREQ) {
-        freq = MAX_SIMU_FLASH_FREQ;
-    }
-#endif
-
     return freq;
 }
 
@@ -242,15 +261,14 @@ enum HAL_NORFLASH_RET_T hal_norflash_get_size(enum HAL_FLASH_ID_T id, uint32_t *
                                               uint32_t *page_size)
 {
     ASSERT(id < HAL_FLASH_ID_NUM, err_flash_id);
-    ASSERT(norflash_ctx[id].opened, err_not_opened);
 
     uint32_t b_size;
     uint32_t s_size;
-    uint32_t multiplicand = 1;
+    uint32_t multiplier = 1;
 #ifdef FLASH_DUAL_CHIP
     if (FLASH_IS_DUAL_CHIP(id)) {
         if (norflash_ctx[id].cur_opt & HAL_NORFLASH_OPT_DUAL_CHIP) {
-            multiplicand = 2;
+            multiplier = 2;
         }
     }
 #endif
@@ -264,11 +282,11 @@ enum HAL_NORFLASH_RET_T hal_norflash_get_size(enum HAL_FLASH_ID_T id, uint32_t *
 #else
         b_size = NORFLASH_BLOCK_SIZE_32K;
 #endif
-        *block_size = b_size * multiplicand;
+        *block_size = b_size * multiplier;
     }
     if (sector_size) {
         s_size = NORFLASH_SECTOR_SIZE;
-        *sector_size = s_size * multiplicand;
+        *sector_size = s_size * multiplier;
     }
     if (page_size) {
         *page_size = norflash_ctx[id].page_size;
@@ -286,6 +304,10 @@ enum HAL_NORFLASH_RET_T hal_norflash_get_boundary(enum HAL_FLASH_ID_T id, uint32
     uint32_t block_size;
     uint32_t sector_size;
 
+    if (norflash_ctx[id].total_size == 0) {
+        return HAL_NORFLASH_BAD_ADDR;
+    }
+
 #ifdef FLASH_LARGE_BLOCK
     block_size = NORFLASH_BLOCK_SIZE_64K;
 #else
@@ -301,20 +323,38 @@ enum HAL_NORFLASH_RET_T hal_norflash_get_boundary(enum HAL_FLASH_ID_T id, uint32
     }
 #endif
 
+#if defined(FLASH1_CTRL_BASE) && (FLASH_BASE == FLASH1_BASE)
+    if (id == HAL_FLASH_ID_1) {
+        uint32_t offset = 0;
+
+        if (norflash_ctx[id - 1].total_size > 0) {
+            offset = MAX(norflash_ctx[id - 1].total_size, norflash_ctx[id].total_size);
+        }
+        for (i = 0; i < ARRAY_SIZE(norflash_base[id]); i++) {
+            if ((norflash_base[id][i] + offset) <= address && address <= (norflash_base[id][i] | norflash_get_addr_mask(id))) {
+                break;
+            }
+        }
+        goto _check_index;
+    }
+#endif
+
     for (i = 0; i < ARRAY_SIZE(norflash_base[id]); i++) {
         if (norflash_base[id][i] <= address && address < norflash_base[id][i] + norflash_ctx[id].total_size) {
-            address -= norflash_base[id][i];
-            if (block_boundary)
-                *block_boundary  = norflash_base[id][i] + (address / block_size) * block_size;
-            if (sector_boundary)
-                *sector_boundary = norflash_base[id][i] + (address / sector_size) * sector_size;
             break;
         }
     }
 
-    if (i == ARRAY_SIZE(norflash_base[id])) {
+_check_index: POSSIBLY_UNUSED;
+    if (i >= ARRAY_SIZE(norflash_base[id])) {
         return HAL_NORFLASH_BAD_ADDR;
     }
+
+    address -= norflash_base[id][i];
+    if (block_boundary)
+        *block_boundary  = norflash_base[id][i] + (address / block_size) * block_size;
+    if (sector_boundary)
+        *sector_boundary = norflash_base[id][i] + (address / sector_size) * sector_size;
 
     return HAL_NORFLASH_OK;
 }
@@ -383,17 +423,14 @@ enum HAL_NORFLASH_RET_T hal_norflash_dual_chip_get_unique_id(enum HAL_FLASH_ID_T
 }
 #endif
 
-enum HAL_NORFLASH_RET_T  hal_norflash_read_sfdp_reg(enum HAL_FLASH_ID_T id, uint8_t addr, uint8_t *value, uint32_t len)
+enum HAL_NORFLASH_RET_T hal_norflash_read_sfdp_reg(enum HAL_FLASH_ID_T id, uint8_t addr, uint8_t *value, uint32_t len)
 {
     int ret;
-    int lock;
 
     ASSERT(id < HAL_FLASH_ID_NUM, err_flash_id);
     ASSERT(norflash_ctx[id].opened, err_not_opened);
 
-    lock = int_lock_global();
     ret = norflash_read_sfdp_reg(id, addr, value, len);
-    int_unlock_global(lock);
     if(ret) {
         return HAL_NORFLASH_ERR;
     } else {
@@ -401,19 +438,16 @@ enum HAL_NORFLASH_RET_T  hal_norflash_read_sfdp_reg(enum HAL_FLASH_ID_T id, uint
     }
 }
 
-enum HAL_NORFLASH_RET_T  hal_norflash_dual_chip_read_sfdp_reg(enum HAL_FLASH_ID_T id, uint8_t addr, uint8_t *value0, uint8_t *value1, uint32_t len)
+enum HAL_NORFLASH_RET_T hal_norflash_dual_chip_read_sfdp_reg(enum HAL_FLASH_ID_T id, uint8_t addr, uint8_t *value0, uint8_t *value1, uint32_t len)
 {
 #ifdef FLASH_DUAL_CHIP
     int ret;
-    int lock;
 
     if (FLASH_IS_DUAL_CHIP(id)) {
         ASSERT(id < HAL_FLASH_ID_NUM, err_flash_id);
         ASSERT(norflash_ctx[id].opened, err_not_opened);
 
-        lock = int_lock_global();
         ret = norflash_dual_chip_read_sfdp_reg(id, addr, value0, value1, len);
-        int_unlock_global(lock);
         if(ret) {
             return HAL_NORFLASH_ERR;
         } else {
@@ -565,6 +599,23 @@ enum HAL_NORFLASH_RET_T hal_norflash_set_protection(enum HAL_FLASH_ID_T id, uint
     return ret ? HAL_NORFLASH_BAD_OP : HAL_NORFLASH_OK;
 }
 
+#ifdef FLASH_DEC_ENABLE
+enum HAL_NORFLASH_RET_T hal_norflash_dec_enable(enum HAL_FLASH_ID_T id)
+{
+    norflaship_dec_saddr(id, FLASH_DEC_OFFSET);
+    norflaship_dec_eaddr(id, FLASH_DEC_OFFSET + FLASH_DEC_SIZE);
+    norflaship_dec_index(id, 0);
+    norflaship_dec_enable(id);
+    return HAL_NORFLASH_OK;
+}
+
+enum HAL_NORFLASH_RET_T hal_norflash_dec_disable(enum HAL_FLASH_ID_T id)
+{
+    norflaship_dec_disable(id);
+    return HAL_NORFLASH_OK;
+}
+#endif
+
 #ifdef FLASH_SECURITY_REGISTER
 enum HAL_NORFLASH_RET_T _align_security_register_addr_len(enum HAL_FLASH_ID_T id, uint32_t *addr, uint32_t *len)
 {
@@ -579,8 +630,13 @@ enum HAL_NORFLASH_RET_T _align_security_register_addr_len(enum HAL_FLASH_ID_T id
     }
 #if defined(FLASH_DUAL_CHIP) && defined(FLASH_SEC_REG_DUAL_CHIP)
     if (FLASH_IS_DUAL_CHIP(id)) {
-        if ((norflash_ctx[id].cur_opt & HAL_NORFLASH_OPT_SEC_REG_DUAL_CHIP) && (*len & 1)) {
-            return HAL_NORFLASH_BAD_LEN;
+        if (norflash_ctx[id].cur_opt & HAL_NORFLASH_OPT_SEC_REG_DUAL_CHIP) {
+            if (*addr & 1) {
+                return HAL_NORFLASH_BAD_ADDR;
+            }
+            if (*len & 1) {
+                return HAL_NORFLASH_BAD_LEN;
+            }
         }
     }
 #endif
@@ -790,6 +846,18 @@ enum HAL_NORFLASH_RET_T hal_norflash_security_register_write(enum HAL_FLASH_ID_T
     if (len > remain_len) {
         return HAL_NORFLASH_BAD_LEN;
     }
+#if defined(FLASH_DUAL_CHIP) && defined(FLASH_SEC_REG_DUAL_CHIP)
+    if (FLASH_IS_DUAL_CHIP(id)) {
+        if (norflash_ctx[id].cur_opt & HAL_NORFLASH_OPT_SEC_REG_DUAL_CHIP) {
+            if (start_address & 1) {
+                return HAL_NORFLASH_BAD_ADDR;
+            }
+            if (len & 1) {
+                return HAL_NORFLASH_BAD_LEN;
+            }
+        }
+    }
+#endif
 
     pos = start_address;
     current_buffer = buffer;
@@ -874,6 +942,18 @@ enum HAL_NORFLASH_RET_T hal_norflash_security_register_read(enum HAL_FLASH_ID_T 
     if (len > remain_len) {
         return HAL_NORFLASH_BAD_LEN;
     }
+#if defined(FLASH_DUAL_CHIP) && defined(FLASH_SEC_REG_DUAL_CHIP)
+    if (FLASH_IS_DUAL_CHIP(id)) {
+        if (norflash_ctx[id].cur_opt & HAL_NORFLASH_OPT_SEC_REG_DUAL_CHIP) {
+            if (start_address & 1) {
+                return HAL_NORFLASH_BAD_ADDR;
+            }
+            if (len & 1) {
+                return HAL_NORFLASH_BAD_LEN;
+            }
+        }
+    }
+#endif
 
     pos = start_address;
     current_buffer = buffer;
@@ -965,7 +1045,7 @@ enum HAL_NORFLASH_RET_T hal_norflash_security_register_read(enum HAL_FLASH_ID_T 
     return (ret ? HAL_NORFLASH_ERR : HAL_NORFLASH_OK);
 }
 
-uint32_t hal_norflash_get_nc_base(enum HAL_FLASH_ID_T id)
+static uint32_t hal_norflash_get_nc_base(enum HAL_FLASH_ID_T id)
 {
     uint32_t base;
 
@@ -1105,7 +1185,7 @@ static void hal_norflash_reset_timing(enum HAL_FLASH_ID_T id)
 }
 
 static enum HAL_NORFLASH_RET_T _norflash_open(enum HAL_FLASH_ID_T id, const struct HAL_NORFLASH_CONFIG_T *cfg,
-                                              bool reopen, bool calib, uint32_t timing_idx)
+                                              bool reopen, bool calib, const struct HAL_NORFLASH_TIMING_CONFIG_T *timing)
 {
     struct HAL_NORFLASH_CONFIG_T norcfg;
     enum HAL_CMU_FREQ_T source_freq;
@@ -1126,14 +1206,34 @@ static enum HAL_NORFLASH_RET_T _norflash_open(enum HAL_FLASH_ID_T id, const stru
     }
     memcpy(&norcfg, cfg, sizeof(norcfg));
 
+    norflaship_busy_wait(id);
+
+    if (!reopen) {
+#if (CHIP_FLASH_CTRL_VER >= 3) && defined(FLASH_SELECT_SPI_MODE)
+#if (FLASH_SELECT_SPI_MODE == 0) || (FLASH_SELECT_SPI_MODE == 3)
+        norflaship_select_spi_mode(id, FLASH_SELECT_SPI_MODE);
+#else
+#error "flash spi mode only support mode0 and mode3"
+#endif
+#endif
+
 #if (CHIP_FLASH_CTRL_VER >= 7)
         // Enable auto clock gating by default
         norflaship_clock_gating_enable(id);
+#endif
 
-#if defined(CHIP_BEST1306P) || defined(CHIP_BEST1502P) || defined (CHIP_BEST1605)
-        norflaship_set_rxfifo_ctrl(id, 0xF);
+#if (CHIP_FLASH_CTRL_VER >= 2)
+        norflaship_nand_sel(id, false);
+        norflaship_dma_tx_threshold(id, NORFLASHIP_TXFIFO_SIZE / 2);
+        norflaship_dma_rx_threshold(id, NORFLASHIP_RXFIFO_SIZE / 2);
 #endif
+
+#ifdef FLASH_DEC_ENABLE
+        if (norcfg.opt & HAL_NORFLASH_OPT_DECODE) {
+            norflaship_dec_disable(id);
+        }
 #endif
+    }
 
 #ifdef FLASH_DUAL_CHIP
     if (FLASH_IS_DUAL_CHIP(id)) {
@@ -1157,18 +1257,14 @@ static enum HAL_NORFLASH_RET_T _norflash_open(enum HAL_FLASH_ID_T id, const stru
 #endif
     norflash_ctx[id].open_state = HAL_NORFLASH_NOT_OPENED;
 #ifdef FLASH_SUSPEND
-    if(!reopen) {
+    if (!reopen) {
         suspend_state[id] = SUSPEND_STATE_NONE;
     }
 #endif
 #ifdef FLASH_SECURITY_REGISTER
-    sec_reg_enabled[id] = false;
-#endif
-
-    norflaship_busy_wait(id);
-
-#if (CHIP_FLASH_CTRL_VER >= 2)
-    norflaship_nand_sel(id, false);
+    if (!reopen) {
+        sec_reg_enabled[id] = false;
+    }
 #endif
 
 #if defined(FLASH_DUAL_CHIP) && (CHIP_FLASH_CTRL_VER <= 4)
@@ -1265,6 +1361,10 @@ static enum HAL_NORFLASH_RET_T _norflash_open(enum HAL_FLASH_ID_T id, const stru
             goto _exit;
         }
 
+#ifdef NORFLASH_CHECK_SFDP_ENABLE
+        norflash_match_sfdp(id, norflash_ctx[id].device_id, sizeof(norflash_ctx[id].device_id));
+#endif
+
         norflash_get_total_size(id, &norflash_ctx[id].total_size);
 
 #ifdef FLASH_SECURITY_REGISTER
@@ -1325,7 +1425,10 @@ static enum HAL_NORFLASH_RET_T _norflash_open(enum HAL_FLASH_ID_T id, const stru
             norflash_post_operation(id);
         }
     } else {
-        norflash_set_sample_delay_index(id, timing_idx);
+        norflash_set_sample_delay_index(id, timing->timing_idx);
+#if (CHIP_FLASH_CTRL_VER >= 7) && defined(FLASH_RX_CLOCK_DELAY)
+        norflash_set_rclk_delay(id, timing);
+#endif
     }
 
     if (!reopen) {
@@ -1357,13 +1460,12 @@ static enum HAL_NORFLASH_RET_T _norflash_open(enum HAL_FLASH_ID_T id, const stru
     // From now on, norflash_pre_operation(id) must be called before
     // sending any command to flash
     // -----------------------------
-
     if (!reopen) {
-#if defined(CHIP_BEST1400) || defined(CHIP_BEST1402)
-        if (norcfg.dec_enable && (norcfg.dec_size > 0)) {
-            norflaship_dec_saddr(id, norcfg.dec_addr);
-            norflaship_dec_eaddr(id, norcfg.dec_addr + norcfg.dec_size);
-            norflaship_dec_index(id, norcfg.dec_idx);
+#ifdef FLASH_DEC_ENABLE
+        if (norcfg.opt & HAL_NORFLASH_OPT_DECODE) {
+            norflaship_dec_saddr(id, FLASH_DEC_OFFSET);
+            norflaship_dec_eaddr(id, FLASH_DEC_OFFSET + FLASH_DEC_SIZE);
+            norflaship_dec_index(id, 0);
             norflaship_dec_enable(id);
         } else {
             norflaship_dec_disable(id);
@@ -1375,26 +1477,35 @@ static enum HAL_NORFLASH_RET_T _norflash_open(enum HAL_FLASH_ID_T id, const stru
 #endif
     }
 
+#ifdef FLASH_DEC_ENABLE
+    if (!reopen && (norcfg.opt & HAL_NORFLASH_OPT_DECODE)) {
+        norflaship_dec_disable(id);
+    }
+#endif
+
     if (0) {
-#if !(defined(ROM_BUILD) || (defined(PROGRAMMER) && !defined(PROGRAMMER_INFLASH)) || defined(NANDFLASH_BUILD))
-    } else if ((norcfg.opt & HAL_NORFLASH_OPT_CALIB_SEQ_PATTERN) && (id == HAL_FLASH_ID_0)) {
+#ifdef FLASH_CALIB_SEQ_PATTERN
+    } else if (norcfg.opt & HAL_NORFLASH_OPT_CALIB_SEQ_PATTERN) {
         result = norflash_sample_delay_calib(id, DRV_NORFLASH_CALIB_SEQ_PATTERN);
         if (result != 0) {
             result = HAL_NORFLASH_BAD_CALIB_SEQ;
-            goto _exit;
         }
 #endif
     } else if (norcfg.opt & HAL_NORFLASH_OPT_CALIB_MAGIC_WORD) {
-#ifndef FLASH_CALIB_MAGIC_WORD_FOR_ALL_FLASH
-        if (id == HAL_FLASH_ID_0)
-#endif
-        {
-            result = norflash_sample_delay_calib(id, DRV_NORFLASH_CALIB_MAGIC_WORD);
-            if (result != 0) {
-                result = HAL_NORFLASH_BAD_CALIB_MAGIC;
-                goto _exit;
-            }
+        result = norflash_sample_delay_calib(id, DRV_NORFLASH_CALIB_MAGIC_WORD);
+        if (result != 0) {
+            result = HAL_NORFLASH_BAD_CALIB_MAGIC;
         }
+    }
+
+#ifdef FLASH_DEC_ENABLE
+    if (!reopen && (norcfg.opt & HAL_NORFLASH_OPT_DECODE)) {
+        norflaship_dec_enable(id);
+    }
+#endif
+
+    if (result != 0) {
+        goto _exit;
     }
 
     norflash_ctx[id].opened = true;
@@ -1447,7 +1558,7 @@ enum HAL_NORFLASH_RET_T hal_norflash_reopen(enum HAL_FLASH_ID_T id, const struct
 
 enum HAL_NORFLASH_RET_T hal_norflash_apply_config(enum HAL_FLASH_ID_T id, const struct HAL_NORFLASH_CONFIG_T *cfg, const struct HAL_NORFLASH_TIMING_CONFIG_T *timing)
 {
-    return _norflash_open(id, cfg, true, false, timing->timing_idx);
+    return _norflash_open(id, cfg, true, false, timing);
 }
 
 static void hal_norflash_prefetch_idle(enum HAL_FLASH_ID_T id)
@@ -1486,9 +1597,6 @@ enum HAL_NORFLASH_RET_T hal_norflash_get_timing_config(enum HAL_FLASH_ID_T id, s
 {
     if (id >= HAL_FLASH_ID_NUM) {
         return HAL_NORFLASH_BAD_ID;
-    }
-    if (timing == NULL) {
-        return HAL_NORFLASH_TIMING_NULL;
     }
     if (!norflash_ctx[id].opened) {
         return HAL_NORFLASH_NOT_OPENED;
@@ -1559,12 +1667,9 @@ static enum HAL_NORFLASH_RET_T hal_norflash_erase_int(enum HAL_FLASH_ID_T id, ui
     }
 #endif
 
-    start_address &= HAL_NORFLASH_ADDR_MASK;
+    start_address &= (total_size - 1);
 
     // Check address and length
-    if (total_size <= start_address) {
-        return HAL_NORFLASH_BAD_ADDR;
-    }
     remain_len      = total_size - start_address;
     if (len > remain_len) {
         return HAL_NORFLASH_BAD_LEN;
@@ -1753,16 +1858,25 @@ static enum HAL_NORFLASH_RET_T hal_norflash_write_int(enum HAL_FLASH_ID_T id, ui
     total_size      = norflash_ctx[id].total_size;
     page_size       = norflash_ctx[id].page_size;
 
-    start_address &= HAL_NORFLASH_ADDR_MASK;
+    start_address &= (total_size - 1);
 
     // Check address and length
-    if (total_size <= start_address) {
-        return HAL_NORFLASH_BAD_ADDR;
-    }
     remain_len      = total_size - start_address;
     if (len > remain_len) {
         return HAL_NORFLASH_BAD_LEN;
     }
+#ifdef FLASH_DUAL_CHIP
+    if (FLASH_IS_DUAL_CHIP(id)) {
+        if (norflash_ctx[id].cur_opt & HAL_NORFLASH_OPT_DUAL_CHIP) {
+            if (start_address & 1) {
+                return HAL_NORFLASH_BAD_ADDR;
+            }
+            if (len & 1) {
+                return HAL_NORFLASH_BAD_LEN;
+            }
+        }
+    }
+#endif
 
     current_address = start_address;
     current_buffer  = buffer;
@@ -1938,20 +2052,22 @@ enum HAL_NORFLASH_RET_T hal_norflash_read(enum HAL_FLASH_ID_T id, uint32_t start
 
     total_size      = norflash_ctx[id].total_size;
 
-    start_address &= HAL_NORFLASH_ADDR_MASK;
+    start_address &= (total_size - 1);
 
     // Check address and length
-    if (total_size <= start_address) {
-        return HAL_NORFLASH_BAD_ADDR;
-    }
     remain_len      = total_size - start_address;
     if (len > remain_len) {
         return HAL_NORFLASH_BAD_LEN;
     }
 #ifdef FLASH_DUAL_CHIP
     if (FLASH_IS_DUAL_CHIP(id)) {
-        if ((norflash_ctx[id].cur_opt & HAL_NORFLASH_OPT_DUAL_CHIP) && (len & 1)) {
-            return HAL_NORFLASH_BAD_LEN;
+        if (norflash_ctx[id].cur_opt & HAL_NORFLASH_OPT_DUAL_CHIP) {
+            if (start_address & 1) {
+                return HAL_NORFLASH_BAD_ADDR;
+            }
+            if (len & 1) {
+                return HAL_NORFLASH_BAD_LEN;
+            }
         }
     }
 #endif
@@ -1989,7 +2105,7 @@ void hal_norflash_force_wakeup(enum HAL_FLASH_ID_T id)
     norflaship_busy_wait(id);
 }
 
-void hal_norflash_sleep(enum HAL_FLASH_ID_T id)
+void hal_norflash_sleep(enum HAL_FLASH_ID_T id, enum HAL_CMU_LPU_SLEEP_MODE_T mode)
 {
     if (!norflash_ctx[id].opened) {
 #ifdef FLASH_DEEP_SLEEP
@@ -2005,10 +2121,10 @@ void hal_norflash_sleep(enum HAL_FLASH_ID_T id)
 #endif
 
     norflaship_busy_wait(id);
-    norflaship_sleep(id);
+    norflaship_sleep(id, mode);
 }
 
-void hal_norflash_wakeup(enum HAL_FLASH_ID_T id)
+void hal_norflash_wakeup(enum HAL_FLASH_ID_T id, enum HAL_CMU_LPU_SLEEP_MODE_T mode)
 {
     if (!norflash_ctx[id].opened) {
 #ifdef FLASH_DEEP_SLEEP
@@ -2017,7 +2133,7 @@ void hal_norflash_wakeup(enum HAL_FLASH_ID_T id)
         return;
     }
 
-    norflaship_wakeup(id);
+    norflaship_wakeup(id, mode);
 
 #ifdef FLASH_DEEP_SLEEP
     norflash_wakeup(id);
@@ -2025,14 +2141,8 @@ void hal_norflash_wakeup(enum HAL_FLASH_ID_T id)
     norflash_post_operation(id);
 #endif
 
-#if 0
-    // Flush prefetch buffer
-    *(volatile uint32_t *)FLASH_NC_BASE;
-    *(volatile uint32_t *)(FLASH_NC_BASE + 0x1000);
-#else
     norflaship_clear_rxfifo(id);
     norflaship_busy_wait(id);
-#endif
 }
 
 int hal_norflash_busy(enum HAL_FLASH_ID_T id)
@@ -2090,16 +2200,6 @@ const struct HAL_NORFLASH_CONFIG_T *hal_norflash_get_init_config(void)
     return &norflash_cfg;
 }
 
-enum HAL_NORFLASH_RET_T hal_norflash_get_init_config_ex(struct HAL_NORFLASH_CONFIG_T *cfg)
-{
-    if (!cfg) {
-        return HAL_NORFLASH_BAD_CFG;
-    }
-
-    memcpy(cfg, &norflash_cfg, sizeof(*cfg));
-    return HAL_NORFLASH_OK;
-}
-
 enum HAL_NORFLASH_RET_T hal_norflash_init(enum HAL_FLASH_ID_T id)
 {
     enum HAL_NORFLASH_RET_T ret;
@@ -2109,9 +2209,7 @@ enum HAL_NORFLASH_RET_T hal_norflash_init(enum HAL_FLASH_ID_T id)
 
 #ifndef SUBSYS_FLASH_BOOT
     // Pmu codes might be located in flash
-#ifndef ARM_CMSE
     pmu_flash_freq_config(cfg->speed);
-#endif
 #endif
 
     // Avoid flash access from here
@@ -2123,9 +2221,6 @@ enum HAL_NORFLASH_RET_T hal_norflash_init(enum HAL_FLASH_ID_T id)
 
 enum HAL_NORFLASH_RET_T hal_norflash_set_dual_chip_mode(enum HAL_FLASH_ID_T id, int dual_flash, int dual_sec_reg)
 {
-    if (!norflash_ctx[id].opened) {
-        return HAL_NORFLASH_NOT_OPENED;
-    }
 #ifdef FLASH_DUAL_CHIP
     if (FLASH_IS_DUAL_CHIP(id)) {
         uint32_t opt = 0;
@@ -2151,6 +2246,7 @@ enum HAL_NORFLASH_RET_T hal_norflash_set_dual_chip_mode(enum HAL_FLASH_ID_T id, 
         memcpy(&new_cfg, cfg, sizeof(new_cfg));
 
         mask = HAL_NORFLASH_OPT_CALIB_MAGIC_WORD |
+            HAL_NORFLASH_OPT_CALIB_SEQ_PATTERN |
             HAL_NORFLASH_OPT_DUAL_CHIP |
             HAL_NORFLASH_OPT_SEC_REG_DUAL_CHIP;
         new_cfg.opt = (new_cfg.opt & ~mask) | opt;
@@ -2225,20 +2321,24 @@ void hal_norflash_boot_reset_remap(enum HAL_FLASH_ID_T id)
 
 __STATIC_FORCEINLINE
 enum HAL_NORFLASH_RET_T _config_remap(enum HAL_FLASH_ID_T id, enum HAL_NORFLASH_REMAP_ID_T remap_id,
-                                      uint32_t addr, uint32_t len, uint32_t offset,
+                                      uint32_t addr, uint32_t len, int32_t offset,
                                       uint32_t flash_size, void (*busy_wait)(enum HAL_FLASH_ID_T id),
                                       int (*remap_sec)(enum HAL_FLASH_ID_T id, uint32_t index, uint32_t addr, uint32_t len, uint32_t new_addr)
                                      )
 {
 #if (CHIP_FLASH_CTRL_VER >= 2)
     uint32_t remap_from;
+    uint32_t remap_to;
     int ret;
     uint32_t block_size;
+    uint32_t block_mask;
 
-    STATIC_ASSERT((FLASH_BASE & HAL_NORFLASH_ADDR_MASK) == 0, "Bad FLASH_BASE");
-#ifndef CHIP_BEST1501SIMU
-    STATIC_ASSERT((FLASH_SIZE & (FLASH_SIZE - 1)) == 0, "Bad FLASH_SIZE");
-#endif
+    if (len == 0) {
+        return HAL_NORFLASH_BAD_LEN;
+    }
+    if (offset == 0) {
+        return HAL_NORFLASH_BAD_REMAP_OFFSET;
+    }
 
 #ifdef FLASH_LARGE_BLOCK
     block_size = NORFLASH_BLOCK_SIZE_64K;
@@ -2250,17 +2350,12 @@ enum HAL_NORFLASH_RET_T _config_remap(enum HAL_FLASH_ID_T id, enum HAL_NORFLASH_
         block_size *= 2;
     }
 #endif
+    block_mask = block_size - 1;
 
-    // Offset must be aligned with BLOCK ERASE SIZE (32K/64K) to avoid possible
-    // erase error or erase performance degradation
-    if (offset == 0 || offset >= flash_size || (offset & (block_size - 1))) {
-        return HAL_NORFLASH_BAD_REMAP_OFFSET;
-    }
-
-    remap_from = addr & HAL_NORFLASH_ADDR_MASK;
+    remap_from = addr;
 
 #ifdef CHIP_BEST2300P
-    uint32_t remap_to, remap_len, remap_end, region_len;
+    uint32_t remap_len, remap_end, region_len;
     uint8_t msb_pos;
 
     if (remap_id != HAL_NORFLASH_REMAP_ID_0) {
@@ -2269,7 +2364,9 @@ enum HAL_NORFLASH_RET_T _config_remap(enum HAL_FLASH_ID_T id, enum HAL_NORFLASH_
     if (offset & (offset - 1)) {
         return HAL_NORFLASH_BAD_ADDR;
     }
-    if (offset > flash_size / 2) {
+    // Offset must be aligned with BLOCK ERASE SIZE (32K/64K) to avoid possible
+    // erase error or erase performance degradation
+    if (offset < 0 || offset > flash_size / 2 || ((uint32_t)offset & block_mask)) {
         return HAL_NORFLASH_BAD_REMAP_OFFSET;
     }
     flash_size = offset * 2;
@@ -2315,18 +2412,28 @@ enum HAL_NORFLASH_RET_T _config_remap(enum HAL_FLASH_ID_T id, enum HAL_NORFLASH_
     }
     // Align len to sector size
     len = (len + (NORFLASH_SECTOR_SIZE - 1)) & ~(NORFLASH_SECTOR_SIZE - 1);
-    if (len > offset) {
-        return HAL_NORFLASH_BAD_LEN;
+    // Offset must be aligned with BLOCK ERASE SIZE (32K/64K) to avoid possible
+    // erase error or erase performance degradation
+    remap_to = remap_from + offset;
+    if (offset > 0) {
+        if (remap_to + len > flash_size) {
+            return HAL_NORFLASH_BAD_ADDR;
+        }
+    } else {
+        offset = -offset;
+        if (remap_from < offset) {
+            return HAL_NORFLASH_BAD_REMAP_OFFSET;
+        }
     }
-    if (remap_from + offset + len > flash_size) {
-        return HAL_NORFLASH_BAD_ADDR;
+    if ((uint32_t)offset & block_mask) {
+        return HAL_NORFLASH_BAD_REMAP_OFFSET;
     }
 
     if (busy_wait) {
         busy_wait(id);
     }
 
-    ret = remap_sec(id, remap_id, remap_from, len, remap_from + offset);
+    ret = remap_sec(id, remap_id, remap_from, len, remap_to);
     if (ret) {
         return HAL_NORFLASH_BAD_OP;
     }
@@ -2338,7 +2445,7 @@ enum HAL_NORFLASH_RET_T _config_remap(enum HAL_FLASH_ID_T id, enum HAL_NORFLASH_
 #endif
 }
 
-enum HAL_NORFLASH_RET_T hal_norflash_config_remap(enum HAL_FLASH_ID_T id, enum HAL_NORFLASH_REMAP_ID_T remap_id, uint32_t addr, uint32_t len, uint32_t offset)
+enum HAL_NORFLASH_RET_T hal_norflash_config_remap(enum HAL_FLASH_ID_T id, enum HAL_NORFLASH_REMAP_ID_T remap_id, uint32_t addr, uint32_t len, int32_t offset)
 {
     uint32_t flash_size;
 
@@ -2353,11 +2460,13 @@ enum HAL_NORFLASH_RET_T hal_norflash_config_remap(enum HAL_FLASH_ID_T id, enum H
     }
 #endif
 
+    // new_addr = addr + offset
+    addr &= norflash_get_addr_mask(id);
     return _config_remap(id, remap_id, addr, len, offset, flash_size, norflaship_busy_wait, norflaship_config_remap_section);
 }
 
 BOOT_TEXT_FLASH_LOC
-enum HAL_NORFLASH_RET_T hal_norflash_boot_config_remap(enum HAL_FLASH_ID_T id, enum HAL_NORFLASH_REMAP_ID_T remap_id, uint32_t addr, uint32_t len, uint32_t offset)
+enum HAL_NORFLASH_RET_T hal_norflash_boot_config_remap(enum HAL_FLASH_ID_T id, enum HAL_NORFLASH_REMAP_ID_T remap_id, uint32_t addr, uint32_t len, int32_t offset)
 {
     uint32_t flash_size;
 
@@ -2369,6 +2478,9 @@ enum HAL_NORFLASH_RET_T hal_norflash_boot_config_remap(enum HAL_FLASH_ID_T id, e
 #else
     flash_size = ~0UL;
 #endif
+
+    // new_addr = addr + offset
+    addr &= HAL_NORFLASH0_ADDR_MASK;
     return _config_remap(id, remap_id, addr, len, offset, flash_size, NULL, norflaship_boot_config_remap_section);
 }
 
@@ -2448,11 +2560,38 @@ int hal_norflash_boot_get_remap_status(enum HAL_FLASH_ID_T id, enum HAL_NORFLASH
 enum HAL_FLASH_ID_T hal_norflash_addr_to_id(uint32_t addr)
 {
     enum HAL_FLASH_ID_T id;
+    uint32_t size;
     int i;
 
     for (id = HAL_FLASH_ID_0; id < HAL_FLASH_ID_NUM; id++) {
+        size = norflash_ctx[id].total_size;
+        if (size == 0
+#if defined(FLASH1_CTRL_BASE) && (FLASH_BASE == FLASH1_BASE)
+                && id != HAL_FLASH_ID_0
+#endif
+                ) {
+            size = norflash_get_addr_mask(id) + 1;
+        }
+        if (size == 0) {
+            continue;
+        }
+#if defined(FLASH1_CTRL_BASE) && (FLASH_BASE == FLASH1_BASE)
+        if (id == HAL_FLASH_ID_1) {
+            uint32_t offset = 0;
+
+            if (norflash_ctx[id - 1].total_size > 0) {
+                offset = MAX(norflash_ctx[id - 1].total_size, norflash_ctx[id].total_size);
+            }
+            for (i = 0; i < ARRAY_SIZE(norflash_base[id]); i++) {
+                if ((norflash_base[id][i] + offset) <= addr && addr <= (norflash_base[id][i] | norflash_get_addr_mask(id))) {
+                    return id;
+                }
+            }
+            continue;
+        }
+#endif
         for (i = 0; i < ARRAY_SIZE(norflash_base[id]); i++) {
-            if (norflash_base[id][i] <= addr && addr <= (norflash_base[id][i] | HAL_NORFLASH_ADDR_MASK)) {
+            if (norflash_base[id][i] <= addr && addr < (norflash_base[id][i] + size)) {
                 return id;
             }
         }
@@ -2464,11 +2603,38 @@ enum HAL_FLASH_ID_T hal_norflash_addr_to_id(uint32_t addr)
 uint32_t hal_norflash_get_addr_offset(uint32_t addr)
 {
     enum HAL_FLASH_ID_T id;
+    uint32_t size;
     int i;
 
     for (id = HAL_FLASH_ID_0; id < HAL_FLASH_ID_NUM; id++) {
+        size = norflash_ctx[id].total_size;
+        if (size == 0
+#if defined(FLASH1_CTRL_BASE) && (FLASH_BASE == FLASH1_BASE)
+                && id != HAL_FLASH_ID_0
+#endif
+                ) {
+            size = norflash_get_addr_mask(id) + 1;
+        }
+        if (size == 0) {
+            continue;
+        }
+#if defined(FLASH1_CTRL_BASE) && (FLASH_BASE == FLASH1_BASE)
+        if (id == HAL_FLASH_ID_1) {
+            uint32_t offset = 0;
+
+            if (norflash_ctx[id - 1].total_size > 0) {
+                offset = MAX(norflash_ctx[id - 1].total_size, norflash_ctx[id].total_size);
+            }
+            for (i = 0; i < ARRAY_SIZE(norflash_base[id]); i++) {
+                if ((norflash_base[id][i] + offset) <= addr && addr <= (norflash_base[id][i] | norflash_get_addr_mask(id))) {
+                    return (addr - norflash_base[id][i] - offset) % norflash_ctx[id].total_size;
+                }
+            }
+            continue;
+        }
+#endif
         for (i = 0; i < ARRAY_SIZE(norflash_base[id]); i++) {
-            if (norflash_base[id][i] <= addr && addr <= (norflash_base[id][i] | HAL_NORFLASH_ADDR_MASK)) {
+            if (norflash_base[id][i] <= addr && addr < (norflash_base[id][i] + size)) {
                 return addr - norflash_base[id][i];
             }
         }
@@ -2488,16 +2654,18 @@ void hal_norflash_show_id_state(enum HAL_FLASH_ID_T id, int assert_on_error)
         uint8_t flash_id1[HAL_NORFLASH_DEVICE_ID_LEN];
 
         hal_norflash_dual_chip_get_id(id, flash_id, flash_id1, ARRAY_SIZE(flash_id));
-        TR_INFO(0, "FLASH_ID: %02X-%02X-%02X / %02X-%02X-%02X",
+        TR_INFO(0, "FLASH_ID: %02X-%02X-%02X / %02X-%02X-%02X SIZE: 0x%08X",
             flash_id[0], flash_id[1], flash_id[2],
-            flash_id1[0], flash_id1[1], flash_id1[2]);
+            flash_id1[0], flash_id1[1], flash_id1[2],
+            norflash_ctx[id].total_size);
     } else
 #endif
     {
         hal_norflash_get_id(id, flash_id, ARRAY_SIZE(flash_id));
-        TR_INFO(0, "FLASH_ID: %02X-%02X-%02X", flash_id[0], flash_id[1], flash_id[2]);
+        TR_INFO(0, "FLASH_ID: %02X-%02X-%02X SIZE: 0x%08X", flash_id[0], flash_id[1], flash_id[2], norflash_ctx[id].total_size);
     }
 
+    hal_norflash_show_sfdp_check_param(id);
     hal_norflash_show_calib_result(id);
 
     opened = hal_norflash_opened(id);

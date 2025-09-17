@@ -27,6 +27,7 @@ static void save_bmp_to_file(char *name, uint8_t * bmp, int bmp_size)
 {
     char filename[128];
     sprintf(filename, "%s", name);
+    fprintf(stderr,"%s bmp sz:%d",__func__, bmp_size);
     int fd = open(filename, O_CREAT | O_WRONLY | O_TRUNC, 0666);
     if (fd > 0) {
         write(fd, bmp, bmp_size);
@@ -143,19 +144,17 @@ static uint8_t *convert_fb_to_BMP(fb_img_t * img, int *bmp_size)
 
     int bits, colors;
     uint8_t idx;
-    bits = (8 << (depth / 2)) * channel;
 
-#if 0
-    if (bits > 8)
-        colors = 0;
-    else
-        colors = 1 << bits;    //now, bits must be 8; so color = 256
-#endif
+
+    bits = (8 << (depth / 2)) * channel;
 
     if (bits == 24)
         bits = 32;
 
-    //待存储图像数据每行字节数为4的倍数
+    if (bits == 16)
+        bits = 32;
+
+//待存储图像数据每行字节数为4的倍数
     int lineByte = (width * bits / 8 + 3) / 4 * 4;
 
     int colorTablesize = 0;
@@ -164,6 +163,7 @@ static uint8_t *convert_fb_to_BMP(fb_img_t * img, int *bmp_size)
     }
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////
     DWORD bfSize = sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER) + colorTablesize + lineByte * height;
+    *bmp_size = bfSize;
     //bitmap 文件 buffer
     pBmpArray = (uint8_t *) malloc(bfSize);
     memset(pBmpArray, 0, bfSize);
@@ -216,29 +216,54 @@ static uint8_t *convert_fb_to_BMP(fb_img_t * img, int *bmp_size)
     } else if (bits == 32) {
         printf("%s bits:32  w:%d h:%d  ", __func__, width, height);
         //把 imgData 中的第一行复制到 m_pDibBits 的最后一行 , 依次颠倒
-        for (x = 0; x < height; x++) {
-            bmpdata = m_pDibBits + (height - 1 - x) * width * 4;
-            for (y = 0; y < width; y++) {
-                color = imgData[3] << 24 | imgData[0] << 16 | imgData[1] << 8 | imgData[2];
-                memcpy(bmpdata, &color, 4);
-                // bmpdata[3] = 255;
-                bmpdata = bmpdata + 4;
-                imgData = imgData + 4;
+        if (depth == 2){
+            for (x = 0; x < height; x++) {
+                bmpdata = m_pDibBits + (height - 1 - x) * width * 4;
+                for (y = 0; y < width; y++) {
+
+                    color_16 = imgData[0] | imgData[1] << 8;
+                    bmpdata[0] = (color_16&0xf800)>>11;
+                    bmpdata[1] = (color_16&0x07e0)>>5;
+                    bmpdata[2] = (color_16&0x001f);
+                    bmpdata[3] = 0x00;
+                    // bmpdata[3] = 255;
+                    bmpdata[0] <<= 3;
+                    bmpdata[1] <<= 2;
+                    bmpdata[2] <<= 3;
+                    bmpdata = bmpdata + 4;
+                    imgData = imgData + 2;
+                }
+           }
+        }
+
+
+        if (depth == 4){
+            for (x = 0; x < height; x++) {
+                bmpdata = m_pDibBits + (height - 1 - x) * width * 4;
+                for (y = 0; y < width; y++) {
+
+                    color = imgData[3] << 24 | imgData[0] << 16 | imgData[1] << 8 | imgData[2];
+                    memcpy(bmpdata, &color, 4);
+                    bmpdata = bmpdata + 4;
+                    imgData = imgData + 4;
+                }
             }
         }
-    } else if (bits == 16) {
-        printf("%s bits:16  w:%d h:%d  ", __func__, width, height);
-        //把 imgData 中的第一行复制到 m_pDibBits 的最后一行 , 依次颠倒
-        for (x = 0; x < height; x++) {
-            bmpdata = m_pDibBits + (height - 1 - x) * width * 2;
-            for (y = 0; y < width; y++) {    //RGB  r: color&0x1f  g: color&0x07e0 b: color&0xf800
-                memcpy(&color_16, imgData, 2);
-                //color_16 = (color_16 & 0x07e0)|(0xf800 & ((color_16 & 0x1f) << 11)) | (0x1f & ((color_16 & 0xf800)>> 11));
-                memcpy(bmpdata, &color_16, 2);
-                bmpdata = bmpdata + 2;
-                imgData = imgData + 2;
+
+        if (depth == 3){
+            for (x = 0; x < height; x++) {
+                bmpdata = m_pDibBits + (height - 1 - x) * width * 4;
+                for (y = 0; y < width; y++) {
+
+                    color = imgData[0] << 16 | imgData[1] << 8 | imgData[2];
+                    memcpy(bmpdata, &color, 4);
+                    bmpdata[3] = 00;
+                    bmpdata = bmpdata + 4;
+                    imgData = imgData + 3;
+                }
             }
         }
+
     }
 
     return pBmpArray;

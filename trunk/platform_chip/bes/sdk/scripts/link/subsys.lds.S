@@ -16,33 +16,39 @@
 
 #include "plat_addr_map.h"
 
-#define HEAP_SECTION_SIZE			0x400
+#if defined(SEPARATE_RAM_RAMX) && !defined(SUBSYS_IMAGE_SEGMENT)
+#define SUBSYS_IMAGE_SEGMENT
+#endif
+#if (defined (__ARM_FEATURE_MVE) && (__ARM_FEATURE_MVE > 0U))
+#if (defined(MAIN_RAM_USE_TCM) || defined(RAM_NC_BASE)) && !defined(SUBSYS_IMAGE_SEGMENT)
+#define SUBSYS_IMAGE_SEGMENT
+#endif
+#endif
+
 #if defined(__NuttX__)
 #include "nuttx/config.h"
 #define NUTTX_HEAP_SECTION_SIZE		0x10000
-#ifdef HEAP_SECTION_SIZE
-#undef HEAP_SECTION_SIZE
 #define HEAP_SECTION_SIZE			0x10
-#endif
 #define STACK_SECTION_SIZE			CONFIG_IDLETHREAD_STACKSIZE
-#define NUTTX_HEAP_USE_MAX          (37 * 1024)
 #else
+#ifdef NOSTD
+#define HEAP_SECTION_SIZE			0x400
+#else
+#define HEAP_SECTION_SIZE			0x2000
+#endif
 #define STACK_SECTION_SIZE			0x1100
 #endif
 
-#ifndef MAIN_RAM_USE_TCM
-#ifndef NO_OVERLAY
-#error "Overlay is NOT supported unless MAIN_RAM_USE_TCM defined"
+#ifndef FLASH_BASE
+/* Set a fake flash address as the load address */
+#define FLASH_BASE					0xF0000000
+#define FLASHX_BASE					FLASH_BASE
+#define FLASH_NC_BASE				FLASH_BASE
 #endif
-#ifndef RAMXRET_SIZE
-#define RAMXRET_SIZE				RAMRET_SIZE
-#endif
-#ifndef RAMX_SIZE
-#define RAMX_SIZE					RAM_SIZE
-#endif
+#ifndef FLASH_SIZE
+#define FLASH_SIZE					0x10000000
 #endif
 
-#ifdef FLASH_BASE
 #if !defined(OTA_BOOT_SIZE) && defined(OTA_CODE_OFFSET)
 #define FLASH_REGION_BASE			(FLASH_BASE + OTA_CODE_OFFSET)
 #elif defined(OTA_BOOT_OFFSET)
@@ -54,13 +60,45 @@
 #ifndef FLASH_REGION_SIZE
 #define FLASH_REGION_SIZE			(FLASH_SIZE - (FLASH_REGION_BASE - FLASH_BASE))
 #endif
+
+#define FLASH_NC_REGION_BASE		FLASH_C_TO_NC(FLASH_REGION_BASE)
+#define FLASHX_REGION_BASE			FLASH_TO_FLASHX(FLASH_REGION_BASE)
+
+#ifndef PSRAM_REGION_BASE
+#define PSRAM_REGION_BASE			(PSRAM_BASE)
 #endif
 
-#ifdef MAIN_RAM_USE_TCM
-#define LOAD_REGION					FLASH
-#else
-#define LOAD_REGION					RAM
+#ifndef PSRAM_REGION_SIZE
+#define PSRAM_REGION_SIZE			(PSRAM_SIZE - (PSRAM_REGION_BASE - PSRAM_BASE))
 #endif
+
+#define PSRAM_NC_REGION_BASE		PSRAM_C_TO_NC(PSRAM_REGION_BASE)
+#define PSRAMX_REGION_BASE			PSRAM_TO_PSRAMX(PSRAM_REGION_BASE)
+
+#if defined(PSRAM_ENABLE) && defined(PSRAM_REGION_SIZE) && (PSRAM_REGION_SIZE > 0) && defined(NO_SUBSYS_RAM)
+#undef DEFAULT_CODE_IN_PSRAM
+#undef DEFAULT_DATA_IN_PSRAM
+#undef DEFAULT_BSS_IN_PSRAM
+#undef RAM_BASE
+#undef RAM_SIZE
+#undef RAMX_BASE
+#undef RAMX_SIZE
+
+#ifdef RAM_NC_BASE
+#if (RAM_NC_BASE < PSARM_REGION_BASE) || (RAM_NC_BASE + RAM_NC_SIZE > PSRAM_REGION_BASE + PSRAM_REGION_SIZE)
+#error "RAM_NC_BASE/SIZE should be in the range of PSRAM_REGION_BASE/SIZE"
+#endif
+#define RAM_SIZE					(PSRAM_REGION_SIZE - RAM_NC_SIZE)
+#else
+#define RAM_SIZE					PSRAM_REGION_SIZE
+#endif
+
+#define RAMX_SIZE					RAM_SIZE
+#define RAM_BASE					PSRAM_REGION_BASE
+#define RAMX_BASE					PSRAMX_REGION_BASE
+#endif
+
+#define LOAD_REGION					FLASH
 
 #ifdef RAM_NC_BASE
 #define REGION_VECTOR				RAM_NC
@@ -68,33 +106,57 @@
 #define REGION_VECTOR				RAM
 #endif
 
+#ifndef MAIN_RAM_USE_TCM
+#ifndef NO_OVERLAY
+#error "Overlay is NOT supported unless MAIN_RAM_USE_TCM defined"
+#endif
+#if !(defined(RAMX_BASE) && (RAMX_BASE != RAM_BASE))
+#define RAMX						RAM
+#endif
+#endif // !MAIN_RAM_USE_TCM
+
+#if (FLASH_BASE == FLASHX_BASE)
+#define FLASHX						FLASH
+#endif
+#if (FLASH_BASE == FLASH_NC_BASE)
+#define FLASH_NC					FLASH
+#endif
+
 /* Linker script to configure memory regions. */
 MEMORY
 {
-#if defined(RAMRET_SIZE) && (RAMRET_SIZE > 0)
-	RAM		(rwx)	: ORIGIN = RAMRET_BASE,			LENGTH = RAMRET_SIZE
-	RAMX	(rx)	: ORIGIN = RAMXRET_BASE,		LENGTH = RAMXRET_SIZE
-#if (SENS_FIR_LMS_SIZE > 0)
-	RAM_2	(rwx)	: ORIGIN = RAMX_TO_RAM(SENS_FIR_LMS_BASE),	LENGTH = SENS_FIR_LMS_SIZE
-	RAMX_2	(rx)	: ORIGIN = SENS_FIR_LMS_BASE,	LENGTH = SENS_FIR_LMS_SIZE
+	RAM			(rwx)	: ORIGIN = RAM_REGION_BASE,			LENGTH = RAM_REGION_SIZE
+#if defined(RAMX_BASE) && (RAMX_BASE != RAM_BASE)
+	RAMX		(rx)	: ORIGIN = RAMX_REGION_BASE,		LENGTH = RAMX_REGION_SIZE
 #endif
-	BUFFER	(rw)	: ORIGIN = RAM_BASE,			LENGTH = RAM_SIZE
-#else
-	RAM		(rwx)	: ORIGIN = RAM_BASE,			LENGTH = RAM_SIZE
-	RAMX	(rx)	: ORIGIN = RAMX_BASE,			LENGTH = RAMX_SIZE
-#if (SENS_FIR_LMS_SIZE > 0)
-	RAM_2	(rwx)	: ORIGIN = RAMX_TO_RAM(SENS_FIR_LMS_BASE),	LENGTH = SENS_FIR_LMS_SIZE
-	RAMX_2	(rx)	: ORIGIN = SENS_FIR_LMS_BASE,	LENGTH = SENS_FIR_LMS_SIZE
-#endif
-#if SENS_PRI_RAM_AS_BUFFER_SECTION == 1
-	BUFFER	(rw)	: ORIGIN = SENS_RAM6_BASE,	    LENGTH = (SENS_RAM6_SIZE+CODEC_VAD_MAX_BUF_SIZE)
-#endif
+#if defined(RAM_BUFFER_SIZE) && (RAM_BUFFER_SIZE > 0)
+	BUFFER		(rw)	: ORIGIN = RAM_BUFFER_BASE,			LENGTH = RAM_BUFFER_SIZE
 #endif
 #ifdef RAM_NC_BASE
-	RAM_NC		(rw)	: ORIGIN = RAM_NC_BASE,		LENGTH = RAM_NC_SIZE
+	RAM_NC		(rw)	: ORIGIN = RAM_NC_BASE,				LENGTH = RAM_NC_SIZE
 #endif
-#ifdef FLASH_REGION_BASE
-	FLASH 	(rx)	: ORIGIN = FLASH_REGION_BASE,	LENGTH = FLASH_REGION_SIZE
+#ifdef AON_MAILBOX_BASE
+	AON_MAILBOX	(rw)	: ORIGIN = AON_MAILBOX_BASE,		LENGTH = AON_MAILBOX_SIZE
+#endif
+#if (FLASH_BASE == FLASHX_BASE)
+	FLASH 		(rx)	: ORIGIN = FLASH_REGION_BASE,		LENGTH = FLASH_REGION_SIZE
+#else
+	FLASH 		(r)		: ORIGIN = FLASH_REGION_BASE,		LENGTH = FLASH_REGION_SIZE
+	FLASHX		(rx)	: ORIGIN = FLASHX_REGION_BASE,		LENGTH = FLASH_REGION_SIZE
+#endif
+#if (FLASH_BASE != FLASH_NC_BASE)
+	FLASH_NC	(r)		: ORIGIN = FLASH_NC_REGION_BASE,	LENGTH = FLASH_REGION_SIZE
+#endif
+#if defined(PSRAM_ENABLE) && defined(PSRAM_REGION_SIZE) && (PSRAM_REGION_SIZE > 0) && !defined(NO_SUBSYS_RAM)
+#if (PSRAM_BASE == PSRAMX_BASE)
+	PSRAM 		(rwx)	: ORIGIN = PSRAM_REGION_BASE,		LENGTH = PSRAM_REGION_SIZE
+#else
+	PSRAM 		(rw)	: ORIGIN = PSRAM_REGION_BASE,		LENGTH = PSRAM_REGION_SIZE
+	PSRAMX		(rwx)	: ORIGIN = PSRAMX_REGION_BASE,		LENGTH = PSRAM_REGION_SIZE
+#endif
+#if (PSRAM_BASE != PSRAM_NC_BASE)
+	PSRAM_NC	(rw)	: ORIGIN = PSRAM_NC_REGION_BASE,	LENGTH = PSRAM_REGION_SIZE
+#endif
 #endif
 }
 
@@ -132,6 +194,39 @@ ENTRY(Reset_Handler)
 
 SECTIONS
 {
+	.boot_struct (ORIGIN(FLASH)) :
+	{
+		__flash_start = .;
+		KEEP(*(.boot_struct))
+		KEEP(*(.img_desc_subsys))
+		__segment_table_size = ABSOLUTE(__segment_table_end - __segment_table_start);
+		LONG(ABSOLUTE(__segment_table_size));
+		__segment_table_start = .;
+		KEEP(*(.subsys_segment))
+		__segment_table_end = .;
+
+		/*segments defination...*/
+#ifdef SUBSYS_IMAGE_SEGMENT
+		__code_seg_map_start = .;
+		__code_seg_map_offset = ABSOLUTE(. - __flash_start);
+		KEEP(*(.code_seg_map))
+		__code_seg_map_end = .;
+		__code_seg_map_size = ABSOLUTE(__code_seg_map_end - __code_seg_map_start);
+#endif
+
+#ifndef NO_OVERLAY
+		__code_overlay_map_start = .;
+		__code_overlay_map_offset = ABSOLUTE(. - __flash_start);
+		KEEP(*(.code_overlay_map))
+		__code_overlay_map_end = .;
+#endif
+
+		. = ALIGN(4);
+	} > FLASH
+
+	__code_start__ = LOADADDR(.boot_struct) + SIZEOF(.boot_struct);
+	__code_start_offset = __code_start__ - __flash_start;
+
 	.vector_table (ORIGIN(REGION_VECTOR)) (NOLOAD) :
 	{
 		KEEP(*(.vector_table))
@@ -140,7 +235,23 @@ SECTIONS
 		__vector_table_end__ = .;
 	} > REGION_VECTOR
 
+	__sram_nc_data_start_flash__ = __code_start__;
+
 #ifdef RAM_NC_BASE
+	__sram_nc_data_start_load_offset__ = __sram_nc_data_start_flash__ - __flash_start;
+
+	.sram_nc_data : AT (__sram_nc_data_start_flash__)
+	{
+		__sram_nc_data_start__ = .;
+		*(.sram_nc_rodata*)
+		. = ALIGN(4);
+		*(.sram_nc_data*)
+		__sram_nc_data_end__ = .;
+	} > RAM_NC
+
+	__sram_nc_data_end_flash__ = __sram_nc_data_start_flash__ + SIZEOF(.sram_nc_data);
+	__sram_nc_data_size__ = SIZEOF(.sram_nc_data);
+
 	.sram_nc_bss (NOLOAD) : AT (ADDR(.sram_nc_bss))
 	{
 		__sram_nc_bss_start__ = .;
@@ -152,12 +263,12 @@ SECTIONS
 
 	__ram_nc_top = ORIGIN(RAM_NC) + LENGTH(RAM_NC);
 	__free_ram_nc = __ram_nc_top - __sram_nc_bss_end__;
-#endif
+#else /* !RAM_NC_BASE */
+	__sram_nc_data_end_flash__ = __sram_nc_data_start_flash__;
+#endif /* !RAM_NC_BASE */
 
-#ifdef MAIN_RAM_USE_TCM
+#if defined(SEPARATE_RAM_RAMX) || defined(MAIN_RAM_USE_TCM)
 	__sram_text_start__ = ALIGN(ORIGIN(RAMX), 32);
-	__sram_text_start_load__ = ORIGIN(LOAD_REGION);
-	__sram_text_start_load_offset__ = 0;
 #else
 #ifdef RAM_NC_BASE
 	.dummy_sram_text_start (NOLOAD) :
@@ -168,39 +279,18 @@ SECTIONS
 #else
 	__sram_text_start__ = ALIGN(RAM_TO_RAMX(__vector_table_end__), 32);
 #endif
-	__sram_text_start_load__ = RAMX_TO_RAM(__sram_text_start__);
 #endif
+	__sram_text_data_start__ = RAMX_TO_RAM(__sram_text_start__);
+	__sram_text_start_load__ = __sram_nc_data_end_flash__;
+	__sram_text_start_load_offset__ = __sram_text_start_load__ - __flash_start;
 
 	.sram_text (__sram_text_start__) : AT (__sram_text_start_load__)
 	{
 		_stext = .;
 		*(.reset_handler_subsys)
 #ifdef NO_OVERLAY
-#if (SENS_FIR_LMS_SIZE > 0)
-        *(EXCLUDE_FILE(
-			anc_fir_coeff_config_best1502x.o
-			anc_fir_coeff_config_best1502p.o
-			anc_ff_fir_lms.o
-			arm_conj_cmplx_mult_cmplx_f32.o
-			anc_optimal_tf.o
-			mdf4.o
-			kiss_fftwrap.o
-			kiss_fftr.o
-			kiss_fft.o
-			anc_filter.o
-			beco.o
-			beco_fir_q15.o
-            cmsis_dsp.o
-			anc_fir_lms_aec.o
-			) .text*)
-			*:cmsis_dsp.o(.text*.arm_add_f32)
-            *:cmsis_dsp.o(.text*.arm_copy_q31)
-            *:cmsis_dsp.o(.text*.arm_conv_f32)
-			*:cmsis_dsp.o(.text*.arm_rfft_fast_f32)
-			*:cmsis_dsp.o(.text*.arm_fir_decimate_f32)
-			*:cmsis_dsp.o(.text*.arm_biquad_cascade_df1_ex_f32)
-#else
-        *(.text*)
+#ifndef DEFAULT_CODE_IN_PSRAM
+		*(.text*)
 #endif
 #endif
 		*(.boot_text_sram*)
@@ -227,27 +317,24 @@ SECTIONS
 		*(SORT(.dtors.*))
 		*(.dtors)
 #endif
-		. = ALIGN(4);
-	} > RAMX
-
-	.sram_end (.) : AT (LOADADDR(.sram_text) + SIZEOF(.sram_text))
-	{
 		. = ALIGN(32);
 		__sram_text_end__ = .;
 	} > RAMX
 
+	__sram_text_end_load__ = __sram_text_start_load__ + SIZEOF(.sram_text);
 	__sram_text_seg_size__ = __sram_text_end__ - __sram_text_start__;
+
+	__overlay_text_exec_start__ = __sram_text_end__;
+	__overlay_load_text_start__ = __sram_text_end_load__;
 
 #ifdef NO_OVERLAY
 
-	__text_start__ = __sram_text_end__;
-	__text_load_start__ = LOADADDR(.sram_end) + SIZEOF(.sram_end);
+	__overlay_text_exec_end__ = __overlay_text_exec_start__;
+	__overlay_load_text_end__ = __overlay_load_text_start__;
 
 #else
 
-	__overlay_text_start__ = .;
-	__overlay_text_exec_start__ = .;
-	__overlay_load_text_start__ = LOADADDR(.sram_text) + SIZEOF(.sram_text);
+	__overlay_text_start__ = RAMX_TO_RAM(__overlay_text_exec_start__);
 
 	OVERLAY (__overlay_text_exec_start__) : NOCROSSREFS AT (__overlay_load_text_start__)
 	{
@@ -340,7 +427,7 @@ SECTIONS
 			*:aacdecoder_lib.o(.text*.*aacDecoder_ConfigCallback*)
 			*:aacdecoder.o(.text*.*CAacDecoder_ExtPayloadParse*)
 			*:stereo.o(.text*.*CJointStereo_Read*)
-#endif			
+#endif
 			*:aac_com.o(.text*)
 			*:aac_enc.o(.text*)
 			*:aac_dec.o(.text*)
@@ -436,14 +523,14 @@ SECTIONS
 		}
 	} > RAMX
 
-	__overlay_text0_load_offset__ = __load_start_overlay_text0 - __sram_text_start_load__;
-	__overlay_text1_load_offset__ = __load_start_overlay_text1 - __sram_text_start_load__;
-	__overlay_text2_load_offset__ = __load_start_overlay_text2 - __sram_text_start_load__;
-	__overlay_text3_load_offset__ = __load_start_overlay_text3 - __sram_text_start_load__;
-	__overlay_text4_load_offset__ = __load_start_overlay_text4 - __sram_text_start_load__;
-	__overlay_text5_load_offset__ = __load_start_overlay_text5 - __sram_text_start_load__;
-	__overlay_text6_load_offset__ = __load_start_overlay_text6 - __sram_text_start_load__;
-	__overlay_text7_load_offset__ = __load_start_overlay_text7 - __sram_text_start_load__;
+	__overlay_text0_load_offset__ = __load_start_overlay_text0 - __flash_start;
+	__overlay_text1_load_offset__ = __load_start_overlay_text1 - __flash_start;
+	__overlay_text2_load_offset__ = __load_start_overlay_text2 - __flash_start;
+	__overlay_text3_load_offset__ = __load_start_overlay_text3 - __flash_start;
+	__overlay_text4_load_offset__ = __load_start_overlay_text4 - __flash_start;
+	__overlay_text5_load_offset__ = __load_start_overlay_text5 - __flash_start;
+	__overlay_text6_load_offset__ = __load_start_overlay_text6 - __flash_start;
+	__overlay_text7_load_offset__ = __load_start_overlay_text7 - __flash_start;
 
 	__overlay_text0_size__ = __load_stop_overlay_text0 - __load_start_overlay_text0;
 	__overlay_text1_size__ = __load_stop_overlay_text1 - __load_start_overlay_text1;
@@ -459,20 +546,23 @@ SECTIONS
 		__overlay_text_exec_end__ = .;
 	} > RAMX
 
-	__text_start__ = ALIGN(., 32);
-	__text_load_start__ = __load_stop_overlay_text_last;
+	__overlay_text_end__ = RAMX_TO_RAM(__overlay_text_exec_end__);
+	__overlay_load_text_end__ =  __load_stop_overlay_text_last;
 
 #endif /* !NO_OVERLAY */
 
-	__text_start_load_offset__ = __text_load_start__ -  __sram_text_start_load__;
+	__text_start__ = ALIGN(__overlay_text_exec_end__, 32);
+	__text_data_start__ = RAMX_TO_RAM(__text_start__);
+
+	__text_load_start__ = __overlay_load_text_end__;
+	__text_start_load_offset__ = __text_load_start__ -  __flash_start;
 
 	.text (__text_start__) : AT (__text_load_start__)
 	{
 #ifndef NO_OVERLAY
+#ifndef DEFAULT_CODE_IN_PSRAM
 		*(.text*)
 #endif
-#if (RAMCP_SIZE == 0)
-		*(.cp_text*)
 #endif
 	} > RAMX
 
@@ -500,15 +590,14 @@ SECTIONS
 	__fast_sram_text_exec_start__ = __text_start__;
 	__fast_sram_text_exec_end__ = __ramx_end;
 
-#ifdef MAIN_RAM_USE_TCM
+#if defined(SEPARATE_RAM_RAMX) || defined(MAIN_RAM_USE_TCM)
 	__text_seg_size__ = __ramx_end - __text_start__;
 	__sram_rodata_start__ = ALIGN(__vector_table_end__, 32);
-	__sram_rodata_start_load__ = LOADADDR(.ramx_end) + SIZEOF(.ramx_end);
-	__sram_rodata_start_load_offset__ = __sram_rodata_start_load__ - __sram_text_start_load__;
+	__sram_rodata_start_load_offset__ = __sram_rodata_start_load__ - __flash_start;
 #else
-	__sram_rodata_start__ = ALIGN(RAMX_TO_RAM(.), 32);
-	__sram_rodata_start_load__ = __sram_rodata_start__;
+	__sram_rodata_start__ = RAMX_TO_RAM(.);
 #endif
+	__sram_rodata_start_load__ = LOADADDR(.ramx_end) + SIZEOF(.ramx_end);
 
 	.sram_rodata (__sram_rodata_start__) : AT (__sram_rodata_start_load__)
 	{
@@ -516,7 +605,10 @@ SECTIONS
 		*(.sram_rodata*)
 		*(.boot_rodata_flash*)
 		*(.flash_rodata*)
+		*(.flash_nc_rodata*)
+#ifndef DEFAULT_DATA_IN_PSRAM
 		*(.rodata*)
+#endif
 
 		. = ALIGN(4);
 
@@ -530,12 +622,15 @@ SECTIONS
 	__etext = .;
 	_etext = .;
 
-	.sram_data (.) : AT (LOADADDR(.sram_rodata) + SIZEOF(.sram_rodata))
+	__sram_data_start_load__ = LOADADDR(.sram_rodata) + SIZEOF(.sram_rodata);
+	.sram_data (.) : AT (__sram_data_start_load__)
 	{
 		__sram_data_start__ = .;
 		_sdata = .;
 #ifdef NO_OVERLAY
+#ifndef DEFAULT_DATA_IN_PSRAM
 		*(.data*)
+#endif
 #endif
 		*(.boot_data*)
 		*(.sram_data*)
@@ -578,26 +673,31 @@ SECTIONS
 		KEEP(*(.core_bridge_instant_cmd_table))
 		__core_bridge_instant_cmd_table_end = .;
 
+		__eshell_command_table_start = .;
+		KEEP(*(.eshell_command_table))
+		__eshell_command_table_end = .;
+
 		/* All data end */
 		. = ALIGN(4);
 		__sram_data_end__ = .;
 		_edata = .;
 	} > RAM
 
-#ifdef MAIN_RAM_USE_TCM
+#if defined(SEPARATE_RAM_RAMX) || defined(MAIN_RAM_USE_TCM)
 	__sram_data_seg_size__ = . - __sram_rodata_start__;
 #endif
 
+	__overlay_data_start__ = .;
+	__overlay_load_data_start__ = LOADADDR(.sram_data) + SIZEOF(.sram_data);
+
 #ifdef NO_OVERLAY
 
-	__data_seg_start_load__ = LOADADDR(.sram_data) + SIZEOF(.sram_data);
+	__overlay_data_end__ = __overlay_data_start__;
+	__overlay_load_data_end__ = __overlay_load_data_start__;
 
 #else
 
-	__overlay_data_start__ = .;
-	__load_start_overlay_data_start = LOADADDR(.sram_data) + SIZEOF(.sram_data);
-
-	OVERLAY (__overlay_data_start__) : NOCROSSREFS AT (__load_start_overlay_data_start)
+	OVERLAY (__overlay_data_start__) : NOCROSSREFS AT (__overlay_load_data_start__)
 	{
 		.overlay_data0
 		{
@@ -710,14 +810,14 @@ SECTIONS
 		}
 	} > RAM
 
-	__overlay_data0_load_offset__ = __load_start_overlay_data0 -  __sram_text_start_load__;
-	__overlay_data1_load_offset__ = __load_start_overlay_data1 - __sram_text_start_load__;
-	__overlay_data2_load_offset__ = __load_start_overlay_data2 - __sram_text_start_load__;
-	__overlay_data3_load_offset__ = __load_start_overlay_data3 - __sram_text_start_load__;
-	__overlay_data4_load_offset__ = __load_start_overlay_data4 - __sram_text_start_load__;
-	__overlay_data5_load_offset__ = __load_start_overlay_data5 - __sram_text_start_load__;
-	__overlay_data6_load_offset__ = __load_start_overlay_data6 - __sram_text_start_load__;
-	__overlay_data7_load_offset__ = __load_start_overlay_data7 - __sram_text_start_load__;
+	__overlay_data0_load_offset__ = __load_start_overlay_data0 - __flash_start;
+	__overlay_data1_load_offset__ = __load_start_overlay_data1 - __flash_start;
+	__overlay_data2_load_offset__ = __load_start_overlay_data2 - __flash_start;
+	__overlay_data3_load_offset__ = __load_start_overlay_data3 - __flash_start;
+	__overlay_data4_load_offset__ = __load_start_overlay_data4 - __flash_start;
+	__overlay_data5_load_offset__ = __load_start_overlay_data5 - __flash_start;
+	__overlay_data6_load_offset__ = __load_start_overlay_data6 - __flash_start;
+	__overlay_data7_load_offset__ = __load_start_overlay_data7 - __flash_start;
 
 	__overlay_data0_size__ = __load_stop_overlay_data0 - __load_start_overlay_data0;
 	__overlay_data1_size__ = __load_stop_overlay_data1 - __load_start_overlay_data1;
@@ -733,100 +833,194 @@ SECTIONS
 		__overlay_data_end__ = .;
 	} > RAM
 
-	__data_seg_start_load__ = __load_stop_overlay_data_last;
+	__overlay_load_data_end__ = __load_stop_overlay_data_last;
 
 #endif /* !NO_OVERLAY */
 
-	__data_start_load_offset__ = __data_seg_start_load__ - __sram_text_start_load__;
+#if defined(PSRAM_ENABLE) && defined(PSRAM_REGION_SIZE) && (PSRAM_REGION_SIZE > 0) && !defined(NO_SUBSYS_RAM)
+	__psram_text_data_start__ = ORIGIN(PSRAM);
+	__psram_text_data_start_flash__ = __overlay_load_data_end__;
 
-	.data (.) : AT (__data_seg_start_load__)
+	.psram_text (PSRAM_TO_PSRAMX(__psram_text_data_start__)) : AT (__psram_text_data_start_flash__)
+	{
+		__psramx_text_start__ = .;
+#if !defined(PSRAM_HEAP_ONLY)
+		*(.psram_text*)
+#ifdef DEFAULT_CODE_IN_PSRAM
+		*(.text*)
+#endif
+#endif
+		. = ALIGN(32);
+		__psramx_text_end__ = .;
+	} > PSRAMX
+
+	.psram_data (__psram_text_data_start__ + SIZEOF(.psram_text)) :
+				AT (__psram_text_data_start_flash__ + SIZEOF(.psram_text))
+	{
+		__psram_data_start__ = .;
+#if !defined(PSRAM_HEAP_ONLY)
+		*(.psram_rodata*)
+#ifdef DEFAULT_DATA_IN_PSRAM
+		*(.rodata*)
+#endif
+		*(.psram_data*)
+#ifdef DEFAULT_DATA_IN_PSRAM
+		*(.data*)
+#endif
+#endif
+		__psram_data_end__ = .;
+		. = ALIGN(32);
+	} > PSRAM
+
+	__psram_text_data_end_flash__ = __psram_text_data_start_flash__ + SIZEOF(.psram_text)+ SIZEOF(.psram_data);
+
+	.psram_bss (.) (NOLOAD) : AT (ADDR(.psram_bss))
+	{
+		__psram_bss_start__ = .;
+#if !defined(PSRAM_HEAP_ONLY)
+		*:*ffmpeg*.o(COMMON)
+		*(.psram_bss*)
+#ifdef DEFAULT_BSS_IN_PSRAM
+		*(.bss*)
+#endif
+#endif
+		. = ALIGN(32);
+		__psram_bss_end__ = .;
+	} > PSRAM
+
+	__psram_nc_data_start_flash__ = __psram_text_data_end_flash__;
+
+	.psram_nc_data (PSRAM_C_TO_NC(.)) : AT (__psram_nc_data_start_flash__)
+	{
+		__psram_nc_data_start__ = .;
+		*(.psram_nc_rodata*)
+		. = ALIGN(32);
+		*(.psram_nc_data*)
+		. = ALIGN(32);
+		__psram_nc_data_end__ = .;
+	} > PSRAM_NC
+
+	__psram_nc_data_end_flash__ = __psram_nc_data_start_flash__ + SIZEOF(.psram_nc_data);
+
+	.psram_nc_bss (.) (NOLOAD) : AT (ADDR(.psram_nc_bss))
+	{
+		__psram_nc_bss_start__ = .;
+#if !defined(PSRAM_HEAP_ONLY)
+		*(.psram_nc_bss*)
+		*(.sync_flags_psram*)
+#endif
+		. = ALIGN(32);
+		__psram_nc_bss_end__ = .;
+	} > PSRAM_NC
+
+	.psram_heap_bss (PSRAM_NC_TO_C(.)) (NOLOAD) : AT (ADDR(.psram_heap_bss))
+	{
+		__psram_reserved_start__ = .;
+		*(.psram_reserved*)
+		__psram_reserved_end__ = .;
+#if defined(__NuttX__)
+		. = ALIGN(32);
+		_nuttx_heap_start = .;
+		_nuttx_heap_end = ABSOLUTE(PSRAM_BASE+PSRAM_REGION_SIZE);
+#endif
+	} > PSRAM
+#else /* !PSRAM_ENABLE */
+	 __psram_nc_data_end_flash__ = __overlay_load_data_end__;
+#endif /* !PSRAM_ENABLE */
+
+	__resource_table_start_load__ = __psram_nc_data_end_flash__;
+
+#ifdef OPENAMP_ENABLE
+	.resource_table :  AT (__resource_table_start_load__)
+	{
+		. = ALIGN(8);
+		__resource_table_start__ = .;
+		KEEP(*(.resource_table*))
+		__resource_table_end__ = .;
+	} > RAM
+	__resource_table_end_load__ = __resource_table_start_load__ + SIZEOF(.resource_table);
+#else
+	__resource_table_end_load__ = __resource_table_start_load__;
+#endif
+
+	__aon_mbx_data_start_load__ = __resource_table_end_load__;
+
+#ifdef AON_MAILBOX_BASE
+	.aon_mbx_data (ORIGIN(AON_MAILBOX)) : AT (__aon_mbx_data_start_load__)
+	{
+		__aon_mbx_data_start__ = .;
+		*(.aon_mbx_data*)
+		. = ALIGN(4);
+		__aon_mbx_data_end__ = .;
+	} > AON_MAILBOX
+
+	__aon_mbx_data_end_load__ = __aon_mbx_data_start_load__ + SIZEOF(.aon_mbx_data);
+
+	__aon_mbx_data_start_load_offset__ = __aon_mbx_data_start_load__ - __flash_start;
+	__aon_mbx_data_size__ = SIZEOF(.aon_mbx_data);
+
+	.aon_mbx_bss (.) (NOLOAD) :
+	{
+		__aon_mbx_bss_start__ = .;
+		*(.aon_mbx_bss*)
+		. = ALIGN(4);
+		__aon_mbx_bss_end__ = .;
+		*(.aon_mbx_buf*);
+		. = ALIGN(4);
+	} > AON_MAILBOX
+
+	__aon_mbx_heap_start__ = .;
+	__aon_mbx_heap_end__ = ORIGIN(AON_MAILBOX) + LENGTH(AON_MAILBOX);
+	__aon_mbx_heap_size__ = __aon_mbx_heap_end__ - __aon_mbx_heap_start__;
+#else
+	__aon_mbx_data_end_load__ = __aon_mbx_data_start_load__;
+#endif
+
+	__data_seg_start_load__ = __aon_mbx_data_end_load__;
+	__data_start_load_offset__ = __data_seg_start_load__ - __flash_start;
+
+	.data : AT (__data_seg_start_load__)
 	{
 		__data_start__ = .;
 #ifndef NO_OVERLAY
+#ifndef DEFAULT_DATA_IN_PSRAM
 		*(.data*)
-		*(.rodata*)
 #endif
-#if (RAMCP_SIZE == 0)
-		*(.cp_data*)
 #endif
 		__data_end__ = .;
-	}
+		. = ALIGN(4);
+	} > RAM
 
-	.build_info (.) : AT (LOADADDR(.data) + SIZEOF(.data))
+	__data_seg_end_load__ = __data_seg_start_load__ + SIZEOF(.data);
+
+	.build_info : AT (__data_seg_end_load__)
 	{
 		KEEP(*(.build_info))
 		. = ALIGN(4);
-		__ram_end__ = .;
 	} > RAM = 0x00000000
 
-#ifdef MAIN_RAM_USE_TCM
+	__boot_struct_build_info = FLASH_C_TO_NC(LOADADDR(.build_info));
+
+#if defined(SEPARATE_RAM_RAMX) || defined(MAIN_RAM_USE_TCM)
 	__data_seg_size__ = . - __data_start__;
 #endif
-#if (SENS_FIR_LMS_SIZE > 0)
-    __fir_lms_text_start_load = LOADADDR(.build_info) + SIZEOF(.build_info);
-    .fir_lms_text (ORIGIN(RAMX_2)) : AT (__fir_lms_text_start_load)
-	{
-		__fir_lms_text_start = .;
-		*(.fir_lms_text_section)
-		*:anc_fir_coeff_config_best1502x.o(.text*)
-		*:anc_fir_coeff_config_best1502p.o(.text*)
-		*:anc_ff_fir_lms.o(.text*)
-		*:arm_conj_cmplx_mult_cmplx_f32.o(.text*)
-		*:anc_optimal_tf.o(.text*)
-		*:mdf4.o(.text*)
-		*:kiss_fftwrap.o(.text*)
-		*:kiss_fftr.o(.text*)
-		*:kiss_fft.o(.text*)
-		*:anc_filter.o(.text*)
-		*:beco.o(.text*)
-		*:beco_fir_q15.o(.text*)
-		*:cmsis_dsp.o(.text*)
-		*:anc_fir_lms_aec.o(.text*)
-		. = ALIGN(4);
-		__fir_lms_text_end = .;
-	} > RAMX_2
 
-    __fir_lms_data_start_load = LOADADDR(.fir_lms_text) + SIZEOF(.fir_lms_text);
-    .fir_lms_data (RAMX_TO_RAM(.)): AT (__fir_lms_data_start_load)
-	{
-		__fir_lms_data_start = .;
-		*(.fir_lms_data_section)
-		. = ALIGN(4);
-		__fir_lms_data_end = .;
-	} > RAM_2
-
-	.fir_lms_bss (.) (NOLOAD):
-	{
-		__fir_lms_bss_start = .;
-		*(.fir_lms_bss_section)
-		. = ALIGN(4);
-		__fir_lms_bss_end = .;
-	} > RAM_2
-    __fir_lms_data_end_load = LOADADDR(.fir_lms_data) + SIZEOF(.fir_lms_data);
-	__ram_2_limit = ORIGIN(RAM_2) + LENGTH(RAM_2);
-	ASSERT(__ram_2_limit >= __fir_lms_bss_end, "region RAM_2 overflowed")
-#else
-    __fir_lms_data_end_load = LOADADDR(.build_info) + SIZEOF(.build_info);
+#ifdef MAIN_RAM_USE_SYS_RAM
+	__sram_text_data_size__ = . - __sram_text_data_start__;
 #endif
+
+	__flash_code_start_addr = LOADADDR(.build_info) + SIZEOF(.build_info);
+	__flash_image_size = __flash_code_start_addr - __flash_start;
+
 	/* The following section be the last loaded section */
-	.code_start_addr (__ram_end__) : AT (__fir_lms_data_end_load)
+	.code_start_addr (__flash_code_start_addr) :
 	{
-#ifdef MAIN_RAM_USE_TCM
-		__code_info_offset__ = LOADADDR(.code_start_addr) - __sram_text_start_load__;
-#ifdef NO_OVERLAY
-		LONG(0);
-#else
-		LONG(1);
-		KEEP(*(.code_overlay_map))
-#endif
-		KEEP(*(.code_seg_map))
-		LONG(ABSOLUTE(RAMX_TO_RAM(__code_info_offset__)));
-#else
-		LONG(ABSOLUTE(RAMX_TO_RAM(__sram_text_start__)));
-#endif
-	} > RAM
+		LONG(FLASH_C_TO_NC(ABSOLUTE(__flash_start)));
+	} > FLASH
 
-	.boot_bss (.) (NOLOAD) :
+	__flash_end = .;
+
+	.boot_bss (NOLOAD) :
 	{
 		. = ALIGN(4);
 		__boot_bss_sram_start__ = .;
@@ -840,20 +1034,13 @@ SECTIONS
 		. = ALIGN(4);
 		__bss_start__ = .;
 		_sbss = .;
+#ifndef DEFAULT_BSS_IN_PSRAM
 		*(.bss*)
-#if (RAMCP_SIZE == 0)
-		*(.cp_bss*)
 #endif
-		*(.reboot_param*)
 		*(.boot_bss*)
 		*(.sram_bss*)
 		*(COMMON)
-#if defined(CONFIG_SMP)
-		. = ALIGN(64);
-		__cp_stack_limit = .;
-		. += 1024;	/* just used for system_cp_reset_handler's stack */
-		__cp_stack_top = .;
-#endif
+
 		. = ALIGN(4);
 		__bss_end__ = .;
 		_ebss = .;
@@ -869,6 +1056,7 @@ SECTIONS
 		_nuttx_heap_end = .;
 	} > RAM
 #endif
+
 	.heap (.) (NOLOAD) :
 	{
 		. = ALIGN(8);
@@ -889,7 +1077,7 @@ SECTIONS
 		. = ALIGN(8);
 	} > RAM
 
-#if defined(RAMRET_SIZE) && (RAMRET_SIZE > 0) || (SENS_PRI_RAM_AS_BUFFER_SECTION == 1)
+#if defined(RAM_BUFFER_SIZE) && (RAM_BUFFER_SIZE > 0)
 	.buffer (ORIGIN(BUFFER)) (NOLOAD) :
 	{
 		__buffer_start__ = .;
@@ -910,20 +1098,17 @@ SECTIONS
 	ASSERT(__StackLimit >= __HeapLimit, "region RAM overflowed with stack")
 	__free_ram = __StackLimit - __HeapLimit;
 
-#ifdef __NuttX__
-	ASSERT(__free_ram >= NUTTX_HEAP_USE_MAX, "nuttx heap is not enough")
-#endif
-
 	__mem_pool_start__ = __HeapLimit;
 	__mem_pool_end__ = __StackLimit;
 
-#if defined(__NuttX__) && !defined(CONFIG_USE_BES_BT_STACK)
-	_nuttx_heap_start = __mem_pool_start__;
-	_nuttx_heap_end = __mem_pool_end__ - 4;
+#if defined(__NuttX__) && !defined(CONFIG_USE_BES_BT_STACK) && defined(NO_SUBSYS_RAM)
+	_nuttx_heap_start = __HeapLimit;
+	_nuttx_heap_end = __StackLimit - 4;
 #endif
 
-#ifdef MAIN_RAM_USE_TCM
+#if defined(SEPARATE_RAM_RAMX) || defined(MAIN_RAM_USE_TCM)
 	__ramx_top = ORIGIN(RAMX) + LENGTH(RAMX);
 	__free_ramx = __ramx_top - __ramx_end;
 #endif
+	__free_flash = ORIGIN(FLASH) + LENGTH(FLASH) - __flash_end;
 }

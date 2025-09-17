@@ -92,7 +92,7 @@ int a2dp_audio_example_info_get(void *info)
 
 int a2dp_audio_example_init(A2DP_AUDIO_OUTPUT_CONFIG_T *config, void *context)
 {
-    AUDIOPLAYERS_TRACE(0,"%s", __func__);
+    TRACE_A2DP_DECODER_D("%s", __func__);
     a2dp_audio_context_p = (A2DP_AUDIO_CONTEXT_T *)context;
 
     memset(&a2dp_audio_ldac_example_info, 0, sizeof(A2DP_AUDIO_DECODER_LASTFRAME_INFO_T));    

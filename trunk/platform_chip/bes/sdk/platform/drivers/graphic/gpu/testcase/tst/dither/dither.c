@@ -12,15 +12,34 @@
 #include <math.h>
 #include "vg_lite.h"
 #include "vg_lite_util.h"
+#include "hal_trace.h"
+#include "hal_timer.h"
+#include "hal_location.h"
+#include "gpu_port.h"
+#include "gpu_common.h"
+
+#ifdef RTOS
+#include "cmsis_os.h"
+#endif
+#define GPU_REP(...)   TR_INFO( TR_MOD(TEST), "//" __VA_ARGS__)
+#define GPU_ERR(...)   TR_ERROR( TR_MOD(TEST), "//" __VA_ARGS__)
+
+#define printf GPU_ERR
+
+#undef malloc
+#define malloc  gpu_malloc
+#undef free
+#define free  gpu_free
+
 
 #define DEFAULT_SIZE   320.0f;
 #define __func__ __FUNCTION__
-char *error_type[] = 
+static const char const *error_type[] =
 {
     "VG_LITE_SUCCESS",
     "VG_LITE_INVALID_ARGUMENT",
     "VG_LITE_OUT_OF_MEMORY",
-    "VG_LITE_NO_CONTEXT",      
+    "VG_LITE_NO_CONTEXT",
     "VG_LITE_TIMEOUT",
     "VG_LITE_OUT_OF_RESOURCES",
     "VG_LITE_GENERIC_IO",
@@ -41,7 +60,7 @@ static vg_lite_buffer_t buffer[10];
 static vg_lite_buffer_t * fb;
 static vg_lite_buffer_t image;
 
-static vg_lite_buffer_format_t formats[] = {
+static const vg_lite_buffer_format_t formats[] = {
     VG_LITE_RGB565,
     VG_LITE_BGR565,
     VG_LITE_ABGR1555,
@@ -60,6 +79,7 @@ void cleanup(void)
     if (image.handle != NULL) {
         vg_lite_free(&image);
     }
+
     for (i = 0; i < sizeof(formats)/sizeof(formats[0]); i++) {
         if (buffer[i].handle != NULL) {
             vg_lite_free(&buffer[i]);
@@ -68,8 +88,11 @@ void cleanup(void)
     vg_lite_close();
 }
 
+int vg_lite_load_raw_buffer(vg_lite_buffer_t * buffer, const char * raw);
+extern uint32_t __landscape_start_flash[];
+extern uint32_t __landscape_end_flash[];
 
-int main(int argc, const char * argv[])
+int dither_test_main(int argc, const char * argv[])
 {
     vg_lite_filter_t filter;
     vg_lite_matrix_t matrix;
@@ -81,15 +104,18 @@ int main(int argc, const char * argv[])
 
     CHECK_ERROR(vg_lite_init(320, 480));
 
+#ifdef __TESTWITH_LOCALFS__
     if (vg_lite_load_raw(&image, "landscape.raw") != 0) {
         printf("load raw file error\n");
         cleanup();
         return -1;
     }
-
+#else
+    vg_lite_load_raw_buffer(&image,__landscape_start_flash);
+#endif
     fb_scale = (float)fb_width / DEFAULT_SIZE;
     /* enable dither function */
-    vg_lite_set_dither(1);
+    vg_lite_enable_dither();
 
     for(i = 0; i < sizeof(formats)/sizeof(formats[0]); i++) {
         buffer[i].width  = fb_width;
@@ -104,11 +130,21 @@ int main(int argc, const char * argv[])
 
         CHECK_ERROR(vg_lite_blit(fb, &image, &matrix, VG_LITE_BLEND_NONE, 0, filter));
         CHECK_ERROR(vg_lite_finish());
-
+#ifndef PLD_PSRAMDUMP
         sprintf(fname, "dither_%d.png", i);
         vg_lite_save_png(fname, &buffer[i]);
+#else
+        GPU_REP("%s fb mem w:%d h:%d", __func__, fb->width,fb->height);
+        GPU_REP("%s fb mem start:%p  end:%p", __func__, fb->memory, (uint32_t)(fb->memory) + fb->height * fb->stride );
+
+        set_pld_dump_mem_description(fb->memory, fb->height * fb->stride, i, 1);
+
+        trigger_pld_dump_mem();
+
+        vg_lite_free(&buffer[i]);
+#endif
     }
-    vg_lite_set_dither(0);
+    vg_lite_disable_dither();
 
 ErrorHandler:
     cleanup();

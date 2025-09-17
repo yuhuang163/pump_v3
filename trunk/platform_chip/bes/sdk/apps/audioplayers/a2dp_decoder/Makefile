@@ -14,6 +14,10 @@ obj-y += a2dp_decoder_aac_lc.o
 ifeq ($(OPT_LEVEL),)
 CFLAGS_a2dp_decoder_aac_lc.o += -O3
 endif
+AAC_INCLUDES =  \
+	-Imultimedia/inc/
+else
+AAC_INCLUDES =
 endif
 
 ifeq ($(A2DP_SCALABLE_ON),1)
@@ -43,8 +47,6 @@ obj-y += a2dp_decoder_lhdcv5.o
 CFLAGS_a2dp_decoder_lhdcv5.o += -O3
 LHDC_INCLUDES =  \
 	-Ithirdparty/audio_codec_lib/liblhdcv5-dec/inc
-else
-LHDC_INCLUDES =
 endif
 
 ifeq ($(A2DP_LDAC_ON),1)
@@ -63,6 +65,10 @@ obj-y += a2dp_decoder_lc3.o
 ifeq ($(OPT_LEVEL),)
 #CFLAGS_a2dp_decoder_lc3.o += -O3
 endif
+LC3_INCLUDES =  \
+	-Imultimedia/inc/audio/codec/lc3/inc
+else
+LC3_INCLUDES =
 endif
 
 else
@@ -71,7 +77,8 @@ ifeq ($(OPT_LEVEL),)
 CFLAGS_a2dp_decoder_smf.o += -O3
 endif
 SMF_INCLUDES :=  
-SMF_INCLUDES += $(BES_MULTIMEDIA_INCLUDES)
+SMF_INCLUDES += -Imultimedia/inc/audio/smf/core/inc 
+SMF_INCLUDES += -Imultimedia/inc/audio/smf/core/include
 SMF_INCLUDES += -DA2DP_SMF=1
 endif
 
@@ -89,18 +96,17 @@ ccflags-y := \
 	-Iservices/bt_app \
 	-Iservices/bt_app/a2dp_codecs/include \
 	$(BLUETOOTH_ADAPTER_INCLUDES) \
-	$(BT_SERVICE_UX_INCLUDES) \
+	$(BES_BT_IMPL_INCLUDES) \
+	-Iservices/bes_bth/bt/bt_app/ \
 	-Iplatform/drivers/uarthci \
 	-Iutils/cqueue \
 	-Iservices/audio_dump/include \
-	-Imultimedia/inc \
 	-Imultimedia/inc/speech/inc \
-	-Imultimedia/rbcodec/inc \
-	-Imultimedia/audio/process/eq/include \
+	-Imultimedia/inc/rbcodec/inc \
+	-Imultimedia/inc/audio/process/eq/include \
 	-Imultimedia/inc/audio/process/resample/include \
 	-Imultimedia/inc/audio/process/filters/include \
 	-Imultimedia/inc/audio/process/sbcplc/include \
-	-Imultimedia/inc/audio/process/virtual_surround_process/include \
 	-Imultimedia/inc/fm/inc \
 	-Iservices/nv_section/aud_section \
 	-Iservices/nv_section/include \
@@ -112,27 +118,50 @@ ccflags-y := \
 	-Iapps/audioplayers/a2dp_decoder \
 	-Iutils/list \
 	-Iutils/heap \
-	-Iutils/hsm \
 	-Iplatform/drivers/ana \
-	-Iapps/app_test/apptester \
+	-Iapps/apptester \
 	-Iapps/key  \
-	-Iservices/audio_manager/audio_policy/bredr_policy/inc \
 	-Iplatform/drivers/bt \
-	-Iutils/crc \
+	-Iutils/crc32 \
 	-Iservices/ai_voice/audio \
 	-Iservices/ai_voice/protocol/bixbyvoice \
 	-Iservices/ai_voice/protocol/bixbyvoice/bixbyvoice_manager \
-	-Iservices/audio_manager \
-	-Iapps/earbuds/conn
+	-Iapps/dsp_m55 \
+    -Iservices/audio_manager
 
-ccflags-y += $(BES_MULTIMEDIA_INCLUDES)
+ccflags-y += -Imultimedia/inc/
+
+ifeq ($(A2DP_DECODER_CROSS_CORE),1)
+obj-y += a2dp_decoder_cc_bth.o
+ccflags-y += \
+    -Iapps/audioplayers/a2dp_decoder_off_bth
+
+CFLAGS_a2dp_decoder.o += -DA2DP_DECODER_CROSS_CORE
+endif
 
 ifeq ($(A2DP_LHDC_ON),1)
-ccflags-y += -Iservices/bt_if_enhanced/lhdc_license
+ccflags-y += -Ibthost/stack/bt_if/lhdc_license
 endif
 
 ifeq ($(A2DP_LHDCV5_ON),1)
-ccflags-y += -Iservices/bt_if_enhanced/lhdc_license
+ccflags-y += -Ibthost/stack/bt_if/lhdc_license
+endif
+
+ifeq ($(IBRT),1)
+ifeq ($(IBRT_UI),1)
+ccflags-y += \
+    -Iservices/ux/common/ibrt/app_ibrt/inc \
+    -Iservices/ux/common/ibrt/ibrt_core/inc \
+    -Iservices/ux/common/ibrt/custom_api
+endif
+
+ifeq ($(IBRT_UI),1)
+subdir-ccflags-y += \
+    -Iservices/ux/common/ibrt/ibrt_ui/inc
+endif
+
+subdir-ccflags-y += \
+    -Iservices/ux/common/ibrt/ibrt_middleware/inc
 endif
 
 ifeq ($(A2DP_CP_ACCEL),1)
@@ -159,10 +188,6 @@ ifeq ($(A2DP_CP_HEAP_DEBUG),1)
 CFLAGS_a2dp_decoder_cp.o += -DA2DP_CP_HEAP_DEBUG
 endif
 
-ifeq ($(BT_DONT_PLAY_MUTE_WHEN_A2DP_STUCK_PATCH),1)
-ccflags-y += -DBT_DONT_PLAY_MUTE_WHEN_A2DP_STUCK_PATCH
-endif
-
 ifeq ($(PLAYBACK_FORCE_48K),1)
 CFLAGS_a2dp_decoder.o += -DPLAYBACK_FORCE_48K
 endif
@@ -175,17 +200,11 @@ ifeq ($(AUDIO_REVERB),1)
 ccflags-y += -D__AUDIO_REVERB__
 endif
 
-ifeq ($(A2DP_LDAC_ON),1)
-ifeq ($(A2DP_LDAC_BCO),1)
-ccflags-y += -DA2DP_LDAC_BCO
-endif
-endif
-
-ifeq ($(AUDIO_DYNAMIC_BOOST),1)
-ccflags-y += -D__AUDIO_DYNAMIC_BOOST__
+ifeq ($(A2DP_AUDIO_STEREO_MIX_CTRL),1)
+CFLAGS_a2dp_decoder.o += -DA2DP_AUDIO_STEREO_MIX_CTRL
+ccflags-y += -Iinclude/cmsis_dsp
 endif
 
-ifeq ($(AUDIO_BASS_ENHANCER),1)
-ccflags-y += -D__AUDIO_BASS_ENHANCER__
+ifneq ($(CROSS_CORE_HEAP_SIZE),)
+CFLAGS_a2dp_decoder_cc_bth.o += -DCROSS_CORE_HEAP_SIZE=$(CROSS_CORE_HEAP_SIZE)
 endif
-

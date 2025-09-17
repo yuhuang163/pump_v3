@@ -15,7 +15,6 @@
  ****************************************************************************/
 #ifndef __APP_BT_AUDIO_H__
 #define __APP_BT_AUDIO_H__
-#include "app_audio_trace.h"
 #include "app_bt_stream.h"
 #include "app_bt_media_manager.h"
 #include "app_media_player.h"

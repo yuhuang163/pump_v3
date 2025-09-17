@@ -21,6 +21,8 @@
 #include "app_thread.h"
 #include <stdlib.h>
 
+#define HEARING_LOG_I(str, ...)      TR_INFO(TR_MOD(TEST), "[HEARING DET]" str, ##__VA_ARGS__)
+
 /**
  * Usage:
  *  1. CMD Format: e.g. [hearing_det,stream_switch]
@@ -45,7 +47,7 @@ static int32_t hearing_det_cmd_process(enum HEAR_COMP_MSG_T action);
 static bool hearing_det_stream_status = true;
 int32_t hearing_det_stream(void)
 {
-    HEARING_DETEC_TRACE(0, "[%s] status = %d", __func__, hearing_det_stream_status);
+    TRACE(0, "[%s] status = %d", __func__, hearing_det_stream_status);
 
     //hearing_det_stream_start(hearing_det_stream_status);
 
@@ -62,7 +64,7 @@ int32_t hearing_det_stream(void)
 
 static void hearing_det_stream_switch(void)
 {
-    HEARING_DETEC_TRACE(0," %s...", __func__);
+    HEARING_LOG_I(" %s...", __func__);
 
     hearing_det_stream();
 }
@@ -78,9 +80,9 @@ static void test_tmp(void)
 {
     for(int i=0;i<7;i++)
     {
-        HEARING_DETEC_TRACE(2,"eq_para_buff[%d]=%d",i,eq_para_buff[i]);
+        TRACE(2,"eq_para_buff[%d]=%d",i,eq_para_buff[i]);
     }
-    HEARING_DETEC_TRACE(0,"test_tmp_func!!");
+    TRACE(0,"test_tmp_func!!");
     uint8_t cfg_flag = eq_para_buff[6];
     audio_get_eq_para(eq_para_buff,cfg_flag);
 }
@@ -89,7 +91,7 @@ func_handler_t  eq_handle = test_tmp;
 
 static void set_amp_fun(void)
 {
-    HEARING_DETEC_TRACE(0,"Set amp only!!!");
+    TRACE(0,"Set amp only!!!");
 }
 func_handler_t  set_amp_handle = set_amp_fun;
 
@@ -101,7 +103,7 @@ static uint32_t hearing_det_cmd_callback(uint8_t *buf, uint32_t len)
     uint8_t *func_name = buf;
     func_handler_t func_handler = NULL;
 
-    HEARING_DETEC_TRACE(0,"[%s] len = %d", __func__, len);
+    HEARING_LOG_I("[%s] len = %d", __func__, len);
 
     char *str1 = (char *)func_name;
     const char *str2 = hearing_det_func[0].name;
@@ -113,7 +115,7 @@ static uint32_t hearing_det_cmd_callback(uint8_t *buf, uint32_t len)
             if(str1[i]!=str2[i])
             {
                 str_comp_result = 1;
-                //HEARING_DETEC_TRACE(1,"i=%d",i);
+                //TRACE(1,"i=%d",i);
             }
         }
         if(0==str_comp_result)
@@ -127,7 +129,7 @@ static uint32_t hearing_det_cmd_callback(uint8_t *buf, uint32_t len)
                 uart_get_fs = atoi(&str1[14]);
                 uart_get_amp = atoi(&str1[19]);
             }
-            HEARING_DETEC_TRACE(2,"uart_get_fs=%d,uart_get_amp=%d",uart_get_fs,uart_get_amp);
+            TRACE(2,"uart_get_fs=%d,uart_get_amp=%d",uart_get_fs,uart_get_amp);
 
             set_hearing_para(uart_get_fs,uart_get_amp);
         }
@@ -144,7 +146,7 @@ static uint32_t hearing_det_cmd_callback(uint8_t *buf, uint32_t len)
             if(str1[i]!=str4[i])
             {
                 str_comp_result3 = 1;
-                //HEARING_DETEC_TRACE(1,"i=%d",i);
+                //TRACE(1,"i=%d",i);
             }
         }
         if(0==str_comp_result3)
@@ -152,7 +154,7 @@ static uint32_t hearing_det_cmd_callback(uint8_t *buf, uint32_t len)
             int uart_get_amp = 0;
             uart_get_amp = atoi(&str1[13]);
             set_hearing_amp(uart_get_amp);
-            HEARING_DETEC_TRACE(1,"uart_get_amp=%d",uart_get_amp);
+            TRACE(1,"uart_get_amp=%d",uart_get_amp);
             func_handler = set_amp_handle;
         }
     }
@@ -169,7 +171,7 @@ static uint32_t hearing_det_cmd_callback(uint8_t *buf, uint32_t len)
             if(str1[i]!=str3[i])
             {
                 str_comp_result2 = 1;
-                //HEARING_DETEC_TRACE(1,"i=%d",i);
+                //TRACE(1,"i=%d",i);
             }
         }
         if(0==str_comp_result2)
@@ -190,7 +192,7 @@ static uint32_t hearing_det_cmd_callback(uint8_t *buf, uint32_t len)
     if (func_handler) {
         func_handler();
     } else {
-        HEARING_DETEC_TRACE(0," Can not found cmd: %s", func_name);
+        HEARING_LOG_I(" Can not found cmd: %s", func_name);
     }
 
     return 0;
@@ -198,13 +200,10 @@ static uint32_t hearing_det_cmd_callback(uint8_t *buf, uint32_t len)
 
 static int32_t hearing_det_cmd_process(enum HEAR_COMP_MSG_T action)
 {
-    HEARING_DETEC_TRACE(1, "[%s] ", __func__);
+    TRACE(1, "[%s] ", __func__);
 
     APP_MESSAGE_BLOCK msg;
     msg.mod_id = APP_MODULE_HEAR_COMP;
-#if defined(USE_BASIC_THREADS)
-    msg.mod_level = APP_MOD_LEVEL_1;
-#endif 
     msg.msg_body.message_id = action;
     app_mailbox_put(&msg);
 
@@ -217,7 +216,7 @@ static int hearing_det_cmd_thread_handler(APP_MESSAGE_BODY *msg_body)
 {
     uint32_t id = msg_body->message_id;
 
-    HEARING_DETEC_TRACE(0, "[%s] id :%d", __func__, id);
+    TRACE(0, "[%s] id :%d", __func__, id);
 
     switch (id) {
         case HEAR_COMP_MSG_OPEN:

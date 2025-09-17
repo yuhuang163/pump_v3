@@ -38,6 +38,15 @@
 #ifndef FLASH_REGION_SIZE
 #define FLASH_REGION_SIZE			(FLASH_SIZE - (FLASH_REGION_BASE - FLASH_BASE))
 #endif
+/* For FLASH image size check */
+#ifndef FLASH_IMAGE_SIZE
+#define FLASH_IMAGE_SIZE			FLASH_REGION_SIZE
+#endif
+
+#if (FLASH_REGION_BASE + FLASH_REGION_SIZE) > (FLASH_BASE + FLASH_SIZE)
+#error "(FLASH_REGION_BASE + FLASH_REGION_SIZE) should <= (FLASH_BASE + FLASH_SIZE)"
+#endif
+
 #define FLASH_NC_REGION_BASE		FLASH_C_TO_NC(FLASH_REGION_BASE)
 #define FLASHX_REGION_BASE			FLASH_TO_FLASHX(FLASH_REGION_BASE)
 
@@ -48,18 +57,20 @@
 /* Linker script to configure memory regions. */
 MEMORY
 {
-	ROM    (rx)  : ORIGIN = ROM_BASE,    LENGTH = ROM_SIZE	/* see plat_addr_map.h and common.mk */
+	ROM			(rx)	: ORIGIN = ROM_BASE,    LENGTH = ROM_SIZE	/* see plat_addr_map.h and common.mk */
+#if (FLASH_BASE == FLASHX_BASE)
+	FLASH 		(rx)	: ORIGIN = FLASH_REGION_BASE,		LENGTH = FLASH_REGION_SIZE
+#else
 	FLASH 		(r)		: ORIGIN = FLASH_REGION_BASE,		LENGTH = FLASH_REGION_SIZE
-	FLASH_NC	(r)		: ORIGIN = FLASH_NC_REGION_BASE,	LENGTH = FLASH_REGION_SIZE
-#ifndef FLASHX
 	FLASHX		(rx)	: ORIGIN = FLASHX_REGION_BASE,		LENGTH = FLASH_REGION_SIZE
 #endif
-	RAM    (rwx) : ORIGIN = RAM_BASE,    LENGTH = RAM_SIZE
-	RAMX   (rx)  : ORIGIN = RAMX_BASE,   LENGTH = RAM_SIZE
+	FLASH_NC	(r)		: ORIGIN = FLASH_NC_REGION_BASE,	LENGTH = FLASH_REGION_SIZE
+	RAM			(rwx)	: ORIGIN = RAM_BASE,    LENGTH = RAM_SIZE
+	RAMX		(rx)	: ORIGIN = RAMX_BASE,   LENGTH = RAM_SIZE
 }
 
 /* Library configurations */
-GROUP(libgcc.a libc.a)
+GROUP(libgcc.a)
 
 /* Linker script to place sections and symbol values. Should be used together
  * with other linker script that defines memory regions ROM and RAM.
@@ -78,8 +89,8 @@ GROUP(libgcc.a libc.a)
  *   __etext
  *   __data_start__
  *   __data_end__
- *   __bss_start__
- *   __bss_end__
+ *   __pgm_bss_start__
+ *   __pgm_bss_end__
  *   __end__
  *   end
  *   __HeapLimit
@@ -106,21 +117,13 @@ SECTIONS
 
 	.boot_text_flash (.) : AT (FLASHX_TO_FLASH(ADDR(.boot_text_flash)))
 	{
-#ifdef OTA_ENABLE
 		*(.boot_loader)
-		. = ALIGN(4096);
-		*(.ota_boot_info)
-		. = ALIGN(4096);
-		*(.ota_boot_rev)
-		. = ALIGN(4096);
-#else
-		*(.boot_loader)
-		. = ALIGN(4);
-#endif
 		*(.boot_text_flash*)
 		*(.boot_rodata_flash*)
+		*(.flash_text*)
+		*(.flash_rodata*)
+		*(.flash_nc_rodata*)
 		*:main.o(.text* .rodata*)
-		*:hal_bootmode.o(.text* .rodata*)
 		. = ALIGN(4);
 	} > FLASHX
 
@@ -155,7 +158,7 @@ SECTIONS
 
 	.burn_buffer (.) (NOLOAD) :
 	{
-		/* The size of .burn_buffer should be greater than __rom_HeapLimit. In most cases 8K is enough. */
+		/* The size of .burn_buffer should be greater than __rom_HeapLimit. In most cases 16K is enough. */
 		KEEP(*(.burn_buffer))
 		. = ALIGN(4);
 	} > RAM
@@ -168,16 +171,13 @@ SECTIONS
 	} > RAM
 */
 
-	__boot_sram_start_flash__ = LOADADDR(.got_info) + SIZEOF(.got_info);
-#ifndef MAIN_RAM_USE_TCM
-	__boot_sram_start__ = .;
-#endif
+	__boot_text_sram_start_flash__ = LOADADDR(.got_info) + SIZEOF(.got_info);
 
 	.text
 #ifndef MAIN_RAM_USE_TCM
-		(RAM_TO_RAMX(__boot_sram_start__))
+		(ALIGN(RAM_TO_RAMX(.), 32))
 #endif
-		: AT (__boot_sram_start_flash__)
+		: AT (__boot_text_sram_start_flash__)
 	{
 		__boot_text_sram_start__ = .;
 		_stext = __boot_text_sram_start__;
@@ -191,7 +191,8 @@ SECTIONS
 	__ramx_top = ORIGIN(RAMX) + LENGTH(RAMX);
 	__free_ramx = __ramx_top - __ramx_end;
 #endif
-	__boot_text_sram_end_flash__ = __boot_sram_start_flash__ + SIZEOF(.text);
+	__boot_text_data_sram_start__ = RAMX_TO_RAM(__boot_text_sram_start__);
+	__boot_text_sram_end_flash__ = __boot_text_sram_start_flash__ + SIZEOF(.text);
 	__boot_data_sram_start_flash__ = __boot_text_sram_end_flash__;
 
 	.rodata
@@ -217,11 +218,11 @@ SECTIONS
 
 		*(.note.gnu.build-id)
 		. = ALIGN(4);
+		__boot_data_sram_end__ = .;
 	} > RAM
 
-	__boot_sram_end__ = .;
-	__boot_sram_end_flash__ = LOADADDR(.rodata) + SIZEOF(.rodata);
-	__etext = __boot_sram_end_flash__;
+	__boot_data_sram_end_flash__ = LOADADDR(.rodata) + SIZEOF(.rodata);
+	__etext = __boot_data_sram_end_flash__;
 
 	.data : AT (__etext)
 	{
@@ -252,40 +253,35 @@ SECTIONS
 
 	. = FLASHX_TO_FLASH(.);
 
-	.system_info (.) :
-	{
-		KEEP(*(.system_info_list_size))
-		KEEP(*(.system_info_list))
-		. = ALIGN(4);
-	} > FLASH
-
-	.build_info (.) :
+	.build_info (LOADADDR(.data) + SIZEOF(.data)) : AT (LOADADDR(.data) + SIZEOF(.data))
 	{
 		KEEP(*(.build_info))
 		. = ALIGN(4);
 	} > FLASH = 0x00000000
 
+	__boot_struct_build_info = FLASH_C_TO_NC(LOADADDR(.build_info));
+
 	/* The following section be the last loaded section */
 	.code_start_addr (.) :
 	{
-		__app_entry_address__ = .;
-		LONG(APP_ENTRY_ADDRESS);
-		__download_uart_bandrate__ = .;
-		LONG(DOWNLOAD_UART_BANDRATE);
 		LONG(BUILD_INFO_MAGIC);
-		LONG(ABSOLUTE(__flash_start));
+		LONG(FLASH_C_TO_NC(ABSOLUTE(__flash_start)));
 	} > FLASH
 
 	__flash_end = .;
+	ASSERT(__flash_end <= __flash_start + FLASH_IMAGE_SIZE, "flash code size too large (should <= FLASH_IMAGE_SIZE)")
 
 	.bss (ADDR(.data)+SIZEOF(.data)) (NOLOAD) :
 	{
 		. = ALIGN(4);
-		__bss_start__ = .;
+		__pgm_bss_start__ = .;
 		*(.bss*)
 		*(COMMON)
 		. = ALIGN(4);
-		__bss_end__ = .;
+		__pgm_bss_end__ = .;
+		/* programmer_inflash follows common flash image startup process */
+		__bss_start__ = __pgm_bss_start__;
+		__bss_end__ = __pgm_bss_end__;
 	} > RAM
 
 	.heap (.) (NOLOAD) :
@@ -325,10 +321,10 @@ SECTIONS
 
 	__boot_bss_sram_start__ = .;
 	__boot_bss_sram_end__ = .;
-	__sram_text_data_start_flash__ = .;
+	__sram_text_start_flash__ = .;
 	__sram_text_end_flash__ = .;
 	__sram_data_start_flash__ = .;
-	__sram_text_data_end_flash__ = .;
+	__sram_data_end_flash__ = .;
 	__sram_text_data_start__ = .;
 	__sram_text_start__ = .;
 	__sram_text_end__ = .;
@@ -336,22 +332,55 @@ SECTIONS
 	__sram_data_end__ = .;
 	__sram_bss_start__ = .;
 	__sram_bss_end__ = .;
-	__fast_sram_text_data_start_flash__ = .;
-	__fast_sram_text_data_end_flash__ = .;
+	__fast_sram_text_start_flash__ = .;
+	__fast_sram_text_end_flash__ = .;
 	__fast_sram_text_data_start__ = .;
 
-#ifdef OTA_SEC_BOOT_INFO_OFFSET
 #ifdef OTA_BOOT_SIZE
-#if (OTA_CODE_OFFSET < (OTA_SEC_BOOT_INFO_OFFSET + (OTA_BOOT_INFO_SECTION_SIZE) * 2))
-#error "OTA_CODE_OFFSET should >= (OTA_SEC_BOOT_INFO_OFFSET + (OTA_BOOT_INFO_SECTION_SIZE) * 2)"
+#if (OTA_BOOT_SIZE > FLASH_REGION_SIZE)
+#error "OTA_BOOT_SIZE should <= FLASH_REGION_SIZE"
 #endif
-	.sec_ota_boot_info (FLASH_NC_BASE + OTA_SEC_BOOT_INFO_OFFSET) (NOLOAD) :
+#ifndef OTA_CODE_OFFSET
+#error "OTA_CODE_OFFSET should be defined along with OTA_BOOT_SIZE"
+#endif
+#if defined(OTA_BOOT_OFFSET) && ((OTA_BOOT_OFFSET + OTA_BOOT_SIZE) * OTA_SIZE_FACTOR > OTA_CODE_OFFSET)
+#error "(OTA_BOOT_OFFSET + OTA_BOOT_SIZE) * OTA_SIZE_FACTOR should <= OTA_CODE_OFFSET"
+#elif ((OTA_BOOT_SIZE) * OTA_SIZE_FACTOR > OTA_CODE_OFFSET)
+#error "(OTA_BOOT_SIZE) * OTA_SIZE_FACTOR should <= OTA_CODE_OFFSET"
+#endif
+#endif
+
+#ifdef OTA_REMAP_OFFSET
+#ifndef OTA_CODE_OFFSET
+#error "OTA_CODE_OFFSET should be set along with OTA_REMAP_OFFSET"
+#endif
+#ifndef OTA_BOOT_SIZE
+	/* This is not an OTA booting code, but a normal working code */
+	ASSERT((FLASH_BASE & 0x03FFFFFF) == 0, "bad FLASH_BASE")
+#ifdef CHIP_BEST2300P
+	ASSERT((FLASH_SIZE & (FLASH_SIZE - 1)) == 0, "bad FLASH_SIZE")
+	ASSERT(__flash_end <= FLASH_BASE + OTA_REMAP_OFFSET, "flash code size too large to remap")
+	ASSERT(__flash_start - FLASH_BASE >= FLASH_SIZE / (1 << (4 + 1)), "flash code cannot remap within 4 regions (max code size is half of flash size)")
+	ASSERT((__flash_start - FLASH_BASE) % (FLASH_SIZE / (1 << (4 + 1))) == 0, "flash code start address not aligned with remap region boundary")
+#else
+	ASSERT(((OTA_REMAP_OFFSET) & (0x8000 - 1)) == 0, "OTA_REMAP_OFFSET not aligned with 32K sector boundary")
+	ASSERT(__flash_end <= FLASH_BASE + (OTA_CODE_OFFSET + OTA_REMAP_OFFSET), "flash code size too large to remap")
+#endif
+#endif
+#endif
+
+#ifdef OTA_BOOT_INFO_OFFSET
+#ifdef OTA_BOOT_SIZE
+#if (OTA_CODE_OFFSET < (OTA_BOOT_INFO_OFFSET + (OTA_BOOT_INFO_SECTION_SIZE) * 2))
+#error "OTA_CODE_OFFSET should >= (OTA_BOOT_INFO_OFFSET + (OTA_BOOT_INFO_SECTION_SIZE) * 2)"
+#endif
+	.ota_boot_info (FLASH_NC_BASE + OTA_BOOT_INFO_OFFSET) (NOLOAD) :
 	{
-		__sec_ota_boot_info_start = .;
-		*(.sec_ota_boot_info)
+		__ota_boot_info_start = .;
+		*(.ota_boot_info)
 		. = OTA_BOOT_INFO_SECTION_SIZE;
-		__sec_ota_boot_info_bak_start = .;
-		*(.sec_ota_boot_info_bak)
+		__ota_boot_info_bak_start = .;
+		*(.ota_boot_info_bak)
 		. = (OTA_BOOT_INFO_SECTION_SIZE) * 2;
 	} > FLASH_NC
 
@@ -360,7 +389,7 @@ SECTIONS
 #else
 	__ota_boot_code_end = FLASH_NC_BASE + (OTA_BOOT_SIZE) * OTA_SIZE_FACTOR;
 #endif
-	ASSERT(__sec_ota_boot_info_start >= __ota_boot_code_end, ".sec_ota_boot_info section overlaps with ota boot codes")
+	ASSERT(__ota_boot_info_start >= __ota_boot_code_end, ".ota_boot_info section overlaps with ota boot codes")
 #endif
 #endif
 }

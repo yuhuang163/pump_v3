@@ -1,6 +1,6 @@
 /***************************************************************************
  *
- * Copyright 2015-2025 BES.
+ * Copyright 2015-2022 BES.
  * All rights reserved. All unpublished rights reserved.
  *
  * No part of this work may be used or reproduced in any form or by any
@@ -29,6 +29,8 @@ struct bt_hid_sensor_report_t {
     int16_t vz;
     uint8_t counter;
 } __attribute__ ((packed));
+
+void app_bt_get_local_device_address(void *bd_addr);
 
 #ifdef HOGP_HEAD_TRACKER_PROTOCOL
 bt_status_t ble_hogp_send_sensor_report(const struct bt_hid_sensor_report_t *report);
@@ -468,24 +470,6 @@ bt_status_t ble_hogp_send_sensor_report(const struct bt_hid_sensor_report_t *rep
 #define HID_SENSOR_STATE_FEATURE_REPORT_ID  0x06 // read/write
 #define HID_SENSOR_VALUE_INPUT_REPORT_ID    0x07
 
-#define HID_SENSOR_DESCR_FEATURE_DATA_LEN   (23+16)
-#define HID_SENSOR_STATE_FEATURE_DATA_LEN   1
-#define HID_SENSOR_VALUE_INPUT_DATA_LEN sizeof(struct bt_hid_sensor_report_t)
-
-#define HID_HEAD_TRACKER_INPUT_REPORT_CONFIG \
-    {1, { \
-    {HID_SENSOR_VALUE_INPUT_REPORT_ID, HID_SENSOR_VALUE_INPUT_DATA_LEN}, \
-    }}
-
-#define HID_HEAD_TRACKER_OUTPUT_REPORT_CONFIG \
-    {0, {{0}}}
-
-#define HID_HEAD_TRACKER_FEATURE_REPORT_CONFIG \
-    {2, { \
-    {HID_SENSOR_DESCR_FEATURE_REPORT_ID, HID_SENSOR_DESCR_FEATURE_DATA_LEN}, \
-    {HID_SENSOR_STATE_FEATURE_REPORT_ID, HID_SENSOR_STATE_FEATURE_DATA_LEN}, \
-    }}
-
 #define HID_REPORT_MODE_SENSOR_DESCRIPTOR_LEN 172
 #define HID_REPORT_MODE_SENSOR_DESCRIPTOR_DATA \
     HID_GLOBAL_ITEM_USAGE_PAGE(HID_USAGE_PAGE_SENSOR), \
@@ -674,17 +658,6 @@ struct keyboard_control_key_t {
         HID_GLOBAL_ITEM_LOGICAL_MAX(0xff), \
             HID_MAIN_ITEM_INPUT(HID_DATA|HID_ARR|HID_ABS),          /* Keycode array 6-byte */ \
     HID_MAIN_ITEM_END_COLLECTION()
-
-#define HID_REPORT_MODE_KEYBOARD_INPUT_REPORT_CONFIG \
-    {1, { \
-    {HID_MEDIAKEY_INPUT_REPORT_ID, sizeof(struct keyboard_control_key_t)}, \
-    }}
-
-#define HID_REPORT_MODE_KEYBOARD_OUTPUT_REPORT_CONFIG \
-    {0, {{0}}}
-
-#define HID_REPORT_MODE_KEYBOARD_FEATURE_REPORT_CONFIG \
-    {0, {{0}}}
 
 #define HID_REPORT_MODE_MEDIAKEY_DESCRIPTOR_LEN 49
 #define HID_REPORT_MODE_MEDIAKEY_DESCRIPTOR_DATA \
@@ -1042,19 +1015,6 @@ typedef struct {
         HID_MAIN_ITEM_END_COLLECTION(), \
     HID_MAIN_ITEM_END_COLLECTION()
 
-#define HID_REPORT_MODE_MOUSE_INPUT_REPORT_CONFIG \
-    {2, { \
-    {HID_MOUSECLK_INPUT_REPORT_ID, sizeof(hid_mouse_boot_input_report_t)}, \
-    {HID_MOUSECTL_INPUT_REPORT_ID, sizeof(hid_mousectl_report_t)}, \
-    }}
-
-#define HID_REPORT_MODE_MOUSE_OUTPUT_REPORT_CONFIG \
-    {0, {{0}}}
-
-#define HID_REPORT_MODE_MOUSE_FEATURE_REPORT_CONFIG \
-    {0, {{0}}}
-
-
 #if 1
 #define HID_REPORT_MODE_MOUSE_DESCRIPTOR_LEN (52+26)
 #define HID_REPORT_MODE_MOUSE_DESCRIPTOR_DATA \
@@ -1188,96 +1148,7 @@ typedef struct {
     0xC0            /// END COLLECTION (Application)
 #endif
 
-typedef struct {
-    void *channel;
-    uint8_t error_code;
-    uint8_t device_id;
-} bt_hid_opened_t;
-
-typedef struct {
-    void *channel;
-    uint8_t error_code;
-    uint8_t device_id;
-} bt_hid_closed_t;
-
-typedef enum {
-    HID_INTERRUPT_CHANNEL = 0,
-    HID_CONTROL_CHANNEL,
-} bt_hid_txchannel_t;
-
-typedef struct {
-    void *channel;
-    uint8_t error_code;
-    uint8_t device_id;
-} bt_hid_txdone_t;
-
-typedef struct {
-    void *channel;
-    uint8_t error_code;
-    uint8_t device_id;
-    uint8_t sensor_state;
-} bt_hid_sensor_state_changed_t;
-
-typedef struct {
-    void *channel;
-    uint8_t error_code;
-    uint8_t device_id;
-    uint8_t len;
-    uint8_t* data;
-} bt_hid_ctl_data_t;
-
-typedef struct {
-    void *channel;
-    uint8_t error_code;
-    uint8_t device_id;
-    uint8_t len;
-    uint8_t* data;
-} bt_hid_int_data_t;
-
-typedef struct {
-    void *channel;
-    uint8_t error_code;
-    uint8_t device_id;
-    uint16_t hid_version;
-    uint16_t parser_version;
-    uint8_t device_subclass;
-    uint8_t contry_code;
-    bool virtual_cable;
-    bool reconnect_initiate;
-    bool boot_device;
-    uint8_t decrp_count;
-    hid_descriptorlist_t decrp[MAX_DESCRIPTOR_COUNT];
-} bt_hid_sdp_rec_t;
-
-typedef union {
-    void *param_ptr;
-    bt_hid_opened_t *opened;
-    bt_hid_closed_t *closed;
-    bt_hid_txdone_t *txdone;
-    bt_hid_sensor_state_changed_t *changed;
-    bt_hid_ctl_data_t *ctl_data;
-    bt_hid_int_data_t *int_data;
-    bt_hid_sdp_rec_t *sdp_data;
-} bt_hid_callback_param_t;
-
-typedef enum {
-    BT_HID_EVENT_OPENED = BT_EVENT_HID_OPENED,
-    BT_HID_EVENT_CLOSED,
-    BT_HID_EVENT_SENSOR_STATE_CHANGED,
-    BT_HID_EVENT_TXDONE,
-    BT_HID_EVENT_RCV_CTL_DATA,
-    BT_HID_EVENT_RCV_INT_DATA,
-    BT_HID_EVENT_RCV_SDP_DATA,
-    BT_HID_EVENT_END,
-} bt_hid_event_t;
-
-typedef struct {
-    uint8_t device_subclass;
-    uint8_t descriptor_list_len;
-    const uint8_t *descriptor_list;
-} bt_hid_custom_descriptor_t;
-
-typedef int (*bt_hid_callback_t)(const bt_bdaddr_t *bd_addr, bt_hid_event_t event, bt_hid_callback_param_t param);
+#ifdef BT_HID_DEVICE
 
 /**
  * standard hid (device role) interface
@@ -1327,52 +1198,63 @@ typedef int (*bt_hid_callback_t)(const bt_bdaddr_t *bd_addr, bt_hid_event_t even
 #define HID_MOUSE_CTL_BACK    0x04
 #define HID_MOUSE_CTL_HOME    0x08
 
+typedef struct {
+    void *channel;
+    uint8_t error_code;
+    uint8_t device_id;
+} bt_hid_opened_t;
+
+typedef struct {
+    void *channel;
+    uint8_t error_code;
+    uint8_t device_id;
+} bt_hid_closed_t;
+
+typedef struct {
+    void *channel;
+    uint8_t error_code;
+    uint8_t device_id;
+    uint8_t sensor_state;
+} bt_hid_sensor_state_changed_t;
+
+typedef union {
+    void *param_ptr;
+    bt_hid_opened_t *opened;
+    bt_hid_closed_t *closed;
+    bt_hid_sensor_state_changed_t *changed;
+} bt_hid_callback_param_t;
+
+typedef enum {
+    BT_HID_EVENT_OPENED = BT_EVENT_HID_OPENED,
+    BT_HID_EVENT_CLOSED,
+    BT_HID_EVENT_SENSOR_STATE_CHANGED,
+    BT_HID_EVENT_END,
+} bt_hid_event_t;
+
+typedef struct {
+    uint8_t device_subclass;
+    uint8_t descriptor_list_len;
+    const uint8_t *descriptor_list;
+} bt_hid_custom_descriptor_t;
+
 #if BT_HID_EVENT_END != BT_EVENT_HID_END
 #error "bt_hid_event_t error define"
 #endif
 
+typedef int (*bt_hid_callback_t)(const bt_bdaddr_t *bd_addr, bt_hid_event_t event, bt_hid_callback_param_t param);
+
 bt_status_t bt_hid_init(bt_hid_callback_t callback);
-
 bt_status_t bt_hid_cleanup(void);
+bt_status_t bt_hid_connect(const bt_bdaddr_t *bd_addr);
+bt_status_t bt_hid_disconnect(const bt_bdaddr_t *bd_addr);
+bt_status_t bt_hid_virtual_cable_unplug(const bt_bdaddr_t *bd_addr);
+bt_status_t bt_hid_capture(const bt_bdaddr_t *bd_addr);
+bt_status_t bt_hid_send_sensor_report(const bt_bdaddr_t *bd_addr, const struct bt_hid_sensor_report_t *report);
+bt_status_t bt_hid_send_keyboard_report(const bt_bdaddr_t *remote, uint8_t modifier_key, uint8_t key_code);
+bt_status_t bt_hid_send_mouse_report(const bt_bdaddr_t *remote, int8_t x_pos, int8_t y_pos, uint8_t clk_buttons);
+bt_status_t bt_hid_send_mouse_control_report(const bt_bdaddr_t *remote, uint8_t ctl_buttons);
 
-#if defined(BT_HID_HOST)
-bt_status_t bt_hid_host_connect(const bt_bdaddr_t *bd_addr);
-
-bt_status_t bt_hid_host_disconnect(const bt_bdaddr_t *bd_addr);
-
-bt_status_t bt_hid_host_send_virtual_cable_unplug(const bt_bdaddr_t *bd_addr);
-#endif // BT_HID_HOST
-
-#if defined(BT_HID_DEVICE)
-bt_status_t bt_hid_device_connect(const bt_bdaddr_t *bd_addr);
-
-bt_status_t bt_hid_device_disconnect(const bt_bdaddr_t *bd_addr);
-
-bt_status_t bt_hid_device_send_sensor_report(const bt_bdaddr_t *bd_addr, const struct bt_hid_sensor_report_t *report);
-
-bt_status_t bt_hid_device_send_keyboard_report(const bt_bdaddr_t *remote, uint8_t modifier_key, uint8_t key_code);
-
-bt_status_t bt_hid_device_send_mouse_report(const bt_bdaddr_t *remote, int8_t x_pos, int8_t y_pos, uint8_t clk_buttons);
-
-bt_status_t bt_hid_device_send_mouse_control_report(const bt_bdaddr_t *remote, uint8_t ctl_buttons);
-
-bt_status_t bt_hid_device_send_capture(const bt_bdaddr_t *bd_addr);
-
-bt_status_t bt_hid_device_send_virtual_cable_unplug(const bt_bdaddr_t *bd_addr);
-#endif // BT_HID_DEVICE
-
-#if defined(BLE_HID_ENABLE)
-#ifdef HOGP_HEAD_TRACKER_PROTOCOL
-bt_status_t ble_hid_send_sensor_report(const struct bt_hid_sensor_report_t *report);
-#else
-#if defined(HID_MOUSE)
-bt_status_t ble_hid_send_mouse_input_report(const hid_mouse_boot_input_report_t *report);
-bt_status_t ble_hid_send_mouse_control_report(const hid_mousectl_report_t *report);
-#else
-bt_status_t ble_hid_send_mediakey_report(const struct keyboard_control_key_t *report);
-#endif
-#endif
-#endif //BLE_HID_ENABLE
+#endif /* BT_HID_DEVICE */
 
 #ifdef __cplusplus
 }

@@ -28,7 +28,6 @@ extern "C" {
 #define A2DP_SOURCE_NON_TYPE_LHDC        1
 #define A2DP_SOURCE_NON_TYPE_LHDCV5      2
 #define A2DP_SOURCE_NON_TYPE_LDAC        3
-#define A2DP_SOURCE_NON_TYPE_MIHC        4
 
 typedef enum bt_source_event {
     BT_SOURCE_EVENT_SEARCH_RESULT = 0, // one result with information

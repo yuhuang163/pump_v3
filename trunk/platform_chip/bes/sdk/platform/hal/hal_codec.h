@@ -131,6 +131,11 @@ enum HAL_CODEC_ECHO_RATE_T {
     HAL_CODEC_ECHO_RATE_QTY
 };
 
+enum CI2S_ENABLE_SEL {
+    CI2S_RX_EN = 1 << 0,
+    CI2S_TX_EN = 1 << 1,
+};
+
 typedef void (*HAL_CODEC_DAC_RESET_CALLBACK)(enum HAL_CODEC_DAC_RESET_STAGE_T stage);
 typedef void (*HAL_CODEC_SW_OUTPUT_COEF_CALLBACK)(float coef);
 typedef void (*HAL_CODEC_BT_TRIGGER_CALLBACK)(void);
@@ -197,15 +202,14 @@ struct HAL_CODEC_ADC_DC_CALIB_CFG_T {
     uint32_t rsvd0;
 };
 
-void hal_codec_adc_dig_dc_offset_enable(uint32_t adc_chan, int32_t dc);
 uint32_t hal_codec_get_input_path_cfg(enum AUD_IO_PATH_T io_path);
 uint32_t hal_codec_get_all_input_path_cfg(void);
 uint32_t hal_codec_get_input_map_chan_num(uint32_t ch_map);
 uint32_t hal_codec_get_input_path_chan_num(enum AUD_IO_PATH_T io_path);
-void hal_codec_set_dac_volume_table(const struct CODEC_DAC_VOL_T *table_ptr, uint32_t table_num);
+void hal_codec_set_dac_volume_table(const CODEC_DAC_VOL_T *table_ptr, uint32_t table_num);
 uint32_t hal_codec_get_default_dac_volume_index(void);
-const struct CODEC_DAC_VOL_T *hal_codec_get_dac_volume(uint32_t index);
-const CODEC_ADC_VOL_T *hal_codec_get_adc_volume(uint32_t index);
+CODEC_DAC_VOL_T hal_codec_get_dac_volume(uint32_t index);
+CODEC_ADC_VOL_T hal_codec_get_adc_volume(uint32_t index);
 uint32_t hal_codec_get_mic_chan_volume_level(uint32_t map);
 uint8_t hal_codec_get_digmic_hw_index(uint8_t chan);
 uint32_t hal_codec_get_real_sample_rate(enum AUD_SAMPRATE_T rate, bool resamp);
@@ -222,8 +226,6 @@ int hal_codec_stop_interface(enum HAL_CODEC_ID_T id, enum AUD_STREAM_T stream);
 int hal_codec_setup_stream(enum HAL_CODEC_ID_T id, enum AUD_STREAM_T stream, const struct HAL_CODEC_CONFIG_T *cfg);
 int hal_codec_anc_adc_enable(enum ANC_TYPE_T type);
 int hal_codec_anc_adc_disable(enum ANC_TYPE_T type);
-int hal_codec_press_adc_enable(void);
-int hal_codec_press_adc_disable(void);
 enum AUD_SAMPRATE_T hal_codec_anc_convert_rate(enum AUD_SAMPRATE_T rate);
 int hal_codec_anc_dma_enable(enum HAL_CODEC_ID_T id);
 int hal_codec_anc_dma_disable(enum HAL_CODEC_ID_T id);
@@ -337,6 +339,12 @@ int  hal_codec_adc2_setup_stream(enum HAL_CODEC_ID_T id, const struct HAL_CODEC_
 void hal_codec_adc2_mute(bool mute);
 int  hal_codec_adc2_set_chan_vol(enum AUD_CHANNEL_MAP_T ch_map, uint8_t vol);
 
+int  hal_codec_adc3_start_interface(enum HAL_CODEC_ID_T id, int dma);
+int  hal_codec_adc3_stop_interface(enum HAL_CODEC_ID_T id);
+int  hal_codec_adc3_setup_stream(enum HAL_CODEC_ID_T id, const struct HAL_CODEC_CONFIG_T *cfg);
+void hal_codec_adc3_mute(bool mute);
+int  hal_codec_adc3_set_chan_vol(enum AUD_CHANNEL_MAP_T ch_map, uint8_t vol);
+
 int  hal_codec_dac2_start_interface(enum HAL_CODEC_ID_T id, int dma);
 int  hal_codec_dac2_stop_interface(enum HAL_CODEC_ID_T id);
 int  hal_codec_dac2_setup_stream(enum HAL_CODEC_ID_T id, const struct HAL_CODEC_CONFIG_T *cfg);
@@ -355,6 +363,13 @@ void hal_codec_sync_adc2_resample_rate_disable(void);
 void hal_codec_sync_adc2_resample_rate_enable(enum HAL_CODEC_SYNC_TYPE_T type);
 void hal_codec_sync_adc2_gain_disable(void);
 void hal_codec_sync_adc2_gain_enable(enum HAL_CODEC_SYNC_TYPE_T type);
+
+void hal_codec_sync_adc3_disable(void);
+void hal_codec_sync_adc3_enable(enum HAL_CODEC_SYNC_TYPE_T type);
+void hal_codec_sync_adc3_resample_rate_disable(void);
+void hal_codec_sync_adc3_resample_rate_enable(enum HAL_CODEC_SYNC_TYPE_T type);
+void hal_codec_sync_adc3_gain_disable(void);
+void hal_codec_sync_adc3_gain_enable(enum HAL_CODEC_SYNC_TYPE_T type);
 
 void hal_codec_sync_dac2_disable(void);
 void hal_codec_sync_dac2_enable(enum HAL_CODEC_SYNC_TYPE_T type);
@@ -376,6 +391,9 @@ void hal_codec_sw_sync_cap_enable(void);
 void hal_codec_sw_sync_cap2_open(void);
 void hal_codec_sw_sync_cap2_close(void);
 void hal_codec_sw_sync_cap2_enable(void);
+void hal_codec_sw_sync_cap3_open(void);
+void hal_codec_sw_sync_cap3_close(void);
+void hal_codec_sw_sync_cap3_enable(void);
 
 void hal_codec_sw_sync_play_open(void);
 void hal_codec_sw_sync_play_close(void);
@@ -387,12 +405,17 @@ void hal_codec_sw_sync_play3_open(void);
 void hal_codec_sw_sync_play3_close(void);
 void hal_codec_sw_sync_play3_enable(void);
 
+void hal_codec_tune_adc2_resample_rate(enum AUD_STREAM_T stream, float ratio);
+void hal_codec_tune_adc3_resample_rate(enum AUD_STREAM_T stream, float ratio);
 void hal_codec_tune_dac2_resample_rate(enum AUD_STREAM_T stream, float ratio);
 void hal_codec_tune_dac3_resample_rate(enum AUD_STREAM_T stream, float ratio);
 
 void hal_codec_set_dac_bt_sync_source(uint32_t src);
 void hal_codec_set_adc_bt_sync_source(uint32_t src);
+void hal_codec_set_adc2_bt_sync_source(uint32_t src);
+void hal_codec_set_adc3_bt_sync_source(uint32_t src);
 void hal_codec_set_dac2_bt_sync_source(uint32_t src);
+void hal_codec_set_dac3_bt_sync_source(uint32_t src);
 void hal_codec_pll_bt_sync_source(uint32_t src);
 
 struct HAL_CODEC_ADC_DC_CALIB_CFG_T *hal_codec_adc_get_calib_cfg(uint32_t *nr);
@@ -407,14 +430,15 @@ bool hal_codec_get_dig_dc_calib_value_high_dre_gain(int32_t *dc_l, int32_t *dc_r
 int  hal_codec_dac_dc_auto_calib_enable(void);
 int  hal_codec_dac_dc_auto_calib_disable(void);
 void hal_codec_dac_dc_offset_enable(int32_t dc_l, int32_t dc_r);
-void hal_codec_set_dig_dac_gain_dr(enum AUD_CHANNEL_MAP_T map, int32_t gain);
+void hal_codec_set_dig_dac_gain_dr(enum AUD_CHANNEL_MAP_T map, CODEC_DAC_VOL_T gain);
 
 bool hal_codec_adc_dc_auto_calib_check(void);
 int hal_codec_adc_dc_auto_calib_enable(enum AUD_CHANNEL_MAP_T ch_map);
 int hal_codec_adc_dc_auto_calib_disable(enum AUD_CHANNEL_MAP_T ch_map);
 void hal_codec_adc_dc_offset_update(enum AUD_CHANNEL_MAP_T ch_map, uint16_t calib_step, uint16_t calib_value);
-int hal_codec_adc_dc_dout_ch3_data(void);
-int hal_codec_adc_dc_dout_ch4_data(void);
+
+void hal_codec_ci2s_tx_enable(bool enable);
+void hal_codec_ci2s_rx_enable(bool enable);
 #ifdef __cplusplus
 }
 #endif

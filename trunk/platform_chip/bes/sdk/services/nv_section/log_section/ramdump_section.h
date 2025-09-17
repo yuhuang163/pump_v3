@@ -22,6 +22,12 @@ extern "C" {
 
 #define RAM_DUMP_PREFIX     "__RAM_DUMP:"
 
+#if 1
+#define RAM_DUMP_TRACE(num,fmt, ...)  TRACE(num,fmt, ##__VA_ARGS__)
+#else
+#define RAM_DUMP_TRACE(num,fmt, ...)
+#endif
+
 void ramdump_update_execute_state_machine(enum HAL_TRACE_STATE_T ramdump_execute_state);
 
 enum HAL_TRACE_STATE_T ramdump_get_execute_state_machine(void);

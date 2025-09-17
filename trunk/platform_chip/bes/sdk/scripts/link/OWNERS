@@ -1,0 +1,10 @@
+#OWNERS files owner
+per-file OWNERS = set noparent
+per-file OWNERS = huazeng@bestechnic.com
+per-file OWNERS = yingchunli@bestechnic.com
+
+#Makefile
+per-file programmer.*=huazeng@bestechnic.com,yingchunli@bestechnic.com
+per-file rom.*=huazeng@bestechnic.com,yingchunli@bestechnic.com
+#all other files in this dir
+#all others

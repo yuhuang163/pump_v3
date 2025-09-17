@@ -37,6 +37,10 @@
 #define CHIP_HAS_USBIF
 #endif
 
+#ifndef HAL_USBHOST_XFER_RETRY_CNT
+#define HAL_USBHOST_XFER_RETRY_CNT              6
+#endif
+
 #define MAX_OUT_EP_NUM                          6
 #define MAX_CHAN_NUM                            12
 #define MAX_EP_NUM                              16
@@ -49,8 +53,9 @@
 #define HAL_USBC_HPRT_WC_MASK                   \
     (USBC_HPRT_PRTSUSP | USBC_HPRT_PRTOVRCURRCHNG | USBC_HPRT_PRTENCHNG | USBC_HPRT_PRTENA | USBC_HPRT_PRTCONNDET)
 
-#define HAL_USBHOST_TIMEOUT_TICKS               MS_TO_TICKS(200)
+#define HAL_USBHOST_TIMEOUT_MS                  200
 
+#define USBHOST_TRACE(mask, str, ...)           { if (usbhost_trmask & (1 << mask)) { TRACE(0, str, ##__VA_ARGS__); } }
 #define USBHOST_FUNC_ENTRY_TRACE(mask)          { if (usbhost_trmask & (1 << mask)) { FUNC_ENTRY_TRACE(); } }
 
 enum HAL_USBHOST_CHAN_STATE_T {
@@ -59,7 +64,7 @@ enum HAL_USBHOST_CHAN_STATE_T {
     HAL_USBHOST_CHAN_INIT,
     HAL_USBHOST_CHAN_XFER,
 
-    HAL_USBHOST_CHAN_QTY
+    HAL_USBHOST_CHAN_STATE_QTY
 };
 
 struct HAL_USBHOST_CHAN_DESC_T {
@@ -100,24 +105,20 @@ static HWTIMER_ID usbhost_timer[MAX_CHAN_NUM];
 static HAL_USBHOST_PLUG_HANDLER plug_handler;
 #endif
 
+#ifdef USB_HIGH_SPEED
+#define USBHOST_SYS_FREQ                        HAL_CMU_FREQ_104M
+#else
+#define USBHOST_SYS_FREQ                        HAL_CMU_FREQ_52M
+#endif
+
 static uint32_t hal_usbhost_get_xfer_size(uint8_t chan, int complete);
 static void hal_usbhost_irq_handler(void);
 static void hal_usbhost_timeout(void *param);
 
-void hal_usbhost_halt_chan(uint8_t chan)
+static void _disable_chan(uint8_t chan)
 {
-    uint32_t mask;
-
-    HAL_TRACE(17, "%s: %d", __FUNCTION__, chan);
-
-    if (chan >= MAX_CHAN_NUM) {
-        return;
-    }
-
-    hwtimer_stop(usbhost_timer[chan]);
-
-    mask = usbc->HCSR[chan].HCINTMSKn;
     usbc->HCSR[chan].HCINTMSKn = 0;
+
     if ((usbc->HCSR[chan].HCCHARn & USBC_HCCHARN_CHENA) == 0) {
         goto _exit;
     }
@@ -127,7 +128,63 @@ void hal_usbhost_halt_chan(uint8_t chan)
 
 _exit:
     usbc->HCSR[chan].HCINTn = ~0UL;
-    usbc->HCSR[chan].HCINTMSKn = mask;
+}
+
+static void _disable_timer_and_chan(uint8_t chan)
+{
+    if (usbhost_timer[chan]) {
+        hwtimer_stop(usbhost_timer[chan]);
+    }
+
+    _disable_chan(chan);
+}
+
+static void _disable_timer_and_chan_with_cb(uint8_t chan)
+{
+    uint32_t xfer;
+    HAL_USBHOST_XFER_COMPL_HANDLER handler;
+    uint8_t *buf;
+
+    _disable_timer_and_chan(chan);
+
+    if (chan_desc[chan].state != HAL_USBHOST_CHAN_XFER) {
+        return;
+    }
+
+    if (chan_desc[chan].xfer.handler) {
+        // HCTSIZn is still valid after channel is halted
+        xfer = hal_usbhost_get_xfer_size(chan, 0);
+
+        // Reset the chan_desc to INIT state so that it can be reused in callback
+        handler = chan_desc[chan].xfer.handler;
+        buf = chan_desc[chan].xfer.buf;
+        chan_desc[chan].state = HAL_USBHOST_CHAN_INIT;
+
+        handler(chan, buf, xfer, HAL_USBHOST_XFER_ERR_TIMEOUT);
+    } else {
+        chan_desc[chan].state = HAL_USBHOST_CHAN_INIT;
+    }
+}
+
+void hal_usbhost_halt_chan(uint8_t chan)
+{
+    uint32_t lock;
+
+    USBHOST_TRACE(17, "%s:%u", __FUNCTION__, chan);
+
+    if (chan >= MAX_CHAN_NUM) {
+        return;
+    }
+
+    lock = int_lock();
+
+    _disable_timer_and_chan(chan);
+
+    if (chan_desc[chan].state == HAL_USBHOST_CHAN_XFER) {
+        chan_desc[chan].state = HAL_USBHOST_CHAN_INIT;
+    }
+
+    int_unlock(lock);
 }
 
 static void hal_usbhost_soft_reset(void)
@@ -155,11 +212,15 @@ int hal_usbhost_open(HAL_USBHOST_PORT_HANDLER port_cb, HAL_USBHOST_DELAY_FUNC de
 
     USBHOST_FUNC_ENTRY_TRACE(16);
 
+#if !defined(NO_PMU) && (!defined(ROM_BUILD) || defined(USB_PMU_CFG))
+    pmu_usb_config(PMU_USB_CONFIG_TYPE_HOST);
+#endif
+
     for (i = 0; i < MAX_CHAN_NUM; i++) {
         chan_desc[i].state = HAL_USBHOST_CHAN_IDLE;
     }
 
-    hal_sysfreq_req(HAL_SYSFREQ_USER_USB, HAL_CMU_FREQ_52M);
+    hal_sysfreq_req(HAL_SYSFREQ_USER_USB, USBHOST_SYS_FREQ);
 
     hal_cmu_usb_set_host_mode();
     hal_cmu_usb_clock_enable();
@@ -176,6 +237,9 @@ int hal_usbhost_open(HAL_USBHOST_PORT_HANDLER port_cb, HAL_USBHOST_DELAY_FUNC de
 #ifdef USB_HIGH_SPEED
     usbif->USBIF_00 &= ~(USBIF_00_CFG_DR_SUSPEND | USBIF_00_CFG_REG_SUSPEND);
     usbif->USBIF_08 &= ~USBIF_08_CFG_SEL48M;
+#ifdef CHIP_BEST2009
+    usbif->USBIF_08 &= ~USBIF_08_CFG_PHY_TXTIMING;
+#endif
 #else
     usbif->USBIF_00 |= USBIF_00_CFG_DR_SUSPEND | USBIF_00_CFG_REG_SUSPEND;
     usbif->USBIF_08 |= USBIF_08_CFG_SEL48M;
@@ -233,25 +297,30 @@ void hal_usbhost_close(void)
 
     USBHOST_FUNC_ENTRY_TRACE(15);
 
+    NVIC_DisableIRQ(USB_IRQn);
+
+    usbhost_opened = false;
+
 #ifdef PMU_USB_PIN_CHECK
     pmu_usb_disable_pin_status_check();
 #endif
+
+    for (chan = 0; chan < MAX_CHAN_NUM; chan++) {
+        hal_usbhost_halt_chan(chan);
+        hal_usbhost_free_chan(chan);
+    }
 
 #ifdef CHIP_HAS_USBPHY
     usbphy_close();
 #endif
 
-    NVIC_DisableIRQ(USB_IRQn);
-
-    usbhost_opened = false;
-
     hal_cmu_usb_clock_disable();
 
-    for (chan = 0; chan < MAX_CHAN_NUM; chan++) {
-        hal_usbhost_free_chan(chan);
-    }
-
     hal_sysfreq_req(HAL_SYSFREQ_USER_USB, HAL_CMU_FREQ_32K);
+
+#if !defined(NO_PMU) && (!defined(ROM_BUILD) || defined(USB_PMU_CFG))
+    pmu_usb_config(PMU_USB_CONFIG_TYPE_NONE);
+#endif
 }
 
 static void hal_usbhost_delay(uint32_t ms)
@@ -267,7 +336,7 @@ void hal_usbhost_port_reset(uint32_t ms)
 {
     int lock;
 
-    HAL_TRACE(14, "%s: %d", __FUNCTION__, ms);
+    USBHOST_TRACE(14, "%s: ms=%u", __FUNCTION__, ms);
 
     lock = int_lock();
     usbc->HPRT = (usbc->HPRT & ~HAL_USBC_HPRT_WC_MASK) | USBC_HPRT_PRTRST;
@@ -324,7 +393,7 @@ int hal_usbhost_get_chan(uint8_t *chan)
     }
     int_unlock(lock);
 
-    HAL_TRACE(13, "%s: %d", __FUNCTION__, i);
+    USBHOST_TRACE(13, "%s:%u", __FUNCTION__, i);
 
     if (i == MAX_CHAN_NUM) {
         return 1;
@@ -332,10 +401,10 @@ int hal_usbhost_get_chan(uint8_t *chan)
 
     *chan = i;
 
-    ASSERT(usbhost_timer[i] == NULL, "%s: Prev hwtimer not released: 0x%08x", __FUNCTION__, (uint32_t)usbhost_timer[i]);
+    ASSERT(usbhost_timer[i] == NULL, "%s: Prev hwtimer not released: 0x%08X", __FUNCTION__, (uint32_t)usbhost_timer[i]);
     usbhost_timer[i] = hwtimer_alloc(hal_usbhost_timeout, (void *)(uint32_t)i);
     if (usbhost_timer[i] == NULL) {
-        HAL_TRACE(0, "%s: WARNING: Failed to alloc hwtimer for chan=%d", __FUNCTION__, i);
+        USBHOST_TRACE(0, "%s:%u: WARNING: Failed to alloc hwtimer", __FUNCTION__, i);
         // Continue even if usbhost_timer is null
     }
 
@@ -344,25 +413,36 @@ int hal_usbhost_get_chan(uint8_t *chan)
 
 int hal_usbhost_free_chan(uint8_t chan)
 {
-    HAL_TRACE(12, "%s: %d", __FUNCTION__, chan);
+    uint32_t lock;
+    int ret = 0;
+
+    USBHOST_TRACE(12, "%s:%u", __FUNCTION__, chan);
 
     if (chan >= MAX_CHAN_NUM) {
         return 1;
     }
 
-    hwtimer_stop(usbhost_timer[chan]);
-    hwtimer_free(usbhost_timer[chan]);
-    usbhost_timer[chan] = NULL;
+    lock = int_lock();
+    if (chan_desc[chan].state == HAL_USBHOST_CHAN_ALLOC || chan_desc[chan].state == HAL_USBHOST_CHAN_INIT) {
+        if (usbhost_timer[chan]) {
+            hwtimer_stop(usbhost_timer[chan]);
+            hwtimer_free(usbhost_timer[chan]);
+            usbhost_timer[chan] = NULL;
+        }
 
-    chan_desc[chan].state = HAL_USBHOST_CHAN_IDLE;
+        chan_desc[chan].state = HAL_USBHOST_CHAN_IDLE;
+    } else {
+        ret = 2;
+    }
+    int_unlock(lock);
 
-    return 0;
+    return ret;
 }
 
 int hal_usbhost_init_chan(uint8_t chan, const struct HAL_USBHOST_CHAN_TYPE_T *type)
 {
-    HAL_TRACE(11, "%s: chan=%d mps=%d ep=%d in=%d type=%d addr=%d",
-        __FUNCTION__, chan, type->mps, type->ep_num, type->ep_in, type->ep_type, type->dev_addr);
+    USBHOST_TRACE(11, "%s:%u:%c: mps=%u ep=%u type=%u addr=%u",
+        __FUNCTION__, chan, type->ep_in ? 'I' : 'O', type->mps, type->ep_num, type->ep_type, type->dev_addr);
 
     if (chan >= MAX_CHAN_NUM) {
         return 1;
@@ -399,7 +479,6 @@ int hal_usbhost_init_chan(uint8_t chan, const struct HAL_USBHOST_CHAN_TYPE_T *ty
         (type->ep_in ? USBC_HCCHARN_EPDIR : 0) | USBC_HCCHARN_EPTYPE(type->ep_type) |
         USBC_HCCHARN_DEVADDR(type->dev_addr);
 
-    usbc->HCSR[chan].HCINTMSKn = USBC_HCINTN_AHBERR | USBC_HCINTN_CHHLTD;
     usbc->HAINTMSK |= (1 << chan);
     usbc->GINTMSK |= USBC_HCHINT;
 
@@ -410,7 +489,7 @@ int hal_usbhost_init_chan(uint8_t chan, const struct HAL_USBHOST_CHAN_TYPE_T *ty
 
 int hal_usbhost_update_chan_dev_addr(uint8_t chan, uint8_t dev_addr)
 {
-    HAL_TRACE(10, "%s: chan=%d dev_addr=%d", __FUNCTION__, chan, dev_addr);
+    USBHOST_TRACE(10, "%s:%u: dev_addr=%u", __FUNCTION__, chan, dev_addr);
 
     if (chan >= MAX_CHAN_NUM) {
         return 1;
@@ -423,14 +502,12 @@ int hal_usbhost_update_chan_dev_addr(uint8_t chan, uint8_t dev_addr)
 
     usbc->HCSR[chan].HCCHARn = SET_BITFIELD(usbc->HCSR[chan].HCCHARn, USBC_HCCHARN_DEVADDR, dev_addr);
 
-    chan_desc[chan].state = HAL_USBHOST_CHAN_INIT;
-
     return 0;
 }
 
 int hal_usbhost_update_chan_mps(uint8_t chan, uint16_t mps)
 {
-    HAL_TRACE(9, "%s: chan=%d mps=%d", __FUNCTION__, chan, mps);
+    USBHOST_TRACE(9, "%s:%u: mps=%u", __FUNCTION__, chan, mps);
 
     if (chan >= MAX_CHAN_NUM) {
         return 1;
@@ -443,8 +520,6 @@ int hal_usbhost_update_chan_mps(uint8_t chan, uint16_t mps)
 
     usbc->HCSR[chan].HCCHARn = SET_BITFIELD(usbc->HCSR[chan].HCCHARn, USBC_HCCHARN_MPS, mps);
 
-    chan_desc[chan].state = HAL_USBHOST_CHAN_INIT;
-
     return 0;
 }
 
@@ -455,8 +530,12 @@ int hal_usbhost_start_xfer(uint8_t chan, const struct HAL_USBHOST_XFER_T *xfer)
     uint32_t size;
     enum HAL_USBHOST_PID_TYPE_T pid;
     uint8_t multi_cnt;
+    uint16_t mps;
+    uint32_t lock;
+    uint32_t val;
+    int ret = 0;
 
-    HAL_TRACE(7, "%s: chan=%d size=%u mc=%d pid=%d",
+    USBHOST_TRACE(7, "%s:%u: size=%u mc=%u pid=%u",
         __FUNCTION__, chan, xfer->size, xfer->multi_cnt, xfer->pid);
 
     if (chan >= MAX_CHAN_NUM) {
@@ -483,7 +562,12 @@ int hal_usbhost_start_xfer(uint8_t chan, const struct HAL_USBHOST_XFER_T *xfer)
         }
     }
 
-    pkt_cnt = (xfer->size + (chan_desc[chan].type.mps - 1)) / chan_desc[chan].type.mps;
+    if (chan_desc[chan].type.ep_in) {
+        mps = ALIGN(chan_desc[chan].type.mps, 4);
+    } else {
+        mps = chan_desc[chan].type.mps;
+    }
+    pkt_cnt = (xfer->size + (mps - 1)) / mps;
     if (pkt_cnt > MAX_XFER_PKT) {
         return 7;
     }
@@ -492,20 +576,39 @@ int hal_usbhost_start_xfer(uint8_t chan, const struct HAL_USBHOST_XFER_T *xfer)
     }
 
     if (chan_desc[chan].type.ep_in) {
-        size = pkt_cnt * chan_desc[chan].type.mps;
+        size = pkt_cnt * mps;
+        if (size != xfer->size && xfer->size != 0) {
+            return 8;
+        }
     } else {
         size = xfer->size;
     }
 
+    lock = int_lock();
+
+    if (chan_desc[chan].state != HAL_USBHOST_CHAN_INIT) {
+        ret = 2;
+        goto _exit;
+    }
+
+    chan_desc[chan].state = HAL_USBHOST_CHAN_XFER;
     chan_desc[chan].start_xfer_size = size;
     chan_desc[chan].start_pkt_cnt = pkt_cnt;
     memcpy(&chan_desc[chan].xfer, xfer, sizeof(chan_desc[chan].xfer));
+    __DMB();
 
     pid = xfer->pid;
     if (pid == HAL_USBHOST_PID_AUTO) {
         pid = GET_BITFIELD(usbc->HCSR[chan].HCTSIZn, USBC_HCTSIZN_PID);
     }
     multi_cnt = xfer->multi_cnt;
+
+    usbc->HCSR[chan].HCDMAn = ADDR_CPU_TO_DEV((uint32_t)xfer->buf);
+
+    usbc->HCSR[chan].HCINTMSKn = USBC_HCINTN_AHBERR | USBC_HCINTN_CHHLTD;
+    usbc->HCSR[chan].HCINTn = ~0UL;
+
+    val = usbc->HCSR[chan].HCCHARn;
 
     if (chan_desc[chan].type.ep_type == HAL_USBHOST_EP_ISO ||
             chan_desc[chan].type.ep_type == HAL_USBHOST_EP_INT) {
@@ -516,45 +619,59 @@ int hal_usbhost_start_xfer(uint8_t chan, const struct HAL_USBHOST_XFER_T *xfer)
         }
 
         if (usbc->HFNUM & 0x1) {
-            usbc->HCSR[chan].HCCHARn &= ~USBC_HCCHARN_ODDFRM;
+            val &= ~USBC_HCCHARN_ODDFRM;
         } else {
-            usbc->HCSR[chan].HCCHARn |= USBC_HCCHARN_ODDFRM;
+            val |= USBC_HCCHARN_ODDFRM;
         }
     }
 
-    chan_desc[chan].state = HAL_USBHOST_CHAN_XFER;
-
     usbc->HCSR[chan].HCTSIZn = USBC_HCTSIZN_PID(pid) | USBC_HCTSIZN_PKTCNT(pkt_cnt) | USBC_HCTSIZN_XFERSIZE(size);
-    usbc->HCSR[chan].HCDMAn = (uint32_t)xfer->buf;
 
-    usbc->HCSR[chan].HCINTn = ~0UL;
-
-    usbc->HCSR[chan].HCCHARn = SET_BITFIELD(usbc->HCSR[chan].HCCHARn, USBC_HCCHARN_EC, multi_cnt);
-    usbc->HCSR[chan].HCCHARn &= ~USBC_HCCHARN_CHDIS;
-    usbc->HCSR[chan].HCCHARn |= USBC_HCCHARN_CHENA;
+    val = SET_BITFIELD(val, USBC_HCCHARN_EC, multi_cnt);
+    val &= ~USBC_HCCHARN_CHDIS;
+    usbc->HCSR[chan].HCCHARn = val;
+    val |= USBC_HCCHARN_CHENA;
+    usbc->HCSR[chan].HCCHARn = val;
 
     if (xfer->handler) {
-        hwtimer_start(usbhost_timer[chan], HAL_USBHOST_TIMEOUT_TICKS);
+        uint32_t ms =  HAL_USBHOST_TIMEOUT_MS;
+
+        if (xfer->timeout_ms) {
+            ms = xfer->timeout_ms;
+        }
+        hwtimer_start(usbhost_timer[chan], MS_TO_TICKS(ms));
     }
 
-    return 0;
+_exit:
+    int_unlock(lock);
+
+    return ret;
+}
+
+int hal_usbhost_xfer_busy(uint8_t chan)
+{
+    return (chan_desc[chan].state == HAL_USBHOST_CHAN_XFER);
 }
 
 static void hal_usbhost_setup_xfer_handler(uint8_t chan, uint8_t *buf, uint32_t len, enum HAL_USBHOST_XFER_ERR_T error)
 {
     int ret;
+    struct HAL_USBHOST_SETUP_XFER_T setup;
     struct HAL_USBHOST_XFER_T xfer;
     enum HAL_USBHOST_SETUP_STAGE_T handler_stage;
     uint8_t handler_chan;
+    uint16_t mps;
 
     ret = 1;
     if (error != HAL_USBHOST_XFER_ERR_NONE) {
         goto _exit;
     }
 
-    HAL_TRACE(6, "%s: chan=%d cur=%d next=%d error=%d",
-        __FUNCTION__, chan, cur_setup_stage, setup_xfer.next_stage, error);
+    USBHOST_TRACE(6, "%s:%u:%c: cur=%d next=%d error=%d",
+        __FUNCTION__, chan, chan_desc[chan].type.ep_in ? 'I' : 'O',
+        cur_setup_stage, setup_xfer.next_stage, error);
 
+    memset(&xfer, 0, sizeof(xfer));
     handler_stage = setup_xfer.next_stage;
     handler_chan = HAL_USBHOST_CHAN_NONE;
 
@@ -562,14 +679,19 @@ static void hal_usbhost_setup_xfer_handler(uint8_t chan, uint8_t *buf, uint32_t 
         case HAL_USBHOST_SETUP_DATA_IN:
         case HAL_USBHOST_SETUP_DATA_OUT:
             xfer.buf = setup_xfer.data_buf;
-            xfer.size = setup_xfer.setup_pkt.wLength;
             xfer.pid = HAL_USBHOST_PID_DATA1;
             xfer.multi_cnt = 0;
             xfer.handler = hal_usbhost_setup_xfer_handler;
             if (handler_stage == HAL_USBHOST_SETUP_DATA_IN) {
+                mps = chan_desc[chan].type.mps;
+                xfer.size = (setup_xfer.setup_pkt.wLength + mps - 1) / mps * mps;
+                if (xfer.size > setup_xfer.buf_len) {
+                    goto _exit;
+                }
                 handler_chan = setup_xfer.chan_in;
                 setup_xfer.next_stage = HAL_USBHOST_SETUP_STATUS_OUT;
-            } else {
+           } else {
+                xfer.size = setup_xfer.setup_pkt.wLength;
                 handler_chan = setup_xfer.chan_out;
                 setup_xfer.next_stage = HAL_USBHOST_SETUP_STATUS_IN;
             }
@@ -581,11 +703,12 @@ static void hal_usbhost_setup_xfer_handler(uint8_t chan, uint8_t *buf, uint32_t 
         case HAL_USBHOST_SETUP_STATUS_IN:
         case HAL_USBHOST_SETUP_STATUS_OUT:
             if (cur_setup_stage == HAL_USBHOST_SETUP_DATA_IN) {
-                if (setup_xfer.setup_pkt.wLength != len) {
-                    HAL_TRACE(0, "Invalid setup data length: %d expect=%d", len, setup_xfer.setup_pkt.wLength);
-                    // Update received len
-                    setup_xfer.setup_pkt.wLength = len;
+                if (len > setup_xfer.setup_pkt.wLength) {
+                    ASSERT(false, "%s:%u: Bad setup data in len: %u (should <= %u)", __FUNCTION__, chan, len, setup_xfer.setup_pkt.wLength);
+                    len = setup_xfer.setup_pkt.wLength;
                 }
+                // Update received len
+                setup_xfer.rx_len = len;
             }
             xfer.buf = NULL;
             xfer.size = 0;
@@ -608,7 +731,7 @@ static void hal_usbhost_setup_xfer_handler(uint8_t chan, uint8_t *buf, uint32_t 
             goto _exit;
             break;
         default:
-            ASSERT(false, "Invalid setup next stage %d for chan %d", setup_xfer.next_stage, chan);
+            ASSERT(false, "%u: Invalid setup next stage %d", chan, setup_xfer.next_stage);
             ret = 1;
             goto _exit;
     }
@@ -622,14 +745,10 @@ _exit:
         setup_xfer.next_stage = HAL_USBHOST_SETUP_ERROR;
     }
 
-    {
-        struct HAL_USBHOST_SETUP_XFER_T setup;
-
-        memcpy(&setup, &setup_xfer, sizeof(setup));
-        in_setup = false;
-        if (setup.handler) {
-            setup.handler(&setup, ret);
-        }
+    memcpy(&setup, &setup_xfer, sizeof(setup));
+    in_setup = false;
+    if (setup.handler) {
+        setup.handler(&setup, ret);
     }
 
     return;
@@ -640,7 +759,7 @@ int hal_usbhost_start_setup_xfer(const struct HAL_USBHOST_SETUP_XFER_T *setup, u
     int ret;
     struct HAL_USBHOST_XFER_T xfer;
 
-    HAL_TRACE(6, "%s: out=%d in=%d type=0x%02x req=0x%02x wlen=%d next_stage=%d",
+    USBHOST_TRACE(6, "%s: out=%d in=%d type=0x%02X req=0x%02X wlen=%u next_stage=%d",
         __FUNCTION__, setup->chan_out, setup->chan_in, setup->setup_pkt.bmRequestType,
         setup->setup_pkt.bRequest, setup->setup_pkt.wLength, setup->next_stage);
 
@@ -654,8 +773,10 @@ int hal_usbhost_start_setup_xfer(const struct HAL_USBHOST_SETUP_XFER_T *setup, u
     in_setup = true;
 
     memcpy(&setup_xfer, setup, sizeof(setup_xfer));
+    setup_xfer.rx_len = 0;
     cur_setup_stage = HAL_USBHOST_SETUP_STAGE_QTY;
 
+    memset(&xfer, 0, sizeof(xfer));
     xfer.buf = (uint8_t *)&setup_xfer.setup_pkt;
     xfer.size = sizeof(setup_xfer.setup_pkt);
     xfer.pid = HAL_USBHOST_PID_SETUP;
@@ -675,7 +796,7 @@ int hal_usbhost_start_setup_xfer(const struct HAL_USBHOST_SETUP_XFER_T *setup, u
         }
         if (recv_len) {
             if (setup->next_stage == HAL_USBHOST_SETUP_DATA_IN) {
-                *recv_len = setup_xfer.setup_pkt.wLength;
+                *recv_len = setup_xfer.rx_len;
             } else {
                 *recv_len = 0;
             }
@@ -688,30 +809,11 @@ int hal_usbhost_start_setup_xfer(const struct HAL_USBHOST_SETUP_XFER_T *setup, u
 static void hal_usbhost_stop_all_chans(void)
 {
     int i;
-    uint32_t xfer;
-    HAL_USBHOST_XFER_COMPL_HANDLER handler;
-    uint8_t *buf;
 
     usbc->HAINTMSK = 0;
 
     for (i = 0; i < MAX_CHAN_NUM; i++) {
-        hal_usbhost_halt_chan(i);
-
-        if (chan_desc[i].state != HAL_USBHOST_CHAN_XFER) {
-            continue;
-        }
-
-        if (chan_desc[i].xfer.handler) {
-            // TODO: Check whether HCTSIZn is reset after channel is halted
-            xfer = hal_usbhost_get_xfer_size(i, 0);
-
-            // Reset the chan_desc to INIT state so that it can be reused in callback
-            handler = chan_desc[i].xfer.handler;
-            buf = chan_desc[i].xfer.buf;
-            chan_desc[i].state = HAL_USBHOST_CHAN_INIT;
-
-            handler(i, buf, xfer, HAL_USBHOST_XFER_ERR_DISCONN);
-        }
+        _disable_timer_and_chan_with_cb(i);
     }
 
     usbc->HAINT = ~0UL;
@@ -778,7 +880,7 @@ static void hal_usbhost_port_handler(void)
     // USBC_HPRT_PRTENA also controls the port status
     usbc->HPRT = prt & ~(USBC_HPRT_PRTENA | USBC_HPRT_PRTSUSP);
 
-    HAL_TRACE(4, "%s: 0x%08x", __FUNCTION__, prt);
+    USBHOST_TRACE(4, "%s: prt=0x%08X", __FUNCTION__, prt);
 
     if (prt & USBC_HPRT_PRTCONNDET) {
         if (port_handler) {
@@ -826,8 +928,9 @@ static void hal_usbhost_port_handler(void)
 static void hal_usbhost_retry_chan(uint8_t chan, uint32_t size)
 {
     uint32_t pkt_cnt;
+    uint32_t mask;
 
-    HAL_TRACE(20, "%s: chan=%d size=%u", __FUNCTION__, chan, size);
+    USBHOST_TRACE(20, "%s:%u:%c: size=%u", __FUNCTION__, chan, chan_desc[chan].type.ep_in ? 'I' : 'O', size);
 
 #if 0
     if (chan_desc[chan].state != HAL_USBHOST_CHAN_XFER) {
@@ -835,7 +938,9 @@ static void hal_usbhost_retry_chan(uint8_t chan, uint32_t size)
     }
 #endif
 
-    hal_usbhost_halt_chan(chan);
+    mask = usbc->HCSR[chan].HCINTMSKn;
+
+    _disable_chan(chan);
 
     pkt_cnt = (size + chan_desc[chan].type.mps - 1) / chan_desc[chan].type.mps;
     if (pkt_cnt == 0) {
@@ -844,8 +949,9 @@ static void hal_usbhost_retry_chan(uint8_t chan, uint32_t size)
 
     usbc->HCSR[chan].HCTSIZn = (usbc->HCSR[chan].HCTSIZn & ~(USBC_HCTSIZN_PKTCNT_MASK | USBC_HCTSIZN_XFERSIZE_MASK)) |
         USBC_HCTSIZN_PKTCNT(pkt_cnt) | USBC_HCTSIZN_XFERSIZE(size);
-    usbc->HCSR[chan].HCDMAn = (uint32_t)chan_desc[chan].xfer.buf + (chan_desc[chan].start_xfer_size - size);
+    usbc->HCSR[chan].HCDMAn = ADDR_CPU_TO_DEV((uint32_t)chan_desc[chan].xfer.buf + (chan_desc[chan].start_xfer_size - size));
 
+    usbc->HCSR[chan].HCINTMSKn = mask;
     usbc->HCSR[chan].HCINTn = ~0UL;
 
     //usbc->HCSR[chan].HCCHARn = SET_BITFIELD(usbc->HCSR[chan].HCCHARn, USBC_HCCHARN_EC, multi_cnt);
@@ -857,23 +963,23 @@ static uint32_t hal_usbhost_get_xfer_size(uint8_t chan, int complete)
 {
     uint32_t xfer;
 
-    if (complete) {
-        if (chan_desc[chan].type.ep_in) {
-            xfer = GET_BITFIELD(usbc->HCSR[chan].HCTSIZn, USBC_HCTSIZN_XFERSIZE);
-            if (chan_desc[chan].start_xfer_size > xfer) {
-                xfer = chan_desc[chan].start_xfer_size - xfer;
+    if (chan_desc[chan].type.ep_in) {
+        xfer = GET_BITFIELD(usbc->HCSR[chan].HCTSIZn, USBC_HCTSIZN_XFERSIZE);
+        if (chan_desc[chan].start_xfer_size > xfer) {
+            xfer = chan_desc[chan].start_xfer_size - xfer;
+        } else {
+            xfer = 0;
+        }
+    } else {
+        if (complete) {
+            xfer = chan_desc[chan].start_xfer_size;
+        } else {
+            xfer = GET_BITFIELD(usbc->HCSR[chan].HCTSIZn, USBC_HCTSIZN_PKTCNT);
+            if (chan_desc[chan].start_pkt_cnt > xfer) {
+                xfer = (chan_desc[chan].start_pkt_cnt - xfer) * chan_desc[chan].type.mps;
             } else {
                 xfer = 0;
             }
-        } else {
-            xfer = chan_desc[chan].start_xfer_size;
-        }
-    } else {
-        xfer = GET_BITFIELD(usbc->HCSR[chan].HCTSIZn, USBC_HCTSIZN_PKTCNT);
-        if (chan_desc[chan].start_pkt_cnt > xfer) {
-            xfer = (chan_desc[chan].start_pkt_cnt - xfer) * chan_desc[chan].type.mps;
-        } else {
-            xfer = 0;
         }
     }
 
@@ -896,19 +1002,32 @@ static enum HAL_USBHOST_XFER_ERR_T hal_usbhost_get_xfer_error(uint32_t irq)
 static void hal_usbhost_chan_n_handler(uint8_t chan)
 {
     uint32_t raw_irq;
+    uint32_t clear_irq;
     uint32_t irq;
     uint32_t xfer;
     enum HAL_USBHOST_XFER_ERR_T error;
     HAL_USBHOST_XFER_COMPL_HANDLER handler;
     uint8_t *buf;
+    const char ep_dir_c = chan_desc[chan].type.ep_in ? 'I' : 'O';
 
-    HAL_TRACE(3, "%s: %d", __FUNCTION__, chan);
+    USBHOST_TRACE(3, "%s:%u:%c", __FUNCTION__, chan, ep_dir_c);
 
     raw_irq = usbc->HCSR[chan].HCINTn;
     if (raw_irq & USBC_HCINTN_AHBERR) {
-        ASSERT(false, "%s chan%d DMA xfer AHB error!", __FUNCTION__, chan);
+        ASSERT(false, "%s:%u:%c: DMA xfer AHB error!", __FUNCTION__, chan, ep_dir_c);
     }
-    usbc->HCSR[chan].HCINTn = raw_irq;
+    // Keep XFERCOMPL/STALL/BBLERR status for retry cases, until CHHLTD occurs
+    clear_irq = raw_irq;
+    if ((raw_irq & USBC_HCINTN_CHHLTD) == 0) {
+        uint32_t exclude_irq;
+
+        exclude_irq = USBC_HCINTN_XFERCOMPL | USBC_HCINTN_STALL | USBC_HCINTN_XACTERR;
+        if (chan_desc[chan].type.ep_in) {
+            exclude_irq |= USBC_HCINTN_BBLERR;
+        }
+        clear_irq &= ~exclude_irq;
+    }
+    usbc->HCSR[chan].HCINTn = clear_irq;
 
     if (chan_desc[chan].state != HAL_USBHOST_CHAN_XFER) {
         return;
@@ -918,7 +1037,7 @@ static void hal_usbhost_chan_n_handler(uint8_t chan)
 
     xfer = hal_usbhost_get_xfer_size(chan, (raw_irq & USBC_HCINTN_XFERCOMPL));
 
-    HAL_TRACE(18, "%s: chan=%d HCINTn=0x%08x xfer=%u", __FUNCTION__, chan, raw_irq, xfer);
+    USBHOST_TRACE(18, "%s:%u:%c: HCINTn=0x%08X xfer=%u", __FUNCTION__, chan, ep_dir_c, raw_irq, xfer);
 
     error = HAL_USBHOST_XFER_ERR_QTY;
 
@@ -931,7 +1050,7 @@ static void hal_usbhost_chan_n_handler(uint8_t chan)
                     usbc->HCSR[chan].HCINTMSKn &= ~(USBC_HCINTN_ACK | USBC_HCINTN_NAK | USBC_HCINTN_DATATGLERR);
                     error = hal_usbhost_get_xfer_error(raw_irq);
                 } else if (raw_irq & USBC_HCINTN_XACTERR) {
-                    if (chan_desc[chan].err_cnt >= 2) {
+                    if (chan_desc[chan].err_cnt >= HAL_USBHOST_XFER_RETRY_CNT) {
                         error = HAL_USBHOST_XFER_ERR_TRANSACTION;
                     } else {
                         chan_desc[chan].err_cnt++;
@@ -952,7 +1071,7 @@ static void hal_usbhost_chan_n_handler(uint8_t chan)
                     usbc->HCSR[chan].HCINTMSKn &= ~(USBC_HCINTN_ACK | USBC_HCINTN_NAK | USBC_HCINTN_NYET);
                     error = hal_usbhost_get_xfer_error(raw_irq);
                 } else if (raw_irq & USBC_HCINTN_XACTERR) {
-                    if (chan_desc[chan].err_cnt >= 2) {
+                    if (chan_desc[chan].err_cnt >= HAL_USBHOST_XFER_RETRY_CNT) {
                         usbc->HCSR[chan].HCINTMSKn &= ~(USBC_HCINTN_ACK | USBC_HCINTN_NAK | USBC_HCINTN_NYET);
                         error = HAL_USBHOST_XFER_ERR_TRANSACTION;
                     } else {
@@ -971,13 +1090,9 @@ static void hal_usbhost_chan_n_handler(uint8_t chan)
     }
 
     if (error == HAL_USBHOST_XFER_ERR_QTY) {
-        error = hal_usbhost_get_xfer_error(raw_irq);
-    }
-
-    if (error == HAL_USBHOST_XFER_ERR_QTY) {
         // Unknown IRQ
-        usbc->HCSR[chan].HCINTMSKn &= ~irq;
-        HAL_TRACE(19, "%s: Got unknown IRQ chan=%d irq=0x%08x", __FUNCTION__, chan, irq);
+        ASSERT(false, "%s:%u:%c: Bad irq=0x%08X", __FUNCTION__, chan, ep_dir_c, irq);
+        return;
     } else {
         // Stop xfer timer
         hwtimer_stop(usbhost_timer[chan]);
@@ -988,9 +1103,8 @@ static void hal_usbhost_chan_n_handler(uint8_t chan)
         chan_desc[chan].state = HAL_USBHOST_CHAN_INIT;
 
         if (error != HAL_USBHOST_XFER_ERR_NONE) {
-            usbc->HAINTMSK &= ~(1 << chan);
             if ((raw_irq & USBC_HCINTN_CHHLTD) == 0) {
-                hal_usbhost_halt_chan(chan);
+                _disable_chan(chan);
             }
         }
         if (handler) {
@@ -1022,7 +1136,7 @@ static void hal_usbhost_irq_handler(void)
 
     status &= (usbc->GINTMSK & (USBC_PRTINT | USBC_HCHINT | USBC_DISCONNINT));
 
-    HAL_TRACE(1, "%s: 0x%08x", __FUNCTION__, status);
+    USBHOST_TRACE(1, "%s: 0x%08X", __FUNCTION__, status);
 
     if (status & USBC_DISCONNINT) {
         hal_usbhost_disconn_handler();
@@ -1039,35 +1153,21 @@ static void hal_usbhost_irq_handler(void)
 static void hal_usbhost_timeout(void *param)
 {
     uint8_t chan = (uint8_t)(uint32_t)param;
-    uint32_t xfer;
-    HAL_USBHOST_XFER_COMPL_HANDLER handler;
-    uint8_t *buf;
 
-    HAL_TRACE(21, "%s: %d", __FUNCTION__, chan);
+    USBHOST_TRACE(21, "%s:%u:%c: state=%d", __FUNCTION__, chan, chan_desc[chan].type.ep_in ? 'I' : 'O', chan_desc[chan].state);
 
+    // Disable chan in xfer state only
     if (chan_desc[chan].state != HAL_USBHOST_CHAN_XFER) {
         return;
     }
 
-    hal_usbhost_halt_chan(chan);
-
-    if (chan_desc[chan].xfer.handler) {
-        // TODO: Check whether HCTSIZn is reset after channel is halted
-        xfer = hal_usbhost_get_xfer_size(chan, 0);
-
-        // Reset the chan_desc to INIT state so that it can be reused in callback
-        handler = chan_desc[chan].xfer.handler;
-        buf = chan_desc[chan].xfer.buf;
-        chan_desc[chan].state = HAL_USBHOST_CHAN_INIT;
-
-        handler(chan, buf, xfer, HAL_USBHOST_XFER_ERR_TIMEOUT);
-    }
+    _disable_timer_and_chan_with_cb(chan);
 }
 
 #ifdef PMU_USB_PIN_CHECK
 static void hal_usbhost_pin_status_change(enum PMU_USB_PIN_CHK_STATUS_T status)
 {
-    HAL_TRACE(24, "%s: %d", __FUNCTION__, status);
+    USBHOST_TRACE(24, "%s: status=%d", __FUNCTION__, status);
 
     if (plug_handler) {
         if (status == PMU_USB_PIN_CHK_DEV_CONN) {

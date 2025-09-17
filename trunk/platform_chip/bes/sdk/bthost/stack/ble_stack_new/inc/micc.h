@@ -18,6 +18,7 @@
  ****************************************************************************/
 #ifndef __ARC_MICC__
 #define __ARC_MICC__
+#include "bluetooth.h"
 
 #include "gaf_cfg.h"
 #include "generic_audio.h"
@@ -46,6 +47,7 @@ typedef void (*micc_cb_mute_value_evt)(uint8_t con_lid, uint8_t mute, uint16_t e
 typedef void (*micc_cb_set_mute_cmp_evt)(uint8_t con_lid, uint16_t err_code);
 // Callback function called when prf status event generated
 typedef gatt_prf_status_event_callback micc_cb_prf_status_evt;
+
 
 /*Structure*/
 typedef struct micc_evt_cb

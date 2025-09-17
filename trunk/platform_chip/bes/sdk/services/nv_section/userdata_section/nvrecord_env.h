@@ -23,7 +23,6 @@ extern "C" {
 #endif
 
 #include "bluetooth_bt_api.h"
-#include "me_api.h"
 #include "nvrecord_extension.h"
 
 #define NVRAM_ENV_MEDIA_LANGUAGE_DEFAULT (0)

@@ -26,6 +26,15 @@
 
 #ifdef CORE_SLEEP_POWER_DOWN
 
+#ifndef CHIP_SUBSYS_SENS
+#if defined(CHIP_BEST1501) || defined(CHIP_BEST1501P) || defined(CHIP_BEST2000) || \
+        defined(CHIP_BEST2300) || defined(CHIP_BEST2300A) || defined(CHIP_BEST2300P)
+#define PD_SLEEP_STACK_WORKAROUND
+#define PD_SLEEP_STACK_CHECK
+#include "plat_addr_map.h"
+#endif
+#endif
+
 #ifndef ARM_CMNS
 #if defined(ROM_BUILD) || defined(PROGRAMMER)
     .section .bss.core_sleep_stack
@@ -34,7 +43,12 @@
 #endif
     .align    2
 core_sleep_stack:
+#ifdef PD_SLEEP_STACK_WORKAROUND
+    /* 4 bytes to save SP, 4 bytes to save check result, and 16 bytes to save ROM stack used */
+    .space 24
+#else
     .space 4
+#endif
 #endif
 
 #if defined(ROM_BUILD) || defined(PROGRAMMER)
@@ -89,10 +103,43 @@ hal_sleep_core_power_down:
     add r3, r1
 #endif
     str sp, [r3]
+#ifdef PD_SLEEP_STACK_WORKAROUND
+    ldr r0, =#ROM_BASE
+    ldr r0, [r0]
+#ifdef PD_SLEEP_STACK_CHECK
+    /* Check last result */
+    ldr r5, [r3, #4]
+    cbnz r5, _check_done
+    /* Check if core_sleep_stack is overlapped with the mem */
+    cmp r0, r3
+    bls _check_done
+    sub r5, r0, 16
+    add r6, r3, 24
+    cmp r5, r6
+    blt .
+#ifdef SENS_RAMRET_BASE
+    /* Check if the mem is used by SENS */
+    ldr r5, =#SENS_RAMRET_BASE
+    cmp r0, r5
+    bgt .
+#endif
+    /* Save the result */
+    movs r5, #1
+    str r5, [r3, #4]
+_check_done:
+#endif
+    ldmdb r0, {r5-r8}
+    add r3, 8
+    stmia r3, {r5-r8}
+#endif
     dsb
     movs r0, r4
     bl hal_psc_core_auto_power_down
+#if defined(POWER_DOWN_VIA_DEEP_SLEEP) || defined(CHIP_ROLE_CP)
+    b hal_sleep_core_power_up
+#else
     b .
+#endif
 #endif
 
     .pool
@@ -121,8 +168,15 @@ hal_sleep_core_power_up:
 #endif
     ldr sp, [r3]
 #ifdef __ARM_ARCH_8M_MAIN__
-    movs r3, #0
-    msr msplim, r3
+    movs r0, #0
+    msr msplim, r0
+#endif
+#ifdef PD_SLEEP_STACK_WORKAROUND
+    add r3, 8
+    ldmia r3, {r5-r8}
+    ldr r0, =#ROM_BASE
+    ldr r0, [r0]
+    stmdb r0, {r5-r8}
 #endif
     dsb
     isb

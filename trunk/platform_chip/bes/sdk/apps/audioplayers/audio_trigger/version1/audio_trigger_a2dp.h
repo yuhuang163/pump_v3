@@ -1,8 +1,14 @@
 #ifndef __AUDIO_TRIGGER_A2DP_H__
 #define __AUDIO_TRIGGER_A2DP_H__
 
+#define DECREASE_INITIAL_JITTER_BUF_LEN_ENABLED
+#ifdef DECREASE_INITIAL_JITTER_BUF_LEN_ENABLED
+#define A2DP_PLAYER_PLAYBACK_WATER_LINE_BASE_LINE   2
+#else
+#define A2DP_PLAYER_PLAYBACK_WATER_LINE_BASE_LINE   3
+#endif
 
-#define A2DP_PLAYER_PLAYBACK_WATER_LINE ((uint32_t)(3.f * a2dp_audio_latency_factor_get() + 0.5f))
+#define A2DP_PLAYER_PLAYBACK_WATER_LINE ((uint32_t)(A2DP_PLAYER_PLAYBACK_WATER_LINE_BASE_LINE * 1.f * a2dp_audio_latency_factor_get() + 0.5f))
 #define A2DP_PLAYER_PLAYBACK_WATER_LINE_UPPER (25)
 
 /********************************
@@ -25,13 +31,10 @@
 #define A2DP_PLAYER_PLAYBACK_DELAY_SCALABLE_HIRES_BASE (9000)
 #define A2DP_PLAYER_PLAYBACK_DELAY_SCALABLE_HIRES_US (A2DP_PLAYER_PLAYBACK_DELAY_SCALABLE_HIRES_BASE*A2DP_PLAYER_PLAYBACK_DELAY_SCALABLE_HIRES_MTU)
 
-#define A2DP_PLAYER_PLAYBACK_DELAY_SCALABLE_BASERES_MTU  (6)
+#define A2DP_PLAYER_PLAYBACK_DELAY_SCALABLE_BASERES_MTU  ((8-A2DP_PLAYER_PLAYBACK_WATER_LINE_BASE_LINE))
 #define A2DP_PLAYER_PLAYBACK_DELAY_SCALABLE_BASERES_BASE (19500)
 #define A2DP_PLAYER_PLAYBACK_DELAY_SCALABLE_BASERES_US (A2DP_PLAYER_PLAYBACK_DELAY_SCALABLE_BASERES_BASE*A2DP_PLAYER_PLAYBACK_DELAY_SCALABLE_BASERES_MTU)
-#ifdef A2DP_PLAYER_PLAYBACK_WATER_LINE
-#define A2DP_PLAYER_PLAYBACK_MAX_WATERLINE_SCALABLE_MTU (15)
-#define A2DP_PLAYER_PLAYBACK_MIN_WATERLINE_SCALABLE_MTU (0)
-#endif
+
 /********************************
         AUD_BITS_16
         dma_buffer_delay_us = stream_cfg->data_size/stream_cfg->channel_num/2*1000000LL/stream_cfg->sample_rate;
@@ -47,9 +50,7 @@
  *********************************/
 #ifndef A2DP_PLAYER_PLAYBACK_DELAY_AAC_MTU
 #ifdef A2DP_PLAYER_PLAYBACK_WATER_LINE
-#define A2DP_PLAYER_PLAYBACK_DELAY_AAC_MTU (3)
-#define A2DP_PLAYER_PLAYBACK_MAX_WATERLINE_AAC_MTU (24)
-#define A2DP_PLAYER_PLAYBACK_MIN_WATERLINE_AAC_MTU (0)
+#define A2DP_PLAYER_PLAYBACK_DELAY_AAC_MTU (6-A2DP_PLAYER_PLAYBACK_WATER_LINE_BASE_LINE)
 #else
 #define A2DP_PLAYER_PLAYBACK_DELAY_AAC_MTU (6)
 #endif
@@ -73,11 +74,9 @@
 #define A2DP_PLAYER_PLAYBACK_DELAY_SBC_FRAME_MTU (7)
 #ifndef A2DP_PLAYER_PLAYBACK_DELAY_SBC_MTU
 #ifdef A2DP_PLAYER_PLAYBACK_WATER_LINE
-#define A2DP_PLAYER_PLAYBACK_DELAY_SBC_MTU (35)
-#define A2DP_PLAYER_PLAYBACK_MAX_WATERLINE_SBC_MTU (A2DP_PLAYER_PLAYBACK_DELAY_SBC_FRAME_MTU*25)
-#define A2DP_PLAYER_PLAYBACK_MIN_WATERLINE_SBC_MTU (A2DP_PLAYER_PLAYBACK_DELAY_SBC_FRAME_MTU*0)
-#else
 #define A2DP_PLAYER_PLAYBACK_DELAY_SBC_MTU (50)
+#else
+#define A2DP_PLAYER_PLAYBACK_DELAY_SBC_MTU (56)
 #endif
 #endif
 #define A2DP_PLAYER_PLAYBACK_DELAY_SBC_BASE (2800)
@@ -168,26 +167,6 @@
 #define A2DP_PLAYER_PLAYBACK_DELAY_LHDC_LLC_US (A2DP_PLAYER_PLAYBACK_DELAY_LHDC_LLC_MTU*A2DP_PLAYER_PLAYBACK_DELAY_LHDC_LLC_BASE)
 #endif
 
-
-#if defined(A2DP_LHDCV5_ON)
-/********************************
-    AUD_BITS_16
-    dma_buffer_delay_us = stream_cfg->data_size/stream_cfg->channel_num/2*1000000LL/stream_cfg->sample_rate;
-    AUD_BITS_24
-    dma_buffer_delay_us = stream_cfg->data_size/stream_cfg->channel_num/4*1000000LL/stream_cfg->sample_rate;
-
-    lhdc_v5 delay = 5*28 = 140ms
-    lhdc_v5 low latency delay = 5 * 12 = 60ms
-    audio_delay = lhdc_v5 delay
-*********************************/
-#define A2DP_PLAYER_PLAYBACK_DELAY_LHDCV5_MTU (28)
-#define A2DP_PLAYER_PLAYBACK_DELAY_LHDCV5_LLC_MTU (12)
-
-#define A2DP_PLAYER_PLAYBACK_DELAY_LHDCV5_BASE (5000)
-
-#define A2DP_PLAYER_PLAYBACK_DELAY_LHDCV5_US (A2DP_PLAYER_PLAYBACK_DELAY_LHDCV5_MTU*A2DP_PLAYER_PLAYBACK_DELAY_LHDCV5_BASE)
-#define A2DP_PLAYER_PLAYBACK_DELAY_LHDCV5_LLC_US (A2DP_PLAYER_PLAYBACK_DELAY_LHDCV5_LLC_MTU*A2DP_PLAYER_PLAYBACK_DELAY_LHDCV5_BASE)
-#endif
 #if defined(A2DP_LDAC_ON)
 /********************************
     AUD_BITS_16
@@ -200,11 +179,7 @@
     audio_delay = ldac delay
 *********************************/
 #define A2DP_PLAYER_PLAYBACK_DELAY_LDAC_FRAME_MTU (5)
-#ifdef A2DP_LDAC_BCO
-#define A2DP_PLAYER_PLAYBACK_DELAY_LDAC_MTU  (20)
-#else
 #define A2DP_PLAYER_PLAYBACK_DELAY_LDAC_MTU  (60)
-#endif
 #define A2DP_PLAYER_PLAYBACK_DELAY_LDAC_BASE (2667)
 #define A2DP_PLAYER_PLAYBACK_DELAY_LDAC_US (A2DP_PLAYER_PLAYBACK_DELAY_LDAC_BASE*A2DP_PLAYER_PLAYBACK_DELAY_LDAC_MTU)
 #endif
@@ -239,7 +214,7 @@ extern "C" {
 
 bool app_bt_stream_trigger_onprocess(void);
 void app_bt_stream_trigger_result(uint8_t device_id);
-void app_bt_stream_trigger_start(uint8_t device_id, uint8_t offset);
+void app_bt_stream_trigger_start(uint8_t device_id, int8_t offset);
 void app_bt_stream_trigger_init(void);
 void app_bt_stream_trigger_deinit(void);
 

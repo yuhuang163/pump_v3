@@ -28,34 +28,32 @@
 #include "hal_chipid.h"
 #include "analog.h"
 #include "bluetooth_bt_api.h"
-#include "app_bt_stream.h"
 #include "app_overlay.h"
-#include "app_audio.h"
 #include "app_utils.h"
 #include "nvrecord_bt.h"
 #include "nvrecord_env.h"
 #include "hal_codec.h"
 #include "apps.h"
 
-#include "app_ring_merge.h"
-
 #include "bt_drv.h"
-#include "bt_xtal_sync.h"
-#include "besbt.h"
-#include "app_bt_func.h"
 #include "app_mic.h"
 
 
 #include "app_thread.h"
 #include "cqueue.h"
-#include "btapp.h"
-#include "app_bt_media_manager.h"
 #include "string.h"
 #include "hal_location.h"
 #include "hal_codec.h"
 #include "hal_sleep.h"
-#include "app_hfp.h"
 
+#ifdef __NuttX__
+WEAK bool bes_bt_hfp_has_sco_connected(void)
+{
+    return false;
+}
+#else
+#include "app_audio.h"
+#endif
 extern bool app_hfp_siri_is_active(void);
 extern int a2dp_volume_2_level_convert(uint8_t vol);
 extern bool mic_is_already_on;
@@ -77,28 +75,26 @@ bool first_mic_in = false;
 
 static int internal_mic_start(MIC_APP_TYPE new_mictype)
 {
-    MIC_TRACE(1,"MIC_EVENT_START,current_mictype=%d",current_mictype);
+    TRACE(1,"MIC_EVENT_START,current_mictype=%d",current_mictype);
     assert(new_mictype != MIC_APP_NONE);
     if (current_mictype != MIC_APP_NONE) {
-        MIC_TRACE(0,"MIC START ERROR################");
+        TRACE(0,"MIC START ERROR################");
         return false;
     }
     if (new_mictype == MIC_APP_SOC_CALL)
     {
-#ifdef BT_HFP_SUPPORT
-        if (btapp_hfp_is_sco_active() || app_hfp_siri_is_active())
+        if (bes_bt_hfp_has_sco_connected())
         {
-            MIC_TRACE(2,"[%s] tws_mic_start_telephone_call: %d", __func__, mic_config[new_mictype].sample_rate);
+            TRACE(2,"[%s] tws_mic_start_telephone_call: %d", __func__, mic_config[new_mictype].sample_rate);
         	if (mic_config[new_mictype].data_ptr != NULL)
             {
             }
             else
         	{
-                MIC_TRACE(1,"[%s] Warning sco play not started",__func__);
+                TRACE(1,"[%s] Warning sco play not started",__func__);
         	}
             current_mictype = MIC_APP_SOC_CALL;
         }
-#endif
     }
     else if (new_mictype == MIC_APP_SPEECH_RECO)
     {
@@ -114,7 +110,7 @@ static int internal_mic_start(MIC_APP_TYPE new_mictype)
     }
     else if (new_mictype == MIC_APP_OTHER)
     {
-        MIC_TRACE(0,"~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+        TRACE(0,"~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
     }
 
     af_stream_open(AUD_STREAM_ID_0, AUD_STREAM_CAPTURE, &mic_config[new_mictype]);
@@ -124,10 +120,10 @@ static int internal_mic_start(MIC_APP_TYPE new_mictype)
 
 static int internal_mic_stop(MIC_APP_TYPE new_mictype)
 {
-    MIC_TRACE(1,"MIC_EVENT_STOP,current_mictype=%d",current_mictype);
+    TRACE(1,"MIC_EVENT_STOP,current_mictype=%d",current_mictype);
     //assert(currentMicStauts == currentStatus);
     if (new_mictype != current_mictype) {
-        MIC_TRACE(0,"MIC STOP ERROR ################");
+        TRACE(0,"MIC STOP ERROR ################");
         return false;
     }
     af_stream_stop(AUD_STREAM_ID_0, AUD_STREAM_CAPTURE);
@@ -143,7 +139,7 @@ static int app_mic_process(APP_MESSAGE_BODY *msg_body)
     MIC_EVENT_TYPE mic_event = (MIC_EVENT_TYPE)msg_body->message_id;
     MIC_APP_TYPE new_mictype = (MIC_APP_TYPE)msg_body->message_ptr;
     int ret = -1;
-    MIC_TRACE(4,"%s mic_event:%d new_mictype:%d current_mictype:%d",__func__,mic_event, new_mictype, current_mictype);
+    TRACE(4,"%s mic_event:%d new_mictype:%d current_mictype:%d",__func__,mic_event, new_mictype, current_mictype);
 
     osMutexWait(app_mic_mutex_id, osWaitForever);
     if (mic_event == MIC_EVENT_START)
@@ -152,7 +148,7 @@ static int app_mic_process(APP_MESSAGE_BODY *msg_body)
         ret = internal_mic_stop(new_mictype);
     else if (mic_event == MIC_EVENT_CHECK)
     {
-        MIC_TRACE(1,"MIC_EVENT_CHECK,current_mictype=%d",current_mictype);
+        TRACE(1,"MIC_EVENT_CHECK,current_mictype=%d",current_mictype);
         if (current_mictype != new_mictype)
         {
             if (current_mictype != MIC_APP_NONE)
@@ -176,13 +172,13 @@ void app_mic_init()
 
 int app_mic_register(MIC_APP_TYPE mic_type, struct AF_STREAM_CONFIG_T *newStream)
 {
-    MIC_TRACE(2,"app_mic_registration mic_type:%d,newStream=%p\n",mic_type,newStream);
+    TRACE(2,"app_mic_registration mic_type:%d,newStream=%p\n",mic_type,newStream);
     if (mic_type > MIC_APP_NONE && mic_type < MIC_APP_MAX)
     {
         osMutexWait(app_mic_mutex_id, osWaitForever);
         if (memcmp(&mic_config[mic_type],newStream,sizeof(struct AF_STREAM_CONFIG_T)) != 0)
         {
-            MIC_TRACE(0,"app_mic_registration Warning mic stream config changed!!!");
+            TRACE(0,"app_mic_registration Warning mic stream config changed!!!");
         }
         memcpy(&mic_config[mic_type],newStream,sizeof(struct AF_STREAM_CONFIG_T));
         osMutexRelease(app_mic_mutex_id);
@@ -193,7 +189,7 @@ int app_mic_register(MIC_APP_TYPE mic_type, struct AF_STREAM_CONFIG_T *newStream
 
 int app_mic_deregister(MIC_APP_TYPE mic_type)
 {
-    MIC_TRACE(1,"app_mic_deregister mic_type:%d\n",mic_type);
+    TRACE(1,"app_mic_deregister mic_type:%d\n",mic_type);
     if (mic_type > MIC_APP_NONE && mic_type < MIC_APP_MAX)
     {
         osMutexWait(app_mic_mutex_id, osWaitForever);
@@ -206,7 +202,7 @@ int app_mic_deregister(MIC_APP_TYPE mic_type)
 
 bool app_mic_is_registed(MIC_APP_TYPE mic_type)
 {
-    MIC_TRACE(1,"app_mic_is_registed mic_type:%d\n",mic_type);
+    TRACE(1,"app_mic_is_registed mic_type:%d\n",mic_type);
     bool ret = false;
     if (mic_type > MIC_APP_NONE && mic_type < MIC_APP_MAX)
     {
@@ -221,9 +217,6 @@ bool app_mic_start(MIC_APP_TYPE mic_type)
 {
     APP_MESSAGE_BLOCK msg;
     msg.mod_id = APP_MODULE_MIC;
-#if defined(USE_BASIC_THREADS)
-    msg.mod_level = APP_MOD_LEVEL_1;
-#endif 
     msg.msg_body.message_id = MIC_EVENT_START;
     msg.msg_body.message_ptr = mic_type;
     app_mailbox_put(&msg);
@@ -234,9 +227,6 @@ bool app_mic_stop(MIC_APP_TYPE mic_type)
 {
     APP_MESSAGE_BLOCK msg;
     msg.mod_id = APP_MODULE_MIC;
-#if defined(USE_BASIC_THREADS)
-    msg.mod_level = APP_MOD_LEVEL_1;
-#endif 
     msg.msg_body.message_id = MIC_EVENT_STOP;
     msg.msg_body.message_ptr = mic_type;
     app_mailbox_put(&msg);
@@ -247,9 +237,6 @@ void app_mic_check(MIC_APP_TYPE mic_type)
 {
     APP_MESSAGE_BLOCK msg;
     msg.mod_id = APP_MODULE_MIC;
-#if defined(USE_BASIC_THREADS)
-    msg.mod_level = APP_MOD_LEVEL_1;
-#endif 
     msg.msg_body.message_id = MIC_EVENT_CHECK;
     msg.msg_body.message_ptr = mic_type;
     app_mailbox_put(&msg);

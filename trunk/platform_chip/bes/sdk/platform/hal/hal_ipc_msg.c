@@ -25,42 +25,39 @@
 #define IPC_MSG_VERBOSE_TRACE 0
 // ((1 << 0) | (1 << 1))
 
-
-#define HAL_SYS_WAKE_LOCK_USER_MCU2SENS     HAL_SYS_WAKE_LOCK_USER_5
-
 STATIC_ASSERT(sizeof(struct IPC_MSG_T *) * HAL_IPC_SUB_ID_QTY +
     sizeof(const struct IPC_MSG_T **) <= SENS_MAILBOX_SIZE, "IPC_MSG_SIZE too small");
 
 static struct HAL_IPC_MSG_T hal_ipc_msg_pool[HAL_IPC_CORE_QTY] = {0,};
 
-static void hal_ipc_msg_busy(struct HAL_IPC_MSG_T *ipc_msg_ctx, enum HAL_IPC_SUB_ID_T id, bool busy)
+static void hal_ipc_msg_tx_busy(struct HAL_IPC_MSG_T *ipc_msg_ctx, enum HAL_IPC_SUB_ID_T id, bool busy)
 {
     int i;
     bool new_state;
 
-    if (ipc_msg_ctx->chan_busy[id] == busy) {
+    if (ipc_msg_ctx->chan_tx_busy[id] == busy) {
         return;
     }
 
-    ipc_msg_ctx->chan_busy[id] = busy;
+    ipc_msg_ctx->chan_tx_busy[id] = busy;
 
     if (ipc_msg_ctx->busy_now == busy) {
         return;
     }
 
     if (busy) {
-        hal_sys_wake_lock(HAL_SYS_WAKE_LOCK_USER_MCU2SENS);
+        hal_bus_wake_lock(HAL_BUS_WAKE_LOCK_USER_RMT_IPC);
         ipc_msg_ctx->busy_now = true;
     } else {
         new_state = false;
         for (i = 0; i < HAL_IPC_SUB_ID_QTY; i++) {
-            if (ipc_msg_ctx->chan_busy[i]) {
+            if (ipc_msg_ctx->chan_tx_busy[i]) {
                 new_state = true;
                 break;
             }
         }
         if (!new_state) {
-            hal_sys_wake_unlock(HAL_SYS_WAKE_LOCK_USER_MCU2SENS);
+            hal_bus_wake_unlock(HAL_BUS_WAKE_LOCK_USER_RMT_IPC);
             ipc_msg_ctx->busy_now = false;
         }
     }
@@ -78,11 +75,14 @@ static void hal_ipc_msg_rx_irq_handler(void * ctx)
         if (!ipc_msg_ctx->chan_opened[id]){
             continue;
         }
-        if (ipc_msg_ctx->hal_op.irq_active(id, HAL_IPC_IRQ_SEND_IND)) {
-            ipc_msg_ctx->hal_op.local_irq_mask_clr(id, HAL_IPC_IRQ_SEND_IND);
+        if (ipc_msg_ctx->hal_op.irq_active(id, HAL_IPC_IRQ_DATA_IND)) {
+            ipc_msg_ctx->hal_op.local_irq_mask_clr(id, HAL_IPC_IRQ_DATA_IND);
             if (ipc_msg_ctx->recv_pending_head[id].data) {
-                // Previous unprocessed message
+                // Previous unfinished message
                 msg_ptr = &ipc_msg_ctx->recv_pending_head[id];
+            } else if (ipc_msg_ctx->recv_pending_head[id].next) {
+                // Previous unprocessed message
+                msg_ptr = ipc_msg_ctx->recv_pending_head[id].next;
             } else {
                 // New message
                 msg_ptr = ipc_msg_ctx->recv_msg_list_p[id];
@@ -94,9 +94,12 @@ static void hal_ipc_msg_rx_irq_handler(void * ctx)
                     msg_ptr->data ? *(uint32_t *)(msg_ptr->data + 4) : 0);
 #endif
                 if (ipc_msg_ctx->rx_irq_handler[id]) {
+                    ipc_msg_ctx->chan_rx_busy[id] = true;
+                    ipc_msg_ctx->chan_in_rx_hdlr[id] = true;
                     processed = ipc_msg_ctx->rx_irq_handler[id](msg_ptr->data, msg_ptr->len);
+                    ipc_msg_ctx->chan_in_rx_hdlr[id] = false;
                     // Check if flow control needed
-                    if (processed < msg_ptr->len) {
+                    if (ipc_msg_ctx->chan_rx_busy[id] && msg_ptr->data && processed < msg_ptr->len) {
                         ipc_msg_ctx->recv_pending_head[id].next = msg_ptr->next;
                         ipc_msg_ctx->recv_pending_head[id].len = msg_ptr->len - processed;
                         ipc_msg_ctx->recv_pending_head[id].data = msg_ptr->data + processed;
@@ -111,10 +114,12 @@ static void hal_ipc_msg_rx_irq_handler(void * ctx)
             }
 
             if (msg_ptr == NULL) {
-                if (!ipc_msg_ctx->need_flow_ctrl[id]){
+                ipc_msg_ctx->recv_pending_head[id].next = NULL;
+                ipc_msg_ctx->recv_pending_head[id].data = NULL;
+                if (!ipc_msg_ctx->chan_manual_rx_done[id] || !ipc_msg_ctx->chan_rx_busy[id]) {
+                    ipc_msg_ctx->chan_rx_busy[id] = false;
                     hal_ipc_msg_rx_done(ipc_msg_ctx, id);
                 }
-                ipc_msg_ctx->recv_pending_head[id].data = NULL;
             }
         }
     }
@@ -125,8 +130,8 @@ static void hal_ipc_msg_tx_irq_handler_by_id(void * ctx, enum HAL_IPC_SUB_ID_T i
     struct IPC_MSG_T *msg_ptr;
     struct HAL_IPC_MSG_T *ipc_msg_ctx = ctx;
 
-    if (ipc_msg_ctx->hal_op.irq_active(id, HAL_IPC_IRQ_RECV_DONE)) {
-        ipc_msg_ctx->hal_op.local_irq_clear(id, HAL_IPC_IRQ_RECV_DONE);
+    if (ipc_msg_ctx->hal_op.irq_active(id, HAL_IPC_IRQ_DATA_DONE)) {
+        ipc_msg_ctx->hal_op.local_irq_clear(id, HAL_IPC_IRQ_DATA_DONE);
 
         msg_ptr = ipc_msg_ctx->send_msg_list_p[id];
         while (msg_ptr) {
@@ -140,11 +145,11 @@ static void hal_ipc_msg_tx_irq_handler_by_id(void * ctx, enum HAL_IPC_SUB_ID_T i
         if (ipc_msg_ctx->send_pending_list_p[id]) {
             ipc_msg_ctx->send_msg_list_p[id] = ipc_msg_ctx->send_pending_list_p[id];
             ipc_msg_ctx->send_pending_list_p[id] = NULL;
-            ipc_msg_ctx->hal_op.peer_irq_set(id, HAL_IPC_IRQ_SEND_IND);
+            ipc_msg_ctx->hal_op.peer_irq_set(id, HAL_IPC_IRQ_DATA_IND);
         } else {
             ipc_msg_ctx->send_msg_list_p[id] = NULL;
             // Allow sleep
-            hal_ipc_msg_busy(ipc_msg_ctx, id, false);
+            hal_ipc_msg_tx_busy(ipc_msg_ctx, id, false);
         }
     }
 }
@@ -170,7 +175,7 @@ void *hal_ipc_msg_ctx_get(enum HAL_IPC_CORE_TYPE_T core)
     return (void *)&hal_ipc_msg_pool[core];
 }
 
-int hal_ipc_msg_open(struct HAL_IPC_MSG_T *ipc_msg_ctx, enum HAL_IPC_SUB_ID_T id, bool rx_flowctrl)
+int hal_ipc_msg_open(struct HAL_IPC_MSG_T *ipc_msg_ctx, enum HAL_IPC_SUB_ID_T id, bool manual_rx_done)
 {
     struct HAL_IPC_IRQ_CB_T irq_cb;
     int i = 0;
@@ -186,18 +191,18 @@ int hal_ipc_msg_open(struct HAL_IPC_MSG_T *ipc_msg_ctx, enum HAL_IPC_SUB_ID_T id
         for (i = 0; i < HAL_IPC_MAX_SEND_RECORD_COUNT; i++) {
             ipc_msg_ctx->send_msgs[id][i].in_use = false;
         }
-        ipc_msg_ctx->need_flow_ctrl[id] = rx_flowctrl;
+        ipc_msg_ctx->chan_manual_rx_done[id] = manual_rx_done;
         if (ipc_msg_ctx->peer_recv_msg_ptr){
             *(uint32_t *)ipc_msg_ctx->peer_recv_msg_ptr = (uint32_t)&(ipc_msg_ctx->send_msg_list_p[0]);
         }
-        TR_INFO(0, "%s:%d: rxPtr=%p txPtr=%p flowCtrl=%d", __func__, id, &ipc_msg_ctx->recv_msg_list_p[id], &ipc_msg_ctx->send_msg_list_p[id], ipc_msg_ctx->need_flow_ctrl[id]);
+        TR_INFO(0, "%s:%d: rxPtr=%p txPtr=%p manualRxDone=%d", __func__, id, &ipc_msg_ctx->recv_msg_list_p[id], &ipc_msg_ctx->send_msg_list_p[id], ipc_msg_ctx->chan_manual_rx_done[id]);
         irq_cb.manual_rx_handler = hal_ipc_msg_rx_irq_handler;
         irq_cb.manual_tx_handler = hal_ipc_msg_tx_irq_handler;
         irq_cb.rx_handler = NULL;
         irq_cb.tx_handler = NULL;
         ipc_msg_ctx->hal_op.open((void *)ipc_msg_ctx, id, irq_cb);
     } else {
-        ASSERT(ipc_msg_ctx->need_flow_ctrl[id] == rx_flowctrl, "IPC-MSG-OPEN: rx_flowctrl=%d (should be %d)", rx_flowctrl, ipc_msg_ctx->need_flow_ctrl[id]);
+        ASSERT(ipc_msg_ctx->chan_manual_rx_done[id] == manual_rx_done, "IPC-MSG-OPEN: manual_rx_done=%d (should be %d)", manual_rx_done, ipc_msg_ctx->chan_manual_rx_done[id]);
         return 3;
     }
 
@@ -221,23 +226,27 @@ int hal_ipc_msg_close(struct HAL_IPC_MSG_T *ipc_msg_ctx, enum HAL_IPC_SUB_ID_T i
     ipc_msg_ctx->send_msg_list_p[id] = NULL;
     ipc_msg_ctx->send_pending_list_p[id] = NULL;
     ipc_msg_ctx->recv_pending_head[id].data = NULL;
-    ipc_msg_ctx->need_flow_ctrl[id] = false;
+    ipc_msg_ctx->chan_manual_rx_done[id] = false;
 
     return 0;
 }
 
 int hal_ipc_msg_start_recv(struct HAL_IPC_MSG_T *ipc_msg_ctx, enum HAL_IPC_SUB_ID_T id)
 {
+    uint32_t lock;
+
     if (id >= HAL_IPC_SUB_ID_QTY) {
         return 1;
     }
 
+    lock = int_lock();
     ipc_msg_ctx->hal_op.start_recv(id);
 
-    // Check if there is any previous unprocessed message
+    // Check if there is any previous unfinished message
     if (ipc_msg_ctx->recv_pending_head[id].data) {
-        ipc_msg_ctx->hal_op.local_irq_mask_set(id, HAL_IPC_IRQ_SEND_IND);
+        ipc_msg_ctx->hal_op.local_irq_mask_set(id, HAL_IPC_IRQ_DATA_IND);
     }
+    int_unlock(lock);
 
     return 0;
 }
@@ -248,7 +257,7 @@ int hal_ipc_msg_stop_recv(struct HAL_IPC_MSG_T *ipc_msg_ctx, enum HAL_IPC_SUB_ID
         return 1;
     }
 
-    ipc_msg_ctx->hal_op.start_recv(id);
+    ipc_msg_ctx->hal_op.stop_recv(id);
 
     return 0;
 }
@@ -287,7 +296,7 @@ int hal_ipc_msg_send_seq(struct HAL_IPC_MSG_T *ipc_msg_ctx, enum HAL_IPC_SUB_ID_
 #endif
         if (ipc_msg_ctx->send_msg_list_p[id] == NULL) {
             ipc_msg_ctx->send_msg_list_p[id] = &record->msg;
-            ipc_msg_ctx->hal_op.peer_irq_set(id, HAL_IPC_IRQ_SEND_IND);
+            ipc_msg_ctx->hal_op.peer_irq_set(id, HAL_IPC_IRQ_DATA_IND);
         } else if (ipc_msg_ctx->send_pending_list_p[id] == NULL) {
             ipc_msg_ctx->send_pending_list_p[id] = &record->msg;
         } else {
@@ -302,7 +311,7 @@ int hal_ipc_msg_send_seq(struct HAL_IPC_MSG_T *ipc_msg_ctx, enum HAL_IPC_SUB_ID_
             *seq = i;
         }
         // Prohibit sleep here
-        hal_ipc_msg_busy(ipc_msg_ctx, id, true);
+        hal_ipc_msg_tx_busy(ipc_msg_ctx, id, true);
         break;
     }
     int_unlock(lock);
@@ -317,8 +326,22 @@ int hal_ipc_msg_send(struct HAL_IPC_MSG_T *ipc_msg_ctx, enum HAL_IPC_SUB_ID_T id
 
 void hal_ipc_msg_rx_done(struct HAL_IPC_MSG_T *ipc_msg_ctx, enum HAL_IPC_SUB_ID_T id)
 {
-    ipc_msg_ctx->hal_op.local_irq_clear(id, HAL_IPC_IRQ_SEND_IND);
-    ipc_msg_ctx->hal_op.local_irq_mask_set(id, HAL_IPC_IRQ_SEND_IND);
+    uint32_t lock;
+
+    lock = int_lock();
+    if (ipc_msg_ctx->chan_in_rx_hdlr[id]) {
+        ipc_msg_ctx->chan_rx_busy[id] = false;
+    } else {
+        ipc_msg_ctx->recv_pending_head[id].data = NULL;
+        if (ipc_msg_ctx->recv_pending_head[id].next) {
+            ipc_msg_ctx->hal_op.local_irq_mask_set(id, HAL_IPC_IRQ_DATA_IND);
+        } else {
+            ipc_msg_ctx->chan_rx_busy[id] = false;
+            ipc_msg_ctx->hal_op.local_irq_clear(id, HAL_IPC_IRQ_DATA_IND);
+            ipc_msg_ctx->hal_op.local_irq_mask_set(id, HAL_IPC_IRQ_DATA_IND);
+        }
+    }
+    int_unlock(lock);
 }
 
 void hal_ipc_msg_tx_irq_run(struct HAL_IPC_MSG_T *ipc_msg_ctx, enum HAL_IPC_SUB_ID_T id)

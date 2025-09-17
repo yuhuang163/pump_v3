@@ -14,7 +14,7 @@
  *
  ****************************************************************************/
 #include "plat_types.h"
-#include "arm_cmse.h"
+#include <arm_cmse.h>
 #include "hal_location.h"
 #include "hal_timer.h"
 #include "hal_trace.h"
@@ -36,10 +36,13 @@ static bool ns_started;
 static int cmse_trace_global_tag_handler(char *buf, unsigned int buf_len)
 {
 #ifdef USE_TRACE_ID
-    uint32_t id = hal_trace_get_id(buf);
-    hal_trace_set_id(buf, SET_BITFIELD(id, USER_ID_SECURE, USER_ID_SECURE_SE));
-    return (int)id;
-#else
+    if (buf_len == 0) {
+        uint32_t tag = hal_trace_get_tag(buf);
+        hal_trace_set_tag(buf, SET_BITFIELD(tag, TAG_VAL_SECURE, TAG_VAL_SECURE_SE));
+        return 0;
+    }
+#endif
+
     unsigned int len;
     const char tag[] = "SE/";
     const unsigned int tag_len = sizeof(tag) - 1;
@@ -51,7 +54,6 @@ static int cmse_trace_global_tag_handler(char *buf, unsigned int buf_len)
     }
 
     return 0;
-#endif
 }
 
 static void cmse_trace_notify_handler(enum HAL_TRACE_STATE_T state)
@@ -93,14 +95,10 @@ void cmse_set_ns_start_flag(int started)
 }
 #endif
 
-__attribute__((cmse_nonsecure_entry))
+CMSE_API
 int cmse_register_ns_trace_callback(uint8_t *buf, uint32_t len, HAL_TRACE_APP_NOTIFY_T notif_cb, HAL_TRACE_APP_OUTPUT_T out_cb)
 {
 #ifdef DEBUG
-    buf = cmse_check_address_range(buf, len, CMSE_NONSECURE);
-    if (!buf) {
-        return 1;
-    }
     ns_trc_buf = buf;
     ns_trc_buf_len = len;
     ns_trc_notif_cb = (NS_TRACE_APP_NOTIFY_T)cmse_nsfptr_create(notif_cb);

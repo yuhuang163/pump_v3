@@ -37,7 +37,6 @@ typedef struct
     uint8_t     group_include_dev_nb;         //set_size
     uint8_t     lock_timeout;                 //second unit
     uint8_t     rank_index;
-    uint8_t     enc_sirk_present;
 } CSISM_SET_INFO_CONFIG_T;
 
 typedef struct
@@ -61,7 +60,6 @@ typedef bool (*csism_info_user_config_cb)(CSISM_SET_INFO_CONFIG_T *info);
 extern "C" {
 #endif
 
-int app_atc_csism_set_rank(uint8_t set_lid, uint8_t rank);
 int app_atc_csism_restore_bond_data_req(uint8_t con_lid, uint8_t set_lid, uint8_t is_locked,
                                         uint8_t cli_cfg_bf);
 

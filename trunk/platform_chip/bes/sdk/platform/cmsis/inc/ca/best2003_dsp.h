@@ -115,7 +115,7 @@ typedef enum IRQn
     WIFIDUMP_IRQn               = 76,       /*!< WIFIDUMP Interrupt                 */
     CHKSUM_IRQn                 = 77,       /*!< Checksum Interrupt                 */
     CRC_IRQn                    = 78,       /*!< CRC Interrupt                      */
-    PAGESPY_IRQn                = 79,       /*!< PAGESPY Interrupt                  */
+    PAGE_SPY_IRQn               = 79,       /*!< PAGE SPY Interrupt                 */
     TRUSTZONE_IRQn              = 80,       /*!< TrustZone Interrupt                */
     BT_PLAYTIME_IRQn            = 81,       /*!< BT Playtime Interrupt              */
     TRANSQM_LCL_IRQn            = 82,       /*!< TRANSQ-MCU Local Interrupt         */
@@ -205,6 +205,8 @@ typedef enum IRQn
 #define __TIM_PRESENT        1U    /* TIM present                                   */
 #define __L2C_PRESENT        0U    /* L2C present                                   */
 #define __GIC_PRIO_BITS      3U    /* Number of Bits used for Priority Levels       */
+
+#define CA_L1C_LEVEL        (2U)
 
 #include "ca/core_ca.h"
 

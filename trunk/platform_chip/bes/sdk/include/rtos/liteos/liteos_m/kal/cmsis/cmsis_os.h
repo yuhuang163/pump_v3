@@ -104,6 +104,7 @@ typedef osStatus_t              osStatus;
 #define osFeature_Pool        1         ///< Memory Pools:    1=available, 0=not available
 #define osFeature_MessageQ    1         ///< Message Queues:  1=available, 0=not available
 #define osFeature_MailQ       1         ///< Mail Queues:     1=available, 0=not available
+#define CMSIS_V1_SIGNAL_ANY   ((1u<<16)-1u) ///< thread flags: Flags zero, wait for any signal
 
 #define osRtxSemaphoreTokenLimit 65535U ///< maximum number of tokens per semaphore
 /**

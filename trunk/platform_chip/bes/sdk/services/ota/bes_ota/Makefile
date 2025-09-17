@@ -6,19 +6,21 @@ obj_cpp := $(patsubst $(cur_dir)%,%,$(wildcard $(cur_dir)src/*.cpp))
 
 src_obj := $(obj_c:.c=.o) $(obj_s:.S=.o) $(obj_cpp:.cpp=.o)
 
-GEN_LIB_NAME := lib_ota
+OTA_LIB_NAME := lib_ota
 
 ifeq ($(IBRT), 1)
-GEN_LIB_NAME := $(GEN_LIB_NAME)_ibrt
+OTA_LIB_NAME := $(OTA_LIB_NAME)_ibrt
 else
-GEN_LIB_NAME := $(GEN_LIB_NAME)_stereo
+OTA_LIB_NAME := $(OTA_LIB_NAME)_stereo
 endif
 
-root_dir := $(abspath $(dir $(realpath $(firstword $(MAKEFILE_LIST))))/..)
-sinclude $(root_dir)/config/lib.mk
-$(GEN_LIB_NAME)-y := $(src_obj)
+ifeq ($(BLE), 1)
+OTA_LIB_NAME := $(OTA_LIB_NAME)_ble
+endif
 
-obj-y += $(GEN_LIB_NAME).a
+$(OTA_LIB_NAME)-y := $(src_obj)
+
+obj-y += $(OTA_LIB_NAME).a
 
 export WIN_PLAT := n
 ifeq ($(OS),Windows_NT)
@@ -53,14 +55,14 @@ subdir-ccflags-y += \
     -Iplatform/drivers/ana \
     -Iplatform/drivers/bt \
     $(BLUETOOTH_ADAPTER_INCLUDES) \
-    $(BT_SERVICE_UX_INCLUDES) \
     -Iservices/nv_section/factory_section \
     -Iservices/nv_section/userdata_section \
     -Iservices/norflash_api \
     -Iservices/ota/bes_ota/inc \
-    -Iservices/audio_bt \
+    -Imultimedia/inc/audio/codec/sbc/inc \
+    -Imultimedia/audio/codec/sbc/src/inc \
     -Iutils/boot_struct \
-    -Iutils/crc \
+    -Iutils/crc32 \
     -Iutils/hwtimer_list \
     -Iutils/heap \
     -Iutils/cqueue \
@@ -69,12 +71,12 @@ subdir-ccflags-y += \
     -Iapps/common \
     -Iapps/factory \
     -Iapps/audioplayers \
-    -Iapps/ota \
     -Iservices/ota \
     -Iinclude/watchdog \
     -Iservices/audio_manager \
-    -Iapps/earbuds/conn \
-	-Ibthost/service/ble_app_new/inc 
+    -Iapps/bth_if \
+    -Iapps/bth_if/bt_if_server \
+    -Iapps/ota
 
 ifeq ($(TEST_OVER_THE_AIR_v2),1)
 ccflags-y += -Iservices/tota_v2
@@ -82,6 +84,18 @@ endif
 
 ifeq ($(TEST_OVER_THE_AIR),1)
 ccflags-y += -Iservices/tota
+endif
+
+ifeq ($(IBRT),1)
+ifeq ($(IBRT_UI),1)
+subdir-ccflags-y += \
+    -Iservices/ux/common/ibrt/app_ibrt/inc \
+    -Iservices/ux/common/ibrt/ibrt_core/inc
+endif
+ifeq ($(IBRT_UI),1)
+ccflags-y += \
+    -Iservices/ux/common/ibrt/ibrt_ui/inc
+endif
 endif
 
 #ifeq ($(AI_OTA),1)

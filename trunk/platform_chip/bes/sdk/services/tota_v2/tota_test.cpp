@@ -18,9 +18,7 @@
 #include "app_tota_cmd_code.h"
 #include "app_utils.h"
 #include "cmsis_os.h"
-#include "tota_buffer_manager.h"
 #include "string.h"
-#include "tota_stream_data_transfer.h"
 #include "stdio.h"
 #include "stdarg.h"
 #include "app_tota_flash_program.h"
@@ -43,9 +41,7 @@ static void tota_test_cmd(APP_TOTA_CMD_CODE_E funcCode, uint8_t* ptrParam, uint3
 
 static void tota_echo_test_cmd(APP_TOTA_CMD_CODE_E funcCode, uint8_t* ptrParam, uint32_t paramLen)
 {
-#ifdef IS_TOTA_LOG_PRINT_ENABLED
     tota_printf("echo: \r\n");
-#endif
     app_tota_send(ptrParam, paramLen,OP_TOTA_NONE);
 }
 

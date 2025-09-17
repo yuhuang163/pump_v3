@@ -14,7 +14,7 @@ ccflags-y +=  \
     -Iservices/overlay \
     -Iservices/resources \
     -Iservices/audio_process \
-    -Iutils/crc \
+    -Iutils/crc32 \
     -Iplatform/drivers/bt \
     -Iplatform/drivers/ana \
     -Iapps/audioplayers/rbplay \
@@ -23,6 +23,8 @@ ccflags-y +=  \
     -Iutils/kfifo \
     -Iservices/ai_voice/ama/ama_manager \
     -Iservices/ai_voice/manager \
+    -Imultimedia/inc/audio/codec/sbc/inc \
+    -Imultimedia/audio/codec/sbc/src/inc \
     -Iservices/interconnection \
     -Iservices/walkie_talkie \
     -Iservices/audio_bt \

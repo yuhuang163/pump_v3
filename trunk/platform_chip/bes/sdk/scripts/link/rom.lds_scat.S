@@ -17,11 +17,17 @@
 #include "plat_addr_map.h"
 
 #ifdef NOSTD
-#define HEAP_SECTION_SIZE			0
-#else
 #define HEAP_SECTION_SIZE			0x40
+#else
+#define HEAP_SECTION_SIZE			0x2000
 #endif
+
+#if (SECURE_BOOT_VER >= 3)
+#define STACK_SECTION_SIZE			0x1800
+#else
 #define STACK_SECTION_SIZE			0x1000
+#endif
+
 #define CP_STACK_SECTION_SIZE		0x1000
 
 LR_rom ROMX_BASE NOCOMPRESS
@@ -41,9 +47,11 @@ LR_rom ROMX_BASE NOCOMPRESS
 #endif
 	}
 
-	rom_rodata (ImageLimit(rom_text) - ROMX_BASE + ROM_BASE)
+	rom_rodata AlignExpr(RAMX_TO_RAM(ImageLimit(rom_text)), 8)
 	{
 		*(.rodata*)
+		*(.flash_rodata*)
+		*(.flash_nc_rodata*)
 
 #ifndef NOSTD
 		*armlib*(+CONST)
@@ -98,12 +106,24 @@ LR_rom ROMX_BASE NOCOMPRESS
 		*(.bss.reboot_param, +FIRST)
 	}
 
-	rom_ramx RAM_TO_RAMX(ImageLimit(reboot_param))
+#ifdef MAIN_RAM_USE_TCM
+#define ROM_RAMX_START				RAMX_BASE
+#else
+#define ROM_RAMX_START				RAM_TO_RAMX(ImageLimit(reboot_param))
+#endif
+
+	rom_ramx ROM_RAMX_START 
 	{
 		*(.rom_ramx)
 	}
 
-	rom_data RAMX_TO_RAM(+0)
+#ifdef MAIN_RAM_USE_TCM
+#define ROM_DATA_START				ImageLimit(reboot_param)
+#else
+#define ROM_DATA_START				RAMX_TO_RAM(+0)
+#endif
+
+	rom_data ROM_DATA_START
 	{
 		*(.data*)
 
@@ -142,6 +162,12 @@ LR_rom ROMX_BASE NOCOMPRESS
 	free_ram ImageLimit(scratch_buf) EMPTY (ImageBase(ARM_LIB_STACK) - ImageLimit(scratch_buf))
 	{
 	}
+
+#ifdef MAIN_RAM_USE_TCM
+	free_ramx ImageLimit(rom_ramx) EMPTY (RAMX_BASE + RAMX_SIZE - ImageLimit(rom_ramx))
+	{
+	}
+#endif
 
 #if defined(CP_IN_SAME_EE) && (RAMCP_SIZE > 0)
 	cp_ramx_last_dummy RAMCPX_BASE EMPTY 0

@@ -93,7 +93,7 @@ bool nv_record_bixby_model_file_update_language(BIXBY_MODEL_LANGUAGE_E language)
 {
     if (language >= BIXBY_MODEL_FILE_NUM)
     {
-        NV_SECTION_TRACE(0, "nv_record_bixby_model_file_update_language parameter error!");
+        TRACE(0, "nv_record_bixby_model_file_update_language parameter error!");
         return false;
     }
     else if (language > BIXBY_MODEL_ZH_CN)
@@ -103,7 +103,7 @@ bool nv_record_bixby_model_file_update_language(BIXBY_MODEL_LANGUAGE_E language)
 
     if (bixby_model_file_info.currentLanguate != language)
     {
-        NV_SECTION_TRACE(0, "Language from %d to %d", bixby_model_file_info.currentLanguate, language);
+        TRACE(0, "Language from %d to %d", bixby_model_file_info.currentLanguate, language);
         bixby_model_file_info.currentLanguate = language;
         bixby_model_file_info.isModelFilePendingForUpdate = true;
         return true;

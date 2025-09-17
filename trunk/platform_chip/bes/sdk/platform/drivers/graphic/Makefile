@@ -7,16 +7,16 @@ ifeq ($(CHIP_HAS_GPU),1)
 obj_c += gpu/
 endif
 
-ifeq ($(CHIP_HAS_DMA2D),1)
-obj_c += dma2d/
-endif
-
 ifeq ($(CHIP_HAS_LCDC),1)
 obj_c += lcdc/
 endif
 
+ifeq ($(TEST_WITH_GPU),1)
+subdir-ccflags-y += -DTEST_WITH_GPU
+endif
+
 ifeq ($(GRAPHIC_TEST),1)
-obj_c += test_main.c
+obj_c += test_main.c check_raw_image.c
 endif
 
 ifeq ($(FBTEST_DRV),1)
@@ -24,17 +24,15 @@ obj_c += lcd/
 obj_c += fb/
 endif
 
-ifeq ($(KERNEL),RTX5)
-obj_c += osl_rtx5/
-subdir-ccflags-y += \
-				   -Iplatform/drivers/graphic/osl_rtx5/ \
-				   -Irtos/ \
-				   -Irtos/rtx5/rtx_config/
-endif
-ifeq ($(KERNEL),LITEOS_M)
-subdir-ccflags-y += \
-				   -Iplatform/drivers/graphic/osl_rtx5/ \
-				   -Iinclude/liteos/liteos_m/kal/cmsis
+ifeq ($(NUTTX_BUILD),1)
+obj_c += osl/gra_sem_nuttx.c
+subdir-ccflags-y += -DGRA_SEM_NUTTX -Iplatform/drivers/graphic/osl/
+else ifeq ($(RTOS),1)
+obj_c += osl/gra_sem_cmsis.c
+subdir-ccflags-y += -DGRA_SEM_CMSIS -Iplatform/drivers/graphic/osl/
+else
+obj_c += osl/gra_sem_no_os.c
+subdir-ccflags-y += -DGRA_SEM_NO_OS -Iplatform/drivers/graphic/osl/
 endif
 
 obj-y := $(obj_c:.c=.o) $(obj_s:.S=.o) $(obj_cpp:.cpp=.o)
@@ -65,6 +63,5 @@ subdir-ccflags-y += \
 				   -Iplatform/drivers/graphic \
 				   -Iplatform/drivers/graphic/fb \
 				   -Iplatform/drivers/graphic/lcdc \
-				   -Iplatform/drivers/graphic/lcd \
-				   -Iplatform/drivers/graphic/dma2d \
+				   -Iplatform/drivers/graphic/lcd
 

@@ -199,7 +199,7 @@ static size_t f_codec_filebuf_callback(void *ptr, size_t size)
     ssize_t ret;
     ret = read(song_fd, ptr, size);
     if(ret < 0) {
-        AUDIOPLAYERS_TRACE(0,"File read error: %d",ret);
+        error("File read error: %d",ret);
     }
 
     return ret;
@@ -215,7 +215,7 @@ static void * f_codec_advance_buffer_callback(size_t amount)
 {
     off_t ret = lseek(song_fd, (off_t)(ci->curpos + amount), SEEK_SET);
     if(ret < 0) {
-        AUDIOPLAYERS_TRACE(0,"File seek fail");
+        error("File seek fail");
         return NULL;
     }
 
@@ -228,7 +228,7 @@ static bool f_codec_seek_buffer_callback(size_t newpos)
 {
     off_t ret = lseek(song_fd, (off_t)newpos, SEEK_SET);
     if(ret < 0) {
-        AUDIOPLAYERS_TRACE(0,"File seek fail");
+        error("File seek fail");
         return false;
     }
 
@@ -350,7 +350,7 @@ static int rb_codec_init_desc(void )
             break;
 #endif
         default:
-            AUDIOPLAYERS_TRACE(0,"unkown codec type init\n");
+            error("unkown codec type init\n");
             break;
     }
 
@@ -384,7 +384,7 @@ static int rb_codec_loop_on(void)
             break;
 #endif
         default:
-            AUDIOPLAYERS_TRACE(0,"unkown codec type run\n");
+            error("unkown codec type run\n");
             break;
     }
     return 0;
@@ -437,7 +437,7 @@ static int rb_thread_process_evt(RB_CTRL_CMD_T evt)
             info("Play end");
             break;
         default:
-            AUDIOPLAYERS_TRACE(0,"Unkown rb cmd %d\n",evt);
+            error("Unkown rb cmd %d\n",evt);
             break;
     }
 
@@ -452,7 +452,7 @@ int rb_decode_mailbox_put(RBTHREAD_MSG_BLOCK* msg_src)
 
     msg_p = (RBTHREAD_MSG_BLOCK*)osMailAlloc(rb_decode_mailbox, 0);
     if(!msg_p) {
-        AUDIOPLAYERS_TRACE(3,"%s fail, evt:%d,arg=%d \n",__func__,msg_src->evt,msg_src->arg);
+        TRACE(3,"%s fail, evt:%d,arg=%d \n",__func__,msg_src->evt,msg_src->arg);
         return -1;
     }
 
@@ -498,7 +498,7 @@ static void rb_decode_thread(void const *argument)
             action = (RB_CTRL_CMD_T) msg_p->evt;
             rb_caller_tid = (osThreadId) msg_p->arg ;
 
-            AUDIOPLAYERS_TRACE(3,"[%s] action:%d ,tid,0x%x", __func__,  action,rb_caller_tid);
+            TRACE(3,"[%s] action:%d ,tid,0x%x", __func__,  action,rb_caller_tid);
             rb_thread_process_evt(action);
 
             rb_decode_mailbox_free(msg_p);
@@ -519,13 +519,13 @@ int app_rbplay_open(void)
 
     rb_decode_mailbox = osMailCreate(osMailQ(rb_decode_mailbox), NULL);
     if (rb_decode_mailbox == NULL)  {
-        AUDIOPLAYERS_TRACE(0,"Failed to Create rb_decode_mailbox");
+        error("Failed to Create rb_decode_mailbox");
         return -1;
     }
 
     rb_decode_tid = osThreadCreate(osThread(rb_decode_thread), NULL);
     if (rb_decode_tid == NULL)  {
-        AUDIOPLAYERS_TRACE(0,"Failed to Create rb_thread \n");
+        error("Failed to Create rb_thread \n");
         return -1;
     }
 

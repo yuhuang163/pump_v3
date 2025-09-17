@@ -32,12 +32,6 @@ extern "C" {
 #define AVRCP_KEY_BACKWARD      BT_AVRCP_KEY_BACKWARD
 #define AVRCP_KEY_VOLUME_UP     BT_AVRCP_KEY_VOLUME_UP
 #define AVRCP_KEY_VOLUME_DOWN   BT_AVRCP_KEY_VOLUME_DOWN
-#define AVRCP_KEY_FAST_FORWARD_START BT_AVRCP_KEY_FAST_FORWARD_START
-#define AVRCP_KEY_FAST_FORWARD_STOP  BT_AVRCP_KEY_FAST_FORWARD_STOP
-#define AVRCP_KEY_REWIND_START BT_AVRCP_KEY_REWIND_START
-#define AVRCP_KEY_REWIND_STOP  BT_AVRCP_KEY_REWIND_STOP
-
-#define AVRCP_COMPANY_ID_MAX_NUM        12
 
 typedef enum {
     BT_AVRCP_KEY_NULL           = 0,
@@ -53,10 +47,6 @@ typedef enum {
     BT_AVRCP_KEY_EJECT          = 0x4A,
     BT_AVRCP_KEY_FORWARD        = 0x4B,
     BT_AVRCP_KEY_BACKWARD       = 0x4C,
-    BT_AVRCP_KEY_FAST_FORWARD_START     = 0X4D,
-    BT_AVRCP_KEY_FAST_FORWARD_STOP      = 0X4E,
-    BT_AVRCP_KEY_REWIND_START           = 0X4F,
-    BT_AVRCP_KEY_REWIND_STOP            = 0X50
 } bt_avrcp_key_code_t;
 
 typedef enum {
@@ -129,52 +119,6 @@ typedef struct {
     uint8_t error_code;
     uint8_t device_id;
 } bt_avrcp_closed_t;
-
-typedef struct {
-    uint8_t key_code;
-    uint8_t is_pressed;
-} bt_avrcp_key_info_t;
-
-typedef struct
-{
-    unsigned char company_num;
-    unsigned int companyid[AVRCP_COMPANY_ID_MAX_NUM];
-} bt_avrcp_get_companyid_t;
-
-typedef struct {
-    uint16_t eventMask;
-} bt_avrcp_support_mask_t;
-
-typedef avrcp_adv_notify_parms_t bt_avrcp_adv_notify_parms_t;
-
-typedef struct {
-    uint8_t device_id;
-    uint8_t data_len;
-    uint8_t* data;
-} bt_avrcp_browsing_rsp_t;
-
-typedef struct {
-    uint8_t device_id;
-    uint8_t cmd_trans_id;
-    uint8_t data_len;
-    uint8_t* data;
-} bt_avrcp_browsing_cmd_t;
-
-typedef struct {
-    uint8_t error_code;
-    bool is_final_packet;
-    uint16_t body_data_length;
-    uint8_t *body_data;
-} bt_avrcp_obex_get_info_t;
-
-typedef struct {
-    uint8_t subevt;
-    uint8_t error_code;
-    uint8_t opcode;
-    bool is_final_packet;
-    uint16_t body_data_length;
-    uint8_t *body_data;
-} bt_avrcp_obex_user_callback_parm_t;
 
 typedef struct {
     bt_avrcp_status_change_event_t event;
@@ -273,29 +217,6 @@ typedef struct {
     bt_avrcp_elem_attr_value_t *attrs;
 } bt_avrcp_recv_media_status_t;
 
-typedef struct
-{
-    uint8_t scope;
-    uint32_t start_item;
-    uint32_t end_item;
-    uint32_t mediaMask;
-} bt_avrcp_get_folder_items_t;
-
-typedef struct
-{
-    uint8_t scope;
-    uint16_t UID_Counter;
-    uint32_t UID;
-    uint32_t mediaMask;
-} bt_avrcp_get_item_att_t;
-
-typedef struct
-{
-    uint16_t UID_Counter;
-    uint32_t direction;
-    uint32_t UID;
-} bt_avrcp_change_patch_t;
-
 typedef union {
     bt_avrcp_opened_t *opened;
     bt_avrcp_closed_t *closed;
@@ -308,13 +229,6 @@ typedef union {
     bt_avrcp_recv_passthrough_cmd_t *passthrough_cmd;
     bt_avrcp_recv_play_status_t *recv_play_status;
     bt_avrcp_recv_media_status_t *recv_media_status;
-    bt_avrcp_key_info_t *key_info;
-    bt_avrcp_get_companyid_t *companyid;
-    bt_avrcp_support_mask_t *support_mask;
-    bt_avrcp_adv_notify_parms_t *notify_info;
-    bt_avrcp_browsing_rsp_t *browsing_rsp;
-    bt_avrcp_browsing_cmd_t *browsing_cmd;
-    bt_avrcp_obex_get_info_t *get_context;
 } bt_avrcp_callback_param_t;
 
 typedef enum {
@@ -328,20 +242,6 @@ typedef enum {
     BT_AVRCP_EVENT_RECV_PASSTHROUGH_CMD,
     BT_AVRCP_EVENT_RECV_PLAY_STATUS,
     BT_AVRCP_EVENT_RECV_MEDIA_STATUS,
-    BT_AVRCP_SEND_KEY_INFO,
-    BT_AVRCP_GET_COMPANY_ID,
-    BT_AVRCP_GET_CAPABILITY,
-    BT_AVRCP_NOTIFY_CHANGE,
-    BT_AVRCP_BROSING_OPENED,
-    BT_AVRCP_BROSING_CMD_INFO,
-    BT_AVRCP_BROSING_RSP_INFO,
-    BT_AVRCP_BROSING_CLOSED,
-    BT_AVRCP_OBEX_OPENED,
-    BT_AVRCP_OBEX_CLOSED,
-    BT_AVRCP_OBEX_GET_IMAGE_DONE,
-    BT_AVRCP_OBEX_GET_THM_DONE,
-    BT_AVRCP_OBEX_GET_IMAGE_PROPERTIES_DONE,
-    BT_AVRCP_OBEX_EVENT_INFO,
     BT_AVRCP_EVENT_END,
 } bt_avrcp_event_t;
 

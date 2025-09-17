@@ -33,6 +33,7 @@ extern "C" {
 #define __rom_text0_end                     Load$$rom_ramx$$Base
 #define __rom_ramx_start                    Image$$rom_ramx$$Base
 #define __rom_ramx_end                      Image$$rom_ramx$$Limit
+#define __rom_ramx_top                      Image$$free_ramx$$Limit
 #define __rom_etext                         Load$$rom_data$$Base
 #define __rom_data_start__                  Image$$rom_data$$Base
 #define __rom_data_end__                    Image$$rom_data$$Limit
@@ -48,21 +49,46 @@ extern "C" {
 #define __cp_stack_limit                    Image$$cp_stack$$Base
 #define __cp_stack_top                      Image$$cp_stack$$ZI$$Limit
 #define __export_fn_rom                     Image$$rom_export_fn$$Base
+#define __boot_struct_build_info            Load$$rom_build_info$$Base
 
-#define __boot_sram_start_flash__           __rom_HeapLimit
-#define __boot_sram_start__                 __rom_HeapLimit
-#define __boot_sram_end_flash__             __rom_HeapLimit
+#define __boot_text_sram_start_flash__      __rom_HeapLimit
+#define __boot_text_sram_end_flash__        __rom_HeapLimit
+#define __boot_text_sram_start__            __rom_HeapLimit
+#define __boot_text_data_sram_start__       __rom_HeapLimit
+#define __boot_data_sram_start_flash__      __rom_HeapLimit
+#define __boot_data_sram_end_flash__        __rom_HeapLimit
+#define __boot_data_sram_start__            __rom_HeapLimit
 #define __boot_bss_sram_start__             __rom_HeapLimit
 #define __boot_bss_sram_end__               __rom_HeapLimit
-#define __fast_sram_text_data_start_flash__ __rom_HeapLimit
+#define __fast_sram_text_start_flash__      __rom_HeapLimit
 #define __fast_sram_text_data_start__       __rom_HeapLimit
 #define __fast_sram_text_data_end__         __rom_HeapLimit
-#define __fast_sram_text_data_end_flash__   __rom_HeapLimit
-#define __sram_text_data_start_flash__      __rom_HeapLimit
+#define __fast_sram_text_exec_end__         __rom_HeapLimit
+#define __fast_sram_text_end_flash__        __rom_HeapLimit
+#define __sram_text_start_flash__           __rom_HeapLimit
+#define __sram_text_end_flash__             __rom_HeapLimit
 #define __sram_text_data_start__            __rom_HeapLimit
-#define __sram_text_data_end_flash__        __rom_HeapLimit
+#define __sram_text_start__                 __rom_HeapLimit
+#define __sram_text_end__                   __rom_HeapLimit
+#define __sram_data_start_flash__           __rom_HeapLimit
+#define __sram_data_end_flash__             __rom_HeapLimit
+#define __sram_data_start__                 __rom_HeapLimit
 #define __sram_bss_start__                  __rom_HeapLimit
 #define __sram_bss_end__                    __rom_HeapLimit
+#define __ram_extra0_text_data_start_flash__ __rom_HeapLimit
+#define __ram_extra0_text_data_end_flash__  __rom_HeapLimit
+#define __ram_extra0_text_data_start__      __rom_HeapLimit
+#define __ram_extra0_text_data_end__        __rom_HeapLimit
+#define __ram_extra0_bss_start__            __rom_HeapLimit
+#define __ram_extra0_bss_end__              __rom_HeapLimit
+#define __aon_mbx_data_start_load__         __rom_HeapLimit
+#define __aon_mbx_data_end_load__           __rom_HeapLimit
+#define __aon_mbx_data_start__              __rom_HeapLimit
+#define __aon_mbx_data_end__                __rom_HeapLimit
+#define __aon_mbx_bss_start__               __rom_HeapLimit
+#define __aon_mbx_bss_end__                 __rom_HeapLimit
+#define __aon_mbx_heap_start__              __rom_HeapLimit
+#define __aon_mbx_heap_end__                __rom_HeapLimit
 
 #ifndef NOSTD
 #define __bss_start__                       __rom_bss_start__
@@ -78,6 +104,7 @@ extern "C" {
 #elif defined(PROGRAMMER)
 
 #define __exec_struct_start                 Image$$exec_struct$$Base
+#define __boot_struct_build_info            Load$$build_info$$Base
 #define __got_info_start                    Image$$got_info$$Base
 #define __cust_cmd_init_tbl_start           Image$$cust_cmd_init_tbl$$Base
 #define __cust_cmd_init_tbl_end             Image$$cust_cmd_init_tbl$$Limit
@@ -86,8 +113,12 @@ extern "C" {
 #define __etext                             Load$$data$$Base
 #define __data_start__                      Image$$data$$Base
 #define __data_end__                        Image$$data$$Limit
+#define __pgm_bss_start__                   Image$$bss$$Base
+#define __pgm_bss_end__                     Image$$bss$$ZI$$Limit
+#ifndef NOSTD
 #define __bss_start__                       Image$$bss$$Base
-#define __bss_end__                         Image$$bss$$ZI$$Limit
+#define __bss_end__                         Image$$bss$$Base
+#endif
 #define __HeapBase                          Image$$ARM_LIB_HEAP$$Base
 #define __end__                             __HeapBase
 /*
@@ -98,49 +129,81 @@ extern "C" {
 #define __stack                             __StackTop
 #define __StackLimit                        Image$$ARM_LIB_STACK$$Base
 
-#define __boot_sram_start_flash__           __HeapLimit
-#define __boot_sram_start__                 __HeapLimit
-#define __boot_sram_end_flash__             __HeapLimit
+#define __boot_text_sram_start_flash__      __HeapLimit
+#define __boot_text_sram_end_flash__        __HeapLimit
+#define __boot_text_sram_start__            __HeapLimit
+#define __boot_text_data_sram_start__       __HeapLimit
+#define __boot_data_sram_start_flash__      __HeapLimit
+#define __boot_data_sram_end_flash__        __HeapLimit
+#define __boot_data_sram_start__            __HeapLimit
 #define __boot_bss_sram_start__             __HeapLimit
 #define __boot_bss_sram_end__               __HeapLimit
-#define __fast_sram_text_data_start_flash__ __HeapLimit
+#define __fast_sram_text_start_flash__      __HeapLimit
 #define __fast_sram_text_data_start__       __HeapLimit
 #define __fast_sram_text_data_end__         __HeapLimit
-#define __fast_sram_text_data_end_flash__   __HeapLimit
-#define __sram_text_data_start_flash__      __HeapLimit
+#define __fast_sram_text_exec_end__         __HeapLimit
+#define __fast_sram_text_end_flash__        __HeapLimit
+#define __sram_text_start_flash__           __HeapLimit
+#define __sram_text_end_flash__             __HeapLimit
 #define __sram_text_data_start__            __HeapLimit
-#define __sram_text_data_end_flash__        __HeapLimit
+#define __sram_text_start__                 __HeapLimit
+#define __sram_text_end__                   __HeapLimit
+#define __sram_data_start_flash__           __HeapLimit
+#define __sram_data_end_flash__             __HeapLimit
+#define __sram_data_start__                 __HeapLimit
 #define __sram_bss_start__                  __HeapLimit
 #define __sram_bss_end__                    __HeapLimit
 #define __cp_stack_limit                    __HeapLimit
 #define __cp_stack_top                      __HeapLimit
+#define __ram_extra0_text_data_start_flash__ __HeapLimit
+#define __ram_extra0_text_data_end_flash__  __HeapLimit
+#define __ram_extra0_text_data_start__      __HeapLimit
+#define __ram_extra0_text_data_end__        __HeapLimit
+#define __ram_extra0_bss_start__            __HeapLimit
+#define __ram_extra0_bss_end__              __HeapLimit
+#define __aon_mbx_data_start_load__         __HeapLimit
+#define __aon_mbx_data_end_load__           __HeapLimit
+#define __aon_mbx_data_start__              __HeapLimit
+#define __aon_mbx_data_end__                __HeapLimit
+#define __aon_mbx_bss_start__               __HeapLimit
+#define __aon_mbx_bss_end__                 __HeapLimit
+#define __aon_mbx_heap_start__              __HeapLimit
+#define __aon_mbx_heap_end__                __HeapLimit
 
 #else
 
 #define __got_info_start                    Image$$got_info$$Base
 
+#define __boot_struct_start_load            Load$$boot_struct$$Base
+#define __boot_struct_build_info            Load$$build_info$$Base
+
 #define Boot_Loader                         __main
 #define __flash_start                       Image$$boot_struct$$Base
-#define __userdata_pool_end__               Image$$userdata_pool$$Base
-#define __boot_sram_start_flash__           Load$$boot_text_sram$$Base
-#define __boot_sram_start__                 Image$$boot_text_sram$$Base
-#define __boot_sram_end_flash__             Load$$boot_data_sram$$Limit
+#define __boot_text_sram_start_flash__      Load$$boot_text_sram$$Base
+#define __boot_text_sram_end_flash__        Load$$boot_text_sram$$Limit
+#define __boot_text_sram_start__            Image$$boot_text_sram$$Base
+#define __boot_text_data_sram_start__       Image$$boot_text_sram_data_start$$Base
+#define __boot_data_sram_start_flash__      Load$$boot_data_sram$$Base
+#define __boot_data_sram_end_flash__        Load$$boot_data_sram$$Limit
+#define __boot_data_sram_start__            Image$$boot_data_sram$$Base
 /*
  * CAUTION:
  * If the section name of BSS variables has no ".bss." prefix, they will be considered as DATA, not BSS (ZI) !
  */
 #define __boot_bss_sram_start__             Image$$boot_bss_sram$$Base
 #define __boot_bss_sram_end__               Image$$boot_bss_sram$$ZI$$Limit
-#define __fast_sram_text_data_start_flash__ Load$$fast_text_sram$$Base
-#define __fast_sram_text_data_start__       Image$$fast_text_sram$$Base
-#define __fast_sram_text_data_end__         Image$$fast_text_sram$$Limit
-#define __fast_sram_text_data_end_flash__   Load$$fast_text_sram$$Limit
+#define __fast_sram_text_start_flash__      Load$$fast_text_sram$$Base
+#define __fast_sram_text_end_flash__        Load$$fast_text_sram_end$$Limit
+#define __fast_sram_text_exec_start__       Image$$fast_text_sram$$Base
+#define __fast_sram_text_exec_end__         Image$$fast_text_sram_end$$Limit
+#define __fast_sram_text_data_start__       Image$$fast_text_sram_data_start$$Base
+#define __fast_sram_text_data_end__         Image$$fast_text_sram_data_end$$Limit
 
 #define __cp_text_sram_start_flash__        Load$$cp_text_sram$$Base
 #define __cp_text_sram_exec_start__         Image$$cp_text_sram$$Base
 #define __cp_text_sram_exec_end__           Image$$cp_text_sram$$Limit
 #define __cp_text_sram_start                Image$$cp_text_sram_start$$Base
-#define __cp_text_sram_end                  Image$$cp_text_sram_start$$Limit
+#define __cp_text_sram_end                  Image$$cp_text_sram_end$$Limit
 #define __cp_data_sram_start_flash__        Load$$cp_data_sram$$Base
 #define __cp_data_sram_start                Image$$cp_data_sram$$Base
 #define __cp_data_sram_end                  Image$$cp_data_sram$$Limit
@@ -178,8 +241,6 @@ extern "C" {
 #define __load_start_overlay_text11         Load$$overlay_text11$$Base
 #define __load_stop_overlay_text11          Load$$overlay_text11$$Limit
 
-
-
 #define __overlay_text_exec_end__           Image$$overlay_text_end$$Base
 #define __overlay_data_start__              Image$$overlay_data0$$Base
 
@@ -208,11 +269,14 @@ extern "C" {
 #define __load_start_overlay_data11         Load$$overlay_data11$$Base
 #define __load_stop_overlay_data11          Load$$overlay_data11$$Limit
 
-
-
-#define __sram_text_data_start_flash__      Load$$sram_text$$Base
-#define __sram_text_data_start__            Image$$sram_text$$Base
-#define __sram_text_data_end_flash__        Load$$sram_data$$Limit
+#define __sram_text_start_flash__           Load$$sram_text$$Base
+#define __sram_text_end_flash__             Load$$sram_text$$Limit
+#define __sram_text_data_start__            Image$$sram_text_data_start$$Base
+#define __sram_text_start__                 Image$$sram_text$$Base
+#define __sram_text_end__                 	Image$$sram_text_end$$Limit
+#define __sram_data_start_flash__           Load$$sram_data$$Base
+#define __sram_data_end_flash__             Load$$sram_data$$Limit
+#define __sram_data_start__                 Image$$sram_data$$Base
 #define __sram_bss_start__                  Image$$sram_bss$$Base
 #define __sram_bss_end__                    Image$$sram_bss$$ZI$$Limit
 #define __etext                             Load$$data$$Base
@@ -229,6 +293,30 @@ extern "C" {
 #define __StackTop                          Image$$ARM_LIB_STACK$$ZI$$Limit
 #define __stack                             __StackTop
 #define __StackLimit                        Image$$ARM_LIB_STACK$$Base
+
+#define __sram_nc_data_start_load__         Load$$sram_nc_data$$Base
+#define __sram_nc_data_end_load__           Load$$sram_nc_data$$Limit
+#define __sram_nc_data_start__              Image$$sram_nc_data$$Base
+#define __sram_nc_data_end__                Image$$sram_nc_data$$Limit
+#define __sram_nc_bss_start__               Image$$sram_nc_bss$$Base
+#define __sram_nc_bss_end__                 Image$$sram_nc_bss$$Limit
+
+#define __ram_extra0_text_data_start_flash__ Load$$ram_extra0_text_data$$Base
+#define __ram_extra0_text_data_end_flash__  Load$$ram_extra0_text_data$$Limit
+#define __ram_extra0_text_data_start__      Image$$ram_extra0_text_data$$Base
+#define __ram_extra0_text_data_end__        Image$$ram_extra0_text_data$$Limit
+#define __ram_extra0_bss_start__            Image$$ram_extra0_bss$$Base
+#define __ram_extra0_bss_end__              Image$$ram_extra0_bss$$Limit
+
+#define __aon_mbx_data_start_load__         Load$$aon_mbx_data$$Base
+#define __aon_mbx_data_end_load__           Load$$aon_mbx_data$$Limit
+#define __aon_mbx_data_start__              Image$$aon_mbx_data$$Base
+#define __aon_mbx_data_end__                Image$$aon_mbx_data$$Limit
+#define __aon_mbx_bss_start__               Image$$aon_mbx_bss$$Base
+#define __aon_mbx_bss_end__                 Image$$aon_mbx_bss$$Limit
+#define __aon_mbx_heap_start__              Image$$aon_mbx_heap$$Base
+#define __aon_mbx_heap_end__                Image$$aon_mbx_heap$$Limit
+
 #define __flash_end                         Image$$code_start_addr$$Limit
 #define __custom_parameter_start            Image$$custom_parameter$$Base
 #define __custom_parameter_end              Image$$custom_parameter$$ZI$$Limit

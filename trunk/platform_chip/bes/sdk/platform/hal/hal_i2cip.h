@@ -29,7 +29,7 @@ extern "C" {
 #define i2cip_write32(v,b,a) \
      ((*(volatile uint32_t *)(b+a)) = v)
 
-static inline uint8_t i2cip_w_enable(uint32_t reg_base, uint8_t enable)
+static inline uint8_t i2cip_w_enable(uint32_t reg_base, int enable)
 {
     uint32_t val = 0;
     val = i2cip_read32(reg_base, I2CIP_ENABLE_REG_OFFSET);
@@ -45,7 +45,7 @@ static inline uint8_t i2cip_w_clear_ctrl(uint32_t reg_base)
     i2cip_write32(0, reg_base, I2CIP_CTRL_REG_OFFSET);
     return 0;
 }
-static inline uint8_t i2cip_w_10bit_master(uint32_t reg_base, uint8_t enable)
+static inline uint8_t i2cip_w_10bit_master(uint32_t reg_base, int enable)
 {
     uint32_t val = 0;
     val = i2cip_read32(reg_base, I2CIP_CTRL_REG_OFFSET);
@@ -60,7 +60,7 @@ static inline uint8_t i2cip_r_ctrl_reg(uint32_t reg_base)
 {
     return i2cip_read32(reg_base, I2CIP_CTRL_REG_OFFSET);
 }
-static inline uint8_t i2cip_w_10bit_slave(uint32_t reg_base, uint8_t enable)
+static inline uint8_t i2cip_w_10bit_slave(uint32_t reg_base, int enable)
 {
     uint32_t val = 0;
     val = i2cip_read32(reg_base, I2CIP_CTRL_REG_OFFSET);
@@ -71,7 +71,7 @@ static inline uint8_t i2cip_w_10bit_slave(uint32_t reg_base, uint8_t enable)
     i2cip_write32(val, reg_base, I2CIP_CTRL_REG_OFFSET);
     return 0;
 }
-static inline uint8_t i2cip_w_restart(uint32_t reg_base, uint8_t restart)
+static inline uint8_t i2cip_w_restart(uint32_t reg_base, int restart)
 {
     uint32_t val = 0;
     val = i2cip_read32(reg_base, I2CIP_CTRL_REG_OFFSET);
@@ -155,7 +155,7 @@ static inline uint8_t i2cip_w_target_address(uint32_t reg_base, uint32_t addr)
     i2cip_write32(val, reg_base, I2CIP_TARGET_ADDRESS_REG_OFFSET);
     return 0;
 }
-static inline uint8_t i2cip_w_gc_or_start_bit(uint32_t reg_base, uint8_t set)
+static inline uint8_t i2cip_w_gc_or_start_bit(uint32_t reg_base, int set)
 {
     uint32_t val = 0;
     val = i2cip_read32(reg_base, I2CIP_TARGET_ADDRESS_REG_OFFSET);
@@ -166,7 +166,7 @@ static inline uint8_t i2cip_w_gc_or_start_bit(uint32_t reg_base, uint8_t set)
     i2cip_write32(val, reg_base, I2CIP_TARGET_ADDRESS_REG_OFFSET);
     return 0;
 }
-static inline uint8_t i2cip_w_special_bit(uint32_t reg_base, uint8_t set)
+static inline uint8_t i2cip_w_special_bit(uint32_t reg_base, int set)
 {
     uint32_t val = 0;
     val = i2cip_read32(reg_base, I2CIP_TARGET_ADDRESS_REG_OFFSET);
@@ -207,7 +207,7 @@ static inline uint8_t i2cip_clear_int_mask(uint32_t reg_base, uint32_t mask)
     i2cip_write32(val, reg_base, I2CIP_INT_MASK_REG_OFFSET);
     return 0;
 }
-static inline uint8_t i2cip_w_disable_slave(uint32_t reg_base, uint8_t disable)
+static inline uint8_t i2cip_w_disable_slave(uint32_t reg_base, int disable)
 {
     uint32_t val = 0;
     val = i2cip_read32(reg_base, I2CIP_CTRL_REG_OFFSET);
@@ -218,7 +218,7 @@ static inline uint8_t i2cip_w_disable_slave(uint32_t reg_base, uint8_t disable)
     i2cip_write32(val, reg_base, I2CIP_CTRL_REG_OFFSET);
     return 0;
 }
-static inline uint8_t i2cip_w_master_mode(uint32_t reg_base, uint8_t master_mode)
+static inline uint8_t i2cip_w_master_mode(uint32_t reg_base, int master_mode)
 {
     uint32_t val = 0;
     val = i2cip_read32(reg_base, I2CIP_CTRL_REG_OFFSET);
@@ -316,7 +316,7 @@ static inline uint32_t i2cip_r_tx_abrt_source(uint32_t reg_base)
 {
     return i2cip_read32(reg_base, I2CIP_TX_ABRT_SOURCE_REG_OFFSET);
 }
-static inline uint32_t i2cip_w_tx_dma_enable(uint32_t reg_base, uint8_t enable)
+static inline uint32_t i2cip_w_tx_dma_enable(uint32_t reg_base, int enable)
 {
     uint32_t val = 0;
     val = i2cip_read32(reg_base, I2CIP_DMA_CR_REG_OFFSET);
@@ -327,7 +327,7 @@ static inline uint32_t i2cip_w_tx_dma_enable(uint32_t reg_base, uint8_t enable)
     i2cip_write32(val, reg_base, I2CIP_DMA_CR_REG_OFFSET);
     return 0;
 }
-static inline uint32_t i2cip_w_rx_dma_enable(uint32_t reg_base, uint8_t enable)
+static inline uint32_t i2cip_w_rx_dma_enable(uint32_t reg_base, int enable)
 {
     uint32_t val = 0;
     val = i2cip_read32(reg_base, I2CIP_DMA_CR_REG_OFFSET);
@@ -350,10 +350,6 @@ static inline uint32_t i2cip_w_sda_hold_time(uint32_t reg_base, uint32_t val)
 {
     return i2cip_write32(val, reg_base, I2CIP_SDA_HOLD_REG_OFFSET);
 }
-static inline uint32_t i2cip_r_ic_enable_status(uint32_t reg_base)
-{
-    return i2cip_read32(reg_base, I2CIP_IC_ENABLE_STATUS_REG_OFFSET);
-}
 static inline uint32_t i2cip_w_fs_spklen(uint32_t reg_base, uint32_t val)
 {
     return i2cip_write32(val, reg_base, I2CIP_IC_FS_SPKLEN_REG_OFFSET);
@@ -362,9 +358,33 @@ static inline uint32_t i2cip_w_hs_spklen(uint32_t reg_base, uint32_t val)
 {
     return i2cip_write32(val, reg_base, I2CIP_IC_HS_SPKLEN_REG_OFFSET);
 }
-static inline uint32_t i2cip_w_data_to_vad(uint32_t reg_base, uint32_t val)
+static inline uint32_t i2cip_w_data_to_vad(uint32_t reg_base, int enable)
 {
-    i2cip_write32(val ? 1 : 0, reg_base, I2CIP_IC_VAD_PATH_REG_OFFSET);
+    uint32_t val;
+    val = i2cip_read32(reg_base, I2CIP_IC_VAD_PATH_REG_OFFSET);
+    if (enable) {
+        val |= I2CIP_IC_PUSH_DATA_BYPASS;
+    } else {
+        val &= ~I2CIP_IC_PUSH_DATA_BYPASS;
+    }
+    i2cip_write32(val, reg_base, I2CIP_IC_VAD_PATH_REG_OFFSET);
+    return 0;
+}
+static inline uint32_t i2cip_w_push_pull(uint32_t reg_base, int clk_enable, int data_enable)
+{
+    uint32_t val;
+    val = i2cip_read32(reg_base, I2CIP_IC_VAD_PATH_REG_OFFSET);
+    if (clk_enable) {
+        val |= I2CIP_IC_CLK_PUSH_PULL;
+    } else {
+        val &= ~I2CIP_IC_CLK_PUSH_PULL;
+    }
+    if (data_enable) {
+        val |= I2CIP_IC_DATA_PUSH_PULL;
+    } else {
+        val &= ~I2CIP_IC_DATA_PUSH_PULL;
+    }
+    i2cip_write32(val, reg_base, I2CIP_IC_VAD_PATH_REG_OFFSET);
     return 0;
 }
 #ifdef __cplusplus

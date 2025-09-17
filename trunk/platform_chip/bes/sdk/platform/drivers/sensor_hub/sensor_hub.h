@@ -28,6 +28,8 @@ typedef void (*SENSOR_HUB_TX_IRQ_HANDLER)(const void *data, unsigned int len);
 
 int sensor_hub_open(SENSOR_HUB_RX_IRQ_HANDLER rx_hdlr, SENSOR_HUB_TX_IRQ_HANDLER tx_hdlr);
 
+int sensor_hub_opened(void);
+
 int sensor_hub_close(void);
 
 int sensor_hub_send_seq(const void *data, unsigned int len, unsigned int *seq);

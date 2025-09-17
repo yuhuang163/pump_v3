@@ -30,11 +30,6 @@
 /******************************macro defination*****************************/
 
 /******************************type defination******************************/
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 typedef struct
 {
     uint8_t  grp_lid;
@@ -43,15 +38,17 @@ typedef struct
     uint32_t big_trans_latency;
 } gaf_bis_src_param_t;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void gaf_bis_src_audio_stream_stop_handler(uint8_t grp_lid);
 void gaf_bis_src_audio_stream_start_handler(gaf_bis_src_param_t *src_para);
 void gaf_bis_src_audio_stream_init(void);
 
 void gaf_bis_audio_stream_stop_handler(uint8_t grp_lid);
 void gaf_bis_audio_stream_start_handler(uint8_t grp_lid);
-void gaf_bis_audio_stream_set_stream_volume(int8_t vol);
 void gaf_bis_audio_stream_init(void);
-void gaf_bis_stream_dump_dma_trigger_status(void);
 
 #ifdef __cplusplus
 }

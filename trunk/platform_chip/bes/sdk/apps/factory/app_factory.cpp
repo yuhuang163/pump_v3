@@ -27,8 +27,6 @@
 #include "nvrecord_bt.h"
 #include "nvrecord_dev.h"
 #include "nvrecord_env.h"
-#include "app_bt_stream.h"
-#include "app_media_player.h"
 #include "pmu.h"
 
 // for init
@@ -42,16 +40,13 @@
 #include "app_utils.h"
 
 // for bt
-#include "besbt.h"
-#include "app_bt.h"
 #include "app_factory_bt.h"
 
 // for audio
 #include "audioflinger.h"
 #include "app_audio.h"
 #include "app_utils.h"
-
-
+#include "app_bt_audio.h"
 
 // for progress
 #include "hal_uart.h"
@@ -59,6 +54,7 @@
 
 #include "factory_section.h"
 #include "watchdog/watchdog.h"
+#include "audio_player_adapter.h"
 
 #ifdef __FACTORY_MODE_SUPPORT__
 
@@ -94,7 +90,7 @@ int app_factorymode_languageswitch_proc(void)
     struct nvrecord_env_t *nvrecord_env;
 
 
-    FACTORY_TRACE(1,"%s",__func__);
+    APP_FACTORY_TRACE(1,"%s",__func__);
     lan = app_play_audio_get_lang();
     new_lan = lan;
     app_play_audio_set_lang(new_lan);
@@ -103,8 +99,8 @@ int app_factorymode_languageswitch_proc(void)
     nvrecord_env->media_language.language = new_lan;
     nv_record_env_set(nvrecord_env);
 
-    FACTORY_TRACE(2,"languages old:%d new:%d",lan ,new_lan);
-    media_PlayAudio(AUD_ID_LANGUAGE_SWITCH, 0);
+    APP_FACTORY_TRACE(2,"languages old:%d new:%d",lan ,new_lan);
+    audio_player_play_prompt(AUD_ID_LANGUAGE_SWITCH, 0);
 #endif
     return 0;
 }
@@ -116,7 +112,7 @@ void app_factorymode_languageswitch(APP_KEY_STATUS *status, void *param)
 
 void app_factorymode_enter(void)
 {
-    FACTORY_TRACE(1,"%s",__func__);
+    APP_FACTORY_TRACE(1,"%s",__func__);
     hal_sw_bootmode_set(HAL_SW_BOOTMODE_TEST_MODE|HAL_SW_BOOTMODE_TEST_SIGNALINGMODE);
     pmu_reboot();
 }
@@ -142,13 +138,13 @@ void app_factorymode_i2c_switch(APP_KEY_STATUS *status, void *param)
 
     i++;
     if (i & 1) {
-        FACTORY_TRACE(0,"set analog i2c mode !!!");
+        TRACE(0,"set analog i2c mode !!!");
         osDelay(100);
         hal_iomux_set_analog_i2c();
     } else {
         hal_iomux_set_uart0();
         osDelay(100);
-        FACTORY_TRACE(0,"hal_iomux_set_uart0 !!!");
+        TRACE(0,"hal_iomux_set_uart0 !!!");
     }
 }
 #endif
@@ -158,7 +154,7 @@ void app_factorymode_i2c_switch(APP_KEY_STATUS *status, void *param)
 void bt_drv_ibrt_test_key_click(APP_KEY_STATUS *status, void *param);
 void bt_drv_ibrt_test_key_click(APP_KEY_STATUS *status, void *param)
 {
-    btdrv_connect_ibrt_device(bt_get_local_address());
+    btdrv_connect_ibrt_device(bt_addr);
 }
 #endif
 
@@ -184,7 +180,7 @@ void app_factorymode_key_init(void)
 
     uint8_t i = 0;
 
-    FACTORY_TRACE(1,"%s",__func__);
+    APP_FACTORY_TRACE(1,"%s",__func__);
 
     app_key_handle_clear();
     for (i = 0; i < ARRAY_SIZE(app_factorymode_handle_cfg); i++){
@@ -194,6 +190,8 @@ void app_factorymode_key_init(void)
 
 static void app_factorymode_audioloopswitch(APP_KEY_STATUS *status, void *param)
 {
+#ifdef __AUDIO_QUEUE_SUPPORT__
+#ifndef BTH_SUBSYS_ONLY
     static bool onaudioloop = false;
 
     onaudioloop = onaudioloop?false:true;
@@ -202,6 +200,8 @@ static void app_factorymode_audioloopswitch(APP_KEY_STATUS *status, void *param)
         app_audio_sendrequest(APP_FACTORYMODE_AUDIO_LOOP, (uint8_t)APP_BT_SETTING_OPEN, 0);
     else
         app_audio_sendrequest(APP_FACTORYMODE_AUDIO_LOOP, (uint8_t)APP_BT_SETTING_CLOSE, 0);
+#endif
+#endif
 }
 
 void app_factorymode_test_key_init(void)
@@ -211,7 +211,7 @@ void app_factorymode_test_key_init(void)
     };
 
     uint8_t i = 0;
-    FACTORY_TRACE(1,"%s",__func__);
+    APP_FACTORY_TRACE(1,"%s",__func__);
     for (i = 0; i < ARRAY_SIZE(app_factorymode_handle_cfg); i++){
         app_key_handle_registration(&app_factorymode_handle_cfg[i]);
     }
@@ -264,9 +264,6 @@ static int app_factorymode_send_progress (uint8_t progress)
     APP_MESSAGE_BLOCK msg;
 
     msg.mod_id = APP_MODULE_OHTER;
-#if defined(USE_BASIC_THREADS)
-    msg.mod_level = APP_MOD_LEVEL_1;
-#endif 
     msg.msg_body.message_id = 2;
     msg.msg_body.message_Param0 = progress;
     app_mailbox_put(&msg);
@@ -279,9 +276,6 @@ static int app_factorymode_send_code (uint32_t progress)
     APP_MESSAGE_BLOCK msg;
 
     msg.mod_id = APP_MODULE_OHTER;
-#if defined(USE_BASIC_THREADS)
-    msg.mod_level = APP_MOD_LEVEL_1;
-#endif 
     msg.msg_body.message_id = 3;
     msg.msg_body.message_Param0 = progress;
     app_mailbox_put(&msg);
@@ -296,7 +290,6 @@ int app_factorymode_proc(void)
     app_factorymode_tid = osThreadGetId();
 
     app_factorymode_send_progress(60);
-    app_factory_bt_cmd_init();
     app_factorymode_bt_init_connect();
 
     do{
@@ -433,6 +426,7 @@ static int app_factorymode_uart_init(void)
         hal_trace_close();
     }
 
+    hal_iomux_set_uart0();
     hal_uart_open(HAL_UART_ID_0, &uart_cfg);
 
     return 0;
@@ -444,13 +438,17 @@ static void app_factorymode_timehandler(void const *param)
     APP_MESSAGE_BLOCK msg;
 
     msg.mod_id = APP_MODULE_OHTER;
-#if defined(USE_BASIC_THREADS)
-    msg.mod_level = APP_MOD_LEVEL_1;
-#endif 
     msg.msg_body.message_id = 1;
     app_mailbox_put(&msg);
 }
 
+static bool app_freqcalib_mode_get_handler(void)
+{
+    TRACE(2, "%s isInFactoryFreqCalibMode=%d",__func__, isInFactoryFreqCalibMode);
+    return isInFactoryFreqCalibMode ? true : false;
+}
+
+#ifndef BTH_SUBSYS_ONLY
 static uint8_t app_factorymode_indication_init(void)
 {
     struct APP_PWL_CFG_T cfg;
@@ -466,7 +464,7 @@ static uint8_t app_factorymode_status_indication(APP_FACTORYMODE_STATUS_INDICATI
 {
     struct APP_PWL_CFG_T cfg0;
     struct APP_PWL_CFG_T cfg1;
-    FACTORY_TRACE(2,"%s %d",__func__, status);
+    APP_FACTORY_TRACE(2,"%s %d",__func__, status);
     memset(&cfg0, 0, sizeof(struct APP_PWL_CFG_T));
     memset(&cfg1, 0, sizeof(struct APP_PWL_CFG_T));
     app_pwl_stop(APP_PWL_ID_0);
@@ -528,7 +526,7 @@ int app_factorymode_init(uint32_t factorymode)
     int nRet = 0;
     uint32_t capval = 0x00;
     struct nvrecord_env_t *nvrecord_env;
-    FACTORY_TRACE(1,"app_factorymode_init mode:%x\n", factorymode);
+    APP_FACTORY_TRACE(1,"app_factorymode_init mode:%x\n", factorymode);
 
     osThreadSetPriority(osThreadGetId(), osPriorityRealtime);
     app_factorymode_uart_init();
@@ -547,6 +545,7 @@ int app_factorymode_init(uint32_t factorymode)
     osTimerStart(app_factory_timer, 300);
     app_factorymode_send_progress(10);
 
+    bes_bt_app_init();
     af_open();
     app_audio_open();
     app_overlay_open();
@@ -557,7 +556,7 @@ int app_factorymode_init(uint32_t factorymode)
     nv_record_env_get(&nvrecord_env);
 #ifdef MEDIA_PLAYER_SUPPORT
     app_play_audio_set_lang(nvrecord_env->media_language.language);
-    media_PlayAudio(AUD_ID_POWER_ON, 0);
+    audio_player_play_prompt(AUD_ID_POWER_ON, 0);
 #endif
     app_status_indication_set(APP_STATUS_INDICATION_POWERON);
     app_factorymode_status_indication(APP_FACTORYMODE_STATUS_INDICATION_RUNNING);
@@ -582,9 +581,7 @@ int app_factorymode_init(uint32_t factorymode)
     btdrv_start_bt();
     bt_drv_reg_op_key_gen_after_reset(false);
     app_factorymode_send_progress(40);
-#ifndef BT_BUILD_WITH_CUSTOMER_HOST
-    bt_host_init(NULL);
-#endif
+    bes_bt_thread_init();
     osDelay(600);
 
     nRet = app_factorymode_proc();
@@ -608,12 +605,6 @@ exit:
     app_sysfreq_req(APP_SYSFREQ_USER_APP_0, APP_SYSFREQ_32K);
     pmu_shutdown();
     return nRet;
-}
-
-static bool app_freqcalib_mode_get_handler(void)
-{
-    FACTORY_TRACE(2, "%s isInFactoryFreqCalibMode=%d",__func__, isInFactoryFreqCalibMode);
-    return isInFactoryFreqCalibMode ? true : false;
 }
 
 int app_factorymode_calib_only(void)
@@ -674,6 +665,160 @@ exit:
     pmu_shutdown();
     return nRet;
 }
+#else
+static uint8_t app_factorymode_status_indication(APP_FACTORYMODE_STATUS_INDICATION_T status)
+{
+    switch (status)
+    {
+        case APP_FACTORYMODE_STATUS_INDICATION_RUNNING:
+            break;
+        case APP_FACTORYMODE_STATUS_INDICATION_PASS:
+            break;
+        case APP_FACTORYMODE_STATUS_INDICATION_FAILED:
+            break;
+        default:
+            break;
+    }
+    return 0;
+}
+
+int app_factorymode_init(uint32_t factorymode)
+{
+    uint8_t cnt = 0;
+    int nRet = 0;
+    uint32_t capval = 0x00;
+    struct nvrecord_env_t *nvrecord_env;
+    APP_FACTORY_TRACE(1,"app_factorymode_init mode:%x\n", factorymode);
+
+    osThreadSetPriority(osThreadGetId(), osPriorityRealtime);
+    app_factorymode_uart_init();
+    app_wdt_open(60);
+    app_sysfreq_req(APP_SYSFREQ_USER_APP_0, APP_SYSFREQ_52M);
+    list_init();
+    app_os_init();
+    if (app_key_open(false)){
+        nRet = -1;
+        goto exit;
+    }
+    app_set_threadhandle(APP_MODULE_OHTER, app_factorymode_process);
+    app_factory_timer = osTimerCreate (osTimer(APP_FACTORY_TIMER), osTimerPeriodic, NULL);
+    osTimerStart(app_factory_timer, 300);
+    app_factorymode_send_progress(10);
+
+    bes_bt_app_init();
+    app_overlay_open();
+
+    factory_section_init();
+    nv_record_env_init();
+    nvrec_dev_data_open();
+    nv_record_env_get(&nvrecord_env);
+
+    app_factorymode_status_indication(APP_FACTORYMODE_STATUS_INDICATION_RUNNING);
+
+    if (factorymode&HAL_SW_BOOTMODE_CALIB){
+        btdrv_start_bt();
+        app_factorymode_send_progress(20);
+
+        do {
+            nRet = app_factorymode_bt_xtalcalib_proc();
+        }while(nRet && cnt++<APP_FACTORYMODE_RETRY_LIMITED);
+
+        if (nRet)
+            goto err;
+        osDelay(200);
+        app_factorymode_send_progress(30);
+    }
+
+    nvrec_dev_get_xtal_fcap((unsigned int*)&capval);
+    app_factorymode_send_code(capval);
+
+    btdrv_start_bt();
+    bt_drv_reg_op_key_gen_after_reset(false);
+    app_factorymode_send_progress(40);
+    bes_bt_thread_init();
+    osDelay(600);
+
+    nRet = app_factorymode_proc();
+    if (nRet)
+        goto err;
+
+    app_factorymode_test_key_init();
+    //osTimerStop(app_factory_timer);
+    app_factorymode_status_indication(APP_FACTORYMODE_STATUS_INDICATION_PASS);
+
+    //wait forever
+    osSignalWait(0x01, osWaitForever);
+    goto exit;
+
+err:
+    osTimerStop(app_factory_timer);
+    app_factorymode_status_indication(APP_FACTORYMODE_STATUS_INDICATION_FAILED);
+    app_factorymode_send_code(0xff);
+    osSignalWait(0x01, osWaitForever);
+exit:
+    app_sysfreq_req(APP_SYSFREQ_USER_APP_0, APP_SYSFREQ_32K);
+    pmu_shutdown();
+    return nRet;
+}
+
+int app_factorymode_calib_only(void)
+{
+    uint8_t cnt = 0;
+    int nRet = 0;
+    uint32_t capval = 0x00;
+
+    isInFactoryFreqCalibMode = true;
+    btdrv_register_freqcalib_mode_get_callback(app_freqcalib_mode_get_handler);
+
+    app_factorymode_uart_init();
+    app_wdt_reopen(60);
+    app_sysfreq_req(APP_SYSFREQ_USER_APP_0, APP_SYSFREQ_52M);
+    list_init();
+    app_os_init();
+
+    factory_section_init();
+    nv_record_env_init();
+    nvrec_dev_data_open();
+
+    app_set_threadhandle(APP_MODULE_OHTER, app_factorymode_process);
+    app_factory_timer = osTimerCreate(osTimer(APP_FACTORY_TIMER),osTimerPeriodic,NULL);
+    osTimerStart(app_factory_timer,300);
+    app_factorymode_status_indication(APP_FACTORYMODE_STATUS_INDICATION_RUNNING);
+    app_factorymode_send_progress(10);
+    btdrv_start_bt();
+    osDelay(20);
+    app_factorymode_send_progress(20);
+    do {
+        nRet = app_factorymode_bt_xtalcalib_proc();
+    }while(nRet && ++cnt < APP_FACTORYMODE_RETRY_LIMITED);
+    if(nRet)
+        goto err;
+
+    nvrec_dev_get_xtal_fcap((unsigned int*)&capval);
+    app_factorymode_send_code(capval);
+
+    app_factorymode_send_progress(50);
+    osDelay(200);
+    app_factorymode_send_progress(80);
+    osDelay(100);
+    app_factorymode_send_progress(100);
+    app_factorymode_status_indication(APP_FACTORYMODE_STATUS_INDICATION_PASS);
+    osSignalWait(0x01, osWaitForever);
+    goto exit;
+
+err:
+    osTimerStop(app_factory_timer);
+    app_factorymode_status_indication(APP_FACTORYMODE_STATUS_INDICATION_FAILED);
+    app_factorymode_send_code(0xff);
+    osSignalWait(0x01, osWaitForever);
+exit:
+
+    isInFactoryFreqCalibMode = false;
+    app_sysfreq_req(APP_SYSFREQ_USER_APP_0, APP_SYSFREQ_32K);
+    pmu_shutdown();
+    return nRet;
+}
+#endif
 
 #ifdef __USB_COMM__
 // for usb
@@ -697,7 +842,6 @@ static void usb_serial_recv_timeout(void *param)
 int app_factorymode_cdc_comm(void)
 {
     HWTIMER_ID timer;
-    pmu_usb_config(PMU_USB_CONFIG_TYPE_DEVICE);
     usb_serial_open(&cdc_cfg);
     osDelay(500);
 
@@ -706,7 +850,7 @@ int app_factorymode_cdc_comm(void)
     ASSERT(timer, "Failed to alloc usb serial recv timer");
 
     usb_serial_flush_recv_buffer();
-    usb_serial_init_xfer();
+    usb_serial_init_xfer(USB_SERIAL_XFER_TYPE_ALL);
     af_open();
 
     comm_loop();

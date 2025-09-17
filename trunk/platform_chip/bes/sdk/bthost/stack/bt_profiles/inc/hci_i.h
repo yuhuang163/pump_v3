@@ -162,10 +162,6 @@ extern "C" {
 #define    AUDIO_DATA_PATH_HCI               0
 #define    AUDIO_DATA_PATH_PCM               1
 
-#ifndef BTM_NAME_MAX_LEN
-#define BTM_NAME_MAX_LEN 248
-#endif
-
 /******************************************************************************************
  * Event Evtcode Definition  (OLD)
  *****************************************************************************************/
@@ -306,10 +302,6 @@ struct hci_ev_hardware_error {
     uint8    current_role;
 }__attribute__ ((packed));
 
- struct hci_ev_cmd_complete_connection_cancel{
-    uint8     status;
-    struct bdaddr_t bdaddr;
-}__attribute__ ((packed));
 
 struct hci_ev_cmd_complete_read_local_version{
     uint8 status;
@@ -521,7 +513,6 @@ struct bt_hci_evt_keypress_notify {
 
 
 #define HCI_LE_META_EVT    0x3E
-#define HCI_SLE_META_EVT   0xEF
 
 #define HCI_LE_EV_CONN_COMPLETE 0x01
 struct hci_ev_le_conn_complete {
@@ -586,6 +577,54 @@ struct hci_ev_rd_mem_cmp_evt
     ///buffer structure to return
     struct get_buffer buf;
 };
+
+
+/* vendor event */
+#define HCI_EV_VENDOR_EVENT                     (0xFF)
+
+//sub event code
+#define HCI_DBG_TRACE_WARNING_EVT_CODE          0x01
+#define HCI_ACL_SNIFFER_STATUS_EVT_CODE         0x03
+#define HCI_TWS_EXCHANGE_CMP_EVT_CODE           0x04
+#define HCI_NOTIFY_CURRENT_ADDR_EVT_CODE        0x05
+#define HCI_NOTIFY_DATA_XFER_EVT_CODE           0x06
+#define HCI_START_SWITCH_EVT_CODE               0x09
+#define HCI_LL_MONITOR_EVT_CODE                 0x0A
+#define HCI_DBG_LMP_MESSAGE_RECORD_EVT_SUBCODE  0x0B
+#define HCI_GET_TWS_SLAVE_MOBILE_RSSI_CODE      0x0C
+
+#define HCI_SCO_SNIFFER_STATUS_EVT_CODE 0x02
+#define SNIFFER_SCO_STOP                0
+#define SNIFFER_SCO_START               1
+#define SNIFFER_SCO_RESTART             2
+#define SNIFFER_SCO_RESUME_AFTER_TO     3
+#define SNIFFER_ACL_DISCONNECT_STOP_SCO 4
+struct hci_ev_ibrt_snoop_sco {
+    uint8_t subcode;
+    uint16_t connhdl;
+    uint8_t sco_status;
+    uint8_t airmode;
+    uint32_t bandwidth;
+} __attribute__ ((packed));
+
+#define HCI_DBG_IBRT_SWITCH_COMPLETE_EVT_SUBCODE    0x0D
+#define HCI_DBG_IBRT_CONNECTED_EVT_SUBCODE          0x0E
+struct hci_ev_ibrt_snoop_conn {
+    uint8_t subcode;
+    uint16_t connhdl;
+    uint8_t status;
+    bt_bdaddr_t mobile_addr;
+    uint8_t role;
+} __attribute__ ((packed));
+
+#define HCI_DBG_IBRT_DISCONNECTED_EVT_SUBCODE       0x0f
+struct hci_ev_ibrt_snoop_disc {
+    uint8_t subcode;
+    uint16_t connhdl;
+    uint8_t reason;
+    bt_bdaddr_t mobile_addr;
+    uint8_t role;
+} __attribute__ ((packed));
 
 #define BLE_ADV_DATA_LENGTH 31
 #define BLE_SCAN_RSP_DATA_LENGTH 31
@@ -1245,12 +1284,6 @@ struct hci_cp_set_connect_address_filter
     uint8 auto_accept_flag; // 0x00 dont auto accept, 0x01 auto accept and disable role switch, 0x02 auto accept and enable role switch
 } __attribute__ ((packed));
 
-struct hci_cp_write_automatic_flush_timeout
-{
-    uint16   connhandle;
-    uint16   flush_timeout;
-} __attribute__ ((packed));
-
 #define HCI_READ_STORED_LINK_KEY              0x0C0D
 struct hci_cp_read_stored_linkkey
 {
@@ -1426,6 +1459,19 @@ struct hci_set_sniffer_env
     struct bdaddr_t sniffer_bdaddr;
 } __attribute__ ((packed));
 
+#define HCI_DBG_START_TWS_EXCHANGE_CMD_OPCODE 0xFC91
+struct hci_start_tws_exchange
+{
+    uint16   tws_slave_conn_handle;
+    uint16   mobile_conn_handle;
+} __attribute__ ((packed));
+
+#define HCI_DBG_BTADDR_EXCHANGE_CMD_OPCODE  0xFC92
+struct hci_tws_bdaddr_exchange
+{
+    uint16 conn_handle;
+} __attribute__ ((packed));
+
 #define HCI_DBG_SCO_TX_SILENCE_CMD_OPCODE     0xFC94
 struct hci_dbg_sco_tx_silence_cmd
 {
@@ -1438,6 +1484,13 @@ struct hci_dbg_sniffer_interface
 {
     uint16   connhandle;
     uint8    subcode;
+} __attribute__ ((packed));
+
+#define HCI_DBG_SET_LINK_LBRT_CMD_OPCODE          0xFC97
+struct hci_set_link_lbrt_enable
+{
+    uint16 conn_handle;
+    uint8  enable;
 } __attribute__ ((packed));
 
 #define HCI_LOWLAYER_MONITOR                     0xFC9b
@@ -1458,11 +1511,51 @@ struct hci_enable_fastack
     uint8 enable;
 } __attribute__ ((packed));
 
+#define HCI_DBG_ENABLE_IBRT_MODE_CMD_OPCODE    0xFCA2
+struct hci_ibrt_mode_op
+{
+    uint8 enable;
+    uint8 switchOp;
+} __attribute__ ((packed));
+
+#define HCI_DBG_START_IBRT_CMD_OPCODE     0xFCA3
+struct hci_start_ibrt
+{
+    uint16 slaveConnHandle;
+    uint16 mobilConnHandle;
+} __attribute__ ((packed));
+
+#define HCI_DBG_GET_TWS_SLAVE_OF_MOBILE_RSSI_CMD_OPCODE  0xFCA4
+struct hci_get_tws_slave_of_mobile_rssi
+{
+    uint16 conn_handle;
+} __attribute__ ((packed));
+
+#define HCI_DBG_STOP_IBRT_CMD_OPCODE     0xFCA8
+struct hci_stop_ibrt
+{
+    uint8 enable;
+    uint8 reason;
+} __attribute__ ((packed));
+
 #define HCI_DBG_SEND_PREFER_RATE_CMD_OPCODE 0xFCA9
 struct hci_dbg_send_prefer_rate
 {
     uint16 conn_handle;
     uint8 rate;
+} __attribute__ ((packed));
+
+#define HCI_DBG_SET_FIX_TWS_INTERVAL_PARAM_CMD_OPCODE  0xFCAB
+struct hci_set_fix_tws_interval_param
+{
+    uint16_t duration;
+    uint16_t interval;
+}__attribute__ ((packed));
+
+#define HCI_DBG_RESUME_IBRT_CMD_OPCODE     0xFCAC
+struct hci_resume_ibrt
+{
+    uint8 enable;
 } __attribute__ ((packed));
 
 #define HCI_DBG_SET_TXPWR_LINK_THD_OPCODE 0xFCB4
@@ -1478,6 +1571,21 @@ struct hci_dbg_set_txpwr_link_thd
     int8_t      rssi_low_thr;
     int8_t      rssi_below_low_thr;
     int8_t      rssi_interf_thr;
+} __attribute__ ((packed));
+
+#define HCI_DBG_SET_ECC_DATA_TEST_CMD_OPCODE  0xFCBB
+
+#define HCI_DBG_IBRT_SWITCH_CMD_OPCODE          0xFCBE
+struct hci_ibrt_switch
+{
+    uint16 conn_handle;
+} __attribute__ ((packed));
+
+#define HCI_DBG_STOP_MULTI_POINT_IBRT_CMD_OPCODE         0xFCBF
+struct hci_stop_multi_point_ibrt
+{
+    uint16 mobile_conhdl;
+    uint8 reason;
 } __attribute__ ((packed));
 
 #define HCI_DBG_SET_ISO_QUALITY_REPORT_THR  0xFCDC
@@ -1514,12 +1622,19 @@ struct hci_ble_audio_dbg_trc_enable_cmd
     uint32_t trc_enable_opcode;
 } __attribute__ ((packed));
 
-#define HCI_DBG_SET_BT_BLE_ACTIVE_LINK_CMD_OPCODE   0xFCDD
+#define HCI_DBG_IBRT_UPDATE_TIME_SLICE_CMD_OPCODE   0xFD00
 
-struct hci_dbg_set_bt_ble_active_link_struct
+struct link_env
 {
-    uint8_t traffic_mode;
-    uint16_t  link_handle;
+    uint8_t link_id;
+    uint32_t timeslice;
+}__attribute__((packed));
+
+struct hci_dbg_ibrt_update_time_slice_struct
+{
+    uint8_t update;
+    uint8_t num_link_env;
+    struct link_env link_env[0];
 } __attribute__((packed));
 
 #define HCI_LE_READ_BUFFER_SIZE             0x2002
@@ -1612,14 +1727,8 @@ struct hci_le_read_chnl_map
 #define HCI_LE_READ_LOCAL_SUPP_FEATURES 0x2003
 #define HCI_LE_READ_REMOTE_FEATURES 0x2016
 #define HCI_LE_READ_LOCAL_SUPP_STATES 0x201C
-#define HCI_LE_READ_ALL_LOCAL_SUPP_FEATURES 0x2087 // Core Spec 6.0
-#define HCI_LE_READ_ALL_REMOTE_FEATURES 0x2088 // Core Spec 6.0
-#define HCI_LE_SET_HOST_FEATURE_V1 0x2074
-#define HCI_LE_SET_HOST_FEATURE_V2 0x2097 // Core Spec 6.0
-#define HCI_LE_READ_HDT_LOCAL_SUPP_CAPA 0xFBFF
+#define HCI_LE_SET_HOST_FEATURE 0x2074
 #define HCI_LE_EV_READ_REMOTE_FEATS_CMPL 0x04
-#define HCI_LE_EV_READ_ALL_REMOTE_FEATS_CMPL 0x2B
-#define HCI_LE_FEATURE_PAGES_MAX_NUM 0x0A
 struct hci_le_read_local_supp_features_cmpl {
     uint8_t status;
     uint8_t le_features[8];
@@ -1627,18 +1736,6 @@ struct hci_le_read_local_supp_features_cmpl {
 struct hci_le_read_local_supp_states_cmpl {
     uint8_t status;
     uint8_t le_states[8]; // only provide info about the supp states that can be used with legacy advertising
-} __attribute__ ((packed));
-struct hci_le_read_all_local_supp_features_cmpl {
-    uint8_t status;
-    // The number of the highest-numbered page of the supported LE features that
-    // contains at least one bit set to 1. Ranges 0x00 to 0x0A
-    uint8_t max_pages;
-    // Bit Mask List of the supported LE features, 248 octets.
-    uint8_t le_features[248];
-} __attribute__ ((packed));
-struct hci_le_read_hdt_local_supp_capa_cmpl {
-    uint8_t status;
-    uint8_t max_rx_pld_per_pkt; // Range 0x01 to 0x04, Maximum number of payloads that can be received per packet
 } __attribute__ ((packed));
 struct hci_le_read_remote_features {
     uint16_t conn_handle;
@@ -1649,31 +1746,8 @@ struct hci_ev_le_read_remote_feats_cmpl {
     uint16_t conn_handle;
     uint8_t le_features[8];
 } __attribute__ ((packed));
-struct hci_le_read_all_remote_features {
-    uint16_t conn_handle;
-    // The number of the highest-numbered page of features that the Host requires
-    // and the Controller shall obtain. Ranges 0x00 to 0x0A
-    uint8_t pages_requested;
-} __attribute__ ((packed));
-struct hci_ev_le_read_all_remote_feats_cmpl {
-    uint8_t subcode;
-    uint8_t status;
-    uint16_t conn_handle;
-    // The number of the highest-numbered page of the remote device’s supported
-    // LE features that contains at least one bit set to 1. Range: 0x00 to 0x0A
-    uint8_t max_remote_page;
-    // The number of the highest-numbered page of LE_Features that contains
-    // valid data. Range: 0x00 to 0x0A
-    uint8_t max_valid_page;
-    // Bit Mask List of the supported LE features, 248 octets.
-    uint8_t le_features[248];
-} __attribute__ ((packed));
-struct hci_le_set_host_feature_v1 {
+struct hci_le_set_host_feature {
     uint8_t bit_number; // 0x00 to 0x3F, bit position in the FeatureSet
-    uint8_t bit_value; // 0x00 disabled, 0x01 enabled
-} __attribute__ ((packed));
-struct hci_le_set_host_feature_v2 {
-    uint16_t bit_number; // 0x0000 to 0x07BF, bit position in the FeatureSet
     uint8_t bit_value; // 0x00 disabled, 0x01 enabled
 } __attribute__ ((packed));
 struct hci_le_set_host_feature_cmpl {
@@ -1786,10 +1860,6 @@ struct hci_le_set_adv_set_random_address_cmpl {
 #define HCI_LE_USE_LEGACY_ADV_PDU               0x10
 #define HCI_LE_OMIT_ADV_ADDRESS_FROM_ALL_PDU    0x20
 #define HCI_LE_INCL_TX_POWER_AT_LEAST_ONE_ADV   0x40
-// Below are Core spec 6.0 features
-#define HCI_LE_USE_DECISIONS_PDU                0x80
-#define HCI_LE_INCL_ADVA_IN_DECISONS_PDU        0x0100
-#define HCI_LE_INCL_ADI_IN_DECISONS_PDU         0x0200
 struct hci_le_set_adv_parameters {
     uint16_t adv_interval_min; // min Tadv for undirected and low duty cycle directed advertising
     uint16_t adv_interval_max; // max Tadv, 0x000020 to 0x4000 * 0.625ms, 20ms to 10.24s, default 0x0800 1.28s
@@ -1918,48 +1988,6 @@ struct hci_le_set_ext_scan_rsp_data_cmpl {
 } __attribute__ ((packed));
 
 /**
- * The HCI_LE_Set_Decision_Data command is used to set the decision data used
- * by the specified advertising set in those advertising PDUs that contain decision
- * data. This command may be issued at any time after an advertising set identified
- * by the Advertising_Handle parameter has been created, regardless of whether
- * advertising in that set is enabled or disabled. When an advertising set is created,
- * Decision_Type_Flags shall be set to zero and there shall be zero octets of decision
- * data.
- *
- * The HCI_LE_Set_Decision_Instructions command is used to set the decision
- * instructions used when listening for advertisements containing decision PDUs (when
- * either scanning or initiating a new connection). The Controller shall support at least 8
- * tests in the decision instructions.
- * This command may be used while scanning or initiating is in progress. If so, the new
- * decision instructions shall take effect before the HCI_Command_Complete event is sent
- * to the Host and the change shall not take place while the decision instructions are being
- * used to process a decision PDU (that is, each PDU is processed using either the old
- * decision instructions or the new ones, but not a mixture).
-*/
-#define HCI_LE_SET_DECISION_DATA 0x2080
-#define HCI_LE_SET_DECISION_INSTRUCTIONS 0x2081
-struct hci_le_set_decision_data {
-    uint8_t adv_handle; // 0x00 to 0xEF
-    uint8_t decision_type_flags; // 0b01 A Resolvable Tag subfield is present in the decision data
-    uint8_t decision_data_len; // The number of octets in the Decision_Data parameter. Range 0 to 8
-    uint8_t decision_data[1]; // resolvable data and or + varaibale 2 octects value if provided
-} __attribute__ ((packed));
-struct hci_le_set_decision_data_cmpl {
-    uint8_t status;
-} __attribute__ ((packed));
-struct hci_le_set_decision_instructions {
-    uint8_t num_tests; // 0x01 to 0xFF, controller supports least 8
-} __attribute__ ((packed));
-struct hci_le_set_decision_instructions_test {
-    uint8_t test_flags; // bit 0 - 3
-    uint8_t test_field; // 0 to 255, 240 to 255 vendor
-    uint8_t test_params[16];
-} __attribute__ ((packed));
-struct hci_le_set_decision_instructions_cmpl {
-    uint8_t status;
-} __attribute__ ((packed));
-
-/**
  * The HCI_LE_Set_Advertising_Enable is used to request the Controller to start or stop advertising. The Controller
  * manages the timing of advertisements as per the advertising parameters given in the HCI_LE_Set_Adv_Parameters.
  * The Controller shall continue advertising until the Host issues an HCI_LE_Set_Adv_Enable with enable set to 0x00,
@@ -2048,7 +2076,7 @@ struct hci_le_ext_adv_enable_item {
     uint8_t adv_handle;
     uint16_t duration; // 0x0000 continue adv until host disable, 0xXXXX 0x0001 to 0xFFFF * 10ms, 10ms to 655350ms
     uint8_t max_ext_adv_events; // 0x00 no max num, 0xXX max events shall send prior to terminating the ext advertising
-} __attribute__ ((packed));
+} __attribute__ ((packed));;
 struct hci_le_set_ext_adv_enable {
     uint8_t adv_enable;
     uint8_t num_sets;
@@ -2251,65 +2279,6 @@ struct hci_le_set_data_related_address_changes_cmpl {
 } __attribute__ ((packed));
 
 /**
- * The HCI_LE_Add_Device_To_Monitored_Advertisers_List command is used to add a
- * single device to a list of devices monitored while scanning.
- *
- * The HCI_LE_Remove_Device_From_Monitored_Advertisers_List command is used to
- * remove a single device from the Monitored Advertisers List.
- *
- * The HCI_LE_Clear_Monitored_Advertisers_List command is used to remove all devices
- * from the Monitored Advertisers List.
- *
- * The HCI_LE_Enable_Monitoring_Advertisers command is used by a Host to request the
- * Controller to enable or disable the monitoring of advertisers in the Monitored Advertisers
- * List and generate the HCI_LE_Monitored_Advertisers_Report event when necessary.
- * When the Enable parameter is set to 0x01, all entries in the Monitored Advertisers List
- * shall be marked as not awaiting an RSSI value above the RSSI threshold high and
- * their timers shall be reset. The Enable parameter may be set to 0x01 at any time as a
- * method of restarting monitoring. When the Enable parameter is set to 0x00 monitoring
- * is disabled.
- *
- * The HCI_LE_Read_Monitored_Advertisers_List_Size command is used to read the total
- * number of entries in the Monitored Advertisers List that the Controller can store.
- *
- */
-#define HCI_LE_ADD_DEVICE_TO_MONITORED_ADVERTISERS_LIST 0x2098
-#define HCI_LE_REMOVE_DEVICE_FROM_MONITORED_ADVERTISERS_LIST 0x2099
-#define HCI_LE_CLEAR_MONITORED_ADVERTISERS_LIST 0x209A
-#define HCI_LE_ENABLE_MONITORING_ADVERTISERS 0x209C
-#define HCI_LE_READ_MONITORED_ADVERTISERS_LIST_SIZE 0x209B
-struct hci_le_add_device_to_monitored_advs_list {
-    uint8_t peer_type; // 0x00 public identity address, 0x01 random (static) identity address
-    uint8_t peer_addr[6];
-    int8_t rssi_thres_low_dbm; // Range -127 to +20
-    int8_t rssi_thres_high_dbm; // Range -127 to +20
-    uint8_t timeout_s; // 0x01 to 0xFF
-} __attribute__ ((packed));
-struct hci_le_add_device_to_monitored_advs_list_cmpl {
-    uint8_t status;
-} __attribute__ ((packed));
-struct hci_le_remove_device_from_monitored_advs_list {
-    uint8_t peer_type; // 0x00 public identity address, 0x01 random (static) identity address
-    uint8_t peer_addr[6];
-} __attribute__ ((packed));
-struct hci_le_remove_device_from_monitored_advs_list_cmpl {
-    uint8_t status;
-} __attribute__ ((packed));
-struct hci_le_clear_monitored_advs_list_cmpl {
-    uint8_t status;
-} __attribute__ ((packed));
-struct hci_le_read_monitored_advs_list_size_cmpl {
-    uint8_t status;
-    uint8_t list_size; // 0x01 to 0xFF
-} __attribute__ ((packed));
-struct hci_le_enable_monitoring_advs {
-    uint8_t enable;
-} __attribute__ ((packed));
-struct hci_le_enable_monitoring_advs_cmpl {
-    uint8_t status;
-} __attribute__ ((packed));
-
-/**
  * HCI_LE_Set_Scan_Parameters shall not be issued when scanning is enabled in the Controller.
  * HCI_LE_Set_Ext_Scan_Parameters shall not be issued when scanning is eanbled in Controller.
  *
@@ -2404,7 +2373,6 @@ struct hci_le_enable_monitoring_advs_cmpl {
 #define HCI_LE_EV_ADV_REPORT 0x02
 #define HCI_LE_EV_DIRECTED_ADV_REPORT 0x0B
 #define HCI_LE_EV_EXT_ADV_REPORT 0x0D
-#define HCI_LE_EV_MONITORED_ADV_REPORT 0x34 // Core Spec 6.0
 #define HCI_ADV_TYPE_ADV_IND 0x00
 #define HCI_ADV_TYPE_DIRECT_IND 0x01
 #define HCI_ADV_TYPE_SCAN_IND 0x02
@@ -2500,12 +2468,6 @@ struct hci_ev_le_ext_adv_report_item {
 struct hci_ev_le_ext_adv_report {
     uint8_t subcode; // 0x0d
     uint8_t num_reports; // 0x01 to 0x0A
-} __attribute__ ((packed));
-struct hci_ev_le_monitored_adv_report {
-    uint8_t subcode; // 0x34
-    uint8_t peer_addr_type; // 0x00 ~ 0x03
-    uint8_t peer_addr[6];
-    uint8_t condition; // 0x00 or 0x01, Device RSSI below the low RSSI threshold for longer than the timeout period or greater than the high RSSI
 } __attribute__ ((packed));
 
 /**
@@ -2728,10 +2690,6 @@ struct hci_ev_le_ext_conn_cmpl_v1 {
  * The HCI_LE_Read_Transmit_Power is used to read the min and max transmit powers supported by the
  * Controller across all supported PHYs.
  *
- * The HCI_LE_Frame_Space_Update command allows the Host to request a change to
- * one or more frame space values. This command may be issued on both the Central and
- * the Peripheral.
- *
  */
 #define HCI_LE_CONNECTION_UPDATE 0x2013
 #define HCI_LE_REMOTE_CONN_PARAM_REQ_REPLY 0x2020
@@ -2739,15 +2697,8 @@ struct hci_ev_le_ext_conn_cmpl_v1 {
 #define HCI_LE_SET_DATA_LENGTH 0x2022
 #define HCI_LE_READ_DEFAULT_DATA_LENGTH 0x2023
 #define HCI_LE_WRITE_DEFAULT_DATA_LENGTH 0x2024
-#define HCI_LE_LL_DATA_PDU_TX_MAX_OCTETS_MIN 0x001B
-#define HCI_LE_LL_DATA_PDU_TX_MAX_OCTETS_MAX 0x00FB
-#define HCI_LE_LL_HDT_DATA_PDU_TX_MAX_OCTETS_MAX 0x1FEF
-#define HCI_LE_LL_DATA_PDU_TX_MAX_TIME_US_MIN 0x0148
-#define HCI_LE_LL_DATA_PDU_TX_MAX_TIME_US_MAX 0x4290
 #define HCI_LE_READ_PHY 0x2030
 #define HCI_LE_SET_DEFAULT_PHY 0x2031
-#define HCI_LE_SET_HDT_PARAMETERS 0xFBFE
-#define HCI_LE_SET_HDT_PARAMETERS_TEST 0xFBFD
 #define HCI_LE_SET_PHY 0x2032
 #define HCI_LE_READ_TX_POWER 0x204B
 #define HCI_LE_READ_ADV_TX_POWER 0x2007
@@ -2762,17 +2713,6 @@ struct hci_ev_le_ext_conn_cmpl_v1 {
 #define HCI_LE_EV_PHY_UPDATE_CMPL 0x0C
 #define HCI_LE_EV_TX_POWER_REPORTING 0x21
 #define HCI_LE_EV_SUBRATE_CHANGE 0x23
-#define HCI_LE_FRAME_SPACE_UPDATE 0x209D // Core Spec 6.0
-#define HCI_LE_EV_FRAME_SPACE_UPD_CMPL 0x35
-#define HCI_LE_FS_UPD_INITIATOR_LOCAL_HOST 0x00
-#define HCI_LE_FS_UPD_INITIATOR_LOCAL_CTRL 0x01
-#define HCI_LE_FS_UPD_INITIATOR_PEER_DEVICE 0x02
-#define HCI_LE_SPACING_TYPE_T_IFS_ACL_CP 0x01
-#define HCI_LE_SPACING_TYPE_T_IFS_ACL_PC 0x02
-#define HCI_LE_SPACING_TYPE_T_MCES 0x04
-#define HCI_LE_SPACING_TYPE_T_IFS_CIS 0x08
-#define HCI_LE_SPACING_TYPE_T_MSS_CIS 0x10
-
 struct hci_le_connection_update {
     uint16_t conn_handle;
     uint16_t conn_interval_min; // 0x06 to 0x0C80 * 1.25ms, 7.5ms to 4000ms
@@ -2848,7 +2788,7 @@ struct hci_ev_le_subrate_change {
 } __attribute__ ((packed));
 struct hci_le_set_data_length {
     uint16_t conn_handle;
-    uint16_t tx_octets; // 0x1B to 0xFB 27 to 251, HDT:0x1B to 0x1FEF
+    uint16_t tx_octets; // 0x1B to 0xFB 27 to 251
     uint16_t tx_time; // 0x0148 to 0x4290 preferred max packet transmission time for LL data PDUs on this connection
 } __attribute__ ((packed));
 struct hci_le_set_data_length_cmpl {
@@ -2864,7 +2804,7 @@ struct hci_ev_le_data_length_change {
     uint16_t max_rx_time;
 } __attribute__ ((packed));
 struct hci_le_write_default_data_length {
-    uint16_t suggested_max_tx_octets; // 0x1B to 0xFB 27 to 251, HDT:0x1B to 0x1FEF
+    uint16_t suggested_max_tx_octets; // 0x1B to 0xFB 27 to 251
     uint16_t suggested_max_tx_time; // 0x0148 to 0x4290 suggested max packet transmission time for LL data PDUs for new connections
 } __attribute__ ((packed));
 struct hci_le_write_default_data_length_cmpl {
@@ -2872,7 +2812,7 @@ struct hci_le_write_default_data_length_cmpl {
 } __attribute__ ((packed));
 struct hci_le_read_default_data_length_cmpl {
     uint8_t status;
-    uint16_t suggested_max_tx_octets; // 0x1B to 0xFB 27 to 251, HDT:0x1B to 0x1FEF
+    uint16_t suggested_max_tx_octets; // 0x1B to 0xFB 27 to 251
     uint16_t suggested_max_tx_time; // 0x0148 to 0x4290 suggested max packet transmission time for LL data PDUs for new connections
 } __attribute__ ((packed));
 struct hci_le_read_phy {
@@ -2889,22 +2829,6 @@ struct hci_le_set_default_phy {
     uint8_t tx_phys; // bit-0 LE 1M, bit-1 LE 2M, bit-2 LE Coded
     uint8_t rx_phys; // bit-0 LE 1M, bit-1 LE 2M, bit-2 LE Coded
 } __attribute__ ((packed));
-struct hci_le_set_hdt_parameters
-{
-    uint16_t conn_handle;
-    uint8_t pref_mic_length; // 0x01 Preferred MIC length is 64 bits, 0x02 Preferred MIC length is 128 bits
-    uint8_t max_tx_payloads_per_pkt; // Range 1 to 4, maximum number of payloads that can be received per packet on the connection
-    uint8_t max_rx_payloads_per_pkt; // Range 1 to 4, maximum number of payloads that can be received per packet on the connection
-} __attribute__ ((packed));
-struct hci_le_set_hdt_parameters_test
-{
-    uint16_t conn_handle;
-    // 0 = Host prefers to use HDT packets with any supported PFI
-    // 1 = Host prefers to use HDT packet format 0 only for data
-    // 2 = Host prefers to use HDT packet format 1 only for data
-    // 3 = Reserved for future use
-    uint8_t pkt_fmt_Support; // 0x00: Any format supported, 0x01: Format 0, 0x02: Format 1
-} __attribute__ ((packed));
 struct hci_le_set_default_phy_cmpl {
     uint8_t status;
 } __attribute__ ((packed));
@@ -2913,7 +2837,7 @@ struct hci_le_set_phy {
     uint8_t all_phys; // bit-0 host has no tx phy prefer, bit-1 host has no rx phy prefer
     uint8_t tx_phys; // bit-0 LE 1M, bit-1 LE 2M, bit-2 LE Coded
     uint8_t rx_phys; // bit-0 LE 1M, bit-1 LE 2M, bit-2 LE Coded
-    uint16_t phy_options; // 0x00 host has no preferred coding when tx on LE Coded, 0x01 S=2, 0x02 S=8, bit 2 to 6 for hdt
+    uint16_t phy_options; // 0x00 host has no preferred coding when tx on LE Coded, 0x01 S=2, 0x02 S=8
 } __attribute__ ((packed));
 struct hci_ev_le_phy_update {
     uint8_t subcode;
@@ -2964,30 +2888,6 @@ struct hci_le_set_tx_power_report {
 struct hci_le_set_tx_power_report_cmpl {
     uint8_t status;
     uint16_t conn_handle;
-} __attribute__ ((packed));
-struct hci_le_frame_space_update {
-    uint16_t conn_handle;
-    /// The min frame space value, in microseconds. Range: 0x0000 to 0x2710
-    uint16_t frame_space_min_us;
-    /// The max frame space value, in microseconds. Range: 0x0000 to 0x2710
-    uint16_t frame_space_max_us;
-    /// 1M, 2M, Coded bits
-    uint8_t phy_bits;
-    /// 0x00 ~ 0x04 @see HCI_LE_SPACING_TYPE_T_IFS_ACL_CP as bit more
-    uint16_t spacing_types_bits;
-} __attribute__ ((packed));
-struct hci_le_frame_space_update_cmpl {
-    uint8_t subcode;
-    uint8_t status;
-    uint16_t conn_handle;
-    /// 0x00 local host, 0x01 local controler, 0x02 peer @see HCI_LE_FS_UPD_INITIATOR_LOCAL_HOST more
-    uint8_t initiator;
-    /// The new frame space value being used, in microseconds. Range: 0x0000 to 0x2710
-    uint16_t frame_space_us;
-    /// 1M, 2M, Coded
-    uint8_t phy;
-    /// 0x00 ~ 0x04 @see HCI_LE_SPACING_TYPE_T_IFS_ACL_CP more
-    uint16_t spacing_types;
 } __attribute__ ((packed));
 
 /**
@@ -3041,7 +2941,6 @@ struct hci_ev_le_ltk_request {
 #define HCI_EV_LINK_KEY_NOTIFY  0x18
 #define HCI_EV_ENCRYPTION_CHANGE_V1 0x08
 #define HCI_EV_ENCRYPTION_CHANGE_V2 0x59
-#define HCI_EV_ENCRYPTION_CHANGE_V3 0xAB
 #define HCI_EV_ENCRYPT_KEY_REFRESH_COMPLETE 0x30
 #define HCI_ENCRYPTION_OFF 0x00
 #define HCI_BT_E0_LE_AES_CCM_ENC_ON 0x01
@@ -3069,21 +2968,9 @@ struct hci_ev_encryption_change_v2 {
     uint8_t encryption_enable; // 0x00 LL ENC OFF, 0x01 LL ENC ON with E0 for BR, AES-CCM for LE, 0x02 LL ENC ON with AES-CCM for BR
     uint8_t encryption_key_size; // 0x01 to 0x10, this parameter shall be ignored for LE connections
 }__attribute__ ((packed));
-struct hci_ev_encryption_change_v3 {
-    uint8_t status;
-    uint16_t conn_handle;
-    uint8_t encryption_enable; // 0x00 LL ENC OFF, 0x01 LL ENC ON with E0 for BR, AES-CCM for LE, 0x02 LL ENC ON with AES-CCM for BR
-    uint8_t encryption_key_size; // 0x01 to 0x10, this parameter shall be ignored for LE connections
-    uint8_t mic_length; // 0x00 32bits, 0x01 64 bits, 0x02 128 bits, 0xFF mic is not used, only valid when encryption is enabled
-}__attribute__ ((packed));
 struct hci_ev_encryption_refresh {
     uint8_t status;
     uint16_t conn_handle;
-}__attribute__ ((packed));
-struct hci_ev_encryption_refresh_v2 {
-    uint8_t status;
-    uint16_t conn_handle;
-    uint8_t mic_length; // 0x00 32bits, 0x01 64 bits, 0x02 128 bits, 0xFF mic is not used, only valid when encryption is enabled
 }__attribute__ ((packed));
 struct hci_read_enc_key_size {
     uint16_t conn_handle;
@@ -3213,9 +3100,6 @@ struct hci_ev_le_gen_dhkey_cmpl {
  */
 #define HCI_LE_SET_CIG_PARAMETERS 0x2062
 #define HCI_LE_SET_CIG_PARAMETERS_TEST 0x2063
-#define HCI_LE_SET_CIG_PARAMETERS_V3 0xFBF9
-#define HCI_LE_SET_CIG_PARAMETERS_TEST_V3 0xFBFA
-
 struct hci_le_cis_configure {
     uint8_t cis_id; // 0x00 to 0xEF, used to identify a CIS
     uint16_t max_sdu_c2p; // 0x0000 to 0x0FFFF, max octets of the sdu payload from C host
@@ -3225,42 +3109,17 @@ struct hci_le_cis_configure {
     uint8_t rtn_c2p; // retransmission number of every CIS Data PDU from C to P before ack or flushed, just recommendation
     uint8_t rtn_p2c; // retransmission number of every CIS Data PDU from P to C before ack or flushed, just recommendation
 } __attribute__ ((packed));
-struct hci_le_cis_configure_v3 {
-    uint8_t cis_id; // 0x00 to 0xEF, used to identify a CIS
-    uint16_t max_sdu_c2p; // 0x0000 to 0x0FFFF, max octets of the sdu payload from C host
-    uint16_t max_sdu_p2c; // 0x0000 to 0x0FFFF, max octets of the sdu payload from P Host
-    uint8_t phy_c2p; // bit 0 - C TX PHY is LE 1M, bit 1 - LE 2M, bit 2 - LE Coded, host shall set at least one bit
-    uint8_t phy_p2c; // bit 0 - P TX PHY is LE 1M, bit 1 - LE 2M, bit 2 - LE Coded, host shall set at least one bit
-    uint8_t rtn_c2p; // retransmission number of every CIS Data PDU from C to P before ack or flushed, just recommendation
-    uint8_t rtn_p2c; // retransmission number of every CIS Data PDU from P to C before ack or flushed, just recommendation
-    uint16_t coded_rates_c2p; // bit 0 - Coded S=2, 1 - Coded S=8
-    uint16_t coded_rates_p2c; // bit 0 - Coded S=2, 1 - Coded S=8
-    uint16_t hdt_rates_c2p; // bit 0 - HDT2, 1 - HDT3, 2 - HDT4, 3 - HDT6, 4 - HDT7.5
-    uint16_t hdt_rates_p2c; // bit 0 - HDT2, 1 - HDT3, 2 - HDT4, 3 - HDT6, 4 - HDT7.5
-} __attribute__ ((packed));
 struct hci_le_set_cig_parameters {
     uint8_t cig_id; // 0x00 to 0xEF, used to identify the CIG
     uint8_t sdu_interval_c2p[3]; // us, 0xFF to 0x0F_FFFF, SDU interval from the C Host for all CISes in CIG
     uint8_t sdu_interval_p2c[3]; // us, 0xFF to 0x0F_FFFF, SDU interval from the P host for all CISes in CIG
     uint8_t worst_case_sca; // worst case sleep clock accuracy of all the Peripherals that will participate in the CIG
     uint8_t packing; // 0x00 sequential, 0x01 interleaved, this is a recommendation the controller may ignore
-    uint8_t framing; // 0x00 unframed, 0x01 framed (Segmentable mode), Core Spec 6.0: 0x02 framed (Unsegmented mode)
+    uint8_t framing; // 0x00 unframed, 0x01 framed
     uint16_t max_transport_latency_c2p; // ms, 0x05 to 0x0FA0, max transport latency from C btc to P btc
     uint16_t max_transport_latency_p2c; // ms
     uint8_t cis_count; // 0x00 to 0x1F, total number of CIS configurations in the CIG being added or modified
     struct hci_le_cis_configure cis_cfg[1];
-} __attribute__ ((packed));
-struct hci_le_set_cig_parameters_v3 {
-    uint8_t cig_id; // 0x00 to 0xEF, used to identify the CIG
-    uint8_t sdu_interval_c2p[3]; // us, 0xFF to 0x0F_FFFF, SDU interval from the C Host for all CISes in CIG
-    uint8_t sdu_interval_p2c[3]; // us, 0xFF to 0x0F_FFFF, SDU interval from the P host for all CISes in CIG
-    uint8_t worst_case_sca; // worst case sleep clock accuracy of all the Peripherals that will participate in the CIG
-    uint8_t packing; // 0x00 sequential, 0x01 interleaved, this is a recommendation the controller may ignore
-    uint8_t framing; // 0x00 unframed, 0x01 framed (Segmentable mode), Core Spec 6.0: 0x02 framed (Unsegmented mode)
-    uint16_t max_transport_latency_c2p; // ms, 0x05 to 0x0FA0, max transport latency from C btc to P btc
-    uint16_t max_transport_latency_p2c; // ms
-    uint8_t cis_count; // 0x00 to 0x1F, total number of CIS configurations in the CIG being added or modified
-    struct hci_le_cis_configure_v3 cis_cfg[1];
 } __attribute__ ((packed));
 struct hci_le_cis_configure_test {
     uint8_t cis_id; // 0x00 to 0xEF, used to identify a CIS
@@ -3274,22 +3133,6 @@ struct hci_le_cis_configure_test {
     uint8_t bn_c2p; // 0x00 no ISO data from C to P, 0x01 to 0x0F BN for C to P transmission
     uint8_t bn_p2c; // 0x00 no ISO data from P to C, 0x01 to 0x0F BN for P to C transmission
 } __attribute__ ((packed));
-struct hci_le_cis_configure_test_v3 {
-    uint8_t cis_id; // 0x00 to 0xEF, used to identify a CIS
-    uint8_t nse; // 0x01 to 0x1F, max number of subevents in each CIS event
-    uint16_t max_sdu_c2p; // 0x0000 to 0x0FFFF, max octets of the sdu payload from C host
-    uint16_t max_sdu_p2c; // 0x0000 to 0x0FFFF, max octets of the sdu payload from P Host
-    uint16_t max_pdu_c2p; // 0x00 to 0xFB, max octets of the pdu payload from C LL to P LL, HDT:0x0000 to 0x1FEF
-    uint16_t max_pdu_p2c; // 0x00 to 0xFB, max octets of the pdu payload from P LL to C LL, HDT:0x0000 to 0x1FEF
-    uint8_t phy_c2p; // bit 0 - C TX PHY is LE 1M, bit 1 - LE 2M, bit 2 - LE Coded, bit 4 - LE HDT, host shall set at least one bit
-    uint8_t phy_p2c; // bit 0 - P TX PHY is LE 1M, bit 1 - LE 2M, bit 2 - LE Coded, bit 4 - LE HDT, host shall set at least one bit
-    uint8_t bn_c2p; // 0x00 no ISO data from C to P, 0x01 to 0x0F BN for C to P transmission
-    uint8_t bn_p2c; // 0x00 no ISO data from P to C, 0x01 to 0x0F BN for P to C transmission
-    uint16_t coded_rates_c2p; // bit 0 - Coded S=2, 1 - Coded S=8
-    uint16_t coded_rates_p2c; // bit 0 - Coded S=2, 1 - Coded S=8
-    uint16_t hdt_rates_c2p; // bit 0 - HDT2, 1 - HDT3, 2 - HDT4, 3 - HDT6, 4 - HDT7.5
-    uint16_t hdt_rates_p2c; // bit 0 - HDT2, 1 - HDT3, 2 - HDT4, 3 - HDT6, 4 - HDT7.5
-} __attribute__ ((packed));
 struct hci_le_set_cig_parameters_test {
     uint8_t cig_id; // 0x00 to 0xEF, used to identify the CIG
     uint8_t sdu_interval_c2p[3]; // us, 0xFF to 0x0F_FFFF, SDU interval from the C Host for all CISes in CIG
@@ -3299,22 +3142,9 @@ struct hci_le_set_cig_parameters_test {
     uint16_t iso_interval; // 0x04 to 0x0C80, per 1.25ms, 5ms to 4s, CIS anchor points interval
     uint8_t worst_case_sca; // worst case sleep clock accuracy of all the Peripherals that will participate in the CIG
     uint8_t packing; // 0x00 sequential, 0x01 interleaved, this is a recommendation the controller may ignore
-    uint8_t framing; // 0x00 unframed, 0x01 framed (Segmentable mode), Core Spec 6.0: 0x02 framed (Unsegmented mode)
+    uint8_t framing; // 0x00 unframed, 0x01 framed
     uint8_t cis_count; // 0x00 to 0x1F, total number of CIS configurations in the CIG being added or modified
     struct hci_le_cis_configure_test cis_cfg[1];
-} __attribute__ ((packed));
-struct hci_le_set_cig_parameters_test_v3 {
-    uint8_t cig_id; // 0x00 to 0xEF, used to identify the CIG
-    uint8_t sdu_interval_c2p[3]; // us, 0xFF to 0x0F_FFFF, SDU interval from the C Host for all CISes in CIG
-    uint8_t sdu_interval_p2c[3]; // us, 0xFF to 0x0F_FFFF, SDU interval from the P host for all CISes in CIG
-    uint8_t ft_c2p; // 0x01 to 0xFF, flush timeout in multiples of ISO_Interval for each payload sent from C to P
-    uint8_t ft_p2c; // 0x01 to 0xFF, flush timeout in multiples of ISO_Interval for each payload sent from P to C
-    uint16_t iso_interval; // 0x04 to 0x0C80, per 1.25ms, 5ms to 4s, CIS anchor points interval
-    uint8_t worst_case_sca; // worst case sleep clock accuracy of all the Peripherals that will participate in the CIG
-    uint8_t packing; // 0x00 sequential, 0x01 interleaved, this is a recommendation the controller may ignore
-    uint8_t framing; // 0x00 unframed, 0x01 framed (Segmentable mode), Core Spec 6.0: 0x02 framed (Unsegmented mode)
-    uint8_t cis_count; // 0x00 to 0x1F, total number of CIS configurations in the CIG being added or modified
-    struct hci_le_cis_configure_test_v3 cis_cfg[1];
 } __attribute__ ((packed));
 struct hci_le_set_cig_params_cmpl {
     uint8_t status;
@@ -3359,19 +3189,11 @@ struct hci_le_set_cig_params_cmpl {
  *
  */
 #define HCI_LE_CREATE_CIS           0x2064
-#define HCI_LE_CREATE_CIS_V2        0x20A8
 struct hci_le_create_cis_item {
     uint16_t cis_handle;
     uint16_t acl_handle;
 } __attribute__ ((packed));
 struct hci_le_create_cis {
-    uint8_t cis_count;
-    struct hci_le_create_cis_item cis_item[1];
-} __attribute__ ((packed));
-struct hci_le_create_cis_v2 {
-    // 0x00-0x0F Indicates the CIG configuration index
-    // 0xFF Controller to choose the active configuration
-    uint8_t config_index;
     uint8_t cis_count;
     struct hci_le_create_cis_item cis_item[1];
 } __attribute__ ((packed));
@@ -3399,11 +3221,7 @@ struct hci_le_reject_cis_request_cmpl {
     uint16_t cis_handle;
 } __attribute__ ((packed));
 
-#define HCI_LE_EV_CIS_ESTABLISH_V1 0x19
-#define HCI_LE_EV_CIS_ESTABLISH_V2 0x2A
-#define HCI_LE_EV_CIS_ESTABLISH_V3 0xF9
-#define HCI_LE_EV_CIS_ESTABLISH_V4 0xFA
-
+#define HCI_LE_EV_CIS_ESTABLISH 0x19
 struct hci_ev_le_cis_establish {
     uint8_t subcode;
     uint8_t status;
@@ -3422,90 +3240,6 @@ struct hci_ev_le_cis_establish {
     uint16_t max_pdu_c2p; // 0x00 to 0xFB, max octets of the pdu payload from C LL to P LL
     uint16_t max_pdu_p2c; // 0x00 to 0xFB
     uint16_t iso_interval; // 0x04 to 0x0C80, per 1.25ms, 5ms to 4s, CIS anchor points interval
-} __attribute__ ((packed));
-
-struct hci_ev_le_cis_establish_v2 {
-    uint8_t subcode;
-    uint8_t status;
-    uint16_t cis_handle;
-    uint8_t cig_sync_delay[3]; // 0xEA to 0x7F_FFFF, max us for transmission of PDUs of all CISes in a CIG event
-    uint8_t cis_sync_delay[3]; // 0xEA to 0x7F_FFFF, max us for transmission of PDUs of the specified CIS in a CIG event
-    uint8_t transport_latency_c2p[3]; // us, 0xEA to 0x7F_FFFF, the actual transport latency us from C btc to P btc
-    uint8_t transport_latency_p2c[3]; // us
-    uint8_t phy_c2p;
-    uint8_t phy_p2c;
-    uint8_t nse; // 0x01 to 0x1F, max number of subevents in each ISO event (CIS event)
-    uint8_t bn_c2p; // 0x00 no ISO data from C to P, 0x01 to 0x0F BN for C to P transmission
-    uint8_t bn_p2c; // 0x00 no ISO data from P to C, 0x01 to 0x0F BN for P to C transmission
-    uint8_t ft_c2p; // 0x01 to 0xFF, flush timeout in multiples of ISO_Interval for each payload sent from C to P
-    uint8_t ft_p2c; // 0x01 to 0xFF
-    uint16_t max_pdu_c2p; // 0x00 to 0xFB, max octets of the pdu payload from C LL to P LL
-    uint16_t max_pdu_p2c; // 0x00 to 0xFB
-    uint16_t iso_interval; // 0x04 to 0x0C80, per 1.25ms, 5ms to 4s, CIS anchor points interval
-    uint8_t sub_interval[3]; // 0x000000, NSE = 1, 0x000190 to ISO_Interval×1250 – 1 in us
-    uint16_t max_sdu_c2p; // 0 to 0x0FFF
-    uint16_t max_sdu_p2c; // 0 to 0x0FFF
-    uint8_t sdu_interval_c2p[3]; // 0x0000FF to 0x0FFFFF in us
-    uint8_t sdu_interval_p2c[3]; // 0x0000FF to 0x0FFFFF in us
-    uint8_t framing; // 0x00 Unframed, 0x01 Framed
-} __attribute__ ((packed));
-struct hci_ev_le_cis_establish_v3 {
-    uint8_t subcode;
-    uint8_t status;
-    uint16_t cis_handle;
-    uint8_t cig_sync_delay[3]; // 0xEA to 0x7F_FFFF, max us for transmission of PDUs of all CISes in a CIG event
-    uint8_t cis_sync_delay[3]; // 0xEA to 0x7F_FFFF, max us for transmission of PDUs of the specified CIS in a CIG event
-    uint8_t transport_latency_c2p[3]; // us, 0xEA to 0x7F_FFFF, the actual transport latency us from C btc to P btc
-    uint8_t transport_latency_p2c[3]; // us
-    uint8_t phy_c2p;
-    uint8_t phy_p2c;
-    uint8_t nse; // 0x01 to 0x1F, max number of subevents in each ISO event (CIS event)
-    uint8_t bn_c2p; // 0x00 no ISO data from C to P, 0x01 to 0x0F BN for C to P transmission
-    uint8_t bn_p2c; // 0x00 no ISO data from P to C, 0x01 to 0x0F BN for P to C transmission
-    uint8_t ft_c2p; // 0x01 to 0xFF, flush timeout in multiples of ISO_Interval for each payload sent from C to P
-    uint8_t ft_p2c; // 0x01 to 0xFF
-    uint16_t max_pdu_c2p; // 0x00 to 0xFB, (phy_c2p is set to LE HDT PHY, 0x0000 to 0x1FEF) max octets of the pdu payload from C LL to P LL
-    uint16_t max_pdu_p2c; // 0x00 to 0xFB, (phy_p2c is set to LE HDT PHY, 0x0000 to 0x1FEF)
-    uint16_t iso_interval; // 0x04 to 0x0C80, per 1.25ms, 5ms to 4s, CIS anchor points interval
-    uint8_t sub_interval[3]; // 0x000000, NSE = 1, 0x000190 to ISO_Interval×1250 – 1 in us
-    uint16_t max_sdu_c2p; // 0 to 0x0FFF
-    uint16_t max_sdu_p2c; // 0 to 0x0FFF
-    uint8_t sdu_interval_c2p[3]; // 0x0000FF to 0x0FFFFF in us
-    uint8_t sdu_interval_p2c[3]; // 0x0000FF to 0x0FFFFF in us
-    uint8_t framing; // 0x00 Unframed, 0x01 Framed
-    uint8_t rates_bf_c2p; // Multiple rates, specifies the set of contiguous rates, bit 0 - S=2/HDT2, 1 - S=8/HDT3, 2 - HDT4, 3 - HDT 6, 4 - HDT 7.5
-    uint8_t rates_bf_p2c; // Multiple rates, specifies the set of contiguous rates, bit 0 - S=2/HDT2, 1 - S=8/HDT3, 2 - HDT4, 3 - HDT 6, 4 - HDT 7.5
-    uint8_t config_index; // Transport latency group identifier associated with the Config_ID, 0x00 - 0x1F
-    uint8_t trans_latency_grp_index; // Transport latency group identifier associated with the Config_ID, 0x00 - 0x0F
-} __attribute__ ((packed));
-struct hci_ev_le_cis_establish_v4 {
-    uint8_t subcode;
-    uint8_t status;
-    uint16_t cis_handle;
-    uint8_t cig_sync_delay[3]; // 0xEA to 0x7F_FFFF, max us for transmission of PDUs of all CISes in a CIG event
-    uint8_t cis_sync_delay[3]; // 0xEA to 0x7F_FFFF, max us for transmission of PDUs of the specified CIS in a CIG event
-    uint8_t transport_latency_c2p[3]; // us, 0xEA to 0x7F_FFFF, the actual transport latency us from C btc to P btc
-    uint8_t transport_latency_p2c[3]; // us
-    uint8_t phy_c2p;
-    uint8_t phy_p2c;
-    uint8_t nse; // 0x01 to 0x1F, max number of subevents in each ISO event (CIS event)
-    uint8_t bn_c2p; // 0x00 no ISO data from C to P, 0x01 to 0x0F BN for C to P transmission
-    uint8_t bn_p2c; // 0x00 no ISO data from P to C, 0x01 to 0x0F BN for P to C transmission
-    uint8_t ft_c2p; // 0x01 to 0xFF, flush timeout in multiples of ISO_Interval for each payload sent from C to P
-    uint8_t ft_p2c; // 0x01 to 0xFF
-    uint16_t max_pdu_c2p; // 0x00 to 0xFB, (phy_c2p is set to LE HDT PHY, 0x0000 to 0x1FEF) max octets of the pdu payload from C LL to P LL
-    uint16_t max_pdu_p2c; // 0x00 to 0xFB, (phy_p2c is set to LE HDT PHY, 0x0000 to 0x1FEF)
-    uint16_t iso_interval; // 0x04 to 0x0C80, per 1.25ms, 5ms to 4s, CIS anchor points interval
-    uint8_t sub_interval[3]; // 0x000000, NSE = 1, 0x000190 to ISO_Interval×1250 – 1 in us
-    uint16_t max_sdu_c2p; // 0 to 0x0FFF
-    uint16_t max_sdu_p2c; // 0 to 0x0FFF
-    uint8_t sdu_interval_c2p[3]; // 0x0000FF to 0x0FFFFF in us
-    uint8_t sdu_interval_p2c[3]; // 0x0000FF to 0x0FFFFF in us
-    uint8_t framing; // 0x00 Unframed, 0x01 Framed
-    uint8_t rates_bf_c2p; // Multiple rates, specifies the set of contiguous rates, bit 0 - S=2/HDT2, 1 - S=8/HDT3, 2 - HDT4, 3 - HDT 6, 4 - HDT 7.5
-    uint8_t rates_bf_p2c; // Multiple rates, specifies the set of contiguous rates, bit 0 - S=2/HDT2, 1 - S=8/HDT3, 2 - HDT4, 3 - HDT 6, 4 - HDT 7.5
-    uint8_t encryption_enabled; // Encryption is enabled or disabled on the CIS
-    uint8_t mic_length; // MIC length, 0x00 - 32bits, 0x01 - 64bits, 0x02 - 128bits
 } __attribute__ ((packed));
 
 /**
@@ -3778,8 +3512,6 @@ struct hci_ev_le_iso_quality_report {
  */
 #define HCI_LE_CREATE_BIG               0x2068
 #define HCI_LE_CREATE_BIG_TEST          0x2069
-#define HCI_LE_CREATE_BIG_V2            0xFBFB
-#define HCI_LE_CREATE_BIG_TEST_V2       0xFBFC
 struct hci_le_create_big {
     uint8_t big_handle; // 0x00 to 0xEF, used to identify the BIG
     uint8_t adv_handle; // 0x00 to 0xEF, used to identify the pa train
@@ -3794,24 +3526,6 @@ struct hci_le_create_big {
     uint8_t encryption; // 0x00 unencrypted, 0x01 encrypted
     uint8_t broadcast_code[16]; // used to derive the session key that is used to encrypt and decrpt BIS payloads
 } __attribute__ ((packed));
-struct hci_le_create_big_v2 {
-    uint8_t big_handle; // 0x00 to 0xEF, used to identify the BIG
-    uint8_t adv_handle; // 0x00 to 0xEF, used to identify the pa train
-    uint8_t num_bis; // 0x01 to 0x1F, total number of BISes in the BIG
-    uint8_t sdu_interval[3]; // 0xFF to 0x0F_FFFF, the interval in us of periodic SDUs
-    uint16_t max_sdu; // 0x01 to 0x0FFFF, max octets of an SDU
-    uint16_t max_transport_latency; // 0x05 to 0x0FA0, max transport latency in us, this includes pre-transmissions
-    uint8_t rtn; // 0x00 to 0x1E, retransmition number of every BIS data PDU, just recommendation Controller may ignore
-    uint8_t phy; // bit 0: transmitter phy is LE 1M, bit 1: LE 2M, bit 2: LE Coded, bit 4: LE HDT, Host shall set at least one bit
-    uint8_t packing; // 0x00 sequential, 0x01 interleaved, just recommendation
-    uint8_t framing; // 0x00 unframed, 0x01 framed
-    uint8_t encryption; // 0x00 unencrypted, 0x01 encrypted
-    uint8_t broadcast_code[16]; // used to derive the session key that is used to encrypt and decrpt BIS payloads
-    uint16_t coded_rates_bf; // Multiple rates, specifies the set of contiguous rates, bit 0 - S=2, 1 - S=8
-    uint16_t hdt_rates_bf; // Multiple rates, specifies the set of contiguous rates, bit 0 - HDT2, 1 - HDT3, 2 - HDT4, 3 - HDT 6, 4 - HDT 7.5
-    uint8_t mic_length; // MIC length, 0x00 - 32bits, 0x01 - 64bits, 0x02 - 128bits
-    uint8_t max_plds_per_pkt; // Rang 1 to 4, maximum number of payloads that can be transmitted per packet on the BIG
-} __attribute__ ((packed));
 struct hci_le_create_big_test {
     uint8_t big_handle; // 0x00 to 0xEF, used to identify the BIG
     uint8_t adv_handle; // 0x00 to 0xEF, used to identify the pa train
@@ -3821,7 +3535,7 @@ struct hci_le_create_big_test {
     uint8_t nse; // 0x01 to 0x1F, total number of subevents in each interval of each BIS in the BIG
     uint16_t max_sdu; // 0x01 to 0x0FFFF, max octets of an SDU
     uint16_t max_pdu; // 0x01 to 0xFB, max octets of PDU payload
-    uint8_t phy; // bit 0: transmitter phy is LE 1M, bit 1: LE 2M, bit 2: LE Coded, bit 4: LE HDT
+    uint8_t phy; // bit 0: transmitter phy is LE 1M, bit 1: LE 2M, bit 2: LE Coded
     uint8_t packing; // 0x00 sequential, 0x01 interleaved
     uint8_t framing; // 0x00 unframed, 0x01 framed
     uint8_t bn; // 0x01 to 0x07, number of new payloads in each interval for each BIS
@@ -3829,28 +3543,6 @@ struct hci_le_create_big_test {
     uint8_t pto; // 0x00 to 0x0F, offset used for pre-transmissions
     uint8_t encryption; // 0x00 unencrypted, 0x01 encrypted
     uint8_t broadcast_code[16]; // used to derive the session key that is used to encrypt and decrpt BIS payloads
-} __attribute__ ((packed));
-struct hci_le_create_big_test_v2 {
-    uint8_t big_handle; // 0x00 to 0xEF, used to identify the BIG
-    uint8_t adv_handle; // 0x00 to 0xEF, used to identify the pa train
-    uint8_t num_bis; // 0x01 to 0x1F, total number of BISes in the BIG
-    uint8_t sdu_interval[3]; // 0xFF to 0x0F_FFFF, the interval in us of periodic SDUs
-    uint16_t iso_interval; // 0x04 to 0x0C80, per 1.25ms, 5ms to 4s, interval between BIG anchor points
-    uint8_t nse; // 0x01 to 0x1F, total number of subevents in each interval of each BIS in the BIG
-    uint16_t max_sdu; // 0x01 to 0x0FFFF, max octets of an SDU
-    uint16_t max_pdu; // 0x01 to 0x1FEF, max octets of PDU payload
-    uint8_t phy; // bit 0: transmitter phy is LE 1M, bit 1: LE 2M, bit 2: LE Coded, bit 4: LE HDT
-    uint8_t packing; // 0x00 sequential, 0x01 interleaved
-    uint8_t framing; // 0x00 unframed, 0x01 framed
-    uint8_t bn; // 0x01 to 0x07, number of new payloads in each interval for each BIS
-    uint8_t irc; // 0x01 to 0x0F, number of times the scheduled payloads are transmitted in a given event
-    uint8_t pto; // 0x00 to 0x0F, offset used for pre-transmissions
-    uint8_t encryption; // 0x00 unencrypted, 0x01 encrypted
-    uint8_t broadcast_code[16]; // used to derive the session key that is used to encrypt and decrpt BIS payloads
-    uint16_t coded_rates_bf; // Multiple rates, specifies the set of contiguous rates, bit 0 - S=2, 1 - S=8
-    uint16_t hdt_rates_bf; // Multiple rates, specifies the set of contiguous rates, bit 0 - HDT2, 1 - HDT3, 2 - HDT4, 3 - HDT 6, 4 - HDT 7.5
-    uint8_t mic_length; // MIC length, 0x00 - 32bits, 0x01 - 64bits, 0x02 - 128bits
-    uint8_t max_plds_per_pkt; // Rang 1 to 4, maximum number of payloads that can be transmitted per packet on the BIG
 } __attribute__ ((packed));
 
 #define HCI_LE_EV_CREATE_BIG_COMPLETE 0x1B
@@ -3860,12 +3552,12 @@ struct hci_ev_le_create_big_complete {
     uint8_t big_handle; // 0x00 to 0xEF, the identifier of the BIG
     uint8_t big_sync_delay[3]; // 0xEA to 0x7F_FFFF, max time in us for transmission of PDUs of all BISes in a BIG event
     uint8_t transport_latency_big[3]; // 0xEA to 0x7F_FFFF, actual transport latency, in us
-    uint8_t phy; // 0x01 the phy used to create the BIG is LE 1M, 0x02 LE 2M, 0x03 LE Coded, 0x05 LE HDT
+    uint8_t phy; // 0x01 the phy used to create the BIG is LE 1M, 0x02 LE 2M, 0x03 LE Coded
     uint8_t nse; // 0x01 to 0x1F, num of subevents in each BIS event in the BIG
     uint8_t bn; // 0x01 to 0x07, the number of new payloads in each BIS event
     uint8_t pto; // 0x00 to 0x0F, offset used for pre-transmissions
     uint8_t irc; // 0x01 to 0x0F, num of times a payload is transmitted in a BIS event
-    uint16_t max_pdu; // 0x01 to 0xFB, max octets of the PDU payload, HDT:0x0000 to 0x1FEF
+    uint16_t max_pdu; // 0x01 to 0xFB, max octets of the PDU payload
     uint16_t iso_interval; // 0x04 to 0x0C80, per 1.25ms, 5ms to 4s, BIG anchor points interval
     uint8_t num_bis; // 0x01 to 0x1F, total number of BISes in the BIG
     uint16_t bis_handle[1];
@@ -3958,10 +3650,10 @@ struct hci_ev_le_big_info_adv_report { // shall be generated even if the Control
     uint8_t bn; // 0x01 to 0x07, BN subfield of the BIGInfo field
     uint8_t pto; // 0x00 to 0x0F, pre-transmission offset, PTO subfield of the BIGInfo field
     uint8_t irc; // 0x01 to 0x0F, IRC subfield of the BIGInfo field
-    uint16_t max_pdu; // 0x01 to 0xFB, max_pdu subfiled of the BIGInfo, HDT:0x0000 to 0x1FEF
+    uint16_t max_pdu; // 0x01 to 0xFB, max_pdu subfiled of the BIGInfo
     uint8_t sdu_interval[3]; // 0xFF to 0x0F_FFFF, sdu_interval subfield of the BIGInfo field
     uint16_t max_sdu; // 0x01 to 0x0FFF, max_sdu subfield of the BIGInfo
-    uint8_t phy; // 0x01 the BIG is transmitted on the LE 1M PHY, 0x02 LE 2M, 0x03 LE Coded, 0x05 LE HDT
+    uint8_t phy; // 0x01 the BIG is transmitted on the LE 1M PHY, 0x02 LE 2M, 0x03 LE Coded
     uint8_t framing; // 0x00 unframed 0x01 framed
     uint8_t encrypt; // 0x00 BIG carries unencrypted data, 0x01 BIG carries encrypted data
 } __attribute__ ((packed));
@@ -3988,7 +3680,7 @@ struct hci_ev_le_big_sync_established {
     uint8_t bn; // 0x01 to 0x07, the number of new payloads in each BIS event
     uint8_t pto; // 0x00 to 0x0F, offset used for pre-transmissions
     uint8_t irc; // 0x01 to 0x0F, num of times a payload is transmitted in a BIS event
-    uint16_t max_pdu; // 0x01 to 0xFB, max octets of the PDU payload, HDT:0x0000 to 0x1FEF
+    uint16_t max_pdu; // 0x01 to 0xFB, max octets of the PDU payload
     uint16_t iso_interval; // 0x0004 to 0x0C80, per 1.25ms, 5ms to 4s, time between two BIG anchor points
     uint8_t num_bis; // 0x01 to 0x1F, total number of established BISes, shall be same in LE_BIG_Create_Sync command
     uint16_t bis_handle[1];
@@ -4008,309 +3700,6 @@ struct hci_ev_le_big_sync_lost {
     uint8_t subcode;
     uint8_t big_handle;
     uint8_t reason;
-} __attribute__ ((packed));
-
-/*
- * The HCI_LE_Bit_Rate_Change_Request_Reply command is used to
- * reply to the bit rate change request from the Controller.
- *
- * The HCI_LE_Set_CIS_Bit_Rate_Options command is used by a Host
- * to set the bit rate change options for a CIS.
- *
- * The HCI_LE_Add_CIG_Configuration command is used by a Central’s
- * Host to add configuration parameters that are associated with a
- * CIG that contains one or more CISes.
- *
- * The HCI_LE_Add_CIG_Configuration_Test command is used by a
- * Central’s Host to add configuration parameters that are associated
- * with a CIG that contains one or more CISes for testing purposes.
- *
- * The HCI_LE_Remove_CIG_Configuration command is used to remove
- * labels associated with a configuration in a CIG.
- *
- * The HCI_LE_CIG_Update command is used to initiate parameter
- * update over one or more CISes in a CIG.
- *
- * The HCI_LE_CIG_Update_Test command is used to initiate parameter
- * update over one or more CISes in a CIG for test purposes.
- *
- * The HCI_LE_CIS_ Update event is used to update the Host when
- * a Label is created, activated or removed.
- *
- * The HCI_LE_CIG_Bit_Rate_Change_Request event is used to
- * request a bit rate change from the Host.
-*/
-
-#define HCI_LE_BIT_RATE_CHANGE_REQ_REPLY 0xFBEF
-#define HCI_LE_SET_CIS_BIT_RATE_OPTIONS 0xFBEE
-#define HCI_LE_ADD_CIG_CONFIGURATIONS 0xFBED
-#define HCI_LE_ADD_CIG_CONFIGURATIONS_TEST 0xFBEC
-#define HCI_LE_REMOVE_CIG_CONFIGURATIONS 0xFBEB
-#define HCI_LE_UPDATE_CIG 0xFBEA
-#define HCI_LE_UPDATE_CIG_TEST 0xFBE9
-#define HCI_LE_SET_DEFAULT_CIS_UPDATE_PARAMETERS 0xFBE8
-#define HCI_LE_READ_CIS_UPDATE_CAPABILITIES 0xFBE7
-
-#define HCI_LE_EV_CIS_UPDATE 0xF7
-#define HCI_LE_EV_CIG_BIT_RATE_CHANGE_REQUEST 0xF6
-
-struct hci_le_read_cis_update_capa_cmpl
-{
-    uint8_t status;
-    /// Maximum number of CIG configurations supported by the local Controller per CIG,
-    /// not including the configuration created during CIS establishment, 0x00 - 0x1F.
-    uint8_t max_configs_local;
-} __attribute__ ((packed));
-struct hci_le_cis_bit_rate_req_item
-{
-    /// Connection Handle of the CIS in the CIG.
-    uint16_t cis_handle;
-    /// Selected maximum SDU size, in octets, of the payload.
-    uint16_t selected_max_sdu;
-    /// Packet sequence number of the SDU when the Host can switch to new bit rate.
-    uint16_t update_packet_sequence_number;
-} __attribute__ ((packed));
-struct hci_le_cig_bit_rate_change_request_reply
-{
-    /// Requested SDU change successful for all the CIS(es) or failed
-    uint8_t update_status;
-    /// 0x01 to 0x1F Total number of CIS connections for which a change request is being made
-    uint8_t cis_count;
-    /// CIS Bit rate request item
-    struct hci_le_cis_bit_rate_req_item cis[0];
-} __attribute__ ((packed));
-struct hci_le_cig_bit_rate_change_request_reply_cmpl
-{
-    uint8_t status;
-    /// 0x01 to 0x1F Total number of CIS connections for which a change request is being made
-    uint8_t cis_count;
-    /// Connection Handle of the CIS in the CIG.
-    uint16_t cis_handle[0];
-} __attribute__ ((packed));
-struct hci_le_set_cis_bit_rate_options
-{
-    /// Connection Handle of the CIS in the CIG.
-    uint16_t cis_handle;
-    /// Number of bit rate options for the CIS in the CIG.
-    uint8_t count;
-    /// Maximum size, in octets, of the payload from local to remote Controller.
-    uint16_t max_sdu[0];
-} __attribute__ ((packed));
-struct hci_le_set_cis_bit_rate_options_cmpl
-{
-    uint8_t status;
-    /// Connection Handle of the CIS in the CIG.
-    uint16_t cis_handle;
-    /// Number of bit rate options for the CIS in the CIG.
-    uint8_t count;
-    /// 0x00 Specified bit rate option is accepted by local Controller.
-    /// 0x01 Specified bit rate option is rejected by local Controller.
-    uint8_t state[0];
-} __attribute__ ((packed));
-struct hci_le_add_cig_cfg_cis_item
-{
-    /// Connection Handle of the CIS in the CIG.
-    uint16_t cis_handle;
-    /// Maximum size, in octets, of the payload.
-    uint16_t max_sdu_c2p;
-    uint16_t max_sdu_p2c;
-    /// bit 0 - C TX PHY is LE 1M, bit 1 - LE 2M, bit 2 - LE Coded, bit 4 - LE HDT
-    uint8_t phy_c2p;
-    uint8_t phy_p2c;
-    /// Retransmission number of every CIS Data PDU before ack or flushed, just recommendation
-    uint8_t rtn_c2p;
-    uint8_t rtn_p2c;
-    /// bit 0 - HDT2/Coded S=2, 1 - HDT3/Coded S=8, 2 - HDT4, 3 - HDT6, 4 - HDT7.5
-    uint8_t rates_bf_c2p;
-    uint8_t rates_bf_p2c;
-} __attribute__ ((packed));
-struct hci_le_add_cig_configuration
-{
-    /// Used to identify the CIG, 0x00 to 0xEF
-    uint8_t cig_id;
-    /// Indicates the CIG configuration index, 0x01 to 0x0F
-    uint8_t config_index;
-    /// us, 0xFF to 0x0F_FFFF, SDU interval for all CISes in CIG
-    uint8_t sdu_interval_c2p[3];
-    uint8_t sdu_interval_p2c[3];
-    /// worst case sleep clock accuracy of all the Peripherals that will participate in the CIG
-    uint8_t worst_case_sca;
-    /// 0x00 sequential, 0x01 interleaved, this is a recommendation the controller may ignore
-    uint8_t packing;
-    /// 0x00 unframed, 0x01 framed (Segmentable mode), Core Spec 6.0: 0x02 framed (Unsegmented mode)
-    uint8_t framing;
-    /// ms, 0x05 to 0x0FA0, max transport latency
-    uint16_t max_transport_latency_c2p;
-    uint16_t max_transport_latency_p2c;
-    /// Total number of CIS connections for which add cig configurations is being made
-    uint8_t cis_count;
-    /// CIS configurations
-    struct hci_le_add_cig_cfg_cis_item cis[0];
-} __attribute__ ((packed));
-struct hci_le_add_cig_cfg_cis_item_test
-{
-    /// Connection Handle of the CIS in the CIG.
-    uint16_t cis_handle;
-    /// 0x01 to 0x1F Maximum number of subevents in each CIS event.
-    uint8_t nse;
-    /// Maximum size, in octets, of the payload.
-    uint16_t max_sdu_c2p;
-    uint16_t max_sdu_p2c;
-    /// Maximum size, in octets, of the total packet payload.
-    uint16_t max_pdu_c2p;
-    uint16_t max_pdu_p2c;
-    /// bit 0 - C TX PHY is LE 1M, bit 1 - LE 2M, bit 2 - LE Coded, bit 4 - LE HDT
-    uint8_t phy_c2p;
-    uint8_t phy_p2c;
-    /// 0x00 No isochronous data
-    /// 0x01 to 0x0F The burst number for transmission.
-    uint8_t bn_c2p;
-    uint8_t bn_p2c;
-    /// bit 0 - HDT2/Coded S=2, 1 - HDT3/Coded S=8, 2 - HDT4, 3 - HDT6, 4 - HDT7.5
-    uint16_t rates_bf_c2p;
-    uint16_t rates_bf_p2c;
-} __attribute__ ((packed));
-struct hci_le_add_cig_configuration_test
-{
-    /// Used to identify the CIG, 0x00 to 0xEF
-    uint8_t cig_id;
-    /// Indicates the CIG configuration index, 0x01 to 0x0F
-    uint8_t config_index;
-    /// us, 0xFF to 0x0F_FFFF, SDU interval for all CISes in CIG
-    uint8_t sdu_interval_c2p[3];
-    uint8_t sdu_interval_p2c[3];
-    /// The flush timeout in multiples of ISO_Interval for each payload sent.
-    uint8_t ft_c2p;
-    uint8_t ft_p2c;
-    /// 0x04 to 0x0C80, per 1.25ms, 5ms to 4s, CIS anchor points interval
-    uint16_t iso_interval;
-    /// worst case sleep clock accuracy of all the Peripherals that will participate in the CIG
-    uint8_t worst_case_sca;
-    /// 0x00 sequential, 0x01 interleaved, this is a recommendation the controller may ignore
-    uint8_t packing;
-    /// 0x00 unframed, 0x01 framed (Segmentable mode), Core Spec 6.0: 0x02 framed (Unsegmented mode)
-    uint8_t framing;
-    /// Total number of CIS connections for which add cig configurations test is being made
-    uint8_t cis_count;
-    /// CIS configurations test
-    struct hci_le_add_cig_cfg_cis_item_test cis[0];
-} __attribute__ ((packed));
-struct hci_le_add_cig_configurations_cmpl
-{
-    uint8_t status;
-    /// Used to identify the CIG, 0x00 to 0xEF
-    uint8_t cig_id;
-    /// Indicates the CIG configuration index, 0x01 to 0x0F
-    uint8_t config_index;
-} __attribute__ ((packed));
-struct hci_le_remove_cig_configuration
-{
-    /// Used to identify the CIG, 0x00 to 0xEF
-    uint8_t cig_id;
-    /// Indicates the CIG configuration index, 0x01 to 0x0F
-    uint8_t config_index;
-} __attribute__ ((packed));
-struct hci_le_update_cig
-{
-    /// Used to identify the CIG, 0x00 to 0xEF
-    uint8_t cig_id;
-    /// Role, 0x00 central 0x01 peripheral
-    uint8_t role;
-    /// Connection Handle of the CIS in the CIG.
-    uint16_t cis_handle;
-    /// Indicates the CIG configuration index, 0x01 to 0x0F
-    uint8_t config_index;
-    /// Suggested offset to the SDU sequence number that starts with the update instant
-    /// from the current packet sequence number when this event is received.
-    uint8_t suggested_upsn_offset;
-} __attribute__ ((packed));
-struct hci_le_update_cig_test
-{
-    /// Used to identify the CIG, 0x00 to 0xEF
-    uint8_t cig_id;
-    /// Role, 0x00 central 0x01 peripheral
-    uint8_t role;
-    /// Connection Handle of the CIS in the CIG.
-    uint16_t cis_handle;
-    /// Indicates the CIG configuration index, 0x01 to 0x0F
-    uint8_t config_index;
-    /// Suggested offset to the SDU sequence number that starts with the update instant
-    /// from the current packet sequence number when this event is received.
-    uint8_t suggested_upsn_offset;
-    /// Count of the CISes included in this command.
-    uint8_t cis_count;
-    /// The time offset to the CIS anchor point in units of microseconds (signed integer).
-    int16_t anchor_offset[0];
-} __attribute__ ((packed));
-struct hci_le_cis_update_event
-{
-    uint8_t subcode;
-    /// CIS udpate status
-    uint8_t status;
-    /// Connection Handle of the CIS in the CIG.
-    uint16_t cis_handle;
-    /// Indicates the configuration index to which the Label_ID belongs.
-    uint8_t config_index;
-    /// Transport latency group identifier associated with the Config_ID.
-    uint8_t trans_latency_grp_index;
-    /// 0x00 Label is created.
-    /// 0x01 Label update is to be initiated.
-    /// 0x02 Label update is completed.
-    /// 0x03 Label is removed.
-    uint8_t state;
-    /// Packet sequence number of the first SDU sequence number that can be transmitted only after the update instant.
-    uint16_t upd_pkt_seq_number;
-    /// The maximum time, in microseconds, for transmission of PDUs of all CISes in a CIG event, 0x0000F2 to 0x7FFFFF.
-    uint8_t cig_sync_delay[3];
-    /// The maximum time, in microseconds, for transmission of PDUs of the specified CIS in a CIG event, 0x0000F2 to 0x7FFFFF.
-    uint8_t cis_sync_delay[3];
-    /// The actual transport latency, in microseconds, from Central to Peripheral, 0x0000F2 to 0x7FFFFF.
-    uint8_t trans_latency_c2p[3];
-    /// The actual transport latency, in microseconds, from Peripheral to Central, 0x0000F2 to 0x7FFFFF.
-    uint8_t trans_latency_p2c[3];
-    /// bit 0 - C TX PHY is LE 1M, bit 1 - LE 2M, bit 2 - LE Coded, bit 4 - LE HDT
-    uint8_t phy_c2p;
-    uint8_t phy_p2c;
-    /// 0x01 to 0x1F Maximum number of subevents in each CIS event.
-    uint8_t nse;
-    /// 0x00 No isochronous data
-    /// 0x01 to 0x0F The burst number for transmission.
-    uint8_t bn_c2p;
-    uint8_t bn_p2c;
-    /// The flush timeout in multiples of ISO_Interval for each payload sent.
-    uint8_t ft_c2p;
-    uint8_t ft_p2c;
-    /// Maximum size, in octets, of the total packet payload.
-    uint16_t max_pdu_c2p;
-    uint16_t max_pdu_p2c;
-    /// 0x04 to 0x0C80, per 1.25ms, 5ms to 4s, CIS anchor points interval
-    uint16_t iso_interval;
-    /// 0x000000, NSE = 1, 0x000190 to ISO_Interval×1250 – 1 in us
-    uint8_t sub_interval[3];
-    /// 0x0000 to 0x0FFFF, max octets of the sdu payload
-    uint16_t max_sdu_c2p;
-    uint16_t max_sdu_p2c;
-    /// bit 0 - HDT2/Coded S=2, 1 - HDT3/Coded S=8, 2 - HDT4, 3 - HDT6, 4 - HDT7.5
-    uint16_t rates_bf_c2p;
-    uint16_t rates_bf_p2c;
-} __attribute__ ((packed));
-struct hci_le_cis_bit_rate_item
-{
-    /// Connection Handle of the CIS in the CIG.
-    uint16_t cis_handle;
-    /// Update to maximum SDU size, in octets, of the payload requested from the Host
-    uint16_t max_sdu;
-} __attribute__ ((packed));
-struct hci_le_cig_bit_rate_change_request
-{
-    uint8_t subcode;
-    /// Suggested offset to the SDU sequence number that starts with the update instant
-    /// from the current packet sequence number when this event is received.
-    uint8_t suggested_upsn_offset;
-    /// Total number of CIS connections for which a change request is being made, 0x01 to 0x1F
-    uint8_t cis_count;
-    /// CIS bit rate
-    struct hci_le_cis_bit_rate_item cis[0];
 } __attribute__ ((packed));
 
 /**
@@ -4420,7 +3809,7 @@ struct hci_le_pa_subevent_data_item {
 } __attribute__ ((packed));
 struct hci_le_set_pa_subevent_data {
     uint8_t adv_handle; // 0x00 to 0xEF, identify a pa train
-    uint8_t num_subevents_with_data; // 0x01 to 0x0F
+    uint8_t num_subevents; // 0x01 to 0x0F
     struct hci_le_pa_subevent_data_item item[1];
 } __attribute__ ((packed));
 struct hci_ev_le_set_pa_subevent_data_cmpl {
@@ -4447,7 +3836,6 @@ struct hci_ev_le_pa_response_data_item {
     uint8_t data_length;
     uint8_t data[1];
 } __attribute__ ((packed));
-
 struct hci_ev_le_pa_response_report {
     uint8_t subcode; // 0x28
     uint8_t adv_handle; // 0x00 to 0xEF, identify a pa train
@@ -4792,7 +4180,7 @@ struct hci_ev_le_set_pa_response_data_cmpl {
 struct hci_le_set_pa_sync_subevent {
     uint16_t sync_handle;
     uint16_t pa_properties; // bit 6 - include tx power in AUX_SYNC_SUBEVENT_RSP PDUs or not
-    uint8_t num_subevents_to_sync; // 0x01 to 0x80 num of subevents to sync
+    uint8_t num_subevents; // 0x01 to 0x80 num of subevents
     // subevent[i] 0x00 to 0x7F the subevent to synchronize with
 } __attribute__ ((packed));
 struct hci_ev_le_set_pa_sync_subevent_cmpl {
@@ -4800,528 +4188,6 @@ struct hci_ev_le_set_pa_sync_subevent_cmpl {
     uint16_t sync_handle;
 } __attribute__ ((packed));
 
-/**
- * Channel Sounding HCI
- *
- *
- */
-#define LE_CS_CHANNEL_NUM           (72)
-#define LE_CS_CHANNEL_MAP_BIT_NUM   (80)
-#define LE_CS_BYTE_BIT_NUM          (8)
-#define LE_CS_CHANNEL_MAP_SIZE      (10)    // LE_CS_CHANNEL_MAP_BIT_NUM / LE_CS_BYTE_BIT_NUM
-#define HCI_LE_CMD_CS_READ_LOCAL_SUPP_CAPS              0x2089
-#define HCI_LE_CMD_CS_READ_REMOTE_SUPP_CAPS             0x208A
-struct hci_le_cmd_cs_read_remote_supp_capas {
-    uint16_t conn_handle;
-} __attribute__((packed));
-
-#define HCI_LE_CMD_CS_WRITE_CACHED_REMOTE_SUPP_CAPS     0x208B
-struct hci_le_cmd_cs_write_cached_remote_supp_capas {
-    uint16_t    conn_handle;
-    uint8_t     num_config_supp;
-    uint16_t    max_cnsv_proc_supp;     // cnsv -> consecutive
-    uint8_t     num_antennas_supp;
-    uint8_t     max_antenna_paths_supp;
-    uint8_t     roles_supp;
-    uint8_t     modes_supp;
-    uint8_t     rtt_capas;
-    uint8_t     rtt_aa_only_n;
-    uint8_t     rtt_sounding_n;
-    uint8_t     rtt_random_payload_n;
-    uint16_t    nadm_sounding_capability;
-    uint16_t    nadm_random_capability;
-    uint8_t     cs_sync_phys_supp;
-    uint16_t    subfeatures_supp;
-    uint16_t    t_ip1_times_supp;
-    uint16_t    t_ip2_times_supp;
-    uint16_t    t_fcs_times_supp;
-    uint16_t    t_pm_times_supp;
-    uint16_t    t_sw_time_supp;
-    uint8_t     tx_snr_capability;
-} __attribute__((packed));
-
-#define HCI_LE_CMD_CS_SECURITY_ENABLE               0x208C
-struct hci_le_cmd_cs_security_enable {
-    uint16_t conn_handle;
-} __attribute__((packed));
-
-#define HCI_LE_CMD_CS_SET_DEFAULT_SETTINGS          0x208D
-struct hci_le_cmd_cs_set_default_settings {
-    uint16_t    conn_handle;
-    uint8_t     role_enable;
-    uint8_t     cs_sync_antenna_selection;
-    uint8_t     max_tx_power;
-} __attribute__((packed));
-
-#define HCI_LE_CMD_CS_READ_REMOTE_FAE_TABLE         0x208E
-struct hci_le_cmd_cs_read_remote_fae_table {
-    uint16_t conn_handle;
-} __attribute__((packed));
-
-#define HCI_LE_CMD_CS_WRITE_CACHED_REMOTE_FAE_TABLE 0x208F
-struct hci_le_cmd_cs_write_cached_remote_fae_table {
-    uint16_t    conn_handle;
-    uint8_t     remote_fae_table[LE_CS_CHANNEL_NUM];
-} __attribute__((packed));
-
-#define HCI_LE_CMD_CS_CREATE_CONFIG                 0x2090
-struct hci_le_cmd_cs_create_config {
-    uint16_t    conn_handle;
-    uint8_t     config_id;
-    uint8_t     create_context;
-    uint8_t     main_mode_type;
-    uint8_t     sub_mode_type;
-    uint8_t     min_main_mode_steps;
-    uint8_t     max_main_mode_steps;
-    uint8_t     main_mode_repetition;
-    uint8_t     mode_0_steps;
-    uint8_t     role;
-    uint8_t     rtt_type;
-    uint8_t     cs_sync_phy;
-    uint8_t     channel_map[LE_CS_CHANNEL_MAP_SIZE];
-    uint8_t     channel_map_repetition;
-    uint8_t     channel_selection_type;
-    uint8_t     ch3c_shape;
-    uint8_t     ch3c_jump;
-    uint8_t     reserved;
-} __attribute__((packed));
-
-#define HCI_LE_CMD_CS_REMOVE_CONFIG                 0x2091
-struct hci_le_cmd_cs_remove_config {
-    uint16_t    conn_handle;
-    uint8_t     config_id;
-} __attribute__((packed));
-
-// class -> classification
-#define HCI_LE_CMD_CS_SET_CHANNEL_CLASSIFICATION    0x2092
-struct hci_le_cmd_cs_set_channel_classification {
-    uint8_t channel_classification[LE_CS_CHANNEL_MAP_SIZE];
-} __attribute__((packed));
-
-#define HCI_LE_CMD_CS_SET_PROC_PARAMS               0x2093
-struct hci_le_cmd_cs_set_proc_params {
-    uint16_t    conn_handle;
-    uint8_t     config_id;
-    uint16_t    max_proc_len;
-    uint16_t    min_proc_interval;
-    uint16_t    max_proc_interval;
-    uint16_t    max_proc_count;
-    uint8_t     min_subevent_len[3];
-    uint8_t     max_subevent_len[3];
-    uint8_t     tone_antenna_config_selection;
-    uint8_t     phy;
-    uint8_t     tx_power_delta;
-    uint8_t     preferred_peer_antenna;
-    uint8_t     snr_control_initiator;
-    uint8_t     snr_control_reflector;
-} __attribute__((packed));
-
-#define HCI_LE_CMD_CS_PROC_ENABLE                   0x2094
-struct hci_le_cmd_cs_proc_enable {
-    uint16_t    conn_handle;
-    uint8_t     config_id;
-    uint8_t     enable;
-} __attribute__((packed));
-
-#define HCI_LE_CMD_CS_TEST                          0x2095
-struct hci_le_cmd_cs_test {
-    uint8_t     main_mode_type;
-    uint8_t     sub_mode_type;
-    uint8_t     main_mode_repetition;
-    uint8_t     mode_0_steps;
-    uint8_t     role;
-    uint8_t     rtt_type;
-    uint8_t     cs_sync_phy;
-    uint8_t     cs_sync_antenna_selection;
-    uint8_t     subevent_len[3];
-    uint16_t    subevent_interval;
-    uint8_t     max_num_subevents;
-    uint8_t     transmit_power_level;
-    uint8_t     t_ip1_time;
-    uint8_t     t_ip2_time;
-    uint8_t     t_fcs_time;
-    uint8_t     t_pm_time;
-    uint8_t     t_sw_time;
-    uint8_t     tone_antenna_config_selection;
-    uint8_t     reserved;
-    uint8_t     snr_control_initiator;
-    uint8_t     snr_control_reflector;
-    uint16_t    drbg_nonce;
-    uint8_t     channel_map_repetition;
-    uint16_t    override_config;
-    uint8_t     override_params_len;
-    uint8_t     override_params_data[];         // length depends on `override_config`
-} __attribute__((packed));
-
-// opd -> override parameters data, b0 -> bit 0
-struct le_cs_opd_b0_true {
-    uint8_t channel_len;
-    uint8_t channel[];
-} __attribute__((packed));
-
-struct le_cs_opd_b0_false {
-    uint8_t channel_map[LE_CS_CHANNEL_MAP_SIZE];
-    uint8_t channel_selection_type;
-    uint8_t ch3c_type;
-    uint8_t ch3c_jump;
-} __attribute__((packed));
-
-struct le_cs_opd_b2_true {
-    uint8_t main_mode_steps;
-} __attribute__((packed));
-
-struct le_cs_opd_b2_false {
-
-} __attribute__((packed));
-
-struct le_cs_opd_b3_true {
-    uint8_t t_pm_tone_ext;
-} __attribute__((packed));
-
-struct le_cs_opd_b3_false {
-
-} __attribute__((packed));
-
-struct le_cs_opd_b4_true {
-    uint8_t tone_antenna_permutation;
-} __attribute__((packed));
-
-struct le_cs_opd_b4_false {
-
-} __attribute__((packed));
-
-struct le_cs_opd_b5_true {
-    uint32_t cs_sync_aa_initiator;
-    uint32_t cs_sync_aa_reflector;
-} __attribute__((packed));
-
-struct le_cs_opd_b5_false {
-
-} __attribute__((packed));
-
-struct le_cs_opd_b6_true {
-    uint8_t ss_marker1_position;
-    uint8_t ss_marker2_position;
-} __attribute__((packed));
-
-struct le_cs_opd_b6_false {
-
-} __attribute__((packed));
-
-struct le_cs_opd_b7_true {
-    uint8_t ss_marker_value;
-} __attribute__((packed));
-
-struct le_cs_opd_b7_false {
-
-} __attribute__((packed));
-
-struct le_cs_opd_b8_true {
-    uint8_t cs_sync_payload_pattern;
-    uint8_t cs_sync_user_payload;
-} __attribute__((packed));
-
-struct le_cs_opd_b8_false {
-
-} __attribute__((packed));
-
-#define LE_CS_TEST_MAX_CHANNEL_LEN          LE_CS_CHANNEL_NUM
-#define LE_CS_TEST_MAX_B0_LEN               CO_MAX_VALUE(1 + LE_CS_TEST_MAX_CHANNEL_LEN, sizeof(struct le_cs_opd_b0_false))
-#define LE_CS_TEST_MAX_B2_LEN               sizeof(struct le_cs_opd_b2_true)
-#define LE_CS_TEST_MAX_B3_LEN               sizeof(struct le_cs_opd_b3_true)
-#define LE_CS_TEST_MAX_B4_LEN               sizeof(struct le_cs_opd_b4_true)
-#define LE_CS_TEST_MAX_B5_LEN               sizeof(struct le_cs_opd_b5_true)
-#define LE_CS_TEST_MAX_B6_LEN               sizeof(struct le_cs_opd_b6_true)
-#define LE_CS_TEST_MAX_B7_LEN               sizeof(struct le_cs_opd_b7_true)
-#define LE_CS_TEST_MAX_B8_LEN               sizeof(struct le_cs_opd_b8_true)
-#define LE_CS_TEST_OVERRIDE_PARAMS_MAX_LEN  (LE_CS_TEST_MAX_B0_LEN + LE_CS_TEST_MAX_B2_LEN + LE_CS_TEST_MAX_B3_LEN + LE_CS_TEST_MAX_B4_LEN \
-                                        + LE_CS_TEST_MAX_B5_LEN + LE_CS_TEST_MAX_B6_LEN + LE_CS_TEST_MAX_B7_LEN + LE_CS_TEST_MAX_B8_LEN)
-
-#define HCI_LE_CMD_CS_TEST_END                          0x2096
-#define HCI_LE_EVT_CS_READ_REMOTE_SUPP_CAPS_CMPL        0x2C
-struct hci_le_evt_cs_read_remote_supp_capas_cmpl {
-    uint8_t     status;
-    uint16_t    conn_handle;
-    uint8_t     num_config_supp;
-    uint16_t    max_cnsv_proc_supp;
-    uint8_t     num_antennas_supp;
-    uint8_t     max_antenna_paths_supp;
-    uint8_t     roles_supp;
-    uint8_t     modes_supp;
-    uint8_t     rtt_capability;
-    uint8_t     rtt_aa_only_n;
-    uint8_t     rtt_sounding_n;
-    uint8_t     rtt_random_payload_n;
-    uint16_t    nadm_sounding_capability;
-    uint16_t    nadm_random_capability;
-    uint8_t     cs_sync_phys_supp;
-    uint16_t    subfeatures_supp;
-    uint8_t     t_ip1_times_supp;
-    uint8_t     t_ip2_times_supp;
-    uint16_t    t_fcs_times_supp;
-    uint16_t    t_pm_times_supp;
-    uint8_t     t_sw_time_supp;
-    uint8_t     tx_snr_capability;
-} __attribute__((packed));
-
-#define HCI_LE_EVT_CS_READ_REMOTE_FAE_TABLE_CMPL        0x2D
-struct hci_le_evt_cs_read_remote_fae_table_cmpl {
-    uint8_t     status;
-    uint16_t    conn_handle;
-    uint8_t     remote_fae_table[LE_CS_CHANNEL_NUM];
-} __attribute__((packed));
-
-#define HCI_LE_EVT_CS_SECURITY_ENABLE_CMPL              0x2E
-struct hci_le_evt_cs_security_enable_cmpl {
-    uint8_t     status;
-    uint16_t    conn_handle;
-} __attribute__((packed));
-
-#define HCI_LE_EVT_CS_CONFIG_CMPL                       0x2F
-struct hci_le_evt_cs_config_cmpl {
-    uint8_t     status;
-    uint16_t    conn_handle;
-    uint8_t     config_id;
-    uint8_t     action;
-    uint8_t     main_mode_type;
-    uint8_t     sub_mode_type;
-    uint8_t     min_main_mode_steps;
-    uint8_t     max_main_mode_steps;
-    uint8_t     main_mode_repetition;
-    uint8_t     mode_0_steps;
-    uint8_t     role;
-    uint8_t     rtt_type;
-    uint8_t     cs_sync_phy;
-    uint8_t     channel_map[LE_CS_CHANNEL_MAP_SIZE];
-    uint8_t     channel_map_repetition;
-    uint8_t     channel_selection_type;
-    uint8_t     ch3c_shape;
-    uint8_t     ch3c_jump;
-    uint8_t     reserved;
-    uint8_t     t_ip1_time;
-    uint8_t     t_ip2_time;
-    uint8_t     t_fcs_time;
-    uint8_t     t_pm_time;
-} __attribute__((packed));
-
-#define HCI_LE_EVT_CS_PROC_ENABLE_CMPL                  0x30
-struct hci_le_evt_cs_proc_enable_cmpl {
-    uint8_t     status;
-    uint16_t    conn_handle;
-    uint8_t     config_id;
-    uint8_t     state;
-    uint8_t     tone_antenna_config_selection;
-    uint8_t     selected_tx_power;
-    uint8_t     subevent_len[3];
-    uint8_t     subevents_per_evt;
-    uint16_t    subevent_interval;
-    uint16_t    event_interval;
-    uint16_t    proc_interval;
-    uint16_t    proc_count;
-    uint16_t    max_proc_len;
-} __attribute__((packed));
-
-#define HCI_LE_EVT_CS_SUBEVENT_RESULT                   0x31
-struct hci_le_evt_cs_subevent_result {
-    uint16_t    conn_handle;
-    uint8_t     config_id;
-    uint16_t    start_acl_conn_evt_counter;
-    uint16_t    proc_counter;
-    uint16_t    freq_compensation;
-    uint8_t     reference_power_level;
-    uint8_t     proc_done_status;
-    uint8_t     subevent_done_status;
-    uint8_t     abort_reason;
-    uint8_t     num_antenna_paths;
-    uint8_t     num_steps_reported;
-    uint8_t     step_params[];              // elem length is subject to `num_steps_reported`
-} __attribute__((packed));
-
-// step params: `step_mode[]`, `step_channel[]`, `step_data_len[]`, `step_data[]`
-struct cs_step_params {
-    uint8_t step_mode;
-    uint8_t step_channel;
-    uint8_t step_data_len;
-    uint8_t step_data[];        // i.e. `mode_role_specific_info` , whose contents are subject to `mode_type` & `role`
-} __attribute__((packed));
-
-// cs step data -- i.e. `cs_mode_role_specific_info`
-struct cs_mode_role_specific_info {
-    uint8_t     pkt_qty;        // pkt --> packet, qty --> quality
-    uint8_t     pkt_nadm;
-    uint8_t     pkt_rssi;
-    uint8_t     pkt_antenna;
-    uint32_t    pkt_pct1;
-    uint32_t    pkt_pct2;
-    uint16_t    measured_freq_offset;
-    uint16_t    toa_tod_initiator;
-    uint16_t    tod_toa_reflector;
-    uint8_t     antenna_permutation_idx;
-    uint8_t     tone_params[];  // i.e. `tone_pct` & `tone_qty_indicator`, whose quantity is subject to `num_antenna_paths`
-} __attribute__((packed));
-
-// cs tone params -- i.e. `tone_pct` & `tone_qty_indicator`, whose quantity is subject to `num_antenna_paths`
-struct cs_tone_params {
-    uint8_t tone_pct[3];
-    uint8_t tone_qty_indicator;
-} __attribute__((packed));
-
-#define HCI_LE_EVT_CS_SUBEVENT_RESULT_CONTINUE          0x32
-struct hci_le_evt_cs_subevent_result_continue {
-    uint16_t    conn_handle;
-    uint8_t     config_id;
-    uint8_t     proc_done_status;
-    uint8_t     subevent_done_status;
-    uint8_t     abort_reason;
-    uint8_t     num_antenna_paths;
-    uint8_t     num_steps_reported;
-    uint8_t     step_params[];  // i.e. `cs_step_params_t`, elem length is subject to `num_steps_reported`
-} __attribute__((packed));
-
-#define HCI_LE_EVT_CS_TEST_END_CMPL                     0x33
-struct hci_le_evt_cs_test_end_cmpl {
-    uint8_t status;
-} __attribute__((packed));
-
-/**
- * BES TWS fast pair vender HCI command
-*/
-#define HCI_LE_TWS_FASTPAIR_CONFIG  0xFCF8
-struct hci_le_tws_fastpair_config {
-    bool enable;
-    uint8_t tws_role;
-    uint8_t activity_id;
-    uint8_t tws_addr[6];
-    uint8_t peer_le_addr[6];
-} __attribute__ ((packed));
-
-#if (mHDT_LE_SUPPORT)
-#define HCI_DBG_MHDT_LE_RD_LOC_FEAT_CMD_OPCODE       0xFCE1
-#define HCI_DBG_MHDT_LE_RD_RM_FEAT_CMD_OPCODE        0x20FF
-
-enum mhdt_hci_read_proprietary_feat_sub_opcode
-{
-    HCI_LE_RD_LOCAL_PROPRIETARY_FEAT_SUBCODE   = 0x07,
-    HCI_LE_RD_REMOTE_PROPRIETARY_FEAT_SUBCODE  = 0x08,
-};
-
-struct hci_le_rd_local_proprietary_feat_cmd
-{
-    uint8_t subcode;
-};
-
-struct hci_le_rd_remote_proprietary_feat_cmd
-{
-    uint16_t conhdl;
-    uint8_t subcode;
-}__attribute__ ((packed));
-#endif
-
-/*
- * Use this to enable/disable/setup the Advertising Packet Content Filter (APCF) in the controller. 
- * APCF filters advertising reports in the controller but doesn't filter periodic advertising.
- *
-*/
-
-#define HCI_LE_APCF_CMD 0xFD57
-
-/// Records the filtering parameters for the specified filter_index.
-/// The associated advertising filters are added to their respective tables.
-struct filter_parameters {
-    uint8_t filter_index;
-    /// Bit masks for the selected features:
-    /// Bit 0: Set to enable Broadcast Address filter
-    /// Bit 1: Set to enable Service Data Change filter
-    /// Bit 2: Set to enable Service UUID check
-    /// Bit 3: Set to enable Service Solicitation UUID check
-    /// Bit 4: Set to enable Local Name check
-    /// Bit 5: Set to enable Manufacturer Data Check
-    /// Bit 6: Set to enable Service Data Check
-    /// Bit 7: Set to enable Transport Discovery Service Check
-    /// Bit 8: Set to enable AD Type Check
-    uint16_t feature_selection;
-    /// Logic operation for each feature selection (per-bit position) specified in APCF_Feature_Selection.
-    /// Valid only when a feature is enabled.
-    /// Bit position value:
-    /// 0: OR 1: AND
-    /// If "AND" logic is selected, an ADV packet will pass the filter only if it contains ALL of the entries in the list.
-    /// If "OR" logic is selected, an ADV packet will pass the filter if it contains any of the entries in the list.
-    uint16_t list_logic_type;
-    /// 0x00: OR 0x01: AND
-    /// Note: The logic type is N/A for the first three fields of APCF_Feature_Selection,
-    /// which is always "AND" logic. They are only applicable for (Bit 3 - ­Bit 6) four fields of APCF_Feature_Selection.
-    uint8_t filter_logic_type;
-    /// [in dBm] The advertiser is considered seen only if the signal is higher than the RSSI high threshold.
-    /// Otherwise, the firmware must behave as if it never saw it.
-    uint8_t rssi_high_thresh;
-    /// 0x00 - immediate 0x01 - on_found 0x02 - batched
-    uint8_t delivery_mode;
-    /// Valid only if delivery_mode is on_found.
-    /// [in milliseconds] Time for firmware to linger and collect additional advertisements before reporting.
-    uint16_t onfound_timeout;
-    /// Valid only if delivery_mode is on_found.
-    /// [count] If an advertisement in onFound lingers in firmware for the onfound_timeout duration,
-    /// it will collect a few advertisements and the count is checked.
-    /// If the count exceeds onfound_timeout_cnt, it's reported OnFound immediately thereafter.
-    uint8_t onfound_timeout_cnt;
-    /// Valid only if delivery_mode is on_found.
-    /// [in dBm] The advertiser packet is considered as not seen if the RSSI of the received packet is not above the RSSI low threshold.
-    uint8_t rssi_low_thresh;
-    /// Valid only if delivery_mode is on_found.
-    /// [in milliseconds] If an advertisement, after being found, is not seen contiguously for the lost_timeout period,
-    /// it will immediately be reported lost.
-    uint16_t onlost_timeout;
-    /// Valid only if delivery_mode is on_found.
-    /// [count] Total number of advertisers to track per filter.
-    uint16_t num_of_tracking_entries;
-} __attribute__ ((packed));
-
-/// Filter for matching the advertiser address.
-struct broadcaster_address_filter {
-    uint8_t filter_index;
-    uint8_t broadcaster_address[6];
-    uint8_t broadcaster_address_type;
-} __attribute__ ((packed));
-
-/// Generic filter for GAP data information.
-/// Used for matching Service UUID, Service Solicitation UUID,
-/// Local Name, Manufacturer Data, Service Data.
-struct gap_data_filter {
-    uint8_t filter_index;
-    /// Data and Data mask, same length * 2, variable length
-    uint8_t data[0];
-} __attribute__ ((packed));
-
-/// Filter for matching the AD type.
-struct ad_type_filter {
-    uint8_t filter_index;
-    uint8_t ad_type;
-    uint8_t ad_data_len;
-    /// AD Data and AD Data mask, same length * 2, variable length
-    uint8_t ad_data[0];
-} __attribute__ ((packed));
-
-struct hci_le_apcf_cmd {
-    uint8_t apcf_opcode;
-    union {
-        uint8_t action;
-        uint8_t enable;
-    };
-    uint8_t params[0];
-} __attribute__ ((packed));
-
-struct hci_le_apcf_cmd_cmpl {
-    uint8_t status;
-    uint8_t apcf_opcode;
-    union {
-        uint8_t enable;
-        struct {
-            uint8_t action;
-            uint8_t ava_space;
-        };
-        uint16_t ext_features;
-    };
-} __attribute__ ((packed));
 
 #ifdef IBRT
 typedef void (*hci_tx_buf_tss_process_cb_type)(void);
@@ -5332,6 +4198,7 @@ void register_hci_acl_ecc_softbit_handler_callback(bt_hci_acl_ecc_softbit_handle
 bool hci_tx_buff_process(void);
 void hci_rx_handle(struct hci_rx_desc_t *rx_desc);
 struct pp_buff *hci_fc_each_link_has_tx_chance(hci_conn_type_t conn_type);
+void hci_defer_free_rx_buffer(struct pp_buff *ppb, uint32_t ca, uint32_t line);
 
 bool hci_tx_buff_process(void);
 void hci_rx_handle(struct hci_rx_desc_t *rx_desc);
@@ -5339,12 +4206,12 @@ struct pp_buff *hci_fc_each_link_has_tx_chance(hci_conn_type_t conn_type);
 
 bt_status_t hci_simulate_event(const uint8_t *buff, uint16_t buff_len);
 bt_status_t hci_send_cmd_direct(const uint8_t *cmd_packet, uint8_t packet_len);
+struct hci_conn_item_t *hci_find_conn_by_priv_param(hci_conn_type_t type, void *priv_param);
 struct hci_conn_item_t *hci_find_conn_by_address(hci_conn_type_t conn_type, bt_addr_type_t addr_type, const bt_bdaddr_t *peer_addr);
 void hci_foreach_acl_conn_item(hci_conn_type_t conn_type, int (*cb)(void *priv_param, void *param), void *param);
 struct hci_conn_item_t *hci_find_conn_by_handle(hci_conn_type_t type, uint16_t connhdl);
 struct hci_conn_item_t *hci_find_acl_conn_item(hci_conn_type_t type, uint16_t connhdl);
-struct hci_conn_item_t *hci_alloc_le_conn_and_report(uint16_t connhdl, uint8_t is_central,
-                                                        uint8_t peer_addr_type, const bt_bdaddr_t *peer_addr);
+int hci_count_conn_type_items(hci_conn_type_t conn_type);
 
 #if defined(__cplusplus)
 }

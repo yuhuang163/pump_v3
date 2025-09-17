@@ -555,6 +555,13 @@ __STATIC_FORCEINLINE uint32_t __ROR(uint32_t op1, uint32_t op2)
                        ((((q31_t)x <<  8) >>  8) & (q31_t)0xFFFF0000)  ));
   }
 
+  __STATIC_FORCEINLINE uint32_t __SXTB16_RORn(
+  uint32_t op1,
+  uint32_t rotate)
+  {
+    return __SXTB16(__ROR(op1, rotate));
+  }
+
   /*
    * @brief C custom defined SMMLA
    */

@@ -104,13 +104,13 @@ static void a2dp_audio_smf_free(void *packet)
 
 static void a2dp_audio_smf_decoder_init(void)
 {
-    AUDIOPLAYERS_TRACE(0,"%s",a2dp_audio_smf_get_codec());
+    dbgTestPXL("%s",a2dp_audio_smf_get_codec());
     auto context = a2dp_audio_context_p;    
     returnIfErrC0(!context);
     auto dec = _smf;
     if (dec == NULL){
         auto codec = a2dp_audio_smf_get_codec();
-        dec = smf_create("dec",codec);
+        dec = smf_create("dec",codec, NULL, NULL);
         returnIfErrC0(!dec);
         ExitDestroy eddec(dec);
         //
@@ -119,8 +119,8 @@ static void a2dp_audio_smf_decoder_init(void)
         auto param = (smf_media_info_t*) smf_alloc_open_param(dec);
         returnIfErrC0(!param);
         ExitFree efparam(dec,param);
-        param->package = a2dp_audio_smf_get_package();
-        dbgTestPDL(param->package);
+        param->audio.package = a2dp_audio_smf_get_package();
+        dbgTestPDL(param->audio.package);
         dbgTestPSL(a2dp_audio_smf_get_codec());
         switch(a2dp_audio_smf_get_codec64()){
         case fcc64("aac"):
@@ -128,7 +128,7 @@ static void a2dp_audio_smf_decoder_init(void)
         case fcc64("sbc"):
             break;
         default:
-            AUDIOPLAYERS_TRACE(0,"unsupported codec:%s",codec);
+            dbgErrPXL("unsupported codec:%s",codec);
             break;
         }
         returnIfErrC0(!smf_open(dec,param));
@@ -182,7 +182,7 @@ static int a2dp_audio_smf_list_checker(void)
         }
     }while(node);
 
-    AUDIOPLAYERS_TRACE(0,"[%s][INIT] cnt:%d list:%d", a2dp_audio_smf_get_codec(), cnt, a2dp_audio_list_length(list));
+    TRACE_A2DP_DECODER_I("[%s][INIT] cnt:%d list:%d", a2dp_audio_smf_get_codec(), cnt, a2dp_audio_list_length(list));
 
     return 0;
 }
@@ -209,14 +209,14 @@ int a2dp_audio_smf_channel_select(A2DP_AUDIO_CHANNEL_SELECT_E chnl_sel)
     //aacDecoder_DecodeFrame_Config(smf_decoder_channel_select);
     auto dec = _smf;
     if(dec){
-        smf_set(dec,SMF_SET_CHANNEL_SELECT, (void*)smf_decoder_channel_select);
+        smf_set(dec,SMF_PARAM_ChannelSelect, (void*)smf_decoder_channel_select);
     }
     return 0;
 }
 
 int a2dp_audio_smf_init(A2DP_AUDIO_OUTPUT_CONFIG_T *config, void *context)
 {
-    AUDIOPLAYERS_TRACE(0,"[%s] init", a2dp_audio_smf_get_codec());
+    dbgTestPXL("[%s] init", a2dp_audio_smf_get_codec());
     smf_sbc_decoder_register();
     smf_aac_decoder_register();
 
@@ -252,7 +252,7 @@ int a2dp_audio_smf_deinit(void)
     //size_t total = 0, used = 0, max_used = 0;
 
     //heap_memory_info(smf_memhandle, &total, &used, &max_used);
-    //AUDIOPLAYERS_TRACE(0,"[AAC] deinit MEM: total - %d, used - %d, max_used - %d.",
+    //TRACE_A2DP_DECODER_I("[AAC] deinit MEM: total - %d, used - %d, max_used - %d.",
     //    total, used, max_used);
     smf_pool_print();
 
@@ -292,6 +292,7 @@ static bool a2dp_audio_smf_mcu_decode_one_frame(int buffer_bytes){
     
     /* decode one frame */
     smf_frame_t ifrm;
+    memset(&ifrm, 0 ,sizeof(ifrm));
     ifrm.buff = frame_p->smf_buffer;
     ifrm.offset = 0;
     ifrm.max = bufferSize;
@@ -299,6 +300,7 @@ static bool a2dp_audio_smf_mcu_decode_one_frame(int buffer_bytes){
     ifrm.flags = 0;
     
     smf_frame_t ofrm;
+    memset(&ofrm, 0 ,sizeof(ofrm));
     ofrm.buff = (char*)frm->buff+frm->offset+frm->size;
     ofrm.offset = 0;
     ofrm.max = frm->max-frm->size-frm->offset;
@@ -309,18 +311,18 @@ static bool a2dp_audio_smf_mcu_decode_one_frame(int buffer_bytes){
     if(!rst){
         smf_print_error(dec);
         auto err = smf_get_error(dec);
-        AUDIOPLAYERS_TRACE(0,"[MCU][%s]smf_decode failed:0x%08x-%08x",a2dp_audio_smf_get_codec(), err->err32[1], err->err32[0]);
-        bool isopen = true;
-        smf_get(dec,SMF_GET_IS_OPEN,&isopen);
+        TRACE_A2DP_DECODER_W("[MCU][%s]smf_decode failed:0x%08x-%08x",a2dp_audio_smf_get_codec(), err->err32[1], err->err32[0]);
+        bool isopen = false;
+        //smf_get(dec,SMF_GET_IS_OPEN,&isopen);
         if(!isopen){
             a2dp_audio_smf_decoder_reinit();
-            AUDIOPLAYERS_TRACE(0,"[MCU][%s]smf_decode reinin codec \n", a2dp_audio_smf_get_codec() );
+            TRACE_A2DP_DECODER_I("[MCU][%s]smf_decode reinin codec \n", a2dp_audio_smf_get_codec() );
         }
         return false;
     }
     _output_frame_stamp = frame_p->timestamp - frm->size;//(frm->size*1000000ull/2/2/44100);
     _output_frame_index = frame_p->sequenceNumber;
-    //AUDIOPLAYERS_TRACE(0,"%u",smf_decoder_frame_p->timestamp);
+    //dbgTestPXL("%u",smf_decoder_frame_p->timestamp);
     frm->size+=ofrm.size;
     //dbgTestPDL(frm->size);
     a2dp_audio_list_remove(list, frame_p);
@@ -330,7 +332,7 @@ static bool a2dp_audio_smf_mcu_decode_one_frame(int buffer_bytes){
 
 //static a2dp_audio_smf_decoder_frame_t _last_frame;
 static int a2dp_audio_smf_mcu_decode_frame(uint8_t *buffer, uint32_t buffer_bytes)
-{//AUDIOPLAYERS_TRACE(0,"%p,%d",buffer,buffer_bytes);
+{//dbgTestPXL("%p,%d",buffer,buffer_bytes);
     auto frm = &_output_frame;
     if(!frm->buff){
         frm->max = buffer_bytes*3;
@@ -352,7 +354,7 @@ static int a2dp_audio_smf_mcu_decode_frame(uint8_t *buffer, uint32_t buffer_byte
     unsigned stamp = 0;
     unsigned index  =0;
 
-    AUDIOPLAYERS_TRACE(0,"%d->%d,%u,%u",frm->size,buffer_bytes,_output_frame_stamp,_output_frame_index);
+    dbgTestPXL("%d->%d,%u,%u",frm->size,buffer_bytes,_output_frame_stamp,_output_frame_index);
     if(frm->size >= (int)buffer_bytes){
         frm->size-=buffer_bytes;
         memcpy(buffer,(char*)frm->buff,buffer_bytes);
@@ -391,7 +393,7 @@ static int a2dp_audio_smf_mcu_decode_frame(uint8_t *buffer, uint32_t buffer_byte
 
 #else
 int a2dp_audio_smf_mcu_decode_frame(uint8_t *buffer, uint32_t buffer_bytes)
-{//AUDIOPLAYERS_TRACE(0,"%p,%d",buffer,buffer_bytes);
+{//dbgTestPXL("%p,%d",buffer,buffer_bytes);
     auto dec = _smf;
     if(!dec){
         a2dp_audio_smf_decoder_reinit();
@@ -407,23 +409,23 @@ int a2dp_audio_smf_mcu_decode_frame(uint8_t *buffer, uint32_t buffer_bytes)
     int output_byte = 0;
 
     /*if(buffer_bytes < DECODE_AAC_PCM_FRAME_LENGTH){
-        AUDIOPLAYERS_TRACE(0,"[MCU][%s] pcm_len = %d \n", a2dp_audio_smf_get_codec(), buffer_bytes);
+        TRACE_A2DP_DECODER_W("[MCU][%s] pcm_len = %d \n", a2dp_audio_smf_get_codec(), buffer_bytes);
         return A2DP_DECODER_NO_ERROR;
     }*/
     if(!dec){
-        AUDIOPLAYERS_TRACE(0,"[MCU][%s] smf_decode not ready", a2dp_audio_smf_get_codec());
+        TRACE_A2DP_DECODER_W("[MCU][%s] smf_decode not ready", a2dp_audio_smf_get_codec());
         return A2DP_DECODER_NO_ERROR;
     }
 
     node = a2dp_audio_list_begin(list);
     if (!node){
-        AUDIOPLAYERS_TRACE(0,"[MCU][%s] cache underflow", a2dp_audio_smf_get_codec());
+        TRACE_A2DP_DECODER_W("[MCU][%s] cache underflow", a2dp_audio_smf_get_codec());
         cache_underflow = true;
         goto exit;
     }else{
         //auto last = *smf_decoder_frame_p;
         //if(smf_decoder_frame_p){
-            //AUDIOPLAYERS_TRACE(0,"input:%p,%d",smf_decoder_frame_p->smf_buffer,smf_decoder_frame_p->smf_buffer_len);
+            //dbgTestPXL("input:%p,%d",smf_decoder_frame_p->smf_buffer,smf_decoder_frame_p->smf_buffer_len);
             //dbgTestDump(smf_decoder_frame_p->smf_buffer,32);
             //a2dp_audio_list_remove(list, smf_decoder_frame_p);
         //}
@@ -458,22 +460,22 @@ int a2dp_audio_smf_mcu_decode_frame(uint8_t *buffer, uint32_t buffer_bytes)
         ofrm.size = 0;
         ofrm.flags = 0;
         
-        //AUDIOPLAYERS_TRACE(0,"input:%p,%d",ifrm.buff,bufferSize);
+        //dbgTestPXL("input:%p,%d",ifrm.buff,bufferSize);
         //dbgTestDump(ifrm.buff,32);
         auto rst = smf_decode(dec,&ifrm,&ofrm);
-        //AUDIOPLAYERS_TRACE(0,"input:%p,%d",ifrm.buff,bufferSize);
+        //dbgTestPXL("input:%p,%d",ifrm.buff,bufferSize);
         //dbgTestDump(ifrm.buff,32);
 
         if(!rst){
             smf_print_error(dec);
             auto err = smf_get_error(dec);
-            AUDIOPLAYERS_TRACE(0,"[MCU][%s]smf_decode failed:0x%08x-%08x",a2dp_audio_smf_get_codec(), err->err32[1], err->err32[0]);
+            TRACE_A2DP_DECODER_W("[MCU][%s]smf_decode failed:0x%08x-%08x",a2dp_audio_smf_get_codec(), err->err32[1], err->err32[0]);
             bool isopen = true;
             smf_get(dec,SMF_GET_IS_OPEN,&isopen);
             //if(!smf_is_open(dec)){
             if(!isopen){
                 a2dp_audio_smf_decoder_reinit();
-                AUDIOPLAYERS_TRACE(0,"[MCU][%s]smf_decode reinin codec \n", a2dp_audio_smf_get_codec() );
+                TRACE_A2DP_DECODER_I("[MCU][%s]smf_decode reinin codec \n", a2dp_audio_smf_get_codec() );
             }
             goto end_decode;
         }
@@ -485,7 +487,7 @@ int a2dp_audio_smf_mcu_decode_frame(uint8_t *buffer, uint32_t buffer_bytes)
             ,a2dp_audio_smf_get_samples()
             );*/
 end_decode:
-        //AUDIOPLAYERS_TRACE(0,"output:%p,%d",buffer,output_byte);
+        //dbgTestPXL("output:%p,%d",buffer,output_byte);
         //dbgTestDump(buffer,16);
         if(a2dp_audio_smf_get_samples() == output_byte/4){
             a2dp_audio_smf_decoder_frame_t* plast = smf_decoder_frame_p;
@@ -530,7 +532,7 @@ int a2dp_audio_smf_preparse_packet(btif_media_header_t * header, uint8_t *buffer
     a2dp_audio_smf_lastframe_info.check_sum = 0;
     a2dp_audio_decoder_internal_lastframe_info_set(&a2dp_audio_smf_lastframe_info);
 
-    AUDIOPLAYERS_TRACE(0,"[AAC][PRE] seq:%d timestamp:%08x", header->sequenceNumber, header->timestamp);
+    TRACE_A2DP_DECODER_I("[AAC][PRE] seq:%d timestamp:%08x", header->sequenceNumber, header->timestamp);
 
     return A2DP_DECODER_NO_ERROR;
 }
@@ -575,11 +577,11 @@ int a2dp_audio_smf_reorder_proc(a2dp_audio_smf_decoder_frame_t *smf_decoder_fram
     if ((smf_decoder_frame_p->smf_buffer_len + buffer_bytes) > (uint32_t)a2dp_audio_smf_get_frame_max()){
         return A2DP_DECODER_NO_ERROR;
     }
-    AUDIOPLAYERS_TRACE(0,"[AAC][INPUT][REORDER] proc enter seq:%d len:%d", smf_decoder_frame_p->sequenceNumber, smf_decoder_frame_p->smf_buffer_len);
+    TRACE_A2DP_DECODER_W("[AAC][INPUT][REORDER] proc enter seq:%d len:%d", smf_decoder_frame_p->sequenceNumber, smf_decoder_frame_p->smf_buffer_len);
     dest_buf = &smf_decoder_frame_p->smf_buffer[smf_decoder_frame_p->smf_buffer_len];
     memcpy(dest_buf, buffer, buffer_bytes);
     smf_decoder_frame_p->smf_buffer_len += buffer_bytes;
-    AUDIOPLAYERS_TRACE(0,"[AAC][INPUT][REORDER] proc exit seq:%d len:%d", smf_decoder_frame_p->sequenceNumber, smf_decoder_frame_p->smf_buffer_len);
+    TRACE_A2DP_DECODER_W("[AAC][INPUT][REORDER] proc exit seq:%d len:%d", smf_decoder_frame_p->sequenceNumber, smf_decoder_frame_p->smf_buffer_len);
 
     return A2DP_DECODER_NO_ERROR;
 }
@@ -608,7 +610,7 @@ int a2dp_audio_smf_packet_recover_find_missing(a2dp_audio_smf_decoder_frame_t *s
     diff_timestamp = a2dp_audio_get_passed(smf_decoder_frame->timestamp, smf_decoder_last_valid_frame.timestamp, UINT32_MAX);
 
     if (diff_seq > 1){
-        AUDIOPLAYERS_TRACE(0,"[%s][INPUT][PLC] seq:%d/%d stmp:%d/%d"
+        TRACE_A2DP_DECODER_W("[%s][INPUT][PLC] seq:%d/%d stmp:%d/%d"
             , a2dp_audio_smf_get_codec()
             , smf_decoder_frame->sequenceNumber
             , smf_decoder_last_valid_frame.sequenceNumber
@@ -622,10 +624,10 @@ int a2dp_audio_smf_packet_recover_find_missing(a2dp_audio_smf_decoder_frame_t *s
             ((1000.f/(float)a2dp_audio_context_p->output_cfg.sample_rate)*(float)a2dp_audio_smf_get_samples());
         }
         need_recover_pkt = (uint32_t)(tmp_pkt_cnt+0.5f);
-        AUDIOPLAYERS_TRACE(0,"[%s][INPUT][PLC] diff_seq:%d diff_stmp:%d diff:%d missing:%d", a2dp_audio_smf_get_codec(),diff_seq, diff_timestamp, diff, need_recover_pkt);
+        TRACE_A2DP_DECODER_W("[%s][INPUT][PLC] diff_seq:%d diff_stmp:%d diff:%d missing:%d", a2dp_audio_smf_get_codec(),diff_seq, diff_timestamp, diff, need_recover_pkt);
         if (need_recover_pkt == diff_seq){
             need_recover_pkt--;
-            AUDIOPLAYERS_TRACE(0,"[%s][INPUT][PLC] need_recover_pkt seq:%d", a2dp_audio_smf_get_codec(),need_recover_pkt);
+            TRACE_A2DP_DECODER_W("[%s][INPUT][PLC] need_recover_pkt seq:%d", a2dp_audio_smf_get_codec(),need_recover_pkt);
         }else{
             need_recover_pkt = 0;
         }
@@ -686,12 +688,12 @@ int a2dp_audio_smf_store_packet(btif_media_header_t * header, uint8_t *buffer, u
         if (smf_decoder_frame_reorder_p == NULL){
             smf_decoder_frame_p = (a2dp_audio_smf_decoder_frame_t *)a2dp_audio_smf_frame_malloc(buffer_bytes);
             smf_decoder_frame_reorder_p = smf_decoder_frame_p;
-            AUDIOPLAYERS_TRACE(0,"[AAC][INPUT][REORDER] start seq:%d len:%d", header->sequenceNumber, buffer_bytes);
+            TRACE_A2DP_DECODER_W("[AAC][INPUT][REORDER] start seq:%d len:%d", header->sequenceNumber, buffer_bytes);
             a2dp_audio_smf_reorder_store_packet(smf_decoder_frame_p, header, buffer, buffer_bytes);
         }else{
             if (smf_decoder_frame_reorder_p->smf_buffer[2] == buffer[2] &&
                 smf_decoder_frame_reorder_p->smf_buffer[1] == buffer[1]){
-                AUDIOPLAYERS_TRACE(0,"%d,%d,%d",smf_decoder_frame_reorder_p->sequenceNumber,smf_decoder_frame_reorder_p->timestamp,smf_decoder_frame_reorder_p->smf_buffer_len);
+                dbgTestPXL("%d,%d,%d",smf_decoder_frame_reorder_p->sequenceNumber,smf_decoder_frame_reorder_p->timestamp,smf_decoder_frame_reorder_p->smf_buffer_len);
                 a2dp_audio_smf_packet_append(smf_decoder_frame_reorder_p);
                 smf_decoder_frame_p = (a2dp_audio_smf_decoder_frame_t *)a2dp_audio_smf_frame_malloc(buffer_bytes);
                 smf_decoder_frame_reorder_p = smf_decoder_frame_p;
@@ -708,7 +710,7 @@ int a2dp_audio_smf_store_packet(btif_media_header_t * header, uint8_t *buffer, u
         nRet = A2DP_DECODER_NO_ERROR;
     }
     else{        
-        AUDIOPLAYERS_TRACE(0,"[AAC][INPUT] list full current list_len:%d buff_len:%d", a2dp_audio_list_length(list), buffer_bytes);
+        TRACE_A2DP_DECODER_W("[AAC][INPUT] list full current list_len:%d buff_len:%d", a2dp_audio_list_length(list), buffer_bytes);
         nRet = A2DP_DECODER_MTU_LIMTER_ERROR;
     }
 
@@ -727,7 +729,7 @@ int a2dp_audio_smf_store_packet(btif_media_header_t * header, uint8_t *buffer, u
     if (a2dp_audio_list_length(list) < smf_mtu_limiter &&
         buffer_bytes <= AAC_READBUF_SIZE){
         a2dp_audio_smf_decoder_frame_t *smf_decoder_frame_p = (a2dp_audio_smf_decoder_frame_t *)a2dp_audio_smf_frame_malloc(buffer_bytes);
-        AUDIOPLAYERS_TRACE(0,"[AAC][INPUT]seq:%d len:%d", header->sequenceNumber, buffer_bytes);
+        TRACE_A2DP_DECODER_D("[AAC][INPUT]seq:%d len:%d", header->sequenceNumber, buffer_bytes);
         smf_decoder_frame_p->sequenceNumber = header->sequenceNumber;
         smf_decoder_frame_p->timestamp = header->timestamp;
         memcpy(smf_decoder_frame_p->smf_buffer, buffer, buffer_bytes);
@@ -736,7 +738,7 @@ int a2dp_audio_smf_store_packet(btif_media_header_t * header, uint8_t *buffer, u
         a2dp_audio_list_append(list, smf_decoder_frame_p);
         nRet = A2DP_DECODER_NO_ERROR;
     }else{
-        AUDIOPLAYERS_TRACE(0,"[AAC][INPUT] list full current list_len:%d buff_len:%d", a2dp_audio_list_length(list), buffer_bytes);
+        TRACE_A2DP_DECODER_I("[AAC][INPUT] list full current list_len:%d buff_len:%d", a2dp_audio_list_length(list), buffer_bytes);
         nRet = A2DP_DECODER_MTU_LIMTER_ERROR;
     }
 
@@ -761,7 +763,7 @@ int a2dp_audio_smf_discards_packet(uint32_t packets)
         nRet = A2DP_DECODER_NO_ERROR;
     }
 
-    AUDIOPLAYERS_TRACE(0,"[AAC][DISCARDS] packets:%d nRet:%d", packets, nRet);
+    TRACE_A2DP_DECODER_I("[AAC][DISCARDS] packets:%d nRet:%d", packets, nRet);
     return nRet;
 }
 
@@ -803,7 +805,7 @@ int a2dp_audio_smf_synchronize_packet(A2DP_AUDIO_SYNCFRAME_INFO_T *sync_info, ui
         node = a2dp_audio_list_begin(list);
         if (node){
             smf_decoder_frame_p = (a2dp_audio_smf_decoder_frame_t *)a2dp_audio_list_node(node);
-            AUDIOPLAYERS_TRACE(0,"[synchronize_packet]%d/%d %x/%x", smf_decoder_frame_p->sequenceNumber, sync_info->sequenceNumber,
+            TRACE_A2DP_DECODER_D("[synchronize_packet]%d/%d %x/%x", smf_decoder_frame_p->sequenceNumber, sync_info->sequenceNumber,
                                   smf_decoder_frame_p->timestamp, sync_info->timestamp);
             if (A2DP_AUDIO_SYNCFRAME_CHK(smf_decoder_frame_p->sequenceNumber  >= sync_info->sequenceNumber, A2DP_AUDIO_SYNCFRAME_MASK_SEQ,       mask)&&
                 A2DP_AUDIO_SYNCFRAME_CHK(smf_decoder_frame_p->timestamp       >= sync_info->timestamp,      A2DP_AUDIO_SYNCFRAME_MASK_TIMESTAMP, mask)){
@@ -817,17 +819,17 @@ int a2dp_audio_smf_synchronize_packet(A2DP_AUDIO_SYNCFRAME_INFO_T *sync_info, ui
     node = a2dp_audio_list_begin(list);
     if (node){
         smf_decoder_frame_p = (a2dp_audio_smf_decoder_frame_t *)a2dp_audio_list_node(node);
-        AUDIOPLAYERS_TRACE(0,"[MCU][SYNC][AAC] sync pkt nRet:%d SEQ:%d timestamp:%d", nRet, smf_decoder_frame_p->sequenceNumber, smf_decoder_frame_p->timestamp);
+        TRACE_A2DP_DECODER_I("[MCU][SYNC][AAC] sync pkt nRet:%d SEQ:%d timestamp:%d", nRet, smf_decoder_frame_p->sequenceNumber, smf_decoder_frame_p->timestamp);
     }else{
-        AUDIOPLAYERS_TRACE(0,"[MCU][SYNC][AAC] sync pkt nRet:%d",  nRet);
+        TRACE_A2DP_DECODER_I("[MCU][SYNC][AAC] sync pkt nRet:%d",  nRet);
         if(smf_decoder_frame_reorder_p) {
             smf_decoder_frame_p = smf_decoder_frame_reorder_p;
-            AUDIOPLAYERS_TRACE(0,"[synchronize_packet]%d/%d %x/%x", smf_decoder_frame_p->sequenceNumber, sync_info->sequenceNumber,
+            TRACE_A2DP_DECODER_D("[synchronize_packet]%d/%d %x/%x", smf_decoder_frame_p->sequenceNumber, sync_info->sequenceNumber,
                                   smf_decoder_frame_p->timestamp, sync_info->timestamp);
             if (A2DP_AUDIO_SYNCFRAME_CHK(smf_decoder_frame_p->sequenceNumber  >= sync_info->sequenceNumber, A2DP_AUDIO_SYNCFRAME_MASK_SEQ,       mask)&&
                 A2DP_AUDIO_SYNCFRAME_CHK(smf_decoder_frame_p->timestamp       >= sync_info->timestamp,      A2DP_AUDIO_SYNCFRAME_MASK_TIMESTAMP, mask)){
                 nRet = A2DP_DECODER_NO_ERROR;
-                AUDIOPLAYERS_TRACE(0,"[MCU][SYNC][AAC] sync pkt reorder_p nRet:%d SEQ:%d timestamp:%d", nRet, smf_decoder_frame_p->sequenceNumber, smf_decoder_frame_p->timestamp);
+                TRACE_A2DP_DECODER_I("[MCU][SYNC][AAC] sync pkt reorder_p nRet:%d SEQ:%d timestamp:%d", nRet, smf_decoder_frame_p->sequenceNumber, smf_decoder_frame_p->timestamp);
             }
         }
     }
@@ -860,7 +862,7 @@ int a2dp_audio_smf_synchronize_dest_packet_mut(uint16_t packet_mut)
         }
     }
 
-    AUDIOPLAYERS_TRACE(0,"[MCU][SYNC][AAC] dest pkt list:%d", a2dp_audio_list_length(list));
+    TRACE_A2DP_DECODER_I("[MCU][SYNC][AAC] dest pkt list:%d", a2dp_audio_list_length(list));
     return A2DP_DECODER_NO_ERROR;
 }
 
@@ -872,7 +874,7 @@ int a2dp_audio_smf_convert_list_to_samples(uint32_t *samples)
     list_len = a2dp_audio_list_length(list);
     *samples = a2dp_audio_smf_get_samples()*list_len;
 
-    //AUDIOPLAYERS_TRACE(0,"AUD][DECODER][MCU][AAC] list:%d samples:%d", list_len, *samples);
+    //TRACE_A2DP_DECODER_I("AUD][DECODER][MCU][AAC] list:%d samples:%d", list_len, *samples);
 
     return A2DP_DECODER_NO_ERROR;
 }

@@ -30,18 +30,26 @@ extern "C"{
 #endif
 
 /*****************************header include********************************/
-#include "nvrecord_extension.h"
 
 /******************************macro defination*****************************/
+#define CONTENT_INFO_MAX 40
 
 /******************************type defination******************************/
-#ifdef COMBO_CUSBIN_IN_FLASH
-typedef COMBO_CONTENT_INFO_T CONTENT_INFO_T;
-typedef NV_COMBO_IMAGE_INFO_T CUSTOM_IMAGE_HEADER_T;
-uint32_t _combo_bin_get_addr_by_id(uint32_t id);
-uint32_t _combo_bin_get_max_size(uint32_t id);
-#endif
+typedef struct
+{
+    uint32_t id;
+    uint32_t offset;
+    uint32_t length;
+} CONTENT_INFO_T;
 
+typedef struct
+{
+    uint32_t mainInfo;
+    uint32_t version;
+    uint32_t contentNum;
+    CONTENT_INFO_T info[CONTENT_INFO_MAX];
+    uint32_t crc32;
+} CUSTOM_IMAGE_HEADER_T;
 
 /****************************function declearation**************************/
 void bes_ota_init_handler(void);

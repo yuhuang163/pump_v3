@@ -40,7 +40,7 @@ int32_t app_voice_assist_ai_voice_open(assist_ai_voice_mode_t mode, struct AF_ST
 {
     g_mode = mode;
 
-    VOICE_ASSIST_TRACE(0, "[%s] mode: %d", __func__, g_mode);
+    TRACE(0, "[%s] mode: %d", __func__, g_mode);
 
     if (g_mode == ASSIST_AI_VOICE_MODE_KWS) {
         assist_ai_voice_kws_open(stream_cfg);
@@ -57,7 +57,7 @@ int32_t app_voice_assist_ai_voice_open(assist_ai_voice_mode_t mode, struct AF_ST
 
 int32_t app_voice_assist_ai_voice_close(void)
 {
-    VOICE_ASSIST_TRACE(0, "[%s] mode: %d", __func__, g_mode);
+    TRACE(0, "[%s] mode: %d", __func__, g_mode);
 
     if (g_mode == ASSIST_AI_VOICE_MODE_KWS) {
         assist_ai_voice_kws_close();

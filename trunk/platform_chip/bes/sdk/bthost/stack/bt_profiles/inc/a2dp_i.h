@@ -37,8 +37,6 @@ extern "C" {
 #define AVDTP_SECURITY_CONTROL 0x0B
 #define AVDTP_GET_ALL_CAPABILITIES 0x0C
 #define AVDTP_DELAYREPORT 0x0D
-#define AVDTP_CUSTOM_VIVO_CMD1 0x30
-#define AVDTP_CUSTOM_VIVO_CMD2 0x31
 
 #define AVDTP_PKT_TYPE_SINGLE 0x00
 #define AVDTP_PKT_TYPE_START 0x01
@@ -70,32 +68,27 @@ extern "C" {
 #define AVDTP_UNSUPPORTED_CONFIGURATION 0x29
 #define AVDTP_BAD_STATE 0x31
 
-#define AVDTP_INVALID_CODEC_TYPE                    0xC1
-#define AVDTP_NOT_SUPPORTED_CODEC_TYPE              0xC2
-#define AVDTP_INVALID_SAMPLING_FREQUENCY            0xC3
-#define AVDTP_NOT_SUPPORTED_SAMPLING_FREQUENCY      0xC4
-#define AVDTP_INVALID_CHANNEL_MODE                  0xC5
-#define AVDTP_NOT_SUPPORTED_CHANNEL_MODE            0xC6
-#define AVDTP_INVALID_SUBBANDS                      0xC7
-#define AVDTP_NOT_SUPPORTED_SUBBANDS                0xC8
-#define AVDTP_INVALID_ALLOCATION_METHOD             0xC9
-#define AVDTP_NOT_SUPPORTED_ALLOCATION_METHOD       0xCA
-#define AVDTP_INVALID_MINIMUM_BITPOOL_VALUE         0xCB
-#define AVDTP_NOT_SUPPORTED_MINIMUM_BITPOOL_VALUE   0xCC
-#define AVDTP_INVALID_MAXIMUM_BITPOOL_VALUE         0xCD
-#define AVDTP_NOT_SUPPORTED_MAXIMUM_BITPOOL_VALUE   0xCE
-#define AVDTP_INVALID_OBJECT_TYPE                   0xD6
-#define AVDTP_NOT_SUPPORTED_OBJECT_TYPE             0xD7
-#define AVDTP_INVALID_CHANNELS                      0xD8
-#define AVDTP_NOT_SUPPORTED_CHANNELS                0xD9
-#define AVDTP_INVALID_VERSION                       0xDA
-#define AVDTP_NOT_SUPPORTED_VERSION                 0xDB
-#define AVDTP_INVALID_BLOCK_LENGTH                  0xDD
-#define AVDTP_INVALID_DRC                           0xE4
-#define AVDTP_NOT_SUPPORTED_DRC                     0xE5
-#define AVDTP_INVALID_CP_TYPE                       0xE0
-#define AVDTP_INVALID_CP_FORMAT 					0xE1
-#define AVDTP_NOT_SUPPORTED_CODEC_TYPE 				0xC2
+#define AVDTP_INVALID_CODEC_TYPE 0xC1
+#define AVDTP_NOT_SUPPORTED_CODEC_TYPE 0xC2
+#define AVDTP_INVALID_SAMPLING_FREQUENCY 0xC3
+#define AVDTP_NOT_SUPPORTED_SAMPLING_FREQUENCY 0xC4
+#define AVDTP_INVALID_CHANNEL_MODE 0xC5
+#define AVDTP_NOT_SUPPORTED_CHANNEL_MODE 0xC6
+#define AVDTP_INVALID_SUBBANDS 0xC7
+#define AVDTP_NOT_SUPPORTED_SUBBANDS 0xC8
+#define AVDTP_INVALID_ALLOCATION_METHOD 0xC9
+#define AVDTP_INVALID_MINIMUM_BITPOOL_VALUE 0xCB
+#define AVDTP_INVALID_MAXIMUM_BITPOOL_VALUE 0xCD
+#define AVDTP_INVALID_BLOCK_LENGTH 0xDD
+#define AVDTP_INVALID_OBJECT_TYPE 0xD6
+#define AVDTP_INVALID_CHANNELS 0xD8
+#define AVDTP_INVALID_DRC 0xE4
+#define AVDTP_NOT_SUPPORTED_OBJECT_TYPE 0xD7
+#define AVDTP_NOT_SUPPORTED_CHANNELS 0xD9
+#define AVDTP_NOT_SUPPORTED_DRC 0xE5
+#define AVDTP_INVALID_CP_TYPE 0xE0
+#define AVDTP_INVALID_CP_FORMAT 0xE1
+#define AVDTP_NOT_SUPPORTED_CODEC_TYPE 0xC2
 
 #define AVDTP_CONN_TIMEOUT //(HZ * 30)
 #define AVDTP_DISC_TIMEOUT //(HZ * 20)
@@ -212,8 +205,7 @@ enum av_conn_state_enum
 
 #define A2DP_VER_1_2 0x0102
 #define A2DP_VER_1_3 0x0103
-#define A2DP_VER_1_4 0x0104
-#define A2DP_LOCAL_VERSION A2DP_VER_1_4
+#define A2DP_LOCAL_VERSION A2DP_VER_1_3
 
 #define A2DP_MEDIA_TYPE_AUDIO 	    0x00
 
@@ -244,29 +236,25 @@ enum av_conn_state_enum
 #define A2DP_ALLOCATION_SNR		(1 << 1)
 #define A2DP_ALLOCATION_LOUDNESS	1
 
-#define AVDTP_MEDIA_TRANSPORT_CAP_LEN               (2)
-#define AVDTP_MEDIA_CODEC_CAP_HEADER_LEN            (4)
-#define AVDTP_L2HC_MEDIA_CODEC_SPEC_INFO_ELE_LEN    (12)
-#define AVDTP_MIHC_MEDIA_CODEC_SPEC_INFO_ELE_LEN    (13)
 
 typedef struct
 {
 	U8 version; /* RTP Version */
 
-	U8 padding; /* If the padding bit is set, the packet contains
-                         * one or more additional padding octets at the end,
-                         * which are not parts of the payload.  The last
-                         * octet of the padding contains a count of how many
-                         * padding octets should be ignored.
+	U8 padding; /* If the padding bit is set, the packet contains 
+                         * one or more additional padding octets at the end, 
+                         * which are not parts of the payload.  The last 
+                         * octet of the padding contains a count of how many 
+                         * padding octets should be ignored.  
                          */
 
-	U8 marker; /* Profile dependent.  Used to mark significant
-                         * events such as frame boundaries in the packet
-                         * stream.
+	U8 marker; /* Profile dependent.  Used to mark significant 
+                         * events such as frame boundaries in the packet 
+                         * stream.  
                          */
 
-	U8 payloadType; /* Profile dependent.  Identifies the RTP payload
-                         * type.
+	U8 payloadType; /* Profile dependent.  Identifies the RTP payload 
+                         * type.  
                          */
 
 	U16 sequenceNumber; /* Incremented by one for each packet sent */
@@ -275,8 +263,8 @@ typedef struct
 
 	U32 ssrc; /* Synchronization source */
 
-	U8 csrcCount; /* The number of CSRC (Contributing Source)
-                         * identifiers that follow the fixed header.
+	U8 csrcCount; /* The number of CSRC (Contributing Source) 
+                         * identifiers that follow the fixed header.  
                          */
 
 	U32 csrcList[15]; /* List of CSRC identifiers */
@@ -484,6 +472,9 @@ enum avdtp_event_enum
 typedef enum
 {
     AVDTP_STATE_IDLE,
+    AVDTP_STATE_DISCOVER,
+    AVDTP_STATE_GETCAP,
+    AVDTP_STATE_SETCONFIG,
     AVDTP_STATE_CONFIGURED,
     AVDTP_STATE_OPEN,
     AVDTP_STATE_STREAMING,
@@ -553,6 +544,7 @@ struct avdtp_config_request
 struct avdtp_local_sep
 {
     struct seid_info info;
+    uint8 allocated;
     uint8 codec;
     uint8 sep_prio;
     bool sep_is_discoverable;
@@ -566,7 +558,6 @@ struct avdtp_local_sep
 struct avdtp_remote_sep
 {
     uint8 seid;
-    bool inuse;
     uint8 type;
     uint8 transact_id;
     uint8 delay_reporting_support;
@@ -588,6 +579,7 @@ struct avdtp_control_t
     uint8 discover_cnt;
     uint8 avdtp_trans_id;
 
+    bool is_source;
     bool initiator;
     avdtp_state_t state;
 
@@ -640,7 +632,6 @@ struct avdtp_sep_ind
 {
     uint8 *(*getcap_req_cb)(struct avdtp_control_t* avdtp_ctl, struct avdtp_local_sep *local_sep, uint16 *len, uint8 sig_type);
     int8 (*setconf_apply_cb)(struct avdtp_control_t* avdtp_ctl, struct avdtp_local_sep *local_sep, struct avdtp_config_request* cfg_req);
-    uint8 *(*get_config_cb)(struct avdtp_control_t* avdtp_ctl, struct avdtp_local_sep *local_sep, uint16 *len);
     int8 (*open_req_cb)(struct avdtp_control_t* avdtp_ctl, struct avdtp_local_sep *local_sep);
     int8 (*start_req_cb)(struct avdtp_control_t* avdtp_ctl, struct avdtp_local_sep *local_sep);
     int8 (*suspend_req_cb)(struct avdtp_control_t* avdtp_ctl, struct avdtp_local_sep *local_sep);
@@ -778,8 +769,7 @@ struct ldac_codec_cap {
 
 #define SCALABLE_CODEC_BITS_16 0x00
 #define SCALABLE_CODEC_BITS_24 0x08
-#define SCALABLE_CODEC_OLD_SAMP_48000 0x10 //old case
-#define SCALABLE_CODEC_NEW_SAMP_48000 0x04 //new case
+#define SCALABLE_CODEC_SAMP_48000 0x10
 #define SCALABLE_CODEC_SAMP_44100 0x20
 #define SCALABLE_CODEC_SAMP_32000 0x40
 #define SCALABLE_CODEC_SAMP_96000 0x80
@@ -792,117 +782,18 @@ struct scalable_codec_cap {
     uint8 sample_rate;
 } __attribute__ ((packed));
 
-#define L2HC_CODEC_RES_32   (0x04)
-#define L2HC_CODEC_RES_24   (0x02)
-#define L2HC_CODEC_RES_16   (0x01)
-#define L2HC_CODEC_SR_192000      (0x40)
-#define L2HC_CODEC_SR_176400      (0x20)
-#define L2HC_CODEC_SR_96000       (0x10)
-#define L2HC_CODEC_SR_88200       (0x08)
-#define L2HC_CODEC_SR_48000       (0x04)
-#define L2HC_CODEC_SR_44100       (0x02)
-#define L2HC_CODEC_SR_32000       (0x01)
-#define L2HC_CODEC_BR_1920              (0x40)
-#define L2HC_CODEC_BR_1600              (0x20)
-#define L2HC_CODEC_BR_1280              (0x10)
-#define L2HC_CODEC_BR_960               (0x08)
-#define L2HC_CODEC_BR_640               (0x04)
-#define L2HC_CODEC_BR_480               (0x02)
-#define L2HC_CODEC_BR_320               (0x01)
-#define L2HC_CODEC_BR_256               (0x80)
-#define L2HC_CODEC_BR_192               (0x40)
-#define L2HC_CODEC_BR_128               (0x20)
-#define L2HC_CODEC_BR_96                (0x10)
-#define L2HC_CODEC_BR_64                (0x08)
-#define L2HC_CODEC_FD_10    (0x02)
-#define L2HC_CODEC_FD_7D5   (0x01)
-#define L2HC_CODEC_FD_5     (0x80)
-#define L2HC_CODEC_CM_MONO          (0x04)
-#define L2HC_CODEC_CM_DUAL          (0x08)
+#define A2DP_OPEN_CTX_MAX_SIZE (SYS_MAX_A2DP_STREAMS+1)
 
-#define L2HC_CODEC_ALL_BIT_ZERO        (0x00)
-
-struct l2hc_codec_cap {
-    uint8 media_type; //Audio 0x00
-    uint8 media_codec_type; //Vendor-Specific Codec 0xff
-    uint8 vendor_id[4]; //CF; 0C 00 00
-    uint8 codec_id[2];  //01 CA
-    uint8 vers_res;
-    uint8 sample_rate;
-    uint8 br_msb;
-    uint8 br_lsb_fd;
-    uint8 fd_cm;
-    uint8 reserved;
-} __attribute__ ((packed));
-
-// mihc codec version
-#define MIHC_CODEC_VERSION_1        (0x01)
-#define MIHC_CODEC_VERSION_2        (0x02)
-#define MIHC_CODEC_VERSION_3        (0x04)
-#define MIHC_CODEC_VERSION_4        (0x08)
-#define MIHC_CODEC_VERSION_5        (0x10)
-#define MIHC_CODEC_VERSION_6        (0x20)
-#define MIHC_CODEC_VERSION_7        (0x40)
-#define MIHC_CODEC_VERSION_8        (0x80)
-// mihc codec min birate (note: version-dependent)
-#define MIHC_CODEC_MIN_BR_128       (0x80)
-#define MIHC_CODEC_MIN_BR_96        (0x40)
-#define MIHC_CODEC_MIN_BR_64        (0x20)
-#define MIHC_CODEC_MIN_BR_32        (0x10)
-#define MIHC_CODEC_MIN_BR_DEFAULT   (0x10) // default use minimum min-birate
-// mihc codec sample rate
-#define MIHC_CODEC_SR_96000         (0x02)
-#define MIHC_CODEC_SR_48000         (0x04)
-#define MIHC_CODEC_SR_44100         (0x08)
-#define MIHC_CODEC_SR_32000         (0x10)
-#define MIHC_CODEC_SR_24000         (0x20)
-#define MIHC_CODEC_SR_16000         (0x40)
-// mihc codec constant bit rate (note: Fixed to 1)
-#define MIHC_CODEC_CBR_ENABLE       (0b1)
-#define MIHC_CODEC_CBR_DISABLE      (0b0)
-// mihc codec frame duration (note: alias LD in spec?)
-#define MIHC_CODEC_FD_10            (0b01)
-#define MIHC_CODEC_FD_5             (0b10)
-// mihc codec bit deepth
-#define MIHC_CODEC_BD_32            (0b001)
-#define MIHC_CODEC_BD_24            (0b010)
-#define MIHC_CODEC_BD_16            (0b100)
-// mihc codec channel mode
-#define MIHC_CODEC_CM_STEREO        (0b01)
-#define MIHC_CODEC_CM_MONO          (0b10)
-// mihc codec traffic mode
-#define MIHC_CODEC_MODE_ADATPIVE    (0b0001)
-#define MIHC_CODEC_MODE_LOW_LATENCY (0b0010)
-#define MIHC_CODEC_MODE_LOSSLESS    (0b0100)
-#define MIHC_CODEC_MODE_LOSSY       (0b1000)
-// mihc codec MD
-#define MIHC_CODEC_MD_ENABLE        (0b1)
-#define MIHC_CODEC_MD_DISABLE       (0b0)
-
-struct mihc_codec_cap {
-    uint8 media_type;       // Audio 0x00
-    uint8 media_codec_type; // Vendor-Specific Codec 0xff
-    uint8 vendor_id[4];     // byte 0 ~ 3, value = 8F 03 00 00
-    uint8 codec_id[2];      // byte 4 ~ 5, value = 31 4D
-    uint8 version;
-    uint8 sample_rate;
-    uint8 cbr   : 1;        // byte 8
-    uint8       : 1;
-    uint8 fd    : 2;
-    uint8       : 1;
-    uint8 bd    : 3;
-    uint8 cm    : 2;        // byte 9
-    uint8       : 2;
-    uint8 mode  : 4;
-    uint8 min_bitrate;      // byte 10
-    uint8       : 7;        // byte 11
-    uint8 md    : 1;
-    uint8 reserved;         // byte 12
-} __attribute__ ((packed));
+struct a2dp_open_context {
+    bt_bdaddr_t remote;
+    bool inuse;
+    btif_avdtp_codec_t *prev_conn_codec;
+};
 
 struct a2dp_control_t
 {
-    struct bdaddr_t remote;
+    struct bdaddr_t remote;    
+    bool is_source;
     bool cp_enable;
     uint8 disc_reason;
     uint32 l2capSignalHandle;
@@ -927,16 +818,12 @@ struct a2dp_control_t
 
     void *avdtp_codec_req; //finally setconf/reconf-ed codec capabilities
     void *avdtp_cp_req; //finally setconf/reconf-ed cp capabilities
-    bool delay_report_set;
-    bool media_trans_set;
     struct avdtp_media_content_protect_capability *security_cp_cap;
 
-    uint8_t (*indicate)(uint8 device_id, struct a2dp_control_t *stream, uint8 event, void *pData);
+    void (*indicate)(uint8 device_id, struct a2dp_control_t *stream, uint8 event, void *pData);
     void (*data_cb)(uint8 device_id, struct a2dp_control_t *stream,struct pp_buff *ppb);
-
+    
     avdtp_media_header_t media_header;
-
-    enum A2DP_ROLE role;
 };
 
 struct a2dp_ctx_input {
@@ -947,7 +834,7 @@ struct a2dp_ctx_input {
     struct avdtp_local_sep *local_sep;
     uint32 l2capSignalHandle;
     uint32 l2capMediaHandle;
-    uint8_t (*indicate_callback)(uint8 device_id, struct a2dp_control_t *stream, uint8 event, void *pData);
+    void (*indicate_callback)(uint8 device_id, struct a2dp_control_t *stream, uint8 event, void *pData);
     void (*data_callback)(uint8 device_id, struct a2dp_control_t *stream, struct pp_buff *ppb);
 };
 
@@ -956,10 +843,8 @@ struct a2dp_ctx_output {
 
 extern struct a2dp_control_t *a2dp_ctl_list;
 
-int8 avdtp_send_with_context(uint32 avdtp_handle, uint8 *data, uint32 datalen, void* context);
 int8 avdtp_send(uint32 avdtp_handle, uint8 *data, uint32 datalen);
-int8 avdtp_init(struct avdtp_control_t* (*accept)(uint8_t device_id, const bt_bdaddr_t* addr),
-                struct avdtp_control_t* (*search)(uint8_t device_id));
+int8 avdtp_init(struct avdtp_control_t* (*search)(uint8_t device_id, bool is_channel_req_context));
 void avdtp_stream_init(struct avdtp_control_t* avdtp_ctl,
                 void (*avdtp_notify_callback)(uint8 device_id, struct avdtp_control_t* avdtp_ctl, uint8 event, uint32 l2cap_channel, void *pdata, uint8 reason),
                 void (*avdtp_datarecv_callback)(uint8 device_id, struct avdtp_control_t* avdtp_ctl, uint32 l2cap_handle, struct pp_buff *ppb),
@@ -999,7 +884,6 @@ uint32 avdtp_get_media_l2cap_handle(struct avdtp_control_t *avdtp_ctl);
 uint32 avdtp_save_ctx(struct avdtp_control_t *avdtp_ctl, uint8_t *buf, uint32_t buf_len);
 uint32 avdtp_restore_ctx(struct avdtp_ctx_input *input);
 void avdtp_set_synced_streaming_state(struct bdaddr_t *addr);
-uint8 avdtp_generate_trans_id_per_channel(struct avdtp_control_t *avdtp_ctl);
 
 void pts_send_discover_cmd(void);
 void pts_send_get_capability_cmd(void);
@@ -1012,11 +896,12 @@ void pts_send_abort_cmd(void);
 void pts_send_get_all_capability_cmd(void);
 void pts_send_suspend_cmd(void);
 void pts_send_start_cmd(void);
-void pts_send_security_control_cmd(void);
 
 uint8_t a2dp_is_critical_avdtp_cmd_handling(void);
 void a2dp_critical_avdtp_cmd_timeout(void);
 
+const char *avdtp_state2str(avdtp_state_t state);
+const char *avdtp_event2str(enum avdtp_event_enum event);
 U16 a2dp_MediaPacketSize(struct a2dp_control_t *Stream);
 #define a2dp_MediaPacketSize(s) (l2cap_get_tx_mtu((s)->l2capMediaHandle))
 void a2dp_register_is_pts_address_callback(bool (*cb)(void *remote));
@@ -1024,10 +909,11 @@ U16 a2dp_create_media_header(struct a2dp_control_t *a2dp_ctl, U8 *buffer);
 void a2dp_notifyCallback(uint8 device_id, struct avdtp_control_t* avdtp_ctl, uint8 event, uint32 l2cap_channel, void *pData, uint8 reason);
 void a2dp_dataRecvCallback(uint8 device_id, struct avdtp_control_t* avdtp_ctl, uint32 l2cap_handle, struct pp_buff *ppb);
 int8 a2dp_close(struct a2dp_control_t * stream);
-void a2dp_stack_init(struct avdtp_control_t* (*accept)(uint8_t device_id, const bt_bdaddr_t* addr),
-                     struct avdtp_control_t* (*search)(uint8_t device_id));
+struct a2dp_open_context* a2dp_set_open_context(bt_bdaddr_t* remote, btif_avdtp_codec_t *prev_codec);
+struct a2dp_open_context* a2dp_get_open_context(bt_bdaddr_t* remote);
+void a2dp_stack_init(struct avdtp_control_t* (*search)(uint8_t device_id, bool is_channel_req_context));
 void a2dp_stream_init(struct a2dp_control_t *a2dp_ctl,
-            uint8_t (*indicate_callback)(uint8 device_id, struct a2dp_control_t *stream, uint8 event, void *pData),
+            void (*indicate_callback)(uint8 device_id, struct a2dp_control_t *stream, uint8 event, void *pData),
             void (*data_callback)(uint8 device_id, struct a2dp_control_t *stream, struct pp_buff *ppb));
 
 int a2dp_register_sep(
@@ -1037,12 +923,13 @@ int a2dp_register_sep(
             struct avdtp_media_content_protect_capability *sep_cp,
             uint8 sep_prioprity);
 
-int a2dp_unregister_sep(struct a2dp_control_t *a2dp_ctl, uint8 seid_type, struct avdtp_media_codec_capability *sep_codec);
+int a2dp_unregister_sep(struct a2dp_control_t *ctl, uint8 codec_type);
 enum av_conn_state_enum av_getState(struct  a2dp_control_t*stream) ;
 void av_setState( struct  a2dp_control_t *stream, enum av_conn_state_enum state);
 int8 av_close(struct a2dp_control_t * stream);
 int8 av_connectReq(struct a2dp_control_t *stream, struct bdaddr_t *peer);
 int8 av_disconnectReq(struct  a2dp_control_t *stream);
+const char *a2dp_state2str(enum av_conn_state_enum state);
 int8 av_suspendReq(struct a2dp_control_t *stream);
 int8 av_startReq(  struct  a2dp_control_t  *stream);
 int8 av_abortReq( struct  a2dp_control_t  *stream);
@@ -1053,7 +940,6 @@ int8 av_reconfig_to_vendor_codec(struct a2dp_control_t *stream, uint8_t codec_id
 int8 av_setSinkDelay(struct a2dp_control_t *stream, uint16 delay_ms);
 int8 av_security_control_req(struct a2dp_control_t *stream, uint8_t *data, uint16_t len);
 int8 av_security_control_resp(struct a2dp_control_t *stream, uint8_t *data, uint16_t len, uint8 error);
-bool av_is_remote_support_codec(struct a2dp_control_t *stream, uint8_t codec_type, uint32_t vendor_id, uint16_t codec_id);
 struct avdtp_control_t *a2dp_get_avdtp_control(struct a2dp_control_t *stream);
 uint32 a2dp_save_ctx(struct a2dp_control_t *a2dp_ctl, uint8_t *buf, uint32_t buf_len);
 uint32 a2dp_restore_ctx(struct a2dp_ctx_input *input);

@@ -542,7 +542,7 @@ __WEAK void EvrRtxThreadError (osThreadId_t thread_id, int32_t status) {
   (void)EventRecord2(EvtRtxThreadError, (uint32_t)thread_id, (uint32_t)status);
 #else
   os_thread_t *thread = osRtxThreadId(thread_id);
-  RTX5_TRACE(2,"EvrRtxThreadError, thread name:%s, status:%d", thread ? thread->name : "NULL", status);
+  TRACE(2,"EvrRtxThreadError, thread name:%s, status:%d", thread ? thread->name : "NULL", status);
 #endif
 }
 #endif

@@ -482,7 +482,7 @@ uint32_t blockSize)
 
         partial_accu_ptr = S->pState;
         pSamples = pState + sample_offset;
-        int cnt = blockSize >> 2;
+        cnt = blockSize >> 2;
         while(cnt > 0) {
             float32x4_t vecAcc0;
             float32x4_t vecIn0;

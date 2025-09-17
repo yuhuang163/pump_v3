@@ -1,113 +1,76 @@
 /****************************************************************************
 *
-*    The MIT License (MIT)
+*    Copyright 2012 - 2022 Vivante Corporation, Santa Clara, California.
+*    All Rights Reserved.
 *
-*    Copyright (c) 2014 - 2020 Vivante Corporation
+*    Permission is hereby granted, free of charge, to any person obtaining
+*    a copy of this software and associated documentation files (the
+*    'Software'), to deal in the Software without restriction, including
+*    without limitation the rights to use, copy, modify, merge, publish,
+*    distribute, sub license, and/or sell copies of the Software, and to
+*    permit persons to whom the Software is furnished to do so, subject
+*    to the following conditions:
 *
-*    Permission is hereby granted, free of charge, to any person obtaining a
-*    copy of this software and associated documentation files (the "Software"),
-*    to deal in the Software without restriction, including without limitation
-*    the rights to use, copy, modify, merge, publish, distribute, sublicense,
-*    and/or sell copies of the Software, and to permit persons to whom the
-*    Software is furnished to do so, subject to the following conditions:
+*    The above copyright notice and this permission notice (including the
+*    next paragraph) shall be included in all copies or substantial
+*    portions of the Software.
 *
-*    The above copyright notice and this permission notice shall be included in
-*    all copies or substantial portions of the Software.
+*    THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND,
+*    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+*    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
+*    IN NO EVENT SHALL VIVANTE AND/OR ITS SUPPLIERS BE LIABLE FOR ANY
+*    CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+*    TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+*    SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 *
-*    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-*    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-*    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-*    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-*    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-*    FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
-*    DEALINGS IN THE SOFTWARE.
-*
-*****************************************************************************/
+****************************************************************************/
+
 
 #include "vg_lite_platform.h"
-#include "../vg_lite_kernel.h"
-#include "../../inc/vg_lite_hal.h"
 #include "vg_lite_kernel.h"
+#include "vg_lite_hal.h"
 #include "vg_lite_hw.h"
-
-#include "cmsis_nvic.h"
-
-#if (!_BAREMETAL && USE_FREERTOS)
-#include "FreeRTOS.h"
-#include "semphr.h"
-#include "task.h"
-#else
-#include <semaphore.h>
-#include <time.h>
 #include "gpu_port.h"
-#endif
-
-
-
-
-#if _BAREMETAL
 #include "hal_timer.h"
 #include "heap_api.h"
 
-static int usleep(uint32_t usecs)
-{
-   hal_sys_timer_delay(US_TO_TICKS(usecs));
-   return 0;
-}
-static void sleep(uint32_t msecs)
-{
-   hal_sys_timer_delay(MS_TO_TICKS(msecs));
-}
 
-
-#endif
-
-#if USE_FREERTOS
-static void sleep(uint32_t msec)
-{
-    vTaskDelay((configTICK_RATE_HZ * msec + 999)/ 1000);
-}
-
-#endif
-
-#if _BAREMETAL
-/* The followings should be configured by FPGA. */
-static    uint32_t    registerMemBase    = 0x43c80000;
-#else
-static    uint32_t    registerMemBase    = 0x40240000;
-#endif
+static uint32_t registerMemBase = GPU_BASE;
 
 /* If bit31 is activated this indicates a bus error */
 #define IS_AXI_BUS_ERR(x) ((x)&(1U << 31))
-
 #define HEAP_NODE_USED  0xABBAF00D
 #define DUMMY_HANDLE    0xDEADABBA
 
-volatile void* contiguousMem = NULL;
-uint32_t gpuMemBase = 0;
+volatile void* contiguousMem[VG_SYSTEM_RESERVE_COUNT] = {
+    [0 ... VG_SYSTEM_RESERVE_COUNT - 1] = NULL
+};
+
+uint32_t gpuMemBase[VG_SYSTEM_RESERVE_COUNT] = {
+    [0 ... VG_SYSTEM_RESERVE_COUNT - 1] = 0
+};
 
 /* Default heap size is 16MB. */
-static int heap_size = MAX_CONTIGUOUS_SIZE;
+static uint32_t heap_size[VG_SYSTEM_RESERVE_COUNT] = {
+    [0 ... VG_SYSTEM_RESERVE_COUNT - 1] = MAX_CONTIGUOUS_SIZE
+};
 
 void __attribute__((weak)) vg_lite_bus_error_handler();
 
-void vg_lite_init_mem(uint32_t register_mem_base,
-          uint32_t gpu_mem_base,
-          volatile void * contiguous_mem_base,
-          uint32_t contiguous_mem_size)
+void vg_lite_init_mem(vg_module_parameters_t *param)
 {
-    registerMemBase = register_mem_base;
-    gpuMemBase      = gpu_mem_base;
-    contiguousMem   = contiguous_mem_base;
-    heap_size       = contiguous_mem_size;
+    uint32_t i;
+
+    registerMemBase = param->register_mem_base;
+
+    for (i = 0; i< VG_SYSTEM_RESERVE_COUNT; i++) {
+        gpuMemBase[i]      = param->gpu_mem_base[i];
+        contiguousMem[i]   = param->contiguous_mem_base[i];
+        heap_size[i]       = param->contiguous_mem_size[i];
+    }
 }
 
 /* Implementation of list. ****************************************/
-typedef struct list_head {
-    struct list_head *next;
-    struct list_head *prev;
-}list_head_t;
-
 #define INIT_LIST_HEAD(entry) \
         (entry)->next = (entry);\
         (entry)->prev = (entry);
@@ -142,16 +105,9 @@ static inline void _memset(void *mem, unsigned char value, int size)
 {
     int i;
     for (i = 0; i < size; i++) {
-        ((unsigned char*)mem)[i] = value;
+        ((unsigned char *)mem)[i] = value;
     }
 }
-
-typedef struct heap_node {
-    list_head_t list; /* TODO: Linux specific, needs to rewrite. */
-    uint32_t offset;
-    unsigned long size;
-    uint32_t status;
-}heap_node_t;
 
 struct memory_heap {
     uint32_t free;
@@ -167,30 +123,23 @@ struct mapped_memory {
 
 struct vg_lite_device {
     /* void * gpu; */
-    uint32_t gpu;    /* Always use physical for register access in RTOS. */
+    uint32_t register_base;    /* Always use physical for register access in RTOS. */
     /* struct page * pages; */
-    volatile void * contiguous;
+    volatile void *contiguous[VG_SYSTEM_RESERVE_COUNT];
     unsigned int order;
-    unsigned int heap_size;
-    void * virtual;
-    uint32_t physical;
-    uint32_t size;
-    struct memory_heap heap;
+    unsigned int heap_size[VG_SYSTEM_RESERVE_COUNT];
+    void *virtual[VG_SYSTEM_RESERVE_COUNT];
+    uint32_t physical[VG_SYSTEM_RESERVE_COUNT];
+    uint32_t size[VG_SYSTEM_RESERVE_COUNT];
+    struct memory_heap heap[VG_SYSTEM_RESERVE_COUNT];
     int irq_enabled;
     volatile uint32_t int_flags;
-#if _BAREMETAL
-    /* wait_queue_head_t int_queue; */
-#elif USE_FREERTOS
-    /* wait_queue_head_t int_queue; */
-    SemaphoreHandle_t int_queue;
-#else
-    sem_t int_queue;
-#endif
     void * device;
     int registered;
     int major;
     struct class * class;
     int created;
+    vg_lite_gpu_execute_state_t gpu_execute_state;
 };
 
 struct client_data {
@@ -201,61 +150,55 @@ struct client_data {
 
 static struct vg_lite_device Device, * device;
 
-void * vg_lite_hal_alloc(unsigned long size)
+void vg_lite_set_gpu_execute_state(vg_lite_gpu_execute_state_t state)
 {
-   return gpu_malloc(size);
+    device->gpu_execute_state = state;
+}
 
+void *vg_lite_hal_alloc(unsigned long size)
+{
+    return gpu_hal_malloc(size);
 }
 
 void vg_lite_hal_free(void * memory)
 {
-
-    gpu_free(memory);
-
+    gpu_hal_free(memory);
 }
 
 void vg_lite_hal_delay(uint32_t ms)
 {
 #if defined(__NuttX__)
-	usleep(1000*ms);
+    usleep(1000*ms);
 #else
-    sleep(ms);
+    hal_sys_timer_delay(MS_TO_TICKS(ms));
 #endif
 }
 
-extern void gpu_cache_invalid(void);
 void vg_lite_hal_barrier(void)
 {
-     /*Memory barrier. */
-#if _BAREMETAL
-
+    /*Memory barrier. */
     __asm("DSB");
-#else
-    __asm("DSB");
-#endif
-    gpu_cache_invalid();
+    gpu_hal_cache_sync();
 }
 
 static int vg_lite_init(void);
-extern void gpu_cache_config(void);
-
 void vg_lite_hal_initialize(void)
 {
+    /* Enable GPU clock & IRQ, prepare buffers. */
+    gpu_hal_init();
 
     vg_lite_init();
-    gpu_cache_config();
-
 }
 
 void vg_lite_hal_deinitialize(void)
 {
-    /* TODO: Remove clock. */
-#if USE_FREERTOS
-    vSemaphoreDelete(device->int_queue);
-#elif !_BAREMETAL
-    sem_destroy(&device->int_queue);
-#endif
-    /* TODO: Remove power. */
+    /* Disable clock & IRQ */
+    gpu_hal_exit();
+}
+
+void vg_lite_hal_reset(void)
+{
+    gpu_hal_reset();
 }
 
 static int split_node(heap_node_t * node, unsigned long size)
@@ -282,22 +225,26 @@ static int split_node(heap_node_t * node, unsigned long size)
     return 0;
 }
 
-vg_lite_error_t vg_lite_hal_allocate_contiguous(unsigned long size, void ** logical, uint32_t * physical,void ** node)
+vg_lite_error_t vg_lite_hal_allocate_contiguous(unsigned long size, vg_lite_vidmem_pool_t pool, void ** logical, void ** klogical, uint32_t * physical, void ** node)
 {
     unsigned long aligned_size;
-    heap_node_t * pos;
+    heap_node_t *pos;
+
+    /* Judge if it exceeds the range of pool */
+    if (pool >= VG_SYSTEM_RESERVE_COUNT)
+        pool = VG_SYSTEM_RESERVE_COUNT - 1;
 
     /* Align the size to 64 bytes. */
     aligned_size = (size + 63) & ~63;
 
     /* Check if there is enough free memory available. */
-    if (aligned_size > device->heap.free) {
+    if (aligned_size > device->heap[pool].free) {
         return VG_LITE_OUT_OF_MEMORY;
     }
 
     /* Walk the heap backwards. */
-    for (pos = (heap_node_t*)device->heap.list.prev;
-                 &pos->list != &device->heap.list;
+    for (pos = (heap_node_t *)device->heap[pool].list.prev;
+                 &pos->list != &device->heap[pool].list;
                  pos = (heap_node_t*) pos->list.prev) {
         /* Check if the current node is free and is big enough. */
         if (pos->status == 0 && pos->size >= aligned_size) {
@@ -311,9 +258,13 @@ vg_lite_error_t vg_lite_hal_allocate_contiguous(unsigned long size, void ** logi
 
             /*  Return the logical/physical address. */
             /* *logical = (uint8_t *) private_data->contiguous_mapped + pos->offset; */
-            *logical = (uint8_t *)device->virtual + pos->offset;
-            *physical = gpuMemBase + (uint32_t)(*logical);/* device->physical + pos->offset; */
-            device->heap.free -= aligned_size;
+            *logical = (uint8_t *)device->virtual[pool] + pos->offset;
+            *klogical = *logical;
+            *physical = ADDR_CPU_TO_DEV((uint32_t)(*logical));
+            /* Mark which pool the pos belong to */
+            pos->pool = pool;
+
+            device->heap[pool].free -= aligned_size;
 
             *node = pos;
             return VG_LITE_SUCCESS;
@@ -327,7 +278,8 @@ vg_lite_error_t vg_lite_hal_allocate_contiguous(unsigned long size, void ** logi
 void vg_lite_hal_free_contiguous(void * memory_handle)
 {
     /* TODO: no list available in RTOS. */
-    heap_node_t * pos, * node;
+    heap_node_t *pos, *node;
+    vg_lite_vidmem_pool_t pool;
 
     /* Get pointer to node. */
     node = memory_handle;
@@ -336,21 +288,24 @@ void vg_lite_hal_free_contiguous(void * memory_handle)
         return;
     }
 
+    /* Determine which pool the node belongs to */
+    pool = node->pool;
+
     /* Mark node as free. */
     node->status = 0;
 
     /* Add node size to free count. */
-    device->heap.free += node->size;
+    device->heap[pool].free += node->size;
 
     /* Check if next node is free. */
     pos = node;
     for (pos = (heap_node_t *)pos->list.next;
-         &pos->list != &device->heap.list;
+         &pos->list != &device->heap[pool].list;
          pos = (heap_node_t *)pos->list.next) {
         if (pos->status == 0) {
             /* Merge the nodes. */
             node->size += pos->size;
-            if(node->offset > pos->offset)
+            if (node->offset > pos->offset)
                 node->offset = pos->offset;
             /* Delete the next node from the list. */
             delete_list(&pos->list);
@@ -362,12 +317,12 @@ void vg_lite_hal_free_contiguous(void * memory_handle)
     /* Check if the previous node is free. */
     pos = node;
     for (pos = (heap_node_t *)pos->list.prev;
-         &pos->list != &device->heap.list;
+         &pos->list != &device->heap[pool].list;
          pos = (heap_node_t *)pos->list.prev) {
         if (pos->status == 0) {
             /* Merge the nodes. */
             pos->size += node->size;
-            if(pos->offset > node->offset)
+            if (pos->offset > node->offset)
                 pos->offset = node->offset;
             /* Delete the current node from the list. */
             delete_list(&node->list);
@@ -375,28 +330,32 @@ void vg_lite_hal_free_contiguous(void * memory_handle)
         }
         break;
     }
+
     /* when release command buffer node and ts buffer node to exit,release the linked list*/
-    if(device->heap.list.next == device->heap.list.prev) {
+    /* if(device->heap[pool].list.next == device->heap[pool].list.prev) {
         delete_list(&pos->list);
         vg_lite_hal_free(pos);
-    }
+    }*/
 }
 
 void vg_lite_hal_free_os_heap(void)
 {
-    struct heap_node    *pos, *n;
+    struct heap_node *pos, *n;
+    uint32_t i;
 
     /* Check for valid device. */
     if (device != NULL) {
         /* Process each node. */
-        for (pos = (heap_node_t *)device->heap.list.next,
-             n = (heap_node_t *)pos->list.next;
-             &pos->list != &device->heap.list;
-             pos = n, n = (heap_node_t *)n->list.next) {
+        for (i = 0; i < VG_SYSTEM_RESERVE_COUNT; i++) {
+            for (pos = (heap_node_t *)device->heap[i].list.next,
+                 n = (heap_node_t *)pos->list.next;
+                 &pos->list != &device->heap[i].list;
+                 pos = n, n = (heap_node_t *)n->list.next) {
                 /* Remove it from the linked list. */
                 delete_list(&pos->list);
                 /* Free up the memory. */
                 vg_lite_hal_free(pos);
+            }
         }
     }
 }
@@ -405,21 +364,21 @@ void vg_lite_hal_free_os_heap(void)
 uint32_t vg_lite_hal_peek(uint32_t address)
 {
     /* Read data from the GPU register. */
-    return (uint32_t) (*(volatile uint32_t *) (device->gpu + address));
+    return (uint32_t) (*(volatile uint32_t *) (device->register_base + address));
 }
 
 /* Portable: write register. */
 void vg_lite_hal_poke(uint32_t address, uint32_t data)
 {
     /* Write data to the GPU register. */
-    volatile uint32_t *LocalAddr = (uint32_t *)(device->gpu + address);
+    volatile uint32_t *LocalAddr = (uint32_t *)(device->register_base + address);
     *LocalAddr = data;
 }
 
 vg_lite_error_t vg_lite_hal_query_mem(vg_lite_kernel_mem_t *mem)
 {
     if(device != NULL){
-        mem->bytes  = device->heap.free;
+        mem->bytes  = device->heap[mem->pool].free;
         return VG_LITE_SUCCESS;
     }
     mem->bytes = 0;
@@ -444,118 +403,27 @@ void __attribute__((weak)) vg_lite_bus_error_handler()
      * should override this handler if it requires to be notified when a bus
      * error event occurs.
      */
-
      return;
 }
 
 void vg_lite_IRQHandler(void)
 {
- #if USE_FREERTOS
-    uint32_t flags = vg_lite_hal_peek(VG_LITE_INTR_STATUS);
-    portBASE_TYPE xHigherPriorityTaskWoken = pdFALSE;
-
-    if (flags) {
-        /* Combine with current interrupt flags. */
-        device->int_flags |= flags;
-
-        /* Wake up any waiters. */
-        if(device->int_queue){
-            xSemaphoreGiveFromISR(device->int_queue, &xHigherPriorityTaskWoken);
-            if(xHigherPriorityTaskWoken != pdFALSE )
-            {
-                portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
-            }
-        }
-    }
-#else
-#if !_BAREMETAL
-    uint32_t flags = vg_lite_hal_peek(VG_LITE_INTR_STATUS);
-    if (flags) {
-        /* Combine with current interrupt flags. */
-        device->int_flags |= flags;
-        sem_post(&device->int_queue);
-    }
-#endif	
-#endif
 }
-
 
 int32_t vg_lite_hal_wait_interrupt(uint32_t timeout, uint32_t mask, uint32_t * value)
 {
-#if _BAREMETAL
-    uint32_t int_status=0;
+    if (gpu_hal_wait_done() == -1)
+        return 0;
 
-#ifdef GPU_LOOP_DONE
-    int_status = vg_lite_hal_peek(VG_LITE_INTR_STATUS);
-    (void)value;
-    while (int_status==0){
-        int_status = vg_lite_hal_peek(VG_LITE_INTR_STATUS);
-        usleep(1);
-    }
-#else
-
-
-    gpu_wait_done();
-
-    vg_lite_hal_clear_intr_status();
-#endif
-
-    if (IS_AXI_BUS_ERR(*value))
-    {
+    if (IS_AXI_BUS_ERR(*value)) {
         vg_lite_bus_error_handler();
     }
     return 1;
-#elif USE_FREERTOS /*for rt500*/
-    if(device->int_queue) {
-        if (xSemaphoreTake(device->int_queue, timeout / portTICK_PERIOD_MS) == pdTRUE) {
-            if (value != NULL) {
-               *value = device->int_flags & mask;
-            }
-            device->int_flags = 0;
-
-            if (IS_AXI_BUS_ERR(*value))
-            {
-                vg_lite_bus_error_handler();
-            }
-
-            return 1;
-        }
-    }
-    return 0;
-#else
-    struct timespec ts;
-    clock_gettime(CLOCK_REALTIME, &ts);
-    ts.tv_nsec += 100000000;
-    if (ts.tv_nsec > 1000000000) {
-        ts.tv_sec ++;
-        ts.tv_nsec -= 1000000000;
-    }
-    if (sem_timedwait(&device->int_queue, &ts) == 0) {
-        if (value != NULL) {
-            *value = device->int_flags & mask;
-        }
-        device->int_flags = 0;
-
-        if (IS_AXI_BUS_ERR(*value))
-        {
-            vg_lite_bus_error_handler();
-        }
-
-        return 1;
-    }
-    return 0;
-#endif
 }
 
-int32_t gpu_test_wait_interrupt(void)
+vg_lite_error_t vg_lite_hal_memory_export(int32_t *fd)
 {
-    volatile uint32_t int_status=0;
-    while (int_status==0){
-        int_status = vg_lite_hal_get_intr_status();
-        usleep(1);
-    }
-    vg_lite_hal_clear_intr_status();
-    return 0;
+    return VG_LITE_SUCCESS;
 }
 
 void * vg_lite_hal_map(unsigned long bytes, void * logical, uint32_t physical, uint32_t * gpu)
@@ -565,6 +433,7 @@ void * vg_lite_hal_map(unsigned long bytes, void * logical, uint32_t physical, u
     (void) logical;
     (void) physical;
     (void) gpu;
+    // return (void *)0;
     *gpu = physical;
     return (void *)DUMMY_HANDLE;
 }
@@ -575,27 +444,36 @@ void vg_lite_hal_unmap(void * handle)
     (void) handle;
 }
 
+vg_lite_error_t vg_lite_hal_operation_cache(void *handle, vg_lite_cache_op_t cache_op)
+{
+    (void) handle;
+    (void) cache_op;
 
+    return VG_LITE_SUCCESS;
+}
 
 static void vg_lite_exit(void)
 {
-    heap_node_t * pos;
-    heap_node_t * n;
+    heap_node_t *pos;
+    heap_node_t *n;
+    uint32_t i;
 
     /* Check for valid device. */
     if (device != NULL) {
         /* TODO: unmap register mem should be unnecessary. */
-        device->gpu = 0;
+        device->register_base = 0;
 
-        /* Process each node. */
-        for (pos = (heap_node_t *)device->heap.list.next, n = (heap_node_t *)pos->list.next;
-             &pos->list != &device->heap.list;
-             pos = n, n = (heap_node_t *)n->list.next) {
-            /* Remove it from the linked list. */
-            delete_list(&pos->list);
+        for (i = 0; i < VG_SYSTEM_RESERVE_COUNT; i++) {
+            /* Process each node. */
+            for (pos = (heap_node_t *)device->heap[i].list.next, n = (heap_node_t *)pos->list.next;
+                 &pos->list != &device->heap[i].list;
+                 pos = n, n = (heap_node_t *)n->list.next) {
+                /* Remove it from the linked list. */
+                delete_list(&pos->list);
 
-            /* Free up the memory. */
-            vg_lite_hal_free(pos);
+                /* Free up the memory. */
+                vg_lite_hal_free(pos);
+            }
         }
 
         /* Free up the device structure. */
@@ -605,7 +483,8 @@ static void vg_lite_exit(void)
 
 static int vg_lite_init(void)
 {
-    heap_node_t * node;
+    heap_node_t *node;
+    uint32_t i;
 
     /* Initialize memory and objects ***************************************/
     /* Create device structure. */
@@ -615,50 +494,47 @@ static int vg_lite_init(void)
     _memset(device, 0, sizeof(struct vg_lite_device));
 
     /* Setup register memory. **********************************************/
-    device->gpu = registerMemBase;
+    device->register_base = registerMemBase;
 
     /* Initialize contiguous memory. ***************************************/
     /* Allocate the contiguous memory. */
-    device->heap_size = heap_size;
-    device->contiguous = (volatile void *)contiguousMem;
-    _memset((void *)device->contiguous, 0, heap_size);
-    /* Make 64byte aligned. */
-    while ((((uint32_t)device->contiguous) & 63) != 0)
-    {
-        device->contiguous = ((unsigned char*) device->contiguous) + 4;
-        device->heap_size -= 4;
+    for (i = 0; i < VG_SYSTEM_RESERVE_COUNT; i++) {
+        device->heap_size[i] = heap_size[i];
+        device->contiguous[i] = (volatile void *)contiguousMem[i];
+        _memset((void *)device->contiguous[i], 0, heap_size[i]);
+        /* Make 64byte aligned. */
+        while ((((uint32_t)device->contiguous[i]) & 63) != 0)
+        {
+            device->contiguous[i] = ((unsigned char *)device->contiguous[i]) + 4;
+            device->heap_size[i] -= 4;
+        }
+
+        /* Check if we allocated any contiguous memory or not. */
+        if (device->contiguous[i] == NULL) {
+            vg_lite_exit();
+            return -1;
+        }
+
+
+        device->virtual[i] = (void *)device->contiguous[i];
+        device->physical[i] = ADDR_CPU_TO_DEV((uint32_t)device->virtual[i]);
+        device->size[i] = device->heap_size[i];
+
+        /* Create the heap. */
+        INIT_LIST_HEAD(&device->heap[i].list);
+        device->heap[i].free = device->size[i];
+
+        node = vg_lite_hal_alloc(sizeof(heap_node_t));
+        if (node == NULL) {
+            vg_lite_exit();
+            return -1;
+        }
+        node->offset = 0;
+        node->size = device->size[i];
+        node->status = 0;
+        add_list(&node->list, &device->heap[i].list);
     }
 
-    /* Check if we allocated any contiguous memory or not. */
-    if (device->contiguous == NULL) {
-        vg_lite_exit();
-        return -1;
-    }
-
-    device->virtual = (void *)device->contiguous;
-    device->physical = gpuMemBase + (uint32_t)device->virtual;
-    device->size = device->heap_size;
-
-    /* Create the heap. */
-    INIT_LIST_HEAD(&device->heap.list);
-    device->heap.free = device->size;
-
-    node = vg_lite_hal_alloc(sizeof(heap_node_t));
-    if (node == NULL) {
-        vg_lite_exit();
-        return -1;
-    }
-    node->offset = 0;
-    node->size = device->size;
-    node->status = 0;
-    add_list(&node->list, &device->heap.list);
-#if USE_FREERTOS
-    device->int_queue = xSemaphoreCreateBinary();
-#else
-#if !_BAREMETAL
-    sem_init(&device->int_queue, 0, 0);
-#endif
-#endif
     device->int_flags = 0;
     /* Success. */
     return 0;

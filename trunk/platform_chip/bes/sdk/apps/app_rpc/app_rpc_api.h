@@ -43,6 +43,17 @@ int32_t app_rpc_send_cmd_rsp(enum APP_RPC_CORE_T core, uint16_t rsp_code, uint8_
 
 void app_rpc_ctx_init(enum APP_RPC_CORE_T core);
 void app_rpc_ctx_deinit(enum APP_RPC_CORE_T core);
+void app_rpc_core_open(enum APP_RPC_CORE_T core);
+void app_rpc_rx_handler_process(enum APP_RPC_CORE_T core, const void *data, unsigned int len);
+void app_rpc_tx_handler_process(enum APP_RPC_CORE_T core, const void *data, unsigned int len);
+
+
+typedef uint8_t (*bth_ready_ping_handle_cb)(uint8_t status);
+void app_rpc_ping_cmd_send_handle(enum APP_RPC_CORE_T core);
+void app_rpc_ping_handle_cb_regist(bth_ready_ping_handle_cb tmo_cb, bth_ready_ping_handle_cb rsp_cb);
+void app_rpc_ping_recv_handle_cb_regist(bth_ready_ping_handle_cb rcv_cb);
+void app_rpc_bth_ready_ind_send_handler_cb_regist(bth_ready_ping_handle_cb tmo_cb,
+                                                                        bth_ready_ping_handle_cb rsp_cb);
 
 #ifdef __cplusplus
 }

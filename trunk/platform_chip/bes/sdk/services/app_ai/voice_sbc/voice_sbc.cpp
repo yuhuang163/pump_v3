@@ -16,8 +16,6 @@
  ****************************************************************************/
 #include "voice_sbc.h"
 #include "hal_trace.h"
-#include "adapter_service.h"
-#include "codec_sbc.h"
 
 static VOICE_SBC_CONFIG_T	voice_sbc_config =
 {
@@ -34,41 +32,30 @@ static VOICE_SBC_CONFIG_T	voice_sbc_config =
 
 static int voice_sbc_init_encoder(void);
 
-static btif_sbc_encoder_t voice_sbc_encoder;
-static btif_sbc_decoder_t voice_sbc_decoder;
+static sbc_encoder_t voice_sbc_encoder;
+static sbc_decoder_t voice_sbc_decoder;
 static uint32_t voice_sbc_frame_len = 0;
-
-static float voice_sbc_eq_band_gain[8] = {1, 1, 1, 1, 1, 1, 1, 1};
 
 static int voice_sbc_init_encoder(void)
 {
-    btif_sbc_init_encoder(&voice_sbc_encoder);
-    voice_sbc_encoder.streamInfo.numChannels = voice_sbc_config.channelCnt;
-    voice_sbc_encoder.streamInfo.channelMode = voice_sbc_config.channelMode;
-    voice_sbc_encoder.streamInfo.bitPool     = voice_sbc_config.bitPool;
-    voice_sbc_encoder.streamInfo.sampleFreq  = voice_sbc_config.sampleRate;
-    voice_sbc_encoder.streamInfo.allocMethod = voice_sbc_config.allocMethod;
-    voice_sbc_encoder.streamInfo.numBlocks   = voice_sbc_config.numBlocks;
-    voice_sbc_encoder.streamInfo.numSubBands = voice_sbc_config.numSubBands;
-    voice_sbc_encoder.streamInfo.mSbcFlag    = voice_sbc_config.mSbcFlag;
-
-    voice_sbc_frame_len = btif_sbc_frame_len(&(voice_sbc_encoder.streamInfo));
-
-    APP_AI_TRACE(1,"frame len is %d", voice_sbc_frame_len);
+    sbc_stream_info_t info;
+    info.flags =  voice_sbc_config.mSbcFlag;
+    info.num_channels = voice_sbc_config.channelCnt;
+    info.channel_mode = voice_sbc_config.channelMode;
+    info.bit_pool     = voice_sbc_config.bitPool;
+    info.sample_rate  = voice_sbc_config.sampleRate;
+    info.alloc_method = voice_sbc_config.allocMethod;
+    info.num_blocks   = voice_sbc_config.numBlocks;
+    info.num_subbands = voice_sbc_config.numSubBands;
+    sbc_encoder_open(&voice_sbc_encoder, info);
+    voice_sbc_frame_len = sbc_get_frame_len(info);
+    TRACE(1,"frame len is %d", voice_sbc_frame_len);
     return 0;
 }
 
 static int voice_sbc_init_decoder(void)
 {
-    btif_sbc_init_decoder(&voice_sbc_decoder);
-    voice_sbc_decoder.streamInfo.numChannels = voice_sbc_config.channelCnt;
-    voice_sbc_decoder.streamInfo.channelMode = voice_sbc_config.channelMode;
-    voice_sbc_decoder.streamInfo.bitPool     = voice_sbc_config.bitPool;
-    voice_sbc_decoder.streamInfo.sampleFreq  = voice_sbc_config.sampleRate;
-    voice_sbc_decoder.streamInfo.allocMethod = voice_sbc_config.allocMethod;
-    voice_sbc_decoder.streamInfo.numBlocks   = voice_sbc_config.numBlocks;
-    voice_sbc_decoder.streamInfo.numSubBands = voice_sbc_config.numSubBands;
-    voice_sbc_decoder.streamInfo.mSbcFlag    = voice_sbc_config.mSbcFlag;
+    sbc_decoder_open(&voice_sbc_decoder);
     return 0;
 }
 
@@ -83,31 +70,32 @@ uint32_t voice_sbc_encode(uint8_t *input, uint32_t inputBytes, uint32_t* purchas
 	{
 		voice_sbc_init_encoder();
 	}
-	
-    btif_sbc_pcm_data_t PcmEncData;
-    uint16_t outputSbcBytes, bytes_encoded;
-    
-    PcmEncData.numChannels = voice_sbc_encoder.streamInfo.numChannels;
-    PcmEncData.sampleFreq = voice_sbc_encoder.streamInfo.sampleFreq;
 
-    if (voice_sbc_encoder.streamInfo.mSbcFlag)
+    pcm_frame_t pcm_data;
+    uint16_t outputSbcBytes, bytes_encoded;
+    sbc_stream_info_t info;
+    sbc_encoder_get_stream_info(&voice_sbc_encoder, &info);
+    if (info.flags == SBC_FLAGS_MSBC)
     {
         uint16_t outputOffset = 0;
-        uint16_t oneChunkOutput = 0;
         uint16_t oneChunkConsumed;
         bytes_encoded = 0;
 
         for (uint32_t index = 0;index < inputBytes;index += (uint32_t)VOICE_SBC_PCM_DATA_SIZE_PER_FRAME)
         {
-            PcmEncData.data = input+index;
-            PcmEncData.dataLen = VOICE_SBC_PCM_DATA_SIZE_PER_FRAME;
+            pcm_data.pcm_data = (int16_t *)(input+index);
+            pcm_data.buffer_size = VOICE_SBC_PCM_DATA_SIZE_PER_FRAME;
+            pcm_data.valid_size = VOICE_SBC_PCM_DATA_SIZE_PER_FRAME;
+            sbc_frame_t sbc_data;
+            sbc_data.sbc_data = &output[outputOffset];
+            sbc_data.buffer_size = 0XFFFF;
+            sbc_data.valid_size = 0;
             //output[outputOffset++] = 0xAD;
             //output[outputOffset++] = 0x02;
-            btif_sbc_encode_frames(&voice_sbc_encoder, &PcmEncData, &oneChunkConsumed,
-                                        &output[outputOffset], &oneChunkOutput, 0xFFFF) ;
-            outputOffset += oneChunkOutput;
+            sbc_encoder_process_frame(&voice_sbc_encoder, &pcm_data, &sbc_data);
+            outputOffset += sbc_data.valid_size;
             //output[outputOffset++] = 0x00;
-
+            oneChunkConsumed = VOICE_SBC_PCM_DATA_SIZE_PER_FRAME - pcm_data.valid_size;
             bytes_encoded += oneChunkConsumed;
         }
 
@@ -115,18 +103,23 @@ uint32_t voice_sbc_encode(uint8_t *input, uint32_t inputBytes, uint32_t* purchas
     }
     else
     {
-        PcmEncData.data = input;
-        PcmEncData.dataLen = inputBytes;
-
-        btif_sbc_encode_frames(&voice_sbc_encoder, &PcmEncData, &bytes_encoded,
-                                        output, &outputSbcBytes, 0xFFFF) ;
+        pcm_data.pcm_data = (int16_t *)input;
+        pcm_data.buffer_size = inputBytes;
+        pcm_data.valid_size = inputBytes;
+        sbc_frame_t sbc_data;
+        sbc_data.sbc_data = output;
+        sbc_data.buffer_size = 0XFFFF;
+        sbc_data.valid_size = 0;
+        sbc_encoder_process_frame(&voice_sbc_encoder, &pcm_data, &sbc_data);
+        outputSbcBytes = sbc_data.valid_size;
+        bytes_encoded = inputBytes - pcm_data.valid_size;
     }
 
-    //APP_AI_TRACE(2,"Encode %d bytes PCM data into %d bytes SBC data.", inputBytes, outputSbcBytes);
-    //APP_AI_TRACE(1,"Consumed PCM data %d bytes", bytes_encoded);
+    TRACE(2,"Encode %d bytes PCM data into %d bytes SBC data.", inputBytes, outputSbcBytes);
+    TRACE(1,"Consumed PCM data %d bytes", bytes_encoded);
 
     *purchasedBytes = bytes_encoded;
-    
+
     return outputSbcBytes;
 }
 
@@ -143,12 +136,13 @@ uint32_t voice_sbc_decode(uint8_t* pcm_buffer, CQueue* encodedDataQueue, uint32_
     unsigned int pcm_offset = 0;
     uint16_t byte_decode;
     int8_t ret;
-    btif_sbc_pcm_data_t voice_PcmDecData;
-    
+    pcm_frame_t pcm_data;
+
 get_again:    
-    voice_PcmDecData.data = pcm_buffer+pcm_offset;
-    voice_PcmDecData.dataLen = 0;
-    
+    pcm_data.pcm_data = (int16_t *)(pcm_buffer+pcm_offset);
+    pcm_data.buffer_size = expectedOutputSize-pcm_offset;
+    pcm_data.valid_size = 0;
+
     if (LengthOfCQueue(encodedDataQueue) > VOICE_SBC_ENCODED_DATA_SIZE_PER_FRAME)
     {
         sbcDataBytesToDecode = VOICE_SBC_ENCODED_DATA_SIZE_PER_FRAME;
@@ -157,35 +151,37 @@ get_again:
     {
         sbcDataBytesToDecode = LengthOfCQueue(encodedDataQueue);
     }
-    
+
     len1 = len2 = 0;
     r = PeekCQueue(encodedDataQueue, sbcDataBytesToDecode, &e1, &len1, &e2, &len2);
     if ((r == CQ_ERR) || (0 == len1)) {
         goto exit;
-    }   
+    }  
 
-    ret = btif_sbc_decode_frames(&voice_sbc_decoder, (unsigned char *)e1, len1, &byte_decode,
-                &voice_PcmDecData, expectedOutputSize-pcm_offset, voice_sbc_eq_band_gain);
-
-    APP_AI_TRACE(4,"len1 %d byte_decode %d expectedOutputSize %d pcm_offset %d",
+    sbc_frame_t sbc_data;
+    sbc_data.sbc_data = e1;
+    sbc_data.valid_size = len1;
+    ret = sbc_decoder_process_frame(&voice_sbc_decoder, &sbc_data, &pcm_data);
+    byte_decode = len1 - sbc_data.valid_size;
+    TRACE(4,"len1 %d byte_decode %d expectedOutputSize %d pcm_offset %d",
         len1, byte_decode, expectedOutputSize, pcm_offset);
-    APP_AI_TRACE(1,"voice_PcmDecData.dataLen %d", voice_PcmDecData.dataLen);
+    TRACE(1,"voice_PcmDecData.dataLen %d", pcm_data.valid_size);
 
     DeCQueue(encodedDataQueue, 0, byte_decode);
-    
-    pcm_offset += voice_PcmDecData.dataLen;
-    
+
+    pcm_offset += pcm_data.valid_size;
+
     if (expectedOutputSize == pcm_offset)
     {
         goto exit;
     }
-    
-    if ((ret == BT_STS_CONTINUE) || (ret == BT_STS_SUCCESS))  {
+
+    if ((ret == SBC_CONTINUE) || (ret == SBC_OK))  {
         goto get_again;
     }
-    
+
 exit:
-    APP_AI_TRACE(1,"Get pcm data size %d", pcm_offset);
+    TRACE(1,"Get pcm data size %d", pcm_offset);
     return pcm_offset;
 }
 

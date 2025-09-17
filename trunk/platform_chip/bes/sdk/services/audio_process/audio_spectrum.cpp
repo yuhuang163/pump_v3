@@ -53,7 +53,7 @@ void audio_spectrum_close(void)
 
     size_t total = 0, used = 0, max_used = 0;
     speech_memory_info(&total, &used, &max_used);
-    AUDIO_PROCESS_TRACE(3,"SPEECH MALLOC MEM: total - %d, used - %d, max_used - %d.", total, used, max_used);
+    TRACE(3,"SPEECH MALLOC MEM: total - %d, used - %d, max_used - %d.", total, used, max_used);
     ASSERT(used == 0, "[%s] used != 0", __func__);
 }
 
@@ -92,14 +92,14 @@ void audio_spectrum_run_impl(const uint8_t *buf, int len)
         //stereo to mono, 24bit to 16bit
         convertToMono16Bit(audio_spectrum.frame, pBuf + i * AUDIO_SPECTRUM_FRAME_SIZE * 2, AUDIO_SPECTRUM_FRAME_SIZE);
 
-        //AUDIO_PROCESS_TRACE(0,"pcm:");
-        //AUDIO_PROCESS_DUMP16("0x%x, ", audio_spectrum.frame, 8);
+        //TRACE(0,"pcm:");
+        //DUMP16("0x%x, ", audio_spectrum.frame, 8);
 
         spectrum_fix_analysis(audio_spectrum.state, audio_spectrum.frame);
         if (i == 0) {
             spectrum_fix_process(audio_spectrum.state, audio_spectrum.data, audio_spectrum_cfg.freq_num);
-            //AUDIO_PROCESS_TRACE(1,"spectrum: %d", sizeof(DataType));
-            //AUDIO_PROCESS_DUMP16("0x%x, ", audio_spectrum.data, audio_spectrum_cfg.freq_num);
+            //TRACE(1,"spectrum: %d", sizeof(DataType));
+            //DUMP16("0x%x, ", audio_spectrum.data, audio_spectrum_cfg.freq_num);
         }
     }
 }
@@ -111,7 +111,7 @@ void audio_spectrum_run(const uint8_t *buf, int len)
     else if (audio_spectrum.bits == AUD_BITS_24)
         audio_spectrum_run_impl<int32_t>(buf, len);
     else
-        AUDIO_PROCESS_TRACE(1,"[%s] warning not suitable callback available", __func__);
+        TRACE(1,"[%s] warning not suitable callback available", __func__);
 }
 
 #endif

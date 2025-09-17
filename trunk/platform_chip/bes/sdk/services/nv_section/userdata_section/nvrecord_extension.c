@@ -20,7 +20,7 @@
 #include "cmsis.h"
 #include "nvrecord_extension.h"
 #include "hal_trace.h"
-#include "crc_c.h"
+#include "crc32_c.h"
 #include "hal_sleep.h"
 #include "hal_norflash.h"
 #include "norflash_api.h"
@@ -32,7 +32,6 @@
 #include "customparam_section.h"
 #include "mpu.h"
 #include "bluetooth_bt_api.h"
-#include "besbt.h"
 #include "hal_timer.h"
 #ifdef RTOS
 #include "cmsis_os.h"
@@ -41,10 +40,6 @@
 
 #if BLE_AUDIO_ENABLED
 #include "bluetooth_ble_api.h"
-#endif
-
-#ifdef CUSTOM_BITRATE
-#include "app_ibrt_customif_cmd.h"
 #endif
 
 #ifndef RAM_NV_RECORD
@@ -90,15 +85,15 @@ static NV_FLUSH_STATE nv_flush_state;
 static bool nvrec_init = false;
 static uint32_t _user_data_main_start;
 static uint32_t _user_data_bak_start;
+static uint32_t _nv_sector_size;
 #ifndef RAM_NV_RECORD
-static NV_EXTENSION_RECORD_T _nv_burn_buf;
+static uint8_t _nv_burn_buf[NV_EXTENSION_SIZE];
 #endif
 
 NV_EXTENSION_RECORD_T *nvrecord_extension_p  = NULL;
 
 #ifdef RTOS
-osMutexDef(NV_RECORD_MUTEX);
-static osMutexId nv_record_mutex_id = NULL;
+static osMutexId_t nv_record_mutex_id = NULL;
 #endif
 
 /*
@@ -137,11 +132,11 @@ static NV_MIRROR_BUF_T local_extension_data =
         {  // bt_pair_info
             0
         },
-#ifdef APP_SOUND_ENABLE
+
         {  // bt_pair_info_cache
             0
         },
-#endif
+
         {  // ble_pair_info
 
         },
@@ -186,11 +181,6 @@ static NV_MIRROR_BUF_T local_extension_data =
         },
 #endif
 
-#ifdef FINDMY_ENABLED
-        {
-        },
-#endif
-
 #if 1//def TX_IQ_CAL
         {
             BT_IQ_INVALID_MAGIC_NUM,
@@ -200,12 +190,6 @@ static NV_MIRROR_BUF_T local_extension_data =
 #endif
 
 #ifdef PROMPT_IN_FLASH
-        {
-            0
-        },
-#endif
-
-#ifdef COMBO_CUSBIN_IN_FLASH
         {
             0
         },
@@ -233,7 +217,7 @@ static NV_MIRROR_BUF_T local_extension_data =
         },
 #endif
 
-#if BLE_AUDIO_ENABLED || defined(KEEP_BLE_AUDIO_IN_NV_RECORD)
+#if BLE_AUDIO_ENABLED
         {
             0
         },
@@ -244,14 +228,6 @@ static NV_MIRROR_BUF_T local_extension_data =
 #ifdef CODEC_ADC_DC_NV_DATA
         {
             {0,},
-        },
-#endif
-
-#ifdef CUSTOM_BITRATE
-        {
-            USER_CONFIG_DEFAULT_AAC_BITRATE,
-            USER_CONFIG_DEFAULT_SBC_BITPOOL,
-            USER_CONFIG_DEFAULT_AUDIO_LATENCY,
         },
 #endif
         // TODO:
@@ -332,7 +308,7 @@ int nvrecord_adc_dc_calib_info_set(uint32_t channel_index,
     }
     if (channel_index >= ADC_DC_CALIB_DATA_NV_NUM)
     {
-        NV_SECTION_TRACE(0, "adc dc calib info input channel_index error!!!");
+        TRACE(0, "adc dc calib info input channel_index error!!!");
         return -1;
     }
 
@@ -344,8 +320,7 @@ int nvrecord_adc_dc_calib_info_set(uint32_t channel_index,
 
     nv_record_update_runtime_userdata();
     nv_record_post_write_operation(lock);
-    //nv_record_flash_flush();
-    //nv_record_execute_async_flush();
+
     return 0;
 }
 
@@ -358,7 +333,7 @@ int nvrecord_adc_dc_calib_info_get(uint32_t channel_index,
     }
     if (channel_index >= ADC_DC_CALIB_DATA_NV_NUM)
     {
-        NV_SECTION_TRACE(0, "adc dc calib info input channel_index error!!!");
+        TRACE(0, "adc dc calib info input channel_index error!!!");
         return -1;
     }
 
@@ -376,25 +351,25 @@ int nvrecord_adc_dc_calib_info_dump(uint32_t channel_index)
     }
     if (channel_index >= ADC_DC_CALIB_DATA_NV_NUM)
     {
-        NV_SECTION_TRACE(0, "adc dc calib info input channel_index error!!!");
+        TRACE(0, "adc dc calib info input channel_index error!!!");
         return -1;
     }
 
-    POSSIBLY_UNUSED HAL_CODEC_ADC_DC_CALIB_CFG_NV_T* info = nvrecord_extension_p->adc_dc_calib_cfg_info;
-    NV_SECTION_TRACE(0, "===========Dump adc dc calibrate result===========");
-    NV_SECTION_TRACE(1, "channel_index:                %d",        channel_index);
-    NV_SECTION_TRACE(1, "calib_valid:                  %d",        info[channel_index].valid);
-    NV_SECTION_TRACE(1, "channel_map:                  0x%04x",    info[channel_index].adc_channel_map);
-    NV_SECTION_TRACE(1, "dc_origin_value:              %d",        info[channel_index].adc_dc_original);
-    NV_SECTION_TRACE(1, "dc_calib_result:              %d",        info[channel_index].adc_dc_calib_result);
-    NV_SECTION_TRACE(1, "dc_calib_reg_offset:          0x%04x",    info[channel_index].adc_dc_calib_offset);
-    NV_SECTION_TRACE(1, "dc_calib_reg_step:            0x%04x",    info[channel_index].adc_dc_calib_step);
+    HAL_CODEC_ADC_DC_CALIB_CFG_NV_T* info = nvrecord_extension_p->adc_dc_calib_cfg_info;
+    TRACE(0, "===========Dump adc dc calibrate result===========");
+    TRACE(1, "channel_index:                %d",        channel_index);
+    TRACE(1, "calib_valid:                  %d",        info[channel_index].valid);
+    TRACE(1, "channel_map:                  0x%04x",    info[channel_index].adc_channel_map);
+    TRACE(1, "dc_origin_value:              %d",        info[channel_index].adc_dc_original);
+    TRACE(1, "dc_calib_result:              %d",        info[channel_index].adc_dc_calib_result);
+    TRACE(1, "dc_calib_reg_offset:          0x%04x",    info[channel_index].adc_dc_calib_offset);
+    TRACE(1, "dc_calib_reg_step:            0x%04x",    info[channel_index].adc_dc_calib_step);
 
     return 0;
 }
 #endif
 
-#if BLE_AUDIO_ENABLED || defined(KEEP_BLE_AUDIO_IN_NV_RECORD)
+#if BLE_AUDIO_ENABLED
 static void nvrecord_rebuild_ble_audio_dev_info(NV_RECORD_BLE_AUDIO_DEV_INFO_T* leaudio_info)
 {
     leaudio_info->set_member = 0;
@@ -417,6 +392,10 @@ static void nvrecord_rebuild_sdk_info(uint8_t* sdk_reserve)
      adda_test->calib_gain[0] = 1234.825f;
      adda_test->calib_gain[1] = 1096.515f;
      adda_test->calib_gain[2] = 1032.47f;
+
+#ifdef MTEST_BUILTIN
+     uni_sdk->info.mem_scan_result = -1;
+#endif
 }
 
 static bool nv_record_data_is_valid(NV_EXTENSION_RECORD_T *nv_record)
@@ -427,38 +406,38 @@ static bool nv_record_data_is_valid(NV_EXTENSION_RECORD_T *nv_record)
     NVRECORD_HEADER_T* pExtRecInFlash = &nv_record->header;
     uint8_t* pData = (uint8_t*)nv_record + NV_EXTENSION_HEADER_SIZE;
 
-    NV_SECTION_TRACE(0,"nv ext magic 0x%x valid len %d", pExtRecInFlash->magicNumber,
+    TRACE(0,"nv ext magic 0x%x valid len %d", pExtRecInFlash->magicNumber,
         pExtRecInFlash->validLen);
-    NV_SECTION_TRACE(0,"Former major ver %d current major ver %d", pExtRecInFlash->majorVersion,
+    TRACE(0,"Former major ver %d current major ver %d", pExtRecInFlash->majorVersion,
         NV_EXTENSION_MAJOR_VERSION);
 
     if ((NV_EXTENSION_MAJOR_VERSION == pExtRecInFlash->majorVersion) &&
         (NV_EXTENSION_MAGIC_NUMBER == pExtRecInFlash->magicNumber))
     {
-        NV_SECTION_TRACE(2,"Former nv ext valid len %d", pExtRecInFlash->validLen);
-        NV_SECTION_TRACE(2,"Current FW version nv ext valid len %d", NV_EXTENSION_VALID_LEN);
+        TRACE(2,"Former nv ext valid len %d", pExtRecInFlash->validLen);
+        TRACE(2,"Current FW version nv ext valid len %d", NV_EXTENSION_VALID_LEN);
 
         // check whether the data length is valid
-        if (pExtRecInFlash->validLen <= NV_EXTENSION_SIZE-NV_EXTENSION_HEADER_SIZE)
+        if (pExtRecInFlash->validLen <= _nv_sector_size-NV_EXTENSION_HEADER_SIZE)
         {
             // check crc32
             uint32_t crc = crc32_c(0, pData, pExtRecInFlash->validLen);
-            NV_SECTION_TRACE(1,"generated crc32: 0x%x, header crc: 0x%x",crc, pExtRecInFlash->crc32);
+            TRACE(1,"generated crc32: 0x%x, header crc: 0x%x",crc, pExtRecInFlash->crc32);
             if (crc == pExtRecInFlash->crc32)
             {
                 // correct
-                NV_SECTION_TRACE(2,"Nv extension is valid.");
+                TRACE(2,"Nv extension is valid.");
 
                 if (NV_EXTENSION_VALID_LEN < pExtRecInFlash->validLen)
                 {
-                    NV_SECTION_TRACE(0,"Valid length of extension must be increased,"
+                    TRACE(0,"Valid length of extension must be increased,"
                     "use the default value.");
                 }
                 else
                 {
                     if(NV_EXTENSION_VALID_LEN > pExtRecInFlash->validLen)
                     {
-                        NV_SECTION_TRACE(2, "NV extension is extended! (0x%x) -> (0x%x)",
+                        TRACE(2, "NV extension is extended! (0x%x) -> (0x%x)",
                               pExtRecInFlash->validLen,NV_EXTENSION_VALID_LEN);
                     }
                     is_valid = true;
@@ -480,10 +459,10 @@ static bool nv_record_items_is_valid(NV_EXTENSION_RECORD_T *nv_record)
 #if 0
     NV_RECORD_PAIRED_BT_DEV_INFO_T *pbt_pair_info;
     pbt_pair_info = &nv_record->bt_pair_info;
-    NV_SECTION_TRACE(1,"%s: pairedDevNum: %d ", __func__,pbt_pair_info->pairedDevNum);
+    TRACE(1,"%s: pairedDevNum: %d ", __func__,pbt_pair_info->pairedDevNum);
     for(uint8_t i = 0; i < pbt_pair_info->pairedDevNum; i++)
     {
-        NV_SECTION_DUMP8("0x%x,", (uint8_t*)pbt_pair_info->pairedBtDevInfo[i].record.bdAddr.address,6);
+        DUMP8("0x%x,", (uint8_t*)pbt_pair_info->pairedBtDevInfo[i].record.bdAddr.address,6);
     }
 #endif
     // TODO:  add cheking for nv_record items.
@@ -493,16 +472,6 @@ static bool nv_record_items_is_valid(NV_EXTENSION_RECORD_T *nv_record)
 
     return is_valid;
 }
-
-#ifdef CUSTOM_BITRATE
-POSSIBLY_UNUSED static void nvrecord_rebuild_codec_user_config(nv_codec_user_info_t *codec_user_config)
-{
-    memset((uint8_t*)codec_user_config, 0, sizeof(nv_codec_user_info_t));
-    codec_user_config->aac_bitrate = USER_CONFIG_DEFAULT_AAC_BITRATE;
-    codec_user_config->sbc_bitpool = USER_CONFIG_DEFAULT_SBC_BITPOOL;
-    codec_user_config->audio_latentcy = USER_CONFIG_DEFAULT_AUDIO_LATENCY;
-}
-#endif
 
 static void nv_record_reset_sdk_info(NV_EXTENSION_RECORD_T *nv_record, NV_REBUILD_TYPE_E rebuild_type)
 {
@@ -518,7 +487,16 @@ static void nv_record_reset_sdk_info(NV_EXTENSION_RECORD_T *nv_record, NV_REBUIL
 
     nvrecord_rebuild_system_env(&(nv_record->system_info), false);
     nvrecord_rebuild_paired_bt_dev_info(&(nv_record->bt_pair_info));
+
+#if (BLE_AUDIO_CONNECTION_CNT == 1)
+    nv_record->app_mode_info.app_mode = NV_APP_HEADSET_STEREO_ONE_CIS;
+#else
+    nv_record->app_mode_info.app_mode = NV_APP_EARBUDS_MONO;
+#endif
+
+#ifdef __IAG_BLE_INCLUDE__
     nvrecord_rebuild_paired_ble_dev_info(&(nv_record->ble_pair_info));
+#endif
 
 #ifdef TWS_SYSTEM_ENABLED
     memset(&(nv_record->tws_info), 0, sizeof(nv_record->tws_info));
@@ -546,10 +524,6 @@ static void nv_record_reset_sdk_info(NV_EXTENSION_RECORD_T *nv_record, NV_REBUIL
 
 #ifdef COMBO_CUSBIN_IN_FLASH
     nvrecord_rebuild_combo_bin_info((NV_COMBO_IMAGE_INFO_T*)&nv_record->combo_bin_info);
-#endif
-
-#ifdef CUSTOM_BITRATE
-    nvrecord_rebuild_codec_user_config(&nv_record->codec_user_info);
 #endif
 
     nv_record->header.magicNumber = NV_EXTENSION_MAGIC_NUMBER;
@@ -590,7 +564,11 @@ static void nv_record_set_default(NV_EXTENSION_RECORD_T *nv_record, NV_REBUILD_T
     nv_record->system_info.ibrt_mode.mode = factory_section_get_default_bt_nv_role();
 
     nvrecord_rebuild_paired_bt_dev_info(&(nv_record->bt_pair_info));
+
+#ifdef __IAG_BLE_INCLUDE__
     nvrecord_rebuild_paired_ble_dev_info(&(nv_record->ble_pair_info));
+#endif
+
 #ifdef GFPS_ENABLED
     nvrecord_rebuild_fp_account_key(&(nv_record->fp_account_key_rec));
 #endif
@@ -627,17 +605,12 @@ static void nv_record_set_default(NV_EXTENSION_RECORD_T *nv_record, NV_REBUILD_T
     nvrecord_rebuild_combo_bin_info((NV_COMBO_IMAGE_INFO_T*)&nv_record->combo_bin_info);
 #endif
 
-#if BLE_AUDIO_ENABLED || defined(KEEP_BLE_AUDIO_IN_NV_RECORD)
-    nvrecord_rebuild_ble_audio_dev_info((NV_RECORD_BLE_AUDIO_DEV_INFO_T*)&nv_record->ble_audio_dev_info);
 #if BLE_AUDIO_ENABLED
+    nvrecord_rebuild_ble_audio_dev_info((NV_RECORD_BLE_AUDIO_DEV_INFO_T*)&nv_record->ble_audio_dev_info);
     bes_ble_aob_gattc_rebuild_cache((GATTC_NV_SRV_ATTR_t*)&nv_record->srv_cache_attr);
-#endif
 #endif
 #ifdef CODEC_ADC_DC_NV_DATA
     nvrecord_rebuild_adc_dc_calib_info((HAL_CODEC_ADC_DC_CALIB_CFG_NV_T*)&nv_record->adc_dc_calib_cfg_info);
-#endif
-#ifdef CUSTOM_BITRATE
-    nvrecord_rebuild_codec_user_config(&nv_record->codec_user_info);
 #endif
     nvrecord_rebuild_sdk_info((uint8_t*)&nv_record->sdk_reserve);
 
@@ -651,23 +624,30 @@ static void nv_record_set_default(NV_EXTENSION_RECORD_T *nv_record, NV_REBUILD_T
 }
 
 #ifdef RTOS
+
+static const osMutexAttr_t nv_mutex_attr = {
+    .name = "nv_rec_mutex",
+    .attr_bits = osMutexRecursive | osMutexPrioInherit | osMutexRobust,
+    .cb_mem = NULL,
+    .cb_size = 0U,
+};
 static void _nv_mutex_init(void)
 {
-    nv_record_mutex_id = osMutexCreate(osMutex(NV_RECORD_MUTEX));
+    nv_record_mutex_id = osMutexNew(&nv_mutex_attr);
     ASSERT(nv_record_mutex_id, "cannot create nv record mutex");
 }
 
 static void _nv_mutex_wait(void)
 {
-    if(nv_record_mutex_id)
+    if(nv_record_mutex_id && !in_int_locked())
     {
-        osMutexWait(nv_record_mutex_id, osWaitForever);
+        osMutexAcquire(nv_record_mutex_id, osWaitForever);
     }
 }
 
 static void _nv_mutex_release(void)
 {
-    if(nv_record_mutex_id)
+    if(nv_record_mutex_id && !in_int_locked())
     {
         osMutexRelease(nv_record_mutex_id);
     }
@@ -682,7 +662,7 @@ static void _nv_async_flush_timer_init(void)
 {
     debouce_timer = osTimerCreate(osTimer(NORFLASH_ASYNC_CONFIRM_TIMER), osTimerOnce, NULL);
     if (debouce_timer == NULL) {
-        NV_SECTION_TRACE(1,"Failed to Create async flush timer\n");
+        TRACE(1,"Failed to Create async flush timer\n");
     }
 }
 #endif
@@ -693,25 +673,24 @@ static void _nv_record_extension_init(void)
 {
 #ifndef RAM_NV_RECORD
     enum NORFLASH_API_RET_T result;
-    enum HAL_FLASH_ID_T flash_id;
+    enum HAL_FLASH_ID_T dev_id;
     uint32_t sector_size = 0;
     uint32_t block_size = 0;
     uint32_t page_size = 0;
 
-    flash_id = norflash_api_get_dev_id_by_addr((uint32_t)__userdata_start);
-    hal_norflash_get_size(flash_id,
-               NULL,
-               &block_size,
-               &sector_size,
-               &page_size);
+    dev_id = norflash_api_get_dev_id_by_addr((uint32_t)__userdata_start);
+    block_size = norflash_api_get_block_size(dev_id);
+    sector_size = norflash_api_get_sector_size(dev_id);
+    page_size = norflash_api_get_page_size(dev_id);
+
     result = norflash_api_register(NORFLASH_API_MODULE_ID_USERDATA,
-                    flash_id,
+                    dev_id,
                     ((uint32_t)__userdata_start),
                     ((uint32_t)__userdata_end - (uint32_t)__userdata_start),
                     block_size,
                     sector_size,
                     page_size,
-                    NV_EXTENSION_SIZE*2,
+                    sector_size*2,
                     nv_extension_callback
                     );
     ASSERT(result == NORFLASH_API_OK,"_nv_record_extension_init: module register failed! result = %d.",result);
@@ -720,25 +699,25 @@ static void _nv_record_extension_init(void)
 
 uint32_t nv_record_pre_write_operation(void)
 {
-    POSSIBLY_UNUSED int ret = 0;
+    int ret = 0;
     uint32_t nv_start = (uint32_t)&local_extension_data.nv_record;
     uint32_t len = NV_EXTENSION_MIRROR_RAM_SIZE;
 
-    uint32_t lock = int_lock_global();
+    _nv_mutex_wait();
     ret = mpu_set(nv_start, len, MPU_ATTR_READ_WRITE, MEM_ATTR_INT_SRAM);
-    NV_SECTION_TRACE(2,"set nv ram RW: 0x%x len %d result %d", nv_start, len, ret);
-    return lock;
+    TRACE(2,"set nv ram RW: 0x%x len %d result %d", nv_start, len, ret);
+    return 0;
 }
 
 void nv_record_post_write_operation(uint32_t lock)
 {
-    POSSIBLY_UNUSED int ret = 0;
+    int ret = 0;
     uint32_t nv_start = (uint32_t)&local_extension_data.nv_record;
     uint32_t len = NV_EXTENSION_MIRROR_RAM_SIZE;
 
     ret = mpu_set(nv_start, len, MPU_ATTR_READ, MEM_ATTR_INT_SRAM);
-    int_unlock_global(lock);
-    NV_SECTION_TRACE(2,"set nv ram RO: 0x%x len %d result %d", nv_start, len, ret);
+    _nv_mutex_release();
+    TRACE(2,"set nv ram RO: 0x%x len %d result %d", nv_start, len, ret);
 }
 static POSSIBLY_UNUSED bool nv_record_is_crc_check_pass(NV_EXTENSION_RECORD_T *nv_record)
 {
@@ -748,14 +727,14 @@ static POSSIBLY_UNUSED bool nv_record_is_crc_check_pass(NV_EXTENSION_RECORD_T *n
         return false;
     }
 
-    if (pExtRecInFlash->validLen >= (NV_EXTENSION_SIZE - NV_EXTENSION_HEADER_SIZE))
+    if (pExtRecInFlash->validLen >= (_nv_sector_size - NV_EXTENSION_HEADER_SIZE))
     {
         return false;
     }
 
     uint8_t* pData = (uint8_t*)nv_record + NV_EXTENSION_HEADER_SIZE;
     uint32_t crc = crc32_c(0, pData, pExtRecInFlash->validLen);
-    NV_SECTION_TRACE(1,"generated crc32: 0x%x, header crc: 0x%x",crc, pExtRecInFlash->crc32);
+    TRACE(1,"generated crc32: 0x%x, header crc: 0x%x",crc, pExtRecInFlash->crc32);
     if (crc == pExtRecInFlash->crc32)
     {
         return true;
@@ -772,14 +751,17 @@ static void nv_record_extension_init(void)
     bool main_is_valid = false;
     bool bak_is_valid = false;
     bool data_is_valid = false;
+    enum HAL_FLASH_ID_T dev_id;
 
     if(nvrec_init)
     {
         return;
     }
+    dev_id = norflash_api_get_dev_id_by_addr((uint32_t)__userdata_start);
+    _nv_sector_size = norflash_api_get_sector_size(dev_id);
 
     _user_data_main_start = (uint32_t)__userdata_start;
-    _user_data_bak_start = (uint32_t)__userdata_start + NV_EXTENSION_SIZE;
+    _user_data_bak_start = (uint32_t)__userdata_start + _nv_sector_size;
 
 
     lock = nv_record_pre_write_operation();
@@ -794,7 +776,7 @@ static void nv_record_extension_init(void)
     if(nvrecord_extension_p->header.magicNumber != NV_EXTENSION_MAGIC_NUMBER ||
        nvrecord_extension_p->header.majorVersion != NV_EXTENSION_MAJOR_VERSION ||
        nvrecord_extension_p->header.minorVersion != NV_EXTENSION_MINOR_VERSION ||
-       nvrecord_extension_p->header.validLen >= (NV_EXTENSION_SIZE - NV_EXTENSION_HEADER_SIZE))
+       nvrecord_extension_p->header.validLen >= (_nv_sector_size - NV_EXTENSION_HEADER_SIZE))
     {
         ASSERT(0, "%s: local_extension_data error!(0x%x,0x%x,0x%x,0x%x)",
                __func__,
@@ -808,12 +790,12 @@ static void nv_record_extension_init(void)
     if(nv_record_data_is_valid((NV_EXTENSION_RECORD_T*)_user_data_main_start)
         && nv_record_items_is_valid((NV_EXTENSION_RECORD_T*)_user_data_main_start))
     {
-        //NV_SECTION_TRACE(2,"%s,main sector is valid.",__func__);
+        //TRACE(2,"%s,main sector is valid.",__func__);
         main_is_valid = true;
     }
     else
     {
-        NV_SECTION_TRACE(1,"%s,main sector is invalid!",__func__);
+        TRACE(1,"%s,main sector is invalid!",__func__);
         main_is_valid = false;
     }
 
@@ -821,12 +803,12 @@ static void nv_record_extension_init(void)
     if(nv_record_data_is_valid((NV_EXTENSION_RECORD_T*)_user_data_bak_start)
        && nv_record_items_is_valid((NV_EXTENSION_RECORD_T*)_user_data_bak_start))
     {
-        //NV_SECTION_TRACE(2,"%s,bak sector is valid.",__func__);
+        //TRACE(2,"%s,bak sector is valid.",__func__);
         bak_is_valid = true;
     }
     else
     {
-        NV_SECTION_TRACE(1,"%s,bak sector is invalid!",__func__);
+        TRACE(1,"%s,bak sector is invalid!",__func__);
         bak_is_valid = false;
     }
 
@@ -855,7 +837,12 @@ static void nv_record_extension_init(void)
 
     if(data_is_valid)
     {
-        NV_SECTION_TRACE(2,"%s,data is valid.", __func__);
+        TRACE(2,"%s,data is valid.", __func__);
+#if (BLE_AUDIO_CONNECTION_CNT == 1)
+        nvrecord_extension_p->app_mode_info.app_mode = NV_APP_HEADSET_STEREO_ONE_CIS;
+#else
+        nvrecord_extension_p->app_mode_info.app_mode = NV_APP_EARBUDS_MONO;
+#endif
         if(main_is_valid)
         {
             memcpy((uint8_t *)nvrecord_extension_p + NV_EXTENSION_HEADER_SIZE,
@@ -875,15 +862,15 @@ static void nv_record_extension_init(void)
     }
     else
     {
-        NV_SECTION_TRACE(1,"%s,data invalid, rebuild... ",__func__);
+        TRACE(1,"%s,data invalid, rebuild... ",__func__);
         nv_record_set_default(nvrecord_extension_p, NV_REBUILD_ALL);
-        NV_SECTION_TRACE(2,"%s,rebuild crc = 0x%x. ",__func__,nvrecord_extension_p->header.crc32);
+        TRACE(2,"%s,rebuild crc = 0x%x. ",__func__,nvrecord_extension_p->header.crc32);
         // need to update the content in the flash
         nv_record_extension_update();
     }
 
-    NV_SECTION_TRACE(0, "peer addr:");
-    NV_SECTION_DUMP8("%02x ", nv_record_get_ibrt_peer_addr(), BT_ADDR_OUTPUT_PRINT_NUM);
+    TRACE(0, "peer addr:");
+    DUMP8("%02x ", nv_record_get_ibrt_peer_addr(), BT_ADDR_OUTPUT_PRINT_NUM);
 
     nvrec_init = true;
 
@@ -893,9 +880,9 @@ static void nv_record_extension_init(void)
     {
         nv_record_extension_flush(false);
     }
-    NV_SECTION_TRACE(2,"%s,done.", __func__);
+    TRACE(2,"%s,done.", __func__);
 
-    NV_SECTION_TRACE(0, "sdk_owned_end: %d customer_owned_start: %d",
+    TRACE(0, "sdk_owned_end: %d customer_owned_start: %d",
         (uint32_t)&(((NV_EXTENSION_RECORD_T *)0)->sdk_owned_end),
         (uint32_t)&(((NV_EXTENSION_RECORD_T *)0)->customer_owned_start));
 }
@@ -923,13 +910,13 @@ static int nv_record_extension_flush_main(bool is_async)
     ret = norflash_api_get_dev_id(NORFLASH_API_MODULE_ID_USERDATA, &dev_id);
     if(ret)
     {
-        NV_SECTION_TRACE(1,"%s,norflash_api_get_dev_id fail ret = %d.", __func__, ret);
+        TRACE(1,"%s,norflash_api_get_dev_id fail ret = %d.", __func__, ret);
         goto _func_end;
     }
 
     if(NULL == nvrecord_extension_p)
     {
-        NV_SECTION_TRACE(1,"%s,nvrecord_extension_p is null.", __func__);
+        TRACE(1,"%s,nvrecord_extension_p is null.", __func__);
         goto _func_end;
     }
 
@@ -938,7 +925,7 @@ static int nv_record_extension_flush_main(bool is_async)
         if(nv_flush_state.state == NV_STATE_IDLE
            && nv_flush_state.is_update == true)
         {
-            NV_SECTION_TRACE(3,"%s: async flush begin!", __func__);
+            TRACE(3,"%s: async flush begin!", __func__);
         }
 
         if(nv_flush_state.state == NV_STATE_IDLE
@@ -947,18 +934,18 @@ static int nv_record_extension_flush_main(bool is_async)
             if(nv_flush_state.state == NV_STATE_IDLE)
             {
                 nv_flush_state.state = NV_STATE_MAIN_ERASING;
-                // NV_SECTION_TRACE(4,"%s: NV_STATE_MAIN_ERASING", __func__);
+                // TRACE(4,"%s: NV_STATE_MAIN_ERASING", __func__);
             }
 
             ret = norflash_api_erase(NORFLASH_API_MODULE_ID_USERDATA,
                         (uint32_t)(__userdata_start),
-                        NV_EXTENSION_SIZE,
+                        _nv_sector_size,
                         true);
             if(ret == NORFLASH_API_OK)
             {
                 nv_flush_state.state = NV_STATE_MAIN_ERASED;
-                // NV_SECTION_TRACE(4,"%s: NV_STATE_MAIN_ERASED", __func__);
-                // NV_SECTION_TRACE(4,"%s: norflash_api_erase ok,addr = 0x%x.",__func__,_user_data_main_start);
+                // TRACE(4,"%s: NV_STATE_MAIN_ERASED", __func__);
+                // TRACE(4,"%s: norflash_api_erase ok,addr = 0x%x.",__func__,_user_data_main_start);
             }
             else if(ret == NORFLASH_API_BUFFER_FULL)
             {
@@ -979,25 +966,25 @@ static int nv_record_extension_flush_main(bool is_async)
             ASSERT(nv_record_data_is_valid(nvrecord_extension_p)
                    && nv_record_items_is_valid(nvrecord_extension_p),
                   "%s nv_record is invalid!",__func__);
-            memcpy((uint8_t *)&_nv_burn_buf, (uint8_t *)nvrecord_extension_p, sizeof(NV_EXTENSION_RECORD_T));
+            memcpy(_nv_burn_buf, (uint8_t *)nvrecord_extension_p,  _nv_sector_size);
             nv_flush_state.state = NV_STATE_MAIN_WRITE_PENDING;
             nv_flush_state.is_update = false;
             nv_record_post_write_operation(tmpLock);
-            // NV_SECTION_TRACE(4,"%s: NV_STATE_MAIN_WRITE_PENDING", __func__);
+            // TRACE(4,"%s: NV_STATE_MAIN_WRITE_PENDING", __func__);
         }
         else if(nv_flush_state.state == NV_STATE_MAIN_WRITE_PENDING)
         {
             ret = norflash_api_write(NORFLASH_API_MODULE_ID_USERDATA,
                         (uint32_t)(__userdata_start),
-                        (uint8_t *)&_nv_burn_buf,
-                        sizeof(NV_EXTENSION_RECORD_T),
+                        (uint8_t *)_nv_burn_buf,
+                        _nv_sector_size,
                         true);
 
             if(ret == NORFLASH_API_OK)
             {
                 nv_flush_state.state = NV_STATE_MAIN_WRITTEN;
-                // NV_SECTION_TRACE(4,"%s: NV_STATE_MAIN_WRITTEN", __func__);
-                // NV_SECTION_TRACE(4,"%s: norflash_api_write ok,addr = 0x%x.",__func__,_user_data_main_start);
+                // TRACE(4,"%s: NV_STATE_MAIN_WRITTEN", __func__);
+                // TRACE(4,"%s: norflash_api_write ok,addr = 0x%x.",__func__,_user_data_main_start);
             }
             else if(ret == NORFLASH_API_BUFFER_FULL)
             {
@@ -1013,7 +1000,7 @@ static int nv_record_extension_flush_main(bool is_async)
             if(norflash_api_get_used_buffer_count(NORFLASH_API_MODULE_ID_USERDATA,NORFLASH_API_ALL) == 0)
             {
                 nv_flush_state.state = NV_STATE_MAIN_DONE;
-                // NV_SECTION_TRACE(3,"%s: async flush done.", __func__);
+                // TRACE(3,"%s: async flush done.", __func__);
             }
             else
             {
@@ -1028,7 +1015,7 @@ static int nv_record_extension_flush_main(bool is_async)
     }
     else
     {
-        // NV_SECTION_TRACE(3,"%s: sync flush begin!", __func__);
+        // TRACE(3,"%s: sync flush begin!", __func__);
         if(nv_flush_state.state == NV_STATE_IDLE
            || nv_flush_state.state == NV_STATE_MAIN_ERASING)
         {
@@ -1036,12 +1023,12 @@ static int nv_record_extension_flush_main(bool is_async)
             {
                 ret = norflash_api_erase(NORFLASH_API_MODULE_ID_USERDATA,
                         (uint32_t)(__userdata_start),
-                        NV_EXTENSION_SIZE,
+                        _nv_sector_size,
                         true);
                 if(ret == NORFLASH_API_OK)
                 {
                     nv_flush_state.state = NV_STATE_MAIN_ERASED;
-                    // NV_SECTION_TRACE(4,"%s: norflash_api_erase ok,addr = 0x%x.",__func__, _user_data_main_start);
+                    // TRACE(4,"%s: norflash_api_erase ok,addr = 0x%x.",__func__, _user_data_main_start);
                 }
                 else if(ret == NORFLASH_API_BUFFER_FULL)
                 {
@@ -1067,7 +1054,7 @@ static int nv_record_extension_flush_main(bool is_async)
             ASSERT(nv_record_data_is_valid(nvrecord_extension_p)
                    && nv_record_items_is_valid(nvrecord_extension_p),
                     "%s nv_record is invalid!",__func__);
-            memcpy((uint8_t *)&_nv_burn_buf, (uint8_t *)nvrecord_extension_p, sizeof(NV_EXTENSION_RECORD_T));
+            memcpy(_nv_burn_buf, (uint8_t *)nvrecord_extension_p,  _nv_sector_size);
             nv_flush_state.state = NV_STATE_MAIN_WRITE_PENDING;
             nv_flush_state.is_update = false;
             nv_record_post_write_operation(tmpLock);
@@ -1079,13 +1066,13 @@ static int nv_record_extension_flush_main(bool is_async)
             {
                 ret = norflash_api_write(NORFLASH_API_MODULE_ID_USERDATA,
                         (uint32_t)(__userdata_start),
-                        (uint8_t *)&_nv_burn_buf,
-                        sizeof(NV_EXTENSION_RECORD_T),
+                        (uint8_t *)_nv_burn_buf,
+                        _nv_sector_size,
                         true);
                 if(ret == NORFLASH_API_OK)
                 {
                     nv_flush_state.state = NV_STATE_MAIN_WRITTEN;
-                    // NV_SECTION_TRACE(4,"%s: norflash_api_write ok,addr = 0x%x.",__func__,_user_data_main_start);
+                    // TRACE(4,"%s: norflash_api_write ok,addr = 0x%x.",__func__,_user_data_main_start);
                 }
                 else if(ret == NORFLASH_API_BUFFER_FULL)
                 {
@@ -1108,7 +1095,7 @@ static int nv_record_extension_flush_main(bool is_async)
 
         nv_flush_state.state = NV_STATE_MAIN_DONE;
 
-        // NV_SECTION_TRACE(3,"%s: sync flush done.", __func__);
+        // TRACE(3,"%s: sync flush done.", __func__);
     }
 _func_end:
     return (ret == NORFLASH_API_OK) ? 0:1;
@@ -1117,13 +1104,13 @@ _func_end:
 static int nv_record_extension_flush_bak(bool is_async)
 {
     enum NORFLASH_API_RET_T ret = NORFLASH_API_OK;
-    uint8_t *burn_buf = (uint8_t*)&_nv_burn_buf;
+    uint8_t *burn_buf = (uint8_t*)_nv_burn_buf;
     enum HAL_FLASH_ID_T dev_id;
 
     ret = norflash_api_get_dev_id(NORFLASH_API_MODULE_ID_USERDATA, &dev_id);
     if(ret)
     {
-        NV_SECTION_TRACE(1,"%s,norflash_api_get_dev_id fail ret = %d.", __func__, ret);
+        TRACE(1,"%s,norflash_api_get_dev_id fail ret = %d.", __func__, ret);
         goto _func_end;
     }
 
@@ -1135,17 +1122,17 @@ static int nv_record_extension_flush_bak(bool is_async)
             if(nv_flush_state.state == NV_STATE_MAIN_DONE)
             {
                 nv_flush_state.state = NV_STATE_BAK_ERASING;
-                // NV_SECTION_TRACE(3,"%s: async flush begin", __func__);
+                // TRACE(3,"%s: async flush begin", __func__);
             }
 
             ret = norflash_api_erase(NORFLASH_API_MODULE_ID_USERDATA,
                     _user_data_bak_start,
-                    NV_EXTENSION_SIZE,
+                    _nv_sector_size,
                     true);
             if(ret == NORFLASH_API_OK)
             {
                 nv_flush_state.state = NV_STATE_BAK_ERASED;
-                // NV_SECTION_TRACE(4,"%s: norflash_api_erase ok,addr = 0x%x.",
+                // TRACE(4,"%s: norflash_api_erase ok,addr = 0x%x.",
                 //        __func__,_user_data_bak_start);
             }
             else if(ret == NORFLASH_API_BUFFER_FULL)
@@ -1162,12 +1149,12 @@ static int nv_record_extension_flush_bak(bool is_async)
                 nv_flush_state.state == NV_STATE_BAK_WRITTING)
         {
             nv_flush_state.state = NV_STATE_BAK_WRITTING;
-            // NV_SECTION_TRACE(4,"%s: NV_STATE_BAK_WRITTING", __func__);
+            // TRACE(4,"%s: NV_STATE_BAK_WRITTING", __func__);
 
             ret = norflash_api_read(NORFLASH_API_MODULE_ID_USERDATA,
                     _user_data_main_start + nv_flush_state.written_size,
                     burn_buf,
-                    sizeof(NV_EXTENSION_RECORD_T)
+                    _nv_sector_size
                     );
             ASSERT(ret == NORFLASH_API_OK,"norflash_api_read failed! ret = %d, addr = 0x%x.",
                                (int32_t)ret,_user_data_main_start + nv_flush_state.written_size);
@@ -1178,7 +1165,7 @@ static int nv_record_extension_flush_bak(bool is_async)
             ret = norflash_api_write(NORFLASH_API_MODULE_ID_USERDATA,
                     _user_data_bak_start + nv_flush_state.written_size,
                     burn_buf,
-                    sizeof(NV_EXTENSION_RECORD_T),
+                    _nv_sector_size,
                     true
                     );
 
@@ -1201,7 +1188,7 @@ static int nv_record_extension_flush_bak(bool is_async)
             if(norflash_api_get_used_buffer_count(NORFLASH_API_MODULE_ID_USERDATA,NORFLASH_API_ALL) == 0)
             {
                 nv_flush_state.state = NV_STATE_BAK_DONE;
-                //NV_SECTION_TRACE(3,"%s: async flush done.", __func__);
+                //TRACE(3,"%s: async flush done.", __func__);
             }
             else
             {
@@ -1216,7 +1203,7 @@ static int nv_record_extension_flush_bak(bool is_async)
     }
     else
     {
-        //NV_SECTION_TRACE(3,"%s: sync flush begin.", __func__);
+        //TRACE(3,"%s: sync flush begin.", __func__);
         if(nv_flush_state.state == NV_STATE_MAIN_DONE
            || nv_flush_state.state == NV_STATE_BAK_ERASING)
         {
@@ -1224,12 +1211,12 @@ static int nv_record_extension_flush_bak(bool is_async)
             {
                 ret = norflash_api_erase(NORFLASH_API_MODULE_ID_USERDATA,
                             _user_data_bak_start,
-                            NV_EXTENSION_SIZE,
+                            _nv_sector_size,
                             true);
                 if(ret == NORFLASH_API_OK)
                 {
                     nv_flush_state.state = NV_STATE_BAK_ERASED;
-                    //NV_SECTION_TRACE(4,"%s: norflash_api_erase ok,addr = 0x%x.",
+                    //TRACE(4,"%s: norflash_api_erase ok,addr = 0x%x.",
                     //    __func__, _user_data_bak_start);
                     break;
                 }
@@ -1254,7 +1241,7 @@ static int nv_record_extension_flush_bak(bool is_async)
             ret = norflash_api_read(NORFLASH_API_MODULE_ID_USERDATA,
                     _user_data_main_start + nv_flush_state.written_size,
                     burn_buf,
-                    sizeof(NV_EXTENSION_RECORD_T)
+                    _nv_sector_size
                     );
             ASSERT(ret == NORFLASH_API_OK,"norflash_api_read failed! ret = %d, addr = 0x%x.",
                     (int32_t)ret, _user_data_main_start + nv_flush_state.written_size);
@@ -1268,7 +1255,7 @@ static int nv_record_extension_flush_bak(bool is_async)
                 ret = norflash_api_write(NORFLASH_API_MODULE_ID_USERDATA,
                         _user_data_bak_start + nv_flush_state.written_size,
                         burn_buf,
-                        sizeof(NV_EXTENSION_RECORD_T),
+                        _nv_sector_size,
                         true
                         );
                 if(ret == NORFLASH_API_OK)
@@ -1296,13 +1283,13 @@ static int nv_record_extension_flush_bak(bool is_async)
             norflash_api_flush();
         }while(norflash_api_get_used_buffer_count(NORFLASH_API_MODULE_ID_USERDATA,NORFLASH_API_ALL) > 0);
 
-        // NV_SECTION_TRACE(3,"%s: sync flush done.", __func__);
+        // TRACE(3,"%s: sync flush done.", __func__);
         nv_flush_state.state = NV_STATE_BAK_DONE;
     }
 
     if(nv_flush_state.state == NV_STATE_BAK_DONE)
     {
-       // NV_SECTION_TRACE(3,"%s: NV_STATE_IDLE", __func__);
+       // TRACE(3,"%s: NV_STATE_IDLE", __func__);
        nv_flush_state.state = NV_STATE_IDLE;
     }
 
@@ -1315,9 +1302,25 @@ _func_end:
 static int nv_record_extension_flush(bool is_async)
 {
     int ret = 0;
-
+    uint32_t lk = 0;
 #ifdef RTOS
-    _nv_mutex_wait();
+#if defined(__NuttX__)
+    if (sched_idletask())
+    {
+        lk = int_lock();
+    }
+    else
+#endif
+    {
+        if(norflash_api_flush_is_in_task())
+        {
+            _nv_mutex_wait();
+        }
+        else
+        {
+            lk = int_lock_global();
+        }
+    }
 #endif
 #ifndef RAM_NV_RECORD
     do{
@@ -1358,16 +1361,30 @@ static int nv_record_extension_flush(bool is_async)
 
 #endif
 #ifdef RTOS
-    _nv_mutex_release();
+#if defined(__NuttX__)
+    if (sched_idletask())
+        int_unlock_global(lk);
+    else
+#endif
+    {
+        if(norflash_api_flush_is_in_task())
+        {
+            _nv_mutex_release();
+        }
+        else
+        {
+            int_unlock_global(lk);
+        }
+    }
 #endif
     return ret;
 }
 
 void nv_extension_callback(void* param)
 {
-    POSSIBLY_UNUSED NORFLASH_API_OPERA_RESULT *opera_result;
+    NORFLASH_API_OPERA_RESULT *opera_result;
     opera_result = (NORFLASH_API_OPERA_RESULT*)param;
-    NV_SECTION_TRACE(6, "%s:type=%d,addr=0x%x,len=0x%x,rem=%d,rst=%d,suspend=%d",
+    TRACE(6, "%s:type=%d,addr=0x%x,len=0x%x,rem=%d,rst=%d,suspend=%d",
                 __func__,
                 opera_result->type,
                 opera_result->addr,
@@ -1395,12 +1412,7 @@ bt_status_t nv_record_open(SECTIONS_ADP_ENUM section_id)
     nv_record_extension_init();
     nvrecord_bt_init();
 #ifndef RAM_NV_RECORD
-#ifdef FLASH_SUSPEND
-    hal_norflash_suspend_check_irq(HAL_FLASH_ID_0, AUDMA_IRQn, true);
-    hal_norflash_suspend_check_irq(HAL_FLASH_ID_0, ISDATA_IRQn, true);
-    hal_norflash_suspend_check_irq(HAL_FLASH_ID_0, ISDATA1_IRQn, true);
     norflash_api_set_hook(NORFLASH_API_HOOK_USER_USERDATA, nv_record_flash_flush_in_sleep);
-#endif //FLASH_SUSPEND
 #endif
     return BT_STS_SUCCESS;
 }
@@ -1423,19 +1435,19 @@ void nv_record_sector_clear(void)
 
     ret = norflash_api_erase(NORFLASH_API_MODULE_ID_USERDATA,
                           (uint32_t)__userdata_start,
-                          NV_EXTENSION_SIZE,
+                          _nv_sector_size,
                           false);
     ASSERT(ret == NORFLASH_API_OK,
         "%s: norflash_api_erase(0x%x) failed! ret = %d.",
         __func__, (uint32_t)__userdata_start, (int32_t)ret);
 
     ret = norflash_api_erase(NORFLASH_API_MODULE_ID_USERDATA,
-                          (uint32_t)__userdata_start + NV_EXTENSION_SIZE,
-                          NV_EXTENSION_SIZE,
+                          (uint32_t)__userdata_start + _nv_sector_size,
+                          _nv_sector_size,
                           false);
     ASSERT(ret == NORFLASH_API_OK,
         "%s: norflash_api_erase(0x%x) failed! ret = %d.",
-        __func__, (uint32_t)__userdata_start + NV_EXTENSION_SIZE, (int32_t)ret);
+        __func__, (uint32_t)__userdata_start + _nv_sector_size, (int32_t)ret);
 #endif
 }
 
@@ -1443,7 +1455,7 @@ void nv_record_rebuild(NV_REBUILD_TYPE_E rebuild_type)
 {
     if (nvrecord_extension_p)
     {
-        NV_SECTION_TRACE(1,"%s: begin.", __func__);
+        TRACE(1,"%s: begin.", __func__);
         uint32_t nv_start;
         nv_start = (uint32_t)&local_extension_data.nv_record;
         uint32_t lock = int_lock_global();
@@ -1453,17 +1465,17 @@ void nv_record_rebuild(NV_REBUILD_TYPE_E rebuild_type)
         nv_record_extension_update();
         int_unlock_global(lock);
         nv_record_flash_flush();
-        NV_SECTION_TRACE(1,"%s: done.", __func__);
+        TRACE(1,"%s: done.", __func__);
     }
     else
     {
-        NV_SECTION_TRACE(1,"%s: begin. nvrecord_extension_p = null.", __func__);
+        TRACE(1,"%s: begin. nvrecord_extension_p = null.", __func__);
         uint32_t lock = int_lock_global();
         nv_record_sector_clear();
         nvrec_init = false;
         nv_record_extension_init();
         int_unlock_global(lock);
-        NV_SECTION_TRACE(1,"%s: done.", __func__);
+        TRACE(1,"%s: done.", __func__);
     }
 }
 
@@ -1604,5 +1616,33 @@ uint8_t* nv_record_get_ibrt_peer_addr(void)
         return NULL;
     }
 }
+#ifdef MTEST_BUILTIN
+uint32_t nv_extention_get_mem_scan_result(void)
+{
+    NV_SDK_INFO_T *sdk_info;
+    if (!nvrecord_extension_p) {
+        ASSERT(0, "nvrecord_extension_p wrong");
+        return -1;
+    }
+
+    sdk_info = (NV_SDK_INFO_T*)&nvrecord_extension_p->sdk_reserve.info;
+    return sdk_info->mem_scan_result;
+}
+
+void nv_extention_set_mem_scan_result(uint32_t result)
+{
+    NV_SDK_INFO_T *sdk_info;
+    if (!nvrecord_extension_p) {
+        ASSERT(0, "nvrecord_extension_p wrong");
+        return;
+    }
+
+    uint32_t lock = nv_record_pre_write_operation();
+    sdk_info = (NV_SDK_INFO_T*)&nvrecord_extension_p->sdk_reserve.info;
+    sdk_info->mem_scan_result = result;
+    nv_record_update_runtime_userdata();
+    nv_record_post_write_operation(lock);
+}
+#endif
 
 #endif // #if defined(NEW_NV_RECORD_ENABLED)

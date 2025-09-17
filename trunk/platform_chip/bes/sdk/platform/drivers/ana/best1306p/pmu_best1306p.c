@@ -15,7 +15,6 @@
  ****************************************************************************/
 #include "pmu.h"
 #include CHIP_SPECIFIC_HDR(reg_pmu)
-#include CHIP_SPECIFIC_HDR(rf_xtal)
 #include "analog.h"
 #include "charger.h"
 #include "cmsis.h"
@@ -608,6 +607,9 @@ static enum PMU_CLK_SEL_RC_USER_T rc_clk_user_map = 0;
 static enum PMU_PACKAGE_TYPE_T pmu_pkg_type = PMU_PACKAGE_TYPE_IHC_V0;
 
 #if defined(PMU_INIT) || (!defined(FPGA) && !defined(PROGRAMMER))
+#ifdef ARM_CMSE
+static bool BOOT_BSS_LOC pmu_ns_running;
+#endif
 static void pmu_hppa_set_volt(uint16_t volt);
 #if !defined(ROM_BUILD) && defined(PMU_EFUSE_INIT_IN_BOOT)
 static bool BOOT_BSS_LOC efuse_buf_valid;
@@ -617,7 +619,6 @@ static unsigned short pmu_efuse_page_arrays[PMU_EFUSE_PAGE_QTY];
 
 #if defined(PMU_CLK_USE_EXT_CRYSTAL) || defined(RTC_CLK_USE_EXT_CRYSTAL)
 #ifdef PMU_CLK_USE_EXT_CRYSTAL
-#define HAL_BUS_WAKE_LOCK_USER_XTAL_CALIB   HAL_BUS_WAKE_LOCK_USER_30
 
 enum XTAL_32K_CALIB_STATE_T {
     XTAL_32K_CALIB_STATE_NULL,
@@ -1084,7 +1085,7 @@ static POSSIBLY_UNUSED void pmu_get_dcdc_calib_value(void)
 
     intf_calib_en = !!(val & PMU_EFUSE_VBG_PMU_INTF_CALIB_ENABLE);
 
-    DRIVERS_TRACE(0, "%s: intf_calib_en:%d", __func__, intf_calib_en);
+    TRACE(0, "%s: intf_calib_en:%d", __func__, intf_calib_en);
 #endif
 
     if (intf_calib_en) {
@@ -1140,8 +1141,9 @@ static void BOOT_TEXT_FLASH_LOC pmu_boot_cause_init(void)
 {
     uint16_t val = 0;
     uint16_t val_reason = 0;
-    union HAL_HW_BOOTMODE_T hw_bm;
 
+    // ROM will execute global rst and open dig wdt by default,
+    // so first look at the reason of pmu and then look at the reason of dig
     pmu_read(PMU_REG_BOOT_SOURCE, &val);
     val_reason = GET_BITFIELD(val, ABORT_SOURCE);
     if (val_reason) {
@@ -1167,20 +1169,22 @@ static void BOOT_TEXT_FLASH_LOC pmu_boot_cause_init(void)
         }
     }
 
-    if (pmu_boot_reason != PMU_BOOT_CAUSE_NULL) {
-        val = ABORT_SOURCE_CLR | PMU_LDO_ON_SOURCE_CLR;
-        pmu_write(PMU_REG_BOOT_SOURCE, val);
-        // One lpo clock
-        hal_sys_timer_delay_us(30);
-        pmu_write(PMU_REG_BOOT_SOURCE, val);
-    } else {
-        hw_bm = hal_hw_bootmode_get();
+    if (pmu_boot_reason == PMU_BOOT_CAUSE_NULL) {
+        union HAL_HW_BOOTMODE_T hw_bm = hal_hw_bootmode_get();
 
         if (hw_bm.watchdog) {
             pmu_boot_reason = PMU_BOOT_CAUSE_DIG_WDT;
         } else if (hw_bm.global) {
             pmu_boot_reason = PMU_BOOT_CAUSE_DIG_REBOOT;
         }
+#if !(defined(OTA_BOOT_IMAGE) || defined(ARM_CMSE))
+    } else {
+        val = ABORT_SOURCE_CLR | PMU_LDO_ON_SOURCE_CLR;
+        pmu_write(PMU_REG_BOOT_SOURCE, val);
+        // One lpo clock
+        hal_sys_timer_delay_us(30);
+        pmu_write(PMU_REG_BOOT_SOURCE, val);
+#endif
     }
 
     pmu_read(PMU_REG_NOT_RESET_61, &val);
@@ -1209,10 +1213,6 @@ void BOOT_TEXT_FLASH_LOC pmu_boot_init(void)
 
     pmu_boot_cause_init();
 
-#ifdef __WATCHER_DOG_RESET__
-    pmu_wdt_save_context();
-#endif
-
 #if !defined(FPGA) && !defined(PROGRAMMER)
     pmu_charger_save_context();
 #endif
@@ -1240,9 +1240,7 @@ void BOOT_TEXT_FLASH_LOC pmu_boot_init(void)
     pmu_write(PMU_REG_XO_32K_CFG, val);
 #endif
 
-#ifdef __WATCHER_DOG_RESET__
-    pmu_wdt_restore_context();
-#else
+#ifndef __WATCHER_DOG_RESET__
     pmu_wdt_stop();
 #endif
 
@@ -1295,7 +1293,7 @@ __STATIC_FORCEINLINE uint16_t bbpll_get_spd(uint64_t PLL_cfg_val)
     bool found = true;
 
     if (0x179DB22D <= PLL_cfg_val && PLL_cfg_val <= 0x18624DD3) {
-        // 288M ± 1.6%
+        // 288M � 1.6%
         bbpll_spd_val = 0x1;
     } else if (0x1D9A1CAC <= PLL_cfg_val && PLL_cfg_val <= 0x214624DD) {
         // 361M - 1.6% ~ 393M + 1.6%
@@ -1387,8 +1385,8 @@ static void POSSIBLY_UNUSED bbpll_auto_calib_spd(uint32_t codec_freq, uint32_t d
     pmu_sys_freq_config(HAL_CMU_FREQ_208M);
 
     analog_aud_freq_pll_config(codec_freq, div);
-    DRIVERS_TRACE(0,"codec_freq = %d, div = %d", codec_freq, div);
-    DRIVERS_TRACE(0,"f_med = %d, deviation = %f", f_med, (double)deviation);
+    TRACE(0,"codec_freq = %d, div = %d", codec_freq, div);
+    TRACE(0,"f_med = %d, deviation = %f", f_med, (double)deviation);
     hal_cmu_force_sys_pll_div(sys_freq_div);
 
     for (k = 0; k < 8; k++) {
@@ -1412,7 +1410,7 @@ static void POSSIBLY_UNUSED bbpll_auto_calib_spd(uint32_t codec_freq, uint32_t d
                 cur_cnt = 0;
             }
         }
-        DRIVERS_TRACE(0, "[%c%2u] f=%u min=%u max=%u", cur_cnt ? '+' : '-', k, f, f_min, f_max);
+        TRACE(0, "[%c%2u] f=%u min=%u max=%u", cur_cnt ? '+' : '-', k, f, f_min, f_max);
     }
 
     if (cur_cnt) {
@@ -1424,10 +1422,10 @@ static void POSSIBLY_UNUSED bbpll_auto_calib_spd(uint32_t codec_freq, uint32_t d
     if (valid_cnt) {
         valid_start = valid_end + 1 - valid_cnt;
         sel = (valid_start + valid_end) / 2;
-        DRIVERS_TRACE(0, "Valid spd=[%2u, %2u] cnt=%2u sel=%2u", valid_start, valid_end, valid_cnt, sel);
+        TRACE(0, "Valid spd=[%2u, %2u] cnt=%2u sel=%2u", valid_start, valid_end, valid_cnt, sel);
     } else {
         sel = 0x0;
-        DRIVERS_TRACE(0, "BAD: no valid spd");
+        TRACE(0, "BAD: no valid spd");
     }
     bbpll_set_spd(sel);
     // Restore the sys freq
@@ -1823,6 +1821,27 @@ static void pmu_sys_ctrl(bool shutdown)
     pmu_write(PMU_REG_CHARGER_CFG, val);
 
 #ifdef RTC_CALENDAR
+#ifndef PMU_CLK_USE_EXT_CRYSTAL
+    if (shutdown) {
+        uint32_t old_systick = CONFIG_SYSTICK_HZ;
+
+        pmu_read(PMU_REG_LP_RTC_CFG, &val);
+        val |= LP_MODE_RTC_REG | LP_MODE_RTC_DR;
+        pmu_write(PMU_REG_LP_RTC_CFG, val);
+
+        hal_sys_timer_delay_us(50);
+
+        hal_sys_timer_calib();
+
+        val &= ~(LP_MODE_RTC_REG | LP_MODE_RTC_DR);
+        pmu_write(PMU_REG_LP_RTC_CFG, val);
+
+        hal_sys_timer_delay_us(50);
+
+        PMU_INFO_TRACE_IMM(0, "%s: Calib lp lpo freq done! freq(act/lp)=%u/%u",
+                __func__, old_systick << 1, CONFIG_SYSTICK_HZ << 1);
+    }
+#endif
     pmu_rtc_calendar_init();
 #endif
 
@@ -1836,14 +1855,15 @@ static void pmu_sys_ctrl(bool shutdown)
 
 #if defined(PMU_INIT) || (!defined(FPGA) && !defined(PROGRAMMER))
         if (
-#if defined(CHG_OUT_PWRON) || defined(RTC_CALENDAR) || defined(PMU_CLK_USE_EXT_CRYSTAL) || defined(RTC_CLK_USE_EXT_CRYSTAL)
+#if defined(RTC_CALENDAR) || defined(PMU_CLK_USE_EXT_CRYSTAL) || defined(RTC_CLK_USE_EXT_CRYSTAL)
             // ac_on will en lpo
+            // wdt_rst will reset 32k_sel and ac_out_pwron cfg
             true ||
 #endif
             false) {
             pmu_wdt_stop();
         } else {
-            pmu_wdt_config(3*1000, 3*1000);
+            pmu_wdt_config(500, 500);
             pmu_wdt_start();
         }
 #endif
@@ -1861,10 +1881,6 @@ static void pmu_sys_ctrl(bool shutdown)
         val &= ~AC_OUT_LDO_ON_EN;
 #endif
         pmu_write(PMU_REG_USB_CFG_3F, val);
-
-#ifdef ACIN_PATTERN_DISABLE
-        charger_charge_pattern_disable();
-#endif
 
         // Power off
         pmu_read(PMU_REG_POWER_OFF,&val);
@@ -2564,29 +2580,29 @@ static void BOOT_TEXT_FLASH_LOC pmu_dig_init_volt(void)
     }
 }
 
-#ifdef PMU_REG_CFG_DUMP
-static void pmu_reg_val_print(void)
+void pmu_reg_val_print(void)
 {
     uint16_t val;
 
-    DRIVERS_TRACE(0, "%s start", __func__);
+    TRACE(0, "%s start", __func__);
+    TRACE(0, "dump pmu regs : reg=val");
     for (uint16_t reg = 0x00; reg <= 0xFE; reg++) {
         pmu_read(reg, &val);
-        DRIVERS_TRACE_IMM(0, "reg=val 0x%04X=0x%04X", reg, val);
+        TRACE_IMM(0, "0x%04X=0x%04X", reg, val);
     }
 
-    for (uint16_t reg = 0x10A; reg <= 0x158; reg++) {
+    for (uint16_t reg = 0x10A; reg <= 0x15F; reg++) {
         pmu_read(reg, &val);
-        DRIVERS_TRACE_IMM(0, "reg=val 0x%04X=0x%04X", reg, val);
+        TRACE_IMM(0, "0x%04X=0x%04X", reg, val);
     }
 
-    for (uint16_t reg = PMU_EFUSE_PAGE_SECURITY; reg <= PMU_EFUSE_PAGE_RESERVED_0X1F; reg++) {
+    TRACE(0, "dump efuse regs : reg=val");
+    for (uint16_t reg = PMU_EFUSE_PAGE_SECURITY; reg <= PMU_EFUSE_PAGE_RF_TX_PWR; reg++) {
         pmu_get_efuse(reg, &val);
-        DRIVERS_TRACE_IMM(0, "efuse=val 0x%04X=0x%04X", reg, val);
+        TRACE_IMM(0, "0x%04X=0x%04X", reg, val);
     }
-    DRIVERS_TRACE(0, "%s done", __func__);
+    TRACE(0, "%s done", __func__);
 }
-#endif
 
 #ifdef PMU_VMIN_SEARCH
 #ifdef RTC_CALENDAR
@@ -2598,7 +2614,7 @@ static void pmu_vmin_search_enable(void)
     uint16_t val;
     int8_t vmin_offset;
 
-    DRIVERS_TRACE(0, "%s reg_addr=0x%x", __func__, PMU_VMIN_SET_REG_ADDR);
+    TRACE(0, "%s reg_addr=0x%x", __func__, PMU_VMIN_SET_REG_ADDR);
 
     pmu_write(PMU_VMIN_SET_REG_ADDR, 0);
 
@@ -2617,7 +2633,7 @@ static void pmu_vmin_search_enable(void)
 
     pmu_dcdc_dig_comp += vmin_offset;
 
-    DRIVERS_TRACE(0, "%s vmin_offset%d pmu_dcdc_dig_comp=%d", __func__, vmin_offset, pmu_dcdc_dig_comp);
+    TRACE(0, "%s vmin_offset%d pmu_dcdc_dig_comp=%d", __func__, vmin_offset, pmu_dcdc_dig_comp);
 }
 #endif
 
@@ -2714,6 +2730,21 @@ static void pmu_sar_adc_vref_sw_pu(bool pu)
     pmu_write(PMU_REG_SAR_VREF_CFG_E6, val);
 }
 
+#if defined(ARM_CMSE) || defined(ARM_CMNS)
+uint32_t TZ_pmu_get_vcore_req_S(void);
+
+#ifdef ARM_CMSE
+CMSE_API
+uint32_t TZ_pmu_get_vcore_req_S(void)
+{
+#if defined(PMU_INIT) || (!defined(FPGA) && !defined(PROGRAMMER))
+    pmu_ns_running = true;
+#endif
+    return pmu_vcore_req;
+}
+#endif
+#endif
+
 POSSIBLY_UNUSED static BOOT_BSS_LOC bool pmu_opened = false;
 
 int BOOT_TEXT_FLASH_LOC pmu_open(void)
@@ -2729,13 +2760,17 @@ int BOOT_TEXT_FLASH_LOC pmu_open(void)
 
     pmu_opened = true;
 
+#ifdef ARM_CMNS
+    pmu_vcore_req = TZ_pmu_get_vcore_req_S();
+#endif
+
     ASSERT(vcodec_mv == 1400 || vcodec_mv == 1450 || vcodec_mv == 1500 || vcodec_mv == 1550 || vcodec_mv == 1600 || vcodec_mv == 1650 ||
         vcodec_mv == 1700 || vcodec_mv == 1750 || vcodec_mv == 1800 || vcodec_mv == 1900,
         "Invalid vcodec cfg: vcodec_mv=%u", vcodec_mv);
     ASSERT(vhppa_mv == 1400 || vhppa_mv == 1450 || vhppa_mv == 1500 || vhppa_mv == 1550 || vhppa_mv == 1600 || vhppa_mv == 1650 ||
         vhppa_mv == 1700 || vhppa_mv == 1750 || vhppa_mv == 1800 || vhppa_mv == 1900,
         "Invalid vhppa cfg: vhppa_mv=%u", vhppa_mv);
-    DRIVERS_TRACE(0, "%s vcodec_mv:%d vhppa_mv:%d", __func__, vcodec_mv, vhppa_mv);
+    TRACE(0, "%s vcodec_mv:%d vhppa_mv:%d", __func__, vcodec_mv, vhppa_mv);
 
 #if !defined(ROM_BUILD) && defined(PMU_EFUSE_INIT_IN_BOOT)
     pmu_efuse_init();
@@ -2743,18 +2778,18 @@ int BOOT_TEXT_FLASH_LOC pmu_open(void)
 
     pmu_get_efuse(PMU_EFUSE_PAGE_CP_WAFER_XY_CTX, &val);
     pmu_pkg_type = GET_BITFIELD(val, PMU_EFUSE_PACKAGE_TYPE);
-    DRIVERS_TRACE(0, "%s pmu_pkg_type:%d", __func__, pmu_pkg_type);
+    TRACE(0, "%s pmu_pkg_type:%d", __func__, pmu_pkg_type);
 
 #ifdef PMU_WAFER_PRINT
     pmu_get_efuse(REG_CP_WAFER_CTX_ID, &val);
-    DRIVERS_TRACE(0, "wafer_ctx_print: wafer_ID=%d", GET_BITFIELD(val, PMU_EFUSE_CP_WAFER_CTX_ID));
+    TRACE(0, "wafer_ctx_print: wafer_ID=%d", GET_BITFIELD(val, PMU_EFUSE_CP_WAFER_CTX_ID));
 
     pmu_get_efuse(REG_CP_WAFER_CTX_XY, &val);
-    DRIVERS_TRACE(0, "wafer_ctx_print: wafer_X=%d, wafer_Y=%d",
+    TRACE(0, "wafer_ctx_print: wafer_X=%d, wafer_Y=%d",
         GET_BITFIELD(val, PMU_EFUSE_CP_WAFER_CTX_X), GET_BITFIELD(val, PMU_EFUSE_CP_WAFER_CTX_Y));
 #endif
 
-    DRIVERS_TRACE(0, "%s boot_cause=0x%04X first_pwron:%d", __func__, pmu_boot_reason, pmu_boot_first_pwr_up);
+    TRACE(0, "%s boot_cause=0x%04X first_pwron:%d", __func__, pmu_boot_reason, pmu_boot_first_pwr_up);
 
     // Disable and clear all PMU irqs by default
     pmu_write(PMU_REG_INT_MASK, 0);
@@ -2797,12 +2832,12 @@ int BOOT_TEXT_FLASH_LOC pmu_open(void)
 
 #if defined(PMU_DCDC_CALIB) && !defined(PMU_ALREADY_INIT)
     pmu_get_dcdc_calib_value();
-    DRIVERS_TRACE(0, "dcdc_cal: normal=lp vcore=%d vana=%d vcodec=%d", pmu_dcdc_dig_comp, pmu_dcdc_ana_comp, pmu_dcdc_hppa_comp);
+    TRACE(0, "dcdc_cal: normal=lp vcore=%d vana=%d vcodec=%d", pmu_dcdc_dig_comp, pmu_dcdc_ana_comp, pmu_dcdc_hppa_comp);
 #endif
 
 #if defined(PMU_LDO_VCORE_CALIB) && !defined(PMU_ALREADY_INIT)
     pmu_get_ldo_dig_calib_value();
-    DRIVERS_TRACE(0, "ldo_cal: normal=lp vusb=%d", pmu_ldo_usb_comp);
+    TRACE(0, "ldo_cal: normal=lp vusb=%d", pmu_ldo_usb_comp);
 #endif
 
 #ifdef PMU_VMIN_SEARCH
@@ -2892,30 +2927,48 @@ int BOOT_TEXT_FLASH_LOC pmu_open(void)
         pmu_write(PMU_REG_BUCK_VANA_RC_CFG_140, val);
     }
 
-    // Disable buck ulp mode by default
-    pmu_read(PMU_REG_BUCK_VANA_LP_CFG_13A, &val);
-    val &= ~REG_BUCK_VANA_ULP_MODE_DSLEEP;
-    pmu_write(PMU_REG_BUCK_VANA_LP_CFG_13A, val);
+if (hal_get_chip_metal_id() > HAL_CHIP_METAL_ID_3) {
+        pmu_read(PMU_REG_RESERVED_ANA, &val);
+        val &= ~REG_BUCK_CURRENT_REF_ULP;
+        pmu_write(PMU_REG_RESERVED_ANA, val);
 
-    pmu_read(PMU_REG_BUCK_VCORE_LP_CFG_142, &val);
-    val &= ~REG_BUCK_VCORE_ULP_MODE_DSLEEP;
-    pmu_write(PMU_REG_BUCK_VCORE_LP_CFG_142, val);
+        pmu_read(PMU_REG_BUCK_ANA_CFG_C5, &val);
+        val = SET_BITFIELD(val, REG_BUCK_VANA_RESERVED, 0x7);
+        pmu_write(PMU_REG_BUCK_ANA_CFG_C5, val);
 
-    pmu_read(PMU_REG_BUCK_VHPPA_LP_CFG_145, &val);
-    val &= ~REG_BUCK_VHPPA_ULP_MODE_DSLEEP;
-    pmu_write(PMU_REG_BUCK_VHPPA_LP_CFG_145, val);
+        pmu_read(PMU_REG_BUCK_CORE_CFG_C8, &val);
+        val = SET_BITFIELD(val, REG_BUCK_VCORE_RESERVED, 0x7);
+        pmu_write(PMU_REG_BUCK_CORE_CFG_C8, val);
 
-    pmu_read(PMU_REG_BUCK_VANA_RC_CFG_140, &val);
-    val &= ~REG_BUCK_VANA_ULP_MODE_RC;
-    pmu_write(PMU_REG_BUCK_VANA_RC_CFG_140, val);
+        pmu_read(PMU_REG_BUCK_VHPPA_CFG_E8, &val);
+        val = SET_BITFIELD(val, REG_BUCK_VHPPA_RESERVED, 0x7);
+        pmu_write(PMU_REG_BUCK_VHPPA_CFG_E8, val);
+    } else {
+        // Disable buck ulp mode by default
+        pmu_read(PMU_REG_BUCK_VANA_LP_CFG_13A, &val);
+        val &= ~REG_BUCK_VANA_ULP_MODE_DSLEEP;
+        pmu_write(PMU_REG_BUCK_VANA_LP_CFG_13A, val);
 
-    pmu_read(PMU_REG_BUCK_VCORE_RC_CFG_143, &val);
-    val &= ~REG_BUCK_VCORE_ULP_MODE_RC;
-    pmu_write(PMU_REG_BUCK_VCORE_RC_CFG_143, val);
+        pmu_read(PMU_REG_BUCK_VCORE_LP_CFG_142, &val);
+        val &= ~REG_BUCK_VCORE_ULP_MODE_DSLEEP;
+        pmu_write(PMU_REG_BUCK_VCORE_LP_CFG_142, val);
 
-    pmu_read(PMU_REG_BUCK_VHPPA_RC_CFG_146, &val);
-    val &= ~REG_BUCK_VHPPA_ULP_MODE_RC;
-    pmu_write(PMU_REG_BUCK_VHPPA_RC_CFG_146, val);
+        pmu_read(PMU_REG_BUCK_VHPPA_LP_CFG_145, &val);
+        val &= ~REG_BUCK_VHPPA_ULP_MODE_DSLEEP;
+        pmu_write(PMU_REG_BUCK_VHPPA_LP_CFG_145, val);
+
+        pmu_read(PMU_REG_BUCK_VANA_RC_CFG_140, &val);
+        val &= ~REG_BUCK_VANA_ULP_MODE_RC;
+        pmu_write(PMU_REG_BUCK_VANA_RC_CFG_140, val);
+
+        pmu_read(PMU_REG_BUCK_VCORE_RC_CFG_143, &val);
+        val &= ~REG_BUCK_VCORE_ULP_MODE_RC;
+        pmu_write(PMU_REG_BUCK_VCORE_RC_CFG_143, val);
+
+        pmu_read(PMU_REG_BUCK_VHPPA_RC_CFG_146, &val);
+        val &= ~REG_BUCK_VHPPA_ULP_MODE_RC;
+        pmu_write(PMU_REG_BUCK_VHPPA_RC_CFG_146, val);
+    }
 
     pmu_read(PMU_REG_BUCK_VHPPA_CFG, &val);
 #ifdef PMU_DCDC_PWM
@@ -2976,6 +3029,7 @@ int BOOT_TEXT_FLASH_LOC pmu_open(void)
     val &= ~REG_BUCK_VCORE_RAMP_EN;
 #endif
     val = SET_BITFIELD(val, REG_BUCK_VCORE_RAMP_STEP, PMU_DCDC_HW_RAMP_1_CLK_STEP);
+    val |= REG_PU_BUCK_VCORE_DR | REG_PU_BUCK_VCORE;
     pmu_write(PMU_REG_BUCK_VCORE_EN, val);
 
     pmu_read(PMU_REG_BUCK_VANA_EN, &val);
@@ -2985,6 +3039,7 @@ int BOOT_TEXT_FLASH_LOC pmu_open(void)
     val &= ~REG_BUCK_VANA_RAMP_EN;
 #endif
     val = SET_BITFIELD(val, REG_BUCK_VANA_RAMP_STEP, PMU_DCDC_HW_RAMP_1_CLK_STEP_HALF);
+    val |= REG_PU_BUCK_VANA_DR | REG_PU_BUCK_VANA;
     pmu_write(PMU_REG_BUCK_VANA_EN, val);
 
     pmu_read(PMU_REG_BUCK_VHPPA_EN, &val);
@@ -2994,6 +3049,7 @@ int BOOT_TEXT_FLASH_LOC pmu_open(void)
     val &= ~REG_BUCK_VHPPA_RAMP_EN;
 #endif
     val = SET_BITFIELD(val, REG_BUCK_VHPPA_RAMP_STEP, PMU_DCDC_HW_RAMP_1_CLK_STEP_HALF);
+    val |= REG_PU_BUCK_VHPPA_DR | REG_PU_BUCK_VHPPA;
     pmu_write(PMU_REG_BUCK_VHPPA_EN, val);
 
 #ifndef DCDC_VOLT_FAST_HW_RAMP
@@ -3427,6 +3483,10 @@ void BOOT_TEXT_SRAM_LOC pmu_sys_freq_config(enum HAL_CMU_FREQ_T freq)
     uint32_t lock;
     enum PMU_VCORE_REQ_T old_req;
     bool update = false;
+
+#ifdef ARM_CMSE
+    ASSERT(!pmu_ns_running, "pmu_sys_freq_config: NS is running");
+#endif
 
     lock = int_lock();
     old_req = pmu_vcore_req;
@@ -4440,40 +4500,6 @@ void pmu_wdt_set_irq_handler(PMU_WDT_IRQ_HANDLER_T handler)
 }
 #endif
 
-#ifdef __WATCHER_DOG_RESET__
-struct PMU_WDT_CTX_T {
-    bool enabled;
-    uint16_t wdt_irq_timer;
-    uint16_t wdt_reset_timer;
-    uint16_t wdt_cfg;
-};
-
-static struct PMU_WDT_CTX_T BOOT_BSS_LOC wdt_ctx;
-
-void BOOT_TEXT_SRAM_LOC pmu_wdt_save_context(void)
-{
-    uint16_t wdt_cfg = 0, wdt_timer = 0;
-    pmu_read(PMU_REG_WDT_CFG, &wdt_cfg);
-    if (wdt_cfg & (REG_WDT_RESET_EN | REG_WDT_EN)){
-        wdt_ctx.enabled = true;
-        wdt_ctx.wdt_cfg = wdt_cfg;
-        pmu_read(PMU_REG_WDT_IRQ_TIMER, &wdt_timer);
-        wdt_ctx.wdt_irq_timer = wdt_timer;
-        pmu_read(PMU_REG_WDT_RESET_TIMER, &wdt_timer);
-        wdt_ctx.wdt_reset_timer = wdt_timer;
-    }
-}
-
-void BOOT_TEXT_SRAM_LOC pmu_wdt_restore_context(void)
-{
-    if (wdt_ctx.enabled) {
-        pmu_write(PMU_REG_WDT_IRQ_TIMER, wdt_ctx.wdt_irq_timer);
-        pmu_write(PMU_REG_WDT_RESET_TIMER, wdt_ctx.wdt_reset_timer);
-        pmu_write(PMU_REG_WDT_CFG, wdt_ctx.wdt_cfg);
-    }
-}
-#endif
-
 int pmu_wdt_config(uint32_t irq_ms, uint32_t reset_ms)
 {
     if (irq_ms > 0xFFFF) {
@@ -4583,13 +4609,13 @@ int pmu_wdt_load_test(void)
 
     pmu_read(PMU_REG_RAW_STATUS, &val1);
 
-    DRIVERS_TRACE(0, "wdt_load: %u -> %u", !!(val0 & WDT_LOAD), !!(val1 & WDT_LOAD));
+    TRACE(0, "wdt_load: %u -> %u", !!(val0 & WDT_LOAD), !!(val1 & WDT_LOAD));
 
     if ((val0 & WDT_LOAD) == (val1 & WDT_LOAD)) {
-        DRIVERS_TRACE(0, "BAD: wdt load not changed");
+        TRACE(0, "BAD: wdt load not changed");
         return 1;
     } else {
-        DRIVERS_TRACE(0, "GOOD: wdt load changed");
+        TRACE(0, "GOOD: wdt load changed");
         return 0;
     }
 }
@@ -4755,7 +4781,7 @@ int pmu_volt2temperature(const uint16_t volt)
     int temp_centigrade = 0;
 
     if (!temp_ref_raw2volt) {
-        POSSIBLY_UNUSED bool calibed = true;
+        bool calibed = true;
 
         pmu_get_efuse(PMU_EFUSE_PAGE_TEMPERATURE, &temp_ref_raw2volt);
         if (!temp_ref_raw2volt) {
@@ -4763,7 +4789,7 @@ int pmu_volt2temperature(const uint16_t volt)
             calibed = false;
         }
         temp_ref_raw2volt = hal_gpadc_adc2volt(temp_ref_raw2volt);
-        DRIVERS_TRACE(0, "%s calibed=%d temp_ref_raw2volt=%d", __func__, calibed, temp_ref_raw2volt);
+        TRACE(0, "%s calibed=%d temp_ref_raw2volt=%d", __func__, calibed, temp_ref_raw2volt);
     }
 
     temp_centigrade = (int)(((volt - temp_ref_raw2volt) * 100 + Kvtherm_T / 2) / Kvtherm_T + 25);
@@ -5091,7 +5117,7 @@ int pmu_external_crystal_calib(uint32_t *p_wait_ms)
     float hz;
     uint32_t capbit;
 
-    DRIVERS_TRACE(0, "%s: cur_state=%d", __func__, xtal_32k_calib_state);
+    TRACE(0, "%s: cur_state=%d", __func__, xtal_32k_calib_state);
 
     *p_wait_ms = 0;
     ret = -100;
@@ -5101,7 +5127,7 @@ _null_start:
         xtal_32k_calib_prev_valid = false;
 _calib_start:
         hal_sys_timer_calib_start();
-        hal_bus_wake_lock(HAL_BUS_WAKE_LOCK_USER_XTAL_CALIB);
+        hal_bus_wake_lock(HAL_BUS_WAKE_LOCK_USER_PMU);
         xtal_32k_calib_state = XTAL_32K_CALIB_STATE_CALIB;
         xtal_32k_calib_time = hal_sys_timer_get();
         *p_wait_ms = xtal_32k_calib_intvl_ms;
@@ -5116,9 +5142,9 @@ _calib_start:
             goto _exit;
         }
         ret = hal_sys_timer_calib_end();
-        hal_bus_wake_unlock(HAL_BUS_WAKE_LOCK_USER_XTAL_CALIB);
+        hal_bus_wake_unlock(HAL_BUS_WAKE_LOCK_USER_PMU);
         if (ret) {
-            DRIVERS_TRACE(0, "%s: calib_end failed with %d", __func__, ret);
+            TRACE(0, "%s: calib_end failed with %d", __func__, ret);
             xtal_32k_calib_state = XTAL_32K_CALIB_STATE_NULL;
             ret = -1;
             goto _exit;
@@ -5126,18 +5152,18 @@ _calib_start:
         hz = hal_sys_timer_systick_hz_float();
         pmu_external_crystal_capbit_get(&capbit);
         if (xtal_32k_calib_prev_valid) {
-            DRIVERS_TRACE(0, "%s: hz=%u.%02u capbit=0x%X prev=%u.%02u prev_capbit=0x%X",
+            TRACE(0, "%s: hz=%u.%02u capbit=0x%X prev=%u.%02u prev_capbit=0x%X",
                 __func__,
                 (unsigned)hz, ((unsigned)(hz * 100) - ((unsigned)hz * 100)),
                 capbit,
                 (unsigned)xtal_32k_calib_prev_hz, ((unsigned)(xtal_32k_calib_prev_hz * 100) - ((unsigned)xtal_32k_calib_prev_hz * 100)),
                 xtal_32k_calib_prev_capbit);
         } else {
-            DRIVERS_TRACE(0, "%s: hz=%u.%02u", __func__, (unsigned)hz, ((unsigned)(hz * 100) - ((unsigned)hz * 100)));
+            TRACE(0, "%s: hz=%u.%02u", __func__, (unsigned)hz, ((unsigned)(hz * 100) - ((unsigned)hz * 100)));
         }
         if (ABS(hz - CONFIG_SYSTICK_HZ_NOMINAL) < 0.1) {
             // Calib result OK
-            DRIVERS_TRACE(0, "%s: Calib result OK", __func__);
+            TRACE(0, "%s: Calib result OK", __func__);
             xtal_32k_calib_state = XTAL_32K_CALIB_STATE_NULL;
             ret = 0;
             goto _exit;
@@ -5145,12 +5171,12 @@ _calib_start:
             // If no better result
             if (hz < CONFIG_SYSTICK_HZ_NOMINAL && CONFIG_SYSTICK_HZ_NOMINAL < xtal_32k_calib_prev_hz) {
                 if (CONFIG_SYSTICK_HZ_NOMINAL - hz <= xtal_32k_calib_prev_hz - CONFIG_SYSTICK_HZ_NOMINAL) {
-                    DRIVERS_TRACE(0, "%s: Calib no better result: Select cur", __func__);
+                    TRACE(0, "%s: Calib no better result: Select cur", __func__);
                     xtal_32k_calib_state = XTAL_32K_CALIB_STATE_NULL;
                     ret = 0;
                     goto _exit;
                 } else {
-                    DRIVERS_TRACE(0, "%s: Calib no better result: Select prev", __func__);
+                    TRACE(0, "%s: Calib no better result: Select prev", __func__);
                     pmu_external_crystal_capbit_set(xtal_32k_calib_prev_capbit);
                     xtal_32k_calib_state = XTAL_32K_CALIB_STATE_ROLLBACK;
                     xtal_32k_calib_time = hal_sys_timer_get();
@@ -5159,12 +5185,12 @@ _calib_start:
                 }
             } else if (xtal_32k_calib_prev_hz < CONFIG_SYSTICK_HZ_NOMINAL && CONFIG_SYSTICK_HZ_NOMINAL < hz) {
                 if (hz - CONFIG_SYSTICK_HZ_NOMINAL <= CONFIG_SYSTICK_HZ_NOMINAL - xtal_32k_calib_prev_hz) {
-                    DRIVERS_TRACE(0, "%s: Calib no better result: Select cur", __func__);
+                    TRACE(0, "%s: Calib no better result: Select cur", __func__);
                     xtal_32k_calib_state = XTAL_32K_CALIB_STATE_NULL;
                     ret = 0;
                     goto _exit;
                 } else {
-                    DRIVERS_TRACE(0, "%s: Calib no better result: Select prev", __func__);
+                    TRACE(0, "%s: Calib no better result: Select prev", __func__);
                     pmu_external_crystal_capbit_set(xtal_32k_calib_prev_capbit);
                     xtal_32k_calib_state = XTAL_32K_CALIB_STATE_ROLLBACK;
                     xtal_32k_calib_time = hal_sys_timer_get();
@@ -5180,7 +5206,7 @@ _calib_start:
         xtal_32k_calib_prev_valid = true;
         if (hz > CONFIG_SYSTICK_HZ_NOMINAL) {
             if (capbit >= (REG_XO_32K_CAPBIT_MASK >> REG_XO_32K_CAPBIT_SHIFT)) {
-                DRIVERS_TRACE(0, "%s: capbit too large: 0x%X", __func__, capbit);
+                TRACE(0, "%s: capbit too large: 0x%X", __func__, capbit);
                 xtal_32k_calib_state = XTAL_32K_CALIB_STATE_NULL;
                 ret = -2;
                 goto _exit;
@@ -5191,7 +5217,7 @@ _calib_start:
             }
         } else {
             if (capbit <= 1) {
-                DRIVERS_TRACE(0, "%s: capbit too small: 0x%X", __func__, capbit);
+                TRACE(0, "%s: capbit too small: 0x%X", __func__, capbit);
                 xtal_32k_calib_state = XTAL_32K_CALIB_STATE_NULL;
                 ret = -3;
                 goto _exit;
@@ -5202,7 +5228,7 @@ _calib_start:
                 capbit = 1;
             }
         }
-        DRIVERS_TRACE(0, "%s: Set capbit=0x%X", __func__, capbit);
+        TRACE(0, "%s: Set capbit=0x%X", __func__, capbit);
         pmu_external_crystal_capbit_set(capbit);
         xtal_32k_calib_state = XTAL_32K_CALIB_STATE_SET;
         xtal_32k_calib_time = hal_sys_timer_get();
@@ -5232,7 +5258,7 @@ _calib_start:
     }
 
 _exit:
-    DRIVERS_TRACE(0, "%s: ret=%d next_state=%d", __func__, ret, xtal_32k_calib_state);
+    TRACE(0, "%s: ret=%d next_state=%d", __func__, ret, xtal_32k_calib_state);
     return ret;
 }
 #endif
@@ -5410,7 +5436,7 @@ void pmu_get_vbat_calib_value(unsigned short *val_lv, unsigned short *val_hv)
     *val_lv = GET_BITFIELD(*val_lv, PMU_EFUSE_PAGE_BATTER_LV_OFFSET);
     *val_hv = GET_BITFIELD(*val_hv, PMU_EFUSE_PAGE_BATTER_HV_OFFSET);
 
-    DRIVERS_TRACE(0, "%s, efuse_lv/hv:%d/%d", __func__, *val_lv, *val_hv);
+    TRACE(0, "%s, efuse_lv/hv:%d/%d", __func__, *val_lv, *val_hv);
 
     if (*val_lv == 0 || *val_hv == 0) {
         *val_lv = PMU_EFUSE_GPADC_CALIB_DEFAULT;
@@ -5429,7 +5455,7 @@ void pmu_get_ext_gpadc_calib_value(unsigned short *val_lv, unsigned short *val_h
     *val_lv = GET_BITFIELD(*val_lv, PMU_EFUSE_PAGE_EXT_GPADC_LV_OFFSET);
     *val_hv = GET_BITFIELD(*val_hv, PMU_EFUSE_PAGE_EXT_GPADC_HV_OFFSET);
 
-    DRIVERS_TRACE(0, "%s, efuse_lv/hv:%d/%d", __func__, *val_lv, *val_hv);
+    TRACE(0, "%s, efuse_lv/hv:%d/%d", __func__, *val_lv, *val_hv);
 
     if (*val_lv == 0 || *val_hv == 0) {
         *val_lv = PMU_EFUSE_GPADC_CALIB_DEFAULT;

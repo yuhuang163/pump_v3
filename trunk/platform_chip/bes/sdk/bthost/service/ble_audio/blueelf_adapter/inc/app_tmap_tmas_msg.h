@@ -26,14 +26,6 @@
 #include "bluetooth.h"
 
 #if BLE_AUDIO_ENABLED
-/**
- * @brief Set tmap tmas fole bitfiled
- * 
- * @param[in] role_bf  TMAP Role
- * 
- * @return int         status
- */
-int app_tmap_tmas_set_role(uint16_t role_bf);
 
 #endif
 #endif // APP_TMAP_TMAS_MSG_H_

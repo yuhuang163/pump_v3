@@ -29,7 +29,7 @@ extern "C" {
 #endif
 
 #ifndef APP_DSP_M55_BRIDGE_TX_MAILBOX_MAX
-#define APP_DSP_M55_BRIDGE_TX_MAILBOX_MAX          (20)
+#define APP_DSP_M55_BRIDGE_TX_MAILBOX_MAX          (30)
 #endif
 
 #ifndef APP_DSP_M55_BRIDGE_MAX_XFER_DATA_SIZE
@@ -61,6 +61,7 @@ extern "C" {
 
 #define CORE_BRIDGE_CMD_INSTANT(subCode) CORE_BRIDGE_CMD_CODE(CORE_BRIDGE_CMD_GROUP_INSTANT, (subCode))
 #define CORE_BRIDGE_CMD_TASK(subCode)    CORE_BRIDGE_CMD_CODE(CORE_BRIDGE_CMD_GROUP_TASK, (subCode))
+#define SIGNAL_M55_BOOT_DONE                        (0x01)
 
 typedef void (*app_dsp_m55_bridge_cmd_transmit_handler_t)(uint8_t*, uint16_t);
 typedef void (*app_dsp_m55_bridge_cmd_receivd_handler_t)(uint8_t*, uint16_t);
@@ -117,6 +118,9 @@ typedef struct
                                         (core_bridge_cmd_transmit_handler), \
                                         (cmdhandler)};
 
+#define M55_CORE_BRIDGE_TASK_COMMAND_TO_ADD CORE_BRIDGE_TASK_COMMAND_TO_ADD
+#define M55_CORE_BRIDGE_INSTANT_COMMAND_TO_ADD CORE_BRIDGE_INSTANT_COMMAND_TO_ADD
+
 typedef enum
 {
     MCU_DSP_M55_TASK_CMD_PING = CORE_BRIDGE_CMD_CODE(CORE_BRIDGE_CMD_GROUP_TASK, 0x80),
@@ -138,13 +142,10 @@ typedef enum
     // soundplus vad cmd
     MCU_DSP_M55_TASK_CMD_SNDP  = CORE_BRIDGE_CMD_CODE(CORE_BRIDGE_CMD_GROUP_TASK, 0x87),
 
-    // speech
-    MCU_DSP_M55_TASK_CMD_SCO_INIT_NO_RSP = CORE_BRIDGE_CMD_CODE(CORE_BRIDGE_CMD_GROUP_TASK, 0x88),
-    MCU_DSP_M55_TASK_CMD_SCO_DEINIT_NO_RSP = CORE_BRIDGE_CMD_CODE(CORE_BRIDGE_CMD_GROUP_TASK, 0x89),
-    MCU_DSP_M55_TASK_CMD_SCO_CAPTURE_RSP = CORE_BRIDGE_CMD_CODE(CORE_BRIDGE_CMD_GROUP_TASK, 0x8a),
-    MCU_DSP_M55_TASK_CMD_SCO_PLAYBACK_RSP = CORE_BRIDGE_CMD_CODE(CORE_BRIDGE_CMD_GROUP_TASK, 0x8b),
-
-#ifdef A2DP_DECODER_CROSS_CORE_USE_M55
+    // anc_assist
+    MCU_DSP_M55_ANC_ASSIST_CMD  = CORE_BRIDGE_CMD_CODE(CORE_BRIDGE_CMD_GROUP_TASK, 0x8c),
+    MCU_DSP_M55_ANC_ASSIST_DATA = CORE_BRIDGE_CMD_CODE(CORE_BRIDGE_CMD_GROUP_TASK, 0x8d),
+#if defined(A2DP_DECODER_CROSS_CORE_USE_M55) || defined(A2DP_ENCODER_CROSS_CORE_USE_M55)
     CROSS_CORE_TASK_CMD_A2DP_INIT_WAITING_RSP = CORE_BRIDGE_CMD_CODE(CORE_BRIDGE_CMD_GROUP_TASK, 0x90),
     CROSS_CORE_TASK_CMD_A2DP_DEINIT_WAITING_RSP = CORE_BRIDGE_CMD_CODE(CORE_BRIDGE_CMD_GROUP_TASK, 0x91),
 
@@ -175,7 +176,10 @@ typedef enum
 
     CROSS_CORE_TASK_CMD_A2DP_SCALABLE_SBM_STATUS = CORE_BRIDGE_CMD_CODE(CORE_BRIDGE_CMD_GROUP_TASK, 0x9c),
 #endif
-
+#ifdef A2DP_LHDC_ON//LHDC_DSP_LIC_CHECK
+    CROSS_CORE_TASK_CMD_LHDC_FED_DATA_PACKET = CORE_BRIDGE_CMD_CODE(CORE_BRIDGE_CMD_GROUP_TASK, 0x9e),
+#endif
+    CROSS_CORE_TASK_CMD_A2DP_SET_TRIGGERED_STATE = CORE_BRIDGE_CMD_CODE(CORE_BRIDGE_CMD_GROUP_TASK, 0x9f),
 #ifdef GAF_ENCODER_CROSS_CORE_USE_M55
     CROSS_CORE_TASK_CMD_GAF_ENCODE_INIT_WAITING_RSP = CORE_BRIDGE_CMD_CODE(CORE_BRIDGE_CMD_GROUP_TASK, 0xa4),
     CROSS_CORE_TASK_CMD_GAF_ENCODE_DEINIT_WAITING_RSP = CORE_BRIDGE_CMD_CODE(CORE_BRIDGE_CMD_GROUP_TASK, 0xa5),
@@ -195,11 +199,14 @@ typedef enum
     // mcu core ack M55 about encoding the pcm data
     CROSS_CORE_TASK_CMD_GAF_ACK_FEED_ENCODED_DATA_TO_CORE = CORE_BRIDGE_CMD_CODE(CORE_BRIDGE_CMD_GROUP_TASK, 0Xaa),
 
+    // m55 ack feed pcm data to core cpu after copying data to local buffer, when m55 not open.
+    CROSS_CORE_TASK_CMD_GAF_ACK_FEED_PCM_DATA_SUCCEED = CORE_BRIDGE_CMD_CODE(CORE_BRIDGE_CMD_GROUP_TASK, 0xb4),
+
 #endif
 
 #ifdef GAF_DECODER_CROSS_CORE_USE_M55
     // mcu core ask m55 to decoder init, has waiting rsp
-    CROSS_CORE_TASK_CMD_GAF_DECODE_INIT_WAITING_RSP = CORE_BRIDGE_CMD_CODE(CORE_BRIDGE_CMD_GROUP_TASK, 0xab),
+    CROSS_CORE_INSTANT_CMD_GAF_DECODE_INIT_WAITING_RSP = CORE_BRIDGE_CMD_CODE(CORE_BRIDGE_CMD_GROUP_INSTANT, 0xab),
 
     // mcu core ask m55 to decoder deinit, has waiting rsp
     CROSS_CORE_TASK_CMD_GAF_DECODE_DEINIT_WAITING_RSP = CORE_BRIDGE_CMD_CODE(CORE_BRIDGE_CMD_GROUP_TASK, 0xac),
@@ -220,19 +227,36 @@ typedef enum
 
     // mcu ask to remove specfic frame
     CROSS_CORE_TASK_CMD_GAF_DECODE_REMOVE_SPECIFIC_FRAME = CORE_BRIDGE_CMD_CODE(CORE_BRIDGE_CMD_GROUP_TASK, 0xb3),
+
+    // m55 send decoder init rsp signal to bth
+    CROSS_CORE_INSTANT_CMD_GAF_DECODE_INIT_RSP_TO_CORE = CORE_BRIDGE_CMD_CODE(CORE_BRIDGE_CMD_GROUP_INSTANT, 0xb7),
 #endif
 
     MCU_DSP_M55_TASK_CMD_SMF_NO_RSP = CORE_BRIDGE_CMD_CODE(CORE_BRIDGE_CMD_GROUP_TASK, 0xb5),
     MCU_DSP_M55_TASK_CMD_SMF_RSP    = CORE_BRIDGE_CMD_CODE(CORE_BRIDGE_CMD_GROUP_TASK, 0xb6),
 
+    MCU_DSP_M55_DUMPPY_INFO = CORE_BRIDGE_CMD_CODE(CORE_BRIDGE_CMD_GROUP_TASK, 0xff),
+
     MCU_DSP_M55_INSTANT_CMD_DEMO_REQ  = CORE_BRIDGE_CMD_CODE(CORE_BRIDGE_CMD_GROUP_INSTANT, 0x80),
 
     MCU_DSP_M55_INSTANT_CMD_TOUCH_REQ  = CORE_BRIDGE_CMD_CODE(CORE_BRIDGE_CMD_GROUP_INSTANT, 0x81),
+
+    // m55 freq config req
+    MCU_DSP_M55_INSTANT_CMD_AXI_SYSFREQ_REQ = CORE_BRIDGE_CMD_CODE(CORE_BRIDGE_CMD_GROUP_INSTANT, 0x82),
+    // notify m55 to disable
+    MCU_DSP_M55_INSTANT_CMD_DISABLE_M55 = CORE_BRIDGE_CMD_CODE(CORE_BRIDGE_CMD_GROUP_INSTANT, 0x83),
+
+    // MCPP BTH <--> M55
+    MCU_DSP_M55_TASK_CMD_MCPP_RSP = CORE_BRIDGE_CMD_CODE(CORE_BRIDGE_CMD_GROUP_TASK, 0xc0),
+    MCU_DSP_M55_TASK_CMD_MCPP_NO_RSP = CORE_BRIDGE_CMD_CODE(CORE_BRIDGE_CMD_GROUP_TASK, 0xc1),
 
 } CORE_BRIDGE_CMD_CODE_E;
 
 /* Core-Bridge Thread Init */
 void app_dsp_m55_bridge_init(void);
+void app_dsp_m55_bridge_deinit(void);
+void app_dsp_m55_bridge_trigger_turn_off(void);
+void dsp_m55_core_deinit(void);
 
 /* Client Thread APIs, runs at Client Thread */
 int32_t app_dsp_m55_bridge_send_cmd(uint16_t cmd_code, uint8_t *p_buff, uint16_t length);
@@ -247,11 +271,14 @@ void app_dsp_m55_bridge_data_tx_done(const void* data, unsigned int len);
 
 /* Not usually used APIs */
 void app_dsp_m55_bridge_send_instant_cmd_data(uint16_t cmdcode, uint8_t *p_buff, uint16_t length);
-void app_dsp_m55_bridge_free_tx_mailbox(void);
+void app_dsp_m55_notify_tx_thread_status(bool isEnabled);
 app_dsp_m55_bridge_instant_cmd_instance_t* app_dsp_m55_bridge_find_instant_cmd_entry(uint16_t cmdcode);
 app_dsp_m55_bridge_task_cmd_instance_t* app_dsp_m55_bridge_find_task_cmd_entry(uint16_t cmdcode);
+void app_dsp_m55_bridge_free_tx_mailbox(void);
 void app_dsp_m55_bridge_fetch_tx_mailbox(uint16_t cmd_code, uint8_t *buffer, uint16_t *length, uint16_t threshold);
+void app_dsp_m55_bridge_clear_tx_mailbox(uint16_t cmd_code, uint16_t reserve_cnt);
 uint32_t app_dsp_m55_bridge_get_tx_mailbox_cnt(void);
+uint32_t app_dsp_m55_bridge_get_tx_mailbox_free_cnt(void);
 
 #ifdef __cplusplus
 }

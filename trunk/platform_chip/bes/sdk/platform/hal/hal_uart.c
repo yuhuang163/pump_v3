@@ -13,6 +13,8 @@
  * trademark and other intellectual property rights.
  *
  ****************************************************************************/
+#if (CHIP_UART_VER <= 1)
+
 #include "plat_addr_map.h"
 
 #ifdef UART0_BASE
@@ -20,13 +22,16 @@
 #include "hal_uart.h"
 #include "reg_uart.h"
 #include "cmsis_nvic.h"
-#include "hal_bootmode.h"
 #include "hal_cmu.h"
 #include "hal_dma.h"
 #include "hal_iomux.h"
 #include "hal_timer.h"
 #include "hal_trace.h"
 #include "string.h"
+
+#if (defined(AUDMA_BASE) || defined(DMA0_BASE)) && !defined(NO_UART_DMA)
+#define UART_DMA_ENABLE
+#endif
 
 #define UART_FLUSH_DELAY_DEFAULT        2
 
@@ -42,8 +47,10 @@ struct HAL_UART_HW_DESC_T {
     IRQn_Type irq;
     enum HAL_CMU_MOD_ID_T mod;
     enum HAL_CMU_MOD_ID_T apb;
+#ifdef UART_DMA_ENABLE
     enum HAL_DMA_PERIPH_T rx_periph;
     enum HAL_DMA_PERIPH_T tx_periph;
+#endif
 };
 
 static const struct HAL_UART_HW_DESC_T uart[HAL_UART_ID_QTY] = {
@@ -52,8 +59,10 @@ static const struct HAL_UART_HW_DESC_T uart[HAL_UART_ID_QTY] = {
         .irq = UART0_IRQn,
         .mod = HAL_CMU_MOD_O_UART0,
         .apb = HAL_CMU_MOD_P_UART0,
+#ifdef UART_DMA_ENABLE
         .rx_periph = HAL_GPDMA_UART0_RX,
         .tx_periph = HAL_GPDMA_UART0_TX,
+#endif
     },
 #ifdef UART1_BASE
     {
@@ -61,8 +70,10 @@ static const struct HAL_UART_HW_DESC_T uart[HAL_UART_ID_QTY] = {
         .irq = UART1_IRQn,
         .mod = HAL_CMU_MOD_O_UART1,
         .apb = HAL_CMU_MOD_P_UART1,
+#ifdef UART_DMA_ENABLE
         .rx_periph = HAL_GPDMA_UART1_RX,
         .tx_periph = HAL_GPDMA_UART1_TX,
+#endif
     },
 #endif
 #ifdef UART2_BASE
@@ -71,8 +82,10 @@ static const struct HAL_UART_HW_DESC_T uart[HAL_UART_ID_QTY] = {
         .irq = UART2_IRQn,
         .mod = HAL_CMU_MOD_O_UART2,
         .apb = HAL_CMU_MOD_P_UART2,
+#ifdef UART_DMA_ENABLE
         .rx_periph = HAL_GPDMA_UART2_RX,
         .tx_periph = HAL_GPDMA_UART2_TX,
+#endif
     },
 #endif
 #ifdef UART3_BASE
@@ -81,28 +94,10 @@ static const struct HAL_UART_HW_DESC_T uart[HAL_UART_ID_QTY] = {
         .irq = UART3_IRQn,
         .mod = HAL_CMU_MOD_O_UART3,
         .apb = HAL_CMU_MOD_P_UART3,
+#ifdef UART_DMA_ENABLE
         .rx_periph = HAL_GPDMA_UART3_RX,
         .tx_periph = HAL_GPDMA_UART3_TX,
-    },
 #endif
-#ifdef UART4_BASE
-    {
-        .base = (struct UART_T *)UART4_BASE,
-        .irq = UART4_IRQn,
-        .mod = HAL_CMU_MOD_O_UART4,
-        .apb = HAL_CMU_MOD_P_UART4,
-        .rx_periph = HAL_GPDMA_UART4_RX,
-        .tx_periph = HAL_GPDMA_UART4_TX,
-    },
-#endif
-#ifdef UART5_BASE
-    {
-        .base = (struct UART_T *)UART5_BASE,
-        .irq = UART5_IRQn,
-        .mod = HAL_CMU_MOD_O_UART5,
-        .apb = HAL_CMU_MOD_P_UART5,
-        .rx_periph = HAL_GPDMA_UART5_RX,
-        .tx_periph = HAL_GPDMA_UART5_TX,
     },
 #endif
 #ifdef BT_UART
@@ -111,16 +106,17 @@ static const struct HAL_UART_HW_DESC_T uart[HAL_UART_ID_QTY] = {
         .irq = INVALID_IRQn,
         .mod = HAL_CMU_MOD_QTY,
         .apb = HAL_CMU_MOD_QTY,
+#ifdef UART_DMA_ENABLE
         .rx_periph = HAL_DMA_PERIPH_NULL,
         .tx_periph = HAL_DMA_PERIPH_NULL,
+#endif
     },
 #endif
 };
 
-static bool init_done = false;
-
 static HAL_UART_IRQ_HANDLER_T irq_handler[HAL_UART_ID_QTY] = { NULL };
 
+#ifdef UART_DMA_ENABLE
 static HAL_UART_IRQ_RXDMA_HANDLER_T rxdma_handler[HAL_UART_ID_QTY] = { NULL };
 static HAL_UART_IRQ_TXDMA_HANDLER_T txdma_handler[HAL_UART_ID_QTY] = { NULL };
 
@@ -134,13 +130,18 @@ static union HAL_UART_IRQ_T recv_mask[HAL_UART_ID_QTY];
 
 static enum UART_RX_DMA_MODE_T recv_dma_mode[HAL_UART_ID_QTY];
 
+static bool init_done = false;
+#endif
+
 #ifdef CORE_SLEEP_POWER_DOWN
 static bool uart_opened[HAL_UART_ID_QTY];
 static struct SAVED_UART_REGS_T saved_uart_regs[HAL_UART_ID_QTY];
 #endif
 
 static const char * const err_invalid_id = "Invalid UART ID: %d";
+#ifdef UART_DMA_ENABLE
 static const char * const err_recv_dma_api = "%s: Set RT irq in hal_uart_dma_recv_mask... to avoid data lost";
+#endif
 
 static const struct HAL_UART_CFG_T default_cfg = {
     .parity = HAL_UART_PARITY_NONE,
@@ -155,7 +156,23 @@ static const struct HAL_UART_CFG_T default_cfg = {
     .dma_rx_stop_on_err = false,
 };
 
-static void hal_uart_irq_handler(void);
+static void hal_uart_irq_handler(void)
+{
+    enum HAL_UART_ID_T id;
+    union HAL_UART_IRQ_T state;
+
+    for (id = HAL_UART_ID_0; id < HAL_UART_ID_QTY; id++) {
+        state.reg = uart[id].base->UARTMIS;
+
+        if (state.reg) {
+            uart[id].base->UARTICR = state.reg;
+
+            if (irq_handler[id] != NULL) {
+                irq_handler[id](id, state);
+            }
+        }
+    }
+}
 
 static void set_baud_rate(enum HAL_UART_ID_T id, uint32_t rate)
 {
@@ -204,14 +221,6 @@ static void set_baud_rate(enum HAL_UART_ID_T id, uint32_t rate)
             } else if (id == HAL_UART_ID_3) {
                 hal_cmu_uart3_set_div(2);
 #endif
-#ifdef UART4_BASE
-            } else if (id == HAL_UART_ID_4) {
-                hal_cmu_uart4_set_div(2);
-#endif
-#ifdef UART5_BASE
-            } else if (id == HAL_UART_ID_5) {
-                hal_cmu_uart5_set_div(2);
-#endif
             }
         } else {
             mod_clk = 0;
@@ -244,14 +253,6 @@ static void set_baud_rate(enum HAL_UART_ID_T id, uint32_t rate)
         } else if (id == HAL_UART_ID_3) {
             hal_cmu_uart3_set_freq(periph_freq);
 #endif
-#ifdef UART4_BASE
-        } else if (id == HAL_UART_ID_4) {
-            hal_cmu_uart4_set_freq(periph_freq);
-#endif
-#ifdef UART5_BASE
-        } else if (id == HAL_UART_ID_5) {
-            hal_cmu_uart5_set_freq(periph_freq);
-#endif
         }
     }
 
@@ -271,17 +272,20 @@ static void set_baud_rate(enum HAL_UART_ID_T id, uint32_t rate)
 int hal_uart_open(enum HAL_UART_ID_T id, const struct HAL_UART_CFG_T *cfg)
 {
     uint32_t cr, lcr, dmacr;
-    int i;
 
     ASSERT(id < HAL_UART_ID_QTY, err_invalid_id, id);
 
+#ifdef UART_DMA_ENABLE
     if (!init_done) {
+        int i;
+
         init_done = true;
         for (i = HAL_UART_ID_0; i < HAL_UART_ID_QTY; i++) {
             recv_dma_chan[i] = HAL_DMA_CHAN_NONE;
             send_dma_chan[i] = HAL_DMA_CHAN_NONE;
         }
     }
+#endif
 
     if (hal_uart_opened(id)) {
         hal_uart_close(id);
@@ -417,17 +421,20 @@ int hal_uart_open(enum HAL_UART_ID_T id, const struct HAL_UART_CFG_T *cfg)
 int hal_uart_reopen(enum HAL_UART_ID_T id, const struct HAL_UART_CFG_T *cfg)
 {
     uint32_t cr, lcr, dmacr;
-    int i;
 
     ASSERT(id < HAL_UART_ID_QTY, err_invalid_id, id);
 
+#ifdef UART_DMA_ENABLE
     if (!init_done) {
+        int i;
+
         init_done = true;
         for (i = HAL_UART_ID_0; i < HAL_UART_ID_QTY; i++) {
             recv_dma_chan[i] = HAL_DMA_CHAN_NONE;
             send_dma_chan[i] = HAL_DMA_CHAN_NONE;
         }
     }
+#endif
 
 #ifdef CORE_SLEEP_POWER_DOWN
     uart_opened[id] = true;
@@ -497,15 +504,16 @@ int hal_uart_reopen(enum HAL_UART_ID_T id, const struct HAL_UART_CFG_T *cfg)
 
 int hal_uart_close(enum HAL_UART_ID_T id)
 {
-    uint32_t lock;
-
     ASSERT(id < HAL_UART_ID_QTY, err_invalid_id, id);
 
     if (uart[id].irq != INVALID_IRQn) {
         NVIC_DisableIRQ(uart[id].irq);
     }
 
+#ifdef UART_DMA_ENABLE
     if (init_done) {
+        uint32_t lock;
+
         lock = int_lock();
         if (recv_dma_chan[id] != HAL_DMA_CHAN_NONE) {
             hal_gpdma_cancel(recv_dma_chan[id]);
@@ -519,6 +527,7 @@ int hal_uart_close(enum HAL_UART_ID_T id)
         }
         int_unlock(lock);
     }
+#endif
 
     // Disable UART
     uart[id].base->UARTCR &= ~UARTCR_UARTEN;
@@ -551,11 +560,15 @@ int hal_uart_opened(enum HAL_UART_ID_T id)
 }
 
 #ifdef CORE_SLEEP_POWER_DOWN
-void hal_uart_sleep(void)
+void hal_uart_sleep(enum HAL_CMU_LPU_SLEEP_MODE_T mode)
 {
     enum HAL_UART_ID_T id;
 
-    for (id = 0; id < HAL_UART_ID_QTY; id++) {
+    if (mode != HAL_CMU_LPU_SLEEP_MODE_SUBSYS_PD) {
+        return;
+    }
+
+    for (id = (enum HAL_UART_ID_T)0; id < HAL_UART_ID_QTY; id++) {
         if (uart_opened[id]) {
             saved_uart_regs[id].UARTCR          = uart[id].base->UARTCR;
             saved_uart_regs[id].UARTLCR_H       = uart[id].base->UARTLCR_H;
@@ -572,11 +585,15 @@ void hal_uart_sleep(void)
     }
 }
 
-void hal_uart_wakeup(void)
+void hal_uart_wakeup(enum HAL_CMU_LPU_SLEEP_MODE_T mode)
 {
     enum HAL_UART_ID_T id;
 
-    for (id = 0; id < HAL_UART_ID_QTY; id++) {
+    if (mode != HAL_CMU_LPU_SLEEP_MODE_SUBSYS_PD) {
+        return;
+    }
+
+    for (id = (enum HAL_UART_ID_T)0; id < HAL_UART_ID_QTY; id++) {
         if (uart_opened[id]) {
             //uart[id].base->UARTCR           = 0;
             //uart[id].base->UARTLCR_H        = 0;
@@ -789,9 +806,11 @@ union HAL_UART_IRQ_T hal_uart_irq_set_mask(enum HAL_UART_ID_T id, union HAL_UART
 
     old_mask.reg = uart[id].base->UARTIMSC;
 
+#ifdef UART_DMA_ENABLE
     if (old_mask.RT == 0 && mask.RT) {
         ASSERT(recv_dma_chan[id] == HAL_DMA_CHAN_NONE, err_recv_dma_api, __FUNCTION__);
     }
+#endif
 
     uart[id].base->UARTIMSC = mask.reg;
 
@@ -809,6 +828,7 @@ HAL_UART_IRQ_HANDLER_T hal_uart_irq_set_handler(enum HAL_UART_ID_T id, HAL_UART_
     return old_handler;
 }
 
+#ifdef UART_DMA_ENABLE
 static void dma_mode_uart_irq_handler(enum HAL_UART_ID_T id, union HAL_UART_IRQ_T status)
 {
     uint32_t xfer = 0;
@@ -1460,24 +1480,7 @@ uint32_t hal_uart_stop_dma_send(enum HAL_UART_ID_T id)
 
     return remains;
 }
-
-static void hal_uart_irq_handler(void)
-{
-    enum HAL_UART_ID_T id;
-    union HAL_UART_IRQ_T state;
-
-    for (id = HAL_UART_ID_0; id < HAL_UART_ID_QTY; id++) {
-        state.reg = uart[id].base->UARTMIS;
-
-        if (state.reg) {
-            uart[id].base->UARTICR = state.reg;
-
-            if (irq_handler[id] != NULL) {
-                irq_handler[id](id, state);
-            }
-        }
-    }
-}
+#endif // UART_DMA_ENABLE
 
 // ========================================================================
 // Test function
@@ -1485,6 +1488,7 @@ static void hal_uart_irq_handler(void)
 #include "stdarg.h"
 #include "stdio.h"
 
+#ifndef UART_PRINTF_ID
 #if defined(UART3_BASE) && (DEBUG_PORT == 4)
 #define UART_PRINTF_ID                  HAL_UART_ID_3
 #elif defined(UART2_BASE) && (DEBUG_PORT == 3)
@@ -1496,6 +1500,7 @@ static void hal_uart_irq_handler(void)
 #else
 #define UART_PRINTF_ID                  HAL_UART_ID_QTY
 #endif
+#endif
 
 #ifndef TRACE_BAUD_RATE
 #define TRACE_BAUD_RATE                 (921600)
@@ -1504,6 +1509,22 @@ static void hal_uart_irq_handler(void)
 #ifndef TRACE_PRINTF_LEN
 #define TRACE_PRINTF_LEN                (120)
 #endif
+
+static enum HAL_UART_ID_T printf_uart = UART_PRINTF_ID;
+
+enum HAL_UART_ID_T hal_uart_get_port(void)
+{
+    return printf_uart;
+}
+
+int hal_uart_set_port(enum HAL_UART_ID_T uart_id)
+{
+    if (uart_id >= HAL_UART_ID_QTY) {
+        return 1;
+    }
+    printf_uart = uart_id;
+    return 0;
+}
 
 int hal_uart_printf_init(void)
 {
@@ -1521,38 +1542,33 @@ int hal_uart_printf_init(void)
     };
 
     if (0) {
-    } else if (UART_PRINTF_ID == HAL_UART_ID_0) {
+    } else if (printf_uart == HAL_UART_ID_0) {
         hal_iomux_set_uart0();
 #ifdef UART1_BASE
-    } else if (UART_PRINTF_ID == HAL_UART_ID_1) {
+    } else if (printf_uart == HAL_UART_ID_1) {
         hal_iomux_set_uart1();
 #endif
 #ifdef UART2_BASE
-    } else if (UART_PRINTF_ID == HAL_UART_ID_2) {
+    } else if (printf_uart == HAL_UART_ID_2) {
         hal_iomux_set_uart2();
 #endif
 #ifdef UART3_BASE
-    } else if (UART_PRINTF_ID == HAL_UART_ID_3) {
+    } else if (printf_uart == HAL_UART_ID_3) {
         hal_iomux_set_uart3();
 #endif
     } else {
         return 0;
     }
 
-     return hal_uart_open(UART_PRINTF_ID, &uart_cfg);
-}
-
-int hal_uart_get_port(void)
-{
-    return UART_PRINTF_ID;
+     return hal_uart_open(printf_uart, &uart_cfg);
 }
 
 int hal_uart_printf_busy(void)
 {
     union HAL_UART_FLAG_T flag;
 
-    if (hal_uart_opened(UART_PRINTF_ID)) {
-        flag = hal_uart_get_flag(UART_PRINTF_ID);
+    if (hal_uart_opened(printf_uart)) {
+        flag = hal_uart_get_flag(printf_uart);
         return flag.BUSY;
     }
     return 0;
@@ -1561,17 +1577,20 @@ int hal_uart_printf_busy(void)
 void hal_uart_printf_output(const uint8_t *buf, uint32_t len)
 {
     uint32_t i;
+    uint32_t lock;
 
-    if (UART_PRINTF_ID >= HAL_UART_ID_QTY) {
+    if (printf_uart >= HAL_UART_ID_QTY) {
         return;
     }
-    if (!hal_uart_opened(UART_PRINTF_ID)) {
+    if (!hal_uart_opened(printf_uart)) {
         return;
     }
 
+    lock = int_lock();
     for (i = 0; i < len; i++) {
-        hal_uart_blocked_putc(UART_PRINTF_ID, buf[i]);
+        hal_uart_blocked_putc(printf_uart, buf[i]);
     }
+    int_unlock(lock);
 }
 
 void hal_uart_printf(const char *fmt, ...)
@@ -1613,4 +1632,19 @@ void hal_uart_printf(const char *fmt, ...)
     }
 }
 
+#else // !UART0_BASE
+
+#ifdef CORE_SLEEP_POWER_DOWN
+// Empty APIs for sleep process
+void hal_uart_sleep(void)
+{
+}
+
+void hal_uart_wakeup(void)
+{
+}
 #endif
+
+#endif // !UART0_BASE
+
+#endif // CHIP_UART_VER <= 1

@@ -13,6 +13,67 @@
 // limitations under the License.
 #pragma once
 
+#ifdef ESP_PLATFORM
+
+#include <freertos/FreeRTOS.h>
+#include <rom/ets_sys.h>
+// #include <assert.h>
+
+/* Because malloc/free can happen inside an ISR context,
+   we need to use portmux spinlocks here not RTOS mutexes */
+#define MULTI_HEAP_LOCK(PLOCK) do {               \
+        if((PLOCK) != NULL) {                               \
+            portENTER_CRITICAL((portMUX_TYPE *)(PLOCK));    \
+        }                                                   \
+    } while(0)
+
+
+#define MULTI_HEAP_UNLOCK(PLOCK) do {                \
+        if ((PLOCK) != NULL) {                              \
+            portEXIT_CRITICAL((portMUX_TYPE *)(PLOCK));     \
+        }                                                   \
+    } while(0)
+
+/* Not safe to use std i/o while in a portmux critical section,
+   can deadlock, so we use the ROM equivalent functions. */
+
+#define MULTI_HEAP_PRINTF ets_printf
+#define MULTI_HEAP_STDERR_PRINTF(MSG, ...) ets_printf(MSG, __VA_ARGS__)
+
+inline static void multi_heap_assert(bool condition, const char *format, int line, intptr_t address)
+{
+    /* Can't use libc assert() here as it calls printf() which can cause another malloc() for a newlib lock.
+
+       Also, it's useful to be able to print the memory address where corruption was detected.
+    */
+#ifndef NDEBUG
+    if(!condition) {
+#ifndef CONFIG_OPTIMIZATION_ASSERTIONS_SILENT
+        ets_printf(format, line, address);
+#endif  // CONFIG_OPTIMIZATION_ASSERTIONS_SILENT
+        abort();
+    }
+#else // NDEBUG
+    (void) condition;
+#endif // NDEBUG
+}
+
+#define MULTI_HEAP_ASSERT(CONDITION, ADDRESS) \
+    multi_heap_assert((CONDITION), "CORRUPT HEAP: multi_heap.c:%d detected at 0x%08x\n", \
+                      __LINE__, (intptr_t)(ADDRESS))
+
+#ifdef CONFIG_HEAP_TASK_TRACKING
+#include <freertos/task.h>
+#define MULTI_HEAP_BLOCK_OWNER TaskHandle_t task;
+#define MULTI_HEAP_SET_BLOCK_OWNER(HEAD) (HEAD)->task = xTaskGetCurrentTaskHandle()
+#define MULTI_HEAP_GET_BLOCK_OWNER(HEAD) ((HEAD)->task)
+#else
+#define MULTI_HEAP_BLOCK_OWNER
+#define MULTI_HEAP_SET_BLOCK_OWNER(HEAD)
+#define MULTI_HEAP_GET_BLOCK_OWNER(HEAD) (NULL)
+#endif
+
+#else // ESP_PLATFORM
 #include "stdint.h"
 #include "cmsis.h"
 #include "hal_trace.h"
@@ -27,3 +88,5 @@
 #define MULTI_HEAP_BLOCK_OWNER
 #define MULTI_HEAP_SET_BLOCK_OWNER(HEAD)
 #define MULTI_HEAP_GET_BLOCK_OWNER(HEAD) (NULL)
+
+#endif

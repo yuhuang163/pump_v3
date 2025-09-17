@@ -6,27 +6,38 @@ obj-y := $(obj-y:.cpp=.o)
 obj-y := $(obj-y:.S=.o)
 
 subdir-ccflags-y += \
-    $(BT_SERVICE_UX_INCLUDES) \
     -Iplatform/drivers/ana \
     -Iutils/cqueue \
+    -Iutils/heap \
     -Iinclude
+
+ifeq ($(IBRT),1)
+ifeq ($(IBRT_UI),1)
+subdir-ccflags-y += \
+    -Iservices/ux/common/ibrt/ibrt_core/inc
+endif
+endif
 
 ifeq ($(NO_WDT),1)
 CFLAGS_app_watchdog.o += -DNO_WDT
+endif
+
+ifeq ($(NO_WDT_TIMER),1)
+CFLAGS_app_watchdog.o += -DNO_WDT_TIMER
 endif
 
 ifneq ($(APP_THREAD_STACK_SIZE),)
 CFLAGS_app_thread.o += -DAPP_THREAD_STACK_SIZE=$(APP_THREAD_STACK_SIZE)
 endif
 
-ifneq ($(APP_TRACE_RX_HEAP_SIZE),)
-CFLAGS_app_trace_rx.o += -DAPP_TRACE_RX_HEAP_SIZE=$(APP_TRACE_RX_HEAP_SIZE)
+ifeq ($(APP_UART_MODULE),1)
+obj-y += uart_dma/
 endif
 
-ifeq ($(AUDIO_DEBUG_CMD),1)
-CFLAGS_app_trace_rx.o += -DAUDIO_DEBUG_CMD
+ifeq ($(APP_UART_BRIDGE_MODULE),1)
+obj-y += uart_bridge/
 endif
 
-ifneq ($(APP_DEBUG_TOOL),)
-CFLAGS_app_trace_rx.o += -DAUDIO_DEBUG_CMD
+ifneq ($(HCI_BRIDGE_MODE),0)
+obj-y += hci_bridge/
 endif

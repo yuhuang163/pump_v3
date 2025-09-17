@@ -90,13 +90,19 @@ int mpu_setup(const mpu_regions_t *mpu_table, uint32_t region_num);
 /*mpu setup for cp mcu */
 int mpu_setup_cp(const mpu_regions_t *mpu_table, uint32_t region_num);
 
-int mpu_ram_region_protect(uint32_t start, uint32_t len, enum MPU_ATTR_T ap_attr);
-
 void mpu_region_dump(void);
 
 void mpu_sleep(void);
 
 void mpu_wakeup(void);
+
+int mpu_disable(void);
+
+int mpu_enable(void);
+
+int mpu_no_access_set(uint32_t addr, uint32_t len);
+
+int mpu_no_access_clear(int no_access_id);
 
 #ifdef __cplusplus
 }

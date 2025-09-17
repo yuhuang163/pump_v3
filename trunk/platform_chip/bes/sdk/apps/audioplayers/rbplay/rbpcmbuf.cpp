@@ -44,12 +44,12 @@ static osMutexDef(_rb_media_buf_queue_mutex);
 
 #define LOCK_MEDIA_BUF_QUEUE() \
     if(osErrorISR == osMutexWait(_rb_media_buf_queue_mutex_id, osWaitForever))	{\
-        AUDIOPLAYERS_TRACE(0,"%s LOCK_MEDIA_BUF_QUEUE from IRQ!!!!!!!\n",__func__);\
+        error("%s LOCK_MEDIA_BUF_QUEUE from IRQ!!!!!!!\n",__func__);\
     }\
 
 #define UNLOCK_MEDIA_BUF_QUEUE() \
     if(osErrorISR == osMutexRelease(_rb_media_buf_queue_mutex_id)){    \
-        AUDIOPLAYERS_TRACE(0,"%s UNLOCK_MEDIA_BUF_QUEUE from IRQ!!!!!!\n");     \
+        error("%s UNLOCK_MEDIA_BUF_QUEUE from IRQ!!!!!!\n");     \
     }    \
 
 static uint32_t rbplay_more_data(uint8_t *buf, uint32_t len)

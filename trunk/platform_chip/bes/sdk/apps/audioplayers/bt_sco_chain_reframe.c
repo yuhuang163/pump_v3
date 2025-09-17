@@ -16,9 +16,12 @@
 #include "bt_sco_chain_reframe.h"
 #include "speech_memory.h"
 #include "speech_utils.h"
+#include "stream_mcps.h"
 #include "hal_trace.h"
+#include "hal_timer.h"
 #include "audio_dump.h"
 #include "speech_cfg.h"
+#include "kfifo.h"
 #include "cmsis_os.h"
 #if defined(SCO_CP_ACCEL)
 #include "hal_location.h"
@@ -28,206 +31,83 @@
 // TODO: #include "thirdparty_algo.h"
 
 // #define _REFRAME_DEBUG
-// #define _CALCULATE_MIPS
-// #define ASSERT_QUEUE_STATUS
 // #define BT_SCO_CHAIN_REFRAME_AUDIO_DUMP
 
+#define BT_SCO_CHAIN_LOG_I(str, ...)        TR_INFO(TR_MOD(AUD), "[BT_SCO_CHAIN]" str, ##__VA_ARGS__)
 #if defined(_REFRAME_DEBUG)
+#define BT_SCO_CHAIN_LOG_D(str, ...)        TR_DEBUG(TR_MOD(AUD), "[BT_SCO_CHAIN]" str, ##__VA_ARGS__)
 static uint32_t g_debug_index = 0;
-#endif
-
-#define SAMPLE_RATE             (16000)
-#if defined(SPEECH_TX_24BIT)
-#define SAMPLE_BYTES            (4)
 #else
-#define SAMPLE_BYTES            (2)
+#define BT_SCO_CHAIN_LOG_D(str, ...)
 #endif
 
-#define PROCESS_FRAME_LEN       (THIRDPARTY_FRAME_LEN)
-#define QUEUE_BUF_PCM_NUM       (PROCESS_FRAME_LEN * 4)
+
+#if defined(SPEECH_TX_24BIT)
+typedef int     _PCM_T;
+#define SAMPLE_BYTES                     (4)
+#else
+typedef short   _PCM_T;
+#define SAMPLE_BYTES                     (2)
+#endif
+
+#define PROCESS_FRAME_LEN                (THIRDPARTY_FRAME_LEN)
+#define PCM_TX_CHANNEL_NUM               (SPEECH_CODEC_CAPTURE_CHANNEL_NUM)
+#define PCM_FIFO_FRAME_NUM               (3)
 
 #if defined(LOW_DELAY_SCO)
-#define IO_FRAME_LEN            (120)   // 7.5ms
+#define IO_FRAME_LEN                     (120)   // 7.5ms
 #else
-#define IO_FRAME_LEN            (240)   // 15ms
+#define IO_FRAME_LEN                     (240)   // 15ms
 #endif
 
-// Reframe delay: 47.5ms
-// Trade off between CPU Usage and delay.
-// + IO_FRAME_LEN: CPU Usage: 96%
-// If remove (+ IO_FRAME_LEN), CPU Usage: 86%
-#define PRE_CACHE_OUT_PCM       (PROCESS_FRAME_LEN * 2)
+#define PCM_OUT_DELAY                    (THIRDPARTY_FRAME_LEN * (PCM_FIFO_FRAME_NUM - 1))
 
-#if SAMPLE_BYTES == 2
-typedef short   _PCM_T;
-#define speech_set_pcm(a, b, c)         speech_set_int16(a, b, c)
-#define speech_copy_pcm(a, b, c)        speech_copy_int16(a, b, c)
-#else
-typedef int     _PCM_T;
-#define speech_set_pcm(a, b, c)         speech_set_int32(a, b, c)
-#define speech_copy_pcm(a, b, c)        speech_copy_int32(a, b, c)
-#endif
-
-static uint32_t g_in_queue_len = 0;
-static uint32_t g_out_queue_len = 0;
-
-// TODO: input and output share buffer. 
-static _PCM_T *g_in_cache_buf[REFRAME_CHANNEL_QTY] = {NULL};
-static _PCM_T *g_in_queue_buf[REFRAME_CHANNEL_QTY] = {NULL};
-static _PCM_T *g_process_buf[REFRAME_CHANNEL_QTY] = {NULL};
-static _PCM_T *g_process_tmp_buf[REFRAME_CHANNEL_QTY] = {NULL};
-static _PCM_T *g_process_out_buf = NULL;
-static _PCM_T *g_out_queue_buf = NULL;
-
-#if defined(_CALCULATE_MIPS)
-static void calculate_mips_create(void);
-static void calculate_mips_destroy(void);
-static void calculate_mips_run_start(bool cp);
-static void calculate_mips_run_end(bool cp);
-#endif
-
-#ifdef BT_SCO_CHAIN_REFRAME_AUDIO_DUMP
-typedef short		_DUMP_PCM_T;
-static _DUMP_PCM_T audio_dump_buf[PROCESS_FRAME_LEN];
-
-static void dump_pcm_data(int channel_id, _PCM_T *pcm_buf, int frame_len)
-{
-    for (uint32_t i=0; i<frame_len; i++) {
-        audio_dump_buf[i] = pcm_buf[i];
-    }
-    audio_dump_add_channel_data(channel_id, audio_dump_buf, frame_len);
-}
-#endif
+#define CALC_MIPS_CNT_THD_MS             (3000)
+#define GET_OUT_FIFO_DATA_WAIT_TIME_US   (100)
+#define GET_OUT_FIFO_DATA_WAIT_CNT       (2)
 
 // Thread
-#define REFRAME_THREAD_STACK_SIZE          (1024 * 2)
+#define REFRAME_THREAD_STACK_SIZE        (1024 * 2)
 static osThreadId reframe_thread_tid;
 static void _reframe_thread(void const *argument);
 osThreadDef(_reframe_thread, osPriorityAboveNormal, 1, REFRAME_THREAD_STACK_SIZE, "speech_reframe");
 
 // Signal
-#define REFRAME_SIGNAL_WRITE   1
+#define REFRAME_SIGNAL_WRITE             (1)
 
-// Lock
-osMutexId _reframe_mutex_id = NULL;
-osMutexDef(_reframe_mutex);
-
-static void _reframe_create_lock(void)
+static int32_t _nextpow2(int32_t N)
 {
-    if (_reframe_mutex_id == NULL) {
-        _reframe_mutex_id = osMutexCreate((osMutex(_reframe_mutex)));
+    int32_t i = 1;
+    while (1) {
+        i <<= 1;
+        if (i >= N)
+            return i;
     }
 }
 
-static void _reframe_lock(void)
-{
-    osMutexWait(_reframe_mutex_id, osWaitForever);
-}
+typedef struct {
+    struct kfifo pcm_fifo;
+    uint8_t *pcm_fifo_mem;
+    struct kfifo ref_fifo;
+    uint8_t *ref_fifo_mem;
+    struct kfifo vpu_fifo;
+    uint8_t *vpu_fifo_mem;
+    struct kfifo out_fifo;
+    uint8_t *out_fifo_mem;
 
-static void _reframe_unlock(void)
-{
-    osMutexRelease(_reframe_mutex_id);
-}
+} reframe_tx_fifo_t;
 
-static uint32_t POSSIBLY_UNUSED _get_in_pcm_data_len(void)
-{
-    return g_in_queue_len;
-}
-
-static uint32_t POSSIBLY_UNUSED _get_out_pcm_data_len(void)
-{
-    return g_out_queue_len;
-}
-
-static int32_t _write_input_queue(_PCM_T *pcm_buf[], uint32_t frame_len)
-{
-#if defined(ASSERT_QUEUE_STATUS)
-    ASSERT(g_in_queue_len + frame_len <= QUEUE_BUF_PCM_NUM, "[%s] queue overflow!", __func__);
-#else
-    if (g_in_queue_len + frame_len > QUEUE_BUF_PCM_NUM) {
-        AUDIOPLAYERS_TRACE(0, "[%s] WARNING: queue overflow!", __func__);
-        return -1;
-    }
+static reframe_tx_fifo_t g_tx_fifo   = {0};
+static uint8_t *process_pcm_buf      = NULL;
+static uint8_t *process_ref_buf      = NULL;
+static uint8_t *deinterlaved_pcm_buf = NULL;
+#ifdef SPEECH_BONE_SENSOR
+static uint8_t *process_vpu_buf      = NULL;
 #endif
 
-    _reframe_lock();
-    for (uint32_t ch = 0; ch < REFRAME_CHANNEL_QTY; ch++) {
-        speech_copy_pcm(g_in_queue_buf[ch] + g_in_queue_len, pcm_buf[ch], frame_len);
-    }
-    g_in_queue_len += frame_len;
-    _reframe_unlock();
-
-    AUDIOPLAYERS_TRACE(0,"[%s] Size: %d", __func__, g_in_queue_len);
-
-    return 0;
-}
-
-static int32_t _read_input_queue(_PCM_T *pcm_buf[], uint32_t frame_len)
+static reframe_tx_fifo_t *get_reframe_tx_fifo(void)
 {
-    int32_t ret = 0;
-
-    _reframe_lock();
-    if (g_in_queue_len >= frame_len) {
-        for (uint32_t ch = 0; ch < REFRAME_CHANNEL_QTY; ch++) {
-            speech_copy_pcm(pcm_buf[ch], g_in_queue_buf[ch], frame_len);
-            speech_copy_pcm(g_in_queue_buf[ch], g_in_queue_buf[ch] + frame_len, g_in_queue_len - frame_len);
-        }
-        g_in_queue_len -= frame_len;
-    } else {
-        for (uint32_t ch = 0; ch < REFRAME_CHANNEL_QTY; ch++) {
-            speech_set_pcm(pcm_buf[ch], 0, frame_len);
-        }
-        ret = -1;
-    }
-    _reframe_unlock();
-
-    AUDIOPLAYERS_TRACE(0,"[%s] Size: %d", __func__, g_in_queue_len);
-
-    return ret;
-}
-
-static int32_t _write_output_queue(_PCM_T *pcm_buf, uint32_t frame_len)
-{
-#if defined(ASSERT_QUEUE_STATUS)
-    ASSERT(g_out_queue_len + frame_len <= QUEUE_BUF_PCM_NUM, "[%s] queue overflow!", __func__);
-#else
-    if (g_out_queue_len + frame_len > QUEUE_BUF_PCM_NUM) {
-        AUDIOPLAYERS_TRACE(0, "[%s] WARNING: queue overflow!", __func__);
-        return -1;
-    }
-#endif
-
-    _reframe_lock();
-    speech_copy_pcm(g_out_queue_buf + g_out_queue_len, pcm_buf, frame_len);
-    g_out_queue_len += frame_len;
-    _reframe_unlock();
-
-    AUDIOPLAYERS_TRACE(0,"[%s] Size: %d", __func__, g_out_queue_len);
-
-    return 0;
-}
-
-static int32_t _read_output_queue(_PCM_T *pcm_buf, uint32_t frame_len)
-{
-#if defined(ASSERT_QUEUE_STATUS)
-    ASSERT(g_out_queue_len >= frame_len, "[%s] queue underflow! Try to increase PRE_CACHE_OUT_PCM(+ IO_FRAME_LEN)", __func__);
-#else
-    if (g_out_queue_len < frame_len) {
-        AUDIOPLAYERS_TRACE(0, "[%s] WARNING: queue underflow! Try to increase PRE_CACHE_OUT_PCM(+ IO_FRAME_LEN)", __func__);
-        speech_set_pcm(pcm_buf, 0, frame_len);
-        return -1;
-    }
-#endif
-
-    _reframe_lock();
-    speech_copy_pcm(pcm_buf, g_out_queue_buf, frame_len);
-    speech_copy_pcm(g_out_queue_buf, g_out_queue_buf + frame_len, g_out_queue_len - frame_len);
-    g_out_queue_len -= frame_len;
-    _reframe_unlock();
-
-    AUDIOPLAYERS_TRACE(0,"[%s] Size: %d", __func__, g_out_queue_len);
-
-    return 0;
+    return &g_tx_fifo;
 }
 
 #if defined(SCO_CP_ACCEL)
@@ -246,11 +126,124 @@ int32_t sco_cp_algo(_PCM_T *pcm_buf[], _PCM_T *out_buf, int frame_len)
     }
 #endif
 
-    // calculate_mips_run_end(true);
-    
     return 0;
 }
 #endif
+
+static void reframe_algo_process(_PCM_T *pcm_buf[REFRAME_CHANNEL_QTY], _PCM_T *out_buf)
+{
+    //---------- Process Start ----------
+#if 0
+    // TODO: Call thirdparty algo process function which run in Main Core
+
+#if defined(SCO_CP_ACCEL)
+    sco_cp_process(pcm_buf, out_buf, PROCESS_FRAME_LEN);
+#else
+    // TODO: Call thirdparty algo process function which run in CP Core
+#endif
+#else
+    for (uint32_t i = 0; i < PROCESS_FRAME_LEN; i++) {
+        out_buf[i] = pcm_buf[REFRAME_CHANNEL_FB][i];
+    }
+#endif
+    //---------- Process End ----------
+}
+
+static bool pcm_fifo_is_ready(void)
+{
+    reframe_tx_fifo_t *tx_fifo = get_reframe_tx_fifo();
+    int32_t pcm_data_size = PROCESS_FRAME_LEN * PCM_TX_CHANNEL_NUM * SAMPLE_BYTES;
+    int32_t out_data_size = PROCESS_FRAME_LEN * SAMPLE_BYTES;
+    if (kfifo_len(&tx_fifo->pcm_fifo) >= pcm_data_size &&
+        kfifo_get_free_space(&tx_fifo->out_fifo) >= out_data_size) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
+static void reframe_process(void)
+{
+    reframe_tx_fifo_t *tx_fifo = get_reframe_tx_fifo();
+    int32_t pcm_data_size = PROCESS_FRAME_LEN * PCM_TX_CHANNEL_NUM * SAMPLE_BYTES;
+    int32_t out_data_size = PROCESS_FRAME_LEN * SAMPLE_BYTES;
+
+    if (!(kfifo_len(&tx_fifo->pcm_fifo) >= pcm_data_size &&
+        kfifo_get_free_space(&tx_fifo->out_fifo) >= out_data_size)) {
+        return;
+    }
+
+    kfifo_get(&tx_fifo->pcm_fifo, process_pcm_buf, pcm_data_size);
+    kfifo_get(&tx_fifo->ref_fifo, process_ref_buf, pcm_data_size / PCM_TX_CHANNEL_NUM);
+
+#ifdef SPEECH_BONE_SENSOR
+    kfifo_get(&tx_fifo->vpu_fifo, process_vpu_buf, pcm_data_size / PCM_TX_CHANNEL_NUM);
+#endif
+
+    _PCM_T *_process_pcm_buf = (_PCM_T *)process_pcm_buf;
+    _PCM_T *_deinterlaved_pcm_buf = (_PCM_T *)deinterlaved_pcm_buf;
+    for (uint32_t ch = 0; ch < PCM_TX_CHANNEL_NUM; ch++) {
+        for (uint32_t i = 0; i < PROCESS_FRAME_LEN; i++) {
+            _deinterlaved_pcm_buf[ch * PROCESS_FRAME_LEN + i] = _process_pcm_buf[PCM_TX_CHANNEL_NUM * i + ch];
+        }
+    }
+
+    _PCM_T *pcm_buf[REFRAME_CHANNEL_QTY] = {NULL};
+
+    for (uint32_t i = 0; i < PCM_TX_CHANNEL_NUM; i++) {
+        pcm_buf[i] = (_PCM_T *)&deinterlaved_pcm_buf[i * PROCESS_FRAME_LEN * SAMPLE_BYTES];
+    }
+
+    pcm_buf[REFRAME_CHANNEL_REF] = (_PCM_T *)process_ref_buf;
+
+#ifdef SPEECH_BONE_SENSOR
+    pcm_buf[REFRAME_CHANNEL_BS] = (_PCM_T *)process_vpu_buf;
+#endif
+
+#ifdef BT_SCO_CHAIN_REFRAME_AUDIO_DUMP
+    uint32_t dump_ch = 0;
+    audio_dump_clear_up();
+
+#ifdef SPEECH_TX_24BIT
+    for (uint32_t i = 0; i < PCM_TX_CHANNEL_NUM; i++) {
+        audio_dump_add_channel_data_from_multi_channels_32bit_to_16bit(dump_ch++, pcm_buf[i], PROCESS_FRAME_LEN, 1, 0, 8);
+    }
+    audio_dump_add_channel_data_from_multi_channels_32bit_to_16bit(dump_ch++, pcm_buf[REFRAME_CHANNEL_REF], PROCESS_FRAME_LEN, 1, 0, 8);
+#ifdef SPEECH_BONE_SENSOR
+    audio_dump_add_channel_data_from_multi_channels_32bit_to_16bit(dump_ch++, pcm_buf[REFRAME_CHANNEL_BS], PROCESS_FRAME_LEN, 1, 0, 8);
+#endif
+#else
+    for (uint32_t i = 0; i < PCM_TX_CHANNEL_NUM; i++) {
+        audio_dump_add_channel_data(dump_ch++, pcm_buf[i], PROCESS_FRAME_LEN);
+    }
+    audio_dump_add_channel_data(dump_ch++, pcm_buf[REFRAME_CHANNEL_REF], PROCESS_FRAME_LEN);
+#ifdef SPEECH_BONE_SENSOR
+    audio_dump_add_channel_data(dump_ch++, pcm_buf[REFRAME_CHANNEL_BS], PROCESS_FRAME_LEN);
+#endif
+#endif
+#endif
+
+#if defined(CALC_MIPS_CNT_THD_MS)
+    stream_mcps_run_pre("REFRAME_TX");
+#endif
+
+    reframe_algo_process(pcm_buf, (_PCM_T *)process_pcm_buf);
+
+#if defined(CALC_MIPS_CNT_THD_MS)
+    stream_mcps_run_post("REFRAME_TX");
+#endif
+
+#ifdef BT_SCO_CHAIN_REFRAME_AUDIO_DUMP
+#ifdef SPEECH_TX_24BIT
+    audio_dump_add_channel_data_from_multi_channels_32bit_to_16bit(dump_ch++, process_pcm_buf, PROCESS_FRAME_LEN, 1, 0, 8);
+#else
+    audio_dump_add_channel_data(dump_ch++, process_pcm_buf, PROCESS_FRAME_LEN);
+#endif
+    audio_dump_run();
+#endif
+
+    kfifo_put(&tx_fifo->out_fifo, process_pcm_buf, out_data_size);
+}
 
 static void _reframe_thread(void const *argument)
 {
@@ -261,58 +254,20 @@ static void _reframe_thread(void const *argument)
         evt = osSignalWait(0x0, osWaitForever);
         signals = evt.value.signals;
         
-        // AUDIOPLAYERS_TRACE(0,"[%s] status = %x, signals = %d", __func__, evt.status, evt.value.signals);
+        // BT_SCO_CHAIN_LOG_D("[%s] status = %x, signals = %d", __func__, evt.status, evt.value.signals);
 
         if (evt.status == osEventSignal) {
-            // AUDIOPLAYERS_TRACE(0,"signal = %ld", signals);
+            // BT_SCO_CHAIN_LOG_D("signal = %ld", signals);
             if (signals & (1 << REFRAME_SIGNAL_WRITE)) {
                 while (1) {
-                    if (!_read_input_queue(g_process_buf, PROCESS_FRAME_LEN) &&
-                        (_get_out_pcm_data_len() + PROCESS_FRAME_LEN <=  QUEUE_BUF_PCM_NUM)) {
-                        AUDIOPLAYERS_TRACE(0,"RUN Start ...");
-#if defined(_CALCULATE_MIPS)
-                        calculate_mips_run_start(false);
-#endif
-#ifdef BT_SCO_CHAIN_REFRAME_AUDIO_DUMP
-                        uint32_t dump_ch = 0;
-                        audio_dump_clear_up();
-
-                        dump_pcm_data(dump_ch++, g_process_buf[REFRAME_CHANNEL_VP], PROCESS_FRAME_LEN);
-                        dump_pcm_data(dump_ch++, g_process_buf[REFRAME_CHANNEL_FF], PROCESS_FRAME_LEN);
-                        dump_pcm_data(dump_ch++, g_process_buf[REFRAME_CHANNEL_FB], PROCESS_FRAME_LEN);
-                        dump_pcm_data(dump_ch++, g_process_buf[REFRAME_CHANNEL_REF], PROCESS_FRAME_LEN);
-                        dump_pcm_data(dump_ch++, g_process_buf[REFRAME_CHANNEL_BS], PROCESS_FRAME_LEN);
-#endif
-
-                        //---------- Process Start ----------
-#if 0
-                        // TODO: Call thirdparty algo process function which run in Main Core
-
-#if defined(SCO_CP_ACCEL)
-                        sco_cp_process(g_process_tmp_buf, g_process_out_buf, PROCESS_FRAME_LEN);
-#else
-                        // TODO: Call thirdparty algo process function which run in CP Core
-#endif
-#else
-                        for (uint32_t i = 0; i < PROCESS_FRAME_LEN; i++) {
-                            g_process_out_buf[i] = g_process_buf[REFRAME_CHANNEL_VP][i];
-                        }
-#endif
-                        //---------- Process End ----------
-
-#ifdef BT_SCO_CHAIN_REFRAME_AUDIO_DUMP
-                        dump_pcm_data(dump_ch++, g_process_out_buf, PROCESS_FRAME_LEN);
-                        audio_dump_run();
-#endif
-#if defined(_CALCULATE_MIPS)
-                        calculate_mips_run_end(false);
-#endif
-                        _write_output_queue(g_process_out_buf, PROCESS_FRAME_LEN);
+                    if (pcm_fifo_is_ready()) {
+                        BT_SCO_CHAIN_LOG_D("RUN Start ...");
+                        reframe_process();
                     } else {
                         break;
                     }
                 }
-                AUDIOPLAYERS_TRACE(0,"RUN End ...");
+                BT_SCO_CHAIN_LOG_D("RUN End ...");
             }
         } else {
             ASSERT(0, "[%s] ERROR: evt.status = %d", __func__, evt.status);
@@ -323,30 +278,44 @@ static void _reframe_thread(void const *argument)
 
 int32_t bt_sco_chain_reframe_open(uint32_t tx_sample_rate, uint32_t tx_frame_len)
 {
-    ASSERT(tx_sample_rate == SAMPLE_RATE, "[%s] tx_sample_rate(%d) != SAMPLE_RATE", __func__, tx_sample_rate);
-    ASSERT(tx_frame_len == IO_FRAME_LEN, "[%s] tx_frame_len(%d) != IO_FRAME_LEN", __func__, tx_frame_len);
-
-    AUDIOPLAYERS_TRACE(0,"[%s] ...", __func__);
+    BT_SCO_CHAIN_LOG_I("[%s] ...", __func__);
+    ASSERT(tx_frame_len != PROCESS_FRAME_LEN, "[%s] tx_frame_len(%d) == PROCESS_FRAME_LEN", __func__, tx_frame_len);
 
 #if defined(SCO_CP_ACCEL)
     sco_cp_init(PROCESS_FRAME_LEN, REFRAME_CHANNEL_QTY);
 #endif
 
-    g_in_queue_len = 0;
-    g_out_queue_len = 0;
+    reframe_tx_fifo_t *tx_fifo = get_reframe_tx_fifo();
+    uint32_t in_data_size = PROCESS_FRAME_LEN * SAMPLE_BYTES * PCM_TX_CHANNEL_NUM * PCM_FIFO_FRAME_NUM;
+    uint32_t out_data_size = PROCESS_FRAME_LEN * SAMPLE_BYTES * PCM_FIFO_FRAME_NUM;
 
-    for (uint32_t ch = 0; ch < REFRAME_CHANNEL_QTY; ch++) {
-        g_in_cache_buf[ch]  = (_PCM_T *)speech_calloc(IO_FRAME_LEN, sizeof(_PCM_T));
-        g_in_queue_buf[ch]  = (_PCM_T *)speech_calloc(QUEUE_BUF_PCM_NUM, sizeof(_PCM_T));
-        g_process_buf[ch]   = (_PCM_T *)speech_calloc(PROCESS_FRAME_LEN, sizeof(_PCM_T));
-        g_process_tmp_buf[ch]   = (_PCM_T *)speech_calloc(THIRDPARTY_FFT_LEN, sizeof(_PCM_T));
-    }
-    g_process_out_buf = (_PCM_T *)speech_calloc(PROCESS_FRAME_LEN, sizeof(_PCM_T));
-    g_out_queue_buf = (_PCM_T *)speech_calloc(QUEUE_BUF_PCM_NUM, sizeof(_PCM_T));
+    uint32_t pcm_fifo_len = _nextpow2(in_data_size);
+    uint32_t ref_fifo_len = _nextpow2(in_data_size / PCM_TX_CHANNEL_NUM);
+    uint32_t out_fifo_len = _nextpow2(out_data_size);
 
-    _write_output_queue(g_process_out_buf, PRE_CACHE_OUT_PCM);
+    tx_fifo->pcm_fifo_mem = speech_malloc(pcm_fifo_len);
+    tx_fifo->ref_fifo_mem = speech_malloc(ref_fifo_len);
+    tx_fifo->out_fifo_mem = speech_malloc(out_fifo_len);
 
-    _reframe_create_lock();
+    kfifo_init(&tx_fifo->pcm_fifo, tx_fifo->pcm_fifo_mem, pcm_fifo_len);
+    kfifo_init(&tx_fifo->ref_fifo, tx_fifo->ref_fifo_mem, ref_fifo_len);
+    kfifo_init(&tx_fifo->out_fifo, tx_fifo->out_fifo_mem, out_fifo_len);
+
+    uint32_t process_data_len = PROCESS_FRAME_LEN * PCM_TX_CHANNEL_NUM;
+    process_pcm_buf = speech_calloc(process_data_len, SAMPLE_BYTES);
+    deinterlaved_pcm_buf = speech_calloc(process_data_len, SAMPLE_BYTES);
+    process_ref_buf = speech_calloc(PROCESS_FRAME_LEN, SAMPLE_BYTES);
+
+#ifdef SPEECH_BONE_SENSOR
+    uint32_t vpu_fifo_len = _nextpow2(in_data_size / PCM_TX_CHANNEL_NUM);
+    tx_fifo->vpu_fifo_mem = speech_malloc(vpu_fifo_len);
+    kfifo_init(&tx_fifo->vpu_fifo, tx_fifo->vpu_fifo_mem, vpu_fifo_len);
+    process_vpu_buf = speech_calloc(PROCESS_FRAME_LEN, SAMPLE_BYTES);
+#endif
+
+    BT_SCO_CHAIN_LOG_I("[%s] Pust %d pcm into out FIFO", __func__, PCM_OUT_DELAY);
+    kfifo_put(&tx_fifo->out_fifo, (uint8_t *)tx_fifo->pcm_fifo_mem, PCM_OUT_DELAY * SAMPLE_BYTES);
+
     reframe_thread_tid = osThreadCreate(osThread(_reframe_thread), NULL);
     osSignalSet(reframe_thread_tid, 0x0);
 
@@ -356,12 +325,13 @@ int32_t bt_sco_chain_reframe_open(uint32_t tx_sample_rate, uint32_t tx_frame_len
     g_debug_index = 0;
 #endif
 
-#ifdef BT_SCO_CHAIN_REFRAME_AUDIO_DUMP
-    audio_dump_init(PROCESS_FRAME_LEN, sizeof(_DUMP_PCM_T), 6);
+#if defined(CALC_MIPS_CNT_THD_MS)
+    float frame_ms = (PROCESS_FRAME_LEN * 1000) / tx_sample_rate;
+    stream_mcps_start("REFRAME_TX", 96, frame_ms, CALC_MIPS_CNT_THD_MS);
 #endif
 
-#if defined(_CALCULATE_MIPS)
-    calculate_mips_create();
+#ifdef BT_SCO_CHAIN_REFRAME_AUDIO_DUMP
+    audio_dump_init(PROCESS_FRAME_LEN, sizeof(int16_t), 6);
 #endif
 
     return 0;
@@ -369,24 +339,34 @@ int32_t bt_sco_chain_reframe_open(uint32_t tx_sample_rate, uint32_t tx_frame_len
 
 int32_t bt_sco_chain_reframe_close(void)
 {
-    AUDIOPLAYERS_TRACE(0,"[%s] ...", __func__);
+    BT_SCO_CHAIN_LOG_I("[%s] ...", __func__);
 
-#if defined(_CALCULATE_MIPS)
-    calculate_mips_destroy();
+#ifdef BT_SCO_CHAIN_REFRAME_AUDIO_DUMP
+    audio_dump_deinit();
+#endif
+
+#if defined(CALC_MIPS_CNT_THD_MS)
+    stream_mcps_stop("REFRAME_TX");
 #endif
 
     // TODO: Call thridpart algo deinit function
 
     osThreadTerminate(reframe_thread_tid);
 
-    for (uint32_t ch = 0; ch < REFRAME_CHANNEL_QTY; ch++) {
-        speech_free(g_in_cache_buf[ch]);
-        speech_free(g_in_queue_buf[ch]);
-        speech_free(g_process_buf[ch]);
-        speech_free(g_process_tmp_buf[ch]);
-    }
-    speech_free(g_process_out_buf);
-    speech_free(g_out_queue_buf);
+    reframe_tx_fifo_t *tx_fifo = get_reframe_tx_fifo();
+
+#ifdef SPEECH_BONE_SENSOR
+    speech_free(tx_fifo->vpu_fifo_mem);
+    speech_free(process_vpu_buf);
+#endif
+
+    speech_free(process_ref_buf);
+    speech_free(deinterlaved_pcm_buf);
+    speech_free(process_pcm_buf);
+
+    speech_free(tx_fifo->out_fifo_mem);
+    speech_free(tx_fifo->ref_fifo_mem);
+    speech_free(tx_fifo->pcm_fifo_mem);
 
 #if defined(SCO_CP_ACCEL)
     sco_cp_deinit();
@@ -395,110 +375,52 @@ int32_t bt_sco_chain_reframe_close(void)
     return 0;
 }
 
-int32_t bt_sco_chain_reframe_cache_tx_pcm(void *pcm_buf, uint32_t frame_len, reframe_channel_t ch)
+int32_t bt_sco_chain_reframe_tx_process(REFRAME_TX_PCM_T *pcm_buf)
 {
-    ASSERT(frame_len == IO_FRAME_LEN, "[%s] frame_len(%d) != IO_FRAME_LEN", __func__, frame_len);
-
-    speech_copy_pcm(g_in_cache_buf[ch], (_PCM_T *)pcm_buf, frame_len);
-
-    return 0;
-}
-
-int32_t bt_sco_chain_reframe_tx_process(void *in_buf[], uint32_t frame_len, void *out_buf)
-{
-    ASSERT(frame_len == IO_FRAME_LEN, "[%s] frame_len(%d) != IO_FRAME_LEN", __func__, frame_len);
-    ASSERT(out_buf != NULL, "[%s] out_buf == NULL", __func__);
+    ASSERT(pcm_buf->frame_len == IO_FRAME_LEN, "[%s] frame_len(%d) != IO_FRAME_LEN", __func__, pcm_buf->frame_len);
+    ASSERT(pcm_buf->out != NULL, "[%s] out_buf == NULL", __func__);
 
 #if defined(_REFRAME_DEBUG)
-    AUDIOPLAYERS_TRACE(0,"[REFRAME] %d: frame_len = %d", g_debug_index++, frame_len);
+    BT_SCO_CHAIN_LOG_D("[REFRAME] %d: frame_len = %d", g_debug_index++, pcm_buf->frame_len);
 #endif
 
-#if 1
-    if (in_buf == NULL) {
-        _write_input_queue(g_in_cache_buf, frame_len);
+    reframe_tx_fifo_t *tx_fifo = get_reframe_tx_fifo();
+    int32_t pcm_data_size = pcm_buf->frame_len * PCM_TX_CHANNEL_NUM * SAMPLE_BYTES;
+    int32_t data_size = pcm_buf->frame_len * SAMPLE_BYTES;
+
+    if (kfifo_get_free_space(&tx_fifo->pcm_fifo) >= pcm_data_size) {
+        kfifo_put(&tx_fifo->pcm_fifo, (uint8_t *)pcm_buf->in, pcm_data_size);
+        if (pcm_buf->ref){
+            kfifo_put(&tx_fifo->ref_fifo, (uint8_t *)pcm_buf->ref, data_size);
+        }
+#ifdef SPEECH_BONE_SENSOR
+        if (pcm_buf->vpu){
+            kfifo_put(&tx_fifo->vpu_fifo_mem, (uint8_t *)pcm_buf->vpu, data_size);
+        }
+#endif
     } else {
-        _write_input_queue((_PCM_T **)in_buf, frame_len);
+        TRACE(0, "[%s] Input buffer is overflow", __func__);
     }
+    osSignalSet(reframe_thread_tid, (1 << REFRAME_SIGNAL_WRITE));
 
-    _read_output_queue((_PCM_T *)out_buf, frame_len);
-    osSignalSet(reframe_thread_tid, 0x01 << REFRAME_SIGNAL_WRITE);
-#else
-    for (uint32_t i = 0; i < frame_len; i++) {
-        ((_PCM_T *)out_buf)[i] = g_in_cache_buf[REFRAME_CHANNEL_VP][i];
-    } 
-#endif
+    int32_t cnt = 0;
+    int32_t out_size = pcm_buf->frame_len * SAMPLE_BYTES;
+    while (true) {
+        if (kfifo_len(&tx_fifo->out_fifo) >= out_size) {
+            kfifo_get(&tx_fifo->out_fifo, (uint8_t *)pcm_buf->out, out_size);
+            break;
+        } else {
+            if (cnt <= GET_OUT_FIFO_DATA_WAIT_CNT) {
+                TRACE(0, "[%s] Output buffer is underflow, wait cnt:%d.", __func__, cnt);
+                hal_sys_timer_delay_us(GET_OUT_FIFO_DATA_WAIT_TIME_US);
+                cnt ++;
+            } else {
+                TRACE(0, "[%s] Output buffer is underflow, out set to zero!", __func__);
+                memset(pcm_buf->out, 0, out_size);
+                break;
+            }
+        }
+    }
 
     return 0;
 }
-
-#if defined(_CALCULATE_MIPS)
-#include "hal_timer.h"
-
-static uint32_t create_flag = 0;
-static uint32_t cpu_freq = 0;
-static uint32_t start_ticks = 0;
-static uint32_t start_ticks_cp = 0;
-static uint32_t end_ticks = 0;
-static uint32_t used_mips = 0;
-static uint32_t mips_log_cnt = 0;
-
-#define MIPS_LOG_PRINT_MS   (2000)
-
-static void calculate_mips_create(void)
-{
-    ASSERT(create_flag == 0, "[%s] calculate mips has been created", __func__);
-
-    cpu_freq = hal_sys_timer_calc_cpu_freq(100, 0) / 1000000;
-    AUDIOPLAYERS_TRACE(0,"[%s] sys freq calc : %d M", __func__, cpu_freq);
-
-    mips_log_cnt = 0;
-
-    create_flag = 1; 
-}
-
-static void calculate_mips_destroy(void)
-{
-    create_flag = 0;
-}
-
-static void calculate_mips_run_start(bool cp)
-{
-    if (cp) {
-        start_ticks_cp = hal_fast_sys_timer_get();
-    } else {
-        start_ticks = hal_fast_sys_timer_get();
-    }
-}
-
-static void calculate_mips_run_end(bool cp)
-{
-    uint32_t used_us = 0;
-    uint32_t period_us = (1000 * PROCESS_FRAME_LEN / 16);
-
-    end_ticks = hal_fast_sys_timer_get();
-
-    if (cp) {
-        used_us = FAST_TICKS_TO_US(end_ticks - start_ticks_cp);
-
-        used_mips = used_us * cpu_freq / period_us;
-
-        // AUDIOPLAYERS_TRACE(0, "[%s] CP: Usage: %d / %d (us).", __func__, used_us, period_us);
-        if (mips_log_cnt == MIPS_LOG_PRINT_MS / ((PROCESS_FRAME_LEN * 1000) /SAMPLE_RATE)) {
-            AUDIOPLAYERS_TRACE(0,"[%s] CP: Usage: %d (MIPS).", __func__, used_mips);
-            mips_log_cnt = 0;
-        }
-    } else {
-        used_us = FAST_TICKS_TO_US(end_ticks - start_ticks);
-
-        used_mips = used_us * cpu_freq / period_us;
-
-        // AUDIOPLAYERS_TRACE(0, "[%s] Main: Usage: %d / %d (us).", __func__, used_us, period_us);
-        if (mips_log_cnt == MIPS_LOG_PRINT_MS / ((PROCESS_FRAME_LEN * 1000) /SAMPLE_RATE) ) {
-            AUDIOPLAYERS_TRACE(0,"[%s] Main: Usage: %d (MIPS).", __func__, used_mips);
-            mips_log_cnt = 0;
-        }  
-    }
-
-    mips_log_cnt++;
-}
-#endif

@@ -22,15 +22,10 @@ extern "C" {
 
 #include "stdint.h"
 
-#define SCO_CODEC_NUM (2)
-#define SCO_MODE_NUM (3) // off/anc/talk_through
-
 enum AUDIO_PROCESS_TYPE_T {
     AUDIO_PROCESS_TYPE_IIR_EQ = 0,
     AUDIO_PROCESS_TYPE_DRC,
     AUDIO_PROCESS_TYPE_LIMITER,
-    AUDIO_PROCESS_TYPE_DYNAMIC_EQ,
-    AUDIO_PROCESS_TYPE_HFP_CFG,
     AUDIO_PROCESS_TYPE_NUM,
 };
 
@@ -38,14 +33,8 @@ struct AUDIO_CFG_T_;
 typedef struct AUDIO_CFG_T_ AUDIO_CFG_T;
 
 int sizeof_audio_cfg(void);
-int sizeof_audio_section(void);
-void audio_cfg_info_print();
-void audio_cfg_section_init(void);
-
-int store_audio_cfg_into_audio_section(enum AUDIO_PROCESS_TYPE_T type, uint8_t *cfg);
-void *load_audio_cfg_from_audio_section(enum AUDIO_PROCESS_TYPE_T type, uint8_t index);
-void audio_cfg_get_eq_section_info(uint32_t *startAddr, uint32_t *length, uint16_t *version);
-void *audio_cfg_get_default_audio_section(void);
+int store_audio_cfg_into_audio_section(AUDIO_CFG_T *cfg);
+void *load_audio_cfg_from_audio_section(enum AUDIO_PROCESS_TYPE_T type);
 
 #ifdef __cplusplus
 }

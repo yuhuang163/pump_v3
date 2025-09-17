@@ -1,6 +1,6 @@
 /***************************************************************************
 *
-*Copyright 2015-2030 BES.
+*Copyright 2015-2019 BES.
 *All rights reserved. All unpublished rights reserved.
 *
 *No part of this work may be used or reproduced in any form or by any
@@ -26,8 +26,13 @@
 #ifdef GSOUND_HOTWORD_ENABLED
 #include "gsound_custom_hotword_common.h"
 #endif
+#endif
 
 /************************private macro defination***************************/
+#define HOTWORD_MODEL_MAX_SIZE (80 * 1024) //!< should adjust this value if
+//!< hotword model size changed and should adjust the flash section size at
+//!< the sametime., @see HOTWORD_SECTION_SIZE in common.mk
+
 #ifndef OTA_FLASH_LOGIC_ADDR
 #define OTA_FLASH_LOGIC_ADDR        (FLASH_NC_BASE)
 #endif
@@ -44,24 +49,19 @@ extern uint32_t __hotword_model_start[];
 extern uint32_t __hotword_model_end[];
 
 #ifdef MODEL_FILE_EMBEDED
-const uint8_t EMBEDED_MODEL_FILE_EN [] = {
-#include "res/gs_hw/en_all.txt" //!< must correspond to specific model ID, @see EN_HOTWORD_MODEL_ID
-};
-const uint8_t EMBEDED_MODEL_FILE_UNIVERSAL [] = {
-#include "res/gs_hw/universal.txt" //!< must correspond to specific model ID, @see UNIVERSAL_HOTWORD_MODEL_ID
+const uint8_t EMBEDED_MODEL_FILE [] = {
+#include "res/gs_hw/en_all.txt" //!< must correspond to specific model ID, @see DEFAULT_HOTWORD_MODEL_ID
 };
 
 /// NOTE: Add more embeded model file info here
-#define EN_MODEL_START_ADDR             EMBEDED_MODEL_FILE_EN //!< map to specific flash address within the bin file
-#define UNIVERSAL_MODEL_START_ADDR      EMBEDED_MODEL_FILE_UNIVERSAL //!< map to specific flash address within the bin file
+
+#define DEFAULT_MODEL_START_ADDR EMBEDED_MODEL_FILE //!< map to specific flash address within the bin file
 #else /// #ifndef MODEL_FILE_EMBEDED
-#define EN_MODEL_START_ADDR             __hotword_model_start
-#define UNIVERSAL_MODEL_START_ADDR      (__hotword_model_start + HOTWORD_SECTION_SIZE/2)
+#define DEFAULT_MODEL_START_ADDR __hotword_model_start //!< map to specific flash address out of the bin file
 #endif /// #ifdef MODEL_FILE_EMBEDED
 
 HOTWORD_MODEL_INFO_T defaultModel[DEFAULT_MODEL_NUM] = {
-    {EN_HOTWORD_MODEL_ID, (uint32_t)EN_MODEL_START_ADDR, HOTWORD_MODEL_MAX_SIZE},
-    {UNIVERSAL_HOTWORD_MODEL_ID, (uint32_t)UNIVERSAL_MODEL_START_ADDR, HOTWORD_MODEL_MAX_SIZE},
+    {DEFAULT_HOTWORD_MODEL_ID, (uint32_t)DEFAULT_MODEL_START_ADDR, HOTWORD_MODEL_MAX_SIZE},
     /// NOTE: Add other embeded model info here
 };
 
@@ -81,11 +81,16 @@ void nv_record_gsound_rec_init(void)
 #ifdef GSOUND_HOTWORD_ENABLED
     /// init default supported model file(s)
     /// add to supported model file set(if it is not in this set)
-    NV_SECTION_TRACE(0,"supportedModelCnt:%d", nvrecord_gsound_p->supportedModelCnt);
-    for (uint8_t i = 0; i < DEFAULT_MODEL_NUM; i++)
+    LOG_I("supportedModelCnt:%d", nvrecord_gsound_p->supportedModelCnt);
+    if (0 == nvrecord_gsound_p->supportedModelCnt)
     {
-        NV_SECTION_TRACE(0,"hotword_model_start:0x%x", defaultModel[i].startAddr);
-        nv_record_gsound_rec_add_new_model((void *)&defaultModel[i]);
+        for (uint8_t i = 0; i < DEFAULT_MODEL_NUM; i++)
+        {
+            LOG_I("hotword_model_start:0x%x",
+                  defaultModel[i].startAddr);
+
+            nv_record_gsound_rec_add_new_model((void *)&defaultModel[i]);
+        }
     }
 #endif
 }
@@ -97,7 +102,7 @@ void nv_record_gsound_rec_get_ptr(void **ptr)
 
 void nv_record_gsound_rec_updata_enable_state(bool enable)
 {
-    NV_SECTION_TRACE(0,"gsound enable state update:%d->%d", nvrecord_gsound_p->isGsoundEnabled, enable);
+    LOG_I("gsound enable state update:%d->%d", nvrecord_gsound_p->isGsoundEnabled, enable);
 
     if (nvrecord_gsound_p->isGsoundEnabled != enable)
     {
@@ -165,7 +170,7 @@ bool nv_record_gsound_rec_add_new_model(void *pInfo)
             /// hotword model exist already
             if (!memcmp(&nvrecord_gsound_p->modelInfo[i].modelId, info->modelId, GSOUND_HOTWORD_MODEL_ID_BYTES))
             {
-                NV_SECTION_TRACE(0,"info->startAddr:%x", info->startAddr);
+                LOG_I("info->startAddr:%x", info->startAddr);
 
                 ///.update the start address
                 if (info->startAddr)
@@ -173,7 +178,7 @@ bool nv_record_gsound_rec_add_new_model(void *pInfo)
                     nvrecord_gsound_p->modelInfo[i].startAddr = info->startAddr;
                 }
 
-                NV_SECTION_TRACE(0,"model already exist in user section, model_id:%s, model_addr:%x",
+                LOG_I("model already exist in user section, model_id:%s, model_addr:%x",
                       nvrecord_gsound_p->modelInfo[i].modelId,
                       nvrecord_gsound_p->modelInfo[i].startAddr);
                 found = true;
@@ -181,7 +186,7 @@ bool nv_record_gsound_rec_add_new_model(void *pInfo)
             }
         }
 
-        NV_SECTION_TRACE(0,"current supportedModelCnt:%d", nvrecord_gsound_p->supportedModelCnt);
+        LOG_I("current supportedModelCnt:%d", nvrecord_gsound_p->supportedModelCnt);
 
         /// brand new model insert
         if (!found)
@@ -190,7 +195,7 @@ bool nv_record_gsound_rec_add_new_model(void *pInfo)
                    info,
                    sizeof(HOTWORD_MODEL_INFO_T));
 
-            NV_SECTION_TRACE(0,"new added modelId:%s, startAddr:%x, modelFileLen:%x", info->modelId, info->startAddr, info->len);
+            LOG_I("new added modelId:%s, startAddr:%x, modelFileLen:%x", info->modelId, info->startAddr, info->len);
             nvrecord_gsound_p->supportedModelCnt++;
         }
         nv_record_post_write_operation(lock);
@@ -200,14 +205,13 @@ bool nv_record_gsound_rec_add_new_model(void *pInfo)
         {
             /// flush the hotword info to flash
             nv_record_update_runtime_userdata();
-            nv_record_flash_flush();
         }
 
-        NV_SECTION_TRACE(0,"current supportedModelCnt:%d", nvrecord_gsound_p->supportedModelCnt);
+        LOG_I("current supportedModelCnt:%d", nvrecord_gsound_p->supportedModelCnt);
     }
     else
     {
-        NV_SECTION_TRACE(0,"recieved pointer:%p, supportedModelCnt:%d", info, nvrecord_gsound_p->supportedModelCnt);
+        LOG_W("recieved pointer:%p, supportedModelCnt:%d", info, nvrecord_gsound_p->supportedModelCnt);
         ret = false;
     }
 
@@ -219,7 +223,7 @@ uint32_t nv_record_gsound_rec_get_hotword_model_addr(const char *model_id, bool 
     uint32_t addr = 0;
     bool found = false;
 
-    NV_SECTION_TRACE(0,"%s revceived model ID: %s", __func__, model_id);
+    LOG_I("%s revceived model ID: %s", __func__, model_id);
     if (nvrecord_gsound_p)
     {
         for (uint8_t i = 0; i < ARRAY_SIZE(nvrecord_gsound_p->modelInfo); i++)
@@ -228,7 +232,7 @@ uint32_t nv_record_gsound_rec_get_hotword_model_addr(const char *model_id, bool 
             {
                 addr = nvrecord_gsound_p->modelInfo[i].startAddr;
                 found = true;
-                NV_SECTION_TRACE(0,"found saved model info, index:%d", i);
+                LOG_I("found saved model info, index:%d", i);
                 break;
             }
         }
@@ -261,7 +265,7 @@ uint32_t nv_record_gsound_rec_get_hotword_model_addr(const char *model_id, bool 
 
             /// force 4K align the address
             addr = F_4K_ALIGN(addr);
-            NV_SECTION_TRACE(0,"Largest address:0x%x", addr);
+            LOG_I("Largest address:0x%x", addr);
 
             /// check is overwrite needed
             if ((newModelLen + addr) > (uint32_t)__hotword_model_end ||
@@ -309,7 +313,7 @@ uint32_t nv_record_gsound_rec_get_hotword_model_addr(const char *model_id, bool 
                         }
                     }
 
-                    NV_SECTION_TRACE(0,"headAdjacentIdx:%d, tailAdjacentIdx:%d", headAdjacentIdx, tailAdjacentIdx);
+                    LOG_I("headAdjacentIdx:%d, tailAdjacentIdx:%d", headAdjacentIdx, tailAdjacentIdx);
 
                     /// find the smaller index, smaller index means older record
                     if (headAdjacentIdx > tailAdjacentIdx)
@@ -347,7 +351,6 @@ uint32_t nv_record_gsound_rec_get_hotword_model_addr(const char *model_id, bool 
 
                 /// flush the hotword info to flash
                 nv_record_update_runtime_userdata();
-                nv_record_flash_flush();
             }
         }
     } while (0);
@@ -370,7 +373,7 @@ int nv_record_gsound_rec_get_supported_model_id(char *models_out,
     {
         for (uint8_t i = 0; i < nvrecord_gsound_p->supportedModelCnt; i++)
         {
-            NV_SECTION_TRACE(0,"supported model_id:%s, model_addr:%x",
+            LOG_I("supported model_id:%s, model_addr:%x",
                   nvrecord_gsound_p->modelInfo[i].modelId,
                   nvrecord_gsound_p->modelInfo[i].startAddr);
 
@@ -395,17 +398,16 @@ int nv_record_gsound_rec_get_supported_model_id(char *models_out,
         {
             strcpy(models_out, supportedModels);
             *length_out = strlen(supportedModels) + STRING_TERMINATOR_SIZE;
-            NV_SECTION_TRACE(0,"total supported model_id(length is %d):", *length_out);
-            NV_SECTION_DUMP8("0x%02x ", models_out, *length_out);
+            LOG_I("total supported model_id(length is %d):", *length_out);
+            DUMP8("0x%02x ", models_out, *length_out);
         }
         else
         {
             ret = -1;
-            NV_SECTION_TRACE(0,"supported model id length exceeded max length");
+            LOG_W("supported model id length exceeded max length");
         }
     }
 
     return ret;
 }
-#endif
 #endif

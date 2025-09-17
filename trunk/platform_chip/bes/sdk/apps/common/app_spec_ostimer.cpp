@@ -33,7 +33,7 @@ osStatus app_spec_timer_start (SPEC_TIMER_CTX_T *spec_timer_ctx, uint32_t millis
 {
     osStatus status;
 
-    //COMMON_TRACE(1,"%s", __func__);
+    //TRACE(1,"%s", __func__);
     if (millisec > UINT16_MAX){
         spec_timer_ctx->interval = millisec;
         spec_timer_ctx->ctx = millisec;
@@ -86,7 +86,7 @@ specTimerDef (IBRT_TEST_TIMER, app_tws_ibrt_test_timer_cb);
 
 void app_tws_ibrt_test_timer_cb(void const *para)
 {
-    COMMON_TRACE(2,"%s %08x", __func__, para);
+    TRACE(2,"%s %08x", __func__, para);
 }
 
 void app_tws_ibrt_test_timer(void)

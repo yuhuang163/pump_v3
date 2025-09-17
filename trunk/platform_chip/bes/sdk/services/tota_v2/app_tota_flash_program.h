@@ -19,7 +19,7 @@
 
 
 //TODO:
-#define MAX_FLASH_HANDLE_SIZE 4096
+#define MAX_FLASH_HANDLE_SIZE 650
 #define TOTA_FLASH_TEST_ADDR                          (0x200000+FLASH_NC_BASE+4096)
 
 /*
@@ -27,8 +27,8 @@
 */
 typedef struct{
     uint32_t    address;
-    uint32_t    dataLen;
     uint32_t    dataCrc;
+    uint16_t    dataLen;
     uint8_t     dataBuf[MAX_FLASH_HANDLE_SIZE];
 }TOTA_WRITE_FLASH_STRUCT_T;
 

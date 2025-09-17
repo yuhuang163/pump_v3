@@ -32,12 +32,7 @@ static uint8_t s_thd_total_num = 0;
 */
 os_status_e os_kernel_start_wrapper(void)
 {
-    #if 0
-    return osKernelStart();
-    #else
-    osThreadExit();
-    return osOK;
-    #endif
+    return 0;
 }
 
 bool os_kernel_running_wrapper(void)

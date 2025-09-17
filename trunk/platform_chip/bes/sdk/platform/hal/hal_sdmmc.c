@@ -15,7 +15,7 @@
  ****************************************************************************/
 #include "plat_addr_map.h"
 
-#if defined(SDMMC0_BASE) || defined(SDMMC1_BASE)
+#ifdef SDMMC0_BASE
 
 #include "hal_location.h"
 #include "reg_sdmmcip.h"
@@ -23,8 +23,9 @@
 #include "hal_trace.h"
 #include "hal_timer.h"
 #include "hal_sdmmc.h"
+#include "hal_sdmmc_pri.h"
 #include "hal_iomux.h"
-#include "hal_dma.h"
+#include "hal_sleep.h"
 #include "string.h"
 #include "stdio.h"
 #include "errno.h"
@@ -32,43 +33,28 @@
     #include "cmsis_os.h"
 #endif
 
+#ifdef SDMMC_DEBUG
+    #define HAL_SDMMC_TRACE(n, s, ...)      TRACE(n, s, ##__VA_ARGS__)
+#else
+    #define HAL_SDMMC_TRACE(n, s, ...)      TRACE_DUMMY(n, s, ##__VA_ARGS__)
+#endif
+
 #ifdef SDMMC_ASSERT
-    #define HAL_SDMMC_ASSERT(n, s, ...)  ASSERT(n, s , ##__VA_ARGS__)
+    #define HAL_SDMMC_ASSERT(n, s, ...)     ASSERT(n, s, ##__VA_ARGS__)
 #else
-    #define HAL_SDMMC_ASSERT(...)
+    #define HAL_SDMMC_ASSERT(n, s, ...)     TRACE_DUMMY(n, s, ##__VA_ARGS__)
 #endif
 
-/*************************Functional configuration area************************/
-#define MMC_WRITE
-#define MMC_UHS_SUPPORT
-#define MMC_IO_VOLTAGE          //Close later
-//#define MMC_SUPPORTS_TUNING     //Close later
-//#define MMC_HS200_SUPPORT       //Close later
-//#define MMC_HS400_SUPPORT       //Close later
-//#define MMC_HS400_ES_SUPPORT    //Close later
-//#define MMC_HW_PARTITIONING     //Close later
-#define CONFIG_CMD_BKOPS_ENABLE     //enable background operations handshake on device
-#define CONFIG_MMC_SPEED_MODE_SET
-//#define MMC_QUIRKS                    //default close, send cmd retry cnt, open=4, close=0
-//#define CONFIG_MMC_BROKEN_CD          //default close, Use polling to detect
-//#define MMC_TINY                      //default close
-//#define DM_MMC                        //default close
-//#define DM_REGULATOR                  //default close
-//#define CONFIG_MMC_SPI                //default close
-//#define BLK                           //default close, block drivers and devices
-//#define CONFIG_SPL_BUILD              //default close
-//#define CONFIG_SPL_LIBCOMMON_SUPPORT  //default close
-
-/****************standard related macros and type definitions******************/
-#ifdef CONFIG_SYS_64BIT_LBA
-    typedef uint64_t lbaint_t;
-    #define LBAFlength ""
+#if 1
+    #define HAL_SDMMC_ERROR(n, s, ...)      TRACE(n, s, ##__VA_ARGS__)
 #else
-    typedef uint32_t lbaint_t;
-    #define LBAFlength ""
+    #define HAL_SDMMC_ERROR(n, s, ...)      TRACE_DUMMY(n, s, ##__VA_ARGS__)
 #endif
-#define LBAF "%" LBAFlength "x"
-#define LBAFU "%" LBAFlength "u"
+
+/******************************************************************************/
+/******************************************************************************/
+#define SDMMC_FIFO_DEPTH                    16  //width 32bits
+#define SDMMC_FIFO_BYTES                    (SDMMC_FIFO_DEPTH * 4)
 
 /* SD/MMC version bits; 8 flags, 8 major, 8 minor, 8 change */
 #define SD_VERSION_SD                       (1U << 31)
@@ -114,6 +100,9 @@
                                              MMC_CAP(UHS_SDR50) | MMC_CAP(UHS_SDR104) | \
                                              MMC_CAP(UHS_DDR50))
 
+#define UHS_CAPS_MINI                       (MMC_CAP(UHS_SDR12) | MMC_CAP(UHS_SDR25)  | \
+                                             MMC_CAP(UHS_SDR50))
+
 #define BIT(nr)                             (1UL << (nr))
 #define MMC_CAP_NONREMOVABLE                BIT(14)
 #define MMC_CAP_NEEDS_POLL                  BIT(15)
@@ -131,74 +120,6 @@
 
 #define MMC_DATA_READ                       1
 #define MMC_DATA_WRITE                      2
-
-#define MMC_CMD_GO_IDLE_STATE               0
-#define MMC_CMD_GO_PRE_IDLE_STATE           0
-#define MMC_CMD_BOOT_INITIATION             0
-#define MMC_CMD_SEND_OP_COND                1
-#define MMC_CMD_ALL_SEND_CID                2
-#define MMC_CMD_SET_RELATIVE_ADDR           3
-#define MMC_CMD_SET_DSR                     4
-#define MMC_CMD_SLEEP_AWAKE                 5
-#define MMC_CMD_SWITCH                      6
-#define MMC_CMD_SELECT_CARD                 7
-#define MMC_CMD_DESELECT_CARD               7
-#define MMC_CMD_SEND_EXT_CSD                8
-#define MMC_CMD_SEND_CSD                    9
-#define MMC_CMD_SEND_CID                    10
-#define MMC_CMD_READ_DAT_UNTIL_STOP         11
-#define MMC_CMD_STOP_TRANSMISSION           12
-#define MMC_CMD_SEND_STATUS                 13
-#define MMC_CMD_BUS_TEST_R                  14
-#define MMC_CMD_GO_INACTIVE_STATE           15
-#define MMC_CMD_SEND_TUNING_BLOCK           19
-#define MMC_CMD_SET_BLOCKLEN                16
-#define MMC_CMD_READ_SINGLE_BLOCK           17
-#define MMC_CMD_READ_MULTIPLE_BLOCK         18
-#define MMC_CMD_SEND_TUNING_BLOCK_HS200     21
-#define MMC_CMD_WRITE_DAT_UNTIL_STOP        20
-#define MMC_CMDC_CMD22                      22
-#define MMC_CMD_SET_BLOCK_COUNT             23
-#define MMC_CMD_WRITE_SINGLE_BLOCK          24
-#define MMC_CMD_WRITE_MULTIPLE_BLOCK        25
-#define MMC_CMD_PROGRAM_CID                 26
-#define MMC_CMD_PROGRAM_CSD                 27
-#define MMC_CMD_SET_TIME                    49
-#define MMC_CMD_SET_WRITE_PROT              28
-#define MMC_CMD_CLR_WRITE_PROT              29
-#define MMC_CMD_SEND_WRITE_PROT             30
-#define MMC_CMD_SEND_WRITE_PROT_TYPE        31
-#define MMC_CMD_CMD32                       32
-#define MMC_CMD_CMD33                       33
-#define MMC_CMD_CMD34                       34
-#define MMC_CMD_ERASE_GROUP_START           35
-#define MMC_CMD_ERASE_GROUP_END             36
-#define MMC_CMD_CMD37                       37
-#define MMC_CMD_ERASE                       38
-#define MMC_CMD_FAST_IO                     39
-#define MMC_CMD_GO_IRQ_STATE                40
-#define MMC_CMD_CMD41                       41
-#define MMC_CMD_LOCK_UNLOCK                 42
-#define MMC_CMD_CMD43                       43
-#define MMC_CMD_APP_CMD                     55
-#define MMC_CMD_GEN_CMD                     56
-#define MMC_CMD_CMD57                       57
-#define MMC_CMD_SPI_READ_OCR                58
-#define MMC_CMD_SPI_CRC_ON_OFF              59
-#define MMC_CMD_CMD60                       60
-#define MMC_CMD_CMD61                       61
-#define MMC_CMD_RES_MAN                     62
-#define MMC_CMD_CMD63                       63
-#define MMC_CMD_CMD50                       50
-#define MMC_CMD_CMD51                       51
-#define MMC_CMD_CMD52                       52
-#define MMC_CMD_PROTOCOL_RD                 53
-#define MMC_CMD_PROTOCOL_WR                 54
-#define MMC_CMD_QUEUED_TASK_PARAMS          44
-#define MMC_CMD_QUEUED_TASK_ADDR            45
-#define MMC_CMD_EXECUTE_READ_TASK           46
-#define MMC_CMD_EXECUTE_WRITE_TASK          47
-#define MMC_CMD_CMDQ_TASK_MGMT              48
 
 #define MMC_CMD62_ARG1                      0xefac62ec
 #define MMC_CMD62_ARG2                      0xcbaea7
@@ -287,6 +208,8 @@
 /*
  * EXT_CSD fields
  */
+#define EXT_CSD_FLUSH_CACHE                 32  /* W */
+#define EXT_CSD_CACHE_CTRL                  33  /* R/W */
 #define EXT_CSD_ENH_START_ADDR              136 /* R/W */
 #define EXT_CSD_ENH_SIZE_MULT               140 /* R/W */
 #define EXT_CSD_GP_SIZE_MULT                143 /* R/W */
@@ -312,10 +235,14 @@
 #define EXT_CSD_CARD_TYPE                   196 /* RO */
 #define EXT_CSD_PART_SWITCH_TIME            199 /* RO */
 #define EXT_CSD_SEC_CNT                     212 /* RO, 4 bytes */
+#define EXT_CSD_SLEEP_NOTIFICATION_TIME     216 /* RO */
+#define EXT_CSD_S_A_TIMEOUT                 217 /* RO */
 #define EXT_CSD_HC_WP_GRP_SIZE              221 /* RO */
 #define EXT_CSD_HC_ERASE_GRP_SIZE           224 /* RO */
 #define EXT_CSD_BOOT_MULT                   226 /* RO */
+#define EXT_CSD_SEC_FEATURE                 231 /* RO */
 #define EXT_CSD_GENERIC_CMD6_TIME           248 /* RO */
+#define EXT_CSD_CACHE_SIZE                  249 /* RO, 4 bytes  */
 #define EXT_CSD_BKOPS_SUPPORT               502 /* RO */
 
 /*
@@ -384,6 +311,8 @@
 #define EXT_CSD_WR_DATA_REL_USR             (1 << 0)        /* user data area WR_REL */
 #define EXT_CSD_WR_DATA_REL_GP(x)           (1 << ((x)+1))  /* GP part (x+1) WR_REL */
 
+#define EXT_CSD_SEC_FEATURE_TRIM_EN         (1 << 4)        /* Support secure & insecure trim */
+
 #define R1_ILLEGAL_COMMAND                  (1 << 22)
 #define R1_APP_CMD                          (1 << 5)
 
@@ -411,14 +340,7 @@
 
 #define MMC_QUIRK_RETRY_SEND_CID            BIT(0)
 #define MMC_QUIRK_RETRY_SET_BLOCKLEN        BIT(1)
-#define MMC_QUIRK_RETRY_APP_CMD BIT         (2)
-
-enum mmc_voltage {
-    MMC_SIGNAL_VOLTAGE_000 = 0,
-    MMC_SIGNAL_VOLTAGE_120 = 1,
-    MMC_SIGNAL_VOLTAGE_180 = 2,
-    MMC_SIGNAL_VOLTAGE_330 = 4,
-};
+#define MMC_QUIRK_RETRY_APP_CMD             BIT(2)
 
 #define MMC_ALL_SIGNAL_VOLTAGE              (MMC_SIGNAL_VOLTAGE_120 | \
                                              MMC_SIGNAL_VOLTAGE_180 | \
@@ -427,9 +349,6 @@ enum mmc_voltage {
 /* Maximum block size for MMC */
 #define MMC_MAX_BLOCK_LEN                   512
 
-#define BLK_VEN_SIZE                        40
-#define BLK_PRD_SIZE                        20
-#define BLK_REV_SIZE                        8
 #define PART_FORMAT_PCAT                    0x1
 #define PART_FORMAT_GPT                     0x2
 
@@ -458,10 +377,13 @@ enum mmc_voltage {
 #define PAD_COUNT(s, pad)                   (((s) - 1) / (pad) + 1)
 #define PAD_SIZE(s, pad)                    (PAD_COUNT(s, pad) * pad)
 
+#define __ALIGN_MASK(x, mask)               (((x) + (mask)) &~ (mask))
+#define __ALIGN(x, a)                       __ALIGN_MASK((x), (typeof(x))(a) - 1)
+
 #define ALLOC_ALIGN_BUFFER_PAD(type, name, size, align, pad)            \
     char __##name[ROUND(PAD_SIZE((size) * sizeof(type), pad), align)    \
-              + (align - 1)];                                           \
-    type *name = (type *)ALIGN((uintptr_t)__##name, align)
+                                        + (align - 1)];                 \
+    type *name = (type *)__ALIGN((uintptr_t)__##name, align)
 
 #define ALLOC_ALIGN_BUFFER(type, name, size, align)         \
     ALLOC_ALIGN_BUFFER_PAD(type, name, size, align, 1)
@@ -476,7 +398,7 @@ enum mmc_voltage {
  * Usage of this macro shall be avoided or used with extreme care!
  */
 #define DEFINE_ALIGN_BUFFER(type, name, size, align)        \
-    static char __##name[ALIGN(size * sizeof(type), align)] \
+    static char __##name[__ALIGN(size * sizeof(type), align)] \
             __attribute__((__aligned__(align)));            \
                                                             \
     static type *name = (type *)__##name
@@ -495,6 +417,7 @@ enum mmc_voltage {
 
 #define MMC_CLK_ENABLE              false
 #define MMC_CLK_DISABLE             true
+#define STATIC_VARIABLES
 
 #ifdef CONFIG_MMC_SPI
     #define mmc_host_is_spi(mmc)    ((mmc)->cfg->host_caps & MMC_MODE_SPI)
@@ -506,36 +429,11 @@ enum mmc_voltage {
 #define MMC_MIN_PART_SWITCH_TIME    30 /* 300 ms */
 #define DEFAULT_CMD6_TIMEOUT_MS     500
 
-struct mmc_cid {
-    uint32_t psn;
-    uint8_t oid;
-    uint8_t mid;
-    uint8_t prv;
-    uint8_t mdt;
-    char pnm[7];
-};
-
-struct mmc_cmd {
-    uint16_t cmdidx;
-    uint32_t resp_type;
-    uint32_t cmdarg;
-    uint32_t response[4];
-};
-
-struct mmc_data {
-    union {
-        char *dest;
-        const char *src;
-    };
-    uint32_t flags;
-    uint32_t blocks;
-    uint32_t blocksize;
-};
-
 struct mmc;
 struct mmc_ops {
     int (*send_cmd)(struct mmc *mmc, struct mmc_cmd *cmd, struct mmc_data *data);
-    int (*set_ios)(struct mmc *mmc);
+    int (*set_ios_clock)(struct mmc *mmc);
+    int (*set_ios_width)(struct mmc *mmc);
     int (*init)(struct mmc *mmc);
     int (*wait_dat0)(struct mmc *mmc, int state, int timeout_us);
     int (*getcd)(struct mmc *mmc);
@@ -549,196 +447,6 @@ enum dma_data_direction {
     DMA_TO_DEVICE = 1,
     DMA_FROM_DEVICE = 2,
     DMA_NONE = 3,
-};
-
-struct mmc_config {
-    const char *name;
-#ifndef DM_MMC
-    const struct mmc_ops *ops;
-#endif
-    uint32_t host_caps;
-    uint32_t voltages;
-    uint32_t f_min;
-    uint32_t f_max;
-    uint32_t b_max;
-    uint8_t part_type;
-#ifdef CONFIG_MMC_PWRSEQ
-    struct udevice *pwr_dev;
-#endif
-};
-
-struct sd_ssr {
-    uint32_t au;            /* In sectors */
-    uint32_t erase_timeout; /* In milliseconds */
-    uint32_t erase_offset;  /* In milliseconds */
-};
-
-enum bus_mode {
-    MMC_LEGACY,
-    MMC_HS,
-    SD_HS,
-    MMC_HS_52,
-    MMC_DDR_52,
-    UHS_SDR12,
-    UHS_SDR25,
-    UHS_SDR50,
-    UHS_DDR50,
-    UHS_SDR104,
-    MMC_HS_200,
-    MMC_HS_400,
-    MMC_HS_400_ES,
-    MMC_MODES_END
-};
-
-enum if_type {
-    IF_TYPE_UNKNOWN = 0,
-    IF_TYPE_IDE,
-    IF_TYPE_SCSI,
-    IF_TYPE_ATAPI,
-    IF_TYPE_USB,
-    IF_TYPE_DOC,
-    IF_TYPE_MMC,
-    IF_TYPE_SD,
-    IF_TYPE_SATA,
-    IF_TYPE_HOST,
-    IF_TYPE_NVME,
-    IF_TYPE_EFI_LOADER,
-    IF_TYPE_PVBLOCK,
-    IF_TYPE_VIRTIO,
-    IF_TYPE_EFI_MEDIA,
-
-    IF_TYPE_COUNT,
-};
-
-//Identifies the partition table type (ie. MBR vs GPT GUID) signature
-enum sig_type {
-    SIG_TYPE_NONE,
-    SIG_TYPE_MBR,
-    SIG_TYPE_GUID,
-
-    SIG_TYPE_COUNT
-};
-
-typedef struct {
-    uint8_t b[16];
-} efi_guid_t __attribute__((aligned(8)));
-
-struct blk_desc {
-    enum if_type    if_type;    /* type of the interface */
-    uint32_t devnum;            /* device number */
-    uint8_t part_type;          /* partition type */
-    uint8_t target;             /* target SCSI ID */
-    uint8_t lun;                /* target LUN */
-    uint8_t hwpart;             /* HW partition, e.g. for eMMC */
-    uint8_t type;               /* device type */
-    uint8_t removable;          /* removable device */
-#ifdef CONFIG_LBA48
-    /* device can use 48bit addr (ATA/ATAPI v7) */
-    uint8_t lba48;
-#endif
-    lbaint_t    lba;            /* number of blocks */
-    uint16_t    blksz;          /* block size */
-    uint32_t    log2blksz;      /* for convenience: log2(blksz) */
-    char        vendor[BLK_VEN_SIZE + 1];   /* device vendor string */
-    char        product[BLK_PRD_SIZE + 1];  /* device product number */
-    char        revision[BLK_REV_SIZE + 1]; /* firmware revision */
-    enum sig_type   sig_type;   /* Partition table signature type */
-    union {
-        uint32_t mbr_sig;       /* MBR integer signature */
-        efi_guid_t guid_sig;    /* GPT GUID Signature */
-    };
-    lbaint_t (*block_read)(struct blk_desc *block_dev,
-                           lbaint_t start,
-                           lbaint_t blkcnt,
-                           void *buffer);
-    lbaint_t (*block_write)(struct blk_desc *block_dev,
-                            lbaint_t start,
-                            lbaint_t blkcnt,
-                            const void *buffer);
-    lbaint_t (*block_erase)(struct blk_desc *block_dev,
-                            lbaint_t start,
-                            lbaint_t blkcnt);
-    void        *priv;          /* driver private struct pointer */
-};
-
-struct mmc {
-#ifndef BLK
-    //struct list_head link;
-#endif
-    const struct mmc_config *cfg;   /* provided configuration */
-    uint32_t version;
-    void *priv;
-    uint32_t has_init;
-    uint8_t high_capacity;
-    bool clk_disable; /* true if the clock can be turned off */
-    uint32_t bus_width;
-    uint32_t clock;
-    uint32_t saved_clock;
-    enum mmc_voltage signal_voltage;
-    uint32_t card_caps;
-    uint32_t host_caps;
-    uint32_t ocr;
-    uint32_t dsr;
-    uint32_t dsr_imp;
-    uint32_t scr[2];
-    uint32_t csd[4];
-    uint32_t cid[4];
-    uint16_t rca;
-    uint8_t part_support;
-    uint8_t part_attr;
-    uint8_t wr_rel_set;
-    uint8_t part_config;
-    uint8_t gen_cmd6_time;      /* units: 10 ms */
-    uint8_t part_switch_time;   /* units: 10 ms */
-    uint32_t tran_speed;
-    uint32_t legacy_speed;      /* speed for the legacy mode provided by the card */
-    uint32_t read_bl_len;
-#ifdef MMC_WRITE
-    uint32_t write_bl_len;
-    uint32_t erase_grp_size;    /* in 512-byte sectors */
-#endif
-#ifdef MMC_HW_PARTITIONING
-    uint32_t hc_wp_grp_size;    /* in 512-byte sectors */
-#endif
-#ifdef MMC_WRITE
-    struct sd_ssr   ssr;        /* SD status register */
-#endif
-    uint64_t capacity;
-    uint64_t capacity_user;
-    uint64_t capacity_boot;
-    uint64_t capacity_rpmb;
-    uint64_t capacity_gp[4];
-#ifndef CONFIG_SPL_BUILD
-    uint64_t enh_user_start;
-    uint64_t enh_user_size;
-#endif
-#ifndef BLK
-    struct blk_desc block_dev;
-#endif
-    char op_cond_pending;   /* 1 if we are waiting on an op_cond command */
-    char init_in_progress;  /* 1 if we have done mmc_start_init() */
-    char preinit;           /* start init as early as possible */
-    char ddr_mode;
-#ifdef DM_MMC
-    struct udevice *dev;    /* Device for this MMC controller */
-#ifdef DM_REGULATOR
-    struct udevice *vmmc_supply;    /* Main voltage regulator (Vcc)*/
-    struct udevice *vqmmc_supply;   /* IO voltage regulator (Vccq)*/
-#endif
-#endif
-    uint8_t *ext_csd;
-    uint32_t cardtype;              /* cardtype read from the MMC */
-    enum mmc_voltage current_voltage;
-    enum bus_mode selected_mode;    /* mode currently used */
-    enum bus_mode best_mode;        /* best mode is the supported mode with the
-                                      * highest bandwidth. It may not always be the
-                                      * operating mode due to limitations when
-                                      * accessing the boot partitions
-                                      */
-    uint32_t quirks;
-    uint8_t hs400_tuning;
-
-    enum bus_mode user_speed_mode;  /* input speed mode from user */
 };
 
 #ifdef MMC_HW_PARTITIONING
@@ -766,14 +474,23 @@ enum mmc_hwpart_conf_mode {
 
 /***************************ip independent function****************************/
 static struct mmc sdmmc_devices[HAL_SDMMC_ID_NUM];
+SYNC_FLAGS_LOC static uint32_t sdmmc_ext_csd[HAL_SDMMC_ID_NUM][MMC_MAX_BLOCK_LEN / 4];
+#ifdef STATIC_VARIABLES
+SYNC_FLAGS_LOC static uint32_t noncache_buf512[HAL_SDMMC_ID_NUM][MMC_MAX_BLOCK_LEN / 4];
+SYNC_FLAGS_LOC static uint32_t noncache_buf8[HAL_SDMMC_ID_NUM][2];
+#endif
 
 //Functional declaration
-static int mmc_set_clock(struct mmc *mmc, uint32_t clock, bool disable);
 static int mmc_start_init(struct mmc *mmc);
 static int mmc_set_signal_voltage(struct mmc *mmc, uint32_t signal_voltage);
 static int mmc_switch_part(struct mmc *mmc, uint32_t part_num);
-static void mmc_udelay(uint32_t cnt);
-static void hal_sdmmc_delay(uint32_t ms);
+static void hal_sdmmc_delay_ms(uint32_t ms);
+static void hal_sdmmc_delay_us(uint32_t us);
+
+static int sdmmc_ip_wait_cmd_start(struct sdmmc_ip_host *host, uint8_t en_volt_switch);
+static inline void sdmmc_ip_writel(struct sdmmc_ip_host *host, uint32_t reg, uint32_t val);
+static inline uint32_t sdmmc_ip_readl(struct sdmmc_ip_host *host, uint32_t reg);
+
 #ifndef DM_MMC
     static void board_mmc_power_init(void);
 #endif
@@ -788,7 +505,7 @@ struct mmc *find_mmc_device(int dev_num)
 
 static void mmc_do_preinit(struct mmc *mmc)
 {
-    HAL_TRACE(0, "%s:%d", __func__, __LINE__);
+    HAL_SDMMC_TRACE(0, "%s:%d", __func__, __LINE__);
     if (mmc->preinit) {
         mmc_start_init(mmc);
     }
@@ -932,8 +649,8 @@ int mmc_getwp(struct mmc *mmc)
 #ifdef SDMMC_DEBUG
 static void mmmc_trace_before_send(struct mmc *mmc, struct mmc_cmd *cmd)
 {
-    HAL_TRACE(0, "CMD_SEND:%d", cmd->cmdidx);
-    HAL_TRACE(0, "\t\tARG\t\t\t 0x%08x", cmd->cmdarg);
+    HAL_SDMMC_TRACE(0, "CMD_SEND:%d", cmd->cmdidx);
+    HAL_SDMMC_TRACE(0, "\t\tARG\t\t\t 0x%08x", cmd->cmdarg);
 }
 
 static void mmmc_trace_after_send(struct mmc *mmc, struct mmc_cmd *cmd, int ret)
@@ -942,47 +659,47 @@ static void mmmc_trace_after_send(struct mmc *mmc, struct mmc_cmd *cmd, int ret)
     uint8_t *ptr;
 
     if (ret) {
-        HAL_TRACE(0, "\t\tRET\t\t\t %d", ret);
+        HAL_SDMMC_TRACE(0, "\t\tRET\t\t\t %d", ret);
     } else {
         switch (cmd->resp_type) {
             case MMC_RSP_NONE:
-                HAL_TRACE(0, "\t\tMMC_RSP_NONE");
+                HAL_SDMMC_TRACE(0, "\t\tMMC_RSP_NONE");
                 break;
             case MMC_RSP_R1:
-                HAL_TRACE(0, "\t\tMMC_RSP_R1,5,6,7 \t 0x%08x ",
+                HAL_SDMMC_TRACE(0, "\t\tMMC_RSP_R1,5,6,7 \t 0x%08x ",
                                 cmd->response[0]);
                 break;
             case MMC_RSP_R1b:
-                HAL_TRACE(0, "\t\tMMC_RSP_R1b\t\t 0x%08x ",
+                HAL_SDMMC_TRACE(0, "\t\tMMC_RSP_R1b\t\t 0x%08x ",
                                 cmd->response[0]);
                 break;
             case MMC_RSP_R2:
-                HAL_TRACE(0, "\t\tMMC_RSP_R2\t\t 0x%08x ",
+                HAL_SDMMC_TRACE(0, "\t\tMMC_RSP_R2\t\t 0x%08x ",
                                 cmd->response[0]);
-                HAL_TRACE(0, "\t\t          \t\t 0x%08x ",
+                HAL_SDMMC_TRACE(0, "\t\t          \t\t 0x%08x ",
                                 cmd->response[1]);
-                HAL_TRACE(0, "\t\t          \t\t 0x%08x ",
+                HAL_SDMMC_TRACE(0, "\t\t          \t\t 0x%08x ",
                                 cmd->response[2]);
-                HAL_TRACE(0, "\t\t          \t\t 0x%08x ",
+                HAL_SDMMC_TRACE(0, "\t\t          \t\t 0x%08x ",
                                 cmd->response[3]);
-                HAL_TRACE(0, " ");
-                HAL_TRACE(0, "\t\t\t\t\tDUMPING DATA");
+                HAL_SDMMC_TRACE(0, " ");
+                HAL_SDMMC_TRACE(0, "\t\t\t\t\tDUMPING DATA");
                 for (i = 0; i < 4; i++) {
                     uint8_t j;
-                    HAL_TRACE(TR_ATTR_NO_LF, "\t\t\t\t\t%03d - ", i * 4);
+                    HAL_SDMMC_TRACE(TR_ATTR_NO_LF, "\t\t\t\t\t%03d - ", i * 4);
                     ptr = (uint8_t *)&cmd->response[i];
                     ptr += 3;
                     for (j = 0; j < 4; j++)
-                        HAL_TRACE(TR_ATTR_NO_LF | TR_ATTR_NO_TS | TR_ATTR_NO_ID, "%02X ", *ptr--);
-                    HAL_TRACE(TR_ATTR_NO_TS | TR_ATTR_NO_ID, " ");
+                        HAL_SDMMC_TRACE(TR_ATTR_NO_LF | TR_ATTR_NO_TS | TR_ATTR_NO_ID, "%02X ", *ptr--);
+                    HAL_SDMMC_TRACE(TR_ATTR_NO_TS | TR_ATTR_NO_ID, " ");
                 }
                 break;
             case MMC_RSP_R3:
-                HAL_TRACE(0, "\t\tMMC_RSP_R3,4\t\t 0x%08x ",
+                HAL_SDMMC_TRACE(0, "\t\tMMC_RSP_R3,4\t\t 0x%08x ",
                                 cmd->response[0]);
                 break;
             default:
-                HAL_TRACE(0, "\t\tERROR MMC rsp not supported");
+                HAL_SDMMC_TRACE(0, "\t\tERROR MMC rsp not supported");
                 break;
         }
     }
@@ -993,8 +710,9 @@ static void mmc_trace_state(struct mmc *mmc, struct mmc_cmd *cmd)
     uint32_t status;
 
     status = (cmd->response[0] & MMC_STATUS_CURR_STATE) >> 9;
-    HAL_TRACE(0, "CURR STATE:%d", status);
+    HAL_SDMMC_TRACE(0, "CURR STATE:%d", status);
 }
+#endif
 
 static const char *mmc_mode_name(enum bus_mode mode)
 {
@@ -1019,7 +737,6 @@ static const char *mmc_mode_name(enum bus_mode mode)
     else
         return names[mode];
 }
-#endif
 
 static uint32_t mmc_mode2freq(struct mmc *mmc, enum bus_mode mode)
 {
@@ -1047,15 +764,13 @@ static uint32_t mmc_mode2freq(struct mmc *mmc, enum bus_mode mode)
         return freqs[mode];
 }
 
-static int mmc_select_mode(struct mmc *mmc, enum bus_mode mode)
+int hal_sdmmc_select_mode(struct mmc *mmc, enum bus_mode mode)
 {
     mmc->selected_mode = mode;
     mmc->tran_speed = mmc_mode2freq(mmc, mode);
     mmc->ddr_mode = mmc_is_mode_ddr(mode);
-#ifdef SDMMC_DEBUG
-    HAL_TRACE(0, "selecting mode %s (freq : %d MHz)", mmc_mode_name(mode),
+    HAL_SDMMC_TRACE(0, "selecting mode %s (freq : %d MHz)", mmc_mode_name(mode),
                     mmc->tran_speed / 1000000);
-#endif
     return HAL_SDMMC_ERR_NONE;
 }
 
@@ -1139,7 +854,7 @@ static int mmc_poll_for_busy(struct mmc *mmc, int timeout_ms)
 
         if (status & MMC_STATUS_MASK) {
 #if !defined(CONFIG_SPL_BUILD) || defined(CONFIG_SPL_LIBCOMMON_SUPPORT)
-            HAL_TRACE(0, "Status Error: 0x%08x", status);
+            HAL_SDMMC_ERROR(0, "Status Error: 0x%08x", status);
 #endif
             return HAL_SDMMC_COMM_ERR;/* Communication error on send */
         }
@@ -1147,12 +862,12 @@ static int mmc_poll_for_busy(struct mmc *mmc, int timeout_ms)
         if (timeout_ms-- <= 0)
             break;
 
-        mmc_udelay(1000);
+        hal_sdmmc_delay_us(1000);
     }
 
     if (timeout_ms <= 0) {
 #if !defined(CONFIG_SPL_BUILD) || defined(CONFIG_SPL_LIBCOMMON_SUPPORT)
-        HAL_TRACE(0, "Timeout waiting card ready");
+        HAL_SDMMC_ERROR(0, "Timeout waiting card ready");
 #endif
         return HAL_SDMMC_COMM_TIMEOUT;
     }
@@ -1222,8 +937,12 @@ int mmc_send_tuning(struct mmc *mmc, uint32_t opcode, int *cmd_error)
     } else {
         return HAL_SDMMC_INVALID_PARAMETER;
     }
-
+#ifdef STATIC_VARIABLES
+    struct sdmmc_ip_host *host = mmc->priv;
+    uint8_t *data_buf = (uint8_t *)noncache_buf512[host->host_id];
+#else
     ALLOC_CACHE_ALIGN_BUFFER(uint8_t, data_buf, size);
+#endif
 
     cmd.cmdidx = opcode;
     cmd.cmdarg = 0;
@@ -1244,6 +963,26 @@ int mmc_send_tuning(struct mmc *mmc, uint32_t opcode, int *cmd_error)
     return HAL_SDMMC_ERR_NONE;
 }
 #endif
+
+static int mmc_send_stop_transmission(struct mmc *mmc, bool write)
+{
+    struct mmc_cmd cmd;
+
+    cmd.cmdidx = MMC_CMD_STOP_TRANSMISSION;
+    cmd.cmdarg = 0;
+    /*
+     * JEDEC Standard No. 84-B51 Page 126
+     * CMD12 STOP_TRANSMISSION R1/R1b[3]
+     * NOTE 3 R1 for read cases and R1b for write cases.
+     *
+     * Physical Layer Simplified Specification Version 9.00
+     * 7.3.1.3 Detailed Command Description
+     * CMD12 R1b
+     */
+    cmd.resp_type = (IS_SD(mmc) || write) ? MMC_RSP_R1b : MMC_RSP_R1;
+
+    return mmc_send_cmd(mmc, &cmd, NULL);
+}
 
 static int mmc_read_blocks(struct mmc *mmc, void *dst, lbaint_t start,
                            lbaint_t blkcnt)
@@ -1268,16 +1007,23 @@ static int mmc_read_blocks(struct mmc *mmc, void *dst, lbaint_t start,
     data.blocksize = mmc->read_bl_len;
     data.flags = MMC_DATA_READ;
 
-    if (mmc_send_cmd(mmc, &cmd, &data))
-        return 0;
-
-    if (blkcnt > 1) {
+    if (mmc_send_cmd(mmc, &cmd, &data)) {
+        /*
+            After the communication is abnormal, the STOP is forced to
+            enable the card to enter the TRAN state
+        */
         cmd.cmdidx = MMC_CMD_STOP_TRANSMISSION;
         cmd.cmdarg = 0;
         cmd.resp_type = MMC_RSP_R1b;
-        if (mmc_send_cmd(mmc, &cmd, NULL)) {
+        mmc_send_cmd(mmc, &cmd, NULL);
+        HAL_SDMMC_ERROR(0, "mmc read blocks failed");
+        return 0;
+    }
+
+    if (blkcnt > 1) {
+        if (mmc_send_stop_transmission(mmc, false)) {
 #if !defined(CONFIG_SPL_BUILD) || defined(CONFIG_SPL_LIBCOMMON_SUPPORT)
-            HAL_TRACE(0, "mmc fail to send stop cmd");
+            HAL_SDMMC_ERROR(0, "mmc fail to send stop cmd");
 #endif
             return 0;
         }
@@ -1309,7 +1055,7 @@ static int blk_dselect_hwpart(uint32_t dev_num, uint32_t hwpart)
         return HAL_SDMMC_ERR_NONE;
 
     if (mmc->part_config == MMCPART_NOAVAILABLE) {
-        HAL_TRACE(0, "Card doesn't support part_switch");
+        HAL_SDMMC_ERROR(0, "Card doesn't support part_switch");
         return HAL_SDMMC_MEDIUM_TYPE_ERR;
     }
 
@@ -1337,11 +1083,11 @@ lbaint_t mmc_bread(struct blk_desc *block_dev, lbaint_t start, lbaint_t blkcnt,
     uint32_t b_max;
 
     if (blkcnt == 0)
-        return 0;
+        return HAL_SDMMC_BLK_CNT_ERR;
 
     struct mmc *mmc = find_mmc_device(dev_num);
     if (!mmc)
-        return 0;
+        return HAL_SDMMC_NO_DEVICE;
 
 #ifdef MMC_TINY
     err = mmc_switch_part(mmc, block_dev->hwpart);
@@ -1349,19 +1095,19 @@ lbaint_t mmc_bread(struct blk_desc *block_dev, lbaint_t start, lbaint_t blkcnt,
     err = blk_dselect_hwpart(dev_num, block_dev->hwpart);
 #endif
     if (err)
-        return 0;
+        return HAL_SDMMC_SWITCH_PART_ERR;
 
     if ((start + blkcnt) > block_dev->lba) {
 #if !defined(CONFIG_SPL_BUILD) || defined(CONFIG_SPL_LIBCOMMON_SUPPORT)
-        HAL_TRACE(0, "MMC: block number 0x" LBAF " exceeds max(0x" LBAF ")",
+        HAL_SDMMC_ERROR(0, "MMC: block number 0x" LBAF " exceeds max(0x" LBAF ")",
                         start + blkcnt, block_dev->lba);
 #endif
-        return 0;
+        return HAL_SDMMC_EXCEED_MAX_CAPACITY;
     }
 
     if (mmc_set_blocklen(mmc, mmc->read_bl_len)) {
-        HAL_TRACE(0, "%s: Failed to set blocklen", __FUNCTION__);
-        return 0;
+        HAL_SDMMC_ERROR(0, "%s: Failed to set blocklen", __func__);
+        return HAL_SDMMC_SET_BLK_LEN_ERR;
     }
 
     b_max = mmc_get_b_max(mmc, dst, blkcnt);
@@ -1369,8 +1115,8 @@ lbaint_t mmc_bread(struct blk_desc *block_dev, lbaint_t start, lbaint_t blkcnt,
     do {
         cur = (blocks_todo > b_max) ? b_max : blocks_todo;
         if (mmc_read_blocks(mmc, dst, start, cur) != cur) {
-            HAL_TRACE(0, "%s: Failed to read blocks", __FUNCTION__);
-            return 0;
+            HAL_SDMMC_ERROR(0, "%s: Failed to read blocks", __func__);
+            return HAL_SDMMC_READ_BLK_ERR;
         }
         blocks_todo -= cur;
         start += cur;
@@ -1380,7 +1126,7 @@ lbaint_t mmc_bread(struct blk_desc *block_dev, lbaint_t start, lbaint_t blkcnt,
     return blkcnt;
 }
 
-static int mmc_erase_t(struct mmc *mmc, lbaint_t start, lbaint_t blkcnt)
+static int mmc_erase_t(struct mmc *mmc, lbaint_t start, lbaint_t blkcnt, uint32_t args)
 {
     struct mmc_cmd cmd;
     lbaint_t end;
@@ -1417,7 +1163,7 @@ static int mmc_erase_t(struct mmc *mmc, lbaint_t start, lbaint_t blkcnt)
         goto err_out;
 
     cmd.cmdidx = MMC_CMD_ERASE;
-    cmd.cmdarg = MMC_ERASE_ARG;
+    cmd.cmdarg = args ? args : MMC_ERASE_ARG;
     cmd.resp_type = MMC_RSP_R1b;
 
     err = mmc_send_cmd(mmc, &cmd, NULL);
@@ -1427,7 +1173,7 @@ static int mmc_erase_t(struct mmc *mmc, lbaint_t start, lbaint_t blkcnt)
     return HAL_SDMMC_ERR_NONE;
 
 err_out:
-    HAL_TRACE(0, "mmc erase failed");
+    HAL_SDMMC_ERROR(0, "mmc erase failed");
     return err;
 }
 
@@ -1442,7 +1188,7 @@ err_out:
 #endif
     uint32_t dev_num = block_dev->devnum;
     int err = 0;
-    uint32_t start_rem, blkcnt_rem;
+    uint32_t start_rem, blkcnt_rem, erase_args = 0;
     struct mmc *mmc = find_mmc_device(dev_num);
     lbaint_t blk = 0, blk_r = 0;
     uint32_t timeout_ms = 1000;
@@ -1461,13 +1207,25 @@ err_out:
      */
     err = div_u64_rem(start, mmc->erase_grp_size, &start_rem);
     err = div_u64_rem(blkcnt, mmc->erase_grp_size, &blkcnt_rem);
-    if (start_rem || blkcnt_rem)
-        HAL_TRACE(0, "\n\nCaution! Your devices Erase group is 0x%x\n"
-                        "The erase range would be change to "
-                        "0x" LBAF "~0x" LBAF "\n\n",
-                        mmc->erase_grp_size, start & ~(mmc->erase_grp_size - 1),
-                        ((start + blkcnt + mmc->erase_grp_size)
-                         & ~(mmc->erase_grp_size - 1)) - 1);
+    if (start_rem || blkcnt_rem) {
+        if (mmc->can_trim) {
+            /* Trim function applies the erase operation to write
+            * blocks instead of erase groups.
+            */
+            erase_args = MMC_TRIM_ARG;
+        } else {
+            /* The card ignores all LSB's below the erase group
+            * size, rounding down the addess to a erase group
+            * boundary.
+            */
+            HAL_SDMMC_TRACE(0, "\n\nCaution! Your devices Erase group is 0x%x\n"
+                            "The erase range would be change to "
+                            "0x" LBAF "~0x" LBAF "\n\n",
+                            mmc->erase_grp_size, start & ~(mmc->erase_grp_size - 1),
+                            ((start + blkcnt + mmc->erase_grp_size - 1)
+                             & ~(mmc->erase_grp_size - 1)) - 1);
+        }
+    }
 
     while (blk < blkcnt) {
         if (IS_SD(mmc) && mmc->ssr.au) {
@@ -1477,7 +1235,7 @@ err_out:
             blk_r = ((blkcnt - blk) > mmc->erase_grp_size) ?
                     mmc->erase_grp_size : (blkcnt - blk);
         }
-        err = mmc_erase_t(mmc, start + blk, blk_r);
+        err = mmc_erase_t(mmc, start + blk, blk_r, erase_args);
         if (err)
             break;
 
@@ -1485,7 +1243,7 @@ err_out:
 
         /* Waiting for the ready status */
         if (mmc_poll_for_busy(mmc, timeout_ms))
-            return 0;
+            return HAL_SDMMC_ERASE_TIMEOUT;
     }
 
     return blk;
@@ -1499,14 +1257,17 @@ static lbaint_t mmc_write_blocks(struct mmc *mmc, lbaint_t start,
     uint32_t timeout_ms = 1000;
 
     if ((start + blkcnt) > mmc_get_blk_desc(mmc)->lba) {
-        HAL_TRACE(0, "MMC: block number 0x" LBAF " exceeds max(0x" LBAF ")",
+        HAL_SDMMC_ERROR(0, "MMC: block number 0x" LBAF " exceeds max(0x" LBAF ")",
                         start + blkcnt, mmc_get_blk_desc(mmc)->lba);
         return 0;
     }
 
+    /*
+    //Put on the previous floor
     if (blkcnt == 0)
         return 0;
-    else if (blkcnt == 1)
+    else */
+    if (blkcnt == 1)
         cmd.cmdidx = MMC_CMD_WRITE_SINGLE_BLOCK;
     else
         cmd.cmdidx = MMC_CMD_WRITE_MULTIPLE_BLOCK;
@@ -1524,7 +1285,15 @@ static lbaint_t mmc_write_blocks(struct mmc *mmc, lbaint_t start,
     data.flags = MMC_DATA_WRITE;
 
     if (mmc_send_cmd(mmc, &cmd, &data)) {
-        HAL_TRACE(0, "mmc write failed");
+        /*
+            After the communication is abnormal, the STOP is forced to
+            enable the card to enter the TRAN state
+        */
+        cmd.cmdidx = MMC_CMD_STOP_TRANSMISSION;
+        cmd.cmdarg = 0;
+        cmd.resp_type = MMC_RSP_R1b;
+        mmc_send_cmd(mmc, &cmd, NULL);
+        HAL_SDMMC_ERROR(0, "mmc write failed");
         return 0;
     }
 
@@ -1536,7 +1305,7 @@ static lbaint_t mmc_write_blocks(struct mmc *mmc, lbaint_t start,
         cmd.cmdarg = 0;
         cmd.resp_type = MMC_RSP_R1b;
         if (mmc_send_cmd(mmc, &cmd, NULL)) {
-            HAL_TRACE(0, "mmc fail to send stop cmd");
+            HAL_SDMMC_ERROR(0, "mmc fail to send stop cmd");
             return 0;
         }
     }
@@ -1563,22 +1332,29 @@ lbaint_t mmc_bwrite(struct blk_desc *block_dev, lbaint_t start, lbaint_t blkcnt,
     lbaint_t cur, blocks_todo = blkcnt;
     int err;
 
+    if (blkcnt == 0)
+        return HAL_SDMMC_BLK_CNT_ERR;
+
     struct mmc *mmc = find_mmc_device(dev_num);
     if (!mmc)
-        return 0;
+        return HAL_SDMMC_NO_DEVICE;
 
     err = blk_dselect_hwpart(dev_num, block_dev->hwpart);
     if (err)
-        return 0;
+        return HAL_SDMMC_SWITCH_PART_ERR;
 
-    if (mmc_set_blocklen(mmc, mmc->write_bl_len))
-        return 0;
+    if (mmc_set_blocklen(mmc, mmc->write_bl_len)) {
+        HAL_SDMMC_ERROR(0, "%s: Failed to set blocklen", __func__);
+        return HAL_SDMMC_SET_BLK_LEN_ERR;
+    }
 
     do {
         cur = (blocks_todo > mmc->cfg->b_max) ?
               mmc->cfg->b_max : blocks_todo;
-        if (mmc_write_blocks(mmc, start, cur, src) != cur)
-            return 0;
+        if (mmc_write_blocks(mmc, start, cur, src) != cur) {
+            HAL_SDMMC_ERROR(0, "%s: Failed to write blocks", __func__);
+            return HAL_SDMMC_WRITE_BLK_ERR;
+        }
         blocks_todo -= cur;
         start += cur;
         src += cur * mmc->write_bl_len;
@@ -1592,7 +1368,7 @@ static int mmc_go_idle(struct mmc *mmc)
     struct mmc_cmd cmd;
     int err;
 
-    mmc_udelay(1000);
+    hal_sdmmc_delay_us(1000);
     cmd.cmdidx = MMC_CMD_GO_IDLE_STATE;
     cmd.cmdarg = 0;
     cmd.resp_type = MMC_RSP_NONE;
@@ -1602,16 +1378,55 @@ static int mmc_go_idle(struct mmc *mmc)
     if (err)
         return err;
 
-    mmc_udelay(2000);
+    hal_sdmmc_delay_us(2000);
 
     return HAL_SDMMC_ERR_NONE;
+}
+
+static int mmc_set_ios_clock(struct mmc *mmc)
+{
+    int ret = HAL_SDMMC_ERR_NONE;
+
+    if (mmc->cfg->ops->set_ios_clock)
+        ret = mmc->cfg->ops->set_ios_clock(mmc);
+
+    return ret;
+}
+
+static int mmc_set_ios_width(struct mmc *mmc)
+{
+    int ret = HAL_SDMMC_ERR_NONE;
+
+    if (mmc->cfg->ops->set_ios_width)
+        ret = mmc->cfg->ops->set_ios_width(mmc);
+
+    return ret;
+}
+
+int hal_sdmmc_set_clock(struct mmc *mmc, uint32_t clock, bool disable)
+{
+    if (!disable) {
+        if (clock > mmc->cfg->f_max)
+            clock = mmc->cfg->f_max;
+
+        if (clock < mmc->cfg->f_min)
+            clock = mmc->cfg->f_min;
+    }
+
+    mmc->clock = clock;
+    mmc->clk_disable = disable;
+    HAL_SDMMC_TRACE(0, "%s, clock is %s (%dHz)", __func__, disable ? "disabled" : "enabled", clock);
+
+    return mmc_set_ios_clock(mmc);
 }
 
 #ifdef MMC_UHS_SUPPORT
 static int mmc_switch_voltage(struct mmc *mmc, int signal_voltage)
 {
+    uint32_t val;
     struct mmc_cmd cmd;
-    int err = 0;
+    int err = HAL_SDMMC_ERR_NONE;
+    struct sdmmc_ip_host *host = (struct sdmmc_ip_host *)mmc->priv;
 
     /*
      * Send CMD11 only if the request is to switch the card to
@@ -1620,40 +1435,60 @@ static int mmc_switch_voltage(struct mmc *mmc, int signal_voltage)
     if (signal_voltage == MMC_SIGNAL_VOLTAGE_330)
         return mmc_set_signal_voltage(mmc, signal_voltage);
 
+    //stop low power clk function
+    HAL_SDMMC_TRACE(0, "---disable clk low power mode");
+    val = sdmmc_ip_readl(host, SDMMCIP_REG_CLKENA);
+    val &= ~SDMMCIP_REG_CLKEN_LOW_PWR;
+    sdmmc_ip_writel(host, SDMMCIP_REG_CLKENA, val);
+    err = sdmmc_ip_wait_cmd_start(host, 0);
+    if (err) {
+        HAL_SDMMC_ERROR(0, "%s:%d, error:%d", __func__, __LINE__, err);
+        goto errout;
+    }
+
     cmd.cmdidx = SD_CMD_SWITCH_UHS18V;
     cmd.cmdarg = 0;
     cmd.resp_type = MMC_RSP_R1;
 
     err = mmc_send_cmd(mmc, &cmd, NULL);
-    if (err)
-        return err;
+    if (err) {
+        HAL_SDMMC_ERROR(0, "%s:%d, error:%d", __func__, __LINE__, err);
+        goto errout;
+    }
 
-    if (!mmc_host_is_spi(mmc) && (cmd.response[0] & MMC_STATUS_ERROR))
-        return HAL_SDMMC_IO_ERR;
+    if (!mmc_host_is_spi(mmc) && (cmd.response[0] & MMC_STATUS_ERROR)) {
+        err = HAL_SDMMC_IO_ERR;
+        HAL_SDMMC_ERROR(0, "%s:%d, error:%d", __func__, __LINE__, err);
+        goto errout;
+    }
 
     /*
      * The card should drive cmd and dat[0:3] low immediately
      * after the response of cmd11, but wait 100 us to be sure
      */
     err = mmc_wait_dat0(mmc, 0, 100);
-    if (err == HAL_SDMMC_INVALID_SYS_CALL)
-        mmc_udelay(100);
-    else if (err)
-        return HAL_SDMMC_COMM_TIMEOUT;
+    if (err == HAL_SDMMC_INVALID_SYS_CALL) {
+        hal_sdmmc_delay_us(100);
+    } else if (err) {
+        err = HAL_SDMMC_COMM_TIMEOUT;
+        HAL_SDMMC_ERROR(0, "%s:%d, error:%d", __func__, __LINE__, err);
+        goto errout;
+    }
 
     /*
      * During a signal voltage level switch, the clock must be gated
      * for 5 ms according to the SD spec
      */
-    mmc_set_clock(mmc, mmc->clock, MMC_CLK_DISABLE);
-
+    hal_sdmmc_set_clock(mmc, mmc->clock, MMC_CLK_DISABLE);
     err = mmc_set_signal_voltage(mmc, signal_voltage);
-    if (err)
-        return err;
+    if (err) {
+        HAL_SDMMC_ERROR(0, "%s:%d, error:%d", __func__, __LINE__, err);
+        goto errout;
+    }
 
     /* Keep clock gated for at least 10 ms, though spec only says 5 ms */
-    hal_sdmmc_delay(10);
-    mmc_set_clock(mmc, mmc->clock, MMC_CLK_ENABLE);
+    hal_sdmmc_delay_ms(10);
+    hal_sdmmc_set_clock(mmc, mmc->clock, MMC_CLK_ENABLE);
 
     /*
      * Failure to switch is indicated by the card holding
@@ -1661,11 +1496,26 @@ static int mmc_switch_voltage(struct mmc *mmc, int signal_voltage)
      */
     err = mmc_wait_dat0(mmc, 1, 1000);
     if (err == HAL_SDMMC_INVALID_SYS_CALL)
-        mmc_udelay(1000);
-    else if (err)
-        return HAL_SDMMC_COMM_TIMEOUT;
+        hal_sdmmc_delay_us(1000);
+    else if (err) {
+        err = HAL_SDMMC_COMM_TIMEOUT;
+        HAL_SDMMC_ERROR(0, "%s:%d, error:%d", __func__, __LINE__, err);
+        goto errout;
+    }
 
-    return HAL_SDMMC_ERR_NONE;
+errout:
+    host->volt_switch_flag = 0;
+    sdmmc_ip_writel(host, SDMMCIP_REG_RINTSTS, SDMMCIP_REG_RINTSTS_ALL); //clear interrupt status
+    HAL_SDMMC_ERROR(0, "---volt switch %s", err == 0 ? "success" : "failed");
+
+    //enable low power clk
+    sdmmc_ip_writel(host, SDMMCIP_REG_CLKENA, SDMMCIP_REG_CLKEN_ENABLE |
+                    SDMMCIP_REG_CLKEN_LOW_PWR);
+    err = sdmmc_ip_wait_cmd_start(host, 0);
+    if (err) {
+        HAL_SDMMC_ERROR(0, "%s:%d, error:%d", __func__, __LINE__, err);
+    }
+    return err;
 }
 #endif
 
@@ -1715,8 +1565,8 @@ static int sd_send_op_cond(struct mmc *mmc, bool uhs_en)
         if (timeout-- <= 0)
             return HAL_SDMMC_OP_NOT_SUPPORTED_EP;
 
-        //mmc_udelay(1000);
-        hal_sdmmc_delay(1);
+        //hal_sdmmc_delay_us(1000);
+        hal_sdmmc_delay_ms(1);
     }
 
     if (mmc->version != SD_VERSION_2)
@@ -1736,7 +1586,7 @@ static int sd_send_op_cond(struct mmc *mmc, bool uhs_en)
     mmc->ocr = cmd.response[0];
 
 #ifdef MMC_UHS_SUPPORT
-    if (uhs_en && !(mmc_host_is_spi(mmc)) && (cmd.response[0] & 0x41000000) == 0x41000000) {
+    if (uhs_en && !(mmc_host_is_spi(mmc)) && (cmd.response[0] & 0x41000000) == 0x41000000) {//bit24=S18A=1,bit30=CCS=1
         err = mmc_switch_voltage(mmc, MMC_SIGNAL_VOLTAGE_180);
         if (err)
             return err;
@@ -1773,13 +1623,13 @@ static int mmc_send_op_cond_iter(struct mmc *mmc, int use_arg)
 static int mmc_send_op_cond(struct mmc *mmc)
 {
     int err, i;
-    uint32_t timeout = MS_TO_TICKS(1000);
+    uint32_t timeout = MS_TO_FAST_TICKS(1000);
     uint32_t start;
 
     /* Some cards seem to need this */
     mmc_go_idle(mmc);
 
-    start = hal_sys_timer_get();
+    start = hal_fast_sys_timer_get();
     /* Asking to the card its capabilities */
     for (i = 0; ; i++) {
         err = mmc_send_op_cond_iter(mmc, i != 0);
@@ -1790,9 +1640,9 @@ static int mmc_send_op_cond(struct mmc *mmc)
         if (mmc->ocr & OCR_BUSY)
             break;
 
-        if (hal_sys_timer_get() > (start + timeout))
+        if (hal_fast_sys_timer_get() - start > timeout)
             return HAL_SDMMC_COMM_TIMEOUT;
-        mmc_udelay(100);
+        hal_sdmmc_delay_us(100);
     }
     mmc->op_cond_pending = 1;
     return HAL_SDMMC_ERR_NONE;
@@ -1801,7 +1651,7 @@ static int mmc_send_op_cond(struct mmc *mmc)
 static int mmc_complete_op_cond(struct mmc *mmc)
 {
     struct mmc_cmd cmd;
-    uint32_t timeout = MS_TO_TICKS(1000);
+    uint32_t timeout = MS_TO_FAST_TICKS(1000);
     uint32_t start;
     int err;
 
@@ -1810,16 +1660,16 @@ static int mmc_complete_op_cond(struct mmc *mmc)
         /* Some cards seem to need this */
         mmc_go_idle(mmc);
 
-        start = hal_sys_timer_get();
+        start = hal_fast_sys_timer_get();
         while (1) {
             err = mmc_send_op_cond_iter(mmc, 1);
             if (err)
                 return err;
             if (mmc->ocr & OCR_BUSY)
                 break;
-            if (hal_sys_timer_get() > (start + timeout))
+            if (hal_fast_sys_timer_get() - start > timeout)
                 return HAL_SDMMC_OP_NOT_SUPPORTED_EP;
-            mmc_udelay(100);
+            hal_sdmmc_delay_us(100);
         }
     }
 
@@ -1891,7 +1741,7 @@ static int __mmc_switch(struct mmc *mmc, uint8_t set, uint8_t index, uint8_t val
     if (ret)
         return ret;
 
-    start = hal_sys_timer_get();
+    start = hal_fast_sys_timer_get();
 
     /* poll dat0 for rdy/buys status */
     ret = mmc_wait_dat0(mmc, 1, timeout_ms * 1000);
@@ -1904,9 +1754,12 @@ static int __mmc_switch(struct mmc *mmc, uint8_t set, uint8_t index, uint8_t val
      * stated timeout to be sufficient.
      */
     if (ret == HAL_SDMMC_INVALID_SYS_CALL && !send_status) {
-        hal_sdmmc_delay(timeout_ms);
+        hal_sdmmc_delay_ms(timeout_ms);
         return HAL_SDMMC_ERR_NONE;
     }
+
+    if (!send_status)
+        return HAL_SDMMC_ERR_NONE;
 
     /* Finally wait until the card is ready or indicates a failure
      * to switch. It doesn't hurt to use CMD13 here even if send_status
@@ -1917,14 +1770,14 @@ static int __mmc_switch(struct mmc *mmc, uint8_t set, uint8_t index, uint8_t val
         ret = mmc_send_status(mmc, &status);
 
         if (!ret && (status & MMC_STATUS_SWITCH_ERROR)) {
-            HAL_TRACE(0, "switch failed %d/%d/0x%x !", set, index, value);
+            HAL_SDMMC_ERROR(0, "switch failed %d/%d/0x%x !", set, index, value);
             return HAL_SDMMC_IO_ERR;
         }
         if (!ret && (status & MMC_STATUS_RDY_FOR_DATA) &&
             (status & MMC_STATUS_CURR_STATE) == MMC_STATE_TRANS)
             return HAL_SDMMC_ERR_NONE;
-        mmc_udelay(100);
-    } while (hal_sys_timer_get() < start + timeout_ms);
+        hal_sdmmc_delay_us(100);
+    } while (hal_fast_sys_timer_get() - start < MS_TO_FAST_TICKS(timeout_ms));
 
     return HAL_SDMMC_COMM_TIMEOUT;
 }
@@ -1945,8 +1798,8 @@ static int mmc_set_card_speed(struct mmc *mmc, enum bus_mode mode,
 {
     int err;
     uint32_t speed_bits;
-
-    ALLOC_CACHE_ALIGN_BUFFER(uint8_t, test_csd, MMC_MAX_BLOCK_LEN);
+    struct sdmmc_ip_host *host = mmc->priv;
+    uint8_t *test_csd = (uint8_t *)sdmmc_ext_csd[host->host_id];
 
     switch (mode) {
         case MMC_HS:
@@ -1990,8 +1843,8 @@ static int mmc_set_card_speed(struct mmc *mmc, enum bus_mode mode,
      * Extended CSD. Reconfigure the controller to run at HS mode.
      */
     if (hsdowngrade) {
-        mmc_select_mode(mmc, MMC_HS);
-        mmc_set_clock(mmc, mmc_mode2freq(mmc, MMC_HS), false);
+        hal_sdmmc_select_mode(mmc, MMC_HS);
+        hal_sdmmc_set_clock(mmc, mmc_mode2freq(mmc, MMC_HS), false);
     }
 #endif
 
@@ -2024,7 +1877,7 @@ static int mmc_get_capabilities(struct mmc *mmc)
         return HAL_SDMMC_ERR_NONE;
 
     if (!ext_csd) {
-        HAL_TRACE(0, "No ext_csd found!"); /* this should enver happen */
+        HAL_SDMMC_ERROR(0, "No ext_csd found!"); /* this should enver happen */
         return HAL_SDMMC_OP_NOT_SUPPORTED;
     }
 
@@ -2130,23 +1983,24 @@ int mmc_hwpart_config(struct mmc *mmc,
     uint32_t tot_enh_size_mult = 0;
     uint8_t wr_rel_set;
     int i, pidx, err;
-    ALLOC_CACHE_ALIGN_BUFFER(uint8_t, ext_csd, MMC_MAX_BLOCK_LEN);
+    struct sdmmc_ip_host *host = mmc->priv;
+    uint8_t *ext_csd = (uint8_t *)sdmmc_ext_csd[host->host_id];
 
     if (mode < MMC_HWPART_CONF_CHECK || mode > MMC_HWPART_CONF_COMPLETE)
         return HAL_SDMMC_INVALID_PARAMETER;
 
     if (IS_SD(mmc) || (mmc->version < MMC_VERSION_4_41)) {
-        HAL_TRACE(0, "eMMC >= 4.4 required for enhanced user data area");
+        HAL_SDMMC_ERROR(0, "eMMC >= 4.4 required for enhanced user data area");
         return HAL_SDMMC_MEDIUM_TYPE_ERR;
     }
 
     if (!(mmc->part_support & PART_SUPPORT)) {
-        HAL_TRACE(0, "Card does not support partitioning");
+        HAL_SDMMC_ERROR(0, "Card does not support partitioning");
         return HAL_SDMMC_MEDIUM_TYPE_ERR;
     }
 
     if (!mmc->hc_wp_grp_size) {
-        HAL_TRACE(0, "Card does not define HC WP group size");
+        HAL_SDMMC_ERROR(0, "Card does not define HC WP group size");
         return HAL_SDMMC_MEDIUM_TYPE_ERR;
     }
 
@@ -2154,7 +2008,7 @@ int mmc_hwpart_config(struct mmc *mmc,
     if (conf->user.enh_size) {
         if (conf->user.enh_size % mmc->hc_wp_grp_size ||
             conf->user.enh_start % mmc->hc_wp_grp_size) {
-            HAL_TRACE(0, "User data enhanced area not HC WP group size aligned");
+            HAL_SDMMC_ERROR(0, "User data enhanced area not HC WP group size aligned");
             return HAL_SDMMC_INVALID_PARAMETER;
         }
         part_attrs |= EXT_CSD_ENH_USR;
@@ -2172,7 +2026,7 @@ int mmc_hwpart_config(struct mmc *mmc,
 
     for (pidx = 0; pidx < 4; pidx++) {
         if (conf->gp_part[pidx].size % mmc->hc_wp_grp_size) {
-            HAL_TRACE(0, "GP%i partition not HC WP group size "
+            HAL_SDMMC_ERROR(0, "GP%i partition not HC WP group size "
                             "aligned", pidx + 1);
             return HAL_SDMMC_INVALID_PARAMETER;
         }
@@ -2184,20 +2038,22 @@ int mmc_hwpart_config(struct mmc *mmc,
     }
 
     if (part_attrs && !(mmc->part_support & ENHNCD_SUPPORT)) {
-        HAL_TRACE(0, "Card does not support enhanced attribute");
+        HAL_SDMMC_ERROR(0, "Card does not support enhanced attribute");
         return HAL_SDMMC_MEDIUM_TYPE_ERR;
     }
 
+#if 0   //No need to call it multiple times
     err = mmc_send_ext_csd(mmc, ext_csd);
     if (err)
         return err;
+#endif
 
     max_enh_size_mult =
         (ext_csd[EXT_CSD_MAX_ENH_SIZE_MULT + 2] << 16) +
         (ext_csd[EXT_CSD_MAX_ENH_SIZE_MULT + 1] << 8) +
         ext_csd[EXT_CSD_MAX_ENH_SIZE_MULT];
     if (tot_enh_size_mult > max_enh_size_mult) {
-        HAL_TRACE(0, "Total enhanced size exceeds maximum (%u > %u)",
+        HAL_SDMMC_ERROR(0, "Total enhanced size exceeds maximum (%u > %u)",
                         tot_enh_size_mult, max_enh_size_mult);
         return HAL_SDMMC_MEDIUM_TYPE_ERR;
     }
@@ -2224,14 +2080,14 @@ int mmc_hwpart_config(struct mmc *mmc,
 
     if (wr_rel_set != ext_csd[EXT_CSD_WR_REL_SET] &&
         !(ext_csd[EXT_CSD_WR_REL_PARAM] & EXT_CSD_HS_CTRL_REL)) {
-        HAL_TRACE(0, "Card does not support host controlled partition write "
+        HAL_SDMMC_ERROR(0, "Card does not support host controlled partition write "
                         "reliability settings");
         return HAL_SDMMC_MEDIUM_TYPE_ERR;
     }
 
     if (ext_csd[EXT_CSD_PARTITION_SETTING] &
         EXT_CSD_PARTITION_SETTING_COMPLETED) {
-        HAL_TRACE(0, "Card already partitioned");
+        HAL_SDMMC_ERROR(0, "Card already partitioned");
         return HAL_SDMMC_OP_NOT_PERMITTED;
     }
 
@@ -2350,11 +2206,19 @@ static int sd_switch(struct mmc *mmc, int mode, int group, uint8_t value, uint8_
 static int sd_get_capabilities(struct mmc *mmc)
 {
     int err;
+    int timeout;
     struct mmc_cmd cmd;
+    struct mmc_data data;
+
+#ifdef STATIC_VARIABLES
+    struct sdmmc_ip_host *host = mmc->priv;
+    uint32_t *scr = (uint32_t *)noncache_buf8[host->host_id];
+    uint32_t *switch_status = (uint32_t *)noncache_buf512[host->host_id];
+#else
     ALLOC_CACHE_ALIGN_BUFFER(uint32_t, scr, 2);
     ALLOC_CACHE_ALIGN_BUFFER(uint32_t, switch_status, 16);
-    struct mmc_data data;
-    int timeout;
+#endif
+
 #ifdef MMC_UHS_SUPPORT
     uint32_t sd3_bus_mode;
 #endif
@@ -2415,6 +2279,7 @@ static int sd_get_capabilities(struct mmc *mmc)
     if (mmc->version == SD_VERSION_1_0)
         return HAL_SDMMC_ERR_NONE;
 
+    hal_sdmmc_delay_ms(1);//Necessary delay, otherwise switch fails
     timeout = 4;
     while (timeout--) {
         err = sd_switch(mmc, SD_SWITCH_CHECK, 0, 1,
@@ -2456,9 +2321,14 @@ static int sd_get_capabilities(struct mmc *mmc)
 static int sd_set_card_speed(struct mmc *mmc, enum bus_mode mode)
 {
     int err;
-
-    ALLOC_CACHE_ALIGN_BUFFER(uint32_t, switch_status, 16);
     int speed;
+
+#ifdef STATIC_VARIABLES
+    struct sdmmc_ip_host *host = mmc->priv;
+    uint32_t *switch_status = (uint32_t *)noncache_buf512[host->host_id];
+#else
+    ALLOC_CACHE_ALIGN_BUFFER(uint32_t, switch_status, 16);
+#endif
 
     /* SD version 1.00 and 1.01 does not support CMD 6 */
     if (mmc->version == SD_VERSION_1_0)
@@ -2581,9 +2451,14 @@ static int sd_read_ssr(struct mmc *mmc)
     };
     int err, i;
     struct mmc_cmd cmd;
-    ALLOC_CACHE_ALIGN_BUFFER(uint32_t, ssr, 16);
     struct mmc_data data;
     uint32_t au, eo, et, es;
+#ifdef STATIC_VARIABLES
+    struct sdmmc_ip_host *host = mmc->priv;
+    uint32_t *ssr = (uint32_t *)noncache_buf512[host->host_id];
+#else
+    ALLOC_CACHE_ALIGN_BUFFER(uint32_t, ssr, 16);
+#endif
 
     cmd.cmdidx = MMC_CMD_APP_CMD;
     cmd.resp_type = MMC_RSP_R1;
@@ -2620,11 +2495,13 @@ static int sd_read_ssr(struct mmc *mmc)
             mmc->ssr.erase_timeout = (et * 1000) / es;
             mmc->ssr.erase_offset = eo * 1000;
         }
+        err = HAL_SDMMC_ERR_NONE;
     } else {
-        HAL_TRACE(0, "Invalid Allocation Unit Size.");
+        HAL_SDMMC_ERROR(0, "Invalid Allocation Unit Size.");
+        err = HAL_SDMMC_ALLOCATION_UNIT_ERR;
     }
 
-    return HAL_SDMMC_ERR_NONE;
+    return err;
 }
 #endif
 
@@ -2667,7 +2544,8 @@ static int bus_width(uint32_t cap)
         return 4;
     if (cap == MMC_MODE_1BIT)
         return 1;
-    HAL_TRACE(0, "invalid bus witdh capability 0x%x", cap);
+
+    HAL_SDMMC_ERROR(0, "invalid bus witdh capability 0x%x", cap);
     return 0;
 }
 
@@ -2679,20 +2557,11 @@ static int mmc_execute_tuning(struct mmc *mmc, uint32_t opcode)
 }
 #endif
 
-static int mmc_set_ios(struct mmc *mmc)
-{
-    int ret = 0;
-
-    if (mmc->cfg->ops->set_ios)
-        ret = mmc->cfg->ops->set_ios(mmc);
-
-    return ret;
-}
-
 static int mmc_host_power_cycle(struct mmc *mmc)
 {
-    int ret = 0;
+    int ret = HAL_SDMMC_ERR_NONE;
 
+    HAL_SDMMC_TRACE(0, "%s:%d", __func__, __LINE__);
     if (mmc->cfg->ops->host_power_cycle)
         ret = mmc->cfg->ops->host_power_cycle(mmc);
 
@@ -2700,29 +2569,12 @@ static int mmc_host_power_cycle(struct mmc *mmc)
 }
 #endif
 
-static int mmc_set_clock(struct mmc *mmc, uint32_t clock, bool disable)
-{
-    if (!disable) {
-        if (clock > mmc->cfg->f_max)
-            clock = mmc->cfg->f_max;
-
-        if (clock < mmc->cfg->f_min)
-            clock = mmc->cfg->f_min;
-    }
-
-    mmc->clock = clock;
-    mmc->clk_disable = disable;
-    HAL_TRACE(0, "%s, clock is %s (%dHz)", __FUNCTION__, disable ? "disabled" : "enabled", clock);
-
-    return mmc_set_ios(mmc);
-}
-
-static int mmc_set_bus_width(struct mmc *mmc, uint32_t width)
+int hal_sdmmc_set_bus_width(struct mmc *mmc, uint32_t width)
 {
     mmc->bus_width = width;
-    HAL_TRACE(0, "%s, width is %d", __FUNCTION__, width);
+    HAL_SDMMC_TRACE(0, "%s, width is %d", __func__, width);
 
-    return mmc_set_ios(mmc);
+    return mmc_set_ios_width(mmc);
 }
 
 #ifdef SDMMC_DEBUG
@@ -2730,20 +2582,20 @@ static void mmc_dump_capabilities(const char *text, uint32_t caps)
 {
     enum bus_mode mode;
 
-    HAL_TRACE(0, "  ");
-    HAL_TRACE(TR_ATTR_NO_LF, "%s: widths [", text);
+    HAL_SDMMC_TRACE(0, "  ");
+    HAL_SDMMC_TRACE(TR_ATTR_NO_LF, "%s: widths [", text);
     if (caps & MMC_MODE_8BIT)
-        HAL_TRACE(TR_ATTR_NO_LF | TR_ATTR_NO_TS | TR_ATTR_NO_ID, "8, ");
+        HAL_SDMMC_TRACE(TR_ATTR_NO_LF | TR_ATTR_NO_TS | TR_ATTR_NO_ID, "8, ");
     if (caps & MMC_MODE_4BIT)
-        HAL_TRACE(TR_ATTR_NO_LF | TR_ATTR_NO_TS | TR_ATTR_NO_ID, "4, ");
+        HAL_SDMMC_TRACE(TR_ATTR_NO_LF | TR_ATTR_NO_TS | TR_ATTR_NO_ID, "4, ");
     if (caps & MMC_MODE_1BIT)
-        HAL_TRACE(TR_ATTR_NO_LF | TR_ATTR_NO_TS | TR_ATTR_NO_ID, "1, ");
-    HAL_TRACE(TR_ATTR_NO_TS | TR_ATTR_NO_ID, "]");
-    HAL_TRACE(0, "modes [");
+        HAL_SDMMC_TRACE(TR_ATTR_NO_LF | TR_ATTR_NO_TS | TR_ATTR_NO_ID, "1, ");
+    HAL_SDMMC_TRACE(TR_ATTR_NO_TS | TR_ATTR_NO_ID, "]");
+    HAL_SDMMC_TRACE(0, "modes [");
     for (mode = MMC_LEGACY; mode < MMC_MODES_END; mode++)
         if (MMC_CAP(mode) & caps)
-            HAL_TRACE(0, "        %s, ", mmc_mode_name(mode));
-    HAL_TRACE(0, "      ]");
+            HAL_SDMMC_TRACE(0, "        %s, ", mmc_mode_name(mode));
+    HAL_SDMMC_TRACE(0, "      ]");
 }
 #endif
 
@@ -2767,19 +2619,18 @@ int mmc_voltage_to_mv(enum mmc_voltage voltage)
 
 static int mmc_set_signal_voltage(struct mmc *mmc, uint32_t signal_voltage)
 {
-    int err;
+    struct sdmmc_ip_host *host = mmc->priv;
 
     if (mmc->signal_voltage == signal_voltage)
         return HAL_SDMMC_ERR_NONE;
 
     mmc->signal_voltage = signal_voltage;
-    HAL_TRACE(0, "%s, signal_voltage is %d", __FUNCTION__, signal_voltage);
+    if (host->callback->hal_sdmmc_signal_voltage_switch) {
+        host->callback->hal_sdmmc_signal_voltage_switch(signal_voltage);
+    }
+    HAL_SDMMC_TRACE(0, "%s, signal_voltage is %d", __func__, signal_voltage);
 
-    err = mmc_set_ios(mmc);
-    if (err)
-        HAL_TRACE(0, "unable to set voltage (err %d)", err);
-
-    return err;
+    return HAL_SDMMC_ERR_NONE;
 }
 #else
 static int mmc_set_signal_voltage(struct mmc *mmc, uint32_t signal_voltage)
@@ -2859,13 +2710,13 @@ static int sd_select_mode_and_width(struct mmc *mmc, uint32_t card_caps)
 #endif
 
     if (mmc_host_is_spi(mmc)) {
-        mmc_set_bus_width(mmc, 1);
-        mmc_select_mode(mmc, MMC_LEGACY);
-        mmc_set_clock(mmc, mmc->tran_speed, MMC_CLK_ENABLE);
+        hal_sdmmc_set_bus_width(mmc, 1);
+        hal_sdmmc_select_mode(mmc, MMC_LEGACY);
+        hal_sdmmc_set_clock(mmc, mmc->tran_speed, MMC_CLK_ENABLE);
 #ifdef MMC_WRITE
         err = sd_read_ssr(mmc);
         if (err)
-            HAL_TRACE(0, "unable to read ssr");
+            HAL_SDMMC_ERROR(0, "unable to read ssr");
 #endif
         return HAL_SDMMC_ERR_NONE;
     }
@@ -2881,17 +2732,16 @@ static int sd_select_mode_and_width(struct mmc *mmc, uint32_t card_caps)
 
         for (w = widths; w < widths + ARRAY_SIZE(widths); w++) {
             if (*w & caps & mwt->widths) {
-#ifdef SDMMC_DEBUG
-                HAL_TRACE(0, "trying mode %s width %d (at %d MHz)",
+                HAL_SDMMC_TRACE(0, "trying mode %s width %d (at %d MHz)",
                                 mmc_mode_name(mwt->mode),
                                 bus_width(*w),
                                 mmc_mode2freq(mmc, mwt->mode) / 1000000);
-#endif
+
                 /* configure the bus width (card + host) */
                 err = sd_select_bus_width(mmc, bus_width(*w));
                 if (err)
                     goto error;
-                mmc_set_bus_width(mmc, bus_width(*w));
+                hal_sdmmc_set_bus_width(mmc, bus_width(*w));
 
                 /* configure the bus mode (card) */
                 err = sd_set_card_speed(mmc, mwt->mode);
@@ -2899,9 +2749,9 @@ static int sd_select_mode_and_width(struct mmc *mmc, uint32_t card_caps)
                     goto error;
 
                 /* configure the bus mode (host) */
-                mmc_select_mode(mmc, mwt->mode);
-                mmc_set_clock(mmc, mmc->tran_speed,
-                              MMC_CLK_ENABLE);
+                hal_sdmmc_select_mode(mmc, mwt->mode);
+                hal_sdmmc_set_clock(mmc, mmc->tran_speed,
+                                    MMC_CLK_ENABLE);
 
 #ifdef MMC_SUPPORTS_TUNING
                 /* execute tuning if needed */
@@ -2909,7 +2759,7 @@ static int sd_select_mode_and_width(struct mmc *mmc, uint32_t card_caps)
                     err = mmc_execute_tuning(mmc,
                                              mwt->tuning);
                     if (err) {
-                        HAL_TRACE(0, "tuning failed");
+                        HAL_SDMMC_ERROR(0, "tuning failed");
                         goto error;
                     }
                 }
@@ -2918,20 +2768,20 @@ static int sd_select_mode_and_width(struct mmc *mmc, uint32_t card_caps)
 #ifdef MMC_WRITE
                 err = sd_read_ssr(mmc);
                 if (err)
-                    HAL_TRACE(0, "unable to read ssr");
+                    HAL_SDMMC_ERROR(0, "unable to read ssr");
 #endif
                 if (!err)
                     return HAL_SDMMC_ERR_NONE;
 error:
                 /* revert to a safer bus speed */
-                mmc_select_mode(mmc, MMC_LEGACY);
-                mmc_set_clock(mmc, mmc->tran_speed,
-                              MMC_CLK_ENABLE);
+                hal_sdmmc_select_mode(mmc, MMC_LEGACY);
+                hal_sdmmc_set_clock(mmc, mmc->tran_speed,
+                                    MMC_CLK_ENABLE);
             }
         }
     }
 
-    HAL_TRACE(0, "unable to select a mode");
+    HAL_SDMMC_ERROR(0, "unable to select a mode");
     return HAL_SDMMC_OP_NOT_SUPPORTED;
 }
 
@@ -2939,8 +2789,13 @@ static int mmc_read_and_compare_ext_csd(struct mmc *mmc)
 {
     int err;
     const uint8_t *ext_csd = mmc->ext_csd;
-    ALLOC_CACHE_ALIGN_BUFFER(uint8_t, test_csd, MMC_MAX_BLOCK_LEN);
 
+#ifdef STATIC_VARIABLES
+    struct sdmmc_ip_host *host = mmc->priv;
+    uint8_t *test_csd = (uint8_t *)noncache_buf512[host->host_id];
+#else
+    ALLOC_CACHE_ALIGN_BUFFER(uint8_t, test_csd, MMC_MAX_BLOCK_LEN);
+#endif
     if (mmc->version < MMC_VERSION_4)
         return HAL_SDMMC_ERR_NONE;
 
@@ -3004,7 +2859,7 @@ static int mmc_set_lowest_voltage(struct mmc *mmc, enum bus_mode mode,
 {
     uint32_t card_mask = 0;
 
-    HAL_TRACE(0, "%s:%d, bus_mode:%d, mask:0x%X", __func__, __LINE__, (uint32_t)mode, allowed_mask);
+    HAL_SDMMC_TRACE(0, "%s:%d, bus_mode:%d, mask:0x%X", __func__, __LINE__, (uint32_t)mode, allowed_mask);
     switch (mode) {
         case MMC_HS_400_ES:
         case MMC_HS_400:
@@ -3032,7 +2887,7 @@ static int mmc_set_lowest_voltage(struct mmc *mmc, enum bus_mode mode,
         enum mmc_voltage best_match;
 
         best_match = 1 << (generic_ffs(card_mask & allowed_mask) - 1);
-        HAL_TRACE(0, "best match:0x%X", best_match);
+        HAL_SDMMC_TRACE(0, "best match:0x%X", best_match);
         if (!mmc_set_signal_voltage(mmc,  best_match))
             return HAL_SDMMC_ERR_NONE;
 
@@ -3117,15 +2972,15 @@ static int mmc_select_hs400(struct mmc *mmc)
         return err;
 
     /* configure the bus mode (host) */
-    mmc_select_mode(mmc, MMC_HS_200);
-    mmc_set_clock(mmc, mmc->tran_speed, false);
+    hal_sdmmc_select_mode(mmc, MMC_HS_200);
+    hal_sdmmc_set_clock(mmc, mmc->tran_speed, false);
 
     /* execute tuning if needed */
     mmc->hs400_tuning = 1;
     err = mmc_execute_tuning(mmc, MMC_CMD_SEND_TUNING_BLOCK_HS200);
     mmc->hs400_tuning = 0;
     if (err) {
-        HAL_TRACE(0, "tuning failed");
+        HAL_SDMMC_ERROR(0, "tuning failed");
         return err;
     }
 
@@ -3145,8 +3000,8 @@ static int mmc_select_hs400(struct mmc *mmc)
     if (err)
         return err;
 
-    mmc_select_mode(mmc, MMC_HS_400);
-    err = mmc_set_clock(mmc, mmc->tran_speed, false);
+    hal_sdmmc_select_mode(mmc, MMC_HS_400);
+    err = hal_sdmmc_set_clock(mmc, mmc->tran_speed, false);
     if (err)
         return err;
 
@@ -3178,7 +3033,7 @@ static int mmc_select_hs400es(struct mmc *mmc)
                      EXT_CSD_BUS_WIDTH_8 | EXT_CSD_DDR_FLAG |
                      EXT_CSD_BUS_WIDTH_STROBE);
     if (err) {
-        HAL_TRACE(0, "switch to bus width for hs400 failed");
+        HAL_SDMMC_ERROR(0, "switch to bus width for hs400 failed");
         return err;
     }
     /* TODO: driver strength */
@@ -3186,8 +3041,8 @@ static int mmc_select_hs400es(struct mmc *mmc)
     if (err)
         return err;
 
-    mmc_select_mode(mmc, MMC_HS_400_ES);
-    err = mmc_set_clock(mmc, mmc->tran_speed, false);
+    hal_sdmmc_select_mode(mmc, MMC_HS_400_ES);
+    err = hal_sdmmc_set_clock(mmc, mmc->tran_speed, false);
     if (err)
         return err;
 
@@ -3218,9 +3073,9 @@ static int mmc_select_mode_and_width(struct mmc *mmc, uint32_t card_caps)
 #endif
 
     if (mmc_host_is_spi(mmc)) {
-        mmc_set_bus_width(mmc, 1);
-        mmc_select_mode(mmc, MMC_LEGACY);
-        mmc_set_clock(mmc, mmc->tran_speed, MMC_CLK_ENABLE);
+        hal_sdmmc_set_bus_width(mmc, 1);
+        hal_sdmmc_select_mode(mmc, MMC_LEGACY);
+        hal_sdmmc_set_clock(mmc, mmc->tran_speed, MMC_CLK_ENABLE);
         return HAL_SDMMC_ERR_NONE;
     }
 
@@ -3232,7 +3087,7 @@ static int mmc_select_mode_and_width(struct mmc *mmc, uint32_t card_caps)
         return HAL_SDMMC_ERR_NONE;
 
     if (!mmc->ext_csd) {
-        HAL_TRACE(0, "No ext_csd found!"); /* this should enver happen */
+        HAL_SDMMC_ERROR(0, "No ext_csd found!"); /* this should enver happen */
         return HAL_SDMMC_OP_NOT_SUPPORTED;
     }
 
@@ -3250,18 +3105,16 @@ static int mmc_select_mode_and_width(struct mmc *mmc, uint32_t card_caps)
         mmc_set_card_speed(mmc, MMC_HS, true);
     else
 #endif
-        mmc_set_clock(mmc, mmc->legacy_speed, MMC_CLK_ENABLE);
+        hal_sdmmc_set_clock(mmc, mmc->legacy_speed, MMC_CLK_ENABLE);
 
     for_each_mmc_mode_by_pref(card_caps, mwt) {
         for_each_supported_width(card_caps & mwt->widths,
                                  mmc_is_mode_ddr(mwt->mode), ecbw) {
             enum mmc_voltage old_voltage;
-#ifdef SDMMC_DEBUG
-            HAL_TRACE(0, "trying mode %s width %d (at %d MHz)",
+            HAL_SDMMC_TRACE(0, "trying mode %s width %d (at %d MHz)",
                             mmc_mode_name(mwt->mode),
                             bus_width(ecbw->cap),
                             mmc_mode2freq(mmc, mwt->mode) / 1000000);
-#endif
             old_voltage = mmc->signal_voltage;
             err = mmc_set_lowest_voltage(mmc, mwt->mode,
                                          MMC_ALL_SIGNAL_VOLTAGE);
@@ -3274,18 +3127,18 @@ static int mmc_select_mode_and_width(struct mmc *mmc, uint32_t card_caps)
                              ecbw->ext_csd_bits & ~EXT_CSD_DDR_FLAG);
             if (err)
                 goto error;
-            mmc_set_bus_width(mmc, bus_width(ecbw->cap));
+            hal_sdmmc_set_bus_width(mmc, bus_width(ecbw->cap));
 
             if (mwt->mode == MMC_HS_400) {
                 err = mmc_select_hs400(mmc);
                 if (err) {
-                    HAL_TRACE(0, "Select HS400 failed %d", err);
+                    HAL_SDMMC_ERROR(0, "Select HS400 failed %d", err);
                     goto error;
                 }
             } else if (mwt->mode == MMC_HS_400_ES) {
                 err = mmc_select_hs400es(mmc);
                 if (err) {
-                    HAL_TRACE(0, "Select HS400ES failed %d",
+                    HAL_SDMMC_ERROR(0, "Select HS400ES failed %d",
                                     err);
                     goto error;
                 }
@@ -3310,16 +3163,16 @@ static int mmc_select_mode_and_width(struct mmc *mmc, uint32_t card_caps)
                 }
 
                 /* configure the bus mode (host) */
-                mmc_select_mode(mmc, mwt->mode);
-                mmc_set_clock(mmc, mmc->tran_speed,
-                              MMC_CLK_ENABLE);
+                hal_sdmmc_select_mode(mmc, mwt->mode);
+                hal_sdmmc_set_clock(mmc, mmc->tran_speed,
+                                    MMC_CLK_ENABLE);
 #ifdef MMC_SUPPORTS_TUNING
                 /* execute tuning if needed */
                 if (mwt->tuning) {
                     err = mmc_execute_tuning(mmc,
                                              mwt->tuning);
                     if (err) {
-                        HAL_TRACE(0, "tuning failed : %d", err);
+                        HAL_SDMMC_ERROR(0, "tuning failed : %d", err);
                         goto error;
                     }
                 }
@@ -3335,18 +3188,25 @@ error:
             /* if an error occurred, revert to a safer bus mode */
             mmc_switch(mmc, EXT_CSD_CMD_SET_NORMAL,
                        EXT_CSD_BUS_WIDTH, EXT_CSD_BUS_WIDTH_1);
-            mmc_select_mode(mmc, MMC_LEGACY);
-            mmc_set_bus_width(mmc, 1);
+            hal_sdmmc_select_mode(mmc, MMC_LEGACY);
+            hal_sdmmc_set_clock(mmc, mmc->legacy_speed, MMC_CLK_ENABLE);
+            hal_sdmmc_set_bus_width(mmc, 1);
         }
     }
 
-    HAL_TRACE(0, "unable to select a mode : %d", err);
+    HAL_SDMMC_ERROR(0, "unable to select a mode : %d", err);
 
     return HAL_SDMMC_OP_NOT_SUPPORTED;
 }
 #endif
 
+#ifdef MMC_TINY
+#ifdef STATIC_VARIABLES
+SYNC_FLAGS_LOC static uint32_t ext_csd_bkup[MMC_MAX_BLOCK_LEN / 4];
+#else
 DEFINE_CACHE_ALIGN_BUFFER(uint8_t, ext_csd_bkup, MMC_MAX_BLOCK_LEN);
+#endif
+#endif
 static int mmc_startup_v4(struct mmc *mmc)
 {
     int err, i;
@@ -3365,13 +3225,14 @@ static int mmc_startup_v4(struct mmc *mmc)
         MMC_VERSION_5_1
     };
 
-    uint8_t *ext_csd = ext_csd_bkup;
+#ifdef MMC_TINY
+    uint8_t *ext_csd = (uint8_t *)ext_csd_bkup;
 
     if (IS_SD(mmc) || mmc->version < MMC_VERSION_4)
         return HAL_SDMMC_ERR_NONE;
 
     if (!mmc->ext_csd)
-        memset(ext_csd_bkup, 0, sizeof(*ext_csd_bkup));
+        memset(ext_csd_bkup, 0, MMC_MAX_BLOCK_LEN);
 
     err = mmc_send_ext_csd(mmc, ext_csd);
     if (err)
@@ -3380,7 +3241,22 @@ static int mmc_startup_v4(struct mmc *mmc)
     /* store the ext csd for future reference */
     if (!mmc->ext_csd)
         mmc->ext_csd = ext_csd;
+#else
+    struct sdmmc_ip_host *host = mmc->priv;
+    uint8_t *ext_csd = (uint8_t *)sdmmc_ext_csd[host->host_id];
 
+    if (IS_SD(mmc) || mmc->version < MMC_VERSION_4)
+        return HAL_SDMMC_ERR_NONE;
+
+    /* check ext_csd version and capacity */
+    err = mmc_send_ext_csd(mmc, ext_csd);
+    if (err)
+        goto error;
+
+    /* store the ext csd for future reference */
+    if (!mmc->ext_csd)
+        mmc->ext_csd = ext_csd;
+#endif
     if (ext_csd[EXT_CSD_REV] >= ARRAY_SIZE(mmc_versions))
         return HAL_SDMMC_INVALID_PARAMETER;
 
@@ -3400,6 +3276,11 @@ static int mmc_startup_v4(struct mmc *mmc)
         if ((capacity >> 20) > 2 * 1024)
             mmc->capacity_user = capacity;
     }
+
+    //emmc cache
+    mmc->cache_ctrl = 0;//default disable cache
+    mmc->cache_size = (uint32_t)(*(uint32_t *)&ext_csd[EXT_CSD_CACHE_SIZE]);
+    mmc->cache_size *= (1024 / 8);//convert to bytes
 
     if (mmc->version >= MMC_VERSION_4_5)
         mmc->gen_cmd6_time = ext_csd[EXT_CSD_GENERIC_CMD6_TIME];
@@ -3523,6 +3404,7 @@ static int mmc_startup_v4(struct mmc *mmc)
 #endif
 
     mmc->wr_rel_set = ext_csd[EXT_CSD_WR_REL_SET];
+    mmc->can_trim = !!(ext_csd[EXT_CSD_SEC_FEATURE] & EXT_CSD_SEC_FEATURE_TRIM_EN);
 
     return HAL_SDMMC_ERR_NONE;
 error:
@@ -3596,14 +3478,13 @@ static int mmc_startup(struct mmc *mmc)
     cmd.cmdarg = mmc->rca << 16;
 
     err = mmc_send_cmd(mmc, &cmd, NULL);
-
     if (err)
         return err;
 
-    mmc->csd[0] = cmd.response[0];
+    mmc->csd[0] = cmd.response[0];//high
     mmc->csd[1] = cmd.response[1];
     mmc->csd[2] = cmd.response[2];
-    mmc->csd[3] = cmd.response[3];
+    mmc->csd[3] = cmd.response[3];//low
 
     if (mmc->version == MMC_VERSION_UNKNOWN) {
         int version = (cmd.response[0] >> 26) & 0xf;
@@ -3635,7 +3516,7 @@ static int mmc_startup(struct mmc *mmc)
     mult = multipliers[((cmd.response[0] >> 3) & 0xf)];
 
     mmc->legacy_speed = freq * mult;
-    mmc_select_mode(mmc, MMC_LEGACY);
+    hal_sdmmc_select_mode(mmc, MMC_LEGACY);
 
     mmc->dsr_imp = ((cmd.response[1] >> 12) & 0x1);
     mmc->read_bl_len = 1 << ((cmd.response[1] >> 16) & 0xf);
@@ -3677,7 +3558,7 @@ static int mmc_startup(struct mmc *mmc)
         cmd.cmdarg = (mmc->dsr & 0xffff) << 16;
         cmd.resp_type = MMC_RSP_NONE;
         if (mmc_send_cmd(mmc, &cmd, NULL))
-            HAL_TRACE(0, "MMC: SET_DSR failed");
+            HAL_SDMMC_ERROR(0, "MMC: SET_DSR failed");
     }
 
     /* Select the card, and put it into Transfer Mode */
@@ -3708,9 +3589,9 @@ static int mmc_startup(struct mmc *mmc)
         return err;
 
 #ifdef MMC_TINY
-    mmc_set_clock(mmc, mmc->legacy_speed, false);
-    mmc_select_mode(mmc, MMC_LEGACY);
-    mmc_set_bus_width(mmc, 1);
+    hal_sdmmc_set_clock(mmc, mmc->legacy_speed, false);
+    hal_sdmmc_select_mode(mmc, MMC_LEGACY);
+    hal_sdmmc_set_bus_width(mmc, 1);
 #else
     if (IS_SD(mmc)) {
         err = sd_get_capabilities(mmc);
@@ -3802,12 +3683,12 @@ static int mmc_power_init(struct mmc *mmc)
     ret = device_get_supply_regulator(mmc->dev, "vmmc-supply",
                                       &mmc->vmmc_supply);
     if (ret)
-        HAL_TRACE(0, "%s: No vmmc supply", mmc->dev->name);
+        HAL_SDMMC_ERROR(0, "%s: No vmmc supply", mmc->dev->name);
 
     ret = device_get_supply_regulator(mmc->dev, "vqmmc-supply",
                                       &mmc->vqmmc_supply);
     if (ret)
-        HAL_TRACE(0, "%s: No vqmmc supply", mmc->dev->name);
+        HAL_SDMMC_ERROR(0, "%s: No vqmmc supply", mmc->dev->name);
 #endif
 #else /* !CONFIG_DM_MMC */
     /*
@@ -3828,21 +3709,22 @@ static void mmc_set_initial_state(struct mmc *mmc)
     if (err != 0)
         err = mmc_set_signal_voltage(mmc, MMC_SIGNAL_VOLTAGE_180);
     if (err != 0)
-        HAL_TRACE(0, "mmc: failed to set signal voltage");
+        HAL_SDMMC_ERROR(0, "mmc: failed to set signal voltage");
 
-    mmc_select_mode(mmc, MMC_LEGACY);
-    mmc_set_bus_width(mmc, 1);
-    mmc_set_clock(mmc, 0, MMC_CLK_ENABLE);
+    hal_sdmmc_select_mode(mmc, MMC_LEGACY);
+    hal_sdmmc_set_bus_width(mmc, 1);
+    hal_sdmmc_set_clock(mmc, 0, MMC_CLK_ENABLE);//set clk to 400K
 }
 
 static int mmc_power_on(struct mmc *mmc)
 {
+    HAL_SDMMC_TRACE(0, "%s:%d", __func__, __LINE__);
 #if defined(DM_MMC) && defined(DM_REGULATOR)
     if (mmc->vmmc_supply) {
         int ret = regulator_set_enable(mmc->vmmc_supply, true);
 
         if (ret && ret != -EACCES) {
-            HAL_TRACE(0, "Error enabling VMMC supply : %d", ret);
+            HAL_SDMMC_ERROR(0, "Error enabling VMMC supply : %d", ret);
             return ret;
         }
     }
@@ -3852,13 +3734,14 @@ static int mmc_power_on(struct mmc *mmc)
 
 static int mmc_power_off(struct mmc *mmc)
 {
-    mmc_set_clock(mmc, 0, MMC_CLK_DISABLE);
+    HAL_SDMMC_TRACE(0, "%s:%d", __func__, __LINE__);
+    hal_sdmmc_set_clock(mmc, 0, MMC_CLK_DISABLE);//set clk to 400K
 #if defined(DM_MMC) && defined(DM_REGULATOR)
     if (mmc->vmmc_supply) {
         int ret = regulator_set_enable(mmc->vmmc_supply, false);
 
         if (ret && ret != -EACCES) {
-            HAL_TRACE(0, "Error disabling VMMC supply : %d", ret);
+            HAL_SDMMC_ERROR(0, "Error disabling VMMC supply : %d", ret);
             return ret;
         }
     }
@@ -3870,6 +3753,7 @@ static int mmc_power_cycle(struct mmc *mmc)
 {
     int ret;
 
+    HAL_SDMMC_TRACE(0, "%s:%d", __func__, __LINE__);
     ret = mmc_power_off(mmc);
     if (ret)
         return ret;
@@ -3882,8 +3766,8 @@ static int mmc_power_cycle(struct mmc *mmc)
      * SD spec recommends at least 1ms of delay. Let's wait for 2ms
      * to be on the safer side.
      */
-    //mmc_udelay(2000);
-    hal_sdmmc_delay(2);
+    //hal_sdmmc_delay_us(2000);
+    hal_sdmmc_delay_ms(2);
     return mmc_power_on(mmc);
 }
 
@@ -3892,7 +3776,7 @@ static int mmc_get_op_cond(struct mmc *mmc, bool quiet)
     bool uhs_en = supports_uhs(mmc->cfg->host_caps);
     int err;
 
-    HAL_TRACE(0, "%s:%d, quiet:%d", __func__, __LINE__, quiet);
+    HAL_SDMMC_TRACE(0, "%s:%d, quiet:%d", __func__, __LINE__, quiet);
     if (mmc->has_init)
         return HAL_SDMMC_ERR_NONE;
 
@@ -3913,7 +3797,7 @@ static int mmc_get_op_cond(struct mmc *mmc, bool quiet)
          * to use the UHS modes, because we wouldn't be able to
          * recover from an error during the UHS initialization.
          */
-        HAL_TRACE(0, "Unable to do a full power cycle. Disabling the UHS modes for safety");
+        HAL_SDMMC_TRACE(0, "Unable to do a full power cycle. Disabling the UHS modes for safety");
         uhs_en = false;
         mmc->host_caps &= ~UHS_CAPS;
         err = mmc_power_on(mmc);
@@ -3929,7 +3813,7 @@ static int mmc_get_op_cond(struct mmc *mmc, bool quiet)
     err = mmc_reinit(mmc);
 #else
     /* made sure it's not NULL earlier */
-    err = mmc->cfg->ops->init(mmc);
+    //err = mmc->cfg->ops->init(mmc);//moved to host init func
 #endif
     if (err)
         return err;
@@ -3965,7 +3849,7 @@ retry:
         if (err) {
 #if !defined(CONFIG_SPL_BUILD) || defined(CONFIG_SPL_LIBCOMMON_SUPPORT)
             if (!quiet)
-                HAL_TRACE(0, "Card did not respond to voltage select! : %d", err);
+                HAL_SDMMC_ERROR(0, "Card did not respond to voltage select! : %d", err);
 #endif
             return HAL_SDMMC_OP_NOT_SUPPORTED_EP;
         }
@@ -3979,7 +3863,7 @@ static int mmc_start_init(struct mmc *mmc)
     bool no_card;
     int err = 0;
 
-    HAL_TRACE(0, "%s:%d", __func__, __LINE__);
+    HAL_SDMMC_TRACE(0, "%s:%d", __func__, __LINE__);
     /*
      * all hosts are capable of 1 bit bus-width and able to use the legacy
      * timings.
@@ -3998,7 +3882,7 @@ static int mmc_start_init(struct mmc *mmc)
             mmc->host_caps |= (MMC_CAP(mmc->user_speed_mode)
                                | MMC_CAP(MMC_LEGACY) | MMC_MODE_1BIT);
         } else {
-            HAL_TRACE(0, "bus_mode requested is not supported");
+            HAL_SDMMC_ERROR(0, "bus_mode requested is not supported");
             return HAL_SDMMC_INVALID_PARAMETER;
         }
     }
@@ -4019,7 +3903,7 @@ static int mmc_start_init(struct mmc *mmc)
     if (no_card) {
         mmc->has_init = 0;
 #if !defined(CONFIG_SPL_BUILD) || defined(CONFIG_SPL_LIBCOMMON_SUPPORT)
-        HAL_TRACE(0, "MMC: no card present");
+        HAL_SDMMC_ERROR(0, "MMC: no card present");
 #endif
         return HAL_SDMMC_NO_MEDIUM_FOUND;
     }
@@ -4059,14 +3943,14 @@ static int mmc_init(struct mmc *mmc)
     if (mmc->has_init)
         return HAL_SDMMC_ERR_NONE;
 
-    start = hal_sys_timer_get();
+    start = hal_fast_sys_timer_get();
     if (!mmc->init_in_progress)
         err = mmc_start_init(mmc);
 
     if (!err)
         err = mmc_complete_init(mmc);
     if (err)
-        HAL_TRACE(0, "%s: %d, time %ums", __FUNCTION__, err, TICKS_TO_MS(hal_sys_timer_get() - start));
+        HAL_SDMMC_ERROR(0, "%s: %d, time %ums", __func__, err, FAST_TICKS_TO_MS(hal_fast_sys_timer_get() - start));
 
     return err;
 }
@@ -4132,10 +4016,10 @@ static int mmc_probe(struct bd_info *bis)
     uclass_foreach_dev(dev, uc) {
         ret = device_probe(dev);
         if (ret)
-            HAL_TRACE(0, "%s - probe failed: %d", dev->name, ret);
+            HAL_SDMMC_ERROR(0, "%s - probe failed: %d", dev->name, ret);
     }
 
-    return HAL_SDMMC_ERR_NONE;
+    return ret;
 }
 #else
 static int mmc_probe(struct mmc *mmc)
@@ -4147,7 +4031,7 @@ static int mmc_probe(struct mmc *mmc)
 static int mmc_initialize(struct mmc *mmc)
 {
     int ret = 0;
-    HAL_TRACE(0, "%s:%d", __func__, __LINE__);
+    HAL_SDMMC_TRACE(0, "%s:%d", __func__, __LINE__);
 
 #ifndef BLK
 #ifndef MMC_TINY
@@ -4180,10 +4064,12 @@ int mmc_init_device(int num)
     }
 
     m = mmc_get_mmc_dev(dev);
-    m->user_speed_mode = MMC_MODES_END; /* Initialising user set speed mode */
-
     if (!m)
         return HAL_SDMMC_ERR_NONE;
+
+    /* Initialising user set speed mode */
+    m->user_speed_mode = MMC_MODES_END;
+
     if (m->preinit)
         mmc_start_init(m);
 
@@ -4195,31 +4081,34 @@ int mmc_init_device(int num)
 int mmc_set_bkops_enable(struct mmc *mmc)
 {
     int err;
-    ALLOC_CACHE_ALIGN_BUFFER(uint8_t, ext_csd, MMC_MAX_BLOCK_LEN);
+    struct sdmmc_ip_host *host = mmc->priv;
+    uint8_t *ext_csd = (uint8_t *)sdmmc_ext_csd[host->host_id];
 
+#if 0   //No need to call it multiple times
     err = mmc_send_ext_csd(mmc, ext_csd);
     if (err) {
-        HAL_TRACE(0, "Could not get ext_csd register values");
+        HAL_SDMMC_ERROR(0, "Could not get ext_csd register values");
         return err;
     }
+#endif
 
     if (!(ext_csd[EXT_CSD_BKOPS_SUPPORT] & 0x1)) {
-        HAL_TRACE(0, "Background operations not supported on device");
+        HAL_SDMMC_ERROR(0, "Background operations not supported on device");
         return HAL_SDMMC_MEDIUM_TYPE_ERR;
     }
 
     if (ext_csd[EXT_CSD_BKOPS_EN] & 0x1) {
-        HAL_TRACE(0, "Background operations already enabled");
+        HAL_SDMMC_ERROR(0, "Background operations already enabled");
         return HAL_SDMMC_ERR_NONE;
     }
 
     err = mmc_switch(mmc, EXT_CSD_CMD_SET_NORMAL, EXT_CSD_BKOPS_EN, 1);
     if (err) {
-        HAL_TRACE(0, "Failed to enable manual background operations");
+        HAL_SDMMC_ERROR(0, "Failed to enable manual background operations");
         return err;
     }
 
-    HAL_TRACE(0, "Enabled manual background operations");
+    HAL_SDMMC_TRACE(0, "Enabled manual background operations");
 
     return HAL_SDMMC_ERR_NONE;
 }
@@ -4234,23 +4123,33 @@ int mmc_get_env_dev(void)
 #endif
 }
 /****************************platform related functions************************/
-static HAL_SDMMC_DELAY_FUNC sdmmc_delay = NULL;
+static HAL_SDMMC_DELAY_FUNC sdmmc_delay_ms = NULL;
+static HAL_SDMMC_DELAY_US_FUNC sdmmc_delay_us = NULL;
 
-static void mmc_udelay(uint32_t cnt)
+static void hal_sdmmc_delay_ms(uint32_t ms)
+{
+    if (sdmmc_delay_ms) {
+        sdmmc_delay_ms(ms);
+    } else {
+        osDelay(ms);
+    }
+}
+
+static void hal_sdmmc_delay_us(uint32_t us)
+{
+    if (sdmmc_delay_us) {
+        sdmmc_delay_us(us);
+    } else {
+        hal_sys_timer_delay_us(us);
+    }
+}
+
+POSSIBLY_UNUSED static void delay_nop(uint32_t cnt)
 {
     volatile uint32_t i = 0, c = 0;
     for (i = 0; i < cnt; ++i) {
         c++;
         __asm("nop");
-    }
-}
-
-static void hal_sdmmc_delay(uint32_t ms)
-{
-    if (sdmmc_delay) {
-        sdmmc_delay(ms);
-    } else {
-        osDelay(ms);
     }
 }
 
@@ -4270,45 +4169,17 @@ static int mmc_hs400_prepare_ddr(struct mmc *mmc)
 #endif
 
 /***************************ip related functions*******************************/
-#define HAL_SDMMC_USE_DMA               1
-#define MAX_RETRY_CNT                   15000
-#define TIMEOUT_TIME                    1000
+#define DATA0_SM_BUSY_TIMEOUT           2000 //ms
+#define SEND_CMD_TIMEOUT                1000 //ms
+#define REG_CFG_TIMEOUT                 1000 //ms
+#define DMA_XFER_TIMEOUT                5000 //ms
+#define FIFO_XFER_TIMEOUT               1000 //ms  40ns/byte,1s=23.75MB
 
 #define __SDMMC_DIV_ROUND_UP(n,d)       (((n) + (d) - 1) / (d))
 
 #ifndef CONFIG_SYS_MMC_MAX_BLK_COUNT
-    #define CONFIG_SYS_MMC_MAX_BLK_COUNT 65535
+    #define CONFIG_SYS_MMC_MAX_BLK_COUNT 8388607    /* 0xFFFFFFFF / 512 */
 #endif
-
-struct sdmmc_ip_host {
-    uint8_t host_id;
-    uint32_t clock;
-    uint32_t bus_hz;
-    uint32_t div;
-    uint8_t buswidth;
-    void *ioaddr;
-    uint32_t fifoth_val;
-    uint32_t period_st_ns;
-    uint32_t final_bus_speed;
-    void *priv;
-
-    struct mmc_config cfg;
-    struct mmc *mmc;
-
-#ifdef HAL_SDMMC_USE_DMA
-    uint8_t dma_ch;
-    uint8_t dma_in_use;
-    volatile uint8_t sdmmc_dma_lock;
-    HAL_DMA_IRQ_HANDLER_T tx_dma_handler;
-    HAL_DMA_IRQ_HANDLER_T rx_dma_handler;
-#endif
-};
-
-enum sdmmc_bus_width {
-    SDMMC_BUS_WIDTH_1 = 1,
-    SDMMC_BUS_WIDTH_4 = 4,
-    SDMMC_BUS_WIDTH_8 = 8,
-};
 
 static struct sdmmc_ip_host sdmmc_host[HAL_SDMMC_ID_NUM];
 static struct HAL_SDMMC_CB_T sdmmc_callback_default[HAL_SDMMC_ID_NUM];
@@ -4320,11 +4191,10 @@ static uint32_t sdmmc_ip_base[HAL_SDMMC_ID_NUM] = {
 #endif
 };
 
-#ifdef HAL_SDMMC_USE_DMA
-#define SDMMC_DMA_LINK_SIZE     16380       //one desc can send and receive 16380(=4095*4) bytes
-#define SDMMC_DMA_TSIZE_MAX     0xFFF       //4095
+#define SDMMC_DMA_LINK_SIZE     16368       //one desc can send and receive 16368(=4092*4) bytes
+#define SDMMC_DMA_TSIZE_MAX     0xFFC       //4092,must be an integer multiple of 4, otherwise the host rx may have a problem
 #ifndef SDMMC_DMA_DESC_CNT
-    #define SDMMC_DMA_DESC_CNT   4          //4*16380=63.98KB
+    #define SDMMC_DMA_DESC_CNT  4           //4*16368=63.93KB
 #endif
 SYNC_FLAGS_LOC static struct HAL_DMA_DESC_T sdmmc_dma_desc[HAL_SDMMC_ID_NUM][SDMMC_DMA_DESC_CNT];
 static void sdmmc_ip0_ext_dma_tx_handler(uint8_t chan, uint32_t remain_tsize, uint32_t error, struct HAL_DMA_DESC_T *lli);
@@ -4339,26 +4209,61 @@ static HAL_DMA_IRQ_HANDLER_T sdmmc_ip_ext_dma_irq_handlers[HAL_SDMMC_ID_NUM * 2]
     sdmmc_ip1_ext_dma_tx_handler, sdmmc_ip1_ext_dma_rx_handler,
 #endif
 };
+
+#ifdef SDMMC_RUN_RECORD
+#ifndef SDMMC_RUN_RECORD_CNT
+#define SDMMC_RUN_RECORD_CNT    32
+#endif
+
+SRAM_BSS_LOC volatile uint32_t sdmmc_status_ori[HAL_SDMMC_ID_NUM][SDMMC_RUN_RECORD_CNT] = {0};
+SRAM_BSS_LOC volatile uint16_t sdmmc_status_ori_index[HAL_SDMMC_ID_NUM] = {0};
+
+SRAM_BSS_LOC volatile uint8_t  sdmmc_opcode_ori[HAL_SDMMC_ID_NUM][SDMMC_RUN_RECORD_CNT] = {0};
+SRAM_BSS_LOC volatile uint16_t sdmmc_opcode_ori_index[HAL_SDMMC_ID_NUM] = {0};
+SRAM_BSS_LOC volatile uint8_t  sdmmc_opcode_copy[HAL_SDMMC_ID_NUM][SDMMC_RUN_RECORD_CNT] = {0};
+SRAM_BSS_LOC volatile uint16_t sdmmc_opcode_copy_index[HAL_SDMMC_ID_NUM] = {0};
+
+SRAM_BSS_LOC volatile uint32_t sdmmc_resp[HAL_SDMMC_ID_NUM][SDMMC_RUN_RECORD_CNT] = {0};
+SRAM_BSS_LOC volatile uint16_t sdmmc_resp_index[HAL_SDMMC_ID_NUM] = {0};
+
+SRAM_BSS_LOC volatile uint8_t sdmmc_sleep_wakeup_record[HAL_SDMMC_ID_NUM][SDMMC_RUN_RECORD_CNT] = {0};
+SRAM_BSS_LOC volatile uint16_t sdmmc_sleep_wakeup_record_index[HAL_SDMMC_ID_NUM] = {0};
 #endif
 
 static inline void sdmmc_ip_writel(struct sdmmc_ip_host *host, uint32_t reg, uint32_t val)
 {
-    *((volatile uint32_t *)(host->ioaddr + reg)) = val;
+    *((volatile uint32_t *)((uint32_t)(host->ioaddr) + reg)) = val;
 }
 
 static inline uint32_t sdmmc_ip_readl(struct sdmmc_ip_host *host, uint32_t reg)
 {
-    return *((volatile uint32_t *)(host->ioaddr + reg));
+    return *((volatile uint32_t *)((uint32_t)(host->ioaddr) + reg));
+}
+
+static enum HAL_SDMMC_ERR sdmmc_ip_check_status(struct sdmmc_ip_host *host, uint32_t timeout_ticks)
+{
+    uint32_t busy_t;
+    uint32_t status;
+
+    busy_t = hal_fast_sys_timer_get();
+    do {
+        status = sdmmc_ip_readl(host, SDMMCIP_REG_CMD);
+        if (hal_fast_sys_timer_get() - busy_t > timeout_ticks) {
+            return HAL_SDMMC_CMD_START_TIMEOUT;
+        }
+    } while (status & (uint32_t)SDMMCIP_REG_CMD_START);
+
+    return HAL_SDMMC_ERR_NONE;
 }
 
 static int sdmmc_ip_wait_reset(struct sdmmc_ip_host *host, uint32_t value)
 {
     uint32_t ctrl;
-    uint32_t timeout = TIMEOUT_TIME;
+    uint32_t timeout = MS_TO_FAST_TICKS(REG_CFG_TIMEOUT), busy_t;
 
     sdmmc_ip_writel(host, SDMMCIP_REG_CTRL, value);
-    while (timeout) {
-        timeout--;
+    busy_t = hal_fast_sys_timer_get();
+    while (hal_fast_sys_timer_get() - busy_t < timeout) {
         ctrl = sdmmc_ip_readl(host, SDMMCIP_REG_CTRL);
         if (!(ctrl & SDMMCIP_REG_RESET_ALL)) {
             return 0;//reset success
@@ -4374,10 +4279,13 @@ static void sdmmc_ip_reset_fifo(struct sdmmc_ip_host *host)
 
     ctrl = sdmmc_ip_readl(host, SDMMCIP_REG_CTRL);
     ctrl |= SDMMCIP_REG_CTRL_FIFO_RESET;
-    sdmmc_ip_wait_reset(host, ctrl);
+    if (sdmmc_ip_wait_reset(host, ctrl)) {
+        if (sdmmc_ip_wait_reset(host, ctrl)) {
+            HAL_SDMMC_ERROR(0, "%s failed", __func__);
+        }
+    }
 }
 
-#ifdef HAL_SDMMC_USE_DMA
 static void sdmmc_ip_reset_dma(struct sdmmc_ip_host *host)
 {
     uint32_t ctrl;
@@ -4391,7 +4299,11 @@ static void sdmmc_ip_reset_dma(struct sdmmc_ip_host *host)
     //reset sdmmc ip dma
     ctrl = sdmmc_ip_readl(host, SDMMCIP_REG_CTRL);
     ctrl |= SDMMCIP_REG_CTRL_DMA_RESET;
-    sdmmc_ip_wait_reset(host, ctrl);
+    if (sdmmc_ip_wait_reset(host, ctrl)) {
+        if (sdmmc_ip_wait_reset(host, ctrl)) {
+            HAL_SDMMC_ERROR(0, "%s failed", __func__);
+        }
+    }
 
     //free gpdma channel
     hal_gpdma_free_chan(host->dma_ch);
@@ -4402,20 +4314,53 @@ static void sdmmc_ip_reset_dma(struct sdmmc_ip_host *host)
     sdmmc_ip_writel(host, SDMMCIP_REG_CTRL, ctrl);
 }
 
+static int sdmmc_ip_reset_controller(struct sdmmc_ip_host *host)
+{
+    uint32_t ctrl;
+    uint32_t status;
+    uint32_t timeout = MS_TO_FAST_TICKS(REG_CFG_TIMEOUT);
+
+    ctrl = sdmmc_ip_readl(host, SDMMCIP_REG_CTRL);
+    ctrl |= SDMMCIP_REG_CTRL_RESET;
+    if (sdmmc_ip_wait_reset(host, ctrl)) {
+        if (sdmmc_ip_wait_reset(host, ctrl)) {
+            HAL_SDMMC_ERROR(0, "%s failed", __func__);
+            return HAL_SDMMC_RESET_FAIL;
+        }
+    }
+
+    sdmmc_ip_writel(host, SDMMCIP_REG_CMD, SDMMCIP_REG_CMD_PRV_DAT_WAIT |
+                    SDMMCIP_REG_CMD_UPD_CLK | SDMMCIP_REG_CMD_START);
+
+    status = sdmmc_ip_check_status(host, timeout);
+    if (status) {
+        HAL_SDMMC_ERROR(0, "%s:%d, error:%d", __func__, __LINE__, status);
+    }
+
+    return status;
+}
+
 static void sdmmc_base_dma_tx_handler(enum HAL_SDMMC_ID_T id, uint8_t chan, uint32_t remain_tsize, uint32_t error, struct HAL_DMA_DESC_T *lli)
 {
     uint32_t ip_raw_int_status = 0;
     struct sdmmc_ip_host *host = &sdmmc_host[id];
 
     ip_raw_int_status = sdmmc_ip_readl(host, SDMMCIP_REG_RINTSTS);
-    HAL_TRACE(3, "%s:%d, tx ip_raw_int_status 0x%x", __FUNCTION__, __LINE__, (uint32_t)ip_raw_int_status);
-    HAL_TRACE(4, "---tx dma handler,chan:%d,remain:%d,error:%d,lli:0x%X", chan, remain_tsize, error, (uint32_t)lli);
+    HAL_SDMMC_TRACE(3, "%s:%d, tx ip_raw_int_status 0x%x", __func__, __LINE__, (uint32_t)ip_raw_int_status);
     if (ip_raw_int_status & (SDMMCIP_REG_DATA_ERR | SDMMCIP_REG_DATA_TOUT)) {
-        HAL_TRACE(3, "%s:%d, sdmmcip0 tx dma error 0x%x", __FUNCTION__, __LINE__, (uint32_t)ip_raw_int_status);
+        HAL_SDMMC_ERROR(3, "%s:%d, sdmmcip0 tx dma error 0x%x", __func__, __LINE__, (uint32_t)ip_raw_int_status);
     }
 
     sdmmc_ip_reset_dma(host);
-    host->sdmmc_dma_lock = 0;
+    if (sdmmc_callback[id]->hal_sdmmc_txrx_done) {
+        sdmmc_callback[id]->hal_sdmmc_txrx_done();
+    }
+    if (error) {
+        host->dma_error = HAL_SDMMC_DMA_TX_ERR;
+        HAL_SDMMC_ERROR(4, "---tx dma handler, chan:%d, remain:%d, error:%d, lli:0x%X", chan, remain_tsize, error, (uint32_t)lli);
+    } else {
+        host->sdmmc_dma_lock = 0;
+    }
 }
 
 static void sdmmc_base_dma_rx_handler(enum HAL_SDMMC_ID_T id, uint8_t chan, uint32_t remain_rsize, uint32_t error, struct HAL_DMA_DESC_T *lli)
@@ -4424,14 +4369,21 @@ static void sdmmc_base_dma_rx_handler(enum HAL_SDMMC_ID_T id, uint8_t chan, uint
     struct sdmmc_ip_host *host = &sdmmc_host[id];
 
     ip_raw_int_status = sdmmc_ip_readl(host, SDMMCIP_REG_RINTSTS);
-    HAL_TRACE(3, "%s:%d, ip_raw_int_status 0x%x", __FUNCTION__, __LINE__, (uint32_t)ip_raw_int_status);
-    HAL_TRACE(4, "---rx dma handler,chan:%d,remain:%d,error:%d,lli:0x%X", chan, remain_rsize, error, (uint32_t)lli);
+    HAL_SDMMC_TRACE(3, "%s:%d, ip_raw_int_status 0x%x", __func__, __LINE__, (uint32_t)ip_raw_int_status);
     if (ip_raw_int_status & (SDMMCIP_REG_DATA_ERR | SDMMCIP_REG_DATA_TOUT)) {
-        HAL_TRACE(3, "%s:%d, sdmmcip0 rx dma error 0x%x", __FUNCTION__, __LINE__, (uint32_t)ip_raw_int_status);
+        HAL_SDMMC_ERROR(3, "%s:%d, sdmmcip0 rx dma error 0x%x", __func__, __LINE__, (uint32_t)ip_raw_int_status);
     }
 
     sdmmc_ip_reset_dma(host);
-    host->sdmmc_dma_lock = 0;
+    if (sdmmc_callback[id]->hal_sdmmc_txrx_done) {
+        sdmmc_callback[id]->hal_sdmmc_txrx_done();
+    }
+    if (error) {
+        host->dma_error = HAL_SDMMC_DMA_RX_ERR;
+        HAL_SDMMC_ERROR(4, "---rx dma handler, chan:%d, remain:%d, error:%d, lli:0x%X", chan, remain_rsize, error, (uint32_t)lli);
+    } else {
+        host->sdmmc_dma_lock = 0;
+    }
 }
 
 static void sdmmc_ip0_ext_dma_tx_handler(uint8_t chan, uint32_t remain_tsize, uint32_t error, struct HAL_DMA_DESC_T *lli)
@@ -4455,11 +4407,9 @@ static void sdmmc_ip1_ext_dma_rx_handler(uint8_t chan, uint32_t remain_rsize, ui
     sdmmc_base_dma_rx_handler(HAL_SDMMC_ID_1, chan, remain_rsize, error, lli);
 }
 #endif
-#endif
 
 static int sdmmc_ip_prepare_data(struct sdmmc_ip_host *host, struct mmc_data *data)
 {
-#ifdef HAL_SDMMC_USE_DMA
     uint8_t  real_src_width;
     uint16_t i;
     uint32_t ctrl;
@@ -4467,186 +4417,208 @@ static int sdmmc_ip_prepare_data(struct sdmmc_ip_host *host, struct mmc_data *da
     uint32_t remain_transfer_size;
     POSSIBLY_UNUSED enum HAL_DMA_RET_T dret;
     struct HAL_DMA_CH_CFG_T dma_cfg;
-#endif
     uint8_t id;
     uint32_t real_size;
 
-    id = host->host_id;
     real_size = data->blocksize * data->blocks;
     sdmmc_ip_writel(host, SDMMCIP_REG_BLKSIZ, data->blocksize);
     sdmmc_ip_writel(host, SDMMCIP_REG_BYTCNT, real_size);
 
-#ifdef HAL_SDMMC_USE_DMA
-    if (host->dma_in_use) {
-        return HAL_SDMMC_DMA_IN_USE;
-    }
-    host->sdmmc_dma_lock = 1;
-
-    /* enable sdmmc ip dma function */
-    ctrl = sdmmc_ip_readl(host, SDMMCIP_REG_CTRL);
-    ctrl |= SDMMCIP_REG_DMA_EN;
-    sdmmc_ip_writel(host, SDMMCIP_REG_CTRL, ctrl);
-
-    memset(&dma_cfg, 0, sizeof(dma_cfg));
-    if (data->flags & MMC_DATA_READ) {
-        dma_cfg.dst = (uint32_t)data->dest;
-        if (dma_cfg.dst % 4) {
-            dma_cfg.dst_width = HAL_DMA_WIDTH_BYTE;
-        } else {
-            dma_cfg.dst_width = HAL_DMA_WIDTH_WORD;
+    if (host->dma_en) {
+        if (host->dma_in_use) {
+            return HAL_SDMMC_DMA_IN_USE;
         }
-        dma_cfg.dst_bsize = HAL_DMA_BSIZE_1;
-        dma_cfg.dst_periph = 0;  // useless
-        dma_cfg.handler = host->rx_dma_handler;
-        dma_cfg.src_bsize = HAL_DMA_BSIZE_1;
-        if (id == HAL_SDMMC_ID_0) {
-            dma_cfg.src_periph = HAL_GPDMA_SDMMC0;
-        }
+        host->sdmmc_dma_lock = 1;
+        id = host->host_id;
+
+        /* enable sdmmc ip dma function */
+        ctrl = sdmmc_ip_readl(host, SDMMCIP_REG_CTRL);
+        ctrl |= SDMMCIP_REG_DMA_EN;
+        sdmmc_ip_writel(host, SDMMCIP_REG_CTRL, ctrl);
+
+        memset(&dma_cfg, 0, sizeof(dma_cfg));
+        if (data->flags & MMC_DATA_READ) {
+            dma_cfg.dst = (uint32_t)data->dest;
+            if (dma_cfg.dst % 4) {
+                dma_cfg.dst_width = HAL_DMA_WIDTH_BYTE;
+                dma_cfg.dst_bsize = HAL_DMA_BSIZE_4;
+            } else {
+                dma_cfg.dst_width = HAL_DMA_WIDTH_WORD;
+                dma_cfg.dst_bsize = HAL_DMA_BSIZE_1;
+            }
+            dma_cfg.dst_periph = HAL_DMA_PERIPH_NULL;//useless
+            dma_cfg.handler = host->rx_dma_handler;
+            dma_cfg.src_bsize = HAL_DMA_BSIZE_1;
+            if (id == HAL_SDMMC_ID_0) {
+                dma_cfg.src_periph = HAL_GPDMA_SDMMC0;
+            }
 #ifdef SDMMC1_BASE
-        else if (id == HAL_SDMMC_ID_1) {
-            dma_cfg.src_periph = HAL_GPDMA_SDMMC1;
-        }
+            else if (id == HAL_SDMMC_ID_1) {
+                dma_cfg.src_periph = HAL_GPDMA_SDMMC1;
+            }
 #endif
-        else {
-            return HAL_SDMMC_INVALID_PARAMETER;
-        }
-        dma_cfg.src_width = HAL_DMA_WIDTH_WORD;
-        dma_cfg.try_burst = 1;
-        dma_cfg.type = HAL_DMA_FLOW_P2M_DMA;
-        dma_cfg.src = (uint32_t)0; // useless
-        dma_cfg.ch = hal_gpdma_get_chan(dma_cfg.src_periph, HAL_DMA_HIGH_PRIO);
-        real_src_width = dma_cfg.src_width ? dma_cfg.src_width * 2 : 1;
-
-        HAL_TRACE(0, "  ");
-        HAL_TRACE(0, "---sdmmc host use dma read");
-        HAL_TRACE(1, "---dma read len      :%d", real_size);
-        HAL_TRACE(1, "---dma_cfg.dst       :0x%x", dma_cfg.dst);
-        HAL_TRACE(1, "---dma_cfg.dst_width :%d", dma_cfg.dst_width ? dma_cfg.dst_width * 2 : 1);
-        HAL_TRACE(1, "---dma_cfg.src_width :%d", real_src_width);
-        HAL_TRACE(1, "---dma_cfg.dst_bsize :%d", dma_cfg.dst_bsize ? (2 * (2 << dma_cfg.dst_bsize)) : 1);
-        HAL_TRACE(1, "---dma_cfg.src_bsize :%d", dma_cfg.src_bsize ? (2 * (2 << dma_cfg.src_bsize)) : 1);
-        HAL_TRACE(1, "---dma_cfg.src_periph:%d", dma_cfg.src_periph);
-        HAL_TRACE(1, "---dma_cfg.ch        :%d", dma_cfg.ch);
-        //HAL_TRACE(TR_ATTR_NO_TS | TR_ATTR_NO_ID, "  ");
-
-        remain_transfer_size = real_size / 4;
-        if (remain_transfer_size > SDMMC_DMA_TSIZE_MAX) {
-            if (remain_transfer_size % SDMMC_DMA_TSIZE_MAX) {
-                link_cnt = remain_transfer_size / SDMMC_DMA_TSIZE_MAX + 1;
-            } else {
-                link_cnt = remain_transfer_size / SDMMC_DMA_TSIZE_MAX;
+            else {
+                return HAL_SDMMC_INVALID_PARAMETER;
             }
-        } else {
-            link_cnt = 1;
-        }
-        //HAL_TRACE(TR_ATTR_NO_TS | TR_ATTR_NO_ID, "---link_cnt          :%d", link_cnt);
-
-        //Generate dma link configuration
-        for (i = 0; i < link_cnt; i++) {
-            dma_cfg.dst = (uint32_t)(data->dest + SDMMC_DMA_TSIZE_MAX * real_src_width * i);
-            if (remain_transfer_size > SDMMC_DMA_TSIZE_MAX) {
-                dma_cfg.src_tsize = SDMMC_DMA_TSIZE_MAX;
-                remain_transfer_size -= SDMMC_DMA_TSIZE_MAX;
-            } else {
-                dma_cfg.src_tsize = remain_transfer_size;
-                remain_transfer_size = 0;
-            }
-            if (i + 1 == link_cnt) {
-                dret = hal_dma_init_desc(&sdmmc_dma_desc[id][i], &dma_cfg, NULL, 1);
-            } else {
-                dret = hal_dma_init_desc(&sdmmc_dma_desc[id][i], &dma_cfg, &sdmmc_dma_desc[id][i + 1], 0);
-            }
-            HAL_SDMMC_ASSERT(dret == HAL_DMA_OK, "%s:%d,sdmmc dma: Failed to init rx desc %d", __FUNCTION__, __LINE__, i);
-
-            //HAL_TRACE(TR_ATTR_NO_TS | TR_ATTR_NO_ID, "---dma_cfg.dst       :0x%x", dma_cfg.dst);
-            //HAL_TRACE(TR_ATTR_NO_TS | TR_ATTR_NO_ID, "---dma_cfg.src_tsize :%d", dma_cfg.src_tsize);
-            //HAL_TRACE(TR_ATTR_NO_TS | TR_ATTR_NO_ID, "sdmmc_dma_desc[%d][%d].src/dst/lli/ctrl=0x%08X 0x%08X 0x%08X 0x%08X@0x%08X", id, i,
-            //                    sdmmc_dma_desc[id][i].src, sdmmc_dma_desc[id][i].dst, sdmmc_dma_desc[id][i].lli, sdmmc_dma_desc[id][i].ctrl, (uint32_t)&sdmmc_dma_desc[id][i]);
-        }
-        //HAL_TRACE(TR_ATTR_NO_TS | TR_ATTR_NO_ID, "  ");
-    } else {
-        dma_cfg.dst = 0; // useless
-        dma_cfg.dst_bsize = HAL_DMA_BSIZE_1;
-        if (id == HAL_SDMMC_ID_0) {
-            dma_cfg.dst_periph = HAL_GPDMA_SDMMC0;
-        }
-#ifdef SDMMC1_BASE
-        else if (id == HAL_SDMMC_ID_1) {
-            dma_cfg.dst_periph = HAL_GPDMA_SDMMC1;
-        }
-#endif
-        else {
-            return HAL_SDMMC_INVALID_PARAMETER;
-        }
-        dma_cfg.dst_width = HAL_DMA_WIDTH_WORD;
-        dma_cfg.handler = host->tx_dma_handler;
-        dma_cfg.src_bsize = HAL_DMA_BSIZE_1;
-        dma_cfg.src_periph = 0; // useless
-        dma_cfg.try_burst = 1;
-        dma_cfg.type = HAL_DMA_FLOW_M2P_DMA;
-        dma_cfg.src = (uint32_t)data->src;
-        if (dma_cfg.src % 4) {
-            dma_cfg.src_width = HAL_DMA_WIDTH_BYTE;
-            remain_transfer_size = real_size;
-        } else {
             dma_cfg.src_width = HAL_DMA_WIDTH_WORD;
+            dma_cfg.try_burst = 1;
+            dma_cfg.type = HAL_DMA_FLOW_P2M_DMA;
+            dma_cfg.src = 0;//useless
+            dma_cfg.ch = hal_gpdma_get_chan(dma_cfg.src_periph, HAL_DMA_HIGH_PRIO);
+            if (dma_cfg.ch == HAL_DMA_CHAN_NONE) {
+                return HAL_SDMMC_DMA_CH_ERR;
+            }
+            real_src_width = dma_cfg.src_width ? dma_cfg.src_width * 2 : 1;
+
+            HAL_SDMMC_TRACE(0, "  ");
+            HAL_SDMMC_TRACE(0, "---sdmmc host use dma read");
+            HAL_SDMMC_TRACE(1, "---dma read len      :%d", real_size);
+            HAL_SDMMC_TRACE(1, "---dma_cfg.dst       :0x%x", dma_cfg.dst);
+            HAL_SDMMC_TRACE(1, "---dma_cfg.dst_width :%d", dma_cfg.dst_width ? dma_cfg.dst_width * 2 : 1);
+            HAL_SDMMC_TRACE(1, "---dma_cfg.src_width :%d", real_src_width);
+            HAL_SDMMC_TRACE(1, "---dma_cfg.dst_bsize :%d", dma_cfg.dst_bsize ? (2 * (1 << dma_cfg.dst_bsize)) : 1);
+            HAL_SDMMC_TRACE(1, "---dma_cfg.src_bsize :%d", dma_cfg.src_bsize ? (2 * (1 << dma_cfg.src_bsize)) : 1);
+            HAL_SDMMC_TRACE(1, "---dma_cfg.src_periph:%d", dma_cfg.src_periph);
+            HAL_SDMMC_TRACE(1, "---dma_cfg.ch        :%d", dma_cfg.ch);
+            //HAL_SDMMC_TRACE(TR_ATTR_NO_TS | TR_ATTR_NO_ID, "  ");
+
             remain_transfer_size = real_size / 4;
-        }
-        dma_cfg.ch = hal_gpdma_get_chan(dma_cfg.dst_periph, HAL_DMA_HIGH_PRIO);
-        real_src_width = dma_cfg.src_width ? dma_cfg.src_width * 2 : 1;
-
-        HAL_TRACE(0, "  ");
-        HAL_TRACE(0, "---sdmmc host use dma write");
-        HAL_TRACE(1, "---dma write len     :%d", real_size);
-        HAL_TRACE(1, "---dma_cfg.src       :0x%x", dma_cfg.src);
-        HAL_TRACE(1, "---dma_cfg.dst_width :%d", dma_cfg.dst_width ? dma_cfg.dst_width * 2 : 1);
-        HAL_TRACE(1, "---dma_cfg.src_width :%d", real_src_width);
-        HAL_TRACE(1, "---dma_cfg.dst_bsize :%d", dma_cfg.dst_bsize ? (2 * (2 << dma_cfg.dst_bsize)) : 1);
-        HAL_TRACE(1, "---dma_cfg.src_bsize :%d", dma_cfg.src_bsize ? (2 * (2 << dma_cfg.src_bsize)) : 1);
-        HAL_TRACE(1, "---dma_cfg.dst_periph:%d", dma_cfg.dst_periph);
-        HAL_TRACE(1, "---dma_cfg.ch        :%d", dma_cfg.ch);
-        //HAL_TRACE(TR_ATTR_NO_TS | TR_ATTR_NO_ID, "  ");
-
-        if (remain_transfer_size > SDMMC_DMA_TSIZE_MAX) {
-            if (remain_transfer_size % SDMMC_DMA_TSIZE_MAX) {
-                link_cnt = remain_transfer_size / SDMMC_DMA_TSIZE_MAX + 1;
-            } else {
-                link_cnt = remain_transfer_size / SDMMC_DMA_TSIZE_MAX;
-            }
-        } else {
-            link_cnt = 1;
-        }
-        //HAL_TRACE(TR_ATTR_NO_TS | TR_ATTR_NO_ID, "---link_cnt          :%d", link_cnt);
-
-        //Generate dma link configuration
-        for (i = 0; i < link_cnt; i++) {
-            dma_cfg.src = (uint32_t)(data->src + SDMMC_DMA_TSIZE_MAX * real_src_width * i);
             if (remain_transfer_size > SDMMC_DMA_TSIZE_MAX) {
-                dma_cfg.src_tsize = SDMMC_DMA_TSIZE_MAX;
-                remain_transfer_size -= SDMMC_DMA_TSIZE_MAX;
+                if (remain_transfer_size % SDMMC_DMA_TSIZE_MAX) {
+                    link_cnt = remain_transfer_size / SDMMC_DMA_TSIZE_MAX + 1;
+                } else {
+                    link_cnt = remain_transfer_size / SDMMC_DMA_TSIZE_MAX;
+                }
             } else {
-                dma_cfg.src_tsize = remain_transfer_size;
-                remain_transfer_size = 0;
+                link_cnt = 1;
             }
-            if (i + 1 == link_cnt) {
-                dret = hal_dma_init_desc(&sdmmc_dma_desc[id][i], &dma_cfg, NULL, 1);
-            } else {
-                dret = hal_dma_init_desc(&sdmmc_dma_desc[id][i], &dma_cfg, &sdmmc_dma_desc[id][i + 1], 0);
+            //HAL_SDMMC_TRACE(TR_ATTR_NO_TS | TR_ATTR_NO_ID, "---link_cnt          :%d", link_cnt);
+
+            //Generate dma link configuration
+            for (i = 0; i < link_cnt; i++) {
+                dma_cfg.dst = (uint32_t)(data->dest + SDMMC_DMA_TSIZE_MAX * real_src_width * i);
+                if (remain_transfer_size > SDMMC_DMA_TSIZE_MAX) {
+                    dma_cfg.src_tsize = SDMMC_DMA_TSIZE_MAX;
+                    remain_transfer_size -= SDMMC_DMA_TSIZE_MAX;
+                } else {
+                    dma_cfg.src_tsize = remain_transfer_size;
+                    remain_transfer_size = 0;
+                }
+                if (i + 1 == link_cnt) {
+                    dret = hal_dma_init_desc(&sdmmc_dma_desc[id][i], &dma_cfg, NULL, 1);
+                } else {
+                    dret = hal_dma_init_desc(&sdmmc_dma_desc[id][i], &dma_cfg, &sdmmc_dma_desc[id][i + 1], 0);
+                }
+                HAL_SDMMC_ASSERT(dret == HAL_DMA_OK, "%s:%d,sdmmc dma: Failed to init rx desc %d", __func__, __LINE__, i);
+                if (dret != HAL_DMA_OK) {
+                    hal_gpdma_free_chan(dma_cfg.ch);
+                    HAL_SDMMC_ERROR(0, "%s:%d, error dret:%d", __func__, __LINE__, dret);
+                    return HAL_SDMMC_DMA_DESC_ERR;
+                }
+
+                //HAL_SDMMC_TRACE(TR_ATTR_NO_TS | TR_ATTR_NO_ID, "---dma_cfg.dst       :0x%x", dma_cfg.dst);
+                //HAL_SDMMC_TRACE(TR_ATTR_NO_TS | TR_ATTR_NO_ID, "---dma_cfg.src_tsize :%d", dma_cfg.src_tsize);
+                //HAL_SDMMC_TRACE(TR_ATTR_NO_TS | TR_ATTR_NO_ID, "sdmmc_dma_desc[%d][%d].src/dst/lli/ctrl=0x%08X 0x%08X 0x%08X 0x%08X@0x%08X", id, i,
+                //                    sdmmc_dma_desc[id][i].src, sdmmc_dma_desc[id][i].dst, sdmmc_dma_desc[id][i].lli, sdmmc_dma_desc[id][i].ctrl, (uint32_t)&sdmmc_dma_desc[id][i]);
             }
-            HAL_SDMMC_ASSERT(dret == HAL_DMA_OK, "%s:%d,sdmmc dma: Failed to init rx desc %d", __FUNCTION__, __LINE__, i);
-
-            //HAL_TRACE(TR_ATTR_NO_TS | TR_ATTR_NO_ID, "---dma_cfg.src       :0x%x", dma_cfg.src);
-            //HAL_TRACE(TR_ATTR_NO_TS | TR_ATTR_NO_ID, "---dma_cfg.src_tsize :%d", dma_cfg.src_tsize);
-            //HAL_TRACE(TR_ATTR_NO_TS | TR_ATTR_NO_ID, "sdmmc_dma_desc[%d][%d].src/dst/lli/ctrl=0x%08X 0x%08X 0x%08X 0x%08X@0x%08X", id, i,
-            //                    sdmmc_dma_desc[id][i].src, sdmmc_dma_desc[id][i].dst, sdmmc_dma_desc[id][i].lli, sdmmc_dma_desc[id][i].ctrl, (uint32_t)&sdmmc_dma_desc[id][i]);
-        }
-        //HAL_TRACE(TR_ATTR_NO_TS | TR_ATTR_NO_ID, "  ");
-    }
-
-    host->dma_in_use = 1;
-    host->dma_ch = dma_cfg.ch;
-    hal_gpdma_sg_start(&sdmmc_dma_desc[id][0], &dma_cfg);
+            //HAL_SDMMC_TRACE(TR_ATTR_NO_TS | TR_ATTR_NO_ID, "  ");
+        } else {
+            dma_cfg.dst = 0;//useless
+            dma_cfg.dst_bsize = HAL_DMA_BSIZE_1;
+            if (id == HAL_SDMMC_ID_0) {
+                dma_cfg.dst_periph = HAL_GPDMA_SDMMC0;
+            }
+#ifdef SDMMC1_BASE
+            else if (id == HAL_SDMMC_ID_1) {
+                dma_cfg.dst_periph = HAL_GPDMA_SDMMC1;
+            }
 #endif
+            else {
+                return HAL_SDMMC_INVALID_PARAMETER;
+            }
+            dma_cfg.dst_width = HAL_DMA_WIDTH_WORD;
+            dma_cfg.handler = host->tx_dma_handler;
+            dma_cfg.src_periph = HAL_DMA_PERIPH_NULL;//useless
+            dma_cfg.try_burst = 0;//M2P mode is useless
+            dma_cfg.type = HAL_DMA_FLOW_M2P_DMA;
+            dma_cfg.src = (uint32_t)data->src;
+            if (dma_cfg.src % 4) {
+                dma_cfg.src_bsize = HAL_DMA_BSIZE_4;
+                dma_cfg.src_width = HAL_DMA_WIDTH_BYTE;
+                remain_transfer_size = real_size;
+            } else {
+                dma_cfg.src_bsize = HAL_DMA_BSIZE_1;
+                dma_cfg.src_width = HAL_DMA_WIDTH_WORD;
+                remain_transfer_size = real_size / 4;
+            }
+            dma_cfg.ch = hal_gpdma_get_chan(dma_cfg.dst_periph, HAL_DMA_HIGH_PRIO);
+            if (dma_cfg.ch == HAL_DMA_CHAN_NONE) {
+                return HAL_SDMMC_DMA_CH_ERR;
+            }
+            real_src_width = dma_cfg.src_width ? dma_cfg.src_width * 2 : 1;
+
+            HAL_SDMMC_TRACE(0, "  ");
+            HAL_SDMMC_TRACE(0, "---sdmmc host use dma write");
+            HAL_SDMMC_TRACE(1, "---dma write len     :%d", real_size);
+            HAL_SDMMC_TRACE(1, "---dma_cfg.src       :0x%x", dma_cfg.src);
+            HAL_SDMMC_TRACE(1, "---dma_cfg.dst_width :%d", dma_cfg.dst_width ? dma_cfg.dst_width * 2 : 1);
+            HAL_SDMMC_TRACE(1, "---dma_cfg.src_width :%d", real_src_width);
+            HAL_SDMMC_TRACE(1, "---dma_cfg.dst_bsize :%d", dma_cfg.dst_bsize ? (2 * (1 << dma_cfg.dst_bsize)) : 1);
+            HAL_SDMMC_TRACE(1, "---dma_cfg.src_bsize :%d", dma_cfg.src_bsize ? (2 * (1 << dma_cfg.src_bsize)) : 1);
+            HAL_SDMMC_TRACE(1, "---dma_cfg.dst_periph:%d", dma_cfg.dst_periph);
+            HAL_SDMMC_TRACE(1, "---dma_cfg.ch        :%d", dma_cfg.ch);
+            //HAL_SDMMC_TRACE(TR_ATTR_NO_TS | TR_ATTR_NO_ID, "  ");
+
+            if (remain_transfer_size > SDMMC_DMA_TSIZE_MAX) {
+                if (remain_transfer_size % SDMMC_DMA_TSIZE_MAX) {
+                    link_cnt = remain_transfer_size / SDMMC_DMA_TSIZE_MAX + 1;
+                } else {
+                    link_cnt = remain_transfer_size / SDMMC_DMA_TSIZE_MAX;
+                }
+            } else {
+                link_cnt = 1;
+            }
+            //HAL_SDMMC_TRACE(TR_ATTR_NO_TS | TR_ATTR_NO_ID, "---link_cnt          :%d", link_cnt);
+
+            //Generate dma link configuration
+            for (i = 0; i < link_cnt; i++) {
+                dma_cfg.src = (uint32_t)(data->src + SDMMC_DMA_TSIZE_MAX * real_src_width * i);
+                if (remain_transfer_size > SDMMC_DMA_TSIZE_MAX) {
+                    dma_cfg.src_tsize = SDMMC_DMA_TSIZE_MAX;
+                    remain_transfer_size -= SDMMC_DMA_TSIZE_MAX;
+                } else {
+                    dma_cfg.src_tsize = remain_transfer_size;
+                    remain_transfer_size = 0;
+                }
+                if (i + 1 == link_cnt) {
+                    dret = hal_dma_init_desc(&sdmmc_dma_desc[id][i], &dma_cfg, NULL, 1);
+                } else {
+                    dret = hal_dma_init_desc(&sdmmc_dma_desc[id][i], &dma_cfg, &sdmmc_dma_desc[id][i + 1], 0);
+                }
+                HAL_SDMMC_ASSERT(dret == HAL_DMA_OK, "%s:%d,sdmmc dma: Failed to init rx desc %d", __func__, __LINE__, i);
+                if (dret != HAL_DMA_OK) {
+                    hal_gpdma_free_chan(dma_cfg.ch);
+                    HAL_SDMMC_ERROR(0, "%s:%d, error dret:%d", __func__, __LINE__, dret);
+                    return HAL_SDMMC_DMA_DESC_ERR;
+                }
+
+                //HAL_SDMMC_TRACE(TR_ATTR_NO_TS | TR_ATTR_NO_ID, "---dma_cfg.src       :0x%x", dma_cfg.src);
+                //HAL_SDMMC_TRACE(TR_ATTR_NO_TS | TR_ATTR_NO_ID, "---dma_cfg.src_tsize :%d", dma_cfg.src_tsize);
+                //HAL_SDMMC_TRACE(TR_ATTR_NO_TS | TR_ATTR_NO_ID, "sdmmc_dma_desc[%d][%d].src/dst/lli/ctrl=0x%08X 0x%08X 0x%08X 0x%08X@0x%08X", id, i,
+                //                    sdmmc_dma_desc[id][i].src, sdmmc_dma_desc[id][i].dst, sdmmc_dma_desc[id][i].lli, sdmmc_dma_desc[id][i].ctrl, (uint32_t)&sdmmc_dma_desc[id][i]);
+            }
+            //HAL_SDMMC_TRACE(TR_ATTR_NO_TS | TR_ATTR_NO_ID, "  ");
+        }
+
+        host->dma_in_use = 1;
+        host->dma_ch = dma_cfg.ch;
+        dret = hal_gpdma_sg_start(&sdmmc_dma_desc[id][0], &dma_cfg);
+        if (dret != HAL_DMA_OK) {
+            hal_gpdma_free_chan(dma_cfg.ch);
+            HAL_SDMMC_ERROR(0, "%s:%d, error dret:%d", __func__, __LINE__, dret);
+            return HAL_SDMMC_DMA_START_ERR;
+        }
+    }
 
     return HAL_SDMMC_ERR_NONE;
 }
@@ -4684,37 +4656,108 @@ POSSIBLY_UNUSED static void sdmmc_ip_func_int_mask(enum HAL_SDMMC_ID_T id, uint8
     sdmmc_ip_writel(host, SDMMCIP_REG_INTMASK, mask);
 }
 
-static int sdmmc_ip_send_cmd(struct mmc *mmc, struct mmc_cmd *cmd, struct mmc_data *data)
+POSSIBLY_UNUSED static void sdmmc_ip_dto_int_cfg(enum HAL_SDMMC_ID_T id, int en)
+{
+    uint32_t mask;
+    struct sdmmc_ip_host *host = &sdmmc_host[id];
+
+    mask = sdmmc_ip_readl(host, SDMMCIP_REG_INTMASK);
+    if (en) {
+        //unmask(enable) dto interrupt
+        mask |= SDMMCIP_REG_RINTSTS_DTO;
+    } else {
+        //mask(disable) dto interrupt
+        mask &= ~SDMMCIP_REG_RINTSTS_DTO;
+    }
+    sdmmc_ip_writel(host, SDMMCIP_REG_INTMASK, mask);
+}
+
+POSSIBLY_UNUSED static void sdmmc_ip_rto_int_cfg(enum HAL_SDMMC_ID_T id, int en)
+{
+    uint32_t mask;
+    struct sdmmc_ip_host *host = &sdmmc_host[id];
+
+    mask = sdmmc_ip_readl(host, SDMMCIP_REG_INTMASK);
+    if (en) {
+        //unmask(enable) rto interrupt
+        mask |= SDMMCIP_REG_RINTSTS_RTO;
+    } else {
+        //mask(disable) rto interrupt
+        mask &= ~SDMMCIP_REG_RINTSTS_RTO;
+    }
+    sdmmc_ip_writel(host, SDMMCIP_REG_INTMASK, mask);
+}
+
+int hal_sdmmc_ip_send_cmd(struct mmc *mmc, struct mmc_cmd *cmd, struct mmc_data *data)
 {
     int ret = 0;
-    int flags = 0, i;
-    uint32_t retry = MAX_RETRY_CNT;
+    int flags = 0;
     uint32_t mask = 0;
-    uint32_t busy_timeout = MS_TO_TICKS(10), busy_t = 0;
-#ifndef HAL_SDMMC_USE_DMA
-    uint32_t status = 0, fifo_data = 0;
-#endif
+    uint32_t status;
+    uint32_t cmd_reg;
+    uint32_t busy_timeout, busy_t;
     struct sdmmc_ip_host *host = mmc->priv;
+#ifdef POLLING_TIME_MEASUER
+    uint32_t time_start = 0, time_run;
+    int time_measuer_en = 0;
+#endif
 
-    busy_t = hal_sys_timer_get();
-    while ((sdmmc_ip_readl(host, SDMMCIP_REG_STATUS) & SDMMCIP_REG_BUSY) && hal_sys_timer_get() < (busy_t + busy_timeout)) {
-        HAL_TRACE(0, "[sdmmc host]busy");
+#ifdef SDMMC_RUN_RECORD
+    sdmmc_opcode_ori[host->host_id][sdmmc_opcode_ori_index[host->host_id]++] = cmd->cmdidx;
+    if (sdmmc_opcode_ori_index[host->host_id] >= SDMMC_RUN_RECORD_CNT) {
+        sdmmc_opcode_ori_index[host->host_id] = 0;
+    }
+#endif
+
+    //Check if data0 or state machine is busy
+    busy_timeout = MS_TO_FAST_TICKS(DATA0_SM_BUSY_TIMEOUT);
+    busy_t = hal_fast_sys_timer_get();
+    while (1) {
+        status = sdmmc_ip_readl(host, SDMMCIP_REG_STATUS);
+        cmd_reg = sdmmc_ip_readl(host, SDMMCIP_REG_CMD);
+        if ((status & (SDMMCIP_REG_DATA0_BUSY | SDMMCIP_REG_STATE_MACHINE_BUSY)) || (cmd_reg & SDMMCIP_REG_CMD_START)) {
+            if (hal_fast_sys_timer_get() - busy_t < busy_timeout) {
+                HAL_SDMMC_TRACE(0, "CMD%d, sdmmc %s busy", cmd->cmdidx, (status & SDMMCIP_REG_DATA0_BUSY) ? "data0" : "state machine");
+                hal_sdmmc_delay_us(10);
+            } else {
+                HAL_SDMMC_ERROR(0, "%s: CMD%d timeout", __func__, cmd->cmdidx);
+                if (status & SDMMCIP_REG_DATA0_BUSY) {
+                    HAL_SDMMC_ERROR(0, "%s: sdmmc data0 busy, %dms timeout, status:0x%X", __func__, DATA0_SM_BUSY_TIMEOUT, status);
+                    return HAL_SDMMC_DATA0_BUSY;
+                } else {
+                    HAL_SDMMC_ERROR(0, "%s: sdmmc cmd start error, %dms timeout, cmd reg:0x%X", __func__, DATA0_SM_BUSY_TIMEOUT, cmd_reg);
+                    return HAL_SDMMC_CMD_START_ERR;
+                }
+            }
+
+            if (status & SDMMCIP_REG_STATE_MACHINE_BUSY) {
+                HAL_SDMMC_ERROR(0, "%s: sdmmc data state machine busy, status:0x%X", __func__, status);
+                HAL_SDMMC_ERROR(0, "FIFO count:%d", (status & 0x3FFE0000) >> 17);
+                HAL_SDMMC_ERROR(0, "REG_20 BYTCNT:%d", sdmmc_ip_readl(host, SDMMCIP_REG_BYTCNT));
+                HAL_SDMMC_ERROR(0, "REG_5C TCBCNT:%d", sdmmc_ip_readl(host, SDMMCIP_REG_TCMCNT));
+                HAL_SDMMC_ERROR(0, "REG_60 TBBCNT:%d", sdmmc_ip_readl(host, SDMMCIP_REG_TBBCNT));
+                ret = sdmmc_ip_reset_controller(host);
+                if (ret) {
+                    return (ret << 8) | HAL_SDMMC_DATA_STE_MACHINE_BUSY;
+                } else {
+                    break;
+                }
+            }
+        } else {
+            break;
+        }
     }
 
-#ifdef HAL_SDMMC_USE_DMA
-    sdmmc_ip_writel(host, SDMMCIP_REG_RINTSTS, SDMMCIP_REG_RINTSTS_CDONE |
-                    SDMMCIP_REG_RINTSTS_RTO | SDMMCIP_REG_RINTSTS_RE); //clear command flag
-#else
-    sdmmc_ip_writel(host, SDMMCIP_REG_RINTSTS, SDMMCIP_REG_RINTSTS_ALL);//clear interrupt status
-#endif
+    if (host->dma_en) {
+        sdmmc_ip_writel(host, SDMMCIP_REG_RINTSTS, SDMMCIP_REG_RINTSTS_CDONE |
+                        SDMMCIP_REG_RINTSTS_RTO | SDMMCIP_REG_RINTSTS_RE); //clear command flag
+    } else {
+        sdmmc_ip_writel(host, SDMMCIP_REG_RINTSTS, SDMMCIP_REG_RINTSTS_ALL);//clear interrupt status
+    }
     sdmmc_ip_writel(host, SDMMCIP_REG_CMDARG, cmd->cmdarg);
 
     if (data) {
         flags = sdmmc_ip_set_transfer_mode(host, data);
-    }
-
-    if ((cmd->resp_type & MMC_RSP_136) && (cmd->resp_type & MMC_RSP_BUSY)) {
-        return HAL_SDMMC_RESPONSE_BUSY;
     }
 
     if (cmd->cmdidx == MMC_CMD_STOP_TRANSMISSION) {
@@ -4741,30 +4784,53 @@ static int sdmmc_ip_send_cmd(struct mmc *mmc, struct mmc_cmd *cmd, struct mmc_da
     if (data) {
         ret = sdmmc_ip_prepare_data(host, data);
         if (ret) {
+            HAL_SDMMC_ERROR(0, "%s, error:%d", __func__, ret);
             return ret;
         }
     }
 
     flags |= (cmd->cmdidx | SDMMCIP_REG_CMD_START | SDMMCIP_REG_CMD_USE_HOLD_REG);
     sdmmc_ip_writel(host, SDMMCIP_REG_CMD, flags);
-    for (i = 0; (i < retry) && (cmd->cmdidx != SD_CMD_SWITCH_UHS18V); i++) {
-        mask = sdmmc_ip_readl(host, SDMMCIP_REG_RINTSTS);
-        if (mask & SDMMCIP_REG_RINTSTS_CDONE) {
-            sdmmc_ip_writel(host, SDMMCIP_REG_RINTSTS, SDMMCIP_REG_RINTSTS_CDONE);
-            break;
-        }
-    }
 
-    if (i == retry) {
-        HAL_TRACE(1, "%s: Timeout.", __FUNCTION__);
+    busy_t = hal_fast_sys_timer_get();
+    if (cmd->cmdidx != SD_CMD_SWITCH_UHS18V) {
+        busy_timeout = MS_TO_FAST_TICKS(SEND_CMD_TIMEOUT);
+        while (1) {
+            //When there is subsequent data transmission, no longer wait for cmd resp
+            if (cmd->cmdidx == MMC_CMD_READ_SINGLE_BLOCK || cmd->cmdidx == MMC_CMD_READ_MULTIPLE_BLOCK
+                || cmd->cmdidx == MMC_CMD_WRITE_SINGLE_BLOCK || cmd->cmdidx == MMC_CMD_WRITE_MULTIPLE_BLOCK) {
+                break;
+            }
+            mask = sdmmc_ip_readl(host, SDMMCIP_REG_RINTSTS);
+            if (mask & SDMMCIP_REG_RINTSTS_CDONE) {
+                sdmmc_ip_writel(host, SDMMCIP_REG_RINTSTS, SDMMCIP_REG_RINTSTS_CDONE);
+                break;
+            } else if (hal_fast_sys_timer_get() - busy_t > busy_timeout) {
+                HAL_SDMMC_ERROR(1, "%s: CMD%d Timeout", __func__, cmd->cmdidx);
+                HAL_SDMMC_ERROR(1, "sdmmc raw int status:0x%X", sdmmc_ip_readl(host, SDMMCIP_REG_RINTSTS));
+                HAL_SDMMC_ERROR(1, "sdmmc status        :0x%X", sdmmc_ip_readl(host, SDMMCIP_REG_STATUS));
 
-        sdmmc_ip_reset_fifo(host);
-#ifdef HAL_SDMMC_USE_DMA
-        if (data) {
-            sdmmc_ip_reset_dma(host);
+                sdmmc_ip_reset_fifo(host);
+                if (data) {
+                    if (host->dma_en) {
+                        sdmmc_ip_reset_dma(host);
+                    }
+                }
+                return HAL_SDMMC_CMD_SEND_TIMEOUT;
+            } else {
+                ;
+            }
         }
-#endif
-        return HAL_SDMMC_CMD_SEND_TIMEOUT;
+    } else {
+        //wait R1 response
+        busy_timeout = MS_TO_FAST_TICKS(4);
+        do {
+            if (host->volt_switch_flag) {
+                break;
+            } else {
+                hal_sdmmc_delay_us(10);
+            }
+        } while (hal_fast_sys_timer_get() - busy_t < busy_timeout);
     }
 
     if (mask & SDMMCIP_REG_RINTSTS_RTO) {
@@ -4773,110 +4839,213 @@ static int sdmmc_ip_send_cmd(struct mmc *mmc, struct mmc_cmd *cmd, struct mmc_da
          * will splat here when they receive CMD55 as they do
          * not support this command and that is exactly the way
          * to tell them apart from SD cards. Thus, this output
-         * below shall be HAL_TRACE(). eMMC cards also do not favor
+         * below shall be TRACE(). eMMC cards also do not favor
          * CMD8, please keep that in mind.
          */
-        HAL_TRACE(1, "%s: Response Timeout.", __FUNCTION__);
+        HAL_SDMMC_ERROR(1, "%s: CMD%d Response Timeout", __func__, cmd->cmdidx);
+        HAL_SDMMC_ERROR(1, "sdmmc raw int status:0x%X", sdmmc_ip_readl(host, SDMMCIP_REG_RINTSTS));
+        HAL_SDMMC_ERROR(1, "sdmmc status        :0x%X", sdmmc_ip_readl(host, SDMMCIP_REG_STATUS));
 
         sdmmc_ip_reset_fifo(host);
-#ifdef HAL_SDMMC_USE_DMA
         if (data) {
-            sdmmc_ip_reset_dma(host);
+            if (host->dma_en) {
+                sdmmc_ip_reset_dma(host);
+            }
         }
-#endif
         return HAL_SDMMC_COMM_TIMEOUT;
-        //return HAL_SDMMC_RESPONSE_TIMEOUT;
     } else if (mask & SDMMCIP_REG_RINTSTS_RE) {
-        HAL_TRACE(1, "%s: Response Error.", __FUNCTION__);
+        HAL_SDMMC_ERROR(1, "%s: CMD%d Response Error", __func__, cmd->cmdidx);
+        HAL_SDMMC_ERROR(1, "sdmmc raw int status:0x%X", sdmmc_ip_readl(host, SDMMCIP_REG_RINTSTS));
+        HAL_SDMMC_ERROR(1, "sdmmc status        :0x%X", sdmmc_ip_readl(host, SDMMCIP_REG_STATUS));
 
         sdmmc_ip_reset_fifo(host);
-#ifdef HAL_SDMMC_USE_DMA
         if (data) {
-            sdmmc_ip_reset_dma(host);
+            if (host->dma_en) {
+                sdmmc_ip_reset_dma(host);
+            }
         }
-#endif
         return HAL_SDMMC_RESPONSE_ERR;
     }
 
     if (cmd->resp_type & MMC_RSP_PRESENT) {
         if (cmd->resp_type & MMC_RSP_136) {
-            cmd->response[0] = sdmmc_ip_readl(host, SDMMCIP_REG_RESP3);
+            //The reason why response[1]/[3] uses the subscript is reversed, it must be flipped here
+            cmd->response[0] = sdmmc_ip_readl(host, SDMMCIP_REG_RESP3);//high
             cmd->response[1] = sdmmc_ip_readl(host, SDMMCIP_REG_RESP2);
             cmd->response[2] = sdmmc_ip_readl(host, SDMMCIP_REG_RESP1);
-            cmd->response[3] = sdmmc_ip_readl(host, SDMMCIP_REG_RESP0);
+            cmd->response[3] = sdmmc_ip_readl(host, SDMMCIP_REG_RESP0);//low
         } else {
-            cmd->response[0] = sdmmc_ip_readl(host, SDMMCIP_REG_RESP0);
+            if (!(cmd->cmdidx == MMC_CMD_READ_SINGLE_BLOCK || cmd->cmdidx == MMC_CMD_READ_MULTIPLE_BLOCK
+                || cmd->cmdidx == MMC_CMD_WRITE_SINGLE_BLOCK || cmd->cmdidx == MMC_CMD_WRITE_MULTIPLE_BLOCK)) {
+                cmd->response[0] = sdmmc_ip_readl(host, SDMMCIP_REG_RESP0);
+            }
+        }
+#ifdef SDMMC_RUN_RECORD
+        sdmmc_resp[host->host_id][sdmmc_resp_index[host->host_id]++] = sdmmc_ip_readl(host, SDMMCIP_REG_RESP0);
+        if (sdmmc_resp_index[host->host_id] >= SDMMC_RUN_RECORD_CNT) {
+            sdmmc_resp_index[host->host_id] = 0;
+        }
+#endif
+    }
+
+    if (data) {
+        //Processing after the completion of the transfer process: use dma
+        if (host->dma_en) {
+            /*
+                If you return directly here, then the function mmc_read_blocks/mmc_write_blocks
+                will send the Stop command (should not be issued) and cause the communication to fail.
+
+                if (sdmmc_callback[host->host_id]->hal_sdmmc_txrx_done) {
+                    //Non-blocking mode: there will be a callback function after the transmission is completed
+                }
+            */
+            busy_timeout = MS_TO_FAST_TICKS(DMA_XFER_TIMEOUT);
+            busy_t = hal_fast_sys_timer_get();
+            while (host->sdmmc_dma_lock) {
+                if (host->yield) {
+                    /*
+                        1) here can be replaced by a semaphore operation
+                        2) when using semaphores, you may need to lock to prevent sleep, such as
+                            hal_bus_wake_lock(user);
+                            hal_bus_wake_unlock(user);
+                    */
+                    hal_sdmmc_delay_ms(1);
+                }
+
+                while (hal_fast_sys_timer_get() - busy_t > busy_timeout) {
+                    sdmmc_ip_reset_dma(host);
+                    sdmmc_ip_reset_fifo(host);
+                    ret = HAL_SDMMC_DMA_XFER_TIMEOUT;
+                    HAL_SDMMC_ERROR(0, "%s: DMA transfer timeout:%dms", __func__, DMA_XFER_TIMEOUT);
+                    goto out;
+                }
+
+                //Exit timeout waiting in time when there is an error in DMA transmission
+                if (host->dma_error) {
+                    ret = host->dma_error;
+                    host->dma_error = 0;
+                    sdmmc_ip_reset_fifo(host);
+                    HAL_SDMMC_ERROR(0, "%s: DMA transfer error:%d", __func__, ret);
+                    goto out;
+                }
+            }
+            ret = 0;
+        } else {
+            //Processing after the completion of the transfer process: do not use dma
+            int has_data = 0;
+            uint32_t i = 0;
+            uint32_t fifo_data;
+            uint32_t data_size;
+            uint32_t byte_in_fifo;
+#ifdef POLLING_TIME_MEASUER
+            HAL_SDMMC_ERROR(0, "======polling start");
+            time_measuer_en = 1;
+            time_start = hal_fast_sys_timer_get();
+#endif
+            data_size = data->blocks * data->blocksize;
+            busy_timeout = MS_TO_FAST_TICKS(FIFO_XFER_TIMEOUT);
+            busy_t = hal_fast_sys_timer_get();
+            while (1) {
+                mask = sdmmc_ip_readl(host, SDMMCIP_REG_RINTSTS);
+                if (mask & (SDMMCIP_REG_DATA_ERR | SDMMCIP_REG_DATA_TOUT)) {
+                    HAL_SDMMC_ERROR(0, "***%s: READ DATA ERROR!", __func__);
+                    ret = HAL_SDMMC_READ_DATA_ERR;
+                    goto out;
+                }
+                status = sdmmc_ip_readl(host, SDMMCIP_REG_STATUS);
+                byte_in_fifo = (status & SDMMCIP_REG_FIFO_COUNT_MASK) >> SDMMCIP_REG_FIFO_COUNT_SHIFT;
+                byte_in_fifo *= sizeof(fifo_data);//Change it to the number of bytes
+                if (data->flags == MMC_DATA_READ) {
+                    if (byte_in_fifo) {
+                        while (byte_in_fifo) {
+                            fifo_data = sdmmc_ip_readl(host, SDMMCIP_REG_FIFO_OFFSET);
+                            if (i < data_size) {
+                                memcpy(data->dest + i, &fifo_data, sizeof(fifo_data));
+                                i += sizeof(fifo_data);
+                                if (byte_in_fifo >= sizeof(fifo_data)) {
+                                    byte_in_fifo -= sizeof(fifo_data);
+                                } else {
+                                    byte_in_fifo -= byte_in_fifo;
+                                }
+                            } else {
+                                HAL_SDMMC_ERROR(0, "***%s: fifo data too much", __func__);
+                                ret = HAL_SDMMC_FIFO_OVERFLOW;
+                                goto out;
+                            }
+                        }
+                        has_data = 1;
+                    } else if (mask & SDMMCIP_REG_RINTSTS_DTO) {
+                        /* nothing to read from fifo and DTO is set */
+                        if (i != data_size) {
+                            HAL_SDMMC_ERROR(0, "***%s: need to read %d, actually read %d", __func__, data->blocks * data->blocksize, i);
+                        }
+                        ret = HAL_SDMMC_ERR_NONE;
+                        goto out;
+                    } else {
+                        has_data = 0;
+                    }
+                } else {
+                    /* nothing to write to fifo and DTO is set */
+                    if (mask & SDMMCIP_REG_RINTSTS_DTO) {
+                        /* check if number is right */
+                        if (i != data_size) {
+                            HAL_SDMMC_ERROR(0, "***%s: need to write %d, actually written %d", __func__, data->blocks * data->blocksize, i);
+                        }
+                        ret = HAL_SDMMC_ERR_NONE;
+                        goto out;
+                    } else {
+                        if (byte_in_fifo <= SDMMC_FIFO_BYTES) {
+                            byte_in_fifo = SDMMC_FIFO_BYTES - byte_in_fifo;
+                            has_data = 1;
+                        } else {
+                            HAL_SDMMC_ERROR(0, "***%s: fifo data cnt error", __func__);
+                            ret = HAL_SDMMC_FIFO_DATA_CNT_ERR;
+                            goto out;
+                        }
+
+                        while (byte_in_fifo) {
+                            if (i < data_size) {
+                                memcpy(&fifo_data, data->src + i, sizeof(fifo_data));
+                                i += sizeof(fifo_data);
+                                sdmmc_ip_writel(host, SDMMCIP_REG_FIFO_OFFSET, fifo_data);
+
+                                if (byte_in_fifo >= sizeof(fifo_data)) {
+                                    byte_in_fifo -= sizeof(fifo_data);
+                                } else {
+                                    byte_in_fifo -= byte_in_fifo;
+                                }
+                            } else {
+                                HAL_SDMMC_TRACE(0, "%s: no data to write to fifo, do nothing", __func__);
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                /* fifo xfer timeout */
+                if ((!has_data) && (hal_fast_sys_timer_get() - busy_t > busy_timeout)) {
+                    sdmmc_ip_reset_fifo(host);
+                    ret = HAL_SDMMC_FIFO_XFER_TIMEOUT;
+                    HAL_SDMMC_ERROR(0, "***%s: fifo xfer timeout", __func__);
+                    goto out;
+                }
+            }
         }
     }
 
-    //Processing after the completion of the transfer process: use dma
-#ifdef HAL_SDMMC_USE_DMA
-    if (data) {
-        while (host->sdmmc_dma_lock) {
-            hal_sdmmc_delay(1);
-        }
-    }
-#else
-    //Processing after the completion of the transfer process: do not use dma
-    if (data) {
-        i = 0;
-        while (1) {
-            mask = sdmmc_ip_readl(host, SDMMCIP_REG_RINTSTS);
-            if (mask & (SDMMCIP_REG_DATA_ERR | SDMMCIP_REG_DATA_TOUT)) {
-                HAL_TRACE(1, "%s: READ DATA ERROR!", __FUNCTION__);
-                ret = HAL_SDIO_READ_DATA_ERR;
-                goto out;
-            }
-            status = sdmmc_ip_readl(host, SDMMCIP_REG_STATUS);
-            if (data->flags == MMC_DATA_READ) {
-                if (status & SDMMCIP_REG_FIFO_COUNT_MASK) {
-                    fifo_data = sdmmc_ip_readl(host, SDMMCIP_REG_FIFO_OFFSET);
-                    //HAL_TRACE(3,"%s: count %d, read -> 0x%x", __FUNCTION__, i, fifo_data);
-                    /* FIXME: now we just deal with 32bit width fifo one time */
-                    if (i < data->blocks * data->blocksize) {
-                        memcpy(data->dest + i, &fifo_data, sizeof(fifo_data));
-                        i += sizeof(fifo_data);
-                    } else {
-                        HAL_TRACE(1, "%s: fifo data too much", __FUNCTION__);
-                        ret = HAL_SDIO_FIFO_OVERFLOW;
-                        goto out;
-                    }
-                }
-                /* nothing to read from fifo and DTO is set */
-                else if (mask & SDMMCIP_REG_RINTSTS_DTO) {
-                    if (i != data->blocks * data->blocksize) {
-                        HAL_TRACE(3, "%s: need to read %d, actually read %d", __FUNCTION__, data->blocks * data->blocksize, i);
-                    }
-                    ret = HAL_SDMMC_ERR_NONE;
-                    goto out;
-                }
-            } else {
-                /* nothing to write to fifo and DTO is set */
-                if (mask & SDMMCIP_REG_RINTSTS_DTO) {
-                    /* check if number is right */
-                    if (i != data->blocks * data->blocksize) {
-                        HAL_TRACE(3, "%s: need to write %d, actually written %d", __FUNCTION__, data->blocks * data->blocksize, i);
-                    }
-                    ret = HAL_SDMMC_ERR_NONE;
-                    goto out;
-                } else if (!(status & SDMMCIP_REG_FIFO_COUNT_MASK)) {
-                    /* FIXME: now we just deal with 32bit width fifo one time */
-                    if (i < data->blocks * data->blocksize) {
-                        memcpy(&fifo_data, data->src + i, sizeof(fifo_data));
-                        //HAL_TRACE(4,"%s: fifo %d, count %d, write -> 0x%x", __FUNCTION__, ((status & SDMMCIP_REG_FIFO_COUNT_MASK)>>SDMMCIP_REG_FIFO_COUNT_SHIFT), i, fifo_data);
-                        i += sizeof(fifo_data);
-                        sdmmc_ip_writel(host, SDMMCIP_REG_FIFO_OFFSET, fifo_data);
-                    } else {
-                        HAL_TRACE(1, "%s: no data to write to fifo, do nothing", __FUNCTION__);
-                    }
-                }
-            }
-        }
+out:
+#ifdef POLLING_TIME_MEASUER
+    if (time_measuer_en) {
+        time_run = FAST_TICKS_TO_US(hal_fast_sys_timer_get() - time_start);
+        HAL_SDMMC_ERROR(0, "======polling rx/tx takes: %uus", time_run);
     }
 #endif
 
-#ifndef HAL_SDMMC_USE_DMA
-out:
+#ifdef SDMMC_RUN_RECORD
+    sdmmc_opcode_copy[host->host_id][sdmmc_opcode_copy_index[host->host_id]++] = cmd->cmdidx;
+    if (sdmmc_opcode_copy_index[host->host_id] >= SDMMC_RUN_RECORD_CNT) {
+        sdmmc_opcode_copy_index[host->host_id] = 0;
+    }
 #endif
 
     return ret;
@@ -4885,15 +5054,15 @@ out:
 static int sdmmc_ip_setup_bus(struct sdmmc_ip_host *host, uint32_t freq)
 {
     uint32_t div, status;
-    int32_t  timeout;
+    uint32_t timeout = MS_TO_FAST_TICKS(REG_CFG_TIMEOUT);
     uint32_t sclk;
 
-    if ((freq == host->clock) || (freq == 0))
+    if ((freq == host->desired_bus_speed) || (freq == 0))
         return HAL_SDMMC_ERR_NONE;
-    if (host->bus_hz)
-        sclk = host->bus_hz;
+    if (host->src_clk_hz)
+        sclk = host->src_clk_hz;
     else {
-        HAL_TRACE(1, "%s: Didn't get source clock value.", __FUNCTION__);
+        HAL_SDMMC_ERROR(1, "%s: Didn't get source clock value.", __func__);
         return HAL_SDMMC_INVALID_PARAMETER;
     }
 
@@ -4902,7 +5071,7 @@ static int sdmmc_ip_setup_bus(struct sdmmc_ip_host *host, uint32_t freq)
     else
         div = __SDMMC_DIV_ROUND_UP(sclk, 2 * freq);
 
-    HAL_TRACE(5, "%s: freq %d, sclk %d, reg div %d, final div %d", __FUNCTION__, freq, sclk, div, div * 2);
+    HAL_SDMMC_TRACE(5, "%s: freq %d, sclk %d, reg div %d, final div %d", __func__, freq, sclk, div, div * 2);
     host->div = div * 2;
     host->final_bus_speed = host->div ? sclk / host->div : sclk;
 
@@ -4910,99 +5079,163 @@ static int sdmmc_ip_setup_bus(struct sdmmc_ip_host *host, uint32_t freq)
     sdmmc_ip_writel(host, SDMMCIP_REG_CMD, SDMMCIP_REG_CMD_PRV_DAT_WAIT |
                     SDMMCIP_REG_CMD_UPD_CLK | SDMMCIP_REG_CMD_START);
 
-    timeout = TIMEOUT_TIME;
-    do {
-        status = sdmmc_ip_readl(host, SDMMCIP_REG_CMD);
-        if (timeout-- < 0) {
-            HAL_TRACE(2, "%s:%d: Timeout!", __FUNCTION__, __LINE__);
-            return HAL_SDMMC_CMD_START_TIMEOUT1;
-        }
-    } while (status & SDMMCIP_REG_CMD_START);
+    status = sdmmc_ip_check_status(host, timeout);
+    if (status) {
+        HAL_SDMMC_ERROR(0, "%s:%d, error:%d", __func__, __LINE__, status);
+        return status;
+    }
 
     sdmmc_ip_writel(host, SDMMCIP_REG_CLKDIV, div);
     sdmmc_ip_writel(host, SDMMCIP_REG_CMD, SDMMCIP_REG_CMD_PRV_DAT_WAIT |
                     SDMMCIP_REG_CMD_UPD_CLK | SDMMCIP_REG_CMD_START);
 
-    timeout = TIMEOUT_TIME;
-    do {
-        status = sdmmc_ip_readl(host, SDMMCIP_REG_CMD);
-        if (timeout-- < 0) {
-            HAL_TRACE(2, "%s:%d: Timeout!", __FUNCTION__, __LINE__);
-            return HAL_SDMMC_CMD_START_TIMEOUT2;
-        }
-    } while (status & SDMMCIP_REG_CMD_START);
+    status = sdmmc_ip_check_status(host, timeout);
+    if (status) {
+        HAL_SDMMC_ERROR(0, "%s:%d, error:%d", __func__, __LINE__, status);
+        return status;
+    }
 
     sdmmc_ip_writel(host, SDMMCIP_REG_CLKENA, SDMMCIP_REG_CLKEN_ENABLE |
                     SDMMCIP_REG_CLKEN_LOW_PWR);
     sdmmc_ip_writel(host, SDMMCIP_REG_CMD, SDMMCIP_REG_CMD_PRV_DAT_WAIT |
                     SDMMCIP_REG_CMD_UPD_CLK | SDMMCIP_REG_CMD_START);
 
-    timeout = TIMEOUT_TIME;
-    do {
-        status = sdmmc_ip_readl(host, SDMMCIP_REG_CMD);
-        if (timeout-- < 0) {
-            HAL_TRACE(2, "%s:%d: Timeout!", __FUNCTION__, __LINE__);
-            return HAL_SDMMC_CMD_START_TIMEOUT3;
-        }
-    } while (status & SDMMCIP_REG_CMD_START);
+    status = sdmmc_ip_check_status(host, timeout);
+    if (status) {
+        HAL_SDMMC_ERROR(0, "%s:%d, error:%d", __func__, __LINE__, status);
+        return status;
+    }
 
-    host->clock = freq;
+    host->desired_bus_speed = freq;
 
     return HAL_SDMMC_ERR_NONE;
 }
 
+#ifdef CORE_SLEEP_POWER_DOWN
+static int sdmmc_ip_setup_div(struct sdmmc_ip_host *host, uint32_t div)
+{
+    uint32_t status;
+    uint32_t timeout = MS_TO_FAST_TICKS(REG_CFG_TIMEOUT);
+
+    sdmmc_ip_writel(host, SDMMCIP_REG_CLKDIV, div);
+    sdmmc_ip_writel(host, SDMMCIP_REG_CLKENA, SDMMCIP_REG_CLKEN_ENABLE |
+                    SDMMCIP_REG_CLKEN_LOW_PWR);
+    sdmmc_ip_writel(host, SDMMCIP_REG_CMD, SDMMCIP_REG_CMD_PRV_DAT_WAIT |
+                    SDMMCIP_REG_CMD_UPD_CLK | SDMMCIP_REG_CMD_START);
+
+    status = sdmmc_ip_check_status(host, timeout);
+    if (status) {
+        HAL_SDMMC_ERROR(0, "%s: error:%d", __func__, status);
+        return status;
+    }
+
+    return HAL_SDMMC_ERR_NONE;
+}
+#endif
+
 static int sdmmc_ip_clk_disable_low_power(struct sdmmc_ip_host *host)
 {
     uint32_t status;
-    int32_t  timeout;
+    uint32_t timeout = MS_TO_FAST_TICKS(REG_CFG_TIMEOUT);
 
     sdmmc_ip_writel(host, SDMMCIP_REG_CLKENA, 0);
     sdmmc_ip_writel(host, SDMMCIP_REG_CMD, SDMMCIP_REG_CMD_PRV_DAT_WAIT |
                     SDMMCIP_REG_CMD_UPD_CLK | SDMMCIP_REG_CMD_START);
 
-    timeout = TIMEOUT_TIME;
-    do {
-        status = sdmmc_ip_readl(host, SDMMCIP_REG_CMD);
-        if (timeout-- < 0) {
-            HAL_TRACE(2, "%s:%d: Timeout!", __FUNCTION__, __LINE__);
-            return HAL_SDMMC_CMD_START_TIMEOUT4;
-        }
-    } while (status & SDMMCIP_REG_CMD_START);
+    status = sdmmc_ip_check_status(host, timeout);
+    if (status) {
+        HAL_SDMMC_ERROR(0, "%s:%d, error:%d", __func__, __LINE__, status);
+        return status;
+    }
 
     sdmmc_ip_writel(host, SDMMCIP_REG_CLKENA, SDMMCIP_REG_CLKEN_ENABLE);
     sdmmc_ip_writel(host, SDMMCIP_REG_CMD, SDMMCIP_REG_CMD_PRV_DAT_WAIT |
                     SDMMCIP_REG_CMD_UPD_CLK | SDMMCIP_REG_CMD_START);
 
-    timeout = TIMEOUT_TIME;
-    do {
-        status = sdmmc_ip_readl(host, SDMMCIP_REG_CMD);
-        if (timeout-- < 0) {
-            HAL_TRACE(2, "%s:%d: Timeout!", __FUNCTION__, __LINE__);
-            return HAL_SDMMC_CMD_START_TIMEOUT5;
-        }
-    } while (status & SDMMCIP_REG_CMD_START);
+    status = sdmmc_ip_check_status(host, timeout);
+    if (status) {
+        HAL_SDMMC_ERROR(0, "%s:%d, error:%d", __func__, __LINE__, status);
+        return status;
+    }
 
     return HAL_SDMMC_ERR_NONE;
 }
 
-static int sdmmc_ip_set_ios(struct mmc *mmc)
+static int sdmmc_ip_wait_cmd_start(struct sdmmc_ip_host *host, uint8_t en_volt_switch)
 {
-    int ret = HAL_SDMMC_ERR_NONE;
-    struct sdmmc_ip_host *host = (struct sdmmc_ip_host *)mmc->priv;
-    uint32_t ctype, regs;
+    uint32_t status;
+    uint32_t timeout = MS_TO_FAST_TICKS(REG_CFG_TIMEOUT);
 
-    HAL_TRACE(3, "%s, Buswidth = %d, clock: %d", __FUNCTION__, mmc->bus_width, mmc->clock);
+    sdmmc_ip_writel(host, SDMMCIP_REG_CMD, SDMMCIP_REG_CMD_PRV_DAT_WAIT |
+                    SDMMCIP_REG_CMD_UPD_CLK | SDMMCIP_REG_CMD_START |
+                    (en_volt_switch ? SDMMCIP_REG_CMD_VOLT_SWITCH : 0));
 
-    if (mmc->clock) {
-        ret = sdmmc_ip_setup_bus(host, mmc->clock);
+    status = sdmmc_ip_check_status(host, timeout);
+    if (status) {
+        HAL_SDMMC_ERROR(0, "%s: error:%d", __func__, status);
+        return status;
     }
 
+    return HAL_SDMMC_ERR_NONE;
+}
+
+static int sdmmc_ip_set_ios_clock(struct mmc *mmc)
+{
+    uint32_t val;
+    int ret = HAL_SDMMC_ERR_NONE;
+    struct sdmmc_ip_host *host = (struct sdmmc_ip_host *)mmc->priv;
+
+    HAL_SDMMC_TRACE(3, "%s, clk_disable: %d, clock: %d", __func__, mmc->clk_disable, mmc->clock);
+    if (mmc->clock) {
+        ret = sdmmc_ip_setup_bus(host, mmc->clock);
+        if (ret) {
+            return ret;
+        }
+    }
+    if (mmc->clk_disable != mmc->clk_disable_copy) {
+        mmc->clk_disable_copy = mmc->clk_disable;
+        if (mmc->clk_disable == MMC_CLK_DISABLE) {
+            //stop clk supply
+            val = sdmmc_ip_readl(host, SDMMCIP_REG_CLKENA);
+            if (val & SDMMCIP_REG_CLKEN_ENABLE) {
+                val &= ~SDMMCIP_REG_CLKEN_ENABLE;
+                sdmmc_ip_writel(host, SDMMCIP_REG_CLKENA, val);
+                ret = sdmmc_ip_wait_cmd_start(host, host->volt_switch_flag ? 1 : 0);
+                if (ret) {
+                    HAL_SDMMC_ERROR(0, "%s:%d, error:%d", __func__, __LINE__, ret);
+                }
+                HAL_SDMMC_TRACE(0, "---clkena bit0 set to 0,clk closed,ret:%d", ret);
+            }
+        } else {
+            //supply clk
+            val = sdmmc_ip_readl(host, SDMMCIP_REG_CLKENA);
+            if (!(val & SDMMCIP_REG_CLKEN_ENABLE)) {
+                val |= SDMMCIP_REG_CLKEN_ENABLE;
+                sdmmc_ip_writel(host, SDMMCIP_REG_CLKENA, val);
+                ret = sdmmc_ip_wait_cmd_start(host, host->volt_switch_flag ? 1 : 0);
+                if (ret) {
+                    HAL_SDMMC_ERROR(0, "%s:%d, error:%d", __func__, __LINE__, ret);
+                }
+                HAL_SDMMC_TRACE(0, "---clkena bit0 set to 1,clk open,ret:%d", ret);
+            }
+        }
+    }
+
+    return ret;
+}
+
+static int sdmmc_ip_set_ios_width(struct mmc *mmc)
+{
+    uint32_t ctype, regs;
+    struct sdmmc_ip_host *host = (struct sdmmc_ip_host *)mmc->priv;
+
+    HAL_SDMMC_TRACE(3, "%s, Buswidth = %d", __func__, mmc->bus_width);
     if (mmc->bus_width) {
         switch (mmc->bus_width) {
-            case SDMMC_BUS_WIDTH_8:
+            case HAL_SDMMC_BUS_WIDTH_8:
                 ctype = SDMMCIP_REG_CTYPE_8BIT;
                 break;
-            case SDMMC_BUS_WIDTH_4:
+            case HAL_SDMMC_BUS_WIDTH_4:
                 ctype = SDMMCIP_REG_CTYPE_4BIT;
                 break;
             default:
@@ -5019,7 +5252,7 @@ static int sdmmc_ip_set_ios(struct mmc *mmc)
         sdmmc_ip_writel(host, SDMMCIP_REG_UHS_REG, regs);
     }
 
-    return ret;
+    return HAL_SDMMC_ERR_NONE;
 }
 
 SRAM_TEXT_LOC static void sdmmc_base_irq_handler(enum HAL_SDMMC_ID_T id)
@@ -5030,50 +5263,49 @@ SRAM_TEXT_LOC static void sdmmc_base_irq_handler(enum HAL_SDMMC_ID_T id)
     struct sdmmc_ip_host *host = &sdmmc_host[id];
 
     raw_int_status = sdmmc_ip_readl(host, SDMMCIP_REG_RINTSTS);//read raw interrupt status
-    sdmmc_ip_writel(host, SDMMCIP_REG_RINTSTS, raw_int_status & (~SDMMCIP_REG_RINTSTS_CDONE)); //clear interrupt status
+#ifdef SDMMC_RUN_RECORD
+    sdmmc_status_ori[id][sdmmc_status_ori_index[id]++] = raw_int_status;
+    if (sdmmc_status_ori_index[id] >= SDMMC_RUN_RECORD_CNT) {
+        sdmmc_status_ori_index[id] = 0;
+    }
+#endif
+    raw_int_status &= ~(SDMMCIP_REG_RINTSTS_CDONE | SDMMCIP_REG_RINTSTS_DTO);
+    sdmmc_ip_writel(host, SDMMCIP_REG_RINTSTS, raw_int_status); //clear interrupt status
     __DSB();
-    HAL_TRACE(3, "%s:%d,raw_int_status=0x%X", __FUNCTION__, __LINE__, raw_int_status);
+    HAL_SDMMC_TRACE(3, "%s:%d,raw_int_status=0x%X", __func__, __LINE__, raw_int_status);
 
 #if 0
     uint32_t int_status;
     int_status = sdmmc_ip_readl(host, SDMMCIP_REG_RINTSTS);
-    HAL_TRACE(3, "++++++int_status=0x%X", int_status);
+    HAL_SDMMC_TRACE(3, "++++++int_status=0x%X", int_status);
 #endif
 
     //Clear the redundant signs, because they are not used, the purpose is to reduce the number of subsequent cycles
-    raw_int_status &= (~(SDMMCIP_REG_RINTSTS_CDONE | SDMMCIP_REG_RINTSTS_TXDR | SDMMCIP_REG_RINTSTS_RXDR |
-                         SDMMCIP_REG_INTMSK_SDIO_FUNC1 | SDMMCIP_REG_INTMSK_SDIO_FUNC2 | SDMMCIP_REG_INTMSK_SDIO_FUNC3 |
-                         SDMMCIP_REG_INTMSK_SDIO_FUNC4 | SDMMCIP_REG_INTMSK_SDIO_FUNC5 | SDMMCIP_REG_INTMSK_SDIO_FUNC6 |
-                         SDMMCIP_REG_INTMSK_SDIO_FUNC7));
+    raw_int_status &= (~(SDMMCIP_REG_RINTSTS_TXDR | SDMMCIP_REG_RINTSTS_RXDR | SDMMCIP_REG_INTMSK_SDIO_FUNC1 |
+                         SDMMCIP_REG_INTMSK_SDIO_FUNC2 | SDMMCIP_REG_INTMSK_SDIO_FUNC3 | SDMMCIP_REG_INTMSK_SDIO_FUNC4 |
+                         SDMMCIP_REG_INTMSK_SDIO_FUNC5 | SDMMCIP_REG_INTMSK_SDIO_FUNC6 | SDMMCIP_REG_INTMSK_SDIO_FUNC7));
 
     while (raw_int_status) {
         i = get_lsb_pos(raw_int_status);
         branch = raw_int_status & (1 << i);
         raw_int_status &= ~(1 << i);
         switch (branch) {
-            case SDMMCIP_REG_RINTSTS_DTO: {
-                HAL_TRACE(0, "bit 3:Data transfer over (DTO)");
-                if (sdmmc_callback[id]->hal_sdmmc_txrx_done) {
-                    sdmmc_callback[id]->hal_sdmmc_txrx_done();
-                }
-                break;
-            }
             case SDMMCIP_REG_RINTSTS_EBE: {
-                HAL_TRACE(0, "bit 15:End-bit error (read)/write no CRC (EBE)");
+                HAL_SDMMC_ERROR(0, "sdmmc,bit 15:End-bit error (read)/write no CRC (EBE)");
                 if (sdmmc_callback[id]->hal_sdmmc_host_error) {
                     sdmmc_callback[id]->hal_sdmmc_host_error(HAL_SDMMC_HOST_READ_END_BIT_ERR_WRITE_NOCRC);
                 }
                 break;
             }
             case SDMMCIP_REG_RINTSTS_SBE: {
-                HAL_TRACE(0, "bit 13:Start-bit error (SBE)");
+                HAL_SDMMC_ERROR(0, "sdmmc,bit 13:Start-bit error (SBE)");
                 if (sdmmc_callback[id]->hal_sdmmc_host_error) {
                     sdmmc_callback[id]->hal_sdmmc_host_error(HAL_SDMMC_HOST_START_BIT_ERR);
                 }
                 break;
             }
             case SDMMCIP_REG_RINTSTS_HLE: {
-                HAL_TRACE(0, "bit 12:Hardware locked write error (HLE)");
+                HAL_SDMMC_ERROR(0, "sdmmc,bit 12:Hardware locked write error (HLE)");
                 if (sdmmc_callback[id]->hal_sdmmc_host_error) {
                     sdmmc_callback[id]->hal_sdmmc_host_error(HAL_SDMMC_HOST_HARDWARE_LOCKED_WRITE_ERR);
                 }
@@ -5081,49 +5313,47 @@ SRAM_TEXT_LOC static void sdmmc_base_irq_handler(enum HAL_SDMMC_ID_T id)
             }
             case SDMMCIP_REG_RINTSTS_FRUN: {
                 sdmmc_ip_reset_fifo(host);
-                HAL_TRACE(0, "bit 11:FIFO underrun/overrun error (FRUN)");
+                HAL_SDMMC_ERROR(0, "sdmmc,bit 11:FIFO underrun/overrun error (FRUN)");
                 if (sdmmc_callback[id]->hal_sdmmc_host_error) {
                     sdmmc_callback[id]->hal_sdmmc_host_error(HAL_SDMMC_HOST_FIFO_ERR);
                 }
                 break;
             }
             case SDMMCIP_REG_RINTSTS_HTO: {
-                HAL_TRACE(0, "bit 10:Data starvation-by-host timeout (HTO)");
-                if (sdmmc_callback[id]->hal_sdmmc_host_error) {
-                    sdmmc_callback[id]->hal_sdmmc_host_error(HAL_SDMMC_HOST_STARVATION_TIMEOUT);
-                }
+                host->volt_switch_flag = 1;
+                HAL_SDMMC_TRACE(0, "sdmmc,bit 10:Data starvation-by-host timeout (HTO)/Volt_switch_int");
                 break;
             }
             case SDMMCIP_REG_RINTSTS_DRTO: {
-                HAL_TRACE(0, "bit 9:Data read timeout (DRTO)/Boot Data Start (BDS)");
+                HAL_SDMMC_ERROR(0, "sdmmc,bit 9:Data read timeout (DRTO)/Boot Data Start (BDS)");
                 if (sdmmc_callback[id]->hal_sdmmc_host_error) {
                     sdmmc_callback[id]->hal_sdmmc_host_error(HAL_SDMMC_HOST_DATA_READ_TIMEOUT_BDS);
                 }
                 break;
             }
             case SDMMCIP_REG_RINTSTS_RTO: {
-                HAL_TRACE(0, "bit 8:Response timeout (RTO)/Boot Ack Received (BAR)");
+                HAL_SDMMC_ERROR(0, "sdmmc,bit 8:Response timeout (RTO)/Boot Ack Received (BAR)");
                 if (sdmmc_callback[id]->hal_sdmmc_host_error) {
                     sdmmc_callback[id]->hal_sdmmc_host_error(HAL_SDMMC_HOST_RESPONSE_TIMEOUT_BAR);
                 }
                 break;
             }
             case SDMMCIP_REG_RINTSTS_DCRC: {
-                HAL_TRACE(0, "bit 7:Data CRC error (DCRC)");
+                HAL_SDMMC_ERROR(0, "sdmmc,bit 7:Data CRC error (DCRC)");
                 if (sdmmc_callback[id]->hal_sdmmc_host_error) {
                     sdmmc_callback[id]->hal_sdmmc_host_error(HAL_SDMMC_HOST_DATA_CRC_ERR);
                 }
                 break;
             }
             case SDMMCIP_REG_RINTSTS_RCRC: {
-                HAL_TRACE(0, "bit 6:Response CRC error (RCRC)");
+                HAL_SDMMC_ERROR(0, "sdmmc,bit 6:Response CRC error (RCRC)");
                 if (sdmmc_callback[id]->hal_sdmmc_host_error) {
                     sdmmc_callback[id]->hal_sdmmc_host_error(HAL_SDMMC_HOST_RESPONSE_CRC_ERR);
                 }
                 break;
             }
             case SDMMCIP_REG_RINTSTS_RE: {
-                HAL_TRACE(0, "bit 1:Response error (RE)");
+                HAL_SDMMC_ERROR(0, "sdmmc,bit 1:Response error (RE)");
                 if (sdmmc_callback[id]->hal_sdmmc_host_error) {
                     sdmmc_callback[id]->hal_sdmmc_host_error(HAL_SDMMC_HOST_RESPONSE_ERR);
                 }
@@ -5131,7 +5361,7 @@ SRAM_TEXT_LOC static void sdmmc_base_irq_handler(enum HAL_SDMMC_ID_T id)
             }
             case SDMMCIP_REG_RINTSTS_CD: {
                 //ip does not support, detect signal is tie to 1, 2022-06-02
-                HAL_TRACE(0, "bit 0:Card detect (RE)");
+                HAL_SDMMC_TRACE(0, "bit 0:Card detect (RE)");
                 break;
             }
             case SDMMCIP_REG_RINTSTS_SDIO_FUNC1:
@@ -5141,7 +5371,7 @@ SRAM_TEXT_LOC static void sdmmc_base_irq_handler(enum HAL_SDMMC_ID_T id)
             case SDMMCIP_REG_RINTSTS_SDIO_FUNC5:
             case SDMMCIP_REG_RINTSTS_SDIO_FUNC6:
             case SDMMCIP_REG_RINTSTS_SDIO_FUNC7: {
-                HAL_TRACE(0, "bit 16:funcX int");
+                HAL_SDMMC_TRACE(0, "bit 16:funcX int");
                 break;
             }
             default : {
@@ -5163,38 +5393,67 @@ static void hal_sdmmc1_irq_handler(void)
 }
 #endif
 
-static int hal_sdmmc_host_int_enable(struct sdmmc_ip_host *host)
+int hal_sdmmc_host_int_enable(enum HAL_SDMMC_ID_T id)
 {
     uint32_t val;
     uint32_t irq_num = SDMMC0_IRQn;
+    struct sdmmc_ip_host *host = &sdmmc_host[id];
 
-    HAL_TRACE(2, "%s:%d", __FUNCTION__, __LINE__);
+    HAL_SDMMC_TRACE(2, "%s:%d", __func__, __LINE__);
     sdmmc_ip_writel(host, SDMMCIP_REG_RINTSTS, SDMMCIP_REG_RINTSTS_ALL); //clear interrupt status
 
-    val = ~(SDMMCIP_REG_INTMSK_CDONE | SDMMCIP_REG_INTMSK_ACD | SDMMCIP_REG_INTMSK_TXDR |
-            SDMMCIP_REG_INTMSK_RXDR | SDMMCIP_REG_INTMSK_RTO | SDMMCIP_REG_INTMSK_SDIO_FUNC1 |
-            SDMMCIP_REG_INTMSK_SDIO_FUNC2 | SDMMCIP_REG_INTMSK_SDIO_FUNC3 | SDMMCIP_REG_INTMSK_SDIO_FUNC4 |
-            SDMMCIP_REG_INTMSK_SDIO_FUNC5 | SDMMCIP_REG_INTMSK_SDIO_FUNC6 | SDMMCIP_REG_INTMSK_SDIO_FUNC7);
-    if (!sdmmc_callback[host->host_id]->hal_sdmmc_txrx_done) {
-        val &= ~SDMMCIP_REG_RINTSTS_DTO;
-    }
+    val = ~(SDMMCIP_REG_INTMSK_CDONE | SDMMCIP_REG_INTMSK_DTO | SDMMCIP_REG_INTMSK_TXDR | SDMMCIP_REG_INTMSK_RXDR |
+            SDMMCIP_REG_INTMSK_RTO |    /* This bit must be mask here, otherwise EMMC will not be recognized */
+            SDMMCIP_REG_INTMSK_ACD | SDMMCIP_REG_INTMSK_SDIO_FUNC1 | SDMMCIP_REG_INTMSK_SDIO_FUNC2 |
+            SDMMCIP_REG_INTMSK_SDIO_FUNC3 |  SDMMCIP_REG_INTMSK_SDIO_FUNC4 | SDMMCIP_REG_INTMSK_SDIO_FUNC5 |
+            SDMMCIP_REG_INTMSK_SDIO_FUNC6 | SDMMCIP_REG_INTMSK_SDIO_FUNC7);
     sdmmc_ip_writel(host, SDMMCIP_REG_INTMASK, SDMMCIP_REG_INTMSK_ALL & val);   //open interrupt except for values in parentheses
-    sdmmc_ip_writel(host, SDMMCIP_REG_CTRL, SDMMCIP_REG_INT_EN);                //enable interrupt
+    val = sdmmc_ip_readl(host, SDMMCIP_REG_CTRL);
+    val |= SDMMCIP_REG_INT_EN;
+    sdmmc_ip_writel(host, SDMMCIP_REG_CTRL, val);                               //enable interrupt
 
     if (host->host_id == HAL_SDMMC_ID_0) {
         irq_num = SDMMC0_IRQn;
-        NVIC_SetVector(irq_num, (uint32_t)hal_sdmmc0_irq_handler);
+        NVIC_SetVector((IRQn_Type)irq_num, (uint32_t)hal_sdmmc0_irq_handler);
     }
 #ifdef SDMMC1_BASE
     else if (host->host_id == HAL_SDMMC_ID_1) {
         irq_num = SDMMC1_IRQn;
-        NVIC_SetVector(irq_num, (uint32_t)hal_sdmmc1_irq_handler);
+        NVIC_SetVector((IRQn_Type)irq_num, (uint32_t)hal_sdmmc1_irq_handler);
     }
 #endif
 
-    NVIC_SetPriority(irq_num, IRQ_PRIORITY_NORMAL);
-    NVIC_ClearPendingIRQ(irq_num);
-    NVIC_EnableIRQ(irq_num);
+    NVIC_SetPriority((IRQn_Type)irq_num, IRQ_PRIORITY_NORMAL);
+    NVIC_ClearPendingIRQ((IRQn_Type)irq_num);
+    NVIC_EnableIRQ((IRQn_Type)irq_num);
+
+    return HAL_SDMMC_ERR_NONE;
+}
+
+int hal_sdmmc_host_int_disable(enum HAL_SDMMC_ID_T id)
+{
+    uint32_t val;
+    uint32_t irq_num = SDMMC0_IRQn;
+    struct sdmmc_ip_host *host = &sdmmc_host[id];
+
+    HAL_SDMMC_TRACE(2, "%s:%d", __func__, __LINE__);
+    val = sdmmc_ip_readl(host, SDMMCIP_REG_CTRL);
+    val &= ~SDMMCIP_REG_INT_EN;
+    sdmmc_ip_writel(host, SDMMCIP_REG_INTMASK, ~SDMMCIP_REG_INTMSK_ALL);
+    sdmmc_ip_writel(host, SDMMCIP_REG_CTRL, val);                           //disable interrupt
+    sdmmc_ip_writel(host, SDMMCIP_REG_RINTSTS, SDMMCIP_REG_RINTSTS_ALL);    //clear interrupt status
+
+    if (host->host_id == HAL_SDMMC_ID_0) {
+        irq_num = SDMMC0_IRQn;
+    }
+#ifdef SDMMC1_BASE
+    else if (host->host_id == HAL_SDMMC_ID_1) {
+        irq_num = SDMMC1_IRQn;
+    }
+#endif
+
+    NVIC_DisableIRQ((IRQn_Type)irq_num);
+    NVIC_ClearPendingIRQ((IRQn_Type)irq_num);
 
     return HAL_SDMMC_ERR_NONE;
 }
@@ -5204,10 +5463,10 @@ static int sdmmc_ip_init(struct mmc *mmc)
     struct sdmmc_ip_host *host = mmc->priv;
 
     sdmmc_ip_writel(host, SDMMCIP_REG_PWREN, 1);
-    HAL_TRACE(2, "%s, host->ioaddr:0x%X, ip_pwr:%d", __func__, (uint32_t)host->ioaddr, sdmmc_ip_readl(host, SDMMCIP_REG_PWREN));
+    HAL_SDMMC_TRACE(2, "%s, host->ioaddr:0x%X, ip_pwr:%d", __func__, (uint32_t)host->ioaddr, sdmmc_ip_readl(host, SDMMCIP_REG_PWREN));
 
     if (sdmmc_ip_wait_reset(host, SDMMCIP_REG_RESET_ALL)) {
-        HAL_SDMMC_ASSERT(0, "%s:%d,Fail-reset!!", __FUNCTION__, __LINE__);
+        HAL_SDMMC_ASSERT(0, "%s:%d,Fail-reset!!", __func__, __LINE__);
         return HAL_SDMMC_RESET_FAIL;
     }
 
@@ -5217,30 +5476,31 @@ static int sdmmc_ip_init(struct mmc *mmc)
     sdmmc_ip_writel(host, SDMMCIP_REG_BMOD, 1);      //software reset internal DMA controller
     sdmmc_ip_writel(host, SDMMCIP_REG_FIFOTH, host->fifoth_val);
 
-    return hal_sdmmc_host_int_enable(host);
+    return HAL_SDMMC_ERR_NONE;
 }
 
 static int sdmmc_ip_wait_dat0(struct mmc *mmc, int state, int timeout_us)
 {
     uint32_t val;
     struct sdmmc_ip_host *host = mmc->priv;
-    uint32_t busy_timeout = US_TO_TICKS(timeout_us), busy_t = 0;
+    uint32_t busy_timeout = US_TO_FAST_TICKS(timeout_us), busy_t;
 
-    HAL_TRACE(2, "timeout_us:%d,busy_timeout:%d", timeout_us, busy_timeout);
-    busy_t = hal_sys_timer_get();
+    //HAL_SDMMC_TRACE(2, "timeout_us:%d,busy_timeout:%d", timeout_us, busy_timeout);
+    busy_t = hal_fast_sys_timer_get();
     do {
         val = sdmmc_ip_readl(host, SDMMCIP_REG_STATUS);
-        if (!(val & SDMMCIP_REG_BUSY) ==  !!state) {
+        if (!(val & SDMMCIP_REG_DATA0_BUSY) ==  !!state) {
             return HAL_SDMMC_ERR_NONE;
         }
-    } while (hal_sys_timer_get() < (busy_t + busy_timeout));
+    } while (hal_fast_sys_timer_get() - busy_t < busy_timeout);
 
     return HAL_SDMMC_WAIT_DAT0_TIMEOUT;
 }
 
 static const struct mmc_ops sdmmc_ip_ops = {
-    .send_cmd           = sdmmc_ip_send_cmd,
-    .set_ios            = sdmmc_ip_set_ios,
+    .send_cmd           = hal_sdmmc_ip_send_cmd,
+    .set_ios_clock      = sdmmc_ip_set_ios_clock,
+    .set_ios_width      = sdmmc_ip_set_ios_width,
     .init               = sdmmc_ip_init,
     .wait_dat0          = sdmmc_ip_wait_dat0,
     .getcd              = NULL,
@@ -5270,6 +5530,9 @@ static struct mmc *mmc_create(enum HAL_SDMMC_ID_T id, const struct mmc_config *c
 
     mmc->cfg = cfg;
     mmc->priv = priv;
+    mmc->has_sleep = 0;
+    mmc->clk_disable = MMC_CLK_DISABLE;
+    mmc->clk_disable_copy = mmc->clk_disable;
 
     /* the following chunk was mmc_register() */
 
@@ -5291,16 +5554,106 @@ static struct mmc *mmc_create(enum HAL_SDMMC_ID_T id, const struct mmc_config *c
     return mmc;
 }
 
-static int hal_sdmmc_host_device_cfg(enum HAL_SDMMC_ID_T id, struct HAL_SDMMC_CB_T *callback, bool device_init)
+#ifdef CORE_SLEEP_POWER_DOWN
+struct SAVED_SDMMC_REGS_T {
+    uint32_t REG_00;
+    uint32_t REG_04;
+    uint32_t REG_08;
+    uint32_t REG_0C;
+    uint32_t REG_14;
+    uint32_t REG_18;
+    uint32_t REG_24;
+    uint32_t REG_4C;
+    uint32_t REG_74;
+};
+SRAM_BSS_LOC static struct SAVED_SDMMC_REGS_T saved_sdmmc_regs[HAL_SDMMC_ID_NUM];
+
+static int sdmmc_base_pm_notif_handler(enum HAL_SDMMC_ID_T id, enum HAL_PM_STATE_T state)
 {
-    int ret = 0;
-    uint32_t bus_clk;
+    struct sdmmc_ip_host *host = &sdmmc_host[id];
+
+    if (state == HAL_PM_STATE_POWER_DOWN_SLEEP) {
+#ifdef SDMMC_RUN_RECORD
+        sdmmc_sleep_wakeup_record[id][sdmmc_sleep_wakeup_record_index[id]++] = 0xA0;
+        if (sdmmc_sleep_wakeup_record_index[id] >= SDMMC_RUN_RECORD_CNT) {
+            sdmmc_sleep_wakeup_record_index[id] = 0;
+        }
+#endif
+        //save digital side registers
+        saved_sdmmc_regs[id].REG_00 = sdmmc_ip_readl(host, 0x00);
+        saved_sdmmc_regs[id].REG_04 = sdmmc_ip_readl(host, 0x04);
+        saved_sdmmc_regs[id].REG_08 = sdmmc_ip_readl(host, 0x08);
+        saved_sdmmc_regs[id].REG_0C = sdmmc_ip_readl(host, 0x0C);
+        saved_sdmmc_regs[id].REG_14 = sdmmc_ip_readl(host, 0x14);
+        saved_sdmmc_regs[id].REG_18 = sdmmc_ip_readl(host, 0x18);
+        saved_sdmmc_regs[id].REG_24 = sdmmc_ip_readl(host, 0x24);
+        saved_sdmmc_regs[id].REG_4C = sdmmc_ip_readl(host, 0x4C);
+        saved_sdmmc_regs[id].REG_74 = sdmmc_ip_readl(host, 0x74);
+    } else if (state == HAL_PM_STATE_POWER_DOWN_WAKEUP) {
+#ifdef SDMMC_RUN_RECORD
+        sdmmc_sleep_wakeup_record[id][sdmmc_sleep_wakeup_record_index[id]++] = 0xA1;
+        if (sdmmc_sleep_wakeup_record_index[id] >= SDMMC_RUN_RECORD_CNT) {
+            sdmmc_sleep_wakeup_record_index[id] = 0;
+        }
+#endif
+        sdmmc_ip_writel(host, 0x04, saved_sdmmc_regs[id].REG_04);//SDMMCIP_REG_PWREN
+        if (sdmmc_ip_wait_reset(host, SDMMCIP_REG_RESET_ALL)) {
+            if (sdmmc_ip_wait_reset(host, SDMMCIP_REG_RESET_ALL)) {
+                HAL_SDMMC_ERROR(0, "%s failed", __func__);
+            }
+        }
+        sdmmc_ip_setup_div(host, saved_sdmmc_regs[id].REG_08);   //SDMMCIP_REG_CLKDIV + SDMMCIP_REG_CLKENA
+        sdmmc_ip_writel(host, 0x0C, saved_sdmmc_regs[id].REG_0C);//SDMMCIP_REG_CLKSRC
+        sdmmc_ip_writel(host, 0x14, saved_sdmmc_regs[id].REG_14);//SDMMCIP_REG_TMOUT
+        sdmmc_ip_writel(host, 0x18, saved_sdmmc_regs[id].REG_18);//SDMMCIP_REG_CTYPE
+        sdmmc_ip_writel(host, 0x24, saved_sdmmc_regs[id].REG_24);//SDMMCIP_REG_INTMASK
+        sdmmc_ip_writel(host, 0x4C, saved_sdmmc_regs[id].REG_4C);//SDMMCIP_REG_FIFOTH
+        sdmmc_ip_writel(host, 0x74, saved_sdmmc_regs[id].REG_74);//SDMMCIP_REG_UHS_REG
+
+        sdmmc_ip_writel(host, SDMMCIP_REG_RINTSTS, SDMMCIP_REG_RINTSTS_ALL); //clear interrupt status
+        sdmmc_ip_writel(host, 0x00, saved_sdmmc_regs[id].REG_00);
+    }
+
+    return 0;
+}
+
+static int sdmmc0_pm_notif_handler(enum HAL_PM_STATE_T state)
+{
+    return sdmmc_base_pm_notif_handler(HAL_SDMMC_ID_0, state);
+}
+
+#ifdef SDMMC1_BASE
+static int sdmmc1_pm_notif_handler(enum HAL_PM_STATE_T state)
+{
+    return sdmmc_base_pm_notif_handler(HAL_SDMMC_ID_1, state);
+}
+#endif
+
+static HAL_PM_NOTIF_HANDLER hal_sdmmc_pm_notif_handler[HAL_SDMMC_ID_NUM] = {
+    sdmmc0_pm_notif_handler,
+#ifdef SDMMC1_BASE
+    sdmmc1_pm_notif_handler,
+#endif
+};
+#endif
+
+static enum HAL_SDMMC_ERR hal_sdmmc_host_init_base(enum HAL_SDMMC_ID_T id, const struct HAL_SDMMC_CONFIG_T *cfg, bool dma_en)
+{
+    int ret = HAL_SDMMC_ERR_NONE;
+    uint32_t src_clk;
+    uint32_t sdmmc_speed;
     struct sdmmc_ip_host *host = NULL;
     HAL_SDMMC_ASSERT(id < HAL_SDMMC_ID_NUM, "Invalid sdmmc host id: %d", id);
 
-#ifndef SDMMC_SPEED
-#define SDMMC_SPEED      (12 * 1000 * 1000)
-#endif
+    if (id >= HAL_SDMMC_ID_NUM) {
+        return HAL_SDMMC_BAD_ID;
+    }
+
+    if (cfg && cfg->bus_speed) {
+        sdmmc_speed = cfg->bus_speed;
+    } else {
+        sdmmc_speed = 12 * 1000 * 1000;
+    }
 
 #ifdef FPGA
     switch (id) {
@@ -5316,20 +5669,20 @@ static int hal_sdmmc_host_device_cfg(enum HAL_SDMMC_ID_T id, struct HAL_SDMMC_CB
             break;
     }
 
-    bus_clk = hal_cmu_get_crystal_freq();
-    HAL_SDMMC_ASSERT(bus_clk >= SDMMC_SPEED, "%s:%d, SDMMC_SPEED %d > src clk %d", __FUNCTION__, __LINE__, SDMMC_SPEED, bus_clk);
+    src_clk = hal_cmu_get_crystal_freq();
+    HAL_SDMMC_ASSERT(src_clk >= sdmmc_speed, "%s:%d, sdmmc_speed %d > src clk %d", __func__, __LINE__, sdmmc_speed, src_clk);
 #else
     if (0) {
 #ifdef PERIPH_PLL_FREQ
-    } else if (SDMMC_SPEED > 2 * hal_cmu_get_crystal_freq()) {
+    } else if (sdmmc_speed > 2 * hal_cmu_get_crystal_freq()) {
         uint32_t div;//division is one step in place, the sdmmc ip is no longer divided(Support even division)
 
-        div = PERIPH_PLL_FREQ / SDMMC_SPEED;
-        if (PERIPH_PLL_FREQ % SDMMC_SPEED) {
+        div = PERIPH_PLL_FREQ / sdmmc_speed;
+        if (PERIPH_PLL_FREQ % sdmmc_speed) {
             div += 1;
         }
 
-        bus_clk = PERIPH_PLL_FREQ / div;
+        src_clk = PERIPH_PLL_FREQ / div;
         switch (id) {
             case HAL_SDMMC_ID_0:
                 ret = hal_cmu_sdmmc0_set_div(div);
@@ -5342,11 +5695,11 @@ static int hal_sdmmc_host_device_cfg(enum HAL_SDMMC_ID_T id, struct HAL_SDMMC_CB
             default:
                 break;
         }
-        HAL_SDMMC_ASSERT(!ret, "The SDMMC_SPEED value is invalid, causing the div to be out of range, ret %d, div is %d", ret, div);
-        HAL_SDMMC_ASSERT(bus_clk <= SDMMC_SPEED, "%s:%d, div clk %d > SDMMC_SPEED %d", __FUNCTION__, __LINE__, bus_clk, SDMMC_SPEED);
-        HAL_TRACE(1, "PERIPH_PLL_FREQ is %d, the final PLL div is %d", PERIPH_PLL_FREQ, div);
+        HAL_SDMMC_ASSERT(!ret, "The sdmmc_speed value is invalid, causing the div to be out of range, ret %d, div is %d", ret, div);
+        HAL_SDMMC_ASSERT(src_clk <= sdmmc_speed, "%s:%d, div clk %d > sdmmc_speed %d", __func__, __LINE__, src_clk, sdmmc_speed);
+        HAL_SDMMC_TRACE(1, "PERIPH_PLL_FREQ is %d, the final PLL div is %d", PERIPH_PLL_FREQ, div);
 #endif
-    } else if (SDMMC_SPEED >= 3 * hal_cmu_get_crystal_freq() / 2) {  //sdmmc ip may also be divided(Only even division)
+    } else if (sdmmc_speed >= 3 * hal_cmu_get_crystal_freq() / 2) {  //sdmmc ip may also be divided(Only even division)
         switch (id) {
             case HAL_SDMMC_ID_0:
                 hal_cmu_sdmmc0_set_freq(HAL_CMU_PERIPH_FREQ_52M);
@@ -5359,8 +5712,8 @@ static int hal_sdmmc_host_device_cfg(enum HAL_SDMMC_ID_T id, struct HAL_SDMMC_CB
             default:
                 break;
         }
-        bus_clk = 2 * hal_cmu_get_crystal_freq();
-        HAL_SDMMC_ASSERT(bus_clk >= SDMMC_SPEED, "%s:%d, SDMMC_SPEED %d > src clk %d", __FUNCTION__, __LINE__, SDMMC_SPEED, bus_clk);
+        src_clk = 2 * hal_cmu_get_crystal_freq();
+        HAL_SDMMC_ASSERT(src_clk >= sdmmc_speed, "%s:%d, sdmmc_speed %d > src clk %d", __func__, __LINE__, sdmmc_speed, src_clk);
     } else {                                                        //sdmmc ip may also be divided(Only even division)
         switch (id) {
             case HAL_SDMMC_ID_0:
@@ -5374,11 +5727,11 @@ static int hal_sdmmc_host_device_cfg(enum HAL_SDMMC_ID_T id, struct HAL_SDMMC_CB
             default:
                 break;
         }
-        bus_clk = hal_cmu_get_crystal_freq();
-        HAL_SDMMC_ASSERT(bus_clk >= SDMMC_SPEED, "%s:%d, SDMMC_SPEED %d > src clk %d", __FUNCTION__, __LINE__, SDMMC_SPEED, bus_clk);
+        src_clk = hal_cmu_get_crystal_freq();
+        HAL_SDMMC_ASSERT(src_clk >= sdmmc_speed, "%s:%d, sdmmc_speed %d > src clk %d", __func__, __LINE__, sdmmc_speed, src_clk);
     }
 #endif
-    HAL_TRACE(2, "SDMMC_SPEED %d, bus clk(Not necessarily the final speed) %d", SDMMC_SPEED, bus_clk);
+    HAL_SDMMC_TRACE(2, "sdmmc_speed %d, bus clk(Not necessarily the final speed) %d", sdmmc_speed, src_clk);
 
     /* sdmmc host clock and iomux */
     switch (id) {
@@ -5396,89 +5749,119 @@ static int hal_sdmmc_host_device_cfg(enum HAL_SDMMC_ID_T id, struct HAL_SDMMC_CB
             break;
     }
 
-#ifdef SDMMC_DDR_MODE
-    uint32_t freq_max;
-    freq_max = mmc_mode2freq(NULL, MMC_DDR_52);
-    HAL_SDMMC_ASSERT(SDMMC_SPEED <= freq_max, "%s:%d, mmc ddr50 speed %d > max speed %d", __FUNCTION__, __LINE__, SDMMC_SPEED, freq_max);
-#endif
+    if (cfg && cfg->ddr_mode) {
+        POSSIBLY_UNUSED uint32_t freq_max;
+        freq_max = mmc_mode2freq(NULL, MMC_DDR_52);
+        HAL_SDMMC_ASSERT(sdmmc_speed <= freq_max, "%s:%d, mmc ddr50 speed %d > max speed %d", __func__, __LINE__, sdmmc_speed, freq_max);
+    }
 
     host = &sdmmc_host[id];
-    host->ioaddr     = (void *)sdmmc_ip_base[id];
-    host->clock      = 0;
-    host->bus_hz     = bus_clk;
     host->host_id    = id;
-    host->buswidth   = 4;
+    host->dma_en     = dma_en;
+    host->src_clk_hz = src_clk;
+    host->ioaddr     = (void *)sdmmc_ip_base[id];
+    host->desired_bus_speed = 0;
+    if (cfg && cfg->bus_width) {
+        host->buswidth   = cfg->bus_width;
+    } else {
+        host->buswidth   = HAL_SDMMC_BUS_WIDTH_4;
+    }
+    if (cfg) {
+        host->volt_switch = cfg->volt_switch;
+        host->yield = cfg->yield;
+    } else {
+        host->volt_switch = 0;
+        host->yield = 0;
+    }
+    host->volt_switch_flag = 0;
     host->fifoth_val = MSIZE(0) | RX_WMARK(0) | TX_WMARK(1);
 
     host->cfg.ops = &sdmmc_ip_ops;
     host->cfg.voltages = MMC_VDD_27_28 | MMC_VDD_28_29 | MMC_VDD_29_30 | MMC_VDD_30_31 | MMC_VDD_31_32 | MMC_VDD_32_33 | MMC_VDD_165_195;
     host->cfg.f_min = 400 * 1000;     //Don't modify
-    host->cfg.f_max = SDMMC_SPEED;
+    host->cfg.f_max = sdmmc_speed;
     host->cfg.b_max = CONFIG_SYS_MMC_MAX_BLK_COUNT;
     host->mmc = mmc_create(host->host_id, &host->cfg, host);
-    HAL_TRACE(4, "%s:%d, sdmmc clk min %d, max %d", __FUNCTION__, __LINE__, host->cfg.f_min, host->cfg.f_max);
+    HAL_SDMMC_TRACE(4, "%s:%d, sdmmc clk min %d, max %d", __func__, __LINE__, host->cfg.f_min, host->cfg.f_max);
 
-#ifdef HAL_SDMMC_USE_DMA
-    host->dma_ch = 0;
-    host->dma_in_use = 0;
-    host->sdmmc_dma_lock = 0;
-    host->tx_dma_handler = sdmmc_ip_ext_dma_irq_handlers[id * 2];
-    host->rx_dma_handler = sdmmc_ip_ext_dma_irq_handlers[id * 2 + 1];
-#endif
+    if (host->dma_en) {
+        host->dma_ch = 0;
+        host->dma_in_use = 0;
+        host->dma_error = 0;
+        host->sdmmc_dma_lock = 0;
+        host->tx_dma_handler = sdmmc_ip_ext_dma_irq_handlers[id * 2];
+        host->rx_dma_handler = sdmmc_ip_ext_dma_irq_handlers[id * 2 + 1];
+    }
 
     host->cfg.host_caps = 0;
     if (host->buswidth == 8) {
-        host->cfg.host_caps |= MMC_MODE_8BIT;
+        host->cfg.host_caps |= MMC_MODE_4BIT | MMC_MODE_8BIT;
     } else if (host->buswidth == 4) {
         host->cfg.host_caps |= MMC_MODE_4BIT;
     } else {
         host->cfg.host_caps |= MMC_MODE_4BIT;
     }
 
-#ifdef SDMMC_DDR_MODE
-    host->cfg.host_caps |= MMC_MODE_DDR_52MHz;
-#endif
-
-    switch (id) {
-        case HAL_SDMMC_ID_0:
-            host->cfg.host_caps |= MMC_MODE_HS | MMC_MODE_HS_52MHz;
-            break;
-#ifdef SDMMC1_BASE
-        case HAL_SDMMC_ID_1:
-            host->cfg.host_caps |= MMC_MODE_HS | MMC_MODE_HS_52MHz | UHS_CAPS;
-            break;
-#endif
-        default:
-            break;
+    if (cfg && cfg->ddr_mode) {
+        //The controller does not support this mode, 2022-06-09
+        //host->cfg.host_caps |= MMC_MODE_DDR_52MHz;
     }
 
-    //Calculate period at start frequency
-    uint32_t sdmmc_start_freq;
-    sdmmc_start_freq = host->bus_hz / hal_cmu_get_crystal_freq();
-    sdmmc_start_freq *= hal_cmu_get_crystal_freq();
-    sdmmc_start_freq = sdmmc_start_freq / 1000 / 1000;
-    host->period_st_ns = (1000 * host->div) / sdmmc_start_freq;
-    HAL_TRACE(1, "sdmmc period of start frequency:%dns", host->period_st_ns);
+    if (cfg) {
+        if (cfg->device_type == HAL_SDMMC_DEVICE_TYPE_SD) {
+            if (host->volt_switch) {
+                host->cfg.host_caps |= MMC_MODE_HS | MMC_MODE_HS_52MHz | UHS_CAPS_MINI;//max clk: 96M, sdr50
+            } else {
+                host->cfg.host_caps |= MMC_MODE_HS | MMC_MODE_HS_52MHz;//max clk: 48M, sdr25
+            }
+        } else {
+            host->cfg.host_caps |= MMC_MODE_HS | MMC_MODE_HS_52MHz | UHS_CAPS_MINI;//max clk: 48M, sdr52
+        }
+    } else {
+        //the default configuration of caps shared by emmc and sd card
+        host->cfg.host_caps |= MMC_MODE_HS | MMC_MODE_HS_52MHz;//max clk: 48M
+    }
+
+    sdmmc_callback[id] = &sdmmc_callback_default[id];
+    memset(sdmmc_callback[id], 0, sizeof(struct HAL_SDMMC_CB_T));
+    HAL_SDMMC_TRACE(0, "default callback[%d] addr:0x%X", id, (uint32_t)sdmmc_callback[id]);
+    if (cfg && cfg->callback) {
+        HAL_SDMMC_TRACE(0, "new callback addr:0x%X", (uint32_t)cfg->callback);
+        sdmmc_callback[id] = cfg->callback;
+    }
+    host->callback = sdmmc_callback[id];
+
+    /* made sure it's not NULL earlier */
+    ret = host->mmc->cfg->ops->init(host->mmc);
+    if (ret) {
+        HAL_SDMMC_ERROR(3, "%s:%d, sdmmc ip init error,ret=%d", __func__, __LINE__, ret);
+        return ret;
+    } else {
+        HAL_SDMMC_TRACE(3, "%s:%d, sdmmc ip init ok,ret=%d", __func__, __LINE__, ret);
+    }
+    hal_sdmmc_host_int_enable(id);
+
+#ifdef CORE_SLEEP_POWER_DOWN
+    hal_pm_notif_register(HAL_PM_USER_HAL, hal_sdmmc_pm_notif_handler[id]);
+#endif
+
+    return ret;
+}
+
+static enum HAL_SDMMC_ERR hal_sdmmc_device_init_base(enum HAL_SDMMC_ID_T id, struct sdmmc_ip_host *host, bool device_init)
+{
+    int ret = HAL_SDMMC_ERR_NONE;
 
     if (host->mmc->has_init) {
-        HAL_TRACE(2, "%s:%d,sdmmc host has been initialized", __FUNCTION__, __LINE__);
-        return HAL_SDMMC_ERR_NONE;
+        HAL_SDMMC_ERROR(2, "%s:%d, sdmmc device has been initialized", __func__, __LINE__);
+        return ret;
     }
     if (!host->mmc->init_in_progress) {
         host->mmc->init_in_progress = 1;
-
         if (device_init) {
-            sdmmc_callback[id] = &sdmmc_callback_default[id];
-            memset(sdmmc_callback[id], 0, sizeof(struct HAL_SDMMC_CB_T));
-            HAL_TRACE(0, "default callback[%d] addr:0x%X", id, (uint32_t)sdmmc_callback[id]);
-            if (callback) {
-                HAL_TRACE(0, "new callback addr:0x%X", (uint32_t)callback);
-                sdmmc_callback[id] = callback;
-            }
-
             mmc_set_preinit(host->mmc, 1);
             if (mmc_initialize(host->mmc)) {
-                HAL_TRACE(1, "%s failed", __func__);
+                HAL_SDMMC_ERROR(1, "%s failed", __func__);
             }
             ret = mmc_init(host->mmc);
             if (ret) {
@@ -5486,28 +5869,84 @@ static int hal_sdmmc_host_device_cfg(enum HAL_SDMMC_ID_T id, struct HAL_SDMMC_CB
             }
         } else {
             //config host:UHS-I mode
-            mmc_set_bus_width(host->mmc, SDMMC_BUS_WIDTH_4);
-            mmc_set_clock(host->mmc, host->mmc->cfg->f_max, false);
+            hal_sdmmc_set_bus_width(host->mmc, HAL_SDMMC_BUS_WIDTH_4);
+            hal_sdmmc_set_clock(host->mmc, host->mmc->cfg->f_max, false);
 
             //Disable the function of stopping output when clk is idle
             sdmmc_ip_clk_disable_low_power(host);
+            ret = HAL_SDMMC_ERR_NONE;
         }
-        HAL_TRACE(2, "%s:%d,sdmmc device init complete", __FUNCTION__, __LINE__);
-        HAL_TRACE(0, "  ");
-        HAL_TRACE(0, "  ");
+        HAL_SDMMC_TRACE(2, "%s:%d, sdmmc device init complete", __func__, __LINE__);
+        HAL_SDMMC_TRACE(0, "  ");
+        HAL_SDMMC_TRACE(0, "  ");
     } else {
-        HAL_TRACE(2, "%s:%d,sdmmc host is being initialized", __FUNCTION__, __LINE__);
+        ret = HAL_SDMMC_IN_PROGRESS_ERR;
+        HAL_SDMMC_ERROR(2, "%s:%d, sdmmc device is being initialized", __func__, __LINE__);
     }
 
     return ret;
 }
+
+enum HAL_SDMMC_ERR hal_sdmmc_host_init(enum HAL_SDMMC_ID_T id, const struct HAL_SDMMC_CONFIG_T *cfg)
+{
+    return hal_sdmmc_host_init_base(id, cfg, 1);
+}
+
+enum HAL_SDMMC_ERR hal_sdmmc_device_init(enum HAL_SDMMC_ID_T id)
+{
+    struct sdmmc_ip_host *host = NULL;
+    host = &sdmmc_host[id];
+
+    return hal_sdmmc_device_init_base(id, host, 1);
+}
+
+static enum HAL_SDMMC_ERR hal_sdmmc_host_device_init(enum HAL_SDMMC_ID_T id,
+                                                    const struct HAL_SDMMC_CONFIG_T *cfg,
+                                                    bool dma_en, bool device_init)
+{
+    struct sdmmc_ip_host *host = NULL;
+    host = &sdmmc_host[id];
+    enum HAL_SDMMC_ERR ret;
+
+    //host related initialization
+    ret = hal_sdmmc_host_init_base(id, cfg, dma_en);
+    if (ret) {
+        return ret;
+    }
+
+    /*
+        device related initialization
+
+        When using dma to initialize the device, some commands need to wait for
+        the dma interrupt to complete. When the system turns off the interrupt,
+        an error will be reported when initializing the device. Therefore, the
+        dma is closed during initialization and the blocking method is used instead.
+    */
+    host->dma_en = 0;       //Close dma during device initialization
+    ret = hal_sdmmc_device_init_base(id, host, device_init);
+    host->dma_en = dma_en;  //Restore dma configuration
+
+    //turn on RTO interrupt
+    if (!ret) {
+        sdmmc_ip_rto_int_cfg(id, true);
+    }
+    return ret;
+}
+
 /*************************external interface function**************************/
 POSSIBLY_UNUSED static const char *const invalid_id = "Invalid sdmmc id: %d";
 
 HAL_SDMMC_DELAY_FUNC hal_sdmmc_set_delay_func(HAL_SDMMC_DELAY_FUNC new_func)
 {
-    HAL_SDMMC_DELAY_FUNC old_func = sdmmc_delay;
-    sdmmc_delay = new_func;
+    HAL_SDMMC_DELAY_FUNC old_func = sdmmc_delay_ms;
+    sdmmc_delay_ms = new_func;
+    return old_func;
+}
+
+HAL_SDMMC_DELAY_US_FUNC hal_sdmmc_set_delay_us_func(HAL_SDMMC_DELAY_US_FUNC new_func)
+{
+    HAL_SDMMC_DELAY_US_FUNC old_func = sdmmc_delay_us;
+    sdmmc_delay_us = new_func;
     return old_func;
 }
 
@@ -5516,10 +5955,9 @@ uint32_t hal_sdmmc_read_blocks(enum HAL_SDMMC_ID_T id, uint32_t start_block, uin
     struct mmc *mmc = sdmmc_host[id].mmc;
 
     HAL_SDMMC_ASSERT(id < HAL_SDMMC_ID_NUM, invalid_id, id);
-#ifdef HAL_SDMMC_USE_DMA
     HAL_SDMMC_ASSERT((((uint64_t)(block_count * MMC_MAX_BLOCK_LEN)) / SDMMC_DMA_LINK_SIZE) < (SDMMC_DMA_DESC_CNT - 1), "%s:%d,SDMMC_DMA_DESC_CNT is too small", __func__, __LINE__);
-#endif
 
+    sdmmc_host[id].dma_en = 1;
     return (uint32_t)mmc->block_dev.block_read(&mmc->block_dev, start_block, block_count, dest);
 }
 
@@ -5528,38 +5966,98 @@ uint32_t hal_sdmmc_write_blocks(enum HAL_SDMMC_ID_T id, uint32_t start_block, ui
     struct mmc *mmc = sdmmc_host[id].mmc;
 
     HAL_SDMMC_ASSERT(id < HAL_SDMMC_ID_NUM, invalid_id, id);
-#ifdef HAL_SDMMC_USE_DMA
     HAL_SDMMC_ASSERT((((uint64_t)(block_count * MMC_MAX_BLOCK_LEN)) / SDMMC_DMA_LINK_SIZE) < (SDMMC_DMA_DESC_CNT - 1), "%s:%d,SDMMC_DMA_DESC_CNT is too small", __func__, __LINE__);
-#endif
 
+    sdmmc_host[id].dma_en = 1;
     return (uint32_t)mmc->block_dev.block_write(&mmc->block_dev, start_block, block_count, src);
 }
 
-int hal_sdmmc_open_ext(enum HAL_SDMMC_ID_T id, struct HAL_SDMMC_CB_T *callback)
+uint32_t hal_sdmmc_read_blocks_dma(enum HAL_SDMMC_ID_T id, uint32_t start_block, uint32_t block_count, uint8_t *dest)
 {
-    return hal_sdmmc_host_device_cfg(id, callback, 1);
+    return hal_sdmmc_read_blocks(id, start_block, block_count, dest);
 }
 
-int hal_sdmmc_open(enum HAL_SDMMC_ID_T id)
+uint32_t hal_sdmmc_write_blocks_dma(enum HAL_SDMMC_ID_T id, uint32_t start_block, uint32_t block_count, uint8_t *src)
 {
-    return hal_sdmmc_host_device_cfg(id, NULL, 1);
+    return hal_sdmmc_write_blocks(id, start_block, block_count, src);
+}
+
+uint32_t hal_sdmmc_read_blocks_polling(enum HAL_SDMMC_ID_T id, uint32_t start_block, uint32_t block_count, uint8_t *dest)
+{
+    struct mmc *mmc = sdmmc_host[id].mmc;
+
+    HAL_SDMMC_ASSERT(id < HAL_SDMMC_ID_NUM, invalid_id, id);
+
+    sdmmc_host[id].dma_en = 0;
+    return (uint32_t)mmc->block_dev.block_read(&mmc->block_dev, start_block, block_count, dest);
+}
+
+uint32_t hal_sdmmc_write_blocks_polling(enum HAL_SDMMC_ID_T id, uint32_t start_block, uint32_t block_count, uint8_t *src)
+{
+    struct mmc *mmc = sdmmc_host[id].mmc;
+
+    HAL_SDMMC_ASSERT(id < HAL_SDMMC_ID_NUM, invalid_id, id);
+
+    sdmmc_host[id].dma_en = 0;
+    return (uint32_t)mmc->block_dev.block_write(&mmc->block_dev, start_block, block_count, src);
+}
+
+uint32_t hal_sdmmc_erase(enum HAL_SDMMC_ID_T id, uint32_t start_block, uint32_t block_count)
+{
+    struct mmc *mmc = sdmmc_host[id].mmc;
+
+    HAL_SDMMC_ASSERT(id < HAL_SDMMC_ID_NUM, invalid_id, id);
+    HAL_SDMMC_ASSERT((((uint64_t)(block_count * MMC_MAX_BLOCK_LEN)) / SDMMC_DMA_LINK_SIZE) < (SDMMC_DMA_DESC_CNT - 1), "%s:%d,SDMMC_DMA_DESC_CNT is too small", __func__, __LINE__);
+
+    sdmmc_host[id].dma_en = 1;
+    return (uint32_t)mmc->block_dev.block_erase(&mmc->block_dev, start_block, block_count);
+}
+
+uint32_t hal_sdmmc_erase_dma(enum HAL_SDMMC_ID_T id, uint32_t start_block, uint32_t block_count)
+{
+    return hal_sdmmc_erase(id, start_block, block_count);
+}
+
+uint32_t hal_sdmmc_erase_polling(enum HAL_SDMMC_ID_T id, uint32_t start_block, uint32_t block_count)
+{
+    struct mmc *mmc = sdmmc_host[id].mmc;
+
+    HAL_SDMMC_ASSERT(id < HAL_SDMMC_ID_NUM, invalid_id, id);
+
+    sdmmc_host[id].dma_en = 0;
+    return (uint32_t)mmc->block_dev.block_erase(&mmc->block_dev, start_block, block_count);
+}
+
+enum HAL_SDMMC_ERR hal_sdmmc_open(enum HAL_SDMMC_ID_T id, const struct HAL_SDMMC_CONFIG_T *cfg)
+{
+    return (enum HAL_SDMMC_ERR)hal_sdmmc_host_device_init(id, cfg, 1, 1);
+}
+
+enum HAL_SDMMC_ERR hal_sdmmc_open_ext(enum HAL_SDMMC_ID_T id, struct HAL_SDMMC_CONFIG_T *cfg, struct HAL_SDMMC_CB_T *callback)
+{
+    cfg->callback = callback;
+    return (enum HAL_SDMMC_ERR)hal_sdmmc_open(id, cfg);
 }
 
 void hal_sdmmc_close(enum HAL_SDMMC_ID_T id)
 {
     struct sdmmc_ip_host *host = NULL;
     HAL_SDMMC_ASSERT(id < HAL_SDMMC_ID_NUM, "Invalid sdmmc host id: %d", id);
-    HAL_TRACE(2, "%s:%d", __FUNCTION__, __LINE__);
+    HAL_SDMMC_TRACE(2, "%s:%d", __func__, __LINE__);
 
     host = &sdmmc_host[id];
-    if (host->mmc == NULL) {
+    if (!host->mmc) {
         return;
     }
 
-    if (host->mmc->has_init == 0) {
-        HAL_TRACE(2, "%s:%d,sdmmc host has been closed", __FUNCTION__, __LINE__);
+    if (!host->mmc->has_init) {
+        HAL_SDMMC_ERROR(2, "%s:%d, sdmmc host has been closed", __func__, __LINE__);
         return;
     }
+
+#ifdef CORE_SLEEP_POWER_DOWN
+    hal_pm_notif_deregister(HAL_PM_USER_HAL, hal_sdmmc_pm_notif_handler[id]);
+#endif
 
     while (host->mmc->init_in_progress)
         hal_sys_timer_delay_us(500);
@@ -5572,19 +6070,22 @@ void hal_sdmmc_close(enum HAL_SDMMC_ID_T id)
     mmc_deinit(host->mmc);
 #endif
 
-#ifdef HAL_SDMMC_USE_DMA
-    if (host->dma_in_use) {
-        sdmmc_ip_reset_dma(host);
+    if (host->dma_en) {
+        if (host->dma_in_use) {
+            sdmmc_ip_reset_dma(host);
+        }
     }
-#endif
 
+    hal_sdmmc_host_int_disable(id);
     switch (id) {
         case HAL_SDMMC_ID_0:
             hal_cmu_sdmmc0_clock_disable();
+            hal_iomux_clear_sdmmc0();
             break;
 #ifdef SDMMC1_BASE
         case HAL_SDMMC_ID_1:
             hal_cmu_sdmmc1_clock_disable();
+            hal_iomux_clear_sdmmc1();
             break;
 #endif
         default:
@@ -5592,24 +6093,24 @@ void hal_sdmmc_close(enum HAL_SDMMC_ID_T id)
     }
 }
 
-int hal_sdmmc_get_status(enum HAL_SDMMC_ID_T id)
+enum HAL_SDMMC_STATUS hal_sdmmc_get_init_status(enum HAL_SDMMC_ID_T id)
 {
     struct sdmmc_ip_host *host = NULL;
 
     host = &sdmmc_host[id];
-    if (host->mmc == NULL) {
-        return HAL_SDMMC_ERR_NONE;
+    if (!host->mmc) {
+        return HAL_SDMMC_STATUS_UNKNOWN;
     }
 
-    return host->mmc->has_init;
+    return (enum HAL_SDMMC_STATUS)host->mmc->has_init;
 }
 
 uint32_t hal_sdmmc_get_bus_speed(enum HAL_SDMMC_ID_T id)
 {
-    if (hal_sdmmc_get_status(id)) {
+    if (hal_sdmmc_get_init_status(id) == HAL_SDMMC_STATUS_HAS_INIT) {
         return sdmmc_host[id].final_bus_speed;
     } else {
-        return HAL_SDMMC_ERR_NONE;
+        return 0;
     }
 }
 
@@ -5618,73 +6119,80 @@ void hal_sdmmc_dump(enum HAL_SDMMC_ID_T id)
     struct mmc *mmc = sdmmc_host[id].mmc;
     HAL_SDMMC_ASSERT(id < HAL_SDMMC_ID_NUM, invalid_id, id);
 
-    HAL_TRACE(0, "-----------hal_sdmmc_dump-------------");
-    HAL_TRACE(1, "[sdmmc id]                       : %d", id);
-    HAL_TRACE(1, "[io register address]            : 0x%x", sdmmc_ip_base[id]);
-    HAL_TRACE(1, "[ddr mode]                       : %d", mmc->ddr_mode);
+    TRACE(0, "-----------hal_sdmmc_dump-------------");
+    TRACE(1, "[sdmmc id]                       : %d", id);
+    TRACE(1, "[io register address]            : 0x%X", sdmmc_ip_base[id]);
+    TRACE(1, "[ddr mode]                       : %d", mmc->ddr_mode);
     switch (mmc->version) {
         case SD_VERSION_1_0:
-            HAL_TRACE(0, "[version]                        : SD_VERSION_1_0");
+            TRACE(0, "[version]                        : SD_VERSION_1_0");
             break;
         case SD_VERSION_1_10:
-            HAL_TRACE(0, "[version]                        : SD_VERSION_1_10");
+            TRACE(0, "[version]                        : SD_VERSION_1_10");
             break;
         case SD_VERSION_2:
-            HAL_TRACE(0, "[version]                        : SD_VERSION_2");
+            TRACE(0, "[version]                        : SD_VERSION_2");
             break;
         case SD_VERSION_3:
-            HAL_TRACE(0, "[version]                        : SD_VERSION_3");
+            TRACE(0, "[version]                        : SD_VERSION_3");
+            break;
+        case MMC_VERSION_5_1:
+            TRACE(0, "[version]                        : MMC_VERSION_5_1");
             break;
         case MMC_VERSION_5_0:
-            HAL_TRACE(0, "[version]                        : MMC_VERSION_5_0");
+            TRACE(0, "[version]                        : MMC_VERSION_5_0");
             break;
         case MMC_VERSION_4_5:
-            HAL_TRACE(0, "[version]                        : MMC_VERSION_4_5");
+            TRACE(0, "[version]                        : MMC_VERSION_4_5");
             break;
         case MMC_VERSION_4_41:
-            HAL_TRACE(0, "[version]                        : MMC_VERSION_4_41");
+            TRACE(0, "[version]                        : MMC_VERSION_4_41");
+            break;
+        case MMC_VERSION_4_4:
+            TRACE(0, "[version]                        : MMC_VERSION_4_4");
             break;
         case MMC_VERSION_4_3:
-            HAL_TRACE(0, "[version]                        : MMC_VERSION_4_3");
+            TRACE(0, "[version]                        : MMC_VERSION_4_3");
             break;
         case MMC_VERSION_4_2:
-            HAL_TRACE(0, "[version]                        : MMC_VERSION_4_2");
+            TRACE(0, "[version]                        : MMC_VERSION_4_2");
             break;
         case MMC_VERSION_4_1:
-            HAL_TRACE(0, "[version]                        : MMC_VERSION_4_1");
+            TRACE(0, "[version]                        : MMC_VERSION_4_1");
             break;
         case MMC_VERSION_4:
-            HAL_TRACE(0, "[version]                        : MMC_VERSION_4");
+            TRACE(0, "[version]                        : MMC_VERSION_4");
             break;
         case MMC_VERSION_3:
-            HAL_TRACE(0, "[version]                        : MMC_VERSION_3");
+            TRACE(0, "[version]                        : MMC_VERSION_3");
             break;
         case MMC_VERSION_2_2:
-            HAL_TRACE(0, "[version]                        : MMC_VERSION_2_2");
+            TRACE(0, "[version]                        : MMC_VERSION_2_2");
             break;
         case MMC_VERSION_1_4:
-            HAL_TRACE(0, "[version]                        : MMC_VERSION_1_4");
+            TRACE(0, "[version]                        : MMC_VERSION_1_4");
             break;
         case MMC_VERSION_1_2:
-            HAL_TRACE(0, "[version]                        : MMC_VERSION_1_2");
+            TRACE(0, "[version]                        : MMC_VERSION_1_2");
             break;
         default:
-            HAL_TRACE(0, "[version]                        : unkown version");
+            TRACE(0, "[version]                        : unkown version");
             break;
     }
-    HAL_TRACE(1, "[is SD card]                     : 0x%x", IS_SD(mmc));
-    HAL_TRACE(1, "[high_capacity]                  : 0x%x", mmc->high_capacity);
-    HAL_TRACE(1, "[bus_width]                      : 0x%x", mmc->bus_width);
-    HAL_TRACE(1, "[clock]                          : %d", mmc->clock);
-    HAL_TRACE(1, "[card_caps]                      : 0x%x", mmc->card_caps);
-    HAL_TRACE(1, "[ocr]                            : 0x%x", mmc->ocr);
-    HAL_TRACE(1, "[dsr]                            : 0x%x", mmc->dsr);
-    HAL_TRACE(1, "[capacity_user/1024]             : %d(K)", (uint32_t)(mmc->capacity_user / 1024));
-    HAL_TRACE(1, "[capacity_user/1024/1024]        : %d(M)", (uint32_t)(mmc->capacity_user / 1024 / 1024));
-    HAL_TRACE(1, "[capacity_user/1024/1024/1024]   : %d(G)", (uint32_t)(mmc->capacity_user / 1024 / 1024 / 1024));
-    HAL_TRACE(1, "[read_bl_len]                    : %d", mmc->read_bl_len);
-    HAL_TRACE(1, "[write_bl_len]                   : %d", mmc->write_bl_len);
-    HAL_TRACE(0, "--------------------------------------");
+    TRACE(1, "[is SD card]                     : 0x%X", IS_SD(mmc));
+    TRACE(1, "[high_capacity]                  : 0x%X", mmc->high_capacity);
+    TRACE(1, "[bus_width]                      : 0x%X", mmc->bus_width);
+    TRACE(1, "[clock]                          : %d", mmc->clock);
+    TRACE(1, "[card_caps]                      : 0x%X", mmc->card_caps);
+    TRACE(1, "[ocr]                            : 0x%X", mmc->ocr);
+    TRACE(1, "[dsr]                            : 0x%X", mmc->dsr);
+    TRACE(1, "[capacity_user]                  : 0x%X%08X", (uint32_t)(mmc->capacity >> 32),//high 4bytes
+                                                            (uint32_t)(mmc->capacity));     //low 4bytes
+    uint32_t capacity_user = (uint32_t)(mmc->capacity_user / 1024 / 1024);
+    TRACE(1, "[capacity_user/1024/1024/1024]   : %d.%dGB", capacity_user / 1024, capacity_user * 100 / 1024 % 100);
+    TRACE(1, "[read_bl_len]                    : %d", mmc->read_bl_len);
+    TRACE(1, "[write_bl_len]                   : %d", mmc->write_bl_len);
+    TRACE(0, "--------------------------------------");
 }
 
 void hal_sdmmc_info(enum HAL_SDMMC_ID_T id, uint32_t *sector_count, uint32_t *sector_size)
@@ -5694,16 +6202,606 @@ void hal_sdmmc_info(enum HAL_SDMMC_ID_T id, uint32_t *sector_count, uint32_t *se
 
     if (sector_size) {
         *sector_size = mmc->read_bl_len;
-        HAL_TRACE(1, "[sdmmc] sector_size %d", *sector_size);
+        HAL_SDMMC_TRACE(1, "[sdmmc] sector_size %d", *sector_size);
     }
     if (sector_count) {
         if (mmc->read_bl_len != 0)
             *sector_count = mmc->capacity_user / mmc->read_bl_len;
         else
             *sector_count = 0;
-        HAL_TRACE(1, "[sdmmc] sector_count %d", *sector_count);
+        HAL_SDMMC_TRACE(1, "[sdmmc] sector_count 0x%X", *sector_count);
     }
 }
 
+#define mmc_unpack_bits(resp,start,size)                                    \
+    ({                                                                      \
+        const          int __size = size;                                   \
+        const unsigned int __mask = (__size < 32 ? 1 << __size : 0) - 1;    \
+        const          int __off = 3 - ((start) / 32);                      \
+        const          int __shft = (start) & 31;                           \
+        unsigned int   __res;                                               \
+                                                                            \
+        __res = resp[__off] >> __shft;                                      \
+        if (__size + __shft > 32)                                           \
+            __res |= resp[__off-1] << ((32 - __shft) % 32);                 \
+        __res & __mask;                                                     \
+    })
+
+static void mmc_unpack_cid(struct sdmmc_ip_host *host, struct HAL_SDMMC_CARD_INFO_T *card_info, uint32_t *resp)
+{
+    if (IS_MMC(host->mmc)) {
+        card_info->cid.mid    = mmc_unpack_bits(resp, 112 + 8,  8);
+        card_info->cid.cbx    = mmc_unpack_bits(resp, 104 + 8,  8);
+        card_info->cid.oid    = mmc_unpack_bits(resp,  96 + 8,  8);
+        card_info->cid.pnm[0] = mmc_unpack_bits(resp,  88 + 8,  8);
+        card_info->cid.pnm[1] = mmc_unpack_bits(resp,  80 + 8,  8);
+        card_info->cid.pnm[2] = mmc_unpack_bits(resp,  72 + 8,  8);
+        card_info->cid.pnm[3] = mmc_unpack_bits(resp,  64 + 8,  8);
+        card_info->cid.pnm[4] = mmc_unpack_bits(resp,  56 + 8,  8);
+        card_info->cid.pnm[5] = mmc_unpack_bits(resp,  48 + 8,  8);
+        card_info->cid.prv    = mmc_unpack_bits(resp,  40 + 8,  8);
+        card_info->cid.psn    = mmc_unpack_bits(resp,   8 + 8, 32);
+        card_info->cid.mdt    = mmc_unpack_bits(resp,   0 + 8,  8);
+    } else {
+        card_info->cid.mid    = mmc_unpack_bits(resp, 112 + 8,  8);
+        card_info->cid.oid    = mmc_unpack_bits(resp,  96 + 8, 16);
+        card_info->cid.pnm[0] = mmc_unpack_bits(resp,  88 + 8,  8);
+        card_info->cid.pnm[1] = mmc_unpack_bits(resp,  80 + 8,  8);
+        card_info->cid.pnm[2] = mmc_unpack_bits(resp,  72 + 8,  8);
+        card_info->cid.pnm[3] = mmc_unpack_bits(resp,  64 + 8,  8);
+        card_info->cid.pnm[4] = mmc_unpack_bits(resp,  56 + 8,  8);
+        card_info->cid.prv    = mmc_unpack_bits(resp,  48 + 8,  8);
+        card_info->cid.psn    = mmc_unpack_bits(resp,  16 + 8, 32);
+        card_info->cid.mdt    = mmc_unpack_bits(resp,   0 + 8, 12);
+    }
+}
+
+static void mmc_unpack_csd(struct sdmmc_ip_host *host, struct HAL_SDMMC_CARD_INFO_T *card_info, uint32_t *resp)
+{
+    if (IS_MMC(host->mmc)) {
+        card_info->csd.csd_structure      = mmc_unpack_bits(resp, 118 + 8,  2);
+        card_info->csd.spec_vers          = mmc_unpack_bits(resp, 114 + 8,  4);
+        card_info->csd.taac               = mmc_unpack_bits(resp, 104 + 8,  8);
+        card_info->csd.nsac               = mmc_unpack_bits(resp,  96 + 8,  8);
+        card_info->csd.tran_speed         = mmc_unpack_bits(resp,  88 + 8,  8);
+        card_info->csd.ccc                = mmc_unpack_bits(resp,  76 + 8, 12);
+        card_info->csd.read_bl_len        = mmc_unpack_bits(resp,  72 + 8,  4);
+        card_info->csd.read_bl_partial    = mmc_unpack_bits(resp,  71 + 8,  1);
+        card_info->csd.write_blk_misalign = mmc_unpack_bits(resp,  70 + 8,  1);
+        card_info->csd.read_blk_misalign  = mmc_unpack_bits(resp,  69 + 8,  1);
+        card_info->csd.dsr_imp            = mmc_unpack_bits(resp,  68 + 8,  1);
+        card_info->csd.c_size             = mmc_unpack_bits(resp,  54 + 8, 12);
+        card_info->csd.vdd_r_curr_min     = mmc_unpack_bits(resp,  51 + 8,  3);
+        card_info->csd.vdd_r_curr_max     = mmc_unpack_bits(resp,  48 + 8,  3);
+        card_info->csd.vdd_w_curr_min     = mmc_unpack_bits(resp,  45 + 8,  3);
+        card_info->csd.vdd_w_curr_max     = mmc_unpack_bits(resp,  42 + 8,  3);
+        card_info->csd.c_size_mult        = mmc_unpack_bits(resp,  39 + 8,  3);
+        card_info->csd.erase_grp_size     = mmc_unpack_bits(resp,  34 + 8,  5);
+        card_info->csd.erase_grp_mult     = mmc_unpack_bits(resp,  29 + 8,  5);
+        card_info->csd.wp_grp_size        = mmc_unpack_bits(resp,  24 + 8,  5);
+        card_info->csd.wp_grp_enable      = mmc_unpack_bits(resp,  23 + 8,  1);
+        card_info->csd.default_ecc        = mmc_unpack_bits(resp,  21 + 8,  2);
+        card_info->csd.r2w_factor         = mmc_unpack_bits(resp,  18 + 8,  3);
+        card_info->csd.write_bl_len       = mmc_unpack_bits(resp,  14 + 8,  4);
+        card_info->csd.write_bl_partial   = mmc_unpack_bits(resp,  13 + 8,  1);
+        card_info->csd.content_prot_app   = mmc_unpack_bits(resp,   8 + 8,  1);
+        card_info->csd.file_format_grp    = mmc_unpack_bits(resp,   7 + 8,  1);
+        card_info->csd.copy               = mmc_unpack_bits(resp,   6 + 8,  1);
+        card_info->csd.perm_write_protect = mmc_unpack_bits(resp,   5 + 8,  1);
+        card_info->csd.tmp_write_protect  = mmc_unpack_bits(resp,   4 + 8,  1);
+        card_info->csd.file_format        = mmc_unpack_bits(resp,   2 + 8,  2);
+        card_info->csd.ecc                = mmc_unpack_bits(resp,   0 + 8,  2);
+    } else {
+        card_info->csd.csd_structure      = mmc_unpack_bits(resp, 118 + 8,  2);
+        card_info->csd.taac               = mmc_unpack_bits(resp, 104 + 8,  8);
+        card_info->csd.nsac               = mmc_unpack_bits(resp,  96 + 8,  8);
+        card_info->csd.tran_speed         = mmc_unpack_bits(resp,  88 + 8,  8);
+        card_info->csd.ccc                = mmc_unpack_bits(resp,  76 + 8, 12);
+        card_info->csd.read_bl_len        = mmc_unpack_bits(resp,  72 + 8,  4);
+        card_info->csd.read_bl_partial    = mmc_unpack_bits(resp,  71 + 8,  1);
+        card_info->csd.write_blk_misalign = mmc_unpack_bits(resp,  70 + 8,  1);
+        card_info->csd.read_blk_misalign  = mmc_unpack_bits(resp,  69 + 8,  1);
+        card_info->csd.dsr_imp            = mmc_unpack_bits(resp,  68 + 8,  1);
+        if (card_info->csd.csd_structure == 0) {        //V1.0
+            card_info->csd.c_size         = mmc_unpack_bits(resp,  54 + 8, 12);
+            card_info->csd.vdd_r_curr_min = mmc_unpack_bits(resp,  51 + 8,  3);
+            card_info->csd.vdd_r_curr_max = mmc_unpack_bits(resp,  48 + 8,  3);
+            card_info->csd.vdd_w_curr_min = mmc_unpack_bits(resp,  45 + 8,  3);
+            card_info->csd.vdd_w_curr_max = mmc_unpack_bits(resp,  42 + 8,  3);
+            card_info->csd.c_size_mult    = mmc_unpack_bits(resp,  39 + 8,  3);
+        } else if (card_info->csd.csd_structure == 1) { //V2.0
+            card_info->csd.c_size         = mmc_unpack_bits(resp,  40 + 8, 22); //69~48
+        } else if (card_info->csd.csd_structure == 2) { //V3.0
+            card_info->csd.c_size         = mmc_unpack_bits(resp,  40 + 8, 28); //75~48
+        }
+        card_info->csd.erase_blk_en       = mmc_unpack_bits(resp,  38 + 8,  1);
+        card_info->csd.sector_size        = mmc_unpack_bits(resp,  31 + 8,  7);
+        card_info->csd.wp_grp_size        = mmc_unpack_bits(resp,  24 + 8,  7);
+        card_info->csd.wp_grp_enable      = mmc_unpack_bits(resp,  23 + 8,  1);
+        card_info->csd.r2w_factor         = mmc_unpack_bits(resp,  18 + 8,  3);
+        card_info->csd.write_bl_len       = mmc_unpack_bits(resp,  14 + 8,  4);
+        card_info->csd.write_bl_partial   = mmc_unpack_bits(resp,  13 + 8,  1);
+        card_info->csd.file_format_grp    = mmc_unpack_bits(resp,   7 + 8,  1);
+        card_info->csd.copy               = mmc_unpack_bits(resp,   6 + 8,  1);
+        card_info->csd.perm_write_protect = mmc_unpack_bits(resp,   5 + 8,  1);
+        card_info->csd.tmp_write_protect  = mmc_unpack_bits(resp,   4 + 8,  1);
+        card_info->csd.file_format        = mmc_unpack_bits(resp,   2 + 8,  2);
+    }
+}
+
+void hal_sdmmc_dump_card_info(struct HAL_SDMMC_CARD_INFO_T *card_info)
+{
+    if (card_info) {
+        TRACE(0, "********************************************");
+        TRACE(1, "card sort                : %d(%s)", card_info->cardsort, card_info->cardsort ? "SD card" : "MMC card");
+        TRACE(1, "card capacity            : %d(%s)", card_info->high_capacity, card_info->high_capacity ? "high capacity" : "low capacity");
+        TRACE(1, "card type                : 0x%X", card_info->cardtype);
+        TRACE(1, "card class               : 0x%X", card_info->cardclass);
+        TRACE(1, "card relcardAdd          : 0x%X", card_info->relcardadd);
+        TRACE(1, "card blocknbr            : 0x%X", card_info->blocknbr);
+        TRACE(1, "card blocksize           : 0x%X", card_info->blocksize);
+        TRACE(1, "card logblocknbr         : 0x%X", card_info->logblocknbr);
+        TRACE(1, "card logllocksize        : 0x%X", card_info->logllocksize);
+        TRACE(1, "card ext_csd_rev         : 0x%X", card_info->ext_csd_rev);
+        TRACE(1, "card firmware version_h32: 0x%X", card_info->firmware_version_h32);
+        TRACE(1, "card firmware version_l32: 0x%X", card_info->firmware_version);
+        TRACE(1, "card device version      : 0x%X", card_info->device_version);
+        TRACE(1, "card cache size          : 0x%X", card_info->cache_size);
+        TRACE(1, "card cache ctrl          : %s", card_info->cache_ctrl ? "1(enabled)" : "0(disable)");
+        TRACE(1, "card cache flush policy  : %s", card_info->cache_flush_policy ? "1(fifo mode)" : "0(unknown)");
+        TRACE(1, "csd.csd_structure        : 0x%X", card_info->csd.csd_structure);
+        TRACE(1, "csd.spec_vers            : 0x%X", card_info->csd.spec_vers);
+        TRACE(1, "csd.taac                 : 0x%X", card_info->csd.taac);
+        TRACE(1, "csd.nsac                 : 0x%X", card_info->csd.nsac);
+        TRACE(1, "csd.tran_speed           : 0x%X", card_info->csd.tran_speed);
+        TRACE(1, "csd.ccc                  : 0x%X", card_info->csd.ccc);
+        TRACE(1, "csd.read_bl_len          : 0x%X", card_info->csd.read_bl_len);
+        TRACE(1, "csd.read_bl_partial      : 0x%X", card_info->csd.read_bl_partial);
+        TRACE(1, "csd.write_blk_misalign   : 0x%X", card_info->csd.write_blk_misalign);
+        TRACE(1, "csd.read_blk_misalign    : 0x%X", card_info->csd.read_blk_misalign);
+        TRACE(1, "csd.dsr_imp              : 0x%X", card_info->csd.dsr_imp);
+        TRACE(1, "csd.c_size               : 0x%X", card_info->csd.c_size);
+        TRACE(1, "csd.vdd_r_curr_min       : 0x%X", card_info->csd.vdd_r_curr_min);
+        TRACE(1, "csd.vdd_r_curr_max       : 0x%X", card_info->csd.vdd_r_curr_max);
+        TRACE(1, "csd.vdd_w_curr_min       : 0x%X", card_info->csd.vdd_w_curr_min);
+        TRACE(1, "csd.vdd_w_curr_max       : 0x%X", card_info->csd.vdd_w_curr_max);
+        TRACE(1, "csd.c_size_mult          : 0x%X", card_info->csd.c_size_mult);
+        TRACE(1, "csd.erase_grp_size       : 0x%X", card_info->csd.erase_grp_size);
+        TRACE(1, "csd.erase_grp_mult       : 0x%X", card_info->csd.erase_grp_mult);
+        TRACE(1, "csd.wp_grp_size          : 0x%X", card_info->csd.wp_grp_size);
+        TRACE(1, "csd.wp_grp_enable        : 0x%X", card_info->csd.wp_grp_enable);
+        TRACE(1, "csd.default_ecc          : 0x%X", card_info->csd.default_ecc);
+        TRACE(1, "csd.r2w_factor           : 0x%X", card_info->csd.r2w_factor);
+        TRACE(1, "csd.write_bl_len         : 0x%X", card_info->csd.write_bl_len);
+        TRACE(1, "csd.write_bl_partial     : 0x%X", card_info->csd.write_bl_partial);
+        TRACE(1, "csd.content_prot_app     : 0x%X", card_info->csd.content_prot_app);
+        TRACE(1, "csd.file_format_grp      : 0x%X", card_info->csd.file_format_grp);
+        TRACE(1, "csd.copy                 : 0x%X", card_info->csd.copy);
+        TRACE(1, "csd.perm_write_protect   : 0x%X", card_info->csd.perm_write_protect);
+        TRACE(1, "csd.tmp_write_protect    : 0x%X", card_info->csd.tmp_write_protect);
+        TRACE(1, "csd.file_format          : 0x%X", card_info->csd.file_format);
+        TRACE(1, "csd.ecc                  : 0x%X", card_info->csd.ecc);
+
+        TRACE(1, "Manufacturer ID          : 0x%X", card_info->cid.mid);
+        if (!card_info->cardsort) {
+            TRACE(1, "OEM/Application ID       : 0x%X", card_info->cid.oid & 0xFF);
+            TRACE(1, "Device/BGA               : 0x%X", card_info->cid.cbx);
+            TRACE(1, "Product Name             : %c%c%c%c%c%c", card_info->cid.pnm[0],
+                                                                card_info->cid.pnm[1],
+                                                                card_info->cid.pnm[2],
+                                                                card_info->cid.pnm[3],
+                                                                card_info->cid.pnm[4],
+                                                                (card_info->cid.pnm[5] & 0x7E) < 0x20 ? ' ' : (card_info->cid.pnm[5] & 0x7E)); //character range
+        } else if (card_info->cardsort) {
+            TRACE(1, "OEM/Application ID       : 0x%X", card_info->cid.oid);
+            TRACE(1, "Product Name             : %c%c%c%c%c",   card_info->cid.pnm[0],
+                                                                card_info->cid.pnm[1],
+                                                                card_info->cid.pnm[2],
+                                                                card_info->cid.pnm[3],
+                                                                (card_info->cid.pnm[4] & 0x7E) < 0x20 ? ' ' : (card_info->cid.pnm[4] & 0x7E)); //character range
+        }
+        TRACE(1, "Product Revision         : %d.%d", (card_info->cid.prv >> 4), (card_info->cid.prv & 0xF));
+        TRACE(1, "Product Serial No        : 0x%X", card_info->cid.psn);
+        TRACE(1, "Manufacture Date         : %d/%d", 2000 + (card_info->cid.mdt >> 4), card_info->cid.mdt & 0xF);
+        POSSIBLY_UNUSED uint32_t val = (uint32_t)(((uint64_t)card_info->blocknbr * card_info->blocksize * 100) / 1073741824);
+        TRACE(1, "Card capacity(calc)      : %d.%dGB", val / 100, val % 100);
+        TRACE(1, "Card capacity            : 0x%X%08X", (uint32_t)(card_info->capacity >> 32),  //high 4bytes
+                                                        (uint32_t)(card_info->capacity));       //low 4bytes
+        TRACE(1, "Card capacity_user       : 0x%X%08X", (uint32_t)(card_info->capacity_user >> 32),
+                                                        (uint32_t)(card_info->capacity_user));
+        TRACE(1, "Card capacity_boot       : 0x%X%08X", (uint32_t)(card_info->capacity_boot >> 32),
+                                                        (uint32_t)(card_info->capacity_boot));
+        TRACE(1, "Card capacity_rpmb       : 0x%X%08X", (uint32_t)(card_info->capacity_rpmb >> 32),
+                                                        (uint32_t)(card_info->capacity_rpmb));
+        TRACE(0, "********************************************");
+        TRACE(0, "  ");
+    }
+}
+
+enum HAL_SDMMC_ERR hal_sdmmc_get_card_info(enum HAL_SDMMC_ID_T id, struct HAL_SDMMC_CARD_INFO_T *card_info)
+{
+    struct sdmmc_ip_host *host = &sdmmc_host[id];
+
+    if (card_info) {
+        memset((void *)card_info, 0, sizeof(struct HAL_SDMMC_CARD_INFO_T));
+        mmc_unpack_cid(host, card_info, host->mmc->cid);
+        mmc_unpack_csd(host, card_info, host->mmc->csd);
+
+        card_info->cardsort     = !!(IS_SD(host->mmc));
+        card_info->high_capacity = !!(host->mmc->high_capacity);
+        card_info->cardtype     = host->mmc->cardtype;
+        card_info->cardclass    = card_info->csd.ccc;
+        card_info->relcardadd   = host->mmc->rca;
+        if (!card_info->high_capacity) {//low capacity card
+            card_info->blocknbr = card_info->csd.c_size + 1U;
+            card_info->blocknbr *= (1 << ((card_info->csd.c_size_mult & 0x07U) + 2U));
+            card_info->blocksize = (1 << (card_info->csd.read_bl_len & 0x0FU));
+            card_info->logblocknbr = card_info->blocknbr * (card_info->blocksize / 512U);
+            card_info->logllocksize = host->mmc->read_bl_len;
+        } else {//high capacity card
+            if (IS_MMC(host->mmc)) {
+                card_info->blocknbr = (uint32_t)(*(uint32_t *)&host->mmc->ext_csd[212]);
+            } else {
+                card_info->blocknbr = host->mmc->capacity_user / host->mmc->read_bl_len;
+            }
+            card_info->blocksize = host->mmc->write_bl_len;
+            card_info->logblocknbr = card_info->blocknbr;
+            card_info->logllocksize = card_info->blocksize;
+        }
+
+        if (IS_MMC(host->mmc)) {
+            card_info->ext_csd_rev = host->mmc->ext_csd[192];
+            card_info->firmware_version_h32 = (uint32_t)(*(uint32_t *)&host->mmc->ext_csd[258]);
+            card_info->firmware_version = (uint32_t)(*(uint32_t *)&host->mmc->ext_csd[254]);
+            card_info->device_version = (uint32_t)(*(uint16_t *)&host->mmc->ext_csd[262]);
+            card_info->cache_size = host->mmc->cache_size;
+            card_info->cache_ctrl = host->mmc->cache_ctrl;
+            card_info->cache_flush_policy = host->mmc->ext_csd[240];
+        }
+        card_info->capacity      = host->mmc->capacity;
+        card_info->capacity_user = host->mmc->capacity_user;
+        card_info->capacity_boot = host->mmc->capacity_boot;
+        card_info->capacity_rpmb = host->mmc->capacity_rpmb;
+#ifdef SDMMC_DEBUG
+        hal_sdmmc_dump_card_info(card_info);
 #endif
 
+        return HAL_SDMMC_ERR_NONE;
+    }
+
+    return HAL_SDMMC_INVALID_PARAMETER;
+}
+
+enum HAL_SDMMC_ERR hal_sdmmc_cache_control(enum HAL_SDMMC_ID_T id, uint8_t enable_disable)
+{
+    struct sdmmc_ip_host *host = &sdmmc_host[id];
+    enum HAL_SDMMC_ERR ret = HAL_SDMMC_ERR_NONE;
+
+    if (host && (host->mmc->cache_size > 0)) {
+        enable_disable = !!enable_disable;
+
+        if (host->mmc->cache_ctrl ^ enable_disable) {
+            ret = mmc_switch(host->mmc, EXT_CSD_CMD_SET_NORMAL,
+                             EXT_CSD_CACHE_CTRL, enable_disable);
+            if (ret) {
+                HAL_SDMMC_ERROR(1, "%s, emmc cache %s error %d", __func__, enable_disable ? "on" : "off", ret);
+            } else {
+                host->mmc->cache_ctrl = enable_disable;
+            }
+        }
+    }
+
+    return ret;
+}
+
+static bool sdmmc_cache_enabled(enum HAL_SDMMC_ID_T id)
+{
+    struct sdmmc_ip_host *host = &sdmmc_host[id];
+    return host->mmc->cache_size > 0 &&
+           host->mmc->cache_ctrl & 1;
+}
+
+//Flush the internal cache of the eMMC to non-volatile storage
+enum HAL_SDMMC_ERR hal_sdmmc_cache_flush(enum HAL_SDMMC_ID_T id)
+{
+    struct sdmmc_ip_host *host = &sdmmc_host[id];
+    enum HAL_SDMMC_ERR ret = HAL_SDMMC_ERR_NONE;
+
+    if (sdmmc_cache_enabled(id)) {
+        ret = mmc_switch(host->mmc, EXT_CSD_CMD_SET_NORMAL,
+                         EXT_CSD_FLUSH_CACHE, 1);
+        if (ret) {
+            HAL_SDMMC_ERROR(1, "%s, emmc cache flush error %d", __func__, ret);
+        }
+    }
+
+    return ret;
+}
+
+uint32_t hal_sdmmc_get_host_addr(enum HAL_SDMMC_ID_T id)
+{
+    return (uint32_t)&sdmmc_host[id];
+}
+
+uint32_t hal_sdmmc_get_ext_csd(enum HAL_SDMMC_ID_T id)
+{
+    struct sdmmc_ip_host *host = &sdmmc_host[id];
+    return (uint32_t)host->mmc->ext_csd;
+}
+
+enum HAL_SDMMC_ERR hal_sdmmc_select_card(enum HAL_SDMMC_ID_T id)
+{
+    int err;
+    struct mmc_cmd cmd;
+    struct sdmmc_ip_host *host = &sdmmc_host[id];
+
+    cmd.cmdidx = MMC_CMD_SELECT_CARD;
+    cmd.resp_type = MMC_RSP_R1;
+    cmd.cmdarg = host->mmc->rca << 16;
+    err = mmc_send_cmd(host->mmc, &cmd, NULL);
+
+    return (enum HAL_SDMMC_ERR)err;
+}
+
+enum HAL_SDMMC_ERR hal_sdmmc_deselect_card(enum HAL_SDMMC_ID_T id)
+{
+    int err;
+    struct mmc_cmd cmd;
+    struct sdmmc_ip_host *host = &sdmmc_host[id];
+
+    cmd.cmdidx = MMC_CMD_DESELECT_CARD;
+    cmd.resp_type = MMC_RSP_NONE;
+    cmd.cmdarg = 0;
+    err = mmc_send_cmd(host->mmc, &cmd, NULL);
+
+    return (enum HAL_SDMMC_ERR)err;
+}
+
+static int mmc_can_sleep(struct sdmmc_ip_host *host)
+{
+    return (host && host->mmc->ext_csd[192] >= 3);
+}
+
+#define S_A_TIMEOUT_INDEX_END   0x18
+static const uint32_t s_a_timeout_us[S_A_TIMEOUT_INDEX_END] = {
+    0, 1, 1, 1, 2, 4, 7, 13, 26, 52, 103, 205, 410, 820, 1639, 3277,
+    6554, 13108, 26215, 52429, 104858, 209716, 419431, 838861
+};
+
+enum HAL_SDMMC_ERR hal_sdmmc_sleep_card(enum HAL_SDMMC_ID_T id)
+{
+    int err;
+    struct mmc_cmd cmd;
+    struct sdmmc_ip_host *host = &sdmmc_host[id];
+
+    if (mmc_can_sleep(host)) {
+        //deselect card:transfer state to standby state
+        hal_sdmmc_deselect_card(id);
+
+        //send cmd5:go to sleep
+        cmd.cmdidx = MMC_CMD_SLEEP_AWAKE;
+        cmd.resp_type = MMC_RSP_R1b;
+        cmd.cmdarg = (host->mmc->rca << 16) | (1 << 15);
+        err = mmc_send_cmd(host->mmc, &cmd, NULL);
+        if (!err) {
+            if (host->mmc->ext_csd[EXT_CSD_S_A_TIMEOUT] && host->mmc->ext_csd[EXT_CSD_S_A_TIMEOUT] < S_A_TIMEOUT_INDEX_END) {
+                err = mmc_wait_dat0(host->mmc, 1, s_a_timeout_us[host->mmc->ext_csd[EXT_CSD_S_A_TIMEOUT]]);
+                if (err == HAL_SDMMC_ERR_NONE) {
+                    host->mmc->has_sleep = 1;
+                }
+            } else {
+                err = HAL_SDMMC_S_A_TIMEOUT_ERR;
+                HAL_SDMMC_ERROR(0, "%s, ext_csd[EXT_CSD_S_A_TIMEOUT] error", __func__);
+            }
+        }
+    } else {
+        err = HAL_SDMMC_CARD_NOT_SUPPORT;
+        HAL_SDMMC_ERROR(0, "%s, not support", __func__);
+    }
+
+    return (enum HAL_SDMMC_ERR)err;
+}
+
+enum HAL_SDMMC_ERR hal_sdmmc_awake_card(enum HAL_SDMMC_ID_T id)
+{
+    int err;
+    int8_t cnt = 3;
+    struct mmc_cmd cmd;
+    struct sdmmc_ip_host *host = &sdmmc_host[id];
+
+    if (mmc_can_sleep(host)) {
+        do {
+            //send cmd5:exit sleep
+            cmd.cmdidx = MMC_CMD_SLEEP_AWAKE;
+            cmd.resp_type = MMC_RSP_R1b;
+            cmd.cmdarg = (host->mmc->rca << 16);
+            err = mmc_send_cmd(host->mmc, &cmd, NULL);
+            if (!err) {
+                if (host->mmc->ext_csd[EXT_CSD_S_A_TIMEOUT] && host->mmc->ext_csd[EXT_CSD_S_A_TIMEOUT] < S_A_TIMEOUT_INDEX_END) {
+                    err = mmc_wait_dat0(host->mmc, 1, s_a_timeout_us[host->mmc->ext_csd[EXT_CSD_S_A_TIMEOUT]]);
+                    if (err) {
+                        HAL_SDMMC_ERROR(0, "%s, mmc_wait_dat0 error:%d", __func__, err);
+                    }
+                } else {
+                    err = HAL_SDMMC_S_A_TIMEOUT_ERR;
+                    HAL_SDMMC_ERROR(0, "%s, ext_csd[EXT_CSD_S_A_TIMEOUT] error", __func__);
+                }
+            } else {
+                HAL_SDMMC_ERROR(0, "%s, send cmd error:%d, retry:%d", __func__, err, 3 - cnt);
+            }
+        } while (err && cnt--);
+
+        //select card:standby state to transfer state
+        cnt = 3;
+        do {
+            err = hal_sdmmc_select_card(id);
+        } while (err && cnt--);
+        if (err) {
+            HAL_SDMMC_ERROR(0, "%s, hal_sdmmc_select_card error:%d", __func__, err);
+        } else {
+            host->mmc->has_sleep = 0;
+        }
+    } else {
+        err = HAL_SDMMC_CARD_NOT_SUPPORT;
+        HAL_SDMMC_ERROR(0, "%s, not support", __func__);
+    }
+
+    return (enum HAL_SDMMC_ERR)err;
+}
+
+enum HAL_SDMMC_ERR hal_sdmmc_get_card_raw_status(enum HAL_SDMMC_ID_T id, uint32_t *raw_status)
+{
+    struct sdmmc_ip_host *host = &sdmmc_host[id];
+
+    return mmc_send_status(host->mmc, raw_status);
+}
+
+enum HAL_SDMMC_ERR hal_sdmmc_get_card_current_state(enum HAL_SDMMC_ID_T id, uint32_t *current_state)
+{
+    int err;
+    uint32_t raw_status = 0;
+
+    err = hal_sdmmc_get_card_raw_status(id, &raw_status);
+    if (!err) {
+        if (current_state) {
+            *current_state = (raw_status >> 9) & 0x0F;
+        }
+    }
+
+    return err;
+}
+
+enum HAL_SDMMC_ERR hal_sdmmc_get_card_sleep_status(enum HAL_SDMMC_ID_T id, uint8_t *sleep_status)
+{
+    struct sdmmc_ip_host *host = &sdmmc_host[id];
+
+    *sleep_status = host->mmc->has_sleep;
+    return HAL_SDMMC_ERR_NONE;
+}
+
+enum HAL_SDMMC_ERR hal_sdmmc_send_stop(enum HAL_SDMMC_ID_T id)
+{
+    int ret;
+    struct mmc_cmd cmd;
+    struct sdmmc_ip_host *host = &sdmmc_host[id];
+
+    cmd.cmdidx = MMC_CMD_STOP_TRANSMISSION;
+    cmd.cmdarg = 0;
+    cmd.resp_type = MMC_RSP_R1b;
+    ret = mmc_send_cmd(host->mmc, &cmd, NULL);
+    if (ret) {
+        HAL_SDMMC_ERROR(0, "%s, mmc fail to send stop cmd", __func__);
+    }
+
+    return ret;
+}
+
+void hal_sdmmc_dump_reg(enum HAL_SDMMC_ID_T id)
+{
+    struct sdmmc_ip_host *host = &sdmmc_host[id];
+
+    TRACE(0, "%s", __func__);
+    TRACE(0, "read reg[%02X]:0x%X", SDMMCIP_REG_CTRL,       sdmmc_ip_readl(host, SDMMCIP_REG_CTRL));
+    TRACE(0, "read reg[%02X]:0x%X", SDMMCIP_REG_PWREN,      sdmmc_ip_readl(host, SDMMCIP_REG_PWREN));
+    TRACE(0, "read reg[%02X]:0x%X", SDMMCIP_REG_CLKDIV,     sdmmc_ip_readl(host, SDMMCIP_REG_CLKDIV));
+    TRACE(0, "read reg[%02X]:0x%X", SDMMCIP_REG_CLKSRC,     sdmmc_ip_readl(host, SDMMCIP_REG_CLKSRC));
+    TRACE(0, "read reg[%02X]:0x%X", SDMMCIP_REG_CLKENA,     sdmmc_ip_readl(host, SDMMCIP_REG_CLKENA));
+    TRACE(0, "read reg[%02X]:0x%X", SDMMCIP_REG_TMOUT,      sdmmc_ip_readl(host, SDMMCIP_REG_TMOUT));
+    TRACE(0, "read reg[%02X]:0x%X", SDMMCIP_REG_CTYPE,      sdmmc_ip_readl(host, SDMMCIP_REG_CTYPE));
+    TRACE(0, "read reg[%02X]:0x%X", SDMMCIP_REG_BLKSIZ,     sdmmc_ip_readl(host, SDMMCIP_REG_BLKSIZ));
+    TRACE(0, "read reg[%02X]:0x%X", SDMMCIP_REG_BYTCNT,     sdmmc_ip_readl(host, SDMMCIP_REG_BYTCNT));
+    TRACE(0, "read reg[%02X]:0x%X", SDMMCIP_REG_INTMASK,    sdmmc_ip_readl(host, SDMMCIP_REG_INTMASK));
+    TRACE(0, "read reg[%02X]:0x%X", SDMMCIP_REG_CMDARG,     sdmmc_ip_readl(host, SDMMCIP_REG_CMDARG));
+    TRACE(0, "read reg[%02X]:0x%X", SDMMCIP_REG_CMD,        sdmmc_ip_readl(host, SDMMCIP_REG_CMD));
+    TRACE(0, "read reg[%02X]:0x%X", SDMMCIP_REG_RESP0,      sdmmc_ip_readl(host, SDMMCIP_REG_RESP0));
+    TRACE(0, "read reg[%02X]:0x%X", SDMMCIP_REG_RESP1,      sdmmc_ip_readl(host, SDMMCIP_REG_RESP1));
+    TRACE(0, "read reg[%02X]:0x%X", SDMMCIP_REG_RESP2,      sdmmc_ip_readl(host, SDMMCIP_REG_RESP2));
+    TRACE(0, "read reg[%02X]:0x%X", SDMMCIP_REG_RESP3,      sdmmc_ip_readl(host, SDMMCIP_REG_RESP3));
+    TRACE(0, "read reg[%02X]:0x%X", SDMMCIP_REG_MINTSTS,    sdmmc_ip_readl(host, SDMMCIP_REG_MINTSTS));
+    TRACE(0, "read reg[%02X]:0x%X", SDMMCIP_REG_RINTSTS,    sdmmc_ip_readl(host, SDMMCIP_REG_RINTSTS));
+    TRACE(0, "read reg[%02X]:0x%X", SDMMCIP_REG_STATUS,     sdmmc_ip_readl(host, SDMMCIP_REG_STATUS));
+    TRACE(0, "read reg[%02X]:0x%X", SDMMCIP_REG_FIFOTH,     sdmmc_ip_readl(host, SDMMCIP_REG_FIFOTH));
+    TRACE(0, "read reg[%02X]:0x%X", SDMMCIP_REG_CDETECT,    sdmmc_ip_readl(host, SDMMCIP_REG_CDETECT));
+    TRACE(0, "read reg[%02X]:0x%X", SDMMCIP_REG_WRTPRT,     sdmmc_ip_readl(host, SDMMCIP_REG_WRTPRT));
+    TRACE(0, "read reg[%02X]:0x%X", SDMMCIP_REG_GPIO,       sdmmc_ip_readl(host, SDMMCIP_REG_GPIO));
+    TRACE(0, "read reg[%02X]:0x%X", SDMMCIP_REG_TCMCNT,     sdmmc_ip_readl(host, SDMMCIP_REG_TCMCNT));
+    TRACE(0, "read reg[%02X]:0x%X", SDMMCIP_REG_TBBCNT,     sdmmc_ip_readl(host, SDMMCIP_REG_TBBCNT));
+    TRACE(0, "read reg[%02X]:0x%X", SDMMCIP_REG_DEBNCE,     sdmmc_ip_readl(host, SDMMCIP_REG_DEBNCE));
+    TRACE(0, "read reg[%02X]:0x%X", SDMMCIP_REG_USRID,      sdmmc_ip_readl(host, SDMMCIP_REG_USRID));
+    TRACE(0, "read reg[%02X]:0x%X", SDMMCIP_REG_VERID,      sdmmc_ip_readl(host, SDMMCIP_REG_VERID));
+    TRACE(0, "read reg[%02X]:0x%X", SDMMCIP_REG_HCON,       sdmmc_ip_readl(host, SDMMCIP_REG_HCON));
+    TRACE(0, "read reg[%02X]:0x%X", SDMMCIP_REG_UHS_REG,    sdmmc_ip_readl(host, SDMMCIP_REG_UHS_REG));
+    TRACE(0, "read reg[%02X]:0x%X", SDMMCIP_REG_RESET_CARD, sdmmc_ip_readl(host, SDMMCIP_REG_RESET_CARD));
+    TRACE(0, "read reg[%02X]:0x%X", SDMMCIP_REG_BMOD,       sdmmc_ip_readl(host, SDMMCIP_REG_BMOD));
+    TRACE(0, "read reg[%02X]:0x%X", SDMMCIP_REG_PLDMND,     sdmmc_ip_readl(host, SDMMCIP_REG_PLDMND));
+    TRACE(0, "read reg[%02X]:0x%X", SDMMCIP_REG_DBADDR,     sdmmc_ip_readl(host, SDMMCIP_REG_DBADDR));
+    TRACE(0, "read reg[%02X]:0x%X", SDMMCIP_REG_IDSTS,      sdmmc_ip_readl(host, SDMMCIP_REG_IDSTS));
+    TRACE(0, "read reg[%02X]:0x%X", SDMMCIP_REG_IDINTEN,    sdmmc_ip_readl(host, SDMMCIP_REG_IDINTEN));
+    TRACE(0, "read reg[%02X]:0x%X", SDMMCIP_REG_DSCADDR,    sdmmc_ip_readl(host, SDMMCIP_REG_DSCADDR));
+    TRACE(0, "read reg[%02X]:0x%X", SDMMCIP_REG_BUFADDR,    sdmmc_ip_readl(host, SDMMCIP_REG_BUFADDR));
+    TRACE_FLUSH();
+}
+
+void hal_sdmmc_dump_run_record(enum HAL_SDMMC_ID_T id)
+{
+    TRACE(0, "%s, line:%d", __func__, __LINE__);
+#ifdef SDMMC_RUN_RECORD
+    uint16_t i, len, remain;
+
+    TRACE_NOTS(0, "\n sdmmc_status_ori_index %d, sdmmc_status_ori[%d]:", sdmmc_status_ori_index[id], id);
+    i = 0;
+    remain = SDMMC_RUN_RECORD_CNT;
+    while (remain) {
+        len = remain > 8 ? 8 : remain;
+        DUMP32(" %08X", (const char *)((uint32_t)sdmmc_status_ori[id] + i * 32), len);
+        remain -= len;
+        i++;
+    }
+
+    TRACE_NOTS(0, "\n sdmmc_opcode_ori_index %d, sdmmc_opcode_ori[%d]:", sdmmc_opcode_ori_index[id], id);
+    i = 0;
+    remain = SDMMC_RUN_RECORD_CNT;
+    while (remain) {
+        len = remain > 16 ? 16 : remain;
+        DUMP8(" %3d", (const char *)((uint32_t)sdmmc_opcode_ori[id] + i * 16), len);
+        remain -= len;
+        i++;
+    }
+
+    TRACE_NOTS(0, "\n sdmmc_opcode_copy_index %d, sdmmc_opcode_copy[%d]:", sdmmc_opcode_copy_index[id], id);
+    i = 0;
+    remain = SDMMC_RUN_RECORD_CNT;
+    while (remain) {
+        len = remain > 16 ? 16 : remain;
+        DUMP8(" %3d", (const char *)((uint32_t)sdmmc_opcode_copy[id] + i * 16), len);
+        remain -= len;
+        i++;
+    }
+
+    TRACE_NOTS(0, "\n sdmmc_resp_index %d, sdmmc_resp[%d]:", sdmmc_resp_index[id], id);
+    i = 0;
+    remain = SDMMC_RUN_RECORD_CNT;
+    while (remain) {
+        len = remain > 8 ? 8 : remain;
+        DUMP32(" %08X", (const char *)((uint32_t)sdmmc_resp[id] + i * 32), len);
+        remain -= len;
+        i++;
+    }
+
+    TRACE_NOTS(0, "\n sdmmc_sleep_wakeup_record_index %d, sdmmc_sleep_wakeup_record[%d]:", sdmmc_sleep_wakeup_record_index[id], id);
+    i = 0;
+    remain = SDMMC_RUN_RECORD_CNT;
+    while (remain) {
+        len = remain > 16 ? 16 : remain;
+        DUMP8(" %02X", (const char *)((uint32_t)sdmmc_sleep_wakeup_record[id] + i * 16), len);
+        remain -= len;
+        i++;
+    }
+    TRACE_NOTS(0, " ================dump run record completed================");
+#else
+    TRACE(0, "SDMMC_RUN_RECORD macro is not turned on and this function cannot be used");
+#endif
+    TRACE_FLUSH();
+}
+
+#endif

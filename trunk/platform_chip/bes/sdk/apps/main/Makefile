@@ -1,6 +1,14 @@
 cur_dir := $(dir $(lastword $(MAKEFILE_LIST)))
 
+ifeq ($(BT_WATCH_APP),1)
+obj-y := watch_src/
+else
 obj-y := $(patsubst $(cur_dir)%,%,$(wildcard $(cur_dir)*.c $(cur_dir)*.cpp $(cur_dir)*.S))
+endif
+
+ifeq ($(BTH_BOOT_AP),1)
+obj-y += ../../platform/drivers/fw_linux/loader/
+endif
 
 ifneq ($(wildcard $(cur_dir)../../config/$(T)/app_status_ind.c),)
 obj-y += ../../config/$(T)/app_status_ind.c
@@ -8,7 +16,7 @@ else
 obj-y += ../../config/$(DEFAULT_CFG_SRC)/app_status_ind.c
 endif
 
-ifneq ($(filter 1, $(AUDIO_OUTPUT_DC_AUTO_CALIB) $(AUDIO_ADC_DC_AUTO_CALIB)),)
+ifneq ($(filter 1,$(AUDIO_ADC_DC_AUTO_CALIB) $(AUDIO_OUTPUT_DC_AUTO_CALIB)),)
 obj-y += ../../utils/codec_calib/
 ccflags-y += -Iutils/codec_calib
 endif
@@ -17,12 +25,10 @@ obj-y := $(obj-y:.c=.o)
 obj-y := $(obj-y:.cpp=.o)
 obj-y := $(obj-y:.S=.o)
 
-ccflags-y +=  \
+subdir-ccflags-y +=  \
     $(BLUETOOTH_ADAPTER_INCLUDES) \
     $(EPLAYER_INCLUDES) \
     $(ECOMM_INCLUDES) \
-    $(BT_SERVICE_UX_INCLUDES) \
-    -I$(BLE_AOB_APP_DIR_PATH)/inc \
     -Iservices/audio_bt \
     -Iservices/audioflinger \
     -Iservices/norflash_api \
@@ -30,22 +36,20 @@ ccflags-y +=  \
     -Iservices/nv_section/log_section \
     -Iservices/overlay \
     -Iservices/resources \
+    -Iservices/activity_manager \
     -Iservices/audio_process \
-    -Iutils/intersyshci \
-    -Iservices/ux/common/sound \
-    -Iapps/btapp \
-    -Iapps/btapp/app_rssi/ \
-    -Iapps/app_test/apptester \
+    -Iapps/apptester \
     -Iapps/factory \
     -Iapps/voice_detector \
-    -Iutils/crc \
+    -Iservices/ux/common/sound \
+    -Iutils/crc32 \
     -Iutils/list \
+    -Iutils/codec_calib \
     -Iplatform/drivers/bt \
     -Iplatform/drivers/ana \
     -Iapps/audioplayers/rbplay \
     -Itests/anc_usb \
     -Iapps/anc/inc \
-    -Iapps/btspeaker \
     -Ithirdparty/userapi \
     -Iservices/communication \
     -Iutils/cqueue \
@@ -56,40 +60,49 @@ ccflags-y +=  \
     -Iservices/interconnection/red \
     -Iservices/interconnection/green \
     -Iservices/bridge/ \
-    -Iservices/bt_app/a2dp_codecs/include \
-    -Iservices/aob_app/inc \
+    -Iservices/voicepath \
+    -Iservices/voicepath/gsound/gsound_service \
+    -Iservices/voicepath/gsound/gsound_target \
+    -Iservices/voicepath/gsound/gsound_custom/inc \
+    -Iservices/voicepath/gsound/gsound_target_api_read_only \
+    -Iservices/ota/ai_ota/ \
+    -Iservices/bes_bth/ble/aob_app/inc \
     -Iservices/aob_bes_ux/inc \
     -Iservices/aob_custom_ux \
     -Ithirdparty/tile \
-    -Iservices/rpc/inc \
+    -Iservices/ux/common/ibrt/ibrt_middleware/inc \
     -Ithirdparty/tile/tile_target \
     -Iinclude/ \
     -Iapps/btwatch \
-    -Iapps/bt_apps \
     -Iapps/sensorhub \
+    -Iapps/dsp_hifi4 \
     -Iapps/dsp_m55 \
     -Iplatform/drivers/cp_accel \
-    -Iservices/audio_manager \
-	-Ibthost/service/ble_app_new/inc \
-	-Imultimedia/inc \
-    -Imultimedia/inc/speech/inc \
-    -Iapps/earbuds/conn
+    -Iplatform/drivers/hifi4 \
+    -Iplatform/drivers/fw_linux/inc \
+    -Iplatform/main \
+    -Iapps/mem_scan \
+    -Iservices/audio_manager
 
-ifeq ($(BISTO_ENABLE),1)
+ifeq ($(BLE_USB_AUDIO_SUPPORT),1)
 ccflags-y += \
-    -Iservices/ai_voice/protocol/gva/gsound_target \
-    -Iservices/ai_voice/protocol/gva/gsound_custom/inc \
-    -Iservices/ai_voice/protocol/gva/gsound_target_api_read_only
+    -Iservices/ble_usb_audio \
+    -Iservices/audio_sync_tdm_codec/inc
 endif
 
-ifeq ($(BLE_WALKIE_TALKIE),1)
+ifeq ($(IBRT),1)
+ifeq ($(IBRT_UI),1)
 ccflags-y += \
-    -Iapps/btapp/ble_walkie_talkie \
-    -Iservices/walkie_talkie \
-    -Iservices/walkie_talkie/wt_test
+    -Iservices/ux/common/ibrt/app_ibrt/inc \
+    -Iservices/ux/common/ibrt/ibrt_core/inc \
+    -Iservices/ux/common/ibrt/custom_api \
+    -Iservices/ux/common/ibrt/ibrt_ui/inc \
+    -Iapps/earbuds/conn \
+    -Iapps/earbuds/test
+endif
 endif
 
-#ifeq ($(CAPSENSOR_ENABLE), 1)
+ifeq ($(CAPSENSOR_ENABLE), 1)
 obj-y += \
     ../capsensor/
 
@@ -102,14 +115,27 @@ ccflags-y += \
     -Iplatform/drivers/capsensor/
 endif
 
-#endif
+endif
 
-ifeq ($(PRESSURE_ENABLE), 1)
-obj-y += \
-    ../pressure/
-
+ifeq ($(DUAL_MODE_BLUETOOTH_UI_ENABLED),1)
 ccflags-y += \
-    -Iapps/pressure/
+    -Iservices/bluetooth_ui
+endif
+
+ifeq ($(BISTO_ENABLE),1)
+ccflags-y += \
+    -Iservices/voicepath \
+    -Iservices/voicepath/gsound/gsound_service \
+    -Iservices/voicepath/gsound/gsound_target \
+    -Iservices/voicepath/gsound/gsound_custom/inc \
+    -Iservices/voicepath/gsound/gsound_target_api_read_only
+endif
+
+ifeq ($(BLE_WALKIE_TALKIE),1)
+ccflags-y += \
+    -Iapps/ble_walkie_talkie \
+    -Iservices/walkie_talkie \
+    -Iservices/walkie_talkie/wt_test
 endif
 
 ifeq ($(APP_TEST_AUDIO),1)
@@ -128,14 +154,8 @@ ifeq ($(AI_OTA),1)
 ccflags-y += -Iservices/ota/ai_ota
 endif
 
-ifeq ($(GFPS_ENABLE),1)
-ccflags-y += \
-   -Iservices/ble_app/app_gfps \
-   -Iservices/gfps/inc
-endif
-
-ifneq ($(filter 1,$(GATT_RATE_TESTS) $(GATT_RATE_TESTC)),)
-ccflags-y += -Iservices/rate_test_demo
+ifeq ($(WIRELESS_MIC),1)
+ccflags-y += -Iapps/wireless_mic
 endif
 
 CFLAGS_apps.o += $(LDS_SECTION_FLAGS)
@@ -147,22 +167,6 @@ endif
 
 ifeq ($(VOICE_ASSIST_WD_ENABLED),1)
 CFLAGS_apps.o += -DVOICE_ASSIST_WD_ENABLED
-endif
-
-ifeq ($(VOICE_ASSIST_ONESHOT_ADAPTIVE_ANC),1)
-CFLAGS_apps.o += -DVOICE_ASSIST_ONESHOT_ADAPTIVE_ANC
-endif
-
-ifeq ($(VOICE_ASSIST_FF_FIR_LMS),1)
-CFLAGS_apps.o += -DVOICE_ASSIST_FF_FIR_LMS
-endif
-
-ifeq ($(VOICE_ASSIST_FF_IIR_LMS),1)
-CFLAGS_apps.o += -DVOICE_ASSIST_FF_IIR_LMS
-endif
-
-ifeq ($(VOICE_ASSIST_ADA_IIR),1)
-CFLAGS_apps.o += -DVOICE_ASSIST_ADA_IIR
 endif
 
 ifeq ($(VOICE_ASSIST_PILOT_ANC_ENABLED),1)
@@ -183,6 +187,10 @@ endif
 
 ifeq ($(MCU_HIGH_PERFORMANCE_MODE),1)
 CFLAGS_apps.o += -DMCU_HIGH_PERFORMANCE_MODE
+endif
+
+ifeq ($(BTADDR_FOR_DEBUG),1)
+CFLAGS_apps.o += -DBTADDR_FOR_DEBUG
 endif
 
 ifeq ($(FORCE_SIGNALINGMODE),1)
@@ -216,20 +224,15 @@ CFLAGS_apps.o += -DAUDIO_ADAPTIVE_FIR_EQ
 CFLAGS_apps.o += -DAUDIO_ADAPTIVE_EQ
 endif
 
+ifeq ($(BTH_SUBSYS_ONLY),1)
+CFLAGS_apps.o += -DBTH_SUBSYS_ONLY
+endif
+
 ifeq ($(AUDIO_DEBUG_CMD),1)
 CFLAGS_apps.o += -DAUDIO_DEBUG_CMD
 endif
 
-ifeq ($(BT_SOURCE),1)
-CFLAGS_apps.o += -DBT_SOURCE
-endif
-
-ifneq ($(APP_DEBUG_TOOL),)
-CFLAGS_apps.o += -DAPP_TRACE_RX_ENABLE
-CFLAGS_apps.o += -DAUDIO_DEBUG_CMD
-endif
-
-ifeq ($(APP_RPC_ENABLE),1)
+ifneq ($(filter 1,$(APP_RPC_ENABLE) $(APP_RPC_MCU_SENSOR_EN)),)
 ccflags-y += -Iapps/app_rpc
 endif
 
@@ -237,40 +240,49 @@ ifeq ($(APP_RPC_TEST),1)
 ccflags-y += -Iapps/app_rpc/test
 endif
 
-ifeq ($(SPEECH_ALGO_DSP),1)
-CFLAGS_apps.o += -DSPEECH_ALGO_DSP
+ifeq ($(DMA_AUDIO_APP),1)
+ccflags-y += -DDMA_AUDIO_APP -Iservices/dma_audio/app
+endif
+
+ifeq ($(SPEECH_ALGO_DSP_TEST),1)
+CFLAGS_apps.o += -DSPEECH_ALGO_DSP_TEST
+endif
+
+ifeq ($(ANC_ASSIST_ENABLED),1)
+ccflags-y += \
+    -Iapps/anc_assist/inc
 endif
 
 ifeq ($(FLASH_UNIQUE_ID),1)
 CFLAGS_apps.o += -DFLASH_UNIQUE_ID
 endif
 
-ifeq ($(IGNORE_APP_SHUTDOWN),1)
-CFLAGS_apps.o += -DIGNORE_APP_SHUTDOWN
-endif
-
-ifeq ($(TOTA_FACTORY_USED),1)
-ccflags-y += -Iservices/tota_v2
+ifeq ($(BTH_IF_COMM_RPC_EN),1)
+ccflags-y += \
+    -Iapps/bth_if \
+    -Iapps/bth_if/bt_if_server
 endif
 
 ifeq ($(BLE_BIS_TRANSPORT),1)
-ccflags-y += -Iservices/ux/common/bis_transport/inc
-endif
-
-ifeq ($(CHIP_HAS_USBPHY),1)
-CFLAGS_apps.o += -DCHIP_HAS_USBPHY
-endif
-
-ifeq ($(DOLBY_AUDIO_ENABLE),1)
 ccflags-y += \
-        -Iplatform/main/cmse \
-        -Ithirdparty/userapi/spa_dummy_app/inc \
-        -Ithirdparty/userapi/spa_dummy_app/sec \
-	    -Ithirdparty/thirdparty_lib \
-        -Ithirdparty/thirdparty_lib/inc
+    -Iservices/ux/common/bis_transport/inc
 endif
 
-ifeq ($(FINDMY_ENABLE),1)
-ccflags-y += -Ithirdparty/ios-find-my/inc \
-             -Iutils/kfifo
+ifeq ($(APP_UART_MODULE),1)
+ccflags-y += -Iapps/common/uart_dma
+endif
+
+ifeq ($(APP_UART_BRIDGE_MODULE),1)
+ccflags-y += -Iapps/common/uart_bridge
+endif
+
+ifeq ($(APP_SAMPLES),1)
+subdir-ccflags-y += \
+    -Iapps/samples
+endif
+
+ifeq ($(GFPS_ENABLE),1)
+subdir-ccflags-y += \
+    -Iservices/gfps/inc \
+    -Ibthost/porting
 endif

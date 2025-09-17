@@ -157,8 +157,15 @@ typedef enum IRQn
 #define TIMER20_IRQn            SYS_TIMER10_IRQn
 #define TIMER21_IRQn            SYS_TIMER11_IRQn
 
+#if 1
 #define GPIO_IRQn               AON_IRQn
+#else
+#define GPIO_IRQn               AON_GPIO_IRQn
+#define GPIO1_IRQn              SYS_GPIO_IRQn
+#define GPIO2_IRQn              SYS_GPIO_IRQn
+#endif
 #define WDT_IRQn                AON_WDT_IRQn
+#define DSP_WDT_IRQn            SYS_WDT_IRQn
 
 #endif
 

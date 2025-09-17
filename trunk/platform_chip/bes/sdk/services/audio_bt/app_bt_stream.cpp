@@ -16,24 +16,28 @@
 //#include "mbed.h"
 #include <stdio.h>
 #include <assert.h>
+
 #include "cmsis_os.h"
 #include "bluetooth_bt_api.h"
-#include "app_bt_audio.h"
 #include "tgt_hardware.h"
 #include "hal_uart.h"
 #include "hal_timer.h"
 #include "audioflinger.h"
+#include "af_stream_sw_gain.h"
 #include "lockcqueue.h"
 #include "hal_trace.h"
 #include "hal_cmu.h"
 #include "hal_overlay.h"
 #include "analog.h"
+#include "app_bt_stream.h"
 #include "app_overlay.h"
 #include "app_audio.h"
 #include "app_utils.h"
-#include "btapp.h"
+#include "app_bt.h"
 #include "app_a2dp.h"
-#include "app_bt_sync.h"
+#ifdef BT_XTAL_SYNC
+#include "bt_xtal_sync.h"
+#endif
 #ifdef ANC_APP
 #include "app_anc.h"
 #endif
@@ -45,7 +49,6 @@
 #include "hal_i2s.h"
 #include "hal_dma.h"
 #include "hal_bootmode.h"
-#include "app_karaoke.h"
 #ifdef MEDIA_PLAYER_SUPPORT
 #include "app_media_player.h"
 #endif
@@ -62,36 +65,22 @@
 
 #ifdef __AI_VOICE__
 #include "app_ai_voice.h"
-#include "app_ai_if.h"
 #endif
 
 #ifdef AI_AEC_CP_ACCEL
 #include "app_ai_algorithm.h"
 #endif
-
+#ifdef A2DP_DSP
+#include "mcu_dsp_hifi4_app.h"
+#endif
 #include "app_ring_merge.h"
 #include "bt_drv.h"
-#include "bt_xtal_sync.h"
 #include "bt_drv_reg_op.h"
-#include "besbt.h"
 #include "hal_chipid.h"
 #include "cqueue.h"
-#include "btapp.h"
-#include "app_hfp.h"
-#include "app_bt.h"
-#include "audio_policy.h"
 #include "audio_process.h"
-#include "voice_dev.h"
-#include "app_a2dp.h"
 #include "app_media_player.h"
-#include "bt_sco_chain.h"
-
-#if defined(BT_SOURCE)
-#include "bt_source.h"
-#if defined(APP_USB_A2DP_SOURCE)
-#include "btusb_audio.h"
-#endif
-#endif
+#include "app_audio_trace.h"
 #include "audio_dump.h"
 #include "a2dp_decoder.h"
 
@@ -107,20 +96,31 @@
 #include "mcpp_client.h"
 #endif
 
+#if defined(SPEECH_ALGO_DSP_TEST)
+#include "speech_algo_dsp_test.h"
+#endif
+
 #if defined(ANC_NOISE_TRACKER)
 #include "noise_tracker.h"
 #include "noise_tracker_callback.h"
 #endif
 
 #if defined(IBRT)
+#include "app_tws_ibrt.h"
 #include "app_ibrt_internal.h"
-#include "earbud_ux_api.h"
-#include "bts_core_if.h"
+#include "app_tws_ctrl_thread.h"
 #include "app_tws_ibrt_audio_analysis.h"
 #include "app_tws_ibrt_audio_sync.h"
-#include "app_tws_profile_sync.h"
-#include "bts_module_if.h"
+#include "app_ibrt_a2dp.h"
+#include "app_ibrt_rssi.h"
+#ifdef IBRT_UI
+#include "app_tws_ibrt_retrigger.h"
+#endif
 #undef MUSIC_DELAY_CONTROL
+#endif
+
+#if defined(IBRT_UI)
+#include "app_tws_ibrt_conn_api.h"
 #endif
 
 #ifdef __IAG_BLE_INCLUDE__
@@ -132,31 +132,13 @@
 #include "fftfilt2.h"
 #endif
 
-#if defined(AUDIO_ADJ_EQ)
-#include "adj_eq.h"
-#include "fftfilt2.h"
-#endif
-
 #if defined(ANC_ASSIST_ENABLED)
 #include "app_anc_assist.h"
-#ifdef VOICE_ASSIST_ONESHOT_ADAPTIVE_ANC
-#include "app_voice_assist_oneshot_adapt_anc.h"
-#endif
 #if defined(AUDIO_ADAPTIVE_EQ)
 #include "app_voice_assist_adaptive_eq.h"
 #endif
-#if defined(ASSIST_LOW_RAM_MOD)
-#include "custom_allocator.h"
-#include "anc_assist_resample.h"
-#include "integer_resampling.h"
-IntegerResamplingState *anc_assist_resample_inst = NULL;
-int32_t *anc_assist_resample_buf = NULL;
-#endif
-#if defined(VOICE_ASSIST_FF_FIR_LMS)
-#include "app_voice_assist_fir_lms.h"
-#endif
-#if defined(VOICE_ASSIST_FF_IIR_LMS)
-#include "app_voice_assist_iir_lms.h"
+#if defined(AUDIO_ADJ_EQ)
+#include "app_voice_assist_adj_eq.h"
 #endif
 #endif
 
@@ -172,89 +154,55 @@ int sidetone_opened=0;
 #endif
 #endif
 
-#ifdef IS_MULTI_AI_ENABLED
-#include "app_ai_if.h"
-#endif
-
 #if defined(APP_USB_A2DP_SOURCE)
 #include "btusb_audio.h"
 #endif
 
+#if (AUDIO_TRIGGER_VER < 2)
 #include "audio_trigger_a2dp.h"
 #include "audio_trigger_checker.h"
+#endif
+
 #if defined(IBRT)
 #include "audio_trigger_ibrt.h"
 #endif
 
-#ifdef __BIXBY
+#ifdef __BIXBY_VOICE__
 #include "app_bixby_thirdparty_if.h"
 #endif
+
+#ifdef A2DP_DECODER_CROSS_CORE
+#include "app_dsp_m55.h"
+extern "C" void a2dp_decoder_cc_cmd_cache_init(void);
+extern "C" void a2dp_decoder_cc_common_set_cmd_cached(bool isTriggered);
+#endif
+
+#include "audio_manager.h"
+
+#if defined(APP_LINEIN_A2DP_SOURCE)
+#include "app_a2dp_source.h"
+#endif
+
 #if defined(SPA_AUDIO_ENABLE)
 #include "spa_app_main.h"
-#ifdef SPA_AUDIO_SEC
-#include "tz_audio_process.h"
-#include "ree_audio_process.h"
-#endif
-#endif
-#if defined(A2DP_LDAC_ON)
-#include "bes_mem_api.h"
 #endif
 
-void(*app_bt_stream_ext_sco_playback)(uint8_t *buf, uint32_t len) = NULL;
-uint32_t (*app_bt_stream_ext_sco_capture)(uint8_t *buf, uint32_t len) = NULL;
-void app_bt_stream_set_ext_sco_data_path(void(*playback_cb)(uint8_t *buf, uint32_t len),
-        uint32_t (*capture_cb)(uint8_t *buf, uint32_t len))
-{
-    app_bt_stream_ext_sco_playback = playback_cb;
-    app_bt_stream_ext_sco_capture  = capture_cb;
-}
+#ifdef AUDIO_USER_PROCESS_EN
+#include "audio_user_process.h"
+#endif
 
-// #define A2DP_STREAM_AUDIO_DUMP      (16)
+//#define A2DP_STREAM_AUDIO_DUMP      (16)
 
 #if defined(A2DP_STREAM_AUDIO_DUMP)
 static uint32_t g_a2dp_pcm_dump_frame_len = 0;
 static uint32_t g_a2dp_pcm_dump_channel_num = 0;
 static uint32_t g_a2dp_pcm_dump_sample_bytes = 0;
 #if A2DP_STREAM_AUDIO_DUMP == 16
-#define A2DP_PCM_DUMP_BUFFER_MAX_SIZE      2048
-static int16_t g_a2dp_pcm_dump_buf[A2DP_PCM_DUMP_BUFFER_MAX_SIZE];
-#endif
-#endif
-
-#if defined(__SW_IIR_EQ_PROCESS__)
-static uint8_t audio_eq_sw_iir_index = 0;
-extern const IIR_CFG_T * const audio_eq_sw_iir_cfg_list[];
-#endif
-
-#if defined(__HW_FIR_EQ_PROCESS__)
-static uint8_t audio_eq_hw_fir_index = 0;
-extern const FIR_CFG_T * const audio_eq_hw_fir_cfg_list[];
-#if defined(__HW_FIR_EQ_PROCESS_2CH__)
-extern const FIR_CFG_T * const audio_hw_hpfir_cfg_list[];
-extern const FIR_CFG_T * const audio_hw_lpfir_cfg_list[];
-#endif
-#if defined(AUDIO_ADAPTIVE_FIR_EQ)
-extern FIR_CFG_T audio_eq_hw_fir_adaptive_eq_cfg;
-#endif
-#endif
-
-#if defined(__HW_DAC_IIR_EQ_PROCESS__)
-static uint8_t audio_eq_hw_dac_iir_index = 0;
-extern const IIR_CFG_T * const audio_eq_hw_dac_iir_cfg_list[];
-#if defined(__IIR_EQ_PROCESS_LR_2CH__)
-extern const IIR_CFG_T * const audio_eq_hw_dac_iir_cfg_list2[];
-#endif
-#if defined(AUDIO_ADAPTIVE_IIR_EQ)
-extern IIR_CFG_T audio_eq_hw_dac_iir_adaptive_eq_cfg;
+static int16_t g_a2dp_pcm_dump_buf[1024];
 #endif
 #endif
 
 #include "audio_prompt_sbc.h"
-
-#if defined(__HW_IIR_EQ_PROCESS__)
-static uint8_t audio_eq_hw_iir_index = 0;
-extern const IIR_CFG_T * const audio_eq_hw_iir_cfg_list[];
-#endif
 
 #if defined(HW_DC_FILTER_WITH_IIR)
 #include "hw_filter_codec_iir.h"
@@ -313,10 +261,6 @@ hw_filter_codec_iir_state *hw_filter_codec_iir_st;
 //#define SCO_DMA_SNAPSHOT_DEBUG
 #define SCO_TUNING_NEWMETHOD
 
-extern uint8_t bt_audio_get_eq_index(AUDIO_EQ_TYPE_T audio_eq_type,uint8_t anc_status);
-extern uint32_t bt_audio_set_eq(AUDIO_EQ_TYPE_T audio_eq_type,uint8_t index);
-extern uint8_t bt_audio_updata_eq_for_anc(uint8_t anc_status);
-
 #include "app_bt_media_manager.h"
 
 #include "string.h"
@@ -325,6 +269,12 @@ extern uint8_t bt_audio_updata_eq_for_anc(uint8_t anc_status);
 #include "bt_drv_interface.h"
 
 #include "audio_resample_ex.h"
+
+#ifdef AUDIO_SUPPORT_PA_ENVELOPE
+#include "audio_process_pa_envelope.h"
+#define SAMPLES_PER_MS(sr)      ((sr + 1000 - 1) / 1000)
+#define TIME_MS_PER_ENVELOPE    (8)
+#endif
 
 #if defined(CHIP_BEST1400) || defined(CHIP_BEST1402) || defined(CHIP_BEST2001)
 #define BT_INIT_XTAL_SYNC_FCAP_RANGE (0x1FF)
@@ -350,10 +300,6 @@ extern uint8_t bt_audio_updata_eq_for_anc(uint8_t anc_status);
 #endif
 
 static int32_t delay_buf_bt[DELAY_SAMPLE_MC];
-#endif
-
-#ifdef ANC_APP
-static uint8_t anc_status_record = 0xff;
 #endif
 
 #if defined(SCO_DMA_SNAPSHOT)
@@ -396,12 +342,11 @@ static uint8_t anc_status_record = 0xff;
 #define MUTE_PATTERN (0x55)
 #endif
 
-
 //#define A2DP_DUMP_REF_FB
 
 extern void  app_tws_ibrt_audio_mobile_clkcnt_get(uint8_t device_id, uint32_t btclk, uint16_t btcnt,
                                                      uint32_t *mobile_master_clk, uint16_t *mobile_master_cnt);
-
+#ifdef BT_HFP_SUPPORT
 static uint8_t *playback_buf_codecpcm;
 static uint32_t playback_size_codecpcm;
 static uint8_t *capture_buf_codecpcm;
@@ -428,6 +373,7 @@ static enum AUD_SAMPRATE_T playback_samplerate_codecpcm;
 static int32_t mobile_master_clk_offset_init;
 static uint32_t last_mobile_master_clk=0;
 #endif
+#endif //BT_HFP_SUPPORT
 
 #if defined(TX_RX_PCM_MASK) || defined(PCM_PRIVATE_DATA_FLAG)
 struct PCM_DATA_FLAG_T pcm_data_param[4];
@@ -458,11 +404,6 @@ struct btdevice_volume *btdevice_volume_p;
 struct btdevice_volume default_stream_volume;
 struct btdevice_volume current_btdevice_volume;
 
-#ifdef AUDIO_RMS_MONITOR_ENABLE
-uint32_t rms_debug_cnt = 0xFFFF;
-int32_t rms_dac_volume = 0;
-#endif
-
 #ifdef __BT_ANC__
 static uint32_t bt_sco_upsampling_ratio = 1;
 static uint8_t *bt_anc_sco_dec_buf;
@@ -487,10 +428,6 @@ uint32_t adj_mc_capture_sample_rate;
 #endif
 #endif
 
-#ifdef AUDIO_ADJ_EQ
-uint32_t adj_eq_capture_sample_rate;
-#endif
-
 #if defined(LOW_DELAY_SCO)
 static int32_t  btpcm_int_counter;
 #endif
@@ -502,16 +439,18 @@ static uint32_t lowdelay_data_size_play_bt;
 static enum AUD_CHANNEL_NUM_T  lowdelay_playback_ch_num_bt;
 #endif
 
-#if defined(VOICE_DEV)
-#if defined(APP_NOISE_ESTIMATION)
-int app_noise_estimation_open(void);
-int app_noise_estimation_close(void);
-int app_noise_estimation_start(void);
-int app_noise_estimation_stop(void);
-#endif
+#define A2DP_SCO_TRIGGER_CHANNEL    0
+
+#ifdef ADVANCE_FILL_ENABLED
+extern bool is_doing_pre_fill;
 #endif
 
-POSSIBLY_UNUSED static uint32_t a2dp_data_buf_size;
+static uint32_t a2dp_data_buf_size;
+
+#ifdef AF_CALLBACK_USE_TMP_BUF
+static uint8_t *g_af_play_tmp_buf = NULL;
+#endif
+
 #ifdef AUDIO_OUTPUT_ROUTE_SELECT
 
 #define NOTIFY_RECEIVE_DATA_SIGNAL        0x01
@@ -520,14 +459,14 @@ POSSIBLY_UNUSED static uint32_t a2dp_data_buf_size;
 typedef uint32_t (*bt_stream_read_callback)(uint8_t *data_ptr, uint32_t data_len);
 
 extern void a2dp_audio_reg_store_data_ntf_cb(void *cb);
-FRAM_TEXT_LOC uint32_t bt_a2dp_player_more_data(uint8_t *buf, uint32_t len);
+FRAM_TEXT_LOC uint32_t bt_sbc_player_more_data(uint8_t *buf, uint32_t len);
 static void app_bt_output_thread(const void *arg);
 
 typedef struct
 {
     // 0: player send,  1:device read
     uint8_t data_transfer_mode;
-    void (*output_start)(uint32_t sample_rate, uint8_t bits_depth, uint8_t num_channels, uint32_t frame_samples, uint8_t vol);
+    void (*output_start)(uint32_t sample_rate, uint8_t bits_depth, uint8_t num_channels, uint32_t frame_samples);
     void (*output_stop)(void);
     void (*output_set_volume)(uint8_t vol);
     // data_transfer_mode = 0
@@ -577,11 +516,6 @@ static void app_bt_output_thread(const void *arg)
     {
         evt = osSignalWait(NOTIFY_RECEIVE_DATA_SIGNAL, osWaitForever);
 
-        if(stream_route_info.mutex_id == NULL)
-        {
-            return;
-        }
-
         osMutexAcquire(stream_route_info.mutex_id, osWaitForever);
         if (!stream_route_info.buffer_samples)
         {
@@ -593,7 +527,7 @@ static void app_bt_output_thread(const void *arg)
         {
             if(app_bt_stream_store_data_not_enough())
             {
-                bt_a2dp_player_more_data(stream_route_info.send_buf,stream_route_info.buffer_samples);
+                bt_sbc_player_more_data(stream_route_info.send_buf,stream_route_info.buffer_samples);
 
                 if (stream_route_info.output_route_info)
                 {
@@ -608,11 +542,6 @@ static void app_bt_output_thread(const void *arg)
 
 static void app_bt_notify_receive_bt_meida_data(void)
 {
-    if(stream_route_info.mutex_id == NULL)
-    {
-        return;
-    }
-
     osMutexAcquire(stream_route_info.mutex_id, osWaitForever);
     if (stream_route_info.buffer_samples && app_bt_stream_store_data_not_enough())
     {
@@ -654,15 +583,10 @@ static uint32 app_bt_stream_read_meida_data(uint8_t *data_ptr, uint32_t data_len
 {
     uint32_t read_data_len = 0;
 
-    if(stream_route_info.mutex_id == NULL)
-    {
-        return read_data_len;
-    }
-
     osMutexAcquire(stream_route_info.mutex_id, osWaitForever);
     if(stream_route_info.buffer_samples && app_bt_stream_store_data_not_enough())
     {
-        bt_a2dp_player_more_data(data_ptr, data_len);
+        bt_sbc_player_more_data(data_ptr, data_len);
         read_data_len = data_len;
     }
     osMutexRelease(stream_route_info.mutex_id);
@@ -672,7 +596,7 @@ static uint32 app_bt_stream_read_meida_data(uint8_t *data_ptr, uint32_t data_len
 
 static void app_bt_output_route_init(uint32_t sample_rate, uint8_t bits_depth, uint8_t num_channels, uint32_t frame_samples, uint8_t vol)
 {
-    AUDIO_BT_TRACE(1,"app_bt_output_route_init start");
+    TRACE(1,"app_bt_output_route_init start");
 
     stream_route_info.mutex_id = osMutexNew(&stream_route_info.mutex_attr);
 
@@ -684,20 +608,24 @@ static void app_bt_output_route_init(uint32_t sample_rate, uint8_t bits_depth, u
 
     if (stream_route_info.output_route_info)
     {
-        AUDIO_BT_TRACE(1,"route_init,ttransfer_mode %d", stream_route_info.output_route_info->data_transfer_mode);
+        TRACE(1,"route_init,ttransfer_mode %d", stream_route_info.output_route_info->data_transfer_mode);
         if(stream_route_info.output_route_info->data_transfer_mode)
         {
-            AUDIO_BT_TRACE(1,"route_init,read_data_func = 0x%p", app_bt_stream_read_meida_data);
+            TRACE(1,"route_init,read_data_func = 0x%p", app_bt_stream_read_meida_data);
             stream_route_info.output_route_info->output_reg_read_cb(app_bt_stream_read_meida_data);
         }
         else
         {
             stream_route_info.cache_pack_num = 0;
             stream_route_info.output_thread_id = osThreadCreate(osThread(app_bt_output_thread), NULL);
-            AUDIO_BT_TRACE(1,"route_init,thread_id 0x%p", stream_route_info.output_thread_id);
+            TRACE(1,"route_init,thread_id 0x%p", stream_route_info.output_thread_id);
         }
 
-        stream_route_info.output_route_info->output_start(sample_rate, bits_depth, num_channels, frame_samples, vol);
+        stream_route_info.output_route_info->output_start(sample_rate, bits_depth, num_channels, frame_samples);
+        if (stream_route_info.output_route_info->output_set_volume)
+        {
+            stream_route_info.output_route_info->output_set_volume(vol);
+        }
     }
 
     #if (A2DP_DECODER_VER == 2)
@@ -705,13 +633,12 @@ static void app_bt_output_route_init(uint32_t sample_rate, uint8_t bits_depth, u
     #else
         a2dp_audio_reg_store_data_ntf_cb((void *)app_bt_notify_receive_bt_meida_data);
     #endif
-    AUDIO_BT_TRACE(1,"app_bt_output_route_init end");
+    TRACE(1,"app_bt_output_route_init end");
 
 }
 
 static void app_bt_output_route_deinit(void)
 {
-    AUDIO_BT_TRACE(0,"app_bt_output_route_deinit start");
     osStatus evt;
 
 #if (A2DP_DECODER_VER == 2)
@@ -722,6 +649,10 @@ static void app_bt_output_route_deinit(void)
 
     osMutexAcquire(stream_route_info.mutex_id, osWaitForever);
     stream_route_info.buffer_samples   = 0;
+    if (stream_route_info.output_route_info)
+    {
+        stream_route_info.output_route_info->output_stop();
+    }
 
     if(stream_route_info.output_thread_id)
     {
@@ -733,58 +664,33 @@ static void app_bt_output_route_deinit(void)
     osMutexRelease(stream_route_info.mutex_id);
     osMutexDelete(stream_route_info.mutex_id);
 
-    stream_route_info.mutex_id = NULL;
-
-    AUDIO_BT_TRACE(0,"app_bt_output_route_deinit output_stop");
-    if (stream_route_info.output_route_info)
-    {
-        stream_route_info.output_route_info->output_stop();
-    }
-
-    AUDIO_BT_TRACE(0,"app_bt_output_route_deinit end");
+    TRACE(0,"app_bt_decode_to_pcm_thread end");
 }
 #endif
 
-
-
-#define A2DP_SCO_TRIGGER_CHANNEL    0
-
 static APP_STREAM_NOTIFY_TRIGGER_STATUS_CALLBACK app_stream_notify_trigger_status_callback = NULL;
-static app_bt_sco_switch_trigger_t sco_switch_trigger_check = NULL;
-extern void bt_media_clear_media_type(uint16_t media_type,int device_id);
 
-extern "C" uint8_t is_a2dp_mode(void);
+extern void bt_media_clear_media_type(uint16_t media_type, int device_id);
+
 uint8_t bt_a2dp_mode;
+
+static RMT_A2DP_SINK_DEV_ONOFF_CALLBACK rmt_a2dp_sink_dev_onoff_cb = NULL;
+
+void rmt_a2dp_sink_dev_onoff_callback_register(RMT_A2DP_SINK_DEV_ONOFF_CALLBACK onoff_cb)
+{
+    rmt_a2dp_sink_dev_onoff_cb = onoff_cb;
+}
+
+static RMT_A2DP_SINK_DEV_VOL_SET_CALLBACK rmt_a2dp_sink_dev_vol_set_cb = NULL;
+
+void rmt_a2dp_sink_dev_vol_set_callback_register(RMT_A2DP_SINK_DEV_VOL_SET_CALLBACK vol_cb)
+{
+    rmt_a2dp_sink_dev_vol_set_cb = vol_cb;
+}
 
 extern "C" FRAM_TEXT_LOC uint8_t is_a2dp_mode(void)
 {
     return bt_a2dp_mode;
-}
-
-extern "C" bool is_le_media_mode(void);
-extern "C" bool media_stream_is_running(void)
-{
-    if (bt_a2dp_is_run() ||
-#if BLE_AUDIO_ENABLED
-        is_le_media_mode() ||
-#endif
-        0) {
-        return true;
-    } else {
-        return false;
-    }
-}
-
-extern "C" uint8_t is_sco_mode(void);
-uint8_t bt_sco_mode;
-extern "C" FRAM_TEXT_LOC uint8_t is_sco_mode(void)
-{
-    return bt_sco_mode;
-}
-
-extern "C" FRAM_TEXT_LOC uint8_t amgr_is_bluetooth_sco_on()
-{
-    return bt_sco_mode;
 }
 
 #if defined(A2DP_LHDC_ON) || defined(A2DP_LHDCV5_ON)
@@ -798,11 +704,21 @@ extern "C" FRAM_TEXT_LOC uint8_t amgr_is_bluetooth_sco_on()
 #define LHDC_SET_EXT_FLAGS(X) (lhdc_ext_flags |= X)
 #define LHDC_CLR_EXT_FLAGS(X) (lhdc_ext_flags &= ~X)
 #define LHDC_CLR_ALL_EXT_FLAGS() (lhdc_ext_flags = 0)
-extern "C" bool a2dp_lhdc_get_ext_flags(uint32_t flags);
-extern "C" uint8_t a2dp_lhdc_config_llc_get(void);
 #endif
 
-APP_STREAM_GET_A2DP_PARAM_CALLBACK app_stream_get_a2dp_non_type_callback = NULL;
+static bool g_sco_record_mode = false;
+extern "C" bool bt_sco_is_record_mode(void)
+{
+    return g_sco_record_mode;
+}
+
+extern "C" void bt_sco_set_record_mode(bool en)
+{
+    TRACE(2, "[%s] Record mode: %d", __func__, en);
+    g_sco_record_mode = en;
+}
+
+static APP_STREAM_GET_A2DP_PARAM_CALLBACK app_stream_get_a2dp_param_callback = NULL;
 
 #define SYNCHRONIZE_NEED_DISCARDS_DMA_CNT 4
 
@@ -818,11 +734,30 @@ int app_bt_stream_trigger_success(uint32_t trigger_checker)
     if (app_bt_stream_isrun(APP_BT_STREAM_A2DP_SBC) && is_need_discards_samples) {
         //limter to water line upper
         uint32_t list_samples = 0;
+        uint32_t limter_water_line_samples = 0;
+        A2DP_AUDIO_LASTFRAME_INFO_T lastframe_info;
+        //uint32_t dest_discards_samples = app_bt_stream_get_dma_buffer_samples()/2 * SYNCHRONIZE_NEED_DISCARDS_DMA_CNT;
+        if (a2dp_audio_lastframe_info_get(&lastframe_info)<0) {
+            TRACE_AUD_STREAM_W("[STRM_TRIG][CHK] force retrigger");
+            app_ibrt_if_force_audio_retrigger(RETRIGGER_BY_DECODE_STATUS_ERROR);
+            return 0;
+        }
+
+        limter_water_line_samples = (a2dp_audio_dest_packet_mut_get() * lastframe_info.list_samples);
         a2dp_audio_convert_list_to_samples(&list_samples);
-        AUDIO_BT_TRACE(0,"[STRM_TRIG][CHK] synchronize:%d", list_samples);
+        TRACE_AUD_STREAM_W("[STRM_TRIG][CHK] synchronize:%d/%d", list_samples, limter_water_line_samples);
     }
 #endif
 #endif
+
+#if defined(BT_HFP_SUPPORT) && defined(SCO_DMA_SNAPSHOT)
+    if (app_bt_stream_isrun(APP_BT_STREAM_HFP_PCM)) {
+        TRACE_AUD_STREAM_I("[STRM_TRIG] SCO clean trigger");
+        btdrv_syn_clr_trigger(0);
+        bt_syn_cancel_tg_ticks(0);
+    }
+#endif
+
     app_bt_stream_trigger_checker_stop();
     if (app_stream_notify_trigger_status_callback)
     {
@@ -840,7 +775,7 @@ enum AUD_SAMPRATE_T a2dp_sample_rate = AUD_SAMPRATE_48000;
 extern int app_rbplay_audio_onoff(bool onoff, uint16_t aud_id);
 #endif
 
-enum AUD_SAMPRATE_T bt_parse_music_sample_rate(uint32_t sbc_samp_rate)
+enum AUD_SAMPRATE_T bt_parse_music_sample_rate(uint8_t sbc_samp_rate)
 {
     enum AUD_SAMPRATE_T sample_rate;
     sbc_samp_rate = sbc_samp_rate & A2D_STREAM_SAMP_FREQ_MSK;
@@ -859,7 +794,12 @@ enum AUD_SAMPRATE_T bt_parse_music_sample_rate(uint32_t sbc_samp_rate)
         case A2D_SBC_IE_SAMP_FREQ_44:
             sample_rate = AUD_SAMPRATE_44100;
             break;
-#if defined(A2DP_LHDC_ON) || defined(A2DP_LHDCV5_ON) || defined(A2DP_SCALABLE_ON) || defined(A2DP_LC3_ON) || defined(A2DP_LDAC_ON)
+#if defined(A2DP_LHDC_ON) || defined(A2DP_LHDCV5_ON) || defined(A2DP_SCALABLE_ON) || defined(A2DP_LC3_ON)
+        case A2D_SBC_IE_SAMP_FREQ_96:
+            sample_rate = AUD_SAMPRATE_96000;
+            break;
+#endif
+#if defined(A2DP_LDAC_ON)
         case A2D_SBC_IE_SAMP_FREQ_96:
             sample_rate = AUD_SAMPRATE_96000;
             break;
@@ -886,7 +826,7 @@ enum AUD_SAMPRATE_T bt_get_sbc_sample_rate(void)
     return a2dp_sample_rate;
 }
 
-enum AUD_SAMPRATE_T bt_parse_store_music_sample_rate(uint32_t sbc_samp_rate)
+enum AUD_SAMPRATE_T bt_parse_store_music_sample_rate(uint8_t sbc_samp_rate)
 {
     enum AUD_SAMPRATE_T sample_rate;
 
@@ -896,18 +836,21 @@ enum AUD_SAMPRATE_T bt_parse_store_music_sample_rate(uint32_t sbc_samp_rate)
     return sample_rate;
 }
 
-int app_bt_stream_register_get_a2dp_non_type_callback(APP_STREAM_GET_A2DP_PARAM_CALLBACK callback)
+int app_bt_stream_register_a2dp_param_callback(APP_STREAM_GET_A2DP_PARAM_CALLBACK callback)
 {
-    app_stream_get_a2dp_non_type_callback = callback;
+    app_stream_get_a2dp_param_callback = callback;
 
     return 0;
 }
 
-int bt_a2dp_player_setup(uint8_t freq)
+int bt_sbc_player_setup(uint8_t freq)
 {
     struct AF_STREAM_CONFIG_T *stream_cfg = NULL;
     static uint8_t sbc_samp_rate = 0xff;
     uint32_t ret;
+
+    if (rmt_a2dp_sink_dev_onoff_cb!=NULL)
+        return 0;
 
     if (sbc_samp_rate == freq)
         return 0;
@@ -919,22 +862,24 @@ int bt_a2dp_player_setup(uint8_t freq)
         case A2D_SBC_IE_SAMP_FREQ_48:
             a2dp_sample_rate = AUD_SAMPRATE_48000;
             break;
-#if defined(A2DP_LHDC_ON) || defined(A2DP_LHDCV5_ON) ||defined(A2DP_SCALABLE_ON) || defined(A2DP_LC3_ON) || defined(A2DP_LDAC_ON) || defined(A2DP_L2HC_ON)
+#if defined(A2DP_LHDC_ON) || defined(A2DP_LHDCV5_ON) ||defined(A2DP_SCALABLE_ON) || defined(A2DP_LC3_ON)
         case A2D_SBC_IE_SAMP_FREQ_96:
             a2dp_sample_rate = AUD_SAMPRATE_96000;
-            AUDIO_BT_TRACE(0,"%s:Sample rate :%d", __func__, freq);
-            break;
-        case A2D_SBC_IE_SAMP_FREQ_88D2:
-            a2dp_sample_rate = AUD_SAMPRATE_88200;
-            AUDIO_BT_TRACE(0,"%s:Sample rate :%d", __func__, freq);
+            TRACE_AUD_STREAM_I("%s:Sample rate :%d", __func__, freq);
             break;
 #endif
-#if defined(A2DP_LDAC_ON) || defined(A2DP_LHDCV5_ON)
+#ifdef  A2DP_LDAC_ON
+        case A2D_SBC_IE_SAMP_FREQ_96:
+            a2dp_sample_rate = AUD_SAMPRATE_96000;
+            TRACE_AUD_STREAM_I("%s:Sample rate :%d", __func__, freq);
+            break;
+#endif
+#if defined(A2DP_LHDCV5_ON)
         case A2D_SBC_IE_SAMP_FREQ_192:
             a2dp_sample_rate = AUD_SAMPRATE_192000;
-            AUDIO_BT_TRACE(0,"%s:Sample rate :%d", __func__, freq);
+            TRACE_AUD_STREAM_I("%s:Sample rate :%d", __func__, freq);
             break;
-#endif //A2DP_LHDCV5_ON or A2DP_LHDCV5_ON
+#endif //A2DP_LHDCV5_ON
         case A2D_SBC_IE_SAMP_FREQ_44:
             a2dp_sample_rate = AUD_SAMPRATE_44100;
             break;
@@ -1019,7 +964,7 @@ const char *player2str(uint16_t player_type) {
     if (player_type != 0) {
         for (int i = 15 ; i >= 0; i--) {
             _cat = 1;
-            //AUDIO_BT_TRACE(0,"i=%d,player_type=0x%d,player_type&(1<<i)=0x%x", i, player_type, player_type&(1<<i));
+            //TRACE_AUD_STREAM_I("i=%d,player_type=0x%d,player_type&(1<<i)=0x%x", i, player_type, player_type&(1<<i));
             switch(player_type&(1<<i)) {
                 case 0: _cat = 0; break;
                 case APP_BT_STREAM_HFP_PCM: s = "HFP_PCM"; break;
@@ -1054,7 +999,7 @@ const char *player2str(uint16_t player_type) {
             if (_cat) {
                 if (!first)
                     d = _catstr(d, "|");
-                //AUDIO_BT_TRACE(0,"d=%s,s=%s", d, s);
+                //TRACE_AUD_STREAM_I("d=%s,s=%s", d, s);
                 d = _catstr(d, s);
                 first = 0;
             }
@@ -1066,18 +1011,9 @@ const char *player2str(uint16_t player_type) {
     return _player_type_str;
 }
 
+//extern void a2dp_get_curStream_remDev(btif_remote_device_t   **           p_remDev);
+uint16_t a2dp_Get_curr_a2dp_conhdl(void);
 
-#ifdef __HEAR_THRU_PEAK_DET__
-#include "peak_detector.h"
-// Depend on codec_dac_vol
-static const float pkd_vol_multiple[18] = {
-    0.281838, 0.000010, 0.005623, 0.007943, 0.011220, 0.015849,
-    0.022387, 0.031623, 0.044668, 0.063096, 0.089125, 0.125893,
-    0.177828, 0.251189, 0.354813, 0.501187, 0.707946, 1.000000
-};
-
-int app_bt_stream_local_volume_get(void);
-#endif
 
 #ifdef PLAYBACK_FORCE_48K
 static uint32_t force48k_pcm_bytes = sizeof(int32_t);
@@ -1137,7 +1073,7 @@ bool process_delay(int32_t delay_ms)
 #if defined(MUSIC_DELAY_CONTROL) && (defined(CHIP_BEST2300) || defined(CHIP_BEST2300P) || defined(CHIP_BEST2300A)|| defined(CHIP_BEST1400)|| defined(CHIP_BEST1402))
     if (delay_ms == 0)return 0;
 
-    AUDIO_BT_TRACE(0,"delay_ms:%d", delay_ms);
+    TRACE_AUD_STREAM_I("delay_ms:%d", delay_ms);
 
     if(calib_flag==0)
     {
@@ -1168,7 +1104,7 @@ void a2dp_clock_calib_process(uint32_t len)
     btcnt = *((volatile uint32_t*)0xd02201f8);
     btcnt=0;
 
-   // AUDIO_BT_TRACE（0,"bt_a2dp_player_more_data btclk:%08x,btcnt:%08x\n", btclk, btcnt);
+   // TRACE_AUD_STREAM_I("bt_sbc_player_more_data btclk:%08x,btcnt:%08x\n", btclk, btcnt);
 
 
  //  a2dp_get_curStream_remDev(&p_a2dp_remDev);
@@ -1255,27 +1191,27 @@ void a2dp_clock_calib_process(uint32_t len)
 
             local_clock_ms=local_clock_ms+calib_total_delay;
 
-            //AUDIO_BT_TRACE(0,"A2DP bt_clock_ms:%8d,local_clock_ms:%8d,bt_total_offset_us:%8d\n",bt_clock_ms, local_clock_ms,bt_total_offset_us);
+            //TRACE_AUD_STREAM_I("A2DP bt_clock_ms:%8d,local_clock_ms:%8d,bt_total_offset_us:%8d\n",bt_clock_ms, local_clock_ms,bt_total_offset_us);
 
             if(bt_clock_ms>(local_clock_ms+CALIB_DEVIATION_MS))
             {
 #if defined(__AUDIO_RESAMPLE__) && defined(SW_PLAYBACK_RESAMPLE)
                 app_resample_tune(a2dp_resample, CALIB_FACTOR_DELAY);
 #else
-                af_codec_tune(AUD_STREAM_PLAYBACK, CALIB_FACTOR_DELAY);
+                af_stream_tune(AUD_STREAM_ID_0, AUD_STREAM_PLAYBACK, CALIB_FACTOR_DELAY);
 #endif
                 calib_factor_flag=1;
-                //AUDIO_BT_TRACE(0,"*************1***************");
+                //TRACE_AUD_STREAM_I("*************1***************");
             }
             else if(bt_clock_ms<(local_clock_ms-CALIB_DEVIATION_MS))
             {
 #if defined(__AUDIO_RESAMPLE__) && defined(SW_PLAYBACK_RESAMPLE)
                 app_resample_tune(a2dp_resample, -CALIB_FACTOR_DELAY);
 #else
-                af_codec_tune(AUD_STREAM_PLAYBACK, -CALIB_FACTOR_DELAY);
+                af_stream_tune(AUD_STREAM_ID_0, AUD_STREAM_PLAYBACK, -CALIB_FACTOR_DELAY);
 #endif
                 calib_factor_flag=-1;
-                //AUDIO_BT_TRACE(0,"*************-1***************");
+                //TRACE_AUD_STREAM_I("*************-1***************");
             }
             else
             {
@@ -1296,14 +1232,14 @@ void a2dp_clock_calib_process(uint32_t len)
 #if defined(__AUDIO_RESAMPLE__) && defined(SW_PLAYBACK_RESAMPLE)
                     app_resample_tune(a2dp_resample, calib_factor_offset);
 #else
-                    af_codec_tune(AUD_STREAM_PLAYBACK, calib_factor_offset);
+                    af_stream_tune(AUD_STREAM_ID_0, AUD_STREAM_PLAYBACK, calib_factor_offset);
 #endif
                     calib_factor_flag=0;
                     calib_flag=0;
-                    //AUDIO_BT_TRACE(0,"*************0***************");
+                    //TRACE_AUD_STREAM_I("*************0***************");
                 }
             }
-          //  AUDIO_BT_TRACE(0,"factoroffset:%d\n",(int32_t)((factoroffset)*(float)10000000.0f));
+          //  TRACE_AUD_STREAM_I("factoroffset:%d\n",(int32_t)((factoroffset)*(float)10000000.0f));
         }
     }
 
@@ -1326,7 +1262,9 @@ bool bt_is_playback_triggered(void)
 
 static void bt_set_playback_triggered(bool isEnable)
 {
-    AUDIO_BT_TRACE(0, "%s isEnable %d", __func__, isEnable);
+#ifdef A2DP_DECODER_CROSS_CORE
+    a2dp_decoder_cc_common_set_cmd_cached(isEnable);
+#endif
     isBtPlaybackTriggered = isEnable;
 }
 
@@ -1338,21 +1276,48 @@ static void inline a2dp_audio_convert_16bit_to_24bit(int32_t *out, int16_t *in, 
 }
 
 #if defined(AUDIO_ADJ_EQ)
-#define AUDIO_DELAY 48*2
-#define AUDIO_MAX_LEN 1280*2
-#define AUDIO_CACHE_LEN AUDIO_DELAY+AUDIO_MAX_LEN
-static int32_t audio_tmp_buffer[AUDIO_MAX_LEN];
-static int32_t audio_cache_buffer[AUDIO_CACHE_LEN];
+#include "adj_eq.h"
+#include "math.h"
 
-extern int get_ibrt_ch(void);
-extern int32_t g_adj_eq;
+#define AUDIO_DOWNSAMPLE_LEN 100
+#define AUDIO_DELAY_MAX 100
+#define AUDIO_MAX_LEN 1280
+#define AUDIO_CACHE_LEN (AUDIO_DELAY_MAX+AUDIO_MAX_LEN)
+
+#define SSC_DELAY 78
+#define AAC_DELAY (SSC_DELAY+8)
+#define SBC_DELAY (SSC_DELAY+16)
+
+static int16_t audio_adj_eq_cache_delay = 0;
+static int32_t *audio_tmp_buffer = NULL;
+static int32_t *audio_cache_buffer = NULL;
+
+static float *adj_eq_cos_smooth_buf = NULL;
+static uint8_t *audio_adj_eq_tmp_buf = NULL;
+
+static float *tmp_buf1 = NULL;
+static float *tmp_buf = NULL;
+
+extern "C" void app_debug_tool_printf(const char *fmt, ...);
+
+int32_t g_adj_eq = 0;
+extern "C" void set_adj_eq_state(int val){
+    g_adj_eq = val;
+}
 #endif
 
-FRAM_TEXT_LOC uint32_t bt_a2dp_player_more_data(uint8_t *buf, uint32_t len)
+FRAM_TEXT_LOC uint32_t bt_sbc_player_more_data(uint8_t *buf, uint32_t len)
 {
-    POSSIBLY_UNUSED uint8_t nonType = bta_get_curr_a2dp_vender_codec_type();
-    uint8_t device_id = app_bt_audio_get_curr_a2dp_device();
-    app_bt_stream_trigger_checker_handler(TRIGGER_CHECKER_A2DP_PLAYERBLACK);
+    POSSIBLY_UNUSED uint8_t device_id = bes_aud_bt->aud_get_curr_a2dp_device();
+#if defined(A2DP_LHDC_ON) || defined(A2DP_LHDCV5_ON)
+    uint8_t nonType = bes_aud_bt->a2dp_lhdc_get_non_type_by_device_id(device_id);
+#endif
+#ifdef ADVANCE_FILL_ENABLED
+    if (!is_doing_pre_fill)
+#endif
+    {
+        app_bt_stream_trigger_checker_handler(TRIGGER_CHECKER_A2DP_PLAYERBLACK);
+    }
 #if defined(A2DP_STREAM_AUDIO_DUMP)
     audio_dump_clear_up();
 #if A2DP_STREAM_AUDIO_DUMP == 16
@@ -1372,17 +1337,33 @@ FRAM_TEXT_LOC uint32_t bt_a2dp_player_more_data(uint8_t *buf, uint32_t len)
     audio_dump_run();
 #endif
 
-    if (!bt_is_playback_triggered())
-    {
-#if defined(IBRT)
-        bts_tws_if_request_modify_tws_bandwidth(TWS_TIMING_CONTROL_USER_FAST_COMMUNICATION, false);
-        bts_tws_if_request_modify_tws_bandwidth(TWS_TIMING_CONTROL_USER_A2DP, true);
+#ifdef ADVANCE_FILL_ENABLED
+    if (!is_doing_pre_fill)
 #endif
-        bt_set_playback_triggered(true);
+    {
+        if (!bt_is_playback_triggered())
+        {
+#if defined(IBRT)
+            app_tws_ibrt_request_modify_tws_bandwidth(TWS_TIMING_CONTROL_USER_FAST_COMMUNICATION, false);
+            app_tws_ibrt_request_modify_tws_bandwidth(TWS_TIMING_CONTROL_USER_A2DP, true);
+#endif
+
+#ifdef A2DP_DECODER_CROSS_CORE
+            uint8_t updatedTriggeredState = true;
+            app_dsp_m55_bridge_send_cmd(
+                 CROSS_CORE_TASK_CMD_A2DP_SET_TRIGGERED_STATE, \
+                 (uint8_t *)&updatedTriggeredState, sizeof(updatedTriggeredState));
+#endif
+            bt_set_playback_triggered(true);
+        }
     }
 
 #if defined(MUSIC_DELAY_CONTROL) && (defined(CHIP_BEST2300) || defined(CHIP_BEST2300P) || defined(CHIP_BEST2300A)|| defined(CHIP_BEST1400)|| defined(CHIP_BEST1402))
     a2dp_clock_calib_process(len);
+#endif
+
+#if defined(IBRT) && defined(TOTA_v2)
+    app_ibrt_ui_rssi_process();
 #endif
 
 #ifdef BT_XTAL_SYNC
@@ -1400,58 +1381,57 @@ FRAM_TEXT_LOC uint32_t bt_a2dp_player_more_data(uint8_t *buf, uint32_t len)
 #endif
 
 #ifndef FPGA
-    uint8_t codec_type = bta_get_curr_a2dp_codec_type();
+    uint8_t codec_type = BT_A2DP_CODEC_TYPE_SBC;
+    if(app_stream_get_a2dp_param_callback)
+    {
+        codec_type = app_stream_get_a2dp_param_callback(device_id);
+    }
+    else
+    {
+        codec_type = bes_aud_bt->aud_get_a2dp_codec_type(bes_aud_bt->aud_get_curr_a2dp_device());
+    }
     uint32_t overlay_id = 0;
     if(codec_type ==  BT_A2DP_CODEC_TYPE_MPEG2_4_AAC)
     {
         overlay_id = APP_OVERLAY_A2DP_AAC;
     }
+
+#if defined(A2DP_LHDC_ON)
+    else if((codec_type ==  BT_A2DP_CODEC_TYPE_NON_A2DP)
+    && (nonType == A2DP_NON_CODEC_TYPE_LHDC))
+    {
+        overlay_id = APP_OVERLAY_A2DP_LHDC;
+    }
+#endif
+#if defined(A2DP_LHDCV5_ON)
+    else if((codec_type ==  BT_A2DP_CODEC_TYPE_NON_A2DP)
+    && (nonType == A2DP_NON_CODEC_TYPE_LHDCV5))
+    {
+        overlay_id = APP_OVERLAY_A2DP_LHDC_V5;
+    }
+#endif
+#if defined(A2DP_LDAC_ON)
     else if(codec_type ==  BT_A2DP_CODEC_TYPE_NON_A2DP)
     {
-#if defined(A2DP_LHDC_ON)
-        if (nonType == BT_A2DP_CODEC_NONE_TYPE_LHDC)
-        {
-            overlay_id = APP_OVERLAY_A2DP_LHDC;
-        } else
-#endif // A2DP_LHDC_ON
-#if defined(A2DP_LHDCV5_ON)
-        if (nonType == BT_A2DP_CODEC_NONE_TYPE_LHDCV5)
-        {
-            overlay_id = APP_OVERLAY_A2DP_LHDC_V5;
-        } else
-#endif // A2DP_LHDCV5_ON
-#if defined(A2DP_LDAC_ON)
-        if (nonType == BT_A2DP_CODEC_NONE_TYPE_LDAC)
-        {
-            overlay_id = APP_OVERLAY_A2DP_LDAC;
-        } else
-#endif // A2DP_LDAC_ON
+        overlay_id = APP_OVERLAY_A2DP_LDAC;
+    }
+#endif
+
+
 #if defined(A2DP_SCALABLE_ON)
-        if (nonType == BT_A2DP_CODEC_NONE_TYPE_SCALABLE)
-        {
-            overlay_id = APP_OVERLAY_A2DP_SCALABLE;
-        } else
-#endif // A2DP_SCALABLE_ON
-#if defined(A2DP_LC3_ON)
-        if (nonType == BT_A2DP_CODEC_NONE_TYPE_LC3)
-        {
-            overlay_id = APP_OVERLAY_A2DP_LC3;
-        } else
-#endif // A2DP_LC3_ON
-#if defined(A2DP_L2HC_ON)
-        if (nonType == BT_A2DP_CODEC_NONE_TYPE_L2HC)
-        {
-            overlay_id = APP_OVERLAY_A2DP_L2HC;
-        } else
-#endif // A2DP_L2HC_ON
-        {
-            AUDIO_BT_TRACE(0, "WARNING nonType Invalid");
-        }
-    }
-    else
+    else if(codec_type ==  BT_A2DP_CODEC_TYPE_NON_A2DP)
     {
-        overlay_id = APP_OVERLAY_A2DP;
+        overlay_id = APP_OVERLAY_A2DP_SCALABLE;
     }
+#endif
+#if defined(A2DP_LC3_ON)
+    else if(codec_type ==  BT_A2DP_CODEC_TYPE_NON_A2DP)
+    {
+        overlay_id = APP_OVERLAY_A2DP_LC3;
+    }
+#endif
+    else
+        overlay_id = APP_OVERLAY_A2DP;
 
     memset(buf, 0, len);
 
@@ -1459,6 +1439,12 @@ FRAM_TEXT_LOC uint32_t bt_a2dp_player_more_data(uint8_t *buf, uint32_t len)
     {
         return len;
     }
+#endif
+
+#ifdef AF_CALLBACK_USE_TMP_BUF
+    uint8_t *buf_ptr = buf;
+    buf = g_af_play_tmp_buf;
+    ASSERT(buf != NULL, "[%s] buf is NULL", __func__);
 #endif
 
 #if defined(PLAYBACK_FORCE_48K)
@@ -1476,34 +1462,6 @@ FRAM_TEXT_LOC uint32_t bt_a2dp_player_more_data(uint8_t *buf, uint32_t len)
 #endif
 #endif
     }
-
-#if defined(AUDIO_ADJ_EQ)
-    AUDIO_BT_TRACE(0,"[%s] g_adj_eq = %d", __func__, g_adj_eq);
-    //g_adj_eq = 0;
-    uint32_t current_ch = 2;
-    if(g_adj_eq){
-        adj_eq_run_mono(buf, current_ch-2, audio_tmp_buffer, len, AUD_BITS_24);
-        int32_t *tmp_buf = (int32_t *)buf;
-        for(uint32_t i= AUDIO_DELAY; i< len/4 + AUDIO_DELAY; i++){
-            audio_cache_buffer[i] = tmp_buf[i-AUDIO_DELAY];
-        }
-
-        for(uint32_t i=0; i<len/4; i++){
-            tmp_buf[i] = audio_cache_buffer[i];
-        }
-
-        for(uint32_t i=0; i<AUDIO_CACHE_LEN-len/4; i++){
-            audio_cache_buffer[i] = audio_cache_buffer[i+len/4];
-        }
-
-        adj_eq_audio_mix(tmp_buf, current_ch-2, audio_tmp_buffer, len/4);
-    }else{
-        int32_t *tmp_buf = (int32_t *)buf;
-        for(uint32_t i=0; i<len/8; i++){
-            tmp_buf[2*i+current_ch-2] /= 4;
-        }
-    }
-#endif
 
 #if defined(PLAYBACK_FORCE_48K)
     if (force48k_pcm_bytes == sizeof(int32_t)) {
@@ -1545,51 +1503,82 @@ if (stream_route_info.output_route_info)
     }
 #endif
 
-#ifdef __HEAR_THRU_PEAK_DET__
-#ifdef ANC_APP
-    if(app_anc_work_status())
-#endif
-    {
-        int vol_level = 0;
-        vol_level = app_bt_stream_local_volume_get();
-        peak_detector_run(buf, len, pkd_vol_multiple[vol_level]);
-    }
-#endif
-
-#ifndef AUDIO_EQ_TUNING
-#ifdef ANC_APP
-    bt_audio_updata_eq_for_anc(app_anc_work_status());
-#endif
-#endif
-
 #ifdef AUDIO_OUTPUT_ROUTE_SELECT
     if (!stream_route_info.output_route_info)
 #endif
     {
+#ifdef AUDIO_USER_PROCESS_EN
+#ifdef AUDIO_SW_GIAN_NORMALIZATION
+        if(audio_user_sw_gain_process_is_enable())
+        {
+            audio_user_sw_gain_process_run(buf, len);
+        }
+#endif
+#ifdef AUDIO_PROCESS_NORMALIZATION
+        if (audio_user_process_is_enable())
+        {
+#ifdef AUDIO_USER_PROCESS_TIME_MAX
+            uint32_t start_ticks = hal_fast_sys_timer_get();
+#endif
+            audio_user_process_run(buf, len);
+#ifdef AUDIO_USER_PROCESS_TIME_MAX
+            uint32_t end_ticks = hal_fast_sys_timer_get();
+            uint32_t used_us = FAST_TICKS_TO_US(end_ticks - start_ticks);
+            if(used_us >= AUDIO_USER_PROCESS_TIME_MAX)
+            {
+                TRACE(0, "bt_sbc_audio_user_process used %d us", used_us);
+            }
+#endif
+        }
+#endif
+#else
         audio_process_run(buf, len);
-
-#if !defined(DOLBY_AUDIO_ENABLE)
+#endif
 #if defined(SPA_AUDIO_ENABLE)
-        spatial_audio_app_run_if(buf,len,bts_core_get_ui_role());
-#ifdef SPA_AUDIO_SEC
-        tz_audio_process_stream_proc_handler(buf,len);
-        ree_audio_test_demo(buf,len);
-#endif
-#endif
+        TWS_UI_ROLE_E spa_ui_role = app_ibrt_if_get_ui_role();
+        spatial_audio_app_run_if(buf, len, spa_ui_role);
 #endif
 
 #if defined(IBRT) && !defined(FPGA)
-        app_tws_ibrt_audio_analysis_audiohandler_tick(device_id);
+#ifdef ADVANCE_FILL_ENABLED
+        if (!is_doing_pre_fill)
+#endif
+        {
+            app_tws_ibrt_audio_analysis_audiohandler_tick(device_id);
+        }
 #endif
 
-#ifndef BT_BUILD_WITH_CUSTOMER_HOST
-        osapi_notify_evm();
-#endif
+        bes_bt_osapi_notify_evm();
     }
+
+#ifdef AF_CALLBACK_USE_TMP_BUF
+    memcpy(buf_ptr, buf, len);
+#endif
+
+#ifdef AUDIO_SUPPORT_PA_ENVELOPE
+    if (audio_process_pa_envelope_if_is_enable())
+    {
+        audio_process_pa_envelope_if_run(buf, len);
+        audio_process_pa_envelope_if_set_signal(1);
+    }
+#endif
     return len;
 }
 
-FRAM_TEXT_LOC void bt_a2dp_player_playback_post_handler(uint8_t *buf, uint32_t len, void *cfg)
+#if defined(AUDIO_ADJ_EQ)
+void smooth_cos_generate(float *cos_buf, short len)
+{
+    for (int i = 0; i < len; i++)
+    {
+        cos_buf[i] = (float)((cos(3.1415926* i /len + 3.1415926) + 1) / 2);
+    }
+
+}
+
+static int32_t pre_adj_eq=0;
+#endif
+
+FRAM_TEXT_LOC void bt_sbc_player_playback_post_handler(uint8_t *buf, uint32_t len, void *cfg)
 {
     POSSIBLY_UNUSED struct AF_STREAM_CONFIG_T *config = (struct AF_STREAM_CONFIG_T *)cfg;
 
@@ -1608,6 +1597,37 @@ FRAM_TEXT_LOC void bt_a2dp_player_playback_post_handler(uint8_t *buf, uint32_t l
 
 #ifdef ANC_ASSIST_USE_INT_CODEC
     codec_play_merge_pilot_data(buf, len, cfg);
+#endif
+
+#if defined(AUDIO_ADJ_EQ)
+    static int cnt = 0;
+    cnt++;
+    if(cnt==100){
+        app_debug_tool_printf("cmd2, g_adj_eq: %d", g_adj_eq);
+        TRACE(0,"[%s] g_adj_eq = %d", __func__, g_adj_eq);
+        cnt=0;
+    }
+
+    //g_adj_eq = 1;
+    uint32_t current_ch = 2;
+    adj_eq_run_mono(buf, current_ch-2, audio_tmp_buffer, len, AUD_BITS_24, g_adj_eq, pre_adj_eq, adj_eq_cos_smooth_buf, tmp_buf, tmp_buf1);
+    int32_t *tmp_buf = (int32_t *)buf;
+
+    for(uint32_t i= audio_adj_eq_cache_delay; i< len/8 + audio_adj_eq_cache_delay; i++){
+        audio_cache_buffer[i] = tmp_buf[2*(i-audio_adj_eq_cache_delay)];
+    }
+
+    for(uint32_t i=0; i<len/8; i++){
+        tmp_buf[2*i] = audio_cache_buffer[i];
+    }
+
+    for(uint32_t i=0; i<AUDIO_CACHE_LEN-len/8; i++){
+        audio_cache_buffer[i] = audio_cache_buffer[i+len/8];
+    }
+
+    adj_eq_audio_mix(tmp_buf, current_ch-2, audio_tmp_buffer, len/4);
+    pre_adj_eq = g_adj_eq;
+
 #endif
 }
 
@@ -1642,18 +1662,6 @@ static uint32_t a2dp_dump_ref_fb_handler(uint8_t *buf, uint32_t len)
 }
 #endif
 
-#if defined(AUDIO_ADJ_EQ)
-#define ADJ_EQ_STREAM_ID       AUD_STREAM_ID_1
-
-#define ADJ_EQ_SAMPLE_BITS         (24)
-#define ADJ_EQ_SAMPLE_BYTES      (4)
-#define ADJ_EQ_CHANNEL_NUM       (2)
-#define ADJ_EQ_FRAME_LEN            (256)
-#define ADJ_EQ_BUF_SIZE   (ADJ_EQ_FRAME_LEN * ADJ_EQ_CHANNEL_NUM * ADJ_EQ_SAMPLE_BYTES * 2)//pingpong
-static uint8_t POSSIBLY_UNUSED adj_eq_buf[ADJ_EQ_BUF_SIZE];
-
-#endif
-
 #if defined(AUDIO_ANC_FB_MC) && defined(ANC_APP) && !defined(__AUDIO_RESAMPLE__)
 static int32_t mid_p_8_old_l=0;
 static int32_t mid_p_8_old_r=0;
@@ -1672,7 +1680,7 @@ static uint32_t audio_adj_mc_data_playback_a2dp(uint8_t *buf, uint32_t mc_len_by
    uint32_t begin_time;
    //uint32_t end_time;
    begin_time = hal_sys_timer_get();
-   AUDIO_BT_TRACE(0,"[A2DP][MUSIC_CANCEL] begin_time: %d",begin_time);
+   TRACE_AUD_STREAM_I("[A2DP][MUSIC_CANCEL] begin_time: %d",begin_time);
 
    float left_gain;
    float right_gain;
@@ -1682,10 +1690,10 @@ static uint32_t audio_adj_mc_data_playback_a2dp(uint8_t *buf, uint32_t mc_len_by
 
    hal_codec_get_dac_gain(&left_gain,&right_gain);
 
-   //AUDIO_BT_TRACE(0,"[A2DP][MUSIC_CANCEL]playback_samplerate_ratio:  %d",playback_samplerate_ratio);
+   //TRACE_AUD_STREAM_I("[A2DP][MUSIC_CANCEL]playback_samplerate_ratio:  %d",playback_samplerate_ratio);
 
-  // AUDIO_BT_TRACE(0,"[A2DP][MUSIC_CANCEL]left_gain:  %d",(int)(left_gain*(1<<12)));
-  // AUDIO_BT_TRACE(0,"[A2DP][MUSIC_CANCEL]right_gain: %d",(int)(right_gain*(1<<12)));
+  // TRACE_AUD_STREAM_I("[A2DP][MUSIC_CANCEL]left_gain:  %d",(int)(left_gain*(1<<12)));
+  // TRACE_AUD_STREAM_I("[A2DP][MUSIC_CANCEL]right_gain: %d",(int)(right_gain*(1<<12)));
 
    playback_len_bytes=mc_len_bytes/playback_samplerate_ratio_bt;
 
@@ -1872,7 +1880,7 @@ static uint32_t audio_adj_mc_data_playback_a2dp(uint8_t *buf, uint32_t mc_len_by
 
   //  end_time = hal_sys_timer_get();
 
- //   AUDIO_BT_TRACE(0,"[A2DP][MUSIC_CANCEL] run time: %d", end_time-begin_time);
+ //   TRACE_AUD_STREAM_I("[A2DP][MUSIC_CANCEL] run time: %d", end_time-begin_time);
 
     return 0;
 }
@@ -1882,7 +1890,7 @@ static uint32_t audio_mc_data_playback_a2dp(uint8_t *buf, uint32_t mc_len_bytes)
 //    uint32_t begin_time;
 //    uint32_t end_time;
 //    begin_time = hal_sys_timer_get();
-//    AUDIO_BT_TRACE(0,"music cancel: %d",begin_time);
+//    TRACE_AUD_STREAM_I("music cancel: %d",begin_time);
 
    float left_gain;
    float right_gain;
@@ -1892,10 +1900,10 @@ static uint32_t audio_mc_data_playback_a2dp(uint8_t *buf, uint32_t mc_len_bytes)
 
    hal_codec_get_dac_gain(&left_gain,&right_gain);
 
-   //AUDIO_BT_TRACE(0,"playback_samplerate_ratio:  %d",playback_samplerate_ratio);
+   //TRACE_AUD_STREAM_I("playback_samplerate_ratio:  %d",playback_samplerate_ratio);
 
-  // AUDIO_BT_TRACE(0,"left_gain:  %d",(int)(left_gain*(1<<12)));
-  // AUDIO_BT_TRACE(0,"right_gain: %d",(int)(right_gain*(1<<12)));
+  // TRACE_AUD_STREAM_I("left_gain:  %d",(int)(left_gain*(1<<12)));
+  // TRACE_AUD_STREAM_I("right_gain: %d",(int)(right_gain*(1<<12)));
 
    playback_len_bytes=mc_len_bytes/playback_samplerate_ratio_bt;
 
@@ -2078,363 +2086,12 @@ static uint32_t audio_mc_data_playback_a2dp(uint8_t *buf, uint32_t mc_len_bytes)
     }
   //  end_time = hal_sys_timer_get();
 
- //   AUDIO_BT_TRACE(0,"%s:run time: %d", __FUNCTION__, end_time-begin_time);
+ //   TRACE_AUD_STREAM_I("%s:run time: %d", __FUNCTION__, end_time-begin_time);
 
     return 0;
 }
 #endif
 #endif
-
-static uint8_t g_current_eq_index = 0;
-static bool isMeridianEQON = false;
-
-bool app_is_meridian_on()
-{
-    return isMeridianEQON;
-}
-
-uint8_t app_audio_get_eq()
-{
-    return g_current_eq_index;
-}
-
-bool app_meridian_eq(bool onoff)
-{
-    isMeridianEQON = onoff;
-    return onoff;
-}
-
-int app_audio_set_eq(uint8_t index)
-{
-#ifdef __SW_IIR_EQ_PROCESS__
-    if (index >=EQ_SW_IIR_LIST_NUM)
-        return -1;
-#endif
-#ifdef __HW_FIR_EQ_PROCESS__
-    if (index >=EQ_HW_FIR_LIST_NUM)
-        return -1;
-#endif
-#ifdef __HW_DAC_IIR_EQ_PROCESS__
-    if (index >=EQ_HW_DAC_IIR_LIST_NUM)
-        return -1;
-#endif
-#ifdef __HW_IIR_EQ_PROCESS__
-    if (index >=EQ_HW_IIR_LIST_NUM)
-        return -1;
-#endif
-    g_current_eq_index = index;
-    return index;
-}
-
-void bt_audio_updata_eq(uint8_t index)
-{
-    AUDIO_BT_TRACE(0,"[EQ] update idx = %d", index);
-#if defined(__SW_IIR_EQ_PROCESS__) || defined(__HW_FIR_EQ_PROCESS__)|| defined(__HW_DAC_IIR_EQ_PROCESS__)|| defined(__HW_IIR_EQ_PROCESS__)
-    AUDIO_EQ_TYPE_T audio_eq_type;
-#ifdef __SW_IIR_EQ_PROCESS__
-    audio_eq_type = AUDIO_EQ_TYPE_SW_IIR;
-#endif
-
-#ifdef __HW_FIR_EQ_PROCESS__
-    audio_eq_type = AUDIO_EQ_TYPE_HW_FIR;
-#endif
-
-#ifdef __HW_DAC_IIR_EQ_PROCESS__
-    audio_eq_type = AUDIO_EQ_TYPE_HW_DAC_IIR;
-#endif
-
-#ifdef __HW_IIR_EQ_PROCESS__
-    audio_eq_type = AUDIO_EQ_TYPE_HW_IIR;
-#endif
-    bt_audio_set_eq(audio_eq_type,index);
-#endif
-}
-
-#ifdef AUDIO_VOL_CTRL_EQ
-static uint32_t bt_audio_vol_ctrl_eq(uint32_t vol)
-{
-    AUDIO_BT_TRACE(0, "[%s] vol: %d", __func__, vol);
-
-    audio_process_set_vol_ctrl_eq_index(vol);
-
-    if (media_stream_is_running()) {
-#if defined(__SW_IIR_EQ_PROCESS__)
-        audio_eq_set_cfg(NULL, audio_eq_sw_iir_cfg_list[app_audio_get_eq()], AUDIO_EQ_TYPE_SW_IIR);
-#endif
-#ifdef __HW_DAC_IIR_EQ_PROCESS__
-        audio_eq_set_cfg(NULL, audio_eq_hw_dac_iir_cfg_list[app_audio_get_eq()], AUDIO_EQ_TYPE_HW_DAC_IIR);
-#endif
-    } else {
-        AUDIO_BT_TRACE(0, "[%s] Media Stream is not running", __func__);
-    }
-
-    return 0;
-}
-#endif
-
-// FIXME: It's a workaround method
-void app_le_set_dac_eq(void)
-{
-#if defined(__SW_IIR_EQ_PROCESS__)
-    bt_audio_set_eq(AUDIO_EQ_TYPE_SW_IIR, app_audio_get_eq());
-#endif
-#ifdef __HW_DAC_IIR_EQ_PROCESS__
-    bt_audio_set_eq(AUDIO_EQ_TYPE_HW_DAC_IIR, app_audio_get_eq());
-#endif
-}
-
-#ifdef ANC_APP
-static uint8_t app_user_eq_index = 0xFF;
-uint8_t bt_audio_updata_eq_for_anc(uint8_t anc_status)
-{
-    anc_status = app_anc_work_status();
-    if((app_user_eq_index == 0xFF || app_user_eq_index == 0 || app_user_eq_index == 1) && anc_status_record != anc_status)
-    {
-        hal_sysfreq_req(HAL_SYSFREQ_USER_ANC, HAL_CMU_FREQ_104M);
-
-        anc_status_record = anc_status;
-        AUDIO_BT_TRACE(0,"[EQ] update anc_status = %d",  anc_status);
-#ifdef __SW_IIR_EQ_PROCESS__
-        bt_audio_set_eq(AUDIO_EQ_TYPE_SW_IIR,bt_audio_get_eq_index(AUDIO_EQ_TYPE_SW_IIR,anc_status));
-#endif
-
-#ifdef __HW_FIR_EQ_PROCESS__
-        bt_audio_set_eq(AUDIO_EQ_TYPE_HW_FIR,bt_audio_get_eq_index(AUDIO_EQ_TYPE_HW_FIR,anc_status));
-#endif
-
-#ifdef __HW_DAC_IIR_EQ_PROCESS__
-        bt_audio_set_eq(AUDIO_EQ_TYPE_HW_DAC_IIR,bt_audio_get_eq_index(AUDIO_EQ_TYPE_HW_DAC_IIR,anc_status));
-#endif
-
-#ifdef __HW_IIR_EQ_PROCESS__
-        bt_audio_set_eq(AUDIO_EQ_TYPE_HW_IIR,bt_audio_get_eq_index(AUDIO_EQ_TYPE_HW_IIR,anc_status));
-#endif
-
-        hal_sysfreq_req(HAL_SYSFREQ_USER_ANC, HAL_CMU_FREQ_32K);
-    }
-
-    return 0;
-}
-#endif
-
-#ifdef AUDIO_ADAPTIVE_IIR_EQ
-extern "C" uint32_t bt_audio_set_adaptive_dac_iir_eq(IIR_CFG_T *iir_cfg)
-{
-#if defined(__SW_IIR_EQ_PROCESS__)
-        audio_eq_set_cfg(NULL, audio_eq_sw_iir_cfg_list[app_audio_get_eq()], AUDIO_EQ_TYPE_SW_IIR);
-#endif
-#if defined(__HW_DAC_IIR_EQ_PROCESS__)
-        memcpy(&audio_eq_hw_dac_iir_adaptive_eq_cfg, iir_cfg, sizeof(IIR_CFG_T));
-        audio_eq_set_cfg(NULL, audio_eq_hw_dac_iir_cfg_list[0], AUDIO_EQ_TYPE_HW_DAC_IIR);
-#endif
-
-    return 0;
-}
-#endif
-
-#ifdef AUDIO_ADAPTIVE_FIR_EQ
-extern "C" uint32_t bt_audio_set_adaptive_fir_eq(FIR_CFG_T *fir_cfg)
-{
-#if defined(__HW_FIR_EQ_PROCESS__)
-    audio_eq_set_cfg(fir_cfg, NULL, AUDIO_EQ_TYPE_HW_FIR);
-#endif
-    return 0;
-}
-#endif
-
-uint8_t bt_audio_get_eq_index(AUDIO_EQ_TYPE_T audio_eq_type,uint8_t anc_status)
-{
-    uint8_t index_eq=0;
-
-#if defined(__SW_IIR_EQ_PROCESS__) || defined(__HW_FIR_EQ_PROCESS__)|| defined(__HW_DAC_IIR_EQ_PROCESS__)|| defined(__HW_IIR_EQ_PROCESS__)
-    switch (audio_eq_type)
-    {
-#if defined(__SW_IIR_EQ_PROCESS__)
-        case AUDIO_EQ_TYPE_SW_IIR:
-        {
-            if (anc_status) {
-                index_eq=audio_eq_sw_iir_index+1;
-                if (index_eq >= EQ_SW_IIR_LIST_NUM) {
-                    index_eq = 0;
-                }
-            } else {
-                index_eq=audio_eq_sw_iir_index;
-            }
-        }
-        break;
-#endif
-
-#if defined(__HW_FIR_EQ_PROCESS__)
-        case AUDIO_EQ_TYPE_HW_FIR:
-        {
-            if(a2dp_sample_rate == AUD_SAMPRATE_44100) {
-                index_eq = 0;
-            } else if(a2dp_sample_rate == AUD_SAMPRATE_48000) {
-                index_eq = 1;
-            } else if(a2dp_sample_rate == AUD_SAMPRATE_96000) {
-                index_eq = 2;
-            } else {
-                ASSERT(0, "[%s] sample_rate_recv(%d) is not supported", __func__, a2dp_sample_rate);
-            }
-            audio_eq_hw_fir_index=index_eq;
-
-            if(anc_status) {
-                index_eq=index_eq+3;
-                if (index_eq >= EQ_HW_FIR_LIST_NUM) {
-                    index_eq = 0;
-                }
-            }
-        }
-        break;
-#endif
-
-#if defined(__HW_DAC_IIR_EQ_PROCESS__)
-        case AUDIO_EQ_TYPE_HW_DAC_IIR:
-        {
-            if (anc_status) {
-                index_eq=audio_eq_hw_dac_iir_index+1;
-                if (index_eq >= EQ_HW_DAC_IIR_LIST_NUM) {
-                    index_eq = 0;
-                }
-            } else {
-                index_eq=audio_eq_hw_dac_iir_index;
-            }
-        }
-        break;
-#endif
-
-#if defined(__HW_IIR_EQ_PROCESS__)
-        case AUDIO_EQ_TYPE_HW_IIR:
-        {
-            if(anc_status) {
-                index_eq=audio_eq_hw_iir_index+1;
-                if (index_eq >= EQ_HW_IIR_LIST_NUM) {
-                    index_eq = 0;
-                }
-            } else {
-                index_eq=audio_eq_hw_iir_index;
-            }
-        }
-        break;
-#endif
-        default:
-        {
-            ASSERT(false,"[%s]Error eq type!",__func__);
-        }
-    }
-#endif
-    return index_eq;
-}
-
-
-uint32_t bt_audio_set_eq(AUDIO_EQ_TYPE_T audio_eq_type, uint8_t index)
-{
-    const FIR_CFG_T *fir_cfg=NULL;
-    const IIR_CFG_T *iir_cfg=NULL;
-
-    #if defined(__HW_FIR_EQ_PROCESS_2CH__)
-        const FIR_CFG_T *fir_cfg_2=NULL;
-    #endif
-
-#ifdef ANC_APP
-    app_user_eq_index = index;
-#endif
-
-#if defined(__IIR_EQ_PROCESS_LR_2CH__)
-    const IIR_CFG_T *iir_cfg_2=NULL;
-#endif
-
-    AUDIO_BT_TRACE(0,"[EQ] set type=%d,index=%d",  audio_eq_type,index);
-
-#if defined(__SW_IIR_EQ_PROCESS__) || defined(__HW_FIR_EQ_PROCESS__)|| defined(__HW_DAC_IIR_EQ_PROCESS__)|| defined(__HW_IIR_EQ_PROCESS__)
-    switch (audio_eq_type)
-    {
-#if defined(__SW_IIR_EQ_PROCESS__)
-        case AUDIO_EQ_TYPE_SW_IIR:
-        {
-            if(index >= EQ_SW_IIR_LIST_NUM)
-            {
-                AUDIO_BT_TRACE(0,"[EQ] SET index %u > EQ_SW_IIR_LIST_NUM", index);
-                return 1;
-            }
-
-            iir_cfg=audio_eq_sw_iir_cfg_list[index];
-        }
-        break;
-#endif
-
-#if defined(__HW_FIR_EQ_PROCESS__)
-        case AUDIO_EQ_TYPE_HW_FIR:
-        {
-            if(index >= EQ_HW_FIR_LIST_NUM)
-            {
-                AUDIO_BT_TRACE(0,"[EQ] SET index %u > EQ_HW_FIR_LIST_NUM", index);
-                return 1;
-            }
-
-        #if defined(__HW_FIR_EQ_PROCESS_2CH__)
-            fir_cfg=audio_hw_hpfir_cfg_list[index];
-            fir_cfg_2=audio_hw_lpfir_cfg_list[index];
-        #else
-            fir_cfg=audio_eq_hw_fir_cfg_list[index];
-        #endif
-        }
-        break;
-#endif
-
-#if defined(__HW_DAC_IIR_EQ_PROCESS__)
-        case AUDIO_EQ_TYPE_HW_DAC_IIR:
-        {
-            if(index >= EQ_HW_DAC_IIR_LIST_NUM)
-            {
-                AUDIO_BT_TRACE(0,"[EQ] SET index %u > EQ_HW_DAC_IIR_LIST_NUM", index);
-                return 1;
-            }
-
-            iir_cfg=audio_eq_hw_dac_iir_cfg_list[index];
-#if defined(__IIR_EQ_PROCESS_LR_2CH__)
-            iir_cfg_2=audio_eq_hw_dac_iir_cfg_list2[index];
-#endif
-        }
-        break;
-#endif
-
-#if defined(__HW_IIR_EQ_PROCESS__)
-        case AUDIO_EQ_TYPE_HW_IIR:
-        {
-            if(index >= EQ_HW_IIR_LIST_NUM)
-            {
-                AUDIO_BT_TRACE(0,"[EQ] SET index %u > EQ_HW_IIR_LIST_NUM", index);
-                return 1;
-            }
-
-            iir_cfg=audio_eq_hw_iir_cfg_list[index];
-        }
-        break;
-#endif
-        default:
-        {
-            ASSERT(false,"[%s]Error eq type!",__func__);
-        }
-    }
-#endif
-
-#ifdef AUDIO_SECTION_ENABLE
-    const IIR_CFG_T *iir_cfg_from_audio_section = (const IIR_CFG_T *)load_audio_cfg_from_audio_section(AUDIO_PROCESS_TYPE_IIR_EQ,index);
-    if (iir_cfg_from_audio_section)
-    {
-        iir_cfg = iir_cfg_from_audio_section;
-    }
-#endif
-
-#if defined(__HW_FIR_EQ_PROCESS_2CH__)
-    return audio_eq_set_cfg(fir_cfg,fir_cfg_2,iir_cfg,audio_eq_type);
-#elif defined(__IIR_EQ_PROCESS_LR_2CH__)
-    return audio_eq_set_cfg(fir_cfg,iir_cfg,iir_cfg_2,audio_eq_type);
-#else
-    return audio_eq_set_cfg(fir_cfg,iir_cfg,audio_eq_type);
-#endif
-}
 
 void app_bt_stream_playback_irq_notification(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T stream);
 
@@ -2473,8 +2130,9 @@ uint32_t app_bt_stream_get_dma_buffer_samples(void)
                 dma_buffer_delay_samples = stream_cfg->data_size/stream_cfg->channel_num/4;
             }
         }
-        return dma_buffer_delay_samples;
     }
+
+    return dma_buffer_delay_samples;
 }
 
 void app_bt_stream_playback_irq_notification(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T stream)
@@ -2482,31 +2140,29 @@ void app_bt_stream_playback_irq_notification(enum AUD_STREAM_ID_T id, enum AUD_S
     if (id != AUD_STREAM_ID_0 || stream != AUD_STREAM_PLAYBACK) {
         return;
     }
-    uint8_t a2dp_device = app_bt_audio_get_curr_a2dp_device();
+
+    uint8_t a2dp_device = bes_aud_bt->aud_get_curr_a2dp_device();
     app_bt_stream_trigger_result(a2dp_device);
 #if defined(IBRT)
     app_tws_ibrt_audio_analysis_interrupt_tick();
 #endif
 }
-
-#if defined(A2DP_LHDC_ON) || defined(A2DP_LHDCV5_ON)
-bool app_bt_stream_lhdc_get_ext_flags(uint32_t flags)
-{
-    return a2dp_lhdc_get_ext_flags(flags);
-}
-
-uint8_t app_bt_stream_lhdc_config_llc_get(void)
-{
-    return a2dp_lhdc_config_llc_get();
-}
-#endif
-
+#ifdef BT_HFP_SUPPORT
 void app_bt_stream_sco_irq_notification(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T stream)
 {
+#if defined(SCO_DMA_SNAPSHOT)
     if ((id == AUD_STREAM_ID_1) && (stream == AUD_STREAM_CAPTURE)) {
         sco_btpcm_mute_flag = 0;
     }
+#endif
 }
+#endif
+#if defined(A2DP_LHDCV5_ON)
+bool app_bt_stream_lhdc_get_ext_flags(uint32_t flags)
+{
+    return bes_aud_bt->a2dp_lhdc_get_ext_flags(flags);
+}
+#endif
 
 extern void a2dp_audio_set_mtu_limit(uint8_t mut);
 extern float a2dp_audio_latency_factor_get(void);
@@ -2514,94 +2170,52 @@ extern float a2dp_audio_latency_factor_get(void);
 int app_bt_stream_detect_next_packet_cb(uint8_t device_id, btif_media_header_t * header, unsigned char *buf, unsigned int len)
 {
     if(app_bt_stream_trigger_onprocess()){
-        AUDIO_BT_TRACE(0,"[AUTO_SYNC] start");
+        TRACE_AUD_STREAM_I("[AUTO_SYNC] start");
         app_bt_stream_trigger_start(device_id, 0);
     }
     return 0;
 }
 
-#ifdef CUSTOM_BITRATE
-typedef struct{
-    uint8_t a2dp_sbc_delay_mtu;
-    uint8_t a2dp_aac_delay_mtu;
-}a2dp_customer_codec_delay_mtu;
-
-static a2dp_customer_codec_delay_mtu a2dp_player_playback_delay_mtu =
+void app_audio_buffer_check(void)
 {
-    A2DP_PLAYER_PLAYBACK_DELAY_SBC_MTU,
-    A2DP_PLAYER_PLAYBACK_DELAY_AAC_MTU,
-};
+    bool buffer_check = (APP_AUDIO_BUFFER_SIZE + APP_CAPTURE_AUDIO_BUFFER_SIZE) <= syspool_original_size();
 
-void app_audio_dynamic_update_dest_packet_mtu_set(uint8_t codec_index, uint8_t packet_mtu, uint8_t user_configure)
-{
-    if (codec_index != A2DP_AUDIO_CODEC_TYPE_SBC && codec_index != A2DP_AUDIO_CODEC_TYPE_MPEG2_4_AAC){
-        AUDIO_BT_TRACE(0,"error codec type index %d",codec_index);
-        return ;
-    }
+    TRACE_AUD_STREAM_I("audio buf size[%d] capture buf size[%d] total available space[%d]",
+        APP_AUDIO_BUFFER_SIZE, APP_CAPTURE_AUDIO_BUFFER_SIZE, syspool_original_size());
 
-    AUDIO_BT_TRACE(3,"%s index %d mtu %d",__func__,codec_index,packet_mtu);
-    if (user_configure)
-    {
-        switch(codec_index)
-        {
-            case A2DP_AUDIO_CODEC_TYPE_SBC:
-                a2dp_player_playback_delay_mtu.a2dp_sbc_delay_mtu = packet_mtu;
-                break;
-            case A2DP_AUDIO_CODEC_TYPE_MPEG2_4_AAC:
-                a2dp_player_playback_delay_mtu.a2dp_aac_delay_mtu = packet_mtu;
-                break;
-            default:
-                break;
-        }
-    }
-    else
-    {
-        a2dp_player_playback_delay_mtu.a2dp_sbc_delay_mtu = A2DP_PLAYER_PLAYBACK_DELAY_SBC_MTU;
-        a2dp_player_playback_delay_mtu.a2dp_aac_delay_mtu = A2DP_PLAYER_PLAYBACK_DELAY_AAC_MTU;
-    }
+    ASSERT(buffer_check,
+        "Audio buffer[%d]+Capture buffer[%d] exceeds the maximum ram sapce[%d]",
+        APP_AUDIO_BUFFER_SIZE, APP_CAPTURE_AUDIO_BUFFER_SIZE, syspool_original_size());
 }
 
-uint8_t app_audio_a2dp_player_playback_delay_mtu_get(uint16_t codec_type)
+static enum APP_SYSFREQ_FREQ_T sbc_player_reselect_freq(
+                enum APP_SYSFREQ_FREQ_T old_freq, uint8_t codec_type, enum AUD_SAMPRATE_T sample_rate)
 {
-    uint8_t mtu = 0;
-    if (codec_type == A2DP_AUDIO_CODEC_TYPE_SBC)
-        mtu = a2dp_player_playback_delay_mtu.a2dp_sbc_delay_mtu;
-    else if (codec_type == A2DP_AUDIO_CODEC_TYPE_MPEG2_4_AAC)
-        mtu = a2dp_player_playback_delay_mtu.a2dp_aac_delay_mtu;
-    else{
-        AUDIO_BT_TRACE(0,"error codec tpye [%d]",codec_type);
-    }
-    return mtu;
-}
-#endif
-
-static bool a2dp_is_run =  false;
-
-bool bt_a2dp_is_run(void)
-{
-    return a2dp_is_run;
-}
-
-#if defined(__VIRTUAL_SURROUND__) || defined(__VIRTUAL_SURROUND_CP__) || defined(__VIRTUAL_SURROUND_HWFIR__) || defined(__VIRTUAL_SURROUND_STEREO__)
-static int32_t stereo_surround_ldac = 0;
-extern "C" int32_t stereo_surround_status;
-extern "C" int32_t audio_process_stereo_surround_onoff(int32_t onoff);
-int32_t stereo_surround_is_ldac(void){
-    return stereo_surround_ldac;
-}
-#endif
-
-enum APP_SYSFREQ_FREQ_T sbc_player_reselect_freq(
-                enum APP_SYSFREQ_FREQ_T old_freq, uint8_t codec_type)
-{
-    enum APP_SYSFREQ_FREQ_T freq = old_freq;
-#if defined(__VIRTUAL_SURROUND__) || defined(__VIRTUAL_SURROUND_CP__) || defined(__VIRTUAL_SURROUND_HWFIR__) || defined(__VIRTUAL_SURROUND_STEREO__)
-    stereo_surround_ldac = 0;
-#endif
+#ifdef A2DP_DECODER_CROSS_CORE
 #if defined(IBRT)
 #if defined(IBRT_UI)
     if ((app_ibrt_conn_support_max_mobile_dev() == 2) &&
-        (btif_me_get_mobile_link_num() > 1))
+        (bt_adapter_count_mobile_link() > 1))
+    {
+        return APP_SYSFREQ_78M;
+    }
+#endif
+#endif
+    if (sample_rate == AUD_SAMPRATE_96000){
+        return APP_SYSFREQ_52M;
+    } else if (BT_A2DP_CODEC_TYPE_SBC == codec_type) {
+        return APP_SYSFREQ_48M;
+    } else {
+        return APP_SYSFREQ_15M;
+    }
+#endif
+
+    enum APP_SYSFREQ_FREQ_T freq = old_freq;
+
+#if defined(IBRT)
+#if defined(IBRT_UI)
+    if ((app_ibrt_conn_support_max_mobile_dev() == 2) &&
+        (bt_adapter_count_mobile_link() > 1))
     {
         if (freq < APP_SYSFREQ_104M)
         {
@@ -2611,15 +2225,6 @@ enum APP_SYSFREQ_FREQ_T sbc_player_reselect_freq(
 #endif
 #endif
 
-#if defined(__SW_IIR_EQ_PROCESS__)&&defined(__HW_FIR_EQ_PROCESS__)&&defined(CHIP_BEST1000)
-    if (audio_eq_hw_fir_cfg_list[bt_audio_get_eq_index(AUDIO_EQ_TYPE_HW_FIR,0)]->len>128)
-    {
-        if (freq < APP_SYSFREQ_104M)
-        {
-            freq = APP_SYSFREQ_104M;
-        }
-    }
-#endif
 #if defined(APP_MUSIC_26M) && !defined(__SW_IIR_EQ_PROCESS__)&& !defined(__HW_IIR_EQ_PROCESS__)&& !defined(__HW_FIR_EQ_PROCESS__)
     if (freq < APP_SYSFREQ_26M) {
         freq = APP_SYSFREQ_26M;
@@ -2636,8 +2241,8 @@ enum APP_SYSFREQ_FREQ_T sbc_player_reselect_freq(
     }
 #endif
 
-#if defined(A2DP_LHDC_ON) || defined(A2DP_LHDCV5_ON) ||defined(A2DP_AAC_ON) || defined(A2DP_SCALABLE_ON) || defined(A2DP_LDAC_ON) || defined(A2DP_L2HC_ON)
-    AUDIO_BT_TRACE(0,"[A2DP_PLAYER] codec_type:%d", codec_type);
+#if defined(A2DP_LHDC_ON) || defined(A2DP_LHDCV5_ON) ||defined(A2DP_AAC_ON) || defined(A2DP_SCALABLE_ON) || defined(A2DP_LDAC_ON)
+    TRACE_AUD_STREAM_I("[A2DP_PLAYER] codec_type:%d", codec_type);
 #endif
 
     POSSIBLY_UNUSED bool isFreqConfiguredFromCodecType = false;
@@ -2670,11 +2275,21 @@ enum APP_SYSFREQ_FREQ_T sbc_player_reselect_freq(
 
         isFreqConfiguredFromCodecType = true;
     }
-    AUDIO_BT_TRACE(0,"[A2DP_PLAYER] a2dp_sample_rate=%d",a2dp_sample_rate);
+    TRACE_AUD_STREAM_I("[A2DP_PLAYER] a2dp_sample_rate=%d",a2dp_sample_rate);
 #endif
 
 
-#if defined(A2DP_LHDC_ON) || defined(A2DP_LHDCV5_ON) || defined(A2DP_LDAC_ON)
+#if defined(A2DP_LHDC_ON) || defined(A2DP_LHDCV5_ON)
+    if (!isFreqConfiguredFromCodecType &&
+        codec_type == BT_A2DP_CODEC_TYPE_NON_A2DP){
+        if (freq < APP_SYSFREQ_104M) {
+            freq = APP_SYSFREQ_104M;
+        }
+
+        isFreqConfiguredFromCodecType = true;
+    }
+#endif
+#if defined(A2DP_LDAC_ON)
     if (!isFreqConfiguredFromCodecType &&
         codec_type == BT_A2DP_CODEC_TYPE_NON_A2DP){
         if (freq < APP_SYSFREQ_104M) {
@@ -2694,15 +2309,7 @@ enum APP_SYSFREQ_FREQ_T sbc_player_reselect_freq(
         isFreqConfiguredFromCodecType = true;
     }
 #endif
-#if defined(A2DP_L2HC_ON)
-    if (!isFreqConfiguredFromCodecType &&
-        codec_type == BT_A2DP_CODEC_TYPE_NON_A2DP){
-        if (freq < APP_SYSFREQ_208M) {
-            freq = APP_SYSFREQ_208M;
-        }
-        isFreqConfiguredFromCodecType = true;
-    }
-#endif
+
 #if defined(__AUDIO_DRC__) || defined(__AUDIO_LIMITER__)
     freq = (freq < APP_SYSFREQ_208M) ? APP_SYSFREQ_208M : freq;
 #endif
@@ -2710,44 +2317,35 @@ enum APP_SYSFREQ_FREQ_T sbc_player_reselect_freq(
 #ifdef A2DP_CP_ACCEL
     // Default freq for SBC
     freq = APP_SYSFREQ_26M;
-    POSSIBLY_UNUSED uint8_t nonType = bta_get_curr_a2dp_vender_codec_type();
+#if defined(A2DP_LHDC_ON) || defined(A2DP_LHDCV5_ON)
+    uint8_t current_device_id = bes_aud_bt->aud_get_curr_a2dp_device();
+    uint8_t nonType = bes_aud_bt->a2dp_lhdc_get_non_type_by_device_id(current_device_id);
+#endif
 #if defined(A2DP_LHDC_ON)
     if ((codec_type == BT_A2DP_CODEC_TYPE_NON_A2DP)
-        && (nonType == BT_A2DP_CODEC_NONE_TYPE_LHDC)){
+        && (nonType == A2DP_NON_CODEC_TYPE_LHDC)){
         freq = APP_SYSFREQ_52M;
-        if (a2dp_sample_rate==AUD_SAMPRATE_96000)
-        {
-            freq = APP_SYSFREQ_104M;
-        }
     }
-#endif // A2DP_LHDC_ON
+
+    if (a2dp_sample_rate==AUD_SAMPRATE_96000)
+    {
+        freq = APP_SYSFREQ_104M;
+    }
+#endif
 #if defined(A2DP_LHDCV5_ON)
     if ((codec_type == BT_A2DP_CODEC_TYPE_NON_A2DP)
-        && (nonType == BT_A2DP_CODEC_NONE_TYPE_LHDCV5)){
+        && (nonType == A2DP_NON_CODEC_TYPE_LHDCV5)){
         freq = APP_SYSFREQ_208M;
-        if (a2dp_sample_rate==AUD_SAMPRATE_96000)
-        {
-            freq = APP_SYSFREQ_208M;
-#if defined(__VIRTUAL_SURROUND__) || defined(__VIRTUAL_SURROUND_CP__) || defined(__VIRTUAL_SURROUND_HWFIR__) || defined(__VIRTUAL_SURROUND_STEREO__)
-            stereo_surround_ldac = 2;
-#endif
-        }
     }
-#endif // A2DP_LHDCV5_ON
+
+    if (a2dp_sample_rate==AUD_SAMPRATE_96000)
+    {
+        freq = APP_SYSFREQ_208M;
+    }
+#endif
 #if defined(AUDIO_ANC_FB_MC) && defined(ANC_APP) && !defined(__AUDIO_RESAMPLE__)
     if (freq < APP_SYSFREQ_52M) {
         freq = APP_SYSFREQ_52M;
-    }
-#endif
-#if defined(A2DP_LDAC_ON)
-    if ((codec_type == BT_A2DP_CODEC_TYPE_NON_A2DP)
-        && (nonType == BT_A2DP_CODEC_NONE_TYPE_LDAC)){
-        if (freq < APP_SYSFREQ_104M) {
-            freq = APP_SYSFREQ_104M;
-        }
-#if defined(__VIRTUAL_SURROUND__) || defined(__VIRTUAL_SURROUND_CP__) || defined(__VIRTUAL_SURROUND_HWFIR__) || defined(__VIRTUAL_SURROUND_STEREO__)
-        stereo_surround_ldac = 1;
-#endif
     }
 #endif
 #endif
@@ -2771,45 +2369,37 @@ enum APP_SYSFREQ_FREQ_T sbc_player_reselect_freq(
         if((codec_type == BT_A2DP_CODEC_TYPE_SBC) && (a2dp_sample_rate == AUD_SAMPRATE_48000))
         {
             freq = APP_SYSFREQ_52M;
-            AUDIO_BT_TRACE(1,"sbc 48k freq %d",freq);
+            TRACE(1,"sbc 48k freq %d",freq);
         }
     }
 #endif
 #endif
-
-#ifdef SPA_AUDIO_ENABLE
-        freq = (freq < APP_SYSFREQ_104M) ? APP_SYSFREQ_104M : freq;
-#endif
-
     if (freq < APP_SYSFREQ_52M)
     {
-        if (app_bt_audio_count_straming_mobile_links() > 1)
+        if (bt_adapter_count_streaming_a2dp() > 1)
         {
             freq = APP_SYSFREQ_52M;
         }
     }
-
-	freq = (freq < APP_SYSFREQ_104M) ? APP_SYSFREQ_104M : freq;
-#ifdef DIRAC_AUDIO_ENABLE
-    freq = APP_SYSFREQ_208M;
-#endif
-
     return freq;
 }
 
-#ifdef CODEC_VCM_CHECK
-uint8_t vcm_sta = 0;
-#endif
-static int bt_a2dp_player(enum PLAYER_OPER_T on, enum APP_SYSFREQ_FREQ_T freq)
+#ifdef AUDIO_SUPPORT_PA_ENVELOPE
+static void bt_set_pa_envelope_config(uint8_t bypass)
 {
-#ifdef BT_A2DP_SUPPORT
+    audio_process_pa_envelope_cfg_t cfg = {0};
+    cfg.bypass = bypass;
+    cfg.down_delay_time = 2;
+    cfg.up_delay_time = 1;
+    audio_process_pa_envelope_set_cfg(&cfg);
+}
+#endif
+
+static int bt_sbc_player(enum PLAYER_OPER_T on, enum APP_SYSFREQ_FREQ_T freq)
+{
     struct AF_STREAM_CONFIG_T stream_cfg;
 #ifdef AUDIO_ANC_FB_ADJ_MC
     struct AF_STREAM_CONFIG_T stream_cfg_adj_mc;
-#endif
-
-#ifdef AUDIO_ADJ_EQ
-        struct AF_STREAM_CONFIG_T stream_cfg_adj_eq;
 #endif
 
     enum AUD_SAMPRATE_T sample_rate;
@@ -2827,12 +2417,25 @@ static int bt_a2dp_player(enum PLAYER_OPER_T on, enum APP_SYSFREQ_FREQ_T freq)
     uint8_t POSSIBLY_UNUSED play_samp_size;
     uint8_t POSSIBLY_UNUSED adma_ch = HAL_DMA_CHAN_NONE;
     uint32_t POSSIBLY_UNUSED dma_base;
-    POSSIBLY_UNUSED uint8_t *ldac_cc_mem_pool = NULL;
-    AUDIO_BT_TRACE(0,"[A2DP_PLAYER] work:%d op:%s freq:%d :sample:%d \n", a2dp_is_run, g_log_player_oper_str[on], freq,a2dp_sample_rate);
+    bool a2dp_is_run = amgr_is_bt_a2dp_on();
+    TRACE_AUD_STREAM_I("[A2DP_PLAYER] work:%d op:%s freq:%d :sample:%d \n",
+            a2dp_is_run, g_log_player_oper_str[on], freq,a2dp_sample_rate);
+
+    bt_set_playback_triggered(false);
+
+    app_sysfreq_req(APP_SYSFREQ_USER_STREAM_BOOST, APP_SYSFREQ_104M);
 
     if ((a2dp_is_run && on == PLAYER_OPER_START) || (!a2dp_is_run && on == PLAYER_OPER_STOP))
     {
-        AUDIO_BT_TRACE(0,"[A2DP_PLAYER],fail,isRun=%x,on=%x",a2dp_is_run,on);
+        TRACE_AUD_STREAM_W("[A2DP_PLAYER],fail,isRun=%x,on=%x",a2dp_is_run,on);
+        app_sysfreq_req(APP_SYSFREQ_USER_STREAM_BOOST, APP_SYSFREQ_32K);
+        return 0;
+    }
+
+    if (rmt_a2dp_sink_dev_onoff_cb!=NULL)
+    {
+        rmt_a2dp_sink_dev_onoff_cb(on==PLAYER_OPER_START);
+        amgr_set_bt_a2dp_is_on((on != PLAYER_OPER_STOP));
         return 0;
     }
 
@@ -2840,33 +2443,39 @@ static int bt_a2dp_player(enum PLAYER_OPER_T on, enum APP_SYSFREQ_FREQ_T freq)
     {
         af_set_priority(AF_USER_SBC, osPriorityHigh);
     }
-    POSSIBLY_UNUSED uint8_t codec_type = bta_get_curr_a2dp_codec_type();
-    POSSIBLY_UNUSED uint8_t nonType = bta_get_curr_a2dp_vender_codec_type();
+    POSSIBLY_UNUSED uint8_t codec_type = BT_A2DP_CODEC_TYPE_SBC;
+
+#if defined(A2DP_LHDC_ON) ||defined(A2DP_AAC_ON) || defined(A2DP_SCALABLE_ON) || defined(A2DP_LDAC_ON) || defined(A2DP_LC3_ON)
+    if(app_stream_get_a2dp_param_callback)
+    {
+        uint8_t current_device_id = bes_aud_bt->aud_get_curr_a2dp_device();
+        codec_type = app_stream_get_a2dp_param_callback(current_device_id);
+    }
+    else
+    {
+        codec_type = bes_aud_bt->aud_get_a2dp_codec_type(bes_aud_bt->aud_get_curr_a2dp_device());
+    }
+#endif
+#if defined(A2DP_LHDC_ON) || defined(A2DP_LHDCV5_ON)
+    POSSIBLY_UNUSED uint8_t active_device_id = bes_aud_bt->aud_get_curr_a2dp_device();
+    POSSIBLY_UNUSED uint8_t nonType = 0;
+    nonType = bes_aud_bt->a2dp_lhdc_get_non_type_by_device_id(active_device_id);
+#endif
 
     if (on == PLAYER_OPER_STOP || on == PLAYER_OPER_RESTART)
     {
+#ifndef AF_STREAM_ID_0_PLAYBACK_FADEOUT
+#if defined(AUDIO_USER_PROCESS_EN) && defined(AUDIO_SW_GIAN_NORMALIZATION)
+        audio_user_sw_gain_process_fade_out();
+        osDelay(100);
+#endif
+#endif
 #ifdef __THIRDPARTY
         start_by_music = false;
 #endif
 
 #ifdef PLAYBACK_USE_I2S
         hal_cmu_audio_resample_enable();
-#endif
-
-#if defined(VOICE_DEV)
-#if defined(APP_NOISE_ESTIMATION)
-        app_noise_estimation_stop();
-        app_noise_estimation_close();
-#endif
-
-#if defined(VOICE_DEV_TEST)
-        test_voice_dev_stop();
-        test_voice_dev_close();
-#endif
-
-        // Add more ...
-        uint32_t algos = VOICE_DEV_ALGO_NONE;
-        voice_dev_ctl(VOICE_DEV_USER0, VOICE_DEV_SET_SUPPORT_ALGOS, &algos);
 #endif
 
 #ifdef MIX_AUDIO_PROMPT_WITH_A2DP_MEDIA_ENABLED
@@ -2886,9 +2495,9 @@ static int bt_a2dp_player(enum PLAYER_OPER_T on, enum APP_SYSFREQ_FREQ_T freq)
         {
 #ifdef AF_STREAM_ID_0_PLAYBACK_FADEOUT
 #if defined(ANC_ASSIST_USE_INT_CODEC)
-            af_stream_playback_fadeout(AUD_STREAM_ID_0, 30);
+            af_stream_playback_fadeout(30);
 #else
-            af_stream_playback_fadeout(AUD_STREAM_ID_0, 10);
+            af_stream_playback_fadeout(10);
 #endif
 #endif
         }
@@ -2910,15 +2519,15 @@ static int bt_a2dp_player(enum PLAYER_OPER_T on, enum APP_SYSFREQ_FREQ_T freq)
 #endif
 
 #ifdef AUDIO_OUTPUT_ROUTE_SELECT
-        if (!stream_route_info.output_route_info)
+if (!stream_route_info.output_route_info)
 #endif
-        {
-            af_codec_set_playback_post_handler(NULL);
-            af_stream_stop(AUD_STREAM_ID_0, AUD_STREAM_PLAYBACK);
-        }
+    {
+        af_codec_set_playback_post_handler(NULL);
+        af_stream_stop(AUD_STREAM_ID_0, AUD_STREAM_PLAYBACK);
+    }
 
 #ifdef A2DP_DUMP_REF_FB
-        af_stream_stop(A2DP_DUMP_STREAM_ID, AUD_STREAM_CAPTURE);
+		af_stream_stop(A2DP_DUMP_STREAM_ID, AUD_STREAM_CAPTURE);
 #endif
 
 #if defined(AUDIO_ANC_FB_MC) && defined(ANC_APP) && !defined(__AUDIO_RESAMPLE__)
@@ -2928,14 +2537,11 @@ static int bt_a2dp_player(enum PLAYER_OPER_T on, enum APP_SYSFREQ_FREQ_T freq)
         af_stream_stop(AUD_STREAM_ID_2, AUD_STREAM_PLAYBACK);
 #endif
 
-#if defined(AUDIO_ADJ_EQ)
-        af_stream_stop(ADJ_EQ_STREAM_ID, AUD_STREAM_CAPTURE);
-#endif
-
 #if defined(MUSIC_DELAY_CONTROL) && (defined(CHIP_BEST2300) || defined(CHIP_BEST2300P) || defined(CHIP_BEST2300A)|| defined(CHIP_BEST1400)|| defined(CHIP_BEST1402))
         calib_reset = 1;
         af_stream_dma_tc_irq_disable(AUD_STREAM_ID_0, AUD_STREAM_PLAYBACK);
 #endif
+
 #ifdef AUDIO_OUTPUT_ROUTE_SELECT
         if (!stream_route_info.output_route_info)
 #endif
@@ -2953,16 +2559,27 @@ static int bt_a2dp_player(enum PLAYER_OPER_T on, enum APP_SYSFREQ_FREQ_T freq)
         audio_spectrum_close();
 #endif
 
-#if defined(A2DP_KARAOKE)
-        app_karaoke_set_buf(NULL, 0);
+#ifdef AUDIO_USER_PROCESS_EN
+#ifdef AUDIO_SW_GIAN_NORMALIZATION
+        if(audio_user_sw_gain_process_is_enable())
+        {
+            audio_user_sw_gain_process_close();
+        }
+#endif
+#ifdef AUDIO_PROCESS_NORMALIZATION
+        if (audio_user_process_is_enable())
+        {
+            audio_user_process_close();
+        }
+#endif
+#else
+        audio_process_close();
 #endif
 
-        audio_process_close();
-
-        AUDIO_BT_TRACE(0,"[A2DP_PLAYER] syspool free size: %d/%d", syspool_free_size(), syspool_total_size());
+        TRACE_AUD_STREAM_I("[A2DP_PLAYER] syspool free size: %d/%d", syspool_free_size(), syspool_total_size());
 
 #if !(defined(__AUDIO_RESAMPLE__) && defined(SW_PLAYBACK_RESAMPLE))
-        af_codec_tune(AUD_STREAM_PLAYBACK, 0);
+        af_stream_tune(AUD_STREAM_ID_0, AUD_STREAM_PLAYBACK, 0);
 #endif
 
 #ifdef AUDIO_OUTPUT_ROUTE_SELECT
@@ -2971,24 +2588,29 @@ static int bt_a2dp_player(enum PLAYER_OPER_T on, enum APP_SYSFREQ_FREQ_T freq)
         {
             af_stream_close(AUD_STREAM_ID_0, AUD_STREAM_PLAYBACK);
         }
+#ifdef AUDIO_USER_FOCUS_CTRL
+        audio_user_focus_ctrl_release(ADUIO_USER_FOCUS_TYPE_A2DP);
+#endif
+
+#ifdef AF_CALLBACK_USE_TMP_BUF
+        g_af_play_tmp_buf = NULL;
+#endif
 
 #ifdef A2DP_DUMP_REF_FB
-        af_stream_close(A2DP_DUMP_STREAM_ID, AUD_STREAM_CAPTURE);
+		af_stream_close(A2DP_DUMP_STREAM_ID, AUD_STREAM_CAPTURE);
         app_sysfreq_req(APP_SYSFREQ_USER_VOICE_ASSIST, APP_SYSFREQ_32K);
 #endif
 
 #if defined(AUDIO_ANC_FB_MC) && defined(ANC_APP) && !defined(__AUDIO_RESAMPLE__)
 #ifdef AUDIO_ANC_FB_ADJ_MC
-        af_stream_close(ADJ_MC_STREAM_ID, AUD_STREAM_CAPTURE);
+		af_stream_close(ADJ_MC_STREAM_ID, AUD_STREAM_CAPTURE);
         app_sysfreq_req(APP_SYSFREQ_USER_VOICE_ASSIST, APP_SYSFREQ_32K);
 #endif
 
         af_stream_close(AUD_STREAM_ID_2, AUD_STREAM_PLAYBACK);
+#ifdef AUDIO_USER_FOCUS_CTRL
+        audio_user_focus_ctrl_release(ADUIO_USER_FOCUS_TYPE_A2DP);
 #endif
-
-#ifdef AUDIO_ADJ_EQ
-        af_stream_close(ADJ_EQ_STREAM_ID, AUD_STREAM_CAPTURE);
-        app_sysfreq_req(APP_SYSFREQ_USER_VOICE_ASSIST, APP_SYSFREQ_32K);
 #endif
 
         bt_a2dp_mode = 0;
@@ -3000,12 +2622,6 @@ static int bt_a2dp_player(enum PLAYER_OPER_T on, enum APP_SYSFREQ_FREQ_T freq)
 #if defined(ANC_ASSIST_ENABLED)
         app_anc_assist_set_playback_info(AUD_SAMPRATE_NULL);
         app_anc_assist_set_mode(ANC_ASSIST_MODE_STANDALONE);
-#if defined(VOICE_ASSIST_FF_FIR_LMS) && defined(FREEMAN_ENABLED_STERO)
-        app_voice_assist_fir_lms_enable_fir(true);
-#endif
-#if defined(VOICE_ASSIST_FF_IIR_LMS) && defined(FREEMAN_ENABLED_STERO)
-        app_voice_assist_iir_lms_enable_iir(true);
-#endif
 #endif
 
 #if defined(CODEC_DAC_MULTI_VOLUME_TABLE)
@@ -3026,32 +2642,20 @@ static int bt_a2dp_player(enum PLAYER_OPER_T on, enum APP_SYSFREQ_FREQ_T freq)
 #endif
 #endif
             a2dp_audio_deinit();
-#if !defined(DOLBY_AUDIO_ENABLE)
-#if defined(SPA_AUDIO_ENABLE)
-        spatial_audio_app_deinit_if();
-#ifdef SPA_AUDIO_SEC
-        tz_audio_process_info_deinit();
-#endif
-#endif
-#endif
 
 #ifdef A2DP_DUMP_REF_FB
-            audio_dump_deinit();
+			audio_dump_deinit();
 #endif
 
 #if defined(AUDIO_ANC_FB_MC) && defined(ANC_APP) && !defined(__AUDIO_RESAMPLE__)&&defined(AUDIO_ANC_FB_ADJ_MC)
             adj_mc_deinit();
-#endif
-
-#if defined(AUDIO_ADJ_EQ)
-            adj_eq_deinit();
 #endif
             app_overlay_unloadall();
 #ifdef __THIRDPARTY
             app_thirdparty_specific_lib_event_handle(THIRDPARTY_FUNC_NO1,THIRDPARTY_STOP2MIC, 0);
             app_thirdparty_specific_lib_event_handle(THIRDPARTY_FUNC_NO1,THIRDPARTY_START, 0);
 #endif
-            app_sysfreq_req(APP_SYSFREQ_USER_BT_A2DP, APP_SYSFREQ_32K);
+            app_audio_set_a2dp_freq(APP_SYSFREQ_32K);
             af_set_priority(AF_USER_SBC, osPriorityAboveNormal);
 
 #if defined(__IAG_BLE_INCLUDE__)
@@ -3059,20 +2663,16 @@ static int bt_a2dp_player(enum PLAYER_OPER_T on, enum APP_SYSFREQ_FREQ_T freq)
                                            USER_ALL,
                                            BLE_ADV_INVALID_INTERVAL);
 #endif
-
-#ifdef AUDIO_RMS_MONITOR_ENABLE
-            rms_debug_cnt = 0xFFFF;
-#endif
         }
-        bt_set_playback_triggered(false);
     }
 
     if (on == PLAYER_OPER_START || on == PLAYER_OPER_RESTART)
     {
-#ifdef CODEC_VCM_CHECK
-        vcm_sta = 0;
+#if defined(IBRT)
+#if defined(IBRT_UI)
+        app_tws_ibrt_start_boost_freq();
 #endif
-        bt_set_playback_triggered(false);
+#endif
 #if defined(__IAG_BLE_INCLUDE__)
         bes_ble_gap_param_set_adv_interval(BLE_ADV_INTERVALREQ_USER_A2DP,
                                        USER_ALL,
@@ -3089,23 +2689,27 @@ static int bt_a2dp_player(enum PLAYER_OPER_T on, enum APP_SYSFREQ_FREQ_T freq)
 
         bt_media_volume_ptr_update_by_mediatype(BT_STREAM_MUSIC);
         stream_local_volume = btdevice_volume_p->a2dp_vol;
+        app_audio_mempool_init_with_specific_size(APP_AUDIO_BUFFER_SIZE);
 
-        freq = sbc_player_reselect_freq(freq, codec_type);
+#if defined(__AUDIO_RESAMPLE__) && defined(SW_PLAYBACK_RESAMPLE)
+        sample_rate = AUD_SAMPRATE_50781;
+#else
+        sample_rate = a2dp_sample_rate;
+#endif
+        freq = sbc_player_reselect_freq(freq, codec_type, sample_rate);
         app_audio_set_a2dp_freq(freq);
-
-        AUDIO_BT_TRACE(0,"[A2DP_PLAYER] sysfreq %d", freq);
+        TRACE_AUD_STREAM_I("[A2DP_PLAYER] sysfreq %d", freq);
 
 #if defined(ENABLE_CALCU_CPU_FREQ_LOG)
-        AUDIO_BT_TRACE(0,"[A2DP_PLAYER] sysfreq calc : %d\n", hal_sys_timer_calc_cpu_freq(5, 0));
+        TRACE_AUD_STREAM_I("[A2DP_PLAYER] sysfreq calc : %d\n", hal_sys_timer_calc_cpu_freq(5, 0));
 #endif
 
         if (on == PLAYER_OPER_START)
         {
             af_set_irq_notification(app_bt_stream_playback_irq_notification);
             ASSERT(!app_ring_merge_isrun(), "Ring playback will be abnormal, please check.");
-            if (codec_type == BT_A2DP_CODEC_TYPE_SBC)
+            if (0)
             {
-                app_overlay_select(APP_OVERLAY_A2DP);
             }
 #if defined(A2DP_AAC_ON)
             else if (codec_type == BT_A2DP_CODEC_TYPE_MPEG2_4_AAC)
@@ -3113,60 +2717,48 @@ static int bt_a2dp_player(enum PLAYER_OPER_T on, enum APP_SYSFREQ_FREQ_T freq)
                 app_overlay_select(APP_OVERLAY_A2DP_AAC);
             }
 #endif
+#if defined(A2DP_LHDC_ON)
+            else if ((codec_type == BT_A2DP_CODEC_TYPE_NON_A2DP)
+                && (nonType == A2DP_NON_CODEC_TYPE_LHDC))
+            {
+                app_overlay_select(APP_OVERLAY_A2DP_LHDC);
+            }
+#endif
+#if defined(A2DP_LHDCV5_ON)
+            else if ((codec_type == BT_A2DP_CODEC_TYPE_NON_A2DP)
+                && (nonType == A2DP_NON_CODEC_TYPE_LHDCV5))
+            {
+                app_overlay_select(APP_OVERLAY_A2DP_LHDC_V5);
+            }
+#endif
+#if defined(A2DP_SCALABLE_ON)
             else if (codec_type == BT_A2DP_CODEC_TYPE_NON_A2DP)
             {
-                AUDIO_BT_TRACE(0, "[APP_BT_STREAM] %d, nonType %d", __LINE__, nonType);
-                if (nonType == BT_A2DP_CODEC_NONE_TYPE_INVALID)
-                {
-                    AUDIO_BT_TRACE(0, "WARNING nonType Invalid");
-                }
-#if defined(A2DP_LHDC_ON)
-                else if (nonType == BT_A2DP_CODEC_NONE_TYPE_LHDC)
-                {
-                    app_overlay_select(APP_OVERLAY_A2DP_LHDC);
-                }
-#endif // A2DP_LHDC_ON
-#if defined(A2DP_LHDCV5_ON)
-                else if (nonType == BT_A2DP_CODEC_NONE_TYPE_LHDCV5)
-                {
-                    app_overlay_select(APP_OVERLAY_A2DP_LHDC_V5);
-                }
-#endif // A2DP_LHDCV5_ON
-#if defined(A2DP_SCALABLE_ON)
-                else if (nonType == BT_A2DP_CODEC_NONE_TYPE_SCALABLE)
-                {
-                    app_overlay_select(APP_OVERLAY_A2DP_SCALABLE);
-                }
-#endif // A2DP_SCALABLE_ON
-#if defined(A2DP_LDAC_ON)
-                else if (nonType == BT_A2DP_CODEC_NONE_TYPE_LDAC)
-                {
-                    app_overlay_select(APP_OVERLAY_A2DP_LDAC);
-                }
-#endif // A2DP_LDAC_ON
-#if defined(A2DP_LC3_ON)
-                else if (nonType == BT_A2DP_CODEC_NONE_TYPE_LC3)
-                {
-                    AUDIO_BT_TRACE(0,"bt_a2dp_player lc3 overlay select \n");
-                    app_overlay_select(APP_OVERLAY_A2DP_LC3);
-                }
-#endif // A2DP_LC3_ON
-#if defined(A2DP_L2HC_ON)
-                else if (nonType == BT_A2DP_CODEC_NONE_TYPE_L2HC)
-                {
-                    AUDIO_BT_TRACE(0,"bt_a2dp_player l2hc overlay select \n");
-                    app_overlay_select(APP_OVERLAY_A2DP_L2HC);
-                }
-#endif // A2DP_L2HC_ON
-                else
-                {
-                    AUDIO_BT_TRACE(0, "WARNING nonType Invalid");
-                }
+                app_overlay_select(APP_OVERLAY_A2DP_SCALABLE);
             }
+#endif
+#if defined(A2DP_LDAC_ON)
+            else if (codec_type == BT_A2DP_CODEC_TYPE_NON_A2DP)
+            {
+                TRACE_AUD_STREAM_I("[A2DP_PLAYER] ldac overlay select \n"); //toto
+                app_overlay_select(APP_OVERLAY_A2DP_LDAC);
+            }
+#endif
+#if defined(A2DP_LC3_ON)
+            else if (codec_type == BT_A2DP_CODEC_TYPE_NON_A2DP)
+            {
+                TRACE(0,"bt_sbc_player lc3 overlay select \n");
+                app_overlay_select(APP_OVERLAY_A2DP_LC3);
+            }
+#endif
             else
             {
                 app_overlay_select(APP_OVERLAY_A2DP);
             }
+
+#ifdef A2DP_DSP
+            app_dsp_hifi4_init(APP_DSP_HIFI4_USER_A2DP);
+#endif
 
 #ifdef __THIRDPARTY
             app_thirdparty_specific_lib_event_handle(THIRDPARTY_FUNC_NO1,THIRDPARTY_START2MIC, 0);
@@ -3174,8 +2766,6 @@ static int bt_a2dp_player(enum PLAYER_OPER_T on, enum APP_SYSFREQ_FREQ_T freq)
 
             bt_a2dp_mode = 1;
         }
-
-        app_audio_mempool_init_with_specific_size(app_audio_mempool_size());
 
 #ifdef __THIRDPARTY
         start_by_music = true;
@@ -3198,12 +2788,12 @@ static int bt_a2dp_player(enum PLAYER_OPER_T on, enum APP_SYSFREQ_FREQ_T freq)
         memset(&stream_cfg, 0, sizeof(stream_cfg));
 
         stream_cfg.channel_num = AUD_CHANNEL_NUM_2;
-// #if defined(A2DP_LHDCV5_ON)
-//         if ((codec_type == BT_A2DP_CODEC_TYPE_NON_A2DP)
-//             &&(nonType == BT_A2DP_CODEC_NONE_TYPE_LHDCV5)){
-//                 stream_cfg.channel_num = AUD_CHANNEL_NUM_1;
-//         }
-// #endif
+#if defined(A2DP_LHDCV5_ON)
+        if ((codec_type == BT_A2DP_CODEC_TYPE_NON_A2DP)
+            &&(nonType == A2DP_NON_CODEC_TYPE_LHDCV5)){
+                stream_cfg.channel_num = AUD_CHANNEL_NUM_1;
+        }
+#endif
 #ifdef PLAYBACK_FORCE_48K
         stream_cfg.sample_rate = AUD_SAMPRATE_48000;
 #else
@@ -3226,91 +2816,75 @@ static int bt_a2dp_player(enum PLAYER_OPER_T on, enum APP_SYSFREQ_FREQ_T freq)
 #endif
 
         stream_cfg.vol = stream_local_volume;
-        stream_cfg.handler = bt_a2dp_player_more_data;
+        stream_cfg.handler = bt_sbc_player_more_data;
 
 #if defined(A2DP_SCALABLE_ON)
-        if ((codec_type == BT_A2DP_CODEC_TYPE_NON_A2DP)
-            && (nonType == BT_A2DP_CODEC_NONE_TYPE_SCALABLE))
-        {
+        if (codec_type == BT_A2DP_CODEC_TYPE_NON_A2DP){
             stream_cfg.data_size = SCALABLE_FRAME_SIZE*8;
         }else
 #endif
 #if defined(A2DP_LHDC_ON)
         if ((codec_type == BT_A2DP_CODEC_TYPE_NON_A2DP)
-            && (nonType == BT_A2DP_CODEC_NONE_TYPE_LHDC)){
+            && (nonType == A2DP_NON_CODEC_TYPE_LHDC)){
 #if defined(A2DP_LHDC_V3)
             //stream_cfg.data_size = LHDC_AUDIO_96K_BUFF_SIZE;
-            if (a2dp_lhdc_get_ext_flags(LHDC_EXT_FLAGS_LLAC))
+            if (bes_aud_bt->a2dp_lhdc_get_ext_flags(LHDC_EXT_FLAGS_LLAC))
             {
                 if (bt_get_sbc_sample_rate() == AUD_SAMPRATE_44100) {
                     stream_cfg.data_size = LHDC_AUDIO_44P1K_BUFF_SIZE;
-                    AUDIO_BT_TRACE(0,"[A2DP_PLAYER] USE 44.1K Buffer (kaiden:220)");
+                    TRACE_AUD_STREAM_I("[A2DP_PLAYER] USE 44.1K Buffer (kaiden:220)");
 
                 } else {
                     stream_cfg.data_size = LHDC_AUDIO_BUFF_SIZE;
-                    AUDIO_BT_TRACE(0,"[A2DP_PLAYER] USE Normal Buffer");
+                    TRACE_AUD_STREAM_I("[A2DP_PLAYER] USE Normal Buffer");
                 }
-            }else if(a2dp_lhdc_get_ext_flags(LHDC_EXT_FLAGS_V4)) {
+            }else if(bes_aud_bt->a2dp_lhdc_get_ext_flags(LHDC_EXT_FLAGS_V4)) {
                 if (bt_get_sbc_sample_rate() == AUD_SAMPRATE_44100) {
-                    AUDIO_BT_TRACE(0,"[A2DP_PLAYER] LHDC V4 USE 44.1K Buffer");
+                    TRACE_AUD_STREAM_I("[A2DP_PLAYER] LHDC V4 USE 44.1K Buffer");
                     stream_cfg.data_size = (LHDC_AUDIO_96K_BUFF_SIZE >> 2);
                 } else {
-                    AUDIO_BT_TRACE(0,"[A2DP_PLAYER] USE 96K Buffer");
+                    TRACE_AUD_STREAM_I("[A2DP_PLAYER] USE 96K Buffer");
                     stream_cfg.data_size = LHDC_AUDIO_96K_BUFF_SIZE;
                 }
             }else{
-                if (a2dp_lhdc_config_llc_get()){
-                    AUDIO_BT_TRACE(0,"[A2DP_PLAYER] USE LHDC_LLC");
+                if (bes_aud_bt->a2dp_lhdc_config_llc_get()){
+                    TRACE_AUD_STREAM_I("[A2DP_PLAYER] USE LHDC_LLC");
                     stream_cfg.data_size = LHDC_LLC_AUDIO_BUFF_SIZE;
                 }
                 else if (bt_get_sbc_sample_rate() == AUD_SAMPRATE_44100) {
-                    AUDIO_BT_TRACE(0,"[A2DP_PLAYER] LHDC V4 USE 44.1K Buffer");
+                    TRACE_AUD_STREAM_I("[A2DP_PLAYER] LHDC V4 USE 44.1K Buffer");
                     stream_cfg.data_size = (LHDC_AUDIO_96K_BUFF_SIZE >> 2);
                 } else {
-                    AUDIO_BT_TRACE(0,"[A2DP_PLAYER] USE 96K Buffer");
+                    TRACE_AUD_STREAM_I("[A2DP_PLAYER] USE 96K Buffer");
                     stream_cfg.data_size = LHDC_AUDIO_96K_BUFF_SIZE;
                 }
             }
 #else
             stream_cfg.data_size = LHDC_AUDIO_BUFF_SIZE;
 #endif
-#if 0
-            if(bt_sbc_player_get_sample_bit() == AUD_BITS_16)
-            {
-#if defined(A2DP_LHDC_V3)
-                if (bt_get_sbc_sample_rate() == AUD_SAMPRATE_96000) {
-                    stream_cfg.data_size = LHDC_AUDIO_96K_16BITS_BUFF_SIZE;
-                } else {
-                    stream_cfg.data_size = LHDC_AUDIO_16BITS_BUFF_SIZE;
-                }
-#else
-                stream_cfg.data_size = LHDC_AUDIO_16BITS_BUFF_SIZE;
-#endif
-            }
-#endif
         }else
 #endif //#if defined(A2DP_LHDC_ON)
 #if defined(A2DP_LHDCV5_ON)
         if ((codec_type == BT_A2DP_CODEC_TYPE_NON_A2DP)
-            &&(nonType == BT_A2DP_CODEC_NONE_TYPE_LHDCV5)){
-            if (a2dp_lhdc_config_llc_get()){
+            &&(nonType == A2DP_NON_CODEC_TYPE_LHDCV5)){
+            if (bes_aud_bt->a2dp_lhdc_config_llc_get()){
                 // LL
                 if ((bt_get_sbc_sample_rate() == AUD_SAMPRATE_44100) ||
                     (bt_get_sbc_sample_rate() == AUD_SAMPRATE_48000)) {
                     // 44.1KHz or 48KHz
-                    AUDIO_BT_TRACE(0,"[A2DP_PLAYER] USE LHDCV5-LL 44.1KHz or 48KHz Buf");
+                    TRACE_AUD_STREAM_I("[A2DP_PLAYER] USE LHDCV5-LL 44.1KHz or 48KHz Buf");
 
                     stream_cfg.data_size = LHDCV5_AUDIO_48K_LLC_BUFF_SIZE;
                 } else if (bt_get_sbc_sample_rate() == AUD_SAMPRATE_96000){
                     // 96KHz
 
-                    AUDIO_BT_TRACE(0,"[A2DP_PLAYER] USE LHDCV5-LL 96KHz Buf");
+                    TRACE_AUD_STREAM_I("[A2DP_PLAYER] USE LHDCV5-LL 96KHz Buf");
 
                     stream_cfg.data_size = LHDCV5_AUDIO_96K_LLC_BUFF_SIZE;
                 } else {
                     // 192KHz
 
-                    AUDIO_BT_TRACE(0,"[A2DP_PLAYER] USE LHDCV5-LL 192KHz Buf");
+                    TRACE_AUD_STREAM_I("[A2DP_PLAYER] USE LHDCV5-LL 192KHz Buf");
 
                     stream_cfg.data_size = LHDCV5_AUDIO_192K_LLC_BUFF_SIZE;
                 }
@@ -3319,17 +2893,17 @@ static int bt_a2dp_player(enum PLAYER_OPER_T on, enum APP_SYSFREQ_FREQ_T freq)
                 if ((bt_get_sbc_sample_rate() == AUD_SAMPRATE_44100) ||
                     (bt_get_sbc_sample_rate() == AUD_SAMPRATE_48000)) {
                     // 44.1KHz or 48KHz
-                    AUDIO_BT_TRACE(0,"[A2DP_PLAYER] USE LHDCV5 44.1KHz or 48KHz Buf");
+                    TRACE_AUD_STREAM_I("[A2DP_PLAYER] USE LHDCV5 44.1KHz or 48KHz Buf");
 
                     stream_cfg.data_size = LHDCV5_AUDIO_48K_BUFF_SIZE;
                 } else if (bt_get_sbc_sample_rate() == AUD_SAMPRATE_96000){
                     // 96KHz
-                    AUDIO_BT_TRACE(0,"[A2DP_PLAYER] USE LHDCV5 96KHz Buf");
+                    TRACE_AUD_STREAM_I("[A2DP_PLAYER] USE LHDCV5 96KHz Buf");
 
                     stream_cfg.data_size = LHDCV5_AUDIO_96K_BUFF_SIZE;
                 } else {
                     // 192KHz
-                    AUDIO_BT_TRACE(0,"[A2DP_PLAYER] USE LHDCV5 192KHz Buf");
+                    TRACE_AUD_STREAM_I("[A2DP_PLAYER] USE LHDCV5 192KHz Buf");
 
                     stream_cfg.data_size = LHDCV5_AUDIO_192K_BUFF_SIZE;
                 }
@@ -3337,18 +2911,9 @@ static int bt_a2dp_player(enum PLAYER_OPER_T on, enum APP_SYSFREQ_FREQ_T freq)
         }else
 #endif //#if defined(A2DP_LHDCV5_ON)
 #if defined(A2DP_LDAC_ON)
-        if((codec_type == BT_A2DP_CODEC_TYPE_NON_A2DP)
-            &&(nonType == BT_A2DP_CODEC_NONE_TYPE_LDAC)){
-            if (sample_rate > AUD_SAMPRATE_96000) {
-                stream_cfg.data_size = BT_AUDIO_BUFF_SIZE_192K_LDAC;
-            } else if (sample_rate > AUD_SAMPRATE_48000) {
-                stream_cfg.data_size = BT_AUDIO_BUFF_SIZE_96K_LDAC;
-            } else {
-                stream_cfg.data_size = BT_AUDIO_BUFF_SIZE_48K_LDAC;
-            }
-            syspool_get_buff(&ldac_cc_mem_pool, LDAC_CC_MEM_POOL_SIZE);
-            bes_cc_heap_init(ldac_cc_mem_pool, LDAC_CC_MEM_POOL_SIZE);
-        }else
+        if(codec_type == BT_A2DP_CODEC_TYPE_NON_A2DP)
+            stream_cfg.data_size = BT_AUDIO_BUFF_SIZE_LDAC;
+        else
 #endif
 #if defined(A2DP_AAC_ON)
         if (codec_type == BT_A2DP_CODEC_TYPE_MPEG2_4_AAC)
@@ -3356,40 +2921,13 @@ static int bt_a2dp_player(enum PLAYER_OPER_T on, enum APP_SYSFREQ_FREQ_T freq)
         else
 #endif
 #if defined(A2DP_LC3_ON)
-        if ((codec_type == BT_A2DP_CODEC_TYPE_NON_A2DP)
-            && (nonType == BT_A2DP_CODEC_NONE_TYPE_LC3))
-        {
+        if (codec_type == BT_A2DP_CODEC_TYPE_NON_A2DP){
             if (bt_get_sbc_sample_rate() == AUD_SAMPRATE_96000) {
                 stream_cfg.data_size = LC3_AUDIO_96K_BUFF_SIZE;
             } else {
                 stream_cfg.data_size = LC3_AUDIO_BUFF_SIZE;
             }
         }else
-#endif
-#if defined(A2DP_L2HC_ON)
-        if ((codec_type == BT_A2DP_CODEC_TYPE_NON_A2DP)
-            && (nonType == BT_A2DP_CODEC_NONE_TYPE_L2HC))
-        {
-            uint8_t duration = bes_bt_a2dp_get_curr_duration();
-            AUDIO_BT_TRACE(0, "L2HC duration %d", duration/10);
-            if ((bt_get_sbc_sample_rate() == AUD_SAMPRATE_44100) ||
-                (bt_get_sbc_sample_rate() == AUD_SAMPRATE_48000)) {
-                // 44.1KHz or 48KHz
-                AUDIO_BT_TRACE(0,"[A2DP_PLAYER] USE L2HC 44.1KHz or 48KHz Buf");
-                if(duration == 50)
-                    stream_cfg.data_size = L2HC_AUDIO_BUFF_SIZE_1; //duration 5
-                else
-                    stream_cfg.data_size = L2HC_AUDIO_BUFF_SIZE_2; //duration 10
-            } else if ((bt_get_sbc_sample_rate() == AUD_SAMPRATE_88200) ||
-                       (bt_get_sbc_sample_rate() == AUD_SAMPRATE_96000)) {
-                // 88.2KHz or 96KHz
-                AUDIO_BT_TRACE(0,"[A2DP_PLAYER] USE L2HC 88.2KHz or 96KHz Buf");
-                if(duration == 50)
-                    stream_cfg.data_size = L2HC_AUDIO_BUFF_SIZE_2; //duration 5
-                else
-                    stream_cfg.data_size = L2HC_AUDIO_BUFF_SIZE_3; //duration 10
-            }
-        } else
 #endif
         {
             if (stream_cfg.sample_rate == AUD_SAMPRATE_44100){
@@ -3419,7 +2957,7 @@ static int bt_a2dp_player(enum PLAYER_OPER_T on, enum APP_SYSFREQ_FREQ_T freq)
 #if 0//defined(A2DP_LHDC_ON)
         if (codec_type == BT_A2DP_CODEC_TYPE_NON_A2DP)
         {
-            if(bt_a2dp_player_get_sample_bit() == AUD_BITS_16)
+            if(bt_sbc_player_get_sample_bit() == AUD_BITS_16)
             {
                 stream_cfg.bits = AUD_BITS_16;
             }
@@ -3478,11 +3016,6 @@ static int bt_a2dp_player(enum PLAYER_OPER_T on, enum APP_SYSFREQ_FREQ_T freq)
         mid_p_8_old_r=0;
 #endif
 
-#if defined(AUDIO_ADJ_EQ)
-        static enum AUD_SAMPRATE_T sample_rate_play_bt;
-        sample_rate_play_bt = stream_cfg.sample_rate;
-#endif
-
 #if defined(PLAYBACK_FORCE_48K)
         if (stream_cfg.bits == AUD_BITS_16) {
             force48k_pcm_bytes = sizeof(int16_t);
@@ -3497,22 +3030,11 @@ static int bt_a2dp_player(enum PLAYER_OPER_T on, enum APP_SYSFREQ_FREQ_T freq)
             force48k_resample= app_force48k_resample_any_open(bt_get_sbc_sample_rate(), stream_cfg.channel_num,
                                 app_force48k_resample_iter, stream_cfg.data_size / stream_cfg.channel_num / (force48k_pcm_bytes / sizeof(int16_t)),
                                 (float)sample_rate / AUD_SAMPRATE_48000);
-            AUDIO_BT_TRACE(3, "[%s] Resample: %d --> %d", __func__, sample_rate, AUD_SAMPRATE_48000);
+            TRACE(3, "[%s] Resample: %d --> %d", __func__, sample_rate, AUD_SAMPRATE_48000);
         }
 #endif
 
 #if defined(ANC_ASSIST_ENABLED)
-#ifdef VOICE_ASSIST_ONESHOT_ADAPTIVE_ANC
-    if(app_voice_assist_oneshot_adapt_anc_work_status()){
-        app_voice_assist_oneshot_adapt_anc_close();
-    }
-#endif
-#if defined(VOICE_ASSIST_FF_FIR_LMS) && defined(FREEMAN_ENABLED_STERO)
-        app_voice_assist_fir_lms_enable_fir(false);
-#endif
-#if defined(VOICE_ASSIST_FF_IIR_LMS) && defined(FREEMAN_ENABLED_STERO)
-        app_voice_assist_iir_lms_enable_iir(false);
-#endif
         app_anc_assist_set_playback_info(stream_cfg.sample_rate);
 #if 1
         app_anc_assist_set_mode(ANC_ASSIST_MODE_MUSIC);
@@ -3531,20 +3053,28 @@ static int bt_a2dp_player(enum PLAYER_OPER_T on, enum APP_SYSFREQ_FREQ_T freq)
 #if defined(AUDIO_ADAPTIVE_EQ)
         app_voice_assist_adaptive_eq_open();
 #endif
+
+#if defined(AUDIO_ADJ_EQ)
+        app_voice_assist_adj_eq_open();
+#endif
 #endif
 
-        AUDIO_BT_TRACE(4, "A2DP Playback: sample rate: %d, bits = %d, channel number = %d, data size:%d",
+#ifdef AF_CALLBACK_USE_TMP_BUF
+        TRACE(1, "[%s] Enable AF_CALLBACK_USE_TMP_BUF", __func__);
+        g_af_play_tmp_buf = (uint8_t *)app_audio_mempool_malloc(stream_cfg.data_size / 2);
+#endif
+
+        TRACE(4, "A2DP Playback: sample rate: %d, bits = %d, channel number = %d, data size:%d",
                                             stream_cfg.sample_rate,
                                             stream_cfg.bits,
                                             stream_cfg.channel_num,
                                             stream_cfg.data_size);
-
 #ifdef AUDIO_OUTPUT_ROUTE_SELECT
         if (stream_route_info.output_route_info)
         {
-            stream_route_info.codec_type = codec_type;
-            app_bt_output_route_init(stream_cfg.sample_rate, stream_cfg.bits,
-                                     stream_cfg.channel_num, stream_cfg.data_size/2, stream_cfg.vol);
+            app_bt_output_route_init(stream_cfg.sample_rate, stream_cfg.bits, stream_cfg.channel_num,
+                                     stream_cfg.data_size/2, stream_cfg.vol);
+
             if (!stream_route_info.output_route_info->data_transfer_mode)
             {
                  app_audio_mempool_get_buff(&stream_route_info.send_buf, stream_route_info.buffer_samples);
@@ -3553,25 +3083,32 @@ static int bt_a2dp_player(enum PLAYER_OPER_T on, enum APP_SYSFREQ_FREQ_T freq)
         else
 #endif
         {
-            // stream_cfg.sample_rate = AUD_SAMPRATE_96000;
-            af_stream_open(AUD_STREAM_ID_0, AUD_STREAM_PLAYBACK, &stream_cfg);
-        }
-        // stream_cfg.sample_rate = AUD_SAMPRATE_96000;
-
-#if BLE_AUDIO_ENABLED
-        af_codec_set_device_bt_sync_source(stream_cfg.device, AUD_STREAM_PLAYBACK, A2DP_SCO_TRIGGER_CHANNEL);
+#ifdef AUDIO_USER_FOCUS_CTRL
+            audio_user_focus_ctrl_acquire(ADUIO_USER_FOCUS_TYPE_A2DP);
 #endif
+            af_stream_open(AUD_STREAM_ID_0, AUD_STREAM_PLAYBACK, &stream_cfg);
 
+#if defined(AUDIO_USER_PROCESS_EN) && defined(AUDIO_SW_GIAN_NORMALIZATION)
+            af_stream_sw_gain_enable(AUD_STREAM_ID_0, AUD_STREAM_PLAYBACK, false);
+#endif
+        }
+
+#ifdef AUDIO_SUPPORT_PA_ENVELOPE
+        if (audio_process_pa_envelope_if_is_enable())
+        {
+            audio_process_pa_envelope_if_open(stream_cfg.sample_rate, stream_cfg.channel_num, stream_cfg.bits, stream_cfg.data_size / 2, stream_cfg.channel_num * SAMPLES_PER_MS(stream_cfg.sample_rate) * TIME_MS_PER_ENVELOPE);
+            bt_set_pa_envelope_config(0);
+        }
+#endif
 #if defined(A2DP_STREAM_AUDIO_DUMP)
         if (stream_cfg.bits == 16) {
+            g_a2dp_pcm_dump_sample_bytes = sizeof(int16_t);
         } else {
             g_a2dp_pcm_dump_sample_bytes = sizeof(int32_t);
         }
         g_a2dp_pcm_dump_channel_num = stream_cfg.channel_num;
         g_a2dp_pcm_dump_frame_len = stream_cfg.data_size / 2 / g_a2dp_pcm_dump_sample_bytes / g_a2dp_pcm_dump_channel_num;
 #if A2DP_STREAM_AUDIO_DUMP == 16
-        ASSERT(g_a2dp_pcm_dump_frame_len < A2DP_PCM_DUMP_BUFFER_MAX_SIZE,
-                "DUMP ERROR: frame_len(%d) > MAX LEN(%d) ", g_a2dp_pcm_dump_frame_len, A2DP_PCM_DUMP_BUFFER_MAX_SIZE);
         audio_dump_init(g_a2dp_pcm_dump_frame_len, sizeof(int16_t), 1);
 #else
         audio_dump_init(g_a2dp_pcm_dump_frame_len, g_a2dp_pcm_dump_sample_bytes, 1);
@@ -3582,8 +3119,8 @@ static int bt_a2dp_player(enum PLAYER_OPER_T on, enum APP_SYSFREQ_FREQ_T freq)
 		struct AF_STREAM_CONFIG_T stream_a2dp_dump;
 		audio_dump_init(A2DP_DUMP_FRAME_LEN, sizeof(short), 2);
 		app_sysfreq_req(APP_SYSFREQ_USER_VOICE_ASSIST, APP_SYSFREQ_104M);
-        AUDIO_BT_TRACE(0, "[A2DP_DUMP] sysfreq %d", freq);
-        // AUDIO_BT_TRACE(0, "[A2DP_DUMP] sysfreq calc : %d\n", hal_sys_timer_calc_cpu_freq(5, 0));
+        TRACE(0, "[A2DP_DUMP] sysfreq %d", freq);
+        // TRACE(0, "[A2DP_DUMP] sysfreq calc : %d\n", hal_sys_timer_calc_cpu_freq(5, 0));
 		memset(&stream_a2dp_dump, 0, sizeof(stream_a2dp_dump));
         stream_a2dp_dump.channel_num = (enum AUD_CHANNEL_NUM_T)A2DP_DUMP_CHANNEL_NUM;
         stream_a2dp_dump.channel_map = (enum AUD_CHANNEL_MAP_T)(ANC_FB_MIC_CH_L | AUD_CHANNEL_MAP_ECMIC_CH0);
@@ -3598,9 +3135,7 @@ static int bt_a2dp_player(enum PLAYER_OPER_T on, enum APP_SYSFREQ_FREQ_T freq)
         stream_a2dp_dump.data_ptr = A2DP_DUMP_buf;
 
         af_stream_open(A2DP_DUMP_STREAM_ID, AUD_STREAM_CAPTURE, &stream_a2dp_dump);
-#if BLE_AUDIO_ENABLED
-        af_codec_set_device_bt_sync_source(stream_a2dp_dump.device, AUD_STREAM_CAPTURE, A2DP_SCO_TRIGGER_CHANNEL);
-#endif
+
 #endif
 
 #if defined(AUDIO_ANC_FB_MC) && defined(ANC_APP) && !defined(__AUDIO_RESAMPLE__)
@@ -3626,16 +3161,16 @@ static int bt_a2dp_player(enum PLAYER_OPER_T on, enum APP_SYSFREQ_FREQ_T freq)
         anc_mc_run_init(hal_codec_anc_convert_rate(sample_rate_play_bt));
 
         memset(delay_buf_bt,0,sizeof(delay_buf_bt));
-
-        af_stream_open(AUD_STREAM_ID_2, AUD_STREAM_PLAYBACK, &stream_cfg);
-#if BLE_AUDIO_ENABLED
-        af_codec_set_device_bt_sync_source(stream_cfg.device, AUD_STREAM_PLAYBACK, A2DP_SCO_TRIGGER_CHANNEL);
+#ifdef AUDIO_USER_FOCUS_CTRL
+        audio_user_focus_ctrl_acquire(ADUIO_USER_FOCUS_TYPE_A2DP);
 #endif
+        af_stream_open(AUD_STREAM_ID_2, AUD_STREAM_PLAYBACK, &stream_cfg);
+
         // ASSERT(ret == 0, "af_stream_open playback failed: %d", ret);
 #ifdef AUDIO_ANC_FB_ADJ_MC
         app_sysfreq_req(APP_SYSFREQ_USER_VOICE_ASSIST, APP_SYSFREQ_104M);
-        AUDIO_BT_TRACE(0, "[ADJ_MC] sysfreq %d", freq);
-        // AUDIO_BT_TRACE(0, "[ADJ_MC] sysfreq calc : %d\n", hal_sys_timer_calc_cpu_freq(5, 0));
+        TRACE(0, "[ADJ_MC] sysfreq %d", freq);
+        // TRACE(0, "[ADJ_MC] sysfreq calc : %d\n", hal_sys_timer_calc_cpu_freq(5, 0));
 
         adj_mc_capture_sample_rate = sample_rate_play_bt / 3;
         adj_mc_init(ADJ_MC_FRAME_LEN);
@@ -3651,48 +3186,11 @@ static int bt_a2dp_player(enum PLAYER_OPER_T on, enum APP_SYSFREQ_FREQ_T freq)
         stream_cfg_adj_mc.io_path = AUD_INPUT_PATH_ANC_ASSIST;
         stream_cfg_adj_mc.handler = adj_mc_filter_estimate;
         stream_cfg_adj_mc.data_ptr = adj_mc_buf;
-        AUDIO_BT_TRACE(2, "[A2DP_PLAYER] capture sample_rate:%d, data_size:%d", stream_cfg_adj_mc.sample_rate, stream_cfg_adj_mc.data_size);
+        TRACE(2, "[A2DP_PLAYER] capture sample_rate:%d, data_size:%d", stream_cfg_adj_mc.sample_rate, stream_cfg_adj_mc.data_size);
         af_stream_open(ADJ_MC_STREAM_ID, AUD_STREAM_CAPTURE, &stream_cfg_adj_mc);
-#if BLE_AUDIO_ENABLED
-        af_codec_set_device_bt_sync_source(stream_cfg_adj_mc.device, AUD_STREAM_CAPTURE, A2DP_SCO_TRIGGER_CHANNEL);
-#endif
-#endif
 
 #endif
 
-#ifdef AUDIO_ADJ_EQ
-        app_sysfreq_req(APP_SYSFREQ_USER_VOICE_ASSIST, APP_SYSFREQ_104M);
-        AUDIO_BT_TRACE(0, "[ADJ_EQ] sysfreq %d", freq);
-        // AUDIO_BT_TRACE(0, "[ADJ_MC] sysfreq calc : %d\n", hal_sys_timer_calc_cpu_freq(5, 0));
-
-        adj_eq_capture_sample_rate = sample_rate_play_bt / 3;
-        adj_eq_init(ADJ_EQ_FRAME_LEN);
-        memset(&stream_cfg_adj_eq, 0, sizeof(stream_cfg_adj_eq));
-        stream_cfg_adj_eq.channel_num = (enum AUD_CHANNEL_NUM_T)ADJ_EQ_CHANNEL_NUM;
-        stream_cfg_adj_eq.channel_map = (enum AUD_CHANNEL_MAP_T)(ANC_FB_MIC_CH_L | AUD_CHANNEL_MAP_ECMIC_CH0);
-        stream_cfg_adj_eq.data_size = ADJ_EQ_BUF_SIZE;
-        stream_cfg_adj_eq.sample_rate = (enum AUD_SAMPRATE_T)adj_eq_capture_sample_rate;
-        stream_cfg_adj_eq.bits = AUD_BITS_24;
-        stream_cfg_adj_eq.vol = 12;
-        stream_cfg_adj_eq.chan_sep_buf = true;
-        stream_cfg_adj_eq.device = AUD_STREAM_USE_INT_CODEC;
-        stream_cfg_adj_eq.io_path = AUD_INPUT_PATH_ANC_ASSIST;
-        stream_cfg_adj_eq.handler = adj_eq_filter_estimate;
-        stream_cfg_adj_eq.data_ptr = adj_eq_buf;
-        AUDIO_BT_TRACE(2, "[ADJ_EQ] capture sample_rate:%d, data_size:%d", stream_cfg_adj_eq.sample_rate, stream_cfg_adj_eq.data_size);
-        af_stream_open(ADJ_EQ_STREAM_ID, AUD_STREAM_CAPTURE, &stream_cfg_adj_eq);
-#endif
-
-
-#ifdef __HEAR_THRU_PEAK_DET__
-        PEAK_DETECTOR_CFG_T peak_detector_cfg;
-        peak_detector_cfg.fs = stream_cfg.sample_rate;
-        peak_detector_cfg.bits = stream_cfg.bits;
-        peak_detector_cfg.factor_up = 0.6;
-        peak_detector_cfg.factor_down = 2.0;
-        peak_detector_cfg.reduce_dB = -30;
-        peak_detector_init();
-        peak_detector_setup(&peak_detector_cfg);
 #endif
 
 #if defined(__AUDIO_SPECTRUM__)
@@ -3723,7 +3221,7 @@ static int bt_a2dp_player(enum PLAYER_OPER_T on, enum APP_SYSFREQ_FREQ_T freq)
             app_audio_mempool_get_buff(&bt_eq_buff, eq_buff_size);
         }
 
-#if defined(IBRT)&& !defined(FREEMAN_ENABLED_STERO)
+#if defined(IBRT)
 #ifdef SPA_AUDIO_ENABLE
         enum AUD_CHANNEL_NUM_T sw_ch_num = AUD_CHANNEL_NUM_2;
 #else
@@ -3733,56 +3231,29 @@ static int bt_a2dp_player(enum PLAYER_OPER_T on, enum APP_SYSFREQ_FREQ_T freq)
         enum AUD_CHANNEL_NUM_T sw_ch_num = stream_cfg.channel_num;
 #endif
 
-        audio_process_open(stream_cfg.sample_rate, stream_cfg.bits, sw_ch_num, stream_cfg.channel_num, stream_cfg.data_size/stream_cfg.channel_num/(stream_cfg.bits <= AUD_BITS_16 ? 2 : 4)/2, bt_eq_buff, eq_buff_size);
-#if !defined(DOLBY_AUDIO_ENABLE)
-#if defined(SPA_AUDIO_ENABLE)
-        spatial_audio_app_init_if(stream_cfg.sample_rate,stream_cfg.bits,stream_cfg.channel_num,stream_cfg.data_size/sw_ch_num/(stream_cfg.bits <= AUD_BITS_16 ? 2 : 4)/2,(void*)app_audio_mempool_get_buff, bts_core_get_ui_role(), ((ibrt_ctrl_t *)app_tws_ibrt_get_bt_ctrl_ctx())->audio_chnl_sel);
-#ifdef SPA_AUDIO_SEC
+#ifdef AUDIO_USER_PROCESS_EN
+#ifdef AUDIO_PROCESS_NORMALIZATION
+        if (audio_user_process_is_enable())
         {
-            tz_audio_process_info_t info;
-            info.fs = stream_cfg.sample_rate;
-            info.bits = stream_cfg.bits;
-            info.channels = stream_cfg.channel_num;
-            if (stream_cfg.bits <= AUD_BITS_16){
-                info.frame_len = stream_cfg.data_size/stream_cfg.channel_num/2;
-            }else{
-                info.frame_len = stream_cfg.data_size/stream_cfg.channel_num/4;
-            }
-            tz_audio_process_info_init((void *)&info);
+            audio_user_process_open(stream_cfg.sample_rate, sw_ch_num, stream_cfg.channel_num, stream_cfg.bits, stream_cfg.bits, 1000);
         }
 #endif
-#endif
-#endif
-
-#if defined(A2DP_KARAOKE)
-        uint32_t karaoke_buf_size = app_karaoke_need_buf_size();
-        if (karaoke_buf_size != 0) {
-            app_karaoke_set_buf((uint8_t *)app_audio_mempool_calloc(karaoke_buf_size, sizeof(int8_t)), karaoke_buf_size);
+#ifdef AUDIO_SW_GIAN_NORMALIZATION
+        if (audio_user_sw_gain_process_is_enable())
+        {
+            audio_user_sw_gain_process_open(stream_cfg.channel_num, stream_cfg.bits, stream_cfg.sample_rate, 30.0);
         }
 #endif
-// disable audio eq config on a2dp start for audio tuning tools
-#ifndef AUDIO_EQ_TUNING
-#ifdef ANC_APP
-        anc_status_record = 0xff;
-        bt_audio_updata_eq_for_anc(app_anc_work_status());
-#else   // #ifdef ANC_APP
-#ifdef __SW_IIR_EQ_PROCESS__
-        bt_audio_set_eq(AUDIO_EQ_TYPE_SW_IIR,bt_audio_get_eq_index(AUDIO_EQ_TYPE_SW_IIR,0));
+#else
+        audio_process_open(stream_cfg.sample_rate, stream_cfg.bits, sw_ch_num, stream_cfg.channel_num, stream_cfg.data_size/stream_cfg.channel_num/(stream_cfg.bits <= AUD_BITS_16 ? 2 : 4)/2, bt_eq_buff, eq_buff_size);
 #endif
 
-#ifdef __HW_FIR_EQ_PROCESS__
-        bt_audio_set_eq(AUDIO_EQ_TYPE_HW_FIR,bt_audio_get_eq_index(AUDIO_EQ_TYPE_HW_FIR,0));
+#if defined(SPA_AUDIO_ENABLE)
+        void *alloc_func = (void*)app_audio_mempool_get_buff;
+        TWS_UI_ROLE_E spa_ui_role = app_ibrt_if_get_ui_role();
+        uint32_t spa_audio_chnl_sel = ((ibrt_ctrl_t *)app_tws_ibrt_get_bt_ctrl_ctx())->audio_chnl_sel;
+        spatial_audio_app_init_if(stream_cfg.sample_rate,stream_cfg.bits,stream_cfg.channel_num,stream_cfg.data_size/sw_ch_num/(stream_cfg.bits <= AUD_BITS_16 ? 2 : 4)/2,(void*)alloc_func, spa_ui_role, spa_audio_chnl_sel);
 #endif
-
-#ifdef __HW_DAC_IIR_EQ_PROCESS__
-        bt_audio_set_eq(AUDIO_EQ_TYPE_HW_DAC_IIR,bt_audio_get_eq_index(AUDIO_EQ_TYPE_HW_DAC_IIR,0));
-#endif
-
-#ifdef __HW_IIR_EQ_PROCESS__
-        bt_audio_set_eq(AUDIO_EQ_TYPE_HW_IIR,bt_audio_get_eq_index(AUDIO_EQ_TYPE_HW_IIR,0));
-#endif
-#endif  // #ifdef ANC_APP
-#endif  // #ifndef AUDIO_EQ_TUNING
 
 #if defined(IBRT)
         APP_TWS_IBRT_AUDIO_SYNC_CFG_T sync_config;
@@ -3793,7 +3264,7 @@ static int bt_a2dp_player(enum PLAYER_OPER_T on, enum APP_SYSFREQ_FREQ_T freq)
         app_tws_ibrt_audio_sync_reconfig(&sync_config);
 #else
 #if !(defined(__AUDIO_RESAMPLE__) && defined(SW_PLAYBACK_RESAMPLE))
-        af_codec_tune(AUD_STREAM_PLAYBACK, 0);
+        af_stream_tune(AUD_STREAM_ID_0, AUD_STREAM_PLAYBACK, 0);
 #endif
 #endif
         if (on == PLAYER_OPER_START)
@@ -3803,18 +3274,18 @@ static int bt_a2dp_player(enum PLAYER_OPER_T on, enum APP_SYSFREQ_FREQ_T freq)
 #if (A2DP_DECODER_VER == 2)
             A2DP_AUDIO_OUTPUT_CONFIG_T output_config;
             A2DP_AUDIO_CODEC_TYPE a2dp_audio_codec_type = A2DP_AUDIO_CODEC_TYPE_SBC;
-            A2DP_AUDIO_CHANNEL_SELECT_E a2dp_audio_channel_sel = A2DP_AUDIO_CHANNEL_SELECT_STEREO;
-            float chopping_dest_mut = 0;
             output_config.sample_rate = sample_rate;
             output_config.num_channels = 2;
             output_config.bits_depth = stream_cfg.bits;
             output_config.frame_samples = app_bt_stream_get_dma_buffer_samples()/2;
+            output_config.mtu_per_frame = 1;
             output_config.factor_reference = 1.0f;
 #if defined(IBRT)
-            uint8_t device_id = app_bt_audio_get_curr_a2dp_device();
-            POSSIBLY_UNUSED struct BT_DEVICE_T *curr_device = app_bt_get_device(device_id);
+            uint8_t device_id = bes_aud_bt->aud_get_curr_a2dp_device();
+            POSSIBLY_UNUSED struct BT_ADAPTER_DEVICE_T *curr_device = bt_adapter_get_device(device_id);
             ibrt_ctrl_t *p_ibrt_ctrl = app_tws_ibrt_get_bt_ctrl_ctx();
             float dest_packet_mut = 0;
+            float chopping_dest_mut = 0;
             int need_autotrigger = a2dp_bt_stream_need_autotrigger_getandclean_flag();
             uint32_t offset_mut = 0;
             uint8_t codec_type = BT_A2DP_CODEC_TYPE_SBC;
@@ -3824,46 +3295,34 @@ static int bt_a2dp_player(enum PLAYER_OPER_T on, enum APP_SYSFREQ_FREQ_T freq)
                 a2dp_audio_latency_factor_setlow();
             }
 
-            codec_type = bta_get_a2dp_codec_type_by_id(device_id);
+            if(app_stream_get_a2dp_param_callback)
+            {
+                codec_type = app_stream_get_a2dp_param_callback(device_id);
+            }
+            else
+            {
+                codec_type = bes_aud_bt->aud_get_a2dp_codec_type(bes_aud_bt->aud_get_curr_a2dp_device());
+            }
             switch (codec_type)
             {
                 case BT_A2DP_CODEC_TYPE_SBC:
+                    output_config.mtu_per_frame = A2DP_PLAYER_PLAYBACK_DELAY_SBC_FRAME_MTU;
                     a2dp_audio_codec_type = A2DP_AUDIO_CODEC_TYPE_SBC;
                     dest_packet_mut = A2DP_PLAYER_PLAYBACK_DELAY_SBC_MTU;
-#ifdef A2DP_PLAYER_PLAYBACK_WATER_LINE
+            #ifdef A2DP_PLAYER_PLAYBACK_WATER_LINE
                     offset_mut = A2DP_PLAYER_PLAYBACK_DELAY_SBC_FRAME_MTU * A2DP_PLAYER_PLAYBACK_WATER_LINE;
-#if defined(BT_DONT_PLAY_MUTE_WHEN_A2DP_STUCK_PATCH)
-                    a2dp_audio_max_waterline_init(A2DP_PLAYER_PLAYBACK_MAX_WATERLINE_SBC_MTU);
-                    a2dp_audio_min_waterline_init(A2DP_PLAYER_PLAYBACK_MIN_WATERLINE_SBC_MTU);
-#endif
-#endif
-#ifdef CUSTOM_BITRATE
-                    dest_packet_mut = app_audio_a2dp_player_playback_delay_mtu_get(A2DP_AUDIO_CODEC_TYPE_SBC);
-                    offset_mut = 0;
-#endif
+            #endif
                     break;
                 case BT_A2DP_CODEC_TYPE_MPEG2_4_AAC:
                     a2dp_audio_codec_type = A2DP_AUDIO_CODEC_TYPE_MPEG2_4_AAC;
                     dest_packet_mut = A2DP_PLAYER_PLAYBACK_DELAY_AAC_MTU;
-#ifdef A2DP_PLAYER_PLAYBACK_WATER_LINE
+            #ifdef A2DP_PLAYER_PLAYBACK_WATER_LINE
                     offset_mut =  A2DP_PLAYER_PLAYBACK_WATER_LINE;
-#if defined(BT_DONT_PLAY_MUTE_WHEN_A2DP_STUCK_PATCH)
-                    a2dp_audio_max_waterline_init(A2DP_PLAYER_PLAYBACK_MAX_WATERLINE_AAC_MTU);
-                    a2dp_audio_min_waterline_init(A2DP_PLAYER_PLAYBACK_MIN_WATERLINE_AAC_MTU);
-#endif
-#endif
-#ifdef CUSTOM_BITRATE
-                    dest_packet_mut = app_audio_a2dp_player_playback_delay_mtu_get(A2DP_AUDIO_CODEC_TYPE_MPEG2_4_AAC);
-                    offset_mut = 0;
-#endif
+            #endif
                     break;
                 case BT_A2DP_CODEC_TYPE_NON_A2DP:
-                    if (nonType == BT_A2DP_CODEC_NONE_TYPE_INVALID)
-                    {
-                        AUDIO_BT_TRACE(0, "[APP_BT_STREAM] WARNNING %d non_type invalid %d", __LINE__, nonType);
-                    }
 #if defined(A2DP_LHDC_ON)
-                    else if (nonType == BT_A2DP_CODEC_NONE_TYPE_LHDC)
+                    if (nonType == A2DP_NON_CODEC_TYPE_LHDC)
                     {
                         a2dp_audio_codec_type = A2DP_AUDIO_CODEC_TYPE_LHDC;
                         if (bes_aud_bt->a2dp_lhdc_config_llc_get()){
@@ -3873,10 +3332,10 @@ static int bt_a2dp_player(enum PLAYER_OPER_T on, enum APP_SYSFREQ_FREQ_T freq)
                         }else{
                             dest_packet_mut = A2DP_PLAYER_PLAYBACK_DELAY_LHDC_BASERES_MTU;
                         }
-                    }
-#endif // A2DP_LHDC_ON
+                    }else
+#endif
 #if defined(A2DP_LHDCV5_ON)
-                    else if (nonType == BT_A2DP_CODEC_NONE_TYPE_LHDCV5)
+                    if (nonType == A2DP_NON_CODEC_TYPE_LHDCV5)
                     {
                         a2dp_audio_codec_type = A2DP_AUDIO_CODEC_TYPE_LHDCV5;
                         if (bes_aud_bt->a2dp_lhdc_config_llc_get()){
@@ -3886,64 +3345,36 @@ static int bt_a2dp_player(enum PLAYER_OPER_T on, enum APP_SYSFREQ_FREQ_T freq)
                         }else{
                             dest_packet_mut = A2DP_PLAYER_PLAYBACK_DELAY_LHDC_BASERES_MTU;
                         }
-
-                    }
-#endif // A2DP_LHDCV5_ON
-#if defined(A2DP_LDAC_ON)
-                    else if (nonType == BT_A2DP_CODEC_NONE_TYPE_LDAC)
-                    {
-                        output_config.mtu_per_frame = A2DP_PLAYER_PLAYBACK_DELAY_LDAC_FRAME_MTU;
-                        a2dp_audio_codec_type = A2DP_AUDIO_CODEC_TYPE_LDAC;
-                        dest_packet_mut = A2DP_PLAYER_PLAYBACK_DELAY_LDAC_MTU;
-                    }
-#endif // A2DP_LDAC_ON
-#if defined(A2DP_L2HC_ON)
-                    else if (nonType == BT_A2DP_CODEC_NONE_TYPE_L2HC)
-                    {
-                        output_config.mtu_per_frame = A2DP_PLAYER_PLAYBACK_DELAY_L2HC_FRAME_MTU;
-                        a2dp_audio_codec_type = A2DP_AUDIO_CODEC_TYPE_L2HC;
-                        if (sample_rate > AUD_SAMPRATE_48000){
-                            dest_packet_mut = A2DP_PLAYER_PLAYBACK_DELAY_L2HC_HIRES_MTU;//todo
-                        }else{
-                            dest_packet_mut = A2DP_PLAYER_PLAYBACK_DELAY_L2HC_BASERES_MTU;//todo
-                        }
-
-                    }
-#endif // A2DP_L2HC_ON
-#if defined(A2DP_SCALABLE_ON)
-                    else if (nonType == BT_A2DP_CODEC_NONE_TYPE_SCALABLE)
-                    {
-                        a2dp_audio_codec_type = A2DP_AUDIO_CODEC_TYPE_SCALABL;
-                        if (sample_rate > AUD_SAMPRATE_48000){
-                            dest_packet_mut = A2DP_PLAYER_PLAYBACK_DELAY_SCALABLE_HIRES_MTU;
-                        }else{
-                            dest_packet_mut = A2DP_PLAYER_PLAYBACK_DELAY_SCALABLE_BASERES_MTU;
-                        }
-                        #ifdef A2DP_PLAYER_PLAYBACK_WATER_LINE
-                                offset_mut =  A2DP_PLAYER_PLAYBACK_WATER_LINE;
-                        #endif
-#if defined(BT_DONT_PLAY_MUTE_WHEN_A2DP_STUCK_PATCH)
-                        a2dp_audio_max_waterline_init(A2DP_PLAYER_PLAYBACK_MAX_WATERLINE_SCALABLE_MTU);
-                        a2dp_audio_min_waterline_init(A2DP_PLAYER_PLAYBACK_MIN_WATERLINE_SCALABLE_MTU);
+                    }else
 #endif
-                    }
-#endif // A2DP_SCALABLE_ON
-#if defined(A2DP_LC3_ON)
-                    else if (nonType == BT_A2DP_CODEC_NONE_TYPE_LC3)
-                    {
-                        a2dp_audio_codec_type = A2DP_AUDIO_CODEC_TYPE_LC3;
-                        if (sample_rate > AUD_SAMPRATE_48000){
-                            dest_packet_mut = A2DP_PLAYER_PLAYBACK_DELAY_LC3_HIRES_MTU;//todo
-                        }else{
-                            dest_packet_mut = A2DP_PLAYER_PLAYBACK_DELAY_LC3_BASERES_MTU;//todo
-                        }
+					{
+					}
+#if defined(A2DP_LDAC_ON)
+                    output_config.mtu_per_frame = A2DP_PLAYER_PLAYBACK_DELAY_LDAC_FRAME_MTU;
+                    a2dp_audio_codec_type = A2DP_AUDIO_CODEC_TYPE_LDAC;
+                    dest_packet_mut = A2DP_PLAYER_PLAYBACK_DELAY_LDAC_MTU;
+#endif
 
+
+#if defined(A2DP_SCALABLE_ON)
+                    a2dp_audio_codec_type = A2DP_AUDIO_CODEC_TYPE_SCALABL;
+                    if (sample_rate > AUD_SAMPRATE_48000){
+                        dest_packet_mut = A2DP_PLAYER_PLAYBACK_DELAY_SCALABLE_HIRES_MTU;
+                    }else{
+                        dest_packet_mut = A2DP_PLAYER_PLAYBACK_DELAY_SCALABLE_BASERES_MTU;
                     }
-#endif // A2DP_LC3_ON
-                    else
-                    {
-                        AUDIO_BT_TRACE(0, "[APP_BT_STREAM] WARNNING %d non_type invalid %d", __LINE__, nonType);
+            #ifdef A2DP_PLAYER_PLAYBACK_WATER_LINE
+                    offset_mut =  A2DP_PLAYER_PLAYBACK_WATER_LINE;
+            #endif
+#endif
+#if (!defined(A2DP_SCALABLE_ON) && defined(A2DP_LC3_ON))
+                    a2dp_audio_codec_type = A2DP_AUDIO_CODEC_TYPE_LC3;
+                    if (sample_rate > AUD_SAMPRATE_48000){
+                        dest_packet_mut = A2DP_PLAYER_PLAYBACK_DELAY_LC3_HIRES_MTU;//todo
+                    }else{
+                        dest_packet_mut = A2DP_PLAYER_PLAYBACK_DELAY_LC3_BASERES_MTU;//todo
                     }
+#endif
                     break;
                 default:
                     break;
@@ -3958,6 +3389,7 @@ static int bt_a2dp_player(enum PLAYER_OPER_T on, enum APP_SYSFREQ_FREQ_T freq)
             }
             dest_packet_mut += offset_mut;
 
+            A2DP_AUDIO_CHANNEL_SELECT_E a2dp_audio_channel_sel = A2DP_AUDIO_CHANNEL_SELECT_STEREO;
             switch ((AUDIO_CHANNEL_SELECT_E)p_ibrt_ctrl->audio_chnl_sel)
             {
                 case AUDIO_CHANNEL_SELECT_STEREO:
@@ -3975,45 +3407,36 @@ static int bt_a2dp_player(enum PLAYER_OPER_T on, enum APP_SYSFREQ_FREQ_T freq)
                 default:
                     break;
             }
-            if(bts_core_is_freeman_mode())
-                a2dp_audio_channel_sel = A2DP_AUDIO_CHANNEL_SELECT_LRMERGE;
+            dest_packet_mut += offset_mut;
 
-#if defined(__AUDIO_REVERB__) || defined(SPA_AUDIO_ENABLE)|| defined(__AUDIO_DYNAMIC_BOOST__)
+#if defined(__AUDIO_REVERB__) || defined(__AUDIO_BASS_ENHANCER__) || defined(SPA_AUDIO_ENABLE)
             // force stereo
             a2dp_audio_channel_sel = A2DP_AUDIO_CHANNEL_SELECT_STEREO;
 #endif
-#if defined(FREEMAN_ENABLED_STERO)
-            a2dp_audio_channel_sel = A2DP_AUDIO_CHANNEL_SELECT_STEREO;
-#endif
 
-#if defined(__VIRTUAL_SURROUND__) || defined(__VIRTUAL_SURROUND_HWFIR__) || defined(__VIRTUAL_SURROUND_STEREO__)
-            if(stereo_surround_status == 1){
-                audio_process_stereo_surround_onoff(1);
-                a2dp_audio_channel_sel = A2DP_AUDIO_CHANNEL_SELECT_STEREO;
-                if(a2dp_sample_rate > AUD_SAMPRATE_48000){
-                    freq = APP_SYSFREQ_208M;
-                } else {
-#if defined(__VIRTUAL_SURROUND_HWFIR__)
-                    freq = APP_SYSFREQ_52M;
-#else
-                    freq = APP_SYSFREQ_104M;
-#endif
-                }
-            }
-#endif
-#if defined(__VIRTUAL_SURROUND_CP__)
-            if(stereo_surround_status == 1){
-                audio_process_stereo_surround_onoff(1);
-                a2dp_audio_channel_sel = A2DP_AUDIO_CHANNEL_SELECT_STEREO;
-                if(a2dp_sample_rate > AUD_SAMPRATE_48000){
-                    freq = APP_SYSFREQ_104M;
-                } else {
-                    freq = APP_SYSFREQ_52M;
-                }
-            }
-#endif
             a2dp_audio_init(freq, a2dp_audio_codec_type, &output_config, a2dp_audio_channel_sel, (uint16_t)dest_packet_mut, (uint16_t)chopping_dest_mut);
-            app_bt_stream_ibrt_reset_synchronize_status();
+
+#if defined(AUDIO_ADJ_EQ)
+            app_audio_mempool_get_buff(&audio_adj_eq_tmp_buf, sizeof(int32_t)*AUDIO_MAX_LEN);
+            audio_tmp_buffer = (int32_t *)audio_adj_eq_tmp_buf;
+            app_audio_mempool_get_buff(&audio_adj_eq_tmp_buf, sizeof(int32_t)*AUDIO_CACHE_LEN);
+            audio_cache_buffer = (int32_t *)audio_adj_eq_tmp_buf;
+            app_audio_mempool_get_buff(&audio_adj_eq_tmp_buf, sizeof(float)*AUDIO_MAX_LEN);
+            adj_eq_cos_smooth_buf = (float *)audio_adj_eq_tmp_buf;
+
+            app_audio_mempool_get_buff((uint8_t **)&tmp_buf, sizeof(float)*AUDIO_DOWNSAMPLE_LEN);
+            app_audio_mempool_get_buff((uint8_t **)&tmp_buf1, sizeof(float)*AUDIO_MAX_LEN);
+
+            smooth_cos_generate(adj_eq_cos_smooth_buf, output_config.frame_samples);
+
+            if(output_config.frame_samples%12==0){
+                audio_adj_eq_cache_delay = SSC_DELAY;
+            }else if(output_config.frame_samples%12==4){
+                audio_adj_eq_cache_delay = AAC_DELAY;
+            }else if(output_config.frame_samples%12==8){
+                audio_adj_eq_cache_delay = SBC_DELAY;
+            }
+#endif
 
 #if defined(A2DP_SCALABLE_ON)
             if (BT_A2DP_CODEC_TYPE_NON_A2DP == codec_type)
@@ -4027,31 +3450,35 @@ static int bt_a2dp_player(enum PLAYER_OPER_T on, enum APP_SYSFREQ_FREQ_T freq)
 #else
             app_tws_ibrt_audio_analysis_interval_set(sample_rate > AUD_SAMPRATE_48000 ? AUDIO_ANALYSIS_INTERVAL*2 : AUDIO_ANALYSIS_INTERVAL);
 #endif
-            if (bts_bt_if_is_dev_link_connected(&curr_device->remote))
+            if (app_tws_ibrt_mobile_link_connected(&curr_device->remote))
             {
-#ifdef AUDIO_OUTPUT_ROUTE_SELECT
-                if (!stream_route_info.output_route_info)
-#endif
-                {
-                    app_tws_ibrt_audio_analysis_start(0, AUDIO_ANALYSIS_CHECKER_INTERVEL_INVALID);
-                    app_tws_ibrt_audio_sync_start();
-                    app_bt_stream_ibrt_audio_master_detect_next_packet_start();
-                }
+                app_tws_ibrt_audio_analysis_start(0, AUDIO_ANALYSIS_CHECKER_INTERVEL_INVALID);
+                app_tws_ibrt_audio_sync_start();
+                app_bt_stream_ibrt_audio_master_detect_next_packet_start();
             }
-            else if (bts_ibrt_if_is_ibrt_link_connected(&curr_device->remote))
+            else if (app_tws_ibrt_slave_ibrt_link_connected(&curr_device->remote))
             {
                 app_bt_stream_ibrt_audio_slave_detect_next_packet_start(need_autotrigger);
             }
             else
             {
-                AUDIO_BT_TRACE(0,"[A2DP_PLAYER] mobile_link:%d %04x ibrt_link:%d %04x", \
-                    bts_bt_if_is_dev_link_connected(&curr_device->remote), \
-                    bts_bt_if_get_dev_acl_handle(&curr_device->remote), \
-                    bts_ibrt_if_is_ibrt_link_connected(&curr_device->remote),
-                    bts_ibrt_if_get_dev_ibrt_handle(&curr_device->remote));
+                TRACE_AUD_STREAM_E("[A2DP_PLAYER] mobile_link:%d %04x ibrt_link:%d %04x", \
+                    app_tws_ibrt_mobile_link_connected(&curr_device->remote), \
+                    app_tws_ibrt_get_mobile_connhandle(&curr_device->remote), \
+                    app_tws_ibrt_slave_ibrt_link_connected(&curr_device->remote),
+                    app_tws_ibrt_get_ibrt_handle(&curr_device->remote));
             }
-#else
-            uint8_t codec_type = bta_get_curr_a2dp_codec_type();
+#else  //IBRT
+            uint8_t codec_type = BT_A2DP_CODEC_TYPE_SBC;
+            if(app_stream_get_a2dp_param_callback)
+            {
+                uint8_t current_device_id = bes_aud_bt->aud_get_curr_a2dp_device();
+                codec_type = app_stream_get_a2dp_param_callback(current_device_id);
+            }
+            else
+            {
+                codec_type = bes_aud_bt->aud_get_a2dp_codec_type(bes_aud_bt->aud_get_curr_a2dp_device());
+            }
             uint16_t dest_packet_mut = 0;
 
             switch (codec_type)
@@ -4065,12 +3492,8 @@ static int bt_a2dp_player(enum PLAYER_OPER_T on, enum APP_SYSFREQ_FREQ_T freq)
                     dest_packet_mut = A2DP_PLAYER_PLAYBACK_DELAY_AAC_MTU;
                     break;
                 case BT_A2DP_CODEC_TYPE_NON_A2DP:
-                    if (nonType == BT_A2DP_CODEC_NONE_TYPE_INVALID)
-                    {
-                        AUDIO_BT_TRACE(0, "[APP_BT_STREAM] WARNNING %d non_type invalid %d", __LINE__, nonType);
-                    }
-#if defined(A2DP_LHDC_ON)
-                    else if (nonType == BT_A2DP_CODEC_NONE_TYPE_LHDC)
+#if defined(A2DP_LHDC_ON)||defined(A2DP_SCALABLE_ON)
+                    if (nonType == A2DP_NON_CODEC_TYPE_LHDC)
                     {
                         a2dp_audio_codec_type = A2DP_AUDIO_CODEC_TYPE_LHDC;
                         if (bes_aud_bt->a2dp_lhdc_config_llc_get())
@@ -4085,10 +3508,10 @@ static int bt_a2dp_player(enum PLAYER_OPER_T on, enum APP_SYSFREQ_FREQ_T freq)
                         {
                             dest_packet_mut = A2DP_PLAYER_PLAYBACK_DELAY_LHDC_BASERES_MTU;
                         }
-                    }
-#endif // A2DP_LHDC_ON
+                    }else
+#endif
 #if defined(A2DP_LHDCV5_ON)
-                    else if (nonType == BT_A2DP_CODEC_NONE_TYPE_LHDCV5)
+                    if (nonType == A2DP_NON_CODEC_TYPE_LHDCV5)
                     {
                         a2dp_audio_codec_type = A2DP_AUDIO_CODEC_TYPE_LHDCV5;
                         if (bes_aud_bt->a2dp_lhdc_config_llc_get())
@@ -4103,52 +3526,20 @@ static int bt_a2dp_player(enum PLAYER_OPER_T on, enum APP_SYSFREQ_FREQ_T freq)
                         {
                             dest_packet_mut = A2DP_PLAYER_PLAYBACK_DELAY_LHDC_BASERES_MTU;
                         }
-                    }
-#endif // A2DP_LHDCV5_ON
-#if defined(A2DP_LDAC_ON)
-                    else if (nonType == BT_A2DP_CODEC_NONE_TYPE_LDAC)
+                    }else
+#endif
                     {
-                        output_config.mtu_per_frame = A2DP_PLAYER_PLAYBACK_DELAY_LDAC_FRAME_MTU;
-                        a2dp_audio_codec_type = A2DP_AUDIO_CODEC_TYPE_LDAC;
-                        dest_packet_mut = A2DP_PLAYER_PLAYBACK_DELAY_LDAC_MTU;
-                    }
-#endif // A2DP_LDAC_ON
-#if defined(A2DP_SCALABLE_ON)
-                    else if (nonType == BT_A2DP_CODEC_NONE_TYPE_SCALABLE)
-                    {
-                        a2dp_audio_codec_type = A2DP_AUDIO_CODEC_TYPE_SCALABL;
-                        if (sample_rate > AUD_SAMPRATE_48000){
-                            dest_packet_mut = A2DP_PLAYER_PLAYBACK_DELAY_SCALABLE_HIRES_MTU;
-                        }else{
-                            dest_packet_mut = A2DP_PLAYER_PLAYBACK_DELAY_SCALABLE_BASERES_MTU;
-                        }
-                    }
-#endif // A2DP_SCALABLE_ON
-#if  defined(A2DP_LC3_ON)
-                    else if (nonType == BT_A2DP_CODEC_NONE_TYPE_LC3)
-                    {
-                        a2dp_audio_codec_type = A2DP_AUDIO_CODEC_TYPE_LC3;
-                        if (sample_rate > AUD_SAMPRATE_48000){
-                            dest_packet_mut = A2DP_PLAYER_PLAYBACK_DELAY_LC3_HIRES_MTU;//todo
-                        }else{
-                            dest_packet_mut = A2DP_PLAYER_PLAYBACK_DELAY_LC3_BASERES_MTU;//todo
-                        }
-                    }
-#endif // A2DP_LC3_ON
-                    else
-                    {
-                        AUDIO_BT_TRACE(0, "[APP_BT_STREAM] WARNNING %d non_type invalid %d", __LINE__, nonType);
                     }
                     break;
                 default:
                     break;
             }
 
-            a2dp_audio_init(freq, a2dp_audio_codec_type, &output_config, a2dp_audio_channel_sel, (uint16_t)dest_packet_mut, (uint16_t)chopping_dest_mut);
+            a2dp_audio_init(freq,a2dp_audio_codec_type, &output_config, A2DP_AUDIO_CHANNEL_SELECT_STEREO, dest_packet_mut, dest_packet_mut);
             a2dp_audio_detect_next_packet_callback_register(app_bt_stream_detect_next_packet_cb);
 #endif
             a2dp_audio_start();
-#else
+#else // (A2DP_DECODER_VER == 2)
             a2dp_audio_init(freq);
 #endif
         }
@@ -4172,44 +3563,25 @@ static int bt_a2dp_player(enum PLAYER_OPER_T on, enum APP_SYSFREQ_FREQ_T freq)
             {
                 bt_drv_reg_op_enable_dma_tc(adma_ch&0xFF, dma_base);
             }
-        }
 
 #if defined(AUDIO_OUTPUT_SW_GAIN) && defined(AUDIO_OUTPUT_SW_GAIN_BEFORE_DRC)
-        af_codec_dac1_sw_gain_enable(false);
+            af_stream_sw_gain_enable(AUD_STREAM_ID_0, AUD_STREAM_PLAYBACK, false);
 #endif
 
-        af_codec_set_playback_post_handler(bt_a2dp_player_playback_post_handler);
+            af_codec_set_playback_post_handler(bt_sbc_player_playback_post_handler);
+        }
 
 #ifdef __A2DP_PLAYER_USE_BT_TRIGGER__
 #ifdef AUDIO_OUTPUT_ROUTE_SELECT
-        if (!stream_route_info.output_route_info)
+       if (!stream_route_info.output_route_info)
 #endif
         {
             app_bt_stream_trigger_init();
         }
 #endif
 
-#if defined(VOICE_DEV)
-        uint32_t algos = VOICE_DEV_ALGO_AEC;
-        // TODO: Based on A2DP. SBC: 16ms; AAC: 24ms
-        uint32_t algos_frame_len = 256;
-
-#if defined(APP_NOISE_ESTIMATION)
-        algos |= VOICE_DEV_ALGO_NOISE_EST;
-#endif
-
-        voice_dev_ctl(VOICE_DEV_USER0, VOICE_DEV_SET_ALGO_FRAME_LEN, &algos_frame_len);
-        voice_dev_ctl(VOICE_DEV_USER0, VOICE_DEV_SET_SUPPORT_ALGOS, &algos);
-
-#if defined(VOICE_DEV_TEST)
-        test_voice_dev_open();
-        test_voice_dev_start();
-#endif
-
-#if defined(APP_NOISE_ESTIMATION)
-        app_noise_estimation_open();
-        app_noise_estimation_start();
-#endif
+#if defined(AUDIO_USER_PROCESS_EN) && defined(AUDIO_SW_GIAN_NORMALIZATION)
+        audio_user_sw_gain_process_fade_in(1);
 #endif
 
 #ifdef AUDIO_OUTPUT_ROUTE_SELECT
@@ -4219,6 +3591,12 @@ static int bt_a2dp_player(enum PLAYER_OPER_T on, enum APP_SYSFREQ_FREQ_T freq)
             af_stream_start(AUD_STREAM_ID_0, AUD_STREAM_PLAYBACK);
             osThreadSetPriority(localThread, currentPriority);
         }
+#ifdef AUDIO_SUPPORT_PA_ENVELOPE
+        if (audio_process_pa_envelope_if_is_enable())
+        {
+            audio_process_pa_envelope_if_start();
+        }
+#endif
 
 #ifdef AI_AEC_CP_ACCEL
         cp_aec_init();
@@ -4235,27 +3613,21 @@ static int bt_a2dp_player(enum PLAYER_OPER_T on, enum APP_SYSFREQ_FREQ_T freq)
 #endif
 #endif
 
-#ifdef AUDIO_ADJ_EQ
-        af_stream_start(ADJ_EQ_STREAM_ID, AUD_STREAM_CAPTURE);
-#endif
-
 #ifdef AUDIO_OUTPUT_ROUTE_SELECT
         if (!stream_route_info.output_route_info)
 #endif
         {
             app_bt_stream_trigger_checker_start();
         }
-#ifdef AUDIO_RMS_MONITOR_ENABLE
-        rms_debug_cnt = 256;
-#endif
     }
 
     a2dp_is_run = (on != PLAYER_OPER_STOP);
     a2dp_audio_status_updated_callback(a2dp_is_run);
-#endif
+    amgr_set_bt_a2dp_is_on(a2dp_is_run);
+    app_sysfreq_req(APP_SYSFREQ_USER_STREAM_BOOST, APP_SYSFREQ_32K);
     return 0;
 }
-
+#ifdef BT_HFP_SUPPORT
 #if defined(SCO_DMA_SNAPSHOT)
 static uint32_t sco_trigger_wait_codecpcm = 0;
 static uint32_t sco_trigger_wait_btpcm = 0;
@@ -4286,24 +3658,24 @@ static int app_bt_stream_sco_trigger_codecpcm_tick(void)
 
     app_bt_stream_sco_trigger_set_codecpcm_triggle(0);
 #if defined(IBRT)
-    POSSIBLY_UNUSED struct BT_DEVICE_T *curr_device = app_bt_get_device(app_bt_audio_get_curr_sco_device());
-    if (bts_bt_if_is_dev_link_connected(&curr_device->remote))
+    POSSIBLY_UNUSED struct BT_ADAPTER_DEVICE_T *curr_device = bt_adapter_get_device(bes_aud_bt->aud_get_curr_sco_device());
+    if (app_tws_ibrt_mobile_link_connected(&curr_device->remote))
     {
-        AUDIO_BT_TRACE(0,"[SCO_PLAYER] codecpcm_tick:%x/%x", btdrv_syn_get_curr_ticks(),
-                bt_syn_get_curr_ticks(bts_bt_if_get_dev_acl_handle(&curr_device->remote)));
+        TRACE_AUD_STREAM_I("[SCO_PLAYER] codecpcm_tick:%x/%x", btdrv_syn_get_curr_ticks(),
+                bt_syn_get_curr_ticks(app_tws_ibrt_get_mobile_connhandle(&curr_device->remote)));
     }
-    else if (bts_ibrt_if_is_ibrt_link_connected(&curr_device->remote))
+    else if (app_tws_ibrt_slave_ibrt_link_connected(&curr_device->remote))
     {
-        AUDIO_BT_TRACE(0,"[SCO_PLAYER] codecpcm_tick:%x/%x", btdrv_syn_get_curr_ticks(),
-                bt_syn_get_curr_ticks(bts_ibrt_if_get_dev_ibrt_handle(&curr_device->remote)));
+        TRACE_AUD_STREAM_I("[SCO_PLAYER] codecpcm_tick:%x/%x", btdrv_syn_get_curr_ticks(),
+                bt_syn_get_curr_ticks(app_tws_ibrt_get_ibrt_handle(&curr_device->remote)));
     }
     else
     {
-        AUDIO_BT_TRACE(0,"[SCO_PLAYER] codecpcm_tick mobile_link:%d %04x ibrt_link:%d %04x",
-                bts_bt_if_is_dev_link_connected(&curr_device->remote), \
-                bts_bt_if_get_dev_acl_handle(&curr_device->remote), \
-                bts_ibrt_if_is_ibrt_link_connected(&curr_device->remote), \
-                bts_ibrt_if_get_dev_ibrt_handle(&curr_device->remote));
+        TRACE_AUD_STREAM_E("[SCO_PLAYER] codecpcm_tick mobile_link:%d %04x ibrt_link:%d %04x",
+                app_tws_ibrt_mobile_link_connected(&curr_device->remote), \
+                app_tws_ibrt_get_mobile_connhandle(&curr_device->remote), \
+                app_tws_ibrt_slave_ibrt_link_connected(&curr_device->remote), \
+                app_tws_ibrt_get_ibrt_handle(&curr_device->remote));
     }
 #else
     uint16_t conhdl = 0xFFFF;
@@ -4312,24 +3684,14 @@ static int app_bt_stream_sco_trigger_codecpcm_tick(void)
     curr_sco = app_audio_manager_get_active_sco_num();
     if (curr_sco != BT_DEVICE_INVALID_ID)
     {
-#if defined(BT_BUILD_WITH_CUSTOMER_HOST) || defined(BLE_ONLY_ENABLED)
-        conhdl = app_bt_get_curr_sco_hci_handle(curr_sco);
-#else
-        conhdl = btif_hf_get_remote_hci_handle(app_audio_manager_get_active_sco_chnl());
-#endif
+        conhdl = bt_adapter_get_device(curr_sco)->acl_conn_hdl;
     }
     if (conhdl != 0xFFFF){
-        AUDIO_BT_TRACE(0,"[SCO_PLAYER] codecpcm_tick:%x", bt_syn_get_curr_ticks(conhdl));
+        TRACE_AUD_STREAM_I("[SCO_PLAYER] codecpcm_tick:%x", bt_syn_get_curr_ticks(conhdl));
     }
 #endif
 
     return 1;
-}
-
-void bt_sco_clear_trigger(void)
-{
-    btdrv_syn_clr_trigger(0);
-    bt_syn_cancel_tg_ticks(0);
 }
 
 int app_bt_stream_sco_trigger_btpcm_tick(void)
@@ -4339,25 +3701,25 @@ int app_bt_stream_sco_trigger_btpcm_tick(void)
 
     app_bt_stream_sco_trigger_set_btpcm_triggle(0);
 #if defined(IBRT)
-    POSSIBLY_UNUSED struct BT_DEVICE_T *curr_device = app_bt_get_device(app_bt_audio_get_curr_sco_device());
-    bool is_link_connected = bts_bt_if_is_dev_link_connected(&curr_device->remote);
+    POSSIBLY_UNUSED struct BT_ADAPTER_DEVICE_T *curr_device = bt_adapter_get_device(bes_aud_bt->aud_get_curr_sco_device());
+    bool is_link_connected = app_tws_ibrt_mobile_link_connected(&curr_device->remote);
     if (is_link_connected)
     {
-        AUDIO_BT_TRACE(0,"[SCO_PLAYER] btpcm_tick:%x/%x", btdrv_syn_get_curr_ticks(),
-                            bt_syn_get_curr_ticks(bts_bt_if_get_dev_acl_handle(&curr_device->remote)));
+        TRACE_AUD_STREAM_I("[SCO_PLAYER] btpcm_tick:%x/%x", btdrv_syn_get_curr_ticks(),
+                            bt_syn_get_curr_ticks(app_tws_ibrt_get_mobile_connhandle(&curr_device->remote)));
     }
-    else if (bts_ibrt_if_is_ibrt_link_connected(&curr_device->remote))
+    else if (app_tws_ibrt_slave_ibrt_link_connected(&curr_device->remote))
     {
-        AUDIO_BT_TRACE(0,"[SCO_PLAYER] btpcm_tick:%x/%x", btdrv_syn_get_curr_ticks(),
-                            bt_syn_get_curr_ticks(bts_ibrt_if_get_dev_ibrt_handle(&curr_device->remote)));
+        TRACE_AUD_STREAM_I("[SCO_PLAYER] btpcm_tick:%x/%x", btdrv_syn_get_curr_ticks(),
+                            bt_syn_get_curr_ticks(app_tws_ibrt_get_ibrt_handle(&curr_device->remote)));
     }
     else
     {
-        AUDIO_BT_TRACE(0,"[SCO_PLAYER] btpcm_tick: mobile_link:%d %04x ibrt_link:%d %04x", \
+        TRACE_AUD_STREAM_I("[SCO_PLAYER] btpcm_tick: mobile_link:%d %04x ibrt_link:%d %04x", \
                 is_link_connected, \
-                bts_bt_if_get_dev_acl_handle(&curr_device->remote), \
-                bts_ibrt_if_is_ibrt_link_connected(&curr_device->remote), \
-                bts_ibrt_if_get_dev_ibrt_handle(&curr_device->remote));
+                app_tws_ibrt_get_mobile_connhandle(&curr_device->remote), \
+                app_tws_ibrt_slave_ibrt_link_connected(&curr_device->remote), \
+                app_tws_ibrt_get_ibrt_handle(&curr_device->remote));
     }
 #else
     uint16_t conhdl = 0xFFFF;
@@ -4366,13 +3728,9 @@ int app_bt_stream_sco_trigger_btpcm_tick(void)
     curr_sco = app_audio_manager_get_active_sco_num();
     if (curr_sco != BT_DEVICE_INVALID_ID)
     {
-#if defined(BT_BUILD_WITH_CUSTOMER_HOST) || defined(BLE_ONLY_ENABLED)
-        conhdl = app_bt_get_curr_sco_hci_handle(curr_sco);
-#else
-        conhdl = btif_hf_get_remote_hci_handle(app_audio_manager_get_active_sco_chnl());
-#endif
+        conhdl = bt_adapter_get_device(curr_sco)->acl_conn_hdl;
     }
-    AUDIO_BT_TRACE(0,"[SCO_PLAYER] btpcm_tick:%x", bt_syn_get_curr_ticks(conhdl));
+    TRACE_AUD_STREAM_I("[SCO_PLAYER] btpcm_tick:%x", bt_syn_get_curr_ticks(conhdl));
 #endif
     btdrv_syn_clr_trigger(0);
     bt_syn_cancel_tg_ticks(0);
@@ -4387,31 +3745,27 @@ void app_bt_stream_sco_trigger_btpcm_start(void )
 
     uint32_t lock;
 
-#if defined(IBRT) && !defined(BT_SOURCE)
-    POSSIBLY_UNUSED struct BT_DEVICE_T *curr_device = app_bt_get_device(app_bt_audio_get_curr_sco_device());
-    if (bts_bt_if_is_dev_link_connected(&curr_device->remote)){
-        conhdl = bts_bt_if_get_dev_acl_handle(&curr_device->remote);
+#if defined(IBRT)
+    POSSIBLY_UNUSED struct BT_ADAPTER_DEVICE_T *curr_device = bt_adapter_get_device(bes_aud_bt->aud_get_curr_sco_device());
+    if (app_tws_ibrt_mobile_link_connected(&curr_device->remote)){
+        conhdl = app_tws_ibrt_get_mobile_connhandle(&curr_device->remote);
     }
-    else if (bts_ibrt_if_is_ibrt_link_connected(&curr_device->remote))
+    else if (app_tws_ibrt_slave_ibrt_link_connected(&curr_device->remote))
     {
-        conhdl = bts_ibrt_if_get_dev_ibrt_handle(&curr_device->remote);
+        conhdl = app_tws_ibrt_get_ibrt_handle(&curr_device->remote);
     }
     else
     {
-        AUDIO_BT_TRACE(0,"[STRM_TRIG][SCO] btpcm_start mobile_link:%d %04x ibrt_link:%d %04x", \
-            bts_bt_if_is_dev_link_connected(&curr_device->remote), bts_bt_if_get_dev_acl_handle(&curr_device->remote), \
-            bts_ibrt_if_is_ibrt_link_connected(&curr_device->remote),bts_ibrt_if_get_dev_ibrt_handle(&curr_device->remote));
+        TRACE_AUD_STREAM_I("[STRM_TRIG][SCO] btpcm_start mobile_link:%d %04x ibrt_link:%d %04x", \
+            app_tws_ibrt_mobile_link_connected(&curr_device->remote), app_tws_ibrt_get_mobile_connhandle(&curr_device->remote), \
+            app_tws_ibrt_slave_ibrt_link_connected(&curr_device->remote),app_tws_ibrt_get_ibrt_handle(&curr_device->remote));
     }
 #else
     int curr_sco;
     curr_sco = app_audio_manager_get_active_sco_num();
     if (curr_sco != BT_DEVICE_INVALID_ID)
     {
-#if defined(BT_BUILD_WITH_CUSTOMER_HOST) || defined(BLE_ONLY_ENABLED)
-        conhdl = app_bt_get_curr_sco_hci_handle(curr_sco);
-#else
-        conhdl = btif_hf_get_remote_hci_handle(app_audio_manager_get_active_sco_chnl());
-#endif
+        conhdl = bt_adapter_get_device(curr_sco)->acl_conn_hdl;
     }
 #endif
 
@@ -4423,30 +3777,30 @@ void app_bt_stream_sco_trigger_btpcm_start(void )
     btdrv_syn_clr_trigger(0);
     btdrv_enable_playback_triggler(SCO_TRIGGLE_MODE);
 
-#if defined(IBRT) && !defined(BT_SOURCE)
-    if (bts_bt_if_is_dev_link_connected(&curr_device->remote))
+#if defined(IBRT)
+    if (app_tws_ibrt_mobile_link_connected(&curr_device->remote))
     {
-        bt_syn_set_tg_ticks(tg_acl_trigger_offset_time, bts_bt_if_get_dev_acl_handle(&curr_device->remote), BT_TRIG_SLAVE_ROLE,0,false);
-        AUDIO_BT_TRACE(0,"[STRM_TRIG][SCO] btpcm_start set ticks:%d,",tg_acl_trigger_offset_time);
+        bt_syn_set_tg_ticks(tg_acl_trigger_offset_time, app_tws_ibrt_get_mobile_connhandle(&curr_device->remote), BT_TRIG_SLAVE_ROLE,0,false);
+        TRACE_AUD_STREAM_I("[STRM_TRIG][SCO] btpcm_start set ticks:%d,",tg_acl_trigger_offset_time);
     }
-    else if (bts_ibrt_if_is_ibrt_link_connected(&curr_device->remote)){
-        bt_syn_set_tg_ticks(tg_acl_trigger_offset_time, bts_ibrt_if_get_dev_ibrt_handle(&curr_device->remote), BT_TRIG_SLAVE_ROLE,0,false);
-        AUDIO_BT_TRACE(0,"[STRM_TRIG][SCO] btpcm_start set ticks:%d,",tg_acl_trigger_offset_time);
+    else if (app_tws_ibrt_slave_ibrt_link_connected(&curr_device->remote)){
+        bt_syn_set_tg_ticks(tg_acl_trigger_offset_time, app_tws_ibrt_get_ibrt_handle(&curr_device->remote), BT_TRIG_SLAVE_ROLE,0,false);
+        TRACE_AUD_STREAM_I("[STRM_TRIG][SCO] btpcm_start set ticks:%d,",tg_acl_trigger_offset_time);
     }
     else
     {
-        AUDIO_BT_TRACE(0,"[STRM_TRIG][SCO] btpcm_start mobile_link:%d %04x ibrt_link:%d %04x", \
-            bts_bt_if_is_dev_link_connected(&curr_device->remote), bts_bt_if_get_dev_acl_handle(&curr_device->remote),
-            bts_ibrt_if_is_ibrt_link_connected(&curr_device->remote),bts_ibrt_if_get_dev_ibrt_handle(&curr_device->remote));
+        TRACE_AUD_STREAM_I("[STRM_TRIG][SCO] btpcm_start mobile_link:%d %04x ibrt_link:%d %04x", \
+            app_tws_ibrt_mobile_link_connected(&curr_device->remote), app_tws_ibrt_get_mobile_connhandle(&curr_device->remote),
+            app_tws_ibrt_slave_ibrt_link_connected(&curr_device->remote),app_tws_ibrt_get_ibrt_handle(&curr_device->remote));
     }
-    AUDIO_BT_TRACE(0,"[STRM_TRIG][SCO] btpcm_start get ticks:%d,",curr_ticks);
+    TRACE_AUD_STREAM_I("[STRM_TRIG][SCO] btpcm_start get ticks:%d,",curr_ticks);
 
 #else
     bt_syn_set_tg_ticks(tg_acl_trigger_offset_time, conhdl, BT_TRIG_SLAVE_ROLE,0,false);
 #endif
 
     app_bt_stream_sco_trigger_set_btpcm_triggle(1);
-    AUDIO_BT_TRACE(0,"[STRM_TRIG][SCO] btpcm_start curr clk=%x, triggle_clk=%x, bt_clk=%x",
+    TRACE_AUD_STREAM_I("[STRM_TRIG][SCO] btpcm_start curr clk=%x, triggle_clk=%x, bt_clk=%x",
                             btdrv_syn_get_curr_ticks(),
                             tg_acl_trigger_offset_time,
                             bt_syn_get_curr_ticks(conhdl));
@@ -4472,39 +3826,35 @@ void app_bt_stream_sco_trigger_codecpcm_start(uint32_t btclk, uint16_t btcnt )
     uint16_t conhdl = 0xFFFF;
     //must lock the interrupts when set trig ticks.
 
-#if defined(IBRT) && !defined(BT_SOURCE)
-    POSSIBLY_UNUSED struct BT_DEVICE_T *curr_device = app_bt_get_device(app_bt_audio_get_curr_sco_device());
-    bool is_link_connected = bts_bt_if_is_dev_link_connected(&curr_device->remote);
+#if defined(IBRT)
+    POSSIBLY_UNUSED struct BT_ADAPTER_DEVICE_T *curr_device = bt_adapter_get_device(bes_aud_bt->aud_get_curr_sco_device());
+    bool is_link_connected = app_tws_ibrt_mobile_link_connected(&curr_device->remote);
     if (is_link_connected)
     {
-        conhdl = bts_bt_if_get_dev_acl_handle(&curr_device->remote);
+        conhdl = app_tws_ibrt_get_mobile_connhandle(&curr_device->remote);
     }
-    else if (bts_ibrt_if_is_ibrt_link_connected(&curr_device->remote))
+    else if (app_tws_ibrt_slave_ibrt_link_connected(&curr_device->remote))
     {
-        conhdl = bts_ibrt_if_get_dev_ibrt_handle(&curr_device->remote);
+        conhdl = app_tws_ibrt_get_ibrt_handle(&curr_device->remote);
     }
     else
     {
-        AUDIO_BT_TRACE(0,"[STRM_TRIG][SCO] codecpcm_start mobile_link:%d %04x ibrt_link:%d %04x",
-            is_link_connected, bts_bt_if_get_dev_acl_handle(&curr_device->remote),
-            bts_ibrt_if_is_ibrt_link_connected(&curr_device->remote),   bts_ibrt_if_get_dev_ibrt_handle(&curr_device->remote));
+        TRACE_AUD_STREAM_I("[STRM_TRIG][SCO] codecpcm_start mobile_link:%d %04x ibrt_link:%d %04x",
+            is_link_connected, app_tws_ibrt_get_mobile_connhandle(&curr_device->remote),
+            app_tws_ibrt_slave_ibrt_link_connected(&curr_device->remote),   app_tws_ibrt_get_ibrt_handle(&curr_device->remote));
     }
 #else
     int curr_sco;
     curr_sco = app_audio_manager_get_active_sco_num();
     if (curr_sco != BT_DEVICE_INVALID_ID)
     {
-#if defined(BT_BUILD_WITH_CUSTOMER_HOST) || defined(BLE_ONLY_ENABLED)
-        conhdl = app_bt_get_curr_sco_hci_handle(curr_sco);
-#else
-        conhdl = btif_hf_get_remote_hci_handle(app_audio_manager_get_active_sco_chnl());
-#endif
+        conhdl = bt_adapter_get_device(curr_sco)->acl_conn_hdl;
     }
 #endif
 
     lock = int_lock();
     curr_ticks = bt_syn_get_curr_ticks(conhdl);
-    AUDIO_BT_TRACE(0,"[[STRM_TRIG][SCO] codecpcm_start 1 curr:%d clk:%dcnt:%d", curr_ticks,btclk,btcnt);
+    TRACE_AUD_STREAM_I("[[STRM_TRIG][SCO] codecpcm_start 1 curr:%d clk:%dcnt:%d", curr_ticks,btclk,btcnt);
 
 #ifdef LOW_DELAY_SCO
     tg_acl_trigger_offset_time=btclk+BUF_BTCLK_NUM+CODEC_TRIG_BTCLK_OFFSET;
@@ -4526,52 +3876,60 @@ void app_bt_stream_sco_trigger_codecpcm_start(uint32_t btclk, uint16_t btcnt )
         if(tirg_delay>TIRG_DELAY_MAX)
         {
             tirg_delay=TIRG_DELAY_MAX;
-            AUDIO_BT_TRACE(0,"[STRM_TRIG][SCO] codecpcm_start bt clk convolution!");
+            TRACE_AUD_STREAM_W("[STRM_TRIG][SCO] codecpcm_start bt clk convolution!");
         }
         tg_acl_trigger_offset_time=tg_acl_trigger_offset_time+tirg_delay*TIRG_DELAY_325US;
-        AUDIO_BT_TRACE(0,"[STRM_TRIG][SCO] codecpcm_start need more tirg_delay:%d offset:%d curr:%d,",
+        TRACE_AUD_STREAM_W("[STRM_TRIG][SCO] codecpcm_start need more tirg_delay:%d offset:%d curr:%d,",
                             tirg_delay,tg_acl_trigger_offset_time,curr_ticks);
     }
 
-#if defined(CHIP_BEST1501SIMU) || defined(CHIP_BEST1600SIMU)
-    {
-        tg_acl_trigger_offset_time = curr_ticks + 500; ////temporarily added
-    }
-#endif
     tg_acl_trigger_offset_time &= 0x0fffffff;
 
+    btdrv_syn_trigger_codec_en(0);
 //    af_codec_sync_config(AUD_STREAM_PLAYBACK, AF_CODEC_SYNC_TYPE_BT, false);
 //    af_codec_sync_config(AUD_STREAM_CAPTURE, AF_CODEC_SYNC_TYPE_BT, false);
     btdrv_syn_clr_trigger(0);
 
 
-#if defined(IBRT) && !defined(BT_SOURCE)
+#if defined(IBRT)
     if (is_link_connected)
     {
-        bt_syn_set_tg_ticks(tg_acl_trigger_offset_time, bts_bt_if_get_dev_acl_handle(&curr_device->remote), BT_TRIG_SLAVE_ROLE,0,false);
-        AUDIO_BT_TRACE(0,"[STRM_TRIG][SCO] codecpcm_start set 2 tg_acl_trigger_offset_time:%d",tg_acl_trigger_offset_time);
+        bt_syn_set_tg_ticks(tg_acl_trigger_offset_time, app_tws_ibrt_get_mobile_connhandle(&curr_device->remote), BT_TRIG_SLAVE_ROLE,0,false);
+        TRACE_AUD_STREAM_I("[STRM_TRIG][SCO] codecpcm_start set 2 tg_acl_trigger_offset_time:%d",tg_acl_trigger_offset_time);
     }
-    else if (bts_ibrt_if_is_ibrt_link_connected(&curr_device->remote))
+    else if (app_tws_ibrt_slave_ibrt_link_connected(&curr_device->remote))
     {
-        bt_syn_set_tg_ticks(tg_acl_trigger_offset_time, bts_ibrt_if_get_dev_ibrt_handle(&curr_device->remote), BT_TRIG_SLAVE_ROLE,0,false);
-        AUDIO_BT_TRACE(0,"[STRM_TRIG][SCO] codecpcm_start set 2 tg_acl_trigger_offset_time:%d",tg_acl_trigger_offset_time);
+        bt_syn_set_tg_ticks(tg_acl_trigger_offset_time, app_tws_ibrt_get_ibrt_handle(&curr_device->remote), BT_TRIG_SLAVE_ROLE,0,false);
+        TRACE_AUD_STREAM_I("[STRM_TRIG][SCO] codecpcm_start set 2 tg_acl_trigger_offset_time:%d",tg_acl_trigger_offset_time);
     }
     else
     {
-        AUDIO_BT_TRACE(0,"[STRM_TRIG][SCO] codecpcm_start mobile_link:%d %04x ibrt_link:%d %04x",
-            is_link_connected, bts_bt_if_get_dev_acl_handle(&curr_device->remote),
-            bts_ibrt_if_is_ibrt_link_connected(&curr_device->remote),   bts_ibrt_if_get_dev_ibrt_handle(&curr_device->remote));
+#ifdef HFP_AG_TEST
+        int curr_sco;
+        curr_sco = app_audio_manager_get_active_sco_num();
+        if (curr_sco != BT_DEVICE_INVALID_ID)
+        {
+            conhdl = bt_adapter_get_device(curr_sco)->acl_conn_hdl;
+        }
+        TRACE_AUD_STREAM_I("[STRM_TRIG][SCO]  ag link conhdl=%x",conhdl);
+        bt_syn_set_tg_ticks(tg_acl_trigger_offset_time, conhdl, BT_TRIG_MASTER_ROLE,0,false);
+#endif
+
+        TRACE_AUD_STREAM_I("[STRM_TRIG][SCO] codecpcm_start mobile_link:%d %04x ibrt_link:%d %04x",
+            is_link_connected, app_tws_ibrt_get_mobile_connhandle(&curr_device->remote),
+            app_tws_ibrt_slave_ibrt_link_connected(&curr_device->remote), app_tws_ibrt_get_ibrt_handle(&curr_device->remote));
     }
 #else
     bt_syn_set_tg_ticks(tg_acl_trigger_offset_time, conhdl, BT_TRIG_SLAVE_ROLE,0,false);
 #endif
+    btdrv_syn_trigger_codec_en(1);
     app_bt_stream_sco_trigger_set_codecpcm_triggle(1);
 
     btdrv_enable_playback_triggler(ACL_TRIGGLE_MODE);
 
     int_unlock(lock);
 
-    AUDIO_BT_TRACE(0,"[STRM_TRIG][SCO] codecpcm_start enable curr:%x trig:%x curr:%x",
+    TRACE_AUD_STREAM_I("[STRM_TRIG][SCO] codecpcm_start enable curr:%x trig:%x curr:%x",
                         btdrv_syn_get_curr_ticks(),
                         tg_acl_trigger_offset_time,
                         curr_ticks);
@@ -4584,11 +3942,13 @@ void app_bt_stream_sco_trigger_codecpcm_start(uint32_t btclk, uint16_t btcnt )
 void app_bt_stream_sco_trigger_codecpcm_stop(void)
 {
 #ifdef PLAYBACK_USE_I2S
-    af_i2s_sync_config(AUD_STREAM_PLAYBACK, AF_I2S_SYNC_TYPE_BT, false);
+    af_i2s_sync_config(AUD_STREAM_ID_0,AUD_STREAM_PLAYBACK, AF_I2S_SYNC_TYPE_BT, false);
 #else
     af_codec_sync_config(AUD_STREAM_PLAYBACK, AF_CODEC_SYNC_TYPE_BT, false);
 #endif
+#if !defined (FPGA)
     af_codec_sync_config(AUD_STREAM_CAPTURE, AF_CODEC_SYNC_TYPE_BT, false);
+#endif
 }
 #endif
 
@@ -4620,10 +3980,10 @@ static void bt_sco_codec_store(void)
     g_bt_sco_codec_type = app_audio_manager_get_scocodecid();
 
     if (g_bt_sco_codec_type == BT_HFP_SCO_CODEC_NONE) {
-        AUDIO_BT_TRACE(2, "[%s] WARNING:%d is invalid sco codec type, use default codec type!", __func__, g_bt_sco_codec_type);
+        TRACE(2, "[%s] WARNING:%d is invalid sco codec type, use default codec type!", __func__, g_bt_sco_codec_type);
         g_bt_sco_codec_type = BT_HFP_SCO_CODEC_CVSD;
     }
-    AUDIO_BT_TRACE(0, "[%s] Codec Type: %d", __func__, g_bt_sco_codec_type);
+    TRACE(0, "[%s] Codec Type: %d", __func__, g_bt_sco_codec_type);
 }
 
 hfp_sco_codec_t bt_sco_codec_get_type(void)
@@ -4661,8 +4021,8 @@ extern "C" bool bt_sco_codec_is_lc3(void)
 void bt_sco_mobile_clkcnt_get(uint32_t btclk, uint16_t btcnt,
                                      uint32_t *mobile_master_clk, uint16_t *mobile_master_cnt)
 {
-#if defined(IBRT) && !defined(BT_SOURCE)
-    uint8_t curr_sco_device = app_bt_audio_get_curr_sco_device();
+#if defined(IBRT)
+    uint8_t curr_sco_device = bes_aud_bt->aud_get_curr_sco_device();
     app_tws_ibrt_audio_mobile_clkcnt_get(curr_sco_device, btclk, btcnt, mobile_master_clk, mobile_master_cnt);
 #else
     uint16_t conhdl = 0xFFFF;
@@ -4672,21 +4032,17 @@ void bt_sco_mobile_clkcnt_get(uint32_t btclk, uint16_t btcnt,
 
     curr_sco = app_audio_manager_get_active_sco_num();
     if (curr_sco != BT_DEVICE_INVALID_ID){
-#if defined(BT_BUILD_WITH_CUSTOMER_HOST) || defined(BLE_ONLY_ENABLED)
-        conhdl = app_bt_get_curr_sco_hci_handle(curr_sco);
-#else
-        conhdl = btif_hf_get_remote_hci_handle(app_audio_manager_get_active_sco_chnl());
-#endif
+        conhdl = bt_adapter_get_device(curr_sco)->acl_conn_hdl;
     }
 
     if (conhdl != BT_INVALID_CONN_HANDLE){
         bt_drv_reg_op_piconet_clk_offset_get(conhdl, &clock_offset, &bit_offset);
-        //AUDIO_BT_TRACE(0,"mobile piconet clk:%d bit:%d loc clk:%d cnt:%d", clock_offset, bit_offset, btclk, btcnt);
+        //TRACE_AUD_STREAM_I("mobile piconet clk:%d bit:%d loc clk:%d cnt:%d", clock_offset, bit_offset, btclk, btcnt);
         btdrv_slave2master_clkcnt_convert(btclk, btcnt,
                                           clock_offset, bit_offset,
                                           mobile_master_clk, mobile_master_cnt);
     }else{
-        AUDIO_BT_TRACE(0,"[STRM_TRIG][SCO] mobile_clkcnt_get warning conhdl NULL conhdl:%x", conhdl);
+        TRACE_AUD_STREAM_W("[STRM_TRIG][SCO] mobile_clkcnt_get warning conhdl NULL conhdl:%x", conhdl);
         *mobile_master_clk = 0;
         *mobile_master_cnt = 0;
     }
@@ -4780,14 +4136,14 @@ static void bt_sco_codec_sync_tuning(void)
                                              &mobile_master_clk, &mobile_master_cnt);
 
 #if defined(SCO_DMA_SNAPSHOT_DEBUG)
-    AUDIO_BT_TRACE(0,"[STRM_TRIG][SCO] tune btclk:%d,btcnt:%d,",mobile_master_clk,mobile_master_cnt);
+    TRACE_AUD_STREAM_I("[STRM_TRIG][SCO] tune btclk:%d,btcnt:%d,",mobile_master_clk,mobile_master_cnt);
 #endif
 
     if((mobile_master_clk < last_mobile_master_clk)&&(mobile_master_clk < BUF_BTCLK_NUM*2))
     {
         //clock wrapped, 0x555556*24=0x8000010, so after clock wrap, offset init need add 16
         mobile_master_clk_offset_init = (mobile_master_clk_offset_init+WRAPED_CLK_OFFSET)%BUF_BTCLK_NUM;
-        AUDIO_BT_TRACE(0,"[STRM_TRIG][SCO]:MAX_CLOCK reach btclk:%d,last btclk:%d",mobile_master_clk,last_mobile_master_clk);
+        TRACE_AUD_STREAM_I("[STRM_TRIG][SCO]:MAX_CLOCK reach btclk:%d,last btclk:%d",mobile_master_clk,last_mobile_master_clk);
     }
     last_mobile_master_clk = mobile_master_clk;
 
@@ -4880,7 +4236,7 @@ static void bt_sco_codec_sync_tuning(void)
        }
         mobile_master_cnt_offset=(int32_t)(mobile_master_clk_offset*BTCLK_UNIT+(625-mobile_master_cnt)*BTCNT_UNIT);
         mobile_master_cnt_offset=(int32_t)(mobile_master_cnt_offset-(CODEC_TRIG_DELAY_OFFSET+mobile_master_cnt_offset_init));
-        AUDIO_BT_TRACE(0,"[STRM_TRIG][SCO] tune mobile_master_cnt_offset:%d,",mobile_master_cnt_offset);
+        TRACE_AUD_STREAM_I("[STRM_TRIG][SCO] tune mobile_master_cnt_offset:%d,",mobile_master_cnt_offset);
 
 #if defined( __AUDIO_RESAMPLE__) && !defined(AUDIO_RESAMPLE_ANTI_DITHER)
 #ifdef LOW_DELAY_SCO
@@ -4941,7 +4297,7 @@ static void bt_sco_codec_sync_tuning(void)
                {
                    mobile_master_cnt_offset_resample=0;
                }
-              AUDIO_BT_TRACE(0,"[STRM_TRIG][SCO] tune mobile_master_cnt_offset:%d/%d",mobile_master_cnt_offset_min,mobile_master_cnt_offset_max);
+              TRACE_AUD_STREAM_I("[STRM_TRIG][SCO] tune mobile_master_cnt_offset:%d/%d",mobile_master_cnt_offset_min,mobile_master_cnt_offset_max);
                mobile_master_cnt_offset=mobile_master_cnt_offset_resample;
 
             if(first_proc_flag==0)
@@ -4959,7 +4315,7 @@ static void bt_sco_codec_sync_tuning(void)
 
             mobile_master_cnt_offset_old=mobile_master_cnt_offset;
 #if defined(SCO_DMA_SNAPSHOT_DEBUG)
-               AUDIO_BT_TRACE(0,"[STRM_TRIG][SCO] tune mobile_master_cnt_offset:%d", mobile_master_cnt_offset);
+               TRACE_AUD_STREAM_I("[STRM_TRIG][SCO] tune mobile_master_cnt_offset:%d", mobile_master_cnt_offset);
 #endif
                mobile_master_cnt_offset_max=0;
                mobile_master_cnt_offset_min=0;
@@ -5018,7 +4374,7 @@ static void bt_sco_codec_sync_tuning(void)
                 int freq_ppm_Fra=(int)(fre_offset_long_time*10000000.0f)-((int)(fre_offset_long_time*1000000.0f))*10;
                 if(freq_ppm_Fra<0)freq_ppm_Fra=-freq_ppm_Fra;
 
-                AUDIO_BT_TRACE(1,"freq_offset_long_time(ppm):%d.%d",freq_ppm_int,freq_ppm_Fra);
+                TRACE(1,"freq_offset_long_time(ppm):%d.%d",freq_ppm_int,freq_ppm_Fra);
             }
 #endif
 
@@ -5051,8 +4407,8 @@ static void bt_sco_codec_sync_tuning(void)
             POSSIBLY_UNUSED int freq_ppm_int=(int)(fre_offset*1000000.0f);
             int freq_ppm_Fra=(int)(fre_offset*10000000.0f)-((int)(fre_offset*1000000.0f))*10;
             if(freq_ppm_Fra<0)freq_ppm_Fra=-freq_ppm_Fra;
-            AUDIO_BT_TRACE(0,"[STRM_TRIG][SCO] time_offset(us):%d",mobile_master_cnt_offset);
-            AUDIO_BT_TRACE(0,"[STRM_TRIG][SCO] freq_offset(ppm):%d.%d",freq_ppm_int,freq_ppm_Fra);
+            TRACE_AUD_STREAM_I("[STRM_TRIG][SCO] time_offset(us):%d",mobile_master_cnt_offset);
+            TRACE_AUD_STREAM_I("[STRM_TRIG][SCO] freq_offset(ppm):%d.%d",freq_ppm_int,freq_ppm_Fra);
         }
 #endif
         if(first_proc_flag==1)
@@ -5063,12 +4419,203 @@ static void bt_sco_codec_sync_tuning(void)
 #if defined(__AUDIO_RESAMPLE__) && defined(SW_PLAYBACK_RESAMPLE)
     app_resample_tune(playback_samplerate_codecpcm, fre_offset);
 #else
-    af_codec_tune(AUD_STREAM_NUM, fre_offset);
+    af_stream_tune(AUD_STREAM_ID_0, AUD_STREAM_NUM, fre_offset);
 #endif
 
     return;
 }
 #endif
+
+/*
+FIXME: Modify this function in analog driver
+void analog_aud_pll_tune(float ratio)
+{
+#if defined(__AUDIO_RESAMPLE__) && defined(VPU_STREAM_SYNC_TUNING)
+    if (hal_cmu_get_audio_resample_status()) {
+        return;
+    }
+#endif
+*/
+#if defined(VPU_STREAM_SYNC_TUNING)
+// I2S_SYNC_DELAY: I2S IRQ is later than ADC IRQ
+// The convergence time is ~4s
+#define I2S_SYNC_DELAY          2500.0f // us
+#define I2S_SYNC_BTCLK_OFFSET   ((uint32_t)(I2S_SYNC_DELAY/BTCLK_UNIT))
+#define I2S_SYNC_DELAY_OFFSET   (I2S_SYNC_BTCLK_OFFSET*BTCLK_UNIT)
+
+extern "C" void bt_sco_i2s_sync_tuning(void)
+{
+    uint32_t btclk = 0;
+    uint16_t btcnt = 0;
+
+    uint32_t mobile_master_clk;
+    uint16_t mobile_master_cnt;
+
+    uint32_t mobile_master_clk_offset;
+    int32_t mobile_master_cnt_offset;
+
+    static float fre_offset=0.0f;
+
+#if defined(SCO_TUNING_NEWMETHOD)
+    static float fre_offset_long_time=0.0f;
+    static int32_t fre_offset_flag=0;
+#endif
+
+    static int32_t mobile_master_cnt_offset_init;
+    static int32_t mobile_master_cnt_offset_old;
+    static uint32_t first_proc_flag=0;
+
+#if defined(MULTI_DMA_TC)
+    uint8_t adma_ch = af_stream_get_dma_chan(AUD_STREAM_ID_2, AUD_STREAM_CAPTURE);
+    uint32_t dma_base = af_stream_get_dma_base_addr(AUD_STREAM_ID_2, AUD_STREAM_CAPTURE);
+    if(adma_ch != HAL_DMA_CHAN_NONE)
+    {
+        bt_drv_reg_op_dma_tc_clkcnt_get_by_ch(&btclk, &btcnt,adma_ch&0xFF, dma_base);
+    }
+#else
+    bt_drv_reg_op_dma_tc_clkcnt_get(&btclk, &btcnt);
+#endif
+
+    bt_sco_mobile_clkcnt_get(btclk, btcnt, &mobile_master_clk, &mobile_master_cnt);
+
+#if 0
+    TRACE_AUD_STREAM_I("[%s] i2s   btclk:%d, btcnt:%d", __func__, btclk, btcnt);
+#endif
+
+#if defined(SCO_DMA_SNAPSHOT_DEBUG)
+    TRACE_AUD_STREAM_I("[STRM_TRIG][SCO] tune btclk:%d,btcnt:%d,",mobile_master_clk,mobile_master_cnt);
+#endif
+
+    mobile_master_clk_offset=(mobile_master_clk-mobile_master_clk_offset_init+BUF_BTCLK_NUM)%BUF_BTCLK_NUM;
+    mobile_master_cnt_offset=(int32_t)(mobile_master_clk_offset*BTCLK_UNIT+(625-mobile_master_cnt)*BTCNT_UNIT);
+    mobile_master_cnt_offset=(int32_t)(mobile_master_cnt_offset-(CODEC_TRIG_DELAY_OFFSET+I2S_SYNC_DELAY_OFFSET+mobile_master_cnt_offset_init));
+
+    if(app_bt_stream_sco_trigger_codecpcm_tick())
+    {
+        fre_offset=0.0f;
+
+#if defined(SCO_TUNING_NEWMETHOD)
+        fre_offset_long_time=0.0f;
+        fre_offset_flag=0;
+#endif
+
+        mobile_master_cnt_offset_old=0;
+        first_proc_flag=0;
+
+        if (playback_samplerate_codecpcm == AUD_SAMPRATE_16000) {
+            mobile_master_cnt_offset_init=113;
+        } else if( playback_samplerate_codecpcm == AUD_SAMPRATE_8000) {
+            mobile_master_cnt_offset_init=-386;
+        } else {
+            ASSERT(0, "[%s] Invalid sample rate: %d", __func__, playback_samplerate_codecpcm);
+        }
+
+        mobile_master_cnt_offset=(int32_t)(mobile_master_clk_offset*BTCLK_UNIT+(625-mobile_master_cnt)*BTCNT_UNIT);
+        mobile_master_cnt_offset=(int32_t)(mobile_master_cnt_offset-(CODEC_TRIG_DELAY_OFFSET+I2S_SYNC_DELAY_OFFSET+mobile_master_cnt_offset_init));
+        TRACE_AUD_STREAM_I("[STRM_TRIG][SCO] tune mobile_master_cnt_offset:%d,",mobile_master_cnt_offset);
+    }
+    {
+#if defined(SCO_TUNING_NEWMETHOD)
+        if(mobile_master_cnt_offset>10)
+        {
+#if defined(LOW_DELAY_SCO)
+            fre_offset=0.0005f+fre_offset_long_time;
+#else
+            fre_offset=0.0001f+fre_offset_long_time;
+#endif
+            first_proc_flag=0;
+            fre_offset_flag=1;
+            if(mobile_master_cnt_offset>=mobile_master_cnt_offset_old)
+            {
+                fre_offset_long_time=fre_offset_long_time+0.0000001f;
+                fre_offset_flag=0;
+            }
+        }
+        else if(mobile_master_cnt_offset<-10)
+        {
+#if defined(LOW_DELAY_SCO)
+            fre_offset=-0.0005f+fre_offset_long_time;
+#else
+            fre_offset=-0.0001f+fre_offset_long_time;
+#endif
+            first_proc_flag=0;
+            fre_offset_flag=-1;
+            if(mobile_master_cnt_offset<=mobile_master_cnt_offset_old)
+            {
+                fre_offset_long_time=fre_offset_long_time-0.0000001f;
+                fre_offset_flag=0;
+            }
+        }
+        else
+        {
+            fre_offset=fre_offset_long_time+fre_offset_flag*0.0000001f;
+            fre_offset_long_time=fre_offset;
+            first_proc_flag=1;
+            fre_offset_flag=0;
+        }
+
+        if(fre_offset_long_time>0.0001f)fre_offset_long_time=0.0001f;
+        if(fre_offset_long_time<-0.0001f)fre_offset_long_time=-0.0001f;
+
+        mobile_master_cnt_offset_old=mobile_master_cnt_offset;
+#if defined(SCO_DMA_SNAPSHOT_DEBUG)
+        {
+            int freq_ppm_int=(int)(fre_offset_long_time*1000000.0f);
+            int freq_ppm_Fra=(int)(fre_offset_long_time*10000000.0f)-((int)(fre_offset_long_time*1000000.0f))*10;
+            if(freq_ppm_Fra<0)freq_ppm_Fra=-freq_ppm_Fra;
+
+            TRACE(1,"freq_offset_long_time(ppm):%d.%d",freq_ppm_int,freq_ppm_Fra);
+        }
+#endif
+
+#else
+        if(mobile_master_cnt_offset>5&&first_proc_flag==0)
+        {
+            fre_offset=0.0001f;
+        }
+        else if(mobile_master_cnt_offset<-5&&first_proc_flag==0)
+        {
+            fre_offset=-0.0001f;
+        }
+        else
+        {
+            if(first_proc_flag==0)
+            {
+                fre_offset=0;
+            }
+            fre_offset=fre_offset+((int32_t)(mobile_master_cnt_offset*0.5f))*0.00000001f
+                +(mobile_master_cnt_offset-mobile_master_cnt_offset_old)*0.00000001f;
+
+            mobile_master_cnt_offset_old=mobile_master_cnt_offset;
+            first_proc_flag=1;
+        }
+#endif
+    }
+
+#if defined(SCO_DMA_SNAPSHOT_DEBUG)
+    {
+        POSSIBLY_UNUSED int freq_ppm_int=(int)(fre_offset*1000000.0f);
+        int freq_ppm_Fra=(int)(fre_offset*10000000.0f)-((int)(fre_offset*1000000.0f))*10;
+        if(freq_ppm_Fra<0)freq_ppm_Fra=-freq_ppm_Fra;
+        TRACE_AUD_STREAM_I("[STRM_TRIG][SCO] time_offset(us):%d",mobile_master_cnt_offset);
+        TRACE_AUD_STREAM_I("[STRM_TRIG][SCO] freq_offset(ppm):%d.%d",freq_ppm_int,freq_ppm_Fra);
+    }
+#endif
+    if(first_proc_flag==1) {
+        if(fre_offset>0.0001f)fre_offset=0.0001f;
+        if(fre_offset<-0.0001f)fre_offset=-0.0001f;
+    }
+
+    analog_aud_pll_tune(fre_offset);
+}
+
+extern "C" void bt_sco_i2s_sync_tuning_reset(void)
+{
+    analog_aud_pll_trace_disable(true);
+    analog_aud_pll_tune(0.0f);
+}
+#endif
+
 extern CQueue* get_tx_esco_queue_ptr();
 
 #if defined(ANC_NOISE_TRACKER)
@@ -5134,7 +4681,7 @@ static uint32_t bt_sco_codec_capture_data(uint8_t *buf, uint32_t len)
 {
     app_bt_stream_trigger_checker_handler(TRIGGER_CHECKER_HFP_AUDPCM_CAPTURE);
 
-#if defined(CHIP_BEST1501SIMU) && defined(PLAYBACK_USE_I2S)
+#if (defined(FPGA) && defined(PLAYBACK_USE_I2S)) || defined(CAPTURE_USE_I2S)
     int16_t *pcm_buf = (int16_t *)buf;
     uint32_t frame_len = len / sizeof(int16_t) / AUD_CHANNEL_NUM_2;
 
@@ -5177,24 +4724,13 @@ static uint32_t bt_sco_codec_capture_data(uint8_t *buf, uint32_t len)
 #endif
 
 #if defined(ANC_ASSIST_ENABLED)
-        if(app_anc_assist_is_runing()) {
-#if defined(ASSIST_LOW_RAM_MOD)
-            //resample  16k->8k
-            integer_resampling_process_q23(anc_assist_resample_inst, (int32_t *)buf, len / sizeof(_PCM_T), (int32_t *)anc_assist_resample_buf);
-            // TODO: Use capture buf
-            app_anc_assist_process(anc_assist_resample_buf, len / 2);
-#else
-            app_anc_assist_process(buf, len);
-#endif
-        }
-        app_anc_assist_parser_app_mic_buf(buf, &len);
+    if(app_anc_assist_is_runing()) {
+        app_anc_assist_process(buf, len);
+    }
+    app_anc_assist_parser_app_mic_buf(buf, &len);
 #endif
 
-#if defined(BT_BUILD_WITH_CUSTOMER_HOST) || defined(BLE_ONLY_ENABLED)
-    if (mic_force_mute)
-#else
-    if (mic_force_mute || btapp_hfp_mic_need_skip_frame() || btapp_hfp_need_mute())
-#endif
+    if (mic_force_mute || bes_aud_bt->aud_hfp_mic_need_skip_frame() || bes_aud_bt->aud_hfp_need_mute())
     {
         memset(buf, 0, len);
     }
@@ -5229,19 +4765,18 @@ static uint32_t bt_sco_codec_capture_data(uint8_t *buf, uint32_t len)
 
 #ifdef TX_RX_PCM_MASK
     //processing btpcm.(It must be from CPU's copy )
-   if(btdrv_is_pcm_mask_enable()==1&&bt_sco_codec_is_msbc())
-   {
-	uint32_t lock;
-	uint32_t i;
-	//must lock the interrupts when exchanging data.
-	lock = int_lock();
-	uint16_t *playback_src=(uint16_t *)(playback_buf_btpcm+(pingpang)*playback_size_btpcm/2);
-	for( i =0; i<playback_size_btpcm_copy; i++)
-	{
-		playback_buf_btpcm_copy[i]=(uint8_t)(playback_src[i]>>8);
-	}
-	int_unlock(lock);
-   }
+    if(btdrv_is_pcm_mask_enable() == 1 && bt_sco_codec_is_msbc()) {
+        uint32_t lock;
+        uint32_t i;
+        //must lock the interrupts when exchanging data.
+        lock = int_lock();
+        uint16_t *playback_src=(uint16_t *)(playback_buf_btpcm+(pingpang)*playback_size_btpcm/2);
+        for( i =0; i<playback_size_btpcm_copy; i++)
+        {
+            playback_buf_btpcm_copy[i]=(uint8_t)(playback_src[i]>>8);
+        }
+        int_unlock(lock);
+    }
 #endif
 
 #ifdef SPEECH_SIDETONE
@@ -5254,11 +4789,13 @@ static uint32_t bt_sco_codec_capture_data(uint8_t *buf, uint32_t len)
 #endif
 #endif
 
-    //AUDIO_BT_TRACE(0,"pcm length:%d",len);
+    //TRACE_AUD_STREAM_I("pcm length:%d",len);
 
     //processing clock
     bt_sco_codec_sync_tuning();
-
+#if defined(VPU_STREAM_SYNC_TUNING)
+    bt_sco_i2s_sync_tuning();
+#endif
 
     //processing mic
     uint8_t *capture_pcm_frame_p = capture_buf_codecpcm + pingpang * capture_size_codecpcm / 2;
@@ -5268,13 +4805,8 @@ static uint32_t bt_sco_codec_capture_data(uint8_t *buf, uint32_t len)
     uint32_t packet_len = playback_size_btpcm/2;
 
 #if defined(PCM_PRIVATE_DATA_FLAG)
-	packet_len=packet_len-(packet_len/BTPCM_TOTAL_DATA_LENGTH)*BTPCM_PRIVATE_DATA_LENGTH;
+    packet_len=packet_len-(packet_len/BTPCM_TOTAL_DATA_LENGTH)*BTPCM_PRIVATE_DATA_LENGTH;
 #endif
-
-    if (app_bt_stream_ext_sco_capture)
-    {
-        len = app_bt_stream_ext_sco_capture(capture_pcm_frame_p, len);
-    }
 
     if (bt_sco_codec_is_cvsd()) {
         process_uplink_bt_voice_frames(capture_pcm_frame_p, len, ref_pcm_frame_p, playback_size_codecpcm / 2, dst, packet_len);
@@ -5290,17 +4822,24 @@ static uint32_t bt_sco_codec_capture_data(uint8_t *buf, uint32_t len)
 
         for (uint32_t i = 0; i < (playback_size_btpcm/2)/BTPCM_TOTAL_DATA_LENGTH; i++)
         {
-		uint8_t *dst=playback_dst+i*BTPCM_TOTAL_DATA_LENGTH+BTPCM_PRIVATE_DATA_LENGTH-(BTPCM_TX_OFFSET_BYTES*2);
-		uint8_t *src=playback_src+i*BTPCM_PUBLIC_DATA_LENGTH;
-        	memcpy(dst,src,BTPCM_PUBLIC_DATA_LENGTH);
+            uint8_t *dst=playback_dst+i*BTPCM_TOTAL_DATA_LENGTH+BTPCM_PRIVATE_DATA_LENGTH-(BTPCM_TX_OFFSET_BYTES*2);
+            uint8_t *src=playback_src+i*BTPCM_PUBLIC_DATA_LENGTH;
+            memcpy(dst,src,BTPCM_PUBLIC_DATA_LENGTH);
         }
     }
 #endif
 
+#ifdef SCO_DUMP_BTPCM_DATA
+    // TRACE(2, "[%s] len:%d", __func__, packet_len);
+    for (uint32_t i=0; i<packet_len/120; i++) {
+        DUMP16("%04x ", dst + 120 * i, 60);
+        hal_sys_timer_delay_us(100);
+    }
+#endif
 
 #if defined(BT_SCO_HANDLER_PROFILE)
     uint32_t end_ticks = hal_fast_sys_timer_get();
-    AUDIO_BT_TRACE(0,"[SCO][MIC] takes %d us",
+    TRACE_AUD_STREAM_I("[SCO][MIC] takes %d us",
         FAST_TICKS_TO_US(end_ticks - start_ticks));
 #endif
 
@@ -5334,7 +4873,7 @@ static uint32_t bt_sco_codec_capture_data(uint8_t *buf, uint32_t len)
 
 #if defined(BT_SCO_HANDLER_PROFILE)
     uint32_t end_ticks = hal_fast_sys_timer_get();
-    AUDIO_BT_TRACE(0,"[SCO][MIC] takes %d us",
+    TRACE_AUD_STREAM_I("[SCO][MIC] takes %d us",
         FAST_TICKS_TO_US(end_ticks - start_ticks));
 #endif
 
@@ -5360,7 +4899,7 @@ static uint32_t bt_sco_btpcm_playback_data(uint8_t *buf, uint32_t len)
 
 #if defined(BT_SCO_HANDLER_PROFILE)
     uint32_t end_ticks = hal_fast_sys_timer_get();
-    AUDIO_BT_TRACE(0,"[SCO][SPK] takes %d us",
+    TRACE_AUD_STREAM_I("[SCO][SPK] takes %d us",
         FAST_TICKS_TO_US(end_ticks - start_ticks));
 #endif
 
@@ -5375,7 +4914,7 @@ void codec_capture_i2s_enable(void)
 {
     uint32_t lock;
 
-    AUDIO_BT_TRACE(0,"[SCO][IIS] Start...", __func__);
+    TRACE_AUD_STREAM_I("[SCO][IIS] Start...", __func__);
 
     lock = int_lock();
     hal_codec_capture_enable();
@@ -5425,7 +4964,7 @@ void bt_sco_btpcm_get_pcm_priv_data(struct PCM_DATA_FLAG_T *pcm_data, uint8_t *b
         pcm_data[i].offset = bt_sco_pri_data_get_head_pos(buf, len, head_pos, frame_num);
         if(pcm_data[i].offset == 127)
         {
-            AUDIO_BT_TRACE(0,"sco_pri_data: found head offset failed!");
+            TRACE(0,"sco_pri_data: found head offset failed!");
         }
         else
         {
@@ -5503,6 +5042,15 @@ static uint32_t bt_sco_btpcm_capture_data(uint8_t *buf, uint32_t len)
             {
                 bt_drv_reg_op_enable_dma_tc(adma_ch&0xFF, dma_base);
             }
+#if defined(VPU_STREAM_SYNC_TUNING)
+            af_stream_dma_tc_irq_enable(AUD_STREAM_ID_2, AUD_STREAM_CAPTURE);
+            adma_ch = af_stream_get_dma_chan(AUD_STREAM_ID_2, AUD_STREAM_CAPTURE);
+            dma_base = af_stream_get_dma_base_addr(AUD_STREAM_ID_2, AUD_STREAM_CAPTURE);
+            if(adma_ch != HAL_DMA_CHAN_NONE)
+            {
+                bt_drv_reg_op_enable_dma_tc(adma_ch&0xFF, dma_base);
+            }
+#endif
             af_stream_dma_tc_irq_disable(AUD_STREAM_ID_1, AUD_STREAM_CAPTURE);
             adma_ch = af_stream_get_dma_chan(AUD_STREAM_ID_1, AUD_STREAM_CAPTURE);
             dma_base = af_stream_get_dma_base_addr(AUD_STREAM_ID_1, AUD_STREAM_CAPTURE);
@@ -5520,10 +5068,10 @@ static uint32_t bt_sco_btpcm_capture_data(uint8_t *buf, uint32_t len)
                 bt_drv_reg_op_enable_dma_tc(adma_ch&0xFF, dma_base);
             }
 #endif
-            AUDIO_BT_TRACE(0,"[SCO][BTPCMRX] buf:%p,capture_buf_btpcm:%p",buf,capture_buf_btpcm);
+            TRACE_AUD_STREAM_I("[SCO][BTPCMRX] buf:%p,capture_buf_btpcm:%p",buf,capture_buf_btpcm);
 
             // uint16_t *source=(uint16_t *)buf;
-            // AUDIO_BT_DUMP16("%02x,", source, MSBC_FRAME_LEN);
+            // DUMP16("%02x,", source, MSBC_FRAME_LEN);
 
             mobile_master_clk_offset_init=mobile_master_clk%BUF_BTCLK_NUM;
             last_mobile_master_clk = mobile_master_clk;
@@ -5531,7 +5079,7 @@ static uint32_t bt_sco_btpcm_capture_data(uint8_t *buf, uint32_t len)
             is_codec_stream_started = true;
 
 #if defined(SCO_DMA_SNAPSHOT_DEBUG)
-            AUDIO_BT_TRACE(0,"[SCO][BTPCMRX] btclk:%d,btcnt:%d,",mobile_master_clk,mobile_master_cnt);
+            TRACE_AUD_STREAM_I("[SCO][BTPCMRX] btclk:%d,btcnt:%d,",mobile_master_clk,mobile_master_cnt);
 #endif
         }
     } else {
@@ -5547,13 +5095,13 @@ static uint32_t bt_sco_btpcm_capture_data(uint8_t *buf, uint32_t len)
         bt_drv_reg_op_dma_tc_clkcnt_get(&btclk, &btcnt);
 #endif
         bt_sco_mobile_clkcnt_get(btclk, btcnt,&mobile_master_clk, &mobile_master_cnt);
-        AUDIO_BT_TRACE(0,"[SCO][BTPCMRX]:btclk:%d,btcnt:%d,",mobile_master_clk,mobile_master_cnt);
+        TRACE_AUD_STREAM_I("[SCO][BTPCMRX]:btclk:%d,btcnt:%d,",mobile_master_clk,mobile_master_cnt);
 #endif
     }
 
 #if defined(BT_SCO_HANDLER_PROFILE)
     uint32_t end_ticks = hal_fast_sys_timer_get();
-    AUDIO_BT_TRACE(0,"[SCO][BTPCMRX] takes %d us",
+    TRACE_AUD_STREAM_I("[SCO][BTPCMRX] takes %d us",
             FAST_TICKS_TO_US(end_ticks - start_ticks));
 #endif
 
@@ -5564,14 +5112,14 @@ static uint32_t bt_sco_btpcm_capture_data(uint8_t *buf, uint32_t len)
     uint32_t start_ticks = hal_fast_sys_timer_get();
 #endif
 
-    if(!is_sco_mode()){
-        AUDIO_BT_TRACE(0,"[SCO][BTPCMRX] player exit!");
+    if(!amgr_is_bluetooth_sco_on()){
+        TRACE_AUD_STREAM_E("[SCO][BTPCMRX] player exit!");
         memset(buf,0x0,len);
         return len;
     }
 
 #if defined(TX_RX_PCM_MASK)
-    AUDIO_BT_TRACE(0,"[SCO][BTPCMRX] TX_RX_PCM_MASK");
+    TRACE_AUD_STREAM_I("[SCO][BTPCMRX] TX_RX_PCM_MASK");
     CQueue* Rx_esco_queue_temp = NULL;
     Rx_esco_queue_temp = get_rx_esco_queue_ptr();
     if(bt_sco_codec_is_msbc() && btdrv_is_pcm_mask_enable() ==1 )
@@ -5588,7 +5136,7 @@ static uint32_t bt_sco_btpcm_capture_data(uint8_t *buf, uint32_t len)
         len*=2;
         if(status)
         {
-            AUDIO_BT_TRACE(0,"[SCO][BTPCMRX] Rx Dec Fail");
+            TRACE_AUD_STREAM_E("[SCO][BTPCMRX] Rx Dec Fail");
         }
     }
 #endif
@@ -5597,7 +5145,7 @@ static uint32_t bt_sco_btpcm_capture_data(uint8_t *buf, uint32_t len)
         if (bt_sco_codec_is_cvsd())
             hal_sys_timer_delay_us(3000);
 
-        AUDIO_BT_TRACE(0,"[SCO][BTPCMRX] start codec %d", FAST_TICKS_TO_US(hal_fast_sys_timer_get()));
+        TRACE_AUD_STREAM_I("[SCO][BTPCMRX] start codec %d", FAST_TICKS_TO_US(hal_fast_sys_timer_get()));
 #if defined(AUDIO_ANC_FB_MC) && defined(ANC_APP) && !defined(__AUDIO_RESAMPLE__)
         af_stream_start(AUD_STREAM_ID_2, AUD_STREAM_PLAYBACK);
 #endif
@@ -5621,7 +5169,7 @@ static uint32_t bt_sco_btpcm_capture_data(uint8_t *buf, uint32_t len)
 
 #if defined(BT_SCO_HANDLER_PROFILE)
     uint32_t end_ticks = hal_fast_sys_timer_get();
-    AUDIO_BT_TRACE(0,"[SCO][BTPCMRX] takes %d us",
+    TRACE_AUD_STREAM_I("[SCO][BTPCMRX] takes %d us",
             FAST_TICKS_TO_US(end_ticks - start_ticks));
 #endif
 
@@ -5643,7 +5191,7 @@ static void bt_sco_codec_playback_data_post_handler(uint8_t *buf, uint32_t len, 
 {
     POSSIBLY_UNUSED struct AF_STREAM_CONFIG_T *config = (struct AF_STREAM_CONFIG_T *)cfg;
 #ifdef MIX_AUDIO_PROMPT_WITH_A2DP_MEDIA_ENABLED
-    uint8_t device_id = app_bt_audio_get_curr_sco_device();
+    uint8_t device_id = bes_aud_bt->aud_get_curr_sco_device();
 #ifdef TWS_PROMPT_SYNC
     tws_playback_ticks_check_for_mix_prompt(device_id);
 #endif
@@ -5686,7 +5234,7 @@ void bt_sco_reset_tx_gain_mode(bool sco_on)
 
 void bt_sco_tx_gain_mode_ajdustment_handler(void)
 {
-    struct BT_DEVICE_T *curr_device = app_bt_get_device(app_bt_audio_get_curr_sco_device());
+    struct BT_ADAPTER_DEVICE_T *curr_device = bt_adapter_get_device(bes_aud_bt->aud_get_curr_sco_device());
 
     if (!curr_device)
         return;
@@ -5696,17 +5244,17 @@ void bt_sco_tx_gain_mode_ajdustment_handler(void)
     if (ret)
     {
         int32_t average_rssi = app_bt_tx_rssi_analyzer(mobile_agc.rssi);
-        //AUDIO_BT_TRACE(0, "S:    %d  db:  %d  db", average_rssi, mobile_agc.rssi);
+        //TRACE(0, "S:    %d  db:  %d  db", average_rssi, mobile_agc.rssi);
         if ((average_rssi < APP_SCO_LOWER_RSSI_THRESHOLD) && isScoStreamingSwitchedToLowPowerTxGain)
         {
-            AUDIO_BT_TRACE(0, "switch to normal mode tx gain as rssi is %d", average_rssi);
+            TRACE(0, "switch to normal mode tx gain as rssi is %d", average_rssi);
             isScoStreamingSwitchedToLowPowerTxGain = false;
 
             bt_drv_rf_high_efficency_tx_pwr_ctrl(false, false);
         }
         else if ((average_rssi >= APP_SCO_UPPER_RSSI_THRESHOLD) && !isScoStreamingSwitchedToLowPowerTxGain)
         {
-            AUDIO_BT_TRACE(0, "switch to low power mode tx gain as rssi is %d", average_rssi);
+            TRACE(0, "switch to low power mode tx gain as rssi is %d", average_rssi);
             isScoStreamingSwitchedToLowPowerTxGain = true;
 
             bt_drv_rf_high_efficency_tx_pwr_ctrl(true, true);
@@ -5715,34 +5263,39 @@ void bt_sco_tx_gain_mode_ajdustment_handler(void)
 }
 #endif
 
+static app_bt_sco_switch_trigger_t sco_switch_trigger_check = NULL;
 static uint32_t bt_sco_codec_playback_data(uint8_t *buf, uint32_t len)
 {
     app_bt_stream_trigger_checker_handler(TRIGGER_CHECKER_HFP_AUDPCM_PLAYERBLACK);
+
     if(sco_switch_trigger_check && sco_switch_trigger_check() == true)
     {
-        AUDIO_BT_TRACE(1,"%s switch ok",__func__);
+        TRACE(1,"%s switch ok",__func__);
     }
-
     if (!bt_is_playback_triggered())
     {
         bt_set_playback_triggered(true);
     }
+
+#if defined(IBRT) && defined(TOTA_v2)
+    app_ibrt_ui_rssi_process();
+#endif
 
 #ifdef BT_XTAL_SYNC
 #ifdef BT_XTAL_SYNC_NEW_METHOD
 #ifdef IBRT
     bool valid = false;
     uint32_t bitoffset = 0;
-    POSSIBLY_UNUSED struct BT_DEVICE_T *curr_device = app_bt_get_device(app_bt_audio_get_curr_sco_device());
-    if (bts_bt_if_is_dev_link_connected(&curr_device->remote))
+    POSSIBLY_UNUSED struct BT_ADAPTER_DEVICE_T *curr_device = bt_adapter_get_device(bes_aud_bt->aud_get_curr_sco_device());
+    if (app_tws_ibrt_mobile_link_connected(&curr_device->remote))
     {
         valid = true;
-        bitoffset = btdrv_rf_bitoffset_get(bts_bt_if_get_dev_acl_handle(&curr_device->remote) -0x80);
+        bitoffset = btdrv_rf_bitoffset_get(app_tws_ibrt_get_mobile_connhandle(&curr_device->remote) -0x80);
     }
-    else if (bts_ibrt_if_is_ibrt_link_connected(&curr_device->remote))
+    else if (app_tws_ibrt_slave_ibrt_link_connected(&curr_device->remote))
     {
         valid = true;
-        bitoffset = btdrv_rf_bitoffset_get(bts_ibrt_if_get_dev_ibrt_handle(&curr_device->remote) -0x80);
+        bitoffset = btdrv_rf_bitoffset_get(app_tws_ibrt_get_ibrt_handle(&curr_device->remote) -0x80);
     }
 
     if(valid)
@@ -5797,23 +5350,23 @@ static uint32_t bt_sco_codec_playback_data(uint8_t *buf, uint32_t len)
     plc_monitor_dump_data(source, source_len);
 
 #ifdef SCO_DUMP_BTPCM_DATA
-    // AUDIO_BT_TRACE(2, "[%s] len:%d", __func__, source_len);
+    // TRACE(2, "[%s] len:%d", __func__, source_len);
     for (uint32_t i=0; i<source_len/120; i++) {
-        AUDIO_BT_DUMP16("%04x,", source + 120 * i, 60);
+        DUMP16("%04x,", source + 120 * i, 60);
         hal_sys_timer_delay_us(100);
     }
 #endif
 
 #if defined(PCM_PRIVATE_DATA_FLAG)
     {
-    	uint32_t i;
+        uint32_t i;
         for (i = 0; i < source_len/BTPCM_TOTAL_DATA_LENGTH; i++)
         {
-		uint8_t *dst=source+i*BTPCM_PUBLIC_DATA_LENGTH;
-		uint8_t *src=source+i*BTPCM_TOTAL_DATA_LENGTH+BTPCM_PRIVATE_DATA_LENGTH;
-        	memmove(dst,src,BTPCM_PUBLIC_DATA_LENGTH);
+            uint8_t *dst=source+i*BTPCM_PUBLIC_DATA_LENGTH;
+            uint8_t *src=source+i*BTPCM_TOTAL_DATA_LENGTH+BTPCM_PRIVATE_DATA_LENGTH;
+            memmove(dst,src,BTPCM_PUBLIC_DATA_LENGTH);
         }
-	source_len=source_len-BTPCM_PRIVATE_DATA_LENGTH*i;
+        source_len=source_len-BTPCM_PRIVATE_DATA_LENGTH*i;
     }
 #endif
 
@@ -5821,7 +5374,7 @@ static uint32_t bt_sco_codec_playback_data(uint8_t *buf, uint32_t len)
         for(uint32_t i =0; i < source_len; i++) {
             source[i]=MUTE_PATTERN;
         }
-        AUDIO_BT_TRACE(0,"[SCO][SPK]mute....................");
+        TRACE_AUD_STREAM_I("[SCO][SPK]mute....................");
     } else {
         sco_btpcm_mute_flag=1;
     }
@@ -5833,15 +5386,11 @@ static uint32_t bt_sco_codec_playback_data(uint8_t *buf, uint32_t len)
         }
         source_len >>= 1;
     }
+/*Processing time is too long, affecting the interrupt processing of btpcm*/
+#if !defined (FPGA)
     process_downlink_bt_voice_frames(source, source_len, playbakce_pcm_frame_p,
                                     playback_size_codecpcm / sco_play_chan_num / 2);
-
-    if (app_bt_stream_ext_sco_playback)
-    {
-        app_bt_stream_ext_sco_playback(playbakce_pcm_frame_p, playback_size_codecpcm / sco_play_chan_num / 2);
-        return len;
-    }
-
+#endif
     if (sco_play_chan_num == AUD_CHANNEL_NUM_2) {
         // Convert mono data to stereo data
 #if defined(SPEECH_RX_24BIT)
@@ -5887,7 +5436,7 @@ static uint32_t bt_sco_codec_playback_data(uint8_t *buf, uint32_t len)
             app_resample_reset(sco_playback_resample);
             app_resample_reset(sco_capture_resample);
             voicebtpcm_pcm_echo_buf_queue_reset();
-            AUDIO_BT_TRACE(0,"[SCO][SPK]: DMA buffer error: reset resample");
+            TRACE_AUD_STREAM_I("[SCO][SPK]: DMA buffer error: reset resample");
         }
         app_playback_resample_run(sco_playback_resample, dec_buf, mono_len);
     }
@@ -5929,7 +5478,7 @@ static uint32_t bt_sco_codec_playback_data(uint8_t *buf, uint32_t len)
 
 #if defined(BT_SCO_HANDLER_PROFILE)
     uint32_t end_ticks = hal_fast_sys_timer_get();
-    AUDIO_BT_TRACE(0,"[SCO][SPK] takes %d us",
+    TRACE_AUD_STREAM_I("[SCO][SPK] takes %d us",
         FAST_TICKS_TO_US(end_ticks - start_ticks));
 #endif
 
@@ -5963,7 +5512,7 @@ static uint32_t audio_mc_data_playback_sco(uint8_t *buf, uint32_t mc_len_bytes)
   // uint32_t begin_time;
    //uint32_t end_time;
   // begin_time = hal_sys_timer_get();
-  // AUDIO_BT_TRACE(0,"phone cancel: %d",begin_time);
+  // TRACE_AUD_STREAM_I("phone cancel: %d",begin_time);
 
    float left_gain;
    float right_gain;
@@ -5975,11 +5524,11 @@ static uint32_t audio_mc_data_playback_sco(uint8_t *buf, uint32_t mc_len_bytes)
 
    hal_codec_get_dac_gain(&left_gain,&right_gain);
 
-   AUDIO_BT_TRACE(0,"[SCO][SPK][MC] playback_samplerate_ratio:  %d,ch:%d,sample_size:%d.",playback_samplerate_ratio_bt,playback_ch_num_bt,sample_size_play_bt);
-   AUDIO_BT_TRACE(0,"[SCO][SPK][MC] len:  %d",mc_len_bytes);
+   TRACE_AUD_STREAM_I("[SCO][SPK][MC] playback_samplerate_ratio:  %d,ch:%d,sample_size:%d.",playback_samplerate_ratio_bt,playback_ch_num_bt,sample_size_play_bt);
+   TRACE_AUD_STREAM_I("[SCO][SPK][MC] len:  %d",mc_len_bytes);
 
-  // AUDIO_BT_TRACE(0,"left_gain:  %d",(int)(left_gain*(1<<12)));
-  // AUDIO_BT_TRACE(0,"right_gain: %d",(int)(right_gain*(1<<12)));
+  // TRACE_AUD_STREAM_I("left_gain:  %d",(int)(left_gain*(1<<12)));
+  // TRACE_AUD_STREAM_I("right_gain: %d",(int)(right_gain*(1<<12)));
 
    playback_len_bytes=mc_len_bytes/playback_samplerate_ratio_bt;
 
@@ -6216,7 +5765,7 @@ static uint32_t audio_mc_data_playback_sco(uint8_t *buf, uint32_t mc_len_bytes)
 
   //  end_time = hal_sys_timer_get();
 
- //   AUDIO_BT_TRACE(0,"[SCO][SPK][MC]:run time: %d", end_time-begin_time);
+ //   TRACE_AUD_STREAM_I("[SCO][SPK][MC]:run time: %d", end_time-begin_time);
 
     return 0;
 }
@@ -6277,7 +5826,7 @@ static int speech_get_btpcm_buf_len(hfp_sco_codec_t sco_codec, int fs,int ms)
     buf_len=buf_len/2;
 #endif
 
-    AUDIO_BT_TRACE(0,"speech_get_btpcm_buf_len:%d", buf_len);
+    TRACE_AUD_STREAM_I("speech_get_btpcm_buf_len:%d", buf_len);
 
     return buf_len;
 }
@@ -6329,8 +5878,6 @@ enum AUD_SAMPRATE_T speech_codec_get_sample_rate(void)
 #else
     if (bt_sco_codec_is_cvsd()) {
         sample_rate = AUD_SAMPRATE_8000;
-    } else if(bt_sco_codec_is_lc3()) {
-        sample_rate = AUD_SAMPRATE_32000;
     } else {
         sample_rate = AUD_SAMPRATE_16000;
     }
@@ -6346,7 +5893,7 @@ enum AUD_SAMPRATE_T sco_sample_rate;
 #if defined(AF_ADC_I2S_SYNC)
 void bt_sco_bt_trigger_callback(void)
 {
-    AUDIO_BT_TRACE(0,"[SCO][IIS] Start...", __func__);
+    TRACE_AUD_STREAM_I("[SCO][IIS] Start...", __func__);
 
     hal_i2s_enable(HAL_I2S_ID_0);
 }
@@ -6363,57 +5910,27 @@ static enum APP_SYSFREQ_FREQ_T sco_player_reselect_freq(enum APP_SYSFREQ_FREQ_T 
         freq = APP_SYSFREQ_104M;
     }
 
+#if defined(IBRT)
+    if (bt_adapter_count_streaming_a2dp() > 1) {
+        if (freq < APP_SYSFREQ_78M) {
+            freq = APP_SYSFREQ_78M;
+        }
+    }
+#endif
+
 #if defined(AUDIO_ANC_FB_MC_SCO) && defined(ANC_APP) && !defined(__AUDIO_RESAMPLE__)
     if (freq < APP_SYSFREQ_208M) {
         freq = APP_SYSFREQ_208M;
     }
 #endif
 
-#if defined(SCO_CP_ACCEL)
-    freq = APP_SYSFREQ_52M;
-#endif
-
-#if defined(SPEECH_TX_THIRDPARTY)
-    freq = APP_SYSFREQ_104M;
-#endif
-
-#if defined(IBRT)
-    if (app_bt_audio_count_straming_mobile_links() > 1)
-    {
-        if (freq < APP_SYSFREQ_78M)
-        {
-            freq = APP_SYSFREQ_78M;
-        }
+#if defined(SPEECH_TX_3MIC_NS) || defined(SPEECH_TX_DTLN)
+    if (freq < APP_SYSFREQ_208M) {
+        freq = APP_SYSFREQ_208M;
     }
 #endif
+
     return freq;
-}
-
-static void app_multipoint_timer_handler(void const *param);
-osTimerDef (APP_MULTIPOINT_TIMER, app_multipoint_timer_handler);
-osTimerId app_multipoint_timer_id = NULL;
-bool isInMultipointTimer = false;
-static void app_multipoint_timer_handler(void const *param)
-{
-    AUDIO_BT_TRACE(0, "%s", __func__);
-    isInMultipointTimer = false;
-}
-
-void app_start_multipoint_timer_handler(void)
-{
-    if (NULL == app_multipoint_timer_id)
-    {
-        app_multipoint_timer_id =
-            osTimerCreate(osTimer(APP_MULTIPOINT_TIMER), osTimerOnce, NULL);
-    }
-    AUDIO_BT_TRACE(0, "%s", __func__);
-    isInMultipointTimer = true;
-    osTimerStart(app_multipoint_timer_id, 1500);
-}
-
-bool app_is_in_multipoint_timer(void)
-{
-    return isInMultipointTimer;
 }
 
 static int bt_sco_player(bool on, enum APP_SYSFREQ_FREQ_T freq)
@@ -6425,28 +5942,36 @@ static int bt_sco_player(bool on, enum APP_SYSFREQ_FREQ_T freq)
     uint8_t POSSIBLY_UNUSED adma_ch = HAL_DMA_CHAN_NONE;
     uint32_t POSSIBLY_UNUSED dma_base;
 
-    AUDIO_BT_TRACE(0,"[SCO_PLAYER] work:%d op:%d freq:%d", isRun, on, freq);
+    TRACE_AUD_STREAM_I("[SCO_PLAYER] work:%d op:%d freq:%d", isRun, on, freq);
 
 #ifdef CHIP_BEST2000
     btdrv_enable_one_packet_more_head(0);
 #endif
+    if(bes_bt_me_count_link(BT_COUNT_CONNECTED_SCO) < 2)
+    {
+        app_bt_sco_switch_trigger_deinit();
+    }
+    bt_set_playback_triggered(false);
 
     if (isRun==on)
         return 0;
 
     if (on)
     {
-#ifdef CODEC_VCM_CHECK
-        vcm_sta = 0;
-#endif
-        bt_set_playback_triggered(false);
         af_set_irq_notification(app_bt_stream_sco_irq_notification);
-#ifdef  IS_MULTI_AI_ENABLED
-        app_ai_open_mic_user_set(AI_OPEN_MIC_USER_SCO);
-#endif
+
         bt_sco_codec_store();
+#if !defined(BT_HFP_AG_ROLE) && !defined(HFP_AG_SCO_AUTO_CONN)
+        bt_sco_set_record_mode(bes_bt_hfp_curr_voice_rec_active());
+#endif
+        amgr_set_bt_sco_ringtone_mode(!(bes_bt_hfp_has_call_active()));
+
 #ifdef MIX_AUDIO_PROMPT_WITH_A2DP_MEDIA_ENABLED
         audio_prompt_stop_playing();
+#endif
+
+#if defined(IBRT)
+        app_ibrt_ui_rssi_reset();
 #endif
 #if defined(__IAG_BLE_INCLUDE__)
         bes_ble_gap_param_set_adv_interval(BLE_ADV_INTERVALREQ_USER_SCO,
@@ -6457,7 +5982,7 @@ static int bt_sco_player(bool on, enum APP_SYSFREQ_FREQ_T freq)
         if (btdrv_is_pcm_mask_enable() ==1 && bt_sco_codec_is_msbc())
         {
             bt_drv_reg_op_pcm_set(1);
-            AUDIO_BT_TRACE(0,"[SCO_PLAYER] PCM MASK");
+            TRACE_AUD_STREAM_I("[SCO_PLAYER] PCM MASK");
         }
 #endif
 
@@ -6472,38 +5997,23 @@ static int bt_sco_player(bool on, enum APP_SYSFREQ_FREQ_T freq)
         app_thirdparty_specific_lib_event_handle(THIRDPARTY_FUNC_NO1,THIRDPARTY_STOP, 0);
         app_thirdparty_specific_lib_event_handle(THIRDPARTY_FUNC_NO2,THIRDPARTY_MIC_OPEN, 0);
         app_thirdparty_specific_lib_event_handle(THIRDPARTY_FUNC_NO3,THIRDPARTY_STOP, 0);
-#ifdef __AMA_VOICE__
-        app_thirdparty_specific_lib_event_handle(THIRDPARTY_FUNC_KWS,THIRDPARTY_CALL_START, AI_SPEC_AMA);
-#else
         app_thirdparty_specific_lib_event_handle(THIRDPARTY_FUNC_KWS,THIRDPARTY_CALL_START, 0);
-#endif
-#ifdef __BIXBY
+#ifdef __BIXBY_VOICE__
         //TODO: use the thirdparty generic interface.
         app_bixby_on_suspend_handle();
 #endif
 #endif
-        //bt_syncerr set to max(0x0a)
-//        BTDIGITAL_REG_SET_FIELD(REG_BTCORE_BASE_ADDR, 0x0f, 0, 0x0f);
-//        af_set_priority(AF_USER_SCO, osPriorityRealtime);
+
         af_set_priority(AF_USER_SCO, osPriorityHigh);
         bt_media_volume_ptr_update_by_mediatype(BT_STREAM_VOICE);
         stream_local_volume = btdevice_volume_p->hfp_vol;
         app_audio_manager_sco_status_checker();
 
         freq = sco_player_reselect_freq(freq);
-        freq = APP_SYSFREQ_USER_BT_SCO_MASTER;
         app_sysfreq_req(APP_SYSFREQ_USER_BT_SCO, freq);
 
 #if defined(ENABLE_CALCU_CPU_FREQ_LOG)
-        AUDIO_BT_TRACE(0,"[SCO_PLAYER] sysfreq calc[%d]: %d\n", freq, hal_sys_timer_calc_cpu_freq(5, 0));
-#endif
-
-#if defined(VPU_CFG_ON_SENSOR_HUB)
-#if defined(LOW_DELAY_SCO)
-        speech_bone_sensor_open(16000, 120);
-#else
-        speech_bone_sensor_open(16000, 240);
-#endif
+        TRACE_AUD_STREAM_I("[SCO_PLAYER] sysfreq calc[%d]: %d\n", freq, hal_sys_timer_calc_cpu_freq(5, 0));
 #endif
 
 #if !defined(FPGA) || defined(FPGA_BUILD_IN_FLASH)
@@ -6511,7 +6021,6 @@ static int bt_sco_player(bool on, enum APP_SYSFREQ_FREQ_T freq)
 #endif
 
 #if defined(SPEECH_ALGO_DSP)
-        speech_enable_mcpp(true);
         MCPP_CLI_INIT_CFG_T init_cfg = {0};
         init_cfg.capture_enable = true;
         init_cfg.playback_enable = true;
@@ -6531,6 +6040,9 @@ static int bt_sco_player(bool on, enum APP_SYSFREQ_FREQ_T freq)
         mcpp_cli_init(APP_MCPP_USER_CALL, &init_cfg);
 #endif
 
+#if defined(SPEECH_ALGO_DSP_TEST)
+        speech_algo_dsp_test_init();
+#endif
         sample_rate = speech_codec_get_sample_rate();
 
 #if !defined(SCO_DMA_SNAPSHOT)
@@ -6540,24 +6052,9 @@ static int bt_sco_player(bool on, enum APP_SYSFREQ_FREQ_T freq)
 
         bt_sco_player_forcemute(false, false);
 
-        bt_sco_mode = 1;
+        amgr_set_bluetooth_sco_on(1);
 
-#if defined(ANC_ASSIST_ENABLED)
-#ifdef VOICE_ASSIST_ONESHOT_ADAPTIVE_ANC
-    if(app_voice_assist_oneshot_adapt_anc_work_status()){
-        app_voice_assist_oneshot_adapt_anc_close();
-    }
-#endif
-#if defined(VOICE_ASSIST_FF_FIR_LMS)
-        app_voice_assist_fir_lms_enable_fir(false);
-#endif
-#if defined(VOICE_ASSIST_FF_IIR_LMS)
-        app_voice_assist_iir_lms_enable_iir(false);
-#endif
-        app_anc_assist_set_playback_info(sample_rate);
-        app_anc_assist_set_mode(ANC_ASSIST_MODE_PHONE_CALL);
-#endif
-        app_audio_mempool_init_with_specific_size(app_audio_mempool_original_size());
+        app_audio_mempool_init();
 
 #ifndef _SCO_BTPCM_CHANNEL_
         memset(&hf_sendbuff_ctrl, 0, sizeof(hf_sendbuff_ctrl));
@@ -6565,15 +6062,13 @@ static int bt_sco_player(bool on, enum APP_SYSFREQ_FREQ_T freq)
 
         sco_cap_chan_num = (enum AUD_CHANNEL_NUM_T)SPEECH_CODEC_CAPTURE_CHANNEL_NUM;
 
-#if defined(FPGA)
+#if defined(FPGA) || defined(CAPTURE_USE_I2S)
         sco_cap_chan_num = AUD_CHANNEL_NUM_2;
 #endif
 
 #if defined(SPEECH_TX_AEC_CODEC_REF)
         sco_cap_chan_num = (enum AUD_CHANNEL_NUM_T)(sco_cap_chan_num + 1);
 #endif
-
-        uint32_t sco_algo_chan_num = sco_cap_chan_num;
 
 #if defined(ANC_NOISE_TRACKER)
         sco_cap_chan_num = (enum AUD_CHANNEL_NUM_T)(sco_cap_chan_num + ANC_NOISE_TRACKER_CHANNEL_NUM);
@@ -6591,14 +6086,22 @@ static int bt_sco_player(bool on, enum APP_SYSFREQ_FREQ_T freq)
 
         // codec:mic
 #if defined(ANC_ASSIST_ENABLED)
+        app_anc_assist_set_playback_info(sample_rate);
+        //app_anc_assist_users_suspend(true);
+        app_anc_assist_set_mode(ANC_ASSIST_MODE_PHONE_CALL);
         stream_cfg.channel_map  = (enum AUD_CHANNEL_MAP_T)app_anc_assist_get_mic_ch_map(AUD_INPUT_PATH_MAINMIC);
         sco_cap_chan_num        = (enum AUD_CHANNEL_NUM_T)app_anc_assist_get_mic_ch_num(AUD_INPUT_PATH_MAINMIC);
-#if defined(ASSIST_LOW_RAM_MOD) && !defined(ANC_ASSIST_UNUSED_ON_PHONE_CALL)
-        anc_assist_resample_inst = integer_resampling_create_with_custom_allocator(app_anc_assist_get_frame_len(), sco_cap_chan_num, INTEGER_RESAMPLING_ITEM_32K_TO_16K, pool_allocator());
-        app_audio_mempool_get_buff((uint8_t **)&anc_assist_resample_buf, speech_get_codecpcm_buf_len(sample_rate / 2, sco_cap_chan_num, SPEECH_SCO_FRAME_MS));
-        memset(anc_assist_resample_buf, 0, speech_get_codecpcm_buf_len(sample_rate / 2, sco_cap_chan_num, SPEECH_SCO_FRAME_MS));
+#endif
+
+// Call after ANC_ASSIST switch mode, because ANC_ASSIST perhaps open I2S.
+#if defined(SPEECH_BONE_SENSOR) && defined(VPU_CFG_ON_SENSOR_HUB)
+#if defined(LOW_DELAY_SCO)
+        speech_bone_sensor_open(16000, 120);
+#else
+        speech_bone_sensor_open(16000, 240);
 #endif
 #endif
+
         stream_cfg.io_path = AUD_INPUT_PATH_MAINMIC;
         stream_cfg.channel_num = sco_cap_chan_num;
         stream_cfg.data_size = speech_get_codecpcm_buf_len(sample_rate, stream_cfg.channel_num, SPEECH_SCO_FRAME_MS);
@@ -6646,10 +6149,22 @@ static int bt_sco_player(bool on, enum APP_SYSFREQ_FREQ_T freq)
 #endif
         stream_cfg.vol = stream_local_volume;
 
+#if defined(IBRT) && defined(IBRT_UI) && defined(BT_HFP_SUPPORT)
+        bool isNeedToMuteHfp = app_ibrt_if_check_whether_need_to_mute_hfp();
+        if (isNeedToMuteHfp)
+        {
+            stream_cfg.vol = 0;
+        }
+#endif
+
+#ifdef CAPTURE_USE_I2S
+        stream_cfg.device = AUD_STREAM_USE_I2S0_MASTER;
+#else
 #ifdef FPGA
         stream_cfg.device = AUD_STREAM_USE_EXT_CODEC;
 #else
         stream_cfg.device = AUD_STREAM_USE_INT_CODEC;
+#endif
 #endif
         stream_cfg.handler = bt_sco_codec_capture_data;
         app_audio_mempool_get_buff(&bt_audio_buff, stream_cfg.data_size);
@@ -6660,20 +6175,15 @@ static int bt_sco_player(bool on, enum APP_SYSFREQ_FREQ_T freq)
         capture_size_codecpcm=stream_cfg.data_size;
 #endif
 
-        AUDIO_BT_TRACE(0,"[SCO_PLAYER] Capture: sample_rate: %d, data_size: %d, chan_num: %d",
+        TRACE_AUD_STREAM_I("[SCO_PLAYER] Capture: sample_rate: %d, data_size: %d, chan_num: %d",
                         stream_cfg.sample_rate, stream_cfg.data_size, stream_cfg.channel_num);
 
         af_stream_open(AUD_STREAM_ID_0, AUD_STREAM_CAPTURE, &stream_cfg);
-
-#if BLE_AUDIO_ENABLED
-        af_codec_set_device_bt_sync_source(stream_cfg.device, AUD_STREAM_CAPTURE, A2DP_SCO_TRIGGER_CHANNEL);
-#endif
 
 #if defined(HW_DC_FILTER_WITH_IIR)
         hw_filter_codec_iir_st = hw_filter_codec_iir_create(stream_cfg.sample_rate,
                                 stream_cfg.channel_num, stream_cfg.bits, &adc_iir_cfg);
 #endif
-
         // codec:spk
         stream_cfg.channel_map = (enum AUD_CHANNEL_MAP_T)0;
 #if defined(CHIP_BEST1000)
@@ -6728,17 +6238,8 @@ static int bt_sco_player(bool on, enum APP_SYSFREQ_FREQ_T freq)
         }
         voicebtpcm_pcm_echo_buf_queue_init(echo_q_samp_cnt * 2);
 #else
-        stream_cfg.sample_rate = speech_sco_get_sample_rate();
-        stream_cfg.data_size = speech_get_codecpcm_buf_len(stream_cfg.sample_rate, sco_play_chan_num, SPEECH_SCO_FRAME_MS);
+        stream_cfg.sample_rate = sample_rate;
 #endif
-
-
-        if (app_bt_stream_ext_sco_capture)
-        {
-            stream_cfg.sample_rate = speech_codec_get_sample_rate();
-            stream_cfg.data_size = speech_get_codecpcm_buf_len(stream_cfg.sample_rate, sco_play_chan_num, SPEECH_SCO_FRAME_MS);
-        }
-
 
 #ifdef __BT_ANC__
         // Mono channel decoder buffer (8K or 16K sample rate)
@@ -6796,7 +6297,7 @@ static int bt_sco_player(bool on, enum APP_SYSFREQ_FREQ_T freq)
         app_audio_mempool_get_buff(&bt_audio_buff, stream_cfg.data_size);
         stream_cfg.data_ptr = BT_AUDIO_CACHE_2_UNCACHE(bt_audio_buff);
 
-        AUDIO_BT_TRACE(0,"[SCO_PLAYER] playback sample_rate:%d, data_size:%d",stream_cfg.sample_rate,stream_cfg.data_size);
+        TRACE_AUD_STREAM_I("[SCO_PLAYER] playback sample_rate:%d, data_size:%d",stream_cfg.sample_rate,stream_cfg.data_size);
 
 #if defined(AUDIO_ANC_FB_MC_SCO) && defined(ANC_APP) && !defined(__AUDIO_RESAMPLE__)
         sample_size_play_bt=stream_cfg.bits;
@@ -6827,11 +6328,10 @@ static int bt_sco_player(bool on, enum APP_SYSFREQ_FREQ_T freq)
         playback_samplerate_codecpcm=stream_cfg.sample_rate;
 #endif
 
-        af_stream_open(AUD_STREAM_ID_0, AUD_STREAM_PLAYBACK, &stream_cfg);
-
-#if BLE_AUDIO_ENABLED
-        af_codec_set_device_bt_sync_source(stream_cfg.device, AUD_STREAM_PLAYBACK, A2DP_SCO_TRIGGER_CHANNEL);
+#ifdef AUDIO_USER_FOCUS_CTRL
+        audio_user_focus_ctrl_acquire(ADUIO_USER_FOCUS_TYPE_A2DP);
 #endif
+        af_stream_open(AUD_STREAM_ID_0, AUD_STREAM_PLAYBACK, &stream_cfg);
 
         af_stream_dma_tc_irq_enable(AUD_STREAM_ID_0, AUD_STREAM_PLAYBACK);
         adma_ch = af_stream_get_dma_chan(AUD_STREAM_ID_0, AUD_STREAM_PLAYBACK);
@@ -6863,24 +6363,26 @@ static int bt_sco_player(bool on, enum APP_SYSFREQ_FREQ_T freq)
 
         memset(delay_buf_bt,0,sizeof(delay_buf_bt));
 
-        af_stream_open(AUD_STREAM_ID_2, AUD_STREAM_PLAYBACK, &stream_cfg);
-#if BLE_AUDIO_ENABLED
-        af_codec_set_device_bt_sync_source(stream_cfg.device, AUD_STREAM_PLAYBACK, A2DP_SCO_TRIGGER_CHANNEL);
+#ifdef AUDIO_USER_FOCUS_CTRL
+        audio_user_focus_ctrl_acquire(AUDIO_USER_FOCUS_TYPE_SCO);
 #endif
+        af_stream_open(AUD_STREAM_ID_2, AUD_STREAM_PLAYBACK, &stream_cfg);
+
 #endif
 #if defined(SCO_DMA_SNAPSHOT)
         btdrv_disable_playback_triggler();
 #ifdef PLAYBACK_USE_I2S
-        af_i2s_sync_config(AUD_STREAM_PLAYBACK, AF_I2S_SYNC_TYPE_BT, true);
+        af_i2s_sync_config(AUD_STREAM_ID_0,AUD_STREAM_PLAYBACK, AF_I2S_SYNC_TYPE_BT, true);
 #else
         af_codec_sync_config(AUD_STREAM_PLAYBACK, AF_CODEC_SYNC_TYPE_BT, true);
 #endif
-        af_codec_set_device_bt_sync_source(AUD_STREAM_USE_INT_CODEC, AUD_STREAM_PLAYBACK, 0);
         af_codec_sync_config(AUD_STREAM_CAPTURE, AF_CODEC_SYNC_TYPE_BT, true);
-        af_codec_set_device_bt_sync_source(AUD_STREAM_USE_INT_CODEC, AUD_STREAM_CAPTURE, 0);
 #endif
 
 #if defined(SPEECH_BONE_SENSOR)
+#if defined(VPU_STREAM_SYNC_TUNING)
+        bt_sco_i2s_sync_tuning_reset();
+#endif
         // NOTE: Use VMIC to power on VPU, So must call lis25ba_init after af_stream_start(AUD_STREAM_CAPTURE);
 #if !defined(VPU_CFG_ON_SENSOR_HUB)
 #if defined(LOW_DELAY_SCO)
@@ -6893,7 +6395,7 @@ static int bt_sco_player(bool on, enum APP_SYSFREQ_FREQ_T freq)
 #if defined(AF_ADC_I2S_SYNC)
         hal_i2s_enable_delay(HAL_I2S_ID_0);
 #elif defined(HW_I2S_TDM_TRIGGER)
-        af_i2s_sync_config(AUD_STREAM_CAPTURE, AF_I2S_SYNC_TYPE_BT, true);
+        af_i2s_sync_config(AUD_STREAM_ID_0,AUD_STREAM_CAPTURE, AF_I2S_SYNC_TYPE_BT, true);
 #else
         ASSERT(0, "Need to define AF_ADC_I2S_SYNC or HW_I2S_TDM_TRIGGER");
 #endif
@@ -6914,28 +6416,24 @@ static int bt_sco_player(bool on, enum APP_SYSFREQ_FREQ_T freq)
         noise_tracker_init(nt_demo_words_cb, ANC_NOISE_TRACKER_CHANNEL_NUM, -20);
 #endif
 
+#if defined(SPEECH_ALGO_DSP_M55)
+        mcpp_cli_wait_server_core_inited(APP_MCPP_USER_CALL);
+        app_overlay_subsys_select(APP_OVERLAY_M55, APP_OVERLAY_SUBSYS_SCO);
+#endif
+
         // Must call this function before af_stream_start
         // Get all free app audio buffer except SCO_BTPCM used(2k)
         enum AUD_SAMPRATE_T cur_sco_sample_rate;
         cur_sco_sample_rate = speech_sco_get_sample_rate();
 #if defined(SCO_DMA_SNAPSHOT)
-        if (app_bt_stream_ext_sco_capture)
-        {
-            voicebtpcm_pcm_audio_init(cur_sco_sample_rate, speech_vqe_get_sample_rate(),
-                        speech_vqe_get_sample_rate(), sample_rate, sample_rate, sco_algo_chan_num);
-        }
-        else
-        {
-            voicebtpcm_pcm_audio_init(cur_sco_sample_rate,
-                    speech_vqe_get_sample_rate(), cur_sco_sample_rate,
-                    speech_codec_get_sample_rate(), cur_sco_sample_rate, sco_algo_chan_num);
-        }
+        voicebtpcm_pcm_audio_init(cur_sco_sample_rate, speech_vqe_get_sample_rate(),
+                    cur_sco_sample_rate, sample_rate, sample_rate, sco_cap_chan_num);
 #else
         voicebtpcm_pcm_audio_init(cur_sco_sample_rate, sample_rate);
 #endif
 
         /*
-        AUDIO_BT_TRACE(0,"[SCO_PLAYER] start codec %d", FAST_TICKS_TO_US(hal_fast_sys_timer_get()));
+        TRACE_AUD_STREAM_I("[SCO_PLAYER] start codec %d", FAST_TICKS_TO_US(hal_fast_sys_timer_get()));
 #if defined(AUDIO_ANC_FB_MC) && defined(ANC_APP) && !defined(__AUDIO_RESAMPLE__)
         af_stream_start(AUD_STREAM_ID_2, AUD_STREAM_PLAYBACK);
 #endif
@@ -6953,7 +6451,7 @@ static int bt_sco_player(bool on, enum APP_SYSFREQ_FREQ_T freq)
             hal_codec_sidetone_enable();
 #ifdef __AUDIO_RESAMPLE__
             sample_rate_hw_sidetone_iir = hal_codec_get_real_sample_rate(cur_sco_sample_rate,1);
-            AUDIO_BT_TRACE(3,"sco sample rate:%d, sample_rate_hw_sidetone_iir: %d.",
+            TRACE(3,"sco sample rate:%d, sample_rate_hw_sidetone_iir: %d.",
                             cur_sco_sample_rate, sample_rate_hw_sidetone_iir);
 #else
             sample_rate_hw_sidetone_iir=cur_sco_sample_rate;
@@ -6973,13 +6471,14 @@ static int bt_sco_player(bool on, enum APP_SYSFREQ_FREQ_T freq)
         stream_cfg.channel_num = AUD_CHANNEL_NUM_1;
         // stream_cfg.data_size = BT_AUDIO_SCO_BUFF_SIZE * stream_cfg.channel_num;
 
-        if (bt_sco_codec_is_cvsd()) {
+        auto codec_get_type = bt_sco_codec_get_type();
+        if (codec_get_type == BT_HFP_SCO_CODEC_CVSD) {
             stream_cfg.data_size = speech_get_btpcm_buf_len(BT_HFP_SCO_CODEC_CVSD,
                                             stream_cfg.sample_rate, SPEECH_SCO_FRAME_MS);
-        } else if (bt_sco_codec_is_lc3()) {
+        } else if(codec_get_type == BT_HFP_SCO_CODEC_LC3_SWB){
             stream_cfg.data_size = speech_get_btpcm_buf_len(BT_HFP_SCO_CODEC_LC3_SWB,
-                                                            stream_cfg.sample_rate, SPEECH_SCO_FRAME_MS);
-        } else {
+                                            stream_cfg.sample_rate, SPEECH_SCO_FRAME_MS);
+        }else{
             stream_cfg.data_size = speech_get_btpcm_buf_len(BT_HFP_SCO_CODEC_MSBC,
                                             stream_cfg.sample_rate, SPEECH_SCO_FRAME_MS);
         }
@@ -6990,7 +6489,7 @@ static int bt_sco_player(bool on, enum APP_SYSFREQ_FREQ_T freq)
         app_audio_mempool_get_buff(&bt_audio_buff, stream_cfg.data_size);
         stream_cfg.data_ptr = BT_AUDIO_CACHE_2_UNCACHE(bt_audio_buff);
 
-        AUDIO_BT_TRACE(0,"[SCO_PLAYER] sco btpcm sample_rate:%d, data_size:%d",stream_cfg.sample_rate,stream_cfg.data_size);
+        TRACE_AUD_STREAM_I("[SCO_PLAYER] sco btpcm sample_rate:%d, data_size:%d",stream_cfg.sample_rate,stream_cfg.data_size);
 
 #if defined(SCO_DMA_SNAPSHOT)
         sco_btpcm_mute_flag=0;
@@ -7004,9 +6503,7 @@ static int bt_sco_player(bool on, enum APP_SYSFREQ_FREQ_T freq)
 #endif
 #endif
         af_stream_open(AUD_STREAM_ID_1, AUD_STREAM_CAPTURE, &stream_cfg);
-#if BLE_AUDIO_ENABLED
-        af_codec_set_device_bt_sync_source(stream_cfg.device, AUD_STREAM_CAPTURE, A2DP_SCO_TRIGGER_CHANNEL);
-#endif
+
         // btpcm:tx
         stream_cfg.device = AUD_STREAM_USE_BT_PCM;
         stream_cfg.handler = bt_sco_btpcm_playback_data;
@@ -7024,10 +6521,11 @@ static int bt_sco_player(bool on, enum APP_SYSFREQ_FREQ_T freq)
         app_audio_mempool_get_buff(&playback_buf_btpcm_cache, stream_cfg.data_size/2);
 #endif
 
-        af_stream_open(AUD_STREAM_ID_1, AUD_STREAM_PLAYBACK, &stream_cfg);
-#if BLE_AUDIO_ENABLED
-        af_codec_set_device_bt_sync_source(stream_cfg.device, AUD_STREAM_PLAYBACK, A2DP_SCO_TRIGGER_CHANNEL);
+#ifdef AUDIO_USER_FOCUS_CTRL
+        audio_user_focus_ctrl_acquire(AUDIO_USER_FOCUS_TYPE_SCO);
 #endif
+        af_stream_open(AUD_STREAM_ID_1, AUD_STREAM_PLAYBACK, &stream_cfg);
+
 #if defined(SCO_DMA_SNAPSHOT)
         app_bt_stream_sco_trigger_btpcm_start();
         af_stream_dma_tc_irq_enable(AUD_STREAM_ID_1, AUD_STREAM_CAPTURE);
@@ -7044,14 +6542,10 @@ static int bt_sco_player(bool on, enum APP_SYSFREQ_FREQ_T freq)
 #endif
 
 #if !(defined(__AUDIO_RESAMPLE__) && defined(SW_PLAYBACK_RESAMPLE))
-        af_codec_tune(AUD_STREAM_NUM, 0);
+        af_stream_tune(AUD_STREAM_ID_0, AUD_STREAM_NUM, 0);
 #endif
 
-        AUDIO_BT_TRACE(0,"[SCO_PLAYER] start btpcm %d", FAST_TICKS_TO_US(hal_fast_sys_timer_get()));
-#if defined(CHIP_BEST1501) || defined(CHIP_BEST2003) || defined(CHIP_BEST1600)
-        btdrv_pcm_disable();
-#endif
-
+        TRACE_AUD_STREAM_I("[SCO_PLAYER] start btpcm %d", FAST_TICKS_TO_US(hal_fast_sys_timer_get()));
         af_stream_start(AUD_STREAM_ID_0, AUD_STREAM_PLAYBACK);
         af_stream_start(AUD_STREAM_ID_0, AUD_STREAM_CAPTURE);
 
@@ -7063,9 +6557,12 @@ static int bt_sco_player(bool on, enum APP_SYSFREQ_FREQ_T freq)
 #if defined(CVSD_BYPASS)
         btdrv_cvsd_bypass_enable();
 #endif
-#ifndef BLE_ONLY_ENABLED
-        app_bt_enable_bt_pcm(true);
+
+#if !defined(CHIP_BEST2300) && !defined(CHIP_BEST2300P) && !defined(CHIP_BEST2300A) && !defined(CHIP_BEST1400) && !defined(CHIP_BEST1402) && !defined(CHIP_BEST2001)
+        osDelay(10);
+        bt_drv_reg_op_set_btpcm_trig_flag(true);
 #endif
+
         is_codec_stream_started = false;
 
 #if defined(CHIP_BEST2300) || defined(CHIP_BEST2300P) || defined(CHIP_BEST2300A) || defined(CHIP_BEST1400) || defined(CHIP_BEST1402) || defined(CHIP_BEST2001)
@@ -7082,34 +6579,19 @@ static int bt_sco_player(bool on, enum APP_SYSFREQ_FREQ_T freq)
 
 #if defined(CALL_BYPASS_SLAVE_TX_PROCESS)
         extern int bt_sco_chain_set_master_role(bool is_master);
-        bool is_master = 1;
-#ifdef IBRT
-        if (bts_core_get_ui_role() == TWS_UI_SLAVE)
-        {
-            is_master = 0;
-        }
-#endif
-        bt_sco_chain_set_master_role(is_master);
+        bt_sco_chain_set_master_role(app_ibrt_if_get_ui_role() == TWS_UI_MASTER);
 #endif
 
         app_bt_stream_trigger_checker_start();
-
-#ifdef AUDIO_RMS_MONITOR_ENABLE
-        rms_debug_cnt = 256;
-#endif
-        AUDIO_BT_TRACE(0,"[SCO_PLAYER] on");
+        TRACE_AUD_STREAM_I("[SCO_PLAYER] on");
     }
     else
     {
-#ifdef  IS_MULTI_AI_ENABLED
-        app_ai_open_mic_user_set(AI_OPEN_MIC_USER_NONE);
-#endif
 #ifdef MIX_AUDIO_PROMPT_WITH_A2DP_MEDIA_ENABLED
         bool isToClearActiveMedia= audio_prompt_clear_pending_stream(PENDING_TO_STOP_SCO_STREAMING);
         if (isToClearActiveMedia)
         {
-            uint8_t device_id = app_bt_audio_get_curr_sco_device();
-            bt_media_clear_media_type(BT_STREAM_VOICE, (enum BT_DEVICE_ID_T)device_id);
+            bt_media_clear_media_type(BT_STREAM_VOICE, BT_DEVICE_ID_1);
         }
 #endif
         app_bt_stream_trigger_checker_stop();
@@ -7128,20 +6610,18 @@ static int bt_sco_player(bool on, enum APP_SYSFREQ_FREQ_T freq)
 #if defined(SCO_DMA_SNAPSHOT)
         app_bt_stream_sco_trigger_codecpcm_stop();
 #endif
-
         if (bt_is_playback_triggered())
         {
 #ifdef AF_STREAM_ID_0_PLAYBACK_FADEOUT
-        // fadeout should be called before af_codec_set_playback_post_handler
-        // as pilot tone is merged in playback post handler
+            // fadeout should be called before af_codec_set_playback_post_handler
+            // as pilot tone is merged in playback post handler
 #if defined(ANC_ASSIST_USE_INT_CODEC)
-            af_stream_playback_fadeout(AUD_STREAM_ID_0, 50);
+            af_stream_playback_fadeout(50);
 #else
-            af_stream_playback_fadeout(AUD_STREAM_ID_0, 10);
+            af_stream_playback_fadeout(10);
 #endif
 #endif
         }
-
         af_stream_dma_tc_irq_disable(AUD_STREAM_ID_0, AUD_STREAM_PLAYBACK);
         adma_ch = af_stream_get_dma_chan(AUD_STREAM_ID_0, AUD_STREAM_PLAYBACK);
         dma_base = af_stream_get_dma_base_addr(AUD_STREAM_ID_0, AUD_STREAM_PLAYBACK);
@@ -7175,30 +6655,36 @@ static int bt_sco_player(bool on, enum APP_SYSFREQ_FREQ_T freq)
         af_stream_stop(AUD_STREAM_ID_2, AUD_STREAM_PLAYBACK);
 #endif
         is_codec_stream_started = false;
+#ifdef AUDIO_SUPPORT_PA_ENVELOPE
+        if (audio_process_pa_envelope_if_is_enable())
+        {
+            audio_process_pa_envelope_if_stop();
+        }
+#endif
 
 #if defined(SPEECH_BONE_SENSOR)
         speech_bone_sensor_stop();
 #endif
 
 #if !(defined(__AUDIO_RESAMPLE__) && defined(SW_PLAYBACK_RESAMPLE))
-        af_codec_tune(AUD_STREAM_NUM, 0);
+        af_stream_tune(AUD_STREAM_ID_0, AUD_STREAM_NUM, 0);
 #endif
 
 #ifdef _SCO_BTPCM_CHANNEL_
-#ifndef BLE_ONLY_ENABLED
         af_stream_stop(AUD_STREAM_ID_1, AUD_STREAM_CAPTURE);
         af_stream_stop(AUD_STREAM_ID_1, AUD_STREAM_PLAYBACK);
 
         af_stream_close(AUD_STREAM_ID_1, AUD_STREAM_CAPTURE);
         af_stream_close(AUD_STREAM_ID_1, AUD_STREAM_PLAYBACK);
-        app_bt_enable_bt_pcm(false);
+#if !defined(CHIP_BEST2300) && !defined(CHIP_BEST2300P) && !defined(CHIP_BEST2300A) && !defined(CHIP_BEST1400) && !defined(CHIP_BEST1402) && !defined(CHIP_BEST2001)
+        bt_drv_reg_op_set_btpcm_trig_flag(false);
 #endif
 #endif
 #ifdef TX_RX_PCM_MASK
         if (btdrv_is_pcm_mask_enable()==1 && bt_drv_reg_op_pcm_get())
         {
             bt_drv_reg_op_pcm_set(0);
-            AUDIO_BT_TRACE(0,"[SCO_PLAYER] PCM UNMASK");
+            TRACE_AUD_STREAM_I("[SCO_PLAYER] PCM UNMASK");
         }
 #endif
 #if defined(PCM_FAST_MODE)
@@ -7215,8 +6701,22 @@ static int bt_sco_player(bool on, enum APP_SYSFREQ_FREQ_T freq)
         af_stream_close(AUD_STREAM_ID_2, AUD_STREAM_PLAYBACK);
 #endif
 
+#ifdef AUDIO_USER_FOCUS_CTRL
+        audio_user_focus_ctrl_release(AUDIO_USER_FOCUS_TYPE_SCO);
+#endif
+
+#ifdef AUDIO_SUPPORT_PA_ENVELOPE
+        if (audio_process_pa_envelope_if_is_enable())
+        {
+            audio_process_pa_envelope_if_close();
+        }
+#endif
+
 #if defined(SPEECH_BONE_SENSOR)
         speech_bone_sensor_close();
+#if defined(VPU_STREAM_SYNC_TUNING)
+        bt_sco_i2s_sync_tuning_reset();
+#endif
 #endif
 
 #if defined(__AUDIO_RESAMPLE__) && defined(SW_SCO_RESAMPLE)
@@ -7242,6 +6742,9 @@ static int bt_sco_player(bool on, enum APP_SYSFREQ_FREQ_T freq)
         hal_cmu_audio_resample_enable();
 #endif
 
+        bt_sco_set_record_mode(false);
+        amgr_set_bt_sco_ringtone_mode(false);
+
 #ifdef __BT_ANC__
         bt_anc_sco_dec_buf = NULL;
         //damic_deinit();
@@ -7256,63 +6759,51 @@ static int bt_sco_player(bool on, enum APP_SYSFREQ_FREQ_T freq)
 #endif
 #endif
 
+#if defined(ANC_ASSIST_ENABLED)
+#if defined(AUDIO_ADAPTIVE_EQ)
+        app_voice_assist_adaptive_eq_close();
+#endif
+
+#if defined(AUDIO_ADJ_EQ)
+        app_voice_assist_adj_eq_close();
+#endif
+
+        app_anc_assist_set_playback_info(AUD_SAMPRATE_NULL);
+        app_anc_assist_set_mode(ANC_ASSIST_MODE_STANDALONE);
+       // app_anc_assist_users_suspend(false);
+#endif
+
 #if defined(__IAG_BLE_INCLUDE__)
         bes_ble_gap_param_set_adv_interval(BLE_ADV_INTERVALREQ_USER_SCO,
                                        USER_ALL,
                                        BLE_ADV_INVALID_INTERVAL);
 #endif
 
-        AUDIO_BT_TRACE(0,"[SCO_PLAYER] off");
-        bt_sco_mode = 0;
+        TRACE_AUD_STREAM_I("[SCO_PLAYER] off");
 
-#if defined(IBRT)
-#if defined(IBRT_UI)
-    if ((app_ibrt_conn_support_max_mobile_dev() == 2) &&
-        (btif_me_get_mobile_link_num() > 1))
-    {
-        app_start_multipoint_timer_handler();
-    }
-#endif
-#endif
+        amgr_set_bluetooth_sco_on(0);
 
         app_overlay_unloadall();
         app_sysfreq_req(APP_SYSFREQ_USER_BT_SCO, APP_SYSFREQ_32K);
         af_set_priority(AF_USER_SCO, osPriorityAboveNormal);
-
-#if defined(ANC_ASSIST_ENABLED)
-#if defined(AUDIO_ADAPTIVE_EQ)
-        app_voice_assist_adaptive_eq_close();
-#endif
-        app_anc_assist_set_playback_info(AUD_SAMPRATE_NULL);
-        app_anc_assist_set_mode(ANC_ASSIST_MODE_STANDALONE);
-#if defined(VOICE_ASSIST_FF_FIR_LMS)
-        app_voice_assist_fir_lms_enable_fir(true);
-#endif
-#if defined(VOICE_ASSIST_FF_IIR_LMS)
-        app_voice_assist_iir_lms_enable_iir(true);
-#endif
-#endif
 
         //bt_syncerr set to default(0x07)
 //       BTDIGITAL_REG_SET_FIELD(REG_BTCORE_BASE_ADDR, 0x0f, 0, 0x07);
 #ifdef __THIRDPARTY
         //app_thirdparty_specific_lib_event_handle(THIRDPARTY_FUNC_NO1,THIRDPARTY_START);
         app_thirdparty_specific_lib_event_handle(THIRDPARTY_FUNC_NO3,THIRDPARTY_START, 0);
-#ifdef __AMA_VOICE__
-        app_thirdparty_specific_lib_event_handle(THIRDPARTY_FUNC_KWS,THIRDPARTY_CALL_STOP, AI_SPEC_AMA);
-#else
         app_thirdparty_specific_lib_event_handle(THIRDPARTY_FUNC_KWS,THIRDPARTY_CALL_STOP, 0);
-#endif
-#ifdef __BIXBY
+#ifdef __BIXBY_VOICE__
         app_bixby_on_resume_handle();
 #endif
 #endif
-
-#ifdef AUDIO_RMS_MONITOR_ENABLE
-        rms_debug_cnt = 0xFFFF;
+#if defined(IBRT)
+        app_ibrt_ui_rssi_reset();
+#endif
+#ifdef A2DP_DSP
+        app_dsp_hifi4_deinit(APP_DSP_HIFI4_USER_A2DP);
 #endif
         af_set_irq_notification(NULL);
-        bt_set_playback_triggered(false);
     }
 
 #if defined(HIGH_EFFICIENCY_TX_PWR_CTRL)
@@ -7322,6 +6813,7 @@ static int bt_sco_player(bool on, enum APP_SYSFREQ_FREQ_T freq)
     isRun=on;
     return 0;
 }
+#endif // end BT_HFP_SUPPORT
 
 #ifdef AUDIO_LINEIN
 #include "app_status_ind.h"
@@ -7373,12 +6865,6 @@ uint32_t app_linein_need_pcm_data(uint8_t* pcm_buf, uint32_t len)
     merge_stereo_to_mono_16bits((int16_t *)buf, (int16_t *)pcm_buf, len/2);
 #endif
 
-#ifdef ANC_APP
-    bt_audio_updata_eq_for_anc(app_anc_work_status());
-#else
-    bt_audio_updata_eq(app_audio_get_eq());
-#endif
-
     audio_process_run(pcm_buf, len);
 
     return len;
@@ -7396,7 +6882,7 @@ int app_play_linein_onoff(bool onoff)
     uint32_t POSSIBLY_UNUSED eq_buff_size;
     uint8_t POSSIBLY_UNUSED play_samp_size;
 
-    AUDIO_BT_TRACE(0,"[LINEIN_PLAYER] work:%d op:%d", isRun, onoff);
+    TRACE_AUD_STREAM_I("[LINEIN_PLAYER] work:%d op:%d", isRun, onoff);
 
     if (isRun == onoff)
         return 0;
@@ -7404,7 +6890,7 @@ int app_play_linein_onoff(bool onoff)
     if (onoff) {
         app_sysfreq_req(APP_SYSFREQ_USER_APP_0, APP_SYSFREQ_104M);
         app_overlay_select(APP_OVERLAY_A2DP);
-        app_audio_mempool_init_with_specific_size(app_audio_mempool_size());
+        app_audio_mempool_init();
         app_audio_mempool_get_buff(&linein_audio_cap_buff, LINEIN_CAPTURE_BUFFER_SIZE);
         app_audio_mempool_get_buff(&linein_audio_play_buff, LINEIN_PLAYER_BUFFER_SIZE);
         app_audio_mempool_get_buff(&linein_audio_loop_buf, LINEIN_PLAYER_BUFFER_SIZE<<2);
@@ -7432,7 +6918,7 @@ int app_play_linein_onoff(bool onoff)
         stream_cfg.device = AUD_STREAM_USE_EXT_CODEC;
 #endif
         stream_cfg.vol = stream_linein_volume;
-        AUDIO_BT_TRACE(0,"[LINEIN_PLAYER] vol = %d",stream_linein_volume);
+        TRACE_AUD_STREAM_I("[LINEIN_PLAYER] vol = %d",stream_linein_volume);
         stream_cfg.io_path = AUD_OUTPUT_PATH_SPEAKER;
         stream_cfg.handler = app_linein_need_pcm_data;
         stream_cfg.data_ptr = BT_AUDIO_CACHE_2_UNCACHE(linein_audio_play_buff);
@@ -7456,8 +6942,13 @@ int app_play_linein_onoff(bool onoff)
         mid_p_8_old_l=0;
         mid_p_8_old_r=0;
 #endif
-
+#ifdef AUDIO_USER_FOCUS_CTRL
+        audio_user_focus_ctrl_acquire(ADUIO_USER_FOCUS_TYPE_A2DP);
+#endif
         af_stream_open(AUD_STREAM_ID_0, AUD_STREAM_PLAYBACK, &stream_cfg);
+#if defined(AUDIO_USER_PROCESS_EN) && defined(AUDIO_SW_GIAN_NORMALIZATION)
+        af_stream_sw_gain_enable(AUD_STREAM_ID_0, AUD_STREAM_PLAYBACK, false);
+#endif
 
 #if defined(__HW_FIR_EQ_PROCESS__) && defined(__HW_IIR_EQ_PROCESS__)
         eq_buff_size = stream_cfg.data_size*2;
@@ -7484,32 +6975,27 @@ int app_play_linein_onoff(bool onoff)
             app_audio_mempool_get_buff(&bt_eq_buff, eq_buff_size);
         }
 
-#if defined(IBRT)&& !defined(FREEMAN_ENABLED_STERO)
+#if defined(IBRT)
         enum AUD_CHANNEL_NUM_T sw_ch_num = AUD_CHANNEL_NUM_1;
 #else
         enum AUD_CHANNEL_NUM_T sw_ch_num = stream_cfg.channel_num;
 #endif
 
+#ifdef AUDIO_USER_PROCESS_EN
+#ifdef AUDIO_PROCESS_NORMALIZATION
+        if (audio_user_process_is_enable())
+        {
+            audio_user_process_open(stream_cfg.sample_rate, sw_ch_num, stream_cfg.channel_num, stream_cfg.bits, stream_cfg.bits, 1000);
+        }
+#endif
+#ifdef AUDIO_SW_GIAN_NORMALIZATION
+        if (audio_user_sw_gain_process_is_enable())
+        {
+            audio_user_sw_gain_process_open(stream_cfg.channel_num, stream_cfg.bits, stream_cfg.sample_rate, 30.0);
+        }
+#endif
+#else
         audio_process_open(stream_cfg.sample_rate, stream_cfg.bits, sw_ch_num, stream_cfg.channel_num, stream_cfg.data_size/stream_cfg.channel_num/(stream_cfg.bits <= AUD_BITS_16 ? 2 : 4)/2, bt_eq_buff, eq_buff_size);
-
-#ifdef __SW_IIR_EQ_PROCESS__
-        bt_audio_set_eq(AUDIO_EQ_TYPE_SW_IIR,bt_audio_get_eq_index(AUDIO_EQ_TYPE_SW_IIR,0));
-#endif
-
-#ifdef __HW_FIR_EQ_PROCESS__
-        bt_audio_set_eq(AUDIO_EQ_TYPE_HW_FIR,bt_audio_get_eq_index(AUDIO_EQ_TYPE_HW_FIR,0));
-#endif
-
-#ifdef __HW_DAC_IIR_EQ_PROCESS__
-        bt_audio_set_eq(AUDIO_EQ_TYPE_HW_DAC_IIR,bt_audio_get_eq_index(AUDIO_EQ_TYPE_HW_DAC_IIR,0));
-#endif
-
-#ifdef __HW_IIR_EQ_PROCESS__
-        bt_audio_set_eq(AUDIO_EQ_TYPE_HW_IIR,bt_audio_get_eq_index(AUDIO_EQ_TYPE_HW_IIR,0));
-#endif
-
-#ifdef ANC_APP
-        anc_status_record = 0xff;
 #endif
 
 #if defined(AUDIO_ANC_FB_MC) && defined(ANC_APP) && !defined(__AUDIO_RESAMPLE__)
@@ -7533,6 +7019,9 @@ int app_play_linein_onoff(bool onoff)
 
         memset(delay_buf_bt,0,sizeof(delay_buf_bt));
 
+#ifdef AUDIO_USER_FOCUS_CTRL
+        audio_user_focus_ctrl_acquire(ADUIO_USER_FOCUS_TYPE_A2DP);
+#endif
         af_stream_open(AUD_STREAM_ID_2, AUD_STREAM_PLAYBACK, &stream_cfg);
         //ASSERT(ret == 0, "af_stream_open playback failed: %d", ret);
 #endif
@@ -7570,17 +7059,35 @@ int app_play_linein_onoff(bool onoff)
         af_stream_stop(AUD_STREAM_ID_0, AUD_STREAM_CAPTURE);
         af_stream_stop(AUD_STREAM_ID_0, AUD_STREAM_PLAYBACK);
 
+#ifdef AUDIO_USER_PROCESS_EN
+#ifdef AUDIO_SW_GIAN_NORMALIZATION
+        if(audio_user_sw_gain_process_is_enable())
+        {
+            audio_user_sw_gain_process_close();
+        }
+#endif
+#ifdef AUDIO_PROCESS_NORMALIZATION
+        if (audio_user_process_is_enable())
+        {
+            audio_user_process_close();
+        }
+#endif
+#else
         audio_process_close();
+#endif
 
         af_stream_close(AUD_STREAM_ID_0, AUD_STREAM_CAPTURE);
         af_stream_close(AUD_STREAM_ID_0, AUD_STREAM_PLAYBACK);
+#ifdef AUDIO_USER_FOCUS_CTRL
+        audio_user_focus_ctrl_release(ADUIO_USER_FOCUS_TYPE_A2DP);
+#endif
 
         app_overlay_unloadall();
         app_sysfreq_req(APP_SYSFREQ_USER_APP_0, APP_SYSFREQ_32K);
      }
 
     isRun = onoff;
-    AUDIO_BT_TRACE(0,"[LINEIN_PLAYER] end!\n");
+    TRACE_AUD_STREAM_I("[LINEIN_PLAYER] end!\n");
     return 0;
 }
 #endif
@@ -7623,8 +7130,8 @@ int app_bt_stream_open(APP_AUDIO_STATUS* status)
     APP_AUDIO_STATUS next_status = {0};
     enum APP_SYSFREQ_FREQ_T freq = (enum APP_SYSFREQ_FREQ_T)status->freq;
 
-    AUDIO_BT_TRACE(0,"[STRM_PLAYER][OPEN] prev:0x%x%s freq:%d", gStreamplayer, player2str(gStreamplayer), freq);
-    AUDIO_BT_TRACE(0,"[STRM_PLAYER][OPEN] cur:0x%x%s freq:%d", player, player2str(player), freq);
+    TRACE_AUD_STREAM_I("[STRM_PLAYER][OPEN] prev:0x%x%s freq:%d", gStreamplayer, player2str(gStreamplayer), freq);
+    TRACE_AUD_STREAM_I("[STRM_PLAYER][OPEN] cur:0x%x%s freq:%d", player, player2str(player), freq);
 
     APP_AUDIO_STATUS streamToClose = {0};
 
@@ -7632,7 +7139,7 @@ int app_bt_stream_open(APP_AUDIO_STATUS* status)
     {
         if (gStreamplayer & player)
         {
-            AUDIO_BT_TRACE(0,"[STRM_PLAYER][OPEN] 0x%x%s has opened", player, player2str(player));
+            TRACE_AUD_STREAM_I("[STRM_PLAYER][OPEN] 0x%x%s has opened", player, player2str(player));
             return -1;
         }
 
@@ -7640,7 +7147,7 @@ int app_bt_stream_open(APP_AUDIO_STATUS* status)
         {
             if (APP_BT_INPUT_STREAM_INDEX(gStreamplayer) > 0)
             {
-                AUDIO_BT_TRACE(0,"[STRM_PLAYER][OPEN] close 0x%x%s prev opening", gStreamplayer, player2str(gStreamplayer));
+                TRACE_AUD_STREAM_I("[STRM_PLAYER][OPEN] close 0x%x%s prev opening", gStreamplayer, player2str(gStreamplayer));
             }
         }
 #if  defined(AUDIO_PROMPT_USE_DAC2_ENABLED)
@@ -7656,7 +7163,7 @@ int app_bt_stream_open(APP_AUDIO_STATUS* status)
         {
             if (APP_BT_OUTPUT_STREAM_INDEX(gStreamplayer) > 0)
             {
-                AUDIO_BT_TRACE(0,"[STRM_PLAYER][OPEN] close 0x%x%s prev opening", gStreamplayer, player2str(gStreamplayer));
+                TRACE_AUD_STREAM_I("[STRM_PLAYER][OPEN] close 0x%x%s prev opening", gStreamplayer, player2str(gStreamplayer));
                 uint16_t player2close = APP_BT_OUTPUT_STREAM_INDEX(gStreamplayer);
                 nRet = app_bt_stream_close(player2close);
                 if (nRet)
@@ -7688,15 +7195,17 @@ int app_bt_stream_open(APP_AUDIO_STATUS* status)
 
     switch (player)
     {
+#ifdef BT_HFP_SUPPORT
     case APP_BT_STREAM_HFP_PCM:
     case APP_BT_STREAM_HFP_CVSD:
     case APP_BT_STREAM_HFP_VENDOR:
         nRet = bt_sco_player(true, freq);
         break;
+#endif
     case APP_BT_STREAM_A2DP_SBC:
     case APP_BT_STREAM_A2DP_AAC:
     case APP_BT_STREAM_A2DP_VENDOR:
-        nRet = bt_a2dp_player(PLAYER_OPER_START, freq);
+        nRet = bt_sbc_player(PLAYER_OPER_START, freq);
         break;
 #ifdef __FACTORY_MODE_SUPPORT__
     case APP_FACTORYMODE_AUDIO_LOOP:
@@ -7760,7 +7269,7 @@ int app_bt_stream_open(APP_AUDIO_STATUS* status)
     if (!nRet)
     {
         gStreamplayer |= player;
-        AUDIO_BT_TRACE(0,"[STRM_PLAYER][OPEN] updated to  0x%x%s", gStreamplayer, player2str(gStreamplayer));
+        TRACE_AUD_STREAM_I("[STRM_PLAYER][OPEN] updated to  0x%x%s", gStreamplayer, player2str(gStreamplayer));
 #if defined(APP_AUDIO_DELAY_AFTER_OPEN_FOR_TRIGGER)
         // Add extra delay to resolve trigger conflict
         app_bt_stream_trigger_delay(player);
@@ -7772,8 +7281,8 @@ int app_bt_stream_open(APP_AUDIO_STATUS* status)
 int app_bt_stream_close(uint16_t player)
 {
     int nRet = -1;
-    AUDIO_BT_TRACE(0,"[STRM_PLAYER][CLOSE] gStreamplayer: 0x%x%s", gStreamplayer, player2str(gStreamplayer));
-    AUDIO_BT_TRACE(0,"[STRM_PLAYER][CLOSE] player:0x%x%s", player, player2str(player));
+    TRACE_AUD_STREAM_I("[STRM_PLAYER][CLOSE] gStreamplayer: 0x%x%s", gStreamplayer, player2str(gStreamplayer));
+    TRACE_AUD_STREAM_I("[STRM_PLAYER][CLOSE] player:0x%x%s", player, player2str(player));
 
     if ((gStreamplayer & player) != player)
     {
@@ -7782,15 +7291,17 @@ int app_bt_stream_close(uint16_t player)
 
     switch (player)
     {
+#ifdef BT_HFP_SUPPORT
         case APP_BT_STREAM_HFP_PCM:
         case APP_BT_STREAM_HFP_CVSD:
         case APP_BT_STREAM_HFP_VENDOR:
             nRet = bt_sco_player(false, APP_SYSFREQ_32K);
             break;
+#endif
         case APP_BT_STREAM_A2DP_SBC:
         case APP_BT_STREAM_A2DP_AAC:
         case APP_BT_STREAM_A2DP_VENDOR:
-            nRet = bt_a2dp_player(PLAYER_OPER_STOP, APP_SYSFREQ_32K);
+            nRet = bt_sbc_player(PLAYER_OPER_STOP, APP_SYSFREQ_32K);
             break;
 #ifdef __FACTORY_MODE_SUPPORT__
         case APP_FACTORYMODE_AUDIO_LOOP:
@@ -7850,7 +7361,7 @@ int app_bt_stream_close(uint16_t player)
     if (!nRet)
     {
         gStreamplayer &= (~player);
-        AUDIO_BT_TRACE(0,"[STRM_PLAYER][CLOSE] updated to 0x%x%s", gStreamplayer, player2str(gStreamplayer));
+        TRACE_AUD_STREAM_I("[STRM_PLAYER][CLOSE] updated to 0x%x%s", gStreamplayer, player2str(gStreamplayer));
     }
     return nRet;
 }
@@ -7859,8 +7370,8 @@ int app_bt_stream_setup(uint16_t player, uint8_t status)
 {
     int nRet = -1;
 
-    AUDIO_BT_TRACE(0,"[STRM_PLAYER][SETUP] prev:%d%s sample:%d", gStreamplayer, player2str(gStreamplayer), status);
-    AUDIO_BT_TRACE(0,"[STRM_PLAYER][SETUP] cur:%d%s sample:%d", player, player2str(player), status);
+    TRACE_AUD_STREAM_I("[STRM_PLAYER][SETUP] prev:%d%s sample:%d", gStreamplayer, player2str(gStreamplayer), status);
+    TRACE_AUD_STREAM_I("[STRM_PLAYER][SETUP] cur:%d%s sample:%d", player, player2str(player), status);
 
     switch (player)
     {
@@ -7871,7 +7382,7 @@ int app_bt_stream_setup(uint16_t player, uint8_t status)
         case APP_BT_STREAM_A2DP_SBC:
         case APP_BT_STREAM_A2DP_AAC:
         case APP_BT_STREAM_A2DP_VENDOR:
-            bt_a2dp_player_setup(status);
+            bt_sbc_player_setup(status);
             break;
         default:
             nRet = -1;
@@ -7887,8 +7398,8 @@ int app_bt_stream_restart(APP_AUDIO_STATUS* status)
     uint16_t player = status->id;
     enum APP_SYSFREQ_FREQ_T freq = (enum APP_SYSFREQ_FREQ_T)status->freq;
 
-    AUDIO_BT_TRACE(0,"[STRM_PLAYER][RESTART] prev:%d%s freq:%d", gStreamplayer, player2str(gStreamplayer), freq);
-    AUDIO_BT_TRACE(0,"[STRM_PLAYER][RESTART] cur:%d%s freq:%d", player, player2str(player), freq);
+    TRACE_AUD_STREAM_I("[STRM_PLAYER][RESTART] prev:%d%s freq:%d", gStreamplayer, player2str(gStreamplayer), freq);
+    TRACE_AUD_STREAM_I("[STRM_PLAYER][RESTART] cur:%d%s freq:%d", player, player2str(player), freq);
 
     if ((gStreamplayer & player) != player)
     {
@@ -7897,12 +7408,14 @@ int app_bt_stream_restart(APP_AUDIO_STATUS* status)
 
     switch (player)
     {
+#ifdef BT_HFP_SUPPORT
         case APP_BT_STREAM_HFP_PCM:
         case APP_BT_STREAM_HFP_CVSD:
         case APP_BT_STREAM_HFP_VENDOR:
             nRet = bt_sco_player(false, freq);
             nRet = bt_sco_player(true, freq);
             break;
+#endif
         case APP_BT_STREAM_A2DP_SBC:
         case APP_BT_STREAM_A2DP_AAC:
         case APP_BT_STREAM_A2DP_VENDOR:
@@ -7910,26 +7423,26 @@ int app_bt_stream_restart(APP_AUDIO_STATUS* status)
 #if defined(IBRT)
                 uint8_t device_id = 0;
                 ibrt_a2dp_status_t a2dp_status;
-                POSSIBLY_UNUSED struct BT_DEVICE_T *curr_device = NULL;
-                device_id = app_bt_audio_get_curr_a2dp_device();
-                curr_device = app_bt_get_device(device_id);
-                bta_tws_ibrt_a2dp_sync_get_status(device_id, &a2dp_status);
-                AUDIO_BT_TRACE(0,"[STRM_PLAYER][RESTART] state:%d", a2dp_status.state);
+                POSSIBLY_UNUSED struct BT_ADAPTER_DEVICE_T *curr_device = NULL;
+                device_id = bes_aud_bt->aud_get_curr_a2dp_device();
+                curr_device = bt_adapter_get_device(device_id);
+                bes_bt_tws_ibrt_a2dp_sync_get_status(device_id, &a2dp_status);
+                TRACE_AUD_STREAM_I("[STRM_PLAYER][RESTART] state:%d", a2dp_status.state);
                 if (a2dp_status.state == BT_A2DP_STREAM_STATE_STREAMING){
-                    if (app_audio_manager_a2dp_is_active(device_id)){
-                        AUDIO_BT_TRACE(0,"[STRM_PLAYER][RESTART] resume");
-                        nRet = bt_a2dp_player(PLAYER_OPER_STOP, freq);
-                        nRet = bt_a2dp_player(PLAYER_OPER_START, freq);
+                    if (app_audio_manager_a2dp_is_active((enum BT_DEVICE_ID_T)device_id)){
+                        TRACE_AUD_STREAM_I("[STRM_PLAYER][RESTART] resume");
+                        nRet = bt_sbc_player(PLAYER_OPER_STOP, freq);
+                        nRet = bt_sbc_player(PLAYER_OPER_START, freq);
                     }else{
-                        if (bts_ibrt_if_is_profile_exchanged(&curr_device->remote)){
-                            AUDIO_BT_TRACE(0,"[STRM_PLAYER][RESTART] force_audio_retrigger");
+                        if (app_ibrt_conn_is_profile_exchanged(&curr_device->remote)){
+                            TRACE_AUD_STREAM_I("[STRM_PLAYER][RESTART] force_audio_retrigger");
                             app_audio_manager_sendrequest(APP_BT_STREAM_MANAGER_START,BT_STREAM_MUSIC, device_id,MAX_RECORD_NUM);
                             app_ibrt_if_force_audio_retrigger(RETRIGGER_BY_STREAM_RESTART);
                         }
                     }
                 }
 #elif BT_DEVICE_NUM > 1
-                if (bes_bt_me_count_mobile_link() > 1)
+                if (bt_adapter_count_mobile_link() > 1)
                 {
                     a2dp_audio_sysfreq_reset();
                     bt_media_volume_ptr_update_by_mediatype(BT_STREAM_MUSIC);
@@ -7959,10 +7472,7 @@ extern uint8_t bt_media_current_sco_get(void);
 
 static uint8_t app_bt_stream_volumeup_generic(bool isToUpdateLocalVolumeLevel)
 {
-#if defined(BT_BUILD_WITH_CUSTOMER_HOST) || defined(BLE_ONLY_ENABLED)
-    return BT_DEVICE_INVALID_ID;
-#else
-    struct BT_DEVICE_T *curr_device = NULL;
+    struct BT_ADAPTER_DEVICE_T *curr_device = NULL;
     uint8_t volume_changed_device_id = BT_DEVICE_INVALID_ID;
 
 #if defined AUDIO_LINEIN
@@ -7972,155 +7482,55 @@ static uint8_t app_bt_stream_volumeup_generic(bool isToUpdateLocalVolumeLevel)
         if (stream_linein_volume > TGT_VOLUME_LEVEL_MAX)
         stream_linein_volume = TGT_VOLUME_LEVEL_MAX;
         app_bt_stream_volumeset(stream_linein_volume);
-        AUDIO_BT_TRACE(0,"[STRM_PLAYER][VOL][UP] set linein volume %d\n", stream_linein_volume);
+        TRACE_AUD_STREAM_I("[STRM_PLAYER][VOL][UP] set linein volume %d\n", stream_linein_volume);
     }else
 #endif
     if (app_bt_stream_isrun(APP_BT_STREAM_HFP_PCM))
     {
-        AUD_ID_ENUM prompt_id = AUD_ID_INVALID;
-        uint8_t hfp_local_vol = 0;
+        TRACE_AUD_STREAM_I("[STRM_PLAYER][VOL][UP] hfp volume");
 
-        AUDIO_BT_TRACE(0,"[STRM_PLAYER][VOL][UP] hfp volume");
-
-        curr_device = app_bt_get_device(bt_media_current_sco_get());
+        curr_device = bt_adapter_get_device(bt_media_current_sco_get());
 
         if (!curr_device)
         {
-            AUDIO_BT_TRACE(2, "%s invalid sco id %x", __func__, bt_media_current_sco_get());
+            TRACE(2, "%s invalid sco id %x", __func__, bt_media_current_sco_get());
             return BT_DEVICE_INVALID_ID;
         }
 
-        hfp_local_vol = hfp_volume_local_get(curr_device->device_id);
-
-        if(isToUpdateLocalVolumeLevel)
-        {
-            // get current local volume
-            hfp_local_vol++;
-            if (hfp_local_vol > TGT_VOLUME_LEVEL_MAX)
-            {
-                hfp_local_vol = TGT_VOLUME_LEVEL_MAX;
-                prompt_id = AUD_ID_BT_WARNING;
-            }
-        }
-        else
-        {
-            // get current bt volume
-            uint8_t currentBtVol = hfp_convert_local_vol_to_bt_vol(hfp_local_vol);
-
-            // increase bt volume
-            if (currentBtVol >= MAX_HFP_VOL)
-            {
-                currentBtVol = MAX_HFP_VOL;
-                prompt_id = AUD_ID_BT_WARNING;
-            }
-            else
-            {
-                currentBtVol++;
-                //prompt_id = AUD_ID_VOLUME_UP;
-            }
-
-            hfp_local_vol = hfp_convert_bt_vol_to_local_vol(currentBtVol);
-        }
-
-        hfp_volume_local_set(curr_device->device_id, hfp_local_vol);
+        uint8_t hfp_local_vol = bes_aud_bt->aud_adjust_hfp_volume(curr_device->device_id, true, isToUpdateLocalVolumeLevel);
 
         current_btdevice_volume.hfp_vol = hfp_local_vol;
 
         app_bt_stream_volumeset(hfp_local_vol);
 
         volume_changed_device_id = curr_device->device_id;
-    #if defined(IBRT)
-        if (!app_ibrt_if_is_ui_slave())
-    #endif
-        {
-            if (prompt_id != AUD_ID_INVALID) {
-                AUDIO_BT_TRACE(1, "AUD_ID=%d", prompt_id);
-#ifdef MEDIA_PLAYER_SUPPORT
-                media_PlayAudio(prompt_id, 0);
-#endif
-            }
-        }
     }
     else if ((app_bt_stream_isrun(APP_BT_STREAM_A2DP_SBC)) ||
         (app_bt_stream_isrun(APP_BT_STREAM_INVALID)))
     {
-        AUD_ID_ENUM prompt_id = AUD_ID_INVALID;
-        uint8_t a2dp_local_vol = 0;
-
-        curr_device = app_bt_get_device(bt_media_current_music_get());
+        curr_device = bt_adapter_get_device(bt_media_current_music_get());
 
         if (!curr_device)
         {
-            AUDIO_BT_TRACE(2, "%s invalid sbc id %x", __func__, bt_media_current_music_get());
+            TRACE(2, "%s invalid sbc id %x", __func__, bt_media_current_music_get());
             return BT_DEVICE_INVALID_ID;
         }
 
-        AUDIO_BT_TRACE(1, "%s set a2dp volume", __func__);
+        TRACE_AUD_STREAM_I("[STRM_PLAYER][VOL][UP] a2dp volume");
 
-        a2dp_local_vol = a2dp_volume_local_get(curr_device->device_id);
-
-        if(isToUpdateLocalVolumeLevel)
-        {
-            // get current local volume
-            a2dp_local_vol++;
-            if (a2dp_local_vol > TGT_VOLUME_LEVEL_MAX)
-            {
-                a2dp_local_vol = TGT_VOLUME_LEVEL_MAX;
-                prompt_id = AUD_ID_BT_WARNING;
-            }
-            a2dp_volume_set_local_vol(curr_device->device_id, a2dp_local_vol);
-        }
-        else
-        {
-            // get current bt volume
-            uint8_t currentBtVol = a2dp_abs_volume_get(curr_device->device_id);
-
-            // increase bt volume
-            if (currentBtVol >= MAX_A2DP_VOL)
-            {
-                currentBtVol = MAX_A2DP_VOL;
-                prompt_id = AUD_ID_BT_WARNING;
-
-            }
-            else
-            {
-                currentBtVol++;
-                //prompt_id = AUD_ID_VOLUME_UP;
-            }
-
-
-            a2dp_volume_set(curr_device->device_id, currentBtVol);
-
-            a2dp_local_vol = a2dp_convert_bt_vol_to_local_vol(currentBtVol);
-        }
+        uint8_t a2dp_local_vol = bes_aud_bt->aud_adjust_a2dp_volume(curr_device->device_id, true, isToUpdateLocalVolumeLevel);
 
         current_btdevice_volume.a2dp_vol = a2dp_local_vol;
 
         app_bt_stream_volumeset(a2dp_local_vol);
 
         volume_changed_device_id = curr_device->device_id;
-    #if defined(IBRT)
-        if (!app_ibrt_if_is_ui_slave())
-    #endif
-        {
-            if (prompt_id != AUD_ID_INVALID) {
-                AUDIO_BT_TRACE(1, "AUD_ID=%d", prompt_id);
-#ifdef MEDIA_PLAYER_SUPPORT
-                media_PlayAudio(prompt_id, 0);
-#endif
-            }
-        }
     }
 
-    AUDIO_BT_TRACE(2,"%s a2dp: %d", __func__, current_btdevice_volume.a2dp_vol);
-    AUDIO_BT_TRACE(2,"%s hfp: %d", __func__, current_btdevice_volume.hfp_vol);
-
-#ifndef FPGA
-    nv_record_touch_cause_flush();
-#endif
+    TRACE(2,"%s a2dp: %d", __func__, current_btdevice_volume.a2dp_vol);
+    TRACE(2,"%s hfp: %d", __func__, current_btdevice_volume.hfp_vol);
 
     return volume_changed_device_id;
-#endif
 }
 
 void app_bt_stream_bt_volumeup(void)
@@ -8137,12 +7547,12 @@ void app_bt_stream_update_local_hfp_vol(uint8_t updatedLocalVol)
 {
     if (app_bt_stream_isrun(APP_BT_STREAM_HFP_PCM))
     {
-        AUDIO_BT_TRACE(0,"[STRM_PLAYER][VOL][SET] hfp volume");
-        struct BT_DEVICE_T *curr_device = app_bt_get_device(bt_media_current_sco_get());
+        TRACE_AUD_STREAM_I("[STRM_PLAYER][VOL][SET] hfp volume");
+        struct BT_ADAPTER_DEVICE_T *curr_device = bt_adapter_get_device(bt_media_current_sco_get());
 
         if (!curr_device)
         {
-            AUDIO_BT_TRACE(2, "%s invalid sco id %x", __func__, bt_media_current_sco_get());
+            TRACE(2, "%s invalid sco id %x", __func__, bt_media_current_sco_get());
             return;
         }
 
@@ -8156,23 +7566,23 @@ void app_bt_stream_update_local_hfp_vol(uint8_t updatedLocalVol)
             updatedLocalVol = TGT_VOLUME_LEVEL_MUTE;
         }
 
-        hfp_volume_local_set(curr_device->device_id, updatedLocalVol);
+        bes_aud_bt->aud_hfp_set_local_vol((enum BT_DEVICE_ID_T)curr_device->device_id, updatedLocalVol);
 
         app_bt_stream_volumeset(btdevice_volume_p->hfp_vol);
     }
 
-    AUDIO_BT_TRACE(2,"%s hfp: %d", __func__, btdevice_volume_p->hfp_vol);
+    TRACE(2,"%s hfp: %d", __func__, btdevice_volume_p->hfp_vol);
 
 #ifndef FPGA
     nv_record_touch_cause_flush();
 #endif
 }
 
-void app_bt_set_volume(uint16_t type,uint8_t level)
+void app_bt_stream_volume_set_by_type(uint16_t type,uint8_t level)
 {
     if ((type&APP_BT_STREAM_HFP_PCM) && app_bt_stream_isrun(APP_BT_STREAM_HFP_PCM)) {
-        AUDIO_BT_TRACE(0,"[STRM_PLAYER][VOL] set hfp volume");
-        if (level >= TGT_VOLUME_LEVEL_MUTE && level <= TGT_VOLUME_LEVEL_15)
+        TRACE_AUD_STREAM_I("[STRM_PLAYER][VOL] set hfp volume");
+        if (level >= TGT_VOLUME_LEVEL_MUTE && level <= TGT_VOLUME_LEVEL_MAX)
         {
             uint32_t lock = nv_record_pre_write_operation();
             btdevice_volume_p->hfp_vol = level;
@@ -8183,7 +7593,7 @@ void app_bt_set_volume(uint16_t type,uint8_t level)
         {
 #ifdef MEDIA_PLAYER_SUPPORT
         #if defined(IBRT)
-            if (!app_ibrt_if_is_ui_slave())
+            if (!app_ibrt_middleware_is_ui_slave())
         #endif
             {
                 media_PlayAudio(AUD_ID_BT_WARNING,0);
@@ -8193,8 +7603,8 @@ void app_bt_set_volume(uint16_t type,uint8_t level)
     }
     if ((type&APP_BT_STREAM_A2DP_SBC) && ((app_bt_stream_isrun(APP_BT_STREAM_INVALID)) ||
         (app_bt_stream_isrun(APP_BT_STREAM_A2DP_SBC)))) {
-        AUDIO_BT_TRACE(0,"[STRM_PLAYER][VOL] set a2dp volume");
-        if (level >= TGT_VOLUME_LEVEL_MUTE && level <= TGT_VOLUME_LEVEL_15)
+        TRACE_AUD_STREAM_I("[STRM_PLAYER][VOL] set a2dp volume");
+        if (level >= TGT_VOLUME_LEVEL_MUTE && level <= TGT_VOLUME_LEVEL_MAX)
         {
             uint32_t lock = nv_record_pre_write_operation();
             btdevice_volume_p->a2dp_vol = level;
@@ -8205,7 +7615,7 @@ void app_bt_set_volume(uint16_t type,uint8_t level)
         {
 #ifdef MEDIA_PLAYER_SUPPORT
         #if defined(IBRT)
-            if (!app_ibrt_if_is_ui_slave())
+            if (!app_ibrt_middleware_is_ui_slave())
         #endif
             {
                 media_PlayAudio(AUD_ID_BT_WARNING,0);
@@ -8214,8 +7624,8 @@ void app_bt_set_volume(uint16_t type,uint8_t level)
         }
     }
 
-    AUDIO_BT_TRACE(0,"[STRM_PLAYER][VOL] a2dp: %d", btdevice_volume_p->a2dp_vol);
-    AUDIO_BT_TRACE(0,"[STRM_PLAYER][VOL] hfp: %d", btdevice_volume_p->hfp_vol);
+    TRACE_AUD_STREAM_I("[STRM_PLAYER][VOL] a2dp: %d", btdevice_volume_p->a2dp_vol);
+    TRACE_AUD_STREAM_I("[STRM_PLAYER][VOL] hfp: %d", btdevice_volume_p->hfp_vol);
 #ifndef FPGA
     nv_record_touch_cause_flush();
 #endif
@@ -8223,10 +7633,7 @@ void app_bt_set_volume(uint16_t type,uint8_t level)
 
 static uint8_t app_bt_stream_volumedown_generic(bool isToUpdateLocalVolumeLevel)
 {
-#if defined(BT_BUILD_WITH_CUSTOMER_HOST) || defined(BLE_ONLY_ENABLED)
-    return BT_DEVICE_INVALID_ID;
-#else
-    struct BT_DEVICE_T *curr_device = NULL;
+    struct BT_ADAPTER_DEVICE_T *curr_device = NULL;
     uint8_t volume_changed_device_id = BT_DEVICE_INVALID_ID;
 
 #if defined AUDIO_LINEIN
@@ -8236,158 +7643,55 @@ static uint8_t app_bt_stream_volumedown_generic(bool isToUpdateLocalVolumeLevel)
         if (stream_linein_volume < TGT_VOLUME_LEVEL_MUTE)
             stream_linein_volume = TGT_VOLUME_LEVEL_MUTE;
         app_bt_stream_volumeset(stream_linein_volume);
-        AUDIO_BT_TRACE(1,"set linein volume %d\n", stream_linein_volume);
+        TRACE(1,"set linein volume %d\n", stream_linein_volume);
     }else
 #endif
     if (app_bt_stream_isrun(APP_BT_STREAM_HFP_PCM))
     {
-        AUD_ID_ENUM prompt_id = AUD_ID_INVALID;
-        uint8_t hfp_local_vol = 0;
-
-        curr_device = app_bt_get_device(bt_media_current_sco_get());
+        curr_device = bt_adapter_get_device(bt_media_current_sco_get());
 
         if (!curr_device)
         {
-            AUDIO_BT_TRACE(2, "%s invalid sco id %x", __func__, bt_media_current_sco_get());
+            TRACE(2, "%s invalid sco id %x", __func__, bt_media_current_sco_get());
             return BT_DEVICE_INVALID_ID;
         }
 
-        AUDIO_BT_TRACE(1, "%s set hfp volume", __func__);
+        TRACE_AUD_STREAM_I("[STRM_PLAYER][VOL][DOWN] hfp volume");
 
-        hfp_local_vol = hfp_volume_local_get(curr_device->device_id);
-
-        if(isToUpdateLocalVolumeLevel)
-        {
-            // get current local volume
-            if (hfp_local_vol)
-            {
-                hfp_local_vol--;
-            }
-            if (hfp_local_vol <= TGT_VOLUME_LEVEL_MUTE)
-            {
-                hfp_local_vol = TGT_VOLUME_LEVEL_MUTE;
-                prompt_id = AUD_ID_BT_WARNING;
-            }
-        }
-        else
-        {
-            // get current bt volume
-            uint8_t currentBtVol = hfp_convert_local_vol_to_bt_vol(hfp_local_vol);
-
-            if (currentBtVol <= 0)
-            {
-                currentBtVol = 0;
-                prompt_id = AUD_ID_BT_WARNING;
-            }
-            else
-            {
-                currentBtVol--;
-                //prompt_id = AUD_ID_VOLUME_DOWN;
-            }
-
-            hfp_local_vol = hfp_convert_bt_vol_to_local_vol(currentBtVol);
-        }
-
-        hfp_volume_local_set(curr_device->device_id, hfp_local_vol);
+        uint8_t hfp_local_vol = bes_aud_bt->aud_adjust_hfp_volume(curr_device->device_id, false, isToUpdateLocalVolumeLevel);
 
         current_btdevice_volume.hfp_vol = hfp_local_vol;
 
         app_bt_stream_volumeset(hfp_local_vol);
 
         volume_changed_device_id = curr_device->device_id;
-    #if defined(IBRT)
-        if (!app_ibrt_if_is_ui_slave())
-    #endif
-        {
-            if (prompt_id != AUD_ID_INVALID) {
-                AUDIO_BT_TRACE(1, "AUD_ID=%d", prompt_id);
-#ifdef MEDIA_PLAYER_SUPPORT
-                media_PlayAudio(prompt_id, 0);
-#endif
-            }
-        }
     }
     else if ((app_bt_stream_isrun(APP_BT_STREAM_A2DP_SBC)) ||
         (app_bt_stream_isrun(APP_BT_STREAM_INVALID)))
     {
-        AUD_ID_ENUM prompt_id = AUD_ID_INVALID;
-        uint8_t a2dp_local_vol = 0;
-
-        curr_device = app_bt_get_device(bt_media_current_music_get());
+        curr_device = bt_adapter_get_device(bt_media_current_music_get());
 
         if (!curr_device)
         {
-            AUDIO_BT_TRACE(2, "%s invalid sbc id %x", __func__, bt_media_current_music_get());
+            TRACE(2, "%s invalid sbc id %x", __func__, bt_media_current_music_get());
             return BT_DEVICE_INVALID_ID;
         }
 
-        AUDIO_BT_TRACE(1, "%s set a2dp volume", __func__);
+        TRACE_AUD_STREAM_I("[STRM_PLAYER][VOL][DOWN] a2dp volume");
 
-        a2dp_local_vol = a2dp_volume_local_get(curr_device->device_id);
-
-        if(isToUpdateLocalVolumeLevel)
-        {
-            // get current local volume
-            if (a2dp_local_vol)
-            {
-                a2dp_local_vol--;
-            }
-            if (a2dp_local_vol <= TGT_VOLUME_LEVEL_MUTE)
-            {
-                a2dp_local_vol = TGT_VOLUME_LEVEL_MUTE;
-                prompt_id = AUD_ID_BT_WARNING;
-            }
-
-            a2dp_volume_set_local_vol(curr_device->device_id, a2dp_local_vol);
-        }
-        else
-        {
-            // get current bt volume
-            uint8_t currentBtVol = a2dp_abs_volume_get(curr_device->device_id);
-
-            if (currentBtVol <= 0)
-            {
-                currentBtVol = 0;
-                prompt_id = AUD_ID_BT_WARNING;
-            }
-            else
-            {
-                currentBtVol--;
-                //prompt_id = AUD_ID_VOLUME_DOWN;
-            }
-
-            a2dp_volume_set(curr_device->device_id, currentBtVol);
-
-            a2dp_local_vol = a2dp_convert_bt_vol_to_local_vol(currentBtVol);
-        }
+        uint8_t a2dp_local_vol = bes_aud_bt->aud_adjust_a2dp_volume(curr_device->device_id, false, isToUpdateLocalVolumeLevel);
 
         current_btdevice_volume.a2dp_vol = a2dp_local_vol;
 
         app_bt_stream_volumeset(a2dp_local_vol);
 
         volume_changed_device_id = curr_device->device_id;
-    #if defined(IBRT)
-        if (!app_ibrt_if_is_ui_slave())
-    #endif
-        {
-            if (prompt_id != AUD_ID_INVALID) {
-                AUDIO_BT_TRACE(1, "AUD_ID=%d", prompt_id);
-#ifdef MEDIA_PLAYER_SUPPORT
-                media_PlayAudio(prompt_id, 0);
-#endif
-            }
-        }
     }
 
-    AUDIO_BT_TRACE(2,"%s a2dp: %d", __func__, current_btdevice_volume.a2dp_vol);
-    AUDIO_BT_TRACE(2,"%s hfp: %d", __func__, current_btdevice_volume.hfp_vol);
-
-#ifndef FPGA
-    nv_record_touch_cause_flush();
-#endif
+    TRACE(2,"%s a2dp: %d", __func__, current_btdevice_volume.a2dp_vol);
+    TRACE(2,"%s hfp: %d", __func__, current_btdevice_volume.hfp_vol);
 
     return volume_changed_device_id;
-#endif
 }
 
 void app_bt_stream_bt_volumedown(void)
@@ -8405,6 +7709,11 @@ void app_bt_stream_volumeset_handler(int8_t vol)
     uint32_t ret;
     struct AF_STREAM_CONFIG_T *stream_cfg = NULL;
 
+    if (rmt_a2dp_sink_dev_vol_set_cb!=NULL)
+    {
+        rmt_a2dp_sink_dev_vol_set_cb(vol*(100/TGT_VOLUME_LEVEL_MAX));
+    }
+
 #ifdef AUDIO_OUTPUT_ROUTE_SELECT
     if (stream_route_info.output_route_info && stream_route_info.output_route_info->output_set_volume)
     {
@@ -8419,7 +7728,6 @@ void app_bt_stream_volumeset_handler(int8_t vol)
             af_stream_setup(AUD_STREAM_ID_0, AUD_STREAM_PLAYBACK, stream_cfg);
         }
     }
-
 #if (defined(AUDIO_ANC_FB_MC)||defined(AUDIO_ANC_FB_MC_SCO)) && defined(ANC_APP) && !defined(__AUDIO_RESAMPLE__)
     ret = af_stream_get_cfg(AUD_STREAM_ID_2, AUD_STREAM_PLAYBACK, &stream_cfg, false);
     if (ret == 0) {
@@ -8432,7 +7740,7 @@ void app_bt_stream_volumeset_handler(int8_t vol)
 void app_bt_stream_volume_edge_check(void)
 {
 #if defined(IBRT)
-    if (app_ibrt_if_is_ui_slave())
+    if (app_ibrt_middleware_is_ui_slave())
     {
         return;
     }
@@ -8465,44 +7773,26 @@ int app_bt_stream_volumeset(int8_t vol)
     if (vol < TGT_VOLUME_LEVEL_MUTE)
         vol = TGT_VOLUME_LEVEL_MUTE;
 
-    AUDIO_BT_TRACE(0,"[STRM_PLAYER][VOL][SET] vol=%d", vol);
+    TRACE_AUD_STREAM_I("[STRM_PLAYER][VOL][SET] vol=%d", vol);
 
     stream_local_volume = vol;
 #ifdef MIX_AUDIO_PROMPT_WITH_A2DP_MEDIA_ENABLED
     if ((!app_bt_stream_isrun(APP_PLAY_BACK_AUDIO)) &&
         (audio_prompt_is_allow_update_volume()))
+#elif defined(AUDIO_PROMPT_USE_DAC2_ENABLED)
 #else
     if (!app_bt_stream_isrun(APP_PLAY_BACK_AUDIO))
 #endif
     {
-#ifdef AUDIO_VOL_CTRL_EQ
-        bt_audio_vol_ctrl_eq(vol);
-#endif
-        AUDIO_BT_TRACE(0, "[STRM_PLAYER][VOL][SET][A2DP] update_vol=%d", vol);
         app_bt_stream_volumeset_handler(vol);
     }
     return 0;
 }
 
-void app_bt_stream_set_tune_samplerate_ratio(enum AUD_STREAM_T stream, float ratio)
-{
-#ifdef AUDIO_OUTPUT_ROUTE_SELECT
-    if (stream_route_info.output_route_info)
-    {
-        return;
-    }
-    else
-#endif
-    {
-        AUDIO_BT_TRACE(1,"codec_tune_resample_rate:%d", (int32_t)(ratio * 10000000));
-        af_codec_tune(stream, ratio);
-    }
-}
-
 void app_bt_stream_set_output_route(void *route_info)
 {
     #ifdef AUDIO_OUTPUT_ROUTE_SELECT
-        AUDIO_BT_TRACE(0, "[%s][%d]: %p", __FUNCTION__, __LINE__, route_info);
+        TRACE(0, "[%s][%d]: %p", __FUNCTION__, __LINE__, route_info);
         stream_route_info.output_route_info = (app_bt_stream_output_device_info_t *)route_info;
     #endif
 }
@@ -8547,16 +7837,16 @@ void app_bt_stream_volume_ptr_update(uint8_t *bdAddr)
     if (bdAddr && !nv_record_btdevicerecord_find((bt_bdaddr_t*)bdAddr,&record))
     {
         btdevice_volume_p = &(record->device_vol);
-        AUDIO_BT_DUMP8("0x%02x ", bdAddr, BT_ADDR_OUTPUT_PRINT_NUM);
-        AUDIO_BT_TRACE(0,"[STRM_PLAYER][VOL][UPDATE] a2dp_vol:%d hfp_vol:%d ptr:%p",  btdevice_volume_p->a2dp_vol, btdevice_volume_p->hfp_vol,btdevice_volume_p);
+        DUMP8("0x%02x ", bdAddr, BT_ADDR_OUTPUT_PRINT_NUM);
+        TRACE_AUD_STREAM_I("[STRM_PLAYER][VOL][UPDATE] a2dp_vol:%d hfp_vol:%d ptr:%p",  btdevice_volume_p->a2dp_vol, btdevice_volume_p->hfp_vol,btdevice_volume_p);
     }
     else
 #endif
     {
         btdevice_volume_p = &default_stream_volume;
-        AUDIO_BT_TRACE(0,"[STRM_PLAYER][VOL][UPDATE] default");
+        TRACE_AUD_STREAM_I("[STRM_PLAYER][VOL][UPDATE] default");
         if (bdAddr){
-            AUDIO_BT_DUMP8("0x%02x ", bdAddr, BT_ADDR_OUTPUT_PRINT_NUM);
+            DUMP8("0x%02x ", bdAddr, BT_ADDR_OUTPUT_PRINT_NUM);
         }
     }
     current_btdevice_volume.a2dp_vol=btdevice_volume_p->a2dp_vol;
@@ -8583,10 +7873,11 @@ bool app_bt_stream_isrun(uint16_t player)
 
 int app_bt_stream_closeall()
 {
-    AUDIO_BT_TRACE(0,"[STRM_PLAYER][CLOSEALL]");
-
+    TRACE_AUD_STREAM_I("[STRM_PLAYER][CLOSEALL]");
+#ifdef BT_HFP_SUPPORT
     bt_sco_player(false, APP_SYSFREQ_32K);
-    bt_a2dp_player(PLAYER_OPER_STOP, APP_SYSFREQ_32K);
+#endif
+    bt_sbc_player(PLAYER_OPER_STOP, APP_SYSFREQ_32K);
 
 #if defined(MEDIA_PLAYER_SUPPORT) && !defined(AUDIO_PROMPT_USE_DAC2_ENABLED)
     app_play_audio_onoff(false, 0);
@@ -8594,10 +7885,6 @@ int app_bt_stream_closeall()
 
 #ifdef RB_CODEC
     app_rbplay_audio_onoff(false, 0);
-#endif
-
-#ifdef AUDIO_LINEIN
-    app_play_linein_onoff(false);
 #endif
 
     gStreamplayer = APP_BT_STREAM_INVALID;
@@ -8635,14 +7922,14 @@ void app_bt_stream_copy_track_two_to_one_16bits(int16_t *dst_buf, int16_t *src_b
 static int app_force48k_resample_iter(uint8_t *buf, uint32_t len)
 {
 #if (A2DP_DECODER_VER == 2)
-    uint8_t device_id = app_bt_audio_get_curr_a2dp_device();
+    uint8_t device_id = bes_aud_bt->aud_get_curr_a2dp_device();
     a2dp_audio_playback_handler(device_id, buf, len);
 #else
-    uint8_t codec_type = bta_get_curr_a2dp_codec_type();
+    uint8_t codec_type = bes_aud_bt->aud_get_a2dp_codec_type(bes_aud_bt->aud_get_curr_a2dp_device());
     uint32_t overlay_id = 0;
     if(0){
 #if defined(A2DP_LHDC_ON)
-    }else if(codec_type ==  BT_A2DP_CODEC_TYPE_NON_A2DP){
+    }else if(codec_type ==  BT_A2DP_CODEC_TYPE_LHDC){
         overlay_id = APP_OVERLAY_A2DP_LHDC;
 #endif
 #if defined(A2DP_AAC_ON)
@@ -8708,7 +7995,7 @@ static void memzero_int16(void *dst, uint32_t len)
     }
     else
     {
-        AUDIO_BT_TRACE(0,"WRN: receive null pointer");
+        TRACE_AUD_STREAM_I("WRN: receive null pointer");
     }
 }
 
@@ -8716,7 +8003,7 @@ struct APP_RESAMPLE_T *app_resample_open_with_preallocated_buf(enum AUD_STREAM_T
         APP_RESAMPLE_ITER_CALLBACK cb, uint32_t iter_len,
         float ratio_step, uint8_t* buf, uint32_t bufSize)
 {
-    AUDIO_BT_TRACE(0,"[STRM_PLAYER][PROMPT_MIXER][OPEN]");
+    TRACE_AUD_STREAM_I("[STRM_PLAYER][PROMPT_MIXER][OPEN]");
     struct APP_RESAMPLE_T *resamp;
     struct RESAMPLE_CFG_T cfg;
     enum RESAMPLE_STATUS_T status;
@@ -8764,7 +8051,7 @@ static struct APP_RESAMPLE_T *app_resample_open(enum AUD_STREAM_T stream, const 
         APP_RESAMPLE_ITER_CALLBACK cb, uint32_t iter_len,
         float ratio_step)
 {
-    AUDIO_BT_TRACE(0,"[STRM_PLAYER][RESAMPLE][OPEN] ratio: %d/1000", uint32_t(ratio_step * 1000));
+    TRACE_AUD_STREAM_I("[STRM_PLAYER][RESAMPLE][OPEN] ratio: %d/1000", uint32_t(ratio_step * 1000));
     struct APP_RESAMPLE_T *resamp;
     struct RESAMPLE_CFG_T cfg;
     enum RESAMPLE_STATUS_T status;
@@ -9117,7 +8404,7 @@ void app_resample_tune(struct APP_RESAMPLE_T *resamp, float ratio)
         return;
     }
 
-    AUDIO_BT_TRACE(0,"%s: stream=%d ratio=%d", __FUNCTION__, resamp->stream, FLOAT_TO_PPB_INT(ratio));
+    TRACE_AUD_STREAM_I("%s: stream=%d ratio=%d", __FUNCTION__, resamp->stream, FLOAT_TO_PPB_INT(ratio));
 
     if (resamp->stream == AUD_STREAM_PLAYBACK) {
         new_step = resamp->ratio_step + resamp->ratio_step * ratio;
@@ -9188,11 +8475,11 @@ void store_encode_frame2buff()
     {
         status = DeCQueue(Tx_esco_queue_temp,(uint8_t *)(*(volatile uint32_t *)(MIC_BUFF_ADRR_REG)),len);
         if(status){
-            //AUDIO_BT_TRACE(0,"TX DeC Fail");
+            //TRACE_AUD_STREAM_I("TX DeC Fail");
         }
         status =EnCQueue(Rx_esco_queue_temp, (uint8_t *)(*(volatile uint32_t *)(RX_BUFF_ADRR)), len);
         if(status){
-            //AUDIO_BT_TRACE(0,"RX EnC Fail");
+            //TRACE_AUD_STREAM_I("RX EnC Fail");
         }
     }
 
@@ -9211,6 +8498,10 @@ int app_bt_stream_init(void)
 
     app_bt_stream_trigger_checker_init();
     app_bt_stream_trigger_checker_set_cb(app_bt_stream_trigger_success);
+
+#ifdef A2DP_DECODER_CROSS_CORE
+    a2dp_decoder_cc_cmd_cache_init();
+#endif
     return 0;
 }
 
@@ -9218,7 +8509,7 @@ void app_bt_stream_register_notify_trigger_status_callback(APP_STREAM_NOTIFY_TRI
 {
     app_stream_notify_trigger_status_callback = callback;
 }
-
+#ifdef BT_HFP_SUPPORT
 void app_bt_sco_switch_trigger_init(app_bt_sco_switch_trigger_t sco_switch_trigger)
 {
     sco_switch_trigger_check = sco_switch_trigger;
@@ -9228,4 +8519,5 @@ void app_bt_sco_switch_trigger_deinit()
 {
     sco_switch_trigger_check = NULL;
 }
+#endif
 

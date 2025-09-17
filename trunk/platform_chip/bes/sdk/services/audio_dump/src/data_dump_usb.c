@@ -27,19 +27,19 @@ osThreadDef(usb_serial_thread, osPriorityAboveNormal, 1, USB_SERIAL_STACK_SIZE, 
 
 static void usb_serial_state_handler(enum USB_SERIAL_STATE_EVENT_T event)
 {
-    AUDIO_DUMP_TRACE(1, "usb dev state change: %d", event);
+    TRACE(1, "usb dev state change: %d", event);
 }
 
 static void usb_serial_break_handler(uint16_t ms)
 {
-    AUDIO_DUMP_TRACE(0, "Detect break!");
+    TRACE(0, "Detect break!");
 }
 
 #if defined(USB_SERIAL_ECHO_TEST)
 static void usb_serial_recv_timeout(void *param)
 {
     usb_serial_cancel_recv();
-    //AUDIO_DUMP_TRACE(0,"usb_serial_recv_timeout");
+    //TRACE("usb_serial_recv_timeout");
 }
 #endif
 
@@ -51,20 +51,18 @@ static const struct USB_SERIAL_CFG_T cdc_cfg = {
 
 void usb_serial_thread_init(void)
 {
-    AUDIO_DUMP_TRACE(0, "usb_serial_thread_init");
-
-    pmu_usb_config(PMU_USB_CONFIG_TYPE_DEVICE);
+    TRACE(0, "usb_serial_thread_init");
 
     usb_serial_open(&cdc_cfg);
-    AUDIO_DUMP_TRACE(1, "[0x%X] Open USB serial", hal_sys_timer_get());
+    TRACE(1, "[0x%X] Open USB serial", hal_sys_timer_get());
 
     usb_serial_flush_recv_buffer();
-    usb_serial_init_xfer();
+    usb_serial_init_xfer(USB_SERIAL_XFER_TYPE_ALL);
 
     usb_serial_tid = osThreadCreate(osThread(usb_serial_thread), NULL);
 
 #if defined(USB_SERIAL_SINE_TEST)
-    signal_generator_init(SG_TYPE_TONE_SIN_1K, 16000, 16, 1);
+    signal_generator_init(SG_TYPE_TONE_1KHz, 16000, 16, 1, 0.0);
 #endif
 }
 
@@ -103,15 +101,15 @@ void usb_serial_thread(void const *argument)
     ASSERT(timer, "Failed to alloc usb serial recv timer");
 #endif
 
-    AUDIO_DUMP_TRACE(0, "usb_serial_thread");
+    TRACE(0, "usb_serial_thread");
 
     // Check configuration status
     while (usb_serial_ready() == 0);
-    AUDIO_DUMP_TRACE(0, "usb serial ready");
+    TRACE(0, "usb serial ready");
 
     // Check terminal connection status
     while (usb_serial_connected() == 0);
-    AUDIO_DUMP_TRACE(0, "usb serial connected");
+    TRACE(0, "usb serial connected");
 
     while (1) {
 #if defined(USB_SERIAL_ECHO_TEST)
@@ -125,9 +123,9 @@ void usb_serial_thread(void const *argument)
 
             hwtimer_stop(timer);
             if (result != 0) {
-                //AUDIO_DUMP_TRACE(0,"usb_serial_recv result: %d", result);
+                //TRACE("usb_serial_recv result: %d", result);
                 // Probably timeout
-                usb_serial_init_xfer();
+                usb_serial_init_xfer(USB_SERIAL_XFER_TYPE_ALL);
                 break;
             }
             i++;
@@ -135,16 +133,16 @@ void usb_serial_thread(void const *argument)
 
         if (i) {
             result = usb_serial_send(usb_serial_data, i);
-            AUDIO_DUMP_DUMP16("%04x ", usb_serial_data, i / 2);
+            DUMP16("%04x ", usb_serial_data, i / 2);
             if (result != 0) {
-                AUDIO_DUMP_TRACE(1, "Failed to send to usb serial: ret=%d", result);
+                TRACE(1, "Failed to send to usb serial: ret=%d", result);
             }
         }
 #else
         osEvent evt = osSignalWait(0x0, osWaitForever);
         uint32_t signals = evt.value.signals;
 
-        // AUDIO_DUMP_TRACE(2, "[%s] signals = 0x%x", __FUNCTION__, signals);
+        // TRACE(2, "[%s] signals = 0x%x", __FUNCTION__, signals);
 
         if (evt.status == osEventSignal) {
             if (signals & (1 << USB_AUDIO_DUMP_SIGNAL_READY)) {
@@ -174,8 +172,8 @@ void usb_serial_thread(void const *argument)
                 result = usb_serial_send(buf, len);
                 audio_dump_buffer_mutex_unlock();
                 if (result != 0) {
-                    AUDIO_DUMP_TRACE(1, "Failed to send to usb serial: ret=%d", result);
-                    usb_serial_init_xfer();
+                    TRACE(1, "Failed to send to usb serial: ret=%d", result);
+                    usb_serial_init_xfer(USB_SERIAL_XFER_TYPE_ALL);
                 }
             }
         }

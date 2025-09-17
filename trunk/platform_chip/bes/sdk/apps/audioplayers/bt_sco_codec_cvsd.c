@@ -24,8 +24,6 @@
 
 #define ENABLE_LPC_PLC
 
-// #define SPEECH_RX_PLC_DUMP_DATA
-
 // #define PLC_DEBUG_PRINT_DATA
 
 #if defined(CVSD_BYPASS)
@@ -48,9 +46,12 @@ static LpcPlcState *plc_st = NULL;
 static  void *plc_st;
 #endif
 
-#ifdef SPEECH_RX_PLC_DUMP_DATA
-static int16_t *audio_dump_temp_buf = NULL;
-#endif
+typedef struct {
+    uint32_t    total;
+    uint32_t    bt_mute;
+} cvsd_plc_histogram_t;
+
+static cvsd_plc_histogram_t g_cvsd_plc_histogram;
 
 #if defined(ENABLE_LPC_PLC)
 static uint8_t *cvsd_buf_all = NULL;
@@ -65,9 +66,23 @@ plc_type_t check_cvsd_mute_pattern(uint8_t *buf, uint32_t len)
 }
 #endif
 
+static void generate_cvsd_plc_histogram(void)
+{
+    uint32_t packet_loss_num =  g_cvsd_plc_histogram.bt_mute;
+
+    TRACE(0, "------------------------ CVSD PLC Histogram ------------------------");
+    TRACE(0, "* BT Mute:  %d", g_cvsd_plc_histogram.bt_mute);
+    TRACE(0, "* Packet Loss Percent:    %d/10000(%d/%d)", 
+        (int32_t)(10000.f * packet_loss_num / g_cvsd_plc_histogram.total),
+        packet_loss_num, g_cvsd_plc_histogram.total);
+    TRACE(0, "-------------------------------- End --------------------------------");
+}
+
 int32_t bt_sco_codec_cvsd_init(uint32_t sample_rate)
 {
-    AUDIOPLAYERS_TRACE(0, "[%s] SCO: CVSD...", __func__);
+    TRACE(0, "[%s] SCO: CVSD...", __func__);
+
+    memset(&g_cvsd_plc_histogram, 0, sizeof(g_cvsd_plc_histogram));
 
 #if defined(ENABLE_LPC_PLC)
     // 120 + 120 = 240 bytes
@@ -85,21 +100,14 @@ int32_t bt_sco_codec_cvsd_init(uint32_t sample_rate)
     plc_st = (PlcSt_8000 *)speech_plc_8000_init(voicebtpcm_get_ext_buff);
 #endif
 
-#ifdef SPEECH_RX_PLC_DUMP_DATA
-    audio_dump_temp_buf = (int16_t *)speech_calloc(CVSD_PACKET_SIZE / sizeof(int16_t), sizeof(int16_t));     // 240 Bytes
-    audio_dump_init(CVSD_PACKET_SIZE / sizeof(int16_t), sizeof(int16_t), 3);
-#endif
-
     return 0;
 }
 
 int32_t bt_sco_codec_cvsd_deinit(void)
 {
-    AUDIOPLAYERS_TRACE(0, "[%s] ...", __func__);
+    TRACE(0, "[%s] ...", __func__);
 
-#ifdef SPEECH_RX_PLC_DUMP_DATA
-    speech_free(audio_dump_temp_buf);
-#endif
+    generate_cvsd_plc_histogram();
 
 #if defined(ENABLE_LPC_PLC)
     lpc_plc_destroy(plc_st);
@@ -115,7 +123,7 @@ int32_t bt_sco_codec_cvsd_deinit(void)
 // cvsd_size = 240, pcm_size = 240
 int32_t bt_sco_codec_cvsd_encoder(uint8_t *cvsd_buf, uint32_t cvsd_size, uint8_t *pcm_buf, uint32_t pcm_size)
 {
-    // AUDIOPLAYERS_TRACE(0, "[%s] cvsd_size: %d, pcm_size: %d", __func__, cvsd_size, pcm_size);
+    // TRACE(0, "[%s] cvsd_size: %d, pcm_size: %d", __func__, cvsd_size, pcm_size);
 
     ASSERT(cvsd_size / CVSD_PACKET_SIZE == pcm_size / CVSD_PCM_SIZE,
         "[%s] cvsd_size = %d, pcm_size = %d", __func__, cvsd_size, pcm_size);
@@ -129,10 +137,9 @@ int32_t bt_sco_codec_cvsd_encoder(uint8_t *cvsd_buf, uint32_t cvsd_size, uint8_t
     return 0;
 }
 
-extern uint32_t btdrv_syn_get_curr_ticks(void);
 int32_t bt_sco_codec_cvsd_decoder(uint8_t *cvsd_buf, uint32_t cvsd_size, uint8_t *pcm_buf, uint32_t pcm_size)
 {
-    // AUDIOPLAYERS_TRACE(0, "[%s] cvsd_size: %d, pcm_size: %d", __func__, cvsd_size, pcm_size);
+    // TRACE(0, "[%s] cvsd_size: %d, pcm_size: %d", __func__, cvsd_size, pcm_size);
 
     ASSERT(cvsd_size / CVSD_PACKET_SIZE == pcm_size / CVSD_PCM_SIZE,
         "[%s] cvsd_size = %d, pcm_size = %d", __func__, cvsd_size, pcm_size);
@@ -144,11 +151,7 @@ int32_t bt_sco_codec_cvsd_decoder(uint8_t *cvsd_buf, uint32_t cvsd_size, uint8_t
         memcpy(cvsd_buf, cvsd_buf_all, CVSD_PACKET_SIZE);
         memcpy(cvsd_buf_all, &cvsd_buf_all[CVSD_PACKET_SIZE], CVSD_OFFSET_BYTES);
 
-        //AUDIOPLAYERS_DUMP16("0x%x, ", cvsd_buf, CVSD_PACKET_SIZE / 2);
-
-#ifdef SPEECH_RX_PLC_DUMP_DATA
-        audio_dump_add_channel_data(2, (short *)cvsd_buf, CVSD_PACKET_SIZE / 2);
-#endif
+        //DUMP16("0x%x, ", cvsd_buf, CVSD_PACKET_SIZE / 2);
 
         plc_type_t plc_type = check_cvsd_mute_pattern(cvsd_buf, CVSD_PACKET_SIZE);
 
@@ -166,29 +169,16 @@ int32_t bt_sco_codec_cvsd_decoder(uint8_t *cvsd_buf, uint32_t cvsd_size, uint8_t
 do_plc:
         if (plc_type == PLC_TYPE_PASS) {
             lpc_plc_save(plc_st, (int16_t *)pcm_buf);
-#ifdef SPEECH_RX_PLC_DUMP_DATA
-            audio_dump_add_channel_data(0, (short *)pcm_buf, CVSD_PACKET_SIZE / 2);
-#endif
         } else {
-            //AUDIOPLAYERS_TRACE(1,"PLC bad frame, plc type: %d, curr clk=%x, bt_clk=%x", plc_type, btdrv_syn_get_curr_ticks(), bt_syn_get_curr_ticks(conhdl));
-            AUDIOPLAYERS_TRACE(1,"PLC bad frame, plc type: %d, curr clk=%x", plc_type, btdrv_syn_get_curr_ticks());
+            TRACE(1,"PLC bad frame, plc type: %d", plc_type);
+            g_cvsd_plc_histogram.bt_mute++;
 #if defined(PLC_DEBUG_PRINT_DATA)
-            AUDIOPLAYERS_DUMP16("0x%x, ", cvsd_buf, CVSD_PACKET_SIZE / 2);
+            DUMP16("0x%x, ", cvsd_buf, CVSD_PACKET_SIZE / 2);
 #endif
             lpc_plc_generate(plc_st, (int16_t *)pcm_buf, NULL);
-#ifdef SPEECH_RX_PLC_DUMP_DATA
-            for (uint32_t i = 0; i < CVSD_PACKET_SIZE / 2; i++) {
-                audio_dump_temp_buf[i] = (plc_type - 1) * 5000;
-            }
-            audio_dump_add_channel_data(0, audio_dump_temp_buf, CVSD_PACKET_SIZE / 2);
-#endif
         }
 
-#ifdef SPEECH_RX_PLC_DUMP_DATA
-        audio_dump_add_channel_data(1, (short *)pcm_buf, CVSD_PACKET_SIZE / 2);
-        audio_dump_run();
-#endif
-
+        g_cvsd_plc_histogram.total++;
         cvsd_buf += CVSD_PACKET_SIZE;
         pcm_buf += CVSD_PCM_SIZE;
     }

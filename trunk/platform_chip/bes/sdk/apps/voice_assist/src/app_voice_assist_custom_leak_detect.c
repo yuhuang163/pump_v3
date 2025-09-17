@@ -13,14 +13,11 @@
  * trademark and other intellectual property rights.
  *
  ****************************************************************************/
-#if defined (VOICE_ASSIST_CUSTOM_LEAK_DETECT)
 #include "hal_trace.h"
 #include "anc_assist.h"
 #include "app_anc_assist.h"
 #include "app_voice_assist_custom_leak_detect.h"
 #include "arm_math.h"
-#include "cmsis_os.h"
-#include "app_media_player.h"
 
 static int32_t _voice_assist_custom_leak_detect_callback(void *buf, uint32_t len, void *other);
 #define Average (10)
@@ -53,11 +50,6 @@ int32_t app_voice_assist_custom_leak_detect_init(void)
 
 extern void app_anc_assist_reset_pilot_state(void);
 
-void app_voice_assist_custom_leak_detect_set_working_status(int32_t status){
-    app_anc_assist_set_custom_leak_working_status(status);
-}
-
-
 int32_t app_voice_assist_custom_leak_detect_open(void)
 {
     app_anc_assist_open(ANC_ASSIST_USER_CUSTOM_LEAK_DETECT);
@@ -68,7 +60,7 @@ int32_t app_voice_assist_custom_leak_detect_open(void)
     cnt=0;
     energy_cnt=0;
     summary_cnt=0;
-    app_voice_assist_custom_leak_detect_set_working_status(1);
+
     return 0;
 }
 
@@ -80,13 +72,10 @@ int32_t app_voice_assist_custom_leak_detect_close(void)
 }
 
 
-#ifdef CUSTOMER_APP_BOAT
-extern void app_tota_leak_detect_result();
-static uint8_t leak_detect_status = 0;
-#endif
+
 static int32_t _voice_assist_custom_leak_detect_callback(void *buf, uint32_t len, void *other)
 {
-    // VOICE_ASSIST_TRACE(0, "[%s] len = %d", __func__, len);
+    // TRACE(0, "[%s] len = %d", __func__, len);
     static float fb_energy_l[Average];
     static float fb_energy_s[Summary];
     float energy_monitor = 0.0; 
@@ -97,14 +86,14 @@ static int32_t _voice_assist_custom_leak_detect_callback(void *buf, uint32_t len
     float res = res_lst[0];
     uint32_t standalone_wd_working_status = (int)res_lst[1];
     // int assist_standalone_wd_total_cnt = (int)res_lst[2];
-    // VOICE_ASSIST_TRACE(2,"!!!!!!!!!!!!!!!!!!!!!!!!!!!! %d ",(int)(100000* res));
+    // TRACE(2,"!!!!!!!!!!!!!!!!!!!!!!!!!!!! %d ",(int)(100000* res));
     if(standalone_wd_working_status == CUSTOM_LEAK_DETECT_STATUS_UNKNOWN){
-        // VOICE_ASSIST_TRACE(2,"[%s] get unknown status", __func__);
+        TRACE(2,"[%s] get unknown status", __func__);
     }
     if(standalone_wd_working_status == CUSTOM_LEAK_DETECT_STATUS_WAIT){
         return 0;
     }
-    // VOICE_ASSIST_TRACE(2,"[%s] stop stream with status: %d %d",__func__,standalone_wd_working_status,cnt);
+    // TRACE(2,"[%s] stop stream with status: %d %d",__func__,standalone_wd_working_status,cnt);
     if(standalone_wd_working_status != CUSTOM_LEAK_DETECT_STATUS_STOP)
     {
         cnt++;
@@ -119,7 +108,7 @@ static int32_t _voice_assist_custom_leak_detect_callback(void *buf, uint32_t len
             }
             
             energy_cnt++;
-            // VOICE_ASSIST_TRACE(2, "energy_cnt = %d", energy_cnt);
+            // TRACE(2, "energy_cnt = %d", energy_cnt);
             cnt = 0;
         }
 
@@ -129,7 +118,7 @@ static int32_t _voice_assist_custom_leak_detect_callback(void *buf, uint32_t len
                 energy_sum += fb_energy_l[i];
             energy_monitor = energy_sum/Average;
             fb_energy_s[summary_cnt] = energy_monitor;
-            VOICE_ASSIST_TRACE(2, "[%s] leak detect test: [%d]time, fb_energy = %d", __func__, summary_cnt, (int)(fb_energy_s[summary_cnt]));
+            TRACE(2, "[%s] leak detect test: [%d]time, fb_energy = %d", __func__, summary_cnt, (int)(fb_energy_s[summary_cnt]));
             summary_cnt++;
             if(summary_cnt >= Summary){
                 summary_cnt = Summary-1;
@@ -152,37 +141,21 @@ static int32_t _voice_assist_custom_leak_detect_callback(void *buf, uint32_t len
 #ifdef LEAK_DETECT_CALIB
             else if(leak_detect_flag == 1)
             {
-                VOICE_ASSIST_TRACE(2, "[%s] ===============CALIB FINISHED==============="__func__);
-                VOICE_ASSIST_TRACE(2, "[%s] fb_energy = %d, aec_ref = %d", __func__, (int)(energy_summary), (int)(10*aec_ref));
+                TRACE(2, "[%s] ===============CALIB FINISHED==============="__func__);
+                TRACE(2, "[%s] fb_energy = %d, aec_ref = %d", __func__, (int)(energy_summary), (int)(10*aec_ref));
             }
 #endif
             // else
             // {
-            //     VOICE_ASSIST_TRACE(2, "[%s] unkonw status: %d", __func__, leak_detect_flag);
+            //     TRACE(2, "[%s] unkonw status: %d", __func__, leak_detect_flag);
             // }
             stop_flag++;
             if(stop_flag == 1){
-                VOICE_ASSIST_TRACE(2,"[%s] ======LEAK DETECT TEST FINISHED======",__func__);
-                VOICE_ASSIST_TRACE(2,"[%s] fb_energy = %d, aec_ref = %d  monitor = %d", __func__, (int)(energy_summary), (int)(10*aec_ref),(int)(energy_monitor));
-                
-                if ((int)(energy_summary) >= BEEP10HZ_THRESHOLD) 
-                {
-                    VOICE_ASSIST_TRACE(0,"NORMAL");
-#ifdef CUSTOMER_APP_BOAT
-                    leak_detect_status = 0x01;
-                    app_tota_leak_detect_result();
-#endif
-                }
-                else 
-                {
-                    VOICE_ASSIST_TRACE(0,"LOOSE");
-#ifdef CUSTOMER_APP_BOAT
-                    leak_detect_status = 0x00;
-                    app_tota_leak_detect_result();
-#endif
-                }
-
-                VOICE_ASSIST_TRACE(2,"[%s] stop stream with status: %d",__func__,standalone_wd_working_status);
+                TRACE(2,"[%s] ======LEAK DETECT TEST FINISHED======",__func__);
+                TRACE(2,"[%s] fb_energy = %d, aec_ref = %d  monitor = %d", __func__, (int)(energy_summary), (int)(10*aec_ref),(int)(energy_monitor));
+                if ((int)(energy_summary) >= BEEP10HZ_THRESHOLD) TRACE(2,"NORMAL");
+                else TRACE(2,"LOOSE");
+                TRACE(2,"[%s] stop stream with status: %d",__func__,standalone_wd_working_status);
                 app_voice_assist_custom_leak_detect_close();
             }
 
@@ -197,11 +170,3 @@ static int32_t _voice_assist_custom_leak_detect_callback(void *buf, uint32_t len
     return 0;
 }
 
-#ifdef CUSTOMER_APP_BOAT
-uint8_t app_voice_assitant_get_status(void)
-{
-    return leak_detect_status;
-}
-#endif
-
-#endif

@@ -41,7 +41,7 @@ void app_spp_example_serial_port_client_open(const bt_bdaddr_t *addr)
     * For example, Creating spp client services through UUID retrieval
     * the remote device has an SPP service with a UUID of 0xfe35
     */
-    app_spp_serial_port_client_open_by_uuid((bt_bdaddr_t *)addr, 0xfe35, false);
+    app_spp_serial_port_client_open_by_uuid((bt_bdaddr_t *)addr, 0x1101, false);
     /*
     * For example, Creating spp client services through prot number retrieval
     * the remote device has an SPP service with a prot number of 5
@@ -57,10 +57,9 @@ void app_spp_example_serial_port_client_close(const bt_bdaddr_t *addr)
     }
 }
 
-spp_error_type app_spp_example_serial_port_client_send_data(const void *input)
+spp_error_type app_spp_example_serial_port_send_data(const void *input)
 {
     spp_data_sent_s send_data = *(spp_data_sent_s *)input;
-
     if (app_spp_serial_port_send_data(&send_data.remote_addr, send_data.data, send_data.length))
     {
         return SPP_NO_ERROR;
@@ -71,7 +70,13 @@ spp_error_type app_spp_example_serial_port_client_send_data(const void *input)
     }
 }
 
-void app_spp_example_client_spp_event_ind(uint8_t client_type,
+static bool rx_loopback_mode = false;
+void app_spp_example_set_rx_loopback_mode(bool flag)
+{
+    rx_loopback_mode = flag;
+}
+
+void app_spp_example_spp_event_ind(uint8_t client_type,
                 const bt_bdaddr_t *remote, bt_spp_event_t event, bt_spp_callback_param_t *param)
 {
     /*
@@ -119,12 +124,13 @@ void app_spp_example_client_spp_event_ind(uint8_t client_type,
              *      bt_bdaddr_t    remote_addr;
              *  } rcv_spp_data_s;
              */
+            if (rx_loopback_mode)
             {
                 spp_data_sent_s send_data = {0};
                 send_data.remote_addr = param->spp_chan->remote;
                 send_data.data = param->rx_data_ptr;
                 send_data.length = param->rx_data_len;
-                app_spp_example_serial_port_client_send_data((void *)&send_data);
+                app_spp_example_serial_port_send_data((void *)&send_data);
             }
             break;
         default:
@@ -145,13 +151,17 @@ void app_spp_main(const bt_bdaddr_t *addr)
     */
     if (addr)
     {
-        app_spp_register_client_callback_handle(app_spp_example_client_spp_event_ind);
         app_spp_example_serial_port_client_open(addr);
+        app_spp_register_client_callback_handle(app_spp_example_spp_event_ind);
     }
-    /*
-    *  as server:
-    *      Call interface app_spp_serial_port_server_init() function during bth initialization
-    * to register spp server service
-    */
-    //app_spp_serial_port_server_init();
+    else
+    {
+        /*
+        *  as server:
+        *      Call interface app_spp_serial_port_server_init() function during bth initialization
+        * to register spp server service
+        */
+        app_spp_serial_port_server_init();
+        app_spp_register_server_callback_handle(app_spp_example_spp_event_ind);
+    }
 }

@@ -25,8 +25,6 @@
 #include "hal_timer.h"
 #include "audioflinger.h"
 #include "hal_trace.h"
-#include "bluetooth_bt_api.h"
-#include "app_bt_stream.h"
 #ifdef __cplusplus
 extern "C" {
 #endif

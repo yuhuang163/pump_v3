@@ -25,6 +25,12 @@
 #include "sensor_hub.h"
 #include "mcu_sensor_hub_app.h"
 #include "mcu_sensor_hub_app_ai.h"
+#ifdef OPENAMP_ENABLE
+#include <rptun/chips/rptun_chips.h>
+#endif
+#ifdef DMA_AUDIO_APP
+#include "dma_audio_host.h"
+#endif
 
 #define APP_MCU_SENSOR_HUB_WATCH_DOG_TIME_MS    15000
 
@@ -33,7 +39,13 @@ static uint32_t app_mcu_sensor_hub_last_ping_ms = 0;
 static bool app_sensor_hub_inited = false;
 static bool app_sensor_hub_ping_received = false;
 
-static bool app_mcu_sensor_hub_wdog_enable = false;
+static bool app_mcu_sensor_hub_wdog_enable =
+#ifdef MCU_SENSOR_HUB_WATCH_DOG_INIT_OFF
+false
+#else
+true
+#endif
+;
 
 typedef struct
 {
@@ -50,13 +62,13 @@ void app_custom_register_sensor_hub_callback(SENSOR_HUB_INFO_CB_T *cb)
 
 void app_mcu_sensor_hub_enable_watch_dog(void)
 {
-    app_mcu_sensor_hub_last_ping_ms = GET_CURRENT_MS();
     app_mcu_sensor_hub_wdog_enable = true;
 }
 
 void app_mcu_sensor_hub_disable_watch_dog(void)
 {
     app_mcu_sensor_hub_wdog_enable = false;
+    app_mcu_sensor_hub_last_ping_ms = 0;
 }
 
 void app_mcu_sensor_hub_watch_dog_polling_handler(void)
@@ -69,28 +81,34 @@ void app_mcu_sensor_hub_watch_dog_polling_handler(void)
         return;
     }
 
-    if (currentMs >= app_mcu_sensor_hub_last_ping_ms)
+    if (0 == app_mcu_sensor_hub_last_ping_ms)
     {
-        passedTimerMs = currentMs - app_mcu_sensor_hub_last_ping_ms;
+        passedTimerMs = currentMs;
     }
     else
     {
-        passedTimerMs = TICKS_TO_MS(0xFFFFFFFF) - app_mcu_sensor_hub_last_ping_ms +
-            currentMs + 1;
-    }
+        if (currentMs > app_mcu_sensor_hub_last_ping_ms)
+        {
+            passedTimerMs = currentMs - app_mcu_sensor_hub_last_ping_ms;
+        }
+        else
+        {
+            passedTimerMs = TICKS_TO_MS(0xFFFFFFFF) - app_mcu_sensor_hub_last_ping_ms +
+                currentMs + 1;
+        }
 
-    if (passedTimerMs > APP_MCU_SENSOR_HUB_WATCH_DOG_TIME_MS)
-    {
-        if (app_mcu_sensor_hub_wdog_enable) {
-            isSensorHubWdTimeout = true;
+        if (passedTimerMs > APP_MCU_SENSOR_HUB_WATCH_DOG_TIME_MS)
+        {
+            if (app_mcu_sensor_hub_wdog_enable) {
+                isSensorHubWdTimeout = true;
+            }
         }
     }
-
     if (isSensorHubWdTimeout)
     {
-        SENSORHUB_TRACE(0, "currentMs %d latest ping %d passedTimerMs %d",
+        TRACE(0, "currentMs %d latest ping %d passedTimerMs %d",
                         currentMs, app_mcu_sensor_hub_last_ping_ms, passedTimerMs);
-        SENSORHUB_TRACE(0, "sensor hub watch dog time-out!");
+        TRACE(0, "sensor hub watch dog time-out!");
         if (sensor_hub_reset_cb &&
             (NULL != sensor_hub_reset_cb->sensor_hub_reset_cb))
         {
@@ -113,13 +131,13 @@ void app_mcu_sensor_hub_watch_dog_polling_handler(void)
 
 static void app_sensor_hub_at_cmd_send_handler(uint8_t *ptr, uint16_t len)
 {
-    SENSORHUB_TRACE(0, "master cpu has sended AT command to sensor hub");
+    TRACE(0, "master cpu has sended AT command to sensor hub");
     app_core_bridge_send_data_without_waiting_rsp(MCU_SENSOR_HUB_TASK_CMD_AT_CMD, ptr, len);
 }
 
 void app_sensor_hub_at_cmd_send(uint8_t *buf, uint16_t len)
 {
-    SENSORHUB_TRACE(0, "[AT command sent]: \"%s\"", buf);
+    TRACE(0, "[AT command sent]: \"%s\"", buf);
     app_core_bridge_send_cmd(MCU_SENSOR_HUB_TASK_CMD_AT_CMD, buf, len);
 }
 
@@ -134,17 +152,43 @@ CORE_BRIDGE_TASK_COMMAND_TO_ADD(MCU_SENSOR_HUB_TASK_CMD_AT_CMD,
 
 #endif /* SENSOR_HUB_BSP_TEST */
 
+#if defined (POWER_TEST)
+typedef struct {
+    uint32_t coremark_test_mode;//2: stay at freq and do spi reading 1: coremark test; 0: wfi
+    enum HAL_CMU_FREQ_T freq;
+} power_test_param;
+static void app_mcu_sensor_hub_coremark_wfi_power_test_cmd_handler(uint8_t* ptr, uint16_t len)
+{
+    app_core_bridge_send_data_without_waiting_rsp(MCU_SENSOR_HUB_TASK_CMD_POWER_TEST, ptr, len);
+}
+
+void app_mcu_sensor_hub_coremark_wfi_power_test_req(uint32_t coremark_test_mode, enum HAL_CMU_FREQ_T freq)
+{
+    power_test_param req_param;
+    req_param.coremark_test_mode = coremark_test_mode;
+    req_param.freq = freq;
+    app_core_bridge_send_cmd(MCU_SENSOR_HUB_TASK_CMD_POWER_TEST,
+        (uint8_t *)&req_param, sizeof(req_param));
+}
+
+CORE_BRIDGE_TASK_COMMAND_TO_ADD(MCU_SENSOR_HUB_TASK_CMD_POWER_TEST,
+                                "power test cmd send",
+                                app_mcu_sensor_hub_coremark_wfi_power_test_cmd_handler,
+                                NULL,
+                                0,
+                                NULL,
+                                NULL,
+                                NULL);
+#endif /* POWER_TEST */
+
 static void app_mcu_sensor_hub_ping_received_handler(uint8_t* ptr, uint16_t len)
 {
-    SENSORHUB_TRACE(0, "mcu gets ping from sensorhub core.");
+    TRACE(0, "mcu gets ping from sensorhub core.");
     app_mcu_sensor_hub_last_ping_ms = GET_CURRENT_MS();
     app_sensor_hub_ping_received = true;
 #ifdef VAD_IF_TEST
     hal_sysfreq_print_user_freq();
 #endif
-    if (false == app_sensor_hub_is_inited()) {
-        app_sensor_hub_inited = true;
-    }
 }
 
 CORE_BRIDGE_TASK_COMMAND_TO_ADD(MCU_SENSOR_HUB_TASK_CMD_PING,
@@ -178,14 +222,14 @@ static void app_mcu_sensor_hub_transmit_demo_no_rsp_cmd_handler(uint8_t* ptr, ui
 
 static void app_mcu_sensor_hub_demo_no_rsp_cmd_received_handler(uint8_t* ptr, uint16_t len)
 {
-    SENSORHUB_TRACE(0, "Get demo no rsp command from sensor hub core:");
-    SENSORHUB_DUMP8("%02x ", ptr, len);
+    TRACE(0, "Get demo no rsp command from sensor hub core:");
+    DUMP8("%02x ", ptr, len);
 }
 
 static void app_mcu_sensor_hub_demo_no_rsp_cmd_tx_done_handler(uint16_t cmdCode,
     uint8_t* ptr, uint16_t len)
 {
-    SENSORHUB_TRACE(0, "cmdCode 0x%x tx done", cmdCode);
+    TRACE(0, "cmdCode 0x%x tx done", cmdCode);
 }
 
 void app_mcu_sensor_hub_send_demo_req_no_rsp(void)
@@ -212,8 +256,8 @@ static void app_mcu_sensor_hub_transmit_demo_wait_rsp_cmd_handler(uint8_t* ptr, 
 
 static void app_mcu_sensor_hub_demo_wait_rsp_cmd_received_handler(uint8_t* ptr, uint16_t len)
 {
-    SENSORHUB_TRACE(0, "Get demo with rsp command from sensor hub:");
-    SENSORHUB_DUMP8("%02x ", ptr, len);
+    TRACE(0, "Get demo with rsp command from sensor hub:");
+    DUMP8("%02x ", ptr, len);
     APP_MCU_SENSOR_HUB_DEMO_RSP_T rsp;
     rsp.rspData = CORE_BRIDGE_DEMO_MCU_REQ_RSP_DATA;
     app_core_bridge_send_rsp(MCU_SENSOR_HUB_TASK_CMD_DEMO_REQ_WITH_RSP, (uint8_t *)&rsp, sizeof(rsp));
@@ -221,19 +265,19 @@ static void app_mcu_sensor_hub_demo_wait_rsp_cmd_received_handler(uint8_t* ptr, 
 
 static void app_mcu_sensor_hub_demo_wait_rsp_cmd_wait_rsp_timeout(uint8_t* ptr, uint16_t len)
 {
-    SENSORHUB_TRACE(0, "mcu waiting for rsp to demo cmd timeout.");
+    TRACE(0, "mcu waiting for rsp to demo cmd timeout.");
 }
 
 static void app_mcu_sensor_hub_demo_wait_rsp_cmd_rsp_received_handler(uint8_t* ptr, uint16_t len)
 {
     APP_MCU_SENSOR_HUB_DEMO_RSP_T* ptrRsp = (APP_MCU_SENSOR_HUB_DEMO_RSP_T *)ptr;
-    SENSORHUB_TRACE(0, "mcu gets rsp 0x%x from sensor hub core:", ptrRsp->rspData);
+    TRACE(0, "mcu gets rsp 0x%x from sensor hub core:", ptrRsp->rspData);
 }
 
 static void app_mcu_sensor_hub_demo_with_rsp_cmd_tx_done_handler(uint16_t cmdCode,
     uint8_t* ptr, uint16_t len)
 {
-    SENSORHUB_TRACE(0, "cmdCode 0x%x tx done", cmdCode);
+    TRACE(0, "cmdCode 0x%x tx done", cmdCode);
 }
 
 void app_mcu_sensor_hub_send_demo_req_with_rsp(void)
@@ -264,8 +308,8 @@ static void app_mcu_sensor_hub_demo_instant_req_handler(uint8_t* ptr, uint16_t l
     // for test purpose, we add log print here.
     // but as instant cmd handler will be directly called in intersys irq context,
     // for realistic use, should never do log print
-    SENSORHUB_TRACE(0, "Get demo instant req command from sensor core:");
-    SENSORHUB_DUMP8("%02x ", ptr, len);
+    TRACE(0, "Get demo instant req command from sensor core:");
+    DUMP8("%02x ", ptr, len);
 }
 
 void app_mcu_sensor_hub_send_demo_instant_req(void)
@@ -290,19 +334,19 @@ static void app_mcu_sensor_hub_transmit_vpu_wait_rsp_cmd_handler(uint8_t* ptr, u
 
 static void app_mcu_sensor_hub_vpu_wait_rsp_cmd_wait_rsp_timeout(uint8_t* ptr, uint16_t len)
 {
-    SENSORHUB_TRACE(1, "[VPU] MCU waiting for rsp to demo cmd timeout.");
+    TRACE(1, "[VPU] MCU waiting for rsp to demo cmd timeout.");
 }
 
 static void app_mcu_sensor_hub_vpu_wait_rsp_cmd_rsp_received_handler(uint8_t* ptr, uint16_t len)
 {
     int32_t *ret = (int32_t *)ptr;
-    SENSORHUB_TRACE(1, "[VPU] MCU gets rsp from sensor hub core: %d", *ret);
+    TRACE(1, "[VPU] MCU gets rsp from sensor hub core: %d", *ret);
 }
 
 static void app_mcu_sensor_hub_vpu_with_rsp_cmd_tx_done_handler(uint16_t cmdCode,
     uint8_t* ptr, uint16_t len)
 {
-    SENSORHUB_TRACE(1, "[VPU] cmdCode 0x%x tx done", cmdCode);
+    TRACE(1, "[VPU] cmdCode 0x%x tx done", cmdCode);
 }
 
 extern "C" void app_mcu_sensor_hub_ctrl_vpu(bool enable)
@@ -327,17 +371,62 @@ void app_mcu_vad_if_test(void);
 void sensor_hub_soundplus_mcu_app_init(void);
 #endif
 
+#if defined(OPENAMP_ENABLE)
+extern "C"  int rpmsg_echo_bth2sens_master(int argc, char *argv[]);
+#endif
+
+static unsigned int sensor_hub_rx_handler(const void *data, unsigned int len)
+{
+    uint32_t ret = len;
+
+#ifdef DMA_AUDIO_APP
+    if (dma_audio_cmd_filter(data, len)) {
+        ret = dma_audio_rx_data_handler(data, len);
+        if (ret == len) {
+            return len;
+        }
+    }
+#endif
+
+#ifdef OPENAMP_ENABLE
+    bes_bth2sens_rx_handler(data, len);
+#endif
+
+    ret = app_core_bridge_data_received(data, len);
+
+    return ret;
+}
+
+static void sensor_hub_tx_handler(const void *data, unsigned int len)
+{
+
+#ifdef DMA_AUDIO_APP
+    dma_audio_tx_data_handler(data, len);
+#endif
+
+    app_core_bridge_data_tx_done(data, len);
+
+#ifdef OPENAMP_ENABLE
+    bes_bth2sens_tx_handler(data, len);
+#endif
+}
+
 // mcu to initialize sensor hub module
 void app_sensor_hub_init(void)
 {
-    if (true == app_sensor_hub_is_inited()) {
+    int ret;
+
+    if (app_sensor_hub_inited) {
+        TRACE(1, "[%s]: WARNING: has been inited", __func__);
         return;
     }
+
+    TRACE(1, "[%s]: ", __func__);
+
     app_sensor_hub_ping_received = false;
     app_core_bridge_init();
 
-    int ret;
-    ret = sensor_hub_open(app_core_bridge_data_received, app_core_bridge_data_tx_done);
+    ret = sensor_hub_open(sensor_hub_rx_handler, sensor_hub_tx_handler);
     ASSERT(ret == 0, "sensor_hub_open failed: %d", ret);
 
     osDelay(5);
@@ -354,18 +443,22 @@ void app_sensor_hub_init(void)
     sensor_hub_soundplus_mcu_app_init();
 #endif
 
+#if defined(OPENAMP_ENABLE) && defined(OPENAMP_ECHO_EXAMPLE)
+    rpmsg_echo_bth2sens_master(0, NULL);
+#endif
+
     if (sensor_hub_reset_cb &&
         (NULL != sensor_hub_reset_cb->sensor_hub_boot_done_cb))
     {
         sensor_hub_reset_cb->sensor_hub_boot_done_cb(APP_SENSOR_HUB_INIT);
     }
 
-    app_mcu_sensor_hub_enable_watch_dog();
+    app_sensor_hub_inited = true;
 }
 
 void app_sensor_hub_deinit(void)
 {
-    if (false == app_sensor_hub_is_inited()) {
+    if (!app_sensor_hub_inited) {
         return;
     }
 
@@ -377,7 +470,6 @@ void app_sensor_hub_deinit(void)
 
     // release the waiting tx done semphore
     app_core_bridge_data_tx_done(NULL, 0);
-    app_mcu_sensor_hub_disable_watch_dog();
     app_sensor_hub_inited = false;
     app_sensor_hub_ping_received = false;
 }
@@ -385,10 +477,15 @@ void app_sensor_hub_deinit(void)
 
 void app_mcu_reset_sesor_hub(void)
 {
-    app_sensor_hub_deinit();
     int ret;
-    ret = sensor_hub_open(app_core_bridge_data_received, app_core_bridge_data_tx_done);
+
+    app_sensor_hub_deinit();
+    app_sensor_hub_ping_received = false;
+
+    ret = sensor_hub_open(sensor_hub_rx_handler, sensor_hub_tx_handler);
     ASSERT(ret == 0, "sensor_hub_open failed: %d", ret);
+
+    osDelay(5);
 
     // free all of the tx mailbox
     app_core_bridge_free_tx_mailbox();
@@ -396,7 +493,7 @@ void app_mcu_reset_sesor_hub(void)
     // release the waiting tx done semphore
     app_core_bridge_data_tx_done(NULL, 0);
 
-    app_mcu_sensor_hub_enable_watch_dog();
+    app_sensor_hub_inited = true;
 }
 
 bool app_sensor_hub_is_inited(void)

@@ -23,7 +23,7 @@ extern "C" {
 #include "plat_types.h"
 #include "plat_addr_map.h"
 
-#ifdef SEC_CTRL_BASE
+#if defined(SEC_CTRL_BASE) || defined(AON_SEC_CTRL_BASE)
 
 enum HAL_SEC_TYPE_T {
     HAL_SEC_TYPE_S,
@@ -40,7 +40,9 @@ void hal_sec_wakeup(void);
 
 #endif
 
-void hal_sec_get_spy_base_list(uint32_t **base, uint32_t *cnt);
+void hal_sec_get_spy_base_list(const uint32_t **base, uint32_t *cnt);
+
+int hal_sec_spy_irq_on(uint32_t spy_base);
 
 #ifdef __cplusplus
 }

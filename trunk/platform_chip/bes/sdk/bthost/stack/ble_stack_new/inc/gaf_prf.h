@@ -19,8 +19,11 @@
 #ifndef __GAF_PRF__
 #define __GAF_PRF__
 
-#include "gatt_service.h"
+#include "bluetooth.h"
 
+#include "gaf_cfg.h"
+
+#include "gatt_service.h"
 #include "prf_types.h"
 
 /// Possible values for setting client configuration characteristics
@@ -37,9 +40,9 @@ enum gatt_prf_cli_cfg
 enum gatt_prf_cli_cfg_packed
 {
     /// Start notification
-    GATT_PRF_CLI_START_NTF_PACKED   = 0x0001,
+    GATT_PRF_CLI_START_NTF_PACKED   = 0x0100,
     /// Start indication
-    GATT_PRF_CLI_START_IND_PACKED   = 0x0002,
+    GATT_PRF_CLI_START_IND_PACKED   = 0x0200,
 };
 
 enum gatt_prf_ntf_policy
@@ -70,11 +73,11 @@ typedef void (*gatt_prf_status_event_callback)(uint8_t con_lid, bool is_central,
 
 typedef union gatt_read_write_rsp_ctx
 {
-    uint32_t token;
-    /// GATT read orctx
-    uint32_t read_token;
+    void *p_ctx;
+    /// GATT read ctx
+    gatt_server_read_ctx_t *p_rd_ctx;
     /// GATT write ctx
-    uint32_t write_token;;
+    gatt_server_write_ctx_t *p_wr_ctx;
 } gatt_rd_wr_rsp_ctx_u;
 
 typedef struct gatt_disc_additional_param
@@ -90,8 +93,6 @@ typedef struct gaf_prf_init_cfg
     /// Perform a timeout to refresh state
     /// Should more than @see GAF_RX_NTF_IND_TIMEOUT_MS
     uint8_t rx_ntf_ind_timeout_s;
-    /// Support BTGATT of gaf
-    bool gaf_btgatt_support;
 } gaf_prf_cfg_t;
 
 /// Service information structure
@@ -129,20 +130,29 @@ int gaf_prf_deinit(void);
 
 /**
  * @brief Get gaf timeout ms that waiting for a result from peer
- *
- *
+ * 
+ * 
  * @return uint32_t    Waiting timeout in ms
  */
 uint32_t gaf_prf_get_rx_ntf_ind_timeout_in_ms(void);
 
 /**
- * @brief Get or alloc gaf layer conlid by conidx from btgatt
+ * @brief Get prfoile att connection handle
+ *
+ * @param  con_lid     Connection local index
+ *
+ * @return uint16_t    ATT connection handle
+ */
+uint16_t gaf_prf_get_att_conn_hdl(uint8_t con_lid);
+
+/**
+ * @brief Get or alloc gaf layer conlid by conidx from gap layer
  *
  * @param  conidx      Connection index from gap layer
  *
  * @return uint8_t     Connection local index from gaf layer
  */
-uint8_t gaf_prf_alloc_con_lid_for_btgatt(uint8_t conidx, uint16_t event);
+uint8_t gaf_prf_alloc_or_get_con_lid_with_gap_conidx(uint8_t conidx, uint16_t event);
 
 /**
  * @brief Get gap layer conidx by con_lid from gaf layer
@@ -163,41 +173,13 @@ uint8_t gaf_prf_get_gap_conidx_by_con_lid(uint8_t con_lid);
 uint8_t gaf_prf_get_con_lid_by_gap_conidx(uint8_t conidx);
 
 /**
- * @brief Get prfoile att connection handle
- *
- * @param  con_lid     Connection local index
- *
- * @return uint16_t    ATT connection handle
- */
-uint16_t gaf_prf_get_att_conn_hdl(uint8_t con_lid);
-
-/**
- * @brief Get temaprory profile head to start a gatt procedure
- * 
- * @param[in] prf_id   Profile local index
- * @param[in] con_lid  Connection local index
- * 
- * @return gatt_prf_t* Profile head
- */
-gatt_prf_t *gaf_prf_get_prf_head(uint8_t prf_id, uint8_t con_lid);
-
-/**
- * @brief Control all gaf service visibility in gatt database
- *
- * @param  connhdl     GAP Connection Handle
- * @param  visible     Service visibility in gatt discovery
- *
- */
-void gaf_prf_control_all_service(uint16_t connhdl, bool visible);
-
-/**
  * @brief Pack data time
  *
  * @param  p_buf       Buffer to return
  * @param  p_date_time Date time to be packed
  *
  */
-uint8_t gaf_prf_pack_date_time(uint8_t *p_buf, const gaf_prf_date_time_t *p_date_time);
+void gaf_prf_pack_date_time(uint8_t *p_buf, const gaf_prf_date_time_t *p_date_time);
 
 /**
  * @brief Pack date
@@ -206,7 +188,7 @@ uint8_t gaf_prf_pack_date_time(uint8_t *p_buf, const gaf_prf_date_time_t *p_date
  * @param  p_date      Date to be packed
  *
  */
-uint8_t gaf_prf_pack_date(uint8_t *p_buf, const gaf_prf_date_t *p_date);
+void gaf_prf_pack_date(uint8_t *p_buf, const gaf_prf_date_t *p_date);
 
 /**
  * @brief Unpack date time
@@ -215,7 +197,7 @@ uint8_t gaf_prf_pack_date(uint8_t *p_buf, const gaf_prf_date_t *p_date);
  * @param  p_date_time Date time to be unpacked
  *
  */
-uint8_t gaf_prf_unpack_date_time(const uint8_t *p_buf, gaf_prf_date_time_t *p_date_time);
+void gaf_prf_unpack_date_time(uint8_t *p_buf, gaf_prf_date_time_t *p_date_time);
 
 /**
  * @brief Unpack date
@@ -224,6 +206,6 @@ uint8_t gaf_prf_unpack_date_time(const uint8_t *p_buf, gaf_prf_date_time_t *p_da
  * @param  p_date      Date time to be unpacked
  *
  */
-uint8_t gaf_prf_unpack_date(const uint8_t *p_buf, gaf_prf_date_t *p_date);
+void gaf_prf_unpack_date(uint8_t *p_buf, gaf_prf_date_t *p_date);
 
 #endif /// __GAF_PRF__

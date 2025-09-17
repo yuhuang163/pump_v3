@@ -13,11 +13,11 @@
  * trademark and other intellectual property rights.
  *
  ****************************************************************************/
-#include "bthost_logger.h"
-
+#undef MOUDLE
+#define MOUDLE TEST
+#include "app_gaf_define.h"
 #include "bluetooth_bt_api.h"
 #include "bluetooth_ble_api.h"
-#include "bluetooth_nv_mgr.h"
 #include "app_trace_rx.h"
 #include "app_key.h"
 #include "nvrecord_bt.h"
@@ -28,23 +28,15 @@
 #include "app_bt.h"
 #include "btapp.h"
 #include "gap_i.h"
-#include "gatt_i.h"
-#include "smp_i.h"
 #include "btm_i.h"
 #include "l2cap_i.h"
 #include "gatt_service.h"
 #include "bap_service.h"
 #include "app_ble.h"
-#include "bes_me_api.h"
-
-#ifdef USB_AUDIO_CUSTOM_USB_HID_KEY
-#include "app_ble_cmd_handler.h"
-#endif
 
 #if BLE_AUDIO_ENABLED
+#include "bap_uc_test.h"
 #include "app_bap.h"
-#include "app_shp.h"
-#include "app_arc.h"
 #include "aob_conn_api.h"
 #include "aob_media_api.h"
 #include "aob_call_api.h"
@@ -52,246 +44,11 @@
 #include "aob_pacs_api.h"
 #include "aob_csip_api.h"
 #include "aob_volume_api.h"
-#include "ble_audio_core_api.h"
-#include "ble_audio_earphone_info.h"
+#endif
 
 #include "gaf_media_stream.h"
 #include "app_audio_active_device_manager.h"
-#include "aob_stream_handler.h"
-#include "app_gaf_custom_api.h"
 
-#endif
-
-#if IBRT
-#include "app_tws_ibrt.h"
-#include "bts_tws_if.h"
-#include "bts_tws_conn.h"
-#include "bts_core_if.h"
-#endif /* IBRT */
-
-#ifdef BLE_CPS_ENABLED
-#include "ble_cycling_power_sens.h"
-#endif /* BLE_CPS_ENABLED */
-
-#ifdef BLE_CPC_ENABLED
-#include "ble_cycling_power_ctrl.h"
-#endif /* BLE_CPC_ENABLED */
-
-#ifdef BLE_UDP_ENABLE
-#include "ble_uds.h"
-#endif /* BLE_UDP_ENABLE */
-
-#ifdef BLE_FTMS_ENABLED
-#include "ble_ftms.h"
-#endif /* BLE_FTMS_ENABLED */
-
-#ifdef BLE_FTMC_ENABLED
-#include "ble_ftmc.h"
-#endif /* BLE_FTMC_ENABLED */
-
-#ifdef BLE_HRPS_ENABLED
-#include "ble_hrps.h"
-#endif
-
-#ifdef BLE_HRPC_ENABLED
-#include "ble_hrpc.h"
-#endif
-
-#ifdef BLE_CSCPS_ENABLED
-#include "ble_cscps.h"
-#endif
-
-#ifdef BLE_CSCPC_ENABLED
-#include "ble_cscpc.h"
-#endif
-
-#ifdef BLE_HID_ENABLE
-#include "hid_service.h"
-#endif
-
-extern "C"
-{
-    void nv_record_ble_delete_entry_by_index(uint32_t index_to_delete);
-    void nv_record_ble_delete_entry(const uint8_t *pBdAddr);
-    void nv_record_ble_delete_all_entry(void);
-    int app_ble_server_callback(uintptr_t connhdl, gap_adv_event_t event, gap_adv_callback_param_t param);
-    bool app_ble_get_nv_ble_device_by_index(uint32_t i, gap_bond_sec_t *out);
-}
-
-#ifdef USB_AUDIO_CUSTOM_USB_HID_KEY
-typedef enum
-{
-    USB_AUDIO_HID_KEY_MIN = 0,
-    USB_AUDIO_HID_KEY_VOL_UP = USB_AUDIO_HID_KEY_MIN ,
-    USB_AUDIO_HID_KEY_VOL_DOWN,
-    USB_AUDIO_HID_KEY_VOL_MUTE,
-    USB_AUDIO_HID_KEY_PLAY,
-    USB_AUDIO_HID_KEY_PAUSE,
-    USB_AUDIO_HID_KEY_NEXT_TRACK,//5
-    USB_AUDIO_HID_KEY_PREVIOUS_TRACK,
-    USB_AUDIO_HID_KEY_MIC_MUTE,
-    USB_AUDIO_HID_KEY_HOOK_SWITCH,
-    USB_AUDIO_HID_KEY_PLAY_PAUSE,
-    USB_AUDIO_HID_CMD_REJECT_CALL_HANG_UP,//10
-    USB_AUDIO_HID_KEY_HOOK_ACCEPT,
-    USB_AUDIO_HID_KEY_HOOK_REJECT,
-    USB_AUDIO_HID_KEY_MAX,
-} USB_AUDIO_HID_KEY_E;
-
-static void send_hid_cmd_hook_accept_to_dongle_by_datapath(void)
-{
-    POSSIBLY_UNUSED CUSTOM_CMD_RET_STATUS_E ret;
-
-    USB_AUDIO_HID_KEY_E _hid_cmd= USB_AUDIO_HID_KEY_HOOK_ACCEPT;
-    ret = BLE_send_custom_command(OP_SEND_HID_COMMAND_TO_DONGLE,
-                                    (uint8_t*)&_hid_cmd,
-                                    sizeof(_hid_cmd),
-                                    TRANSMISSION_VIA_NOTIFICATION);
-    DEBUG_INFO(0,"%s ret:%d ",__func__,ret);
-}
-
-static void send_hid_cmd_hook_reject_to_dongle_by_datapath(void)
-{
-    POSSIBLY_UNUSED CUSTOM_CMD_RET_STATUS_E ret;
-
-    USB_AUDIO_HID_KEY_E _hid_cmd= USB_AUDIO_HID_KEY_HOOK_REJECT;
-    ret = BLE_send_custom_command(OP_SEND_HID_COMMAND_TO_DONGLE,
-                                    (uint8_t*)&_hid_cmd,
-                                    sizeof(_hid_cmd),
-                                    TRANSMISSION_VIA_NOTIFICATION);
-    DEBUG_INFO(0,"%s ret:%d ",__func__,ret);
-}
-
-static void send_hid_cmd_mic_mute_to_dongle_by_datapath(void)
-{
-    POSSIBLY_UNUSED CUSTOM_CMD_RET_STATUS_E ret;
-
-    USB_AUDIO_HID_KEY_E _hid_cmd= USB_AUDIO_HID_KEY_MIC_MUTE;
-    ret = BLE_send_custom_command(OP_SEND_HID_COMMAND_TO_DONGLE,
-                                    (uint8_t*)&_hid_cmd,
-                                    sizeof(_hid_cmd),
-                                    TRANSMISSION_VIA_NOTIFICATION);
-    DEBUG_INFO(0,"%s ret:%d ",__func__,ret);
-}
-
-extern "C" void vol_hid_test_hook_accept(void);
-extern "C" void vol_hid_test_hook_reject(void);
-
-extern "C" void vol_hid_test_up(void);
-extern "C" void vol_hid_test_vol_mute(void);
-extern "C" void vol_hid_test_play_swich(void);
-extern "C" void vol_hid_test_pause_swich(void);
-extern "C" void vol_hid_test_next_track(void);
-extern "C" void vol_hid_test_previou_track(void);
-
-extern "C" void vol_hid_test_mic_mute(void);
-extern "C" void vol_hid_test_hood_swich(void);
-extern "C" void vol_hid_test_play_pause(void);
-extern "C" void vol_hid_test_hook_accept(void);
-extern "C" void vol_hid_test_hook_reject(void);
-
-extern "C" void update_usb_desc(void);
-extern "C" void turn_on_usb(void);
-extern "C" void turn_off_usb(void);
-extern "C" void vol_hid_test_hang_up(void);
-extern "C" void vol_hid_test_answer_calls(void);
-
-extern "C" void vol_hid_test_down(void);
-
-void ble_hid_vol_down_test(void)
-{
-    DEBUG_INFO(0,"======================> ble_hid_vol_down_test");
-    vol_hid_test_down();
-}
-
-void ble_hid_vol_up_test(void)
-{
-    DEBUG_INFO(0,"======================> ble_hid_vol_up_test");
-    vol_hid_test_up();
-}
-
-
-void ble_hid_vol_mute_test(void)
-{
-    DEBUG_INFO(0,"======================> ble_hid_vol_mute_test");
-    vol_hid_test_vol_mute();
-}
-
-void ble_hid_test_play_swich_test(void)
-{
-    DEBUG_INFO(0,"======================> ble_hid_test_play_swich_test");
-    vol_hid_test_play_swich();
-    osDelay(10);
-    DEBUG_INFO(0,"======================> vol_hid_test_hook_accept_test");
-    vol_hid_test_hook_accept();
-}
-
-void ble_hid_test_hang_up_test(void)
-{
-    DEBUG_INFO(0,"======================> ble_hid_test_play_swich_test");
-    vol_hid_test_hang_up();
-    osDelay(10);
-    DEBUG_INFO(0,"======================> vol_hid_test_hook_reject_test");
-    vol_hid_test_hook_reject();
-}
-
-void ble_hid_test_answer_calls_test(void)
-{
-    DEBUG_INFO(0,"======================> ble_hid_test_play_swich_test");
-    vol_hid_test_answer_calls();
-    osDelay(10);
-    DEBUG_INFO(0,"======================> vol_hid_test_hook_accept_test");
-    vol_hid_test_hook_accept();
-}
-
-void ble_hid_test_pause_swich_test(void)
-{
-    DEBUG_INFO(0,"======================> ble_hid_test_pause_swich_test");
-    vol_hid_test_pause_swich();
-}
-
-void ble_hid_test_next_track_test(void)
-{
-    DEBUG_INFO(0,"======================> ble_hid_test_next_track_test");
-    vol_hid_test_next_track();
-}
-
-void ble_hid_test_previous_track_test(void)
-{
-    DEBUG_INFO(0,"======================> ble_hid_test_previous_track_test");
-    vol_hid_test_previou_track();
-}
-
-void ble_hid_mic_mute_test(void)
-{
-    DEBUG_INFO(0,"======================> ble_hid_mic_mute_test");
-    vol_hid_test_mic_mute();
-}
-
-void ble_hid_test_hood_swich_test(void)
-{
-    DEBUG_INFO(0,"======================> ble_hid_test_hood_swich_test");
-    vol_hid_test_hood_swich();
-}
-
-void ble_hid_test_play_pause_test(void)
-{
-    DEBUG_INFO(0,"======================> ble_hid_test_play_pause_test");
-    vol_hid_test_play_pause();
-}
-
-void vol_hid_test_hook_accept_test(void)
-{
-    DEBUG_INFO(0,"======================> vol_hid_test_hook_accept_test");
-    vol_hid_test_hook_accept();
-}
-
-void vol_hid_test_hook_reject_test(void)
-{
-    DEBUG_INFO(0,"======================> vol_hid_test_hook_reject_test");
-    vol_hid_test_hook_reject();
-}
-#endif
 #ifdef APP_TRACE_RX_ENABLE
 #ifdef AOB_MOBILE_ENABLED
 static const CIS_TIMING_CONFIGURATION_T dft_cis_timing =
@@ -316,18 +73,6 @@ static const CIS_TIMING_CONFIGURATION_T dft_cis_timing_7_5ms =
     .s2m_ft = 4,
     .frame_cnt_per_sdu = 1,
     .iso_interval = 6,  // 10ms = 8 * 1.25ms
-};
-
-static const CIS_TIMING_CONFIGURATION_T dft_cis_timing_5ms =
-{
-    .m2s_bn = 1,
-    .m2s_nse = 3,
-    .m2s_ft = 1,
-    .s2m_bn = 1,
-    .s2m_nse = 3,
-    .s2m_ft = 1,
-    .frame_cnt_per_sdu = 1,
-    .iso_interval = 4,  // 5ms = 4 * 1.25ms
 };
 #endif /// AOB_MOBILE_ENABLED
 
@@ -504,7 +249,7 @@ static uint8_t app_ble_test_get_hex_value(char c)
 
 static uint16_t app_ble_scan_hex_data_from_string(const char **p, const char *param_end, uint8_t *data_out, int data_max_len)
 {
-    POSSIBLY_UNUSED const char *param_start = *p;
+    const char *param_start = *p;
     const char *param = *p;
     const uint8_t *data_end = data_out + data_max_len;
     uint8_t *data = data_out;
@@ -528,9 +273,9 @@ static uint16_t app_ble_scan_hex_data_from_string(const char **p, const char *pa
         *data = (app_ble_test_get_hex_value(high) << 4) | app_ble_test_get_hex_value(low);
     }
 
-    DEBUG_INFO(0, "ble test %d %d '%s'", param_end-param_start, data-data_out, param_start);
+    TRACE(0, "ble test %d %d '%s'", param_end-param_start, data-data_out, param_start);
 
-    DUMP8_I(data_out, data-data_out);
+    DUMP8("%02x", data_out, data-data_out);
 
     *p = param;
 
@@ -600,20 +345,6 @@ static void smp_test_ctkd_set_bt_public_address(void)
 {
     gap_set_bt_public_address(gap_factory_le_address());
     gap_set_le_public_address(gap_factory_le_address());
-}
-
-static void app_test_del_nv_record(const char *BdAddrLsb2Msb, uint32_t str_len)
-{
-    const char *pend = BdAddrLsb2Msb + str_len;
-    uint8_t bdaddr[7];
-    uint16_t len = 0;
-    len = app_ble_scan_hex_data_from_string(&BdAddrLsb2Msb, pend, bdaddr, 6);
-    if (len != 6)
-    {
-        return;
-    }
-    bdaddr[6] = BT_ADDR_TYPE_PUBLIC;
-    bluetooth_nv_mgr_ble_record_del(BLE_NV_REC_DEL_EVENT_MIN, (uint8_t *)bdaddr);
 }
 
 static void smp_test_key_callback(void *priv, int error_code, const uint8_t *key)
@@ -741,11 +472,6 @@ static void smp_test_f4(void)
         "abae2b71 ecb2ffff 3e7377d1 5484cbd5" // Rb;
         ;
     smp_test_f4_numeric(PKbx_PKax_Rb, strlen(PKbx_PKax_Rb));
-}
-
-static void smp_test_encrypt_by_host(const char *enable, uint32_t str_len)
-{
-    gap_use_aes_encrypt_by_host_enable((*enable == '0') ? false : true);
 }
 
 static void smp_test_encrypt_data(const char *Key_Plain, uint32_t str_len)
@@ -1151,23 +877,6 @@ static void smp_test_start_authentication(const char *Conidx, uint32_t str_len)
     gap_start_authentication(gap_zero_based_ble_conidx_as_hdl(conidx), GAP_AUTH_STARTED_BY_BLE_TEST);
 }
 
-static void smp_test_start_security(const char *Conidx, uint32_t str_len)
-{
-    const char *pend = Conidx + str_len;
-    uint8_t conidx = 0;
-    uint16_t len = 0;
-    len = app_ble_scan_hex_data_from_string(&Conidx, pend, &conidx, 1);
-    if (len != 1)
-    {
-        return;
-    }
-    gap_conn_item_t *conn = NULL;
-
-    conn = gap_get_conn_item(gap_zero_based_ble_conidx_as_hdl(conidx));
-    smp_requirements_t r = gap_local_smp_requirements(conn, NULL);
-    gap_send_security_request(gap_zero_based_ble_conidx_as_hdl(conidx), r.auth_req);
-}
-
 static void smp_test_input_oob_legacy_tk(const char *TK, uint32_t str_len)
 {
     bt_addr_type_t peer_type;
@@ -1214,7 +923,7 @@ static void smp_test_input_6_digit_passkey(const char *Passkey, uint32_t str_len
 
 static void smp_test_lirk(void)
 {
-    POSSIBLY_UNUSED const uint8_t *irk = gap_get_local_irk();
+    POSSIBLY_UNUSED const uint8_t *irk = gap_get_local_irk(NULL);
     CO_LOG_INFO_4(BT_STS_LOCAL_IRK, CO_COMBINE_UINT32_LE(irk+12), CO_COMBINE_UINT32_LE(irk+8),
         CO_COMBINE_UINT32_LE(irk+4), CO_COMBINE_UINT32_LE(irk));
 }
@@ -1365,7 +1074,7 @@ static void smp_test_set_key_size(const char *Default_Conidx_KeyLen_MITM, uint32
     {
         return;
     }
-    DEBUG_INFO(0, "smp_test_set_key_size %d mitm_auth %d", key_size, mitm_auth);
+    TRACE(0, "smp_test_set_key_size %d mitm_auth %d", key_size, mitm_auth);
     if (set_default_key_size)
     {
         gap_set_default_key_size(key_size);
@@ -1389,7 +1098,7 @@ static void gattc_test_clear_cache(const char *Index, uint32_t str_len)
     {
         return;
     }
-    app_ble_clr_gatt_cli_cache_by_connhdl(gap_zero_based_ble_conidx_as_hdl(index));
+    gap_clear_client_cache_by_handle(gap_zero_based_ble_conidx_as_hdl(index));
 }
 #endif
 
@@ -1497,6 +1206,7 @@ static void gatts_test_send_notify(const char *Ntf00Ind01_HandleCount_CharValueH
             notify[i].char_value_handle = CO_COMBINE_UINT16_BE(char_value_handles + 2 * i);
             notify[i].value_len = sizeof(notify_data);
             notify[i].value = notify_data;
+            notify[i].force_send_value = false;
         }
         if (send_indication)
         {
@@ -1519,6 +1229,7 @@ static void gatts_test_send_notify(const char *Ntf00Ind01_HandleCount_CharValueH
         gatt_char_notify_t param = {0};
         param.service = g_app_test_service;
         param.character = g_app_char_long_value_7f04;
+        param.force_send_value = true;
         if (send_indication)
         {
             gatts_send_value_indication(GAP_ALL_CONNS, &param, notify_data, sizeof(notify_data));
@@ -1530,18 +1241,18 @@ static void gatts_test_send_notify(const char *Ntf00Ind01_HandleCount_CharValueH
     }
 }
 
-bool app_ble_test_server_callback(gatt_svc_t *svc, gatt_server_event_t event, gatt_server_callback_param_t param)
+int app_ble_test_server_callback(gatt_svc_t *svc, gatt_server_event_t event, gatt_server_callback_param_t param)
 {
     static uint8_t long_value[32] = {0};
     if (event == GATT_SERV_EVENT_DESC_READ)
     {
         gatt_server_desc_read_t *desc_read = param.desc_read;
-        if ((uint8_t *)desc_read->desc_attr->attr_data == g_app_test_descriptor_7f05)
+        if (desc_read->descriptor == g_app_test_descriptor_7f05)
         {
             uint8_t long_data_len = 32;
             if (desc_read->value_offset <= 32)
             {
-                gatts_send_read_rsp(desc_read->conn->connhdl, desc_read->token, 0, long_value+desc_read->value_offset, long_data_len-desc_read->value_offset);
+                gatts_write_read_rsp_data(desc_read->ctx, long_value+desc_read->value_offset, long_data_len-desc_read->value_offset);
                 return true;
             }
             else
@@ -1555,7 +1266,7 @@ bool app_ble_test_server_callback(gatt_svc_t *svc, gatt_server_event_t event, ga
     else if (event == GATT_SERV_EVENT_DESC_WRITE)
     {
         gatt_server_desc_write_t *desc_write = param.desc_write;
-        if ((uint8_t *)desc_write->desc_attr->attr_data == g_app_test_descriptor_7f05)
+        if (desc_write->descriptor == g_app_test_descriptor_7f05)
         {
             if (desc_write->value_offset <= 32)
             {
@@ -1571,7 +1282,6 @@ bool app_ble_test_server_callback(gatt_svc_t *svc, gatt_server_event_t event, ga
                 desc_write->rsp_error_code = ATT_ERROR_INVALID_OFFSET;
                 return false;
             }
-            gatts_send_write_rsp(desc_write->conn->connhdl, desc_write->token, ATT_ERROR_NO_ERROR);
             return true;
         }
         return false;
@@ -1584,7 +1294,7 @@ bool app_ble_test_server_callback(gatt_svc_t *svc, gatt_server_event_t event, ga
             uint8_t long_data_len = 22; // MTU-1
             if (char_read->value_offset <= 22)
             {
-                gatts_send_read_rsp(char_read->conn->connhdl, char_read->token, 0, long_value+char_read->value_offset, long_data_len-char_read->value_offset);
+                gatts_write_read_rsp_data(char_read->ctx, long_value+char_read->value_offset, long_data_len-char_read->value_offset);
                 return true;
             }
             else
@@ -1598,7 +1308,7 @@ bool app_ble_test_server_callback(gatt_svc_t *svc, gatt_server_event_t event, ga
             uint8_t long_data_len = 255;
             if (char_read->value_offset <= 255)
             {
-                gatts_send_read_rsp(char_read->conn->connhdl, char_read->token, 0, long_value+char_read->value_offset, long_data_len-char_read->value_offset);
+                gatts_write_read_rsp_data(char_read->ctx, long_value+char_read->value_offset, long_data_len-char_read->value_offset);
                 return true;
             }
             else
@@ -1610,7 +1320,7 @@ bool app_ble_test_server_callback(gatt_svc_t *svc, gatt_server_event_t event, ga
         else if (char_read->character == g_app_test_mitm_auth_7f08)
         {
             uint8_t data[2] = {0xAA, 0xBB};
-            gatts_send_read_rsp(char_read->conn->connhdl, char_read->token, 0, data, sizeof(data));
+            gatts_write_read_rsp_data(char_read->ctx, data, sizeof(data));
             return true;
         }
         else if (char_read->character == g_app_char_require_author_7f0c)
@@ -1633,7 +1343,7 @@ bool app_ble_test_server_callback(gatt_svc_t *svc, gatt_server_event_t event, ga
             uint8_t long_data_len = 10; // < MTU-3
             if (char_read->value_offset <= 10)
             {
-                gatts_send_read_rsp(char_read->conn->connhdl, char_read->token, 0, long_value+char_read->value_offset, long_data_len-char_read->value_offset);
+                gatts_write_read_rsp_data(char_read->ctx, long_value+char_read->value_offset, long_data_len-char_read->value_offset);
                 return true;
             }
             else
@@ -1655,7 +1365,6 @@ bool app_ble_test_server_callback(gatt_svc_t *svc, gatt_server_event_t event, ga
                      char_wirte->rsp_error_code = ATT_ERROR_INVALID_ATTR_VALUE_LEN;
                     return false;
                 }
-                DUMP8_I(char_wirte->value, char_wirte->value_len);
                 memcpy(long_value+char_wirte->value_offset, char_wirte->value, char_wirte->value_len);
             }
             else
@@ -1663,7 +1372,6 @@ bool app_ble_test_server_callback(gatt_svc_t *svc, gatt_server_event_t event, ga
                 char_wirte->rsp_error_code = ATT_ERROR_INVALID_OFFSET;
                 return false;
             }
-            gatts_send_write_rsp(char_wirte->conn->connhdl, char_wirte->token, ATT_ERROR_NO_ERROR);
             return true;
         }
         else if (char_wirte->character == g_app_char_long_value_7f04)
@@ -1685,12 +1393,10 @@ bool app_ble_test_server_callback(gatt_svc_t *svc, gatt_server_event_t event, ga
                 char_wirte->rsp_error_code = ATT_ERROR_INVALID_OFFSET;
                 return false;
             }
-            gatts_send_write_rsp(char_wirte->conn->connhdl, char_wirte->token, ATT_ERROR_NO_ERROR);
             return true;
         }
         else if (char_wirte->character == g_app_test_mitm_auth_7f08)
         {
-            gatts_send_write_rsp(char_wirte->conn->connhdl, char_wirte->token, ATT_ERROR_NO_ERROR);
             return true;
         }
         else if (char_wirte->character == g_app_char_require_author_7f0c)
@@ -1724,7 +1430,6 @@ bool app_ble_test_server_callback(gatt_svc_t *svc, gatt_server_event_t event, ga
                 char_wirte->rsp_error_code = ATT_ERROR_INVALID_OFFSET;
                 return false;
             }
-            gatts_send_write_rsp(char_wirte->conn->connhdl, char_wirte->token, ATT_ERROR_NO_ERROR);
             return true;
         }
     }
@@ -1732,45 +1437,10 @@ bool app_ble_test_server_callback(gatt_svc_t *svc, gatt_server_event_t event, ga
 }
 
 #if BLE_GATT_CLIENT_SUPPORT
-typedef struct {
-    gatt_prf_t head;
-    gatt_peer_service_t *peer_service;
-    gatt_peer_character_t *peer_character;
-} cli_prf_t;
 static uint8_t g_128_uuid_le[16] = {0};
 static uint16_t g_read_char_by_uuid = 0;
-static uint16_t g_discover_service_by_uuid = 0;
 static const uint8_t *g_read_char_by_128_uuid = NULL;
 static uint8_t g_test_prf_id = 0;
-
-static void gattc_test_discover_service_by_uuid(const char *Conidx_Serviceuuid, uint32_t str_len)
-{
-    const char *pend = Conidx_Serviceuuid + str_len;
-    uint8_t conidx = 0;
-    uint8_t uuid_be[2] = {0};
-    int len = 0;
-    cli_prf_t *prf = NULL;
-    len = app_ble_scan_hex_data_from_string(&Conidx_Serviceuuid, pend, &conidx, 1);
-    if (len != 1)
-    {
-        return;
-    }
-    len = app_ble_scan_hex_data_from_string(&Conidx_Serviceuuid, pend, uuid_be, 2);
-    if (len != 2)
-    {
-        return;
-    }
-    g_discover_service_by_uuid = CO_COMBINE_UINT16_BE(uuid_be);
-    DEBUG_INFO(0, "%s conidx %d uuid %04x", __func__, conidx, g_discover_service_by_uuid);
-
-    prf = (cli_prf_t *)gattc_get_profile(g_test_prf_id, gap_zero_based_ble_conidx_as_hdl(conidx));
-    if (prf == NULL)
-    {
-        return;
-    }
-
-    gattc_discover_service(&prf->head, g_discover_service_by_uuid, NULL);
-}
 
 static void gattc_test_discover_all_services(const char *Conidx, uint32_t str_len)
 {
@@ -1784,7 +1454,7 @@ static void gattc_test_discover_all_services(const char *Conidx, uint32_t str_le
     }
     g_read_char_by_uuid = 0;
     g_read_char_by_128_uuid = NULL;
-    gattc_discover_all_primary_services(g_test_prf_id, gap_zero_based_ble_conidx_as_hdl(conidx));
+    gattc_discover_all_services(g_test_prf_id, gap_zero_based_ble_conidx_as_hdl(conidx));
 }
 
 static void gattc_test_discover_char_by_uuid(const char *Conidx_CharUuid_Char128Uuid, uint32_t str_len)
@@ -1820,96 +1490,16 @@ static void gattc_test_discover_char_by_uuid(const char *Conidx_CharUuid_Char128
     {
         g_read_char_by_128_uuid = g_128_uuid_le;
     }
-    gattc_discover_all_primary_services(g_test_prf_id, gap_zero_based_ble_conidx_as_hdl(conidx));
+    gattc_discover_all_services(g_test_prf_id, gap_zero_based_ble_conidx_as_hdl(conidx));
 }
 
-static void gattc_test_discover_desc_by_handle(const char *Conidx_CharValueHandle_Endhandle, uint32_t str_len)
-{
-    const char *pend = Conidx_CharValueHandle_Endhandle + str_len;
-    uint8_t conidx = 0;
-    uint8_t valuehandle[2] = {0};
-    uint8_t endhandle[2] = {0};
-    int len = 0;
-    cli_prf_t *prf = NULL;
-    len = app_ble_scan_hex_data_from_string(&Conidx_CharValueHandle_Endhandle, pend, &conidx, 1);
-    if (len != 1)
-    {
-        return;
-    }
-    len = app_ble_scan_hex_data_from_string(&Conidx_CharValueHandle_Endhandle, pend, valuehandle, 2);
-    if (len != 2)
-    {
-        return;
-    }
-    len = app_ble_scan_hex_data_from_string(&Conidx_CharValueHandle_Endhandle, pend, endhandle, 2);
-    if (len != 2)
-    {
-        return;
-    }
-    uint16_t value_handle = CO_COMBINE_UINT16_BE(valuehandle);
-    uint16_t end_handle = CO_COMBINE_UINT16_BE(endhandle);
-
-    prf = (cli_prf_t *)gattc_get_profile(g_test_prf_id, gap_zero_based_ble_conidx_as_hdl(conidx));
-    if (prf == NULL)
-    {
-        return;
-    }
-
-    gattc_discover_descriptor_by_value_handle(&prf->head, value_handle, end_handle, 0);
-}
-
-static void gattc_test_read_char_by_uuid(const char *Conidx_uuid_128uuid, uint32_t str_len)
-{
-    const char *pend = Conidx_uuid_128uuid + str_len;
-    uint8_t conidx = 0;
-    uint8_t uuid[2] = {0};
-    uint8_t uuid_128[16] = {0};
-    int len = 0;
-    cli_prf_t *prf = NULL;
-    len = app_ble_scan_hex_data_from_string(&Conidx_uuid_128uuid, pend, &conidx, 1);
-    if (len != 1)
-    {
-        return;
-    }
-    len = app_ble_scan_hex_data_from_string(&Conidx_uuid_128uuid, pend, uuid, 2);
-    if (len != 2)
-    {
-        return;
-    }
-    uint16_t UUID = CO_COMBINE_UINT16_BE(uuid);
-    if(UUID == 0)
-    {
-        len = app_ble_scan_hex_data_from_string(&Conidx_uuid_128uuid, pend, uuid_128, 16);
-        if (len != 16)
-        {
-            return;
-        }
-    }
-
-    prf = (cli_prf_t *)gattc_get_profile(g_test_prf_id, gap_zero_based_ble_conidx_as_hdl(conidx));
-    if (prf == NULL)
-    {
-        return;
-    }
-    if(UUID == 0)
-    {
-        gattc_read_character_by_uuid_of_service(&prf->head, 0x0001, 0xFFFF, 0, &uuid_128[0]);
-    }
-    else
-    {
-        gattc_read_character_by_uuid_of_service(&prf->head, 0x0001, 0xFFFF, UUID, NULL);
-    }
-}
-
-static bool app_ble_test_client_callback(gatt_prf_t *prf, gatt_profile_event_t event, gatt_profile_callback_param_t param)
+static int app_ble_test_client_callback(gatt_prf_t *prf, gatt_profile_event_t event, gatt_profile_callback_param_t param)
 {
     switch (event)
     {
         case GATT_PROF_EVENT_SERVICE:
             {
                 gatt_profile_service_t *p = param.service;
-                DEBUG_INFO(0, "app_ble_test_client service %p uuid %x, cmpl %d",
-                                                            p->service, p->service_uuid, p->discover_cmpl);
                 if (g_read_char_by_uuid || g_read_char_by_128_uuid)
                 {
                     gattc_read_character_by_uuid_of_service(prf, p->service->attr_handle, p->service->end_handle,
@@ -1917,23 +1507,8 @@ static bool app_ble_test_client_callback(gatt_prf_t *prf, gatt_profile_event_t e
                 }
                 else
                 {
-                    gattc_discover_all_include_of_service(prf, p->service);
-                    if (p->service_uuid % 2 == 0)
-                    {
-                        gattc_discover_all_real_characters(prf, p->service);
-                    }
-                    else
-                    {
-                        gattc_discover_all_characters(prf, p->service);
-                    }
+                    gattc_discover_all_characters(prf, p->service);
                 }
-            }
-            break;
-        case GATT_PROF_EVENT_INCLUDE:
-            {
-                POSSIBLY_UNUSED gatt_profile_include_t *p = param.incl_service;
-                DEBUG_INFO(0, "app_ble_test_client inc service %p uuid %x service %p, cmpl %d ",
-                                                            p->service, p->service_uuid, p->owner_service, p->discover_cmpl);
             }
             break;
         case GATT_PROF_EVENT_CHARACTER:
@@ -1941,16 +1516,10 @@ static bool app_ble_test_client_callback(gatt_prf_t *prf, gatt_profile_event_t e
                 gatt_profile_character_t *p = param.character;
                 bool notify = (p->char_prop & GATT_NTF_PROP) ? true : false;
                 bool indicate = (p->char_prop & GATT_IND_PROP) ? true : false;
-                DEBUG_INFO(0, "app_ble_test_client char_uuid %02x value_handle %04x service %p, cmpl %d",
-                                                            gatt_char_16_uuid_le(p->character), p->char_value_handle,
-                                                            p->service, p->discover_cmpl);
-                if (p->char_value_handle != 0 && gatt_char_16_uuid_le(p->character) == 0)
-                {
-                    DUMP8_I(gatt_char_128_uuid_le(p->character), 16);
-                }
+                TRACE(0, "app_ble_test_client char_prop %02x value_handle %04x", p->char_prop, p->char_value_handle);
                 if (notify || indicate)
                 {
-                    gattc_discover_descriptor_by_character(prf, p->character);
+                    gattc_discover_descriptor_by_value_handle(prf, p->char_value_handle, p->char_end_handle, p->char_prop);
                 }
             }
             break;
@@ -1959,12 +1528,7 @@ static bool app_ble_test_client_callback(gatt_prf_t *prf, gatt_profile_event_t e
                 gatt_profile_descriptor_t *p = param.descriptor;
                 uint16_t cccd_config = (p->char_prop & GATT_NTF_PROP) ? GATT_CCCD_SET_NOTIFICATION : 0;
                 cccd_config |= (p->char_prop & GATT_IND_PROP) ? GATT_CCCD_SET_INDICATION : 0;
-                DEBUG_INFO(0, "app_ble_test_client desc_uuid %04x desc_handle %04x character %p, cmpl %d",
-                                                            p->desc_uuid, p->desc_handle, p->owner_character, p->discover_cmpl);
-                if (p->desc_uuid_le)
-                {
-                    DUMP8_I(p->desc_uuid_le, 16);
-                }
+                TRACE(0, "app_ble_test_client desc_uuid %04x desc_handle %04x", p->desc_uuid, p->desc_handle);
                 if (cccd_config && p->desc_uuid == GATT_DESC_UUID_CHAR_CLIENT_CONFIG)
                 {
                     uint8_t data_le[2] = {CO_SPLIT_UINT16_LE(cccd_config)};
@@ -1972,36 +1536,10 @@ static bool app_ble_test_client_callback(gatt_prf_t *prf, gatt_profile_event_t e
                 }
             }
             break;
-        case GATT_PROF_EVENT_CHAR_WRITE_RSP:
-            {
-                gatt_profile_char_write_rsp_t *p = param.char_write_rsp;
-
-                DEBUG_INFO(0, "app_ble_test_client attr_handle %04x character %p, err %d, op %d",
-                                            p->attr_handle, p->character, p->error_code, p->req_opcode);
-
-                if (p->value_write != NULL)
-                {
-                    DUMP8_I(p->value_write, p->value_write_len);
-                }
-            }
-            break;
-        case GATT_PROF_EVENT_DESC_WRITE_RSP:
-            {
-                gatt_profile_desc_write_rsp_t *p = param.desc_write_rsp;
-
-                DEBUG_INFO(0, "app_ble_test_client desc_handle %04x character %p, err %d, op %d",
-                                            p->attr_handle, p->character, p->error_code, p->req_opcode);
-
-                if (p->value_write != NULL)
-                {
-                    DUMP8_I(p->value_write, p->value_write_len);
-                }
-            }
         default:
             break;
     }
-
-    return true;
+    return 0;
 }
 #endif
 
@@ -2027,18 +1565,13 @@ static void gattc_test_add_profile(void)
     {
         return;
     }
-
-    gattc_cfg_t prf_cfg = {0};
-    prf_cfg.eatt_preferred = true;
-    prf_cfg.enc_required = true;
-    g_test_prf_id = gattc_register_profile(app_ble_test_client_callback, &prf_cfg);
+    profile_added = true;
+    g_test_prf_id = gattc_register_profile(app_ble_test_client_callback, NULL);
+    TRACE(0, "g_test_prf_id %d", g_test_prf_id);
 }
 #endif
 
 #if (BLE_AUDIO_ENABLED)
-#if defined(BT_WATCH_APP)
-int app_watch_switch_mode(int mode, bool reboot);
-#endif
 static void ble_audio_set_audio_configuration_test(const char *cmdParam, uint32_t cmdParam_len)
 {
     uint32_t aud_cfg_select = 0;
@@ -2051,7 +1584,7 @@ static void ble_audio_set_audio_configuration_test(const char *cmdParam, uint32_
 #if !defined (BLE_AUDIO_STEREO_CHAN_OVER_CIS_CNT)
     if (aud_cfg_select > AOB_AUD_CFG_TWS_MONO)
     {
-        DEBUG_INFO(1, "%s unsupport stereo %d", __func__, aud_cfg_select);
+        TRACE(1, "%s unsupport stereo %d", __func__, aud_cfg_select);
         return;
     }
 #endif
@@ -2076,14 +1609,11 @@ static void ble_audio_set_audio_configuration_test(const char *cmdParam, uint32_
             bes_app_mode = NV_APP_HEADSET_STEREO_TWO_CIS;
             break;
         default:
-            DEBUG_INFO(1, "%s unsupport %d", __func__, aud_cfg_select);
+            TRACE(1, "%s unsupport %d", __func__, aud_cfg_select);
             return;
     }
-#if defined(BT_WATCH_APP)
-    app_watch_switch_mode(bes_app_mode, true);
-#else
+
     app_switch_mode(bes_app_mode, true);
-#endif
 }
 
 static void bap_test_start_uc_srv_ase_operation(const char *cmdParam, uint32_t cmdParam_len)
@@ -2102,101 +1632,25 @@ static void bap_test_start_uc_srv_ase_operation(const char *cmdParam, uint32_t c
         {
             aob_media_release_stream(op_code_ase_lid_list[1]);
         }
-        else if(op_code_ase_lid_list[0] == ASCS_OPCODE_CFG_CODEC)
-        {
-            app_gaf_bap_qos_req_t ntf_qos_req =
-            {
-                .pres_delay_min_us = 10000,
-                .pres_delay_max_us = 40000,
-                .pref_pres_delay_min_us = 10000,
-                .pref_pres_delay_max_us = 40000,
-                .trans_latency_max_ms = 10,
-                .framing = APP_ISO_UNFRAMED_MODE,
-                .phy_bf = 0x2,
-                .retx_nb = 2,
-            };
-
-            app_gaf_bap_cfg_t ntf_codec_cfg =
-            {
-                {
-                    .location_bf = 0x01,
-                    .frame_octet = 40,
-                    .sampling_freq = APP_GAF_BAP_SAMPLING_FREQ_48000HZ,
-                    .frame_dur = 0x01,
-                    .frames_sdu = 0x01,
-                },
-                {
-                    0,
-                },
-            };
-
-            aob_media_ascs_srv_set_codec(op_code_ase_lid_list[1], AOB_CODEC_ID_LC3, &ntf_qos_req, &ntf_codec_cfg);
-        }
         else
         {
-            DEBUG_INFO(1, "OPCODE 0%d: DISABLE 05, RELEASE 08", op_code_ase_lid_list[0]);
-            DEBUG_INFO(1, "eg. [AOB,uc_srv_ase_op|0501], will disable ase_lid = 1");
+            TRACE(1, "OPCODE 0%d: DISABLE 05, RELEASE 08", op_code_ase_lid_list[0]);
+            TRACE(1, "eg. [AOB,uc_srv_ase_op|0501], will disable ase_lid = 1");
         }
     }
-}
-
-static void pacs_test_set_location(const char *cmdParam, uint32_t cmdParam_len)
-{
-    uint32_t location_bf = 0;
-
-    _str_to_hex(cmdParam, (uint8_t *)&location_bf, sizeof(location_bf));
-
-    aob_pacs_set_audio_location((AOB_MGR_LOCATION_BF_E )location_bf);
-}
-
-static void bap_test_gaf_set_presdelay_test(const char *param, uint32_t len)
-{
-    uint32_t presdelay_us = 0;
-    if (param == NULL || len <= 0)
-    {
-        DEBUG_INFO(3, "%s invalid param %p %d", __func__, param, len);
-        return;
-    }
-
-    sscanf(param, "%d", &presdelay_us);
-    DEBUG_INFO(3, "%s input presDelay: %d", __func__, presdelay_us);
-
-    gaf_stream_common_set_custom_presdelay_us(presdelay_us);
-}
-
-static void vap_test_vac_discovery(const char *cmdParam, uint32_t len)
-{
-    uint8_t con_lid = 0;
-
-    _str_to_hex(cmdParam, (uint8_t *)&con_lid, sizeof(con_lid));
-
-    aob_media_vas_discovery(con_lid);
-}
-
-static void vap_test_vac_control(const char *cmdParam, uint32_t len)
-{
-    uint8_t param[3] = {0};
-
-    _str_to_hex(cmdParam, (uint8_t *)param, sizeof(param));
-
-    aob_media_vas_control(param[0], param[1], param[2]);
 }
 
 static void bap_test_start_direct_connection(const char *cmdParam, uint32_t cmdParam_len)
 {
-#ifdef AOB_MOBILE_ENABLED
-    uint8_t phy = GAP_PHY_LE_2M;
-    uint8_t rates_bf = APP_GAF_PHY_RATES_BIT_LE_HDT_3;
-#endif
     uint8_t dev_num = cmdParam_len / (2*sizeof(ble_bdaddr_t));
 
     dev_num = (dev_num > BLE_CONNECTION_MAX) ?  BLE_CONNECTION_MAX : dev_num;
 
     if (dev_num == 0)
     {
-        DEBUG_INFO(1, "err dev num %d, use param: [addr1type1|...addrNtypeN] format please",
+        TRACE(1, "err dev num %d, use param: [addr1type1|...addrNtypeN] format please",
               dev_num);
-        DEBUG_INFO(1, "ex. [11222333336001|11222333336100]");
+        TRACE(1, "ex. [11222333336001|11222333336100]");
         return;
     }
 
@@ -2220,18 +1674,7 @@ static void bap_test_start_direct_connection(const char *cmdParam, uint32_t cmdP
             _str_to_hex(cmdParam + i * (2*sizeof(ble_bdaddr_t) + 1), (uint8_t *)&remote_device[i], sizeof(ble_bdaddr_t));
         }
 
-#ifdef AOB_MOBILE_ENABLED
-        app_bap_set_device_num_to_be_connected(dev_num);
-        /// preset cis num in cig
-        app_bap_uc_cli_set_cis_num_in_cig(dev_num);
-#if (HDT_LE_SUPPORT)
-        phy = GAP_PHY_LE_HDT;
-#elif (mHDT_LE_SUPPORT)
-        phy = GAP_PHY_LE_MHDT;
-#endif
-        aob_media_mobile_set_pref_phy_rate(phy, rates_bf);
         app_bap_set_activity_type(GAF_BAP_ACT_TYPE_CIS_AUDIO);
-#endif
 
         if (dev_num == 1)
         {
@@ -2239,69 +1682,7 @@ static void bap_test_start_direct_connection(const char *cmdParam, uint32_t cmdP
         }
         else
         {
-            app_ble_start_auto_connect(remote_device, dev_num, APP_GAPM_STATIC_ADDR, 5000);
-        }
-    }
-}
-
-static void bap_test_start_connection_use_rpa(const char *cmdParam, uint32_t cmdParam_len)
-{
-#ifdef AOB_MOBILE_ENABLED
-    uint8_t phy = GAP_PHY_LE_2M;
-    uint8_t rates_bf = APP_GAF_PHY_RATES_BIT_LE_HDT_3;
-#endif
-    uint8_t dev_num = cmdParam_len / (2*sizeof(ble_bdaddr_t));
-
-    dev_num = (dev_num > BLE_CONNECTION_MAX) ?  BLE_CONNECTION_MAX : dev_num;
-
-    if (dev_num == 0)
-    {
-        DEBUG_INFO(1, "err dev num %d, use param: [addr1type1|...addrNtypeN] format please",
-              dev_num);
-        DEBUG_INFO(1, "ex. [11222333336001|11222333336100]");
-        return;
-    }
-
-    ble_bdaddr_t remote_device[BLE_CONNECTION_MAX] =
-    {
-        {
-            .addr = {0x50,0x33,0x33,0x23,0x22,0x11},    // Default address
-            .addr_type = GAPM_STATIC_ADDR,
-        },
-        {
-            .addr = {0x51,0x33,0x33,0x23,0x22,0x11},    // Default address
-            .addr_type = GAPM_STATIC_ADDR,
-        }
-    };
-
-    if (cmdParam != NULL)
-    {
-        for (uint8_t i = 0; i < dev_num; i++)
-        {
-            /// Split with '|', so add 1
-            _str_to_hex(cmdParam + i * (2*sizeof(ble_bdaddr_t) + 1), (uint8_t *)&remote_device[i], sizeof(ble_bdaddr_t));
-        }
-
-#ifdef AOB_MOBILE_ENABLED
-        app_bap_set_device_num_to_be_connected(dev_num);
-        /// preset cis num in cig
-        app_bap_uc_cli_set_cis_num_in_cig(dev_num);
-#if (HDT_LE_SUPPORT)
-        phy = GAP_PHY_LE_HDT;
-#elif (mHDT_LE_SUPPORT)
-        phy = GAP_PHY_LE_MHDT;
-#endif
-        aob_media_mobile_set_pref_phy_rate(phy, rates_bf);
-        app_bap_set_activity_type(GAF_BAP_ACT_TYPE_CIS_AUDIO);
-#endif
-
-        if (dev_num == 1)
-        {
-            app_ble_start_connect(&remote_device[0], APP_GAPM_GEN_RSLV_ADDR);
-        }
-        else
-        {
-            app_ble_start_auto_connect(remote_device, dev_num, APP_GAPM_GEN_RSLV_ADDR, 5000);
+            app_ble_start_auto_connect(remote_device, dev_num, APP_GAPM_STATIC_ADDR, 500);
         }
     }
 }
@@ -2330,7 +1711,7 @@ static void bap_test_start_assist_add_source(const char *cmdParam, uint32_t cmdP
     {
         uint8_t param[sizeof(app_gaf_bap_adv_id_t) + 9] = {0};
         _str_to_hex(cmdParam, (uint8_t *)&param[0], sizeof(param));
-        DUMP8_I(&param[0], sizeof(param));
+        DUMP8("%02x ", &param[0], sizeof(param));
 #if defined(APP_BLE_BIS_ASSIST_ENABLE)
         aob_bis_assist_add_source(0, (app_gaf_bap_adv_id_t *)param,
                                     param + sizeof(app_gaf_bap_adv_id_t),
@@ -2365,7 +1746,7 @@ static void bap_test_start_pacc_set_audio_location(const char *cmdParam, uint32_
     {
         uint32_t location_bf = 0;
         _str_to_hex(cmdParam, (uint8_t *)&location_bf, sizeof(location_bf));
-        DUMP8_I(&location_bf, sizeof(location_bf));
+        DUMP8("%02x ", &location_bf, sizeof(location_bf));
         aob_pacs_mobile_set_location(0, location_bf);
         return;
     }
@@ -2374,7 +1755,7 @@ static void bap_test_start_pacc_set_audio_location(const char *cmdParam, uint32_
 static void bap_test_start_uc_cli_cfg_codec(const char *cmdParam, uint32_t cmdParam_len)
 {
     uint8_t param[6] = {0};
-
+    
     _str_to_hex(cmdParam, param, sizeof(param));
 
     if (param[2] == 0)
@@ -2391,27 +1772,13 @@ static void bap_test_start_uc_cli_cfg_codec(const char *cmdParam, uint32_t cmdPa
         // Use 10ms sdu interval
         ble_audio_test_update_sdu_intv(7500, 7500);
     }
-    else if (param[2] == 2)
-    {
-        // Use dft cis timing @see dft_cis_timing
-        ble_audio_test_update_cis_timing(dft_cis_timing);
-        // Use 10884us sdu interval
-        ble_audio_test_update_sdu_intv(10884, 10884);
-    }
-    else if (param[2] == 3)
-    {
-        // Use dft cis timing @see dft_cis_timing
-        ble_audio_test_update_cis_timing(dft_cis_timing_7_5ms);
-        // Use 10ms sdu interval
-        ble_audio_test_update_sdu_intv(8163, 8163);
-    }
     else
     {
-        DEBUG_INFO(1, "eg. [AOB,aob_uc_cli_cfg_codec|000100064000]");
-        DEBUG_INFO(1, "will codec cfg ase_lid 0, with cis id 1, fs enum 6, fr octs 0x40");
+        TRACE(1, "eg. [AOB,aob_uc_cli_cfg_codec|000100064000]");
+        TRACE(1, "will codec cfg ase_lid 0, with cis id 1, fs enum 6, fr octs 0x40");
     }
 
-    DEBUG_INFO(1, "ase_lid = %d, cis_id = %d, fs = %d, octs = %d",
+    TRACE(1, "ase_lid = %d, cis_id = %d, fs = %d, octs = %d",
                                 param[0],
                                 param[1],
                                 param[3],
@@ -2427,43 +1794,20 @@ static void bap_test_start_uc_cli_cfg_codec(const char *cmdParam, uint32_t cmdPa
 static void bap_test_start_uc_cli_cfg_qos(const char *cmdParam, uint32_t cmdParam_len)
 {
     uint8_t param[2] = {0};
-
+    
     _str_to_hex(cmdParam, param, sizeof(param));
 
-    aob_media_mobile_cfg_qos(param[0], param[1], 0);
+    aob_media_mobile_cfg_qos(param[0],
+                                param[1]);
 }
 
 static void bap_test_start_uc_cli_enable(const char *cmdParam, uint32_t cmdParam_len)
 {
     uint8_t param[10] = {0};
-    uint8_t ccid_list[10] = {0};
 
     _str_to_hex(cmdParam, param, sizeof(param));
 
-    // LTV to ccid list
-    memcpy(&ccid_list[2], &param[4], param[3]);
-    ccid_list[0] = param[3] + 1;
-    ccid_list[1] = GEN_AUD_METADATA_TYPE_CCID_LIST;
-
-    aob_media_mobile_enable_with_metadata(param[0], *(uint16_t *)&param[1], ccid_list[0] + 1, ccid_list);
-}
-
-static void bap_test_uc_cli_enable_with_vendor(const char *cmdParam, uint32_t cmdParam_len)
-{
-    uint8_t param[10] = {0};
-    app_gaf_bap_metadata_vendor_ltv_t vendor_md = {0};
-
-    _str_to_hex(cmdParam, param, sizeof(param));
-
-    // LTV to vendor data
-    vendor_md.len = sizeof(vendor_md) - 1;
-    vendor_md.type = 0xFF;
-    vendor_md.company_id = *(uint16_t *)&param[3];
-    vendor_md.audio_depth = param[5];
-    vendor_md.low_latency_mode = param[6];
-
-    aob_media_mobile_enable_with_metadata(param[0], *(uint16_t *)&param[1],
-                                          sizeof(vendor_md), (uint8_t *)&vendor_md);
+    aob_media_mobile_enable(param[0], *(uint16_t *)&param[1], param[3], &param[4]);
 }
 
 static void bap_test_start_uc_cli_disable(const char *cmdParam, uint32_t cmdParam_len)
@@ -2512,96 +1856,6 @@ static void bap_test_start_bidirectionla_stream(const char *cmdParam, uint32_t c
 
     ble_audio_test_start_bidirectional_stream(param[0], param[1], *(uint16_t *)&param[2], *(uint16_t *)&param[4], *(uint16_t *)&param[6]);
 }
-
-#if (IPU_LE_SUPPORT)
-static void bap_test_add_cig_update_cfg(const char *cmdParam, uint32_t cmdParam_len)
-{
-    // [AOB,uc_cli_add_upd_cfg|000101011027000000640004080064000201046400640002010103]
-    /*
-    00    00 cig_id
-    01    01 config_index
-    02    01 cis_cnt
-    03    01 use_test_cmd
-    04    1027 sdu_interval
-    06    00 worst sca
-    07    00 packing
-    08    00 framing
-    09    6400 max trans lantency
-    11    01 ft
-    12    0800 iso interval
-    14    6400 anchor upd buf time
-    16    0201 cis_hdl
-    18    02 nse
-    19    6400 max sdu
-    21    6400 max pdu
-    23    02 phy
-    24    01 bn
-    25    01 rtn
-    26    03 rates
-    */
-    uint8_t param[27] = {0};
-
-    _str_to_hex(cmdParam, param, sizeof(param));
-
-    bap_cig_update_cfg_t cig_cfg =
-    {
-        .sdu_interval_c2p_us = *(uint16_t *)(&param[4]),
-        .sdu_interval_p2c_us = *(uint16_t *)(&param[4]),
-        .worst_case_sca = param[6],
-        .packing = param[7],
-        .framing = param[8],
-        .max_transport_latency_c2p_ms = *(uint16_t *)(&param[9]),
-        .max_transport_latency_p2c_ms = *(uint16_t *)(&param[9]),
-        .test_ft_c2p = param[11],
-        .test_ft_p2c = param[11],
-        .test_iso_interval_1_25ms = *(uint16_t *)(&param[12]),
-    };
-
-    bap_cis_update_cfg_t cis_cfg =
-    {
-        /// CIS handle
-        .cis_hdl = *(uint16_t *)(&param[16]),
-        .test_nse = param[18],
-        .max_sdu_c2p = *(uint16_t *)(&param[19]),
-        .max_sdu_p2c = *(uint16_t *)(&param[19]),
-        .test_max_pdu_c2p = *(uint16_t *)(&param[21]),
-        .test_max_pdu_p2c = *(uint16_t *)(&param[21]),
-        .phy_bits_c2p = param[23],
-        .phy_bits_p2c = param[23],
-        .test_bn_c2p = param[24],
-        .test_bn_p2c = param[24],
-        .rtn_c2p = param[25],
-        .rtn_p2c = param[25],
-        .rates_bf_c2p = param[26],
-        .rates_bf_p2c = param[26],
-    };
-
-    bap_add_cig_update_config(param[0], param[1], &cig_cfg, param[2], &cis_cfg, param[3]);
-}
-
-static void bap_test_start_udpate_cis_stream(const char *cmdParam, uint32_t cmdParam_len)
-{
-    uint8_t param[9] = {0};
-
-    _str_to_hex(cmdParam, param, sizeof(param));
-
-    // Max two cis
-    uint8_t cig_params[sizeof(bap_update_cig_param_t) + sizeof(uint16_t) * 2] = {0};
-
-    bap_update_cig_param_t *cig_param = (bap_update_cig_param_t *)cig_params;
-
-    cig_param->cig_id = param[1];
-    cig_param->config_index = param[2];
-    cig_param->upsn_offset_suggested = param[3];
-
-    for (cig_param->cis_count = 0; cig_param->cis_count < CO_MIN_VALUE(2, param[4]); cig_param->cis_count++)
-    {
-        *((uint16_t *)&cig_params[sizeof(*cig_param)] + cig_param->cis_count) = *(int16_t *)&(param[4 + cig_param->cis_count * 2]);
-    }
-
-    bap_update_cig_cis(true, param[0], cig_param);
-}
-#endif /* IPU_LE_SUPPORT */
 
 #ifdef APP_BLE_BIS_SRC_ENABLE
 static void bap_test_start_bis_src_grp(const char *cmdParam, uint32_t cmdParam_len)
@@ -2663,12 +1917,6 @@ static void bap_test_start_bis_src_grp(const char *cmdParam, uint32_t cmdParam_l
 
     for (stream_idx = 0; stream_idx < param[1]; stream_idx++)
     {
-        if (param[1] > 1)
-        {
-            p_cfg->param.location_bf = subgrp_param.location_bf &
-                                ((stream_idx % 2) ? 0x55555555 : 0xAAAAAAAA);
-        }
-
         aob_bis_src_update_stream_codec_cfg(0, stream_idx, p_cfg);
     }
 
@@ -2714,34 +1962,6 @@ static void vcp_test_set_absolute_volume(const char *cmdParam, uint32_t cmdParam
     _str_to_hex(cmdParam, &le_vol, sizeof(le_vol));
 
     aob_mobile_vol_set_abs_le_vol(0, le_vol);
-}
-
-static void vcp_test_set_relative_volume(const char *cmdParam, uint32_t cmdParam_len)
-{
-    uint8_t up = 0;
-    _str_to_hex(cmdParam, &up, sizeof(up));
-    if(up)
-    {
-        aob_mobile_vol_up(0);
-    }
-    else
-    {
-        aob_mobile_vol_down(0);
-    }
-}
-
-static void vcp_test_set_relative_volume_unmute(const char *cmdParam, uint32_t cmdParam_len)
-{
-    uint8_t up = 0;
-    _str_to_hex(cmdParam, &up, sizeof(up));
-    if(up)
-    {
-        aob_mobile_vol_up_unmute(0);
-    }
-    else
-    {
-        aob_mobile_vol_down_unmute(0);
-    }
 }
 
 static void vcp_test_set_volume_mute(const char *cmdParam, uint32_t cmdParam_len)
@@ -2814,15 +2034,6 @@ static void mcp_mcs_media_action(const char *cmdParam, uint32_t cmdParam_len)
     aob_media_mobile_position_ctrl(param[0], param[1], *(int32_t *)&param[2], *(int8_t *)&param[6]);
 }
 
-static void vap_va_session_update_test(const char *cmdParam, uint32_t cmdParam_len)
-{
-    uint8_t param[4] = {0};
-
-    _str_to_hex(cmdParam, param, sizeof(param));
-
-    aob_media_mobile_vap_session_update(param[0], param[1], param[2], param[3]);
-}
-
 static void micp_test_set_mic_input_gain(const char *cmdParam, uint32_t cmdParam_len)
 {
     uint8_t param[3] = {0};
@@ -2864,26 +2075,6 @@ static void aicp_test_read_character(const char *cmdParam, uint32_t cmdParam_len
 }
 
 #endif /// AOB_MOBILE_ENABLED
-
-static void aicp_test_set_aics(const char *cmdParam, uint32_t cmdParam_len)
-{
-    uint8_t param[5];
-
-    _str_to_hex(cmdParam, param, sizeof(param));
-#if (APP_GAF_AICS_ENABLE)
-    app_arc_aics_set(param[0], param[1], *(uint32_t *)&param[2]);
-#endif
-}
-
-static void aicp_test_set_aics_desc(const char *cmdParam, uint32_t cmdParam_len)
-{
-    uint8_t param[5];
-
-    _str_to_hex(cmdParam, param, sizeof(param));
-#if (APP_GAF_AICS_ENABLE)
-    app_arc_aics_set_desc(param[0], &param[1], param[2]);
-#endif
-}
 
 static void vocs_test_set_vocs_location(const char *cmdParam, uint32_t cmdParam_len)
 {
@@ -2936,28 +2127,32 @@ static void ble_test_del_record(void)
     const bt_bdaddr_t *peer_addr = NULL;
     bt_addr_type_t addr_type = BT_ADDR_TYPE_PUBLIC;
     peer_addr = app_test_get_le_address(&addr_type);
-    bluetooth_nv_mgr_ble_record_del(BLE_NV_REC_DEL_EVENT_MIN, (uint8_t *)peer_addr);
+    gap_del_ble_device_record(peer_addr);
 }
 
 static void ble_test_dump_record(void)
 {
     gap_bond_sec_t record = {{{0}}, (bt_addr_type_t)0};
+    uint32_t count = 0;
     uint32_t i = 0;
-    NV_RECORD_PAIRED_BLE_DEV_INFO_T *dev_info = nv_record_blerec_get_ptr();
-    POSSIBLY_UNUSED uint32_t count = dev_info->saved_list_num;
 
-    while (app_ble_get_nv_ble_device_by_index(i++, &record))
+    count = gap_count_ble_device_record();
+    for (; i < count; i += 1)
     {
-        DEBUG_INFO(0, "ble record [%d/%d] %02x %08x:%04x flags %08x", i, count,
+        if (!gap_get_ble_device_record_by_index(i, &record))
+        {
+            return;
+        }
+        TRACE(0, "ble record [%d/%d] %02x %08x:%04x flags %08x", i, count,
             record.peer_type, CO_COMBINE_UINT32_LE(record.peer_addr.address + 2), CO_COMBINE_UINT16_LE(record.peer_addr.address),
             (record.device_bonded<<28)|(record.secure_pairing<<24)|(record.bonded_with_num_compare<<20)|(record.bonded_with_passkey_entry<<16)|
             (record.peer_irk_distributed<<12)|(record.peer_csrk_distributed<<8)|(record.enc_key_size));
-        DEBUG_INFO(0, "ble record ltk %08x %08x %08x %08x rand %08x %08x ediv %04x",
+        TRACE(0, "ble record ltk %08x %08x %08x %08x rand %08x %08x ediv %04x",
             CO_COMBINE_UINT32_LE(record.ltk+12), CO_COMBINE_UINT32_LE(record.ltk+8),
             CO_COMBINE_UINT32_LE(record.ltk+4), CO_COMBINE_UINT32_LE(record.ltk),
             CO_COMBINE_UINT32_LE(record.rand+4), CO_COMBINE_UINT32_LE(record.rand),
             CO_COMBINE_UINT16_LE(record.ediv));
-        DEBUG_INFO(0, "ble record irk %08x %08x %08x %08x local ediv %08x %08x %04x",
+        TRACE(0, "ble record irk %08x %08x %08x %08x local ediv %08x %08x %04x",
             CO_COMBINE_UINT32_LE(record.peer_irk+12), CO_COMBINE_UINT32_LE(record.peer_irk+8),
             CO_COMBINE_UINT32_LE(record.peer_irk+4), CO_COMBINE_UINT32_LE(record.peer_irk),
             CO_COMBINE_UINT32_LE(record.local_rand+4), CO_COMBINE_UINT32_LE(record.local_rand),
@@ -2980,10 +2175,10 @@ static void bt_record_dump_test(void)
         {
             return;
         }
-        DEBUG_INFO(0, "bt record [%d/%d] %08x:%04x flags %08x", i, count,
+        TRACE(0, "bt record [%d/%d] %08x:%04x flags %08x", i, count,
             CO_COMBINE_UINT32_LE(record.bdAddr.address + 2), CO_COMBINE_UINT16_LE(record.bdAddr.address),
             (record.for_bt_source<<24)|(record.trusted<<16)|(record.keyType<<8)|(record.pinLen));
-        DEBUG_INFO(0, "bt record linkkey %08x %08x %08x %08x",
+        TRACE(0, "bt record linkkey %08x %08x %08x %08x",
             CO_COMBINE_UINT32_LE(record.linkKey+12), CO_COMBINE_UINT32_LE(record.linkKey+8),
             CO_COMBINE_UINT32_LE(record.linkKey+4), CO_COMBINE_UINT32_LE(record.linkKey));
     }
@@ -3026,7 +2221,7 @@ static void bt_nv_flush_test(void)
 
 static void bt_shutdown_test(void)
 {
-    //app_shutdown();
+    app_shutdown();
 }
 
 static void bt_trigger_assert_test(void)
@@ -3123,7 +2318,7 @@ static void bt_reconnect_hfp_test(void)
 
 static void bt_reconnect_a2dp_test(void)
 {
-    app_bt_reconnect_a2dp_profile((bt_bdaddr_t *)app_test_get_bt_address(), A2DP_ROLE_SNK);
+    app_bt_reconnect_a2dp_profile((bt_bdaddr_t *)app_test_get_bt_address());
 }
 
 static void bt_reconnect_test(void)
@@ -3139,7 +2334,7 @@ static void bt_start_auth_test(void)
     conn = hci_find_conn_by_address(HCI_CONN_TYPE_BT_ACL, BT_ADDR_TYPE_PUBLIC, bdaddr);
     if (conn == NULL)
     {
-        DEBUG_INFO(0, "bt_start_auth_test: invalid address");
+        TRACE(0, "bt_start_auth_test: invalid address");
         return;
     }
     btif_me_auth_req(conn->connhdl);
@@ -3147,9 +2342,7 @@ static void bt_start_auth_test(void)
 
 static void bt_test_set_pts_mode(void)
 {
-    bthost_cfg_t* bt_host_cfg = bt_host_get_cfg();
-
-    bt_host_cfg->pts_test_dont_bt_role_switch = true;
+    besbt_cfg.pts_test_dont_bt_role_switch = true;
 }
 
 static void bt_disconnect_test(void)
@@ -3159,7 +2352,7 @@ static void bt_disconnect_test(void)
     conn = hci_find_conn_by_address(HCI_CONN_TYPE_BT_ACL, BT_ADDR_TYPE_PUBLIC, bdaddr);
     if (conn == NULL)
     {
-        DEBUG_INFO(0, "bt_start_auth_test: invalid address");
+        TRACE(0, "bt_start_auth_test: invalid address");
         return;
     }
     bt_defer_call_func_2(btlib_hcicmd_disconnect,
@@ -3209,22 +2402,22 @@ static void bt_l2cap_close_or_send_data(const char *Conidx_Dcid_DataLen_SendEcho
         }
     }
     dcid = CO_COMBINE_UINT16_BE(dcid_be);
-    gap_conn_item_t *conn = gap_get_conn_item(gap_get_conn_hdl(conidx));
+    gap_conn_item_t *conn = gap_get_conn_item(gap_conn_idx_as_hdl(conidx));
     if (conn == NULL)
     {
-        DEBUG_INFO(0, "invalid bt device_id d%x", conidx);
+        TRACE(0, "invalid bt device_id d%x", conidx);
         return;
     }
     l2cap_conn_t *l2cap_conn = l2cap_conn_search_by_handle(conn->connhdl);
     if (l2cap_conn == NULL)
     {
-        DEBUG_INFO(0, "invalid bt connhdl %04x", conn->connhdl);
+        TRACE(0, "invalid bt connhdl %04x", conn->connhdl);
         return;
     }
     l2cap_channel_t *chan = l2cap_channel_search_dcid(l2cap_conn, dcid);
     if (chan == NULL)
     {
-        DEBUG_INFO(0, "invalid l2cap dcid %04x", dcid);
+        TRACE(0, "invalid l2cap dcid %04x", dcid);
         return;
     }
     if (data_len)
@@ -3248,15 +2441,15 @@ static void bt_l2cap_close_or_send_data(const char *Conidx_Dcid_DataLen_SendEcho
 
 static void ble_test_print_local_irk(void)
 {
-    POSSIBLY_UNUSED const uint8_t *l_irk = gap_get_local_irk();
-    DEBUG_INFO(0, "local irk: %08x %08x %08x %08x",
+    const uint8_t *l_irk = gap_get_local_irk(NULL);
+    TRACE(0, "local irk: %08x %08x %08x %08x",
         CO_COMBINE_UINT32_LE(l_irk+12), CO_COMBINE_UINT32_LE(l_irk+8),
         CO_COMBINE_UINT32_LE(l_irk+4), CO_COMBINE_UINT32_LE(l_irk));
 }
 
 static void ble_test_resolving_list_size(void)
 {
-    DEBUG_INFO(0, "resolving list size: %d/%d enabled %d",
+    TRACE(0, "resolving list size: %d/%d enabled %d",
         gap_resolving_list_curr_size(),
         gap_resolving_list_max_size(),
         gap_address_reso_is_enabled());
@@ -3264,7 +2457,7 @@ static void ble_test_resolving_list_size(void)
 
 static void ble_test_resolving_list_clear(void)
 {
-    gap_resolving_list_clear(false);
+    gap_resolving_list_clear();
 }
 
 static void ble_test_resolving_list_dump(void)
@@ -3277,10 +2470,10 @@ static void ble_test_resolving_list_dump(void)
         item = gap_resolving_list_get_item(i);
         if (item)
         {
-            DEBUG_INFO(0, "resolving list item: [%d] %02x %04x:%02x device mode %d",
+            TRACE(0, "resolving list item: [%d] %02x %04x:%02x device mode %d",
                 i, item->peer_type, CO_COMBINE_UINT32_LE(item->peer_addr.address+2),
                 CO_COMBINE_UINT16_LE(item->peer_addr.address), item->device_privacy_mode);
-            DEBUG_INFO(0, "resolving list item: [%d] p_irk %08x %08x %08x %08x",
+            TRACE(0, "resolving list item: [%d] p_irk %08x %08x %08x %08x",
                 i, CO_COMBINE_UINT32_LE(item->peer_irk+12), CO_COMBINE_UINT32_LE(item->peer_irk+8),
                 CO_COMBINE_UINT32_LE(item->peer_irk+4), CO_COMBINE_UINT32_LE(item->peer_irk));
         }
@@ -3325,7 +2518,7 @@ static void ble_test_resolving_list_remove_by_index(const char *Index, uint32_t 
     {
         return;
     }
-    gap_resolving_list_remove_by_index(index, false);
+    gap_resolving_list_remove_by_index(index, true, false);
 }
 
 static void ble_test_resolving_list_remove_by_address(const char *Type_BdaddrLsb2Msb, uint32_t str_len)
@@ -3344,7 +2537,7 @@ static void ble_test_resolving_list_remove_by_address(const char *Type_BdaddrLsb
     {
         return;
     }
-    gap_resolving_list_remove((bt_addr_type_t)type, (bt_bdaddr_t *)bdaddr, false);
+    gap_resolving_list_remove((bt_addr_type_t)type, (bt_bdaddr_t *)bdaddr, true, false);
 }
 
 static void ble_test_resolving_list_add(const char *Type_BdAddr_DeviceMode, uint32_t str_len)
@@ -3373,30 +2566,7 @@ static void ble_test_resolving_list_add(const char *Type_BdAddr_DeviceMode, uint
     }
     len = app_ble_scan_hex_data_from_string(&Type_BdAddr_DeviceMode, pend, peer_irk, 16);
     has_peer_irk = (len == 16);
-    gap_resolving_list_add((bt_addr_type_t)type, (bt_bdaddr_t *)bdaddr, has_peer_irk ? peer_irk : NULL, device_privacy_mode, false);
-}
-
-static void ble_test_nv_resolving_list_add(const char *BdAddr, uint32_t str_len)
-{
-    const char *pend = BdAddr + str_len;
-    uint8_t bdaddr[6];
-    uint8_t peer_irk[16];
-    uint16_t len = 0;
-
-    len = app_ble_scan_hex_data_from_string(&BdAddr, pend, bdaddr, 6);
-    if (len != 6)
-    {
-        return;
-    }
-
-    if(nv_record_blerec_get_irk_from_addr(&bdaddr[0], &peer_irk[0]))
-    {
-        gap_resolving_list_add(BT_ADDR_TYPE_PUBLIC, (bt_bdaddr_t *)bdaddr, peer_irk, true, false);
-    }
-    else
-    {
-        DEBUG_INFO(0, "no record in nv!");
-    }
+    gap_resolving_list_add((bt_addr_type_t)type, (bt_bdaddr_t *)bdaddr, has_peer_irk ? peer_irk : NULL, device_privacy_mode, true, false, false);
 }
 
 static void ble_test_ble_enable_addr_reso(const char *Enable, uint32_t str_len)
@@ -3409,12 +2579,12 @@ static void ble_test_ble_enable_addr_reso(const char *Enable, uint32_t str_len)
     {
         return;
     }
-    gap_address_resolution_enable(enable);
+    gap_enable_address_resolution(enable);
 }
 
 static void ble_test_filter_list_size(void)
 {
-    DEBUG_INFO(0, "filter list size: %d/%d",
+    TRACE(0, "filter list size: %d/%d",
         gap_filter_list_curr_size(),
         gap_filter_list_max_size());
 }
@@ -3434,54 +2604,9 @@ static void ble_test_filter_list_dump(void)
         item = gap_filter_list_get_item(i);
         if (item)
         {
-            DEBUG_INFO(0, "filter list item: [%d] %02x %04x:%02x",
+            TRACE(0, "filter list item: [%d] %02x %04x:%02x",
                 i, item->peer_type, CO_COMBINE_UINT32_LE(item->peer_addr.address+2),
                 CO_COMBINE_UINT16_LE(item->peer_addr.address));
-        }
-    }
-}
-
-static void ble_test_list_set_bonded_devices(uint8_t filter0_monitored1_list)
-{
-    bt_status_t status = BT_STS_SUCCESS;
-    NV_RECORD_PAIRED_BLE_DEV_INFO_T *dev_info = nv_record_blerec_get_ptr();
-    BleDeviceinfo *record = NULL;
-    uint32_t i = 0;
-    BLE_ADDR_INFO_T *p_addr = NULL;
-
-    if (filter0_monitored1_list == 0)
-    {
-        status = gap_filter_list_clear();
-    }
-    else
-    {
-        status = gap_adv_monitored_list_clear_all();
-    }
-
-    if (status != BT_STS_SUCCESS)
-    {
-        return;
-    }
-
-    uint32_t count = dev_info->saved_list_num;
-
-    if (count && count <= BLE_RECORD_NUM && i < count)
-    {
-        record = dev_info->ble_nv + i;
-        p_addr = &record->pairingInfo.peer_addr;
-
-        if (filter0_monitored1_list == 0)
-        {
-            status = gap_filter_list_add((bt_addr_type_t)p_addr->addr_type, (bt_bdaddr_t *)p_addr->addr);
-        }
-        else
-        {
-            status = gap_adv_monitored_list_add((bt_addr_type_t)p_addr->addr_type, (bt_bdaddr_t *)p_addr->addr, 1, -90, -50);
-        }
-
-        if (status != BT_STS_SUCCESS)
-        {
-            return;
         }
     }
 }
@@ -3498,7 +2623,7 @@ static void ble_test_filter_list_remove_anonymous(void)
 
 static void ble_test_filter_list_set_bonded_devices(void)
 {
-    ble_test_list_set_bonded_devices(0);
+    gap_filter_list_set_bonded_devices();
 }
 
 static void ble_test_filter_list_remove_by_index(const char *Index, uint32_t str_len)
@@ -3550,74 +2675,6 @@ static void ble_test_filter_list_add(const char *Type_BdaddrLsb2Msb, uint32_t st
         return;
     }
     gap_filter_list_add((bt_addr_type_t)type, (bt_bdaddr_t *)bdaddr);
-}
-
-static void ble_test_monitored_list_size(void)
-{
-    DEBUG_INFO(0, "monitored list size: %d/%d",
-        gap_adv_monitored_list_curr_size(),
-        gap_adv_monitored_list_max_size());
-}
-
-static void ble_test_monitored_list_clear(void)
-{
-    gap_adv_monitored_list_clear_all();
-}
-
-static void ble_test_monitored_list_set_bonded_devices(void)
-{
-    ble_test_list_set_bonded_devices(1);
-}
-
-static void ble_test_monitored_list_remove_by_address(const char *Type_BdaddrLsb2Msb, uint32_t str_len)
-{
-    const char *pend = Type_BdaddrLsb2Msb + str_len;
-    uint8_t type = 0;
-    uint8_t bdaddr[6];
-    uint16_t len = 0;
-    len = app_ble_scan_hex_data_from_string(&Type_BdaddrLsb2Msb, pend, &type, 1);
-    if (len != 1)
-    {
-        return;
-    }
-    len = app_ble_scan_hex_data_from_string(&Type_BdaddrLsb2Msb, pend, bdaddr, 6);
-    if (len != 6)
-    {
-        return;
-    }
-    gap_adv_monitored_list_remove((bt_addr_type_t)type, (bt_bdaddr_t *)bdaddr);
-}
-
-static void ble_test_monitored_list_add(const char *Type_BdaddrLsb2Msb, uint32_t str_len)
-{
-    const char *pend = Type_BdaddrLsb2Msb + str_len;
-    uint8_t type = 0;
-    uint8_t bdaddr[6];
-    uint16_t len = 0;
-    len = app_ble_scan_hex_data_from_string(&Type_BdaddrLsb2Msb, pend, &type, 1);
-    if (len != 1)
-    {
-        return;
-    }
-    len = app_ble_scan_hex_data_from_string(&Type_BdaddrLsb2Msb, pend, bdaddr, 6);
-    if (len != 6)
-    {
-        return;
-    }
-    gap_adv_monitored_list_add((bt_addr_type_t)type, (bt_bdaddr_t *)bdaddr, 1, 0, 10);
-}
-
-static void ble_test_monitored_advertisers_enable(const char *Enable, uint32_t str_len)
-{
-    const char *pend = Enable + str_len;
-    bool en = 0;
-    uint16_t len = 0;
-    len = app_ble_scan_hex_data_from_string(&Enable, pend, (uint8_t *)&en, 1);
-    if (len != 1)
-    {
-        return;
-    }
-    gap_enable_monitoring_advertisers(en);
 }
 
 static void ble_test_disc_conidx(const char *Conidx, uint32_t str_len)
@@ -3674,173 +2731,6 @@ static void ble_test_set_adv_data(const char *AdvHandle_AdvData00RspData01_DataL
     }
 }
 
-static void ble_test_set_decision_data(const char *AdvHandle_RtagPresent_DataLen_Data, uint32_t str_len)
-{
-    const char *pend = AdvHandle_RtagPresent_DataLen_Data + str_len;
-    uint8_t adv_handle = 0;
-    bool resolvable_tag_present = 0;
-    uint8_t arbitary_len = 0;
-    uint8_t arbitary_data[8] = {0};
-    int len = 0;
-    len = app_ble_scan_hex_data_from_string(&AdvHandle_RtagPresent_DataLen_Data, pend, &adv_handle, 1);
-    if (len != 1)
-    {
-        return;
-    }
-    len = app_ble_scan_hex_data_from_string(&AdvHandle_RtagPresent_DataLen_Data, pend, (uint8_t *)&resolvable_tag_present, 1);
-    if (len != 1)
-    {
-        return;
-    }
-    len = app_ble_scan_hex_data_from_string(&AdvHandle_RtagPresent_DataLen_Data, pend, &arbitary_len, 1);
-    if (len != 1)
-    {
-        return;
-    }
-    if (arbitary_len)
-    {
-        len = app_ble_scan_hex_data_from_string(&AdvHandle_RtagPresent_DataLen_Data, pend, arbitary_data, arbitary_len);
-        if (len != arbitary_len)
-        {
-            return;
-        }
-    }
-
-    gap_set_ext_adv_decision_data(adv_handle, resolvable_tag_present, arbitary_data, arbitary_len);
-}
-
-uint8_t app_ble_legacy_directed_advertising(bt_addr_type_t own_addr_type, bt_addr_type_t peer_type, const bt_bdaddr_t *peer_addr, gap_adv_callback_t cb)
-{
-    gap_adv_param_t adv = {0};
-    adv.force_start = true;
-    adv.connectable = true;
-    adv.directed_adv = true;
-    adv.use_legacy_pdu = true;
-    adv.include_tx_power_data = true;
-    adv.peer_type = peer_type;
-    adv.peer_addr = *peer_addr;
-    adv.own_addr_type = own_addr_type;
-    return gap_create_advertising_set(&adv, cb);
-}
-
-static uint8_t app_ble_impl_start_advertising(bt_addr_type_t own_addr_type, gap_adv_callback_t cb,
-                                              uint32_t cont_filter_legacy_conn_scan, const bt_bdaddr_t *custom_local_addr)
-{
-    gap_adv_param_t adv = {0};
-    adv.force_start = true;
-    adv.enable_scan_req_notify = true;
-    adv.connectable = (cont_filter_legacy_conn_scan & 0x02) ? true : false;
-    adv.scannable = (cont_filter_legacy_conn_scan & 0x01) ? true : false;
-    adv.use_legacy_pdu = (cont_filter_legacy_conn_scan & 0x04) ? true : false;
-    adv.include_tx_power_data = true;
-    adv.policy = (cont_filter_legacy_conn_scan & 0x08) ? GAP_ADV_ACCEPT_ALL_CONN_SCAN_REQS_IN_LIST : GAP_ADV_ACCEPT_ALL_CONN_SCAN_REQS;
-    adv.continue_advertising = (cont_filter_legacy_conn_scan & 0x10) ? true : false;
-    adv.own_addr_type = own_addr_type;
-
-    if (gap_vendor_is_besfp_enabled())
-    {
-        adv.directed_adv = true;
-        adv.peer_type = BT_ADDR_TYPE_PUBLIC;
-        memcpy(&adv.peer_addr, gap_vender_besfp_get_peer_le_addr(), 6);
-    }
-
-    if (BT_ADDR_TYPE_RND_IA == own_addr_type)
-    {
-        adv.peer_type = BT_ADDR_TYPE_PUBLIC;
-        memcpy(&adv.peer_addr, g_test_le_pts_addr+1, 6);
-    }
-
-    if (custom_local_addr)
-    {
-        adv.use_custom_local_addr = true;
-        adv.custom_local_addr = *custom_local_addr;
-    }
-
-    return gap_create_advertising_set(&adv, cb);
-}
-
-uint8_t app_ble_legacy_non_discoverable_advertising(bt_addr_type_t own_addr_type, bool continue_advertising, gap_adv_callback_t cb)
-{
-    uint32_t flags = continue_advertising ? 0x10 : 0;
-    flags |= (0x04); // legacy
-    return app_ble_impl_start_advertising(own_addr_type, cb, flags, NULL);
-}
-
-uint8_t app_ble_legacy_connectable_advertising(bt_addr_type_t own_addr_type, bool continue_advertising, gap_adv_callback_t cb)
-{
-    uint32_t flags = continue_advertising ? 0x10 : 0;
-    flags |= (0x04 | 0x02); // legacy connetable shall scannable
-    return app_ble_impl_start_advertising(own_addr_type, cb, flags, NULL);
-}
-
-uint8_t app_ble_legacy_scannable_advertising(bt_addr_type_t own_addr_type, bool continue_advertising, gap_adv_callback_t cb)
-{
-    uint32_t flags = continue_advertising ? 0x10 : 0;
-    flags |= (0x04 | 0x01); // legacy scannable
-    return app_ble_impl_start_advertising(own_addr_type, cb, flags, NULL);
-}
-
-uint8_t app_ble_legacy_connectable_filter_advertising(bt_addr_type_t own_addr_type, bool continue_advertising, gap_adv_callback_t cb)
-{
-    uint32_t flags = continue_advertising ? 0x10 : 0;
-    flags |= (0x08 | 0x04 | 0x02 | 0x01); // filter legacy connetable shall scannable
-    return app_ble_impl_start_advertising(own_addr_type, cb, flags, NULL);
-}
-
-uint8_t app_ble_legacy_scannable_filter_advertising(bt_addr_type_t own_addr_type, bool continue_advertising, gap_adv_callback_t cb)
-{
-    uint32_t flags = continue_advertising ? 0x10 : 0;
-    flags |= (0x08 | 0x04 | 0x01); // filter legacy scannable
-    return app_ble_impl_start_advertising(own_addr_type, cb, flags, NULL);
-}
-
-uint8_t app_ble_start_directed_advertising(bt_addr_type_t own_addr_type, bt_addr_type_t peer_type, const bt_bdaddr_t *peer_addr, gap_adv_callback_t cb)
-{
-    gap_adv_param_t adv = {0};
-    adv.force_start = true;
-    adv.connectable = true;
-    adv.directed_adv = true;
-    adv.include_tx_power_data = true;
-    adv.peer_type = peer_type;
-    adv.peer_addr = *peer_addr;
-    adv.own_addr_type = own_addr_type;
-    return gap_create_advertising_set(&adv, cb);
-}
-
-uint8_t app_ble_start_non_discoverable_advertising(bt_addr_type_t own_addr_type, bool continue_advertising, gap_adv_callback_t cb)
-{
-    uint32_t flags = continue_advertising ? 0x10 : 0;
-    return app_ble_impl_start_advertising(own_addr_type, cb, flags, NULL);
-}
-
-uint8_t app_ble_start_connectable_advertising(bt_addr_type_t own_addr_type, bool continue_advertising, gap_adv_callback_t cb)
-{
-    uint32_t flags = continue_advertising ? 0x10 : 0;
-    flags |= (0x02|0x04); // connetable
-    return app_ble_impl_start_advertising(own_addr_type, cb, flags, NULL);
-}
-
-uint8_t app_ble_start_scannable_advertising(bt_addr_type_t own_addr_type, bool continue_advertising, gap_adv_callback_t cb)
-{
-    uint32_t flags = continue_advertising ? 0x10 : 0;
-    flags |= 0x01; // scannable
-    return app_ble_impl_start_advertising(own_addr_type, cb, flags, NULL);
-}
-
-uint8_t app_ble_start_connectable_filter_advertising(bt_addr_type_t own_addr_type, bool continue_advertising, gap_adv_callback_t cb)
-{
-    uint32_t flags = continue_advertising ? 0x10 : 0;
-    flags |= (0x08 | 0x02); // filter connetable
-    return app_ble_impl_start_advertising(own_addr_type, cb, flags, NULL);
-}
-
-uint8_t app_ble_start_scannable_filter_advertising(bt_addr_type_t own_addr_type, bool continue_advertising, gap_adv_callback_t cb)
-{
-    uint32_t flags = continue_advertising ? 0x10 : 0;
-    flags |= (0x08 | 0x01); // filter scannable
-    return app_ble_impl_start_advertising(own_addr_type, cb, flags, NULL);
-}
-
 static void ble_test_start_advertising(const char *Extended_OwnAddrType_Conn_Scan_Direct_HasPeerAddr_PeerType_PeerAddr_Filter_AdvLen_AdvData_RspLen_RspData_HasCustomAddr_LocalAddr, uint32_t str_len)
 {
     const char *pend = Extended_OwnAddrType_Conn_Scan_Direct_HasPeerAddr_PeerType_PeerAddr_Filter_AdvLen_AdvData_RspLen_RspData_HasCustomAddr_LocalAddr + str_len;
@@ -3855,9 +2745,11 @@ static void ble_test_start_advertising(const char *Extended_OwnAddrType_Conn_Sca
     uint8_t *peer_ble_addr = g_test_le_pts_addr+1;
     uint8_t use_filter_list = 0;
     uint8_t adv_len = 0;
+    uint8_t scan_rsp_len = 0;
     uint8_t has_custom_addr = 0;
     uint8_t adv_handle = GAP_INVALID_ADV_HANDLE;
     uint8_t adv_data[32] = {0};
+    uint8_t scan_rsp_data[32] = {0};
     uint8_t local_addr[6] = {0};
     int len = 0;
     len = app_ble_scan_hex_data_from_string(&Extended_OwnAddrType_Conn_Scan_Direct_HasPeerAddr_PeerType_PeerAddr_Filter_AdvLen_AdvData_RspLen_RspData_HasCustomAddr_LocalAddr, pend, &extended, 1);
@@ -3922,16 +2814,42 @@ static void ble_test_start_advertising(const char *Extended_OwnAddrType_Conn_Sca
             return;
         }
     }
-    app_ble_stop_adv_generic();
+    len = app_ble_scan_hex_data_from_string(&Extended_OwnAddrType_Conn_Scan_Direct_HasPeerAddr_PeerType_PeerAddr_Filter_AdvLen_AdvData_RspLen_RspData_HasCustomAddr_LocalAddr, pend, &scan_rsp_len, 1);
+    if (len != 1)
+    {
+        return;
+    }
+    if (scan_rsp_len)
+    {
+        len = app_ble_scan_hex_data_from_string(&Extended_OwnAddrType_Conn_Scan_Direct_HasPeerAddr_PeerType_PeerAddr_Filter_AdvLen_AdvData_RspLen_RspData_HasCustomAddr_LocalAddr, pend, scan_rsp_data, scan_rsp_len);
+        if (len != scan_rsp_len)
+        {
+            return;
+        }
+    }
+    len = app_ble_scan_hex_data_from_string(&Extended_OwnAddrType_Conn_Scan_Direct_HasPeerAddr_PeerType_PeerAddr_Filter_AdvLen_AdvData_RspLen_RspData_HasCustomAddr_LocalAddr, pend, &has_custom_addr, 1);
+    if (len != 1)
+    {
+        return;
+    }
+    if (has_custom_addr)
+    {
+        len = app_ble_scan_hex_data_from_string(&Extended_OwnAddrType_Conn_Scan_Direct_HasPeerAddr_PeerType_PeerAddr_Filter_AdvLen_AdvData_RspLen_RspData_HasCustomAddr_LocalAddr, pend, local_addr, 6);
+        if (len != 6)
+        {
+            return;
+        }
+    }
+    gap_disable_all_advertising(GAP_ADV_DISABLE_ALL_BY_BLE_TEST);
     if (directed)
     {
         if (extended)
         {
-            adv_handle = app_ble_start_directed_advertising((bt_addr_type_t)own_addr_type, (bt_addr_type_t)peer_addr_type, (bt_bdaddr_t *)peer_ble_addr, NULL);
+            adv_handle = gap_start_directed_advertising((bt_addr_type_t)own_addr_type, (bt_addr_type_t)peer_addr_type, (bt_bdaddr_t *)peer_ble_addr, NULL);
         }
         else
         {
-            adv_handle = app_ble_legacy_directed_advertising((bt_addr_type_t)own_addr_type, (bt_addr_type_t)peer_addr_type, (bt_bdaddr_t *)peer_ble_addr, NULL);
+            adv_handle = gap_legacy_directed_advertising((bt_addr_type_t)own_addr_type, (bt_addr_type_t)peer_addr_type, (bt_bdaddr_t *)peer_ble_addr, NULL);
         }
     }
     else
@@ -3942,17 +2860,17 @@ static void ble_test_start_advertising(const char *Extended_OwnAddrType_Conn_Sca
         cont_filter_legacy_conn_scan |= extended ? 0 : 0x04;
         cont_filter_legacy_conn_scan |= use_filter_list ? 0x08 : 0;
         cont_filter_legacy_conn_scan |= 0x10; // continue advtising
-        adv_handle = app_ble_impl_start_advertising((bt_addr_type_t)own_addr_type, NULL, cont_filter_legacy_conn_scan, has_custom_addr ? (bt_bdaddr_t *)local_addr : NULL);
+        adv_handle = gap_impl_start_advertising((bt_addr_type_t)own_addr_type, NULL, cont_filter_legacy_conn_scan, has_custom_addr ? (bt_bdaddr_t *)local_addr : NULL);
     }
     if (adv_len)
     {
         gap_set_adv_data(adv_handle, adv_data, adv_len);
     }
-    if (scannable)
+    if (scan_rsp_len)
     {
-        gap_set_scan_rsp_data(adv_handle, adv_data, adv_len);
+        gap_set_scan_rsp_data(adv_handle, scan_rsp_data, scan_rsp_len);
     }
-    gap_enable_advertising(adv_handle, 0, 0);
+    gap_enable_advertising(adv_handle, 0);
 }
 
 static void ble_test_legacy_non_discoverable_adv(void)
@@ -3960,15 +2878,15 @@ static void ble_test_legacy_non_discoverable_adv(void)
     uint8_t adv_handle = GAP_INVALID_ADV_HANDLE;
     gap_dt_buf_t adv_data_buf = {0};
 
-    app_ble_stop_adv_generic();
+    gap_disable_all_advertising(GAP_ADV_DISABLE_ALL_BY_BLE_TEST);
 
-    adv_handle = app_ble_legacy_non_discoverable_advertising(BT_ADDR_TYPE_PUBLIC, true, NULL);
+    adv_handle = gap_legacy_non_discoverable_advertising(BT_ADDR_TYPE_PUBLIC, true, NULL);
 
     gap_dt_add_flags(&adv_data_buf, GAP_FLAGS_LE_NON_DISCOVERABLE_MODE, false);
     gap_set_adv_data(adv_handle, ppb_get_data(adv_data_buf.ppb), adv_data_buf.ppb->len);
     gap_dt_buf_clear(&adv_data_buf);
 
-    gap_enable_advertising(adv_handle, 0, 0);
+    gap_enable_advertising(adv_handle, 0);
 }
 
 static void ble_test_legacy_non_discoverable_connectable_adv(void)
@@ -3976,15 +2894,15 @@ static void ble_test_legacy_non_discoverable_connectable_adv(void)
     uint8_t adv_handle = GAP_INVALID_ADV_HANDLE;
     gap_dt_buf_t adv_data_buf = {0};
 
-    app_ble_stop_adv_generic();
+    gap_disable_all_advertising(GAP_ADV_DISABLE_ALL_BY_BLE_TEST);
 
-    adv_handle = app_ble_legacy_connectable_advertising(BT_ADDR_TYPE_PUBLIC, true, NULL);
+    adv_handle = gap_legacy_connectable_advertising(BT_ADDR_TYPE_PUBLIC, true, NULL);
 
     gap_dt_add_flags(&adv_data_buf, GAP_FLAGS_LE_NON_DISCOVERABLE_MODE, false);
     gap_set_adv_data(adv_handle, ppb_get_data(adv_data_buf.ppb), adv_data_buf.ppb->len);
     gap_dt_buf_clear(&adv_data_buf);
 
-    gap_enable_advertising(adv_handle, 0, 0);
+    gap_enable_advertising(adv_handle, 0);
 }
 
 static void ble_test_legacy_connectable_adv(void)
@@ -3992,15 +2910,15 @@ static void ble_test_legacy_connectable_adv(void)
     uint8_t adv_handle = GAP_INVALID_ADV_HANDLE;
     gap_dt_buf_t adv_data_buf = {0};
 
-    app_ble_stop_adv_generic();
+    gap_disable_all_advertising(GAP_ADV_DISABLE_ALL_BY_BLE_TEST);
 
-    adv_handle = app_ble_legacy_connectable_advertising(BT_ADDR_TYPE_PUBLIC, false, NULL);
+    adv_handle = gap_legacy_connectable_advertising(BT_ADDR_TYPE_PUBLIC, false, NULL);
 
     gap_dt_add_flags(&adv_data_buf, GAP_FLAGS_LE_LIMITED_DISCOVERABLE_MODE, false);
     gap_set_adv_data(adv_handle, ppb_get_data(adv_data_buf.ppb), adv_data_buf.ppb->len);
     gap_dt_buf_clear(&adv_data_buf);
 
-    gap_enable_advertising(adv_handle, 0, 0);
+    gap_enable_advertising(adv_handle, 0);
 }
 
 static void ble_test_legacy_scannable_adv(void)
@@ -4008,145 +2926,15 @@ static void ble_test_legacy_scannable_adv(void)
     uint8_t adv_handle = GAP_INVALID_ADV_HANDLE;
     gap_dt_buf_t adv_data_buf = {0};
 
-    app_ble_stop_adv_generic();
+    gap_disable_all_advertising(GAP_ADV_DISABLE_ALL_BY_BLE_TEST);
 
-    adv_handle = app_ble_legacy_scannable_advertising(BT_ADDR_TYPE_PUBLIC, true, NULL);
+    adv_handle = gap_legacy_scannable_advertising(BT_ADDR_TYPE_PUBLIC, true, NULL);
 
     gap_dt_add_flags(&adv_data_buf, GAP_FLAGS_LE_GENERAL_DISCOVERABLE_MODE, false);
     gap_set_adv_data(adv_handle, ppb_get_data(adv_data_buf.ppb), adv_data_buf.ppb->len);
     gap_dt_buf_clear(&adv_data_buf);
 
-    gap_enable_advertising(adv_handle, 0, 0);
-}
-
-static void ble_test_legacy_ad_type_adv(const char *type, uint32_t str_len)
-{
-    const char *pend = type + str_len;
-    uint8_t ad_type = 0;
-    int len = 0;
-    len = app_ble_scan_hex_data_from_string(&type, pend, &ad_type, 1);
-    if (len != 1)
-    {
-        return;
-    }
-    uint8_t adv_handle = GAP_INVALID_ADV_HANDLE;
-    uint16_t service_uuid[] = {GATT_UUID_GAP_SERVICE, GATT_UUID_GATT_SERVICE};
-    uint16_t company_id = 0xFCCF;
-    uint16_t min_interval_1_25ms = 20;
-    uint16_t max_interval_1_25ms = 100;
-    uint8_t uuid[2] = {0xCF, 0xFC};
-    uint8_t addr[6] = {0xda, 0xbe, 0x38, 0xe8, 0x07, 0xc0};
-    uint8_t adv_interval = 20;
-
-    gap_dt_buf_t adv_data_buf = {0};
-
-    app_ble_stop_adv_generic();
-
-    adv_handle = app_ble_legacy_connectable_advertising(BT_ADDR_TYPE_PUBLIC, false, NULL);
-
-    gap_dt_add_flags(&adv_data_buf, GAP_FLAGS_LE_LIMITED_DISCOVERABLE_MODE, false);
-    switch(ad_type)
-    {
-        case GAP_DT_SRVC_UUID_16_CMPL_LIST:
-            gap_set_le_service_16_uuid(&adv_data_buf, service_uuid, 2);
-            break;
-        case GAP_DT_MANUFACTURER_DATA:
-            gap_dt_add_manufacturer_data(&adv_data_buf, company_id, NULL, 0);
-            break;
-        case GAP_DT_PERIPERAL_CONN_INTERVAL:
-            gap_dt_add_peripheral_conn_interval(&adv_data_buf, min_interval_1_25ms, max_interval_1_25ms);
-            break;
-        case GAP_DT_SRVC_SOLI_16_UUID_LIST:
-            gap_dt_add_data_type(&adv_data_buf, GAP_DT_SRVC_SOLI_16_UUID_LIST, &uuid[0], 2);
-            break;
-        case GAP_DT_APPEARANCE:
-            gap_dt_add_data_type(&adv_data_buf, GAP_DT_APPEARANCE, &uuid[0], 2);
-            break;
-        case GAP_DT_PUBLIC_TARGET_ADDRESS:
-            gap_dt_add_data_type(&adv_data_buf, GAP_DT_PUBLIC_TARGET_ADDRESS, &addr[0], 6);
-            break;
-        case GAP_DT_RANDOM_TARGET_ADDRESS:
-            gap_dt_add_data_type(&adv_data_buf, GAP_DT_RANDOM_TARGET_ADDRESS, &addr[0], 6);
-            break;
-        case GAP_DT_ADV_INTERVAL:
-            gap_dt_add_data_type(&adv_data_buf, GAP_DT_ADV_INTERVAL, &adv_interval, 2);
-            break;
-        case GAP_DT_URI:
-            gap_dt_add_data_type(&adv_data_buf, GAP_DT_URI, &adv_interval, 2);
-            break;
-    }
-    gap_set_adv_data(adv_handle, ppb_get_data(adv_data_buf.ppb), adv_data_buf.ppb->len);
-    gap_dt_buf_clear(&adv_data_buf);
-
-    gap_enable_advertising(adv_handle, 0, 0);
-}
-
-static void ble_test_legacy_only_limited_mode_adv(void)
-{
-    uint8_t adv_handle = GAP_INVALID_ADV_HANDLE;
-    gap_dt_buf_t adv_data_buf = {0};
-
-    app_ble_stop_adv_generic();
-
-    adv_handle = app_ble_legacy_scannable_advertising(BT_ADDR_TYPE_PUBLIC, true, NULL);
-
-    uint8_t flags = GAP_FLAGS_LE_LIMITED_DISCOVERABLE_MODE;
-    gap_dt_add_data_type(&adv_data_buf, GAP_DT_FLAGS, &flags, sizeof(uint8_t));
-    gap_set_adv_data(adv_handle, ppb_get_data(adv_data_buf.ppb), adv_data_buf.ppb->len);
-    gap_dt_buf_clear(&adv_data_buf);
-
-    gap_enable_advertising(adv_handle, 0, 0);
-}
-
-static void ble_test_legacy_only_gendiscov_mode_adv(void)
-{
-    uint8_t adv_handle = GAP_INVALID_ADV_HANDLE;
-    gap_dt_buf_t adv_data_buf = {0};
-
-    app_ble_stop_adv_generic();
-
-    adv_handle = app_ble_legacy_connectable_advertising(BT_ADDR_TYPE_PUBLIC, true, NULL);
-
-    uint8_t flags = GAP_FLAGS_LE_GENERAL_DISCOVERABLE_MODE;
-    gap_dt_add_data_type(&adv_data_buf, GAP_DT_FLAGS, &flags, sizeof(uint8_t));
-    gap_set_adv_data(adv_handle, ppb_get_data(adv_data_buf.ppb), adv_data_buf.ppb->len);
-    gap_dt_buf_clear(&adv_data_buf);
-
-    gap_enable_advertising(adv_handle, 0, 0);
-}
-
-static void ble_test_legacy_only_non_disc_mode_adv(void)
-{
-    uint8_t adv_handle = GAP_INVALID_ADV_HANDLE;
-    gap_dt_buf_t adv_data_buf = {0};
-
-    app_ble_stop_adv_generic();
-
-    adv_handle = app_ble_legacy_scannable_advertising(BT_ADDR_TYPE_PUBLIC, true, NULL);
-
-    uint8_t flags = GAP_FLAGS_LE_NON_DISCOVERABLE_MODE;
-    gap_dt_add_data_type(&adv_data_buf, GAP_DT_FLAGS, &flags, sizeof(uint8_t));
-    gap_set_adv_data(adv_handle, ppb_get_data(adv_data_buf.ppb), adv_data_buf.ppb->len);
-    gap_dt_buf_clear(&adv_data_buf);
-
-    gap_enable_advertising(adv_handle, 0, 0);
-}
-
-static void ble_test_legacy_gendiscov_connectable_adv(void)
-{
-    uint8_t adv_handle = GAP_INVALID_ADV_HANDLE;
-    gap_dt_buf_t adv_data_buf = {0};
-
-    app_ble_stop_adv_generic();
-
-    adv_handle = app_ble_legacy_connectable_advertising(BT_ADDR_TYPE_PUBLIC, true, NULL);
-
-    uint8_t flags = GAP_FLAGS_LE_GENERAL_DISCOVERABLE_MODE;
-    gap_dt_add_data_type(&adv_data_buf, GAP_DT_FLAGS, &flags, sizeof(uint8_t));
-    gap_set_adv_data(adv_handle, ppb_get_data(adv_data_buf.ppb), adv_data_buf.ppb->len);
-    gap_dt_buf_clear(&adv_data_buf);
-
-    gap_enable_advertising(adv_handle, 0, 0);
+    gap_enable_advertising(adv_handle, 0);
 }
 
 static void ble_test_non_discoverable_adv(void)
@@ -4154,15 +2942,15 @@ static void ble_test_non_discoverable_adv(void)
     uint8_t adv_handle = GAP_INVALID_ADV_HANDLE;
     gap_dt_buf_t adv_data_buf = {0};
 
-    app_ble_stop_adv_generic();
+    gap_disable_all_advertising(GAP_ADV_DISABLE_ALL_BY_BLE_TEST);
 
-    adv_handle = app_ble_start_non_discoverable_advertising(BT_ADDR_TYPE_PUBLIC, true, NULL);
+    adv_handle = gap_start_non_discoverable_advertising(BT_ADDR_TYPE_PUBLIC, true, NULL);
 
     gap_dt_add_flags(&adv_data_buf, GAP_FLAGS_LE_NON_DISCOVERABLE_MODE, false);
     gap_set_adv_data(adv_handle, ppb_get_data(adv_data_buf.ppb), adv_data_buf.ppb->len);
     gap_dt_buf_clear(&adv_data_buf);
 
-    gap_enable_advertising(adv_handle, 0, 0);
+    gap_enable_advertising(adv_handle, 0);
 }
 
 static void ble_test_non_discoverable_connectable_adv(void)
@@ -4170,117 +2958,33 @@ static void ble_test_non_discoverable_connectable_adv(void)
     uint8_t adv_handle = GAP_INVALID_ADV_HANDLE;
     gap_dt_buf_t adv_data_buf = {0};
 
-    app_ble_stop_adv_generic();
+    gap_disable_all_advertising(GAP_ADV_DISABLE_ALL_BY_BLE_TEST);
 
-    adv_handle = app_ble_start_connectable_advertising(BT_ADDR_TYPE_PUBLIC, true, NULL);
+    adv_handle = gap_start_connectable_advertising(BT_ADDR_TYPE_PUBLIC, true, NULL);
 
     gap_dt_add_flags(&adv_data_buf, GAP_FLAGS_LE_NON_DISCOVERABLE_MODE, false);
     gap_set_adv_data(adv_handle, ppb_get_data(adv_data_buf.ppb), adv_data_buf.ppb->len);
     gap_dt_buf_clear(&adv_data_buf);
 
-    gap_enable_advertising(adv_handle, 0, 0);
+    gap_enable_advertising(adv_handle, 0);
 }
 
 static void ble_test_connectable_adv(void)
 {
     uint8_t adv_handle = GAP_INVALID_ADV_HANDLE;
     gap_dt_buf_t adv_data_buf = {0};
-    const char *local_le_name = NULL;
-    uint8_t len = 0;
-    local_le_name = gap_local_le_name(&len);
 
-    app_ble_stop_adv_generic();
+    gap_disable_all_advertising(GAP_ADV_DISABLE_ALL_BY_BLE_TEST);
 
-    adv_handle = app_ble_start_connectable_advertising(BT_ADDR_TYPE_PUBLIC, false, app_ble_server_callback);
+    adv_handle = gap_start_connectable_advertising(BT_ADDR_TYPE_PUBLIC, false, NULL);
 
     gap_dt_add_flags(&adv_data_buf, GAP_FLAGS_LE_LIMITED_DISCOVERABLE_MODE, false);
-    gap_dt_add_local_le_name(&adv_data_buf, false, local_le_name);
     gap_set_adv_data(adv_handle, ppb_get_data(adv_data_buf.ppb), adv_data_buf.ppb->len);
     gap_dt_buf_clear(&adv_data_buf);
 
-    gap_enable_advertising(adv_handle, 0, 0);
+    gap_enable_advertising(adv_handle, 0);
 }
 
-static void ble_test_decision_adv(void)
-{
-    uint8_t adv_handle = GAP_INVALID_ADV_HANDLE;
-    app_ble_stop_adv_generic();
-
-    gap_adv_param_t adv = {0};
-    adv.force_start = true;
-    adv.connectable = true;
-    adv.include_tx_power_data = true;
-    adv.use_decisions_pdu = true;
-    adv_handle = gap_create_advertising_set(&adv, app_ble_server_callback);
-
-    gap_enable_advertising(adv_handle, 0, 0);
-}
-
-static void ble_test_start_cust_adv(void)
-{
-    app_ble_custom_init();
-    const char *local_le_name = NULL;
-    uint8_t len = 0;
-    local_le_name = gap_local_le_name(&len);
-    uint16_t fill_len = len + 2;
-
-    uint8_t adv_data[fill_len] = {0};
-    adv_data[0] = len + 1;
-    adv_data[1] = 0x09;
-    memcpy(&adv_data[2], local_le_name, len);
-
-    app_ble_custom_adv_write_data(BLE_ADV_ACTIVITY_USER_0,
-                            true,
-                            BLE_ADV_PUBLIC_STATIC,
-                            NULL,
-                            NULL,
-                            160,
-                            ADV_TYPE_CONN_EXT_ADV,
-                            ADV_MODE_EXTENDED,
-                            12,
-                            (uint8_t *)adv_data, fill_len,
-                            NULL, 0);
-
-    app_ble_custom_adv_start(BLE_ADV_ACTIVITY_USER_0);
-}
-static void ble_test_rpa_connectable_adv(void)
-{
-    uint8_t adv_handle = GAP_INVALID_ADV_HANDLE;
-    gap_dt_buf_t adv_data_buf = {0};
-    const char *local_le_name = NULL;
-    uint8_t len = 0;
-    local_le_name = gap_local_le_name(&len);
-
-    app_ble_stop_adv_generic();
-
-    adv_handle = app_ble_start_connectable_advertising(BT_ADDR_TYPE_RND_IA, false, NULL);
-
-    gap_dt_add_flags(&adv_data_buf, GAP_FLAGS_LE_LIMITED_DISCOVERABLE_MODE, false);
-    gap_dt_add_local_le_name(&adv_data_buf, false, local_le_name);
-    gap_set_adv_data(adv_handle, ppb_get_data(adv_data_buf.ppb), adv_data_buf.ppb->len);
-    gap_dt_buf_clear(&adv_data_buf);
-
-    gap_enable_advertising(adv_handle, 0, 0);
-}
-static void ble_test_random_connectable_adv(void)
-{
-    uint8_t adv_handle = GAP_INVALID_ADV_HANDLE;
-    gap_dt_buf_t adv_data_buf = {0};
-    const char *local_le_name = NULL;
-    uint8_t len = 0;
-    local_le_name = gap_local_le_name(&len);
-
-    app_ble_stop_adv_generic();
-
-    adv_handle = app_ble_start_connectable_advertising(BT_ADDR_TYPE_RANDOM, false, NULL);
-
-    gap_dt_add_flags(&adv_data_buf, GAP_FLAGS_LE_LIMITED_DISCOVERABLE_MODE, false);
-    gap_dt_add_local_le_name(&adv_data_buf, false, local_le_name);
-    gap_set_adv_data(adv_handle, ppb_get_data(adv_data_buf.ppb), adv_data_buf.ppb->len);
-    gap_dt_buf_clear(&adv_data_buf);
-
-    gap_enable_advertising(adv_handle, 0, 0);
-}
 static void ble_test_scannable_adv(void)
 {
     uint8_t adv_handle = GAP_INVALID_ADV_HANDLE;
@@ -4288,9 +2992,9 @@ static void ble_test_scannable_adv(void)
     gap_dt_buf_t adv_data_buf = {0};
     gap_dt_buf_t scan_rsp_buf = {0};
 
-    app_ble_stop_adv_generic();
+    gap_disable_all_advertising(GAP_ADV_DISABLE_ALL_BY_BLE_TEST);
 
-    adv_handle = app_ble_start_scannable_advertising(BT_ADDR_TYPE_PUBLIC, true, NULL);
+    adv_handle = gap_start_scannable_advertising(BT_ADDR_TYPE_PUBLIC, true, NULL);
 
     gap_dt_add_flags(&adv_data_buf, GAP_FLAGS_LE_GENERAL_DISCOVERABLE_MODE, false);
     gap_set_adv_data(adv_handle, ppb_get_data(adv_data_buf.ppb), adv_data_buf.ppb->len);
@@ -4300,22 +3004,15 @@ static void ble_test_scannable_adv(void)
     gap_set_scan_rsp_data(adv_handle, ppb_get_data(scan_rsp_buf.ppb), scan_rsp_buf.ppb->len);
     gap_dt_buf_clear(&scan_rsp_buf);
 
-    gap_enable_advertising(adv_handle, 0, 0);
+    gap_enable_advertising(adv_handle, 0);
 }
 
 static void ble_test_close_all_adv(void)
 {
-    int user = (int)BLE_ADV_ACTIVITY_USER_0;
-
-    for (user = (int)BLE_ADV_ACTIVITY_USER_0; user < (int)BLE_ADV_ACTIVITY_USER_NUM; user++)
-    {
-        app_ble_custom_adv_stop((BLE_ADV_ACTIVITY_USER_E)user);
-    }
-
-    ble_core_disable_stub_adv();
-    app_ble_stop_adv_generic();
+    gap_disable_all_advertising(GAP_ADV_DISABLE_ALL_BY_BLE_TEST);
 }
 
+#if BLE_PA_SUPPORT
 static uint8_t bap_big_id = BAP_INVALID_BIG_ID;
 static uint8_t pa_adv_handle = GAP_INVALID_ADV_HANDLE;
 static uint16_t pa_sync_handle = GAP_INVALID_CONN_HANDLE;
@@ -4328,7 +3025,7 @@ static int bap_test_event_callback(uintptr_t group_id, bap_event_t event, bap_ev
         bap_big_opened_t *big_opened = param.big_opened;
         if (!big_opened->err_code)
         {
-            DEBUG_INFO(0, "bap_test_callback big opened: broadcaster %d big_id %d bis_count %d iso_handle %04x",
+            TRACE(0, "bap_test_callback big opened: broadcaster %d big_id %d bis_count %d iso_handle %04x",
                 big_opened->is_broadcaster, big_opened->big_id, big_opened->bis_count, big_opened->stream[0]->iso_handle);
             bap_big_id = big_opened->big_id;
             if (big_opened->is_broadcaster)
@@ -4342,13 +3039,13 @@ static int bap_test_event_callback(uintptr_t group_id, bap_event_t event, bap_ev
     }
     else if (event == BAP_EVENT_BIG_CLOSED)
     {
-        DEBUG_INFO(0, "bap_test_callback big closed");
+        TRACE(0, "bap_test_callback big closed");
         bap_big_id = BAP_INVALID_BIG_ID;
     }
     else if (event == BAP_EVENT_ISO_PATH_SETUP)
     {
         bap_iso_path_setup_t *iso_setup = param.iso_path_setup;
-        DEBUG_INFO(0, "bap_test_callback iso setup: %02x iso_handle %04x", iso_setup->error_code, iso_setup->stream->iso_handle);
+        TRACE(0, "bap_test_callback iso setup: %02x iso_handle %04x", iso_setup->error_code, iso_setup->stream->iso_handle);
         if (!iso_setup->error_code)
         {
 #if BLE_AUDIO_ENABLED
@@ -4359,7 +3056,7 @@ static int bap_test_event_callback(uintptr_t group_id, bap_event_t event, bap_ev
     }
     else if (event == BAP_EVENT_ISO_PATH_REMOVED)
     {
-        DEBUG_INFO(0, "bap_test_callback iso removed");
+        TRACE(0, "bap_test_callback iso removed");
     }
     return 0;
 }
@@ -4370,7 +3067,7 @@ static int ble_test_pa_callback(uintptr_t adv, gap_adv_event_t event, gap_adv_ca
     {
         gap_pa_enabled_t *pa_enabled = param.pa_enabled;
         bap_big_param_t big_param = {0};
-        DEBUG_INFO(0, "pa_test_callback pa enabled");
+        TRACE(0, "pa_test_callback pa enabled");
         big_param.bis_count = 0x01; // 0x01 to 0x1F
         big_param.phy_bits = 0x01; // bit 0: transmitter phy is LE 1M, bit 1: LE 2M, bit 2: LE Coded, Host shall set at least one bit
         big_param.max_sdu_size = 20; // 0x01 to 0x0FFFF, max octets of an SDU
@@ -4384,13 +3081,13 @@ static int ble_test_pa_callback(uintptr_t adv, gap_adv_event_t event, gap_adv_ca
     }
     else if (event == GAP_ADV_EVENT_PA_DISABLED)
     {
-        DEBUG_INFO(0, "pa_test_callback pa disabled");
+        TRACE(0, "pa_test_callback pa disabled");
     }
     else if (event == GAP_ADV_EVENT_PA_SUBEVENT_DATA_REQ)
     {
         gap_pa_subevent_data_t data = {0};
         uint8_t subevent_data[2] = {0xAB, 0xCD};
-        DEBUG_INFO(0, "pa_test_callback pa subevent data req");
+        TRACE(0, "pa_test_callback pa subevent data req");
         data.subevent = 0x00;
         data.response_slot_start = 0x00; // the first response slot to be used in the subevent
         data.response_slot_count = 0x01; // num of response slots to be used
@@ -4398,10 +3095,10 @@ static int ble_test_pa_callback(uintptr_t adv, gap_adv_event_t event, gap_adv_ca
         data.subevent_data = subevent_data;
         gap_set_pa_subevent_data(pa_adv_handle, 0x01, &data);
     }
-    else if (event == GAP_CONN_EVENT_OPENED)
+    else if (event == GAP_ADV_EVENT_CONN_OPENED)
     {
         gap_conn_param_t *conn_opened = param.conn_opened;
-        DEBUG_INFO(0, "pa_test_callback pawr conn opened");
+        TRACE(0, "pa_test_callback pawr conn opened");
         gap_pa_set_info_transfer(conn_opened->con_idx, 0xAABB, pa_adv_handle);
     }
     return 0;
@@ -4460,7 +3157,7 @@ static void ble_test_start_pa(const char *Enable_OwnAddrType_PAWR_PaDataLen_PaDa
         gap_set_pa_enable(pa_adv_handle, false, false);
         pa_adv_handle = GAP_INVALID_ADV_HANDLE;
     }
-    app_ble_stop_adv_generic();
+    gap_disable_all_advertising(GAP_ADV_DISABLE_ALL_BY_BLE_TEST);
     if (enable_pa)
     {
         uint32_t cont_filter_legacy_conn_scan = 0;
@@ -4475,7 +3172,7 @@ static void ble_test_start_pa(const char *Enable_OwnAddrType_PAWR_PaDataLen_PaDa
         cont_filter_legacy_conn_scan |= extended ? 0 : 0x04;
         cont_filter_legacy_conn_scan |= use_filter_list ? 0x08 : 0;
         cont_filter_legacy_conn_scan |= 0x10; // continue advtising
-        pa_adv_handle = app_ble_impl_start_advertising((bt_addr_type_t)own_addr_type, ble_test_pa_callback, cont_filter_legacy_conn_scan, NULL);
+        pa_adv_handle = gap_impl_start_advertising((bt_addr_type_t)own_addr_type, ble_test_pa_callback, cont_filter_legacy_conn_scan, NULL);
         subevent_param.num_subevents = 1;
         subevent_param.subevent_interval_1_25ms = 0x06; // 0x06 to 0xFF * 1.25ms (7.5ms to 318.75ms)
         subevent_param.response_slot_delay_1_25ms = 0x01; // 0x00 no response slots, 0xXX 0x01 to 0xFE * 1.25ms (1.25ms to 317.5ms) time between the adv packet in a subevent and the 1st response slot
@@ -4487,7 +3184,7 @@ static void ble_test_start_pa(const char *Enable_OwnAddrType_PAWR_PaDataLen_PaDa
             gap_set_pa_data(pa_adv_handle, GAP_ADV_DATA_COMPLETE, pa_data, data_len);
         }
         gap_set_pa_enable(pa_adv_handle, true, true);
-        gap_enable_advertising(pa_adv_handle, 0, 0);
+        gap_enable_advertising(pa_adv_handle, 0);
     }
 }
 
@@ -4501,65 +3198,60 @@ static int ble_test_scan_callback(uintptr_t scan, gap_scan_event_t event, gap_sc
     static uint8_t broadcast_code[16] = {0};
     static bool pa_sync_established = false;
     static bool create_big_sync_pending = false;
-    gap_dt_parsed_t parsed_adv = {0};
-
     if (event == GAP_SCAN_EVENT_ADV_REPORT)
     {
         const gap_adv_report_t *adv_report = param.adv_report;
         if (adv_report->adv_set_id != GAP_INVALID_ADV_SET_ID && adv_report->peer_type == g_test_le_pts_addr[0] &&
             memcmp(&adv_report->peer_addr, g_test_le_pts_addr+1, sizeof(bt_bdaddr_t)) == 0)
         {
-            gap_dt_parse_ltv_data_types(adv_report->data, adv_report->data_length, &parsed_adv);
-
-            DEBUG_INFO(0, "sync_test_callback adv report: adv_sid %d peer addr %d %04x bc %d %p", adv_report->adv_set_id, adv_report->peer_type,
-                CO_COMBINE_UINT16_BE(adv_report->peer_addr.address), parsed_adv.big_info_data_len, parsed_adv.broadcast_code);
+            TRACE(0, "sync_test_callback adv report: adv_sid %d peer addr %d %04x bc %d %p", adv_report->adv_set_id, adv_report->peer_type,
+                CO_COMBINE_UINT16_BE(adv_report->peer_addr.address), adv_report->parsed.big_info_data_len, adv_report->parsed.broadcast_code);
             if (!pa_sync_established)
             {
-                gap_pa_sync_param_t sync_param;
-                sync_param.options = HCI_LE_PA_DUPLICATE_FILTER_INITIAL_ENABLE;
-                sync_param.adv_set_id = adv_report->adv_set_id;
-                sync_param.adv_addr_type = adv_report->peer_type;
-                sync_param.adv_addr = adv_report->peer_addr;
-                sync_param.skip = 0x0000;
-                sync_param.sync_timeout_10ms = 1000;
-                sync_param.sync_cte_type = 0x00;
-                if (parsed_adv.broadcast_code)
+                gap_pa_sync_param_t param;
+                param.options = HCI_LE_PA_DUPLICATE_FILTER_INITIAL_ENABLE;
+                param.adv_set_id = adv_report->adv_set_id;
+                param.adv_addr_type = adv_report->peer_type;
+                param.adv_addr = adv_report->peer_addr;
+                param.skip = 0x0000;
+                param.sync_timeout_10ms = 1000;
+                param.sync_cte_type = 0x00;
+                if (adv_report->parsed.broadcast_code)
                 {
-                    memcpy(broadcast_code, parsed_adv.broadcast_code, sizeof(broadcast_code));
+                    memcpy(broadcast_code, adv_report->parsed.broadcast_code, sizeof(broadcast_code));
                 }
-                gap_pa_create_sync(&sync_param, ble_test_scan_callback);
+                gap_pa_create_sync(&param, ble_test_scan_callback);
             }
         }
     }
     else if (event == GAP_SCAN_EVENT_PA_SYNC_ESTABLISHED)
     {
-        POSSIBLY_UNUSED const gap_pa_sync_establish_t *pa_sync = param.pa_sync_estb;
+        const gap_pa_sync_establish_t *pa_sync = param.pa_sync_estb;
         pa_sync_established = true;
         create_big_sync_pending = false;
-        DEBUG_INFO(0, "sync_test_callback pa established: %02x sync_handle %04x service_data %04x num_subevents %d",
+        TRACE(0, "sync_test_callback pa established: %02x sync_handle %04x service_data %04x num_subevents %d",
             pa_sync->error_code, pa_sync->pa_sync_hdl, pa_sync->service_data, pa_sync->num_subevents);
     }
     else if (event == GAP_SCAN_EVENT_PA_SYNC_TERMINATED)
     {
-        DEBUG_INFO(0, "sync_test_callback pa terminated");
+        TRACE(0, "sync_test_callback pa terminated");
         pa_sync_established = false;
     }
     else if (event == GAP_SCAN_EVENT_PA_REPORT)
     {
         const gap_adv_report_t *pa_report = param.per_adv_report;
-        gap_dt_parse_ltv_data_types(pa_report->data, pa_report->data_length, &parsed_adv);
-        DEBUG_INFO(0, "sync_test_callback pa report: sync_handle %04x adv_sid %d peer addr %d %04x bc %d %p",
+        TRACE(0, "sync_test_callback pa report: sync_handle %04x adv_sid %d peer addr %d %04x bc %d %p",
             pa_report->sync_handle, pa_report->adv_set_id, pa_report->peer_type,
-            CO_COMBINE_UINT16_BE(pa_report->peer_addr.address), parsed_adv.big_info_data_len, parsed_adv.broadcast_code);
-        if (parsed_adv.broadcast_code)
+            CO_COMBINE_UINT16_BE(pa_report->peer_addr.address), pa_report->parsed.big_info_data_len, pa_report->parsed.broadcast_code);
+        if (pa_report->parsed.broadcast_code)
         {
-            memcpy(broadcast_code, parsed_adv.broadcast_code, sizeof(broadcast_code));
+            memcpy(broadcast_code, pa_report->parsed.broadcast_code, sizeof(broadcast_code));
         }
     }
     else if (event == GAP_SCAN_EVENT_BIG_INFO_REPORT)
     {
         const gap_big_info_adv_report_t *big_info = param.big_info_report;
-        DEBUG_INFO(0, "sync_test_callback big info: sync_handle %04x num_bis %d nse %d encrypted %d",
+        TRACE(0, "sync_test_callback big info: sync_handle %04x num_bis %d nse %d encrypted %d",
             big_info->sync_handle, big_info->num_bis, big_info->nse, big_info->encrypted);
         if (big_info->num_bis && !create_big_sync_pending)
         {
@@ -4601,7 +3293,6 @@ static void ble_test_create_big_sync(const char *CancelSync, uint32_t str_len)
         pa_sync_handle = GAP_INVALID_CONN_HANDLE;
     }
     gap_pa_create_sync_cancel();
-#if (BLE_GAP_CENTRAL_ROLE)
     gap_disable_scanning();
     if (!cancel_sync)
     {
@@ -4610,39 +3301,10 @@ static void ble_test_create_big_sync(const char *CancelSync, uint32_t str_len)
         param.filter_duplicated = true;
         gap_start_scanning(&param, ble_test_scan_callback);
     }
-#endif /* BLE_GAP_CENTRAL_ROLE */
 }
+#endif /* BLE_PA_SUPPORT */
 
 #if BLE_GAP_CENTRAL_ROLE
-static void ble_test_set_decision_instructs(void)
-{
-    gap_decision_test_t tests[2] = {0};
-    // Match arbitary data
-    tests[0].test_grp_start = true;
-    tests[0].test_flags = GAP_DECISION_I_FLAG_RELEVANT_CHECK_PASS;
-    // Contains 23 - 17 = 7 octects data
-    tests[0].test_fields = 23;
-    gap_decision_arbitary_check_t data_check =
-    {
-        .arbitary_mask = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF},
-        .arbitary_target = {'B', 'E', 'S', 'T', 'E', 'C', 'H'},
-    };
-    memcpy(tests[0].test_params, &data_check, sizeof(data_check));
-    // Match RSSI range
-    tests[1].test_grp_start = false;
-    tests[1].test_flags = GAP_DECISION_I_FLAG_RELEVANT_CHECK_PASS;
-    // Contains RSSI check
-    tests[1].test_fields = GAP_DECISION_FIELDS_RSSI;
-    gap_decision_rssi_check_t rssi_check =
-    {
-        .rssi_min_dbm = -90,
-        .rssi_max_dbm = -50,
-    };
-    memcpy(tests[1].test_params, &rssi_check, sizeof(rssi_check));
-
-    gap_set_decision_instructions(ARRAY_SIZE(tests), tests);
-}
-
 static void ble_test_scanning(const char *OwnAddrType_ActiveScan_Filter_ContinueScan, uint32_t str_len)
 {
     const char *pend = OwnAddrType_ActiveScan_Filter_ContinueScan + str_len;
@@ -4673,7 +3335,7 @@ static void ble_test_scanning(const char *OwnAddrType_ActiveScan_Filter_Continue
         return;
     }
     param.own_addr_type = (bt_addr_type_t)own_addr_type;
-    param.filter_policy = use_filter_list ? GAP_SCAN_FILTER_POLICY_EXT_FILTERED : GAP_SCAN_FILTER_POLICY_EXT_UNFILTERED;
+    param.use_filter_list = use_filter_list ? true : false;
     param.active_scan = active_scan ? true : false;
     param.continue_scanning = continue_scan ? true : false;
     gap_start_scanning(&param, NULL);
@@ -4718,7 +3380,7 @@ static void ble_test_initiating(const char *OwnAddrType_Direct_HasPeerAddr_PeerT
         }
     }
     param.own_addr_type = (bt_addr_type_t)own_addr_type;
-    param.filter_policy = direct ? GAP_INIT_FILTER_POLICY_NO_FILTER_NO_DECISIONS : GAP_INIT_FILTER_POLICY_USE_FILTER_NO_DECISIONS;
+    param.use_filter_list = direct ? false : true;
     if (direct)
     {
         if (has_peer_addr)
@@ -4777,78 +3439,22 @@ static void ble_test_update_conn_parameters(const char *Conidx_MinInterval_MaxIn
     gap_update_le_conn_parameters(gap_zero_based_ble_conidx_as_hdl(conidx), &param);
 }
 
-static void ble_test_set_phy(const char *Conidx_Phy_Opt, uint32_t str_len)
-{
-    const char *pend = Conidx_Phy_Opt + str_len;
-    uint8_t conidx = 0;
-    uint8_t phy = 0;
-    uint8_t opt = 0;
-    int len = 0;
-    len = app_ble_scan_hex_data_from_string(&Conidx_Phy_Opt, pend, &conidx, 1);
-    if (len != 1)
-    {
-        return;
-    }
-    len = app_ble_scan_hex_data_from_string(&Conidx_Phy_Opt, pend, &phy, 1);
-    if (len != 1)
-    {
-        return;
-    }
-    len = app_ble_scan_hex_data_from_string(&Conidx_Phy_Opt, pend, &opt, 1);
-    if (len != 1)
-    {
-        return;
-    }
-    bes_ble_gap_set_phy_mode(conidx, phy, phy, (gap_phy_opt_prefer_t)opt);
-}
-
-static void ble_test_set_frame_space(const char *Conidx_Frame_sapce_min_Frame_sapce_max_Phy_bits_Spacing_types_bits, uint32_t str_len)
-{
-    const char *pend = Conidx_Frame_sapce_min_Frame_sapce_max_Phy_bits_Spacing_types_bits + str_len;
-    uint8_t conidx = 0;
-    gap_frame_space_param_t param = {0};
-    int len = 0;
-    len = app_ble_scan_hex_data_from_string(&Conidx_Frame_sapce_min_Frame_sapce_max_Phy_bits_Spacing_types_bits, pend, (uint8_t *)&conidx, 1);
-    if (len != 1)
-    {
-        return;
-    }
-    len = app_ble_scan_hex_data_from_string(&Conidx_Frame_sapce_min_Frame_sapce_max_Phy_bits_Spacing_types_bits, pend, (uint8_t *)&param.frame_space_min_us, 2);
-    if (len != 2)
-    {
-        return;
-    }
-    len = app_ble_scan_hex_data_from_string(&Conidx_Frame_sapce_min_Frame_sapce_max_Phy_bits_Spacing_types_bits, pend, (uint8_t *)&param.frame_space_max_us, 2);
-    if (len != 2)
-    {
-        return;
-    }
-    len = app_ble_scan_hex_data_from_string(&Conidx_Frame_sapce_min_Frame_sapce_max_Phy_bits_Spacing_types_bits, pend, (uint8_t *)&param.phy_bits, 1);
-    if (len != 1)
-    {
-        return;
-    }
-    len = app_ble_scan_hex_data_from_string(&Conidx_Frame_sapce_min_Frame_sapce_max_Phy_bits_Spacing_types_bits, pend, (uint8_t *)&param.spacing_types_bits, 2);
-    if (len != 2)
-    {
-        return;
-    }
-    gap_update_frame_space_parameters(bes_ble_gap_get_conhdl_from_conidx(conidx), &param);
-}
-
 static void ble_test_start_scanning(void)
 {
-    BLE_SCAN_PARAM_T scan_param = {0};
-
-    scan_param.scanFolicyType = BLE_DEFAULT_SCAN_POLICY;
-    scan_param.scanWindowMs = 20;
-    scan_param.scanIntervalMs = 100;
-    app_ble_start_scan(&scan_param);
+    gap_start_scanning(NULL, NULL);
 }
 
 static void ble_test_stop_scanning(void)
 {
     gap_disable_scanning();
+}
+
+static void ble_test_direct_connect(void)
+{
+    bt_addr_type_t peer_type;
+    const bt_bdaddr_t *peer_addr = NULL;
+    peer_addr = app_test_get_le_address(&peer_type);
+    gap_start_direct_initiating(BT_ADDR_TYPE_PUBLIC, peer_type, peer_addr, NULL);
 }
 #endif
 
@@ -4879,17 +3485,17 @@ static void app_ble_set_l2cap_test(const char *L2capTest, uint32_t str_len)
     gap_pts_set_ble_l2cap_test(l2cap_test);
 }
 
-static void ble_test_read_rpa_addr_by_adv_hdl(const char *adv_hdl, uint32_t str_len)
+static void ble_test_set_min_conn_interval(const char *MinConnInterval_1_25ms, uint32_t str_len)
 {
-    const char *pend = adv_hdl + str_len;
-    uint8_t adv_hdl_get = 0;
+    const char *pend = MinConnInterval_1_25ms + str_len;
+    uint8_t min_conn_interval_1_25ms = 0;
     int len = 0;
-    len = app_ble_scan_hex_data_from_string(&adv_hdl, pend, &adv_hdl_get, 1);
+    len = app_ble_scan_hex_data_from_string(&MinConnInterval_1_25ms, pend, &min_conn_interval_1_25ms, 1);
     if (len != 1)
     {
         return;
     }
-    bes_ble_gap_read_local_rpa_by_adv_hdl(adv_hdl_get);
+    gap_set_min_conn_interval(min_conn_interval_1_25ms);
 }
 
 #if BLE_GATT_CLIENT_SUPPORT
@@ -4950,7 +3556,7 @@ static void gattc_test_signed_write(const char *Conidx_AttrHandle_Len_Data, uint
         {
             return;
         }
-        prf.prf_id = g_test_prf_id ? g_test_prf_id : GATT_PRF_NONE;
+        prf.prf_id = GATT_PRF_NONE;
         prf.con_idx = gap_zero_based_conidx_to_ble_conidx(conidx);
         prf.connhdl = gap_zero_based_ble_conidx_as_hdl(conidx);
         gattc_send_signed_write_cmd(&prf, CO_COMBINE_UINT16_BE(attr_handle), data, data_len);
@@ -5054,13 +3660,12 @@ static void gattc_test_multi_read(const char *Conidx_Count_Handles_IsMultiVar_Ha
     }
     if (count)
     {
+        gatt_prf_t prf = {0};
         uint16_t handles[3];
         uint16_t lens[3];
-        cli_prf_t *prf = (cli_prf_t *)gattc_get_profile(g_test_prf_id, gap_zero_based_ble_conidx_as_hdl(conidx));
-        if (prf == NULL)
-        {
-            return;
-        }
+        prf.prf_id = GATT_PRF_NONE;
+        prf.con_idx = gap_zero_based_conidx_to_ble_conidx(conidx);
+        prf.connhdl = gap_zero_based_ble_conidx_as_hdl(conidx);
         for (int i = 0; i < count; i += 1)
         {
             handles[i] = CO_COMBINE_UINT16_BE(attr_handles + 2 * i);
@@ -5069,7 +3674,7 @@ static void gattc_test_multi_read(const char *Conidx_Count_Handles_IsMultiVar_Ha
                 lens[i] = value_lens[i];
             }
         }
-        gattc_read_multi_char_values(&prf->head, is_multi_var ? true : false, count, handles, has_value_lens ? lens : NULL);
+        gattc_read_multi_char_values(&prf, is_multi_var ? true : false, count, handles, has_value_lens ? lens : NULL);
     }
 }
 
@@ -5120,7 +3725,7 @@ static void gattc_test_write_request(const char *Conidx_AttrHandle_Char00Desc01_
             }
         }
     }
-    prf.prf_id = g_test_prf_id ? g_test_prf_id : GATT_PRF_NONE;
+    prf.prf_id = GATT_PRF_NONE;
     prf.con_idx = gap_zero_based_conidx_to_ble_conidx(conidx);
     prf.connhdl = gap_zero_based_ble_conidx_as_hdl(conidx);
     if (write_desc)
@@ -5180,7 +3785,7 @@ static void gattc_test_prepare_write(const char *Conidx_AttrHandle_Prepare00Exec
             }
         }
     }
-    prf.prf_id = g_test_prf_id ? g_test_prf_id : GATT_PRF_NONE;
+    prf.prf_id = GATT_PRF_NONE;
     prf.con_idx = gap_zero_based_conidx_to_ble_conidx(conidx);
     prf.connhdl = gap_zero_based_ble_conidx_as_hdl(conidx);
     if (write_execute)
@@ -5229,472 +3834,18 @@ static void gattc_test_send_data(const char *Conidx_Eatt_DataLen_Data, uint32_t 
         gattc_send_l2cap_packet(gap_zero_based_ble_conidx_as_hdl(conidx), data, data_len, eatt_preferred);
     }
 }
-
-static void gattc_test_restore_cache(const char *Conidx, uint32_t str_len)
-{
-    const char *pend = Conidx + str_len;
-    uint8_t conidx = 0;
-    int len = 0;
-    len = app_ble_scan_hex_data_from_string(&Conidx, pend, &conidx, 1);
-    if (len != 1)
-    {
-        return;
-    }
-
-    const gattc_cache_inc_svc_t incs =
-    {
-        // included service start handle
-        .handle = 0x1235,
-        // included service start handle
-        .start_hdl = 0x1357,
-        // included service  end handle
-        .end_hdl = 0x1368,
-        // UUID length
-        .uuid_len = 2,
-        // UUID
-        .uuid = {0x12, 0x58},
-    };
-
-    const gattc_cache_desc_t descs =
-    {
-        .desc_hdl = 0x1237,
-        .uuid_len = 2,
-        .uuid = {0x12, 0x56},
-    };
-
-    const gattc_cache_char_t chars =
-    {
-        // attribute handle
-        .handle = 0x1237,
-        // Value handle
-        .val_hdl = 0x1238,
-        // End handle
-        .end_hdl = 0x1239,
-        // Characteristic properties
-        .prop = 0xFF,
-        // Ext prop when set in @see prop
-        .reliable_write = true,
-        .writable_aux = true,
-        // UUID length
-        .uuid_len = 2,
-        // UUID
-        .uuid = {0x12, 0x78},
-        // Descriptor count
-        .desc_count = 1,
-        // Descriptor list
-        .p_desc = &descs,
-    };
-
-    gattc_cache_svc_t svcs =
-    {
-        // start handle
-        .shdl = 0x1234,
-        // end handle
-        .ehdl = 0x1256,
-        // UUID length
-        .uuid_len = 2,
-        // UUID
-        .uuid = {0x12, 0x34},
-        // Include service count
-        .inc_svc_count = 1,
-        // Characteristic count
-        .char_count = 1,
-        // Include service list
-        .p_inc_svc = &incs,
-        // Characteristic list
-        .p_char = &chars,
-    };
-
-    gatts_client_restore_service(gap_zero_based_ble_conidx_as_hdl(conidx), 1, &svcs);
-}
 #endif
 
 #if (BLE_AUDIO_ENABLED)
 static void bap_test_start_advertising(void)
 {
-    aob_conn_start_adv(true, true, false);
+    aob_conn_start_adv(true, true);
 }
 
 static void bap_test_stop_advertising(void)
 {
     aob_conn_stop_adv();
 }
-
-#if (BLE_SHP_SERVER_SUPPORT)
-#define APP_SHP_MAX_DATA_PRESENT_BUF_SIZE   (sizeof(app_gaf_pref_aud_cfg_data_t) +\
-                                                sizeof(app_gaf_pref_ac_data_aud_cfg_id_u) +\
-                                                sizeof(app_gaf_pref_ac_data_chan_capa_idx_t) +\
-                                                sizeof(app_gaf_pref_ac_data_pac_rec_t) +\
-                                                sizeof(app_gaf_pref_ac_data_qos_setting_t) +\
-                                                sizeof(app_gaf_pref_ac_data_pac_rec_t) +\
-                                                sizeof(app_gaf_pref_ac_data_qos_setting_t) +\
-                                                sizeof(app_gaf_pref_ac_data_specific_cc_t) +\
-                                                2 * sizeof(app_gaf_pref_ac_data_pres_delay_t))
-
-static app_gaf_pref_aud_cfg_data_t *shp_amt_pref_aud_cfg_test_alloc(uint8_t pref_pac_sink_num, uint8_t pref_pac_src_num, uint8_t add_cc_len)
-{
-    uint8_t *data_present = NULL;
-    // Total buf
-    app_gaf_pref_aud_cfg_data_t *pref_aud_cfg =
-        (app_gaf_pref_aud_cfg_data_t *)bes_bt_buf_malloc(APP_SHP_MAX_DATA_PRESENT_BUF_SIZE + (pref_pac_sink_num +  pref_pac_src_num) * sizeof(uint16_t) + add_cc_len);
-
-    if (pref_aud_cfg == NULL)
-    {
-        return NULL;
-    }
-
-    data_present = (uint8_t *)(pref_aud_cfg + 1);
-
-    pref_aud_cfg->pref_aud_cfg_id = (app_gaf_pref_ac_data_aud_cfg_id_u *)data_present;
-    data_present += sizeof(*pref_aud_cfg->pref_aud_cfg_id);
-    pref_aud_cfg->pref_chan_capa = (app_gaf_pref_ac_data_chan_capa_idx_t *)data_present;
-    data_present += sizeof(*pref_aud_cfg->pref_chan_capa);
-    pref_aud_cfg->pref_pac_sink = (app_gaf_pref_ac_data_pac_rec_t *)data_present;
-    data_present += sizeof(*pref_aud_cfg->pref_pac_sink) + pref_pac_sink_num * sizeof(uint16_t);
-    pref_aud_cfg->pref_qos_setting_sink = (app_gaf_pref_ac_data_qos_setting_t *)data_present;
-    data_present += sizeof(*pref_aud_cfg->pref_qos_setting_sink);
-    pref_aud_cfg->pref_pac_src = (app_gaf_pref_ac_data_pac_rec_t *)data_present;
-    data_present += sizeof(*pref_aud_cfg->pref_pac_src) + pref_pac_src_num * sizeof(uint16_t);
-    pref_aud_cfg->pref_qos_setting_src = (app_gaf_pref_ac_data_qos_setting_t *)data_present;
-    data_present += sizeof(*pref_aud_cfg->pref_qos_setting_src);
-    pref_aud_cfg->pref_codec_cfg = (app_gaf_pref_ac_data_specific_cc_t  *)data_present;
-    data_present += sizeof(*pref_aud_cfg->pref_codec_cfg) + add_cc_len;
-    pref_aud_cfg->pref_pres_delay_sink = (app_gaf_pref_ac_data_pres_delay_t  *)data_present;
-    data_present += sizeof(*pref_aud_cfg->pref_pres_delay_sink);
-    pref_aud_cfg->pref_pres_delay_src = (app_gaf_pref_ac_data_pres_delay_t  *)data_present;
-    data_present += sizeof(*pref_aud_cfg->pref_pres_delay_src);
-
-    return pref_aud_cfg;
-}
-
-static void shp_amt_pref_aud_cfg_common_fill(app_gaf_pref_aud_cfg_data_t *pref_aud_cfg, app_gaf_pref_ac_data_aud_cfg_id_u aud_cfg)
-{
-    // Preferred Aud cfg
-    memcpy(pref_aud_cfg->pref_aud_cfg_id->ac_id, aud_cfg.ac_id, sizeof(aud_cfg));
-    // Preferred Chan capa
-    pref_aud_cfg->pref_chan_capa->chan_capa_idx = 0;
-    // Preferred Sink PAC record
-    pref_aud_cfg->pref_pac_sink->pref_pac_num = 1;
-    pref_aud_cfg->pref_pac_sink->pac_info[0].pac_set_id = APP_GAF_DIRECTION_SINK;
-    pref_aud_cfg->pref_pac_sink->pac_info[0].pac_idx = 0;
-    // Preferred Src PAC record
-    pref_aud_cfg->pref_pac_src->pref_pac_num = 1;
-    pref_aud_cfg->pref_pac_src->pac_info[0].pac_set_id = APP_GAF_DIRECTION_SRC;
-    pref_aud_cfg->pref_pac_src->pac_info[0].pac_idx = 1;
-    // Preferred Qos setting Sink
-    pref_aud_cfg->pref_qos_setting_sink->sdu_interval_us = 10000;
-    pref_aud_cfg->pref_qos_setting_sink->framing_type = APP_ISO_UNFRAMED_MODE;
-    pref_aud_cfg->pref_qos_setting_sink->max_sdu_size = 120;
-    pref_aud_cfg->pref_qos_setting_sink->rtn = 0x08;
-    pref_aud_cfg->pref_qos_setting_sink->trans_latency_ms = 10;
-    // Preferred Qos setting Src
-    pref_aud_cfg->pref_qos_setting_src->sdu_interval_us = 10000;
-    pref_aud_cfg->pref_qos_setting_src->framing_type = APP_ISO_UNFRAMED_MODE;
-    pref_aud_cfg->pref_qos_setting_src->max_sdu_size = 120;
-    pref_aud_cfg->pref_qos_setting_src->rtn = 0x08;
-    pref_aud_cfg->pref_qos_setting_src->trans_latency_ms = 10;
-    // Preferred Codec Cfg
-    app_gaf_pref_ac_data_specific_cc_t pref_cc =
-    {
-        .codec_id = {0x06, 0x00, 0x00, 0x00, 0x00},
-        .codec_cfg =
-        {
-            .param =
-            {
-                .location_bf = 0x01,
-                .frame_octet = 120,
-                .sampling_freq = APP_GAF_BAP_SAMPLING_FREQ_48000HZ,
-                .frame_dur = APP_GAF_BAP_FRAME_DURATION_10MS,
-                .frames_sdu = 1,
-            },
-            .add_cfg =
-            {
-                .len = 0,
-            }
-        }
-    };
-    memcpy(pref_aud_cfg->pref_codec_cfg, &pref_cc, sizeof(pref_cc));
-    // Preferred Pres Delay Sink
-    pref_aud_cfg->pref_pres_delay_sink->pres_delay_us = 40000;
-    // Preferred Pres Delay Src
-    pref_aud_cfg->pref_pres_delay_src->pres_delay_us = 40000;
-}
-
-static void shp_amt_pref_aud_cfg_test_free(void *pref_aud_cfg)
-{
-    bes_bt_buf_free(pref_aud_cfg);
-}
-
-static void shp_amt_case_a_pref_1_add_test(void)
-{
-    // Preferred Audio Configurations
-    uint16_t data_present = APP_GAF_PREF_AC_DATA_PRES_MASK;
-    data_present &= (~APP_GAF_PREF_AC_DATA_BROADCAST_AC_ID);
-    // Total buf
-    app_gaf_pref_aud_cfg_data_t *pref_aud_cfg = shp_amt_pref_aud_cfg_test_alloc(1, 1, 0);
-    // Fill common part
-    shp_amt_pref_aud_cfg_common_fill(pref_aud_cfg, (app_gaf_pref_ac_data_aud_cfg_id_u)APP_SHP_AC_U2);
-    // Preferred Audio Configurations add for use case id APP_GAF_USE_CASE_ID_SPA_MEDIA_AV_SYNC
-    aob_pacs_add_pref_aud_cfg_record(APP_GAF_USE_CASE_ID_SPA_MEDIA_AV_SYNC, data_present, pref_aud_cfg);
-
-    shp_amt_pref_aud_cfg_test_free(pref_aud_cfg);
-}
-
-static void shp_amt_case_a_pref_2_add_test(void)
-{
-    // Preferred Audio Configurations
-    uint16_t data_present = APP_GAF_PREF_AC_DATA_PRES_MASK;
-    data_present &= (~APP_GAF_PREF_AC_DATA_UNICAST_AC_ID);
-    // Total buf
-    app_gaf_pref_aud_cfg_data_t *pref_aud_cfg = shp_amt_pref_aud_cfg_test_alloc(1, 1, 0);
-    // Fill common part
-    shp_amt_pref_aud_cfg_common_fill(pref_aud_cfg, (app_gaf_pref_ac_data_aud_cfg_id_u)APP_BAP_AC_B14);
-    // Preferred Audio Configurations add for use case id APP_GAF_USE_CASE_ID_SPA_MEDIA_AV_SYNC
-    aob_pacs_add_pref_aud_cfg_record(APP_GAF_USE_CASE_ID_SPA_MEDIA_AV_SYNC, data_present, pref_aud_cfg);
-
-    shp_amt_pref_aud_cfg_test_free(pref_aud_cfg);
-}
-
-static void shp_amt_case_b_pref_1_add_test(void)
-{
-    // Preferred Audio Configurations
-    uint16_t data_present = APP_GAF_PREF_AC_DATA_PRES_MASK;
-    data_present &= (~APP_GAF_PREF_AC_DATA_UNICAST_AC_ID);
-    data_present &= ~(APP_GAF_PREF_AC_DATA_SRC_PAC_RECORD_LIST | APP_GAF_PREF_AC_DATA_SRC_QOS_SETTING | APP_GAF_PREF_AC_DATA_PRES_DELAY_US_SRC);
-    // Total buf
-    app_gaf_pref_aud_cfg_data_t *pref_aud_cfg = shp_amt_pref_aud_cfg_test_alloc(1, 1, 0);
-    // Fill common part
-    shp_amt_pref_aud_cfg_common_fill(pref_aud_cfg, (app_gaf_pref_ac_data_aud_cfg_id_u)APP_BAP_AC_B13);
-    // Preferred Audio Configurations add for use case id APP_GAF_USE_CASE_ID_SPA_MEDIA
-    aob_pacs_add_pref_aud_cfg_record(APP_GAF_USE_CASE_ID_SPA_MEDIA, data_present, pref_aud_cfg);
-
-    shp_amt_pref_aud_cfg_test_free(pref_aud_cfg);
-}
-
-static void shp_amt_case_b_pref_2_add_test(void)
-{
-    // Preferred Audio Configurations
-    uint16_t data_present = APP_GAF_PREF_AC_DATA_PRES_MASK;
-    data_present &= (~APP_GAF_PREF_AC_DATA_BROADCAST_AC_ID);
-    data_present &= ~(APP_GAF_PREF_AC_DATA_SRC_PAC_RECORD_LIST | APP_GAF_PREF_AC_DATA_SRC_QOS_SETTING | APP_GAF_PREF_AC_DATA_PRES_DELAY_US_SRC);
-    // Total buf
-    app_gaf_pref_aud_cfg_data_t *pref_aud_cfg = shp_amt_pref_aud_cfg_test_alloc(1, 1, 0);
-    // Fill common part
-    shp_amt_pref_aud_cfg_common_fill(pref_aud_cfg, (app_gaf_pref_ac_data_aud_cfg_id_u)APP_SHP_AC_U1);
-    // Preferred Audio Configurations add for use case id APP_GAF_USE_CASE_ID_SPA_MEDIA
-    aob_pacs_add_pref_aud_cfg_record(APP_GAF_USE_CASE_ID_SPA_MEDIA, data_present, pref_aud_cfg);
-
-    shp_amt_pref_aud_cfg_test_free(pref_aud_cfg);
-}
-
-static void shp_amt_case_add_test(char case_voc)
-{
-    // Preferred Audio Configurations
-    uint16_t data_present = APP_GAF_PREF_AC_DATA_PRES_MASK;
-    data_present &= (~APP_GAF_PREF_AC_DATA_BROADCAST_AC_ID);
-    uint16_t use_case_id = 0;
-    bool coversational_exist = false;
-
-    data_present &= ~(APP_GAF_PREF_AC_DATA_SRC_PAC_RECORD_LIST | APP_GAF_PREF_AC_DATA_SRC_QOS_SETTING | APP_GAF_PREF_AC_DATA_PRES_DELAY_US_SRC);
-
-    switch (case_voc)
-    {
-        case 'A':
-        {
-            shp_amt_case_a_pref_1_add_test();
-            shp_amt_case_a_pref_2_add_test();
-            return;
-        }
-        break;
-        case 'B':
-        {
-            shp_amt_case_b_pref_1_add_test();
-            shp_amt_case_b_pref_2_add_test();
-            return;
-        }
-        break;
-        case 'M':
-        {
-            use_case_id = APP_GAF_USE_CASE_ID_CONVERSATIONAL;
-            data_present &= ~(APP_GAF_PREF_AC_DATA_SINK_PAC_RECORD_LIST | APP_GAF_PREF_AC_DATA_SINK_QOS_SETTING | APP_GAF_PREF_AC_DATA_PRES_DELAY_US_SINK);
-        }
-        break;
-        case 'N':
-        {
-            use_case_id = APP_GAF_USE_CASE_ID_SPA_CONVERSATIONAL;
-            data_present &= ~(APP_GAF_PREF_AC_DATA_SINK_PAC_RECORD_LIST | APP_GAF_PREF_AC_DATA_SINK_QOS_SETTING | APP_GAF_PREF_AC_DATA_PRES_DELAY_US_SINK);
-        }
-        break;
-        case 'O':
-        {
-            use_case_id = APP_GAF_USE_CASE_ID_MEDIA;
-        }
-        break;
-        case 'P':
-        {
-            use_case_id = APP_GAF_USE_CASE_ID_MEDIA_AV_SYNC;
-        }
-        break;
-        case 'Q':
-        {
-            use_case_id = APP_GAF_USE_CASE_ID_SPA_MEDIA;
-        }
-        break;
-        case 'R':
-        {
-            use_case_id = APP_GAF_USE_CASE_ID_SPA_MEDIA_AV_SYNC;
-        }
-        break;
-        case 'S':
-        {
-            use_case_id = APP_GAF_USE_CASE_ID_GAMING;
-        }
-        break;
-        case 'T':
-        {
-            use_case_id = APP_GAF_USE_CASE_ID_SPA_GAMING;
-        }
-        break;
-        case 'U':
-        {
-            use_case_id = APP_GAF_USE_CASE_ID_GAMING_VOICE_BACK;
-        }
-        break;
-        case 'V':
-        {
-            use_case_id = APP_GAF_USE_CASE_ID_SPA_GAMING_VOICE;
-        }
-        break;
-        default:
-        DEBUG_INFO(1, "%s case err %c", __func__, case_voc);
-        return;
-    }
-
-    DEBUG_INFO(1, "%s case %c", __func__, case_voc);
-
-    app_gaf_pref_ac_data_aud_cfg_id_u aud_cfg = APP_BAP_AC_U1;
-
-    if (use_case_id & APP_GAF_BAP_CONTEXT_TYPE_CONVERSATIONAL)
-    {
-        data_present |= (APP_GAF_PREF_AC_DATA_SRC_PAC_RECORD_LIST | APP_GAF_PREF_AC_DATA_SRC_QOS_SETTING | APP_GAF_PREF_AC_DATA_PRES_DELAY_US_SRC);
-        coversational_exist = true;
-    }
-
-    aob_audio_cfg_e aob_aud_cfg = ble_audio_earphone_info_get_audido_cfg_select();
-
-    if (aob_aud_cfg == AOB_AUD_CFG_TWS_STEREO_ONE_CIS)
-    {
-        aud_cfg = coversational_exist ? (app_gaf_pref_ac_data_aud_cfg_id_u)APP_SHP_AC_U4 : (app_gaf_pref_ac_data_aud_cfg_id_u)APP_SHP_AC_U2;
-    }
-    else if (aob_aud_cfg == AOB_AUD_CFG_FREEMAN_STEREO_TWO_CIS)
-    {
-        aud_cfg = coversational_exist ? (app_gaf_pref_ac_data_aud_cfg_id_u)APP_SHP_AC_U3 : (app_gaf_pref_ac_data_aud_cfg_id_u)APP_SHP_AC_U1;
-    }
-
-    // Total buf
-    app_gaf_pref_aud_cfg_data_t *pref_aud_cfg = shp_amt_pref_aud_cfg_test_alloc(1, 1, 0);
-    // Fill common part
-    shp_amt_pref_aud_cfg_common_fill(pref_aud_cfg, aud_cfg);
-    // Preferred Audio Configurations add for use case id APP_GAF_USE_CASE_ID_SPA_MEDIA
-    aob_pacs_add_pref_aud_cfg_record(use_case_id, data_present, pref_aud_cfg);
-
-    shp_amt_pref_aud_cfg_test_free(pref_aud_cfg);
-}
-
-static void shp_amt_case_del_test(char case_voc)
-{
-    uint16_t use_case_id = 0;
-
-    switch (case_voc)
-    {
-        case 'A':
-        {
-            use_case_id = APP_GAF_USE_CASE_ID_SPA_MEDIA_AV_SYNC;
-        }
-        break;
-        case 'B':
-        {
-            use_case_id = APP_GAF_USE_CASE_ID_SPA_MEDIA;
-        }
-        break;
-        case 'M':
-        {
-            use_case_id = APP_GAF_USE_CASE_ID_CONVERSATIONAL;
-        }
-        break;
-        case 'N':
-        {
-            use_case_id = APP_GAF_USE_CASE_ID_SPA_CONVERSATIONAL;
-        }
-        break;
-        case 'O':
-        {
-            use_case_id = APP_GAF_USE_CASE_ID_MEDIA;
-        }
-        break;
-        case 'P':
-        {
-            use_case_id = APP_GAF_USE_CASE_ID_MEDIA_AV_SYNC;
-        }
-        break;
-        case 'Q':
-        {
-            use_case_id = APP_GAF_USE_CASE_ID_SPA_MEDIA;
-        }
-        break;
-        case 'R':
-        {
-            use_case_id = APP_GAF_USE_CASE_ID_SPA_MEDIA_AV_SYNC;
-        }
-        break;
-        case 'S':
-        {
-            use_case_id = APP_GAF_USE_CASE_ID_GAMING;
-        }
-        break;
-        case 'T':
-        {
-            use_case_id = APP_GAF_USE_CASE_ID_SPA_GAMING;
-        }
-        break;
-        case 'U':
-        {
-            use_case_id = APP_GAF_USE_CASE_ID_GAMING_VOICE_BACK;
-        }
-        break;
-        case 'V':
-        {
-            use_case_id = APP_GAF_USE_CASE_ID_SPA_GAMING_VOICE;
-        }
-        break;
-        default:
-        DEBUG_INFO(1, "%s case err %c", __func__, case_voc);
-        return;
-    }
-
-    DEBUG_INFO(1, "%s case %c", __func__, case_voc);
-
-    aob_pacs_del_pref_aud_cfg_record(use_case_id);
-}
-
-static void shp_amt_case_add_test(const char *cmdParam, uint32_t cmdParam_len)
-{
-    while (cmdParam_len--)
-    {
-        shp_amt_case_add_test(*cmdParam);
-        cmdParam++;
-    }
-}
-
-static void shp_amt_case_delete_test(const char *cmdParam, uint32_t cmdParam_len)
-{
-    while (cmdParam_len--)
-    {
-        shp_amt_case_del_test(*cmdParam);
-        cmdParam++;
-    }
-}
-#endif /* BLE_SHP_SERVER_SUPPORT */
 
 #ifdef AOB_MOBILE_ENABLED
 static void aob_mobile_scan_start_handler(void)
@@ -5711,25 +3862,20 @@ static void aob_mobile_scan_start_handler(void)
     }
 }
 
+static void bap_test_start_reconnection(void)
+{
+    bt_addr_type_t peer_type;
+    const bt_bdaddr_t *peer_addr = NULL;
+    peer_addr = app_test_get_le_address(&peer_type);
+    bap_start_direct_connection(BT_ADDR_TYPE_PUBLIC, peer_type, peer_addr);
+}
+
 static void aob_media_start_test_handler(uint16_t frame_octet)
 {
     // Use dft cis timing @see dft_cis_timing
     ble_audio_test_update_cis_timing(dft_cis_timing);
     // Use 10ms sdu interval
     ble_audio_test_update_sdu_intv(10000, 10000);
-
-    ble_audio_test_start_unidirectional_stream(APP_GAF_DIRECTION_SINK,
-                            APP_GAF_BAP_SAMPLING_FREQ_48000HZ, frame_octet,
-                            BES_BLE_GAF_CONTEXT_TYPE_MEDIA_BIT);
-}
-
-static void aob_media_start_5ms_test_handler(uint16_t frame_octet)
-{
-    bes_ble_bap_ascc_set_cis_count_in_cig(1);
-    // Use dft cis timing @see dft_cis_timing_5ms
-    ble_audio_test_update_cis_timing(dft_cis_timing_5ms);
-    // Use 10ms sdu interval
-    ble_audio_test_update_sdu_intv(5000, 5000);
 
     ble_audio_test_start_unidirectional_stream(APP_GAF_DIRECTION_SINK,
                             APP_GAF_BAP_SAMPLING_FREQ_48000HZ, frame_octet,
@@ -5749,101 +3895,9 @@ static void aob_call_start_test_handler(uint8_t sample_rate_sink, uint8_t sample
                                                     BES_BLE_GAF_CONTEXT_TYPE_CONVERSATIONAL_BIT);
 }
 
-static void aob_media_start_test_media(CIS_TIMING_CONFIGURATION_T cis_timimg, uint32_t sdu_intval_us,
-                                               uint16_t freq, uint16_t octs)
-{
-    // Use dft cis timing @see dft_cis_timing
-    ble_audio_test_update_cis_timing(cis_timimg);
-    // Use 10ms sdu interval
-    ble_audio_test_update_sdu_intv(sdu_intval_us, sdu_intval_us);
-    // 48K, LC3Plus, Media
-    AOB_MEDIA_ASE_CFG_INFO_T ase_to_start =
-    {
-        freq, octs, APP_GAF_DIRECTION_SINK, AOB_CODEC_ID_LC3, APP_GAF_BAP_CONTEXT_TYPE_MEDIA
-    };
-
-    for (uint8_t i = 0; i < BLE_AUDIO_CONNECTION_CNT; i++) {
-        aob_media_mobile_start_stream(&ase_to_start, i, false);
-    }
-}
-
-static void aob_media_start_2_5ms_test(void)
-{
-    CIS_TIMING_CONFIGURATION_T lc3plus_cis_timing_2_5ms =
-    {
-        .m2s_bn = 2, .m2s_nse = 4, .m2s_ft = 4,
-        .s2m_bn = 2, .s2m_nse = 4, .s2m_ft = 4,
-        .frame_cnt_per_sdu = 1,
-        .iso_interval = 4,
-    };
-
-    aob_media_start_test_media(lc3plus_cis_timing_2_5ms, 2500,
-                        APP_GAF_BAP_SAMPLING_FREQ_48000HZ, 40);
-}
-
-#if (BLE_SHP_SERVER_SUPPORT)
-#define AOB_TEST_SHP_ASE_SRC_LID (3)
-static void aob_shp_spatial_audio_codec_cfg_test(void)
-{
-    app_gaf_bap_ht_cfg_fmt_ltv_t *ht_fmt = NULL;
-    app_gaf_bap_ht_cfg_intv_ltv_t *ht_intv = NULL;
-    app_gaf_bap_cfg_t *p_cfg = NULL;
-    // Use dft cis timing @see dft_cis_timing
-    ble_audio_test_update_cis_timing(dft_cis_timing_7_5ms);
-    // Use 10ms sdu interval
-    ble_audio_test_update_sdu_intv(7500, 7500);
-    // Next to start upload stream for HT src
-    p_cfg = (app_gaf_bap_cfg_t *)bes_bt_buf_malloc(sizeof(app_gaf_bap_cfg_t) +
-                                    sizeof(app_gaf_bap_ht_cfg_fmt_ltv_t) + sizeof(app_gaf_bap_ht_cfg_intv_ltv_t));
-    if (p_cfg == NULL)
-    {
-        return;
-    }
-    memset(p_cfg, 0, sizeof(app_gaf_bap_cfg_t));
-    p_cfg->param.frame_dur = 0xFF;
-    p_cfg->add_cfg.len = sizeof(app_gaf_bap_ht_cfg_fmt_ltv_t) + sizeof(app_gaf_bap_ht_cfg_intv_ltv_t);
-
-    ht_fmt = (app_gaf_bap_ht_cfg_fmt_ltv_t *)(p_cfg->add_cfg.data);
-    ht_intv = (app_gaf_bap_ht_cfg_intv_ltv_t *)(ht_fmt + 1);
-
-    // Supported_HT_Frame_Formats length
-    ht_fmt->len = sizeof(app_gaf_bap_ht_cfg_fmt_ltv_t) - 1;
-    // Supported_HT_Frame_Formats Type
-    ht_fmt->type = APP_GAF_BAP_CFG_TYPE_HT_FRAME_FMT;
-    // Rotation Vector and qu are supported
-    ht_fmt->data_format = APP_GAF_BAP_HT_TYPE_DATA_QUATERNION;
-    ht_fmt->related_flags = 0;
-    // Supported_HT_Frame_Intervals length
-    ht_intv->len = sizeof(app_gaf_bap_ht_cfg_intv_ltv_t) - 1;
-    // Supported_HT_Frame_Intervals type
-    ht_intv->type = APP_GAF_BAP_CFG_TYPE_HT_FRAME_INTV;
-    // 7.5ms
-    ht_intv->intv = APP_GAF_BAP_HT_FRAME_INTV_7_5MS;
-
-    aob_media_mobile_configure_codec_with_cfg(AOB_TEST_SHP_ASE_SRC_LID, 0, (app_gaf_codec_id_t *)"\x06\x00\x00\x00\x00", p_cfg);
-
-    bes_bt_buf_free(p_cfg);
-}
-
-static void aob_shp_spatial_audio_qos_cfg_test(void)
-{
-    aob_media_mobile_cfg_qos(AOB_TEST_SHP_ASE_SRC_LID, 0, 13);
-}
-
-static void aob_shp_spatial_audio_enable_test(void)
-{
-    aob_media_mobile_enable_with_metadata(AOB_TEST_SHP_ASE_SRC_LID, APP_GAF_BAP_CONTEXT_TYPE_UNSPECIFIED, 0, NULL);
-}
-#endif /* BLE_SHP_SERVER_SUPPORT */
-
 static void aob_media_start_test(void)
 {
     aob_media_start_test_handler(155);
-}
-
-static void aob_media_start_5ms_test(void)
-{
-    aob_media_start_5ms_test_handler(100);
 }
 
 static void aob_call_start_test(void)
@@ -5894,21 +3948,6 @@ static void aob_media_disable_test(void)
         aob_media_mobile_disable_all_stream_for_specifc_direction(i, APP_GAF_DIRECTION_SRC);
     }
 }
-
-static void app_arc_discovery_test(void)
-{
-    app_arc_start(0);
-}
-
-static void app_vcc_vol_up(void)
-{
-    app_arc_vcc_control(0, GAF_ARC_VC_OPCODE_VOL_UP_UNMUTE, 0);
-}
-
-static void app_vcc_vol_down(void)
-{
-    app_arc_vcc_control(0, GAF_ARC_VC_OPCODE_VOL_DOWN_UNMUTE, 0);
-}
 #endif /// AOB_MOBILE_ENABLED
 
 static void aob_acc_mcc_discovery_test(void)
@@ -5931,76 +3970,14 @@ static void aob_acc_mcc_pause_test(void)
     aob_media_pause(0);
 }
 
-static void app_vcs_vol_up(void)
-{
-    app_arc_vcs_control(GAF_ARC_VC_OPCODE_VOL_UP_UNMUTE, 0, 0);
-}
-
-static void app_vcs_vol_down(void)
-{
-    app_arc_vcs_control(GAF_ARC_VC_OPCODE_VOL_DOWN_UNMUTE, 0, 0);
-}
-
-static void aob_get_media_state_test(void)
-{
-    uint8_t con_lid[AOB_COMMON_MOBILE_CONNECTION_MAX];
-    uint8_t connected_num = 0;
-
-    connected_num = ble_audio_get_mobile_connected_dev_lids(con_lid);
-    for (uint8_t i = 0; i < connected_num; i++)
-    {
-        ble_bdaddr_t *p_lid1_addr = NULL;
-        POSSIBLY_UNUSED AOB_MGR_PLAYBACK_STATE_E media_state = aob_media_get_state(con_lid[i]);
-        POSSIBLY_UNUSED AOB_MGR_STREAM_STATE_E ase_state = aob_media_get_cur_ase_state(con_lid[i]);
-        POSSIBLY_UNUSED AOB_MGR_CONTEXT_TYPE_BF_E ase_context = aob_media_get_cur_context_type(con_lid[i]);
-        p_lid1_addr = ble_audio_get_mobile_address_by_lid(con_lid[i]);
-        if(NULL != p_lid1_addr)
-        {
-            DEBUG_INFO(10, "[BLE Audio]device: %d media: %d, ase: %d, context: %d, addr: %02x:%02x:%02x:%02x:%02x:%02x",
-                    con_lid[i], media_state, ase_state, ase_context,
-                    p_lid1_addr->addr[0], p_lid1_addr->addr[1], p_lid1_addr->addr[2],
-                    p_lid1_addr->addr[3], p_lid1_addr->addr[4], p_lid1_addr->addr[5]);
-        }
-    }
-}
-
-static void aob_get_call_state_test(void)
-{
-    uint8_t con_lid[AOB_COMMON_MOBILE_CONNECTION_MAX];
-    uint8_t connected_num = 0;
-
-    connected_num = ble_audio_get_mobile_connected_dev_lids(con_lid);
-    for (uint8_t i = 0; i < connected_num; i++)
-    {
-        AOB_MOBILE_INFO_T *info = NULL;
-        uint8_t conidx = 0xFF;
-        info = ble_audio_earphone_info_get_mobile_info(i);
-        if (NULL != info && true == info->connected)
-        {
-            conidx = info->conidx;
-            POSSIBLY_UNUSED ble_bdaddr_t *p_lid_addr = NULL;
-            p_lid_addr = ble_audio_get_mobile_address_by_lid(conidx);
-            if (0xFF != conidx)
-            {
-                DEBUG_INFO(8, "[BLE Audio]: device: %d, call: %d, addr: %02x:%02x:%02x:%02x:%02x:%02x",
-                    conidx, info->call_env_info.single_call_info[0].state,
-                    p_lid_addr->addr[0], p_lid_addr->addr[1], p_lid_addr->addr[2],
-                    p_lid_addr->addr[3], p_lid_addr->addr[4], p_lid_addr->addr[5]);
-            }
-        }
-    }
-}
-
 static void aob_ble_audio_init_test(void)
 {
-    ble_audio_core_init(AOB_AUD_CFG_TWS_MONO);
-    app_ble_gatt_server_send_service_change(GAP_ALL_CONNS);
+    bes_ble_audio_common_init();
 }
 
 static void aob_ble_audio_deinit_test(void)
 {
     bes_ble_audio_common_deinit();
-    app_ble_gatt_server_send_service_change(GAP_ALL_CONNS);
 }
 
 static void mcp_test_mcc_control(const char *cmdParam, uint32_t cmdParam_len)
@@ -6038,1288 +4015,10 @@ static void mcp_test_mcc_search_item(const char *cmdParam, uint32_t cmdParam_len
 
     aob_media_search_player(0, param[0], param[1], &param[2]);
 }
-
-#if BLE_AUDIO_ENABLED
-static void ccp_test_tbc_call_action(const char *cmdParam, uint32_t cmdParam_len)
-{
-    uint8_t param[20] = {0};
-
-    _str_to_hex(cmdParam, param, sizeof(param));
-
-    aob_call_if_action_call(0, param[0], param[1]);
-}
-
-static void ccp_test_tbc_call_originate(const char *cmdParam, uint32_t cmdParam_len)
-{
-    uint8_t param[20] = {0};
-
-    _str_to_hex(cmdParam, param, sizeof(param));
-
-    aob_call_if_outgoing_dial(0, &param[1], param[0]);
-}
-#endif
-
-static void app_vcs_vol_conifg(const char *cmdParam, uint32_t cmdParam_len)
-{
-     uint8_t param[20] = {0};
-
-    _str_to_hex(cmdParam, param, sizeof(param));
-    /// uint8_t conidx
-    /// uint8_t 0x1 vol bit, 0x2 mute bit
-    /// uint8_t vol
-    /// uint8_t is mute
-    app_arc_vcs_update_info_req_by_con_lid(param[0], param[1], param[2], param[3]);
-}
-
-#ifdef AOB_MOBILE_ENABLED
-static void ccp_test_tbs_call_accept(const char *cmdParam, uint32_t cmdParam_len)
-{
-    uint8_t param[20] = {0};
-
-    _str_to_hex(cmdParam, param, sizeof(param));
-
-    aob_call_mobile_if_accept_call(param[0], param[1]);
-}
-
-static void ccp_test_tbs_call_terminal(const char *cmdParam, uint32_t cmdParam_len)
-{
-    uint8_t param[20] = {0};
-
-    _str_to_hex(cmdParam, param, sizeof(param));
-
-    aob_call_mobile_if_terminate_call(param[0], param[1]);
-}
-
-static void ccp_test_tbs_call_incoming(const char *cmdParam, uint32_t cmdParam_len)
-{
-    uint8_t param[20] = {0};
-
-    _str_to_hex(cmdParam, param, sizeof(param));
-
-    aob_call_mobile_if_incoming_call(param[0], APP_ACC_DFT_CALL1_INCOMING_URI, sizeof(APP_ACC_DFT_CALL1_INCOMING_URI), APP_ACC_DFT_CALL1_INCOMING_URI, sizeof(APP_ACC_DFT_CALL1_INCOMING_URI), APP_ACC_DFT_PROV_NAME, sizeof(APP_ACC_DFT_PROV_NAME));
-}
-
-static void ccp_test_tbs_call_remote_alert(const char *cmdParam, uint32_t cmdParam_len)
-{
-    uint8_t param[20] = {0};
-
-    _str_to_hex(cmdParam, param, sizeof(param));
-    aob_call_mobile_if_remote_alert_start(param[0], param[1]);
-}
-
-static void ccp_test_tbs_call_remote_answer(const char *cmdParam, uint32_t cmdParam_len)
-{
-    uint8_t param[20] = {0};
-
-    _str_to_hex(cmdParam, param, sizeof(param));
-    aob_call_mobile_if_remote_answer_call(param[0], param[1]);
-}
-#endif
-
-static void pacs_test_set_local_ava_audio_context(const char *cmdParam, uint32_t cmdParam_len)
-{
-    uint8_t param[5] = {0};
-    //uint8_t   1
-    //uint16_t context_bf_ava_sink 2
-    //uint16_t context_bf_ava_sr   2
-
-    aob_pacs_set_ava_audio_context(param[0], *(uint16_t *)&param[1], *(uint16_t *)&param[3]);
-}
-
-static void ble_switch_focus_test(void)
-{
-#if IBRT
-    app_ble_audio_switch_focus(bts_tws_if_get_local_tws_role());
-#endif
-}
-
 #endif /// (BLE_AUDIO_ENABLED)
-
-#ifdef BLE_CPS_ENABLED
-
-static void ble_cps_cb_meas_send_cmp(uint16_t status)
-{
-    DEBUG_INFO(1, "%s %d", __func__, status);
-}
-
-static void ble_cps_cb_vector_send_cmp(uint16_t status)
-{
-    DEBUG_INFO(1, "%s %d", __func__, status);
-}
-
-static void ble_cps_cb_bond_data_upd(uint8_t conidx, uint8_t char_code, uint16_t cfg_val)
-{
-    DEBUG_INFO(1, "%s %d %d %d", __func__, conidx, char_code, cfg_val);
-}
-
-static void ble_cps_cb_ctrl_pt_req(uint8_t conidx, uint8_t op_code, const union ble_cps_ctrl_pt_req_val *p_value)
-{
-    DEBUG_INFO(1, "%s %d %d", __func__, conidx, op_code);
-    DUMP8_I(p_value, sizeof(union ble_cps_ctrl_pt_req_val));
-
-    union ble_cps_ctrl_pt_rsp_val resp_val = {0};
-
-    ble_cps_ctrl_pt_rsp_send(conidx, op_code, CPS_CTRL_PT_RESP_SUCCESS, &resp_val);
-}
-
-static void ble_cps_cb_ctrl_pt_rsp_send_cmp(uint8_t conidx, uint16_t status)
-{
-    DEBUG_INFO(1, "%s %d %d", __func__, conidx, status);
-}
-
-const ble_cps_cb_t ble_cycling_power_sens_test_cbs =
-{
-    .cb_meas_send_cmp = ble_cps_cb_meas_send_cmp,
-    .cb_vector_send_cmp = ble_cps_cb_vector_send_cmp,
-    .cb_bond_data_upd = ble_cps_cb_bond_data_upd,
-    .cb_ctrl_pt_req = ble_cps_cb_ctrl_pt_req,
-    .cb_ctrl_pt_rsp_send_cmp = ble_cps_cb_ctrl_pt_rsp_send_cmp,
-};
-
-static void ble_cycling_power_sens_test_init(void)
-{
-    struct ble_cps_db_cfg init_cfg =
-    {
-        .cp_feature = CPS_FEAT_WHEEL_REV_DATA_SUP_BIT,
-        .wheel_rev = 0x01,
-        .prfl_config = 0b11,
-        .sensor_loc = 0x01,
-    };
-
-    ble_cps_init(&init_cfg, &ble_cycling_power_sens_test_cbs);
-}
-
-#endif /* BLE_CPS_ENABLED */
-
-#ifdef BLE_CPC_ENABLED
-
-void ble_cpc_cb_svc_discover_cmp(uint8_t conidx, uint16_t status)
-{
-    DEBUG_INFO(1, "%s %d %d", __func__, conidx, status);
-}
-
-void ble_cpc_cb_read_sensor_feat_cmp(uint8_t conidx, uint16_t status, uint32_t sensor_feat)
-{
-    DEBUG_INFO(1, "%s %d %d 0x%x", __func__, conidx, status, sensor_feat);
-}
-
-void ble_cpc_cb_read_sensor_loc_cmp(uint8_t conidx, uint16_t status, uint8_t sensor_loc)
-{
-    DEBUG_INFO(1, "%s %d %d %x", __func__, conidx, status, sensor_loc);
-}
-
-void ble_cpc_cb_read_cfg_cmp(uint8_t conidx, uint16_t status, uint8_t desc_code, uint16_t cfg_val)
-{
-    DEBUG_INFO(1, "%s %d %d %d 0x%2x", __func__, conidx, status, desc_code, cfg_val);
-}
-
-void ble_cpc_cb_write_cfg_cmp(uint8_t conidx, uint16_t status, uint8_t desc_code)
-{
-    DEBUG_INFO(1, "%s %d %d %d", __func__, conidx, status, desc_code);
-}
-
-void ble_cpc_cb_meas(uint8_t conidx, const ble_cps_cp_meas_t* p_meas)
-{
-    DEBUG_INFO(1, "%s %d", __func__, conidx);
-    DUMP8_I(p_meas, sizeof(*p_meas));
-}
-
-void ble_cpc_cb_vector(uint8_t conidx, const ble_cps_cp_vector_t* p_vector)
-{
-    DEBUG_INFO(1, "%s %d", __func__, conidx);
-    DUMP8_I(p_vector, sizeof(*p_vector));
-}
-
-void ble_cpc_cb_ctrl_pt_req_cmp(uint8_t conidx, uint16_t status, uint8_t req_op_code, uint8_t resp_value,
-                                const union ble_cps_ctrl_pt_rsp_val* p_value)
-{
-    DEBUG_INFO(1, "%s %d %d %d %d", __func__, conidx, status, req_op_code, resp_value);
-    DUMP8_I(p_value, sizeof(*p_value));
-}
-
-const ble_cpc_cb_t ble_cycling_power_ctrl_test_cbs =
-{
-    .cb_svc_discover_cmp = ble_cpc_cb_svc_discover_cmp,
-    .cb_read_sensor_feat_cmp = ble_cpc_cb_read_sensor_feat_cmp,
-    .cb_read_sensor_loc_cmp = ble_cpc_cb_read_sensor_loc_cmp,
-    .cb_read_cfg_cmp = ble_cpc_cb_read_cfg_cmp,
-    .cb_write_cfg_cmp = ble_cpc_cb_write_cfg_cmp,
-    .cb_meas = ble_cpc_cb_meas,
-    .cb_vector = ble_cpc_cb_vector,
-    .cb_ctrl_pt_req_cmp = ble_cpc_cb_ctrl_pt_req_cmp,
-};
-
-static void ble_cycling_power_ctrl_test_init(void)
-{
-    ble_cpc_init(&ble_cycling_power_ctrl_test_cbs);
-}
-
-static void ble_cycling_power_ctrl_discover_test(void)
-{
-    ble_cpc_service_discover(0);
-}
-#endif /* BLE_CPC_ENABLED */
-
-#ifdef BLE_FTMS_ENABLED
-
-#ifdef BLE_UDP_ENABLE
-
-static void ble_udp_cb_ntf_send_cmp(uint16_t status)
-{
-    DEBUG_INFO(1, "%s %d", __func__, status);
-}
-
-static void ble_udp_cb_bond_data_upd(uint8_t conidx, uint16_t cfg_val)
-{
-    DEBUG_INFO(1, "%s %d %d", __func__, conidx, cfg_val);
-}
-
-static void ble_udp_cb_ctrl_pt_req(uint8_t conidx, uint8_t op_code, const uds_cpt_opcode *p_value)
-{
-    DEBUG_INFO(1, "%s %d %d", __func__, conidx, op_code);
-}
-
-static void ble_udp_cb_ctrl_pt_rsp_send_cmp(uint8_t conidx, uint16_t status)
-{
-    DEBUG_INFO(1, "%s %d %d", __func__, conidx, status);
-}
-
-const ble_uds_cb_t ble_udp_test_cbs =
-{
-    .cb_ntf_send_cmp = ble_udp_cb_ntf_send_cmp,
-    .cb_bond_data_upd = ble_udp_cb_bond_data_upd,
-    .cb_ctrl_pt_req = ble_udp_cb_ctrl_pt_req,
-    .cb_ctrl_pt_rsp_send_cmp = ble_udp_cb_ctrl_pt_rsp_send_cmp,
-};
-
-static void ble_udp_test_init(void)
-{
-    ble_uds_init(&ble_udp_test_cbs);
-}
-
-#endif /* BLE_UDP_ENABLE */
-
-static void ble_ftms_cb_ntf_send_cmp(uint16_t status)
-{
-    DEBUG_INFO(1, "%s %d", __func__, status);
-}
-
-static void ble_ftms_cb_bond_data_upd(uint8_t conidx, uint8_t char_code, uint16_t cfg_val)
-{
-    DEBUG_INFO(1, "%s %d %d %d", __func__, conidx, char_code, cfg_val);
-}
-
-static void ble_ftms_cb_ctrl_pt_req(uint8_t conidx, uint8_t op_code, const ftm_cpt_opcode *p_value)
-{
-    DEBUG_INFO(1, "%s %d %d", __func__, conidx, op_code);
-}
-
-static void ble_ftms_cb_ctrl_pt_rsp_send_cmp(uint8_t conidx, uint16_t status)
-{
-    DEBUG_INFO(1, "%s %d %d", __func__, conidx, status);
-}
-
-const ble_ftms_cb_t ble_ftms_test_cbs =
-{
-    .cb_ntf_send_cmp = ble_ftms_cb_ntf_send_cmp,
-    .cb_bond_data_upd = ble_ftms_cb_bond_data_upd,
-    .cb_ctrl_pt_req = ble_ftms_cb_ctrl_pt_req,
-    .cb_ctrl_pt_rsp_send_cmp = ble_ftms_cb_ctrl_pt_rsp_send_cmp,
-};
-
-static void ble_ftms_test_init(void)
-{
-    struct ble_ftms_db_cfg init_cfg =
-    {
-        .ftms_feature = 0xFFFF,
-        .target_setting_feature = 0xFFFF,
-        .prfl_config = 0xFF,
-    };
-
-    ble_ftms_init(&init_cfg, &ble_ftms_test_cbs);
-}
-
-#endif /* BLE_FTMS_ENABLED */
-
-#ifdef BLE_FTMC_ENABLED
-
-void cb_svc_discover_cmp(uint8_t conidx, uint16_t status)
-{
-    DEBUG_INFO(1, "%s %d %d", __func__, conidx, status);
-}
-
-void cb_read_char_cmp(uint8_t conidx, uint16_t status, const uint8_t *value, uint8_t len)
-{
-    DEBUG_INFO(1, "%s %d %d 0x%x", __func__, conidx, status, len);
-}
-
-void cb_read_cfg_cmp(uint8_t conidx, uint16_t status, uint8_t desc_code, uint16_t cfg_val)
-{
-    DEBUG_INFO(1, "%s %d %d %d 0x%2x", __func__, conidx, status, desc_code, cfg_val);
-}
-
-void cb_write_cfg_cmp(uint8_t conidx, uint16_t status, uint8_t desc_code)
-{
-    DEBUG_INFO(1, "%s %d %d %d", __func__, conidx, status, desc_code);
-}
-
-void cb_ctrl_pt_req_cmp(uint8_t conidx, uint16_t status, uint8_t req_op_code, uint8_t resp_value,
-                               ble_ftm_ctrl_pt_rsp_val *p_value)
-{
-    DEBUG_INFO(1, "%s %d %d %d %d", __func__, conidx, status, req_op_code, resp_value);
-    DUMP8_I(p_value, sizeof(*p_value));
-}
-
-const ble_ftmc_cb_t ble_ftmc_test_cbs =
-{
-    .cb_svc_discover_cmp = cb_svc_discover_cmp,
-    .cb_read_char_cmp = cb_read_char_cmp,
-    .cb_read_cfg_cmp = cb_read_cfg_cmp,
-    .cb_write_cfg_cmp = cb_write_cfg_cmp,
-    .cb_ctrl_pt_req_cmp = cb_ctrl_pt_req_cmp,
-};
-
-static void ble_ftmc_test_init(void)
-{
-    ble_ftmc_init(&ble_ftmc_test_cbs);
-}
-
-static void ble_ftmc_discover_test(void)
-{
-    ble_ftmc_start_discover(0);
-}
-#endif /* BLE_FTMC_ENABLED */
-
-#ifdef BLE_HRPS_ENABLED
-
-static void ble_hrps_cb_meas_send_cmp(uint16_t status)
-{
-    DEBUG_INFO(0, "%s %d", __func__, status);
-}
-
-static void ble_hrps_cb_bond_data_upd(uint8_t conidx, uint16_t cfg_val)
-{
-    DEBUG_INFO(0, "%s %d %d", __func__, conidx, cfg_val);
-}
-
-static void ble_hrps_cb_energy_exp_reset(uint8_t conidx)
-{
-    DEBUG_INFO(0, "%s %d", __func__, conidx);
-}
-
-const hrps_cb_t ble_hrps_test_cbs =
-{
-    .cb_meas_send_cmp = ble_hrps_cb_meas_send_cmp,
-    .cb_bond_data_upd = ble_hrps_cb_bond_data_upd,
-    .cb_energy_exp_reset = ble_hrps_cb_energy_exp_reset,
-};
-
-static void ble_hrps_test_init(void)
-{
-    DEBUG_INFO(1, "%s", __func__);
-    struct hrps_init_cfg hrps_cfg =
-    {
-        .features = 0x07,
-        .body_sensor_loc = HRS_LOC_WRIST
-    };
-
-    ble_hrps_init(&hrps_cfg, &ble_hrps_test_cbs);
-}
-
-static void ble_hrps_send_meas()
-{
-
-}
-
-#endif /* BLE_HRPS_ENABLED */
-
-#ifdef BLE_HRPC_ENABLED
-
-static void ble_hrpc_cb_enable_cmp(uint8_t conidx, uint16_t status)
-{
-    DEBUG_INFO(1, "%s %d %d", __func__, conidx, status);
-}
-
-static void ble_hrpc_cb_read_sensor_loc_cmp(uint8_t conidx, uint16_t status, uint8_t sensor_loc)
-{
-    DEBUG_INFO(1, "%s %d %d %d", __func__, conidx, status, sensor_loc);
-}
-
-static void ble_hrpc_cb_read_cfg_cmp(uint8_t conidx, uint16_t status, uint16_t cfg_val)
-{
-    DEBUG_INFO(1, "%s %d %d %d", __func__, conidx, status, cfg_val);
-}
-
-static void ble_hrpc_cb_write_cfg_cmp(uint8_t conidx, uint16_t status)
-{
-    DEBUG_INFO(1, "%s %d %d", __func__, conidx, status);
-}
-
-static void ble_hrpc_cb_meas(uint8_t conidx, const hrs_hr_meas_t* p_meas)
-{
-    DEBUG_INFO(1, "%s %d", __func__, conidx);
-    DUMP8_I(p_meas, sizeof(hrs_hr_meas_t));
-}
-
-static void ble_hrpc_cb_ctnl_pt_req_cmp(uint8_t conidx, uint16_t status)
-{
-    DEBUG_INFO(1, "%s %d %d", __func__, conidx, status);
-}
-
-const hrpc_cb_t ble_hrpc_test_cbs =
-{
-    .cb_enable_cmp = ble_hrpc_cb_enable_cmp,
-    .cb_read_sensor_loc_cmp = ble_hrpc_cb_read_sensor_loc_cmp,
-    .cb_read_cfg_cmp = ble_hrpc_cb_read_cfg_cmp,
-    .cb_write_cfg_cmp = ble_hrpc_cb_write_cfg_cmp,
-    .cb_meas = ble_hrpc_cb_meas,
-    .cb_ctnl_pt_req_cmp = ble_hrpc_cb_ctnl_pt_req_cmp,
-};
-
-static void ble_hrpc_test_init(void)
-{
-    DEBUG_INFO(1, "%s", __func__);
-    ble_hrpc_init(&ble_hrpc_test_cbs);
-}
-
-static void ble_hrpc_discover_test(void)
-{
-    ble_hrpc_enable(0);
-}
-
-#endif /* BLE_HRPC_ENABLED */
-
-#ifdef BLE_CSCPS_ENABLED
-
-static void ble_cscps_cb_meas_send_cmp(uint16_t status)
-{
-    DEBUG_INFO(0, "%s %d", __func__, status);
-}
-static void ble_cscps_cb_bond_data_upd(uint8_t conidx, uint8_t char_code, uint16_t cfg_val)
-{
-    DEBUG_INFO(0, "%s %d %d %d", __func__, conidx, char_code, cfg_val);
-}
-
-static void ble_cscps_cb_ctnl_pt_req(uint8_t conidx, uint8_t op_code, const union cscp_sc_ctnl_pt_req_val* p_value)
-{
-    if (op_code == CSCP_CTNL_PT_OP_SET_CUMUL_VAL)
-    {
-        DEBUG_INFO(0, "%s %d %d", __func__, op_code, p_value->cumul_val);
-    }
-    else
-    {
-        DEBUG_INFO(0, "%s %d %d", __func__, op_code, p_value->sensor_loc);
-    }
-}
-
-static void ble_cscps_cb_ctnl_pt_rsp_send_cmp(uint8_t conidx, uint16_t status)
-{
-    DEBUG_INFO(0, "%s %d", __func__, status);
-}
-
-const cscps_cb_t ble_cscps_test_cbs =
-{
-    .cb_meas_send_cmp = ble_cscps_cb_meas_send_cmp,
-    .cb_bond_data_upd = ble_cscps_cb_bond_data_upd,
-    .cb_ctnl_pt_req = ble_cscps_cb_ctnl_pt_req,
-    .cb_ctnl_pt_rsp_send_cmp = ble_cscps_cb_ctnl_pt_rsp_send_cmp,
-};
-
-static void ble_cscps_test_init(void)
-{
-    DEBUG_INFO(1, "%s", __func__);
-    struct cscps_db_cfg cscps_cfg =
-    {
-        .csc_feature = 0x07,
-        .sensor_loc_supp = 1,
-        .sensor_loc = CSCP_LOC_RIGHT_CRANK,
-        .wheel_rev = 1,
-    };
-
-    ble_cscps_init(&cscps_cfg, &ble_cscps_test_cbs);
-}
-
-#endif /* BLE_CSCPS_ENABLED */
-
-#ifdef BLE_CSCPC_ENABLED
-
-static void ble_cscpc_cb_enable_cmp(uint8_t conidx, uint16_t status)
-{
-    DEBUG_INFO(1, "%s %d %d", __func__, conidx, status);
-}
-
-static void ble_cscpc_cb_read_sensor_feat_cmp(uint8_t conidx, uint16_t status, uint16_t sensor_feat)
-{
-    DEBUG_INFO(1, "%s %d %d %d", __func__, conidx, status, sensor_feat);
-}
-
-static void ble_cscpc_cb_read_sensor_loc_cmp(uint8_t conidx, uint16_t status, uint8_t sensor_loc)
-{
-    DEBUG_INFO(1, "%s %d %d %d", __func__, conidx, status, sensor_loc);
-}
-
-static void ble_cscpc_cb_read_cfg_cmp(uint8_t conidx, uint16_t status, uint8_t desc_code, uint16_t cfg_val)
-{
-    DEBUG_INFO(1, "%s %d %d %d %d", __func__, conidx, status, desc_code, cfg_val);
-}
-
-static void ble_cscpc_cb_write_cfg_cmp(uint8_t conidx, uint16_t status, uint8_t desc_code)
-{
-    DEBUG_INFO(1, "%s %d %d %d", __func__, conidx, status, desc_code);
-}
-
-static void ble_cscpc_cb_meas(uint8_t conidx, const cscp_csc_meas_t* p_meas)
-{
-    DEBUG_INFO(1, "%s %d", __func__, conidx);
-    DUMP8_I(p_meas, sizeof(cscp_csc_meas_t));
-}
-
-static void ble_cscpc_cb_ctnl_pt_req_cmp(uint8_t conidx, uint16_t status, uint8_t req_op_code, uint8_t resp_value,
-                                        const union cscp_sc_ctnl_pt_rsp_val* p_value)
-{
-    DEBUG_INFO(1, "%s %d %d %d %d", __func__, conidx, status, req_op_code, resp_value);
-    DUMP8_I(p_value, sizeof(*p_value));
-}
-
-const cscpc_cb_t ble_cscpc_test_cbs =
-{
-    .cb_enable_cmp = ble_cscpc_cb_enable_cmp,
-    .cb_read_sensor_feat_cmp = ble_cscpc_cb_read_sensor_feat_cmp,
-    .cb_read_sensor_loc_cmp = ble_cscpc_cb_read_sensor_loc_cmp,
-    .cb_read_cfg_cmp = ble_cscpc_cb_read_cfg_cmp,
-    .cb_write_cfg_cmp = ble_cscpc_cb_write_cfg_cmp,
-    .cb_meas = ble_cscpc_cb_meas,
-    .cb_ctnl_pt_req_cmp = ble_cscpc_cb_ctnl_pt_req_cmp,
-};
-
-static void ble_cscpc_test_init(void)
-{
-    DEBUG_INFO(1, "%s", __func__);
-    ble_cscpc_init(&ble_cscpc_test_cbs);
-}
-
-static void ble_cscpc_discover_test(void)
-{
-    DEBUG_INFO(1, "%s", __func__);
-    ble_cscpc_enable(0);
-}
-
-#endif /* BLE_CSCPC_ENABLED */
-
-#ifdef BLE_HID_ENABLE
-enum
-{
-    HID_KEY_IDX_RELEASE     = 0x00,
-    HID_KEY_IDX_POWER       = 0x01,
-    HID_KEY_IDX_PLAY        = 0x02,
-    HID_KEY_IDX_PAUSE       = 0x04,
-    HID_KEY_IDX_STOP        = 0x08,
-    HID_KEY_IDX_EJECT       = 0x10,
-    HID_KEY_IDX_PLAY_PAUSE  = 0x20,
-    HID_KEY_IDX_VOLUP       = 0x40,
-    HID_KEY_IDX_VOLDOWN     = 0x80,
-};
-
-static void ble_hid_send_release_key(void)
-{
-    struct keyboard_control_key_t hid_ctrl = {0};
-    hid_ctrl.ctrl_key = HID_KEY_IDX_RELEASE;
-    ble_hid_send_mediakey_report(&hid_ctrl);
-}
-
-static void ble_hid_control_test(void)
-{
-    DEBUG_INFO(1, "%s", __func__);
-    static uint8_t init_ctrl = HID_KEY_IDX_POWER;
-    if (init_ctrl < HID_KEY_IDX_POWER || init_ctrl > HID_KEY_IDX_VOLDOWN) {
-        init_ctrl = HID_KEY_IDX_POWER;
-    }
-    struct keyboard_control_key_t hid_ctrl = {0};
-    hid_ctrl.ctrl_key = init_ctrl;
-    ble_hid_send_mediakey_report(&hid_ctrl);
-    // Delay send release key
-    bt_delay_call_func_0(ble_hid_send_release_key, 100);
-    init_ctrl *= 2;
-}
-#endif /* BLE_HID_ENABLE */
-
-#if (BLE_GAP_CS_SUPPORT)
-#include "cs_i.h"
-
-struct cs_read_remote_capas_params {
-    uint16_t conn_handle;
-} __attribute__((packed));
-
-struct cs_cache_remote_capas_params
-{
-    uint16_t         conn_handle;
-    cs_supp_capas_t *capas;
-} __attribute__((packed));
-
-struct cs_security_enable_params
-{
-    uint16_t conn_handle;
-} __attribute__((packed));
-
-struct cs_set_default_settings_params
-{
-    uint16_t conn_handle;
-    uint8_t  role_enable;
-    uint8_t  cs_sync_antenna_selection;
-    uint8_t  max_tx_power;
-} __attribute__((packed));
-
-struct cs_read_remote_fae_table_params
-{
-    uint16_t conn_handle;
-} __attribute__((packed));
-
-struct cs_cache_remote_fae_table_params
-{
-    uint16_t conn_handle;
-    uint8_t  fae_table[CS_CHANNEL_NUM];
-} __attribute__((packed));
-
-struct cs_create_config_params
-{
-    uint16_t           conn_handle;
-    uint8_t            config_id;
-    uint8_t            create_context;
-    cs_basic_config_t *basic_config;
-} __attribute__((packed));
-
-struct cs_remove_config_params
-{
-    uint16_t conn_handle;
-    uint8_t  config_id;
-} __attribute__((packed));
-
-struct cs_set_channel_classification_params
-{
-    uint8_t channel_classification[CS_CHANNEL_MAP_SIZE];
-} __attribute__((packed));
-
-struct cs_set_proc_params_params
-{
-    uint16_t              conn_handle;
-    uint8_t               config_id;
-    cs_set_proc_config_t *set_proc_config;
-} __attribute__((packed));
-
-struct cs_proc_enable_params
-{
-    uint16_t conn_handle;
-    uint8_t  config_id;
-    uint8_t  enable;
-} __attribute__((packed));
-
-struct test_start_params
-{
-    // TODO
-};
-
-
-static void cs_test_read_local_capas(const char *cmd_params, const uint32_t params_len)
-{
-    DEBUG_INFO(0, "TEST %s: (%.4d) %s", __func__, params_len, cmd_params);
-
-    cs_read_local_supp_capas();
-}
-
-/**
- * @brief test CS read remote supported capabilities command
- *
- * @param cmd_params only connection handle (type: uint16_t)
- * @param params_len should equal to `sizeof(uint16_t)`
- */
-static void cs_test_read_remote_capas(const char *cmd_params, const uint32_t params_len)
-{
-    DEBUG_INFO(0, "TEST: %s: (%.4d) %s", __func__, params_len, cmd_params);
-
-    // conn_handle
-    uint32_t typing_params_len = 4;
-
-    if (params_len != typing_params_len && params_len != sizeof(struct cs_read_remote_capas_params))
-    {
-        DEBUG_INFO(0, "TEST: %s: incorrect cmd params %s, expect `<conn_handle>`", __func__, cmd_params);
-        return;
-    }
-
-    if (params_len == typing_params_len)
-    {
-        struct cs_read_remote_capas_params params = {0};
-
-        _str_to_hex(cmd_params, (uint8_t *)&params, sizeof(params));
-
-        DEBUG_INFO(0, "TEST: %s: conn_handle=%d", __func__, params.conn_handle);
-
-        cs_read_remote_supp_capas(params.conn_handle);
-    }
-    else
-    {
-        struct cs_read_remote_capas_params *params = (struct cs_read_remote_capas_params *)cmd_params;
-        DEBUG_INFO(0, "TEST: %s: conn_handle=%d", __func__, params->conn_handle);
-        cs_read_remote_supp_capas(params->conn_handle);
-    }
-}
-
-static void cs_test_cache_remote_capas(const char *cmd_params, const uint32_t params_len)
-{
-    DEBUG_INFO(0, "TEST: %s: (%.4d) %s", __func__, params_len, cmd_params);
-
-    // conn_handle
-    uint32_t typing_params_len = 4;
-
-    if (params_len != typing_params_len && params_len != sizeof(struct cs_cache_remote_capas_params))
-    {
-        DEBUG_INFO(0, "TEST: %s: incorrect cmd params %s, expect `<conn_handle>`", __func__, cmd_params);
-        return;
-    }
-
-    if (params_len == typing_params_len)
-    {
-        uint16_t conn_handle;
-        _str_to_hex(cmd_params, (uint8_t *)&conn_handle, sizeof(conn_handle));
-        cs_supp_capas_t supp_capas = {0};
-
-        DEBUG_INFO(0, "TEST: %s: conn_handle=%d", __func__, conn_handle);
-
-        cs_write_cached_remote_supp_capas(conn_handle, &supp_capas);
-    }
-    else
-    {
-        struct cs_cache_remote_capas_params *params = (struct cs_cache_remote_capas_params *)cmd_params;
-        DEBUG_INFO(0, "TEST: %s: conn_handle=%d", __func__, params->conn_handle);
-        cs_write_cached_remote_supp_capas(params->conn_handle, params->capas);
-    }
-}
-
-static void cs_test_security_enable(const char *cmd_params, const uint32_t params_len)
-{
-    DEBUG_INFO(0, "TEST: %s: (%.4d) %s", __func__, params_len, cmd_params);
-
-    // conn_handle
-    uint32_t typing_params_len = 4;
-
-    if (params_len != typing_params_len && params_len != sizeof(struct cs_security_enable_params))
-    {
-        DEBUG_INFO(0, "TEST: %s: incorrect cmd params %s, expect `<conn_handle>`", __func__, cmd_params);
-        return;
-    }
-
-    if (params_len == typing_params_len)
-    {
-        struct cs_security_enable_params *params = (struct cs_security_enable_params *)bes_bt_buf_malloc(sizeof(struct cs_security_enable_params));
-
-        _str_to_hex(cmd_params, (uint8_t *)&params->conn_handle, sizeof(params->conn_handle));
-
-        DEBUG_INFO(0, "TEST: %s: conn_handle=%d", __func__, params->conn_handle);
-
-        cs_enable_security(params->conn_handle);
-
-        bes_bt_buf_free(params);
-    }
-    else
-    {
-        struct cs_security_enable_params *params = (struct cs_security_enable_params *)cmd_params;
-        DEBUG_INFO(0, "TEST: %s: conn_handle=%d", __func__, params->conn_handle);
-        cs_enable_security(params->conn_handle);
-    }
-}
-
-static void cs_test_set_default_settings(const char *cmd_params, const uint32_t params_len)
-{
-    DEBUG_INFO(0, "TEST: %s: (%.4d) %s", __func__, params_len, cmd_params);
-
-    // conn_handle + ' ' + role_enable + ' ' + cs_sync_antenna_selection + ' ' + max_tx_power
-    uint32_t typing_params_len = 4 + 1 + 2 + 1 + 2 + 1 + 2;
-
-    if (params_len != typing_params_len && params_len != sizeof(struct cs_set_default_settings_params))
-    {
-        DEBUG_INFO(0, "TEST: %s: incorrect cmd params %s, expect `<conn_handle>` `<role_enable>` `<cs_sync_antenna_selection>` `<max_tx_power>`",
-                __func__, cmd_params);
-        return;
-    }
-
-    if (params_len == typing_params_len)
-    {
-        struct cs_set_default_settings_params *params = (struct cs_set_default_settings_params *)bes_bt_buf_malloc(sizeof(struct cs_set_default_settings_params));
-
-        _str_to_hex(cmd_params, (uint8_t *)&params->conn_handle, sizeof(params->conn_handle));
-        cmd_params += 2 * sizeof(params->conn_handle);
-
-        cmd_params += sizeof(uint8_t);
-        _str_to_hex(cmd_params, (uint8_t *)&params->role_enable, sizeof(params->role_enable));
-        cmd_params += 2 * sizeof(params->role_enable);
-
-        cmd_params += sizeof(uint8_t);
-        _str_to_hex(cmd_params, (uint8_t *)&params->cs_sync_antenna_selection, sizeof(params->cs_sync_antenna_selection));
-        cmd_params += 2 * sizeof(params->cs_sync_antenna_selection);
-
-        cmd_params += sizeof(uint8_t);
-        _str_to_hex(cmd_params, (uint8_t *)&params->max_tx_power, sizeof(params->max_tx_power));
-        cmd_params += 2 * sizeof(params->max_tx_power);
-
-        DEBUG_INFO(0, "TEST: %s: conn_handle=%d", __func__, params->conn_handle);
-
-        cs_set_default_settings(params->conn_handle, (cs_default_settings_t *)(params + sizeof(params->conn_handle)));
-
-        bes_bt_buf_free(params);
-    }
-    else
-    {
-        struct cs_set_default_settings_params *params = (struct cs_set_default_settings_params *)cmd_params;
-        DEBUG_INFO(0, "TEST: %s: conn_handle=%d", __func__, params->conn_handle);
-        cs_set_default_settings(params->conn_handle, (cs_default_settings_t *)((uint8_t *)params + sizeof(params->conn_handle)));
-    }
-}
-
-static void cs_test_read_remote_fae_table(const char *cmd_params, const uint32_t params_len)
-{
-    DEBUG_INFO(0, "TEST: %s: (%.4d) %s", __func__, params_len, cmd_params);
-
-    // conn_handle
-    uint32_t typing_params_len = 4;
-
-    if (params_len != typing_params_len && params_len != sizeof(struct cs_read_remote_fae_table_params))
-    {
-        DEBUG_INFO(0, "TEST: %s: incorrect cmd params %s, expect `<conn_handle>`", __func__, cmd_params);
-        return;
-    }
-
-    if (params_len == typing_params_len)
-    {
-        struct cs_read_remote_fae_table_params *params = (struct cs_read_remote_fae_table_params *)bes_bt_buf_malloc(sizeof(struct cs_read_remote_fae_table_params));
-
-        _str_to_hex(cmd_params, (uint8_t *)&params->conn_handle, sizeof(params->conn_handle));
-
-        DEBUG_INFO(0, "TEST: %s: conn_handle=%d", __func__, params->conn_handle);
-
-        cs_read_remote_fae_table(params->conn_handle);
-
-        bes_bt_buf_free(params);
-    }
-    else
-    {
-        struct cs_read_remote_fae_table_params *params = (struct cs_read_remote_fae_table_params *)cmd_params;
-        DEBUG_INFO(0, "TEST: %s: conn_handle=%d", __func__, params->conn_handle);
-        cs_read_remote_fae_table(params->conn_handle);
-    }
-}
-
-static void cs_test_cache_remote_fae_table(const char *cmd_params, const uint32_t params_len)
-{
-    DEBUG_INFO(0, "TEST: %s: (%.4d) %s", __func__, params_len, cmd_params);
-
-    // conn_handle
-    uint32_t typing_params_len = 4;
-
-    if (params_len != typing_params_len && params_len != sizeof(struct cs_cache_remote_fae_table_params))
-    {
-        DEBUG_INFO(0, "TEST: %s: incorrect cmd params %s", __func__, cmd_params);
-        return;
-    }
-
-    if (params_len == typing_params_len)
-    {
-        struct cs_cache_remote_fae_table_params *params = (struct cs_cache_remote_fae_table_params *)bes_bt_buf_malloc(sizeof(struct cs_cache_remote_fae_table_params));
-
-        _str_to_hex(cmd_params, (uint8_t *)&params->conn_handle, sizeof(params->conn_handle));
-
-        DEBUG_INFO(0, "TEST: %s: conn_handle=%d", __func__, params->conn_handle);
-
-        memset(params->fae_table, 0, sizeof(params->fae_table));
-
-        cs_write_cached_remote_fae_table(params->conn_handle, params->fae_table);
-        bes_bt_buf_free(params);
-    }
-    else
-    {
-        struct cs_cache_remote_fae_table_params *params = (struct cs_cache_remote_fae_table_params *)cmd_params;
-        DEBUG_INFO(0, "TEST: %s: conn_handle=%d", __func__, params->conn_handle);
-        cs_write_cached_remote_fae_table(params->conn_handle, params->fae_table);
-    }
-}
-
-static void cs_test_create_config(const char *cmd_params, const uint32_t params_len)
-{
-    DEBUG_INFO(0, "TEST: %s: (%.4d) %s", __func__, params_len, cmd_params);
-
-    // conn_handle + ' ' + config_id + ' ' + create_context
-    uint32_t typing_params_len = 4 + 1 + 2 + 1 + 2;
-
-    if (params_len != typing_params_len && params_len != sizeof(struct cs_create_config_params))
-    {
-        DEBUG_INFO(0, "TEST: %s: incorrect cmd params %s", __func__, cmd_params);
-        return;
-    }
-
-    if (params_len == typing_params_len)
-    {
-        struct cs_create_config_params *params = (struct cs_create_config_params *)bes_bt_buf_malloc(sizeof(struct cs_create_config_params));
-
-        _str_to_hex(cmd_params, (uint8_t *)&params->conn_handle, sizeof(params->conn_handle));
-        cmd_params += sizeof(2 * (sizeof(params->conn_handle)));
-
-        cmd_params += sizeof(uint8_t);
-        _str_to_hex(cmd_params, (uint8_t *)&params->config_id, sizeof(params->config_id));
-        cmd_params += 2 * sizeof(params->config_id);
-
-        cmd_params += sizeof(uint8_t);
-        _str_to_hex(cmd_params, (uint8_t *)&params->create_context, sizeof(params->create_context));
-        cmd_params += 2 * sizeof(params->create_context);
-
-        params->basic_config = (cs_basic_config_t *)bes_bt_buf_malloc(sizeof(cs_basic_config_t));
-        memset(params->basic_config, 0, sizeof(cs_basic_config_t));
-
-        DEBUG_INFO(0, "TEST: %s: conn_handle=%d", __func__, params->conn_handle);
-
-        cs_create_config(params->conn_handle, params->config_id, params->create_context, params->basic_config);
-
-        bes_bt_buf_free(params->basic_config);
-        bes_bt_buf_free(params);
-    }
-    else
-    {
-        struct cs_create_config_params *params = (struct cs_create_config_params *)cmd_params;
-        DEBUG_INFO(0, "TEST: %s: conn_handle=%d", __func__, params->conn_handle);
-        cs_create_config(params->conn_handle, params->config_id, params->create_context, params->basic_config);
-    }
-}
-
-static void cs_test_remove_config(const char *cmd_params, const uint32_t params_len)
-{
-    DEBUG_INFO(0, "TEST: %s: (%.4d) %s", __func__, params_len, cmd_params);
-
-    uint32_t typing_params_len = 4 + 1 + 2;
-
-    if (params_len != typing_params_len && params_len != sizeof(struct cs_remove_config_params))
-    {
-        DEBUG_INFO(0, "TEST: %s: incorrect cmd params %s", __func__, cmd_params);
-        return;
-    }
-
-    // conn_handle + ' ' + config_id
-    if (params_len == typing_params_len)
-    {
-        struct cs_remove_config_params *params = (struct cs_remove_config_params *)bes_bt_buf_malloc(sizeof(struct cs_remove_config_params));
-
-        _str_to_hex(cmd_params, (uint8_t *)&params->conn_handle, sizeof(params->conn_handle));
-        cmd_params += sizeof(2 * (sizeof(params->conn_handle)));
-
-        cmd_params += sizeof(uint8_t);
-        _str_to_hex(cmd_params, (uint8_t *)&params->config_id, sizeof(params->config_id));
-        cmd_params += 2 * sizeof(params->config_id);
-
-        DEBUG_INFO(0, "TEST: %s: conn_handle=%d", __func__, params->conn_handle);
-
-        cs_remove_config(params->conn_handle, params->config_id);
-
-        bes_bt_buf_free(params);
-    }
-    else
-    {
-        struct cs_remove_config_params *params = (struct cs_remove_config_params *)cmd_params;
-        DEBUG_INFO(0, "TEST: %s: conn_handle=%d", __func__, params->conn_handle);
-        cs_remove_config(params->conn_handle, params->config_id);
-    }
-}
-
-static void cs_test_set_channel_classification(const char *cmd_params, const uint32_t params_len)
-{
-    DEBUG_INFO(0, "TEST: %s: (%.4d) %s", __func__, params_len, cmd_params);
-
-    if (params_len != 2 * CS_CHANNEL_MAP_SIZE)
-    {
-        DEBUG_INFO(0, "TEST: %s: incorrect cmd params %s", __func__, cmd_params);
-        return;
-    }
-
-    cs_set_channel_classification((uint8_t *)cmd_params);
-}
-
-static void cs_test_set_proc_params(const char *cmd_params, const uint32_t params_len)
-{
-    DEBUG_INFO(0, "TEST: %s: (%.4d) %s", __func__, params_len, cmd_params);
-
-    uint32_t typing_params_len = 4 + 1 + 2;
-
-    if (params_len != typing_params_len && params_len != sizeof(struct cs_set_proc_params_params))
-    {
-        DEBUG_INFO(0, "TEST: %s: incorrect cmd params %s", __func__, cmd_params);
-        return;
-    }
-
-    // conn_handle + ' ' + config_id
-    if (params_len == typing_params_len)
-    {
-        struct cs_set_proc_params_params *params = (struct cs_set_proc_params_params *)bes_bt_buf_malloc(sizeof(struct cs_remove_config_params));
-
-        _str_to_hex(cmd_params, (uint8_t *)&params->conn_handle, sizeof(params->conn_handle));
-        cmd_params += sizeof(2 * (sizeof(params->conn_handle)));
-
-        cmd_params += sizeof(uint8_t);
-        _str_to_hex(cmd_params, (uint8_t *)&params->config_id, sizeof(params->config_id));
-        cmd_params += 2 * sizeof(params->config_id);
-
-        cs_set_proc_config_t *set_proc_config = (cs_set_proc_config_t *)bes_bt_buf_malloc(sizeof(cs_set_proc_config_t));
-        memset(set_proc_config, 0, sizeof(cs_set_proc_config_t));
-
-        DEBUG_INFO(0, "TEST: %s: conn_handle=%d", __func__, params->conn_handle);
-
-        cs_set_procedure_parameters(params->conn_handle, params->config_id, set_proc_config);
-
-        bes_bt_buf_free(set_proc_config);
-        bes_bt_buf_free(params);
-    }
-    else
-    {
-        struct cs_set_proc_params_params *params = (struct cs_set_proc_params_params *)cmd_params;
-        DEBUG_INFO(0, "TEST: %s: conn_handle=%d", __func__, params->conn_handle);
-        cs_set_procedure_parameters(params->conn_handle, params->config_id, params->set_proc_config);
-    }
-}
-
-static void cs_test_proc_enable(const char *cmd_params, const uint32_t params_len)
-{
-    DEBUG_INFO(0, "TEST: %s: (%.4d) %s", __func__, params_len, cmd_params);
-
-    uint32_t typing_params_len = 4 + 1 + 2 + 1 + 2;
-
-    if (params_len != typing_params_len && params_len != sizeof(struct cs_proc_enable_params))
-    {
-        DEBUG_INFO(0, "TEST: %s: incorrect cmd params %s", __func__, cmd_params);
-        return;
-    }
-
-    // conn_handle + ' ' + config_id + ' ' + enable
-    if (params_len == typing_params_len)
-    {
-        struct cs_proc_enable_params *params = (struct cs_proc_enable_params *)bes_bt_buf_malloc(sizeof(struct cs_proc_enable_params));
-
-        _str_to_hex(cmd_params, (uint8_t *)&params->conn_handle, sizeof(params->conn_handle));
-        cmd_params += sizeof(2 * (sizeof(params->conn_handle)));
-
-        cmd_params += sizeof(uint8_t);
-        _str_to_hex(cmd_params, (uint8_t *)&params->config_id, sizeof(params->config_id));
-        cmd_params += 2 * sizeof(params->config_id);
-
-        cmd_params += sizeof(uint8_t);
-        _str_to_hex(cmd_params, (uint8_t *)&params->enable, sizeof(params->enable));
-
-        DEBUG_INFO(0, "TEST: %s: conn_handle=%d", __func__, params->conn_handle);
-
-        cs_enable_procedure(params->conn_handle, params->config_id, params->enable);
-
-        bes_bt_buf_free(params);
-    }
-    else
-    {
-        struct cs_proc_enable_params *params = (struct cs_proc_enable_params *)cmd_params;
-        DEBUG_INFO(0, "TEST: %s: conn_handle=%d", __func__, params->conn_handle);
-        cs_enable_procedure(params->conn_handle, params->config_id, params->enable);
-    }
-}
-
-static void cs_test_test_start(const char *cmd_params, const uint32_t params_len)
-{
-    DEBUG_INFO(0, "TEST: %s: (%.4d) %s", __func__, params_len, cmd_params);
-    cs_test_params_t params = {0};
-    cs_start_test(&params);
-}
-
-static void cs_test_test_end(const char *cmd_params, const uint32_t params_len)
-{
-    DEBUG_INFO(0, "TEST: %s: (%.4d) %s", __func__, params_len, cmd_params);
-    cs_end_test();
-}
-
-
-static int cs_test_app_event_callback(cs_event_t event, cs_event_param_t params)
-{
-    // TODO
-    switch (event)
-    {
-        case CS_EVENT_CONN_CONNECTED:
-        {
-            DEBUG_INFO(0, "TEST: CS app connected");
-            cs_test_read_local_capas("No cmd params", 0);
-        }
-            break;
-        case CS_EVENT_CONN_DISCONNECTED:
-            DEBUG_INFO(0, "TEST: CS app disconnected");
-            break;
-        case CS_EVENT_READ_REMOTE_CAPAS_STATUS:
-            break;
-        case CS_EVENT_SECURITY_ENABLE_STATUS:
-        {
-            // TODO
-        }
-            break;
-        case CS_EVENT_READ_REMOTE_FAE_TABLE_STATUS:
-            break;
-        case CS_EVENT_CREATE_CONFIG_STATUS:
-        {
-            // TODO
-        }
-            break;
-        case CS_EVENT_REMOVE_CONFIG_STATUS:
-            break;
-        case CS_EVENT_PROC_ENABLE_STATUS:
-            break;
-        case CS_EVENT_PROC_DISABLE_STATUS:
-            break;
-        case CS_EVENT_TEST_END_STATUS:
-            break;
-        case CS_EVENT_READ_LOCAL_CAPAS_CMPL:
-        {
-            for (int i = 0; i < BT_DEVICE_NUM; i++)
-            {
-                uint16_t conn_handle = app_ble_get_conhdl_from_conidx(i);
-                struct cs_read_remote_capas_params test_params =
-                {
-                    .conn_handle = conn_handle,
-                };
-                cs_test_read_remote_capas((const char *)&test_params, sizeof(struct cs_read_remote_capas_params));
-            }
-        }
-            break;
-        case CS_EVENT_READ_REMOTE_CAPAS_CMPL:
-        {
-            cs_read_remote_capas_cmpl_t *parsed_params = (cs_read_remote_capas_cmpl_t *)&params;
-            uint16_t conn_handle = parsed_params->connhdl;
-            cs_supp_capas_t *supp_capas = &parsed_params->capas;
-            struct cs_cache_remote_capas_params test_params_1 =
-            {
-                .conn_handle = conn_handle,
-                .capas = supp_capas,
-            };
-            cs_test_cache_remote_capas((const char *)&test_params_1, sizeof(test_params_1));
-            struct cs_set_default_settings_params test_params_2 =
-            {
-                .conn_handle = conn_handle,
-                .role_enable = CS_INITIATOR,
-                .cs_sync_antenna_selection = 0xFE,
-                .max_tx_power = 0,
-            };
-            cs_test_set_default_settings((const char *)&test_params_2, sizeof(test_params_2));
-        }
-            break;
-        case CS_EVENT_WRITE_CACHED_REMOTE_CAPAS_CMPL:
-            break;
-        case CS_EVENT_SET_DEFAULT_SETTINGS_CMPL:
-        {
-            cs_read_remote_capas_cmpl_t *parsed_params = (cs_read_remote_capas_cmpl_t *)&params;
-            uint16_t conn_handle = parsed_params->connhdl;
-            struct cs_read_remote_fae_table_params test_params =
-            {
-                .conn_handle = conn_handle,
-            };
-            cs_test_read_remote_fae_table((const char *)&test_params, sizeof(test_params));
-        }
-            break;
-        case CS_EVENT_READ_REMOTE_FAE_TABLE_CMPL:
-        {
-            cs_read_remote_fae_table_cmpl_t *parsed_params = (cs_read_remote_fae_table_cmpl_t *)&params;
-            uint16_t conn_handle = parsed_params->connhdl;
-            struct cs_cache_remote_fae_table_params test_params_1 =
-            {
-                .conn_handle = conn_handle,
-            };
-            memcpy(test_params_1.fae_table, parsed_params->fae_table, CS_CHANNEL_NUM);
-            // try to perform cache servel times
-            cs_test_cache_remote_fae_table((const char *)&test_params_1, sizeof(test_params_1));
-
-            cs_basic_config_t basic_config =
-            {
-                .main_mode_type = CS_STEP_MODE_1,
-                .sub_mode_type = CS_STEP_MODE_2,
-                .min_main_mode_steps = 0x02,
-                .max_main_mode_steps = 0x10,
-                .main_mode_repetition = 0x01,
-                .mode_0_steps = 0x01,
-                .role = CS_INITIATOR,
-                .rtt_type = CS_RTT_AA_ONLY,
-                .cs_sync_phy = CS_LE_1M_PHY,
-                .channel_map = {1},
-                .channel_map_repetition = 0x02,
-                .channel_selection_type = CS_CHANNEL_SELECTION_3C,
-                .ch3c_shape = CS_CH3C_HAT_SHAPE,
-                .ch3c_jump = 0x03,
-                .reserved = 0x00,
-            };
-            struct cs_create_config_params test_params_2 =
-            {
-                .conn_handle = conn_handle,
-                .config_id = 0,
-                .create_context = CS_CONFIG_BOTH_SIDE,
-                .basic_config = &basic_config,
-            };
-            // if peer deivce ever connected, use create_context=CS_CONFIG_LOCAL_ONLY to use cached config params
-            cs_test_create_config((const char *)&test_params_2, sizeof(test_params_2));
-            // else use create_context=CS_CONFIG_BOTH_SIDE to config on both side
-        }
-            break;
-        case CS_EVENT_WRITE_CACHED_REMOTE_FAE_TABLE_CMPL:
-            break;
-        case CS_EVENT_ENABLE_SECURITY_CMPL:
-        {
-            // if event error code is no error, it means that the setup phase is fully done
-            // then, we can choose to notify the upper layer that the CS module is ready, and CS procedure params can be configed
-            //  and then CS procedure can be enable
-        }
-            break;
-        case CS_EVENT_CREATE_CONFIG_CMPL:
-        {
-            cs_config_update_cmpl_t *parsed_params = (cs_config_update_cmpl_t *)&params;
-            uint16_t conn_handle = parsed_params->connhdl;
-            struct cs_security_enable_params test_params =
-            {
-                .conn_handle = conn_handle,
-            };
-            cs_test_security_enable((const char *)&test_params, sizeof(test_params));
-            break;
-        }
-            break;
-        case CS_EVENT_REMOVE_CONFIG_CMPL:
-            break;
-        case CS_EVENT_ENABLE_PROC_CMPL:
-        {
-            // do not forget to deal with the unexcepted error code (not no error code)
-        }
-            break;
-        case CS_EVENT_DISABLE_PROC_CMPL:
-            break;
-        case CS_EVENT_SET_CHANNEL_CLASSIFICATION_CMPL:
-            break;
-        case CS_EVENT_SET_PROC_PARAMS_CMPL:
-            break;
-        case CS_EVENT_START_TEST_CMPL:
-            break;
-        default:
-            DEBUG_INFO(0, "WARN: unknown cs app event");
-            break;
-    }
-    return 0;
-}
-
-static void  cs_test_app_init(const char *cmd_params, const uint32_t params_len)
-{
-    DEBUG_INFO(0, "TEST: %s: (%.4d) %s", __func__, params_len, cmd_params);
-
-    cs_register_ctrl_evt_callback(cs_test_app_event_callback);
-}
-
-#endif /* BLE_GAP_CS_SUPPORT */
-
-static void  app_ble_stub_adv_start()
-{
-    app_ble_stub_user_init();
-}
 
 static const app_ble_test_handler_t g_app_ble_test_cmd_table[] =
 {
-    {"ble_stub_adv_start",          app_ble_stub_adv_start},
     // ble device
     {"ble_del_record",              ble_test_del_record},
     {"ble_del_all_record",          ble_test_del_all_record},
@@ -7358,38 +4057,26 @@ static const app_ble_test_handler_t g_app_ble_test_cmd_table[] =
     {"ble_filter_del_anonymous",    ble_test_filter_list_remove_anonymous},
     {"ble_filter_set_bonded_devices", ble_test_filter_list_set_bonded_devices},
 
-    {"ble_monitored_size",          ble_test_monitored_list_size},
-    {"ble_monitored_clear",         ble_test_monitored_list_clear},
-    {"ble_monitored_set_bonded",    ble_test_monitored_list_set_bonded_devices},
-
     // advertising
     {"ble_legacy_none_adv",         ble_test_legacy_non_discoverable_adv},
     {"ble_legacy_none_conn_adv",    ble_test_legacy_non_discoverable_connectable_adv},
     {"ble_legacy_conn_adv",         ble_test_legacy_connectable_adv},
     {"ble_legacy_scan_adv",         ble_test_legacy_scannable_adv},
-    {"ble_legacy_only_limit",       ble_test_legacy_only_limited_mode_adv},
-    {"ble_legacy_only_gedis",       ble_test_legacy_only_gendiscov_mode_adv},
-    {"ble_legacy_gedis_conn",       ble_test_legacy_gendiscov_connectable_adv},
-    {"ble_legacy_non_disc",         ble_test_legacy_only_non_disc_mode_adv},
     {"ble_none_adv",                ble_test_non_discoverable_adv},
     {"ble_none_conn_adv",           ble_test_non_discoverable_connectable_adv},
     {"ble_conn_adv",                ble_test_connectable_adv},
-    {"ble_decision_adv",            ble_test_decision_adv},
-    {"ble_cust_adv",                ble_test_start_cust_adv},
-    {"ble_conn_rap_adv",            ble_test_rpa_connectable_adv},
-    {"ble_conn_random_adv",         ble_test_random_connectable_adv},
     {"ble_scan_adv",                ble_test_scannable_adv},
-    {"ble_close_all_adv",           ble_test_close_all_adv},
+    {"ble_close_adv",               ble_test_close_all_adv},
 
 #if BLE_GAP_CENTRAL_ROLE
-    {"ble_decision_instructs_test", ble_test_set_decision_instructs},
-
-    {"ble_open_scan",               ble_test_start_scanning},
-    {"ble_close_scan",              ble_test_stop_scanning},
+    {"open_scan",                   ble_test_start_scanning},
+    {"close_scan",                  ble_test_stop_scanning},
+    {"ble_connect",                 ble_test_direct_connect},
     {"ble_cancel_initiating",       app_ble_cancel_connecting},
 #endif
-
+#if BLE_PA_SUPPORT
     {"ble_adv_set_past",            ble_test_adv_set_past},
+#endif
 
     // smp
     {"smp_cmac_0",                  smp_test_ase_cmac_0},
@@ -7430,6 +4117,7 @@ static const app_ble_test_handler_t g_app_ble_test_cmd_table[] =
 #if (BLE_AUDIO_ENABLED)
 #ifdef AOB_MOBILE_ENABLED
     {"uc_mobile_scan_start",        aob_mobile_scan_start_handler}, /// BAP Unicast client
+    {"uc_mobile_start_reconnect",   bap_test_start_reconnection},
     // UC CLI
     {"uc_media_start",              aob_media_start_test},
     {"uc_media_rejoin",             aob_media_rejoin_media_test},
@@ -7437,18 +4125,6 @@ static const app_ble_test_handler_t g_app_ble_test_cmd_table[] =
     {"uc_media_release",            aob_media_release_test},
     {"uc_call_stream_start",        aob_call_start_test},
     {"uc_call_stream_disable",      aob_media_disable_test},
-    {"uc_media_2_5_start",          aob_media_start_2_5ms_test},
-    {"uc_media_5ms_start",          aob_media_start_5ms_test},
-
-#if (BLE_SHP_SERVER_SUPPORT)
-    {"uc_shp_spa_aud_codec_cfg",    aob_shp_spatial_audio_codec_cfg_test},
-    {"uc_shp_spa_aud_qos_cfg",      aob_shp_spatial_audio_qos_cfg_test},
-    {"uc_shp_spa_aud_enable",       aob_shp_spatial_audio_enable_test},
-#endif /* */
-
-    {"vcc_discovery",               app_arc_discovery_test},
-    {"vcc_set_vol_up",              app_vcc_vol_up},
-    {"vcc_set_vol_down",            app_vcc_vol_down},
     // ASSISTANT
     {"bc_assist_remove_src",        bap_test_start_assist_remove_source},
     // MICP
@@ -7461,96 +4137,18 @@ static const app_ble_test_handler_t g_app_ble_test_cmd_table[] =
 #endif /// APP_BLE_BIS_SRC_ENABLE
 
 #endif /// AOB_MOBILE_ENABLED
-#ifdef USB_AUDIO_CUSTOM_USB_HID_KEY
-    {"ble_vol_down_test_hid", ble_hid_vol_down_test},
-    {"ble_vol_up_test_hid", ble_hid_vol_up_test},
-    {"ble_vol_mute_test_hid",ble_hid_vol_mute_test},
-    {"ble_play_test_hid", ble_hid_test_play_swich_test},
-    {"ble_pause_test_hid", ble_hid_test_pause_swich_test},
-    {"ble_next_track_test_hid",ble_hid_test_next_track_test},
-    {"ble_previous_track_test_hid",ble_hid_test_previous_track_test},
-    {"ble_mic_mute_test_hid", ble_hid_mic_mute_test},
-    {"ble_hook_swich_test_hid", ble_hid_test_hood_swich_test},
-    {"ble_play_pause_test_hid", ble_hid_test_play_pause_test},
-    {"vol_hid_test_hook_accept", vol_hid_test_hook_accept_test},
-    {"vol_hid_test_hook_reject", vol_hid_test_hook_reject_test},
-    {"datapath_hook_accept", send_hid_cmd_hook_accept_to_dongle_by_datapath},
-    {"datapath_hook_reject", send_hid_cmd_hook_reject_to_dongle_by_datapath},
-    {"datapath_mic_mute", send_hid_cmd_mic_mute_to_dongle_by_datapath},
-    // {"datapath_notification_enable", ble_app_datapath_client_control_notification_test},
-#endif
+
     {"acc_mcc_discovery",           aob_acc_mcc_discovery_test},
     {"acc_tbc_discovery",           aob_acc_tbc_discovery_test},
-
     {"acc_mcc_play",                aob_acc_mcc_play_test},
     {"acc_mcc_pause",               aob_acc_mcc_pause_test},
-    {"vcs_set_vol_up",              app_vcs_vol_up},
-    {"vcs_set_vol_down",            app_vcs_vol_down},
 
     {"start_adv",                   bap_test_start_advertising},
     {"close_adv",                   bap_test_stop_advertising},
 
     {"aob_init",                    aob_ble_audio_init_test},
     {"aob_deinit",                  aob_ble_audio_deinit_test},
-
-    {"aob_get_media_state",         aob_get_media_state_test},
-    {"aob_get_call_state",          aob_get_call_state_test},
-
-    {"aob_focus_switch",            ble_switch_focus_test},
-
-#if (BLE_SHP_SERVER_SUPPORT)
-    {"shp_amt_a_pref_1",            shp_amt_case_a_pref_1_add_test},
-    {"shp_amt_a_pref_2",            shp_amt_case_a_pref_2_add_test},
-    {"shp_amt_b_pref_1",            shp_amt_case_b_pref_1_add_test},
-    {"shp_amt_b_pref_2",            shp_amt_case_b_pref_2_add_test},
-#endif /* BLE_SHP_SERVER_SUPPORT */
-
 #endif /// (BLE_AUDIO_ENABLED)
-
-#ifdef BLE_CPS_ENABLED
-    {"ble_cps_init",                ble_cycling_power_sens_test_init},
-#endif /* BLE_CPS_ENABLED */
-
-#ifdef BLE_CPC_ENABLED
-    {"ble_cpc_init",                ble_cycling_power_ctrl_test_init},
-    {"ble_cpc_dsicover",            ble_cycling_power_ctrl_discover_test},
-#endif /* BLE_CPC_ENABLED */
-
-#ifdef BLE_UDP_ENABLE
-    {"ble_uds_init",                 ble_udp_test_init},
-#endif /* BLE_UDP_ENABLE */
-
-#ifdef BLE_FTMS_ENABLED
-    {"ble_ftms_init",                ble_ftms_test_init},
-#endif /* BLE_FTMS_ENABLED */
-
-#ifdef BLE_FTMC_ENABLED
-    {"ble_ftmc_init",                ble_ftmc_test_init},
-    {"ble_ftmc_dsicover",            ble_ftmc_discover_test},
-#endif /* BLE_FTMC_ENABLED */
-
-#ifdef BLE_HRPS_ENABLED
-    {"ble_hrps_init",               ble_hrps_test_init},
-    {"ble_hrps_send_meas",          ble_hrps_send_meas},
-#endif
-
-#ifdef BLE_HRPC_ENABLED
-    {"ble_hrpc_init",               ble_hrpc_test_init},
-    {"ble_hrpc_dsicover",           ble_hrpc_discover_test},
-#endif
-
-#ifdef BLE_CSCPS_ENABLED
-    {"ble_cscps_init",              ble_cscps_test_init},
-#endif
-
-#ifdef BLE_CSCPC_ENABLED
-    {"ble_cscpc_init",              ble_cscpc_test_init},
-    {"ble_cscpc_dsicover",          ble_cscpc_discover_test},
-#endif
-
-#ifdef BLE_HID_ENABLE
-    {"ble_hid_control",             ble_hid_control_test},
-#endif
 };
 
 static const app_ble_test_with_param_handler_t g_app_ble_test_cmd_with_param_table[] =
@@ -7562,21 +4160,16 @@ static const app_ble_test_with_param_handler_t g_app_ble_test_cmd_with_param_tab
     {"set_peer_le_addr",            app_test_set_le_address},                   // [BLE,set_peer_le_addr|Type_BdAddrLsb2Msb]
     {"set_peer_bt_addr",            app_test_set_bt_address},                   // [BLE,set_peer_bt_addr|BdAddrLsb2Msb]
     {"ble_set_rpa_timeout",         ble_test_resolving_list_set_rpa_timeout},   // [BLE,ble_set_rpa_timeout|0020]
-    {"ble_del_nv_record",           app_test_del_nv_record},                    // [BLE,ble_del_nv_record|BdAddrLsb2Msb]
     {"ble_resl_del_by_index",       ble_test_resolving_list_remove_by_index},   // [BLE,ble_resl_del_by_index|00]
     {"ble_resl_del_by_addr",        ble_test_resolving_list_remove_by_address}, // [BLE,ble_resl_del_by_addr|Type_BdAddrLsb2Msb]
     {"ble_resl_add",                ble_test_resolving_list_add},               // [BLE,ble_resl_add|Type_BdAddrLsb2Msb_DeviceMode]
-    {"ble_resl_nv_add",             ble_test_nv_resolving_list_add},            // [BLE,ble_resl_nv_add|BdAddr]
     {"ble_enable_addr_reso",        ble_test_ble_enable_addr_reso},             // [BLE,ble_enable_addr_reso|01]
     {"ble_filter_del_by_index",     ble_test_filter_list_remove_by_index},      // [BLE,ble_filter_del_by_index|00]
     {"ble_filter_del_by_addr",      ble_test_filter_list_remove_by_address},    // [BLE,ble_filter_del_by_addr|Type_BdAddrLsb2Msb]
     {"ble_filter_add",              ble_test_filter_list_add},                  // [BLE,ble_filter_add|Type_BdAddrLsb2Msb]
-    {"ble_monitored_del_by_addr",   ble_test_monitored_list_remove_by_address}, // [BLE,ble_monitored_del_by_addr|Type_BdAddrLsb2Msb]
-    {"ble_monitored_add",           ble_test_monitored_list_add},               // [BLE,ble_monitored_add|Type_BdAddrLsb2Msb]
-    {"ble_monitored_enbale",        ble_test_monitored_advertisers_enable},     // [BLE,ble_monitored_add|Enable]
     {"ble_disc_conidx",             ble_test_disc_conidx},                      // [BLE,ble_disc_conidx|00]
     {"ble_set_l2cap_test",          app_ble_set_l2cap_test},                    // [BLE,ble_set_l2cap_test|01]
-    {"ble_read_adv_rpa_addr",       ble_test_read_rpa_addr_by_adv_hdl},         // [BLE,ble_read_adv_rpa_addr|00]
+    {"ble_min_conn_interval",       ble_test_set_min_conn_interval},            // [BLE,ble_min_conn_interval|0A]
 #ifndef BLE_ONLY_ENABLED
     {"bt_start_inq",                bt_test_start_inquiry},                     // [BLE,bt_start_inq|00]
     {"bt_start_scan",               bt_test_start_scan},                        // [BLE,bt_start_scan|13]
@@ -7590,24 +4183,21 @@ static const app_ble_test_with_param_handler_t g_app_ble_test_cmd_with_param_tab
     // adv data:1B0201040503001801180D095054532D4741502D303642380319000000
     // [AOB,ble_start_advertising|00000000000000000000] legacy non-discoverale adv
     // [AOB,ble_start_advertising|000000000000001B0201040503001801180D095054532D4741502D30364238031900000000] legacy non-disc with adv data
-    // [AOB,ble_start_advertising|000100000000001B0201020503001801180D095054532D4741502D3036423803190000000001A1A2A3A4A536] legacy adv with non-rpa
+    // [AOB,ble_start_advertising|000100000000001B0201040503001801180D095054532D4741502D3036423803190000000001A1A2A3A4A536] legacy adv with non-rpa
     // [AOB,ble_start_advertising|000001010100001B0201040503001801180D095054532D4741502D30364238031900000000] legacy direct adv
     {"ble_start_advertising",       ble_test_start_advertising},        // Extended_OwnAddrType_Conn_Scan_Direct_HasPeerAddr_PeerType_PeerAddr_Filter_AdvLen_AdvData_RspLen_RspData_HasCustomAddr_LocalAddr
     {"ble_set_adv_data",            ble_test_set_adv_data},             // AdvHandle_AdvData00RspData01_DataLen_Data
-    {"ble_set_decision_data",       ble_test_set_decision_data},        // AdvHandle_RtagPresent_DataLen_Data
-    {"ble_set_ad_type_adv",         ble_test_legacy_ad_type_adv},
 #if BLE_GAP_CENTRAL_ROLE
     {"ble_start_scanning",          ble_test_scanning},                 // OwnAddrType_ActiveScan_Filter_ContinueScan
     {"ble_start_initiating",        ble_test_initiating},               // OwnAddrType_Direct_HasPeerAddr_PeerType_PeerAddr
     {"ble_update_conn_param",       ble_test_update_conn_parameters},   // Conidx_MinInterval_MaxInterval_MaxLatency_SupervTimeout
-    {"ble_set_phy",                 ble_test_set_phy},                  // Conidx_Phy_Opt
-    {"ble_set_frame_space",         ble_test_set_frame_space},          // Conidx_Frame_sapce_min_Frame_sapce_max_Phy_bits_Spacing_types_bits
 #endif
+#if BLE_PA_SUPPORT
     {"ble_start_pa",                ble_test_start_pa},                 // Enable_OwnAddrType_PAWR_PaDataLen_PaData
     {"ble_create_big_sync",         ble_test_create_big_sync},          // [BLE,ble_create_big_sync|00] CancelSync
+#endif
 
     // smp
-    {"smp_test_host_enc",           smp_test_encrypt_by_host},          // [BLE,smp_test_host_enc|0 or 1]
     {"smp_test_e",                  smp_test_encrypt_data},             // [BLE,smp_test_e|Key_Plain]
     {"smp_test_xor",                smp_test_xor},                      // [BLE,smp_test_xor|Ka_Kb]
     {"smp_test_shift",              smp_test_shift},                    // [BLE,smp_test_shift|K]
@@ -7623,7 +4213,6 @@ static const app_ble_test_with_param_handler_t g_app_ble_test_cmd_with_param_tab
     {"smp_input_tk",                smp_test_input_oob_legacy_tk},      // [BLE,smp_input_tk|tk]
     {"smp_input_passkey",           smp_test_input_6_digit_passkey},    // [BLE,smp_input_passkey|6-digit-passkey]
     {"smp_start_auth",              smp_test_start_authentication},     // [BLE,smp_start_auth|00]
-    {"smp_start_security",          smp_test_start_security},           // [BLE,smp_start_security|00]
     {"smp_set_key_size",            smp_test_set_key_size},             // [BLE,smp_set_key_size|01001000] Default_Conidx_KeyLen_MITM
     {"smp_dont_auto_start_auth",    smp_test_dont_auto_start_auth},     // [BLE,smp_dont_auto_start_auth|01]
 
@@ -7633,10 +4222,7 @@ static const app_ble_test_with_param_handler_t g_app_ble_test_cmd_with_param_tab
     {"gattc_crate_eatt",            gattc_test_create_eatt},            // [BLE,gattc_crate_eatt|00]
     {"gattc_disconnect_eatt",       gattc_test_disconnect_eatt},        // [BLE,gattc_disconnect_eatt|00]
     {"gattc_disc_all_services",     gattc_test_discover_all_services},  // [BLE,gattc_disc_all_services|00]
-    {"gattc_disc_service_by_uuid",  gattc_test_discover_service_by_uuid},//[BLE,gattc_disc_service_by_uuid|002700]
     {"gattc_disc_char_by_uuid",     gattc_test_discover_char_by_uuid},  // [BLE,gattc_disc_char_by_uuid|00A001] Conidx_CharUuid_Char128Uuid
-    {"gattc_disc_desc_by_handle",   gattc_test_discover_desc_by_handle},// [BLE,gattc_disc_desc_by_handle|0000070008] Conidx_CharValueHandle_Endhandle
-    {"gattc_read_char_by_uuid",     gattc_test_read_char_by_uuid},      // [BLE,gattc_read_char_by_uuid|002700]
     {"gattc_clear_cache",           gattc_test_clear_cache},            // [BLE,gattc_clear_cache|00]
     {"gattc_signed_write",          gattc_test_signed_write},           // [BLE,gattc_signed_write|00000702AABB] Conidx_AttrHandle_Len_Data
     {"gattc_read_req",              gattc_test_read_request},           // [BLE,gattc_read_req|0000070000] Conidx_AttrHandle_Char00Desc01_EATT
@@ -7644,25 +4230,13 @@ static const app_ble_test_with_param_handler_t g_app_ble_test_cmd_with_param_tab
     {"gattc_write_req",             gattc_test_write_request},          // [BLE,gattc_write_req|000007000001AA] Conidx_AttrHandle_Char00Desc01_WriteCmd_DataLen_Data
     {"gattc_prep_write",            gattc_test_prepare_write},          // [BLE,gattc_prep_write|000007000001AA] Conidx_AttrHandle_Prepare00Execute01_CancelOrOffset_DataLen_Data
     {"gattc_send_data",             gattc_test_send_data},              // [BLE,gattc_send_data|000140] Conidx_Eatt_DataLen_Data
-    {"gattc_restore_cache",         gattc_test_restore_cache},          // [BLE,gattc_restore_cache|00] Conidx
 #endif
 
 #if (BLE_AUDIO_ENABLED)
     {"config_aud_cfg",              ble_audio_set_audio_configuration_test},
     {"uc_srv_ase_op",               bap_test_start_uc_srv_ase_operation},
 
-    {"vap_vac_start",               vap_test_vac_discovery},
-    {"vap_vac_control",             vap_test_vac_control},
-
-    {"uc_srv_set_presdelay",        bap_test_gaf_set_presdelay_test},
-
-    {"pacs_set_loc",                pacs_test_set_location},
-
     {"aob_connect_devices",         bap_test_start_direct_connection},
-    {"aob_rpa_connect",             bap_test_start_connection_use_rpa},
-
-    {"aics_set",                    aicp_test_set_aics},
-    {"aice_desc_set",               aicp_test_set_aics_desc},
 
     {"vocs_set_audio_location",     vocs_test_set_vocs_location},
     {"vocs_set_output_desc",        vocs_test_set_vocs_description},
@@ -7674,29 +4248,9 @@ static const app_ble_test_with_param_handler_t g_app_ble_test_cmd_with_param_tab
     {"mcp_mcc_set_obj_id",          mcp_test_mcc_set_obj_id},
     {"mcp_mcc_search",              mcp_test_mcc_search_item},
 
-#if BLE_AUDIO_ENABLED
-    {"ccp_tbc_action",              ccp_test_tbc_call_action},
-    {"ccp_tbc_outgoing",            ccp_test_tbc_call_originate},
-#endif
-#ifdef AOB_MOBILE_ENABLED
-    {"ccp_tbs_accept",              ccp_test_tbs_call_accept},
-    {"ccp_tbs_terminal",            ccp_test_tbs_call_terminal},
-    {"ccp_tbs_incoming",            ccp_test_tbs_call_incoming},
-    {"ccp_tbs_alert",               ccp_test_tbs_call_remote_alert},
-    {"ccp_tbs_answer",              ccp_test_tbs_call_remote_answer},
-#endif
-    {"vcs_vol_conifg",              app_vcs_vol_conifg},
-
-    {"pacs_update_ava",             pacs_test_set_local_ava_audio_context},
-
 #ifdef APP_BLE_BIS_DELEG_ENABLE
     {"bc_deleg_add_src",            bap_test_start_deleg_add_source},
 #endif /// APP_BLE_BIS_DELEG_ENABLE
-
-#if (BLE_SHP_SERVER_SUPPORT)
-    {"shp_amt_case_add",            shp_amt_case_add_test},
-    {"shp_amt_case_del",            shp_amt_case_delete_test},
-#endif /* BLE_SHP_SERVER_SUPPORT */
 
 #ifdef AOB_MOBILE_ENABLED
     {"bc_assist_add_src",           bap_test_start_assist_add_source},
@@ -7707,19 +4261,12 @@ static const app_ble_test_with_param_handler_t g_app_ble_test_cmd_with_param_tab
     {"uc_cli_cfg_codec",            bap_test_start_uc_cli_cfg_codec},
     {"uc_cli_cfg_qos",              bap_test_start_uc_cli_cfg_qos},
     {"uc_cli_enable",               bap_test_start_uc_cli_enable},
-    {"uc_cli_en_with_vend",         bap_test_uc_cli_enable_with_vendor},
     {"uc_cli_disable",              bap_test_start_uc_cli_disable},
     {"uc_cli_release",              bap_test_start_uc_cli_release},
     {"uc_cli_upd_md",               bap_test_start_uc_cli_upd_md},
     // Use ase stm manage
     {"uc_cli_uni_stream",           bap_test_start_unidirectionla_stream},
     {"uc_cli_bi_stream",            bap_test_start_bidirectionla_stream},
-
-#if (IPU_LE_SUPPORT)
-    // Update cig param
-    {"uc_cli_update_cig",           bap_test_start_udpate_cis_stream},
-    {"uc_cli_add_upd_cfg",          bap_test_add_cig_update_cfg},
-#endif /* IPU_LE_SUPPORT */
 
 #ifdef APP_BLE_BIS_SRC_ENABLE
     {"bc_src_start_grp",            bap_test_start_bis_src_grp},
@@ -7728,8 +4275,6 @@ static const app_ble_test_with_param_handler_t g_app_ble_test_cmd_with_param_tab
 
     {"vcc_set_abs_vol",             vcp_test_set_absolute_volume},
     {"vcc_set_vol_mute",            vcp_test_set_volume_mute},
-    {"vcc_set_rel_vol",             vcp_test_set_relative_volume},
-    {"vcc_set_umute_vol",           vcp_test_set_relative_volume_unmute},
     // Include service: VOCS
     {"vcc_set_vol_offset",          vcp_test_set_volume_offset},
 
@@ -7746,31 +4291,46 @@ static const app_ble_test_with_param_handler_t g_app_ble_test_cmd_with_param_tab
     {"mcp_set_track_info",          mcp_mcs_set_curr_track_info},
     {"mcp_media_action",            mcp_mcs_media_action},
 
-    // VAP
-    {"vap_session_update",          vap_va_session_update_test},
-
 #endif /// AOB_MOBILE_ENABLED
 #endif /// BLE_AUDIO_ENABLED
 
-#if (BLE_GAP_CS_SUPPORT)
-    // LE-CS
-    {"cs_app_init",                     cs_test_app_init},
-    {"cs_read_local_capas",             cs_test_read_local_capas},
-    {"cs_read_remote_capas",            cs_test_read_remote_capas},
-    {"cs_cache_remote_capas",           cs_test_cache_remote_capas},
-    {"cs_security_enable",              cs_test_security_enable},
-    {"cs_set_default_settings",         cs_test_set_default_settings},
-    {"cs_read_remote_fae_table",        cs_test_read_remote_fae_table},
-    {"cs_cache_remote_fae_table",       cs_test_cache_remote_fae_table},
-    {"cs_create_config",                cs_test_create_config},
-    {"cs_remove_config",                cs_test_remove_config},
-    {"cs_set_channel_classification",   cs_test_set_channel_classification},
-    {"cs_set_proc_params",              cs_test_set_proc_params},
-    {"cs_proc_enable",                  cs_test_proc_enable},
-    {"cs_test_start",                   cs_test_test_start},
-    {"cs_test_end",                     cs_test_test_end},
-    // TODO test LE-CS
-#endif /// BLE_GAP_CS_SUPPORT
+#if 0
+    {"mobile_connect",              ble_audio_mobile_connect_test}, // [AOB,mobile_connect|214 204 251 165 185 226]
+    {"mobile_disconnect",           ble_audio_mobile_disconnect_test},
+    {"config_peer_addr",            ble_audio_test_config_peer_ble_addr},
+    {"config_bis_src_addr",         ble_audio_test_config_bis_src_ble_addr},
+    {"update_ble_addr",             ble_audio_test_update_ble_addr},
+    {"config_aud_cfg",              ble_audio_set_audio_configuration_test},
+#ifdef APP_BLE_BIS_SRC_ENABLE
+    {"config_bis_code",             ble_audio_test_config_bis_code},
+    {"config_bis_id",               ble_audio_test_config_bis_id},
+#endif
+#ifdef AOB_MOBILE_ENABLED
+    {"update_timing",               ble_audio_update_timing_test_handler}, // [AOB,aob_connect_devices|11222333336600|9AED365D25D401...]
+    {"aob_connect_devices",         ble_audio_mobile_connect_any_devices},
+    {"aob_set_cis_num_in_cig",      ble_audio_mobile_set_cis_num_in_cig}, // [AOB,start_ble_pairing|0] to start pairing on the connection with index 0 the index can be updated accordingly
+    {"start_ble_pairing",           ble_audio_test_start_pairing},
+    {"audio_sharing_config_master_addr", ble_audio_test_audio_sharing_config_master_addr},
+#endif
+#if defined(APP_BLE_BIS_ASSIST_ENABLE) || defined(APP_BLE_BIS_DELEG_ENABLE) || defined(APP_BLE_BIS_SINK_ENABLE)
+    {"bc_set_bcast_id",             aob_bc_scan_set_bcast_id},
+    {"bc_set_bcast_code",           aob_bc_scan_set_bcast_code},
+    {"bc_scan_channel_start",       aob_bc_scan_param_start_handler},
+#endif
+#ifdef AOB_UC_TEST
+    {"aob_uc_test_set_param",       aob_mobile_uc_set_test_case_param_handler},
+#endif
+#if (BLE_APP_SEC)
+    {"config_encrypt",              ble_audio_test_config_encrypt_request},
+    {"ble_slave_initiate_secure_connection", ble_audio_test_slave_initiate_secure_connection},
+#endif
+    {"uc_srv_set_presdelay_test",   aob_uc_srv_set_presdelay_test},
+#ifdef IS_BLE_AUDIO_PTS_TEST_ENABLED
+    {"csisc_notify_lock",           aob_csisc_notify_lock_test},
+    {"atc_csisc_set_mem_lock",      _mobile_csisc_set_mem_lock},
+    {"tbs_call_action_test",        _mobile_pts_test_call_action},
+#endif
+#endif
 };
 
 static app_ble_test_cmd_with_param_handler_t app_ble_test_cmd_with_param_get_handler(char* buf)
@@ -7781,7 +4341,7 @@ static app_ble_test_cmd_with_param_handler_t app_ble_test_cmd_with_param_get_han
         if (strncmp((char*)buf, g_app_ble_test_cmd_with_param_table[i].string, strlen((char*)buf))==0 ||
             strstr(g_app_ble_test_cmd_with_param_table[i].string, (char*)buf))
         {
-            DEBUG_INFO(1, "ble cmd:%s", g_app_ble_test_cmd_with_param_table[i].string);
+            TRACE(1, "ble cmd:%s", g_app_ble_test_cmd_with_param_table[i].string);
             p = g_app_ble_test_cmd_with_param_table[i].function;
             break;
         }
@@ -7801,7 +4361,7 @@ static int app_ble_test_cmd_with_param_handler(char* cmd, uint32_t cmdLen, char*
     else
     {
         ret = -1;
-        DEBUG_INFO(0,"can not find handle function");
+        TRACE(0,"can not find handle function");
     }
     return ret;
 }
@@ -7814,7 +4374,7 @@ static app_ble_test_cmd_handler_t app_ble_test_cmd_get_handler(unsigned char* bu
         if (strncmp((char*)buf, g_app_ble_test_cmd_table[i].string, strlen((char*)buf))==0 ||
             strstr(g_app_ble_test_cmd_table[i].string, (char*)buf))
         {
-            DEBUG_INFO(1, "ble cmd:%s", g_app_ble_test_cmd_table[i].string);
+            TRACE(1, "ble cmd:%s", g_app_ble_test_cmd_table[i].string);
             p = g_app_ble_test_cmd_table[i].function;
             break;
         }
@@ -7835,7 +4395,7 @@ static int app_ble_test_cmd_handler(unsigned char *buf, unsigned int length)
     else
     {
         ret = -1;
-        DEBUG_INFO(0,"can not find handle function");
+        TRACE(0,"can not find handle function");
     }
     return ret;
 }
@@ -7868,31 +4428,12 @@ static unsigned int app_ble_test_cmd_callback(unsigned char *cmd, unsigned int c
 
 #endif /* APP_TRACE_RX_ENABLE */
 
-extern void app_cis_iso_test_cmd_init(void);
-
 void app_ble_test_cmd_init(void)
 {
 #ifdef APP_TRACE_RX_ENABLE
-    DEBUG_INFO(0,"app_ble_test_cmd_init");
+    TRACE(0,"app_ble_test_cmd_init");
     app_trace_rx_register("BLE", app_ble_test_cmd_callback);
     app_trace_rx_register("AOB", app_ble_test_cmd_callback);
-#else
-    DEBUG_INFO(0, "bt ble host cmd init not open APP_TRACE_RX_ENABLE");
-#endif
-
-#ifdef BLE_ISO_ENABLED
-    app_cis_iso_test_cmd_init();
-#endif
-}
-
-void app_ble_test_cmd_deinit(void)
-{
-#ifdef APP_TRACE_RX_ENABLE
-    DEBUG_INFO(0,"app_ble_test_cmd_init");
-    app_trace_rx_deregister("BLE");
-    app_trace_rx_deregister("AOB");
-#else
-    DEBUG_INFO(0, "bt ble host cmd init not open APP_TRACE_RX_ENABLE");
 #endif
 }
 

@@ -212,6 +212,15 @@ bool app_is_in_tota_mode(void);
 void app_tota_update_datapath(APP_TOTA_TRANSMISSION_PATH_E dataPath);
 APP_TOTA_TRANSMISSION_PATH_E app_tota_get_datapath(void);
 
+int8_t app_battery_current_level(void);
+
+bool app_meridian_eq(bool onoff);
+bool app_is_meridian_on(void);
+
+#ifdef BLE_TOTA_ENABLED
+uint8_t tota_ble_get_conidx(void);
+#endif
+
 #ifdef __cplusplus
 }
 #endif

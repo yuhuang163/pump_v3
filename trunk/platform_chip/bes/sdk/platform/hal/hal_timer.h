@@ -26,7 +26,9 @@ extern "C" {
 //=============================================================================
 // Slow Timer (Default Timer)
 
-#ifdef FPGA
+#ifdef CONFIG_SYSTICK_HZ_NOMINAL
+#define SLOW_TIMER_USE_EXT_XTAL
+#elif defined(FPGA)
 #define CONFIG_SYSTICK_HZ_NOMINAL   (32000)
 #else
 #define CONFIG_SYSTICK_HZ_NOMINAL   (16000)
@@ -36,11 +38,11 @@ extern "C" {
 //#error "Bad CONFIG_SYSTICK_HZ_NOMINAL configuration"
 //#endif
 
-#define __SLIM_MS_TO_TICKS(ms)      ((ms) * ((uint32_t)CONFIG_SYSTICK_HZ / 1000))
+#define __SLIM_MS_TO_TICKS(ms)      ((ms) * ((uint32_t)CONFIG_SYSTICK_HZ_NOMINAL / 1000))
 
-#define __SLIM_TICKS_TO_MS(tick)    ((tick) / ((uint32_t)CONFIG_SYSTICK_HZ / 1000))
+#define __SLIM_TICKS_TO_MS(tick)    ((tick) / ((uint32_t)CONFIG_SYSTICK_HZ_NOMINAL / 1000))
 
-#ifdef CALIB_SLOW_TIMER
+#if defined(CALIB_SLOW_TIMER) && !defined(SLOW_TIMER_USE_EXT_XTAL)
 
 #define CONFIG_SYSTICK_HZ           hal_sys_timer_systick_hz()
 
@@ -53,6 +55,10 @@ extern "C" {
 #define __TICKS_TO_MS(tick)         hal_sys_timer_ticks_to_ms(tick)
 
 #define __TICKS_TO_US(tick)         hal_sys_timer_ticks_to_us(tick)
+
+#define __TICKS_TO_MS64(tick)       hal_sys_timer_ticks_to_ms64(tick)
+
+#define __TICKS_TO_US64(tick)       hal_sys_timer_ticks_to_us64(tick)
 
 #else
 
@@ -67,6 +73,10 @@ extern "C" {
 #define __TICKS_TO_MS(tick)         __SLIM_TICKS_TO_MS(tick)
 
 #define __TICKS_TO_US(tick)         ((tick) * 1000 / ((uint32_t)CONFIG_SYSTICK_HZ / 1000))
+
+#define __TICKS_TO_MS64(tick)       (uint64_t)__SLIM_TICKS_TO_MS(tick)
+
+#define __TICKS_TO_US64(tick)       ((uint64_t)((tick) * 1000 / ((uint32_t)CONFIG_SYSTICK_HZ / 1000)))
 
 #endif
 
@@ -91,6 +101,10 @@ extern "C" {
 
 #define TICKS_TO_US(tick)           __TICKS_TO_US(tick)
 
+#define TICKS_TO_MS64(tick)         __TICKS_TO_MS64(tick)
+
+#define TICKS_TO_US64(tick)         __TICKS_TO_US64(tick)
+
 #define MS_TO_HWTICKS(ms)           __MS_TO_TICKS(ms)
 
 #define US_TO_HWTICKS(us)           __US_TO_TICKS(us)
@@ -114,11 +128,21 @@ enum HAL_TIMER_TYPE_T {
 
 typedef void (*HAL_TIMER_IRQ_HANDLER_T)(uint32_t elapsed);
 
+uint8_t hal_sys_timer_opened(void);
+
+void hal_sys_timer_set_opened(uint8_t en);
+
 void hal_sys_timer_open(void);
 
 void hal_sys_timer_wakeup(void);
 
 uint32_t hal_sys_timer_get(void);
+
+uint64_t hal_sys_timer64_get(void);
+
+uint64_t hal_sys_ms64_get_safe(void);
+
+uint64_t hal_sys_us64_get_safe(void);
 
 uint32_t hal_aco_timer_get(void);
 
@@ -158,6 +182,10 @@ uint32_t hal_sys_timer_ticks_to_ms(uint32_t tick);
 
 uint32_t hal_sys_timer_ticks_to_us(uint32_t tick);
 
+uint64_t hal_sys_timer_ticks_to_ms64(uint32_t tick);
+
+uint64_t hal_sys_timer_ticks_to_us64(uint32_t tick);
+
 //=============================================================================
 // Fast Timer
 
@@ -165,21 +193,90 @@ uint32_t hal_sys_timer_ticks_to_us(uint32_t tick);
 
 #define MS_TO_FAST_TICKS(ms)        ((uint32_t)(ms) * (CONFIG_FAST_SYSTICK_HZ / 1000))
 
+#define FAST_TICKS_TO_MS(tick)      ((uint32_t)(tick) / (CONFIG_FAST_SYSTICK_HZ / 1000))
+
+#if defined(HAL_CMU_VALID_CRYSTAL_FREQ) || \
+        defined(CMU_FAST_TIMER_WITH_LOW_SYS_FREQ) || \
+        (HAL_CMU_DEFAULT_CRYSTAL_FREQ % (4 * 1000 * 1000))
 #define US_TO_FAST_TICKS(us)        ((uint32_t)(us) * (CONFIG_FAST_SYSTICK_HZ / 1000 / 100) / 10)
 
 #define NS_TO_FAST_TICKS(ns)        ((uint32_t)(ns) * (CONFIG_FAST_SYSTICK_HZ / 1000 / 100) / 10 / 1000)
-
-#define FAST_TICKS_TO_MS(tick)      ((uint32_t)(tick) / (CONFIG_FAST_SYSTICK_HZ / 1000))
 
 #define FAST_TICKS_TO_US(tick)      ((uint32_t)(tick) * 10 / (CONFIG_FAST_SYSTICK_HZ / 1000 / 100))
 
 #define FAST_TICKS_TO_NS(tick)      ((uint32_t)(tick) * 10 * 1000 / (CONFIG_FAST_SYSTICK_HZ / 1000 / 100))
 
+#define US_TO_FAST_TICKS64(us)      (((uint64_t)(us) * (CONFIG_FAST_SYSTICK_HZ / 1000 / 100) / 10))
+
+#define FAST_TICKS_TO_MS64(tick)    ((uint64_t)(tick) / (CONFIG_FAST_SYSTICK_HZ / 1000))
+
+#define NS_TO_FAST_TICKS64(ns)      (((uint64_t)(ns) * (CONFIG_FAST_SYSTICK_HZ / 1000 / 100) / 10 / 1000))
+
+#define FAST_TICKS_TO_US64(tick)    (((uint64_t)(tick) * 10 / (CONFIG_FAST_SYSTICK_HZ / 1000 / 100)))
+
+#define FAST_TICKS_TO_NS64(tick)    (((uint64_t)(tick) * 10 * 1000 / (CONFIG_FAST_SYSTICK_HZ / 1000 / 100)))
+
+// 26M / 4 / 1000 / 100 = 65
+#define US_TO_FAST_TICKS_SAFE(us)   (((us) > UINT32_MAX / 65) ? US_TO_FAST_TICKS64(us) : US_TO_FAST_TICKS(us))
+
+#define NS_TO_FAST_TICKS_SAFE(ns)   (((ns) > UINT32_MAX / 65) ? NS_TO_FAST_TICKS64(ns) : NS_TO_FAST_TICKS(ns))
+
+#define FAST_TICKS_TO_US_SAFE(tick) (((tick) > UINT32_MAX / 10) ? FAST_TICKS_TO_US64(tick) : FAST_TICKS_TO_US(tick))
+
+#define FAST_TICKS_TO_NS_SAFE(tick) (((tick) > UINT32_MAX / (10 * 1000)) ? FAST_TICKS_TO_NS64(tick) : FAST_TICKS_TO_NS(tick))
+
+#else // 24M crystal only
+#define US_TO_FAST_TICKS(us)        ((uint32_t)(us) * (CONFIG_FAST_SYSTICK_HZ / 1000 / 1000))
+
+#define NS_TO_FAST_TICKS(ns)        ((uint32_t)(ns) * (CONFIG_FAST_SYSTICK_HZ / 1000 / 1000) / 1000)
+
+#define FAST_TICKS_TO_US(tick)      ((uint32_t)(tick) / (CONFIG_FAST_SYSTICK_HZ / 1000 / 1000))
+
+#define FAST_TICKS_TO_NS(tick)      ((uint32_t)(tick) * 1000 / (CONFIG_FAST_SYSTICK_HZ / 1000 / 1000))
+
+#define US_TO_FAST_TICKS64(us)      ((uint32_t)((uint64_t)(us) * (CONFIG_FAST_SYSTICK_HZ / 1000 / 1000))
+
+#define NS_TO_FAST_TICKS64(ns)      ((uint32_t)((uint64_t)(ns) * (CONFIG_FAST_SYSTICK_HZ / 1000 / 1000) / 1000))
+
+#define FAST_TICKS_TO_US64(tick)    FAST_TICKS_TO_US(tick)
+
+#define FAST_TICKS_TO_NS64(tick)    ((uint32_t)((uint64_t)(tick) * 1000 / (CONFIG_FAST_SYSTICK_HZ / 1000 / 1000)))
+
+// 24M / 4 / 1000 / 1000 = 6
+#define US_TO_FAST_TICKS_SAFE(us)   (((us) > UINT32_MAX / 6) ? US_TO_FAST_TICKS64(us) : US_TO_FAST_TICKS(us))
+
+#define NS_TO_FAST_TICKS_SAFE(ns)   (((ns) > UINT32_MAX / 6) ? NS_TO_FAST_TICKS64(ns) : NS_TO_FAST_TICKS(ns))
+
+#define FAST_TICKS_TO_US_SAFE(tick) FAST_TICKS_TO_US(tick)
+
+#define FAST_TICKS_TO_NS_SAFE(tick) (((tick) > UINT32_MAX / 1000) ? FAST_TICKS_TO_NS64(tick) : FAST_TICKS_TO_NS(tick))
+
+#endif // 24M crystal only
+
+enum FAST_TIMER_WAKEUP_IDX {
+    FAST_TIMER_TICK = 0,
+    FAST_TIMER_MS,
+    FAST_TIMER_US,
+    FAST_WAKEUP_QTY,
+};
+
 uint32_t hal_fast_sys_timer_get(void);
 
-void hal_fast_timer_sleep();
+uint64_t hal_fast_sys_timer64_get(void);
 
-void hal_fast_timer_wakeup();
+void hal_fast_sys_timer_flag_set(bool enable);
+
+uint64_t hal_fast_sys_ms64_get_safe(void);
+
+uint64_t hal_fast_sys_us64_get_safe(void);
+
+void hal_fast_sys_timer_set(uint32_t val);
+
+void hal_fast_sys_timer64_set(uint64_t val);
+
+void hal_fast_timer_sleep(void);
+
+void hal_fast_timer_wakeup(void);
 
 //=============================================================================
 // Non-OS compatibility

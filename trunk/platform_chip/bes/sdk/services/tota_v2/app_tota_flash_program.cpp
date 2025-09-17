@@ -21,15 +21,14 @@
 #include "pmu.h"
 #include "string.h"
 #include "cmsis.h"
-#include "crc_c.h"
+#include "crc32_c.h"
 #include "cmsis_os.h"
 #include "app_tota_flash_program.h"
 
 #define TOTA_CACHE_2_UNCACHE(addr)      ((unsigned int *)((unsigned int)(addr) & ~(0x04000000)))
 
-#if (TOTA_FLASH_SECTOR_BUF_USED)
+
 static uint8_t sector_buffer[FLASH_SECTOR_SIZE_IN_BYTES];
-#endif
 static uint32_t sector_size = FLASH_SECTOR_SIZE_IN_BYTES;
 
 /*
@@ -45,11 +44,10 @@ static void _tota_flash_cmd_handle(APP_TOTA_CMD_CODE_E funcCode, uint8_t* ptrPar
 **  write flash success -> return true
 **  write flash failed  -> return false
 */
-static void _write_flash(uint32_t startAddr, uint8_t * dataBuf, uint32_t dataLen, uint32_t crc);
+static bool _write_flash_with_crc_check(uint32_t startAddr, uint8_t * dataBuf, uint32_t dataLen, uint32_t crc);
 
-#if (TOTA_FLASH_SECTOR_BUF_USED)
+
 static TOTA_FLASH_DATA_T * _read_flash_by_address(uint32_t flashAddr, uint16_t length);
-#endif
 
 /*
 **  just use this function to erase flash with proper address and length
@@ -61,10 +59,10 @@ static void _erase_flash(uint32_t startAddr, uint32_t dataLen);
 /* for debug and test */
 void tota_show_flash_test(uint32_t startAddr, uint32_t len)
 {
-    POSSIBLY_UNUSED uint8_t * pbuf = (uint8_t*)startAddr;
+    uint8_t * pbuf = (uint8_t*)startAddr;
     for ( uint32_t i = 0; i < len; i ++ )
     {
-       TOTA_V2_TRACE(3, "%d: [0x%2x] || [%c]", i, pbuf[i], (char)pbuf[i]);
+       TOTA_LOG_DBG(3, "%d: [0x%2x] || [%c]", i, pbuf[i], (char)pbuf[i]);
     }
 }
 
@@ -74,10 +72,10 @@ void tota_write_flash_test(uint32_t startAddr, uint8_t * dataBuf, uint32_t dataL
     uint32_t lock;
     uint32_t s1, s2, s3, s4;
     hal_norflash_get_size(HAL_FLASH_ID_0, &s1, &s2, &s3, &s4);
-    TOTA_V2_TRACE(0, "get norflash size:");
-    TOTA_V2_TRACE(4,"-- %x %x %x %x --", s1, s2, s3, s4);
-    TOTA_V2_TRACE(2,"flush %d bytes to flash addr 0x%x", dataLen, startAddr);
-    TOTA_V2_TRACE(1,"data: %s", (char *)dataBuf);
+    TOTA_LOG_DBG(0, "get norflash size:");
+    TOTA_LOG_DBG(4,"-- %x %x %x %x --", s1, s2, s3, s4);
+    TOTA_LOG_DBG(2,"flush %d bytes to flash addr 0x%x", dataLen, startAddr);
+    TOTA_LOG_DBG(1,"data: %s", (char *)dataBuf);
 
     lock=int_lock_global();
     pmu_flash_write_config();
@@ -86,16 +84,16 @@ void tota_write_flash_test(uint32_t startAddr, uint8_t * dataBuf, uint32_t dataL
     pmu_flash_read_config();
     int_unlock_global(lock);
 
-    POSSIBLY_UNUSED uint8_t * pbuf = (uint8_t*)startAddr;
+    uint8_t * pbuf = (uint8_t*)startAddr;
     for ( uint32_t i = 0; i < dataLen; i ++ )
     {
-       TOTA_V2_TRACE(3, "%d: [0x%2x] || [0x%2x]", i, pbuf[i], dataBuf[i]);
+       TOTA_LOG_DBG(3, "%d: [0x%2x] || [0x%2x]", i, pbuf[i], dataBuf[i]);
     }
 }
 
 static void _tota_flash_cmd_handle(APP_TOTA_CMD_CODE_E funcCode, uint8_t* ptrParam, uint32_t paramLen)
 {
-    TOTA_V2_TRACE(3,"[%s]: opCode:0x%x, paramLen:%d", __func__, funcCode, paramLen);
+    TOTA_LOG_DBG(3,"[%s]: opCode:0x%x, paramLen:%d", __func__, funcCode, paramLen);
 
     APP_TOTA_CMD_RET_STATUS_E rsp_status = TOTA_NO_ERROR;
 
@@ -106,52 +104,49 @@ static void _tota_flash_cmd_handle(APP_TOTA_CMD_CODE_E funcCode, uint8_t* ptrPar
             TOTA_WRITE_FLASH_STRUCT_T * pflash_write_struct = (TOTA_WRITE_FLASH_STRUCT_T *)ptrParam;
             rsp_status = TOTA_WRITE_FLASH_CRC_CHECK_FAILED;
             uint32_t crc = crc32_c(0, pflash_write_struct->dataBuf, pflash_write_struct->dataLen);
-            TOTA_V2_TRACE(2, "write flash: %d bytes, crc: 0x%x", pflash_write_struct->dataLen, pflash_write_struct->dataCrc);
-            TOTA_V2_TRACE(1, "crc 0x%x || 0x%x", crc, pflash_write_struct->dataCrc);
+            TOTA_LOG_DBG(2, "write flash: %d bytes, crc: 0x%x", pflash_write_struct->dataLen, pflash_write_struct->dataCrc);
+            TOTA_LOG_DBG(1, "crc 0x%x || 0x%x", crc, pflash_write_struct->dataCrc);
             if ( crc == pflash_write_struct->dataCrc )
             {
-                _write_flash(pflash_write_struct->address, pflash_write_struct->dataBuf, pflash_write_struct->dataLen, pflash_write_struct->dataCrc);
-                TOTA_V2_TRACE(0, "write flash success");
-                rsp_status = TOTA_NO_ERROR;
+                if ( _write_flash_with_crc_check(pflash_write_struct->address, pflash_write_struct->dataBuf, pflash_write_struct->dataLen, pflash_write_struct->dataCrc) )
+                {
+                    TOTA_LOG_DBG(0, "write flash success");
+                    rsp_status = TOTA_NO_ERROR;
+                }
             }
             else
             {
-                TOTA_V2_TRACE(0, "crc error...");
+                TOTA_LOG_DBG(0, "crc error...");
             }
             break;
         }
         case OP_TOTA_ERASE_FLASH_CMD:
         {
             TOTA_ERASE_FLASH_STRUCT_T * pflash_erase_struct = (TOTA_ERASE_FLASH_STRUCT_T *)ptrParam;
-            TOTA_V2_TRACE(2, "erase flash: 0x%x bytes, length: %u", pflash_erase_struct->address, pflash_erase_struct->length);
+            TOTA_LOG_DBG(2, "erase flash: 0x%x bytes, length: %u", pflash_erase_struct->address, pflash_erase_struct->length);
             _erase_flash(pflash_erase_struct->address, pflash_erase_struct->length);
             break;
         }
-#if (TOTA_FLASH_SECTOR_BUF_USED)
         case OP_TOTA_READ_FLASH_CMD:
         {
             TOTA_READ_FLASH_STRUCT_T * pflash_read_struct = (TOTA_READ_FLASH_STRUCT_T *)ptrParam;
-            TOTA_V2_TRACE(0,"read flash: addr: %x, len: %d", pflash_read_struct->address, pflash_read_struct->length);
+            TOTA_LOG_DBG(0,"read flash: addr: %x, len: %d", pflash_read_struct->address, pflash_read_struct->length);
             TOTA_FLASH_DATA_T * pflashData = _read_flash_by_address(pflash_read_struct->address, pflash_read_struct->length);
             app_tota_send_rsp(funcCode, rsp_status, (uint8_t*)pflashData, pflashData->length+6);
             return;
         }
-#endif
         default:
-            TOTA_V2_TRACE(0,"error function code");
+            TOTA_LOG_DBG(0,"error function code");
     }
     app_tota_send_rsp(funcCode, rsp_status,NULL,0);
 }
 
-static void _write_flash(uint32_t startAddr, uint8_t * dataBuf, uint32_t dataLen, uint32_t crc)
+static bool _write_flash_with_crc_check(uint32_t startAddr, uint8_t * dataBuf, uint32_t dataLen, uint32_t crc)
 {
-    hal_norflash_disable_protection(HAL_FLASH_ID_0);
-
     uint32_t lock;
-    TOTA_V2_TRACE(2,"flush %d bytes to flash addr 0x%x", dataLen, startAddr);
-    //TOTA_V2_TRACE(1,"data: %s", (char *)dataBuf);
+    TOTA_LOG_DBG(2,"flush %d bytes to flash addr 0x%x", dataLen, startAddr);
+    //TOTA_LOG_DBG(1,"data: %s", (char *)dataBuf);
 
-#if (TOTA_FLASH_SECTOR_BUF_USED)
     uint32_t pre_bytes = 0, middle_bytes = 0, post_bytes = 0;
     uint32_t base1 = startAddr - startAddr%sector_size;
     uint32_t base2 = startAddr + dataLen - (startAddr+dataLen)%sector_size;
@@ -177,7 +172,7 @@ static void _write_flash(uint32_t startAddr, uint8_t * dataBuf, uint32_t dataLen
             post_bytes   = startAddr + dataLen - base2;
         }
     }
-    TOTA_V2_TRACE(3, "pre:%u, middle:%u, post:%u", pre_bytes, middle_bytes, post_bytes);
+    TOTA_LOG_DBG(3, "pre:%u, middle:%u, post:%u", pre_bytes, middle_bytes, post_bytes);
 
     if ( pre_bytes != 0 )
     {
@@ -226,40 +221,33 @@ static void _write_flash(uint32_t startAddr, uint8_t * dataBuf, uint32_t dataLen
         int_unlock_global(lock);
     }
 
-#else
-    uint32_t sector_num = 0;
-
-    if ( startAddr % sector_size != 0 || dataLen == 0)
+    // read and check crc
+    const uint32_t read_size = 1024;
+    uint8_t  read_buffer[read_size];
+    uint32_t left_bytes = dataLen;
+    uint32_t read_offset = 0;
+    uint32_t calculate_crc = 0;
+    while ( left_bytes > read_size )
     {
-        TOTA_V2_TRACE(0,"[%s] TOTA WRITE FLASH ERR",__func__);
-        return;
+        memcpy(read_buffer, (uint8_t*)(startAddr+read_offset), read_size);
+        calculate_crc = crc32_c(calculate_crc, read_buffer, read_size);
+        read_offset += read_size;
+        left_bytes -= read_size;
+    }
+    if ( left_bytes != 0 )
+    {
+        memcpy(read_buffer, (uint8_t*)(startAddr+read_offset), left_bytes);
+        calculate_crc = crc32_c(calculate_crc, read_buffer, left_bytes);
     }
 
-    sector_num = dataLen/sector_size;
-    lock=int_lock_global();
-    pmu_flash_write_config();
-    for ( uint32_t i = 0; i < sector_num; i++ )
-    {
-        hal_norflash_erase(HAL_FLASH_ID_0, startAddr+(i*sector_size), sector_size);
-        hal_norflash_write(HAL_FLASH_ID_0, startAddr+(i*sector_size), dataBuf+(i*sector_size), sector_size);
-    }
-    if(dataLen - sector_num*sector_size)
-    {
-        hal_norflash_erase(HAL_FLASH_ID_0, startAddr+(sector_num*sector_size), sector_size);
-        hal_norflash_write(HAL_FLASH_ID_0, startAddr+(sector_num*sector_size), dataBuf+(sector_num*sector_size), (dataLen - sector_num*sector_size));
-    }
-    pmu_flash_read_config();
-    int_unlock_global(lock);
-#endif
-    return;
+    return crc == calculate_crc;
 }
 
 static void _erase_flash(uint32_t startAddr, uint32_t dataLen)
 {
     uint32_t lock;
-    TOTA_V2_TRACE(2,"erase %d bytes from flash addr 0x%x", dataLen, startAddr);
+    TOTA_LOG_DBG(2,"erase %d bytes from flash addr 0x%x", dataLen, startAddr);
 
-#if (TOTA_FLASH_SECTOR_BUF_USED)
     uint32_t pre_bytes = 0, middle_bytes = 0, post_bytes = 0;
     uint32_t base1 = startAddr - startAddr%sector_size;
     uint32_t base2 = startAddr + dataLen - (startAddr+dataLen)%sector_size;
@@ -284,7 +272,7 @@ static void _erase_flash(uint32_t startAddr, uint32_t dataLen)
             post_bytes   = startAddr + dataLen - base2;
         }
     }
-    TOTA_V2_TRACE(3, "pre:%u, middle:%u, post:%u", pre_bytes, middle_bytes, post_bytes);
+    TOTA_LOG_DBG(3, "pre:%u, middle:%u, post:%u", pre_bytes, middle_bytes, post_bytes);
 
     if ( pre_bytes != 0 )
     {
@@ -329,32 +317,8 @@ static void _erase_flash(uint32_t startAddr, uint32_t dataLen)
         pmu_flash_read_config();
         int_unlock_global(lock);
     }
-#else
-    uint32_t sector_num = 0;
-
-    if ( startAddr % sector_size != 0 || dataLen == 0)
-    {
-        TOTA_V2_TRACE(0,"[%s] TOTA ERASE FLASH ERR",__func__);
-        return;
-    }
-
-    sector_num = dataLen/sector_size;
-    lock=int_lock_global();
-    pmu_flash_write_config();
-    for ( uint32_t i = 0; i < sector_num; i++ )
-    {
-        hal_norflash_erase(HAL_FLASH_ID_0, startAddr+(i*sector_size), sector_size);
-    }
-    if(dataLen - sector_num*sector_size)
-    {
-        hal_norflash_erase(HAL_FLASH_ID_0, startAddr+(sector_num*sector_size), sector_size);
-    }
-    pmu_flash_read_config();
-    int_unlock_global(lock);
-#endif
 }
 
-#if (TOTA_FLASH_SECTOR_BUF_USED)
 static TOTA_FLASH_DATA_T * _read_flash_by_address(uint32_t readAddr, uint16_t length)
 {
     TOTA_FLASH_DATA_T *flashData = (TOTA_FLASH_DATA_T *) sector_buffer;
@@ -365,9 +329,6 @@ static TOTA_FLASH_DATA_T * _read_flash_by_address(uint32_t readAddr, uint16_t le
 
     return flashData;
 }
-#endif
-
-#if (TOTA_DATA_TRANSCEIVER)
 
 TOTA_FLASH_DATA_T * tota_read_flash(uint32_t readAddr, uint16_t length)
 {
@@ -383,8 +344,8 @@ TOTA_FLASH_DATA_T * tota_read_flash(uint32_t readAddr, uint16_t length)
 bool tota_write_flash(uint32_t startAddr, uint8_t * dataBuf, uint32_t dataLen)
 {
     uint32_t lock;
-    TOTA_V2_TRACE(2,"flush %d bytes to flash addr 0x%x", dataLen, startAddr);
-    //TOTA_V2_TRACE(1,"data: %s", (char *)dataBuf);
+    TOTA_LOG_DBG(2,"flush %d bytes to flash addr 0x%x", dataLen, startAddr);
+    //TOTA_LOG_DBG(1,"data: %s", (char *)dataBuf);
 
     uint32_t pre_bytes = 0, middle_bytes = 0, post_bytes = 0;
     uint32_t base1 = startAddr - startAddr%sector_size;
@@ -411,7 +372,7 @@ bool tota_write_flash(uint32_t startAddr, uint8_t * dataBuf, uint32_t dataLen)
             post_bytes   = startAddr + dataLen - base2;
         }
     }
-    TOTA_V2_TRACE(3, "pre:%u, middle:%u, post:%u", pre_bytes, middle_bytes, post_bytes);
+    TOTA_LOG_DBG(3, "pre:%u, middle:%u, post:%u", pre_bytes, middle_bytes, post_bytes);
 
     if ( pre_bytes != 0 )
     {
@@ -466,17 +427,14 @@ bool tota_write_flash(uint32_t startAddr, uint8_t * dataBuf, uint32_t dataLen)
     {
         if ( dataBuf[i] != pflash[i] )
         {
-            TOTA_V2_TRACE(0, "write flash check error!");
+            TOTA_LOG_DBG(0, "write flash check error!");
             return false;
         }
     }
 
     return true;
 }
-#endif
 
 TOTA_COMMAND_TO_ADD(OP_TOTA_WRITE_FLASH_CMD, _tota_flash_cmd_handle, false, 0, NULL );
 TOTA_COMMAND_TO_ADD(OP_TOTA_ERASE_FLASH_CMD, _tota_flash_cmd_handle, false, 0, NULL );
-#if (TOTA_FLASH_SECTOR_BUF_USED)
 TOTA_COMMAND_TO_ADD(OP_TOTA_READ_FLASH_CMD, _tota_flash_cmd_handle, false, 0, NULL );
-#endif

@@ -130,8 +130,8 @@ void customer_algorithm_process(float* fb_pcm_buf, float* ref_pcm_buf, uint32_t 
     if(cnt == 500) // 7.5*500 ms
     {
 
-        VOICE_ASSIST_TRACE(0,"=========================  change eq  ==============================");
-        VOICE_ASSIST_TRACE(0,"=========================  cfg_num = %d  ==============================",(int)(cfg_num));
+        TRACE(0,"=========================  change eq  ==============================");
+        TRACE(0,"=========================  cfg_num = %d  ==============================",(int)(cfg_num));
         iir_cfg = adaptive_eq_cfg_1ist[cfg_num];
 
         bt_audio_set_adaptive_dac_iir_eq(iir_cfg);
@@ -191,7 +191,7 @@ static int32_t _voice_assist_adaptive_eq_callback(void *buf, uint32_t len, void 
     float * ref_pcm_buf = (float *)other;
     frame_len = len;
 
-    // VOICE_ASSIST_TRACE(0,"[%s]frame_len: %d", __func__, frame_len);
+    // TRACE(0,"[%s]frame_len: %d", __func__, frame_len);
 
     customer_algorithm_process(fb_pcm_buf, ref_pcm_buf, frame_len);
 

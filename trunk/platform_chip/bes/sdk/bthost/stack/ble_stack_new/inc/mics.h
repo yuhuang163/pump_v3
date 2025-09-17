@@ -18,6 +18,7 @@
  ****************************************************************************/
 #ifndef __ARC_MICS__
 #define __ARC_MICS__
+#include "bluetooth.h"
 
 #include "gaf_cfg.h"
 #include "generic_audio.h"

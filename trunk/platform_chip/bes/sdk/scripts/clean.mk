@@ -17,7 +17,8 @@ $(cur_makefile): ;
 clean := -f $(srctree)/scripts/clean.mk obj
 
 kbuild-dir := $(if $(filter /%,$(src)),$(src),$(srctree)/$(src))
-include $(kbuild-dir)/Makefile
+# Ignore error when Makefile is not found (for WIFI projects with FORCE_TO_USE_LIB=1)
+-include $(kbuild-dir)/Makefile
 
 # Figure out what we need to build from the various variables
 # ==========================================================================

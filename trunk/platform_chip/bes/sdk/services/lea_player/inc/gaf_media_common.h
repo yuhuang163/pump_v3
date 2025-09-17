@@ -28,7 +28,7 @@
 #include "bluetooth_bt_api.h"
 
 /******************************macro defination*****************************/
-#define GAF_MAXIMUM_CONNECTION_COUNT                        (3)
+#define GAF_MAXIMUM_CONNECTION_COUNT                        (2)
 #define GAF_INVALID_ASE_INDEX                               (0xFF)
 #define GAF_INVALID_CONNECTION_IDX                          (0xFF)
 #define GAF_AUDIO_DFT_PLAYBACK_LIST_IDX                     (0)
@@ -65,7 +65,7 @@
 #if defined(BLE_USB_AUDIO_SUPPORT) || defined(AOB_LOW_LATENCY_MODE)
 #define GAF_MARGIN_BETWEEN_TRIGGER_TIME_AND_CURRENT_TIME_US 5000
 #else
-#define GAF_MARGIN_BETWEEN_TRIGGER_TIME_AND_CURRENT_TIME_US 10000
+#define GAF_MARGIN_BETWEEN_TRIGGER_TIME_AND_CURRENT_TIME_US 15000
 #endif
 
 /// Maximum diff value of a 1us Bluetooth clock
@@ -359,7 +359,6 @@ typedef struct
     osTimerId                   playback_trigger_supervisor_timer_id;
     osTimerId                   capture_trigger_supervisor_timer_id;
     bool                        playback_retrigger_onprocess;
-    bool                        playback_paused;
 
     // capture stream context
     GAF_CAPTURE_STREAM_STATE_E  capture_stream_state;
@@ -384,8 +383,6 @@ typedef struct
 
     // code algorithm context
     gaf_codec_algorithm_context_t codec_alg_context[GAF_AUDIO_ASE_TOTAL_COUNT];
-
-    int8_t                      tgt_vol;
 
 } GAF_AUDIO_STREAM_CONTEXT_T;
 
@@ -624,14 +621,6 @@ void gaf_stream_common_set_custom_presdelay_us(uint32_t presDelayUs);
  * @return uint32_t 
  */
 uint32_t gaf_stream_common_get_custom_presdelay_us(void);
-
-void gaf_stream_common_tws_sync_capture_trigger_handler(uint16_t rsp_seq, uint8_t* data, uint16_t len);
-
-void gaf_stream_common_tws_sync_capture_trigger_rsp_timeout_handler(uint16_t rsp_seq, uint8_t *p_buff, uint16_t length);
-
-void gaf_stream_common_tws_sync_capture_trigger_rsp_handler(uint16_t rsp_seq, uint8_t *p_buff, uint16_t length);
-
-void gaf_stream_common_tws_sync_us_since_latest_anchor_point_handler(uint16_t rsp_seq, uint8_t* data, uint16_t len);
 
 #ifdef __cplusplus
 }

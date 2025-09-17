@@ -179,7 +179,7 @@ int ui_test_main_entry(int argc, const char * argv[])
     vg_lite_error_t error = VG_LITE_SUCCESS;
     int gap_x, gap_y;
     TC_INIT
-    DRIVERS_TRACE(0,"%s", __func__);
+    GPU_REP("%s", __func__);
 
     CHECK_ERROR(vg_lite_init(fb_width, fb_height));
 
@@ -256,6 +256,6 @@ int ui_test_main_entry(int argc, const char * argv[])
 ErrorHandler:
     // Cleanup.
     cleanup();
-    DRIVERS_TRACE(0,"%s test pass", __func__);
+    GPU_REP("%s test pass", __func__);
     return 0;
 }

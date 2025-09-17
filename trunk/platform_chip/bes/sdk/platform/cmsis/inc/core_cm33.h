@@ -2313,7 +2313,7 @@ typedef struct
   #endif
   #include CMSIS_VECTAB_VIRTUAL_HEADER_FILE
 #else
-#ifdef KERNEL_NUTTX
+#ifdef __NuttX__
   #define NVIC_SetVector(a,b)         NXIC_SetVector(a+NVIC_USER_IRQ_OFFSET,b)
   #define NVIC_EnableIRQ(a)           NXIC_EnableIRQ(a+NVIC_USER_IRQ_OFFSET)
   #define NVIC_DisableIRQ(a)          NXIC_DisableIRQ(a+NVIC_USER_IRQ_OFFSET)
@@ -2683,9 +2683,24 @@ __STATIC_FORCEINLINE void NVIC_DecodePriority (uint32_t Priority, uint32_t Prior
   \param [in]   IRQn      Interrupt number
   \param [in]   vector    Address of interrupt handler function
  */
+#if defined(COMMON_IRQ_ENTRY) && defined(CP_IN_SAME_EE)
+#include "system_ARMCM.h"
+#endif
 __STATIC_FORCEINLINE void __NVIC_SetVector(IRQn_Type IRQn, uint32_t vector)
 {
   uint32_t *vectors = (uint32_t *)SCB->VTOR;
+#ifdef COMMON_IRQ_ENTRY
+  if (IRQn >= -14) {
+    extern uint32_t os_vector_table[];
+    vectors = os_vector_table;
+#ifdef CP_IN_SAME_EE
+    if (get_cpu_id()) {
+      extern uint32_t os_vector_table_cp[];
+      vectors = os_vector_table_cp;
+    }
+#endif
+  }
+#endif
   vectors[(int32_t)IRQn + NVIC_USER_IRQ_OFFSET] = vector;
   __DSB();
 }

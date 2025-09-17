@@ -29,7 +29,6 @@
 #include "app_utils.h"
 #include "bt_drv_interface.h"
 #include "bluetooth_bt_api.h"
-#include "besbt.h"
 
 #if defined(APP_TEST_AUDIO) && defined(ANC_APP)
 #include "anc_usb_app.h"
@@ -46,7 +45,7 @@ extern void app_anc_usb_init(void);
 
 void bt_signaling_test(APP_KEY_STATUS *status, void *param)
 {
-    MAIN_TRACE(3,"%s %d,%d",__func__, status->code, status->event);
+    TRACE(3,"%s %d,%d",__func__, status->code, status->event);
 
     hal_cpu_wake_lock(APP_TESTER_CPU_WAKE_LOCK);
     btdrv_testmode_start();
@@ -55,15 +54,15 @@ void bt_signaling_test(APP_KEY_STATUS *status, void *param)
 
 void bt_stack_test(APP_KEY_STATUS *status, void *param)
 {
-    MAIN_TRACE(3,"%s %d,%d",__func__, status->code, status->event);
+    TRACE(3,"%s %d,%d",__func__, status->code, status->event);
 
     btdrv_start_bt();
-    bt_host_init(NULL);
+    bes_bt_thread_init();
 }
 
 void bt_ble_test(APP_KEY_STATUS *status, void *param)
 {
-    MAIN_TRACE(3,"%s %d,%d",__func__, status->code, status->event);
+    TRACE(3,"%s %d,%d",__func__, status->code, status->event);
 
     hal_cpu_wake_lock(APP_TESTER_CPU_WAKE_LOCK);
     btdrv_testmode_start();
@@ -75,7 +74,7 @@ void bt_ble_test(APP_KEY_STATUS *status, void *param)
 
 void bt_test_104m(APP_KEY_STATUS *status, void *param)
 {
-    MAIN_TRACE(3,"%s %d,%d",__func__, status->code, status->event);
+    TRACE(3,"%s %d,%d",__func__, status->code, status->event);
 
     hal_analogif_reg_write(0x35,0x0);
     hal_analogif_reg_write(0x36,0x8000);
@@ -94,7 +93,7 @@ void bt_change_to_uart0(APP_KEY_STATUS *status, void *param)
 {
     if (status)
     {
-        MAIN_TRACE(3,"%s %d,%d",__func__, status->code, status->event);
+        TRACE(3,"%s %d,%d",__func__, status->code, status->event);
     }
 
     hal_iomux_set_uart0();
@@ -104,7 +103,7 @@ void app_switch_i2c_uart(APP_KEY_STATUS *status, void *param)
 {
     static uint32_t flag = 1;
 
-    MAIN_TRACE(2,"[%s] flag = %d",__func__, flag);
+    TRACE(2,"[%s] flag = %d",__func__, flag);
     if(flag)
     {
         bt_change_to_iic(NULL, NULL);
@@ -118,14 +117,14 @@ void app_switch_i2c_uart(APP_KEY_STATUS *status, void *param)
 
 void test_power_off(APP_KEY_STATUS *status, void *param)
 {
-    MAIN_TRACE(0,"app_power_off\n");
+    TRACE(0,"app_power_off\n");
 }
 
 extern APP_KEY_STATUS bt_key;
 
 void test_bt_key(APP_KEY_STATUS *status, void *param)
 {
-    MAIN_TRACE(3,"%s %d,%d",__func__, status->code, status->event);
+    TRACE(3,"%s %d,%d",__func__, status->code, status->event);
         if(bt_key.code == 0xff)
         {
             bt_key.code = status->code;
@@ -225,7 +224,7 @@ int app_testcase_disp_menu(const APP_KEY_HANDLE* testcase, bool printall)
 {
     char buf[MENU_TITLE_MAX_SIZE+1];
     if (strlen(testcase->string)>(MENU_TITLE_MAX_SIZE-15)){
-        MAIN_TRACE(0,"string too long, please check again\n");
+        TRACE(0,"string too long, please check again\n");
         return -1;
     }
 
@@ -236,7 +235,7 @@ int app_testcase_disp_menu(const APP_KEY_HANDLE* testcase, bool printall)
         buf[MENU_TITLE_MAX_SIZE-2] = '\r';
         buf[MENU_TITLE_MAX_SIZE-1] = '\n';
         buf[MENU_TITLE_MAX_SIZE] = '\0';
-        MAIN_TRACE(1,"%s", buf);
+        TRACE(1,"%s", buf);
         osDelay(1);
     }
 
@@ -247,7 +246,7 @@ int app_testcase_disp_menu(const APP_KEY_HANDLE* testcase, bool printall)
         buf[MENU_TITLE_MAX_SIZE-2] = '\r';
         buf[MENU_TITLE_MAX_SIZE-1] = '\n';
         buf[MENU_TITLE_MAX_SIZE] = '\0';
-        MAIN_TRACE(1,"%s", buf);
+        TRACE(1,"%s", buf);
         testcase++;
     }while(testcase->key_status.code != 0xff && printall);
 
@@ -258,7 +257,7 @@ int app_testcase_disp_menu(const APP_KEY_HANDLE* testcase, bool printall)
         buf[MENU_TITLE_MAX_SIZE-2] = '\r';
         buf[MENU_TITLE_MAX_SIZE-1] = '\n';
         buf[MENU_TITLE_MAX_SIZE] = '\0';
-        MAIN_TRACE(1,"%s", buf);
+        TRACE(1,"%s", buf);
         osDelay(1);
     }
 
@@ -297,7 +296,7 @@ int app_testcase_key_response(APP_MESSAGE_BODY *msg_body)
 void app_test_init(void)
 {
     uint8_t i = 0;
-    MAIN_TRACE(1,"%s",__func__);
+    TRACE(1,"%s",__func__);
     for (i = 0; i < ARRAY_SIZE(app_testcase); i++){
         app_key_handle_registration(&app_testcase[i]);
     }

@@ -22,7 +22,7 @@
 
 #ifndef APP_BAP_DATA_PATH_ITF_H_
 #define APP_BAP_DATA_PATH_ITF_H_
-#ifdef BLE_AUDIO_ENABLED
+#ifdef BLE_ISO_ENABLED
 
 /*****************************header include********************************/
 #include "isoohci_int.h"

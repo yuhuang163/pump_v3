@@ -25,7 +25,6 @@ extern "C" {
 #define L2CAP_PPB_TAIL_RESERVE 0 /* fcs 2 */
 #define L2CAP_PPB_RESERVE (L2CAP_PPB_HEAD_RESERVE + L2CAP_PPB_TAIL_RESERVE)
 #define L2CAP_HCI_HEADER_LEN (HCI_DATA_TYPE_LEN + HCI_ACL_HEADER_LEN)
-#define L2CAP_SDU_LEN_FIELD_SIZE 2
 
 #define L2CAP_SIG_RESULT_SUCCESS 0x0
 #define L2CAP_SIG_RESULT_PENDING 0x1
@@ -54,7 +53,6 @@ extern "C" {
 #define PSM_DYNAMIC_MAP_ACCESS  0x1013
 #define PSM_DYNAMIC_MAP_NOTIFY  0x1015
 #define PSM_DYNAMIC_OPP         0x1003
-#define PSM_DYNAMIC_AVRCP_OBEX  0x1017
 
 #define L2CAP_SCID_PREFIX_MASK              0xff00
 #define L2CAP_SCID_INDEX_MASK               0x00ff
@@ -287,7 +285,10 @@ struct l2cap_sig_fcs_rsp {
 #if mHDT_SUPPORT
 #define L2CAP_SIG_CFG_TYPE_MHDT                (0x7F)
 // 
-
+#define L_BTC_MHDT_SPT    0X01
+#define L_BTH_MHDT_SPT    0X02
+#define P_BTC_MHDT_SPT    0X04
+#define P_BTH_MHDT_SPT    0X08
 struct l2cap_sig_cfg_opt_mhdt 
 {
     byte mhdt_support;
@@ -307,7 +308,6 @@ struct l2cap_ctx_input {
     struct bdaddr_t *remote;
     uint32 l2cap_handle;
     uint16 conn_handle;
-    bool is_ble_l2cap;
 };
 
 struct l2cap_ctx_output {
@@ -353,7 +353,7 @@ struct l2cap_channel {
     bool disc_channel_after_conn_rsp;
     bool dont_report_close_event;
     bool slave_ignore_wrong_state;
-    bool snoop_link_send_data;
+    uint8 l2cap_send_role;
 
     struct l2cap_cfg_param_t *cfg; // only valid before channel open
 
@@ -424,7 +424,6 @@ uint32_t l2cap_connect(const bt_bdaddr_t *remote, uint16_t local_l2cap_psm, l2ca
 uint32_t l2cap_enre_connect(const bt_bdaddr_t *remote, uint16_t local_l2cap_psm, l2cap_psm_target_profile_t target, uint16_t remote_l2cap_psm);
 void l2cap_notify_rx_done_event(uint16_t connhdl, uint32_t l2cap_handle);
 void l2cap_defer_free_rx_buffer(struct pp_buff *ppb);
-int8 l2cap_send_disconnect_req(uint8 device_id, l2cap_channel_t *channel);
 
 typedef void (*l2cap_sdp_disconnect_callback)(const bt_bdaddr_t *bdaddr);
 typedef uint8 (*btm_get_ibrt_role_callback)(const bt_bdaddr_t *para);
@@ -448,8 +447,7 @@ int8 l2cap_send_echo_req(uint8 device_id, struct l2cap_conn *conn, uint16 len, c
 int8 l2cap_send_echo_rsp(uint8 device_id, uint16 conn_handle, uint8 sigid, uint16 len, const uint8* data);
 
 typedef void (*bt_proto_conn_open_close_t)(l2cap_conn_t* l2cap_conn, bt_proto_conn_t *proto_conn, bool open);
-bt_proto_conn_t *l2cap_proto_conn_add_new(const bt_bdaddr_t *remote, bluetooth_proto_id_t proto_id);
-bt_proto_conn_t *l2cap_proto_conn_find(const bt_bdaddr_t *remote, bluetooth_proto_id_t proto_id);
+bt_proto_conn_t *l2cap_proto_conn_find_or_add(const bt_bdaddr_t *remote, bluetooth_proto_id_t proto_id);
 bt_proto_conn_t *l2cap_proto_conn_search(uint32_t l2cap_handle, bluetooth_proto_id_t proto_id);
 l2cap_conn_t *l2cap_conn_from_proto_conn(bt_proto_conn_t *proto_conn, bluetooth_proto_id_t *out_id);
 void l2cap_proto_conn_free(bt_proto_conn_t *proto_conn);
@@ -464,11 +462,11 @@ bt_proto_conn_t *l2cap_get_att_conn_by_idx(hci_conn_type_t conn_type, uint8_t co
 bt_proto_conn_t *l2cap_get_att_conn_by_address(hci_conn_type_t conn_type, bt_addr_type_t peer_type, const bt_bdaddr_t *peer_addr);
 typedef bool (*att_proto_conn_foreach_t)(bt_proto_conn_t *conn, void *priv);
 int l2cap_foreach_att_proto_conn(att_proto_conn_foreach_t cb, void *priv);
-void l2cap_set_att_expected_mtu_to_port(hci_conn_type_t conn_type, uint16_t expected_mtu);
 uint16_t l2cap_get_att_mtu_from_port(hci_conn_type_t conn_type);
 bt_status_t l2cap_send_packet(uint32_t connhdl_len, uint32_t l2cap_handle, const uint8_t *data, void *context);
 bt_status_t l2cap_send_att_packet(uint16_t connhdl, uint32_t l2cap_handle, struct pp_buff *ppb, void *context);
 bt_status_t l2cap_send_smp_packet(uint16_t connhdl, struct pp_buff *ppb);
+bt_l2cap_config_t *l2cap_set_config(void);
 
 int8 l2cap_init(uint8_t proto_id, uint16_t struct_size, bt_proto_conn_open_close_t cb);
 int8 l2cap_channel_close(uint8 device_id, l2cap_channel_t *channel, uint8 reason);
@@ -503,7 +501,6 @@ int8 l2cap_close(uint32 l2cap_handle);
 int8 l2cap_close_v2(uint32 l2cap_handle,uint8 reason);
 int8 l2cap_close_after_conn_rsp(uint32 l2cap_handle);
 void l2cap_report_le_fixed_channel_opened(uint16_t connhdl);
-struct pp_buff *l2cap_alloc_fragment_ppb(uint16_t dcid, uint32 total_len, const void* curr_data, uint32 curr_len, void *context, bool is_start_packet);
 
 #ifdef BLE_HOST_SUPPORT
 typedef struct gap_conn_prefer_params_t gap_conn_prefer_params_t;

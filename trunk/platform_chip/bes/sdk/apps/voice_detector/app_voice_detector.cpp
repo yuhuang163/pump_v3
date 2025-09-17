@@ -11,6 +11,13 @@
 
 #define APP_VD_DEBUG
 
+#ifdef APP_VD_DEBUG
+#define APP_VD_LOG(str, ...) TR_DEBUG(TR_MOD(AUD), str, ##__VA_ARGS__)
+#else
+#define APP_VD_LOG(...) do{}while(0)
+#endif
+#define APP_VD_ERR(str, ...) TR_ERROR(TR_MOD(AUD), str, ##__VA_ARGS__)
+
 osMutexId vd_mutex_id = NULL;
 osMutexDef(vd_mutex);
 bool vad_mic_has_open[VOICE_DETECTOR_QTY] = {false};
@@ -65,7 +72,7 @@ static int app_voice_detector_process(APP_MESSAGE_BODY *msg_body)
     int ret = 0, num = 0, *cmds = NULL;
 
     voice_detector_enhance_perform(id);// set sys clock to 104M or 208M
-    VOICE_DETECTOR_TRACE(0,"%s evt %d status %d", __func__, evt, voice_detector_query_status(id));
+    APP_VD_LOG("%s evt %d status %d", __func__, evt, voice_detector_query_status(id));
 
     osMutexWait(vd_mutex_id, osWaitForever);
     switch(evt) {
@@ -108,11 +115,11 @@ static int app_voice_detector_process(APP_MESSAGE_BODY *msg_body)
     }
     ret = voice_detector_send_cmd_array(id, cmds, num);
     if (ret) {
-        VOICE_DETECTOR_TRACE(0,"%s, send cmd error %d", __func__, ret);
+        APP_VD_ERR("%s, send cmd error %d", __func__, ret);
     }
     ret = voice_detector_run(id, VOICE_DET_MODE_EXEC_CMD);
     if (ret) {
-        VOICE_DETECTOR_TRACE(0,"%s, run cmd error %d", __func__, ret);
+        APP_VD_ERR("%s, run cmd error %d", __func__, ret);
     }
     if (evt == VOICE_DET_EVT_CLOSE) {
         voice_detector_close(id);
@@ -126,9 +133,6 @@ static void voice_detector_send_msg(uint32_t id, uint32_t evt)
     APP_MESSAGE_BLOCK msg;
 
     msg.mod_id = APP_MODULE_VOICE_DETECTOR;
-#if defined(USE_BASIC_THREADS)
-    msg.mod_level = APP_MOD_LEVEL_1;
-#endif 
     msg.msg_body.message_id  = id;
     msg.msg_body.message_ptr = evt;
 
@@ -143,8 +147,8 @@ static void voice_detector_wakeup_system(int state, void *param)
         app_voice_detector_send_event(id, VOICE_DET_EVT_AUD_CAP_START);
     }
 
-    VOICE_DETECTOR_TRACE(0,"%s, state=%d", __func__, state);
-    // VOICE_DETECTOR_TRACE(0,"cpu freq=%d", hal_sys_timer_calc_cpu_freq(5,0));
+    APP_VD_LOG("%s, state=%d", __func__, state);
+    // APP_VD_LOG("cpu freq=%d", hal_sys_timer_calc_cpu_freq(5,0));
 }
 
 static void voice_not_detector_wakeup_system(int state, void *param)
@@ -155,13 +159,13 @@ static void voice_not_detector_wakeup_system(int state, void *param)
         app_voice_detector_send_event(id, VOICE_DET_EVT_VAD_START);
     }
 
-    VOICE_DETECTOR_TRACE(0,"%s, state=%d", __func__, state);
-    // VOICE_DETECTOR_TRACE(0,"cpu freq=%d", hal_sys_timer_calc_cpu_freq(5,0));
+    APP_VD_LOG("%s, state=%d", __func__, state);
+    // APP_VD_LOG("cpu freq=%d", hal_sys_timer_calc_cpu_freq(5,0));
 }
 
 void app_voice_detector_init(void)
 {
-    VOICE_DETECTOR_TRACE(0,"%s", __func__);
+    APP_VD_LOG("%s", __func__);
     static bool voice_detector_inited = false;
 
     if (!voice_detector_inited)
@@ -187,16 +191,16 @@ int app_voice_detector_open(enum voice_detector_id id, enum AUD_VAD_TYPE_T vad_t
 {
     int r;
 
-    VOICE_DETECTOR_TRACE(0,"%s", __func__);
+    APP_VD_LOG("%s", __func__);
     if (vad_mic_has_open[id])
     {
-        VOICE_DETECTOR_TRACE(0,"%s id %d has open", __func__, id);
+        APP_VD_LOG("%s id %d has open", __func__, id);
         return -1;
     }
     vad_mic_has_open[id] = true;
 
     if (!vd_mutex_id) {
-        VOICE_DETECTOR_TRACE(0,"%s, mutex is null", __func__);
+        APP_VD_LOG("%s, mutex is null", __func__);
         return -1;
     }
     osMutexWait(vd_mutex_id, osWaitForever);
@@ -217,10 +221,10 @@ int app_voice_detector_setup_vad(enum voice_detector_id id,
 {
     int r;
 
-    VOICE_DETECTOR_TRACE(0,"%s", __func__);
+    APP_VD_LOG("%s", __func__);
 
     if (!vd_mutex_id) {
-        VOICE_DETECTOR_TRACE(0,"%s, mutex is null", __func__);
+        APP_VD_LOG("%s, mutex is null", __func__);
         return -1;
     }
     osMutexWait(vd_mutex_id, osWaitForever);
@@ -235,10 +239,10 @@ int app_voice_detector_setup_stream(enum voice_detector_id id,
 {
     int r;
 
-    VOICE_DETECTOR_TRACE(0,"%s", __func__);
+    APP_VD_LOG("%s", __func__);
 
     if (!vd_mutex_id) {
-        VOICE_DETECTOR_TRACE(0,"%s, mutex is null", __func__);
+        APP_VD_LOG("%s, mutex is null", __func__);
         return -1;
     }
     osMutexWait(vd_mutex_id, osWaitForever);
@@ -254,10 +258,10 @@ int app_voice_detector_setup_callback(enum voice_detector_id id,
 {
     int r;
 
-    VOICE_DETECTOR_TRACE(0,"%s", __func__);
+    APP_VD_LOG("%s", __func__);
 
     if (!vd_mutex_id) {
-        VOICE_DETECTOR_TRACE(0,"%s, mutex is null", __func__);
+        APP_VD_LOG("%s, mutex is null", __func__);
         return -1;
     }
     osMutexWait(vd_mutex_id, osWaitForever);
@@ -269,7 +273,7 @@ int app_voice_detector_setup_callback(enum voice_detector_id id,
 int app_voice_detector_send_event(enum voice_detector_id id,
                                 enum voice_detector_evt evt)
 {
-    VOICE_DETECTOR_TRACE(0,"%s, id=%d, evt=%d", __func__, id, evt);
+    APP_VD_LOG("%s, id=%d, evt=%d", __func__, id, evt);
 
     voice_detector_send_msg(id, evt);
     return 0;
@@ -277,10 +281,10 @@ int app_voice_detector_send_event(enum voice_detector_id id,
 
 void app_voice_detector_close(enum voice_detector_id id)
 {
-    VOICE_DETECTOR_TRACE(0,"%s", __func__);
+    APP_VD_LOG("%s", __func__);
     if (!vad_mic_has_open[id])
     {
-        VOICE_DETECTOR_TRACE(0,"%s id %d don't open", __func__, id);
+        APP_VD_LOG("%s id %d don't open", __func__, id);
         return;
     }
     vad_mic_has_open[id] = false;
@@ -296,7 +300,7 @@ void app_voice_detector_get_vad_data_info(enum voice_detector_id id,
 
 void app_voice_detector_capture_enable_vad(enum voice_detector_id id, enum voice_detector_user user)
 {
-    VOICE_DETECTOR_TRACE(0,"%s user %d", __func__, user);
+    APP_VD_LOG("%s user %d", __func__, user);
 
     enable_vad[id][user] = true;
 
@@ -315,7 +319,7 @@ void app_voice_detector_capture_enable_vad(enum voice_detector_id id, enum voice
 
 void app_voice_detector_capture_disable_vad(enum voice_detector_id id, enum voice_detector_user user)
 {
-    VOICE_DETECTOR_TRACE(0,"%s user %d", __func__, user);
+    APP_VD_LOG("%s user %d", __func__, user);
 
     enable_vad[id][user] = false;
 
@@ -327,7 +331,7 @@ void app_voice_detector_capture_disable_vad(enum voice_detector_id id, enum voic
 
 bool app_voice_detector_capture_vad_is_enable(enum voice_detector_id id)
 {
-    //VOICE_DETECTOR_TRACE(0,"%s", __func__);
+    //APP_VD_LOG("%s", __func__);
     for (uint8_t user=0; user<VOICE_DET_USER_NUM; user++)
     {
         if (!enable_vad[id][user])

@@ -68,6 +68,7 @@ typedef int64_t         s64;
 #define BOUND(x, min, max)              ( (x) < (min) ? (min) : ((x) > (max) ? (max):(x)) )
 #define ROUND_SIZEOF(t)                 ((sizeof(t)+sizeof(int)-1)&~(sizeof(int)-1))
 #define ROUND_UP(N, S)                  ((((N) + (S) - 1) / (S)) * (S))
+#define ROUND_DOWN(N, S)                ((N) & ( ~ ((S) - 1)))
 
 // Structure offset
 #ifndef OFFSETOF
@@ -86,6 +87,9 @@ typedef int64_t         s64;
 
 #define TO_STRING_A(s)                  # s
 #define TO_STRING(s)                    TO_STRING_A(s)
+
+#define MACRO_CONCAT_(a, b)             a ## b
+#define MACRO_CONCAT(a, b)              MACRO_CONCAT_(a, b)
 
 /* Remove const cast-away warnings from gcc -Wcast-qual */
 #define __UNCONST(a)                    ((void *)(unsigned long)(const void *)(a))
@@ -156,7 +160,7 @@ typedef int64_t         s64;
 #define CONTAINER_OF(ptr, type, member) ({          \
         const typeof(((type *)0)->member)*__mptr = (ptr);    \
     (type *)((char *)__mptr - OFFSETOF(type, member)); })
-#endif 
+#endif
 #endif
 
 #else // Not GCC
@@ -185,6 +189,7 @@ typedef int64_t         s64;
                        + __GNUC_MINOR__ * 100 \
                        + __GNUC_PATCHLEVEL__)
 
+#ifndef STATIC_ASSERT
 #if defined(__GNUC__) && (GCC_VERSION >= 40600) && !defined(__cplusplus)
 
 // GCC 4.6 or later
@@ -213,6 +218,7 @@ typedef int64_t         s64;
 #endif
 
 #endif // No built-in static assert
+#endif
 /// --------------------------------
 
 #ifdef __cplusplus
@@ -220,3 +226,4 @@ typedef int64_t         s64;
 #endif
 
 #endif
+

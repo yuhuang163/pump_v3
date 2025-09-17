@@ -55,12 +55,10 @@ static char *error_type[] =
         printf("[%s: %d] failed.error type is %s\n", __func__, __LINE__,error_type[error]);\
         goto ErrorHandler; \
     }
-//static int   fb_width = 480, fb_height = 480;
-static int   fb_width = 512, fb_height = 512;
+static int   fb_width = GPU_FB_WIDTH, fb_height = GPU_FB_HEIGHT;
 static float fb_scale = 1.0f;
 
 static vg_lite_buffer_t buffer;
-static vg_lite_buffer_t gamubuffer;
 static vg_lite_buffer_t * fb;
 
 static vg_lite_buffer_t image;
@@ -86,51 +84,6 @@ static void cleanup(void)
 }
 
 
-
-
-static void* fb_malloc(uint32_t size, uint8_t aligns)
-{
-    return gamubuffer.memory;
-}
-
-
-
-#ifdef GAMU_BASE
-#include "hal_gamu.h"
-
-/*
- * gamu_fb layout
-            width = 512
-    |---------------------|
-    |(xoffset, yoffset)   |
-    | -|----------------| |
-    |  |                | |
-    |  |                | |
-    |  |     2r         | |
-    |  |                | |
-    |  |                | |
-    |  |----------------| |
-    |                     |
-    |---------------------|
-*/
-
-static gamu_fb_info_t  gamu_fb = {
-    .id = 0,
-    .width = 512,  // must be 512 pixels for 1502x
-    .height = 512,
-    .bpp = 32,
-    .align_malloc = fb_malloc,
-    .sqrtf = sqrtf,
-    // width = xoffset + 2* radius
-    // height = yoffset + 2* radius
-    .radius = 240,//256,//,128,//48,
-    .xoffset = 16, // colu offset
-    .yoffset = 16, // line offset
-    .used_vblocks = 0,
-};
-
-#endif
-
 int rgba8etc2_test(void)
 {
     vg_lite_filter_t filter;
@@ -145,7 +98,9 @@ int rgba8etc2_test(void)
         cleanup();
         return -1;
     }
+
     printf("%s w:%d h:%d f:%d", __func__,image.width, image.height, image.format );
+    vg_lite_init(GPU_FB_WIDTH, GPU_FB_HEIGHT);
     CHECK_ERROR(vg_lite_allocate(&image));
     if (vg_lite_bf_load_pkm(&image, __landscape_start_flash) != 0) {
         printf("load pkm file error\n");
@@ -158,21 +113,26 @@ int rgba8etc2_test(void)
 
     buffer.width  = fb_width;
     buffer.height = fb_height;
-    buffer.format = VG_LITE_RGBA8888;//VG_LITE_RGB565;
+    //buffer.format = VG_LITE_RGBA8888;
+    buffer.format = GPU_FB_FORMAT;
+
 
     CHECK_ERROR(vg_lite_allocate(&buffer));
+
     fb = &buffer;
+
+    printf("Framebuffer size: %d x %d\n", fb->width, fb->height);
 
     CHECK_ERROR(vg_lite_clear(fb, NULL, 0xFFFF0000));
 
     vg_lite_identity(&matrix);
-    #if 0
-    vg_lite_translate(fb_width / 2.0f, fb_height / 2.0f, &matrix);
-    vg_lite_rotate(33.0f, &matrix);
-    vg_lite_translate(fb_width / -2.0f, fb_height / -2.0f, &matrix);
-    vg_lite_scale((vg_lite_float_t) fb_width / (vg_lite_float_t) image.width,
-                  (vg_lite_float_t) fb_height / (vg_lite_float_t) image.height, &matrix);
-    #endif
+
+    vg_lite_translate(fb->width / 2.0f, fb->height / 2.0f, &matrix);
+   // vg_lite_rotate(33.0f, &matrix);
+    vg_lite_translate(fb->width / -2.0f, fb->height / -2.0f, &matrix);
+    vg_lite_scale((vg_lite_float_t) fb->width / (vg_lite_float_t) image.width,
+                  (vg_lite_float_t) fb->height / (vg_lite_float_t) image.height, &matrix);
+
     CHECK_ERROR(vg_lite_blit(fb, &image, &matrix, VG_LITE_BLEND_NONE, 0, filter));
 
     TC_START
@@ -181,40 +141,12 @@ int rgba8etc2_test(void)
     TC_REP("etc2 blit cost");
     cpu_gpu_data_cache_invalid(fb->memory, fb->height * fb->stride);
 
+    fb_lcdc_vmirro_enable(true);
 
-#ifdef GAMU_BASE
-
-    gamubuffer.width  = fb_width;
-    gamubuffer.height = fb_height;
-    gamubuffer.format = VG_LITE_RGBA8888;//VG_LITE_RGB565;
-    CHECK_ERROR(vg_lite_allocate(&gamubuffer));
-
-    hal_gamu_setup(&gamu_fb);
-    gamubuffer.memory = gamu_fb.vmem;
-    gamubuffer.address = gamubuffer.memory;
-
-    vg_lite_identity(&matrix);
-
-
-    CHECK_ERROR(vg_lite_blit(&gamubuffer,fb, &matrix, VG_LITE_BLEND_NONE, 0, filter));
-
-
-    TC_START
-    CHECK_ERROR(vg_lite_finish());
-    TC_END
-    TC_REP("etc2 gamu buffer blit cost");
-    cpu_gpu_data_cache_invalid(fb->memory, fb->height * fb->stride);
-
-
-    printf("%s Fb memory:%p",__func__ ,gamu_fb.phymem);
-    printf("%s Fb vmemory:%p",__func__ ,gamubuffer.memory);
-    
-   // while(1);
-    vg_lite_free(&gamubuffer);
-#endif
+    gpu_lcdc_display(fb);
 
 ErrorHandler:
-    
+
     cleanup();
     return 0;
 }

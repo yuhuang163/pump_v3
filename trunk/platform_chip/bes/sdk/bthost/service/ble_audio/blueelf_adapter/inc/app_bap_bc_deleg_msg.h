@@ -61,7 +61,6 @@ int app_bap_bc_deleg_source_add(app_gaf_bap_adv_id_t *addr, const app_gaf_bap_bc
                                 uint8_t nb_subgroups, uint8_t *add_metadata, uint8_t add_metadata_len, uint16_t streaming_context_bf,
                                 uint32_t bis_sync_bf_deprecated);
 int app_bap_bc_deleg_restore_bond_data_req(uint8_t con_lid, uint8_t cfg_bf);
-int app_bap_bc_deleg_restart_src_big_sync(uint8_t src_lid);
 #ifdef __cplusplus
 }
 #endif

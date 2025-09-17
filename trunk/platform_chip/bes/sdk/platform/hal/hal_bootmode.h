@@ -26,9 +26,9 @@ extern "C" {
 #define HAL_SW_BOOTMODE_MASK                    (0x0FFFFFFF << 4)
 
 // SW_BOOTMODE_START                            (1 << 4)
-#define HAL_SW_BOOTMODE_READ_ENABLED            (1 << 4)
-#define HAL_SW_BOOTMODE_WRITE_ENABLED           (1 << 5)
-#define HAL_SW_BOOTMODE_JTAG_ENABLED            (1 << 6)
+#define HAL_SW_BOOTMODE_ROM_RESERVED_4          (1 << 4)
+#define HAL_SW_BOOTMODE_ROM_RESERVED_5          (1 << 5)
+#define HAL_SW_BOOTMODE_ROM_RESERVED_6          (1 << 6)
 #define HAL_SW_BOOTMODE_FORCE_USB_DLD           (1 << 7)
 #define HAL_SW_BOOTMODE_FORCE_UART_DLD          (1 << 8)
 #define HAL_SW_BOOTMODE_DLD_TRANS_UART          (1 << 9)
@@ -66,15 +66,14 @@ extern "C" {
 #define HAL_SW_BOOTMODE_TEST_NORMAL_MODE        (1 << 28)
 #endif
 
+/* For A7 reboot */
+#define HAL_SW_BOOTMODE_A7_REBOOT               (1 << 29)
+#define HAL_SW_BOOTMODE_PMU_WARM_BOOT           (1 << 30)
+
 #ifdef ANC_APP
 #define HAL_SW_BOOTMODE_REBOOT_BT_ON            (1 << 29)
 #define HAL_SW_BOOTMODE_REBOOT_ANC_ON           (1 << 30)
 #endif
-
-#ifdef TOTA_FACTORY_USED
-#define HAL_SW_BOOTMODE_TOTA_REBOOT             (1 << 31)
-#endif
-
 
 // APP_BOOTMODE_END                             (1 << 31)
 // SW_BOOTMODE_END                              (1 << 31)
@@ -98,6 +97,8 @@ void hal_hw_bootmode_init(void);
 void hal_hw_bootmode_clear(void);
 
 uint32_t hal_sw_bootmode_get(void);
+
+uint32_t hal_sw_bootmode_get_ram(void);
 
 void hal_sw_bootmode_set(uint32_t bm);
 

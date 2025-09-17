@@ -7,7 +7,3 @@ obj-y := $(obj-y:.S=.o)
 CFLAGS_codec_$(CHIP).o += $(CODEC_INT_CFG_FLAGS)
 CFLAGS_codec_vad_$(CHIP).o += $(CODEC_INT_CFG_FLAGS)
 
-#ifeq ($(CAPSENSOR_ENABLE), 1)
-ccflags-y += \
- -DCAPSENSOR_ENABLE
-#endif

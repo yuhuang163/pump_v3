@@ -18,7 +18,11 @@
 
 #define A2DP_LHDC_OCTET_NUMBER                     (9)
 #define A2DP_LHDC_VENDOR_ID                       0x0000053a
+#if defined(A2DP_LHDC_V3)
 #define A2DP_LHDC_CODEC_ID                        0x4C33
+#else
+#define A2DP_LHDC_CODEC_ID                        0x4C32
+#endif
 //To indicate Sampling Rate.
 #define A2DP_LHDC_SR_96000                        0x01
 #define A2DP_LHDC_SR_88200                        0x02
@@ -35,7 +39,11 @@
 #define A2DP_LHDC_JAS                              0x40
 #define A2DP_LHDC_AR                               0x80
 
-#define A2DP_LHDC_VERSION_NUM                      0x01
+#if defined(A2DP_LHDC_V3)
+#define A2DP_LHDC_VERSION_NUM                      0x08
+#else
+#define A2DP_LHDC_VERSION_NUM                      0x00
+#endif
 #define A2DP_LHDC_MAX_SR_900                       0x00
 #define A2DP_LHDC_MAX_SR_500                       0x10
 #define A2DP_LHDC_MAX_SR_400                       0x20
@@ -45,7 +53,7 @@
 #define A2DP_LHDC_LLAC                             0x80
 
 #define A2DP_LHDC_COF_CSC_DISABLE                  0x01
-#define A2DP_LHDC_COF_CSC                          0x02
+#define A2DP_LHDC_COF_CSC                          0x02 //
 #define A2DP_LHDC_COF_CSC_PRE                      0x04
 #define A2DP_LHDC_COF_CSC_RESERVED                 0x08
 #define A2DP_LHDC_COF_DATA(X)                     (X & (A2DP_LHDC_COF_CSC_DISABLE | A2DP_LHDC_COF_CSC | A2DP_LHDC_COF_CSC_PRE))

@@ -16,7 +16,7 @@
 #ifdef BLE_TOTA_ENABLED
 #include "app_ble.h"
 
-#define TOTA_MAX_LEN (495)
+#define TOTA_MAX_LEN (509)
 
 #define tota_service_uuid_128_le 0x86,0x86,0x86,0x86,0x86,0x86,0x86,0x86,0x86,0x86,0x86,0x86,0x86,0x86,0x86,0x86
 #define tota_character_uuid_128_le 0x97,0x97,0x97,0x97,0x97,0x97,0x97,0x97,0x97,0x97,0x97,0x97,0x97,0x97,0x97,0x97
@@ -30,7 +30,7 @@ GATT_DECL_128_LE_CHAR(g_ble_tota_character,
     ATT_SEC_NONE);
 
 GATT_DECL_CCCD_DESCRIPTOR(g_ble_tota_desc_cccd,
-    ATT_WR_ENC);
+    ATT_SEC_NONE);
 
 static const gatt_attribute_t g_ble_tota_attr_list[] = {
     /* Service */
@@ -43,9 +43,7 @@ static const gatt_attribute_t g_ble_tota_attr_list[] = {
 
 static app_tota_event_callback app_tota_event_cb = NULL;
 
-static bool ntf_enabled[BLE_CONNECTION_MAX] = {0};
-
-static bool ble_tota_server_callback(gatt_svc_t *svc, gatt_server_event_t event, gatt_server_callback_param_t param)
+static int ble_tota_server_callback(gatt_svc_t *svc, gatt_server_event_t event, gatt_server_callback_param_t param)
 {
     app_tota_event_param_t cb_param = {0};
 
@@ -68,7 +66,6 @@ static bool ble_tota_server_callback(gatt_svc_t *svc, gatt_server_event_t event,
                 cb_param.param.receive_data.data     = (uint8_t *)p->value;
                 app_tota_event_cb(&cb_param);
             }
-            gatts_send_write_rsp(p->conn->connhdl, p->token, ATT_ERROR_NO_ERROR);
             return true;
         }
         case GATT_SERV_EVENT_DESC_WRITE:
@@ -80,7 +77,6 @@ static bool ble_tota_server_callback(gatt_svc_t *svc, gatt_server_event_t event,
             {
                 notify_enabled = true;
             }
-            ntf_enabled[gap_zero_based_conidx(svc->con_idx)] = notify_enabled;
             if(app_tota_event_cb)
             {
                 cb_param.event_type   = APP_TOTA_CCC_CHANGED;
@@ -88,14 +84,6 @@ static bool ble_tota_server_callback(gatt_svc_t *svc, gatt_server_event_t event,
                 cb_param.param.ntf_en = notify_enabled;
                 app_tota_event_cb(&cb_param);
             }
-            return true;
-        }
-        case GATT_SERV_EVENT_DESC_READ:
-        {
-            gatt_server_desc_read_t *p = param.desc_read;
-            uint16_t cccd_config = ntf_enabled[gap_zero_based_conidx(svc->con_idx)] ? 0x0001 : 0x0000;
-            cccd_config = co_host_to_uint16_le(cccd_config);
-            gatts_send_read_rsp(p->conn->connhdl, p->token, 0, (uint8_t *)&cccd_config, sizeof(uint16_t));
             return true;
         }
         case GATT_SERV_EVENT_NTF_TX_DONE:
@@ -146,8 +134,7 @@ static bool ble_tota_server_callback(gatt_svc_t *svc, gatt_server_event_t event,
 
 void ble_tota_init(void)
 {
-    gatts_cfg_t cfg = {.preferred_mtu = TOTA_MAX_LEN};
-    gatts_register_service(g_ble_tota_attr_list, ARRAY_SIZE(g_ble_tota_attr_list), ble_tota_server_callback, &cfg);
+    gatts_register_service(g_ble_tota_attr_list, ARRAY_SIZE(g_ble_tota_attr_list), ble_tota_server_callback, NULL);
 }
 
 void app_tota_event_reg(app_tota_event_callback cb)
@@ -166,30 +153,14 @@ void app_tota_event_unreg(void)
 bool app_tota_send_notification(uint8_t conidx, uint8_t* data, uint32_t len)
 {
     bt_status_t status = BT_STS_SUCCESS;
-
-    gatt_char_notify_t val_ind=
-    {
-        .character = g_ble_tota_character,
-        .service = g_ble_tota_service,
-    };
-
-    status = gatts_send_value_notification(gap_conn_bf(conidx), &val_ind, data, (uint16_t)len);
-
+    status = gatts_send_notification(gap_conn_bf(conidx), g_ble_tota_character, data, (uint16_t)len);
     return (status != BT_STS_FAILED);
 }
 
 bool app_tota_send_indication(uint8_t conidx, uint8_t* data, uint32_t len)
 {
     bt_status_t status = BT_STS_SUCCESS;
-
-    gatt_char_notify_t val_ind=
-    {
-        .character = g_ble_tota_character,
-        .service = g_ble_tota_service,
-    };
-
-    status = gatts_send_value_indication(gap_conn_bf(conidx), &val_ind, data, (uint16_t)len);
-
+    status = gatts_send_indication(gap_conn_bf(conidx), g_ble_tota_character, data, (uint16_t)len);
     return (status != BT_STS_FAILED);
 }
 

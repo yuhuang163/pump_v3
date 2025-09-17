@@ -13,8 +13,8 @@
  * trademark and other intellectual property rights.
  *
  ****************************************************************************/
-#include "bthost_logger.h"
-
+#undef MOUDLE
+#define MOUDLE APP_BLE
 #include "app_ble.h" // keep first line for CFG_APP_GFPS define
 #ifdef GFPS_ENABLED // google fast pair server (server: fast pair provider, client: fast pair seeker)
 #include "ble_gfps.h"
@@ -22,14 +22,6 @@
 #include "ble_gfps_common.h"
 #include "hci_i.h"
 #include "apps.h"
-#include "gfps_ble.h"
-#ifdef RTC_CALENDAR
-#include "nvrecord_fp_account_key.h"
-#include "gfps_ble.h"
-#include "pmu.h"
-#include "cmsis.h"
-#endif
-
 
 #define GFPS_PREFERRED_MTU 512
 #define GFPSP_VAL_MAX_LEN 128
@@ -323,7 +315,7 @@ static int ble_app_gfps_l2cap_callback(uintptr_t connhdl, bt_l2cap_event_t event
     ble_gfps_t *gfps = NULL;
     ble_app_gfps_event_param_t entry;
     ble_gfps_global_t *g = ble_get_gfps_global();
-    DEBUG_VERBOSE(2,"%s conidx %d", __func__, l2cap ? l2cap->device_id : 0xFF);
+    TRACE(2,"%s conidx %d", __func__, l2cap ? l2cap->device_id : 0xFF);
     ble_bdaddr_t GetPeerAddr = {{0}};
     app_ble_get_peer_solved_addr(l2cap->device_id, &GetPeerAddr);
 
@@ -333,7 +325,7 @@ static int ble_app_gfps_l2cap_callback(uintptr_t connhdl, bt_l2cap_event_t event
     }
     else if (event == BT_L2CAP_EVENT_OPENED)
     {
-        CO_LOG_INFO_S_1(BT_STS_CHANNEL_STATUS, GFPS, l2cap->error_code);
+        CO_LOG_MAIN_S_1(BT_STS_CHANNEL_STATUS, GFPS, l2cap->error_code);
         if (l2cap->error_code)
         {
             return 0;
@@ -378,7 +370,7 @@ static int ble_app_gfps_l2cap_callback(uintptr_t connhdl, bt_l2cap_event_t event
             if (g->callback)
             {
                 struct pp_buff *ppb = l2cap->tx_priv_rx_ppb;
-                DEBUG_VERBOSE(2, "%s len %d", __func__, ppb->len);
+                TRACE(2, "%s len %d", __func__, ppb->len);
                 entry.event = GFPS_BLE_EVT_L2CAP_RX_REC;
                 entry.conidx = gap_zero_based_conidx(l2cap->device_id);
                 entry.p.packet.pBuf = (uint8_t *)ppb_get_data(ppb);
@@ -450,10 +442,10 @@ static void ble_app_gfps_disconnected_evt_handler(uint8_t conidx)
     }
 }
 
-static bool ble_gfps_server_callback(gatt_svc_t *svc, gatt_server_event_t event, gatt_server_callback_param_t param)
+static int ble_gfps_server_callback(gatt_svc_t *svc, gatt_server_event_t event, gatt_server_callback_param_t param)
 {
     ble_gfps_t *gfps = (ble_gfps_t *)svc;
-    bool ret = true;
+    int ret = 1;
 
     if (!gfps)
     {
@@ -480,7 +472,7 @@ static bool ble_gfps_server_callback(gatt_svc_t *svc, gatt_server_event_t event,
             {
                 uint8_t modelId[4] = {0};
                 ble_app_gfps_get_data(gfps->head.con_idx, GFPSP_GET_MODEL_ID, modelId, NULL);
-                gatts_send_read_rsp(p->conn->connhdl, p->token, 0, modelId, sizeof(uint32_t));
+                gatts_write_read_rsp_data(p->ctx, modelId, sizeof(uint32_t));
             }
 #ifdef SPOT_ENABLED
             else if (p->character == g_ble_gfps_beacon_actions_character)
@@ -488,27 +480,27 @@ static bool ble_gfps_server_callback(gatt_svc_t *svc, gatt_server_event_t event,
                 uint8_t nounce[9] = {0};
                 ble_app_gfps_get_data(gfps->head.con_idx, GFPSP_GET_SPOT_VERSION, nounce, NULL);
                 ble_app_gfps_get_data(gfps->head.con_idx, GFPSP_GET_SPOT_NOUNCE, nounce+1, NULL);
-                gatts_send_read_rsp(p->conn->connhdl, p->token, 0, nounce, sizeof(nounce));
+                gatts_write_read_rsp_data(p->ctx, nounce, sizeof(nounce));
             }
 #endif
             else if(p->character == g_ble_gfps_additional_passkey_character)
             {
                  uint8_t encrypted_rsp_data[16]={0};
                  ble_app_gfps_get_data(gfps->head.con_idx, GFPSP_GET_ADDITIONAL_PASSKEY, encrypted_rsp_data, NULL);
-                 gatts_send_read_rsp(p->conn->connhdl, p->token, 0, encrypted_rsp_data, sizeof(encrypted_rsp_data));
+                 gatts_write_read_rsp_data(p->ctx, encrypted_rsp_data, sizeof(encrypted_rsp_data));
             }
             else if(p->character == g_ble_gfps_msg_stream)
             {
                 uint8_t data[3]= {0};
                 ble_app_gfps_get_data(gfps->head.con_idx, GFPSP_GET_EVENT_STREAM, data, NULL);
-                gatts_send_read_rsp(p->conn->connhdl, p->token, 0, data, sizeof(data));
+                gatts_write_read_rsp_data(p->ctx, data, sizeof(data));
             }
             break;
         }
         case GATT_SERV_EVENT_CHAR_WRITE:
         {
             gatt_server_char_write_t *p = param.char_write;
-            uint8_t gfps_event;
+            uint8_t event;
             bool ntf = true;
             if (p->value_offset != 0 || p->value_len == 0 || p->value == NULL)
             {
@@ -517,28 +509,44 @@ static bool ble_gfps_server_callback(gatt_svc_t *svc, gatt_server_event_t event,
 
             if (p->character == g_ble_gfps_keybased_pairing_character)
             {
-                gfps_event = GFPS_BLE_EVT_KEY_BASE_PAIRING_IND;
+                event = GFPS_BLE_EVT_KEY_BASE_PAIRING_IND;
             }
+            else if (p->character == g_ble_gfps_keybased_pairing_cccd)
+            {
+                event = GFPS_BLE_EVT_KEY_BASE_PAIRING_CCCD;
+            }            
             else if (p->character == g_ble_gfps_passkey_character)
             {
-                gfps_event = GFPS_BLE_EVT_PASS_KEY_IND;
+                event = GFPS_BLE_EVT_PASS_KEY_IND;
             }
+            else if (p->character == g_ble_gfps_passkey_cccd)
+            {
+                event = GFPS_BLE_EVT_PASS_KEY_CCCD;
+            } 
             else if (p->character == g_ble_gfps_account_key_character)
             {
-                gfps_event = GFPS_BLE_EVT_ACCOUNT_KEY_IND;
+                event = GFPS_BLE_EVT_ACCOUNT_KEY_IND;
             }
             else if (p->character == g_ble_gfps_additional_data_character)
             {
-                gfps_event = GFPS_BLE_EVT_WRITE_NAME_IND;
+                event = GFPS_BLE_EVT_WRITE_NAME_IND;
+            }
+            else if(p->character == g_ble_gfps_additional_passkey_cccd)
+            {
+                event = GFPS_BLE_EVT_ADDITIONAL_PASS_KEY_CCCD;
             }
             else if(p->character == g_ble_gfps_additional_passkey_character)
             {
-                gfps_event = GFPS_BLE_EVT_ADDITIONAL_PASS_KEY_IND;
+                event = GFPS_BLE_EVT_ADDITIONAL_PASS_KEY_IND;
             }
 #ifdef SPOT_ENABLED
             else if (p->character == g_ble_gfps_beacon_actions_character)
             {
-                gfps_event = GFPS_BLE_EVT_SPOT_WRITE_BEACON_IND;
+                event = GFPS_BLE_EVT_SPOT_WRITE_BEACON_IND;
+            }
+            else if (p->character == g_ble_gfps_beacon_actions_cccd)
+            {
+                event = GFPS_BLE_EVT_SPOT_BEACON_CCCD;
             }
 #endif
             else
@@ -548,61 +556,8 @@ static bool ble_gfps_server_callback(gatt_svc_t *svc, gatt_server_event_t event,
 
             if (ntf)
             {
-                p->rsp_error_code = ble_app_gfps_write_data(gfps, gfps_event, p);
+                p->rsp_error_code = ble_app_gfps_write_data(gfps, event, p);
                 ret = (p->rsp_error_code == ATT_ERROR_NO_ERROR);
-                gatts_send_write_rsp(p->conn->connhdl, p->token, p->rsp_error_code);
-            }
-            break;
-        }
-        case GATT_SERV_EVENT_DESC_READ:
-        {
-            gatt_server_desc_read_t *p = param.desc_read;
-            uint16_t cccd_config = co_host_to_uint16_le(0x0001);
-            gatts_send_read_rsp(p->conn->connhdl, p->token, 0, (uint8_t *)&cccd_config, sizeof(uint16_t));
-            ret = true;
-            break;
-        }
-
-        case GATT_SERV_EVENT_DESC_WRITE:
-        {
-            gatt_server_desc_write_t *p = param.desc_write;
-            uint16_t config = CO_COMBINE_UINT16_LE(p->value);
-            bool notify_enabled = false;
-            ble_gfps_global_t *g = ble_get_gfps_global();
-            if (config & GATT_CCCD_SET_NOTIFICATION)
-            {
-                notify_enabled = true;
-            }
-            if ((uint8_t *)p->desc_attr->attr_data == g_ble_gfps_keybased_pairing_cccd)
-            {
-                event = GFPS_BLE_EVT_KEY_BASE_PAIRING_CCCD;
-            }
-            else if ((uint8_t *)p->desc_attr->attr_data == g_ble_gfps_passkey_cccd)
-            {
-                event = GFPS_BLE_EVT_PASS_KEY_CCCD;
-            }
-            else if((uint8_t *)p->desc_attr->attr_data == g_ble_gfps_additional_passkey_cccd)
-            {
-                event = GFPS_BLE_EVT_ADDITIONAL_PASS_KEY_CCCD;
-            }
-#ifdef SPOT_ENABLED
-            else if ((uint8_t *)p->desc_attr->attr_data == g_ble_gfps_beacon_actions_cccd)
-            {
-                event = GFPS_BLE_EVT_SPOT_BEACON_CCCD;
-            }
-#endif
-            else
-            {
-                break;
-            }
-
-            if (g->callback)
-            {
-                ble_app_gfps_event_param_t entry;
-                entry.event = event;
-                entry.conidx = gfps->head.con_idx;
-                entry.p.enabled = notify_enabled;
-                g->callback(&entry);
             }
             break;
         }
@@ -623,13 +578,7 @@ static void ble_gfps_send_notification(uint16_t connhdl, const uint8_t* characte
         return;
     }
 
-    gatt_char_notify_t val_ntf=
-    {
-        .character = character,
-        .service = g_ble_gfps_service,
-    };
-
-    gatts_send_value_notification(gap_conn_bf(gfps->head.con_idx), &val_ntf, value, len);
+    gatts_send_notification(gap_conn_bf(gfps->head.con_idx), character, value, len);
 }
 
 void ble_app_gfps_init(app_ble_adv_activity_func func)
@@ -649,88 +598,8 @@ void ble_app_gfps_init(app_ble_adv_activity_func func)
 }
 
 #ifdef SPOT_ENABLED
-
-#ifdef RTC_ENABLE
-void spot_rtc_init(void)
-{
-    pmu_rtc_enable();
-    uint32_t current_time = pmu_rtc_get();
-    NV_FP_ACCOUNT_KEY_RECORD_T *nvrecord_fp_p = nv_record_get_fp_data_structure_info();
-
-    if(nvrecord_fp_p != NULL)
-    {
-        uint32_t has_poweredoff_time = current_time - nvrecord_fp_p->poweroff_time;
-        DEBUG_VERBOSE(1,"nvrecord_ble_p->poweroff_time is %u", nvrecord_fp_p->poweroff_time);
-        DEBUG_VERBOSE(2,"current is %u, poweroff_time is %u", current_time, has_poweredoff_time);
-        if(nvrecord_fp_p->poweroff_time != 0 && nv_record_fp_get_spot_adv_enable_value())
-        {
-            nv_record_fp_update_has_poweredoff_time(has_poweredoff_time);
-
-            gfps_ble_spot_generate_EID_handler(nv_record_fp_get_eph_identity_key());
-            nv_record_fp_update_spot_adv_data(gfps_ble_get_EID());
-            gfps_ble_spot_generate_hashed_value();
-            nv_record_fp_update_spot_hash_value(gfps_ble_get_hashed_value());
-            bes_ble_gap_start_connectable_adv(BLE_FASTPAIR_SPOT_ADVERTISING_INTERVAL);
-        }
-     }
-     else
-     {
-        DEBUG_VERBOSE(0,"error it is null");
-     }
-}
-#endif
-
-#ifdef RTC_CALENDAR
-void spot_rtc_init(void)
-{
-    NV_FP_ACCOUNT_KEY_RECORD_T *nvrecord_fp_p = nv_record_get_fp_data_structure_info();
-    struct RTC_CALENDAR_FORMAT_T rtc_cal_cfg = {
-            .year = 2024,
-            .month = 8,
-            .day = 28,
-            .week = 3,
-            .hour = 23,
-            .minute = 31,
-            .second = 0,
-    };
-    pmu_rtc_calendar_set(&rtc_cal_cfg);
-
-    struct RTC_CALENDAR_FORMAT_T alarm_cal = {0, };
-    pmu_rtc_calendar_pwron_enable(true);
-    pmu_rtc_calendar_get(&alarm_cal);
-
-    uint32_t current_time;
-    current_time = rtc_calendar_to_unix(&alarm_cal);
-    DEBUG_VERBOSE(1, "current_time is %u", current_time);
-
-    if(nvrecord_fp_p != NULL)
-    {
-        if(nvrecord_fp_p->poweroff_time != 0 && nv_record_fp_get_spot_adv_enable_value())
-        {
-            uint32_t has_poweredoff_time = current_time - nvrecord_fp_p->poweroff_time;
-            DEBUG_VERBOSE(1,"nvrecord_ble_p->poweroff_time is %u", nvrecord_fp_p->poweroff_time);
-            DEBUG_VERBOSE(2,"current is %u, poweroff_time is %u", current_time, has_poweredoff_time);
-            nv_record_fp_update_has_poweredoff_time(has_poweredoff_time);
-
-            gfps_ble_spot_generate_EID_handler(nv_record_fp_get_eph_identity_key());
-            nv_record_fp_update_spot_adv_data(gfps_ble_get_EID());
-            gfps_ble_spot_generate_hashed_value();
-            nv_record_fp_update_spot_hash_value(gfps_ble_get_hashed_value());
-            bes_ble_gap_start_connectable_adv(BLE_FASTPAIR_SPOT_ADVERTISING_INTERVAL);
-         }
-    }
-    else
-    {
-        DEBUG_VERBOSE(0,"error it is null");
-    }
-}
-#endif
-
 void ble_app_spot_init(app_ble_adv_activity_func func)
 {
-#if defined(RTC_ENABLE) || defined(RTC_CALENDAR)
-    spot_rtc_init();
-#endif
     app_ble_register_advertising(BLE_SPOT_ADV_HANDLE, func);
 }
 #endif

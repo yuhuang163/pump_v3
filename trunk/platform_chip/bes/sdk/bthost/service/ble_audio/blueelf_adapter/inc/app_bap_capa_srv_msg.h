@@ -70,28 +70,48 @@ typedef struct app_bap_capa_srv_record
     app_gaf_bap_capa_metadata_t *p_metadata;
 } app_bap_capa_srv_record_t;
 
+/// PAC information structure
+typedef struct app_bap_capa_srv_pac
+{
+    /// List of records (@see app_bap_capa_srv_record_t for elements)
+    struct list_node list_record;
+    /// Number of records
+    uint8_t nb_records;
+} app_bap_capa_srv_pac_t;
+
+typedef struct
+{
+    /// Indication code (set to #BAP_UC_SRV_BOND_DATA)
+    uint16_t ind_code;
+    /// Connection local index
+    uint8_t con_lid;
+    /// Client configuration bit field for Audio Stream Control Service\n
+    /// Each bit correspond to a characteristic in the range [0, BAP_UC_CHAR_TYPE_ASE[
+    uint8_t cli_cfg_bf;
+    /// Client configuration bit field for instances of the ASE characteristics\n
+    /// Each bit correspond to an instance of the ASE characteristic
+    uint16_t ase_cli_cfg_bf;
+} app_bap_uc_srv_bond_data_ind_t;
+
+/// Published Audio Capabilities Server environment structure
+typedef struct app_bap_capa_srv_env
+{
+    /// Preferred Mtu
+    uint8_t preferred_mtu;
+    /// Total number of PAC
+    uint8_t nb_pacs;
+    /// Total number of PAC Records
+    uint8_t nb_records;
+    /// Pointer to Direction information structure
+    app_bap_capa_srv_dir_t dir_info[APP_GAF_DIRECTION_MAX];
+    /// PAC informations (nb_pacs elements)
+    app_bap_capa_srv_pac_t *p_pac_info;
+} app_bap_capa_srv_env_t;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 int app_bap_capa_srv_restore_bond_data_req(uint8_t con_lid, uint8_t cli_cfg_bf, uint8_t pac_cli_cfg_bf);
-
-uint8_t app_bap_capa_srv_get_valid_pac_lid(const app_gaf_codec_id_t *p_codec_id, uint8_t direction);
-
-int app_bap_capa_srv_add_pac_v2_record(uint8_t direction, app_gaf_codec_id_t *codec_id,
-                                       app_gaf_bap_capa_t *p_capa, app_gaf_bap_capa_metadata_t *p_metadata);
-
-int app_bap_capa_srv_delete_pac_v2_record(uint8_t record_lid);
-
-int app_bap_capa_srv_add_chan_capa_record(uint32_t channel_type, const uint8_t *p_desc_val, uint8_t val_len);
-
-int app_bap_capa_srv_delete_chan_capa_record(uint8_t record_lid);
-
-int app_bap_capa_srv_add_pref_aud_cfg_record(uint16_t use_case_id, uint16_t data_present_bits,
-                                             const app_gaf_pref_aud_cfg_data_t *p_pref_aud_cfg_data);
-
-int app_bap_capa_srv_delete_pref_aud_cfg_record(uint8_t record_lid);
-
-int app_bap_capa_srv_delete_pref_aud_cfg_record_by_use_case(uint16_t use_case_id);
 #ifdef __cplusplus
 }
 #endif

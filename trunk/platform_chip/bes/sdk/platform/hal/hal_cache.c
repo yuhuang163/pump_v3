@@ -96,6 +96,20 @@ __STATIC_FORCEINLINE void cacheip_enable_cache(uint32_t reg_base, uint32_t v)
     }
     cache->CACHE_EN = val;
 }
+#ifdef __ARMCC_VERSION
+POSSIBLY_UNUSED
+#endif
+__STATIC_FORCEINLINE void cacheip_enable_cache_ex(uint32_t reg_base, uint32_t v)
+{
+    struct CACHE_T *cache = (struct CACHE_T *)reg_base;
+    uint32_t val;
+    if (v) {
+        val = cache->CACHE_EN | CACHEC_CACHE_EN;
+    } else {
+        val = 0;
+    }
+    cache->CACHE_EN = val;
+}
 __STATIC_FORCEINLINE POSSIBLY_UNUSED int cacheip_cached_enabled(uint32_t reg_base)
 {
     struct CACHE_T *cache = (struct CACHE_T *)reg_base;
@@ -137,7 +151,11 @@ __STATIC_FORCEINLINE void cacheip_enable_writeback(uint32_t reg_base, uint32_t v
     struct CACHE_T *cache = (struct CACHE_T *)reg_base;
     if (v) {
         // Enable NO_WRITE_ALLOCATE mode
+#if defined(CHIP_BEST1503) || defined(CHIP_BEST2009)
+        cache->WRITE_BACK_EN |= CACHEC_DISNWAMODE | CACHEC_WRITE_BACK_EN;
+#else
         cache->WRITE_BACK_EN = (cache->WRITE_BACK_EN & ~CACHEC_DISNWAMODE) | CACHEC_WRITE_BACK_EN;
+#endif
     } else {
         cache->WRITE_BACK_EN &= ~CACHEC_WRITE_BACK_EN;
     }
@@ -227,6 +245,9 @@ __STATIC_FORCEINLINE void cacheip_enable_monitor(uint32_t reg_base, uint32_t v)
     }
     cache->MONITOR_EN = val;
 }
+#ifdef __ARMCC_VERSION
+POSSIBLY_UNUSED
+#endif
 __STATIC_FORCEINLINE uint64_t cacheip_read64(volatile uint32_t *reg_l, volatile uint32_t *reg_h)
 {
     uint32_t data[2];
@@ -731,10 +752,10 @@ void hal_cache_print_stats(void)
 {
     struct HAL_CACHE_MON_DATA_T data;
     uint64_t total;
-    POSSIBLY_UNUSED uint32_t r_ppm;
-    POSSIBLY_UNUSED uint32_t w_ppm;
+    uint32_t r_ppm;
+    uint32_t w_ppm;
 
-    HAL_TRACE(0, "CACHE STATS:");
+    TRACE(0, "CACHE STATS:");
     for (int i = HAL_CACHE_ID_I_CACHE; i < HAL_CACHE_ID_NUM; i++) {
         hal_cache_get_monitor_data(i, &data);
         hal_cache_reset_monitor_data(i);
@@ -750,7 +771,7 @@ void hal_cache_print_stats(void)
         } else {
             w_ppm = 0;
         }
-        HAL_TRACE(TR_ATTR_NO_TS, "\t[%2u] r_miss=%3u w_miss=%3u (ppm)", i, r_ppm, w_ppm);
+        TRACE(TR_ATTR_NO_TS, "\t[%2u] r_miss=%3u w_miss=%3u (ppm)", i, r_ppm, w_ppm);
     }
 }
 
@@ -849,7 +870,6 @@ __STATIC_FORCEINLINE uint32_t _cachecp_get_size(enum HAL_CACHE_ID_T id)
 uint8_t hal_cachecp_enable(enum HAL_CACHE_ID_T id)
 {
     uint32_t reg_base = 0;
-    uint32_t main_cache_reg_base;
     enum HAL_CMU_MOD_ID_T mod;
 
     reg_base = _cachecp_get_reg_base(id);
@@ -868,14 +888,23 @@ uint8_t hal_cachecp_enable(enum HAL_CACHE_ID_T id)
     hal_cmu_clock_enable(mod);
     hal_cmu_reset_clear(mod);
 
+    //cacheip_enable_cache_ex(reg_base, HAL_CACHE_NO);
+
     cacheip_invalidate_all(reg_base);
-    cacheip_enable_cache(reg_base, HAL_CACHE_YES);
+
+    // If CP can access main cache ctrl regs
+#ifndef CACHE_CTRL_NO_CROSS_ACCESS
+    uint32_t main_cache_reg_base;
+
     // Init wrap option
     main_cache_reg_base = _cache_get_reg_base(id);
     if (main_cache_reg_base == 0) {
         return 0;
     }
     cacheip_enable_wrap(reg_base, cacheip_wrap_enabled(main_cache_reg_base));
+#endif
+
+    cacheip_enable_cache_ex(reg_base, HAL_CACHE_YES);
 
     return 0;
 }
@@ -1096,7 +1125,7 @@ void hal_cachecp_print_stats(void)
     uint32_t r_ppm;
     uint32_t w_ppm;
 
-    HAL_TRACE(0, "CACHE-CP STATS:");
+    TRACE(0, "CACHE-CP STATS:");
     for (int i = HAL_CACHE_ID_I_CACHE; i < HAL_CACHE_ID_NUM; i++) {
         hal_cachecp_get_monitor_data(i, &data);
         hal_cachecp_reset_monitor_data(i);
@@ -1112,7 +1141,7 @@ void hal_cachecp_print_stats(void)
         } else {
             w_ppm = 0;
         }
-        HAL_TRACE(TR_ATTR_NO_TS, "\t[%2u] r_miss=%3u w_miss=%3u (ppm)", i, r_ppm, w_ppm);
+        TRACE(TR_ATTR_NO_TS, "\t[%2u] r_miss=%3u w_miss=%3u (ppm)", i, r_ppm, w_ppm);
     }
 }
 #endif

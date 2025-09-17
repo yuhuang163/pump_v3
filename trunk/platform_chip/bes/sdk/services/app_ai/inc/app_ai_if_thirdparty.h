@@ -5,9 +5,7 @@
  * INCLUDE FILES
  ****************************************************************************************
  */
-#ifdef __THIRDPARTY
 #include "app_thirdparty.h"
-#endif
 
 #define APP_AI_IF_THIRDPARTY_MEMPOOL_BUFFER_SIZE   (0)
 
@@ -84,9 +82,7 @@ void app_ai_if_thirdparty_mempool_get_buff(uint8_t **buff, uint32_t size);
  * Return:
  *    void
  */
-#ifdef __THIRDPARTY
 int app_ai_if_thirdparty_event_handle(THIRDPARTY_FUNC_ID funcId, THIRDPARTY_EVENT_TYPE event_type, uint8_t ai);
-#endif
 
 /*---------------------------------------------------------------------------
  *            app_ai_if_thirdparty_init

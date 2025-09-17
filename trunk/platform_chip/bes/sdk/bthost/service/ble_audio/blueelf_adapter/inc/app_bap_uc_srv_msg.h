@@ -151,7 +151,6 @@ int app_bap_uc_srv_configure_codec_ase_local(uint8_t ase_lid,
                                              const app_gaf_bap_qos_req_t *p_qos_req,
                                              const app_gaf_bap_cfg_t *ntf_codec_cfg);
 
-int app_bap_uc_srv_get_specifc_state_ase_lid_list(uint8_t con_lid, uint8_t ase_state, uint8_t *ase_lid_list);
 #ifdef __cplusplus
 }
 #endif

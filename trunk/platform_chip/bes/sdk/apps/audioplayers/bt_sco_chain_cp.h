@@ -27,9 +27,7 @@ int sco_cp_init(int frame_len, int channel_num);
 
 int sco_cp_deinit(void);
 
-int sco_cp_process(short *pcm_buf, short *ref_buf, short *fb_buf, int *_pcm_len, sco_status_t *status);
-
-int sco_cp_algo(short *pcm_buf, short *ref_buf, short *fb_buf, int *_pcm_len, sco_status_t *status);
+int sco_cp_process(short *pcm_buf, short *ref_buf, int *_pcm_len, sco_status_t *status);
 
 #ifdef __cplusplus
 }

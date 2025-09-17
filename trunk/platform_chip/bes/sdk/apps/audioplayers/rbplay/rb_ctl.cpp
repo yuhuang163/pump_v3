@@ -66,6 +66,15 @@ extern bool app_rbcodec_check_hfp_active(void );
 #define _LOG_TAG "[rb_ctl] "
 #undef __attribute__(a)
 
+#define RBPLAY_DEBUG 1
+#if  RBPLAY_DEBUG
+#define _LOG_DBG(str,...) TRACE(0,_LOG_TAG""str, ##__VA_ARGS__)
+#define _LOG_ERR(str,...) TRACE(0,_LOG_TAG"err:"""str, ##__VA_ARGS__)
+#else
+#define _LOG_DBG(str,...)
+#define _LOG_ERR(str,...) TRACE(0,_LOG_TAG"err:"""str, ##__VA_ARGS__)
+#endif
+
 #include "rb_ctl.h"
 void rb_thread_send_resume(void);
 
@@ -109,20 +118,20 @@ bool rb_ctl_parse_file(const char* file_path)
 {
     /* open file */
 
-    AUDIOPLAYERS_TRACE(1,"open file  %s\n", file_path);
+    _LOG_DBG(1,"open file  %s\n", file_path);
     rb_ctl_context.file_handle = open((const char *)file_path, O_RDWR);
     if (rb_ctl_context.file_handle <= 0) {
-        AUDIOPLAYERS_TRACE(1,"open file %s failed\n", file_path);
+        _LOG_DBG(1,"open file %s failed\n", file_path);
         return false;
     }
 
     if (!get_metadata(&rb_ctl_context.song_id3, rb_ctl_context.file_handle, rb_ctl_context.rb_fname)) {
-        AUDIOPLAYERS_TRACE(0,"get_metadata failed\n");
+        _LOG_DBG(0,"get_metadata failed\n");
         close(rb_ctl_context.file_handle);
         return false;
     }
 
-    AUDIOPLAYERS_TRACE(4,"%s bitr:%d,saps %d, freq:%d\n",__func__,rb_ctl_context.song_id3.bitrate,rb_ctl_context.song_id3.samples,rb_ctl_context.song_id3.frequency);
+    _LOG_DBG(4,"%s bitr:%d,saps %d, freq:%d\n",__func__,rb_ctl_context.song_id3.bitrate,rb_ctl_context.song_id3.samples,rb_ctl_context.song_id3.frequency);
 
     rb_thread_set_decode_vars(rb_ctl_context.file_handle, rb_ctl_context.song_id3.codectype,&rb_ctl_context.song_id3);
 
@@ -134,7 +143,7 @@ void rb_ctl_vol_operation(bool inc )
     uint32_t ret;
     struct AF_STREAM_CONFIG_T *stream_cfg = NULL;
 
-    AUDIOPLAYERS_TRACE(2,"%s inc:%d , ",__func__,inc);
+    _LOG_DBG(2,"%s inc:%d , ",__func__,inc);
 
     if(inc ) {
         if(rb_ctl_context.rb_player_vol < 16 ) {
@@ -166,7 +175,7 @@ void rb_ctl_set_vol(uint32_t vol)
     uint32_t ret;
     struct AF_STREAM_CONFIG_T *stream_cfg = NULL;
 
-    AUDIOPLAYERS_TRACE(2,"%s set vol as :%d , ",__func__,vol);
+    _LOG_DBG(2,"%s set vol as :%d , ",__func__,vol);
 
     if(rb_ctl_context.status != RB_CTL_PLAYING)
         return ;
@@ -183,20 +192,20 @@ void rb_ctl_set_vol(uint32_t vol)
 
 void rb_ctl_stop_play(void )
 {
-    AUDIOPLAYERS_TRACE(1,"%s  \n",__func__);
+    _LOG_DBG(1,"%s  \n",__func__);
 
     rb_codec_set_halt(1);
 //close file
-    AUDIOPLAYERS_TRACE(0," af  stream stop \n");
+    _LOG_DBG(0," af  stream stop \n");
     af_stream_stop(AUD_STREAM_ID_0,AUD_STREAM_PLAYBACK);
-    AUDIOPLAYERS_TRACE(0," af	stream close \n");
+    _LOG_DBG(0," af	stream close \n");
     af_stream_close(AUD_STREAM_ID_0,AUD_STREAM_PLAYBACK);
-    AUDIOPLAYERS_TRACE(0," close file \n");
+    _LOG_DBG(0," close file \n");
     if(rb_ctl_context.file_handle != -1)
         close(rb_ctl_context.file_handle );
     rb_ctl_context.file_handle = -1;
 //release frequency
-    AUDIOPLAYERS_TRACE(0," release freq  \n");
+    _LOG_DBG(0," release freq  \n");
     
     return ;
 }
@@ -209,7 +218,7 @@ void rb_ctl_sync_stop_play(void )
 
     rb_player_sync_wait_close();
     //close file
-    AUDIOPLAYERS_TRACE(0," close file \n");
+    _LOG_DBG(0," close file \n");
     if(rb_ctl_context.file_handle != -1)
         close(rb_ctl_context.file_handle );
     rb_ctl_context.file_handle = -1;
@@ -218,7 +227,7 @@ void rb_ctl_sync_stop_play(void )
 void rb_ctl_pause_playing(void )
 {
     af_stream_stop(AUD_STREAM_ID_0,AUD_STREAM_PLAYBACK);
-    AUDIOPLAYERS_TRACE(0," af   stream close \n");
+    _LOG_DBG(0," af   stream close \n");
     af_stream_close(AUD_STREAM_ID_0,AUD_STREAM_PLAYBACK);
 //wait decoder suspend
     //osDelay(200);
@@ -227,7 +236,7 @@ void rb_ctl_pause_playing(void )
     //    osDelay(1);
    // }
 	
-    AUDIOPLAYERS_TRACE(1,"%s sucessed ",__func__);
+    _LOG_DBG(1,"%s sucessed ",__func__);
 }
 
 void rb_ctl_resume_playing(void )
@@ -272,44 +281,44 @@ static int rb_ctl_handle_event(RBCTL_MSG_BLOCK *msg_body)
                 if(rb_ctl_context.status == RB_CTL_SUSPEND)
                     rb_thread_send_resume();
                 else
-                    AUDIOPLAYERS_TRACE(2,"%s  st  %d not in idle \n",__func__,rb_ctl_context.status);
+                    _LOG_DBG(2,"%s  st  %d not in idle \n",__func__,rb_ctl_context.status);
                 break;
             }
-			AUDIOPLAYERS_TRACE(3," %s start %d/%d ",__func__, rb_ctl_context.curr_song_idx ,sd_playlist.total_songs);
+			_LOG_DBG(3," %s start %d/%d ",__func__, rb_ctl_context.curr_song_idx ,sd_playlist.total_songs);
             if(sd_playlist.total_songs > 0 ) {
                 playlist_item *it;
 
                 it = app_rbplay_get_playitem(rb_ctl_context.curr_song_idx) ;
 
                 if(it == NULL) {
-                    AUDIOPLAYERS_TRACE(2," %s get item fail idx %d",__func__,rb_ctl_context.curr_song_idx);
+                    _LOG_DBG(2," %s get item fail idx %d",__func__,rb_ctl_context.curr_song_idx);
                 }
 
-                AUDIOPLAYERS_TRACE(2,"%s  start songidx %d \n",__func__,rb_ctl_context.curr_song_idx);
+                _LOG_DBG(2,"%s  start songidx %d \n",__func__,rb_ctl_context.curr_song_idx);
 
                 memcpy(rb_ctl_context.rb_audio_file,it->file_path,sizeof(uint16_t)*FILE_PATH_LEN - 4);
                 memcpy(rb_ctl_context.rb_fname,it->file_name,sizeof(rb_ctl_context.rb_fname));
 
                 if(rb_ctl_parse_file((const char*)rb_ctl_context.rb_audio_file)) {
-                    AUDIOPLAYERS_TRACE(2,"%s  start init, the tid 0x%x\n",__func__,osThreadGetId());
+                    _LOG_DBG(2,"%s  start init, the tid 0x%x\n",__func__,osThreadGetId());
                     rb_play_codec_init();
-                    AUDIOPLAYERS_TRACE(1,"%s  start run\n",__func__);
+                    _LOG_DBG(1,"%s  start run\n",__func__);
                     rb_play_codec_run();
                     rb_ctl_context.status = RB_CTL_PLAYING;
 					app_rbcodec_ctl_set_play_status(true);
                     break;
                 } else {
-                    AUDIOPLAYERS_TRACE(2,"%s  evt  %d parse fail,find next\n",__func__,msg_body->evt);
+                    _LOG_DBG(2,"%s  evt  %d parse fail,find next\n",__func__,msg_body->evt);
 					rb_thread_post_msg(RB_MODULE_EVT_PLAY_NEXT,true);
                 }
 
             } else {
-                AUDIOPLAYERS_TRACE(2,"%s  evt  %d no songs\n",__func__,msg_body->evt);
+                _LOG_DBG(2,"%s  evt  %d no songs\n",__func__,msg_body->evt);
             }
             break;
         case RB_MODULE_EVT_STOP:
             if(rb_ctl_context.status == RB_CTL_IDLE) {
-                AUDIOPLAYERS_TRACE(2,"%s  st  %d in idle \n",__func__,rb_ctl_context.status);
+                _LOG_DBG(2,"%s  st  %d in idle \n",__func__,rb_ctl_context.status);
                 break;
             }
             if(rb_ctl_context.status == RB_CTL_SUSPEND) {
@@ -323,7 +332,7 @@ static int rb_ctl_handle_event(RBCTL_MSG_BLOCK *msg_body)
             break;
         case RB_MODULE_EVT_SUSPEND:
             if (rb_ctl_context.status != RB_CTL_PLAYING) {
-                AUDIOPLAYERS_TRACE(2,"%s  st  %d not running \n",__func__,rb_ctl_context.status);
+                _LOG_DBG(2,"%s  st  %d not running \n",__func__,rb_ctl_context.status);
                 break;
             }
             rb_ctl_pause_playing();
@@ -331,7 +340,7 @@ static int rb_ctl_handle_event(RBCTL_MSG_BLOCK *msg_body)
             break;
         case RB_MODULE_EVT_RESUME:
             if (rb_ctl_context.status != RB_CTL_SUSPEND) {
-                AUDIOPLAYERS_TRACE(2,"%s  st  %d not suspend \n",__func__,rb_ctl_context.status);
+                _LOG_DBG(2,"%s  st  %d not suspend \n",__func__,rb_ctl_context.status);
                 break;
             }
             rb_ctl_resume_playing();
@@ -477,7 +486,7 @@ static int rb_ctl_handle_event(RBCTL_MSG_BLOCK *msg_body)
             break;
     }
 	if(SBC_RECORD_ACTION_DATA_IND !=msg_body->evt)
-    AUDIOPLAYERS_TRACE(3,"%s  rbcodec evt  %d  ,st %d ended\n",__func__,msg_body->evt,rb_ctl_context.status);
+    _LOG_DBG(3,"%s  rbcodec evt  %d  ,st %d ended\n",__func__,msg_body->evt,rb_ctl_context.status);
     return 0;
 }
 
@@ -493,7 +502,7 @@ int rb_thread_post_msg(RB_MODULE_EVT evt,uint32_t arg )
     msg.arg = (uint32_t)arg;
     ret = rb_ctl_mailbox_put(&msg);
 
-    AUDIOPLAYERS_TRACE(3,"%s   ret %d evt:%d\n",__func__,ret ,evt);
+    _LOG_DBG(3,"%s   ret %d evt:%d\n",__func__,ret ,evt);
     return 0;
 }
 
@@ -523,13 +532,13 @@ void app_wait_player_resumed(void )
 
 void rb_thread_send_play(void )
 {
-    AUDIOPLAYERS_TRACE(1," %s ",__FUNCTION__);
+    _LOG_DBG(1," %s ",__FUNCTION__);
     rb_thread_post_msg(RB_MODULE_EVT_PLAY, (uint32_t)osThreadGetId());
 }
 
 void rb_thread_send_stop(void )
 {
-    AUDIOPLAYERS_TRACE(1," %s ",__FUNCTION__);
+    _LOG_DBG(1," %s ",__FUNCTION__);
     rb_thread_post_msg(RB_MODULE_EVT_STOP, (uint32_t)osThreadGetId());
 	
 	osDelay(200);
@@ -538,67 +547,67 @@ void rb_thread_send_stop(void )
 
 void rb_thread_send_pause(void)
 {
-    AUDIOPLAYERS_TRACE(1," %s ",__FUNCTION__);
+    _LOG_DBG(1," %s ",__FUNCTION__);
 
     rb_thread_post_msg(RB_MODULE_EVT_SUSPEND,(uint32_t)osThreadGetId());
     app_wait_player_suspend();
 	
-    AUDIOPLAYERS_TRACE(1," %s end",__FUNCTION__);
+    _LOG_DBG(1," %s end",__FUNCTION__);
 }
 
 void rb_thread_send_resume(void)
 {
-    AUDIOPLAYERS_TRACE(1," %s ",__FUNCTION__);
+    _LOG_DBG(1," %s ",__FUNCTION__);
 
     rb_thread_post_msg(RB_MODULE_EVT_RESUME,(uint32_t)osThreadGetId());
 	
-    AUDIOPLAYERS_TRACE(1," %s end",__FUNCTION__);
+    _LOG_DBG(1," %s end",__FUNCTION__);
 }
 
 void rb_play_dual_play_restore(uint8_t stream_type )
 {
-    AUDIOPLAYERS_TRACE(2,"%s %d \n", __func__, __LINE__);
+    _LOG_DBG(2,"%s %d \n", __func__, __LINE__);
 
     rb_thread_post_msg(RB_MODULE_EVT_RESTORE_DUAL_PLAY, stream_type);
-     AUDIOPLAYERS_TRACE(2,"%s %d \n", __func__, __LINE__);
+     _LOG_DBG(2,"%s %d \n", __func__, __LINE__);
 }
 
 void rb_thread_send_switch(bool next)
 {
-    AUDIOPLAYERS_TRACE(2,"%s %d \n", __func__, __LINE__);
+    _LOG_DBG(2,"%s %d \n", __func__, __LINE__);
 
     rb_thread_post_msg(RB_MODULE_EVT_PLAY_NEXT,next);
 
-     AUDIOPLAYERS_TRACE(2,"%s %d \n", __func__, __LINE__);
+     _LOG_DBG(2,"%s %d \n", __func__, __LINE__);
 }
 
 void rb_play_linein_start(void )
 {
-    AUDIOPLAYERS_TRACE(2,"%s %d \n", __func__, __LINE__);
+    _LOG_DBG(2,"%s %d \n", __func__, __LINE__);
 
     rb_thread_post_msg(RB_MODULE_EVT_LINEIN_START, 0);
-     AUDIOPLAYERS_TRACE(2,"%s %d \n", __func__, __LINE__);
+     _LOG_DBG(2,"%s %d \n", __func__, __LINE__);
 }
 
 void rb_play_reconfig_stream(uint32_t arg )
 {
-    AUDIOPLAYERS_TRACE(3,"%s %d arg:0x%x\n", __func__, __LINE__, arg);
+    _LOG_DBG(3,"%s %d arg:0x%x\n", __func__, __LINE__, arg);
 
     rb_thread_post_msg(RB_MODULE_EVT_RECONFIG_STREAM, arg);
-     AUDIOPLAYERS_TRACE(2,"%s %d \n", __func__, __LINE__);
+     _LOG_DBG(2,"%s %d \n", __func__, __LINE__);
 }
 
 void rb_play_set_tws_mode(uint32_t arg )
 {
-    AUDIOPLAYERS_TRACE(3,"%s %d arg:0x%x\n", __func__, __LINE__, arg);
+    _LOG_DBG(3,"%s %d arg:0x%x\n", __func__, __LINE__, arg);
 
     rb_thread_post_msg(RB_MODULE_EVT_SET_TWS_MODE, arg);
-     AUDIOPLAYERS_TRACE(2,"%s %d \n", __func__, __LINE__);
+     _LOG_DBG(2,"%s %d \n", __func__, __LINE__);
 }
 
 void rb_thread_send_play_idx(uint32_t array_subidx)
 {
-    AUDIOPLAYERS_TRACE(2," %s array_subidx %d, ",__FUNCTION__,array_subidx);
+    _LOG_DBG(2," %s array_subidx %d, ",__FUNCTION__,array_subidx);
 
     rb_thread_post_msg(RB_MODULE_EVT_PLAY_IDX,array_subidx);
 }
@@ -606,35 +615,35 @@ void rb_thread_send_play_idx(uint32_t array_subidx)
 
 void rb_thread_send_vol(bool inc)
 {
-    AUDIOPLAYERS_TRACE(2," %s inc %d, ",__FUNCTION__,inc);
+    _LOG_DBG(2," %s inc %d, ",__FUNCTION__,inc);
 
     rb_thread_post_msg(RB_MODULE_EVT_CHANGE_VOL,inc);
 }
 
 void rb_thread_send_status_change(void )
 {
-    AUDIOPLAYERS_TRACE(1," %s , ",__FUNCTION__);
+    _LOG_DBG(1," %s , ",__FUNCTION__);
 
     rb_thread_post_msg(RB_MODULE_EVT_CHANGE_IDLE,0);
 }
 
 void rb_thread_set_vol(uint32_t vol)
 {
-    AUDIOPLAYERS_TRACE(1," %s , ",__FUNCTION__);
+    _LOG_DBG(1," %s , ",__FUNCTION__);
 
     rb_thread_post_msg(RB_MODULE_EVT_SET_VOL, vol);
 }
 
 void rb_thread_send_del_file(uint16_t idx )
 {
-    AUDIOPLAYERS_TRACE(1," %s , ",__FUNCTION__);
+    _LOG_DBG(1," %s , ",__FUNCTION__);
 
     rb_thread_post_msg(RB_MODULE_EVT_DEL_FILE,idx);
 }
 
 void rb_thread_send_sbc_record_start(void )
 {
-    AUDIOPLAYERS_TRACE(1," %s , ",__FUNCTION__);
+    _LOG_DBG(1," %s , ",__FUNCTION__);
 
     rb_thread_post_msg(SBC_RECORD_ACTION_START,(uint32_t)osThreadGetId());
 }
@@ -643,13 +652,13 @@ void rb_thread_send_sbc_record_data_ind(void )
 {
 	if(!rb_ctl_context.sbc_record_on)
 		return ;
-  //  AUDIOPLAYERS_TRACE(1," %s , ",__FUNCTION__);
+  //  _LOG_DBG(1," %s , ",__FUNCTION__);
     rb_thread_post_msg(SBC_RECORD_ACTION_DATA_IND,(uint32_t)osThreadGetId());
 }
 
 void rb_thread_send_sbc_record_stop(void )
 {
-    AUDIOPLAYERS_TRACE(1," %s , ",__FUNCTION__);
+    _LOG_DBG(1," %s , ",__FUNCTION__);
 
     rb_thread_post_msg(SBC_RECORD_ACTION_STOP,(uint32_t)osThreadGetId());
 }
@@ -664,7 +673,7 @@ void app_rbplay_audio_reset_pause_status(void)
 
 int app_rbplay_audio_onoff(bool onoff, uint16_t aud_id)
 {
-    AUDIOPLAYERS_TRACE(3," %s onoff %d, get status:%d",__FUNCTION__,onoff, rb_ctl_get_status());
+    _LOG_DBG(3," %s onoff %d, get status:%d",__FUNCTION__,onoff, rb_ctl_get_status());
 
 	if(app_rbcodec_check_hfp_active()&& !onoff) {
         if( RB_CTL_PLAYING == rb_ctl_get_status()) {
@@ -689,7 +698,7 @@ int app_rbplay_audio_onoff(bool onoff, uint16_t aud_id)
 
 void app_rbplay_pause_resume(void)
 {
-    AUDIOPLAYERS_TRACE(2," %s get status:%d",__func__, rb_ctl_get_status());
+    _LOG_DBG(2," %s get status:%d",__func__, rb_ctl_get_status());
 	
 	user_key_pause_stream = true;
     if( RB_CTL_SUSPEND == rb_ctl_get_status()) {
@@ -707,7 +716,7 @@ static int rb_ctl_mailbox_init(void)
 {
     rb_ctl_mailbox = osMailCreate(osMailQ(rb_ctl_mailbox), NULL);
     if (rb_ctl_mailbox == NULL)  {
-        AUDIOPLAYERS_TRACE(0,"Failed to Create rb_ctl_mailbox\n");
+        TRACE(0,"Failed to Create rb_ctl_mailbox\n");
         return -1;
     }
     return 0;
@@ -721,7 +730,7 @@ int rb_ctl_mailbox_put(RBCTL_MSG_BLOCK* msg_src)
 
     msg_p = (RBCTL_MSG_BLOCK*)osMailAlloc(rb_ctl_mailbox, 0);
     if(!msg_p) {
-        AUDIOPLAYERS_TRACE(3,"%s fail, evt:%d,arg=%d \n",__func__,msg_src->evt,msg_src->arg);
+        TRACE(3,"%s fail, evt:%d,arg=%d \n",__func__,msg_src->evt,msg_src->arg);
         return -1;
     }
 
@@ -760,7 +769,7 @@ void rb_ctl_action_init(void)
 {
 
     bool ind = voiceCocah_get_indication();
-    AUDIOPLAYERS_TRACE(2," %s Cocah %d",__func__,ind);
+    TRACE(2," %s Cocah %d",__func__,ind);
 
     if( !ind) return ;
 
@@ -772,7 +781,7 @@ void rb_ctl_action_init(void)
 void rb_ctl_action_run(void)
 {
     bool ind = voiceCocah_get_indication();
-    AUDIOPLAYERS_TRACE(2," %s Cocah %d",__func__,ind);
+    TRACE(2," %s Cocah %d",__func__,ind);
 
     if( !ind) return ;
 
@@ -782,7 +791,7 @@ void rb_ctl_action_run(void)
 void rb_ctl_action_stop(void)
 {
     bool ind = voiceCocah_get_indication();
-    AUDIOPLAYERS_TRACE(2," %s Cocah %d",__func__,ind);
+    TRACE(2," %s Cocah %d",__func__,ind);
 
     if( !ind) return ;
 
@@ -828,7 +837,7 @@ static void rb_ctl_thread(void const *argument)
 
 int rb_ctl_init(void)
 {
-    AUDIOPLAYERS_TRACE(1,"%s \n",__func__);
+    _LOG_DBG(1,"%s \n",__func__);
 
 	rb_ctl_context.init_done = false;
 	rb_ctl_context.sbc_record_on = false;
@@ -841,10 +850,10 @@ int rb_ctl_init(void)
     rb_ctl_default_priority = osPriorityAboveNormal;
 
 	if (rb_ctl_tid == NULL)  {
-		AUDIOPLAYERS_TRACE(0,"Failed to Create rb_ctl_thread\n");
+		TRACE(0,"Failed to Create rb_ctl_thread\n");
 		return 0;
 	}
-	AUDIOPLAYERS_TRACE(1,"Leave %s \n",__func__);
+	_LOG_DBG(1,"Leave %s \n",__func__);
 	return 0;
 }
 

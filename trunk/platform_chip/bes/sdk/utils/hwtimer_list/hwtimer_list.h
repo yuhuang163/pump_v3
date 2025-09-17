@@ -25,12 +25,13 @@ typedef void *HWTIMER_ID;
 typedef void (*HWTIMER_CALLBACK_T)(void *param);
 
 enum E_HWTIMER_T {
-    E_HWTIMER_OK = 0,
-    E_HWTIMER_FAILED,
-    E_HWTIMER_INVAL_ID,
-    E_HWTIMER_INVAL_ST,
-    E_HWTIMER_IN_CALLBACK,
-    E_HWTIMER_NOT_FOUND,
+    E_HWTIMER_OK                = 0,
+    E_HWTIMER_FAILED            = 1,
+    E_HWTIMER_INVAL_ID          = 2,
+    E_HWTIMER_INVAL_ST          = 3,
+    E_HWTIMER_IN_CALLBACK       = 4,
+    E_HWTIMER_NOT_FOUND         = 5,
+    E_HWTIMER_IN_PROC           = 6,
 };
 
 void hwtimer_init(void);
@@ -48,6 +49,8 @@ enum E_HWTIMER_T hwtimer_update(HWTIMER_ID id, HWTIMER_CALLBACK_T callback, void
 enum E_HWTIMER_T hwtimer_stop(HWTIMER_ID id);
 
 int hwtimer_active(HWTIMER_ID id);
+
+void hwtimer_dump(void);
 
 #ifdef __cplusplus
 }

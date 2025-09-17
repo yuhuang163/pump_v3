@@ -21,10 +21,10 @@
 #include "app_tota.h" 
 #include "app_tota_cmd_handler.h"
 #include "app_tota_cmd_code.h"
-#include "bluetooth_ble_api.h"
+//#include "rwapp_config.h"
 #include "app_spp_tota.h"
 #ifdef __IAG_BLE_INCLUDE__
-#include "app_tota_ble.h"
+#include "bluetooth_ble_api.h"
 #endif
 
 #define APP_TOTA_CMD_HANDLER_WAITING_RSP_TIMEOUT_SUPERVISOR_COUNT	8
@@ -216,7 +216,7 @@ static void app_tota_cmd_handler_remove_waiting_rsp_timeout_supervision(uint16_t
 	
 	tota_cmd_handler_env.timeoutSupervisorCount--;	
 
-    //TOTA_TRACE(1,"decrease the supervisor timer to %d", tota_cmd_handler_env.timeoutSupervisorCount);
+    //TOTA_LOG_DBG(1,"decrease the supervisor timer to %d", tota_cmd_handler_env.timeoutSupervisorCount);
 
 	if (tota_cmd_handler_env.timeoutSupervisorCount > 0)
 	{
@@ -292,7 +292,7 @@ static void app_tota_cmd_handler_add_waiting_rsp_timeout_supervision(uint16_t en
 
 	tota_cmd_handler_env.timeoutSupervisorCount = insertedIndex;	
 
-    //TOTA_TRACE(1,"increase the supervisor timer to %d", tota_cmd_handler_env.timeoutSupervisorCount);
+    //TOTA_LOG_DBG(1,"increase the supervisor timer to %d", tota_cmd_handler_env.timeoutSupervisorCount);
 
 
     osMutexRelease(tota_cmd_handler_env.mutex);
@@ -312,21 +312,21 @@ static void app_tota_cmd_handler_add_waiting_rsp_timeout_supervision(uint16_t en
  */
 APP_TOTA_CMD_RET_STATUS_E app_tota_cmd_received(uint8_t* ptrData, uint32_t dataLength)
 {
-	TOTA_TRACE(0,"TOTA Receive data:");
-	TOTA_DUMP8("0x%02x ", ptrData, dataLength);
+	TOTA_LOG_DBG(0,"TOTA Receive data:");
+	TOTA_LOG_DUMP("0x%02x ", ptrData, dataLength);
 	APP_TOTA_CMD_PAYLOAD_T* pPayload = (APP_TOTA_CMD_PAYLOAD_T *)ptrData;
 	
 	// check command code
 	if (pPayload->cmdCode >= OP_TOTA_COMMAND_COUNT || pPayload->cmdCode < OP_TOTA_RESPONSE_TO_CMD)
 	{
-		TOTA_TRACE(1,"[%s]error TOTA_INVALID_CMD",__func__);
+		TOTA_LOG_DBG(1,"[%s]error TOTA_INVALID_CMD",__func__);
 		return TOTA_INVALID_CMD;
 	}
 
 	// check parameter length
 	if (pPayload->paramLen > sizeof(pPayload->param))
 	{
-		TOTA_TRACE(1,"[%s]error TOTA_PARAM_LEN_OUT_OF_RANGE",__func__);
+		TOTA_LOG_DBG(1,"[%s]error TOTA_PARAM_LEN_OUT_OF_RANGE",__func__);
 		return TOTA_PARAM_LEN_OUT_OF_RANGE;
 	}
 
@@ -346,8 +346,8 @@ extern "C" int get_send_sync_flag(void);
 APP_TOTA_CMD_RET_STATUS_E app_anc_tota_cmd_received(uint8_t* ptrData, uint32_t dataLength)
 {
     //int ret=0;;
-	TOTA_TRACE(1,"######Receive data len:%d", dataLength);
-	TOTA_DUMP8("0x%02x ", ptrData, dataLength > 32 ? 32 : dataLength);
+	TOTA_LOG_DBG(1,"######Receive data len:%d", dataLength);
+	TOTA_LOG_DUMP("0x%02x ", ptrData, dataLength > 32 ? 32 : dataLength);
 
     
 	//APP_TOTA_CMD_PAYLOAD_T* pPayload = (APP_TOTA_CMD_PAYLOAD_T *)ptrData;
@@ -363,8 +363,8 @@ APP_TOTA_CMD_RET_STATUS_E app_anc_tota_cmd_received(uint8_t* ptrData, uint32_t d
 #endif
 static void app_tota_cmd_send(APP_TOTA_TRANSMISSION_PATH_E path, APP_TOTA_CMD_PAYLOAD_T* ptPayLoad)
 {
-    TOTA_TRACE(0,"Send tota cmd:");
-    TOTA_DUMP8("%02x ", (uint8_t *)ptPayLoad, 
+    TOTA_LOG_DBG(0,"Send tota cmd:");
+    TOTA_LOG_DUMP("%02x ", (uint8_t *)ptPayLoad, 
 	    (uint32_t)(&(((APP_TOTA_CMD_PAYLOAD_T *)0)->param)) + ptPayLoad->paramLen);
     
 	switch (path)
@@ -373,13 +373,13 @@ static void app_tota_cmd_send(APP_TOTA_TRANSMISSION_PATH_E path, APP_TOTA_CMD_PA
             app_tota_send_cmd_via_spp((uint8_t *)ptPayLoad, 
 				(uint32_t)(&(((APP_TOTA_CMD_PAYLOAD_T *)0)->param)) + ptPayLoad->paramLen);
             break;
-#ifdef BLE_TOTA_ENABLED  
+#ifdef BLE_TOTA_ENABLED
 		case APP_TOTA_VIA_NOTIFICATION:
-			app_tota_send_notification((uint8_t *)ptPayLoad, 
+			bes_ble_tota_send_notification(tota_ble_get_conidx(), (uint8_t *)ptPayLoad, 
 				(uint32_t)(&(((APP_TOTA_CMD_PAYLOAD_T *)0)->param)) + ptPayLoad->paramLen);
 			break;
 		case APP_TOTA_VIA_INDICATION:
-			app_tota_send_indication((uint8_t *)ptPayLoad, 
+			bes_ble_tota_send_indication(tota_ble_get_conidx(), (uint8_t *)ptPayLoad, 
 				(uint32_t)(&(((APP_TOTA_CMD_PAYLOAD_T *)0)->param)) + ptPayLoad->paramLen);
             break;
 #endif
@@ -403,7 +403,7 @@ APP_TOTA_CMD_RET_STATUS_E app_tota_send_response_to_command
 	(APP_TOTA_CMD_CODE_E responsedCmdCode, APP_TOTA_CMD_RET_STATUS_E returnStatus, 
 	uint8_t* rspData, uint32_t rspDataLen, APP_TOTA_TRANSMISSION_PATH_E path)
 {
-	TOTA_TRACE(1,"[%s] cmd: %d, path: %d",__func__, responsedCmdCode, path);
+	TOTA_LOG_DBG(1,"[%s] cmd: %d, path: %d",__func__, responsedCmdCode, path);
 	// check responsedCmdCode's validity
 	if (responsedCmdCode >= OP_TOTA_COMMAND_COUNT || responsedCmdCode < OP_TOTA_RESPONSE_TO_CMD)
 	{

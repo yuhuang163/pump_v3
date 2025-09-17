@@ -5,7 +5,6 @@ obj_c += $(patsubst $(cur_dir)%,%,$(wildcard $(cur_dir)gap/*.c))
 obj_c += $(patsubst $(cur_dir)%,%,$(wildcard $(cur_dir)smp/*.c))
 obj_c += $(patsubst $(cur_dir)%,%,$(wildcard $(cur_dir)gatt/*.c))
 obj_c += $(patsubst $(cur_dir)%,%,$(wildcard $(cur_dir)iso/bap.c))
-obj_c += $(patsubst $(cur_dir)%,%,$(wildcard $(cur_dir)cs/cs.c))
 
 ifeq ($(BLE_AUDIO_ENABLED),1)
 obj_c += $(patsubst $(cur_dir)%,%,$(wildcard $(cur_dir)gaf/*.c))
@@ -17,44 +16,43 @@ obj_c += $(patsubst $(cur_dir)%,%,$(wildcard $(cur_dir)gaf/atc/*.c))
 obj_c += $(patsubst $(cur_dir)%,%,$(wildcard $(cur_dir)gaf/tmap/*.c))
 obj_c += $(patsubst $(cur_dir)%,%,$(wildcard $(cur_dir)gaf/hap/*.c))
 obj_c += $(patsubst $(cur_dir)%,%,$(wildcard $(cur_dir)gaf/gmap/*.c))
-obj_c += $(patsubst $(cur_dir)%,%,$(wildcard $(cur_dir)gaf/vap/*.c))
 endif
 endif
 
-ifeq ($(ISO_BEARER_SUPPORT),1)
-obj_c += $(patsubst $(cur_dir)%,%,$(wildcard $(cur_dir)iso/iso.c))
+ifeq ($(BLE_ISO_ENABLED),1)
+obj_c += $(patsubst $(cur_dir)%,%,$(wildcard $(cur_dir)iso/*.c))
 endif
 
-GEN_LIB_NAME := $(CHIP)_libble_stack_new
+BTBLE_LIB_NAME := $(CHIP)_libble_stack_new
 
-ifeq ($(HFP_1_9_ENABLE), 1)
-GEN_LIB_NAME := $(GEN_LIB_NAME)_sbc_enc
+ifeq ($(HFP_1_6_ENABLE), 1)
+BTBLE_LIB_NAME := $(BTBLE_LIB_NAME)_sbc_enc
+endif
+
+ifeq ($(USE_TRACE_ID), 1)
+BTBLE_LIB_NAME := $(BTBLE_LIB_NAME)_log_compressed
 endif
 
 ifeq ($(BLE_AUDIO_ENABLED), 1)
-GEN_LIB_NAME := $(GEN_LIB_NAME)_aob
+BTBLE_LIB_NAME := $(BTBLE_LIB_NAME)_aob
 endif
 
 ifeq ($(LC3PLUS_SUPPORT),1)
-GEN_LIB_NAME := $(GEN_LIB_NAME)_lc3plus
-endif
-
-ifeq ($(LEA_LHDC),1)
-BTBLE_LIB_NAME := $(BTBLE_LIB_NAME)_lhdc
+BTBLE_LIB_NAME := $(BTBLE_LIB_NAME)_lc3plus
 endif
 
 ifeq ($(AOB_MOBILE_ENABLED), 1)
 ifeq ($(BLE_USB_AUDIO_SUPPORT), 1)
-GEN_LIB_NAME := $(GEN_LIB_NAME)_usb_dongle
+BTBLE_LIB_NAME := $(BTBLE_LIB_NAME)_usb_dongle
 endif
 endif
 
-ifeq ($(ARM_CMNS), 1)
-GEN_LIB_NAME := $(GEN_LIB_NAME)_ARM_CMNS
+ifeq ($(GATT_OVER_BR_EDR), 1)
+BTBLE_LIB_NAME := $(BTBLE_LIB_NAME)_btgatt
 endif
 
-$(GEN_LIB_NAME)-y := $(obj_c:.c=.o)
-obj-y := $(GEN_LIB_NAME).a
+$(BTBLE_LIB_NAME)-y := $(obj_c:.c=.o)
+obj-y := $(BTBLE_LIB_NAME).a
 
 CFLAGS_besble.o += -DBESLIB_INFO=$(BESLIB_INFO)
 
@@ -66,17 +64,39 @@ subdir-ccflags-y += \
     $(BLE_STACK_INCLUDES) \
     $(BES_BT_IMPL_INCLUDES) \
     $(BES_STACK_ADAPTER_INCLUDES) \
-    -Ibthost/stack/common \
     -Ibthost/stack/common/patch \
     -Iutils/cqueue \
     -Iplatform/drivers/bt \
     -Ibthost/porting \
-    -Iservices/osif \
-    $(BT_SERVICE_UX_INCLUDES) \
+    -Iservices/osif
+
+ifeq ($(IBRT),1)
+subdir-ccflags-y += \
+    -Iservices/ux/common/ibrt/custom_api \
     -Iservices/audio_manager \
+    $(BLUETOOTH_ADAPTER_INCLUDES)
+
+endif
+
+ifeq ($(IBRT),1)
+subdir-ccflags-y += \
+    -Iservices/ux/common/ibrt/ibrt_middleware/inc
+
+ifeq ($(IBRT_UI),1)
+subdir-ccflags-y += \
+    -Iservices/ux/common/ibrt/app_ibrt/inc \
+    -Iservices/ux/common/ibrt/ibrt_core/inc \
     -Iservices/bt_app \
     -Iapps/key \
     -Iservices/bt_app/a2dp_codecs/include
+endif
+
+ifeq ($(IBRT_UI),1)
+ccflags-y += \
+    -Iservices/ux/common/ibrt/ibrt_ui/inc
+endif
+
+endif
 
 ifeq ($(mHDT_LE_SUPPORT),1)
 ccflags-y += \

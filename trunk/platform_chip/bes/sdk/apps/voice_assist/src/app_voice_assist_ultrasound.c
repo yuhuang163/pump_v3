@@ -35,7 +35,7 @@ static void app_anc_assist_handler(void const *param);
 osTimerDef(app_anc_assist, app_anc_assist_handler);
 static void app_anc_assist_handler(void const *param)
 {
-	VOICE_ASSIST_TRACE(0, "[%s]", __FUNCTION__);
+	TRACE(0, "[%s]", __FUNCTION__);
 
 #if 1
 	if (g_opened_flag == false) {
@@ -81,24 +81,24 @@ int32_t app_voice_assist_ultrasound_close(void)
 
 static int32_t _voice_assist_ultrasound_callback(void *buf, uint32_t len, void *other)
 {
-    // // VOICE_ASSIST_TRACE(0, "[%s] len = %d", __func__, len);
+    // TRACE(0, "[%s] len = %d", __func__, len);
 
-    // uint32_t *res = (uint32_t *)buf;
+    uint32_t *res = (uint32_t *)buf;
 
-    // if (res[0] == true) {
-    //     VOICE_ASSIST_TRACE(0, "[%s] ultrasound status changed", __func__);
-    //     app_voice_assist_wd_open();
-    // }
+    if (res[0] == true) {
+        TRACE(0, "[%s] ultrasound status changed", __func__);
+        app_voice_assist_wd_open();
+    }
 
-    // ultrasound.tick += 1;
+    ultrasound.tick += 1;
 
-    // if (anc_assist_cfg.pilot_cfg.debug_en) {
-    //     VOICE_ASSIST_TRACE(2, "[%s] ultrasound.tick = %d", __func__, ultrasound.tick);
-    // }
+    if (anc_assist_cfg.pilot_cfg.debug_en) {
+        TRACE(2, "[%s] ultrasound.tick = %d", __func__, ultrasound.tick);
+    }
 
-    // if (ultrasound.tick == anc_assist_cfg.pilot_cfg.ultrasound_stop_tick) {
-    //     app_voice_assist_ultrasound_close();
-    // }
+    if (ultrasound.tick == anc_assist_cfg.pilot_cfg.ultrasound_stop_tick) {
+        app_voice_assist_ultrasound_close();
+    }
 
     return 0;
 }

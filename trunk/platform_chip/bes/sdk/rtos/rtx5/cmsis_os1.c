@@ -319,18 +319,6 @@ osStatus osMailPut (osMailQId queue_id, const void *mail) {
   return osMessageQueuePut(ptr->mq_id, &mail, 0U, 0U);
 }
 
-osStatus osMailPut_with_prio (osMailQId queue_id, const void *mail, uint8_t prio) {
-  os_mail_queue_t *ptr = (os_mail_queue_t *)queue_id;
-
-  if (ptr == NULL) {
-    return osErrorParameter;
-  }
-  if (mail == NULL) {
-    return osErrorValue;
-  }
-  return osMessageQueuePut(ptr->mq_id, &mail, prio, 0U);
-}
-
 osEvent osMailGet (osMailQId queue_id, uint32_t millisec) {
   os_mail_queue_t *ptr = (os_mail_queue_t *)queue_id;
   osStatus_t       status;

@@ -18,6 +18,7 @@
  ****************************************************************************/
 #ifndef __ARC_AICC__
 #define __ARC_AICC__
+#include "bluetooth.h"
 
 #include "gaf_prf.h"
 #include "gaf_cfg.h"
@@ -55,13 +56,13 @@ typedef void (*aicc_cb_ctrl_op_cmp_evt)(uint8_t con_lid, uint8_t input_lid, uint
 // Callback function called when prf status event generated
 typedef gatt_prf_status_event_callback aicc_cb_prf_status_evt;
 
+
 /*Structure*/
 typedef struct aicc_init_cfg
 {
     /// Max support number to found aics
     uint8_t aics_found_num_supp_max;
-    /// Preferred MTU size
-    uint16_t pref_mtu;
+
 } aicc_init_cfg_t;
 
 typedef struct aicc_evt_cb

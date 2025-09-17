@@ -1,6 +1,6 @@
 /****************************************************************************
 *
-*    Copyright 2012 - 2020 Vivante Corporation, Santa Clara, California.
+*    Copyright 2012 - 2023 Vivante Corporation, Santa Clara, California.
 *    All Rights Reserved.
 *
 *    Permission is hereby granted, free of charge, to any person obtaining
@@ -29,23 +29,29 @@
 #include <stdint.h>
 #include <assert.h>
 #include <stdarg.h>
-#include <vg_lite.h>
 #include <stdlib.h>
 #include <string.h>
-
+#include "vg_lite_context.h"
+#ifdef TEST_WITH_FS
+#include "sfs.h"
+#include "hal_trace.h"
+#endif
+#ifdef MULTI_THREAD
 #ifdef _WIN32
     #include <windows.h>
-    #define bool int 
-    #define true 1
-    #define false 0
 #else
     #include <stdbool.h>
     #include <pthread.h>
     #include <unistd.h>
 #endif
+#else
+   // #define bool int
+    #define true 1
+    #define false 0
+#endif //multi_thread
 
 #if DUMP_CAPTURE
-static bool DumpFlag  = 0;
+static int DumpFlag  = 0;
 static void * dump_mutex = NULL;
 typedef struct _vglitesDUMP_FILE_INFO
 {
@@ -78,19 +84,19 @@ static pthread_mutex_t _dumpFileMutex = PTHREAD_MUTEX_INITIALIZER;
 )
 
 static FILE *_SetDumpFile(
-    FILE *File, bool CloseOldFile
+    FILE *File, int CloseOldFile
     );
 
-vg_lite_error_t
-vg_lite_CreateMutex(void **Mutex)
+#ifdef MULTI_THREAD
+vg_lite_error_t vg_lite_CreateMutex(void **Mutex)
 {
 #ifdef _WIN32
     void *handle;
 
     assert(Mutex!=NULL);
     handle = CreateMutex(NULL, 0, NULL);
-    
-    if(handle == NULL)
+
+    if (handle == NULL)
     {
         return VG_LITE_OUT_OF_RESOURCES;
     }
@@ -233,16 +239,18 @@ vg_lite_ReleaseMutex(void *Mutex)
 }
 
 #define vglitemUNLOCKDUMP() \
-  assert(vg_lite_ReleaseMutex(dump_mutex) == VG_LITE_SUCCESS);
+    assert(vg_lite_ReleaseMutex(dump_mutex) == VG_LITE_SUCCESS);
+#endif //MULTI_THREAD
 
 #define STACK_THREAD_NUMBER 1
-static uint32_t            _usedFileSlot = 0;
-static uint32_t            _currentPos = 0;
-static vglitesDUMP_FILE_INFO    _FileArray[STACK_THREAD_NUMBER];
-#define vglitemOPT_VALUE(ptr)    (((ptr) == NULL) ? 0 : *(ptr))
 
-vg_lite_error_t
-vg_lite_PrintStrVSafe(
+static uint32_t                         _usedFileSlot = 0;
+static uint32_t                         _currentPos = 0;
+static vglitesDUMP_FILE_INFO            _FileArray[STACK_THREAD_NUMBER];
+
+#define vglitemOPT_VALUE(ptr)           (((ptr) == NULL) ? 0 : *(ptr))
+
+vg_lite_error_t vg_lite_PrintStrVSafe(
     char * String,
     size_t StringSize,
     unsigned int * Offset,
@@ -284,9 +292,7 @@ vg_lite_PrintStrVSafe(
     return status;
 }
 
-
-vg_lite_error_t
-vg_lite_PrintStrSafe(
+vg_lite_error_t vg_lite_PrintStrSafe(
     char * String,
     size_t StringSize,
     unsigned int * Offset,
@@ -335,6 +341,7 @@ vg_lite_SetDebugFile(
 /******************************************************************************\
 ****************************** OS-dependent Macros *****************************
 \******************************************************************************/
+#ifdef MULTI_THREAD
 #ifdef __linux__
 #   define vglitemGETTHREADID() \
     (uint32_t) pthread_self()
@@ -362,8 +369,9 @@ vg_lite_SetDebugFile(
 #   define vglitemGETTHREADID() \
     GetCurrentThreadId()
 #endif
+#endif //MULTI_THREAD
 
-#   ifdef __linux__
+#   if 1 //ifdef __linux__
 #ifdef __STRICT_ANSI__  /* ANSI C does not have snprintf, vsnprintf functions */
 #   define vglitemSPRINTF(Destination, Size, Message, Value) \
         sprintf(Destination, Message, Value)
@@ -392,31 +400,29 @@ vg_lite_SetDebugFile(
 
 #endif
 
-vg_lite_error_t
-vgliteoDUMP_SetDumpFlag(
-    bool DumpState
-    )
+vg_lite_error_t vgliteoDUMP_SetDumpFlag(int DumpState)
 {
     DumpFlag = DumpState;
 
     return VG_LITE_SUCCESS;
 }
 
-
-static FILE *_SetDumpFile(
-    FILE *File,
-    bool CloseOldFile
-    )
+static FILE *_SetDumpFile(FILE *File, int CloseOldFile)
 {
     FILE *oldFile = NULL;
+    #ifdef MULTI_THREAD
     uint32_t selfThreadID = vglitemGETTHREADID();
+    #else
+    uint32_t selfThreadID = 0;
+    #endif
     uint32_t pos;
     uint32_t tmpCurPos;
-
+#ifdef MULTI_THREAD
 #ifdef _WIN32
     vglitemLOCKSECTION();
-#else 
+#else
     pthread_mutex_lock(&_dumpFileMutex);
+#endif
 #endif
     tmpCurPos = _currentPos;
 
@@ -457,6 +463,7 @@ static FILE *_SetDumpFile(
         _usedFileSlot++;
     }
 
+#ifdef MULTI_THREAD
 #ifdef __linux__
 exit:
     pthread_mutex_unlock(&_dumpFileMutex);
@@ -474,28 +481,33 @@ error:
     vglitemUNLOCKSECTION();
     printf("ERROR: Not enough dump file buffers. Buffer num = %d", STACK_THREAD_NUMBER);
 #endif
+#else
+exit:
+error:
+#endif //MULTI_THREAD
     return oldFile;
 }
 
-FILE *
-_GetDumpFile()
+FILE * _GetDumpFile()
 {
     uint32_t selfThreadID;
     uint32_t pos = 0;
     FILE* retFile = NULL;
 
+#ifdef MULTI_THREAD
 #ifdef __linux__
     pthread_mutex_lock(&_dumpFileMutex);
 #else
     vglitemLOCKSECTION();
 #endif
-
+#endif //multi_thread
     if (_usedFileSlot == 0)
     {
         goto exit;
     }
-
+#ifdef MULTI_THREAD
     selfThreadID = vglitemGETTHREADID();
+#endif
     for (; pos < _usedFileSlot; pos++)
     {
         if (selfThreadID == _FileArray[pos]._threadID)
@@ -506,11 +518,13 @@ _GetDumpFile()
     }
 
 exit:
+#ifdef MULTI_THREAD
 #ifdef __linux__
-    pthread_mutex_unlock(&_dumpFileMutex); 
+    pthread_mutex_unlock(&_dumpFileMutex);
 #else
     vglitemUNLOCKSECTION();
 #endif
+#endif //multi_thread
     return retFile;
 }
 
@@ -519,40 +533,28 @@ exit:
     fprintf(((File == NULL) ? stderr : File), "%s", String);
 #else
 #define vglitemOUTPUT_STRING(File, String) \
-    if (File != NULL) \
-    { \
+    if (File != NULL) { \
         fprintf(File, "%s", String); \
-    } \
-    else \
-    { \
+    } else { \
         OutputDebugString(String); \
     }
 #endif
 
-static void
-OutputString(
-    FILE * File,
-    const char* String
-    )
+static void OutputString(FILE *File, const char *String)
 {
-    if (String != NULL)
-    {
+    if (String != NULL) {
         vglitemOUTPUT_STRING(File, String);
     }
 }
 
-static void
-_Print(
-    FILE * File,
-    const char* Message,
-    va_list Arguments
-    )
+static void _Print(FILE *File, const char *Message, va_list Arguments)
 {
     /* Output to file or debugger. */
 
     int i, j, n, indent;
     static char buffer[4096];
     vglitesBUFFERED_OUTPUT_PTR outputBuffer = NULL;
+#ifdef MULTI_THTREAD
 #ifdef _WIN32
     static uint32_t prevThreadID;
     uint32_t threadID;
@@ -563,7 +565,7 @@ _Print(
 #else
     pthread_mutex_lock(&_printMutex);
 #endif
-
+#endif //multi_thread
     /* Initialize output buffer list. */
     if (_outputBufferHead == NULL)
     {
@@ -587,18 +589,22 @@ _Print(
 
     outputBuffer = _outputBufferHead;
 
+#ifdef MULTI_THREAD
 #ifdef _Win32
     /* Update the previous thread value. */
     prevThreadID = threadID;
+#endif
 #endif
 
     if (strcmp(Message, "$$FLUSH$$") == 0)
     {
         OutputString(File, NULL);
+#ifdef MULTI_THREAD
 #ifdef _WIN32
     vglitemUNLOCKSECTION();
 #else
      pthread_mutex_unlock(&_printMutex);
+#endif
 #endif
         return;
     }
@@ -648,34 +654,29 @@ _Print(
     {
         outputBuffer->indent += 2;
     }
+#ifdef MULTI_THREAD
 #ifdef __linux__
     pthread_mutex_unlock(&_printMutex);
 #else
     vglitemUNLOCKSECTION();
+#endif
 #endif
 }
 
 #define vglitemDEBUGPRINT(FileHandle, Message) \
 { \
     va_list arguments; \
-    \
     va_start(arguments, Message); \
     _Print(FileHandle, Message, arguments); \
     va_end(arguments); \
 }
 
-void
-vgliteoOS_Print(
-    const char * Message,
-    ...
-    )
+void vgliteoOS_Print(const char * Message, ...)
 {
     vglitemDEBUGPRINT(_GetDumpFile(), Message);
 }
 
-
-void _SetDumpFileInfo(
-    )
+void _SetDumpFileInfo()
 {
 #define DUMP_FILE_PREFIX   "hal"
 
@@ -689,6 +690,7 @@ void _SetDumpFileInfo(
         "%s%s_dump_pid-%d_tid-%d_%s.log",
         vgliteDUMP_PATH,
         DUMP_FILE_PREFIX,
+#ifdef MULTI_THREAD
 #ifdef _WIN32
         (void *)(uintptr_t)(GetCurrentProcessId()),
         (void *)(uintptr_t)GetCurrentThreadId(),
@@ -696,17 +698,17 @@ void _SetDumpFileInfo(
         (void *)(uintptr_t)getpid(),
         (void *)pthread_self(),
 #endif
+#else
+       (void *)0,
+       (void *)0,
+#endif
         vgliteDUMP_KEY);
 
     vg_lite_SetDebugFile(dump_file);
     vgliteoDUMP_SetDumpFlag(1);
 }
 
-vg_lite_error_t
-vglitefDump(
-        char * Message,
-        ...
-        )
+vg_lite_error_t vglitefDump(char * Message, ...)
 {
     vg_lite_error_t status = VG_LITE_SUCCESS;
     unsigned offset = 0;
@@ -730,15 +732,7 @@ vglitefDump(
     return status;
 }
 
-
-vg_lite_error_t
-vglitefDumpBuffer(
-    char * Tag,
-    size_t Physical,
-    void * Logical,
-    size_t Offset,
-    size_t Bytes
-    )
+vg_lite_error_t vglitefDumpBuffer(char *Tag, size_t Physical, void * Logical, size_t Offset, size_t Bytes)
 {
     unsigned int * ptr = (unsigned int *) Logical + (Offset >> 2);
     size_t bytes   = vglitemALIGN(Bytes + (Offset & 3), 4);
@@ -747,15 +741,30 @@ vglitefDumpBuffer(
     {
         return VG_LITE_SUCCESS;
     }
-
+#ifdef MULTI_THREAD
     vglitemLOCKDUMP();
-
+#endif
+#if !DUMP_COMMAND_CAPTURE
     vglitemDUMP("@[%s 0x%08X 0x%08X", Tag, Physical + (Offset & ~3), bytes);
+#endif
 
     while (bytes >= 16)
     {
+#if !DUMP_COMMAND_CAPTURE
         vglitemDUMP("  0x%08X 0x%08X 0x%08X 0x%08X",
                 ptr[0], ptr[1], ptr[2], ptr[3]);
+#else
+        vglitemDUMP("  0x%08X", ptr[0]);
+        vglitemDUMP("  0x%08X", ptr[1]);
+        if (bytes == 16 && (ptr[2] == 0) && (ptr[3] == 0))
+        {
+            printf("This two commands is 0x00000000\n");
+        }
+        else {
+            vglitemDUMP("  0x%08X", ptr[2]);
+            vglitemDUMP("  0x%08X", ptr[3]);
+        }
+#endif
 
         ptr   += 4;
         bytes -= 16;
@@ -764,11 +773,36 @@ vglitefDumpBuffer(
     switch (bytes)
     {
     case 12:
+#if !DUMP_COMMAND_CAPTURE
         vglitemDUMP("  0x%08X 0x%08X 0x%08X", ptr[0], ptr[1], ptr[2]);
+#else
+        vglitemDUMP("  0x%08X", ptr[0]);
+        if ((ptr[1] == 0) && (ptr[2] == 0))
+        {
+            printf("This two commands is 0x00000000\n");
+        }
+        else
+        {
+            vglitemDUMP("  0x%08X", ptr[1]);
+            vglitemDUMP("  0x%08X", ptr[2]);
+        }
+#endif
         break;
 
     case 8:
+#if !DUMP_COMMAND_CAPTURE
         vglitemDUMP("  0x%08X 0x%08X", ptr[0], ptr[1]);
+#else
+        if ((ptr[0] == 0) && (ptr[1] == 0))
+        {
+            printf("This two commands is 0x00000000\n");
+        }
+        else
+        {
+            vglitemDUMP("  0x%08X", ptr[0]);
+            vglitemDUMP("  0x%08X", ptr[1]);
+        }
+#endif
         break;
 
     case 4:
@@ -776,10 +810,14 @@ vglitefDumpBuffer(
         break;
     }
 
+#if !DUMP_COMMAND_CAPTURE
     vglitemDUMP("] -- %s", Tag);
-
+#else
+    vglitemDUMP("---This command end----");
+#endif
+#ifdef MULTI_THREAD
     vglitemUNLOCKDUMP();
-
+#endif
     return VG_LITE_SUCCESS;
 }
 #endif

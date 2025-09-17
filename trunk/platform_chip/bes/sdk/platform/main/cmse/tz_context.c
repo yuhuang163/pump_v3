@@ -28,31 +28,17 @@
 #include "RTE_Components.h"
 #include CMSIS_device_header
 #include "tz_context.h"
+#include "hal_location.h"
 
 /// Number of process slots (threads may call secure library code)
 #ifndef TZ_PROCESS_STACK_SLOTS
-#define TZ_PROCESS_STACK_SLOTS     23U
+#define TZ_PROCESS_STACK_SLOTS     8U
 #endif
-
-#ifndef TZ_PROCESS_STACK_SLOTS2
-#define TZ_PROCESS_STACK_SLOTS2     1U
-#endif
-
-#if (TZ_PROCESS_STACK_SLOTS2 > TZ_PROCESS_STACK_SLOTS)
-#error "Bad TZ_PROCESS_STACK_SLOTS2"
-#endif
-
-#define TZ_PROCESS_STACK_SLOTS1     ((TZ_PROCESS_STACK_SLOTS) - (TZ_PROCESS_STACK_SLOTS2))
 
 /// Stack size of the secure library code
-#define TZ_PROCESS_DEFAULT_STACK_SIZE   1024U
-
-#ifndef TZ_PROCESS_STACK_SIZE1
-#define TZ_PROCESS_STACK_SIZE1      TZ_PROCESS_DEFAULT_STACK_SIZE
-#endif
-
-#ifndef TZ_PROCESS_STACK_SIZE2
-#define TZ_PROCESS_STACK_SIZE2      4096U
+#ifndef TZ_PROCESS_STACK_SIZE
+// TRACE: 600+ bytes, IRQ context: 144 bytes (or 208 bytes if FPCCR.TS=1)
+#define TZ_PROCESS_STACK_SIZE      1024U
 #endif
 
 typedef struct {
@@ -62,15 +48,13 @@ typedef struct {
 } stack_info_t;
 
 static stack_info_t ProcessStackInfo  [TZ_PROCESS_STACK_SLOTS];
-static uint64_t     ProcessStackMemory1[TZ_PROCESS_STACK_SLOTS1][TZ_PROCESS_STACK_SIZE1 / 8U];
-static uint32_t     ProcessStackAllocMap1[(TZ_PROCESS_STACK_SLOTS1 + 31U) / 32U];
-static uint64_t     ProcessStackMemory2[TZ_PROCESS_STACK_SLOTS2][TZ_PROCESS_STACK_SIZE2 / 8U];
-static uint32_t     ProcessStackAllocMap2[(TZ_PROCESS_STACK_SLOTS2 + 31U) / 32U];
+static uint64_t     ProcessStackMemory[TZ_PROCESS_STACK_SLOTS][TZ_PROCESS_STACK_SIZE/8U];
+static uint32_t     ProcessStackFreeSlot = 0xFFFFFFFFU;
 
 
 /// Initialize secure context memory system
 /// \return execution status (1: success, 0: error)
-__attribute__((cmse_nonsecure_entry))
+CMSE_API
 uint32_t TZ_InitContextSystem_S (void)
 {
     uint32_t n;
@@ -79,21 +63,19 @@ uint32_t TZ_InitContextSystem_S (void)
         return 0U;  // Thread Mode
     }
 
-    for (n = 0U; n < TZ_PROCESS_STACK_SLOTS1; n++) {
+    for (n = 0U; n < TZ_PROCESS_STACK_SLOTS; n++) {
         ProcessStackInfo[n].sp = 0U;
-        ProcessStackInfo[n].sp_limit = (uint32_t)&ProcessStackMemory1[n];
-        ProcessStackInfo[n].sp_top   = (uint32_t)&ProcessStackMemory1[n] + TZ_PROCESS_STACK_SIZE1;
+        ProcessStackInfo[n].sp_limit = (uint32_t)&ProcessStackMemory[n];
+        ProcessStackInfo[n].sp_top   = (uint32_t)&ProcessStackMemory[n] + TZ_PROCESS_STACK_SIZE;
+        *((uint32_t *)ProcessStackMemory[n]) = n + 1U;
     }
+    *((uint32_t *)ProcessStackMemory[--n]) = 0xFFFFFFFFU;
 
-    for (n = 0; n < TZ_PROCESS_STACK_SLOTS2; n++) {
-        ProcessStackInfo[n + TZ_PROCESS_STACK_SLOTS1].sp = 0U;
-        ProcessStackInfo[n + TZ_PROCESS_STACK_SLOTS1].sp_limit = (uint32_t)&ProcessStackMemory2[n];
-        ProcessStackInfo[n + TZ_PROCESS_STACK_SLOTS1].sp_top   = (uint32_t)&ProcessStackMemory2[n] + TZ_PROCESS_STACK_SIZE2;
-    }
+    ProcessStackFreeSlot = 0U;
 
     // Default process stack pointer and stack limit
-    __set_PSPLIM((uint32_t)ProcessStackMemory1);
-    __set_PSP   ((uint32_t)ProcessStackMemory1);
+    __set_PSPLIM((uint32_t)ProcessStackMemory);
+    __set_PSP   ((uint32_t)ProcessStackMemory);
 
     // Privileged Thread Mode using PSP
     __set_CONTROL(0x02U);
@@ -106,47 +88,22 @@ uint32_t TZ_InitContextSystem_S (void)
 /// \param[in]  module   identifies software modules called from non-secure mode
 /// \return value != 0 id TrustZone memory slot identifier
 /// \return value 0    no memory available or internal error
-__attribute__((cmse_nonsecure_entry))
+CMSE_API
 TZ_MemoryId_t TZ_AllocModuleContext_S (TZ_ModuleId_t module) {
     uint32_t slot;
-    uint32_t i;
-    uint32_t j;
+
+    (void)module; // Ignore (fixed Stack size)
 
     if (__get_IPSR() == 0U) {
         return 0U;  // Thread Mode
     }
 
-    if (module == 0U) {
-        return 0U;  // No need to alloc
+    if (ProcessStackFreeSlot == 0xFFFFFFFFU) {
+        return 0U;  // No slot available
     }
 
-    if (module == 2U) {
-        for (slot = 0; slot < TZ_PROCESS_STACK_SLOTS2; slot++) {
-            i = slot / 32U;
-            j = slot % 32U;
-            if ((ProcessStackAllocMap2[i] & (1 << j)) == 0) {
-                ProcessStackAllocMap2[i] |= (1 << j);
-                break;
-            }
-        }
-        if (slot >= TZ_PROCESS_STACK_SLOTS2) {
-            return 0U;  // No slot available
-        }
-
-        slot += TZ_PROCESS_STACK_SLOTS1;
-    } else {
-        for (slot = 0; slot < TZ_PROCESS_STACK_SLOTS1; slot++) {
-            i = slot / 32U;
-            j = slot % 32U;
-            if ((ProcessStackAllocMap1[i] & (1 << j)) == 0) {
-                ProcessStackAllocMap1[i] |= (1 << j);
-                break;
-            }
-        }
-        if (slot >= TZ_PROCESS_STACK_SLOTS1) {
-            return 0U;  // No slot available
-        }
-    }
+    slot = ProcessStackFreeSlot;
+    ProcessStackFreeSlot = *((uint32_t *)ProcessStackMemory[slot]);
 
     ProcessStackInfo[slot].sp = ProcessStackInfo[slot].sp_top;
 
@@ -157,12 +114,10 @@ TZ_MemoryId_t TZ_AllocModuleContext_S (TZ_ModuleId_t module) {
 /// Free context memory that was previously allocated with \ref TZ_AllocModuleContext_S
 /// \param[in]  id  TrustZone memory slot identifier
 /// \return execution status (1: success, 0: error)
-__attribute__((cmse_nonsecure_entry))
+CMSE_API
 uint32_t TZ_FreeModuleContext_S (TZ_MemoryId_t id)
 {
     uint32_t slot;
-    uint32_t i;
-    uint32_t j;
 
     if (__get_IPSR() == 0U) {
         return 0U;  // Thread Mode
@@ -174,18 +129,13 @@ uint32_t TZ_FreeModuleContext_S (TZ_MemoryId_t id)
 
     slot = id - 1U;
 
+    if (ProcessStackInfo[slot].sp == 0U) {
+        return 0U;  // Inactive slot
+    }
     ProcessStackInfo[slot].sp = 0U;
 
-    if (slot >= TZ_PROCESS_STACK_SLOTS1) {
-        slot -= TZ_PROCESS_STACK_SLOTS1;
-        i = slot / 32U;
-        j = slot % 32U;
-        ProcessStackAllocMap2[i] &= ~(1 << j);
-    } else {
-        i = slot / 32U;
-        j = slot % 32U;
-        ProcessStackAllocMap1[i] &= ~(1 << j);
-    }
+    *((uint32_t *)ProcessStackMemory[slot]) = ProcessStackFreeSlot;
+    ProcessStackFreeSlot = slot;
 
     return 1U;    // Success
 }
@@ -194,7 +144,7 @@ uint32_t TZ_FreeModuleContext_S (TZ_MemoryId_t id)
 /// Load secure context (called on RTOS thread context switch)
 /// \param[in]  id  TrustZone memory slot identifier
 /// \return execution status (1: success, 0: error)
-__attribute__((cmse_nonsecure_entry))
+CMSE_API
 uint32_t TZ_LoadContext_S (TZ_MemoryId_t id)
 {
     uint32_t slot;
@@ -224,7 +174,7 @@ uint32_t TZ_LoadContext_S (TZ_MemoryId_t id)
 /// Store secure context (called on RTOS thread context switch)
 /// \param[in]  id  TrustZone memory slot identifier
 /// \return execution status (1: success, 0: error)
-__attribute__((cmse_nonsecure_entry))
+CMSE_API
 uint32_t TZ_StoreContext_S (TZ_MemoryId_t id)
 {
     uint32_t slot;
@@ -252,8 +202,8 @@ uint32_t TZ_StoreContext_S (TZ_MemoryId_t id)
     ProcessStackInfo[slot].sp = sp;
 
     // Default process stack pointer and stack limit
-    __set_PSPLIM((uint32_t)ProcessStackMemory1);
-    __set_PSP   ((uint32_t)ProcessStackMemory1);
+    __set_PSPLIM((uint32_t)ProcessStackMemory);
+    __set_PSP   ((uint32_t)ProcessStackMemory);
 
     return 1U;    // Success
 }

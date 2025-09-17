@@ -124,7 +124,7 @@ static int cache_io_mailbox_init(void)
 {
     cache_io_mailbox = osMailCreate(osMailQ(cache_io_mailbox), NULL);
     if (cache_io_mailbox == NULL)  {
-        SDMMC_MSD_TRACE(1, "Failed to Create cache_io_mailbox\n");
+        TRACE(1, "Failed to Create cache_io_mailbox\n");
         return -1;
     }
     cache_io_mailbox_cnt = 0;
@@ -139,7 +139,7 @@ int cache_io_mailbox_put(CACHE_IO_MESSAGE_BLOCK* msg_src)
 
     msg_p = (CACHE_IO_MESSAGE_BLOCK*)osMailAlloc(cache_io_mailbox, 0);
     if(!msg_p) {
-        SDMMC_MSD_TRACE(1, "%s , osMailAlloc fail\n", __func__);
+        TRACE(1, "%s , osMailAlloc fail\n", __func__);
         return -1;
     }
     ASSERT(msg_p, "osMailAlloc error");
@@ -219,7 +219,7 @@ wait_data:
 
     // wait enough data
     if (len < block_size*block_count) {
-        SDMMC_MSD_TRACE(1, "wait data: len %d,block_size %d,block_count %d",len,block_size,block_count);
+        TRACE(1, "wait data: len %d,block_size %d,block_count %d",len,block_size,block_count);
         WAIT_CACHE_IO_QUEUE_DATA();
         goto wait_data;
     }
@@ -230,7 +230,7 @@ wait_data:
 
     SIGNAL_CACHE_IO_QUEUE_SPACE();
     len = hal_sdmmc_write_blocks(HAL_SDMMC_ID_0, start_block, block_count, cache_io_temp_buf);
-    SDMMC_MSD_TRACE(1, "W BLOCK %d,blksize:%d ,ret %d",block_count,block_size,len);
+    TRACE(1, "W BLOCK %d,blksize:%d ,ret %d",block_count,block_size,len);
 }
 
 
@@ -283,7 +283,7 @@ void cache_io_write(uint8_t *data, uint32_t start_block, uint32_t block_count)
     // wait read done
     wait_cache_io_read_done();
 #endif
-    SDMMC_MSD_TRACE(1, "%s start_block:%d,blockcnt:%d ",__func__,start_block,block_count);
+    TRACE(1, "%s start_block:%d,blockcnt:%d ",__func__,start_block,block_count);
 wait_space:
     LOCK_CACHE_IO_QUEUE();
     len = AvailableOfCQueue(&cache_io_queue);
@@ -291,7 +291,7 @@ wait_space:
 
     // wait enough data
     if ((uint32_t)len < blk_size*block_count) {
-        SDMMC_MSD_TRACE(1, "wait space :len %d,blk_size:%d,block_count %d",len,blk_size,block_count);
+        TRACE(1, "wait space :len %d,blk_size:%d,block_count %d",len,blk_size,block_count);
         WAIT_CACHE_IO_QUEUE_SPACE();
         goto wait_space;
     }
@@ -342,7 +342,7 @@ void trig_msd_start(void)
 
 void device_status(uint32_t state, uint32_t param)
 {
-    SDMMC_MSD_TRACE(1, "%s:%d:%d\n", __func__, __LINE__,state);
+    TRACE(1, "%s:%d:%d\n", __func__, __LINE__,state);
     if (state == USB_MSD_CONFIGURED) {
         trig_msd_start();
     }
@@ -375,20 +375,20 @@ static void cache_io_thread(void const *argument)
         // hal_sdmmc_close(HAL_SDMMC_ID_0);
         hal_sdmmc_set_delay_func((HAL_SDMMC_DELAY_FUNC)osDelay);
 
-        ret = hal_sdmmc_open(HAL_SDMMC_ID_0);
-        SDMMC_MSD_TRACE(1, "!!!!!!!!!!!            RST     HAL SDMMC :%d!!!!!!!!!!1",ret);
+        ret = hal_sdmmc_open(HAL_SDMMC_ID_0, NULL);
+        TRACE(1, "!!!!!!!!!!!            RST     HAL SDMMC :%d!!!!!!!!!!1",ret);
         // if(usb_init_cnt-- < 0)
             // app_reset();
 //    } while( 0!= ret);
 
     hal_sdmmc_info(HAL_SDMMC_ID_0, &sector_count, &sector_size);
 
-    SDMMC_MSD_TRACE(1, "sdcard sector_count %d, sector_size %d\n", sector_count, sector_size);
+    TRACE(1, "sdcard sector_count %d, sector_size %d\n", sector_count, sector_size);
 
-    SDMMC_MSD_TRACE(1, "pmu config done\n");
+    TRACE(1, "pmu config done\n");
     ret = usb_msd_open(read_block, write_block, device_status, USB_MSD_API_NONBLOCKING, sector_count, sector_size);
 
-    SDMMC_MSD_TRACE(1, "usb_msd_open ret %d\n", ret);
+    TRACE(1, "usb_msd_open ret %d\n", ret);
     osDelay(100);
 
     //why while??
@@ -455,37 +455,37 @@ int cache_io_init(void)
 
     if (cache_io_mailbox_init())
     {
-        SDMMC_MSD_TRACE(1, "Failed to init mailbox \n");
+        TRACE(1, "Failed to init mailbox \n");
         return -1;
     }
 
     cache_io_rw_signal = osSemaphoreCreate(osSemaphore(cache_io_rw_signal), 1);
     if (cache_io_rw_signal == NULL) {
-        SDMMC_MSD_TRACE(1, "Failed to Create rw signal\n");
+        TRACE(1, "Failed to Create rw signal\n");
         return -1;
     }
 
     cache_io_queue_signal = osSemaphoreCreate(osSemaphore(cache_io_queue_signal), 1);
     if (cache_io_queue_signal == NULL) {
-        SDMMC_MSD_TRACE(1, "Failed to Create queue signal\n");
+        TRACE(1, "Failed to Create queue signal\n");
         return -1;
     }
 
     cache_io_queue_space_signal = osSemaphoreCreate(osSemaphore(cache_io_queue_space_signal), 1);
     if (cache_io_queue_space_signal == NULL) {
-        SDMMC_MSD_TRACE(1, "Failed to Create queue signal\n");
+        TRACE(1, "Failed to Create queue signal\n");
         return -1;
     }
 
     cache_io_queue_lock = osMutexCreate(osMutex(cache_io_queue_lock));
     if (cache_io_queue_lock == NULL) {
-        SDMMC_MSD_TRACE(1, "Failed to Create queue signal\n");
+        TRACE(1, "Failed to Create queue signal\n");
         return -1;
     }
 
     cache_io_thread_id = osThreadCreate(osThread(cache_io_thread), NULL);
     if (cache_io_thread_id == NULL)  {
-        SDMMC_MSD_TRACE(1, "Failed to Create cache io thread\n");
+        TRACE(1, "Failed to Create cache io thread\n");
         return -1;
     }
 
@@ -518,7 +518,7 @@ bool usbstorage_init(void )
     // usbdld_key_init();
 
     cache_io_init();
-    SDMMC_MSD_TRACE(1, "cache io init  done\n");
+    TRACE(1, "cache io init  done\n");
 
     return true;
 }

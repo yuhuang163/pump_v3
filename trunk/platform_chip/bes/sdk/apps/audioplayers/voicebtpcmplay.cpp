@@ -29,11 +29,13 @@
 #include "app_overlay.h"
 #include "app_ring_merge.h"
 #include "tgt_hardware.h"
-#include "bluetooth_bt_api.h"
 #include "bt_sco_chain.h"
 #include "iir_resample.h"
-#include "hfp_api.h"
+#include "bluetooth_bt_api.h"
 #include "audio_prompt_sbc.h"
+#include "app_bt_stream.h"
+#include "sbc_api.h"
+#include "sbc_error_code.h"
 #ifdef TX_RX_PCM_MASK
 #include "bt_drv_interface.h"
 #endif
@@ -42,12 +44,9 @@
 
 #define ENABLE_PLC_ENCODER
 
-// BT
-#include "a2dp_api.h"
 #ifdef TX_RX_PCM_MASK
 #include "hal_chipid.h"
 #include "bt_drv_interface.h"
-
 #endif
 
 #include "plc_utils.h"
@@ -97,10 +96,7 @@ int16_t *audio_dump_temp_buf = NULL;
 #endif
 
 // app_bt_stream.cpp::bt_sco_player(), used buffer size
-#ifndef APP_BT_STREAM_USE_BUF_SIZE
 #define APP_BT_STREAM_USE_BUF_SIZE      (1024*2)
-#endif
-
 #if defined(SCO_OPTIMIZE_FOR_RAM)
 uint8_t *sco_overlay_ram_buf = NULL;
 int sco_overlay_ram_buf_len = 0;
@@ -114,6 +110,8 @@ static int16_t *downsample_buf_for_msbc = NULL;
 static IirResampleState *upsample_st = NULL;
 static IirResampleState *downsample_st = NULL;
 
+#define VOICEBTPCM_TRACE(s,...)
+//TRACE(s, ##__VA_ARGS__)
 
 /* voicebtpcm_pcm queue */
 #define FRAME_NUM (4)
@@ -137,13 +135,10 @@ static int32_t voicebtpcm_m2p_pcm_cache_size;
 static enum APP_AUDIO_CACHE_T voicebtpcm_cache_m2p_status = APP_AUDIO_CACHE_QTY;
 static enum APP_AUDIO_CACHE_T voicebtpcm_cache_p2m_status = APP_AUDIO_CACHE_QTY;
 
-extern bool bt_sco_codec_is_msbc(void);
 #define ENCODE_TEMP_PCM_LEN (120)
 
 #define MSBC_FRAME_SIZE (60)
-static btif_sbc_decoder_t msbc_decoder;
-
-static float msbc_eq_band_gain[8]= {0,0,0,0,0,0,0,0};
+static sbc_decoder_t msbc_decoder;
 
 #define MSBC_ENCODE_PCM_LEN (240)
 
@@ -157,7 +152,7 @@ struct PLC_State msbc_plc_state;
 #endif
 
 #ifdef ENABLE_PLC_ENCODER
-static btif_sbc_encoder_t *msbc_plc_encoder;
+static sbc_encoder_t *msbc_plc_encoder;
 static int16_t *msbc_plc_encoder_buffer = NULL;
 #define MSBC_CODEC_DELAY (73)
 static uint8_t enc_tmp_buf[MSBC_FRAME_SIZE - 3];
@@ -166,8 +161,8 @@ static uint8_t dec_tmp_buf[MSBC_ENCODE_PCM_LEN];
 
 //static sbc_encoder_t sbc_Encoder1;
 //static btif_sbc_pcm_data_t PcmEncData1;
-static btif_sbc_encoder_t *msbc_encoder;
-static btif_sbc_pcm_data_t msbc_encoder_pcmdata;
+static sbc_encoder_t *msbc_encoder;
+static pcm_frame_t msbc_encoder_pcmdata;
 static unsigned char msbc_counter = 0x08;
 
 int decode_msbc_frame(unsigned char *pcm_buffer, unsigned int pcm_len);
@@ -180,7 +175,7 @@ int bt_sco_chain_set_master_role(bool is_master)
 #if 0
 extern "C" int32_t bt_sco_chain_bypass_tx_algo(uint32_t sel_ch)
 {
-    AUDIOPLAYERS_TRACE(1, "[%s] WARNING: Don't support this", __func__);
+    TRACE(1, "[%s] WARNING: Don't support this", __func__);
     return -1;
 }
 #endif
@@ -189,7 +184,7 @@ extern "C" int32_t bt_sco_chain_bypass_tx_algo(uint32_t sel_ch)
 //used by playback, store data from bt to memory
 int store_voicebtpcm_m2p_buffer(unsigned char *buf, unsigned int len)
 {
-    //AUDIOPLAYERS_TRACE(2,"[%s]: %d", __FUNCTION__, FAST_TICKS_TO_US(hal_fast_sys_timer_get()));
+    //TRACE(2,"[%s]: %d", __FUNCTION__, FAST_TICKS_TO_US(hal_fast_sys_timer_get()));
     int size;
 
     if (bt_sco_codec_is_msbc())
@@ -217,7 +212,7 @@ int store_voicebtpcm_m2p_buffer(unsigned char *buf, unsigned int len)
         voicebtpcm_cache_m2p_status = APP_AUDIO_CACHE_OK;
     }
 
-    //AUDIOPLAYERS_TRACE(2,"m2p :%d/%d", len, size);
+    //TRACE(2,"m2p :%d/%d", len, size);
 
     return 0;
 }
@@ -245,10 +240,9 @@ POSSIBLY_UNUSED plc_type_t check_cvsd_mute_pattern(uint8_t *buf, uint32_t len)
     return PLC_TYPE_CONTROLLER_MUTE;
 }
 
-extern uint32_t btdrv_syn_get_curr_ticks(void);
 int decode_cvsd_frame_impl(unsigned char *cvsd_buf, unsigned int cvsd_len, unsigned char *pcm_buf,unsigned int pcm_len)
 {
-    //AUDIOPLAYERS_TRACE(2,"process_downlink_cvsd_frames  pcm_len:%d,cvsd_len:%d",pcm_len,cvsd_len);
+    //TRACE(2,"process_downlink_cvsd_frames  pcm_len:%d,cvsd_len:%d",pcm_len,cvsd_len);
 
 #if defined(CVSD_BYPASS) && defined(ENABLE_LPC_PLC)
     ASSERT(cvsd_len % CVSD_PACKET_SIZE == 0, "[%s] cvsd input length(%d) error", __FUNCTION__, cvsd_len);
@@ -257,7 +251,7 @@ int decode_cvsd_frame_impl(unsigned char *cvsd_buf, unsigned int cvsd_len, unsig
         memcpy(cvsd_buf, cvsd_buf_all, CVSD_PACKET_SIZE);
         memcpy(cvsd_buf_all, &cvsd_buf_all[CVSD_PACKET_SIZE], CVSD_OFFSET_BYTES);
 
-        // AUDIOPLAYERS_DUMP16("0x%x, ", cvsd_buf, CVSD_PACKET_SIZE / 2);
+        // DUMP16("0x%x, ", cvsd_buf, CVSD_PACKET_SIZE / 2);
 
         plc_type_t plc_type = check_cvsd_mute_pattern(cvsd_buf, CVSD_PACKET_SIZE);
 
@@ -272,9 +266,9 @@ do_plc:
         if (plc_type == PLC_TYPE_PASS) {
             lpc_plc_save(msbc_plc_state, (int16_t *)pcm_buf);
         } else {
-            AUDIOPLAYERS_TRACE(1,"PLC bad frame, plc type: %d, curr clk=%x", plc_type, btdrv_syn_get_curr_ticks());
+            TRACE(1,"PLC bad frame, plc type: %d", plc_type);
 #if defined(PLC_DEBUG_PRINT_DATA)
-            AUDIOPLAYERS_DUMP16("0x%x, ", cvsd_buf, CVSD_PACKET_SIZE / 2);
+            DUMP16("0x%x, ", cvsd_buf, CVSD_PACKET_SIZE / 2);
 #endif
             lpc_plc_generate(msbc_plc_state, (int16_t *)pcm_buf, NULL);
         }
@@ -324,7 +318,7 @@ int encode_cvsd_frame(unsigned char *pcm_buffer, unsigned int pcm_len)
         if (r == CQ_ERR)
         {
             memset(pcm_buffer, 0x55, pcm_len);
-            AUDIOPLAYERS_TRACE(0,"cvsd spk buff underflow");
+            TRACE(0,"cvsd spk buff underflow");
             return 0;
         }
 
@@ -349,11 +343,11 @@ int encode_cvsd_frame(unsigned char *pcm_buffer, unsigned int pcm_len)
 #if 0
     for (int cc = 0; cc < 32; ++cc)
     {
-        AUDIOPLAYERS_TRACE(1,"%x-", e1[cc]);
+        TRACE(1,"%x-", e1[cc]);
     }
 #endif
 
-    AUDIOPLAYERS_TRACE(3,"%s: processed_len %d, pcm_len %d", __func__, processed_len, pcm_len);
+    TRACE(3,"%s: processed_len %d, pcm_len %d", __func__, processed_len, pcm_len);
 
     return processed_len;
 }
@@ -387,7 +381,7 @@ inline int sco_parse_synchronization_header(uint8_t *buf, uint8_t *sn)
 #define SAMPLES_LEN_PER_FRAME (120)
 #define MSBC_LEN_PER_FRAME (57+3)
 
-#if defined(CHIP_BEST1400) || defined(CHIP_BEST1402) || defined(CHIP_BEST2300P) || defined(CHIP_BEST2300A) || defined(CHIP_BEST2001) || defined(CHIP_BEST1501) || defined(CHIP_BEST2003) || defined(CHIP_BEST1501P)
+#if defined(CHIP_BEST1400) || defined(CHIP_BEST1402) || defined(CHIP_BEST2300P) || defined(CHIP_BEST2300A) || defined(CHIP_BEST2001) || defined(CHIP_BEST1501) || defined(CHIP_BEST2003)
 #define MSBC_MUTE_PATTERN (0x5555)
 #else
 #define MSBC_MUTE_PATTERN (0x0000)
@@ -411,20 +405,19 @@ static PacketLossState pld;
 int decode_msbc_frame(unsigned char *msbc_btpcm_buffer, unsigned int msbc_len)
 {
 
-    btif_sbc_pcm_data_t pcm_data;
+    pcm_frame_t pcm_data;
     unsigned int msbc_offset_lowdelay = 0;
     unsigned int i,j;
     unsigned short *msbc_buffer=(unsigned short *)msbc_btpcm_buffer;
     int frame_flag[6];  // 1: good frame; 0:bad frame;
     bt_status_t ret;
     unsigned int frame_counter=0;
-    unsigned short byte_decode = 0;
     unsigned int msbc_offset_total = 0;
     int msbc_offset_drift[6] = {0, };
 
     //unsigned int timer_begin=hal_sys_timer_get();
 
-    //AUDIOPLAYERS_TRACE(1,"decode_msbc_frame,msbc_len:%d",msbc_len);
+    //TRACE(1,"decode_msbc_frame,msbc_len:%d",msbc_len);
 #ifdef TX_RX_PCM_MASK
     if(btdrv_is_pcm_mask_enable() ==1)
     {
@@ -442,7 +435,7 @@ int decode_msbc_frame(unsigned char *msbc_btpcm_buffer, unsigned int msbc_len)
     /*
     for(i =0; i<msbc_len/2; i=i+10)
     {
-       AUDIOPLAYERS_TRACE(10,"0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,",
+       TRACE(10,"0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,",
        DecMsbcBufAll[i],DecMsbcBufAll[i+1],DecMsbcBufAll[i+2],DecMsbcBufAll[i+3],DecMsbcBufAll[i+4],
        DecMsbcBufAll[i+5],DecMsbcBufAll[i+6],DecMsbcBufAll[i+7],DecMsbcBufAll[i+8],DecMsbcBufAll[i+9]);
     }
@@ -460,8 +453,8 @@ int decode_msbc_frame(unsigned char *msbc_btpcm_buffer, unsigned int msbc_len)
             if((DecMsbcBufAll[i]==0x0100)&&((DecMsbcBufAll[i+1]&0x0f00)==0x0800)&&(DecMsbcBufAll[i+2]==0xad00))break;
         }
 
-        AUDIOPLAYERS_TRACE(1,"sync......:%d",i);
-        AUDIOPLAYERS_DUMP16("0x%04x, ", &DecMsbcBufAll[0], msbc_len / 2);
+        TRACE(1,"sync......:%d",i);
+        DUMP16("0x%04x, ", &DecMsbcBufAll[0], msbc_len / 2);
 
         if(i<(msbc_len/2))
         {
@@ -473,7 +466,7 @@ int decode_msbc_frame(unsigned char *msbc_btpcm_buffer, unsigned int msbc_len)
             {
                 msbc_offset_total=i;
             }
-            AUDIOPLAYERS_TRACE(2,"[%s] msbc header found, offset %d", __FUNCTION__, msbc_offset);
+            TRACE(2,"[%s] msbc header found, offset %d", __FUNCTION__, msbc_offset);
         }
         else
         {
@@ -559,7 +552,7 @@ int decode_msbc_frame(unsigned char *msbc_btpcm_buffer, unsigned int msbc_len)
                     frame_flag[j] = 0;
                     // It seems that offset is reduced by 1
                     msbc_offset_drift[j] = -1;
-                    AUDIOPLAYERS_TRACE(1,"[%s] msbc_offset is reduced by 1", __FUNCTION__);
+                    TRACE(1,"[%s] msbc_offset is reduced by 1", __FUNCTION__);
         /*          tail0 = DecMsbcBufAll[msbc_offset_lowdelay + j*(MSBC_LEN_FORMBT_PER_FRAME / 2) + 59 - 1];
                     if (tail0 == 0x0000 || tail0 == 0x0100|| tail0==0xff00)
                     {
@@ -590,7 +583,7 @@ int decode_msbc_frame(unsigned char *msbc_btpcm_buffer, unsigned int msbc_len)
                 {
                 frame_flag[j] = 0;
                 msbc_offset_drift[j] = 1;
-                AUDIOPLAYERS_TRACE(1,"[%s] msbc_offset is increased by 1", __FUNCTION__);
+                TRACE(1,"[%s] msbc_offset is increased by 1", __FUNCTION__);
 /*              tail0 = DecMsbcBufAll[msbc_offset_lowdelay + j*(MSBC_LEN_FORMBT_PER_FRAME / 2) + 59 + 1];
                     if (tail0 == 0x0000 || tail0==0x0100|| tail0==0xff00)
                     {
@@ -634,7 +627,7 @@ int decode_msbc_frame(unsigned char *msbc_btpcm_buffer, unsigned int msbc_len)
 
     while(frame_counter<msbc_len/MSBC_LEN_FORMBT_PER_FRAME)
     {
-        //AUDIOPLAYERS_TRACE(3,"[%s] decoding, offset %d, offset drift %d", __FUNCTION__, msbc_offset, msbc_offset_drift[frame_counter]);
+        //TRACE(3,"[%s] decoding, offset %d, offset drift %d", __FUNCTION__, msbc_offset, msbc_offset_drift[frame_counter]);
         // skip first byte when msbc_offset == 0 and msbc_offset_drift == -1
         unsigned int start_idx = 0;
         if (msbc_offset_lowdelay == 0 && msbc_offset_drift[frame_counter] == -1) {
@@ -647,7 +640,7 @@ int decode_msbc_frame(unsigned char *msbc_btpcm_buffer, unsigned int msbc_len)
             DecMsbcBuf[i]=DecMsbcBufAll[i+msbc_offset_lowdelay+msbc_offset_drift[frame_counter]+frame_counter*(MSBC_LEN_FORMBT_PER_FRAME/2)]>>8;
         }
 
-        //AUDIOPLAYERS_TRACE(1,"msbc header:0x%x",DecMsbcBuf[0]);
+        //TRACE(1,"msbc header:0x%x",DecMsbcBuf[0]);
 
 #ifdef SPEECH_RX_PLC_DUMP_DATA
         audio_dump_add_channel_data(2, (short *)DecMsbcBuf, MSBC_LEN_PER_FRAME/2);
@@ -664,16 +657,13 @@ int decode_msbc_frame(unsigned char *msbc_btpcm_buffer, unsigned int msbc_len)
             goto do_plc;
         }
 
-        pcm_data.sampleFreq = BTIF_SBC_CHNL_SAMPLE_FREQ_16;
-        pcm_data.numChannels = 1;
-        pcm_data.dataLen = 0;
-        pcm_data.data = (uint8_t *)DecPcmBuf;
-
-        ret = btif_sbc_decode_frames(&msbc_decoder,
-                (unsigned char *)DecMsbcBuf,
-                MSBC_LEN_PER_FRAME, &byte_decode,
-                &pcm_data, SAMPLES_LEN_PER_FRAME*2,
-                msbc_eq_band_gain);
+        pcm_data.pcm_data = DecPcmBuf;
+        pcm_data.buffer_size = SAMPLES_LEN_PER_FRAME*2;
+        pcm_data.valid_size = 0;
+        sbc_frame_t sbc_data;
+        sbc_data.sbc_data = DecMsbcBuf;
+        sbc_data.valid_size = MSBC_LEN_PER_FRAME;
+        ret = sbc_decoder_process_frame(&msbc_decoder, &sbc_data, &pcm_data);
 
         //ASSERT(ret == BT_STS_SUCCESS, "[%s] msbc decoder should never fail", __FUNCTION__);
         if (ret != BT_STS_SUCCESS) {
@@ -694,9 +684,9 @@ do_plc:
         }
         else
         {
-            AUDIOPLAYERS_TRACE(1,"PLC bad frame, plc_type: %d", plc_type);
+            TRACE(1,"PLC bad frame, plc_type: %d", plc_type);
 #if defined(PLC_DEBUG_PRINT_DATA)
-            AUDIOPLAYERS_DUMP8("0x%02x, ", DecMsbcBuf, 60);
+            DUMP8("0x%02x, ", DecMsbcBuf, 60);
 #endif
 #ifdef SPEECH_RX_PLC_DUMP_DATA
             for(uint32_t i=0; i< MSBC_ENCODE_PCM_LEN/2; i++)
@@ -715,41 +705,42 @@ do_plc:
             );
 
 #if defined(ENABLE_PLC_ENCODER)
-            pcm_data.sampleFreq = BTIF_SBC_CHNL_SAMPLE_FREQ_16;
-            pcm_data.numChannels = 1;
-            pcm_data.dataLen = MSBC_ENCODE_PCM_LEN;
-            pcm_data.data = (uint8_t *)(msbc_plc_encoder_buffer + MSBC_CODEC_DELAY);
-
-            uint16_t encoded_bytes = 0, buf_len = MSBC_FRAME_SIZE - 3;
-            ret = btif_sbc_encode_frames(msbc_plc_encoder, &pcm_data, &encoded_bytes, enc_tmp_buf, &buf_len, 0xFFFF);
-            ASSERT(ret == BT_STS_SUCCESS, "[%s] plc encoder must success", __FUNCTION__);
+            sbc_frame_t sbc_data;
+            sbc_data.sbc_data = enc_tmp_buf;
+            sbc_data.buffer_size = 0Xffff;
+            sbc_data.valid_size = 0;
+            pcm_data.pcm_data = (int16_t *)(msbc_plc_encoder_buffer + MSBC_CODEC_DELAY);
+            pcm_data.buffer_size = MSBC_ENCODE_PCM_LEN;
+            pcm_data.valid_size = MSBC_ENCODE_PCM_LEN;
+            ret = sbc_encoder_process_frame(msbc_plc_encoder, &pcm_data, &sbc_data);
+            uint16_t encoded_bytes = MSBC_ENCODE_PCM_LEN - pcm_data.valid_size;
+            ASSERT(ret == SBC_OK, "[%s] plc encoder must success", __FUNCTION__);
             ASSERT(encoded_bytes == MSBC_ENCODE_PCM_LEN, "[%s] plc encoder encoded bytes error", __FUNCTION__);
-            ASSERT(buf_len == MSBC_FRAME_SIZE - 3, "[%s] plc encoder encoded stream length error", __FUNCTION__);
+            ASSERT(sbc_data.valid_size == MSBC_FRAME_SIZE - 3, "[%s] plc encoder encoded stream length error", __FUNCTION__);
 
-            pcm_data.sampleFreq = BTIF_SBC_CHNL_SAMPLE_FREQ_16;
-            pcm_data.numChannels = 1;
-            pcm_data.dataLen = 0;
-            pcm_data.data = dec_tmp_buf;
-            ret = btif_sbc_decode_frames(&msbc_decoder, enc_tmp_buf, MSBC_FRAME_SIZE - 3, &byte_decode, &pcm_data, MSBC_ENCODE_PCM_LEN, msbc_eq_band_gain);
-            ASSERT(ret == BT_STS_SUCCESS, "[%s] plc decoder must success", __FUNCTION__);
+            pcm_data.valid_size = 0;
+            pcm_data.pcm_data = (int16_t *)dec_tmp_buf;
+            pcm_data.buffer_size = MSBC_ENCODE_PCM_LEN;
+            ret = sbc_decoder_process_frame(&msbc_decoder, &sbc_data, &pcm_data);
+            uint16_t byte_decode = MSBC_FRAME_SIZE - 3 - sbc_data.valid_size;
+            ASSERT(ret == SBC_OK, "[%s] plc decoder must success", __FUNCTION__);
             ASSERT(byte_decode == MSBC_FRAME_SIZE - 3, "[%s] plc decoder decoded bytes error", __FUNCTION__);
 #endif
 
 #else
-            pcm_data.sampleFreq = BTIF_SBC_CHNL_SAMPLE_FREQ_16;
-            pcm_data.numChannels = 1;
-            pcm_data.dataLen = 0;
-            pcm_data.data = (uint8_t *)DecPcmBuf;
+            sbc_frame_t sbc_data;
+            sbc_data.sbc_data = indices0;
+            sbc_data.buffer_size = MSBC_LEN_PER_FRAME;
+            sbc_data.valid_size = MSBC_LEN_PER_FRAME;
 
-            ret = btif_sbc_decode_frames(&msbc_decoder,
-                    (unsigned char *)indices0,
-                    MSBC_LEN_PER_FRAME, &byte_decode,
-                    &pcm_data, SAMPLES_LEN_PER_FRAME*2,
-                    msbc_eq_band_gain);
+            pcm_data.valid_size = 0;
+            pcm_data.pcm_data = DecPcmBuf;
+            pcm_data.buffer_size = SAMPLES_LEN_PER_FRAME*2;
+            ret = sbc_decoder_process_frame(&msbc_decoder, &sbc_data, &pcm_data);
 
             PLC_bad_frame(&msbc_plc_state, DecPcmBuf, DecPcmBuf);
 
-            ASSERT(ret == BT_STS_SUCCESS, "[%s] msbc decoder should never fail", __FUNCTION__);
+            ASSERT(ret == SBC_OK, "[%s] msbc decoder should never fail", __FUNCTION__);
 #endif
         }
 
@@ -772,7 +763,7 @@ do_plc:
             DecMsbcBufAll[i]=DecMsbcBufAll[i+(msbc_len/2)];
         }
     }
-    //AUDIOPLAYERS_TRACE(1,"msbc + plc:%d", (hal_sys_timer_get()-timer_begin));
+    //TRACE(1,"msbc + plc:%d", (hal_sys_timer_get()-timer_begin));
 
     return 0;
 }
@@ -794,14 +785,14 @@ int store_voicebtpcm_p2m_buffer(unsigned char *buf, unsigned int len)
     }
     else
     {
-        AUDIOPLAYERS_TRACE(2,"mic buff overflow %d/%d", len, avail_size);
+        VOICEBTPCM_TRACE(2,"mic buff overflow %d/%d", len, avail_size);
         APP_AUDIO_DeCQueue(&voicebtpcm_p2m_pcm_queue, 0, len - avail_size);
         APP_AUDIO_EnCQueue(&voicebtpcm_p2m_pcm_queue, buf, len);
     }
     size = APP_AUDIO_LengthOfCQueue(&voicebtpcm_p2m_pcm_queue);
     UNLOCK_APP_AUDIO_QUEUE();
 
-    AUDIOPLAYERS_TRACE(2,"p2m :%d/%d", len, size);
+    VOICEBTPCM_TRACE(2,"p2m :%d/%d", len, size);
 
     return 0;
 }
@@ -847,11 +838,11 @@ int get_voicebtpcm_p2m_frame(unsigned char *buf, unsigned int len)
 {
     int  got_len = 0;
 
-    // AUDIOPLAYERS_TRACE(2,"[%s] pcm_len = %d", __func__, len / 2);
+    // TRACE(2,"[%s] pcm_len = %d", __func__, len / 2);
     if (voicebtpcm_cache_p2m_status == APP_AUDIO_CACHE_CACHEING)
     {
         app_audio_memset_16bit((short *)buf, 0, len/2);
-        AUDIOPLAYERS_TRACE(1,"[%s] APP_AUDIO_CACHE_CACHEING", __func__);
+        TRACE(1,"[%s] APP_AUDIO_CACHE_CACHEING", __func__);
         return len;
     }
 
@@ -866,7 +857,6 @@ int get_voicebtpcm_p2m_frame(unsigned char *buf, unsigned int len)
     {
         if (bt_sco_codec_is_msbc())
         {
-            uint16_t bytes_encoded = 0, buf_len = len;
             uint16_t *dest_buf = 0, offset = 0;
             int r = 0;
             unsigned char *e1 = NULL, *e2 = NULL;
@@ -898,20 +888,24 @@ int get_voicebtpcm_p2m_frame(unsigned char *buf, unsigned int len)
                     APP_AUDIO_DeCQueue(&voicebtpcm_p2m_pcm_queue, 0, len2);
                     UNLOCK_APP_AUDIO_QUEUE();
                 }
-
                 //int t = 0;
                 //t = hal_sys_timer_get();
-                msbc_encoder_pcmdata.data = temp_msbc_buf;
-                msbc_encoder_pcmdata.dataLen = MSBC_ENCODE_PCM_LEN;
+                msbc_encoder_pcmdata.pcm_data = (int16_t *)temp_msbc_buf;
+                msbc_encoder_pcmdata.buffer_size = MSBC_ENCODE_PCM_LEN;
+                msbc_encoder_pcmdata.valid_size = MSBC_ENCODE_PCM_LEN;
+                sbc_frame_t sbc_data;
+                sbc_data.sbc_data = temp_msbc_buf1;
+                sbc_data.valid_size = 0;
+                sbc_data.buffer_size = 0xFFFF;
                 memset(temp_msbc_buf1, 0, MSBC_FRAME_SIZE);
-                btif_sbc_encode_frames(msbc_encoder, &msbc_encoder_pcmdata, &bytes_encoded, temp_msbc_buf1, (uint16_t *)&buf_len, 0xFFFF);
-                //AUDIOPLAYERS_TRACE(1,"enc msbc %d t\n", hal_sys_timer_get()-t);
-                //AUDIOPLAYERS_TRACE(2,"encode len %d, out len %d\n", bytes_encoded, buf_len);
+                sbc_encoder_process_frame(msbc_encoder, &msbc_encoder_pcmdata, &sbc_data);
+                //TRACE(1,"enc msbc %d t\n", hal_sys_timer_get()-t);
+                //TRACE(2,"encode len %d, out len %d\n", bytes_encoded, buf_len);
 
                 dest_buf[offset++] = 1<<8;
                 dest_buf[offset++] = get_msbc_counter()<<8;
 
-                for (int i = 0; i < buf_len; ++i)
+                for (int i = 0; i < sbc_data.valid_size; ++i)
                 {
                     dest_buf[offset++] = temp_msbc_buf1[i]<<8;
                 }
@@ -934,7 +928,7 @@ int get_voicebtpcm_p2m_frame(unsigned char *buf, unsigned int len)
                 status = APP_AUDIO_EnCQueue(&Tx_esco_queue,temp_mic_buff,len);
                 if(status)
                 {
-                    //AUDIOPLAYERS_TRACE(0,"Tx EnC Fail");
+                    //TRACE(0,"Tx EnC Fail");
                 }
             }
 #endif
@@ -953,7 +947,7 @@ int get_voicebtpcm_p2m_frame(unsigned char *buf, unsigned int len)
             r = APP_AUDIO_PeekCQueue(&voicebtpcm_p2m_pcm_queue, len - got_len, &e1, &len1, &e2, &len2);
             UNLOCK_APP_AUDIO_QUEUE();
 
-            //        AUDIOPLAYERS_TRACE(2,"p2m :%d/%d", len, APP_AUDIO_LengthOfCQueue(&voicebtpcm_p2m_queue));
+            //        VOICEBTPCM_TRACE(2,"p2m :%d/%d", len, APP_AUDIO_LengthOfCQueue(&voicebtpcm_p2m_queue));
 
             if(r == CQ_OK)
             {
@@ -976,7 +970,7 @@ int get_voicebtpcm_p2m_frame(unsigned char *buf, unsigned int len)
             }
             else
             {
-                AUDIOPLAYERS_TRACE(0,"mic buff underflow");
+                VOICEBTPCM_TRACE(0,"mic buff underflow");
                 app_audio_memset_16bit((short *)buf, 0, len/2);
                 got_len = len;
                 voicebtpcm_cache_p2m_status = APP_AUDIO_CACHE_CACHEING;
@@ -1018,7 +1012,7 @@ void get_mic_data_max(short *buf, uint32_t len)
             min1 = buf[i+1];
         }
     }
-    AUDIOPLAYERS_TRACE(6,"min0 = %d, max0 = %d, diff0 = %d, min1 = %d, max1 = %d, diff1 = %d", min0, max0, max0 - min0, min1, max1, max1 - min1);
+    TRACE(6,"min0 = %d, max0 = %d, diff0 = %d, min1 = %d, max1 = %d, diff1 = %d", min0, max0, max0 - min0, min1, max1, max1 - min1);
 }
 #endif
 
@@ -1031,7 +1025,7 @@ int speech_tx_aec_get_frame_len(void)
 
 void speech_tx_aec_set_frame_len(int len)
 {
-    AUDIOPLAYERS_TRACE(2,"[%s] len = %d", __func__, len);
+    TRACE(2,"[%s] len = %d", __func__, len);
     speech_tx_aec_frame_len = len;
 }
 
@@ -1119,7 +1113,7 @@ uint32_t voicebtpcm_pcm_audio_data_come(uint8_t *buf, uint32_t len)
     short *pcm_buf = (short*)buf;
     uint32_t pcm_len = len / 2;
 
-    // AUDIOPLAYERS_TRACE(2,"[%s] pcm_len = %d", __func__, pcm_len);
+    // TRACE(2,"[%s] pcm_len = %d", __func__, pcm_len);
 
     LOCK_APP_AUDIO_QUEUE();
     store_voicebtpcm_p2m_buffer((uint8_t *)pcm_buf, pcm_len*2);
@@ -1139,7 +1133,7 @@ uint32_t voicebtpcm_pcm_audio_data_come(uint8_t *buf, uint32_t len)
 uint32_t voicebtpcm_pcm_audio_more_data(uint8_t *buf, uint32_t len)
 {
     uint32_t l = 0;
-    //AUDIOPLAYERS_TRACE(3,"[%s]: pcm_len = %d, %d", __FUNCTION__, len / 2, FAST_TICKS_TO_US(hal_fast_sys_timer_get()));
+    //TRACE(3,"[%s]: pcm_len = %d, %d", __FUNCTION__, len / 2, FAST_TICKS_TO_US(hal_fast_sys_timer_get()));
     if ((voicebtpcm_cache_m2p_status == APP_AUDIO_CACHE_CACHEING)
 #if !defined(FPGA) || defined(FPGA_BUILD_IN_FLASH)
         ||(app_get_current_overlay() != APP_OVERLAY_HFP)
@@ -1190,7 +1184,7 @@ uint32_t voicebtpcm_pcm_audio_more_data(uint8_t *buf, uint32_t len)
         UNLOCK_APP_AUDIO_QUEUE();
         if (r == CQ_ERR)
         {
-            AUDIOPLAYERS_TRACE(0,"pcm buff underflow");
+            TRACE(0,"pcm buff underflow");
             memset(decode_buf, 0, decode_len);
             l = len;
             goto fail;
@@ -1198,7 +1192,7 @@ uint32_t voicebtpcm_pcm_audio_more_data(uint8_t *buf, uint32_t len)
 
         if (!len1)
         {
-            AUDIOPLAYERS_TRACE(2,"pcm  len1 underflow %d/%d\n", len1, len2);
+            TRACE(2,"pcm  len1 underflow %d/%d\n", len1, len2);
             memset(decode_buf, 0, decode_len);
             l = len;
             goto fail;
@@ -1281,7 +1275,7 @@ void *voicebtpcm_get_ext_buff(int size)
         size = size + (4 - size % 4);
     }
     app_audio_mempool_get_buff(&pBuff, size);
-    AUDIOPLAYERS_TRACE(2,"[%s] len:%d", __func__, size);
+    VOICEBTPCM_TRACE(2,"[%s] len:%d", __func__, size);
     return (void*)pBuff;
 }
 
@@ -1335,8 +1329,8 @@ int voicebtpcm_pcm_audio_init(int sco_sample_rate, int codec_sample_rate)
     sco_frame_length = SPEECH_FRAME_MS_TO_LEN(sco_sample_rate, SPEECH_SCO_FRAME_MS);
     codec_frame_length = SPEECH_FRAME_MS_TO_LEN(codec_sample_rate, SPEECH_SCO_FRAME_MS);
 
-    AUDIOPLAYERS_TRACE(3,"[%s] TX: sample rate = %d, frame len = %d", __func__, codec_sample_rate, codec_frame_length);
-    AUDIOPLAYERS_TRACE(3,"[%s] RX: sample rate = %d, frame len = %d", __func__, codec_sample_rate, codec_frame_length);
+    TRACE(3,"[%s] TX: sample rate = %d, frame len = %d", __func__, codec_sample_rate, codec_frame_length);
+    TRACE(3,"[%s] RX: sample rate = %d, frame len = %d", __func__, codec_sample_rate, codec_frame_length);
 
     // init cqueue
     uint8_t *p2m_pcm_buff = NULL;
@@ -1385,41 +1379,27 @@ int voicebtpcm_pcm_audio_init(int sco_sample_rate, int codec_sample_rate)
     memset(DecMsbcBufAll,0, sizeof(DecMsbcBufAll));
 
     if (bt_sco_codec_is_msbc()) {
-        app_audio_mempool_get_buff((uint8_t **)&msbc_encoder, sizeof(btif_sbc_encoder_t));
+        app_audio_mempool_get_buff((uint8_t **)&msbc_encoder, sizeof(sbc_encoder_t));
         app_audio_mempool_get_buff(&temp_msbc_buf, MSBC_ENCODE_PCM_LEN);
         app_audio_mempool_get_buff(&temp_msbc_buf1, MSBC_FRAME_SIZE);
         //init msbc encoder
-        btif_sbc_init_encoder(msbc_encoder);
-        msbc_encoder->streamInfo.mSbcFlag = 1;
-        msbc_encoder->streamInfo.numChannels = 1;
-        msbc_encoder->streamInfo.channelMode = BTIF_SBC_CHNL_MODE_MONO;
 
-        msbc_encoder->streamInfo.bitPool     = 26;
-        msbc_encoder->streamInfo.sampleFreq  = BTIF_SBC_CHNL_SAMPLE_FREQ_16;
-        msbc_encoder->streamInfo.allocMethod = BTIF_SBC_ALLOC_METHOD_LOUDNESS;
-        msbc_encoder->streamInfo.numBlocks   = BTIF_MSBC_BLOCKS;
-        msbc_encoder->streamInfo.numSubBands = 8;
+        sbc_stream_info_t info;
+        info.flags = SBC_FLAGS_MSBC;
+        info.num_channels = 1;
+        info.channel_mode = SBC_CHANNEL_MODE_MONO;
+        info.bit_pool     = 26;
+        info.sample_rate  = SBC_SAMPLERATE_16K;
+        info.alloc_method = SBC_ALLOC_METHOD_LOUDNESS;
+        info.num_blocks   = MSBC_BLOCKS;
+        info.num_subbands = 8;
+        sbc_encoder_open(msbc_encoder, info);
 
         msbc_counter = 0x08;
 
-        for (uint8_t i=0; i<sizeof(msbc_eq_band_gain)/sizeof(float); i++) {
-            msbc_eq_band_gain[i] = 1.0;
-        }
+        sbc_decoder_open(&msbc_decoder);
 
-        btif_sbc_init_decoder(&msbc_decoder);
-
-        msbc_decoder.streamInfo.mSbcFlag = 1;
-        msbc_decoder.streamInfo.bitPool = 26;
-        msbc_decoder.streamInfo.sampleFreq = BTIF_SBC_CHNL_SAMPLE_FREQ_16;
-        msbc_decoder.streamInfo.channelMode = BTIF_SBC_CHNL_MODE_MONO;
-        msbc_decoder.streamInfo.allocMethod = BTIF_SBC_ALLOC_METHOD_LOUDNESS;
-        /* Number of blocks used to encode the stream (4, 8, 12, or 16) */
-        msbc_decoder.streamInfo.numBlocks = BTIF_MSBC_BLOCKS;
-        /* The number of subbands in the stream (4 or 8) */
-        msbc_decoder.streamInfo.numSubBands = 8;
-        msbc_decoder.streamInfo.numChannels = 1;
         //init msbc plc
-
 #ifndef ENABLE_LPC_PLC
         InitPLC(&msbc_plc_state);
 #endif
@@ -1430,18 +1410,8 @@ int voicebtpcm_pcm_audio_init(int sco_sample_rate, int codec_sample_rate)
         packet_loss_detection_init(&pld);
 
 #if defined(ENABLE_PLC_ENCODER)
-        app_audio_mempool_get_buff((uint8_t **)&msbc_plc_encoder, sizeof(btif_sbc_encoder_t));
-        btif_sbc_init_encoder(msbc_plc_encoder);
-        msbc_plc_encoder->streamInfo.mSbcFlag = 1;
-        msbc_plc_encoder->streamInfo.bitPool = 26;
-        msbc_plc_encoder->streamInfo.sampleFreq = BTIF_SBC_CHNL_SAMPLE_FREQ_16;
-        msbc_plc_encoder->streamInfo.channelMode = BTIF_SBC_CHNL_MODE_MONO;
-        msbc_plc_encoder->streamInfo.allocMethod = BTIF_SBC_ALLOC_METHOD_LOUDNESS;
-        /* Number of blocks used to encode the stream (4, 8, 12, or 16) */
-        msbc_plc_encoder->streamInfo.numBlocks = BTIF_MSBC_BLOCKS;
-        /* The number of subbands in the stream (4 or 8) */
-        msbc_plc_encoder->streamInfo.numSubBands = 8;
-        msbc_plc_encoder->streamInfo.numChannels = 1;
+        app_audio_mempool_get_buff((uint8_t **)&msbc_plc_encoder, sizeof(sbc_encoder_t));
+        sbc_encoder_open(msbc_encoder, info);
         app_audio_mempool_get_buff((uint8_t **)&msbc_plc_encoder_buffer, sizeof(int16_t) * (SAMPLES_LEN_PER_FRAME + MSBC_CODEC_DELAY));
 #endif
     } else {
@@ -1469,6 +1439,11 @@ int voicebtpcm_pcm_audio_init(int sco_sample_rate, int codec_sample_rate)
         downsample_buf_for_msbc = (int16_t *)voicebtpcm_get_ext_buff(sizeof(int16_t) * sco_frame_length);
     }
 
+#if defined(SCO_OPTIMIZE_FOR_RAM)
+    sco_overlay_ram_buf_len = hal_overlay_get_text_free_size((enum HAL_OVERLAY_ID_T)APP_OVERLAY_HFP);
+    sco_overlay_ram_buf = (uint8_t *)hal_overlay_get_text_free_addr((enum HAL_OVERLAY_ID_T)APP_OVERLAY_HFP);
+#endif
+
     speech_len = app_audio_mempool_free_buff_size() - APP_BT_STREAM_USE_BUF_SIZE;
     speech_buf = (uint8_t *)voicebtpcm_get_ext_buff(speech_len);
 
@@ -1494,8 +1469,8 @@ int voicebtpcm_pcm_audio_init(int sco_sample_rate, int codec_sample_rate)
 
 int voicebtpcm_pcm_audio_deinit(void)
 {
-    AUDIOPLAYERS_TRACE(1,"[%s] Close...", __func__);
-    // AUDIOPLAYERS_TRACE(2,"[%s] app audio buffer free = %d", __func__, app_audio_mempool_free_buff_size());
+    TRACE(1,"[%s] Close...", __func__);
+    // TRACE(2,"[%s] app audio buffer free = %d", __func__, app_audio_mempool_free_buff_size());
 
 #if defined(ENABLE_LPC_PLC)
     lpc_plc_destroy(msbc_plc_state);
@@ -1510,9 +1485,14 @@ int voicebtpcm_pcm_audio_deinit(void)
 
     packet_loss_detection_report(&pld);
 
+#if defined(SCO_OPTIMIZE_FOR_RAM)
+    sco_overlay_ram_buf = NULL;
+    sco_overlay_ram_buf_len = 0;
+#endif
+
     voicebtpcm_pcm_echo_buf_queue_deinit();
 
-    // AUDIOPLAYERS_TRACE(1,"Free buf = %d", app_audio_mempool_free_buff_size());
+    // TRACE(1,"Free buf = %d", app_audio_mempool_free_buff_size());
 
     return 0;
 }

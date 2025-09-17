@@ -17,8 +17,10 @@
 #define __ISOOHCI_INT_H__
 #include "bap_service.h"
 
+#include "arch.h"
 #include "co_bt.h"
 
+#include "rwble_config.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -121,9 +123,9 @@ struct isoohci_in_info
     /// Timing information about last transmitted SDU
     struct isoohci_in_last_sdu_tx_sync last_sdu;
     /// Buffer of the current SDU in reception
-    struct isoohci_buffer* current_buf;
+    struct isoohci_buffer *current_buf;
     /// Buffer in use by ISOAL
-    struct isoohci_buffer* buf_in_use;
+    struct isoohci_buffer *buf_in_use;
     /// Max SDU Size (in bytes)
     uint16_t max_sdu_size;
     /// Length of SDU data received in current SDU (in bytes)
@@ -146,12 +148,12 @@ struct isoohci_out_info
     bool remove;
 };
 
-typedef uint8_t (*data_path_start_cb) (uint16_t conhdl, uint32_t sdu_interval, uint32_t trans_latency, uint16_t max_sdu);
-typedef void (*data_path_stop_cb) (uint16_t conhdl, uint8_t reason);
-typedef uint8_t* (*data_path_sdu_get_cb) (uint16_t conhdl,uint16_t seq_num, uint32_t* p_ref_time, uint16_t* p_sdu_len);
-typedef void (*data_path_sdu_done_cb) (uint16_t conhdl, uint16_t sdu_len, uint32_t ref_time, uint8_t* p_buf, uint8_t status);
-typedef void (*data_path_local_sync_cb) (uint32_t t_gpio);
-typedef void (*data_path_peer_sync_cb) (uint16_t evt_cnt, uint32_t ref_anchor_pt);
+typedef uint8_t (*data_path_start_cb)(uint16_t conhdl, uint32_t sdu_interval, uint32_t trans_latency, uint16_t max_sdu);
+typedef void (*data_path_stop_cb)(uint16_t conhdl, uint8_t reason);
+typedef uint8_t *(*data_path_sdu_get_cb)(uint16_t conhdl, uint16_t seq_num, uint32_t *p_ref_time, uint16_t *p_sdu_len);
+typedef void (*data_path_sdu_done_cb)(uint16_t conhdl, uint16_t sdu_len, uint32_t ref_time, uint8_t *p_buf, uint8_t status);
+typedef void (*data_path_local_sync_cb)(uint32_t t_gpio);
+typedef void (*data_path_peer_sync_cb)(uint16_t evt_cnt, uint32_t ref_anchor_pt);
 
 struct data_path_itf
 {
@@ -170,13 +172,13 @@ bool isoohci_data_comed_callback_already_flag(void);
 void isoohci_data_rx_callback(uint16_t connhdl, int ps_flag);
 
 void isoohci_out_defer_handler(void);
-void isoohci_out_buf_release(uint8_t* iso_sdu_ptr);
+void isoohci_out_buf_release(uint8_t *iso_sdu_ptr);
 void isoohci_init(uint8_t init_type);
-const struct data_path_itf* isoohci_itf_get(uint8_t  direction);
+const struct data_path_itf *isoohci_itf_get(uint8_t  direction);
 
 void data_path_init(uint8_t init_type);
-const struct data_path_itf* data_path_itf_get(uint8_t type, uint8_t direction);
-bool data_path_is_disabled(const struct data_path_itf* dp);
+const struct data_path_itf *data_path_itf_get(uint8_t type, uint8_t direction);
+bool data_path_is_disabled(const struct data_path_itf *dp);
 
 #ifdef __cplusplus
 }

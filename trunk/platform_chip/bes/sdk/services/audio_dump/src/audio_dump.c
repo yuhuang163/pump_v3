@@ -20,11 +20,14 @@
 
 #ifdef AUDIO_DEBUG
 
-// #define DATA_DUMP_TOTA
 // #define DATA_DUMP_USB
 // #define DUMP_PLC_ENABLE
 
-#ifdef DATA_DUMP_TOTA
+#if defined(AUDIO_ALGO_DSP_DEBUG)
+#define DUMP_PLC_ENABLE
+#endif
+
+#ifdef AUDIO_DEBUG_VIA_TOTA
 #include "app_tota_audio_dump.h"
 #endif
 
@@ -32,7 +35,7 @@
 #include "data_dump_usb.h"
 #endif
 
-#if defined(DATA_DUMP_USB)
+#if defined(DATA_DUMP_USB) || defined(AUDIO_DEBUG_VIA_SPP)
 #define AUDIO_DUMP_HEAD_STR             ("[trace][audio dump]")
 #else
 #define AUDIO_DUMP_HEAD_STR             ("[audio dump]")
@@ -42,8 +45,13 @@
 #define AUDIO_DUMP_CRC_LEN              (4)
 #define AUDIO_DUMP_DATA_LEN             (4)
 #define AUDIO_DUMP_MAX_SAMPLE_BYTES     (sizeof(int))
+#ifdef SYSTEM_USE_FILE
+#define AUDIO_DUMP_MAX_FRAME_LEN        (512 * 4)
+#define AUDIO_DUMP_MAX_CHANNEL_NUM      (2)
+#else
 #define AUDIO_DUMP_MAX_FRAME_LEN        (512)
 #define AUDIO_DUMP_MAX_CHANNEL_NUM      (8)
+#endif
 #define AUDIO_DUMP_MAX_DATA_SIZE        (AUDIO_DUMP_MAX_FRAME_LEN * AUDIO_DUMP_MAX_CHANNEL_NUM * AUDIO_DUMP_MAX_SAMPLE_BYTES / sizeof(char))
 #define AUDIO_DUMP_BUFFER_SIZE          (AUDIO_DUMP_HEAD_LEN + AUDIO_DUMP_INDEX_LEN + AUDIO_DUMP_CRC_LEN + AUDIO_DUMP_DATA_LEN + AUDIO_DUMP_MAX_DATA_SIZE)
 
@@ -88,7 +96,9 @@ void audio_dump_clear_up(void)
 
 void audio_dump_init(int frame_len, int sample_bytes, int channel_num)
 {
-    AUDIO_DUMP_TRACE(2, "%s frame_len:%d, sample_bytes:%d, channel_num:%d", __func__, frame_len, sample_bytes, channel_num);
+    #ifndef SYSTEM_USE_FILE
+    TRACE(2, "%s frame_len:%d, sample_bytes:%d, channel_num:%d", __func__, frame_len, sample_bytes, channel_num);
+    #endif
 
      ASSERT(frame_len*channel_num*sample_bytes <= AUDIO_DUMP_MAX_DATA_SIZE,
            "[%s] dump data size is too large! Enlarge free RAM", __func__);
@@ -129,28 +139,28 @@ void audio_dump_init(int frame_len, int sample_bytes, int channel_num)
 
     audio_dump_clear_up();
 
+#ifndef SYSTEM_USE_FILE
     audio_dump_buffer_mutex_init();
+#endif
 
 #if defined(DATA_DUMP_USB)
     usb_serial_thread_init();
 #endif
 
-// #ifdef DATA_DUMP_TOTA
-//     data_dump_tota_open();
-//     data_dump_tota_start();
-// #endif
+#ifdef AUDIO_DEBUG_VIA_SPP
+    app_tota_audio_dump_start();
+#endif
 }
 
 void audio_dump_deinit(void)
 {
+#ifdef AUDIO_DEBUG_VIA_SPP
+    app_tota_audio_dump_stop();
+#endif
+
 #if defined(DATA_DUMP_USB)
     usb_serial_thread_destroy();
 #endif
-
-// #ifdef DATA_DUMP_TOTA
-//     data_dump_tota_stop();
-//     data_dump_tota_close();
-// #endif
 }
 
 void audio_dump_add_channel_data_from_multi_channels(int channel_id, void *pcm_buf, int pcm_len, int channel_num, int channel_index)
@@ -162,8 +172,18 @@ void audio_dump_add_channel_data_from_multi_channels(int channel_id, void *pcm_b
         return;
     }
 
+#ifndef SYSTEM_USE_FILE
     audio_dump_buffer_mutex_lock();
-    if (audio_dump_sample_bytes == sizeof(short))
+#endif
+    if (audio_dump_sample_bytes == sizeof(uint8_t)) {
+        uint8_t *_pcm_buf = (uint8_t *)pcm_buf;
+        uint8_t *_dump_buf = (uint8_t *)audio_dump_data_ptr;
+        for (int i = 0; i < pcm_len; i++)
+        {
+            _dump_buf[audio_dump_channel_num * i + channel_id] = _pcm_buf[i * channel_num + channel_index];
+        }
+    }
+    else if (audio_dump_sample_bytes == sizeof(short))
     {
         short *_pcm_buf = (short *)pcm_buf;
         short *_dump_buf = (short *)audio_dump_data_ptr;
@@ -187,7 +207,9 @@ void audio_dump_add_channel_data_from_multi_channels(int channel_id, void *pcm_b
     {
         ASSERT(0, "[%s] audio_dump_sample_bytes(%d) is invalid", __func__, audio_dump_sample_bytes);
     }
+#ifndef SYSTEM_USE_FILE
     audio_dump_buffer_mutex_unlock();
+#endif
 }
 
 void audio_dump_add_channel_data_from_multi_channels_32bit_to_16bit(int channel_id, void *pcm_buf, int pcm_len, int channel_num, int channel_index, int right_shift)
@@ -198,8 +220,6 @@ void audio_dump_add_channel_data_from_multi_channels_32bit_to_16bit(int channel_
     {
         return;
     }
-
-    // return;
 
     audio_dump_buffer_mutex_lock();
     if (audio_dump_sample_bytes == sizeof(short))
@@ -257,7 +277,7 @@ static void audio_debug_add_crc(void)
 
 void audio_dump_run(void)
 {
-#ifdef DATA_DUMP_TOTA
+#if defined(AUDIO_DEBUG_VIA_TOTA) && !defined(AUDIO_DEBUG_VIA_SPP)
     int offset = AUDIO_DUMP_HEAD_LEN + AUDIO_DUMP_DATA_LEN;
 
 #ifdef DUMP_PLC_ENABLE
@@ -265,7 +285,6 @@ void audio_dump_run(void)
 #endif
 
     app_tota_audio_dump_send((uint8_t *)&audio_dump_buf[offset], audio_dump_buf_size - offset);
-    // data_dump_tota_run((uint8_t *)&audio_dump_buf[offset], audio_dump_buf_size - offset);
 #elif defined(DATA_DUMP_USB)
     usb_serial_send_data();
 #else
@@ -279,7 +298,11 @@ void audio_dump_run(void)
     //     audio_dump_index++;
     // }
 #endif
+#ifdef AUDIO_DEBUG_VIA_SPP
+    app_tota_audio_dump_send((uint8_t *)audio_dump_buf, audio_dump_buf_size);
+#else
     AUDIO_DEBUG_DUMP((const unsigned char *)audio_dump_buf, audio_dump_buf_size);
+#endif
 #endif
 }
 
@@ -353,7 +376,7 @@ void data_dump_run(uint32_t ch, const char *str, void *data_buf, uint32_t data_l
 
     ASSERT(len < DATA_DUMP_BUF_SIZE, "[%s] len(%d) > DATA_DUMP_BUF_SIZE", __func__, len);
 
-    // AUDIO_DUMP_TRACE(5,"[%s] %d, %d, %d, %d", __func__, strlen(str), sizeof(uint32_t), data_len, len);
+    // TRACE(5,"[%s] %d, %d, %d, %d", __func__, strlen(str), sizeof(uint32_t), data_len, len);
     AUDIO_DEBUG_DUMP(buf_ptr, len);
 }
 #else // AUDIO_DEBUG
@@ -367,4 +390,16 @@ void audio_dump_run(void) {;}
 void data_dump_init(void) {;}
 void data_dump_deinit(void) {;}
 void data_dump_run(uint32_t ch, const char *str, void *data_buf, uint32_t data_len) {;}
+#endif
+
+uint32_t g_sysview_len = 0;
+
+#ifdef SYSTEM_USE_FILE
+void audio_dump_data(uint8_t *buff, uint32_t len)
+{
+    audio_dump_init(len, 1, 1);
+    audio_dump_add_channel_data(0, buff, len);
+    audio_dump_run();
+    g_sysview_len += len;
+}
 #endif

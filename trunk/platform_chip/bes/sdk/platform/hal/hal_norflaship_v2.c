@@ -168,7 +168,7 @@ uint32_t norflaship_write_txfifo_cont(enum HAL_FLASH_ID_T id, const uint8_t *val
     return len;
 }
 #if (CHIP_FLASH_CTRL_VER >= 3) && defined(UNALIGNED_ACCESS)
-uint32_t norflaship_write4_txfifo(enum HAL_FLASH_ID_T id, const uint8_t *val, uint32_t len)
+uint32_t norflaship_write4_txfifo_start(enum HAL_FLASH_ID_T id, const uint8_t *val, uint32_t len)
 {
     norflaship_blksize(id, len);
     return norflaship_write4_txfifo_cont(id, val, len);
@@ -191,11 +191,11 @@ uint32_t norflaship_write4_txfifo_cont(enum HAL_FLASH_ID_T id, const uint8_t *va
     return len;
 }
 #endif
-uint8_t norflaship_read_rxfifo_count(enum HAL_FLASH_ID_T id)
+uint32_t norflaship_read_rxfifo_count(enum HAL_FLASH_ID_T id)
 {
     return GET_BITFIELD(norflash[id]->REG_00C, REG_00C_RXFIFO_COUNT);
 }
-uint8_t norflaship_read_rxfifo(enum HAL_FLASH_ID_T id)
+uint32_t norflaship_read_rxfifo(enum HAL_FLASH_ID_T id)
 {
     return norflash[id]->REG_010;
 }
@@ -253,6 +253,10 @@ void norflaship_rxfifo_count_wait(enum HAL_FLASH_ID_T id, uint8_t cnt)
 void norflaship_rxfifo_empty_wait(enum HAL_FLASH_ID_T id)
 {
     while ((norflash[id]->REG_00C & REG_00C_RXFIFO_EMPTY) && TASK_SCHEDULE);
+}
+int norflaship_rxfifo_is_empty(enum HAL_FLASH_ID_T id)
+{
+    return !!(norflash[id]->REG_00C & REG_00C_RXFIFO_EMPTY);
 }
 int norflaship_txfifo_is_full(enum HAL_FLASH_ID_T id)
 {
@@ -336,41 +340,41 @@ void norflaship_dual_mode(enum HAL_FLASH_ID_T id, uint32_t v)
     }
 #endif
 }
-void norflaship_hold_pin(enum HAL_FLASH_ID_T id, uint32_t v)
+void norflaship_hold_pin(enum HAL_FLASH_ID_T id, uint32_t active_low)
 {
 #ifdef CHIP_BEST2300P
-    if (v) {
+    if (active_low) {
         norflash[id]->REG_014 |= REG_014_HOLDPIN | EXTRA_TCHSH_EN_O;
     } else {
         norflash[id]->REG_014 = (norflash[id]->REG_014 & ~REG_014_HOLDPIN) | EXTRA_TCHSH_EN_O;
     }
 #else
-    if (v) {
+    if (active_low) {
         norflash[id]->REG_014 |= REG_014_HOLDPIN;
     } else {
         norflash[id]->REG_014 &= ~REG_014_HOLDPIN;
     }
 #endif
 }
-void norflaship_wpr_pin(enum HAL_FLASH_ID_T id, uint32_t v)
+void norflaship_wpr_pin(enum HAL_FLASH_ID_T id, uint32_t active_low)
 {
 #ifdef CHIP_BEST2300P
-    if (v) {
+    if (active_low) {
         norflash[id]->REG_014 |= REG_014_WPROPIN | EXTRA_TCHSH_EN_O;
     } else {
         norflash[id]->REG_014 = (norflash[id]->REG_014 & ~REG_014_WPROPIN) | EXTRA_TCHSH_EN_O;
     }
 #else
-    if (v) {
+    if (active_low) {
         norflash[id]->REG_014 |= REG_014_WPROPIN;
     } else {
         norflash[id]->REG_014 &= ~REG_014_WPROPIN;
     }
 #endif
 }
-void norflaship_reset_pin(enum HAL_FLASH_ID_T id, uint32_t v)
+void norflaship_reset_pin(enum HAL_FLASH_ID_T id, uint32_t active_low)
 {
-    if (v) {
+    if (active_low) {
         norflash[id]->REG_014 |= REG_014_RESETPIN;
     } else {
         norflash[id]->REG_014 &= ~REG_014_RESETPIN;
@@ -445,8 +449,18 @@ void norflaship_dma_tx_threshold(enum HAL_FLASH_ID_T id, uint32_t v)
 {
     norflash[id]->REG_01C = SET_BITFIELD(norflash[id]->REG_01C, REG_01C_TX_THRESHOLD, v);
 }
-void norflaship_dma_rx_size(enum HAL_FLASH_ID_T id, uint32_t v)
+void norflaship_dma_rx_size(enum HAL_FLASH_ID_T id, uint32_t size)
 {
+    uint32_t v;
+
+    if (size == 4) {
+        v = 2;
+    } else if (size == 2) {
+        v = 1;
+    } else {
+        // size == 1
+        v = 0;
+    }
     norflash[id]->REG_01C = SET_BITFIELD(norflash[id]->REG_01C, REG_01C_DMA_RX_SIZE, v);
 }
 void norflaship_ruen(enum HAL_FLASH_ID_T id, uint32_t v)
@@ -472,6 +486,10 @@ void norflaship_frdcmd(enum HAL_FLASH_ID_T id, uint32_t v)
 void norflaship_qrdcmd(enum HAL_FLASH_ID_T id, uint32_t v)
 {
     norflash[id]->REG_020 = SET_BITFIELD(norflash[id]->REG_020, REG_020_QUADCMD, v);
+#if (CHIP_FLASH_CTRL_VER >= 3) || defined(CHIP_BEST2300P)
+    // Since 1302
+    norflash[id]->REG_038 = SET_BITFIELD(norflash[id]->REG_038, REG_038_WRAP_READ_CMD, v);
+#endif
 }
 uint32_t norflaship_get_rdcmd(enum HAL_FLASH_ID_T id)
 {
@@ -484,41 +502,45 @@ void norflaship_set_idle_io_dir(enum HAL_FLASH_ID_T id, uint32_t v)
 #endif
 }
 
-void norflaship_sleep(enum HAL_FLASH_ID_T id)
+void norflaship_sleep(enum HAL_FLASH_ID_T id, enum HAL_CMU_LPU_SLEEP_MODE_T mode)
 {
 #ifndef NORFLASHIP_HAS_IDLE_IO_CTRL
     norflash[id]->REG_034 |= REG_034_SPI_IORES(1 << 2);
 #endif
 #ifdef CORE_SLEEP_POWER_DOWN
-    volatile uint32_t *src, *dst;
-    int i;
+    if (mode == HAL_CMU_LPU_SLEEP_MODE_SUBSYS_PD) {
+        volatile uint32_t *src, *dst;
+        int i;
 
-    src = (volatile uint32_t *)norflash[id];
-    dst = (volatile uint32_t *)&norflash_regs;
-    for (i = 1; i < sizeof(struct NORFLASH_CTRL_T) / 4; i++) {
-       dst[i] = src[i];
+        src = (volatile uint32_t *)norflash[id];
+        dst = (volatile uint32_t *)&norflash_regs[id];
+        for (i = 1; i < sizeof(struct NORFLASH_CTRL_T) / 4; i++) {
+        dst[i] = src[i];
+        }
     }
 #endif
 }
 
-void norflaship_wakeup(enum HAL_FLASH_ID_T id)
+void norflaship_wakeup(enum HAL_FLASH_ID_T id, enum HAL_CMU_LPU_SLEEP_MODE_T mode)
 {
 #if CORE_SLEEP_POWER_DOWN
-    volatile uint32_t *src, *dst;
-    int i;
+    if (mode == HAL_CMU_LPU_SLEEP_MODE_SUBSYS_PD) {
+        volatile uint32_t *src, *dst;
+        int i;
 
-    src = (volatile uint32_t *)&norflash_regs;
-    dst = (volatile uint32_t *)norflash[id];
-    for (i = 1; i < sizeof(struct NORFLASH_CTRL_T) / 4; i++) {
-        if (&dst[i] == &norflash[id]->REG_008.TXWORD) {
-            continue;
-        }
+        src = (volatile uint32_t *)&norflash_regs[id];
+        dst = (volatile uint32_t *)norflash[id];
+        for (i = 1; i < sizeof(struct NORFLASH_CTRL_T) / 4; i++) {
+            if (&dst[i] == &norflash[id]->REG_008.TXWORD) {
+                continue;
+            }
 #ifdef CHIP_BEST1501
-        if (&dst[i] == &norflash[id]->REG_02C) {
-            continue;
-        }
+            if (&dst[i] == &norflash[id]->REG_02C) {
+                continue;
+            }
 #endif
-        dst[i] = src[i];
+            dst[i] = src[i];
+        }
     }
 #endif
 #ifndef NORFLASHIP_HAS_IDLE_IO_CTRL
@@ -565,6 +587,18 @@ void norflaship_dec_disable(enum HAL_FLASH_ID_T id)
 #ifdef NORFLASHIP_HAS_SECURITY
     norflash[id]->REG_06C &= ~REG_06C_DEC_ENABLE;
 #endif
+}
+
+int norflaship_get_dec_status(enum HAL_FLASH_ID_T id)
+{
+#ifdef NORFLASHIP_HAS_SECURITY
+    if (norflash[id]->REG_06C & REG_06C_DEC_ENABLE) {
+        return true;
+    } else
+#endif
+    {
+        return false;
+    }
 }
 
 void norflaship_man_wrap_width(enum HAL_FLASH_ID_T id, uint32_t width)
@@ -781,6 +815,18 @@ int norflaship_boot_get_remap_status(enum HAL_FLASH_ID_T id, uint32_t index)
 }
 
 #if (CHIP_FLASH_CTRL_VER >= 3)
+int norflaship_select_spi_mode(enum HAL_FLASH_ID_T id, uint32_t mode)
+{
+    if (mode == 0) {
+        norflash[id]->REG_040 &= ~REG_040_SPH;
+    } else if (mode == 3) {
+        norflash[id]->REG_040 |= REG_040_SPH;
+    } else {
+        return 1;
+    }
+    return 0;
+}
+
 void norflaship_qpi_mode(enum HAL_FLASH_ID_T id, uint32_t v)
 {
     norflaship_busy_wait(id);
@@ -990,13 +1036,13 @@ void norflaship_cfg_rx_fifo_width(enum HAL_FLASH_ID_T id, uint32_t size)
 {
     uint32_t v;
 
-    if (size == 1) {
-        v = 0;
+    if (size == 4) {
+        v = 2;
     } else if (size == 2) {
         v = 1;
     } else {
-        // size == 4
-        v = 2;
+        // size == 1
+        v = 0;
     }
     norflash[id]->REG_204 = SET_BITFIELD(norflash[id]->REG_204, REG_204_CFG_RXSIZE, v);
 }
@@ -1095,10 +1141,8 @@ void norflaship_write_unlock(enum HAL_FLASH_ID_T id)
 #endif
 
 #if (CHIP_FLASH_CTRL_VER >= 6)
-/**
- * norflaship_set_transsize_control -  select control modes of how to stop flash write process
- *  @use_tx_blksize : 0, use_tx_blksize; 1, stop with trans_cmp_en bit of TRANSSIZECTRL register
- */
+// norflaship_set_transsize_control -  select control modes of how to stop flash write process
+// @use_tx_blksize : 0, use_tx_blksize; 1, stop with trans_cmp_en bit of TRANSSIZECTRL register
 void norflaship_set_transsize_control(enum HAL_FLASH_ID_T id, bool use_tx_blksize)
 {
     if (use_tx_blksize) {
@@ -1109,10 +1153,8 @@ void norflaship_set_transsize_control(enum HAL_FLASH_ID_T id, bool use_tx_blksiz
     }
 }
 
-/**
- * norflaship_set_transcmp - set transcmp stop flag in dma completed handler
- *  clear transcmp stop flag before start to write flash
-*/
+// norflaship_set_transcmp - set transcmp stop flag in dma completed handler
+// clear transcmp stop flag before start to write flash
 void norflaship_set_transcmp(enum HAL_FLASH_ID_T id, bool completed)
 {
     if (completed) {
@@ -1196,11 +1238,6 @@ uint32_t norflaship_get_rclk_dly_status(enum HAL_FLASH_ID_T id)
     bypass = GET_BITFIELD(norflash[id]->REG_380, REG_380_DLY_LINE_BYPASS);
     map = (~bypass) & (REG_380_DLY_LINE_BYPASS_MASK >> REG_380_DLY_LINE_BYPASS_SHIFT);
     return map;
-}
-
-void norflaship_set_rxfifo_ctrl(enum HAL_FLASH_ID_T id, uint32_t val)
-{
-    norflash[id]->REG_20C = REG_20C_RXFIFO_CTRL(val);
 }
 #endif
 

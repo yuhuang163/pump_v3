@@ -1,9 +1,30 @@
 cur_dir := $(dir $(lastword $(MAKEFILE_LIST)))
 
+ifeq ($(CHIP_SUBSYS),sensor_hub)
 obj-y := $(patsubst $(cur_dir)%,%,$(wildcard $(cur_dir)*.c $(cur_dir)*.cpp $(cur_dir)*.S))
+CFLAGS_app_sensor_hub.o += -DCHIP_SUBSYS_SENSORHUB
+else
+obj-y := app_sensor_hub.cpp  mcu_sensor_hub_app.cpp
+CFLAGS_app_sensor_hub.o += -DCHIP_SUBSYS_MCU
+ifeq ($(VAD_IF_TEST),1)
+obj-y += mcu_sensor_hub_vad_app.cpp mcu_sensor_hub_app_ai.cpp mcu_sensor_hub_app_ai_ota.cpp
+endif
+endif
 
 ifeq ($(VAD_IF_TEST),1)
 ccflags-y += -DVAD_IF_TEST
+endif
+
+ifeq ($(POWER_TEST),1)
+ccflags-y += -DPOWER_TEST
+endif
+
+ifeq ($(DMA_AUDIO_APP),1)
+ccflags-y += -DDMA_AUDIO_APP
+endif
+
+ifeq ($(MCU_SENSOR_HUB_WATCH_DOG_INIT_OFF),1)
+ccflags-y += -DMCU_SENSOR_HUB_WATCH_DOG_INIT_OFF
 endif
 
 ifeq ($(CORE_BRIDGE_DEMO_MSG),1)
@@ -47,19 +68,22 @@ obj-y := $(obj-y:.cpp=.o)
 obj-y := $(obj-y:.S=.o)
 
 ccflags-y += \
+	$(BLUETOOTH_ADAPTER_INCLUDES) \
 	-Iplatform/drivers/sensor_hub \
-	-Iutils/crc \
+	-Iutils/crc32 \
 	-Iutils/cqueue \
 	-Iutils/heap \
 	-Iplatform/hal \
 	-Iplatform/drivers/ana \
+	-Iplatform/drivers/sensor_hub \
 	-Itests/sensor_hub/inc \
 	-Itests/sensor_hub/sensor_hub_ai \
 	-Iapps/common \
 	-Iapps/key \
+	-Iapps/sensorhub \
 	-Iservices/audioflinger \
-	-Iservices/bt_app \
-	-Iservices/bt_app/a2dp_codecs/include \
-	-Iservices/audio_manager \
-	$(BLUETOOTH_ADAPTER_INCLUDES)
+	-Iservices/dma_audio/app \
+	-Iservices/dma_audio/common \
+	-Imultimedia/inc/audio/codec/sbc/inc \
+	-Iservices/audio_manager
 

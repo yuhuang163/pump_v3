@@ -21,7 +21,16 @@ extern "C" {
 #endif
 #include "cqueue.h"
 #include "app_tota_cmd_code.h"
+#include "bt_sys_config.h"
 #define TOTA_SPP_ID                  0
+
+#define MAX_SPP_PACKET_SIZE          RFCOMM_DEFAULT_MTU
+
+#define MAX_SPP_PACKET_NUM           2
+
+#define TOTA_SPP_TX_BUF_SIZE        (MAX_SPP_PACKET_SIZE*MAX_SPP_PACKET_NUM)
+
+#define TOTA_RX_BUF_SIZE            (MAX_SPP_PACKET_SIZE*MAX_SPP_PACKET_NUM)
 
 #define APP_TOTA_DATA_CMD_TIME_OUT_IN_MS    5000
 
@@ -52,7 +61,7 @@ extern "C" {
 #define TOTA_CMD_HEAD_SIZE 4//cmdcode+len
 #define TOTA_CMD_HL_HEAD_MAX_SIZE 32 //high layer head max size
 /*cache buffer size for OTA data.*/
-#define TOTA_DATA_CACHE_BUFFER_SIZE (TOTA_CMD_HEAD_SIZE+TOTA_CMD_HL_HEAD_MAX_SIZE+5072)
+#define TOTA_DATA_CACHE_BUFFER_SIZE (TOTA_CMD_HEAD_SIZE+TOTA_CMD_HL_HEAD_MAX_SIZE+4096)
 
 /*used for packet sanity check*/
 typedef struct
@@ -109,12 +118,12 @@ typedef struct
     //encode and decode use the same buffer.
     //uint8_t decodeBuf[MAX_SPP_PACKET_SIZE];
     //uint8_t encodeBuf[MAX_SPP_PACKET_SIZE];
-    uint8_t *pcodeBuf;
+    uint8_t codeBuf[MAX_SPP_PACKET_SIZE];
 
     TOTA_Data_Ctrl_t tota_data_ctrl;
 
     /// used to cache TOTA decoded data
-    uint8_t *pRxDataCacheBuffer;
+    uint8_t RxDataCacheBuffer[TOTA_DATA_CACHE_BUFFER_SIZE];
     /// offset of data cached in cache-buffer
     uint32_t RxDataCacheBufferOffset;
 
@@ -124,7 +133,7 @@ typedef struct
     //uint32_t TxDataCacheBufferOffset;
 
     /// spp relay data RX buffer
-    uint8_t *prxDataBuf;
+    uint8_t rxDataBuf[TOTA_RX_BUF_SIZE];
     /// data RX queue
     CQueue rxDataQueue;
 
@@ -133,12 +142,8 @@ typedef struct
 extern TOTA_COMMON_ENV_T totaEnv;
 
 
-#if (TOTA_FACTORY_USED)
-void tota_mempool_init(void);
-#endif
 
 void tota_common_init(void);
-void tota_common_deinit(void);
 
 void tota_set_connect_status(TOTA_CONNECT_STATUS_E status);
 

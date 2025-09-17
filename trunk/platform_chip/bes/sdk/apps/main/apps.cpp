@@ -28,8 +28,6 @@
 #include "app_thread.h"
 #include "app_key.h"
 #include "bluetooth_bt_api.h"
-#include "app_bt_media_manager.h"
-#include "app_media_player.h"
 #include "app_pwl.h"
 #include "app_audio.h"
 #include "app_overlay.h"
@@ -38,7 +36,6 @@
 #include "app_utils.h"
 #include "app_status_ind.h"
 #include "bt_drv_interface.h"
-#include "besbt.h"
 #include "norflash_api.h"
 #include "nvrecord_appmode.h"
 #include "nvrecord_bt.h"
@@ -47,25 +44,10 @@
 #include "crash_dump_section.h"
 #include "log_section.h"
 #include "factory_section.h"
-#include "a2dp_api.h"
-#include "me_api.h"
-#include "btapp.h"
-#include "app_bt.h"
-#include "app_hfp.h"
-#include "bt_if.h"
-#include "intersyshci.h"
-#include "bt_app_api.h"
+#include "app_bt_audio.h"
 
-#ifdef SUPPORT_SINGLE_WIRE_COM
-#include "communication_svr.h"
-#endif
-
-#ifdef CHIP_HAS_USBPHY
-#include "usbphy.h"
-#endif
-
-#ifdef APP_CHIP_BRIDGE_MODULE
-#include "app_chip_bridge.h"
+#ifdef APP_UART_BRIDGE_MODULE
+#include "app_uart_bridge.h"
 #endif
 
 #ifdef CAPSENSOR_ENABLE
@@ -75,29 +57,10 @@
 #endif
 #endif
 
-#ifdef PRESSURE_ENABLE
-#include "app_pressure.h"
-#endif
-
 #ifdef __IAG_BLE_INCLUDE__
 #include "bluetooth_ble_api.h"
 #endif
 
-#ifdef BLE_BIS_TRANSPORT
-#include "app_bis_transport.h"
-#endif
-
-#if defined(APP_USB_A2DP_SOURCE) && defined(BT_SOURCE)
-#include "app_bt_stream.h"
-#endif
-
-
-#ifdef BIS_SELFSCAN_ENABLED
-extern void app_bis_selfscan_cmd_init(void);
-#endif
-
-#include "app_bt_func.h"
-#include "app_bt_cmd.h"
 #if defined(BISTO_ENABLED) || defined(__AI_VOICE__)
 #include "app_ai_if.h"
 #include "app_ai_tws.h"
@@ -109,7 +72,7 @@ extern void app_bis_selfscan_cmd_init(void);
 #include "app_bt_watch.h"
 #endif
 
-#ifdef __PC_CMD_UART__
+#ifdef PC_CMD_UART_ID
 #include "app_cmd.h"
 #endif
 
@@ -121,6 +84,7 @@ extern void app_bis_selfscan_cmd_init(void);
 #ifdef __INTERCONNECTION__
 #include "app_interconnection.h"
 #include "app_interconnection_logic_protocol.h"
+#include "bluetooth_ble_api.h"
 #include "app_interconnection_ble.h"
 #endif
 
@@ -128,7 +92,7 @@ extern void app_bis_selfscan_cmd_init(void);
 #include "app_interaction.h"
 #endif
 
-#ifdef BISTO_ENABLED
+#if defined(BISTO_ENABLED) || defined(VOICE_DATAPATH)
 #include "gsound_custom_reset.h"
 #include "nvrecord_gsound.h"
 #include "gsound_custom_actions.h"
@@ -144,13 +108,9 @@ extern void app_bis_selfscan_cmd_init(void);
 #endif
 
 #ifdef BES_OTA
+#include "ota_bes.h"
 #include "ota_control.h"
 #include "ota_config.h"
-#endif
-
-#ifdef MEDIA_PLAYER_SUPPORT
-#include "bluetooth_bt_api.h"
-#include "app_media_player.h"
 #endif
 
 #ifdef BT_USB_AUDIO_DUAL_MODE
@@ -165,35 +125,23 @@ extern void app_bis_selfscan_cmd_init(void);
 #include "app_ibrt_internal.h"
 #include "app_ibrt_customif_ui.h"
 #include "app_ibrt_voice_report.h"
-#include "bts_core_if.h"
-#include "bts_tws_if.h"
+
 #if defined(IBRT_UI)
-#include "earbud_ux_api.h"
 #include "app_tws_ibrt_ui_test.h"
 #include "app_ibrt_tws_ext_cmd.h"
-#include "app_ibrt_auto_test.h"
+#include "app_tws_ibrt_conn_api.h"
+#include "app_custom_api.h"
+#include "app_tws_ctrl_thread.h"
 #endif
+
 #endif
 
 #ifdef GFPS_ENABLED
-#include "bluetooth_ble_api.h"
-#endif
-
-#ifdef SPOT_ENABLED
-#include "nvrecord_fp_account_key.h"
-#include "pmu.h"
-#endif
-
-#ifdef FINDMY_ENABLED
-#include "findmy.h"
+#include "gfps.h"
 #endif
 
 #ifdef ANC_APP
 #include "app_anc.h"
-#endif
-
-#ifdef TOTA_FACTORY_USED
-#include "app_tota.h"
 #endif
 
 #ifdef __THIRDPARTY
@@ -210,14 +158,6 @@ extern void app_bis_selfscan_cmd_init(void);
 #include "app_voice_detector.h"
 #endif
 
-#ifdef APP_MCPP_CLI
-extern "C" void app_mcpp_init(void);
-#endif
-
-#ifdef APP_MCPP_SRV
-extern "C" void mcpp_srv_open(void);
-#endif
-
 #ifdef IBRT_UI
 #include "app_ui_api.h"
 #endif
@@ -225,6 +165,7 @@ extern "C" void mcpp_srv_open(void);
 #ifdef APP_SOUND_ENABLE
 #include "SoundApi.h"
 #endif
+
 #ifdef SENSOR_HUB
 #include "mcu_sensor_hub_app.h"
 #endif
@@ -234,10 +175,14 @@ extern "C" void mcpp_srv_open(void);
 #endif
 
 #ifdef DSP_HIFI4
-#include "dsp_loader.h"
+#include "mcu_dsp_hifi4_app.h"
 #endif
 
-#ifdef APP_RPC_ENABLE
+#if defined(BTH_BOOT_AP)
+#include "fw_linux_loader.h"
+#endif
+
+#if defined(APP_RPC_ENABLE) || defined(APP_RPC_MCU_SENSOR_EN)
 #include "app_rpc_api.h"
 #endif
 
@@ -252,63 +197,27 @@ extern "C" void mcpp_srv_open(void);
 #include "app_voice_assist_wd.h"
 #include "app_voice_assist_pilot_anc.h"
 #include "app_voice_assist_ultrasound.h"
-#if defined(VOICE_ASSIST_CUSTOM_LEAK_DETECT)
 #include "app_voice_assist_custom_leak_detect.h"
-#endif
 #include "app_voice_assist_prompt_leak_detect.h"
-#include "app_voice_assist_noise_adapt_anc.h"
-#if defined(VOICE_ASSIST_NOISE_CLASSIFY)
-#include "app_voice_assist_noise_classify_adapt_anc.h"
-#endif
-#if defined(VOICE_ASSIST_FF_FIR_LMS)
-#include "app_voice_assist_fir_lms.h"
-#include "app_voice_assist_fir_anc_open_leak.h"
-#endif
-#if defined(VOICE_ASSIST_FF_IIR_LMS)
-#include "app_voice_assist_iir_lms.h"
-#endif
-#if defined(VOICE_ASSIST_ADA_IIR)
-#include "app_voice_assist_ada_iir.h"
-#endif
-#if defined(VOICE_ASSIST_ONESHOT_ADAPTIVE_ANC)
-#include "app_voice_assist_oneshot_adapt_anc.h"
-#endif
+#include "app_voice_assist_anc.h"
 #if defined(AUDIO_ADAPTIVE_EQ)
 #include "app_voice_assist_adaptive_eq.h"
 #endif
 #if defined(AUDIO_ADJ_EQ)
 #include "app_voice_assist_adj_eq.h"
 #endif
-#include "app_voice_assist_optimal_tf.h"
-#include "app_voice_assist_pnc_adapt_anc.h"
-#if defined(AUDIO_ADJ_EQ_REV)
-#include "app_voice_assist_adj_eq_rev.h"
 #endif
-#endif
-
 
 #if defined(AUDIO_OUTPUT_DC_AUTO_CALIB) || defined(AUDIO_ADC_DC_AUTO_CALIB)
 #include "codec_calib.h"
 #endif
 
-#ifdef BT_SERVICE_ENABLE
-#include "bt_service.h"
+#ifdef DMA_AUDIO_APP
+#include "dma_audio_cli.h"
 #endif
 
-#if BLE_AUDIO_ENABLED
-#include "ble_audio_core_api.h"
-#include "ble_audio_earphone_info.h"
-#endif
-#ifdef AOB_MOBILE_ENABLED
-#include "ble_audio_mobile_info.h"
-#endif
-
-#ifdef APP_RPC_ENABLE
-#include "rpc.h"
-#endif
-
-#ifdef GFPS_ENABLED
-#include "gfps.h"
+#if defined(__HCI_BRIDGE_LOCAL_MODE__) || defined(__HCI_BRIDGE_REMOTE_MODE__)
+#include "app_hci_bridge.h"
 #endif
 
 #ifdef AUDIO_DEBUG
@@ -327,8 +236,12 @@ extern "C" int32_t hearing_det_cmd_init(void);
 extern "C" bool app_usbaudio_mode_on(void);
 #endif
 
-#ifdef VOICE_DEV
-extern "C" int32_t voice_dev_init(void);
+#ifdef APP_MCPP_CLI
+extern "C" void app_mcpp_init(void);
+#endif
+
+#ifdef APP_MCPP_SRV
+extern "C" void mcpp_srv_open(void);
 #endif
 
 #ifdef APP_UART_MODULE
@@ -339,32 +252,45 @@ extern "C" int32_t voice_dev_init(void);
 #include "sdmmc_msd.h"
 #endif
 
+#ifdef MTEST_BUILTIN
+#include "mem_scan.h"
+#endif
+
 #ifdef BLE_WALKIE_TALKIE
 #include "walkie_talkie_test.h"
-#include "app_walkie_talkie_key_handler.h"
 #include "app_walkie_talkie.h"
 #endif
 
-#if defined(GATT_RATE_TESTS) || defined(GATT_RATE_TESTC)
-#include "rate_test_demo.h"
+#ifdef BTH_IF_COMM_RPC_EN
+#include "bth_if_thread_server.h"
+#include "bth_bt_if_server.h"
 #endif
 
-#ifdef DOLBY_AUDIO_ENABLE
-#include "lwh.h"
+#ifdef __CONNECTIVITY_LOG_REPORT__
+#include "app_ibrt_link_monitor.h"
 #endif
 
-#define APP_SIGNAL_POWERON        0x2
-#define APP_SIGNAL_BT_HOST_READY  0x3
+#ifdef BLE_BIS_TRANSPORT
+#include "app_bis_transport.h"
+#endif
+
+
+#include "audio_manager.h"
+#include "audio_player_adapter.h"
+
+#ifdef WIRELESS_MIC
+#include "app_wireless_mic.h"
+#endif
 
 #define APP_BATTERY_LEVEL_LOWPOWERTHRESHOLD (1)
 #define POWERON_PRESSMAXTIME_THRESHOLD_MS  (5000)
 
-#ifdef SPOT_ENABLED
-#define SPOT_POWER_OFF_TIME_MINUTES     30
-#endif
-
 #ifdef FPGA
 uint32_t __ota_upgrade_log_start[100];
+#endif
+
+#ifdef APP_SAMPLES
+#include "app_tests.h"
 #endif
 
 enum APP_POWERON_CASE_T {
@@ -403,7 +329,7 @@ static uint8_t app_status_indication_init(void)
 }
 #endif
 
-#if defined(APP_10_SECOND_TIMER_EN)
+#if defined(__BTIF_EARPHONE__)
 
 typedef void (*APP_10_SECOND_TIMER_CB_T)(void);
 
@@ -429,44 +355,13 @@ typedef struct
         .cb = _cb, \
     }
 
-void app_enter_fastpairing_mode(void)
-{
-#ifdef GFPS_ENABLED
-    gfps_enter_fastpairing_mode();
-    app_start_10_second_timer(APP_FASTPAIR_LASTING_TIMER_ID);
-#endif
-}
-
-void app_exit_fastpairing_mode(void)
-{
-#ifdef GFPS_ENABLED
-    if (gfps_is_in_fastpairing_mode())
-    {
-        MAIN_TRACE(0,"[FP]exit fast pair mode");
-        app_stop_10_second_timer(APP_FASTPAIR_LASTING_TIMER_ID);
-        gfps_exit_fastpairing_mode();
-        app_ui_exit_pairing_mode_ext(true);
-    }
-#endif
-}
-
-void app_fast_pairing_timeout_timehandler(void)
-{
-    app_exit_fastpairing_mode();
-}
-
 APP_10_SECOND_TIMER_STRUCT app_10_second_array[] =
 {
-#ifdef BT_BUILD_WITH_CUSTOMER_HOST
-    INIT_APP_TIMER(APP_PAIR_TIMER_ID, 0, 0, 6, NULL),
-    INIT_APP_TIMER(APP_POWEROFF_TIMER_ID, 0, 0, 90, NULL),
-#else
     INIT_APP_TIMER(APP_PAIR_TIMER_ID, 0, 0, 6, bes_bt_me_transfer_pairing_to_connectable),
     INIT_APP_TIMER(APP_POWEROFF_TIMER_ID, 0, 0, 90, CloseEarphone),
-#endif
 #ifdef GFPS_ENABLED
     INIT_APP_TIMER(APP_FASTPAIR_LASTING_TIMER_ID, 0, 0, APP_FAST_PAIRING_TIMEOUT_IN_SECOND/10,
-        app_fast_pairing_timeout_timehandler),
+        app_exit_fastpairing_mode),
 #endif
 };
 
@@ -512,6 +407,31 @@ void app_10_second_timer_check(void)
     }
 }
 
+void app_enter_fastpairing_mode(void)
+{
+#ifdef GFPS_ENABLED
+    gfps_enter_fastpairing_mode();
+    app_start_10_second_timer(APP_FASTPAIR_LASTING_TIMER_ID);
+#endif
+}
+
+void app_exit_fastpairing_mode(void)
+{
+#ifdef GFPS_ENABLED
+    if (gfps_is_in_fastpairing_mode())
+    {
+        TRACE(0,"[FP]exit fast pair mode");
+        app_stop_10_second_timer(APP_FASTPAIR_LASTING_TIMER_ID);
+        gfps_exit_fastpairing_mode();
+    }
+#endif
+}
+
+void app_fast_pairing_timeout_timehandler(void)
+{
+    app_exit_fastpairing_mode();
+}
+
 void CloseEarphone(void)
 {
 #ifdef SLIM_BTC_ONLY
@@ -529,75 +449,44 @@ void CloseEarphone(void)
     int activeCons = 0;
     int activeSourceCons = 0;
 
-    activeCons = app_bt_get_active_cons();
-    activeSourceCons = btif_me_get_source_activeCons();
+    activeCons = bes_bt_me_count_link(BT_COUNT_MOBILE_TWS_LINK);
+    activeSourceCons = bes_bt_me_count_link(BT_COUNT_SOURCE_LINK);
 
     if(activeCons == 0 && activeSourceCons == 0) {
-        MAIN_TRACE(0,"!!!CloseEarphone\n");
+        TRACE(0,"!!!CloseEarphone\n");
         app_shutdown();
     }
 #endif /* BLE_ONLY_ENABLED */
 
 #endif
 }
-#endif /* #if defined(APP_10_SECOND_TIMER_EN) && defined(__BTIF_AUTOPOWEROFF__) */
-
-static int app_bth_event_callback(const bt_bdaddr_t *bd_addr, BT_EVENT_T event, BT_CALLBACK_PARAM_T param)
-{
-    switch (event)
-    {
-        case BT_EVENT_ACL_OPENED:
-        case BT_EVENT_ACL_CLOSED:
-        {
-#if defined(__BTIF_AUTOPOWEROFF__)  && !defined(FPGA)
-            uint8_t active_cons = 0;
-#ifndef BLE_ONLY_ENABLED
-            active_cons = bes_bt_get_active_cons();
-#endif
-            if (active_cons == 0)
-            {
-                app_start_10_second_timer(APP_POWEROFF_TIMER_ID);
-            }
-            else
-            {
-                app_stop_10_second_timer(APP_POWEROFF_TIMER_ID);
-            }
-#endif
-        } break;
-        case BT_EVENT_ACCESS_CHANGE:
-        {
-            if(param.bt.access_change->access_mode == BT_ACCESS_GENERAL_ACCESSIBLE)
-            {
-                app_status_indication_set(APP_STATUS_INDICATION_BOTHSCAN);
-            }
-            else
-            {
-                app_status_indication_set(APP_STATUS_INDICATION_PAGESCAN);
-            }
-        } break;
-        default:
-            break;
-    }
-
-    return 0;
-}
-
+#endif /* #if defined(__BTIF_EARPHONE__) && defined(__BTIF_AUTOPOWEROFF__) */
 
 extern "C" int signal_send_to_main_thread(uint32_t signals);
 static uint8_t stack_ready_flag = 0;
-void app_notify_stack_ready(void)
+void app_notify_stack_ready(uint8_t ready_flag)
 {
-    MAIN_TRACE(2,"app_notify_stack_ready!");
+    TRACE(2,"app_notify_stack_ready %d %d", stack_ready_flag, ready_flag);
 
-    signal_send_to_main_thread(APP_SIGNAL_BT_HOST_READY);
-    stack_ready_flag = 1;
+    stack_ready_flag |= ready_flag;
+
+#ifdef __IAG_BLE_INCLUDE__
+    if(stack_ready_flag == (STACK_READY_BT|STACK_READY_BLE))
+#endif
+    {
+        signal_send_to_main_thread(STACK_READY_BLE | STACK_READY_BT);
+    }
 }
 
 bool app_is_stack_ready(void)
 {
     bool ret = false;
 
-    if (stack_ready_flag)
+    if (stack_ready_flag == (STACK_READY_BT
+#ifdef __IAG_BLE_INCLUDE__
+                             | STACK_READY_BLE
+#endif
+                             ))
     {
         ret = true;
     }
@@ -605,35 +494,48 @@ bool app_is_stack_ready(void)
     return ret;
 }
 
+__attribute__((weak)) void ble_uart_cmd_init(void)
+{
+
+}
+
+extern "C" WEAK void app_debug_tool_printf(const char *fmt, ...)
+{
+
+}
+
 #ifdef SPP_DEBUG_TOOL
 #ifdef SPP_EQ_TUNING
 #include "hal_cmd.h"
 #endif
-bool app_spp_debug_cmd_check(uint8_t *cmd, uint16_t len)
+uint8_t *app_spp_debug_cmd_process(uint8_t *cmd, uint16_t len, uint16_t *out_len, uint16_t *ret)
 {
-    return (
-#ifdef SPP_EQ_TUNING
-        hal_cmd_debug_check(cmd, len) ||
-#endif
-        // Add more case
-        0
-    );
-}
-
-uint8_t *app_spp_debug_cmd_process(uint8_t *cmd, uint16_t len, uint16_t *out_len)
-{
+    *ret = 0;
     if (0) {
 #ifdef SPP_EQ_TUNING
     } else if (hal_cmd_debug_check(cmd, len)) {
         return hal_cmd_debug_process(cmd, len, out_len);
 #endif
-    } else {
-        MAIN_TRACE(1, "[%s] Invalid cmd:", __func__);
-        MAIN_DUMP8("%02x ", cmd, len);
+#ifdef APP_TRACE_RX_ENABLE
+    } else if (app_trace_rx_check_head(cmd, len)) {
+        TRACE(2, "[%s] Find trace rx cmd: %s", __func__, cmd);
+        app_trace_rx_process(cmd, len);
         return NULL;
+#endif
+    } else {
+        *ret = 1;
+        TRACE(1, "[%s] Invalid cmd:", __func__);
+        DUMP8("%02x ", cmd, len);
     }
+
+    return NULL;
 }
 #endif
+
+static void app_stack_ready_cb(void)
+{
+    TRACE(0,"stack init done");
+}
 
 #ifdef MEDIA_PLAYER_SUPPORT
 
@@ -646,7 +548,7 @@ int app_voice_stop(APP_STATUS_INDICATION_T status, uint8_t device_id)
 {
     AUD_ID_ENUM id = MAX_RECORD_NUM;
 
-    MAIN_TRACE(2,"%s %d", __func__, status);
+    TRACE(2,"%s %d", __func__, status);
 
     if (status == APP_STATUS_INDICATION_FIND_MY_BUDS)
         id = AUDIO_ID_FIND_MY_BUDS;
@@ -660,19 +562,19 @@ int app_voice_stop(APP_STATUS_INDICATION_T status, uint8_t device_id)
 
 static void app_poweron_normal(APP_KEY_STATUS *status, void *param)
 {
-    MAIN_TRACE(3,"%s %d,%d",__func__, status->code, status->event);
+    TRACE(3,"%s %d,%d",__func__, status->code, status->event);
     g_pwron_case = APP_POWERON_CASE_NORMAL;
 
-    signal_send_to_main_thread(APP_SIGNAL_POWERON);
+    signal_send_to_main_thread(0x2);
 }
 
 #if !defined(BLE_ONLY_ENABLED)
 static void app_poweron_scan(APP_KEY_STATUS *status, void *param)
 {
-    MAIN_TRACE(3,"%s %d,%d",__func__, status->code, status->event);
+    TRACE(3,"%s %d,%d",__func__, status->code, status->event);
     g_pwron_case = APP_POWERON_CASE_BOTHSCAN;
 
-    signal_send_to_main_thread(APP_SIGNAL_POWERON);
+    signal_send_to_main_thread(0x2);
 }
 #endif
 
@@ -680,7 +582,7 @@ static void app_poweron_scan(APP_KEY_STATUS *status, void *param)
 #if !defined(BLE_ONLY_ENABLED)
 static void app_poweron_factorymode(APP_KEY_STATUS *status, void *param)
 {
-    MAIN_TRACE(3,"%s %d,%d",__func__, status->code, status->event);
+    TRACE(3,"%s %d,%d",__func__, status->code, status->event);
     hal_sw_bootmode_clear(HAL_SW_BOOTMODE_REBOOT);
     app_factorymode_enter();
 }
@@ -689,14 +591,14 @@ static void app_poweron_factorymode(APP_KEY_STATUS *status, void *param)
 
 void app_enter_signalingtest_mode(void)
 {
-    MAIN_TRACE(0, "APP: enter signaling test");
+    TRACE(0, "APP: enter signaling test");
     hal_sw_bootmode_set(HAL_SW_BOOTMODE_TEST_MODE|HAL_SW_BOOTMODE_TEST_SIGNALINGMODE);
     app_reset();
 }
 
 void app_enter_non_signalingtest_mode(void)
 {
-    MAIN_TRACE(0, "APP: enter non-signaling test");
+    TRACE(0, "APP: enter non-signaling test");
     hal_sw_bootmode_set(HAL_SW_BOOTMODE_TEST_MODE|HAL_SW_BOOTMODE_TEST_NOSIGNALINGMODE);
     app_reset();
 }
@@ -704,15 +606,15 @@ void app_enter_non_signalingtest_mode(void)
 static bool g_pwron_finished = false;
 static void app_poweron_finished(APP_KEY_STATUS *status, void *param)
 {
-    MAIN_TRACE(3,"%s %d,%d",__func__, status->code, status->event);
+    TRACE(3,"%s %d,%d",__func__, status->code, status->event);
     g_pwron_finished = true;
-    signal_send_to_main_thread(APP_SIGNAL_POWERON);
+    signal_send_to_main_thread(0x2);
 }
 
 void app_poweron_wait_finished(void)
 {
     if (!g_pwron_finished){
-        osSignalWait(APP_SIGNAL_POWERON, osWaitForever);
+        osSignalWait(0x2, osWaitForever);
     }
 }
 
@@ -738,18 +640,11 @@ const  APP_KEY_HANDLE  pwron_key_handle_cfg[] = {
 };
 #endif
 
-#ifdef TOTA_FACTORY_USED
-void app_bt_key_enter_tota_mode(APP_KEY_STATUS *status, void *param)
-{
-    reboot_to_enter_tota_mode();
-}
-#endif
-
 #ifndef APP_TEST_MODE
 static void app_poweron_key_init(void)
 {
     uint8_t i = 0;
-    MAIN_TRACE(1,"%s",__func__);
+    TRACE(1,"%s",__func__);
 
     for (i = 0; i< ARRAY_SIZE(pwron_key_handle_cfg); i++){
         app_key_handle_registration(&pwron_key_handle_cfg[i]);
@@ -758,96 +653,47 @@ static void app_poweron_key_init(void)
 
 static uint8_t app_poweron_wait_case(void)
 {
-    POSSIBLY_UNUSED uint32_t stime = 0, etime = 0;
+    uint32_t stime = 0, etime = 0;
 
 #ifdef __POWERKEY_CTRL_ONOFF_ONLY__
     g_pwron_case = APP_POWERON_CASE_NORMAL;
 #else
-    MAIN_TRACE(1,"poweron_wait_case enter:%d", g_pwron_case);
+    TRACE(1,"poweron_wait_case enter:%d", g_pwron_case);
     if (g_pwron_case == APP_POWERON_CASE_INVALID){
         stime = hal_sys_timer_get();
-        osSignalWait(APP_SIGNAL_POWERON, POWERON_PRESSMAXTIME_THRESHOLD_MS);
+        osSignalWait(0x2, POWERON_PRESSMAXTIME_THRESHOLD_MS);
         etime = hal_sys_timer_get();
     }
-    MAIN_TRACE(2,"powon raw case:%d time:%d", g_pwron_case, TICKS_TO_MS(etime - stime));
+    TRACE(2,"powon raw case:%d time:%d", g_pwron_case, TICKS_TO_MS(etime - stime));
 #endif
     return g_pwron_case;
+
 }
 #endif
 
 static void POSSIBLY_UNUSED app_wait_stack_ready(void)
 {
-    POSSIBLY_UNUSED uint32_t stime, etime;
+    uint32_t stime, etime;
     stime = hal_sys_timer_get();
-    osSignalWait(APP_SIGNAL_BT_HOST_READY, osWaitForever);
+    osSignalWait(0x3, osWaitForever);
     etime = hal_sys_timer_get();
-    MAIN_TRACE(1,"app_wait_stack_ready: wait:%d ms", TICKS_TO_MS(etime - stime));
-    MAIN_TRACE(0,"stack init done");
-    bt_add_event_callback(app_bth_event_callback, BT_EVENT_MASK_LINK_GROUP);
+    TRACE(1,"app_wait_stack_ready: wait:%d ms", TICKS_TO_MS(etime - stime));
+
+    app_stack_ready_cb();
 }
 
 extern "C" int system_shutdown(void);
 extern "C" int system_reset(void);
 
-#ifdef RTC_CALENDAR
-void pmu_rtc_alarm_handler_dummy(struct RTC_CALENDAR_FORMAT_T *calendar)
-{
-}
-#endif
-#ifdef RTC_ENABLE
-void pmu_rtc_alarm_handler_dummy(uint32_t seconds)
-{
-}
-#endif
-
 int app_shutdown(void)
 {
-#ifndef IGNORE_APP_SHUTDOWN
     system_shutdown();
-#endif
-#ifdef SPOT_ENABLED
-#if defined(RTC_ENABLE)
-    if(nv_record_fp_get_spot_adv_enable_value())
-    {
-        pmu_rtc_enable();
-        uint32_t poweroff_time = pmu_rtc_get();
-        nv_record_fp_update_poweroff_time(poweroff_time);
-        MAIN_TRACE(1,"shut down poweroff_time is %u", poweroff_time);
-        pmu_rtc_set_irq_handler(pmu_rtc_alarm_handler_dummy);
-        pmu_rtc_set_alarm(poweroff_time + SPOT_POWER_OFF_TIME_MINUTES*60);
-    }
-#endif
-
-#ifdef RTC_CALENDAR
-    if(nv_record_fp_get_spot_adv_enable_value())
-    {
-        struct RTC_CALENDAR_FORMAT_T alarm_cal = {0, };
-        uint32_t unix;
-
-        pmu_rtc_calendar_alarm_irq_handler_set(pmu_rtc_alarm_handler_dummy);
-        pmu_rtc_calendar_get(&alarm_cal);
-        MAIN_TRACE(0, "get rtc: %d/%02d/%02d %02d:%02d:%02d week:%d",
-            alarm_cal.year, alarm_cal.month, alarm_cal.day, alarm_cal.hour, alarm_cal.minute, alarm_cal.second, alarm_cal.week);
-        unix = rtc_calendar_to_unix(&alarm_cal);
-        nv_record_fp_update_poweroff_time(unix);
-        unix += SPOT_POWER_OFF_TIME_MINUTES*60;
-        MAIN_TRACE(1,"shut down poweroff_time is %u", unix);
-        rtc_unix_to_calendar(&unix, &alarm_cal);
-        MAIN_TRACE(0, "set alarm: %d/%02d/%02d %02d:%02d:%02d week:%d",
-            alarm_cal.year, alarm_cal.month, alarm_cal.day, alarm_cal.hour, alarm_cal.minute, alarm_cal.second, alarm_cal.week);
-        pmu_rtc_calendar_pwron_enable(true);
-        pmu_rtc_calendar_alarm_set(&alarm_cal);
-    }
-#endif
-#endif
-
-
     return 0;
 }
 
 int app_reset(void)
 {
-    MAIN_TRACE(0, "Retention bit when reset happens is 0x%x", hal_sw_bootmode_get());
+    TRACE(0, "Retention bit when reset happens is 0x%x", hal_sw_bootmode_get());
     system_reset();
     return 0;
 }
@@ -886,10 +732,9 @@ void app_start_ota_language_reset(void)
     osTimerStart(app_postponed_reset_timer, APP_RESET_PONTPONED_TIME_IN_MS);
 }
 #endif
-
 void app_bt_key_shutdown(APP_KEY_STATUS *status, void *param)
 {
-    MAIN_TRACE(3,"%s %d,%d",__func__, status->code, status->event);
+    TRACE(3,"%s %d,%d",__func__, status->code, status->event);
 #ifdef __POWERKEY_CTRL_ONOFF_ONLY__
     hal_sw_bootmode_clear(HAL_SW_BOOTMODE_REBOOT);
     app_reset();
@@ -900,7 +745,7 @@ void app_bt_key_shutdown(APP_KEY_STATUS *status, void *param)
 
 void app_bt_key_enter_testmode(APP_KEY_STATUS *status, void *param)
 {
-    MAIN_TRACE(1,"%s\n",__FUNCTION__);
+    TRACE(1,"%s\n",__FUNCTION__);
 
     if(app_status_indication_get() == APP_STATUS_INDICATION_BOTHSCAN){
 #ifdef __FACTORY_MODE_SUPPORT__
@@ -911,7 +756,7 @@ void app_bt_key_enter_testmode(APP_KEY_STATUS *status, void *param)
 
 void app_bt_key_enter_nosignal_mode(APP_KEY_STATUS *status, void *param)
 {
-    MAIN_TRACE(1,"%s\n",__FUNCTION__);
+    TRACE(1,"%s\n",__FUNCTION__);
     if(app_status_indication_get() == APP_STATUS_INDICATION_BOTHSCAN){
 #ifdef __FACTORY_MODE_SUPPORT__
         app_factorymode_bt_nosignalingtest(status, param);
@@ -923,14 +768,14 @@ void app_bt_key_enter_nosignal_mode(APP_KEY_STATUS *status, void *param)
 #define PRESS_KEY_TO_ENTER_OTA_REPEAT_CNT    ((PRESS_KEY_TO_ENTER_OTA_INTERVEL - 2000) / 500)
 void app_otaMode_enter(APP_KEY_STATUS *status, void *param)
 {
-    MAIN_TRACE(1,"%s",__func__);
+    TRACE(1,"%s",__func__);
 
     hal_norflash_disable_protection(HAL_FLASH_ID_0);
 
     hal_sw_bootmode_set(HAL_SW_BOOTMODE_ENTER_HIDE_BOOT);
 #ifdef __KMATE106__
     app_status_indication_set(APP_STATUS_INDICATION_OTA);
-    media_PlayAudio(AUD_ID_BT_WARNING, 0);
+    audio_player_play_prompt(AUD_ID_BT_WARNING, 0);
     osDelay(1200);
 #endif
     pmu_reboot();
@@ -944,29 +789,21 @@ extern "C" void sys_otaMode_enter()
 #ifdef __USB_COMM__
 void app_usb_cdc_comm_key_handler(APP_KEY_STATUS *status, void *param)
 {
-    MAIN_TRACE(3,"%s %d,%d", __func__, status->code, status->event);
+    TRACE(3,"%s %d,%d", __func__, status->code, status->event);
     hal_sw_bootmode_clear(HAL_SW_BOOTMODE_REBOOT);
     hal_sw_bootmode_set(HAL_SW_BOOTMODE_CDC_COMM);
     pmu_usb_config(PMU_USB_CONFIG_TYPE_DEVICE);
-#ifdef CHIP_HAS_USBPHY
-    usbphy_open();
-#endif
-    //hal_cmu_reset_set(HAL_CMU_MOD_GLOBAL);
-    pmu_reboot();
+    hal_cmu_reset_set(HAL_CMU_MOD_GLOBAL);
 }
 #endif
 
 void app_dfu_key_handler(APP_KEY_STATUS *status, void *param)
 {
-    MAIN_TRACE(1,"%s ",__func__);
+    TRACE(1,"%s ",__func__);
     hal_sw_bootmode_clear(0xffffffff);
     hal_sw_bootmode_set(HAL_SW_BOOTMODE_FORCE_USB_DLD | HAL_SW_BOOTMODE_SKIP_FLASH_BOOT);
     pmu_usb_config(PMU_USB_CONFIG_TYPE_DEVICE);
-#ifdef CHIP_HAS_USBPHY
-    usbphy_open();
-#endif
-    //hal_cmu_reset_set(HAL_CMU_MOD_GLOBAL);
-    pmu_reboot();
+    hal_cmu_reset_set(HAL_CMU_MOD_GLOBAL);
 }
 
 void app_ota_key_handler(APP_KEY_STATUS *status, void *param)
@@ -974,7 +811,7 @@ void app_ota_key_handler(APP_KEY_STATUS *status, void *param)
     static uint32_t time = hal_sys_timer_get();
     static uint16_t cnt = 0;
 
-    MAIN_TRACE(3,"%s %d,%d",__func__, status->code, status->event);
+    TRACE(3,"%s %d,%d",__func__, status->code, status->event);
 
     if (TICKS_TO_MS(hal_sys_timer_get() - time) > 600) // 600 = (repeat key intervel)500 + (margin)100
         cnt = 0;
@@ -989,12 +826,12 @@ void app_ota_key_handler(APP_KEY_STATUS *status, void *param)
 }
 extern "C" void app_bt_key(APP_KEY_STATUS *status, void *param)
 {
-    MAIN_TRACE(3,"%s %d,%d",__func__, status->code, status->event);
+    TRACE(3,"%s %d,%d",__func__, status->code, status->event);
 #define DEBUG_CODE_USE 0
     switch(status->event)
     {
         case APP_KEY_EVENT_CLICK:
-            MAIN_TRACE(0,"first blood!");
+            TRACE(0,"first blood!");
 #if DEBUG_CODE_USE
             if (status->code == APP_KEY_CODE_PWR)
             {
@@ -1020,7 +857,7 @@ extern "C" void app_bt_key(APP_KEY_STATUS *status, void *param)
 #endif
             break;
         case APP_KEY_EVENT_DOUBLECLICK:
-            MAIN_TRACE(0,"double kill");
+            TRACE(0,"double kill");
 #if DEBUG_CODE_USE
             if (status->code == APP_KEY_CODE_PWR)
             {
@@ -1033,35 +870,33 @@ extern "C" void app_bt_key(APP_KEY_STATUS *status, void *param)
                 return;
             }
 #endif
-			break;
+            break;
         case APP_KEY_EVENT_TRIPLECLICK:
-            MAIN_TRACE(0,"triple kill");
+            TRACE(0,"triple kill");
             if (status->code == APP_KEY_CODE_PWR)
             {
-#ifndef BT_BUILD_WITH_CUSTOMER_HOST
-                if(bes_bt_me_count_mobile_link() < BT_DEVICE_NUM){
+                if(bes_bt_me_count_link(BT_COUNT_MOBILE_LINK) < BT_DEVICE_NUM){
                     bes_bt_me_write_access_mode(BTIF_BT_DEFAULT_ACCESS_MODE_PAIR,1);
 #ifdef __INTERCONNECTION__
-	                app_interceonnection_start_discoverable_adv(INTERCONNECTION_BLE_FAST_ADVERTISING_INTERVAL,
-	                                                            APP_INTERCONNECTION_FAST_ADV_TIMEOUT_IN_MS);
-	                return;
+                    app_interceonnection_start_discoverable_adv(INTERCONNECTION_BLE_FAST_ADVERTISING_INTERVAL,
+                                                                APP_INTERCONNECTION_FAST_ADV_TIMEOUT_IN_MS);
+                    return;
 #endif
 #ifdef GFPS_ENABLED
-	                app_enter_fastpairing_mode();
+                    app_enter_fastpairing_mode();
 #endif
 #ifdef MEDIA_PLAYER_SUPPORT
-                    media_PlayAudio(AUD_ID_BT_PAIR_ENABLE, 0);
+                    audio_player_play_prompt(AUD_ID_BT_PAIR_ENABLE, 0);
 #endif
                 }
-#endif
                 return;
             }
             break;
         case APP_KEY_EVENT_ULTRACLICK:
-            MAIN_TRACE(0,"ultra kill");
+            TRACE(0,"ultra kill");
             break;
         case APP_KEY_EVENT_RAMPAGECLICK:
-            MAIN_TRACE(0,"rampage kill!you are crazy!");
+            TRACE(0,"rampage kill!you are crazy!");
             break;
 
         case APP_KEY_EVENT_UP:
@@ -1073,9 +908,7 @@ extern "C" void app_bt_key(APP_KEY_STATUS *status, void *param)
     }else
 #endif
     {
-#ifndef BT_BUILD_WITH_CUSTOMER_HOST
-        bt_key_send(status);
-#endif
+        bes_bt_me_send_bt_key(status);
     }
 }
 
@@ -1083,10 +916,10 @@ extern "C" void app_bt_key(APP_KEY_STATUS *status, void *param)
 extern bool app_rbcodec_check_hfp_active(void );
 void app_switch_player_key(APP_KEY_STATUS *status, void *param)
 {
-    MAIN_TRACE(3,"%s %d,%d",__func__, status->code, status->event);
+    TRACE(3,"%s %d,%d",__func__, status->code, status->event);
 
     if(!rb_ctl_is_init_done()) {
-        MAIN_TRACE(0,"rb ctl not init done");
+        TRACE(0,"rb ctl not init done");
         return ;
     }
 
@@ -1098,14 +931,100 @@ void app_switch_player_key(APP_KEY_STATUS *status, void *param)
     app_rbplay_audio_reset_pause_status();
 
     if(app_rbplay_mode_switch()) {
-        media_PlayAudio(AUD_ID_POWER_ON, 0);
+        audio_player_play_prompt(AUD_ID_POWER_ON, 0);
         app_rbcodec_ctr_play_onoff(true);
     } else {
         app_rbcodec_ctr_play_onoff(false);
-        media_PlayAudio(AUD_ID_POWER_OFF, 0);
+        audio_player_play_prompt(AUD_ID_POWER_OFF, 0);
     }
     return ;
 
+}
+#endif
+
+void app_voice_assistant_key(APP_KEY_STATUS *status, void *param)
+{
+    TRACE(2,"%s event %d", __func__, status->event);
+#if defined(BISTO_ENABLED) || defined(__AI_VOICE__)
+    if (app_ai_manager_is_in_multi_ai_mode())
+    {
+        if (app_ai_manager_spec_get_status_is_in_invalid()) {
+            TRACE(0,"AI feature has been diabled");
+            return;
+        }
+
+#ifdef MAI_TYPE_REBOOT_WITHOUT_OEM_APP
+        if (app_ai_manager_get_spec_update_flag()) {
+            TRACE(0,"device reboot is ongoing...");
+            return;
+        }
+#endif
+
+        if (app_ai_manager_is_need_reboot())
+        {
+            TRACE(1, "%s ai need to reboot", __func__);
+            return;
+        }
+
+        if(app_ai_manager_voicekey_is_enable()) {
+            if (AI_SPEC_GSOUND == app_ai_manager_get_current_spec()) {
+#ifdef BISTO_ENABLED
+	            gsound_custom_actions_handle_key(status, param);
+#endif
+            } else if(AI_SPEC_INIT != app_ai_manager_get_current_spec()) {
+                app_ai_key_event_handle(status, 0);
+            }
+        }
+    }
+    else
+    {
+	    app_ai_key_event_handle(status, 0);
+#ifdef BISTO_ENABLED
+	    gsound_custom_actions_handle_key(status, param);
+#endif
+    }
+#endif
+}
+
+#ifdef IS_MULTI_AI_ENABLED
+void app_voice_gva_onoff_key(APP_KEY_STATUS *status, void *param)
+{
+    uint8_t current_ai_spec = app_ai_manager_get_current_spec();
+
+    TRACE(2,"%s current_ai_spec %d", __func__, current_ai_spec);
+    if (current_ai_spec == AI_SPEC_INIT)
+    {
+        app_ai_manager_enable(true, AI_SPEC_GSOUND);
+    }
+    else if(current_ai_spec == AI_SPEC_GSOUND)
+    {
+        app_ai_manager_enable(false, AI_SPEC_GSOUND);
+    }
+    else if(current_ai_spec == AI_SPEC_AMA)
+    {
+        app_ai_manager_switch_spec(AI_SPEC_GSOUND);
+    }
+    bes_ble_gap_refresh_adv_state(BLE_ADVERTISING_INTERVAL);
+}
+
+void app_voice_ama_onoff_key(APP_KEY_STATUS *status, void *param)
+{
+    uint8_t current_ai_spec = app_ai_manager_get_current_spec();
+
+    TRACE(2,"%s current_ai_spec %d", __func__, current_ai_spec);
+    if (current_ai_spec == AI_SPEC_INIT)
+    {
+        app_ai_manager_enable(true, AI_SPEC_AMA);
+    }
+    else if(current_ai_spec == AI_SPEC_AMA)
+    {
+        app_ai_manager_enable(false, AI_SPEC_AMA);
+    }
+    else if(current_ai_spec == AI_SPEC_GSOUND)
+    {
+        app_ai_manager_switch_spec(AI_SPEC_AMA);
+    }
+    bes_ble_gap_refresh_adv_state(BLE_ADVERTISING_INTERVAL);
 }
 #endif
 
@@ -1113,7 +1032,7 @@ void app_switch_player_key(APP_KEY_STATUS *status, void *param)
 extern "C" void test_btusb_switch(void);
 void app_btusb_audio_dual_mode_test(APP_KEY_STATUS *status, void *param)
 {
-    MAIN_TRACE(0,"test_btusb_switch");
+    TRACE(0,"test_btusb_switch");
     test_btusb_switch();
 }
 #endif
@@ -1124,18 +1043,6 @@ void app_switch_dualmic_key(APP_KEY_STATUS *status, void *param)
 {
     switch_dualmic_status();
 }
-
-#ifdef DIRAC_AUDIO_ENABLE
-uint8_t dirac_onoff_sta = 1;
-extern "C" void dirac_set_enable(bool dirac_enable);
-void dirac_audio_onoff(APP_KEY_STATUS *status, void *param)
-{
-    dirac_onoff_sta = !dirac_onoff_sta;
-    dirac_set_enable(dirac_onoff_sta);
-
-    MAIN_TRACE(0,"%s = %d", __func__, dirac_onoff_sta);
-}
-#endif
 
 #if defined(ANC_APP)
 void app_anc_key(APP_KEY_STATUS *status, void *param)
@@ -1219,19 +1126,19 @@ const APP_KEY_HANDLE  app_key_handle_cfg[] = {
 #if defined( __BT_ANC_KEY__)&&defined(ANC_APP)
 	{{APP_KEY_CODE_PWR,APP_KEY_EVENT_CLICK},"bt anc key",app_anc_key, NULL},
 #endif
-#ifdef __AI_VOICE__
-    {{APP_KEY_CODE_GOOGLE, APP_KEY_EVENT_FIRST_DOWN}, "google assistant key", app_ai_manager_key_event_handle, NULL},
+#if defined(VOICE_DATAPATH) || defined(__AI_VOICE__)
+    {{APP_KEY_CODE_GOOGLE, APP_KEY_EVENT_FIRST_DOWN}, "google assistant key", app_voice_assistant_key, NULL},
 #if defined(IS_GSOUND_BUTTION_HANDLER_WORKAROUND_ENABLED) || defined(PUSH_AND_HOLD_ENABLED) || defined(__TENCENT_VOICE__)
-    {{APP_KEY_CODE_GOOGLE, APP_KEY_EVENT_UP}, "google assistant key", app_ai_manager_key_event_handle, NULL},
+    {{APP_KEY_CODE_GOOGLE, APP_KEY_EVENT_UP}, "google assistant key", app_voice_assistant_key, NULL},
 #endif
-    {{APP_KEY_CODE_GOOGLE, APP_KEY_EVENT_UP_AFTER_LONGPRESS}, "google assistant key", app_ai_manager_key_event_handle, NULL},
-    {{APP_KEY_CODE_GOOGLE, APP_KEY_EVENT_LONGPRESS}, "google assistant key", app_ai_manager_key_event_handle, NULL},
-    {{APP_KEY_CODE_GOOGLE, APP_KEY_EVENT_CLICK}, "google assistant key", app_ai_manager_key_event_handle, NULL},
-    {{APP_KEY_CODE_GOOGLE, APP_KEY_EVENT_DOUBLECLICK}, "google assistant key", app_ai_manager_key_event_handle, NULL},
+    {{APP_KEY_CODE_GOOGLE, APP_KEY_EVENT_UP_AFTER_LONGPRESS}, "google assistant key", app_voice_assistant_key, NULL},
+    {{APP_KEY_CODE_GOOGLE, APP_KEY_EVENT_LONGPRESS}, "google assistant key", app_voice_assistant_key, NULL},
+    {{APP_KEY_CODE_GOOGLE, APP_KEY_EVENT_CLICK}, "google assistant key", app_voice_assistant_key, NULL},
+    {{APP_KEY_CODE_GOOGLE, APP_KEY_EVENT_DOUBLECLICK}, "google assistant key", app_voice_assistant_key, NULL},
 #endif
 #ifdef IS_MULTI_AI_ENABLED
-    {{APP_KEY_CODE_FN13, APP_KEY_EVENT_CLICK}, "gva on-off key", app_ai_manager_gva_onoff_key, NULL},
-    {{APP_KEY_CODE_FN14, APP_KEY_EVENT_CLICK}, "ama on-off key", app_ai_manager_ama_onoff_key, NULL},
+    {{APP_KEY_CODE_FN13, APP_KEY_EVENT_CLICK}, "gva on-off key", app_voice_gva_onoff_key, NULL},
+    {{APP_KEY_CODE_FN14, APP_KEY_EVENT_CLICK}, "ama on-off key", app_voice_ama_onoff_key, NULL},
 #endif
 #if defined(BT_USB_AUDIO_DUAL_MODE_TEST) && defined(BT_USB_AUDIO_DUAL_MODE)
     {{APP_KEY_CODE_FN15, APP_KEY_EVENT_CLICK}, "btusb mode switch key.", app_btusb_audio_dual_mode_test, NULL},
@@ -1254,27 +1161,25 @@ const APP_KEY_HANDLE  app_key_handle_cfg[] = {
     {{APP_KEY_CODE_NONE ,APP_KEY_EVENT_NONE},"none function key",app_bt_key, NULL},
 #endif
 
-#ifdef __AI_VOICE__
-    {{APP_KEY_CODE_GOOGLE, APP_KEY_EVENT_FIRST_DOWN}, "google assistant key", app_ai_manager_key_event_handle, NULL},
+    {{APP_KEY_CODE_GOOGLE, APP_KEY_EVENT_FIRST_DOWN}, "google assistant key", app_voice_assistant_key, NULL},
 #if defined(IS_GSOUND_BUTTION_HANDLER_WORKAROUND_ENABLED) || defined(PUSH_AND_HOLD_ENABLED)
-    {{APP_KEY_CODE_GOOGLE, APP_KEY_EVENT_UP}, "google assistant key", app_ai_manager_key_event_handle, NULL},
+    {{APP_KEY_CODE_GOOGLE, APP_KEY_EVENT_UP}, "google assistant key", app_voice_assistant_key, NULL},
 #endif
-    {{APP_KEY_CODE_GOOGLE, APP_KEY_EVENT_UP_AFTER_LONGPRESS}, "google assistant key", app_ai_manager_key_event_handle, NULL},
-    {{APP_KEY_CODE_GOOGLE, APP_KEY_EVENT_LONGPRESS}, "google assistant key", app_ai_manager_key_event_handle, NULL},
-    {{APP_KEY_CODE_GOOGLE, APP_KEY_EVENT_CLICK}, "google assistant key", app_ai_manager_key_event_handle, NULL},
-    {{APP_KEY_CODE_GOOGLE, APP_KEY_EVENT_DOUBLECLICK}, "google assistant key", app_ai_manager_key_event_handle, NULL},
-#endif
+    {{APP_KEY_CODE_GOOGLE, APP_KEY_EVENT_UP_AFTER_LONGPRESS}, "google assistant key", app_voice_assistant_key, NULL},
+    {{APP_KEY_CODE_GOOGLE, APP_KEY_EVENT_LONGPRESS}, "google assistant key", app_voice_assistant_key, NULL},
+    {{APP_KEY_CODE_GOOGLE, APP_KEY_EVENT_CLICK}, "google assistant key", app_voice_assistant_key, NULL},
+    {{APP_KEY_CODE_GOOGLE, APP_KEY_EVENT_DOUBLECLICK}, "google assistant key", app_voice_assistant_key, NULL},
 };
 #endif
 #endif
 
 void app_key_init(void)
 {
-#if defined(IBRT) && defined(IBRT_UI) && defined(BT_SVC_FW_PRODUCT_EARBUDS)
+#if defined(IBRT) && defined(IBRT_UI)
     app_tws_ibrt_raw_ui_test_key_init();
 #else
     uint8_t i = 0;
-    MAIN_TRACE(1,"%s",__func__);
+    TRACE(1,"%s",__func__);
 
     app_key_handle_clear();
     for (i = 0; i < ARRAY_SIZE(app_key_handle_cfg); i++) {
@@ -1294,7 +1199,7 @@ void app_key_init_on_charging(void)
 #endif
     };
 
-    MAIN_TRACE(1,"%s",__func__);
+    TRACE(1,"%s",__func__);
     for (i = 0; i < ARRAY_SIZE(key_cfg); i++) {
         app_key_handle_registration(&key_cfg[i]);
     }
@@ -1309,23 +1214,17 @@ bool app_is_power_off_in_progress(void)
 int app_deinit(int deinit_case)
 {
     int nRet = 0;
-    MAIN_TRACE(2,"%s case:%d",__func__, deinit_case);
-
-#ifdef FINDMY_ENABLED
-    findmy_power_off();
-#endif
+    TRACE(2,"%s case:%d",__func__, deinit_case);
 
 #if defined(SENSOR_HUB) && !defined(__NuttX__) && !defined(SPEECH_ALGO_DSP_SENS)
-#ifdef SENSORHUB_START_WHEN_MAIN_MCU_ON
     app_sensor_hub_deinit();
-#endif
 #endif
 
 #ifdef DSP_M55
-    app_dsp_m55_deinit();
+    app_dsp_m55_force_deinit();
 #endif
 
-#ifdef __PC_CMD_UART__
+#ifdef PC_CMD_UART_ID
     app_cmd_close();
 #endif
 #if (defined(BTUSB_AUDIO_MODE) || defined(BT_USB_AUDIO_DUAL_MODE))
@@ -1356,17 +1255,15 @@ int app_deinit(int deinit_case)
 #endif
 
         app_status_indication_filter_set(APP_STATUS_INDICATION_BOTHSCAN);
+#ifndef BTH_SUBSYS_ONLY
         app_audio_sendrequest(APP_BT_STREAM_INVALID, (uint8_t)APP_BT_SETTING_CLOSEALL, 0);
-#if defined(QUICK_POWER_OFF_ENABLED)
-#ifndef BT_BUILD_WITH_CUSTOMER_HOST
-        bes_bt_me_acl_disc_all_bt_links(true);
 #endif
+#if defined(QUICK_POWER_OFF_ENABLED)
+        bes_bt_me_acl_disc_all_bt_links(true);
         osDelay(200);
 #else
         osDelay(500);
-#ifndef BT_BUILD_WITH_CUSTOMER_HOST
         bes_bt_me_acl_disc_all_bt_links(true);
-#endif
         osDelay(500);
         app_status_indication_set(APP_STATUS_INDICATION_POWEROFF);
 #ifdef MEDIA_PLAYER_SUPPORT
@@ -1374,7 +1271,9 @@ int app_deinit(int deinit_case)
 #endif
         osDelay(1000);
 #endif
+#ifndef BTH_SUBSYS_ONLY
         af_close();
+#endif
 #if defined(__THIRDPARTY) && defined(__AI_VOICE__)
         app_thirdparty_specific_lib_event_handle(THIRDPARTY_FUNC_NO1, THIRDPARTY_DEINIT, AI_SPEC_INIT);
 #endif
@@ -1399,7 +1298,7 @@ int app_init(void)
 {
     int nRet = 0;
     //uint8_t pwron_case = APP_POWERON_CASE_INVALID;
-    MAIN_TRACE(1,"%s",__func__);
+    TRACE(1,"%s",__func__);
     app_poweroff_flag = 0;
 
 #ifdef APP_TRACE_RX_ENABLE
@@ -1408,14 +1307,19 @@ int app_init(void)
 
     app_sysfreq_req(APP_SYSFREQ_USER_APP_INIT, APP_SYSFREQ_52M);
     list_init();
+#ifndef BTH_SUBSYS_ONLY
     af_open();
+#endif
     app_os_init();
     app_pwl_open();
+    bes_bt_app_init();
     btdrv_start_bt();
-    bt_host_init(app_notify_stack_ready);
+    bes_bt_thread_init();
     app_wait_stack_ready();
     bt_drv_config_after_hci_reset();
-    app_bt_sleep_init();
+    bes_bt_sleep_init();
+    bes_bt_call_custom_function_in_bt_thread((uint32_t)0,
+        0, (uint32_t)bes_bt_init_global_handle);
     osDelay(500);
     bes_bt_me_write_access_mode(BTIF_BT_DEFAULT_ACCESS_MODE_PAIR,1);
 
@@ -1427,7 +1331,7 @@ int app_init(void)
 {
     int nRet = 0;
     //uint8_t pwron_case = APP_POWERON_CASE_INVALID;
-    MAIN_TRACE(1,"%s",__func__);
+    TRACE(1,"%s",__func__);
     app_poweroff_flag = 0;
 
 #ifdef APP_TRACE_RX_ENABLE
@@ -1436,7 +1340,9 @@ int app_init(void)
 
     app_sysfreq_req(APP_SYSFREQ_USER_APP_INIT, APP_SYSFREQ_52M);
     list_init();
+#ifndef BTH_SUBSYS_ONLY
     af_open();
+#endif
     app_os_init();
     app_pwl_open();
     app_audio_open();
@@ -1463,9 +1369,7 @@ int app_bt_connect2tester_init(void)
     uint8_t i;
     bool find_tester = false;
     struct nvrecord_env_t *nvrecord_env;
-#ifndef BT_BUILD_WITH_CUSTOMER_HOST
     btdevice_profile *btdevice_plf_p;
-#endif
     nv_record_env_get(&nvrecord_env);
 
     if (nvrecord_env->factory_tester_status.status != NVRAM_ENV_FACTORY_TESTER_STATUS_DEFAULT)
@@ -1482,11 +1386,9 @@ int app_bt_connect2tester_init(void)
             memset(&rec, 0, sizeof(btif_device_record_t));
             memcpy(rec.bdAddr.address, tester_addr.address, BTIF_BD_ADDR_SIZE);
             nv_record_add(section_usrdata_ddbrecord, &rec);
-#ifndef BT_BUILD_WITH_CUSTOMER_HOST
             btdevice_plf_p = (btdevice_profile *)bes_bt_me_profile_active_store_ptr_get(rec.bdAddr.address);
             nv_record_btdevicerecord_set_hfp_profile_active_state(btdevice_plf_p, true);
             nv_record_btdevicerecord_set_a2dp_profile_active_state(btdevice_plf_p, true);
-#endif
         }
         if (find_tester && i>2){
             nv_record_ddbrec_delete(&tester_addr);
@@ -1533,7 +1435,7 @@ bool app_usbaudio_mode_on(void)
 
 void app_usb_key(APP_KEY_STATUS *status, void *param)
 {
-    MAIN_TRACE(3,"%s %d,%d",__func__, status->code, status->event);
+    TRACE(3,"%s %d,%d",__func__, status->code, status->event);
 
 }
 
@@ -1546,7 +1448,7 @@ const APP_KEY_HANDLE  app_usb_handle_cfg[] = {
 void app_usb_key_init(void)
 {
     uint8_t i = 0;
-    MAIN_TRACE(1,"%s",__func__);
+    TRACE(1,"%s",__func__);
     for (i = 0; i < ARRAY_SIZE(app_usb_handle_cfg); i++) {
         app_key_handle_registration(&app_usb_handle_cfg[i]);
     }
@@ -1591,31 +1493,43 @@ WEAK void app_ibrt_handler_before_starting_ibrt_functionality(void)
 
 void app_ibrt_init(void)
 {
-    bthost_cfg_t* bt_host_cfg = bt_host_get_cfg();
-
-#ifdef BT_BUILD_WITH_CUSTOMER_HOST
-    return;
-#endif
-    if (bt_host_cfg->bt_sink_enable)
+    if (bes_bt_me_bes_cfg_get(BT_BES_CFG_BT_SINK_ENABLED))
     {
-#if defined(IBRT) && defined(BT_SVC_FW_PRODUCT_EARBUDS)
-        ibrt_config_t config = {0};
+        bes_bt_init_global_handle();
+#if defined(IBRT)
+        ibrt_config_t config;
         app_tws_ibrt_init();
-#if defined(IBRT_UI)
+        app_tws_ibrt_init_default_tws_bandwidth_config(
+            IBRT_TWS_LINK_DEFAULT_DURATION,
+            IBRT_UI_DEFAULT_POLL_INTERVAL,
+            IBRT_UI_DEFAULT_POLL_INTERVAL_IN_SCO);
+        app_tws_ibrt_request_modify_tws_bandwidth(TWS_TIMING_CONTROL_USER_DEFAULT, true);
+
+//todo: adapte in ibrt_ui_v2
 #ifdef IBRT_SEARCH_UI
-        app_ibrt_search_ui_config_load(&config);
+        app_tws_ibrt_start(&config, true);
+        app_ibrt_search_ui_init(false,IBRT_NONE_EVENT);
 #else
-        app_ibrt_ui_v2_test_config_load(&config);
+        app_tws_ibrt_start(&config, false);
 #endif
+
+#if defined(IBRT_UI)
+#ifdef MEDIA_PLAYER_SUPPORT
+        tws_ctrl_register_send_status_callback(audio_prompt_req_send_failed_cb);
+#endif
+        app_ibrt_ui_v2_test_config_load(&config);
         hal_trace_global_tag_register(app_ibrt_middleware_fill_debug_info);
         app_ibrt_internal_register_ibrt_cbs();
         app_ibrt_tws_ext_cmd_init();
         app_ibrt_if_init_newly_paired_mobile_callback();
         app_ibrt_if_init_newly_paired_tws_callback();
+        app_custom_ui_bt_ctx_init();
         app_ibrt_conn_init();
-        app_ibrt_auto_test_init();
-
-#ifdef IBRT_SEARCH_UI
+        app_ibrt_conn_check_allow_role_switch_handler_cb_register(app_ibrt_middleware_checker_allow_role_switch_handler);;
+#ifdef CODEC_ERROR_HANDLING
+        af_register_enter_abnormal_state_callback(app_ibrt_conn_codec_error_handler);
+#endif
+#ifdef SEARCH_UI_COMPATIBLE_UI_V2
         app_tws_ibrt_start(&config,true);
 #else
         app_tws_ibrt_start(&config,false);
@@ -1626,7 +1540,7 @@ void app_ibrt_init(void)
 #if defined(IBRT_UI)
         app_ui_init();
         app_ibrt_customif_ui_start();
-#ifdef IBRT_SEARCH_UI
+#ifdef SEARCH_UI_COMPATIBLE_UI_V2
         app_ibrt_search_ui_init(false,APP_UI_EV_NONE);
 #endif
 #endif
@@ -1639,68 +1553,105 @@ void app_ibrt_init(void)
         if (isAllowFollowingHandler)
         {
 #ifdef POWER_ON_OPEN_BOX_ENABLED
-            app_ibrt_if_event_entry(APP_UI_EV_CASE_OPEN);
-#else
-    #ifdef POWER_ON_ENTER_TWS_PAIRING_ENABLED
-    #if BLE_AUDIO_ENABLED
-        if (ble_audio_is_ux_mobile())
-        {
-
-        }
-        else
-    #endif
-        {
-        #if defined(IBRT_UI)
-            app_ibrt_start_power_on_tws_pairing();
-        #endif
-        }
-    #elif defined(POWER_ON_ENTER_FREEMAN_PAIRING_ENABLED)
-            app_ibrt_if_enter_freeman_pairing();
-    #elif defined(POWER_ON_ENTER_BOTH_SCAN_MODE)
-            // enter both scan mode
-            app_bt_set_access_mode(BTIF_BAM_GENERAL_ACCESSIBLE);
-    #endif
+            app_ui_event_entry(APP_UI_EV_CASE_OPEN);
 #endif
+
+#ifdef POWER_ON_ENTER_TWS_PAIRING_ENABLED
+    #if BLE_AUDIO_ENABLED
+            if (bes_ble_audio_is_ux_mobile())
+            {
+
+            }
+            else
+    #endif
+            {
+    #if defined(IBRT_UI)
+                app_ibrt_start_power_on_tws_pairing();
+    #endif
+            }
+#elif defined(POWER_ON_ENTER_FREEMAN_PAIRING_ENABLED)
+            app_ibrt_start_power_on_freeman_pairing();
+#elif defined(POWER_ON_ENTER_BOTH_SCAN_MODE)
+            // enter both scan mode
+            bes_bt_me_write_access_mode(BTIF_BAM_GENERAL_ACCESSIBLE,0);
+#endif
+
         }
 
         app_ibrt_if_register_retrigger_prompt_id(AUDIO_ID_BT_MUTE);
 #endif
     }
-
-#if defined(IBRT) && defined(BT_SVC_FW_PRODUCT_EARBUDS)
-    app_ibrt_internal_stack_is_ready();
-#endif
-
-#if defined(IBRT_UI) && defined(BT_SVC_FW_PRODUCT_EARBUDS)
-    app_tws_ibrt_ui_cmd_init();
+#ifdef IBRT
+        app_ibrt_internal_stack_is_ready();
 #endif
 }
 
-void app_earbud_mode_init()
+void app_walkie_talkie_mode_init()
+{
+    ble_uart_cmd_init();
+
+#ifdef BLE_WALKIE_TALKIE
+    app_walkie_talkie_init();
+#endif
+}
+
+POSSIBLY_UNUSED static void app_mobile_mode_init()
+{
+#if BLE_AUDIO_ENABLED
+#ifdef IBRT
+    app_custom_ui_lea_ctx_init();
+#if defined(AOB_MOBILE_ENABLED) && (defined(BLE_USB_AUDIO_SUPPORT) || defined(WIRELESS_MIC))
+    if (bes_ble_audio_is_ux_mobile())
+    {
+        bes_ble_mobile_start_connect();
+    }
+#endif
+#endif
+#endif
+}
+
+static void app_earbud_mode_init()
 {
 #ifdef __IAG_BLE_INCLUDE__
 #ifdef IBRT
     bes_ble_gap_force_switch_adv(BLE_SWITCH_USER_IBRT, true);
-#endif // #ifdef IBRT
+#endif //IBRT
 #if !(BLE_AUDIO_ENABLED)
     bes_ble_gap_stub_user_init();
 #endif
-#endif //__IAG_BLE_INCLUDE__
+#ifndef BLE_STACK_NEW_DESIGN
+    bes_ble_gap_start_connectable_adv(BLE_ADVERTISING_INTERVAL);
+#endif
+#endif // __IAG_BLE_INCLUDE__
 
 #ifdef APP_SOUND_ENABLE
     soundInit(true);
 #else
     app_ibrt_init();
 #endif
+
+#ifdef IBRT
+    app_ibrt_internal_stack_is_ready();
+#endif
 }
 
-void app_default_mode_init()
+static void app_default_mode_init(nvrec_appmode_e mode)
 {
+    ble_uart_cmd_init();
+#ifdef BLE_HOST_PTS_TEST_ENABLED
+    // Noting to do
+#else
+#ifdef __IAG_BLE_INCLUDE__
+    bes_ble_app_init(mode);
+#endif //__IAG_BLE_INCLUDE__
+#endif //BLE_HOST_PTS_TEST_ENABLED
+
 #if BLE_AUDIO_ENABLED
-    if (ble_audio_is_ux_mobile())
+    if (bes_ble_audio_is_ux_mobile())
     {
-#if defined(IBRT_UI) && defined(BT_SVC_FW_PRODUCT_EARBUDS)
-    app_tws_ibrt_ui_cmd_init();
+        app_mobile_mode_init();
+#ifdef WIRELESS_MIC
+        app_wireless_mic_init();
 #endif
     }
     else
@@ -1708,44 +1659,38 @@ void app_default_mode_init()
     {
         app_earbud_mode_init();
     }
+
+#ifdef BLE_BIS_TRANSPORT
+    app_bis_tran_cmd_init();
+#endif
 }
 
-int app_bluetooth_application_init()
+int app_bluetooth_application_init(void)
 {
     nvrec_appmode_e mode = nv_record_appmode_get();
 
-    MAIN_TRACE(0, "%s: mode %d", __func__, mode);
-
-#if defined(BT_SVC_FW_PRODUCT_DONGLE)
-    mode = NV_APP_DONGLE_LEA_UC;
-#endif
-
-#ifdef WIRELESS_MIC
-    app_wireless_mic_init();
-    mode = NV_APP_DONGLE_LEA_UC;
-#endif
-
-#ifdef BT_SERVICE_ENABLE
-    bt_service_init(mode);
-#endif
+    TRACE(0, "%s: mode %d", __func__, mode);
 
     switch (mode)
     {
+        case NV_APP_EARBUDS_MONO:
+        case NV_APP_EARBUDS_STEREO_ONE_CIS:
+        case NV_APP_EARBUDS_STEREO_TWO_CIS:
+        case NV_APP_HEADSET_STEREO_ONE_CIS:
+        case NV_APP_HEADSET_STEREO_TWO_CIS:
+            app_default_mode_init(mode);
+            break;
         case NV_APP_WALKIE_TALKIE:
-        {
-#ifdef __IAG_BLE_INCLUDE__
-#ifdef BLE_WALKIE_TALKIE
-            app_walkie_talkie_init();
-            wt_test_uart_cmd_init();
-#endif
-#endif //__IAG_BLE_INCLUDE__
-        } break;
+            app_walkie_talkie_mode_init();
+            break;
         default:
             break;
     }
 
-#ifdef BIS_SELFSCAN_ENABLED
-    app_bis_selfscan_cmd_init();
+#ifdef BLE_STACK_NEW_DESIGN
+#ifdef BLE_HOST_SUPPORT
+    bes_ble_gap_ready_and_init_done(mode);
+#endif
 #endif
 
     return 0;
@@ -1755,7 +1700,7 @@ int app_switch_mode(int mode, bool reboot)
 {
     if (nv_record_appmode_get() == mode)
     {
-        MAIN_TRACE(0, "Already in mode=%d", mode);
+        TRACE(0, "Already in mode=%d", mode);
         return -1;
     }
     nv_record_appmode_set((nvrec_appmode_e)mode);
@@ -1781,10 +1726,10 @@ static void app_tell_battery_info_handler(uint8_t *batteryValueCount,
     }
 
     // TODO: add the charger case's battery level
-#if defined(IBRT) && !defined(FREEMAN_ENABLED_STERO)
-    if (bts_tws_if_is_tws_link_connected())
+#ifdef IBRT
+    if (app_tws_ibrt_tws_link_connected())
     {
-        *batteryValueCount = 3;
+        *batteryValueCount = 2;
     }
     else
     {
@@ -1794,7 +1739,7 @@ static void app_tell_battery_info_handler(uint8_t *batteryValueCount,
     *batteryValueCount = 1;
 #endif
 
-    MAIN_TRACE(2,"%s,*batteryValueCount is %d",__func__,*batteryValueCount);
+    TRACE(2,"%s,*batteryValueCount is %d",__func__,*batteryValueCount);
     if (1 == *batteryValueCount)
     {
         batteryValue[0] = ((app_battery_current_level()+1) * 10) | (status << 7);
@@ -1803,10 +1748,11 @@ static void app_tell_battery_info_handler(uint8_t *batteryValueCount,
     {
         batteryValue[0] = ((app_battery_current_level()+1) * 10) | (status << 7);
         batteryValue[1] = ((app_battery_current_level()+1) * 10) | (status << 7);
-        batteryValue[2] = 0x7F;
+
     }
 }
 #endif
+
 extern uint32_t __coredump_section_start[];
 extern uint32_t __ota_upgrade_log_start[];
 extern uint32_t __log_dump_start[];
@@ -1816,12 +1762,20 @@ extern uint32_t __lhdc_license_start[];
 extern uint32_t __aud_start[];
 extern uint32_t __userdata_start[];
 extern uint32_t __factory_start[];
-extern uint32_t __hotword_model_start[];
-extern uint32_t __ota_app_boot_info_start[];
-extern uint32_t __prompt_start[];
 
-extern     uint16_t pmu_ntc_temperature_reference_get(void);
-extern void app_secure_nse_init(void);
+#ifdef IS_ACCELARATED_BOOTUP_FEATURE_ENABLED
+static void init_bt_thread(const void *arg);
+osThreadDef(init_bt_thread, osPriorityHigh, 1, (2048), "init_bt_thread");
+static osThreadId init_bt_thread_id;
+
+static void init_bt_thread(const void *arg)
+{
+    btdrv_start_bt();
+
+    bes_bt_thread_init();
+
+    osThreadExit();
+}
 
 #define APP_STAYING_AT_HIGHEST_FREQ_AFTER_BOOT_UP_DURATION_MS         (10000)
 static void app_staying_at_highest_freq_timeout_timer_cb(void const *n);
@@ -1829,8 +1783,10 @@ osTimerDef (APP_STAYING_AT_HIGHEST_FREQ_AFTER_BOOT_UP_TIMEOUT_TIMER, app_staying
 static osTimerId app_staying_at_highest_freq_timeout_timer_id = NULL;
 static void app_staying_at_highest_freq_timeout_timer_cb(void const *n)
 {
-    MAIN_TRACE(1,"%s", __func__);
+    TRACE(1,"%s", __func__);
     app_sysfreq_req(APP_SYSFREQ_USER_RIGHT_AFTER_BOOTUP, APP_SYSFREQ_32K);
+    bes_bt_call_custom_function_in_bt_thread((uint32_t)true,
+                0, (uint32_t)bt_adapter_write_sleep_enable);
 }
 
 static void app_staying_at_highest_freq_timeout_timer_start(void)
@@ -1844,32 +1800,29 @@ static void app_staying_at_highest_freq_timeout_timer_start(void)
     osTimerStart(app_staying_at_highest_freq_timeout_timer_id,
         APP_STAYING_AT_HIGHEST_FREQ_AFTER_BOOT_UP_DURATION_MS);
     app_sysfreq_req(APP_SYSFREQ_USER_RIGHT_AFTER_BOOTUP, APP_SYSFREQ_208M);
+    bes_bt_call_custom_function_in_bt_thread((uint32_t)false,
+                0, (uint32_t)bt_adapter_write_sleep_enable);
 }
 
 static void app_start_bt_module_thread(void)
 {
-    btdrv_start_bt();
-    bt_host_init(app_notify_stack_ready);
+    init_bt_thread_id =
+        osThreadCreate(osThread(init_bt_thread), NULL);
+
     osThreadId app_thread_id = osThreadGetId();
 
     osThreadSetPriority(app_thread_id, osPriorityAboveNormal);
-}
-
-#ifdef USE_TRACE_ID
-#include "hal_trace_id.h"
-static unsigned char sn_id = 0;
-static int app_sn_global_tag_handler(char *buf, unsigned int buf_len)
-{
-    uint32_t id = hal_trace_get_id(buf);
-
-    hal_trace_set_id(buf, SET_BITFIELD(id, USER_ID_SN, sn_id++));
-    return id;
 }
 #endif
 
 int app_init(void)
 {
     app_sysfreq_req(APP_SYSFREQ_USER_APP_INIT, APP_SYSFREQ_208M);
+
+#ifdef IS_ACCELARATED_BOOTUP_FEATURE_ENABLED
+    osThreadId app_thread_id = osThreadGetId();
+    osPriority formerPriority = osThreadGetPriority(app_thread_id);
+#endif
 
     int nRet = 0;
     struct nvrecord_env_t *nvrecord_env;
@@ -1886,50 +1839,35 @@ int app_init(void)
     bool is_charging_poweron=false;
 #endif
 
-osThreadId app_thread_id = osThreadGetId();
-osPriority formerPriority = osThreadGetPriority(app_thread_id);
-
-
 #ifndef RAM_NV_RECORD
-    MAIN_TRACE(0,"please check all sections sizes and heads is correct ........");
-    MAIN_TRACE(2,"__prompt_start: %p length: 0x%x", __prompt_start, PROMPT_SECTION_SIZE);
-    MAIN_TRACE(2,"__hotword_model_start: %p length: 0x%x", __hotword_model_start, HOTWORD_SECTION_SIZE);
-    MAIN_TRACE(2,"__coredump_section_start: %p length: 0x%x", __coredump_section_start, CORE_DUMP_SECTION_SIZE);
-    MAIN_TRACE(2,"__ota_upgrade_log_start: %p length: 0x%x", __ota_upgrade_log_start, OTA_UPGRADE_SECTION_SIZE);
-    MAIN_TRACE(2,"__log_dump_start: %p length: 0x%x", __log_dump_start, LOG_DUMP_SECTION_SIZE);
-    MAIN_TRACE(2,"__crash_dump_start: %p length: 0x%x", __crash_dump_start, CRASH_DUMP_SECTION_SIZE);
-    MAIN_TRACE(2,"__custom_parameter_start: %p length: 0x%x", __custom_parameter_start, CUSTOM_PARAMETER_SECTION_SIZE);
-    MAIN_TRACE(2,"__lhdc_license_start: %p length: 0x%x", __lhdc_license_start, LHDC_LICENSE_SECTION_SIZE);
-    MAIN_TRACE(2,"__userdata_start: %p length: 0x%x", __userdata_start, USERDATA_SECTION_SIZE*2);
-    MAIN_TRACE(2,"__aud_start: %p length: 0x%x", __aud_start, AUD_SECTION_SIZE);
-    MAIN_TRACE(2,"__factory_start: %p length: 0x%x", __factory_start, FACTORY_SECTION_SIZE);
+    TRACE(0,"please check all sections sizes and heads is correct ........");
+    TRACE(2,"__coredump_section_start: %p length: 0x%x", __coredump_section_start, CORE_DUMP_SECTION_SIZE);
+    TRACE(2,"__ota_upgrade_log_start: %p length: 0x%x", __ota_upgrade_log_start, OTA_UPGRADE_SECTION_SIZE);
+    TRACE(2,"__log_dump_start: %p length: 0x%x", __log_dump_start, LOG_DUMP_SECTION_SIZE);
+    TRACE(2,"__crash_dump_start: %p length: 0x%x", __crash_dump_start, CRASH_DUMP_SECTION_SIZE);
+    TRACE(2,"__custom_parameter_start: %p length: 0x%x", __custom_parameter_start, CUSTOM_PARAMETER_SECTION_SIZE);
+    TRACE(2,"__lhdc_license_start: %p length: 0x%x", __lhdc_license_start, LHDC_LICENSE_SECTION_SIZE);
+    TRACE(2,"__userdata_start: %p length: 0x%x", __userdata_start, USERDATA_SECTION_SIZE*2);
+    TRACE(2,"__aud_start: %p length: 0x%x", __aud_start, AUD_SECTION_SIZE);
+    TRACE(2,"__factory_start: %p length: 0x%x", __factory_start, FACTORY_SECTION_SIZE);
 #endif
-#if defined(CHIP_BEST1501P)
-    MAIN_TRACE(0,"app_init 0x%02x \n",pmu_ntc_temperature_reference_get());
-#else
-    MAIN_TRACE(0,"app_init\n");
-#endif
-
-#ifdef USE_TRACE_ID
-    hal_trace_global_tag_register(app_sn_global_tag_handler);
-#endif
+    TRACE(0,"app_init\n");
 
 #ifdef FLASH_UNIQUE_ID
     uint8_t flash_unique_id[HAL_NORFLASH_UNIQUE_ID_LEN] = {0};
 
     hal_norflash_get_unique_id(HAL_FLASH_ID_0, flash_unique_id, ARRAY_SIZE(flash_unique_id));
-    MAIN_TRACE(0,"GET_FLASH_UNIQUE_ID:");
-    MAIN_DUMP8("%02X ", flash_unique_id, ARRAY_SIZE(flash_unique_id));
+    TRACE(0,"GET_FLASH_UNIQUE_ID:");
+    DUMP8("%02X ", flash_unique_id, ARRAY_SIZE(flash_unique_id));
 #endif
 
 #ifdef APP_TRACE_RX_ENABLE
     app_trace_rx_open();
+    bes_bt_me_init_cmd();
 #endif
-#ifdef VOICE_DEV
-    voice_dev_init();
-#endif
+    bes_bt_me_add_string_test_table();
 
-#if defined(IBRT) && !defined(FREEMAN_ENABLED_STERO)
+#ifdef IBRT
     // init tws interface
     app_ibrt_middleware_init();
 #endif // #ifdef IBRT
@@ -1939,12 +1877,19 @@ osPriority formerPriority = osThreadGetPriority(app_thread_id);
 #endif // #ifdef VOICE_DETECTOR_EN
 
     nv_record_init();
+#if !defined(__NuttX__)
     factory_section_init();
+#endif
+
 #ifdef PROMPT_IN_FLASH
     nv_record_prompt_rec_init();
 #if defined(MEDIA_PLAYER_SUPPORT)
     app_play_audio_set_lang(nv_record_prompt_get_prompt_language(1));
 #endif
+#endif
+
+#ifdef DMA_AUDIO_APP
+    dma_audio_cli_open();
 #endif
 
 #ifdef AUDIO_OUTPUT_DC_AUTO_CALIB
@@ -1964,12 +1909,14 @@ osPriority formerPriority = osThreadGetPriority(app_thread_id);
     codec_adc_dc_auto_load(true, false, false);
 #endif
 
+#ifndef BTH_SUBSYS_ONLY
 #ifndef ohos_build
     af_open();
 #endif
+#endif
 
 #if defined(MCU_HIGH_PERFORMANCE_MODE)
-    MAIN_TRACE(1,"sys freq calc : %d\n", hal_sys_timer_calc_cpu_freq(5, 0));
+    TRACE(1,"sys freq calc : %d\n", hal_sys_timer_calc_cpu_freq(5, 0));
 #endif
 
     list_init();
@@ -1984,7 +1931,25 @@ osPriority formerPriority = osThreadGetPriority(app_thread_id);
     }
 #endif
 
+#if defined(DSP_M55)
+    app_dsp_m55_first_init();
+#endif
+
+#if defined(DSP_HIFI4)
+    app_dsp_hifi4_first_init();
+#endif
+
+#if defined(BTH_BOOT_AP)
+     ap_open();
+#endif
+
     app_status_indication_init();
+
+#ifdef BTADDR_FOR_DEBUG
+#if !defined(PLD_SIMU_MASTER) && !defined(PLD_SIMU_SLAVE) && !defined(BT_SOURCE_SIMU)
+    bes_bt_me_gen_addr_for_debug();
+#endif
+#endif
 
 #ifdef FORCE_SIGNALINGMODE
     hal_sw_bootmode_clear(HAL_SW_BOOTMODE_TEST_NOSIGNALINGMODE);
@@ -1996,32 +1961,38 @@ osPriority formerPriority = osThreadGetPriority(app_thread_id);
 
     if (hal_sw_bootmode_get() & HAL_SW_BOOTMODE_REBOOT_FROM_CRASH){
         hal_sw_bootmode_clear(HAL_SW_BOOTMODE_REBOOT_FROM_CRASH);
-        MAIN_TRACE_IMM(0,"Crash happened!!!");
+        TRACE(0,"Crash happened!!!");
     #ifdef VOICE_DATAPATH
         gsound_dump_set_flag(true);
     #endif
     }
 
+#if defined (__HCI_BRIDGE_LOCAL_MODE__)
+    app_hci_bridge_init(false);
+#elif defined (__HCI_BRIDGE_REMOTE_MODE__)
+    hal_sw_bootmode_set(HAL_SW_BOOTMODE_TEST_MODE);
+    app_hci_bridge_init(true);
+#endif
+
     if (hal_sw_bootmode_get() & HAL_SW_BOOTMODE_REBOOT){
         hal_sw_bootmode_clear(HAL_SW_BOOTMODE_REBOOT);
         pwron_case = APP_POWERON_CASE_REBOOT;
         need_check_key = false;
-        MAIN_TRACE_IMM(0,"Initiative REBOOT happens!!!");
+        TRACE(0,"Initiative REBOOT happens!!!");
     }
 
     if (hal_sw_bootmode_get() & HAL_SW_BOOTMODE_TEST_MODE){
         hal_sw_bootmode_clear(HAL_SW_BOOTMODE_TEST_MODE);
         pwron_case = APP_POWERON_CASE_TEST;
         need_check_key = false;
-        MAIN_TRACE(0,"To enter test mode!!!");
+        TRACE(0,"To enter test mode!!!");
     }
 
-#ifdef TOTA_FACTORY_USED
-    if (hal_sw_bootmode_get() & HAL_SW_BOOTMODE_TOTA_REBOOT) {
-        hal_sw_bootmode_clear(HAL_SW_BOOTMODE_TOTA_REBOOT);
-        set_in_tota_mode(true);
-        MAIN_TRACE(0,"To enter TOTA mode!!!");
-    }
+#if defined(BT_SOURCE_SIMU) || defined(PLD_SIMU_MASTER) || defined(PLD_SIMU_SLAVE)
+    hal_sw_bootmode_clear(HAL_SW_BOOTMODE_REBOOT);
+    pwron_case = APP_POWERON_CASE_REBOOT;
+    need_check_key = false;
+    TRACE(0,"BT_SIMU");
 #endif
 
 #if !defined(IS_CUSTOM_UART_APPLICATION_ENABLED)
@@ -2030,16 +2001,12 @@ osPriority formerPriority = osThreadGetPriority(app_thread_id);
 #endif
 #endif
 
-#ifdef SUPPORT_SINGLE_WIRE_COM
-    communication_init();
-#endif
-
-#ifdef APP_CHIP_BRIDGE_MODULE
-    app_chip_bridge_init();
+#ifdef APP_UART_BRIDGE_MODULE
+    app_uart_bridge_init();
 #endif
 
     nRet = app_battery_open();
-    MAIN_TRACE(1,"BATTERY %d",nRet);
+    TRACE(1,"BATTERY %d",nRet);
     if (pwron_case != APP_POWERON_CASE_TEST){
         switch (nRet) {
             case APP_BATTERY_OPEN_MODE_NORMAL:
@@ -2047,7 +2014,7 @@ osPriority formerPriority = osThreadGetPriority(app_thread_id);
                 break;
             case APP_BATTERY_OPEN_MODE_CHARGING:
                 app_status_indication_set(APP_STATUS_INDICATION_CHARGING);
-                MAIN_TRACE(0,"CHARGING!");
+                TRACE(0,"CHARGING!");
                 app_battery_start();
 
                 app_key_open(false);
@@ -2060,12 +2027,9 @@ osPriority formerPriority = osThreadGetPriority(app_thread_id);
 #endif
                 break;
             case APP_BATTERY_OPEN_MODE_CHARGING_PWRON:
-                MAIN_TRACE(0,"CHARGING PWRON!");
+                TRACE(0,"CHARGING PWRON!");
 #ifdef IBRT_SEARCH_UI
                 is_charging_poweron=true;
-#endif
-#if defined(BT_USB_AUDIO_DUAL_MODE)
-                usb_plugin = 1;
 #endif
                 need_check_key = false;
                 nRet = 0;
@@ -2083,9 +2047,11 @@ osPriority formerPriority = osThreadGetPriority(app_thread_id);
     }
 
     if (app_key_open(need_check_key)){
-        MAIN_TRACE(0,"PWR KEY DITHER!");
+#if  !defined(BT_SOURCE_SIMU) && !defined(PLD_SIMU_MASTER) && !defined(PLD_SIMU_SLAVE)
+        TRACE(0,"PWR KEY DITHER!");
         nRet = -1;
         goto exit;
+#endif
     }
 
     hal_sw_bootmode_set(HAL_SW_BOOTMODE_REBOOT);
@@ -2093,11 +2059,15 @@ osPriority formerPriority = osThreadGetPriority(app_thread_id);
 #if defined(_AUTO_TEST_)
     AUTO_TEST_SEND("Power on.");
 #endif
+    bes_bt_app_init();
 
-    // BT apps init
-    bt_app_init();
+    amgr_init();
+
+#ifndef BTH_SUBSYS_ONLY
     app_audio_open();
+
     app_audio_manager_open();
+#endif
     app_overlay_open();
     app_overlay_subsys_open();
     nv_record_env_init();
@@ -2109,15 +2079,15 @@ osPriority formerPriority = osThreadGetPriority(app_thread_id);
     app_mcu_core_capsensor_init();
 #endif
 
-#ifdef PRESSURE_ENABLE
-    app_mcu_core_pressure_init();
+#ifdef MTEST_BUILTIN
+    mem_scan_check_and_start();
 #endif
-
 
 #ifdef BISTO_ENABLED
     nv_record_gsound_rec_init();
 #endif
 
+#ifdef IS_ACCELARATED_BOOTUP_FEATURE_ENABLED
     if (pwron_case != APP_POWERON_CASE_TEST)
     {
         app_start_bt_module_thread();
@@ -2126,9 +2096,15 @@ osPriority formerPriority = osThreadGetPriority(app_thread_id);
     {
         btdrv_start_bt();
     }
+#else
+    btdrv_start_bt();
+#endif
 
+#ifndef BTH_SUBSYS_ONLY
     audio_process_init();
-#ifdef __PC_CMD_UART__
+#endif
+
+#ifdef PC_CMD_UART_ID
     app_cmd_open();
 #endif
 
@@ -2143,37 +2119,13 @@ osPriority formerPriority = osThreadGetPriority(app_thread_id);
 #if defined(ANC_ASSIST_ENABLED)
     app_anc_assist_init();
     app_voice_assist_wd_init();
-#if defined(AUDIO_ADJ_EQ_REV)
-    app_voice_assist_adj_eq_rev_init();
-#endif
-#if defined(VOICE_ASSIST_NOISE)
-    app_voice_assist_noise_adapt_anc_init();
-#endif
-#if defined(VOICE_ASSIST_FF_FIR_LMS)
-    app_voice_assist_fir_anc_open_leak_init();
-    app_voice_assist_fir_lms_init();
-#endif
-#if defined(VOICE_ASSIST_FF_IIR_LMS)
-    app_voice_assist_iir_lms_init();
-#endif
-#if defined(VOICE_ASSIST_ADA_IIR)
-    app_voice_assist_ada_iir_init();
-#endif
-#if defined(VOICE_ASSIST_NOISE_CLASSIFY)
-    app_voice_assist_noise_classify_adapt_anc_init();
-#endif
 #if defined(VOICE_ASSIST_PILOT_ANC_ENABLED)
     app_voice_assist_pilot_anc_init();
 #endif
-
-#if defined(VOICE_ASSIST_ONESHOT_ADAPTIVE_ANC)
-    app_voice_assist_oneshot_adapt_anc_init();
+#ifdef ANC_ASSIST_ALGO_ON_DSP
+    app_voice_assist_anc_dsp_init();
 #endif
-
-#if defined(__AI_VOICE__)
     app_voice_assist_ai_voice_init();
-#endif
-
 #if defined(VOICE_ASSIST_WD_ENABLED)
 	app_voice_assist_ultrasound_init();
 #endif
@@ -2183,18 +2135,8 @@ osPriority formerPriority = osThreadGetPriority(app_thread_id);
 #if defined(AUDIO_ADJ_EQ)
     app_voice_assist_adj_eq_init();
 #endif
-
-#if defined(VOICE_ASSIST_CUSTOM_LEAK_DETECT)
     app_voice_assist_custom_leak_detect_init();
-#endif
-#if defined(VOICE_ASSIST_PROMPT_LEAK_DETECT)
     app_voice_assist_prompt_leak_detect_init();
-#endif
-    app_voice_assist_pnc_adapt_anc_init();
-    app_voice_assist_optimal_tf_anc_init();
-#if defined(VOICE_ASSIST_FF_IIR_LMS)
-    app_anc_assist_stream_heap_init();
-#endif
 #endif
 
 #ifdef ANC_APP
@@ -2204,17 +2146,13 @@ osPriority formerPriority = osThreadGetPriority(app_thread_id);
 #if defined(MEDIA_PLAYER_SUPPORT) && !defined(PROMPT_IN_FLASH)
     app_play_audio_set_lang(nvrecord_env->media_language.language);
 #endif
-    app_bt_stream_volume_ptr_update(NULL);
+    audio_player_restore_volume(NULL);
 
 #ifdef __THIRDPARTY
     app_thirdparty_init();
 #if defined(__AI_VOICE__)
     app_thirdparty_specific_lib_event_handle(THIRDPARTY_FUNC_NO2,THIRDPARTY_INIT, AI_SPEC_INIT);
 #endif
-#endif
-
-#ifdef __AI_VOICE__
-    app_ai_init();
 #endif
 
     // TODO: freddie->unify all of the OTA modules
@@ -2228,30 +2166,17 @@ osPriority formerPriority = osThreadGetPriority(app_thread_id);
 #endif // AI_OTA
 
 #ifdef SMF_RPC_M55
-    app_dsp_m55_init();
+    app_dsp_m55_init(APP_DSP_M55_USER_SMF_RPC);
 #endif
 
-#if defined(DSP_HIFI4) && !defined(SPEECH_ALGO_DSP)
-#ifdef DSP_COMBINE_BIN
-    dsp_combine_bin_startup();
-#else
-    dsp_check_and_startup(DSP_LOGIC_SROM_BASE, 0);
-#endif
-#endif
 #if defined(UTILS_ESHELL_EN)
 #ifdef APP_RPC_ENABLE
     app_eshell_rpc_init();
     eshell_rpc_run_cmd_func_cb_register(app_eshell_rpc_send_op_cmd_func, app_eshell_rpc_send_op_result_func);
-#endif
     eshell_open(HAL_UART_ID_1, false);
+#else
+    eshell_open(HAL_UART_ID_1, true);
 #endif
-
-#ifdef RPC_SUPPORT
-    rpc_open_frontend(RPC_CORE_BTH_DSP);
-#endif
-
-#ifdef AUDIO_DEBUG_CMD
-    audio_test_cmd_init();
 #endif
 
 #ifdef APP_MCPP_CLI
@@ -2260,6 +2185,10 @@ osPriority formerPriority = osThreadGetPriority(app_thread_id);
 
 #ifdef APP_MCPP_SRV
     mcpp_srv_open();
+#endif
+
+#ifdef AUDIO_DEBUG_CMD
+    audio_test_cmd_init();
 #endif
 
 #if defined (__GMA_VOICE__) && defined(IBRT_SEARCH_UI)
@@ -2278,25 +2207,53 @@ osPriority formerPriority = osThreadGetPriority(app_thread_id);
     app_ibrt_if_report_connectivity_log_init();
 #endif
 
+#ifdef BTH_IF_COMM_RPC_EN
+    bth_if_thread_server_init();
+    app_bth_bt_if_init();
+    app_bth_a2dp_src_if_init();
+    app_bth_hfp_cli_if_init();
+    app_bth_a2dp_sink_if_init();
+#ifdef BLE_HOST_SUPPORT
+    app_bth_ble_if_init();
+    app_bth_gatt_if_init();
+#endif
+#endif
+
     if (pwron_case != APP_POWERON_CASE_TEST) {
+#ifndef IS_ACCELARATED_BOOTUP_FEATURE_ENABLED
+        bes_bt_thread_init();
+#endif
+
+    #ifdef __HOST_GEN_FULL_ECDH_KEY__
+        bes_bt_call_custom_function_in_bt_thread((uint32_t)0,
+                    0, (uint32_t)bes_bt_me_gen_full_ecdh_key_pair);
+    #else
+        bes_bt_call_custom_function_in_bt_thread((uint32_t)0,
+                0, (uint32_t)bes_bt_me_gen_ecdh_key_pair);
+    #endif
         app_wait_stack_ready();
 
+#ifdef IS_ACCELARATED_BOOTUP_FEATURE_ENABLED
         osThreadSetPriority(app_thread_id, formerPriority);
+        osThreadTerminate(init_bt_thread_id);
+
+        app_staying_at_highest_freq_timeout_timer_start();
+#endif
 
         bt_drv_config_after_hci_reset();
 
-        app_staying_at_highest_freq_timeout_timer_start();
-
+    #ifdef __HOST_GEN_FULL_ECDH_KEY__
+        bes_bt_call_custom_function_in_bt_thread((uint32_t)0,
+                    0, (uint32_t)bes_bt_me_apply_full_ecdh_key_pair);
+    #else
+        bes_bt_call_custom_function_in_bt_thread((uint32_t)0,
+                    0, (uint32_t)bes_bt_me_apply_ecdh_key_pair);
+    #endif
 #if defined(SENSOR_HUB) && !defined(__NuttX__) && !defined(SPEECH_ALGO_DSP_SENS)
-#ifdef SENSORHUB_START_WHEN_MAIN_MCU_ON
         app_sensor_hub_init();
 #endif
-#endif
 
-#ifndef BT_BUILD_WITH_CUSTOMER_HOST
-        app_bt_start_custom_function_in_bt_thread((uint32_t)0,
-            0, (uint32_t)app_bluetooth_application_init);
-#endif
+        bes_bt_call_custom_function_in_bt_thread((uint32_t)0, 0, (uint32_t)app_bluetooth_application_init);
 
 #ifdef CAPSENSOR_ENABLE
 #ifdef CAPSENSOR_SPP_SERVER
@@ -2311,26 +2268,26 @@ osPriority formerPriority = osThreadGetPriority(app_thread_id);
 #endif
 #endif
 
-    MAIN_TRACE(1,"\n\n\nbt_stack_init_done:%d\n\n\n", pwron_case);
+    TRACE(1,"\n\n\nbt_stack_init_done:%d\n\n\n", pwron_case);
 
     app_application_ready_to_start_callback();
     if (pwron_case == APP_POWERON_CASE_REBOOT){
 
         app_status_indication_set(APP_STATUS_INDICATION_POWERON);
 #ifdef MEDIA_PLAYER_SUPPORT
-        media_PlayAudio(AUD_ID_POWER_ON, 0);
+        audio_player_play_prompt(AUD_ID_POWER_ON, 0);
 #endif
-
-#ifndef BT_BUILD_WITH_CUSTOMER_HOST
-        app_bt_sleep_init();
+        bes_bt_sleep_init();
 
 #if defined(OTA_ENABLE)
         ota_basic_env_init();
 #endif
 
 
-#if defined(GATT_RATE_TESTS) || defined(GATT_RATE_TESTC)
-    gatt_rate_test_begin();
+#if defined(BES_OTA)
+#if !defined(OTA_OVER_TOTA_ENABLED)
+        bes_ota_init();
+#endif
 #endif
 
 #if defined(IBRT)
@@ -2339,32 +2296,39 @@ osPriority formerPriority = osThreadGetPriority(app_thread_id);
         {
             if(IBRT_UNKNOW == nvrecord_env->ibrt_mode.mode)
             {
-                MAIN_TRACE(0,"power on unknow mode");
+                TRACE(0,"power on unknow mode");
                 app_ibrt_enter_limited_mode();
             }
             else
             {
-                MAIN_TRACE(1,"power on %d fetch out", nvrecord_env->ibrt_mode.mode);
+                TRACE(1,"power on %d fetch out", nvrecord_env->ibrt_mode.mode);
+#ifdef SEARCH_UI_COMPATIBLE_UI_V2
                 app_ibrt_if_event_entry(APP_UI_EV_UNDOCK);
+#endif
             }
         }
 #endif
+
+#if defined(BT_SOURCE_SIMU) && defined(BT_SOURCE)
+#if defined(A2DP_SOURCE_TEST)
+         unsigned int app_a2dp_source_connect_device_test(unsigned char *buf, unsigned int len);
+        app_a2dp_source_connect_device_test(NULL,0);
+#elif defined(HFP_AG_TEST)
+    extern void app_hfp_ag_connect_test(void);
+    app_hfp_ag_connect_test();
+#endif
+#endif
+
 #else
         bes_bt_me_write_access_mode(BTIF_BAM_NOT_ACCESSIBLE,1);
-#endif
 #endif
 
         app_key_init();
         app_battery_start();
-#if defined(APP_10_SECOND_TIMER_EN) && defined(__BTIF_AUTOPOWEROFF__)
+#if defined(__BTIF_EARPHONE__) && defined(__BTIF_AUTOPOWEROFF__)
         app_start_10_second_timer(APP_POWEROFF_TIMER_ID);
 #endif
 
-#ifndef BT_BUILD_WITH_CUSTOMER_HOST
-#ifdef GFPS_ENABLED
-        gfps_reg_battery_handler(app_tell_battery_info_handler);
-        gfps_set_battery_datatype(SHOW_UI_INDICATION);
-#endif
 #ifdef __THIRDPARTY
 #if defined(__AI_VOICE__)
         app_thirdparty_specific_lib_event_handle(THIRDPARTY_FUNC_NO1,THIRDPARTY_INIT, AI_SPEC_INIT);
@@ -2373,42 +2337,49 @@ osPriority formerPriority = osThreadGetPriority(app_thread_id);
         app_thirdparty_specific_lib_event_handle(THIRDPARTY_FUNC_NO3,THIRDPARTY_START, AI_SPEC_INIT);
 #endif
 #endif
-#if defined( APP_10_SECOND_TIMER_EN) && defined(__BTIF_BT_RECONNECT__)
-#if defined(FREEMAN_ENABLED_STERO)
-        osDelay(100);
-        app_bt_profile_connect_manager_opening_reconnect();
-#endif
-#endif
-#endif
     }
 #ifdef __ENGINEER_MODE_SUPPORT__
-    else if(pwron_case == APP_POWERON_CASE_TEST){
+    else if(pwron_case == APP_POWERON_CASE_TEST) {
+        bool bt_rf_testmode = false;
+
         app_factorymode_set(true);
         app_status_indication_set(APP_STATUS_INDICATION_POWERON);
 #ifdef MEDIA_PLAYER_SUPPORT
-        media_PlayAudio(AUD_ID_POWER_ON, 0);
+        audio_player_play_prompt(AUD_ID_POWER_ON, 0);
 #endif
 #ifdef __WATCHER_DOG_RESET__
         app_wdt_close();
 #endif
-        MAIN_TRACE(0,"!!!!!ENGINEER_MODE!!!!!\n");
+        TRACE(0,"!!!!!ENGINEER_MODE!!!!!\n");
         nRet = 0;
         app_nvrecord_rebuild();
         app_factorymode_key_init();
-        if (hal_sw_bootmode_get() & HAL_SW_BOOTMODE_TEST_SIGNALINGMODE){
+
+        if (hal_sw_bootmode_get() & (HAL_SW_BOOTMODE_TEST_SIGNALINGMODE | HAL_SW_BOOTMODE_TEST_NOSIGNALINGMODE)) {
+            bt_rf_testmode = true;
+            TRACE(0, "[bt_rf_testmode_info] CPU freq: %u", hal_sys_timer_calc_cpu_freq(5, 0));
+        }
+
+        if (hal_sw_bootmode_get() & HAL_SW_BOOTMODE_TEST_SIGNALINGMODE) {
             hal_sw_bootmode_clear(HAL_SW_BOOTMODE_TEST_MASK);
             app_factorymode_bt_signalingtest(NULL, NULL);
         }
-        if (hal_sw_bootmode_get() & HAL_SW_BOOTMODE_TEST_NOSIGNALINGMODE){
+
+        if (hal_sw_bootmode_get() & HAL_SW_BOOTMODE_TEST_NOSIGNALINGMODE) {
             hal_sw_bootmode_clear(HAL_SW_BOOTMODE_TEST_MASK);
             app_factorymode_bt_nosignalingtest(NULL, NULL);
+        }
+
+        while (bt_rf_testmode) {
+            TRACE(0, "[bt_rf_testmode_info] alive!");
+            osDelay(1000 * 10);
         }
     }
 #endif
     else{
         app_status_indication_set(APP_STATUS_INDICATION_POWERON);
 #ifdef MEDIA_PLAYER_SUPPORT
-        media_PlayAudio(AUD_ID_POWER_ON, 0);
+        audio_player_play_prompt(AUD_ID_POWER_ON, 0);
 #endif
         if (need_check_key){
             pwron_case = app_poweron_wait_case();
@@ -2418,21 +2389,21 @@ osPriority formerPriority = osThreadGetPriority(app_thread_id);
             pwron_case = APP_POWERON_CASE_NORMAL;
         }
         if (pwron_case != APP_POWERON_CASE_INVALID && pwron_case != APP_POWERON_CASE_DITHERING){
-            MAIN_TRACE(1,"power on case:%d\n", pwron_case);
+            TRACE(1,"power on case:%d\n", pwron_case);
             nRet = 0;
 #ifndef __POWERKEY_CTRL_ONOFF_ONLY__
             app_status_indication_set(APP_STATUS_INDICATION_INITIAL);
 #endif
-
-#ifndef BT_BUILD_WITH_CUSTOMER_HOST
-            app_bt_sleep_init();
+            bes_bt_sleep_init();
 
 #if defined(OTA_ENABLE)
             ota_basic_env_init();
 #endif
 
-#if defined(GATT_RATE_TESTS) || defined(GATT_RATE_TESTC)
-    gatt_rate_test_begin();
+#ifdef BES_OTA
+#if !defined(OTA_OVER_TOTA_ENABLED)
+            bes_ota_init();
+#endif
 #endif
 
 #ifdef __INTERCONNECTION__
@@ -2447,17 +2418,15 @@ osPriority formerPriority = osThreadGetPriority(app_thread_id);
             gfps_reg_battery_handler(app_tell_battery_info_handler);
             gfps_set_battery_datatype(SHOW_UI_INDICATION);
 #endif
-#endif
             switch (pwron_case) {
                 case APP_POWERON_CASE_CALIB:
                     break;
                 case APP_POWERON_CASE_BOTHSCAN:
                     app_status_indication_set(APP_STATUS_INDICATION_BOTHSCAN);
 #ifdef MEDIA_PLAYER_SUPPORT
-                    media_PlayAudio(AUD_ID_BT_PAIR_ENABLE, 0);
+                    audio_player_play_prompt(AUD_ID_BT_PAIR_ENABLE, 0);
 #endif
-#ifndef BT_BUILD_WITH_CUSTOMER_HOST
-#if defined(APP_10_SECOND_TIMER_EN)
+#if defined( __BTIF_EARPHONE__)
 #if defined(IBRT)
 #ifdef IBRT_SEARCH_UI
                     if(false==is_charging_poweron)
@@ -2478,35 +2447,38 @@ osPriority formerPriority = osThreadGetPriority(app_thread_id);
                     app_thirdparty_specific_lib_event_handle(THIRDPARTY_FUNC_NO2,THIRDPARTY_BT_DISCOVERABLE, AI_SPEC_INIT);
 #endif
 #endif
-#endif
                     break;
                 case APP_POWERON_CASE_NORMAL:
-#ifndef BT_BUILD_WITH_CUSTOMER_HOST
-#if defined(APP_10_SECOND_TIMER_EN) && !defined(__EARPHONE_STAY_BOTH_SCAN__)
+#if defined( __BTIF_EARPHONE__ ) && !defined(__EARPHONE_STAY_BOTH_SCAN__)
 #if defined(IBRT)
 #ifdef IBRT_SEARCH_UI
                     if(is_charging_poweron==false)
                     {
                         if(IBRT_UNKNOW == nvrecord_env->ibrt_mode.mode)
                         {
-                            MAIN_TRACE(0,"power on unknow mode");
+                            TRACE(0,"power on unknow mode");
                             app_ibrt_enter_limited_mode();
                         }
                         else
                         {
-                            MAIN_TRACE(1,"power on %d fetch out", nvrecord_env->ibrt_mode.mode);
+                            TRACE(1,"power on %d fetch out", nvrecord_env->ibrt_mode.mode);
+#ifdef SEARCH_UI_COMPATIBLE_UI_V2
                             app_ibrt_if_event_entry(APP_UI_EV_UNDOCK);
+#else
+                            app_ibrt_ui_event_entry(IBRT_FETCH_OUT_EVENT);
+#endif
+
+
                         }
                     }
 #elif defined(IS_MULTI_AI_ENABLED)
                     //when ama and bisto switch, earphone need reconnect with peer, master need reconnect with phone
                     //app_ibrt_ui_event_entry(IBRT_OPEN_BOX_EVENT);
-                    //MAIN_TRACE(1,"ibrt_ui_log:power on %d fetch out", nvrecord_env->ibrt_mode.mode);
+                    //TRACE(1,"power on %d fetch out", nvrecord_env->ibrt_mode.mode);
                     //app_ibrt_ui_event_entry(IBRT_FETCH_OUT_EVENT);
 #endif
 #else
                     bes_bt_me_write_access_mode(BTIF_BAM_NOT_ACCESSIBLE,1);
-#endif
 #endif
 #endif
                     /* FALL THROUGH*/
@@ -2514,17 +2486,12 @@ osPriority formerPriority = osThreadGetPriority(app_thread_id);
                 case APP_POWERON_CASE_ALARM:
                 default:
                     app_status_indication_set(APP_STATUS_INDICATION_PAGESCAN);
-#ifndef BT_BUILD_WITH_CUSTOMER_HOST
-#if defined(APP_10_SECOND_TIMER_EN) && defined(__BTIF_BT_RECONNECT__) && defined(FREEMAN_ENABLED_STERO)
-                    osDelay(100);
-                    app_bt_profile_connect_manager_opening_reconnect();
-#endif
 #ifdef __THIRDPARTY
 #if defined(__AI_VOICE__)
                     app_thirdparty_specific_lib_event_handle(THIRDPARTY_FUNC_NO2,THIRDPARTY_BT_CONNECTABLE, AI_SPEC_INIT);
 #endif
 #endif
-#endif
+
                     break;
             }
             if (need_check_key)
@@ -2535,7 +2502,7 @@ osPriority formerPriority = osThreadGetPriority(app_thread_id);
             }
             app_key_init();
             app_battery_start();
-#if defined(APP_10_SECOND_TIMER_EN) && defined(__BTIF_AUTOPOWEROFF__)
+#if defined(__BTIF_EARPHONE__) && defined(__BTIF_AUTOPOWEROFF__)
             app_start_10_second_timer(APP_POWEROFF_TIMER_ID);
 #endif
 #ifdef __THIRDPARTY
@@ -2550,7 +2517,9 @@ osPriority formerPriority = osThreadGetPriority(app_thread_id);
             rb_ctl_init();
 #endif
         }else{
+#ifndef BTH_SUBSYS_ONLY
             af_close();
+#endif
             app_key_close();
             nRet = -1;
         }
@@ -2560,7 +2529,7 @@ exit:
 #ifdef MSD_MODE
     if (pwron_case == APP_BATTERY_OPEN_MODE_CHARGING_PWRON)
     {
-        MAIN_TRACE(1, "usbstorage_init !\n");
+        TRACE(1, "usbstorage_init !\n");
         usbstorage_init();
     }
 #endif
@@ -2571,11 +2540,11 @@ exit:
 
 #ifdef BT_USB_AUDIO_DUAL_MODE
     btusb_init();
-    MAIN_TRACE(1,"usb_plugin=%d",usb_plugin);
+    TRACE(1,"usb_plugin=%d",usb_plugin);
 #if defined(APP_USB_A2DP_SOURCE)
     btusb_switch(BTUSB_MODE_USB);
 #else
-#ifndef BLE_USB_AUDIO_SUPPORT
+#if !defined(BLE_USB_AUDIO_SUPPORT) && !defined(BLE_BIS_TRANSPORT)
     if(usb_plugin)
     {
         btusb_start_switch_to(BTUSB_MODE_USB);
@@ -2590,7 +2559,9 @@ exit:
 #if defined(BTUSB_AUDIO_MODE)
     if(pwron_case == APP_POWERON_CASE_CHARGING) {
         app_wdt_close();
+#ifndef BTH_SUBSYS_ONLY
         af_open();
+#endif
         app_key_handle_clear();
         app_usb_key_init();
         app_usbaudio_entry();
@@ -2598,30 +2569,14 @@ exit:
 
 #endif // BTUSB_AUDIO_MODE
 #endif // BT_USB_AUDIO_DUAL_MODE
-
-#if defined(ARM_CMNS)
-    app_secure_nse_init();
-#endif
-
-#ifdef DOLBY_AUDIO_ENABLE
-    thirdparty_comm_init();
-#endif
-
     app_sysfreq_req(APP_SYSFREQ_USER_APP_INIT, APP_SYSFREQ_32K);
+
+#ifdef APP_SAMPLES
+    app_tests_init();
+#endif
 
     return nRet;
 }
-
-#if defined(DOLBY_AUDIO_ENABLE)
-bool algo_role_get(void)
-{
-    if (bts_core_get_ui_role() == IBRT_MASTER)
-        return false;
-    else
-        return true;
-}
-#endif
-
 
 #ifdef SPECIFIC_FREQ_POWER_CONSUMPTION_MEASUREMENT_ENABLE
 
@@ -2647,7 +2602,7 @@ static const struct cp_task_desc task_desc_power_consumption_measurement = {
 
 static void power_consumption_measurement_start_cp(void)
 {
-    norflash_api_flush_disable(NORFLASH_API_USER_CP,(uint32_t)cp_accel_init_done, false);
+    norflash_api_flush_disable(NORFLASH_API_USER_CP,(uint32_t)cp_accel_init_done);
     cp_accel_open(CP_TASK_POWER_CONSUMPTION_MEASUREMENT, &task_desc_power_consumption_measurement);
     while(cp_accel_init_done() == false) {
         hal_sys_timer_delay_us(100);
@@ -2677,23 +2632,23 @@ static void power_consumption_thread(const void *arg)
 
     if (APP_SYSFREQ_26M == testFreq)
     {
-        MAIN_TRACE(0, "Test power consumption at sys Freq 24Mhz.");
+        TRACE(0, "Test power consumption at sys Freq 24Mhz.");
     }
     else if (APP_SYSFREQ_52M == testFreq)
     {
-        MAIN_TRACE(0, "Test power consumption at sys Freq 48Mhz.");
+        TRACE(0, "Test power consumption at sys Freq 48Mhz.");
     }
     else if (APP_SYSFREQ_78M == testFreq)
     {
-        MAIN_TRACE(0, "Test power consumption at sys Freq 72Mhz.");
+        TRACE(0, "Test power consumption at sys Freq 72Mhz.");
     }
     else if (APP_SYSFREQ_104M == testFreq)
     {
-        MAIN_TRACE(0, "Test power consumption at sys Freq 96Mhz.");
+        TRACE(0, "Test power consumption at sys Freq 96Mhz.");
     }
     else if (APP_SYSFREQ_208M == testFreq)
     {
-        MAIN_TRACE(0, "Test power consumption at sys Freq 192Mhz.");
+        TRACE(0, "Test power consumption at sys Freq 192Mhz.");
     }
 
     app_sysfreq_req(APP_SYSFREQ_USER_APP_15,
@@ -2715,18 +2670,18 @@ int app_init_btc(void)
     int nRet = 0;
     POSSIBLY_UNUSED uint8_t pwron_case = APP_POWERON_CASE_INVALID;
 
-    MAIN_TRACE(0,"please check all sections sizes and heads is correct ........");
-    MAIN_TRACE(2,"__coredump_section_start: %p length: 0x%x", __coredump_section_start, CORE_DUMP_SECTION_SIZE);
-    MAIN_TRACE(2,"__ota_upgrade_log_start: %p length: 0x%x", __ota_upgrade_log_start, OTA_UPGRADE_SECTION_SIZE);
-    MAIN_TRACE(2,"__log_dump_start: %p length: 0x%x", __log_dump_start, LOG_DUMP_SECTION_SIZE);
-    MAIN_TRACE(2,"__crash_dump_start: %p length: 0x%x", __crash_dump_start, CRASH_DUMP_SECTION_SIZE);
-    MAIN_TRACE(2,"__custom_parameter_start: %p length: 0x%x", __custom_parameter_start, CUSTOM_PARAMETER_SECTION_SIZE);
-    MAIN_TRACE(2,"__lhdc_license_start: %p length: 0x%x", __lhdc_license_start, LHDC_LICENSE_SECTION_SIZE);
-    MAIN_TRACE(2,"__userdata_start: %p length: 0x%x", __userdata_start, USERDATA_SECTION_SIZE*2);
-    MAIN_TRACE(2,"__aud_start: %p length: 0x%x", __aud_start, AUD_SECTION_SIZE);
-    MAIN_TRACE(2,"__factory_start: %p length: 0x%x", __factory_start, FACTORY_SECTION_SIZE);
+    TRACE(0,"please check all sections sizes and heads is correct ........");
+    TRACE(2,"__coredump_section_start: %p length: 0x%x", __coredump_section_start, CORE_DUMP_SECTION_SIZE);
+    TRACE(2,"__ota_upgrade_log_start: %p length: 0x%x", __ota_upgrade_log_start, OTA_UPGRADE_SECTION_SIZE);
+    TRACE(2,"__log_dump_start: %p length: 0x%x", __log_dump_start, LOG_DUMP_SECTION_SIZE);
+    TRACE(2,"__crash_dump_start: %p length: 0x%x", __crash_dump_start, CRASH_DUMP_SECTION_SIZE);
+    TRACE(2,"__custom_parameter_start: %p length: 0x%x", __custom_parameter_start, CUSTOM_PARAMETER_SECTION_SIZE);
+    TRACE(2,"__lhdc_license_start: %p length: 0x%x", __lhdc_license_start, LHDC_LICENSE_SECTION_SIZE);
+    TRACE(2,"__userdata_start: %p length: 0x%x", __userdata_start, USERDATA_SECTION_SIZE*2);
+    TRACE(2,"__aud_start: %p length: 0x%x", __aud_start, AUD_SECTION_SIZE);
+    TRACE(2,"__factory_start: %p length: 0x%x", __factory_start, FACTORY_SECTION_SIZE);
 
-    MAIN_TRACE(0,"app_init\n");
+    TRACE(0,"app_init\n");
     nv_record_init();
     factory_section_init();
 
@@ -2760,13 +2715,13 @@ int app_init_btc(void)
     if (hal_sw_bootmode_get() & HAL_SW_BOOTMODE_REBOOT){
         hal_sw_bootmode_clear(HAL_SW_BOOTMODE_REBOOT);
         pwron_case = APP_POWERON_CASE_REBOOT;
-        MAIN_TRACE(0,"Initiative REBOOT happens!!!");
+        TRACE(0,"Initiative REBOOT happens!!!");
     }
 
     if (hal_sw_bootmode_get() & HAL_SW_BOOTMODE_TEST_MODE){
         hal_sw_bootmode_clear(HAL_SW_BOOTMODE_TEST_MODE);
         pwron_case = APP_POWERON_CASE_TEST;
-        MAIN_TRACE(0,"To enter test mode!!!");
+        TRACE(0,"To enter test mode!!!");
     }
 
     hal_sw_bootmode_set(HAL_SW_BOOTMODE_REBOOT);
@@ -2782,7 +2737,7 @@ int app_init_btc(void)
 #ifdef __WATCHER_DOG_RESET__
     //    app_wdt_close();
 #endif
-        MAIN_TRACE(0,"!!!!!ENGINEER_MODE!!!!!\n");
+        TRACE(0,"!!!!!ENGINEER_MODE!!!!!\n");
         nRet = 0;
 
     //    app_factorymode_key_init();
@@ -2806,7 +2761,7 @@ exit:
 int app_deinit_btc(int deinit_case)
 {
     int nRet = 0;
-    MAIN_TRACE(2,"%s case:%d",__func__, deinit_case);
+    TRACE(2,"%s case:%d",__func__, deinit_case);
 
     if (!deinit_case){
 

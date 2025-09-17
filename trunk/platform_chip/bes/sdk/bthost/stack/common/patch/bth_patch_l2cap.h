@@ -16,7 +16,7 @@
 #ifndef __BTH_PATCH_L2CAP_H__
 #define __BTH_PATCH_L2CAP_H__
 
-#if defined(BUILD_BTH_ROM)
+#if defined(BLE_STACK_NEW_DESIGN)
 #include "besaud.h"
 #include "l2cap_service.h"
 #include "l2cap_i.h"
@@ -28,20 +28,22 @@ extern uint32_t g_patch_tbl_l2cap[];
 
 typedef enum
 {
-    FUNC_ID_l2cap_l2cap_psm_to_scid_prefix,
-    FUNC_ID_l2cap_l2cap_get_psm_target_profile_from_scid,
-    FUNC_ID_l2cap_l2cap_scid_prefix_to_converted_psm,
-    FUNC_ID_l2cap_l2cap_channel_search_scid,
-    FUNC_ID_l2cap_l2cap_start_wait_disconnect_acl_timer,
-    FUNC_ID_l2cap_l2cap_directly_disconnect_channel,
-    FUNC_ID_l2cap_l2cap_channel_close,
-    FUNC_ID_l2cap_l2cap_report_open,
-    FUNC_ID_l2cap_l2cap_send_data_auto_fragment,
-    FUNC_ID_l2cap_l2cap_handle_signal,
-    FUNC_ID_l2cap_l2cap_handle_data,
-    FUNC_ID_l2cap_btif_besaud_callback,
-    FUNC_ID_l2cap_btif_besaud_send_cmd_no_wait,
-} bt_patch_l2cap_func_enum_t;
+    FUNC_ID_l2cap_psm_to_scid_prefix,
+    FUNC_ID_l2cap_get_psm_target_profile_from_scid,
+    FUNC_ID_l2cap_scid_prefix_to_converted_psm,
+    FUNC_ID_l2cap_channel_search_scid,
+    FUNC_ID_l2cap_start_wait_disconnect_acl_timer,
+    FUNC_ID_l2cap_directly_disconnect_channel,
+    FUNC_ID_l2cap_channel_close,
+    FUNC_ID_l2cap_report_open,
+    FUNC_ID_l2cap_send_data_auto_fragment,
+    FUNC_ID_l2cap_handle_signal,
+    FUNC_ID_l2cap_handle_data,
+    FUNC_ID_btif_besaud_callback,
+    FUNC_ID_btif_besaud_send_cmd_no_wait,
+}bt_patch_l2cap_func_enum_t;
+
+#ifdef BUILD_BTH_ROM
 
 extern void btif_besaud_callback(BesaudChannel *Chan, BesaudCallbackParms *Info);
 extern bt_status_t btif_besaud_send_cmd_no_wait(uint8_t* cmd, uint16_t len);
@@ -71,8 +73,10 @@ typedef int8 (*l2cap_send_data_auto_fragment_func_t)(uint32 l2cap_handle, const 
 typedef void (*l2cap_handle_signal_func_t)(l2cap_conn_t *conn, struct pp_buff *ppb);
 typedef void (*l2cap_handle_data_func_t)(uint8 device_id, l2cap_channel_t *channel, struct pp_buff *ppb);
 
+#endif /* BUILD_BTH_ROM */
+
 #ifdef __cplusplus
 }
 #endif
-#endif /* BUILD_BTH_ROM */
+#endif /* BLE_STACK_NEW_DESIGN */
 #endif /* __BTH_PATCH_L2CAP_H__ */

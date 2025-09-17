@@ -10,7 +10,7 @@ ccflags-y := \
 	-I$(obj)/../../nv_section/aud_section \
 	-I$(obj)/../../nv_section/include \
 	-I$(obj)/../../norflash_api \
-	-Iutils/crc
+	-Iutils/crc32
 	
 ifeq ($(PSAP_APP),1)
 CFLAGS_aud_section.o += -DPSAP_APP

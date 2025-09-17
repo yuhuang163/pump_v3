@@ -13,11 +13,10 @@
  * trademark and other intellectual property rights.
  *
  ****************************************************************************/
-#if (defined(BES_OTA) || defined(BES_OTA_BASIC))&& !defined(OTA_OVER_TOTA_ENABLED)
+#if defined(BES_OTA) && !defined(OTA_OVER_TOTA_ENABLED)
 #include "app_ble.h"
-#include "gatt_service.h"
 
-#define OTA_MAX_LEN (495)
+#define OTA_MAX_LEN (509)
 
 #define ota_service_uuid_128_le 0x66,0x66,0x66,0x66,0x66,0x66,0x66,0x66,0x66,0x66,0x66,0x66,0x66,0x66,0x66,0x66
 #define ota_character_uuid_128_le 0x77,0x77,0x77,0x77,0x77,0x77,0x77,0x77,0x77,0x77,0x77,0x77,0x77,0x77,0x77,0x77
@@ -44,9 +43,7 @@ static const gatt_attribute_t g_ble_ota_attr_list[] = {
 
 static app_ota_event_callback ota_event_cb = NULL;
 
-static bool ntf_enabled[BLE_CONNECTION_MAX] = {0};
-
-static bool ble_ota_server_callback(gatt_svc_t *svc, gatt_server_event_t event, gatt_server_callback_param_t param)
+static int ble_ota_server_callback(gatt_svc_t *svc, gatt_server_event_t event, gatt_server_callback_param_t param)
 {
     app_ota_event_param_t cb_param = {0};
 
@@ -69,7 +66,6 @@ static bool ble_ota_server_callback(gatt_svc_t *svc, gatt_server_event_t event, 
                 cb_param.param.receive_data.data     = (uint8_t *)p->value;
                 ota_event_cb(&cb_param);
             }
-            gatts_send_write_rsp(p->conn->connhdl, p->token, ATT_ERROR_NO_ERROR);
             return true;
         }
         case GATT_SERV_EVENT_DESC_WRITE:
@@ -81,7 +77,6 @@ static bool ble_ota_server_callback(gatt_svc_t *svc, gatt_server_event_t event, 
             {
                 notify_enabled = true;
             }
-            ntf_enabled[gap_zero_based_conidx(svc->con_idx)] = notify_enabled;
             if (ota_event_cb)
             {
                 cb_param.event_type   = APP_OTA_CCC_CHANGED;
@@ -89,14 +84,6 @@ static bool ble_ota_server_callback(gatt_svc_t *svc, gatt_server_event_t event, 
                 cb_param.param.ntf_en = notify_enabled;
                 ota_event_cb(&cb_param);
             }
-            return true;
-        }
-        case GATT_SERV_EVENT_DESC_READ:
-        {
-            gatt_server_desc_read_t *p = param.desc_read;
-            uint16_t cccd_config = ntf_enabled[gap_zero_based_conidx(svc->con_idx)] ? 0x0001 : 0x0000;
-            cccd_config = co_host_to_uint16_le(cccd_config);
-            gatts_send_read_rsp(p->conn->connhdl, p->token, 0, (uint8_t *)&cccd_config, sizeof(uint16_t));
             return true;
         }
         case GATT_SERV_EVENT_NTF_TX_DONE:
@@ -147,8 +134,7 @@ static bool ble_ota_server_callback(gatt_svc_t *svc, gatt_server_event_t event, 
 
 void ble_ota_init(void)
 {
-    gatts_cfg_t cfg = {.preferred_mtu = OTA_MAX_LEN};
-    gatts_register_service(g_ble_ota_attr_list, ARRAY_SIZE(g_ble_ota_attr_list), ble_ota_server_callback, &cfg);
+    gatts_register_service(g_ble_ota_attr_list, ARRAY_SIZE(g_ble_ota_attr_list), ble_ota_server_callback, NULL);
 }
 
 void app_ota_event_reg(app_ota_event_callback cb)
@@ -172,30 +158,14 @@ void app_ota_send_rx_cfm(uint8_t conidx)
 bool app_ota_send_notification(uint8_t conidx, uint8_t* data, uint32_t len)
 {
     bt_status_t status = BT_STS_SUCCESS;
-
-    gatt_char_notify_t val_ntf=
-    {
-        .character = g_ble_ota_character,
-        .service = g_ble_ota_service,
-    };
-
-    status = gatts_send_value_notification(gap_conn_bf(conidx), &val_ntf, data, (uint16_t)len);
-
+    status = gatts_send_notification(gap_conn_bf(conidx), g_ble_ota_character, data, (uint16_t)len);
     return (status != BT_STS_FAILED);
 }
 
 bool app_ota_send_indication(uint8_t conidx, uint8_t* data, uint32_t len)
 {
     bt_status_t status = BT_STS_SUCCESS;
-
-    gatt_char_notify_t val_ind=
-    {
-        .character = g_ble_ota_character,
-        .service = g_ble_ota_service,
-    };
-
-    status = gatts_send_value_indication(gap_conn_bf(conidx), &val_ind, data, (uint16_t)len);
-
+    status = gatts_send_indication(gap_conn_bf(conidx), g_ble_ota_character, data, (uint16_t)len);
     return (status != BT_STS_FAILED);
 }
 

@@ -64,7 +64,7 @@ static void sasc_cb_audio_status_ind(sas_prf_t *prf, uint8_t value)
     // SASC_VALUE_IND SASC_RD_CHAR_STATUS
 }
 
-static bool ble_sas_client_callback(gatt_prf_t *prf, gatt_profile_event_t event, gatt_profile_callback_param_t param)
+static int ble_sas_client_callback(gatt_prf_t *prf, gatt_profile_event_t event, gatt_profile_callback_param_t param)
 {
     sas_prf_t *sas = (sas_prf_t *)prf;
 

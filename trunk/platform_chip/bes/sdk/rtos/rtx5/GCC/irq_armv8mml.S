@@ -24,6 +24,10 @@
  */
 
 
+#ifdef CPU_PC_DUMP
+#include "plat_addr_map.h"
+#endif
+
         .syntax  unified
 
         #ifdef   ARM_CMNS
@@ -68,6 +72,14 @@ irqRtxLib:
         .cantunwind
 SVC_Handler:
 
+#if defined(CPU_PC_DUMP) && (defined(CHIP_BEST1306) || defined(CHIP_BEST1502X) || defined(CHIP_BEST1603))
+        LDR      R1, =0x2004
+        LDR      R2, =CPUDUMP_BASE
+        ADD      R2,R2,R1
+        MOVS     R1, #2
+        STR      R1, [R2]               //start cpudump
+#endif
+
         TST      LR,#0x04               // Determine return stack from EXC_RETURN bit 2
         ITE      EQ
         MRSEQ    R0,MSP                 // Get MSP if return stack is MSP
@@ -77,13 +89,7 @@ SVC_Handler:
         LDRB     R1,[R1,#-2]            // Load SVC number
         CMP      R1,#0
         BNE      SVC_User               // Branch if not SVC 0
-#ifdef CPU_PC_DUMP
-#if defined(CHIP_BEST1306) || defined(CHIP_BEST1306P) || defined(CHIP_BEST1502X) || defined(CHIP_BEST1502P)
-        MOVS	 R1, #2
-        LDR      R2, =0x401E2004
-        STR	     R1, [R2]               //start cpudump
-#endif
-#endif
+
         PUSH     {R0,LR}                // Save SP and EXC_RETURN
         LDM      R0,{R0-R3,R12}         // Load function parameters and address from stack
         BLX      R12                    // Call service function

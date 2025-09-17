@@ -123,18 +123,24 @@ __WEAK __NO_RETURN void osRtxTimerThread (void *argument) {
   os_timer_finfo_t finfo;
   osStatus_t       status;
   (void)           argument;
+  osThreadId_t id;
 
   osRtxInfo.timer.mq = osRtxMessageQueueId(
     osMessageQueueNew(osRtxConfig.timer_mq_mcnt, sizeof(os_timer_finfo_t), osRtxConfig.timer_mq_attr)
   );
   osRtxInfo.timer.tick = osRtxTimerTick;
 
+  id = osRtxThreadGetRunning();
   for (;;) {
     //lint -e{934} "Taking address of near auto variable"
     status = osMessageQueueGet(osRtxInfo.timer.mq, &finfo, NULL, osWaitForever);
     if (status == osOK) {
+      osRtxThreadAtomicSet (id);
       EvrRtxTimerCallback(finfo.func, finfo.arg);
       (finfo.func)(finfo.arg);
+      if (!osRtxThreadAtomicCheck(id)){
+          TRACE(0, "#### Warning, Don't sleep/wait in timer callback %p", finfo.func);
+      }
     }
   }
 }
@@ -196,8 +202,8 @@ static osTimerId_t svcRtxTimerNew (osTimerFunc_t func, osTimerType_t type, void 
       if (osRtxTimerMemUsage.max_used < used) {
         osRtxTimerMemUsage.max_used = used;
       }
-      RTX5_TRACE(2, "TimerInfo: new timer=%p, callback=%p", timer, func);
-      RTX5_TRACE(3, "TimerInfo: max_used=%2d, alloc=%2d, free=%2d",
+      TRACE(2, "TimerInfo: new timer=%p, callback=%p", timer, func);
+      TRACE(3, "TimerInfo: max_used=%2d, alloc=%2d, free=%2d",
             osRtxTimerMemUsage.max_used, osRtxTimerMemUsage.cnt_alloc, osRtxTimerMemUsage.cnt_free);
     }
 #endif
@@ -358,7 +364,7 @@ static osStatus_t svcRtxTimerDelete (osTimerId_t timer_id) {
     }
 #if (defined(OS_OBJ_MEM_USAGE) && (OS_OBJ_MEM_USAGE != 0))
     osRtxTimerMemUsage.cnt_free++;
-    RTX5_TRACE(1, "TimerInfo: del timer=%p", timer);
+    TRACE(1, "TimerInfo: del timer=%p", timer);
 #endif
   }
 

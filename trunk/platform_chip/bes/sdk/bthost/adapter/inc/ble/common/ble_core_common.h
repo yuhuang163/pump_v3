@@ -24,10 +24,9 @@
 extern "C" {
 #endif
 
-#define BLE_ADV_DATA_STRUCT_HEADER_LEN   (2)
-#define BLE_ADV_TYPE_SHORTENED_NAME      0x08
-#define BLE_ADV_TYPE_COMPLETE_NAME       0x09
-#define BLE_ADV_TYPE_SERVICE_16_BIT_DATA 0x16
+#define BLE_ADV_DATA_STRUCT_HEADER_LEN (2)
+#define BLE_ADV_TYPE_SHORTENED_NAME 0x08
+#define BLE_ADV_TYPE_COMPLETE_NAME 0x09
 
 #define INVALID_BLE_ACTIVITY_INDEX  0xFF
 #define INVALID_BLE_CONIDX          0xFF
@@ -121,8 +120,6 @@ typedef enum
     BLE_CONN_PARAM_MODE_SNOOP_EXCHANGE,
     BLE_CONN_PARAM_MODE_SVC_DISC,
     BLE_CONN_PARAM_MODE_ISO_DATA,
-    BLE_CONN_PARAM_MODE_RATE_TEST,
-    BLE_CONN_PARAM_MODE_IDLE,
     BLE_CONN_PARAM_MODE_NUM,
 } BLE_CONN_PARAM_MODE_E;
 
@@ -171,7 +168,6 @@ enum BLE_ADV_SWITCH_USER_E {
     BLE_SWITCH_USER_IBRT        = 5, // used for ibrt
     BLE_SWITCH_USER_FPGA        = 6, // used for fpga
     BLE_SWITCH_USER_BLE_AUDIO   = 7, // used for ble audio
-    BLE_SWITCH_USER_CUSTOM      = 8, // used for custom
 
     BLE_SWITCH_USER_NUM,
 };
@@ -194,7 +190,6 @@ typedef enum
     USER_OTA,
     USER_BLE_AUDIO,
     USER_SPOT,
-    USER_FINDMY,
     USER_BLE_CUSTOMER_0,
     USER_BLE_CUSTOMER_1,
     USER_BLE_CUSTOMER_2,
@@ -205,20 +200,6 @@ typedef enum
 } BLE_ADV_USER_E;
 
 typedef void (*BLE_DATA_FILL_FUNC_T)(void *advParam);
-
-enum
-{
-    /// Report Type
-    BES_GAPM_REPORT_INFO_REPORT_TYPE_MASK    = 0x07,
-    /// Report is complete
-    BES_GAPM_REPORT_INFO_COMPLETE_BIT        = (1 << 3),
-    /// Connectable advertising
-    BES_GAPM_REPORT_INFO_CONN_ADV_BIT        = (1 << 4),
-    /// Scannable advertising
-    BES_GAPM_REPORT_INFO_SCAN_ADV_BIT        = (1 << 5),
-    /// Directed advertising
-    BES_GAPM_REPORT_INFO_DIR_ADV_BIT         = (1 << 6),
-};
 
 enum gapm_own_addr
 {
@@ -451,7 +432,6 @@ typedef struct
 typedef struct {
     BLE_ADV_ACTIVITY_USER_E adv_actv_user;
     bool isBleFlagsAdvDataConfiguredByAppLayer;
-    uint32_t advUser;
     /// Advertising filtering policy (@see enum adv_filter_policy)
     uint32_t PeriodicIntervalMin;
     uint32_t PeriodicIntervalMax;
@@ -539,20 +519,9 @@ typedef enum{
     BLE_SET_RAL_CMP_EVENT                  = 24,
     BLE_SUBRATE_CHANGE_EVENT               = 25,
     BLE_ENCRYPT_LTK_REPORT_EVENT           = 26,
-    BLE_MTU_EXECHANGE_EVENT                = 27,
-    BLE_SMP_PAIRING_CMP_EVENT              = 28,
-    BLE_PAIRING_REQUEST_EVENT              = 29,
-    BLE_PAIRING_RESPONSE_EVENT             = 30,
-    BLE_PASSKEY_DISPLAY_EVENT              = 31,
-    BLE_PASSKEY_REQUEST_EVENT              = 32,
-    BLE_CONN_SECURITY_UPDATE_EVENT         = 33,
-    BLE_PHY_UPDATE_COMPLETE_EVENT          = 34,
-    BLE_DATA_LEN_UPDATE_COMPLETE_EVENT     = 35,
-    BLE_MTU_EXCHANGE_REQ_EVENT             = 36,
-    BLE_SMP_CTKD_KEY_DERIVED_EVENT         = 37,
 
     BLE_EVENT_NUM_MAX,
-} ble_event_type_e;
+} ble_evnet_type_e;
 
 /**
  * @brief The event type of other module
@@ -569,11 +538,6 @@ typedef enum{
 
 typedef struct {
     uint8_t conidx;
-    uint8_t role; //0 = Central / 1 = Peripheral
-    uint16_t connhdl;
-    uint16_t con_interval;
-    uint16_t con_latency;
-    uint16_t sup_to;
     ble_bdaddr_t peer_bdaddr;
 } connect_handled_t;
 
@@ -599,7 +563,6 @@ typedef struct {
 typedef struct {
     uint8_t peer_bdaddr[BTIF_BD_ADDR_SIZE];
     uint8_t peer_type;
-    uint8_t err_code;
 } stopped_connecting_handled_t;
 
 typedef struct {
@@ -611,7 +574,6 @@ typedef struct {
 typedef struct {
     uint8_t conidx;
     uint8_t errCode;
-    uint16_t connhdl;
     ble_bdaddr_t peer_bdaddr;
 } disconnect_handled_t;
 
@@ -669,8 +631,12 @@ typedef struct {
     /// Report data length
     uint16_t length;
     /// Report data
+#ifdef BLE_STACK_NEW_DESIGN
     const uint8_t *data;
     const gap_adv_report_t *adv;
+#else
+    uint8_t data[EXT_ADV_DATA_LEN];
+#endif
 } scan_data_report_handled_t;
 
 typedef struct {
@@ -679,22 +645,12 @@ typedef struct {
 } scan_starting_failed_handled_t;
 
 typedef struct {
-    uint8_t  conidx;
     bool     isEnhanced;    // true: eatt 0x17; false: le 0x14
     uint16_t spsm;
     uint16_t mtu;
     uint16_t mps;
     uint16_t initial_credits;
 } credit_based_conn_req_handled_t;
-
-typedef struct {
-    /// Connection index
-    uint8_t conidx;
-    /// Random address
-    bt_bdaddr_t random_addr;
-    /// Resolved public address
-    bt_bdaddr_t resolved_addr;
-} random_addr_resolved_handled_t;
 
 typedef struct {
     /// Connection index
@@ -764,77 +720,6 @@ typedef struct {
     uint8_t ltk_existed;
 } le_conn_encrypt_ltk_handled_t;
 
-typedef struct {
-    /// Connection index
-    uint8_t conidx;
-    /// mtu
-    uint16_t mtu;
-} mtu_exechange_handled_t;
-
-typedef struct {
-    ble_bdaddr_t identity_address;
-    uint8_t irk[16];
-    uint8_t ediv[2];
-    uint8_t rand[8];
-    uint8_t ltk[16];
-    uint8_t ltk_len;
-    uint8_t signing_key[16];
-} security_info_t;
-
-typedef struct {
-    uint8_t conidx;
-    uint8_t err_code;
-    security_info_t initiator;
-    security_info_t responde;
-} connect_pair_cmp_handled_t;
-
-typedef struct {
-    /// Connection index
-    uint8_t conidx;
-    /// Connection handle
-    uint16_t connhdl;
-    /// mtu
-    uint16_t peer_mtu;
-} mtu_exechange_req_t;
-
-typedef struct
-{
-    /// BT linkey or LE LTK
-    bool is_linkkey;
-    /// Address type from IA
-    bt_addr_type_t peer_type;
-    /// Address from IA
-    bt_bdaddr_t peer_addr;
-    /// Key size
-    uint8_t enc_key_size;
-    /// Key
-    uint8_t enc_key[16];
-} smp_ctkd_key_derived_t;
-
-typedef struct
-{
-    /// Connection index
-    uint8_t conidx;
-    /// Connection handle
-    uint16_t connhdl;
-    uint16_t tx_octets;
-    uint16_t rx_octets;
-    uint16_t tx_time;
-    uint16_t rx_time;
-} data_length_updated_t;
-
-typedef struct
-{
-    /// Connection index
-    uint8_t conidx;
-    /// Connection handle
-    uint16_t connhdl;
-    uint8_t status;
-    uint8_t tx_phy;
-    uint8_t rx_phy;
-} phy_update_complete_t;
-
-
 typedef union {
     connect_handled_t connect_handled;
     connect_bond_handled_t connect_bond_handled;
@@ -853,23 +738,16 @@ typedef union {
     scan_data_report_handled_t scan_data_report_handled;
     scan_starting_failed_handled_t scan_starting_failed_handled;
     credit_based_conn_req_handled_t credit_based_conn_req_handled;
-    random_addr_resolved_handled_t random_addr_resolved_handled;
     read_tx_pwr_handled_t read_tx_power_handled;
     tx_pwr_change_reporting_handled_t tx_power_change_reporting_handled;
     path_loss_report_handled_t path_loss_report_handled;
     path_set_ral_cmp_handled_t set_ral_cmp_handled;
     subrate_change_handled_t subrate_change_handled;
     le_conn_encrypt_ltk_handled_t le_conn_encrypt_ltk_handled;
-    mtu_exechange_handled_t mtu_exec_handled;
-    connect_pair_cmp_handled_t pair_cmp_handled;
-    mtu_exechange_req_t mtu_exchange_req;
-    smp_ctkd_key_derived_t ctkd_key_derived;
-    data_length_updated_t data_length_updated;
-    phy_update_complete_t conn_phy_updated;
 } ble_event_handled_t;
 
 typedef struct {
-    ble_event_type_e evt_type;
+    ble_evnet_type_e evt_type;
     ble_event_handled_t p;
 } ble_event_t;
 
@@ -883,23 +761,6 @@ struct bes_hci_iso_hdr
     uint16_t iso_data_load_len;
 };
 
- /// Report Type MASK
-#define BES_BLE_REPORT_INFO_REPORT_TYPE_MASK 0x07
-/// Advertising report type
-enum ble_adv_report_type
-{
-    /// Extended advertising report
-    BES_BLE_REPORT_TYPE_ADV_EXT = 0,
-    /// Legacy advertising report
-    BES_BLE_REPORT_TYPE_ADV_LEG,
-    /// Extended scan response report
-    BES_BLE_REPORT_TYPE_SCAN_RSP_EXT,
-    /// Legacy scan response report
-    BES_BLE_REPORT_TYPE_SCAN_RSP_LEG,
-    /// Periodic advertising report
-    BES_BLE_REPORT_TYPE_PER_ADV,
-};
-
 typedef void (*APP_BLE_CORE_GLOBAL_HANDLER_FUNC)(ble_event_t *, void *);
 
 typedef uint8_t (*set_rsp_dist_lk_bit_field_func)(void);
@@ -908,10 +769,18 @@ typedef void (*smp_identify_addr_exch_complete)(const ble_bdaddr_t *ia_addr);
 
 typedef struct {
     // evt_type of the ble event
-    ble_event_type_e evt_type;
+    ble_evnet_type_e evt_type;
     // Pointer to the handler function for the ble event above.
     APP_BLE_CORE_GLOBAL_HANDLER_FUNC func;
 } ble_event_handler_t;
+
+void bes_ble_stack_init(void);
+
+void bes_ble_ke_event_schedule(void);
+
+void bes_ble_reset_start(void);
+
+void bes_ble_init_ble_name(const char *name);
 
 #ifdef __cplusplus
 }

@@ -29,20 +29,14 @@
 #include "app_audio.h"
 #include "app_overlay.h"
 #include "bluetooth_bt_api.h"
-#include "app_ring_merge.h"
 #include "tgt_hardware.h"
 #include "bt_sco_chain.h"
 #include "iir_resample.h"
-#include "hfp_api.h"
-#include "audio_prompt_sbc.h"
 #include "speech_utils.h"
 #include "bt_sco_codec.h"
 #include "bt_drv.h"
 #include "arm_math_ex.h"
-
-#ifdef IBRT
-#include "bts_core_if.h"
-#endif
+#include "audio_manager.h"
 
 #if defined(SPEECH_TX_24BIT)
 typedef int     TX_PCM_T;
@@ -59,12 +53,10 @@ typedef short   RX_PCM_T;
 extern TX_PCM_T *aec_echo_buf;
 
 // app_bt_stream.cpp::bt_sco_player(), used buffer size
-#ifndef APP_BT_STREAM_USE_BUF_SIZE
-#ifdef HFP_SUPPORT_LC3_SWB
 #define APP_BT_STREAM_USE_BUF_SIZE      (1024*4)
-#else
-#define APP_BT_STREAM_USE_BUF_SIZE      (1024*2)
-#endif
+#if defined(SCO_OPTIMIZE_FOR_RAM)
+uint8_t *sco_overlay_ram_buf = NULL;
+int sco_overlay_ram_buf_len = 0;
 #endif
 
 static int sco_sample_rate;
@@ -83,22 +75,15 @@ static IirResampleState *downlink_resample_sco2vqe_st = NULL;
 static IirResampleState *uplink_resample_vqe2sco_st = NULL;
 static IirResampleState *downlink_resample_vqe2codec_st = NULL;
 static IirResampleState *resample_echo_st = NULL;
-
-static IirResampleState *uplink_resample_vpu2vqe_st = NULL;
-
 static bool speech_inited = false;
 static uint32_t g_bypass_tx_algo_sel_ch = 0xFF;
 
-
-#ifdef AUDIO_RMS_MONITOR_ENABLE
-extern int32_t rms_dac_volume;
-extern uint32_t rms_debug_cnt;
-#endif
+#define VOICEBTPCM_TRACE(s,...)
+//TRACE(s, ##__VA_ARGS__)
 
 static const bt_sco_codec_t *g_bt_sco_codec_ptr = NULL;
 
-extern hfp_sco_codec_t bt_sco_codec_get_type(void);
-extern "C" uint8_t is_sco_mode(void);
+extern "C" hfp_sco_codec_t bt_sco_codec_get_type(void);
 
 #if defined(CALL_BYPASS_SLAVE_TX_PROCESS)
 #define TX_CHAIN_BYPASS_LOG_THD     (200)   // 3s: 200 * 15ms
@@ -115,17 +100,17 @@ static bool bt_sco_chain_get_bypass_flag(void)
 int bt_sco_chain_set_master_role(bool is_master)
 {
 #if defined(CALL_BYPASS_SLAVE_TX_PROCESS)
-    AUDIOPLAYERS_TRACE(2, "[%s] is_master: %d", __func__, is_master);
+    TRACE(2, "[%s] is_master: %d", __func__, is_master);
 
-    if (is_sco_mode()) {
+    if (amgr_is_bluetooth_sco_on()) {
         if (is_master) {
             // TODO: This is CALL system frequency.
-            app_sysfreq_req(APP_SYSFREQ_USER_BT_SCO, APP_SYSFREQ_USER_BT_SCO_MASTER);
+            app_sysfreq_req(APP_SYSFREQ_USER_BT_SCO, APP_SYSFREQ_104M);
             g_tx_chain_bypass_flag = false;
         } else {
             // TODO: Perhaps you can change APP_SYSFREQ_52M to APP_SYSFREQ_26M.
+            app_sysfreq_req(APP_SYSFREQ_USER_BT_SCO, APP_SYSFREQ_52M);
             g_tx_chain_bypass_flag = true;
-            app_sysfreq_req(APP_SYSFREQ_USER_BT_SCO, APP_SYSFREQ_USER_BT_SCO_SLAVE);
         }
     }
 #endif
@@ -135,24 +120,15 @@ int bt_sco_chain_set_master_role(bool is_master)
 
 extern "C" int32_t bt_sco_chain_bypass_tx_algo(uint32_t sel_ch)
 {
-    AUDIOPLAYERS_TRACE(2, "[%s] sel_ch: %d", __func__, sel_ch);
+    TRACE(2, "[%s] sel_ch: %d", __func__, sel_ch);
 
     if (sel_ch < SPEECH_CODEC_CAPTURE_CHANNEL_NUM) {
         g_bypass_tx_algo_sel_ch = sel_ch;
         return 0;
     } else {
-        AUDIOPLAYERS_TRACE(2, "[%s] WARNING: Failed to set sel_ch: %d ", __func__, SPEECH_CODEC_CAPTURE_CHANNEL_NUM);
+        TRACE(2, "[%s] WARNING: Failed to set sel_ch: %d ", __func__, SPEECH_CODEC_CAPTURE_CHANNEL_NUM);
         return -1;
     }
-}
-
-extern "C" int32_t speech_bone_sensor_resample_process(void *pcm_buf, int pcm_len)
-{
-    if (uplink_resample_vpu2vqe_st) {
-        iir_resample_process(uplink_resample_vpu2vqe_st, (RX_PCM_T *)pcm_buf, (RX_PCM_T *)pcm_buf, pcm_len);
-        // pcm_len = pcm_len * 16000 / sco_sample_rate;
-    }
-    return pcm_len;
 }
 
 /*
@@ -171,16 +147,16 @@ extern "C" int32_t speech_bone_sensor_resample_process(void *pcm_buf, int pcm_le
  */
 int process_downlink_bt_voice_frames(uint8_t *in_buf, uint32_t in_len, uint8_t *out_buf, uint32_t out_len)
 {
-    // AUDIOPLAYERS_TRACE(3,"[%s] in_len = %d, out_len = %d", __FUNCTION__, in_len, out_len);
+    // TRACE(3,"[%s] in_len = %d, out_len = %d", __FUNCTION__, in_len, out_len);
 
     if (speech_inited == false) {
-        AUDIOPLAYERS_TRACE(1, "[%s] warnning: speech init not finished", __FUNCTION__);
+        TRACE(1, "[%s] warnning: speech init not finished", __FUNCTION__);
         memset(out_buf, 0, out_len);
         return 0;
     }
 
 #if !defined(SPEECH_TX_AEC_CODEC_REF)
-#if defined(SPEECH_TX_AEC) || defined(SPEECH_TX_AEC2) || defined(SPEECH_TX_AEC3) || defined(SPEECH_TX_AEC2FLOAT) || defined(SPEECH_TX_3MIC_NS) || defined(SPEECH_TX_2MIC_NS4) || defined(SPEECH_TX_2MIC_NS7) || defined(SPEECH_TX_2MIC_NS8) || defined(SPEECH_TX_THIRDPARTY)
+#if defined(SPEECH_TX_AEC) || defined(SPEECH_TX_AEC2) || defined(SPEECH_TX_AEC3) || defined(SPEECH_TX_AEC2FLOAT)|| defined(SPEECH_TX_2MIC_NS7) || defined(SPEECH_TX_2MIC_NS8) || defined(SPEECH_TX_3MIC_NS) || defined(SPEECH_TX_THIRDPARTY)
     int ref_pcm_len = out_len / sizeof(RX_PCM_T);
     RX_PCM_T *ref_pcm_buf = (RX_PCM_T *)out_buf;
 
@@ -214,30 +190,6 @@ int process_downlink_bt_voice_frames(uint8_t *in_buf, uint32_t in_len, uint8_t *
     if (g_bt_sco_codec_ptr) {
         g_bt_sco_codec_ptr->decoder(in_buf, in_len, (uint8_t *)pcm_buf, pcm_len * sizeof(int16_t));
     }
-
-#ifdef AUDIO_RMS_MONITOR_ENABLE
-    hfp_sco_codec_t sco_codec_type = bt_sco_codec_get_type();
-    if (sco_codec_type == BT_HFP_SCO_CODEC_CVSD)
-    {
-        rms_debug_cnt ++;
-        if(rms_debug_cnt >= 256)
-        {
-            int16_t* rms_buff = (int16_t*)pcm_buf;
-            rms_debug_cnt = 0;
-            AUDIOPLAYERS_TRACE(7, "RMS CVSD:%d dbfs %d %d %d %d %d %d", rms_dac_volume, rms_buff[0], rms_buff[1], rms_buff[2], rms_buff[3], rms_buff[4], rms_buff[5]);
-        }
-    }
-    else if (sco_codec_type == BT_HFP_SCO_CODEC_MSBC)
-    {
-        rms_debug_cnt ++;
-        if(rms_debug_cnt >= 256)
-        {
-            int16_t* rms_buff = (int16_t*)pcm_buf;
-            rms_debug_cnt = 0;
-            AUDIOPLAYERS_TRACE(7, "RMS MSBC:%d dbfs %d %d %d %d %d %d", rms_dac_volume, rms_buff[0], rms_buff[1], rms_buff[2], rms_buff[3], rms_buff[4], rms_buff[5]);
-        }
-    }
-#endif
 
     if (downlink_resample_sco2vqe_st) {
         iir_resample_process(downlink_resample_sco2vqe_st, pcm_buf, (int16_t *)out_buf, pcm_len);
@@ -293,9 +245,7 @@ static inline void split_uplink_data(TX_PCM_T *pcm_buf, TX_PCM_T *echo_buf, uint
 #else
 #error "Invalid SPEECH_CODEC_CAPTURE_CHANNEL_NUM!!!"
 #endif
-#if defined(SPEECH_TX_AEC) || defined(SPEECH_TX_AEC2) || defined(SPEECH_TX_AEC3) || defined(SPEECH_TX_AEC2FLOAT) || \
-    defined(SPEECH_TX_3MIC_NS) || defined(SPEECH_TX_2MIC_NS4) || defined(SPEECH_TX_2MIC_NS7) || defined(SPEECH_TX_THIRDPARTY) || \
-    defined(SPEECH_TX_2MIC_NS8) || defined(SPEECH_TX_XIAOMI_AEC)
+#if defined(SPEECH_TX_AEC) || defined(SPEECH_TX_AEC2) || defined(SPEECH_TX_AEC3) || defined(SPEECH_TX_AEC2FLOAT)|| defined(SPEECH_TX_2MIC_NS7) || defined(SPEECH_TX_2MIC_NS) || defined(SPEECH_TX_3MIC_NS) || defined(SPEECH_TX_THIRDPARTY)
         *echo_buf++ = *pcm_buf_i++;
 #endif
     }
@@ -314,32 +264,22 @@ static inline void split_uplink_data(TX_PCM_T *pcm_buf, TX_PCM_T *echo_buf, uint
  */
 int process_uplink_bt_voice_frames(uint8_t *in_buf, uint32_t in_len, uint8_t *ref_buf, uint32_t ref_len, uint8_t *out_buf, uint32_t out_len)
 {
-    //AUDIOPLAYERS_TRACE(3,"[%s] in_len = %d, out_len = %d", __FUNCTION__, in_len, out_len);
+    //TRACE(3,"[%s] in_len = %d, out_len = %d", __FUNCTION__, in_len, out_len);
 
     if (speech_inited == false) {
-        AUDIOPLAYERS_TRACE(1, "[%s] warnning: speech init not finished", __FUNCTION__);
+        TRACE(1, "[%s] warnning: speech init not finished", __FUNCTION__);
         memset(out_buf, MSBC_MUTE_PATTERN, out_len);
         return 0;
     }
 
 #if defined(CALL_BYPASS_SLAVE_TX_PROCESS)
-#ifdef IBRT
-    if (bts_core_get_ui_role() != TWS_UI_UNKNOWN)
-    {
-        if (bt_sco_chain_get_bypass_flag()) {
-            if (g_tx_chain_bypass_log_cnt++ >= TX_CHAIN_BYPASS_LOG_THD) {
-                g_tx_chain_bypass_log_cnt = 0;
-                AUDIOPLAYERS_TRACE(0, "[MUTE] Bypass phone call tx chain for slave side ...");
-            }
-            return 0;
+    if (bt_sco_chain_get_bypass_flag()) {
+        if (g_tx_chain_bypass_log_cnt++ >= TX_CHAIN_BYPASS_LOG_THD) {
+            g_tx_chain_bypass_log_cnt = 0;
+            TRACE(0, "[MUTE] Bypass phone call tx chain for slave side ...");
         }
-    } else
-#endif
-    {
-        if (bt_sco_chain_get_bypass_flag()) {
-            bt_sco_chain_set_master_role(true);
-        }
-    } 
+        return 0;
+    }
 #endif
 
     TX_PCM_T *pcm_buf = (TX_PCM_T *)in_buf;
@@ -374,7 +314,7 @@ int process_uplink_bt_voice_frames(uint8_t *in_buf, uint32_t in_len, uint8_t *re
         pcm_len = pcm_len / SPEECH_CODEC_CAPTURE_CHANNEL_NUM;
     }
 
-#if defined(SPEECH_TX_24BIT) && !defined(XIAOMI_TX_3MIC_ENABLE)
+#if defined(SPEECH_TX_24BIT)
     arm_q23_to_q15((q23_t *)pcm_buf, (q15_t *)pcm_buf, pcm_len);
 #endif
 
@@ -404,7 +344,7 @@ void *voicebtpcm_get_ext_buff(int size)
         size = size + (4 - size % 4);
     }
     app_audio_mempool_get_buff(&pBuff, size);
-    AUDIOPLAYERS_TRACE(2,"[%s] len:%d", __func__, size);
+    VOICEBTPCM_TRACE(2,"[%s] len:%d", __func__, size);
     return (void*)pBuff;
 }
 // sco sample rate: encoder/decoder sample rate
@@ -440,16 +380,21 @@ int voicebtpcm_pcm_audio_init(int _sco_sample_rate,
     tx_codec_frame_length = SPEECH_FRAME_MS_TO_LEN(tx_codec_sample_rate, SPEECH_SCO_FRAME_MS);
     rx_codec_frame_length = SPEECH_FRAME_MS_TO_LEN(rx_codec_sample_rate, SPEECH_SCO_FRAME_MS);
 
-    AUDIOPLAYERS_TRACE(3, "[%s] SCO  : sample rate = %d, frame len = %d", __func__, sco_sample_rate, sco_frame_length);
-    AUDIOPLAYERS_TRACE(3, "[%s] VQE  : tx_sample rate = %d, tx_frame len = %d, rx_sample_rate = %d, rx_frame_len = %d", __func__,
+    TRACE(3, "[%s] SCO  : sample rate = %d, frame len = %d", __func__, sco_sample_rate, sco_frame_length);
+    TRACE(3, "[%s] VQE  : tx_sample rate = %d, tx_frame len = %d, rx_sample_rate = %d, rx_frame_len = %d", __func__,
         tx_vqe_sample_rate, tx_vqe_frame_length, rx_vqe_sample_rate, rx_vqe_frame_length);
-    AUDIOPLAYERS_TRACE(3, "[%s] CODEC: tx_sample rate = %d, tx_frame len = %d, rx_sample_rate = %d, rx_frame_len = %d", __func__,
+    TRACE(3, "[%s] CODEC: tx_sample rate = %d, tx_frame len = %d, rx_sample_rate = %d, rx_frame_len = %d", __func__,
         tx_codec_sample_rate, tx_codec_frame_length, rx_codec_sample_rate, rx_codec_frame_length);
 
-    if ((sco_sample_rate > tx_codec_sample_rate) || (sco_sample_rate > rx_codec_sample_rate)) {
-        AUDIOPLAYERS_TRACE(1, "[%s] SCO <-- Resample --> VQE", __func__);
+    if ((sco_sample_rate < tx_codec_sample_rate) || (sco_sample_rate < rx_codec_sample_rate) || (tx_codec_sample_rate > rx_codec_sample_rate)) {
+        TRACE(1, "[%s] SCO <-- Resample --> VQE", __func__);
         resample_buf = (int16_t *)voicebtpcm_get_ext_buff(sizeof(int16_t) * sco_frame_length);
     }
+
+#if defined(SCO_OPTIMIZE_FOR_RAM)
+    sco_overlay_ram_buf_len = hal_overlay_get_text_free_size((enum HAL_OVERLAY_ID_T)APP_OVERLAY_HFP);
+    sco_overlay_ram_buf = (uint8_t *)hal_overlay_get_text_free_addr((enum HAL_OVERLAY_ID_T)APP_OVERLAY_HFP);
+#endif
 
     speech_len = app_audio_mempool_free_buff_size() - APP_BT_STREAM_USE_BUF_SIZE;
     speech_buf = (uint8_t *)voicebtpcm_get_ext_buff(speech_len);
@@ -461,49 +406,37 @@ int voicebtpcm_pcm_audio_init(int _sco_sample_rate,
     // NOTE: Some modules must be created after speech init if they use speech heap
 
     if (tx_vqe_sample_rate != sco_sample_rate) {
-        AUDIOPLAYERS_TRACE(1, "[%s] TX VQE <-- Resample --> SCO", __func__);
+        TRACE(1, "[%s] TX VQE <-- Resample --> SCO", __func__);
         uplink_resample_vqe2sco_st = iir_resample_init(tx_vqe_frame_length, 16, iir_resample_choose_mode(tx_vqe_sample_rate, sco_sample_rate));
     } else {
         uplink_resample_vqe2sco_st = NULL;
     }
 
     if (sco_sample_rate != rx_vqe_sample_rate) {
-        AUDIOPLAYERS_TRACE(1, "[%s] RX VQE <-- Resample --> SCO", __func__);
+        TRACE(1, "[%s] RX VQE <-- Resample --> SCO", __func__);
         downlink_resample_sco2vqe_st = iir_resample_init(sco_frame_length, 16, iir_resample_choose_mode(sco_sample_rate, rx_vqe_sample_rate));
     } else {
         downlink_resample_sco2vqe_st = NULL;
     }
 
     if (tx_codec_sample_rate != tx_vqe_sample_rate) {
-        AUDIOPLAYERS_TRACE(1, "[%s] TX CODEC <-- Resample --> VQE", __func__);
+        TRACE(1, "[%s] TX CODEC <-- Resample --> VQE", __func__);
         uplink_resample_codec2vqe_st = multi_iir_resample_init(tx_codec_frame_length * _capture_channel_num, sizeof(TX_PCM_T) * 8,  _capture_channel_num, iir_resample_choose_mode(tx_codec_sample_rate, tx_vqe_sample_rate));
     } else {
         uplink_resample_codec2vqe_st = NULL;
     }
 
     if (rx_vqe_sample_rate != rx_codec_sample_rate) {
-        AUDIOPLAYERS_TRACE(1, "[%s] RX VQE <-- Resample --> CODEC", __func__);
+        TRACE(1, "[%s] RX VQE <-- Resample --> CODEC", __func__);
         downlink_resample_vqe2codec_st = iir_resample_init(rx_vqe_frame_length, sizeof(RX_PCM_T) * 8, iir_resample_choose_mode(rx_vqe_sample_rate, rx_codec_sample_rate));
     } else {
         downlink_resample_vqe2codec_st = NULL;
     }
 
-    if (16000 != tx_vqe_sample_rate) {
-        AUDIOPLAYERS_TRACE(1, "[%s] TX VPU <-- Resample --> VQE", __func__);
-        uplink_resample_vpu2vqe_st = iir_resample_init(240, sizeof(TX_PCM_T), iir_resample_choose_mode(16000, tx_vqe_sample_rate));
-    } else {
-        uplink_resample_vpu2vqe_st = NULL;
-    }
-
-#if !defined(SPEECH_TX_AEC_CODEC_REF)
-#if defined(SPEECH_TX_AEC) || defined(SPEECH_TX_AEC2) || defined(SPEECH_TX_AEC3) || defined(SPEECH_TX_AEC2FLOAT) || defined(SPEECH_TX_3MIC_NS) || defined(SPEECH_TX_2MIC_NS4) || defined(SPEECH_TX_2MIC_NS7) || defined(SPEECH_TX_2MIC_NS8) || defined(SPEECH_TX_THIRDPARTY)
     if (tx_codec_sample_rate != rx_codec_sample_rate) {
-        AUDIOPLAYERS_TRACE(1, "[%s] RX ECHO <-- Resample --> TX ECHO", __func__);
+        TRACE(1, "[%s] RX ECHO <-- Resample --> TX ECHO", __func__);
         resample_echo_st = iir_resample_init(rx_codec_frame_length, sizeof(RX_PCM_T) * 8, iir_resample_choose_mode(rx_codec_sample_rate, tx_vqe_sample_rate));
-    } else
-#endif
-#endif
-    {
+    } else {
         resample_echo_st = NULL;
     }
 
@@ -513,15 +446,18 @@ int voicebtpcm_pcm_audio_init(int _sco_sample_rate,
             g_bt_sco_codec_ptr = &bt_sco_codec_cvsd;
         } else if (sco_codec_type == BT_HFP_SCO_CODEC_MSBC) {
             g_bt_sco_codec_ptr = &bt_sco_codec_msbc;
+        }
 #if defined(HFP_SUPPORT_LC3_SWB)
-        } else if (sco_codec_type == BT_HFP_SCO_CODEC_LC3_SWB) {
+        else if (sco_codec_type == BT_HFP_SCO_CODEC_LC3_SWB) {
             g_bt_sco_codec_ptr = &bt_sco_codec_lc3_swb;
+        }
 #endif
 #if defined(SCO_ADD_CUSTOMER_CODEC)
-        } else if (sco_codec_type == BT_HFP_SCO_CODEC_XXXX) {
+        else if (sco_codec_type == BT_HFP_SCO_CODEC_XXXX) {
             g_bt_sco_codec_ptr = &bt_sco_codec_xxxx;
+        }
 #endif
-        } else {
+        else {
             ASSERT(0, "[%s] %x is invalid sco codec type!", __func__, sco_codec_type);
         }
 
@@ -537,8 +473,8 @@ int voicebtpcm_pcm_audio_init(int _sco_sample_rate,
 
 int voicebtpcm_pcm_audio_deinit(void)
 {
-    AUDIOPLAYERS_TRACE(1,"[%s] Close...", __func__);
-    // AUDIOPLAYERS_TRACE(2,"[%s] app audio buffer free = %d", __func__, app_audio_mempool_free_buff_size());
+    TRACE(1,"[%s] Close...", __func__);
+    // TRACE(2,"[%s] app audio buffer free = %d", __func__, app_audio_mempool_free_buff_size());
 
     g_bt_sco_codec_ptr->deinit();
     g_bt_sco_codec_ptr = NULL;
@@ -563,17 +499,18 @@ int voicebtpcm_pcm_audio_deinit(void)
         iir_resample_destroy(resample_echo_st);
     }
 
-    if (uplink_resample_vpu2vqe_st) {
-        iir_resample_destroy(uplink_resample_vpu2vqe_st);
-    }
-
     resample_buf = NULL;
 
     speech_deinit();
 
+#if defined(SCO_OPTIMIZE_FOR_RAM)
+    sco_overlay_ram_buf = NULL;
+    sco_overlay_ram_buf_len = 0;
+#endif
+
     speech_inited = false;
 
-    // AUDIOPLAYERS_TRACE(1,"Free buf = %d", app_audio_mempool_free_buff_size());
+    // TRACE(1,"Free buf = %d", app_audio_mempool_free_buff_size());
 
     return 0;
 }

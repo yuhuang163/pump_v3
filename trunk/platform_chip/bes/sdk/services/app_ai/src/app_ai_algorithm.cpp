@@ -129,11 +129,11 @@ void app_ai_aec_process(uint8_t *buf, uint32_t length)
         echo_vol += AI_ABS((float)echo_ref1[i])/FRAME_LEN;
     }
 
-    //APP_AI_TRACE(3, "%s len %d echo_vol %d", __func__, length, (uint16_t)echo_vol);
+    //TRACE(3, "%s len %d echo_vol %d", __func__, length, (uint16_t)echo_vol);
 
     if (echo_vol < IGNORE_ECHO_VOL)
     {
-        //APP_AI_TRACE(1, "%s echo_vol is too small", __func__);
+        //TRACE(1, "%s echo_vol is too small", __func__);
         return;
     }
 
@@ -178,7 +178,7 @@ bool app_ai_aec_get_data_from_cache(uint8_t *buf, uint32_t length)
     AI_AEC_CACHE_STATE_E out_cache_state = ai_aec_struct.cache_state[out_cache_num];
 
 #ifdef AI_AEC_CP_ACCEL
-    //APP_AI_TRACE(2, "%s cache_num %d state %d", __func__, ai_aec_struct.cp_data_out_cache_num, out_cache_state);
+    //TRACE(2, "%s cache_num %d state %d", __func__, ai_aec_struct.cp_data_out_cache_num, out_cache_state);
 
     if (AI_AEC_CACHE_PROCESSED == out_cache_state)
     {
@@ -209,7 +209,7 @@ void app_ai_aec_mic_data_handle(uint8_t *buf, uint32_t length)
     AI_AEC_CACHE_STATE_E in_cache_state = ai_aec_struct.cache_state[in_cache_num];
 
 #ifdef AI_AEC_CP_ACCEL
-    //APP_AI_TRACE(2, "%s cache_num %d state %d max_num %d", __func__, ai_aec_struct.cp_data_in_cache_num, in_cache_state, ai_aec_struct.cp_data_use_max_cache_num);
+    //TRACE(2, "%s cache_num %d state %d max_num %d", __func__, ai_aec_struct.cp_data_in_cache_num, in_cache_state, ai_aec_struct.cp_data_use_max_cache_num);
     if (AI_AEC_CACHE_IDLE == in_cache_state)
     {
         memcpy(in_data_cache, buf, length);
@@ -227,7 +227,7 @@ void app_ai_aec_mic_data_handle(uint8_t *buf, uint32_t length)
     }
     else
     {
-        APP_AI_TRACE(3, "%s cache %d state error %d", __func__, in_cache_num, in_cache_state);
+        TRACE(3, "%s cache %d state error %d", __func__, in_cache_num, in_cache_state);
     }
 #else
     app_ai_aec_process(buf, length);
@@ -243,11 +243,11 @@ void app_ai_algorithm_mic_data_handle(uint8_t *buf, uint32_t length)
     uint32_t queue_len = 0;
     short *tmp_out = (short *)mic_data_handle_temp_buff;
 
-    //APP_AI_TRACE(2, "%s len %d", __func__, length);
+    //TRACE(2, "%s len %d", __func__, length);
     LOCK_MIC_DATA_HANDLE_QUEUE();
     if (EnCQueue(&mic_data_handle_queue,(CQItemType *) buf, length) == CQ_ERR)
     {
-        APP_AI_TRACE(2, "###far_field_queue overflow, want %d bytes, has %d bytes\n",
+        TRACE(2, "###far_field_queue overflow, want %d bytes, has %d bytes\n",
             length, AvailableOfCQueue(&mic_data_handle_queue));
     }
     queue_len = LengthOfCQueue(&mic_data_handle_queue);
@@ -315,7 +315,7 @@ void cp_aec_data_process(void)
     }
     //else
     //{
-        //APP_AI_TRACE(3, "%s cache state %d error %d", __func__, process_cache_num, process_cache_state);
+        //TRACE(3, "%s cache state %d error %d", __func__, process_cache_num, process_cache_state);
     //}
 }
 
@@ -337,7 +337,7 @@ static const struct cp_task_desc task_desc_aec = {CP_ACCEL_STATE_CLOSED, cp_aec_
 void cp_aec_init(void)
 {
     uint8_t i = 0;
-    APP_AI_TRACE(2, "%s ai_aec_inited %d", __func__, ai_aec_inited);
+    TRACE(2, "%s ai_aec_inited %d", __func__, ai_aec_inited);
 
     if (!ai_aec_inited)
     {
@@ -349,7 +349,7 @@ void cp_aec_init(void)
         {
             ai_aec_struct.cache_state[i] = AI_AEC_CACHE_IDLE;
         }
-        norflash_api_flush_disable(NORFLASH_API_USER_CP,(uint32_t)cp_accel_init_done, false);
+        norflash_api_flush_disable(NORFLASH_API_USER_CP,(uint32_t)cp_accel_init_done);
         cp_accel_open(CP_TASK_AEC, &task_desc_aec);
         while(cp_accel_init_done() == false) {
             hal_sys_timer_delay_us(100);
@@ -361,7 +361,7 @@ void cp_aec_init(void)
 
 void cp_aec_deinit(void)
 {
-    APP_AI_TRACE(2, "%s ai_aec_inited %d", __func__, ai_aec_inited);
+    TRACE(2, "%s ai_aec_inited %d", __func__, ai_aec_inited);
 
     if (ai_aec_inited)
     {
@@ -374,7 +374,7 @@ void cp_aec_deinit(void)
 
 void app_ai_algorithm_init(void)
 {
-    APP_AI_TRACE(1, "%s", __func__);
+    TRACE(1, "%s", __func__);
 
     med_heap_init(&g_medMemPool[0], MED_MEM_POOL_SIZE);
 
@@ -383,7 +383,7 @@ void app_ai_algorithm_init(void)
 #endif
 
 #ifdef AI_CAPTURE_DATA_AEC
-    //APP_AI_TRACE(0,"init AEC2");
+    //TRACE("init AEC2");
     speech_aec2float_st1 = ec2float_create(AUD_SAMPRATE_16000, FRAME_LEN, &speech_aec2float_cfg);
 #if AI_CAPTURE_CHANNEL_NUM == 2
     speech_aec2float_st2 = ec2float_create(AUD_SAMPRATE_16000, FRAME_LEN, &speech_aec2float_cfg);
@@ -403,7 +403,7 @@ void app_ai_algorithm_init(void)
             ASSERT(0, "[%s] ERROR: async_enc_queue_mutex_id fail!", __func__);
         }
     }
-    //APP_AI_TRACE(0,"line %d", __LINE__);
+    //TRACE("line %d", __LINE__);
     InitCQueue(&mic_data_handle_queue, sizeof(mic_data_handle_queue_buff), mic_data_handle_queue_buff);
 }
 

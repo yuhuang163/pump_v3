@@ -26,6 +26,9 @@
 #include "hal_sleep.h"
 #include "hal_timer.h"
 #include "hal_trace.h"
+#ifdef I2C_TASK_MODE
+#include "hwtimer_list.h"
+#endif
 #include "string.h"
 
 #ifdef I2C_SENSOR_ENGINE_V1
@@ -33,6 +36,14 @@
 #ifndef I2C_USE_DMA
 #define I2C_USE_DMA
 #endif
+#endif
+
+#ifdef I2C_DEBUG
+#define HAL_I2C_TRACE(attr, str, ...) TRACE(attr, str, ##__VA_ARGS__)
+#define HAL_I2C_ERROR(attr, str, ...) TRACE(attr, str, ##__VA_ARGS__)
+#else
+#define HAL_I2C_TRACE(attr, str, ...) TRACE_DUMMY(attr, str, ##__VA_ARGS__)
+#define HAL_I2C_ERROR(attr, str, ...) TRACE(attr, str, ##__VA_ARGS__)
 #endif
 
 #ifdef I2C0_BASE
@@ -113,7 +124,6 @@ struct HAL_I2C_SM_TASK_T {
     uint16_t rx_cmd_sent;
 
     /* device control */
-    uint8_t stop;
     uint8_t restart_after_write;
     uint16_t target_addr;
 
@@ -137,10 +147,16 @@ struct HAL_I2C_SM_T {
 
     /* state machine related */
 #if defined(I2C_TASK_MODE) || defined(I2C_SENSOR_ENGINE_V1)
+    struct HAL_I2C_SM_TASK_T task[HAL_I2C_SM_TASK_NUM_MAX];
+
     uint8_t in_task;
     uint8_t out_task;
     uint8_t task_count;
-    struct HAL_I2C_SM_TASK_T task[HAL_I2C_SM_TASK_NUM_MAX];
+
+#ifdef I2C_TASK_MODE
+    uint8_t rx_timer_started;
+    HWTIMER_ID rx_timer;
+#endif
 
     /* dma related */
 #ifdef I2C_USE_DMA
@@ -219,8 +235,8 @@ static const struct HAL_I2C_HW_DESC_T i2c_desc[HAL_I2C_ID_NUM] = {
         .apb = HAL_CMU_MOD_P_I2C3,
         .irq = I2C3_IRQn,
 #ifdef I2C_USE_DMA
-        .rx_periph = HAL_GPDMA_I2C3_RX,
-        .tx_periph = HAL_GPDMA_I2C3_TX,
+        .rx_periph = HAL_AUDMA_I2C3_RX,
+        .tx_periph = HAL_AUDMA_I2C3_TX,
 #endif
     },
 #endif
@@ -250,11 +266,40 @@ static const struct HAL_I2C_HW_DESC_T i2c_desc[HAL_I2C_ID_NUM] = {
 #endif
     },
 #endif
+#ifdef I2C6_BASE
+    {
+        .base = I2C6_BASE,
+        .iomux_func = hal_iomux_set_i2c6,
+        .mod = HAL_CMU_MOD_O_I2C6,
+        .apb = HAL_CMU_MOD_P_I2C6,
+        .irq = I2C6_IRQn,
+#ifdef I2C_USE_DMA
+        .rx_periph = HAL_GPDMA_I2C6_RX,
+        .tx_periph = HAL_GPDMA_I2C6_TX,
+#endif
+    },
+#endif
+#ifdef I2C7_BASE
+    {
+        .base = I2C7_BASE,
+        .iomux_func = hal_iomux_set_i2c7,
+        .mod = HAL_CMU_MOD_O_I2C7,
+        .apb = HAL_CMU_MOD_P_I2C7,
+        .irq = I2C7_IRQn,
+#ifdef I2C_USE_DMA
+        .rx_periph = HAL_GPDMA_I2C7_RX,
+        .tx_periph = HAL_GPDMA_I2C7_TX,
+#endif
+    },
+#endif
 };
 
 static const char * const invalid_id = "Invalid I2C ID: %d";
 
 static struct HAL_I2C_SM_T hal_i2c_sm[HAL_I2C_ID_NUM];
+#ifdef I2C_SLAVE_TASK
+static HAL_I2C_RD_REQ_HANDLER_T i2c_rd_req_handler;
+#endif
 
 #if defined(I2C_TASK_MODE) || defined(I2C_SENSOR_ENGINE_V1)
 static uint8_t hal_i2c_busy_map;
@@ -291,7 +336,7 @@ static void POSSIBLY_UNUSED hal_i2c_delay_ms(int ms)
 
 static uint32_t _i2c_adjust_period_cnt(enum HAL_I2C_ID_T id, uint32_t period_cnt, uint16_t trising_ns, uint16_t tfalling_ns, uint16_t pclk_mhz)
 {
-    POSSIBLY_UNUSED uint32_t old_period_cnt;
+    uint32_t old_period_cnt;
     uint16_t rising_falling_cycle;
 
     old_period_cnt = period_cnt;
@@ -306,7 +351,7 @@ static uint32_t _i2c_adjust_period_cnt(enum HAL_I2C_ID_T id, uint32_t period_cnt
         period_cnt = 0;
     }
 
-    HAL_TRACE(0, "%s:%d: period_cnt=%u->%u trising_ns=%u tfalling_ns=%u",
+    HAL_I2C_TRACE(0, "%s:%d: period_cnt=%u->%u trising_ns=%u tfalling_ns=%u",
         __FUNCTION__, id, old_period_cnt, period_cnt, trising_ns, tfalling_ns);
 
     return period_cnt;
@@ -324,7 +369,7 @@ static void _i2c_get_clk_cnt(enum HAL_I2C_ID_T id, uint32_t period_cnt, uint16_t
     uint32_t lcnt, hcnt;
     uint16_t min_lcnt, min_hcnt;
 
-    HAL_TRACE(0, "%s:%d: period_cnt=%u tlow_ns=%u thigh_ns=%u spklen=%u pclk_mhz=%u",
+    HAL_I2C_TRACE(0, "%s:%d: period_cnt=%u tlow_ns=%u thigh_ns=%u spklen=%u pclk_mhz=%u",
         __FUNCTION__, id, period_cnt, tlow_ns, thigh_ns, spklen, pclk_mhz);
 
     min_lcnt = (tlow_ns * pclk_mhz + 1000 - 1) / 1000;
@@ -337,7 +382,7 @@ static void _i2c_get_clk_cnt(enum HAL_I2C_ID_T id, uint32_t period_cnt, uint16_t
     }
 
     if (min_lcnt + min_hcnt > period_cnt) {
-        HAL_TRACE(0, "%s:%d:WARNING: period_cnt=%u too small: min_lcnt=%u min_hcnt=%u pclk_mhz=%u",
+        HAL_I2C_ERROR(0, "%s:%d:WARNING: period_cnt=%u too small: min_lcnt=%u min_hcnt=%u pclk_mhz=%u",
             __FUNCTION__, id, period_cnt, min_lcnt, min_hcnt, pclk_mhz);
 
         lcnt = min_lcnt;
@@ -455,6 +500,8 @@ static void _i2c_set_speed(enum HAL_I2C_ID_T id, uint32_t speed_mode, uint32_t s
     pclk_mhz = pclk / 1000000;
     period_cnt = (pclk + speed - 1) / speed;
 
+    i2cip_w_push_pull(reg_base, HAL_I2C_NO, HAL_I2C_NO);
+
     switch (speed_mode) {
     case IC_SPEED_MODE_MAX:
 
@@ -478,6 +525,8 @@ static void _i2c_set_speed(enum HAL_I2C_ID_T id, uint32_t speed_mode, uint32_t s
         i2cip_w_high_speed_lcnt(reg_base, lcnt);
 
         i2cip_w_speed(reg_base, I2CIP_HIGH_SPEED_MASK);
+
+        i2cip_w_push_pull(reg_base, HAL_I2C_YES, HAL_I2C_YES);
 
         // Continue to config fast mode
 #ifdef I2C_FSP_MODE
@@ -522,7 +571,12 @@ static void _i2c_set_speed(enum HAL_I2C_ID_T id, uint32_t speed_mode, uint32_t s
         // Update sda hold time and speed mode if in fast mode
         // Skip if in high speed mode
         if (speed_mode == IC_SPEED_MODE_FAST) {
+#ifdef I2C_FSP_MODE
+            if (speed <= I2C_FAST_SPEED)
+#endif
+            {
             thold_ns = FS_THOLD_NS;
+            }
             i2cip_w_speed(reg_base, I2CIP_FAST_SPEED_MASK);
         }
 
@@ -557,8 +611,8 @@ static void _i2c_set_speed(enum HAL_I2C_ID_T id, uint32_t speed_mode, uint32_t s
     hold_cycle = (thold_ns * pclk_mhz + 1000 - 1) / 1000;
     i2cip_w_sda_hold_time(reg_base, hold_cycle);
 
-    HAL_TRACE(0, "%d: crystal freq=%d", id, pclk);
-    HAL_TRACE(0, "%d: mode=%d lcnt=%d hcnt=%d hold=%d", id, speed_mode, lcnt, hcnt, hold_cycle);
+    HAL_I2C_TRACE(0, "%d: crystal freq=%d", id, pclk);
+    HAL_I2C_TRACE(0, "%d: mode=%d lcnt=%d hcnt=%d hold=%d", id, speed_mode, lcnt, hcnt, hold_cycle);
 }
 
 static uint8_t _i2c_set_bus_speed(enum HAL_I2C_ID_T id, uint32_t speed, uint16_t rising_time_ns)
@@ -612,7 +666,7 @@ static void _i2c_task_busy_lock(enum HAL_I2C_ID_T id)
 
     lock = int_lock();
     if (hal_i2c_busy_map == 0) {
-        hal_sys_wake_lock(HAL_SYS_WAKE_LOCK_USER_I2C);
+        hal_bus_wake_lock(HAL_BUS_WAKE_LOCK_USER_I2C);
     }
     hal_i2c_busy_map |= (1 << id);
     int_unlock(lock);
@@ -625,7 +679,7 @@ static void _i2c_task_busy_unlock(enum HAL_I2C_ID_T id)
     lock = int_lock();
     hal_i2c_busy_map &= ~(1 << id);
     if (hal_i2c_busy_map == 0) {
-        hal_sys_wake_unlock(HAL_SYS_WAKE_LOCK_USER_I2C);
+        hal_bus_wake_unlock(HAL_BUS_WAKE_LOCK_USER_I2C);
     }
     int_unlock(lock);
 }
@@ -639,6 +693,10 @@ static uint32_t hal_i2c_sm_commit(enum HAL_I2C_ID_T id, const uint8_t *tx_buf, u
     uint32_t cur = HAL_I2C_SM_BAD_TASK_ID;
 
     lock = int_lock();
+
+    if (hal_i2c_sm[id].state == HAL_I2C_SM_CLOSED) {
+        goto _exit;
+    }
 
     if (hal_i2c_sm[id].task_count >= HAL_I2C_SM_TASK_NUM_MAX) {
         goto _exit;
@@ -656,7 +714,6 @@ static uint32_t hal_i2c_sm_commit(enum HAL_I2C_ID_T id, const uint8_t *tx_buf, u
 
     hal_i2c_sm[id].task[cur].tx_buf              = tx_buf;
     hal_i2c_sm[id].task[cur].rx_buf              = rx_buf;
-    hal_i2c_sm[id].task[cur].stop                = 1;
     hal_i2c_sm[id].task[cur].sync_status         = HAL_I2C_SM_SYNC_STARTED;
     hal_i2c_sm[id].task[cur].state               = 0;
     hal_i2c_sm[id].task[cur].rx_txn_len          = rx_txn_len;
@@ -693,7 +750,7 @@ static void hal_i2c_sm_done(enum HAL_I2C_ID_T id)
 
     _i2c_task_busy_unlock(id);
 
-    HAL_TRACE(0, "%s: id=%d", __func__, id);
+    HAL_I2C_TRACE(0, "%s: id=%d", __func__, id);
 }
 
 static enum HAL_I2C_SM_TASK_STATE_T _i2c_chk_clr_task_error(uint32_t reg_base, uint32_t ip_int_status, uint32_t tx_abrt_source)
@@ -741,42 +798,62 @@ static enum HAL_I2C_SM_TASK_STATE_T _i2c_chk_clr_task_error(uint32_t reg_base, u
 static void _i2c_show_error_code(uint32_t errcode)
 {
 #ifdef DEBUG
+    // i2cip errors
     if (errcode & HAL_I2C_ERRCODE_SLVRD_INTX)
-        HAL_TRACE(0, "i2c err : HAL_I2C_ERRCODE_SLVRD_INTX");
+        HAL_I2C_ERROR(0, "i2c err : HAL_I2C_ERRCODE_SLVRD_INTX");
     if (errcode & HAL_I2C_ERRCODE_SLV_ARBLOST)
-        HAL_TRACE(0, "i2c err : HAL_I2C_ERRCODE_SLV_ARBLOST");
+        HAL_I2C_ERROR(0, "i2c err : HAL_I2C_ERRCODE_SLV_ARBLOST");
     if (errcode & HAL_I2C_ERRCODE_SLVFLUSH_TXFIFO)
-        HAL_TRACE(0, "i2c err : HAL_I2C_ERRCODE_SLVFLUSH_TXFIFO");
+        HAL_I2C_ERROR(0, "i2c err : HAL_I2C_ERRCODE_SLVFLUSH_TXFIFO");
     if (errcode & HAL_I2C_ERRCODE_MASTER_DIS)
-        HAL_TRACE(0, "i2c err : HAL_I2C_ERRCODE_MASTER_DIS");
+        HAL_I2C_ERROR(0, "i2c err : HAL_I2C_ERRCODE_MASTER_DIS");
     if (errcode & HAL_I2C_ERRCODE_10B_RD_NORSTRT)
-        HAL_TRACE(0, "i2c err : HAL_I2C_ERRCODE_10B_RD_NORSTRT");
+        HAL_I2C_ERROR(0, "i2c err : HAL_I2C_ERRCODE_10B_RD_NORSTRT");
     if (errcode & HAL_I2C_ERRCODE_SBYTE_NORSTRT)
-        HAL_TRACE(0, "i2c err : HAL_I2C_ERRCODE_SBYTE_NORSTRT");
+        HAL_I2C_ERROR(0, "i2c err : HAL_I2C_ERRCODE_SBYTE_NORSTRT");
     if (errcode & HAL_I2C_ERRCODE_HS_NORSTRT)
-        HAL_TRACE(0, "i2c err : HAL_I2C_ERRCODE_HS_NORSTRT");
+        HAL_I2C_ERROR(0, "i2c err : HAL_I2C_ERRCODE_HS_NORSTRT");
     if (errcode & HAL_I2C_ERRCODE_SBYTE_ACKDET)
-        HAL_TRACE(0, "i2c err : HAL_I2C_ERRCODE_SBYTE_ACKDET");
+        HAL_I2C_ERROR(0, "i2c err : HAL_I2C_ERRCODE_SBYTE_ACKDET");
     if (errcode & HAL_I2C_ERRCODE_HS_ACKDET)
-        HAL_TRACE(0, "i2c err : HAL_I2C_ERRCODE_HS_ACKDET");
+        HAL_I2C_ERROR(0, "i2c err : HAL_I2C_ERRCODE_HS_ACKDET");
     if (errcode & HAL_I2C_ERRCODE_GCALL_READ)
-        HAL_TRACE(0, "i2c err : HAL_I2C_ERRCODE_GCALL_READ");
+        HAL_I2C_ERROR(0, "i2c err : HAL_I2C_ERRCODE_GCALL_READ");
     if (errcode & HAL_I2C_ERRCODE_GCALL_NOACK)
-        HAL_TRACE(0, "i2c err : HAL_I2C_ERRCODE_GCALL_NOACK");
+        HAL_I2C_ERROR(0, "i2c err : HAL_I2C_ERRCODE_GCALL_NOACK");
     if (errcode & HAL_I2C_ERRCODE_TXDATA_NOACK)
-        HAL_TRACE(0, "i2c err : HAL_I2C_ERRCODE_TXDATA_NOACK");
+        HAL_I2C_ERROR(0, "i2c err : HAL_I2C_ERRCODE_TXDATA_NOACK");
     if (errcode & HAL_I2C_ERRCODE_10ADDR2_NOACK)
-        HAL_TRACE(0, "i2c err : HAL_I2C_ERRCODE_10ADDR2_NOACK");
+        HAL_I2C_ERROR(0, "i2c err : HAL_I2C_ERRCODE_10ADDR2_NOACK");
     if (errcode & HAL_I2C_ERRCODE_10ADDR1_NOACK)
-        HAL_TRACE(0, "i2c err : HAL_I2C_ERRCODE_10ADDR1_NOACK");
+        HAL_I2C_ERROR(0, "i2c err : HAL_I2C_ERRCODE_10ADDR1_NOACK");
     if (errcode & HAL_I2C_ERRCODE_7B_ADDR_NOACK)
-        HAL_TRACE(0, "i2c err : HAL_I2C_ERRCODE_7B_ADDR_NOACK");
+        HAL_I2C_ERROR(0, "i2c err : HAL_I2C_ERRCODE_7B_ADDR_NOACK");
+    // s/w errors
     if (errcode & HAL_I2C_ERRCODE_INV_PARAM)
-        HAL_TRACE(0, "i2c err : HAL_I2C_ERRCODE_INV_PARAM");
+        HAL_I2C_ERROR(0, "i2c err : HAL_I2C_ERRCODE_INV_PARAM");
     if (errcode & HAL_I2C_ERRCODE_IN_USE)
-        HAL_TRACE(0, "i2c err : HAL_I2C_ERRCODE_IN_USE");
+        HAL_I2C_ERROR(0, "i2c err : HAL_I2C_ERRCODE_IN_USE");
     if (errcode & HAL_I2C_ERRCODE_FIFO_ERR)
-        HAL_TRACE(0, "i2c err : HAL_I2C_ERRCODE_FIFO_ERR");
+        HAL_I2C_ERROR(0, "i2c err : HAL_I2C_ERRCODE_FIFO_ERR");
+    if (errcode & HAL_I2C_ERRCODE_SYNC_TIMEOUT)
+        HAL_I2C_ERROR(0, "i2c err : HAL_I2C_ERRCODE_SYNC_TIMEOUT");
+    if (errcode & HAL_I2C_ERRCODE_ACT_TIMEOUT)
+        HAL_I2C_ERROR(0, "i2c err : HAL_I2C_ERRCODE_ACT_TIMEOUT");
+    if (errcode & HAL_I2C_ERRCODE_TFNF_TIMEOUT)
+        HAL_I2C_ERROR(0, "i2c err : HAL_I2C_ERRCODE_TFNF_TIMEOUT");
+    if (errcode & HAL_I2C_ERRCODE_TFE_TIMEOUT)
+        HAL_I2C_ERROR(0, "i2c err : HAL_I2C_ERRCODE_TFE_TIMEOUT");
+    if (errcode & HAL_I2C_ERRCODE_RFNE_TIMEOUT)
+        HAL_I2C_ERROR(0, "i2c err : HAL_I2C_ERRCODE_RFNE_TIMEOUT");
+    if (errcode & HAL_I2C_ERRCODE_CLOSED)
+        HAL_I2C_ERROR(0, "i2c err : HAL_I2C_ERRCODE_CLOSED");
+    if (errcode & HAL_I2C_ERRCODE_CANCELLED)
+        HAL_I2C_ERROR(0, "i2c err : HAL_I2C_ERRCODE_CANCELLED");
+    if (errcode & HAL_I2C_ERRCODE_NO_RX_TIMER)
+        HAL_I2C_ERROR(0, "i2c err : HAL_I2C_ERRCODE_NO_RX_TIMER");
+    if (errcode & HAL_I2C_ERRCODE_EXTRA_RX)
+        HAL_I2C_ERROR(0, "i2c err : HAL_I2C_ERRCODE_EXTRA_RX");
 #endif
 }
 
@@ -801,13 +878,14 @@ static void hal_i2c_rx_dma_handler(uint8_t chan, uint32_t remain_tsize, uint32_t
     }
 }
 
-static void hal_i2c_dma_release(enum HAL_I2C_ID_T id)
+static uint32_t hal_i2c_dma_release(enum HAL_I2C_ID_T id)
 {
     uint32_t reg_base;
+    uint32_t remains = 0;
     struct HAL_DMA_CH_CFG_T *tx_dma_cfg = NULL, *rx_dma_cfg = NULL;
 
     if (hal_i2c_sm[id].cfg.use_dma == 0) {
-        return;
+        return 0;
     }
 
     reg_base = _i2c_get_base(id);
@@ -817,20 +895,23 @@ static void hal_i2c_dma_release(enum HAL_I2C_ID_T id)
     if (tx_dma_cfg->ch != HAL_DMA_CHAN_NONE) {
         i2cip_w_tx_dma_enable(reg_base, HAL_I2C_NO);
         hal_gpdma_cancel(tx_dma_cfg->ch);
+        remains = hal_gpdma_get_sg_remain_size(tx_dma_cfg->ch);
         hal_gpdma_free_chan(tx_dma_cfg->ch);
 
-        HAL_TRACE(0, "%d: i2c tx free dma ch %d", id, tx_dma_cfg->ch);
+        HAL_I2C_TRACE(0, "%d: i2c tx free dma ch %d", id, tx_dma_cfg->ch);
         tx_dma_cfg->ch = HAL_DMA_CHAN_NONE;
     }
 
     if (rx_dma_cfg->ch != HAL_DMA_CHAN_NONE) {
         i2cip_w_rx_dma_enable(reg_base, HAL_I2C_NO);
         hal_gpdma_cancel(rx_dma_cfg->ch);
+        remains = hal_gpdma_get_sg_remain_size(rx_dma_cfg->ch);
         hal_gpdma_free_chan(rx_dma_cfg->ch);
 
-        HAL_TRACE(0, "%d: i2c rx free dma ch %d", id, rx_dma_cfg->ch);
+        HAL_I2C_TRACE(0, "%d: i2c rx free dma ch %d", id, rx_dma_cfg->ch);
         rx_dma_cfg->ch = HAL_DMA_CHAN_NONE;
     }
+    return remains;
 }
 
 static void hal_i2c_dma_config(enum HAL_I2C_ID_T id, const struct HAL_I2C_SM_TASK_T *out_task)
@@ -854,7 +935,7 @@ static void hal_i2c_dma_config(enum HAL_I2C_ID_T id, const struct HAL_I2C_SM_TAS
         if (action == HAL_I2C_SM_TASK_ACTION_M_RECV) {
             total_tx_len += out_task->rx_txn_len * out_task->txn_cnt;
         }
-        ASSERT(total_tx_len < ARRAY_SIZE(hal_i2c_sm[id].dma_tx_buf),
+        ASSERT(total_tx_len <= ARRAY_SIZE(hal_i2c_sm[id].dma_tx_buf),
             "%s:%d: xfer size too large: action=%d total_tx_len=%u (should <= %u)",
             __FUNCTION__, id, action, total_tx_len, ARRAY_SIZE(hal_i2c_sm[id].dma_tx_buf));
 
@@ -876,12 +957,10 @@ static void hal_i2c_dma_config(enum HAL_I2C_ID_T id, const struct HAL_I2C_SM_TAS
         tx_dma_cfg->type = HAL_DMA_FLOW_M2P_DMA;
         tx_dma_cfg->src = (uint32_t)hal_i2c_sm[id].dma_tx_buf;
         tx_dma_cfg->ch = hal_gpdma_get_chan(tx_dma_cfg->dst_periph, HAL_DMA_HIGH_PRIO);
-        HAL_TRACE(0, "%d: i2c tx get dma ch %d", id, tx_dma_cfg->ch);
+        HAL_I2C_TRACE(0, "%d: i2c tx get dma ch %d", id, tx_dma_cfg->ch);
         ASSERT(tx_dma_cfg->ch != HAL_DMA_CHAN_NONE, "I2C-%d: Failed to get tx dma chan", id);
 
-        HAL_TRACE(0, "%d: tx size %d cnt %d total tx size %d", id, out_task->tx_txn_len, out_task->txn_cnt, total_tx_len);
-
-        memset(&hal_i2c_sm[id].dma_tx_buf[0], 0, sizeof(hal_i2c_sm[id].dma_tx_buf));
+        HAL_I2C_TRACE(0, "%d: tx size %d cnt %d total tx size %d", id, out_task->tx_txn_len, out_task->txn_cnt, total_tx_len);
 
         for (txn = 0; txn < out_task->txn_cnt; txn++) {
             org_start = out_task->tx_txn_len * txn;
@@ -915,7 +994,7 @@ static void hal_i2c_dma_config(enum HAL_I2C_ID_T id, const struct HAL_I2C_SM_TAS
             }
         }
 
-        HAL_TRACE(0, "%d: rx size %d cnt %d", id, out_task->rx_txn_len, out_task->txn_cnt);
+        HAL_I2C_TRACE(0, "%d: rx size %d cnt %d", id, out_task->rx_txn_len, out_task->txn_cnt);
 
         rx_dma_cfg = &hal_i2c_sm[id].rx_dma_cfg;
         memset(rx_dma_cfg, 0, sizeof(*rx_dma_cfg));
@@ -932,42 +1011,65 @@ static void hal_i2c_dma_config(enum HAL_I2C_ID_T id, const struct HAL_I2C_SM_TAS
         rx_dma_cfg->src = 0; // useless
         rx_dma_cfg->type = HAL_DMA_FLOW_P2M_DMA;
         rx_dma_cfg->ch = hal_gpdma_get_chan(rx_dma_cfg->src_periph, HAL_DMA_HIGH_PRIO);
-        HAL_TRACE(0, "%d: i2c rx get dma ch %d", id, rx_dma_cfg->ch);
+        HAL_I2C_TRACE(0, "%d: i2c rx get dma ch %d", id, rx_dma_cfg->ch);
         ASSERT(rx_dma_cfg->ch != HAL_DMA_CHAN_NONE, "I2C-%d: Failed to get rx dma chan", id);
     }
 
     if (out_task->tx_buf) {
-        if (out_task->stop) {
-            hal_i2c_sm[id].dma_tx_buf[total_tx_len - 1] |= I2CIP_CMD_DATA_STOP_MASK;
-        }
+        hal_i2c_sm[id].dma_tx_buf[total_tx_len - 1] |= I2CIP_CMD_DATA_STOP_MASK;
     }
 }
 #endif
 #endif
 
 #ifdef I2C_TASK_MODE
+#ifdef I2C_SLAVE_TASK
+static uint32_t hal_i2c_slv_task_send(enum HAL_I2C_ID_T id, const uint8_t *tx_buf, uint32_t tx_len, uint32_t transfer_id, HAL_I2C_SLAVE_TRANSFER_HANDLER_T handler)
+{
+    uint32_t ret;
+
+    HAL_I2C_TRACE(0, "%s:%d: tx_buf=0x%X tx_len=%d", __func__, id, (int)tx_buf, tx_len);
+    ret = hal_i2c_task_msend(id, 0, tx_buf, tx_len, 1, transfer_id, handler);
+    return ret;
+}
+#endif
+
 static void hal_i2c_sm_done_task(enum HAL_I2C_ID_T id)
 {
     struct HAL_I2C_SM_TASK_T *task;
+    POSSIBLY_UNUSED uint32_t remains = 0;
     uint32_t reg_base = _i2c_get_base(id);
 
     task = &(hal_i2c_sm[id].task[hal_i2c_sm[id].out_task]);
 
+    if (hal_i2c_sm[id].rx_timer_started) {
+        enum E_HWTIMER_T tret;
+
+        tret = hwtimer_stop(hal_i2c_sm[id].rx_timer);
+        if (tret != E_HWTIMER_OK) {
+            HAL_I2C_ERROR(0, "*** Error:done:%d: Failed to stop rx timer: %d", id, tret);
+        }
+        hal_i2c_sm[id].rx_timer_started = false;
+    }
+
     if (task->errcode) {
-        HAL_TRACE(0, "%s:%d: i2c err: 0x%X", __func__, id, task->errcode);
+        HAL_I2C_ERROR(0, "%s:%d: i2c err: 0x%X", __func__, id, task->errcode);
         _i2c_show_error_code(task->errcode);
     }
 
-    if (task->stop || task->errcode) {
-        HAL_TRACE(0, "%s:%d: i2c disable", __func__, id);
-        i2cip_init_int_mask(reg_base, I2CIP_INT_MASK_NONE);
-        i2cip_r_clr_all_intr(reg_base);
-        i2cip_w_enable(reg_base, HAL_I2C_NO);
-    }
+    HAL_I2C_TRACE(0, "%s:%d: i2c disable", __func__, id);
+    i2cip_init_int_mask(reg_base, I2CIP_INT_MASK_NONE);
+    // Clear all irqs except for tx empty irq and rx full irq
+    i2cip_r_clr_all_intr(reg_base);
+    // Disable h/w (all fifos will be flushed and rx full irq will be cleared)
+    i2cip_w_enable(reg_base, HAL_I2C_NO);
+    if (!hal_i2c_sm[id].cfg.as_master)
+        i2cip_w_enable(reg_base, HAL_I2C_YES);
 
 #ifdef I2C_USE_DMA
     if (hal_i2c_sm[id].cfg.use_dma) {
-        hal_i2c_dma_release(id);
+        remains = hal_i2c_dma_release(id);
+        memset(&hal_i2c_sm[id].dma_tx_buf[0], 0, sizeof(hal_i2c_sm[id].dma_tx_buf));
     }
 #endif
 
@@ -976,8 +1078,20 @@ static void hal_i2c_sm_done_task(enum HAL_I2C_ID_T id)
         task->sync_status = HAL_I2C_SM_SYNC_DONE;
     } else {
         if (task->handler) {
-            task->handler(id, task->transfer_id, task->tx_buf, task->tx_txn_len * task->txn_cnt,
-                task->rx_buf, task->rx_txn_len * task->txn_cnt, task->errcode);
+            if (hal_i2c_sm[id].cfg.as_master) {
+                task->handler(id, task->transfer_id, task->tx_buf, task->tx_txn_len * task->txn_cnt,
+                    task->rx_buf, task->rx_txn_len * task->txn_cnt, task->errcode);
+            } else {
+#ifdef I2C_SLAVE_TASK
+                if (task->action == HAL_I2C_SM_TASK_ACTION_M_SEND) {
+                    task->handler(id, 0, task->tx_buf, task->tx_txn_len * task->txn_cnt - remains,
+                        task->rx_buf, task->rx_txn_len * task->txn_cnt, task->errcode);
+                } else if (task->action == HAL_I2C_SM_TASK_ACTION_M_RECV) {
+                    task->handler(id, 1, task->tx_buf, task->tx_txn_len * task->txn_cnt,
+                        task->rx_buf, task->rx_txn_len * task->txn_cnt - remains, task->errcode);
+                }
+#endif
+            }
         } else {
             ASSERT(0, "The handler of the i2c%d task cannot be NULL", id);
         }
@@ -999,7 +1113,7 @@ static void hal_i2c_sm_next_task(enum HAL_I2C_ID_T id)
     reg_base = _i2c_get_base(id);
 
     if (hal_i2c_sm[id].task_count == 0) {
-        HAL_TRACE(0, "%s:%d: no task", __func__, id);
+        HAL_I2C_TRACE(0, "%s:%d: no task", __func__, id);
         hal_i2c_sm_done(id);
         return;
     }
@@ -1023,6 +1137,9 @@ static void hal_i2c_sm_next_task(enum HAL_I2C_ID_T id)
 #ifdef I2C_USE_DMA
     if (hal_i2c_sm[id].cfg.use_dma) {
         i2cip_init_int_mask(reg_base, I2CIP_INT_MASK_STOP_DET_MASK | I2CIP_INT_MASK_ERROR_MASK);
+#ifdef I2C_SLAVE_TASK
+        i2cip_set_int_mask(reg_base, I2CIP_INT_MASK_RD_REQ_MASK);
+#endif
 
         /* prepare for dma operation */
         hal_i2c_dma_config(id, out_task);//tx/rx or tx + rx mode
@@ -1036,8 +1153,8 @@ static void hal_i2c_sm_next_task(enum HAL_I2C_ID_T id)
     reinit = i2cip_r_enable_status(reg_base);
     /* not enable : reconfig i2cip with new-task params */
     /* enable : same operation with pre task */
-    if (!(reinit & I2CIP_ENABLE_STATUS_ENABLE_MASK)) {
-        HAL_TRACE(0, "%d: i2c enable", id);
+    if (!(reinit & I2CIP_STATUS_IC_EN)) {
+        HAL_I2C_TRACE(0, "%d: i2c enable", id);
         i2cip_w_restart(reg_base, HAL_I2C_YES);
         if (hal_i2c_sm[id].cfg.as_master) {
             i2cip_w_target_address(reg_base, out_task->target_addr);
@@ -1048,24 +1165,31 @@ static void hal_i2c_sm_next_task(enum HAL_I2C_ID_T id)
 #ifdef I2C_USE_DMA
     if (hal_i2c_sm[id].cfg.use_dma) {
         if (action == HAL_I2C_SM_TASK_ACTION_M_RECV) {
-            HAL_TRACE(0, "%d: enable rx dma", id);
+            HAL_I2C_TRACE(0, "%d: enable rx dma", id);
             hal_gpdma_start(&hal_i2c_sm[id].rx_dma_cfg);
         }
         if (out_task->tx_buf) {
-            HAL_TRACE(0, "%d: enable tx dma", id);
+            HAL_I2C_TRACE(0, "%d: enable tx dma", id);
             hal_gpdma_start(&hal_i2c_sm[id].tx_dma_cfg);
         }
     }
 #endif
 }
 
-static uint32_t hal_i2c_sm_wait_task_if_need(enum HAL_I2C_ID_T id, uint32_t task_idx, uint32_t tm_ms)
+static uint32_t hal_i2c_sm_wait_task_if_need(enum HAL_I2C_ID_T id, uint32_t task_idx)
 {
-    int tmcnt;
+    uint32_t total_tx_len;
+    uint32_t speed_khz;
+    uint32_t tm_ms;
+    uint32_t tmcnt;
     struct HAL_I2C_SM_TASK_T *task = NULL;
     uint32_t lock;
     enum HAL_I2C_SM_SYNC_STATUS_T sync_status;
     uint32_t errcode;
+
+    if (hal_i2c_sm[id].state == HAL_I2C_SM_CLOSED) {
+        return HAL_I2C_ERRCODE_CLOSED;
+    }
 
     /* FIXME : task_id maybe invalid cause so-fast device operation */
     task = &(hal_i2c_sm[id].task[task_idx]);
@@ -1074,15 +1198,27 @@ static uint32_t hal_i2c_sm_wait_task_if_need(enum HAL_I2C_ID_T id, uint32_t task
         return 0;
 
     /* FIXME : os and non-os - different proc */
+    total_tx_len = (task->tx_txn_len + task->rx_txn_len) * task->txn_cnt;
+    speed_khz = hal_i2c_sm[id].cfg.speed / 1000;
+    // Estimated tx time
+    tm_ms = (total_tx_len * 10 + speed_khz - 1) / speed_khz;
+    // Add a protection guard time: xfer_time * 3 + 30 (pause time)
+    tm_ms = tm_ms * 3 + 30;
+
     tmcnt = tm_ms / HAL_I2C_DLY_MS;
     while (1) {
         lock = int_lock();
 
+        if (hal_i2c_sm[id].state == HAL_I2C_SM_CLOSED) {
+            int_unlock(lock);
+            return HAL_I2C_ERRCODE_CLOSED;
+        }
+
         sync_status = task->sync_status;
 
         if (sync_status == HAL_I2C_SM_SYNC_STARTED && tmcnt == 0) {
-            HAL_TRACE(0, "%d: task=%u wait lock timeout %d ms", id, task_idx, tm_ms);
-            task->errcode = HAL_I2C_ERRCODE_SYNC_TIMEOUT;
+            HAL_I2C_TRACE(0, "%d: task=%u wait lock timeout %d ms", id, task_idx, tm_ms);
+            task->errcode |= HAL_I2C_ERRCODE_SYNC_TIMEOUT;
             hal_i2c_sm_done_task(id);
             hal_i2c_sm_next_task(id);
         }
@@ -1115,32 +1251,278 @@ static void hal_i2c_sm_kickoff(enum HAL_I2C_ID_T id)
     int_unlock(lock);
 }
 
+static void _i2c_proc_send_action(enum HAL_I2C_ID_T id, uint32_t reg_base, uint32_t ip_int_status, struct HAL_I2C_SM_TASK_T *task)
+{
+    uint32_t i = 0, restart = 0, stop = 0;
+    uint8_t tx_limit, tx_cnt;
+    uint32_t total_tx_len;
+    uint32_t txn_pos;
+
+    if (hal_i2c_sm[id].cfg.use_dma) {
+        goto _check_stop;
+    }
+
+    /* tx empty : means tx fifo is at or below IC_TX_TL :
+        need to write more data : we can NOT clear this bit, cleared by hw */
+    if (ip_int_status & I2CIP_INT_STATUS_TX_EMPTY_MASK) {
+        total_tx_len = task->tx_txn_len * task->txn_cnt;
+        tx_limit = i2cip_r_tx_fifo_level(reg_base);
+        if (tx_limit < I2CIP_TX_FIFO_DEPTH) {
+            tx_limit = I2CIP_TX_FIFO_DEPTH - tx_limit;
+        } else {
+            tx_limit = 0;
+        }
+        HAL_I2C_TRACE(0, "m_send:%d: tx_pos=%d tx_txn_len=%d cnt=%d tx_limit=%d",
+                    id, task->tx_pos, task->tx_txn_len, task->txn_cnt, tx_limit);
+        for (i = task->tx_pos, tx_cnt = 0;
+                ((i < total_tx_len) && (tx_cnt < tx_limit));
+                ++i, ++tx_cnt) {
+            /* last byte : we need to decide stop */
+            if (i == total_tx_len - 1) {
+                stop = I2CIP_CMD_DATA_STOP_MASK;
+            } else {
+                stop = 0;
+            }
+            if (task->txn_cnt == 1) {
+                txn_pos = i;
+            } else {
+                txn_pos = i % task->tx_txn_len;
+            }
+            /* first byte : need to decide restart */
+            if (i && task->restart_after_write && txn_pos == 0) {
+                restart = I2CIP_CMD_DATA_RESTART_MASK;
+            } else {
+                restart = 0;
+            }
+            /* write data to FIFO */
+            i2cip_w_cmd_data(reg_base,
+                task->tx_buf[i] | I2CIP_CMD_DATA_CMD_WRITE_MASK | restart | stop);
+
+            HAL_I2C_TRACE(0, "m_send:%d: data=0x%02X restart=0x%X stop=0x%X",
+                    id, task->tx_buf[i], restart, stop);
+        }
+
+        task->tx_pos = i;
+
+        /* all write action done : do NOT need tx empty int */
+        if (task->tx_pos == total_tx_len) {
+            i2cip_clear_int_mask(reg_base, I2CIP_INT_MASK_TX_EMPTY_MASK);
+        }
+        HAL_I2C_TRACE(0, "m_send:%d: i2c status=0x%X", id, i2cip_r_status(reg_base));
+    }
+
+_check_stop:
+    /* stop condition : done task */
+    if (task->state & HAL_I2C_SM_TASK_STATE_STOP) {
+        HAL_I2C_TRACE(0, "m_send:%d: task->state:0x%X", id, task->state);
+        hal_i2c_sm_done_task(id);
+        hal_i2c_sm_next_task(id);
+    }
+}
+
+static void _i2c_enable_tx_empty_irq(enum HAL_I2C_ID_T id)
+{
+    uint32_t reg_base;
+
+    reg_base = _i2c_get_base(id);
+    // Re-enable tx empty irq
+    i2cip_set_int_mask(reg_base, I2CIP_INT_MASK_TX_EMPTY_MASK);
+}
+
+static void _i2c_rx_timer_handler(void *param)
+{
+    enum HAL_I2C_ID_T id = (enum HAL_I2C_ID_T)(uint32_t)param;
+
+    _i2c_enable_tx_empty_irq(id);
+    hal_i2c_sm[id].rx_timer_started = false;
+}
+
+static void _i2c_proc_recv_action(enum HAL_I2C_ID_T id, uint32_t reg_base, uint32_t ip_int_status, struct HAL_I2C_SM_TASK_T *task)
+{
+    uint32_t i = 0, restart = 0, stop = 0, data = 0;
+    uint8_t rx_limit, tx_limit, rx_cnt, tx_cnt;
+    uint32_t total_tx_len, total_rx_len;
+    uint32_t txn_idx, txn_pos;
+    enum E_HWTIMER_T tret;
+
+    if (hal_i2c_sm[id].cfg.use_dma) {
+        goto _check_stop;
+    }
+
+    if (hal_i2c_sm[id].rx_timer_started) {
+        tret = hwtimer_stop(hal_i2c_sm[id].rx_timer);
+        if (tret != E_HWTIMER_OK) {
+            HAL_I2C_ERROR(0, "*** Error:mrecv:%d: Failed to stop rx timer: %d", id, tret);
+        }
+        hal_i2c_sm[id].rx_timer_started = false;
+        _i2c_enable_tx_empty_irq(id);
+    }
+
+    /* rx full : need to read */
+    if (ip_int_status & I2CIP_INT_STATUS_RX_FULL_MASK) {
+        total_rx_len = task->rx_txn_len * task->txn_cnt;
+        rx_limit = i2cip_r_rx_fifo_level(reg_base);
+        HAL_I2C_TRACE(0, "m_recv:full:%d: rx_pos=%d rx_txn_len=%d cnt=%d rx_limit=%d",
+            id, task->rx_pos, task->rx_txn_len, task->txn_cnt, rx_limit);
+        for (i = task->rx_pos, rx_cnt = 0;
+                ((i < total_rx_len) && (rx_cnt < rx_limit));
+                ++i, ++rx_cnt) {
+            task->rx_buf[i] = i2cip_r_cmd_data(reg_base);
+            HAL_I2C_TRACE(0, "m_recv:full:%d: rx_buf[%d] 0x%X", id, i, task->rx_buf[i]);
+        }
+        task->rx_pos = i;
+        if (i >= total_rx_len) {
+            // Avoid extra unsolicited rx full irq
+            i2cip_clear_int_mask(reg_base, I2CIP_INT_MASK_RX_FULL_MASK);
+        }
+    }
+
+    /* tx empty : means tx fifo is at or below IC_TX_TL :
+        need to write more data : we can NOT clear this bit, cleared by hw */
+    tx_limit = i2cip_r_tx_fifo_level(reg_base);
+    if ((ip_int_status & I2CIP_INT_STATUS_TX_EMPTY_MASK) || tx_limit < I2CIP_TX_FIFO_DEPTH) {
+        if (tx_limit < I2CIP_TX_FIFO_DEPTH) {
+            tx_limit = I2CIP_TX_FIFO_DEPTH - tx_limit;
+        } else {
+            tx_limit = 0;
+        }
+        if (task->rx_cmd_sent < task->rx_pos) {
+            HAL_I2C_ERROR(0, "*** Error:mrecv:%d: rx_cmd_sent=%u rx_pos=%u", id, task->rx_cmd_sent, task->rx_pos);
+            task->errcode |= HAL_I2C_ERRCODE_EXTRA_RX;
+            // Stop the task to avoid endless tx empty irq
+            goto _task_done;
+        }
+        rx_limit = task->rx_cmd_sent - task->rx_pos;
+        if (rx_limit < I2CIP_RX_FIFO_DEPTH) {
+            rx_limit = I2CIP_RX_FIFO_DEPTH - rx_limit;
+        } else {
+            rx_limit = 0;
+        }
+        HAL_I2C_TRACE(0, "m_recv:txEmpty:%d: tx_pos=%d tx_txn_len=%d rx_txn_len=%d cnt=%d tx_limit=%d rx_limit=%d",
+                    id, task->tx_pos, task->tx_txn_len, task->rx_txn_len, task->txn_cnt, tx_limit, rx_limit);
+        if (tx_limit > rx_limit) {
+            tx_limit = rx_limit;
+        }
+        if (tx_limit == 0) {
+            if (ip_int_status & I2CIP_INT_STATUS_TX_EMPTY_MASK) {
+                // Disable tx empty irq
+                i2cip_clear_int_mask(reg_base, I2CIP_INT_MASK_TX_EMPTY_MASK);
+                // Start timer to re-enable tx empty irq later
+                tret = hwtimer_start(hal_i2c_sm[id].rx_timer, MS_TO_TICKS(10));
+                if (tret != E_HWTIMER_OK) {
+                    HAL_I2C_ERROR(0, "*** Error:mrecv:%d: Failed to start rx timer: %d", id, tret);
+                }
+                hal_i2c_sm[id].rx_timer_started = true;
+            }
+        }
+        total_tx_len = (task->tx_txn_len + task->rx_txn_len) * task->txn_cnt;
+        for (i = task->tx_pos, tx_cnt = 0;
+                ((i < total_tx_len) && (tx_cnt < tx_limit));
+                ++i, ++tx_cnt) {
+            /* last byte : we need to decide stop */
+            if (i == (total_tx_len - 1)) {
+                stop = I2CIP_CMD_DATA_STOP_MASK;
+            } else {
+                stop = 0;
+            }
+            if (task->txn_cnt == 1) {
+                txn_idx = 0;
+                txn_pos = i;
+            } else {
+                txn_idx = i / (task->tx_txn_len + task->rx_txn_len);
+                txn_pos = i % (task->tx_txn_len + task->rx_txn_len);
+            }
+            /* first byte : need to decide restart */
+            if (i && task->restart_after_write && (txn_pos == 0 || txn_pos == task->tx_txn_len)) {
+                restart = I2CIP_CMD_DATA_RESTART_MASK;
+            } else {
+                restart = 0;
+            }
+            /* real write data */
+            if (txn_pos < task->tx_txn_len) {
+                if (task->txn_cnt == 1) {
+                    data = task->tx_buf[txn_pos];
+                } else {
+                    data = task->tx_buf[txn_idx * task->tx_txn_len + txn_pos];
+                }
+            } else {
+                data = I2CIP_CMD_DATA_CMD_READ_MASK;
+                task->rx_cmd_sent++;
+            }
+
+            i2cip_w_cmd_data(reg_base, data | restart | stop);
+            HAL_I2C_TRACE(0, "m_recv:tx:%d: data[%u]=0x%02X restart=0x%X stop=0x%X",
+                            id, i, data, restart, stop);
+        }
+
+        task->tx_pos = i;
+
+        /* all write action done */
+        if (i >= total_tx_len) {
+            i2cip_clear_int_mask(reg_base, I2CIP_INT_MASK_TX_EMPTY_MASK);
+        }
+    }
+
+_check_stop:
+    /* stop condition : need to read out all rx fifo */
+    if (task->state & HAL_I2C_SM_TASK_STATE_STOP) {
+        if (hal_i2c_sm[id].cfg.use_dma) {
+#ifdef I2C_USE_DMA
+            if (hal_i2c_sm[id].rx_dma_cfg.ch == HAL_DMA_CHAN_NONE) {
+                HAL_I2C_TRACE(0, "m_recv:stop:WARNING:%d: bad rx dma chan!", id);
+            } else {
+                if (hal_dma_chan_busy(hal_i2c_sm[id].rx_dma_cfg.ch)) {
+                    HAL_I2C_TRACE(0, "m_recv:stop:WARNING:%d: rx dma not finished yet!", id);
+                }
+            }
+#endif
+        } else {
+            rx_limit = i2cip_r_rx_fifo_level(reg_base);
+            HAL_I2C_TRACE(0, "m_recv:stop:%d: rx_limit=%d", id, rx_limit);
+            for (i = task->rx_pos, rx_cnt = 0;
+                    ((rx_cnt < rx_limit) && (i < task->rx_txn_len));
+                    ++i, ++rx_cnt) {
+                task->rx_buf[i] = i2cip_r_cmd_data(reg_base);
+                HAL_I2C_TRACE(0, "m_recv:stop:%d: rx_buf[%d] 0x%X", id, i, task->rx_buf[i]);
+            }
+            task->rx_pos = i;
+            if (task->rx_pos != task->rx_txn_len * task->txn_cnt) {
+                HAL_I2C_TRACE(0, "m_recv:stop:WARNING:%d: rx_pos(%u) != rx_txn_len(%u) * txn_cnt(%u)", id, task->rx_pos, task->rx_txn_len, task->txn_cnt);
+            }
+        }
+
+_task_done:
+        hal_i2c_sm_done_task(id);
+        hal_i2c_sm_next_task(id);
+    }
+}
+
 static void hal_i2c_sm_proc(enum HAL_I2C_ID_T id)
 {
     uint32_t reg_base = 0;
     enum HAL_I2C_SM_STATE_T state;
     enum HAL_I2C_SM_TASK_STATE_T task_state;
     struct HAL_I2C_SM_TASK_T *task;
-    uint32_t i = 0, restart = 0, stop = 0, data = 0;
     uint32_t ip_int_status = 0, tx_abrt_source = 0;
-    uint8_t rx_limit, tx_limit, rx_cnt, tx_cnt;
-    uint32_t total_tx_len, total_rx_len;
-    uint32_t txn_idx, txn_pos;
 
     reg_base = _i2c_get_base(id);
     state = hal_i2c_sm[id].state;
     task = &(hal_i2c_sm[id].task[hal_i2c_sm[id].out_task]);
 
+    if (state == HAL_I2C_SM_CLOSED) {
+        return;
+    }
+
     ip_int_status = i2cip_r_int_status(reg_base);
     tx_abrt_source = i2cip_r_tx_abrt_source(reg_base);
 
-    HAL_TRACE(0, "%d: ip_int_status=0x%X tx_abrt_source=0x%X state=%d",
+    HAL_I2C_TRACE(0, "%d: ip_int_status=0x%X tx_abrt_source=0x%X state=%d",
             id, ip_int_status, tx_abrt_source, state);
 
     task_state = _i2c_chk_clr_task_error(reg_base, ip_int_status, tx_abrt_source);
 
     if (state != HAL_I2C_SM_RUNNING) {
-        HAL_TRACE(0, "*** WARNING:%d: No i2c task running: ip_int_status=0x%X tx_abrt_source=0x%X", id, ip_int_status, tx_abrt_source);
+        HAL_I2C_ERROR(0, "*** WARNING:%d: No i2c task running: ip_int_status=0x%X tx_abrt_source=0x%X", id, ip_int_status, tx_abrt_source);
         // Stop I2C
         i2cip_init_int_mask(reg_base, I2CIP_INT_MASK_NONE);
         i2cip_r_clr_all_intr(reg_base);
@@ -1153,13 +1535,13 @@ static void hal_i2c_sm_proc(enum HAL_I2C_ID_T id)
         return;
     }
 
-    HAL_TRACE(0, "%d: RUNNING action=%d", id, task->action);
+    HAL_I2C_TRACE(0, "%d: RUNNING action=%d", id, task->action);
 
     task->state |= task_state;
 
     if (task->state & (HAL_I2C_SM_TASK_STATE_TX_ABRT | HAL_I2C_SM_TASK_STATE_FIFO_ERR)) {
-        HAL_TRACE(0, "*** ERROR:%s:%d: task_state=0x%X ip_int_status=0x%X tx_abrt_source=0x%X", __func__, id, task->state, ip_int_status, tx_abrt_source);
-        task->errcode = tx_abrt_source;
+        HAL_I2C_ERROR(0, "*** ERROR:%s:%d: task_state=0x%X ip_int_status=0x%X tx_abrt_source=0x%X", __func__, id, task->state, ip_int_status, tx_abrt_source);
+        task->errcode |= tx_abrt_source;
         if (task->state & HAL_I2C_SM_TASK_STATE_FIFO_ERR) {
             task->errcode |= HAL_I2C_ERRCODE_FIFO_ERR;
         }
@@ -1169,16 +1551,68 @@ static void hal_i2c_sm_proc(enum HAL_I2C_ID_T id)
         return;
     }
 
-    /* stop det interrupt */
-    if (ip_int_status & I2CIP_INT_STATUS_STOP_DET_MASK) {
-        task->state |= HAL_I2C_SM_TASK_STATE_STOP;
-        i2cip_r_clr_stop_det(reg_base);
-    }
-
     /* start det interrupt */
     if (ip_int_status & I2CIP_INT_STATUS_START_DET_MASK) {
         task->state |= HAL_I2C_SM_TASK_STATE_START;
         i2cip_r_clr_start_det(reg_base);
+        return;
+    }
+
+#ifdef I2C_SLAVE_TASK
+    /* rd_req det interrupt */
+    if (ip_int_status &  I2CIP_INT_STATUS_RD_REQ_MASK) {
+        //discard the cmd data sent by host
+        // clear fifo by reading :The data in fifo is the command sent by the master
+        int i;
+        uint8_t reg_addr = 0;
+        uint32_t remains = 0;
+        uint8_t *i2c_tx_buf;
+        uint32_t i2c_tx_len;
+        POSSIBLY_UNUSED struct HAL_I2C_SM_TASK_T *out_task = NULL;
+
+#ifdef I2C_USE_DMA
+        if (hal_i2c_sm[id].cfg.use_dma) {
+            remains = hal_i2c_dma_release(id);
+        }
+#endif
+        hal_i2c_sm[id].state = HAL_I2C_SM_IDLE;
+        --hal_i2c_sm[id].task_count;
+        hal_i2c_sm[id].out_task = (hal_i2c_sm[id].out_task + 1) % HAL_I2C_SM_TASK_NUM_MAX;
+
+        if (task->rx_txn_len * task->txn_cnt - remains == 1) {
+            reg_addr = task->rx_buf[0];
+        } else {
+            for (i = 0; i < task->rx_txn_len * task->txn_cnt - remains; i++) {
+                HAL_I2C_TRACE(0, "%s:%d: discard data 0x%02X", __func__, id, task->rx_buf[i]);
+            }
+            task->errcode |= HAL_I2C_ERRCODE_FIFO_ERR;
+            goto rd_req_exit;
+        }
+        if (i2c_rd_req_handler)
+            i2c_rd_req_handler(id, reg_addr, &i2c_tx_buf, &i2c_tx_len, task->errcode);
+        if (!i2c_tx_buf || !i2c_tx_len) {
+            ASSERT(0, "%s:%d: i2c slave tx no data", __FUNCTION__, id);
+        }
+        hal_i2c_slv_task_send(id, i2c_tx_buf, i2c_tx_len, 0, task->handler);
+        out_task = &(hal_i2c_sm[id].task[hal_i2c_sm[id].out_task]);
+        out_task->rx_buf = task->rx_buf;
+        out_task->rx_txn_len = task->rx_txn_len * task->txn_cnt - remains;
+
+rd_req_exit:
+        i2cip_r_clr_rd_req(reg_base);
+        i2cip_r_clr_start_det(reg_base);
+        if (task->errcode) {
+            HAL_I2C_ERROR(0, "%s:%d: i2c err: 0x%X", __func__, id, task->errcode);
+            _i2c_show_error_code(task->errcode);
+        }
+        return;
+    }
+#endif
+
+    /* stop det interrupt */
+    if (ip_int_status & I2CIP_INT_STATUS_STOP_DET_MASK) {
+        task->state |= HAL_I2C_SM_TASK_STATE_STOP;
+        i2cip_r_clr_stop_det(reg_base);
     }
 
     /* activity det interrupt */
@@ -1189,185 +1623,19 @@ static void hal_i2c_sm_proc(enum HAL_I2C_ID_T id)
 
     switch (task->action) {
         case HAL_I2C_SM_TASK_ACTION_M_SEND: {
-            if (hal_i2c_sm[id].cfg.use_dma == 0) {
-                /* tx empty : means tx fifo is at or below IC_TX_TL :
-                   need to write more data : we can NOT clear this bit, cleared by hw */
-                if (ip_int_status & I2CIP_INT_STATUS_TX_EMPTY_MASK) {
-                    total_tx_len = task->tx_txn_len * task->txn_cnt;
-                    tx_limit = i2cip_r_tx_fifo_level(reg_base);
-                    if (tx_limit < I2CIP_TX_FIFO_DEPTH) {
-                        tx_limit = I2CIP_TX_FIFO_DEPTH - tx_limit;
-                    } else {
-                        tx_limit = 0;
-                    }
-                    HAL_TRACE(0, "m_send:%d: tx_pos=%d tx_txn_len=%d cnt=%d tx_limit=%d",
-                                id, task->tx_pos, task->tx_txn_len, task->txn_cnt, tx_limit);
-                    for (i = task->tx_pos, tx_cnt = 0;
-                            ((i < total_tx_len) && (tx_cnt < tx_limit));
-                            ++i, ++tx_cnt) {
-                        /* last byte : we need to decide stop */
-                        if (i == total_tx_len - 1) {
-                            stop = task->stop ? I2CIP_CMD_DATA_STOP_MASK : 0;
-                        } else {
-                            stop = 0;
-                        }
-                        if (task->txn_cnt == 1) {
-                            txn_pos = i;
-                        } else {
-                            txn_pos = i % task->tx_txn_len;
-                        }
-                        /* first byte : need to decide restart */
-                        if (i && task->restart_after_write && txn_pos == 0) {
-                            restart = I2CIP_CMD_DATA_RESTART_MASK;
-                        } else {
-                            restart = 0;
-                        }
-                        /* write data to FIFO */
-                        i2cip_w_cmd_data(reg_base,
-                            task->tx_buf[i] | I2CIP_CMD_DATA_CMD_WRITE_MASK | restart | stop);
-
-                        HAL_TRACE(0, "m_send:%d: data=0x%02X restart=0x%X stop=0x%X",
-                                id, task->tx_buf[i], restart, stop);
-                    }
-
-                    task->tx_pos = i;
-
-                    /* all write action done : do NOT need tx empty int */
-                    if (task->tx_pos == total_tx_len) {
-                        i2cip_clear_int_mask(reg_base, I2CIP_INT_MASK_TX_EMPTY_MASK);
-                    }
-                    HAL_TRACE(0, "m_send:%d: i2c status=0x%X", id, i2cip_r_status(reg_base));
-                }
-            }
-
-            /* stop condition : done task */
-            if (task->state & HAL_I2C_SM_TASK_STATE_STOP) {
-                HAL_TRACE(0, "m_send:%d: task->state:0x%X", id, task->state);
-                hal_i2c_sm_done_task(id);
-                hal_i2c_sm_next_task(id);
-            }
+            _i2c_proc_send_action(id, reg_base, ip_int_status, task);
             break;
         }
         case HAL_I2C_SM_TASK_ACTION_M_RECV: {
-            if (hal_i2c_sm[id].cfg.use_dma == 0) {
-                /* rx full : need to read */
-                if (ip_int_status & I2CIP_INT_STATUS_RX_FULL_MASK) {
-                    total_rx_len = task->rx_txn_len * task->txn_cnt;
-                    rx_limit = i2cip_r_rx_fifo_level(reg_base);
-                    HAL_TRACE(0, "m_recv:full:%d: rx_pos=%d rx_txn_len=%d cnt=%d rx_limit=%d",
-                        id, task->rx_pos, task->rx_txn_len, task->txn_cnt, rx_limit);
-                    for (i = task->rx_pos, rx_cnt = 0;
-                            ((i < total_rx_len) && (rx_cnt < rx_limit));
-                            ++i, ++rx_cnt) {
-                        task->rx_buf[i] = i2cip_r_cmd_data(reg_base);
-                        HAL_TRACE(0, "m_recv:full:%d: rx_buf[%d] 0x%X", id, i, task->rx_buf[i]);
-                    }
-                    task->rx_pos = i;
-                }
-
-                /* tx empty : means tx fifo is at or below IC_TX_TL :
-                   need to write more data : we can NOT clear this bit, cleared by hw */
-                if (ip_int_status & I2CIP_INT_STATUS_TX_EMPTY_MASK) {
-                    total_tx_len = (task->tx_txn_len + task->rx_txn_len) * task->txn_cnt;
-                    tx_limit = i2cip_r_tx_fifo_level(reg_base);
-                    if (tx_limit < I2CIP_TX_FIFO_DEPTH) {
-                        tx_limit = I2CIP_TX_FIFO_DEPTH - tx_limit;
-                    } else {
-                        tx_limit = 0;
-                    }
-                    rx_limit = task->rx_cmd_sent - task->rx_pos + 1;
-                    if (rx_limit < I2CIP_RX_FIFO_DEPTH) {
-                        rx_limit = I2CIP_RX_FIFO_DEPTH - rx_limit;
-                    } else {
-                        rx_limit = 0;
-                    }
-                    HAL_TRACE(0, "m_recv:txEmpty:%d: tx_pos=%d tx_txn_len=%d rx_txn_len=%d cnt=%d tx_limit=%d rx_limit=%d",
-                                id, task->tx_pos, task->tx_txn_len, task->rx_txn_len, task->txn_cnt, tx_limit, rx_limit);
-                    if (tx_limit > rx_limit) {
-                        tx_limit = rx_limit;
-                    }
-                    for (i = task->tx_pos, tx_cnt = 0;
-                            ((i < total_tx_len) && (tx_cnt < tx_limit));
-                            ++i, ++tx_cnt) {
-                        /* last byte : we need to decide stop */
-                        if (i == (total_tx_len - 1)) {
-                            stop = task->stop ? I2CIP_CMD_DATA_STOP_MASK : 0;
-                        } else {
-                            stop = 0;
-                        }
-                        if (task->txn_cnt == 1) {
-                            txn_idx = 0;
-                            txn_pos = i;
-                        } else {
-                            txn_idx = i / (task->tx_txn_len + task->rx_txn_len);
-                            txn_pos = i % (task->tx_txn_len + task->rx_txn_len);
-                        }
-                        /* first byte : need to decide restart */
-                        if (i && task->restart_after_write && (txn_pos == 0 || txn_pos == task->tx_txn_len)) {
-                            restart = I2CIP_CMD_DATA_RESTART_MASK;
-                        } else {
-                            restart = 0;
-                        }
-                        /* real write data */
-                        if (txn_pos < task->tx_txn_len) {
-                            if (task->txn_cnt == 1) {
-                                data = task->tx_buf[txn_pos];
-                            } else {
-                                data = task->tx_buf[txn_idx * task->tx_txn_len + txn_pos];
-                            }
-                        } else {
-                            data = I2CIP_CMD_DATA_CMD_READ_MASK;
-                            task->rx_cmd_sent++;
-                        }
-
-                        i2cip_w_cmd_data(reg_base, data | restart | stop);
-                        HAL_TRACE(0, "m_recv:tx:%d: data[%u]=0x%02X restart=0x%X stop=0x%X",
-                                        id, i, data, restart, stop);
-                    }
-
-                    task->tx_pos = i;
-
-                    /* all write action done */
-                    if (task->tx_pos == total_tx_len) {
-                        i2cip_clear_int_mask(reg_base, I2CIP_INT_MASK_TX_EMPTY_MASK);
-                    }
-                }
-            }
-
-            /* stop condition : need to read out all rx fifo */
-            if (task->state & HAL_I2C_SM_TASK_STATE_STOP) {
-                if (hal_i2c_sm[id].cfg.use_dma) {
-#ifdef I2C_USE_DMA
-                    if (hal_i2c_sm[id].rx_dma_cfg.ch == HAL_DMA_CHAN_NONE) {
-                        HAL_TRACE(0, "m_recv:stop:WARNING:%d: bad rx dma chan!", id);
-                    } else {
-                        if (hal_dma_chan_busy(hal_i2c_sm[id].rx_dma_cfg.ch)) {
-                            HAL_TRACE(0, "m_recv:stop:WARNING:%d: rx dma not finished yet!", id);
-                        }
-                    }
-#endif
-                } else {
-                    rx_limit = i2cip_r_rx_fifo_level(reg_base);
-                    HAL_TRACE(0, "m_recv:stop:%d: rx_limit=%d", id, rx_limit);
-                    for (i = task->rx_pos, rx_cnt = 0;
-                            ((rx_cnt < rx_limit) && (i < task->rx_txn_len));
-                                ++i, ++rx_cnt) {
-                        task->rx_buf[i] = i2cip_r_cmd_data(reg_base);
-                        HAL_TRACE(0, "m_recv:stop:%d: rx_buf[%d] 0x%X", id, i, task->rx_buf[i]);
-                    }
-                    task->rx_pos = i;
-                    if (task->rx_pos != task->rx_txn_len * task->txn_cnt) {
-                        HAL_TRACE(0, "m_recv:stop:WARNING:%d: rx_pos(%u) != rx_txn_len(%u) * txn_cnt(%u)", id, task->rx_pos, task->rx_txn_len, task->txn_cnt);
-                    }
-                }
-                hal_i2c_sm_done_task(id);
-                hal_i2c_sm_next_task(id);
-            }
+            _i2c_proc_recv_action(id, reg_base, ip_int_status, task);
             break;
         }
         default:
             break;
     }
+
+    /* Avoid the effect of irq pulse generated during irq process (e.g., tx empty raised and then cleared) */
+    NVIC_ClearPendingIRQ(i2c_desc[id].irq);
 }
 
 void hal_i2c_irq_handler(void)
@@ -1452,6 +1720,9 @@ static void hal_i2c_setup(enum HAL_I2C_ID_T id, const struct HAL_I2C_CONFIG_T *c
 
     i2cip_w_target_address(reg_base, 0x18);
 
+    if (!cfg->as_master && cfg->use_sync)
+        ASSERT(0, "%s:%d: i2c slave don't support sync mode", __FUNCTION__, id);
+
     /* as master */
     if (cfg->as_master) {
         i2cip_w_disable_slave(reg_base, HAL_I2C_YES);
@@ -1490,7 +1761,7 @@ static int hal_i2c_pm_notif_handler(enum HAL_PM_STATE_T state)
     enum HAL_I2C_ID_T i;
 
     if (state == HAL_PM_STATE_POWER_DOWN_WAKEUP) {
-        for (i = 0; i < HAL_I2C_ID_NUM; i++) {
+        for (i = (enum HAL_I2C_ID_T)0; i < HAL_I2C_ID_NUM; i++) {
             if (hal_i2c_sm[i].state != HAL_I2C_SM_CLOSED) {
                 hal_i2c_setup(i, &hal_i2c_sm[i].cfg);
             }
@@ -1525,6 +1796,9 @@ uint32_t hal_i2c_open(enum HAL_I2C_ID_T id, const struct HAL_I2C_CONFIG_T *cfg)
 
     lock = int_lock();
     for (i = 0; i < HAL_I2C_ID_NUM; i++) {
+        if (i == id) {
+            continue;
+        }
         if (hal_i2c_sm[i].state != HAL_I2C_SM_CLOSED) {
             break;
         }
@@ -1553,16 +1827,24 @@ uint32_t hal_i2c_open(enum HAL_I2C_ID_T id, const struct HAL_I2C_CONFIG_T *cfg)
     if (0) {
 #ifdef I2C_SIMPLE_MODE
     } else if (cfg->mode == HAL_I2C_API_MODE_SIMPLE) {
-        HAL_TRACE(0, "%d: simple mode", id);
+        HAL_I2C_TRACE(0, "%d: simple mode", id);
         hal_i2c_int_handlers[id] = NULL;
         hal_i2c_nvic_setup_irq(id, (uint32_t)hal_i2c_irq_handler_s);
 #endif
 #ifdef I2C_TASK_MODE
     } else if (cfg->mode == HAL_I2C_API_MODE_TASK) {
-        HAL_TRACE(0, "%d: task mode", id);
+        HAL_I2C_TRACE(0, "%d: task mode", id);
+        if (!cfg->use_dma) {
+            hal_i2c_sm[id].rx_timer = hwtimer_alloc(_i2c_rx_timer_handler, (void *)id);
+            if (hal_i2c_sm[id].rx_timer == NULL) {
+                HAL_I2C_ERROR(0, "%d: Failed to alloc rx timer", id);
+                return HAL_I2C_ERRCODE_NO_RX_TIMER;
+            }
+            hal_i2c_sm[id].rx_timer_started = false;
+        }
 #ifndef I2C_USE_DMA
         if (cfg->use_dma) {
-            HAL_TRACE(0, "%d: using DMA when I2C_USE_DMA is NOT enabled", id);
+            HAL_I2C_ERROR(0, "%d: using DMA when I2C_USE_DMA is NOT enabled", id);
             return HAL_I2C_ERRCODE_INV_PARAM;
         }
 #endif
@@ -1571,7 +1853,7 @@ uint32_t hal_i2c_open(enum HAL_I2C_ID_T id, const struct HAL_I2C_CONFIG_T *cfg)
 #endif
 #if defined(I2C_SENSOR_ENGINE) || defined(I2C_SENSOR_ENGINE_V1)
     } else if (cfg->mode == HAL_I2C_API_MODE_SENSOR_ENGINE) {
-        HAL_TRACE(0, "%d: sensor engine mode", id);
+        HAL_I2C_TRACE(0, "%d: sensor engine mode", id);
         ASSERT(cfg->as_master, "%s:%d: i2c master should be used with sensor engine", __FUNCTION__, id);
 #ifdef I2C_SENSOR_ENGINE_V1
         ASSERT(cfg->use_dma, "%s:%d: i2c dma should be used with sensor engine", __FUNCTION__, id);
@@ -1602,6 +1884,7 @@ uint32_t hal_i2c_open(enum HAL_I2C_ID_T id, const struct HAL_I2C_CONFIG_T *cfg)
 uint32_t hal_i2c_close(enum HAL_I2C_ID_T id)
 {
     uint32_t reg_base;
+    uint32_t lock;
 
     ASSERT(id < HAL_I2C_ID_NUM, invalid_id, id);
 
@@ -1611,12 +1894,27 @@ uint32_t hal_i2c_close(enum HAL_I2C_ID_T id)
 
     reg_base = _i2c_get_base(id);
 
+    lock = int_lock();
+
     hal_i2c_nvic_enable_irq(id, HAL_I2C_NO);
     i2cip_w_enable(reg_base, HAL_I2C_NO);
 
 #if defined(I2C_TASK_MODE) || defined(I2C_SENSOR_ENGINE_V1)
 #ifdef I2C_USE_DMA
     hal_i2c_dma_release(id);
+#endif
+#ifdef I2C_TASK_MODE
+    if (hal_i2c_sm[id].rx_timer) {
+        enum E_HWTIMER_T tret;
+
+        tret = hwtimer_stop(hal_i2c_sm[id].rx_timer);
+        if (tret != E_HWTIMER_OK) {
+            HAL_I2C_ERROR(0, "*** Error:close:%d: Failed to stop rx timer: %d", id, tret);
+        }
+        hwtimer_free(hal_i2c_sm[id].rx_timer);
+        hal_i2c_sm[id].rx_timer = NULL;
+        hal_i2c_sm[id].rx_timer_started = false;
+    }
 #endif
     _i2c_task_busy_unlock(id);
 #endif
@@ -1628,10 +1926,11 @@ uint32_t hal_i2c_close(enum HAL_I2C_ID_T id)
 
 #ifdef CORE_SLEEP_POWER_DOWN
     int i;
-    uint32_t lock;
 
-    lock = int_lock();
     for (i = 0; i < HAL_I2C_ID_NUM; i++) {
+        if (i == id) {
+            continue;
+        }
         if (hal_i2c_sm[i].state != HAL_I2C_SM_CLOSED) {
             break;
         }
@@ -1639,10 +1938,11 @@ uint32_t hal_i2c_close(enum HAL_I2C_ID_T id)
     if (i >= HAL_I2C_ID_NUM) {
         hal_pm_notif_deregister(HAL_PM_USER_HAL, hal_i2c_pm_notif_handler);
     }
-    int_unlock(lock);
 #endif
 
     hal_i2c_sm[id].state = HAL_I2C_SM_CLOSED;
+
+    int_unlock(lock);
 
     return 0;
 }
@@ -1706,8 +2006,12 @@ uint32_t hal_i2c_task_msend(enum HAL_I2C_ID_T id, uint16_t device_addr,
     uint32_t task_idx;
     ASSERT(id < HAL_I2C_ID_NUM, invalid_id, id);
 
+    if (hal_i2c_sm[id].state == HAL_I2C_SM_CLOSED) {
+        return HAL_I2C_ERRCODE_CLOSED;
+    }
+
     if (hal_i2c_sm[id].cfg.mode != HAL_I2C_API_MODE_TASK) {
-        HAL_TRACE(0, "send:%d: not task mode", id);
+        HAL_I2C_TRACE(0, "send:%d: not task mode", id);
         return HAL_I2C_ERRCODE_INV_PARAM;
     }
 
@@ -1715,12 +2019,16 @@ uint32_t hal_i2c_task_msend(enum HAL_I2C_ID_T id, uint16_t device_addr,
                device_addr, HAL_I2C_SM_TASK_ACTION_M_SEND,
                transfer_id, handler);
     if (task_idx >= HAL_I2C_SM_TASK_NUM_MAX) {
-        HAL_TRACE(0, "send:%d: no task slot", id);
+        HAL_I2C_TRACE(0, "send:%d: no task slot", id);
         return HAL_I2C_ERRCODE_IN_USE;
     }
 
     hal_i2c_sm_kickoff(id);
-    return hal_i2c_sm_wait_task_if_need(id, task_idx, HAL_I2C_SYNC_TM_MS);
+    // i2c slave don't support sync mode
+    if (hal_i2c_sm[id].cfg.as_master)
+        return hal_i2c_sm_wait_task_if_need(id, task_idx);
+    else
+        return 0;
 }
 
 uint32_t hal_i2c_task_send(enum HAL_I2C_ID_T id, uint16_t device_addr, const uint8_t *tx_buf, uint16_t tx_len,
@@ -1736,8 +2044,12 @@ uint32_t hal_i2c_task_mrecv(enum HAL_I2C_ID_T id, uint16_t device_addr, const ui
     uint32_t task_idx;
     ASSERT(id < HAL_I2C_ID_NUM, invalid_id, id);
 
+    if (hal_i2c_sm[id].state == HAL_I2C_SM_CLOSED) {
+        return HAL_I2C_ERRCODE_CLOSED;
+    }
+
     if (hal_i2c_sm[id].cfg.mode != HAL_I2C_API_MODE_TASK) {
-        HAL_TRACE(0, "recv:%d: not task mode", id);
+        HAL_I2C_TRACE(0, "recv:%d: not task mode", id);
         return HAL_I2C_ERRCODE_INV_PARAM;
     }
 
@@ -1745,12 +2057,48 @@ uint32_t hal_i2c_task_mrecv(enum HAL_I2C_ID_T id, uint16_t device_addr, const ui
              device_addr, HAL_I2C_SM_TASK_ACTION_M_RECV,
              transfer_id, handler);
     if (task_idx >= HAL_I2C_SM_TASK_NUM_MAX) {
-        HAL_TRACE(0, "recv:%d: no task slot", id);
+        HAL_I2C_TRACE(0, "recv:%d: no task slot", id);
         return HAL_I2C_ERRCODE_IN_USE;
     }
 
     hal_i2c_sm_kickoff(id);
-    return hal_i2c_sm_wait_task_if_need(id, task_idx, HAL_I2C_SYNC_TM_MS);
+    // i2c slave don't support sync mode
+    if (hal_i2c_sm[id].cfg.as_master)
+        return hal_i2c_sm_wait_task_if_need(id, task_idx);
+    else
+        return 0;
+}
+
+uint32_t hal_i2c_cancel_active_task(enum HAL_I2C_ID_T id)
+{
+    uint32_t lock;
+    struct HAL_I2C_SM_TASK_T *task;
+
+    ASSERT(id < HAL_I2C_ID_NUM, invalid_id, id);
+
+    if (hal_i2c_sm[id].state == HAL_I2C_SM_CLOSED) {
+        return HAL_I2C_ERRCODE_CLOSED;
+    }
+
+    if (hal_i2c_sm[id].cfg.mode != HAL_I2C_API_MODE_TASK) {
+        HAL_I2C_TRACE(0, "recv:%d: not task mode", id);
+        return HAL_I2C_ERRCODE_INV_PARAM;
+    }
+
+    lock = int_lock();
+
+    if (hal_i2c_sm[id].state == HAL_I2C_SM_RUNNING) {
+        task = &(hal_i2c_sm[id].task[hal_i2c_sm[id].out_task]);
+
+        task->errcode |= HAL_I2C_ERRCODE_CANCELLED;
+
+        hal_i2c_sm_done_task(id);
+        hal_i2c_sm_next_task(id);
+    }
+
+    int_unlock(lock);
+
+    return 0;
 }
 
 uint32_t hal_i2c_task_recv(enum HAL_I2C_ID_T id, uint16_t device_addr, const uint8_t *tx_buf, uint16_t tx_len,
@@ -1771,87 +2119,13 @@ uint32_t hal_i2c_recv(enum HAL_I2C_ID_T id, uint32_t device_addr, uint8_t *buf, 
 {
     return hal_i2c_task_recv(id, device_addr, buf, reg_len, buf + reg_len, value_len, transfer_id, handler);
 }
-
-uint32_t hal_i2c_slv_task_send_raw(enum HAL_I2C_ID_T id, const uint8_t *tx_buf, uint32_t tx_len, uint32_t transfer_id, HAL_I2C_TRANSFER_HANDLER_T handler)
+#ifdef I2C_SLAVE_TASK
+uint32_t hal_i2c_slv_task_send_recv(enum HAL_I2C_ID_T id, uint8_t *rx_buf, uint32_t rx_len, uint32_t transfer_id, HAL_I2C_SLAVE_TRANSFER_HANDLER_T handler, HAL_I2C_RD_REQ_HANDLER_T rd_req_handler)
 {
-    uint32_t ret;
-    uint32_t reg_base;
-    uint32_t start_time, timeout;
-
-    HAL_TRACE(0, "%s:%d: tx_buf=0x%X tx_len=%d", __func__, id, (int)tx_buf, tx_len);
-    reg_base = _i2c_get_base(id);
-
-    // wait master read request
-    timeout = MS_TO_TICKS(HAL_I2C_SYNC_TM_MS);
-    start_time = hal_sys_timer_get();
-    while (!(i2cip_r_raw_int_status(reg_base) & I2CIP_RAW_INT_STATUS_RD_REQ_MASK)) {
-        if (hal_sys_timer_get() - start_time >= timeout) {
-            HAL_TRACE(0, "%s:%d: wait rd req timeout", __func__, id);
-            ret = HAL_I2C_ERRCODE_SLVRD_INTX;
-            goto exit;
-        }
-    }
-
-    i2cip_r_clr_rd_req(reg_base);
-    ret = hal_i2c_task_msend(id, 0, tx_buf, tx_len, 1, transfer_id, handler);
-
-exit:
-    return ret;
-}
-
-uint32_t hal_i2c_slv_task_send(enum HAL_I2C_ID_T id, const uint8_t *tx_buf, uint32_t tx_len, uint32_t transfer_id, HAL_I2C_TRANSFER_HANDLER_T handler)
-{
-    POSSIBLY_UNUSED uint8_t tmp;
-    uint32_t i, j;
-    uint32_t ret;
-    uint32_t reg_base;
-    uint32_t start_time, timeout;
-
-    reg_base = _i2c_get_base(id);
-
-    /* rx threshold, trigger RX FULL */
-    i2cip_w_rx_threshold(reg_base, I2CIP_RX_TL_THREE_QUARTER);
-
-    /* tx threshold, trigger TX_EMPTY */
-    i2cip_w_tx_threshold(reg_base, I2CIP_TX_TL_QUARTER);
-
-    /* enable i2c */
-    i2cip_w_enable(reg_base, HAL_I2C_YES);
-
-    //waiting for the cmd data sent by host
-    timeout = MS_TO_TICKS(HAL_I2C_SYNC_TM_MS);
-    start_time = hal_sys_timer_get();
-    while (!((i2cip_r_status(reg_base) & I2CIP_STATUS_RFNE_MASK) ||
-    (i2cip_r_raw_int_status(reg_base) & I2CIP_RAW_INT_STATUS_RD_REQ_MASK))) {
-        if (hal_sys_timer_get() - start_time >= timeout) {
-            i2cip_r_clr_all_intr(reg_base);
-            i2cip_w_enable(reg_base, HAL_I2C_NO);
-            HAL_TRACE(0, "%s:%d: wait rfne timeout", __func__, id);
-            ret = HAL_I2C_ERRCODE_RFNE_TIMEOUT | HAL_I2C_ERRCODE_SLVRD_INTX;
-            goto exit;
-        }
-    }
-
-    //discard the cmd data sent by host
-    // clear fifo by reading :The data in fifo is the command sent by the master
-    j = i2cip_r_rx_fifo_level(reg_base);
-    if (j) {
-        for (i = 0; i < j; i++) {
-            tmp = i2cip_r_cmd_data(reg_base);
-            HAL_TRACE(0, "%s:%d: discard data 0x%02X", __func__, id, tmp);
-        }
-    }
-
-    ret = hal_i2c_slv_task_send_raw(id, tx_buf, tx_len, transfer_id, handler);
-
-exit:
-    return ret;
-}
-
-uint32_t hal_i2c_slv_task_recv(enum HAL_I2C_ID_T id, uint8_t *rx_buf, uint32_t rx_len, uint32_t transfer_id, HAL_I2C_TRANSFER_HANDLER_T handler)
-{
+    i2c_rd_req_handler = rd_req_handler;
     return hal_i2c_task_mrecv(id, 0, NULL, 0, rx_buf, rx_len, 1, transfer_id, handler);
 }
+#endif
 #endif
 /* task mode end */
 
@@ -1877,7 +2151,7 @@ static uint32_t _i2c_check_raw_int_status(enum HAL_I2C_ID_T id, uint32_t reg_bas
 {
     uint32_t regval = i2cip_r_raw_int_status(reg_base);
 
-    HAL_TRACE(0, "%s:%d: raw status=0x%X mask=0x%X", __func__, id, regval, mask);
+    HAL_I2C_TRACE(0, "%s:%d: raw status=0x%X mask=0x%X", __func__, id, regval, mask);
     return regval & mask;
 }
 
@@ -1912,11 +2186,11 @@ static void hal_i2c_simple_proc(enum HAL_I2C_ID_T id)
     ret = _i2c_check_clear_all_error(id, reg_base);
 
     if (h) {
-        HAL_TRACE(0, "%s:%d: irq=0x%X abt=0x%X", __func__, id, irq_status, ret);
+        HAL_I2C_TRACE(0, "%s:%d: irq=0x%X abt=0x%X", __func__, id, irq_status, ret);
         h(id, irq_status, ret);
     }
 
-    HAL_TRACE(0, "%s:%d: 0x%X", __func__, id, irq_status);
+    HAL_I2C_TRACE(0, "%s:%d: 0x%X", __func__, id, irq_status);
 }
 
 uint32_t hal_i2c_set_interrupt_handler(enum HAL_I2C_ID_T id, HAL_I2C_INT_HANDLER_T handler)
@@ -1954,18 +2228,18 @@ uint32_t hal_i2c_slv_simple_send_raw(enum HAL_I2C_ID_T id, const uint8_t *tx_buf
     ASSERT(id < HAL_I2C_ID_NUM, invalid_id, id);
 
     if (hal_i2c_sm[id].cfg.mode != HAL_I2C_API_MODE_SIMPLE) {
-        HAL_TRACE(0, "slv_write:%d: not simple mode", id);
+        HAL_I2C_TRACE(0, "slv_write:%d: not simple mode", id);
         return HAL_I2C_ERRCODE_INV_PARAM;
     }
 
-    HAL_TRACE(0, "%s:%d: tx_buf=0x%X tx_len=%d", __func__, id, (int)tx_buf, tx_len);
+    HAL_I2C_TRACE(0, "%s:%d: tx_buf=0x%X tx_len=%d", __func__, id, (int)tx_buf, tx_len);
 
     reg_base = _i2c_get_base(id);
 
     // check error
     ret = _i2c_check_clear_all_error(id, reg_base);
     if (ret) {
-        HAL_TRACE(0, "%s:%d: clear error before xfer 0x%X, i2c base:0x%X", __func__, id, ret, reg_base);
+        HAL_I2C_TRACE(0, "%s:%d: clear error before xfer 0x%X, i2c base:0x%X", __func__, id, ret, reg_base);
     }
 
     // wait master read request
@@ -1974,17 +2248,17 @@ uint32_t hal_i2c_slv_simple_send_raw(enum HAL_I2C_ID_T id, const uint8_t *tx_buf
     while (!(i2cip_r_raw_int_status(reg_base) & I2CIP_RAW_INT_STATUS_RD_REQ_MASK)) {
         ret = _i2c_check_clear_all_error(id, reg_base);
         if (ret) {
-            HAL_TRACE(0, "%s:%d: tx error 0x%X", __func__, id, ret);
+            HAL_I2C_TRACE(0, "%s:%d: tx error 0x%X", __func__, id, ret);
             goto exit;
         }
         if (i2cip_r_raw_int_status(reg_base) & I2CIP_RAW_INT_STATUS_TX_ABRT_MASK) {
             i2cip_r_clr_tx_abrt(reg_base);
-            HAL_TRACE(0, "%s:%d: master tx abort", __func__, id);
+            HAL_I2C_TRACE(0, "%s:%d: master tx abort", __func__, id);
             ret = HAL_I2C_ERRCODE_MASTER_DIS;
             goto exit;
         }
         if (hal_sys_timer_get() - start_time >= timeout) {
-            HAL_TRACE(0, "%s:%d: wait rd req timeout", __func__, id);
+            HAL_I2C_TRACE(0, "%s:%d: wait rd req timeout", __func__, id);
             ret = HAL_I2C_ERRCODE_SLVRD_INTX;
             goto exit;
         }
@@ -2006,11 +2280,11 @@ uint32_t hal_i2c_slv_simple_send_raw(enum HAL_I2C_ID_T id, const uint8_t *tx_buf
         while (!(i2cip_r_status(reg_base) & I2CIP_STATUS_TFNF_MASK)) {
             ret = _i2c_check_clear_all_error(id, reg_base);
             if (ret) {
-                HAL_TRACE(0, "%s:%d: tx error 0x%X", __func__, id, ret);
+                HAL_I2C_TRACE(0, "%s:%d: tx error 0x%X", __func__, id, ret);
                 goto exit;
             }
             if (hal_sys_timer_get() - start_time >= timeout) {
-                HAL_TRACE(0, "%s:%d: wait tfnf timeout", __func__, id);
+                HAL_I2C_TRACE(0, "%s:%d: wait tfnf timeout", __func__, id);
                 ret = HAL_I2C_ERRCODE_TFNF_TIMEOUT;
                 goto exit;
             }
@@ -2021,15 +2295,15 @@ uint32_t hal_i2c_slv_simple_send_raw(enum HAL_I2C_ID_T id, const uint8_t *tx_buf
 
         //send data
         i2cip_w_cmd_data(reg_base, tx_buf[i] | sto | I2CIP_CMD_DATA_CMD_WRITE_MASK);
-        HAL_TRACE(0, "%d: send write cmd: data[%d]=0x%02X stop=0x%X", id, i, tx_buf[i], sto);
+        HAL_I2C_TRACE(0, "%d: send write cmd: data[%d]=0x%02X stop=0x%X", id, i, tx_buf[i], sto);
     }
 
     ret = _i2c_check_clear_all_error(id, reg_base);
     if (ret) {
-        HAL_TRACE(0, "%s:%d: done error 0x%X", __func__, id, ret);
+        HAL_I2C_TRACE(0, "%s:%d: done error 0x%X", __func__, id, ret);
         goto exit;
     }
-    HAL_TRACE(0, "%s:%d: done", __func__, id);
+    HAL_I2C_TRACE(0, "%s:%d: done", __func__, id);
 
 exit:
     i2cip_r_clr_rd_req(reg_base);
@@ -2038,7 +2312,7 @@ exit:
 
 uint32_t hal_i2c_slv_simple_send(enum HAL_I2C_ID_T id, const uint8_t *tx_buf, uint32_t tx_len, uint32_t yield)
 {
-    POSSIBLY_UNUSED uint8_t tmp;
+    uint8_t tmp;
     uint32_t i, j;
     uint32_t ret;
     uint32_t reg_base;
@@ -2052,11 +2326,11 @@ uint32_t hal_i2c_slv_simple_send(enum HAL_I2C_ID_T id, const uint8_t *tx_buf, ui
     while (!(i2cip_r_status(reg_base) & I2CIP_STATUS_RFNE_MASK)) {
         ret = _i2c_check_clear_all_error(id, reg_base);
         if (ret) {
-            HAL_TRACE(0, "%s:%d: rx error 0x%X", __func__, id, ret);
+            HAL_I2C_TRACE(0, "%s:%d: rx error 0x%X", __func__, id, ret);
             goto exit;
         }
         if (hal_sys_timer_get() - start_time >= timeout) {
-            HAL_TRACE(0, "%s:%d: wait rfne timeout", __func__, id);
+            HAL_I2C_TRACE(0, "%s:%d: wait rfne timeout", __func__, id);
             ret = HAL_I2C_ERRCODE_RFNE_TIMEOUT;
             goto exit;
         }
@@ -2071,7 +2345,7 @@ uint32_t hal_i2c_slv_simple_send(enum HAL_I2C_ID_T id, const uint8_t *tx_buf, ui
     if (j) {
         for (i = 0; i < j; i++) {
             tmp = i2cip_r_cmd_data(reg_base);
-            HAL_TRACE(0, "%s:%d: discard data 0x%02X", __func__, id, tmp);
+            HAL_I2C_TRACE(0, "%s:%d: discard data 0x%02X", __func__, id, tmp);
         }
     }
 
@@ -2094,10 +2368,10 @@ uint32_t hal_i2c_slv_simple_recv(enum HAL_I2C_ID_T id, uint8_t *rx_buf, uint32_t
     ASSERT(id < HAL_I2C_ID_NUM, invalid_id, id);
 
     if (hal_i2c_sm[id].cfg.mode != HAL_I2C_API_MODE_SIMPLE) {
-        HAL_TRACE(0, "slv_read:%d: not simple mode", id);
+        HAL_I2C_TRACE(0, "slv_read:%d: not simple mode", id);
         return HAL_I2C_ERRCODE_INV_PARAM;
     }
-    HAL_TRACE(0, "%s:%d: rx_buf=0x%X rx_len=%d", __func__, id, (int)rx_buf, rx_len);
+    HAL_I2C_TRACE(0, "%s:%d: rx_buf=0x%X rx_len=%d", __func__, id, (int)rx_buf, rx_len);
 
     reg_base = _i2c_get_base(id);
 
@@ -2106,14 +2380,14 @@ uint32_t hal_i2c_slv_simple_recv(enum HAL_I2C_ID_T id, uint8_t *rx_buf, uint32_t
     if (j) {
         for (i = 0; i < j; i++) {
             tmp = i2cip_r_cmd_data(reg_base);
-            HAL_TRACE(0, "%s:%d: discard data 0x%02X", __func__, id, tmp);
+            HAL_I2C_TRACE(0, "%s:%d: discard data 0x%02X", __func__, id, tmp);
         }
     }
 
     // check error
     ret = _i2c_check_clear_all_error(id, reg_base);
     if (ret) {
-        HAL_TRACE(0, "%s:%d: clear error before xfer 0x%X", __func__, id, ret);
+        HAL_I2C_TRACE(0, "%s:%d: clear error before xfer 0x%X", __func__, id, ret);
     }
 
     // read data
@@ -2123,7 +2397,7 @@ uint32_t hal_i2c_slv_simple_recv(enum HAL_I2C_ID_T id, uint8_t *rx_buf, uint32_t
     while (rdcnt < rx_len) {
         if (i2cip_r_status(reg_base) & I2CIP_STATUS_RFNE_MASK) {
             tmp = i2cip_r_cmd_data(reg_base);
-            HAL_TRACE(0, "%d: i2c recv rx_buf[%d]=0x%02X", id, rdcnt, tmp);
+            HAL_I2C_TRACE(0, "%d: i2c recv rx_buf[%d]=0x%02X", id, rdcnt, tmp);
             if (rx_buf) {
                 rx_buf[rdcnt++] = tmp;
             }
@@ -2131,11 +2405,11 @@ uint32_t hal_i2c_slv_simple_recv(enum HAL_I2C_ID_T id, uint8_t *rx_buf, uint32_t
         } else {
             ret = _i2c_check_clear_all_error(id, reg_base);
             if (ret) {
-                HAL_TRACE(0, "%s:%d: rx error 0x%X", __func__, id, ret);
+                HAL_I2C_TRACE(0, "%s:%d: rx error 0x%X", __func__, id, ret);
                 goto exit;
             }
             if (hal_sys_timer_get() - start_time >= timeout) {
-                HAL_TRACE(0, "%s:%d: wait rfne timeout", __func__, id);
+                HAL_I2C_TRACE(0, "%s:%d: wait rfne timeout", __func__, id);
                 ret = HAL_I2C_ERRCODE_RFNE_TIMEOUT;
                 goto exit;
             }
@@ -2147,10 +2421,10 @@ uint32_t hal_i2c_slv_simple_recv(enum HAL_I2C_ID_T id, uint8_t *rx_buf, uint32_t
 
     ret = _i2c_check_clear_all_error(id, reg_base);
     if (ret) {
-        HAL_TRACE(0, "%s:%d: done error 0x%X", __func__, id, ret);
+        HAL_I2C_TRACE(0, "%s:%d: done error 0x%X", __func__, id, ret);
         goto exit;
     }
-    HAL_TRACE(0, "%s:%d: done", __func__, id);
+    HAL_I2C_TRACE(0, "%s:%d: done", __func__, id);
 
 exit:
     return ret;
@@ -2164,18 +2438,21 @@ uint32_t hal_i2c_mst_write(enum HAL_I2C_ID_T id, uint32_t dev_addr,
     uint32_t reg_base;
     uint32_t start_time, timeout;
     uint32_t res, sto;
+    uint32_t lock;
 
     ASSERT(id < HAL_I2C_ID_NUM, invalid_id, id);
 
     if (hal_i2c_sm[id].cfg.mode != HAL_I2C_API_MODE_SIMPLE) {
-        HAL_TRACE(0, "mst_write:%d: not simple mode", id);
+        HAL_I2C_TRACE(0, "mst_write:%d: not simple mode", id);
         return HAL_I2C_ERRCODE_INV_PARAM;
     }
 
-    HAL_TRACE(0, "%s:%d: addr=0x%02X buf=0x%X len=%d res=%d sto=%d",
+    HAL_I2C_TRACE(0, "%s:%d: addr=0x%02X buf=0x%X len=%d res=%d sto=%d",
             __func__, id, dev_addr, (int)buf, len, restart, stop);
 
     reg_base = _i2c_get_base(id);
+
+    lock = int_lock();
 
     //update TAR
     tar = i2cip_r_target_address_reg(reg_base);
@@ -2184,7 +2461,7 @@ uint32_t hal_i2c_mst_write(enum HAL_I2C_ID_T id, uint32_t dev_addr,
         start_time = hal_sys_timer_get();
         while ((i2cip_r_status(reg_base) & (I2CIP_STATUS_TFE_MASK | I2CIP_STATUS_ACT_MASK)) != I2CIP_STATUS_TFE_MASK) {
             if (hal_sys_timer_get() - start_time >= timeout) {
-                HAL_TRACE(0, "%s:%d: wait bus idle timeout", __func__, id);
+                HAL_I2C_TRACE(0, "%s:%d: wait bus idle timeout", __func__, id);
                 ret = HAL_I2C_ERRCODE_ACT_TIMEOUT;
                 goto exit;
             }
@@ -2196,13 +2473,13 @@ uint32_t hal_i2c_mst_write(enum HAL_I2C_ID_T id, uint32_t dev_addr,
         i2cip_w_enable(reg_base, HAL_I2C_NO);
         i2cip_w_target_address(reg_base, dev_addr);
         i2cip_w_enable(reg_base, HAL_I2C_YES);
-        HAL_TRACE(0, "%s:%d: update tar to 0x%02X from 0x%02X", __func__, id, dev_addr, tar);
+        HAL_I2C_TRACE(0, "%s:%d: update tar to 0x%02X from 0x%02X", __func__, id, dev_addr, tar);
     }
 
     // check error
     ret = _i2c_check_clear_all_error(id, reg_base);
     if (ret) {
-        HAL_TRACE(0, "%s:%d: clear error before xfer 0x%X", __func__, id, ret);
+        HAL_I2C_TRACE(0, "%s:%d: clear error before xfer 0x%X", __func__, id, ret);
     }
 
     // start to transmit
@@ -2223,11 +2500,11 @@ uint32_t hal_i2c_mst_write(enum HAL_I2C_ID_T id, uint32_t dev_addr,
         while (!(i2cip_r_status(reg_base) & I2CIP_STATUS_TFNF_MASK)) {
             ret = _i2c_check_clear_all_error(id, reg_base);
             if (ret) {
-                HAL_TRACE(0, "%s:%d: tx error 0x%X", __func__, id, ret);
+                HAL_I2C_TRACE(0, "%s:%d: tx error 0x%X", __func__, id, ret);
                 goto exit;
             }
             if (hal_sys_timer_get() - start_time >= timeout) {
-                HAL_TRACE(0, "%s:%d: wait tfnf timeout", __func__, id);
+                HAL_I2C_TRACE(0, "%s:%d: wait tfnf timeout", __func__, id);
                 ret = HAL_I2C_ERRCODE_TFNF_TIMEOUT;
                 goto exit;
             }
@@ -2238,7 +2515,7 @@ uint32_t hal_i2c_mst_write(enum HAL_I2C_ID_T id, uint32_t dev_addr,
         i2cip_w_cmd_data(reg_base, buf[i] | res | sto
                                     | I2CIP_CMD_DATA_CMD_WRITE_MASK);
 
-        HAL_TRACE(0, "%d: send write cmd: data[%d]=0x%02X res=0x%X sto=0x%X", id, i, buf[i], res, sto);
+        HAL_I2C_TRACE(0, "%d: send write cmd: data[%d]=0x%02X res=0x%X sto=0x%X", id, i, buf[i], res, sto);
         wrcnt++;
     }
 
@@ -2249,11 +2526,11 @@ uint32_t hal_i2c_mst_write(enum HAL_I2C_ID_T id, uint32_t dev_addr,
         while ((i2cip_r_status(reg_base) & (I2CIP_STATUS_TFE_MASK | I2CIP_STATUS_ACT_MASK)) != I2CIP_STATUS_TFE_MASK) {
             ret = _i2c_check_clear_all_error(id, reg_base);
             if (ret) {
-                HAL_TRACE(0, "%s:%d: stop error 0x%X", __func__, id, ret);
+                HAL_I2C_TRACE(0, "%s:%d: stop error 0x%X", __func__, id, ret);
                 goto exit;
             }
             if (hal_sys_timer_get() - start_time >= timeout) {
-                HAL_TRACE(0, "%s:%d: wait act timeout", __func__, id);
+                HAL_I2C_TRACE(0, "%s:%d: wait act timeout", __func__, id);
                 ret = HAL_I2C_ERRCODE_ACT_TIMEOUT;
                 goto exit;
             }
@@ -2268,11 +2545,11 @@ uint32_t hal_i2c_mst_write(enum HAL_I2C_ID_T id, uint32_t dev_addr,
         while (!(i2cip_r_status(reg_base) & I2CIP_STATUS_TFE_MASK)) {
             ret = _i2c_check_clear_all_error(id, reg_base);
             if (ret) {
-                HAL_TRACE(0, "%s:%d: wait done error 0x%X", __func__, id, ret);
+                HAL_I2C_TRACE(0, "%s:%d: wait done error 0x%X", __func__, id, ret);
                 goto exit;
             }
             if (hal_sys_timer_get() - start_time >= timeout) {
-                HAL_TRACE(0, "%s:%d: wait tfe timeout", __func__, id);
+                HAL_I2C_TRACE(0, "%s:%d: wait tfe timeout", __func__, id);
                 ret = HAL_I2C_ERRCODE_TFE_TIMEOUT;
                 goto exit;
             }
@@ -2284,15 +2561,16 @@ uint32_t hal_i2c_mst_write(enum HAL_I2C_ID_T id, uint32_t dev_addr,
 
     ret = _i2c_check_clear_all_error(id, reg_base);
     if (ret) {
-        HAL_TRACE(0, "%s:%d: done error 0x%X", __func__, id, ret);
+        HAL_I2C_TRACE(0, "%s:%d: done error 0x%X", __func__, id, ret);
         goto exit;
     }
 
-    HAL_TRACE(0, "%s:%d: done", __func__, id);
+    HAL_I2C_TRACE(0, "%s:%d: done", __func__, id);
 
 exit:
     if (act_write)
         *act_write = wrcnt;
+    int_unlock(lock);
 
     return ret;
 }
@@ -2307,18 +2585,21 @@ uint32_t hal_i2c_mst_read(enum HAL_I2C_ID_T id, uint32_t dev_addr,
     uint32_t res, sto;
     uint8_t tmp;
     uint8_t rx_ongoing, tx_limit;
+    uint32_t lock;
 
     ASSERT(id < HAL_I2C_ID_NUM, invalid_id, id);
 
     if (hal_i2c_sm[id].cfg.mode != HAL_I2C_API_MODE_SIMPLE) {
-        HAL_TRACE(0, "mst_read:%d: not simple mode", id);
+        HAL_I2C_TRACE(0, "mst_read:%d: not simple mode", id);
         return HAL_I2C_ERRCODE_INV_PARAM;
     }
 
-    HAL_TRACE(0, "%s:%d: addr=0x%02X buf=0x%X len=%d res=%d sto=%d",
+    HAL_I2C_TRACE(0, "%s:%d: addr=0x%02X buf=0x%X len=%d res=%d sto=%d",
             __func__, id, dev_addr, (int)buf, len, restart, stop);
 
     reg_base = _i2c_get_base(id);
+
+    lock = int_lock();
 
     // update TAR
     tar = i2cip_r_target_address_reg(reg_base);
@@ -2327,7 +2608,7 @@ uint32_t hal_i2c_mst_read(enum HAL_I2C_ID_T id, uint32_t dev_addr,
         start_time = hal_sys_timer_get();
         while ((i2cip_r_status(reg_base) & (I2CIP_STATUS_TFE_MASK | I2CIP_STATUS_ACT_MASK)) != I2CIP_STATUS_TFE_MASK) {
             if (hal_sys_timer_get() - start_time >= timeout) {
-                HAL_TRACE(0, "%s:%d: wait bus idle timeout", __func__, id);
+                HAL_I2C_TRACE(0, "%s:%d: wait bus idle timeout", __func__, id);
                 ret = HAL_I2C_ERRCODE_ACT_TIMEOUT;
                 goto exit;
             }
@@ -2339,7 +2620,7 @@ uint32_t hal_i2c_mst_read(enum HAL_I2C_ID_T id, uint32_t dev_addr,
         i2cip_w_enable(reg_base, HAL_I2C_NO);
         i2cip_w_target_address(reg_base, dev_addr);
         i2cip_w_enable(reg_base, HAL_I2C_YES);
-        HAL_TRACE(0, "%s:%d: update tar to 0x%02X from 0x%02X", __func__, id, dev_addr, tar);
+        HAL_I2C_TRACE(0, "%s:%d: update tar to 0x%02X from 0x%02X", __func__, id, dev_addr, tar);
     }
 
     // clear fifo by reading
@@ -2347,14 +2628,14 @@ uint32_t hal_i2c_mst_read(enum HAL_I2C_ID_T id, uint32_t dev_addr,
     if (j) {
         for (i = 0; i < j; i++) {
             tmp = i2cip_r_cmd_data(reg_base);
-            HAL_TRACE(0, "%s:%d: discard data 0x%02X", __func__, id, tmp);
+            HAL_I2C_TRACE(0, "%s:%d: discard data 0x%02X", __func__, id, tmp);
         }
     }
 
     // check error
     ret = _i2c_check_clear_all_error(id, reg_base);
     if (ret) {
-        HAL_TRACE(0, "%s:%d: clear error before xfer 0x%X", __func__, id, ret);
+        HAL_I2C_TRACE(0, "%s:%d: clear error before xfer 0x%X", __func__, id, ret);
     }
 
     // read data
@@ -2386,12 +2667,12 @@ uint32_t hal_i2c_mst_read(enum HAL_I2C_ID_T id, uint32_t dev_addr,
             }
 
             i2cip_w_cmd_data(reg_base, I2CIP_CMD_DATA_CMD_READ_MASK | res | sto);
-            HAL_TRACE(0, "%d: send read cmd: [%u] res=0x%X, sto=0x%X", id, wrcnt, res, sto);
+            HAL_I2C_TRACE(0, "%d: send read cmd: [%u] res=0x%X, sto=0x%X", id, wrcnt, res, sto);
         }
 
         if (i2cip_r_status(reg_base) & I2CIP_STATUS_RFNE_MASK) {
             tmp = i2cip_r_cmd_data(reg_base);
-            HAL_TRACE(0, "%d: i2c recv [%u] 0x%02X", id, rdcnt, tmp);
+            HAL_I2C_TRACE(0, "%d: i2c recv [%u] 0x%02X", id, rdcnt, tmp);
             if (buf) {
                 buf[rdcnt++] = tmp;
             }
@@ -2399,11 +2680,11 @@ uint32_t hal_i2c_mst_read(enum HAL_I2C_ID_T id, uint32_t dev_addr,
         } else {
             ret = _i2c_check_clear_all_error(id, reg_base);
             if (ret) {
-                HAL_TRACE(0, "%s:%d: rx error 0x%X", __func__, id, ret);
+                HAL_I2C_TRACE(0, "%s:%d: rx error 0x%X", __func__, id, ret);
                 goto exit;
             }
             if (hal_sys_timer_get() - start_time >= timeout) {
-                HAL_TRACE(0, "%s:%d: wait rfne timeout", __func__, id);
+                HAL_I2C_TRACE(0, "%s:%d: wait rfne timeout", __func__, id);
                 ret = HAL_I2C_ERRCODE_RFNE_TIMEOUT;
                 goto exit;
             }
@@ -2419,11 +2700,11 @@ uint32_t hal_i2c_mst_read(enum HAL_I2C_ID_T id, uint32_t dev_addr,
         while (i2cip_r_status(reg_base) & I2CIP_STATUS_ACT_MASK) {
             ret = _i2c_check_clear_all_error(id, reg_base);
             if (ret) {
-                HAL_TRACE(0, "%s:%d: stop error 0x%X", __func__, id, ret);
+                HAL_I2C_TRACE(0, "%s:%d: stop error 0x%X", __func__, id, ret);
                 goto exit;
             }
             if (hal_sys_timer_get() - start_time >= timeout) {
-                HAL_TRACE(0, "%s:%d: wait act timeout", __func__, id);
+                HAL_I2C_TRACE(0, "%s:%d: wait act timeout", __func__, id);
                 ret = HAL_I2C_ERRCODE_ACT_TIMEOUT;
                 goto exit;
             }
@@ -2435,15 +2716,16 @@ uint32_t hal_i2c_mst_read(enum HAL_I2C_ID_T id, uint32_t dev_addr,
 
     ret = _i2c_check_clear_all_error(id, reg_base);
     if (ret) {
-        HAL_TRACE(0, "%s:%d: done error 0x%X", __func__, id, ret);
+        HAL_I2C_TRACE(0, "%s:%d: done error 0x%X", __func__, id, ret);
         goto exit;
     }
 
-    HAL_TRACE(0, "%s:%d: done", __func__, id);
+    HAL_I2C_TRACE(0, "%s:%d: done", __func__, id);
 
 exit:
     if (act_read)
         *act_read = rdcnt;
+    int_unlock(lock);
 
     return ret;
 }
@@ -2459,7 +2741,7 @@ uint32_t hal_i2c_simple_recv(enum HAL_I2C_ID_T id, uint16_t device_addr, const u
 
     ret = hal_i2c_mst_write(id, device_addr, tx_buf, tx_len, NULL, true, false, false);
     if (ret) {
-        HAL_TRACE(0, "%s:%d: mst_write failed: ret=%d", __func__, id, ret);
+        HAL_I2C_TRACE(0, "%s:%d: mst_write failed: ret=%d", __func__, id, ret);
         return ret;
     }
 
@@ -2472,7 +2754,7 @@ uint32_t hal_i2c_simple_recv(enum HAL_I2C_ID_T id, uint16_t device_addr, const u
 #ifdef I2C_SENSOR_ENGINE_V1
 static void hal_i2c_sensor_eng_proc(enum HAL_I2C_ID_T id)
 {
-    HAL_TRACE(0, "%s: id=%d", __func__, id);
+    HAL_I2C_TRACE(0, "%s: id=%d", __func__, id);
 
     uint32_t reg_base = _i2c_get_base(id);
     uint32_t irq_status = i2cip_r_int_status(reg_base);
@@ -2482,11 +2764,11 @@ static void hal_i2c_sensor_eng_proc(enum HAL_I2C_ID_T id)
 
     task_state = _i2c_chk_clr_task_error(reg_base, irq_status, abt_source);
 
-    HAL_TRACE(0, "%s:%d: irq=0x%X/0x%X abt=0x%X", __func__, id, irq_status, irq_raw_status, abt_source);
+    HAL_I2C_TRACE(0, "%s:%d: irq=0x%X/0x%X abt=0x%X", __func__, id, irq_status, irq_raw_status, abt_source);
     _i2c_show_error_code(abt_source);
 
     if (task_state & (HAL_I2C_SM_TASK_STATE_TX_ABRT | HAL_I2C_SM_TASK_STATE_FIFO_ERR)) {
-        HAL_TRACE(0, "*** Error:%s:%d: task_state=0x%X irq=0x%X/0x%X abt=0x%X", __func__, id, task_state, irq_status, irq_raw_status, abt_source);
+        HAL_I2C_ERROR(0, "*** Error:%s:%d: task_state=0x%X irq=0x%X/0x%X abt=0x%X", __func__, id, task_state, irq_status, irq_raw_status, abt_source);
         hal_i2c_sensor_engine_stop(i2c_sensor_id_v1[id]);
     }
 }
@@ -2511,15 +2793,15 @@ uint32_t hal_i2c_sensor_engine_start(enum HAL_I2C_ID_T id, const struct HAL_I2C_
     uint32_t reg_base;
     uint32_t task_idx;
 
-    HAL_TRACE(0, "%s: id=%d", __func__, id);
+    HAL_I2C_ERROR(0, "%s: id=%d", __func__, id);
     ASSERT(id < HAL_I2C_ID_NUM, invalid_id, id);
 
     if (hal_i2c_sm[id].cfg.mode != HAL_I2C_API_MODE_SENSOR_ENGINE) {
-        HAL_TRACE(0, "i2c-se start:%d: not sensor engine mode: %d", id, hal_i2c_sm[id].cfg.mode);
+        HAL_I2C_TRACE(0, "i2c-se start:%d: not sensor engine mode: %d", id, hal_i2c_sm[id].cfg.mode);
         return HAL_I2C_ERRCODE_INV_PARAM;
     }
     if (hal_i2c_sm[id].state != HAL_I2C_SM_IDLE) {
-        HAL_TRACE(0, "i2c-se start:%d: not idle: %d", id, hal_i2c_sm[id].state);
+        HAL_I2C_TRACE(0, "i2c-se start:%d: not idle: %d", id, hal_i2c_sm[id].state);
         return HAL_I2C_ERRCODE_INV_PARAM;
     }
 
@@ -2529,7 +2811,7 @@ uint32_t hal_i2c_sensor_engine_start(enum HAL_I2C_ID_T id, const struct HAL_I2C_
         cfg->read_buf, cfg->read_txn_len, cfg->txn_cnt,
         cfg->target_addr, action, 0, NULL);
     if (task_idx >= HAL_I2C_SM_TASK_NUM_MAX) {
-        HAL_TRACE(0, "i2c-se:%d: no task slot", id);
+        HAL_I2C_TRACE(0, "i2c-se:%d: no task slot", id);
         return HAL_I2C_ERRCODE_IN_USE;
     }
 
@@ -2582,15 +2864,15 @@ uint32_t hal_i2c_sensor_engine_stop(enum HAL_I2C_ID_T id)
     uint32_t irq_status;
     uint32_t abt_source;
 
-    HAL_TRACE(0, "%s: id=%d", __func__, id);
+    HAL_I2C_ERROR(0, "%s: id=%d", __func__, id);
     ASSERT(id < HAL_I2C_ID_NUM, invalid_id, id);
 
     if (hal_i2c_sm[id].cfg.mode != HAL_I2C_API_MODE_SENSOR_ENGINE) {
-        HAL_TRACE(0, "i2c-se stop:%d: not sensor engine mode: %d", id, hal_i2c_sm[id].cfg.mode);
+        HAL_I2C_TRACE(0, "i2c-se stop:%d: not sensor engine mode: %d", id, hal_i2c_sm[id].cfg.mode);
         return HAL_I2C_ERRCODE_INV_PARAM;
     }
     if (hal_i2c_sm[id].state != HAL_I2C_SM_RUNNING) {
-        HAL_TRACE(0, "i2c-se stop:%d: not running: %d", id, hal_i2c_sm[id].state);
+        HAL_I2C_TRACE(0, "i2c-se stop:%d: not running: %d", id, hal_i2c_sm[id].state);
         return HAL_I2C_ERRCODE_INV_PARAM;
     }
 
@@ -2600,7 +2882,7 @@ uint32_t hal_i2c_sensor_engine_stop(enum HAL_I2C_ID_T id)
 
     reg_base = _i2c_get_base(id);
 
-    HAL_TRACE(0, "%d: disable i2c", id);
+    HAL_I2C_TRACE(0, "%d: disable i2c", id);
     i2cip_w_enable(reg_base, HAL_I2C_NO);
 
     irq_status = i2cip_r_int_status(reg_base);
@@ -2681,7 +2963,7 @@ static int hal_gpio_i2c_initialize(const struct HAL_GPIO_I2C_CONFIG_T *cfg)
     hal_gpio_i2c_iomux_cfg[1].pin = (enum HAL_IOMUX_PIN_T)cfg->sda;
     hal_iomux_init(hal_gpio_i2c_iomux_cfg, ARRAY_SIZE(hal_gpio_i2c_iomux_cfg));
 
-    HAL_TRACE(0, "hal_gpio_i2c_initialize scl=%d sda=%d", cfg->scl, cfg->sda);
+    HAL_I2C_TRACE(0, "hal_gpio_i2c_initialize scl=%d sda=%d", cfg->scl, cfg->sda);
     //iTemp = cfg->scl | cfg->sda  ;
     // Set the GPIO pin to output status
     GPIO_InitIO(cfg->scl, 1, 1);
@@ -2883,7 +3165,7 @@ int hal_gpio_i2c_recovery(const struct HAL_GPIO_I2C_CONFIG_T *cfg, uint8_t retry
     hal_gpio_i2c_iomux_cfg[0].pin = (enum HAL_IOMUX_PIN_T)cfg->scl;
     hal_gpio_i2c_iomux_cfg[1].pin = (enum HAL_IOMUX_PIN_T)cfg->sda;
     hal_iomux_init(hal_gpio_i2c_iomux_cfg, ARRAY_SIZE(hal_gpio_i2c_iomux_cfg));
-    HAL_TRACE(0, "%s, pin_scl=%d pin_sda=%d", __func__, cfg->scl, cfg->sda);
+    HAL_I2C_TRACE(0, "%s, pin_scl=%d pin_sda=%d", __func__, cfg->scl, cfg->sda);
 
     //Set the GPIO pin to input status
     hal_gpio_pin_set_dir(cfg->scl, HAL_GPIO_DIR_IN, 0);
@@ -2891,7 +3173,7 @@ int hal_gpio_i2c_recovery(const struct HAL_GPIO_I2C_CONFIG_T *cfg, uint8_t retry
 
     val_scl = hal_gpio_pin_get_val(cfg->scl);
     val_sda = hal_gpio_pin_get_val(cfg->sda);
-    HAL_TRACE(0, "%s, val_scl=%d  val_sda=%d", __func__, val_scl, val_sda);
+    HAL_I2C_TRACE(0, "%s, val_scl=%d  val_sda=%d", __func__, val_scl, val_sda);
     if (val_scl && val_sda) {
         return 0;//bus is idle already
     }

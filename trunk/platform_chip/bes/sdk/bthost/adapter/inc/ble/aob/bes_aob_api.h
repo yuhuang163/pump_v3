@@ -22,22 +22,9 @@
 extern "C" {
 #endif
 
-/// SDU Buffer structure
-typedef struct
-{
-    /// Time_Stamp
-    uint32_t        time_stamp;
-    /// Packet Sequence Number
-    uint16_t        pkt_seq_nb;
-    /// length of the ISO SDU (in bytes)
-    uint16_t        sdu_length;
-    /// Reception status (@see enum hci_iso_pkt_stat_flag)
-    uint8_t         status;
-    /// SDU
-    uint8_t         *sdu;
-} bes_ble_dp_itf_iso_buffer_t;
-
 #if BLE_AUDIO_ENABLED
+
+#define BES_LEA_CODEC_ID_LC3          (&codec_id_lc3)
 
 typedef enum
 {
@@ -239,13 +226,26 @@ typedef enum bes_ble_gaf_codec_type
 {
     /// LC3 Codec
     BES_BLE_GAF_CODEC_TYPE_LC3    = 0x06,
-    /// ULL
-    BES_BLE_GAF_CODEC_TYPE_ULL    = 0x08,
     /// Maximum SIG Codec
     BES_BLE_GAF_CODEC_TYPE_SIG_MAX,
     /// Vendor Specific Codec
     BES_BLE_GAF_CODEC_TYPE_VENDOR = 0xFF,
 } BES_BLE_GAF_CODEC_TYPE_T;
+
+/// SDU Buffer structure
+typedef struct
+{
+    /// Time_Stamp
+    uint32_t        time_stamp;
+    /// Packet Sequence Number
+    uint16_t        pkt_seq_nb;
+    /// length of the ISO SDU (in bytes)
+    uint16_t        sdu_length;
+    /// Reception status (@see enum hci_iso_pkt_stat_flag)
+    uint8_t         status;
+    /// SDU
+    uint8_t         *sdu;
+} bes_ble_dp_itf_iso_buffer_t;
 
 /// ASCS ASE Structure @ see bes_ble_bap_ascs_ase_t
 typedef struct bes_ble_bap_ascs_ase
@@ -397,8 +397,7 @@ typedef struct
     uint8_t                    test;
 
     //// test = 0, set this param
-    struct
-    {
+    struct {
         /// Maximum time (in milliseconds) between the first transmission of an SDU to the end of the last transmission
         /// of the same SDU
         /// From 0ms to 4.095s (0x0FFF)
@@ -409,8 +408,7 @@ typedef struct
     } big_param;
 
     //// test = 1, set this param
-    struct
-    {
+    struct {
         /// ISO interval in multiple of 1.25ms. From 0x4 (5ms) to 0xC80 (4s)
         uint16_t                   iso_intv_frame;
         /// Number of subevents in each interval of each stream in the group
@@ -428,7 +426,7 @@ typedef struct
 
     uint8_t adv_data_len;
     uint8_t *adv_data;
-} bes_ble_bis_src_big_param_t;
+}bes_ble_bis_src_big_param_t;
 
 /// sync see @aob_bis_src_subgrp_param_t
 typedef struct
@@ -453,9 +451,6 @@ typedef struct
     ///LTV media data
     /// Streaming Audio Contexts bit field (see #enum bap_context_type_bf enumeration)
     uint16_t                 context_bf;
-
-    uint8_t                  add_metadata_len;
-    uint8_t                 *add_metadata_data;
 } bes_ble_bis_src_subgrp_param_t;
 
 /// sync see@aob_bis_src_stream_param_t
@@ -513,11 +508,9 @@ typedef struct
     uint8_t *bc_code;
     struct
     {
-        void (*bis_sink_scan_state_cb)(bool scan_or_pa_sync, bool started, uint32_t param);
-        bool (*bis_sink_select_source)(ble_bdaddr_t *addr, uint8_t adv_sid, uint8_t *bcast_id,
-                                       uint8_t *adv_data, uint8_t adv_data_len, int8_t rssi);
+        bool (*bis_sink_select_source)(uint8_t *addr, uint8_t *bcast_id, uint8_t *adv_data, uint8_t adv_data_len);
         void (*bis_sink_started_callback)(uint8_t grp_lid);
-        void (*bis_sink_stoped_callback)(uint8_t grp_lid, uint16_t err_code);
+        void (*bis_sink_stoped_callback)(uint8_t grp_lid);
         void (*bis_sink_metadata_cb)(uint8_t subgrp_lid, uint8_t *buf, uint8_t buf_len);
     } event_callback;
 } bes_ble_bis_sink_start_param_t;
@@ -539,1005 +532,221 @@ typedef struct
     BES_BLE_GAF_CONTEXT_E context_type;
 } bes_lea_ase_cfg_param_t;
 
-/**
- * @brief Le audio init
- *
- */
+#ifdef AOB_MOBILE_ENABLED
+void bes_ble_mobile_connect_failed(bool is_failed);
+
+void bes_ble_audio_mobile_core_register_event_cb(const BLE_AUD_MOB_CORE_EVT_CB_T *cb);
+
+void bes_ble_audio_mobile_conn_next_paired_dev(ble_bdaddr_t* bdaddr);
+
+bool bes_ble_mobile_is_connect_failed(void);
+
+uint8_t* bes_ble_audio_mobile_conn_get_connecting_dev(void);
+
+void bes_lea_mobile_stream_start(uint8_t con_lid, bes_lea_ase_cfg_param_t *cfg);
+#endif
+
 void bes_ble_audio_common_init(void);
 
-/**
- * @brief Le audio deinit
- *
- */
 void bes_ble_audio_common_deinit(void);
 
-/**
- * @brief Get bis handle by big idx
- *
- * @param[in] big_idx Big idx
- *
- * @return uint16_t   Bis_hdl
- */
+bool bes_ble_audio_make_new_le_core_sm(uint8_t conidx, uint8_t *peer_bdaddr);
+
 uint16_t bes_ble_bis_src_get_bis_hdl_by_big_idx(uint8_t big_idx);
 
-/**
- * @brief Get bis codec id by big idx
- *
- * @param[in] big_idx     Big idx
- * @param[in] subgrp_idx  Subgroup idx
- *
- * @return const AOB_CODEC_ID_T* Codec type
- */
 const AOB_CODEC_ID_T *bes_ble_bis_src_get_codec_id_by_big_idx(uint8_t big_idx, uint8_t subgrp_idx);
 
-/**
- * @brief Get bis codec cfg by big idx
- *
- * @param[in] big_idx   Big idx
- *
- * @return const AOB_BAP_CFG_T*  BAP config param
- */
 const AOB_BAP_CFG_T *bes_ble_bis_src_get_codec_cfg_by_big_idx(uint8_t big_idx);
 
-/**
- * @brief Get bis iso interval by big idx
- *
- * @param[in] big_idx   Big idx
- *
- * @return uint32_t     ISO interval in frames From 5ms to 4s
- */
-uint32_t bes_ble_bis_src_get_iso_interval_ms_by_big_idx(uint8_t big_idx);
-
-/**
- * @brief Bis send iso data to all channel
- *
- * @param[in] payload      Data need to send
- * @param[in] payload_len  Data len will to send
- * @param[in] ref_time     Set SDU timestamp
- *
- * @return uint8_t No need to pay attention still return 0
- */
 uint8_t bes_ble_bis_src_send_iso_data_to_all_channel(uint8_t **payload, uint16_t payload_len, uint32_t ref_time);
 
-/**
- * @brief Set big src param
- *
- * @param[in] big_idx      Big idx
- * @param[in] p_big_param  Big param config@bes_ble_bis_src_big_param_t
- */
 void bes_ble_bis_src_set_big_param(uint8_t big_idx, bes_ble_bis_src_big_param_t *p_big_param);
 
-/**
- * @brief Set bis src subgroup param
- *
- * @param[in] big_idx          Big idx
- * @param[in] p_subgrp_param   Subgroup parm config@bes_ble_bis_src_subgrp_param_t
- */
 void bes_ble_bis_src_set_subgrp_param(uint8_t big_idx, bes_ble_bis_src_subgrp_param_t *p_subgrp_param);
 
-/**
- * @brief Set bis src steam param
- *
- * @param[in] big_idx          Big idx
- * @param[in] p_stream_param   Stream param config@bes_ble_bis_src_stream_param_t
- */
 void bes_ble_bis_src_set_stream_param(uint8_t big_idx, bes_ble_bis_src_stream_param_t *p_stream_param);
 
-/**
- * @brief Update bis src metadata
- *
- * @param[in] grp_lid    group lid
- * @param[in] sgrp_lid   subgroup lid
- * @param[in] metadata   metadata@bes_ble_bis_src_metadata_update_t
- */
 void bes_ble_bis_src_update_metadata(uint8_t grp_lid, uint8_t sgrp_lid, bes_ble_bis_src_metadata_update_t *metadata);
 
-/**
- * @brief Get bis stream anchor time
- *
- * @param[in] big_idx      Big idx
- * @param[in] stream_lid   Stream lid
- * @return uint32_t        bis anchor timestamp
- */
 uint32_t bes_ble_bis_src_get_stream_anchor_time(uint8_t big_idx, uint8_t stream_lid);
 
-/**
- * @brief Start bis src
- *
- * @param[in] big_idx        Big idx
- * @param[in] start_bis_info Bis info param@bes_ble_bis_src_start_param_t
- */
 void bes_ble_bis_src_start(uint8_t big_idx, bes_ble_bis_src_start_param_t *start_bis_info);
 
-/**
- * @brief Stop bis src
- *
- * @param[in] big_idx  Big idx
- */
 void bes_ble_bis_src_stop(uint8_t big_idx);
 
-/**
- * @brief Update tws nv role
- *
- * @param[in] role  nv role@BLE_AUDIO_TWS_ROLE_E
- */
 void bes_ble_update_tws_nv_role(uint8_t role);
 
-/**
- * @brief Set activity type
- *
- * @param[in] type  @gaf_bap_activity_type_e
- */
 void bes_ble_bap_set_activity_type(gaf_bap_activity_type_e type);
 
-/**
- * @brief If dev is connected
- *
- * @param[in] p_addr  addr and addr type@ble_bdaddr_t
- *
- * @return true/false
- */
-bool bes_ble_gap_is_remote_dev_connected(const ble_bdaddr_t *p_addr);
+bool bes_ble_gap_is_remote_mobile_connected(const ble_bdaddr_t *p_addr);
 
-/**
- * @brief Start connectable adv
- *
- * @param[in] br_edr_support   Local device if support BR/EDR
- * @param[in] discoverable     Adv if discoverable
- * @param[in] init_reconnect   Adv if start will be reconnect
- *
- * @return true/false
- */
-bool bes_ble_aob_conn_start_adv(bool br_edr_support, bool discoverable, bool init_reconnect);
+bool bes_ble_aob_conn_start_adv(bool br_edr_support, bool in_paring);
 
-/**
- * @brief Stop connectable adv
- *
- * @return true/false
- */
 bool bes_ble_aob_conn_stop_adv(void);
 
-/**
- * @brief Register ble audio core event callbacks
- *
- * @param[in] cbs      Event callbacks
- *
- */
-void bes_ble_aob_register_core_event_cb(const BLE_AUD_CORE_EVT_CB_T *cbs);
+void bes_ble_audio_mobile_req_disconnect(ble_bdaddr_t *addr);
 
-/**
- * @brief If use custom's sirk
- *
- * @return true/false
- */
+bool bes_ble_audio_is_mobile_link_connected(ble_bdaddr_t *addr);
+
+void bes_ble_audio_disconnect_all_connection(void);
+
+bool bes_ble_audio_is_any_mobile_connnected(void);
+
+bool bes_ble_audio_is_ux_mobile(void);
+
+void bes_ble_mobile_start_connect(void);
+
+uint8_t bes_ble_audio_get_mobile_lid_by_pub_address(uint8_t *pub_addr);
+
+void bes_ble_audio_mobile_disconnect_device(uint8_t conidx);
+
 bool bes_ble_aob_csip_is_use_custom_sirk(void);
 
-/**
- * @brief Get set rsi generated using pre set sirk
- *
- * @param[in] p_rsi_get
- *                     RSI value in 6 octets
- *
- * @return bool        RSI value exist or not
- */
-bool bes_ble_aob_csip_get_rsi_value(uint8_t *p_rsi_get);
-
-/**
- * @brief Gattc reset cache
- *
- * @param[in] record  Cache record in nv@GATTC_NV_SRV_ATTR_t
- */
 void bes_ble_aob_gattc_rebuild_cache(GATTC_NV_SRV_ATTR_t *record);
 
-/**
- * @brief Handler service data received
- *
- * @param[in] p_buff  Service uuid and data
- * @param[in] len     Recv data len
- */
-void bes_ble_aob_service_recv_handler(uint8_t *p_buff, uint16_t len);
-
-/**
- * @brief Set csip active set rank
- *
- * @param[in] rank    Rank value
- *
- */
-void bes_ble_aob_csip_set_set_member_rank(uint8_t rank);
-
-/**
- * @brief Generate temporary sirk and update
- *
- */
 void bes_ble_aob_csip_if_use_temporary_sirk();
 
-/**
- * @brief Refresh sirk
- *
- * @param[in] sirk  Update sirk len is APP_GAF_CSIS_SIRK_LEN_VALUE
- */
 void bes_ble_aob_csip_if_refresh_sirk(uint8_t *sirk);
 
-/**
- * @brief If sirk has been refreshed
- *
- * @return true/false
- */
 bool bes_ble_aob_csip_sirk_already_refreshed();
 
-/**
- * @brief Update sirk
- *
- * @param[in] sirk     Ptr of sirk
- * @param[in] sirk_len Len of sirk APP_GAF_CSIS_SIRK_LEN_VALUE
- */
-void bes_ble_aob_csip_if_update_sirk(uint8_t *sirk, uint8_t sirk_len);
-
-/**
- * @brief Get local nv record sirk
- *
- * @param[out] sirk   Local sirk
- * @return true/false
- */
 bool bes_ble_aob_csip_if_get_sirk(uint8_t *sirk);
 
-/**
- * @brief Set local device numbers in csip
- *
- * @param[in] dev_num  The num flag of local device in CSIP is unique
- * @return true/false
- */
-bool bes_ble_aob_csip_if_set_device_numbers(uint8_t dev_num);
-
-/**
- * @brief Get local device numbers in csip
- *
- * @return uint8_t     Local device num flag in csip
- */
-uint8_t bes_ble_aob_csip_if_get_device_numbers(void);
-
-/**
- * @brief Dump local device connected and stream state
- *
- */
 void bes_ble_aob_conn_dump_state_info(void);
 
-/**
- * @brief TWS sync state req
- *
- */
 void bes_ble_aob_bis_tws_sync_state_req(void);
 
-/**
- * @brief TWS sync state handler
- *
- * @param[in] buf
- */
-void bes_ble_aob_bis_tws_sync_state_req_handler(uint8_t *buf);
+void bes_ble_audio_core_register_event_cb(const BLE_AUD_CORE_EVT_CB_T *cb);
 
-/**
- * @brief TBC call outgoing
- *
- * @param[in] conidx  Connection idx
- * @param[in] uri     Call num eg."tel:13066778839"
- * @param[in] uriLen  Len of call num
- */
 void bes_ble_aob_call_if_outgoing_dial(uint8_t conidx, uint8_t *uri, uint8_t uriLen);
 
-/**
- * @brief Get connected remote addr
- *
- * @param[in] con_lid    Connection lid
- * @return ble_bdaddr_t*
- */
 ble_bdaddr_t *bes_ble_aob_conn_get_remote_address(uint8_t con_lid);
 
-/**
- * @brief MCC control paly prev music
- *
- * @param[in] con_lid    Connection lid
- */
 void bes_ble_aob_media_prev(uint8_t con_lid);
 
-/**
- * @brief MCC control paly next music
- *
- * @param[in] con_lid    Connection lid
- */
 void bes_ble_aob_media_next(uint8_t con_lid);
 
-/**
- * @brief MCC fast forward the current track
- *
- * @param[in] con_lid    Connection lid
- */
-void bes_ble_aob_media_fast_fw(uint8_t con_lid);
-
-/**
- * @brief MCC fast rewind the current track
- *
- * @param[in] con_lid    Connection lid
- */
-void bes_ble_aob_media_fast_rw(uint8_t con_lid);
-
-/**
- * @brief TBC retrieve local call
- *
- * @param[in] conidx     Connection lid
- * @param[in] call_id    Call lid
- */
 void bes_ble_aob_call_if_retrieve_call(uint8_t conidx, uint8_t call_id);
 
-/**
- * @brief TBC hold local call
- *
- * @param[in] conidx     Connection lid
- * @param[in] call_id    Call lid
- */
-void bes_ble_aob_call_if_hold_call(uint8_t conidx, uint8_t call_id);
-
-/**
- * @brief TBC terminate the call
- *
- * @param[in] conidx     Connection lid
- * @param[in] call_id    Call lid
- */
 void bes_ble_aob_call_if_terminate_call(uint8_t conidx, uint8_t call_id);
 
-/**
- * @brief TBC accept the call
- *
- * @param[in] conidx     Connection lid
- * @param[in] call_id    Call lid
- */
 void bes_ble_aob_call_if_accept_call(uint8_t conidx, uint8_t call_id);
 
-/**
- * @brief TBC free pending actions
- *
- * @param[in] action_list list of pending actions
- */
-void bes_ble_aob_call_if_free_pending_actions(struct list_node *action_list);
-
-/**
- * @brief Get if any call state not idle at the connection
- *
- * @param[in] conidx     Connection lid
- * @param[out] p_call_id Call lid
- *
- * @return uint8_t Call state@AOB_CALL_STATE_E
- */
-uint8_t bes_ble_aob_call_if_get_any_call_by_conidx(uint8_t conidx, uint8_t *p_call_id);
-
-/**
- * @brief MCC play music
- *
- * @param[in] con_lid Conn lid
- */
 void bes_ble_aob_media_play(uint8_t con_lid);
 
-/**
- * @brief MCC pause music
- *
- * @param[in] con_lid Conn lid
- */
 void bes_ble_aob_media_pause(uint8_t con_lid);
 
-/**
- * @brief VCS control vol down
- *
- */
 void bes_ble_aob_vol_down(void);
 
-/**
- * @brief VCS control vol down
- *
- */
 void bes_ble_aob_vol_up(void);
 
-/**
- * @brief Convert bt vol to le vol
- *
- * @param[in] bt_vol  Bt vol
- *
- * @return uint8_t    Ble vol
- */
 uint8_t bes_ble_aob_convert_local_vol_to_le_vol(uint8_t bt_vol);
 
-/**
- * @brief Get policy config
- *
- * @return BLE_AUDIO_POLICY_CONFIG_T*
- */
-BLE_AUDIO_POLICY_CONFIG_T *bes_ble_audio_get_policy_config();
+BLE_AUDIO_POLICY_CONFIG_T* bes_ble_audio_get_policy_config();
 
-/**
- * @brief Set audio focous resume callback
- *
- * @param[in] resume_cb  resume callback
- *
- * @return int @bt_status_t
- */
-int bes_ble_audio_bis_stream_set_resume_callback(void (*resume_cb)(uint8_t device_id, uint32_t param));
+uint8_t bes_ble_audio_get_mobile_sm_index_by_addr(ble_bdaddr_t *addr);
 
-/**
- * @brief LEA sink streaming event handle
- *
- * @param[in] con_lid   con lid
- * @param[in] data      stream lid
- * @param[in] direction stream direction@bes_gaf_direction_t
- * @param[in] event     event@app_ble_audio_event_t
- */
 void bes_ble_audio_sink_streaming_handle_event(uint8_t con_lid, uint8_t data,
-                                               bes_gaf_direction_t direction, app_ble_audio_event_t event);
+                                                               bes_gaf_direction_t direction, app_ble_audio_event_t event);
 
-/**
- * @brief Dump BLE Aduio stream state
- *
- */
+
 void bes_ble_audio_dump_conn_state(void);
 
-/**
- * @brief Get connected mobile addr
- *
- * @param[in] deviceId  Device id
- * @param[out] addr      Mobile addr
- *
- * @return uint8_t 0/-1
- */
 uint8_t bes_ble_audio_get_mobile_addr(uint8_t deviceId, uint8_t *addr);
 
-/**
- * @brief Get call id
- *
- * @param[in] device_id   Local active device id
- * @param[in] call_state  Call state@AOB_CALL_STATE_E
- *
- * @return uint8_t        Call lid
- */
+int bes_ble_aob_tws_cmd_table_get(void **cmd_tbl, uint16_t *cmd_size);
+
 uint8_t bes_ble_aob_get_call_id_by_conidx_and_type(uint8_t device_id, uint8_t call_state);
 
-/**
- * @brief Get call id
- *
- * @param[in] device_id Local active device id
- *
- * @return uint8_t      Call lid
- */
 uint8_t bes_ble_aob_get_call_id_by_conidx(uint8_t device_id);
 
-/**
- * @brief Get ACC service bond status
- *
- * @param[in] conidx  Conn lid
- * @param[in] type    Service type@BLE_AUDIO_ACC_TYPE_E
- *
- * @return true/false
- */
 bool bes_ble_aob_get_acc_bond_status(uint8_t conidx, uint8_t type);
 
-/**
- * @brief Get capa ava context bf
- *
- * @param[in] con_lid               Conn lid
- * @param[in] context_bf_ava_sink   Ava sink context bf
- * @param[in] context_bf_ava_src    Ava src context bf
- */
+uint8_t bes_ble_audio_get_mobile_connected_lid(uint8_t con_lid[]);
+
 void bes_ble_bap_capa_srv_get_ava_context_bf(uint8_t con_lid, uint16_t *context_bf_ava_sink, uint16_t *context_bf_ava_src);
 
-/**
- * @brief Set capa ava context bf
- *
- * @param[in] con_lid                Conn lid
- * @param[in] context_bf_ava_sink    Ava sink context bf
- * @param[in] context_bf_ava_src     Ava src context bf
- */
 void bes_ble_bap_capa_srv_set_ava_context_bf(uint8_t con_lid, uint16_t context_bf_ava_sink, uint16_t context_bf_ava_src);
 
 // sink api
-/**
- * @brief BIS sink start scan
- *
- */
-void bes_ble_bis_start_scan(void);
-
-/**
- * @brief BIS sink stop scan
- *
- */
-void bes_ble_bis_stop_scan(void);
-
-/**
- * @brief BIS sink start with param
- *
- * @param[in] param @bes_ble_bis_sink_start_param_t
- */
 void bes_ble_bis_sink_start(bes_ble_bis_sink_start_param_t *param);
-
-/**
- * @brief BIS sink stop
- *
- */
 void bes_ble_bis_sink_stop();
 
-/**
- * @brief Set bis audio location bf preferred
- *
- * @param  aud_loc_bf  Audio location bf
- *
- */
-void bes_ble_bis_sink_set_aud_location_bf(uint32_t aud_loc_bf);
-
-/**
- * @brief BIS sink set src id and code
- *
- * @param[in] bcast_id   BIS src id len APP_GAP_BCAST_ID_LEN
- * @param[in] bcast_code BIS src key if encrypted len APP_GAP_KEY_LEN
- */
-void bes_ble_bis_sink_set_src_id_key(uint8_t *bcast_id, uint8_t *bcast_code);
-
-/**
- * @brief Get pa sync hadle
- *
- * @param[in] pa_lid  Pa lid
- *
- * @return uint16_t   Pa synced handle
- */
-uint16_t bes_ble_bis_sink_get_pa_sync_hdl_by_pa_lid(uint8_t pa_lid);
-
-/**
- * @brief Sync to pa with param
- *
- * @param[in] p_addr    Peer pa addr
- * @param[in] adv_sid   Pa adv sid
- * @param[in] sync_to_s Sync timeout *100ms
- */
-void bes_ble_bis_scan_pa_sync_with_to(ble_bdaddr_t *p_addr, uint8_t adv_sid, uint16_t sync_to_s);
-
-/**
- * @brief Cancel PA sync
- *
- *
- */
-void bes_ble_bis_scan_pa_sync_cancel(void);
-
-/**
- * @brief Stop scan pa
- *
- */
-void bes_ble_bis_scan_pa_sync_stop(void);
-
-/**
- * @brief Control pa adv report
- *
- * @param[in] pa_lid  Pa lid
- * @param[in] enable  Enable to report
- */
-void bes_ble_bis_scan_pa_report_ctrl(uint8_t pa_lid, bool enable);
-
-/**
- * @brief Start disconvery BAP service
- *
- * @param[in] con_lid  Conn lid
- */
 void bes_ble_bap_start_discovery(uint8_t con_lid);
 
-/**
- * @brief Get local activity type
- *
- * @return @gaf_bap_activity_type_e
- */
 gaf_bap_activity_type_e bes_ble_bap_get_actv_type(void);
 
-/**
- * @brief Get connected device num
- *
- * @return uint8_t  Device nums
- */
 uint8_t bes_ble_bap_get_device_num_to_be_connected(void);
 
-/**
- * @brief Get ase info
- *
- * @param[in] ase_lid  ASE lid
- * @return @const bes_ble_bap_ascs_ase_t*
- */
 const bes_ble_bap_ascs_ase_t *bes_ble_get_ascs_ase_info(uint8_t ase_lid);
 
-/**
- * @brief Get local capa localtion bf
- *
- * @param[in] direction  Audio direction@bes_gaf_direction_t
- * @return uint32_t      Capa location bf
- */
 uint32_t bes_ble_bap_capa_get_location_bf(bes_gaf_direction_t direction);
 
-/**
- * @brief Set local capa localtion bf
- *
- * @param[in] location_bf
- *                       Capa location bf
- *
- */
-void bes_ble_bap_capa_set_location_bf(uint32_t location_bf);
-
-/**
- * @brief Get ase lid list when ASE is streaming state
- *
- * @param[in] con_lid       Conn lid
- * @param[out] ase_lid_list ASE lid list
- * @return uint8_t ASE count
- */
 uint8_t bes_ble_bap_ascs_get_streaming_ase_lid_list(uint8_t con_lid, uint8_t *ase_lid_list);
 
-/**
- * @brief CFM ASE enable req
- *
- * @param[in] ase_lid  ASE lid
- * @param[in] accept   If accept enable req
- */
 void bes_ble_bap_ascs_send_ase_enable_rsp(uint8_t ase_lid, bool accept);
 
-/**
- * @brief Disable ase req
- *
- * @param[in] ase_lid   ASE lid
- */
 void bes_ble_bap_ascs_disable_ase_req(uint8_t ase_lid);
 
-/**
- * @brief Release ASE req
- *
- * @param[in] ase_lid   ASE lid
- */
 void bes_ble_bap_ascs_release_ase_req(uint8_t ase_lid);
 
-/**
- * @brief Register datapath callback
- *
- * @param[in] callback
- */
 void bes_ble_bap_dp_itf_data_come_callback_register(void *callback);
 
-/**
- * @brief Deregister datapath callbakc
- *
- */
 void bes_ble_bap_dp_itf_data_come_callback_deregister(void);
 
-/**
- * @brief Send iso data
- *
- * @param[in] conhdl      Conn handle can be convert from conn lid
- * @param[in] seq_num     Seq num when send data
- * @param[in] payload     Send data payload
- * @param[in] payload_len Payload len
- * @param[in] ref_time    ISO data timestamp
- */
 void bes_ble_bap_iso_dp_send_data(uint16_t conhdl, uint16_t seq_num, uint8_t *payload, uint16_t payload_len, uint32_t ref_time);
 
-/**
- * @brief Get local nv role
- *
- * @return uint8_t nv role@BLE_AUDIO_TWS_ROLE_E
- */
 uint8_t bes_ble_audio_get_tws_nv_role(void);
 
-/**
- * @brief Get local support location num
- *
- * @param[in] audio_location_bf  Audio location bf@gaf_bap_supported_locations_bf
- * @return uint8_t               Suppport left and right location cnt
- */
 uint8_t bes_ble_audio_get_location_fs_l_r_cnt(uint32_t audio_location_bf);
 
-/**
- * @brief Get mic state
- *
- * @param[in] con_lid   Conn lid
- * @return uint8_t      Mic state
- */
 uint8_t bes_ble_arc_get_mic_state(uint8_t con_lid);
 
-/**
- * @brief Get ltv that specified by ltv type
- *
- * @param  p_ltv_data  LTV data start
- * @param  ltv_type    LTV type
- *
- * @return uint8_t*    LTV data specified by type
- */
-uint8_t *bes_ble_audio_get_ltv_value_by_type(AOB_CFG_LTV_T *p_ltv_data, uint8_t ltv_type);
-
-/**
- * @brief Convert le real vol to local vol
- *
- * @param[in] le_vol  LE vol [0,255]
- * @return uint8_t    Local vol[0, 16]
- */
 uint8_t bes_ble_arc_convert_le_vol_to_local_vol(uint8_t le_vol);
 
-/**
- * @brief Get local real vol
- *
- * @param[in] con_lid  Conn lid
- * @return uint8_t     Local real vol record in nv[0, 255]
- */
 uint8_t bes_ble_arc_vol_get_real_time_volume(uint8_t con_lid);
 
-/**
- * @brief Set local abs vol
- *
- * @param[in] con_lid   Conn lid
- * @param[in] local_vol Local bt vol[0, 15]
- */
-void bes_ble_arc_mobile_set_abs_vol(uint8_t con_lid, uint8_t local_vol);
-
-/**
- * @brief Get rx data from iso datapath callback
- *
- * @param[in] iso_hdl       ISO handle
- * @param[out] p_iso_buffer ISO data buf
- * @return void*  SDU buf @gaf_media_data_t
- */
 void *bes_ble_bap_dp_itf_get_rx_data(uint16_t iso_hdl, bes_ble_dp_itf_iso_buffer_t *p_iso_buffer);
 
-/**
- * @brief Get controller free iso tx num
- *
- * @return int  free iso tx num
- */
 int bes_ble_bap_get_free_iso_packet_num(void);
 
-/**
- * @brief Stop tx iso datapath
- *
- * @param[in] iso_hdl  ISO handle
- */
 void bes_ble_bap_dp_tx_iso_stop(uint16_t iso_hdl);
 
-/**
- * @brief Stop rx iso datapath
- *
- * @param[in] iso_hdl  ISO handle
- */
 void bes_ble_bap_dp_rx_iso_stop(uint16_t iso_hdl);
 
-/**
- * @brief IF local device in call active state
- *
- * @param[in] con_lid  Conn lid
- * @return true/false
- */
 bool bes_ble_ccp_call_is_device_call_active(uint8_t con_lid);
 
-/**
- * @brief Start service discovery
- *
- * @param[in] con_lid   Conn lid
- */
 void bes_ble_start_gaf_discovery(uint8_t con_lid);
 
-void bes_ble_gaf_media_status_handler_cb_register(void (*cb)(uint8_t con_lid, bool paused));
-
 #ifdef AOB_MOBILE_ENABLED
-/**
- * @brief Start lea stream as mobile
- *
- * @param[in] con_lid       Conn lid
- * @param[in] cfg           ASE cfg param@bes_lea_ase_cfg_param_t
- * @param[in] bidirectional If only sink/src or both
- */
-void bes_lea_mobile_stream_start(uint8_t con_lid, bes_lea_ase_cfg_param_t *cfg, bool bidirectional);
-
-/**
- * @brief Get ase info
- *
- * @param[in] ase_lid   ASE lid
- *
- * @return const bes_ble_bap_ascc_ase_t*
- */
 const bes_ble_bap_ascc_ase_t *bes_ble_bap_ascc_get_ase_info(uint8_t ase_lid);
 
-/**
- * @brief Get ase lid list in specific state
- *
- * @param[in] con_lid      Conn lid
- * @param[in] direction    Stream direction
- * @param[in] ase_state    ASE state
- * @param[out] ase_lid_list ASE lid list
- *
- * @return uint8_t         ASE cnt
- */
 uint8_t bes_ble_bap_ascc_get_specific_state_ase_lid_list(uint8_t con_lid, uint8_t direction, uint8_t ase_state, uint8_t *ase_lid_list);
 
-/**
- * @brief If peer support stereo channel
- *
- * @param[in] con_lid   Conn lid
- * @param[in] direction Stream direction
- *
- * @return true/false
- */
 bool bes_ble_bap_pacc_is_peer_support_stereo_channel(uint8_t con_lid, uint8_t direction);
 
-/**
- * @brief Config codec param
- *
- * @param[in] ase_lid     ASE lid
- * @param[in] cis_id      CIS lid
- * @param[in] codec_id    Codec lid
- * @param[in] sampleRate  SampleRate@bap_sampling_freq
- * @param[in] frame_octet Frame oectet
- */
 void bes_ble_bap_ascc_configure_codec_by_ase_lid(uint8_t ase_lid, uint8_t cis_id, const AOB_CODEC_ID_T *codec_id,
-                                                 uint16_t sampleRate, uint16_t frame_octet);
+                                                        uint16_t sampleRate, uint16_t frame_octet);
 
-/**
- * @brief QOS param cfg
- *
- * @param[in] ase_lid  ASE lid
- * @param[in] grp_lid  CIG group lid
- */
 void bes_ble_bap_ascc_ase_qos_cfg_by_ase_lid(uint8_t ase_lid, uint8_t grp_lid);
 
-/**
- * @brief Create cig group
- *
- * @param[in] cig_lid  CIG lid
- */
 void bes_ble_bap_ascc_link_create_group_req(uint8_t cig_lid);
 
-/**
- * @brief Remove cig group
- *
- * @param[in] grp_lid  CIG group id
- */
 void bes_ble_bap_ascc_link_remove_group_req(uint8_t grp_lid);
 
-/**
- * @brief Enable ASE
- *
- * @param[in] ase_lid    ASE lid
- * @param[in] context_bf @bap_context_type_bf
- */
 void bes_ble_bap_ascc_ase_enable_by_ase_lid(uint8_t ase_lid, uint16_t context_bf);
 
-/**
- * @brief Release ASE
- *
- * @param[in] ase_lid    ASE lid
- */
 void bes_ble_bap_ascc_ase_release_by_ase_lid(uint8_t ase_lid);
 
-/**
- * @brief Disable ASE
- *
- * @param[in] ase_lid    ASE lid
- */
 void bes_ble_bap_ascc_ase_disable_by_ase_lid(uint8_t ase_lid);
 
-/**
- * @brief Set sdu interval
- *
- * @param[in] sdu_intv_c2p_us   SDU intervel central to perh
- * @param[in] sdu_intv_p2c_us   SDU intervel perh to central
- */
-void bes_ble_bap_ascc_set_sdu_interval(uint32_t sdu_intv_c2p_us, uint32_t sdu_intv_p2c_us);
-
-/**
- * @brief Set cis count in CIG
- *
- * @param[in] cis_count  CIS count
- */
-void bes_ble_bap_ascc_set_cis_count_in_cig(uint8_t cis_count);
-
-/**
- * @brief Prepare CIG param
- *
- * @param[in] cig_param  @AOB_BAP_CIG_PARAM_T
- */
-void bes_ble_bap_ascc_prepare_cig_param(const AOB_BAP_CIG_PARAM_T *cig_param);
-
-/**
- * @brief MCS control remote player
- *
- * @param[in] media_lid  Media lid
- * @param[in] action     @MCS_ACTION_MAX
- */
 void bes_ble_mcp_mcs_action_control(uint8_t media_lid, uint8_t action);
 
-/**
- * @brief MCS changed track
- *
- * @param[in] media_lid     Media lid
- * @param[in] duration_10ms Duration tracks
- * @param[in] title         Track Title characteristic value
- * @param[in] title_len     Len of write char value
- */
 void bes_ble_mcp_mcs_track_changed(uint8_t media_lid, uint32_t duration_10ms, uint8_t *title, uint8_t title_len);
 
 #endif /// AOB_MOBILE_ENABLED
 
 #endif /* BLE_AUDIO_ENABLED */
-
-#ifdef BLE_ISO_ENABLED
-/**
- * @brief malloc iso data
- *
- * @param[in] size      size of iso data
- */
-void *bes_ble_iso_malloc_buff(uint32_t size);
-/**
- * @brief free iso data
- *
- * @param[in] mem_ptr      address for iso data
- */
-void bes_ble_iso_free_buff(void *mem_ptr);
-
-/**
- * @brief free iso data rx datapath
- *
- * @param[in] mem_ptr  address for iso data rx by molloc by stack
- */
-void bes_ble_iso_rx_free_buff(void *mem_ptr);
-/**
- * @brief Send iso data
- *
- * @param[in] conhdl      Conn handle can be convert from conn lid
- * @param[in] seq_num     Seq num when send data
- * @param[in] payload     Send data payload
- * @param[in] payload_len Payload len
- * @param[in] ref_time    ISO data timestamp
- */
-void bes_ble_iso_dp_send_data(uint16_t conhdl, uint16_t seq_num, uint8_t *payload, uint16_t payload_len, uint32_t ref_time);
-
-/**
- * @brief Get rx data from iso datapath callback
- *
- * @param[in] iso_hdl       ISO handle
- * @param[out] p_iso_buffer ISO data buf
- * @return void*  SDU buf @gaf_media_data_t
- */
-void *bes_ble_iso_dp_itf_get_rx_data(uint16_t iso_hdl, bes_ble_dp_itf_iso_buffer_t *p_iso_buffer);
-
-/**
- * @brief Get controller free iso tx num
- *
- * @return int  free iso tx num
- */
-int bes_ble_iso_get_free_iso_packet_num(void);
-
-/**
- * @brief Stop tx iso datapath
- *
- * @param[in] iso_hdl  ISO handle
- */
-void bes_ble_iso_dp_tx_iso_stop(uint16_t iso_hdl);
-
-/**
- * @brief Stop rx iso datapath
- *
- * @param[in] iso_hdl  ISO handle
- */
-void bes_ble_iso_dp_rx_iso_stop(uint16_t iso_hdl);
-
-void bes_ble_iso_dp_set_rx_dp_itf(void);
-
-/**
- * @brief Register datapath callback
- *
- * @param[in] callback
- */
-void bes_ble_iso_dp_itf_data_come_callback_register(void *callback);
-
-/**
- * @brief Deregister datapath callbakc
- *
- */
-void bes_ble_iso_dp_itf_data_come_callback_deregister(void);
-
-#endif
 
 #ifdef __cplusplus
 }

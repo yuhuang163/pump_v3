@@ -24,3 +24,7 @@ endif
 ifeq ($(RMT_TRC_IN_MSG_CHAN),1)
 ccflags-y += -DRMT_TRC_IN_MSG_CHAN
 endif
+
+ifneq ($(RMT_TRC_CPU_ID),)
+CFLAGS_rmt_trace_client.o += -DRMT_TRC_CPU_ID=$(RMT_TRC_CPU_ID)
+endif

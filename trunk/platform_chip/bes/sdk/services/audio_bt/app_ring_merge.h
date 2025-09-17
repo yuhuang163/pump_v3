@@ -16,6 +16,10 @@
 #ifndef __APP_RING_MERGE_H__
 #define __APP_RING_MERGE_H__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 enum APP_RING_MERGE_PLAY_T {
     APP_RING_MERGE_PLAY_ONESHOT = 0,
     APP_RING_MERGE_PLAY_PERIODIC,
@@ -42,6 +46,9 @@ bool app_ring_merge_isrun(void);
 
 void app_ring_merge_save_pending_start_stream_op(uint8_t pendingStopOp, uint8_t deviceId);
 
+#ifdef __cplusplus
+}
+#endif
 
 #endif
 

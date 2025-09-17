@@ -132,7 +132,7 @@ void app_sound_updata_checker_timer(void)
 void app_sound_checker_timer_manager(SOUND_CHECK_TIMER_EVENT_E type, uint8_t device_id, bool status)
 {
     struct app_sound_ctrl_t *app_sound_ctrl = app_sound_get_ctrl();
-    SOUND_TRACE(0,"sound_timer_status=%04x type=%d device_id=%d status=%d", app_sound_ctrl->sound_timer_status, type, device_id, status);
+    LOG_I("sound_timer_status=%04x type=%d device_id=%d status=%d", app_sound_ctrl->sound_timer_status, type, device_id, status);
 
     if (type == SOUND_TIMER_BT_A2DP_STREAMING)
     {
@@ -189,7 +189,7 @@ void app_sound_checker_timer_manager(SOUND_CHECK_TIMER_EVENT_E type, uint8_t dev
         }
     }
 
-    SOUND_TRACE(0,"sound_timer_status=%04x timer_start=%d", app_sound_ctrl->sound_timer_status, app_sound_ctrl->sound_timer_start);
+    LOG_I("sound_timer_status=%04x timer_start=%d", app_sound_ctrl->sound_timer_status, app_sound_ctrl->sound_timer_start);
 
     if (app_sound_ctrl->sound_timer_status == 0)
     {
@@ -245,7 +245,7 @@ SOUND_UI_ERROR_E app_sound_ui_event_queue_insert(SOUND_UI_TYPE_E event)
     if (((p_event_queue->rear+1)%SOUND_EVENT_Q_LENGTH) == p_event_queue->front)
     {
         //event queue full
-        SOUND_TRACE(0,"inster ibrt event queue error");
+        LOG_I("inster ibrt event queue error");
         return SOUND_UI_STATUS_ERROR;
     }
     else
@@ -253,7 +253,7 @@ SOUND_UI_ERROR_E app_sound_ui_event_queue_insert(SOUND_UI_TYPE_E event)
         p_event_queue->sound_event_q[p_event_queue->rear] = event;
         p_event_queue->rear = (p_event_queue->rear+1)%SOUND_EVENT_Q_LENGTH;
 
-        SOUND_TRACE(0,"insert event queue, rear=%d, front=%d", \
+        LOG_I("insert event queue, rear=%d, front=%d", \
                                 p_event_queue->rear, p_event_queue->front);
 
         return SOUND_UI_NO_ERROR;
@@ -288,14 +288,14 @@ SOUND_UI_ERROR_E app_sound_ui_event_queue_delete(SOUND_UI_TYPE_E *p_event)
     if (p_event_queue->rear == p_event_queue->front)
     {
         //event queue empty
-        SOUND_TRACE(0,"delete event queue error");
+        LOG_I("delete event queue error");
         return SOUND_UI_STATUS_ERROR;
     }
     else
     {
         *p_event = p_event_queue->sound_event_q[p_event_queue->front];
         p_event_queue->front = (p_event_queue->front+1)%SOUND_EVENT_Q_LENGTH;
-        SOUND_TRACE(0,"delete event queue, rear=%d, front=%d", p_event_queue->rear, p_event_queue->front);
+        LOG_I("delete event queue, rear=%d, front=%d", p_event_queue->rear, p_event_queue->front);
         return SOUND_UI_NO_ERROR;
     }
 }
@@ -317,7 +317,7 @@ void app_sound_updata_bt_active_device(void)
 void app_sound_wifi_acl_state_handle(SOUND_ACL_STATUS_TYPE_E status)
 {
     app_sound_wifi_device_info_t *p_wifi_device = app_sound_get_wifi_device_info();
-    SOUND_TRACE(0,"app_sound_wifi_acl_state_handle: status %d=>%d!", p_wifi_device->acl_state, status);
+    LOG_I("app_sound_wifi_acl_state_handle: status %d=>%d!", p_wifi_device->acl_state, status);
     p_wifi_device->acl_state = status;
     if (status == SOUND_ACL_CONNECTED)
     {
@@ -331,7 +331,7 @@ void app_sound_airplay_state_handle(SOUND_WIFI_AIRPLAY_STATUS_TYPE_E status)
 {
     app_sound_wifi_device_info_t *p_wifi_device = app_sound_get_wifi_device_info();
 
-    SOUND_TRACE(0,"app_sound_airplay_state_handle: status %d=>%d!", p_wifi_device->profile_state, status);
+    LOG_I("app_sound_airplay_state_handle: status %d=>%d!", p_wifi_device->profile_state, status);
     p_wifi_device->profile_state = status;
     if (status == SOUND_WIFI_AIRPLAY_STREAM_STARTED)
     {
@@ -368,7 +368,7 @@ void app_sound_bredr_acl_state_handle(uint8_t device_id, device_addr_t *addr, SO
 
     if (device_id >= BT_REMOTE_DEVICE_NUM)
     {
-        SOUND_TRACE(0,"app_sound_acl_state_handle: Warning!");
+        LOG_I("app_sound_acl_state_handle: Warning!");
         return;
     }
 
@@ -403,7 +403,7 @@ void app_sound_a2dp_state_handle(uint8_t device_id, device_addr_t *addr, SOUND_B
     app_sound_bt_device_info_t *p_bt_device = app_sound_get_bt_device_info();
     app_sound_bt_remote_info_t *p_remote_info = NULL;
 
-    SOUND_TRACE(0,"app_sound_a2dp_state_handle: device_id=%d status=%d!", device_id, status);
+    LOG_I("app_sound_a2dp_state_handle: device_id=%d status=%d!", device_id, status);
 
     if (!addr)
     {
@@ -441,7 +441,7 @@ void app_sound_hfp_state_handle(uint8_t device_id, device_addr_t *addr, SOUND_BT
 {
     app_sound_bt_device_info_t *p_bt_device = app_sound_get_bt_device_info();
     app_sound_bt_remote_info_t *p_remote_info = NULL;
-    SOUND_TRACE(0,"app_sound_hfp_state_handle: device_id=%d status=%d!", device_id, status);
+    LOG_I("app_sound_hfp_state_handle: device_id=%d status=%d!", device_id, status);
 
     if (!addr)
     {
@@ -474,7 +474,7 @@ void app_sound_sco_state_handle(uint8_t device_id, device_addr_t *addr, SOUND_BT
     app_sound_bt_device_info_t *p_bt_device = app_sound_get_bt_device_info();
     app_sound_bt_remote_info_t *p_remote_info = NULL;
 
-    SOUND_TRACE(0,"app_sound_sco_state_handle: device_id=%d status=%d!", device_id, status);
+    LOG_I("app_sound_sco_state_handle: device_id=%d status=%d!", device_id, status);
 
     if (!addr)
     {
@@ -540,13 +540,13 @@ void app_sound_sync_info_handle(uint8_t *buf, uint16_t len)
 
     if (len < 3)
     {
-        SOUND_TRACE(0,"%s:rec data len too short!", __func__);
+        LOG_I("%s:rec data len too short!", __func__);
         return;
     }
 
     if ((buf[0] != 0xff) || (buf[1] != 1))//opcode and data len
     {
-        SOUND_TRACE(0,"%s:The sync cmd format is incorrect!", __func__);
+        LOG_I("%s:The sync cmd format is incorrect!", __func__);
         return;
     }
 
@@ -620,7 +620,7 @@ static uint8_t crc8_cal(uint8_t *data, uint32_t length)
 static void app_sound_ble_adv_data_stop(void)
 {
     app_sound_bt_device_info_t *p_bt_device = app_sound_get_bt_device_info();
-    SOUND_TRACE(0,"%s adv_state:%d", __func__, p_bt_device->ble_adv_state);
+    LOG_I("%s adv_state:%d", __func__, p_bt_device->ble_adv_state);
     if (p_bt_device->ble_adv_state != SOUND_BLE_ADV_OP_IDLE)
     {
         p_bt_device->ble_adv_state = SOUND_BLE_ADV_OP_IDLE;
@@ -632,7 +632,7 @@ static void app_sound_ble_scan_device_start(void)
 {
     app_sound_bt_device_info_t *p_bt_device = app_sound_get_bt_device_info();
 
-    SOUND_TRACE(0,"%s scan_state:%d", __func__, p_bt_device->ble_scan_state);
+    LOG_I("%s scan_state:%d", __func__, p_bt_device->ble_scan_state);
     if (p_bt_device->ble_scan_state == SOUND_BLE_SCAN_STATE_STOPPED)
     {
         bes_ble_scan_param_t scan_param = {0};
@@ -648,7 +648,7 @@ static void app_sound_ble_scan_device_start(void)
 void app_sound_ble_scan_device_stop(void)
 {
     app_sound_bt_device_info_t *p_bt_device = app_sound_get_bt_device_info();
-    SOUND_TRACE(0,"%s scan_state:%d", __func__, p_bt_device->ble_scan_state);
+    LOG_I("%s scan_state:%d", __func__, p_bt_device->ble_scan_state);
     if (p_bt_device->ble_scan_state != SOUND_BLE_SCAN_STATE_STOPPED)
     {
         bes_ble_gap_stop_scan();
@@ -1022,7 +1022,7 @@ static void app_sound_ble_adv_data_start(SOUND_ADV_TYPE_E adv_type)
         p_wifi_adv->profile_state = p_wifi_device->profile_state;
 
         ble_scan_data_req->crc_check = crc8_cal(&app_sound_ctrl->adv_data_info[2], sizeof(sound_ble_adv_data_tws_discover_ind_t)-1);
-        SOUND_DUMP8("%02x", &app_sound_ctrl->adv_data_info[0], sizeof(sound_ble_adv_data_tws_discover_ind_t));
+        DUMP8("%02x", &app_sound_ctrl->adv_data_info[0], sizeof(sound_ble_adv_data_tws_discover_ind_t));
         p_bt_device->ble_adv_state = SOUND_BLE_ADV_OP_SETUP_STEREO_REQ;
     }
     else if (adv_type == SOUND_FORMATION_TWS_ADV)
@@ -1039,7 +1039,7 @@ static void app_sound_ble_adv_data_start(SOUND_ADV_TYPE_E adv_type)
         memcpy((uint8_t *)&ble_adv_data->tws_config_info, (uint8_t *)&app_sound_ctrl->tws_config_info, sizeof(sound_tws_config_adv_info_t));
         app_sound_check_local_device_status(&ble_adv_data->device_status_info);
         ble_adv_data->crc_check = crc8_cal(&app_sound_ctrl->adv_data_info[2], sizeof(sound_ble_adv_data_tws_comfirm_dev_t)-1);
-        SOUND_DUMP8("%02x", &app_sound_ctrl->adv_data_info[0], sizeof(sound_ble_adv_data_tws_comfirm_dev_t));
+        DUMP8("%02x", &app_sound_ctrl->adv_data_info[0], sizeof(sound_ble_adv_data_tws_comfirm_dev_t));
 
         p_bt_device->ble_adv_state = SOUND_BLE_ADV_OP_SETUP_STEREO_CFM;
     }
@@ -1055,7 +1055,7 @@ static void app_sound_ble_adv_data_start(SOUND_ADV_TYPE_E adv_type)
 
         memcpy((uint8_t *)&ble_adv_data->tws_config_info, (uint8_t *)&app_sound_ctrl->tws_config_info, sizeof(sound_tws_config_adv_info_t));
         ble_adv_data->crc_check = crc8_cal(&app_sound_ctrl->adv_data_info[2], sizeof(sound_adv_data_tws_perhandle_t)-1);
-        SOUND_DUMP8("%02x", &app_sound_ctrl->adv_data_info[0], sizeof(sound_tws_config_adv_info_t));
+        DUMP8("%02x", &app_sound_ctrl->adv_data_info[0], sizeof(sound_tws_config_adv_info_t));
 
         p_bt_device->ble_adv_state = SOUND_BLE_ADV_OP_SETUP_STEREO_PHD;
     }
@@ -1097,13 +1097,13 @@ static uint8_t app_sound_decision_local_device_role(sound_ble_adv_data_tws_comfi
 
     sound_device_status_info_t sound_device_status;
     app_sound_check_local_device_status(&sound_device_status);
-    SOUND_TRACE(0,"app_sound_decision_local_device_role: audio_status=%d audio_status=%d audio_device_type=%d wifi_acl=%d",
+    LOG_D("app_sound_decision_local_device_role: audio_status=%d audio_status=%d audio_device_type=%d wifi_acl=%d",
             sound_device_status.audio_status,
             sound_device_status.audio_device_type,
             sound_device_status.bt_acl_connected_num,
             sound_device_status.wifi_acl_status);
 
-    SOUND_TRACE(0,"app_sound_decision_local_device_role: audio_status=%d audio_status=%d audio_device_type=%d wifi_acl=%d",
+    LOG_D("app_sound_decision_local_device_role: audio_status=%d audio_status=%d audio_device_type=%d wifi_acl=%d",
             peer_status_info->audio_status,
             peer_status_info->audio_device_type,
             peer_status_info->bt_acl_connected_num,
@@ -1190,12 +1190,12 @@ static uint8_t app_sound_ble_scan_data_handle_tws_discovery_cfm(sound_ble_adv_da
 
     if (crc_value_origin != crc_value_check)
     {
-        SOUND_TRACE(0,"scan tws cfm: crc check fail!");
+        LOG_D("scan tws cfm: crc check fail!");
         return local_config_role;
     }
     if (app_sound_ble_confirm_peer_device_match_success(&adv_data_cfm->tws_config_info.slave_addr) == false)
     {
-        SOUND_TRACE(0,"scan tws cfm: peer device mismatch!");
+        LOG_D("scan tws cfm: peer device mismatch!");
         return local_config_role;
     }
     local_config_role = app_sound_decision_local_device_role(adv_data_cfm);
@@ -1210,7 +1210,7 @@ static uint8_t app_sound_ble_scan_data_handle_tws_discovery_cfm(sound_ble_adv_da
             local_config_role = SOUND_ROLE_MASTER;
         }
     }
-    SOUND_TRACE(0,"scan tws cfm: ux_role=%d", local_config_role);
+    LOG_D("scan tws cfm: ux_role=%d", local_config_role);
     return local_config_role;
 }
 
@@ -1229,7 +1229,7 @@ static void app_sound_ble_scan_data_report_handler(bes_ble_bdaddr_t *bleAddr, in
 
     if (adv_type == BLE_ADV_DATA_MANUFACTURER_TYPE_ID)
     {
-        SOUND_DUMP8("%02x ", adv_buf, len);
+        DUMP8("%02x ", adv_buf, len);
 
         sound_tws_info_t *cmd_operation = (sound_tws_info_t*)&ptr_section_data[2];
         switch (cmd_operation->operation)
@@ -1399,7 +1399,7 @@ static bool app_sound_reconnect_mobile_by_nvrecord(bool is_first_mobile)
     bt_bdaddr_t device_list[10];
     uint8_t count = 0;
     soundBtGetPairedDeviceList(device_list, 10, &count);
-    SOUND_TRACE(0,"record count=%d", count);
+    LOG_I("record count=%d", count);
     if (count == 0)
     {
         return ret;
@@ -1453,7 +1453,7 @@ static bool app_sound_ui_bt_enable_handle(void)
 
     app_sound_ctrl->onoff_status = SOUND_ONOFF_OPENED_MODE;
     count = app_sound_get_nvrecord_count();
-    SOUND_TRACE(0,"nv record count=%d", count);
+    LOG_I("nv record count=%d", count);
     /*
     *If there is a pairing record, check whether the connection is successful,
     *and enter the pairing mode if there is no pairing record
@@ -1539,7 +1539,7 @@ void app_sound_bt_ui_common_sm(SOUND_ACTION_E action, SOUND_UI_ERROR_E status)
     struct app_sound_ctrl_t *app_sound_ctrl = app_sound_get_ctrl();
     bool new_event_selected = false;
     uint8_t super_state_enter = app_sound_ctrl->super_state;
-    SOUND_TRACE(2,"active_event=%d, super_state=%d", app_sound_ctrl->active_event, app_sound_ctrl->super_state);
+    TRACE(2,"active_event=%d, super_state=%d", app_sound_ctrl->active_event, app_sound_ctrl->super_state);
     switch (app_sound_ctrl->super_state)
     {
         case SOUND_UI_IDLE:
@@ -1622,8 +1622,8 @@ void app_sound_bt_ui_common_sm(SOUND_ACTION_E action, SOUND_UI_ERROR_E status)
 
     if (!new_event_selected)
     {
-        SOUND_TRACE(0,"entry=app_sound_bt_ui_common_sm, action=%d, status=0x%x", action, status);
-        SOUND_TRACE(0,"enter=%d, exit=%d", super_state_enter, app_sound_ctrl->super_state);
+        LOG_I("entry=app_sound_bt_ui_common_sm, action=%d, status=0x%x", action, status);
+        LOG_I("enter=%d, exit=%d", super_state_enter, app_sound_ctrl->super_state);
     }
 }
 
@@ -1650,8 +1650,8 @@ void app_sound_open_event_handler(SOUND_ACTION_E action, SOUND_UI_ERROR_E status
     app_sound_bt_device_info_t *p_bt_device = &app_sound_ctrl->bt_device_info;
     uint8_t super_state_enter = app_sound_ctrl->super_state;
     bool new_event_selected = false;
-    SOUND_TRACE(0,"app_sound_open_event_handler:action=%d, super_state=%d status=%d", action, app_sound_ctrl->super_state, status);
-    SOUND_TRACE(0,"app_sound_open_event_handler:device_type=%d, mode_type=%d, connect_status=%d",app_sound_ctrl->business_device_type, p_bt_device->mode_type, p_bt_device->tws_info.connect_status);
+    LOG_I("app_sound_open_event_handler:action=%d, super_state=%d status=%d", action, app_sound_ctrl->super_state, status);
+    LOG_I("app_sound_open_event_handler:device_type=%d, mode_type=%d, connect_status=%d",app_sound_ctrl->business_device_type, p_bt_device->mode_type, p_bt_device->tws_info.connect_status);
 
     switch (app_sound_ctrl->super_state)
     {
@@ -1779,8 +1779,8 @@ void app_sound_open_event_handler(SOUND_ACTION_E action, SOUND_UI_ERROR_E status
 
     if (!new_event_selected)
     {
-        SOUND_TRACE(0,"entry=app_sound_open_event_handler, action=%d, status=0x%x", action, status);
-        SOUND_TRACE(0,"enter=%d, exit=%d, sub_bt=%d, sub_wifi=%d ", super_state_enter, app_sound_ctrl->super_state, app_sound_ctrl->sub_btsuper_state, app_sound_ctrl->sub_wifisuper_state);
+        LOG_I("entry=app_sound_open_event_handler, action=%d, status=0x%x", action, status);
+        LOG_I("enter=%d, exit=%d, sub_bt=%d, sub_wifi=%d ", super_state_enter, app_sound_ctrl->super_state, app_sound_ctrl->sub_btsuper_state, app_sound_ctrl->sub_wifisuper_state);
     }
 }
 
@@ -1808,8 +1808,8 @@ void app_sound_close_event_handler(SOUND_ACTION_E action, SOUND_UI_ERROR_E statu
     app_sound_tws_info_t *p_tws_info = app_sound_get_tws_info();
     uint8_t super_state_enter = app_sound_ctrl->super_state;
     bool new_event_selected = false;
-    SOUND_TRACE(0,"app_sound_close_event_handler:action=%d, super_state=%d status=%d", action, app_sound_ctrl->super_state, status);
-    SOUND_TRACE(0,"app_sound_close_event_handler:device_type=%d, mode_type=%d, connect_status=%d",
+    LOG_I("app_sound_close_event_handler:action=%d, super_state=%d status=%d", action, app_sound_ctrl->super_state, status);
+    LOG_I("app_sound_close_event_handler:device_type=%d, mode_type=%d, connect_status=%d",
             app_sound_ctrl->business_device_type,
             p_bt_device->mode_type,
             p_tws_info->connect_status);
@@ -1896,8 +1896,8 @@ void app_sound_close_event_handler(SOUND_ACTION_E action, SOUND_UI_ERROR_E statu
 
     if (!new_event_selected)
     {
-        SOUND_TRACE(0,"entry=app_sound_close_event_handler, action=%d, status=0x%x", action, status);
-        SOUND_TRACE(0,"enter=%d, exit=%d, sub_bt=%d, sub_wifi=%d ", super_state_enter, app_sound_ctrl->super_state, app_sound_ctrl->sub_btsuper_state, app_sound_ctrl->sub_wifisuper_state);
+        LOG_I("entry=app_sound_close_event_handler, action=%d, status=0x%x", action, status);
+        LOG_I("enter=%d, exit=%d, sub_bt=%d, sub_wifi=%d ", super_state_enter, app_sound_ctrl->super_state, app_sound_ctrl->sub_btsuper_state, app_sound_ctrl->sub_wifisuper_state);
     }
 }
 
@@ -1924,8 +1924,8 @@ void app_sound_ui_freeman_to_tws_event_handler(SOUND_ACTION_E action, SOUND_UI_E
     app_sound_tws_info_t *p_tws_info = app_sound_get_tws_info();
     uint8_t super_state_enter = app_sound_ctrl->super_state;
     bool new_event_selected = false;
-    SOUND_TRACE(0,"app_sound_ui_freeman_to_tws_event_handler:action=%d, super_state=%d status=%d", action, app_sound_ctrl->super_state, status);
-    SOUND_TRACE(0,"app_sound_ui_freeman_to_tws_event_handler:device_type=%d, mode_type=%d, connect_status=%d",
+    LOG_I("app_sound_ui_freeman_to_tws_event_handler:action=%d, super_state=%d status=%d", action, app_sound_ctrl->super_state, status);
+    LOG_I("app_sound_ui_freeman_to_tws_event_handler:device_type=%d, mode_type=%d, connect_status=%d",
             app_sound_ctrl->business_device_type,
             p_bt_device->mode_type,
             p_tws_info->connect_status);
@@ -1979,7 +1979,7 @@ void app_sound_ui_freeman_to_tws_event_handler(SOUND_ACTION_E action, SOUND_UI_E
                 app_sound_ctrl->super_state = SOUND_UI_W4_TWS_CONNECT;
                 app_sound_ui_state_changed_evt_cb(SOUND_PROMPT_BT_ENTER_TWS_MODE_END, 0);
                 p_tws_info->tws_reconnect_cnt = 0;
-                SOUND_TRACE(0,"app_sound_ui_freeman_to_tws_event_handler:mode_type=%d, connect_status=%d", p_bt_device->mode_type, p_tws_info->connect_status);
+                LOG_I("app_sound_ui_freeman_to_tws_event_handler:mode_type=%d, connect_status=%d", p_bt_device->mode_type, p_tws_info->connect_status);
                 soundBtConnectTws();
             }
             break;
@@ -2012,7 +2012,7 @@ void app_sound_ui_freeman_to_tws_event_handler(SOUND_ACTION_E action, SOUND_UI_E
             break;
 
         sound_ui_freeman_to_tws_sm_end:
-            SOUND_TRACE(0,"app_sound_ui_freeman_to_tws_event_handler:mode_type=%d, connect_status=%d",
+            LOG_I("app_sound_ui_freeman_to_tws_event_handler:mode_type=%d, connect_status=%d",
                     p_bt_device->mode_type,
                     p_tws_info->connect_status);
             if (p_bt_device->mode_type == SOUND_BT_FREEMAN2TWS_MODE)
@@ -2031,8 +2031,8 @@ void app_sound_ui_freeman_to_tws_event_handler(SOUND_ACTION_E action, SOUND_UI_E
 
     if (!new_event_selected)
     {
-        SOUND_TRACE(0,"entry=app_sound_ui_freeman_to_tws_event_handler, action=%d, status=0x%x", action, status);
-        SOUND_TRACE(0,"enter=%d, exit=%d", super_state_enter, app_sound_ctrl->super_state);
+        LOG_I("entry=app_sound_ui_freeman_to_tws_event_handler, action=%d, status=0x%x", action, status);
+        LOG_I("enter=%d, exit=%d", super_state_enter, app_sound_ctrl->super_state);
     }
 }
 
@@ -2058,7 +2058,7 @@ void app_sound_ui_freeman_to_bis_event_handler(SOUND_ACTION_E action, SOUND_UI_E
     app_sound_bt_device_info_t *p_bt_device = &app_sound_ctrl->bt_device_info;
     uint8_t super_state_enter = app_sound_ctrl->super_state;
     bool new_event_selected = false;
-    SOUND_TRACE(0,"app_sound_ui_freeman_to_bis_event_handler:action=%d, super_state=%d status=%d", action, app_sound_ctrl->super_state, status);
+    LOG_I("app_sound_ui_freeman_to_bis_event_handler:action=%d, super_state=%d status=%d", action, app_sound_ctrl->super_state, status);
 
     switch (action)
     {
@@ -2079,7 +2079,7 @@ void app_sound_ui_freeman_to_bis_event_handler(SOUND_ACTION_E action, SOUND_UI_E
         default:
             break;
         sound_ui_freeman_to_bis_sm_end:
-            SOUND_TRACE(0,"app_sound_ui_freeman_to_bis_event_handler:mode_type=%d", p_bt_device->mode_type);
+            LOG_I("app_sound_ui_freeman_to_bis_event_handler:mode_type=%d", p_bt_device->mode_type);
             app_sound_ctrl->sm_running = false;
             app_sound_ctrl->super_state = SOUND_UI_W4_SM_STOP;
             new_event_selected = app_sound_ui_execute_pending_event();
@@ -2088,8 +2088,8 @@ void app_sound_ui_freeman_to_bis_event_handler(SOUND_ACTION_E action, SOUND_UI_E
 
     if (!new_event_selected)
     {
-        SOUND_TRACE(0,"entry=app_sound_ui_freeman_to_bis_event_handler, action=%d, status=0x%x", action, status);
-        SOUND_TRACE(0,"enter=%d, exit=%d", super_state_enter, app_sound_ctrl->super_state);
+        LOG_I("entry=app_sound_ui_freeman_to_bis_event_handler, action=%d, status=0x%x", action, status);
+        LOG_I("enter=%d, exit=%d", super_state_enter, app_sound_ctrl->super_state);
     }
 }
 
@@ -2115,7 +2115,7 @@ void app_sound_tws_to_freeman_event_handler(SOUND_ACTION_E action, SOUND_UI_ERRO
     app_sound_bt_device_info_t *p_bt_device = &app_sound_ctrl->bt_device_info;
     uint8_t super_state_enter = app_sound_ctrl->super_state;
     bool new_event_selected = false;
-    SOUND_TRACE(0,"app_sound_tws_to_freeman_event_handler:action=%d, super_state=%d status=%d", action, app_sound_ctrl->super_state, status);
+    LOG_I("app_sound_tws_to_freeman_event_handler:action=%d, super_state=%d status=%d", action, app_sound_ctrl->super_state, status);
 
     switch (action)
     {
@@ -2167,8 +2167,8 @@ void app_sound_tws_to_freeman_event_handler(SOUND_ACTION_E action, SOUND_UI_ERRO
 
     if (!new_event_selected)
     {
-        SOUND_TRACE(0,"entry=app_sound_tws_to_freeman_event_handler, action=%d, status=0x%x", action, status);
-        SOUND_TRACE(0,"enter=%d, exit=%d", super_state_enter, app_sound_ctrl->super_state);
+        LOG_I("entry=app_sound_tws_to_freeman_event_handler, action=%d, status=0x%x", action, status);
+        LOG_I("enter=%d, exit=%d", super_state_enter, app_sound_ctrl->super_state);
     }
 }
 
@@ -2194,7 +2194,7 @@ void app_sound_ui_tws_to_bis_event_handler(SOUND_ACTION_E action, SOUND_UI_ERROR
     app_sound_bt_device_info_t *p_bt_device = &app_sound_ctrl->bt_device_info;
     uint8_t super_state_enter = app_sound_ctrl->super_state;
     bool new_event_selected = false;
-    SOUND_TRACE(0,"app_sound_ui_tws_to_bis_event_handler:action=%d, super_state=%d status=%d", action, app_sound_ctrl->super_state, status);
+    LOG_I("app_sound_ui_tws_to_bis_event_handler:action=%d, super_state=%d status=%d", action, app_sound_ctrl->super_state, status);
 
     switch (action)
     {
@@ -2223,7 +2223,7 @@ void app_sound_ui_tws_to_bis_event_handler(SOUND_ACTION_E action, SOUND_UI_ERROR
             //app_sound_bt_ui_common_sm(action, status);
             break;
         sound_ui_tws_to_bis_sm_end:
-            SOUND_TRACE(0,"app_sound_ui_tws_to_bis_event_handler:mode_type=%d", p_bt_device->mode_type);
+            LOG_I("app_sound_ui_tws_to_bis_event_handler:mode_type=%d", p_bt_device->mode_type);
             app_sound_ctrl->sm_running = false;
             app_sound_ctrl->super_state = SOUND_UI_W4_SM_STOP;
             new_event_selected = app_sound_ui_execute_pending_event();
@@ -2232,8 +2232,8 @@ void app_sound_ui_tws_to_bis_event_handler(SOUND_ACTION_E action, SOUND_UI_ERROR
 
     if (!new_event_selected)
     {
-        SOUND_TRACE(0,"entry=app_sound_ui_tws_to_bis_event_handler, action=%d, status=0x%x", action, status);
-        SOUND_TRACE(0,"enter=%d, exit=%d", super_state_enter, app_sound_ctrl->super_state);
+        LOG_I("entry=app_sound_ui_tws_to_bis_event_handler, action=%d, status=0x%x", action, status);
+        LOG_I("enter=%d, exit=%d", super_state_enter, app_sound_ctrl->super_state);
     }
 }
 
@@ -2259,7 +2259,7 @@ void app_sound_ui_bis_to_freeman_event_handler(SOUND_ACTION_E action, SOUND_UI_E
     app_sound_bt_device_info_t *p_bt_device = &app_sound_ctrl->bt_device_info;
     uint8_t super_state_enter = app_sound_ctrl->super_state;
     bool new_event_selected = false;
-    SOUND_TRACE(0,"app_sound_ui_bis_to_freeman_event_handler:action=%d, super_state=%d status=%d", action, app_sound_ctrl->super_state, status);
+    LOG_I("app_sound_ui_bis_to_freeman_event_handler:action=%d, super_state=%d status=%d", action, app_sound_ctrl->super_state, status);
 
     switch (action)
     {
@@ -2277,7 +2277,7 @@ void app_sound_ui_bis_to_freeman_event_handler(SOUND_ACTION_E action, SOUND_UI_E
         default:
             break;
         sound_ui_bis_to_freeman_sm_end:
-            SOUND_TRACE(0,"app_sound_ui_bis_to_freeman_event_handler:mode_type=%d", p_bt_device->mode_type);
+            LOG_I("app_sound_ui_bis_to_freeman_event_handler:mode_type=%d", p_bt_device->mode_type);
             app_sound_ctrl->sm_running = false;
             app_sound_ctrl->super_state = SOUND_UI_W4_SM_STOP;
             new_event_selected = app_sound_ui_execute_pending_event();
@@ -2286,8 +2286,8 @@ void app_sound_ui_bis_to_freeman_event_handler(SOUND_ACTION_E action, SOUND_UI_E
 
     if (!new_event_selected)
     {
-        SOUND_TRACE(0,"entry=app_sound_ui_bis_to_freeman_event_handler, action=%d, status=0x%x", action, status);
-        SOUND_TRACE(0,"enter=%d, exit=%d", super_state_enter, app_sound_ctrl->super_state);
+        LOG_I("entry=app_sound_ui_bis_to_freeman_event_handler, action=%d, status=0x%x", action, status);
+        LOG_I("enter=%d, exit=%d", super_state_enter, app_sound_ctrl->super_state);
     }
 }
 
@@ -2314,7 +2314,7 @@ void app_sound_ui_bis_to_tws_event_handler(SOUND_ACTION_E action, SOUND_UI_ERROR
     app_sound_bt_device_info_t *p_bt_device = &app_sound_ctrl->bt_device_info;
     uint8_t super_state_enter = app_sound_ctrl->super_state;
     bool new_event_selected = false;
-    SOUND_TRACE(0,"app_sound_ui_bis_to_tws_event_handler:action=%d, super_state=%d status=%d", action, app_sound_ctrl->super_state, status);
+    LOG_I("app_sound_ui_bis_to_tws_event_handler:action=%d, super_state=%d status=%d", action, app_sound_ctrl->super_state, status);
 
     switch (action)
     {
@@ -2330,7 +2330,7 @@ void app_sound_ui_bis_to_tws_event_handler(SOUND_ACTION_E action, SOUND_UI_ERROR
         default:
             break;
         sound_ui_bis_to_freeman_sm_end:
-            SOUND_TRACE(0,"app_sound_ui_bis_to_tws_event_handler:mode_type=%d", p_bt_device->mode_type);
+            LOG_I("app_sound_ui_bis_to_tws_event_handler:mode_type=%d", p_bt_device->mode_type);
             app_sound_ctrl->sm_running = false;
             app_sound_ctrl->super_state = SOUND_UI_W4_SM_STOP;
             new_event_selected = app_sound_ui_execute_pending_event();
@@ -2339,8 +2339,8 @@ void app_sound_ui_bis_to_tws_event_handler(SOUND_ACTION_E action, SOUND_UI_ERROR
 
     if (!new_event_selected)
     {
-        SOUND_TRACE(0,"entry=app_sound_ui_bis_to_tws_event_handler, action=%d, status=0x%x", action, status);
-        SOUND_TRACE(0,"enter=%d, exit=%d", super_state_enter, app_sound_ctrl->super_state);
+        LOG_I("entry=app_sound_ui_bis_to_tws_event_handler, action=%d, status=0x%x", action, status);
+        LOG_I("enter=%d, exit=%d", super_state_enter, app_sound_ctrl->super_state);
     }
 }
 
@@ -2367,7 +2367,7 @@ void app_sound_ui_factory_reset_event_handler(SOUND_ACTION_E action, SOUND_UI_ER
     app_sound_bt_device_info_t *p_bt_device = &app_sound_ctrl->bt_device_info;
     uint8_t super_state_enter = app_sound_ctrl->super_state;
     bool new_event_selected = false;
-    SOUND_TRACE(0,"app_sound_ui_factory_reset_event_handler:action=%d, super_state=%d status=%d", action, app_sound_ctrl->super_state, status);
+    LOG_I("app_sound_ui_factory_reset_event_handler:action=%d, super_state=%d status=%d", action, app_sound_ctrl->super_state, status);
 
     switch (action)
     {
@@ -2451,7 +2451,7 @@ void app_sound_ui_factory_reset_event_handler(SOUND_ACTION_E action, SOUND_UI_ER
             //app_sound_bt_ui_common_sm(action, status);
             break;
         sound_ui_factory_reset_sm_end:
-            SOUND_TRACE(0,"app_sound_ui_factory_reset_event_handler:mode_type=%d", p_bt_device->mode_type);
+            LOG_I("app_sound_ui_factory_reset_event_handler:mode_type=%d", p_bt_device->mode_type);
             app_sound_ctrl->sm_running = false;
             app_sound_ctrl->super_state = SOUND_UI_W4_SM_STOP;
             new_event_selected = app_sound_ui_execute_pending_event();
@@ -2460,8 +2460,8 @@ void app_sound_ui_factory_reset_event_handler(SOUND_ACTION_E action, SOUND_UI_ER
 
     if (!new_event_selected)
     {
-        SOUND_TRACE(0,"entry=app_sound_ui_factory_reset_event_handler, action=%d, status=0x%x", action, status);
-        SOUND_TRACE(0,"enter=%d, exit=%d", super_state_enter, app_sound_ctrl->super_state);
+        LOG_I("entry=app_sound_ui_factory_reset_event_handler, action=%d, status=0x%x", action, status);
+        LOG_I("enter=%d, exit=%d", super_state_enter, app_sound_ctrl->super_state);
     }
 }
 
@@ -2511,7 +2511,7 @@ void app_sound_ui_event_entry(SOUND_UI_TYPE_E event)
     struct app_sound_ctrl_t *app_sound_ctrl = app_sound_get_ctrl();
     if (app_sound_false_trigger_protect(event))
     {
-        SOUND_TRACE(0,"entry event false trigger %d", event);
+        LOG_I("entry event false trigger %d", event);
         return;
     }
 
@@ -2523,14 +2523,14 @@ void app_sound_ui_event_entry(SOUND_UI_TYPE_E event)
         if (app_sound_ctrl->sm_running)
         {
             app_sound_ctrl->sm_running = false;
-            SOUND_TRACE(0,"force reset,reason event=%d", event);
+            LOG_I("force reset,reason event=%d", event);
         }
     }
 
     if (app_sound_ctrl->sm_running)
     {
         SOUND_UI_ERROR_E status = app_sound_ui_event_queue_insert(event);
-        SOUND_TRACE(0,"entry return directly:sm_run=%d, event=%d, status=%d", app_sound_ctrl->sm_running, event, status);
+        LOG_I("entry return directly:sm_run=%d, event=%d, status=%d", app_sound_ctrl->sm_running, event, status);
         return;
     }
 
@@ -2639,7 +2639,7 @@ static bool app_sound_ui_action_state_mismatch_handler(SOUND_ACTION_E action, SO
 extern  osThreadId besbt_tid;
 void app_sound_ui_event_handler(SOUND_ACTION_E action, SOUND_UI_ERROR_E status)
 {
-    SOUND_TRACE(0,"app_sound_ui_event_handler: action=%d status=%d!", action, status);
+    LOG_I("app_sound_ui_event_handler: action=%d status=%d!", action, status);
 
     if(osThreadGetId() != besbt_tid)
     {
@@ -2651,7 +2651,7 @@ void app_sound_ui_event_handler(SOUND_ACTION_E action, SOUND_UI_ERROR_E status)
     {
         if (app_sound_ui_action_state_mismatch_handler(action, status))
         {
-            SOUND_TRACE(0,"error action, action=%d, super_state=%d , sub_bt=%d, sub_wifi=%d",\
+            LOG_I("error action, action=%d, super_state=%d , sub_bt=%d, sub_wifi=%d",\
                               action, app_sound_ctrl->super_state, app_sound_ctrl->sub_btsuper_state, app_sound_ctrl->sub_wifisuper_state);
             return;
         }
@@ -2692,7 +2692,7 @@ void app_sound_ui_event_handler(SOUND_ACTION_E action, SOUND_UI_ERROR_E status)
             break;
 
         default:
-            SOUND_TRACE(0,"UI event unknown %d", app_sound_ctrl->active_event);
+            LOG_I("UI event unknown %d", app_sound_ctrl->active_event);
             break;
     }
 }
@@ -2714,13 +2714,13 @@ bool app_sound_ui_execute_pending_event(void)
     if (SOUND_UI_NO_ERROR == status)
     {
         app_sound_ui_event_queue_delete(&front_evt);
-        SOUND_TRACE(0,"[IO] execute_pending_event");
+        LOG_I("[IO] execute_pending_event");
         app_sound_ui_event_entry(front_evt);
         if (SOUND_UI_NONE_EVENT != front_evt)
         {
             //select new pending event
             new_event_selected = true;
-            SOUND_TRACE(0,"execute_pending_event,active event=%d", app_sound_ctrl->active_event);
+            LOG_I("execute_pending_event,active event=%d", app_sound_ctrl->active_event);
         }
     }
 
@@ -2745,7 +2745,7 @@ bool app_sound_ui_execute_pending_event(void)
 
 void app_sound_ui_clear_pairing_recoder_event(bool is_sync_event)
 {
-    SOUND_TRACE(0,"app_sound_ui_clear_pairing_recoder_event!");
+    LOG_I("app_sound_ui_clear_pairing_recoder_event!");
     if (app_sound_ui_has_bt_mobile_connected() || app_sound_ui_tws_is_connected())
     {
         if (!is_sync_event)
@@ -2816,7 +2816,7 @@ static void app_sound_ui_freeman_to_tws_event(void)
 
     if (p_bt_device->mode_type != SOUND_BT_FREEMAN_MODE)
     {
-        SOUND_TRACE(0,"bt mode error!");
+        LOG_I("bt mode error!");
         return;
     }
 
@@ -2845,7 +2845,7 @@ static void app_sound_ui_freeman_to_bis_event(void)
 
     if (p_bt_device->mode_type != SOUND_BT_FREEMAN_MODE)
     {
-        SOUND_TRACE(0,"bt mode error!");
+        LOG_I("bt mode error!");
         return;
     }
     app_sound_ui_event_entry(SOUND_UI_FREEMAN2TBIS_EVENT);
@@ -2873,7 +2873,7 @@ static void app_sound_ui_tws_to_freeman_event(void)
 
     if (p_bt_device->mode_type != SOUND_BT_TWS_MODE)
     {
-        SOUND_TRACE(0,"bt mode error!");
+        LOG_I("bt mode error!");
         return;
     }
     app_sound_ui_event_entry(SOUND_UI_TWS2FREEMAN_EVENT);
@@ -2901,7 +2901,7 @@ static void app_sound_ui_tws_to_bis_event(void)
 
     if (p_bt_device->mode_type != SOUND_BT_TWS_MODE)
     {
-        SOUND_TRACE(0,"bt mode error!");
+        LOG_I("bt mode error!");
         return;
     }
     app_sound_ui_event_entry(SOUND_UI_TWS2BIS_EVENT);
@@ -2929,7 +2929,7 @@ static void app_sound_ui_bis_to_freeman_event(void)
 
     if (p_bt_device->mode_type != SOUND_BT_BIS_MODE)
     {
-        SOUND_TRACE(0,"bt mode error!");
+        LOG_I("bt mode error!");
         return;
     }
     app_sound_ui_event_entry(SOUND_UI_BIS2FREEMAN_EVENT);
@@ -2957,7 +2957,7 @@ void app_sound_ui_bis_to_tws_event(void)
 
     if (p_bt_device->mode_type != SOUND_BT_BIS_MODE)
     {
-        SOUND_TRACE(0,"bt mode error!");
+        LOG_I("bt mode error!");
         return;
     }
     app_sound_ui_event_entry(SOUND_UI_BIS2TWS_EVENT);
@@ -2981,7 +2981,7 @@ void app_sound_ui_bis_to_tws_event(void)
 
 static void app_sound_power_key_click_handle(void)
 {
-    SOUND_TRACE(0,"%s: Not yet implemented!", __func__);
+    LOG_D("%s: Not yet implemented!", __func__);
 }
 
 /*****************************************************************************
@@ -3091,7 +3091,7 @@ static void app_sound_bt_key_click_handle(void)
     struct app_sound_ctrl_t *app_sound_ctrl = app_sound_get_ctrl();
     if (app_sound_ctrl->onoff_status == SOUND_ONOFF_SHOUTED_MODE)
     {
-        SOUND_TRACE(0,"%s: sound is shut down status!", __func__);
+        LOG_I("%s: sound is shut down status!", __func__);
         return;
     }
 
@@ -3128,7 +3128,7 @@ static void app_sound_bt_key_double_click_handle(void)
 
     if (app_sound_ctrl->onoff_status == SOUND_ONOFF_SHOUTED_MODE)
     {
-        SOUND_TRACE(0,"%s: sound is shut down status!", __func__);
+        LOG_I("%s: sound is shut down status!", __func__);
         return;
     }
 
@@ -3166,7 +3166,7 @@ static void app_sound_bt_key_three_click_handle(void)
 
     if (app_sound_ctrl->onoff_status == SOUND_ONOFF_SHOUTED_MODE)
     {
-        SOUND_TRACE(0,"%s: sound is shut down status!", __func__);
+        LOG_I("%s: sound is shut down status!", __func__);
         return;
     }
     if ((SOUND_IS_BT_DEVICE(app_sound_ctrl->business_device_type)) && (app_sound_ctrl->business_mode == BT_DEVICE_TYPE))
@@ -3213,7 +3213,7 @@ static void app_sound_bt_key_long_click_handle(void)
 
     if (app_sound_ctrl->onoff_status == SOUND_ONOFF_SHOUTED_MODE)
     {
-        SOUND_TRACE(0,"%s: sound is shut down status!", __func__);
+        LOG_I("%s: sound is shut down status!", __func__);
         return;
     }
 
@@ -3250,7 +3250,7 @@ static void app_sound_wifi_key_click_handle(void)
 
     if (app_sound_ctrl->onoff_status == SOUND_ONOFF_SHOUTED_MODE)
     {
-        SOUND_TRACE(0,"%s: sound is shut down status!", __func__);
+        LOG_I("%s: sound is shut down status!", __func__);
         return;
     }
     //first wifi disconnect,second clear wifi pair record
@@ -3286,7 +3286,7 @@ static void app_sound_wifi_key_click_handle(void)
 
 static void app_sound_wifi_key_double_click_handle(void)
 {
-    SOUND_TRACE(0,"%s: Not yet implemented!", __func__);
+    LOG_D("%s: Not yet implemented!", __func__);
 }
 
 /*****************************************************************************
@@ -3311,7 +3311,7 @@ static void app_sound_wifi_key_long_click_handle(void)
 
     if (app_sound_ctrl->onoff_status == SOUND_ONOFF_SHOUTED_MODE)
     {
-        SOUND_TRACE(0,"%s: sound is shut down status!", __func__);
+        LOG_I("%s: sound is shut down status!", __func__);
         return;
     }
     //first wifi disconnect,second clear wifi pair record
@@ -3352,13 +3352,13 @@ static void app_sound_circle_click_handle(void)
 
     if (app_sound_ctrl->onoff_status == SOUND_ONOFF_SHOUTED_MODE)
     {
-        SOUND_TRACE(0,"%s: sound is shut down status!", __func__);
+        LOG_I("%s: sound is shut down status!", __func__);
         return;
     }
 
     if ((SOUND_IS_BT_DEVICE(app_sound_ctrl->business_device_type)) && (app_sound_ctrl->business_mode == BT_DEVICE_TYPE))
     {
-        SOUND_TRACE(0,"active_device_id=%d hfp_state=%d a2dp_state=%d!", p_bt_device->active_device_id,
+        LOG_I("active_device_id=%d hfp_state=%d a2dp_state=%d!", p_bt_device->active_device_id,
                                 p_remote_info->hfp_state,
                                 p_remote_info->a2dp_state);
 
@@ -3386,7 +3386,7 @@ static void app_sound_circle_click_handle(void)
     }
     else if ((SOUND_IS_WIFI_DEVICE(app_sound_ctrl->business_device_type)) && (app_sound_ctrl->business_mode == WIFI_DEVICE_TYPE))
     {
-        SOUND_TRACE(0,"state=%d !", p_wifi_device_info->profile_state);
+        LOG_I("state=%d !", p_wifi_device_info->profile_state);
         if (p_wifi_device_info->profile_state == SOUND_WIFI_AIRPLAY_STREAM_STARTED)
         {
             //call wifi music stop API
@@ -3429,7 +3429,7 @@ static void app_sound_circle_double_click_handle(void)
 
     if (app_sound_ctrl->onoff_status == SOUND_ONOFF_SHOUTED_MODE)
     {
-        SOUND_TRACE(0,"%s: sound is shut down status!", __func__);
+        LOG_I("%s: sound is shut down status!", __func__);
         return;
     }
     if ((SOUND_IS_BT_DEVICE(app_sound_ctrl->business_device_type)) && (app_sound_ctrl->business_mode == BT_DEVICE_TYPE))
@@ -3473,14 +3473,14 @@ void app_sound_vol_ctrl_event(bool direction,uint8_t offset_vol_level)
 
     if (app_sound_ctrl->onoff_status == SOUND_ONOFF_SHOUTED_MODE)
     {
-        SOUND_TRACE(0,"%s sound is shut down status!", __func__);
+        LOG_I("%s sound is shut down status!", __func__);
         return;
     }
 
     if (app_sound_ctrl->aux_in)
     {
         //call aux playback api
-        SOUND_TRACE(0,"%s:current aux_in insert status!", __func__);
+        LOG_I("%s:current aux_in insert status!", __func__);
         if (direction)
         {
             audio_player_volume_up();
@@ -3558,13 +3558,13 @@ void app_sound_playback_direction(bool direction)
 
     if (app_sound_ctrl->onoff_status == SOUND_ONOFF_SHOUTED_MODE)
     {
-        SOUND_TRACE(0,"%s sound is shut down status!", __func__);
+        LOG_I("%s sound is shut down status!", __func__);
         return;
     }
     if (app_sound_ctrl->aux_in)
     {
         //call aux playback api
-        SOUND_TRACE(0,"%s:current aux_in insert status!", __func__);
+        LOG_I("%s:current aux_in insert status!", __func__);
         return;
     }
     if ((SOUND_IS_BT_DEVICE(app_sound_ctrl->business_device_type)) && (app_sound_ctrl->business_mode == BT_DEVICE_TYPE))
@@ -3630,7 +3630,7 @@ static void app_sound_bt_and_power(void)
 
     if (app_sound_ctrl->onoff_status == SOUND_ONOFF_SHOUTED_MODE)
     {
-        SOUND_TRACE(0,"%s: sound is shut down status!", __func__);
+        LOG_I("%s: sound is shut down status!", __func__);
         return;
     }
     app_sound_ui_event_entry(SOUND_UI_FACTORY_RESET_EVENT);
@@ -3654,7 +3654,7 @@ static void app_sound_bt_and_power(void)
 
 static void app_sound_circle_and_power(void)
 {
-    SOUND_TRACE(0,"%s: Not yet implemented!", __func__);
+    LOG_D("%s: Not yet implemented!", __func__);
     app_sound_ui_state_changed_evt_cb(SOUND_PROMPT_SDK_VERSION, 0);
 }
 
@@ -3830,7 +3830,7 @@ void app_sound_bt_init(void)
 
     soundTwsRegisterRecvDataCallback(app_sound_sync_info_handle);
 
-    SOUND_TRACE(0,"app_sound_bt_init: mode_type is=%d!", p_bt_device->mode_type);
+    LOG_I("app_sound_bt_init: mode_type is=%d!", p_bt_device->mode_type);
 }
 
 void app_sound_init(void)
@@ -3878,10 +3878,10 @@ void app_sound_init(void)
     app_sound_ctrl->sound_adv_timer = osTimerNew(app_sound_ui_wait_ble_scanning_device_timer_cb, osTimerOnce, NULL, &timerattr);
     if (app_sound_ctrl->sound_adv_timer)
     {
-        SOUND_TRACE(0,"sound adv timer creat success!");
+        LOG_I("sound adv timer creat success!");
     }
 
-    bes_ble_gap_adv_report_callback_register(app_sound_ble_scan_data_report_handler);
+    bes_ble_gap_adv_report_callback_register(BES_BLE_SCAN_RESULT_USER_ID_1,app_sound_ble_scan_data_report_handler);
     app_sound_ui_event_queue_init();
 }
 
@@ -3991,7 +3991,7 @@ static const APP_KEY_HANDLE  app_sound_ui_test_key_cfg[] =
 
 void app_sound_ui_test_key_init(void)
 {
-    SOUND_TRACE(0,"app_sound_ui_test_key_init");
+    LOG_I("app_sound_ui_test_key_init");
     app_key_handle_clear();
     for (uint8_t i=0; i<ARRAY_SIZE(app_sound_ui_test_key_cfg); i++)
     {
@@ -4001,7 +4001,7 @@ void app_sound_ui_test_key_init(void)
 
 void app_sound_ui_state_changed_evt_cb(SOUND_PROMPT_TYPE_E type, uint8_t reason_code)
 {
-    SOUND_TRACE(0,"%s prompt_type=%d reason=%d", __func__, type, reason_code);
+    LOG_D("%s prompt_type=%d reason=%d", __func__, type, reason_code);
     AUD_ID_ENUM prompt_id = AUD_ID_INVALID;
 
     switch (type)
@@ -4070,7 +4070,7 @@ void app_sound_ui_state_changed_evt_cb(SOUND_PROMPT_TYPE_E type, uint8_t reason_
 
     if (prompt_id != AUD_ID_INVALID)
     {
-        SOUND_TRACE(0,"AUD_ID=%d", prompt_id);
+        LOG_I("AUD_ID=%d", prompt_id);
 #ifdef MEDIA_PLAYER_SUPPORT
         audio_player_play_prompt(prompt_id, 0);
 #endif

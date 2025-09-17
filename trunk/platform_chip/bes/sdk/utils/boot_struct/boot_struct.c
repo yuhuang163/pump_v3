@@ -21,12 +21,11 @@
 #include "hal_trace.h"
 #include "hal_bootmode.h"
 #include "string.h"
-
-extern const char sys_build_info[];
-
-#ifdef USER_SECURE_BOOT
-extern const unsigned int system_info;
+#ifdef __ARMCC_VERSION
+#include "link_sym_armclang.h"
 #endif
+
+extern const char __boot_struct_build_info[];
 
 #define BOOT_STRUCT_VERSION             SECURE_BOOT_VER
 
@@ -38,12 +37,11 @@ extern const unsigned int system_info;
 #endif
 
 #define BOOT_STRUCT_LOC                 __attribute((section(".boot_struct"))) USED
+#define PGM_CODE_VER_LOC                __attribute((section(".pgm_code_ver"))) USED
 
-#ifdef USER_SECURE_BOOT
-#define DEFAULT_BUILD_INFO              ((uint32_t)&system_info)
-#else
-#define DEFAULT_BUILD_INFO              ((uint32_t)sys_build_info)
-#endif
+// The address space of build_info_start in boot_struct should be the same as the
+// content of .code_start_addr section. Otherwise tools might encounter an error.
+#define DEFAULT_BUILD_INFO              ((uint32_t)__boot_struct_build_info)
 
 #define DEFAULT_CODE_SIG_V1             \
     {                                   \
@@ -68,15 +66,25 @@ extern const unsigned int system_info;
     }
 
 #ifdef SIMU
-#define DEFAULT_NORFLASH_SAMDLY         0x1
-#define DEFAULT_NORFLASH_MOD_CLK        NORFLASH_CFG_MOD_CLK_26M
-#define DEFAULT_NORFLASH_RDCMD          0x03
+#define INIT_NORFLASH_SAMDLY            0x1
+#define INIT_NORFLASH_MOD_CLK           NORFLASH_CFG_MOD_CLK_26M
+#define INIT_NORFLASH_RDCMD             0x03
 #else
-#define DEFAULT_NORFLASH_SAMDLY         0x2
+#define INIT_NORFLASH_SAMDLY            0x2
 // Select 26M for 40M crystal case
-#define DEFAULT_NORFLASH_MOD_CLK        NORFLASH_CFG_MOD_CLK_104M
+#define INIT_NORFLASH_MOD_CLK           NORFLASH_CFG_MOD_CLK_104M
 // Below 50M: 0x03, Above 50M: 0x0B
-#define DEFAULT_NORFLASH_RDCMD          0x0B
+#define INIT_NORFLASH_RDCMD             0x0B
+#endif
+
+#ifndef DEFAULT_NORFLASH_SAMDLY
+#define DEFAULT_NORFLASH_SAMDLY         INIT_NORFLASH_SAMDLY
+#endif
+#ifndef DEFAULT_NORFLASH_MOD_CLK
+#define DEFAULT_NORFLASH_MOD_CLK        INIT_NORFLASH_MOD_CLK
+#endif
+#ifndef DEFAULT_NORFLASH_RDCMD
+#define DEFAULT_NORFLASH_RDCMD          INIT_NORFLASH_RDCMD
 #endif
 
 #define DEFAULT_NORFLASH_CFG            \
@@ -116,7 +124,7 @@ const struct programmer_boot_struct_v1_t BOOT_STRUCT_LOC programmer_boot_struct 
             .key_type = BOOT_KEY_TYPE_RSA2048,
             .key_len = MAX_KEY_LEN_V1,
             .sig_len = MAX_SIG_LEN_V1,
-            .build_info_start = ((uint32_t)sys_build_info),
+            .build_info_start = DEFAULT_BUILD_INFO,
         },
     },
     .code_sig_struct = DEFAULT_CODE_SIG_V1,
@@ -179,7 +187,7 @@ const union programmer_boot_struct_v2_t BOOT_STRUCT_LOC programmer_boot_struct =
                 .magic = BOOT_MAGIC_NUMBER,
                 .security = 1,
                 .version = BOOT_STRUCT_VERSION,
-                .build_info_start = ((uint32_t)sys_build_info),
+                .build_info_start = DEFAULT_BUILD_INFO,
             },
         },
         .code_sig_struct = DEFAULT_CODE_SIG_V2,
@@ -241,7 +249,7 @@ const union programmer_boot_struct_t BOOT_STRUCT_LOC programmer_boot_struct = {
                 .magic = BOOT_MAGIC_NUMBER,
                 .flag = BOOT_STRUCT_FLAG_SECURE_BOOT,
                 .version = BOOT_STRUCT_VERSION,
-                .build_info_start = ((uint32_t)sys_build_info),
+                .build_info_start = DEFAULT_BUILD_INFO,
             },
         },
         .code_sig_struct = DEFAULT_CODE_SIG,
@@ -304,12 +312,16 @@ const union programmer_boot_struct_t BOOT_STRUCT_LOC programmer_boot_struct = {
                 .magic = BOOT_MAGIC_NUMBER,
                 .flag = BOOT_STRUCT_FLAG_SECURE_BOOT,
                 .version = BOOT_STRUCT_VERSION,
-                .build_info_start = ((uint32_t)sys_build_info),
+                .build_info_start = DEFAULT_BUILD_INFO,
             },
         },
         .code_sig_struct = DEFAULT_CODE_SIG,
     },
 };
+
+#if (SECURE_BOOT_VER >= 5)
+const struct code_ver_struct_t PGM_CODE_VER_LOC code_ver_struct = DEFAULT_CODE_VER_INFO;
+#endif
 
 #elif defined(SECURE_BOOT)
 
@@ -365,7 +377,7 @@ struct REBOOT_PARAM_T {
     uint32_t reserved[REBOOT_PARAM_ID_QTY];
 };
 
-struct REBOOT_PARAM_T REBOOT_PARAM_LOC reboot_param;
+static struct REBOOT_PARAM_T REBOOT_PARAM_LOC reboot_param;
 
 void reboot_param_init(void)
 {

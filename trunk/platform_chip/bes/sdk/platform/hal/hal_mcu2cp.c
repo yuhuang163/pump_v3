@@ -30,13 +30,13 @@
 #include CHIP_SPECIFIC_HDR(reg_cmu)
 #endif
 
+#define MCU2CP_CHAN_QTY                     (HAL_RMT_IPC_CHAN_1 + 1)
+
 #if defined(CONFIG_SMP)
 #define MAX_SEND_RECORD_COUNT               16
 #else
 #define MAX_SEND_RECORD_COUNT               3
 #endif
-
-#define HAL_SYS_WAKE_LOCK_USER_MCU2CP       HAL_SYS_WAKE_LOCK_USER_4
 
 #ifdef CP_API
 #define API_POSTFIX                         _cp
@@ -74,37 +74,33 @@ struct HAL_MCU2CP_SEND_RECORD_T {
     bool in_use;
 };
 
-static const IRQn_Type MCU2CP_RODATA_LOC rx_irq_id[HAL_MCU2CP_ID_QTY] = {
+static const IRQn_Type MCU2CP_RODATA_LOC rx_irq_id[MCU2CP_CHAN_QTY] = {
     CP2MCU_DATA_IRQn,
     CP2MCU_DATA1_IRQn,
 };
 
-static const IRQn_Type MCU2CP_RODATA_LOC tx_irq_id[HAL_MCU2CP_ID_QTY] = {
+static const IRQn_Type MCU2CP_RODATA_LOC tx_irq_id[MCU2CP_CHAN_QTY] = {
     MCU2CP_DONE_IRQn,
     MCU2CP_DONE1_IRQn,
 };
 
 static const struct HAL_MCU2CP_MSG_T ** MCU2CP_BSS_LOC recv_msg_list_p;
 
-static struct HAL_MCU2CP_MSG_T * MCU2CP_BSS_LOC send_msg_list_p[HAL_MCU2CP_ID_QTY];
-static struct HAL_MCU2CP_MSG_T * MCU2CP_BSS_LOC send_pending_list_p[HAL_MCU2CP_ID_QTY];
+static struct HAL_MCU2CP_MSG_T * MCU2CP_BSS_LOC send_msg_list_p[MCU2CP_CHAN_QTY];
+static struct HAL_MCU2CP_MSG_T * MCU2CP_BSS_LOC send_pending_list_p[MCU2CP_CHAN_QTY];
 
-static struct HAL_MCU2CP_MSG_T MCU2CP_BSS_LOC recv_pending_head[HAL_MCU2CP_ID_QTY];
+static struct HAL_MCU2CP_MSG_T MCU2CP_BSS_LOC recv_pending_head[MCU2CP_CHAN_QTY];
 
-static struct HAL_MCU2CP_SEND_RECORD_T MCU2CP_BSS_LOC send_msgs[HAL_MCU2CP_ID_QTY][MAX_SEND_RECORD_COUNT];
+static struct HAL_MCU2CP_SEND_RECORD_T MCU2CP_BSS_LOC send_msgs[MCU2CP_CHAN_QTY][MAX_SEND_RECORD_COUNT];
 
-static HAL_MCU2CP_RX_IRQ_HANDLER MCU2CP_BSS_LOC rx_irq_handler[HAL_MCU2CP_ID_QTY];
-static HAL_MCU2CP_TX_IRQ_HANDLER MCU2CP_BSS_LOC tx_irq_handler[HAL_MCU2CP_ID_QTY];
+static HAL_MCU2CP_RX_IRQ_HANDLER MCU2CP_BSS_LOC rx_irq_handler[MCU2CP_CHAN_QTY];
+static HAL_MCU2CP_TX_IRQ_HANDLER MCU2CP_BSS_LOC tx_irq_handler[MCU2CP_CHAN_QTY];
 
-static bool MCU2CP_BSS_LOC chan_opened[HAL_MCU2CP_ID_QTY];
+static bool MCU2CP_BSS_LOC chan_opened[MCU2CP_CHAN_QTY];
+static bool MCU2CP_BSS_LOC chan_rx_busy[MCU2CP_CHAN_QTY];
+static bool MCU2CP_BSS_LOC chan_in_rx_hdlr[MCU2CP_CHAN_QTY];
 
-static bool MCU2CP_BSS_LOC need_flow_ctrl[HAL_MCU2CP_ID_QTY] = { false, false, };
-
-#if 0 //ndef CP_API
-static bool MCU2CP_BSS_LOC chan_busy[HAL_MCU2CP_ID_QTY] = { false, false, };
-
-static bool MCU2CP_BSS_LOC busy_now = false;
-#endif
+static bool MCU2CP_BSS_LOC chan_manual_rx_done[MCU2CP_CHAN_QTY] = { false, false, };
 
 #ifdef CHIP_SUBSYS_SENS
 static struct SENSCMU_T * const MCU2CP_RODATA_LOC cmu = (struct SENSCMU_T *)SENS_CMU_BASE;
@@ -114,47 +110,12 @@ static struct BTHCMU_T * const MCU2CP_RODATA_LOC cmu = (struct BTHCMU_T *)BTH_CM
 static struct CMU_T * const MCU2CP_RODATA_LOC cmu = (struct CMU_T *)CMU_BASE;
 #endif
 
-static void MCU2CP_TEXT_LOC hal_mcu2cp_busy(enum HAL_MCU2CP_ID_T id, bool busy)
-{
-#if 0 //ndef CP_API
-    int i;
-    bool new_state;
-
-    if (chan_busy[id] == busy) {
-        return;
-    }
-
-    chan_busy[id] = busy;
-
-    if (busy_now == busy) {
-        return;
-    }
-
-    if (busy) {
-        hal_sys_wake_lock(HAL_SYS_WAKE_LOCK_USER_MCU2CP);
-        busy_now = true;
-    } else {
-        new_state = false;
-        for (i = 0; i < HAL_MCU2CP_ID_QTY; i++) {
-            if (chan_busy[i]) {
-                new_state = true;
-                break;
-            }
-        }
-        if (!new_state) {
-            hal_sys_wake_unlock(HAL_SYS_WAKE_LOCK_USER_MCU2CP);
-            busy_now = false;
-        }
-    }
-#endif
-}
-
-static int MCU2CP_TEXT_LOC hal_mcu2cp_peer_irq_set(enum HAL_MCU2CP_ID_T id, enum HAL_MCU2CP_IRQ_TYPE_T type)
+static int MCU2CP_TEXT_LOC hal_mcu2cp_peer_irq_set(enum HAL_RMT_IPC_CHAN_T id, enum HAL_MCU2CP_IRQ_TYPE_T type)
 {
     uint32_t value;
 
 #ifdef CP_API
-    if (id == HAL_MCU2CP_ID_0) {
+    if (id == HAL_RMT_IPC_CHAN_0) {
         if (type == HAL_MCU2CP_IRQ_DATA_IND) {
             value = CMU_CP2MCU_DATA_IND_SET;
         } else {
@@ -170,7 +131,7 @@ static int MCU2CP_TEXT_LOC hal_mcu2cp_peer_irq_set(enum HAL_MCU2CP_ID_T id, enum
 
     cmu->CP2MCU_IRQ_SET = value;
 #else
-    if (id == HAL_MCU2CP_ID_0) {
+    if (id == HAL_RMT_IPC_CHAN_0) {
         if (type == HAL_MCU2CP_IRQ_DATA_IND) {
             value = CMU_MCU2CP_DATA_IND_SET;
         } else {
@@ -189,53 +150,86 @@ static int MCU2CP_TEXT_LOC hal_mcu2cp_peer_irq_set(enum HAL_MCU2CP_ID_T id, enum
     return 0;
 }
 
-static int MCU2CP_TEXT_LOC hal_mcu2cp_local_irq_clear(enum HAL_MCU2CP_ID_T id, enum HAL_MCU2CP_IRQ_TYPE_T type)
+static int MCU2CP_TEXT_LOC hal_mcu2cp_local_irq_clear(enum HAL_RMT_IPC_CHAN_T id, enum HAL_MCU2CP_IRQ_TYPE_T type)
 {
     uint32_t value;
 
 #ifdef CP_API
-    if (id == HAL_MCU2CP_ID_0) {
+    if (id == HAL_RMT_IPC_CHAN_0) {
         if (type == HAL_MCU2CP_IRQ_DATA_IND) {
             value = CMU_MCU2CP_DATA_IND_CLR;
         } else {
+#ifdef CP_IPC_MODE_CROSS_DOMAIN
+            // MCU2CP_DATA_DONE means DATA_DONE signal is sent from MCU to CP
+            value = CMU_MCU2CP_DATA_DONE_CLR;
+#else
+            // CP2MCU_DATA_DONE means the msg sent from CP to MCU has been done
             value = CMU_CP2MCU_DATA_DONE_CLR;
+#endif
         }
     } else {
         if (type == HAL_MCU2CP_IRQ_DATA_IND) {
             value = CMU_MCU2CP_DATA1_IND_CLR;
         } else {
+#ifdef CP_IPC_MODE_CROSS_DOMAIN
+            value = CMU_MCU2CP_DATA1_DONE_CLR;
+#else
             value = CMU_CP2MCU_DATA1_DONE_CLR;
+#endif
         }
     }
 
-    cmu->MCU2CP_IRQ_CLR = value;
+#ifdef CP_IPC_MODE_CROSS_DOMAIN
+    if (type == HAL_MCU2CP_IRQ_DATA_DONE) {
+        cmu->CP2MCU_IRQ_CLR = value;
+    } else
+#endif
+    {
+        cmu->MCU2CP_IRQ_CLR = value;
+    }
 #else
-    if (id == HAL_MCU2CP_ID_0) {
+    if (id == HAL_RMT_IPC_CHAN_0) {
         if (type == HAL_MCU2CP_IRQ_DATA_IND) {
             value = CMU_CP2MCU_DATA_IND_CLR;
         } else {
+#ifdef CP_IPC_MODE_CROSS_DOMAIN
+            value = CMU_CP2MCU_DATA_DONE_CLR;
+#else
             value = CMU_MCU2CP_DATA_DONE_CLR;
+#endif
         }
     } else {
         if (type == HAL_MCU2CP_IRQ_DATA_IND) {
             value = CMU_CP2MCU_DATA1_IND_CLR;
         } else {
+#ifdef CP_IPC_MODE_CROSS_DOMAIN
+            value = CMU_CP2MCU_DATA1_DONE_CLR;
+#else
             value = CMU_MCU2CP_DATA1_DONE_CLR;
+#endif
         }
     }
 
-    cmu->CP2MCU_IRQ_CLR = value;
+#ifdef CP_IPC_MODE_CROSS_DOMAIN
+    if (type == HAL_MCU2CP_IRQ_DATA_DONE) {
+        cmu->MCU2CP_IRQ_CLR = value;
+    } else
+#endif
+    {
+        cmu->CP2MCU_IRQ_CLR = value;
+    }
 #endif
 
     return 0;
 }
 
-static int MCU2CP_TEXT_LOC hal_mcu2cp_local_irq_set(enum HAL_MCU2CP_ID_T id, enum HAL_MCU2CP_IRQ_TYPE_T type)
+#ifndef CP_IPC_MODE_CROSS_DOMAIN
+static int MCU2CP_TEXT_LOC hal_mcu2cp_local_irq_set(enum HAL_RMT_IPC_CHAN_T id, enum HAL_MCU2CP_IRQ_TYPE_T type)
 {
     uint32_t value;
 
 #ifdef CP_API
-    if (id == HAL_MCU2CP_ID_0) {
+    if (id == HAL_RMT_IPC_CHAN_0) {
         if (type == HAL_MCU2CP_IRQ_DATA_IND) {
             value = CMU_MCU2CP_DATA_IND_SET;
         } else {
@@ -251,7 +245,7 @@ static int MCU2CP_TEXT_LOC hal_mcu2cp_local_irq_set(enum HAL_MCU2CP_ID_T id, enu
 
     cmu->MCU2CP_IRQ_SET = value;
 #else
-    if (id == HAL_MCU2CP_ID_0) {
+    if (id == HAL_RMT_IPC_CHAN_0) {
         if (type == HAL_MCU2CP_IRQ_DATA_IND) {
             value = CMU_CP2MCU_DATA_IND_SET;
         } else {
@@ -270,6 +264,7 @@ static int MCU2CP_TEXT_LOC hal_mcu2cp_local_irq_set(enum HAL_MCU2CP_ID_T id, enu
 
     return 0;
 }
+#endif
 
 static void MCU2CP_TEXT_LOC hal_mcu2cp_rx_irq(void)
 {
@@ -277,7 +272,7 @@ static void MCU2CP_TEXT_LOC hal_mcu2cp_rx_irq(void)
     const struct HAL_MCU2CP_MSG_T *msg_ptr;
     unsigned int processed;
 
-    for (id = HAL_MCU2CP_ID_0; id < HAL_MCU2CP_ID_QTY; id++) {
+    for (id = HAL_RMT_IPC_CHAN_0; id < MCU2CP_CHAN_QTY; id++) {
 
         bool irq_pending = false;
 
@@ -290,20 +285,30 @@ static void MCU2CP_TEXT_LOC hal_mcu2cp_rx_irq(void)
             }
         }
         if (NVIC_GetActive(rx_irq_id[id]) || irq_pending) {
+#ifdef CP_IPC_MODE_CROSS_DOMAIN
+            NVIC_DisableIRQ(rx_irq_id[id]);
+#else
             hal_mcu2cp_local_irq_clear(id, HAL_MCU2CP_IRQ_DATA_IND);
+#endif
 
             if (recv_pending_head[id].data) {
-                // Previous unprocessed message
+                // Previous unfinished message
                 msg_ptr = &recv_pending_head[id];
+            } else if (recv_pending_head[id].next) {
+                // Previous unprocessed message
+                msg_ptr = recv_pending_head[id].next;
             } else {
                 // New message
                 msg_ptr = recv_msg_list_p[id];
             }
             while (msg_ptr) {
                 if (rx_irq_handler[id]) {
+                    chan_rx_busy[id] = true;
+                    chan_in_rx_hdlr[id] = true;
                     processed = rx_irq_handler[id](msg_ptr->data, msg_ptr->len);
+                    chan_in_rx_hdlr[id] = false;
                     // Check if flow control needed
-                    if (processed < msg_ptr->len) {
+                    if (chan_rx_busy[id] && msg_ptr->data && processed < msg_ptr->len) {
                         recv_pending_head[id].next = msg_ptr->next;
                         recv_pending_head[id].len = msg_ptr->len - processed;
                         recv_pending_head[id].data = msg_ptr->data + processed;
@@ -318,10 +323,17 @@ static void MCU2CP_TEXT_LOC hal_mcu2cp_rx_irq(void)
             }
 
             if (msg_ptr == NULL) {
-                if (!need_flow_ctrl[id]){
-                    hal_mcu2cp_peer_irq_set(id, HAL_MCU2CP_IRQ_DATA_DONE);
-                }
+                recv_pending_head[id].next = NULL;
                 recv_pending_head[id].data = NULL;
+                if (!chan_manual_rx_done[id] || !chan_rx_busy[id]) {
+                    chan_rx_busy[id] = false;
+#ifdef CP_IPC_MODE_CROSS_DOMAIN
+                    hal_mcu2cp_local_irq_clear(id, HAL_MCU2CP_IRQ_DATA_IND);
+                    NVIC_EnableIRQ(rx_irq_id[id]);
+#else
+                    hal_mcu2cp_peer_irq_set(id, HAL_MCU2CP_IRQ_DATA_DONE);
+#endif
+                }
             }
         }
 
@@ -337,7 +349,7 @@ static void MCU2CP_TEXT_LOC hal_mcu2cp_tx_irq(void)
     int id;
     struct HAL_MCU2CP_MSG_T *msg_ptr;
 
-    for (id = HAL_MCU2CP_ID_0; id < HAL_MCU2CP_ID_QTY; id++) {
+    for (id = HAL_RMT_IPC_CHAN_0; id < MCU2CP_CHAN_QTY; id++) {
 
         bool irq_pending = false;
 
@@ -367,8 +379,6 @@ static void MCU2CP_TEXT_LOC hal_mcu2cp_tx_irq(void)
                 hal_mcu2cp_peer_irq_set(id, HAL_MCU2CP_IRQ_DATA_IND);
             } else {
                 send_msg_list_p[id] = NULL;
-                // Allow sleep
-                hal_mcu2cp_busy(id, false);
             }
         }
 
@@ -386,25 +396,27 @@ const struct HAL_MCU2CP_MSG_T ** hal_mcu2cp_get_send_msg_list_cp (void);
 // This is initialization code and should NOT be in CP text location
 const struct HAL_MCU2CP_MSG_T ** hal_mcu2cp_get_send_msg_list_cp(void)
 #else
+// This cannot be put into flash for CP cannot access flash
+SRAM_TEXT_LOC
 const struct HAL_MCU2CP_MSG_T ** hal_mcu2cp_get_send_msg_list_mcu(void)
 #endif
 {
     return (const struct HAL_MCU2CP_MSG_T **)&send_msg_list_p[0];
 }
 
-int MCU2CP_API(hal_mcu2cp_open)(enum HAL_MCU2CP_ID_T id,
-                                HAL_MCU2CP_RX_IRQ_HANDLER rxhandler, HAL_MCU2CP_TX_IRQ_HANDLER txhandler, int rx_flowctrl)
+int MCU2CP_API(hal_mcu2cp_open)(enum HAL_RMT_IPC_CHAN_T id,
+                                HAL_MCU2CP_RX_IRQ_HANDLER rxhandler, HAL_MCU2CP_TX_IRQ_HANDLER txhandler, int manual_rx_done)
 {
     int i;
 
-    if (id >= HAL_MCU2CP_ID_QTY) {
+    if (id >= MCU2CP_CHAN_QTY) {
         return 1;
     }
-    rx_flowctrl = !!rx_flowctrl;
+    manual_rx_done = !!manual_rx_done;
 
     uint32_t lock = int_lock();
     if (chan_opened[id]) {
-        ASSERT(need_flow_ctrl[id] == rx_flowctrl, "MCU2CP-OPEN: rx_flowctrl=%d (should be %d)", rx_flowctrl, need_flow_ctrl[id]);
+        ASSERT(chan_manual_rx_done[id] == manual_rx_done, "MCU2CP-OPEN: manual_rx_done=%d (should be %d)", manual_rx_done, chan_manual_rx_done[id]);
         int_unlock(lock);
         return 3;
     } else {
@@ -430,7 +442,7 @@ int MCU2CP_API(hal_mcu2cp_open)(enum HAL_MCU2CP_ID_T id,
         for (i = 0; i < MAX_SEND_RECORD_COUNT; i++) {
             send_msgs[id][i].in_use = false;
         }
-        need_flow_ctrl[id] = rx_flowctrl;
+        chan_manual_rx_done[id] = manual_rx_done;
     }
     chan_opened[id] = true;
 
@@ -440,9 +452,9 @@ int MCU2CP_API(hal_mcu2cp_open)(enum HAL_MCU2CP_ID_T id,
     return 0;
 }
 
-int MCU2CP_API(hal_mcu2cp_close)(enum HAL_MCU2CP_ID_T id)
+int MCU2CP_API(hal_mcu2cp_close)(enum HAL_RMT_IPC_CHAN_T id)
 {
-    if (id >= HAL_MCU2CP_ID_QTY) {
+    if (id >= MCU2CP_CHAN_QTY) {
         return 1;
     }
 
@@ -458,32 +470,34 @@ int MCU2CP_API(hal_mcu2cp_close)(enum HAL_MCU2CP_ID_T id)
     send_msg_list_p[id] = NULL;
     send_pending_list_p[id] = NULL;
     recv_pending_head[id].data = NULL;
-    need_flow_ctrl[id] = false;
+    chan_manual_rx_done[id] = false;
     int_unlock(lock);
 
     return 0;
 }
 
-int MCU2CP_API(hal_mcu2cp_start_recv)(enum HAL_MCU2CP_ID_T id)
+int MCU2CP_API(hal_mcu2cp_start_recv)(enum HAL_RMT_IPC_CHAN_T id)
 {
-    if (id >= HAL_MCU2CP_ID_QTY) {
+    if (id >= MCU2CP_CHAN_QTY) {
         return 1;
     }
 
     uint32_t lock = int_lock();
     NVIC_EnableIRQ(rx_irq_id[id]);
-    // Check if there is any previous unprocessed message
+#ifndef CP_IPC_MODE_CROSS_DOMAIN
+    // Check if there is any previous unfinished message
     if (recv_pending_head[id].data) {
         hal_mcu2cp_local_irq_set(id, HAL_MCU2CP_IRQ_DATA_IND);
     }
+#endif
     int_unlock(lock);
 
     return 0;
 }
 
-int MCU2CP_API(hal_mcu2cp_stop_recv)(enum HAL_MCU2CP_ID_T id)
+int MCU2CP_API(hal_mcu2cp_stop_recv)(enum HAL_RMT_IPC_CHAN_T id)
 {
-    if (id >= HAL_MCU2CP_ID_QTY) {
+    if (id >= MCU2CP_CHAN_QTY) {
         return 1;
     }
 
@@ -494,14 +508,14 @@ int MCU2CP_API(hal_mcu2cp_stop_recv)(enum HAL_MCU2CP_ID_T id)
     return 0;
 }
 
-int MCU2CP_API(hal_mcu2cp_send)(enum HAL_MCU2CP_ID_T id,
+int MCU2CP_API(hal_mcu2cp_send)(enum HAL_RMT_IPC_CHAN_T id,
                                 const unsigned char *data, unsigned int len)
 {
     int ret;
     struct HAL_MCU2CP_SEND_RECORD_T *record;
     struct HAL_MCU2CP_MSG_T *next;
     int i;
-    if (id >= HAL_MCU2CP_ID_QTY) {
+    if (id >= MCU2CP_CHAN_QTY) {
         return 1;
     }
 
@@ -532,17 +546,15 @@ int MCU2CP_API(hal_mcu2cp_send)(enum HAL_MCU2CP_ID_T id,
             ret = 0;
         } else if (send_pending_list_p[id] == NULL) {
             send_pending_list_p[id] = &record->msg;
-            // HAL_TRACE(1,"hal_mcu2cp_send add to pendinglist send_msg_list_p[id].data=0x%x",(uint32_t)send_msg_list_p[id]->data);
+            // TRACE(1,"hal_mcu2cp_send add to pendinglist send_msg_list_p[id].data=0x%x",(uint32_t)send_msg_list_p[id]->data);
         } else {
             next = send_pending_list_p[id];
             while (next->next) {
                 next = next->next;
             }
             next->next = &record->msg;
-            // HAL_TRACE(1,"hal_mcu2cp_send add to pendinglist 2 send_msg_list_p[id].data=0x%x",(uint32_t)send_msg_list_p[id]->data);
+            // TRACE(1,"hal_mcu2cp_send add to pendinglist 2 send_msg_list_p[id].data=0x%x",(uint32_t)send_msg_list_p[id]->data);
         }
-        // Prohibit sleep here
-        hal_mcu2cp_busy(id, true);
         break;
     }
     int_unlock(lock);
@@ -550,40 +562,91 @@ int MCU2CP_API(hal_mcu2cp_send)(enum HAL_MCU2CP_ID_T id,
     return ret;
 }
 
-void MCU2CP_API(hal_mcu2cp_rx_done)(enum HAL_MCU2CP_ID_T id)
+void MCU2CP_API(hal_mcu2cp_rx_done)(enum HAL_RMT_IPC_CHAN_T id)
 {
-    hal_mcu2cp_peer_irq_set(id, HAL_MCU2CP_IRQ_DATA_DONE);
+    uint32_t lock;
+
+    lock = int_lock();
+    if (chan_in_rx_hdlr[id]) {
+        chan_rx_busy[id] = false;
+    } else {
+        recv_pending_head[id].data = NULL;
+        if (recv_pending_head[id].next) {
+#ifdef CP_IPC_MODE_CROSS_DOMAIN
+            NVIC_EnableIRQ(rx_irq_id[id]);
+#else
+            hal_mcu2cp_local_irq_set(id, HAL_MCU2CP_IRQ_DATA_IND);
+#endif
+        } else if (chan_rx_busy[id]) {
+            chan_rx_busy[id] = false;
+#ifdef CP_IPC_MODE_CROSS_DOMAIN
+            hal_mcu2cp_local_irq_clear(id, HAL_MCU2CP_IRQ_DATA_IND);
+            NVIC_EnableIRQ(rx_irq_id[id]);
+#else
+            hal_mcu2cp_peer_irq_set(id, HAL_MCU2CP_IRQ_DATA_DONE);
+#endif
+        }
+    }
+    int_unlock(lock);
 }
 
-int MCU2CP_API(hal_mcu2cp_opened)(enum HAL_MCU2CP_ID_T id)
+int MCU2CP_API(hal_mcu2cp_opened)(enum HAL_RMT_IPC_CHAN_T id)
 {
     return chan_opened[id];
 }
 
-int MCU2CP_API(hal_mcu2cp_local_irq_pending)(enum HAL_MCU2CP_ID_T id)
+int MCU2CP_API(hal_mcu2cp_local_irq_pending)(enum HAL_RMT_IPC_CHAN_T id)
 {
+#ifdef CP_IPC_MODE_CROSS_DOMAIN
+    uint32_t value[2];
+
+#ifdef CP_API
+    if (id == HAL_RMT_IPC_CHAN_0) {
+        value[0] = CMU_MCU2CP_DATA_IND_SET;
+        value[1] = CMU_MCU2CP_DATA_DONE_SET;
+    } else {
+        value[0] = CMU_MCU2CP_DATA1_IND_SET;
+        value[1] = CMU_MCU2CP_DATA1_DONE_SET;
+    }
+
+    return !!((cmu->MCU2CP_IRQ_SET & value[0]) | (cmu->CP2MCU_IRQ_SET & value[1]));
+#else // !CP_API
+    if (id == HAL_RMT_IPC_CHAN_0) {
+        value[0] = CMU_CP2MCU_DATA_IND_SET;
+        value[1] = CMU_CP2MCU_DATA_DONE_SET;
+    } else {
+        value[0] = CMU_CP2MCU_DATA1_IND_SET;
+        value[1] = CMU_MCU2CP_DATA1_IND_SET;
+    }
+
+    return !!((cmu->CP2MCU_IRQ_SET & value[0]) | (cmu->MCU2CP_IRQ_SET & value[1]));
+#endif // !CP_API
+
+#else // !CP_IPC_MODE_CROSS_DOMAIN
     uint32_t value;
 
 #ifdef CP_API
-    if (id == HAL_MCU2CP_ID_0) {
+    if (id == HAL_RMT_IPC_CHAN_0) {
         value = CMU_MCU2CP_DATA_IND_SET | CMU_CP2MCU_DATA_DONE_SET;
     } else {
         value = CMU_MCU2CP_DATA1_IND_SET | CMU_CP2MCU_DATA1_DONE_SET;
     }
 
     return !!(cmu->MCU2CP_IRQ_SET & value);
-#else
-    if (id == HAL_MCU2CP_ID_0) {
+#else // !CP_API
+    if (id == HAL_RMT_IPC_CHAN_0) {
         value = CMU_CP2MCU_DATA_IND_SET | CMU_MCU2CP_DATA_DONE_SET;
     } else {
         value = CMU_CP2MCU_DATA1_IND_SET | CMU_MCU2CP_DATA1_DONE_SET;
     }
 
     return !!(cmu->CP2MCU_IRQ_SET & value);
-#endif
+#endif // !CP_API
+
+#endif // !CP_IPC_MODE_CROSS_DOMAIN
 }
 
-int MCU2CP_API(hal_mcu2cp_force_flush_pending)(enum HAL_MCU2CP_ID_T id)
+int MCU2CP_API(hal_mcu2cp_force_flush_pending)(enum HAL_RMT_IPC_CHAN_T id)
 {
     uint32_t lock = int_lock();
     while(send_pending_list_p[id] != NULL || send_msg_list_p[id] != NULL) {
@@ -599,5 +662,6 @@ int MCU2CP_API(hal_mcu2cp_force_flush_pending)(enum HAL_MCU2CP_ID_T id)
     int_unlock(lock);
     return 0;
 }
+
 #endif
 

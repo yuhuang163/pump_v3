@@ -10,7 +10,8 @@ extern "C" {
 * Include files
 ******************************************************************************/
 // #include "bsp_config.h"
-#include "root_common_api.h"
+#include "stdint.h" // IWYU pragma: keep
+#include "root_common_api.h" // IWYU pragma: keep
 
 #ifndef IRAM_ATTR
 #define IRAM_ATTR

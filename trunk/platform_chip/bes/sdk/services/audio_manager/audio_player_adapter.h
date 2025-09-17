@@ -28,8 +28,6 @@ extern "C" {
 #define  AUDIO_STREAM_MEDIA               0x2
 /// Call
 #define  AUDIO_STREAM_VOICE               0x4
-
-#define  AUDIO_STREAM_LOCAL               0x8
 /// Walkie talkie stream
 #define  AUDIO_STREAM_W_T                 0x100
 
@@ -59,8 +57,8 @@ typedef struct
 {
     int32_t (*play)( uint16_t stream_type, const Audio_device_t* device);
     int32_t (*stop)( uint16_t stream_type, const Audio_device_t* device);
-    int32_t (*pause)(uint16_t stream_type, const Audio_device_t* device);
-    void (*play_prompt)(uint32_t id,uint8_t device_id);
+    int32_t (*pause)(void);
+    void (*play_prompt)(uint8_t id,uint8_t device_id);
     int32_t (*seek)(int64_t time_in_ms);
     void (*dump_playback_status)(void);
     int32_t (*set_volume)(uint16_t volume);
@@ -82,7 +80,7 @@ typedef struct
  ****************************************************************************************
  */
 
-void audio_player_adapter_init(const Audio_Player_Adapter_t* audio_player);
+void audio_player_register(AUDIO_DEVICE_TYPE_E device_type, const Audio_Player_Adapter_t* audio_player);
 /**
  ****************************************************************************************
  * @brief play audio
@@ -115,7 +113,7 @@ int32_t audio_player_playback_stop(uint16_t stream_type, const Audio_device_t* d
  * @return playback status
  ****************************************************************************************
  */
-int32_t audio_player_pause(uint16_t stream_type, const Audio_device_t* device);
+int32_t audio_player_pause(AUDIO_DEVICE_TYPE_E device_type);
 
 /**
  ****************************************************************************************
@@ -149,7 +147,7 @@ void audio_player_dump_playback_status(void);
  * @return playback status
  ****************************************************************************************
  */
-void audio_player_play_prompt(uint32_t id,uint8_t device_id);
+void audio_player_play_prompt(uint8_t id,uint8_t device_id);
 
 /**
  ****************************************************************************************

@@ -138,17 +138,13 @@ enum gatt_char
     /// Generic Media Control Service
     GATT_SVC_GENERIC_MEDIA_CONTROL               = GATT_UUID_16_LSB(0x1849), //!< Value: 0x1849
     /// Common Audio Service
-    GATT_SVC_COMMON_AUDIO                        = GATT_UUID_16_LSB(0x1853), //!< Value: 0x1853
-     /// Hearing Access Service
-    GATT_SVC_HEARING_AID                         = GATT_UUID_16_LSB(0x1854), //!< Value: 0x1854
+    GATT_SVC_COMMON_AUDIO                        = GATT_UUID_16_LSB(0x1853), //!< Value: 0x8FE0
     /// Telephony and Media Audio Service
     GATT_SVC_TELEPHONY_MEDIA_AUDIO               = GATT_UUID_16_LSB(0x1855), //!< Value: 0x1855
-    /// Public Broadcast Announcement Service
-    GATT_SVC_PUBLIC_BRODCAST_AUDIO               = GATT_UUID_16_LSB(0x1856), //!< Value: 0x1856
+    /// Hearing Aid Service
+    GATT_SVC_HEARING_AID                         = GATT_UUID_16_LSB(0x8FE1), //!< Value: 0x8FE1
     /// Gaming Audio Service
-    GATT_SVC_GAMING_AUDIO                        = GATT_UUID_16_LSB(0x1858), //!< Value: 0x1858
-    /// Spatial Headphone Service (SHS) Service
-    GATT_SVC_SPATIAL_HEADPHONE                   = GATT_UUID_16_LSB(0x7FA0), //!< Value: 0x7FA0
+    GATT_SVC_GAMING_AUDIO                        = GATT_UUID_16_LSB(0x8FE2), //!< Value: 0x8FE2
 
     /*------------------- UNITS ---------------------*/
     /// No defined unit

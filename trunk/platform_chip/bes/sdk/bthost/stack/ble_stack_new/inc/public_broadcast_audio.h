@@ -18,6 +18,7 @@
  ****************************************************************************/
 #ifndef __PUBLIC_BROADCAST_AUDIO__
 #define __PUBLIC_BROADCAST_AUDIO__
+#include "bluetooth.h"
 
 #include "gaf_cfg.h"
 #include "generic_audio.h"

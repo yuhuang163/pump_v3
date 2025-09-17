@@ -65,7 +65,7 @@ static const char * const app_status_indication_str[] =
 };
 
 
-const char *status2str(uint16_t status)
+const char *btstatus2str(uint16_t status)
 {
     const char *str = NULL;
 
@@ -96,6 +96,8 @@ int app_status_indication_set(APP_STATUS_INDICATION_T status)
 {
     struct APP_PWL_CFG_T cfg0;
     struct APP_PWL_CFG_T cfg1;
+
+    TRACE(2,"%s %d",__func__, status);
 
     if (app_status == status)
         return 0;

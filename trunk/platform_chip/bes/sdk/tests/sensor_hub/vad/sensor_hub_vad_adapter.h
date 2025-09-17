@@ -51,13 +51,20 @@ extern "C" {
 #define VAD_HW_PARAM_PSD_TH1     0x07ffffff
 
 // The period value of adatper timer for codec capture stream working
-#define VAD_CAP_STREAM_PERIOD_MS 20000 //ms
+#define VAD_CAP_STREAM_PERIOD_MS 10000 //ms
 
 // The vad adapter record maximum buffer size
-#define VAD_ADPT_REC_SAMPRATE     16000
-#define VAD_ADPT_REC_CHNUM     1
-#define VAD_ADPT_REC_SSIZE     2
-#define VAD_ADPT_REC_LEN_MS    3072
+#define VAD_ADPT_REC_SAMPRATE    16000
+#define VAD_ADPT_REC_CHNUM       1
+#if defined(VAD_USE_32_BITS)
+#define VAD_ADPT_REC_SSIZE       4
+#else
+#define VAD_ADPT_REC_SSIZE       2
+#endif
+#define VAD_ADPT_REC_LEN_MS      3072
+
+#define VAD_ADPT_REC_FRAME       ((VAD_ADPT_REC_SAMPRATE/1000)* \
+    VAD_ADPT_REC_CHNUM*VAD_ADPT_REC_SSIZE)
 
 #define VAD_ADPT_REC_BUF_SIZE ((VAD_ADPT_REC_SAMPRATE/1000)* \
     VAD_ADPT_REC_CHNUM*VAD_ADPT_REC_SSIZE*VAD_ADPT_REC_LEN_MS)

@@ -22,7 +22,7 @@ extern "C" {
 #endif
 
 ///for adv scan add call_back user
-typedef enum
+typedef enum 
 {
     BLE_SCAN_RESULT_USER_ID_0,
     BLE_SCAN_RESULT_USER_ID_1,
@@ -30,23 +30,14 @@ typedef enum
     BLE_SCAN_RESULT_USER_MAX
 }BLE_SCAN_RESULT_USER_ID_T;
 
-enum custom_resol_fill_user
-{
-    APP_CUSTOM_RES_LIST_FILL_USER_0,
-    APP_CUSTOM_RES_LIST_FILL_USER_MAX,
-};
-
 typedef void (*ble_adv_data_report_cb_t)(ble_bdaddr_t *bleAddr, int8_t rssi, uint8_t evt_type, uint8_t *adv_buf, uint8_t len);
-typedef void (*ble_link_event_report_cb_t)(ble_event_handled_t event_param, ble_event_type_e event_type);
-typedef void (*ble_resolving_list_fill_cb_t)(ble_bdaddr_t *bleAddr, uint8_t *peer_irk, uint8_t *local_irk);
+typedef void (*ble_link_event_report_cb_t)(int32_t connId, uint8_t* bdAddr, ble_evnet_type_e event, uint8_t err_code);
 
 void app_ble_customif_init(void);
-void app_ble_customif_adv_report_callback_register(BLE_SCAN_RESULT_USER_ID_T id, ble_adv_data_report_cb_t cb);
-void app_ble_customif_adv_report_callback_get(BLE_SCAN_RESULT_USER_ID_T id, ble_adv_data_report_cb_t *p_cb);
-void app_ble_customif_adv_report_callback_deregister(BLE_SCAN_RESULT_USER_ID_T id);
+void app_ble_customif_adv_report_callback_register(BLE_SCAN_RESULT_USER_ID_T              id,ble_adv_data_report_cb_t cb);
+void app_ble_customif_adv_report_callback_deregister(BLE_SCAN_RESULT_USER_ID_T              id);
 void app_ble_customif_link_event_callback_register(ble_link_event_report_cb_t cb);
 void app_ble_customif_link_event_callback_deregister(void);
-void app_ble_customif_resol_list_fill_cb_register(uint8_t user, ble_resolving_list_fill_cb_t cb);
 
 typedef struct
 {
@@ -54,7 +45,6 @@ typedef struct
     bool user_enable;
     BLE_ADV_USER_E adv_user;
     bool withFlags;
-    bool withName;
     uint8_t filter_pol;
     int8_t tx_power_dbm;
     BLE_ADV_TYPE_E advType;
@@ -67,8 +57,6 @@ typedef struct
     uint8_t localAddrType;
     bt_bdaddr_t localAddr;
     ble_bdaddr_t peerAddr;
-    uint16_t duration;
-    uint8_t max_adv_evts;
 } CUSTOMER_ADV_PARAM_T;
 
 CUSTOMER_ADV_PARAM_T * app_ble_custom_adv_param_ptr(BLE_ADV_ACTIVITY_USER_E actv_user);
@@ -114,14 +102,116 @@ void app_ble_custom_adv_write_data(BLE_ADV_ACTIVITY_USER_E actv_user,
                     uint8_t *adv_data, uint8_t adv_data_size,
                     uint8_t *scan_rsp_data, uint8_t scan_rsp_data_size);
 
-/**
- * @brief Set adv filter policy after set adv param befor start adv
- * 
- * @param[in] user_index activity index
- * @param[in] filter_policy filter policy
- * 
- */
-void app_ble_custom_adv_set_filter_policy(BLE_ADV_ACTIVITY_USER_E user_index, uint8_t filter_policy);
+typedef enum
+{
+    /* 0 */ OP_RESPONSE_TO_CMD = 0,    /**< the payload is: OP_RESPONSE_TO_CMD + paramLen + BLE_CUSTOM_CMD_RSP_T */
+    /* 1 */ OP_START_RAW_DATA_XFER,    /**< raw data means no BLE_CUSTOM_CMD_PAYLOAD_T.cmdCode but just the data
+                                starting raw data xfer is done via:
+                                    1. send OP_START_RAW_DATA_XFER to target peer device 
+                                    2. get OP_RESPONSE_TO_CMD from the target device
+                                    3. send raw data
+                            */
+    /* 2 */ OP_STOP_RAW_DATA_XFER,    /**< raw data means no BLE_CUSTOM_CMD_PAYLOAD_T.cmdCode but just the data
+                                stopping raw data xfer is done via:
+                                    1. send OP_STOP_RAW_DATA_XFER to target peer device 
+                                    2. get OP_RESPONSE_TO_CMD from the target device
+                                    3. stop sending raw data
+                            */
+    /* 3 */ OP_TEST_NO_RESPONSE_PRINT,
+
+    /* 4 */ OP_TEST_WITH_RESPONSE_PRINT,
+
+    /* 5 */ OP_ENTER_OTA_MODE,
+    // TO ADD: new custom command code
+
+    /* 6 */ OP_SW_IIR_EQ,        
+
+    /* 7 */ OP_GET_BT_ADDRESS,
+    /* 8 */ OP_COMMAND_COUNT,
+} BLE_CUSTOM_CMD_CODE_E;
+
+#define GET_CURRENT_TICKS() hal_sys_timer_get()
+
+#define GET_CURRENT_MS() TICKS_TO_MS(GET_CURRENT_TICKS())
+
+extern uint32_t __custom_handler_table_start[];
+extern uint32_t __custom_handler_table_end[];
+
+#define CUSTOM_COMMAND_TO_ADD(cmdCode, cmdHandler, isNeedResponse, timeoutWaitingRspInMs, cmdRspHandler) \
+    static const BLE_CUSTOM_CMD_INSTANCE_T cmdCode##_entry __attribute__((used, section(".custom_handler_table"))) = \
+        {(cmdCode), (cmdHandler), (isNeedResponse), (timeoutWaitingRspInMs), (cmdRspHandler)};
+
+#define CUSTOM_COMMAND_PTR_FROM_ENTRY_INDEX(index) \
+    ((BLE_CUSTOM_CMD_INSTANCE_T *)((uint32_t)__custom_handler_table_start + (index)*sizeof(BLE_CUSTOM_CMD_INSTANCE_T)))
+
+#define INVALID_CUSTOM_ENTRY_INDEX 0xFFFF
+
+typedef enum
+{
+    NO_ERROR = 0,
+    INVALID_CMD_CODE,
+    PARAMETER_LENGTH_OUT_OF_RANGE,
+    PARAMETER_LENGTH_TOO_SHORT,
+    HANDLING_FAILED,
+    TIMEOUT_WAITING_RESPONSE,
+    // TO ADD: new return status
+} BLE_CUSTOM_CMD_RET_STATUS_E;
+
+typedef enum
+{
+    TRANSMISSION_VIA_NOTIFICATION = 0,
+    TRANSMISSION_VIA_INDICATION,
+    TRANSMISSION_VIA_WRITE_CMD,
+    TRANSMISSION_VIA_WRITE_REQ,
+} BLE_CUSTOM_CMD_TRANSMISSION_PATH_E;
+
+typedef void (*BLE_CustomCmdHandler_t)(uint32_t cmdCode, uint8_t* ptrParam, uint32_t paramLen);
+
+typedef void (*BLE_CustomCmd_Response_Handler_t)(BLE_CUSTOM_CMD_RET_STATUS_E retStatus, uint8_t* ptrParam, uint32_t paramLen);
+
+typedef void (*BLE_RawDataReceived_Handler_t)(uint8_t* ptrData, uint32_t dataLen);
+
+typedef struct
+{
+    uint16_t cmdCode;
+    BLE_CustomCmdHandler_t cmdHandler; /**< command handler function */
+    uint8_t isNeedResponse; /**< true if needs the response from the peer device */
+    uint16_t timeoutWaitingRspInMs; /**< time-out of waiting for response in milli-seconds */
+    BLE_CustomCmd_Response_Handler_t cmdRspHandler; /**< command response handler function */
+} BLE_CUSTOM_CMD_INSTANCE_T;
+
+#define BLE_CUSTOM_CMD_MAXIMUM_PAYLOAD_SIZE 20 // assure that one BLE packet can include all the data 
+
+typedef struct
+{
+    uint16_t cmdCode; /**< command code, from BLE_CUSTOM_CMD_CODE_E */
+    uint16_t paramLen; /**< length of the following parameter */
+    uint8_t param[BLE_CUSTOM_CMD_MAXIMUM_PAYLOAD_SIZE - 2*sizeof(uint16_t)];
+} BLE_CUSTOM_CMD_PAYLOAD_T;
+
+typedef struct
+{
+    uint16_t cmdCodeToRsp; /**< tell which command code to response */
+    uint16_t cmdRetStatus; /**< handling result of the command, from BLE_CUSTOM_CMD_RET_STATUS_E */
+    uint16_t rspDataLen; /**< length of the response data */
+    uint8_t rspData[BLE_CUSTOM_CMD_MAXIMUM_PAYLOAD_SIZE - 5*sizeof(uint16_t)];
+} BLE_CUSTOM_CMD_RSP_T;
+
+void BLE_get_response_handler(uint32_t funcCode, uint8_t* ptrParam, uint32_t paramLen);
+void BLE_raw_data_xfer_control_handler(uint32_t funcCode, uint8_t* ptrParam, uint32_t paramLen);
+void BLE_control_raw_data_xfer(bool isStartXfer);
+void BLE_set_raw_data_xfer_received_callback(BLE_RawDataReceived_Handler_t callback);
+void BLE_start_raw_data_xfer_control_rsp_handler(BLE_CUSTOM_CMD_RET_STATUS_E retStatus, uint8_t* ptrParam, uint32_t paramLen);
+void BLE_stop_raw_data_xfer_control_rsp_handler(BLE_CUSTOM_CMD_RET_STATUS_E retStatus, uint8_t* ptrParam, uint32_t paramLen);
+uint8_t *BLE_custom_command_raw_data_buffer_pointer(void);
+uint16_t BLE_custom_command_received_raw_data_size(void);
+BLE_CUSTOM_CMD_RET_STATUS_E BLE_send_response_to_command(uint32_t responsedCmdCode, BLE_CUSTOM_CMD_RET_STATUS_E returnStatus, 
+    uint8_t* rspData, uint32_t rspDataLen, BLE_CUSTOM_CMD_TRANSMISSION_PATH_E path);
+BLE_CUSTOM_CMD_RET_STATUS_E BLE_send_custom_command(uint32_t cmdCode, uint8_t* ptrParam, uint32_t paramLen, BLE_CUSTOM_CMD_TRANSMISSION_PATH_E path);
+BLE_CUSTOM_CMD_RET_STATUS_E BLE_custom_command_receive_data(uint8_t* ptrData, uint32_t dataLength);
+void bes_custom_command_init(void);
+BLE_CUSTOM_CMD_INSTANCE_T *BLE_custom_command_get_entry_pointer_from_cmd_code(uint16_t cmdCode);
+uint16_t BLE_custom_command_get_entry_index_from_cmd_code(uint16_t cmdCode);
 
 #ifdef __cplusplus
 }

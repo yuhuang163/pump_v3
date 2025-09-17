@@ -4,9 +4,16 @@ include $(cur_dir)/config.mk
 
 export BLE_IF_DIR_PATH := bthost/stack/ble_if
 
+ifeq ($(BLE_STACK_NEW_DESIGN),1)
 export BLE_APP_DIR_PATH ?= bthost/service/ble_app_new
 export BLE_GAF_CORE_DIR_PATH ?= bthost/service/ble_audio/blueelf_adapter
 export BLE_STACK_DIR_PATH ?= bthost/stack/ble_stack_new
+else
+export BLE_APP_DIR_PATH ?= bthost/service/ble_app
+export BLE_GAF_CORE_DIR_PATH ?= bthost/service/ble_audio/gaf_core
+export BLE_STACK_DIR_PATH ?= bthost/stack/ble_stack
+export BLE_PROFILES_DIR_PATH ?= $(BLE_STACK_DIR_PATH)/inc/profiles
+endif
 
 export BLE_STACK_INC_INTERNAL := \
     -I$(BLE_STACK_DIR_PATH)/inc/hci \
@@ -36,30 +43,15 @@ obj_c += $(patsubst $(cur_dir)%,%,$(wildcard $(cur_dir)*.c))
 
 obj-y := $(obj_c:.c=.o)
 
-ifeq ($(BT_BUILD_WITH_CUSTOMER_HOST),1)
-obj-y += \
-    adapter/
-else
 obj-y += \
     adapter/ \
     service/ \
-    porting/ \
-    bt_vendor/
-
-ifneq ($(BTHOST_MIDDLEWARE),)
-obj-y += middleware/
-endif
+    porting/
 
 ifeq ($(BTH_IN_ROM),1)
 obj-y += rom/
 else
 obj-y += stack/
-endif
-endif
-
-export BTHOST_DEBUG ?= 1
-ifeq ($(BTHOST_DEBUG),1)
-KBUILD_CPPFLAGS += -DBTHOST_DEBUG
 endif
 
 ifeq ($(BTH_SUBSYS_ONLY),1)
@@ -81,7 +73,7 @@ ccflags-y += \
 	$(BLE_APP_INCLUDES) \
 	$(BLE_STACK_INCLUDES) \
 	$(BLE_STACK_INC_INTERNAL) \
-	$(BT_SERVICE_UX_INCLUDES) \
+	-Iservices/ux/common/ble_audio_core/inc \
 	-Imultimedia/inc/speech/inc \
 	-Iservices/bone_sensor \
 	-Iservices/overlay \
@@ -103,16 +95,13 @@ ccflags-y += \
 	-Iservices/voicepath/gsound/gsound_target \
 	-Iservices/voicepath/gsound/gsound_custom/inc \
 	-Iservices/voicepath/gsound/gsound_target_api_read_only \
-	-Iservices/ai_voice/protocol/gva/gsound_target \
-	-Iservices/ai_voice/protocol/gva/gsound_custom/inc \
-	-Iservices/ai_voice/protocol/gva/gsound_target_api_read_only \
 	-Iplatform/drivers/uarthci \
 	-Iplatform/drivers/ana \
 	-Iplatform/cmsis \
 	-Iplatform/drivers/bt \
 	-Iutils/cqueue \
 	-Iutils/heap \
-	-Iutils/crc \
+	-Iutils/crc16 \
 	-Iservices/audioflinger \
 	-Iutils/lockcqueue \
 	-Iutils/intersyshci \
@@ -126,7 +115,7 @@ ccflags-y += \
 	-Iapps/common \
 	-Iapps/factory \
 	-Iapps/voice_assist/inc \
-	-Iapps/app_test/ble_audio_test \
+	-Iapps/ble_audio_test \
 	-Iutils/hwtimer_list \
 	-Iservices/voicepath \
 	-Ithirdparty/userapi \
@@ -138,14 +127,22 @@ ccflags-y += \
 	-Iservices/interconnection/red \
 	-Iservices/interconnection/green \
 	-Iservices/interconnection/umm_malloc \
+	-Iservices/ux/common/ibrt/custom_api \
 	$(SOURCE_INCLUDES) \
 	-Ithirdparty/tile/tile_target \
 	-Iservices/osif \
+	-Iservices/ux/common/ibrt/ibrt_middleware/inc \
 	-Iutils/list \
 	-Iutils/string \
 	-Iservices/ai_voice/protocol/bixbyvoice \
 	-Iservices/ai_voice/protocol/bixbyvoice/bixbyvoice_manager \
-	-Iservices/bt_watch_service/inc
+	-Iservices/bt_service/inc
 
-# Git revision
-BESLIB_INFO := $(shell cd $(cur_dir) && (which git >/dev/null 2>&1) && (git rev-parse --short HEAD 2>/dev/null))
+ifeq ($(IBRT),1)
+ifeq ($(IBRT_UI),1)
+ccflags-y += \
+    -Iservices/ux/common/ibrt/app_ibrt/inc \
+    -Iservices/ux/common/ibrt/ibrt_ui/inc \
+    -Iservices/ux/common/ibrt/ibrt_core/inc
+endif
+endif

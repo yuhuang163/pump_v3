@@ -16,9 +16,8 @@
 #ifndef __BT_DRV_INTERFACE_H__
 #define  __BT_DRV_INTERFACE_H__
 
-#include <stddef.h>
-#include <stdint.h>
-#include <stdbool.h>
+#include "stdint.h"
+#include "stdbool.h"
 
 //LMP Opcodes
 #define LMP_NAME_REQ_OPCODE                1
@@ -256,10 +255,13 @@ struct btdrv_customer_rf_config_t
     int8_t bt_tx_idx7_pwr;
     int8_t le_tx_idx7_pwr;
     int8_t bt_tx_page_pwr;
+    int8_t bt_tx_idx6_pwr;
     int8_t le_tx_idx6_pwr;
     int8_t bt_tx_page_high_pwr;
     int8_t bt_tx_max_pwr;
     int8_t le_tx_max_pwr;
+    int8_t bt_tx_idx5_pwr;
+    int8_t le_tx_idx5_pwr;
     int8_t bt_tx_idx4_pwr;
     int8_t le_tx_idx4_pwr;
     int8_t bt_tx_idx3_pwr;
@@ -289,7 +291,15 @@ struct rssi_txpower_link_thd
 };
 typedef int (* btstack_send_hci_cmd_t)(uint16_t , uint8_t *, uint8_t );
 
+#define btdrv_set_intersys_trace_enable(isEnable)  beshci_set_intersys_trace_enable(isEnable)
+#define btdrv_set_spuv_hci_buff_trace_enable()  beshci_set_supv_hci_buff_trace_enable()
+#define btdrv_set_a2dp_stream_trace_disable()  beshci_set_a2dp_stream_trace_enable(false)
 #define btdrv_enable_sleep_checker(isEnable)   beshci_enable_sleep_checker(isEnable)
+#define btdrv_set_spuv_hci_buff_trace_enable_high()  beshci_set_supv_hci_buff_trace_enable_high()
+#define btdrv_set_acl_packet_trace_enable()  beshci_set_acl_packet_trace_enable(true)
+#define btdrv_set_acl_packet_trace_disable()  beshci_set_acl_packet_trace_enable(false)
+#define btdrv_set_iso_packet_trace_enable()  beshci_set_iso_packet_trace_enable(true)
+#define btdrv_set_iso_packet_trace_disable()  beshci_set_iso_packet_trace_enable(false)
 
 #define HCI_LINK_INDEX_INVALID  (0xFF)
 #define btdrv_is_link_index_valid(index)  (index != HCI_LINK_INDEX_INVALID)
@@ -326,6 +336,14 @@ void btdrv_load_sleep_config(uint8_t* config);
 void btdrv_feature_default(void);
 void btdrv_test_mode_addr_set(void);
 
+void btdrv_nosig_set_max_power_level(void);
+void btdrv_nosig_clear_max_power_level(void);
+void btdrv_set_div_bdr_ble_txpower(uint8_t div, uint8_t power_level);
+void btdrv_set_div_edr_txpower(uint8_t div, uint8_t power_level);
+
+void btdrv_set_bdr_ble_txpower(uint8_t txpwr_idx, uint16_t n);
+uint32_t btdrv_set_edr_txpower(uint8_t div, uint8_t power_level);
+
 uint32_t btdrv_rf_get_max_xtal_tune_ppb(void);
 uint32_t btdrv_rf_get_xtal_tune_factor(void);
 void btdrv_rf_init_xtal_fcap(uint32_t fcap);
@@ -348,8 +366,18 @@ void bt_syn_set_tg_ticks(uint32_t val,uint16_t conhdl, uint8_t mode, uint8_t tri
 void bt_syn_ble_set_tg_ticks(uint32_t val,uint8_t trig_route);
 uint32_t bt_syn_ble_bt_time_to_bts(uint32_t hs, uint16_t hus);
 void bt_syn_trig_checker(uint16_t conhdl);
+void btdrv_syn_trigger_codec_en(uint32_t v);
 uint32_t btdrv_get_syn_trigger_codec_en(void);
 uint32_t btdrv_get_trigger_ticks(void);
+int btdrv_rf_get_bdr_power(void);
+int btdrv_rf_get_edr_power(void);
+int btdrv_rf_get_ble_power(void);
+void btdrv_hci_bridge_loop(uint8_t *hci_tx_p,uint8_t hci_tx_len,uint8_t *hci_rx_p,uint8_t *hci_rx_len);
+void btdrv_hci_receive_loop(uint8_t *hci_rx_p,uint8_t *hci_rx_len);
+void ble_nosignal_start(void);
+void ble_nosignal_close(void);
+void ble_nosignal_uart_bridge_loop(void);
+void btdrv_hci_bridge_start(void);
 
 #define ACL_TRIGGLE_MODE       1
 #define SCO_TRIGGLE_MODE      2
@@ -373,10 +401,20 @@ void btdrv_clear_spi_trig_enable(uint8_t spi_sel);
 void btdrv_spi_trig_init(void);
 void btdrv_spi_trig_select(uint8_t link_id, bool spi_set);
 void bt_drv_reg_op_cs_monitor(void);
+void btdrv_set_controller_trace_enable(uint8_t trace_level);
+uint8_t btdrv_get_controller_trace_level(void);
+bool btdrv_get_lmp_trace_enable(void);
+void btdrv_set_lmp_trace_enable(void);
 const struct rssi_txpower_link_thd* btdrv_get_tws_link_txpwr_thd_ptr(void);
 void bt_drv_hwspi_select(uint8_t link_id, uint8_t spi_idx);
 void bt_drv_enable_hw_spi(uint8_t elt_idx, bool hwspien);
 void beshci_enable_sleep_checker(bool isEnable);
+void beshci_set_intersys_trace_enable(bool isEnable);
+void beshci_set_supv_hci_buff_trace_enable(void);
+void beshci_set_supv_hci_buff_trace_enable_high(void);
+void beshci_set_a2dp_stream_trace_enable(bool enable);
+void beshci_set_acl_packet_trace_enable(bool enable);
+void beshci_set_iso_packet_trace_enable(bool enable);
 void btdrv_send_cmd(uint16_t opcode,uint8_t cmdlen,const uint8_t *param);
 void btdrv_write_memory(uint8_t wr_type,uint32_t address,const uint8_t *value,uint8_t length);
 void bt_drv_reg_op_music_link_config(uint16_t active_link,uint8_t active_role,uint16_t inactive_link,uint8_t inactive_role);
@@ -403,7 +441,7 @@ void bt_drv_reg_op_write_private_public_key(uint8_t* private_key,uint8_t* public
 void bt_drv_reg_op_write_private_public_192_256_key(uint8_t* private_key,uint8_t* public_key,bool p192_or_p256);
 
 #define BTCLK_STATUS_PRINT()    do{ \
-    DRIVERS_TRACE(0,"[%s] %d: curr bt time= %d", __func__, __LINE__, bt_syn_get_curr_ticks(bts_tws_if_get_tws_acl_handle())); \
+    TRACE("[%s] %d: curr bt time= %d", __func__, __LINE__, bt_syn_get_curr_ticks(app_tws_get_tws_conhdl())); \
                                 }while(0)
 
 int btdrv_slave2master_clkcnt_convert(uint32_t local_clk, uint16_t local_cnt,
@@ -514,6 +552,7 @@ typedef bool (*freqcalib_mode_get_handler_func)(void);
 void btdrv_register_freqcalib_mode_get_callback(freqcalib_mode_get_handler_func cb);
 bool btdrv_freqcalib_mode_get(void);
 void bt_drv_rf_high_efficency_tx_pwr_ctrl(bool en, bool reset);
+void bt_drv_rf_high_efficency_rx_gain_ctrl(bool rx_idx);
 uint8_t btdrv_reg_op_isohci_in_nb_buffer(uint8_t link_id);
 void trace_2_uart(uint8_t debug_level,const char *format, ...);
 void bt_drv_rf_set_customer_config(struct btdrv_customer_rf_config_t* config);
@@ -526,11 +565,14 @@ void bt_uart_debug_send(unsigned char *data, unsigned int len);
 void btdrv_ins_patch_close(void);
 void bt_drv_reg_op_write_ble_p256(uint8_t* private_key);
 uint8_t bt_drv_reg_op_fa_agc_get(void);
-void btdrv_set_bdr_ble_txpower(uint8_t txpwr_idx, uint16_t n);;
 #ifdef NORMAL_TEST_MODE_SWITCH
 typedef int (*btdrv_testmode_nonsig_rx_process_func)(const unsigned char *data, unsigned int len);
 void btdrv_testmode_register_nonsig_rx_process(btdrv_testmode_nonsig_rx_process_func cb);
 #endif
+
+#define UART_DUMP8(str, buf, cnt)            hal_uart_dump(str, sizeof(uint8_t), cnt, buf)
+#define UART_DUMP16(str, buf, cnt)           hal_uart_dump(str, sizeof(uint16_t), cnt, buf)
+#define UART_DUMP32(str, buf, cnt)           hal_uart_dump(str, sizeof(uint32_t), cnt, buf)
 
 void iomux_restore_function_on_tport_disabled(void);
 void bt_drv_ctrl_tports(bool en);
@@ -545,19 +587,15 @@ unsigned char *bt_get_ble_local_address(void);
 const char *bt_get_local_name(void);
 void bt_set_local_name(const char* name);
 const char *bt_get_ble_local_name(void);
+void bt_set_ble_local_name(const char *name);
 void bt_set_ble_local_address(uint8_t* bleAddr);
 bool bt_drv_work_in_ramrun_mode(void);
 bool bt_drv_is_support_hci_set_tws_link(void);
 bool bt_drv_is_support_hci_enable_btpcm(void);
-bool bt_drv_is_support_set_bt_ble_active_link_switch(void);
 void bt_drv_rx_status_dump(uint16_t conhdl);
 uint32_t bt_drv_reg_op_get_multi_ibrt_slice(uint8_t active);
 bool bt_drv_is_support_hci_config_multi_ibrt_sche(void);
 void bt_drv_only_wakeup_btcore(void);
-void bt_drv_tports_switch(uint8_t enable, uint8_t iomux_type, uint32_t tport_type);
-void bt_drv_reg_op_read_register(uint32_t addr, uint32_t* reg_val);
-void bt_drv_reg_op_write_register(uint32_t addr, uint32_t reg_val);
-void bt_drv_dump_rf_reg(void);
 #ifdef __cplusplus
 }
 #endif

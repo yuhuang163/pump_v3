@@ -101,7 +101,7 @@ int sco_cp_process(short *pcm_buf, float *in_buf, float *fb_buf, int *_pcm_len, 
 
     // Check CP has new data to get and can get data from buffer
 #if defined(SCO_TRACE_CP_ACCEL)
-    AUDIOPLAYERS_TRACE(4,"[%s] g_require_cnt: %d, status: %d, pcm_len: %d", __func__, g_require_cnt, g_cp_state, pcm_len);
+    TRACE(4,"[%s] g_require_cnt: %d, status: %d, pcm_len: %d", __func__, g_require_cnt, g_cp_state, pcm_len);
 #endif
 
     while (g_cp_state == CP_SCO_STATE_WORKING)
@@ -147,7 +147,7 @@ int sco_cp_process(short *pcm_buf, float *in_buf, float *fb_buf, int *_pcm_len, 
 
         // Check abs(g_require_cnt - g_run_cnt) > threshold, reset or assert
 
-        AUDIOPLAYERS_TRACE(2,"[%s] ERROR: status = %d", __func__, g_cp_state);
+        TRACE(2,"[%s] ERROR: status = %d", __func__, g_cp_state);
     }
 
     return 0;
@@ -159,7 +159,7 @@ CP_TEXT_SRAM_LOC
 static unsigned int sco_cp_main(uint8_t event)
 {
 #if defined(SCO_TRACE_CP_ACCEL)
-    AUDIOPLAYERS_TRACE(2,"[%s] g_run_cnt: %d", __func__, g_run_cnt);
+    TRACE(2,"[%s] g_run_cnt: %d", __func__, g_run_cnt);
 #endif
 
     // LOCK BUFFER
@@ -181,7 +181,7 @@ static unsigned int sco_cp_main(uint8_t event)
     }
 #if defined(SNDP_TX_3MIC_TIME_ENABLE)
     end_ticks = hal_fast_sys_timer_get();
-    AUDIOPLAYERS_TRACE(4,"[sco_cp_process] takes %d us\n", FAST_TICKS_TO_US(end_ticks - start_ticks));
+    TRACE(4,"[sco_cp_process] takes %d us\n", FAST_TICKS_TO_US(end_ticks - start_ticks));
 #endif
 
     // process pcm
@@ -203,7 +203,7 @@ static unsigned int sco_cp_main(uint8_t event)
     g_cp_state = CP_SCO_STATE_IDLE;
 
 #if defined(SCO_TRACE_CP_ACCEL)
-    AUDIOPLAYERS_TRACE(1,"[%s] CP_SCO_STATE_IDLE", __func__);
+    TRACE(1,"[%s] CP_SCO_STATE_IDLE", __func__);
 #endif
 
     // UNLOCK BUFFER
@@ -214,7 +214,7 @@ static unsigned int sco_cp_main(uint8_t event)
 static const struct cp_task_desc task_desc_sco = {CP_ACCEL_STATE_CLOSED, sco_cp_main, NULL, NULL, NULL};
 int sco_cp_init(int frame_len, int channel_num)
 {
-    AUDIOPLAYERS_TRACE(3,"[%s] frame_len: %d, channel_num: %d", __func__, frame_len, channel_num);
+    TRACE(3,"[%s] frame_len: %d, channel_num: %d", __func__, frame_len, channel_num);
     ASSERT(frame_len <= FRAME_LEN_MAX, "[%s] frame_len(%d) > FRAME_LEN_MAX", __func__, frame_len);
     ASSERT(channel_num <= CHANNEL_NUM_MAX, "[%s] channel_num(%d) > CHANNEL_NUM_MAX", __func__, channel_num);
 
@@ -222,7 +222,7 @@ int sco_cp_init(int frame_len, int channel_num)
     g_run_cnt = 0;
 
     cp_accel_init();
-    norflash_api_flush_disable(NORFLASH_API_USER_CP,(uint32_t)cp_accel_init_done, false);
+    norflash_api_flush_disable(NORFLASH_API_USER_CP,(uint32_t)cp_accel_init_done);
     cp_accel_open(CP_TASK_SCO, &task_desc_sco);
 
     uint32_t cnt=0;
@@ -233,7 +233,7 @@ int sco_cp_init(int frame_len, int channel_num)
             if (cnt == 10 * 200) {     // 200ms
                 ASSERT(0, "[%s] ERROR: Can not init cp!!!", __func__);
             } else {
-                AUDIOPLAYERS_TRACE(1, "[%s] Wait CP init done...%d(ms)", __func__, cnt/10);
+                TRACE(1, "[%s] Wait CP init done...%d(ms)", __func__, cnt/10);
             }
         }
     }
@@ -254,7 +254,7 @@ int sco_cp_init(int frame_len, int channel_num)
     speech_set_f32(g_in_fb_buf, 0, g_frame_len);
     g_cp_state = CP_SCO_STATE_IDLE;
 
-    AUDIOPLAYERS_TRACE(2,"[%s] status = %d", __func__, g_cp_state);
+    TRACE(2,"[%s] status = %d", __func__, g_cp_state);
 
     return 0;
 
@@ -262,7 +262,7 @@ int sco_cp_init(int frame_len, int channel_num)
 
 int sco_cp_deinit(void)
 {
-    AUDIOPLAYERS_TRACE(1,"[%s] ...", __func__);
+    TRACE(1,"[%s] ...", __func__);
 
     cp_accel_close(CP_TASK_SCO);
 

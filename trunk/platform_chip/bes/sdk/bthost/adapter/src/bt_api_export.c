@@ -1,5 +1,3 @@
-#include "bthost_logger.h"
-
 #include "bluetooth_bt_api.h"
 #include "cmsis.h"
 #include "app_bt.h"
@@ -9,6 +7,7 @@
 #include "cobuf.h"
 #include "btapp.h"
 #include "besbt.h"
+#include "besbt_cfg.h"
 #include "conmgr_api.h"
 #include "cobuf.h"
 #include "co_ppbuff.h"
@@ -24,26 +23,29 @@
 #include "hci_i.h"
 #include "l2cap_api.h"
 #include "l2cap_i.h"
+#include "btgatt_api.h"
 #include "app_btgatt.h"
 #include "sdp_api.h"
 #include "spp_api.h"
 #include "app_dip.h"
 #include "dip_api.h"
-#include "sco_api.h"
 #include "besaud_api.h"
 #include "btm_i.h"
 #include "app_a2dp_source.h"
 #include "bt_source.h"
+#include "app_bt_hid.h"
 #include "app_map.h"
 #include "map_api.h"
 
-#if defined(BT_HID_DEVICE)
-#include "app_hid_device.h"
-#endif
+void *ble_buffer_malloc_with_ca(uint16_t size, uint32_t ca, uint32_t line)
+{
+    return btif_coheap_bt_malloc_with_ca(size, ca, line, false);
+}
 
-#if defined(BT_HID_HOST)
-#include "app_hid_host.h"
-#endif
+void ble_buffer_free_with_ca(void *buffer, uint32_t ca, uint32_t line)
+{
+    btif_coheap_free_with_ca(buffer, ca, line);
+}
 
 static int (*g_bt_audio_event_handler)(uint8_t device_id, enum app_bt_audio_event_t event, uint32_t data) = NULL;
 
@@ -55,6 +57,49 @@ int bt_audio_event_handler(uint8_t device_id, enum app_bt_audio_event_t event, u
 void bt_audio_set_event_handler(int (*hdlr)(uint8_t device_id, enum app_bt_audio_event_t event, uint32_t data))
 {
     g_bt_audio_event_handler = hdlr;
+}
+
+POSSIBLY_UNUSED static void bt_export_profile_connect(BT_PROFILE_ID_ENUM_T profile, const bt_bdaddr_t *remote)
+{
+    switch (profile)
+    {
+        case BT_PROFILE_HFP:
+            app_bt_reconnect_hfp_profile((bt_bdaddr_t *)remote);
+            break;
+        case BT_PROFILE_A2DP:
+            app_bt_reconnect_a2dp_profile((bt_bdaddr_t *)remote);
+            break;
+        case BT_PROFILE_AVRCP:
+            app_bt_reconnect_avrcp_profile((bt_bdaddr_t *)remote);
+            break;
+        default:
+            break;
+    }
+}
+
+POSSIBLY_UNUSED static void bt_export_profile_disconnect(BT_PROFILE_ID_ENUM_T profile, int device_id)
+{
+    struct BT_DEVICE_T *curr_device = app_bt_get_device(device_id);
+
+    if (curr_device == NULL)
+    {
+        return;
+    }
+
+    switch (profile)
+    {
+        case BT_PROFILE_HFP:
+            app_bt_disconnect_hfp_profile(curr_device->hf_channel);
+            break;
+        case BT_PROFILE_A2DP:
+            app_bt_disconnect_a2dp_profile(curr_device->a2dp_connected_stream);
+            break;
+        case BT_PROFILE_AVRCP:
+            app_bt_disconnect_avrcp_profile(curr_device->avrcp_channel);
+            break;
+        default:
+            break;
+    }
 }
 
 uint8_t bt_export_count_link(BT_COUNT_LINK_ENUM_T type)
@@ -75,11 +120,9 @@ uint8_t bt_export_count_link(BT_COUNT_LINK_ENUM_T type)
         case BT_COUNT_TOTAL_ACL_LINK:
             count = app_bt_get_active_cons() + btif_me_get_source_activeCons();
             break;
-#if defined(BT_HFP_SUPPORT)
         case BT_COUNT_CONNECTED_SCO:
             count = app_bt_audio_count_connected_sco();
             break;
-#endif // BT_HFP_SUPPORT
         case BT_COUNT_STREAMING_A2DP:
             count = app_bt_audio_count_streaming_a2dp();
             break;
@@ -137,13 +180,13 @@ uint8_t bt_export_select_device(BT_SELECT_DEVICE_ENUM_T op)
 
     switch (op)
     {
+        case BT_SELECT_CALL_ACTIVE_HFP_DEVICE:
+            device_id = app_bt_audio_select_call_active_hfp();
+            break;
         case BT_SELECT_CURR_A2DP_DEVICE:
             device_id = app_bt_audio_get_curr_a2dp_device();
             break;
 #ifdef BT_HFP_SUPPORT
-        case BT_SELECT_CALL_ACTIVE_HFP_DEVICE:
-            device_id = app_bt_audio_select_call_active_hfp();
-            break;
         case BT_SELECT_CURR_HFP_DEVICE:
             device_id = app_bt_audio_get_curr_hfp_device();
             break;
@@ -192,6 +235,16 @@ static bt_bdaddr_t *bt_export_cmgr_get_address(void *cmgr_handler)
 {
     btif_remote_device_t *remDev = btif_cmgr_get_cmgrhandler_remdev(cmgr_handler);
     return btif_me_get_remote_device_bdaddr(remDev);
+}
+
+void bes_bt_me_acl_conn_state_callback_register(bt_acl_conn_state_change_cb_t cb)
+{
+    app_bt_acl_conn_callback_register(cb);
+}
+
+void bes_bt_me_acl_conn_callback_deregister(void)
+{
+    app_bt_acl_conn_callback_deregister();
 }
 
 void bes_bt_me_pair_state_callback_deregister(void)
@@ -255,14 +308,9 @@ bt_status_t bes_bt_me_start_inquiry(uint32_t lap, uint8_t len, uint8_t maxResp)
     return btif_me_inquiry(lap, len, maxResp);
 }
 
-void bes_bt_sco_response(uint8_t device_id, uint8_t accept)
+void bes_bt_me_finish_pending_sco_request(void *remote)
 {
-    btif_sco_connect_resp(device_id, accept);
-}
-
-void bes_bt_sco_connect_req(bt_bdaddr_t *bdaddr)
-{
-    btif_sco_connect_req(bdaddr);
+    btif_me_finish_pending_sco_request(remote);
 }
 
 bt_status_t bes_bt_me_setup_acl_qos_with_tpoll_generic(uint16_t conn_handle, uint32_t tpoll_slot, uint8_t service_type)
@@ -385,14 +433,9 @@ bt_status_t bes_bt_me_acl_force_disconnect(uint16_t conn_handle, uint8_t reason,
     return btif_me_force_disconnect_link_with_reason(conn_handle, reason, force_disc);
 }
 
-bt_status_t bt_adapter_connect_acl_with_page_timeout(const bt_bdaddr_t *bd_addr, uint16_t page_timeout)
+bt_status_t bes_bt_me_acl_connect_req(const bt_bdaddr_t *remote)
 {
-    return btif_create_acl_to_slave_with_page_timeout(bd_addr, page_timeout);
-}
-
-bt_status_t bt_adapter_connect_acl(const bt_bdaddr_t *bd_addr)
-{
-    return btif_create_acl_to_slave(bd_addr);
+    return btif_create_acl_to_slave(remote);
 }
 
 bt_status_t bes_bt_me_acl_disconnect_req(const bt_bdaddr_t* remote)
@@ -476,15 +519,10 @@ uint8_t bes_bt_me_get_event_encrypt_mode(const btif_event_t *event)
     return btif_me_get_callback_event_encrypt_mode(event);
 }
 
-bt_status_t bes_bt_me_write_automatic_flush_timeout(uint16 connhandle, uint16 flush_timeout)
-{
-    return btif_me_write_automatic_flush_timeout(connhandle, flush_timeout);
-}
-
 bt_bdaddr_t *bes_bt_me_get_addr_by_sco_handle(uint16_t handle)
 {
 #if defined(AUTO_ACCEPT_SECOND_SCO)
-    return (bt_bdaddr_t *)btif_sco_get_btaddr_by_sco_handle(handle);
+    return (bt_bdaddr_t *)btif_me_get_btaddr_by_sco_handle(handle);
 #endif
     return NULL;
 }
@@ -514,7 +552,7 @@ bool app_ibrt_remote_is_tws_device(const bt_bdaddr_t *remote);
 
 static void bt_export_set_remote_tws_device(const bt_bdaddr_t *remote, bool tws_link)
 {
-    btif_me_set_conn_tws_link(btif_me_get_acl_conn_handle(remote),tws_link);
+    btif_me_set_conn_tws_link(btif_me_get_connhandle_by_addr(remote),tws_link);
 }
 
 static bool bt_export_is_remote_tws_device(const bt_bdaddr_t *remote)
@@ -567,9 +605,9 @@ void bes_bt_hfp_report_user_audio_play_stop_status(void)
 #endif /* BT_HFP_SUPPORT */
 
 #ifdef BT_A2DP_SUPPORT
-bt_status_t bt_export_a2dp_profile_connect(const bt_bdaddr_t *remote, enum A2DP_ROLE role_expected)
+bt_status_t bt_export_a2dp_profile_connect(const bt_bdaddr_t *remote)
 {
-    app_bt_reconnect_a2dp_profile((bt_bdaddr_t *)remote, role_expected);
+    app_bt_reconnect_a2dp_profile((bt_bdaddr_t *)remote);
     return BT_STS_PENDING;
 }
 
@@ -583,21 +621,50 @@ bt_status_t bt_export_a2dp_profile_disconnect(const bt_bdaddr_t *remote)
     return BT_STS_PENDING;
 }
 
-bt_status_t bes_bt_a2dp_open_stream(const bt_bdaddr_t *remote, enum A2DP_ROLE role_expected)
+bt_status_t bes_bt_a2dp_open_stream(const bt_bdaddr_t *remote)
 {
     struct BT_DEVICE_T *curr_device = app_bt_get_connected_device_byaddr(remote);
     if (curr_device)
     {
-        return app_bt_A2DP_OpenStream(curr_device->profile_mgr.stream, (bt_bdaddr_t *)remote->address, role_expected);
+        return app_bt_A2DP_OpenStream(curr_device->profile_mgr.stream, (bt_bdaddr_t *)remote->address);
     }
     return BT_STS_PENDING;
 }
 
-void bta_register_custom_allow_receive_a2dp_steam(bool (*cb)(void))
+void bes_bt_a2dp_state_change_callback_register(bes_bt_a2dp_event_callback cb)
 {
-    app_a2dp_register_custom_allow_receive_steam(cb);
+    app_a2dp_state_change_callback_register((app_btif_a2dp_event_callback)cb);
 }
 
+void bes_bt_a2dp_state_change_callback_deregister(void)
+{
+    app_a2dp_state_change_callback_deregister();
+}
+
+void bes_bt_a2dp_notify_receive_stream_callback_register(void (*cb)(void))
+{
+    app_a2dp_notify_receive_stream_callback_register(cb);
+}
+
+void bes_bt_a2dp_notify_receive_stream_callback_deregister(void)
+{
+    app_a2dp_notify_receive_stream_callback_deregister();
+}
+
+bool bes_bt_a2dp_is_notify_receive_stream_cb_registed(void)
+{
+    return app_a2dp_is_notify_receive_stream_cb_registed();
+}
+
+void bes_bt_a2dp_set_custom_af_ctrl_state(bes_bt_a2dp_custom_af_ctrl_e state)
+{
+    app_a2dp_set_custom_af_ctrl_state((app_a2dp_custom_af_ctrl_e)state);
+}
+
+bes_bt_a2dp_custom_af_ctrl_e bes_bt_a2dp_get_custom_af_ctrl_state(void)
+{
+    return (bes_bt_a2dp_custom_af_ctrl_e)app_a2dp_get_custom_af_ctrl_state();
+}
 #endif /* BT_A2DP_SUPPORT */
 
 #ifdef BT_AVRCP_SUPPORT
@@ -614,6 +681,11 @@ uint8_t bes_bt_avcp_get_connect_status(uint8_t* addr)
         return btif_avcp_get_connect_status(channel);
     }
     return BTIF_AVRCP_STATE_DISCONNECTED;
+}
+
+void bes_bt_avcp_register_user_event_callback(bes_bt_avrcp_user_event_callback cb)
+{
+   btif_avcp_register_user_event_callback((btif_avrcp_user_event_callback)cb);
 }
 
 bt_status_t bt_export_avrcp_profile_connect(const bt_bdaddr_t *remote)
@@ -651,162 +723,39 @@ bt_status_t bt_export_avrcp_send_pause_cmd(const bt_bdaddr_t *remote)
     }
     return BT_STS_PENDING;
 }
-
-bt_status_t bt_export_avrcp_send_volume_up_cmd(const bt_bdaddr_t *remote)
-{
-    struct BT_DEVICE_T *curr_device = app_bt_get_connected_device_byaddr(remote);
-    if (curr_device)
-    {
-        app_bt_a2dp_send_key_request(curr_device->device_id, AVRCP_KEY_VOLUME_UP);
-    }
-    return BT_STS_PENDING;
-}
-
-bt_status_t bt_export_avrcp_send_volume_down_cmd(const bt_bdaddr_t *remote)
-{
-    struct BT_DEVICE_T *curr_device = app_bt_get_connected_device_byaddr(remote);
-    if (curr_device)
-    {
-        app_bt_a2dp_send_key_request(curr_device->device_id, AVRCP_KEY_VOLUME_DOWN);
-    }
-    return BT_STS_PENDING;
-}
-
-bt_status_t bt_export_avrcp_send_forward_cmd(const bt_bdaddr_t *remote)
-{
-    struct BT_DEVICE_T *curr_device = app_bt_get_connected_device_byaddr(remote);
-    if (curr_device)
-    {
-        app_bt_a2dp_send_key_request(curr_device->device_id, AVRCP_KEY_FORWARD);
-    }
-    return BT_STS_PENDING;
-}
-
-bt_status_t bt_export_avrcp_send_backward_cmd(const bt_bdaddr_t *remote)
-{
-    struct BT_DEVICE_T *curr_device = app_bt_get_connected_device_byaddr(remote);
-    if (curr_device)
-    {
-        app_bt_a2dp_send_key_request(curr_device->device_id, AVRCP_KEY_BACKWARD);
-    }
-    return BT_STS_PENDING;
-}
-
-bt_status_t bt_export_avrcp_send_fast_forward_press_cmd(const bt_bdaddr_t *remote)
-{
-    struct BT_DEVICE_T *curr_device = app_bt_get_connected_device_byaddr(remote);
-    if (curr_device)
-    {
-        app_bt_a2dp_send_key_request(curr_device->device_id, AVRCP_KEY_FAST_FORWARD_START);
-    }
-    return BT_STS_PENDING;
-}
-
-bt_status_t bt_export_avrcp_send_fast_forward_release_cmd(const bt_bdaddr_t *remote)
-{
-    struct BT_DEVICE_T *curr_device = app_bt_get_connected_device_byaddr(remote);
-    if (curr_device)
-    {
-        app_bt_a2dp_send_key_request(curr_device->device_id, AVRCP_KEY_FAST_FORWARD_STOP);
-    }
-    return BT_STS_PENDING;
-}
-
-bt_status_t bt_export_avrcp_send_rewind_press_cmd(const bt_bdaddr_t *remote)
-{
-    struct BT_DEVICE_T *curr_device = app_bt_get_connected_device_byaddr(remote);
-    if (curr_device)
-    {
-        app_bt_a2dp_send_key_request(curr_device->device_id, AVRCP_KEY_REWIND_START);
-    }
-    return BT_STS_PENDING;
-}
-
-bt_status_t bt_export_avrcp_send_rewind_release_cmd(const bt_bdaddr_t *remote)
-{
-    struct BT_DEVICE_T *curr_device = app_bt_get_connected_device_byaddr(remote);
-    if (curr_device)
-    {
-        app_bt_a2dp_send_key_request(curr_device->device_id, AVRCP_KEY_REWIND_STOP);
-    }
-    return BT_STS_PENDING;
-}
 #endif /* BT_AVRCP_SUPPORT */
-
-#if defined(BT_HID_HOST)
-bt_status_t bt_export_hid_host_connect(const bt_bdaddr_t *remote)
-{
-    return app_hid_host_connect((bt_bdaddr_t *)remote);
-}
-
-bt_status_t bt_export_hid_host_disconnect(const bt_bdaddr_t *remote)
-{
-    return app_hid_host_disconnect(remote);
-}
-
-bt_status_t bt_export_hid_host_send_virtual_cable_unplug(const bt_bdaddr_t *remote)
-{
-    return app_hid_host_send_virtual_cable_unplug(remote);
-}
-#endif /*BT_HID_HOST*/
-
-#if defined(BT_HID_DEVICE)
-bt_status_t bt_export_hid_device_profile_connect(const bt_bdaddr_t *remote)
-{
-    return app_hid_device_connect((bt_bdaddr_t *)remote);
-}
-
-bt_status_t bt_export_hid_device_profile_disconnect(const bt_bdaddr_t *remote)
-{
-    return app_hid_device_disconnect(remote);
-}
-
-bt_status_t bt_export_hid_device_send_sensor_report(const bt_bdaddr_t *bd_addr, const struct bt_hid_sensor_report_t *report)
-{
-    return app_hid_device_process_sensor_report(bd_addr, report);
-}
-
-bt_status_t bt_export_hid_device_send_keyboard_report(const bt_bdaddr_t *remote, uint8_t modifier_key, uint8_t key_code)
-{
-    return app_hid_device_send_keyboard_report(remote, modifier_key, key_code);
-}
-
-bt_status_t bt_export_hid_device_send_mouse_report(const bt_bdaddr_t *remote, int8_t x_pos, int8_t y_pos, uint8_t clk_buttons)
-{
-    return app_hid_device_send_mouse_report(remote, x_pos, y_pos, clk_buttons);
-}
-
-bt_status_t bt_export_hid_device_send_mouse_ctrl_report(const bt_bdaddr_t *remote, uint8_t ctl_buttons)
-{
-    return app_hid_device_send_mouse_control_report(remote, ctl_buttons);
-}
-
-bt_status_t bt_export_hid_device_capture(const bt_bdaddr_t *remote)
-{
-    return app_hid_device_capture_process(remote);
-}
-
-bt_status_t bt_export_hid_device_send_virtual_cable_unplug(const bt_bdaddr_t *remote)
-{
-    return app_hid_device_virtual_cable_unplug(remote);
-}
-#endif // BT_HID_DEVICE
 
 bool bes_bt_export_is_sco_prompt_play_mode(void)
 {
-    return app_bt_manager.config.call_preempt_play_mode;
+    return app_bt_manager.config.sco_prompt_play_mode;
 }
 
 uint8_t bt_export_get_a2dp_codec_type(int device_id)
 {
     uint8_t codec_type = BT_A2DP_CODEC_TYPE_SBC;
     struct BT_DEVICE_T * curr_device = NULL;
+
     curr_device = app_bt_get_device(device_id);
     if (curr_device)
     {
         codec_type = curr_device->codec_type;
     }
+
     return codec_type;
+}
+
+uint8_t bt_export_get_a2dp_sample_rate(int device_id)
+{
+    uint8_t sample_rate = A2D_SBC_IE_SAMP_FREQ_44;
+    struct BT_DEVICE_T *curr_device = NULL;
+
+    curr_device = app_bt_get_device(device_id);
+    if (curr_device)
+    {
+        sample_rate = curr_device->sample_rate;
+    }
+
+    return sample_rate;
 }
 
 bool bt_export_ignore_ring_and_play_self(int device_id)
@@ -828,11 +777,10 @@ static const bes_aud_bt_t g_bes_aud_bt = {
     .aud_is_sco_prompt_play_mode = bes_bt_export_is_sco_prompt_play_mode,
 #endif
     .aud_get_a2dp_codec_type = bt_export_get_a2dp_codec_type,
+    .aud_get_a2dp_sample_rate = bt_export_get_a2dp_sample_rate,
     .aud_switch_sco = app_bt_Me_switch_sco,
     .aud_report_hfp_speak_gain = btapp_hfp_report_speak_gain,
-#if defined(BT_AVRCP_SUPPORT) || defined(BT_A2DP_SUPPORT)
     .aud_report_a2dp_speak_gain = btapp_a2dp_report_speak_gain,
-#endif
     .aud_hfp_mic_need_skip_frame = btapp_hfp_mic_need_skip_frame,
     .aud_hfp_need_mute = btapp_hfp_need_mute,
     .aud_hfp_set_local_vol = hfp_volume_local_set,
@@ -842,10 +790,8 @@ static const bes_aud_bt_t g_bes_aud_bt = {
 #if defined(A2DP_LHDC_ON) || defined(A2DP_LHDCV5_ON)
     .a2dp_lhdc_get_ext_flags = a2dp_lhdc_get_ext_flags,
     .a2dp_lhdc_config_llc_get = a2dp_lhdc_config_llc_get,
+    .a2dp_lhdc_get_non_type_by_device_id = a2dp_lhdc_get_non_type_by_device_id,
 #endif
-#if defined(BT_A2DP_SUPPORT)
-    .a2dp_get_non_type_by_device_id = a2dp_get_non_type_by_device_id,
-#endif // BT_A2DP_SUPPORT
 };
 
 const bes_aud_bt_t * const bes_aud_bt= &g_bes_aud_bt;
@@ -934,7 +880,7 @@ static uint32_t bt_export_a2dp_get_field(int device_id, BT_A2DP_FIELD_ENUM_T fie
     return 0;
 }
 
-uint32_t bta_a2dp_get_field(int device_id, BT_A2DP_FIELD_ENUM_T field)
+uint32_t bes_bt_a2dp_get_field(int device_id, BT_A2DP_FIELD_ENUM_T field)
 {
     return bt_export_a2dp_get_field(device_id, field);
 }
@@ -988,98 +934,6 @@ const uint8_t *bes_bt_a2dp_get_codec_element(int device_id)
     return bt_export_a2dp_get_codec_element(device_id);
 }
 
-uint8_t bta_get_a2dp_codec_type_by_id(int device_id)
-{
-    return bes_aud_bt->aud_get_a2dp_codec_type(device_id);
-}
-
-uint8_t bta_get_curr_a2dp_codec_type(void)
-{
-    uint8_t device_id = bes_aud_bt->aud_get_curr_a2dp_device();
-    return bes_aud_bt->aud_get_a2dp_codec_type(device_id);
-}
-
-uint8_t bta_get_a2dp_vender_codec_type_by_id(int device_id)
-{
-    return bes_aud_bt->a2dp_get_non_type_by_device_id(device_id);
-}
-
-uint8_t bta_get_curr_a2dp_vender_codec_type(void)
-{
-    uint8_t device_id = bes_aud_bt->aud_get_curr_a2dp_device();
-    return bes_aud_bt->a2dp_get_non_type_by_device_id(device_id);
-}
-
-uint32_t bta_get_a2dp_sample_rate_by_id(int device_id)
-{
-    uint32_t sample_rate = A2D_SBC_IE_SAMP_FREQ_44;
-    struct BT_DEVICE_T *curr_device = NULL;
-
-    curr_device = app_bt_get_device(device_id);
-    if (curr_device)
-    {
-        sample_rate = curr_device->sample_rate;
-    }
-
-    return sample_rate;
-}
-
-int bta_sample_rate_convert_to_sample_count(uint32_t sr)
-{
-    int sc = 0;
-    switch (sr)
-    {
-        case A2D_SBC_IE_SAMP_FREQ_16:
-            sc = 16000;
-            break;
-        case A2D_SBC_IE_SAMP_FREQ_32:
-            sc = 32000;
-            break;
-        case A2D_SBC_IE_SAMP_FREQ_44:
-            sc = 44100;
-            break;
-        case A2D_SBC_IE_SAMP_FREQ_48:
-            sc = 48000;
-            break;
-        case A2D_SBC_IE_SAMP_FREQ_88D2:
-            sc = 88200;
-            break;
-        case A2D_SBC_IE_SAMP_FREQ_96:
-            sc = 96000;
-            break;
-        default:
-            DEBUG_VERBOSE(0, "sample rate error");
-    }
-
-    return sc;
-}
-
-uint32_t bta_get_curr_a2dp_sample_rate(void)
-{
-    uint8_t device_id = bes_aud_bt->aud_get_curr_a2dp_device();
-    return bta_get_a2dp_sample_rate_by_id(device_id);
-}
-
-uint8_t bta_get_a2dp_channel_mode_by_id(int device_id)
-{
-    uint32_t channel_mode = 1;
-    struct BT_DEVICE_T *curr_device = NULL;
-
-    curr_device = app_bt_get_device(device_id);
-    if (curr_device)
-    {
-        channel_mode = curr_device->channel_mode;
-    }
-
-    return channel_mode;
-}
-
-uint8_t bta_get_curr_a2dp_channel_mode(void)
-{
-    uint8_t device_id = bes_aud_bt->aud_get_curr_a2dp_device();
-    return bta_get_a2dp_channel_mode_by_id(device_id);
-}
-
 void bes_bt_a2dp_accept_stream_request_command(bt_bdaddr_t* remote, uint8_t transaction, uint8_t signal_id)
 {
 #ifdef BT_A2DP_SUPPORT
@@ -1115,9 +969,9 @@ static bt_a2dp_state_t bt_export_a2dp_get_state(int device_id)
     return a2dp_state;
 }
 
-bt_status_t bes_bt_a2dp_profile_connect(const bt_bdaddr_t *remote, enum A2DP_ROLE role_expected)
+bt_status_t bes_bt_a2dp_profile_connect(const bt_bdaddr_t *remote)
 {
-    return bt_export_a2dp_profile_connect(remote, role_expected);
+    return bt_export_a2dp_profile_connect(remote);
 }
 
 bt_status_t bes_bt_a2dp_profile_disconnect(const bt_bdaddr_t *remote)
@@ -1159,6 +1013,18 @@ void bes_bt_audio_trigger_a2dp(void)
 bool bes_bt_a2dp_lhdc_get_ext_flags(uint32_t flags)
 {
     return a2dp_lhdc_get_ext_flags(flags);
+}
+#endif
+
+#if defined(A2DP_LDAC_ON)
+int bes_bt_a2dp_ldac_get_channelmode(void)
+{
+    return bt_ldac_player_get_channelmode();
+}
+
+int bes_bt_a2dp_ldac_get_sample_rate(void)
+{
+    return bt_get_ladc_sample_rate();
 }
 #endif
 
@@ -1206,9 +1072,9 @@ bt_status_t bt_a2dp_cleanup(void)
     return BT_STS_SUCCESS;
 }
 
-bt_status_t bt_a2dp_connect(const bt_bdaddr_t *bd_addr, enum A2DP_ROLE role_expected)
+bt_status_t bt_a2dp_connect(const bt_bdaddr_t *bd_addr)
 {
-    return bt_export_a2dp_profile_connect(bd_addr, role_expected);
+    return bt_export_a2dp_profile_connect(bd_addr);
 }
 
 bt_status_t bt_a2dp_disconnect(const bt_bdaddr_t *bd_addr)
@@ -1216,31 +1082,9 @@ bt_status_t bt_a2dp_disconnect(const bt_bdaddr_t *bd_addr)
     return bt_export_a2dp_profile_disconnect(bd_addr);
 }
 
-bt_status_t bt_a2dp_accept_custom_cmd(const bt_bdaddr_t *bd_addr, const bt_a2dp_custom_cmd_req_param_t *cmd, bool accept)
-{
-    bt_a2dp_signal_msg_header_t header;
-    header.message_type = accept ? 2 : 3; // accept or reject
-    header.packet_type = 0; // single packet
-    header.transaction = cmd->trans_lable;
-    header.signal_id = cmd->cmd_id;
-    header.reserve = 0;
-    return btif_a2dp_send_signal_message(bd_addr, &header, NULL, 0);
-}
-
-bt_status_t bt_a2dp_send_custom_cmd(const bt_bdaddr_t *bd_addr, uint8_t custom_cmd_id, const uint8_t *data, uint16_t len)
-{
-    bt_a2dp_signal_msg_header_t header;
-    header.message_type = 0; // command
-    header.packet_type = 0; // single packet
-    header.transaction = 0;
-    header.signal_id = custom_cmd_id;
-    header.reserve = 0;
-    return btif_a2dp_send_signal_message(bd_addr, &header, data, len);
-}
-
 #if defined(BT_SOURCE)
 
-bt_status_t bt_a2dp_src_init(bt_a2dp_source_callback_t callback)
+bt_status_t bt_a2dp_source_init(bt_a2dp_source_callback_t callback)
 {
     if (callback)
     {
@@ -1249,23 +1093,23 @@ bt_status_t bt_a2dp_src_init(bt_a2dp_source_callback_t callback)
     return BT_STS_SUCCESS;
 }
 
-bt_status_t bt_a2dp_src_cleanup(void)
+bt_status_t bt_a2dp_source_cleanup(void)
 {
     return BT_STS_SUCCESS;
 }
 
-bt_status_t bt_a2dp_src_connect(const bt_bdaddr_t *bd_addr)
+bt_status_t bt_a2dp_source_connect(const bt_bdaddr_t *bd_addr)
 {
     bt_source_reconnect_a2dp_profile(bd_addr);
     return BT_STS_SUCCESS;
 }
 
-bt_status_t bt_a2dp_src_disconnect(const bt_bdaddr_t *bd_addr)
+bt_status_t bt_a2dp_source_disconnect(const bt_bdaddr_t *bd_addr)
 {
     return bt_export_a2dp_profile_disconnect(bd_addr);
 }
 
-bt_status_t bt_a2dp_src_start_stream(const bt_bdaddr_t *bd_addr)
+bt_status_t bt_a2dp_source_start_stream(const bt_bdaddr_t *bd_addr)
 {
     struct BT_DEVICE_T *curr_device = app_bt_get_connected_device_byaddr(bd_addr);
     if (!curr_device)
@@ -1276,7 +1120,7 @@ bt_status_t bt_a2dp_src_start_stream(const bt_bdaddr_t *bd_addr)
     return BT_STS_SUCCESS;
 }
 
-bt_status_t bt_a2dp_src_suspend_stream(const bt_bdaddr_t *bd_addr)
+bt_status_t bt_a2dp_source_suspend_stream(const bt_bdaddr_t *bd_addr)
 {
     struct BT_DEVICE_T *curr_device = app_bt_get_connected_device_byaddr(bd_addr);
     if (!curr_device)
@@ -1355,45 +1199,6 @@ bt_status_t bes_bt_avrcp_send_pause_cmd(const bt_bdaddr_t *remote)
     return bt_export_avrcp_send_pause_cmd(remote);
 }
 
-bt_status_t bes_bt_avrcp_send_volume_up_cmd(const bt_bdaddr_t *remote)
-{
-    return bt_export_avrcp_send_volume_up_cmd(remote);
-}
-
-bt_status_t bes_bt_avrcp_send_volume_down_cmd(const bt_bdaddr_t *remote)
-{
-    return bt_export_avrcp_send_volume_down_cmd(remote);
-}
-
-bt_status_t bes_bt_avrcp_send_forward_cmd(const bt_bdaddr_t *remote)
-{
-    return bt_export_avrcp_send_forward_cmd(remote);
-}
-
-bt_status_t bes_bt_avrcp_send_backward_cmd(const bt_bdaddr_t *remote)
-{
-    return bt_export_avrcp_send_backward_cmd(remote);
-}
-
-bt_status_t bes_bt_avrcp_send_fast_forward_press_cmd(const bt_bdaddr_t *remote)
-{
-    return bt_export_avrcp_send_fast_forward_press_cmd(remote);
-}
-
-bt_status_t bes_bt_avrcp_send_fast_forward_release_cmd(const bt_bdaddr_t *remote)
-{
-    return bt_export_avrcp_send_fast_forward_release_cmd(remote);
-}
-
-bt_status_t bes_bt_avrcp_send_rewind_press_cmd(const bt_bdaddr_t *remote)
-{
-    return bt_export_avrcp_send_rewind_press_cmd(remote);
-}
-
-bt_status_t bes_bt_avrcp_send_rewind_release_cmd(const bt_bdaddr_t *remote)
-{
-    return bt_export_avrcp_send_rewind_release_cmd(remote);
-}
 bt_status_t bes_bt_avrcp_key_operation(const bt_bdaddr_t *remote, bes_avrcp_panel_operation_t key, bool is_press)
 {
     btif_avrcp_channel_t *channel = btif_get_avrcp_channel_by_addr((uint8_t *)remote->address);
@@ -1423,89 +1228,16 @@ bt_status_t bes_bt_avrcp_ct_get_capabilities(const bt_bdaddr_t *remote, bes_bt_a
     return btif_avrcp_ct_get_capabilities(channel, (btif_avrcp_capabilityId)capabilityId);
 }
 
-bt_status_t bta_avrcp_send_get_media_status(const bt_bdaddr_t *bd_addr, uint32_t attr_masks)
+bt_status_t bes_bt_avrcp_ct_get_media_Info(const bt_bdaddr_t *remote, bes_bt_avrcp_attr_masks_t mediaMask)
 {
-    struct BT_DEVICE_T *curr_device = app_bt_get_connected_device_byaddr(bd_addr);
-    if (!curr_device)
+    btif_avrcp_channel_t *channel = btif_get_avrcp_channel_by_addr((uint8_t *)remote->address);
+
+    if (!channel)
     {
         return BT_STS_FAILED;
     }
-    return btif_avrcp_ct_get_media_Info(curr_device->avrcp_channel, attr_masks == 0 ? 0xff : attr_masks);
-}
 
-bt_status_t bta_avrcp_set_addressed_player(const bt_bdaddr_t *remote, uint16_t player_id)
-{
-    return btif_avrcp_ct_set_addressed_player(remote, player_id);
-}
-
-bt_status_t bta_avrcp_set_browsed_player(const bt_bdaddr_t *remote, uint16_t player_id)
-{
-    return btif_avrcp_ct_set_browsed_player(remote, player_id);
-}
-
-bt_status_t bta_avrcp_ct_get_folder_items(const bt_bdaddr_t *remote, void *param)
-{
-    return btif_avrcp_ct_get_folder_items(remote, (bt_avrcp_get_folder_items_t *)param);
-}
-
-bt_status_t bta_avrcp_ct_send_change_patch(const bt_bdaddr_t *remote, void *param)
-{
-    return btif_avrcp_ct_send_change_patch(remote, (bt_avrcp_change_patch_t *)param);
-}
-
-bt_status_t bta_avrcp_ct_send_get_item_attributes(const bt_bdaddr_t *remote, void *param)
-{
-    return btif_avrcp_ct_send_get_item_attributes(remote, (bt_avrcp_get_item_att_t *)param);
-}
-
-bt_status_t bta_avrcp_ct_send_search(const bt_bdaddr_t *remote, const char * string, uint16_t string_len)
-{
-    return btif_avrcp_ct_send_search(remote, string, string_len);
-}
-
-bt_status_t bta_avrcp_ct_get_total_number_of_items(const bt_bdaddr_t *remote, uint8_t scope)
-{
-    return btif_avrcp_ct_get_total_number_of_items(remote, scope);
-}
-
-bt_status_t bta_avrcp_set_obex_srm_mode(const bt_bdaddr_t *remote, bool srm_mode_enable)
-{
-    return btif_avrcp_set_obex_srm_mode(remote, srm_mode_enable);
-}
-
-void bta_avrcp_connect_browsing_channel(const bt_bdaddr_t *remote)
-{
-    return btif_avrcp_connect_browsing_channel(remote);
-}
-
-void bta_avrcp_connect_obex_channel(const bt_bdaddr_t *remote)
-{
-    return btif_avrcp_connect_obex_channel(remote);
-}
-
-bool bta_avrcp_browsing_channel_is_connected(const bt_bdaddr_t *remote)
-{
-    return btif_avrcp_browsing_channel_is_connected(remote);
-}
-
-bool bta_avrcp_obex_channel_is_connected(const bt_bdaddr_t *remote)
-{
-    return btif_avrcp_obex_channel_is_connected(remote);
-}
-
-bt_status_t bta_avrcp_send_cover_art_get_image_properties(const bt_bdaddr_t *remote, const char *image_handle)
-{
-    return btif_avrcp_get_image_properties(remote, image_handle);
-}
-
-bt_status_t bta_avrcp_send_cover_art_get_image(const bt_bdaddr_t *remote, const char *image_handle, const char *descriptor, uint16_t descriptor_len)
-{
-    return btif_avrcp_send_obex_get_image_by_art_handle(remote, image_handle, descriptor, descriptor_len);
-}
-
-bt_status_t bta_avrcp_send_cover_art_get_linked_thumbnail(const bt_bdaddr_t *remote, const char *image_handle)
-{
-    return btif_avrcp_send_obex_get_link_thumbnail_by_art_handle(remote, image_handle);
+    return btif_avrcp_ct_get_media_Info(channel, mediaMask);
 }
 
 bt_status_t bes_bt_avrcp_ct_register_play_pos_notification(const bt_bdaddr_t *remote, uint32_t interval)
@@ -1672,6 +1404,16 @@ bt_status_t bt_avrcp_send_get_play_status(const bt_bdaddr_t *bd_addr)
     return btif_avrcp_ct_get_play_status(curr_device->avrcp_channel);
 }
 
+bt_status_t bt_avrcp_send_get_media_status(const bt_bdaddr_t *bd_addr, uint32_t attr_masks)
+{
+    struct BT_DEVICE_T *curr_device = app_bt_get_connected_device_byaddr(bd_addr);
+    if (!curr_device)
+    {
+        return BT_STS_FAILED;
+    }
+    return btif_avrcp_ct_get_media_Info(curr_device->avrcp_channel, attr_masks == 0 ? 0x7f : attr_masks);
+}
+
 bt_status_t bt_avrcp_send_set_abs_volume(const bt_bdaddr_t *bd_addr, uint8_t volume)
 {
     struct BT_DEVICE_T *curr_device = app_bt_get_connected_device_byaddr(bd_addr);
@@ -1701,7 +1443,7 @@ bt_status_t bt_avrcp_send_volume_notify_rsp(const bt_bdaddr_t *bd_addr, uint8_t 
     }
     if (curr_device->volume_report == BTIF_AVCTP_RESPONSE_INTERIM)
     {
-        bt_status_t status = btif_avrcp_tg_send_volume_change_actual_rsp(curr_device->avrcp_channel, volume);
+        bt_status_t status = btif_avrcp_ct_send_volume_change_actual_rsp(curr_device->avrcp_channel, volume);
         if (BT_STS_FAILED != status)
         {
             curr_device->volume_report = BTIF_AVCTP_RESPONSE_CHANGED;
@@ -1736,7 +1478,7 @@ bt_status_t bt_avrcp_report_status_change(const bt_bdaddr_t *bd_addr, bt_avrcp_s
         }
         return BT_STS_FAILED;
     }
-    DEBUG_VERBOSE(0, "bt_avrcp_send_notify_rsp: unsupported event %d", event_id);
+    TRACE(0, "bt_avrcp_send_notify_rsp: unsupported event %d", event_id);
     return BT_STS_FAILED;
 }
 
@@ -1751,25 +1493,6 @@ bt_status_t bes_bt_avrcp_send_volume_notify_rsp(const bt_bdaddr_t *bd_addr, uint
  * HFP
  *
  */
-
-
-int bta_hfp_battery_report(uint8_t level)
-{
-#ifdef BT_HFP_SUPPORT
-    return app_hfp_battery_report(level);
-#else
-    return -1;
-#endif
-}
-
-int bta_hfp_enable_siri_voice(bool en)
-{
-#if defined(BT_HFP_SUPPORT) && defined(SUPPORT_SIRI)
-    return app_hfp_siri_voice(en);
-#else
-    return -1;
-#endif
-}
 
 #if !defined(BT_HFP_SUPPORT)
 
@@ -1794,11 +1517,6 @@ uint8_t bes_bt_hfp_has_call_setup(void)
 }
 
 bool bes_bt_hfp_curr_voice_rec_active(void)
-{
-    return false;
-}
-
-bool bes_bt_hfp_is_connecting(const bt_bdaddr_t *remote)
 {
     return false;
 }
@@ -1992,6 +1710,18 @@ void bes_bt_hfp_set_battery_level(uint8_t level)
 {
     app_hfp_set_battery_level(level);
 }
+
+int bes_bt_hfp_battery_report(uint8_t level)
+{
+    return app_hfp_battery_report(level);
+}
+
+#ifdef SUPPORT_SIRI
+int bes_bt_hfp_enable_siri_voice(bool en)
+{
+    return app_hfp_siri_voice(en);
+}
+#endif
 
 void bes_bt_hfp_send_call_hold_request(uint8_t device_id, btif_hf_hold_call_t action)
 {
@@ -2206,34 +1936,6 @@ bt_status_t bt_hf_send_at_cmd(const bt_bdaddr_t *bd_addr, const char *at_cmd_str
     }
     return status;
 }
-
-bt_hfp_state_t bt_hf_get_state(int device_id)
-{
-    struct BT_DEVICE_T *curr_device = app_bt_get_device(device_id);
-    bt_hfp_state_t hfp_state = {{{0}}, 0};
-    if (curr_device)
-    {
-        struct hshf_control *hf_ctl = _hshf_get_control_from_id(device_id);
-        hfp_state.remote = curr_device->remote;
-        hfp_state.hfp_is_connected = curr_device->hf_conn_flag;
-        hfp_state.sco_is_connected = curr_device->hf_audio_state;
-        hfp_state.hfp_nego_codec = hf_ctl->negotiated_codec;
-        hfp_state.call_is_active = curr_device->hfchan_call;
-        hfp_state.hfp_chan_state = btif_get_hf_chan_state(curr_device->hf_channel);
-        hfp_state.callsetup_state = curr_device->hfchan_callSetup;
-        hfp_state.callheld_state = curr_device->hf_callheld;
-        hfp_state.service_status = btif_hf_get_cind_service_value(curr_device->hf_channel).value;
-        hfp_state.signal_status = btif_hf_get_cind_signal_value(curr_device->hf_channel).value;
-        hfp_state.roam_status = btif_hf_get_cind_roam_value(curr_device->hf_channel).value;
-        hfp_state.battery_status = btif_hf_get_cind_battchg_value(curr_device->hf_channel).value;
-        hfp_state.spk_volume = hf_ctl->speak_volume;
-        hfp_state.mic_volume = hf_ctl->mic_gain;
-        hfp_state.in_band_ring_enable = hf_ctl->bsir_enable;
-        hfp_state.voice_rec_state = hf_ctl->voice_rec;
-    }
-    return hfp_state;
-}
-
 #if defined(BT_HFP_AG_ROLE)
 
 bt_status_t bt_ag_init(bt_ag_callback_t callback)
@@ -2513,7 +2215,7 @@ bt_status_t bt_ag_send_response_code(const bt_bdaddr_t *bd_addr, bt_hf_at_respon
         case BT_HF_AT_RESPONSE_ERROR_NO_ANSWER: at_result = "\r\nNO ANSWER\r\n"; break;
         case BT_HF_AT_RESPONSE_ERROR_DELAYED: at_result = "\r\nDELAYED\r\n"; break;
         case BT_HF_AT_RESPONSE_ERROR_BLACKLISTED: at_result = "\r\nBLACKLISTED\r\n"; break;
-        default: DEBUG_VERBOSE(0, "bt_ag_send_response_code: invalid code %d", code); break;
+        default: TRACE(0, "bt_ag_send_response_code: invalid code %d", code); break;
     }
     if (at_result == NULL)
     {
@@ -2581,7 +2283,7 @@ void bes_bt_dip_app_sync_init(void)
 
 void bes_bt_dip_query_remote_info(uint8_t device_id)
 {
-    app_dip_query_remote_info(device_id);
+    app_dip_get_remote_info(device_id);
 }
 
 bt_dip_pnp_info_t* bes_bt_dip_get_device_info(bt_bdaddr_t *remote)
@@ -2591,110 +2293,25 @@ bt_dip_pnp_info_t* bes_bt_dip_get_device_info(bt_bdaddr_t *remote)
 
 bool bes_bt_dip_check_is_ios_device(uint16_t vend_id, uint16_t vend_id_source)
 {
-    return btif_dip_check_is_ios_by_vend_id(vend_id_source, vend_id);
+    return btif_dip_check_is_ios_by_vend_id(vend_id, vend_id_source);
+}
+
+void bes_bt_dip_set_device_info_queried(const bt_bdaddr_t *remote, bool queried)
+{
+    btif_me_set_remote_dip_queried(remote, queried);
 }
 
 /**
  * HID
  *
  */
-#if defined(BT_HID_HOST) || defined(BT_HID_DEVICE)
-bt_status_t bt_hid_init(bt_hid_callback_t callback)
+
+void bes_bt_hid_send_consumer_ctrl_request(uint8_t ctrl_key)
 {
-    if (callback)
-    {
-        bt_add_event_callback((bt_event_callback_t)callback, BT_EVENT_MASK_HID_GROUP);
-    }
-
-    return BT_STS_SUCCESS;
+#ifdef BT_HID_DEVICE
+    bt_defer_call_func_1(bes_bt_hid_send_consumer_ctrl_request, bt_fixed_param(ctrl_key));
+#endif
 }
-
-bt_status_t bt_hid_cleanup(void)
-{
-    return BT_STS_SUCCESS;
-}
-#endif // BT_HID_HOST || BT_HID_DEVICE
-
-#if defined(BT_HID_HOST)
-bt_status_t bt_hid_host_connect(const bt_bdaddr_t *bd_addr)
-{
-    return bt_export_hid_host_connect(bd_addr);
-}
-
-bt_status_t bt_hid_host_disconnect(const bt_bdaddr_t *bd_addr)
-{
-    return bt_export_hid_host_disconnect(bd_addr);
-}
-
-bt_status_t bt_hid_host_send_virtual_cable_unplug(const bt_bdaddr_t *bd_addr)
-{
-    return bt_export_hid_host_send_virtual_cable_unplug(bd_addr);
-}
-#endif //BT_HID_HOST
-
-#if defined(BT_HID_DEVICE)
-bt_status_t bt_hid_device_connect(const bt_bdaddr_t *bd_addr)
-{
-    return bt_export_hid_device_profile_connect(bd_addr);
-}
-
-bt_status_t bt_hid_device_disconnect(const bt_bdaddr_t *bd_addr)
-{
-    return bt_export_hid_device_profile_disconnect(bd_addr);
-}
-
-bt_status_t bt_hid_device_send_sensor_report(const bt_bdaddr_t *bd_addr, const struct bt_hid_sensor_report_t *report)
-{
-    return bt_export_hid_device_send_sensor_report(bd_addr, report);
-}
-
-bt_status_t bt_hid_device_send_keyboard_report(const bt_bdaddr_t *bd_addr, uint8_t modifier_key, uint8_t key_code)
-{
-    return bt_export_hid_device_send_keyboard_report(bd_addr, modifier_key, key_code);
-}
-
-bt_status_t bt_hid_device_send_mouse_report(const bt_bdaddr_t *bd_addr, int8_t x_pos, int8_t y_pos, uint8_t clk_buttons)
-{
-    return bt_export_hid_device_send_mouse_report(bd_addr, x_pos, y_pos, clk_buttons);
-}
-
-bt_status_t bt_hid_device_send_mouse_control_report(const bt_bdaddr_t *bd_addr, uint8_t ctl_buttons)
-{
-    return bt_export_hid_device_send_mouse_ctrl_report(bd_addr, ctl_buttons);
-}
-
-bt_status_t bt_hid_device_send_capture(const bt_bdaddr_t *bd_addr)
-{
-    return bt_export_hid_device_capture(bd_addr);
-}
-
-bt_status_t bt_hid_device_send_virtual_cable_unplug(const bt_bdaddr_t *bd_addr)
-{
-    return bt_export_hid_device_send_virtual_cable_unplug(bd_addr);
-}
-
-void bes_hid_device_send_consumer_ctrl_request(uint8_t ctrl_key)
-{
-    bt_defer_call_func_1(app_hid_device_send_consumer_ctrl_key, bt_fixed_param(ctrl_key));
-}
-#endif // BT_HID_DEVICE
-
-#if defined(BT_DIP_SUPPORT)
-bt_status_t bt_dip_init(bt_hid_callback_t callback)
-{
-    if (callback)
-    {
-        bt_add_event_callback((bt_event_callback_t)callback, BT_EVENT_MASK_DIP_GROUP);
-    }
-
-    return BT_STS_SUCCESS;
-}
-
-bt_status_t bt_dip_cleanup(void)
-{
-    return BT_STS_SUCCESS;
-}
-#endif // BT_DIP_SUPPORT
 
 /**
  * IBRT
@@ -2702,6 +2319,19 @@ bt_status_t bt_dip_cleanup(void)
  */
 
 #ifdef IBRT
+
+void bt_export_ibrt_set_rfcomm_ignore_tx(bool ignore)
+{
+    if (ignore)
+    {
+        btif_me_set_rfcomm_credit_ignore_tx_flag();
+    }
+    else
+    {
+        btif_me_clear_rfcomm_credit_ignore_tx_flag();
+    }
+}
+
 static bt_ibrt_state_t bt_export_ibrt_get_state(int device_id)
 {
     bt_ibrt_state_t ibrt_state = {0};
@@ -2813,7 +2443,7 @@ static uint32_t bt_export_ibrt_save_profile(BT_PROFILE_SYNC_ENUM_T op, bt_bdaddr
             break;
 #endif
         default:
-            DEBUG_VERBOSE(0, "bt_export_ibrt_save_profile: invalid op %d", op);
+            TRACE(0, "bt_export_ibrt_save_profile: invalid op %d", op);
             break;
     }
 
@@ -2834,7 +2464,7 @@ static uint32_t bt_export_ibrt_save_spp_profile(BT_PROFILE_SYNC_ENUM_T op, uint6
     }
     else
     {
-        DEBUG_VERBOSE(0, "bt_export_ibrt_restore_spp_profile: invalid op %d", op);
+        TRACE(0, "bt_export_ibrt_restore_spp_profile: invalid op %d", op);
     }
 
     return len;
@@ -2889,7 +2519,7 @@ static uint32_t bt_export_ibrt_restore_profile(BT_PROFILE_SYNC_ENUM_T op, bt_bda
             break;
 #endif
         default:
-            DEBUG_VERBOSE(0, "bt_export_ibrt_restore_profile: invalid op %d", op);
+            TRACE(0, "bt_export_ibrt_restore_profile: invalid op %d", op);
             break;
     }
 
@@ -2910,7 +2540,7 @@ static uint32_t bt_export_ibrt_restore_spp_profile(BT_PROFILE_SYNC_ENUM_T op, bt
     }
     else
     {
-        DEBUG_VERBOSE(0, "bt_export_ibrt_restore_spp_profile: invalid op %d", op);
+        TRACE(0, "bt_export_ibrt_restore_spp_profile: invalid op %d", op);
     }
 
     return len;
@@ -2969,6 +2599,11 @@ void bes_bt_tws_ibrt_set_field(int device_id, BT_IBRT_FIELD_ENUM_T field, uint32
 void bes_bt_tws_ibrt_reconnect_mobile_profile(const bt_bdaddr_t *remote)
 {
     app_bt_ibrt_reconnect_mobile_profile(remote);
+}
+
+void bes_bt_tws_ibrt_set_rfcomm_ignore_tx(bool ignore)
+{
+    bt_export_ibrt_set_rfcomm_ignore_tx(ignore);
 }
 
 void bes_bt_tws_ibrt_set_remote_tws_device(const bt_bdaddr_t *remote, bool tws_link)
@@ -3071,9 +2706,9 @@ void bes_bt_tws_ibrt_clean_slave_state(const bt_bdaddr_t* remote)
     btif_ibrt_stack_clean_slave_status(remote);
 }
 
-void bes_bt_tws_ibrt_response_acl_conn_req(bt_bdaddr_t *remote, bool accept)
+void bes_bt_tws_ibrt_peripheral_auto_test_stop(void)
 {
-    btif_me_response_acl_conn_req(remote, accept, BTIF_BEC_LIMITED_RESOURCE);
+    app_ibrt_peripheral_auto_test_stop();
 }
 
 #ifdef BT_A2DP_SUPPORT
@@ -3123,7 +2758,7 @@ void bes_bt_tws_ibrt_mock_avrcp_callback(uint8_t device_id, const bt_bdaddr_t *r
     bt_export_ibrt_mock_avrcp_callback(device_id, remote, parms);
 }
 
-uint32_t bta_tws_a2dp_get_ibrt_session(uint8_t device_id)
+uint32_t bes_bt_tws_a2dp_get_ibrt_session(uint8_t device_id)
 {
 #ifdef BT_A2DP_SUPPORT
     return a2dp_ibrt_session_get(device_id);
@@ -3132,7 +2767,7 @@ uint32_t bta_tws_a2dp_get_ibrt_session(uint8_t device_id)
 #endif
 }
 
-int bta_tws_a2dp_set_ibrt_session(uint8_t session, uint8_t device_id)
+int bes_bt_tws_a2dp_set_ibrt_session(uint8_t session, uint8_t device_id)
 {
 #ifdef BT_A2DP_SUPPORT
     return a2dp_ibrt_session_set(session, device_id);
@@ -3141,7 +2776,7 @@ int bta_tws_a2dp_set_ibrt_session(uint8_t session, uint8_t device_id)
 #endif
 }
 
-int bta_tws_ibrt_a2dp_sync_get_status(uint8_t device_id, ibrt_a2dp_status_t *a2dp_status)
+int bes_bt_tws_ibrt_a2dp_sync_get_status(uint8_t device_id, ibrt_a2dp_status_t *a2dp_status)
 {
 #ifdef BT_A2DP_SUPPORT
     return a2dp_ibrt_sync_get_status(device_id, a2dp_status);
@@ -3150,7 +2785,7 @@ int bta_tws_ibrt_a2dp_sync_get_status(uint8_t device_id, ibrt_a2dp_status_t *a2d
 #endif
 }
 
-int bta_tws_ibrt_a2dp_sync_set_status(uint8_t device_id, ibrt_a2dp_status_t *a2dp_status)
+int bes_bt_tws_ibrt_a2dp_sync_set_status(uint8_t device_id, ibrt_a2dp_status_t *a2dp_status)
 {
 #ifdef BT_A2DP_SUPPORT
     return a2dp_ibrt_sync_set_status(device_id, a2dp_status);
@@ -3244,7 +2879,7 @@ bt_status_t bes_bt_tws_ibrt_force_disconnect_avrcp_profile(uint8_t device_id,uin
 #if defined(__GATT_OVER_BR_EDR__)
 void bes_bt_tws_ibrt_force_disconnect_btgatt_profile(uint8_t device_id,uint8_t reason)
 {
-    app_btgatt_disconnect(device_id);
+    btif_btgatt_force_disconnect_btgatt_profile(device_id, reason);
 }
 #endif
 
@@ -3310,12 +2945,10 @@ bool bes_bt_tws_audio_switch_streaming_a2dp(void)
     return app_bt_audio_switch_streaming_a2dp();
 }
 
-#if defined(BT_HFP_SUPPORT)
 void bes_bt_tws_audio_switch_streaming_sco(void)
 {
     app_bt_audio_switch_streaming_sco();
 }
-#endif // BT_HFP_SUPPORT
 
 void bes_bt_tws_ibrt_report_audio_retrigger(uint8_t retrgigerType)
 {
@@ -3413,11 +3046,5 @@ void bes_bt_source_a2dp_stream_buffer_deinit()
     app_a2dp_source_audio_deinit();
 }
 
-#if defined(BT_HID_HOST)
-void bes_bt_source_reconnect_hid_profile(const bt_bdaddr_t *remote)
-{
-    bt_source_reconnect_hid_profile(remote);
-}
-#endif // BT_HID_HOST
-
 #endif /* BT_SOURCE */
+

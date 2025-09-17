@@ -16,6 +16,7 @@
 #ifdef CP_IN_SAME_EE
 
 #include "cp_accel.h"
+#ifndef CONFIG_SMP
 #include "cmsis.h"
 #include "cmsis_os.h"
 #include "hal_cmu.h"
@@ -25,36 +26,30 @@
 #include "hal_timer.h"
 #include "hal_trace.h"
 #include "mpu.h"
+#include "mpu_cfg.h"
 #include "stdarg.h"
 #include "system_cp.h"
 #include "hal_memsc.h"
 #include "string.h"
 #include "app_utils.h"
-#include "hal_overlay.h"
 
-#define CP_NO_FLASH_ACCESS
+#ifdef CP_ACCEL_DEBUG
+#define CP_ACCEL_TRACE(s, ...)              TRACE(s, ##__VA_ARGS__)
+#else
+#define CP_ACCEL_TRACE(s, ...)
+#endif
 
 #define CP_CRASH_START_TIMEOUT              MS_TO_TICKS(100)
 #define CP_TRACE_FLUSH_TIMEOUT              MS_TO_TICKS(200)
 #define CP_CRASH_DUMP_TIMEOUT               MS_TO_TICKS(500)
 #define CP_TRACE_BUF_FULL_INTVL             MS_TO_TICKS(50)
 
-#ifdef USE_TRACE_ID
-/* invalid trace type for trace id */
-#undef CP_CPU_USAGE_INTVL_MS
-#undef CP_CPU_USAGE_TRACE_INTVL_MS
-#define CP_CPU_USAGE_INTVL_MS               0
-#define CP_CPU_USAGE_TRACE_INTVL_MS         0
-
-#else
 #ifndef CP_CPU_USAGE_INTVL_MS
 #define CP_CPU_USAGE_INTVL_MS               10000
 #endif
 #ifndef CP_CPU_USAGE_TRACE_INTVL_MS
 #define CP_CPU_USAGE_TRACE_INTVL_MS         10000
 #endif
-#endif
-
 
 enum CP_SYS_EVENT_T {
     CP_SYS_EVENT_NONE = 0,
@@ -68,8 +63,6 @@ static bool ram_inited = false;
 static bool cp_accel_inited = false;
 static struct cp_task_env_tag cp_task_env;
 static CP_BSS_LOC volatile struct cp_env_tag cp_env;
-
-static CP_ACCEL_INIT_DONE_CB cp_accel_init_done_cb = NULL;
 
 static CP_BSS_LOC volatile enum CP_SYS_EVENT_T cp_sys_evt;
 static CP_BSS_LOC bool cp_in_crash;
@@ -90,7 +83,7 @@ static uint8_t sleep_ratio;
 
 static CP_TEXT_SRAM_LOC int send_sys_ctrl_cp2mcu(uint32_t event)
 {
-    return hal_mcu2cp_send_cp(HAL_MCU2CP_ID_1, (unsigned char *)event, 0);
+    return hal_mcu2cp_send_cp(HAL_RMT_IPC_CHAN_1, (unsigned char *)event, 0);
 }
 
 static CP_TEXT_SRAM_LOC void cp_trace_crash_notify(enum HAL_TRACE_STATE_T state)
@@ -140,22 +133,22 @@ static CP_TEXT_SRAM_LOC void cp_trace_buffer_ctrl(enum HAL_TRACE_BUF_STATE_T buf
     }
 }
 
-static SRAM_TEXT_LOC unsigned int cp2mcu_sys_arrived(const unsigned char *data, unsigned int len)
+static SRAM_TEXT_LOC unsigned int cp2mcu_sys_arrived(const void *data, unsigned int len)
 {
     uint32_t time;
     uint8_t task_id = 0;
 
     if (cp_sys_evt == CP_SYS_EVENT_TRACE_FLUSH) {
-        NORM_LOG_FLUSH();
+        TRACE_FLUSH();
         cp_sys_evt = CP_SYS_EVENT_NONE;
     } else if (cp_sys_evt == CP_SYS_EVENT_TRACE_BUF_FULL) {
-        DRIVERS_TRACE(0, " ");
+        TRACE(0, " ");
         cp_sys_evt = CP_SYS_EVENT_NONE;
     } else if (cp_sys_evt == CP_SYS_EVENT_CRASH_START) {
         cp_sys_evt = CP_SYS_EVENT_NONE;
 
-        DRIVERS_TRACE(0, " ");
-        DRIVERS_TRACE(0, "CP Crash starts ...");
+        TRACE(0, " ");
+        TRACE(0, "CP Crash starts ...");
         UNLOCK_CP_PROCESS(); //Forced release lock
 
         // Wait CP crash dump finishes in interrupt context
@@ -163,7 +156,7 @@ static SRAM_TEXT_LOC unsigned int cp2mcu_sys_arrived(const unsigned char *data, 
         while (cp_sys_evt != CP_SYS_EVENT_CRASH_END &&
                 hal_sys_timer_get() - time < CP_CRASH_DUMP_TIMEOUT) {
             if (cp_sys_evt == CP_SYS_EVENT_TRACE_FLUSH) {
-                NORM_LOG_FLUSH();
+                TRACE_FLUSH();
                 cp_sys_evt = CP_SYS_EVENT_NONE;
             }
         }
@@ -174,8 +167,8 @@ static SRAM_TEXT_LOC unsigned int cp2mcu_sys_arrived(const unsigned char *data, 
             }
         }
 
-        DRIVERS_TRACE(0, "CP Crash ends ...");
-        DRIVERS_TRACE(0, " ");
+        TRACE(0, "CP Crash ends ...");
+        TRACE(0, " ");
 #ifdef ASSERT_ON_CP_CRASH
         ASSERT(false, "Assert on CP crash");
 #endif
@@ -184,10 +177,10 @@ static SRAM_TEXT_LOC unsigned int cp2mcu_sys_arrived(const unsigned char *data, 
     return len;
 }
 
-static CP_TEXT_SRAM_LOC unsigned int mcu2cp_msg_arrived(const unsigned char *data, unsigned int len)
+static CP_TEXT_SRAM_LOC unsigned int mcu2cp_msg_arrived(const void *data, unsigned int len)
 {
-    uint8_t task_id = CP_TASK_ID_GET(*data);
-    uint8_t event_type = CP_EVENT_GET(*data);
+    uint8_t task_id = CP_TASK_ID_GET(*(uint8_t *)data);
+    uint8_t event_type = CP_EVENT_GET(*(uint8_t *)data);
 
     cp_env.cp_msg[task_id][event_type] = 1;
     cp_env.cp_msg_recv = true;
@@ -199,14 +192,14 @@ static CP_TEXT_SRAM_LOC unsigned int mcu2cp_msg_arrived(const unsigned char *dat
     return len;
 }
 
-static CP_TEXT_SRAM_LOC void mcu2cp_msg_sent(const unsigned char *data, unsigned int len)
+static CP_TEXT_SRAM_LOC void mcu2cp_msg_sent(const void *data, unsigned int len)
 {
-    // DRIVERS_TRACE(1, "mcu2cp_msg_sent,pending count = %d", cp_env.mcu2cp_tx_count);
+    // TRACE(1, "mcu2cp_msg_sent,pending count = %d", cp_env.mcu2cp_tx_count);
 
     if (cp_env.mcu2cp_tx_count > 1) {
         cp_env.mcu2cp_tx_count--;
         pending_event = cp_env.mcu2cp_tx_pending[0];
-        hal_mcu2cp_send_mcu(HAL_MCU2CP_ID_0, &pending_event, 1);
+        hal_mcu2cp_send_mcu(HAL_RMT_IPC_CHAN_0, &pending_event, 1);
 
         for (uint8_t index = 0;index < cp_env.mcu2cp_tx_count-1;index++) {
             cp_env.mcu2cp_tx_pending[index] = cp_env.mcu2cp_tx_pending[index+1];
@@ -214,58 +207,6 @@ static CP_TEXT_SRAM_LOC void mcu2cp_msg_sent(const unsigned char *data, unsigned
     } else {
         cp_env.mcu2cp_tx_count = 0;
     }
-}
-
-#if defined(__ARM_ARCH_8M_MAIN__)
-
-#if defined(ROMX_BASE) && (ROMX_BASE != ROM_BASE)
-#define CP_CODE_MAP_BASE                    ROMX_BASE
-#define CP_ROM_DATA_MAP_BASE                ROM_BASE
-#define CP_ROM_DATA_MAP_SIZE                ROM_TOTAL_SIZE
-#elif (ROM_BASE)
-#define CP_CODE_MAP_BASE                    ROM_BASE
-#else
-#define CP_CODE_MAP_BASE                    (0x800)
-#endif
-#define CP_CODE_MAP_SIZE                    (RAMX_BASE + RAM_TOTAL_SIZE - CP_CODE_MAP_BASE)
-
-static CP_DATA_LOC const  mpu_regions_t mpu_table_cp[] = {
-    {CP_CODE_MAP_BASE,      CP_CODE_MAP_SIZE,       MPU_ATTR_READ_EXEC,          MEM_ATTR_INT_SRAM},
-#ifdef CP_ROM_DATA_MAP_BASE
-    // ROM data is located at a different address range from ROM code
-    {CP_ROM_DATA_MAP_BASE,  CP_ROM_DATA_MAP_SIZE,   MPU_ATTR_READ,          MEM_ATTR_INT_SRAM},
-#endif
-    {RAM_BASE,              RAM_TOTAL_SIZE,         MPU_ATTR_READ_WRITE,    MEM_ATTR_INT_SRAM},
-#if ((RAMCP_BASE < RAM_BASE) || (RAMCP_BASE >= RAM_BASE + RAM_TOTAL_SIZE))
-    {RAMCP_BASE,            RAMCP_SIZE,             MPU_ATTR_READ_WRITE,    MEM_ATTR_INT_SRAM},
-#endif
-#ifdef MEM_POOL_BASE
-#if (((MEM_POOL_BASE + MEM_POOL_SIZE - 1) < RAM_BASE) || (MEM_POOL_BASE > (RAM_BASE + RAM_TOTAL_SIZE - 1)))
-    {MEM_POOL_BASE,         MEM_POOL_SIZE,          MPU_ATTR_READ_WRITE,    MEM_ATTR_INT_SRAM},
-#if ((MEM_POOL_BASE >= RAM_BASE) && (MEM_POOL_BASE <= RAM_BASE + RAM_TOTAL_SIZE))
-    #error MEM_POOL IS A SUBSET OF RAM, MEMFault will occur!!!
-#endif
-#endif
-#endif
-#if defined(LIBC_ROM) && (defined(CHIP_BEST1306P) || defined(CHIP_BEST1502P) || defined(CHIP_BEST1503))
-    {0x04020000,            0x10000,                MPU_ATTR_READ_EXEC,     MEM_ATTR_INT_SRAM},
-    {0x26000000,            0x10000,                MPU_ATTR_READ,          MEM_ATTR_INT_SRAM},
-#endif
-    {CMU_BASE,              0x01000000,             MPU_ATTR_READ_WRITE,    MEM_ATTR_DEVICE},
-};
-
-#else
-static CP_DATA_LOC const  mpu_regions_t mpu_table_cp[] = {
-    {0,                 0x800,      MPU_ATTR_NO_ACCESS},
-    {FLASHX_BASE,       0x4000000,  MPU_ATTR_NO_ACCESS},
-    {FLASH_BASE,        0x4000000,  MPU_ATTR_NO_ACCESS},
-    {FLASH_NC_BASE,     0x4000000,  MPU_ATTR_NO_ACCESS},
-};
-#endif
-
-void cp_accel_register_init_done_callback(CP_ACCEL_INIT_DONE_CB callback)
-{
-    cp_accel_init_done_cb = callback;
 }
 
 static CP_TEXT_SRAM_LOC NOINLINE void accel_loop(void)
@@ -279,11 +220,7 @@ static CP_TEXT_SRAM_LOC NOINLINE void accel_loop(void)
     uint32_t interval;
 #endif
 
-    mpu_setup_cp(mpu_table_cp, ARRAY_SIZE(mpu_table_cp));
-
-    //if (cp_accel_init_done_cb != NULL) {
-    //    cp_accel_init_done_cb();
-    //}
+    mpu_cfg_cp();
 
     while (1) {
         lock = int_lock_global();
@@ -329,10 +266,7 @@ static CP_TEXT_SRAM_LOC NOINLINE void accel_loop(void)
 #if (CP_CPU_USAGE_INTVL_MS > 0) && (CP_CPU_USAGE_TRACE_INTVL_MS > 0)
         if (stats_interval && stats_trace_interval) {
             if (time - stats_trace_time >= stats_trace_interval) {
-#ifndef USE_TRACE_ID
-                POSSIBLY_UNUSED static const char CP_DATA_LOC usage_str[] = "CP CPU USAGE: busy=%d sleep=%d";
-                DRIVERS_TRACE(0, usage_str, (100 - sleep_ratio), sleep_ratio);
-#endif
+                TRACE_SEC(0, CP_DATA_LOC, "CP CPU USAGE: busy=%d sleep=%d", (100 - sleep_ratio), sleep_ratio);
                 stats_trace_time = time;
             }
         }
@@ -354,7 +288,7 @@ static CP_TEXT_SRAM_LOC NOINLINE void accel_loop(void)
 
 static void accel_main(void)
 {
-    DRIVERS_TRACE(1, "%s", __func__);
+    TRACE(1, "%s", __func__);
 
     system_cp_init(!ram_inited);
 
@@ -366,11 +300,11 @@ static void accel_main(void)
 
     hal_trace_open_cp(cp_trace_buffer_ctrl, cp_trace_crash_notify);
 
-    hal_mcu2cp_open_cp(HAL_MCU2CP_ID_0, (HAL_MCU2CP_RX_IRQ_HANDLER)mcu2cp_msg_arrived, NULL, false);
-    hal_mcu2cp_open_cp(HAL_MCU2CP_ID_1, NULL, NULL, false);
+    hal_mcu2cp_open_cp(HAL_RMT_IPC_CHAN_0, mcu2cp_msg_arrived, NULL, false);
+    hal_mcu2cp_open_cp(HAL_RMT_IPC_CHAN_1, NULL, NULL, false);
 
-    hal_mcu2cp_start_recv_cp(HAL_MCU2CP_ID_0);
-    //hal_mcu2cp_start_recv_cp(HAL_MCU2CP_ID_1);
+    hal_mcu2cp_start_recv_cp(HAL_RMT_IPC_CHAN_0);
+    //hal_mcu2cp_start_recv_cp(HAL_RMT_IPC_CHAN_1);
 
 #if (CP_CPU_USAGE_INTVL_MS > 0)
     stats_interval = MS_TO_TICKS(CP_CPU_USAGE_INTVL_MS);
@@ -388,10 +322,10 @@ static void accel_main(void)
     accel_loop();
 }
 
-static SRAM_TEXT_LOC unsigned int cp2mcu_msg_arrived(const unsigned char *data, unsigned int len)
+static SRAM_TEXT_LOC unsigned int cp2mcu_msg_arrived(const void *data, unsigned int len)
 {
     uint8_t task_id = CP_TASK_ID_GET((uint32_t)data);
-    // DRIVERS_TRACE(2, "%s, task_id = %d", __func__, task_id);
+    // TRACE(2, "%s, task_id = %d", __func__, task_id);
 
     if (task_id >= CP_TASK_MAX) {
         return -1;
@@ -410,17 +344,17 @@ int cp_accel_open(enum CP_TASK_TYPE task_id, struct cp_task_desc const * p_task_
     int ret = 0;
 
     if ((task_id >= CP_TASK_MAX) || (p_task_desc == NULL)) {
-        DRIVERS_TRACE(1, "%s task id error", __func__);
+        TRACE(1, "%s task id error", __func__);
         return -1;
     }
 
-    DRIVERS_TRACE(1, "%s, task id = %d, cp_state = %d init %d", __func__, task_id,
+    TRACE(1, "%s, task id = %d, cp_state = %d init %d", __func__, task_id,
                     cp_task_env.p_desc[task_id].cp_accel_state, cp_accel_inited);
 
     lock = int_lock();
 
     if (cp_task_env.p_desc[task_id].cp_accel_state != CP_ACCEL_STATE_CLOSED) {
-        DRIVERS_TRACE(1, "%s cp_accel_state error", __func__);
+        TRACE(1, "%s cp_accel_state error", __func__);
         ret = -2;
         goto _exit;
     }
@@ -433,16 +367,16 @@ int cp_accel_open(enum CP_TASK_TYPE task_id, struct cp_task_desc const * p_task_
 
     if (false == cp_accel_inited) {
 #ifdef CORE_SLEEP_POWER_DOWN
-        hal_chip_wake_lock(HAL_CHIP_WAKE_LOCK_USER_CP);
+        hal_bus_wake_lock(HAL_BUS_WAKE_LOCK_USER_CP);
 #endif
 
         hal_cmu_cp_enable(RAMCP_BASE + RAMCP_SIZE, (uint32_t)accel_main);
 
-        hal_mcu2cp_open_mcu(HAL_MCU2CP_ID_0, (HAL_MCU2CP_RX_IRQ_HANDLER)cp2mcu_msg_arrived, (HAL_MCU2CP_TX_IRQ_HANDLER)mcu2cp_msg_sent, false);
-        hal_mcu2cp_open_mcu(HAL_MCU2CP_ID_1, (HAL_MCU2CP_RX_IRQ_HANDLER)cp2mcu_sys_arrived, NULL, false);
+        hal_mcu2cp_open_mcu(HAL_RMT_IPC_CHAN_0, cp2mcu_msg_arrived, mcu2cp_msg_sent, false);
+        hal_mcu2cp_open_mcu(HAL_RMT_IPC_CHAN_1, cp2mcu_sys_arrived, NULL, false);
 
-        hal_mcu2cp_start_recv_mcu(HAL_MCU2CP_ID_0);
-        hal_mcu2cp_start_recv_mcu(HAL_MCU2CP_ID_1);
+        hal_mcu2cp_start_recv_mcu(HAL_RMT_IPC_CHAN_0);
+        hal_mcu2cp_start_recv_mcu(HAL_RMT_IPC_CHAN_1);
     }
 
     cp_task_env.p_desc[task_id].cp_accel_state = CP_ACCEL_STATE_OPENED;
@@ -458,7 +392,7 @@ int cp_accel_close(enum CP_TASK_TYPE task_id)
     uint8_t i = 0;
     uint32_t lock;
 
-    DRIVERS_TRACE(4, "%s, task id = %d, cp_state = %d init %d", __func__,
+    TRACE(4, "%s, task id = %d, cp_state = %d init %d", __func__,
                 task_id, cp_task_env.p_desc[task_id].cp_accel_state, cp_accel_inited);
 
     lock = int_lock();
@@ -483,13 +417,13 @@ int cp_accel_close(enum CP_TASK_TYPE task_id)
     if (cp_accel_inited) {
         cp_accel_inited = false;
 
-        hal_mcu2cp_close_mcu(HAL_MCU2CP_ID_0);
-        hal_mcu2cp_close_mcu(HAL_MCU2CP_ID_1);
+        hal_mcu2cp_close_mcu(HAL_RMT_IPC_CHAN_0);
+        hal_mcu2cp_close_mcu(HAL_RMT_IPC_CHAN_1);
 
         hal_cmu_cp_disable();
 
-        hal_mcu2cp_close_cp(HAL_MCU2CP_ID_0);
-        hal_mcu2cp_close_cp(HAL_MCU2CP_ID_1);
+        hal_mcu2cp_close_cp(HAL_RMT_IPC_CHAN_0);
+        hal_mcu2cp_close_cp(HAL_RMT_IPC_CHAN_1);
 
         hal_trace_close_cp();
 
@@ -500,7 +434,7 @@ int cp_accel_close(enum CP_TASK_TYPE task_id)
 #endif
 
 #ifdef CORE_SLEEP_POWER_DOWN
-        hal_chip_wake_unlock(HAL_CHIP_WAKE_LOCK_USER_CP);
+        hal_bus_wake_unlock(HAL_BUS_WAKE_LOCK_USER_CP);
 #endif
     }
 
@@ -528,19 +462,19 @@ int cp_accel_send_event_mcu2cp(uint8_t event)
     uint32_t lock;
 
     if ((false == cp_accel_inited) || (cp_env.mcu2cp_tx_count > MAX_CP_MSG_NUM)) {
-        DRIVERS_TRACE(2,
+        TRACE(2,
               "send_evt error, cp_accel_inited = %d, event pending count = %d",
               cp_accel_inited,
               cp_env.mcu2cp_tx_count);
 
-        DRIVERS_TRACE(2,
+        TRACE(2,
               "send evt task_id = %d, event = %d",
               CP_TASK_ID_GET(event),
               CP_EVENT_GET(event));
         return -1;
     }
 
-    // DRIVERS_TRACE(1, "current CP tx count:%d", cp_env.mcu2cp_tx_count);
+    // TRACE(1, "current CP tx count:%d", cp_env.mcu2cp_tx_count);
 
     lock = int_lock();
 
@@ -550,7 +484,7 @@ int cp_accel_send_event_mcu2cp(uint8_t event)
     } else {
         req_event = event;
         cp_env.mcu2cp_tx_count = 1;
-        hal_mcu2cp_send_mcu(HAL_MCU2CP_ID_0, &req_event, 1);
+        hal_mcu2cp_send_mcu(HAL_RMT_IPC_CHAN_0, &req_event, 1);
     }
 
     int_unlock(lock);
@@ -560,14 +494,14 @@ int cp_accel_send_event_mcu2cp(uint8_t event)
 
 int CP_TEXT_SRAM_LOC cp_accel_send_event_cp2mcu(uint8_t event)
 {
-    return hal_mcu2cp_send_cp(HAL_MCU2CP_ID_0, (unsigned char *)(uint32_t)event, 0);
+    return hal_mcu2cp_send_cp(HAL_RMT_IPC_CHAN_0, (unsigned char *)(uint32_t)event, 0);
 }
 
 int SRAM_TEXT_LOC cp_accel_busy(enum CP_TASK_TYPE task_id)
 {
     if (cp_task_env.p_desc[task_id].cp_accel_state != CP_ACCEL_STATE_CLOSED) {
         if (cp_task_env.p_desc[task_id].cp_accel_state == CP_ACCEL_STATE_OPENED && cp_in_sleep &&
-                !hal_mcu2cp_local_irq_pending_cp(HAL_MCU2CP_ID_0)) {
+                !hal_mcu2cp_local_irq_pending_cp(HAL_RMT_IPC_CHAN_0)) {
             return false;
         }
         return true;
@@ -599,4 +533,5 @@ int cp_accel_get_cpu_usage(struct CP_ACCEL_CPU_USAGE_T *usage)
     return ret;
 }
 
+#endif
 #endif

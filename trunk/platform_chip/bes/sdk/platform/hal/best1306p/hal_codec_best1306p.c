@@ -131,15 +131,9 @@
 
 #define MAX_DAC_CH_NUM                      2
 
-#ifdef CODEC_DSD
-#define NORMAL_MIC_MAP                      (AUD_CHANNEL_MAP_NORMAL_ALL & ~(AUD_CHANNEL_MAP_CH3 | AUD_CHANNEL_MAP_CH4 | \
-                                                AUD_CHANNEL_MAP_CH5 | AUD_CHANNEL_MAP_CH6 | AUD_CHANNEL_MAP_CH7 | \
-                                                AUD_CHANNEL_MAP_DIGMIC_CH6 | AUD_CHANNEL_MAP_DIGMIC_CH7))
-#else
-#define NORMAL_MIC_MAP                      (AUD_CHANNEL_MAP_NORMAL_ALL & ~(AUD_CHANNEL_MAP_CH3 | AUD_CHANNEL_MAP_CH4 | \
-                                                AUD_CHANNEL_MAP_CH5 | AUD_CHANNEL_MAP_CH6 | AUD_CHANNEL_MAP_CH7 | \
-                                                AUD_CHANNEL_MAP_DIGMIC_CH6 | AUD_CHANNEL_MAP_DIGMIC_CH7))
-#endif
+#define NORMAL_MIC_MAP                      (AUD_CHANNEL_MAP_CH0 | AUD_CHANNEL_MAP_CH1 | AUD_CHANNEL_MAP_CH2 | \
+                                                AUD_CHANNEL_MAP_DIGMIC_CH0 | AUD_CHANNEL_MAP_DIGMIC_CH1 | AUD_CHANNEL_MAP_DIGMIC_CH2 | \
+                                                AUD_CHANNEL_MAP_DIGMIC_CH3 | AUD_CHANNEL_MAP_DIGMIC_CH4 | AUD_CHANNEL_MAP_DIGMIC_CH5)
 #define NORMAL_ADC_MAP                      (AUD_CHANNEL_MAP_CH0 | AUD_CHANNEL_MAP_CH1 | AUD_CHANNEL_MAP_CH2)
 
 #define EC_MIC_MAP                          (AUD_CHANNEL_MAP_ECMIC_CH0 | AUD_CHANNEL_MAP_ECMIC_CH1)
@@ -400,12 +394,12 @@ static const struct HAL_CODEC_PSAP_CFG_T psap_cfg = {
 static bool codec_init = false;
 static bool codec_opened = false;
 
-static int8_t digdac_gain[MAX_DAC_CH_NUM];
-static int8_t digadc_gain[NORMAL_ADC_CH_NUM];
+static CODEC_DAC_VOL_T digdac_gain[MAX_DAC_CH_NUM];
+static CODEC_ADC_VOL_T digadc_gain[NORMAL_ADC_CH_NUM];
 
 static bool codec_mute[AUD_STREAM_NUM];
 
-static int8_t digdac2_gain[MAX_DAC_CH_NUM];
+static CODEC_DAC_VOL_T digdac2_gain[MAX_DAC_CH_NUM];
 static bool codec_mute2;
 
 #ifdef AUDIO_OUTPUT_SWAP
@@ -469,7 +463,7 @@ static float sidetone_ded_chan_coef;
 static enum AUD_CHANNEL_MAP_T anc_tt_adc_ch_l;
 static enum AUD_CHANNEL_MAP_T anc_tt_adc_ch_r;
 static enum ANC_TYPE_T anc_tt_mic_l_map;
-static enum ANC_TYPE_T anc_tt_mic_r_map;
+// static enum ANC_TYPE_T anc_tt_mic_r_map;
 #endif
 
 #ifdef ANC_PROD_TEST
@@ -596,9 +590,9 @@ static bool codec_sw_sync_play_status[2] = {false,false};
 static bool codec_sw_sync_cap_status[1] = {false};
 #endif
 
-static void hal_codec_set_dig_adc_gain(enum AUD_CHANNEL_MAP_T map, int32_t gain);
-static void hal_codec_set_dig_dac_gain(enum AUD_CHANNEL_MAP_T map, int32_t gain);
-static void hal_codec_set_dig_dac2_gain(enum AUD_CHANNEL_MAP_T map, int32_t gain);
+static void hal_codec_set_dig_adc_gain(enum AUD_CHANNEL_MAP_T map, CODEC_ADC_VOL_T gain);
+static void hal_codec_set_dig_dac_gain(enum AUD_CHANNEL_MAP_T map, CODEC_DAC_VOL_T gain);
+static void hal_codec_set_dig_dac2_gain(enum AUD_CHANNEL_MAP_T map, CODEC_DAC_VOL_T gain);
 static void hal_codec_restore_dig_dac_gain(void);
 static void hal_codec_restore_dig_dac2_gain(void);
 static void hal_codec_set_dac_gain_value(enum AUD_CHANNEL_MAP_T map, uint32_t val);
@@ -607,7 +601,7 @@ static int hal_codec_set_adc_down(enum AUD_CHANNEL_MAP_T map, uint32_t val);
 static int hal_codec_set_adc_hbf_bypass_cnt(enum AUD_CHANNEL_MAP_T map, uint32_t cnt);
 static uint32_t hal_codec_get_adc_chan(enum AUD_CHANNEL_MAP_T mic_map);
 #ifdef AUDIO_OUTPUT_SW_GAIN
-static void hal_codec_set_sw_gain(int32_t gain);
+static void hal_codec_set_sw_gain(CODEC_DAC_VOL_T gain);
 #endif
 #ifdef AUDIO_OUTPUT_DAC2_SW_GAIN
 static void hal_codec_set_dac2_sw_gain(int32_t gain);
@@ -625,9 +619,6 @@ static bool hal_codec_set_ana_dc_calib_value(void);
 #endif
 #ifdef AUDIO_ADC_DC_AUTO_CALIB
 void hal_codec_adc_dc_offset_enable(void);
-#ifdef ADC_DC_CALIB_USE_FIXED_DC
-static uint16_t hal_codec_adc_dc_calib_set_fixed_bias(uint16_t calib_step, int32_t adc_dc_original);
-#endif
 #endif
 
 static void hal_codec_reg_update_delay(void)
@@ -1548,7 +1539,7 @@ int hal_codec_open(enum HAL_CODEC_ID_T id)
         codec->REG_0BC |= CODEC_CODEC_DAC_SDM_CLOSE;
 #endif
 
-        codec->REG_0B0 = SET_BITFIELD(codec->REG_0B0, CODEC_CODEC_DAC_SDM_GAIN, 3);
+        codec->REG_0B0 = SET_BITFIELD(codec->REG_0B0, CODEC_CODEC_DAC_SDM_GAIN, 4);
 #ifdef SDM_MUTE_NOISE_SUPPRESSION
         codec->REG_0B0 = SET_BITFIELD(codec->REG_0B0, CODEC_CODEC_DAC_DITHER_GAIN, 0x10);
 #endif
@@ -1652,18 +1643,11 @@ struct HAL_CODEC_ADC_DC_CALIB_CFG_T *hal_codec_adc_get_calib_cfg(uint32_t *nr)
 void hal_codec_adc_dc_offset_enable(void)
 {
     struct HAL_CODEC_ADC_DC_CALIB_CFG_T *cfg = adc_calib_cfg;
-    uint16_t adc_dc_calib_offset = 0;
 
     for (uint32_t i = 0; i < ARRAY_SIZE(adc_calib_cfg); i++, cfg++) {
         if((AUD_CHANNEL_MAP_CH0 << i) & CFG_ADC_DC_CALIB_MIC_DEV) {
-#ifdef ADC_DC_CALIB_USE_FIXED_DC
-                adc_dc_calib_offset = hal_codec_adc_dc_calib_set_fixed_bias(
-                        cfg->adc_dc_calib_step, cfg->adc_dc_original);
-#else
-                adc_dc_calib_offset = cfg->adc_dc_calib_offset;
-#endif
             hal_codec_adc_dc_offset_update(cfg->adc_channel_map,
-                    cfg->adc_dc_calib_step, adc_dc_calib_offset);
+                    cfg->adc_dc_calib_step, cfg->adc_dc_calib_offset);
         }
     }
 }
@@ -1689,7 +1673,7 @@ void hal_codec_dac_dre_init_calib_cfg(void)
     uint8_t gain_step = 15;
 
     max_gain = analog_aud_get_max_dre_gain();
-    HAL_TRACE(1, "%s: max_gain=0x%x", __func__, max_gain);
+    TRACE(1, "%s: max_gain=0x%x", __func__, max_gain);
     if (cfg[0].ana_gain != max_gain) {
         if (max_gain > 0xF) {
             ini_gain = 0;
@@ -1706,7 +1690,7 @@ void hal_codec_dac_dre_init_calib_cfg(void)
         cfg[1].gain_offset = cfg[0].gain_offset;
         top_gain = cfg[0].ana_gain - cfg[1].ana_gain;
         cfg[1].top_gain = cfg[0].top_gain = top_gain;
-        HAL_TRACE(1, "update max_gain:%d, ini=%d,offs=%d,top=%d", max_gain, ini_gain, gain_offset, top_gain);
+        TRACE(1, "update max_gain:%d, ini=%d,offs=%d,top=%d", max_gain, ini_gain, gain_offset, top_gain);
     }
 }
 
@@ -1820,7 +1804,7 @@ int hal_codec_check_dac_dc_offset(bool major, int range_idx, int32_t dc_l, int32
         r |= 0x08;
     }
     if (r) {
-        HAL_TRACE(0, "[%s]: Invalid DAC DC, major=%d, dc_l=%d, dc_r=%d, min=%d, max=%d",
+        TRACE(0, "[%s]: Invalid DAC DC, major=%d, dc_l=%d, dc_r=%d, min=%d, max=%d",
             __func__, major, dc_l, dc_r, min_dc, max_dc);
     }
     return r;
@@ -1848,7 +1832,7 @@ static bool hal_codec_get_dig_dc_calib_value(int32_t *dc_l, int32_t *dc_r)
         *dc_r = dc_val_r;
     }
 
-    HAL_TRACE(1, "CALIB_DIG_DC: L=0x%x, R=0x%x",dc_l?(*dc_l):0, dc_r?(*dc_r):0);
+    TRACE(1, "CALIB_DIG_DC: L=0x%x, R=0x%x",dc_l?(*dc_l):0, dc_r?(*dc_r):0);
     return true;
 }
 
@@ -1877,7 +1861,7 @@ static bool hal_codec_set_ana_dc_calib_value(void)
     }
     analog_aud_dc_calib_set_value(ana_dc_l, ana_dc_r);
     analog_aud_dc_calib_enable(true);
-    HAL_TRACE(1, "CALIB_ANA_DC: L=0x%x, R=0x%x, gain=0x%x",ana_dc_l, ana_dc_r, ana_gain);
+    TRACE(1, "CALIB_ANA_DC: L=0x%x, R=0x%x, gain=0x%x",ana_dc_l, ana_dc_r, ana_gain);
     return success;
 }
 #endif
@@ -1918,9 +1902,9 @@ static bool hal_codec_dac_dre_setup_calib_param(struct CODEC_DAC_DRE_CFG_T *cfg)
                 *(volatile uint32_t *)gain_reg_addr = CODEC_CODEC_DAC_DRE_GAIN_STEP0_CH0(gain_l);
             }
 #if 0
-            HAL_TRACE(1,"%s:dc [%x]=%x, gain [%x]=%x",
+            TRACE(1,"%s:dc [%x]=%x, gain [%x]=%x",
                 __func__, dc_reg_addr, dc_l, gain_reg_addr, gain_l);
-            HAL_TRACE(1, "dc_step=%d, ana_gain=%d, ini_gain=%d, gain_offset=%d", dc_step, cal->ana_gain, cal->ini_ana_gain, cal->gain_offset);
+            TRACE(1, "dc_step=%d, ana_gain=%d, ini_gain=%d, gain_offset=%d", dc_step, cal->ana_gain, cal->ini_ana_gain, cal->gain_offset);
 #endif
         }
         if (cal->valid & 0x2) {
@@ -1946,9 +1930,9 @@ static bool hal_codec_dac_dre_setup_calib_param(struct CODEC_DAC_DRE_CFG_T *cfg)
                 *(volatile uint32_t *)gain_reg_addr = CODEC_CODEC_DAC_DRE_GAIN_STEP0_CH1(gain_r);
             }
 #if 0
-            HAL_TRACE(1,"%s:dc [%x]=%x, gain [%x]=%x",
+            TRACE(1,"%s:dc [%x]=%x, gain [%x]=%x",
                 __func__, dc_reg_addr, dc_r, gain_reg_addr, gain_r);
-            HAL_TRACE(1, "dc_step=%d, ana_gain=%d, ini_gain=%d, gain_offset=%d", dc_step, cal->ana_gain, cal->ini_ana_gain, cal->gain_offset);
+            TRACE(1, "dc_step=%d, ana_gain=%d, ini_gain=%d, gain_offset=%d", dc_step, cal->ana_gain, cal->ini_ana_gain, cal->gain_offset);
 #endif
         }
     }
@@ -2774,7 +2758,7 @@ int hal_codec_dac2_start_interface(enum HAL_CODEC_ID_T id, int dma)
 {
     uint32_t fifo_flush = 0;
 
-    HAL_TRACE(1,"%s: id=%d, dma=%d", __func__, id, dma);
+    TRACE(1,"%s: id=%d, dma=%d", __func__, id, dma);
 #ifdef __AUDIO_RESAMPLE__
     if (codec->REG_0E4 & CODEC_CODEC_RESAMPLE_DAC_PHASE_UPDATE_SND) {
         hal_codec_dac2_resample_clock_enable(AUD_STREAM_PLAYBACK);
@@ -3058,7 +3042,7 @@ int hal_codec_dac2_stop_interface(enum HAL_CODEC_ID_T id)
 {
     uint32_t fifo_flush = 0;
 
-    HAL_TRACE(1,"%s: id=%d", __func__, id);
+    TRACE(1,"%s: id=%d", __func__, id);
 
     codec->REG_000 &= ~CODEC_DAC_ENABLE_SND;
     codec->REG_000 &= ~CODEC_DMACTRL_TX_SND;
@@ -3185,7 +3169,7 @@ static float db_to_amplitude_ratio(float db)
     return coef;
 }
 
-static float digdac_gain_to_float(int32_t gain)
+static float digdac_gain_to_float(CODEC_DAC_VOL_T gain)
 {
     float coef;
 
@@ -3207,7 +3191,7 @@ static float digdac_gain_to_float(int32_t gain)
 }
 
 #ifdef AUDIO_OUTPUT_DC_AUTO_CALIB
-void hal_codec_set_dig_dac_gain_dr(enum AUD_CHANNEL_MAP_T map, int32_t gain)
+void hal_codec_set_dig_dac_gain_dr(enum AUD_CHANNEL_MAP_T map, CODEC_DAC_VOL_T gain)
 {
     uint32_t val;
     float coef;
@@ -3221,7 +3205,7 @@ void hal_codec_set_dig_dac_gain_dr(enum AUD_CHANNEL_MAP_T map, int32_t gain)
 }
 #endif
 
-static void hal_codec_set_dig_dac_gain(enum AUD_CHANNEL_MAP_T map, int32_t gain)
+static void hal_codec_set_dig_dac_gain(enum AUD_CHANNEL_MAP_T map, CODEC_DAC_VOL_T gain)
 {
     uint32_t val;
     float coef;
@@ -3279,7 +3263,7 @@ static void POSSIBLY_UNUSED hal_codec_restore_dig_dac2_gain(void)
     }
 }
 
-static void hal_codec_set_dig_dac2_gain(enum AUD_CHANNEL_MAP_T map, int32_t gain)
+static void hal_codec_set_dig_dac2_gain(enum AUD_CHANNEL_MAP_T map, CODEC_DAC_VOL_T gain)
 {
     uint32_t val;
     float coef;
@@ -3312,7 +3296,7 @@ static void hal_codec_set_dig_dac2_gain(enum AUD_CHANNEL_MAP_T map, int32_t gain
 }
 
 #ifdef AUDIO_OUTPUT_SW_GAIN
-static void hal_codec_set_sw_gain(int32_t gain)
+static void hal_codec_set_sw_gain(CODEC_DAC_VOL_T gain)
 {
     float coef;
     bool mute;
@@ -3400,7 +3384,7 @@ static void hal_codec_set_adc_gain_value(enum AUD_CHANNEL_MAP_T map, uint32_t va
     codec->REG_0B4 |= gain_update;
 }
 
-static void hal_codec_set_dig_adc_gain(enum AUD_CHANNEL_MAP_T map, int32_t gain)
+static void hal_codec_set_dig_adc_gain(enum AUD_CHANNEL_MAP_T map, CODEC_ADC_VOL_T gain)
 {
     uint32_t val;
     float coef;
@@ -3506,14 +3490,14 @@ int hal_codec_set_chan_vol(enum AUD_STREAM_T stream, enum AUD_CHANNEL_MAP_T ch_m
 #ifdef SINGLE_CODEC_DAC_VOL
         ASSERT(false, "%s: Cannot set play chan vol with SINGLE_CODEC_DAC_VOL", __func__);
 #else
-        const struct CODEC_DAC_VOL_T * dac_gain_db;
+        CODEC_DAC_VOL_T dac_gain_db;
 
         dac_gain_db = hal_codec_get_dac_volume(vol);
         if (ch_map & AUD_CHANNEL_MAP_CH0) {
-            hal_codec_set_dig_dac_gain(AUD_CHANNEL_MAP_CH0, dac_gain_db->sdac_volume);
+            hal_codec_set_dig_dac_gain(AUD_CHANNEL_MAP_CH0, dac_gain_db);
         }
         if (ch_map & AUD_CHANNEL_MAP_CH1) {
-            hal_codec_set_dig_dac_gain(AUD_CHANNEL_MAP_CH1, dac_gain_db->sdac_volume);
+            hal_codec_set_dig_dac_gain(AUD_CHANNEL_MAP_CH1, dac_gain_db);
         }
 #endif
 #endif
@@ -3523,7 +3507,7 @@ int hal_codec_set_chan_vol(enum AUD_STREAM_T stream, enum AUD_CHANNEL_MAP_T ch_m
 #else
         uint8_t mic_ch, adc_ch;
         enum AUD_CHANNEL_MAP_T map;
-        const CODEC_ADC_VOL_T *adc_gain_db;
+        CODEC_ADC_VOL_T adc_gain_db;
 
         adc_gain_db = hal_codec_get_adc_volume(vol);
         map = ch_map & ~EC_MIC_MAP;
@@ -3532,7 +3516,7 @@ int hal_codec_set_chan_vol(enum AUD_STREAM_T stream, enum AUD_CHANNEL_MAP_T ch_m
             map &= ~(1 << mic_ch);
             adc_ch = hal_codec_get_adc_chan(1 << mic_ch);
             ASSERT(adc_ch < NORMAL_ADC_CH_NUM, "%s: Bad cap ch_map=0x%X (ch=%u)", __func__, ch_map, mic_ch);
-            hal_codec_set_dig_adc_gain((1 << adc_ch), *adc_gain_db);
+            hal_codec_set_dig_adc_gain((1 << adc_ch), adc_gain_db);
         }
 #endif
     }
@@ -3545,15 +3529,15 @@ int hal_codec_dac2_set_chan_vol(enum AUD_CHANNEL_MAP_T ch_map, uint8_t vol)
 #ifdef SINGLE_CODEC_DAC_VOL
     ASSERT(false, "%s: Cannot set play chan vol with SINGLE_CODEC_DAC_VOL", __func__);
 #else
-    const struct CODEC_DAC_VOL_T * dac_gain_db;
+    CODEC_DAC_VOL_T dac_gain_db;
 
     dac_gain_db = hal_codec_get_dac_volume(vol);
     if (ch_map & AUD_CHANNEL_MAP_CH0) {
-        hal_codec_set_dig_dac2_gain(AUD_CHANNEL_MAP_CH0, dac_gain_db->sdac_volume);
+        hal_codec_set_dig_dac2_gain(AUD_CHANNEL_MAP_CH0, dac_gain_db);
     }
     if (ch_map & AUD_CHANNEL_MAP_CH1) {
-        hal_codec_set_dig_dac2_gain(AUD_CHANNEL_MAP_CH1, dac_gain_db->sdac_volume);
-	}
+        hal_codec_set_dig_dac2_gain(AUD_CHANNEL_MAP_CH1, dac_gain_db);
+    }
 #endif
     return 0;
 }
@@ -3836,42 +3820,27 @@ static void hal_codec_anc_chan_config(
     uint8_t ch_idx = 0;
 
 /* check and config FF mic for ANC */
-#if defined(ANC_FF_MIC_CH_L) || defined(ANC_FF_MIC_CH_R)
+#if defined(ANC_FF_MIC_CH_L)
 #ifdef ANC_PROD_TEST
     if ((ANC_FF_MIC_CH_L & ~NORMAL_MIC_MAP) || (ANC_FF_MIC_CH_L & (ANC_FF_MIC_CH_L - 1))) {
         ASSERT(false, "Invalid ANC_FF_MIC_CH_L: 0x%04X", ANC_FF_MIC_CH_L);
     }
-    if ((ANC_FF_MIC_CH_R & ~NORMAL_MIC_MAP) || (ANC_FF_MIC_CH_R & (ANC_FF_MIC_CH_R - 1))) {
-        ASSERT(false, "Invalid ANC_FF_MIC_CH_R: 0x%04X", ANC_FF_MIC_CH_R);
-    }
-#if defined(ANC_FB_MIC_CH_L) || defined(ANC_FB_MIC_CH_R)
-    if ((ANC_FF_MIC_CH_L & ANC_FB_MIC_CH_L)
-        || (ANC_FF_MIC_CH_L & ANC_FB_MIC_CH_R)
-        || (ANC_FF_MIC_CH_R & ANC_FB_MIC_CH_L)
-        || (ANC_FF_MIC_CH_R & ANC_FB_MIC_CH_R)) {
-        ASSERT(false, "Conflicted FF MIC (0x%04X/0x%04X) and FB MIC (0x%04X/0x%04X)",
-            ANC_FF_MIC_CH_L, ANC_FF_MIC_CH_R, ANC_FB_MIC_CH_L, ANC_FB_MIC_CH_R);
+#if defined(ANC_FB_MIC_CH_L)
+    if (ANC_FF_MIC_CH_L & ANC_FB_MIC_CH_L) {
+        ASSERT(false, "Conflicted FF MIC (0x%04X) and FB MIC (0x%04X)",
+            ANC_FF_MIC_CH_L, ANC_FB_MIC_CH_L);
     }
 #endif
-#else // ANC_PROD_TEST
+#else // !ANC_PROD_TEST
 #if (ANC_FF_MIC_CH_L & ~NORMAL_MIC_MAP) || (ANC_FF_MIC_CH_L & (ANC_FF_MIC_CH_L - 1))
 #error "Invalid ANC_FF_MIC_CH_L"
 #endif
-
-#if (ANC_FF_MIC_CH_R & ~NORMAL_MIC_MAP) || (ANC_FF_MIC_CH_R & (ANC_FF_MIC_CH_R - 1))
-#error "Invalid ANC_FF_MIC_CH_R"
-#endif
-
-#if defined(ANC_FB_MIC_CH_L) || defined(ANC_FB_MIC_CH_R)
-#if (ANC_FF_MIC_CH_L & ANC_FB_MIC_CH_L) \
-    || (ANC_FF_MIC_CH_L & ANC_FB_MIC_CH_R) \
-    || (ANC_FF_MIC_CH_R & ANC_FB_MIC_CH_L) \
-    || (ANC_FF_MIC_CH_R & ANC_FB_MIC_CH_R)
-#error "Conflicted ANC_FF_MIC_CH_L, ANC_FB_MIC_CH_L, ANC_FF_MIC_CH_R and ANC_FB_MIC_CH_R"
+#if defined(ANC_FB_MIC_CH_L)
+#if (ANC_FF_MIC_CH_L & ANC_FB_MIC_CH_L)
+#error "Conflicted ANC_FF_MIC_CH_L and ANC_FB_MIC_CH_L"
 #endif
 #endif
 #endif // !ANC_PROD_TEST
-
     if (mic_map & ANC_FF_MIC_CH_L) {
         adc_chan_map |= AUD_CHANNEL_MAP_CH0;
         mic_map &= ~ANC_FF_MIC_CH_L;
@@ -3887,64 +3856,33 @@ static void hal_codec_anc_chan_config(
     } else if (ANC_FF_MIC_CH_L & AUD_CHANNEL_MAP_ALL) {
         reserv_map |= AUD_CHANNEL_MAP_CH0;
     }
-
-    if (mic_map & ANC_FF_MIC_CH_R) {
-        adc_chan_map |= AUD_CHANNEL_MAP_CH1;
-        mic_map &= ~ANC_FF_MIC_CH_R;
-        ch_idx = get_msb_pos(ANC_FF_MIC_CH_R);
-        if (ANC_FF_MIC_CH_R & AUD_CHANNEL_MAP_DIGMIC_ALL) {
-            ch_idx = hal_codec_get_digmic_hw_index(ch_idx);
-            codec->REG_0C8 = SET_BITFIELD(codec->REG_0C8, CODEC_CODEC_PDM_MUX_CH1, ch_idx);
-            codec->REG_0C4 |= CODEC_CODEC_PDM_ADC_SEL_CH1;
-        } else {
-            codec->REG_088 = SET_BITFIELD(codec->REG_088, CODEC_CODEC_ADC_IN_SEL_CH1, ch_idx);
-            codec->REG_0C4 &= ~CODEC_CODEC_PDM_ADC_SEL_CH1;
-        }
-    } else if (ANC_FF_MIC_CH_R & AUD_CHANNEL_MAP_ALL) {
-        reserv_map |= AUD_CHANNEL_MAP_CH1;
-    }
 #if defined(SIDETONE_ENABLE) && !defined(SIDETONE_DEDICATED_ADC_CHAN)
     if (CFG_HW_AUD_SIDETONE_MIC_DEV == ANC_FF_MIC_CH_L) {
         hal_codec_set_sidetone_adc_chan(AUD_CHANNEL_MAP_CH0);
     }
 #endif
-#endif /* ANC_FF_MIC_CH_L || ANC_FF_MIC_CH_R */
+#endif
 
-
-#if defined(ANC_FB_MIC_CH_L) || defined(ANC_FB_MIC_CH_R)
+#if defined(ANC_FB_MIC_CH_L)
 #ifdef ANC_PROD_TEST
     if ((ANC_FB_MIC_CH_L & ~NORMAL_MIC_MAP) || (ANC_FB_MIC_CH_L & (ANC_FB_MIC_CH_L - 1))) {
         ASSERT(false, "Invalid ANC_FB_MIC_CH_L: 0x%04X", ANC_FB_MIC_CH_L);
     }
-    if ((ANC_FB_MIC_CH_R & ~NORMAL_MIC_MAP) || (ANC_FB_MIC_CH_R & (ANC_FB_MIC_CH_R - 1))) {
-        ASSERT(false, "Invalid ANC_FB_MIC_CH_R: 0x%04X", ANC_FB_MIC_CH_R);
-    }
-
-#if defined(ANC_TT_MIC_CH_L) || defined(ANC_TT_MIC_CH_R)
+#if defined(ANC_TT_MIC_CH_L)
     if (ANC_TT_MIC_CH_L & ANC_FB_MIC_CH_L) {
-        ASSERT(false, "Conflicted TT L MIC (0x%04X) and FB L MIC (0x%04X)",
+        ASSERT(false, "Conflicted TT MIC (0x%04X) and FB MIC (0x%04X)",
             ANC_TT_MIC_CH_L, ANC_FB_MIC_CH_L);
     }
-    if (ANC_TT_MIC_CH_R & ANC_FB_MIC_CH_R) {
-        ASSERT(false, "Conflicted TT R MIC (0x%04X) and FB R MIC (0x%04X)",
-            ANC_TT_MIC_CH_R, ANC_FB_MIC_CH_R);
-    }
 #endif
-#else // ANC_PROD_TEST
-
+#else // !ANC_PROD_TEST
 #if (ANC_FB_MIC_CH_L & ~NORMAL_MIC_MAP) || (ANC_FB_MIC_CH_L & (ANC_FB_MIC_CH_L - 1))
 #error "Invalid ANC_FB_MIC_CH_L"
 #endif
-#if (ANC_FB_MIC_CH_R & ~NORMAL_MIC_MAP) || (ANC_FB_MIC_CH_R & (ANC_FB_MIC_CH_R - 1))
-#error "Invalid ANC_FB_MIC_CH_R"
-#endif
-
-#if defined(ANC_TT_MIC_CH_L) || defined(ANC_TT_MIC_CH_R)
-#if (ANC_TT_MIC_CH_L & ANC_FB_MIC_CH_L) || (ANC_TT_MIC_CH_R & ANC_FB_MIC_CH_R)
-#error "Conflicted ANC_TT_MIC_CH_L and ANC_FB_MIC_CH_L, or ANC_TT_MIC_CH_R and ANC_FB_MIC_CH_R"
+#if defined(ANC_TT_MIC_CH_L)
+#if (ANC_TT_MIC_CH_L & ANC_FB_MIC_CH_L)
+#error "Conflicted ANC_TT_MIC_CH_L and ANC_FB_MIC_CH_L"
 #endif
 #endif
-
 #endif // !ANC_PROD_TEST
     if (mic_map & ANC_FB_MIC_CH_L) {
         adc_chan_map |= AUD_CHANNEL_MAP_CH2;
@@ -3962,48 +3900,25 @@ static void hal_codec_anc_chan_config(
         reserv_map |= AUD_CHANNEL_MAP_CH2;
     }
 
-    if (mic_map & ANC_FB_MIC_CH_R) {
-        adc_chan_map |= AUD_CHANNEL_MAP_CH1;
-        mic_map &= ~ANC_FB_MIC_CH_R;
-        ch_idx = get_msb_pos(ANC_FB_MIC_CH_R);
-        if (ANC_FB_MIC_CH_R & AUD_CHANNEL_MAP_DIGMIC_ALL) {
-            ch_idx = hal_codec_get_digmic_hw_index(ch_idx);
-            codec->REG_0C8 = SET_BITFIELD(codec->REG_0C8, CODEC_CODEC_PDM_MUX_CH1, ch_idx);
-            codec->REG_0C4 |= CODEC_CODEC_PDM_ADC_SEL_CH1;
-        } else {
-            codec->REG_088 = SET_BITFIELD(codec->REG_088, CODEC_CODEC_ADC_IN_SEL_CH1, ch_idx);
-            codec->REG_0C4 &= ~CODEC_CODEC_PDM_ADC_SEL_CH1;
-        }
-    } else if (ANC_FB_MIC_CH_R & AUD_CHANNEL_MAP_ALL) {
-        reserv_map |= AUD_CHANNEL_MAP_CH1;
-    }
-
 #if defined(SIDETONE_ENABLE) && !defined(SIDETONE_DEDICATED_ADC_CHAN)
     if (CFG_HW_AUD_SIDETONE_MIC_DEV == ANC_FB_MIC_CH_L) {
         hal_codec_set_sidetone_adc_chan(AUD_CHANNEL_MAP_CH2);
     }
 #endif
 #endif
+
     reserv_map |= adc_chan_map;
 
-#if defined(ANC_TT_MIC_CH_L) || defined(ANC_TT_MIC_CH_R)
+#if defined(ANC_TT_MIC_CH_L)
 #ifdef ANC_PROD_TEST
     if ((ANC_TT_MIC_CH_L & ~NORMAL_MIC_MAP) || (ANC_TT_MIC_CH_L & (ANC_TT_MIC_CH_L - 1))) {
         ASSERT(false, "Invalid ANC_TT_MIC_CH_L: 0x%04X", ANC_TT_MIC_CH_L);
     }
-    if ((ANC_TT_MIC_CH_R & ~NORMAL_MIC_MAP) || (ANC_TT_MIC_CH_R & (ANC_TT_MIC_CH_R - 1))) {
-        ASSERT(false, "Invalid ANC_TT_MIC_CH_R: 0x%04X", ANC_TT_MIC_CH_R);
-    }
 #else // !ANC_PROD_TEST
-
 #if (ANC_TT_MIC_CH_L & ~NORMAL_MIC_MAP) || (ANC_TT_MIC_CH_L & (ANC_TT_MIC_CH_L - 1))
 #error "Invalid ANC_TT_MIC_CH_L"
 #endif
-#if (ANC_TT_MIC_CH_R & ~NORMAL_MIC_MAP) || (ANC_TT_MIC_CH_R & (ANC_TT_MIC_CH_R - 1))
-#error "Invalid ANC_TT_MIC_CH_R"
-#endif
 #endif // !ANC_PROD_TEST
-
     if (ANC_TT_MIC_CH_L && (FORCE_TT_ADC_ALLOC || anc_tt_adc_ch_l == 0)) {
         if (ANC_TT_MIC_CH_L == ANC_FF_MIC_CH_L) {
             anc_tt_adc_ch_l = AUD_CHANNEL_MAP_CH0;
@@ -4014,18 +3929,6 @@ static void hal_codec_anc_chan_config(
             reserv_map |= anc_tt_adc_ch_l;
         }
     }
-
-    if (ANC_TT_MIC_CH_R && (FORCE_TT_ADC_ALLOC || anc_tt_adc_ch_r == 0)) {
-        if (ANC_TT_MIC_CH_R == ANC_FF_MIC_CH_R) {
-            anc_tt_adc_ch_r = AUD_CHANNEL_MAP_CH1;
-        } else {
-            anc_tt_adc_ch_r = NORMAL_ADC_MAP & ~reserv_map;
-            ASSERT(anc_tt_adc_ch_r, "%s: Cannot alloc TT CH R adc: reserv_map=0x%X", __func__, reserv_map);
-            anc_tt_adc_ch_r = (1 << get_lsb_pos(anc_tt_adc_ch_r));
-            reserv_map |= anc_tt_adc_ch_r;
-        }
-    }
-
     uint32_t i = 0;
     if (mic_map & ANC_TT_MIC_CH_L) {
         adc_chan_map |= anc_tt_adc_ch_l;
@@ -4043,24 +3946,6 @@ static void hal_codec_anc_chan_config(
         }
     } else if (ANC_TT_MIC_CH_L) {
         reserv_map |= anc_tt_adc_ch_l;
-    }
-
-    if (mic_map & ANC_TT_MIC_CH_R) {
-        adc_chan_map |= anc_tt_adc_ch_r;
-        mic_map &= ~ANC_TT_MIC_CH_R;
-        i = get_lsb_pos(anc_tt_adc_ch_r);
-        ch_idx = get_lsb_pos(ANC_TT_MIC_CH_R);
-        if (ANC_TT_MIC_CH_R & AUD_CHANNEL_MAP_DIGMIC_ALL) {
-            ch_idx = hal_codec_get_digmic_hw_index(ch_idx);
-            codec->REG_0C8 = (codec->REG_0C8 & ~(CODEC_CODEC_PDM_MUX_CH0_MASK << (3 * i))) |
-                (CODEC_CODEC_PDM_MUX_CH0(ch_idx) << (3 * i));
-            codec->REG_0C4 |= CODEC_CODEC_PDM_ADC_SEL_CH0 << i;
-        } else {
-            *(&codec->REG_084 + i) = SET_BITFIELD(*(&codec->REG_084 + i), CODEC_CODEC_ADC_IN_SEL_CH0, ch_idx);
-            codec->REG_0C4 &= ~(CODEC_CODEC_PDM_ADC_SEL_CH0 << i);
-        }
-    } else if (ANC_TT_MIC_CH_R) {
-        reserv_map |= anc_tt_adc_ch_r;
     }
 #endif
 
@@ -4082,7 +3967,7 @@ int hal_codec_setup_stream(enum HAL_CODEC_ID_T id, enum AUD_STREAM_T stream, con
         if ((HAL_CODEC_CONFIG_CHANNEL_MAP | HAL_CODEC_CONFIG_CHANNEL_NUM) & cfg->set_flag) {
             if (cfg->channel_num == AUD_CHANNEL_NUM_2) {
                 if (cfg->channel_map != (AUD_CHANNEL_MAP_CH0 | AUD_CHANNEL_MAP_CH1)) {
-                    HAL_TRACE(2,"\n!!! WARNING:%s: Bad play stereo ch map: 0x%X\n", __func__, cfg->channel_map);
+                    TRACE(2,"\n!!! WARNING:%s: Bad play stereo ch map: 0x%X\n", __func__, cfg->channel_map);
                 }
                 codec->REG_044 |= CODEC_DUAL_CHANNEL_DAC;
             } else {
@@ -4142,7 +4027,7 @@ int hal_codec_setup_stream(enum HAL_CODEC_ID_T id, enum AUD_STREAM_T stream, con
                 "%s: Invalid playback div for rate %u: codec_div=%u cmu_div=%u", __func__, sample_rate,
                 codec_dac_sample_rate[rate_idx].codec_div, codec_dac_sample_rate[rate_idx].cmu_div);
 
-            HAL_TRACE(2,"[%s] playback sample_rate=%d", __func__, sample_rate);
+            TRACE(2,"[%s] playback sample_rate=%d", __func__, sample_rate);
 
 #ifdef CODEC_TIMER
             cur_codec_freq = codec_dac_sample_rate[rate_idx].codec_freq;
@@ -4233,13 +4118,13 @@ int hal_codec_setup_stream(enum HAL_CODEC_ID_T id, enum AUD_STREAM_T stream, con
         }
 
         if (HAL_CODEC_CONFIG_VOL & cfg->set_flag) {
-            const struct CODEC_DAC_VOL_T * dac_gain_db;
+            CODEC_DAC_VOL_T dac_gain_db;
 
             dac_gain_db = hal_codec_get_dac_volume(cfg->vol);
 #ifdef AUDIO_OUTPUT_SW_GAIN
-            hal_codec_set_sw_gain(dac_gain_db->sdac_volume);
+            hal_codec_set_sw_gain(dac_gain_db);
 #else
-            hal_codec_set_dig_dac_gain(VALID_DAC_MAP, dac_gain_db->sdac_volume);
+            hal_codec_set_dig_dac_gain(VALID_DAC_MAP, dac_gain_db);
 #endif
 #ifdef PERF_TEST_POWER_KEY
             // Update performance test power after applying new dac volume
@@ -4426,7 +4311,7 @@ int hal_codec_setup_stream(enum HAL_CODEC_ID_T id, enum AUD_STREAM_T stream, con
                 "%s: Invalid catpure div for rate %u: codec_div=%u cmu_div=%u", __func__, sample_rate,
                 codec_adc_sample_rate[rate_idx].codec_div, codec_adc_sample_rate[rate_idx].cmu_div);
 
-            HAL_TRACE(2,"[%s] capture sample_rate=%d", __func__, sample_rate);
+            TRACE(2,"[%s] capture sample_rate=%d", __func__, sample_rate);
 
 #ifdef CODEC_TIMER
             cur_codec_freq = codec_adc_sample_rate[rate_idx].codec_freq;
@@ -4466,9 +4351,9 @@ int hal_codec_setup_stream(enum HAL_CODEC_ID_T id, enum AUD_STREAM_T stream, con
                 ch_idx = get_lsb_pos(mic_map);
                 mic_map &= ~(1 << ch_idx);
                 if (((1 << ch_idx) & EC_MIC_MAP) == AUD_CHANNEL_MAP_ECMIC_CH0) {
-                    adc_chan = 3;
+                    adc_chan = 5;
                 } else if (((1 << ch_idx) & EC_MIC_MAP) == AUD_CHANNEL_MAP_ECMIC_CH1) {
-                    adc_chan = 4;
+                    adc_chan = 6;
                 } else {
                     adc_chan = hal_codec_get_adc_chan(1 << ch_idx);
                     ASSERT(adc_chan < NORMAL_ADC_CH_NUM, "%s: Bad remap mic ch=%u mic_map=0x%X adc_map=0x%X",
@@ -4608,13 +4493,13 @@ int hal_codec_dac2_setup_stream(enum HAL_CODEC_ID_T id, const struct HAL_CODEC_C
     enum AUD_SAMPRATE_T sample_rate;
     POSSIBLY_UNUSED uint32_t mask, val;
 
-    HAL_TRACE(1, "%s:id=%d,cfg->set_flag=%x", __func__, id, cfg->set_flag);
+    TRACE(1, "%s:id=%d,cfg->set_flag=%x", __func__, id, cfg->set_flag);
 
     if ((HAL_CODEC_CONFIG_CHANNEL_MAP | HAL_CODEC_CONFIG_CHANNEL_NUM) & cfg->set_flag) {
         // Allow to DMA one channel but output 2 channels
         if (cfg->channel_num == AUD_CHANNEL_NUM_2) {
             if (cfg->channel_map != (AUD_CHANNEL_MAP_CH0 | AUD_CHANNEL_MAP_CH1)) {
-                HAL_TRACE(2,"\n!!! WARNING:%s: Bad play stereo ch map: 0x%X\n", __func__, cfg->channel_map);
+                TRACE(2,"\n!!! WARNING:%s: Bad play stereo ch map: 0x%X\n", __func__, cfg->channel_map);
             }
             codec->REG_044 |= CODEC_DUAL_CHANNEL_DAC_SND;
         } else {
@@ -4643,12 +4528,12 @@ int hal_codec_dac2_setup_stream(enum HAL_CODEC_ID_T id, const struct HAL_CODEC_C
         } else {
             ASSERT(false, "%s: Bad play bits: %u", __func__, cfg->bits);
         }
-        HAL_TRACE(1, "update sampbits: %d", cfg->bits);
+        TRACE(1, "update sampbits: %d", cfg->bits);
     }
 
     if (HAL_CODEC_CONFIG_SAMPLE_RATE & cfg->set_flag) {
         sample_rate = cfg->sample_rate;
-        HAL_TRACE(1, "update samprate: %d", cfg->sample_rate);
+        TRACE(1, "update samprate: %d", cfg->sample_rate);
         for (i = 0; i < ARRAY_SIZE(codec_dac_sample_rate); i++) {
             if (codec_dac_sample_rate[i].sample_rate == sample_rate) {
                 break;
@@ -4661,7 +4546,7 @@ int hal_codec_dac2_setup_stream(enum HAL_CODEC_ID_T id, const struct HAL_CODEC_C
             "%s: Invalid playback div for rate %u: codec_div=%u cmu_div=%u", __func__, sample_rate,
             codec_dac_sample_rate[rate_idx].codec_div, codec_dac_sample_rate[rate_idx].cmu_div);
 
-        HAL_TRACE(2,"[%s] playback sample_rate=%d", __func__, sample_rate);
+        TRACE(2,"[%s] playback sample_rate=%d", __func__, sample_rate);
 
         codec_dac2_rate_idx = rate_idx;
 
@@ -4715,14 +4600,14 @@ int hal_codec_dac2_setup_stream(enum HAL_CODEC_ID_T id, const struct HAL_CODEC_C
     }
 
     if (HAL_CODEC_CONFIG_VOL & cfg->set_flag) {
-        const struct CODEC_DAC_VOL_T * dac_gain_db;
+        CODEC_DAC_VOL_T dac_gain_db;
 
         dac_gain_db = hal_codec_get_dac_volume(cfg->vol);
 #ifdef AUDIO_OUTPUT_DAC2_SW_GAIN
-        hal_codec_set_dac2_sw_gain(dac_gain_db->sdac_volume);
+        hal_codec_set_dac2_sw_gain(dac_gain_db);
 #else
-        hal_codec_set_dig_dac2_gain(VALID_DAC_MAP, dac_gain_db->sdac_volume);
-        HAL_TRACE(1, "update vol: %d, dac_gain_db: %d", cfg->vol, (int)dac_gain_db->sdac_volume);
+        hal_codec_set_dig_dac2_gain(VALID_DAC_MAP, dac_gain_db);
+        TRACE(1, "update vol: %d, dac_gain_db: %d", cfg->vol, (int)dac_gain_db);
 #endif
     }
     return 0;
@@ -4738,7 +4623,7 @@ int hal_codec_anc_adc_enable(enum ANC_TYPE_T type)
     map = 0;
     mic_map = 0;
     if (type & ANC_FEEDFORWARD) {
-#if defined(ANC_FF_MIC_CH_L) || defined(ANC_FF_MIC_CH_R)
+#if defined(ANC_FF_MIC_CH_L)
         if (ANC_FF_MIC_CH_L) {
             ch_idx = get_msb_pos(ANC_FF_MIC_CH_L);
             if (ANC_FF_MIC_CH_L & AUD_CHANNEL_MAP_DIGMIC_ALL) {
@@ -4752,26 +4637,9 @@ int hal_codec_anc_adc_enable(enum ANC_TYPE_T type)
             map |= AUD_CHANNEL_MAP_CH0;
             mic_map |= ANC_FF_MIC_CH_L;
         }
-
-        if (ANC_FF_MIC_CH_R) {
-            ch_idx = get_msb_pos(ANC_FF_MIC_CH_R);
-            if (ANC_FF_MIC_CH_R & AUD_CHANNEL_MAP_DIGMIC_ALL) {
-                ch_idx = hal_codec_get_digmic_hw_index(ch_idx);
-                codec->REG_0C8 = SET_BITFIELD(codec->REG_0C8, CODEC_CODEC_PDM_MUX_CH1, ch_idx);
-                codec->REG_0C4 |= CODEC_CODEC_PDM_ADC_SEL_CH1;
-            } else {
-                codec->REG_088 = SET_BITFIELD(codec->REG_084, CODEC_CODEC_ADC_IN_SEL_CH1, ch_idx);
-                codec->REG_0C4 &= ~CODEC_CODEC_PDM_ADC_SEL_CH1;
-            }
-            map |= AUD_CHANNEL_MAP_CH1;
-            mic_map |= ANC_FF_MIC_CH_R;
-        }
-#if defined(ANC_TT_MIC_CH_L) || defined(ANC_TT_MIC_CH_R)
+#if defined(ANC_TT_MIC_CH_L)
         if (ANC_FF_MIC_CH_L && (ANC_FF_MIC_CH_L == ANC_TT_MIC_CH_L)) {
             anc_tt_mic_l_map |= ANC_FEEDFORWARD;
-        }
-        if (ANC_FF_MIC_CH_R && (ANC_FF_MIC_CH_R == ANC_TT_MIC_CH_R)) {
-            anc_tt_mic_r_map |= ANC_FEEDFORWARD;
         }
 #endif
 #else
@@ -4779,7 +4647,7 @@ int hal_codec_anc_adc_enable(enum ANC_TYPE_T type)
 #endif
     }
     if (type & ANC_FEEDBACK) {
-#if defined(ANC_FB_MIC_CH_L) || defined(ANC_FB_MIC_CH_R)
+#if defined(ANC_FB_MIC_CH_L)
         if (ANC_FB_MIC_CH_L) {
             ch_idx = get_msb_pos(ANC_FB_MIC_CH_L);
             if (ANC_FB_MIC_CH_L & AUD_CHANNEL_MAP_DIGMIC_ALL) {
@@ -4793,21 +4661,6 @@ int hal_codec_anc_adc_enable(enum ANC_TYPE_T type)
             map |= AUD_CHANNEL_MAP_CH2;
             mic_map |= ANC_FB_MIC_CH_L;
         }
-
-        if (ANC_FB_MIC_CH_R) {
-            ch_idx = get_msb_pos(ANC_FB_MIC_CH_R);
-            if (ANC_FB_MIC_CH_R & AUD_CHANNEL_MAP_DIGMIC_ALL) {
-                ch_idx = hal_codec_get_digmic_hw_index(ch_idx);
-                codec->REG_0C8 = SET_BITFIELD(codec->REG_0C8, CODEC_CODEC_PDM_MUX_CH1, ch_idx);
-                codec->REG_0C4 |= CODEC_CODEC_PDM_ADC_SEL_CH1;
-            } else {
-                codec->REG_088 = SET_BITFIELD(codec->REG_088, CODEC_CODEC_ADC_IN_SEL_CH1, ch_idx);
-                codec->REG_0C4 &= ~CODEC_CODEC_PDM_ADC_SEL_CH1;
-            }
-            codec->REG_22C = SET_BITFIELD(codec->REG_22C, CODEC_CODEC_FB_ADC_SEL_CH1, 1);
-            map |= AUD_CHANNEL_MAP_CH1;
-            mic_map |= ANC_FB_MIC_CH_R;
-        }
 #else
         ASSERT(false, "No ana adc fb ch defined");
 #endif
@@ -4815,7 +4668,7 @@ int hal_codec_anc_adc_enable(enum ANC_TYPE_T type)
 
 #if defined( AUDIO_ANC_TT_HW) || defined(PSAP_APP)
     if (type & ANC_TALKTHRU) {
-#if defined(ANC_TT_MIC_CH_L) || defined(ANC_TT_MIC_CH_R)
+#if defined(ANC_TT_MIC_CH_L)
         int i;
 
         if (ANC_TT_MIC_CH_L) {
@@ -4837,33 +4690,9 @@ int hal_codec_anc_adc_enable(enum ANC_TYPE_T type)
             map |= anc_tt_adc_ch_l;
             mic_map |= ANC_TT_MIC_CH_L;
         }
-
-        if (ANC_TT_MIC_CH_R) {
-            ch_idx = get_msb_pos(ANC_TT_MIC_CH_R);
-            i = get_msb_pos(anc_tt_adc_ch_r);
-            if (ANC_TT_MIC_CH_R & AUD_CHANNEL_MAP_DIGMIC_ALL) {
-                ch_idx -= get_msb_pos(AUD_CHANNEL_MAP_DIGMIC_CH0);
-                codec->REG_0C8 = (codec->REG_0C8 & ~(CODEC_CODEC_PDM_MUX_CH0_MASK << (3 * i))) |
-                    (CODEC_CODEC_PDM_MUX_CH0(ch_idx) << (3 * i));
-                codec->REG_0C4 |= CODEC_CODEC_PDM_ADC_SEL_CH0 << i;
-            } else {
-                *(&codec->REG_084 + i) = SET_BITFIELD(*(&codec->REG_084 + i), CODEC_CODEC_ADC_IN_SEL_CH0, ch_idx);
-                codec->REG_0C4 &= ~(CODEC_CODEC_PDM_ADC_SEL_CH0 << i);
-            }
-            codec->REG_22C = SET_BITFIELD(codec->REG_22C, CODEC_CODEC_TT_ADC_SEL_CH1, i);
-#ifdef PSAP_APP
-            hal_codec_psap_setup(AUD_CHANNEL_MAP_CH0, &psap_cfg);
-#endif
-            map |= anc_tt_adc_ch_r;
-            mic_map |= ANC_TT_MIC_CH_R;
-        }
-
-#if defined(ANC_FF_MIC_CH_L) || defined(ANC_FF_MIC_CH_R)
+#if defined(ANC_FF_MIC_CH_L)
         if (ANC_TT_MIC_CH_L && (ANC_TT_MIC_CH_L == ANC_FF_MIC_CH_L)) {
             anc_tt_mic_l_map |= ANC_TALKTHRU;
-        }
-        if (ANC_TT_MIC_CH_R && (ANC_TT_MIC_CH_R == ANC_FF_MIC_CH_R)) {
-            anc_tt_mic_r_map |= ANC_TALKTHRU;
         }
 #endif
 #endif
@@ -4902,7 +4731,7 @@ int hal_codec_anc_adc_disable(enum ANC_TYPE_T type)
     map = 0;
     mic_map = 0;
     if (type & ANC_FEEDFORWARD) {
-#if defined(ANC_FF_MIC_CH_L)  || defined(ANC_FF_MIC_CH_R)
+#if defined(ANC_FF_MIC_CH_L)
         if (ANC_FF_MIC_CH_L) {
 #if defined(ANC_TT_MIC_CH_L)
             if (ANC_FF_MIC_CH_L && (ANC_FF_MIC_CH_L == ANC_TT_MIC_CH_L)) {
@@ -4915,37 +4744,20 @@ int hal_codec_anc_adc_disable(enum ANC_TYPE_T type)
                 mic_map |= ANC_FF_MIC_CH_L;
             }
         }
-
-        if (ANC_FF_MIC_CH_R) {
-#if defined(ANC_TT_MIC_CH_R)
-            if (ANC_FF_MIC_CH_R && (ANC_FF_MIC_CH_R == ANC_TT_MIC_CH_R)) {
-                anc_tt_mic_r_map &= ~ANC_FEEDFORWARD;
-            }
-            if (anc_tt_mic_r_map == 0)
-#endif
-            {
-                map |= AUD_CHANNEL_MAP_CH1;
-                mic_map |= ANC_FF_MIC_CH_R;
-            }
-        }
 #endif
     }
     if (type & ANC_FEEDBACK) {
-#if defined(ANC_FB_MIC_CH_L) || defined(ANC_FB_MIC_CH_R)
+#if defined(ANC_FB_MIC_CH_L)
         if (ANC_FB_MIC_CH_L) {
             map |= AUD_CHANNEL_MAP_CH2;
             mic_map |= ANC_FB_MIC_CH_L;
-        }
-        if (ANC_FB_MIC_CH_R) {
-            map |= AUD_CHANNEL_MAP_CH0;
-            mic_map |= ANC_FB_MIC_CH_R;
         }
 #endif
     }
 
 #if defined(AUDIO_ANC_TT_HW) || defined(PSAP_APP)
     if (type & ANC_TALKTHRU) {
-#if defined(ANC_TT_MIC_CH_L) || defined(ANC_TT_MIC_CH_R)
+#if defined(ANC_TT_MIC_CH_L)
         if (ANC_TT_MIC_CH_L) {
 #if defined(ANC_FF_MIC_CH_L)
             if (ANC_TT_MIC_CH_L && (ANC_TT_MIC_CH_L == ANC_FF_MIC_CH_L)) {
@@ -4956,19 +4768,6 @@ int hal_codec_anc_adc_disable(enum ANC_TYPE_T type)
             {
                 map |= anc_tt_adc_ch_l;
                 mic_map |= ANC_TT_MIC_CH_L;
-            }
-        }
-
-        if (ANC_TT_MIC_CH_R) {
-#if defined(ANC_FF_MIC_CH_R)
-            if (ANC_TT_MIC_CH_R && (ANC_TT_MIC_CH_R == ANC_FF_MIC_CH_R)) {
-                anc_tt_mic_r_map &= ~ANC_TALKTHRU;
-            }
-            if (anc_tt_mic_r_map == 0)
-#endif
-            {
-                map |= anc_tt_adc_ch_r;
-                mic_map |= ANC_TT_MIC_CH_R;
             }
         }
 #endif
@@ -5087,7 +4886,7 @@ void hal_codec_apply_anc_adc_gain_offset(enum ANC_TYPE_T type, int8_t offset_l, 
         }
 
         if (ANC_FB_MIC_CH_R) {
-            map_r |= AUD_CHANNEL_MAP_CH1;
+            map_r |= AUD_CHANNEL_MAP_CH3;
         }
     }
 #endif
@@ -6063,31 +5862,6 @@ int hal_codec_adc_dc_auto_calib_disable(enum AUD_CHANNEL_MAP_T ch_map)
     return 0;
 }
 
-#ifdef ADC_DC_CALIB_USE_FIXED_DC
-#define SET_ADC_DC_CALIB_OFFSET     (1280)
-static uint16_t hal_codec_adc_dc_calib_set_fixed_bias(uint16_t calib_step, int32_t adc_dc_original)
-{
-    int32_t adc_dc_val = 0;
-    int32_t adc_dc_wight = 0;
-    if (adc_dc_original >= 0) {
-        adc_dc_val = SET_ADC_DC_CALIB_OFFSET - adc_dc_original;
-    } else {
-        adc_dc_val = -SET_ADC_DC_CALIB_OFFSET - adc_dc_original;
-    }
-
-    if (calib_step == 0x4) {
-        adc_dc_wight = adc_dc_val / 5;
-    } else if (calib_step == 0x8) {
-        adc_dc_wight = adc_dc_val / 10;
-    } else if (calib_step == 0xf) {
-        adc_dc_wight = adc_dc_val / 20;
-    }
-
-    HAL_TRACE(0,"[%s] adc_dc_original = %d, adc_dc_wight = %d", __func__, adc_dc_original,  adc_dc_wight);
-    return analog_aud_dac_dc_diff_to_val(adc_dc_wight);
-}
-#endif
-
 void hal_codec_adc_dc_offset_update(enum AUD_CHANNEL_MAP_T ch_map, uint16_t calib_step, uint16_t calib_value)
 {
     enum AUD_CHANNEL_MAP_T ch_map_save = ch_map;
@@ -6104,10 +5878,10 @@ static void hal_codec_bt_trigger_isr(uint32_t irq_status1, uint32_t irq_status2)
     for (index = 0; index < BT_TRIGGER_NUM; index++) {
         if (irq_status2 & (CODEC_BT_TRIGGER << index)) {
             if (bt_trigger_callback[index]) {
-                HAL_TRACE(1,"[%s] bt_trigger_callback[%u] start", __func__, index);
+                TRACE(1,"[%s] bt_trigger_callback[%u] start", __func__, index);
                 bt_trigger_callback[index]();
             } else {
-                HAL_TRACE(1,"[%s] bt_trigger_callback[%u] = NULL", __func__, index);
+                TRACE(1,"[%s] bt_trigger_callback[%u] = NULL", __func__, index);
             }
         }
     }
@@ -6136,7 +5910,7 @@ int hal_codec_bt_trigger_ex_start(uint32_t index)
 {
     uint32_t lock;
 
-    HAL_TRACE(1,"[%s] Start: index=%d", __func__, index);
+    TRACE(1,"[%s] Start: index=%d", __func__, index);
 
     if (index >= BT_TRIGGER_NUM) {
         return 1;
@@ -6156,7 +5930,7 @@ int hal_codec_bt_trigger_ex_stop(uint32_t index)
 {
     uint32_t lock;
 
-    HAL_TRACE(1,"[%s] Stop", __func__);
+    TRACE(1,"[%s] Stop", __func__);
 
     if (index >= BT_TRIGGER_NUM) {
         return 1;

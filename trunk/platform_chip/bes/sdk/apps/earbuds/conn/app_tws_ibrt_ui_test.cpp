@@ -28,7 +28,9 @@
 #include "nvrecord_env.h"
 #include "nvrecord_ble.h"
 #include "ddbif.h"
+#include "app_tws_ibrt_conn_api.h"
 #include "app_tws_ibrt_ui_test.h"
+#include "app_custom_api.h"
 #include "app_tws_ibrt.h"
 #include "app_ibrt_keyboard.h"
 #include "app_bt.h"
@@ -36,24 +38,19 @@
 #include "app_ibrt_nvrecord.h"
 #include "app_bt_func.h"
 #include "app_ibrt_customif_cmd.h"
-#include "app_audio_active_device_manager.h"
-#include "app_audio_control.h"
-#include "app_audio_bt_device.h"
-#include "app_ui_api.h"
-#include "app_bt_media_manager.h"
-#include "app_ibrt_debug.h"
+#include "nvrecord_extension.h"
+#include "app_bt_audio.h"
+#include "bluetooth_ble_api.h"
+#include "rx_sens_trc.h"
+#include "hal_bootmode.h"
 #include "earbud_profiles_api.h"
 #include "earbud_ux_api.h"
 #include "earbud_ux_duplicate_api.h"
-#include "app_a2dp.h"
-#include "app_trace_rx.h"
-#include "audio_policy.h"
 
 #if defined(BISTO_ENABLED)
 #include "gsound_custom_actions.h"
 #endif
 
-#include "app_media_player.h"
 #include "a2dp_decoder.h"
 
 #ifdef RECORDING_USE_SCALABLE
@@ -63,7 +60,7 @@
 #ifdef __AI_VOICE__
 #include "app_ai_if.h"
 #endif
-//#include "app_ui_queues.h"
+//#include "ibrt_mgr_queues.h"
 
 #if defined(A2DP_SBC_PLC_ENABLED)
 #include "hal_location.h"
@@ -76,32 +73,24 @@
 #include "app_audio_focus_stack.h"
 #include "app_audio_active_device_manager.h"
 #include "app_audio_control.h"
-#include "ble_audio_core_api.h"
-#if BT_SERVICE_ENABLE
-#include "ble_audio_adv.h"
 #endif
-#endif
-
-#include "app_audio_control.h"
 
 #ifdef AUDIO_MANAGER_TEST_ENABLE
 #include "app_audio_active_device_manager_ut.h"
+#include "app_audio_active_route_manager_ut.h"
 #include "app_audio_focus_control_test.h"
 #include "app_audio_focus_stack_ut.h"
 #endif
 #include "app_ai_manager_api.h"
-#include "bts_module_if.h"
 
-extern "C"
-{
-    void nv_record_ble_delete_all_entry(void);
-}
+#if APP_TRACE_RX_ENABLE
+#include "bluetooth_bt_api.h"
+#include "app_bt_media_manager.h"
+//#define GPIO_WAKEUP_ENABLE
+#define PIN_WAKEUP                  (HAL_IOMUX_PIN_P1_5)
+#endif
 
-typedef struct
-{
-    const char* string;
-    void (*cmd_function)(const char* param, uint32_t param_len);
-} app_ibrt_test_cmd_table_t;
+#include "audio_player_adapter.h"
 
 typedef struct
 {
@@ -128,8 +117,6 @@ static const ibrt_pairing_info_t g_ibrt_pairing_info[] =
     {{0xF8, 0x33, 0x66, 0x22, 0x11, 0x11},{0xF7, 0x33, 0x66, 0x22, 0x11, 0x11}}, /*jtx*/
     {{0xd3, 0x53, 0x86, 0x42, 0x71, 0x31},{0xd2, 0x53, 0x86, 0x42, 0x71, 0x31}}, /*shhx*/
     {{0xd5, 0x53, 0x86, 0x42, 0x71, 0x31},{0xd4, 0x53, 0x86, 0x42, 0x71, 0x31}}, /*shhx*/
-    {{0xe3, 0x63, 0x96, 0x52, 0x81, 0x41},{0xe2, 0x63, 0x96, 0x52, 0x81, 0x41}}, /*shhx*/
-    {{0xe5, 0x63, 0x96, 0x52, 0x81, 0x41},{0xe4, 0x63, 0x96, 0x52, 0x81, 0x41}}, /*shhx*/
     {{0xcc, 0xaa, 0x99, 0x88, 0x77, 0x66},{0xbb, 0xaa, 0x99, 0x88, 0x77, 0x66}}, /*mql*/
     {{0x95, 0x33, 0x69, 0x22, 0x11, 0x11},{0x94, 0x33, 0x69, 0x22, 0x11, 0x11}}, /*wyl*/
     {{0x82, 0x35, 0x68, 0x24, 0x19, 0x17},{0x81, 0x35, 0x68, 0x24, 0x19, 0x17}}, /*rhy*/
@@ -165,14 +152,7 @@ static const ibrt_pairing_info_t g_ibrt_pairing_info[] =
     {{0x99, 0x77, 0x33, 0x22, 0x11, 0x11},{0x98, 0x77, 0x33, 0x22, 0x11, 0x11}}, /*zhaochunyu*/
 
     {{0x81, 0x33, 0x33, 0x23, 0x22, 0x11},{0x80, 0x33, 0x33, 0x23, 0x22, 0x11}}, /*dual mode,test 2*/
-    {{0x91, 0x44, 0x33, 0x23, 0x22, 0x11},{0x90, 0x44, 0x33, 0x23, 0x22, 0x11}}, /*dual mode,test 4*/
-    {{0x51, 0x33, 0x33, 0x23, 0x22, 0x11},{0x50, 0x33, 0x33, 0x23, 0x22, 0x11}}, /* ziqiangli */
-    {{0x6b, 0x33, 0x33, 0x23, 0x22, 0x11},{0x6a, 0x33, 0x33, 0x23, 0x22, 0x11}},
-    {{0x91, 0x33, 0x33, 0x23, 0x22, 0x11},{0x90, 0x33, 0x33, 0x23, 0x22, 0x11}}, /* liujunhong*/
-    {{0x98, 0x33, 0x33, 0x23, 0x22, 0x11},{0x97, 0x33, 0x33, 0x23, 0x22, 0x11}}, 
     {{0x91, 0x33, 0x33, 0x23, 0x22, 0x11},{0x90, 0x33, 0x33, 0x23, 0x22, 0x11}}, /*dual mode,test 4*/
-    {{0x90, 0x33, 0x33, 0x2f, 0x22, 0x11},{0x91, 0x33, 0x33, 0x2f, 0x22, 0x11}}, /*dual mode,test 4*/
-
 
     {{0x25, 0x66, 0x66, 0x66, 0x66, 0x27},{0x52, 0x66, 0x66, 0x66, 0x66, 0x72}}, //customer01
     {{0x39, 0x33, 0x33, 0x23, 0x22, 0x11},{0x38, 0x33, 0x33, 0x23, 0x22, 0x11}}, //customer02
@@ -199,17 +179,11 @@ static const ibrt_pairing_info_t g_ibrt_pairing_info[] =
 
     {{0xbb, 0x9a, 0x78, 0x56, 0x34, 0x12},{0xaa, 0x9a, 0x78, 0x56, 0x34, 0x12}}, //hejunxiang
 
-    {{0x55, 0xda, 0x61, 0xe9, 0xc6, 0x5c},{0x56, 0xda, 0x61, 0xe9, 0xc6, 0x5c}}, /*test tile*/
-    {{0x99, 0x33, 0x33, 0x23, 0x22, 0x11},{0x98, 0x33, 0x33, 0x23, 0x22, 0x11}},    //used for dolby
-    {{0x81, 0xda, 0x61, 0xbb, 0xc6, 0x5c},{0x80, 0xda, 0x61, 0xbb, 0xc6, 0x5c}}, //Aragon
-
 };
 
-#if defined( __BT_ANC_KEY__)&&defined(ANC_APP)
-extern void app_anc_key(APP_KEY_STATUS *status, void *param);
-#endif
+static bool trace_disabled;
 
-#if !defined(FREE_TWS_PAIRING_ENABLED) && !defined(FREEMAN_ENABLED_STERO)
+#if !defined(FREE_TWS_PAIRING_ENABLED)
 static void app_ibrt_raw_ui_test_load_from_bt_pair_list(void)
 {
     const ibrt_pairing_info_t *ibrt_pairing_info_lst = g_ibrt_pairing_info;
@@ -276,7 +250,7 @@ WEAK void app_ibrt_initialize_nv_role_callback(void *config, void * record_env)
 
 int app_ibrt_ui_v2_test_config_load(void *config)
 {
-#if !defined(FREE_TWS_PAIRING_ENABLED) && !defined(FREEMAN_ENABLED_STERO)
+#if !defined(FREE_TWS_PAIRING_ENABLED)
     app_ibrt_raw_ui_test_load_from_bt_pair_list();
 #endif
 
@@ -298,13 +272,13 @@ int app_ibrt_ui_v2_test_config_load(void *config)
     if (IBRT_MASTER == nvrecord_env->ibrt_mode.mode)
     {
         ibrt_config->audio_chnl_sel = A2DP_AUDIO_CHANNEL_SELECT_RCHNL;
-        bts_tws_if_set_local_side(EAR_SIDE_RIGHT);
+        app_ibrt_if_set_side(EAR_SIDE_RIGHT);
         memcpy(ibrt_config->peer_addr.address, nvrecord_env->ibrt_mode.record.bdAddr.address , BD_ADDR_LEN);
     }
     else if (IBRT_SLAVE == nvrecord_env->ibrt_mode.mode)
     {
         ibrt_config->audio_chnl_sel = A2DP_AUDIO_CHANNEL_SELECT_LCHNL;
-        bts_tws_if_set_local_side(EAR_SIDE_LEFT);
+        app_ibrt_if_set_side(EAR_SIDE_LEFT);
         memcpy(ibrt_config->peer_addr.address, nvrecord_env->ibrt_mode.record.bdAddr.address, BD_ADDR_LEN);
     }
     else
@@ -316,13 +290,13 @@ int app_ibrt_ui_v2_test_config_load(void *config)
     if (IBRT_SLAVE == nvrecord_env->ibrt_mode.mode)
     {
         ibrt_config->audio_chnl_sel = A2DP_AUDIO_CHANNEL_SELECT_RCHNL;
-        bts_tws_if_set_local_side(EAR_SIDE_RIGHT);
+        app_ibrt_if_set_side(EAR_SIDE_RIGHT);
         memcpy(ibrt_config->peer_addr.address, nvrecord_env->ibrt_mode.record.bdAddr.address , BD_ADDR_LEN);
     }
     else if (IBRT_MASTER == nvrecord_env->ibrt_mode.mode)
     {
         ibrt_config->audio_chnl_sel = A2DP_AUDIO_CHANNEL_SELECT_LCHNL;
-        bts_tws_if_set_local_side(EAR_SIDE_LEFT);
+        app_ibrt_if_set_side(EAR_SIDE_LEFT);
         memcpy(ibrt_config->peer_addr.address, nvrecord_env->ibrt_mode.record.bdAddr.address, BD_ADDR_LEN);
     }
     else
@@ -334,28 +308,22 @@ int app_ibrt_ui_v2_test_config_load(void *config)
 #if defined(A2DP_SBC_PLC_ENABLED)
     ch_select = ibrt_config->audio_chnl_sel;
 #endif
-    bts_core_set_ui_role(nvrecord_env->ibrt_mode.mode);
+    app_ibrt_conn_set_ui_role(nvrecord_env->ibrt_mode.mode);
 
     return 0;
 }
 
-#ifdef APP_TRACE_RX_ENABLE
 extern "C" void pmu_reboot(void);
-static void app_ibrt_soft_reset_test(const char* param, uint32 len)
+static void app_ibrt_soft_reset_test(void)
 {
-    EARBUDS_TRACE(1,"soft_reset_test");
+    TRACE(1,"soft_reset_test");
     //app_reset();
     pmu_reboot();
 }
 
-static void app_ibrt_trigger_assert_test(const char* param, uint32 len)
+static void app_ibrt_soft_reset_delete_bt_nv_test(void)
 {
-    ASSERT(false, "Test purpose assert!");
-}
-
-static void app_ibrt_soft_reset_delete_bt_nv_test(const char* param, uint32 len)
-{
-    EARBUDS_TRACE(1,"soft_reset_after_delete_nv_test");
+    TRACE(1,"soft_reset_after_delete_nv_test");
     nvrec_btdevicerecord *l_NvRecord;
     uint8_t record_num = 0;
     record_num = nv_record_get_paired_dev_list(&l_NvRecord);
@@ -367,19 +335,12 @@ static void app_ibrt_soft_reset_delete_bt_nv_test(const char* param, uint32 len)
     app_reset();
 }
 
-#ifdef __IAG_BLE_INCLUDE__
-static void app_ibrt_nv_record_ble_delete_all_entry_test(const char* param, uint32 len)
-{
-    nv_record_ble_delete_all_entry();
-}
-#endif
-
 void app_ibrt_ui_tws_swtich_test(void)
 {
-    EARBUDS_TRACE(1, "%s",__func__);
+    TRACE(1, "%s",__func__);
 }
-
-static void app_ibrt_mgr_pairing_mode_test(const char* param, uint32_t len)
+#ifdef IBRT_UI
+void app_ibrt_mgr_pairing_mode_test(void)
 {
 #if !defined(FREE_TWS_PAIRING_ENABLED)
     app_ibrt_if_init_open_box_state_for_evb();
@@ -396,22 +357,55 @@ static void app_ibrt_mgr_pairing_mode_test(const char* param, uint32_t len)
 #endif
 }
 
-void app_ibrt_start_power_on_freeman_pairing(const char* param, uint32_t len)
+#define POWER_ON_TWS_PAIRING_DELAY_MS   2000
+
+osTimerId   power_on_pairing_delay_timer_id = NULL;
+static void power_on_pairing_delay_timer_handler(void const *para)
+{
+#if BLE_AUDIO_ENABLED
+    if (bes_ble_audio_is_ux_mobile()) {
+        return;
+    }
+#endif
+    app_ibrt_mgr_pairing_mode_test();
+}
+
+void app_ibrt_start_power_on_freeman_pairing(void)
 {
     app_ibrt_if_enter_freeman_pairing();
 }
 
-static void app_ibrt_tws_disconnect_test(const char* param, uint32_t len)
+osTimerDef (power_on_pairing_delay_timer, power_on_pairing_delay_timer_handler);
+void app_ibrt_start_power_on_tws_pairing(void)
 {
-    EARBUDS_TRACE(0, "tws_disconnect_test");
-    bts_tws_if_disconnect_acl_link();
+    if (NULL == power_on_pairing_delay_timer_id)
+    {
+        power_on_pairing_delay_timer_id =
+            osTimerCreate(osTimer(power_on_pairing_delay_timer), osTimerOnce, NULL);
+    }
+
+    osTimerStart(power_on_pairing_delay_timer_id, POWER_ON_TWS_PAIRING_DELAY_MS);
+    TRACE(1, "%s",__func__);
+}
+#endif
+
+void app_ibrt_tws_connect_test(void)
+{
+    TRACE(0, "tws_connect_test");
+    app_ibrt_conn_tws_connect_request(false, 0);
 }
 
-static int parse_bt_addr(const char *addr_buf, bt_bdaddr_t *bt_addr, unsigned int lenth)
+void app_ibrt_tws_disconnect_test(void)
+{
+    TRACE(0, "tws_disconnect_test");
+    app_ibrt_conn_tws_disconnect();
+}
+
+static int parse_bt_addr(unsigned char *addr_buf, bt_bdaddr_t *bt_addr, unsigned int lenth)
 {
     if(lenth < 12)
     {
-        EARBUDS_TRACE(0, "invalid recv bt addr");
+        TRACE(0, "invalid recv bt addr");
         return 0;
     }
     char bt_addr_buff[2];
@@ -430,154 +424,152 @@ static int parse_bt_addr(const char *addr_buf, bt_bdaddr_t *bt_addr, unsigned in
 
 void app_ibrt_print_log_with_bt_address(const char *tag, uint8_t *bt_addr)
 {
-    EARBUDS_TRACE(7, "%s addr: %02x:%02x:%02x:%02x:%02x:%02x", tag ? tag : "",
+    TRACE(7, "%s addr: %02x:%02x:%02x:%02x:%02x:%02x", tag ? tag : "",
         bt_addr[0], bt_addr[1], bt_addr[2], bt_addr[3], bt_addr[4], bt_addr[5]);
 }
 
-static void app_ibrt_mobile_connect_test(const char* param, uint32_t len)
+void app_ibrt_mobile_connect_test(unsigned char *bt_addr, unsigned int lenth)
 {
-    EARBUDS_TRACE(0, "mobile_connect_test_1");
+    TRACE(0, "mobile_connect_test_1");
     bt_bdaddr_t remote_addr = {0,};
-    if (parse_bt_addr(param, &remote_addr, len) == 1) {
-        app_ibrt_if_connect_mobile_device(&remote_addr, 0);
+    if (parse_bt_addr(bt_addr, &remote_addr, lenth) == 1) {
+        app_ibrt_conn_remote_dev_connect_request(&remote_addr,OUTGOING_CONNECTION_REQ, true, 0);
     }
 }
 
-static void app_ibrt_mobile_disconnect_test(const char* param, uint32_t len)
+void app_ibrt_mobile_disconnect_test(unsigned char *bt_addr, unsigned int lenth)
 {
-    EARBUDS_TRACE(0, "mobile_disconnect_test_1");
+    TRACE(0, "mobile_disconnect_test_1");
     bt_bdaddr_t remote_addr = {0,};
-    if (parse_bt_addr(param, &remote_addr, len) == 1) {
-        bts_bt_if_dev_disconnect_acl_link(&remote_addr);
+    if (parse_bt_addr(bt_addr, &remote_addr, lenth) == 1) {
+        app_ibrt_conn_remote_dev_disconnect_request(&remote_addr,NULL);
     }
 }
 
-static void app_ibrt_connect_profiles_test(const char* param, uint32_t len)
+void app_ibrt_connect_profiles_test(void)
 {
-    EARBUDS_TRACE(0, "connect_profiles_test");
-    bts_bt_if_dev_connect_all_profiles(NULL);
+    TRACE(0, "connect_profiles_test");
+    app_ibrt_conn_connect_profiles(NULL);
 }
 
-static void app_ibrt_start_ibrt_test_with_addr(const char* param, uint32_t len)
+void app_ibrt_host_connect_cancel_test(void)
 {
-    bt_bdaddr_t remote_addr = {0,};
+    TRACE(0, "host_connect_cancel_test");
+    app_ibrt_conn_remote_dev_connect_request(NULL,OUTGOING_CONNECTION_REQ, true, 0);
+    app_ibrt_conn_remote_dev_connect_cancel_request(NULL);
+}
 
-    if (parse_bt_addr(param, &remote_addr, len) == 1)
-    {
-        EARBUDS_TRACE(0,"start_ibrt_test_with_addr:%02x:%02x:*:*:*:%02x",
-            remote_addr.address[0], remote_addr.address[1], remote_addr.address[5]);
-        bts_ibrt_if_dev_connect_ibrt_link(&remote_addr);
+void app_ibrt_start_ibrt_test_with_addr(unsigned char *bt_addr, unsigned int lenth)
+{
+    TRACE(0, "start_ibrt_test_1");
+    bt_bdaddr_t remote_addr = {0,};
+    if (parse_bt_addr(bt_addr, &remote_addr, lenth) == 1) {
+        app_ibrt_conn_connect_ibrt(&remote_addr);
     }
 }
 
-static void app_ibrt_stop_ibrt_test_with_addr(const char* param, uint32_t len)
+void app_ibrt_stop_ibrt_test_with_addr(unsigned char *bt_addr, unsigned int lenth)
 {
+    TRACE(0, "stop_ibrt_test_1");
     bt_bdaddr_t remote_addr = {0,};
-
-    if (parse_bt_addr(param, &remote_addr, len) == 1)
-    {
-        EARBUDS_TRACE(0,"stop_ibrt_test_with_addr:%02x:%02x:*:*:*:%02x",
-            remote_addr.address[0], remote_addr.address[1], remote_addr.address[5]);
-        bts_ibrt_if_dev_disconnect_ibrt_link(&remote_addr);
+    if (parse_bt_addr(bt_addr, &remote_addr, lenth) == 1) {
+        app_ibrt_conn_disconnect_ibrt(&remote_addr);
     }
 }
 
-static void app_ibrt_tws_role_switch_test(const char* param, uint32_t len)
+void app_ibrt_tws_role_get_request_test(void)
+{
+    tws_role_e role = app_ibrt_conn_tws_role_get_request(NULL);
+    TRACE(2, "%s Role=%d",__func__,role);
+}
+
+void app_ibrt_tws_role_switch_test(void)
 {
    app_ibrt_if_tws_role_switch_request();
 }
 
-static void app_ibrt_tws_role_switch_test_with_addr(const char* param, uint32_t len)
+void app_ibrt_tws_role_switch_test_with_addr(unsigned char *bt_addr, unsigned int lenth)
 {
-    POSSIBLY_UNUSED ibrt_status_t status;
+    ibrt_status_t status;
     bt_bdaddr_t remote_addr = {0,};
 
-    if (parse_bt_addr(param, &remote_addr, len) == 1)
-    {
-        if (bts_bt_if_is_profile_connecting(&remote_addr))
-        {
-            status = IBRT_STATUS_ERROR_OP_NOT_ALLOWED;
-        }
-        else
-        {
-            status = bts_ibrt_conn_tws_role_switch(&remote_addr);
-        }
-        EARBUDS_TRACE(2, "%s status=%d",__func__,status);
+    if (parse_bt_addr(bt_addr, &remote_addr, lenth) == 1) {
+        status = app_ibrt_conn_tws_role_switch(&remote_addr);
+        TRACE(2, "%s status=%d",__func__,status);
     }
 }
 
-void app_ibrt_a2dp_a2dp_set_codec_test(const char* param, uint32_t len)
+void app_ibrt_get_remote_device_count(void)
 {
-    codec_act_param_t codec_act={0};
-    codec_act.action = CODEC_ACT_EN_OR_DISABLE_CODEC;
-    codec_act.device_id = 0xff;
-    uint32_t param_codec_type[1]={0};
-    uint32_t param_sub_codec_type[1]={0};
-    uint32_t param_codec_enable;
-    bool codec_enable=false;
-    uint8_t codec_type[1]={0};
-    uint8_t sub_codec_type[1]={0};
-    sscanf(param, "%02x%02x%d", &param_codec_type[0], &param_sub_codec_type[0], &param_codec_enable);
-    codec_enable = (uint8_t*)param_codec_enable;
-    for(int i=0;i<1;i++){
-        codec_type[i]=param_codec_type[i];
-    }
-    for(int i=0;i<1;i++){
-        sub_codec_type[i]=param_sub_codec_type[i];
-    }
-    codec_act.p.enable_codec.codec_type = codec_type[0];
-    codec_act.p.enable_codec.sub_codec_type = sub_codec_type[0];
-    codec_act.p.enable_codec.enable = codec_enable;
-    btif_a2dp_set_codec_parameters((codec_act_param_t *)&codec_act);
+    TRACE(1,"remote device count = %d",app_ibrt_conn_get_local_connected_mobile_count());
 }
 
-static void app_ibrt_get_remote_device_count(const char* param, uint32_t len)
+void app_ibrt_tws_dump_info_test(void)
 {
-    EARBUDS_TRACE(1,"remote device count = %d",bts_bt_if_get_dev_acl_connected_count());
-}
-
-static void app_ibrt_tws_dump_info_test(const char* param, uint32_t len)
-{
-    EARBUDS_TRACE(1, "%s",__func__);
+    TRACE(1, "%s",__func__);
     app_ibrt_conn_dump_ibrt_info();
 }
 
-#ifdef GFPS_ENABLED
-extern "C" void gfps_enter_fastpairing_mode(void);
-#endif
-
-static void app_ibrt_enable_access_mode_test(const char* param, uint32_t len)
+void app_ibrt_enable_access_mode_test(void)
 {
 #ifdef GFPS_ENABLED
-    gfps_enter_fastpairing_mode();
+    app_enter_fastpairing_mode();
 #endif
 
-    EARBUDS_TRACE(1, "%s",__func__);
+    TRACE(1, "%s",__func__);
     app_ibrt_conn_set_discoverable_connectable(true,true);
 }
 
-static void app_ibrt_disable_access_mode_test(const char* param, uint32_t len)
+void app_ibrt_disable_access_mode_test(void)
 {
-    EARBUDS_TRACE(1, "%s",__func__);
+    TRACE(1, "%s",__func__);
     app_ibrt_conn_set_discoverable_connectable(false,false);
 }
 
-static void app_ibrt_tws_freeman_pairing_test(const char* param, uint32_t len)
+void app_ibrt_tws_freeman_pairing_test(void)
 {
     app_ibrt_if_enter_freeman_pairing();
 }
 
-static void app_ibrt_tws_disc_all_mobile_link_test(const char* param, uint32_t len)
+void app_ibrt_tws_disc_all_mobile_link_test(void)
 {
-    EARBUDS_TRACE(1, "%s",__func__);
-    bts_bt_if_dev_disconnect_all_links();
+    TRACE(1, "%s",__func__);
+    app_ibrt_conn_disc_all_mobile_link();
 }
 
-static void app_ibrt_tws_w4_mobile_connect_test(const char* param, uint32_t len)
+void app_ibrt_service_fuction_test()
 {
-    EARBUDS_TRACE(1, "%s",__func__);
+    bool result;
 
-    if(bts_tws_if_is_nv_master())
+    TRACE(1, "%s",__func__);
+    result  = app_ibrt_conn_is_tws_in_pairing_state();
+    TRACE(1, "tws is in pairing mode = %d", result);
+
+    result = app_ibrt_conn_is_ibrt_master(NULL);
+    TRACE(1, "tws current role is master = %d", result);
+
+    result = app_ibrt_conn_is_ibrt_slave(NULL);
+    TRACE(1, "tws current role is slave = %d",result);
+
+    result = app_ibrt_conn_is_freeman_mode();
+    TRACE(1, "tws is freeman mode = %d",result);
+
+    app_tws_buds_info_t buds_info;
+    memset((char*)&buds_info,0,sizeof(buds_info));
+    app_ibrt_conn_get_tws_buds_info(&buds_info);
+    TRACE(0, "tws local addr:");
+    DUMP8("%02x ", buds_info.local_addr.address, BT_ADDR_OUTPUT_PRINT_NUM);
+    TRACE(1, "tws current role=%d",buds_info.current_ibrt_role);
+    TRACE(0, "peer addr:");
+    DUMP8("%02x ", buds_info.peer_addr.address, BT_ADDR_OUTPUT_PRINT_NUM);
+    TRACE(1, "tws peer role=%d",buds_info.peer_ibrt_role);
+}
+
+void app_ibrt_tws_w4_mobile_connect_test(void)
+{
+    TRACE(1, "%s",__func__);
+
+    if(app_ibrt_conn_is_nv_master())
     {
          app_bt_set_access_mode(BTIF_BAM_GENERAL_ACCESSIBLE);
     }
@@ -587,16 +579,15 @@ static void app_ibrt_tws_w4_mobile_connect_test(const char* param, uint32_t len)
     }
 }
 
-static void app_ibrt_tws_mobile_connection_test(const char* param, uint32_t len)
+void app_ibrt_tws_mobile_connection_test()
 {
-    EARBUDS_TRACE(1, "%s",__func__);
-    EARBUDS_TRACE(1, "mobile connection state = %d",bts_bt_if_get_dev_acl_state(NULL));
+    TRACE(1, "%s",__func__);
+    TRACE(1, "mobile connection state = %d",app_ibrt_conn_get_mobile_conn_state(NULL));
 }
 
-
-static void app_ibrt_get_a2dp_state_test(const char* param, uint32_t len)
+void app_ibrt_get_a2dp_state_test(unsigned char *bt_addr,unsigned int lenth)
 {
-   POSSIBLY_UNUSED const static char* a2dp_state_strings[] = {
+   const static char* a2dp_state_strings[] = {
     "IDLE",
     "CODEC_CONFIGURED",
     "OPEN",
@@ -605,21 +596,21 @@ static void app_ibrt_get_a2dp_state_test(const char* param, uint32_t len)
     "ABORTING"
    };
     bt_bdaddr_t remote_addr = {0,};
-    if(parse_bt_addr(param, &remote_addr, len) == 1){
+    if(parse_bt_addr(bt_addr, &remote_addr, lenth) == 1){
         AppIbrtA2dpState a2dp_state;
         AppIbrtStatus  status = app_ibrt_if_get_a2dp_state(&remote_addr, &a2dp_state);
         if(IBRT_PROFILE_STATUS_SUCCESS == status){
-            EARBUDS_TRACE(0,"ibrt_test:a2dp_state=%s",a2dp_state_strings[a2dp_state]);
+            TRACE(0,"ibrt_test:a2dp_state=%s",a2dp_state_strings[a2dp_state]);
         }
         else{
-            EARBUDS_TRACE(0,"ibrt_test:get a2dp state error");
+            TRACE(0,"ibrt_test:get a2dp state error");
         }
     }
 }
 
-static void app_ibrt_get_avrcp_state_test(const char* param, uint32_t len)
+void app_ibrt_get_avrcp_state_test(unsigned char *bt_addr, unsigned int lenth)
 {
-    POSSIBLY_UNUSED const static char* avrcp_state_strings[] = {
+    const static char* avrcp_state_strings[] = {
         "DISCONNECTED",
         "CONNECTED",
         "PLAYING",
@@ -627,24 +618,24 @@ static void app_ibrt_get_avrcp_state_test(const char* param, uint32_t len)
         "VOLUME_UPDATED"
     };
     bt_bdaddr_t remote_addr = {0,};
-    if(parse_bt_addr(param, &remote_addr, len) == 1){
+    if(parse_bt_addr(bt_addr, &remote_addr, lenth) == 1){
         AppIbrtAvrcpState avrcp_state;
         AppIbrtStatus status = app_ibrt_if_get_avrcp_state(&remote_addr, &avrcp_state);
         if(IBRT_PROFILE_STATUS_SUCCESS == status)
         {
-            EARBUDS_TRACE(0,"ibrt_test:avrcp_state=%s",avrcp_state_strings[avrcp_state]);
+            TRACE(0,"ibrt_test:avrcp_state=%s",avrcp_state_strings[avrcp_state]);
         }
         else
         {
-            EARBUDS_TRACE(0,"ibrt_test:get avrcp state error");
+            TRACE(0,"ibrt_test:get avrcp state error");
         }
     }
 }
 
 #ifdef BT_HFP_SUPPORT
-static void app_ibrt_get_hfp_state_test(const char* param, uint32_t len)
+void app_ibrt_get_hfp_state_test(unsigned char *bt_addr, unsigned int lenth)
 {
-    POSSIBLY_UNUSED const static char* hfp_state_strings[] = {
+    const static char* hfp_state_strings[] = {
         "SLC_DISCONNECTED",
         "CLOSED",
         "SCO_CLOSED",
@@ -658,23 +649,23 @@ static void app_ibrt_get_hfp_state_test(const char* param, uint32_t len)
         "RING_INDICATION"
     };
     bt_bdaddr_t remote_addr = {0,};
-    if(parse_bt_addr(param, &remote_addr, len) == 1){
+    if(parse_bt_addr(bt_addr, &remote_addr, lenth) == 1){
         AppIbrtHfpState hfp_state;
         AppIbrtStatus status = app_ibrt_if_get_hfp_state(&remote_addr, &hfp_state);
         if(IBRT_PROFILE_STATUS_SUCCESS == status)
         {
-            EARBUDS_TRACE(0,"ibrt_test:hfp_state=%s",hfp_state_strings[hfp_state]);
+            TRACE(0,"ibrt_test:hfp_state=%s",hfp_state_strings[hfp_state]);
         }
         else
         {
-            EARBUDS_TRACE(0,"ibrt_test:get hfp state error");
+            TRACE(0,"ibrt_test:get hfp state error");
         }
     }
 }
 
-void app_ibrt_get_call_status_test(const char* param, uint32_t len)
+void app_ibrt_get_call_status_test(unsigned char *bt_addr, unsigned int lenth)
 {
-    POSSIBLY_UNUSED const static char* call_status_strings[] = {
+    const static char* call_status_strings[] = {
         "NO_CALL",
         "CALL_ACTIVE",
         "HOLD",
@@ -683,84 +674,105 @@ void app_ibrt_get_call_status_test(const char* param, uint32_t len)
         "ALERT"
     };
     bt_bdaddr_t remote_addr = {0,};
-    if(parse_bt_addr(param, &remote_addr, len) == 1)
+    if(parse_bt_addr(bt_addr, &remote_addr, lenth) == 1)
     {
         AppIbrtCallStatus call_status;
         AppIbrtStatus status = app_ibrt_if_get_hfp_call_status(&remote_addr, &call_status);
         if(IBRT_PROFILE_STATUS_SUCCESS == status)
         {
-            EARBUDS_TRACE(0,"ibrt_test:call_status=%s",call_status_strings[call_status]);
+            TRACE(0,"ibrt_test:call_status=%s",call_status_strings[call_status]);
         }
         else
         {
-            EARBUDS_TRACE(0,"ibrt_test:get call status error");
+            TRACE(0,"ibrt_test:get call status error");
         }
     }
 }
 #endif
 
-void app_ibrt_tws_role_get_request_test_with_parameter(const char* param, uint32_t len)
+void app_ibrt_tws_role_get_request_test_with_parameter(unsigned char *bt_addr, unsigned int lenth)
 {
     bt_bdaddr_t remote_addr = {0,};
-    if(parse_bt_addr(param, &remote_addr, len) == 1){
-        POSSIBLY_UNUSED bool is_ibrt_master = bts_bt_if_is_dev_link_connected(&remote_addr);
-        EARBUDS_TRACE(1, "is_ibrt_master_connected=%d",is_ibrt_master);
+    if(parse_bt_addr(bt_addr, &remote_addr, lenth) == 1){
+        tws_role_e role = app_ibrt_conn_tws_role_get_request(&remote_addr);
+        TRACE(1, "Role=%d",role);
     }
 }
 
-static void app_ibrt_get_tws_state_test(const char* param, uint32_t len)
+void app_ibrt_get_tws_state_test(void)
 {
-    if(bts_tws_if_is_tws_link_connected())
+    if(app_tws_ibrt_tws_link_connected())
     {
-        EARBUDS_TRACE(0,"ibrt_test:TWS CONNECTED");
+        TRACE(0,"ibrt_test:TWS CONNECTED");
     }
     else
     {
-        EARBUDS_TRACE(0,"ibrt_test:TWS DISCONNECTED");
+        TRACE(0,"ibrt_test:TWS DISCONNECTED");
     }
 }
-void app_ibrt_tws_avrcp_pause_test(const char* param, uint32_t len)
+
+void app_ibrt_tws_avrcp_pause_test(void)
 {
+#if BLE_AUDIO_ENABLED
     app_audio_control_media_pause();
+#else
+    uint8_t device_id = app_bt_audio_get_curr_a2dp_device();
+    if(device_id != BT_DEVICE_INVALID_ID)
+    {
+        struct BT_DEVICE_T *curr_device = app_bt_get_device(device_id);
+        if(app_tws_ibrt_tws_link_connected() && (IBRT_SLAVE == app_tws_get_ibrt_role(&curr_device->remote)))
+        {
+            app_ibrt_if_start_user_action_v2(device_id, IBRT_ACTION_PAUSE, 0, 0);
+        }
+        else
+        {
+            a2dp_handleKey(AVRCP_KEY_PAUSE);
+        }
+    }
+#endif
 }
 
-void app_ibrt_tws_avrcp_play_test(const char* param, uint32_t len)
+void app_ibrt_tws_avrcp_play_test(void)
 {
+#if BLE_AUDIO_ENABLED
     app_audio_control_media_play();
+
+#else
+    uint8_t device_id = app_bt_audio_get_curr_a2dp_device();
+    if(device_id != BT_DEVICE_INVALID_ID)
+    {
+        struct BT_DEVICE_T *curr_device = app_bt_get_device(device_id);
+        if(app_tws_ibrt_tws_link_connected() && (IBRT_SLAVE == app_tws_get_ibrt_role(&curr_device->remote)))
+        {
+            app_ibrt_if_start_user_action_v2(device_id, IBRT_ACTION_PLAY, 0, 0);
+        }
+        else
+        {
+            a2dp_handleKey(AVRCP_KEY_PLAY);
+        }
+    }
+#endif
 }
 
-void app_ibrt_tws_avrcp_vol_up_test(const char* param, uint32_t len)
+void app_ibrt_tws_avrcp_vol_up_test(void)
 {
-    app_audio_control_streaming_volume_up();
+    uint8_t device_id = app_bt_audio_get_curr_a2dp_device();
+    if(device_id != BT_DEVICE_INVALID_ID)
+    {
+        app_ibrt_if_start_user_action_v2(device_id, IBRT_ACTION_AVRCP_VOLUP, 0, 0);
+    }
 }
 
-void app_ibrt_tws_avrcp_vol_down_test(const char* param, uint32_t len)
+void app_ibrt_tws_avrcp_vol_down_test(void)
 {
-    app_audio_control_streaming_volume_down();
+    uint8_t device_id = app_bt_audio_get_curr_a2dp_device();
+    if(device_id != BT_DEVICE_INVALID_ID)
+    {
+        app_ibrt_if_start_user_action_v2(device_id, IBRT_ACTION_AVRCP_VOLDN,0 ,0);
+    }
 }
 
-
-static void app_ibrt_tws_avrcp_fast_forward_start_test(const char* param, uint32_t len)
-{
-    app_audio_control_media_fast_forward_start();
-}
-
-static void app_ibrt_tws_avrcp_fast_forward_stop_test(const char* param, uint32_t len)
-{
-    app_audio_control_media_fast_forward_stop();
-}
-
-static void app_ibrt_tws_avrcp_rewind_start_test(const char* param, uint32_t len)
-{
-    app_audio_control_media_rewind_start();
-}
-
-static void app_ibrt_tws_avrcp_rewind_stop_test(const char* param, uint32_t len)
-{
-    app_audio_control_media_rewind_stop();
-}
-
-static void app_ibrt_tws_avrcp_next_track_test(const char* param, uint32_t len)
+void app_ibrt_tws_avrcp_next_track_test(void)
 {
     uint8_t device_id = app_bt_audio_get_curr_a2dp_device();
     if(device_id != BT_DEVICE_INVALID_ID){
@@ -768,7 +780,7 @@ static void app_ibrt_tws_avrcp_next_track_test(const char* param, uint32_t len)
     }
 }
 
-static void app_ibrt_tws_avrcp_prev_track_test(const char* param, uint32_t len)
+void app_ibrt_tws_avrcp_prev_track_test(void)
 {
     uint8_t device_id = app_bt_audio_get_curr_a2dp_device();
     if(device_id != BT_DEVICE_INVALID_ID){
@@ -778,37 +790,35 @@ static void app_ibrt_tws_avrcp_prev_track_test(const char* param, uint32_t len)
 
 static void app_ibrt_ui_print_active_address(const bt_bdaddr_t *remote)
 {
-    EARBUDS_TRACE(6, "a2dp active phone addr: %02x:%02x:%02x:%02x:%02x:%02x", remote->address[0], remote->address[1],
+    TRACE(6, "a2dp active phone addr: %02x:%02x:%02x:%02x:%02x:%02x", remote->address[0], remote->address[1],
         remote->address[2], remote->address[3], remote->address[4], remote->address[5]);
 }
 
-static void app_ibrt_ui_get_a2dp_active_phone(const char* param, uint32_t len)
+void app_ibrt_ui_get_a2dp_active_phone(void)
 {
     uint8_t device_id = app_bt_audio_get_curr_a2dp_device();
     struct BT_DEVICE_T *curr_device = app_bt_get_device(device_id);
-    PLAYBACK_INFO_T* playback_info = app_bt_get_music_playback_info();
-    BT_AUDIO_DEVICE_T* active_device = app_audio_adm_get_active_device();
 
     if(!curr_device->a2dp_conn_flag)
     {
-        EARBUDS_TRACE(0,"a2dp active phone = None");
+        TRACE(0,"a2dp active phone = None");
         return;
     }
     if (curr_device->a2dp_play_pause_flag == 0){
-        uint8_t active_device_id = playback_info->device_id;
-        if (active_device_id == active_device->device_id && active_device_id != BT_DEVICE_INVALID_ID) {
-             struct BT_DEVICE_T  *active_device_a2dp = app_bt_get_device(active_device_id);
-             if(bts_tws_if_is_tws_link_connected()){
-                if (active_device_a2dp->a2dp_conn_flag && IBRT_MASTER == bts_bt_if_is_dev_link_connected(&active_device_a2dp->remote)){
-                    app_ibrt_ui_print_active_address(&active_device_a2dp->remote);
+        uint8_t last_paused_device = app_bt_manager.a2dp_last_paused_device;
+        if (last_paused_device != BT_DEVICE_INVALID_ID) {
+             struct BT_DEVICE_T  *last_paused_a2dp = app_bt_get_device(last_paused_device);
+             if(app_tws_ibrt_tws_link_connected()){
+                if (last_paused_a2dp->a2dp_conn_flag && IBRT_MASTER == app_tws_get_ibrt_role(&last_paused_a2dp->remote)){
+                    app_ibrt_ui_print_active_address(&last_paused_a2dp->remote);
                     return;
                  }
                 else{
-                    EARBUDS_TRACE(0,"a2dp active phone = None");
+                    TRACE(0,"a2dp active phone = None");
                     return;
                 }
              }else{
-                    app_ibrt_ui_print_active_address(&active_device_a2dp->remote);
+                    app_ibrt_ui_print_active_address(&last_paused_a2dp->remote);
                     return;
              }
         }
@@ -817,7 +827,7 @@ static void app_ibrt_ui_get_a2dp_active_phone(const char* param, uint32_t len)
 }
 
 
-static void app_ibrt_tws_hfp_answer_test(const char* param, uint32_t len)
+void app_ibrt_tws_hfp_answer_test(void)
 {
     #if BLE_AUDIO_ENABLED
         app_audio_control_call_answer();
@@ -829,7 +839,7 @@ static void app_ibrt_tws_hfp_answer_test(const char* param, uint32_t len)
     #endif
 }
 
-static void app_ibrt_tws_hfp_reject_test(const char* param, uint32_t len)
+void app_ibrt_tws_hfp_reject_test(void)
 {
     #if BLE_AUDIO_ENABLED
         app_audio_control_call_terminate();
@@ -841,7 +851,7 @@ static void app_ibrt_tws_hfp_reject_test(const char* param, uint32_t len)
     #endif
 }
 
-static void app_ibrt_tws_hfp_hangup_test(const char* param, uint32_t len)
+void app_ibrt_tws_hfp_hangup_test(void)
 {
     #if BLE_AUDIO_ENABLED
         app_audio_control_call_terminate();
@@ -853,7 +863,7 @@ static void app_ibrt_tws_hfp_hangup_test(const char* param, uint32_t len)
     #endif
 }
 
-static void app_ibrt_call_redial_test(const char* param, uint32_t len)
+void app_ibrt_call_redial_test(void)
 {
     #if BLE_AUDIO_ENABLED
         app_audio_control_redial_last_call();
@@ -865,322 +875,60 @@ static void app_ibrt_call_redial_test(const char* param, uint32_t len)
     #endif
 }
 
-static void app_ibrt_tws_factory_reset_test(const char* param, uint32_t len)
+void app_ibrt_tws_factory_reset_test(void)
 {
-    EARBUDS_TRACE(1,"%s", __func__);
+    TRACE(1,"%s", __func__);
     nv_record_rebuild(NV_REBUILD_ALL);
-    //pmu_reboot();
+    pmu_reboot();
 }
 
-static void app_ibrt_set_access_mode_test(const char* param, uint32 len)
+#if defined(IBRT_UI)
+void bestest_tws_connect(void)
 {
-    app_bt_set_access_mode(BTIF_BAM_GENERAL_ACCESSIBLE);
+    best_btmgr_send_msg(BEST_TWS_CONNECT_SIG);
 }
 
-static void app_ibrt_if_enable_bluetooth_test(const char* param, uint32 len)
+void bestest_auto_connect(void)
 {
-    app_ibrt_if_enable_bluetooth();
+    best_btmgr_send_msg(BEST_AUTO_CONNECT_SIG);
 }
 
-static void app_ibrt_if_disable_bluetooth_test(const char* param, uint32 len)
+void bestest_all_disconnect(void)
 {
-    app_ibrt_if_disable_bluetooth();
+    best_btmgr_send_msg(BEST_ALL_DISCONNECT_SIG);
 }
 
-static void app_ibrt_get_pnp_info_test(const char* param, uint32 len)
-{
-#if defined(BT_DIP_SUPPORT)
-    ibrt_if_pnp_info* pnp_info = NULL;
-    struct BT_DEVICE_T *curr_device = NULL;
-
-    curr_device = app_bt_get_device(BT_DEVICE_ID_1);
-
-    if (curr_device)
-    {
-        pnp_info = app_ibrt_if_get_pnp_info(&curr_device->remote);
-    }
-
-    if (pnp_info)
-    {
-        EARBUDS_TRACE(4, "%s vendor_id %04x product_id %04x product_version %04x",
-                __func__, pnp_info->vend_id, pnp_info->prod_id, pnp_info->prod_ver);
-    }
-    else
-    {
-        EARBUDS_TRACE(1, "%s N/A", __func__);
-    }
-#endif
-}
-
-static void app_ibrt_send_pause_test(const char* param, uint32 len)
-{
-    app_ibrt_if_a2dp_send_pause(BT_DEVICE_ID_1);
-}
-
-static void app_ibrt_send_play_test(const char* param, uint32 len)
-{
-    app_ibrt_if_a2dp_send_play(BT_DEVICE_ID_1);
-}
-
-static void app_ibrt_send_forward_test(const char* param, uint32 len)
-{
-    app_ibrt_if_a2dp_send_forward(BT_DEVICE_ID_1);
-}
-
-static void app_ibrt_send_backward_test(const char* param, uint32 len)
-{
-    app_ibrt_if_a2dp_send_backward(BT_DEVICE_ID_1);
-}
-
-static void app_ibrt_send_volume_up_test(const char* param, uint32 len)
-{
-    app_ibrt_if_a2dp_send_volume_up(BT_DEVICE_ID_1);
-}
-
-static void app_ibrt_send_volume_down_test(const char* param, uint32 len)
-{
-    app_ibrt_if_a2dp_send_volume_down(BT_DEVICE_ID_1);
-}
-
-static void app_ibrt_send_set_abs_volume_test(const char* param, uint32 len)
-{
-    static uint8_t abs_vol = 80;
-    app_ibrt_if_a2dp_send_set_abs_volume(BT_DEVICE_ID_1, abs_vol++);
-}
-
-static void app_ibrt_adjust_local_volume_up_test(const char* param, uint32 len)
-{
-    app_ibrt_if_set_local_volume_up();
-}
-
-static void app_ibrt_adjust_local_volume_down_test(const char* param, uint32 len)
-{
-    app_ibrt_if_set_local_volume_down();
-}
-
-static void app_ibrt_hf_call_redial_test(const char* param, uint32 len)
-{
-    app_ibrt_if_hf_call_redial(BT_DEVICE_ID_1);
-}
-
-static void app_ibrt_hf_call_answer_test(const char* param, uint32 len)
-{
-    app_ibrt_if_hf_call_answer(BT_DEVICE_ID_1);
-}
-
-static void app_ibrt_hf_call_hangup_test(const char* param, uint32 len)
-{
-    app_ibrt_if_hf_call_hangup(BT_DEVICE_ID_1);
-}
-
-static void app_ibrt_switch_streaming_sco_test(const char* param, uint32 len)
-{
-    app_ibrt_if_switch_streaming_sco();
-}
-
-static void app_ibrt_switch_streaming_a2dp_test(const char* param, uint32 len)
-{
-    app_ibrt_if_switch_streaming_a2dp();
-}
-
-
-static void app_ibrt_a2dp_profile_conn_test(const char* param, uint32 len)
-{
-    app_ibrt_if_connect_a2dp_profile(BT_DEVICE_ID_1);
-}
-
-static void app_ibrt_a2dp_profile_disc_test(const char* param, uint32 len)
-{
-    app_ibrt_if_disconnect_a2dp_profile(BT_DEVICE_ID_1);
-}
-
-static void app_ibrt_send_tota_data_test(const char* param, uint32 len)
-{
-#ifdef TOTA_v2
-#ifdef IS_TOTA_LOG_PRINT_ENABLED
-    app_ibrt_if_tota_printf("TOTA TEST");
-#endif
-#endif
-}
-
-static void app_ibrt_connect_tws_test(const char* param, uint32 len)
-{
-    bts_tws_if_connect_acl_link(0);
-}
-
-static void app_ibrt_connect_mobile_test(const char* param, uint32_t len)
-{
-    int bytes[sizeof(bt_bdaddr_t)] = {0};
-
-    if (len < 17)
-    {
-        EARBUDS_TRACE(0, "%s wrong len %d '%s'", __func__, len, param);
-        return;
-    }
-
-    sscanf(param, "%x:%x:%x:%x:%x:%x", bytes+0, bytes+1, bytes+2, bytes+3, bytes+4, bytes+5);
-
-    bt_bdaddr_t addr = {{
-        (uint8_t)(bytes[0]&0xff),
-        (uint8_t)(bytes[1]&0xff),
-        (uint8_t)(bytes[2]&0xff),
-        (uint8_t)(bytes[3]&0xff),
-        (uint8_t)(bytes[4]&0xff),
-        (uint8_t)(bytes[5]&0xff)}};
-
-    EARBUDS_DUMP8("%02x ", addr.address, BD_ADDR_LEN);
-
-    app_ibrt_if_connect_mobile_device(&addr, 0);
-}
-
-static void app_ibrt_connect_ibrt_test(const char* param, uint32_t len)
-{
-    int bytes[sizeof(bt_bdaddr_t)] = {0};
-
-    if (len < 17)
-    {
-        EARBUDS_TRACE(0, "%s wrong len %d '%s'", __func__, len, param);
-        return;
-    }
-
-    sscanf(param, "%x:%x:%x:%x:%x:%x", bytes+0, bytes+1, bytes+2, bytes+3, bytes+4, bytes+5);
-
-    bt_bdaddr_t addr = {{
-            (uint8_t)(bytes[0]&0xff),
-            (uint8_t)(bytes[1]&0xff),
-            (uint8_t)(bytes[2]&0xff),
-            (uint8_t)(bytes[3]&0xff),
-            (uint8_t)(bytes[4]&0xff),
-            (uint8_t)(bytes[5]&0xff)}};
-
-    EARBUDS_DUMP8("%02x ", addr.address, BD_ADDR_LEN);
-
-    bts_ibrt_if_dev_connect_ibrt_link(&addr);
-}
-
-static void app_ibrt_role_switch_test(const char* param, uint32_t len)
-{
-    int bytes[sizeof(bt_bdaddr_t)] = {0};
-
-    if (len < 17)
-    {
-        EARBUDS_TRACE(0, "%s wrong len %d '%s'", __func__, len, param);
-        return;
-    }
-
-    sscanf(param, "%x:%x:%x:%x:%x:%x", bytes+0, bytes+1, bytes+2, bytes+3, bytes+4, bytes+5);
-
-    bt_bdaddr_t addr = {{
-            (uint8_t)(bytes[0]&0xff),
-            (uint8_t)(bytes[1]&0xff),
-            (uint8_t)(bytes[2]&0xff),
-            (uint8_t)(bytes[3]&0xff),
-            (uint8_t)(bytes[4]&0xff),
-            (uint8_t)(bytes[5]&0xff)}};
-
-    EARBUDS_DUMP8("%02x ", addr.address, BD_ADDR_LEN);
-
-    bts_ibrt_conn_tws_role_switch(&addr);
-}
-
-#ifdef TOTA_v2
-static void app_ibrt_tota_v2_send_data_test(const char* param, uint32_t len)
-{
-    if (bt_defer_curr_func_0(app_ibrt_tota_v2_send_data_test))
-    {
-        EARBUDS_TRACE(0, "tota_v2_send_data: queue to bt thread");
-        return;
-    }
-    struct BT_DEVICE_T *curr_device = NULL;
-    curr_device = app_bt_get_connected_device_byaddr(app_bt_get_pts_address());
-    if (curr_device == NULL)
-    {
-        EARBUDS_TRACE(0, "tota_send_data: device not connected");
-        return;
-    }
-    uint8_t *data = (uint8_t *)curr_device;
-    EARBUDS_TRACE(0, "tota_v2_send_data: %p", data);
-    app_ibrt_if_start_user_action_v2(curr_device->device_id, IBRT_ACTION_SEND_TOTA_DATA, (uint32_t)(uintptr_t)data, 128);
-}
-static void app_ibrt_tota_v2_more_data(const char* param, uint32_t len)
-{
-    if (bt_defer_curr_func_0(app_ibrt_tota_v2_more_data))
-    {
-        EARBUDS_TRACE(0, "tota_v2_more_data: queue to bt thread");
-        return;
-    }
-    struct BT_DEVICE_T *curr_device = NULL;
-    curr_device = app_bt_get_connected_device_byaddr(app_bt_get_pts_address());
-    if (curr_device == NULL)
-    {
-        EARBUDS_TRACE(0, "tota_v2_more_data: device not connected");
-        return;
-    }
-    uint8_t *data = (uint8_t *)curr_device;
-    EARBUDS_TRACE(0, "tota_v2_more_data: 1st packet");
-    app_ibrt_if_start_user_action_v2(curr_device->device_id, IBRT_ACTION_SEND_TOTA_DATA, (uint32_t)(uintptr_t)data, 128);
-    EARBUDS_TRACE(0, "tota_v2_more_data: 2nd packet");
-    app_ibrt_if_start_user_action_v2(curr_device->device_id, IBRT_ACTION_SEND_TOTA_DATA, (uint32_t)(uintptr_t)data, 128);
-    EARBUDS_TRACE(0, "tota_v2_more_data: 3rd packet");
-    app_ibrt_if_start_user_action_v2(curr_device->device_id, IBRT_ACTION_SEND_TOTA_DATA, (uint32_t)(uintptr_t)data, 128);
-    EARBUDS_TRACE(0, "tota_v2_more_data: 4th packet");
-    app_ibrt_if_start_user_action_v2(curr_device->device_id, IBRT_ACTION_SEND_TOTA_DATA, (uint32_t)(uintptr_t)data, 128);
-    EARBUDS_TRACE(0, "tota_v2_more_data: 5th packet");
-    app_ibrt_if_start_user_action_v2(curr_device->device_id, IBRT_ACTION_SEND_TOTA_DATA, (uint32_t)(uintptr_t)data, 128);
-}
-#endif
-
-static void bestest_tws_connect(const char* param, uint32_t len)
-{
-    best_btmgr_send_msg(APP_UI_EV_TWS_CONNECT_SIG);
-}
-
-static void bestest_auto_connect(const char* param, uint32_t len)
-{
-    best_btmgr_send_msg(APP_UI_EV_AUTO_CONNECT_SIG);
-}
-
-static void bestest_all_disconnect(const char* param, uint32_t len)
-{
-    best_btmgr_send_msg(APP_UI_EV_ALL_DISCONNECT_SIG);
-}
-
-void app_ibrt_tws_dump_audio_state_test(const char* param, uint32_t len)
-{
-    app_bt_audio_state_checker();
-}
-
-static void app_ibrt_mgr_open_box_event_test(const char* param, uint32_t len)
+void app_ibrt_mgr_open_box_event_test(void)
 {
     app_ibrt_if_event_entry(APP_UI_EV_CASE_OPEN);
 }
 
-static void app_ibrt_mgr_fetch_out_box_event_test(const char* param, uint32_t len)
+void app_ibrt_mgr_fetch_out_box_event_test(void)
 {
     app_ibrt_if_event_entry(APP_UI_EV_UNDOCK);
 }
 
-static void app_ibrt_mgr_put_in_box_event_test(const char* param, uint32_t len)
+void app_ibrt_mgr_put_in_box_event_test(void)
 {
     app_ibrt_if_event_entry(APP_UI_EV_DOCK);
 }
 
-static void app_ibrt_mgr_close_box_event_test(const char* param, uint32_t len)
+void app_ibrt_mgr_close_box_event_test(void)
 {
     app_ibrt_if_event_entry(APP_UI_EV_CASE_CLOSE);
 }
 
-static void app_ibrt_mgr_exit_earbuds_mode_test(const char* param, uint32_t len)
+void app_ibrt_mgr_exit_earbuds_mode_test(void)
 {
     app_ui_exit_earbud_mode();
 }
 
-static void app_ibrt_mgr_wear_up_event_test(const char* param, uint32_t len)
+void app_ibrt_mgr_wear_up_event_test(void)
 {
     app_ibrt_if_event_entry(APP_UI_EV_WEAR_UP);
 }
 
-static void app_ibrt_mgr_wear_down_event_test(const char* param, uint32_t len)
+void app_ibrt_mgr_wear_down_event_test(void)
 {
     app_ibrt_if_event_entry(APP_UI_EV_WEAR_DOWN);
 }
@@ -1190,37 +938,54 @@ void app_ibrt_mgr_free_man_test(void)
     app_ibrt_if_test_enter_freeman();
 }
 
-static void app_ibrt_mgr_free_man_test_1(const char* param, uint32_t len)
+void app_ibrt_mgr_free_man_test_1(void)
 {
     app_ibrt_if_event_entry(APP_UI_EV_FREE_MAN_MODE);
 }
 
-static void app_ibrt_mgr_dump_ui_status_test(const char* param, uint32_t len)
+void app_ibrt_mgr_dump_ui_status_test(void)
 {
     app_ibrt_if_dump_ui_status();
 }
 
-void app_ibrt_mgr_switch_single_point_test(const char* param, uint32_t len)
+void app_ibrt_mgr_switch_bt_single_mode_test(void)
 {
-    app_ui_change_support_max_links_ext(SINGLE_POINT_MODE, NULL, 0);
+    if (!app_ui_change_mode_ext(false, false, NULL))
+    {
+        TRACE(0, "change mode failed!");
+    }
 }
 
-void app_ibrt_mgr_switch_double_point_test(const char* param, uint32_t len)
+void app_ibrt_mgr_switch_bt_multi_mode_test(void)
 {
-    app_ui_change_support_max_links_ext(DOUBLE_POINT_MODE, NULL, 0);
+    if (!app_ui_change_mode_ext(false, true, NULL))
+    {
+        TRACE(0, "change mode failed!");
+    }
 }
 
-void app_ibrt_mgr_switch_triple_point_test(const char* param, uint32_t len)
+void app_ibrt_mgr_switch_coex_single_mode_test(void)
 {
-    app_ui_change_support_max_links_ext(TRIPLE_POINT_MODE, NULL, 0);
+    if (!app_ui_change_mode_ext(true, false, NULL))
+    {
+        TRACE(0, "change mode failed!");
+    }
 }
 
-static void app_ibrt_mgr_switch2walkie_talkie_test(const char* param, uint32_t len)
+void app_ibrt_mgr_switch_coex_multi_mode_test(void)
+{
+    if (!app_ui_change_mode_ext(true, true, NULL))
+    {
+        TRACE(0, "change mode failed!");
+    }
+}
+
+void app_ibrt_mgr_switch2walkie_talkie_test(void)
 {
     app_switch_mode(NV_APP_WALKIE_TALKIE, true);
 }
 
-static void app_ibrt_dump_media_info_test(const char* param, uint32_t len)
+void app_ibrt_dump_media_info_test(void)
 {
     uint8_t support_max_remote_link = app_ibrt_conn_support_max_mobile_dev();
     for (int i = 0; i < support_max_remote_link; i++)
@@ -1235,7 +1000,7 @@ static void app_ibrt_dump_media_info_test(const char* param, uint32_t len)
             uint8_t a2dp_vol = a2dp_volume_get((enum BT_DEVICE_ID_T)i);
 #ifdef MEDIA_PLAYER_SUPPORT
             uint8_t stream_vol = app_bt_stream_local_volume_get();
-            uint8_t audio_codec = bta_get_a2dp_codec_type_by_id(i);
+            uint8_t audio_codec = app_audio_manager_get_a2dp_codec_type(i);
 #else
             uint8_t stream_vol = 0x0;
             uint8_t audio_codec = 0x0;
@@ -1249,123 +1014,83 @@ static void app_ibrt_dump_media_info_test(const char* param, uint32_t len)
     }
 }
 
-static void app_ibrt_mgr_monitor_dump_test(const char* param, uint32_t len)
+void app_ibrt_mgr_monitor_dump_test(void)
 {
     app_ui_monitor_dump();
 }
 
-void app_ibrt_mgr_user_role_switch_test0(const char* param, uint32_t len)
-{
-    uint8_t role = bts_core_get_ui_role();
-    if (role == TWS_UI_MASTER)
-    {
-        app_ui_user_role_switch(false);
-    }
-    else if (role == TWS_UI_SLAVE)
-    {
-        app_ui_user_role_switch(true);
-    }
-}
-
-static void app_ibrt_mgr_user_role_switch_test(const char* param, uint32_t len)
+void app_ibrt_mgr_user_role_switch_test(void)
 {
     app_ui_user_role_switch(true);
 }
 
-static void app_ibrt_mgr_user_role_switch_test1(const char* param, uint32_t len)
+void app_ibrt_mgr_user_role_switch_test1(void)
 {
     app_ui_user_role_switch(false);
 }
 
-static void app_ibrt_mgr_user_enable_pscan(const char* param, uint32_t len)
-{
-    bt_set_pscan_enabled(true);
-}
-
-static void app_ibrt_mgr_user_disable_pscan(const char* param, uint32_t len)
-{
-    bt_set_pscan_enabled(false);
-}
-
-static void app_ibrt_mgr_user_enable_iscan(const char* param, uint32_t len)
-{
-    bt_set_iscan_enabled(true);
-}
-
-static void app_ibrt_mgr_user_disable_iscan(const char* param, uint32_t len)
-{
-    bt_set_iscan_enabled(false);
-}
-
-static void app_ibrt_mgr_enable_page_test(const char* param, uint32_t len)
+void app_ibrt_mgr_enable_page_test(void)
 {
     app_ui_set_page_enabled(true);
 }
 
-static void app_ibrt_mgr_disable_page_test(const char* param, uint32_t len)
+void app_ibrt_mgr_disable_page_test(void)
 {
     app_ui_set_page_enabled(false);
 }
 
-static void app_ibrt_mgr_shutdown_test(const char* param, uint32_t len)
+void app_ibrt_mgr_shutdown_test(void)
 {
     app_ui_shutdown();
 }
 
-static void app_ibrt_mgr_keep_only_mobile_link_test(const char* param, uint32_t len)
+void app_ibrt_mgr_keep_only_mobile_link_test(void)
 {
     app_ui_keep_only_mobile_link();
 }
 
 #if BLE_AUDIO_ENABLED
-static void app_ibrt_mgr_user_start_lea_adv(const char* param, uint32_t len)
+void app_ibrt_mgr_user_start_lea_adv(void)
 {
-#if BT_SERVICE_ENABLE
-    ble_audio_user_start_lea_adv(60000, NULL, true);
-#else
     app_ui_user_start_lea_adv(60000, NULL, true);
-#endif
 }
 
-static void app_ibrt_mgr_user_stop_lea_adv(const char* param, uint32_t len)
+void app_ibrt_mgr_user_stop_lea_adv(void)
 {
-#if BT_SERVICE_ENABLE
-    ble_audio_user_stop_lea_adv(true);
-#else
     app_ui_user_stop_lea_adv(true);
-#endif
 }
 #endif
+#endif
 
-static void app_prompt_PlayAudio(const char* param, uint32_t len)
+static void app_prompt_PlayAudio(void)
 {
 #ifdef MEDIA_PLAYER_SUPPORT
     audio_player_play_prompt(AUD_ID_BT_CALL_INCOMING_CALL, 0);
 #endif
 }
 
-static void app_prompt_locally_PlayAudio(const char* param, uint32_t len)
+static void app_prompt_locally_PlayAudio(void)
 {
 #ifdef MEDIA_PLAYER_SUPPORT
     media_PlayAudio_locally(AUD_ID_BT_CALL_INCOMING_CALL, 0);
 #endif
 }
 
-static void app_prompt_remotely_PlayAudio(const char* param, uint32_t len)
+static void app_prompt_remotely_PlayAudio(void)
 {
 #ifdef MEDIA_PLAYER_SUPPORT
     media_PlayAudio_remotely(AUD_ID_BT_CALL_INCOMING_CALL, 0);
 #endif
 }
 
-static void app_prompt_standalone_PlayAudio(const char* param, uint32_t len)
+static void app_prompt_standalone_PlayAudio(void)
 {
 #ifdef MEDIA_PLAYER_SUPPORT
     media_PlayAudio_standalone(AUD_ID_BT_CALL_INCOMING_CALL, 0);
 #endif
 }
 
-static void app_prompt_test_stop_all(const char* param, uint32_t len)
+static void app_prompt_test_stop_all(void)
 {
 #ifdef MEDIA_PLAYER_SUPPORT
     app_prompt_stop_all();
@@ -1374,9 +1099,9 @@ static void app_prompt_test_stop_all(const char* param, uint32_t len)
 
 
 #ifdef SLT_AUTO_TEST
-static void app_prompt_1k_tone_test(const char* param, uint32_t len)
+static void app_prompt_1k_tone_test(unsigned char *audio_op, unsigned int len)
 {
-    uint8_t option = atoi((const char *)param);
+    uint8_t option = atoi((const char *)audio_op);
     if(option)
     {
         media_PlayAudio_continuous_start(AUD_ID_TONE_1K, 0);
@@ -1389,31 +1114,30 @@ static void app_prompt_1k_tone_test(const char* param, uint32_t len)
 #endif
 
 #ifdef ANC_APP
-static void app_ibrt_anc_switch_test(const char* param, uint32_t len)
+void app_ibrt_anc_switch_test(unsigned char *anc_mode, unsigned int len)
 {
    app_anc_mode_t mode_int = APP_ANC_MODE_OFF;
-   mode_int = (app_anc_mode_t)atoi((const char*)param);
+   mode_int = (app_anc_mode_t)atoi((const char*)anc_mode);
    app_anc_switch(mode_int);
 }
 #endif
 
 extern void bt_change_to_iic(APP_KEY_STATUS *status, void *param);
-static void app_ibrt_ui_iic_uart_switch_test(const char* param, uint32_t len)
+void app_ibrt_ui_iic_uart_switch_test(void)
 {
     bt_change_to_iic(NULL,NULL);
 }
 
-static bool trace_disabled;
-static void app_trace_test_enable(const char* param, uint32_t len)
+static void app_trace_test_enable(void)
 {
-    if (trace_disabled) 
-    {
+    if (trace_disabled) {
         trace_disabled = false;
         hal_trace_continue();
-    }
 }
+}
+extern void bt_drv_reg_op_trigger_controller_assert(void);
 
-static void app_trace_test_disable(const char* param, uint32_t len)
+static void app_trace_test_disable(void)
 {
     if (!trace_disabled) {
         trace_disabled = true;
@@ -1421,87 +1145,130 @@ static void app_trace_test_disable(const char* param, uint32_t len)
 }
 }
 
-extern void bt_drv_reg_op_trigger_controller_assert(void);
-static void app_test_bt_drv_reg_op_trigger_controller_assert(const char* param, uint32_t len)
-{
-    bt_drv_reg_op_trigger_controller_assert();
-}
-
-static void app_trace_test_get_history_trace(const char* param, uint32_t len)
+static void app_trace_test_get_history_trace(void)
 {
     const uint8_t* preBuf;
     const uint8_t* postBuf;
     uint32_t preBufLen, postBufLen;
     hal_trace_get_history_buffer(&preBuf, &preBufLen, &postBuf, &postBufLen);
-    EARBUDS_TRACE(0, "prelen %d postlen %d", preBufLen, postBufLen);
+    TRACE(0, "prelen %d postlen %d", preBufLen, postBufLen);
     uint8_t tmpTest[16];
     memset(tmpTest, 0, sizeof(tmpTest));
     memcpy(tmpTest, preBuf,
         (preBufLen > (sizeof(tmpTest)-1)?(sizeof(tmpTest)-1):preBufLen));
-    EARBUDS_TRACE(0, "preBuf:");
-    EARBUDS_TRACE(0, "%s", tmpTest);
+    TRACE(0, "preBuf:");
+    TRACE(0, "%s", tmpTest);
     memset(tmpTest, 0, sizeof(tmpTest));
     memcpy(tmpTest, postBuf,
         (postBufLen > (sizeof(tmpTest)-1)?(sizeof(tmpTest)-1):postBufLen));
-    EARBUDS_TRACE(0, "postBuf:");
-    EARBUDS_TRACE(0, "%s", tmpTest);
+    TRACE(0, "postBuf:");
+    TRACE(0, "%s", tmpTest);
 }
 
-static void app_trigger_rx_close_test(const char* param, uint32_t len)
+void app_trigger_rx_close_test(void)
 {
     hal_trace_rx_sleep();
 }
 
 #ifdef GPIO_WAKEUP_ENABLE
-#ifndef WAKEUP_PIN_NUM
-#define WAKEUP_PIN_NUM                                  1_5
-#endif
-#define MAKE_WAKEUP_PIN_A(a)                            HAL_IOMUX_PIN_P ## a
-#define MAKE_WAKEUP_PIN(a)                              MAKE_WAKEUP_PIN_A(a)
-#define WAKEUP_PIN                                      MAKE_WAKEUP_PIN(WAKEUP_PIN_NUM)
-
 static void app_trigger_gpio_irq_wakeup_test_handler(enum HAL_GPIO_PIN_T pin)
 {
-    EARBUDS_TRACE(0, "pull up pin:%d", pin);
+    TRACE(0, "pull up pin:%d", pin);
     hal_trace_rx_wakeup();
 }
+
+
+static void app_trigger_gpio_irq_pull_down_handler(enum HAL_GPIO_PIN_T pin)
+{
+    TRACE(0, "pull down pin:%d", pin);
+    //hal_trace_rx_wakeup();
+}
+
 
 static void app_trigger_gpio_irq_wakeup_set(bool en)
 {
     uint32_t i;
-    struct HAL_GPIO_IRQ_CFG_T gpio_cfg = {0, };
-    static const struct HAL_IOMUX_PIN_FUNCTION_MAP wakeup_iomux_tbl[] = {
-        {WAKEUP_PIN, HAL_IOMUX_FUNC_GPIO, HAL_IOMUX_PIN_VOLTAGE_VIO, HAL_IOMUX_PIN_PULLDOWN_ENABLE},
+    //static bool gpio_inited = false;
+    struct HAL_GPIO_IRQ_CFG_T cfg = {0,};
+    static const struct HAL_IOMUX_PIN_FUNCTION_MAP pin_wakeup_table[] = {
+        {HAL_IOMUX_PIN_P1_6, HAL_IOMUX_FUNC_AS_GPIO, HAL_IOMUX_PIN_VOLTAGE_VIO, HAL_IOMUX_PIN_PULLUP_ENABLE},
+        {HAL_IOMUX_PIN_P1_7, HAL_IOMUX_FUNC_AS_GPIO, HAL_IOMUX_PIN_VOLTAGE_VIO, HAL_IOMUX_PIN_PULLUP_ENABLE},
+        {HAL_IOMUX_PIN_P2_5, HAL_IOMUX_FUNC_AS_GPIO, HAL_IOMUX_PIN_VOLTAGE_VIO, HAL_IOMUX_PIN_PULLUP_ENABLE},
+        {HAL_IOMUX_PIN_P2_6, HAL_IOMUX_FUNC_AS_GPIO, HAL_IOMUX_PIN_VOLTAGE_VIO, HAL_IOMUX_PIN_PULLUP_ENABLE},
+        {HAL_IOMUX_PIN_P2_7, HAL_IOMUX_FUNC_AS_GPIO, HAL_IOMUX_PIN_VOLTAGE_VIO, HAL_IOMUX_PIN_PULLUP_ENABLE},
     };
 
-    EARBUDS_TRACE(0, "%s pull up en:%d", __func__, en);
-
-    gpio_cfg.irq_enable = en;
-    gpio_cfg.irq_handler = app_trigger_gpio_irq_wakeup_test_handler;
-    gpio_cfg.irq_debounce = false;
-    gpio_cfg.irq_polarity = HAL_GPIO_IRQ_POLARITY_HIGH_RISING;
-    gpio_cfg.irq_type = HAL_GPIO_IRQ_TYPE_EDGE_SENSITIVE;
-
-    for (i = 0; i < ARRAY_SIZE(wakeup_iomux_tbl); i++){
-        hal_iomux_init((struct HAL_IOMUX_PIN_FUNCTION_MAP *)&wakeup_iomux_tbl[i], 1);
-        hal_gpio_pin_set_dir((enum HAL_GPIO_PIN_T)wakeup_iomux_tbl[i].pin, HAL_GPIO_DIR_IN, 1);
-        hal_gpio_setup_irq((enum HAL_GPIO_PIN_T)wakeup_iomux_tbl[i].pin, &gpio_cfg);
+    TRACE(0, "%s pull up en:%d", __func__, en);
+    cfg.irq_enable = en;
+    if (en) {
+        cfg.irq_handler = app_trigger_gpio_irq_wakeup_test_handler;
+    } else {
+        cfg.irq_handler = NULL;
     }
+    cfg.irq_debounce = true;
+    cfg.irq_polarity = HAL_GPIO_IRQ_POLARITY_HIGH_RISING;
+    cfg.irq_type = HAL_GPIO_IRQ_TYPE_EDGE_SENSITIVE;
+    /*
+    if (gpio_inited == false) {
+        hal_iomux_init(pin_wakeup_table, ARRAY_SIZE(pin_wakeup_table));
+        for (i = 0; i < ARRAY_SIZE(pin_wakeup_table); i++){
+            hal_gpio_pin_set_dir((enum HAL_GPIO_PIN_T)pin_wakeup_table[i].pin, HAL_GPIO_DIR_IN, 1);
+        }
+        gpio_inited = true;
+    }
+    */
+    for (i = 0; i < ARRAY_SIZE(pin_wakeup_table); i++){
+            hal_gpio_setup_irq((enum HAL_GPIO_PIN_T)pin_wakeup_table[i].pin, &cfg);
+        }
+}
+
+POSSIBLY_UNUSED static void app_trigger_gpio_irq_pull_down(unsigned char *enable, unsigned int len)
+{
+    uint8_t en = atoi((const char *)enable);
+    uint32_t i;
+    static bool gpio_inited = false;
+    struct HAL_GPIO_IRQ_CFG_T cfg = {0,};
+    static const struct HAL_IOMUX_PIN_FUNCTION_MAP pin_wakeup_table[] = {
+        {HAL_IOMUX_PIN_P1_5, HAL_IOMUX_FUNC_AS_GPIO, HAL_IOMUX_PIN_VOLTAGE_VIO, HAL_IOMUX_PIN_PULLDOWN_ENABLE},
+        {HAL_IOMUX_PIN_P1_6, HAL_IOMUX_FUNC_AS_GPIO, HAL_IOMUX_PIN_VOLTAGE_VIO, HAL_IOMUX_PIN_PULLDOWN_ENABLE},
+    };
+
+    TRACE(0, "%s pull down en:%d", __func__, en);
+    cfg.irq_enable = en;
+    if (en) {
+        cfg.irq_handler = app_trigger_gpio_irq_pull_down_handler;
+    } else {
+        cfg.irq_handler = NULL;
+    }
+    cfg.irq_debounce = true;
+    cfg.irq_polarity = HAL_GPIO_IRQ_POLARITY_LOW_FALLING;
+    cfg.irq_type = HAL_GPIO_IRQ_TYPE_EDGE_SENSITIVE;
+
+    if (gpio_inited == false) {
+        hal_iomux_init(pin_wakeup_table, ARRAY_SIZE(pin_wakeup_table));
+        for (i = 0; i < ARRAY_SIZE(pin_wakeup_table); i++){
+            hal_gpio_pin_set_dir((enum HAL_GPIO_PIN_T)pin_wakeup_table[i].pin, HAL_GPIO_DIR_IN, 1);
+        }
+        gpio_inited = true;
+    }
+    for (i = 0; i < ARRAY_SIZE(pin_wakeup_table); i++){
+            hal_gpio_setup_irq((enum HAL_GPIO_PIN_T)pin_wakeup_table[i].pin, &cfg);
+        }
 }
 
 
-static void app_trigger_gpio_irq_wakeup_enable_test(const char* param, uint32_t len)
+static void app_trigger_gpio_irq_wakeup_enable_test(void)
 {
     app_trigger_gpio_irq_wakeup_set(true);
 }
 
-static void app_trigger_gpio_irq_wakeup_disable_test(const char* param, uint32_t len)
+static void app_trigger_gpio_irq_wakeup_disable_test(void)
 {
     app_trigger_gpio_irq_wakeup_set(false);
 }
 
 
-POSSIBLY_UNUSED static void app_trigger_gpio_out_operation(const char* param, uint32_t len)
+POSSIBLY_UNUSED static void app_trigger_gpio_out_operation(void)
 {
     static bool gpio_out_init = false;
     static const struct HAL_IOMUX_PIN_FUNCTION_MAP out_table[] = {
@@ -1524,7 +1291,8 @@ POSSIBLY_UNUSED static void app_trigger_gpio_out_operation(const char* param, ui
 #endif
 
 #if defined( __BT_ANC_KEY__)&&defined(ANC_APP)
-static void app_test_anc_handler(const char* param, uint32_t len)
+extern void app_anc_key(APP_KEY_STATUS *status, void *param);
+static void app_test_anc_handler(void)
 {
     app_anc_key(NULL, NULL);
 }
@@ -1532,38 +1300,37 @@ static void app_test_anc_handler(const char* param, uint32_t len)
 
 #ifdef __AI_VOICE__
 extern void app_test_toggle_hotword_supervising(void);
-static void app_test_thirdparty_hotword(const char* param, uint32_t len)
+static void app_test_thirdparty_hotword(void)
 {
     app_test_toggle_hotword_supervising();
 }
 #endif
 #ifdef SENSOR_HUB
-#include "rx_sens_trc.h"
 #ifdef CORE_BRIDGE_DEMO_MSG
 #include "mcu_sensor_hub_app.h"
 
-static void app_test_mcu_sensorhub_demo_req_no_rsp(const char* param, uint32_t len)
+static void app_test_mcu_sensorhub_demo_req_no_rsp(void)
 {
     app_mcu_sensor_hub_send_demo_req_no_rsp();
 }
 
-static void app_test_mcu_sensorhub_demo_req_with_rsp(const char* param, uint32_t len)
+static void app_test_mcu_sensorhub_demo_req_with_rsp(void)
 {
     app_mcu_sensor_hub_send_demo_req_with_rsp();
 }
 
-static void app_test_mcu_sensorhub_demo_instant_req(const char* param, uint32_t len)
+static void app_test_mcu_sensorhub_demo_instant_req(void)
 {
     app_mcu_sensor_hub_send_demo_instant_req();
 }
 #endif
 
-static void app_test_mcu_sensorhub_control_sensor_trace_open(const char* param, uint32_t len)
+static void app_test_mcu_sensorhub_control_sensor_trace_open(void)
 {
     sensor_hub_trace_server_open();
 }
 
-static void app_test_mcu_sensorhub_control_sensor_trace_close(const char* param, uint32_t len)
+static void app_test_mcu_sensorhub_control_sensor_trace_close(void)
 {
     sensor_hub_trace_server_close();
 }
@@ -1601,139 +1368,130 @@ the master bud A will enter discoverable mode for mobile to discover and connect
 
 */
 
-static void test_master_tws_pairing(const char* param, uint32_t len)
+static void test_master_tws_pairing(unsigned char *bt_addr, unsigned int lenth)
 {
     bt_bdaddr_t twsMasterBtAddr;
 
-    if(parse_bt_addr(param, &twsMasterBtAddr, len) == 1)
+    if(parse_bt_addr(bt_addr, &twsMasterBtAddr, lenth) == 1)
     {
         app_ibrt_if_init_open_box_state_for_evb();
         app_ibrt_if_start_tws_pairing(IBRT_MASTER, (uint8_t *)&twsMasterBtAddr);
     }
 }
 
-static void test_slave_tws_pairing(const char* param, uint32_t len)
+static void test_slave_tws_pairing(unsigned char *bt_addr, unsigned int lenth)
 {
     bt_bdaddr_t twsSlaveBtAddr;
 
-    if(parse_bt_addr(param, &twsSlaveBtAddr, len) == 1)
+    if(parse_bt_addr(bt_addr, &twsSlaveBtAddr, lenth) == 1)
     {
         app_ibrt_if_init_open_box_state_for_evb();
         app_ibrt_if_start_tws_pairing(IBRT_SLAVE, (uint8_t *)&twsSlaveBtAddr);
     }
 }
 
-static void master_update_tws_pair_info_test_func(const char* param, uint32_t len)
+static void master_update_tws_pair_info_test_func(unsigned char *bt_addr, unsigned int lenth)
 {
     bt_bdaddr_t twsSlaveBtAddr;
 
-    if(parse_bt_addr(param, &twsSlaveBtAddr, len) == 1)
+    if(parse_bt_addr(bt_addr, &twsSlaveBtAddr, lenth) == 1)
     {
         app_ibrt_if_update_tws_pairing_info(IBRT_MASTER, (uint8_t *)&twsSlaveBtAddr);
     }
 }
 
-static void slave_update_tws_pair_info_test_func(const char* param, uint32_t len)
+static void slave_update_tws_pair_info_test_func(unsigned char *bt_addr, unsigned int lenth)
 {
     bt_bdaddr_t twsMasterBtAddr;
 
-    if(parse_bt_addr(param, &twsMasterBtAddr, len) == 1)
+    if(parse_bt_addr(bt_addr, &twsMasterBtAddr, lenth) == 1)
     {
         app_ibrt_if_update_tws_pairing_info(IBRT_SLAVE, (uint8_t *)&twsMasterBtAddr);
     }
 }
 
-static void m_write_bt_local_addr_test(const char* param, uint32_t len)
+static void m_write_bt_local_addr_test(unsigned char *bt_addr, unsigned int lenth)
 {
     bt_bdaddr_t twsMasterBtAddr;
 
-    if(parse_bt_addr(param, &twsMasterBtAddr, len) == 1)
+    if(parse_bt_addr(bt_addr, &twsMasterBtAddr, lenth) == 1)
     {
         app_ibrt_if_write_bt_local_address((uint8_t *)&twsMasterBtAddr);
     }
 }
 
-static void s_write_bt_local_addr_test(const char* param, uint32_t len)
+static void s_write_bt_local_addr_test(unsigned char *bt_addr, unsigned int lenth)
 {
     bt_bdaddr_t twsSlaveBtAddr;
 
-    if(parse_bt_addr(param, &twsSlaveBtAddr, len) == 1)
+    if(parse_bt_addr(bt_addr, &twsSlaveBtAddr, lenth) == 1)
     {
         app_ibrt_if_write_bt_local_address((uint8_t *)&twsSlaveBtAddr);
     }
 }
 
-static void m_write_ble_local_addr_test(const char* param, uint32_t len)
+static void m_write_ble_local_addr_test(unsigned char *bt_addr, unsigned int lenth)
 {
     bt_bdaddr_t twsMasterBleAddr;
 
-    if(parse_bt_addr(param, &twsMasterBleAddr, len) == 1)
+    if(parse_bt_addr(bt_addr, &twsMasterBleAddr, lenth) == 1)
     {
         app_ibrt_if_write_ble_local_address((uint8_t *)&twsMasterBleAddr);
     }
 }
 
-static void s_write_ble_local_addr_test(const char* param, uint32_t len)
+static void s_write_ble_local_addr_test(unsigned char *bt_addr, unsigned int lenth)
 {
     bt_bdaddr_t twsSlaveBleAddr;
 
-    if(parse_bt_addr(param, &twsSlaveBleAddr, len) == 1)
+    if(parse_bt_addr(bt_addr, &twsSlaveBleAddr, lenth) == 1)
     {
         app_ibrt_if_write_ble_local_address((uint8_t *)&twsSlaveBleAddr);
     }
 }
 
-static void turn_on_jlink_test(const char* param, uint32_t len)
+static void turn_on_jlink_test(void)
 {
     hal_iomux_set_jtag();
     hal_cmu_jtag_clock_enable();
 }
 
 #ifdef AUDIO_MANAGER_TEST_ENABLE
-static void app_audio_adm_api_ut_test(const char* param, uint32_t len)
+static void app_audio_adm_api_ut_test()
 {
     app_audio_adm_api_ut();
 }
 
-static void app_audio_arm_api_ut_test0(const char* param, uint32_t len)
+static void app_audio_arm_api_ut_test0()
 {
     app_audio_arm_api_ut(0);
 }
 
-static void app_audio_arm_api_ut_test1(const char* param, uint32_t len)
+static void app_audio_arm_api_ut_test1()
 {
     app_audio_arm_api_ut(1);
 }
 
-static void app_audio_arm_api_ut_test2(const char* param, uint32_t len)
+static void app_audio_arm_api_ut_test2()
 {
     app_audio_arm_api_ut(2);
 }
 
-static void app_audio_focus_stack_test(const char* param, uint32_t len)
+static void app_audio_focus_stack_test()
 {
     app_audio_focus_stack_unit_test();
 }
 
-static void app_audio_focus_media_ctrl_test(const char* param, uint32_t len)
+static void app_audio_focus_media_ctrl_test()
 {
     app_audio_focus_ctrl_stub_test();
 }
 #endif
 
-extern void increase_dst_mtu(void);
-extern void decrease_dst_mtu(void);
-static void app_test_increase_dst_mtu(const char* param, uint32_t len)
-{
-    increase_dst_mtu();
-}
+void increase_dst_mtu(void);
+void decrease_dst_mtu(void);
 
-static void app_test_decrease_dst_mtu(const char* param, uint32_t len)
-{
-    decrease_dst_mtu();
-}
-
-static void app_test_dip_test(const char* param, uint32_t len)
+void dip_test(void)
 {
 #if defined(BT_DIP_SUPPORT)
     ibrt_if_pnp_info* pnp_info = NULL;
@@ -1748,23 +1506,23 @@ static void app_test_dip_test(const char* param, uint32_t len)
 
     if (pnp_info)
     {
-        EARBUDS_TRACE(4, "%s vendor_id %04x product_id %04x product_version %04x",
+        TRACE(4, "%s vendor_id %04x product_id %04x product_version %04x",
                 __func__, pnp_info->vend_id, pnp_info->prod_id, pnp_info->prod_ver);
     }
     else
     {
-        EARBUDS_TRACE(1, "%s N/A", __func__);
+        TRACE(1, "%s N/A", __func__);
     }
 #endif
 }
 
 #if BLE_AUDIO_ENABLED
-static void app_ibrt_tws_dump_ble_conn_state(const char* param, uint32_t len)
+void app_ibrt_tws_dump_ble_conn_state(void)
 {
     bes_ble_audio_dump_conn_state();
 }
 
-static void app_ibrt_ui_dump_adm_active_info(const char* param, uint32_t len)
+void app_ibrt_ui_dump_adm_active_info(void)
 {
     PLAYBACK_INFO_T* audioContrlInfo = app_bt_get_music_playback_info();
     CALL_STATE_INFO_T* callInfo = app_bt_get_call_state_info();
@@ -1841,31 +1599,21 @@ static void app_ibrt_ui_dump_adm_active_info(const char* param, uint32_t len)
 
 }
 
-void app_test_bleaud_adv_test(const char* param, uint32_t len)
-{
-#if BT_SERVICE_ENABLE
-    ble_audio_start_ble_connecteable_adv(BLE_AUDIO_ADV_DURATION,NULL);
-#else
-    app_ui_start_ble_connecteable_adv(BLE_AUDIO_ADV_DURATION,NULL);
-#endif
-}
+
 #endif
 
 #ifdef CFG_LE_PWR_CTRL
-void app_ibrt_path_loss_test(const char* param, uint32_t len)
+void app_ibrt_path_loss_test(void)
 {
-    EARBUDS_TRACE(0,"%s", __func__);
-    appm_set_path_loss_rep_param_cmd(0, 1, 1, 1, 0, 0, 1);
+    TRACE(0,"%s", __func__);
+#ifdef __IAG_BLE_INCLUDE__
+    bes_ble_gap_set_path_loss_rep_param_cmd(0, 1, 1, 1, 0, 0, 1);
+#endif
 }
 #endif
 
 #ifdef ANC_ASSIST_ENABLED
-#include "bluetooth_bt_api.h"
-
-extern "C" void media_PlayAudio(AUD_ID_ENUM id,uint8_t device_id);
-
-static void app_test_adaptive_eq(const char* param, uint32_t len)
-{
+void app_test_adaptive_eq(void) {
     audio_player_play_prompt(AUD_ID_ANC_PROMPT,0);
 }
 #endif
@@ -1873,18 +1621,18 @@ static void app_test_adaptive_eq(const char* param, uint32_t len)
 #ifdef HEARING_AID_ENABLED
 extern "C" int hearing_aid_stream_start(bool on);
 
-static void app_hearing_aid_start(const char* param, uint32_t len)
+void app_hearing_aid_start(void)
 {
     hearing_aid_stream_start(true);
 }
 
-static void app_hearing_aid_stop(const char* param, uint32_t len)
+void app_hearing_aid_stop(void)
 {
     hearing_aid_stream_start(false);
 }
 #endif
 
-#if BLE_AUDIO_ENABLED
+#ifdef BLE_AUDIO_ENABLED
 /***************************************************************************
 Function    :  app_ibrt_tws_active_device_test
 Parameters:
@@ -1897,7 +1645,7 @@ Description:
     4、if current is call active，the action is hungup call.
 ****************************************************************************/
 
-static void app_ibrt_tws_active_device_test(const char* param, uint32_t len)
+void app_ibrt_tws_active_device_test(void)
 {
 #if BLE_AUDIO_ENABLED
     struct BT_DEVICE_T *curr_device = NULL;
@@ -1922,12 +1670,12 @@ static void app_ibrt_tws_active_device_test(const char* param, uint32_t len)
     {
         state_action = IBRT_ACTION_PLAY;
     }
-    EARBUDS_TRACE(2,"active_device is:d%x,action:%d",device_id, state_action);
+    TRACE(2,"active_device is:d%x,action:%d",device_id, state_action);
     app_ibrt_if_start_user_action_v2(device_id, state_action , 0, 0);
 #endif
 }
 
-static void app_ibrt_tws_force_set_bt_as_act_dev_test(const char* param, uint32_t len)
+void app_ibrt_tws_force_set_bt_as_act_dev_test(void)
 {
 #if BLE_AUDIO_ENABLED
     BT_AUDIO_DEVICE_T bt_device = {
@@ -1938,7 +1686,7 @@ static void app_ibrt_tws_force_set_bt_as_act_dev_test(const char* param, uint32_
 #endif
 }
 
-static void app_ibrt_tws_force_set_ble_as_act_dev_test(const char* param, uint32_t len)
+void app_ibrt_tws_force_set_ble_as_act_dev_test(void)
 {
 #if BLE_AUDIO_ENABLED
      BT_AUDIO_DEVICE_T ble_device = {
@@ -1950,233 +1698,26 @@ static void app_ibrt_tws_force_set_ble_as_act_dev_test(const char* param, uint32
 }
 #endif
 
-static void app_ibrt_tws_switch_a2dp_test(const char* param, uint32_t len)
+void app_ibrt_tws_switch_a2dp_test(void)
 {
     app_ibrt_if_switch_streaming_a2dp();
 }
-
-void app_ibrt_tws_switch_sco_test(const char* param, uint32_t len)
-{
-    app_ibrt_if_hold_background_switch();
-}
-
-void app_ibrt_tws_audio_ctrl_test(const char* param, uint32_t len)
-{
-    bt_key_handle_func_click();
-}
-
-void app_terminate_call_test(const char* param, uint32_t len)
-{
-    app_audio_control_call_terminate();
-}
-
-void app_hold_call_test(const char* param, uint32_t len)
-{
-    app_audio_control_handle_three_way_incoming_call();
-}
-
-void app_reject_3way_incoming(const char* param, uint32_t len)
-{
-    app_audio_control_release_hold_call_and_3way_incoming();
-}
-
-void app_reject_3way_active(const char* param, uint32_t len)
-{
-    app_audio_control_release_active_call();
-}
-
-void app_answer_call_test(const char* param, uint32_t len)
-{
-    app_audio_control_call_answer();
-}
-
-void app_play_muisc_test(const char* param, uint32_t len)
-{
-    app_audio_control_media_play();
-}
-
-void app_pause_music_test(const char* param, uint32_t len)
-{
-    app_audio_control_media_pause();
-}
-
-void app_dump_hfp_machine_test(const char* param, uint32_t len)
-{
-    app_audio_get_current_hfp_machine();
-}
-
-void app_ibrt_a2dp_enable_aac_test(const char* param, uint32_t len)
-{
-    app_bt_a2dp_disable_aac_codec(false);
-}
-
-void app_ibrt_a2dp_disable_aac_test(const char* param, uint32_t len)
-{
-    app_bt_a2dp_disable_aac_codec(true);
-}
-
-void app_ibrt_a2dp_enable_sbc_test(const char* param, uint32_t len)
-{
-    app_bt_a2dp_disable_sbc_codec(false);
-}
-
-void app_ibrt_a2dp_disable_sbc_test(const char* param, uint32_t len)
-{
-    app_bt_a2dp_disable_sbc_codec(true);
-}
-
-#ifdef VOICE_SERVER
-static void app_ibrt_mgr_voice_server_playback_start_test(const char* param, uint32 len)
-{
-    app_voice_server_start();
-}
-
-static void app_ibrt_mgr_voice_server_playback_stop_test(const char* param, uint32 len)
-{
-    app_voice_server_stop();
-}
-#endif
-
-#ifdef SLT_TEST_ENABLE
-static void app_ibrt_slt_test_mcu_freq_clkout_enable(const char* param, uint32 len)
-{
-    EARBUDS_TRACE(0,"%s", __func__);
-    hal_iomux_set_mcu_clock_out();
-}
-
-static void app_ibrt_slt_test_mcu_freq_clkout_disable(const char* param, uint32 len)
-{
-    EARBUDS_TRACE(0,"%s", __func__);
-    hal_iomux_clr_clock_out();
-}
-
-static void app_ibrt_slt_test_mcu_req_208m(const char* param, uint32 len)
-{
-    EARBUDS_TRACE(0,"%s", __func__);
-    app_sysfreq_req(APP_SYSFREQ_SLT_TEST, APP_SYSFREQ_208M);
-}
-
-static void app_ibrt_slt_test_mcu_req_104m(const char* param, uint32 len)
-{
-    EARBUDS_TRACE(0,"%s", __func__);
-    app_sysfreq_req(APP_SYSFREQ_SLT_TEST, APP_SYSFREQ_104M);
-}
-
-static void app_ibrt_slt_test_mcu_req_52m(const char* param, uint32 len)
-{
-    EARBUDS_TRACE(0,"%s", __func__);
-    app_sysfreq_req(APP_SYSFREQ_SLT_TEST, APP_SYSFREQ_52M);
-}
-
-static void app_ibrt_slt_test_mcu_req_26m(const char* param, uint32 len)
-{
-    EARBUDS_TRACE(0,"%s", __func__);
-    app_sysfreq_req(APP_SYSFREQ_SLT_TEST, APP_SYSFREQ_26M);
-}
-
-// Need call this function before enter deep sleep!
-static void app_ibrt_slt_test_mcu_req_32k(const char* param, uint32 len)
-{
-    EARBUDS_TRACE(0,"%s", __func__);
-    app_sysfreq_req(APP_SYSFREQ_SLT_TEST, APP_SYSFREQ_32K);
-}
-#endif
-
-// #ifdef SINGLE_WIRE_DOWNLOAD
-#include "hal_bootmode.h"
-#include "hal_cmu.h"
-static void app_single_download_test(const char* param, uint32 len)
-{
-    EARBUDS_TRACE (1, "%s ",__func__);
-    hal_sw_bootmode_clear(HAL_SW_BOOTMODE_REBOOT);
-    hal_sw_bootmode_set(HAL_SW_BOOTMODE_SINGLE_LINE_DOWNLOAD);
-    pmu_reboot();
-    osDelay(500);
-}
-// #endif
-
-#ifdef SPA_AUDIO_SEC
-#include "tz_audio_process.h"
-#include "ree_audio_process.h"
-
-static void app_tz_audio_process_demo_func_enable_disable(const char* cmd, uint32_t cmd_len)
-{
-    int enable_disable = 0;
-
-    if (1 != sscanf(cmd, "%d", &enable_disable))
-    {
-        EARBUDS_TRACE(0,"%s invalid param %s", __func__, cmd);
-        return;
-    }
-
-    EARBUDS_TRACE(0,"%s len %d param[0]: 0x%02x 0x%02x",__func__,cmd_len,cmd[0],enable_disable);
-    tz_audio_process_demo_func_enable_disable(enable_disable);
-}
-
-static void app_ree_audio_process_demo_func_enable_disable(const char* cmd, uint32_t cmd_len)
-{
-    int enable_disable = 0;
-
-    if (1 != sscanf(cmd, "%d", &enable_disable))
-    {
-        EARBUDS_TRACE(0,"%s invalid param %s", __func__, cmd);
-        return;
-    }
-
-    EARBUDS_TRACE(0,"%s len %d param[0]: 0x%02x 0x%02x",__func__,cmd_len,cmd[0],enable_disable);
-    ree_audio_test_demo_enable_disable(enable_disable);
-}
-#endif
-
 /*
 * Connection step: tws_slave_pairing_test->tws_master_pairing_test->
 * w4_host_connect -> start_ibrt_test
 */
-const static app_ibrt_test_cmd_table_t app_ibrt_test_cmd_table[]=
+const app_bt_cmd_handle_t app_ibrt_v2_uart_test_handle[]=
 {
-    {"soft_reset",                  app_ibrt_soft_reset_test},
-// #ifdef SINGLE_WIRE_DOWNLOAD
-    {"test_single_download",        app_single_download_test},
-// #endif
-    {"reboot_with_delete_nv",       app_ibrt_soft_reset_delete_bt_nv_test},
+    {"soft_reset", app_ibrt_soft_reset_test},
+    {"reboot_with_delete_nv",  app_ibrt_soft_reset_delete_bt_nv_test},
 #ifdef __IAG_BLE_INCLUDE__
-    {"delete_all_ble_nv_info",      app_ibrt_nv_record_ble_delete_all_entry_test},
-#endif
-    {"ib_set_access_mode",          app_ibrt_set_access_mode_test},
-    {"ib_enable_bluetooth",         app_ibrt_if_enable_bluetooth_test},
-    {"ib_disable_bluetooth",        app_ibrt_if_disable_bluetooth_test},
-    {"ib_get_pnp_info",             app_ibrt_get_pnp_info_test},
-    {"ib_send_pause",               app_ibrt_send_pause_test},
-    {"ib_send_play",                app_ibrt_send_play_test},
-    {"ib_send_forward",             app_ibrt_send_forward_test},
-    {"ib_send_backward",            app_ibrt_send_backward_test},
-    {"ib_send_volumeup",            app_ibrt_send_volume_up_test},
-    {"ib_send_volumedn",            app_ibrt_send_volume_down_test},
-    {"ib_send_setabsvol",           app_ibrt_send_set_abs_volume_test},
-    {"ib_adj_local_volup",          app_ibrt_adjust_local_volume_up_test},
-    {"ib_adj_local_voldn",          app_ibrt_adjust_local_volume_down_test},
-    {"ib_call_redial",              app_ibrt_hf_call_redial_test},
-    {"ib_call_answer",              app_ibrt_hf_call_answer_test},
-    {"ib_call_hangup",              app_ibrt_hf_call_hangup_test},
-    {"ib_switch_sco",               app_ibrt_switch_streaming_sco_test},
-    {"ib_switch_a2dp",              app_ibrt_switch_streaming_a2dp_test},
-    {"ib_conn_a2dp",                app_ibrt_a2dp_profile_conn_test},
-    {"ib_disc_a2dp",                app_ibrt_a2dp_profile_disc_test},
-    {"ib_tota_send",                app_ibrt_send_tota_data_test},
-    {"ib_c_m",                      app_ibrt_connect_mobile_test},
-    {"ib_c_i",                      app_ibrt_connect_ibrt_test},
-    {"ib_r_s",                      app_ibrt_role_switch_test},
-#ifdef TOTA_v2
-    {"tota_v2_send_data",           app_ibrt_tota_v2_send_data_test},
-    {"tota_v2_more_data",           app_ibrt_tota_v2_more_data},
+    {"delete_all_ble_nv_info", nv_record_ble_delete_all_entry},
 #endif
 
+#if defined(IBRT_UI)
     {"tws_connect",                 bestest_tws_connect},
     {"auto_connect",                bestest_auto_connect},
     {"all_disconnect",              bestest_all_disconnect},
-    {"trigger_assert",              app_ibrt_trigger_assert_test},
-
-#if defined(IBRT_UI)
     {"open_box_event_test",         app_ibrt_mgr_open_box_event_test},
     {"fetch_out_box_event_test",    app_ibrt_mgr_fetch_out_box_event_test},
     {"put_in_box_event_test",       app_ibrt_mgr_put_in_box_event_test},
@@ -2184,24 +1725,16 @@ const static app_ibrt_test_cmd_table_t app_ibrt_test_cmd_table[]=
     {"wear_up_event_test",          app_ibrt_mgr_wear_up_event_test},
     {"wear_down_event_test",        app_ibrt_mgr_wear_down_event_test},
     {"pairing_mode_test",           app_ibrt_mgr_pairing_mode_test},
-#ifdef VOICE_SERVER
-    {"voice_server_playback_start", app_ibrt_mgr_voice_server_playback_start_test},
-    {"voice_server_playback_stop",  app_ibrt_mgr_voice_server_playback_stop_test},
-#endif
     {"free_man_test",               app_ibrt_mgr_free_man_test_1},
     {"dump_ui_status_test",         app_ibrt_mgr_dump_ui_status_test},
-    {"switch2single_point",         app_ibrt_mgr_switch_single_point_test},
-    {"switch2double_point",         app_ibrt_mgr_switch_double_point_test},
-    {"switch2triple_point",         app_ibrt_mgr_switch_triple_point_test},
+    {"switch_bt_single_mode_test",  app_ibrt_mgr_switch_bt_single_mode_test},
+    {"switch_bt_multi_mode_test",   app_ibrt_mgr_switch_bt_multi_mode_test},
+    {"switch_coex_single_mode_test",app_ibrt_mgr_switch_coex_single_mode_test},
+    {"switch_coex_multi_mode_test", app_ibrt_mgr_switch_coex_multi_mode_test},
     {"switch2walkie_talkie",        app_ibrt_mgr_switch2walkie_talkie_test},
     {"monitor_dump_test",           app_ibrt_mgr_monitor_dump_test},
-    {"user_rs_switch",              app_ibrt_mgr_user_role_switch_test0},
     {"user_rs_to_master",           app_ibrt_mgr_user_role_switch_test},
     {"user_rs_to_slave",            app_ibrt_mgr_user_role_switch_test1},
-    {"user_enable_pscan",           app_ibrt_mgr_user_enable_pscan},
-    {"user_disable_pscan",          app_ibrt_mgr_user_disable_pscan},
-    {"user_enable_iscan",           app_ibrt_mgr_user_enable_iscan},
-    {"user_disable_iscan",          app_ibrt_mgr_user_disable_iscan},
     {"enable_page",                 app_ibrt_mgr_enable_page_test},
     {"disable_page",                app_ibrt_mgr_disable_page_test},
     {"shutdown",                    app_ibrt_mgr_shutdown_test},
@@ -2216,14 +1749,17 @@ const static app_ibrt_test_cmd_table_t app_ibrt_test_cmd_table[]=
     {"enable_access_mode_test",app_ibrt_enable_access_mode_test},
     {"disable_access_mode_test", app_ibrt_disable_access_mode_test},
     {"enter_freeman_test",app_ibrt_tws_freeman_pairing_test},
-    {"tws_connect_test",app_ibrt_connect_tws_test},
+    {"tws_connect_test",app_ibrt_tws_connect_test},
     {"tws_disconnect_test",app_ibrt_tws_disconnect_test},
     {"connect_profiles_test",app_ibrt_connect_profiles_test},
+    {"host_cancel_connect_test",app_ibrt_host_connect_cancel_test},
+    {"tws_get_role_test",app_ibrt_tws_role_get_request_test},
     {"role_switch",app_ibrt_tws_role_switch_test},
     {"disc_all_mobile_test",app_ibrt_tws_disc_all_mobile_link_test},
     {"w4_mobile_connect_test",app_ibrt_tws_w4_mobile_connect_test},
     {"get_curr_link_count_test",app_ibrt_get_remote_device_count},
     {"dump_ibrt_conn_info",app_ibrt_tws_dump_info_test},
+    {"ibrt_function_test",app_ibrt_service_fuction_test},
     {"get_mobile_conn_status_test",app_ibrt_tws_mobile_connection_test},
     {"get_tws_state",app_ibrt_get_tws_state_test},
     {"pause_music_test",app_ibrt_tws_avrcp_pause_test},
@@ -2232,10 +1768,6 @@ const static app_ibrt_test_cmd_table_t app_ibrt_test_cmd_table[]=
     {"avrcp_vol_down_test",app_ibrt_tws_avrcp_vol_down_test},
     {"avrcp_next_track_test",app_ibrt_tws_avrcp_next_track_test},
     {"avrcp_prev_track_test",app_ibrt_tws_avrcp_prev_track_test},
-    {"avrcp_fast_forward_start_test", app_ibrt_tws_avrcp_fast_forward_start_test},
-    {"avrcp_fast_forward_stop_test", app_ibrt_tws_avrcp_fast_forward_stop_test},
-    {"avrcp_rewind_start_test", app_ibrt_tws_avrcp_rewind_start_test},
-    {"avrcp_rewind_stop_test", app_ibrt_tws_avrcp_rewind_stop_test},
     {"a2dp_active_phone",app_ibrt_ui_get_a2dp_active_phone},
     {"answer_call_test",app_ibrt_tws_hfp_answer_test},
     {"hfp_reject_test",app_ibrt_tws_hfp_reject_test},
@@ -2258,27 +1790,12 @@ const static app_ibrt_test_cmd_table_t app_ibrt_test_cmd_table[]=
     {"gpio_wakeup_disable", app_trigger_gpio_irq_wakeup_disable_test},
 #endif
 
-    {"dump_audio_state_info", app_ibrt_tws_dump_audio_state_test},
     {"factory_reset", app_ibrt_tws_factory_reset_test},
-#if BLE_AUDIO_ENABLED
+#ifdef BLE_AUDIO_ENABLED
     {"active device test",app_ibrt_tws_active_device_test},
     {"force_set_bt_act_dev",app_ibrt_tws_force_set_bt_as_act_dev_test},
     {"force_set_ble_act_dev",app_ibrt_tws_force_set_ble_as_act_dev_test},
 #endif
-    {"switch_sco_test",app_ibrt_tws_switch_sco_test},
-    {"audio_ctrl_test",app_ibrt_tws_audio_ctrl_test},
-    {"terminate_call_test",app_terminate_call_test},
-    {"answer_call_test",app_answer_call_test},
-    {"play_music_test",app_play_muisc_test},
-    {"pause_music_test",app_pause_music_test},
-    {"hold_call_test",app_hold_call_test},
-    {"reject_3way_incoming_test",app_reject_3way_incoming},
-    {"reject_3way_active_test",app_reject_3way_active},
-    {"dump_hfp_machine",app_dump_hfp_machine_test},
-    {"set_enable_aac_test", app_ibrt_a2dp_enable_aac_test},
-    {"set_disable_aac_test", app_ibrt_a2dp_disable_aac_test},
-    {"set_enable_sbc_test", app_ibrt_a2dp_enable_sbc_test},
-    {"set_disable_sbc_test", app_ibrt_a2dp_disable_sbc_test},
 #if defined( __BT_ANC_KEY__)&&defined(ANC_APP)
     {"toggle_anc_test",app_test_anc_handler},
 #endif
@@ -2295,17 +1812,16 @@ const static app_ibrt_test_cmd_table_t app_ibrt_test_cmd_table[]=
     {"test_close_sensorhub_mcu_set_trace_cmd",app_test_mcu_sensorhub_control_sensor_trace_close},
 #endif /*SENSOR_HUB*/
 
-    {"trigger_controller_assert",app_test_bt_drv_reg_op_trigger_controller_assert},
+    {"trigger_controller_assert",bt_drv_reg_op_trigger_controller_assert},
     {"turn_on_jlink_test",turn_on_jlink_test},
 #ifdef MEDIA_PLAYER_SUPPORT
-    {"increase_dst_mtu",app_test_increase_dst_mtu},
-    {"decrease_dst_mtu",app_test_decrease_dst_mtu},
+    {"increase_dst_mtu",increase_dst_mtu},
+    {"decrease_dst_mtu",decrease_dst_mtu},
 #endif
-    {"dip_test", app_test_dip_test},
+    {"dip_test",dip_test},
 #if BLE_AUDIO_ENABLED
     {"dump_ble_cnn_state",app_ibrt_tws_dump_ble_conn_state},
     {"adm_print",app_ibrt_ui_dump_adm_active_info},
-    {"bleaud_adv_test", app_test_bleaud_adv_test},
 #endif
 
 #ifdef AUDIO_MANAGER_TEST_ENABLE
@@ -2333,21 +1849,16 @@ const static app_ibrt_test_cmd_table_t app_ibrt_test_cmd_table[]=
 #if SLT_AUTO_TEST
     {"gpio_out",                    app_trigger_gpio_out_operation},
 #endif
-#ifdef GPIO_WAKEUP_ENABLE
-    {"gpio_wakeup_enable",	app_trigger_gpio_irq_wakeup_enable_test},
-    {"gpio_wakeup_disable", app_trigger_gpio_irq_wakeup_disable_test},
-#endif
-    // SLT TEST
-    // CPU freq
-#ifdef SLT_TEST_ENABLE
-    {"slt_test_cpu_req_clkout_enable",  app_ibrt_slt_test_mcu_freq_clkout_enable},
-    {"slt_test_cpu_req_clkout_disable", app_ibrt_slt_test_mcu_freq_clkout_disable},
-    {"slt_test_cpu_req_208m",           app_ibrt_slt_test_mcu_req_208m},
-    {"slt_test_cpu_req_104m",           app_ibrt_slt_test_mcu_req_104m},
-    {"slt_test_cpu_req_52m",            app_ibrt_slt_test_mcu_req_52m},
-    {"slt_test_cpu_req_26m",            app_ibrt_slt_test_mcu_req_26m},
-    {"slt_test_cpu_req_32k",            app_ibrt_slt_test_mcu_req_32k},
-#endif
+};
+
+/*
+ * example:best_test:mobile1_disconnect_test=08fa79a9931a
+ * cmd_title: best_test
+ * cmd_name: mobile1_disconnect_test
+ * cmd_para: 08fa79a9931a
+ */
+const app_uart_handle_t_p app_ibrt_uart_test_handle_p[]=
+{
     {"get_a2dp_state_test",         app_ibrt_get_a2dp_state_test},
     {"get_avrcp_state_test",        app_ibrt_get_avrcp_state_test},
 #ifdef BT_HFP_SUPPORT
@@ -2368,7 +1879,6 @@ const static app_ibrt_test_cmd_table_t app_ibrt_test_cmd_table[]=
     {"mobile1_connect_test",        app_ibrt_mobile_connect_test},
     {"mobile1_disconnect_test",     app_ibrt_mobile_disconnect_test},
     {"tws_role_swap_test",          app_ibrt_tws_role_switch_test_with_addr},
-    {"set_codec_test",              app_ibrt_a2dp_a2dp_set_codec_test}, // ldac enable set_codec_test|ff0301 disable set_codec_test|ff0300
 
 #ifdef ANC_APP
     {"anc_switch",                  app_ibrt_anc_switch_test},
@@ -2378,80 +1888,57 @@ const static app_ibrt_test_cmd_table_t app_ibrt_test_cmd_table[]=
     {"tone_1k_prompt",              app_prompt_1k_tone_test},
     {"gpio_pull_down",              app_trigger_gpio_irq_pull_down},
 #endif
-#ifdef SPA_AUDIO_SEC
-    {"tz_demo_func_enable_disable",app_tz_audio_process_demo_func_enable_disable},
-    {"ree_demo_func_enable_disable",app_ree_audio_process_demo_func_enable_disable},
-#endif
 };
 
-static unsigned int app_tws_ibrt_ui_cmd_callback(unsigned char *buf, unsigned int length)
+void app_ibrt_ui_v2_add_test_cmd_table(void)
 {
-    // Check len
-    EARBUDS_TRACE(0, "[%s] cmd: %s", __func__, buf);
-    int cmd_count;
-    uint8_t cmd_number;
-    char *para_addr=NULL;
-    unsigned int para_len=0;
+    app_bt_cmd_add_test_table(app_ibrt_v2_uart_test_handle, ARRAY_SIZE(app_ibrt_v2_uart_test_handle));
+}
 
-    cmd_number = ARRAY_SIZE(app_ibrt_test_cmd_table);
-    for (cmd_count = 0; cmd_count < cmd_number; cmd_count++)
+app_uart_test_function_handle_with_param app_ibrt_ui_find_uart_handle_with_param(unsigned char* buf)
+{
+    app_uart_test_function_handle_with_param p = NULL;
+    for(uint8_t i = 0; i < ARRAY_SIZE(app_ibrt_uart_test_handle_p); i++)
     {
-        if ((strncmp((char*)buf, app_ibrt_test_cmd_table[cmd_count].string,
-                strlen(app_ibrt_test_cmd_table[cmd_count].string)) == 0) ||
-                strstr(app_ibrt_test_cmd_table[cmd_count].string, (char*)buf))
+        if(strncmp((char*)buf, app_ibrt_uart_test_handle_p[i].string, strlen(app_ibrt_uart_test_handle_p[i].string))==0 ||
+           strstr(app_ibrt_uart_test_handle_p[i].string, (char*)buf))
         {
-            para_addr = strstr((char*)buf, "|");
-            if(para_addr != NULL)
-            {
-                para_addr++;
-                para_len = length - (para_addr - (char *)buf);
-            }
-
-            app_ibrt_test_cmd_table[cmd_count].cmd_function(para_addr, para_len);
+            p = app_ibrt_uart_test_handle_p[i].function;
             break;
         }
     }
+    return p;
+}
 
-    if (cmd_count >= cmd_number)
+int app_ibrt_ui_test_cmd_handler_with_param(unsigned char *buf, unsigned char *param, unsigned int length)
+{
+    //TRACE(2,"%s execute command: %s\n",__func__, buf);
+    //TRACE(1,"parameter: %s, len: %d \n", param, strlen((char *)param));
+    //TRACE(1,"len: %d \n", length);
+    int ret = 0;
+    if (buf[length-2] == 0x0d ||
+        buf[length-2] == 0x0a)
     {
-        EARBUDS_TRACE(0,"bt host not found,cmd=%s", buf);
+        buf[length-2] = 0;
     }
-
-    return 0;
-}
-#endif
-
-void app_tws_ibrt_ui_cmd_init(void)
-{
-#ifdef APP_TRACE_RX_ENABLE
-    EARBUDS_TRACE(0, "bt host cmd init");
-    app_trace_rx_register("IBRT_UI", app_tws_ibrt_ui_cmd_callback);
-#else
-    EARBUDS_TRACE(0, "bt host cmd init fail!, not open APP_TRACE_RX_ENABLE");
-#endif
-
-    return;
-}
-
-void app_tws_ibrt_ui_cmd_deinit(void)
-{
-#ifdef APP_TRACE_RX_ENABLE
-    EARBUDS_TRACE(0, "bt host cmd deinit");
-    app_trace_rx_deregister("IBRT_UI");
-#else
-    EARBUDS_TRACE(0, "bt host cmd deinit fail!, not open APP_TRACE_RX_ENABLE");
-#endif
+    app_uart_test_function_handle_with_param handl_function = app_ibrt_ui_find_uart_handle_with_param(buf);
+    if(handl_function)
+    {
+        handl_function(param, length);
+    }
+    else
+    {
+        ret = -1;
+        TRACE(0, "can not find handle function");
+    }
+    return ret;
 }
 
 void app_tws_ibrt_test_key_io_event(APP_KEY_STATUS *status, void *param)
 {
-    EARBUDS_TRACE(0,"app_tws_ibrt_test_key_io_event");
-    EARBUDS_TRACE(3, "%s 000%d,%d",__func__, status->code, status->event);
-#ifdef CUSTOMER_APP_BOAT
-    EARBUDS_TRACE(0,"app_ibrt_get_raw_ui is %d",bts_tws_if_is_local_right_side());
-    app_tota_general_button_event_handler(status, bts_tws_if_is_local_right_side());
-#endif
-#if 0//defined(IBRT_UI)
+    TRACE(0,"app_tws_ibrt_test_key_io_event");
+    TRACE(3, "%s 000%d,%d",__func__, status->code, status->event);
+#if defined(IBRT_UI)
     switch(status->event)
     {
         case APP_KEY_EVENT_CLICK:
@@ -2487,9 +1974,11 @@ void app_tws_ibrt_test_key_io_event(APP_KEY_STATUS *status, void *param)
         case APP_KEY_EVENT_LONGPRESS:
             if (status->code== APP_KEY_CODE_FN1)
             {
+
             }
             else if (status->code== APP_KEY_CODE_FN2)
             {
+
             }
             else
             {
@@ -2516,11 +2005,11 @@ void app_ibrt_raw_ui_test_key(APP_KEY_STATUS *status, void *param)
     uint8_t shutdown_key = HAL_KEY_EVENT_LONGLONGPRESS;
     uint8_t device_id = app_bt_audio_get_device_for_user_action();
     struct BT_DEVICE_T *curr_device = app_bt_get_device(device_id);
-    EARBUDS_TRACE(4, "%s %d,%d curr_device %x", __func__, status->code, status->event, device_id);
+    TRACE(4, "%s %d,%d curr_device %x", __func__, status->code, status->event, device_id);
 
-    if (bts_ibrt_if_is_ibrt_link_connected(&curr_device->remote) && status->event != shutdown_key)
+    if (IBRT_SLAVE == app_tws_get_ibrt_role(&curr_device->remote) && status->event != shutdown_key)
     {
-        app_ibrt_if_keyboard_notify_v2(&curr_device->remote, status, param);
+        app_ibrt_keyboard_notify_v2(&curr_device->remote, status, param);
     }
     else
     {
@@ -2532,13 +2021,6 @@ void app_ibrt_raw_ui_test_key(APP_KEY_STATUS *status, void *param)
     }
 }
 
-#ifdef TOTA_FACTORY_USED
-extern void app_bt_key_enter_tota_mode(APP_KEY_STATUS *status, void *param);
-#endif
-#ifdef DIRAC_AUDIO_ENABLE
-void dirac_audio_onoff(APP_KEY_STATUS *status, void *param);
-#endif
-
 const APP_KEY_HANDLE  app_ibrt_ui_v2_test_key_cfg[] =
 {
 #if defined(__AI_VOICE__) || defined(BISTO_ENABLED)
@@ -2548,17 +2030,12 @@ const APP_KEY_HANDLE  app_ibrt_ui_v2_test_key_cfg[] =
     {{APP_KEY_CODE_GOOGLE, APP_KEY_EVENT_CLICK}, "google assistant key", app_ai_manager_key_event_handle, NULL},
     {{APP_KEY_CODE_GOOGLE, APP_KEY_EVENT_DOUBLECLICK}, "google assistant key", app_ai_manager_key_event_handle, NULL},
 #endif
-#ifdef DIRAC_AUDIO_ENABLE
-    {{APP_KEY_CODE_PWR,APP_KEY_EVENT_CLICK},"bt dirac_audio_onoff key",dirac_audio_onoff, NULL},
-#else
 #if defined(__BT_ANC_KEY__)&&defined(ANC_APP)
     {{APP_KEY_CODE_PWR,APP_KEY_EVENT_CLICK},"bt anc key",app_anc_key, NULL},
-#elif TOTA_FACTORY_USED
-    {{APP_KEY_CODE_PWR,APP_KEY_EVENT_CLICK},"app_bt_key_enter_tota_mode", app_bt_key_enter_tota_mode, NULL},
 #else
     {{APP_KEY_CODE_PWR,APP_KEY_EVENT_CLICK},"app_ibrt_ui_test_key", app_ibrt_raw_ui_test_key, NULL},
 #endif
-#endif //#ifdef DIRAC_AUDIO_ENABLE
+
     {{APP_KEY_CODE_PWR,APP_KEY_EVENT_LONGPRESS},"app_ibrt_ui_test_key", app_ibrt_raw_ui_test_key, NULL},
     {{APP_KEY_CODE_PWR,APP_KEY_EVENT_LONGLONGPRESS},"app_ibrt_ui_test_key", app_ibrt_raw_ui_test_key, NULL},
     {{APP_KEY_CODE_PWR,APP_KEY_EVENT_DOUBLECLICK},"app_ibrt_ui_test_key", app_ibrt_raw_ui_test_key, NULL},
@@ -2568,10 +2045,8 @@ const APP_KEY_HANDLE  app_ibrt_ui_v2_test_key_cfg[] =
 
     {{APP_KEY_CODE_FN1,APP_KEY_EVENT_CLICK},"app_ibrt_service_test_key", app_tws_ibrt_test_key_io_event, NULL},
     {{APP_KEY_CODE_FN1,APP_KEY_EVENT_DOUBLECLICK},"app_ibrt_service_test_key", app_tws_ibrt_test_key_io_event, NULL},
-    {{APP_KEY_CODE_FN1,APP_KEY_EVENT_LONGPRESS},"app_ibrt_service_test_key", app_tws_ibrt_test_key_io_event, NULL},
     {{APP_KEY_CODE_FN2,APP_KEY_EVENT_CLICK},"app_ibrt_service_test_key", app_tws_ibrt_test_key_io_event, NULL},
     {{APP_KEY_CODE_FN2,APP_KEY_EVENT_DOUBLECLICK},"app_ibrt_service_test_key", app_tws_ibrt_test_key_io_event, NULL},
-    {{APP_KEY_CODE_FN2,APP_KEY_EVENT_LONGPRESS},"app_ibrt_service_test_key", app_tws_ibrt_test_key_io_event, NULL},
     {{APP_KEY_CODE_FN3,APP_KEY_EVENT_CLICK},"app_ibrt_service_test_key", app_tws_ibrt_test_key_io_event, NULL},
     {{APP_KEY_CODE_FN3,APP_KEY_EVENT_DOUBLECLICK},"app_ibrt_service_test_key", app_tws_ibrt_test_key_io_event, NULL},
 };
@@ -2579,16 +2054,12 @@ const APP_KEY_HANDLE  app_ibrt_ui_v2_test_key_cfg[] =
 void app_tws_ibrt_raw_ui_test_key_init(void)
 {
 #ifdef APP_KEY_ENABLE
-    EARBUDS_TRACE(0,"app_tws_ibrt_raw_ui_test_key_init");
+    TRACE(0,"app_tws_ibrt_raw_ui_test_key_init");
     app_key_handle_clear();
     for (uint8_t i=0; i<ARRAY_SIZE(app_ibrt_ui_v2_test_key_cfg); i++)
     {
         app_key_handle_registration(&app_ibrt_ui_v2_test_key_cfg[i]);
     }
-#endif
-
-#ifdef CUSTOMER_APP_BOAT
-    app_tota_general_button_event_init();
 #endif
 }
 

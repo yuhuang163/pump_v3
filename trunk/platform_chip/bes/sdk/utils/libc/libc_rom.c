@@ -20,14 +20,14 @@
 #include "export_fn_rom.h"
 #include "plat_addr_map.h"
 
+#ifdef ENABLE_PRINT_FLOAT
+#   error "LIBC_ROM does not support print float/double"
+#endif
+
 char *
 strsep(char **stringp, const char *delim)
 {
-#ifdef CHIP_BEST1306
-    return export_fn_rom->strsep(stringp, delim);
-#else
     return __export_fn_rom.strsep(stringp, delim);
-#endif
 }
 
 char *
@@ -41,11 +41,7 @@ strtok(char *s, const char *delim)
 char *
 strtok_r(char *s, const char *delim, char **lasts)
 {
-#ifdef CHIP_BEST1306
-    return export_fn_rom->strtok_r(s, delim, lasts);
-#else
     return __export_fn_rom.strtok_r(s, delim, lasts);
-#endif
 }
 
 char *
@@ -54,11 +50,7 @@ strncat (s1, s2, n)
      const char *s2;
      size_t n;
 {
-#ifdef CHIP_BEST1306
-    return export_fn_rom->strncat(s1, s2, n);
-#else
     return __export_fn_rom.strncat(s1, s2, n);
-#endif
 }
 
 int
@@ -67,63 +59,39 @@ strnicmp(s1, s2, n)
     const char *s2;
     size_t n;
 {
-#ifdef CHIP_BEST1306
-    return export_fn_rom->strnicmp(s1, s2, n);
-#else
     return __export_fn_rom.strnicmp(s1, s2, n);
-#endif
 }
 
 char *
 strstr(s, find)
     const char *s, *find;
 {
-#ifdef CHIP_BEST1306
-    return export_fn_rom->strstr(s, find);
-#else
     return __export_fn_rom.strstr(s, find);
-#endif
 }
 
 int atoi(const char *s)
 {
-#ifdef CHIP_BEST1306
-    return export_fn_rom->atoi(s);
-#else
     return __export_fn_rom.atoi(s);
-#endif
 }
 
 #ifndef NO_STRTOL
 long strtol(const char *nptr, char **endptr, int base)
 {
-#ifdef CHIP_BEST1306
-    return export_fn_rom->strtol(nptr, endptr, base);
-#else
     return __export_fn_rom.strtol(nptr, endptr, base);
-#endif
 }
 #endif
 
 #ifndef NO_STRTOUL
 unsigned long strtoul(const char *nptr, char **endptr, int base)
 {
-#ifdef CHIP_BEST1306
-    return export_fn_rom->strtoul(nptr, endptr, base);
-#else
     return __export_fn_rom.strtoul(nptr, endptr, base);
-#endif
 }
 #endif
 
 #ifndef NO_EXPORT_QSORT
 void qsort(void *baseP, size_t nElem, size_t width, int (*compar)(const void *, const void *))
 {
-#ifdef CHIP_BEST1306
-    return export_fn_rom->qsort(baseP, nElem, width, compar);
-#else
     return __export_fn_rom.qsort(baseP, nElem, width, compar);
-#endif
 }
 #endif
 
@@ -131,11 +99,7 @@ void qsort(void *baseP, size_t nElem, size_t width, int (*compar)(const void *, 
 void *bsearch(const void *key, const void *base, size_t nmemb, size_t size,
      int (*compar)(const void *, const void *))
 {
-#ifdef CHIP_BEST1306
-    return export_fn_rom->bsearch(key, base, nmemb, size, compar);
-#else
     return __export_fn_rom.bsearch(key, base, nmemb, size, compar);
-#endif
 }
 #endif
 
@@ -145,11 +109,7 @@ int sprintf(char * buf, const char *fmt, ...)
     int len;
 
     va_start(ap, fmt);
-#ifdef CHIP_BEST1306
-    len = export_fn_rom->vsnprintf(buf, -(size_t)buf, fmt, ap);
-#else
     len = __export_fn_rom.vsnprintf(buf, -(size_t)buf, fmt, ap);
-#endif
     va_end(ap);
     return (len);
 }
@@ -160,31 +120,19 @@ int snprintf(char * buf, size_t size, const char *fmt, ...)
     int len;
 
     va_start(ap, fmt);
-#ifdef CHIP_BEST1306
-    len = export_fn_rom->vsnprintf(buf, size, fmt, ap);
-#else
     len = __export_fn_rom.vsnprintf(buf, size, fmt, ap);
-#endif
     va_end(ap);
     return (len);
 }
 
 int vsprintf(char *buf, const char *fmt, va_list ap)
 {
-#ifdef CHIP_BEST1306
-    return export_fn_rom->vsprintf(buf, fmt, ap);
-#else
     return __export_fn_rom.vsprintf(buf, fmt, ap);
-#endif
 }
 
 int vsnprintf(char *buf, size_t size, const char *fmt, va_list ap)
 {
-#ifdef CHIP_BEST1306
-    return export_fn_rom->vsnprintf(buf, size, fmt, ap);
-#else
     return __export_fn_rom.vsnprintf(buf, size, fmt, ap);
-#endif
 }
 
 #if !defined(NO_VSSCANF) && !defined(NO_EXPORT_VSSCANF)
@@ -194,22 +142,14 @@ int sscanf(const char * buf, const char * fmt, ...)
     int i;
 
     va_start(args,fmt);
-#ifdef CHIP_BEST1306
-    i = export_fn_rom->vsscanf(buf,fmt,args);
-#else
     i = __export_fn_rom.vsscanf(buf,fmt,args);
-#endif
     va_end(args);
     return i;
 }
 
 int vsscanf(const char *fp, const char *fmt0, va_list ap)
 {
-#ifdef CHIP_BEST1306
-    return export_fn_rom->vsscanf(fp, fmt0, ap);
-#else
     return __export_fn_rom.vsscanf(fp, fmt0, ap);
-#endif
 }
 #endif
 

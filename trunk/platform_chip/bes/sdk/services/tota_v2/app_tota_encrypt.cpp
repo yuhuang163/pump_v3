@@ -29,42 +29,42 @@ void tota_set_encrypt_key_from_hash_key(uint8_t * hash_key)
     {
         key[i] = hash_key[2*i];
     }
-    TOTA_V2_TRACE(0,"aes key:");
-    TOTA_V2_DUMP8("%02x ", key, ENCRYPT_KEY_SIZE);
+    TOTA_LOG_DBG(0,"aes key:");
+    DUMP8("%02x ", key, ENCRYPT_KEY_SIZE);
 }
 
 uint16_t tota_encrypt(uint8_t * out, uint8_t * in, uint16_t inLen)
 {
-    //TOTA_V2_TRACE(1,"[%s]:raw data:", __func__);
-    //TOTA_V2_DUMP8("0x%02x, ", in, inLen);
+    //TOTA_LOG_DBG(1,"[%s]:raw data:", __func__);
+    //DUMP8("0x%02x, ", in, inLen);
     uint16_t outLen = inLen % ENCRYPT_KEY_SIZE? inLen + ENCRYPT_KEY_SIZE - (inLen % ENCRYPT_KEY_SIZE) : inLen;
     for (int i = inLen; i < outLen; i ++)
     {
         in[i] = 0;
     }
-    //TOTA_V2_TRACE(1,"outLen: %d", outLen);
-    // TOTA_V2_DUMP8("0x%02x, ", in, outLen);
+    //TOTA_LOG_DBG(1,"outLen: %d", outLen);
+    // DUMP8("0x%02x, ", in, outLen);
     AES128_CBC_encrypt_buffer(out, in, outLen, key, iv);
-    //TOTA_V2_TRACE(2,"encrypt data: %u -> %u", inLen, outLen);
-    //TOTA_V2_DUMP8("0x%02x, ", out, outLen);
+    //TOTA_LOG_DBG(2,"encrypt data: %u -> %u", inLen, outLen);
+    //DUMP8("0x%02x, ", out, outLen);
     return outLen;
 }
 
 uint16_t tota_decrypt(uint8_t * out, uint8_t * in, uint16_t inLen)
 {
-    //TOTA_V2_TRACE(1,"[%s]:raw data:", __func__);
-    // TOTA_V2_DUMP8("0x%02x, ", in, inLen);
+    //TOTA_LOG_DBG(1,"[%s]:raw data:", __func__);
+    // DUMP8("0x%02x, ", in, inLen);
     uint16_t outLen = inLen % ENCRYPT_KEY_SIZE? inLen + ENCRYPT_KEY_SIZE - (inLen % ENCRYPT_KEY_SIZE) : inLen;
     for (int i = inLen; i < outLen; i ++)
     {
         in[i] = 0;
     }
-    // TOTA_V2_TRACE(0, "make 16s:");
-    // TOTA_V2_DUMP8("0x%02x, ", in, outLen);
-    // TOTA_V2_TRACE(1,"outLen: %d", outLen);
+    // TOTA_LOG_DBG(0, "make 16s:");
+    // DUMP8("0x%02x, ", in, outLen);
+    // TOTA_LOG_DBG(1,"outLen: %d", outLen);
     AES128_CBC_decrypt_buffer(out, in, outLen, key, iv);
-    //TOTA_V2_TRACE(2,"decrypt data: %u -> %u", inLen, outLen);
-    //TOTA_V2_DUMP8("0x%02x, ", out, outLen);
-    //TOTA_V2_TRACE(0,"\n");
+    //TOTA_LOG_DBG(2,"decrypt data: %u -> %u", inLen, outLen);
+    //DUMP8("0x%02x, ", out, outLen);
+    //TOTA_LOG_DBG(0,"\n");
     return outLen;
 }

@@ -20,7 +20,6 @@
 #include "intersyshci.h"
 #include "apps.h"
 #include "bluetooth_bt_api.h"
-#include "app_bt.h"
 #include "app_factory.h"
 #include "app_factory_bt.h"
 #include "app_utils.h"
@@ -32,22 +31,12 @@
 #include "tgt_hardware.h"
 #include "app_battery.h"
 #include "bt_drv_reg_op.h"
-#include "conmgr_api.h"
-#include "me_api.h"
 #include "hal_bootmode.h"
 #include "hal_chipid.h"
+#include "bt_drv_interface.h"
 #include "watchdog/watchdog.h"
-#include "audio_codec_api.h"
-#include "app_trace_rx.h"
-#include "besbt.h"
 
 #define APP_FACT_CPU_WAKE_LOCK              HAL_CPU_WAKE_LOCK_USER_3
-
-typedef struct
-{
-    const char* string;
-    void (*cmd_function)(const char* param, uint32_t param_len);
-} app_ibrt_test_cmd_table_t;
 
 #ifdef __FACTORY_MODE_SUPPORT__
 static uint8_t inquiry_buff[] = {0x01, 0x72, 0x77, 0xb0, 0x18, 0x57, 0x60,\
@@ -109,33 +98,32 @@ static void app_factorymode_bt_inquiry_buff_update(void)
     ret = nvrec_dev_get_dongleaddr(&flsh_dongle_addr);
     if(0 == ret) {
         memcpy((void *)&inquiry_buff[1],(void *)flsh_dongle_addr.address,BTIF_BD_ADDR_SIZE);
-        FACTORY_DUMP8("0x%02x ", &inquiry_buff[2], BTIF_BD_ADDR_SIZE);
+        DUMP8("0x%02x ", &inquiry_buff[2], BTIF_BD_ADDR_SIZE);
     }
 }
 
-#if defined(BT_BUILD_WITH_CUSTOMER_HOST) || defined(BLE_ONLY_ENABLED)
-#else // bes classic bt is disabled
-void app_factorymode_CmgrCallback(btif_cmgr_handler_t *cHandler,
+#ifndef BLE_ONLY_ENABLED
+static void app_factorymode_CmgrCallback(btif_cmgr_handler_t *cHandler,
                               cmgr_event_t    Event,
                               bt_status_t     Status)
 {
-    FACTORY_TRACE(4,"%s cHandler:%p Event:%d status:%d", __func__, cHandler, Event, Status);
+    APP_FACTORY_TRACE(4,"%s cHandler:%p Event:%d status:%d", __func__, cHandler, Event, Status);
     if (Event == BTIF_CMEVENT_DATA_LINK_CON_CNF){
         if (Status == BT_STS_SUCCESS){
-            FACTORY_TRACE(0,"connect ok");
+            APP_FACTORY_TRACE(0,"connect ok");
             app_factorymode_result_set(true);
-            btif_cmgr_remove_data_link((bt_bdaddr_t *)(inquiry_buff+1));
+            bes_bt_me_acl_disconnect_req((bt_bdaddr_t *)(inquiry_buff+1));
         }else{
-            FACTORY_TRACE(0,"connect failed");
+            APP_FACTORY_TRACE(0,"connect failed");
             app_factorymode_result_set(false);
         }
     }
 
     if (Event == BTIF_CMEVENT_DATA_LINK_DIS){
         if (Status == BT_STS_SUCCESS){
-            FACTORY_TRACE(0,"disconnect ok");
+            APP_FACTORY_TRACE(0,"disconnect ok");
         }else{
-            FACTORY_TRACE(0,"disconnect failed");
+            APP_FACTORY_TRACE(0,"disconnect failed");
         }
     }
 }
@@ -143,37 +131,34 @@ void app_factorymode_CmgrCallback(btif_cmgr_handler_t *cHandler,
 
 static void app_factorymode_bt_InquiryResult_add(void)
 {
-#if defined(BT_BUILD_WITH_CUSTOMER_HOST) || defined(BLE_ONLY_ENABLED)
-#else // bes classic bt is disabled
-    POSSIBLY_UNUSED U8 len = 15;
+#ifndef BLE_ONLY_ENABLED
+    U8 len = 15;
     bool rssi = false, extended  = false;
     U8* parm = (U8*)inquiry_buff;
 
     /* Found one or more devices. Report to clients */
-    FACTORY_TRACE(4,"%s len:%d rssi:%d extended:%d", __func__, len, rssi, extended);
-    FACTORY_DUMP8("0x%02x ", parm, len);
-    btif_me_inquiry_result_setup(parm, rssi, extended);
+    APP_FACTORY_TRACE(4,"%s len:%d rssi:%d extended:%d", __func__, len, rssi, extended);
+    DUMP8("0x%02x ", parm, len);
+    bes_bt_me_report_inquiry_result(parm, rssi, extended);
 #endif
 }
 
 void app_factorymode_bt_create_connect(void)
 {
-#if defined(BT_BUILD_WITH_CUSTOMER_HOST) || defined(BLE_ONLY_ENABLED)
-#else // bes classic bt is disabled
-    POSSIBLY_UNUSED bt_status_t status;
+#ifndef BLE_ONLY_ENABLED
+    bt_status_t status;
     bt_bdaddr_t *bdAddr = (bt_bdaddr_t *)(inquiry_buff+1);
 
-    status = bt_adapter_connect_acl(bdAddr);
-    FACTORY_TRACE(2,"%s:%d", __func__, status);
+    status = bes_bt_me_acl_connect_req(bdAddr);
+    APP_FACTORY_TRACE(2,"%s:%d", __func__, status);
 #endif
 }
 
 void app_factorymode_bt_init_connect(void)
 {
-#if defined(BT_BUILD_WITH_CUSTOMER_HOST) || defined(BLE_ONLY_ENABLED)
-#else // bes classic bt is disabled
-    void *app_factorymode_cmgrHandler = btif_cmgr_get_default_conn_handler();
-    btif_cmgr_register_handler(app_factorymode_cmgrHandler, app_factorymode_CmgrCallback);
+#ifndef BLE_ONLY_ENABLED
+    void *app_factorymode_cmgrHandler = bes_bt_me_cmgr_create_handler();
+    bes_bt_me_cmgr_register_callback(app_factorymode_cmgrHandler, app_factorymode_CmgrCallback);
 #endif
     app_factorymode_bt_inquiry_buff_update();
     app_factorymode_bt_InquiryResult_add();
@@ -189,13 +174,11 @@ void app_factorymode_bt_xtalrangetest(APP_KEY_STATUS *status, void *param)
 {
     dev_addr_name devinfo;
     uint32_t fcap = 0;
-    FACTORY_TRACE(1,"%s",__func__);
+    APP_FACTORY_TRACE(1,"%s",__func__);
     app_wdt_close();
     hal_cpu_wake_lock(APP_FACT_CPU_WAKE_LOCK);
-#if defined(APP_10_SECOND_TIMER_EN)
     app_stop_10_second_timer(APP_PAIR_TIMER_ID);
     app_stop_10_second_timer(APP_POWEROFF_TIMER_ID);
-#endif
     if (!bt_error_check_timer_id){
         bt_error_check_timer_id = osTimerCreate(osTimer(bt_error_check_timer), osTimerPeriodic, NULL);
     }
@@ -223,23 +206,23 @@ void app_factorymode_bt_xtalrangetest(APP_KEY_STATUS *status, void *param)
     while(1){
         btdrv_rf_init_xtal_fcap(fcap%XTAL_FCAP_RANGE);
         osDelay(300);
-        FACTORY_TRACE(2,"xtal tune:%d", fcap%XTAL_FCAP_RANGE);
+        TRACE(2,"xtal tune:%d", fcap%XTAL_FCAP_RANGE);
         fcap++;
     }
 }
 
-void app_factorymode_bt_signalingtest(APP_KEY_STATUS *status, void *param)
+extern "C" void app_factorymode_bt_signalingtest_handler(void)
 {
     dev_addr_name devinfo;
-    FACTORY_TRACE(1,"%s",__func__);
+    APP_FACTORY_TRACE(1,"%s",__func__);
+#ifdef __WATCHER_DOG_RESET__    
     app_wdt_close();
+#endif
 #ifndef BT_SIGNALTEST_SLEEP_EN
     hal_cpu_wake_lock(APP_FACT_CPU_WAKE_LOCK);
 #endif
-#if defined(APP_10_SECOND_TIMER_EN)
     app_stop_10_second_timer(APP_PAIR_TIMER_ID);
     app_stop_10_second_timer(APP_POWEROFF_TIMER_ID);
-#endif
     if (!bt_error_check_timer_id){
         bt_error_check_timer_id = osTimerCreate(osTimer(bt_error_check_timer), osTimerPeriodic, NULL);
     }
@@ -269,7 +252,7 @@ void app_factorymode_bt_signalingtest(APP_KEY_STATUS *status, void *param)
     nvrec_dev_localname_addr_init(&devinfo);
 #ifdef __IBRT_IBRT_TESTMODE__
     uint8_t ibrt_address[6] = {0x11,0x22,0x33,0x44,0x55,0x66};
-    bt_set_local_address(ibrt_address);
+    memcpy(bt_addr,ibrt_address,6);
     memcpy(devinfo.btd_addr,ibrt_address,6);
 #endif
     btdrv_write_localinfo((char *)devinfo.localname, strlen(devinfo.localname) + 1, devinfo.btd_addr);
@@ -285,10 +268,15 @@ void app_factorymode_bt_signalingtest(APP_KEY_STATUS *status, void *param)
 
 }
 
+void app_factorymode_bt_signalingtest(APP_KEY_STATUS *status, void *param)
+{
+    app_factorymode_bt_signalingtest_handler();
+}
+
 static uint8_t test_end_timer_argument = TEST_ERROR_TYPE;
 static void app_bt_start_nonsignalingtest_end_timer(uint32_t timeout, uint8_t timer_type)
 {
-    FACTORY_TRACE(1,"app factory: timeout =%d", timeout);
+    APP_FACTORY_TRACE(1,"app factory: timeout =%d", timeout);
 
     do{
         if(timeout < 2000)
@@ -336,7 +324,7 @@ static void app_bt_nonsignalingtest_end_timer_handler(void const *param)
 
 static bool app_le_test_end_hander(uint8_t status, uint16_t nb_packet_received)
 {
-    FACTORY_TRACE(0, "APP factory:LE test end, status=%d, packet_received =%d", status, nb_packet_received);
+    APP_FACTORY_TRACE(0, "APP factory:LE test end, status=%d, packet_received =%d", status, nb_packet_received);
     nv_record_update_factory_le_rx_test_result((status == 0), nb_packet_received);
 
     //if you want to reconnect mobile,|HAL_SW_BOOTMODE_TEST_NORMAL_MODE
@@ -360,7 +348,7 @@ static bool app_bt_nonsignaling_test_end_hander(uint8_t status, uint16_t nb_pack
         {
            break;
         }
-        FACTORY_TRACE(0, "APP factory:BT non-singnalint test end, status=0x%x, packet_received =%d,hec error =%d, crc error=%d",
+        APP_FACTORY_TRACE(0, "APP factory:BT non-singnalint test end, status=0x%x, packet_received =%d,hec error =%d, crc error=%d",
             status, nb_packet_received, hec_nb, crc_nb);
 
         nv_record_update_factory_bt_nonsignaling_test_result((status == NONSIGNALING_TEST_OK), nb_packet_received, hec_nb, crc_nb);
@@ -385,11 +373,87 @@ void app_factory_register_test_ind_callback(app_factory_test_ind_handler_func cb
     app_factory_test_ind_callback = cb;
 }
 
+void app_factory_terminate_le_test(void)
+{
+}
+
+void app_factory_enter_le_rx_test(const char* cmd, uint32_t cmd_len)
+{
+    do{
+        if (cmd == NULL || cmd_len == 0)
+        {
+            APP_FACTORY_TRACE(3, "%s invalid param %p %d", __func__, cmd, cmd_len);
+            break;
+        }
+
+        bool need_block = false;
+        if(app_factory_test_ind_callback)
+        {
+            need_block = app_factory_test_ind_callback(NV_LE_NONSIGNALING_RX_MODE);
+        }
+
+        if(need_block == true)
+        {
+            break;
+        }
+
+        int timeout = 0;
+        int remote_tx_nb = 0;
+        int rx_channel = 0;
+        int phy = 0;
+        int mod_idx = 0;
+        sscanf(cmd, "%d %d %d %d %d",&timeout, &remote_tx_nb, &rx_channel, &phy, &mod_idx);
+
+        APP_FACTORY_TRACE(0, "APP Factory:LERX test to=%d, remote_tx_nb=%d, rx_channel=%d, phy=%d,mod id=%d",
+                    timeout, remote_tx_nb, rx_channel, phy, mod_idx);
+        nv_record_update_factory_le_rx_test_env(timeout, remote_tx_nb,
+                    NV_LE_NONSIGNALING_RX_MODE, rx_channel, phy, mod_idx);
+
+        app_enter_non_signalingtest_mode();
+    }while(0);
+}
+
+void app_factory_enter_le_tx_test(const char* cmd, uint32_t cmd_len)
+{
+    do{
+        if (cmd == NULL || cmd_len == 0)
+        {
+            APP_FACTORY_TRACE(3, "%s invalid param %p %d", __func__, cmd, cmd_len);
+            break;
+        }
+
+        bool need_block = false;
+        if(app_factory_test_ind_callback)
+        {
+            need_block = app_factory_test_ind_callback(NV_LE_NONSIGNALING_TX_MODE);
+        }
+
+        if(need_block == true)
+        {
+            break;
+        }
+
+        int timeout = 0;
+        int tx_channel = 0;
+        int data_len = 0;
+        int pkt_payload = 0;
+        int phy = 0;
+        sscanf(cmd, "%d %d %d %d %d", &timeout, &tx_channel, &data_len, &pkt_payload, &phy);
+
+        APP_FACTORY_TRACE(0, "APP Factory:LETX test to=%d, tx_channel=%d, data len=%d, payl_type=%d, phy=%d", timeout,
+            tx_channel, data_len, pkt_payload, phy);
+
+        nv_record_update_factory_le_tx_test_env(timeout, NV_LE_NONSIGNALING_TX_MODE, tx_channel, data_len, pkt_payload, phy);
+        app_enter_non_signalingtest_mode();
+    }while(0);
+}
+
+
 void app_factory_enter_le_rx_test_v2(int timeout, int remote_tx_nb, int rx_channel, int phy, int mod_idx)
 {
     do{
 
-        FACTORY_TRACE(0, "APP Factory:LERX test to=%d, remote_tx_nb=%d, rx_channel=%d, phy=%d,mod id=%d",
+        APP_FACTORY_TRACE(0, "APP Factory:LERX test to=%d, remote_tx_nb=%d, rx_channel=%d, phy=%d,mod id=%d",
                     timeout, remote_tx_nb, rx_channel, phy, mod_idx);
         nv_record_update_factory_le_rx_test_env(timeout, remote_tx_nb,
                     NV_LE_NONSIGNALING_RX_MODE, rx_channel, phy, mod_idx);
@@ -415,7 +479,7 @@ void app_factory_enter_le_tx_test_v2(int timeout, int tx_channel, int data_len, 
             break;
         }
 #endif
-        FACTORY_TRACE(0, "APP Factory:LETX test to=%d, tx_channel=%d, data len=%d, payl_type=%d, phy=%d", timeout,
+        APP_FACTORY_TRACE(0, "APP Factory:LETX test to=%d, tx_channel=%d, data len=%d, payl_type=%d, phy=%d", timeout,
             tx_channel, data_len, pkt_payload, phy);
 
         nv_record_update_factory_le_tx_test_env(timeout, NV_LE_NONSIGNALING_TX_MODE, tx_channel, data_len, pkt_payload, phy);
@@ -423,6 +487,71 @@ void app_factory_enter_le_tx_test_v2(int timeout, int tx_channel, int data_len, 
     }while(0);
 }
 
+void app_factory_enter_le_continueous_tx_test(const char* cmd, uint32_t cmd_len)
+{
+    do{
+        if (cmd == NULL || cmd_len == 0)
+        {
+            APP_FACTORY_TRACE(3, "%s invalid param %p %d", __func__, cmd, cmd_len);
+            break;
+        }
+
+        bool need_block = false;
+        if(app_factory_test_ind_callback)
+        {
+            need_block = app_factory_test_ind_callback(NV_LE_NONSIGNALING_CONT_TX_MODE);
+        }
+
+        if(need_block == true)
+        {
+            break;
+        }
+
+        int tx_channel = 0;
+        int data_len = 0;
+        int pkt_payload = 0;
+        int phy = 0;
+        sscanf(cmd, "%d %d %d %d", &tx_channel, &data_len, &pkt_payload, &phy);
+
+        APP_FACTORY_TRACE(0, "APP Factory:LETX continueous test, tx_channel=%d, data len=%d, payl_type=%d, phy=%d",
+            tx_channel, data_len, pkt_payload, phy);
+
+        nv_record_update_factory_le_tx_test_env(0, NV_LE_NONSIGNALING_CONT_TX_MODE, tx_channel, data_len, pkt_payload, phy);
+        app_enter_non_signalingtest_mode();
+    }while(0);
+}
+
+void app_factory_enter_le_continueous_rx_test(const char* cmd, uint32_t cmd_len)
+{
+    do{
+        if (cmd == NULL || cmd_len == 0)
+        {
+            APP_FACTORY_TRACE(3, "%s invalid param %p %d", __func__, cmd, cmd_len);
+            break;
+        }
+
+        bool need_block = false;
+        if(app_factory_test_ind_callback)
+        {
+            need_block = app_factory_test_ind_callback(NV_LE_NONSIGNALING_CONT_RX_MODE);
+        }
+
+        if(need_block == true)
+        {
+            break;
+        }
+
+        int rx_channel = 0;
+        int phy = 0;
+        int mod_idx = 0;
+        sscanf(cmd, "%d %d %d", &rx_channel,&phy,&mod_idx);
+
+        TRACE(0, "APP Factory:LERX continueous test,  rx_channel=%d, phy=%d,mod id=%d", rx_channel, phy, mod_idx);
+        nv_record_update_factory_le_rx_test_env(0, 0,  NV_LE_NONSIGNALING_CONT_RX_MODE, rx_channel, phy, mod_idx);
+
+        app_enter_non_signalingtest_mode();
+    }while(0);
+}
 
 bool app_factory_read_le_test_result(uint16_t *test_result, uint16_t * remote_tx_nb)
 {
@@ -443,7 +572,7 @@ bool app_factory_read_le_test_result(uint16_t *test_result, uint16_t * remote_tx
         * remote_tx_nb = tx_packet_nb_temp;
     }
 
-    FACTORY_TRACE(0, "APP Factory: read LE rx test done=%d, received nb=%d, remote tx nb=%d",
+    APP_FACTORY_TRACE(0, "APP Factory: read LE rx test done=%d, received nb=%d, remote tx nb=%d",
         test_done, result_temp, tx_packet_nb_temp);
 
     if(test_done)
@@ -466,7 +595,7 @@ bool app_factory_read_bt_nonsign_test_result(void)
     uint16_t crc_error_nb = 0;
     nv_record_factory_get_bt_nonsignalint_rx_test_result(&test_done, &result_temp, &hec_error_nb, &crc_error_nb);
 
-    FACTORY_TRACE(0, "APP Factory: BT rx test done=%d, recv nb=%d, hec nb=%d, crc nb=%d",
+    APP_FACTORY_TRACE(0, "APP Factory: BT rx test done=%d, recv nb=%d, hec nb=%d, crc nb=%d",
         test_done, result_temp, hec_error_nb, crc_error_nb);
 
     if(test_done)
@@ -478,12 +607,103 @@ bool app_factory_read_bt_nonsign_test_result(void)
     return test_done;
 }
 
+void app_factory_remote_fetch_le_teset_result(void)
+{
+    do{
+        bool need_block = false;
+        if(app_factory_test_ind_callback)
+        {
+            need_block = app_factory_test_ind_callback(NV_READ_LE_TEST_RESULT);
+        }
+
+        if(need_block == true)
+        {
+            break;
+        }
+
+        uint16_t result_report = 0;
+        uint16_t remote_tx_nb  = 1000;
+        bool done = app_factory_read_le_test_result(&result_report, &remote_tx_nb);
+        if(remote_tx_nb > 0 && remote_tx_nb > result_report && done)
+        {
+            APP_FACTORY_TRACE(0, "APP Factory: rx test success, PER=%d/%d", remote_tx_nb - result_report, remote_tx_nb);
+        }
+        else
+        {
+            APP_FACTORY_TRACE(0, "APP Factory: rx test fail, rxnb =%d, remote_tx_nb=%d", result_report, remote_tx_nb);
+        }
+    }while(0);
+}
+
+void app_factory_remote_fetch_bt_nonsig_test_result(void)
+{
+    do{
+        bool need_block = false;
+        if(app_factory_test_ind_callback)
+        {
+            need_block = app_factory_test_ind_callback(NV_READ_BT_RX_TEST_RESULT);
+        }
+
+        if(need_block == true)
+        {
+            break;
+        }
+
+        app_factory_read_bt_nonsign_test_result();
+    }while(0);
+}
+
+void app_factory_enter_bt_38chanl_dh5_prbs9_tx_test(void)
+{
+    do{
+        bool need_block = false;
+        if(app_factory_test_ind_callback)
+        {
+            need_block = app_factory_test_ind_callback(NV_BT_NONSIGNALING_TX_MODE);
+        }
+
+        if(need_block == true)
+        {
+            break;
+        }
+        APP_FACTORY_TRACE(0, "APP Factory: BT non-singnaling test 0091");
+
+        nv_record_update_factory_bt_nonsignaling_env(5000, NV_BT_NONSIGNALING_TX_MODE,
+            HOPSINGLE, WHITENING_MODE_ON, 38, 38,  1, 1, BT_EDR_DISABLE, DH5_TYPE,
+            BT_NONSIGNALING_PRBS9_PAYLOAD, DH5_PACKET_SIZE, TX_NUM_UNDEFINE);
+
+        app_enter_non_signalingtest_mode();
+    }while(0);
+}
+
+void app_factory_enter_bt_38chanl_dh1_prbs9_rx_test(void)
+{
+    do{
+        bool need_block = false;
+        if(app_factory_test_ind_callback)
+        {
+            need_block = app_factory_test_ind_callback(NV_BT_NONSIGNALING_RX_MODE);
+        }
+
+        if(need_block == true)
+        {
+            break;
+        }
+        APP_FACTORY_TRACE(0, "APP Factory: BT non-singnaling test 0094");
+        nv_record_update_factory_bt_nonsignaling_env(5000, NV_BT_NONSIGNALING_RX_MODE,
+            HOPSINGLE, WHITENING_MODE_ON, 38, 38,  1, 1, BT_EDR_DISABLE, DH1_TYPE,
+            BT_NONSIGNALING_PRBS9_PAYLOAD, DH1_PACKET_SIZE, TX_NUM_UNDEFINE);
+
+        app_enter_non_signalingtest_mode();
+    }while(0);
+}
+
 void app_factory_enter_tx_single_tone_test(uint8_t channel)
 {
 
     do{
 
-        FACTORY_TRACE(1, "APP Factory: BT tx single tone: %d \n", channel);
+        APP_FACTORY_TRACE(1, "APP Factory: BT tx single tone: %d \n", channel);
         nv_record_update_factory_tx_single_tone_env(channel);
         app_enter_non_signalingtest_mode();
 
@@ -587,7 +807,7 @@ void app_factory_tota_nonsignalingtest_handler(void)
             break;
 
         default:
-            FACTORY_TRACE(1,"app fatorty:error type, test type=0x%x", test_type);
+            APP_FACTORY_TRACE(1,"app fatorty:error type, test type=0x%x", test_type);
             break;
     }
 
@@ -596,16 +816,16 @@ void app_factory_tota_nonsignalingtest_handler(void)
 }
 
 int app_battery_stop(void);
-void app_factorymode_bt_nosignalingtest(APP_KEY_STATUS *status, void *param)
+extern "C" void app_factorymode_bt_nosignalingtest_handler(void)
 {
     dev_addr_name devinfo;
-    FACTORY_TRACE(1,"%s",__func__);
+    APP_FACTORY_TRACE(1,"%s",__func__);
+#ifdef __WATCHER_DOG_RESET__      
     app_wdt_close();
+#endif
     hal_cpu_wake_lock(APP_FACT_CPU_WAKE_LOCK);
-#if defined(APP_10_SECOND_TIMER_EN)
     app_stop_10_second_timer(APP_PAIR_TIMER_ID);
     app_stop_10_second_timer(APP_POWEROFF_TIMER_ID);
-#endif
     app_status_indication_set(APP_STATUS_INDICATION_TESTMODE1);
     if (!bt_error_check_timer_id){
         bt_error_check_timer_id = osTimerCreate(osTimer(bt_error_check_timer), osTimerPeriodic, NULL);
@@ -638,16 +858,18 @@ void app_factorymode_bt_nosignalingtest(APP_KEY_STATUS *status, void *param)
     btdrv_uart_bridge_loop();
 }
 
+void app_factorymode_bt_nosignalingtest(APP_KEY_STATUS *status, void *param)
+{
+    app_factorymode_bt_nosignalingtest_handler();
+}
 
 extern "C" void btdrv_uart_bridge_btc(void);
 
 void app_factorymode_btc_only_mode(APP_KEY_STATUS *status, void *param)
 {
-    FACTORY_TRACE(1,"%s",__func__);
-#if defined(APP_10_SECOND_TIMER_EN)
+    APP_FACTORY_TRACE(1,"%s",__func__);
     app_stop_10_second_timer(APP_PAIR_TIMER_ID);
     app_stop_10_second_timer(APP_POWEROFF_TIMER_ID);
-#endif
     app_status_indication_set(APP_STATUS_INDICATION_TESTMODE1);
     if (!bt_error_check_timer_id){
         bt_error_check_timer_id = osTimerCreate(osTimer(bt_error_check_timer), osTimerPeriodic, NULL);
@@ -668,18 +890,17 @@ int app_factorymode_bt_xtalcalib_proc(void)
     uint32_t capval = 0x80;
     int nRet;
 
-    FACTORY_TRACE(1,"%s",__func__);
+    APP_FACTORY_TRACE(1,"%s",__func__);
     hal_cpu_wake_lock(APP_FACT_CPU_WAKE_LOCK);
-    FACTORY_TRACE(1,"calib default, capval:%d", capval);
+    APP_FACTORY_TRACE(1,"calib default, capval:%d", capval);
     btdrv_hciopen();
-    btdrv_ins_patch_test_init();
     btdrv_hci_reset();
     btdrv_hcioff();
     capval = 0x80;
     bt_drv_calib_open();
     nRet = bt_drv_calib_result_porc(&capval);
     bt_drv_calib_close();
-    FACTORY_TRACE(2,"!!!!!!!!!!!!!!!!!!!!!!!!!!!calib ret:%d, capval:%d", nRet, capval);
+    TRACE(2,"!!!!!!!!!!!!!!!!!!!!!!!!!!!calib ret:%d, capval:%d", nRet, capval);
     if (!nRet)
         nvrec_dev_set_xtal_fcap((unsigned int)capval);
 
@@ -688,337 +909,7 @@ int app_factorymode_bt_xtalcalib_proc(void)
 
 void app_factorymode_bt_xtalcalib(APP_KEY_STATUS *status, void *param)
 {
-    FACTORY_TRACE(1,"%s",__func__);
+    APP_FACTORY_TRACE(1,"%s",__func__);
     app_factorymode_bt_xtalcalib_proc();
 }
-
-#ifdef APP_TRACE_RX_ENABLE
-static void app_factory_enter_le_rx_test(const char* cmd, uint32_t cmd_len)
-{
-    do{
-        if (cmd == NULL || cmd_len == 0)
-        {
-            FACTORY_TRACE(3, "%s invalid param %p %d", __func__, cmd, cmd_len);
-            break;
-        }
-
-        bool need_block = false;
-        if(app_factory_test_ind_callback)
-        {
-            need_block = app_factory_test_ind_callback(NV_LE_NONSIGNALING_RX_MODE);
-        }
-
-        if(need_block == true)
-        {
-            break;
-        }
-
-        int timeout = 0;
-        int remote_tx_nb = 0;
-        int rx_channel = 0;
-        int phy = 0;
-        int mod_idx = 0;
-        sscanf(cmd, "%d %d %d %d %d",&timeout, &remote_tx_nb, &rx_channel, &phy, &mod_idx);
-
-        FACTORY_TRACE(0, "APP Factory:LERX test to=%d, remote_tx_nb=%d, rx_channel=%d, phy=%d,mod id=%d",
-                    timeout, remote_tx_nb, rx_channel, phy, mod_idx);
-        nv_record_update_factory_le_rx_test_env(timeout, remote_tx_nb,
-                    NV_LE_NONSIGNALING_RX_MODE, rx_channel, phy, mod_idx);
-
-        app_enter_non_signalingtest_mode();
-    }while(0);
-}
-
-static void app_factory_enter_le_tx_test(const char* cmd, uint32_t cmd_len)
-{
-    do{
-        if (cmd == NULL || cmd_len == 0)
-        {
-            FACTORY_TRACE(3, "%s invalid param %p %d", __func__, cmd, cmd_len);
-            break;
-        }
-
-        bool need_block = false;
-        if(app_factory_test_ind_callback)
-        {
-            need_block = app_factory_test_ind_callback(NV_LE_NONSIGNALING_TX_MODE);
-        }
-
-        if(need_block == true)
-        {
-            break;
-        }
-
-        int timeout = 0;
-        int tx_channel = 0;
-        int data_len = 0;
-        int pkt_payload = 0;
-        int phy = 0;
-        sscanf(cmd, "%d %d %d %d %d", &timeout, &tx_channel, &data_len, &pkt_payload, &phy);
-
-        FACTORY_TRACE(0, "APP Factory:LETX test to=%d, tx_channel=%d, data len=%d, payl_type=%d, phy=%d", timeout,
-            tx_channel, data_len, pkt_payload, phy);
-
-        nv_record_update_factory_le_tx_test_env(timeout, NV_LE_NONSIGNALING_TX_MODE, tx_channel, data_len, pkt_payload, phy);
-        app_enter_non_signalingtest_mode();
-    }while(0);
-}
-
-static void app_factory_enter_le_continueous_tx_test(const char* cmd, uint32_t cmd_len)
-{
-    do{
-        if (cmd == NULL || cmd_len == 0)
-        {
-            FACTORY_TRACE(3, "%s invalid param %p %d", __func__, cmd, cmd_len);
-            break;
-        }
-
-        bool need_block = false;
-        if(app_factory_test_ind_callback)
-        {
-            need_block = app_factory_test_ind_callback(NV_LE_NONSIGNALING_CONT_TX_MODE);
-        }
-
-        if(need_block == true)
-        {
-            break;
-        }
-
-        int tx_channel = 0;
-        int data_len = 0;
-        int pkt_payload = 0;
-        int phy = 0;
-        sscanf(cmd, "%d %d %d %d", &tx_channel, &data_len, &pkt_payload, &phy);
-
-        FACTORY_TRACE(0, "APP Factory:LETX continueous test, tx_channel=%d, data len=%d, payl_type=%d, phy=%d",
-            tx_channel, data_len, pkt_payload, phy);
-
-        nv_record_update_factory_le_tx_test_env(0, NV_LE_NONSIGNALING_CONT_TX_MODE, tx_channel, data_len, pkt_payload, phy);
-        app_enter_non_signalingtest_mode();
-    }while(0);
-}
-
-static void app_factory_enter_le_continueous_rx_test(const char* cmd, uint32_t cmd_len)
-{
-    do{
-        if (cmd == NULL || cmd_len == 0)
-        {
-            FACTORY_TRACE(3, "%s invalid param %p %d", __func__, cmd, cmd_len);
-            break;
-        }
-
-        bool need_block = false;
-        if(app_factory_test_ind_callback)
-        {
-            need_block = app_factory_test_ind_callback(NV_LE_NONSIGNALING_CONT_RX_MODE);
-        }
-
-        if(need_block == true)
-        {
-            break;
-        }
-
-        int rx_channel = 0;
-        int phy = 0;
-        int mod_idx = 0;
-        sscanf(cmd, "%d %d %d", &rx_channel,&phy,&mod_idx);
-
-        FACTORY_TRACE(0, "APP Factory:LERX continueous test,  rx_channel=%d, phy=%d,mod id=%d", rx_channel, phy, mod_idx);
-        nv_record_update_factory_le_rx_test_env(0, 0,  NV_LE_NONSIGNALING_CONT_RX_MODE, rx_channel, phy, mod_idx);
-
-        app_enter_non_signalingtest_mode();
-    }while(0);
-}
-
-static void app_factory_change_dst_mtu_test(const char* cmd, uint32_t cmd_len)
-{
-    do {
-        int targetms = 0;
-        sscanf(cmd, "%d", &targetms);
-
-        FACTORY_TRACE(0, "[%s] targetms %d", __func__, targetms);
-
-        audio_bt_update_latency_buff_size(targetms);
-    } while(0);
-}
-
-static void app_factory_remote_fetch_le_teset_result_test(const char* cmd, uint32_t cmd_len)
-{
-    do{
-        bool need_block = false;
-        if(app_factory_test_ind_callback)
-        {
-            need_block = app_factory_test_ind_callback(NV_READ_LE_TEST_RESULT);
-        }
-
-        if(need_block == true)
-        {
-            break;
-        }
-
-        uint16_t result_report = 0;
-        uint16_t remote_tx_nb  = 1000;
-        bool done = app_factory_read_le_test_result(&result_report, &remote_tx_nb);
-        if(remote_tx_nb > 0 && remote_tx_nb > result_report && done)
-        {
-            FACTORY_TRACE(0, "APP Factory: rx test success, PER=%d/%d", remote_tx_nb - result_report, remote_tx_nb);
-        }
-        else
-        {
-            FACTORY_TRACE(0, "APP Factory: rx test fail, rxnb =%d, remote_tx_nb=%d", result_report, remote_tx_nb);
-        }
-    }while(0);
-}
-
-static void app_factory_terminate_le_test(const char* cmd, uint32_t cmd_len)
-{
-}
-
-static void app_factory_enter_signalingtest_mode_test(const char* cmd, uint32_t cmd_len)
-{
-    app_enter_signalingtest_mode();
-}
-
-static void app_factory_enter_non_signalingtest_mode_test(const char* cmd, uint32_t cmd_len)
-{
-    app_enter_non_signalingtest_mode();
-}
-
-static void app_factory_enter_bt_38chanl_dh5_prbs9_tx_test(const char* cmd, uint32_t cmd_len)
-{
-    do{
-        bool need_block = false;
-        if(app_factory_test_ind_callback)
-        {
-            need_block = app_factory_test_ind_callback(NV_BT_NONSIGNALING_TX_MODE);
-        }
-
-        if(need_block == true)
-        {
-            break;
-        }
-        FACTORY_TRACE(0, "APP Factory: BT non-singnaling test 0091");
-
-        nv_record_update_factory_bt_nonsignaling_env(5000, NV_BT_NONSIGNALING_TX_MODE,
-            HOPSINGLE, WHITENING_MODE_ON, 38, 38,  1, 1, BT_EDR_DISABLE, DH5_TYPE,
-            BT_NONSIGNALING_PRBS9_PAYLOAD, DH5_PACKET_SIZE, TX_NUM_UNDEFINE);
-
-        app_enter_non_signalingtest_mode();
-    }while(0);
-}
-
-static void app_factory_enter_bt_38chanl_dh1_prbs9_rx_test(const char* cmd, uint32_t cmd_len)
-{
-    do{
-        bool need_block = false;
-        if(app_factory_test_ind_callback)
-        {
-            need_block = app_factory_test_ind_callback(NV_BT_NONSIGNALING_RX_MODE);
-        }
-
-        if(need_block == true)
-        {
-            break;
-        }
-        FACTORY_TRACE(0, "APP Factory: BT non-singnaling test 0094");
-        nv_record_update_factory_bt_nonsignaling_env(5000, NV_BT_NONSIGNALING_RX_MODE,
-            HOPSINGLE, WHITENING_MODE_ON, 38, 38,  1, 1, BT_EDR_DISABLE, DH1_TYPE,
-            BT_NONSIGNALING_PRBS9_PAYLOAD, DH1_PACKET_SIZE, TX_NUM_UNDEFINE);
-
-        app_enter_non_signalingtest_mode();
-    }while(0);
-}
-
-static void app_factory_remote_fetch_bt_nonsig_test_result_test(const char* cmd, uint32_t cmd_len)
-{
-    do{
-        bool need_block = false;
-        if(app_factory_test_ind_callback)
-        {
-            need_block = app_factory_test_ind_callback(NV_READ_BT_RX_TEST_RESULT);
-        }
-
-        if(need_block == true)
-        {
-            break;
-        }
-
-        app_factory_read_bt_nonsign_test_result();
-    }while(0);
-}
-
-const static app_ibrt_test_cmd_table_t app_fact_bt_test_cmd_table[]=
-{
-    {"LE_TX_TEST",                      app_factory_enter_le_tx_test},
-    {"LE_RX_TEST",                      app_factory_enter_le_rx_test},
-    {"LE_CONT_TX_TEST",                 app_factory_enter_le_continueous_tx_test},
-    {"LE_CONT_RX_TEST",                 app_factory_enter_le_continueous_rx_test},
-    {"CHANGE_MTU",                      app_factory_change_dst_mtu_test},
-    {"LE_TEST_RESULT",                  app_factory_remote_fetch_le_teset_result_test},
-    {"LE_TEST_END",                     app_factory_terminate_le_test},
-    {"BT_DUT_MODE",                     app_factory_enter_signalingtest_mode_test},
-    {"NON_SIGNALING_TEST",              app_factory_enter_non_signalingtest_mode_test},
-    {"0091",                            app_factory_enter_bt_38chanl_dh5_prbs9_tx_test},
-    {"0094",                            app_factory_enter_bt_38chanl_dh1_prbs9_rx_test},
-    {"BT_RX_TEST_RESULT",               app_factory_remote_fetch_bt_nonsig_test_result_test},
-};
-
-static unsigned int app_factory_bt_cmd_callback(unsigned char *buf, unsigned int length)
-{
-    // Check len
-    FACTORY_TRACE(1, "[%s] cmd: %s", __func__, buf);
-    int cmd_count;
-    uint8_t cmd_number;
-    char *param_addr=NULL;
-    unsigned int param_len=0;
-
-    cmd_number = ARRAY_SIZE(app_fact_bt_test_cmd_table);
-    for (cmd_count = 0; cmd_count < cmd_number; cmd_count++)
-    {
-        if ((strncmp((char*)buf, app_fact_bt_test_cmd_table[cmd_count].string,
-                strlen(app_fact_bt_test_cmd_table[cmd_count].string)) == 0) ||
-                strstr(app_fact_bt_test_cmd_table[cmd_count].string, (char*)buf))
-        {
-            param_addr = strstr((char*)buf, "|");
-            if(param_addr != NULL)
-            {
-                param_addr++;
-                param_len = length - (param_addr - (char *)buf);
-            }
-
-            app_fact_bt_test_cmd_table[cmd_count].cmd_function(param_addr, param_len);
-            break;
-        }
-    }
-
-    if (cmd_count >= cmd_number)
-    {
-        FACTORY_TRACE(0,"bt host not found,cmd=%s", buf);
-    }
-
-    return 0;
-}
-#endif
-
-void app_factory_bt_cmd_init(void)
-{
-#ifdef APP_TRACE_RX_ENABLE
-    FACTORY_TRACE(0, "factory_bt_cmd init");
-    app_trace_rx_register("FACTORY_BT", app_factory_bt_cmd_callback);
-#else
-    FACTORY_TRACE(0, "factory_bt_cmd init fail!, not open APP_TRACE_RX_ENABLE");
-#endif
-    return;
-}
-
-void app_factory_bt_cmd_deinit(void)
-{
-#ifdef APP_TRACE_RX_ENABLE
-    FACTORY_TRACE(0, "factory_bt_cmd deinit");
-    app_trace_rx_deregister("FACTORY_BT");
-#else
-    FACTORY_TRACE(0, "factory_bt_cmd deinit fail!, not open APP_TRACE_RX_ENABLE");
-#endif
-}
-
 #endif

@@ -119,7 +119,7 @@ soundAtTestFunc sound_test_find_uart_handle(unsigned char *buf)
         }
 
         if (strncmp((char *)buf, str, strlen(str)) == 0 || strstr(str, (char *)buf)) {
-            SOUND_TRACE(0,"AT:%s", str);
+            LOG_I("AT:%s", str);
             p = sound_uart_handle[i].function;
             break;
         }
@@ -146,7 +146,7 @@ int soundUartCmdHandler(unsigned char *buf, unsigned int length)
         handl_function(len, buf_param);
     } else {
         ret = -1;
-        SOUND_TRACE(0,"can not find handle function");
+        LOG_I("can not find handle function");
     }
 
     return ret;
@@ -176,11 +176,11 @@ unsigned int soundUartCmdCallback(unsigned char *cmd, unsigned int cmd_length)
 void soundAtTestInit(void)
 {
 #ifdef UTILS_ESHELL_EN
-    SOUND_TRACE(0,"AT by eshell...");
+    LOG_I("AT by eshell...");
     return;
 #endif
 #ifdef APP_TRACE_RX_ENABLE
-    SOUND_TRACE(0,"AT Test Init...");
+    LOG_I("AT Test Init...");
     app_trace_rx_register("ST", soundUartCmdCallback);
 #endif
 }
@@ -257,28 +257,28 @@ static bool twsInfoPhrase(char *buf, uint8_t *addr, SoundTWSRole *role, SoundTWS
 {
     const char s[2] = ",";
     char *token;
-    SOUND_TRACE(0,"len=%d, str:%s", strlen(buf), buf);
+    LOG_I("len=%d, str:%s", strlen(buf), buf);
 
     token = strtok(buf, s);
-    SOUND_TRACE(0,"Token:[0]->%s", token);
+    LOG_I("Token:[0]->%s", token);
     if (token == NULL || !str2addr(token, addr)) {
         return false;
     }
 
     token = strtok(NULL, s);
-    SOUND_TRACE(0,"Token:[1]->%s", token);
+    LOG_I("Token:[1]->%s", token);
     if (token == NULL || !str2role(token, role)) {
         return false;
     }
 
     token = strtok(NULL, s);
-    SOUND_TRACE(0,"Token:[2]->%s", token);
+    LOG_I("Token:[2]->%s", token);
     if (token == NULL || !str2side(token, side)) {
         return false;
     }
 
     token = strtok(NULL, s);
-    SOUND_TRACE(0,"Token:[3]->%s", token);
+    LOG_I("Token:[3]->%s", token);
     if (token == NULL) {
         return false;
     }
@@ -290,10 +290,10 @@ static bool twsInfoPhrase(char *buf, uint8_t *addr, SoundTWSRole *role, SoundTWS
 void stDemo(uint8_t cmdLen, uint8_t *cmdParam)
 {
     char str[64];
-    SOUND_TRACE(0,"this is uart test handle");
+    LOG_I("this is uart test handle");
     memcpy(str, cmdParam, cmdLen);
     str[cmdLen] = '\0';
-    SOUND_TRACE(0,"len=%d, str:%s", cmdLen, str);
+    LOG_I("len=%d, str:%s", cmdLen, str);
 }
 
 void stBtEnable(uint8_t cmdLen, uint8_t *cmdParam)
@@ -327,11 +327,11 @@ void stShowPairedDeviceList(uint8_t cmdLen, uint8_t *cmdParam)
     uint8_t count = 0;
     soundBtGetPairedDeviceList(device_list, 10, &count);
 
-    SOUND_TRACE(0,"record count=%d", count);
+    LOG_I("record count=%d", count);
 
     for (int i = 0; i < count; i++) {
         uint8_t *p = device_list[i].address;
-        SOUND_TRACE(0,"device[%d]: %02x:%02x:%02x:%02x:%02x:%02x", i,
+        LOG_I("device[%d]: %02x:%02x:%02x:%02x:%02x:%02x", i,
               p[0], p[1], p[2], p[3], p[4], p[5]);
     }
 }
@@ -351,9 +351,9 @@ void stCleanPairedDeviceRecord(uint8_t cmdLen, uint8_t *cmdParam)
     str[cmdLen] = '\0';
 
     token = strtok(str, s);
-    SOUND_TRACE(0,"Token:[0]->%s", token);
+    LOG_I("Token:[0]->%s", token);
     if (token == NULL || !str2addr(token, addr.address)) {
-        SOUND_TRACE(0,"param error, please check");
+        LOG_W("param error, please check");
         return ;
     }
 
@@ -385,9 +385,9 @@ void stConnectDevice(uint8_t cmdLen, uint8_t *cmdParam)
     str[cmdLen] = '\0';
 
     token = strtok(str, s);
-    SOUND_TRACE(0,"Token:[0]->%s", token);
+    LOG_I("Token:[0]->%s", token);
     if (token == NULL || !str2addr(token, addr.address)) {
-        SOUND_TRACE(0,"param error, please check");
+        LOG_W("param error, please check");
         return ;
     }
 
@@ -404,9 +404,9 @@ void stDisconnectDevice(uint8_t cmdLen, uint8_t *cmdParam)
     str[cmdLen] = '\0';
 
     token = strtok(str, s);
-    SOUND_TRACE(0,"Token:[0]->%s", token);
+    LOG_I("Token:[0]->%s", token);
     if (token == NULL || !str2addr(token, addr.address)) {
-        SOUND_TRACE(0,"param error, please check");
+        LOG_W("param error, please check");
         return ;
     }
     soundBtDisconnectDevice(&addr);
@@ -423,17 +423,17 @@ void stGetRemoteBtName(uint8_t cmdLen, uint8_t *cmdParam)
     ret = soundBtGetPairedDeviceList(list, 10, &num);
 
     if (!ret) {
-        SOUND_TRACE(0,"AtTest:Failed to get paired list");
+        LOG_I("AtTest:Failed to get paired list");
         return;
     }
 
     for (int i = 0; i < num; i++) {
         if (soundGetRemoteBtName(&list[i], nameStr, &nameLen)) {
             uint8_t *p = list[i].address;
-            SOUND_TRACE(0,"AtTest:Device[%d]:", i);
-            SOUND_TRACE(0,"AtTest:BtAddr=%02x:%02x:%02x:%02x:%02x:%02x",
+            LOG_I("AtTest:Device[%d]:", i);
+            LOG_I("AtTest:BtAddr=%02x:%02x:%02x:%02x:%02x:%02x",
                   p[0], p[1], p[2], p[3], p[4], p[5]);
-            SOUND_TRACE(0,"AtTest:BtName=%s", nameStr);
+            LOG_I("AtTest:BtName=%s", nameStr);
         }
     }
 }
@@ -441,7 +441,7 @@ void stGetRemoteBtName(uint8_t cmdLen, uint8_t *cmdParam)
 void stGetAudioChannel(uint8_t cmdLen, uint8_t *cmdParam)
 {
     SoundAudioChnl chnl = soundAudioChannelGet();
-    SOUND_TRACE(0,"AtTest:Audio Channel:%d", chnl);
+    LOG_I("AtTest:Audio Channel:%d", chnl);
 }
 
 void stTwsCancelConnection(uint8_t cmdLen, uint8_t *cmdParam)
@@ -452,13 +452,13 @@ void stTwsCancelConnection(uint8_t cmdLen, uint8_t *cmdParam)
 void stTwsNvRoleGet(uint8_t cmdLen, uint8_t *cmdParam)
 {
     SoundTWSNvRole nvRole = soundTwsNvRoleGet();
-    SOUND_TRACE(0,"AtTest:TWS NV ROLE:%d", nvRole);
+    LOG_I("AtTest:TWS NV ROLE:%d", nvRole);
 }
 
 void stTwsRoleGet(uint8_t cmdLen, uint8_t *cmdParam)
 {
     SoundTWSRole twsRole = soundTwsRoleGet();
-    SOUND_TRACE(0,"AtTest:TWS ROLE:%d", twsRole);
+    LOG_I("AtTest:TWS ROLE:%d", twsRole);
 }
 
 void stTwsRoleSwitch(uint8_t cmdLen, uint8_t *cmdParam)
@@ -482,8 +482,8 @@ void stDumpInfo(uint8_t cmdLen, uint8_t *cmdParam)
     SoundMode m = soundGetCurrMode();
     SoundBisRole br = soundGetCurrBisRole();
 
-    SOUND_TRACE(0,"AT:INFO:MODE=%s", soundMode2str(m));
-    SOUND_TRACE(0,"AT:INFO:BIS_ROLE=%s", soundBisRole2str(br));
+    LOG_I("AT:INFO:MODE=%s", soundMode2str(m));
+    LOG_I("AT:INFO:BIS_ROLE=%s", soundBisRole2str(br));
 }
 
 void stEnterFreeman(uint8_t cmdLen, uint8_t *cmdParam)
@@ -500,7 +500,7 @@ void stEnterTws(uint8_t cmdLen, uint8_t *cmdParam)
     SoundTWSInfo info;
 
     if (twsInfoPhrase(str, info.btaddr.address, &info.role, &info.side, info.nameStr)) {
-        SOUND_TRACE(0,"AT:Update tws info");
+        LOG_I("AT:Update tws info");
         info.nameLen = strlen((char *)info.nameStr);
         soundEnterTws(&info);
     }
@@ -569,7 +569,7 @@ void stWifiLongPress(uint8_t cmdLen, uint8_t *cmdParam)
 
 void stCircleClick(uint8_t cmdLen, uint8_t *cmdParam)
 {
-    SOUND_TRACE(0,"app_sound_key_handle: stCircleClick !");
+    LOG_I("app_sound_key_handle: stCircleClick !");
     app_sound_key_handle(SOUND_CIRCLE_KEY_CLICK);
 }
 

@@ -32,12 +32,6 @@ enum LEAK_DETECT_STATUS
 int32_t app_voice_assist_custom_leak_detect_init(void);
 int32_t app_voice_assist_custom_leak_detect_open(void);
 int32_t app_voice_assist_custom_leak_detect_close(void);
-void app_voice_assist_custom_leak_detect_set_working_status(int32_t status);
-
-#ifdef CUSTOMER_APP_BOAT
-uint8_t app_voice_assitant_get_status(void);
-#endif
-
 
 #ifdef __cplusplus
 }

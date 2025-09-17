@@ -38,16 +38,35 @@
 #endif
 
 #if defined(CHIP_BEST1306)
-#ifdef COMPILE_SPEECH_AP_ROM_BIN
-#define ROM1X_ORIGIN (0xC120000)
-#define ROM1D_ORIGIN (0x2C120000)
-#define ROM1_SIZE    (0x32000)
+#if defined(ROM_VERSION_V2)
+#define ROM1X_ORIGIN (0x29000)
+#define ROM1D_ORIGIN (0x24009000)
+#define ROM1_SIZE    (0xF000)
 #else
 #define ROM1X_ORIGIN (0x28000)
 #define ROM1D_ORIGIN (0x28028000)
 #define ROM1_SIZE    (0x8000)
 #endif
 #define RESV_RAM_TOP    (0x20080000)
+#define RESV_RAM_SIZE   (0x40)
+#endif
+
+#if defined(CHIP_BEST1503)
+#if defined(COMPILE_SPEECH_AP_ROM_BIN)
+#define ROM1X_ORIGIN (0x190000)
+#define ROM1D_ORIGIN (0x22190000)
+#define ROM1_SIZE    (0x10000)
+#elif defined(COMPILE_SPEECH_CP_ROM_BIN)
+#define ROM1X_ORIGIN (0x56000)
+#define ROM1D_ORIGIN (0x22036000)
+#define ROM1_SIZE    (0x2A000)
+#else
+#define ROM1X_ORIGIN (0x30000)
+#define ROM1D_ORIGIN (0x22010000)
+#define ROM1_SIZE    (0x24800)
+#endif
+
+#define RESV_RAM_TOP    (0x20040000)
 #define RESV_RAM_SIZE   (0x40)
 #endif
 
@@ -99,22 +118,55 @@ SECTIONS
 		KEEP(*:main.o(.text.*rom1_entry*))
 		KEEP(*:extern_functions.o(.text.*impure*))
 
-        __sbc_text_start__ = .;
-        KEEP(*:sbc.o          (.text*))
-        __sbc_text_end__ = .;
-        __sbc_text_size__ = __sbc_text_end__ - __sbc_text_start__;
+#ifdef COMPILE_SBC_ROM_BIN
+		__sbc_text_start__ = .;
+		KEEP(*:sbc.o          (.text*))
+		__sbc_text_end__ = .;
+		__sbc_text_size__ = __sbc_text_end__ - __sbc_text_start__;
+#endif
+
+#ifdef COMPILE_AAC_ROM_BIN
+		__aac_text_start__ = .;
+        KEEP(*:aacdecoder_lib.o      (.text*))
+        KEEP(*:aac_mute_frame.o      (.text*))
+		__aac_text_end__ = .;
+		__aac_text_size__ = __aac_text_end__ - __aac_text_start__;
+#endif
+
+#ifdef COMPILE_CVSD_ROM_BIN
+		__cvsd_text_start__ = .;
+        KEEP(*:cvsd_codec.o      (.text*))
+		__cvsd_text_end__ = .;
+		__cvsd_text_size__ = __cvsd_text_end__ - __cvsd_text_start__;
+#endif
+
+#ifdef COMPILE_LC3_ROM_BIN
+		__lc3_text_start__ = .;
+		KEEP(*:lc3_com.o      (.text*))
+		KEEP(*:lc3_enc.o      (.text*))
+		KEEP(*:lc3_dec.o      (.text*))
+		__lc3_text_end__ = .;
+		__lc3_text_size__ = __lc3_text_end__ - __lc3_text_start__;
+#endif
 
 #ifdef COMPILE_SPEECH_AP_ROM_BIN
 		__speech_ap_text_start__ = .;
-		KEEP(*:speech_2mic_ns8.o (.text*))
-		KEEP(*:speech_1mic_ns.o (.text*))
 		KEEP(*:speech_dc_filter.o (.text*))
 		KEEP(*:echo_canceller.o (.text*))
-		KEEP(*:speech_arm_eq.o (.text*))
-		KEEP(*:compexp.o (.text*))
 		KEEP(*:lc_mmse_ns_float.o (.text*))
+		KEEP(*:speech_arm_eq.o (.text*))
 		__speech_ap_text_end__ = .;
 		__speech_ap_text_size__ = __speech_ap_text_end__ - __speech_ap_text_start__;
+#endif
+
+#ifdef COMPILE_SPEECH_CP_ROM_BIN
+		__speech_cp_text_start__ = .;
+		KEEP(*:speech_2mic_ns8.o (.text*))
+		KEEP(*:speech_ns7_in_2mic.o (.text*))
+		KEEP(*:speech_ns7_common.o (.text*))
+		KEEP(*:speech_ns8.o (.text*))
+		__speech_cp_text_end__ = .;
+		__speech_cp_text_size__ = __speech_cp_text_end__ - __speech_cp_text_start__;
 #endif
 
 		. = ALIGN(4);
@@ -135,21 +187,44 @@ SECTIONS
 
 	.rodata (ROMX_TO_ROMD(__exidx_end)) : AT(__exidx_end)
 	{
-        KEEP(*:main.o(.rodata.*exp_funcs*))
+		KEEP(*:main.o(.rodata.*exp_funcs*))
 
-#ifdef COMPILE_SPEECH_AP_ROM_BIN
-		KEEP(*:speech_2mic_ns8.o (.rodata*))
-		KEEP(*:speech_1mic_ns.o (.rodata*))
-		KEEP(*:speech_dc_filter.o (.rodata*))
-		KEEP(*:echo_canceller.o (.rodata*))
-		KEEP(*:speech_arm_eq.o (.rodata*))
-		KEEP(*:compexp.o (.rodata*))
-		KEEP(*:lc_mmse_ns_float.o (.rodata*))
+#ifdef COMPILE_SBC_ROM_BIN
+		KEEP(*:sbc.o          (.rodata*))
 #endif
 
-        KEEP(*:sbc.o          (.rodata*))
-        *(.rodata*)
-        *(.flash_rodata*)
+#ifdef COMPILE_AAC_ROM_BIN
+        KEEP(*:aacdecoder_lib.o      (.rodata*))
+        KEEP(*:aac_mute_frame.o      (.rodata*))
+#endif
+
+#ifdef COMPILE_CVSD_ROM_BIN
+        KEEP(*:cvsd_codec.o      (.rodata*))
+#endif
+
+#ifdef COMPILE_LC3_ROM_BIN
+		KEEP(*:lc3_com.o      (.rodata*))
+		KEEP(*:lc3_enc.o      (.rodata*))
+		KEEP(*:lc3_dec.o      (.rodata*))
+#endif
+
+#ifdef COMPILE_SPEECH_AP_ROM_BIN
+		KEEP(*:speech_dc_filter.o (.rodata*))
+		KEEP(*:echo_canceller.o (.rodata*))
+		KEEP(*:lc_mmse_ns_float.o (.rodata*))
+		KEEP(*:speech_arm_eq.o (.rodata*))
+#endif
+
+#ifdef COMPILE_SPEECH_CP_ROM_BIN
+		KEEP(*:speech_2mic_ns8.o (.rodata*))
+		KEEP(*:speech_ns7_in_2mic.o (.rodata*))
+		KEEP(*:speech_ns7_common.o (.rodata*))
+		KEEP(*:speech_ns8.o (.rodata*))
+#endif
+
+		*(.rodata*)
+		*(.flash_rodata*)
+		*(.flash_nc_rodata*)
 		KEEP(*(.note.gnu.build-id))
 		KEEP(*(.eh_frame*))
 
@@ -161,19 +236,19 @@ SECTIONS
 	{
 		. = ALIGN(4);
 		__rom_bss_start__ = .;
-        __rom_bss_end__ = .;
+		__rom_bss_end__ = .;
 
-    } > RAM_RSV4ROM
+	} > RAM_RSV4ROM
 
 	.rom_data : AT (__rom_etext)
 	{
-        . = ALIGN(4);
+		. = ALIGN(4);
 		__rom_data_start__ = .;
-    } > RAM_RSV4ROM
+	} > RAM_RSV4ROM
 
 	.rom_heap (NOLOAD) :
 	{
-        . = ALIGN(4);
+		. = ALIGN(4);
 		__rom_HeapBase = .;
 		__end__ = .;
 		end = __end__;

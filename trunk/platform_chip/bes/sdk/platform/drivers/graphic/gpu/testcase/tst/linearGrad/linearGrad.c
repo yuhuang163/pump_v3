@@ -42,7 +42,7 @@ static int   fb_width = GPU_FB_WIDTH, fb_height = GPU_FB_HEIGHT;
 static vg_lite_buffer_t buffer;     //offscreen framebuffer object for rendering.
 static vg_lite_buffer_t * fb;
 static vg_lite_buffer_t image;
-int frames = 1; //Frames to render
+static int frames = 1; //Frames to render
 /*
 *-----*
 /       \
@@ -106,7 +106,7 @@ int linergrad_test_main_entry(int argc, const char * argv[])
 
     // Initialize vg_lite engine.
     vg_lite_error_t error = VG_LITE_SUCCESS;
-    DRIVERS_TRACE(0,"%s", __func__);
+    GPU_REP("%s", __func__);
 
 
 #ifdef GPU_TEST_LOOP
@@ -175,7 +175,7 @@ __again:
 ErrorHandler:
     // Cleanup.
     cleanup();
-    DRIVERS_TRACE(0,"%s test pass", __func__);
+    GPU_REP("%s test pass", __func__);
 
     #ifdef GPU_TEST_LOOP
     frames = 6;

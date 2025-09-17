@@ -20,6 +20,8 @@
 extern "C" {
 #endif
 
+#define CFG_SCO_OVER_HCI 0
+
 #define HCI_INVALID_CONN_HANDLE 0xffff
 #define HCI_CONN_HANDLE_MASK 0x0fff
 #define HCI_CONN_FLAG_SHIFTS (12)
@@ -61,7 +63,7 @@ typedef enum {
  *      rx max total: 15806 15.44KB (W/O ISO 8126 7.94KB)
  */
 
-#define HCI_NUM_CMD_TX_HOST_BUFFERS    64 // previous host cmd tx buff 24
+#define HCI_NUM_CMD_TX_HOST_BUFFERS    32 // previous host cmd tx buff 24
 #define HCI_NUM_BT_ACL_TX_HOST_BUFFERS 64 // previous host bt acl tx buff 24
 #define HCI_NUM_BT_SCO_TX_HOST_BUFFERS 12
 #define HCI_NUM_LE_ACL_TX_HOST_BUFFERS 64 // btc le acl tx 251 * 18
@@ -88,19 +90,6 @@ typedef enum {
 #define HCI_ACL_PB_FLAG_MASK 0x3000
 #define HCI_ACL_BC_FLAG_MASK 0xc000
 
-#define _RX_DUMP_LEN_MAX (64)
-#define _TX_DUMP_LEN_MAX (64)
-#define _RX_DUMP_ISO_LEN_MAX (16)
-#define _TX_DUMP_ISO_LEN_MAX (16)
-#define BT_LOG_HCI_DATA_MAX_LEN (256)
-
-#define HCI_CMD_TYPE                        0x01
-#define HCI_ACL_TYPE                        0x02
-#define HCI_SCO_TYPE                        0x03
-#define HCI_EVT_TYPE                        0x04
-#define HCI_ISO_TYPE                        0x05
-#define HCI_TRC_TYPE                        0x06
-
 typedef enum {
     HCI_ACL_TX_START_NONE_AUTOFLUSH = 0x0000,
     HCI_ACL_TX_CONTINUE_FRAGMENT    = 0x1000,
@@ -108,8 +97,6 @@ typedef enum {
     HCI_ACL_RX_START_NONE_AUTOFLUSH = 0x0000, // only allowed for loopback mode
     HCI_ACL_RX_CONTINUE_FRAGMENT    = 0x1000,
     HCI_ACL_RX_START_FRAGMENT       = 0x2000,
-    HCI_ACL_RX_NEAR_START_FRAGMENT  = 0x0000,
-    HCI_ACL_RX_NEAR_CONT_FRAGMENT   = 0x2000,
 
     HCI_LEU_TX_START_NONE_FLUSHABLE = 0x0000, // le acl data are all non-automatic-flushable
     HCI_LEU_TX_CONTINUE_FRAGMENT    = 0x1000,
@@ -144,7 +131,6 @@ struct l2cap_enfc_header_t {
     uint16_t l2cap_sdu_len;
 } __attribute__ ((packed));
 
-#define HCI_SCO_PYL_LEN_MASK 0xFF
 #define HCI_SCO_PS_FLAG_MASK 0x3000
 
 typedef enum {
@@ -244,21 +230,12 @@ struct hci_rx_desc_t {
     uint16_t sdu_data_len;
     uint16_t buffer_offset;
     uint16_t connhdl; // connhdl or event opcode
-    bool rx_handled;
 #if DUMP_PUSH_POP_TIME==1
     uint32_t push_time;
 #endif
 };
 
-typedef struct {
-    uint16_t connhdl:12;
-    uint16_t ps_flg:2;
-    uint16_t ps_rfu:2;
-    uint8_t  data_len;
-    uint8_t  data[0];
-} __attribute__ ((packed)) hci_tx_sco_desc_t;
-
-#ifdef ISO_BEARER_SUPPORT
+#ifdef BLE_ISO_ENABLED
 struct hci_rx_iso_desc_t {
     struct hci_rx_desc_t head;
     struct hci_iso_flag_t iso_flag;
@@ -282,7 +259,7 @@ struct hci_transport_callback_t {
     void *(*hci_rx_alloc)(hci_data_type_t type, uint16_t size, uint32_t ca, uint32_t line);
     void (*hci_rx_free)(hci_data_type_t type, uint8_t *buffer, uint32_t ca, uint32_t line);
     void (*hci_rx_setup)(hci_data_type_t type, uint8_t *buffer, uint16_t packet_len);
-#ifdef ISO_BEARER_SUPPORT
+#ifdef BLE_ISO_ENABLED
     bool (*hci_tx_iso_ind)(struct hci_tx_iso_desc_t *tx_desc);
 #endif
     void (*hci_rx_data_ind)(struct hci_rx_desc_t *rx_desc);
@@ -297,16 +274,13 @@ typedef struct hci_transport_global_t {
     osThreadId hci_rx_thread;
     osMessageQId rx_cmp_q_id;
     osMessageQId rx_evt_acl_q_id; // evt and acl shall be handled in the order they received
-#ifdef CFG_SCO_OVER_HCI
+#if (CFG_SCO_OVER_HCI == 1)
     osMessageQId rx_sco_q_id;
 #endif
-#ifdef ISO_BEARER_SUPPORT
+#ifdef BLE_ISO_ENABLED
     osMessageQId rx_iso_q_id;
     osMessageQId tx_iso_q_id;
 #endif
-    uint16_t print_max_len;
-    int (*hci_rx_log_ind)(const uint8_t *buf, uint16_t len);
-    int (*hci_tx_log_ind)(const uint8_t *buf, uint16_t len);
 } hci_transport_global_t;
 
 hci_transport_global_t *hci_transport_global(void);
@@ -317,22 +291,10 @@ void hci_rx_desc_free(struct hci_rx_desc_t *rx_desc, uint32_t ca, uint32_t line)
 uint8_t *hci_rx_packet_buffer(struct hci_rx_desc_t *rx_desc);
 int hci_signal_rx_complete(uint16_t connhdl, uint8_t num_complete);
 int hci_rx_queue_available_space(void);
-#ifdef ISO_BEARER_SUPPORT
+#ifdef BLE_ISO_ENABLED
 int hci_signal_tx_iso_data(uint32_t data);
 int hci_signal_iso_continue_tx(void);
 #endif
-void hci_rx_flowctrl_info(void);
-void hci_tx_flowctrl_info(void);
-void hci_tx_trace(uint8_t type, const unsigned char *data, unsigned int len);
-typedef bool (*hci_cmd_filter_handler_func)(uint8_t* pbuf, uint32_t length);
-void hci_register_cmd_filter_handler_callback(hci_cmd_filter_handler_func func);
-void hci_set_rx_thread_priority(int priority);
-typedef void (*hci_log_report_func)(uint8_t* data);
-void hci_register_log_report_handler_callback(hci_log_report_func func);
-
-void hci_register_log_report_callback(uint16_t max_len,
-                int (*tx_cb)(const uint8_t *buf, uint16_t len),
-                int (*rx_cb)(const uint8_t *buf, uint16_t len));
 
 #ifdef __cplusplus
 }

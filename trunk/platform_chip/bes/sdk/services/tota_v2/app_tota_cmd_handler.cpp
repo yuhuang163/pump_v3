@@ -22,12 +22,12 @@
 #include "app_tota_cmd_handler.h"
 #include "app_tota_cmd_code.h"
 #include "app_tota_common.h"
-#include "bluetooth_ble_api.h"
+//#include "rwapp_config.h"
 #include "app_spp_tota.h"
 #ifdef __IAG_BLE_INCLUDE__
 #include "bluetooth_ble_api.h"
 #endif
-#include "tota_stream_data_transfer.h"
+
 #define APP_TOTA_CMD_HANDLER_WAITING_RSP_TIMEOUT_SUPERVISOR_COUNT   8
 
 /**
@@ -216,7 +216,7 @@ static void app_tota_cmd_handler_remove_waiting_rsp_timeout_supervision(uint16_t
 
     tota_cmd_handler_env.timeoutSupervisorCount--;
 
-    //TOTA_V2_TRACE(1,"decrease the supervisor timer to %d", tota_cmd_handler_env.timeoutSupervisorCount);
+    //TOTA_LOG_DBG(1,"decrease the supervisor timer to %d", tota_cmd_handler_env.timeoutSupervisorCount);
 
     if (tota_cmd_handler_env.timeoutSupervisorCount > 0)
     {
@@ -292,7 +292,7 @@ void app_tota_cmd_handler_add_waiting_rsp_timeout_supervision(uint16_t entryInde
 
     tota_cmd_handler_env.timeoutSupervisorCount = insertedIndex;
 
-    //TOTA_V2_TRACE(1,"increase the supervisor timer to %d", tota_cmd_handler_env.timeoutSupervisorCount);
+    //TOTA_LOG_DBG(1,"increase the supervisor timer to %d", tota_cmd_handler_env.timeoutSupervisorCount);
 
 
     osMutexRelease(tota_cmd_handler_env.mutex);
@@ -312,21 +312,21 @@ void app_tota_cmd_handler_add_waiting_rsp_timeout_supervision(uint16_t entryInde
  */
 APP_TOTA_CMD_RET_STATUS_E app_tota_cmd_received(uint8_t* ptrData, uint32_t dataLength)
 {
-    TOTA_V2_TRACE(0,"TOTA Receive data:");
-    TOTA_V2_DUMP8("0x%02x ", ptrData, dataLength>20?20:dataLength);
+    TOTA_LOG_DBG(0,"TOTA Receive data:");
+    TOTA_LOG_DUMP("0x%02x ", ptrData, dataLength>20?20:dataLength);
     APP_TOTA_CMD_PAYLOAD_T* pPayload = (APP_TOTA_CMD_PAYLOAD_T *)ptrData;
 
     // check command code
     if (pPayload->cmdCode >= OP_TOTA_COMMAND_COUNT || pPayload->cmdCode < OP_TOTA_STRING)
     {
-        TOTA_V2_TRACE(1,"[%s]error TOTA_INVALID_CMD",__func__);
+        TOTA_LOG_DBG(1,"[%s]error TOTA_INVALID_CMD",__func__);
         return TOTA_INVALID_CMD;
     }
 
     // check parameter length
     if ((pPayload->paramLen + TOTA_DATA_HEAD_SIZE) > (uint16_t)dataLength)
     {
-        TOTA_V2_TRACE(3,"[%s]error TOTA_PARAMETER_LENGTH_TOO_SHORT:0x%x > 0x%x ",__func__,pPayload->paramLen, dataLength);
+        TOTA_LOG_DBG(3,"[%s]error TOTA_PARAMETER_LENGTH_TOO_SHORT:0x%x > 0x%x ",__func__,pPayload->paramLen, dataLength);
         return TOTA_PARAMETER_LENGTH_TOO_SHORT;
     }
 

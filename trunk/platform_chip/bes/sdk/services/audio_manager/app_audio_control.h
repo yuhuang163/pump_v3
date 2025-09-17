@@ -71,25 +71,19 @@ PLAYBACK_INFO_T* app_bt_get_music_playback_info();
 
 PLAYBACK_STATE_E app_bt_get_music_playback_status();
 
+#if BLE_AUDIO_ENABLED
 void app_audio_ctrl_le_update_call_state(uint8_t conidx, uint8_t call_id, uint8_t state);
+#endif
 
 void app_audio_ctrl_update_ble_audio_music_state(uint8_t conidx, uint8_t event);
 
 void app_audio_ctrl_update_bt_music_state(uint8_t device_id, uint8_t event);
 
-void app_audio_bt_update_call_state(uint8_t device_id,bool force_update);
+void app_audio_bt_update_call_state(uint8_t device_id);
 
 void app_audio_control_media_play(void);
 
 void app_audio_control_media_pause(void);
-
-void app_audio_control_media_fast_forward_start(void);
-
-void app_audio_control_media_fast_forward_stop(void);
-
-void app_audio_control_media_rewind_start(void);
-
-void app_audio_control_media_rewind_stop(void);
 
 void app_audio_control_media_forward();
 
@@ -107,18 +101,11 @@ void app_audio_control_redial_last_call();
 
 void app_audio_control_handle_three_way_incoming_call(void);
 
-void app_audio_control_switch_hold_active_call(void);
-
 void app_audio_control_release_hold_call_and_3way_incoming(void);
 
 void app_audio_control_release_active_call(void);
 
 void app_bt_audio_control_state_checker(void);
-
-void app_audio_control_open_voice_assistant(void);
-
-void app_audio_control_close_voice_assistant(void);
-
 #ifdef __cplusplus
 }
 #endif

@@ -32,7 +32,6 @@ extern "C" {
 #define HAL_OVERLAY_TEXT9_LOC       __attribute__((section(".overlay_text9")))
 #define HAL_OVERLAY_TEXT10_LOC      __attribute__((section(".overlay_text10")))
 #define HAL_OVERLAY_TEXT11_LOC      __attribute__((section(".overlay_text11")))
-#define HAL_OVERLAY_TEXT12_LOC      __attribute__((section(".overlay_text12")))
 
 #define HAL_OVERLAY_RODATA0_LOC     __attribute__((section(".overlay_rodata0")))
 #define HAL_OVERLAY_RODATA1_LOC     __attribute__((section(".overlay_rodata1")))
@@ -46,7 +45,6 @@ extern "C" {
 #define HAL_OVERLAY_RODATA9_LOC     __attribute__((section(".overlay_rodata9")))
 #define HAL_OVERLAY_RODATA10_LOC    __attribute__((section(".overlay_rodata10")))
 #define HAL_OVERLAY_RODATA11_LOC    __attribute__((section(".overlay_rodata11")))
-#define HAL_OVERLAY_RODATA12_LOC    __attribute__((section(".overlay_rodata12")))
 
 #define HAL_OVERLAY_DATA0_LOC       __attribute__((section(".overlay_data0")))
 #define HAL_OVERLAY_DATA1_LOC       __attribute__((section(".overlay_data1")))
@@ -60,7 +58,6 @@ extern "C" {
 #define HAL_OVERLAY_DATA9_LOC       __attribute__((section(".overlay_data9")))
 #define HAL_OVERLAY_DATA10_LOC      __attribute__((section(".overlay_data10")))
 #define HAL_OVERLAY_DATA11_LOC      __attribute__((section(".overlay_data11")))
-#define HAL_OVERLAY_DATA12_LOC      __attribute__((section(".overlay_data12")))
 
 #define  INVALID_OVERLAY_ADDR 0xffffffff
 enum HAL_OVERLAY_ID_T {
@@ -76,7 +73,6 @@ enum HAL_OVERLAY_ID_T {
     HAL_OVERLAY_ID_9,
     HAL_OVERLAY_ID_10,
     HAL_OVERLAY_ID_11,
-    HAL_OVERLAY_ID_12,
 
     HAL_OVERLAY_ID_QTY,
     HAL_OVERLAY_ID_IN_CFG,
@@ -87,42 +83,13 @@ enum HAL_OVERLAY_RET_T {
     HAL_OVERLAY_RET_BAD_ID,
     HAL_OVERLAY_RET_IN_CFG,
     HAL_OVERLAY_RET_IN_USE,
+    HAL_OVERLAY_RET_BAD_SUBSYS,
 };
-
-#define CHECK_OVERLAY_ID(id) \
-    do {\
-        if ((id < 0) || (id >= HAL_OVERLAY_ID_QTY)) { \
-            ASSERT(0, "overlay id error %d", id); \
-        } \
-    } while (0)
-
 
 #ifndef NO_OVERLAY
 enum HAL_OVERLAY_RET_T hal_overlay_load(enum HAL_OVERLAY_ID_T id);
 
 enum HAL_OVERLAY_RET_T hal_overlay_unload(enum HAL_OVERLAY_ID_T id);
-
-/*
- * get the overlay's data start address
- */
-uint32_t hal_overlay_get_data_address(void);
-/*
- * get the whole size of the overlay data
- */
-uint32_t hal_overlay_get_data_all_size(void);
-/*
- * get the segment size of one overlay data
- */
-uint32_t hal_overlay_get_data_size(enum HAL_OVERLAY_ID_T id);
-/*
- * Use the free space of one segement, this function
- * return the free address of space
- */
-uint32_t hal_overlay_get_data_free_addr(enum HAL_OVERLAY_ID_T id);
-/*
- * get the free size for one overlay data
- */
-uint32_t hal_overlay_get_data_free_size(enum HAL_OVERLAY_ID_T id);
 
 /*
  * get the overlay's text start address
@@ -138,7 +105,7 @@ uint32_t hal_overlay_get_text_all_size(void);
  */
 uint32_t hal_overlay_get_text_size(enum HAL_OVERLAY_ID_T id);
 /*
- * Use the free space of one segement, this function
+ * Use the free space of one segement, this function 
  * return the free address of space
  */
 uint32_t hal_overlay_get_text_free_addr(enum HAL_OVERLAY_ID_T id);
@@ -158,14 +125,6 @@ void hal_overlay_release(enum HAL_OVERLAY_ID_T id);
  * check if any overlay segment is used
  */
 bool hal_overlay_is_used(void);
-/*
- * get overlay free data address
- */
-uint32_t hal_overlay_get_data_free_address(void);
-/*
- * get current overlay id
- */
-enum HAL_OVERLAY_ID_T hal_overlay_get_curr_id(void);
 
 #else
 
@@ -174,21 +133,6 @@ static inline enum HAL_OVERLAY_RET_T hal_overlay_load(enum HAL_OVERLAY_ID_T id)
 
 static inline enum HAL_OVERLAY_RET_T hal_overlay_unload(enum HAL_OVERLAY_ID_T id)
 { return HAL_OVERLAY_RET_OK; }
-
-static inline uint32_t hal_overlay_get_data_address(void)
-{ return INVALID_OVERLAY_ADDR;}
-
-static inline uint32_t hal_overlay_get_data_all_size(void)
-{ return 0;}
-
-static inline uint32_t hal_overlay_get_data_size(enum HAL_OVERLAY_ID_T id)
-{ return 0;}
-
-static inline uint32_t hal_overlay_get_data_free_addr(enum HAL_OVERLAY_ID_T id)
-{ return INVALID_OVERLAY_ADDR;}
-
-static inline uint32_t hal_overlay_get_data_free_size(enum HAL_OVERLAY_ID_T id)
-{ return 0;}
 
 static inline uint32_t hal_overlay_get_text_address(void)
 { return INVALID_OVERLAY_ADDR;}
@@ -210,10 +154,6 @@ static inline void hal_overlay_acquire(enum HAL_OVERLAY_ID_T id) { return;}
 static inline void hal_overlay_release(enum HAL_OVERLAY_ID_T id) { return;}
 
 static inline bool hal_overlay_is_used(void) { return false;}
-
-static inline uint32_t hal_overlay_get_data_free_address(void) { return 0;}
-
-static inline enum HAL_OVERLAY_ID_T hal_overlay_get_curr_id(void) { return HAL_OVERLAY_ID_QTY;}
 
 #endif /*NO_OVERLAY*/
 

@@ -9,6 +9,8 @@ extern "C" {
 #include "hal_trace.h"
 #include "hal_timer.h"
 
+#define TRACE_TIME(num,str, ...)            TRACE(num+1,"[%05u] " str, TICKS_TO_MS(hal_sys_timer_get()), ##__VA_ARGS__)
+
 extern const unsigned int default_recv_timeout_short;
 extern const unsigned int default_recv_timeout_idle;
 extern const unsigned int default_recv_timeout_4k_data;

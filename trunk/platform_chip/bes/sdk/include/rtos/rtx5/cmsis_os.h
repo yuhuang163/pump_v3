@@ -152,7 +152,7 @@
 #define osFeature_Pool        1         ///< Memory Pools:    1=available, 0=not available
 #define osFeature_MessageQ    1         ///< Message Queues:  1=available, 0=not available
 #define osFeature_MailQ       1         ///< Mail Queues:     1=available, 0=not available
-#define CMSIS_V1_SIGNAL_ANY   ((1u << 16) - 1u) ///< thread flags: Flags zero, wait for any signal
+#define CMSIS_V1_SIGNAL_ANY   ((1u<<16)-1u) ///< thread flags: Flags zero, wait for any signal
 
 // The stack space occupied is mainly dependent on the underling C standard library
 #if defined(__GNUC__) || defined(__CC_ARM) || defined(__ARMCC_VERSION) || defined(__ICCARM__)
@@ -474,13 +474,11 @@ extern const osThreadDef_t os_thread_def_##name
 const osThreadDef_t os_thread_def_##name = \
 { (name), (priority), (instances), (stacksz) }
 #else
-#define osThreadExDef(name, priority, instances, stacksz, task_name, tz_module) \
+#define osThreadDef(name, priority, instances, stacksz, task_name) \
 uint64_t os_thread_def_stack_##name [(8*((stacksz+7)/8)) / sizeof(uint64_t)]; \
 const osThreadDef_t os_thread_def_##name = \
 { (name), \
-  { task_name, osThreadDetached, NULL, 0U, os_thread_def_stack_##name, 8*((stacksz+7)/8), (priority), tz_module, 0U } }
-#define osThreadDef(name, priority, instances, stacksz, task_name) \
-osThreadExDef(name, priority, instances, stacksz, task_name, 1U)
+  { task_name, osThreadDetached, NULL, 0U, os_thread_def_stack_##name, 8*((stacksz+7)/8), (priority), 1U, 0U } }
 #endif
 #endif
 
@@ -748,8 +746,9 @@ extern const osSemaphoreDef_t os_semaphore_def_##name
 const osSemaphoreDef_t os_semaphore_def_##name = { 0 }
 #else
 #define osSemaphoreDef(name) \
+const char sem_##name[] = #name; \
 const osSemaphoreDef_t os_semaphore_def_##name = \
-{ NULL, 0U, NULL, 0U }
+{ sem_##name, 0U, NULL, 0U }
 #endif
 #endif
 
@@ -809,8 +808,9 @@ const osPoolDef_t os_pool_def_##name = \
 { (no), sizeof(type), NULL }
 #else
 #define osPoolDef(name, no, type) \
+const char p_##name[] = #name; \
 const osPoolDef_t os_pool_def_##name = \
-{ (no), sizeof(type), { NULL, 0U, NULL, 0U, NULL, 0U } }
+{ (no), sizeof(type), { p_##name, 0U, NULL, 0U, NULL, 0U } }
 #endif
 #endif
 
@@ -922,10 +922,11 @@ const osMailQDef_t os_mailQ_def_##name = \
 #else
 #define osMailQDef(name, queue_sz, type) \
 static void *os_mail_p_##name[2]; \
+const char pool_##name[] = #name; \
 const char mail_##name[] = #name; \
 const osMailQDef_t os_mailQ_def_##name = \
 { (queue_sz), sizeof(type), (&os_mail_p_##name), \
-  { NULL, 0U, NULL, 0U, NULL, 0U }, \
+  { pool_##name, 0U, NULL, 0U, NULL, 0U }, \
   { mail_##name, 0U, NULL, 0U, NULL, 0U } }
 #endif
 #endif
@@ -960,7 +961,6 @@ void *osMailCAlloc (osMailQId queue_id, uint32_t millisec);
 /// \param[in]     mail          pointer to memory with mail to put into a queue.
 /// \return status code that indicates the execution status of the function.
 osStatus osMailPut (osMailQId queue_id, const void *mail);
-osStatus osMailPut_with_prio (osMailQId queue_id, const void *mail, uint8_t prio);
 
 /// Get a Mail from a Queue or timeout if Queue is empty.
 /// \param[in]     queue_id      mail queue ID obtained with \ref osMailCreate.

@@ -2,13 +2,11 @@
 #define _OTA_CONTROL_H_
 
 #ifdef __IAG_BLE_INCLUDE__
-#include "co_bt_defines.h"
+//#include "co_bt_defines.h"
 #endif
 
 #define BOOT_WORD_A                     0xAAAAAAAA
 #define BOOT_WORD_B                     0xBBBBBBBB
-#define BOOT_WORD_C                     0xCCCCCCCC
-#define BOOT_WORD_D                     0xDDDDDDDD
 
 #define F_PACK                      __attribute__ ((__packed__))
 #define OTA_TLV_PACKET_HEADER_LEN   (OFFSETOF(OTA_PACKET_T, payload))
@@ -24,6 +22,10 @@
 
 #define OTA_SW_VERSION          1
 #define OTA_HW_VERSION          1
+
+#define NO_OTA_CONNECTION       0
+#define DATA_PATH_BLE           1
+#define DATA_PATH_SPP           2
 
 #ifndef BOOT_MAGIC_NUMBER
 #define BOOT_MAGIC_NUMBER 0xBE57EC1C
@@ -68,17 +70,25 @@
 #define BES_OTA_START_MAGIC_CODE            0x54534542  // BEST
 
 #define BD_ADDR_LEN          6
+
+#ifdef TOTA_CROSS_CHIP_OTA
+#define BES_OTA_NAME_LENGTH                 16
+#define BES_OTA_BLE_DATA_PACKET_MAX_SIZE    512
+#define BES_OTA_BT_DATA_PACKET_MAX_SIZE     512
+#define BES_OTA_USB_DATA_PACKET_MAX_SIZE    256
+#else
 #define BES_OTA_NAME_LENGTH                 32
 #define BES_OTA_BLE_DATA_PACKET_MAX_SIZE    512
 #define BES_OTA_BT_DATA_PACKET_MAX_SIZE     BT_SPP_MAX_TX_MTU
+#endif
 
-#define IMAGE_RECV_FLASH_CHECK              0  // It's best to turn it on durning development and not a big deal off in the release.
+#define IMAGE_RECV_FLASH_CHECK              1  // It's best to turn it on durning development and not a big deal off in the release.
 
 #define MAX_IMAGE_SIZE                      ota_basic_get_max_image_size()
 
 #define MIN_SEG_ALIGN                       256
 
-typedef void (*ota_transmit_data_t)(uint8_t* ptrData, uint16_t dataLen);
+typedef void (*ota_transmit_data_t)(uint8_t* ptrData, uint32_t dataLen);
 typedef void (*ota_transmission_done_t)(void);
 
 #ifdef COMBO_CUSBIN_IN_FLASH
@@ -96,16 +106,14 @@ typedef uint8_t OTA_COMBO_STATUS;
 
 #define OTA_ONE_BUD_MESSAGE_ERR     0
 
-typedef enum
+enum
 {
-    OTA_RESULT_ERR              = 0,
-    OTA_RESULT_PASSED           = 1,
-    OTA_RESULT_ERR_RECV_SIZE    = 2,
-    OTA_RESULT_ERR_FLASH_OFFSET = 3,
-    OTA_RESULT_ERR_SEG_VERIFY   = 4,
-    OTA_RESULT_ERR_BREAKPOINT   = 5,
-    OTA_RESULT_ERR_IMAGE_SIZE   = 6,
-} OTA_REQ_RESULT_E;
+    OTA_RESULT_ERR_RECV_SIZE = 2,
+    OTA_RESULT_ERR_FLASH_OFFSET,
+    OTA_RESULT_ERR_SEG_VERIFY,
+    OTA_RESULT_ERR_BREAKPOINT,
+    OTA_RESULT_ERR_IMAGE_SIZE,
+};
 
 enum
 {
@@ -115,7 +123,7 @@ enum
     BES_OTA_USER_COMBOFIRMWARE      = 3,
     BES_OTA_USER_BOOTUP_INFO        = 4,
     BES_OTA_USER_UPGRADE_LOG        = 5,
-
+    BES_OTA_USER_CROSS_CHIP         = 6,
     BES_OTA_USER_NUM,
 };
 
@@ -131,7 +139,6 @@ enum
  */
 typedef enum
 {
-    OTA_SET_PACKET_INTERVAL     = 0x7F, //!< from device to centrl, to set centrl packet sending interval(ms)
     OTA_COMMAND_START           = 0x80, //!< from central to device, to let OTA start
     OTA_RSP_START               = 0x81, //!< from device to centrl, to let it know that it has been ready for OTA
     OTA_COMMAND_SEGMENT_VERIFY  = 0x82, //!< from central to device, sent per 1% of image, inform device to do CRC check on those 1%
@@ -161,10 +168,8 @@ typedef enum
 
     OTA_CMD_GET_OTA_VERSION     = 0x99, //!< get OTA version
     OTA_RSP_GET_OTA_VERSION     = 0x9A, //!< response OTA version
-    OTA_GET_LOCAL_RD_RSQ        = 0x9B,
-    OTA_GET_LOCAL_RD_RSP        = 0x9C,
-    OTA_SET_ONE_BUD_UPGRADE_CMD = 0x7B,
-    OTA_SET_ONE_BUD_UPGRADE_RSP = 0x7C,
+    OTA_GET_LOCAL_RD_RSQ = 0x9B,
+    OTA_GET_LOCAL_RD_RSP = 0x9C,
 
 } OTA_CONTROL_PACKET_TYPE_E;
 
@@ -220,10 +225,6 @@ typedef struct
 {
     uint8_t packetType;
     union {
-        struct
-        {
-            uint32_t interval; //!< device set packet sending interval for app to use
-        } F_PACK cmdOtaInterval;
         struct
         {
             uint8_t version[4]; //!< OTA version supported on APP
@@ -315,14 +316,6 @@ typedef struct
         } F_PACK rspSideSelect;
         struct
         {
-            uint8_t selectOneBud;
-        } F_PACK cmdOneBudSelect;
-        struct
-        {
-            uint8_t success;
-        } F_PACK rspOneBudSelect;
-        struct
-        {
             uint32_t magicCode; //!< should be BES_OTA_START_MAGIC_CODE
         } F_PACK cmdForceReboot;
         struct
@@ -350,10 +343,6 @@ typedef struct
     uint32_t length : 10;
     uint32_t rfu : 22;
     union {
-        struct
-        {
-            uint32_t interval; //!< device set packet sending interval for app to use
-        } F_PACK cmdOtaInterval;
         struct
         {
             uint8_t version[4]; //!< OTA version supported on APP
@@ -399,7 +388,6 @@ typedef struct
         struct
         {
             uint8_t isVerificationPassed;
-            uint32_t crc32OfSegment; //!< crc32 of the 1% segment
         } F_PACK rspSegmentVerify;
         struct
         {
@@ -442,14 +430,6 @@ typedef struct
         } F_PACK rspGetVersion;
         struct
         {
-            uint8_t selectOneBud;
-        } F_PACK cmdOneBudSelect;
-        struct
-        {
-            uint8_t success;
-        } F_PACK rspOneBudSelect;
-        struct
-        {
             uint8_t success;
         } F_PACK rspSideSelect;
         struct
@@ -480,9 +460,6 @@ enum combin_sub_id
     COMBO_SOC_FW         = 0x00000101,
     COMBO_MCU_FW         = 0x00000102,
     COMBO_SENSOR_FW_1    = 0x00000103,
-    COMBO_TZ_SB          = 0x00000104,
-    COMBO_TZ_NSB         = 0x00000105,
-    COMBO_PROMPT         = 0x00000106,
 };
 
 enum combin_process_evt
@@ -547,27 +524,24 @@ typedef struct
     uint32_t crc32OfImage;
     uint32_t crc32OfSegment;
     uint8_t isOTAInProgress;
-    uint32_t receivedCrc32OfSegment;
     uint8_t isPendingForReboot;
     uint32_t flasehOffsetOfUserDataPool;
     uint32_t flasehOffsetOfFactoryDataPool;
     OTA_FLOW_CONFIGURATION_T configuration; //!< configuration of the OTA
+    uint32_t AlreadyReceivedConfigurationLength;
+    uint16_t dataPacketSize;
     ota_transmit_data_t transmitHander;
     uint32_t offsetInFlashToRead;
     uint32_t leftSizeOfFlashContentToRead;
     uint8_t dataPathType;
     bool resume_at_breakpoint;
-    bool isOneBudOTA;
     uint32_t breakPoint;
     uint32_t i_log;
 #ifdef COMBO_CUSBIN_IN_FLASH
     uint32_t lastdstFlashOffsetForNewImage;
     uint32_t currentlengthlimit;
-    uint32_t combinedSize;
-    uint32_t crc32OfHeader;
     uint8_t  blockid;
-    bool  is_crossregion;   // true: if the received data contains multiple regions
-    bool  is_started;
+    uint8_t  is_crossregion;
 #endif
 /*****************************************************************************/
 //                      OTA protocol version: 0.0.0.1                        //
@@ -579,6 +553,10 @@ typedef struct
 /*****************************************************************************/
 //                      OTA protocol version: 0.0.0.1                        //
 /*****************************************************************************/
+#ifdef TOTA_CROSS_CHIP_OTA
+    //Multiple bin in the OTA process, the total number of data received in real time
+    uint32_t accumulateCurrentReciveNumber;
+#endif
 } OTA_CONTROL_ENV_T;
 
 typedef struct
@@ -588,9 +566,6 @@ typedef struct
     uint32_t imageCrc;
     uint32_t newImageFlashOffset;
     uint32_t boot_word;
-    uint32_t tzNsImageSize;
-    uint32_t tzNsImageCrc;
-    uint32_t tzNsNewImageFlashOffset;
 } FLASH_OTA_BOOT_INFO_T;
 
 typedef struct
@@ -621,7 +596,18 @@ extern "C" {
  *
  */
 
+extern void app_ibrt_ota_segment_crc_cmd_send_handler(uint16_t rsp_seq, uint8_t *p_buff, uint16_t length);
+extern void app_ibrt_ota_start_cmd_send_handler(uint16_t rsp_seq, uint8_t *p_buff, uint16_t length);
+extern void app_ibrt_ota_config_cmd_send_handler(uint16_t rsp_seq, uint8_t *p_buff, uint16_t length);
+extern void app_ibrt_ota_image_crc_cmd_send_handler(uint16_t rsp_seq, uint8_t *p_buff, uint16_t length);
+extern void app_ibrt_ota_get_version_cmd_send_handler(uint16_t rsp_seq, uint8_t *p_buff, uint16_t length);
+extern void app_ibrt_ota_select_side_cmd_send_handler(uint16_t rsp_seq, uint8_t *p_buff, uint16_t length);
+extern void app_ibrt_ota_image_overwrite_cmd_send_handler(uint16_t rsp_seq, uint8_t *p_buff, uint16_t length);
+extern void app_ibrt_ota_get_ota_version_cmd_handler(uint16_t rsp_seq, uint8_t *p_buff, uint16_t length);
+extern void app_ibrt_ota_set_user_cmd_handler(uint16_t rsp_seq, uint8_t *p_buff, uint16_t length);
+
 void ota_control_register_transmitter(ota_transmit_data_t transmit_handle);
+void ota_control_update_MTU(uint16_t mtu);
 void ota_update_info(void);
 uint32_t ota_common_get_boot_info_flash_offset(void);
 void ota_check_and_reboot_to_use_new_image(void);
@@ -640,6 +626,7 @@ void ota_control_send_resume_response(uint32_t breakPoint, uint8_t randomCode[])
 void ota_control_handle_received_data(uint8_t *otaBuf, bool isViaBle, uint16_t len);
 void ota_control_side_selection_rsp(uint8_t success);
 uint8_t ota_control_get_datapath_type(void);
+uint32_t app_get_magic_number(void);
 void Bes_exit_ota_state(void);
 void ibrt_ota_send_version_rsp(void);
 void ota_upgradeLog_destroy(void);
@@ -674,7 +661,6 @@ uint8_t _combo_bin_start_load(uint8_t* buf,uint32_t* len);
 uint8_t _combo_bin_get_module_id(uint32_t offset);
 uint8_t _combo_bin_check_is_exchange_area(uint8_t* buf,uint32_t len, uint32_t* offset);
 void _combo_bin_calc_crc32(void);
-void _combo_bin_erase_segment(uint32_t addr, uint32_t length);
 void _combo_bin_package_handler(uint8_t *buf, bool isViaBle,uint16_t length);
 void  ota_combo_bin_data_check_image_crc(void);
 void _combo_bin_breakpoint_recovery(uint32_t breakpoint);
@@ -730,6 +716,18 @@ void ota_apply(void);
  */
 void ota_control_update_flash_offset(uint32_t addr);
 
+/**
+ * @brief Multiple bin in the OTA process, get the total number of data received in real time
+ *
+ */
+uint32_t get_tota_ota_current_recive_number(void);
+
+/**
+ * @brief Multiple bin in the OTA process, updata the total number of data received in real time
+ *
+ * @param CurrentReciveNumber     the total number of data received in real time
+ */
+void updata_tota_ota_current_recive_number(uint32_t CurrentReciveNumber);
 #ifdef __cplusplus
 }
 #endif

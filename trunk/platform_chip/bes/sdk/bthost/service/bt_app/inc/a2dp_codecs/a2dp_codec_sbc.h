@@ -27,10 +27,6 @@ extern const unsigned char a2dp_codec_elements[];
 bt_status_t a2dp_codec_sbc_init(int index);
 void a2dp_codec_sbc_common_init(void);
 
-#if defined(CUSTOM_BITRATE) || defined(BTIF_DIP_DEVICE)
-uint8_t a2dp_avdtpcodec_sbc_user_bitpool_get();
-void a2dp_avdtpcodec_sbc_user_configure_set(uint32_t bitpool,uint8_t user_configure);
-#endif
 #if defined(__cplusplus)
 }
 #endif

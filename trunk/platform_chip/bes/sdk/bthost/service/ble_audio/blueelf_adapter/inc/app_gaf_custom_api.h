@@ -59,7 +59,6 @@ extern "C" {
 #define APP_GAF_HAP_ENABLE      (0)
 #define APP_GAF_CAP_ENABLE      (0)
 #define APP_GAF_GMAP_ENABLE     (0)
-#define APP_GAF_VAP_ENABLE      (0)
 #else
 #define APP_GAF_BAP_ENABLE      (1)
 #define APP_GAF_ARC_ENABLE      (1)
@@ -71,14 +70,7 @@ extern "C" {
 #if defined (AOB_GMAP_ENABLED)
 #define APP_GAF_GMAP_ENABLE     (1)
 #endif
-#if defined (VAP_LE_SUPPORT)
-#define APP_GAF_VAP_ENABLE      (1)
 #endif
-#endif
-
-#define APP_GAF_OTC_ENABLE      (0)
-#define APP_GAF_AICS_ENABLE     (0)
-#define APP_GAF_VOCS_ENABLE     (0)
 
 //For Broadcast Stream(BIS)
 #define APP_GAF_BC_SDU_INTERVAL_US          10000
@@ -171,16 +163,15 @@ int app_bap_capa_srv_add_pac_record(uint8_t pac_lid, app_gaf_codec_id_t *codec_i
  ****************************************************************************************
  */
 int app_bap_capa_srv_delete_pac_record(uint8_t pac_lid, uint8_t record_id);
-
 /**
  ****************************************************************************************
  * @brief clear all records of specific PAC.
  *
- * @param[in] direction            BAP Direction, @see app_gaf_direction
+ * @param[in] pac_lid              PAC local index
  *
  ****************************************************************************************
  */
-int app_bap_capa_srv_clear_all_pac_record(uint8_t direction);
+int app_bap_capa_srv_clear_pac_record(uint8_t pac_lid);
 
 /**
  ****************************************************************************************
@@ -316,19 +307,6 @@ app_bap_ascs_ase_t *app_bap_uc_srv_get_ase_info_from_cis_hdl(enum app_gaf_direct
  ****************************************************************************************
  */
 int app_bap_uc_srv_get_ase_state(uint8_t ase_lid);
-
-/**
- ****************************************************************************************
- * @brief Get vender metadata
- *
- * @param[in] con_lid              Connection local index
- * @param[in] ase_lid              Connection local index
- * @param[out] pp_vender_md        Vender metadata, @see app_gaf_bap_metadata_vendor_ltv_t
- *
- * @return: Result@bt_status_t
- ****************************************************************************************
- */
-int app_bap_uc_srv_get_vender_metadata(uint8_t con_lid, uint8_t ase_lid, const uint8_t **pp_vender_md);
 
 /**
  ****************************************************************************************
@@ -678,6 +656,20 @@ app_bap_capa_cli_supp_t *app_bap_capa_cli_get_capa_info(enum app_gaf_direction d
 
 /**
  ****************************************************************************************
+ * @brief Set Codec Capabilities and Codec Capabilities Metadata of specific direction.
+ *
+ * @param[in] direction        ASE Direction, @see app_gaf_direction
+ * @param[in] codec_id         Codec Id LC3 or Vendor Specific Codec @see app_gaf_codec_id_t
+ * @param[in] p_capa           Codec Capabilities, @see app_gaf_bap_capa_t
+ * @param[in] p_metadata       Codec Capabilities Metadata, @see app_gaf_bap_capa_metadata_t
+ *
+ ****************************************************************************************
+ */
+int app_bap_capa_cli_set_add_capa_info(enum app_gaf_direction direction, app_gaf_codec_id_t *codec_id,
+                                       app_gaf_bap_capa_t *p_capa, app_gaf_bap_capa_metadata_t *p_metadata);
+
+/**
+ ****************************************************************************************
  * @brief Set supported location Bitfield.
  *
  * @param[in] direction        ASE Direction, @see app_gaf_direction
@@ -738,7 +730,8 @@ int app_bap_uc_cli_link_remove_group_cmd(uint8_t grp_lid);
 
 /**
  ****************************************************************************************
- * @brief Config ase codec using pac record
+ * @brief Establish a CIS Stream.
+ *          Expected callback event: APP_GAF_CIS_CLI_STREAM_STATE_UPDATED and APP_GAF_ASCC_CIS_ESTABLISHED_IND.
  *
  * @param[in] ase_lid              ASE local index
  * @param[in] direction            ASE Direction, @see app_gaf_direction
@@ -748,19 +741,6 @@ int app_bap_uc_cli_link_remove_group_cmd(uint8_t grp_lid);
  */
 int app_bap_uc_cli_configure_codec(uint8_t ase_lid, uint8_t cis_id, const app_gaf_codec_id_t *codec_id,
                                    uint8_t sampleRate_enum, uint16_t frame_octet);
-
-/**
- ****************************************************************************************
- * @brief Configure ase codec using external provided codec cfg parameters
- *
- * @param[in] ase_lid              ASE local index
- * @param[in] direction            ASE Direction, @see app_gaf_direction
- * @param[in] cis_id               cis index
- *
- ****************************************************************************************
- */
-int app_bap_uc_cli_configure_codec_with_cfg(uint8_t ase_lid, uint8_t cis_id,
-                                            const app_gaf_codec_id_t *codec_id, const app_gaf_bap_cfg_t *p_cfg);
 
 /**
  ****************************************************************************************
@@ -867,13 +847,6 @@ bool app_bap_uc_cli_is_already_bonded(uint8_t con_lid);
  */
 uint8_t app_bap_uc_cli_get_streaming_ase_lid(uint8_t con_lid, enum app_gaf_direction direction);
 
-/**
- * @brief Create CIG group before create CIG
- *
- * @param[in] cig_id   CIG ID exist
- *
- * @return int         status
- */
 int app_bap_uc_cli_link_create_group_req(uint8_t cig_id);
 
 /**
@@ -882,12 +855,10 @@ int app_bap_uc_cli_link_create_group_req(uint8_t cig_id);
  *
  * @param[in] ase_lid   ASE local index
  * @param[in] grp_lid   Group local index
- * @param[in] max_sdu_size
- *                      Max SDU size
  *
  ****************************************************************************************
  */
-int app_bap_uc_cli_configure_qos(uint8_t ase_lid, uint8_t grp_lid, uint16_t max_sdu_size);
+int app_bap_uc_cli_configure_qos(uint8_t ase_lid, uint8_t grp_lid);
 
 /**
  ****************************************************************************************
@@ -900,8 +871,8 @@ int app_bap_uc_cli_configure_qos(uint8_t ase_lid, uint8_t grp_lid, uint16_t max_
  *
  ****************************************************************************************
  */
-int app_bap_uc_cli_enable_stream_with_metadata(uint8_t ase_lid, uint16_t context_bf,
-                                               uint8_t ccid_num, const uint8_t *p_ccid_list);
+int app_bap_uc_cli_enable_stream_with_ccid(uint8_t ase_lid, uint16_t context_bf,
+                                           uint8_t ccid_num, const uint8_t *p_ccid_list);
 
 /**
  ****************************************************************************************
@@ -1146,19 +1117,6 @@ int app_bap_bc_src_start_streaming(uint8_t big_idx, uint8_t stream_lid_bf);
 
 /**
  ****************************************************************************************
- * @brief Update additional adv data request, pa or ea additional adv data
- *
- * @param[in] grp_lid          BIS Group(BIG) local index
- * @param[in] adv_type         0: Extended adv, 1: Periodic adv
- * @param[in] data_len         data length
- * @param[in] data             data pointer
- *
- ****************************************************************************************
- */
-int app_bap_bc_src_update_adv_data_req(uint8_t grp_lid, uint8_t adv_type, uint8_t data_len, uint8_t *data);
-
-/**
- ****************************************************************************************
  * @brief Update metadeta request
  *
  * @param[in] grp_lid          BIS Group(BIG) local index
@@ -1236,28 +1194,10 @@ int app_bap_bc_scan_set_sync_param(app_gaf_bap_bc_scan_sync_param_t *sync_param)
  ****************************************************************************************
  * @brief Start periodic advertising synchronize.
  * @param[in] adv_id         Address info about the device to synchronize, @see app_gaf_bap_adv_id_t
- * @param[in] sync_to_10ms   Sync timeout to cancel sync when controller can not sync pa
- *
- ****************************************************************************************
- */
-int app_bap_bc_scan_pa_sync_with_to(app_gaf_bap_adv_id_t *adv_id, uint16_t sync_to_10ms);
-
-/**
- ****************************************************************************************
- * @brief Start periodic advertising synchronize.
- * @param[in] adv_id         Address info about the device to synchronize, @see app_gaf_bap_adv_id_t
  *
  ****************************************************************************************
  */
 int app_bap_bc_scan_pa_sync(app_gaf_bap_adv_id_t *adv_id);
-
-/**
- ****************************************************************************************
- * @brief Cancel periodic advertising synchronize.
- *
- ****************************************************************************************
- */
-void app_bap_bc_scan_pa_sync_cancel(void);
 
 /**
  ****************************************************************************************
@@ -1574,7 +1514,7 @@ int app_arc_vocc_set_desc(uint8_t con_lid, uint8_t output_lid,
 int app_arc_vocc_set_cfg(uint8_t con_lid, uint8_t output_lid,
                          uint8_t char_type, uint8_t enable);
 int app_arc_vocc_control(uint8_t con_lid, uint8_t output_lid,
-                         uint8_t opcode, uint32_t value);
+                                    uint8_t opcode, uint32_t value);
 int app_arc_vocc_read(uint8_t con_lid, uint8_t output_lid, uint8_t char_type);
 #endif
 
@@ -1600,8 +1540,6 @@ int app_arc_vcs_send_ntf(uint8_t con_lid, uint8_t char_type);
 */
 int app_arc_vcs_update_info_req(uint8_t bit_map, uint8_t volume, bool mute);
 
-int app_arc_vcs_update_info_req_by_con_lid(uint8_t con_lid, uint8_t bit_map, uint8_t volume, bool isMute);
-
 /* Volume Offset Control APIs for earbuds */
 int app_arc_vocs_set(uint8_t output_lid, uint8_t set_type, uint32_t value);
 int app_arc_vocs_set_desc(uint8_t output_lid, uint8_t *desc, uint8_t desc_len);
@@ -1624,7 +1562,6 @@ APP_ATC_CSISC_ENV_T *app_atc_csisc_get_env(void);
 APP_ATC_CSISM_ENV_T *app_atc_csism_get_env(void);
 int app_atc_csism_register_sets_config_cb(csism_info_user_config_cb func_cb);
 int app_atc_csism_set_sirk(uint8_t set_lid, uint8_t *sirk);
-int app_atc_csism_set_sirk_encrypted(uint8_t set_lid, bool encrypted);
 int app_atc_csism_update_rsi(uint8_t set_lid);
 int app_atc_csism_set_size(uint8_t set_lid, uint8_t size);
 void app_atc_csism_set_lock(uint8_t con_lid, bool lock);
@@ -1976,6 +1913,13 @@ int app_acc_tbs_call_join_req(uint8_t bearer_lid,  uint8_t nb_calls, uint8_t *ca
  * @param handler       GAF event report to register, must be the pointer of structure @see GAF_EVT_REPORT_BUNDLE_T
  */
 void app_gaf_evt_report_register(void *handler);
+
+/**
+ * @brief Test mode setup of client
+ *
+ * @param enable       Test mode enable flag
+ */
+int app_bap_uc_cli_set_test_mode(bool enable);
 
 /**
  * @brief Test mode setup of server

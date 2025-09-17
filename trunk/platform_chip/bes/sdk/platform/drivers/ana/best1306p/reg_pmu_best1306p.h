@@ -84,7 +84,7 @@ enum PMU_REG_T {
     PMU_REG_MIC_PULL_DOWN           = 0x67,
     PMU_REG_MEM_CFG                 = 0x68,
     PMU_REG_PA_CFG                  = 0x69,
-    PMU_REG_DCDC_RAMP_EN            = 0x6A,
+    PMU_REG_LP_RTC_CFG              = 0x6A,
     PMU_REG_SAR_CFG_8C              = 0x8C,
     PMU_REG_SAR_ADC_OFFSET_CFG      = 0x8E,
     PMU_REG_SAR_EN                  = 0x8F,
@@ -734,6 +734,7 @@ enum PMU_REG_T {
 #define RESERVED_DIG_15_0_SHIFT             0
 #define RESERVED_DIG_15_0_MASK              (0xFFFF << RESERVED_DIG_15_0_SHIFT)
 #define RESERVED_DIG_15_0(n)                BITFIELD_VAL(RESERVED_DIG_15_0, n)
+#define REG_BUCK_CURRENT_REF_ULP            (1 << 9)
 
 // REG_3A
 #define R_PWMB_TOGGLE_SHIFT                 0

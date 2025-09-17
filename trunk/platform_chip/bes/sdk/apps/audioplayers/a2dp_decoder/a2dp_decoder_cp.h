@@ -38,7 +38,7 @@ enum CP_EMPTY_OUT_FRM_T {
 };
 
 typedef int (*A2DP_CP_DECODE_T)(void);
-#if !defined(UNIFY_HEAP_ENABLED)
+
 void a2dp_cp_heap_init(void);
 
 void *a2dp_cp_heap_malloc(uint32_t size);
@@ -48,7 +48,7 @@ void *a2dp_cp_heap_cmalloc(uint32_t size);
 void *a2dp_cp_heap_realloc(void *rmem, uint32_t newsize);
 
 void a2dp_cp_heap_free(void *rmem);
-#endif
+
 int a2dp_cp_init(A2DP_CP_DECODE_T decode_func, enum CP_PROC_DELAY_T delay);
 
 int a2dp_cp_deinit(void);

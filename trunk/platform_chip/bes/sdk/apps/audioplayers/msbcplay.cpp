@@ -65,7 +65,7 @@ int store_voicemsbc_buffer(unsigned char *buf, unsigned int len)
 	LOCK_VOICEMSBC_QUEUE();
 	EnCQueue(&voicemsbc_queue, buf, len);
     dump_buffer_to_psram((char *)buf, len);
-    AUDIOPLAYERS_TRACE(1,"%d\n", LengthOfCQueue(&voicemsbc_queue));
+    TRACE(1,"%d\n", LengthOfCQueue(&voicemsbc_queue));
     if (LengthOfCQueue(&voicemsbc_queue) > VOICEMSBC_TEMP_BUFFER_SIZE*20) {
         ok_to_decode = 1;
     }
@@ -134,7 +134,7 @@ uint32_t voicemsbc_audio_more_data(uint8_t *buf, uint32_t len)
     ticks = hal_sys_timer_get();
     l = decode_msbc_frame(buf, len);
     cur_ticks = hal_sys_timer_get();
-    AUDIOPLAYERS_TRACE(1,"msbc %d t\n", (cur_ticks-ticks));
+    TRACE(1,"msbc %d t\n", (cur_ticks-ticks));
 
     return l;
 }

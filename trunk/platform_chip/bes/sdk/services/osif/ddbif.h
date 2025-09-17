@@ -15,29 +15,30 @@
  ****************************************************************************/
 #ifndef __DDBIF_H__
 #define __DDBIF_H__
-#include "nvrecord_bt.h"
+
+#include "bluetooth_bt_api.h"
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
 
-#define ddbif_list_saved_flash() nv_record_flash_flush()
+void ddbif_list_saved_flash(void);
 
-#define ddbif_close() ddbif_list_saved_flash()
+bt_status_t ddbif_close(void);
 
-#define ddbif_open(bdAddr) nv_record_open(section_usrdata_ddbrecord)
+bt_status_t ddbif_add_record(btif_device_record_t *record);
 
-#define ddbif_find_record(bdAddr, record) nv_record_ddbrec_find((bdAddr), (record))
+bt_status_t ddbif_open(const bt_bdaddr_t *bdAddr);
 
-#define ddbif_delete_record(bdAddr) nv_record_ddbrec_delete(bdAddr)
+bt_status_t ddbif_find_record(const bt_bdaddr_t *bdAddr, btif_device_record_t *record);
 
-#define ddbif_enum_device_records(index, record) nv_record_enum_dev_records((unsigned short)(index), (record))
+bt_status_t ddbif_delete_record(const bt_bdaddr_t *bdAddr);
 
-#define ddbif_add_record(record) nv_record_add(section_usrdata_ddbrecord, (btif_device_record_t *)(record))
-
-bt_status_t ddbif_change_records_order(const btif_device_record_t *record, uint8_t index);
+bt_status_t ddbif_enum_device_records(I16 index, btif_device_record_t *record);
 
 #if defined(__cplusplus)
 }
 #endif
+
 #endif /*__DDBIF_H__*/
 

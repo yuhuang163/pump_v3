@@ -20,15 +20,12 @@
 extern "C" {
 #endif
 
-#undef __INLINE
-#define __INLINE __STATIC_FORCEINLINE
 /*
  * INCLUDE FILES
  ****************************************************************************************
  */
-#include <stddef.h>
-#include <stdint.h>
-#include <stdbool.h>
+#include "stdint.h"
+#include "stdbool.h"
 
 /*
  * DEFINES
@@ -46,11 +43,11 @@ extern "C" {
 #define BT54_VERSION                      (13)
 
 #ifndef ASSERT_ERR
-#define ASSERT_ERR(cond)                             { if (!(cond)) { DRIVERS_TRACE(2,"line is %d file is %s", __LINE__, __FILE__); } }
+#define ASSERT_ERR(cond)                             { if (!(cond)) { BT_DRV_TRACE(2,"line is %d file is %s", __LINE__, __FILE__); } }
 #endif
 
 #define BT_DRV_REG_OP_ENTER()    do{ uint32_t stime, spent_time; stime= hal_sys_timer_get();
-#define BT_DRV_REG_OP_EXIT()     spent_time = TICKS_TO_US(hal_sys_timer_get()-stime);if (spent_time>1000)DRIVERS_TRACE(2,"%s exit, %dus",__func__, spent_time);}while(0);
+#define BT_DRV_REG_OP_EXIT()     spent_time = TICKS_TO_US(hal_sys_timer_get()-stime);if (spent_time>1000)TRACE(2,"%s exit, %dus",__func__, spent_time);}while(0);
 
 #define BTPCM_MASTER_MODE  (0)
 #define BTPCM_SLAVE_MODE   (1)
@@ -80,13 +77,23 @@ extern "C" {
 #define B1_TRAIN_NUDGING_POS        3
 #define B1_TRAIN_NUDGING_MSK        0x08
 
-#define BT_DRIVER_GET_U8_REG_VAL(regAddr)       (*(volatile uint8_t *)(uintptr_t)(regAddr))
-#define BT_DRIVER_GET_U16_REG_VAL(regAddr)      (*(volatile uint16_t *)(uintptr_t)(regAddr))
-#define BT_DRIVER_GET_U32_REG_VAL(regAddr)      (*(volatile uint32_t *)(uintptr_t)(regAddr))
+#define BT_DRIVER_GET_U8_REG_VAL(regAddr)       (*(uint8_t *)(uintptr_t)(regAddr))
+#define BT_DRIVER_GET_U16_REG_VAL(regAddr)      (*(uint16_t *)(uintptr_t)(regAddr))
+#define BT_DRIVER_GET_U32_REG_VAL(regAddr)      (*(uint32_t *)(uintptr_t)(regAddr))
 
-#define BT_DRIVER_PUT_U8_REG_VAL(regAddr, val)      *(volatile  uint8_t *)(uintptr_t)(regAddr) = (val)
-#define BT_DRIVER_PUT_U16_REG_VAL(regAddr, val)     *(volatile  uint16_t *)(uintptr_t)(regAddr) = (val)
-#define BT_DRIVER_PUT_U32_REG_VAL(regAddr, val)     *(volatile  uint32_t *)(uintptr_t)(regAddr) = (val)
+#define BT_DRIVER_PUT_U8_REG_VAL(regAddr, val)      *(uint8_t *)(uintptr_t)(regAddr) = (val)
+#define BT_DRIVER_PUT_U16_REG_VAL(regAddr, val)     *(uint16_t *)(uintptr_t)(regAddr) = (val)
+#define BT_DRIVER_PUT_U32_REG_VAL(regAddr, val)     *(uint32_t *)(uintptr_t)(regAddr) = (val)
+
+typedef uint32_t BT_CONTROLER_TRACE_TYPE;
+#define BT_CONTROLER_TRACE_TYPE_INTERSYS                0x01
+#define BT_CONTROLER_TRACE_TYPE_CONTROLLER              0x02
+#define BT_CONTROLER_TRACE_TYPE_LMP_TRACE               0x04
+#define BT_CONTROLER_TRACE_TYPE_SPUV_HCI_BUFF           0x08
+#define BT_CONTROLER_FILTER_TRACE_TYPE_A2DP_STREAM      0x10
+#define BT_CONTROLER_TRACE_TYPE_DUMP_BUFF               0x20
+#define BT_CONTROLER_TRACE_TYPE_SPUV_HCI_BUFF_HIGH      0x40
+#define BT_CONTROLER_TRACE_TYPE_ACL_PACKET              0x80
 
 #define BT_SUB_SYS_TYPE     0
 #define MCU_SYS_TYPE        1
@@ -99,9 +106,9 @@ extern "C" {
 /***************************************************************************
  *multi IBRT config
  ****************************************************************************/
-#define MULTI_IBRT_BG_SLICE 28
+#define MULTI_IBRT_BG_SLICE 24
 
-#define MULTI_IBRT_FG_SLICE 112
+#define MULTI_IBRT_FG_SLICE 72
 
 #define TX_PWR_16DBM 16
 #define TX_PWR_15DBM 15
@@ -142,10 +149,6 @@ extern "C" {
 #define GET_32BIT_2BYTE(value) ((uint8_t)((value >> 16) & 0xFF))
 
 #define GET_32BIT_3BYTE(value) ((uint8_t)((value >> 24) & 0xFF))
-
-#define GET_16BIT_0BYTE(value) ((uint8_t)(value & 0xFF))
-
-#define GET_16BIT_1BYTE(value) ((uint8_t)((value >> 8) & 0xFF))
 /*
  * ENUMERATION
  ****************************************************************************************
@@ -192,44 +195,11 @@ enum bes_btc_tport_level
     TRANSQ_LEVEL                 = 0x100,
     PD_LEVEL                     = 0x200,
 };
-
-enum btc_slp_cfg
-{
-    /// Boolean indicating whether cmu intmask
-    BES_CMU_INTMASK_POS       = 0,
-    BES_CMU_INTMASK_BIT       = 0x01,
-    /// Boolean indicating whether to use external 32K LPO
-    BES_EXT_LPO_POS           = 1,
-    BES_EXT_LPO_BIT           = 0x02,
-    /// Boolean indicating RF SPI BIT NUMBER
-    BES_RF_SPI_BIT_NB_LSB     = 2,
-    BES_RF_SPI_BIT_NB_MASK    = 0xC,
-};
-
-enum BT_TPORT_TYPE_T
-{
-    BT_TPORT_8WIRE_NORMAL = 0,
-    BT_TPORT_3WIRE = 1,
-    BT_TPORT_8WIRE_TYPE1 = 2,
-
-    BT_TPORT_QTY
-};
-
 /*
  * COMMON FUNCTION DECLARATIONS
  ****************************************************************************************
  */
-inline uint32_t co_mod(uint32_t val, uint32_t div)
-{
-   ASSERT_ERR(div);
-   return ((val) % (div));
-}
-#define CO_MOD(val, div) co_mod(val, div)
 
-inline uint32_t co_max(uint32_t a, uint32_t b)
-{
-    return a > b ? a : b;
-}
 
 /**
  ****************************************************************************************
@@ -238,7 +208,7 @@ inline uint32_t co_max(uint32_t a, uint32_t b)
  * @return The 16 bits value.
  ****************************************************************************************
  */
-inline uint16_t co_read16p(void const *ptr16)
+static inline uint16_t co_read16p(void const *ptr16)
 {
     uint16_t value = ((uint8_t *)ptr16)[0] | ((uint8_t *)ptr16)[1] << 8;
     return value;
@@ -251,7 +221,7 @@ inline uint16_t co_read16p(void const *ptr16)
  * @return The 32 bits value.
  ****************************************************************************************
  */
-inline uint32_t co_read32p(void const *ptr32)
+static inline uint32_t co_read32p(void const *ptr32)
 {
     uint16_t addr_l, addr_h;
     addr_l = co_read16p((uint16_t *)ptr32);
@@ -266,7 +236,7 @@ inline uint32_t co_read32p(void const *ptr32)
  * @param[in] value The value to write.
  ****************************************************************************************
  */
-__STATIC_FORCEINLINE void co_write32(void const *ptr32, uint32_t value)
+static inline void co_write32(void const *ptr32, uint32_t value)
 {
     uint8_t volatile *ptr=(uint8_t*)ptr32;
 
@@ -283,7 +253,7 @@ __STATIC_FORCEINLINE void co_write32(void const *ptr32, uint32_t value)
  * @param[in] value The value to write.
  ****************************************************************************************
  */
-inline void co_write16(void const *ptr16, uint16_t value)
+static inline void co_write16(void const *ptr16, uint16_t value)
 {
     uint8_t volatile *ptr=(uint8_t*)ptr16;
 
@@ -299,6 +269,7 @@ void btdrv_poweron(uint8_t en);
 uint8_t btdrv_rf_init(void);
 void btdrv_test_mode_rf_txpwr_init(void);
 void btdrv_ins_patch_init(void);
+void btdrv_ins_patch_ram_cfg(void);
 void btdrv_data_patch_init(void);
 void btdrv_patch_en(uint8_t en);
 void btdrv_config_init(void);
@@ -307,8 +278,10 @@ void btdrv_testmode_config_init(void);
 void btdrv_bt_spi_rawbuf_init(void);
 void btdrv_bt_spi_xtal_init(void);
 void btdrv_rf_rx_gain_adjust_req(uint32_t user, bool lowgain);
+void btdrv_trace_config(BT_CONTROLER_TRACE_TYPE trace_config);
 void btdrv_btc_fault_dump(void);
 void btdrv_dump_mem(uint8_t *dump_mem_start, uint32_t dump_length, uint8_t dump_type);
+void ld_util_bch_create(uint8_t *lap, uint8_t *bch);
 void btdrv_fast_lock_config(bool fastlock_on);
 void btdrv_ecc_config(void);
 void btdrv_btc_fault_dump(void);
@@ -319,8 +292,8 @@ void bt_drv_reg_op_multi_ibrt_sche_dump(void);
 void bt_drv_reg_op_dump_rx_record(void);
 int8_t btdrv_get_rssi_avg_thr(bool tws_link);
 void bt_drv_reg_op_enable_3wire_tports(void);
-void bt_drv_reg_op_enable_2wire_tports(void);
-void bt_drv_reg_op_multi_ibrt_sche_dump(void);
+void bt_drv_reg_op_pcm_set_stereo_normal_8k16bit(void);
+void bt_drv_reg_op_set_inquiry_scan_activity(void);
 
 void bt_drv_heap_init(void);
 void btdrv_common_init(void);

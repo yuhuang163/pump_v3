@@ -19,7 +19,7 @@
 
 .globl __sensor_hub_code_start_flash
 .globl __sensor_hub_code_end_flash
-.section .rodata_sensor_hub_code, "a", %progbits
+.section .flash_nc_rodata_sens, "a", %progbits
 .balign 4
 
 __sensor_hub_code_start_flash:

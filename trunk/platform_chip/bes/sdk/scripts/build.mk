@@ -315,7 +315,7 @@ $(sort $(subdir-obj-y)): $(buildsubdir-y) ;
 
 # Archive check
 
-ifeq ($(CHECK_LIB_SRC),1)
+ifneq ($(filter 1 2,$(CHECK_LIB_SRC)),)
 ifneq ($(archive-bin-y),)
 $(info )
 $(info Library source check OK: $(archive-bin-y))
@@ -329,7 +329,13 @@ $(foreach m, $(archive-src-y), \
     $(eval tmp_list=$(call get-archive-src,$(patsubst $(obj)/%,%,$(m)))) \
     $(eval $(foreach k, $(tmp_list), $(info $(empty)    $(k))))))
 $(info )
-$(error Error: The source files exist for libraries: $(archive-src-y))
+CHECK_LIB_ERROR := Error: The source files exist for libraries: $(archive-src-y)
+ifeq ($(CHECK_LIB_SRC),1)
+$(error $(CHECK_LIB_ERROR))
+else
+$(info $(CHECK_LIB_ERROR))
+$(info )
+endif
 endif
 endif
 
@@ -539,6 +545,11 @@ endif
 # information in a variable se we can use it in if_changed and friends.
 
 .PHONY: $(PHONY)
+
+# Avoid building any makefile by default
+%.mk: ;
+%/Makefile: ;
+%/makefile: ;
 
 # Last-resort default rule for unknown targets
 

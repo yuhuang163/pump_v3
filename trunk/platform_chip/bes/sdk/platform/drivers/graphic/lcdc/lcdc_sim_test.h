@@ -2975,7 +2975,7 @@ void lcdc_test_sim(void)
 
     for (int i = 0; i < 20; i++) {
         v = st[i];
-        //DRIVERS_TRACE(0,"x%x",st[i]);
+        //LCDC_ERR("x%x",st[i]);
     }
     while (1) ;
 

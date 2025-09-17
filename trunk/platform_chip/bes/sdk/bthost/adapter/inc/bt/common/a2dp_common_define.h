@@ -22,8 +22,8 @@ extern "C" {
 
 #define MAX_A2DP_VOL   (127)
 
-#define BTIF_AVRCP_NUM_PLAYER_SETTINGS  4
-#define BTIF_AVRCP_NUM_MEDIA_ATTRIBUTES 8
+#define BTIF_AVRCP_NUM_PLAYER_SETTINGS	4
+#define BTIF_AVRCP_NUM_MEDIA_ATTRIBUTES	7
 
 #define BTIF_CONFIG_A2DP_SBC_ON 1
 
@@ -58,19 +58,16 @@ extern "C" {
 #define BTIF_CONFIG_A2DP_OPUS_ON 0
 #endif
 
-#if defined(A2DP_L2HC_ON)
-#define BTIF_CONFIG_A2DP_L2HC_ON 1
-#else
-#define BTIF_CONFIG_A2DP_L2HC_ON 0
-#endif
+#define SYS_MAX_A2DP_LOCAL_SEPS \
+    (BTIF_CONFIG_A2DP_SBC_ON + \
+        BTIF_CONFIG_A2DP_AAC_ON + \
+        BTIF_CONFIG_A2DP_LHDC_ON + \
+        BTIF_CONFIG_A2DP_LDAC_ON + \
+        BTIF_CONFIG_A2DP_SCALABLE_ON + \
+        BTIF_CONFIG_A2DP_OPUS_ON + 1)
 
-#if defined(A2DP_MIHC_ON)
-#define BTIF_CONFIG_A2DP_MIHC_ON 1
-#else
-#define BTIF_CONFIG_A2DP_MIHC_ON 0
-#endif
-
-#define SYS_MAX_AVRCP_CHNS   BT_DEVICE_NUM
+#define SYS_MAX_A2DP_STREAMS (BT_DEVICE_NUM+BT_SOURCE_DEVICE_NUM)
+#define SYS_MAX_AVRCP_CHNS  (BT_DEVICE_NUM+BT_SOURCE_DEVICE_NUM)
 
 typedef uint8_t btif_a2dp_event_t;
 
@@ -250,8 +247,6 @@ typedef uint8_t btif_a2dp_event_t;
 #define BTIF_A2DP_EVENT_STREAM_SELECT            84
 /* event that let app level to confirm stream(sep) state */
 #define BTIF_A2DP_EVENT_STREAM_STATE_CFM         85
-/* event that avdtp discovery and get capability complete */
-#define BTIF_A2DP_EVENT_DISCOVERY_COMPLETE       86
 
 
 typedef uint16_t btif_avdtp_codec_sample_rate_t;
@@ -281,22 +276,6 @@ typedef uint16_t btif_avdtp_codec_sample_rate_t;
 #define BT_A2DP_CODEC_TYPE_LDAC          0xFF
 
 #define BT_A2DP_CODEC_TYPE_NON_A2DP      0xFF
-
-#define BT_A2DP_CODEC_NONE_TYPE_INVALID  (0x00)
-
-#define BT_A2DP_CODEC_NONE_TYPE_LHDC     (0x01)
-
-#define BT_A2DP_CODEC_NONE_TYPE_LHDCV5   (0x02)
-
-#define BT_A2DP_CODEC_NONE_TYPE_LDAC     (0x03)
-
-#define BT_A2DP_CODEC_NONE_TYPE_SCALABLE (0x04)
-
-#define BT_A2DP_CODEC_NONE_TYPE_LC3      (0x05)
-
-#define BT_A2DP_CODEC_NONE_TYPE_L2HC     (0x06)
-
-#define BT_A2DP_CODEC_NONE_TYPE_MIHC     (0x07)
 
 #define BT_A2DP_MAX_CODEC_ELEM_SIZE      10
 
@@ -329,19 +308,6 @@ typedef uint8_t btif_avctp_event_t;
 #define BTIF_AVCTP_EVENT_PLAYBACK_STATUS_CHANGE_EVENT_SUPPORT 13
 
 #define BTIF_AVCTP_EVENT_PLAYBACK_STATUS_CHANGED 14
-
-#define BTIF_AVRCP_BROWSING_EVENT_CONNECT                       15
-
-#define BTIF_AVRCP_BROWSING_EVENT_DISCONNECT                    16
-
-#define BTIF_AVRCP_OBEX_EVENT_OPEN                              17
-
-#define BTIF_AVRCP_OBEX_EVENT_CHANNEL_CONNECTED                 18
-
-#define BTIF_AVRCP_OBEX_EVENT_DISCONNECT                        19
-
-#define BTIF_AVRCP_OBEX_GET_RSP                                 20
-
 
 #define BTIF_AVCTP_LAST_EVENT               30
 
@@ -506,9 +472,7 @@ enum {
 
 #define BTIF_AVRCP_EVENT_BROWSE_TX_DONE     ( BTIF_AVCTP_LAST_EVENT + 19)
 
-#define BTIF_AVRCP_EVENT_BROWSE_CMD         ( BTIF_AVCTP_LAST_EVENT + 20)
-
-#define BTIF_AVRCP_EVENT_LAST               ( BTIF_AVCTP_LAST_EVENT + 20)
+#define BTIF_AVRCP_EVENT_LAST               ( BTIF_AVCTP_LAST_EVENT + 19)
 
 typedef uint8_t avrcp_event_Id_t;
 
@@ -617,13 +581,7 @@ typedef U8 btif_avrcp_operation_t;
 
 #define BTIF_AVRCP_OP_GENERAL_REJECT                 0xA0
 
-#define BTIF_AVRCP_OP_CUSTOM_CMD                     0xF0
-
-#define BTIF_AVRCP_OBEX_GET_IMG_CMD                  0xF1
-
-#define BTIF_AVRCP_OBEX_GET_THM_CMD                  0xF2
-
-#define BTIF_AVRCP_OBEX_GET_IMG_PROPTS               0xF3
+#define BTIF_AVRCP_OP_CUSTOM_CMD						0xF0
 
 enum avrcp_event_t {
 //    AVRCP_TURN_ON = 1,
@@ -650,10 +608,7 @@ enum avrcp_event_t {
     AVRCP_CHANNEL_RESPONSE,
     AVRCP_CHANNEL_COMMAND,
     AVRCP_CHANNEL_DATA_IND,
-    AVRCP_RESPONSE,            //no more than 15
-
-    AVRCP_BROWSING_CHANNEL_OPENED,
-    AVRCP_BROWSING_CHANNEL_CLOSED,
+    AVRCP_RESPONSE            //no more than 15
 };
 
 typedef uint8_t avrcp_media_status_t;
@@ -674,20 +629,42 @@ typedef uint8_t avrcp_media_status_t;
 #define A2D_LHDC__IE_SAMP_FREQ_MSK    0xFF    /* b7-b0 sampling frequency */
 #endif
 
-#define A2D_STREAM_SAMP_FREQ_MSK    0xFFFFFFFF    /* b7-b4 sampling frequency */
+#define A2D_STREAM_SAMP_FREQ_MSK    0xFF    /* b7-b4 sampling frequency */
 
 #define A2D_SBC_IE_SAMP_FREQ_MSK    0xF0    /* b7-b4 sampling frequency */
 
-// bit31-8: Reserved for Future Use
-#define A2D_SBC_IE_SAMP_FREQ_24         (0x00000100)    /* b8:24  kHz */
-#define A2D_SBC_IE_SAMP_FREQ_16         (0x00000080)    /* b7:16  kHz */
-#define A2D_SBC_IE_SAMP_FREQ_32         (0x00000040)    /* b6:32  kHz */
-#define A2D_SBC_IE_SAMP_FREQ_44         (0x00000020)    /* b5:44.1kHz */
-#define A2D_SBC_IE_SAMP_FREQ_48         (0x00000010)    /* b4:48  kHz */
-#define A2D_SBC_IE_SAMP_FREQ_96         (0x00000008)    /* b3:96  kHz */
-#define A2D_SBC_IE_SAMP_FREQ_192        (0x00000004)    /* b2:192  kHz */
-#define A2D_SBC_IE_SAMP_FREQ_88D2       (0x00000002)    /* b1:88.2  kHz */
-#define A2D_SBC_IE_SAMP_FREQ_176D4      (0x00000001)    /* b0:176.4 kHz */
+#define A2D_SBC_IE_SAMP_FREQ_16     0x80    /* b7:16  kHz */
+#define A2D_SBC_IE_SAMP_FREQ_32     0x40    /* b6:32  kHz */
+#define A2D_SBC_IE_SAMP_FREQ_44     0x20    /* b5:44.1kHz */
+#define A2D_SBC_IE_SAMP_FREQ_48     0x10    /* b4:48  kHz */
+
+#ifdef A2DP_SCALABLE_ON
+#define A2D_SBC_IE_SAMP_FREQ_96     0x08    /* b4:48  kHz */
+#endif
+
+#if defined(A2DP_LHDC_ON) || defined(A2DP_LHDCV5_ON)
+#ifndef A2D_SBC_IE_SAMP_FREQ_96
+#define A2D_SBC_IE_SAMP_FREQ_96     0x08    /* b3:96  kHz */
+#endif
+#endif
+
+#if defined(A2DP_LDAC_ON)
+#ifndef A2D_SBC_IE_SAMP_FREQ_96
+#define A2D_SBC_IE_SAMP_FREQ_96     0x08    /* b3:96  kHz */
+#endif
+#endif
+
+#ifdef A2DP_LHDCV5_ON
+#ifndef A2D_SBC_IE_SAMP_FREQ_192
+#define A2D_SBC_IE_SAMP_FREQ_192    0x04    /* b2:192  kHz */
+#endif
+#endif
+
+#ifdef A2DP_LC3_ON
+#ifndef A2D_SBC_IE_SAMP_FREQ_96
+#define A2D_SBC_IE_SAMP_FREQ_96     0x08    /* b4:48  kHz */
+#endif
+#endif
 
 typedef struct {
 
@@ -1040,14 +1017,6 @@ typedef union {
      * This is valid when "advOp" is set to AVRCP_OP_SET_ABSOLUTE_VOLUME.
      */
     uint8_t volume;
-
-    struct {
-        uint8_t cmd_trans_id;
-        /* The number of supported value IDs. */
-        uint16_t buffer_len;
-        /* An array of value ID (1 byte each). */
-        uint8_t *buffer;
-    } borwsing_info;
 } avrcp_adv_rsp_parms_t;
 
 typedef struct
@@ -1208,14 +1177,6 @@ typedef enum {
     BT_A2DP_GET_STREAM_STATE,
     BT_A2DP_LAST_PAUSED_DEVICE,
 } BT_A2DP_FIELD_ENUM_T;
-
-enum A2DP_ROLE
-{
-    A2DP_ROLE_SRC,
-    A2DP_ROLE_SNK,
-    A2DP_ROLE_UNKNOWN,
-};
-
 
 #ifdef __cplusplus
 }

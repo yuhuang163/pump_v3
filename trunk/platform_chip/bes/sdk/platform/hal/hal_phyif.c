@@ -13,9 +13,11 @@
  * trademark and other intellectual property rights.
  *
  ****************************************************************************/
-#if defined(CHIP_HAS_SPIPHY) && !defined(NO_ISPI)
-#include "plat_types.h"
 #include "plat_addr_map.h"
+
+#if defined(SPIPHY_BASE) && !defined(NO_ISPI)
+
+#include "plat_types.h"
 #include "cmsis.h"
 #include "hal_phyif.h"
 #include "hal_spi.h"
@@ -163,6 +165,7 @@ int hal_phyif_close(uint32_t cs)
     phyif_open_map &= ~(1 << cs);
     if (phyif_open_map == 0) {
         ret = hal_spiphy_close(spi_cfg.cs);
+        phy_cs = 0;
     }
     int_unlock(lock);
 

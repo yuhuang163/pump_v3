@@ -39,6 +39,12 @@ enum HAL_GPIO_IRQ_POLARITY_T {
     HAL_GPIO_IRQ_POLARITY_EDGE_BOTH,
 };
 
+enum HAL_GPIO_BOTH_EDGE_IRQ_TYPE_T {
+    HAL_GPIO_BOTH_EDGE_IRQ_TYPE_NONE = 0,
+    HAL_GPIO_BOTH_EDGE_IRQ_TYPE_RISING,
+    HAL_GPIO_BOTH_EDGE_IRQ_TYPE_FALLING,
+};
+
 typedef void (* HAL_GPIO_PIN_IRQ_HANDLER)(enum HAL_GPIO_PIN_T pin);
 
 struct HAL_GPIO_IRQ_CFG_T {
@@ -50,11 +56,14 @@ struct HAL_GPIO_IRQ_CFG_T {
 };
 
 enum HAL_GPIO_DIR_T hal_gpio_pin_get_dir(enum HAL_GPIO_PIN_T pin);
+void hal_gpio_pin_dir(enum HAL_GPIO_PIN_T pin, enum HAL_GPIO_DIR_T dir);
 void hal_gpio_pin_set_dir(enum HAL_GPIO_PIN_T pin, enum HAL_GPIO_DIR_T dir, uint8_t val_for_out);
 void hal_gpio_pin_set(enum HAL_GPIO_PIN_T pin);
 void hal_gpio_pin_clr(enum HAL_GPIO_PIN_T pin);
-uint8_t hal_gpio_pin_get_val(enum HAL_GPIO_PIN_T pin);
-uint8_t hal_gpio_setup_irq(enum HAL_GPIO_PIN_T pin, const struct HAL_GPIO_IRQ_CFG_T *cfg);
+uint32_t hal_gpio_pin_get_val(enum HAL_GPIO_PIN_T pin);
+uint32_t hal_gpio_setup_irq(enum HAL_GPIO_PIN_T pin, const struct HAL_GPIO_IRQ_CFG_T *cfg);
+uint32_t hal_gpio_get_max_pin_num(void);
+enum HAL_GPIO_BOTH_EDGE_IRQ_TYPE_T hal_gpio_both_edge_irq_type_get(enum HAL_GPIO_PIN_T pin);
 
 #ifdef __cplusplus
 }

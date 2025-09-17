@@ -29,9 +29,9 @@
 #include "ota_config.h"
 #include "ota_control.h"
 #include "nvrecord_combo.h"
-#include "nvrecord_extension.h"
 #include "app_flash_api.h"
 #include "beslib_info.h"
+
 #ifdef PROMPT_IN_FLASH
 #include "nvrecord_prompt.h"
 #endif
@@ -50,7 +50,7 @@ extern uint32_t __ota_upgrade_log_start[];
 extern uint32_t __ota_upgrade_log_end[];
 extern uint32_t __userdata_start[];
 extern uint32_t __userdata_end[];
-
+extern uint32_t __ota_boot_info_start[];
 /************************private macro defination***************************/
 
 /************************private type defination****************************/
@@ -61,16 +61,9 @@ extern uint32_t __userdata_end[];
 #ifdef COMBO_CUSBIN_IN_FLASH
 static CONTENT_INFO_T* combo_info = NULL;
 
-static FLASH_MODULE_INFO_T combo_flash_mapping_table[COMBO_INFO_NUM_MAX] = {
-    {NORFLASH_API_MODULE_ID_OTA,COMBO_SOC_FW,(OTA_FLASH_LOGIC_ADDR+NEW_IMAGE_FLASH_OFFSET),(uint32_t)__flash_end},
-    {NORFLASH_API_MODULE_ID_TEST2,COMBO_MCU_FW,(uint32_t)__combo_start,(uint32_t)__combo_end},
-    #ifdef ARM_CMNS
-    {NORFLASH_API_MODULE_ID_OTA,COMBO_TZ_NSB,(OTA_FLASH_LOGIC_ADDR+NEW_IMAGE_FLASH_OFFSET),(uint32_t)__flash_end},
-    {NORFLASH_API_MODULE_ID_OTA,COMBO_TZ_SB,OTA_FLASH_LOGIC_ADDR,(uint32_t)FLASH_S_SIZE},
-    #endif
-    #ifdef PROMPT_IN_FLASH
-    {NORFLASH_API_MODULE_ID_OTA, COMBO_PROMPT,(uint32_t)__prompt_start,(uint32_t)__prompt_end},   
-    #endif
+static FLASH_MODULE_INFO_T combo_flash_mapping_table[COMBO_INFO_NUM_MAX] = { \
+    {NORFLASH_API_MODULE_ID_OTA,COMBO_SOC_FW,(OTA_FLASH_LOGIC_ADDR+NEW_IMAGE_FLASH_OFFSET),(uint32_t)__flash_end},\
+    {NORFLASH_API_MODULE_ID_TEST2,COMBO_MCU_FW,(uint32_t)__combo_start,(uint32_t)__combo_end},\
 };
 #endif
 /****************************function defination****************************/
@@ -95,32 +88,29 @@ static void _parse_custom_image(void *addr, CUSTOM_IMAGE_HEADER_T *info)
     const uint8_t *pRead = (const uint8_t *)addr;
 
     info->mainInfo = _read_uint32_little_endian_and_increment(&pRead);
-    OTA_TRACE(0,"main-info:0x%x", info->mainInfo);
+    LOG_D("main-info:0x%x", info->mainInfo);
 
     info->version = _read_uint32_little_endian_and_increment(&pRead);
-    OTA_TRACE(0,"version:0x%x", info->version);
+    LOG_D("version:0x%x", info->version);
 
     info->contentNum = _read_uint32_little_endian_and_increment(&pRead);
-    OTA_TRACE(0,"content number:0x%x", info->contentNum);
-    ASSERT(COMBO_INFO_NUM_MAX >= info->contentNum, "content number exceed %d", COMBO_INFO_NUM_MAX);
+    LOG_D("content number:0x%x", info->contentNum);
+    ASSERT(CONTENT_INFO_MAX >= info->contentNum, "content number exceed %d", CONTENT_INFO_MAX);
 
     for (uint8_t i = 0; i < info->contentNum; i++)
     {
         info->info[i].id = _read_uint32_little_endian_and_increment(&pRead);
-        OTA_TRACE(0,"content %d id:0x%x", i, info->info[i].id);
+        LOG_D("content %d id:0x%x", i, info->info[i].id);
 
         info->info[i].offset = _read_uint32_little_endian_and_increment(&pRead);
-        OTA_TRACE(0,"content %d offset:0x%x", i, info->info[i].offset);
+        LOG_D("content %d offset:0x%x", i, info->info[i].offset);
 
         info->info[i].length = _read_uint32_little_endian_and_increment(&pRead);
-        OTA_TRACE(0,"content %d len:0x%x", i, info->info[i].length);
-
-        info->info[i].crc32 = _read_uint32_little_endian_and_increment(&pRead);
-        OTA_TRACE(0,"content %d crc32:0x%x", i, info->info[i].crc32);
+        LOG_D("content %d len:0x%x", i, info->info[i].length);
     }
 
     info->crc32 =  _read_uint32_little_endian_and_increment(&pRead);
-    OTA_TRACE(0,"crc32:0x%x", info->crc32);
+    LOG_D("crc32:0x%x", info->crc32);
 }
 #endif
 
@@ -128,7 +118,7 @@ static void _parse_custom_image(void *addr, CUSTOM_IMAGE_HEADER_T *info)
 
 // static void _language_package_start(void)
 // {
-//     OTA_TRACE(0,"%s", __func__);
+//     LOG_D("%s", __func__);
 
 //     // TODO: update flash offset
 //     uint32_t addr = nv_record_prompt_get_package_addr(LANGUAGE_ID_MAX, true, LANGUAGE_PACKAGE_SIZE);
@@ -137,14 +127,14 @@ static void _parse_custom_image(void *addr, CUSTOM_IMAGE_HEADER_T *info)
 
 static void _language_package_reception_done(void)
 {
-    OTA_TRACE(0,"%s", __func__);
+    LOG_D("%s", __func__);
     ota_data_reception_languange_check();
 }
 
 #if 0
 static void _language_package_apply(uint32_t startAddr, uint32_t imageLen)
 {
-    OTA_TRACE(0,"%s", __func__);
+    LOG_D("%s", __func__);
 
     // parse the image header
     PACKAGE_NODE_T info;
@@ -165,7 +155,7 @@ static void _language_package_apply(uint32_t startAddr, uint32_t imageLen)
 
 extern "C" bool app_prompt_apply(void)
 {
-    OTA_TRACE(0,"%s", __func__);
+    LOG_D("%s", __func__);
     bool ret = true;
     PACKAGE_NODE_T info;
     PROMPT_IMAGE_HEADER_T header;
@@ -173,21 +163,22 @@ extern "C" bool app_prompt_apply(void)
     uint32_t sourceAddr = OTA_FLASH_LOGIC_ADDR + NEW_IMAGE_FLASH_OFFSET;
 
     nv_record_prompt_parse_file((void*)sourceAddr, &header);
+    patcketSize = nv_record_prompt_get_language_packet_size(&header);
     if(nv_record_prompt_check_crc(sourceAddr, &header))
     {
         patcketSize = nv_record_prompt_get_language_packet_size(&header);
     }
     else
     {
-        OTA_TRACE(1, "%s check new language bin error", __func__);
+        TRACE(1, "%s check new language bin error", __func__);
         return false;
     }
 
-    OTA_TRACE(0,"%s get new language bin, id %d size %d", __func__, header.mainInfo, patcketSize);
+    LOG_I("%s get new language bin, id %d size %d", __func__, header.mainInfo, patcketSize);
     uint32_t destAddr = nv_record_prompt_get_package_addr(LANGUAGE_ID_MAX, true, LANGUAGE_PACKAGE_SIZE);
     if(!destAddr)
     {
-        OTA_TRACE(1, "%s get dest Addr error", __func__);
+        TRACE(1, "%s get dest Addr error", __func__);
         return false;
     }
     ota_language_copy_prompt((uint32_t)__prompt_start, (uint32_t)__prompt_end, destAddr - (uint32_t)__prompt_start, patcketSize);
@@ -202,7 +193,7 @@ extern "C" bool app_prompt_apply(void)
 
 static void _language_package_apply(uint32_t startAddr, uint32_t imageLen)
 {
-    OTA_TRACE(0,"%s", __func__);
+    LOG_D("%s", __func__);
 
     nv_record_prompt_set_new_language_flag();
     //reboot for copy new image
@@ -211,7 +202,7 @@ static void _language_package_apply(uint32_t startAddr, uint32_t imageLen)
 
 static void _register_language_package_user(void)
 {
-    OTA_TRACE(0,"%s", __func__);
+    LOG_D("%s", __func__);
 
     BES_OTA_USER_INFO_T info;
     info.user = BES_OTA_USER_LANGUAGE_PACKAGE;
@@ -226,10 +217,9 @@ static void _register_language_package_user(void)
 }
 #endif
 
-#ifndef COMBO_CUSBIN_IN_FLASH
 static void _firmware_apply(uint32_t startAddr, uint32_t imageLen)
 {
-    OTA_TRACE(0,"%s", __func__);
+    LOG_D("%s", __func__);
 
     ota_update_info();
     ota_check_and_reboot_to_use_new_image();
@@ -237,7 +227,7 @@ static void _firmware_apply(uint32_t startAddr, uint32_t imageLen)
 
 static void _register_firmware_user(void)
 {
-    OTA_TRACE(0,"%s", __func__);
+    LOG_D("%s", __func__);
 
     BES_OTA_USER_INFO_T info;
     info.user = BES_OTA_USER_FIRMWARE;
@@ -250,31 +240,26 @@ static void _register_firmware_user(void)
 
     ota_control_register_ota_user(info);
 }
-#endif
 
-// #ifndef ARM_CMNS    // boot info in cmse if tz is enabled
 static void _register_bootinfo_user(void)
 {
-    OTA_TRACE(0,"%s", __func__);
+    LOG_D("%s", __func__);
 
     BES_OTA_USER_INFO_T info;
     info.user = BES_OTA_USER_BOOTUP_INFO;
     info.norflashId = NORFLASH_API_MODULE_ID_BOOTUP_INFO;
-    info.startAddr = ota_common_get_boot_info_flash_offset();
-
+    info.startAddr = (uint32_t)__ota_boot_info_start;
     info.length = norflash_api_get_sector_size(HAL_FLASH_ID_0);
     info.start = NULL;
-
     info.reception_done = NULL;
     info.apply = NULL;
 
     ota_control_register_ota_user(info);
 }
-// #endif
 
 static void _register_upgradelog_user(void)
 {
-    OTA_TRACE(0,"%s", __func__);
+    LOG_D("%s", __func__);
 
     BES_OTA_USER_INFO_T info;
     info.user = BES_OTA_USER_UPGRADE_LOG;
@@ -289,33 +274,17 @@ static void _register_upgradelog_user(void)
 }
 
 #ifdef COMBO_CUSBIN_IN_FLASH
-uint32_t _combo_bin_get_addr_by_id(uint32_t id)
+static uint32_t _combo_bin_get_addr_by_id(uint32_t id)
 {
     uint8_t index = 0;
 
-    //OTA_TRACE(0,"%s:fw id %x", __func__,id);
+    //LOG_D("%s:fw id %x", __func__,id);
 
     for(index = 0; index < COMBO_INFO_NUM_MAX ; index++)
     {
         if(id == combo_flash_mapping_table[index].FwId)
         {
             return combo_flash_mapping_table[index].StartAddr;
-        }
-    }
-    return 0;
-}
-
-uint32_t _combo_bin_get_max_size(uint32_t id)
-{
-    uint8_t index = 0;
-
-    //OTA_TRACE(0,"%s:fw id %x", __func__,id);
-
-    for(index = 0; index < COMBO_INFO_NUM_MAX ; index++)
-    {
-        if(id == combo_flash_mapping_table[index].FwId)
-        {
-            return combo_flash_mapping_table[index].EndAddr - combo_flash_mapping_table[index].StartAddr;
         }
     }
     return 0;
@@ -328,7 +297,7 @@ static uint8_t _combo_bin_package_process(uint8_t evt_type,uint8_t* parm0,uint32
     OTA_COMBO_STATUS status = OTA_COMBO_PROCESS_FAILED;
     enum combin_process_evt evt = (enum combin_process_evt)(evt_type);
 
-    //OTA_TRACE(0,"%s:evt %x", __func__,evt);
+    //LOG_D("%s:evt %x", __func__,evt);
 
     switch (evt)
     {
@@ -374,20 +343,20 @@ static uint8_t _combo_bin_package_process(uint8_t evt_type,uint8_t* parm0,uint32
 
 static void _combobin_package_apply(uint32_t startAddr, uint32_t imageLen)
 {
-    OTA_TRACE(0,"%s", __func__);
-    ota_update_info();
+    LOG_D("%s", __func__);
     nv_record_combo_bin_clear_info();
+    ota_update_info();
     ota_check_and_reboot_to_use_new_image();
 }
 
 void _register_cusfirmware_user(void)
 {
-    OTA_TRACE(0,"%s", __func__);
+    LOG_D("%s", __func__);
     BES_OTA_USER_INFO_T info;
     info.user = BES_OTA_USER_COMBOFIRMWARE;
     info.norflashId = NORFLASH_API_MODULE_ID_OTA;
     info.startAddr = OTA_FLASH_LOGIC_ADDR + NEW_IMAGE_FLASH_OFFSET;
-    info.length = hal_norflash_get_flash_total_size(app_flash_get_dev_id_by_addr(OTA_FLASH_LOGIC_ADDR)) - NEW_IMAGE_FLASH_OFFSET;
+    info.length = hal_norflash_get_flash_total_size(HAL_FLASH_ID_0) - NEW_IMAGE_FLASH_OFFSET - 2*4096;
     info.start = NULL;
     info.apply = _combobin_package_apply;
     info.process = _combo_bin_package_process;
@@ -397,22 +366,37 @@ void _register_cusfirmware_user(void)
 }
 #endif
 
+static void _register_multi_bin_user(void)
+{
+    LOG_D("%s", __func__);
+    BES_OTA_USER_INFO_T info;
+    info.user = BES_OTA_USER_CROSS_CHIP;
+    info.norflashId = NORFLASH_API_MODULE_ID_MULTI_BIN;
+    info.startAddr = OTA_FLASH_LOGIC_ADDR + NEW_IMAGE_FLASH_OFFSET;
+    info.length = hal_norflash_get_flash_total_size(app_flash_get_dev_id_by_addr(OTA_FLASH_LOGIC_ADDR))
+                  - NEW_IMAGE_FLASH_OFFSET - 2*4096;
+    info.start = NULL;
+    info.reception_done = NULL;
+    info.apply = _firmware_apply;
+    TRACE(0,"%s 0x%02x ", __func__, info.length);
+    ota_control_register_ota_user(info);
+}
+
 void bes_ota_init_handler(void)
 {
-    OTA_TRACE(0,"bes ota %s", BESLIB_INFO_STR);
+    LOG_I("bes ota %s", BESLIB_INFO_STR);
 
-#ifndef COMBO_CUSBIN_IN_FLASH   //combo ota flash range is larger than firmare
     /// register main OTA user
     _register_firmware_user();
-#endif
 
-#ifndef OTA_TZ_ENABLE    // boot info in cmse if tz is enabled
     /// register bootup info user
     _register_bootinfo_user();
-#endif
 
     /// register upgrade log user
     _register_upgradelog_user();
+
+    /// register multi bin user
+    _register_multi_bin_user();
 
 #ifdef PROMPT_IN_FLASH
     _register_language_package_user();
@@ -421,5 +405,4 @@ void bes_ota_init_handler(void)
 #ifdef COMBO_CUSBIN_IN_FLASH
     _register_cusfirmware_user();
 #endif
-
 }

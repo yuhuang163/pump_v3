@@ -13,8 +13,6 @@
  * trademark and other intellectual property rights.
  *
  ****************************************************************************/
-#include "bthost_logger.h"
-
 #if defined(BLE_HID_HOST)
 #include "gatt_service.h"
 
@@ -65,12 +63,12 @@ typedef struct {
 
 static void ble_hid_host_discover_complete(hid_prf_t *prf)
 {
-    DEBUG_VERBOSE(0, "%s %d hids_nb %d", __func__, __LINE__, prf->peer_service_count);
+    TRACE(0, "%s %d hids_nb %d", __func__, __LINE__, prf->peer_service_count);
 }
 
 static void ble_hid_host_read_complete(hid_prf_t *prf, uint8_t hid_idx, const hid_character_t *c, const uint8_t *value, uint16_t len)
 {
-    DEBUG_VERBOSE(0, "%s %d status %d hid_idx %d char %d", __func__, __LINE__, c->error_code, hid_idx, c->char_enum);
+    TRACE(0, "%s %d status %d hid_idx %d char %d", __func__, __LINE__, c->error_code, hid_idx, c->char_enum);
     if (c->error_code)
     {
         return;
@@ -98,7 +96,7 @@ static void ble_hid_host_read_complete(hid_prf_t *prf, uint8_t hid_idx, const hi
 
 static void ble_hid_host_write_complete(hid_prf_t *prf, uint8_t hid_idx, const hid_character_t *c)
 {
-    DEBUG_VERBOSE(0, "%s %d status %d hid_idx %d char %d", __func__, __LINE__, c->error_code, hid_idx, c->char_enum);
+    TRACE(0, "%s %d status %d hid_idx %d char %d", __func__, __LINE__, c->error_code, hid_idx, c->char_enum);
     if (c->error_code)
     {
         return;
@@ -120,7 +118,7 @@ static void ble_hid_host_write_complete(hid_prf_t *prf, uint8_t hid_idx, const h
 
 static void ble_hid_host_recv_report_ind(hid_prf_t *prf, uint8_t hid_idx, const hid_character_t *c, const uint8_t *value, uint16_t len)
 {
-    DEBUG_VERBOSE(0, "%s %d status %d hid_idx %d char %d", __func__, __LINE__, c->error_code, hid_idx, c->char_enum);
+    TRACE(0, "%s %d status %d hid_idx %d char %d", __func__, __LINE__, c->error_code, hid_idx, c->char_enum);
     if (c->error_code)
     {
         return;
@@ -204,7 +202,7 @@ bt_status_t ble_hid_host_start_discover(uint16_t connhdl)
     return BT_STS_SUCCESS;
 }
 
-static bool ble_hid_client_callback(gatt_prf_t *prf, gatt_profile_event_t event, gatt_profile_callback_param_t param)
+static int ble_hid_client_callback(gatt_prf_t *prf, gatt_profile_event_t event, gatt_profile_callback_param_t param)
 {
     hid_prf_t *hid = (hid_prf_t *)prf;
     hid_character_t hid_char;

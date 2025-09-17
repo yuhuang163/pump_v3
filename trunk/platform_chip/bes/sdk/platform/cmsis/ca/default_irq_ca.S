@@ -30,6 +30,16 @@
 
                 .equ   SAVED_REG_NUM,   17
 
+#ifdef RTOS
+                .equ ARM_EXCEPT_RESET,          0x00
+                .equ ARM_EXCEPT_UNDEF_INSTR,    0x01
+                .equ ARM_EXCEPT_SWI,            0x02
+                .equ ARM_EXCEPT_PREFETCH_ABORT, 0x03
+                .equ ARM_EXCEPT_DATA_ABORT,     0x04
+                .equ ARM_EXCEPT_RESERVED,       0x05
+                .equ ARM_EXCEPT_IRQ,            0x06
+                .equ ARM_EXCEPT_FIQ,            0x07
+#endif
 //-------------------------------------------------------
                 .section ".text.IRQ_Handler"
                 .type    IRQ_Handler, %function
@@ -38,6 +48,15 @@
                 .fnstart
                 .cantunwind
 IRQ_Handler:
+#ifdef RTOS
+                STMFD   SP!, {R0-R3}                        @ Push R0-R3 registers.
+                MOV     R0, #ARM_EXCEPT_IRQ                 @ Set exception type to ARM_EXCEPT_IRQ.
+                MRS     R1, SPSR                            @ Save CPSR.
+                SUB     R2, LR, #4                          @ Save LR(PC) register: -4.
+                MOV     R3, SP                              @ Save SP register.
+                ADD     SP, SP, #(4 * 4)                    @ set SP to irq stack top.
+                B       _interrupt_handler                  @ bl to common_except_handler.
+#else
                 SUB     LR, LR, #4                  // Pre-adjust LR
                 SRSFD   SP!, #MODE_SVC              // Save LR_irq and SPSR_irq on to the SVC stack
                 CPS     #MODE_SVC                   // Change to SVC mode
@@ -56,6 +75,7 @@ IRQ_Handler:
                 CLREX                               // Clear exclusive monitor for interrupted code
                 POP     {R0-R3, R12, LR}            // Restore stacked APCS registers
                 RFEFD   SP!                         // Return from IRQ handler
+#endif
 
                 .fnend
                 .size    IRQ_Handler, .-IRQ_Handler
@@ -125,6 +145,9 @@ Restore_Registers:
                 .fnstart
                 .cantunwind
 SVC_Handler:
+#ifdef RTOS
+                UDF     0                                   @ reserved for Supervisor Call
+#else
                 SRSFD   SP!, #MODE_SVC              // Store SPSR_svc and LR_svc onto SVC stack
 
                 BLX     Save_Registers
@@ -152,7 +175,7 @@ SVC_Handler:
                 BLX     Restore_Registers
                 CLREX                               // Clear exclusive monitor
                 RFEFD   SP!                         // Return from exception
-
+#endif
                 .fnend
                 .size    SVC_Handler, .-SVC_Handler
 

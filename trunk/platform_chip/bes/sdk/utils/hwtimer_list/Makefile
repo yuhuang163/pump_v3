@@ -9,3 +9,6 @@ ifneq ($(HWTIMER_NUM),)
 ccflags-y += -DHWTIMER_NUM=$(HWTIMER_NUM)
 endif
 
+ifeq ($(HWTIMER_DEBUG),1)
+ccflags-y += -DHWTIMER_DEBUG
+endif

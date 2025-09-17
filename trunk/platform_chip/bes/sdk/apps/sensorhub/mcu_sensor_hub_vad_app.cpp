@@ -19,7 +19,6 @@
 #include "cmsis_os.h"
 #endif
 #include "hal_trace.h"
-#include "hal_sleep.h"
 #include "hal_sysfreq.h"
 #include "app_sensor_hub.h"
 #include "sensor_hub.h"
@@ -57,10 +56,6 @@ static const char *vad_evt_to_str(enum SENS_VAD_EVT_ID_T evt)
     return "";
 }
 
-#ifndef HAL_SYS_WAKE_LOCK_USER_VAD
-#define HAL_SYS_WAKE_LOCK_USER_VAD HAL_SYS_WAKE_LOCK_USER_16
-#endif
-
 #ifndef HAL_SYSFREQ_SENS_VAD_USER
 #define HAL_SYSFREQ_SENS_VAD_USER HAL_SYSFREQ_USER_APP_13
 #endif
@@ -76,15 +71,13 @@ static void vad_lock_mcu_core_clock(bool lock)
     l = int_lock();
     if (lock) {
         hal_sysfreq_req(HAL_SYSFREQ_SENS_VAD_USER, HAL_CMU_FREQ_52M);
-        hal_sys_wake_lock(HAL_SYS_WAKE_LOCK_USER_VAD);
         sys_lock = true;;
     } else {
         sys_lock = false;
-        hal_sys_wake_unlock(HAL_SYS_WAKE_LOCK_USER_VAD);
         hal_sysfreq_req(HAL_SYSFREQ_SENS_VAD_USER, HAL_CMU_FREQ_32K);
     }
     int_unlock(l);
-    SENSORHUB_TRACE(0, "%s: lock=%d", __func__, lock);
+    TRACE(0, "%s: lock=%d", __func__, lock);
 }
 
 static int mcu_core_send_vad_msg(uint16_t cmd, uint32_t p0, uint32_t p1, uint32_t p2)
@@ -96,7 +89,7 @@ static int mcu_core_send_vad_msg(uint16_t cmd, uint32_t p0, uint32_t p1, uint32_
         |((cmd == SENS_CMD_ID_VAD_REQ_DATA) && (!p0))) {
         vad_lock_mcu_core_clock(true);
     }
-    SENSORHUB_TRACE(0, "%s: cmd=%d param=0x%X/0x%X/0x%X", __func__, cmd, p0, p1, p2);
+    TRACE(0, "%s: cmd=%d param=0x%X/0x%X/0x%X", __func__, cmd, p0, p1, p2);
 
     memset(&vad_rpc_msg, 0, sizeof(vad_rpc_msg));
     vad_rpc_msg.hdr.id   = SENS_MSG_ID_VAD_CMD;
@@ -130,40 +123,27 @@ static void mcu_core_handle_vad_ana_rpc_msg(uint32_t *data, uint16_t len)
     ana_req = (struct ANA_RPC_REQ_MSG_T *)data;
     ana_id = (enum ANALOG_RPC_ID_T)(ana_req->rpc_id);
 
-    SENSORHUB_TRACE(0, "%s: %s [%d]", __func__, rpc_cmd_to_str(ana_id), ana_id);
+    TRACE(0, "%s: %s [%d]", __func__, rpc_cmd_to_str(ana_id), ana_id);
 
     switch (ana_id) {
     case ANALOG_RPC_FREQ_PLL_CFG:
-// FIXME:vad not currently supported by 1502p
-#if !defined(CHIP_BEST1502P)
         analog_rpcsvr_freq_pll_config(ana_req->param[0], ana_req->param[1]);
-#endif
         break;
     case ANALOG_RPC_OSC_CLK_ENABLE:
-#if !defined(CHIP_BEST1502P)
         analog_rpcsvr_osc_clk_enable(ana_req->param[0]);
-#endif
         break;
     case ANALOG_RPC_CODEC_OPEN:
-#if !defined(CHIP_BEST1502P)
         analog_rpcsvr_codec_open(ana_req->param[0]);
-#endif
         break;
     case ANALOG_RPC_CODEC_ADC_ENABLE:
-#if !defined(CHIP_BEST1502P)
         analog_rpcsvr_codec_adc_enable((enum AUD_IO_PATH_T)(ana_req->param[0]),
             (enum AUD_CHANNEL_MAP_T)(ana_req->param[1]), (bool)(ana_req->param[2]));
-#endif
         break;
     case ANALOG_RPC_VAD_ENABLE:
-#if !defined(CHIP_BEST1502P)
         analog_rpcsvr_vad_enable((enum AUD_VAD_TYPE_T)(ana_req->param[0]), (bool)(ana_req->param[1]));
-#endif
         break;
     case ANALOG_RPC_VAD_ADC_ENABLE:
-#if !defined(CHIP_BEST1502P)
         analog_rpcsvr_vad_adc_enable(ana_req->param[0]);
-#endif
         break;
     default:
         ASSERT(false, "%s: Bad ana rpc id: %d", __func__, ana_id);
@@ -178,7 +158,7 @@ static void mcu_core_handle_vad_data_msg(uint32_t *data, uint16_t len)
 
     mcu_core_send_vad_reply_msg(SENS_MSG_ID_VAD_DATA, msg->data_idx, 0);
 
-    SENSORHUB_TRACE(0, "%s:idx=%d,addr=0x%x,size=%d", __func__, msg->data_idx, msg->data_addr, msg->data_size);
+    TRACE(0, "%s:idx=%d,addr=0x%x,size=%d", __func__, msg->data_idx, msg->data_addr, msg->data_size);
 
     if (app_vad_data_handler) {
         app_vad_data_handler(msg->data_idx, (uint8_t *)(msg->data_addr), msg->data_size);
@@ -191,7 +171,7 @@ static void mcu_core_handle_vad_evt_msg(uint32_t *data, uint16_t len)
     enum SENS_VAD_EVT_ID_T evt = (enum SENS_VAD_EVT_ID_T)rpc_msg->rpc_id;
     uint8_t *param = (uint8_t *)&rpc_msg->param;
 
-    SENSORHUB_TRACE(0, "%s:evt=%s[%d],param:%d/%d/%d", __func__,vad_evt_to_str(evt),evt,param[0],param[1],param[2]);
+    TRACE(0, "%s:evt=%s[%d],param:%d/%d/%d", __func__,vad_evt_to_str(evt),evt,param[0],param[1],param[2]);
 
     if (evt == SENS_EVT_ID_VAD_CMD_DONE) {
         vad_lock_mcu_core_clock(false);
@@ -207,7 +187,7 @@ static void mcu_core_handle_vad_af_buf_msg(uint32_t *data, uint16_t len)
     struct AF_RPC_REQ_MSG_T *af_req;
     af_req = (struct AF_RPC_REQ_MSG_T *)data;
 
-    SENSORHUB_TRACE(0, "%s: Rx af buf msg: stream=%d", __func__, af_req->stream_id);
+    TRACE(0, "%s: Rx af buf msg: stream=%d", __func__, af_req->stream_id);
     mcu_core_send_vad_reply_msg(SENS_MSG_ID_VAD_EVT, af_req->stream_id, 0);
 }
 
@@ -221,7 +201,7 @@ static void app_mcu_sensor_hub_vad_cmd_received_handler(uint8_t* ptr, uint16_t l
     uint32_t data[SENS_VAD_MSG_MAX_SIZE/sizeof(uint32_t)] = {0};
     struct SENS_MSG_HDR_T *hdr;
 
-    SENSORHUB_TRACE(0, "%s:", __func__);
+    TRACE(0, "%s:", __func__);
 
     ASSERT(len<sizeof(data), "%s: invalid len %d>%d", __func__, len, sizeof(data));
     memcpy(data, ptr, len);
@@ -241,22 +221,22 @@ static void app_mcu_sensor_hub_vad_cmd_received_handler(uint8_t* ptr, uint16_t l
             ASSERT(false, "%s: Bad msg: id=%d", __func__, hdr->id);
         }
     }
-//    SENSORHUB_DUMP8("%02x ", ptr, len);
+//    DUMP8("%02x ", ptr, len);
 }
 
 static void app_mcu_sensor_hub_vad_cmd_wait_rsp_timeout(uint8_t* ptr, uint16_t len)
 {
-    SENSORHUB_TRACE(0, "%s: len=%d", __func__, len);
+    TRACE(0, "%s: len=%d", __func__, len);
 }
 
 static void app_mcu_sensor_hub_vad_cmd_rsp_received_handler(uint8_t* ptr, uint16_t len)
 {
-    SENSORHUB_TRACE(0, "%s: len=%d", __func__, len);
+    TRACE(0, "%s: len=%d", __func__, len);
 }
 
 static void app_mcu_sensor_hub_vad_cmd_tx_done_handler(uint16_t cmdCode, uint8_t* ptr, uint16_t len)
 {
-    SENSORHUB_TRACE(0, "%s: cmdCode=0x%x", __func__, cmdCode);
+    TRACE(0, "%s: cmdCode=0x%x", __func__, cmdCode);
 }
 
 CORE_BRIDGE_TASK_COMMAND_TO_ADD(MCU_SENSOR_HUB_TASK_CMD_VAD,

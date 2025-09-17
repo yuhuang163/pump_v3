@@ -29,14 +29,14 @@ uint32_t digmic_buf_len = 0;
 
 uint32_t dig_mic_audio_more_data(uint8_t *buf, uint32_t len)
 {
-    AUDIOPLAYERS_TRACE(2,"%s:%d\n", __func__, __LINE__);
+    TRACE(2,"%s:%d\n", __func__, __LINE__);
     memcpy(buf, digmic_buf, len);
 
     return len;
 }
 uint32_t dig_mic_audio_data_come(uint8_t *buf, uint32_t len)
 {
-    AUDIOPLAYERS_TRACE(2,"%s:%d\n", __func__, __LINE__);
+    TRACE(2,"%s:%d\n", __func__, __LINE__);
 
     memcpy(digmic_buf + digmic_buf_len, buf, len);
 

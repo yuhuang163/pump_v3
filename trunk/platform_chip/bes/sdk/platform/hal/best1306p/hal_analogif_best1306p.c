@@ -45,8 +45,8 @@
 //    when MCU is accessing PMU/ANA register
 
 #ifdef ISPI_ARBITRATOR_ENABLE
-// Min padding OSC cycles needed: BT=0 MCU=6
-// When OSC=26M and SPI=6.5M, min padding SPI cycles is BT=0 MCU=2
+// Min padding OSC cycles needed: BT=0 MCU=4
+// When OSC=24M and SPI=6M, min padding SPI cycles is BT=0 MCU=1
 #define PADDING_CYCLES                  2
 #else
 #define PADDING_CYCLES                  0

@@ -119,7 +119,7 @@ if (scalar(keys(%symbols)) == 0) {
 
 for $item (@nm_result) {
     for $key (keys(%symbols)) {
-        if ($item =~ /^([0-9a-fA-F]{1,8})\s+.*\s+$key$/) {
+        if ($item =~ /^([0-9a-fA-F]{1,8})\s+.*\s+$key\s*$/) {
             $symbols{$key} = "0x" . uc($1);
             #printf "Got: $key=$symbols{$key}\n";
         }

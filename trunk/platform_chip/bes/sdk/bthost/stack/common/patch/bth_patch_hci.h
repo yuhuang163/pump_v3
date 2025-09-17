@@ -17,86 +17,87 @@
 #ifndef __BTH_PATCH_HCI_H__
 #define __BTH_PATCH_HCI_H__
 
-#if defined (BUILD_BTH_ROM)
+#if defined(BLE_STACK_NEW_DESIGN)
 #include "a2dp_i.h"
 #include "a2dp_common_define.h"
+#include "btgatt.h"
+#include "btgatt_api.h"
 #include "hid_i.h"
 #include "l2cap_service.h"
-#include "me_api.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 extern uint32_t g_patch_tbl_hci[];
-#define BTH_PATCH_HCI_FUNC_ID(func)  FUNC_ID_##hci_##func
 
 typedef enum
 {
-    BTH_PATCH_HCI_FUNC_ID(hci_handle_fc_on_disconnect),
-    BTH_PATCH_HCI_FUNC_ID(hci_handle_conn_event),
-    BTH_PATCH_HCI_FUNC_ID(hci_cmd_start_handle),
-    BTH_PATCH_HCI_FUNC_ID(hci_rx_handle),
-    BTH_PATCH_HCI_FUNC_ID(hci_send_all_pending_host_num_complete),
-    BTH_PATCH_HCI_FUNC_ID(hci_rx_num_completed_packet_inc),
-    BTH_PATCH_HCI_FUNC_ID(hci_create_cmd_packet_with_priv),
-    BTH_PATCH_HCI_FUNC_ID(hci_cmd_wait_complete_timeout),
-    BTH_PATCH_HCI_FUNC_ID(hci_free_cmd_packet),
-    BTH_PATCH_HCI_FUNC_ID(hci_cmd_end_handle),
-    BTH_PATCH_HCI_FUNC_ID(hci_send_pending_cmd_packet),
-    BTH_PATCH_HCI_FUNC_ID(hci_impl_send_cmd_packet),
-    BTH_PATCH_HCI_FUNC_ID(hci_send_command_with_callback),
-    BTH_PATCH_HCI_FUNC_ID(hci_simulate_event),
-    BTH_PATCH_HCI_FUNC_ID(hci_send_bt_acl_packet),
-    BTH_PATCH_HCI_FUNC_ID(hci_clean_rx_packet),
-    BTH_PATCH_HCI_FUNC_ID(hci_clean_tx_packet),
-    BTH_PATCH_HCI_FUNC_ID(hci_clean_cmd_packet),
-#ifdef ISO_BEARER_SUPPORT
-    BTH_PATCH_HCI_FUNC_ID(hci_get_iso_rx_packet),
-    BTH_PATCH_HCI_FUNC_ID(hci_send_iso_packet),
-    BTH_PATCH_HCI_FUNC_ID(hci_tx_iso_packet_handle),
-    BTH_PATCH_HCI_FUNC_ID(hci_tx_iso_ind),
-    BTH_PATCH_HCI_FUNC_ID(hci_handle_iso_tx_num_of_complete),
-#endif
-    BTH_PATCH_HCI_FUNC_ID(hci_fc_each_link_has_tx_chance),
-    BTH_PATCH_HCI_FUNC_ID(hci_tx_buff_process),
-    BTH_PATCH_HCI_FUNC_ID(btm_conn_delete_free),
-    BTH_PATCH_HCI_FUNC_ID(btm_conn_add_new),
-    BTH_PATCH_HCI_FUNC_ID(btm_chip_init_continue),
-    BTH_PATCH_HCI_FUNC_ID(btm_chip_init_continue_noraml_test_mode_switch),
-    BTH_PATCH_HCI_FUNC_ID(btm_conn_acl_req),
-    BTH_PATCH_HCI_FUNC_ID(btm_sco_connect_req),
-    BTH_PATCH_HCI_FUNC_ID(btm_conn_acl_close),
-    BTH_PATCH_HCI_FUNC_ID(btm_set_audio_default_param),
-    BTH_PATCH_HCI_FUNC_ID(btm_ibrt_report_snoop_acl_disconnected),
-    BTH_PATCH_HCI_FUNC_ID(btm_save_ctx),
-    BTH_PATCH_HCI_FUNC_ID(btm_restore_ctx),
-    BTH_PATCH_HCI_FUNC_ID(btm_sco_tws_sync_connected),
-    BTH_PATCH_HCI_FUNC_ID(btm_security_link_key_notify),
-    BTH_PATCH_HCI_FUNC_ID(btm_security_link_key_req),
-    BTH_PATCH_HCI_FUNC_ID(btm_security_authen_complete),
-    BTH_PATCH_HCI_FUNC_ID(btm_security_encryption_change),
-    BTH_PATCH_HCI_FUNC_ID(btm_security_askfor_authority),
-    BTH_PATCH_HCI_FUNC_ID(btm_create_acl_connection_fail_process),
-    BTH_PATCH_HCI_FUNC_ID(btm_sco_conn_accept),
-    BTH_PATCH_HCI_FUNC_ID(btm_conn_accept_extra_acl_req_check),
-    BTH_PATCH_HCI_FUNC_ID(btm_conn_handle_extra_acl_conn_req),
-    BTH_PATCH_HCI_FUNC_ID(btm_conn_disconnect_process),
-    BTH_PATCH_HCI_FUNC_ID(btm_process_init_state_cmd_cmpl),
-    BTH_PATCH_HCI_FUNC_ID(btm_process_cmd_complete_evt),
-    BTH_PATCH_HCI_FUNC_ID(btm_get_bdaddr_from_pending_hci_cmd),
-    BTH_PATCH_HCI_FUNC_ID(btif_me_reconnect_next_device),
-    BTH_PATCH_HCI_FUNC_ID(btif_me_wait_acl_complete),
-    BTH_PATCH_HCI_FUNC_ID(btif_me_wait_acl_complete_callback),
-    BTH_PATCH_HCI_FUNC_ID(btif_me_event_report),
-    BTH_PATCH_HCI_FUNC_ID(btif_me_source_event_report),
-    BTH_PATCH_HCI_FUNC_ID(btif_me_is_creating_source_link),
-    BTH_PATCH_HCI_FUNC_ID(btif_me_is_accepting_source_link),
-    BTH_PATCH_HCI_FUNC_ID(me_event_report_handler),
-    BTH_PATCH_HCI_FUNC_ID(btif_me_set_accessible_mode),
-    BTH_PATCH_HCI_FUNC_ID(btif_me_save_record_ctx),
-    BTH_PATCH_HCI_FUNC_ID(btif_me_set_record_ctx),
-} bt_patch_hci_func_enum_t;
+    FUNC_ID_hci_handle_fc_on_disconnect = 1,
+    FUNC_ID_hci_handle_conn_event = 2,
+    FUNC_ID_hci_cmd_start_handle = 3,
+    FUNC_ID_hci_rx_handle = 4,
+    FUNC_ID_hci_send_all_pending_host_num_complete = 5,
+    FUNC_ID_hci_rx_num_completed_packet_inc = 6,
+    FUNC_ID_hci_create_cmd_packet_with_priv = 7,
+    FUNC_ID_hci_cmd_wait_complete_timeout = 8,
+    FUNC_ID_hci_free_cmd_packet = 9,
+    FUNC_ID_hci_cmd_end_handle = 10,
+    FUNC_ID_hci_send_pending_cmd_packet = 11,
+    FUNC_ID_hci_impl_send_cmd_packet = 12,
+    FUNC_ID_hci_send_command_with_callback = 13,
+    FUNC_ID_hci_simulate_event = 14,
+    FUNC_ID_hci_send_bt_acl_packet = 15,
+    FUNC_ID_hci_clean_rx_packet = 16,
+    FUNC_ID_hci_clean_tx_packet = 17,
+    FUNC_ID_hci_clean_cmd_packet = 18,
+    FUNC_ID_hci_get_iso_rx_packet = 19,
+    FUNC_ID_hci_send_iso_packet = 20,
+    FUNC_ID_hci_tx_iso_packet_handle = 21,
+    FUNC_ID_hci_tx_iso_ind = 22,
+    FUNC_ID_hci_handle_iso_tx_num_of_complete = 23,
+    FUNC_ID_hci_fc_each_link_has_tx_chance = 24,
+    FUNC_ID_hci_tx_buff_process = 25,
+    FUNC_ID_btm_conn_delete_free = 26,
+    FUNC_ID_btm_conn_add_new = 27,
+    FUNC_ID_btm_chip_init_continue = 28,
+    FUNC_ID_btm_chip_init_continue_noraml_test_mode_switch = 29,
+    FUNC_ID_btm_conn_acl_req = 30,
+    FUNC_ID_btm_conn_sco_req = 31,
+    FUNC_ID_btm_conn_acl_close = 32,
+    FUNC_ID_btm_conn_clear_rfcomm_credit_ignore_tx_flag = 33,
+    FUNC_ID_btm_conn_set_rfcomm_credit_ignore_tx_flag = 34,
+    FUNC_ID_btm_set_audio_default_param = 35,
+    FUNC_ID_btm_ibrt_report_snoop_acl_disconnected = 36,
+    FUNC_ID_btm_save_ctx = 37,
+    FUNC_ID_btm_restore_ctx = 38,
+    FUNC_ID_btm_sync_conn_audio_connected = 39,
+    FUNC_ID_btm_security_link_key_notify = 40,
+    FUNC_ID_btm_security_link_key_req = 41,
+    FUNC_ID_btm_security_authen_complete = 42,
+    FUNC_ID_btm_security_encryption_change = 43,
+    FUNC_ID_btm_security_askfor_authority = 44,
+    FUNC_ID_btm_create_acl_connection_fail_process = 45,
+    FUNC_ID_btm_accept_sync_conn_internal = 46,
+    FUNC_ID_btm_conn_accept_extra_acl_req_check = 47,
+    FUNC_ID_btm_conn_handle_extra_acl_conn_req = 48,
+    FUNC_ID_btm_conn_disconnect_process = 49,
+    FUNC_ID_btm_process_init_state_cmd_cmpl = 50,
+    FUNC_ID_btm_process_cmd_complete_evt = 51,
+    FUNC_ID_btm_get_bdaddr_from_pending_hci_cmd = 52,
+    FUNC_ID_btif_me_reconnect_next_device = 53,
+    FUNC_ID_btif_me_wait_acl_complete = 54,
+    FUNC_ID_btif_me_wait_acl_complete_callback = 55,
+    FUNC_ID_btif_me_event_report = 56,
+    FUNC_ID_btif_me_source_event_report = 57,
+    FUNC_ID_btif_me_is_creating_source_link = 58,
+    FUNC_ID_btif_me_is_accepting_source_link = 59,
+    FUNC_ID_me_event_report_handler = 60,
+    FUNC_ID_btif_me_set_accessible_mode = 61,
+    FUNC_ID_btif_me_save_record_ctx = 62,
+    FUNC_ID_btif_me_set_record_ctx = 63,
+}bt_patch_hci_func_enum_t;
 
+#ifdef BUILD_BTH_ROM
 void btif_me_reconnect_next_device(void);
 bool btif_me_wait_acl_complete(void* remote, void (*cb)(uint8_t device_id, void* remote, bool succ, uint8_t errcode));
 void btif_me_wait_acl_complete_callback(uint8_t device_id, struct bdaddr_t *remote, uint8 event, uint8 errcode);
@@ -110,23 +111,25 @@ uint32_t btif_me_set_record_ctx(uint8_t *ctx_buffer,  uint8_t *addr);
 void btm_conn_delete_free(struct btm_conn_item_t *conn);
 void btm_chip_init_continue(void);
 void btm_chip_init_continue_noraml_test_mode_switch(void);
-int8 btm_conn_acl_req(const struct bdaddr_t *remote_bdaddr);
-int8 btm_sco_connect_req(struct bdaddr_t *remote_bdaddr);
-struct btm_conn_item_t *btm_conn_add_new(const struct bdaddr_t *bdaddr);
+int8 btm_conn_acl_req(struct bdaddr_t *remote_bdaddr);
+int8 btm_conn_sco_req(struct bdaddr_t *remote_bdaddr);
+struct btm_conn_item_t * btm_conn_add_new(struct bdaddr_t *bdaddr);
 int8 btm_conn_acl_close(struct bdaddr_t *bdaddr, uint8 reason);
+void btm_conn_clear_rfcomm_credit_ignore_tx_flag(void);
+void btm_conn_set_rfcomm_credit_ignore_tx_flag(void);
 void btm_set_audio_default_param(uint8 param);
 gaf_media_data_t *hci_get_iso_rx_packet(uint16_t connhdl);
 void btm_ibrt_report_snoop_acl_disconnected(uint8_t device_id, bt_bdaddr_t* remote);
 uint32 btm_save_ctx(struct bdaddr_t *remote, uint8_t *buf, uint32_t buf_len);
 uint32 btm_restore_ctx(struct btm_ctx_input *input, struct btm_ctx_output *output);
-int8 btm_sco_tws_sync_connected(struct bdaddr_t *bdAddr, uint8 codec, uint16 conn_handle);
+int8 btm_sync_conn_audio_connected(struct bdaddr_t *bdAddr, uint8 codec, uint16 conn_handle);
 void btm_security_link_key_notify(struct bdaddr_t *remote, uint8 *linkkey, uint8 key_type);
 void btm_security_link_key_req(struct bdaddr_t *remote);
-bool btm_security_authen_complete(uint8 status, uint16 conn_handle);
+void btm_security_authen_complete(uint8 status, uint16 conn_handle);
 void btm_security_encryption_change(uint8 status, uint16 conn_handle, uint8 encry_en);
 int8 btm_security_askfor_authority(uint8_t device_id, uint16 conn_handle, uint16 psm, struct l2cap_channel *channel);
 int8 btm_create_acl_connection_fail_process(struct btm_conn_item_t *conn, uint8 status, struct bdaddr_t *bdaddr);
-void btm_sco_conn_accept(struct btm_conn_item_t *conn, struct hci_ev_conn_request *param);
+void btm_accept_sync_conn_internal(struct btm_conn_item_t *conn, struct hci_ev_conn_request *param);
 bool btm_conn_accept_extra_acl_req_check(struct bdaddr_t *remote, bool connected);
 void btm_conn_handle_extra_acl_conn_req(struct hci_ev_conn_request *param);
 void btm_conn_disconnect_process(uint16 handle, uint8 status, uint8 reason);
@@ -152,19 +155,17 @@ bt_status_t hci_send_bt_acl_packet(hci_conn_type_t conn_type, uint16_t connhdl_f
 void hci_clean_rx_packet(hci_conn_type_t conn_type, uint16_t connhdl);
 void hci_clean_tx_packet(hci_conn_type_t conn_type, uint16_t connhdl);
 void hci_clean_cmd_packet(uint16_t connhdl);
-#ifdef ISO_BEARER_SUPPORT
 bt_status_t hci_send_iso_packet(struct hci_tx_iso_desc_t *tx_iso_desc);
 bool hci_tx_iso_packet_handle(void);
 bool hci_tx_iso_ind(struct hci_tx_iso_desc_t *tx_iso_desc);
 bool hci_handle_iso_tx_num_of_complete(struct hci_evt_header_t *header);
-#endif
 bool hci_tx_buff_process(void);
 
 typedef void (*btif_me_reconnect_next_device_func_t)(void);
 typedef bool (*btif_me_wait_acl_complete_func_t)(void* remote, void (*cb)(uint8_t device_id, void* remote, bool succ, uint8_t errcode));
 typedef void (*btif_me_wait_acl_complete_callback_func_t)(uint8_t device_id, struct bdaddr_t *remote, uint8 event, uint8 errcode);
 typedef void (*btif_me_event_report_func_t)(me_event_t *event);
-typedef struct btm_conn_item_t* (*btm_conn_add_new_func_t)(const struct bdaddr_t *bdaddr);
+typedef struct btm_conn_item_t* (*btm_conn_add_new_func_t)(struct bdaddr_t *bdaddr);
 typedef void (*btif_me_source_event_report_func_t)(me_event_t *event);
 typedef bool (*btif_me_is_creating_source_link_func_t)(const void *remote_addr);
 typedef bool (*btif_me_is_accepting_source_link_func_t)(const bt_bdaddr_t *remote);
@@ -175,23 +176,23 @@ typedef void (*btm_conn_delete_free_func_t)(struct btm_conn_item_t *conn);
 typedef void (*btm_chip_init_continue_func_t)(void);
 typedef void (*btm_chip_init_continue_noraml_test_mode_switch_func_t)(void);
 typedef int8 (*btm_conn_acl_req_func_t)(struct bdaddr_t *remote_bdaddr);
-typedef int8 (*btm_sco_connect_req_func_t)(struct bdaddr_t *remote_bdaddr);
+typedef int8 (*btm_conn_sco_req_func_t)(struct bdaddr_t *remote_bdaddr);
 typedef int8 (*btm_conn_acl_close_func_t)(struct bdaddr_t *bdaddr, uint8 reason);
+typedef void (*btm_conn_clear_rfcomm_credit_ignore_tx_flag_func_t)(void);
+typedef void (*btm_conn_set_rfcomm_credit_ignore_tx_flag_func_t)(void);
 typedef void (*btm_set_audio_default_param_func_t)(uint8 param);
 typedef gaf_media_data_t* (*hci_get_iso_rx_packet_func_t)(uint16_t connhdl);
 typedef void (*btm_ibrt_report_snoop_acl_disconnected_func_t)(uint8_t device_id, bt_bdaddr_t* remote);
 typedef uint32 (*btm_save_ctx_func_t)(struct bdaddr_t *remote, uint8_t *buf, uint32_t buf_len);
 typedef uint32 (*btm_restore_ctx_func_t)(struct btm_ctx_input *input, struct btm_ctx_output *output);
-typedef int8 (*btm_sco_tws_sync_connected_func_t)(struct bdaddr_t *bdAddr, uint8 codec, uint16 conn_handle);
 typedef int8 (*btm_sync_conn_audio_connected_func_t)(struct bdaddr_t *bdAddr, uint8 codec, uint16 conn_handle);
 typedef void (*btm_security_link_key_notify_func_t)(struct bdaddr_t *remote, uint8 *linkkey, uint8 key_type);
 typedef void (*btm_security_link_key_req_func_t)(struct bdaddr_t *remote);
 typedef struct pp_buff* (*hci_fc_each_link_has_tx_chance_func_t)(hci_conn_type_t conn_type);
-typedef bool (*btm_security_authen_complete_func_t)(uint8 status, uint16 conn_handle);
+typedef void (*btm_security_authen_complete_func_t)(uint8 status, uint16 conn_handle);
 typedef void (*btm_security_encryption_change_func_t)(uint8 status, uint16 conn_handle, uint8 encry_en);
 typedef int8 (*btm_security_askfor_authority_func_t)(uint8_t device_id, uint16 conn_handle, uint16 psm, struct l2cap_channel *channel);
 typedef int8 (*btm_create_acl_connection_fail_process_func_t)(struct btm_conn_item_t *conn, uint8 status, struct bdaddr_t *bdaddr);
-typedef void (*btm_sco_conn_accept_func_t)(struct btm_conn_item_t *conn, struct hci_ev_conn_request *param);
 typedef void (*btm_accept_sync_conn_internal_func_t)(struct btm_conn_item_t *conn, struct hci_ev_conn_request *param);
 typedef bool (*btm_conn_accept_extra_acl_req_check_func_t)(struct bdaddr_t *remote, bool connected);
 typedef void (*btm_conn_handle_extra_acl_conn_req_func_t)(struct hci_ev_conn_request *param);
@@ -217,16 +218,16 @@ typedef bt_status_t (*hci_send_bt_acl_packet_func_t)(hci_conn_type_t conn_type, 
 typedef void (*hci_clean_rx_packet_func_t)(hci_conn_type_t conn_type, uint16_t connhdl);
 typedef void (*hci_clean_tx_packet_func_t)(hci_conn_type_t conn_type, uint16_t connhdl);
 typedef void (*hci_clean_cmd_packet_func_t)(uint16_t connhdl);
-#ifdef ISO_BEARER_SUPPORT
 typedef bt_status_t (*hci_send_iso_packet_func_t)(struct hci_tx_iso_desc_t *tx_iso_desc);
 typedef bool (*hci_tx_iso_packet_handle_func_t)(void);
 typedef bool (*hci_tx_iso_ind_func_t)(struct hci_tx_iso_desc_t *tx_iso_desc);
 typedef bool (*hci_handle_iso_tx_num_of_complete_func_t)(struct hci_evt_header_t *header);
-#endif
 typedef bool (*hci_tx_buff_process_func_t)(void);
+
+#endif /* BUILD_BTH_ROM */
 
 #ifdef __cplusplus
 }
 #endif
-#endif /* BUILD_BTH_ROM */
+#endif /* BLE_STACK_NEW_DESIGN */
 #endif /* __BTH_PATCH_HCI_H__ */

@@ -22,6 +22,32 @@
 #include "plat_addr_map.h"
 #include "hal_location.h"
 
+#ifdef KERNEL_RHINO
+#include "k_api.h"
+extern void vector_reset(void);
+extern void vector_undef(void);
+extern void vector_swi(void);
+extern void vector_pabt(void);
+extern void vector_dabt(void);
+extern void vector_irq(void);
+extern void vector_fiq(void);
+#elif defined(__NuttX__)
+extern void __start(void);
+extern void arm_vectorundefinsn(void);
+extern void arm_vectorsvc(void);
+extern void arm_vectorprefetch(void);
+extern void arm_vectordata(void);
+extern void arm_vectorirq(void);
+extern void arm_vectorfiq(void);
+#elif defined(KERNEL_LITEOS_A)
+extern void reset_vector(void);
+extern void _osExceptUndefInstrHdl(void);
+extern void _osExceptSwiHdl(void);
+extern void _osExceptPrefetchAbortHdl(void);
+extern void _osExceptDataAbortHdl(void);
+extern void OsIrqHandler(void);
+extern void _osExceptFiqHdl(void);
+#else
 extern void Reset_Handler(void);
 extern void Undef_Handler(void);
 extern void SVC_Handler(void);
@@ -29,6 +55,7 @@ extern void PAbt_Handler(void);
 extern void DAbt_Handler(void);
 extern void IRQ_Handler(void);
 extern void FIQ_Handler(void);
+#endif
 
 struct VECTOR_HDLR_T {
     uint32_t reset_hdlr;
@@ -43,10 +70,11 @@ struct VECTOR_HDLR_T {
 
 static struct VECTOR_HDLR_T * const exc_vector = (struct VECTOR_HDLR_T *)(DSP_BOOT_REG + 0x20);
 
-static IRQn_ID_t cur_act_irq = EXCEPTION_NONE;
-static uint32_t cur_irq_level;
-
 static GIC_FAULT_DUMP_HANDLER_T dump_hdlr;
+POSSIBLY_UNUSED static IRQn_ID_t cur_act_irq = EXCEPTION_NONE;
+
+#if !(defined(KERNEL_RHINO) || defined(__NuttX__) || defined(KERNEL_LITEOS_A))
+static uint32_t cur_irq_level;
 
 void c_irq_handler(void)
 {
@@ -143,6 +171,7 @@ void c_fiq_handler(void)
 {
     c_irq_handler();
 }
+#endif
 
 void GIC_DisableAllIRQs(void)
 {
@@ -162,6 +191,33 @@ void GIC_InitVectors(void)
     boot[32] = 0xCAFE0001;
     __DMB();
 
+#ifdef KERNEL_RHINO
+    exc_vector->reset_hdlr = (uint32_t)vector_reset;
+    exc_vector->undef_hdlr = (uint32_t)vector_undef;
+    exc_vector->svc_hdlr = (uint32_t)vector_swi;
+    exc_vector->pabt_hdlr = (uint32_t)vector_pabt;
+    exc_vector->dabt_hdlr = (uint32_t)vector_dabt;
+    exc_vector->irq_hdlr = (uint32_t)vector_irq;
+#if (RHINO_CONFIG_FIQ_AS_NMI > 0)
+    exc_vector->fiq_hdlr = (uint32_t)vector_fiq;
+#endif
+#elif defined(__NuttX__)
+    exc_vector->reset_hdlr = (uint32_t)__start;
+    exc_vector->undef_hdlr = (uint32_t)arm_vectorundefinsn;
+    exc_vector->svc_hdlr = (uint32_t)arm_vectorsvc;
+    exc_vector->pabt_hdlr = (uint32_t)arm_vectorprefetch;
+    exc_vector->dabt_hdlr = (uint32_t)arm_vectordata;
+    exc_vector->irq_hdlr = (uint32_t)arm_vectorirq;
+    exc_vector->fiq_hdlr = (uint32_t)arm_vectorfiq;
+#elif defined(KERNEL_LITEOS_A)
+    exc_vector->reset_hdlr = (uint32_t)reset_vector;
+    exc_vector->undef_hdlr = (uint32_t)_osExceptUndefInstrHdl;
+    exc_vector->svc_hdlr = (uint32_t)_osExceptSwiHdl;
+    exc_vector->pabt_hdlr = (uint32_t)_osExceptPrefetchAbortHdl;
+    exc_vector->dabt_hdlr = (uint32_t)_osExceptDataAbortHdl;
+    exc_vector->irq_hdlr = (uint32_t)OsIrqHandler;
+    exc_vector->fiq_hdlr = (uint32_t)_osExceptFiqHdl;
+#else
     exc_vector->reset_hdlr = (uint32_t)Reset_Handler;
     exc_vector->undef_hdlr = (uint32_t)Undef_Handler;
     exc_vector->svc_hdlr = (uint32_t)SVC_Handler;
@@ -169,7 +225,7 @@ void GIC_InitVectors(void)
     exc_vector->dabt_hdlr = (uint32_t)DAbt_Handler;
     exc_vector->irq_hdlr = (uint32_t)IRQ_Handler;
     exc_vector->fiq_hdlr = (uint32_t)FIQ_Handler;
-
+#endif
     // Lock
     __DMB();
     boot[32] = 0xCAFE0000;
@@ -182,11 +238,51 @@ void GIC_SetFaultDumpHandler(GIC_FAULT_DUMP_HANDLER_T handler)
     dump_hdlr = handler;
 }
 
+#ifdef KERNEL_LITEOS_A
+IRQn_Type NVIC_GetCurrentActiveIRQ(void)
+{
+    return HalCurIrqGet();
+}
+#else
 IRQn_Type IRQ_GetCurrentActiveIRQ(void)
 {
     return cur_act_irq;
 }
 IRQn_Type NVIC_GetCurrentActiveIRQ(void) __attribute__((alias("IRQ_GetCurrentActiveIRQ")));
+#endif
+
+#ifdef KERNEL_RHINO
+static kspinlock_t g_hal_lock;
+static int hal_lock_init = 0;
+
+int hal_spinlock_init(void)
+{
+#if (RHINO_CONFIG_CPU_NUM > 1)
+    krhino_spin_lock_init(&g_hal_lock);
+    hal_lock_init = 1;
+#endif
+    return 0;
+}
+
+uint32_t int_lock(void)
+{
+    uint32_t cpsr;
+
+    cpsr = cpu_intrpt_save();
+    /* krhino_spin_lock(&g_sys_lock); */
+    if (hal_lock_init)
+        krhino_spin_lock(&g_hal_lock);
+    return cpsr;
+}
+
+void int_unlock(uint32_t cpsr)
+{
+    /* krhino_spin_unlock(&g_sys_lock); */
+    if (hal_lock_init)
+        krhino_spin_unlock(&g_hal_lock);
+    cpu_intrpt_restore(cpsr);
+}
+#endif
 
 #endif
 

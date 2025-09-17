@@ -77,7 +77,7 @@
 /***************************************************************************
  *channel assessment config
  ****************************************************************************/
-#define AFH_ASSESS_GAIN  1
+#define AFH_ASSESS_GAIN  2
 
 /***************************************************************************
  *TX power configration
@@ -183,10 +183,10 @@
 /***************************************************************************
  *Fast ack configration
  ****************************************************************************/
-#define FA_RX_WIN_SIZE            (0x8)
-#define FA_CNT_PKT_US             (0x7)
+#define FA_RX_WIN_SIZE            (0xA)
+#define FA_CNT_PKT_US             (0x1F)
 #define FA_RXPWRUP_TIMING         (0x37)
-#define FA_TXPWRUP_TIMING         (0x27)
+#define FA_TXPWRUP_TIMING         (0x28)
 #define FA_BW2M_RXPWRUP_TIMING    (0x2F)
 #define FA_BW2M_TXPWRUP_TIMING    (0x28)
 

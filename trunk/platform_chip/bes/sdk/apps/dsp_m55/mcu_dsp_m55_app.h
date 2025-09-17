@@ -16,12 +16,28 @@
 #ifndef __MCU_DSP_M55_H__
 #define __MCU_DSP_M55_H__
 
+typedef enum  {
+    APP_DSP_M55_USER_INIT               = 0,
+    APP_DSP_M55_USER_A2DP               = 1,
+    APP_DSP_M55_USER_CALL               = 2,
+    APP_DSP_M55_USER_SMF_RPC            = 3,
+    APP_DSP_M55_USER_DMA_AUDIO          = 4,
+    APP_DSP_M55_USER_VOICE_ASSIST       = 5,
+    APP_DSP_M55_USER_LEA_AUDIO          = 6,
+    APP_DSP_M55_USER_AUDIO_TEST         = 7,
+    APP_DSP_M55_USER_AUDIO_DECODER      = 8,
+    APP_DSP_M55_USER_AUDIO_ENCODER      = 9,
+    APP_DSP_M55_USER_QTY
+} APP_DSP_M55_USER_E;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-void app_dsp_m55_init(void);
-void app_dsp_m55_deinit(void);
+void app_dsp_m55_first_init(void);
+void app_dsp_m55_init(APP_DSP_M55_USER_E user);
+void app_dsp_m55_deinit(APP_DSP_M55_USER_E user);
+void app_dsp_m55_force_deinit(void);
+bool app_dsp_m55_is_running(void);
 
 #ifdef __cplusplus
 }

@@ -96,13 +96,13 @@ static int32_t get_sw_gain_new_index(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T 
     int32_t index = 0;
     for (index = 0; index < _USER_QTY; index++) {
         if (!check_sw_gain_ctx_index_used(index)) {
-            AUDIOFLINGER_TRACE(0, "[%s] Alloc new index[%d], id: %d, stream: %d", __func__, index, id, stream);
+            TRACE(0, "[%s] Alloc new index[%d], id: %d, stream: %d", __func__, index, id, stream);
             set_sw_gain_ctx_index(id, stream, index);
             return index;
         }
     }
 
-    AUDIOFLINGER_TRACE(0, "[%s] Can not alloc index, id: %d, stream: %d. You can increase _USER_QTY", __func__, id, stream);
+    TRACE(0, "[%s] Can not alloc index, id: %d, stream: %d. You can increase _USER_QTY", __func__, id, stream);
     return -1;
 
 }
@@ -209,7 +209,7 @@ static void af_stream_sw_gain_iir_process(uint8_t *buf, uint32_t size, enum AUD_
 
     float output_gain=1.0f;
 
-    //AUDIOFLINGER_TRACE(1,"af_stream_sw_gain_iir_process:%d",(int32_t)(saved_output_coef*1000));
+    //TRACE(1,"af_stream_sw_gain_iir_process:%d",(int32_t)(saved_output_coef*1000));
 
     float coefs_b0,coefs_b1,coefs_b2;
     float coefs_a1,coefs_a2;
@@ -229,7 +229,7 @@ static void af_stream_sw_gain_iir_process(uint8_t *buf, uint32_t size, enum AUD_
     history_y0=iir->history_y[0];
     history_y1=iir->history_y[1];
 
-    //AUDIOFLINGER_TRACE(1,"chans:%d,bits:%d,size:%d",chans,bits,size);
+    //TRACE(1,"chans:%d,bits:%d,size:%d",chans,bits,size);
 
     // uint32_t lock;
 
@@ -660,13 +660,12 @@ int32_t af_stream_sw_gain_close(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T strea
 
 void af_stream_sw_gain_set_gain_coef(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T stream, float coef)
 {
-    AUDIOFLINGER_TRACE(0, "[%08d]:volume_level_to_float!", (int32_t)(coef * 10000000));  //vol=2,3,4,5,6
     AF_STREAM_SW_GAIN_CONTEXT_T *sw_gain_ctx = get_sw_gain_ctx(id, stream);
     if (sw_gain_ctx == NULL) {
         return;
     }
 
-    AUDIOFLINGER_TRACE(4, "[%s] id: %d, stream: %d, coef: %08d", __func__, id, stream, (int32_t)(coef * 10000000));
+    TRACE(4, "[%s] id: %d, stream: %d, coef: %08d", __func__, id, stream, (int32_t)(coef * 10000000));
     if (sw_gain_ctx->gain_mode == AUDIO_OUTPUT_SW_GAIN_MODE_IIR) {
         sw_gain_ctx->output_coef = coef;
     } else if (sw_gain_ctx->gain_mode == AUDIO_OUTPUT_SW_GAIN_MODE_LINEAR) {
@@ -677,8 +676,7 @@ void af_stream_sw_gain_set_gain_coef(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T 
 static float volume_level_to_float(uint32_t vol)
 {
     float coef = 0.0;
-    const struct CODEC_DAC_VOL_T *dac_vol = hal_codec_get_dac_volume(vol);
-    int32_t dac_vol_db = dac_vol->sdac_volume;
+    CODEC_DAC_VOL_T dac_vol_db = hal_codec_get_dac_volume(vol);
 
     if (dac_vol_db == ZERODB_DAC_DBVAL) {
         coef = 1.0;
@@ -709,7 +707,7 @@ void af_stream_sw_gain_set_smooth_time(enum AUD_STREAM_ID_T id, enum AUD_STREAM_
     if (sw_gain_ctx->gain_mode == AUDIO_OUTPUT_SW_GAIN_MODE_LINEAR) {
         fade_set_smooth_time(&sw_gain_ctx->gain_linear, time_ms);
     } else {
-        AUDIOFLINGER_TRACE(0, "[%s]:iir mode not support set smooth time!", __func__);
+        TRACE(0, "[%s]:iir mode not support set smooth time!", __func__);
     }
 }
 
@@ -757,6 +755,6 @@ void af_stream_sw_gain_set_second_coef(enum AUD_STREAM_ID_T id, enum AUD_STREAM_
         return;
     }
 
-    AUDIOFLINGER_TRACE(3, "[%s] id: %d, stream: %d, coef: %08d", __func__, id, stream, (int32_t)(coef * 10000000));
+    TRACE(3, "[%s] id: %d, stream: %d, coef: %08d", __func__, id, stream, (int32_t)(coef * 10000000));
     fade_set_new_gain(&sw_gain_ctx->second_gain, coef);
 }

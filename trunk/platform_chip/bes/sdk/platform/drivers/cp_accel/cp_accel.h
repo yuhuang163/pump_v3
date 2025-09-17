@@ -37,8 +37,6 @@ typedef unsigned int (*CP_ACCEL_CP_MAIN)(uint8_t event);
 
 typedef unsigned int (*CP_ACCEL_EVT_HDLR)(uint8_t event);
 
-typedef void (*CP_ACCEL_INIT_DONE_CB)(void);
-
 /// Tasks types definition
 enum CP_TASK_EVENT
 {
@@ -57,6 +55,10 @@ enum CP_TASK_EVENT
 
     CP_EVENT_AOB_CODEC_PROCESSING = 0x0,
 
+    CP_EVENT_WIFI_DRV_PROCESSING = 0x0,
+
+    CP_EVENT_AIOT_SRV_PROCESSING = 0x00,
+
     /// Maximum number of event
     CP_EVENT_MAX = 0x2,
 };
@@ -68,9 +70,7 @@ enum MCU_TASK_EVENT
     MCU_EVENT_HW_UPSTREAM_DATA = 2,
     MCU_EVENT_HW_START_VAD = 3,
     MCU_EVENT_HW_CP_PROCESS_DONE = 4,
-#ifdef GSOUND_HOTWORD_EXTERNAL_M33
-    MCU_EVENT_M33_MANUAL_STOP = 5,
-#endif
+
     MCU_EVENT_MAX,
 };
 
@@ -85,6 +85,8 @@ enum CP_TASK_TYPE
     CP_TASK_POWER_CONSUMPTION_MEASUREMENT = 0x05,
     CP_TASK_A2DP_ENCODE = 0x06,
     CP_TASK_AOB_CODEC = 0x07,
+    CP_TASK_WIFI_DRV = 0x08,
+    CP_TASK_AIOT_SRV = 0x09,
     /// Maximum number of tasks
     CP_TASK_MAX,
 };
@@ -145,8 +147,6 @@ int cp_accel_send_event_mcu2cp(uint8_t event);
 int cp_accel_send_event_cp2mcu(uint8_t event);
 
 int cp_accel_get_cpu_usage(struct CP_ACCEL_CPU_USAGE_T *usage);
-
-void cp_accel_register_init_done_callback(CP_ACCEL_INIT_DONE_CB callback);
 
 #ifdef __cplusplus
 }

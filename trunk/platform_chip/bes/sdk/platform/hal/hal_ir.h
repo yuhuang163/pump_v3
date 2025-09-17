@@ -21,15 +21,6 @@
 extern "C" {
 #endif
 
-enum HAL_IR_TX_CLK_DUTY_T {
-    HAL_IR_TX_CLK_DUTY_1_1 = 0,
-    HAL_IR_TX_CLK_DUTY_1_2,
-    HAL_IR_TX_CLK_DUTY_1_3,
-    HAL_IR_TX_CLK_DUTY_1_4,
-    HAL_IR_TX_CLK_DUTY_1_5,
-    HAL_IR_TX_CLK_DUTY_1_6,
-};
-
 enum HAL_IR_RX_DEFAULT_LEVEL_T {
     HAL_IR_RX_DEFAULT_LEVEL_LOW = 0,
     HAL_IR_RX_DEFAULT_LEVEL_HIGH,
@@ -62,7 +53,7 @@ typedef void (*HAL_IR_INT_HANDLER_T)(const uint8_t *buf, uint32_t len, bool rxtx
 
 struct HAL_IR_CFG_T {
     uint32_t tx_clk;
-    enum HAL_IR_TX_CLK_DUTY_T tx_clk_duty;
+    uint8_t tx_clk_duty; // (0,100)
     uint32_t rx_clk;
     uint16_t rec_period_single;
     uint16_t rec_duty_single;

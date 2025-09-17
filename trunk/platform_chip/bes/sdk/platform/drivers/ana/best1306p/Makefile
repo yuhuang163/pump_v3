@@ -7,7 +7,11 @@ obj-y := $(obj-y:.S=.o)
 
 subdir-ccflags-y += -Iutils/hwtimer_list
 
+ifeq ($(PSRAM_ENABLE),1)
+VCODEC_VOLT ?= 1.8V
+else
 VCODEC_VOLT ?= 1.7V
+endif
 ifneq ($(filter-out 1.4V 1.45V 1.5V 1.55V 1.6V 1.65V 1.7V 1.75V 1.8V 1.9V,$(VCODEC_VOLT)),)
 $(error Invalid VCODEC_VOLT=$(VCODEC_VOLT))
 endif
@@ -22,7 +26,7 @@ $(error Incompatible VCODEC_VOLT=$(VCODEC_VOLT) with VHPPA_VOLT=$(VHPPA_VOLT))
 endif
 endif
 
-ifneq (PSRAM_SPEED,)
+ifneq ($(PSRAM_SPEED),)
 PMU_CFG_FLAGS += -DPSRAM_SPEED=$(PSRAM_SPEED)
 endif
 
@@ -36,10 +40,6 @@ endif
 
 ifeq ($(PMU_REG_DUMP),1)
 PMU_CFG_FLAGS += -DPMU_REG_DUMP
-endif
-
-ifeq ($(BT_RCOSC_CAL),1)
-PMU_CFG_FLAGS += -DBT_RCOSC_CAL
 endif
 
 VHPPA_VOLT ?= 1.7V
@@ -157,10 +157,6 @@ ifeq ($(FORCE_VIO_1P8V),1)
 PMU_CFG_FLAGS += -DFORCE_VIO_1P8V
 endif
 
-ifneq ($(DEBUG_PORT),)
-CHARGER_CFG_FLAGS += -DDEBUG_PORT=$(DEBUG_PORT)
-endif
-
 ifeq ($(RC_FAST_WAKEUP),1)
 PMU_CFG_FLAGS += -DRC_FAST_WAKEUP
 endif
@@ -190,10 +186,6 @@ ifeq ($(ANALOG_XTAL_ALWAYS_ON),1)
 PMU_CFG_FLAGS += -DANALOG_XTAL_ALWAYS_ON
 endif
 
-ifeq ($(OSC_26M_X8_AUD2BB),1)
-PMU_CFG_FLAGS += -DOSC_26M_X8_AUD2BB
-endif
-
 ifeq ($(ACIN_PATTERN_DISABLE),1)
 PMU_CFG_FLAGS += -DACIN_PATTERN_DISABLE
 CHARGER_CFG_FLAGS += -DACIN_PATTERN_DISABLE
@@ -216,6 +208,10 @@ endif
 
 ifeq ($(PMU_SHUTDOWN_VIA_SHIPMODE),1)
 CHARGER_CFG_FLAGS += -DPMU_SHUTDOWN_VIA_SHIPMODE
+endif
+
+ifeq ($(CHARGER_TEST),1)
+CHARGER_CFG_FLAGS += -DCHARGER_TEST
 endif
 
 CFLAGS_pmu_$(CHIP).o += $(PMU_CFG_FLAGS)

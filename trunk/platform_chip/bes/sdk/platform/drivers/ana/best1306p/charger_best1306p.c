@@ -167,8 +167,10 @@ static uint32_t i2cif_reg_read(uint8_t addr, uint16_t *val)
         do {
             ret = hal_i2c_simple_recv(CHARGER_1622_I2C_ID, CHARGER_1622_I2C_DEV_ADDR, buf, 1, &buf[1], 2);
             if (ret) {
+                TRACE(0, "##### %s: error! ret=0x%x addr=0x%x retry_cnt=%d", __func__, ret, addr, retry_cnt);
+                hal_i2c_close(CHARGER_1622_I2C_ID);
+                hal_i2c_open(CHARGER_1622_I2C_ID, &i2c_cfg);
                 retry_cnt++;
-                DRIVERS_TRACE(0, "##### %s: error! ret=0x%x addr=0x%x retry_cnt=%d", __func__, ret, addr, retry_cnt);
             }
         } while (retry_cnt < CHARGER_I2C_RETRY_CNT && ret);
 
@@ -195,28 +197,35 @@ static uint32_t i2cif_reg_write(uint8_t addr, uint16_t val)
     do {
         ret = hal_i2c_simple_send(CHARGER_1622_I2C_ID, CHARGER_1622_I2C_DEV_ADDR, buf, 3);
         if (ret) {
+            TRACE(0, "##### %s: error! ret=0x%x addr=0x%x retry_cnt=%d", __func__, ret, addr, retry_cnt);
+            hal_i2c_close(CHARGER_1622_I2C_ID);
+            hal_i2c_open(CHARGER_1622_I2C_ID, &i2c_cfg);
             retry_cnt++;
-            DRIVERS_TRACE(0, "##### %s: error! ret=0x%x addr=0x%x retry_cnt=%d", __func__, ret, addr, retry_cnt);
         }
     } while (retry_cnt < CHARGER_I2C_RETRY_CNT && ret);
 
     return ret;
 }
 
+#ifdef CHARGER_TEST
+uint32_t charger_reg_read(uint8_t addr, uint16_t *val)
+{
+    return i2cif_reg_read(addr, val);
+}
+
+uint32_t charger_reg_write(uint8_t addr, uint16_t val)
+{
+    return i2cif_reg_write(addr, val);
+}
+#endif
+
 static void charger_1622_bus_init(void)
 {
     uint32_t ret;
-    uint16_t val;
 
     ret = hal_i2c_open(CHARGER_1622_I2C_ID, &i2c_cfg);
     if (ret) {
-        DRIVERS_TRACE(0, "##### %s: fail, ret=%u", __func__, ret);
-    } else {
-        i2cif_reg_read(CHG_REG_2B, &val);
-        val = GET_BITFIELD(val, CHIP_ADDR_I2C);
-        if (val != CHARGER_1622_I2C_DEV_ADDR) {
-            DRIVERS_TRACE(0, "##### %s: Read chip id fail! val=0x%x", __func__, val);
-        }
+        TRACE(0, "##### %s: fail, ret=%u", __func__, ret);
     }
 }
 
@@ -226,7 +235,7 @@ static void charger_1622_bus_deinit(void)
 
     ret = hal_i2c_close(CHARGER_1622_I2C_ID);
     if (ret) {
-        DRIVERS_TRACE(0, "##### %s: fail, ret=%u", __func__, ret);
+        TRACE(0, "##### %s: fail, ret=%u", __func__, ret);
     }
 }
 
@@ -244,7 +253,7 @@ static void charger_1620_bus_init(void)
         hal_gpio_pin_set_dir((enum HAL_GPIO_PIN_T)pin_map[0].pin, HAL_GPIO_DIR_OUT, 0);
         hal_gpio_pin_set_dir((enum HAL_GPIO_PIN_T)pin_map[1].pin, HAL_GPIO_DIR_IN, 0);
     } else {
-        DRIVERS_TRACE(0, "%s: ###Warning: No define CHARGER_1620_PIN_INDEX ?", __func__);
+        TRACE(0, "%s: ###Warning: No define CHARGER_1620_PIN_INDEX ?", __func__);
     }
 }
 
@@ -385,7 +394,7 @@ static void charger_sys_ctrl_enable(bool shipmode)
     uint16_t val;
     int i;
 
-    DRIVERS_TRACE_IMM(0, "Start charger %s", shipmode ? "shipmode" : "reboot");
+    TRACE_IMM(0, "Start charger %s", shipmode ? "shipmode" : "reboot");
 
     if (shipmode) {
         if (chg_type == CHARGER_CHIP_TYPE_1622) {
@@ -395,7 +404,7 @@ static void charger_sys_ctrl_enable(bool shipmode)
                 i2cif_reg_write(CHG_REG_24, val);
                 hal_sys_timer_delay(MS_TO_TICKS(5));
             }
-            DRIVERS_TRACE_IMM(0, "%s: Fail!", __func__);
+            TRACE_IMM(0, "%s: Fail!", __func__);
         }
         pmu_shutdown();
     } else {
@@ -406,7 +415,7 @@ static void charger_sys_ctrl_enable(bool shipmode)
                 i2cif_reg_write(CHG_REG_21, val);
                 hal_sys_timer_delay(MS_TO_TICKS(5));
             }
-            DRIVERS_TRACE_IMM(0, "%s: Fail!", __func__);
+            TRACE_IMM(0, "%s: Fail!", __func__);
         }
         pmu_wdt_reboot();
     }
@@ -498,7 +507,7 @@ static void charger_load_efuse_calib(void)
         }
     }
 
-    DRIVERS_TRACE(0, "%s: efuse_page_0/1=0x%x/0x%x, load_efuse=%d", __func__, efuse_val, efuse_val_1, load_efuse);
+    TRACE(0, "%s: efuse_page_0/1=0x%x/0x%x, load_efuse=%d", __func__, efuse_val, efuse_val_1, load_efuse);
 
     // Resume
     i2cif_reg_write(CHG_REG_01, val_01);
@@ -524,21 +533,21 @@ static void charger_load_efuse_calib(void)
         val = SET_BITFIELD(val, BG_TRIM, tmp_val);
         i2cif_reg_write(CHG_REG_0E, val);
         hal_sys_timer_delay_us(CHARGER_BANDGAP_STABLE_TIME_US);
-        DRIVERS_TRACE(0, "bg_cal_v3: bg_trim=0x%x", tmp_val);
+        TRACE(0, "bg_cal_v3: bg_trim=0x%x", tmp_val);
 
         // Load CC calib value
         tmp_val = GET_BITFIELD(efuse_val, CHARGE_EFUSE_NEW_TRIM_CC);
         i2cif_reg_read(CHG_REG_0B, &val);
         val = SET_BITFIELD(val, REG_CHARGER_TRIM_CC, tmp_val);
         i2cif_reg_write(CHG_REG_0B, val);
-        DRIVERS_TRACE(0, "cc_cal_v3: trim_cc=0x%x", tmp_val);
+        TRACE(0, "cc_cal_v3: trim_cc=0x%x", tmp_val);
 
         // Load CV calib value
         tmp_val = (GET_BITFIELD(efuse_val, CHARGE_EFUSE_NEW_TRIM_VOREG) << 1) | (1 << 0);
         i2cif_reg_read(CHG_REG_0A, &val);
         val = SET_BITFIELD(val, CHARGER_TRIM_VOREG, tmp_val);
         i2cif_reg_write(CHG_REG_0A, val);
-        DRIVERS_TRACE(0, "cv_cal_v3: trim_voreg=0x%x", tmp_val);
+        TRACE(0, "cv_cal_v3: trim_voreg=0x%x", tmp_val);
 
         // Load IPRE calib value
         tmp_val = GET_BITFIELD(efuse_val, CHARGE_EFUSE_NEW_IPRE_TRIM_COMP);
@@ -549,7 +558,7 @@ static void charger_load_efuse_calib(void)
         }
         val = SET_BITFIELD(val, CHARGER_TRIM_PRE, tmp_val);
         i2cif_reg_write(CHG_REG_0A, val);
-        DRIVERS_TRACE(0, "ipre_cal_v3: trim_pre=0x%x", tmp_val);
+        TRACE(0, "ipre_cal_v3: trim_pre=0x%x", tmp_val);
 
         // Load VBAT_OCP calib value
         // Load bat_cl_ibit[2:0]
@@ -570,7 +579,7 @@ static void charger_load_efuse_calib(void)
             cl_vos_org = 0x3 + tmp_val;
         }
         charger_set_vbat_oc(bat_cl_org, cl_vos_org);
-        DRIVERS_TRACE(0, "ocp_cal_v3: bat_cl_org=0x%x, cl_vos_org=0x%x", bat_cl_org, cl_vos_org);
+        TRACE(0, "ocp_cal_v3: bat_cl_org=0x%x, cl_vos_org=0x%x", bat_cl_org, cl_vos_org);
     }
 
     charger_charge_enable();
@@ -982,7 +991,7 @@ int charger_charge_forward_enable(void)
 
     i2cif_reg_read(CHG_REG_06, &val);
     val &= ~(REG_PP_CV_MODE_EN | REG_PP_VIN_DPM_EN);
-    val |= REG_PP_CV_MODE_EN_DR | REG_PP_VIN_DPM_EN_DR | REG_PP_VIN_FR_EN;
+    val |= REG_PP_CV_MODE_EN_DR | REG_PP_VIN_DPM_EN_DR;
     i2cif_reg_write(CHG_REG_06, val);
 
     return CHARGER_RET_OK;
@@ -1002,7 +1011,7 @@ int charger_charge_forward_disable(void)
 
     i2cif_reg_read(CHG_REG_06, &val);
     val &= ~(REG_PP_CV_MODE_EN | REG_PP_VIN_DPM_EN);
-    val &= ~(REG_PP_CV_MODE_EN_DR | REG_PP_VIN_DPM_EN_DR | REG_PP_VIN_FR_EN);
+    val &= ~(REG_PP_CV_MODE_EN_DR | REG_PP_VIN_DPM_EN_DR);
     i2cif_reg_write(CHG_REG_06, val);
 
     return CHARGER_RET_OK;
@@ -1111,7 +1120,7 @@ int charger_charge_open(void)
 
             i2cif_reg_read(CHG_REG_21, &val);
             if (val & REG_LPO_ON) {
-                DRIVERS_TRACE(0, "%s: Invalid status!", __func__);
+                TRACE(0, "%s: Invalid status!", __func__);
             }
 
 #ifdef NO_METAL_ID_0
@@ -1146,10 +1155,14 @@ int charger_charge_open(void)
                 }
                 charger_acin2vsys_limit_current_set(CHARGER_ACIN2VSYS_LIMIT_CURRENT_300MA);
             }
+
+            i2cif_reg_read(CHG_REG_06, &val);
+            val |= REG_PP_VIN_FR_EN;
+            i2cif_reg_write(CHG_REG_06, val);
         }
         first_open = false;
         charger_opened = true;
-        DRIVERS_TRACE(0, "%s: chg_type=%d, chg_metal_id=%d", __func__, chg_type, chg_metal_id);
+        TRACE(0, "%s: chg_type=%d, chg_metal_id=%d", __func__, chg_type, chg_metal_id);
     }
 
     if (chg_type == CHARGER_CHIP_TYPE_NONE) {

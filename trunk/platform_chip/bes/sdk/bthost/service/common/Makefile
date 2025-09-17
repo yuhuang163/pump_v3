@@ -3,16 +3,11 @@ cur_dir := $(dir $(lastword $(MAKEFILE_LIST)))
 
 obj_s := $(patsubst $(cur_dir)%,%,$(wildcard $(cur_dir)*.S))
 obj_c := $(patsubst $(cur_dir)%,%,$(wildcard $(cur_dir)*.c))
-obj_c += $(patsubst $(cur_dir)%,%,$(wildcard $(cur_dir)/custom_cfg/*.c))
 obj_cpp := $(patsubst $(cur_dir)%,%,$(wildcard $(cur_dir)*.cpp))
 
 obj-y := $(obj_c:.c=.o) $(obj_s:.S=.o) $(obj_cpp:.cpp=.o)
 
-SERVICE_COMMON_LIB_NAME := libservice_common
-
-$(SERVICE_COMMON_LIB_NAME)-y := $(obj-y)
-
-obj-y :=  $(SERVICE_COMMON_LIB_NAME).a
+AAC_INCLUDES = -Imultimedia/inc/
 
 ifeq ($(AUDIO_TRIGGER_VER),1)
 ccflags-y +=   \
@@ -22,9 +17,8 @@ endif
 ccflags-y += -DBLUETOOTH_BT_IMPL
 
 ccflags-y += \
-	-I$(BT_ROM_PORTING_PATH) \
-	$(NEAR_STACK_INCLUDES) \
-	$(SMF_DEFINES) \
+    -I$(BT_ROM_PORTING_PATH) \
+	$(AAC_INCLUDES) \
 	-Iinclude/cmsis_dsp \
 	-Iservices/voice_dev \
 	-Iservices/audio_bt \
@@ -33,33 +27,19 @@ ccflags-y += \
 	-Iservices/hw_dsp/inc \
 	$(BLUETOOTH_ADAPTER_INCLUDES) \
 	$(BES_BT_IMPL_INCLUDES) \
-	$(BT_SERVICE_UX_INCLUDES) \
-	-I$(BLE_APP_DIR_PATH)/inc \
-	-Ibthost/stack/common \
-	-Ibthost/porting/api \
 	-Imultimedia/inc/speech/inc \
-	-Iservices/multimedia/speech/inc \
 	-Iservices/bone_sensor \
 	-Iservices/overlay \
-	-Iservices/gfps/inc \
 	-Ithirdparty/tile/tile_common/tile_storage \
 	-Iservices/resources \
 	-Iservices/bes_bth/bt/bt_if/inc \
 	-Imultimedia/inc/rbcodec \
-	-Imultimedia/inc/audio/codec/sbc/inc \
 	-Imultimedia/inc/audio/process/resample/include \
 	-Imultimedia/inc/audio/process/filters/include \
 	-Imultimedia/inc/audio/process/drc/include \
 	-Imultimedia/inc/audio/process/anc/include\
 	-Imultimedia/inc/audio/process/sidetone/include\
 	-Imultimedia/inc/audio/process/adj_mc/inc\
-	-Iservices/multimedia/rbcodec \
-	-Iservices/multimedia/audio/process/resample/include \
-	-Iservices/multimedia/audio/process/filters/include \
-	-Iservices/multimedia/audio/process/drc/include \
-	-Iservices/multimedia/audio/process/anc/include\
-	-Iservices/multimedia/audio/process/sidetone/include\
-	-Iservices/multimedia/audio/process/adj_mc/inc\
 	-Iservices/nv_section/aud_section \
 	-Iservices/app_debug_info_system/inc \
 	-Iservices/lea_player/inc \
@@ -69,9 +49,6 @@ ccflags-y += \
 	-Iservices/voicepath/gsound/gsound_target \
 	-Iservices/voicepath/gsound/gsound_custom/inc \
 	-Iservices/voicepath/gsound/gsound_target_api_read_only \
-	-Iservices/ai_voice/protocol/gva/gsound_target \
-	-Iservices/ai_voice/protocol/gva/gsound_custom/inc \
-	-Iservices/ai_voice/protocol/gva/gsound_target_api_read_only \
 	-Iplatform/drivers/uarthci \
 	-Iplatform/drivers/ana \
 	-Iplatform/cmsis \
@@ -79,7 +56,7 @@ ccflags-y += \
 	-Iutils \
 	-Iutils/cqueue \
 	-Iutils/heap \
-	-Iutils/crc \
+	-Iutils/crc16 \
 	-Iservices/audioflinger \
 	-Iutils/lockcqueue \
 	-Iutils/intersyshci \
@@ -91,7 +68,6 @@ ccflags-y += \
 	-Iapps/audioplayers \
 	-Iapps/audioplayers/a2dp_decoder \
 	-Iapps/battery \
-	-Iapps/btapp/bt_app/ \
 	-Iapps/factory \
 	-Iapps/voice_assist/inc \
 	-Iutils/hwtimer_list \
@@ -101,26 +77,20 @@ ccflags-y += \
 	-Iservices/ai_voice/manager \
 	-Iservices/ai_voice/audio \
 	-Iservices/ai_voice/transport \
-	-Iservices/aiot/coex \
 	-Iservices/app_ai/inc \
 	-Iservices/interconnection/red \
 	-Iservices/interconnection/green \
 	-Iservices/interconnection/umm_malloc \
-	-Iservices/custom_api \
+	-Iservices/ux/common/ibrt/custom_api \
 	-Ithirdparty/tile/tile_target \
 	-Iservices/osif \
-	-Iutils/list \
-	-Iutils/string \
-	-Iservices/ai_voice/protocol/bixbyvoice \
-	-Iservices/ai_voice/protocol/bixbyvoice/bixbyvoice_manager \
-	-Iservices/audio_manager \
-	-Iservices/audio_manager/audio_policy/local_audio \
-	-Iservices/bt_watch_service/inc \
-	-Iapps/earbuds/conn \
-	-Iservices/ble_stack/profiles/gfps/api \
-	-Iservices/btservice/module/bt/if \
-	-I./services/btservice/module/common/if \
-	-Iservices/btservice/framework/product/earbuds/earbuds_ui/inc
+	-Iservices/ux/common/ibrt/ibrt_middleware/inc \
+    -Iutils/list \
+    -Iutils/string \
+    -Iservices/ai_voice/protocol/bixbyvoice \
+    -Iservices/ai_voice/protocol/bixbyvoice/bixbyvoice_manager \
+    -Iservices/audio_manager \
+    -Iservices/bt_service/inc
 
 ifeq ($(GATT_OVER_BR_EDR),1)
 ccflags-y += -Iservices/ble_stack/hl/src/l2c/l2cm
@@ -133,13 +103,11 @@ ccflags-y += \
 endif
 
 ifeq ($(BTUSB_AUDIO_MODE),1)
-ccflags-y += -Iapps/btusbaudio \
-	-Iapps/usbaudio/bt_usb_audio
+ccflags-y += -Iapps/usbaudio/bt_usb_audio
 endif
 
 ifeq ($(BT_USB_AUDIO_DUAL_MODE),1)
-ccflags-y += -Iapps/btusbaudio \
-	-Iapps/usbaudio/bt_usb_audio
+ccflags-y += -Iapps/usbaudio/bt_usb_audio
 ccflags-y += $(BLUETOOTH_ADAPTER_INCLUDES)
 endif
 
@@ -170,9 +138,23 @@ ifeq ($(TEST_OVER_THE_AIR_v2),1)
 ccflags-y += -Iservices/tota_v2
 endif
 
+ifeq ($(IBRT),1)
+ifeq ($(IBRT_UI),1)
+ccflags-y += \
+    -Iservices/ux/common/ibrt/app_ibrt/inc \
+    -Iservices/ux/common/ibrt/ibrt_core/inc \
+	-Iservices/ux/product/earbud_tws/inc
+endif
+ifeq ($(IBRT_UI),1)
+subdir-ccflags-y += \
+    -Iservices/ux/common/ibrt/ibrt_ui/inc \
+    -Iapps/earbuds/conn
+endif
+endif
+
 ifeq ($(ANC_ASSIST_ENABLED),1)
 subdir-ccflags-y += \
-	-Iapps/voice_assist/inc
+	-Iapps/anc_assist/inc
 endif
 
 ifeq ($(SW_IIR_PROMPT_EQ_PROCESS),1)
@@ -328,11 +310,11 @@ ifneq ($(filter 8000 16000,$(SPEECH_VQE_FIXED_SAMPLE_RATE)),)
 CFLAGS_app_bt_stream.o += -DSPEECH_VQE_FIXED_SAMPLE_RATE=$(SPEECH_VQE_FIXED_SAMPLE_RATE)
 endif
 
-ifeq ($(AUDIO_PROMPT_USE_DAC2ORDAC3_ENABLED),1)
-CFLAGS_app_bt_media_manager.o += -DAUDIO_PROMPT_USE_DAC2ORDAC3_ENABLED
-CFLAGS_app_bt_stream.o += -DAUDIO_PROMPT_USE_DAC2ORDAC3_ENABLED
-CFLAGS_app_media_player.o += -DAUDIO_PROMPT_USE_DAC2ORDAC3_ENABLED
-CFLAGS_audio_policy.o += -DAUDIO_PROMPT_USE_DAC2ORDAC3_ENABLED
+ifeq ($(AUDIO_PROMPT_USE_DAC2_ENABLED),1)
+CFLAGS_app_bt_media_manager.o += -DAUDIO_PROMPT_USE_DAC2_ENABLED
+CFLAGS_app_bt_stream.o += -DAUDIO_PROMPT_USE_DAC2_ENABLED
+CFLAGS_app_media_player.o += -DAUDIO_PROMPT_USE_DAC2_ENABLED
+CFLAGS_audio_policy.o += -DAUDIO_PROMPT_USE_DAC2_ENABLED
 endif
 
 ifeq ($(ENABLE_CALCU_CPU_FREQ_LOG),1)
@@ -395,28 +377,7 @@ CFLAGS_app_bt_stream.o += -DSPEECH_ALGO_DSP
 ccflags-y += -Iapps/speech_algo_dsp
 endif
 
-ifeq ($(LOCAL_AUDIO_SUPPORT),1)
-ccflags-y += -Iservices/audio_manager
-endif
-
 ifeq ($(GFPS_ENABLE),1)
 subdir-ccflags-y += \
     -Iservices/gfps/inc
-endif
-
-ifeq ($(WATCH_AI_ENABLED), 1)
-subdir-ccflags-y += -Iservices/watch_ai/manager
-endif
-
-ifeq ($(FINDMY_ENABLE),1)
-ccflags-y += -Ithirdparty/ios-find-my/inc \
-             -Iutils/kfifo
-endif
-
-ifeq ($(IOS_IAP2_BLUETOOTH),1)
-subdir-ccflags-y += -Iservices/btservice/iap2/features/accessory_authen \
-             -Iservices/btservice/iap2/features/accessory_ident \
-             -Iservices/btservice/iap2/features/external_accessory_protocol \
-             -Iservices/btservice/iap2/protocol/adapter \
-             -Iservices/btservice/iap2/transport
 endif

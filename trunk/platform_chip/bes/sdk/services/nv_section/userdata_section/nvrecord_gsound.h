@@ -29,10 +29,9 @@ extern "C"{
 #define F_4K_ALIGN(val) (((val)+0xFFF)&~0xFFF)
 #define IS_F_4K_ALIGNED(val) (val==(val&~0xFFF))
 
-#define INVALID_MODEL_NUM           0xFF          //!< used to distinguish from 0 when first time bootup
-#define DEFAULT_MODEL_NUM           2             //!< number of default supported hotword model
-#define EN_HOTWORD_MODEL_ID         "200Q"        //!< default model ID, provided by Google
-#define UNIVERSAL_HOTWORD_MODEL_ID  "200M"        //!< default model ID, provided by Google
+#define INVALID_MODEL_NUM 0xFF          //!< used to distinguish from 0 when first time bootup
+#define DEFAULT_MODEL_NUM 1             //!< number of default supported hotword model
+#define DEFAULT_HOTWORD_MODEL_ID "200Q" //!< default model ID, provided by Google
 
 /******************************type defination******************************/
 

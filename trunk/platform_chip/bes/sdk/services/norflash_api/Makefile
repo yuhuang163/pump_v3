@@ -13,8 +13,7 @@ endif
 ccflags-y += \
     -Iplatform/hal \
     -Iplatform/drivers/ana \
-    -Iutils/heap \
-    -Iinclude/watchdog
+    -Iutils/heap
 
 ifeq ($(FLASH_SUSPEND),1)
 CFLAGS_norflash_api.o += -DFLASH_SUSPEND
@@ -68,6 +67,10 @@ ifeq ($(FLASH_SECURITY_REGISTER),1)
 CFLAGS_norflash_api.o += -DFLASH_SECURITY_REGISTER
 endif
 
+ifeq ($(NO_FLASH1_ADDR_ACCESS),1)
+CFLAGS_norflash_api.o += -DNO_FLASH1_ADDR_ACCESS
+endif
+
 ifeq ($(FLASH_GD256M_SR_WHIT_CMP),1)
 CFLAGS_norflash_api.o += -DFLASH_GD256M_SR_WHIT_CMP
 endif
@@ -76,11 +79,3 @@ ifeq ($(NORFLASH_API_FLUSH_IN_SLEEP_HOOK),1)
 CFLAGS_norflash_api.o += -DNORFLASH_API_FLUSH_IN_SLEEP_HOOK
 endif
 
-ifneq ($(FLASH0_MAX_SIZE_MB),)
-CFLAGS_norflash_api.o += -DFLASH0_MAX_SIZE_MB=$(FLASH0_MAX_SIZE_MB)
-endif
-
-
-ifeq ($(ARM_CMNS),1)
-ccflags-y += -Iservices/ota/cmse
-endif

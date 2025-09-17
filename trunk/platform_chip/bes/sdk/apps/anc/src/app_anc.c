@@ -34,7 +34,6 @@
 #include "app_anc_assist.h"
 #include "app_status_ind.h"
 #include "hal_aud.h"
-#include "anc_assist_tws_sync.h"
 #ifdef VOICE_DETECTOR_EN
 #include "app_voice_detector.h"
 #endif
@@ -47,16 +46,8 @@
 #endif
 #endif
 
-#if defined(VOICE_ASSIST_FF_FIR_LMS)
-#include "app_voice_assist_fir_lms.h"
-#endif
-
-#if defined(VOICE_ASSIST_FF_IIR_LMS)
-#include "app_voice_assist_iir_lms.h"
-#endif
-
-#if defined(VOICE_ASSIST_ADA_IIR)
-#include "app_voice_assist_ada_iir.h"
+#if defined(PSAP_SW_APP)
+#include "psap_sw_app.h"
 #endif
 
 // #define ANC_BLOCK_ANC_SYNC_SWITCH_CMD
@@ -90,11 +81,23 @@ static app_anc_mode_t g_app_anc_mode = APP_ANC_MODE_OFF;
 static enum AUD_SAMPRATE_T g_sample_rate_series = AUD_SAMPRATE_NULL;
 
 const WEAK anc_process_cfg anc_cfg = {
+    .using_tt_as_ff_en = false,
+
     .howling_check_cfg = {
         .howling_recover_time = 5000,  //ms
         .howling_interval_time = 400,  //ms
 
         .howling_set_gain_level = 0,    //0:-3dB  1:-6dB  2:-9dB  3:mute
+    },
+
+    .bf_cfg = {
+        .enable = 0,                   // 0:disable beamforming by default    1:enable.
+        .tt_delay_flag = 0,            // 0:don't need set delay              1:set delay
+        .tt_delay_num = 4,             // range: 1~15, delay point on ANC sample rate.
+        .tt_pdu_mix_flag = 1,          // 1:mix to ff before iir              0:not mix.
+        .tt_pdu_off_flag = 1,          // 1:disconnect tt channel after iir   0:connect.
+        .anc_ff_calib_gain = (1<<12),  // the gain is before iir.
+        .anc_tt_calib_gain = (1<<12),  // the gain is before iir.
     },
 };
 
@@ -108,16 +111,22 @@ static bool g_event_processing_flag = false;
 static struct anc_event_msg_t g_event_msg_list[ANC_EVENT_QTY];
 #endif
 
-#define ANC_THREAD_STACK_SIZE   (1024 * 1)
+#define ANC_THREAD_STACK_SIZE   (1024 * 2)
 static osThreadId anc_thread_tid;
 static void anc_thread(void const *argument);
 osThreadDef(anc_thread, osPriorityNormal, 1, ANC_THREAD_STACK_SIZE, "app_anc");
-static void anc_sample_rate_change(enum AUD_STREAM_T stream, enum AUD_SAMPRATE_T rate, enum AUD_SAMPRATE_T *new_play, enum AUD_SAMPRATE_T *new_cap);
 
 #define ANC_MAILBOX_MAX (20)
 osMailQDef (anc_mailbox, ANC_MAILBOX_MAX, ANC_MESSAGE_T);
 static osMailQId anc_mailbox = NULL;
 static uint8_t anc_mailbox_cnt = 0;
+
+#if defined(AUDIO_EQ_MC)
+#include "iir_process.h"
+extern IIR_CFG_T audio_eq_mc_cfg;
+extern IIR_CFG_T audio_eq_mc_bypass_cfg;
+extern uint32_t bt_audio_set_eq_mc_cfg(IIR_CFG_T *iir_cfg);
+#endif
 
 static void anc_mailbox_init(void)
 {
@@ -159,10 +168,10 @@ static int32_t anc_mailbox_free_cnt(uint32_t cnt)
         evt = osMailGet(anc_mailbox, 0);
         if (evt.status == osEventMail) {
             msg_p = (ANC_MESSAGE_T *)evt.value.p;
-            ANC_TRACE(3, "[%s] id: %d, param: %d", __func__, msg_p->id, msg_p->param0);
+            TRACE(3, "[%s] id: %d, param: %d", __func__, msg_p->id, msg_p->param0);
             status = anc_mailbox_free(msg_p);
         } else {
-            ANC_TRACE(2, "[%s]: get mailbox failed: %d", __func__, evt.status);
+            TRACE(2, "[%s]: get mailbox failed: %d", __func__, evt.status);
         }
    }
 
@@ -178,7 +187,7 @@ static int32_t anc_mailbox_put(ANC_MESSAGE_T *msg)
     msg_new = (ANC_MESSAGE_T*)osMailAlloc(anc_mailbox, 0);
 
     if (msg_new == NULL) {
-        ANC_TRACE(0, "[%s] cnt: %d, Free some message...", __func__, anc_mailbox_cnt);
+        TRACE(0, "[%s] cnt: %d, Free some message...", __func__, anc_mailbox_cnt);
         anc_mailbox_free_cnt(anc_mailbox_cnt/2);
         msg_new = (ANC_MESSAGE_T*)osMailAlloc(anc_mailbox, 0);
         ASSERT(msg_new, "app_anc: osMailCAlloc fail");
@@ -190,7 +199,7 @@ static int32_t anc_mailbox_put(ANC_MESSAGE_T *msg)
     if (osOK == status) {
         anc_mailbox_cnt++;
     } else {
-        ANC_TRACE(0, "app_anc: osMailPut fail, status: 0x%x", status);
+        TRACE(0, "app_anc: osMailPut fail, status: 0x%x", status);
     }
 
     return (int32_t)status;
@@ -217,6 +226,7 @@ static void _anc_unlock(void)
 }
 #endif
 
+static void anc_sample_rate_change(enum AUD_STREAM_T stream, enum AUD_SAMPRATE_T rate, enum AUD_SAMPRATE_T *new_play, enum AUD_SAMPRATE_T *new_cap);
 
 bool app_anc_work_status(void)
 {
@@ -268,9 +278,9 @@ WEAK int32_t psap_ramp_set_time(uint32_t ms)
     return 0;
 }
 
-WEAK int32_t anc_process_set_cfg(const anc_process_cfg * anc_cfg)
+WEAK int32_t anc_process_set_cfg(const anc_process_cfg * temp_anc_cfg)
 {
-    ANC_TRACE(0, "%s, WEAK function !!!", __func__);
+    TRACE(0, "%s, WEAK function !!!", __func__);
 
     return 0;
 }
@@ -306,13 +316,9 @@ static void app_anc_open_items(enum ANC_TYPE_T type)
     if (type == ANC_FEEDFORWARD) {
         app_anc_af_open(ANC_FEEDFORWARD);
         anc_open(ANC_FEEDFORWARD);
-#if defined(ANC_ASSIST_ENABLED) && !defined(AUDIO_EQ_TUNING) && !defined(VOICE_ASSIST_FF_FIR_LMS)
+#if defined(ANC_ASSIST_ENABLED) && !defined(AUDIO_EQ_TUNING)
         if (g_enable_assist) {
-#if defined(VOICE_ASSIST_FF_IIR_LMS)
-            app_anc_assist_open(ANC_ASSIST_USER_IIR_LMS);
-#else
             app_anc_assist_open(ANC_ASSIST_USER_ANC);
-#endif
         }
 #endif
     } else if (type == ANC_FEEDBACK) {
@@ -336,6 +342,15 @@ static void app_anc_open_items(enum ANC_TYPE_T type)
         }
 #endif
 #endif
+#if defined(PSAP_SW_APP)
+    } else if (type == PSAP_SW) {
+        psap_sw_app_open();
+#if defined(PSAP_SW_ASSIST_ENABLED) && !defined(AUDIO_EQ_TUNING)
+        if (g_enable_assist) {
+            app_anc_assist_open(ANC_ASSIST_USER_PSAP_SW);
+        }
+#endif
+#endif
 #if defined(AUDIO_ANC_SPKCALIB_HW)
     } else if (type == ANC_SPKCALIB) {
         // app_anc_af_open(ANC_SPKCALIB);
@@ -349,13 +364,9 @@ static void app_anc_open_items(enum ANC_TYPE_T type)
 static void app_anc_close_items(enum ANC_TYPE_T type)
 {
     if (type == ANC_FEEDFORWARD) {
-#if defined(ANC_ASSIST_ENABLED) && !defined(AUDIO_EQ_TUNING) && !defined(VOICE_ASSIST_FF_FIR_LMS)
+#if defined(ANC_ASSIST_ENABLED) && !defined(AUDIO_EQ_TUNING)
         if (g_enable_assist) {
-#if defined(VOICE_ASSIST_FF_IIR_LMS)
-            app_anc_assist_close(ANC_ASSIST_USER_IIR_LMS);
-#else
             app_anc_assist_close(ANC_ASSIST_USER_ANC);
-#endif
         }
 #endif
         anc_close(ANC_FEEDFORWARD);
@@ -379,6 +390,15 @@ static void app_anc_close_items(enum ANC_TYPE_T type)
 #endif
         psap_close();
         af_anc_close(ANC_TALKTHRU);     // NOTE: PSAP use TT configure
+#endif
+#if defined(PSAP_SW_APP)
+    } else if (type == PSAP_SW) {
+#if defined(PSAP_SW_ASSIST_ENABLED) && !defined(AUDIO_EQ_TUNING)
+        if (g_enable_assist) {
+            app_anc_assist_close(ANC_ASSIST_USER_PSAP_SW);
+        }
+#endif
+        psap_sw_app_close();
 #endif
 #if defined(AUDIO_ANC_SPKCALIB_HW)
     } else if (type == ANC_SPKCALIB) {
@@ -423,34 +443,10 @@ void app_anc_update_coef(void)
 
 static void app_anc_switch_coef(app_anc_mode_t mode_old, app_anc_mode_t mode_new, bool opt_with_gain)
 {
-    ANC_TRACE(0, "[%s] mode_old: %d, mode_new: %d", __func__, mode_old, mode_new);
-
+    TRACE(0, "[%s] mode_old: %d, mode_new: %d", __func__, mode_old, mode_new);
 
     app_anc_coef_index_cfg_t index_cfg_old = app_anc_table_get_cfg(mode_old);
     app_anc_coef_index_cfg_t index_cfg_new = app_anc_table_get_cfg(mode_new);
-
-#if defined(AUDIO_ANC_TT_HW)
-    if (index_cfg_old.tt != index_cfg_new.tt) {
-        if (index_cfg_old.tt == ANC_INVALID_COEF_INDEX) {
-            // open
-            app_anc_open_items(ANC_TALKTHRU);
-            app_anc_select_coef(ANC_TALKTHRU, index_cfg_new.tt);
-            if (opt_with_gain) {
-                app_anc_enable_gain(ANC_TALKTHRU);
-            }
-        } else if (index_cfg_new.tt == ANC_INVALID_COEF_INDEX) {
-            // close
-            if (opt_with_gain) {
-                app_anc_disable_gain(ANC_TALKTHRU);
-                osDelay(ANC_SMOOTH_SWITCH_GAIN_MS);
-            }
-            app_anc_close_items(ANC_TALKTHRU);
-        } else {
-            // switch
-            app_anc_select_coef(ANC_TALKTHRU, index_cfg_new.tt);
-        }
-    }
-#endif
 
 #if defined(ANC_FF_ENABLED)
     if (index_cfg_old.ff != index_cfg_new.ff) {
@@ -471,6 +467,29 @@ static void app_anc_switch_coef(app_anc_mode_t mode_old, app_anc_mode_t mode_new
         } else {
             // switch
             app_anc_select_coef(ANC_FEEDFORWARD, index_cfg_new.ff);
+        }
+    }
+#endif
+
+#if defined(AUDIO_ANC_TT_HW)
+    if (index_cfg_old.tt != index_cfg_new.tt) {
+        if (index_cfg_old.tt == ANC_INVALID_COEF_INDEX) {
+            // open
+            app_anc_open_items(ANC_TALKTHRU);
+            app_anc_select_coef(ANC_TALKTHRU, index_cfg_new.tt);
+            if (opt_with_gain) {
+                app_anc_enable_gain(ANC_TALKTHRU);
+            }
+        } else if (index_cfg_new.tt == ANC_INVALID_COEF_INDEX) {
+            // close
+            if (opt_with_gain) {
+                app_anc_disable_gain(ANC_TALKTHRU);
+                osDelay(ANC_SMOOTH_SWITCH_GAIN_MS);
+            }
+            app_anc_close_items(ANC_TALKTHRU);
+        } else {
+            // switch
+            app_anc_select_coef(ANC_TALKTHRU, index_cfg_new.tt);
         }
     }
 #endif
@@ -521,6 +540,28 @@ static void app_anc_switch_coef(app_anc_mode_t mode_old, app_anc_mode_t mode_new
     }
 #endif
 
+#if defined(PSAP_SW_APP)
+    if (index_cfg_old.psap_sw != index_cfg_new.psap_sw) {
+        if (index_cfg_old.psap_sw == ANC_INVALID_COEF_INDEX) {
+            // open
+            app_anc_open_items(PSAP_SW);
+            if (opt_with_gain) {
+                app_anc_enable_gain(PSAP_SW);
+            }
+        } else if (index_cfg_new.psap_sw == ANC_INVALID_COEF_INDEX) {
+            // close
+            if (opt_with_gain) {
+                app_anc_disable_gain(PSAP_SW);
+                osDelay(ANC_SMOOTH_SWITCH_GAIN_MS);
+            }
+            app_anc_close_items(PSAP_SW);
+        } else {
+            // switch
+            ASSERT(0, "[%s] TODO: Need to support switch PSAP SW mode", __func__);
+        }
+    }
+#endif
+
 #if defined(AUDIO_ANC_SPKCALIB_HW)
     if (index_cfg_old.spk_calib != index_cfg_new.spk_calib) {
         if (index_cfg_old.spk_calib == ANC_INVALID_COEF_INDEX) {
@@ -540,7 +581,7 @@ static void app_anc_switch_coef(app_anc_mode_t mode_old, app_anc_mode_t mode_new
 
 static void app_anc_post_msg(anc_event_t event, uint8_t param)
 {
-    ANC_TRACE(0, "[%s] event: %d, param: %d", __func__, event, param);
+    TRACE(0, "[%s] event: %d, param: %d", __func__, event, param);
 
     if (g_anc_init_flag == false) {
         return;
@@ -554,7 +595,7 @@ static void app_anc_post_msg(anc_event_t event, uint8_t param)
 
 int32_t app_anc_thread_set_gain(enum ANC_TYPE_T type, float gain_l, float gain_r)
 {
-    ANC_TRACE(2, "[%s] type: 0x%x", __func__, type);
+    TRACE(2, "[%s] type: 0x%x", __func__, type);
 
     if (g_anc_init_flag == false) {
         return -1;
@@ -630,7 +671,7 @@ static void anc_sample_rate_change(enum AUD_STREAM_T stream, enum AUD_SAMPRATE_T
 
     if (g_sample_rate_series != rate) {
         g_sample_rate_series = rate;
-        ANC_TRACE(0, "[%s] Update g_sample_rate_series = %d", __func__, g_sample_rate_series);
+        TRACE(0, "[%s] Update g_sample_rate_series = %d", __func__, g_sample_rate_series);
         // TODO: Send to thread to process
         app_anc_update_coef();
     }
@@ -638,7 +679,7 @@ static void anc_sample_rate_change(enum AUD_STREAM_T stream, enum AUD_SAMPRATE_T
 
 static void app_anc_open_impl(app_anc_mode_t mode)
 {
-    ANC_TRACE(0, "[%s] mode: %d", __func__, mode);
+    TRACE(0, "[%s] mode: %d", __func__, mode);
     (void)mode;
 
 #if defined(VOICE_DETECTOR_EN)
@@ -648,7 +689,7 @@ static void app_anc_open_impl(app_anc_mode_t mode)
 
 static void app_anc_close_impl(app_anc_mode_t mode)
 {
-    ANC_TRACE(0, "[%s] mode: %d", __func__, mode);
+    TRACE(0, "[%s] mode: %d", __func__, mode);
 
     app_anc_coef_index_cfg_t index_cfg = app_anc_table_get_cfg(mode);
 
@@ -676,6 +717,12 @@ static void app_anc_close_impl(app_anc_mode_t mode)
     }
 #endif
 
+#if defined(PSAP_SW_APP)
+    if (index_cfg.psap_sw != ANC_INVALID_COEF_INDEX) {
+        app_anc_close_items(PSAP_SW);
+    }
+#endif
+
 #if defined(AUDIO_ANC_SPKCALIB_HW)
     if (index_cfg.spk_calib != ANC_INVALID_COEF_INDEX) {
         app_anc_close_items(ANC_SPKCALIB);
@@ -689,49 +736,14 @@ static void app_anc_close_impl(app_anc_mode_t mode)
 
 static anc_status_t app_anc_switch_mode_impl(anc_status_t status, app_anc_mode_t mode)
 {
-    ANC_TRACE(0, "[%s] status: %d, old mode: %d, new mode: %d", __func__, status, g_app_anc_mode, mode);
+    TRACE(0, "[%s] status: %d, old mode: %d, new mode: %d", __func__, status, g_app_anc_mode, mode);
     int32_t fade_out_ms = 0;
 
     if (g_app_anc_mode != mode) {
-#if defined(VOICE_ASSIST_FF_FIR_LMS)
-        uint32_t custom_mode_old = app_anc_table_get_custom_mode(g_app_anc_mode);
-        uint32_t custom_mode_new = app_anc_table_get_custom_mode(mode);
-
-        if (g_enable_assist) {
-            if (custom_mode_old == ANC_CUSTOM_MODE_FIR_ANC) {
-                app_voice_assist_fir_lms_set_fir_status(false);
-                if ((custom_mode_new != ANC_CUSTOM_MODE_FIR_ANC) && ( custom_mode_new !=  APP_ANC_MODE_OFF)) {
-                    app_voice_assist_fir_lms_stop_fir();
-                }
-            } else if (custom_mode_old == ANC_CUSTOM_MODE_FIR_TT) {
-                app_voice_assist_fir_lms_set_tt_algo_status(0);
-            }
-        }
-#elif defined(VOICE_ASSIST_FF_IIR_LMS)
-        uint32_t custom_mode_old = app_anc_table_get_custom_mode(g_app_anc_mode);
-        uint32_t custom_mode_new = app_anc_table_get_custom_mode(mode);
-
-        if (g_enable_assist) {
-            if (custom_mode_old == ANC_CUSTOM_MODE_FIR_ANC) {
-                app_voice_assist_iir_lms_set_iir_status(false);
-                if ((custom_mode_new != ANC_CUSTOM_MODE_FIR_ANC) && ( custom_mode_new !=  APP_ANC_MODE_OFF)) {
-                    app_voice_assist_iir_lms_stop_fir();
-                }
-            }
-        }
-#endif
-
         if (g_app_anc_mode == APP_ANC_MODE_OFF) {
             // Open ...
             if (status == ANC_STATUS_OFF) {
-#if defined(VOICE_ASSIST_FF_FIR_LMS)
-                anc_fir_set_status(true); //enable fir before anc_open.
-                anc_fir_step_sample_mode(12); // set fir step before anc_open
-#endif
                 app_anc_switch_coef(g_app_anc_mode, mode, false);   // Just open anc and set coef. gain is zero
-#if defined(VOICE_ASSIST_FF_FIR_LMS)
-                app_voice_assist_fir_lms_set_fir_HW_work_mode(custom_mode_new);
-#endif
                 app_anc_open_impl(mode);
                 osDelay(ANC_OPEN_DELAY_MS);
                 app_anc_fadein(app_anc_table_get_types(mode));
@@ -753,57 +765,18 @@ static anc_status_t app_anc_switch_mode_impl(anc_status_t status, app_anc_mode_t
         } else {
             // Switch ...
             if (status == ANC_STATUS_ON) {
-#if (!defined VOICE_ASSIST_ADA_IIR) || (defined ONLY_FF_IN_IIR)
                 app_anc_fadeout(app_anc_table_get_types(g_app_anc_mode));
                 fade_out_ms = psap_ramp_get_time() > anc_ramp_get_time() ? (psap_ramp_get_time()+20) : (anc_ramp_get_time()+20);
                 osDelay(fade_out_ms);
-#if defined(SWITCH_MODE_WITHOUT_HW_FADE)
-                app_anc_close_impl(g_app_anc_mode);
-                app_anc_open_impl(mode);
-                app_anc_switch_coef(APP_ANC_MODE_OFF, mode, false);
-                osDelay(ANC_OPEN_DELAY_MS);
-#else
                 app_anc_switch_coef(g_app_anc_mode, mode, false);
-#endif
-#if defined(VOICE_ASSIST_FF_FIR_LMS)
-                app_voice_assist_fir_lms_set_fir_HW_work_mode(custom_mode_new);
-#endif
                 app_anc_fadein(app_anc_table_get_types(mode));
-#else
-                app_anc_switch_coef(g_app_anc_mode, mode, true);
-#endif
-#ifdef ANC_ASSIST_ENABLED
+#if defined(ANC_ASSIST_ENABLED)
                 app_anc_assist_algo_reset();
 #endif
             } else {
                 ASSERT(0, "[%s] Switch: status(%d) is invalid", __func__, status);
             }
         }
-
-#if defined(VOICE_ASSIST_FF_FIR_LMS)
-        if (g_enable_assist) {
-            app_voice_assist_fir_lms_set_anc_mode(mode);
-            if (custom_mode_new == ANC_CUSTOM_MODE_FIR_ANC) {
-                app_voice_assist_fir_lms_set_fir_status(true);
-                if ((custom_mode_old != ANC_CUSTOM_MODE_FIR_ANC)&&( custom_mode_old !=  APP_ANC_MODE_OFF)) {
-                    app_voice_assist_fir_lms_start_fir();
-                }
-            } else if (custom_mode_new == ANC_CUSTOM_MODE_FIR_TT) {
-                app_voice_assist_fir_lms_set_tt_algo_status(1);
-            }
-        }
-#elif defined(VOICE_ASSIST_FF_IIR_LMS)
-        if (g_enable_assist) {
-            app_voice_assist_iir_lms_set_anc_mode(mode);
-            if (custom_mode_new == ANC_CUSTOM_MODE_FIR_ANC) {
-                app_voice_assist_iir_lms_set_iir_status(true);
-                if ((custom_mode_old != ANC_CUSTOM_MODE_FIR_ANC)&&( custom_mode_old !=  APP_ANC_MODE_OFF)) {
-                    app_voice_assist_iir_lms_start_fir();
-                }
-            }
-        }
-#endif
-
         g_app_anc_mode = mode;
     }
 
@@ -815,7 +788,7 @@ static inline int32_t anc_thread_process(ANC_MESSAGE_T *msg)
     uint32_t evt = msg->id;
     uint32_t arg0 = msg->param0;
 
-    ANC_TRACE(4, "[%s] evt: %d, arg0: %d, anc status :%d", __func__, evt, arg0, g_anc_work_status);
+    TRACE(4, "[%s] evt: %d, arg0: %d, anc status :%d", __func__, evt, arg0, g_anc_work_status);
 
 #if defined(ANC_BLOCK_ANC_SYNC_SWITCH_CMD)
     g_event_processing_flag = true;
@@ -829,12 +802,12 @@ static inline int32_t anc_thread_process(ANC_MESSAGE_T *msg)
 #endif
 
 #ifdef APP_ANC_TRIGGER_SYNC
-                ANC_TRACE(0,"[%s]Choose trigger sync method",__func__);
+                TRACE(0,"[%s]Choose trigger sync method",__func__);
 #else
                 g_anc_work_status = app_anc_switch_mode_impl(g_anc_work_status, arg0);
 #endif
             } else {
-                ANC_TRACE(0, "[%s] WARNING: Same mode: %d", __func__, arg0);
+                TRACE(0, "[%s] WARNING: Same mode: %d", __func__, arg0);
             }
             break;
         case ANC_EVENT_SWITCH_MODE:
@@ -846,7 +819,7 @@ static inline int32_t anc_thread_process(ANC_MESSAGE_T *msg)
             float gain_r = 1.0;
             memcpy(&gain_l, &msg->param1, sizeof(float));
             memcpy(&gain_r, &msg->param2, sizeof(float));
-            ANC_TRACE(4, "[%s] type: 0x%x, gain(x100): %d, %d", __func__, type, (uint32_t)(gain_l * 100), (uint32_t)(gain_r * 100));
+            TRACE(4, "[%s] type: 0x%x, gain(x100): %d, %d", __func__, type, (uint32_t)(gain_l * 100), (uint32_t)(gain_r * 100));
             app_anc_set_gain_f32(ANC_GAIN_USER_APP_ANC, type, gain_l, gain_r);
         }
             break;
@@ -885,7 +858,15 @@ static void anc_thread(void const *argument)
 
 int32_t app_anc_switch(app_anc_mode_t mode)
 {
-    ANC_TRACE(0, "[%s] Mode: %d --> %d", __func__, g_app_anc_mode, mode);
+    TRACE(0, "[%s] Mode: %d --> %d", __func__, g_app_anc_mode, mode);
+
+#if defined(AUDIO_EQ_MC)
+    if(mode == APP_ANC_MODE_OFF){
+        bt_audio_set_eq_mc_cfg(&audio_eq_mc_bypass_cfg);
+    } else {
+        bt_audio_set_eq_mc_cfg(&audio_eq_mc_cfg);
+    }
+#endif
 
 #if defined(ANC_BLOCK_ANC_SYNC_SWITCH_CMD)
     _update_event_msg_list_with_mode(ANC_EVENT_SYNC_SWITCH_MODE, mode);
@@ -898,7 +879,15 @@ int32_t app_anc_switch(app_anc_mode_t mode)
 
 int32_t app_anc_switch_locally(app_anc_mode_t mode)
 {
-    ANC_TRACE(0, "[%s] Mode: %d --> %d", __func__, g_app_anc_mode, mode);
+    TRACE(0, "[%s] Mode: %d --> %d", __func__, g_app_anc_mode, mode);
+
+#if defined(AUDIO_EQ_MC)
+    if(mode == APP_ANC_MODE_OFF){
+        bt_audio_set_eq_mc_cfg(&audio_eq_mc_bypass_cfg);
+    } else {
+        bt_audio_set_eq_mc_cfg(&audio_eq_mc_cfg);
+    }
+#endif
 
 #if defined(ANC_BLOCK_ANC_SYNC_SWITCH_CMD)
     _update_event_msg_list_with_mode(ANC_EVENT_SWITCH_MODE, mode);
@@ -911,47 +900,17 @@ int32_t app_anc_switch_locally(app_anc_mode_t mode)
 
 int32_t app_anc_loop_switch(void)
 {
-#if (defined VOICE_ASSIST_ADA_IIR) && (defined POWER_KEY_IN_IIR)
-    static int cnt = 0;
-    switch (cnt)
-    {
-    case 0:
-        app_voice_assist_ada_iir_open();
-        cnt = 1;
-        break;
-    case 1:
-        app_voice_assist_ada_iir_close();
-        cnt = 0;
-    default:
-        break;
-    }
-#elif defined(VOICE_ASSIST_FF_FIR_LMS)
-    static int cnt = 0;
-    switch (cnt)
-    {
-    case 0:
-        app_voice_assist_fir_lms_switch(APP_ANC_MODE2);
-        cnt = 1;
-        break;
-    case 1:
-        app_voice_assist_fir_lms_switch(APP_ANC_MODE_OFF);
-        cnt = 0;
-    default:
-        break;
-    }
-#else
     static app_anc_mode_t mode = APP_ANC_MODE_OFF;
     mode = (mode + 1) % APP_ANC_MODE_QTY;
 
     app_anc_switch(mode);
-#endif
 
     return 0;
 }
 
 int32_t app_anc_init(void)
 {
-    ANC_TRACE(0, "[%s] ...", __func__);
+    TRACE(0, "[%s] ...", __func__);
 
     g_anc_init_flag = true;
     g_enable_assist = true;
@@ -978,11 +937,11 @@ int32_t app_anc_init(void)
 
     // FIXME: get_ff_gain_from_nvrecord(&gain_l, &gain_r);
     anc_set_calib_gain(ANC_FEEDFORWARD, gain_l, gain_r);
-    ANC_TRACE(3, "[%s] FF Calib Gain: %d, %d", __func__, gain_l, gain_r);
+    TRACE(3, "[%s] FF Calib Gain: %d, %d", __func__, gain_l, gain_r);
 
     // FIXME: get_fb_gain_from_nvrecord(&gain_l, &gain_r);
     anc_set_calib_gain(ANC_FEEDBACK, gain_l, gain_r);
-    ANC_TRACE(3, "[%s] FB Calib Gain: %d, %d", __func__, gain_l, gain_r);
+    TRACE(3, "[%s] FB Calib Gain: %d, %d", __func__, gain_l, gain_r);
 
 #elif defined(__AUDIO_SECTION_SUPPT__)
     anc_load_cfg();
@@ -995,13 +954,6 @@ int32_t app_anc_init(void)
     psap_set_bands_gain_f32(NULL, NULL);
 #endif
 
-#if defined(VOICE_ASSIST_FF_FIR_LMS)
-    anc_fir_set_status(true); //enable fir by default.
-    anc_fir_step_sample_mode(12);
-#else
-    anc_fir_set_status(false); //disable fir by default.
-#endif
-
 #if defined(ANC_BLOCK_ANC_SYNC_SWITCH_CMD)
     _anc_create_lock();
 #endif
@@ -1009,12 +961,15 @@ int32_t app_anc_init(void)
     anc_hw_notch_set_status(false);  //true: ANF open
     psap_hw_notch_set_status(false);
 
+    anc_fir_set_status(false); //disable fir by default.
+
     anc_ramp_set_time(ANC_SMOOTH_SWITCH_GAIN_MS); //HW smooth
     psap_ramp_set_time(ANC_SMOOTH_SWITCH_GAIN_MS);
 
 #if defined(PSAP_IIR_LINEAR_SMOOTH_MODE)
     psap_ramp_set_mode(PSAP_RAMP_MODE_TIME_FIXED);
 #endif
+
     anc_process_set_cfg(&anc_cfg);
 
     g_anc_work_status = ANC_STATUS_OFF;
@@ -1026,7 +981,7 @@ int32_t app_anc_init(void)
 
 int32_t app_anc_deinit(void)
 {
-    ANC_TRACE(0, "[%s] ...", __func__);
+    TRACE(0, "[%s] ...", __func__);
 
     app_anc_fade_deinit();
     app_anc_table_deinit();
@@ -1045,7 +1000,7 @@ int32_t app_anc_deinit(void)
 
 int32_t app_anc_enable_assist(bool en)
 {
-    ANC_TRACE(0, "[%s] en: %d", __func__, en);
+    TRACE(0, "[%s] en: %d", __func__, en);
 
     g_enable_assist = en;
 

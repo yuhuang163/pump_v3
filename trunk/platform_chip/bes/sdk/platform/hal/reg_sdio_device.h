@@ -81,8 +81,18 @@ struct SDIO_DEVICE_T {
     __I  uint32_t ARGUMENT2;                //0xE0
     __I  uint32_t RESERVED3[7];             //0xE4~0xFF
     __IO uint32_t HOST_INT_CLR;             //0x100,default value is 0
-    __IO uint32_t RESERVED4;                //0x104,default value is 0
+
+    /* custom reg */
+    __IO uint32_t TRANSFER_STATUS;          //0x104,default value is 0
     __IO uint32_t RX_BUF_CFG;               //0x108,default value is 0
+    __IO uint32_t TX_BUF_CFG;               //0x10C
+    __IO uint32_t RESERVED110;
+    __IO uint32_t RESERVED114;
+    __IO uint32_t RESERVED118;
+    __IO uint32_t RESERVED11C;
+
+    /* hw reg */
+    __IO uint32_t IRQ_STATUS;               //0x120, sdio host write 1 to trigger interrupt
 };
 
 // reg_000
@@ -163,6 +173,10 @@ struct SDIO_DEVICE_T {
 #define SDIO_DMA2_ADDR(n)                                   (((n) & 0xFFFFFFFF) << 0)
 #define SDIO_DMA2_ADDR_MASK                                 (0xFFFFFFFF << 0)
 #define SDIO_DMA2_ADDR_SHIFT                                (0)
+#define SDIO_DMA_ABORT_IDLE                                 (1 << 0)
+#define SDIO_DMA_KEEP_BLKSIZE                               (1 << 1)
+#define SDIO_DMA_UPDATE_ON_COMPLETION                       (1 << 2)
+#define SDIO_DATA1_INT_CLR                                  (1 << 5)
 
 // reg_01c
 #define SDIO_DMA2_ADDR_VALID                                (1 << 0)
@@ -695,5 +709,9 @@ struct SDIO_DEVICE_T {
 #define SDIO_FUNC2_SDIO_W_AHB_R_REG7(n)                     (((n) & 0xFFFFFFFF) << 0)
 #define SDIO_FUNC2_SDIO_W_AHB_R_REG7_MASK                   (0xFFFFFFFF << 0)
 #define SDIO_FUNC2_SDIO_W_AHB_R_REG7_SHIFT                  (0)
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -21,6 +21,12 @@ else
 subdir-ccflags-y += -Wno-maybe-uninitialized
 endif
 
-cmsis_dsp_lib-y := $(obj-y)
-cmsis_dsp-y := cmsis_dsp_lib.a
+CMSIS_DSP_LIB_NAME := cmsis_dsp_lib_$(CPU)
+
+$(CMSIS_DSP_LIB_NAME)-y := $(obj-y)
+ifeq ($(TOOLCHAIN), armclang)
+obj-y := $(CMSIS_DSP_LIB_NAME).a
+else
+cmsis_dsp-y := $(CMSIS_DSP_LIB_NAME).a
 obj-y := cmsis_dsp.o
+endif

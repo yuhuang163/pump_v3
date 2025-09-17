@@ -109,9 +109,7 @@ struct NORFLASH_CTRL_T {
     __IO uint32_t RESERVED_16C[0x25];
     __IO uint32_t REG_200;
     __IO uint32_t REG_204;
-    __IO uint32_t RESERVED_208;
-    __IO uint32_t REG_20C;
-    __IO uint32_t RESERVED_210[0x4];
+    __IO uint32_t RESERVED_208[0x6];
     __IO uint32_t REG_220;
     __IO uint32_t REG_224;
 #endif
@@ -250,12 +248,21 @@ struct NORFLASH_CTRL_T {
 #define REG_01C_DMA_RX_SIZE_SHIFT           16
 #define REG_01C_DMA_RX_SIZE_MASK            (0x3 << REG_01C_DMA_RX_SIZE_SHIFT)
 #define REG_01C_DMA_RX_SIZE(n)              BITFIELD_VAL(REG_01C_DMA_RX_SIZE, n)
+#if (CHIP_FLASH_CTRL_VER <= 6)
 #define REG_01C_TX_THRESHOLD_SHIFT          8
 #define REG_01C_TX_THRESHOLD_MASK           (0x1F << REG_01C_TX_THRESHOLD_SHIFT)
 #define REG_01C_TX_THRESHOLD(n)             BITFIELD_VAL(REG_01C_TX_THRESHOLD, n)
 #define REG_01C_RX_THRESHOLD_SHIFT          4
 #define REG_01C_RX_THRESHOLD_MASK           (0xF << REG_01C_RX_THRESHOLD_SHIFT)
 #define REG_01C_RX_THRESHOLD(n)             BITFIELD_VAL(REG_01C_RX_THRESHOLD, n)
+#else
+#define REG_01C_TX_THRESHOLD_SHIFT          9
+#define REG_01C_TX_THRESHOLD_MASK           (0x1F << REG_01C_TX_THRESHOLD_SHIFT)
+#define REG_01C_TX_THRESHOLD(n)             BITFIELD_VAL(REG_01C_TX_THRESHOLD, n)
+#define REG_01C_RX_THRESHOLD_SHIFT          4
+#define REG_01C_RX_THRESHOLD_MASK           (0x1F << REG_01C_RX_THRESHOLD_SHIFT)
+#define REG_01C_RX_THRESHOLD(n)             BITFIELD_VAL(REG_01C_RX_THRESHOLD, n)
+#endif
 #define REG_01C_RES3                        (1 << 3)
 #define REG_01C_DMACTRL_RX_EN               (1 << 2)
 #define REG_01C_DMACTRL_TX_EN               (1 << 1)
@@ -621,13 +628,6 @@ struct NORFLASH_CTRL_T {
 #define REG_204_SAMPLESEL1_MASK             (0xF << REG_204_SAMPLESEL1_SHIFT)
 #define REG_204_SAMPLESEL1(n)               BITFIELD_VAL(REG_204_SAMPLESEL1, n)
 #define REG_204_FOUR_BYTE_ADDR_EN1          (1 << 0)
-#endif
-
-// REG_20C
-#if (CHIP_FLASH_CTRL_VER >= 7)
-#define REG_20C_RXFIFO_CTRL_SHIFT           0
-#define REG_20C_RXFIFO_CTRL_MASK            (0xF << REG_20C_RXFIFO_CTRL_SHIFT)
-#define REG_20C_RXFIFO_CTRL(n)              BITFIELD_VAL(REG_20C_RXFIFO_CTRL, n)
 #endif
 
 #if (CHIP_FLASH_CTRL_VER >= 6)

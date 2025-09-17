@@ -6,21 +6,14 @@ obj_cpp := $(patsubst $(cur_dir)%,%,$(wildcard $(cur_dir)*.cpp))
 
 src_obj := $(obj_c:.c=.o) $(obj_s:.S=.o) $(obj_cpp:.cpp=.o)
 
-GEN_LIB_NAME := libanc_spp_tool
-
-ifeq ($(AUDIO_SECTION_ENABLE), 1)
-GEN_LIB_NAME := $(GEN_LIB_NAME)_eq
+ANC_TEST_LIB_NAME := libanc_spp_tool
+ifeq ($(USE_TRACE_ID), 1)
+ANC_TEST_LIB_NAME := $(ANC_TEST_LIB_NAME)_log_compressed
 endif
 
-ifeq ($(ARM_CMNS), 1)
-GEN_LIB_NAME := $(GEN_LIB_NAME)_ARM_CMNS
-endif
+$(ANC_TEST_LIB_NAME)-y := $(src_obj)
 
-root_dir := $(abspath $(dir $(realpath $(firstword $(MAKEFILE_LIST))))/..)
-sinclude $(root_dir)/config/lib.mk
-$(GEN_LIB_NAME)-y := $(src_obj)
-
-obj-y += $(GEN_LIB_NAME).a
+obj-y += $(ANC_TEST_LIB_NAME).a
 
 ccflags-y += -Iutils/hexdump    \
         -Iapps/key  \
@@ -30,7 +23,6 @@ ccflags-y += -Iutils/hexdump    \
         -Iplatform/drivers/ana \
 		-Imultimedia/inc/audio/process/anc/include \
 		-Imultimedia/inc/audio/process/psap/include \
-		-Imultimedia/inc/speech/inc/ \
 		-Iservices/audioflinger \
 		-Iservices/nv_section/aud_section \
 		-Iservices/nv_section/include \
@@ -38,16 +30,13 @@ ccflags-y += -Iutils/hexdump    \
 		-Iplatform/hal \
 		-Iplatform/drivers/norflash \
 		-Imultimedia/inc/audio/process/filters/include \
-		-Iutils/crc \
+		-Iutils/crc32 \
 		-Iutils/boot_struct \
 		-Iutils/hwtimer_list \
 		-Iutils/heap \
         -Iservices/tws/inc \
         -Iutils/cqueue \
-        -Iapps/audioplayers \
-		-Iapps/voice_assist/inc \
-		-Iapps/anc/inc \
-		-Iapps/anc_assist/inc
+        -Iapps/audioplayers
 
 
 ifeq ($(ANC_FF_ENABLED),1)
@@ -56,11 +45,6 @@ endif
 
 ifeq ($(ANC_FB_ENABLED),1)
 CFLAGS_anc_usb_app.o += -DANC_FB_ENABLED
-endif
-
-ccflags-y += $(BLUETOOTH_ADAPTER_INCLUDES)
-ifeq ($(APP_ANC_TEST),1)
-ccflags-y += -Iservices/audio_bt
 endif
 
 ifeq ($(TEST_OVER_THE_AIR_v2),1)

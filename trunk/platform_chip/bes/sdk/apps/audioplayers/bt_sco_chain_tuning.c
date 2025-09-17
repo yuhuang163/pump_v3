@@ -30,26 +30,24 @@ typedef struct {
 
 static AUDIO_SECTION_SPEECH_CFG_T audio_section_speech_cfg;
 
-static uint8_t speech_seciton_index = 0;
-
 int store_speech_cfg_into_audio_section(SpeechConfig *cfg)
 {
     int res = 0;
 
     memcpy(&audio_section_speech_cfg.cfg, cfg, sizeof(SpeechConfig));
 
-    res = audio_section_store_user_cfg(speech_seciton_index,
+    res = audio_section_store_cfg(AUDIO_SECTION_DEVICE_SPEECH,
                                 (uint8_t *)&audio_section_speech_cfg,
                                 sizeof(AUDIO_SECTION_SPEECH_CFG_T));
 
 
     if(res)
     {
-        AUDIOPLAYERS_TRACE(2,"[%s] ERROR: res = %d", __func__, res);
+        TRACE(2,"[%s] ERROR: res = %d", __func__, res);
     }
     else
     {
-        AUDIOPLAYERS_TRACE(1,"[%s] Store speech cfg into audio section!!!", __func__);
+        TRACE(1,"[%s] Store speech cfg into audio section!!!", __func__);
     }
 
     return res;
@@ -58,7 +56,7 @@ int store_speech_cfg_into_audio_section(SpeechConfig *cfg)
 void *load_speech_cfg_from_audio_section(void)
 {
     int res = 0;
-    res = audio_section_load_user_cfg(speech_seciton_index,
+    res = audio_section_load_cfg(AUDIO_SECTION_DEVICE_SPEECH,
                                 (uint8_t *)&audio_section_speech_cfg,
                                 sizeof(AUDIO_SECTION_SPEECH_CFG_T));
 
@@ -66,12 +64,12 @@ void *load_speech_cfg_from_audio_section(void)
 
     if (res)
     {
-        AUDIOPLAYERS_TRACE(2,"[%s] ERROR: res = %d", __func__, res);
+        TRACE(2,"[%s] ERROR: res = %d", __func__, res);
         res_ptr = NULL;
     }
     else
     {
-        AUDIOPLAYERS_TRACE(1,"[%s] Load speech cfg from audio section!!!", __func__);
+        TRACE(1,"[%s] Load speech cfg from audio section!!!", __func__);
         res_ptr = (void *)&audio_section_speech_cfg.cfg;
     }
 
@@ -100,26 +98,26 @@ uint32_t speech_tuning_check(unsigned char *buf, uint32_t len)
 
     if (config_size != len)
     {
-        AUDIOPLAYERS_TRACE(2,"[speech tuning] len(%d) != config_size(%d)", len, config_size);
+        TRACE(2,"[speech tuning] len(%d) != config_size(%d)", len, config_size);
         res = 1;
     }
     else
     {
-        AUDIOPLAYERS_TRACE(1,"[speech tuning] len(%d) is OK", len);
+        TRACE(1,"[speech tuning] len(%d) is OK", len);
         //SpeechConfig POSSIBLY_UNUSED *cfg = (SpeechConfig *)buf;
 
         // Test parameters
 //#if defined(SPEECH_TX_2MIC_NS2)
-//        AUDIOPLAYERS_TRACE(1,"[speech tuning] TX: delay_taps(x100): %d", (int)(cfg->tx_2mic_ns2.delay_taps * 100));
+//        TRACE(1,"[speech tuning] TX: delay_taps(x100): %d", (int)(cfg->tx_2mic_ns2.delay_taps * 100));
 //#endif
 //#if defined(SPEECH_TX_NOISE_GATE)
-//        AUDIOPLAYERS_TRACE(1,"[speech tuning] TX: data_threshold: %d", cfg->tx_noise_gate.data_threshold);
+//        TRACE(1,"[speech tuning] TX: data_threshold: %d", cfg->tx_noise_gate.data_threshold);
 //#endif
 //#if defined(SPEECH_TX_EQ)
-//        AUDIOPLAYERS_TRACE(1,"[speech tuning] TX: eq num: %d", cfg->tx_eq.num);
+//        TRACE(1,"[speech tuning] TX: eq num: %d", cfg->tx_eq.num);
 //#endif
 //#if defined(SPEECH_RX_EQ)
-//        AUDIOPLAYERS_TRACE(1,"[speech tuning] RX: eq num: %d", cfg->rx_eq.num);
+//        TRACE(1,"[speech tuning] RX: eq num: %d", cfg->rx_eq.num);
 //#endif
     }
 
@@ -134,8 +132,8 @@ unsigned int speech_tuning_rx_callback(unsigned char *buf, unsigned int len)
 
     if (res)
     {
-        AUDIOPLAYERS_TRACE(1,"[speech tuning] ERROR: Send check res = %d", res);
-        AUDIOPLAYERS_TRACE(0,"[Speech Tuning] res : 1; info : Send len(%d) != config_size(%d);", len, sizeof(SpeechConfig));
+        TRACE(1,"[speech tuning] ERROR: Send check res = %d", res);
+        TRACE(0,"[Speech Tuning] res : 1; info : Send len(%d) != config_size(%d);", len, sizeof(SpeechConfig));
     }
     else
     {
@@ -145,8 +143,8 @@ unsigned int speech_tuning_rx_callback(unsigned char *buf, unsigned int len)
         // Set status
         speech_tuning_set_status(true);
 
-        AUDIOPLAYERS_TRACE(0,"[speech tuning] OK: Send cfg");
-        AUDIOPLAYERS_TRACE(0,"[Speech Tuning] res : 0;");
+        TRACE(0,"[speech tuning] OK: Send cfg");
+        TRACE(0,"[Speech Tuning] res : 0;");
     }
 
     return res;
@@ -161,8 +159,8 @@ unsigned int speech_tuning_burn_rx_callback(unsigned char *buf, unsigned int len
 
     if (res)
     {
-        AUDIOPLAYERS_TRACE(1,"[speech tuning] ERROR: Burn check res = %d", res);
-        AUDIOPLAYERS_TRACE(0,"[Speech Tuning] res : 1; info : Burn len(%d) != config_size(%d);", len, sizeof(SpeechConfig));
+        TRACE(1,"[speech tuning] ERROR: Burn check res = %d", res);
+        TRACE(0,"[Speech Tuning] res : 1; info : Burn len(%d) != config_size(%d);", len, sizeof(SpeechConfig));
     }
     else
     {
@@ -170,14 +168,14 @@ unsigned int speech_tuning_burn_rx_callback(unsigned char *buf, unsigned int len
 
         if(res)
         {
-            AUDIOPLAYERS_TRACE(1,"[speech tuning] ERROR: Store res = %d", res);
+            TRACE(1,"[speech tuning] ERROR: Store res = %d", res);
             res += 100;
-            AUDIOPLAYERS_TRACE(0,"[Speech Tuning] res : 2; info : Do not enable AUDIO_SECTION_ENABLE;");
+            TRACE(0,"[Speech Tuning] res : 2; info : Do not enable AUDIO_SECTION_ENABLE;");
         }
         else
         {
-            AUDIOPLAYERS_TRACE(0,"[speech tuning] OK: Store cfg");
-            AUDIOPLAYERS_TRACE(0,"[Speech Tuning] res : 0;");
+            TRACE(0,"[speech tuning] OK: Store cfg");
+            TRACE(0,"[Speech Tuning] res : 0;");
         }
     }
 
@@ -187,20 +185,13 @@ unsigned int speech_tuning_burn_rx_callback(unsigned char *buf, unsigned int len
 
 int speech_tuning_init(void)
 {
-#if defined(APP_RX_API_ENABLE)
-#if defined(APP_TRACE_RX_ENABLE)
+#if defined(APP_TRACE_RX_ENABLE) 
     app_trace_rx_register("Speech Tuning", speech_tuning_rx_callback);
 
 #ifdef AUDIO_SECTION_ENABLE
     app_trace_rx_register("Speech Tuning Burn", speech_tuning_burn_rx_callback);
 #endif
 
-#endif
-#endif
-
-#ifdef AUDIO_SECTION_ENABLE
-    audio_section_nv_register();
-    speech_seciton_index = audio_section_register_user(sizeof(AUDIO_SECTION_SPEECH_CFG_T));
 #endif
 
     speech_tuning_set_status(false);

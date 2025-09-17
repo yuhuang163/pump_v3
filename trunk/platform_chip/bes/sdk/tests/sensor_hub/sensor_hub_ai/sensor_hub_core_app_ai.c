@@ -60,14 +60,14 @@ static void app_sensor_hub_core_ai_cmd_received_handler(uint8_t* ptr, uint16_t l
     struct AI_RPC_REQ_MSG_T *req_msg = &g_received_msg;
     memcpy((uint8_t*)req_msg,ptr,len);
 
-    SENSOR_HUB_TRACE(0, "%s: len=%d", __func__, len);
-//    SENSOR_HUB_DUMP8("%02x ",(uint8_t*)req_msg,MIN(len,32));
+    TRACE(0, "%s: len=%d", __func__, len);
+//    DUMP8("%02x ",(uint8_t*)req_msg,MIN(len,32));
 
     if (req_msg->hdr.reply) {
         ASSERT(false, "%s: Bad reply msg: id=%d", __func__, req_msg->hdr.id);
     } else {
         if (SENS_MSG_ID_AI_MSG == req_msg->hdr.id ) {
-            SENSOR_HUB_TRACE(2,"%s %s",__func__,sens_ai_evt_to_str(req_msg->rpc_id));
+            TRACE(2,"%s %s",__func__,sens_ai_evt_to_str(req_msg->rpc_id));
             switch (req_msg->rpc_id)
             {
                 case SENSOR_HUB_AI_MSG_TYPE_ACTIVATE:
@@ -154,25 +154,25 @@ int app_sensor_hub_core_ai_send_msg(uint16_t rpc_id,void * buf, uint16_t len)
 
 static void app_sensor_hub_core_ai_cmd_trasmit_handler(uint8_t* ptr, uint16_t len)
 {
-    SENSOR_HUB_TRACE(0, "%s: len=%d", __func__, len);
+    TRACE(0, "%s: len=%d", __func__, len);
     app_core_bridge_send_data_with_waiting_rsp(MCU_SENSOR_HUB_TASK_CMD_AI, ptr, len);
 }
 
 static void app_sensor_hub_core_ai_cmd_wait_rsp_timeout(uint8_t* ptr, uint16_t len)
 {
-    SENSOR_HUB_TRACE(0, "%s: len=%d", __func__, len);
-    SENSOR_HUB_DUMP8("%02x ", ptr, len);
+    TRACE(0, "%s: len=%d", __func__, len);
+    DUMP8("%02x ", ptr, len);
 }
 
 static void app_sensor_hub_core_ai_cmd_rsp_received_handler(uint8_t* ptr, uint16_t len)
 {
-    SENSOR_HUB_TRACE(0, "%s: len=%d", __func__, len);
-    SENSOR_HUB_DUMP8("%02x ", ptr, len);
+    TRACE(0, "%s: len=%d", __func__, len);
+    DUMP8("%02x ", ptr, len);
 }
 
 static void app_sensor_hub_core_ai_cmd_tx_done_handler(uint16_t cmdCode, uint8_t* ptr, uint16_t len)
 {
-    SENSOR_HUB_TRACE(0, "%s: cmdCode=0x%x, len=%d", __func__, cmdCode, len);
+    TRACE(0, "%s: cmdCode=0x%x, len=%d", __func__, cmdCode, len);
 }
 
 CORE_BRIDGE_TASK_COMMAND_TO_ADD(MCU_SENSOR_HUB_TASK_CMD_AI,

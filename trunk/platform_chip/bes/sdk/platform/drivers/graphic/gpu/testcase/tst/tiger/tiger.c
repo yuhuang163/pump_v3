@@ -70,7 +70,7 @@ int tiger_test_main_entry(int argc, const char * argv[])
     TC_INIT
     // Initialize vglite.
     vg_lite_error_t error = VG_LITE_SUCCESS;
-    DRIVERS_TRACE(0,"%s", __func__);
+    GPU_REP("%s", __func__);
 #ifdef GPU_CPU_PSRAM_PARALL_TEST
     vg_lite_buffer_t sram_fb;
     uint32_t count = 454 * 454;
@@ -146,7 +146,7 @@ while(0)
     CHECK_ERROR(vg_lite_finish());
     gpu_test_wait_interrupt();
 
-//    DRIVERS_TRACE(3, "%s blit", __func__);
+//    TRACE(3, "%s blit", __func__);
 }
 #endif
 
@@ -154,7 +154,7 @@ while(0)
     {
        // while(0)
         {
-            DRIVERS_TRACE(3, "%s %d", __func__, __LINE__);
+            TRACE(3, "%s %d", __func__, __LINE__);
 
             memset(psram_test_addr, 0x5a,count*4);
             #if 1
@@ -162,9 +162,9 @@ while(0)
                 if(*(psram_test_addr + i) != 0x5a5a5a5a){
 
                         *err_flag = psram_test_addr + i;
-                        DRIVERS_TRACE(3, "%s fail addr: %p ", __func__, *err_flag);
-                        DRIVERS_TRACE(3, "%s fail addr: %p ", __func__, (psram_test_addr + i));
-                        DRIVERS_TRACE(3, "%s fail 0x5a5a5a5a: 0x%8x ", __func__, *(psram_test_addr + i));
+                        TRACE(3, "%s fail addr: %p ", __func__, *err_flag);
+                        TRACE(3, "%s fail addr: %p ", __func__, (psram_test_addr + i));
+                        TRACE(3, "%s fail 0x5a5a5a5a: 0x%8x ", __func__, *(psram_test_addr + i));
                       //  while(wait);
                 }
             }
@@ -193,8 +193,8 @@ while(0)
 
     for(int i = 0; i < ccount; i++){
         if(*ps != *pd){
-           DRIVERS_TRACE(0,"%s test result fail i:%d source:%p - dest:%p  ", __func__,i,ps, pd);
-           DRIVERS_TRACE(0,"%s test result fail i:%d 0x%x - 0x%x  ", __func__,i,*ps, *pd);
+           GPU_REP("%s test result fail i:%d source:%p - dest:%p  ", __func__,i,ps, pd);
+           GPU_REP("%s test result fail i:%d 0x%x - 0x%x  ", __func__,i,*ps, *pd);
            while(wait);
            //break;
         }
@@ -203,13 +203,13 @@ while(0)
     }
     }
 #endif//psram+gpu test
-    DRIVERS_TRACE(0,"%s %d tfbd: %p %p", __func__, __LINE__, __tiger_fbdata_start_flash, __tiger_fbdata_end_flash);
+    GPU_REP("%s %d tfbd: %p %p", __func__, __LINE__, __tiger_fbdata_start_flash, __tiger_fbdata_end_flash);
 #if 0
     if (!memcmp(__tiger_fbdata_start_flash,fb->memory, ccount))
     {
-        DRIVERS_TRACE(0,"%s test result pass ", __func__);
+        GPU_REP("%s test result pass ", __func__);
     }else{
-        DRIVERS_TRACE(0,"%s test result fail ", __func__);
+        GPU_REP("%s test result fail ", __func__);
     }
 #endif
     gpu_set_soft_break_point();
@@ -217,7 +217,7 @@ while(0)
 ErrorHandler:
     // Cleanup.
     cleanup();
-    DRIVERS_TRACE(0,"%s test pass", __func__);
+    GPU_REP("%s test pass", __func__);
 #ifdef GPU_TEST_LOOP
     goto __test_again;
 #endif
@@ -232,7 +232,7 @@ int gpu_draw_tiger_test(vg_lite_buffer_t* fb)
     TC_INIT
     // Initialize vglite.
     vg_lite_error_t error = VG_LITE_SUCCESS;
-    DRIVERS_TRACE(0,"%s", __func__);
+    GPU_REP("%s", __func__);
 
     filter = VG_LITE_FILTER_POINT;
 
@@ -264,7 +264,7 @@ int gpu_draw_tiger_test(vg_lite_buffer_t* fb)
     }
 
 ErrorHandler:
-    DRIVERS_TRACE(0,"%s test pass", __func__);
+    GPU_REP("%s test pass", __func__);
     return 0;
 }
 

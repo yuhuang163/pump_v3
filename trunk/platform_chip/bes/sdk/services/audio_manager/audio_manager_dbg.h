@@ -29,9 +29,9 @@ typedef enum
 
 
 #define return_if_fail(p) if(!(p)) \
-    {AUDIO_MANAGER_TRACE(2, "%s:%d Warning: "#p" failed.\n", __func__, __LINE__); return;}
+    {TRACE(2, "%s:%d Warning: "#p" failed.\n", __func__, __LINE__); return;}
 
 #define return_val_if_fail(p, ret) if(!(p)) \
-    {AUDIO_MANAGER_TRACE(2, "%s:%d Warning: "#p" failed.\n", __func__, __LINE__); return (ret);}
+    {TRACE(2, "%s:%d Warning: "#p" failed.\n", __func__, __LINE__); return (ret);}
 
 #endif /* __AUDIO_MANAGER_DBG_H__ */

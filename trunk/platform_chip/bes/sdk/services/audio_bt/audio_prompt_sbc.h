@@ -10,13 +10,9 @@ extern "C" {
 
 #define MIX_WITH_A2DP_STREAMING  0
 #define MIX_WITH_SCO_STREAMING   1
-#define MIX_WITH_BLE_AUDIO_MEDIA_STREAMING      2
-#define MIX_WITH_BLE_AUDIO_FLEXIBLE_STREAMING   3
 
 #define PENDING_TO_STOP_A2DP_STREAMING  0
 #define PENDING_TO_STOP_SCO_STREAMING   1
-#define PENDING_TO_STOP_BLE_AUDIO_STREAMING          2
-#define PENDING_TO_STOP_BLE_AUDIO_SINGLE_STREAMING   3
 #define PENDING_TO_STOP_STREAM_INVALID  (0xFF)
 
 typedef struct
@@ -46,7 +42,7 @@ typedef struct {
 typedef struct
 {
     uint8_t                 dev_id;
-    uint16_t                voicePrompt;
+    uint32_t                voicePrompt;
     uint16_t                prompt_type;
 } app_tws_voice_prompt_to_play_t;
 
@@ -67,7 +63,7 @@ typedef struct
 #if (AUDIO_PROMPT_SBC_SAMPLE_RATE_VALUE == 8000)
 #define AUDIO_PROMPT_TARGET_PCM_BUFFER_SIZE     (AUDIO_PROMPT_SOURCE_PCM_BUFFER_SIZE*4)
 #else
-#if defined(A2DP_LHDC_ON) || defined(A2DP_LHDCV5_ON) || defined(A2DP_SCALABLE_ON) || defined(A2DP_LDAC_ON) 
+#if defined(A2DP_LHDC_ON) || defined(A2DP_LHDCV5_ON) || defined(A2DP_SCALABLE_ON) || defined(A2DP_LDAC_ON)
 #define AUDIO_PROMPT_TARGET_PCM_BUFFER_SIZE     (AUDIO_PROMPT_SOURCE_PCM_BUFFER_SIZE*3)
 #else
 #define AUDIO_PROMPT_TARGET_PCM_BUFFER_SIZE     (AUDIO_PROMPT_SOURCE_PCM_BUFFER_SIZE*2)
@@ -95,7 +91,6 @@ typedef struct
 
 #define AUDIO_PROMPT_BUF_SIZE_FOR_RESAMPLER             800
 
-typedef void (*mix_audio_stop_func_t)  (uint8_t,uint8_t,uint8_t);
 uint32_t audio_prompt_sbc_get_frame_len(void);
 
 void audio_prompt_init_handler(void);
@@ -112,7 +107,7 @@ void audio_prompt_buffer_config(uint8_t mixType,
                                 uint8_t *bufForResampler,
                                 uint32_t resampleBufLen);
 
-bool audio_prompt_start_playing(uint16_t promptId, uint32_t targetSampleRate);
+bool audio_prompt_start_playing(uint32_t promptId, uint32_t targetSampleRate);
 
 void audio_prompt_stop_playing(void);
 
@@ -120,9 +115,6 @@ void audio_prompt_processing_handler(uint8_t device_id, uint32_t acquiredPcmData
                                      uint8_t *pcmDataToMerge);
 
 bool audio_prompt_check_on_stopping_stream(uint8_t pendingStopOp, uint8_t deviceId);
-
-bool audio_prompt_check_on_stopping_ble_audio_stream(uint8_t pendingStopOp, uint8_t con_id,
-                                                    uint32_t context_type, void *mix_audio_stop_func);
 
 void audio_prompt_forcefully_stop(void);
 
@@ -136,6 +128,11 @@ uint32_t audio_prompt_get_sample_rate(void);
 void tws_playback_ticks_check_for_mix_prompt(uint8_t device_id);
 void app_tws_cmd_sync_mix_prompt_req_handler(uint8_t *ptrParam, uint16_t paramLen);
 #endif
+
+void app_tws_cmd_prompt_play_req_handler(uint8_t *ptrParam, uint32_t paramLen);
+
+bool app_tws_let_peer_device_play_audio_prompt(uint32_t promptId,
+    uint16_t aud_param, uint8_t dev_id);
 
 bool audio_prompt_clear_pending_stream(uint8_t op);
 

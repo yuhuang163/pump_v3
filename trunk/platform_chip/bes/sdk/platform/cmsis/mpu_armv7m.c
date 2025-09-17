@@ -116,18 +116,18 @@ static uint8_t mpu_alloc_region(void)
     uint8_t i;
     uint32_t lock;
 
-    lock = int_lock();
+    lock = int_lock_global();
     for (i = 0; i < MPU_ID_QTY; i++)
         if ((mpu_region_map & (1 << i)) == 0)
             break;
 
     if (i >= MPU_ID_QTY) {
-        int_unlock(lock);
+        int_unlock_global(lock);
         return MPU_INVALID_ID;
     }
 
     mpu_region_map |= 1 << i;
-    int_unlock(lock);
+    int_unlock_global(lock);
     return i;
 }
 
@@ -138,9 +138,9 @@ static void mpu_free_region(uint8_t id)
     if (id >= MPU_ID_QTY)
         return;
 
-    lock = int_lock();
+    lock = int_lock_global();
     mpu_region_map &= ~(1 << id);
-    int_unlock(lock);
+    int_unlock_global(lock);
 }
 
 /*
@@ -188,7 +188,7 @@ static int calc_sub_region_size(uint32_t fr_start)
     sz = 1 << lsb_bit;
     if (sz < 0x80) {
         /*cortex-m4 doesn't support sub region size less than 128 */
-        CMSIS_TRACE(1,"no mpu region for fram start %x", fr_start);
+        TRACE(1,"no mpu region for fram start %x", fr_start);
         return -1;
     }
     if (sz > 0x4000)
@@ -252,8 +252,8 @@ static int mpu_fram_protect_armv7(uint32_t fr_start, uint32_t fr_end)
     rg_sz = sub_rg_sz * 8;
     /*now we just protect two region */
     if (fr_sz > (rg_sz * 2)) {
-        CMSIS_TRACE(0,"Warning fram is too big, mpu can not protect so much");
-        CMSIS_TRACE(2,"region_sz %x, fram size %x", rg_sz, fr_sz);
+        TRACE(0,"Warning fram is too big, mpu can not protect so much");
+        TRACE(2,"region_sz %x, fram size %x", rg_sz, fr_sz);
     }
 
     /*aliged the region start to region size according to cortext m4 spec*/
@@ -361,7 +361,7 @@ int mpu_clear(uint32_t addr, uint32_t len)
     int found;
     uint8_t id;
 
-    lock = int_lock();
+    lock = int_lock_global();
 
     found = mpu_find_region(addr, len, &id);
     if (found) {
@@ -371,9 +371,58 @@ int mpu_clear(uint32_t addr, uint32_t len)
         mpu_free_region(id);
     }
 
-    int_unlock(lock);
+    int_unlock_global(lock);
 
     return !found;
+}
+
+int mpu_no_access_set(uint32_t addr, uint32_t len)
+{
+    uint8_t id;
+    uint32_t lock;
+    int ret;
+
+    id = mpu_alloc_region();
+    if (id == MPU_INVALID_ID) {
+        return -2;
+    }
+
+    lock = int_lock_global();
+    ret = mpu_set_armv7(id, addr, len, 0, MPU_ATTR_NO_ACCESS);
+    int_unlock_global(lock);
+    if (ret) {
+        mpu_free_region(id);
+        return ret;
+    }
+
+    return (id + 1);
+}
+
+int mpu_no_access_clear(int no_access_id)
+{
+    uint8_t id;
+    uint32_t lock;
+
+    if (no_access_id < 0) {
+        return -41;
+    }
+    if (no_access_id == 0) {
+        return 0;
+    }
+
+    id = no_access_id - 1;
+    if (id >= MPU_ID_QTY) {
+        return -1;
+    }
+
+    lock = int_lock_global();
+    ARM_MPU_ClrRegion(id);
+    __DSB();
+    __ISB();
+    mpu_free_region(id);
+    int_unlock_global(lock);
+
+    return 0;
 }
 
 extern uint32_t __fast_sram_text_exec_start__[];
@@ -397,7 +446,7 @@ int mpu_fram_test(void)
     uint32_t test_start =  ram_start - 1024;
 
     for (int i = 0; i < 1024; i++) {
-        CMSIS_TRACE(1,"test_start %x", test_start);
+        TRACE(1,"test_start %x", test_start);
         *(volatile uint32_t *)test_start = 0x1;
         test_start += 128;
     }
@@ -406,7 +455,7 @@ int mpu_fram_test(void)
     uint32_t ram_end = RAMX_TO_RAM(ramx_end);
     uint32_t test_end =  ram_end + 1024;
     for (int i = 0; i < 1024; i++) {
-        CMSIS_TRACE(1,"test_end %x", test_end);
+        TRACE(1,"test_end %x", test_end);
         *(volatile uint32_t *)test_end = 0x1;
         test_end -= 128;
     }
@@ -425,7 +474,7 @@ static int mpu_init_table(const mpu_regions_t *mpu_table, uint32_t region_num, i
         return -1;
     }
 
-    lock = int_lock();
+    lock = int_lock_global();
     for (i = 0; i < region_num; i++) {
         const mpu_regions_t *region;
         region = &mpu_table[i];
@@ -438,7 +487,7 @@ static int mpu_init_table(const mpu_regions_t *mpu_table, uint32_t region_num, i
     }
 
 out:
-    int_unlock(lock);
+    int_unlock_global(lock);
     return ret;
 }
 

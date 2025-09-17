@@ -35,8 +35,6 @@ extern "C" {
 #endif
 
 int app_arc_vcs_restore_bond_data_req(uint8_t con_lid, uint8_t cli_cfg_bf);
-int app_arc_vcs_control_by_con_lid(uint8_t con_lid, uint8_t opcode, uint8_t volume, bool no_changed_cb);
-int app_arc_vcs_update_info_req_by_con_lid(uint8_t con_lid, uint8_t bit_map, uint8_t volume, bool isMute);
 
 #ifdef __cplusplus
 }

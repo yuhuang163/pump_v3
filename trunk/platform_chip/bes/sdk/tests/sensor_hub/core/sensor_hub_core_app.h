@@ -17,6 +17,7 @@
 #define __SENSOR_HUB_CORE_APP_H__
 
 void sensor_hub_core_app_init(void);
+void sensor_hub_core_custom_app_init(void);
 void app_sensor_hub_core_send_demo_req_with_rsp(void);
 void app_sensor_hub_core_send_demo_req_no_rsp(void);
 

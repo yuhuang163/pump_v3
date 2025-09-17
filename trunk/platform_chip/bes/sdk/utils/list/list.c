@@ -19,47 +19,106 @@
 #include "string.h"
 #include "list.h"
 
+#if defined(KERNEL_RTX5) || defined(KERNEL_LITEOS_M)
+static osMemoryPoolId_t   list_t_mempool = NULL;
+static const osMemoryPoolAttr_t MPAttr_list = {
+    .name = NULL,
+    .attr_bits = 0U,
+    .cb_mem = NULL,
+    .cb_size = 0U,
+    .mp_mem = NULL,
+    .mp_size = 0U,
+};
+
+static osMemoryPoolId_t   list_node_t_mempool = NULL;
+static const osMemoryPoolAttr_t MPAttr_node = {
+    .name = NULL,
+    .attr_bits = 0U,
+    .cb_mem = NULL,
+    .cb_size = 0U,
+    .mp_mem = NULL,
+    .mp_size = 0U,
+};
+#else
 osPoolId   list_t_mempool = NULL;
 osPoolDef (list_t_mempool, __LIST_NUM__, list_t);
 
 osPoolId   list_node_t_mempool = NULL;
 osPoolDef (list_node_t_mempool, 50, list_node_t);
+#endif
 
 static list_node_t *list_free_node_(list_t *list, list_node_t *node);
 
 int list_init(void)
 {
+    #if defined(KERNEL_RTX5) || defined(KERNEL_LITEOS_M)
+    if (list_t_mempool == NULL)
+        list_t_mempool = osMemoryPoolNew(__LIST_NUM__, sizeof(list_t), &MPAttr_list);
+    if (list_node_t_mempool == NULL)
+        list_node_t_mempool = osMemoryPoolNew(50, sizeof(list_node_t), &MPAttr_node);
+    #else
     if (list_t_mempool == NULL)
         list_t_mempool = osPoolCreate(osPool(list_t_mempool));
 
     if (list_node_t_mempool == NULL)
         list_node_t_mempool = osPoolCreate(osPool(list_node_t_mempool));
+    #endif
 
     return 0;
 }
 
 inline static list_node_t *malloc_list_node (void)
 {
+    #if defined(KERNEL_RTX5) || defined(KERNEL_LITEOS_M)
+    uint32_t block_size;
+
+    block_size = osMemoryPoolGetBlockSize(list_node_t_mempool);
+    ASSERT(block_size,"[%s] failed",__func__);
+    list_node_t *node = (list_node_t *)osMemoryPoolAlloc(list_node_t_mempool, 0U);
+    if (node != NULL) {
+      memset(node, 0, block_size);
+    }
+    #else
     list_node_t *node = (list_node_t *)osPoolCAlloc (list_node_t_mempool);
+    #endif
     ASSERT(node,"[%s] failed",__func__);
     return node;
 }
 
 inline static void free_list_node(list_node_t *node)
 {
+    #if defined(KERNEL_RTX5) || defined(KERNEL_LITEOS_M)
+    osMemoryPoolFree(list_node_t_mempool, node);
+    #else
     osPoolFree (list_node_t_mempool, node);
+    #endif
 }
 
 inline static list_t *malloc_list(void)
 {
+    #if defined(KERNEL_RTX5) || defined(KERNEL_LITEOS_M)
+    uint32_t block_size;
+
+    block_size = osMemoryPoolGetBlockSize(list_t_mempool);
+    ASSERT(block_size,"[%s] failed",__func__);
+    list_t *list = (list_t *)osMemoryPoolAlloc(list_t_mempool, 0U);
+    if (list != NULL) {
+      memset(list, 0, block_size);
+    }
+    #else
     list_t *list = (list_t *)osPoolCAlloc (list_t_mempool);
+    #endif
     ASSERT(list,"[%s] failed",__func__);
     return list;
 }
 
 inline static void free_list(list_t *list)
 {
+    #if defined(KERNEL_RTX5) || defined(KERNEL_LITEOS_M)
+    osMemoryPoolFree(list_t_mempool, list);
+    #else
     osPoolFree (list_t_mempool, list);
+    #endif
 }
 
 
@@ -91,17 +150,11 @@ list_t *list_new(list_free_cb callback, list_mempool_zmalloc zmalloc, list_mempo
 // behaves like a no-op.
 void list_free(list_t *list) {
   if (list)
-  {
     list_clear(list);
-    if (list->mempool_functions.free)
-    {
-        list->mempool_functions.free(list);
-    }
-    else
-    {
-        free_list(list);
-    }
-  }
+  if (list->mempool_functions.free)
+    list->mempool_functions.free(list);
+  else
+    free_list(list);
 }
 
 // Returns true if the list is empty (has no elements), false otherwise.
@@ -175,7 +228,7 @@ bool list_prepend(list_t *list, void *data) {
 
   if (!node)
   {
-    LIST_TRACE(0,"malloc failed!!!");
+    TRACE(0,"malloc failed!!!");
     return false;
   }
   node->next = list->head;

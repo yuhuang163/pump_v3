@@ -70,11 +70,7 @@ HANDLE_LDAC_BT hLdacData = NULL;
 #include "cmsis.h"
 #include "norflash_api.h"
 
-#ifdef A2DP_CP_ACCEL
-#define TEXT_A2DP_LOC_A(n, l)
-#else
 #define TEXT_A2DP_LOC_A(n, l)           __attribute__((section(#n "." #l)))
-#endif
 #define TEXT_A2DP_LOC(n, l)             TEXT_A2DP_LOC_A(n, l)
 
 #define TEXT_SBC_LOC                    TEXT_A2DP_LOC(.overlay_a2dp_sbc, __LINE__)
@@ -85,6 +81,9 @@ HANDLE_LDAC_BT hLdacData = NULL;
 #define TEXT_LHDCV5_LOC                 TEXT_A2DP_LOC(.overlay_a2dp_lhdcv5, __LINE__)
 
 //#define A2DP_AUDIO_SYNC_WITH_LOCAL (1)
+
+#define A2DP_AUDIO_SYNC_TRACE(s,...)
+//TRACE(s, ##__VA_ARGS__)
 
 #ifdef A2DP_AUDIO_SYNC_WITH_LOCAL
 #define A2DP_AUDIO_SYNC_WITH_LOCAL_SAMPLERATE_DEFAULT (0)
@@ -277,11 +276,11 @@ static int a2dp_audio_sync_proc(uint8_t status, int shift)
         need_shift = true;
     }
     if (need_shift){
-        AUDIOPLAYERS_TRACE(1,"a2dp_audio_sync_proc shift:%d\n", cur_shift);
+        A2DP_AUDIO_SYNC_TRACE(1,"a2dp_audio_sync_proc shift:%d\n", cur_shift);
         uint32_t ret = af_stream_get_cfg(AUD_STREAM_ID_0, AUD_STREAM_PLAYBACK, &cfg, false);
         if (0 == ret)
         {
-            af_codec_tune(AUD_STREAM_PLAYBACK, A2DP_AUDIO_SYNC_WITH_LOCAL_SAMPLERATE_STEP*cur_shift);
+            af_stream_tune(AUD_STREAM_ID_0, AUD_STREAM_PLAYBACK, A2DP_AUDIO_SYNC_WITH_LOCAL_SAMPLERATE_STEP*cur_shift);
         }
     }
     UNLOCK_APP_AUDIO_QUEUE();
@@ -393,6 +392,7 @@ uint8_t get_ldac_frame_num(uint16_t frame_length_index){
 }
 #endif
 
+typedef void (*a2dp_store_data_ntf_callback_t)(void);
 
 #define DELAY_MTU_LIMIT 8
 
@@ -400,9 +400,9 @@ static volatile int delay_mtu_limit = DELAY_MTU_LIMIT;
 static volatile int mtu_count = 0;
 static volatile int delay_mtu_count = 0;
 static a2dp_store_data_ntf_callback_t store_data_ntf_cb = NULL;
+
 bool app_bt_stream_trigger_onprocess(void);
 void app_bt_stream_trigger_start(uint8_t device_id, uint8_t offset);
-
 void a2dp_audio_reg_store_data_ntf_cb(void *cb)
 {
     store_data_ntf_cb = (a2dp_store_data_ntf_callback_t)cb;
@@ -445,13 +445,13 @@ int store_sbc_buffer(uint8_t device_id, unsigned char *buf, unsigned int len)
 	}
 
     if (!a2dp_audio_isrunning(A2DPPLAY_STRTEAM_PUT, true)){
-        AUDIOPLAYERS_TRACE(3,"%s not ready:%d cache_status:%d",__func__, len, a2dp_cache_status);
+        TRACE(3,"%s not ready:%d cache_status:%d",__func__, len, a2dp_cache_status);
     }
 	uint8_t overlay_id = app_get_current_overlay();
 
 	if(overlay_id == APP_OVERLAY_A2DP)
     {
-        //AUDIOPLAYERS_TRACE(8,"sbc %d %x %x %x %x mtu_count:%d sbcqueue:%d,sbc_frame_rev_len=%d", len, buf[0],
+        //TRACE(8,"sbc %d %x %x %x %x mtu_count:%d sbcqueue:%d,sbc_frame_rev_len=%d", len, buf[0],
         //    buf[1],buf[2],buf[3],mtu_count,APP_AUDIO_LengthOfCQueue(&sbc_queue),sbc_frame_rev_len);
     }
 #if defined(A2DP_LDAC_ON)
@@ -461,13 +461,13 @@ int store_sbc_buffer(uint8_t device_id, unsigned char *buf, unsigned int len)
         uint16_t data2 = (uint16_t)buf[2];
         frame_length_index = ((data1<< 6 &0xFFFF) | (data2 >> 2 & 0xFFFF));
         sbc_frame_num = get_ldac_frame_num(frame_length_index);
-        //AUDIOPLAYERS_TRACE(10,"ldac %d %d %x %x %x %x mtu_count:%d sbcqueue:%d,sbc_frame_rev_len=%d,sbc_frame_num %d", len, sbc_frame_size,buf[0],
+        //TRACE(10,"ldac %d %d %x %x %x %x mtu_count:%d sbcqueue:%d,sbc_frame_rev_len=%d,sbc_frame_num %d", len, sbc_frame_size,buf[0],
         //    buf[1],buf[2],buf[3],mtu_count,APP_AUDIO_LengthOfCQueue(&sbc_queue),sbc_frame_rev_len,sbc_frame_num);
     }
 #endif
     else
     {
-        //AUDIOPLAYERS_TRACE(8,"AAC %d %x %x %x %x mtu_count:%d sbcqueue:%d,sbc_frame_rev_len=%d", len, buf[0],
+        //TRACE(8,"AAC %d %x %x %x %x mtu_count:%d sbcqueue:%d,sbc_frame_rev_len=%d", len, buf[0],
         //    buf[1],buf[2],buf[3],mtu_count,APP_AUDIO_LengthOfCQueue(&sbc_queue),sbc_frame_rev_len);
     }
 
@@ -479,8 +479,8 @@ int store_sbc_buffer(uint8_t device_id, unsigned char *buf, unsigned int len)
 			if(overlay_id == APP_OVERLAY_A2DP_LHDC){
                 uint32_t lSize = 0, rSize = 0;
                 uint8_t *lPTR = NULL, *rPTR = NULL;
-                //AUDIOPLAYERS_TRACE(2,"%s:APP_AUDIO_CACHE_CACHEING Enter len = %d",__func__, len);
-                //AUDIOPLAYERS_TRACE(2,"%s: input len(%d)",__func__, len);
+                //TRACE(2,"%s:APP_AUDIO_CACHE_CACHEING Enter len = %d",__func__, len);
+                //TRACE(2,"%s: input len(%d)",__func__, len);
                 if (assemble_lhdc_packet(buf, len, &lPTR, &lSize, &rPTR, &rSize) > 0){
                     if (lPTR != NULL && lSize != 0){
                         newLen = lSize + sizeof(LHDC_HEADER);
@@ -498,21 +498,21 @@ int store_sbc_buffer(uint8_t device_id, unsigned char *buf, unsigned int len)
 
             LOCK_APP_AUDIO_QUEUE();
 #if defined(A2DP_LHDC_ON)
-			if(overlay_id == APP_OVERLAY_A2DP_LHDC){
-	            nRet = APP_AUDIO_EnCQueue(&sbc_queue, lhdcTempBuf, newLen);
+            if(overlay_id == APP_OVERLAY_A2DP_LHDC){
+                nRet = APP_AUDIO_EnCQueue(&sbc_queue, lhdcTempBuf, newLen);
                 size = APP_AUDIO_LengthOfCQueue(&sbc_queue);
-			}else
+            }else
 #endif
 
 #if defined(A2DP_LDAC_ON)
-			if(overlay_id == APP_OVERLAY_A2DP_LDAC){
-	            nRet = APP_AUDIO_EnCQueue(&sbc_queue, buf, len);
-				 size = APP_AUDIO_LengthOfCQueue(&sbc_queue);
-			}else
+            if(overlay_id == APP_OVERLAY_A2DP_LDAC){
+                nRet = APP_AUDIO_EnCQueue(&sbc_queue, buf, len);
+                size = APP_AUDIO_LengthOfCQueue(&sbc_queue);
+            }else
 #endif
 
 #if defined(A2DP_AAC_ON)
-			if(overlay_id == APP_OVERLAY_A2DP_AAC){
+            if(overlay_id == APP_OVERLAY_A2DP_AAC){
                 nRet = AvailableOfCQueue(&sbc_queue);
                 if (nRet >= (int)(len + 2))
                 {
@@ -548,7 +548,7 @@ int store_sbc_buffer(uint8_t device_id, unsigned char *buf, unsigned int len)
 	                    mtu_count = 0;
 	                delay_mtu_count += sbc_frame_num;
 	                mtu_count += sbc_frame_num;
-//					AUDIOPLAYERS_TRACE(1,"+mtu_count = %d",mtu_count);
+//					TRACE(1,"+mtu_count = %d",mtu_count);
 				}else{
 	                if (delay_mtu_count == 0)
 	                    mtu_count = 0;
@@ -576,7 +576,7 @@ int store_sbc_buffer(uint8_t device_id, unsigned char *buf, unsigned int len)
 			if(overlay_id == APP_OVERLAY_A2DP_LDAC)
 			{
 				flag = 1;
-				AUDIOPLAYERS_TRACE(0,"y# ldac cache");
+				TRACE(0,"y# ldac cache");
 			}
 #endif
 
@@ -584,38 +584,38 @@ int store_sbc_buffer(uint8_t device_id, unsigned char *buf, unsigned int len)
 			{
 #ifdef __A2DP_PLAYER_USE_BT_TRIGGER__
                 if(app_bt_stream_trigger_onprocess()&&mtu_count){
-                    AUDIOPLAYERS_TRACE(0,"cache ok use dma trigger\n");
+                    TRACE(0,"cache ok use dma trigger\n");
                     a2dp_cache_status = APP_AUDIO_CACHE_OK;
                     app_bt_stream_trigger_start(device_id, 0);
                 }
 #else
                 if (delay_mtu_count >= delay_mtu_limit){
-                    AUDIOPLAYERS_TRACE(2,"aac cache ok:%d,mtu_count=%d\n", size,mtu_count);
+                    TRACE(2,"aac cache ok:%d,mtu_count=%d\n", size,mtu_count);
                     a2dp_cache_status = APP_AUDIO_CACHE_OK;
                 }
 #endif
             }else{
 #ifdef __A2DP_PLAYER_USE_BT_TRIGGER__
                 if(app_bt_stream_trigger_onprocess()&&mtu_count){
-                    AUDIOPLAYERS_TRACE(0,"cache ok use dma trigger\n");
+                    TRACE(0,"cache ok use dma trigger\n");
                     a2dp_cache_status = APP_AUDIO_CACHE_OK;
                     app_bt_stream_trigger_start(device_id, 0);
                 }
 #else
                 if (delay_mtu_count >= delay_mtu_limit){
-                    AUDIOPLAYERS_TRACE(4,"cache ok:%d,%d,%d,mtu_count=%d\n", size,len,sbc_frame_size,mtu_count);
+                    TRACE(4,"cache ok:%d,%d,%d,mtu_count=%d\n", size,len,sbc_frame_size,mtu_count);
                     a2dp_cache_status = APP_AUDIO_CACHE_OK;
                 }else if (sbc_frame_size && (size>=A2DPPLAY_CACHE_OK_THRESHOLD)){
-                    AUDIOPLAYERS_TRACE(2,"cache ok:%d,mtu_count=%d\n", size,mtu_count);
+                    TRACE(2,"cache ok:%d,mtu_count=%d\n", size,mtu_count);
                     a2dp_cache_status = APP_AUDIO_CACHE_OK;
                 }else{
-                    AUDIOPLAYERS_TRACE(1,"cache add:%d\n", len);
+                    TRACE(1,"cache add:%d\n", len);
                 }
 #endif
             }
 
 			if(nRet == CQ_ERR){
-				AUDIOPLAYERS_TRACE(0,"cache add overflow\n");
+				TRACE(0,"cache add overflow\n");
 				a2dp_cache_status = APP_AUDIO_CACHE_OK;
 			}
 			if (a2dp_cache_status == APP_AUDIO_CACHE_OK){
@@ -645,7 +645,7 @@ int store_sbc_buffer(uint8_t device_id, unsigned char *buf, unsigned int len)
 			if(overlay_id == APP_OVERLAY_A2DP_LHDC){
                 uint32_t lSize = 0, rSize = 0;
                 uint8_t *lPTR = NULL, *rPTR = NULL;
-                //AUDIOPLAYERS_TRACE(2,"%s: input len(%d)",__func__, len);
+                //TRACE(2,"%s: input len(%d)",__func__, len);
                 if (assemble_lhdc_packet(buf, len, &lPTR, &lSize, &rPTR, &rSize) > 0){
                     if (lPTR != NULL && lSize != 0){
                         newLen = lSize + sizeof(LHDC_HEADER);
@@ -696,7 +696,7 @@ int store_sbc_buffer(uint8_t device_id, unsigned char *buf, unsigned int len)
 #endif
                          ){
 							mtu_count += sbc_frame_num;
-//							AUDIOPLAYERS_TRACE(1,"+mtu_count = %d",mtu_count);
+//							TRACE(1,"+mtu_count = %d",mtu_count);
 						}else{
 							mtu_count++;
 						}
@@ -706,12 +706,12 @@ int store_sbc_buffer(uint8_t device_id, unsigned char *buf, unsigned int len)
                 }
 //              size = APP_AUDIO_LengthOfCQueue(&sbc_queue);
                 UNLOCK_APP_AUDIO_QUEUE();
-//                AUDIOPLAYERS_TRACE(3,"cache add:%d %d/%d \n", len, size, g_sbc_queue_size);
+//                TRACE(3,"cache add:%d %d/%d \n", len, size, g_sbc_queue_size);
                 if (CQ_OK == nRet){
                     nRet = 0;
                     break;
                 }else{
-                    AUDIOPLAYERS_TRACE(1,"cache flow control:%d\n", cnt);
+                    TRACE(1,"cache flow control:%d\n", cnt);
 #ifdef A2DP_AUDIO_SYNC_WITH_LOCAL
                     a2dp_audio_sync_proc(A2DPPLAY_SYNC_STATUS_SET, 0);
 #endif
@@ -737,7 +737,7 @@ int store_sbc_buffer(uint8_t device_id, unsigned char *buf, unsigned int len)
 #endif
 
     if (nRet){
-        AUDIOPLAYERS_TRACE(0,"cache overflow\n");
+        TRACE(0,"cache overflow\n");
     }
     else
     {
@@ -746,7 +746,6 @@ int store_sbc_buffer(uint8_t device_id, unsigned char *buf, unsigned int len)
             store_data_ntf_cb();
         }
     }
-
     return 0;
 }
 
@@ -800,20 +799,18 @@ int ldac_dec_init(void)
         return 0;
     }
 
-    int sample_count = 0;
-    uint32_t sample_rate = bta_get_curr_a2dp_sample_rate();
-    sample_count = bta_sample_rate_convert_to_sample_count(sample_rate);
-    int channel_mode = bta_get_curr_a2dp_channel_mode();
-    AUDIOPLAYERS_TRACE(2,"a2dp_audio_init sample Rate=%d, channel_mode = %d\n", sample_count, channel_mode);
-    //AUDIOPLAYERS_TRACE(1,"sys freq calc : %d\n", hal_sys_timer_calc_cpu_freq(0));
-    AUDIOPLAYERS_TRACE(0,"ldac need init here!!!! \n");
+    int sample_rate = bes_bt_a2dp_ldac_get_sample_rate();
+    int channel_mode = bes_bt_a2dp_ldac_get_channelmode();
+    TRACE(2,"a2dp_audio_init sample Rate=%d, channel_mode = %d\n", sample_rate, channel_mode);
+    //TRACE(1,"sys freq calc : %d\n", hal_sys_timer_calc_cpu_freq(0));
+    TRACE(0,"ldac need init here!!!! \n");
     if ((hLdacData = ldacBT_get_handle()) == (HANDLE_LDAC_BT)NULL){
-        AUDIOPLAYERS_TRACE(0,"Error: Can not Get LDAC Handle!\n");
+        TRACE(0,"Error: Can not Get LDAC Handle!\n");
         return 1;
     }
-    int result = ldacBT_init_handle_decode(hLdacData,channel_mode,sample_count,0,0,0);
+    int result = ldacBT_init_handle_decode(hLdacData,channel_mode,sample_rate,0,0,0);
     if (result) {
-        AUDIOPLAYERS_TRACE(1,"[ERR] Initializing LDAC Handle for synthesis! Error code %s\n", get_error_code_string(ldacBT_get_error_code(hLdacData)));
+        TRACE(1,"[ERR] Initializing LDAC Handle for synthesis! Error code %s\n", get_error_code_string(ldacBT_get_error_code(hLdacData)));
         return 2;
     }
     return 0;
@@ -831,8 +828,8 @@ int ldac_dec_deinit(void)
 TEXT_LDAC_LOC
 int ldac_seek_header(uint32_t n_read_bytes, uint32_t *p_parse_bytes)
 {
-    int channel_mode = 0;
-    uint32_t sample_rate = 0;
+	int channel_mode = 0;
+	int sample_rate = 0;
 
     if (p_parse_bytes) {
         *p_parse_bytes = 0;
@@ -843,10 +840,8 @@ int ldac_seek_header(uint32_t n_read_bytes, uint32_t *p_parse_bytes)
     }
 
     /* update used_bytes to skip current ldac frame */
-    int sample_count = 0;
-    sample_rate = bta_get_curr_a2dp_sample_rate();
-    sample_count = bta_sample_rate_convert_to_sample_count(sample_rate);
-    channel_mode = bta_get_curr_a2dp_channel_mode();
+    sample_rate = bes_bt_a2dp_ldac_get_sample_rate();
+    channel_mode = bes_bt_a2dp_ldac_get_channelmode();
 
     if(1){
         unsigned char *pStream, *p1st, *p2nd, *pTail;
@@ -868,10 +863,10 @@ int ldac_seek_header(uint32_t n_read_bytes, uint32_t *p_parse_bytes)
             break;
         }
         if(0){;}
-        else if(sample_count == 1*44100){ sync2 = (0 << 5) | (cci << 3); }
-        else if(sample_count == 1*48000){ sync2 = (1 << 5) | (cci << 3); }
-        else if(sample_count == 2*44100){ sync2 = (2 << 5) | (cci << 3); }
-        else if(sample_count == 2*48000){ sync2 = (3 << 5) | (cci << 3); }
+        else if(sample_rate == 1*44100){ sync2 = (0 << 5) | (cci << 3); }
+        else if(sample_rate == 1*48000){ sync2 = (1 << 5) | (cci << 3); }
+        else if(sample_rate == 2*44100){ sync2 = (2 << 5) | (cci << 3); }
+        else if(sample_rate == 2*48000){ sync2 = (3 << 5) | (cci << 3); }
         while( pStream < pTail ){
             if( pStream[0] == 0xAA ){ /* syncword */
                 if( (pStream[1] & 0xF8) == sync2 ){
@@ -889,7 +884,7 @@ int ldac_seek_header(uint32_t n_read_bytes, uint32_t *p_parse_bytes)
         }
         if( p2nd == NULL ){
             /* faild to find next frame header */
-            AUDIOPLAYERS_TRACE(0,"Error: Can not get next LDAC frame_header!\n");
+            TRACE(0,"Error: Can not get next LDAC frame_header!\n");
             return 1;
         }
     }
@@ -913,7 +908,7 @@ int load_ldac_frame(uint8_t **p_data, uint32_t *p_len)
         len = get_ldac_data(ldac_input_mid_buf, LDAC_READBUF_SIZE);
         if(len == 0){
             if (retry++ >= A2DP_SYNC_WITH_PUT_MUTUX_TIMEROUT_CNT){
-                AUDIOPLAYERS_TRACE(0,"ldac No Data return");
+                TRACE(0,"ldac No Data return");
                 result = 1;
                 break;
             }
@@ -982,7 +977,7 @@ void decode_ldac_end(uint32_t expect_out_len, uint32_t out_len, uint32_t in_len)
         if (hLdacData) {
             int error_code;
             error_code = ldacBT_get_error_code(hLdacData);
-            AUDIOPLAYERS_TRACE(6,"error_code = %4d, %4d, %4d,FrameHeader[%02x:%02x:%02x]\n", LDACBT_API_ERR(error_code), LDACBT_HANDLE_ERR(error_code),\
+            TRACE(6,"error_code = %4d, %4d, %4d,FrameHeader[%02x:%02x:%02x]\n", LDACBT_API_ERR(error_code), LDACBT_HANDLE_ERR(error_code),\
                     LDACBT_BLOCK_ERR(error_code), ldac_input_mid_buf[0], ldac_input_mid_buf[1], ldac_input_mid_buf[2]);
             if( LDACBT_FATAL(error_code) ){
                 ldac_dec_deinit();
@@ -1045,7 +1040,7 @@ int aacdec_init(void)
 
         if (!aacDec_handle)
         {
-            AUDIOPLAYERS_TRACE(1,"%s Error initializing AAC decoder", __func__);
+            TRACE(1,"%s Error initializing AAC decoder", __func__);
             return 1;
         }
         aacDecoder_SetParam(aacDec_handle,AAC_PCM_LIMITER_ENABLE,0);
@@ -1062,7 +1057,7 @@ int aacdec_deinit(void)
         aacDec_handle = NULL;
         size_t total = 0, used = 0, max_used = 0;
         heap_memory_info(aac_memhandle,&total, &used, &max_used);
-        AUDIOPLAYERS_TRACE(3,"AAC MALLOC MEM: total - %d, used - %d, max_used - %d.",
+        TRACE(3,"AAC MALLOC MEM: total - %d, used - %d, max_used - %d.",
             total, used, max_used);
     }
     return 0;
@@ -1075,7 +1070,7 @@ static int pcm_buffer_read_no_protction(CQueue *queue, uint8_t *buff, uint16_t l
     unsigned int len1 = 0, len2 = 0;
     int status;
     status = PeekCQueue(queue, len, &e1, &len1, &e2, &len2);
-    //AUDIOPLAYERS_TRACE(5,"pcm_buffer_read_no_protction len=%d,len1=%d,len2=%d,e1=0x%x,e2=0x%x",len,len1,len2,e1,e2);
+    //TRACE(5,"pcm_buffer_read_no_protction len=%d,len1=%d,len2=%d,e1=0x%x,e2=0x%x",len,len1,len2,e1,e2);
     if (len==(len1+len2)){
         memcpy(buff,e1,len1);
         memcpy(buff+len1,e2,len2);
@@ -1131,7 +1126,7 @@ int load_aac_frame(uint8_t **p_data, uint32_t *p_len)
     UNLOCK_APP_AUDIO_QUEUE();
 
     //uint32_t a2dp_queue_bytes = LengthOfCQueue(&sbc_queue);
-    //AUDIOPLAYERS_TRACE(3,"d aac_len=%d, a2dp_bytes=%d, aac_maxreadBytes=%d\n", aac_len, a2dp_queue_bytes, aac_maxreadBytes);
+    //TRACE(3,"d aac_len=%d, a2dp_bytes=%d, aac_maxreadBytes=%d\n", aac_len, a2dp_queue_bytes, aac_maxreadBytes);
 
     if (p_data) {
         *p_data = (unsigned char *)aac_input_mid_buf;
@@ -1150,26 +1145,30 @@ int decode_aac_frame(uint8_t *out, uint32_t out_max, uint32_t *p_out_len, const 
     unsigned int bytesValid = in_len;
     AAC_DECODER_ERROR err = AAC_DEC_OK;
     CStreamInfo* info=NULL;
+    uint8_t a2dp_channel_num = 0;
+    uint8_t a2dp_curr_device = 0xff;
 
     //at leat should large than AAC_MAX_NSAMPS*2  (one channel)
     if(out_max < 2048){
-        AUDIOPLAYERS_TRACE(2,"%s daac pcm_len = %d \n", __func__, out_max);
+        TRACE(2,"%s daac pcm_len = %d \n", __func__, out_max);
         return 1;
     }
 
-    if(app_bt_get_device(app_bt_audio_get_curr_a2dp_device())->a2dp_channel_num == 1){
+    a2dp_curr_device = bes_bt_me_select_device(BT_SELECT_CURR_A2DP_DEVICE);
+    a2dp_channel_num = bes_bt_a2dp_get_state(a2dp_curr_device).a2dp_channel_num;
+    if(a2dp_channel_num == 1){
         out_max >>= 1;
     }
 
     //int tt = hal_sys_timer_get();
     err = aacDecoder_Fill(aacDec_handle, (uint8_t **)&in, &bufferSize, &bytesValid);
     if (err != AAC_DEC_OK) {
-        AUDIOPLAYERS_TRACE(1,"aacDecoder_Fill failed:0x%x", err);
+        TRACE(1,"aacDecoder_Fill failed:0x%x", err);
         //if aac failed reopen it again
         if(is_aacDecoder_Close(aacDec_handle)){
             aacDec_handle = NULL;
             aacdec_init();
-            AUDIOPLAYERS_TRACE(1,"%s reopen aac codec \n", __func__);
+            TRACE(1,"%s reopen aac codec \n", __func__);
         }
         return 2;
     }
@@ -1177,21 +1176,21 @@ int decode_aac_frame(uint8_t *out, uint32_t out_max, uint32_t *p_out_len, const 
     err = aacDecoder_DecodeFrame(aacDec_handle, (short *)out, out_max/2, 0 /* flags */);
 
 #if 0
-    AUDIOPLAYERS_TRACE(0," ");
+    TRACE_IMM(0," ");
     for(uint32_t i=0;i<aac_len;i=i+32)
     {
-        AUDIOPLAYERS_DUMP8("%02x", &(aac_input_mid_buf[i]), 32);
+        DUMP8("%02x", &(aac_input_mid_buf[i]), 32);
     }
 #endif
 
     if (err != AAC_DEC_OK)
     {
-        AUDIOPLAYERS_TRACE(1,"aacDecoder_DecodeFrame failed:0x%x", err);
+        TRACE(1,"aacDecoder_DecodeFrame failed:0x%x", err);
         //if aac failed reopen it again
         if(is_aacDecoder_Close(aacDec_handle)){
             aacDec_handle = NULL;
             aacdec_init();
-            AUDIOPLAYERS_TRACE(1,"%s reopen aac codec \n", __func__);
+            TRACE(1,"%s reopen aac codec \n", __func__);
         }
         return 3;
     }
@@ -1199,11 +1198,11 @@ int decode_aac_frame(uint8_t *out, uint32_t out_max, uint32_t *p_out_len, const 
     info = aacDecoder_GetStreamInfo(aacDec_handle);
 
     if (!info || info->sampleRate <= 0) {
-        AUDIOPLAYERS_TRACE(2,"%s Invalid stream info %d", __func__, info->sampleRate);
+        TRACE(2,"%s Invalid stream info %d", __func__, info->sampleRate);
         return 4;
     }
     int frame_len = info->frameSize * info->numChannels * 2;//sizeof(pcm_buffer[0]);
-    //AUDIOPLAYERS_TRACE(4,"aac: %d,frameSize=%d,numChannels=%d use %d ms\n", frame_len,info->frameSize,info->numChannels,TICKS_TO_MS(hal_sys_timer_get()-tt));
+    //TRACE(4,"aac: %d,frameSize=%d,numChannels=%d use %d ms\n", frame_len,info->frameSize,info->numChannels,TICKS_TO_MS(hal_sys_timer_get()-tt));
 
     if (p_out_len) {
         *p_out_len = frame_len;
@@ -1212,7 +1211,7 @@ int decode_aac_frame(uint8_t *out, uint32_t out_max, uint32_t *p_out_len, const 
         *p_consume_len = in_len - bytesValid;
     }
 
-    if(app_bt_get_device(app_bt_audio_get_curr_a2dp_device())->a2dp_channel_num == 1){
+    if(a2dp_channel_num == 1){
         expand_1_channel_to_2_channels_16bits(out, frame_len);
         *p_out_len = frame_len << 1;
     }
@@ -1278,7 +1277,7 @@ int load_scalable_frame(uint8_t **p_data, uint32_t *p_len)
 	int sampling_rate = 44100;
 	int extends_flag;
 
-    AUDIOPLAYERS_TRACE(0,"##decode_scalable_frame");
+    TRACE(0,"##decode_scalable_frame");
 	uint8_t head[4];
 
     LOCK_APP_AUDIO_QUEUE();
@@ -1288,7 +1287,7 @@ int load_scalable_frame(uint8_t **p_data, uint32_t *p_len)
     UNLOCK_APP_AUDIO_QUEUE();
     if(r == CQ_ERR) {
         //osDelay(2);
-        AUDIOPLAYERS_TRACE(2,"no data head xxx %d/%d" , LengthOfCQueue(&sbc_queue),AvailableOfCQueue(&sbc_queue));
+        TRACE(2,"no data head xxx %d/%d" , LengthOfCQueue(&sbc_queue),AvailableOfCQueue(&sbc_queue));
         //goto get_scalable_head_again;
 		LOCK_APP_AUDIO_QUEUE();
 		DeCQueue(&sbc_queue, head, 4);
@@ -1348,7 +1347,7 @@ int load_scalable_frame(uint8_t **p_data, uint32_t *p_len)
  	else{
         len=369;//744/2-4+1
  	}
-    AUDIOPLAYERS_TRACE(4,"len %d,uhq:%d ext:%d extbitrate_bps %d", len,scalable_uhq_flag, extends_flag,bitrate_bps);
+    TRACE(4,"len %d,uhq:%d ext:%d extbitrate_bps %d", len,scalable_uhq_flag, extends_flag,bitrate_bps);
 
     LOCK_APP_AUDIO_QUEUE();
     len1 = len2 = 0;
@@ -1356,7 +1355,7 @@ int load_scalable_frame(uint8_t **p_data, uint32_t *p_len)
     r = PeekCQueue(&sbc_queue, len-1, &e1, &len1, &e2, &len2);
     if(r == CQ_ERR) {
         //osDelay(2);
-        AUDIOPLAYERS_TRACE(0,"no data ");
+        TRACE(0,"no data ");
 		UNLOCK_APP_AUDIO_QUEUE();
         return 2;
     }
@@ -1374,7 +1373,7 @@ int load_scalable_frame(uint8_t **p_data, uint32_t *p_len)
  //   LOCK_APP_AUDIO_QUEUE();
     DeCQueue(&sbc_queue, 0, len-1);
     UNLOCK_APP_AUDIO_QUEUE();
-//    AUDIOPLAYERS_TRACE(2,"len1 %d, len2 %d\n", len1, len2);
+//    TRACE(2,"len1 %d, len2 %d\n", len1, len2);
 
     if (p_data) {
         *p_data = scalable_input_mid_buf;
@@ -1393,6 +1392,8 @@ int decode_scalable_frame(uint8_t *out, uint32_t out_max, uint32_t *p_out_len, c
     int decoder_size;
     int output_samples;
     int err;
+    int a2dp_curr_device = bes_bt_me_select_device(BT_SELECT_CURR_A2DP_DEVICE);
+    bt_a2dp_state_t a2dp_state = bes_bt_a2dp_get_state(a2dp_curr_device);
 
     out_len = SCALABLE_FRAME_SIZE * 2;
 
@@ -1400,11 +1401,11 @@ int decode_scalable_frame(uint8_t *out, uint32_t out_max, uint32_t *p_out_len, c
         hSSDecoder = (void *)scalable_decoder_place;
         //err = ssc_decoder_create(44100, 2, hSSDecoder);
         decoder_size = ssc_decoder_get_size(2,96000);
-		err = ssc_decoder_init(hSSDecoder,2,96000,false);
-        AUDIOPLAYERS_TRACE(2,"decoder_size %d init ret %d\n", decoder_size,err);
+        err = ssc_decoder_init(hSSDecoder,2,96000,false);
+        TRACE(2,"decoder_size %d init ret %d\n", decoder_size,err);
     }
 
-    if(app_bt_get_device(app_bt_audio_get_curr_a2dp_device())->a2dp_channel_num == 1){
+    if (a2dp_state.a2dp_channel_num == 1) {
         ASSERT(0, "UHQ should check audio channel number");
     }
     output_samples = ssc_decode(hSSDecoder, scalable_input_mid_buf, (int *)ss_pcm_buff, SCALABLE_FRAME_SIZE, scalable_decoder_temp_buf);
@@ -1417,7 +1418,7 @@ int decode_scalable_frame(uint8_t *out, uint32_t out_max, uint32_t *p_out_len, c
         out_len *= 2;
     }
 
-    AUDIOPLAYERS_TRACE(2,"pcm_len %d o:%d", out_len, output_samples);
+    TRACE(2,"pcm_len %d o:%d", out_len, output_samples);
 
     if (p_out_len) {
         *p_out_len = out_len;
@@ -1463,7 +1464,7 @@ get_again:
     UNLOCK_APP_AUDIO_QUEUE();
     if(r == CQ_ERR) {
 #ifdef  __LOCK_AUDIO_THREAD__
-        AUDIOPLAYERS_TRACE(1,"cache sbc_underflow retry:%d\n", retry);
+        TRACE(1,"cache sbc_underflow retry:%d\n", retry);
         goto exit;
 #elif defined (A2DP_SYNC_WITH_PUT_MUTUX)
         int size;
@@ -1476,12 +1477,12 @@ get_again:
             size = LengthOfCQueue(&sbc_queue);
             UNLOCK_APP_AUDIO_QUEUE();
             sbc_underflow = 1;
-            AUDIOPLAYERS_TRACE(2,"cache sbc_underflow size:%d retry:%d\n", size, retry);
+            TRACE(2,"cache sbc_underflow size:%d retry:%d\n", size, retry);
             goto exit;
         }
 #else
 #if 1
-        AUDIOPLAYERS_TRACE(1,"cache sbc_underflow retry:%d\n", retry);
+        TRACE(1,"cache sbc_underflow retry:%d\n", retry);
         goto exit;
 #else
         int size;
@@ -1493,7 +1494,7 @@ get_again:
             goto get_again;
         }else{
             sbc_underflow = 1;
-            AUDIOPLAYERS_TRACE(2,"cache sbc_underflow size:%d retry:%d\n", size, retry);
+            TRACE(2,"cache sbc_underflow size:%d retry:%d\n", size, retry);
             goto exit;
         }
 #endif
@@ -1503,7 +1504,7 @@ get_again:
     }
 
     if (!len1){
-        AUDIOPLAYERS_TRACE(2,"len1 sbc_underflow %d/%d\n", len1, len2);
+        TRACE(2,"len1 sbc_underflow %d/%d\n", len1, len2);
         goto get_again;
     }
 
@@ -1526,6 +1527,8 @@ int decode_sbc_frame(uint8_t *out, uint32_t out_max, uint32_t *p_out_len, const 
     uint16_t parse_len;
 	static uint16_t parse_len_total_frame = 0;
     bt_status_t ret;
+    int a2dp_curr_device = bes_bt_me_select_device(BT_SELECT_CURR_A2DP_DEVICE);
+    uint8_t a2dp_channel_num = 0;
 
     if(need_init_decoder) {
 		parse_len_total_frame = 0;
@@ -1537,20 +1540,22 @@ int decode_sbc_frame(uint8_t *out, uint32_t out_max, uint32_t *p_out_len, const 
     sbc_pcm_data.data = out;
     sbc_pcm_data.dataLen = 0;
 
-    if(app_bt_get_device(app_bt_audio_get_curr_a2dp_device())->a2dp_channel_num == 1){
+    a2dp_channel_num = bes_bt_a2dp_get_state(a2dp_curr_device).a2dp_channel_num;
+    if(a2dp_channel_num == 1){
         out_max >>= 1;
     }
 
+    uint32_t lock = int_lock();
     ret = btif_sbc_decode_frames(sbc_decoder, (uint8_t *)in, in_len,
                                 &parse_len,
                                 &sbc_pcm_data,
                                 out_max,
                                 sbc_eq_band_gain);
-
+    int_unlock(lock);
 	parse_len_total_frame += parse_len;
 	if(parse_len_total_frame >= sbc_frame_size){
 		mtu_count --;
-	//		AUDIOPLAYERS_TRACE(1,"-mtu_count = %d",mtu_count);
+	//		TRACE(1,"-mtu_count = %d",mtu_count);
 		parse_len_total_frame -= sbc_frame_size;
 	}
     if (ret == BT_STS_SUCCESS) {
@@ -1560,9 +1565,9 @@ int decode_sbc_frame(uint8_t *out, uint32_t out_max, uint32_t *p_out_len, const 
 
         if (ret == BT_STS_FAILED) {
             need_init_decoder = true;
-            AUDIOPLAYERS_TRACE(1,"err mutelen:%d\n",sbc_pcm_data.dataLen);
+            TRACE(1,"err mutelen:%d\n",sbc_pcm_data.dataLen);
         } else if(ret == BT_STS_NO_RESOURCES) {
-            AUDIOPLAYERS_TRACE(1,"no_res mutelen:%d\n",sbc_pcm_data.dataLen);
+            TRACE(1,"no_res mutelen:%d\n",sbc_pcm_data.dataLen);
         }
     }
 
@@ -1573,7 +1578,7 @@ int decode_sbc_frame(uint8_t *out, uint32_t out_max, uint32_t *p_out_len, const 
         *p_consume_len = parse_len;
     }
 
-    if(app_bt_get_device(app_bt_audio_get_curr_a2dp_device())->a2dp_channel_num == 1){
+    if(a2dp_channel_num == 1){
         expand_1_channel_to_2_channels_16bits(sbc_pcm_data.data, sbc_pcm_data.dataLen);
         sbc_pcm_data.dataLen <<= 1;
         *p_out_len = sbc_pcm_data.dataLen;
@@ -1607,8 +1612,8 @@ void decode_sbc_end(uint32_t expect_out_len, uint32_t out_len, uint32_t in_len)
         LOCK_APP_AUDIO_QUEUE();
         size = LengthOfCQueue(&sbc_queue);
         UNLOCK_APP_AUDIO_QUEUE();
-//        AUDIOPLAYERS_TRACE(2,"decode_sbc_frame Queue remain size:%d frame_size:%d\n",size, sbc_frame_size);
-        AUDIOPLAYERS_TRACE(6,"sync status:%d qsize:%d/%d fsize:%d, thr:%d used:%d", sync_status,size, g_sbc_queue_size, sbc_frame_size, A2DPPLAY_CACHE_OK_THRESHOLD, in_len);
+//        TRACE(2,"decode_sbc_frame Queue remain size:%d frame_size:%d\n",size, sbc_frame_size);
+        A2DP_AUDIO_SYNC_TRACE(6,"sync status:%d qsize:%d/%d fsize:%d, thr:%d used:%d", sync_status,size, g_sbc_queue_size, sbc_frame_size, A2DPPLAY_CACHE_OK_THRESHOLD, in_len);
 /*
 nor:
     if (size>7488+1170*2)
@@ -1627,7 +1632,7 @@ inc:
                 if (size >= (A2DPPLAY_CACHE_OK_THRESHOLD + in_len)){
                     a2dp_audio_sync_proc(A2DPPLAY_SYNC_STATUS_SET, A2DP_AUDIO_SYNC_WITH_LOCAL_SAMPLERATE_DEFAULT);
                     sync_status = A2DP_AUDIO_SYNC_STATUS_SAMPLERATE_DEFAULT;
-                    AUDIOPLAYERS_TRACE(0,"default pll freq");
+                    A2DP_AUDIO_SYNC_TRACE(0,"default pll freq");
                 }else{
                     a2dp_audio_sync_proc(A2DPPLAY_SYNC_STATUS_PROC, 0);
                 }
@@ -1636,7 +1641,7 @@ inc:
                 if (size <= (A2DPPLAY_CACHE_OK_THRESHOLD)){
                     a2dp_audio_sync_proc(A2DPPLAY_SYNC_STATUS_SET, A2DP_AUDIO_SYNC_WITH_LOCAL_SAMPLERATE_DEFAULT);
                     sync_status = A2DP_AUDIO_SYNC_STATUS_SAMPLERATE_DEFAULT;
-                    AUDIOPLAYERS_TRACE(0,"default pll freq");
+                    A2DP_AUDIO_SYNC_TRACE(0,"default pll freq");
                 }else{
                     a2dp_audio_sync_proc(A2DPPLAY_SYNC_STATUS_PROC, 0);
                 }
@@ -1646,11 +1651,11 @@ inc:
                 if (size > (A2DPPLAY_CACHE_OK_THRESHOLD + (in_len<<1))){
                     a2dp_audio_sync_proc(A2DPPLAY_SYNC_STATUS_SET, A2DP_AUDIO_SYNC_WITH_LOCAL_SAMPLERATE_INC);
                     sync_status = A2DP_AUDIO_SYNC_STATUS_SAMPLERATE_INC;
-                    AUDIOPLAYERS_TRACE(0,"inc pll freq");
+                    A2DP_AUDIO_SYNC_TRACE(0,"inc pll freq");
                 }else if (size < (A2DPPLAY_CACHE_OK_THRESHOLD - in_len)){
                     a2dp_audio_sync_proc(A2DPPLAY_SYNC_STATUS_SET, A2DP_AUDIO_SYNC_WITH_LOCAL_SAMPLERATE_DEC);
                     sync_status = A2DP_AUDIO_SYNC_STATUS_SAMPLERATE_DEC;
-                    AUDIOPLAYERS_TRACE(0,"dec pll freq");
+                    A2DP_AUDIO_SYNC_TRACE(0,"dec pll freq");
                 }else{
                     a2dp_audio_sync_proc(A2DPPLAY_SYNC_STATUS_PROC, 0);
                 }
@@ -1684,7 +1689,7 @@ void initial_lhdc_assemble_packet(bool splitFlg){
     reset_lhdc_assmeble_packet();
     serial_no = 0xff;
     is_splited = splitFlg;
-    AUDIOPLAYERS_TRACE(1,"is_splited = %s\n", splitFlg ? "true" : "false");
+    TRACE(1,"is_splited = %s\n", splitFlg ? "true" : "false");
 }
 
 
@@ -1701,10 +1706,10 @@ bool get_lhdc_header(uint8_t * in, LHDC_FRAME_HDR * h) {
     h->isLeft = ((hdr & 0xf) == 0);
 
     if ( ( hdr & 0xff000000) != 0x4c000000){
-        AUDIOPLAYERS_TRACE(0,"lhdc hdr err!\n");
+        TRACE(0,"lhdc hdr err!\n");
         ret = false;
     } else {
-        //AUDIOPLAYERS_TRACE(4,"frame_len = %d, g_lhdc_split = %s, g_lhdc_channel = %s(%d)", h->frame_len, h->isSplit ? "true" : "false", h->isLeft ? "left" : "right", (hdr & 0xf) );
+        //TRACE(4,"frame_len = %d, g_lhdc_split = %s, g_lhdc_channel = %s(%d)", h->frame_len, h->isSplit ? "true" : "false", h->isLeft ? "left" : "right", (hdr & 0xf) );
         ret = true;
     }
     return ret;
@@ -1780,7 +1785,7 @@ int assemble_lhdc_packet(uint8_t * input, uint32_t input_len, uint8_t** pLout, u
     status = hdr & A2DP_LHDC_HDR_LATENCY_MASK;
     if (latencyUpdated != (uint8_t)status) {
         latencyUpdated = (uint8_t)status;
-        AUDIOPLAYERS_TRACE(1,"New latency setting = 0x%02x", latencyUpdated);
+        TRACE(1,"New latency setting = 0x%02x", latencyUpdated);
     }
 
     if( is_synced)
@@ -1794,7 +1799,7 @@ int assemble_lhdc_packet(uint8_t * input, uint32_t input_len, uint8_t** pLout, u
 				goto lhdc_start;
 			}
 			else
-			AUDIOPLAYERS_TRACE(1,"drop packet No. %u", seqno);
+			TRACE(1,"drop packet No. %u", seqno);
 			return 0;
 		}
 		serial_no = seqno + 1;
@@ -1814,7 +1819,7 @@ lhdc_start:
                     *pRout = NULL;
                     *pRlen = 0;
                 }
-                //AUDIOPLAYERS_TRACE(1,"Single payload size = %d", *pLlen);
+                //TRACE(1,"Single payload size = %d", *pLlen);
                 asm_pkt_st = ASM_PKT_WAT_STR;
                 packet_buf_len = 0;//= packet_buf_left_len = packet_buf_right_len = 0;
                 total_frame_nb = 0;
@@ -1826,13 +1831,13 @@ lhdc_start:
                 if (packet_buf_len + input_len >= PACKET_BUFFER_LENGTH) {
                 packet_buf_len = 0;
                 asm_pkt_st = ASM_PKT_WAT_STR;
-                AUDIOPLAYERS_TRACE(1,"ASM_PKT_WAT_STR:Frame buffer overflow!(%d)", packet_buf_len);
+                TRACE(1,"ASM_PKT_WAT_STR:Frame buffer overflow!(%d)", packet_buf_len);
                 break;
                 }
                 memcpy(&packet_buffer, input, input_len);
                 packet_buf_len = input_len;
                 asm_pkt_st = ASM_PKT_WAT_LST;
-                //AUDIOPLAYERS_TRACE(1,"multi:first payload size = %d", input_len);
+                //TRACE(1,"multi:first payload size = %d", input_len);
             }
             else
                 ret = -1;
@@ -1851,11 +1856,11 @@ lhdc_start:
             if (packet_buf_len + input_len >= PACKET_BUFFER_LENGTH) {
                 packet_buf_len = 0;
                 asm_pkt_st = ASM_PKT_WAT_STR;
-                AUDIOPLAYERS_TRACE(1,"ASM_PKT_WAT_LST:Frame buffer overflow(%d)", packet_buf_len);
+                TRACE(1,"ASM_PKT_WAT_LST:Frame buffer overflow(%d)", packet_buf_len);
                 break;
             }
             memcpy(&packet_buffer[packet_buf_len], input, input_len);
-            //AUDIOPLAYERS_TRACE(1,"multi:payload size = %d", input_len);
+            //TRACE(1,"multi:payload size = %d", input_len);
             packet_buf_len += input_len;
             ret = 0;
 
@@ -1866,7 +1871,7 @@ lhdc_start:
                     *pLlen = packet_buf_len;
                     *pLout = packet_buffer;
                 }
-                //AUDIOPLAYERS_TRACE(1,"multi: all payload size = %d", packet_buf_len);
+                //TRACE(1,"multi: all payload size = %d", packet_buf_len);
                 packet_buf_len = 0; //packet_buf_left_len = packet_buf_right_len = 0;
                 total_frame_nb = 0;
                 ret = 1;
@@ -1911,7 +1916,7 @@ int load_lhdc_frame(uint8_t **p_data, uint32_t *p_len)
             if(status == 0){
                 //No data return...
                 if (retry++ >= A2DP_SYNC_WITH_PUT_MUTUX_TIMEROUT_CNT){
-                    AUDIOPLAYERS_TRACE(1,"%s:No Data return", __func__);
+                    TRACE(1,"%s:No Data return", __func__);
                     break;
                 }
                 A2DP_SYNC_WITH_PUT_MUTUX_WAIT();
@@ -1933,12 +1938,12 @@ int load_lhdc_frame(uint8_t **p_data, uint32_t *p_len)
             status = get_lhdc_data(lhdc_input_mid_buf, sizeof(LHDC_HEADER) + ph->packetLen);
             if(status == 0){
                 //No data return...
-                AUDIOPLAYERS_TRACE(1,"Fetch data error[lenght = %d]", ph->packetLen);
+                TRACE(1,"Fetch data error[lenght = %d]", ph->packetLen);
                 continue;
             }
             ph = (LHDC_HEADER *)&lhdc_input_mid_buf[0];
 
-            //AUDIOPLAYERS_TRACE(2,"%s:Get packet[%d]", __func__, ph->packetLen);
+            //TRACE(2,"%s:Get packet[%d]", __func__, ph->packetLen);
 
             LOCK_APP_AUDIO_QUEUE();
             DeCQueue(&sbc_queue, 0, sizeof(LHDC_HEADER) + ph->packetLen);
@@ -1973,8 +1978,9 @@ int decode_lhdc_frame(uint8_t *out, uint32_t out_max, uint32_t *p_out_len, const
 {
     uint32_t need_again;
     uint32_t out_len;
+    int a2dp_curr_device = bes_bt_me_select_device(BT_SELECT_CURR_A2DP_DEVICE);
 
-    if(app_bt_get_device(app_bt_audio_get_curr_a2dp_device())->a2dp_channel_num == 1){
+    if(bes_bt_a2dp_get_state(a2dp_curr_device).a2dp_channel_num == 1){
         ASSERT(0, "lhdc should check audio channel number");
     }
 
@@ -2097,7 +2103,7 @@ void cp_decode_ldac_end(uint32_t expect_out_len, uint32_t out_len, uint32_t in_l
         if (hLdacData) {
             int error_code;
             error_code = ldacBT_get_error_code(hLdacData);
-            AUDIOPLAYERS_TRACE(6,"error_code = %4d, %4d, %4d,FrameHeader[%02x:%02x:%02x]\n", LDACBT_API_ERR(error_code), LDACBT_HANDLE_ERR(error_code),\
+            TRACE(6,"error_code = %4d, %4d, %4d,FrameHeader[%02x:%02x:%02x]\n", LDACBT_API_ERR(error_code), LDACBT_HANDLE_ERR(error_code),\
                     LDACBT_BLOCK_ERR(error_code), ldac_input_mid_buf[0], ldac_input_mid_buf[1], ldac_input_mid_buf[2]);
             if( LDACBT_FATAL(error_code) ){
                 cp_ldac_fatal_error = true;
@@ -2486,11 +2492,11 @@ static void cp_decode_a2dp_end(enum APP_OVERLAY_ID_T overlay_type, uint32_t expe
 
     etime = hal_fast_sys_timer_get();
     if (cp_dec_trace_time) {
-        AUDIOPLAYERS_TRACE(4,"cp_decode[%u]: %u us in %u us (r=%u)", old_cp_dec_idx, FAST_TICKS_TO_US(etime - cp_dec_start_time), FAST_TICKS_TO_US(etime - cp_last_dec_time), retry);
+        TRACE(4,"cp_decode[%u]: %u us in %u us (r=%u)", old_cp_dec_idx, FAST_TICKS_TO_US(etime - cp_dec_start_time), FAST_TICKS_TO_US(etime - cp_last_dec_time), retry);
     }
 #ifdef A2DP_TRACE_CP_ACCEL
     if (retry) {
-        AUDIOPLAYERS_TRACE(3,"cp_decode[%u]:retry: cp_out_len=%u out_len=%u", old_cp_dec_idx, cp_out_len[old_cp_dec_idx], out_len);
+        TRACE(3,"cp_decode[%u]:retry: cp_out_len=%u out_len=%u", old_cp_dec_idx, cp_out_len[old_cp_dec_idx], out_len);
     }
 #endif
     cp_last_dec_time = etime;
@@ -2631,7 +2637,7 @@ static int mcu_load_a2dp_encoded_data(uint8_t **p_data, uint32_t *p_len)
     UNLOCK_APP_AUDIO_QUEUE();
 
     if (r == CQ_ERR) {
-        AUDIOPLAYERS_TRACE(2,"%s: Failed to get %u from sbc_queue", __func__, size);
+        TRACE(2,"%s: Failed to get %u from sbc_queue", __func__, size);
         return 1;
     }
 
@@ -2696,7 +2702,7 @@ static int mcu_decode_a2dp_process(uint8_t *out, uint32_t out_max, uint32_t *p_o
     uint32_t out_rpos;
 
 #ifdef A2DP_TRACE_CP_ACCEL
-    AUDIOPLAYERS_TRACE(3,"mcu_dec_proc[%u]: state=%u len=%u", mcu_dec_idx, cp_dec_state[mcu_dec_idx], cp_out_len[mcu_dec_idx]);
+    TRACE(3,"mcu_dec_proc[%u]: state=%u len=%u", mcu_dec_idx, cp_dec_state[mcu_dec_idx], cp_out_len[mcu_dec_idx]);
 #endif
 
     cp_accel_send_event_mcu2cp(CP_BUILD_ID(CP_TASK_A2DP_DECODE, CP_EVENT_A2DP_DECODE));
@@ -2746,7 +2752,7 @@ static const struct cp_task_desc task_desc_a2dp = {
 void cp_a2dp_init(void)
 {
     mcu_dec_inited = false;
-    norflash_api_flush_disable(NORFLASH_API_USER_CP,(uint32_t)cp_accel_init_done, false);
+    norflash_api_flush_disable(NORFLASH_API_USER_CP,(uint32_t)cp_accel_init_done);
     cp_accel_open(CP_TASK_A2DP_DECODE, &task_desc_a2dp);
     while(cp_accel_init_done() == false) {
         hal_sys_timer_delay_us(100);
@@ -2907,19 +2913,19 @@ static void decode_a2dp_end(enum APP_OVERLAY_ID_T overlay_type, uint32_t expect_
         dec_reset_queue = false;
         LOCK_APP_AUDIO_QUEUE();
         ResetCQueue(&sbc_queue);
-        AUDIOPLAYERS_TRACE(0,"Reset queue");
+        TRACE(0,"Reset queue");
         UNLOCK_APP_AUDIO_QUEUE();
     }
 
 #ifdef TIMER1_BASE
     etime = hal_fast_sys_timer_get();
     if (dec_trace_time) {
-        AUDIOPLAYERS_TRACE(2,"a2dp decode: %u us in %u us", FAST_TICKS_TO_US(etime - dec_start_time), FAST_TICKS_TO_US(etime - last_dec_time));
+        TRACE(2,"a2dp decode: %u us in %u us", FAST_TICKS_TO_US(etime - dec_start_time), FAST_TICKS_TO_US(etime - last_dec_time));
     }
 #else
     etime = hal_sys_timer_get();
     if (dec_trace_time) {
-        AUDIOPLAYERS_TRACE(2,"a2dp decode: %u ms in %u ms", TICKS_TO_MS(etime - dec_start_time), TICKS_TO_MS(etime - last_dec_time));
+        TRACE(2,"a2dp decode: %u ms in %u ms", TICKS_TO_MS(etime - dec_start_time), TICKS_TO_MS(etime - last_dec_time));
     }
 #endif
     last_dec_time = etime;
@@ -2982,7 +2988,7 @@ static int a2dp_resample_iter(uint8_t *buf, uint32_t len)
 
     uint32_t l = decode_a2dp_frame(overlay_type, buf, len);
     if (l != len) {
-        AUDIOPLAYERS_TRACE(2,"a2dp_audio_more_data decode err %d/%d", l, len);
+        TRACE(2,"a2dp_audio_more_data decode err %d/%d", l, len);
         return 1;
     }
     return 0;
@@ -3033,7 +3039,7 @@ void static attempt_slow_samplerate(uint8_t overlay_type)
 		{
 			delay_ms = (delay_mtu_limit-(int)lagest_mtu_in1s)*assumed_mtu_interval;
     	}
-        AUDIOPLAYERS_TRACE(6,"store_interval=%d,lagest_mtu_in1s=%d,least_mtu_in1s=%d,delay_ms=%d,frame_len=%d,mtu_count=%d",ssb_err_max,lagest_mtu_in1s,least_mtu_in1s,delay_ms,sbc_frame_rev_len,mtu_count);
+        TRACE(6,"store_interval=%d,lagest_mtu_in1s=%d,least_mtu_in1s=%d,delay_ms=%d,frame_len=%d,mtu_count=%d",ssb_err_max,lagest_mtu_in1s,least_mtu_in1s,delay_ms,sbc_frame_rev_len,mtu_count);
         process_delay(delay_ms);
         check_interval = 50;
         lagest_mtu_in1s = 0;
@@ -3052,7 +3058,7 @@ uint32_t a2dp_audio_more_data(uint8_t overlay_type, uint8_t *buf, uint32_t len)
 
 #ifdef A2DP_EQ_24BIT
     // Change len to 16-bit sample buffer length
-    if ((bt_a2dp_player_get_sample_bit() == 16)
+    if ((bes_bt_a2dp_get_curr_sample_bit() == 16)
 #if defined(__AUDIO_RESAMPLE__) && defined(SW_PLAYBACK_RESAMPLE)
         || allow_resample
 #endif
@@ -3063,7 +3069,7 @@ uint32_t a2dp_audio_more_data(uint8_t overlay_type, uint8_t *buf, uint32_t len)
 
     if (a2dp_cache_status == APP_AUDIO_CACHE_CACHEING){
 #if FPGA==0
-        AUDIOPLAYERS_TRACE(1,"a2dp_audio_more_data cache not ready skip frame %d\n" ,overlay_type);
+        TRACE(1,"a2dp_audio_more_data cache not ready skip frame %d\n" ,overlay_type);
 #endif
     } else {
 #if defined(__AUDIO_RESAMPLE__) && defined(SW_PLAYBACK_RESAMPLE)
@@ -3076,14 +3082,14 @@ uint32_t a2dp_audio_more_data(uint8_t overlay_type, uint8_t *buf, uint32_t len)
         {
             l = decode_a2dp_frame((enum APP_OVERLAY_ID_T)overlay_type, buf, len);
             if (l != len) {
-                AUDIOPLAYERS_TRACE(2,"a2dp_audio_more_data decode err %d/%d", l, len);
+                TRACE(2,"a2dp_audio_more_data decode err %d/%d", l, len);
                 if (l < len){
                     memset(buf + l, 0, len - l);
                     //a2dp_cache_status = APP_AUDIO_CACHE_CACHEING;
-                    AUDIOPLAYERS_TRACE(0,"set to APP_AUDIO_CACHE_CACHEING");
+                    TRACE(0,"set to APP_AUDIO_CACHE_CACHEING");
                 }
             } else {
-    			//AUDIOPLAYERS_TRACE(2,"a2dp_audio_more_data decode success %d/%d", l, len);
+    			//TRACE(2,"a2dp_audio_more_data decode success %d/%d", l, len);
             }
         }
         if (a2dp_cache_status == APP_AUDIO_CACHE_OK) {
@@ -3092,7 +3098,7 @@ uint32_t a2dp_audio_more_data(uint8_t overlay_type, uint8_t *buf, uint32_t len)
     }
 
 #ifdef A2DP_EQ_24BIT
-    if ((bt_a2dp_player_get_sample_bit() == 16)
+    if ((bes_bt_a2dp_get_curr_sample_bit() == 16)
 #if defined(__AUDIO_RESAMPLE__) && defined(SW_PLAYBACK_RESAMPLE)
         || allow_resample
 #endif
@@ -3191,7 +3197,7 @@ const char * get_error_code_string( int error_code )
 }
 #endif
 
-extern uint8_t bt_a2dp_player_get_bitsDepth(void);
+extern uint8_t bt_sbc_player_get_bitsDepth(void);
 #if defined(A2DP_LDAC_ON)
 uint32_t ldac_buffer_used = 0;
 #endif
@@ -3228,7 +3234,7 @@ static const char *a2dp_get_codec_name(enum APP_OVERLAY_ID_T overlay_type)
 
 static void a2dp_trace_codec_name(const char *prefix, enum APP_OVERLAY_ID_T overlay_type)
 {
-    AUDIOPLAYERS_TRACE(3,"\n\n%s: codecType=%x->:%s\n", prefix, overlay_type,a2dp_get_codec_name(overlay_type));
+    TRACE(3,"\n\n%s: codecType=%x->:%s\n", prefix, overlay_type,a2dp_get_codec_name(overlay_type));
 }
 
 #if defined(HIGH_EFFICIENCY_TX_PWR_CTRL)
@@ -3259,28 +3265,29 @@ void app_audio_reset_rssi_based_env_ajustment(bool music_on)
 
 void app_audio_rssi_based_env_ajdustment_handler(void)
 {
-    struct BT_DEVICE_T *curr_device = app_bt_get_device(app_bt_audio_get_curr_a2dp_device());
+    int a2dp_curr_device = bes_bt_me_select_device(BT_SELECT_CURR_A2DP_DEVICE);
+    bt_acl_state_t acl_state = bes_bt_me_acl_get_state(a2dp_curr_device);
 
-    if (curr_device)
+    if (a2dp_curr_device != BT_DEVICE_INVALID_ID)
     {
         rx_agc_t mobile_agc;
-        bool ret = bt_drv_reg_op_read_rssi_in_dbm(curr_device->acl_conn_hdl, &mobile_agc);
+        bool ret = bt_drv_reg_op_read_rssi_in_dbm(acl_state.acl_conn_hdl, &mobile_agc);
         if (ret)
         {
             int32_t average_rssi = app_bt_tx_rssi_analyzer(mobile_agc.rssi);
-            //AUDIOPLAYERS_TRACE(0, "A:    %d  db:  %d  db", average_rssi, mobile_agc.rssi);
+            //TRACE(0, "A:    %d  db:  %d  db", average_rssi, mobile_agc.rssi);
 
         #if defined(HIGH_EFFICIENCY_TX_PWR_CTRL)
             if ((average_rssi < APP_AUDIO_LOWER_RSSI_THRESHOLD) && isSwitchedToLowRssiTxGain)
             {
-                AUDIOPLAYERS_TRACE(0, "switch to normal mode tx gain as rssi is %d", average_rssi);
+                TRACE(0, "switch to normal mode tx gain as rssi is %d", average_rssi);
                 isSwitchedToLowRssiTxGain = false;
 
                 bt_drv_rf_high_efficency_tx_pwr_ctrl(false, false);
             }
             else if ((average_rssi >= APP_AUDIO_UPPER_RSSI_THRESHOLD) && !isSwitchedToLowRssiTxGain)
             {
-                AUDIOPLAYERS_TRACE(0, "switch to low power mode tx gain as rssi is %d", average_rssi);
+                TRACE(0, "switch to low power mode tx gain as rssi is %d", average_rssi);
                 isSwitchedToLowRssiTxGain = true;
 
                 bt_drv_rf_high_efficency_tx_pwr_ctrl(true, true);
@@ -3310,7 +3317,7 @@ extern "C" void a2dp_audio_sysfreq_update_normalfreq(void)
 {
     if (APP_SYSFREQ_26M == a2dp_audio_sysfreq_normalfreq)
     {
-        if (app_bt_audio_count_straming_mobile_links() > 1)
+        if (bes_bt_me_count_link(BT_COUNT_STREAMING_LINK) > 1)
         {
             a2dp_audio_sysfreq_normalfreq = APP_SYSFREQ_52M;
             app_audio_set_a2dp_freq(a2dp_audio_sysfreq_normalfreq);
@@ -3318,7 +3325,7 @@ extern "C" void a2dp_audio_sysfreq_update_normalfreq(void)
     }
     else if (APP_SYSFREQ_52M == a2dp_audio_sysfreq_normalfreq)
     {
-        if (1 == app_bt_audio_count_straming_mobile_links())
+        if (1 == bes_bt_me_count_link(BT_COUNT_STREAMING_LINK))
         {
             a2dp_audio_sysfreq_normalfreq = APP_SYSFREQ_26M;
             app_audio_set_a2dp_freq(a2dp_audio_sysfreq_normalfreq);
@@ -3326,7 +3333,6 @@ extern "C" void a2dp_audio_sysfreq_update_normalfreq(void)
     }
 }
 
-extern "C" uint8_t is_a2dp_mode(void);
 static void app_post_chopping_timer_handler(void const *param);
 osTimerDef (APP_POST_CHOPPING_TIMER, app_post_chopping_timer_handler);
 osTimerId app_post_chopping_timer_id = NULL;
@@ -3443,20 +3449,20 @@ extern "C" int a2dp_audio_init(uint32_t sysfreq)
 
 #if defined(A2DP_LHDC_ON)
 	if(overlay_type == APP_OVERLAY_A2DP_LHDC){
-        uint8_t bits_depth = bt_a2dp_player_get_bitsDepth();
+        uint8_t bits_depth = bt_sbc_player_get_bitsDepth();
         AUD_SAMPRATE_T sample_rate = bt_get_sbc_sample_rate();
-        AUDIOPLAYERS_TRACE(2,"a2dp_audio_init sample Rate=%d, bits_depth = %d\n", sample_rate, bits_depth);
-        // AUDIOPLAYERS_TRACE(1,"sys freq calc : %d\n", hal_sys_timer_calc_cpu_freq(5, 0));
+        TRACE(2,"a2dp_audio_init sample Rate=%d, bits_depth = %d\n", sample_rate, bits_depth);
+        // TRACE(1,"sys freq calc : %d\n", hal_sys_timer_calc_cpu_freq(5, 0));
 
         //lhdcInit(bits_depth, sample_rate, bits_depth >= 24 ? 1 : 0);
         //extern const char __testkey_start[];
         extern const char testkey_bin[];
         lhdcSetLicenseKeyTable((uint8_t *)testkey_bin);
 
-        AUDIOPLAYERS_TRACE(0,"lhdcSetLicenseKeyTable,testkey_bin:\n");
+        TRACE(0,"lhdcSetLicenseKeyTable,testkey_bin:\n");
         for(uint8_t i=0;i<128;i++){
-            AUDIOPLAYERS_TRACE(1,"i = %d", i);
-            AUDIOPLAYERS_DUMP8("0x%02x ", &testkey_bin[i], 32);
+            TRACE(1,"i = %d", i);
+            DUMP8("0x%02x ", &testkey_bin[i], 32);
             i+= 31;
         }
         lhdcInit(bits_depth, sample_rate, 0);
@@ -3500,8 +3506,11 @@ extern "C" int a2dp_audio_init(uint32_t sysfreq)
 #if defined(A2DP_LDAC_ON)
 	if(overlay_type == APP_OVERLAY_A2DP_LDAC)
 	{
+	//if((bes_bt_a2dp_get_curr_codec_type() == BT_A2DP_CODEC_TYPE_NON_A2DP)){
+		//app_audio_mempool_get_buff(&g_medMemHeap, MED_MEM_HEAP_SIZE);
+		//speech_heap_init((uint8_t *)(&g_medMemHeap[0]), MED_MEM_HEAP_SIZE);
 		g_sbc_queue_size = app_audio_mempool_free_buff_size() - MED_MEM_HEAP_SIZE;
-		AUDIOPLAYERS_TRACE(1,"A2DP_LDAC_ON  g_sbc_queue_size %d\n", g_sbc_queue_size);
+		TRACE(1,"A2DP_LDAC_ON  g_sbc_queue_size %d\n", g_sbc_queue_size);
 	}
 #endif
 
@@ -3566,20 +3575,20 @@ extern "C" int a2dp_audio_deinit(void)
 #endif
 
 #if defined(A2DP_LDAC_ON)
-	if(overlay_type == APP_OVERLAY_A2DP_LDAC){
+    if(overlay_type == APP_OVERLAY_A2DP_LDAC){
         ldac_dec_deinit();
-	}
+    }
 #endif
 
 #if defined(A2DP_LHDC_ON)
-	if(overlay_type == APP_OVERLAY_A2DP_LHDC){
+    if(overlay_type == APP_OVERLAY_A2DP_LHDC){
         lhdcDestroy();
     }
 #endif
 
 #if defined(A2DP_LHDCV5_ON)
-	if(overlay_type == APP_OVERLAY_A2DP_LHDC_V5){
-        lhdcv5_util_dec_destroy();       
+    if(overlay_type == APP_OVERLAY_A2DP_LHDC_V5){
+        lhdcv5_util_dec_destroy();
     }
 #endif
 
@@ -3622,11 +3631,11 @@ extern "C" void a2dp_audio_status_updated_callback(bool isA2dpAudioOn)
 {
     if (isA2dpAudioOn)
     {
-        AUDIOPLAYERS_TRACE(0, "a2dp audio is started.");
+        TRACE(0, "a2dp audio is started.");
     }
     else
     {
-        AUDIOPLAYERS_TRACE(0, "a2dp audio is stopped.");
+        TRACE(0, "a2dp audio is stopped.");
     }
 }
 

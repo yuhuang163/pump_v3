@@ -47,9 +47,8 @@ enum ANA_AUD_PLL_USER_T {
     ANA_AUD_PLL_USER_I2S        = (1 << 1),
     ANA_AUD_PLL_USER_SPDIF      = (1 << 2),
     ANA_AUD_PLL_USER_PCM        = (1 << 3),
-    ANA_AUD_PLL_USER_ANC_IIR    = (1 << 4),
 
-    ANA_AUD_PLL_USER_END        = (1 << 5),
+    ANA_AUD_PLL_USER_END        = (1 << 4),
 };
 #endif
 
@@ -100,6 +99,8 @@ void analog_aud_codec_nomute(void);
 void analog_aud_codec_adc_enable(enum AUD_IO_PATH_T input_path, enum AUD_CHANNEL_MAP_T ch_map, bool en);
 
 void analog_aud_codec_adc2_enable(enum AUD_IO_PATH_T input_path, enum AUD_CHANNEL_MAP_T ch_map, bool en);
+
+void analog_aud_codec_adc3_enable(enum AUD_IO_PATH_T input_path, enum AUD_CHANNEL_MAP_T ch_map, bool en);
 
 void analog_aud_codec_dac_enable(bool en);
 
@@ -158,10 +159,9 @@ void analog_capsensor_deinit(void);
 
 int analog_rc_clock_calib(void);
 
-void analog_reg_val_print(void);
-
 #ifdef __cplusplus
 }
 #endif
 
 #endif
+

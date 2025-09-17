@@ -19,6 +19,8 @@
 #ifndef __BAP_ASC_COMMON__
 #define __BAP_ASC_COMMON__
 
+#include "bluetooth.h"
+
 #include "gaf_cfg.h"
 #include "generic_audio.h"
 
@@ -58,7 +60,7 @@ typedef struct ascs_codec_config_ltv_packed
 typedef struct ascs_ase_status_config
 {
     uint8_t  framing;
-    uint8_t  phy_bf;
+    uint8_t  phy;
     uint8_t  rtn;
     uint16_t latency;
     uint8_t  pd_min[3];
@@ -78,7 +80,7 @@ typedef struct ascs_ase_status_qos
     uint8_t  cis_id;
     uint8_t  interval[3];
     uint8_t  framing;
-    uint8_t  phy_bf;
+    uint8_t  phy;
     uint16_t sdu;
     uint8_t  rtn;
     uint16_t latency;
@@ -164,8 +166,8 @@ typedef struct ascs_op_qos_cfg_packed
     uint8_t  interval[3];
     /// Frame framing
     uint8_t  framing;
-    /// PHY Bitfield
-    uint8_t  phy_bf;
+    /// PHY
+    uint8_t  phy;
     /// Maximum SDU Size
     uint16_t sdu;
     /// Retransmission Effort

@@ -109,12 +109,6 @@ typedef enum
     AOB_MCP_ACTION_MAX,
 } AOB_MCP_ACTION_E;
 
-typedef enum
-{
-    BLE_CORE_ACC_MCC,
-    BLE_CORE_ACC_TBC,
-} BLE_CORE_ACC_TYPE_E;
-
 #ifdef __cplusplus
 }
 #endif

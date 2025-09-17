@@ -13,22 +13,19 @@
  * trademark and other intellectual property rights.
  *
  ****************************************************************************/
- #ifndef APP_AUDIO_BT_DEVICE_H__
- #define APP_AUDIO_BT_DEVICE_H__
+#ifndef APP_AUDIO_BT_DEVICE_H__
+#define APP_AUDIO_BT_DEVICE_H__
 
- typedef enum
- {
-     UNKNOWN_DEVICE = 0,
-     AUDIO_TYPE_BT,
-     AUDIO_TYPE_LE_AUDIO,
-     AUDIO_TYPE_WALKIE_TALKIE,
-     AUDIO_TYPE_BIS_TRANSPORT,
-     AUDIO_TYPE_LOCAL_AUDIO,
-     AUDIO_TYPE_UNSPECIFIED,
-     AUDIO_TYPE_NUM,
- } AUDIO_DEVICE_TYPE_E;
+typedef enum
+{
+    UNKNOWN_DEVICE = 0,
+    AUDIO_TYPE_BT,
+    AUDIO_TYPE_LE_AUDIO,
+    AUDIO_TYPE_WALKIE_TALKIE,
+    AUDIO_TYPE_BIS_TRANSPORT,
 
-#define AUDIO_TYPE_WALKIE_TALKIE       3
+    AUDIO_TYPE_NUM,
+} AUDIO_DEVICE_TYPE_E;
 
 typedef struct
 {
@@ -36,5 +33,5 @@ typedef struct
     uint8_t device_id;
 }BT_AUDIO_DEVICE_T;
 
- #endif /* APP_AUDIO_BT_DEVICE_H__ */
+#endif /* APP_AUDIO_BT_DEVICE_H__ */
 

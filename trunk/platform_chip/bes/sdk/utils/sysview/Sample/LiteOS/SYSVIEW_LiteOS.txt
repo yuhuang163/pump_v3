@@ -1,0 +1,34 @@
+33          Preempt                             thread=%t
+34          KernelSuspend                       ticks=%D
+35          KernelResume                        sleep_ticks=%D
+36          ThreadError                         thread=%t status=%d
+37          ThreadPrioritySet                   thread=%t priority=%d
+38          ThreadYield
+39          ThreadSuspend                       thread=%t
+40          ThreadResume                        thread=%t
+41          ThreadBlocked                       thread=%t time=%d
+50          MessageQueueNew                     msg_count=%d msg_size=%d attribute=%p
+51          MessageQueueGet                     mq_id=%p msg_ptr=%p msg_priority=%d timeout=%d
+52          MessageQueuePut                     mq_id=%p msg_ptr=%p msg_priority=%d timeout=%d
+53          MessageQueueError                   mq_id=%p status=%d
+60          TimerError                          time_id=%p status=%d
+61          TimerNew                            function=%p type=%d argument=%p attribute=%p
+62          TimerStart                          timer_id=%p ticks=%d
+63          TimerStop                           timer_id=%p
+64          TimerDelete                         timer_id=%p
+65          TimerCallback                       function=%p argument=%p
+70          ThreadFlagsError                    thread=%t status=%d
+71          ThreadFlagsSet                      thread=%t flags=%x
+72          ThreadFlagsClear                    flags=%x
+73          ThreadFlagsGet                      flags=%x
+74          ThreadFlagsWait                     flags=%x options=%x timeout=%d
+80          MutexError                          mutex_id=%p status=%d
+81          MutexNew                            mutex_name=%s
+82          MutexAcquire                        mutex_id=%p timeout=%d
+83          MutexRelease                        mutex_id=%p
+84          MutexDelete                         mutex_id=%p
+90          SemaphoreError                      semaphore_id=%p status=%d
+92          SemaphoreNew                        semaphore_id=%s
+93          SemaphoreAcquire                    semaphore_id=%p timeout=%d
+94          SemaphoreRelease                    semaphore_id=%p
+95          SemaphoreDelete                     semaphore_id=%p

@@ -19,6 +19,7 @@
 #ifndef __APP_SOUND_CUSTOM_H__
 #define __APP_SOUND_CUSTOM_H__
 
+#include "app_tws_ibrt_conn_api.h"
 #include "app_ui_api.h"
 
 

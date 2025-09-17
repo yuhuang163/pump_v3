@@ -114,8 +114,7 @@ bt_status_t sdp_client_queue_request(const bt_bdaddr_t *remote, bt_sdp_service_u
 bt_status_t sdp_create_record(const bt_sdp_record_attr_t *attr_list, int attr_count);
 bt_status_t sdp_remove_record(const bt_sdp_record_attr_t *attr_list);
 struct sdp_global_t *sdp_get_global(void);
-struct sdp_proto_conn_t *sdp_proto_conn_find(const struct bdaddr_t *remote);
-struct sdp_proto_conn_t *sdp_proto_conn_add_new(const struct bdaddr_t *remote);
+struct sdp_proto_conn_t *sdp_get_proto_conn(const struct bdaddr_t *remote);
 
 typedef struct {
     const uint8_t *attr_value_ptr; // attribute_value element start
@@ -136,8 +135,6 @@ typedef struct {
 bool sdp_get_next_attribute_list(bt_sdp_attr_list_t *attr_list);
 bool sdp_search_attribute_value(const bt_sdp_attr_list_t *attr_list, uint16_t attribute_id, bt_sdp_attr_value_t *out);
 bool sdp_search_bool_attribute_value(bt_sdp_attr_list_t *attr_list, uint16_t attr_id, bool *out);
-bool sdp_search_deseq_in_attr_list(bt_sdp_attr_list_t *attr_list, uint16_t attr_id, bt_sdp_attr_value_t *out);
-bool sdp_find_de_in_deseq_by_index(bt_sdp_des_t *descrp, uint8_t index, bt_sdp_attr_value_t *out);
 bool sdp_search_uint_attribute_value(bt_sdp_attr_list_t *attr_list, uint16_t attr_id, uint8_t uint_len, uint32_t *out);
 bool sdp_search_text_attribute_value(bt_sdp_attr_list_t *attr_list, uint16_t attr_id, char *out_buf, uint16_t buf_max_len);
 bool sdp_search_uuid_in_deseq_attribute_value(bt_sdp_attr_list_t *attr_list, uint16_t attr_id, const uint8_t *uuid, uint16_t uuid_len, uint8_t uint_len, uint32_t *out);

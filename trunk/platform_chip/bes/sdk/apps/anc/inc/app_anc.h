@@ -26,15 +26,13 @@ extern "C" {
 typedef enum {
     APP_ANC_MODE_OFF = 0,
     APP_ANC_MODE1,
-    APP_ANC_MODE2,
-    APP_ANC_MODE3,
-    APP_ANC_MODE4,
-    APP_ANC_MODE5,
-    APP_ANC_MODE6,
-    APP_ANC_MODE7,
-    APP_ANC_MODE8,
-    APP_ANC_MODE9,
-    APP_ANC_MODE10,
+    // APP_ANC_MODE2,
+    // APP_ANC_MODE3,
+    // APP_ANC_MODE4,
+    // APP_ANC_MODE5,
+    // APP_ANC_MODE6,
+    // APP_ANC_MODE7,
+    // APP_ANC_MODE8,
     APP_ANC_MODE_QTY,
 } app_anc_mode_t;
 

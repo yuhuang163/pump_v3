@@ -13,16 +13,15 @@
  * trademark and other intellectual property rights.
  *
  ****************************************************************************/
-#include "bthost_logger.h"
-
+#undef MOUDLE
+#define MOUDLE APP_BT
 #include "hal_aud.h"
 #include "hal_chipid.h"
 #include "hal_codec.h"
+#include "hal_trace.h"
 #include "hal_timer.h"
 #include "hal_location.h"
-#include "bluetooth_bt_api.h"
 #include "bluetooth_ble_api.h"
-#include "app_bt_media_manager.h"
 #include "apps.h"
 #include "app_bt.h"
 #include "app_hfp.h"
@@ -34,6 +33,7 @@
 #include "bt_drv_interface.h"
 #include "bt_drv_reg_op.h"
 #include "bt_if.h"
+#include "besbt_cfg.h"
 #include "app_bt_cmd.h"
 #include "nvrecord_bt.h"
 #include "nvrecord_env.h"
@@ -42,8 +42,6 @@
 #include "app_audio_control.h"
 #include "app_media_player.h"
 #include "audio_player_adapter.h"
-#include "system_utils.h"
-#include "buf_porting.h"
 
 #include "ecc_p192.h"
 #ifdef BLE_HOST_SUPPORT
@@ -57,9 +55,14 @@
 #if defined(IBRT)
 #include "app_tws_ibrt.h"
 #include "app_ibrt_internal.h"
+#include "app_tws_ibrt_cmd_sync_a2dp_status.h"
+#include "app_ibrt_a2dp.h"
+#include "app_tws_ctrl_thread.h"
 #include "app_ibrt_nvrecord.h"
-#include "bts_core_if.h"
+
 #ifdef IBRT_UI
+#include "app_tws_ibrt_conn_api.h"
+#include "app_custom_api.h"
 #include "app_audio_control.h"
 #endif
 #endif
@@ -70,13 +73,6 @@
 
 #ifdef __IAG_BLE_INCLUDE__
 #include "bluetooth_ble_api.h"
-#endif
-
-#ifdef GFPS_ENABLED
-#include "bluetooth_ble_api.h"
-#ifdef SASS_ENABLED
-#include "gfps_sass.h"
-#endif
 #endif
 
 #ifdef __INTERCONNECTION__
@@ -99,6 +95,37 @@
 #include "app_dbg_ble_audio_info.h"
 #endif
 
+static uint32_t bt_export_bes_cfg_get(int cfg)
+{
+    switch (cfg)
+    {
+        case BT_BES_CFG_VENDOR_CODEC_EN:
+            return besbt_cfg.vendor_codec_en;
+        case BT_BES_CFG_DONT_PLAY_MUTE_WHEN_A2DP_STUCK:
+            return besbt_cfg.dont_play_mute_when_a2dp_stuck;
+        case BT_BES_CFG_MARK_CODE_FOR_FUZZ_TEST:
+            return besbt_cfg.mark_some_code_for_fuzz_test;
+        case BT_BES_CFG_KEEP_ONLY_ONE_STREAM_CLOSE_CONNECTED_A2DP:
+#ifdef BLE_ONLY_ENABLED
+            return false;
+#else
+            return app_bt_manager.config.keep_only_one_stream_close_connected_a2dp;
+#endif
+        case BT_BES_CFG_BT_SINK_ENABLED:
+            return besbt_cfg.bt_sink_enable;
+        case BT_BES_CFG_PTS_TEST_DONT_ROLE_SWITCH:
+            return besbt_cfg.pts_test_dont_bt_role_switch;
+        default:
+            break;
+    }
+    return 0;
+}
+
+uint32_t bes_bt_me_bes_cfg_get(int cfg)
+{
+    return bt_export_bes_cfg_get(cfg);
+}
+
 void bt_add_event_callback(bt_event_callback_t cb, uint32_t masks)
 {
     btif_add_bt_event_callback(cb, masks);
@@ -120,7 +147,7 @@ void bt_generate_ecdh_key_pair(void)
     btif_ecc_gen_new_public_key_192((uint8_t *)lm_priv_key_192,(uint8_t *)lm_pub_key_192);
     bt_drv_reg_op_write_private_public_key((uint8_t *)lm_priv_key_192,(uint8_t *)lm_pub_key_192);
 
-    DEBUG_VERBOSE(1,"use time: %d ms", TICKS_TO_MS((hal_sys_timer_get()-time_start)));
+    DEBUG_INFO(1,"use time: %d ms", TICKS_TO_MS((hal_sys_timer_get()-time_start)));
 #endif
 }
 
@@ -135,9 +162,9 @@ void bt_generate_full_ecdh_key_pair(void)
 #ifdef BLE_HOST_SUPPORT
     ecc_gen_new_secret_key_256((uint8_t *)lm_priv_key_256,false);
     ecc_gen_new_public_key_256((uint8_t *)lm_priv_key_256,(uint8_t *)lm_pub_key_256);
-    DEBUG_VERBOSE(1,"full_ecdh use time: %d ms", TICKS_TO_MS((hal_sys_timer_get()-time_start)));
+    DEBUG_INFO(1,"full_ecdh use time: %d ms", TICKS_TO_MS((hal_sys_timer_get()-time_start)));
 #else
-    DEBUG_VERBOSE(1,"full_ecdh use time: %d ms ble not enable", TICKS_TO_MS((hal_sys_timer_get()-time_start)));
+    DEBUG_INFO(1,"full_ecdh use time: %d ms ble not enable", TICKS_TO_MS((hal_sys_timer_get()-time_start)));
 #endif
 #endif
 }
@@ -154,10 +181,59 @@ void bt_apply_full_ecdh_key_pair(void)
 #if defined(__HOST_GEN_ECDH_KEY__)
     bt_drv_reg_op_write_private_public_192_256_key((uint8_t *)lm_priv_key_192,(uint8_t *)lm_pub_key_192,true);
     bt_drv_reg_op_write_private_public_192_256_key((uint8_t *)lm_priv_key_256,(uint8_t *)lm_pub_key_256,false);
-#ifdef BLE_HOST_SUPPORT
-    bes_ble_gap_set_ecdh_key_pair((uint8_t *)lm_priv_key_256, (uint8_t *)lm_pub_key_256);
 #endif
-#endif
+}
+
+/**
+ ****************************************************************************************
+ * @brief ble set channel classification map allows the Host to specify
+ *        a channel classification for the data, secondary advertising, periodic,
+ *        and isochronous physical channels based on its "local information"
+ * HCI_LE_SET_HOST_CHL_CLASSIFICATION: Size: 5 octets (39 bits meaningful)
+ * This parameter contains 37 1-bit fields
+ * The nth such field (in the range 0 to 36) contains the value for channel n:
+ *    0: channel n is bad
+ *    1: channel n is unknown
+ *
+ * The most significant bits are reserved for future use.
+ * At least one channel shall be marked as unknown.
+ *
+ ****************************************************************************************
+ */
+void app_bt_set_le_host_chnl_classification(uint8_t *chnl_map)
+{
+    app_bt_start_custom_function_in_bt_thread((uint32_t)chnl_map,
+        (uint32_t)NULL, (uint32_t)btif_me_ble_set_host_chnl_classification);
+}
+
+/**
+ ****************************************************************************************
+ * @brief app_bt_read_le_chnl_map returns the current Channel_Map for the specified Connection_Handle.
+ * The nth such field (in the range 0 to 36) contains the value for the Link Layer channel index n:
+ *    0: channel n is bad
+ *    1: channel n is unknown
+ *
+ * The most significant bits are reserved for future use.
+ ****************************************************************************************
+ */
+void app_bt_read_le_chnl_map(uint16_t conn_handle)
+{
+    app_bt_start_custom_function_in_bt_thread((uint32_t)conn_handle,
+        (uint32_t)NULL, (uint32_t)btif_me_ble_read_chnle_map);
+}
+
+APP_BT_LE_READ_CHANNEL_MAP_CALLBACK g_le_read_channel_map_cb = NULL;
+void app_bt_registe_read_le_chnl_map_callback(APP_BT_LE_READ_CHANNEL_MAP_CALLBACK cb)
+{
+    g_le_read_channel_map_cb = cb;
+}
+
+void app_bt_process_cmd_complete_read_le_host_chnl_map(uint8 *data)
+{
+    if (g_le_read_channel_map_cb)
+    {
+        g_le_read_channel_map_cb(data);
+    }
 }
 
 static char g_state_checker_log_buffer[100*BT_DEVICE_NUM];
@@ -182,16 +258,12 @@ void app_bt_host_fault_dump_trace(void)
     DEBUG_INFO(0, "%s start\n", __func__);
 
 #ifdef BLE_HOST_SUPPORT
+#ifdef BLE_STACK_NEW_DESIGN
     gap_dump_ble_status();
-    hal_trace_flush_buffer();
-    hal_sys_timer_delay(MS_TO_TICKS(50));
+#endif
 #endif
 
-    hci_print_statistic();
-    hal_trace_flush_buffer();
-    hal_sys_timer_delay(MS_TO_TICKS(50));
-
-    bt_stack_buf_print_statistic();
+    btif_hci_print_statistic();
 
     DEBUG_INFO(0, "%s end", __func__);
 }
@@ -207,8 +279,8 @@ void *app_bt_profile_active_store_ptr_get(uint8_t *bdAddr)
     {
         uint32_t lock = nv_record_pre_write_operation();
         ptr = &(record->device_plf);
-        DUMP8_D(bdAddr, BT_ADDR_OUTPUT_PRINT_NUM);
-        DEBUG_VERBOSE(5,"%s hfp_act:%d a2dp_abs_vol:%d a2dp_act:0x%x codec_type=%x", __func__, ptr->hfp_act, ptr->a2dp_abs_vol, ptr->a2dp_act,ptr->a2dp_codectype);
+        DUMP8("0x%02x ", bdAddr, BT_ADDR_OUTPUT_PRINT_NUM);
+        DEBUG_INFO(5,"%s hfp_act:%d a2dp_abs_vol:%d a2dp_act:0x%x codec_type=%x", __func__, ptr->hfp_act, ptr->a2dp_abs_vol, ptr->a2dp_act,ptr->a2dp_codectype);
         /* always need connect a2dp and hfp */
         ptr->hfp_act = true;
         ptr->a2dp_act = true;
@@ -218,7 +290,7 @@ void *app_bt_profile_active_store_ptr_get(uint8_t *bdAddr)
 #endif
     {
         ptr = &device_profile;
-        DEBUG_VERBOSE(1,"%s default", __func__);
+        DEBUG_INFO(1,"%s default", __func__);
     }
     return (void *)ptr;
 }
@@ -243,18 +315,19 @@ void app_bt_get_local_device_address(void *bd_addr)
 #endif
 }
 
-void app_bt_sleep_init(void)
+int bes_bt_check_buffer_available(int size)
 {
-    bt_adapter_write_sleep_enable(true);
+    return btif_check_buffer_available(size);
 }
 
-uint8_t bes_bt_me_count_mobile_link(void)
+uint8_t* bes_bt_me_cobuf_malloc(uint16_t size)
 {
-#ifdef BLE_ONLY_ENABLED
-    return 0;
-#else
-    return app_bt_count_mobile_link();
-#endif
+    return btif_cobuf_malloc(size);
+}
+
+void bes_bt_me_cobuf_free(uint8_t*buf_ptr)
+{
+    return btif_cobuf_free(buf_ptr);
 }
 
 void bes_bt_sleep_init(void)
@@ -285,9 +358,7 @@ bt_status_t bes_bt_me_write_access_mode(btif_accessible_mode_t mode,bool disable
 
 void bes_bt_me_send_bt_key(APP_KEY_STATUS *status)
 {
-#ifdef APP_KEY_ENABLE
     bt_key_send(status);
-#endif
 }
 
 void app_bt_volumeup(void)
@@ -303,6 +374,17 @@ void app_bt_volumedown(void)
     audio_player_volume_down();
 #endif
 }
+
+#if defined(APP_TRACE_RX_ENABLE) || defined(IBRT)
+void bes_bt_me_init_cmd(void)
+{
+    app_bt_cmd_init();
+}
+void bes_bt_me_add_cmd_test_table(const app_bt_cmd_handle_t *start_cmd, uint16_t cmd_count)
+{
+    app_bt_cmd_add_test_table(start_cmd, cmd_count);
+}
+#endif
 
 #ifdef __INTERACTION__
 extern uint8_t g_findme_fadein_vol;
@@ -320,66 +402,26 @@ static void bt_export_set_findme_fadein_vol(uint8_t vol)
 
 uint8_t a2dp_convert_local_vol_to_bt_vol(uint8_t localVol)
 {
-#ifdef BT_A2DP_SUPPORT
     return unsigned_range_value_map(localVol, TGT_VOLUME_LEVEL_MUTE, TGT_VOLUME_LEVEL_MAX, 0, MAX_A2DP_VOL);
-#else
-    return 0xFF;
-#endif
 }
 
 uint8_t bes_bt_a2dp_local_vol_to_bt_vol(uint8_t localVol)
 {
-#ifdef BT_A2DP_SUPPORT
     return a2dp_convert_local_vol_to_bt_vol(localVol);
-#else
-    return 0xFF;
-#endif
 }
 
 void bes_bt_a2dp_report_speak_gain(void)
 {
-#ifdef BT_A2DP_SUPPORT
+#ifndef BLE_ONLY_ENABLED
     btapp_a2dp_report_speak_gain();
 #endif
 }
 
-static const bta_key_click_event_cb_t *key_event_cb = NULL;
-
-void bt_adapter_register_key_evt_handle_cb(const bta_key_click_event_cb_t *cbs)
+void bes_bt_a2dp_key_handler(uint8_t a2dp_key)
 {
-    key_event_cb = cbs;
-}
-
-void bt_key_handle_bt_func_click(void)
-{
-    if (key_event_cb->key_tripleclick_func)
-    {
-        key_event_cb->key_tripleclick_func();
-    }
-}
-
-void bt_key_handle_func_doubleclick(void)
-{
-    if (key_event_cb->key_doubleclick_func)
-    {
-        key_event_cb->key_doubleclick_func();
-    }
-}
-
-void bt_key_handle_func_tripleclick(void)
-{
-    if (key_event_cb->key_tripleclick_func)
-    {
-        key_event_cb->key_tripleclick_func();
-    }
-}
-
-void bt_key_handle_func_longpress(void)
-{
-    if (key_event_cb->key_longpress_func)
-    {
-        key_event_cb->key_longpress_func();
-    }
+#ifndef BLE_ONLY_ENABLED
+    a2dp_handleKey(a2dp_key);
+#endif
 }
 
 void bes_bt_hfp_report_speak_gain(void)
@@ -389,6 +431,14 @@ void bes_bt_hfp_report_speak_gain(void)
 #endif
 }
 
+void bes_bt_hfp_key_handler(uint8_t hfp_key)
+{
+#ifndef BLE_ONLY_ENABLED
+    hfp_handle_key(hfp_key);
+#endif
+}
+
+#if BLE_AUDIO_ENABLED
 void bt_key_handle_music_playback(void)
 {
     PLAYBACK_STATE_E music_state = app_bt_get_music_playback_status();
@@ -433,10 +483,11 @@ void bt_key_handle_call(CALL_STATE_E call_state)
         break;
     }
 }
+#endif
 
 void bt_key_handle_func_click(void)
 {
-    DEBUG_VERBOSE(1,"%s enter",__func__);
+    DEBUG_INFO(1,"%s enter",__func__);
 
 #ifdef BT_TEST_CURRENT_KEY
 #ifndef BLE_ONLY_ENABLED
@@ -467,24 +518,11 @@ void bt_key_handle_func_click(void)
     return;
 }
 
-void bt_key_handle_customer_doubleclick(void)
-{
-    bt_key_handle_music_playback();
-}
-
 static void bt_key_common_handle_func_doubleclick(void)
 {
 #ifdef BLE_ONLY_ENABLED
 #else
     bt_key_handle_func_doubleclick();
-#endif
-}
-
-static void bt_key_common_handle_func_tripleclick(void)
-{
-#ifdef BLE_ONLY_ENABLED
-#else
-    bt_key_handle_func_tripleclick();
 #endif
 }
 
@@ -506,14 +544,11 @@ void bt_key_handle_func_key(enum APP_KEY_EVENT_T event)
         case  APP_KEY_EVENT_DOUBLECLICK:
             bt_key_common_handle_func_doubleclick();
             break;
-        case APP_KEY_EVENT_TRIPLECLICK:
-            bt_key_common_handle_func_tripleclick();
-            break;
         case  APP_KEY_EVENT_LONGPRESS:
             bt_key_common_handle_func_longpress();
             break;
         default:
-            DEBUG_VERBOSE(0,"unregister func key event=%x", event);
+            DEBUG_INFO(0,"unregister func key event=%x", event);
             break;
     }
 }
@@ -537,9 +572,8 @@ void bt_key_handle_up_key(enum APP_KEY_EVENT_T event)
             if (app_bt_source_nv_snk_or_src_enabled())  {
                 //debug switch src mode
                 struct nvrecord_env_t *nvrecord_env=NULL;
-                bthost_cfg_t* bt_host_cfg = bt_host_get_cfg();
                 nv_record_env_get(&nvrecord_env);
-                if(bt_host_cfg->bt_source_enable)
+                if(app_bt_source_is_enabled())
                 {
                     nvrecord_env->src_snk_flag.src_snk_mode = 1;
                 }
@@ -553,7 +587,7 @@ void bt_key_handle_up_key(enum APP_KEY_EVENT_T event)
             break;
 #endif
         default:
-            DEBUG_VERBOSE(1,"unregister up key event=%x",event);
+            DEBUG_INFO(1,"unregister up key event=%x",event);
             break;
     }
 }
@@ -572,14 +606,14 @@ void bt_key_handle_down_key(enum APP_KEY_EVENT_T event)
             break;
 #endif
         default:
-            DEBUG_VERBOSE(1,"unregister down key event=%x",event);
+            DEBUG_INFO(1,"unregister down key event=%x",event);
             break;
     }
 }
 #else //#elif defined(__APP_KEY_FN_STYLE_B__)
 void bt_key_handle_up_key(enum APP_KEY_EVENT_T event)
 {
-    DEBUG_VERBOSE(1,"%s",__func__);
+    DEBUG_INFO(1,"%s",__func__);
     switch(event)
     {
         case  APP_KEY_EVENT_REPEAT:
@@ -592,7 +626,7 @@ void bt_key_handle_up_key(enum APP_KEY_EVENT_T event)
             break;
 #endif
         default:
-            DEBUG_VERBOSE(1,"unregister up key event=%x",event);
+            DEBUG_INFO(1,"unregister up key event=%x",event);
             break;
     }
 }
@@ -611,7 +645,7 @@ void bt_key_handle_down_key(enum APP_KEY_EVENT_T event)
             break;
 #endif
         default:
-            DEBUG_VERBOSE(1,"unregister down key event=%x",event);
+            DEBUG_INFO(1,"unregister down key event=%x",event);
             break;
     }
 }
@@ -620,7 +654,7 @@ void bt_key_handle_down_key(enum APP_KEY_EVENT_T event)
 APP_KEY_STATUS bt_key;
 static void bt_update_key_event(uint32_t code, uint8_t event)
 {
-    DEBUG_VERBOSE(3,"%s code:%d evt:%d",__func__, code, event);
+    DEBUG_INFO(3,"%s code:%d evt:%d",__func__, code, event);
 
     bt_key.code = code;
     bt_key.event = event;
@@ -650,25 +684,21 @@ void bt_key_handle(void)
 {
     if(bt_key.code != 0xff)
     {
-        DEBUG_VERBOSE(3,"%s code:%d evt:%d",__func__, bt_key.code, bt_key.event);
+        DEBUG_INFO(3,"%s code:%d evt:%d",__func__, bt_key.code, bt_key.event);
         switch(bt_key.code)
         {
             case BTAPP_FUNC_KEY:
-            {
 #if defined(BT_SOURCE)
-                bthost_cfg_t* bt_host_cfg = bt_host_get_cfg();
-                if(bt_host_cfg->bt_source_enable)
+                if(app_bt_source_is_enabled())
                 {
-#ifdef APP_KEY_ENABLE
                     bt_key_handle_source_func_key((enum APP_KEY_EVENT_T)bt_key.event);
-#endif
                 }
                 else
 #endif
                 {
                     bt_key_handle_func_key((enum APP_KEY_EVENT_T)bt_key.event);
                 }
-            } break;
+                break;
             case BTAPP_VOLUME_UP_KEY:
                 bt_key_handle_up_key((enum APP_KEY_EVENT_T)bt_key.event);
                 break;
@@ -681,7 +711,7 @@ void bt_key_handle(void)
                 break;
 #endif
             default:
-                DEBUG_VERBOSE(0,"bt_key_handle  undefined key");
+                DEBUG_INFO(0,"bt_key_handle  undefined key");
                 break;
         }
         bt_key.code = 0xff;
@@ -707,7 +737,7 @@ bool app_bt_update_tx_power_idx(uint16_t handle, int8_t tx_power_idx)
         return false;
     }
 
-    DEBUG_VERBOSE(1, "bt_core:update tx power idx=%d handle:%02x", tx_power_idx, handle);
+    TRACE(1, "bt_core:update tx power idx=%d handle:%02x", tx_power_idx, handle);
     if (device_id == BT_DEVICE_TWS_ID) {
         app_bt_manager.tws_conn.tx_power_idx = tx_power_idx;
         return true;
@@ -853,50 +883,24 @@ bt_status_t bes_bt_me_acl_set_link_monitor(uint16_t conn_handle, uint8_t control
     return btif_me_set_link_lowlayer_monitor_by_handle(conn_handle, control_flag, report_format, data_format, report_unit);
 }
 
-bt_status_t bes_bt_me_set_accessible_mode(btif_accessible_mode_t mode,
-                                        const btif_access_mode_info_t *info)
+void bes_bt_me_add_string_test_table(void)
 {
-    return app_bt_set_access_mode(mode);
+    app_bt_add_string_test_table();
 }
 
-bt_status_t bes_bt_me_cancel_create_connection(const bt_bdaddr_t *remote)
+void bes_bt_me_gen_ecdh_key_pair(void)
 {
-    return btif_hci_cancel_create_connection(remote);
+    bt_generate_ecdh_key_pair();
 }
 
-bt_status_t bes_bt_get_remote_dev_addr_by_device_id(uint8_t deviceId, uint8_t* btAddr)
+void bes_bt_me_gen_full_ecdh_key_pair(void)
 {
-    return app_bt_get_device_bdaddr(deviceId, btAddr);
+    bt_generate_full_ecdh_key_pair();
 }
 
-bt_status_t bes_bt_get_remote_device_id_by_addr(uint8_t* btAddr, uint8_t *deviceId)
+void bes_bt_me_cmd_line_handler(char *cmd, unsigned int cmd_length)
 {
-    *deviceId = app_bt_get_device_id_byaddr((bt_bdaddr_t *)btAddr);
-    if (*deviceId == BT_DEVICE_INVALID_ID)
-    {
-        return BT_STS_NOT_FOUND;
-    }
-
-    return BT_STS_SUCCESS;
-}
-
-uint8_t bes_bt_get_remote_device_id_by_handle(uint16_t conn_hdl)
-{
-    return app_bt_get_device_id_byhandle(conn_hdl);
-}
-
-bt_status_t bes_bt_get_remote_addr_by_conn_handle( uint16_t conn_hdl, uint8_t* btAddr)
-{
-    uint8_t* btAddr_p = NULL;
-
-    btAddr_p = app_bt_get_addr_byhandle(conn_hdl);
-    if (!btAddr_p)
-    {
-        return BT_STS_NOT_FOUND;
-    }
-    memcpy(btAddr, btAddr_p, 6);
-
-    return BT_STS_SUCCESS;
+    app_bt_cmd_line_handler(cmd, cmd_length);
 }
 
 void *bes_bt_me_profile_active_store_ptr_get(uint8_t *bdAddr)
@@ -904,9 +908,15 @@ void *bes_bt_me_profile_active_store_ptr_get(uint8_t *bdAddr)
     return app_bt_profile_active_store_ptr_get(bdAddr);
 }
 
-uint16_t bes_bt_get_remote_conn_handle_by_addr(uint8_t* btAddr)
+bt_status_t bes_bt_me_set_accessible_mode(btif_accessible_mode_t mode,
+                                        const btif_access_mode_info_t *info)
 {
-    return app_bt_get_handle_byaddr((bt_bdaddr_t *)btAddr);
+    return app_bt_set_access_mode(mode);
+}
+
+bt_status_t bes_bt_get_remote_dev_addr_by_device_id(uint8_t deviceId, uint8_t* btAddr)
+{
+    return app_bt_get_device_bdaddr(deviceId, btAddr);
 }
 
 void bes_bt_me_confirmation_register_callback(btif_confirmation_req_callback_t callback)
@@ -997,25 +1007,16 @@ void bes_bt_me_set_findme_fadein_vol(uint8_t vol)
 }
 #endif
 
-extern void app_ble_custom_deinit(void);
-
-int bt_host_init(void (*init_done_cb)())
+void bes_bt_init_global_handle(void)
 {
-    bes_bt_app_init();
-    hci_set_rx_thread_priority(osPriorityHigh);
-#if (defined(BT_SOURCE) && defined(A2DP_SOURCE_LHDC_ON) && defined(A2DP_SOURCE_LHDCV5_ON))
-    bt_host_thread_init(osPriorityHigh1, init_done_cb);
-#else
-    bt_host_thread_init(osPriorityHigh, init_done_cb);
+#ifndef BLE_ONLY_ENABLED
+    app_bt_global_handle_init();
 #endif
-
-    return BT_STS_SUCCESS;
 }
 
-int bt_host_deinit()
+void bes_bt_thread_init(void)
 {
-    bt_host_thread_deinit();
-    return BT_STS_SUCCESS;
+    BesbtInit();
 }
 
 bool bes_bt_me_is_bt_thread(void)
@@ -1025,31 +1026,15 @@ bool bes_bt_me_is_bt_thread(void)
 
 void bes_bt_app_init(void)
 {
-    bt_app_buf_init();
     app_bt_mail_init();
 #ifndef BLE_ONLY_ENABLED
     app_bt_init();
 #endif
 }
 
-const char *bdaddr2str(const struct bdaddr_t *addr)
-{
-    static _Thread_local char buf[18];
+void bes_bt_me_apply_full_ecdh_key_pair(void)
+    __attribute__((alias("bt_apply_full_ecdh_key_pair")));
 
-    memset(buf, 0, sizeof(buf));
-    sprintf(buf, "%02x:%02x:%02x:%02x:%02x:%02x", addr->address[5], addr->address[4], addr->address[3], addr->address[2], addr->address[1], addr->address[0]);
+void bes_bt_me_apply_ecdh_key_pair(void)
+    __attribute__((alias("bt_apply_ecdh_key_pair")));
 
-    return buf;
-}
-
-bool bt_is_allzero_bdaddr(const uint8_t *bdaddr_array)
-{
-    for (int index = 0; index < BTIF_BD_ADDR_SIZE; ++index)
-    {
-        if (bdaddr_array[index])
-        {
-            return false;
-        }
-    }
-    return true;
-}

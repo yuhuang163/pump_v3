@@ -18,9 +18,6 @@
 #include <string.h>
 #include <stddef.h>
 #include <stdio.h>
-#ifdef HAVE_SYS_PARAM_H
-#include <sys/param.h>  /* attempt to define endianness */
-#endif
 #include <multi_heap.h>
 #include "multi_heap_internal.h"
 #include "hal_trace.h"
@@ -103,7 +100,7 @@ static poison_head_t *verify_allocated_region(void *data, bool print_errors)
     /* check if the beginning of the data was overwritten */
     if (head->head_canary != HEAD_CANARY_PATTERN) {
         if (print_errors) {
-            HEAP_TRACE(1, "CORRUPT HEAP: Bad head at %p. Expected 0x%08x got 0x%08x\n", &head->head_canary,
+            MULTI_HEAP_STDERR_PRINTF(1, "CORRUPT HEAP: Bad head at %p. Expected 0x%08x got 0x%08x\n", &head->head_canary,
                    HEAD_CANARY_PATTERN, head->head_canary);
         }
         return NULL;
@@ -119,7 +116,7 @@ static poison_head_t *verify_allocated_region(void *data, bool print_errors)
     }
     if (canary != TAIL_CANARY_PATTERN) {
         if (print_errors) {
-            HEAP_TRACE(1, "CORRUPT HEAP: Bad tail at %p. Expected 0x%08x got 0x%08x\n", &tail->tail_canary,
+            MULTI_HEAP_STDERR_PRINTF(1, "CORRUPT HEAP: Bad tail at %p. Expected 0x%08x got 0x%08x\n", &tail->tail_canary,
                     TAIL_CANARY_PATTERN, canary);
         }
         return NULL;
@@ -153,7 +150,7 @@ static bool verify_fill_pattern(void *data, size_t size, bool print_errors, bool
         while (size >= 4) {
             if (*p != EXPECT_WORD) {
                 if (print_errors) {
-                    HEAP_TRACE(1, "CORRUPT HEAP: Invalid data at %p. Expected 0x%08x got 0x%08x\n", p, EXPECT_WORD, *p);
+                    MULTI_HEAP_STDERR_PRINTF(1, "CORRUPT HEAP: Invalid data at %p. Expected 0x%08x got 0x%08x\n", p, EXPECT_WORD, *p);
                 }
                 valid = false;
 #ifndef NDEBUG
@@ -176,7 +173,7 @@ static bool verify_fill_pattern(void *data, size_t size, bool print_errors, bool
     for (int i = 0; i < size; i++) {
         if (p[i] != (uint8_t)EXPECT_WORD) {
             if (print_errors) {
-                HEAP_TRACE(1, "CORRUPT HEAP: Invalid data at %p. Expected 0x%02x got 0x%02x\n", p, (uint8_t)EXPECT_WORD, *p);
+                MULTI_HEAP_STDERR_PRINTF(1, "CORRUPT HEAP: Invalid data at %p. Expected 0x%02x got 0x%02x\n", p, (uint8_t)EXPECT_WORD, *p);
             }
             valid = false;
 #ifndef NDEBUG
@@ -369,7 +366,7 @@ bool multi_heap_internal_check_block_poisoning(void *start, size_t size, bool is
             /* block can be bigger than alloc_size, for reasons of alignment & fragmentation,
                but block can never be smaller than head->alloc_size... */
             if (print_errors) {
-                HEAP_TRACE(1, "CORRUPT HEAP: Size at %p expected <=0x%08x got 0x%08x\n", &head->alloc_size,
+                MULTI_HEAP_STDERR_PRINTF(1, "CORRUPT HEAP: Size at %p expected <=0x%08x got 0x%08x\n", &head->alloc_size,
                        size - POISON_OVERHEAD, head->alloc_size);
             }
             return false;
@@ -393,7 +390,7 @@ void multi_heap_enable_tail_guard(multi_heap_handle_t heap, void *p, enum memory
 
     /*guard address*/
     dwt_enable();
-    HEAP_TRACE(0, "%s head %p  guard %p", __func__, p, tail);
+    TRACE(0, "%s head %p  guard %p", __func__, p, tail);
     watchpoint_enable(guard, (uint32_t *)&tail->tail_canary,  WPT_WRITE);
 }
 

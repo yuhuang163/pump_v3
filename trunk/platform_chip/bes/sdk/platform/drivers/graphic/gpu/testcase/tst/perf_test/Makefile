@@ -17,3 +17,27 @@ $(obj)/landscape_bin.o : $(FONTS_BIN_FILE)
 AFLAGS_landscape_bin.o += -Iplatform/drivers/graphic/gpu/testcase/tst/perf_test/
 ccflags-y := \
            -Iplatform/drivers/graphic/gpu/testcase/tst/util/
+
+ifeq ($(GPU_CURRENT_TEST_CPU_WHILE1),1)
+subdir-ccflags-y += -DGPU_CURRENT_TEST_CPU_WHILE1
+endif
+
+ifeq ($(GPU_CURRENT_TEST_GPU_ENABLE),1)
+subdir-ccflags-y += -DGPU_CURRENT_TEST_GPU_ENABLE
+endif
+
+ifeq ($(GPU_CURRENT_TEST_GPU_BLIT_ONCE),1)
+subdir-ccflags-y += -DGPU_CURRENT_TEST_GPU_BLIT_ONCE
+endif
+
+ifeq ($(GPU_CURRENT_TEST_GPU_BLIT_60HZ),1)
+subdir-ccflags-y += -DGPU_CURRENT_TEST_GPU_BLIT_60HZ
+endif
+
+ifeq ($(GPU_CURRENT_TEST_GPU_BLIT_1HZ),1)
+subdir-ccflags-y += -DGPU_CURRENT_TEST_GPU_BLIT_1HZ
+endif
+
+ifeq ($(GPU_CURRENT_TEST_GPU_BLIT_LOOP),1)
+subdir-ccflags-y += -DGPU_CURRENT_TEST_GPU_BLIT_LOOP
+endif

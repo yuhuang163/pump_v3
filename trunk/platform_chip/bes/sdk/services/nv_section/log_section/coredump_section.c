@@ -13,6 +13,7 @@
  * trademark and other intellectual property rights.
  *
  ****************************************************************************/
+#ifdef CORE_DUMP_TO_FLASH
 #include <stdio.h>
 #include <string.h>
 #include <string.h>
@@ -22,6 +23,7 @@
 #include "hal_trace.h"
 #include "hal_norflash.h"
 #include "norflash_api.h"
+#include "app_flash_api.h"
 
 /*
 Usage:
@@ -47,7 +49,7 @@ void coredump_to_flash_init()
     flash_id = norflash_api_get_dev_id_by_addr(coredump_flash_start_addr);
     hal_norflash_get_size(flash_id, NULL, &block_size, &sector_size, &page_size);
     buffer_len = COREDUMP_SECTOR_SIZE;
-    NV_SECTION_TRACE(4,"%s: coredump_flash_start_addr = 0x%x, coredump_flash_end_addr = 0x%x, buff_len = 0x%x.",
+    TRACE(4,"%s: coredump_flash_start_addr = 0x%x, coredump_flash_end_addr = 0x%x, buff_len = 0x%x.",
                     __func__,
                     coredump_flash_start_addr,
                     coredump_flash_end_addr,
@@ -67,11 +69,11 @@ void coredump_to_flash_init()
 
     if(result == NORFLASH_API_OK)
     {
-        NV_SECTION_TRACE(0,"coredump_to_flash_init ok.");
+        TRACE(0,"coredump_to_flash_init ok.");
     }
     else
     {
-        NV_SECTION_TRACE(1,"coredump_to_flash_init failed,result = %d.",result);
+        TRACE(1,"coredump_to_flash_init failed,result = %d.",result);
     }
 }
 
@@ -86,7 +88,7 @@ void core_dump_erase_section()
             COREDUMP_SECTOR_SIZE, false);
         if(ret != NORFLASH_API_OK)
         {
-            NV_SECTION_TRACE(3,"%s:offset = 0x%x,ret = %d.",
+            TRACE(3,"%s:offset = 0x%x,ret = %d.",
                             __func__,coredump_flash_addr_offset,ret);
         }
         coredump_flash_addr_offset += COREDUMP_SECTOR_SIZE;
@@ -104,7 +106,7 @@ int32_t core_dump_write_large(const uint8_t* ptr,uint32_t len)
     uint32_t write_len;
     uint32_t remain_len = len;
 
-    //NV_SECTION_TRACE(4,"%s offset = 0x%x ptr = 0x%x len=0x%x",__func__, coredump_flash_addr_offset, ptr, len);
+    //TRACE(4,"%s offset = 0x%x ptr = 0x%x len=0x%x",__func__, coredump_flash_addr_offset, ptr, len);
     do
     {
         if (coredump_flash_addr_offset % COREDUMP_SECTOR_SIZE != 0)
@@ -117,7 +119,7 @@ int32_t core_dump_write_large(const uint8_t* ptr,uint32_t len)
                         false);
             if(ret != NORFLASH_API_OK)
             {
-                NV_SECTION_TRACE(4,"%s: addr = 0x%x,write_len = 0x%x,ret = %d.",
+                TRACE(4,"%s: addr = 0x%x,write_len = 0x%x,ret = %d.",
                                 __func__,coredump_flash_addr_offset,write_len,ret);
                 return (int32_t)ret;
             }
@@ -135,7 +137,7 @@ int32_t core_dump_write_large(const uint8_t* ptr,uint32_t len)
                         false);
             if(ret != NORFLASH_API_OK)
             {
-                NV_SECTION_TRACE(4,"%s: addr = 0x%x,remain_len = 0x%x,ret = %d.",
+                TRACE(4,"%s: addr = 0x%x,remain_len = 0x%x,ret = %d.",
                                 __func__,coredump_flash_addr_offset,remain_len,ret);
                 return (int32_t)ret;
             }
@@ -152,7 +154,7 @@ int32_t core_dump_write_large(const uint8_t* ptr,uint32_t len)
                         false);
             if(ret != NORFLASH_API_OK)
             {
-                NV_SECTION_TRACE(3,"%s: addr = 0x%x,ret = %d.",
+                TRACE(3,"%s: addr = 0x%x,ret = %d.",
                                 __func__,coredump_flash_addr_offset,ret);
                 return (int32_t)ret;
             }
@@ -161,7 +163,7 @@ int32_t core_dump_write_large(const uint8_t* ptr,uint32_t len)
             remain_len -= COREDUMP_SECTOR_SIZE;
         }
     } while (remain_len > 0);
-    //NV_SECTION_TRACE(3,"%s offset = 0x%x ptr = 0x%x",__func__, coredump_flash_addr_offset, ptr);
+    //TRACE(3,"%s offset = 0x%x ptr = 0x%x",__func__, coredump_flash_addr_offset, ptr);
     return 0;
 }
 
@@ -170,7 +172,7 @@ int32_t core_dump_write(const uint8_t* ptr,uint32_t len)
     enum NORFLASH_API_RET_T ret;
     uint32_t i;
 
-    //NV_SECTION_TRACE(2,"%s: len = 0x%x", __func__,len);
+    //TRACE(2,"%s: len = 0x%x", __func__,len);
     //write by byte to avoid cross flash sector boundary
     for (i = 0; i < len; i++)
     {
@@ -181,10 +183,19 @@ int32_t core_dump_write(const uint8_t* ptr,uint32_t len)
                     false);
         if(ret != NORFLASH_API_OK)
         {
-            NV_SECTION_TRACE(4,"%s: offset = 0x%x ret = %d ch =%02x",
+            TRACE(4,"%s: offset = 0x%x ret = %d ch =%02x",
                             __func__,coredump_flash_addr_offset,ret,*(ptr-1));
         }
     }
     return 0;
 }
 
+int32_t core_dump_read_data(uint8_t *ptr, uint32_t len, uint32_t offset)
+{
+    app_flash_read(NORFLASH_API_MODULE_ID_COREDUMP,
+                    offset,
+                    ptr,
+                    len);
+    // TRACE(4, "[%s] done", __func__);
+}
+#endif

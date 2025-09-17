@@ -71,6 +71,8 @@
 extern const struct NORFLASH_CFG_T gd25le255e_cfg;
 extern const struct NORFLASH_CFG_T gd25le128e_cfg;
 extern const struct NORFLASH_CFG_T gd25uf128e_cfg;
+extern const struct NORFLASH_CFG_T gd25lf128e_cfg;
+extern const struct NORFLASH_CFG_T gd25q128e_cfg;
 extern const struct NORFLASH_CFG_T gd25lq64c_cfg;
 extern const struct NORFLASH_CFG_T gd25uf64e_cfg;
 extern const struct NORFLASH_CFG_T gd25lf64e_cfg;
@@ -87,9 +89,11 @@ extern const struct NORFLASH_CFG_T gd25d20c_cfg;
 
 // Puya
 extern const struct NORFLASH_CFG_T p25q256l_cfg;
+extern const struct NORFLASH_CFG_T py25q256lc_cfg;
 extern const struct NORFLASH_CFG_T p25q128l_cfg;
 extern const struct NORFLASH_CFG_T py25q128laa_cfg;
 extern const struct NORFLASH_CFG_T py25q128lac_cfg;
+extern const struct NORFLASH_CFG_T p25q128sn_cfg;
 extern const struct NORFLASH_CFG_T p25q64l_cfg;
 extern const struct NORFLASH_CFG_T p25q64ha_cfg;
 extern const struct NORFLASH_CFG_T p25q64sn_cfg;
@@ -123,6 +127,7 @@ extern const struct NORFLASH_CFG_T en25s80b_cfg;
 // WINBOND
 extern const struct NORFLASH_CFG_T w25q32fw_cfg;
 extern const struct NORFLASH_CFG_T w25q128jw_cfg;
+extern const struct NORFLASH_CFG_T w25q128jv_cfg;
 
 // SiliconKaiser
 extern const struct NORFLASH_CFG_T sk25le064_cfg;
@@ -140,6 +145,12 @@ static const struct NORFLASH_CFG_T * const flash_list[] = {
 #endif
 #if defined(__NORFLASH_GD25UF128E__) || defined(__NORFLASH_ALL__)
     &gd25uf128e_cfg,
+#endif
+#if defined(__NORFLASH_GD25LF128E__) || defined(__NORFLASH_ALL__)
+    &gd25lf128e_cfg,
+#endif
+#if defined(__NORFLASH_GD25Q128E__)  // || defined(__NORFLASH_ALL__)
+    &gd25q128e_cfg,
 #endif
 #if defined(__NORFLASH_GD25LQ64C__) || defined(__NORFLASH_ALL__)
     &gd25lq64c_cfg,
@@ -187,6 +198,9 @@ static const struct NORFLASH_CFG_T * const flash_list[] = {
 #if defined(__NORFLASH_P25Q256L__) //|| defined(__NORFLASH_ALL__)
     &p25q256l_cfg,
 #endif
+#if defined(__NORFLASH_PY25Q256LC__) || defined(__NORFLASH_ALL__)
+    &py25q256lc_cfg,
+#endif
 #if defined(__NORFLASH_P25Q128L__) || defined(__NORFLASH_ALL__)
     &p25q128l_cfg,
 #endif
@@ -195,6 +209,9 @@ static const struct NORFLASH_CFG_T * const flash_list[] = {
 #endif
 #if defined(__NORFLASH_PY25Q128LAC__) || defined(__NORFLASH_ALL__)
     &py25q128lac_cfg,
+#endif
+#if defined(__NORFLASH_P25Q128SN__) || defined(__NORFLASH_ALL__)
+    &p25q128sn_cfg,
 #endif
 #if defined(__NORFLASH_P25Q64L__) || defined(__NORFLASH_ALL__)
     &p25q64l_cfg,
@@ -280,8 +297,11 @@ static const struct NORFLASH_CFG_T * const flash_list[] = {
 #if defined(__NORFLASH_W25Q32FW__) || defined(__NORFLASH_SIMU__)
     &w25q32fw_cfg,
 #endif
-#if defined(__NORFLASH_W25Q128JV__) || defined(__NORFLASH_SIMU__)
+#if defined(__NORFLASH_W25Q128JW__) || defined(__NORFLASH_SIMU__)
     &w25q128jw_cfg,
+#endif
+#if defined(__NORFLASH_W25Q128JV__)
+    &w25q128jv_cfg,
 #endif
 
     // ----------------------
@@ -411,6 +431,10 @@ static uint8_t calib_dly_matched_cnt[HAL_FLASH_ID_NUM][DRV_NORFLASH_CALIB_QTY][N
 #endif
 #endif
 
+#ifdef FLASH_HPM
+static uint8_t restore_hpm = 0;
+#endif
+
 static void norflash_delay(uint32_t us)
 {
 #ifdef CHIP_BEST1000
@@ -423,6 +447,11 @@ static void norflash_delay(uint32_t us)
 #ifdef FLASH_HPM
 static int norflash_set_hpm(enum HAL_FLASH_ID_T id, uint8_t on)
 {
+    if (flash_list[flash_idx[id]]->id[0] == 0x0B || /*XTS*/
+        0) {
+        restore_hpm = on;
+    }
+
     if (on) {
         norflaship_cmd_addr(id, GD25Q32C_CMD_HIGH_PERFORMANCE, 0);
     } else {
@@ -1361,6 +1390,12 @@ int norflash_post_operation_suspend(enum HAL_FLASH_ID_T id, int suspend, int ski
     }
 #endif
 
+#ifdef FLASH_HPM
+    if (restore_hpm) {
+        norflash_set_hpm(id, 1);
+    }
+#endif
+
 #ifdef FLASH_MEM_READ_BUS_LOCK
 _unlock: POSSIBLY_UNUSED;
     norflaship_mem_read_bus_unlock(id, mrb_status[id]);
@@ -1870,7 +1905,7 @@ static bool norflash_calib_magic_word_valid(enum HAL_FLASH_ID_T id)
 
 void norflash_calib_get_seq_pattern(const uint32_t **seq, uint32_t *word_cnt)
 {
-    FLASH_RODATA_LOC static const uint32_t flash_pattern[] = CALIB_SEQ_PATTERN_DATA;
+    BOOT_RODATA_FLASH_LOC static const uint32_t flash_pattern[] = CALIB_SEQ_PATTERN_DATA;
 
     if (seq) {
         *seq = flash_pattern;
@@ -2220,7 +2255,7 @@ void norflash_show_calib_result(enum HAL_FLASH_ID_T id)
     if (list == NULL || size == 0) {
         TR_INFO(TR_ATTR_NO_TS | TR_ATTR_NO_ID, "NONE");
     } else {
-        DRIVERS_DUMP8("%02X ", list, size);
+        DUMP8("%02X ", list, size);
 #ifdef FLASH_PROGRAMMER
         send_debug_event(list, size);
 #endif
@@ -2238,7 +2273,7 @@ void norflash_show_calib_result(enum HAL_FLASH_ID_T id)
                     j, (int8_t)calib_dly_matched_idx[id][i][j], (int8_t)calib_dly_matched_cnt[id][i][j]);
             }
         }
-        NORM_LOG_FLUSH();
+        TRACE_FLUSH();
 #endif
 #else
         TR_INFO(TR_ATTR_NO_TS | TR_ATTR_NO_ID, "type=%d idx=%2d cnt=%2d final=%2d",
@@ -2678,9 +2713,6 @@ enum HAL_NORFLASH_RET_T norflash_write(enum HAL_FLASH_ID_T id, uint32_t start_ad
 #ifdef FLASH_SUSPEND
     // PUYA flash requires the first delay of byte program >= 450us
     if (flash_list[flash_idx[id]]->id[0] == NORFLASH_PUYA_ID_PREFIX) {
-        uint32_t page_size;
-
-        norflash_get_page_size(id, &page_size);
         if (len < page_size) {
             norflash_delay(450);
         }

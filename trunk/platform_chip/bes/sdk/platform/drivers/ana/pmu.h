@@ -47,10 +47,6 @@ extern "C" {
 #define  PMU_DSLEEP_MODE_ON                 1
 #define  PMU_DSLEEP_MODE_OFF                0
 
-#ifndef RTC_CALENDAR_YEAR_REF
-#define RTC_CALENDAR_YEAR_REF               2000
-#endif
-
 #ifndef SECURITY_VALUE_T
 union SECURITY_VALUE_T {
     struct {
@@ -109,6 +105,8 @@ enum PMU_VIORISE_REQ_USER_T {
    PMU_VIORISE_REQ_USER_PWL1,
    PMU_VIORISE_REQ_USER_FLASH,
    PMU_VIORISE_REQ_USER_CHARGER,
+   PMU_VIORISE_REQ_USER_SDIO,
+   PMU_VIORISE_REQ_USER_WIFI_VCO,
 
    PMU_VIORISE_REQ_USER_QTY
 };
@@ -137,13 +135,13 @@ struct PMU_LED_BR_CFG_T {
 
 typedef void (*PMU_USB_PIN_CHK_CALLBACK)(enum PMU_USB_PIN_CHK_STATUS_T status);
 
+typedef void (*PMU_RTC_IRQ_HANDLER_T)(uint32_t seconds);
+
 typedef void (*PMU_CHARGER_IRQ_HANDLER_T)(enum PMU_CHARGER_STATUS_T status);
 
 typedef void (*PMU_WDT_IRQ_HANDLER_T)(void);
 
 typedef void (*PMU_CAP_IRQ_HANDLER_T)(void);
-
-typedef void (*PMU_PRESSURE_IRQ_HANDLER_T)(void);
 
 typedef void (*PMU_IRQ_UNIFIED_HANDLER_T)(uint16_t irq_status);
 
@@ -165,8 +163,6 @@ void pmu_reboot(void);
 
 int pmu_get_efuse(enum PMU_EFUSE_PAGE_T page, unsigned short *efuse);
 
-void bbpll_freq_pll_config(uint32_t freq);
-
 void pmu_codec_config(int enable);
 
 void pmu_anc_config(int enable);
@@ -184,6 +180,8 @@ void pmu_flash_freq_config(uint32_t freq);
 void pmu_psram_freq_config(uint32_t freq);
 
 void pmu_psramuhs_freq_config(uint32_t freq);
+
+void pmu_apsram_freq_config(uint32_t freq);
 
 void pmu_fir_high_speed_config(int enable);
 
@@ -211,10 +209,6 @@ void pmu_charger_plugout_config(void);
 
 enum PMU_CHARGER_STATUS_T pmu_charger_get_status(void);
 
-void pmu_charger_out_poweron_enable(void);
-
-void pmu_charger_out_poweron_disable(void);
-
 int pmu_usb_config_pin_status_check(enum PMU_USB_PIN_CHK_STATUS_T status, PMU_USB_PIN_CHK_CALLBACK callback, int enable);
 
 void pmu_usb_enable_pin_status_check(void);
@@ -224,6 +218,28 @@ void pmu_usb_disable_pin_status_check(void);
 void pmu_usb_get_pin_status(int *dp, int *dm);
 
 void pmu_codec_mic_bias_set_volt(uint32_t map, uint32_t mv);
+
+void pmu_rtc_enable(void);
+
+void pmu_rtc_disable(void);
+
+int pmu_rtc_enabled(void);
+
+void pmu_rtc_set(uint32_t seconds);
+
+uint32_t pmu_rtc_get(void);
+
+void pmu_rtc_set_alarm(uint32_t seconds);
+
+uint32_t pmu_rtc_get_alarm(void);
+
+void pmu_rtc_clear_alarm(void);
+
+int pmu_rtc_alarm_status_set(void);
+
+int pmu_rtc_alarm_alerted();
+
+void pmu_rtc_set_irq_handler(PMU_RTC_IRQ_HANDLER_T handler);
 
 void pmu_viorise_req(enum PMU_VIORISE_REQ_USER_T user, bool rise);
 
@@ -257,6 +273,12 @@ void pmu_led_breathing_enable(enum HAL_IOMUX_PIN_T pin, const struct PMU_LED_BR_
 
 void pmu_led_breathing_disable(enum HAL_IOMUX_PIN_T pin);
 
+int pmu_led_pwm_enable(enum HAL_IOMUX_PIN_T pin, uint8_t ratio);
+
+int pmu_led_pwm_disable(enum HAL_IOMUX_PIN_T pin);
+
+void pmu_uart_enable(void);
+
 void pmu_wdt_set_irq_handler(PMU_WDT_IRQ_HANDLER_T handler);
 
 int pmu_wdt_config(uint32_t irq_ms, uint32_t reset_ms);
@@ -279,58 +301,9 @@ int pmu_gpadc_div_ctrl(enum HAL_GPADC_CHAN_T channel, int enable);
 
 enum PMU_BOOT_CAUSE_T pmu_boot_cause_get(void);
 
-bool pmu_boot_first_power_up(void);
-
 void pmu_power_key_hw_reset_enable(uint8_t seconds);
 
 void pmu_power_key_hw_reset_disable(void);
-
-//=========================================================================
-// APIs for pmu rtc
-//=========================================================================
-#ifdef RTC_ENABLE
-typedef void (*PMU_RTC_IRQ_HANDLER_T)(uint32_t seconds);
-
-void pmu_rtc_enable(void);
-
-void pmu_rtc_disable(void);
-
-int pmu_rtc_enabled(void);
-
-void pmu_rtc_set(uint32_t seconds);
-
-uint32_t pmu_rtc_get(void);
-
-void pmu_rtc_set_alarm(uint32_t seconds);
-
-uint32_t pmu_rtc_get_alarm(void);
-
-void pmu_rtc_clear_alarm(void);
-
-int pmu_rtc_alarm_status_set(void);
-
-int pmu_rtc_alarm_alerted();
-
-void pmu_rtc_set_irq_handler(PMU_RTC_IRQ_HANDLER_T handler);
-
-#elif defined(RTC_CALENDAR)
-
-typedef void (*PMU_RTC_CALENDAR_IRQ_HANDLER_T)(struct RTC_CALENDAR_FORMAT_T *calendar);
-
-int pmu_rtc_calendar_alarm_irq_handler_set(PMU_RTC_CALENDAR_IRQ_HANDLER_T handler);
-
-int pmu_rtc_calendar_alarm_clear(void);
-
-int pmu_rtc_calendar_alarm_set(struct RTC_CALENDAR_FORMAT_T *alarm_set);
-
-int pmu_rtc_calendar_alarm_get(struct RTC_CALENDAR_FORMAT_T *alarm_get);
-
-int pmu_rtc_calendar_set(struct RTC_CALENDAR_FORMAT_T *calendar_set);
-
-int pmu_rtc_calendar_get(struct RTC_CALENDAR_FORMAT_T *calendar_get);
-
-int pmu_rtc_calendar_pwron_enable(bool en);
-#endif
 
 //=========================================================================
 // APIs for internal use only
@@ -342,8 +315,6 @@ void pmu_wdt_restore_context(void);
 
 void pmu_charger_save_context(void);
 
-void pmu_charger_shutdown_config(void);
-
 int pmu_get_gpadc_data_bits(void);
 
 void pmu_bt_rcosc_cal(bool first_boot);
@@ -354,10 +325,9 @@ void pmu_capsensor_open(uint8_t clk_cap_div);
 
 int pmu_capsensor_set_irq_handler(PMU_CAP_IRQ_HANDLER_T handler);
 
-int pmu_pressure_set_irq_handler(PMU_PRESSURE_IRQ_HANDLER_T handler);
-
 #ifdef __cplusplus
 }
 #endif
 
 #endif
+

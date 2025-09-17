@@ -3,7 +3,11 @@ cur_dir := $(dir $(lastword $(MAKEFILE_LIST)))
 obj-y := $(patsubst $(cur_dir)%,%,$(wildcard $(cur_dir)*.c $(cur_dir)*.cpp $(cur_dir)*.S))
 
 obj-y += ../../tests/anc_usb/usb_audio_app.c
+
+ifneq ($(VOWLAN_SUPPORT)-$(UTILS_ESHELL_EN), 1-1)
 obj-y += ../../tests/anc_usb/safe_queue.c
+endif
+
 obj-y += ../../tests/anc_usb/memutils.c
 
 ifeq ($(USB_AUDIO_SPEECH),1)
@@ -14,6 +18,18 @@ ifeq ($(ANC_APP),1)
 obj-y += ../../tests/anc_usb/anc_usb_app.c
 endif
 
+ifeq ($(BT_USB_AUDIO_DUAL_MODE),1)
+obj-y += bt_usb_audio/
+endif
+
+ifeq ($(BLE_USB_AUDIO_SUPPORT),1)
+obj-y += ble_usb_audio/
+endif
+
+ifneq ($(filter 1,$(BT_USB_AUDIO_DUAL_MODE) $(BLE_USB_AUDIO_SUPPORT) $(WIFI_USB_AUDIO_SUPPORT)),)
+obj-y += usb_audio_control/
+endif
+
 obj-y := $(obj-y:.c=.o)
 obj-y := $(obj-y:.cpp=.o)
 obj-y := $(obj-y:.S=.o)
@@ -21,29 +37,31 @@ obj-y := $(obj-y:.S=.o)
 
 ccflags-y +=  \
 	-Iutils/boot_struct \
-	-Iutils/crc \
+	-Iutils/crc32 \
 	-Iutils/hexdump \
 	-Iutils/hwtimer_list \
 	-Iplatform/drivers/usb/usb_dev/inc	\
 	-Iplatform/drivers/ana \
 	-Imultimedia/inc/audio/process/adp/include \
 	-Imultimedia/inc/audio/process/anc/include \
+	-Imultimedia/inc/audio/process/psap/include \
 	-Imultimedia/inc/audio/process/filters/include \
 	-Imultimedia/inc/audio/process/resample/include \
-	-Imultimedia/inc \
 	-Imultimedia/inc/speech/inc \
 	-Iservices/audio_process \
 	-Iservices/nv_section/aud_section \
 	-Iservices/nv_section/include \
 	-Iservices/overlay \
-	-Itests/anc_usb
+	-Itests/anc_usb \
+	-Iservices/audio_sync_tdm_codec/inc
 
 CFLAGS_usbaudio_entry.o += -DUSB_AUDIO_APP
 
 ANC_USB_CFG_FLAGS :=
 ifeq ($(BLE_USB_AUDIO_SUPPORT),1)
 ccflags-y += \
-    $(BLUETOOTH_ADAPTER_INCLUDES)
+    $(BLUETOOTH_ADAPTER_INCLUDES) \
+    -Iservices/ble_usb_audio
 endif
 
 # ANC option
@@ -109,6 +127,14 @@ ifeq ($(HW_DAC_IIR_EQ_PROCESS),1)
 ANC_USB_CFG_FLAGS += -D__HW_DAC_IIR_EQ_PROCESS__
 endif
 
+ifeq ($(AUDIO_OUTPUT_SW_GAIN),1)
+ANC_USB_CFG_FLAGS += -DAUDIO_OUTPUT_SW_GAIN
+endif
+
+ifeq ($(AUDIO_OUTPUT_SW_GAIN_BEFORE_DRC),1)
+ANC_USB_CFG_FLAGS += -DAUDIO_OUTPUT_SW_GAIN_BEFORE_DRC
+endif
+
 ifeq ($(SW_CAPTURE_RESAMPLE),1)
 ANC_USB_CFG_FLAGS += -DSW_CAPTURE_RESAMPLE
 endif
@@ -137,8 +163,8 @@ ifeq ($(ANC_INIT_OFF),1)
 CFLAGS_anc_usb_app.o += -DANC_INIT_OFF
 endif
 
-ifeq ($(PC_CMD_UART),1)
-CFLAGS_usbaudio_entry.o += -D__PC_CMD_UART__
+ifneq ($(PC_CMD_UART_ID),)
+CFLAGS_usbaudio_entry.o += -DPC_CMD_UART_ID=$(PC_CMD_UART_ID)
 endif
 
 ifeq ($(DELAY_STREAM_OPEN),1)
@@ -179,16 +205,6 @@ endif
 
 ifeq ($(USB_AUDIO_PWRKEY_TEST),1)
 CFLAGS_usb_audio_app.o += -DUSB_AUDIO_PWRKEY_TEST
-endif
-
-ifeq ($(AUDIO_RESAMPLE),1)
-# If neither best1000 nor best2000
-ifeq ($(filter best1000 best2000,$(CHIP)),)
-PLL_TUNE_SAMPLE_RATE ?= 1
-endif
-ifeq ($(PLL_TUNE_SAMPLE_RATE),1)
-CFLAGS_usb_audio_app.o += -DPLL_TUNE_SAMPLE_RATE
-endif
 endif
 
 ifeq ($(USB_AUDIO_SPEECH),1)

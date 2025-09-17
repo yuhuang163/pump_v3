@@ -22,6 +22,9 @@
 #include "app_pwl.h"
 #include "string.h"
 
+#define APP_PWL_TRACE(s,...)
+//TRACE(s, ##__VA_ARGS__)
+
 #if (CFG_HW_PWL_NUM > 0)
 static void app_pwl_timehandler(void const *param);
 
@@ -43,7 +46,7 @@ static void app_pwl_timehandler(void const *param)
 {
     struct APP_PWL_T *pwl = (struct APP_PWL_T *)param;
     struct APP_PWL_CFG_T *cfg = &(pwl->config);
-    PWL_TRACE(2,"%s %x",__func__, param);
+    APP_PWL_TRACE(2,"%s %x",__func__, param);
 
     osTimerStop(pwl->timer);
 
@@ -58,7 +61,7 @@ static void app_pwl_timehandler(void const *param)
         }
     }
 
-    PWL_TRACE(3,"idx:%d pin:%d lvl:%d", pwl->partidx, cfg_hw_pinmux_pwl[pwl->id].pin, cfg->part[pwl->partidx].level);
+    APP_PWL_TRACE(3,"idx:%d pin:%d lvl:%d", pwl->partidx, cfg_hw_pinmux_pwl[pwl->id].pin, cfg->part[pwl->partidx].level);
     if(cfg->part[pwl->partidx].level){
 #if defined(__PMU_VIO_DYNAMIC_CTRL_MODE__)
         pmu_viorise_req(pwl->id == APP_PWL_ID_0 ? PMU_VIORISE_REQ_USER_PWL0 : PMU_VIORISE_REQ_USER_PWL1, true);
@@ -78,7 +81,7 @@ int app_pwl_open(void)
 {
 #if (CFG_HW_PWL_NUM > 0)
     uint8_t i;
-    PWL_TRACE(1,"%s",__func__);
+    APP_PWL_TRACE(1,"%s",__func__);
     for (i=0;i<APP_PWL_ID_QTY;i++){
         app_pwl[i].id = APP_PWL_ID_QTY;
         memset(&(app_pwl[i].config), 0, sizeof(struct APP_PWL_CFG_T));
@@ -104,7 +107,7 @@ int app_pwl_start(enum APP_PWL_ID_T id)
         return -1;
     }
 
-    PWL_TRACE(2,"%s %d",__func__, id);
+    APP_PWL_TRACE(2,"%s %d",__func__, id);
 
     pwl = &app_pwl[id];
     cfg = &(pwl->config);
@@ -120,7 +123,7 @@ int app_pwl_start(enum APP_PWL_ID_T id)
 
     osTimerStop(pwl->timer);
 
-    PWL_TRACE(3,"idx:%d pin:%d lvl:%d", pwl->partidx, cfg_hw_pinmux_pwl[pwl->id].pin, cfg->part[pwl->partidx].level);
+    APP_PWL_TRACE(3,"idx:%d pin:%d lvl:%d", pwl->partidx, cfg_hw_pinmux_pwl[pwl->id].pin, cfg->part[pwl->partidx].level);
     if(cfg->part[pwl->partidx].level){
 #if defined(__PMU_VIO_DYNAMIC_CTRL_MODE__)
         pmu_viorise_req(pwl->id == APP_PWL_ID_0 ? PMU_VIORISE_REQ_USER_PWL0 : PMU_VIORISE_REQ_USER_PWL1, false);
@@ -143,7 +146,7 @@ int app_pwl_setup(enum APP_PWL_ID_T id, struct APP_PWL_CFG_T *cfg)
     if (cfg == NULL || id >= APP_PWL_ID_QTY) {
         return -1;
     }
-    PWL_TRACE(2,"%s %d",__func__, id);
+    APP_PWL_TRACE(2,"%s %d",__func__, id);
 
     hal_gpio_pin_set_dir((enum HAL_GPIO_PIN_T)cfg_hw_pinmux_pwl[id].pin, HAL_GPIO_DIR_OUT, cfg->startlevel?1:0);
     app_pwl[id].id = id;

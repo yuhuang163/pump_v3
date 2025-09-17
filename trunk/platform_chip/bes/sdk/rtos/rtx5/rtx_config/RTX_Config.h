@@ -35,7 +35,6 @@
 #endif
 #endif
 
-#define   EVR_RTX_DISABLE
 //-------- <<< Use Configuration Wizard in Context Menu >>> --------------------
 
 // <h>System Configuration

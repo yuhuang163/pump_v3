@@ -49,7 +49,7 @@ extern "C"{
 
 #define GAF_AUDIO_STREAM_CAPTURE_BIT_NUM    AUD_BITS_16
 
-#define APP_BAP_MAX_ASCS_NB_ASE_CHAR              (4)
+#define APP_BAP_MAX_ASCS_NB_ASE_CHAR              (3)
 
 enum gaf_audio_stream_start_cnt
 {
@@ -71,9 +71,9 @@ typedef enum app_gaf_stream_context_state
 } gaf_stream_context_state_t;
 
 /****************************function declaration***************************/
-void gaf_audio_stream_start(uint8_t con_lid);
-void gaf_audio_stream_stop(uint8_t con_lid);
-void gaf_audio_stream_refresh_and_stop(uint8_t con_lid);
+void gaf_audio_stream_start(uint8_t con_lid, uint32_t context_type);
+void gaf_audio_stream_stop(uint8_t con_lid, uint32_t context_type);
+void gaf_audio_stream_refresh_and_stop(uint8_t con_lid, uint32_t context_type);
 gaf_stream_context_state_t gaf_audio_update_stream_state_info_from_ase(
                             GAF_AUDIO_UPDATE_STREAM_INFO_PURPOSE_E purpose, uint8_t ase_lid);
 gaf_stream_context_state_t gaf_audio_stream_update_and_start_handler(uint8_t ase_lid);
@@ -84,10 +84,6 @@ uint8_t gaf_audio_get_stream_started_type(uint8_t ase_lid);
 bool gaf_audio_is_playback_stream_on(void);
 uint32_t gaf_get_ble_audio_playback_sample_rate(void);
 
-void gaf_stream_dump_dma_trigger_status(void);
-
-GAF_PLAYBACK_STREAM_STATE_E gaf_stream_get_playback_stream_state(uint8_t con_lid);
-
 #ifdef IS_BLE_AUDIO_DEBUG_INFO_COLLECTOR_ENABLED
 GAF_AUDIO_STREAM_ENV_T* gaf_audio_get_stream_env_from_con_lid(uint8_t con_lid);
 void gaf_stream_capture_register_dma_irq_cb(gaf_stream_dma_irq_cb func);
@@ -95,8 +91,6 @@ void gaf_stream_capture_register_dma_irq_cb(gaf_stream_dma_irq_cb func);
 
 void gaf_media_stream_start_interference();
 void gaf_media_stream_stop_interference();
-
-void gaf_stream_media_status_changed_handler(uint8_t con_lid, bool paused);
 
 #ifdef __cplusplus
 }

@@ -35,28 +35,25 @@
 #define SYSTICK_IRQ_PRIORITY    0xFFU
 #endif
 
-#ifdef CPU_SYSTICK_CLOCK
-#define OS_CLOCK            CPU_SYSTICK_CLOCK
-#elif defined(OSTICK_USE_FAST_TIMER)
+#if defined(OSTICK_USE_FAST_TIMER)
 #define OS_CLOCK            CONFIG_FAST_SYSTICK_HZ
+#elif defined(OS_CLOCK_NOMINAL) && (OS_CLOCK_NOMINAL > 0)
+#if (OS_CLOCK_NOMINAL <= 32000)
+#define OS_CLOCK            (CONFIG_SYSTICK_HZ * OS_CLOCK_NOMINAL / CONFIG_SYSTICK_HZ_NOMINAL)
+#else
+#define OS_CLOCK            OS_CLOCK_NOMINAL
+#endif
 #else
 #define OS_CLOCK            CONFIG_SYSTICK_HZ
 #endif
 
-#if defined  (CHIP_SUBSYS_SENS) && (CHIP_BEST1501P)
-#undef OS_CLOCK
-#define OS_CLOCK            12000000
-#endif
-
 uint32_t SystemCoreClock;
-uint32_t Remainder;
-uint32_t Load;
 
 #ifndef SYSTICK_CLKSRC_CPU
 #define SYSTICK_EXTERNAL_CLOCK          1
 #endif
 
-void SystemCoreClockUpdate()
+void SystemCoreClockUpdate(void)
 {
     SystemCoreClock = OS_CLOCK;
 }
@@ -73,8 +70,6 @@ __WEAK int32_t OS_Tick_Setup (uint32_t freq, IRQHandler_t handler) {
   }
 
   load = (SystemCoreClock / freq) - 1U;
-  Remainder = SystemCoreClock % freq;
-  Load = load;
   if (load > 0x00FFFFFFU) {
     //lint -e{904} "Return statement before end of function"
     return (-1);

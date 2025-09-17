@@ -43,7 +43,7 @@ static volatile uint32_t btdrv_tx_flag = 1;
 
 void btdrv_tx(const unsigned char *data, unsigned int len)
 {
-    DRIVERS_TRACE(0,"tx");
+    BT_DRV_TRACE(0,"tx");
     btdrv_tx_flag = 1;
 }
 
@@ -86,11 +86,11 @@ static unsigned int btdrv_rx(const unsigned char *data, unsigned int len)
     if (len > 5 && data[0] == 0x04 && data[1] == 0xff &&
         data[3] == 0x01)
     {
-        DRIVERS_TRACE(2, "%s", &data[5]);
+        BT_DRV_TRACE(2, "%s", &data[5]);
     }
     else
     {
-        DRIVERS_TRACE(2, "%s len:%d", __func__, len);
+        BT_DRV_TRACE(2, "%s len:%d", __func__, len);
         BT_DRV_DUMP("%02x ", data, len > 15 ? 15 : len);
     }
 
@@ -114,7 +114,7 @@ void btdrv_SendData(const uint8_t *buff, uint8_t len)
     {
         btdrv_tx_flag = 0;
 
-        DRIVERS_TRACE(1, "%s", __func__);
+        BT_DRV_TRACE(1, "%s", __func__);
         BT_DRV_DUMP("%02x ", buff, len);
         hal_intersys_send(HAL_INTERSYS_ID_0, HAL_INTERSYS_MSG_HCI, buff, len);
 
@@ -143,7 +143,7 @@ void btdrv_hciopen(void)
 
     if (ret)
     {
-        DRIVERS_TRACE(0, "Failed to open intersys");
+        BT_DRV_TRACE(0, "Failed to open intersys");
         return;
     }
 
@@ -246,20 +246,20 @@ void btdrv_tx_iq_manual_cal(void)
     for (uint32_t i = 0; i < rf_store_tbl_size; i++) {
         btdrv_read_rf_reg(dc_iq_rf_set_common[i][0], &value);
         dciq_rf_local[i] = value;
-        // DRIVERS_TRACE(2, "rf reg = %x,v = %x", dc_iq_rf_set_common[i][0], value);
+        // BT_DRV_TRACE(2, "rf reg = %x,v = %x", dc_iq_rf_set_common[i][0], value);
     }
 
     // rf reg set common
     for (uint32_t i = 0; i < dciq_set_tbl_size; i++) {
         btdrv_write_rf_reg(dciq_rf_set_p[i][0], dciq_rf_set_p[i][1]);
-        // DRIVERS_TRACE(2, "rf reg = %x,v = %x", dciq_rf_set_p[i][0], dciq_rf_set_p[i][1]);
+        // BT_DRV_TRACE(2, "rf reg = %x,v = %x", dciq_rf_set_p[i][0], dciq_rf_set_p[i][1]);
     }
 
     // dig reg store
     for (uint32_t i = 0; i < dig_store_tbl_size; i++) {
         dig_value = BTDIGITAL_REG(dc_iq_dig_store[i]);
         dciq_dig_local[i] = dig_value;
-        // DRIVERS_TRACE(2, "dig reg = %x,v = %x", dc_iq_dig_store[i], dig_value);
+        // BT_DRV_TRACE(2, "dig reg = %x,v = %x", dc_iq_dig_store[i], dig_value);
     }
 
     dc_iq_calib_1306p();
@@ -267,13 +267,13 @@ void btdrv_tx_iq_manual_cal(void)
     // rf reg restore common
     for (uint32_t i = 0; i < rf_store_tbl_size; i++) {
         btdrv_write_rf_reg(dc_iq_rf_set_common[i][0], dciq_rf_local[i]);
-        // DRIVERS_TRACE(2, "rf reg = %x,v = %x", dc_iq_rf_set_common[i][0], dciq_rf_local[i]);
+        // BT_DRV_TRACE(2, "rf reg = %x,v = %x", dc_iq_rf_set_common[i][0], dciq_rf_local[i]);
     }
 
     // dig reg restore common
     for (uint32_t i = 0; i < dig_store_tbl_size; i++) {
         BTDIGITAL_REG_WR(dc_iq_dig_store[i], dciq_dig_local[i]);
-        // DRIVERS_TRACE(2, "dig reg = %x,v = %x", dc_iq_dig_store[i], dciq_dig_local[i]);
+        // BT_DRV_TRACE(2, "dig reg = %x,v = %x", dc_iq_dig_store[i], dciq_dig_local[i]);
     }
 
 }
@@ -302,13 +302,13 @@ void btdrv_rx_dccal(void)
     for(uint32_t i = 0; i < rf_store_tbl_size; i++) {
         btdrv_read_rf_reg(rx_dccal_rf_set[i][0], &value);
         dccal_rf_local[i] = value;
-        // DRIVERS_TRACE(2, "rf reg = %x,v = %x", rx_dccal_rf_set[i][0], value);
+        // BT_DRV_TRACE(2, "rf reg = %x,v = %x", rx_dccal_rf_set[i][0], value);
     }
 
     // rf reg set
     for(uint32_t i = 0; i < rf_store_tbl_size; i++) {
         btdrv_write_rf_reg(dccal_rf_set_p[i][0], dccal_rf_set_p[i][1]);
-        // DRIVERS_TRACE(2, "rf reg = %x,v = %x", dccal_rf_set_p[i][0], dccal_rf_set_p[i][1]);
+        // BT_DRV_TRACE(2, "rf reg = %x,v = %x", dccal_rf_set_p[i][0], dccal_rf_set_p[i][1]);
     }
 
     rx_dc_cal_1306p();
@@ -316,7 +316,7 @@ void btdrv_rx_dccal(void)
     // rf reg restore
     for(uint32_t i = 0; i < rf_store_tbl_size; i++) {
         btdrv_write_rf_reg(rx_dccal_rf_set[i][0], dccal_rf_local[i]);
-        // DRIVERS_TRACE(2, "rf reg = %x,v = %x", rx_dccal_rf_set[i][0], dccal_rf_local[i]);
+        // BT_DRV_TRACE(2, "rf reg = %x,v = %x", rx_dccal_rf_set[i][0], dccal_rf_local[i]);
     }
 }
 
@@ -358,23 +358,23 @@ void btdrv_rxbb_rccal(void)
     btdrv_delay(1);
 
     btdrv_read_rf_reg(0x5A, &value);
-    DRIVERS_TRACE(2, "%s rf_5A=0x%x", __func__, value);
+    BT_DRV_TRACE(2, "%s rf_5A=0x%x", __func__, value);
     //bit12: dig_rccal_finish
     if (getbit(value, 15)) {
         rccal_count = value & 0x7FFF;                //dig_rccal_count[11:0]
-        DRIVERS_TRACE(2, "%s rccal_count=0x%x", __func__, rccal_count);
+        BT_DRV_TRACE(2, "%s rccal_count=0x%x", __func__, rccal_count);
     } else {
-        DRIVERS_TRACE(1, "%s dig rccal not finish!!!", __func__);
+        BT_DRV_TRACE(1, "%s dig rccal not finish!!!", __func__);
         goto exit;
     }
 
     quotient = (float)((float)rccal_count / (float)base_count);
-    //DRIVERS_TRACE(1, "quotient=%f", (double)quotient);
+    //TRACE(1, "quotient=%f", (double)quotient);
     if ((quotient > 0.7f) && (quotient < 1.3f)) {
         factor = quotient;
     } else {
         // use efuse calib
-        DRIVERS_TRACE(0, "quotient not in range [0.7, 1.3]");
+        BT_DRV_TRACE(0, "quotient not in range [0.7, 1.3]");
         factor = 1.0f;
     }
 
@@ -431,7 +431,7 @@ void btdrv_tx_power_temperature_compensate(int temperature)
         BTDIGITAL_REG_SET_FIELD(BESMDM_GFSK_DSG_NOM_ADDR, 0x3FF, 10, gsg_nom);
         BTDIGITAL_REG_SET_FIELD(BESMDM_DPSK_DSG_NOM_ADDR, 0x3FF, 0, dsg_nom);
         tx_power_comp_flag = true;
-        DRIVERS_TRACE(0,"temperature:%d < 0, tx power compensate enable", temperature);
+        BT_DRV_TRACE(0,"temperature:%d < 0, tx power compensate enable", temperature);
     } else if ((temperature >= 5) && tx_power_comp_flag){
         // xtal mankick close
         gsg_nom = gsg_nom + TXPWR_COMP_DECREASE_1_DBM;
@@ -440,7 +440,7 @@ void btdrv_tx_power_temperature_compensate(int temperature)
         BTDIGITAL_REG_SET_FIELD(BESMDM_GFSK_DSG_NOM_ADDR, 0x3FF, 10, gsg_nom);
         BTDIGITAL_REG_SET_FIELD(BESMDM_DPSK_DSG_NOM_ADDR, 0x3FF, 0, dsg_nom);
         tx_power_comp_flag = false;
-        DRIVERS_TRACE(0,"temperature:%d >= 5, tx power compensate disable", temperature);
+        BT_DRV_TRACE(0,"temperature:%d >= 5, tx power compensate disable", temperature);
     }
 }
 
@@ -457,7 +457,7 @@ static void bt_temperature_comp_handler(void const *param)
     if (!ret) {
         btdrv_tx_power_temperature_compensate(ctx.temperature);
 
-        DRIVERS_TRACE(0,"%s, temperature: %d", __func__, ctx.temperature);
+        BT_DRV_TRACE(0,"%s, temperature: %d", __func__, ctx.temperature);
     }
 }
 
@@ -501,59 +501,59 @@ void bt_drv_dump_rf_reg(void)
 {
     uint16_t read_val = 0;
 
-    DRIVERS_TRACE(0, "%s start", __func__);
+    TRACE(0, "%s start", __func__);
     // page1
     for (uint16_t i = 0; i <= 254; i++) {
         btdrv_read_rf_reg(i, &read_val);
-        DRIVERS_TRACE_IMM(0,"0x%04x: 0x%04x", i, read_val);
+        TRACE_IMM(0,"0x%04x: 0x%04x", i, read_val);
         btdrv_delay(1);
     }
 
     // page2
     for (uint16_t i = 0; i <= 236; i++) {
         btdrv_read_rf_reg((0x100 + i), &read_val);
-        DRIVERS_TRACE_IMM(0,"0x%04x: 0x%04x", (0x100 + i), read_val);
+        TRACE_IMM(0,"0x%04x: 0x%04x", (0x100 + i), read_val);
         btdrv_delay(1);
     }
 
     // page3
     for (uint16_t i = 0; i <= 246; i++) {
         btdrv_read_rf_reg((0x200 + i), &read_val);
-        DRIVERS_TRACE_IMM(0,"0x%04x: 0x%04x", (0x200 + i), read_val);
+        TRACE_IMM(0,"0x%04x: 0x%04x", (0x200 + i), read_val);
         btdrv_delay(1);
     }
 
     // page5
     for (uint16_t i = 0; i <= 74; i++) {
         btdrv_read_rf_reg((0x400 + i), &read_val);
-        DRIVERS_TRACE_IMM(0,"0x%04x: 0x%04x", (0x400 + i), read_val);
+        TRACE_IMM(0,"0x%04x: 0x%04x", (0x400 + i), read_val);
         btdrv_delay(1);
     }
 
     // page6
     for (uint16_t i = 0; i <= 124; i++) {
         btdrv_read_rf_reg((0x500 + i), &read_val);
-        DRIVERS_TRACE_IMM(0,"0x%04x: 0x%04x", (0x500 + i), read_val);
+        TRACE_IMM(0,"0x%04x: 0x%04x", (0x500 + i), read_val);
         btdrv_delay(1);
     }
-    DRIVERS_TRACE(0, "%s done", __func__);
+    TRACE(0, "%s done", __func__);
 }
 
 static void POSSIBLY_UNUSED bt_drv_dump_modem_reg(void)
 {
     // d0350000 ~ d0350600
-    POSSIBLY_UNUSED uint32_t read_val = 0;
+    uint32_t read_val = 0;
 
     for (uint16_t i = 0; i <= 384; i++) {
         read_val = BTDIGITAL_REG((CFG_MODEM_BASE_ADDR + (i << 2)));
-        DRIVERS_TRACE_IMM(0,"0x%08x: 0x%08x", (CFG_MODEM_BASE_ADDR + (i << 2)), read_val);
+        TRACE_IMM(0,"0x%08x: 0x%08x", (CFG_MODEM_BASE_ADDR + (i << 2)), read_val);
         btdrv_delay(1);
     }
 }
 
 static void POSSIBLY_UNUSED bt_drv_log_power_off_reg_compare(void)
 {
-    DRIVERS_TRACE(0, "dump rf reg and modem reg before bt sleep.");
+    BT_DRV_TRACE(0, "dump rf reg and modem reg before bt sleep.");
     bt_drv_dump_rf_reg();
     bt_drv_dump_modem_reg();
 
@@ -564,7 +564,7 @@ static void POSSIBLY_UNUSED bt_drv_log_power_off_reg_compare(void)
     btdrv_sleep_config(0);
     btdrv_hcioff();
 
-    DRIVERS_TRACE(0, "dump rf reg and modem reg after bt sleep.");
+    BT_DRV_TRACE(0, "dump rf reg and modem reg after bt sleep.");
     bt_drv_dump_rf_reg();
     bt_drv_dump_modem_reg();
 }
@@ -591,18 +591,12 @@ void btdrv_start_bt(void)
     btdrv_cpudump_clk_enable();
     btdrv_cpudump_enable();
 #endif
-#ifdef MCU_WAKEUP_BT_V2
-    hal_intersys_open(HAL_INTERSYS_ID_1, HAL_INTERSYS_MSG_HCI, NULL, NULL, false);
-#endif //MCU_WAKEUP_BT_V2
     // RF module init
     btdrv_rf_init();
     // Digital module init
     btdrv_digital_init();
     // calibration module init
     bt_drv_calibration_init();
-
-    //write BTC srand seed
-    btdrv_regop_set_btc_srand_seed_initial();
 
     // config BTC default setting through HCI
     btdrv_hciopen();
@@ -849,7 +843,7 @@ void btdrv_hci_reset(void)
 
 void btdrv_enable_nonsig_tx(uint8_t index)
 {
-    DRIVERS_TRACE(1, "%s\n", __func__);
+    BT_DRV_TRACE(1, "%s\n", __func__);
 
     if (index == 0)
         btdrv_SendData(hci_cmd_nonsig_tx_2dh1_pn9_t0, sizeof(hci_cmd_nonsig_tx_2dh1_pn9_t0));
@@ -867,7 +861,7 @@ void btdrv_enable_nonsig_tx(uint8_t index)
 
 void btdrv_enable_nonsig_rx(uint8_t index)
 {
-    DRIVERS_TRACE(1, "%s\n", __func__);
+    BT_DRV_TRACE(1, "%s\n", __func__);
 
     if (index == 0)
         btdrv_SendData(hci_cmd_nonsig_rx_2dh1_pn9_t0, sizeof(hci_cmd_nonsig_rx_2dh1_pn9_t0));
@@ -1022,6 +1016,9 @@ void btdrv_vco_test_stop(void)
 
 void btdrv_stop_bt(void)
 {
+    /*unregister BT crash dump*/
+    hal_trace_crash_dump_register(HAL_TRACE_CRASH_DUMP_MODULE_BT, NULL);
+
     btdrv_poweron(BT_POWEROFF);
 }
 
@@ -1096,7 +1093,7 @@ uint8_t btdrv_conhdl_to_linkid(uint16_t connect_hdl)
     // invalid hci handle,such as link disconnected
     if (connect_hdl < HCI_HANDLE_MIN || connect_hdl > HCI_HANDLE_MAX)
     {
-        DRIVERS_TRACE(2, "ERROR Connect Handle=0x%x ca=%p", connect_hdl, __builtin_return_address(0));
+        TRACE(2, "ERROR Connect Handle=0x%x ca=%p", connect_hdl, __builtin_return_address(0));
         return HCI_LINK_INDEX_INVALID;
     }
     else

@@ -47,12 +47,12 @@ volatile uint32_t *get_bootmode_addr(void)
 #endif
 }
 
-union HAL_HW_BOOTMODE_T hal_hw_bootmode_get(void)
+union HAL_HW_BOOTMODE_T BOOT_TEXT_FLASH_LOC hal_hw_bootmode_get(void)
 {
     return hw_bm;
 }
 
-union HAL_HW_BOOTMODE_T hal_rom_hw_bootmode_get(void)
+union HAL_HW_BOOTMODE_T BOOT_TEXT_FLASH_LOC hal_rom_hw_bootmode_get(void)
 {
     union HAL_HW_BOOTMODE_T bm;
     volatile uint32_t *addr;
@@ -85,20 +85,56 @@ void BOOT_TEXT_FLASH_LOC hal_hw_bootmode_clear(void)
 #if defined(CHIP_BEST3001) || defined(CHIP_BEST3005)
     *addr = (*addr | HAL_HW_BOOTMODE_MASK) >> 2;
 #else
+#ifdef CHIP_BEST2007
+    uint32_t chip_version = hal_cmu_get_chip_version();
+
+    if (chip_version >= CHIP_VERSION_2007_B1 && chip_version <= CHIP_VERSION_2007_B2)
+        *addr = *addr | HAL_HW_BOOTMODE_MASK;
+    else
+        *addr = (*addr << 2) | HAL_HW_BOOTMODE_MASK;
+#else
     *addr = *addr | HAL_HW_BOOTMODE_MASK;
+#endif
 #endif
 }
 
-uint32_t hal_sw_bootmode_get(void)
+uint32_t BOOT_TEXT_FLASH_LOC hal_sw_bootmode_get(void)
 {
     volatile uint32_t *addr;
 
     addr = get_bootmode_addr();
 
+#ifdef CHIP_BEST2007
+    uint32_t chip_version = hal_cmu_get_chip_version();
+
+    if (chip_version >= CHIP_VERSION_2007_B1 && chip_version <= CHIP_VERSION_2007_B2)
+        return *addr & HAL_SW_BOOTMODE_MASK;
+    else
+        return (*addr << 2) & HAL_SW_BOOTMODE_MASK;
+#else
     return *addr & HAL_SW_BOOTMODE_MASK;
+#endif
 }
 
-void hal_sw_bootmode_set(uint32_t bm)
+uint32_t SRAM_TEXT_LOC hal_sw_bootmode_get_ram(void)
+{
+    volatile uint32_t *addr;
+
+    addr = get_bootmode_addr();
+
+#ifdef CHIP_BEST2007
+    uint32_t chip_version = hal_cmu_get_chip_version();
+
+    if (chip_version >= CHIP_VERSION_2007_B1 && chip_version <= CHIP_VERSION_2007_B2)
+        return *addr & HAL_SW_BOOTMODE_MASK;
+    else
+        return (*addr << 2) & HAL_SW_BOOTMODE_MASK;
+#else
+    return *addr & HAL_SW_BOOTMODE_MASK;
+#endif
+}
+
+void BOOT_TEXT_FLASH_LOC hal_sw_bootmode_set(uint32_t bm)
 {
     uint32_t lock;
     volatile uint32_t *addr;
@@ -109,12 +145,21 @@ void hal_sw_bootmode_set(uint32_t bm)
 #if defined(CHIP_BEST3001) || defined(CHIP_BEST3005)
     *addr = ((*addr | bm) & HAL_SW_BOOTMODE_MASK) >> 2;
 #else
+#ifdef CHIP_BEST2007
+    uint32_t chip_version = hal_cmu_get_chip_version();
+
+    if (chip_version >= CHIP_VERSION_2007_B1 && chip_version <= CHIP_VERSION_2007_B2)
+        *addr = (*addr | bm) & HAL_SW_BOOTMODE_MASK;
+    else
+        *addr = ((*addr << 2) | bm) & HAL_SW_BOOTMODE_MASK;
+#else
     *addr = (*addr | bm) & HAL_SW_BOOTMODE_MASK;
+#endif
 #endif
     int_unlock(lock);
 }
 
-void hal_sw_bootmode_clear(uint32_t bm)
+void BOOT_TEXT_FLASH_LOC hal_sw_bootmode_clear(uint32_t bm)
 {
     uint32_t lock;
     volatile uint32_t *addr;
@@ -125,7 +170,16 @@ void hal_sw_bootmode_clear(uint32_t bm)
 #if defined(CHIP_BEST3001) || defined(CHIP_BEST3005)
     *addr = ((*addr & ~bm) & HAL_SW_BOOTMODE_MASK) >> 2;
 #else
+#ifdef CHIP_BEST2007
+    uint32_t chip_version = hal_cmu_get_chip_version();
+
+    if (chip_version >= CHIP_VERSION_2007_B1 && chip_version <= CHIP_VERSION_2007_B2)
+        *addr = (*addr & ~bm) & HAL_SW_BOOTMODE_MASK;
+    else
+        *addr = ((*addr << 2) & ~bm) & HAL_SW_BOOTMODE_MASK;
+#else
     *addr = (*addr & ~bm) & HAL_SW_BOOTMODE_MASK;
+#endif
 #endif
     int_unlock(lock);
 }

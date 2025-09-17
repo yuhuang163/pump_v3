@@ -20,6 +20,12 @@
 extern "C" {
 #endif
 
+#if BLE_AUDIO_ENABLED
+#define EATT_CHAN_SUPPORT 1
+#else
+#define EATT_CHAN_SUPPORT 0
+#endif
+
 #define PSM_SDP                 0x0001
 #define PSM_RFCOMM              0x0003
 #define PSM_TCS_BIN             0x0005 // telephony control spec / tcs binary
@@ -37,8 +43,9 @@ extern "C" {
 #define PSM_LE_IPSP             0x0023 // internet protocol support profile IPSP
 #define PSM_OTS                 0x0025 // object transfer service OTS
 #define PSM_EATT                0x0027
-#define PSM_SPSM_GFPS           0x0081
+#define PSM_SPSM_GFPS           0x0041
 
+#define L2CAP_BESAUD_EXTRA_CHAN_ID  0xbbee
 #define L2CAP_NULL_CID              0x0000
 #define L2CAP_SIG_CID               0x0001
 #define L2CAP_CONNECTIONLESS_CID    0x0002
@@ -64,18 +71,17 @@ typedef enum {
     L2CAP_DYNAMIC_PSM_TARGET_MAP_ACCESS,
     L2CAP_DYNAMIC_PSM_TARGET_MAP_NOTIFY,
     L2CAP_DYNAMIC_PSM_TARGET_OPP,
-    L2CAP_DYNAMIC_PSM_TARGET_AVRCP_ART,
 } _impl_l2cap_psm_target_profile_t;
 
 typedef struct {
-    uint8_t smp_over_br_edr: 1;
+    uint8_t ctkd_over_br_edr: 1;
     uint8_t gatt_over_br_edr: 1;
     uint8_t eatt_over_br_edr: 1;
+    uint8_t stack_new_design: 1;
 } bt_l2cap_config_t;
 
-bt_l2cap_config_t l2cap_config_get(void);
-void l2cap_config_set(bt_l2cap_config_t *cfg);
-void l2cap_config_enable_smp_over_bredr(bool enable);
+bt_l2cap_config_t bt_l2cap_get_config(void);
+void bt_l2cap_set_config(bt_l2cap_config_t *cfg);
 
 typedef enum {
     BT_L2CAP_EVENT_OPENED = BT_EVENT_L2CAP_OPENED,
@@ -103,7 +109,7 @@ typedef struct {
     bt_bdaddr_t peer_addr;
     uint16_t connhdl;
     uint16_t remote_mtu;
-    int32_t free_credits;
+    int16_t free_credits;
     uint8_t l2cap_mode;
     uint32_t l2cap_handle;
     void *tx_priv_rx_ppb;

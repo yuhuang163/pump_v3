@@ -77,7 +77,7 @@ static __INLINE bool iac_is_service_discovery_ongoing(uint8_t con_lid)
     return (iac_env.state_bf & IAC_CONN_STATE_DISCOVERING_BIT(con_lid));
 }
 
-static bool iac_gatt_callback(gatt_prf_t *prf, gatt_profile_event_t event,
+static int iac_gatt_callback(gatt_prf_t *prf, gatt_profile_event_t event,
                                 gatt_profile_callback_param_t param)
 {
     switch (event)

@@ -45,6 +45,14 @@ struct DSI_REG_T {
     __IO uint32_t REG_06C;
     __IO uint32_t REG_070;
     __IO uint32_t REG_074;
+    __IO uint32_t REG_078;
+    __IO uint32_t REG_07C;
+    __IO uint32_t REG_080;
+    __IO uint32_t REG_084;
+    __IO uint32_t REG1_RES[26];
+    __IO uint32_t REG_0F0;
+    __IO uint32_t REG_0F4;
+    __IO uint32_t REG_0F8;
 };
 
 // reg_00
@@ -168,9 +176,15 @@ struct DSI_REG_T {
 #define DSI_R_SOFT_CMD_LENGTH_MASK                          (0xFFF << 16)
 #define DSI_R_SOFT_CMD_LENGTH_SHIFT                         (16)
 
+// reg_18
+#define DSI_TX_CMD_DATA(n)                                  (((n) & 0xFFFFFFFF) << 0)
+#define DSI_TX_CMD_DATA_MASK                                (0xFFFFFFFF << 0)
+#define DSI_TX_CMD_DATA_SHIFT                               (0)
+
 // reg_30
 #define DSI_OV_FLAG                                         (1 << 0)
 #define DSI_UN_FLAG                                         (1 << 1)
+#define DSI_EXIT_LP_FAIL                                    (1 << 2)
 #define DSI_CTRL_STX(n)                                     (((n) & 0x1F) << 8)
 #define DSI_CTRL_STX_MASK                                   (0x1F << 8)
 #define DSI_CTRL_STX_SHIFT                                  (8)
@@ -248,6 +262,12 @@ struct DSI_REG_T {
 #define REG_MASK_LP_LDO                                     (1 << 12)
 #define REG_MASK_LP_RSTN                                    (1 << 13)
 #define REG_CKX8_EN                                         (1 << 14)
+#define REG_CKX8_SEL_SHIFT                                  15
+#define REG_CKX8_SEL_MASK                                   (0x3 << REG_CKX8_SEL_SHIFT)
+#define REG_CKX8_SEL(n)                                     BITFIELD_VAL(REG_CKX8_SEL, n)
+#define REG_VRES_CKGEN_SHIFT                                17
+#define REG_VRES_CKGEN_MASK                                 (0x3 << REG_CKX8_SEL_SHIFT)
+#define REG_VRES_CKGEN(n)                                   BITFIELD_VAL(REG_VRES_CKGEN, n)
 
 //1600 REG064
 #define REG_LDO0P4_RES_SHIFT                                0
@@ -354,6 +374,87 @@ struct DSI_REG_T {
 #define DSI_R_HS_TRAIL_TIME2(n)                             (((n) & 0x3F) << 16)
 #define DSI_R_HS_TRAIL_TIME2_MASK                           (0x3F << 16)
 #define DSI_R_HS_TRAIL_TIME2_SHIFT                          (16)
+#define DSI_4LANE_EN                                        (1 << 22)
+#define DSI_2CTRL_EN                                        (1 << 23)
+#define DSI_4LANE_SWAP(n)                                   (((n) & 0x3) << 24) /* 0: D0~D3 = [DSI1_D0, DSI1_D1, DSI0_D0, DSI0_D1];
+                                                                                 * 1: D0~D3 = [DSI1_D1, DSI1_D0, DSI0_D1, DSI0_D0];
+                                                                                 * 2: D0~D3 = [DSI0_D0, DSI0_D1, DSI1_D0, DSI1_D1];
+                                                                                 * 3: D0~D3 = [DSI0_D1, DSI0_D0, DSI1_D1, DSI1_D0];
+                                                                                 */
+#define DSI_4LANE_SWAP_MASK                                 (0x3 << 24)
+#define DSI_4LANE_SWAP_SHIFT                                (24)
+
+// reg_78
+#define DSI_CK_LB_HS(n)                                     (((n) & 0xFF) << 0)
+#define DSI_CK_LB_HS_MASK                                   (0xFF << 0)
+#define DSI_CK_LB_HS_SHIFT                                  (0)
+#define DSI_CK_LB_ZERO(n)                                   (((n) & 0xFF) << 8)
+#define DSI_CK_LB_ZERO_MASK                                 (0xFF << 8)
+#define DSI_CK_LB_ZERO_SHIFT                                (8)
+#define DSI_CK_LB_PRPR(n)                                   (((n) & 0xFF) << 16)
+#define DSI_CK_LB_PRPR_MASK                                 (0xFF << 16)
+#define DSI_CK_LB_PRPR_SHIFT                                (16)
+#define DSI_CK_LB_RQST(n)                                   (((n) & 0xFF) << 24)
+#define DSI_CK_LB_RQST_MASK                                 (0xFF << 24)
+#define DSI_CK_LB_RQST_SHIFT                                (24)
+
+// reg_7C
+#define DSI_REG_DATA_LB_ZERO(n)                             (((n) & 0xFF) << 0)
+#define DSI_REG_DATA_LB_ZERO_MASK                           (0xFF << 0)
+#define DSI_REG_DATA_LB_ZERO_SHIFT                          (0)
+#define DSI_REG_DATA_LB_PRPR(n)                             (((n) & 0xFF) << 8)
+#define DSI_REG_DATA_LB_PRPR_MASK                           (0xFF << 8)
+#define DSI_REG_DATA_LB_PRPR_SHIFT                          (8)
+#define DSI_REG_DATA_LB_PQST(n)                             (((n) & 0xFF) << 16)
+#define DSI_REG_DATA_LB_PQST_MASK                           (0xFF << 16)
+#define DSI_REG_DATA_LB_PQST_SHIFT                          (16)
+#define DSI_REG_CK_LB_DATA_SEL                              (1 << 24)
+#define DSI_REG_LOOPBACK_TEST                               (1 << 25)
+
+// reg_84
+#define DSI_R_CLK_HS_TRAIL_TIME_H(n)                        (((n) & 0xF) << 0)
+#define DSI_R_CLK_HS_TRAIL_TIME_H_MASK                      (0xF << 0)
+#define DSI_R_CLK_HS_TRAIL_TIME_H_SHIFT                     (0)
+#define DSI_R_CLK_HS_ZERO_TIME_H(n)                         (((n) & 0xF) << 4)
+#define DSI_R_CLK_HS_ZERO_TIME_H_MASK                       (0xF << 4)
+#define DSI_R_CLK_HS_ZERO_TIME_H_SHIFT                      (4)
+#define DSI_R_CLK_HS_EXIT_TIME_H(n)                         (((n) & 0xF) << 8)
+#define DSI_R_CLK_HS_EXIT_TIME_H_MASK                       (0xF << 8)
+#define DSI_R_CLK_HS_EXIT_TIME_H_SHIFT                      (8)
+#define DSI_R_CLK_HS_PRPR_TIME_H(n)                         (((n) & 0xF) << 12)
+#define DSI_R_CLK_HS_PRPR_TIME_H_MASK                       (0xF << 12)
+#define DSI_R_CLK_HS_PRPR_TIME_H_SHIFT                      (12)
+#define DSI_R_CLK_T_LPX_H(n)                                (((n) & 0xF) << 16)
+#define DSI_R_CLK_T_LPX_H_MASK                              (0xF << 16)
+#define DSI_R_CLK_T_LPX_H_SHIFT                             (16)
+#define DSI_REG_LOOPDATA_CNT(n)                             (((n) & 0xFFF) << 20)
+#define DSI_REG_LOOPDATA_CNT_MASK                           (0xFFF << 20)
+#define DSI_REG_LOOPDATA_CNT_SHIFT                          (20)
+
+// reg_F0
+#define DSI_CFG_ISP_CH                                      (1 << 0)
+#define DSI_CFG_ISP_DSI888                                  (1 << 1)
+#define DSI_CFG_ISP_DSI555                                  (1 << 2)
+#define DSI_LOOP_1LANE_MODE                                 (1 << 3)
+#define DSI_CFG_LOOPDATA(n)                                 (((n) & 0xFF) << 0)
+#define DSI_CFG_LOOPDATA_MASK                               (0xFF << 0)
+#define DSI_CFG_LOOPDATA_SHIFT                              (8)
+#define DSI_CFG_LOOPCRC(n)                                  (((n) & 0xFFFF) << 16)
+#define DSI_CFG_LOOPCRC_MASK                                (0xFFFF << 16)
+#define DSI_CFG_LOOPCRC_SHIFT                               (16)
+
+// REG_F4
+#define DSI_CFG_LOOPBACK_HEADTYPE(n)                        (((n) & 0xFFFFFFFF) << 0)
+#define DSI_CFG_LOOPBACK_HEADTYPE_MASK                      (0xFFFFFFFF << 0)
+#define DSI_CFG_LOOPBACK_HEADTYPE_SHIFT                     (0)
+
+// REG_F8
+#define DSI_CFG_LOOP_CNT(n)                                 (((n) & 0XFFFF) << 0)
+#define DSI_CFG_LOOP_CNT_MASK                               (0xFFFF << 0)
+#define DSI_CFG_LOOP_CNT_SHIFT                              (0)
+#define DSI_CFG_ISP_VLINE(n)                                (((n) & 0XFFFF) << 12)
+#define DSI_CFG_ISP_VLINE_MASK                              (0xFFFF << 12)
+#define DSI_CFG_ISP_VLINE_SHIFT                             (12)
 
 #endif
 

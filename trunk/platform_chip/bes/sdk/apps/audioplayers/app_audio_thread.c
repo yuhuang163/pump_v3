@@ -13,7 +13,7 @@
  * trademark and other intellectual property rights.
  *
  ****************************************************************************/
-#if !defined(USE_BASIC_THREADS)
+#ifdef USE_APP_AUDIO_THREAD
 #include "cmsis_os.h"
 #include "hal_trace.h"
 #include "hal_timer.h"
@@ -37,7 +37,7 @@ static int app_audio_mailbox_init(void)
 {
     app_audio_mailbox = osMailCreate(osMailQ(app_audio_mailbox), NULL);
     if (app_audio_mailbox == NULL)  {
-        AUDIOPLAYERS_TRACE(0,"Failed to Create app_audio_mailbox\n");
+        TRACE(0,"Failed to Create app_audio_mailbox\n");
         return -1;
     }
     return 0;
@@ -53,28 +53,26 @@ int app_audio_mailbox_put(APP_AUDIO_MESSAGE_BLOCK* msg_src)
 
     if (!msg_p){
         osEvent evt;
-        AUDIOPLAYERS_TRACE_IMM(1,"%s osMailAlloc error dump", __func__);
+        TRACE_IMM(0,"osMailAlloc error dump");
         for (uint8_t i=0; i<APP_AUDIO_MAILBOX_MAX; i++){
             evt = osMailGet(app_audio_mailbox, 0);
             if (evt.status == osEventMail) {
-                AUDIOPLAYERS_TRACE_IMM(5,"cnt:%d mod:%d src:%08x tim:%d id:%8x",
+                TRACE_IMM(9,"cnt:%d mod:%d src:%08x tim:%d id:%8x ptr:%08x para:%08x/%08x/%08x",
                             i,
                             ((APP_AUDIO_MESSAGE_BLOCK *)(evt.value.p))->mod_id,
                             ((APP_AUDIO_MESSAGE_BLOCK *)(evt.value.p))->src_thread,
                             ((APP_AUDIO_MESSAGE_BLOCK *)(evt.value.p))->system_time,
-                            ((APP_AUDIO_MESSAGE_BLOCK *)(evt.value.p))->msg_body.message_id);
-                AUDIOPLAYERS_TRACE_IMM(5,"ptr:%08x para:%08x/%08x/%08x/%08x",
+                            ((APP_AUDIO_MESSAGE_BLOCK *)(evt.value.p))->msg_body.message_id,
                             ((APP_AUDIO_MESSAGE_BLOCK *)(evt.value.p))->msg_body.message_ptr,
                             ((APP_AUDIO_MESSAGE_BLOCK *)(evt.value.p))->msg_body.message_Param0,
                             ((APP_AUDIO_MESSAGE_BLOCK *)(evt.value.p))->msg_body.message_Param1,
-                            ((APP_AUDIO_MESSAGE_BLOCK *)(evt.value.p))->msg_body.message_Param2,
-                            (int32_t)(((APP_AUDIO_MESSAGE_BLOCK *)(evt.value.p))->msg_body.message_Param3 * 10000000));
+                            ((APP_AUDIO_MESSAGE_BLOCK *)(evt.value.p))->msg_body.message_Param2);
             }else{
-                AUDIOPLAYERS_TRACE_IMM(2,"cnt:%d %d", i, evt.status);
+                TRACE_IMM(2,"cnt:%d %d", i, evt.status);
                 break;
             }
         }
-        AUDIOPLAYERS_TRACE_IMM(1,"%s osMailAlloc error dump end", __func__);
+        TRACE_IMM(0,"osMailAlloc error dump end");
     }
 
     ASSERT(msg_p, "osMailAlloc error");
@@ -87,7 +85,6 @@ int app_audio_mailbox_put(APP_AUDIO_MESSAGE_BLOCK* msg_src)
     msg_p->msg_body.message_Param0 = msg_src->msg_body.message_Param0;
     msg_p->msg_body.message_Param1 = msg_src->msg_body.message_Param1;
     msg_p->msg_body.message_Param2 = msg_src->msg_body.message_Param2;
-    msg_p->msg_body.message_Param3 = msg_src->msg_body.message_Param3;
 
     status = osMailPut(app_audio_mailbox, msg_p);
     return (int)status;
@@ -123,7 +120,7 @@ static void app_audio_thread(void const *argument)
                 if (mod_handler[msg_p->mod_id]) {
                     int ret = mod_handler[msg_p->mod_id](&(msg_p->msg_body));
                     if (ret)
-                        AUDIOPLAYERS_TRACE(2,"%s, mod_handler[%d] ret=%d", __func__, msg_p->mod_id, ret);
+                        TRACE(2,"mod_handler[%d] ret=%d", msg_p->mod_id, ret);
                 }
             }
             app_audio_mailbox_free(msg_p);
@@ -138,7 +135,7 @@ int app_audio_thread_init(void)
 
     app_audio_thread_tid = osThreadCreate(osThread(app_audio_thread), NULL);
     if (app_audio_thread_tid == NULL)  {
-        AUDIOPLAYERS_TRACE(0,"Failed to Create app_audio_thread\n");
+        TRACE(0,"Failed to Create app_audio_thread\n");
         return 0;
     }
     return 0;
@@ -158,4 +155,3 @@ void * app_audio_thread_tid_get(void)
     return (void *)app_audio_thread_tid;
 }
 #endif
-

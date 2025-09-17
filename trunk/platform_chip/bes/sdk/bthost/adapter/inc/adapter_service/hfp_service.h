@@ -17,7 +17,6 @@
 #define __BT_HFP_SERVICE_H__
 #include "adapter_service.h"
 #include "hfp_common_define.h"
-#include "hfp_service.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -192,32 +191,6 @@ typedef enum {
     BT_HF_IND_BATTERY_LEVEL_STATUS = 2,
 } bt_hf_ind_type_t;
 
-typedef enum
-{
-    HFCALL_MACHINE_CURRENT_IDLE = 0,                                //0
-    HFCALL_MACHINE_CURRENT_INCOMMING,                               //1
-    HFCALL_MACHINE_CURRENT_OUTGOING,                                //2
-    HFCALL_MACHINE_CURRENT_CALLING,                                 //3
-    HFCALL_MACHINE_CURRENT_3WAY_INCOMMING,                          //4
-    HFCALL_MACHINE_CURRENT_3WAY_HOLD_CALLING,                       //5
-    HFCALL_MACHINE_CURRENT_IDLE_ANOTHER_IDLE,                       //6
-    HFCALL_MACHINE_CURRENT_INCOMMING_ANOTHER_IDLE,                  //7
-    HFCALL_MACHINE_CURRENT_OUTGOING_ANOTHER_IDLE,                   //8
-    HFCALL_MACHINE_CURRENT_CALLING_ANOTHER_IDLE,                    //9
-    HFCALL_MACHINE_CURRENT_3WAY_INCOMMING_ANOTHER_IDLE,             //10
-    HFCALL_MACHINE_CURRENT_3WAY_HOLD_CALLING_ANOTHER_IDLE,          //11
-    HFCALL_MACHINE_CURRENT_INCOMMING_ANOTHER_CALLING,               //13
-    HFCALL_MACHINE_CURRENT_INCOMMING_ANOTHER_INCOMMING,             //14
-    HFCALL_MACHINE_CURRENT_CALLING_ANOTHER_INCOMMING,               //15
-    HFCALL_MACHINE_CURRENT_CALLING_ANOTHER_CHANGETOPHONE,           //16
-    HFCALL_MACHINE_CURRENT_OUTGOING_ANOTHER_INCOMMING,              //17
-    HFCALL_MACHINE_CURRENT_OUTGOING_ANOTHER_CALLING,
-    HFCALL_MACHINE_CURRENT_INCOMMING_ANOTHER_OUTGOING,              //18
-    HFCALL_MACHINE_CURRENT_CALLING_ANOTHER_HOLD,                    //19
-    HFCALL_MECHINE_CURRENT_3WAY_HOLD_ANOTHER_IDLE,                  //20
-    HFCALL_MACHINE_NUM
-} HFCALL_MACHINE_ENUM;
-
 typedef struct {
     uint8_t error_code;
     uint8_t call_status;
@@ -334,6 +307,8 @@ typedef struct {
 typedef union {
     bt_hf_opened_param_t *opened;
     bt_hf_closed_param_t *closed;
+    bt_hf_audio_opened_param_t *audio_opened;
+    bt_hf_audio_closed_param_t *audio_closed;
     bt_hf_network_state_param_t *network_state;
     bt_hf_network_roaming_param_t *network_roaming;
     bt_hf_network_signal_param_t *network_signal;
@@ -407,7 +382,7 @@ bt_status_t bt_hf_retrieve_subscriber_info(const bt_bdaddr_t *bd_addr);
 bt_status_t bt_hf_send_dtmf(const bt_bdaddr_t *bd_addr, char code);
 bt_status_t bt_hf_request_last_voice_tag_number(const bt_bdaddr_t *bd_addr);
 bt_status_t bt_hf_send_at_cmd(const bt_bdaddr_t *bd_addr, const char *at_cmd_str);
-bt_hfp_state_t bt_hf_get_state(int device_id);
+
 /**
  * standard hfp (ag role) interface
  *

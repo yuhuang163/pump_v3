@@ -14,8 +14,6 @@ subdir-ccflags-y += -Irtos/rtx5/rtx_config
 CFLAGS_rtx_lib.o += -DOS_IDLE_THREAD_NAME=\"idle\" \
                     -DOS_TIMER_THREAD_NAME=\"timer\"
 
-subdir-ccflags-y += -DOS_CLOCK_NOMINAL=$(OS_CLOCK_NOMINAL)
-
 ifneq ($(OS_IDLESTKSIZE),)
 subdir-ccflags-y += -DOS_IDLE_THREAD_STACK_SIZE=$(OS_IDLESTKSIZE)
 endif
@@ -44,18 +42,6 @@ ifneq ($(OS_TASKCNT),)
 CFLAGS_rtx_thread.o += -DOS_TASKCNT=$(OS_TASKCNT)
 endif
 
-ifeq ($(OSTICK_USE_FAST_TIMER),1)
-subdir-ccflags-y += -DOSTICK_USE_FAST_TIMER
-endif
-
 ifneq ($(SYSTICK_CLKSRC_CPU),)
 subdir-ccflags-y += -DSYSTICK_CLKSRC_CPU=$(SYSTICK_CLKSRC_CPU)
-endif
-
-ifneq ($(CPU_SYSTICK_CLOCK),)
-subdir-ccflags-y += -DCPU_SYSTICK_CLOCK=$(CPU_SYSTICK_CLOCK)
-endif
-
-ifeq ($(CALIB_SLOW_TIMER),1)
-subdir-ccflags-y += -DCALIB_SLOW_TIMER
 endif

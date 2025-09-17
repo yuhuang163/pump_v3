@@ -22,7 +22,7 @@
 #ifdef __ARMCC_VERSION
 #include "link_sym_armclang.h"
 #endif
-extern void mpu_cfg(void);
+
 extern uint32_t __overlay_text_start__[];
 extern uint32_t __overlay_text_exec_start__[];
 extern uint32_t __load_start_overlay_text0[];
@@ -76,13 +76,18 @@ extern uint32_t __load_start_overlay_data10[];
 extern uint32_t __load_stop_overlay_data10[];
 extern uint32_t __load_start_overlay_data11[];
 extern uint32_t __load_stop_overlay_data11[];
-extern uint32_t __overlay_data_end__[];
+
 #ifndef NO_OVERLAY
+
+#define CHECK_OVERLAY_ID(id) \
+    do {\
+        if ((id < 0) || (id >= HAL_OVERLAY_ID_QTY)) { \
+            ASSERT(0, "overlay id error %d", id); \
+        } \
+    } while (0)
 
 #define OVERLAY_IS_FREE  0
 #define OVERLAY_IS_USED  1
-
-static uint32_t overlay_data_free_addr;
 
 static bool segment_state[HAL_OVERLAY_ID_QTY];
 
@@ -189,6 +194,7 @@ enum HAL_OVERLAY_RET_T hal_overlay_load(enum HAL_OVERLAY_ID_T id)
     CHECK_OVERLAY_ID(id);
     ret = HAL_OVERLAY_RET_OK;
 
+    uint32_t lock;
     uint32_t *dst, *src;
 
     if (hal_overlay_is_used()) {
@@ -197,6 +203,7 @@ enum HAL_OVERLAY_RET_T hal_overlay_load(enum HAL_OVERLAY_ID_T id)
     }
 
     hal_sysfreq_req(HAL_SYSFREQ_USER_OVERLAY, HAL_CMU_FREQ_52M);
+    lock = int_lock();
 
     if (cur_overlay_id == HAL_OVERLAY_ID_QTY) {
         cur_overlay_id = HAL_OVERLAY_ID_IN_CFG;
@@ -226,12 +233,11 @@ enum HAL_OVERLAY_RET_T hal_overlay_load(enum HAL_OVERLAY_ID_T id)
 
     cur_overlay_id = id;
     segment_state[id] = OVERLAY_IS_USED;
-    overlay_data_free_addr = hal_overlay_get_data_free_addr(id);
+
 _exit:
-#if defined(SCO_OPTIMIZE_FOR_RAM)
-    mpu_cfg();
-#endif
+    int_unlock(lock);
     hal_sysfreq_req(HAL_SYSFREQ_USER_OVERLAY, HAL_CMU_FREQ_32K);
+
     return ret;
 }
 
@@ -242,6 +248,9 @@ enum HAL_OVERLAY_RET_T hal_overlay_unload(enum HAL_OVERLAY_ID_T id)
     CHECK_OVERLAY_ID(id);
     ret = HAL_OVERLAY_RET_OK;
 
+    uint32_t lock;
+
+    lock = int_lock();
     if (cur_overlay_id == id) {
         cur_overlay_id = HAL_OVERLAY_ID_QTY;
     } else if (cur_overlay_id == HAL_OVERLAY_ID_IN_CFG) {
@@ -250,100 +259,9 @@ enum HAL_OVERLAY_RET_T hal_overlay_unload(enum HAL_OVERLAY_ID_T id)
         ret = HAL_OVERLAY_RET_IN_USE;
     }
     hal_overlay_release(id);
-    overlay_data_free_addr = 0;
-#if defined(SCO_OPTIMIZE_FOR_RAM)
-    mpu_cfg();
-#endif
+    int_unlock(lock);
+
     return ret;
-}
-
-uint32_t hal_overlay_get_data_free_address(void)
-{
-    return overlay_data_free_addr;
-}
-
-/*
- * get the overlay's data start address
- */
-uint32_t hal_overlay_get_data_address(void)
-{
-    return (uint32_t)__overlay_data_start__;
-}
-
-/*
- * get the whole size of the overlay data
- */
-uint32_t hal_overlay_get_data_all_size(void)
-{
-    uint32_t data_start, data_end;
-
-    data_start = (uint32_t)__overlay_data_start__;
-    data_end = (uint32_t)__overlay_data_end__;
-    return (data_end - data_start);
-}
-
-/*
- * get the segment size of one overlay data
- */
-uint32_t hal_overlay_get_data_size(enum HAL_OVERLAY_ID_T id)
-{
-    CHECK_OVERLAY_ID(id);
-
-    return ((uint32_t)data_load_stop[id] - (uint32_t)data_load_start[id]);
-}
-
-/*
- ____________ overlay's data end
- |          |
- |          |
- |  free    |
- |          |
- |__________|free_addr ______________________segment data end
- |          |                    |          |
- |          |                    |          |
- |          |                    |          |
- |          |                    |          |
- |          |                    |          |
- |__________| data's start_addr  |__________|segment data start_addr
- *
- */
-
-/*
- * Use the free space of one segement, this function
- * return the free address of space
- */
-uint32_t hal_overlay_get_data_free_addr(enum HAL_OVERLAY_ID_T id)
-{
-    uint32_t segment_data_sz;
-    uint32_t start_addr;
-    uint32_t free_addr = 0;
-
-    CHECK_OVERLAY_ID(id);
-    if(hal_overlay_is_used()){
-        segment_data_sz = hal_overlay_get_data_size(id);
-        start_addr = hal_overlay_get_data_address();
-        free_addr = start_addr + segment_data_sz;
-
-        if (free_addr & 0x3 ) {
-            ASSERT(0, "free addr %p is not aligned to 4", (void *)free_addr);
-        }
-    }
-    return free_addr;
-}
-
-/*
- * get the free size for one overlay data
- */
-uint32_t hal_overlay_get_data_free_size(enum HAL_OVERLAY_ID_T id)
-{
-    uint32_t all_data_sz;
-    uint32_t segment_data_sz;
-
-    CHECK_OVERLAY_ID(id);
-    all_data_sz = hal_overlay_get_data_all_size();
-    segment_data_sz = hal_overlay_get_data_size(id);
-
-    return (all_data_sz - segment_data_sz);
 }
 
 /*
@@ -405,7 +323,7 @@ uint32_t hal_overlay_get_text_free_addr(enum HAL_OVERLAY_ID_T id)
     CHECK_OVERLAY_ID(id);
     segment_text_sz = hal_overlay_get_text_size(id);
     start_addr = hal_overlay_get_text_address();
-    free_addr = ((start_addr + segment_text_sz)/32+1)*32;
+    free_addr = start_addr + segment_text_sz;
 
     if (free_addr & 0x3 ) {
         ASSERT(0, "free addr %p is not aligned to 4", (void *)free_addr);
@@ -425,7 +343,7 @@ uint32_t hal_overlay_get_text_free_size(enum HAL_OVERLAY_ID_T id)
     all_text_sz = hal_overlay_get_text_all_size();
     segment_text_sz = hal_overlay_get_text_size(id);
 
-    return (all_text_sz - segment_text_sz)/32*32;
+    return all_text_sz - segment_text_sz;
 }
 
 /*
@@ -433,10 +351,14 @@ uint32_t hal_overlay_get_text_free_size(enum HAL_OVERLAY_ID_T id)
  */
 void hal_overlay_acquire(enum HAL_OVERLAY_ID_T id)
 {
+    uint32_t lock;
+
     CHECK_OVERLAY_ID(id);
     segment_state[id] = OVERLAY_IS_USED;
 
+    lock = int_lock();
     invalid_overlay_cache(id);
+    int_unlock(lock);
     return;
 }
 
@@ -456,18 +378,18 @@ void hal_overlay_release(enum HAL_OVERLAY_ID_T id)
 bool hal_overlay_is_used(void)
 {
     int i;
+    uint32_t lock;
+
+    lock = int_lock();
     for (i = 0; i < HAL_OVERLAY_ID_QTY; i++) {
         // if any segment is in use, the overlay is used;
         if (segment_state[i] == OVERLAY_IS_USED ) {
+            int_unlock(lock);
             return true;
         }
     }
+    int_unlock(lock);
     return false;
-}
-
-enum HAL_OVERLAY_ID_T hal_overlay_get_curr_id(void)
-{
-    return cur_overlay_id;
 }
 
 #endif

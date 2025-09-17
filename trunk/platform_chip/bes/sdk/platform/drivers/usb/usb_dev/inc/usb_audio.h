@@ -1,6 +1,6 @@
 /***************************************************************************
  *
- * Copyright 2015-2019 BES.
+ * Copyright 2015-2024 BES.
  * All rights reserved. All unpublished rights reserved.
  *
  * No part of this work may be used or reproduced in any form or by any
@@ -92,6 +92,15 @@ struct USB_AUDIO_VENDOR_MSG_T {
     uint16_t length;
 };
 
+#ifdef USB_HID_COMMAND_ENABLE
+enum USB_AUDIO_HID_EPINT_OUT_ID_T {
+    USB_AUDIO_HID_EPINT_OUT0_ID,
+    USB_AUDIO_HID_EPINT_OUT1_ID,
+    USB_AUDIO_HID_EPINT_OUT2_ID,
+    USB_AUDIO_HID_EPINT_ID_QTY
+};
+#endif
+
 typedef void (*USB_AUDIO_ITF_CALLBACK)(enum USB_AUDIO_ITF_ID_T id, enum USB_AUDIO_ITF_CMD_T cmd);
 typedef void (*USB_AUDIO_MUTE_CALLBACK)(enum USB_AUDIO_ITF_ID_T id, uint32_t mute);
 typedef void (*USB_AUDIO_SET_VOLUME)(enum USB_AUDIO_ITF_ID_T id, uint32_t percent);
@@ -100,6 +109,9 @@ typedef void (*USB_AUDIO_XFER_CALLBACK)(enum USB_AUDIO_ITF_ID_T id, const struct
 typedef void (*USB_AUDIO_STATE_CALLBACK)(enum USB_AUDIO_STATE_EVENT_T event, uint32_t param);
 typedef void (*HID_XFER_CALLBACK)(enum USB_AUDIO_HID_EVENT_T event, int error);
 typedef int (*USB_AUDIO_VENDOR_MSG_CALLBACK)(struct USB_AUDIO_VENDOR_MSG_T *msg);
+#ifdef USB_HID_COMMAND_ENABLE
+typedef bool (*USB_HID_EP0_RECV_CALLBACK)(struct EP0_TRANSFER *transfer);
+#endif
 
 struct USB_AUDIO_CFG_T {
     uint32_t recv_sample_rate;
@@ -143,6 +155,12 @@ int usb_audio_set_send_pos(uint32_t pos);
 void usb_audio_hid_set_event(enum USB_AUDIO_HID_EVENT_T event, int state);
 
 const char *usb_audio_get_hid_event_name(enum USB_AUDIO_HID_EVENT_T event);
+
+#ifdef USB_HID_COMMAND_ENABLE
+void hid_epint_in_send_report(uint8_t * cmdParam, uint32_t cmdParam_len);
+
+void usb_hid_enint_out_callback_register(USB_HID_EP0_RECV_CALLBACK func, USB_HID_EP0_RECV_CALLBACK func1, USB_HID_EP0_RECV_CALLBACK func2);
+#endif
 
 int usb_audio_start_recv2(uint8_t *buf, uint32_t pos, uint32_t size);
 

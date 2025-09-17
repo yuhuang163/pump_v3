@@ -43,6 +43,7 @@
 #include "arm_dot_prod_q7.c"
 #include "arm_mult_f32.c"
 #include "arm_mult_q15.c"
+#include "arm_mult_q15_q7.c"
 #include "arm_mult_q31.c"
 #include "arm_mult_q7.c"
 #include "arm_negate_f32.c"

@@ -61,11 +61,7 @@ enum PROFILE_CONTEXT_FLAG
 
 #define BT_ALL_RFC_APP_ID     BTIF_APP_HFP_PROFILE_ID
 
-#ifdef BT_HFP_SUPPORT
 #define BT_EARPHONE_BASIC_APP_ID       (BTIF_APP_HFP_PROFILE_ID | BTIF_APP_A2DP_PROFILE_ID | BTIF_APP_AVRCP_PROFILE_ID)
-#else
-#define BT_EARPHONE_BASIC_APP_ID       (BTIF_APP_A2DP_PROFILE_ID | BTIF_APP_AVRCP_PROFILE_ID)
-#endif
 
 typedef void (*btif_besaud_status_change_callback)(btif_besaud_event event);
 
@@ -100,7 +96,6 @@ typedef enum {
     RETRIGGER_BY_SYNC_MISMATCH                = 13,
     RETRIGGER_BY_SYNC_FAIL                    = 14,
     RETRIGGER_BY_SYS_BUSY                     = 15,
-    RETRIGGER_BY_SYNC_TARGET_CNT_ERROR        = 16,
     RETRIGGER_BY_SYNC_TARGET_MS_ERROR         = 16,
     RETRIGGER_BY_AI_STREAM                    = 17,
     RETRIGGER_BY_IN_SNIFF                     = 18,
@@ -108,8 +103,7 @@ typedef enum {
     RETRIGGER_BY_NON_CONSECTIVE_SEQ           = 20,
     RETRIGGER_BY_LOCAL_PCM_BUF_OVERFLOW       = 21,
     RETRIGGER_BY_OFF_CORE_BOOT_FAILED         = 22,
-    RETRIGGER_BY_HEADFRAME_CHECK_FAIL         = 23,
-    RETRIGGER_MAX                             = 24,
+    RETRIGGER_MAX                             = 23,
 } AppIbrtAudioRetriggerType;
 
 struct a2dp_command_t {

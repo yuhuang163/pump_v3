@@ -18,10 +18,14 @@
  ****************************************************************************/
 #ifndef __PRF_CSIS__
 #define __PRF_CSIS__
+#include "bluetooth.h"
 
 #include "gaf_log.h"
 
 #include "csi_common.h"
+
+/// TODO:move this to ble prf
+#define PRF_CSIS_ENABLE                             (1)
 
 #define CSIS_CONNECTION_MAX                         (GAF_CONNECTION_MAX)
 
@@ -77,29 +81,30 @@ enum csis_sirk_pos_len
 #define CSIS_K1_LEN                     (16)
 
 /// CSISM callback for read char
-typedef void (*csis_cb_char_value_read)(uint8_t con_lid, uint32_t token, uint8_t char_type);
+typedef int (*csis_cb_get_char_value)(uint8_t con_lid, uint8_t char_type,
+                                      uint8_t *char_value_buf, uint8_t *buf_len);
 /// CSISM callback for write char
-typedef void (*csis_cb_char_value_write)(uint8_t con_lid, uint32_t token, uint8_t char_type,
-                                         const uint8_t *char_value_buf, uint8_t buf_len);
+typedef int (*csis_cb_set_char_value)(uint8_t con_lid, uint8_t char_type,
+                                      const uint8_t *char_value_buf, uint8_t buf_len);
 /// CSISM callback for val notify sent out
 typedef void (*csis_cb_val_ntf_sent)(uint8_t con_lid, uint8_t char_type);
 /// CSISM callback for write cccd
 typedef void (*csis_cb_bond_data)(uint8_t con_lid, uint8_t char_type, uint8_t cli_cfg_bf);
 /// CSISM callback for rsi generated
-typedef void (*csis_cb_rsi_value)(uint16_t err_code, uint8_t *rsi);
+typedef int (*csis_cb_rsi_value)(uint16_t err_code, uint8_t *rsi);
 /// CSISM callback for encrypted sirk generated
-typedef void (*csis_cb_enc_sirk_value)(uint16_t dummy, uint8_t err_code, uint8_t *encrypted_sirk);
+typedef int (*csis_cb_enc_sirk_value)(uint16_t dummy, uint8_t err_code, uint8_t *encrypted_sirk);
 /// CSISM callback for encrypted key generated
 typedef void (*csis_cb_enc_key_value)(uint8_t con_lid, const uint8_t *p_encrypted_key);
 /// CSISM callback for service disconnect
-typedef void (*csis_cb_disconnect)(uint8_t con_lid);
+typedef int (*csis_cb_disconnect)(uint8_t con_lid);
 
 typedef struct
 {
     /// value read
-    csis_cb_char_value_read cb_value_read;
+    csis_cb_get_char_value cb_value_read;
     /// value write
-    csis_cb_char_value_write cb_value_write;
+    csis_cb_set_char_value cb_value_write;
     /// value notify sent
     csis_cb_val_ntf_sent cb_val_ntf_sent;
     /// cccd write
@@ -196,17 +201,4 @@ int csis_send_char_ntf_to_all(uint8_t set_lid, uint8_t char_type, const uint8_t 
  * @return int         status
  */
 int csis_send_char_ntf_to_specific(uint8_t set_lid, uint8_t con_lid, uint8_t char_type, const uint8_t *value, uint8_t value_len);
-
-/**
- * @brief CSIS server send character value notify except specific connected devices
- *
- * @param  set_lid     Set local index
- * @param  con_lid     Connection local index that except to send notify
- * @param  char_type   Character type
- * @param  value       Character value to set pointer
- * @param  value_len   Character value length to set
- *
- * @return int         status
- */
-int csis_send_char_ntf_except_specific(uint8_t set_lid, uint8_t con_lid, uint8_t char_type, const uint8_t *value, uint8_t value_len);
 #endif /// __PRF_CSIS__

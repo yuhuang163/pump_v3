@@ -39,7 +39,7 @@ static uint32_t VECTOR_LOC_CP vector_table_cp[NVIC_NUM_VECTORS];
 
 static void NAKED NVIC_default_handler_cp(void)
 {
-    asm volatile("_loop:; nop; nop; nop; nop; b _loop;");
+    asm volatile("1:; nop; nop; nop; nop; b 1b;");
 }
 
 void FAULT_HANDLER_CP Reset_Handler_cp(void);
@@ -72,6 +72,97 @@ static const uint32_t fault_handlers_cp[NVIC_USER_IRQ_OFFSET] = {
     (uint32_t)SysTick_Handler_cp,
 };
 
+#ifdef COMMON_IRQ_ENTRY
+uint32_t CP_BSS_LOC os_vector_table_cp[NVIC_NUM_VECTORS];
+NVIC_IRQ_ENTRY_CB_T CP_BSS_LOC os_irq_entry_cb_cp;
+#ifndef NO_IRQ_EXIT_CB
+NVIC_IRQ_EXIT_CB_T CP_BSS_LOC os_irq_exit_cb_cp;
+#endif
+
+void NVIC_RegisterIrqEntryCallback_cp(NVIC_IRQ_ENTRY_CB_T cb)
+{
+    os_irq_entry_cb_cp = cb;
+}
+
+void NVIC_RegisterIrqExitCallback_cp(NVIC_IRQ_EXIT_CB_T cb)
+{
+#ifndef NO_IRQ_EXIT_CB
+    os_irq_exit_cb_cp = cb;
+#endif
+}
+
+CP_TEXT_SRAM_LOC NAKED
+void vector_common_entry_cp(void)
+{
+    asm volatile (
+        "mrs r0, ipsr;"
+#if 0
+        "ldr r1, =" TO_STRING(IPSR_ISR_Msk) ";"
+        "ands r0, r1;"
+#endif
+        "ldr r2, =os_irq_entry_cb_cp;"
+        "ldr r3, [r2];"
+#ifdef NO_IRQ_EXIT_CB
+        "cbz r3, _irq_handler_wo_exit_cb;"
+        "push {r0, lr};"
+#else
+        "push {r0, lr};"
+        "cbz r3, _irq_handler_w_exit_cb;"
+#endif
+        "subs r0, #" TO_STRING(NVIC_USER_IRQ_OFFSET) ";"
+        "blx r3;"
+
+#ifndef NO_IRQ_EXIT_CB
+        "mrs r0, ipsr;"
+        "_irq_handler_w_exit_cb:;"
+        "subs r1, r0, #" TO_STRING(NVIC_USER_IRQ_OFFSET) ";"
+        // Skip irq exit callback for internal interrupts (OS handling needs the original stack)
+        "blt _skip_irq_exit_cb;"
+        "ldr r1, =os_vector_table_cp;"
+        "ldr r2, [r1, r0, LSL #2];"
+        "blx r2;"
+        "mrs r0, ipsr;"
+        "subs r0, #" TO_STRING(NVIC_USER_IRQ_OFFSET) ";"
+        "ldr r2, =os_irq_exit_cb_cp;"
+        "ldr r3, [r2];"
+        "cbz r3, _exit_common_entry;"
+        "blx r3;"
+        "_exit_common_entry:;"
+        // NOTE: Ensure to restore the original stack when
+        // page_spy_irq_handler() falls back to MemManage_Handler()
+        "pop {r0, lr};"
+        "bx lr;"
+#endif
+
+        "_skip_irq_exit_cb:;"
+        "pop {r0, lr};"
+        "_irq_handler_wo_exit_cb:;"
+        "ldr r1, =os_vector_table_cp;"
+        "ldr r2, [r1, r0, LSL #2];"
+        "bx r2;"
+
+#ifdef LTO_OPTIMIZE
+        ".pool;"
+        : : "X"(os_irq_entry_cb_cp),
+#ifndef NO_IRQ_EXIT_CB
+            "X"(os_irq_exit_cb_cp),
+#endif
+            "X"(os_vector_table_cp)
+#endif
+    );
+}
+
+void NVIC_InitCommonIrqEntry_cp(void)
+{
+    int i;
+
+    for (i = 2; i < NVIC_NUM_VECTORS; i++) {
+        os_vector_table_cp[i] = vector_table_cp[i];
+        vector_table_cp[i] = (uint32_t)vector_common_entry_cp;
+    }
+}
+#endif
+
 void NVIC_InitVectors_cp(void)
 {
     int i;
@@ -82,6 +173,7 @@ void NVIC_InitVectors_cp(void)
     }
 
     SCB->VTOR = (uint32_t)vector_table_cp;
+    __DSB();
 }
 
 void NVIC_SetDefaultFaultHandler_cp(NVIC_DEFAULT_FAULT_HANDLER_T handler)
@@ -92,6 +184,11 @@ void NVIC_SetDefaultFaultHandler_cp(NVIC_DEFAULT_FAULT_HANDLER_T handler)
         if (vector_table_cp[i] == (uint32_t)NVIC_default_handler_cp) {
             vector_table_cp[i] = (uint32_t)handler;
         }
+#ifdef COMMON_IRQ_ENTRY
+        if (i >= 2 && os_vector_table_cp[i] == (uint32_t)NVIC_default_handler_cp) {
+            os_vector_table_cp[i] = (uint32_t)handler;
+        }
+#endif
     }
 }
 
@@ -189,22 +286,9 @@ void NAKED system_cp_reset_handler(void)
     );
 }
 
-void system_cp_init(int load_code)
+#ifndef COMPRESS_PSRAM_CODE
+void boot_init_sram_sections_cp(int load_code)
 {
-    NVIC_InitVectors_cp();
-
-#ifdef ICACHECP_CTRL_BASE
-    // Enable icache
-    hal_cachecp_enable(HAL_CACHE_ID_I_CACHE);
-    // Enable dcache
-    hal_cachecp_enable(HAL_CACHE_ID_D_CACHE);
-    // Enable write back
-    hal_cachecp_writeback_enable(HAL_CACHE_ID_D_CACHE);
-#endif
-
-    SystemInit_cp();
-
-#if !(defined(ROM_BUILD) || defined(PROGRAMMER)) && !defined(CONFIG_SMP)
     uint32_t *dst;
     uint32_t *src;
 
@@ -226,13 +310,40 @@ void system_cp_init(int load_code)
     for (; dst < __cp_bss_sram_end; dst++) {
         *dst = 0;
     }
+}
+#endif
+
+// Called by CP
+void system_cp_init(int load_code)
+{
+    NVIC_InitVectors_cp();
+
+#ifdef ICACHECP_CTRL_BASE
+    // Enable icache
+    hal_cachecp_enable(HAL_CACHE_ID_I_CACHE);
+    // Enable write back
+    hal_cachecp_writeback_enable(HAL_CACHE_ID_D_CACHE);
+    // Enable dcache
+    hal_cachecp_enable(HAL_CACHE_ID_D_CACHE);
+#endif
+
+    SystemInit_cp();
+
+#if !(defined(ROM_BUILD) || defined(PROGRAMMER)) && !defined(CONFIG_SMP)
+    boot_init_sram_sections_cp(load_code);
+#endif
+
+#ifdef COMMON_IRQ_ENTRY
+    // Init CP common irq entry after initializing all the CP sections
+    NVIC_InitCommonIrqEntry_cp();
 #endif
 }
 
+// Called by MCU
 void system_cp_term(void)
 {
 #ifdef ICACHECP_CTRL_BASE
-#if (ICACHECP_CTRL_BASE != ICACHE_CTRL_BASE)// 2001 can't control CP's cache in MCU
+#if (ICACHECP_CTRL_BASE != ICACHE_CTRL_BASE) && !defined(CACHE_CTRL_NO_CROSS_ACCESS)
     // Disable dcache
     hal_cachecp_disable(HAL_CACHE_ID_D_CACHE);
     // Disable icache
@@ -243,3 +354,4 @@ void system_cp_term(void)
 
 #endif
 #endif
+

@@ -22,9 +22,15 @@ extern "C" {
 
 void mcu2sens_msg_test(void);
 
+void sensor_hub_misc_test(void);
+
 void sensor_test(void);
 
 void vad_codec_test(void);
+
+void vad_test_env_init(void);
+
+void sensor_hub_test_cases(void);
 
 #ifdef __cplusplus
 }

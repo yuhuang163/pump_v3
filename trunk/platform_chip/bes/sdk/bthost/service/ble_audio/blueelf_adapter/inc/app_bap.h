@@ -125,6 +125,30 @@ typedef enum
 #endif
 } app_bap_qos_setting_e;
 
+typedef enum
+{
+    BAP_AUD_CFG_MIN = 0,
+
+    BAP_AUD_CFG_1 = BAP_AUD_CFG_MIN,
+    BAP_AUD_CFG_2,
+    BAP_AUD_CFG_3,
+    BAP_AUD_CFG_4,
+    BAP_AUD_CFG_5,
+    BAP_AUD_CFG_6_i,
+    BAP_AUD_CFG_6_ii,
+    BAP_AUD_CFG_7_i,
+    BAP_AUD_CFG_7_ii,
+    BAP_AUD_CFG_8_i,
+    BAP_AUD_CFG_8_ii,
+    BAP_AUD_CFG_9_i,
+    BAP_AUD_CFG_9_ii,
+    BAP_AUD_CFG_10,
+    BAP_AUD_CFG_11_i,
+    BAP_AUD_CFG_11_ii,
+
+    BAP_AUD_CFG_MAX
+} app_bap_aud_cfg_e;
+
 typedef struct BAP_QOS_CONFIG_SETTING
 {
     uint8_t     Faming_type;
@@ -143,7 +167,6 @@ typedef struct BAP_AUDIO_CONFIGURATION
     uint8_t     src_max_cfs_per_sdu;
     uint32_t    sink_aud_location_bf;
     uint32_t    src_aud_location_bf;
-    uint8_t     csip_size;
 } bap_audio_cfg_t;
 
 typedef struct
@@ -173,8 +196,9 @@ void app_bap_cfg_metadata_print(app_gaf_bap_cfg_metadata_t *p_cfg_metadata);
 extern "C" {
 #endif
 bool app_bap_codec_is_lc3(const void *p_codec_id);
+#ifdef LC3PLUS_SUPPORT
 bool app_bap_codec_is_lc3plus(const void *p_codec_id);
-bool app_bap_codec_is_lhdc(const void *p_codec_id);
+#endif
 void app_bap_add_data_set(uint8_t *data, uint8_t data_len);
 void app_bap_start(uint8_t con_lid);
 
@@ -213,26 +237,6 @@ uint8_t app_bap_get_audio_location_l_r_cnt(uint32_t audio_location_bf);
  * @return uint8_t
  */
 uint8_t app_bap_get_max_audio_channel_supp_cnt(uint32_t audio_channel_cnt_bf);
-
-/**
- * @brief Get specific type LTV value pointer from LTV data
- *
- * @param  p_ltv_data  LTV data include total length
- * @param  ltv_type    LTV value to found used type
- *
- * @return uint8_t*    LTV value pointer if found
- */
-uint8_t *app_bap_get_ltv_value_by_type(app_gaf_ltv_t *p_ltv_data, uint8_t ltv_type);
-
-/**
- * @brief Get specific sample type
- *
- * @param  sample_value  sample value
- *
- * @return uint8_t       sample type
- */
-uint8_t app_bap_get_sample_type(uint32_t sample_value);
-
 #ifdef __cplusplus
 }
 #endif

@@ -15,7 +15,7 @@
  ****************************************************************************/
 #include "plat_addr_map.h"
 
-#if !defined(GPADC_CHIP_SPECIFIC) && !defined(CHIP_SUBSYS_SENS)
+#if !defined(GPADC_CHIP_SPECIFIC) && !defined(CHIP_SUBSYS_SENS) && !defined(CHIP_SUBSYS_CSP) && !defined(NO_GPADC_CTRL)
 
 #include "plat_types.h"
 #include "cmsis_nvic.h"
@@ -39,11 +39,14 @@
 
 #define GPADC_INTERVAL_MODE_WORKAROUND
 
+#define HAL_GPADC_TRACE(n, s, ...)          //TRACE(n, s, ##__VA_ARGS__)
+
+#ifndef gpadc_reg_read
 #define gpadc_reg_read(reg,val)             pmu_read(reg,val)
 #define gpadc_reg_write(reg,val)            pmu_write(reg,val)
+#endif
 
-// #define VBAT_DIV_ALWAYS_ON
-#define VBAT_DIV_STABLE_TIME_US             50
+#define VBAT_DIV_ALWAYS_ON
 
 #ifdef GPADC_DYNAMIC_DATA_BITS
 #ifdef GPADC_VALUE_BITS
@@ -52,6 +55,10 @@
 #define GPADC_VALUE_BITS                    gpadc_data_bits
 #elif !defined(GPADC_VALUE_BITS)
 #define GPADC_VALUE_BITS                    10
+#endif
+
+#ifndef GPADC_INTERNAL_CHAN_MAP
+#define GPADC_INTERNAL_CHAN_MAP             ((1 << 1) | (1 << 5) | (1 << 6))
 #endif
 
 #if 0
@@ -276,30 +283,22 @@ enum GPADC_REG_T {
 
 // Battery voltage = gpadc voltage * 4
 // Range 0~2V
-#ifndef GPADC_CALIB_CH_DIV
-#define GPADC_CALIB_CH_DIV                  4
-#endif
-#define HAL_GPADC_MVOLT_A                   (3200 / GPADC_CALIB_CH_DIV)
-#define HAL_GPADC_MVOLT_B                   (4200 / GPADC_CALIB_CH_DIV)
+#define HAL_GPADC_MVOLT_A                   800
+#define HAL_GPADC_MVOLT_B                   1050
 #if defined(GPADC_CALIB_DEFAULT_A) || defined(GPADC_CALIB_DEFAULT_A2) || defined(GPADC_CALIB_DEFAULT_B)
 #define HAL_GPADC_CALIB_DEFAULT_A           GPADC_CALIB_DEFAULT_A
 #define HAL_GPADC_CALIB_DEFAULT_A2          GPADC_CALIB_DEFAULT_A2
 #define HAL_GPADC_CALIB_DEFAULT_B           GPADC_CALIB_DEFAULT_B
 #else
 #if (GPADC_VALUE_BITS == 16)
-#define HAL_GPADC_CALIB_DEFAULT_A           (0x3FF6 * 4 / GPADC_CALIB_CH_DIV)
-#define HAL_GPADC_CALIB_DEFAULT_A2          (0x4A42 * 4 / GPADC_CALIB_CH_DIV)
-#define HAL_GPADC_CALIB_DEFAULT_B           (0x5422 * 4 / GPADC_CALIB_CH_DIV)
+#define HAL_GPADC_CALIB_DEFAULT_A           0x3E60
+#define HAL_GPADC_CALIB_DEFAULT_A2          0x47D2
+#define HAL_GPADC_CALIB_DEFAULT_B           0x5150
 #else
-#define HAL_GPADC_CALIB_DEFAULT_A           ((428 << (GPADC_VALUE_BITS - 10)) * 4 / GPADC_CALIB_CH_DIV)
-#define HAL_GPADC_CALIB_DEFAULT_A2          ((496 << (GPADC_VALUE_BITS - 10)) * 4 / GPADC_CALIB_CH_DIV)
-#define HAL_GPADC_CALIB_DEFAULT_B           ((565 << (GPADC_VALUE_BITS - 10)) * 4 / GPADC_CALIB_CH_DIV)
+#define HAL_GPADC_CALIB_DEFAULT_A           (428 << (GPADC_VALUE_BITS - 10))
+#define HAL_GPADC_CALIB_DEFAULT_A2          (496 << (GPADC_VALUE_BITS - 10))
+#define HAL_GPADC_CALIB_DEFAULT_B           (565 << (GPADC_VALUE_BITS - 10))
 #endif
-#endif
-
-#ifdef GPADC_WORKAROUND_1805
-#define HAL_GPADC_CALIB_DEFAULT_A_1805      0x06FB
-#define HAL_GPADC_CALIB_DEFAULT_B_1805      0x0930
 #endif
 
 #define HAL_GPADC_MVOLT_A_EXT               400
@@ -337,7 +336,7 @@ static bool vbat_div_enabled = false;
 static bool timer_running;
 static HWTIMER_ID gpadc_timer;
 static uint32_t chan_start_time[HAL_GPADC_CHAN_QTY];
-static const uint32_t gpadc_timeout_ticks = MS_TO_TICKS(3);
+static const uint32_t gpadc_timeout_ms = 3;
 #endif
 
 #if defined(GPADC_HAS_EXT_SLOPE_CAL) || defined(GPADC_HAS_EXT_SLOPE_CAL2)
@@ -348,7 +347,7 @@ static ADC_COEF_T g_adcIntcpt_ext = 0;
 static ADC_COEF_T g_adcSlope_ext2 = 0;
 static ADC_COEF_T g_adcIntcpt_ext2 = 0;
 // medium voltage
-static ADC_COEF_T g_adcVal_mv;
+static ADC_COEF_T g_adcVal_mv = 0;
 #endif
 #endif
 
@@ -378,7 +377,7 @@ static void gpadc_timer_handler(void *param)
     val |= mask;
     gpadc_reg_write(GPADC_REG_START, val);
 
-    ret = hwtimer_start(gpadc_timer, gpadc_timeout_ticks);
+    ret = hwtimer_start(gpadc_timer, MS_TO_TICKS(gpadc_timeout_ms));
     ASSERT(ret == E_HWTIMER_OK, "Failed to start gpadc timer: %d", ret);
 }
 #endif
@@ -487,14 +486,14 @@ static int hal_gpadc_adc2volt_calib(void)
         pmu_get_efuse(PMU_EFUSE_PAGE_BATTER_LV, &efuse_a);
         pmu_get_efuse(PMU_EFUSE_PAGE_BATTER_HV, &efuse_b);
 #endif
-
         x1 = (ADC_COEF_T)(efuse_a > 0 ? efuse_a : HAL_GPADC_CALIB_DEFAULT_A);
         x2 = (ADC_COEF_T)(efuse_b > 0 ? efuse_b : HAL_GPADC_CALIB_DEFAULT_B);
+
         g_adcSlope = (y2 - y1) * ADC_CALC_FACTOR / (x2 - x1);
         g_adcIntcpt = ((y1 * x2) - (x1 * y2)) / ((x2 - x1));
         g_adcCalibrated = true;
 
-        HAL_TRACE(7,"%s efuse:%d/%d LV=%d, HV=%d, Slope:%d Intcpt:%d", __func__,
+        TRACE(7,"%s efuse:%d/%d LV=%d, HV=%d, Slope:%d Intcpt:%d", __func__,
             efuse_a, efuse_b, (int32_t)x1, (int32_t)x2, (int32_t)g_adcSlope, (int32_t)g_adcIntcpt);
     }
 
@@ -530,7 +529,7 @@ static int hal_gpadc_adc2volt_calib_ext(void)
             g_adcIntcpt_ext = g_adcIntcpt;
             g_adcIntcpt_ext2 = g_adcIntcpt_ext;
 
-            HAL_TRACE(0, "Use ch1 calibration values");
+            TRACE(0, "Use ch1 calibration values");
         } else {
             x1 = (ADC_COEF_T)(efuse_a_ext > 0 ? efuse_a_ext : HAL_GPADC_CALIB_DEFAULT_A);
             x2 = (ADC_COEF_T)(efuse_a2_ext > 0 ? efuse_a2_ext : HAL_GPADC_CALIB_DEFAULT_A2);
@@ -542,9 +541,9 @@ static int hal_gpadc_adc2volt_calib_ext(void)
             g_adcIntcpt_ext = ((y1 * x2) - (x1 * y2)) / ((x2 - x1));
             g_adcIntcpt_ext2 = ((y2 * x3) - (x2 * y3)) / ((x3 - x2));
 
-            HAL_TRACE(7,"%s efuse:%d/%d LV=%d, MV=%d, Slope:%d Intcpt:%d", __func__,
+            TRACE(7,"%s efuse:%d/%d LV=%d, MV=%d, Slope:%d Intcpt:%d", __func__,
                 efuse_a_ext, efuse_a2_ext, (int32_t)x1, (int32_t)x2, (int32_t)g_adcSlope_ext, (int32_t)g_adcIntcpt_ext);
-            HAL_TRACE(7,"%s efuse:%d/%d MV=%d, HV=%d, Slope2:%d Intcpt2:%d", __func__,
+            TRACE(7,"%s efuse:%d/%d MV=%d, HV=%d, Slope2:%d Intcpt2:%d", __func__,
                 efuse_a2_ext, efuse_b_ext, (int32_t)x2, (int32_t)x3, (int32_t)g_adcSlope_ext2, (int32_t)g_adcIntcpt_ext2);
         }
         g_adcCalibrated_ext = true;
@@ -570,7 +569,7 @@ static int hal_gpadc_adc2volt_calib_ext(void)
             g_adcSlope_ext = g_adcSlope;
             g_adcIntcpt_ext = g_adcIntcpt;
 
-            HAL_TRACE(0, "Use ch1 calibration values");
+            TRACE(0, "Use ch1 calibration values");
         } else {
             x1 = (ADC_COEF_T)(efuse_a_ext > 0 ? efuse_a_ext : HAL_GPADC_CALIB_DEFAULT_A);
             x2 = (ADC_COEF_T)(efuse_b_ext > 0 ? efuse_b_ext : HAL_GPADC_CALIB_DEFAULT_B);
@@ -578,7 +577,7 @@ static int hal_gpadc_adc2volt_calib_ext(void)
             g_adcSlope_ext = (y2 - y1) * ADC_CALC_FACTOR / (x2 - x1);
             g_adcIntcpt_ext = ((y1 * x2) - (x1 * y2)) / ((x2 - x1));
 
-            HAL_TRACE(7,"%s efuse:%d/%d LV=%d, HV=%d, Slope:%d Intcpt:%d", __func__,
+            TRACE(7,"%s efuse:%d/%d LV=%d, HV=%d, Slope:%d Intcpt:%d", __func__,
                 efuse_a_ext, efuse_b_ext, (int32_t)x1, (int32_t)x2, (int32_t)g_adcSlope_ext, (int32_t)g_adcIntcpt_ext);
         }
         g_adcCalibrated_ext = true;
@@ -677,13 +676,13 @@ static void hal_gpadc_enable_chan(enum HAL_GPADC_CHAN_T ch, int enable)
 
     if (enable) {
         if (gpadc_chan_en == 0) {
-            hal_sys_wake_lock(HAL_SYS_WAKE_LOCK_USER_GPADC);
+            hal_subsys_wake_lock(HAL_SUBSYS_WAKE_LOCK_USER_GPADC);
         }
         gpadc_chan_en |= (1 << ch);
     } else {
         gpadc_chan_en &= ~(1 << ch);
         if (gpadc_chan_en == 0) {
-            hal_sys_wake_unlock(HAL_SYS_WAKE_LOCK_USER_GPADC);
+            hal_subsys_wake_unlock(HAL_SUBSYS_WAKE_LOCK_USER_GPADC);
         }
     }
 
@@ -748,6 +747,12 @@ static void hal_gpadc_irq_handler(GPADC_IRQ_HDLR_PARAM)
                 case HAL_GPADC_CHAN_6:
                     gpadc_reg_read(GPADC_REG_CH0_DATA + ch, &adc_val);
                     adc_val = GET_BITFIELD(adc_val, DATA_CHAN0);
+                    //use second calib
+#ifdef CHIP_BEST2003
+                    if (ch != HAL_GPADC_CHAN_BATTERY) {
+                        adc_val = (uint16_t)(adc_val * 0.96f);
+                    }
+#endif
 #ifdef GPADC_INTERVAL_MODE_WORKAROUND
                     // Wait next GPADC irq.
                     if (gpadc_interval_mode_en && !gpadc_raw_data_valid[ch] && adc_val == 0) {
@@ -867,8 +872,7 @@ static void hal_gpadc_irq_handler(GPADC_IRQ_HDLR_PARAM)
             } else {
                 adc_val = HAL_GPADC_BAD_VALUE;
             }
-
-            ((HAL_ADCKEY_EVENT_CB_T)gpadc_event_cb[HAL_GPADC_CHAN_ADCKEY])(adckey_irq, adc_val);
+            ((HAL_ADCKEY_EVENT_CB_T)gpadc_event_cb[HAL_GPADC_CHAN_ADCKEY])(adckey_irq, hal_gpadc_adc2volt(adc_val));
         }
     }
 
@@ -917,7 +921,7 @@ bool hal_gpadc_get_volt(enum HAL_GPADC_CHAN_T ch, HAL_GPADC_MV_T *volt)
 #ifdef GPADC_START_WORKAROUND_TIMEOUT
     uint32_t cur_time = hal_sys_timer_get();
 
-    if (cur_time - chan_start_time[ch] > gpadc_timeout_ticks) {
+    if (cur_time - chan_start_time[ch] > MS_TO_TICKS(gpadc_timeout_ms)) {
         uint16_t val;
         uint16_t mask;
         uint32_t lock;
@@ -1042,7 +1046,8 @@ int hal_gpadc_open(enum HAL_GPADC_CHAN_T channel, enum HAL_GPADC_ATP_T atp, HAL_
             }
             int_unlock(lock);
             if (cfg_vbat_div) {
-                hal_sys_timer_delay_us(VBAT_DIV_STABLE_TIME_US);
+                // GPADC VBAT needs 10us to be stable and consumes 13mA current
+                hal_sys_timer_delay_us(20);
             }
             // FALLTHROUGH
         case HAL_GPADC_CHAN_0:
@@ -1069,7 +1074,6 @@ int hal_gpadc_open(enum HAL_GPADC_CHAN_T channel, enum HAL_GPADC_ATP_T atp, HAL_
 #ifdef GPADC_HAS_VSYS_DIV
             if (channel != HAL_GPADC_CHAN_BATTERY) {
                 pmu_gpadc_div_ctrl(channel, true);
-                hal_sys_timer_delay_us(20);
             }
 #endif
 
@@ -1127,7 +1131,7 @@ int hal_gpadc_open(enum HAL_GPADC_CHAN_T channel, enum HAL_GPADC_ATP_T atp, HAL_
                 }
 
                 timer_running = true;
-                ret = hwtimer_start(gpadc_timer, gpadc_timeout_ticks);
+                ret = hwtimer_start(gpadc_timer, MS_TO_TICKS(gpadc_timeout_ms));
                 ASSERT(ret == E_HWTIMER_OK, "Failed to start gpadc timer: %d", ret);
             }
 #endif

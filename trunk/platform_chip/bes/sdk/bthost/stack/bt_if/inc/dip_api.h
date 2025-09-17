@@ -3,21 +3,22 @@
 
 #include "bluetooth.h"
 #include "sdp_api.h"
-#include "dip_i.h"
 #include "dip_common_define.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-typedef void (*DipApiCallBack)(bt_bdaddr_t *_addr, struct dip_callback_param cb_para);
+bt_dip_pnp_info_t* btif_dip_get_device_info(bt_bdaddr_t *remote);
+
+typedef void (*DipApiCallBack)(bt_bdaddr_t *_addr, bool ios_flag);
 
 void btif_dip_init(DipApiCallBack callback);
-void btif_dip_clear_ctl(const bt_bdaddr_t *remote);
-void btif_dip_set_state(const bt_bdaddr_t *remote, enum dip_ctrl_state state);
+void btif_dip_clear(const bt_bdaddr_t *remote);
+bt_status_t btif_dip_query_for_service(uint16_t conn_handle, btif_dip_client_t *client_t);
 bool btif_dip_check_is_ios_device(const bt_bdaddr_t *remote);
-bt_dip_pnp_info_t* btif_dip_get_device_info(const bt_bdaddr_t *remote);
-void btif_dip_query_remote_info(bt_bdaddr_t *remote);
+void btif_dip_get_remote_info(btif_remote_device_t *btDevice);
+bool btif_dip_get_process_status(bt_bdaddr_t *remote);
 bool btif_dip_check_is_ios_by_vend_id(uint16_t vend_id, uint16_t vend_id_source);
 
 #ifdef __cplusplus

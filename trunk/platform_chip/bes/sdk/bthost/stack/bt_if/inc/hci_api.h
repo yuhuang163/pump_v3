@@ -24,8 +24,6 @@
 extern "C" {
 #endif
 
-typedef uint16_t btif_hci_handle_t;
-
 #define BTEVENT_VENDOR_EVENT 87
 
 /* Group: Link control commands */
@@ -229,6 +227,11 @@ void btif_hci_print_statistic(void);
 
 bt_status_t btif_hci_cancel_create_connection(const bt_bdaddr_t *remote);
 bt_status_t btif_hci_disconnect_connection_direct(uint16_t conn_handle, uint8_t reason);
+typedef void (*btif_hci_debug_trace_callback_func)(uint8_t* p_buf, uint16_t buf_len);
+void bt_if_register_debug_trace_callback(btif_hci_debug_trace_callback_func func);
+typedef void (*btif_hci_vendor_event_callback_func)(uint8_t* pbuf, uint32_t length);
+typedef void (*bt_hci_vendor_event_handler_func)(uint8_t* pbuf, uint32_t length);
+void register_hci_vendor_event_handler_callback(bt_hci_vendor_event_handler_func func);
 
 #ifdef __cplusplus
 }

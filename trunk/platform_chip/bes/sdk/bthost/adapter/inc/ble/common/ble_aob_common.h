@@ -23,8 +23,8 @@
 
 #define CHECK_SIZE_TYPE(dataType, nBytes)       typedef POSSIBLY_UNUSED char bes_##dataType[(sizeof(dataType) == (nBytes)) ? 1 : -1]
 
-#define AOB_COMMON_MOBILE_CONNECTION_MAX        (BLE_AUDIO_CONNECTION_CNT)
-#define AOB_COMMON_MAX_NUM_OF_MOBILE_CONNECT_TO (BLE_AUDIO_CONNECTION_CNT)
+#define AOB_COMMON_MOBILE_CONNECTION_MAX        (2)
+#define AOB_COMMON_MAX_NUM_OF_MOBILE_CONNECT_TO (2)
 
 #define AOB_COMMON_ATC_CSIS_RSI_LEN             (6)
 
@@ -39,8 +39,7 @@
 #define AOB_COMMON_BAP_ASCC_TOTAL_ASE_CFG       (BLE_CONNECTION_MAX * (AOB_COMMON_BAP_ASCC_TOTAL_ASE_CHAR))
 
 #define AOB_COMMON_BAP_DFT_UC_GRP_LID           (0)
-#define AOB_COMMON_DUAL_BLEAUDIO_CONNECT        (2)
-#define AOB_COMMON_INVALID_CON_ID               (0xFF)
+
 
 #ifdef __cplusplus
 extern "C" {
@@ -80,25 +79,9 @@ typedef enum
 typedef struct
 {
     void (*mob_ble_acl_state_changed)(uint32_t evt_type, ble_event_handled_t *p);
-    void (*scan_data_report)(ble_event_t *event);
 
 } BLE_AUD_MOB_CORE_EVT_CB_T;
 #endif  ///AOB_MOBILE_ENABLED
-
-typedef enum AOB_AUDIO_CONFIGURATION
-{
-    AOB_AUD_CFG_MIN = 0,
-    /// TWS mode
-    AOB_AUD_CFG_TWS_MONO = AOB_AUD_CFG_MIN,
-    /// TWS Spatial audio
-    AOB_AUD_CFG_TWS_STEREO_ONE_CIS,
-    AOB_AUD_CFG_TWS_STEREO_TWO_CIS,//(may not be used)
-    /// FREEMAN mode (Not single ear usage)
-    AOB_AUD_CFG_FREEMAN_STEREO_ONE_CIS,
-    AOB_AUD_CFG_FREEMAN_STEREO_TWO_CIS,
-    /// Audio configuration max
-    AOB_AUD_CFG_MAX,
-} aob_audio_cfg_e;
 
 /// Activity Type
 typedef enum gaf_bap_activity_type
@@ -212,12 +195,6 @@ typedef struct
 
 typedef struct
 {
-    bool                is_busy;
-    struct list_node    action_list;
-} AOB_CALL_ACTION_CONTEXT_T;
-
-typedef struct
-{
     /// Number of calls (only join opcode)
     uint8_t                         nb_calls;
     /// Status flag feature
@@ -226,8 +203,6 @@ typedef struct
     AOB_CALL_OPT_OPCODE_FEATURE_T   opt_opcode_flags;
     /// List of call indexes (only join opcode)
     AOB_SINGLE_CALL_INFO_T          single_call_info[AOB_COMMON_CALL_MAX_NB_IDS];
-    /// Call control action queue
-    AOB_CALL_ACTION_CONTEXT_T       action_ctx;
 } AOB_CALL_ENV_INFO_T;
 
 typedef struct
@@ -442,8 +417,8 @@ typedef struct
 {
     /// PDU framing arrangement
     uint8_t framing;
-    /// PHY Bitfield
-    uint8_t phy_bf;
+    /// PHY
+    uint8_t phy;
     /// Maximum number of retransmissions for each CIS Data PDU
     /// From 0 to 15
     uint8_t retx_nb;
@@ -476,24 +451,6 @@ typedef struct
     AOB_CFG_LTV_T add_metadata;
 } AOB_BAP_CFG_METADATA_T;
 
-typedef struct
-{
-    // Central to Peripheral Burst Number
-    int c2p_bn;
-    // Central to Peripheral Number of Subevent
-    int c2p_nse;
-    // Central to Peripheral Flush Timeout
-    int c2p_ft;
-    // Peripheral to Central Burst Number
-    int p2c_bn;
-    // Peripheral to Central Number of Subevent
-    int p2c_nse;
-    // Peripheral to Central Flush Timeout
-    int p2c_ft;
-    // ISO interval 1.25ms * N
-    int iso_interval_1_25ms;
-} AOB_BAP_CIG_PARAM_T;
-
 typedef enum {
     AOB_EVENT_TW_CONNECTION_STATE                 = 0,
     AOB_EVENT_MOB_CONNECTION_STATE                = 1,
@@ -517,23 +474,10 @@ typedef enum {
     AOB_EVENT_PACS_CCCD_WRITTEN_IND               = 19,
     AOB_EVENT_SIRK_REFRESHED                      = 20,
     AOB_EVENT_CIS_ESTABLISHED_IND                 = 21,
-    AOB_EVENT_CIS_DISCONNECTED_IND                = 22,
-    AOB_EVENT_CIS_REJECTED_IND                    = 23,
-    AOB_EVENT_CIG_TERMINATED_IND                  = 24,
-    AOB_EVENT_ASE_NTF_VALUE_IND                   = 25,
-    AOB_EVENT_ASE_CODEC_CFG_VALUE_IND             = 26,
-    AOB_EVENT_ASE_METADATA_UPDATA_IND             = 27,
-    AOB_EVENT_BIS_SINK_STATUS_IND                 = 28,
-    AOB_EVENT_BIS_SINK_ENABLE_IND                 = 29,
-    AOB_EVENT_BIS_SINK_DISABLE_IND                = 30,
-    AOB_EVENT_BIS_SINK_STREAM_START_IND           = 31,
-    AOB_EVENT_BIS_SINK_STREAM_STOP_IND            = 32,
-    AOB_EVENT_BIS_DELEGE_SOURCE_ADD_IND           = 33,
-    AOB_EVENT_BIS_DELEGE_SOURCE_RM_IND            = 34,
-    AOB_EVENT_BIS_DELEGE_SOURCE_UPD_IND           = 35,
-    AOB_EVENT_MCP_MCC_SET_CFG_CMP_IND             = 36,
-    AOB_EVENT_VCP_VCS_CCCD_WRITTEN_IND            = 37,
-    AOB_EVENT_TMAP_READ_ROLE_CMP_IND              = 38,
+    AOB_EVENT_CIS_REJECTED_IND                    = 22,
+    AOB_EVENT_CIG_TERMINATED_IND                  = 23,
+    AOB_EVENT_ASE_NTF_VALUE_IND                   = 24,
+    AOB_EVENT_ASE_CODEC_CFG_VALUE_IND             = 25,
 
     AOB_EVENT_LAST                                = 0xFF,
 
@@ -571,7 +515,6 @@ typedef struct {
     uint8_t                             con_lid;
     uint8_t                             volume;
     uint8_t                             mute;
-    uint8_t                             change_counter;
     uint8_t                             reason;
 } AOB_EVENT_VOL_CHANGED_T;
 
@@ -678,14 +621,6 @@ typedef struct {
 
 typedef struct {
     AOB_EVENT_HEADER_T                  header;
-    uint8_t                             con_lid;
-    uint8_t                             cig_id;
-    uint8_t                             cis_id;
-    uint8_t                             reason;
-} AOB_EVENT_CIS_DISCONNECTED_IND_T;
-
-typedef struct {
-    AOB_EVENT_HEADER_T                  header;
     uint16_t                            con_hdl;
     uint8_t                             error;
 } AOB_EVENT_CIS_REJECTED_IND_T;
@@ -715,83 +650,6 @@ typedef struct {
     AOB_BAP_QOS_REQ_T                   ntf_qos_req;
 } AOB_EVENT_ASE_CODEC_CFG_T;
 
-typedef struct {
-    AOB_EVENT_HEADER_T                  header;
-    uint8_t                             con_lid;
-    uint8_t                             ase_lid;
-    void                                *param;
-    uint8_t                             state;
-} AOB_EVENT_ASE_METADATA_UPDATA_IND_T;
-
-typedef struct {
-    AOB_EVENT_HEADER_T                  header;
-    uint8_t                             grp_lid;
-    uint8_t                             state;
-    uint32_t                            stream_pos_bf;
-} AOB_EVENT_BIS_SINK_STATUS_T;
-
-typedef struct {
-    AOB_EVENT_HEADER_T                  header;
-    uint8_t                             grp_lid;
-} AOB_EVENT_BIS_SINK_ENABLE_T;
-
-typedef struct {
-    AOB_EVENT_HEADER_T                  header;
-    uint8_t                             grp_lid;
-} AOB_EVENT_BIS_SINK_DISABLE_T;
-
-typedef struct {
-    AOB_EVENT_HEADER_T                  header;
-    uint8_t                             grp_lid;
-} AOB_EVENT_BIS_SINK_STREAM_START_T;
-
-typedef struct {
-    AOB_EVENT_HEADER_T                  header;
-    uint8_t                             grp_lid;
-} AOB_EVENT_BIS_SINK_STREAM_STOP_T;
-
-typedef struct {
-    AOB_EVENT_HEADER_T                  header;
-    uint8_t                             src_lid;
-    uint8_t                             con_lid;
-    uint8_t                             pa_syn_req;
-} AOB_EVENT_BIS_DELEG_SOURCE_ADD_T;
-
-typedef struct {
-    AOB_EVENT_HEADER_T                  header;
-    uint8_t                             src_lid;
-    uint8_t                             con_lid;
-} AOB_EVENT_BIS_DELEG_SOURCE_RM_T;
-
-typedef struct {
-    AOB_EVENT_HEADER_T                  header;
-    uint8_t                             src_lid;
-    uint8_t                             con_lid;
-    uint8_t                             pa_syn_req;
-} AOB_EVENT_BIS_DELEG_SOURCE_UPD_T;
-
-typedef struct {
-    AOB_EVENT_HEADER_T                  header;
-    uint8_t                             con_lid;
-    uint8_t                             media_lid;
-    uint8_t                             char_type;
-    uint8_t                             err_code;
-} AOB_EVENT_MCP_SET_CFG_CMP_IND_T;
-
-typedef struct {
-    AOB_EVENT_HEADER_T                  header;
-    uint8_t                             con_lid;
-    uint8_t                             char_type;
-    bool                                ntf_enable;
-} AOB_EVENT_VCP_VCS_CCCD_WRITTEN_T;
-
-typedef struct {
-    AOB_EVENT_HEADER_T                  header;
-    uint8_t                             con_lid;
-    uint8_t                             err_code;
-    uint16_t                            role_bf;
-} AOB_EVENT_TMAP_READ_ROLE_CMP_IND_T;
-
 typedef union {
     AOB_EVENT_TWS_STATE_T                         aob_tws_connection_state;
     AOB_EVENT_MOB_STATE_T                         aob_mob_connection_state;
@@ -813,23 +671,10 @@ typedef union {
     AOB_EVENT_CALL_SVC_CHANGED_IND_T              aob_call_svc_changed_ind;
     AOB_EVENT_CALL_ACTION_RESULT_IND_T            aob_call_action_result_ind;
     AOB_EVENT_CIS_ESTABLISHED_IND_T               aob_cis_established_ind;
-    AOB_EVENT_CIS_DISCONNECTED_IND_T              aob_cis_disconnected_ind;
     AOB_EVENT_CIS_REJECTED_IND_T                  aob_cis_rejected_ind;
     AOB_EVENT_CIG_TERMINATED_IND_T                aob_cig_terminated_ind;
     AOB_EVENT_ASE_NTF_VALUE_IND_T                 aob_ase_ntf_value_ind;
     AOB_EVENT_ASE_CODEC_CFG_T                     aob_ase_codec_cfg_value_ind;
-    AOB_EVENT_ASE_METADATA_UPDATA_IND_T           aob_ase_metadata_update_ind;
-    AOB_EVENT_BIS_SINK_STATUS_T                   aob_bis_sink_state_ind;
-    AOB_EVENT_BIS_SINK_ENABLE_T                   aob_bis_sink_enable_ind;
-    AOB_EVENT_BIS_SINK_DISABLE_T                  aob_bis_sink_disable_ind;
-    AOB_EVENT_BIS_SINK_STREAM_START_T             aob_bis_sink_stream_start_ind;
-    AOB_EVENT_BIS_SINK_STREAM_STOP_T              aob_bis_sink_stream_stop_ind;
-    AOB_EVENT_BIS_DELEG_SOURCE_ADD_T              aob_bis_deleg_source_add_ind;
-    AOB_EVENT_BIS_DELEG_SOURCE_RM_T               aob_bis_deleg_source_removed_ind;
-    AOB_EVENT_BIS_DELEG_SOURCE_UPD_T              aob_bis_deleg_source_upd_ind;
-    AOB_EVENT_MCP_SET_CFG_CMP_IND_T               aob_mcp_mcc_set_cfg_cmp_ind;
-    AOB_EVENT_VCP_VCS_CCCD_WRITTEN_T              aob_vcp_vcs_cccd_written_ind;
-    AOB_EVENT_TMAP_READ_ROLE_CMP_IND_T            aob_tmap_read_role_cmp_ind;
 } AOB_EVENT_PACKET;
 
 /**
@@ -881,14 +726,13 @@ typedef struct
     void (*ble_audio_adv_state_changed)(AOB_ADV_STATE_T state, uint8_t err_code);
     void (*ble_tws_acl_state_changed)(uint32_t evt_type, ble_event_handled_t *p);
     void (*ble_mob_acl_state_changed)(uint32_t evt_type, ble_bdaddr_t *peer_addr, uint8_t con_idx,uint8_t err_code);
-    void (*ble_vol_changed)(uint8_t con_lid, uint8_t volume, uint8_t mute, uint8_t change_counter, uint8_t reason);
-    void (*ble_vcp_vcs_cccd_changed_cb)(uint8_t con_lid, uint8_t char_type, bool ntf_enable);
+    void (*ble_vol_changed)(uint8_t con_lid, uint8_t volume, uint8_t mute, uint8_t reason);
+    void (*ble_vcs_cccd_changed_cb)(uint8_t con_lid, uint8_t currentVol, bool notifyEnabled);
     void (*ble_vocs_offset_changed_cb)(int16_t offset, uint8_t output_lid);
     void (*ble_vocs_bond_data_changed_cb)(uint8_t output_lid, uint8_t cli_cfg_bf);
-    void (*ble_media_track_change_cb)(uint8_t con_lid, uint8_t media_lid);
+    void (*ble_media_track_change_cb)(uint8_t con_lid);
     void (*ble_media_stream_status_change_cb)(uint8_t con_lid, uint8_t ase_lid, AOB_MGR_STREAM_STATE_E state);
-    void (*ble_media_mcc_svc_discovered_cb)(uint8_t con_lid, uint8_t err_code);
-    void (*ble_mcp_mcc_char_value_cb)(uint8_t con_lid, uint8_t media_lid, uint8_t char_type, uint16_t val_len, const uint8_t *val);
+    void (*ble_media_playback_status_change_cb)(uint8_t con_lid, AOB_MGR_PLAYBACK_STATE_E state);
     void (*ble_media_mic_state_cb)(uint8_t mute);
     void (*ble_media_iso_link_quality_cb)(void *event);
     void (*ble_media_pacs_cccd_written_cb)(uint8_t con_lid);
@@ -905,14 +749,13 @@ typedef struct
     void (*ble_csip_read_rsp_sent_cb)(uint8_t con_lid, uint8_t char_type, uint8_t *p_data, uint8_t data_len);
     void (*ble_csip_rsi_updated_cb)(uint8_t *rsi);
     void (*ble_cis_established)(AOB_UC_SRV_CIS_INFO_T *ascs_cis_established);
-    void (*ble_cis_disconnected)(uint8_t con_lid, uint8_t cig_id, uint8_t cis_id, uint8_t reason);
+    void (*ble_cis_disconnected)(uint8_t cig_id, uint8_t cis_id, uint8_t status, uint8_t reason);
     void (*ble_cis_rejected)(uint16_t con_hdl, uint8_t error);
     void (*ble_cig_terminated)(uint8_t cig_id, uint8_t group_lid, uint8_t stream_lid, uint8_t reason);
     void (*ble_ase_ntf_value_cb)(uint8_t opcode, uint8_t nb_ases, uint8_t ase_lid, uint8_t rsp_code, uint8_t reason);
     void (*ble_ase_cp_cccd_written_cb)(uint8_t con_lid);
     void (*ble_ase_codec_cfg_req_cb)(uint8_t ase_lid, const AOB_CODEC_ID_T *codec_id, uint8_t tgt_latency,
                                     AOB_BAP_CFG_T *codec_cfg_req, AOB_BAP_QOS_REQ_T *ntf_qos_req);
-    void (*ble_ase_update_metadata_req_cb)(uint8_t con_lid, uint8_t ase_lid, void *context, uint8_t ase_state);
     void (*ble_bis_sink_status_cb)(uint8_t grp_lid, uint8_t state, uint32_t stream_pos_bf);
     void (*ble_bis_sink_enabled_cb)(uint8_t grp_lid);
     void (*ble_bis_sink_disabled_cb)(uint8_t grp_lid);
@@ -920,12 +763,9 @@ typedef struct
     void (*ble_bis_sink_stream_stoped_cb)(uint8_t grp_lid);
     void (*ble_bis_deleg_scolite_start_cb)(void);
     void (*ble_bis_deleg_scolite_stoped_cb)(void);
-    void (*ble_bis_deleg_source_add_ri_cb)(uint8_t src_lid, uint8_t con_lid, uint8_t pa_sync_req);
+    void (*ble_bis_deleg_source_add_ri_cb)(uint8_t src_lid, uint8_t con_lid);
     void (*ble_bis_deleg_source_rm_ri_cb)(uint8_t src_lid, uint8_t con_lid);
-    void (*ble_bis_deleg_source_upd_ri_cb)(uint8_t src_lid, uint8_t con_lid, uint8_t pa_sync_req);
     void (*ble_audio_connected_cb)(uint8_t con_lid, uint8_t *peer_bdaddr);
-    void (*ble_mcp_set_cccd_cmp_cb)(uint8_t con_lid, uint8_t media_lid, uint8_t char_type, uint8_t err_code);
-    void (*ble_tmap_role_read_cmp_cb)(uint8_t con_lid, uint16_t status, uint16_t role_bf);
 } BLE_AUD_CORE_EVT_CB_T;
 
 typedef struct
@@ -941,43 +781,32 @@ typedef enum app_ble_audio_event {
     BLE_AUDIO_MUSIC_STREAM_START_IND,
     BLE_AUDIO_MUSIC_STREAM_STOP_IND,
 
-    BLE_AUDIO_CALL_QOS_CONFIG_IND,
+    BLE_AUDIO_CALL_QOS_CONFIG_IND,           // 5
     BLE_AUDIO_CALL_ENABLE_REQ,
     BLE_AUDIO_CALL_RELEASE_REQ,
     BLE_AUDIO_CALL_STREAM_START_IND,
     BLE_AUDIO_CALL_SINGLE_STREAM_STOP_IND,
-    BLE_AUDIO_CALL_CAPTURE_STREAM_STOP_IND,
+    BLE_AUDIO_CALL_CAPTURE_STREAM_STOP_IND,     // 10
     BLE_AUDIO_CALL_PLAYBACK_STREAM_STOP_IND,
     BLE_AUDIO_CALL_ALL_STREAMS_STOP_IND,
     BLE_AUDIO_CALL_RINGING_IND,
     BLE_AUDIO_CALL_ACTIVE_IND,
-    BLE_AUDIO_CALL_TERMINATE_IND,
-    BLE_AUDIO_CALL_ALERTING_IND,        //16-0x10
+    BLE_AUDIO_CALL_TERMINATE_IND,             // 15
 
+    BLE_AUDIO_EVENT_ROUTE_CALL_TO_BT,
+
+    BLE_AUDIO_LE_LINK_DISCONCETED_IND,
     BLE_AUDIO_FLEXIBLE_ENABLE_REQ,
     BLE_AUDIO_FLEXIBLE_RELEASE_REQ,
-    BLE_AUDIO_FLEXIBLE_STREAM_START_IND,
+    BLE_AUDIO_FLEXIBLE_STREAM_START_IND,       // 20
     BLE_AUDIO_FLEXIBLE_CAPTURE_STREAM_STOP_IND,
     BLE_AUDIO_FLEXIBLE_PLAYBACK_STREAM_STOP_IND,
-    BLE_AUDIO_FLEXIBLE_ALL_STREAMS_STOP_IND,  //22-0x16
+    BLE_AUDIO_FLEXIBLE_ALL_STREAMS_STOP_IND,
+    BLE_AUDIO_CALL_ALERTING_IND,
 
     BLE_AUDIO_BIS_STREAM_START_IND,
     BLE_AUDIO_BIS_STREAM_STOP_IND,
 
-    BLE_AUDIO_CIS_CONNECTED_IND,
-    BLE_AUDIO_PROMPT_SOUND_ENABLE_REQ,
-    BLE_AUDIO_PROMPT_SOUND_START,      //30
-    BLE_AUDIO_PROMPT_SOUND_STOP,
-    BLE_AUDIO_LE_LINK_CONNECTED_IND,
-    BLE_AUDIO_LE_LINK_DISCONCETED_IND,     //25-0x19
-
-    BLE_AUDIO_UPDATE_CONTEXT_TYPE_TO_CALL,
-    BLE_AUDIO_UPDATE_CONTEXT_TYPE_TO_MUSIC,
-    BLE_AUDIO_UPDATE_CONTEXT_TYPE_TO_FLEXIBLE,
-    BLE_AUDIO_EVENT_ROUTE_CALL_TO_BT,
-    BLE_AUDIO_TOGGLE_A2DP_CIS_REQ,
-    BLE_AUDIO_MEDIA_PLAYSTATUS_CHANGED,
-    BLE_AUDIO_CALL_STATUS_CHANGED, //32-0x1F
     BLE_AUDIO_MAX_IND,
 } app_ble_audio_event_t;
 

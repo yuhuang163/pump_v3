@@ -46,7 +46,7 @@
 #include "alexa_lib.h"
 #endif
 
-//#define SENSOR_HUB_AI_AUDIO_DUMP_EN
+// #define SENSOR_HUB_AI_AUDIO_DUMP_EN
 #ifdef SENSOR_HUB_AI_AUDIO_DUMP_EN
 #include "audio_dump.h"
 #endif
@@ -64,10 +64,15 @@
 #define RX_BUFF_ALIGN                   (RX_ALL_CH_DMA_BURST_SIZE * AF_DMA_LIST_CNT)
 
 #define CAPTURE_SAMP_RATE               16000 //48000
+#if defined(VAD_USE_32_BITS)
+#define CAPTURE_SAMP_BITS               32
+#define CAPTURE_SAMP_SIZE               4
+#else
 #define CAPTURE_SAMP_BITS               16
 #define CAPTURE_SAMP_SIZE               2
+#endif
 #define CAPTURE_CHAN_NUM                CHAN_NUM_CAPTURE
-#define CAPTURE_FRAME_NUM               32
+#define CAPTURE_FRAME_NUM               20 //32
 #define CAPTURE_FRAME_SIZE              (CAPTURE_SAMP_RATE / 1000 * CAPTURE_SAMP_SIZE * CHAN_NUM_CAPTURE)
 #define CAPTURE_SIZE                    NON_EXP_ALIGN(CAPTURE_FRAME_SIZE * CAPTURE_FRAME_NUM, RX_BUFF_ALIGN)
 
@@ -136,7 +141,7 @@ osMutexId voice_kws_op_mutexID;
 osMutexDef(voice_kws_op_mutex);
 static osThreadId sensor_hub_kws_tid = NULL;
 static void sensor_hub_kws_thread(void const *argument);
-osThreadDef(sensor_hub_kws_thread, osPriorityAboveNormal, 1, 1024 * 2, "sensor_hub_kws_thread");
+osThreadDef(sensor_hub_kws_thread, osPriorityAboveNormal, 1, 1024 * 4, "sensor_hub_kws_thread");
 
 uint32_t sensor_hub_voice_kws_raw_pcm_data_input_signal(uint8_t*buf,uint32_t len)
 {
@@ -239,9 +244,9 @@ static void sensor_hub_voice_kws_thread_init(void)
         sensor_hub_kws_tid = osThreadCreate(osThread(sensor_hub_kws_thread), NULL);
     }
 
-    SENSOR_HUB_TRACE(3,"%s initial finished %p %p",__func__,voice_kws_op_mutexID,sensor_hub_kws_tid);
+    TRACE(3,"%s initial finished %p %p",__func__,voice_kws_op_mutexID,sensor_hub_kws_tid);
 #ifdef SENSOR_HUB_AI_AUDIO_DUMP_EN
-    audio_dump_init(1536/2, 2, 1);
+    audio_dump_init(CAPTURE_SIZE / 2 / CAPTURE_SAMP_SIZE, 2, 1);
 #endif
 }
 
@@ -337,7 +342,7 @@ static void sensor_hub_voice_kws_fill_in_kws_env_infor(AI_KWS_INFOR_ENV_INFOR_T 
 
 static void sensor_hub_voice_kws_key_word_handler(void * kws_info,uint16_t len)
 {
-    SENSOR_HUB_TRACE(0, "%s: $$$ len = %d", __func__,len);
+    TRACE(0, "%s: $$$ len = %d", __func__,len);
     AI_KWS_INFOR_T * kws_infor_ptr = (AI_KWS_INFOR_T *)app_vad_adpt_kws_infor_payload;
 
     sensor_hub_voice_kws_fill_in_kws_env_infor(&(kws_infor_ptr->env_info));
@@ -349,7 +354,7 @@ static void sensor_hub_voice_kws_key_word_handler(void * kws_info,uint16_t len)
 
 void sensor_hub_voice_kws_init_capture_stream(struct AF_STREAM_CONFIG_T *cfg)
 {
-    SENSOR_HUB_TRACE(0, "%s:", __func__);
+    TRACE(0, "%s:", __func__);
 
     sensor_hub_voice_kws_thread_init();
 
@@ -372,7 +377,7 @@ void sensor_hub_voice_kws_init_capture_stream(struct AF_STREAM_CONFIG_T *cfg)
 void sensor_hub_voice_kws_ai_env_setup(uint8_t * buf,uint32_t len)
 {
     AI_ENV_SETUP_INFO_T *env_info = (AI_ENV_SETUP_INFO_T *)buf;
-    SENSOR_HUB_TRACE(2,"%s role = %d ",__func__,env_info->user);
+    TRACE(2,"%s role = %d ",__func__,env_info->user);
     switch(env_info->user)
     {
         case SENSOR_HUB_AI_USER_GG:
@@ -391,7 +396,7 @@ void sensor_hub_voice_kws_ai_env_setup(uint8_t * buf,uint32_t len)
 
 void sensor_hub_voice_kws_ai_user_activate(SENSOR_HUB_AI_USER_E role, uint32_t op)
 {
-    SENSOR_HUB_TRACE(3,"%s role = %d op = %d",__func__,role,op);
+    TRACE(3,"%s role = %d op = %d",__func__,role,op);
     switch(role)
     {
         case SENSOR_HUB_AI_USER_BES:

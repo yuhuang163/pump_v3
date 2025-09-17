@@ -18,6 +18,18 @@
 
 #include "hal_trace.h"
 
+#ifdef ENABLE_COMPRESS_LOG
+#define TRACE_A2DP_DECODER_D(str, ...) hal_trace_dummy(str, ##__VA_ARGS__)
+#define TRACE_A2DP_DECODER_I(str, ...) TR_INFO(TR_ATTR_ARG_NUM(COUNT_ARG_NUM(unused, ##__VA_ARGS__)),     "[AUD][DECODER]" str, ##__VA_ARGS__)
+#define TRACE_A2DP_DECODER_W(str, ...) TR_WARN(TR_ATTR_ARG_NUM(COUNT_ARG_NUM(unused, ##__VA_ARGS__)),     "[AUD][DECODER][WARN]" str, ##__VA_ARGS__)
+#define TRACE_A2DP_DECODER_E(str, ...) TR_ERROR(TR_ATTR_ARG_NUM(COUNT_ARG_NUM(unused, ##__VA_ARGS__)),    "[AUD][DECODER][ERR]" str, ##__VA_ARGS__)
+#else
+#define TRACE_A2DP_DECODER_D(str, ...) hal_trace_dummy(str, ##__VA_ARGS__)
+#define TRACE_A2DP_DECODER_I(str, ...) TR_INFO(TR_MOD(AUDFLG),     "[AUD][DECODER]" str, ##__VA_ARGS__)
+#define TRACE_A2DP_DECODER_W(str, ...) TR_WARN(TR_MOD(AUDFLG),     "[AUD][DECODER][WARN]" str, ##__VA_ARGS__)
+#define TRACE_A2DP_DECODER_E(str, ...) TR_ERROR(TR_MOD(AUDFLG),    "[AUD][DECODER][ERR]" str, ##__VA_ARGS__)
+#endif
+
 #define ASSERT_A2DP_DECODER(cond, str, ...) ASSERT(cond, str, ##__VA_ARGS__) 
 
 #endif

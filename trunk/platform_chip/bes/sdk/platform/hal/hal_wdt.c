@@ -13,21 +13,33 @@
  * trademark and other intellectual property rights.
  *
  ****************************************************************************/
-#include "plat_types.h"
 #include "plat_addr_map.h"
+
+#ifdef WDT_BASE
+
+#include "plat_types.h"
 #include "cmsis.h"
 #include "cmsis_nvic.h"
 #include "hal_timer.h"
 #include "hal_trace.h"
 #include "hal_uart.h"
 #include "hal_wdt.h"
+#include "hal_location.h"
 
 #if defined(CHIP_BEST3001) || defined(CHIP_BEST3003) || defined(CHIP_BEST3005) || defined(CHIP_BEST1400) || defined(CHIP_BEST1402)
 #define CLOCK_SYNC_WORKAROUND
 #endif
 
-#define SLOW_TIMER_VAL_DELTA        1
-#define FAST_TIMER_VAL_DELTA        20
+#if defined(PSRAM_INIT_CHECK)
+#define WDT_BSS_LOC                         BOOT_BSS_LOC
+#define WDT_TEXT_LOC                        BOOT_TEXT_FLASH_LOC
+#else
+#define WDT_BSS_LOC
+#define WDT_TEXT_LOC
+#endif
+
+#define SLOW_TIMER_VAL_DELTA                1
+#define FAST_TIMER_VAL_DELTA                20
 
 /* wdt controller */
 /* reg address */
@@ -63,14 +75,13 @@
 #define wdtip_read32(b,a) \
     (*((volatile unsigned int *)(b+a)))
 
-#if 1
 typedef void (*HAL_WDT_IRQ_HANDLER)(void);
 
 struct HAL_WDT_CTX {
     unsigned int load_val;
 };
 
-struct HAL_WDT_CTX hal_wdt_ctx[HAL_WDT_ID_NUM];
+struct HAL_WDT_CTX WDT_BSS_LOC hal_wdt_ctx[HAL_WDT_ID_NUM];
 static void _wdt1_irq_handler(void);
 HAL_WDT_IRQ_HANDLER hal_wdt_irq_handler[HAL_WDT_ID_NUM] =
 {
@@ -97,7 +108,7 @@ static unsigned int _wdt_get_base(enum HAL_WDT_ID_T id)
     return 0;
 }
 
-static void _wdt_load(enum HAL_WDT_ID_T id)
+static void WDT_TEXT_LOC _wdt_load(enum HAL_WDT_ID_T id)
 {
     unsigned int reg_base = 0;
     struct HAL_WDT_CTX *wdt = &hal_wdt_ctx[id];
@@ -128,7 +139,7 @@ static void _wdt_load(enum HAL_WDT_ID_T id)
     wdtip_read32(reg_base, WDTLOCK_REG_OFFSET);
 }
 
-static void _wdt_config(enum HAL_WDT_ID_T id, int reset)
+static void WDT_TEXT_LOC _wdt_config(enum HAL_WDT_ID_T id, int reset)
 {
     unsigned int reg_base = 0;
     uint32_t lock;
@@ -146,10 +157,10 @@ static void _wdt_config(enum HAL_WDT_ID_T id, int reset)
     wdtip_read32(reg_base, WDTLOCK_REG_OFFSET);
 }
 
-static int wdt_start;
+static int WDT_BSS_LOC wdt_start;
 
 /* mandatory operations */
-int hal_wdt_start(enum HAL_WDT_ID_T id)
+int WDT_TEXT_LOC hal_wdt_start(enum HAL_WDT_ID_T id)
 {
     _wdt_load(id);
     _wdt_config(id, true);
@@ -185,6 +196,26 @@ int hal_wdt_stop(enum HAL_WDT_ID_T id)
     return 0;
 }
 
+void hal_wdt_disable_irq(enum HAL_WDT_ID_T id)
+{
+    unsigned int reg_base = 0;
+    uint32_t lock;
+    uint32_t val;
+
+    if (!wdt_start)
+        return;
+
+    reg_base = _wdt_get_base(id);
+
+    lock = int_lock();
+    wdtip_write32(WDTLOCK_REG_UNLOCK, reg_base, WDTLOCK_REG_OFFSET);
+    val = wdtip_read32(reg_base, WDTCONTROL_REG_OFFSET);
+    val &= ~WDTCONTROL_REG_INT_ENABLE;
+    wdtip_write32(val, reg_base, WDTCONTROL_REG_OFFSET);
+    wdtip_write32(WDTLOCK_REG_LOCK, reg_base, WDTLOCK_REG_OFFSET);
+    int_unlock(lock);
+}
+
 /* optional operations */
 int hal_wdt_ping(enum HAL_WDT_ID_T id)
 {
@@ -195,7 +226,7 @@ int hal_wdt_ping(enum HAL_WDT_ID_T id)
     return 0;
 }
 
-int hal_wdt_set_timeout_ms(enum HAL_WDT_ID_T id, unsigned int ms)
+int WDT_TEXT_LOC hal_wdt_set_timeout_ms(enum HAL_WDT_ID_T id, unsigned int ms)
 {
     uint64_t load;
     struct HAL_WDT_CTX *wdt = &hal_wdt_ctx[id];
@@ -223,20 +254,15 @@ unsigned int hal_wdt_get_timeleft_ms(enum HAL_WDT_ID_T id)
 {
     uint64_t load;
     unsigned int reg_base = 0;
-    struct HAL_WDT_CTX *wdt = &hal_wdt_ctx[id];
 
     reg_base = _wdt_get_base(id);
 
     load = wdtip_read32(reg_base, WDTVALUE_REG_OFFSET);
 
-    /*If the interrupt is inactive then time left is WDTValue + WDTLoad. */
-    if (!(wdtip_read32(reg_base, WDTRIS_REG_OFFSET) & WDTRIS_REG_INT_MASK))
-        load += wdt->load_val + 1;
-
     return TICKS_TO_MS(load);
 }
 
-int hal_wdt_set_timeout(enum HAL_WDT_ID_T id, unsigned int sec)
+int WDT_TEXT_LOC hal_wdt_set_timeout(enum HAL_WDT_ID_T id, unsigned int sec)
 {
     return hal_wdt_set_timeout_ms(id, sec * 1000);
 }
@@ -260,6 +286,53 @@ void hal_wdt_set_irq_callback(enum HAL_WDT_ID_T id, HAL_WDT_IRQ_CALLBACK cb)
     }
 
     hal_wdt_irq_callback[id] = cb;
+}
+
+void hal_wdt_irq_clr(enum HAL_WDT_ID_T id)
+{
+    unsigned int reg_base = 0;
+    uint32_t lock;
+
+    reg_base = _wdt_get_base(id);
+
+    lock = int_lock();
+    wdtip_write32(WDTLOCK_REG_UNLOCK, reg_base, WDTLOCK_REG_OFFSET);
+    wdtip_write32(WDTRIS_REG_INT_MASK, reg_base, WDTINTCLR_REG_OFFSET);
+    wdtip_write32(WDTLOCK_REG_LOCK, reg_base, WDTLOCK_REG_OFFSET);
+    int_unlock(lock);
+
+    /* Flush posted writes. */
+    wdtip_read32(reg_base, WDTLOCK_REG_OFFSET);
+}
+
+WEAK void hal_cmu_wdt_sleep(void)
+{
+}
+
+WEAK void hal_cmu_wdt_wakeup(void)
+{
+}
+
+void hal_wdt_sleep(enum HAL_CMU_LPU_SLEEP_MODE_T mode)
+{
+#ifdef CORE_SLEEP_POWER_DOWN
+    if (mode == HAL_CMU_LPU_SLEEP_MODE_SUBSYS_PD) {
+        // TODO: Save wdt regs
+    }
+#endif
+    // Change IRQ to normal external IRQ if it is NMI IRQ
+    hal_cmu_wdt_sleep();
+}
+
+void hal_wdt_wakeup(enum HAL_CMU_LPU_SLEEP_MODE_T mode)
+{
+#ifdef CORE_SLEEP_POWER_DOWN
+    if (mode == HAL_CMU_LPU_SLEEP_MODE_SUBSYS_PD) {
+        // TODO: Restore wdt regs
+    }
+#endif
+    // Change IRQ back to NMI IRQ if it is NMI IRQ at initialization
+    hal_cmu_wdt_wakeup();
 }
 
 #endif

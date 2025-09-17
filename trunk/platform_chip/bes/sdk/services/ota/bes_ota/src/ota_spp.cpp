@@ -15,17 +15,22 @@
  *
  *    Leonardo        2018/12/20
  ****************************************************************************/
-#include "ota_spp.h"
-#include "ota_basic.h"
-#include "hal_trace.h"
 #include "cmsis_os.h"
 #include "hal_timer.h"
-#include "app_utils.h"
+#include "audioflinger.h"
+#include "app_audio.h"
 #include "bluetooth_bt_api.h"
+#include "nvrecord_env.h"
 #include "cqueue.h"
 #include "ota_dbg.h"
+#include "ota_spp.h"
+#include "ota_bes.h"
+#include "ota_basic.h"
 
 OtaContext ota;
+
+#ifndef BLE_ONLY_ENABLED
+static app_spp_ota_tx_done_t app_spp_ota_tx_done_func = NULL;
 
 /****************************************************************************
  * OTA SPP SDP Entries
@@ -70,8 +75,7 @@ static const U8 OtaSppProtoDescList[] = {
     SDP_UUID_16BIT(PROT_RFCOMM), /* Uuid16 RFCOMM */
 
     /* Uint8 RFCOMM channel number - value can vary */
-    SDP_UINT_8BIT(RFCOMM_CHANNEL_BES_OTA)
-};
+    SDP_UINT_8BIT(RFCOMM_CHANNEL_BES_OTA)};
 
 /*
  * BluetoothProfileDescriptorList
@@ -119,78 +123,114 @@ static bt_sdp_record_attr_t OtaSppSdpAttributes[] = { // list attr id in ascendi
     SDP_ATTRIBUTE((AID_SERVICE_NAME + 0x0100), OtaSppServiceName),
 };
 
-
-static int spp_ota_callback(const bt_bdaddr_t *remote, bt_spp_event_t event, bt_spp_callback_param_t *param)
-{
-    bes_ota_event_param_t otaParam;
-    otaParam.pathType = DATA_PATH_SPP;
-
-    OTA_TRACE(0,"[%s] %x",__func__, event);
-    switch(event) {
-    case BT_SPP_EVENT_OPENED: {
-        ota.ota_spp_dev = param->spp_chan;
-        ota.isConnected = true;
-        memcpy(otaParam.param.address, remote, sizeof(otaParam.param.address));
-        otaParam.event = BES_OTA_CONN;
-        app_ota_push_rx_data(SPP_RX_DATA_SELF_OTA, &otaParam);
-        break;
-    }
-    case BT_SPP_EVENT_CLOSED: {
-        ota.isConnected = false;
-        otaParam.event = BES_OTA_DISCONN;
-        app_ota_push_rx_data(SPP_RX_DATA_SELF_OTA, &otaParam);
-        break;
-    }
-    case BT_SPP_EVENT_RX_DATA: {
-        otaParam.event = BES_OTA_RECEVICE_DATA;
-        otaParam.param.receive_data.data = (uint8_t *)param->rx_data_ptr;
-        otaParam.param.receive_data.dataLen = param->rx_data_len;
-        app_ota_push_rx_data(SPP_RX_DATA_SELF_OTA, &otaParam);
-        break;
-    }
-    default: 
-        break;
-    }
-    return 0;
-}
-
-void app_ota_spp_send_data(uint8_t *ptrData, uint16_t length)
-{
-    // OTA_TRACE(0,"[%s] %d",__func__, ota.isConnected);
-    // OTA_DUMP8("%x ",ptrData,length);
-    if (!ota.isConnected) {
-        return;
-    }
-
-    bta_spp_write(ota.ota_spp_dev->rfcomm_handle, ptrData, length);
-}
-
 void ota_disconnect(void)
 {
-    OTA_TRACE(0,"%s %d ",__func__,__LINE__);
+    LOG_D("%s %d ",__func__,__LINE__);
 
-    if (DATA_PATH_SPP != app_ota_get_connected_type())
+    if (!app_is_in_ota_mode())
     {
         return;
     }
 
     if (ota.ota_spp_dev)
     {
-        bta_spp_disconnect(ota.ota_spp_dev->rfcomm_handle, BTIF_BEC_LOCAL_TERMINATED);
+        bt_spp_disconnect(ota.ota_spp_dev->rfcomm_handle, BTIF_BEC_LOCAL_TERMINATED);
     }
 
     return;
 }
 
-void app_ota_spp_init(void)
+static int ota_spp_bes_handle_data_event_func(const bt_bdaddr_t *remote, bt_spp_event_t event, bt_spp_callback_param_t *param)
 {
-    OTA_TRACE(0,"[%s]",__func__);
+    uint8_t *pData = (uint8_t *)param->rx_data_ptr;
+    uint16_t dataLen = param->rx_data_len;
 
-    bta_spp_create_port(RFCOMM_CHANNEL_BES_OTA, OtaSppSdpAttributes, ARRAY_SIZE(OtaSppSdpAttributes));
+    LOG_D("SPP1 bes_ota receive pData %p length=%d", pData, dataLen);
+    DUMP8("0x%02x ", pData, (dataLen > 15) ? 15 : dataLen);
+    app_statistics_get_ota_pkt_in_role_switch();
+    ota_control_handle_received_data(pData, false, dataLen);
 
-    bta_spp_set_callback(RFCOMM_CHANNEL_BES_OTA, OTA_SPP_RECV_BUFFER_SIZE, spp_ota_callback, NULL);
-
-    bta_spp_listen(RFCOMM_CHANNEL_BES_OTA, false, NULL);
-
-    ota.ota_spp_dev = bta_spp_create_channel(BT_DEVICE_ID_1, RFCOMM_CHANNEL_BES_OTA);
+    return 0;
 }
+
+static int spp_bes_ota_callback(const bt_bdaddr_t *remote, bt_spp_event_t event, bt_spp_callback_param_t *param)
+{
+    bt_spp_channel_t *spp_chan = param->spp_chan;
+    if (BT_SPP_EVENT_OPENED == event)
+    {
+        LOG_D("spp_bes_ota_callback ::BTIF_SPP_EVENT_REMDEV_CONNECTED %02x", event);
+        ota_basic_enable_datapath_status(OTA_BASIC_SPP_DATAPATH_ENABLED, spp_chan->remote.address);
+
+        ota.permissionToApply = 0;
+        ota.ota_spp_dev = param->spp_chan;
+
+        app_ota_connected(APP_OTA_CONNECTED);
+        ota_control_update_MTU(OTA_SPP_MAX_PACKET_SIZE);
+        ota_control_set_datapath_type(DATA_PATH_SPP);
+        ota_control_register_transmitter(app_ota_send_data_via_spp);
+    }
+    else if (BT_SPP_EVENT_CLOSED == event)
+    {
+        LOG_D("spp_bes_ota_callback ::BTIF_SPP_EVENT_REMDEV_DISCONNECTED %02x", event);
+
+        ota_basic_disable_datapath_status(OTA_BASIC_SPP_DATAPATH_ENABLED, spp_chan->remote.address);
+
+        app_ota_disconnected(APP_OTA_DISCONNECTED, APP_OTA_LINK_TYPE_SPP);
+        ota_control_set_datapath_type(0);
+        app_spp_ota_tx_done_func = NULL;
+        osDelay(100);
+    }
+    else if (BT_SPP_EVENT_TX_DONE == event)
+    {
+        if (app_spp_ota_tx_done_func)
+        {
+            app_spp_ota_tx_done_func();
+        }
+    }
+    else if (BT_SPP_EVENT_RX_DATA == event)
+    {
+        ota_spp_bes_handle_data_event_func(remote, event, param);
+    }
+    else
+    {
+        LOG_D("spp_bes_ota_callback ::unknown event %02x", event);
+    }
+    return 0;
+}
+
+void app_ota_send_cmd_via_spp(uint8_t *ptrData, uint16_t length)
+{
+    if (!app_is_in_ota_mode() && (ota_control_get_datapath_type() != DATA_PATH_SPP))
+    {
+        return;
+    }
+
+    bt_spp_write(ota.ota_spp_dev->rfcomm_handle, ptrData, length);
+}
+
+void app_ota_send_data_via_spp(uint8_t *ptrData, uint32_t length)
+{
+    if (!app_is_in_ota_mode() && (ota_control_get_datapath_type() != DATA_PATH_SPP))
+    {
+        return;
+    }
+
+    bt_spp_write(ota.ota_spp_dev->rfcomm_handle, ptrData, length);
+}
+
+void app_spp_ota_register_tx_done(app_spp_ota_tx_done_t callback)
+{
+    app_spp_ota_tx_done_func = callback;
+}
+
+void app_spp_ota_init(void)
+{
+    bt_spp_create_port(RFCOMM_CHANNEL_BES_OTA, OtaSppSdpAttributes, ARRAY_SIZE(OtaSppSdpAttributes));
+
+    bt_spp_set_callback(RFCOMM_CHANNEL_BES_OTA, OTA_SPP_RECV_BUFFER_SIZE, spp_bes_ota_callback, NULL);
+
+    bt_spp_listen(RFCOMM_CHANNEL_BES_OTA, false, NULL);
+
+    ota.ota_spp_dev = bt_spp_create_channel(BT_DEVICE_ID_1, RFCOMM_CHANNEL_BES_OTA);
+}
+#endif

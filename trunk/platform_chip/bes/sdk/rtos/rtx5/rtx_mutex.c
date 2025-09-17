@@ -24,7 +24,7 @@
  */
 
 #include "rtx_lib.h"
-
+#include "hal_trace.h"
 
 //  OS Runtime Object Memory Usage
 #if ((defined(OS_OBJ_MEM_USAGE) && (OS_OBJ_MEM_USAGE != 0)))
@@ -494,6 +494,9 @@ osMutexId_t osMutexNew (const osMutexAttr_t *attr) {
   EvrRtxMutexNew(attr);
   if (IsIrqMode() || IsIrqMasked()) {
     EvrRtxMutexError(NULL, (int32_t)osErrorISR);
+#ifdef DEBUG
+    ASSERT(false, "Calling %s in ISR or IntLockedState", __func__);
+#endif
     mutex_id = NULL;
   } else {
     mutex_id = __svcMutexNew(attr);
@@ -521,6 +524,9 @@ osStatus_t osMutexAcquire (osMutexId_t mutex_id, uint32_t timeout) {
   EvrRtxMutexAcquire(mutex_id, timeout);
   if (IsIrqMode() || IsIrqMasked()) {
     EvrRtxMutexError(mutex_id, (int32_t)osErrorISR);
+#ifdef DEBUG
+    ASSERT(false, "Calling %s in ISR or IntLockedState", __func__);
+#endif
     status = osErrorISR;
   } else {
     status = __svcMutexAcquire(mutex_id, timeout);
@@ -535,6 +541,9 @@ osStatus_t osMutexRelease (osMutexId_t mutex_id) {
   EvrRtxMutexRelease(mutex_id);
   if (IsIrqMode() || IsIrqMasked()) {
     EvrRtxMutexError(mutex_id, (int32_t)osErrorISR);
+#ifdef DEBUG
+    ASSERT(false, "Calling %s in ISR or IntLockedState", __func__);
+#endif
     status = osErrorISR;
   } else {
     status = __svcMutexRelease(mutex_id);
@@ -562,6 +571,9 @@ osStatus_t osMutexDelete (osMutexId_t mutex_id) {
   EvrRtxMutexDelete(mutex_id);
   if (IsIrqMode() || IsIrqMasked()) {
     EvrRtxMutexError(mutex_id, (int32_t)osErrorISR);
+#ifdef DEBUG
+    ASSERT(false, "Calling %s in ISR or IntLockedState", __func__);
+#endif
     status = osErrorISR;
   } else {
     status = __svcMutexDelete(mutex_id);

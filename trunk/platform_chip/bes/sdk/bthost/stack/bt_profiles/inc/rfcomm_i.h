@@ -76,7 +76,6 @@ struct rfcomm_open_item_t {
 struct rfcomm_session {
     uint32_t l2cap_handle;
     bool initiator;
-    bool initiator_disc;
     enum rfcomm_session_state_enum state;
     bt_bdaddr_t remote;
     struct list_node dlcs;
@@ -118,6 +117,7 @@ struct rfcomm_dlc {
     bool local_trx_ready;
     bool peer_trx_ready;
     bool incoming_req;
+    bool save_sync_data;
     uint8 save_give_rx_credits;
     uint8 priority;
     uint8 v24_sig;
@@ -129,10 +129,6 @@ struct rfcomm_dlc {
     bool give_credit_with_uih;
 
     struct rfcomm_dlc_rx_not_ready_data rx_not_ready_data;
-
-    // start when (tx_credit is zero && There is data that needs to be sent)
-    // stop when recv credit from remote
-    uint8 wait_recv_credit_timer;
 };
 
 struct rfcomm_same_dlc_result_t {
@@ -152,6 +148,7 @@ bool rfcomm_is_dlc_connecting(uint32_t session_handle, uint8_t local_server_chan
 void rfcomm_give_handled_credits(uint32_t rfcomm_handle, uint16_t handled_credits);
 void rfcomm_dlc_set_socket_priv(uint32_t rfcomm_handle, void *sock_priv);
 struct pp_buff *rfcomm_data_ppb_alloc(uint32_t rfcomm_handle, uint16_t datalen, void *priv, uint32_t ca, uint32_t line);
+struct rfcomm_session *rfcomm_get_session(const bt_bdaddr_t *remote);
 
 bt_status_t rfcomm_create_port(uint16_t local_server_channel, bt_socket_callback_t socket_callback, const bt_sdp_record_attr_t *attr_list, uint16_t attr_count);
 bt_status_t rfcomm_set_rx_credits(uint16_t local_server_channel, bool upper_layer_give_credit, uint16_t initial_credits, uint16_t credit_give_step);
@@ -161,27 +158,9 @@ bt_status_t rfcomm_connect(const bt_bdaddr_t *remote, uint16_t local_server_chan
 bt_status_t rfcomm_connect_server_channel(const bt_bdaddr_t *remote, uint16_t local_server_channel, uint16_t remote_server_channel, void *priv);
 bt_status_t rfcomm_write(uint32_t rfcomm_handle, struct pp_buff *ppb);
 bt_status_t rfcomm_disconnect(uint32_t rfcomm_handle, uint8_t reason);
-bool rfcomm_send_spp_data_allow(uint32_t rfcomm_handle);
+uint8 rfcomm_get_tx_credit_by_rfcomm_handle(uint32_t rfcomm_handle);
 
 #ifdef IBRT
-void rfcomm_send_out_saved_credits(const bt_bdaddr_t *remote);
-#define RFCOMM_MAX_SYNC_DATA_ITEMS (6)
-
-struct rfcomm_sync_data_item_t {
-    uint8 dlci;
-    uint8 rx_credits;
-    uint8 tx_credits;
-    uint8 shall_give_credits;
-} __attribute__ ((packed));
-
-struct rfcomm_sync_data_t {
-    uint8_t item_count;
-    struct rfcomm_sync_data_item_t item_data[RFCOMM_MAX_SYNC_DATA_ITEMS];
-} __attribute__ ((packed));
-
-void rfcomm_send_out_saved_credits(const bt_bdaddr_t *remote);
-uint32_t rfcomm_ibrt_switch_get_sync_data(const bt_bdaddr_t* remote, struct rfcomm_sync_data_t *sync_data, uint32_t length);
-void rfcomm_ibrt_switch_set_sync_data(const bt_bdaddr_t* remote, struct rfcomm_sync_data_t *sync_data);
 void rfcomm_ibrt_slave_release_dlc(uint8_t device_id, uint8_t dlci);
 void rfcomm_start_save_credit_before_switch(const bt_bdaddr_t *remote);
 uint32 rfcomm_save_ctx(uint32 rfcomm_handle, uint8_t *buf, uint32_t buf_len);

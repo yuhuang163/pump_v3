@@ -36,7 +36,7 @@ __code_start_addr:
 #ifdef PROGRAMMER
 	.word __exec_struct_start
 #else
-	.word __flash_start
+	.word __boot_struct_start_load
 #endif
 
 	.end

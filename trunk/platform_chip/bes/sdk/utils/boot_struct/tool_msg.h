@@ -118,10 +118,11 @@ enum MSG_TYPE {
     TYPE_READ = 0x01,
     TYPE_WRITE = 0x02,
     TYPE_BULK_READ = 0x03,
+#if defined(TEST_OVER_THE_AIR_ENANBLED)
     TYPE_EXT_WRITE = 0x04,
-    TYPE_ANC_WRITE_START = 0x05,
-    TYPE_ANC_WRITE_DATA = 0x06,
-    TYPE_FIR_WRITE_START = 0x07,
+    TYPE_BULK_WRITE_START = 0x05,
+    TYPE_BULK_WRITE_DATA = 0x06,
+#endif
     TYPE_NOTIF = 0x10,
     TYPE_SYNC = 0x50,
     TYPE_SIG_INFO = 0x51,
@@ -140,11 +141,35 @@ enum MSG_TYPE {
     TYPE_SEC_REG_ERASE_BURN_DATA = 0x68,
 
     // Extended types
-    TYPE_PROD_TUNING = 0x81,
+    TYPE_PROD_TEST = 0x81,
     TYPE_RUNTIME_CMD = 0x82,
     TYPE_BT_CALIB_CMD = 0x83,
     TYPE_EFUSE_CMD = 0x84,
+    TYPE_MMC_OTA = 0x85,
     TYPE_PROTO_EL = 0xA0,
+
+    // Types for connectivity mode
+    TYPE_CONN_REPLY = 0xB0,
+    TYPE_CONN_DOWNLOAD_START = 0xB1,
+    TYPE_CONN_DOWNLOAD_FIRMWARE = 0xB2,
+    TYPE_CONN_DOWNLOAD_END = 0xB3,
+    TYPE_CONN_RUN_FIRMWARE = 0xB4,
+    TYPE_CONN_SYS_REBOOT = 0xB5,
+    TYPE_CONN_SYS_SHUTDOWN = 0xB6,
+    TYPE_CONN_SYS_SET_BOOT_MODE = 0xB8,
+    TYPE_CONN_SYS_CLR_BOOT_MODE = 0xB9,
+    TYPE_CONN_SYS_GET_BOOT_MODE = 0xBA,
+    TYPE_CONN_SYS_MEM32_READ = 0xBB,
+    TYPE_CONN_SYS_MEM32_WRITE = 0xBC,
+    TYPE_CONN_FLASH_READ = 0xBD,
+    TYPE_CONN_RUN_FLASH = 0xBE,
+    TYPE_CONN_CALCULATE_CRC = 0xBF,
+
+    TYPE_CONN_REPLY_ERR = 0xC0,
+    TYPE_CONN_ANALOG_REG_READ = 0xC1,
+    TYPE_CONN_ANALOG_REG_WRITE = 0xC2,
+    TYPE_CONN_USBPHY_REG_READ = 0xC3,
+    TYPE_CONN_USBPHY_REG_WRITE = 0xC4,
 
     TYPE_INVALID = 0xFF,
 };
@@ -196,6 +221,7 @@ enum ERR_CODE {
     ERR_CODE_INFO_MISSING = 0x24,
     ERR_CODE_CRC = 0x25,
     ERR_CODE_SIG = 0x26,
+    ERR_CODE_VER = 0x27,
 
     ERR_CODE_MISSING = 0x31,
     ERR_VERSION = 0x32,
@@ -251,6 +277,51 @@ struct message_t {
     // data and 1-byte check_sum
     unsigned char data[MAX_TOOL_MSG_DATA_LEN + 1];
 };
+
+struct conn_msg_hdr_t {
+    unsigned char type;
+    unsigned char seq;
+    unsigned short len;
+};
+
+struct conn_msg_replay_t {
+    unsigned int replay;
+};
+
+struct conn_firmware_info_t {
+    unsigned int length;
+    unsigned int addr;
+};
+
+struct conn_download_firmware_t {
+    unsigned int addr;
+    unsigned char data[0];
+};
+
+struct conn_firmware_crc_t {
+    unsigned int crc32;
+};
+
+struct conn_run_firmware_t {
+    unsigned int addr;
+};
+
+struct conn_flash_read_msg_t {
+    unsigned int addr;
+    unsigned int len;
+};
+
+struct conn_calculate_crc_msg_t {
+    unsigned int addr;
+    unsigned int len;
+};
+
+struct conn_reg_rw_t {
+    unsigned short reg;
+    unsigned short val;
+};
+
+#define CONN_MSG_TOTAL_LEN(msg)  (sizeof(struct conn_msg_hdr_t) + ((struct conn_msg_hdr_t *)(msg))->len)
 
 struct sec_key_struct_v2_t {
     unsigned int magic;

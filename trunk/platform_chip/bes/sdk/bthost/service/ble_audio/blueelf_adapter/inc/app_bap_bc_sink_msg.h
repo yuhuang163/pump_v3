@@ -31,6 +31,7 @@
 #ifndef APP_BAP_BC_SINK_MSG_H_
 #define APP_BAP_BC_SINK_MSG_H_
 #if BLE_AUDIO_ENABLED
+#include "app_gaf.h"
 
 #define APP_BAP_DFT_BC_SINK_DP_ID                  0
 #define APP_BAP_DFT_BC_SINK_CTL_DELAY_US           0x0102

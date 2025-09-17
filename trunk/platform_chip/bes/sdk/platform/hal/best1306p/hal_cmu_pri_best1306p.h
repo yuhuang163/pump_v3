@@ -18,11 +18,7 @@
 #define __HAL_CMU_PRI_BEST1306P_H__
 
 #define HAL_CMU_RC_STABLE_TIME          550
-#ifdef BT_RCOSC_CAL
-#define HAL_CMU_OSC_STABLE_TIME         600
-#else
 #define HAL_CMU_OSC_STABLE_TIME         2000
-#endif
 
 #ifdef BT_LOG_POWEROFF
 #define BT_CMU_OSC_READY_TIMEOUT_US     (HAL_CMU_OSC_STABLE_TIME)

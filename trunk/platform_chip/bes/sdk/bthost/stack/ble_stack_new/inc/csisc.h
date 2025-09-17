@@ -18,11 +18,15 @@
  ****************************************************************************/
 #ifndef __PRF_CSISC__
 #define __PRF_CSISC__
+#include "bluetooth.h"
 
 #include "gaf_prf.h"
 #include "gaf_log.h"
 
 #include "csi_common.h"
+
+/// TODO: move it to prf layer
+#define PRF_CSISC_ENABLE            (1)
 
 #define CSISC_CONNECTION_MAX        (GAF_CONNECTION_MAX)
 
@@ -45,7 +49,7 @@ typedef void (*csisc_cb_cfg_evt)(uint8_t con_lid, uint8_t set_lid, uint8_t char_
 typedef void (*csisc_cb_value_evt)(uint8_t con_lid, uint8_t set_lid, uint8_t char_type,
                                    const uint8_t *data, uint16_t len, uint16_t err_code);
 /// Callback for csisc sirk decrypt get ltk
-typedef void (*csisc_cb_ltk_request)(uint8_t con_lid, uint8_t set_lid);
+typedef void (*csisc_cb_get_ltk)(uint8_t con_lid, uint16_t *status, uint8_t *ltk);
 /// Callback for csisc rsi resolved
 typedef void (*csisc_cb_rsi_resolved)(uint8_t con_lid, uint8_t set_lid, uint16_t err_code,
                                       const uint8_t *p_rsi);
@@ -68,7 +72,7 @@ typedef struct csisc_evt_cb
     /// Callback function called when a value is received with status
     csisc_cb_value_evt cb_char_value;
     /// Callback function called when a sirk need to be decrpted using ltk
-    csisc_cb_ltk_request cb_ltk_request;
+    csisc_cb_get_ltk cb_ltk;
     /// Callback function called when a rsi is resolved
     csisc_cb_rsi_resolved cb_rsi_resolved;
     /// Callback function called when prf status event generated
@@ -152,15 +156,15 @@ int csisc_character_cccd_write(uint8_t con_lid, uint8_t set_lid, uint8_t char_ty
 int csisc_set_lock_value(uint8_t con_lid, uint8_t set_lid, bool lock);
 
 /**
- * @brief Upper confirm the ltk request from encrypted sirk decyption
- * 
+ * @brief CSIS client sirk decryption
+ *
  * @param  con_lid     Connecton local index
  * @param  set_lid     Set local index
- * @param[in] p_ltk    LTK value
- * 
+ * @param  p_enc_sirk  Encrypted SIRK to be decrypted
+ *
  * @return int         status
  */
-int csisc_ltk_request_upper_cfm(uint8_t con_lid, uint8_t set_lid, const uint8_t *p_ltk);
+int csisc_sirk_decryption_function(uint8_t con_lid, uint8_t set_lid, const uint8_t *p_enc_sirk);
 
 /**
  * @brief CSIS client RSI resolve use sirk provided

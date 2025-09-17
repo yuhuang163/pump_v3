@@ -39,14 +39,14 @@ static void app_mcu_sensor_hub_transmit_touch_no_rsp_cmd_handler(uint8_t* ptr, u
 static void app_mcu_sensor_hub_touch_no_rsp_cmd_received_handler(uint8_t* ptr, uint16_t len)
 {
     APP_KEY_STATUS status = *((APP_KEY_STATUS *)ptr);
-    CAPSENSOR_TRACE(0, "Get touch no rsp command from sensor hub core, status.event: %d", status.event);
+    TRACE(0, "Get touch no rsp command from sensor hub core, status.event: %d", status.event);
     app_capsensor_click_event(status.event);
 }
 
 static void app_mcu_sensor_hub_touch_no_rsp_cmd_tx_done_handler(uint16_t cmdCode,
     uint8_t* ptr, uint16_t len)
 {
-    CAPSENSOR_TRACE(0, "cmdCode 0x%x tx done", cmdCode);
+    TRACE(0, "cmdCode 0x%x tx done", cmdCode);
 }
 
 CORE_BRIDGE_TASK_COMMAND_TO_ADD(MCU_SENSOR_HUB_TASK_CMD_TOUCH_REQ_NO_RSP,
@@ -69,97 +69,97 @@ void app_capsensor_click_event(uint8_t key_event)
     APP_KEY_STATUS status;
 
     status.event = key_event;
-    CAPSENSOR_TRACE(1, "[%s]:%d",  __func__, status.event);
+    TRACE(1, "[%s]:%d",  __func__, status.event);
 
     switch (status.event)
     {
         case CAP_KEY_EVENT_OFF_EAR:
-            CAPSENSOR_TRACE(1, "capsensor state= off ear\n");
+            TRACE(1, "capsensor state= off ear\n");
             status.event = APP_KEY_EVENT_OFF_EAR;
             break;
 
         case CAP_KEY_EVENT_ON_EAR:
-            CAPSENSOR_TRACE(1, "capsensor state= on ear\n");
+            TRACE(1, "capsensor state= on ear\n");
             status.event = APP_KEY_EVENT_ON_EAR;
             break;
 
         case CAP_KEY_EVENT_UP:
-            CAPSENSOR_TRACE(1, "capsensor state= key up\n");
+            TRACE(1, "capsensor state= key up\n");
             status.event = APP_KEY_EVENT_UP;
             break;
 
         case CAP_KEY_EVENT_DOWN:
-            CAPSENSOR_TRACE(1, "capsensor state= key down\n");
+            TRACE(1, "capsensor state= key down\n");
             status.event = APP_KEY_EVENT_DOWN;
             break;
 
         case CAP_KEY_EVENT_UPSLIDE:
-            CAPSENSOR_TRACE(1, "capsensor state= up slide\n");
+            TRACE(1, "capsensor state= up slide\n");
             status.event = APP_KEY_EVENT_UPSLIDE;
             break;
 
         case CAP_KEY_EVENT_DOWNSLIDE:
-            CAPSENSOR_TRACE(1, "capsensor state= down slide\n");
+            TRACE(1, "capsensor state= down slide\n");
             status.event = APP_KEY_EVENT_DOWNSLIDE;
             break;
 
         case CAP_KEY_EVENT_CLICK:
-            CAPSENSOR_TRACE(1, "capsensor state= single click\n");
+            TRACE(1, "capsensor state= single click\n");
             status.event = APP_KEY_EVENT_CLICK;
             break;
 
         case CAP_KEY_EVENT_DOUBLECLICK:
-            CAPSENSOR_TRACE(1, "capsensor state= double click\n");
+            TRACE(1, "capsensor state= double click\n");
             status.event = APP_KEY_EVENT_DOUBLECLICK;
             break;
 
         case CAP_KEY_EVENT_TRIPLECLICK:
-            CAPSENSOR_TRACE(1, "capsensor state= triple click\n");
+            TRACE(1, "capsensor state= triple click\n");
             status.event = APP_KEY_EVENT_TRIPLECLICK;
             break;
 
         case CAP_KEY_EVENT_ULTRACLICK:
-            CAPSENSOR_TRACE(1, "capsensor state= ultra click\n");
+            TRACE(1, "capsensor state= ultra click\n");
             status.event = APP_KEY_EVENT_ULTRACLICK;
             break;
 
         case CAP_KEY_EVENT_RAMPAGECLICK:
-            CAPSENSOR_TRACE(1, "capsensor state= rampage click\n");
+            TRACE(1, "capsensor state= rampage click\n");
             status.event = APP_KEY_EVENT_RAMPAGECLICK;
             break;
 
         case CAP_KEY_EVENT_SIXCLICK:
-            CAPSENSOR_TRACE(1, "capsensor state= six click\n");
+            TRACE(1, "capsensor state= six click\n");
             break;
 
         case CAP_KEY_EVENT_SEVENCLICK:
-            CAPSENSOR_TRACE(1, "capsensor state= seven click\n");
+            TRACE(1, "capsensor state= seven click\n");
             break;
 
         case CAP_KEY_EVENT_LONGPRESS:
-            CAPSENSOR_TRACE(1, "capsensor state= long press\n");
+            TRACE(1, "capsensor state= long press\n");
             status.event = APP_KEY_EVENT_LONGPRESS;
             break;
 
         case CAP_KEY_EVENT_LONGLONGPRESS:
-            CAPSENSOR_TRACE(1, "capsensor state= long  long press\n");
+            TRACE(1, "capsensor state= long  long press\n");
             status.event = APP_KEY_EVENT_LONGLONGPRESS;
             break;
 
         case CAP_KEY_EVENT_CLICK_AND_LONGPRESS:
-            CAPSENSOR_TRACE(1, "capsensor state= click and long press\n");
+            TRACE(1, "capsensor state= click and long press\n");
             break;
 
         case CAP_KEY_EVENT_CLICK_AND_LONGLONGPRESS:
-            CAPSENSOR_TRACE(1, "capsensor state= click and longlongpress\n");
+            TRACE(1, "capsensor state= click and longlongpress\n");
             break;
 
         case CAP_KEY_EVENT_DOUBLECLICK_AND_LONGLONGPRESS:
-            CAPSENSOR_TRACE(1, "capsensor state= double click and longlongpress\n");
+            TRACE(1, "capsensor state= double click and longlongpress\n");
             break;
 
         case CAP_KEY_EVENT_TRIPLECLICK_AND_LONGLONGPRESS:
-            CAPSENSOR_TRACE(1, "capsensor state= triple click and longlongpress\n");
+            TRACE(1, "capsensor state= triple click and longlongpress\n");
             break;
 
         default:
@@ -176,7 +176,7 @@ void app_mcu_core_capsensor_init(void)
     int ret = -1;
     ret = register_capsensor_click_event_callback(app_capsensor_click_event);
     if (ret) {
-        CAPSENSOR_TRACE(1,"register_capsensor_click_event_callback failed:%d\n", ret);
+        TRACE(1,"register_capsensor_click_event_callback failed:%d\n", ret);
     }
 
     capsensor_driver_init();

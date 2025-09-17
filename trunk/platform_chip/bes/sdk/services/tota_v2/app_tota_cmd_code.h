@@ -24,6 +24,30 @@ extern "C" {
 
 #define LOG_TAG "[TOTA_CONTROL] "
 
+#define TOTA_CONTROL_DEBUG
+
+#ifdef TOTA_CONTROL_DEBUG
+#define TOTA_LOG_DBG(num,str,...)   TRACE(num,LOG_TAG"" str, ##__VA_ARGS__)             // DEBUG OUTPUT
+#define TOTA_LOG_MSG(num,str,...)   TRACE(num,LOG_TAG"" str, ##__VA_ARGS__)             // MESSAGE OUTPUT
+#define TOTA_LOG_ERR(num,str,...)   TRACE(num,LOG_TAG"err:""" str, ##__VA_ARGS__)       // ERROR OUTPUT
+
+#define TOTA_LOG_FUNC_LINE()        TRACE(2,LOG_TAG"%s:%d\n", __FUNCTION__, __LINE__)
+#define TOTA_LOG_FUNC_IN()          TRACE(1,LOG_TAG"%s ++++\n", __FUNCTION__)
+#define TOTA_LOG_FUNC_OUT()         TRACE(1,LOG_TAG"%s ----\n", __FUNCTION__)
+
+#define TOTA_LOG_DUMP               DUMP8
+#else
+#define TOTA_LOG_DBG(str,...)
+#define TOTA_LOG_MSG(num,str,...)   TRACE(num,LOG_TAG"" str, ##__VA_ARGS__)
+#define TOTA_LOG_ERR(num,str,...)   TRACE(num,LOG_TAG"err:""" str, ##__VA_ARGS__)
+
+#define TOTA_LOG_FUNC_LINE()
+#define TOTA_LOG_FUNC_IN()
+#define TOTA_LOG_FUNC_OUT()
+
+#define TOTA_LOG_DUMP
+#endif
+
 extern uint32_t __tota_handler_table_start[];
 extern uint32_t __tota_handler_table_end[];
 
@@ -40,6 +64,8 @@ typedef enum
     APP_TOTA_VIA_NOTIFICATION,
     APP_TOTA_VIA_INDICATION,
     APP_TOTA_GEN_VIA_SPP,
+    APP_TOTA_VIA_USB,
+    APP_TOTA_VIA_UART,
     APP_TOTA_TRANSMISSION_PATH_COUNT,
 
     APP_TOTA_PATH_IDLE = 0xff
@@ -87,7 +113,6 @@ typedef enum
     OP_TOTA_GET_DUMP_INFO_CMD   = 0x6307,
     OP_TOTA_SET_CUSTOMER_CMD    = 0x6308,
     OP_TOTA_GET_CUSTOMER_CMD    = 0x6309,
-    OP_TOTA_CRC_CHECK_CMD       = 0x6310,
 
     /* audio dump and mic cmd */
     OP_TOTA_AUDIO_DUMP_START    = 0x6400,

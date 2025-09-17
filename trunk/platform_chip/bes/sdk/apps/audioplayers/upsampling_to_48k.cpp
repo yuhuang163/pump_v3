@@ -1,6 +1,7 @@
 #if defined(__BT_ANC__) || defined(PSAP_FORCE_STREAM_48K)
 #include "plat_types.h"
 #include "app_audio.h"
+#include "hal_location.h"
 
 #define US_COEF_NUM (24)
 

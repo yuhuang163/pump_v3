@@ -19,6 +19,8 @@
 #ifndef __CSIS_CRYPTO__
 #define __CSIS_CRYPTO__
 
+#include "bluetooth.h"
+
 #include "gaf_cfg.h"
 #include "gaf_log.h"
 

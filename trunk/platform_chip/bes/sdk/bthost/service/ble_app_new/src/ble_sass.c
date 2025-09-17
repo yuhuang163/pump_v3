@@ -13,8 +13,6 @@
  * trademark and other intellectual property rights.
  *
  ****************************************************************************/
-#include "bthost_logger.h"
-
 #ifdef CFG_APP_SAS_SERVER
 #include "gatt_service.h"
 
@@ -94,14 +92,7 @@ app_sas_env_tag_t app_sas_env;
 static void sas_write_send_notification_handler(uint8_t conidx, uint16_t audio_status)
 {
     audio_status = co_host_to_uint16_le(audio_status);
-
-    gatt_char_notify_t val_ntf=
-    {
-        .character = g_ble_sas_character,
-        .service = g_ble_sas_service,
-    };
-
-    gatts_send_value_notification(gap_conn_bf(conidx), &val_ntf, (uint8_t *)&audio_status, sizeof(audio_status));
+    gatts_send_notification(gap_conn_bf(conidx), g_ble_sas_character, (uint8_t *)&audio_status, sizeof(audio_status));
 }
 
 static void app_sas_server_disconnected_evt_handler(uint8_t conidx, uint16_t connhdl)
@@ -126,7 +117,7 @@ static void app_sas_server_inform_ambient_status(void)
     }
     else
     {
-        DEBUG_VERBOSE(0, "sas conidx 0x%x ccc val %d", app_sas_env.conidx, app_sas_env.isNotificationEnabled);
+        TRACE(0, "sas conidx 0x%x ccc val %d", app_sas_env.conidx, app_sas_env.isNotificationEnabled);
     }
 }
 
@@ -186,7 +177,7 @@ static int ble_sas_server_callback(gatt_svc_t *svc, gatt_server_event_t event, g
             gatt_server_char_read_t *p = param.char_read;
             uint16_t service_on = sas->is_ambient_service_on;
             service_on = co_host_to_uint16_le(service_on);
-            gatts_send_read_rsp(p->conn->connhdl, p->token, 0, (uint8_t *)&service_on, sizeof(service_on));
+            gatts_write_read_rsp_data(p->ctx, (uint8_t *)&service_on, sizeof(service_on));
             return true;
         }
         case GATT_SERV_EVENT_CHAR_WRITE:
@@ -216,14 +207,6 @@ static int ble_sas_server_callback(gatt_svc_t *svc, gatt_server_event_t event, g
             }
             sas->is_notify_enabled = notify_enabled;
             app_sas_server_ccc_changed_handler(svc->con_idx, svc->connhdl, notify_enabled);
-            return true;
-        }
-        case GATT_SERV_EVENT_DESC_READ:
-        {
-            gatt_server_desc_read_t *p = param.desc_read;
-            uint16_t cccd_config = sas->is_notify_enabled ? 0x0001 : 0;
-            cccd_config = co_host_to_uint16_le(cccd_config);
-            gatts_send_read_rsp(p->conn->connhdl, p->token, 0, (uint8_t *)&cccd_config, sizeof(uint16_t));
             return true;
         }
         case GATT_SERV_EVENT_CONN_CLOSED:

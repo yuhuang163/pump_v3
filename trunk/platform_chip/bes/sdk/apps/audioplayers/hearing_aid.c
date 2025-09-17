@@ -50,7 +50,7 @@ static uint32_t codec_capture_callback(uint8_t *buf, uint32_t len)
         pcm_buf[i] = (VOICE_PCM_T *)(buf + i * interval_len);
     }
 
-    // AUDIOPLAYERS_TRACE(2,"[%s] cnt = %d", __func__, codec_capture_cnt++);
+    // TRACE(2,"[%s] cnt = %d", __func__, codec_capture_cnt++);
 
     for (int i = 0; i < CAPTURE_CHANNEL_NUM; i++) {
         memcpy(cache_buffer + i * pcm_len, pcm_buf[i], pcm_len * sizeof(VOICE_PCM_T));
@@ -86,7 +86,7 @@ error "impl your own algorithm"
     audio_dump_run();
 #endif
 
-    // AUDIOPLAYERS_TRACE(2,"[%s] cnt = %d", __func__, codec_playback_cnt++);
+    // TRACE(2,"[%s] cnt = %d", __func__, codec_playback_cnt++);
 
     return len;
 }
@@ -100,12 +100,12 @@ int hearing_aid_stream_start(bool on)
         return 0;
 
     if (on) {
-        AUDIOPLAYERS_TRACE(1, "[%s] ON", __func__);
+        TRACE(1, "[%s] ON", __func__);
 
         af_set_priority(AF_USER_HEARING_AID, osPriorityHigh);
 
         app_sysfreq_req(APP_SYSFREQ_USER_APP_0, APP_SYSFREQ_104M);
-        // AUDIOPLAYERS_TRACE(2, "[%s] sys freq calc : %d", __func__, hal_sys_timer_calc_cpu_freq(5, 0));
+        // TRACE(2, "[%s] sys freq calc : %d", __func__, hal_sys_timer_calc_cpu_freq(5, 0));
 
         // init heap, all buffer should be alloced from this heap
         heap = heap_register(hearing_aid_buffer, sizeof(hearing_aid_buffer));
@@ -133,7 +133,7 @@ int hearing_aid_stream_start(bool on)
         uint8_t *codec_capture_buf = heap_malloc(heap, stream_cfg.data_size);
         stream_cfg.data_ptr = CACHE_2_UNCACHE(codec_capture_buf);
 
-        AUDIOPLAYERS_TRACE(3, "[%s] codec capture sample_rate: %d, data_size: %d", __func__, stream_cfg.sample_rate, stream_cfg.data_size);
+        TRACE(3, "[%s] codec capture sample_rate: %d, data_size: %d", __func__, stream_cfg.sample_rate, stream_cfg.data_size);
         ret = af_stream_open(CODEC_STREAM_ID, AUD_STREAM_CAPTURE, &stream_cfg);
         ASSERT(ret == 0, "codec capture failed: %d", ret);
 
@@ -151,7 +151,7 @@ int hearing_aid_stream_start(bool on)
         uint8_t *codec_playback_buf = heap_malloc(heap, stream_cfg.data_size);
         stream_cfg.data_ptr = CACHE_2_UNCACHE(codec_playback_buf);
 
-        AUDIOPLAYERS_TRACE(3, "[%s] codec playback sample_rate: %d, data_size: %d", __func__, stream_cfg.sample_rate, stream_cfg.data_size);
+        TRACE(3, "[%s] codec playback sample_rate: %d, data_size: %d", __func__, stream_cfg.sample_rate, stream_cfg.data_size);
         ret = af_stream_open(CODEC_STREAM_ID, AUD_STREAM_PLAYBACK, &stream_cfg);
         ASSERT(ret == 0, "codec playback failed: %d", ret);
 
@@ -168,14 +168,14 @@ int hearing_aid_stream_start(bool on)
 
         size_t total = 0, used = 0, max_used = 0;
         heap_memory_info(heap, &total, &used, &max_used);
-        AUDIOPLAYERS_TRACE(3,"Hearing Aid MALLOC MEM: total - %d, used - %d, max_used - %d.", total, used, max_used);
+        TRACE(3,"Hearing Aid MALLOC MEM: total - %d, used - %d, max_used - %d.", total, used, max_used);
         // ASSERT(used == 0, "[%s] used != 0", __func__);
 
         app_sysfreq_req(APP_SYSFREQ_USER_APP_0, APP_SYSFREQ_32K);
 
         af_set_priority(AF_USER_HEARING_AID, osPriorityAboveNormal);
 
-        AUDIOPLAYERS_TRACE(1, "[%s] OFF", __func__);
+        TRACE(1, "[%s] OFF", __func__);
     }
 
     isRun = on;

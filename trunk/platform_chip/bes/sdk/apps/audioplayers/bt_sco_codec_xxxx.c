@@ -77,28 +77,28 @@ static bool check_controller_mute_pattern(uint8_t *pkt, uint8_t pattern)
 
 static void generate_xxxx_plc_histogram(void)
 {
-    POSSIBLY_UNUSED uint32_t packet_loss_num =  g_xxxx_plc_histogram.bt_mute + 
+    uint32_t packet_loss_num =  g_xxxx_plc_histogram.bt_mute + 
                                 g_xxxx_plc_histogram.parser + 
                                 g_xxxx_plc_histogram.seq;
 
-    AUDIOPLAYERS_TRACE(0, "------------------------ XXXX PLC Histogram ------------------------");
-    AUDIOPLAYERS_TRACE(0, "* BT Mute:  %d", g_xxxx_plc_histogram.bt_mute);
-    AUDIOPLAYERS_TRACE(0, "* Parser:   %d", g_xxxx_plc_histogram.parser);
-    AUDIOPLAYERS_TRACE(0, "* Seq:      %d", g_xxxx_plc_histogram.seq);
-    AUDIOPLAYERS_TRACE(0, "* Repair:   %d", g_xxxx_plc_histogram.repair);
-    AUDIOPLAYERS_TRACE(0, "* Packet Loss Percent:    %d/10000(%d/%d)", 
+    TRACE(0, "------------------------ XXXX PLC Histogram ------------------------");
+    TRACE(0, "* BT Mute:  %d", g_xxxx_plc_histogram.bt_mute);
+    TRACE(0, "* Parser:   %d", g_xxxx_plc_histogram.parser);
+    TRACE(0, "* Seq:      %d", g_xxxx_plc_histogram.seq);
+    TRACE(0, "* Repair:   %d", g_xxxx_plc_histogram.repair);
+    TRACE(0, "* Packet Loss Percent:    %d/10000(%d/%d)", 
         (int32_t)(10000.f * packet_loss_num / g_xxxx_plc_histogram.total),
         packet_loss_num, g_xxxx_plc_histogram.total);
-    AUDIOPLAYERS_TRACE(0, "* Repair Packet Percent:  %d/10000(%d/%d)", 
+    TRACE(0, "* Repair Packet Percent:  %d/10000(%d/%d)", 
         (int32_t)(10000.f * g_xxxx_plc_histogram.repair / g_xxxx_plc_histogram.total),
         g_xxxx_plc_histogram.repair, g_xxxx_plc_histogram.total);
-    AUDIOPLAYERS_TRACE(0, "-------------------------------- End --------------------------------");
+    TRACE(0, "-------------------------------- End --------------------------------");
 }
 
 int32_t bt_sco_codec_xxxx_init(uint32_t sample_rate)
 {
     // ASSERT(0, "[%s] Please implement this function! Then remove this ASSERT!", __func__);
-    AUDIOPLAYERS_TRACE(0, "[%s] ...", __func__);
+    TRACE(0, "[%s] ...", __func__);
 
     ASSERT(SCO_PACKET_SIZE == sizeof(sco_xxxx_packet_t),
         "[%s] SCO_PACKET_SIZE != sizeof(sco_xxxx_packet_t)", __func__);
@@ -140,7 +140,7 @@ int32_t bt_sco_codec_xxxx_init(uint32_t sample_rate)
 int32_t bt_sco_codec_xxxx_deinit(void)
 {
     // ASSERT(0, "[%s] Please implement this function! Then remove this ASSERT!", __func__);
-    AUDIOPLAYERS_TRACE(0, "[%s] ...", __func__);
+    TRACE(0, "[%s] ...", __func__);
 
     generate_xxxx_plc_histogram();
 
@@ -167,7 +167,7 @@ int32_t bt_sco_codec_xxxx_encoder(uint8_t *xxxx_buf, uint32_t xxxx_size, uint8_t
     uint32_t loop_cnt = xxxx_size / SCO_PACKET_SIZE;
     sco_xxxx_packet_t *sco_packet_ptr = (sco_xxxx_packet_t *)xxxx_buf;
 
-    // AUDIOPLAYERS_TRACE(0, "[%s] xxxx_size = %d, pcm_size = %d", __func__, xxxx_size, pcm_size);
+    // TRACE(0, "[%s] xxxx_size = %d, pcm_size = %d", __func__, xxxx_size, pcm_size);
 
     for (uint32_t i=0; i<loop_cnt; i++) {
         sco_packet_ptr->header  = SCO_PACKET_HEADER;
@@ -205,46 +205,46 @@ int32_t bt_sco_codec_xxxx_decoder(uint8_t *xxxx_buf, uint32_t xxxx_size, uint8_t
     sco_xxxx_packet_t *sco_packet_ptr = (sco_xxxx_packet_t *)xxxx_buf;
 
 #if 0
-    AUDIOPLAYERS_TRACE(0, "[%s] xxxx_size = %d, pcm_size = %d", __func__, xxxx_size, pcm_size);
-    AUDIOPLAYERS_TRACE(0, "Decoder: 0x%2x, 0x%2x, 0x%2x, 0x%2x", xxxx_buf[0],
+    TRACE(0, "[%s] xxxx_size = %d, pcm_size = %d", __func__, xxxx_size, pcm_size);
+    TRACE(0, "Decoder: 0x%2x, 0x%2x, 0x%2x, 0x%2x", xxxx_buf[0],
                                                     xxxx_buf[1],
                                                     xxxx_buf[2],
                                                     xxxx_buf[3]);
 #endif
 
     for (uint32_t i=0; i<loop_cnt; i++) {
-        // AUDIOPLAYERS_TRACE(0, "[%s] index: %d; seq: 0x%2x, 0x%2x", __func__,
+        // TRACE(0, "[%s] index: %d; seq: 0x%2x, 0x%2x", __func__,
         //     g_decoder_seq_index,
         //     g_sco_packet_seq[g_decoder_seq_index],
         //     sco_packet_ptr->seq);
 
         // Check PLC Status
         if (check_controller_mute_pattern((uint8_t *)sco_packet_ptr, MSBC_MUTE_PATTERN)) { // Check PLC
-            AUDIOPLAYERS_TRACE(0, "[%s] Decoder PLC: Mute pattern!", __func__);
+            TRACE(0, "[%s] Decoder PLC: Mute pattern!", __func__);
             g_xxxx_plc_histogram.bt_mute++;
             plc_flag = true;
         } else if ( (sco_packet_ptr->header != SCO_PACKET_HEADER) || 
                     (sco_packet_ptr->padding != SCO_PACKET_PADDING)) { // Check header and padding
-            AUDIOPLAYERS_TRACE(0, "[%s] Decoder PLC: Parser packet error: 0x%x, 0x%x!", __func__, sco_packet_ptr->header, sco_packet_ptr->padding);
+            TRACE(0, "[%s] Decoder PLC: Parser packet error: 0x%x, 0x%x!", __func__, sco_packet_ptr->header, sco_packet_ptr->padding);
             g_xxxx_plc_histogram.parser++;
             plc_flag = true;
         } else { // Check index
             uint32_t index = get_packet_index(sco_packet_ptr->seq);
             if (g_decoder_seq_index == SCO_PACKET_SEQ_INDEX_INVALID) { // First frame
                 if (index == SCO_PACKET_SEQ_INDEX_INVALID) { // Can not match valid seq
-                    AUDIOPLAYERS_TRACE(0, "[%s] Decoder PLC: First seq error!", __func__);
+                    TRACE(0, "[%s] Decoder PLC: First seq error!", __func__);
                     g_xxxx_plc_histogram.seq++;
                     plc_flag = true;
                 } else {
-                    AUDIOPLAYERS_TRACE(0, "[%s] Decoder: First seq OK!", __func__);
+                    TRACE(0, "[%s] Decoder: First seq OK!", __func__);
                     g_decoder_seq_index = index;
                     plc_flag = false;
                 }
             } else if (g_decoder_seq_index != index) {
-                AUDIOPLAYERS_TRACE(0, "[%s] Decoder PLC seq error!", __func__);
+                TRACE(0, "[%s] Decoder PLC seq error!", __func__);
                 g_xxxx_plc_histogram.seq++;
                 if (index < SCO_PACKET_SEQ_NUM) {
-                    AUDIOPLAYERS_TRACE(0, "[%s] Decoder PLC: Fix seq!", __func__);
+                    TRACE(0, "[%s] Decoder PLC: Fix seq!", __func__);
                     g_decoder_seq_index = index;
                 }
                 plc_flag = true;
@@ -262,7 +262,7 @@ int32_t bt_sco_codec_xxxx_decoder(uint8_t *xxxx_buf, uint32_t xxxx_size, uint8_t
             sbc_data.valid_size = SCO_PACKET_SIZE;
             int ret = sbc_decoder_process_frame(g_dec_state, &sbc_data, &dec_pcm_data);
             if (ret != SBC_OK) {
-                AUDIOPLAYERS_TRACE(0, "[%s] ERROR: Decoder failed!", __func__);
+                TRACE(0, "[%s] ERROR: Decoder failed!", __func__);
             }
             // PLC: Save good data
             lpc_plc_save(plc_st, (int16_t *)pcm_buf);

@@ -38,10 +38,6 @@ void bes_bt_source_reconnect_a2dp_profile(const bt_bdaddr_t *remote);
 
 void bes_bt_source_reconnect_avrcp_profile(const bt_bdaddr_t *remote);
 
-#if defined(BT_HID_HOST)
-void bes_bt_source_reconnect_hid_profile(const bt_bdaddr_t *remote);
-#endif // BT_HID_HOST
-
 void bes_bt_source_search_device(void);
 
 void bes_bt_source_register_bt_callback(bt_source_callback_t cb);

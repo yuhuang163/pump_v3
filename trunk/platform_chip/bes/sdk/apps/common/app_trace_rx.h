@@ -36,6 +36,10 @@ int app_trace_rx_register(const char *name, APP_TRACE_RX_CALLBACK_T callback);
 
 int app_trace_rx_deregister(const char *name);
 
+int32_t app_trace_rx_check_head(uint8_t *cmd, uint16_t len);
+
+uint32_t app_trace_rx_process(uint8_t *buf, uint32_t len);
+
 #ifdef __cplusplus
 }
 #endif

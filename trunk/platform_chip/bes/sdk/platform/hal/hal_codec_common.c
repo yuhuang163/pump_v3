@@ -76,7 +76,7 @@ static const uint8_t codec_mic_chan_vol[] = {
     CODEC_DIGMIC_CH4_SADC_VOL, CODEC_DIGMIC_CH5_SADC_VOL, CODEC_DIGMIC_CH6_SADC_VOL, CODEC_DIGMIC_CH7_SADC_VOL,
 };
 
-static const struct CODEC_DAC_VOL_T *codec_dac_vol_table = codec_dac_vol;
+static const CODEC_DAC_VOL_T *codec_dac_vol_table = codec_dac_vol;
 static uint32_t codec_dac_vol_num = ARRAY_SIZE(codec_dac_vol);
 
 uint32_t hal_codec_get_input_path_cfg(enum AUD_IO_PATH_T io_path)
@@ -128,19 +128,21 @@ uint32_t hal_codec_get_input_path_chan_num(enum AUD_IO_PATH_T io_path)
     return hal_codec_get_input_map_chan_num(ch_map);
 }
 
-void hal_codec_set_dac_volume_table(const struct CODEC_DAC_VOL_T *table_ptr, uint32_t table_num)
+WEAK
+void hal_codec_set_dac_volume_table(const CODEC_DAC_VOL_T *table_ptr, uint32_t table_num)
 {
     if (table_ptr == NULL) {
-        HAL_TRACE(0, "[%s] Set default volume table", __func__);
+        TRACE(0, "[%s] Set default volume table", __func__);
         codec_dac_vol_table = codec_dac_vol;
         codec_dac_vol_num = ARRAY_SIZE(codec_dac_vol);
     } else {
-        HAL_TRACE(0, "[%s] Set new volume table", __func__);
+        TRACE(0, "[%s] Set new volume table", __func__);
         codec_dac_vol_table = table_ptr;
         codec_dac_vol_num = table_num;
     }
 }
 
+WEAK
 uint32_t hal_codec_get_default_dac_volume_index(void)
 {
 #ifdef AUDIO_OUTPUT_VOLUME_DEFAULT
@@ -152,24 +154,26 @@ uint32_t hal_codec_get_default_dac_volume_index(void)
     return TGT_VOLUME_LEVEL_MAX;
 }
 
-const struct CODEC_DAC_VOL_T *hal_codec_get_dac_volume(uint32_t index)
+WEAK
+CODEC_DAC_VOL_T hal_codec_get_dac_volume(uint32_t index)
 {
     ASSERT(codec_dac_vol_table != NULL, "[%s] codec_dac_vol_table = NULL", __func__);
 
     if (index < codec_dac_vol_num) {
-        return &codec_dac_vol_table[index];
+        return codec_dac_vol_table[index];
     } else {
-        return &codec_dac_vol_table[codec_dac_vol_num-1];
+        return codec_dac_vol_table[codec_dac_vol_num - 1];
     }
 }
 
-const CODEC_ADC_VOL_T *hal_codec_get_adc_volume(uint32_t index)
+WEAK
+CODEC_ADC_VOL_T hal_codec_get_adc_volume(uint32_t index)
 {
     uint32_t _array_sizeof_vol = ARRAY_SIZE(codec_adc_vol);
     if (index < _array_sizeof_vol) {
-        return &codec_adc_vol[index];
+        return codec_adc_vol[index];
     } else {
-        return &codec_adc_vol[_array_sizeof_vol-1];
+        return codec_adc_vol[_array_sizeof_vol - 1];
     }
 }
 

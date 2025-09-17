@@ -69,7 +69,7 @@ void otaConfigureBleBdAddr(void)
 		{
 			set_rand_seed(hal_sys_timer_get());
 			randomData = get_rand();
-			RETENTION_RAM_TRACE(2,"randomData %d is 0x%x", index, randomData);
+			TRACE(2,"randomData %d is 0x%x", index, randomData);
 			memcpy(&(ble_addr[index*2]), (uint8_t *)&randomData, 2);
 		}
 

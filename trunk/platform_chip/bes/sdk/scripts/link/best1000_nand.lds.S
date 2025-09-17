@@ -23,7 +23,7 @@
 
 #define NANDFLASH_REGION_BASE       FLASH_BASE
 #define NANDFLASH_REGION_SIZE       FLASH_SIZE
-#define ROM_HEAP_END		        0x2000
+#define ROM_HEAP_END		        0x4000
 
 /* Linker script to configure memory regions. */
 MEMORY
@@ -79,27 +79,33 @@ SECTIONS
 
 	.dummy_buffer (.) (NOLOAD) :
 	{
-		/* The size of .dummy_buffer should be greater than __rom_HeapLimit. In most cases 8K is enough. */
+		/* The size of .dummy_buffer should be greater than __rom_HeapLimit. In most cases 16K is enough. */
 		. = ROM_HEAP_END - SIZEOF(.vector_table);
 		. = ALIGN(4);
 	} > RAM
 
-    __nandflash_bin_load_start__ = .;
+    __nandflash_bin_start__ = .;
+
 	.boot_struct (.) :
 	{
 		KEEP(*(.boot_struct))
 		. = ALIGN(4);
-	} > RAM
+	} > RAM AT > NANDFLASH
+
 	.nand_boot_struct (.) :
 	{
-		LONG(__nandflash_bin_load_start__);
-		LONG(__nandflash_bin_load_end__);
-	} > RAM
+		LONG(__nandflash_bin_start__);
+		LONG(__nandflash_bin_end__);
+	} > RAM AT > NANDFLASH
 
 	. = RAM_TO_RAMX(.);
+	. = ALIGN(32);
 
-	.text (.) : AT (RAMX_TO_RAM(ADDR(.text)))
+	.text (.) :
 	{
+		__fast_sram_text_exec_start__ = .;
+		__fast_sram_text_exec_end__ = .;
+		__sram_text_start__ = .;
 		*(.boot_loader)
 		*(.text*)
 
@@ -121,22 +127,22 @@ SECTIONS
 		*(SORT(.dtors.*))
 		*(.dtors)
 #endif
+		. = ALIGN(32);
+		__sram_text_end__ = .;
+	} > RAMX AT > NANDFLASH
 
-		. = ALIGN(4);
-	} > RAMX
-
-	.ARM.extab (.) : AT (RAMX_TO_RAM(ADDR(.ARM.extab)))
+	.ARM.extab (.) :
 	{
 		*(.ARM.extab* .gnu.linkonce.armextab.*)
-	} > RAMX
+	} > RAMX AT > NANDFLASH
 
 	__exidx_start = .;
 	/* .ARM.exidx contains R_ARM_PREL31 (+-0x40000000) offset to functions, which means
 	 * the session location cannot be too far away from the function addresses */
-	.ARM.exidx (.) : AT (RAMX_TO_RAM(ADDR(.ARM.exidx)))
+	.ARM.exidx (.) :
 	{
 		*(.ARM.exidx* .gnu.linkonce.armexidx.*)
-	} > RAMX
+	} > RAMX AT > NANDFLASH
 	__exidx_end = .;
 
 	. = RAMX_TO_RAM(.);
@@ -158,7 +164,7 @@ SECTIONS
 		*(.dynamic)
 		. = ALIGN(4);
 		__got_info_end = .;
-	} > RAM
+	} > RAM AT > NANDFLASH
 
 	.rodata (.) :
 	{
@@ -179,7 +185,7 @@ SECTIONS
 #endif
 		*(.note.gnu.build-id)
 		. = ALIGN(4);
-	} > RAM
+	} > RAM AT > NANDFLASH
 
 	__etext = .;
 
@@ -218,34 +224,24 @@ SECTIONS
 		/* All data end */
 		__data_end__ = .;
 
-	} > RAM
-
-	.system_info (.) :
-	{
-		KEEP(*(.system_info_list_size))
-		KEEP(*(.system_info_list))
-		. = ALIGN(4);
-	}  > RAM
+	} > RAM AT > NANDFLASH
 
 	.build_info (.) :
 	{
 		KEEP(*(.build_info))
 		. = ALIGN(4);
-	} > RAM = 0x00000000
+	} > RAM AT > NANDFLASH = 0x00000000
+
+	__boot_struct_build_info = LOADADDR(.build_info);
 
 	/* The following section MUST be the last loaded section */
 	.code_start_addr (.) :
 	{
-#ifdef TRACE_STR_SECTION
-		LONG(ABSOLUTE(__rodata_str_start__));
-#else
-		LONG(0);
-#endif
 		LONG(BUILD_INFO_MAGIC);
 		LONG(ABSOLUTE(ORIGIN(NANDFLASH)));
-	} > RAM
+	} > RAM AT > NANDFLASH
 
-    __nandflash_bin_load_end__ = .;
+    __nandflash_bin_end__ = .;
 
 	.bss (.) (NOLOAD) :
 	{

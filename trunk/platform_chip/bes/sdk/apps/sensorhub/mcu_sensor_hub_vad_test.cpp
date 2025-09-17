@@ -112,9 +112,9 @@ static uint32_t codec_data_play_handler(uint8_t *buf, uint32_t len)
         rpos = (uint32_t)src - (uint32_t)capture_buff;
     } else {
         memset(buf, 0, len);
-        SENSORHUB_TRACE(0, "avail=%d",avail);
+        TRACE(0, "avail=%d",avail);
     }
-    SENSORHUB_TRACE(0,"[%u] CODEC_PLAY:buf=%x,len=%d,rpos=%d",time,(int)buf,len,rpos);
+    TRACE(0,"[%u] CODEC_PLAY:buf=%x,len=%d,rpos=%d",time,(int)buf,len,rpos);
     return 0;
 }
 
@@ -132,7 +132,7 @@ int app_mcu_vad_start_play(bool on)
     int ret;
     struct AF_STREAM_CONFIG_T stream_cfg;
 
-    SENSORHUB_TRACE(3, "%s:", __func__);
+    TRACE(3, "%s:", __func__);
 
     memset(&stream_cfg, 0, sizeof(stream_cfg));
 
@@ -150,9 +150,9 @@ int app_mcu_vad_start_play(bool on)
         stream_cfg.data_ptr    = play_buff;
         stream_cfg.data_size   = sizeof(play_buff);
 
-        SENSORHUB_TRACE(3," sample_rate=%d, bits=%d", stream_cfg.sample_rate, stream_cfg.bits);
-        SENSORHUB_TRACE(3, "playback_buff=%x, size=%d", (int)play_buff, sizeof(play_buff));
-        SENSORHUB_TRACE(3, "capture_buff=%x, size=%d", (int)capture_buff, sizeof(capture_buff));
+        TRACE(3," sample_rate=%d, bits=%d", stream_cfg.sample_rate, stream_cfg.bits);
+        TRACE(3, "playback_buff=%x, size=%d", (int)play_buff, sizeof(play_buff));
+        TRACE(3, "capture_buff=%x, size=%d", (int)capture_buff, sizeof(capture_buff));
 
         ret = af_stream_open(AUD_STREAM_ID_1, AUD_STREAM_PLAYBACK, &stream_cfg);
         ASSERT(ret == 0, "af_stream_open playback failed: %d", ret);
@@ -170,13 +170,13 @@ int app_mcu_vad_start_play(bool on)
 
 static void app_mcu_vad_event_handler(enum APP_VAD_EVENT_T event, uint8_t *param)
 {
-    SENSORHUB_TRACE(0, "%s: event=%d", __func__, event);
+    TRACE(0, "%s: event=%d", __func__, event);
     if (event == APP_VAD_EVT_VOICE_CMD) {
         if (!vad_req_start) {
             vad_pkt_cnt = 0;
             vad_req_start = true;
             app_mcu_sensor_hub_request_vad_data(true,0);
-            SENSORHUB_TRACE(0, "APP_VAD_EVT_VOICE_CMD");
+            TRACE(0, "APP_VAD_EVT_VOICE_CMD");
 #ifdef PLAY_VAD_DATA_TEST
             //app_mcu_sensor_hub_bypass_vad(true);
             vad_start_play = true;
@@ -194,7 +194,7 @@ static void print_vad_data(uint8_t *buf, uint32_t len)
     int16_t *p = (int16_t *)buf;
     uint32_t n = len / 2;
 
-    SENSORHUB_TRACE(0, "VAD_DATA[%d]: %d %d %d %d -- %d %d %d %d", cnt++,
+    TRACE(0, "VAD_DATA[%d]: %d %d %d %d -- %d %d %d %d", cnt++,
         p[0],p[1],p[2],p[3], p[n-4], p[n-3], p[n-2], p[n-1]);
 }
 
@@ -225,19 +225,19 @@ static void app_mcu_vad_save_data(uint8_t *buf, uint32_t len)
     audio_dump_run();
 #endif
     print_vad_data(buf, len);
-    SENSORHUB_TRACE(0,"[%u] VAD_SAVE:buf=%x,len=%d,wpos=%d",time,(int)buf,len,wpos);
+    TRACE(0,"[%u] VAD_SAVE:buf=%x,len=%d,wpos=%d",time,(int)buf,len,wpos);
 }
 
 static void app_mcu_vad_data_handler(uint32_t pkt_id, uint8_t *payload, uint32_t bytes)
 {
-    SENSORHUB_TRACE(0, "%s: pkt_id=%d, bytes=%d", __func__, pkt_id, bytes);
+    TRACE(0, "%s: pkt_id=%d, bytes=%d", __func__, pkt_id, bytes);
     app_mcu_vad_save_data(payload, bytes);
     vad_pkt_cnt++;
     vad_pkt_req = true;
 
 #ifdef VAD_DAC2_TEST
     if (vad_pkt_cnt == 20) {
-        media_PlayAudio(AUD_ID_POWER_ON,0);
+        audio_player_play_prompt(AUD_ID_POWER_ON,0);
     }
 #endif
 #ifdef VAD_IRQ_TEST
@@ -264,7 +264,7 @@ POSSIBLY_UNUSED static void app_mcu_vad_if_stream_test(void)
 
 void app_mcu_vad_if_test(void)
 {
-    SENSORHUB_TRACE(0, "%s: start", __func__);
+    TRACE(0, "%s: start", __func__);
 
     // waiting for SENSOR CPU boot done
     osDelay(200);
@@ -295,7 +295,7 @@ void app_mcu_vad_if_test(void)
     hal_sysfreq_req(HAL_SYSFREQ_USER_INIT, HAL_CMU_FREQ_32K);
 #endif
     hal_sysfreq_print_user_freq();
-    SENSORHUB_TRACE(0, "cpu freq=%d", hal_sys_timer_calc_cpu_freq(5,0));
+    TRACE(0, "cpu freq=%d", hal_sys_timer_calc_cpu_freq(5,0));
 
     while (1) {
 #ifdef PLAY_VAD_DATA_TEST
@@ -311,11 +311,11 @@ void app_mcu_vad_if_test(void)
         if (vad_req_start) {
             if (vad_pkt_req == true) {
                 vad_pkt_req = false;
-                SENSORHUB_TRACE(0,"%s: ========> req one pkt[%d]", __func__,vad_pkt_cnt);
+                TRACE(0,"%s: ========> req one pkt[%d]", __func__,vad_pkt_cnt);
             }
         }
 #ifdef VAD_POWER_TEST
-        osSignalWait(0, osWaitForever);
+        osThreadFlagsWait(CMSIS_V1_SIGNAL_ANY, osFlagsWaitAny, osWaitForever);
 #endif
     }
 }

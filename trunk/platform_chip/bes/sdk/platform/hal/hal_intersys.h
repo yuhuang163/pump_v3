@@ -20,15 +20,17 @@
 extern "C" {
 #endif
 
+#include "plat_addr_map.h"
 #include "stdbool.h"
 
 enum HAL_INTERSYS_ID_T {
     HAL_INTERSYS_ID_0,
     HAL_INTERSYS_ID_1,
-#if defined(__FPGA_1501P__)
+#if defined(MCU2BTC_MSG_CHAN_CNT) && (MCU2BTC_MSG_CHAN_CNT >= 4)
     HAL_INTERSYS_ID_2,
     HAL_INTERSYS_ID_3,
 #endif
+
     HAL_INTERSYS_ID_QTY
 };
 
@@ -49,7 +51,7 @@ typedef unsigned int (*HAL_INTERSYS_RX_IRQ_HANDLER)(const unsigned char *data, u
 typedef void (*HAL_INTERSYS_TX_IRQ_HANDLER)(const unsigned char *data, unsigned int len);
 
 int hal_intersys_open(enum HAL_INTERSYS_ID_T id, enum HAL_INTERSYS_MSG_TYPE_T type,
-                      HAL_INTERSYS_RX_IRQ_HANDLER rxhandler, HAL_INTERSYS_TX_IRQ_HANDLER txhandler, bool rx_flowctrl);
+                      HAL_INTERSYS_RX_IRQ_HANDLER rxhandler, HAL_INTERSYS_TX_IRQ_HANDLER txhandler, bool manual_rx_done);
 
 int hal_intersys_close(enum HAL_INTERSYS_ID_T id,enum HAL_INTERSYS_MSG_TYPE_T type);
 
@@ -69,15 +71,7 @@ typedef void (*FRAME2BUFF_HANDLER)();
 
 int hal_intersys_mic_open(enum HAL_INTERSYS_ID_T id, FRAME2BUFF_HANDLER dch);
 
-void hal_intersys_mic_rx_irq();
-#endif
-
-#ifdef SIMULTANEOUS_AWAKEN
-typedef void (*WAKEUP_HANDLER)();
-
-int hal_intersys_wakeup_open(enum HAL_INTERSYS_ID_T id, WAKEUP_HANDLER dch);
-
-void hal_intersys_wakeup_rx_irq();
+void hal_intersys_mic_rx_irq(void);
 #endif
 
 bool hal_intersys_get_wakeup_flag(void);

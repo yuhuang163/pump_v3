@@ -101,7 +101,7 @@ extern "C" {
 #define RAMCP_SUBSYS_SIZE                       RAMCP_SIZE
 #endif
 
-#define CP_SUBSYS_MAILBOX_SIZE                  0x60
+#define CP_SUBSYS_MAILBOX_SIZE                  0x20
 
 #if RAMCP_SUBSYS_SIZE != 0
 #define CP_SUBSYS_MAILBOX_BASE                  (RAMCP_SUBSYS_BASE + RAMCP_SUBSYS_SIZE - CP_SUBSYS_MAILBOX_SIZE)
@@ -139,9 +139,7 @@ extern "C" {
 #define MEM_POOL_SIZE                           (RAM4_BASE - MEM_POOL_BASE)
 #endif
 
-#ifdef CHIP_ROLE_CP
-#define RAM_NORM_BASE                           RAMCP_SUBSYS_BASE
-#elif defined(RAM_NORM_BASE)
+#ifdef RAM_NORM_BASE
 #if (RAM_NORM_BASE < MEM_POOL_BASE)
 #error "Bad RAM_BASE with CORE_SLEEP_POWER_DOWN"
 #endif
@@ -162,6 +160,7 @@ extern "C" {
 #define RAM_NORM_BASE                                RAMCP_TOP
 #endif
 #define RAMX_NORM_BASE                               (RAM_NORM_BASE - RAM0_BASE + RAMX0_BASE)
+
 #endif /* !CORE_SLEEP_POWER_DOWN */
 
 #ifdef CHIP_ROLE_CP
@@ -171,24 +170,19 @@ extern "C" {
 #error "Bad RAM_SIZE"
 #endif
 #else
-#if defined(CP_IN_SAME_EE) || defined(CP_AS_SUBSYS)
-#define RAM_NORM_SIZE                                (RAM_TOTAL_SIZE - RAMCP_SIZE - RAMCPX_SIZE)
-#else
-#define RAM_NORM_SIZE                                (RAM_TOTAL_SIZE)
-#endif
+#define RAM_NORM_SIZE                                (RAM7_BASE + RAM7_SIZE - RAM_NORM_BASE - AP_MAILBOX_SIZE)
 #endif
 
 #if defined(ARM_CMSE) || defined(ARM_CMNS)
 /*MPC: SRAM block size: 0x8000, FLASH block size 0x40000*/
 #ifdef LARGE_SE_RAM
-#define RAM_S_SIZE                              0x00037000
-#define RAM_NSC_SIZE                            0x08000
+#define RAM_S_SIZE                              0x00038000
 #else
-#define RAM_S_SIZE                              0x00027000
-#define RAM_NSC_SIZE                            0x01000
+#define RAM_S_SIZE                              0x00018000
 #endif
+#define RAM_NSC_SIZE                            0
 #ifndef FLASH_S_SIZE
-#define FLASH_S_SIZE                            0x00080000
+#define FLASH_S_SIZE                            0x00040000
 #endif
 
 #undef RAM_BASE
@@ -203,9 +197,9 @@ extern "C" {
 #undef RAM_NORM_SIZE
 
 #define RAMCPX_BASE                             (RAMX0_BASE + RAM_S_SIZE + RAM_NSC_SIZE)
-#define RAMCPX_SIZE                             0xA000
+#define RAMCPX_SIZE                             0x20000
 #define RAMCP_BASE                              (RAM0_BASE + RAM_S_SIZE + RAM_NSC_SIZE + RAMCPX_SIZE)
-#define RAMCP_SIZE                              0x40000
+#define RAMCP_SIZE                              0x20000
 #define RAM_NS_BASE                             (RAMCP_BASE + RAMCP_SIZE)
 #define RAMX_NS_BASE                            (RAMCPX_BASE + RAMCPX_SIZE + RAMCP_SIZE)
 #define RAM_NS_SIZE                             (RAM7_BASE + RAM7_SIZE - RAM_NORM_BASE)
@@ -247,15 +241,11 @@ extern "C" {
 #if defined(NO_TRUSTZONE) || defined(ARM_CMNS) || \
         !(defined(ARM_CMSE) || defined(ROM_BUILD) || defined(PROGRAMMER))
 #define RAM_BASE                                RAM_NS_BASE
-#if !defined(RAM_SIZE)
 #define RAM_SIZE                                RAM_NS_SIZE
-#endif
 #define RAMX_BASE                               RAMX_NS_BASE
 #else
 #define RAM_BASE                                RAM_S_BASE
-#if !defined(RAM_SIZE)
 #define RAM_SIZE                                RAM_S_SIZE
-#endif
 #define RAMX_BASE                               RAMX_S_BASE
 #endif
 
@@ -300,7 +290,6 @@ extern "C" {
 #define UART2_BASE                              0x4000D000
 #define UART3_BASE                              0x40066000
 #define BTPCM_BASE                              0x4000E000
-
 #define SPDIF0_BASE                             0x40010000
 #define SEC_CTRL_BASE                           0x40030000
 #define MPC_PSRAM0_BASE                         0x40031000
@@ -412,9 +401,6 @@ extern "C" {
 #define BT_CMU_BASE                             0xD0330000
 #define BTC_CPUDUMP_BASE                        0xD0700000
 
-#define CPUDUMP_BASE                            0x401E0000
-
-#ifndef CP_INTR_RELAY
 #if defined(CP_AS_SUBSYS) || defined(CHIP_ROLE_CP)
 #define CP_SUBSYS_TIMER0_BASE                   MCU_TIMER0_BASE
 #define CP_SUBSYS_TIMER1_BASE                   MCU_TIMER2_BASE
@@ -432,29 +418,6 @@ extern "C" {
 #define TIMER1_BASE                             MCU_TIMER1_BASE
 #ifndef CP_AS_SUBSYS
 #define TIMER2_BASE                             MCU_TIMER2_BASE
-#endif
-#endif
-#else
-#define SLOW_FREE_TIMER_ID                      2
-#if defined(CP_AS_SUBSYS) || defined(CHIP_ROLE_CP)
-#define CP_SUBSYS_TIMER0_BASE                   AON_TIMER0_BASE
-#define CP_SUBSYS_TIMER1_BASE                   MCU_TIMER1_BASE
-#endif
-
-#ifdef CHIP_ROLE_CP
-#define SLOW_TIMER_SUB_ID_WITH_IRQ              1
-#define TIMER0_BASE                             CP_SUBSYS_TIMER0_BASE
-#define TIMER1_BASE                             CP_SUBSYS_TIMER1_BASE
-#define TIMER2_BASE                             AON_TIMER1_BASE
-#else
-#define SLOW_TIMER_SUB_ID_WITH_IRQ              0
-#ifdef FPGA
-#define TIMER0_BASE                             MCU_TIMER0_BASE
-#else
-#define TIMER0_BASE                             AON_TIMER0_BASE
-#endif
-#define TIMER1_BASE                             MCU_TIMER1_BASE
-#define TIMER2_BASE                             AON_TIMER1_BASE
 #endif
 #endif
 
@@ -524,17 +487,12 @@ extern "C" {
 #define GPADC_HAS_EXT_SLOPE_CAL
 #define GPADC_CUSTOM_CALIB_VAL
 #define GPADC_SAR_INPUT_BUF_CTRL
-#define GPADC_VBAT_VOLT_DIV                     5
-#define APP_BATTERY_GPADC_CH_NUM                HAL_GPADC_CHAN_6
+#define GPIO_HAS_BOTH_EDGE_IRQ
 #define PAGE_SPY_HAS_IRQ
 #define DCDC_CLOCK_CONTROL
 #define PWRKEY_IRQ_IN_PMU
 #ifndef AUD_SECTION_STRUCT_VERSION
-#ifdef FREEMAN_ENABLED_STERO
 #define AUD_SECTION_STRUCT_VERSION              4
-#else
-#define AUD_SECTION_STRUCT_VERSION              3
-#endif
 #endif
 #define PAGE_SPY_VER                            2
 /* #define NO_SUBSYS_FLASH_ADDR_ACCESS */
@@ -544,14 +502,14 @@ extern "C" {
 #define HAL_NORFLASH_ADDR_MASK                  0x00FFFFFF
 #define RMT_IPC_API_ENABLE
 
-#define DUMPPC_TOTAL_NUM                        (0x400/4)
-#define DUMPPC_NUM                              100
-
 #if defined (__ARM_FEATURE_CMSE) && (__ARM_FEATURE_CMSE == 3U)
 #define NO_FLASH_S_ACCESS
 #endif
 
 #define PROGRAMMER_HAL_CHIP_INIT
+
+/* #define FLASH_CACHE_DOUBLE_LINEFILL */
+/* #define PSRAM_CACHE_DOUBLE_LINEFILL */
 
 /* For boot struct version */
 #ifndef SECURE_BOOT_VER
@@ -563,6 +521,14 @@ extern "C" {
 #define NO_EXPORT_QSORT
 #define NO_EXPORT_BSEARCH
 #define NO_EXPORT_VSSCANF
+
+#define PSRAMXCP_BASE                           PSRAM_TO_PSRAMX(PSRAMCP_BASE)
+#define PSRAMCP_SIZE                            (PSRAMCP_REGION_SIZE)
+#define PSRAMXCP_SIZE                           (PSRAMCP_REGION_SIZE)
+#ifndef PSRAMCP_BASE
+#define PSRAMCP_BASE                            (PSRAM_BASE + (PSRAM_SIZE - PSRAMCP_REGION_SIZE))
+#endif
+
 
 #ifdef __cplusplus
 }

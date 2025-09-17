@@ -358,7 +358,7 @@ void arm_fir_f16(const arm_fir_instance_f16 * S,
 
         partial_accu_ptr = S->pState;
         pSamples = pState + sample_offset;
-        int  cnt = blockSize >> 3;
+        cnt = blockSize >> 3;
         while (cnt > 0) {
             float16x8_t     vecAcc0;
             float16x8_t     vecIn0;

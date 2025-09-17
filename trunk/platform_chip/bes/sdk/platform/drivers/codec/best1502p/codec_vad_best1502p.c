@@ -25,6 +25,8 @@
 #include "analog.h"
 #include "tgt_hardware.h"
 
+#define CODEC_TRACE(n, s, ...)          TRACE(n, s, ##__VA_ARGS__)
+
 #define CODEC_INT_INST                  HAL_CODEC_ID_0
 
 enum CODEC_USER_T {
@@ -63,7 +65,7 @@ static enum AUD_VAD_TYPE_T vad_type;
 
 uint32_t codec_int_stream_open(enum AUD_STREAM_T stream)
 {
-    DRIVERS_TRACE(2,"%s: stream=%d", __func__, stream);
+    CODEC_TRACE(2,"%s: stream=%d", __func__, stream);
     if (stream == AUD_STREAM_PLAYBACK) {
         return 0;
     }
@@ -75,7 +77,7 @@ uint32_t codec_int_stream_setup(enum AUD_STREAM_T stream, struct HAL_CODEC_CONFI
 {
     enum AUD_CHANNEL_MAP_T ch_map;
 
-    DRIVERS_TRACE(2,"%s: stream=%d", __func__, stream);
+    CODEC_TRACE(2,"%s: stream=%d", __func__, stream);
 
     if (stream == AUD_STREAM_PLAYBACK) {
         return 0;
@@ -90,20 +92,20 @@ uint32_t codec_int_stream_setup(enum AUD_STREAM_T stream, struct HAL_CODEC_CONFI
     }
 
     // Always config sample rate, for the pll setting might have been changed by the other stream
-    DRIVERS_TRACE(2,"[sample_rate]old=%d new=%d", codec_int_cfg.stream_cfg.codec_cfg.sample_rate, cfg->sample_rate);
+    CODEC_TRACE(2,"[sample_rate]old=%d new=%d", codec_int_cfg.stream_cfg.codec_cfg.sample_rate, cfg->sample_rate);
     codec_int_cfg.stream_cfg.codec_cfg.sample_rate = cfg->sample_rate;
     codec_int_cfg.stream_cfg.codec_cfg.set_flag |= HAL_CODEC_CONFIG_SAMPLE_RATE;
 
     if(codec_int_cfg.stream_cfg.codec_cfg.bits != cfg->bits)
     {
-        DRIVERS_TRACE(2,"[bits]old=%d new=%d", codec_int_cfg.stream_cfg.codec_cfg.bits, cfg->bits);
+        CODEC_TRACE(2,"[bits]old=%d new=%d", codec_int_cfg.stream_cfg.codec_cfg.bits, cfg->bits);
         codec_int_cfg.stream_cfg.codec_cfg.bits = cfg->bits;
         codec_int_cfg.stream_cfg.codec_cfg.set_flag |= HAL_CODEC_CONFIG_BITS;
     }
 
     if(codec_int_cfg.stream_cfg.codec_cfg.channel_num != cfg->channel_num)
     {
-        DRIVERS_TRACE(2,"[channel_num]old=%d new=%d", codec_int_cfg.stream_cfg.codec_cfg.channel_num, cfg->channel_num);
+        CODEC_TRACE(2,"[channel_num]old=%d new=%d", codec_int_cfg.stream_cfg.codec_cfg.channel_num, cfg->channel_num);
         codec_int_cfg.stream_cfg.codec_cfg.channel_num = cfg->channel_num;
         codec_int_cfg.stream_cfg.codec_cfg.set_flag |= HAL_CODEC_CONFIG_CHANNEL_NUM;
     }
@@ -116,20 +118,20 @@ uint32_t codec_int_stream_setup(enum AUD_STREAM_T stream, struct HAL_CODEC_CONFI
 
     if(codec_int_cfg.stream_cfg.codec_cfg.channel_map != ch_map)
     {
-        DRIVERS_TRACE(2,"[channel_map]old=0x%x new=0x%x", codec_int_cfg.stream_cfg.codec_cfg.channel_map, ch_map);
+        CODEC_TRACE(2,"[channel_map]old=0x%x new=0x%x", codec_int_cfg.stream_cfg.codec_cfg.channel_map, ch_map);
         codec_int_cfg.stream_cfg.codec_cfg.channel_map = ch_map;
         codec_int_cfg.stream_cfg.codec_cfg.set_flag |= HAL_CODEC_CONFIG_CHANNEL_MAP | HAL_CODEC_CONFIG_VOL | HAL_CODEC_CONFIG_BITS;
     }
 
     if(codec_int_cfg.stream_cfg.codec_cfg.use_dma != cfg->use_dma)
     {
-        DRIVERS_TRACE(2,"[use_dma]old=%d new=%d", codec_int_cfg.stream_cfg.codec_cfg.use_dma, cfg->use_dma);
+        CODEC_TRACE(2,"[use_dma]old=%d new=%d", codec_int_cfg.stream_cfg.codec_cfg.use_dma, cfg->use_dma);
         codec_int_cfg.stream_cfg.codec_cfg.use_dma = cfg->use_dma;
     }
 
     if(codec_int_cfg.stream_cfg.codec_cfg.vol != cfg->vol)
     {
-        DRIVERS_TRACE(3,"[vol]old=%d new=%d chan_vol_set=%d", codec_int_cfg.stream_cfg.codec_cfg.vol, cfg->vol, codec_int_cfg.chan_vol_set);
+        CODEC_TRACE(3,"[vol]old=%d new=%d chan_vol_set=%d", codec_int_cfg.stream_cfg.codec_cfg.vol, cfg->vol, codec_int_cfg.chan_vol_set);
         codec_int_cfg.stream_cfg.codec_cfg.vol = cfg->vol;
         if (!codec_int_cfg.chan_vol_set) {
             codec_int_cfg.stream_cfg.codec_cfg.set_flag |= HAL_CODEC_CONFIG_VOL;
@@ -138,11 +140,11 @@ uint32_t codec_int_stream_setup(enum AUD_STREAM_T stream, struct HAL_CODEC_CONFI
 
     if(codec_int_cfg.stream_cfg.codec_cfg.io_path != cfg->io_path)
     {
-        DRIVERS_TRACE(2,"[io_path]old=%d new=%d", codec_int_cfg.stream_cfg.codec_cfg.io_path, cfg->io_path);
+        CODEC_TRACE(2,"[io_path]old=%d new=%d", codec_int_cfg.stream_cfg.codec_cfg.io_path, cfg->io_path);
         codec_int_cfg.stream_cfg.codec_cfg.io_path = cfg->io_path;
     }
 
-    DRIVERS_TRACE(3,"[%s]stream=%d set_flag=0x%x",__func__,stream,codec_int_cfg.stream_cfg.codec_cfg.set_flag);
+    CODEC_TRACE(3,"[%s]stream=%d set_flag=0x%x",__func__,stream,codec_int_cfg.stream_cfg.codec_cfg.set_flag);
     hal_codec_setup_stream(CODEC_INT_INST, stream, &(codec_int_cfg.stream_cfg.codec_cfg));
 
     return 0;
@@ -150,14 +152,14 @@ uint32_t codec_int_stream_setup(enum AUD_STREAM_T stream, struct HAL_CODEC_CONFI
 
 void codec_int_stream_mute(enum AUD_STREAM_T stream, bool mute)
 {
-    DRIVERS_TRACE(3,"%s: stream=%d mute=%d", __func__, stream, mute);
+    CODEC_TRACE(3,"%s: stream=%d mute=%d", __func__, stream, mute);
 
     if (stream == AUD_STREAM_PLAYBACK) {
         return;
     }
 
     if (mute == codec_int_cfg.mute_state) {
-        DRIVERS_TRACE(2,"[%s] Codec already in mute status: %d", __func__, mute);
+        CODEC_TRACE(2,"[%s] Codec already in mute status: %d", __func__, mute);
         return;
     }
 
@@ -168,7 +170,7 @@ void codec_int_stream_mute(enum AUD_STREAM_T stream, bool mute)
 
 void codec_int_stream_set_chan_vol(enum AUD_STREAM_T stream, enum AUD_CHANNEL_MAP_T ch_map, uint8_t vol)
 {
-    DRIVERS_TRACE(4,"%s: stream=%d ch_map=0x%X vol=%u", __func__, stream, ch_map, vol);
+    CODEC_TRACE(4,"%s: stream=%d ch_map=0x%X vol=%u", __func__, stream, ch_map, vol);
 
     if (stream == AUD_STREAM_PLAYBACK) {
         return;
@@ -180,7 +182,7 @@ void codec_int_stream_set_chan_vol(enum AUD_STREAM_T stream, enum AUD_CHANNEL_MA
 
 void codec_int_stream_restore_chan_vol(enum AUD_STREAM_T stream)
 {
-    DRIVERS_TRACE(2,"%s: stream=%d", __func__, stream);
+    CODEC_TRACE(2,"%s: stream=%d", __func__, stream);
 
     if (stream == AUD_STREAM_PLAYBACK) {
         return;
@@ -196,21 +198,21 @@ void codec_int_stream_restore_chan_vol(enum AUD_STREAM_T stream)
 
 static void codec_hw_start(enum AUD_STREAM_T stream)
 {
-    DRIVERS_TRACE(2,"%s: stream=%d", __func__, stream);
+    CODEC_TRACE(2,"%s: stream=%d", __func__, stream);
 
     hal_codec_start_stream(CODEC_INT_INST, stream);
 }
 
 static void codec_hw_stop(enum AUD_STREAM_T stream)
 {
-    DRIVERS_TRACE(2,"%s: stream=%d", __func__, stream);
+    CODEC_TRACE(2,"%s: stream=%d", __func__, stream);
 
     hal_codec_stop_stream(CODEC_INT_INST, stream);
 }
 
 uint32_t codec_int_stream_start(enum AUD_STREAM_T stream)
 {
-    DRIVERS_TRACE(2,"%s: stream=%d", __func__, stream);
+    CODEC_TRACE(2,"%s: stream=%d", __func__, stream);
 
     if (stream == AUD_STREAM_PLAYBACK) {
         return 0;
@@ -231,7 +233,7 @@ uint32_t codec_int_stream_start(enum AUD_STREAM_T stream)
 
 uint32_t codec_int_stream_stop(enum AUD_STREAM_T stream)
 {
-    DRIVERS_TRACE(2,"%s: stream=%d", __func__, stream);
+    CODEC_TRACE(2,"%s: stream=%d", __func__, stream);
 
     if (stream == AUD_STREAM_PLAYBACK) {
         return 0;
@@ -252,7 +254,7 @@ uint32_t codec_int_stream_stop(enum AUD_STREAM_T stream)
 uint32_t codec_int_stream_close(enum AUD_STREAM_T stream)
 {
     //close all stream
-    DRIVERS_TRACE(2,"%s: stream=%d", __func__, stream);
+    CODEC_TRACE(2,"%s: stream=%d", __func__, stream);
     if (stream == AUD_STREAM_PLAYBACK) {
         return 0;
     }
@@ -268,7 +270,7 @@ static void codec_hw_open(enum CODEC_USER_T user)
 {
     codec_int_cfg.user_map |= user;
 
-    DRIVERS_TRACE(1,"%s", __func__);
+    CODEC_TRACE(1,"%s", __func__);
 
     // Audio resample: Might have different clock source, so must be reconfigured here
     hal_codec_open(CODEC_INT_INST);
@@ -286,7 +288,7 @@ static void codec_hw_close(enum CODEC_CLOSE_TYPE_T type, enum CODEC_USER_T user)
         }
     }
 
-    DRIVERS_TRACE(2,"%s: type=%d", __func__, type);
+    CODEC_TRACE(2,"%s: type=%d", __func__, type);
 
     // Audio resample: Might have different clock source, so close now and reconfigure when open
     hal_codec_close(CODEC_INT_INST);
@@ -299,7 +301,7 @@ static void codec_hw_close(enum CODEC_CLOSE_TYPE_T type, enum CODEC_USER_T user)
 
 uint32_t codec_int_open(void)
 {
-    DRIVERS_TRACE(2,"%s: user_map=0x%X", __func__, codec_int_cfg.user_map);
+    CODEC_TRACE(2,"%s: user_map=0x%X", __func__, codec_int_cfg.user_map);
 
     codec_hw_open(CODEC_USER_STREAM);
 
@@ -308,7 +310,7 @@ uint32_t codec_int_open(void)
 
 uint32_t codec_int_close(enum CODEC_CLOSE_TYPE_T type)
 {
-    DRIVERS_TRACE(3,"%s: type=%d user_map=0x%X", __func__, type, codec_int_cfg.user_map);
+    CODEC_TRACE(3,"%s: type=%d user_map=0x%X", __func__, type, codec_int_cfg.user_map);
 
     codec_hw_close(type, CODEC_USER_STREAM);
 

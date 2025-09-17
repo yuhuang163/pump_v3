@@ -7,889 +7,7 @@ add_if_exists = $(foreach d,$(1),$(if $(wildcard $(srctree)/$(d)),$(d) ,))
 
 export CHIP
 
-ifneq (,)
-else ifeq ($(CHIP),best1000)
-KBUILD_CPPFLAGS += -DCHIP_BEST1000
-CPU := m4
-export CHIP_HAS_FPU := 1
-export CHIP_HAS_USB := 1
-export CHIP_HAS_USBPHY := 0
-export CHIP_HAS_SDMMC := 1
-export CHIP_HAS_PSRAM := 1
-export CHIP_HAS_SPI := 1
-export CHIP_HAS_SPILCD := 1
-export CHIP_HAS_SPIPHY := 0
-export CHIP_HAS_EXT_PMU := 0
-export CHIP_HAS_AUDIO_CONST_ROM := 1
-export CHIP_FLASH_CTRL_VER := 1
-export CHIP_PSRAM_CTRL_VER := 1
-export CHIP_SPI_VER := 1
-export CHIP_HAS_EC_CODEC_REF := 0
-export CHIP_HAS_SCO_DMA_SNAPSHOT := 0
-export CHIP_ROM_UTILS_VER := 1
-export CHIP_HAS_SECURE_BOOT := 1
-export CHIP_HAS_ANC_HW_GAIN_SMOOTHING := 0
-export NO_LPU_26M ?= 1
-export CHIP_BT_CLK_UNIT_IN_HSLOT := 0
-export CHIP_HAS_MULTI_DMA_TC := 0
-export CHIP_HAS_SUPPORT_ME_MEDIATOR := 0
-else ifeq ($(CHIP),best1305)
-KBUILD_CPPFLAGS += -DCHIP_BEST1305
-CPU := m33
-SHA256_ROM := 0
-CHIP_HAS_DAC_FIFO := 2
-export CHIP_HAS_SECURE_BOOT := 0
-export CHIP_HAS_FPU := 1
-export CHIP_HAS_USB := 0
-export CHIP_HAS_USBPHY := 0
-export CHIP_HAS_SDMMC := 0
-export CHIP_HAS_PSRAM := 0
-export CHIP_HAS_SPI := 1
-export CHIP_HAS_SPILCD := 0
-export CHIP_HAS_SPIPHY := 0
-export CHIP_HAS_I2S_TDM_TRIGGER := 1
-export CHIP_HAS_PSC := 1
-export CHIP_HAS_EXT_PMU := 0
-export CHIP_HAS_CP := 1
-export CHIP_FLASH_CTRL_VER := 4
-export CHIP_CACHE_VER := 3
-export CHIP_SPI_VER := 4
-export CHIP_HAS_EC_CODEC_REF := 1
-export CHIP_HAS_SCO_DMA_SNAPSHOT := 1
-export CHIP_ROM_UTILS_VER := 1
-export CHIP_HAS_ANC_HW_GAIN_SMOOTHING := 0
-export CHIP_BT_CLK_UNIT_IN_HSLOT := 0
-export CHIP_HAS_MULTI_DMA_TC := 0
-export CHIP_HAS_SUPPORT_ME_MEDIATOR := 0
-ifeq ($(OSC_26M_X4_AUD2BB),1)
-$(error Invalid Config! $(CHIP) can not open X4!)
-endif
-else ifeq ($(CHIP),best1306)
-KBUILD_CPPFLAGS += -DCHIP_BEST1306
-export CHIP_HAS_USB := 0
-export CHIP_HAS_USBPHY := 0
-export CHIP_HAS_SDMMC := 1
-export CHIP_HAS_CP := 1
-export CHIP_HAS_PSRAM := 0
-CPU := m33
-CHIP_HAS_DAC_FIFO := 2
-export CHIP_HAS_FPU := 1
-export CHIP_HAS_SPI := 1
-export CHIP_HAS_SPIPHY := 0
-export CHIP_HAS_TDM := 1
-export CHIP_HAS_I2S_TDM_TRIGGER := 1
-export CHIP_HAS_PSC := 1
-export CHIP_HAS_EXT_PMU := 0
-export CHIP_FLASH_CTRL_VER := 6
-export CHIP_PSRAM_CTRL_VER := 3
-export CHIP_SPI_VER := 6
-export CHIP_CACHE_VER := 3
-export CHIP_INTERSYS_VER := 2
-export CHIP_GPIO_VER := 2
-export PSC_GPIO_IRQ_CTRL := 1
-export CHIP_RAM_BOOT := 1
-export CHIP_HAS_EC_CODEC_REF := 1
-export CHIP_HAS_SCO_DMA_SNAPSHOT := 1
-export CHIP_ROM_UTILS_VER := 2
-export CHIP_HAS_SECURE_BOOT := 1
-export CHIP_HAS_ANC_HW_GAIN_SMOOTHING := 1
-export CHIP_BT_CLK_UNIT_IN_HSLOT := 1
-export CHIP_HAS_MULTI_DMA_TC := 1
-export CHIP_HAS_SUPPORT_ME_MEDIATOR := 1
-export PMU_IRQ_UNIFIED ?= 1
-ifeq ($(OSC_26M_X4_AUD2BB),1)
-$(error Invalid Config! $(CHIP) can not open X4!)
-endif
-export PMU_DCDC_PWM ?= 1
-export PMU_FORCE_LP_MODE ?= 1
-export BOOT_LOADER_ENTRY_HOOK ?= 1
-else ifeq ($(CHIP),best1306p)
-KBUILD_CPPFLAGS += -DCHIP_BEST1306P
-ifeq ($(CP_INTR_RELAY),1)
-KBUILD_CPPFLAGS += -DCP_INTR_RELAY
-KBUILD_CPPFLAGS += -DMCU_RAM_CE_ALWAYS_ON
-endif
-export CHIP_HAS_USB := 1
-export CHIP_HAS_USBPHY := 0
-export CHIP_HAS_CP := 1
-export CHIP_HAS_PSRAM := 1
-CHIP_HAS_DAC_FIFO := 2
-CPU := m33
-export CHIP_HAS_FPU := 1
-ifneq ($(CHIP_ROLE_CP),1)
-endif
-export CHIP_HAS_I2S_TDM_TRIGGER := 1
-export CHIP_HAS_PSC := 1
-export CHIP_HAS_EXT_PMU := 0
-export CHIP_FLASH_CTRL_VER := 7
-export CHIP_PSRAM_CTRL_VER := 8
-export CHIP_SPI_VER := 6
-export CHIP_CACHE_VER := 5
-export CHIP_INTERSYS_VER := 2
-export CHIP_GPIO_VER := 2
-export PSC_GPIO_IRQ_CTRL := 1
-export CHIP_RAM_BOOT := 1
-export CHIP_HAS_EC_CODEC_REF := 1
-export CHIP_HAS_SCO_DMA_SNAPSHOT := 1
-export CHIP_ROM_UTILS_VER := 2
-export CHIP_HAS_SECURE_BOOT := 1
-export CHIP_HAS_ANC_HW_GAIN_SMOOTHING := 1
-export CHIP_BT_CLK_UNIT_IN_HSLOT := 1
-export CHIP_HAS_MULTI_DMA_TC := 1
-export CHIP_HAS_SUPPORT_ME_MEDIATOR := 1
-export PMU_IRQ_UNIFIED ?= 1
-export POWER_MODE := DIG_DCDC
-export BOOT_LOADER_ENTRY_HOOK ?= 1
-export PROGRAMMER_BOOT_ENTRY_HOOK ?= 1
-else ifeq ($(CHIP),best1400)
-ifeq ($(CHIP_SUBTYPE),best1402)
-SUBTYPE_VALID := 1
-KBUILD_CPPFLAGS += -DCHIP_BEST1402
-export CHIP_FLASH_CTRL_VER := 3
-else
-KBUILD_CPPFLAGS += -DCHIP_BEST1400
-export CHIP_FLASH_CTRL_VER := 2
-endif
-CPU := m4
-export CHIP_HAS_FPU := 1
-export CHIP_HAS_USB := 1
-export CHIP_HAS_USBPHY := 0
-export CHIP_HAS_SDMMC := 0
-export CHIP_HAS_PSRAM := 0
-export CHIP_HAS_SPI := 1
-export CHIP_HAS_SPILCD := 0
-export CHIP_HAS_SPIPHY := 0
-export CHIP_HAS_EXT_PMU := 0
-export CHIP_SPI_VER := 3
-export BTDUMP_ENABLE := 1
-export CHIP_HAS_EC_CODEC_REF := 1
-export CHIP_HAS_SCO_DMA_SNAPSHOT := 1
-export CHIP_ROM_UTILS_VER := 1
-export CHIP_HAS_SECURE_BOOT := 1
-export CHIP_HAS_ANC_HW_GAIN_SMOOTHING := 0
-export CHIP_BT_CLK_UNIT_IN_HSLOT := 0
-export CHIP_HAS_MULTI_DMA_TC := 0
-export CHIP_HAS_SUPPORT_ME_MEDIATOR := 0
-export NO_LPU_26M ?= 1
-export FLASH_CLK_DIV_1 ?= 1
-else ifeq ($(CHIP),best1501)
-KBUILD_CPPFLAGS += -DCHIP_BEST1501
-ifeq ($(MCU_USE_SENS_PERIPH),1)
-KBUILD_CPPFLAGS += -DMCU_USE_SENS_PERIPH
-endif
-ifeq ($(CHIP_SUBSYS),sensor_hub)
-SUBSYS_VALID := 1
-KBUILD_CPPFLAGS += -DCHIP_SUBSYS_SENS
-export CHIP_HAS_SPILCD := 1
-export CHIP_HAS_I2S := 1
-else
-export CHIP_HAS_USB := 1
-export CHIP_HAS_USBPHY := 1
-export CHIP_HAS_SDMMC := 1
-export CHIP_HAS_CP := 1
-endif
-CPU := m33
-CHIP_HAS_DAC_FIFO := 2
-export CHIP_HAS_FPU := 1
-export CHIP_HAS_PSRAM := 0
-export CHIP_HAS_SPI := 1
-export CHIP_HAS_SPIPHY := 0
-export CHIP_HAS_TDM := 1
-export CHIP_HAS_I2S_TDM_TRIGGER := 1
-export CHIP_HAS_PSC := 1
-export CHIP_HAS_EXT_PMU := 1
-export CHIP_FLASH_CTRL_VER := 4
-export CHIP_PSRAM_CTRL_VER := 2
-export CHIP_SPI_VER := 6
-export CHIP_CACHE_VER := 3
-export CHIP_INTERSYS_VER := 2
-export CHIP_GPIO_VER := 2
-export PSC_GPIO_IRQ_CTRL := 1
-export CHIP_RAM_BOOT := 1
-export CHIP_HAS_EC_CODEC_REF := 1
-export CHIP_HAS_SCO_DMA_SNAPSHOT := 1
-export CHIP_ROM_UTILS_VER := 2
-export CHIP_HAS_SECURE_BOOT := 1
-export CHIP_HAS_ANC_HW_GAIN_SMOOTHING := 1
-export CHIP_BT_CLK_UNIT_IN_HSLOT := 1
-export CHIP_HAS_MULTI_DMA_TC := 1
-export CHIP_HAS_SUPPORT_ME_MEDIATOR := 1
-else ifeq ($(CHIP),best1501p)
-KBUILD_CPPFLAGS += -DCHIP_BEST1501P
-ifeq ($(CHIP_SUBSYS),sensor_hub)
-SUBSYS_VALID := 1
-KBUILD_CPPFLAGS += -DCHIP_SUBSYS_SENS
-export CHIP_HAS_SPILCD := 1
-export CHIP_HAS_I2S := 1
-else
-export CHIP_HAS_USB := 1
-export CHIP_HAS_USBPHY := 1
-export CHIP_HAS_SDMMC := 1
-export CHIP_HAS_CP := 1
-endif
-CPU := m33
-CHIP_HAS_DAC_FIFO := 2
-export CHIP_HAS_FPU := 1
-export CHIP_HAS_PSRAM := 0
-export CHIP_HAS_SPI := 1
-export CHIP_HAS_SPIPHY := 0
-export CHIP_HAS_TDM := 1
-export CHIP_HAS_I2S_TDM_TRIGGER := 1
-export CHIP_HAS_PSC := 1
-export CHIP_HAS_EXT_PMU := 0
-export CHIP_FLASH_CTRL_VER := 6
-export CHIP_PSRAM_CTRL_VER := 2
-export CHIP_SPI_VER := 6
-export CHIP_CACHE_VER := 3
-export CHIP_INTERSYS_VER := 2
-export CHIP_GPIO_VER := 2
-export PSC_GPIO_IRQ_CTRL := 1
-export CHIP_RAM_BOOT := 1
-export CHIP_HAS_EC_CODEC_REF := 1
-export CHIP_HAS_SCO_DMA_SNAPSHOT := 1
-export CHIP_ROM_UTILS_VER := 2
-export CHIP_HAS_SECURE_BOOT := 1
-export CHIP_HAS_ANC_HW_GAIN_SMOOTHING := 1
-export CHIP_BT_CLK_UNIT_IN_HSLOT := 1
-export CHIP_HAS_MULTI_DMA_TC := 1
-export CHIP_HAS_SUPPORT_ME_MEDIATOR := 1
-export PMU_IRQ_UNIFIED ?= 1
-export NO_LPU_26M ?= 1
-else ifeq ($(CHIP),best1502x)
-KBUILD_CPPFLAGS += -DCHIP_BEST1502X
-ifeq ($(MCU_USE_SENS_PERIPH),1)
-KBUILD_CPPFLAGS += -DMCU_USE_SENS_PERIPH
-endif
-ifeq ($(CHIP_SUBSYS),sensor_hub)
-SUBSYS_VALID := 1
-KBUILD_CPPFLAGS += -DCHIP_SUBSYS_SENS
-export CHIP_HAS_SPILCD := 1
-export CHIP_HAS_I2S := 1
-CHIP_HAS_DAC_FIFO := 0
-else
-export CHIP_HAS_USB := 1
-export CHIP_HAS_USBPHY := 1
-export CHIP_HAS_SDMMC := 1
-export CHIP_HAS_CP := 1
-export CHIP_HAS_PSRAM := 1
-CHIP_HAS_DAC_FIFO := 2
-endif
-CPU := m33
-export CHIP_HAS_FPU := 1
-export CHIP_HAS_SPI := 1
-export CHIP_HAS_SPIPHY := 0
-export CHIP_HAS_TDM := 1
-export CHIP_HAS_I2S_TDM_TRIGGER := 1
-export CHIP_HAS_PSC := 1
-export CHIP_HAS_EXT_PMU := 0
-export CHIP_FLASH_CTRL_VER := 6
-export CHIP_HAS_ANC_HW_GAIN_SMOOTHING := 1
-export CHIP_PSRAM_CTRL_VER := 5
-export CHIP_SPI_VER := 6
-export CHIP_CACHE_VER := 3
-export CHIP_INTERSYS_VER := 2
-export CHIP_GPIO_VER := 2
-export PSC_GPIO_IRQ_CTRL := 1
-export CHIP_RAM_BOOT := 1
-export CHIP_HAS_EC_CODEC_REF := 1
-export CHIP_HAS_SCO_DMA_SNAPSHOT := 1
-export CHIP_ROM_UTILS_VER := 2
-export CHIP_HAS_SECURE_BOOT := 1
-export CHIP_HAS_ANC_HW_GAIN_SMOOTHING := 1
-export CHIP_BT_CLK_UNIT_IN_HSLOT := 1
-export CHIP_HAS_MULTI_DMA_TC := 1
-export CHIP_HAS_SUPPORT_ME_MEDIATOR := 1
-export PMU_IRQ_UNIFIED ?= 1
-export PMU_FORCE_LP_MODE ?= 1
-else ifeq ($(CHIP),best1502p)
-KBUILD_CPPFLAGS += -DCHIP_BEST1502P
-ifeq ($(CHIP_SUBSYS),sensor_hub)
-SUBSYS_VALID := 1
-KBUILD_CPPFLAGS += -DCHIP_SUBSYS_SENS
-CHIP_HAS_DAC_FIFO := 0
-else
-export CHIP_HAS_USB := 1
-export CHIP_HAS_USBPHY := 1
-export CHIP_HAS_PSRAM := 1
-CHIP_HAS_DAC_FIFO := 2
-endif
-CPU := m33
-export CHIP_HAS_CP := 1
-ifeq ($(ROM_BUILD),1)
-export ROM_ENTRY_HOOK ?= 1
-export ROM_CACHE_ACCESS_WORKAROUND ?= 1
-OPT_LEVEL ?= s
-endif
-export CHIP_HAS_FPU := 1
-ifneq ($(CHIP_ROLE_CP),1)
-endif
-export CHIP_HAS_I2S_TDM_TRIGGER := 1
-export CHIP_HAS_PSC := 1
-export CHIP_HAS_EXT_PMU := 0
-export CHIP_FLASH_CTRL_VER := 7
-export CHIP_PSRAM_CTRL_VER := 8
-export CHIP_SPI_VER := 6
-export CHIP_CACHE_VER := 5
-export CHIP_INTERSYS_VER := 2
-export CHIP_GPIO_VER := 2
-export PSC_GPIO_IRQ_CTRL := 1
-export CHIP_RAM_BOOT := 1
-export CHIP_HAS_EC_CODEC_REF := 1
-export CHIP_HAS_SCO_DMA_SNAPSHOT := 1
-export CHIP_ROM_UTILS_VER := 2
-export CHIP_HAS_SECURE_BOOT := 1
-export CHIP_HAS_ANC_HW_GAIN_SMOOTHING := 1
-export CHIP_BT_CLK_UNIT_IN_HSLOT := 1
-export CHIP_HAS_MULTI_DMA_TC := 1
-export CHIP_HAS_SUPPORT_ME_MEDIATOR := 1
-export PMU_IRQ_UNIFIED ?= 1
-export PMU_FORCE_LP_MODE ?= 1
-# export SPLIT_CORE_M_CORE_L ?= 1
-export BOOT_LOADER_ENTRY_HOOK ?= 1
-export PROGRAMMER_BOOT_ENTRY_HOOK ?= 1
-else ifeq ($(CHIP),best1503)
-KBUILD_CPPFLAGS += -DCHIP_BEST1503
-export CHIP_HAS_USB := 0
-export CHIP_HAS_USBPHY := 0
-export CHIP_HAS_CP := 1
-export CHIP_HAS_PSRAM := 1
-CHIP_HAS_DAC_FIFO := 2
-CPU := m33
-export CHIP_HAS_FPU := 1
-ifneq ($(CHIP_ROLE_CP),1)
-endif
-export CHIP_HAS_I2S_TDM_TRIGGER := 1
-export CHIP_HAS_PSC := 1
-export CHIP_HAS_EXT_PMU := 0
-export CHIP_FLASH_CTRL_VER := 7
-export CHIP_PSRAM_CTRL_VER := 7
-export CHIP_SPI_VER := 6
-export CHIP_CACHE_VER := 5
-export CHIP_INTERSYS_VER := 2
-export CHIP_GPIO_VER := 2
-export PSC_GPIO_IRQ_CTRL := 1
-export CHIP_RAM_BOOT := 1
-export CHIP_HAS_EC_CODEC_REF := 1
-export CHIP_HAS_SCO_DMA_SNAPSHOT := 1
-export CHIP_ROM_UTILS_VER := 2
-export CHIP_HAS_SECURE_BOOT := 1
-export CHIP_HAS_ANC_HW_GAIN_SMOOTHING := 1
-export CHIP_BT_CLK_UNIT_IN_HSLOT := 1
-export CHIP_HAS_MULTI_DMA_TC := 1
-export CHIP_HAS_SUPPORT_ME_MEDIATOR := 1
-export PMU_IRQ_UNIFIED ?= 1
-export PMU_FORCE_LP_MODE ?= 1
-export BOOT_LOADER_ENTRY_HOOK ?= 1
-export PROGRAMMER_BOOT_ENTRY_HOOK ?= 1
-else ifeq ($(CHIP),best1600)
-KBUILD_CPPFLAGS += -DCHIP_BEST1600
-export CHIP_HAS_ANC_HW_GAIN_SMOOTHING := 1
-ifeq ($(BTH_AS_MAIN_MCU),1)
-KBUILD_CPPFLAGS += -DBTH_AS_MAIN_MCU
-ifeq ($(BTH_USE_SYS_FLASH),1)
-KBUILD_CPPFLAGS += -DBTH_USE_SYS_FLASH
-ifneq ($(FORCE_FLASH1_SLEEP),1)
-BTH_USE_SYS_PERIPH := 1
-endif
-endif
-else # !BTH_AS_MAIN_MCU
-ifeq ($(SYS_USE_BTH_FLASH),1)
-KBUILD_CPPFLAGS += -DSYS_USE_BTH_FLASH
-endif
-endif # !BTH_AS_MAIN_MCU
-ifneq ($(filter 1 2 3,$(BTH_USE_SYS_GPIO)),)
-KBUILD_CPPFLAGS += -DBTH_USE_SYS_GPIO=$(BTH_USE_SYS_GPIO)
-BTH_USE_SYS_PERIPH := 1
-endif
-ifeq ($(BTH_USE_SYS_PERIPH),1)
-KBUILD_CPPFLAGS += -DBTH_USE_SYS_PERIPH
-endif
-export LIBC_OVERRIDE ?= 1
-ifeq ($(CHIP_SUBSYS),bth)
-SUBSYS_VALID := 1
-KBUILD_CPPFLAGS += -DCHIP_SUBSYS_BTH
-CPU := m33
-LIBC_ROM := 0
-CRC32_ROM := 0
-SHA256_ROM := 0
-ifeq ($(BTH_AS_MAIN_MCU),1)
-# To switch sp and/or cpu
-export BOOT_LOADER_ENTRY_HOOK := 1
-endif
-ifneq ($(filter 1 2,$(CHIP_DMA_CFG_IDX)),)
-ifneq ($(BTH_USE_SYS_PERIPH),1)
-$(error BTH_USE_SYS_PERIPH must be 1 when CHIP_DMA_CFG_IDX=1 or 2)
-endif
-else
-endif
-ifeq ($(BTH_AS_MAIN_MCU)-$(BTH_USE_SYS_PERIPH),1-1)
-export CHIP_HAS_USB := 1
-export CHIP_HAS_USBPHY := 1
-export CHIP_HAS_SDMMC := 1
-export CHIP_HAS_SPI := 1
-export CHIP_HAS_SPILCD := 1
-export CHIP_HAS_I2S := 2
-export CHIP_HAS_TDM := 1
-export CHIP_HAS_I2S_TDM_TRIGGER := 1
-ifeq ($(BTH_USE_SYS_SENS_PERIPH),1)
-KBUILD_CPPFLAGS += -DBTH_USE_SYS_SENS_PERIPH
-endif
-endif
-else ifeq ($(CHIP_SUBSYS),sensor_hub)
-SUBSYS_VALID := 1
-KBUILD_CPPFLAGS += -DCHIP_SUBSYS_SENS
-CPU := m33
-export CHIP_HAS_SPI := 1
-export CHIP_HAS_SPILCD := 1
-export CHIP_HAS_I2S := 1
-export CHIP_HAS_TDM := 1
-export CHIP_HAS_I2S_TDM_TRIGGER := 1
-else
-CPU := m55
-ifneq ($(BTH_AS_MAIN_MCU),1)
-# To switch sp
-export BOOT_LOADER_ENTRY_HOOK := 1
-endif
-export CHIP_HAS_USB := 1
-export CHIP_HAS_USBPHY := 1
-export CHIP_HAS_SDMMC := 1
-export CHIP_HAS_PSRAM := 1
-ifneq ($(filter 1 2,$(CHIP_DMA_CFG_IDX)),)
-ifneq ($(BTH_USE_SYS_PERIPH),1)
-$(error BTH_USE_SYS_PERIPH must be 1 when CHIP_DMA_CFG_IDX=1 or 2)
-endif
-else
-endif
-export CHIP_HAS_SPI := 1
-export CHIP_HAS_SPILCD := 1
-export CHIP_HAS_I2S := 2
-export CHIP_HAS_TDM := 1
-export CHIP_HAS_I2S_TDM_TRIGGER := 1
-ifeq ($(ROM_BUILD),1)
-export BOOT_NANDFLASH_SUPPORT ?= 1
-endif
-endif
-CHIP_HAS_DAC_FIFO := 3
-CHIP_HAS_ADC_FIFO := 2
-export CHIP_HAS_FPU := 1
-export CHIP_HAS_PSC := 1
-export CHIP_HAS_EXT_PMU := 1
-export CHIP_HAS_HIFI4 := 1
-ifeq ($(GRAPH_MODULE),1)
-export CHIP_HAS_DMA2D := 1
-export CHIP_HAS_GPU := 1
-export CHIP_HAS_LCDC := 1
-endif
-export CHIP_CACHE_VER := 4
-export CHIP_FLASH_CTRL_VER := 6
-export NANDFLASH_SUPPORT ?= 1
-export CHIP_PSRAM_CTRL_VER := 4
-export CHIP_SPI_VER := 6
-export CHIP_INTERSYS_VER := 2
-export CHIP_GPIO_VER := 2
-export PSC_GPIO_IRQ_CTRL := 1
-export CHIP_RAM_BOOT := 0
-export CHIP_HAS_EC_CODEC_REF := 1
-export CHIP_HAS_SCO_DMA_SNAPSHOT := 1
-export CHIP_ROM_UTILS_VER := 2
-export CHIP_HAS_SECURE_BOOT := 1
-export CHIP_HAS_ANC_HW_GAIN_SMOOTHING := 1
-export CHIP_BT_CLK_UNIT_IN_HSLOT := 1
-export CHIP_HAS_MULTI_DMA_TC := 1
-export CHIP_HAS_SUPPORT_ME_MEDIATOR := 1
-ifeq ($(filter 1,$(ROM_BUILD) $(PROGRAMMER) $(SIMU) $(ARM_CMSE)),)
-export BT_RCOSC_CAL ?= 1
-endif
-export CHIP_HAS_ANC_HW_GAIN_SMOOTHING := 1
-else ifeq ($(CHIP),best2000)
-KBUILD_CPPFLAGS += -DCHIP_BEST2000
-CPU := m4
-export CHIP_HAS_FPU := 1
-export CHIP_HAS_USB := 1
-export CHIP_HAS_USBPHY := 1
-export CHIP_HAS_SDMMC := 1
-export CHIP_HAS_PSRAM := 1
-export CHIP_HAS_SPI := 1
-export CHIP_HAS_SPILCD := 1
-export CHIP_HAS_SPIPHY := 1
-export CHIP_HAS_PSC := 1
-export CHIP_HAS_EXT_PMU := 0
-export CHIP_FLASH_CTRL_VER := 1
-export CHIP_PSRAM_CTRL_VER := 1
-export CHIP_SPI_VER := 1
-export CHIP_HAS_EC_CODEC_REF := 0
-export CHIP_HAS_SCO_DMA_SNAPSHOT := 0
-export CHIP_ROM_UTILS_VER := 1
-export CHIP_HAS_SECURE_BOOT := 1
-export CHIP_HAS_ANC_HW_GAIN_SMOOTHING := 0
-export CHIP_BT_CLK_UNIT_IN_HSLOT := 0
-export CHIP_HAS_MULTI_DMA_TC := 0
-export CHIP_HAS_SUPPORT_ME_MEDIATOR := 0
-export NO_LPU_26M ?= 1
-else ifeq ($(CHIP),best2001)
-KBUILD_CPPFLAGS += -DCHIP_BEST2001
-ifeq ($(CHIP_SUBSYS),dsp)
-SUBSYS_VALID := 1
-KBUILD_CPPFLAGS += -DCHIP_BEST2001_DSP
-CPU := a7
-DSP_ENABLE ?= 1
-else
-CPU := m33
-export CHIP_HAS_CP := 1
-endif
-export CHIP_HAS_FPU := 1
-export CHIP_HAS_USB := 1
-export CHIP_HAS_USBPHY := 1
-export CHIP_HAS_SDMMC := 1
-export CHIP_HAS_PSRAM := 1
-export CHIP_HAS_PSRAMUHS := 1
-export CHIP_HAS_SPI := 1
-export CHIP_HAS_SPILCD := 1
-export CHIP_HAS_SPIPHY := 1
-export CHIP_HAS_SPIDPD := 1
-ifeq ($(DSP_ENABLE), 1)
-export DSP_USE_GPDMA ?= 1
-ifeq ($(LARGE_RAM), 1)
-$(error LARGE_RAM conflicts with DSP_ENABLE)
-endif
-endif
-ifeq ($(DSP_USE_GPDMA), 1)
-KBUILD_CPPFLAGS += -DDSP_USE_GPDMA
-else
-ifeq ($(CHIP_SUBSYS),dsp)
-else
-endif
-endif
-export CHIP_HAS_EXT_PMU := 0
-export CHIP_FLASH_CTRL_VER := 3
-export CHIP_PSRAM_CTRL_VER := 2
-export CHIP_SPI_VER := 4
-export CHIP_CACHE_VER := 2
-export CHIP_HAS_EC_CODEC_REF := 1
-export CHIP_HAS_SCO_DMA_SNAPSHOT := 1
-export CHIP_ROM_UTILS_VER := 1
-export CHIP_HAS_SECURE_BOOT := 1
-export CHIP_HAS_ANC_HW_GAIN_SMOOTHING := 0
-export CHIP_BT_CLK_UNIT_IN_HSLOT := 0
-export CHIP_HAS_MULTI_DMA_TC := 0
-export CHIP_HAS_SUPPORT_ME_MEDIATOR := 0
-export NO_LPU_26M ?= 1
-export FLASH_SIZE ?= 0x1000000
-export OSC_26M_X4_AUD2BB := 0
-export USB_USE_USBPLL := 1
-export CHIP_HAS_A7_DSP := 1
-export A7_DSP_SPEED ?= 1100
-#780:780M, 1000:1G, 1100:1.1G
-else ifeq ($(CHIP),best2002)
-$(error best2002 has beed moved to bes_conn branch)
-else ifeq ($(CHIP),best2003)
-KBUILD_CPPFLAGS += -DCHIP_BEST2003
-ifeq ($(CHIP_SUBSYS),dsp)
-SUBSYS_VALID := 1
-KBUILD_CPPFLAGS += -DCHIP_BEST2003_DSP
-CPU := a7
-DSP_ENABLE ?= 1
-else
-CPU := m33
-export CHIP_HAS_CP := 1
-ifeq ($(ROM_BUILD),1)
-#export SECURE_BOOT_ED25519_DISABLE ?= 1
-export BOOT_NANDFLASH_SUPPORT ?= 1
-OPT_LEVEL ?= s
-endif
-endif
-export CHIP_INTERSYS_VER := 2
-export CHIP_HAS_FPU := 1
-export CHIP_HAS_USB := 1
-export CHIP_HAS_USBPHY := 1
-export CHIP_HAS_SDMMC := 1
-export CHIP_HAS_PSRAM := 1
-export CHIP_HAS_PSRAMUHS := 1
-export CHIP_HAS_SPI := 1
-export CHIP_HAS_SPILCD := 1
-export CHIP_HAS_SPIPHY := 1
-export CHIP_HAS_SPIDPD := 0
-ifeq ($(DSP_ENABLE), 1)
-export DSP_USE_GPDMA ?= 1
-ifeq ($(LARGE_RAM), 1)
-$(error LARGE_RAM conflicts with DSP_ENABLE)
-endif
-endif
-ifeq ($(DSP_USE_GPDMA), 1)
-KBUILD_CPPFLAGS += -DDSP_USE_GPDMA
-else
-ifeq ($(CHIP_SUBSYS),dsp)
-else
-endif
-endif
-export CHIP_HAS_I2S := 2
-export CHIP_HAS_EXT_PMU := 0
-export CHIP_FLASH_CTRL_VER := 5
-export NANDFLASH_SUPPORT ?= 1
-export FLASH_LOCK_CP_ACCESS := 1
-export CHIP_PSRAM_CTRL_VER := 3
-export CHIP_PSRAM_SQPI_MODE := 0
-export CHIP_SPI_VER := 4
-export CHIP_CACHE_VER := 4
-export CHIP_HAS_EC_CODEC_REF := 1
-export CHIP_HAS_SCO_DMA_SNAPSHOT := 1
-export NO_LPU_26M ?= 0
-export FLASH_SIZE ?= 0x1000000
-export OSC_26M_X4_AUD2BB := 0
-export USB_USE_USBPLL := 0
-export CHIP_HAS_A7_DSP := 1
-#780:780M, 1000:1G, 1100:1.1G
-export A7_DSP_SPEED ?= 1100
-export PSRAMUHS_SPEED ?= 900
-export PSRAM_SPEED ?= 200
-export CHIP_HAS_ANC_HW_GAIN_SMOOTHING := 0
-export CHIP_BT_CLK_UNIT_IN_HSLOT := 1
-export CHIP_HAS_MULTI_DMA_TC := 1
-export CHIP_HAS_SUPPORT_ME_MEDIATOR := 1
-export CHIP_ROM_UTILS_VER := 2
-export CHIP_HAS_SECURE_BOOT := 1
-export CPU_SYSTICK_CLOCK := 6000000
-else ifeq ($(CHIP),best2005)
-$(error best2005 has beed moved to bes_conn branch)
-else ifeq ($(CHIP),best2300)
-KBUILD_CPPFLAGS += -DCHIP_BEST2300
-CPU := m4
-export CHIP_HAS_FPU := 1
-export CHIP_HAS_USB := 1
-export CHIP_HAS_USBPHY := 1
-export CHIP_HAS_SDMMC := 1
-export CHIP_HAS_PSRAM := 0
-export CHIP_HAS_SPI := 1
-export CHIP_HAS_SPILCD := 1
-export CHIP_HAS_SPIPHY := 1
-export CHIP_HAS_ANC_HW_GAIN_SMOOTHING := 0
-export CHIP_HAS_PSC := 1
-export CHIP_HAS_EXT_PMU := 1
-export CHIP_FLASH_CTRL_VER := 2
-export CHIP_SPI_VER := 2
-export CHIP_HAS_EC_CODEC_REF := 0
-export CHIP_HAS_SCO_DMA_SNAPSHOT := 0
-export CHIP_ROM_UTILS_VER := 1
-export CHIP_HAS_SECURE_BOOT := 1
-export CHIP_HAS_ANC_HW_GAIN_SMOOTHING := 0
-export CHIP_BT_CLK_UNIT_IN_HSLOT := 0
-export CHIP_HAS_MULTI_DMA_TC := 0
-export CHIP_HAS_SUPPORT_ME_MEDIATOR := 0
-export NO_LPU_26M ?= 1
-else ifeq ($(CHIP),best2300a)
-KBUILD_CPPFLAGS += -DCHIP_BEST2300A
-CPU := m33
-LIBC_ROM := 0
-CRC32_ROM := 0
-SHA256_ROM := 0
-CHIP_HAS_DAC_FIFO := 2
-export LIBC_OVERRIDE ?= 1
-export CHIP_HAS_FPU := 1
-export CHIP_HAS_USB := 1
-export CHIP_HAS_USBPHY := 1
-export CHIP_HAS_SDMMC := 1
-export CHIP_HAS_PSRAM := 0
-export CHIP_HAS_SPI := 1
-export CHIP_HAS_SPILCD := 1
-export CHIP_HAS_SPIPHY := 1
-export CHIP_HAS_I2S_TDM_TRIGGER := 1
-export CHIP_HAS_PSC := 1
-export CHIP_HAS_EXT_PMU := 1
-export CHIP_HAS_CP := 1
-export CHIP_FLASH_CTRL_VER := 3
-export CHIP_SPI_VER := 4
-export CHIP_CACHE_VER := 2
-export CHIP_RAM_BOOT := 1
-export CHIP_HAS_EC_CODEC_REF := 1
-export CHIP_HAS_SCO_DMA_SNAPSHOT := 1
-export CHIP_HAS_ANC_HW_GAIN_SMOOTHING := 1
-export CHIP_BT_CLK_UNIT_IN_HSLOT := 0
-export CHIP_HAS_MULTI_DMA_TC := 0
-export CHIP_HAS_SUPPORT_ME_MEDIATOR := 0
-export CHIP_ROM_UTILS_VER := 1
-export CHIP_HAS_SECURE_BOOT := 1
-export NO_LPU_26M ?= 1
-export BOOT_LOADER_ENTRY_HOOK ?= 1
-else ifeq ($(CHIP),best2300p)
-KBUILD_CPPFLAGS += -DCHIP_BEST2300P
-CPU := m4
-export CHIP_HAS_FPU := 1
-export CHIP_HAS_USB := 1
-export CHIP_HAS_USBPHY := 1
-export CHIP_HAS_SDMMC := 1
-export CHIP_HAS_PSRAM := 0
-export CHIP_HAS_SPI := 1
-export CHIP_HAS_SPILCD := 1
-export CHIP_HAS_SPIPHY := 1
-export CHIP_HAS_PSC := 1
-export CHIP_HAS_EXT_PMU := 1
-export CHIP_HAS_CP := 1
-export CHIP_FLASH_CTRL_VER := 2
-export CHIP_SPI_VER := 3
-export CHIP_CACHE_VER := 2
-export CHIP_HAS_EC_CODEC_REF := 1
-export CHIP_HAS_SCO_DMA_SNAPSHOT := 1
-export CHIP_HAS_ANC_HW_GAIN_SMOOTHING := 0
-export CHIP_BT_CLK_UNIT_IN_HSLOT := 0
-export CHIP_HAS_MULTI_DMA_TC := 0
-export CHIP_HAS_SUPPORT_ME_MEDIATOR := 0
-export CHIP_ROM_UTILS_VER := 1
-export CHIP_HAS_SECURE_BOOT := 1
-export NO_LPU_26M ?= 1
-else ifeq ($(CHIP),best3001)
-ifeq ($(CHIP_SUBTYPE),best3005)
-SUBTYPE_VALID := 1
-KBUILD_CPPFLAGS += -DCHIP_BEST3005
-export CHIP_CACHE_VER := 2
-export CHIP_FLASH_CTRL_VER := 2
-else
-KBUILD_CPPFLAGS += -DCHIP_BEST3001
-export CHIP_FLASH_CTRL_VER := 1
-endif
-CPU := m4
-export CHIP_HAS_FPU := 1
-export CHIP_HAS_USB := 1
-export CHIP_HAS_USBPHY := 1
-export CHIP_HAS_SDMMC := 0
-export CHIP_HAS_PSRAM := 0
-export CHIP_HAS_SPI := 1
-export CHIP_HAS_SPILCD := 0
-export CHIP_HAS_SPIPHY := 0
-export CHIP_HAS_EXT_PMU := 0
-export CHIP_SPI_VER := 3
-export CHIP_HAS_EC_CODEC_REF := 0
-export CHIP_HAS_SCO_DMA_SNAPSHOT := 0
-export CHIP_ROM_UTILS_VER := 1
-export CHIP_HAS_SECURE_BOOT := 1
-export CHIP_HAS_ANC_HW_GAIN_SMOOTHING := 0
-export NO_LPU_26M ?= 1
-else ifeq ($(CHIP),best3003)
-KBUILD_CPPFLAGS += -DCHIP_BEST3003
-CPU := m33
-export CHIP_HAS_FPU := 1
-export CHIP_HAS_USB := 1
-export CHIP_HAS_USBPHY := 1
-export CHIP_HAS_SDMMC := 0
-export CHIP_HAS_PSRAM := 0
-export CHIP_HAS_SPI := 1
-export CHIP_HAS_SPILCD := 0
-export CHIP_HAS_SPIPHY := 0
-export CHIP_HAS_EXT_PMU := 0
-export CHIP_CACHE_VER := 2
-export CHIP_FLASH_CTRL_VER := 2
-export CHIP_SPI_VER := 4
-export CHIP_HAS_DCO ?= 1
-export CHIP_HAS_SECURE_BOOT := 1
-export NO_LPU_26M ?= 1
-else ifeq ($(CHIP),fpga1000)
-KBUILD_CPPFLAGS += -DCHIP_FPGA1000
-KBUILD_CPPFLAGS += -DCHIP_BEST1000
-CPU := m4
-export CHIP_HAS_FPU := 1
-export CHIP_HAS_USB := 1
-export CHIP_HAS_USBPHY := 0
-export CHIP_HAS_SDMMC := 1
-export CHIP_HAS_PSRAM := 1
-export CHIP_HAS_SPI := 1
-export CHIP_HAS_SPILCD := 1
-export CHIP_HAS_SPIPHY := 0
-export CHIP_HAS_EXT_PMU := 0
-export CHIP_FLASH_CTRL_VER := 1
-export CHIP_PSRAM_CTRL_VER := 1
-export CHIP_SPI_VER := 1
-export CHIP_HAS_EC_CODEC_REF := 0
-export CHIP_HAS_SCO_DMA_SNAPSHOT := 0
-export CHIP_ROM_UTILS_VER := 1
-export CHIP_HAS_SECURE_BOOT := 1
-export CHIP_HAS_ANC_HW_GAIN_SMOOTHING := 0
-export CHIP_BT_CLK_UNIT_IN_HSLOT := 0
-export CHIP_HAS_MULTI_DMA_TC := 0
-export CHIP_HAS_SUPPORT_ME_MEDIATOR := 0
-export NO_LPU_26M ?= 1
-else ifeq ($(CHIP),best1501simu)
-KBUILD_CPPFLAGS += -DCHIP_BEST1501SIMU
-export CHIP_HAS_USB := 0
-export CHIP_HAS_USBPHY := 1
-export CHIP_HAS_SDMMC := 1
-export CHIP_HAS_CP := 0
-CPU ?= m4
-ifeq ($(CPU),m4)
-KBUILD_CPPFLAGS += -DCPU_M4
-endif
-ifeq ($(CHIP_SUB),best1501p)
-KBUILD_CPPFLAGS += -D__FPGA_1501P__
-KBUILD_CPPFLAGS += -DFLASH_ULTRA_LOW_SPEED
-endif
-export CHIP_HAS_FPU := 1
-export CHIP_HAS_PSRAM := 0
-export CHIP_HAS_SPI := 1
-export CHIP_HAS_SPIPHY := 0
-export CHIP_HAS_TDM := 1
-export CHIP_HAS_I2S_TDM_TRIGGER := 1
-export CHIP_HAS_PSC := 0
-export CHIP_HAS_EXT_PMU := 1
-export CHIP_FLASH_CTRL_VER := 4
-export CHIP_PSRAM_CTRL_VER := 2
-export CHIP_SPI_VER := 6
-export CHIP_CACHE_VER := 3
-export CHIP_INTERSYS_VER := 2
-export CHIP_GPIO_VER := 2
-export PSC_GPIO_IRQ_CTRL := 1
-export CHIP_RAM_BOOT := 1
-export CHIP_HAS_EC_CODEC_REF := 1
-export CHIP_HAS_SCO_DMA_SNAPSHOT := 1
-export CHIP_ROM_UTILS_VER := 2
-export CHIP_HAS_SECURE_BOOT := 0
-export CHIP_HAS_ANC_HW_GAIN_SMOOTHING := 1
-export CHIP_BT_CLK_UNIT_IN_HSLOT := 1
-export CHIP_HAS_MULTI_DMA_TC := 1
-export CHIP_HAS_SUPPORT_ME_MEDIATOR := 1
-ifeq ($(RAMSTART),1)
-KBUILD_CPPFLAGS += -DRAMSTART
-endif
-ifeq ($(ASIC_SIMU),1)
-KBUILD_CPPFLAGS += -DASIC_SIMU
-endif
-else ifeq ($(CHIP),best1600simu)
-KBUILD_CPPFLAGS += -DCHIP_BEST1600SIMU
-export CHIP_HAS_USB := 0
-export CHIP_HAS_USBPHY := 1
-export CHIP_HAS_SDMMC := 1
-export CHIP_HAS_CP := 0
-CPU ?= m4
-ifeq ($(CPU),m4)
-KBUILD_CPPFLAGS += -DCPU_M4
-endif
-export CHIP_HAS_FPU := 1
-export CHIP_HAS_PSRAM := 0
-export CHIP_HAS_SPI := 1
-export CHIP_HAS_SPIPHY := 0
-export CHIP_HAS_TDM := 1
-export CHIP_HAS_I2S_TDM_TRIGGER := 1
-export CHIP_HAS_PSC := 0
-export CHIP_HAS_EXT_PMU := 1
-export CHIP_FLASH_CTRL_VER := 4
-export CHIP_PSRAM_CTRL_VER := 2
-export CHIP_SPI_VER := 6
-export CHIP_CACHE_VER := 3
-export CHIP_INTERSYS_VER := 2
-export CHIP_GPIO_VER := 2
-export PSC_GPIO_IRQ_CTRL := 1
-export CHIP_RAM_BOOT := 1
-export CHIP_HAS_EC_CODEC_REF := 1
-export CHIP_HAS_SCO_DMA_SNAPSHOT := 1
-export CHIP_ROM_UTILS_VER := 2
-export CHIP_HAS_SECURE_BOOT := 0
-export CHIP_HAS_ANC_HW_GAIN_SMOOTHING := 1
-export CHIP_BT_CLK_UNIT_IN_HSLOT := 1
-export CHIP_HAS_MULTI_DMA_TC := 1
-export CHIP_HAS_SUPPORT_ME_MEDIATOR := 1
-ifeq ($(RAMSTART),1)
-KBUILD_CPPFLAGS += -DRAMSTART
-endif
-else
-$(error Invalid CHIP: $(CHIP))
-endif
+include $(srctree)/config/chips/$(CHIP).mk
 
 ifneq ($(CHIP_SUBTYPE),)
 ifneq ($(SUBTYPE_VALID),1)
@@ -911,8 +29,10 @@ endif
 export CPU
 
 ifneq ($(filter a%,$(CPU)),)
+ifeq ($(filter armca%.lds,$(LDS_FILE)),)
 # Override lds file
 LDS_FILE := armca.lds
+endif
 
 ifeq ($(GEN_BOOT_SECTION),1)
 LDS_CPPFLAGS += -DGEN_BOOT_SECTION
@@ -931,6 +51,11 @@ endif
 
 ifeq ($(NO_TRUSTZONE),1)
 KBUILD_CPPFLAGS += -DNO_TRUSTZONE
+endif
+
+ifeq ($(RAM_SIMU_CMU_REG),1)
+KBUILD_CPPFLAGS += -DRAM_SIMU_CMU_REG
+export ROM_ENTRY_HOOK := 1
 endif
 
 ifneq ($(filter 1,$(NO_CP) $(ARM_CMSE)),)
@@ -988,6 +113,10 @@ ifeq ($(SUBSYS_FLASH_BOOT),1)
 KBUILD_CPPFLAGS += -DSUBSYS_FLASH_BOOT
 endif
 
+ifeq ($(COMMON_IRQ_ENTRY),1)
+KBUILD_CPPFLAGS += -DCOMMON_IRQ_ENTRY
+endif
+
 ifneq ($(SECURE_BOOT_VER),)
 KBUILD_CPPFLAGS += -DSECURE_BOOT_VER=$(SECURE_BOOT_VER)
 endif
@@ -999,7 +128,7 @@ endif
 # -------------------------------------------
 # Standard C library
 # -------------------------------------------
-export __NuttX__ ?= 0
+export NUTTX_BUILD ?= 0
 
 export NOSTD
 export LIBC_ROM
@@ -1057,6 +186,7 @@ else
 SPECS_CFLAGS := --specs=nano.specs
 LIB_LDFLAGS += -lnosys
 endif
+SPECS_CFLAGS := --specs=nosys.specs
 endif
 
 endif # NOSTD != 1
@@ -1080,7 +210,7 @@ endif
 
 export KERNEL
 
-VALID_KERNEL_LIST := RTX RTX5 FREERTOS NUTTX RTTHREAD LITEOS_M
+VALID_KERNEL_LIST := RTX RTX5 FREERTOS NUTTX RTTHREAD LITEOS_M LITEOS_A RHINO
 
 ifeq ($(filter $(VALID_KERNEL_LIST),$(KERNEL)),)
 $(error Bad KERNEL=$(KERNEL). Valid values are: $(VALID_KERNEL_LIST))
@@ -1127,25 +257,53 @@ KBUILD_CPPFLAGS +=  -Irtos/rt_thread/CMSIS/RTOS2/RT_Thread/board/   \
 					-Irtos/rt_thread/include/ \
 					-Irtos/rt_thread/
 
-KBUILD_CPPFLAGS += -D__NO_STARTFILES__ -D__STARTUP_CLEAR_BSS
+KBUILD_CPPFLAGS += -D__NO_STARTFILES__
 LIB_LDFLAGS += -nostartfiles
-else #!rtx
-ifeq ($(KERNEL),FREERTOS)
+ifeq ($(CPU),a7)
+KBUILD_CPPFLAGS += -Irtos/rt_thread/libcpu/arm/cortex-a/
+KBUILD_CPPFLAGS += -Wno-stringop-truncation -Wno-stringop-overflow
+else
+KBUILD_CPPFLAGS += -Irtos/rt_thread/libcpu/arm/cortex-m33/
+endif
+cflags-y += -Wno-error=implicit-function-declaration -Wno-error=implicit-function-declaration
+else ifeq ($(KERNEL),RHINO)
+KBUILD_CPPFLAGS += \
+    -Irtos/rhino \
+    -Irtos/rhino/include \
+    -Irtos/rhino/$(RHINO_VER)/include \
+    -Irtos/rhino/$(RHINO_VER)/components \
+    -Irtos/rhino/cmsis
+ifneq ($(CPU),a7)
+KBUILD_CPPFLAGS += \
+    -Irtos/rhino/arch/arm/armv7m/include
+else
+KBUILD_CPPFLAGS += \
+    -Irtos/rhino/arch/arm/armv7a/include \
+    -Irtos/rhino/smp
+endif
+else ifeq ($(KERNEL),FREERTOS)
 KBUILD_CPPFLAGS += \
     -Iinclude/rtos/freertos/
 
+ifeq ($(OS_HAVE_POSIX),1)
+KBUILD_CPPFLAGS += -Irtos/freertos/POSIX/include/
+endif
+
 ifeq ($(CPU),m33)
 KBUILD_CPPFLAGS += -Iinclude/rtos/freertos/ARM_CM33/
+else ifeq ($(CPU),m55)
+KBUILD_CPPFLAGS += -Iinclude/rtos/freertos/ARM_CM55/
 else
 KBUILD_CPPFLAGS += -Iinclude/rtos/freertos/ARM_CM4F/
 endif
 
-endif #freertos
-ifeq ($(KERNEL),LITEOS_M)
+else ifneq (, $(filter $(KERNEL),LITEOS_M LITEOS_A))
 KBUILD_CPPFLAGS += -DCMSIS_OS_VER=2
 RTOS_NAME := $(shell echo $(KERNEL) | tr A-Z a-z)
 KBUILD_CPPFLAGS += -Iinclude/rtos/liteos/$(RTOS_NAME)/kal/cmsis
-KBUILD_CPPFLAGS += -Iinclude/rtos/liteos/$(RTOS_NAME)/kal/posix/include
+# KBUILD_CPPFLAGS += -Iinclude/rtos/liteos/$(RTOS_NAME)/kal/posix/include
+ifeq ($(KERNEL),LITEOS_A)
+CPPFLAGS_${LDS_FILE} += -DOS_HEAP_SIZE=$(OS_HEAP_SIZE)
 endif #LITEOS
 endif #rtx
 
@@ -1154,16 +312,11 @@ OS_TASKCNT ?= 12
 OS_SCHEDULERSTKSIZE ?= 768
 OS_IDLESTKSIZE ?= 512
 else
-OS_TASKCNT ?= 20
+OS_TASKCNT ?= 22
 OS_SCHEDULERSTKSIZE ?= 512
 OS_IDLESTKSIZE ?= 256
 endif
-
-ifeq ($(CPU),m33)
 OS_CLOCK_NOMINAL ?= 16000
-else
-OS_CLOCK_NOMINAL ?= 32000
-endif
 OS_FIFOSZ ?= 24
 
 export OS_TASKCNT
@@ -1202,6 +355,10 @@ ifeq ($(EVR_TRACING), 1)
 KBUILD_CPPFLAGS += \
 	-Iutils/sysview/SEGGER/ \
 	-Iutils/sysview/Config
+
+ifeq ($(KERNEL), LITEOS_M)
+KBUILD_CPPFLAGS += -DLOSCFG_DEBUG_HOOK=1
+endif
 
 ifeq ($(KERNEL), FREERTOS)
 KBUILD_CPPFLAGS += \
@@ -1329,6 +486,11 @@ ifeq ($(ROM_BUILD),1)
 
 KBUILD_CPPFLAGS += -DROM_BUILD
 
+ifeq ($(BOOT_CONN_MODE_SUPPORT),1)
+KBUILD_CPPFLAGS += -DBOOT_CONN_MODE_SUPPORT
+export USB_HIGH_SPEED ?= 1
+endif
+
 endif
 
 # -------------------------------------------
@@ -1370,6 +532,10 @@ ifeq ($(PROGRAMMER_LOAD_RAM),1)
 KBUILD_CPPFLAGS += -DPROGRAMMER_LOAD_RAM
 endif
 
+ifeq ($(PROGRAMMER_INFLASH),1)
+KBUILD_CPPFLAGS += -DPROGRAMMER_INFLASH
+endif
+
 endif
 
 # -------------------------------------------
@@ -1382,22 +548,6 @@ KBUILD_CPPFLAGS += -DROM_UTILS_ON
 core-y += utils/rom_utils/
 endif
 
-export AAC_IN_ROM ?= 0
-ifeq ($(AAC_IN_ROM),1)
-KBUILD_CPPFLAGS += -DAAC_IN_ROM
-else
-export AAC_PNS_SKIP ?= 0
-endif
-
-export CVSD_IN_ROM ?= 0
-ifeq ($(CVSD_IN_ROM),1)
-KBUILD_CPPFLAGS += -DCVSD_IN_ROM
-endif
-
-export LIBC_ROM ?= 0
-ifeq ($(LIBC_ROM),1)
-KBUILD_CPPFLAGS += -DLIBC_ROM
-endif
 # -------------------------------------------
 # Predefined common features
 # -------------------------------------------
@@ -1417,6 +567,7 @@ export ANC_APP := 1
 endif
 ifeq ($(ANC_APP),1)
 export CODEC_HIGH_QUALITY ?= 1
+KBUILD_CPPFLAGS += -DANC_APP
 endif
 
 ifeq ($(CHIP),best1000)
@@ -1501,7 +652,7 @@ endif # AUDIO_RESAMPLE
 
 ifeq ($(SW_IIR_EQ_PROCESS),1)
 export SW_IIR_EQ_PROCESS
-export A2DP_EQ_24BIT ?= 1
+export A2DP_EQ_24BIT = 1
 endif
 
 ifeq ($(HW_DC_FILTER_WITH_IIR),1)
@@ -1538,28 +689,48 @@ export PLAYBACK_FORCE_48K
 endif
 
 ifeq ($(ANC_ASSIST_ENABLED),1)
+ifeq ($(ANC_ASSIST_LE_AUDIO_SUPPORT),1)
+KBUILD_CPPFLAGS += -DANC_ASSIST_LE_AUDIO_SUPPORT
+export ANC_ASSIST_RESAMPLE_USE_APP_HEAP ?= 1
+endif
 KBUILD_CPPFLAGS += -DANC_ASSIST_ENABLED
+KBUILD_CPPFLAGS += -DANC_ASSIST_PLAYBACK
 KBUILD_CPPFLAGS += -DGLOBAL_SRAM_CMSIS_FFT
-ifeq ($(CUSTOMER_APP_BOAT),1)
-KBUILD_CPPFLAGS += -DVOICE_ASSIST_CUSTOM_LEAK_DETECT
+
+ifeq ($(ANC_ASSIST_RESAMPLE_USE_APP_HEAP),1)
+KBUILD_CPPFLAGS += -ANC_ASSIST_RESAMPLE_USE_APP_HEAP
+endif
+
+export SPEECH_TX_24BIT := 1
+
+ifneq ($(ANC_ASSIST_ON_DSP),)
+export APP_RPC_ENABLE := 1
+KBUILD_CPPFLAGS += -DANC_ASSIST_ON_DSP
+ifeq ($(ANC_ASSIST_ON_DSP),M55)
+export APP_RPC_BTH_M55_EN := 1
+KBUILD_CPPFLAGS += -DANC_ASSIST_ON_DSP_M55
+else ifeq ($(ANC_ASSIST_ON_DSP),HIFI)
+export APP_RPC_BTH_DSP_EN := 1
+KBUILD_CPPFLAGS += -DANC_ASSIST_ON_DSP_HIFI
+else ifeq ($(ANC_ASSIST_ON_DSP),SENS)
+export APP_RPC_MCU_SENSOR_EN := 1
+KBUILD_CPPFLAGS += -DANC_ASSIST_ON_DSP_SENS
+else
+$(error ANC_ASSIST_ON_DSP is invalid, expected M55 for HIFI)
+endif
 endif
 
 ifeq ($(ANC_ASSIST_VPU),1)
 KBUILD_CPPFLAGS += -DANC_ASSIST_VPU
 endif
-
-export SPEECH_TX_24BIT := 1
-export SPEECH_RX_24BIT := 1
-export AUDIO_OUTPUT_SW_GAIN := 1
+ifeq ($(ANC_ASSIST_ALGO_ON_DSP),1)
+KBUILD_CPPFLAGS += -DANC_ASSIST_ALGO_ON_DSP
+endif
 ifeq ($(CHIP),best2300p)
 export ANC_ASSIST_USE_INT_CODEC := 1
 export PLAYBACK_FORCE_48K := 1
 export SPEECH_RX_24BIT := 1
 export AF_STREAM_ID_0_PLAYBACK_FADEOUT := 1
-endif
-
-ifeq ($(ANC_ASSIST_LE_AUDIO_SUPPORT),1)
-KBUILD_CPPFLAGS += -DANC_ASSIST_LE_AUDIO_SUPPORT
 endif
 
 ifeq ($(CHIP),best1305)
@@ -1586,18 +757,6 @@ endif
 ifeq ($(AUDIO_ADJ_EQ),1)
 export AUDIO_OUTPUT_SW_GAIN := 1
 KBUILD_CPPFLAGS += -DAUDIO_ADJ_EQ
-KBUILD_CPPFLAGS += -DGLOBAL_SRAM_CMSIS_FFT
-KBUILD_CPPFLAGS += -DARM_TABLE_TWIDDLECOEF_F32_32
-KBUILD_CPPFLAGS += -DARM_TABLE_TWIDDLECOEF_RFFT_F32_64
-KBUILD_CPPFLAGS += -DARM_TABLE_BITREVIDX_FLT_32
-endif
-
-ifeq ($(AUDIO_ADJ_EQ_REV),1)
-# export AUDIO_LIMITER := 1
-export AUDIO_OUTPUT_SW_GAIN := 1
-export AUDIO_OUTPUT_SW_GAIN_BEFORE_DRC := 1
-export A2DP_EQ_24BIT := 1
-KBUILD_CPPFLAGS += -DAUDIO_ADJ_EQ_REV
 KBUILD_CPPFLAGS += -DGLOBAL_SRAM_CMSIS_FFT
 KBUILD_CPPFLAGS += -DARM_TABLE_TWIDDLECOEF_F32_32
 KBUILD_CPPFLAGS += -DARM_TABLE_TWIDDLECOEF_RFFT_F32_64
@@ -1649,10 +808,6 @@ export HOST_SIMU
 KBUILD_CPPFLAGS += -DHOST_SIMU
 endif
 
-ifneq ($(NV_EXTENSION_MIRROR_RAM_SIZE),)
-KBUILD_CPPFLAGS += -DNV_EXTENSION_MIRROR_RAM_SIZE=$(NV_EXTENSION_MIRROR_RAM_SIZE)
-endif
-
 export BLE_ONLY_ENABLED ?= 0
 ifeq ($(BLE_ONLY_ENABLED),1)
 export override BT_A2DP_SUPPORT := 0
@@ -1661,7 +816,10 @@ export override BT_HFP_SUPPORT := 0
 export override BT_SPP_SUPPORT := 0
 export override BT_DIP_SUPPORT := 0
 export override BT_HID_DEVICE := 0
+export override BT_PBAP_SUPPORT := 0
+export override BT_OPP_SUPPORT := 0
 export override BT_MAP_SUPPORT := 0
+export override BT_PAN_SUPPORT := 0
 export override SUPPORT_SIRI := 0
 export override IBRT := 0
 export override IBRT_UI := 0
@@ -1686,141 +844,35 @@ KBUILD_CPPFLAGS += -DBLE_ONLY_ENABLED
 KBUILD_CPPFLAGS += -DBLE_POWER_LEVEL_0
 endif
 
-export EP_1306_SMALL_CODE ?= 0
-ifeq ($(EP_1306_SMALL_CODE),1)
-KBUILD_CPPFLAGS += -DEP_1306_SMALL_CODE
-export override BLE_GATT_CLIENT_CACHE := 0
-endif
-
 # -------------------------------------------
 # BT features
 # -------------------------------------------
-
-export BT_ROM_PATCH_PATH = bthost/stack/common/patch
-
-export BT_BUILD_WITH_CUSTOMER_HOST ?= 0
-ifeq ($(BT_BUILD_WITH_CUSTOMER_HOST),1)
-    KBUILD_CPPFLAGS += -DBT_BUILD_WITH_CUSTOMER_HOST
-endif
-
-ifeq ($(BT_BUILD_WITH_CUSTOMER_HOST),1)
-export SUPPORT_SIRI := 0
-endif
-
-ifneq ($(filter apps/ tests/speech_test/ tests/ota_boot/, $(core-y)),)
-export BT_APP ?= 1
-FULL_APP_PROJECT ?= 1
-endif
-
-include config/bt_common/bt_service_config.mk
-
-export BT_HFP_SUPPORT ?= 1
-ifeq ($(BT_HFP_SUPPORT),1)
-KBUILD_CPPFLAGS += -DBT_HFP_SUPPORT
-
-ifeq ($(BT_HFP_AG_ROLE),1)
-KBUILD_CPPFLAGS += -DBT_HFP_AG_ROLE
-endif
-endif
-
-export BT_A2DP_SUPPORT ?= 1
-ifeq ($(BT_A2DP_SUPPORT),1)
-KBUILD_CPPFLAGS += -DBT_A2DP_SUPPORT
-endif
-
-export mHDT_SUPPORT ?= 0
-ifeq ($(mHDT_SUPPORT),1)
-KBUILD_CPPFLAGS += -DmHDT_SUPPORT=1
-endif
-
-export BT_AVRCP_SUPPORT ?= 1
-ifeq ($(BT_AVRCP_SUPPORT),1)
-KBUILD_CPPFLAGS += -DBT_AVRCP_SUPPORT
-endif
-
-export BT_SPP_SUPPORT ?= 1
-ifeq ($(BT_SPP_SUPPORT),1)
-KBUILD_CPPFLAGS += -DBT_SPP_SUPPORT
-endif
-
-#----- HID features -----#
-export BT_HID_DEVICE ?= 0
-ifeq ($(BT_HID_DEVICE),1)
-KBUILD_CPPFLAGS += -DBT_HID_DEVICE
-endif
-
-export BT_HID_HOST ?= 0
-ifeq ($(BT_HID_HOST),1)
-KBUILD_CPPFLAGS += -DBT_HID_HOST
-endif
-
-export BT_HID_HEAD_TRACKER_PROTOCOL ?= 0
-ifeq ($(BT_HID_HEAD_TRACKER_PROTOCOL),1)
-KBUILD_CPPFLAGS += -DBT_HID_HEAD_TRACKER_PROTOCOL
-endif
-
-export HOGP_HEAD_TRACKER_PROTOCOL ?= 0
-ifeq ($(HOGP_HEAD_TRACKER_PROTOCOL),1)
-KBUILD_CPPFLAGS += -DHOGP_HEAD_TRACKER_PROTOCOL
-endif
-
-export BT_MAP_SUPPORT ?= 0
-ifeq ($(BT_MAP_SUPPORT),1)
-KBUILD_CPPFLAGS += -DBT_MAP_SUPPORT
-KBUILD_CPPFLAGS += -DBT_OBEX_SUPPORT
-endif
-
 export BLUETOOTH_ADAPTER_DIR_PATH = bthost/adapter
 export BLUETOOTH_APP_DIR_COMMON = bthost/service/common
 export BT_APP_DIR_PATH = bthost/service/bt_app
 export BT_SOURCE_APP_DIR_PATH = bthost/service/bt_source
 export BT_IF_DIR_PATH = bthost/stack/bt_if
-export BT_VND_DIR_PATH = bthost/bt_vendor
 export BT_PROFILES_DIR_PATH = bthost/stack/bt_profiles
-export BT_STACK_ROM_DIR_PATH = bthost/stack/rom
-export BT_STACK_COMMON_PATH := bthost/stack/common
-export BLE_AUDIO_APP_DIR_PATH = bthost/service/ble_audio
-export BLE_AOB_APP_DIR_PATH = bthost/service/ble_audio/aob_app
-export BLE_APP_DIR_PATH = bthost/service/ble_app_new
-export BLE_GAF_CORE_DIR_PATH = $(BLE_AUDIO_APP_DIR_PATH)/blueelf_adapter
-export BLE_AUDIO_USB_DIR_PATH = apps/ble_usb_audio
-export BLE_IF_DIR_PATH = bthost/stack/ble_if
-export BLE_STACK_DIR_PATH = bthost/stack/ble_stack_new
+export BT_STACK_ROM_DIR_PATH = bthost/rom
+export BT_ROM_PORTING_PATH = bthost/porting
+export BLE_AUDIO_USB_DIR_PATH = apps/usbaudio/ble_usb_audio
+export BT_ROM_PATH = bthost/stack/rom
+export BT_ROM_DBG_PATH = bthost/stack/dbg
+export BT_ROM_PATCH_PATH = bthost/stack/common/patch
 
 export BES_BT_IMPL_INCLUDES = \
     -I$(BT_STACK_ROM_DIR_PATH) \
-    -I$(BT_STACK_COMMON_PATH) \
     -I$(BLUETOOTH_APP_DIR_COMMON) \
     -I$(BT_APP_DIR_PATH)/inc \
     -I$(BT_APP_DIR_PATH)/inc/a2dp_codecs \
     -I$(BT_SOURCE_APP_DIR_PATH)/inc \
     -I$(BT_IF_DIR_PATH)/inc \
-    -I$(BT_PROFILES_DIR_PATH)/inc \
-    -I$(BT_VND_DIR_PATH)
+    -I$(BT_PROFILES_DIR_PATH)/inc
 
-export BLE_APP_INCLUDES = \
-    -I$(BLUETOOTH_APP_DIR_COMMON) \
-    -I$(BLE_APP_DIR_PATH)/inc \
-    -I$(BLE_AUDIO_APP_DIR_PATH)/aob_app/inc \
-    -I$(BLE_AUDIO_APP_DIR_PATH)/ble_audio_core/inc \
-    -I$(BLE_AUDIO_APP_DIR_PATH)/ble_audio_test/ \
-    -I$(BLE_AUDIO_APP_DIR_PATH)/app_hid/ \
-    -I$(BLE_AUDIO_APP_DIR_PATH)/app_batt/ \
-    -I$(BLE_AUDIO_APP_DIR_PATH)/app_dis/ \
-    -I$(BLE_AUDIO_APP_DIR_PATH)/blueelf_adapter/inc
-
-export BLE_STACK_INCLUDES = \
-    -I$(BT_STACK_ROM_DIR_PATH) \
-    -I$(BLE_STACK_DIR_PATH)/inc/hci \
-    -I$(BLE_STACK_DIR_PATH)/inc/l2cap \
-    -I$(BLE_STACK_DIR_PATH)/inc/gap \
-    -I$(BLE_STACK_DIR_PATH)/inc/gatt \
-    -I$(BLE_STACK_DIR_PATH)/inc/gaf \
-    -I$(BLE_STACK_DIR_PATH)/inc/iso \
-    -I$(BLE_STACK_DIR_PATH)/inc/profiles \
-    -I$(BLE_STACK_DIR_PATH)/inc
-
-export BES_STACK_ADAPTER_INCLUDES = \
+export BLUETOOTH_ADAPTER_INCLUDES = \
+    $(BES_BT_IMPL_INCLUDES) \
+    $(BLE_APP_INCLUDES) \
+    $(BLE_STACK_INCLUDES) \
     -I$(BLUETOOTH_ADAPTER_DIR_PATH)/inc/adapter_service \
     -I$(BLUETOOTH_ADAPTER_DIR_PATH)/inc/bt/common \
     -I$(BLUETOOTH_ADAPTER_DIR_PATH)/inc/bt/source \
@@ -1837,8 +889,6 @@ export BES_STACK_ADAPTER_INCLUDES = \
     -I$(BLUETOOTH_ADAPTER_DIR_PATH)/inc/bt/hid \
     -I$(BLUETOOTH_ADAPTER_DIR_PATH)/inc/bt/map \
     -I$(BLUETOOTH_ADAPTER_DIR_PATH)/inc/bt \
-    -I$(BLUETOOTH_ADAPTER_DIR_PATH)/inc/tws \
-    -I$(BLUETOOTH_ADAPTER_DIR_PATH)/inc/nv \
     -I$(BLUETOOTH_ADAPTER_DIR_PATH)/inc/ble/common \
     -I$(BLUETOOTH_ADAPTER_DIR_PATH)/inc/ble/aob \
     -I$(BLUETOOTH_ADAPTER_DIR_PATH)/inc/ble/gap \
@@ -1848,13 +898,7 @@ export BES_STACK_ADAPTER_INCLUDES = \
     -I$(BLUETOOTH_ADAPTER_DIR_PATH)/inc/ble/dp \
     -I$(BLUETOOTH_ADAPTER_DIR_PATH)/inc/ble/ai \
     -I$(BLUETOOTH_ADAPTER_DIR_PATH)/inc/ble/walkie_talkie \
-    -I$(BLUETOOTH_ADAPTER_DIR_PATH)/inc/ble/rate_test \
     -I$(BLUETOOTH_ADAPTER_DIR_PATH)/inc/ble
-
-export BLUETOOTH_ADAPTER_INCLUDES = \
-    $(BES_BT_IMPL_INCLUDES) \
-    $(BLE_STACK_INCLUDES) \
-    $(BES_STACK_ADAPTER_INCLUDES)
 
 ifneq ($(filter apps/ tests/speech_test/ tests/ota_boot/, $(core-y)),)
 export BT_APP ?= 1
@@ -1863,11 +907,95 @@ endif
 
 ifeq ($(BT_APP),1)
 
+export BT_A2DP_SUPPORT ?= 1
+ifeq ($(BT_A2DP_SUPPORT),1)
+KBUILD_CPPFLAGS += -DBT_A2DP_SUPPORT
+endif
+
+export BT_HFP_SUPPORT ?= 1
+ifeq ($(BT_HFP_SUPPORT),1)
+KBUILD_CPPFLAGS += -DBT_HFP_SUPPORT
+endif
+
+export BT_AVRCP_SUPPORT ?= 1
+ifeq ($(BT_AVRCP_SUPPORT),1)
+KBUILD_CPPFLAGS += -DBT_AVRCP_SUPPORT
+endif
+
+export mHDT_SUPPORT ?= 0
+ifeq ($(mHDT_SUPPORT),1)
+KBUILD_CPPFLAGS += -DmHDT_SUPPORT=1
+endif
+
+export BT_SPP_SUPPORT ?= 1
+ifeq ($(BT_SPP_SUPPORT),1)
+KBUILD_CPPFLAGS += -DBT_SPP_SUPPORT
+endif
+
+export BT_HID_DEVICE ?= 0
+ifeq ($(BT_HID_DEVICE),1)
+KBUILD_CPPFLAGS += -DBT_HID_DEVICE
+endif
+
+export BT_HID_HEAD_TRACKER_PROTOCOL ?= 0
+ifeq ($(BT_HID_HEAD_TRACKER_PROTOCOL),1)
+KBUILD_CPPFLAGS += -DBT_HID_HEAD_TRACKER_PROTOCOL
+endif
+
+export HOGP_HEAD_TRACKER_PROTOCOL ?= 0
+ifeq ($(HOGP_HEAD_TRACKER_PROTOCOL),1)
+KBUILD_CPPFLAGS += -DHOGP_HEAD_TRACKER_PROTOCOL
+endif
+
+export BT_PBAP_SUPPORT ?= 0
+ifeq ($(BT_PBAP_SUPPORT),1)
+KBUILD_CPPFLAGS += -DBT_PBAP_SUPPORT
+KBUILD_CPPFLAGS += -DBT_OBEX_SUPPORT
+endif
+
+export BT_OPP_SUPPORT ?= 0
+ifeq ($(BT_OPP_SUPPORT),1)
+KBUILD_CPPFLAGS += -DBT_OPP_SUPPORT
+KBUILD_CPPFLAGS += -DBT_OBEX_SUPPORT
+endif
+
+export BT_MAP_SUPPORT ?= 0
+ifeq ($(BT_MAP_SUPPORT),1)
+KBUILD_CPPFLAGS += -DBT_MAP_SUPPORT
+KBUILD_CPPFLAGS += -DBT_OBEX_SUPPORT
+endif
+
+export BT_PAN_SUPPORT ?= 0
+ifeq ($(BT_PAN_SUPPORT),1)
+KBUILD_CPPFLAGS += -DBT_PAN_SUPPORT
+KBUILD_CPPFLAGS += -DBT_BNEP_SUPPORT
+endif
+
+export BT_BUILD_ONLY_USING_ADAPTER ?= 0
+ifneq ($(BT_BUILD_ONLY_USING_ADAPTER),0)
+    KBUILD_CPPFLAGS += -DBT_BUILD_ONLY_USING_ADAPTER
+endif
+
+export BLE_BUILD_ONLY_USING_ADAPTER ?= 0
+ifneq ($(BLE_BUILD_ONLY_USING_ADAPTER),0)
+    KBUILD_CPPFLAGS += -DBLE_BUILD_ONLY_USING_ADAPTER
+endif
+
+export BT_MAIN_OS_AUDIO_POLICY ?= 0
+ifneq ($(BT_MAIN_OS_AUDIO_POLICY),0)
+    KBUILD_CPPFLAGS += -DBT_MAIN_OS_AUDIO_POLICY
+endif
+
 export INTERSYS_NO_THREAD ?= 0
 
 export INTERSYS_DEBUG ?= 0
 ifeq ($(INTERSYS_DEBUG),1)
 	KBUILD_CPPFLAGS += -DINTERSYS_DEBUG=1
+endif
+
+export BT_DEBUG_TPORTS ?= 0
+ifneq ($(BT_DEBUG_TPORTS),0)
+	KBUILD_CPPFLAGS += -D__BT_DEBUG_TPORTS__
 endif
 
 export SNOOP_DATA_EXCHANGE_VIA_BLE ?= 0
@@ -1883,6 +1011,20 @@ endif
 export PROFILE_DEBUG ?= 0
 ifeq ($(PROFILE_DEBUG),1)
 	KBUILD_CPPFLAGS += -DXA_DEBUG=1
+endif
+
+ifeq ($(BT_PLD_SIMU),master)
+	KBUILD_CPPFLAGS += -DPLD_SIMU_MASTER
+endif
+ifeq ($(BT_PLD_SIMU),slave)
+	KBUILD_CPPFLAGS += -DPLD_SIMU_SLAVE
+endif
+
+#KBUILD_CPPFLAGS += -D__A2DP_AVDTP_CP__ -D__A2DP_AVDTP_DR__
+#KBUILD_CPPFLAGS += -D__A2DP_AVDTP_DR__
+
+ifeq ($(A2DP_AVDTP_CP),1)
+KBUILD_CPPFLAGS += -D__A2DP_AVDTP_CP__
 endif
 
 ifneq ($(filter-out 2M 3M,$(BT_RF_PREFER)),)
@@ -1919,54 +1061,84 @@ ifeq ($(BT_ONE_BRING_TWO),1)
 KBUILD_CPPFLAGS += -D__BT_ONE_BRING_TWO__
 endif
 
-export BT_UPDATE_ACTIVE_DEVICE_WHEN_INCOMING_CALL ?= 0
-ifeq ($(BT_UPDATE_ACTIVE_DEVICE_WHEN_INCOMING_CALL),1)
-KBUILD_CPPFLAGS += -DBT_UPDATE_ACTIVE_DEVICE_WHEN_INCOMING_CALL
+export BT_USE_COHEAP_ALLOC ?= 1
+ifeq ($(BT_USE_COHEAP_ALLOC),1)
+KBUILD_CPPFLAGS += -DBT_USE_COHEAP_ALLOC
 endif
 
-export BT_SET_FRIST_CONNECT_ACTIVE_DEVICE ?= 0
-ifeq ($(BT_SET_FRIST_CONNECT_ACTIVE_DEVICE),1)
-KBUILD_CPPFLAGS += -DBT_SET_FRIST_CONNECT_ACTIVE_DEVICE
+export BT_PAUSE_BG_A2DP ?= 0
+ifeq ($(BT_PAUSE_BG_A2DP),1)
+KBUILD_CPPFLAGS += -DBT_PAUSE_BG_A2DP
 endif
 
-export BT_HOST_REJECT_UNEXCEPT_SCO_PACKET ?= 1
-ifeq ($(BT_HOST_REJECT_UNEXCEPT_SCO_PACKET),1)
-KBUILD_CPPFLAGS += -DBT_HOST_REJECT_UNEXCEPT_SCO_PACKET
+export BT_CLOSE_BG_A2DP ?= 0
+ifeq ($(BT_CLOSE_BG_A2DP),1)
+KBUILD_CPPFLAGS += -DBT_CLOSE_BG_A2DP
 endif
 
-export MUTE_FRAME_DETECT ?= 0
-ifeq ($(MUTE_FRAME_DETECT),1)
-KBUILD_CPPFLAGS += -DMUTE_FRAME_DETECT
+export BT_DONT_AUTO_PLAY_BG_A2DP ?= 0
+ifeq ($(BT_DONT_AUTO_PLAY_BG_A2DP),1)
+KBUILD_CPPFLAGS += -DBT_DONT_AUTO_PLAY_BG_A2DP
 endif
 
-export BT_PAUSE_A2DP_WHEN_CALL_EXIST ?= 0
-ifeq ($(BT_PAUSE_A2DP_WHEN_CALL_EXIST),1)
-KBUILD_CPPFLAGS += -DBT_PAUSE_A2DP_WHEN_CALL_EXIST
+export BT_BLOCK_2ND_SCO_BEFORE_CALL_ACTIVE ?= 0
+ifeq ($(BT_BLOCK_2ND_SCO_BEFORE_CALL_ACTIVE),1)
+KBUILD_CPPFLAGS += -DBT_BLOCK_2ND_SCO_BEFORE_CALL_ACTIVE
 endif
 
-export BT_REJECT_SCO_REQ_WITHIN_A_CERTAIN_TIME_AFTER_IT_BE_PREEPMPTED ?= 0
-ifeq ($(BT_REJECT_SCO_REQ_WITHIN_A_CERTAIN_TIME_AFTER_IT_BE_PREEPMPTED),1)
-KBUILD_CPPFLAGS += -DBT_REJECT_SCO_REQ_WITHIN_A_CERTAIN_TIME_AFTER_IT_BE_PREEPMPTED
+export A2DP_PROMPT_PLAY_ONLY_AVRCP_PLAY_RECEIVED ?= 1
+ifeq ($(A2DP_PROMPT_PLAY_ONLY_AVRCP_PLAY_RECEIVED),1)
+KBUILD_CPPFLAGS += -DA2DP_PROMPT_PLAY_ONLY_AVRCP_PLAY_RECEIVED
 endif
 
-export BT_RESUME_PC_SCO_BY_DIS_THEN_CONN_HFP ?= 0
-ifeq ($(BT_RESUME_PC_SCO_BY_DIS_THEN_CONN_HFP),1)
-KBUILD_CPPFLAGS += -DBT_RESUME_PC_SCO_BY_DIS_THEN_CONN_HFP
+export A2DP_DELAY_PROMPT_PLAY ?= 0
+ifeq ($(A2DP_DELAY_PROMPT_PLAY),1)
+KBUILD_CPPFLAGS += -DA2DP_DELAY_PROMPT_PLAY
 endif
 
-export BT_CREATE_SCO_FOR_ACTIVE_DEVICE ?= 0
-ifeq ($(BT_CREATE_SCO_FOR_ACTIVE_DEVICE),1)
-KBUILD_CPPFLAGS += -DBT_CREATE_SCO_FOR_ACTIVE_DEVICE
+export BT_MUTE_A2DP ?= 1
+ifeq ($(BT_MUTE_A2DP),1)
+KBUILD_CPPFLAGS += -DBT_MUTE_A2DP
 endif
 
-export APP_RX_API_ENABLE ?= 0
-ifeq ($(APP_RX_API_ENABLE),1)
-KBUILD_CPPFLAGS += -DAPP_RX_API_ENABLE
+export BT_PAUSE_A2DP ?= 0
+ifeq ($(BT_PAUSE_A2DP),1)
+KBUILD_CPPFLAGS += -DBT_PAUSE_A2DP
 endif
 
-export GET_BT_CHECKER_STATE ?= 1
-ifeq ($(GET_BT_CHECKER_STATE),1)
-KBUILD_CPPFLAGS += -DGET_BT_CHECKER_STATE
+export BT_CLOSE_A2DP ?= 0
+ifeq ($(BT_CLOSE_A2DP),1)
+KBUILD_CPPFLAGS += -DBT_CLOSE_A2DP
+endif
+
+export BT_KEEP_ONE_STREAM_CLOSE_CONNECTED_A2DP ?= 0
+ifeq ($(BT_KEEP_ONE_STREAM_CLOSE_CONNECTED_A2DP),1)
+KBUILD_CPPFLAGS += -DBT_KEEP_ONE_STREAM_CLOSE_CONNECTED_A2DP
+endif
+
+export BT_DONT_AUTO_REPORT_DELAY_REPORT ?= 0
+ifeq ($(BT_DONT_AUTO_REPORT_DELAY_REPORT),1)
+KBUILD_CPPFLAGS += -DBT_DONT_AUTO_REPORT_DELAY_REPORT
+endif
+
+export BT_HFP_DONT_SUPPORT_CLI_FEATURE ?= 0
+ifeq ($(BT_HFP_DONT_SUPPORT_CLI_FEATURE),1)
+KBUILD_CPPFLAGS += -DBT_HFP_DONT_SUPPORT_CLI_FEATURE
+endif
+
+export BT_HFP_DONT_SUPPORT_ENHANCED_CALL_FEATURE ?= 0
+ifeq ($(BT_HFP_DONT_SUPPORT_ENHANCED_CALL_FEATURE),1)
+KBUILD_CPPFLAGS += -DBT_HFP_DONT_SUPPORT_ENHANCED_CALL_FEATURE
+endif
+
+export BT_HFP_SUPPORT_HF_INDICATORS_FEATURE ?= 0
+ifeq ($(BT_HFP_SUPPORT_HF_INDICATORS_FEATURE),1)
+KBUILD_CPPFLAGS += -DBT_HFP_SUPPORT_HF_INDICATORS_FEATURE
+endif
+
+export BT_HFP_DONT_SUPPORT_APPLE_HF_AT_COMMAND ?= 0
+ifeq ($(BT_HFP_DONT_SUPPORT_APPLE_HF_AT_COMMAND),1)
+KBUILD_CPPFLAGS += -DBT_HFP_DONT_SUPPORT_APPLE_HF_AT_COMMAND
 endif
 
 export BT_DONT_PLAY_MUTE_WHEN_A2DP_STUCK_PATCH ?= 0
@@ -1979,6 +1151,9 @@ ifeq ($(IS_ALWAYS_KEEP_A2DP_TARGET_BUFFER_COUNT),1)
 KBUILD_CPPFLAGS += -DIS_ALWAYS_KEEP_A2DP_TARGET_BUFFER_COUNT
 endif
 
+export SPP_SERVICE_NUM ?= 5
+KBUILD_CPPFLAGS += -DSPP_SERVICE_NUM=$(SPP_SERVICE_NUM)
+
 export IS_BES_OTA_USE_CUSTOM_RFCOMM_UUID ?= 1
 ifeq ($(IS_BES_OTA_USE_CUSTOM_RFCOMM_UUID),1)
 KBUILD_CPPFLAGS += -DIS_BES_OTA_USE_CUSTOM_RFCOMM_UUID
@@ -1989,9 +1164,29 @@ ifeq ($(IS_TOTA_RFCOMM_UUID_CUSTOMIZED),1)
 KBUILD_CPPFLAGS += -DIS_TOTA_RFCOMM_UUID_CUSTOMIZED
 endif
 
+export BT_DISC_ACL_AFTER_AUTH_KEY_MISSING ?= 0
+ifeq ($(BT_DISC_ACL_AFTER_AUTH_KEY_MISSING),1)
+KBUILD_CPPFLAGS += -DBT_DISC_ACL_AFTER_AUTH_KEY_MISSING
+endif
+
+export BT_DISABLE_INITIAL_ROLE_SWITCH ?= 0
+ifeq ($(BT_DISABLE_INITIAL_ROLE_SWITCH),1)
+KBUILD_CPPFLAGS += -DBT_DISABLE_INITIAL_ROLE_SWITCH
+endif
+
+export USE_PAGE_SCAN_REPETITION_MODE_R1 ?= 0
+ifeq ($(USE_PAGE_SCAN_REPETITION_MODE_R1),1)
+KBUILD_CPPFLAGS += -DUSE_PAGE_SCAN_REPETITION_MODE_R1
+endif
+
 export A2DP_PLAYER_USE_BT_TRIGGER ?= 1
 ifeq ($(A2DP_PLAYER_USE_BT_TRIGGER),1)
 KBUILD_CPPFLAGS += -D__A2DP_PLAYER_USE_BT_TRIGGER__
+endif
+
+export AUDIO_OUTPUT_ROUTE_SELECT ?= 0
+ifeq ($(AUDIO_OUTPUT_ROUTE_SELECT),1)
+KBUILD_CPPFLAGS += -DAUDIO_OUTPUT_ROUTE_SELECT
 endif
 
 export BT_SELECT_PROF_DEVICE_ID ?= 0
@@ -2023,45 +1218,22 @@ ifeq ($(BT_ALWAYS_IN_DISCOVERABLE_MODE),1)
 KBUILD_CPPFLAGS += -DBT_ALWAYS_IN_DISCOVERABLE_MODE
 endif
 
-export HFP_1_9_ENABLE ?= 1
-ifeq ($(HFP_1_9_ENABLE),1)
-KBUILD_CPPFLAGS += -DHFP_1_9_ENABLE
-export HFP_SUPPORT_LC3_SWB ?= 0
-ifeq ($(HFP_SUPPORT_LC3_SWB),1)
-KBUILD_CPPFLAGS += -DHFP_SUPPORT_LC3_SWB
-export SPEECH_CODEC_FIXED_SAMPLE_RATE := 16000
-export SPEECH_VQE_FIXED_SAMPLE_RATE := 16000
+export HFP_1_6_ENABLE ?= 1
+ifeq ($(HFP_1_6_ENABLE),1)
+KBUILD_CPPFLAGS += -DHFP_1_6_ENABLE
 endif
-endif
-
 # Fix codec and vqe sample rate
 ifeq ($(SPEECH_BONE_SENSOR),1)
 export SPEECH_CODEC_FIXED_SAMPLE_RATE := 16000
 export SPEECH_VQE_FIXED_SAMPLE_RATE := 16000
 endif
 
-ifeq ($(SPEECH_TX_3MIC_NS),1)
+ifeq ($(SPEECH_TX_NS7),1)
 export SPEECH_CODEC_FIXED_SAMPLE_RATE := 16000
 export SPEECH_VQE_FIXED_SAMPLE_RATE := 16000
 endif
 
-ifeq ($(SPEECH_TX_2MIC_NS4),1)
-export SPEECH_TX_2MIC_SWAP_CHANNELS ?= 0
-export SPEECH_CODEC_FIXED_SAMPLE_RATE := 16000
-export SPEECH_VQE_FIXED_SAMPLE_RATE := 16000
-endif
-
-ifeq ($(SPEECH_TX_NS5),1)
-export SPEECH_CODEC_FIXED_SAMPLE_RATE := 16000
-export SPEECH_VQE_FIXED_SAMPLE_RATE := 16000
-endif
-
-ifeq ($(SPEECH_TX_1MIC_NS),1)
-export SPEECH_CODEC_FIXED_SAMPLE_RATE := 16000
-export SPEECH_VQE_FIXED_SAMPLE_RATE := 16000
-endif
-
-ifeq ($(SPEECH_TX_2MIC_NS7),1)
+ifeq ($(SPEECH_TX_NS8),1)
 export SPEECH_CODEC_FIXED_SAMPLE_RATE := 16000
 export SPEECH_VQE_FIXED_SAMPLE_RATE := 16000
 endif
@@ -2076,16 +1248,6 @@ export SPEECH_CODEC_FIXED_SAMPLE_RATE := 16000
 export SPEECH_VQE_FIXED_SAMPLE_RATE := 16000
 endif
 
-ifeq ($(VOICE_ASSIST_FF_FIR_LMS),1)
-export SPEECH_CODEC_FIXED_SAMPLE_RATE := 32000
-export SPEECH_VQE_FIXED_SAMPLE_RATE := 16000
-endif
-
-ifeq ($(VOICE_ASSIST_FF_IIR_LMS),1)
-export SPEECH_CODEC_FIXED_SAMPLE_RATE := 32000
-export SPEECH_VQE_FIXED_SAMPLE_RATE := 16000
-endif
-
 ifeq ($(AUDIO_ADAPTIVE_IIR_EQ),1)
 export AUDIO_ADAPTIVE_IIR_EQ := 1
 export HW_DAC_IIR_EQ_PROCESS := 1
@@ -2096,6 +1258,10 @@ export AUDIO_ADAPTIVE_FIR_EQ := 1
 export HW_FIR_EQ_PROCESS := 1
 endif
 
+ifeq ($(AUDIO_EQ_MC),1)
+export AUDIO_EQ_MC
+endif
+
 export SPEECH_CODEC_FIXED_SAMPLE_RATE ?= 0
 ifneq ($(filter 8000 16000 32000 48000,$(SPEECH_CODEC_FIXED_SAMPLE_RATE)),)
 KBUILD_CPPFLAGS += -DSPEECH_CODEC_FIXED_SAMPLE_RATE=$(SPEECH_CODEC_FIXED_SAMPLE_RATE)
@@ -2103,7 +1269,7 @@ KBUILD_CPPFLAGS += -DSPEECH_CODEC_FIXED_SAMPLE_RATE=$(SPEECH_CODEC_FIXED_SAMPLE_
 endif
 
 export SPEECH_VQE_FIXED_SAMPLE_RATE ?= 0
-ifneq ($(filter 8000 16000,$(SPEECH_VQE_FIXED_SAMPLE_RATE)),)
+ifneq ($(filter 8000 16000 32000,$(SPEECH_VQE_FIXED_SAMPLE_RATE)),)
 #export DSP_LIB ?= 1
 endif
 
@@ -2112,28 +1278,6 @@ ifeq ($(LEA_CALL_FIX_ADC_SAMPLE_RATE),1)
 KBUILD_CPPFLAGS += -DLEA_CALL_FIX_ADC_SAMPLE_RATE
 endif
 
-export GAF_CONVERSATIONAL_STREAM_PROCESS_ENABLE ?= 0
-ifeq ($(GAF_CONVERSATIONAL_STREAM_PROCESS_ENABLE),1)
-KBUILD_CPPFLAGS += -DGAF_CONVERSATIONAL_STREAM_PROCESS_ENABLE
-core-y += utils/mfifo/
-endif
-
-export SMF ?= 1
-export SMF_DEFINES :=
-ifeq ($(SMF),1)
-SMF_PATH := multimedia
-SMF_DEFINES += -I$(SMF_PATH)/inc
-SMF_DEFINES += -I$(SMF_PATH)/inc/smf
-SMF_DEFINES += -I$(SMF_PATH)/inc/smf/include
-else
-SMF_DEFINES +=
-endif
-
-export BES_MULTIMEDIA_INCLUDES = \
-    -Imultimedia/inc \
-    -Imultimedia/inc/smf \
-    -Imultimedia/inc/smf/include
-
 export A2DP_AAC_ON ?= 0
 ifeq ($(A2DP_AAC_ON),1)
 KBUILD_CPPFLAGS += -DA2DP_AAC_ON
@@ -2141,6 +1285,16 @@ KBUILD_CPPFLAGS += -D__ACC_FRAGMENT_COMPATIBLE__
 ifneq ($(MAX_AAC_BITRATE),)
 KBUILD_CPPFLAGS += -DMAX_AAC_BITRATE=$(MAX_AAC_BITRATE)
 endif
+endif
+
+export A2DP_DSP ?= 0
+ifeq ($(A2DP_DSP),1)
+KBUILD_CPPFLAGS += -DA2DP_DSP
+endif
+
+export GAF_DSP ?= 0
+ifeq ($(GAF_DSP),1)
+KBUILD_CPPFLAGS += -DGAF_DSP
 endif
 
 export FDKAAC_VERSION ?= 2
@@ -2156,14 +1310,12 @@ export A2DP_LHDC_V3 ?= 0
 ifeq ($(A2DP_LHDC_V3),1)
 KBUILD_CPPFLAGS += -DA2DP_LHDC_V3
 endif
-export FLASH_UNIQUE_ID ?= 1
 core-y += thirdparty/audio_codec_lib/liblhdc-dec/
 endif
 
 export A2DP_LHDCV5_ON ?= 0
 ifeq ($(A2DP_LHDCV5_ON),1)
 KBUILD_CPPFLAGS += -DA2DP_LHDCV5_ON
-export FLASH_UNIQUE_ID ?= 1
 core-y += thirdparty/audio_codec_lib/liblhdcv5-dec/
 endif
 
@@ -2171,7 +1323,7 @@ export A2DP_SCALABLE_ON ?= 0
 ifeq ($(A2DP_SCALABLE_ON),1)
 KBUILD_CPPFLAGS += -DA2DP_SCALABLE_ON
 KBUILD_CPPFLAGS += -DGLOBAL_SRAM_KISS_FFT
-KBUILD_CPPFLAGS += -DA2DP_SCALABLE_SSC_SUPPORT
+#KBUILD_CPPFLAGS += -DA2DP_SCALABLE_UHQ_SUPPORT
 core-y += thirdparty/audio_codec_lib/scalable/
 endif
 
@@ -2179,11 +1331,6 @@ export A2DP_LDAC_ON ?= 0
 ifeq ($(A2DP_LDAC_ON),1)
 KBUILD_CPPFLAGS += -DA2DP_LDAC_ON
 core-y += thirdparty/audio_codec_lib/ldac/
-export LIBM_ALL_IN_RAM := 1
-ifeq ($(FREEMAN_ENABLED_STERO),1)
-export A2DP_LDAC_BCO ?= 0
-export ALLOW_WARNING ?= 1
-endif
 endif
 
 export A2DP_LC3_ON ?= 0
@@ -2191,7 +1338,7 @@ ifeq ($(A2DP_LC3_ON),1)
 KBUILD_CPPFLAGS += -DA2DP_LC3_ON
 endif
 
-ifneq ($(filter 1,$(A2DP_LC3_ON) $(BLE_AUDIO_ENABLED)),)
+ifneq ($(filter 1,$(A2DP_LC3_ON) $(BLE_AUDIO_ENABLED) $(SCO_LC3_ON)),)
 export LC3_CODEC_ON ?= 1
 endif
 ifeq ($(LC3_CODEC_ON),1)
@@ -2203,7 +1350,12 @@ ifeq ($(A2DP_LC3_HR),1)
 KBUILD_CPPFLAGS += -DA2DP_LC3_HR
 endif
 
-export FAST_RAM_RUN_LC3_CODEC ?= 0
+export IS_USE_NEW_LC3_CODEC ?= 1
+ifeq ($(IS_USE_NEW_LC3_CODEC),1)
+KBUILD_CPPFLAGS += -DIS_USE_NEW_LC3_CODEC
+endif
+
+export FAST_RAM_RUN_LC3_CODEC ?= 1
 ifeq ($(FAST_RAM_RUN_LC3_CODEC),1)
 KBUILD_CPPFLAGS += -DFAST_RAM_RUN_LC3_CODEC
 endif
@@ -2220,19 +1372,9 @@ ifeq ($(A2DP_CP_ACCEL),1)
 KBUILD_CPPFLAGS += -DA2DP_CP_ACCEL
 endif
 
-export ASSIST_LOW_RAM_MOD ?= 0
-ifeq ($(ASSIST_LOW_RAM_MOD),1)
-KBUILD_CPPFLAGS += -DASSIST_LOW_RAM_MOD
-endif
-
 export IS_DISABLE_A2DP_ALGORITHM_PLAYBACK_SPEED_TUNING ?= 0
 ifeq ($(IS_DISABLE_A2DP_ALGORITHM_PLAYBACK_SPEED_TUNING),1)
 KBUILD_CPPFLAGS += -DIS_DISABLE_A2DP_ALGORITHM_PLAYBACK_SPEED_TUNING
-endif
-
-export CFG_SCO_OVER_HCI ?= 0
-ifeq ($(CFG_SCO_OVER_HCI),1)
-KBUILD_CPPFLAGS += -DCFG_SCO_OVER_HCI
 endif
 
 export SCO_CP_ACCEL ?= 0
@@ -2252,7 +1394,6 @@ endif
 export SCO_TRACE_CP_ACCEL ?= 0
 ifeq ($(SCO_TRACE_CP_ACCEL),1)
 KBUILD_CPPFLAGS += -DSCO_TRACE_CP_ACCEL
-export TRACE_CODE_IN_RAM := 1
 endif
 
 ifneq ($(AUDIO_DSP_ACCEL),)
@@ -2267,13 +1408,12 @@ export APP_MCPP_BTH_SENS := 1
 else ifeq ($(AUDIO_DSP_ACCEL),CP_SUBSYS)
 export APP_MCPP_BTH_CP_SUBSYS := 1
 else
-$(error AUDIO_DSP_ACCEL is invalid, expected HIFI, SENS or CP_SUBSYS)
+$(error AUDIO_DSP_ACCEL is invalid, expected HIFI, M55, SENS or CP_SUBSYS)
 endif
 KBUILD_CPPFLAGS += -DAUDIO_DSP_ACCEL
 KBUILD_CPPFLAGS += -DAUDIO_DSP_ACCEL_$(AUDIO_DSP_ACCEL)
 endif
 
-ifeq ($(BTH_AS_MAIN_MCU),1)
 ifneq ($(SPEECH_ALGO_DSP),)
 export APP_MCPP_CLI := BTH
 export APP_RPC_ENABLE := 1
@@ -2294,27 +1434,6 @@ export SPEECH_TX_24BIT := 1
 export SPEECH_RX_24BIT := 1
 export SPEECH_TX_THIRDPARTY := 1
 endif
-else # ifeq ($(BTH_AS_MAIN_MCU),0)
-ifneq ($(SPEECH_ALGO_DSP),)
-ifeq ($(SENSOR_HUB),1)
-export APP_MCPP_CLI := BTH
-else
-export APP_MCPP_CLI := M55
-endif
-export APP_RPC_ENABLE := 1
-ifeq ($(SPEECH_ALGO_DSP),HIFI)
-export APP_MCPP_M55_HIFI := 1
-else ifeq ($(SPEECH_ALGO_DSP),SENS)
-else
-$(error SPEECH_ALGO_DSP is invalid, expected HIFI)
-endif
-KBUILD_CPPFLAGS += -DSPEECH_ALGO_DSP
-KBUILD_CPPFLAGS += -DSPEECH_ALGO_DSP_$(SPEECH_ALGO_DSP)
-export SPEECH_TX_24BIT := 1
-export SPEECH_RX_24BIT := 1
-export SPEECH_TX_THIRDPARTY := 1
-endif
-endif
 
 ifeq ($(APP_MCPP_BTH_M55),1)
 export APP_RPC_BTH_M55_EN := 1
@@ -2333,12 +1452,7 @@ endif
 ifeq ($(APP_MCPP_CLI),BTH)
 KBUILD_CPPFLAGS += -DAPP_MCPP_CLI
 KBUILD_CPPFLAGS += -DAPP_MCPP_CLI_BTH
-# export APP_MCPP_SRV ?= thirdparty
-endif
-
-ifeq ($(APP_MCPP_CLI),M55)
-KBUILD_CPPFLAGS += -DAPP_MCPP_CLI
-KBUILD_CPPFLAGS += -DAPP_MCPP_CLI_M55
+export MCPP_TRIGGER_DSP_PROCESS ?= 0
 # export APP_MCPP_SRV ?= thirdparty
 endif
 
@@ -2346,18 +1460,12 @@ ifneq ($(APP_MCPP_SRV),)
 KBUILD_CPPFLAGS += -DAPP_MCPP_SRV
 endif
 
-ifeq ($(APP_RPC_MCU_SENSOR_EN), 1)
-KBUILD_CPPFLAGS += -DAPP_RPC_MCU_SENSOR_EN
+ifeq ($(APP_RPC_BTH_DSP_EN), 1)
+KBUILD_CPPFLAGS += -DAPP_RPC_BTH_DSP_EN
 endif
 
-ifneq ($(PSAP_SW_CALL),)
-export PSAP_SW_CALL
-KBUILD_CPPFLAGS += -DPSAP_SW_CALL
-ifeq ($(PSAP_SW_CALL),M55)
-KBUILD_CPPFLAGS += -DPSAP_SW_M55
-else
-$(error PSAP_SW_CALL is invalid, expected M55)
-endif
+ifeq ($(APP_RPC_MCU_SENSOR_EN), 1)
+KBUILD_CPPFLAGS += -DAPP_RPC_MCU_SENSOR_EN
 endif
 
 ifeq ($(BT_XTAL_SYNC),1)
@@ -2367,6 +1475,10 @@ endif
 
 ifeq ($(FPGA_A2DP_SINK),1)
 KBUILD_CPPFLAGS += -DFPGA_A2DP_SINK
+endif
+
+ifeq ($(HSP_ENABLE),1)
+KBUILD_CPPFLAGS += -DHSP_ENABLE
 endif
 
 export TX_RX_PCM_MASK ?= 0
@@ -2394,6 +1506,11 @@ ifeq ($(CVSD_BYPASS),1)
 KBUILD_CPPFLAGS += -DCVSD_BYPASS
 endif
 
+export SCO_FORCE_CVSD ?= 0
+ifeq ($(SCO_FORCE_CVSD),1)
+KBUILD_CPPFLAGS += -DSCO_FORCE_CVSD
+endif
+
 export SCO_DMA_SNAPSHOT ?= 0
 ifeq ($(CHIP_HAS_SCO_DMA_SNAPSHOT),1)
 export SCO_DMA_SNAPSHOT := 1
@@ -2412,6 +1529,12 @@ export MULTI_DMA_TC := 1
 KBUILD_CPPFLAGS += -DMULTI_DMA_TC
 endif
 
+export SUPPORT_ME_MEDIATOR ?= 0
+ifeq ($(CHIP_HAS_SUPPORT_ME_MEDIATOR),1)
+export SUPPORT_ME_MEDIATOR := 1
+KBUILD_CPPFLAGS += -DSUPPORT_ME_MEDIATOR
+endif
+
 ifeq ($(CHIP_ROM_UTILS_VER),)
 $(warning "CHIP_ROM_UTILS_VER must be defined, CHIP after BEST1501")
 $(warning "use \"export CHIP_ROM_UTILS_VER := 2\", other use \"export CHIP_ROM_UTILS_VER := 1\"")
@@ -2422,11 +1545,6 @@ KBUILD_CPPFLAGS += -DROM_UTILS_VER=$(CHIP_ROM_UTILS_VER)
 export SCO_OPTIMIZE_FOR_RAM ?= 0
 ifeq ($(SCO_OPTIMIZE_FOR_RAM),1)
 KBUILD_CPPFLAGS += -DSCO_OPTIMIZE_FOR_RAM
-endif
-
-export USE_OVERLAY_TXT_GAP ?= 0
-ifeq ($(USE_OVERLAY_TXT_GAP), 1)
-KBUILD_CPPFLAGS += -DUSE_OVERLAY_TXT_GAP
 endif
 
 export SW_IIR_PROMPT_EQ_PROCESS ?= 0
@@ -2463,6 +1581,11 @@ ifeq ($(SUPPORT_SIRI),1)
 KBUILD_CPPFLAGS += -DSUPPORT_SIRI
 endif
 
+export BQB_PROFILE_TEST ?= 0
+ifeq ($(BQB_PROFILE_TEST),1)
+KBUILD_CPPFLAGS += -DBQB_PROFILE_TEST
+endif
+
 export AUDIO_SPECTRUM ?= 0
 ifeq ($(AUDIO_SPECTRUM),1)
 KBUILD_CPPFLAGS += -D__AUDIO_SPECTRUM__
@@ -2496,6 +1619,11 @@ ifeq ($(IS_TWS_IBRT_DEBUG_SYSTEM_ENABLED),1)
 KBUILD_CPPFLAGS += -DIS_TWS_IBRT_DEBUG_SYSTEM_ENABLED
 endif
 
+export IS_BLE_AUDIO_DEBUG_INFO_COLLECTOR_ENABLED ?= 0
+ifeq ($(IS_BLE_AUDIO_DEBUG_INFO_COLLECTOR_ENABLED),1)
+KBUILD_CPPFLAGS += -DIS_BLE_AUDIO_DEBUG_INFO_COLLECTOR_ENABLED
+endif
+
 export AUDIO_PROMPT_USE_DAC2_ENABLED ?= 0
 ifneq ($(filter 2 3,$(CHIP_HAS_DAC_FIFO)),)
 export AUDIO_PROMPT_USE_DAC2_ENABLED := 1
@@ -2526,17 +1654,16 @@ export RESAMPLE_ANY_SAMPLE_RATE ?= 1
 export AUDIO_OUTPUT_SW_GAIN := 1
 endif
 
-export BT_DONT_PLAY_MUTE_WHEN_A2DP_STUCK_PATCH ?= 0
-ifeq ($(BT_DONT_PLAY_MUTE_WHEN_A2DP_STUCK_PATCH),1)
-KBUILD_CPPFLAGS += -DBT_DONT_PLAY_MUTE_WHEN_A2DP_STUCK_PATCH
-endif
-
 ifeq ($(PROMPT_CTRL_ANC),1)
 export PROMPT_CTRL_ANC
 endif
 
 ifeq ($(ANC_PROMPT_CTRL_MUSIC),1)
 export ANC_PROMPT_CTRL_MUSIC
+endif
+
+ifeq ($(USE_APP_AUDIO_THREAD),1)
+KBUILD_CPPFLAGS += -DUSE_APP_AUDIO_THREAD
 endif
 
 export MEDIA_PLAY_24BIT ?= 1
@@ -2546,10 +1673,8 @@ export LBRT
 KBUILD_CPPFLAGS += -DLBRT
 endif
 
-ifeq ($(BT_BUILD_WITH_CUSTOMER_HOST),1)
-export IBRT := 0
-export IBRT_UI := 0
-export BES_AUD := 0
+ifneq ($(IBRT),1)
+KBUILD_CPPFLAGS += -DANC_DUAL_CHANNEL
 endif
 
 ifeq ($(IBRT),1)
@@ -2558,7 +1683,6 @@ KBUILD_CPPFLAGS += -DIBRT
 KBUILD_CPPFLAGS += -DIBRT_BLOCKED
 KBUILD_CPPFLAGS += -DIBRT_NOT_USE
 KBUILD_CPPFLAGS += -D__A2DP_AUDIO_SYNC_FIX_DIFF_NOPID__
-
 export TRACE_GLOBAL_TAG ?= 1
 endif
 
@@ -2596,13 +1720,13 @@ ifeq ($(IBRT_SEARCH_UI),1)
 KBUILD_CPPFLAGS += -DIBRT_SEARCH_UI
 endif
 
-ifeq ($(IBRT),1)
-ifeq ($(IBRT_UI),1)
-KBUILD_CPPFLAGS += -DIBRT_UI
-endif
+export SEARCH_UI_COMPATIBLE_UI_V2 ?= 0
+ifeq ($(SEARCH_UI_COMPATIBLE_UI_V2),1)
+KBUILD_CPPFLAGS += -DIBRT_SEARCH_UI
+KBUILD_CPPFLAGS += -DSEARCH_UI_COMPATIBLE_UI_V2
 endif
 
-export IBRT_UI_MASTER_ON_TWS_DISCONNECTED ?= 0
+export IBRT_UI_MASTER_ON_TWS_DISCONNECTED ?= 1
 ifeq ($(IBRT_UI_MASTER_ON_TWS_DISCONNECTED),1)
 KBUILD_CPPFLAGS += -DIBRT_UI_MASTER_ON_TWS_DISCONNECTED
 endif
@@ -2634,6 +1758,19 @@ ifeq ($(POWER_ON_ENTER_BOTH_SCAN_MODE),1)
 KBUILD_CPPFLAGS += -DPOWER_ON_ENTER_BOTH_SCAN_MODE
 endif
 
+# BLE_ADV_RPA_ENABLED shall always be 1. if not, RPA is disabled.
+export BLE_ADV_RPA_ENABLED ?= 1
+export BLE_ADV_REGENERATE_NEW_RPA_DURATION ?= 0
+ifeq ($(BLE_ADV_RPA_ENABLED),1)
+KBUILD_CPPFLAGS += -DBLE_ADV_RPA_ENABLED
+KBUILD_CPPFLAGS += -DBLE_ADV_REGENERATE_NEW_RPA_DURATION=60*15
+endif
+
+export BLE_AUDIO_STEREO_CHANNEL_OVER_ONE_CIS ?= 0
+ifeq ($(BLE_AUDIO_STEREO_CHANNEL_OVER_ONE_CIS),1)
+KBUILD_CPPFLAGS += -DBLE_AUDIO_STEREO_CHANNEL_OVER_ONE_CIS
+endif
+
 export BLE_AUDIO_STEREO_CHAN_OVER_CIS_CNT ?= 0
 ifneq ($(BLE_AUDIO_STEREO_CHAN_OVER_CIS_CNT),0)
 KBUILD_CPPFLAGS += -DBLE_AUDIO_STEREO_CHAN_OVER_CIS_CNT=$(BLE_AUDIO_STEREO_CHAN_OVER_CIS_CNT)
@@ -2649,6 +1786,16 @@ export POWER_ON_OPEN_BOX_ENABLED ?= 0
 ifeq ($(POWER_ON_OPEN_BOX_ENABLED),1)
 IGNORE_POWER_ON_KEY_DURING_BOOT_UP ?= 1
 KBUILD_CPPFLAGS += -DPOWER_ON_OPEN_BOX_ENABLED
+endif
+
+export FREEMAN_OTA_ENABLE ?= 0
+ifeq ($(FREEMAN_OTA_ENABLE),1)
+KBUILD_CPPFLAGS += -DFREEMAN_OTA_ENABLED
+endif
+
+export IS_ACCELARATED_BOOTUP_FEATURE_ENABLED ?= 1
+ifeq ($(IS_ACCELARATED_BOOTUP_FEATURE_ENABLED),1)
+KBUILD_CPPFLAGS += -DIS_ACCELARATED_BOOTUP_FEATURE_ENABLED
 endif
 
 export IGNORE_POWER_ON_KEY_DURING_BOOT_UP ?= 0
@@ -2683,6 +1830,11 @@ ifeq ($(USE_SAFE_DISCONNECT),1)
 KBUILD_CPPFLAGS += -DUSE_SAFE_DISCONNECT
 endif
 
+export UES_MIC_AS_THE_LE_AUD_INPUT ?= 0
+ifeq ($(UES_MIC_AS_THE_LE_AUD_INPUT),1)
+KBUILD_CPPFLAGS += -DUES_MIC_AS_THE_LE_AUD_INPUT
+endif
+
 export AOB_UC_TEST ?= 0
 ifeq ($(AOB_UC_TEST),1)
 KBUILD_CPPFLAGS += -DAOB_UC_TEST
@@ -2700,14 +1852,24 @@ export EPLAYER_TEST ?= 0
 export ECOMM_ON ?= 0
 export EAUDIO_ON ?= 0
 export EAUDIO_TEST ?= 0
-export BT_WATCH_SERVICE_ON ?= 0
-export BT_WATCH_SERVICE_NATIVE?= 0
-export BT_WATCH_SERVICE_DISTRIBUTE ?= 0
-export BT_WATCH_SERVICE_DISTRIBUTE_CLIENT ?= 0
-export BT_WATCH_SERVICE_DISTRIBUTE_SERVER?= 0
-export BT_WATCH_SERVICE_DISTRIBUTE_TRANSPORT_ECOMM ?= 0
-export BT_WATCH_SERVICE_DISTRIBUTE_TRANSPORT_INTERSYS ?= 0
-export BT_WATCH_SERVICE_TEST ?= 0
+export BT_SERVICE_ON ?= 0
+export BT_SERVICE_NATIVE ?= 0
+export BT_SERVICE_DISTRIBUTE ?= 0
+export BT_SERVICE_DISTRIBUTE_CLIENT ?= 0
+export BT_SERVICE_DISTRIBUTE_SERVER ?= 0
+export BT_SERVICE_DISTRIBUTE_TRANSPORT_ECOMM ?= 0
+export BT_SERVICE_DISTRIBUTE_TRANSPORT_INTERSYS ?= 0
+export BT_SERVICE_TEST ?= 0
+
+export CODEC_MORE ?= 0
+ifeq ($(CODEC_MORE),1)
+KBUILD_CPPFLAGS += -DCODEC_MORE
+endif
+
+export AUDIO_PCM_PLAYER ?= 0
+ifeq ($(AUDIO_PCM_PLAYER),1)
+KBUILD_CPPFLAGS += -DAUDIO_PCM_PLAYER
+endif
 
 export EPLAYER_INCLUDES ?=
 EPLAYER_INCLUDES += \
@@ -2732,7 +1894,7 @@ ECOMM_INCLUDES += \
     -Iutils/eindexfifo \
     -Iutils/evf/ \
     -Iutils/evf/impl \
-    -Iutils/crc
+    -Iutils/crc32
 
 export ESHELL_INCLUDES ?=
 ESHELL_INCLUDES += \
@@ -2750,16 +1912,17 @@ EAUDIO_INCLUDES += \
     -Iservices/bt_app \
     -Iutils/cqueue \
     -Iutils/heap \
-    -Imultimedia/inc/audio/process/resample/include
+    -Imultimedia/inc/audio/process/resample/include \
+    -Imultimedia/inc/audio/process/resample/coef/include
 
 export BT_SERVICE_INCLUDES ?=
 BT_SERVICE_INCLUDES += \
-    -Iservices/bt_watch_service \
-    -Iservices/bt_watch_service/inc \
-    -Iservices/bt_watch_service/distribute/inc \
-    -Iservices/bt_watch_service/distribute/client/inc \
-    -Iservices/bt_watch_service/distribute/server/inc \
-    -Iservices/bt_watch_service/distribute/transport/ecomm \
+    -Iservices/bt_service \
+    -Iservices/bt_service/inc \
+    -Iservices/bt_service/distribute/inc \
+    -Iservices/bt_service/distribute/client/inc \
+    -Iservices/bt_service/distribute/server/inc \
+    -Iservices/bt_service/distribute/transport/ecomm \
     -Iutils/transport_if \
 
 EINDEXFIFO_ON ?= 0
@@ -2788,8 +1951,8 @@ ifeq ($(EAUDIO_ON),1)
 KBUILD_CPPFLAGS += -DEAUDIO_ON
 endif
 
-ifeq ($(BT_WATCH_SERVICE_ON),1)
-KBUILD_CPPFLAGS += -DBT_WATCH_SERVICE_ON
+ifeq ($(BT_SERVICE_ON),1)
+KBUILD_CPPFLAGS += -DBT_SERVICE_ON
 endif
 
 ifeq ($(BT_WATCH_MASTER),1)
@@ -2804,20 +1967,27 @@ endif
 # BT source features
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+export BT_MULTI_SOURCE ?= 0
+export APP_LINEIN_A2DP_SOURCE ?= 0
+export A2DP_SOURCE_AAC_ON ?= 0
+export A2DP_SOURCE_LHDC_ON ?= 0
+export A2DP_SOURCE_LHDCV5_ON ?= 0
+export APP_I2S_A2DP_SOURCE ?= 0
+export APP_USB_A2DP_SOURCE ?= 0
+export HFP_AG_SCO_AUTO_CONN ?= 0
+export BT_HFP_AG_ROLE ?= 0
+export BT_A2DP_SRC_ROLE ?= 0
+export BT_AVRCP_TG_ROLE ?= 0
+export SOURCE_TRACE_RX ?= 0
+export A2DP_SOURCE_TEST ?= 0
+export HFP_AG_TEST ?= 0
+export BT_A2DP_SINK_SOURCE_BOTH_SUPPORT ?= 0
+
 ifeq ($(BT_WATCH_APP),1)
 
 export BT_WATCH_APP
 
-export BT_SOURCE := 1
-export APP_LINEIN_A2DP_SOURCE ?= 0
-export A2DP_SOURCE_LHDC_ON ?= 0
-export APP_I2S_A2DP_SOURCE ?= 0
-export APP_USB_A2DP_SOURCE ?= 0
-export HFP_AG_SCO_AUTO_CONN ?= 0
-export BT_A2DP_SRC_ROLE ?= 0
-export BT_AVRCP_TG_ROLE ?= 0
-export A2DP_SOURCE_TEST ?= 0
-export HFP_AG_TEST ?= 0
+export BT_SOURCE ?= 1
 
 KBUILD_CPPFLAGS += -DBT_WATCH_APP
 
@@ -2827,8 +1997,33 @@ KBUILD_CPPFLAGS += -DBT_A2DP_SRC_ROLE
 KBUILD_CPPFLAGS += -DBT_AVRCP_TG_ROLE
 endif
 
+ifeq ($(BT_A2DP_SINK_SOURCE_BOTH_SUPPORT),1)
+KBUILD_CPPFLAGS += -DBT_A2DP_SINK_SOURCE_BOTH_SUPPORT
+endif
+
+ifeq ($(SOURCE_TRACE_RX),1)
+KBUILD_CPPFLAGS += -D__SOURCE_TRACE_RX__
+endif
+
+ifeq ($(BT_MULTI_SOURCE),1)
+KBUILD_CPPFLAGS += -DBT_MULTI_SOURCE
+endif
+
+ifeq ($(BT_HFP_AG_ROLE),1)
+KBUILD_CPPFLAGS += -DBT_HFP_AG_ROLE
+
+ifeq ($(HFP_AG_SCO_AUTO_CONN),1)
+KBUILD_CPPFLAGS += -DHFP_AG_SCO_AUTO_CONN
+endif
+
+ifeq ($(HFP_AG_TEST),1)
+KBUILD_CPPFLAGS += -DHFP_AG_TEST
+endif
+endif # BT_HFP_AG_ROLE
+
 ifeq ($(APP_LINEIN_A2DP_SOURCE),1)
 KBUILD_CPPFLAGS += -DAPP_LINEIN_A2DP_SOURCE
+KBUILD_CPPFLAGS += -D__A2DP_AVDTP_CP__
 endif
 
 ifeq ($(A2DP_SOURCE_AAC_ON),1)
@@ -2839,43 +2034,105 @@ endif
 ifeq ($(A2DP_SOURCE_LHDC_ON),1)
 KBUILD_CPPFLAGS += -DA2DP_SOURCE_LHDC_ON
 KBUILD_CPPFLAGS += -DFLASH_UNIQUE_ID
-KBUILD_CPPFLAGS += -DA2DP_ENCODE_CP_ACCEL
+#KBUILD_CPPFLAGS += -DA2DP_ENCODE_CP_ACCEL
 ##KBUILD_CPPFLAGS += -DA2DP_TRACE_ENCODE_CP_ACCEL
 core-y += thirdparty/audio_codec_lib/liblhdc-enc/
 endif
 
+ifeq ($(A2DP_SOURCE_LHDCV5_ON),1)
+KBUILD_CPPFLAGS += -DA2DP_SOURCE_LHDCV5_ON
+KBUILD_CPPFLAGS += -DFLASH_UNIQUE_ID
+#KBUILD_CPPFLAGS += -DA2DP_ENCODE_CP_ACCEL
+#KBUILD_CPPFLAGS += -DA2DP_TRACE_ENCODE_CP_ACCEL
+core-y += thirdparty/audio_codec_lib/liblhdcv5-enc/
+endif
+
 ifeq ($(APP_I2S_A2DP_SOURCE),1)
 KBUILD_CPPFLAGS += -DAPP_I2S_A2DP_SOURCE
+KBUILD_CPPFLAGS += -D__A2DP_AVDTP_CP__
 endif
 
 ifeq ($(APP_USB_A2DP_SOURCE),1)
 KBUILD_CPPFLAGS += -DAPP_USB_A2DP_SOURCE
+KBUILD_CPPFLAGS += -D__A2DP_AVDTP_CP__
+#KBUILD_CPPFLAGS += -DA2DP_ENCODE_CP_ACCEL
 endif
 
 else # !BT_WATCH_APP
 
+ifeq ($(A2DP_SOURCE_AUTO_START),1)
+KBUILD_CPPFLAGS += -DA2DP_SOURCE_AUTO_START
+endif
+
+ifeq ($(BT_SOURCE_SIMU),1)
+KBUILD_CPPFLAGS += -DBT_SOURCE_SIMU
+endif
+
 ifeq ($(BT_SOURCE),1)
 
 KBUILD_CPPFLAGS += -DBT_SOURCE
+KBUILD_CPPFLAGS += -DBT_A2DP_SRC_ROLE
+KBUILD_CPPFLAGS += -DBT_AVRCP_TG_ROLE
+
+ifeq ($(BT_A2DP_SINK_SOURCE_BOTH_SUPPORT),1)
+KBUILD_CPPFLAGS += -DBT_A2DP_SINK_SOURCE_BOTH_SUPPORT
+endif
+
+ifeq ($(BT_MULTI_SOURCE),1)
+KBUILD_CPPFLAGS += -DBT_MULTI_SOURCE
+endif
+
+ifeq ($(SOURCE_TRACE_RX),1)
+KBUILD_CPPFLAGS += -D__SOURCE_TRACE_RX__
+endif
+
+ifeq ($(BT_HFP_AG_ROLE),1)
+KBUILD_CPPFLAGS += -DBT_HFP_AG_ROLE
+
+ifeq ($(HFP_AG_SCO_AUTO_CONN),1)
+KBUILD_CPPFLAGS += -DHFP_AG_SCO_AUTO_CONN
+endif
+
+ifeq ($(HFP_AG_TEST),1)
+KBUILD_CPPFLAGS += -DHFP_AG_TEST
+endif
+endif # BT_HFP_AG_ROLE
 
 ifeq ($(APP_LINEIN_A2DP_SOURCE),1)
 KBUILD_CPPFLAGS += -DAPP_LINEIN_A2DP_SOURCE
+KBUILD_CPPFLAGS += -D__A2DP_AVDTP_CP__
+endif
+
+ifeq ($(A2DP_SOURCE_AAC_ON),1)
+KBUILD_CPPFLAGS += -DA2DP_SOURCE_AAC_ON
+KBUILD_CPPFLAGS += -D__A2DP_AVDTP_CP__
 endif
 
 ifeq ($(A2DP_SOURCE_LHDC_ON),1)
 KBUILD_CPPFLAGS += -DA2DP_SOURCE_LHDC_ON
 KBUILD_CPPFLAGS += -DFLASH_UNIQUE_ID
-KBUILD_CPPFLAGS += -DA2DP_ENCODE_CP_ACCEL
+#KBUILD_CPPFLAGS += -DA2DP_ENCODE_CP_ACCEL
 ##KBUILD_CPPFLAGS += -DA2DP_TRACE_ENCODE_CP_ACCEL
 core-y += thirdparty/audio_codec_lib/liblhdc-enc/
 endif
 
+ifeq ($(A2DP_SOURCE_LHDCV5_ON),1)
+KBUILD_CPPFLAGS += -DA2DP_SOURCE_LHDCV5_ON
+KBUILD_CPPFLAGS += -DFLASH_UNIQUE_ID
+#KBUILD_CPPFLAGS += -DA2DP_ENCODE_CP_ACCEL
+##KBUILD_CPPFLAGS += -DA2DP_TRACE_ENCODE_CP_ACCEL
+core-y += thirdparty/audio_codec_lib/liblhdcv5-enc/
+endif
+
 ifeq ($(APP_I2S_A2DP_SOURCE),1)
 KBUILD_CPPFLAGS += -DAPP_I2S_A2DP_SOURCE
+KBUILD_CPPFLAGS += -D__A2DP_AVDTP_CP__
 endif
 
 ifeq ($(APP_USB_A2DP_SOURCE),1)
 KBUILD_CPPFLAGS += -DAPP_USB_A2DP_SOURCE
+KBUILD_CPPFLAGS += -D__A2DP_AVDTP_CP__
+#KBUILD_CPPFLAGS += -DA2DP_ENCODE_CP_ACCEL
 endif
 
 endif # BT_SOURCE
@@ -2895,33 +2152,37 @@ endif # BT_APP
 # -------------------------------------------
 # BLE features
 # -------------------------------------------
-ifeq ($(BT_BUILD_WITH_CUSTOMER_HOST),1)
-export GOOGLE_SERVICE_ENABLE := 0
-export BISTO_ENABLE := 0
-export GFPS_ENABLE := 0
-export BISTO_IOS_DISABLE := 0
-export SASS_ENABLE := 0
-export AMA_VOICE := 0
-export DMA_VOICE := 0
-export CUSTOMIZE_VOICE := 0
-export GMA_VOICE := 0
-export SMART_VOICE := 0
-export TENCENT_VOICE := 0
-export TILE_DATAPATH_ENABLED := 0
-export BLE_ONLY_ENABLED := 0
-export USE_THIRDPARTY := 0
-else
-export GOOGLE_SERVICE_ENABLE ?= 0
-export BISTO_ENABLE ?= 0
-export AMA_VOICE ?= 0
-export DMA_VOICE ?= 0
-export CUSTOMIZE_VOICE ?= 0
-export GMA_VOICE ?= 0
-export SMART_VOICE ?= 0
-export TENCENT_VOICE ?= 0
-export BIXBY_VOICE ?= 0
-export TILE_DATAPATH_ENABLED ?= 0
+export BLE_STACK_NEW_DESIGN ?= 1
+
+ifeq ($(BLE_STACK_NEW_DESIGN),1)
+KBUILD_CPPFLAGS += -DBLE_STACK_NEW_DESIGN
 endif
+
+export BLE_AUDIO_CORE_DIR_PATH = services/ble_audio/ble_audio_core
+export BLE_AUDIO_TEST_DIR_PATH = services/ble_audio/ble_audio_test
+export BLE_AUDIO_USB_DIR_PATH = apps/usbaudio/ble_usb_audio
+
+BLE_AOB_APP_DIR_PATH := bthost/service/ble_audio/aob_app
+
+ifeq ($(BLE_STACK_NEW_DESIGN),1)
+BLE_APP_DIR_PATH := bthost/service/ble_app_new
+BLE_GAF_CORE_DIR_PATH := bthost/service/ble_audio/blueelf_adapter
+BLE_STACK_DIR_PATH := bthost/stack/ble_stack_new
+else
+BLE_APP_DIR_PATH := bthost/service/ble_app
+BLE_GAF_CORE_DIR_PATH := bthost/service/ble_audio/gaf_core
+BLE_STACK_DIR_PATH := bthost/stack/ble_stack
+endif
+
+export BLE_APP_INCLUDES := \
+    -I$(BLUETOOTH_APP_DIR_COMMON) \
+    -I$(BLE_APP_DIR_PATH)/inc \
+    -I$(BLE_AOB_APP_DIR_PATH)/inc \
+    -I$(BLE_GAF_CORE_DIR_PATH)/inc \
+
+export BLE_STACK_INCLUDES := \
+    -I$(BT_STACK_ROM_DIR_PATH) \
+    -I$(BLE_STACK_DIR_PATH)/inc
 
 ifeq ($(GOOGLE_SERVICE_ENABLE), 1)
 export BISTO_ENABLE := 1
@@ -2934,6 +2195,7 @@ export SASS_ENABLE ?= 0
 
 ifeq ($(BISTO_ENABLE),1)
 export BISTO_ENABLE
+export VOICE_DATAPATH_ENABLED := 1
 export CRASH_REBOOT ?= 1
 export BLE_SECURITY_ENABLED := 1
 ifeq ($(CHIP),best1400)
@@ -2944,18 +2206,26 @@ endif
 export VOICE_DATAPATH_TYPE ?= gsound
 #export TRACE_DUMP2FLASH ?= 1
 export FLASH_SUSPEND := 1
-# GEMINI may not support OTA
 export AI_OTA := 1
 ifeq ($(BISTO_IOS_DISABLE), 1)
 KBUILD_CFLAGS += -DBISTO_IOS_DISABLED
+else
+# ANC service server enable
+ANCS := 1
+# ANC service client enable
+ANCC := 1
+
+# AMS server enable
+AMS := 1
+# AMS client enable
+AMSC := 1
+
+# BMS server enable
+BMS := 1
 endif
 endif # ifeq ($(BISTO_ENABLE),1)
 
 # 1 to enable BLE, 0 to disable BLE
-ifeq ($(BT_BUILD_WITH_CUSTOMER_HOST),1)
-export BLE := 0
-BLE_SWITCH := 0
-else
 export BLE ?= 0
 
 BLE_SWITCH := \
@@ -2969,7 +2239,6 @@ BLE_SWITCH := \
     $(TENCENT_VOICE) \
     $(TILE_DATAPATH_ENABLED) \
     $(BLE_ONLY_ENABLED)
-endif
 
 ifneq ($(filter 1, $(BLE_SWITCH)),)
 export BLE := 1
@@ -2978,12 +2247,18 @@ endif
 ifeq ($(BLE),1)
 
 export BLE_HOST_SUPPORT := 1
-ifeq ($(BLE_HOST_SUPPORT),1)
+ifeq ($(BLE_HOST_SUPPORT), 1)
 KBUILD_CPPFLAGS += -DBLE_HOST_SUPPORT
 endif
 
 export APPEARANCE_VALUE ?= 0
 KBUILD_CPPFLAGS += -DAPPEARANCE_VALUE=$(APPEARANCE_VALUE)
+
+#export BLE_IP_VERSION ?= v11_0_7 \
+ifeq ($(BLE_IP_VERSION),v11_0_7) \
+KBUILD_CPPFLAGS += -DBLE_IP_VERSION=\"v11_0_7\"
+
+#endif #BLE_IP_VERSION
 
 # BLE custom if module
 export IS_BLE_CUSTOM_IF_ENABLED ?= 1
@@ -3021,25 +2296,43 @@ export BLE_BATT ?= 0
 ## DISS service
 export BLE_DISS ?= 0
 
+## IAS service
+export BLE_IAS ?= 0
+
 ## Microsoft swift pair
 export SWIFT_ENABLE ?= 0
 ifeq ($(SWIFT_ENABLE),1)
 KBUILD_CPPFLAGS += -DSWIFT_ENABLED
 endif # SWIFT
 
+# by default flags is configured by ble stack
+# working when CUSTOMER_DEFINE_ADV_DATA is not defined as custom adv API can set-up whether a adv's flags data
+# is configured by application layer or not via
+# void app_ble_custom_adv_write_data(BLE_ADV_ACTIVITY_USER_E actv_user,
+#                    bool is_custom_adv_flags,
+export IS_BLE_FLAGS_ADV_DATA_CONFIGURED_BY_APP_LAYER ?= 0
+ifeq ($(IS_BLE_FLAGS_ADV_DATA_CONFIGURED_BY_APP_LAYER), 1)
+KBUILD_CPPFLAGS += -DIS_BLE_FLAGS_ADV_DATA_CONFIGURED_BY_APP_LAYER
+endif
+
 export CUSTOMER_DEFINE_ADV_DATA ?= 0
 ifeq ($(CUSTOMER_DEFINE_ADV_DATA),1)
 KBUILD_CPPFLAGS += -DCUSTOMER_DEFINE_ADV_DATA
 endif
 
-export RECORD_KE_MEM_USAGE_ENABLED ?= 0
-ifeq ($(RECORD_KE_MEM_USAGE_ENABLED),1)
-KBUILD_CPPFLAGS += -D__RECORD_KE_MEM_USAGE_ENABLED__
+export BLE_SEC_ACCEPT_BY_CUSTOMER ?= 0
+ifeq ($(BLE_SEC_ACCEPT_BY_CUSTOMER),1)
+KBUILD_CPPFLAGS += -DBLE_SEC_ACCEPT_BY_CUSTOMER
 endif
 
-export BLE_ADV_NOT_START_DEFAULT ?= 1
-ifeq ($(BLE_ADV_NOT_START_DEFAULT),1)
-KBUILD_CPPFLAGS += -DBLE_ADV_NOT_START_DEFAULT
+export IS_BLE_ACTIVITY_COUNT_MORE_THAN_THREE ?= 0
+ifeq ($(IS_BLE_ACTIVITY_COUNT_MORE_THAN_THREE),1)
+KBUILD_CPPFLAGS += -DIS_BLE_ACTIVITY_COUNT_MORE_THAN_THREE
+endif
+
+export BLE_AOB_VOLUME_SYNC_ENABLED ?= 1
+ifeq ($(BLE_AOB_VOLUME_SYNC_ENABLED),1)
+KBUILD_CPPFLAGS += -DBLE_AOB_VOLUME_SYNC_ENABLED
 endif
 
 export BLE_WALKIE_TALKIE ?= 0
@@ -3051,22 +2344,31 @@ KBUILD_CPPFLAGS += -DWT_AUTO_BUILD_NET
 endif
 endif
 
-export BLE_WALKIE_TALKIE_HALF_DUPLEX ?= 0
-ifeq ($(BLE_WALKIE_TALKIE_HALF_DUPLEX),1)
-KBUILD_CPPFLAGS += -DBLE_WALKIE_TALKIE_HALF_DUPLEX
+# rwapp_config
+KBUILD_CPPFLAGS += -DCFG_APP_DATAPATH_SERVER
+
+#KBUILD_CPPFLAGS += -DBLE_IAS_ENABLED
+
+export BT_STACK_LOG_DISABLE ?= 0
+ifeq ($(BT_STACK_LOG_DISABLE),1)
+KBUILD_CPPFLAGS += -DBT_STACK_LOG_DISABLE
 endif
 
-export BLE_WALKIE_TALKIE_FULL_DUPLEX ?= 0
-ifeq ($(BLE_WALKIE_TALKIE_FULL_DUPLEX),1)
-KBUILD_CPPFLAGS += -DBLE_WALKIE_TALKIE_FULL_DUPLEX
-endif
+ifeq ($(CFG_APP_MESH),1)
+KBUILD_CPPFLAGS += -DCFG_APP_MESH
+endif # CFG_APP_MESH
+
+ifeq ($(CFG_APP_HT),1)
+KBUILD_CPPFLAGS += -DCFG_APP_HT
+endif # CFG_APP_HT
+
+ifeq ($(CFG_APP_HR),1)
+KBUILD_CPPFLAGS += -DCFG_APP_HR
+endif # CFG_APP_HR
 
 ifeq ($(GFPS_ENABLE),1)
 KBUILD_CPPFLAGS += -DGFPS_ENABLED
 ifeq ($(SASS_ENABLE),1)
-AUTO_ACCEPT_SECOND_SCO := 0
-BT_MUTE_A2DP := 1
-BT_PAUSE_A2DP := 0
 KBUILD_CPPFLAGS += -DSASS_ENABLED
 endif
 endif # GFPS_ENABLED
@@ -3075,19 +2377,52 @@ ifeq ($(CFG_APP_BAS),1)
 KBUILD_CPPFLAGS += -DCFG_APP_BAS
 endif # CFG_APP_BAS
 
+export BES_AHP ?= 0
+ifeq ($(BES_AHP),1)
+KBUILD_CPPFLAGS += -DBES_AHP
+KBUILD_CPPFLAGS += -DCFG_APP_AHP_SERVER
+endif
+
 # rwip_config
 KBUILD_CPPFLAGS += -D__IAG_BLE_INCLUDE__
 
-ifeq ($(GATT_RATE_TESTC),1)
-KBUILD_CPPFLAGS += -DGATT_RATE_TESTC
-GATT_RATE_TESTS := 0
-endif # GATT_RATE_TESTC
+ifeq ($(CFG_AHITL),1)
+KBUILD_CPPFLAGS += -DCFG_AHITL
+endif # Application Host Interface
 
-ifeq ($(GATT_RATE_TESTS),1)
-KBUILD_CPPFLAGS += -DGATT_RATE_TESTS
-endif # GATT_RATE_TESTS
+ifeq ($(CFG_CON_CTE_REQ),1)
+KBUILD_CPPFLAGS += -DCFG_CON_CTE_REQ
+endif
+
+ifeq ($(CFG_CON_CTE_RSP),1)
+KBUILD_CPPFLAGS += -DCFG_CON_CTE_RSP
+endif
+
+ifeq ($(CFG_CONLESS_CTE_TX),1)
+KBUILD_CPPFLAGS += -DCFG_CONLESS_CTE_TX
+endif
+
+ifeq ($(CFG_CONLESS_CTE_RX),1)
+KBUILD_CPPFLAGS += -DCFG_CONLESS_CTE_RX
+endif
+
+ifeq ($(CFG_AOD),1)
+KBUILD_CPPFLAGS += -DCFG_AOD
+endif
+
+export CFG_AOA ?= 0
+ifeq ($(CFG_AOA),1)
+KBUILD_CPPFLAGS += -DCFG_AOA
+endif
+
+export CFG_SUBRATE ?= 0
+ifeq ($(CFG_SUBRATE),1)
+KBUILD_CPPFLAGS += -DCFG_SUBRATE
+endif
+
 # rwip_config end
 
+KBUILD_CPPFLAGS += -DBLE_STACK_PORTING_CHANGES
 BLE_APP_INCLUDES += \
     -I$(BLE_APP_DIR_PATH) \
     -I$(BLE_APP_DIR_PATH)/app_batt/ \
@@ -3102,7 +2437,8 @@ BLE_APP_INCLUDES += \
     -I$(BLE_APP_DIR_PATH)/app_sec \
     -I$(BLE_APP_DIR_PATH)/app_tota \
     -I$(BLE_APP_DIR_PATH)/app_tws \
-    -I$(BLE_APP_DIR_PATH)/app_vob
+    -I$(BLE_APP_DIR_PATH)/app_vob \
+    -Iutils/hsm
 ifeq ($(AMSC),1)
 BLE_APP_INCLUDES += \
     -I$(BLE_APP_DIR_PATH)/app_amsc/
@@ -3135,19 +2471,11 @@ BLE_APP_INCLUDES += \
     -I$(BLE_GAF_CORE_DIR_PATH)/app_tmap \
     -I$(BLE_GAF_CORE_DIR_PATH)/app_tm \
     -I$(BLE_AOB_APP_DIR_PATH)/gaf_app \
-    -I$(BLE_AOB_APP_DIR_PATH)/gaf_audio
-endif
-ifeq ($(GATT_RATE_TESTC),1)
-BLE_APP_INCLUDES += \
-    -I$(BLE_GAF_CORE_DIR_PATH)/app_rate_test/
-endif
-ifeq ($(GATT_RATE_TESTS),1)
-BLE_APP_INCLUDES += \
-    -I$(BLE_GAF_CORE_DIR_PATH)/app_rate_test/
+    -I$(BLE_AOB_APP_DIR_PATH)/gaf_audio \
+    -I$(BLE_AUDIO_USB_DIR_PATH)
 endif
 
 BLE_STACK_INCLUDES += \
-    -Ibthost/stack/le_bridge \
     -I$(BLE_STACK_DIR_PATH) \
     -I$(BLE_STACK_DIR_PATH)/ip/ahi/api/ \
     -I$(BLE_STACK_DIR_PATH)/ip/ble/hl/api/ \
@@ -3237,37 +2565,30 @@ ifeq ($(AOB_LOW_LATENCY_MODE),1)
 KBUILD_CPPFLAGS += -DAOB_LOW_LATENCY_MODE
 endif
 
-ifeq ($(BT_BLEAUDIO_COEXIST),1)
-KBUILD_CPPFLAGS += -DBT_BLEAUDIO_COEXIST
+export BLE_AUDIO_WORKING_RESET_SINGLE_EARPHONE ?= 1
+ifeq ($(BLE_AUDIO_WORKING_RESET_SINGLE_EARPHONE),1)
+KBUILD_CPPFLAGS += -DBLE_AUDIO_WORKING_RESET_SINGLE_EARPHONE
 endif
 
-export BLE_ISO_ENABLED ?= 0
-ifeq ($(BLE_ISO_ENABLED),1)
-KBUILD_CPPFLAGS += -DBLE_ISO_ENABLED=1
-export ISO_BEARER_SUPPORT := 1
-KBUILD_CPPFLAGS += -DISO_BEARER_SUPPORT=1
+export BLE_AUDIO_ENABLED ?= 0
 ifeq ($(BLE_AUDIO_ENABLED),1)
-$(error BLE_AUDIO_ENABLED BLE_ISO_ENABLED can not be enable botogetherth.)
-endif
-endif
-
-ifeq ($(BLE_AUDIO_ENABLED),1)
-ISO_BEARER_SUPPORT = 1
+BLE_ISO_ENABLED = 1
 KBUILD_CPPFLAGS += -DBLE_AUDIO_ENABLED=1
 export LC3PLUS_SUPPORT ?= 0
 ifeq ($(LC3PLUS_SUPPORT),1)
 KBUILD_CPPFLAGS += -DLC3PLUS_SUPPORT
 endif
 
-export LEA_LHDC ?= 0
-ifeq ($(LEA_LHDC),1)
-KBUILD_CPPFLAGS += -DLEA_LHDC
+export mHDT_LE_SUPPORT ?= 0
+ifeq ($(mHDT_LE_SUPPORT),1)
+KBUILD_CPPFLAGS += -DmHDT_LE_SUPPORT=1
 endif
 
 export BLE_AUDIO_CONNECTION_CNT ?= 2
 KBUILD_CPPFLAGS += -DBLE_AUDIO_CONNECTION_CNT=$(BLE_AUDIO_CONNECTION_CNT)
 
 KBUILD_CPPFLAGS += -DBLE_AUDIO_CIS_CONN_CNT=4
+KBUILD_CPPFLAGS += -DBLE_AUDIO_IS_ALWAYS_USE_TEST_MODE_CIG_BIG_CREATING
 
 export BLE_AUDIO_IS_USE_24_BIT_DEPTH ?= 1
 ifeq ($(BLE_AUDIO_IS_USE_24_BIT_DEPTH),1)
@@ -3281,9 +2602,9 @@ ifeq ($(BLE_AUDIO_USE_TWO_MIC_FOR_DONGLE),1)
 KBUILD_CPPFLAGS += -DBLE_AUDIO_USE_TWO_MIC_FOR_DONGLE
 endif
 
-export BLE_AUDIO_WORKING_RESET_SINGLE_EARPHONE ?= 1
-ifeq ($(BLE_AUDIO_WORKING_RESET_SINGLE_EARPHONE),1)
-KBUILD_CPPFLAGS += -DBLE_AUDIO_WORKING_RESET_SINGLE_EARPHONE
+export BLE_AUDIO_USE_TWO_MIC_SRC_FOR_DONGLE ?= 0
+ifeq ($(BLE_AUDIO_USE_TWO_MIC_SRC_FOR_DONGLE),1)
+KBUILD_CPPFLAGS += -DBLE_AUDIO_USE_TWO_MIC_SRC_FOR_DONGLE
 endif
 
 export AOB_MOBILE_ENABLED ?= 0
@@ -3292,11 +2613,33 @@ KBUILD_CPPFLAGS += -DAOB_MOBILE_ENABLED
 KBUILD_CPPFLAGS += -DBLE_AUDIO_IS_SUPPORT_CENTRAL_ROLE
 endif
 
+export WIRELESS_MIC ?= 0
+ifeq ($(WIRELESS_MIC),1)
+KBUILD_CPPFLAGS += -DWIRELESS_MIC
+endif
+
+export AOB_SPLIT_PAC_RECORD_INTO_FOUR_RECORDS ?= 0
+ifeq ($(AOB_SPLIT_PAC_RECORD_INTO_FOUR_RECORDS),1)
+KBUILD_CPPFLAGS += -DAOB_SPLIT_PAC_RECORD_INTO_FOUR_RECORDS
+endif
+
+export IO_CAPABILITY_NO_INPUT_NO_OUTPUT_MITM_FALSE ?= 0
+ifeq ($(IO_CAPABILITY_NO_INPUT_NO_OUTPUT_MITM_FALSE),1)
+KBUILD_CPPFLAGS += -DIO_CAPABILITY_NO_INPUT_NO_OUTPUT_MITM_FALSE
+endif
+
 else
 KBUILD_CPPFLAGS += -DBLE_AUDIO_ENABLED=0
 KBUILD_CPPFLAGS += -DTWS_SYNC_NVRECORD_BLE_DEVICE_INFO_ENABLED
 KBUILD_CPPFLAGS += -DMASTER_SEND_ENCRYPT_REQUEST_ENABLED
-KBUILD_CPPFLAGS += -DBLE_AUDIO_CONNECTION_CNT=0
+endif
+
+ifeq ($(GFPS_ENABLE),1)
+BLE_SECURITY_ENABLED := 1
+endif
+ifeq ($(BLE_SECURITY_ENABLED), 1)
+export BLE_SECURITY_ENABLED
+KBUILD_CPPFLAGS += -DCFG_APP_SEC
 endif
 
 ifeq ($(BISTO_ENABLE),1)
@@ -3308,23 +2651,87 @@ endif
 endif
 
 KBUILD_CPPFLAGS += -D__BLE_TX_USE_BT_TX_QUEUE__
+KBUILD_CPPFLAGS += -DBES_BLE_ACTIVITY_MAX=11
+KBUILD_CPPFLAGS += -DBES_BLE_ADV_DATA_MAX=31
 
-ifeq ($(BLE_DIP_ENABLE),1)
-KBUILD_CPPFLAGS += -DBLE_DIP_ENABLE
+ifeq ($(ANCS),1)
+KBUILD_CPPFLAGS += -DANCS_ENABLED
+endif
+
+ifeq ($(ANCC),1)
+KBUILD_CPPFLAGS += -DANCC_ENABLED
+endif
+
+ifeq ($(AMS),1)
+KBUILD_CPPFLAGS += -DAMS_ENABLED
+endif
+
+ifeq ($(AMSC),1)
+KBUILD_CPPFLAGS += -DAMSC_ENABLED
+endif
+
+ifeq ($(BMS),1)
+KBUILD_CPPFLAGS += -DBMS_ENABLED
+endif
+
+ifeq ($(BLE_HID),1)
+KBUILD_CPPFLAGS += -DBLE_HID_ENABLE
+endif
+
+ifeq ($(BLE_HID_HOST),1)
+KBUILD_CPPFLAGS += -DBLE_HID_HOST
+endif
+
+ifeq ($(BLE_HOGPBH),1)
+KBUILD_CPPFLAGS += -DBLE_HOGPBH_ENABLE
 endif
 
 ifeq ($(BLE_HOGPRH),1)
 KBUILD_CPPFLAGS += -DBLE_HOGPRH_ENABLE
 endif
 
+ifeq ($(BLE_BATT),1)
+KBUILD_CPPFLAGS += -DBLE_BATT_ENABLE
+endif
+
+ifeq ($(BLE_HOGPRH),1)
+KBUILD_CPPFLAGS += -DBLE_BATT_CLIENT_ENABLE
+else ifeq ($(BLE_HOGPBH),1)
+KBUILD_CPPFLAGS += -DBLE_BATT_CLIENT_ENABLE
+endif
+
+ifeq ($(BLE_HOGPRH),1)
+KBUILD_CPPFLAGS += -DBLE_DISC_ENABLE
+else ifeq ($(BLE_HOGPBH),1)
+KBUILD_CPPFLAGS += -DBLE_DISC_ENABLE
+endif
+
+ifeq ($(BLE_DISS),1)
+KBUILD_CPPFLAGS += -DBLE_DISS_ENABLE
+endif
+
+ifeq ($(BLE_IAS),1)
+KBUILD_CPPFLAGS += -DBLE_IAS_ENABLED
+endif
+
 export BLE_HOST_PTS_TEST_ENABLED ?= 0
 ifeq ($(BLE_HOST_PTS_TEST_ENABLED),1)
-export ISO_BEARER_SUPPORT = 1
+export BLE_ISO_ENABLED = 1
 KBUILD_CPPFLAGS += -DBLE_HOST_PTS_TEST_ENABLED
+endif
+
+BLE_AUDIO_TEST_ENABLED ?= 1
+ifeq ($(BLE_AUDIO_TEST_ENABLED),1)
+KBUILD_CPPFLAGS += -DBLE_AUDIO_TEST_ENABLED
 endif
 
 ifeq ($(IS_BLE_AUDIO_PTS_TEST_ENABLED),1)
 KBUILD_CPPFLAGS += -DIS_BLE_AUDIO_PTS_TEST_ENABLED
+endif
+
+export USE_MS_AS_BLE_ADV_INTERVAL_UNIT ?= 1
+ifeq ($(USE_MS_AS_BLE_ADV_INTERVAL_UNIT),1)
+KBUILD_CPPFLAGS += -DUSE_MS_AS_BLE_ADV_INTERVAL_UNIT
 endif
 
 export IS_NEW_LE_AUDIO_SYNC_CAPTURE_ALG_ENABLED ?= 0
@@ -3332,9 +2739,9 @@ ifeq ($(IS_NEW_LE_AUDIO_SYNC_CAPTURE_ALG_ENABLED),1)
 KBUILD_CPPFLAGS += -DIS_NEW_LE_AUDIO_SYNC_CAPTURE_ALG_ENABLED
 endif
 
-export BIS_SELFSCAN_ENABLED ?= 0
-ifeq ($(BIS_SELFSCAN_ENABLED),1)
-KBUILD_CPPFLAGS += -DBIS_SELFSCAN_ENABLED=1
+export BLE_ISO_ENABLED ?= 0
+ifeq ($(BLE_ISO_ENABLED),1)
+KBUILD_CPPFLAGS += -DBLE_ISO_ENABLED
 endif
 
 export BLE_BIS_TRANSPORT ?= 0
@@ -3353,12 +2760,6 @@ export AUDIO_OUTPUT_ROUTE_SELECT := 1
 endif
 endif
 
-
-# GATT over BR/EDR features
-export GATT_OVER_BR_EDR ?= 0
-ifeq ($(GATT_OVER_BR_EDR),1)
-KBUILD_CPPFLAGS += -D__GATT_OVER_BR_EDR__
-endif
 
 endif # BLE
 
@@ -3394,16 +2795,43 @@ endif
 
 ifeq ($(SIGNAL_GENERATOR),1)
 core-y += utils/signal_generator/
-KBUILD_CPPFLAGS += -DSIGNAL_GENERATOR
+endif
+
+ifeq ($(LOCAL_PCM),1)
+core-y += utils/local_pcm/
+endif
+
+ifeq ($(TDM_RELAY),1)
+export TDM_RELAY
+export AF_DEVICE_I2S ?= 1
+export AF_DEVICE_TDM ?= 1
+export CODEC_SW_SYNC ?= 1
+
+# Sync debug
+ifeq ($(TDM_RELAY_SYNC_DBG),1)
+export TDM_RELAY_SYNC_DBG
+endif
+
+ifeq ($(TDM_RELAY_SYNC_BYPASS_TUNING),1)
+export TDM_RELAY_SYNC_BYPASS_TUNING
+endif
 endif
 
 export FLASH_PROTECTION ?= 1
 
 export APP_TEST_AUDIO ?= 0
+ifeq ($(APP_TEST_AUDIO),1)
+KBUILD_CPPFLAGS += -DAPP_TEST_AUDIO
+endif
 
 ifeq ($(APP_TEST_MODE),1)
 export APP_TEST_MODE
 KBUILD_CPPFLAGS += -DAPP_TEST_MODE
+endif
+
+ifeq ($(APP_SAMPLES),1)
+export APP_SAMPLES
+KBUILD_CPPFLAGS += -DAPP_SAMPLES
 endif
 
 export VOICE_PROMPT ?= 1
@@ -3419,6 +2847,7 @@ ifeq ($(ENGINEER_MODE),1)
 FACTORY_MODE := 1
 endif
 ifeq ($(FACTORY_MODE),1)
+export FACTORY_MODE
 KBUILD_CPPFLAGS += -D__FACTORY_MODE_SUPPORT__
 endif
 
@@ -3439,33 +2868,32 @@ ifeq ($(APP_USE_LED_INDICATE_IBRT_STATUS),1)
 KBUILD_CPPFLAGS += -D__APP_USE_LED_INDICATE_IBRT_STATUS__
 endif
 
-ifeq ($(HEAR_THRU_PEAK_DET),1)
-KBUILD_CPPFLAGS += -D__HEAR_THRU_PEAK_DET__
-endif
-
-ifeq ($(BESBT_STACK_SIZE),)
 ifeq ($(BLE),1)
 KBUILD_CPPFLAGS += -DBESBT_STACK_SIZE=1024*8+512
 else
 KBUILD_CPPFLAGS += -DBESBT_STACK_SIZE=1024*5+512
 endif
-else
-KBUILD_CPPFLAGS += -DBESBT_STACK_SIZE=$(BESBT_STACK_SIZE)
+
+ifeq ($(IS_BLE_BUDS_PROFILE_ENABLED),1)
+export IS_BLE_BUDS_PROFILE_ENABLED
+KBUILD_CPPFLAGS += -DIS_BLE_BUDS_PROFILE_ENABLED
 endif
 
 ifeq ($(FREE_TWS_PAIRING_ENABLED),1)
 KBUILD_CPPFLAGS += -DFREE_TWS_PAIRING_ENABLED
 endif
 
+ifeq ($(AMR_WB_CODE_IN_SRAM),1)
+LDS_CPPFLAGS += -DAMR_WB_CODE_IN_SRAM
+endif
+
+ifeq ($(AMR_NB_CODE_IN_SRAM),1)
+LDS_CPPFLAGS += -DAMR_NB_CODE_IN_SRAM
+endif
+
 ifeq ($(VOICE_TX_AEC),1)
 export VOICE_TX_AEC
 KBUILD_CPPFLAGS += -DVOICE_TX_AEC
-KBUILD_CPPFLAGS += -DGLOBAL_SRAM_CMSIS_FFT
-endif
-
-ifeq ($(APP_NOISE_ESTIMATION),1)
-export APP_NOISE_ESTIMATION
-KBUILD_CPPFLAGS += -DAPP_NOISE_ESTIMATION
 KBUILD_CPPFLAGS += -DGLOBAL_SRAM_CMSIS_FFT
 endif
 
@@ -3488,50 +2916,15 @@ endif
 
 ifeq ($(TOTA_v2),1)
 KBUILD_CPPFLAGS += -DTOTA_v2
-ifeq ($(BLE),1)
 export IS_BLE_TOTA_ENABLED ?= 1
 ifeq ($(IS_BLE_TOTA_ENABLED),1)
+ifeq ($(BLE),1)
 KBUILD_CPPFLAGS += -DBLE_TOTA_ENABLED
 endif
 endif
 KBUILD_CPPFLAGS += -DSHOW_RSSI
 KBUILD_CPPFLAGS += -DTEST_OVER_THE_AIR_ENANBLED
 export TEST_OVER_THE_AIR_v2 ?= 1
-endif
-
-export TOTA_GENERAL_ENABLE ?= 1
-ifeq ($(TOTA_GENERAL_ENABLE),1)
-KBUILD_CPPFLAGS += -DTOTA_GENERAL_ENABLE
-endif
-
-export TOTA_FACTORY_USED ?= 0
-ifeq ($(TOTA_FACTORY_USED),1)
-KBUILD_CPPFLAGS += -DTOTA_FACTORY_USED
-endif
-
-export TOTA_STREAM_DATA_TRANSCEIVER ?= 0
-ifeq ($(TOTA_STREAM_DATA_TRANSCEIVER),1)
-KBUILD_CPPFLAGS += -DTOTA_STREAM_DATA_TRANSCEIVER
-endif
-
-export IS_TOTA_LOG_PRINT_ENABLED ?= 0
-ifeq ($(IS_TOTA_LOG_PRINT_ENABLED),1)
-KBUILD_CPPFLAGS += -DIS_TOTA_LOG_PRINT_ENABLED
-endif
-
-export DATA_DUMP_TOTA ?= 0
-ifeq ($(DATA_DUMP_TOTA),1)
-KBUILD_CPPFLAGS += -DDATA_DUMP_TOTA
-endif
-
-export STREAM_DATA_OVER_TOTA ?= 0
-ifeq ($(STREAM_DATA_OVER_TOTA),1)
-KBUILD_CPPFLAGS += -DSTREAM_DATA_OVER_TOTA
-endif
-
-export TOTA_FLASH_SECTOR_BUF_USED ?= 0
-ifeq ($(TOTA_FLASH_SECTOR_BUF_USED),1)
-KBUILD_CPPFLAGS += -DTOTA_FLASH_SECTOR_BUF_USED
 endif
 
 export RESUME_MUSIC_AFTER_CRASH_REBOOT ?= 0
@@ -3549,24 +2942,19 @@ export TEST_OVER_THE_AIR_v2
 KBUILD_CPPFLAGS += -DTEST_OVER_THE_AIR_ENANBLED=1
 endif
 
+ifeq ($(USE_THIRDPARTY),1)
+KBUILD_CPPFLAGS += -D__THIRDPARTY
+core-y += thirdparty/
+endif
+
 ifeq ($(SENSOR),1)
 export SENSOR
 KBUILD_CPPFLAGS += -D__SENSOR__
 endif
 
-ifeq ($(APP_UART_MODULE),1)
-export APP_UART_MODULE
-KBUILD_CPPFLAGS += -DAPP_UART_MODULE
-endif
-
-ifeq ($(SUPPORT_SINGLE_WIRE_COM),1)
-export SUPPORT_SINGLE_WIRE_COM
-KBUILD_CPPFLAGS += -DSUPPORT_SINGLE_WIRE_COM
-endif
-
-ifeq ($(APP_CHIP_BRIDGE_MODULE),1)
-export APP_CHIP_BRIDGE_MODULE
-KBUILD_CPPFLAGS += -DAPP_CHIP_BRIDGE_MODULE
+ifeq ($(UART_TOGGLE_MODE),1)
+export UART_TOGGLE_MODE
+KBUILD_CPPFLAGS += -DUART_TOGGLE_MODE
 endif
 
 export APP_KEY_ENABLE ?= 1
@@ -3584,6 +2972,25 @@ export APP_ANC_TEST
 KBUILD_CPPFLAGS += -DAPP_ANC_TEST
 endif
 
+export SPEECH_TUNING_CALL_VIA_CMD ?= 0
+ifeq ($(SPEECH_TUNING_CALL_VIA_CMD),1)
+export AUDIO_DEBUG := 1
+KBUILD_CPPFLAGS += -DSPEECH_TUNING_CALL_VIA_CMD
+endif
+
+ifeq ($(AUDIO_DEBUG_VIA_SPP),1)
+export AUDIO_DEBUG_VIA_SPP
+export AUDIO_DEBUG_VIA_TOTA ?= 1
+KBUILD_CPPFLAGS += -DAUDIO_DEBUG_VIA_SPP
+KBUILD_CPPFLAGS += -DSPP_DEBUG_TOOL
+endif
+
+ifeq ($(AUDIO_DEBUG_VIA_TOTA),1)
+export AUDIO_DEBUG_VIA_TOTA
+export AUDIO_DEBUG ?= 1
+KBUILD_CPPFLAGS += -DAUDIO_DEBUG_VIA_TOTA
+endif
+
 # AUDIO_DEBUG
 ifeq ($(AUDIO_DEBUG_CMD),1)
 export AUDIO_DEBUG_CMD
@@ -3596,34 +3003,24 @@ KBUILD_CPPFLAGS += -DAUDIO_DEBUG
 endif
 # AUDIO_DEBUG END
 
-ifeq ($(DUAL_MODE_BLUETOOTH_UI_ENABLED),1)
-KBUILD_CPPFLAGS += -DDUAL_MODE_BLUETOOTH_UI_ENABLED
-endif
-
 ifneq ($(filter BT_HFP_AT BT_SPP,$(APP_DEBUG_TOOL)),)
 export APP_DEBUG_TOOL
 endif
 
-export BT_WIFI_COEX_P12 ?=0
-ifeq ($(DEBUG),1)
-ifneq ($(filter 1, $(AUDIO_DEBUG_CMD) $(AUTO_TEST) $(BES_AUTOMATE_TEST)),)
-export APP_TRACE_RX_ENABLE := 1
+export SLT_AUTO_TEST :=0
+ifeq ($(SLT_AUTO_TEST),1)
+KBUILD_CPPFLAGS += -DSLT_AUTO_TEST
+KBUILD_CPPFLAGS += -DGPIO_WAKEUP_ENABLE
 endif
 
-DEBUG_IRQ_HUNG ?= 1
-ifeq ($(DEBUG_IRQ_HUNG),1)
-KBUILD_CFLAGS  	+= -DDEBUG_IRQ_HUNG
+export BT_WIFI_COEX_P12 ?=0
+ifeq ($(DEBUG),1)
+ifneq ($(filter 1, $(AUDIO_DEBUG_CMD) $(AUTO_TEST) $(BES_AUTOMATE_TEST), $(SLT_AUTO_TEST)),)
+export APP_TRACE_RX_ENABLE := 1
 endif
 endif
 ifeq ($(APP_TRACE_RX_ENABLE),1)
 KBUILD_CPPFLAGS += -DAPP_TRACE_RX_ENABLE
-endif
-
-ifeq ($(GPIO_WAKEUP_ENABLE),1)
-KBUILD_CPPFLAGS += -DGPIO_WAKEUP_ENABLE
-ifneq ($(WAKEUP_PIN_NUM),)
-KBUILD_CPPFLAGS += -DWAKEUP_PIN_NUM=$(WAKEUP_PIN_NUM)
-endif
 endif
 
 ifeq ($(AUTO_TEST),1)
@@ -3678,16 +3075,7 @@ KBUILD_CPPFLAGS += -DI2C_TASK_MODE
 KBUILD_CPPFLAGS += -DVPU_I2C_ID=0
 
 # Configure I2S/TDM
-ifneq ($(CHIP_HAS_TDM),)
-# 2300p/2300a...
-export AF_DEVICE_TDM := 1
-export SPEECH_BONE_SENSOR_TDM := 1
-ifeq ($(VPU_NAME),LIS25BA)
-KBUILD_CPPFLAGS += -DI2S_MCLK_FROM_SPDIF
-KBUILD_CPPFLAGS += -DI2S_MCLK_PIN
-KBUILD_CPPFLAGS += -DI2S_MCLK_IOMUX_INDEX=33
-endif
-else
+ifneq ($(filter best2300,$(CHIP)),)
 # 2300
 export AF_DEVICE_I2S := 1
 export SPEECH_BONE_SENSOR_I2S := 1
@@ -3696,6 +3084,15 @@ KBUILD_CPPFLAGS += -DI2S_MCLK_FROM_SPDIF
 KBUILD_CPPFLAGS += -DI2S_MCLK_PIN
 KBUILD_CPPFLAGS += -DI2S_MCLK_IOMUX_INDEX=13
 KBUILD_CPPFLAGS += -DCLKOUT_IOMUX_INDEX=13
+endif
+else
+# 2300p/2300a...
+export AF_DEVICE_TDM := 1
+export SPEECH_BONE_SENSOR_TDM := 1
+ifeq ($(VPU_NAME),LIS25BA)
+KBUILD_CPPFLAGS += -DI2S_MCLK_FROM_SPDIF
+KBUILD_CPPFLAGS += -DI2S_MCLK_PIN
+KBUILD_CPPFLAGS += -DI2S_MCLK_IOMUX_INDEX=33
 endif
 endif
 
@@ -3708,6 +3105,9 @@ else
 export INT_LOCK_EXCEPTION ?= 1
 KBUILD_CPPFLAGS += -DAF_ADC_I2S_SYNC
 endif
+ifeq ($(VPU_STREAM_SYNC_TUNING),1)
+KBUILD_CPPFLAGS += -DVPU_STREAM_SYNC_TUNING
+endif
 export VPU_DEBUG_CODEC_I2S_SYNC ?= 0
 endif # SPEECH_BONE_SENSOR
 
@@ -3716,6 +3116,13 @@ ifeq ($(IS_AUTOPOWEROFF_ENABLED),1)
 KBUILD_CFLAGS += -D__BTIF_AUTOPOWEROFF__
 endif
 
+export HCI_BRIDGE_MODE ?= 0
+ifeq ($(HCI_BRIDGE_MODE),1)  # remote mode: only has BTC
+KBUILD_CFLAGS += -D__HCI_BRIDGE_REMOTE_MODE__
+endif
+ifeq ($(HCI_BRIDGE_MODE),2) # local mode: APP and BTH
+KBUILD_CFLAGS += -D__HCI_BRIDGE_LOCAL_MODE__
+endif
 # vvvvvvvvvvvvvvvvvvvvvvvvvvvvv
 # BISTO feature
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -3742,13 +3149,6 @@ ifeq ($(GSOUND_HOTWORD_EXTERNAL), 1)
 export GSOUND_HOTWORD_EXTERNAL
 KBUILD_CFLAGS += -DGSOUND_HOTWORD_EXTERNAL
 endif
-ifeq ($(GSOUND_HOTWORD_EXTERNAL_M55), 1)
-KBUILD_CFLAGS += -DGSOUND_HOTWORD_EXTERNAL_M55
-endif
-ifeq ($(MODEL_FILE_EMBEDED), 1)
-KBUILD_CFLAGS += -DMODEL_FILE_EMBEDED
-LDS_CPPFLAGS += -DMODEL_FILE_EMBEDED
-endif
 endif
 
 REDUCED_GUESTURE_ENABLE ?= 0
@@ -3757,20 +3157,6 @@ ifeq ($(REDUCED_GUESTURE_ENABLE), 1)
 KBUILD_CFLAGS += -DREDUCED_GUESTURE_ENABLED
 endif
 endif # BISTO_ENABLE
-
-# vvvvvvvvvvvvvvvvvvvvvvvvvvvvv
-# FINDMY feature
-# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-ifeq ($(FINDMY_ENABLE),1)
-export MBEDTLS_CONFIG_FILE := config-findmy.h
-BT_DIP_SUPPORT := 1
-BLE_PRF_TXP := 1
-KBUILD_CPPFLAGS += -DFINDMY_ENABLED
-KBUILD_CPPFLAGS += -DFINDMY_TRACE_LEVEL
-FINDMY_INFO_SECTION_SIZE ?= 0x1000
-core-y += thirdparty/ios-find-my/
-#KBUILD_CFLAGS += -DRTC_ENABLE
-endif # FINDMY_ENABLE
 
 # vvvvvvvvvvvvvvvvvvvvvvvvvvvvv
 # GFPS feature
@@ -3782,7 +3168,7 @@ export GFPS_ENABLE
 KBUILD_CPPFLAGS += -DGFPS_ENABLED
 
 #spot feature
-export SPOT_ENABLE := 0
+export SPOT_ENABLE := 1
 ifeq ($(SPOT_ENABLE),1)
 KBUILD_CPPFLAGS += -DSPOT_ENABLED
 endif
@@ -3795,11 +3181,7 @@ ifeq ($(AMA_VOICE),1)
 export AMA_VOICE
 
 KBUILD_CPPFLAGS += -D__AMA_VOICE__
-ifeq ($(AMA_ENCODE_USE_SBC),1)
-KBUILD_CPPFLAGS += -DAMA_ENCODE_USE_SBC
-else
 KBUILD_CPPFLAGS += -DAMA_ENCODE_USE_OPUS
-endif
 endif # AMA_VOICE
 
 # vvvvvvvvvvvvvvvvvvvvvvvvvvvvv
@@ -3842,12 +3224,6 @@ endif
 ifeq ($(SMART_VOICE),1)
 export SMART_VOICE
 KBUILD_CPPFLAGS += -D__SMART_VOICE__
-ifeq ($(SMART_VOICE_KWS_AQE),1)
-export SMART_VOICE_KWS_AQE
-export AQE_KWS := 1
-AQE_KWS_NAME := ALEXA
-KBUILD_CPPFLAGS += -D__SMART_VOICE_KWS_AQE__
-endif
 #SPEECH_CODEC_CAPTURE_CHANNEL_NUM ?= 2
 #KBUILD_CPPFLAGS += -DMCU_HIGH_PERFORMANCE_MODE
 #KBUILD_CPPFLAGS += -DSPEECH_CAPTURE_TWO_CHANNEL
@@ -3880,16 +3256,11 @@ export DUAL_MIC_RECORDING
 KBUILD_CPPFLAGS += -DDUAL_MIC_RECORDING
 KBUILD_CPPFLAGS += -DGLOBAL_SRAM_KISS_FFT
 
-ifeq ($(STEREO_RECORD_PROCESS),1)
-export STEREO_RECORD_PROCESS
-endif
-
-ifeq ($(SINGLE_DEVICE_REC),1)
-export SINGLE_DEVICE_REC
-KBUILD_CPPFLAGS += -DSINGLE_DEVICE_REC
-endif
-
 endif # DUAL_MIC_RECORDING
+
+ifeq ($(BINAURAL_RECORD_PROCESS),1)
+export BINAURAL_RECORD_PROCESS
+endif
 
 # vvvvvvvvvvvvvvvvvvvvvvvvvvvvv
 # Bixby voice feature
@@ -3902,27 +3273,11 @@ endif
 endif # BIXBY_VOICE
 
 # vvvvvvvvvvvvvvvvvvvvvvvvvvvvv
-# MMA feature
-# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-ifeq ($(MMA_VOICE),1)
-export MMA_VOICE
-
-KBUILD_CPPFLAGS += -D__MMA_VOICE__
-ifeq ($(AMA_ENCODE_USE_SBC),1)
-KBUILD_CPPFLAGS += -DMMA_ENCODE_USE_SBC
-else
-KBUILD_CPPFLAGS += -DMMA_ENCODE_USE_OPUS
-endif
-endif # MMA_VOICE
-
-# vvvvvvvvvvvvvvvvvvvvvvvvvvvvv
 # AI_VOICE feature
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-ifneq ($(filter 1,$(BISTO_ENABLE) $(AMA_VOICE) $(DMA_VOICE) $(SMART_VOICE) $(TENCENT_VOICE) $(GMA_VOICE) $(CUSTOMIZE_VOICE) $(DUAL_MIC_RECORDING) $(BIXBY_VOICE) $(MMA_VOICE)),)
+ifneq ($(filter 1,$(BISTO_ENABLE) $(AMA_VOICE) $(DMA_VOICE) $(SMART_VOICE) $(TENCENT_VOICE) $(GMA_VOICE) $(CUSTOMIZE_VOICE) $(DUAL_MIC_RECORDING) $(BIXBY_VOICE)),)
 export AI_VOICE := 1
-ifneq ($(filter 1,$(ALEXA_WWE) $(ALEXA_WWE_LITE) $(SMART_VOICE_KWS_AQE) $(BIXBY_VOICE)),)
 USE_THIRDPARTY := 1
-endif
 endif
 
 ifeq ($(AI_VOICE),1)
@@ -3938,9 +3293,14 @@ KBUILD_CPPFLAGS += -DAPP_THREAD_STACK_SIZE=3072
 endif
 endif # AI_VOICE
 
-ifeq ($(USE_THIRDPARTY),1)
-KBUILD_CPPFLAGS += -D__THIRDPARTY
-core-y += thirdparty/
+ifeq ($(PSAP_SW_APP),1)
+KBUILD_CPPFLAGS += -DPSAP_SW_APP
+ifeq ($(AI_VOICE),1)
+$(error PSAP_SW_APP is conflict with AI_VOICE now)
+endif
+ifeq ($(CP_AS_SUBSYS),1)
+export AUDIO_PROMPT_USE_DAC2_ENABLED := 0
+endif
 endif
 
 export AI_VOICE_MAX_TX_CREDIT ?= 3
@@ -3984,11 +3344,6 @@ ifeq ($(BT_DIP_SUPPORT),1)
 KBUILD_CPPFLAGS += -DBT_DIP_SUPPORT
 endif
 
-export AUDIO_RMS_MONITOR_ENABLE ?= 0
-ifeq ($(AUDIO_RMS_MONITOR_ENABLE),1)
-KBUILD_CPPFLAGS += -DAUDIO_RMS_MONITOR_ENABLE
-endif
-
 # vvvvvvvvvvvvvvvvvvvvvvvvvvvvv
 # Print bt addr config
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -4003,15 +3358,13 @@ endif
 # MULTI_AI feature
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 # NOTE: value of AI_VOICE and BISTO_ENABLE must already confirmed above here
-AI_COUNT := $(BISTO_ENABLE)+$(AMA_VOICE)+$(DMA_VOICE)+$(SMART_VOICE)+$(TENCENT_VOICE)+$(GMA_VOICE)+$(CUSTOMIZE_VOICE)+$(DUAL_MIC_RECORDING)+$(BIXBY_VOICE)
-IS_MULTI_AI_ENABLE := $(shell echo $(AI_COUNT) | bc)
-ifeq ($(AI_VOICE),1)
-export VOC_ENCODE_ENABLE := 1
-KBUILD_CPPFLAGS += -DVOC_ENCODE_ENABLE
-ifneq ($(IS_MULTI_AI_ENABLE),1)
+ifeq ($(AI_VOICE)-$(BISTO_ENABLE),1-1)
+IS_MULTI_AI_ENABLE := 1
+endif
+ifeq ($(IS_MULTI_AI_ENABLE),1)
+export SHA256_ROM ?= 1
 KBUILD_CPPFLAGS += -DIS_MULTI_AI_ENABLED
 endif # MULTI_AI
-endif
 
 # vvvvvvvvvvvvvvvvvvvvvvvvvvvvv
 # VOICE COMPRESSION feature
@@ -4020,6 +3373,11 @@ DUAL_MIC_RECORDING ?= 0
 RECORDING_USE_OPUS ?= 0
 RECORDING_USE_OPUS_LOWER_BANDWIDTH ?= 0
 RECORDING_USE_SCALABLE ?= 0
+## determine the value of VOC_ENCODE_ENABLE
+ifneq ($(filter 1, $(AMA_VOICE) $(DMA_VOICE) $(GMA_VOICE) $(SMART_VOICE) $(TENCENT_VOICE) $(CUSTOMIZE_VOICE) $(DUAL_MIC_RECORDING) $(BIXBY_VOICE)),)
+export VOC_ENCODE_ENABLE := 1
+KBUILD_CPPFLAGS += -DVOC_ENCODE_ENABLE
+endif
 
 ## voice compression use ADPCM
 # KBUILD_CPPFLAGS += -DVOC_ENCODE_ADPCM=1
@@ -4038,11 +3396,8 @@ endif
 endif
 ### AI use OPUS
 VOC_AI_ENCODE_USE_OPUS ?= 0
-ifneq ($(filter 1, $(AMA_VOICE) $(DMA_VOICE) $(GMA_VOICE) $(SMART_VOICE) $(TENCENT_VOICE) $(CUSTOMIZE_VOICE) $(MMA_VOICE)),)
+ifneq ($(filter 1, $(AMA_VOICE) $(DMA_VOICE) $(GMA_VOICE) $(SMART_VOICE) $(TENCENT_VOICE) $(CUSTOMIZE_VOICE)),)
 VOC_AI_ENCODE_USE_OPUS := 1
-ifeq ($(AMA_ENCODE_USE_SBC),1)
-VOC_AI_ENCODE_USE_OPUS := 0
-endif
 endif
 ### voice compression codec type determine
 ifneq ($(filter 1, $(VOC_RECORD_ENCODE_USE_OPUS) $(VOC_AI_ENCODE_USE_OPUS)),)
@@ -4052,7 +3407,7 @@ KBUILD_CPPFLAGS += -DOPUS_IN_OVERLAY
 endif
 
 ## voice compression use SBC
-ifneq ($(filter 1, $(AMA_ENCODE_USE_SBC) $(BISTO_ENABLE) $(SV_ENCODE_USE_SBC)),)
+ifneq ($(filter 1, $(BISTO_ENABLE) $(SV_ENCODE_USE_SBC)),)
 export VOC_ENCODE_SBC := 1
 KBUILD_CPPFLAGS += -DVOC_ENCODE_SBC=3
 endif
@@ -4068,6 +3423,11 @@ endif
 # vvvvvvvvvvvvvvvvvvvvvvvvvvvvv
 # VOICE_DATAPATH feature
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ifeq ($(VOICE_DATAPATH_ENABLED),1)
+export VOICE_DATAPATH_ENABLED
+KBUILD_CPPFLAGS += -DVOICE_DATAPATH
+endif # VOICE_DATAPATH
+
 export SLAVE_ADV_BLE_ENABLED ?= 0
 ifeq ($(SLAVE_ADV_BLE_ENABLED),1)
 KBUILD_CPPFLAGS += -DSLAVE_ADV_BLE
@@ -4089,9 +3449,24 @@ endif # TILE
 # vvvvvvvvvvvvvvvvvvvvvvvvvvvvv
 # MFI feature
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-ifeq ($(IOS_IAP2_BLUETOOTH  ),1)
+ifeq ($(IOS_MFI),1)
 KBUILD_CPPFLAGS += -DIOS_IAP2_PROTOCOL
-endif # IOS_IAP2_BLUETOOTH  
+endif # IOS_MFI
+
+# vvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+# SAS feature
+# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+export BES_SAS ?= 0
+ifeq ($(BES_SAS),1)
+KBUILD_CPPFLAGS += -DBES_SAS
+KBUILD_CPPFLAGS += -DCFG_APP_SAS_SERVER
+endif
+
+export BES_MOBILE_SAS ?= 0
+ifeq ($(BES_MOBILE_SAS),1)
+KBUILD_CPPFLAGS += -DBES_MOBILE_SAS
+endif
+# vvvvvvvvvvvvvvvvvvvvvvvvvvvvv
 
 # vvvvvvvvvvvvvvvvvvvvvvvvvvvvv
 # OTA feature
@@ -4108,15 +3483,16 @@ ifneq ($(filter 1,$(BES_OTA) $(AI_OTA) $(INTERCONNECTION) $(GMA_VOICE)),)
 OTA_ENABLE := 1
 endif
 
-
 ifeq ($(OTA_ENABLE),1)
 ifeq ($(FPGA),1)
 export OTA_CODE_OFFSET ?= 0
 else
-ifneq ($(filter best1501 best1502x best1502p best1306p,$(CHIP)),)
+ifneq ($(filter best1400 best2300 best2300p best2001,$(CHIP)),)
 export OTA_CODE_OFFSET ?= 0x18000
+export OTA_BOOT_INFO_OFFSET ?= 0x10000
 else
-export OTA_CODE_OFFSET ?= 0x10000
+export OTA_CODE_OFFSET ?= 0x20000
+export OTA_BOOT_INFO_OFFSET ?= 0x18000
 endif
 endif
 export OTA_OVER_TOTA_ENABLED ?= 0
@@ -4125,17 +3501,12 @@ KBUILD_CPPFLAGS += -DOTA_OVER_TOTA_ENABLED
 endif
 KBUILD_CPPFLAGS += -DOTA_ENABLE
 KBUILD_CPPFLAGS += -DOTA_CODE_OFFSET=$(OTA_CODE_OFFSET)
-KBUILD_CPPFLAGS += -D__APP_IMAGE_FLASH_OFFSET__=$(OTA_CODE_OFFSET)
 KBUILD_CPPFLAGS += -DFIRMWARE_REV
 
 ifeq ($(FLASH_REMAP),1)
 # OTA_REMAP_OFFSET corresponds to the size of the code a or code b partition
 # can change this value if it cannot fit the application image
-ifeq ($(ARM_CMNS),1)
-export OTA_REMAP_OFFSET ?= 0x1B0000
-else
 export OTA_REMAP_OFFSET ?= $(FLASH_SIZE)/2-$(OTA_CODE_OFFSET)
-endif
 KBUILD_CPPFLAGS += -DOTA_REMAP_OFFSET=$(OTA_REMAP_OFFSET)
 KBUILD_CPPFLAGS += -DFLASH_REMAP
 NEW_IMAGE_FLASH_OFFSET := $(OTA_CODE_OFFSET)
@@ -4146,12 +3517,8 @@ else
 ifeq ($(OTA_BIN_COMPRESSED),1)
 ifeq ($(FLASH_SIZE),0x400000)
 NEW_IMAGE_FLASH_OFFSET ?= 0x260000
-else ifeq ($(FLASH_SIZE),0x800000)
-NEW_IMAGE_FLASH_OFFSET ?= 0x4C0000
 else ifeq ($(FLASH_SIZE),0x200000)
 NEW_IMAGE_FLASH_OFFSET ?= 0x130000
-else ifeq ($(FLASH_SIZE),0x100000)
-NEW_IMAGE_FLASH_OFFSET ?= 0x95000
 endif
 else
 NEW_IMAGE_FLASH_OFFSET ?= $(FLASH_SIZE)/2
@@ -4161,14 +3528,10 @@ endif # REMAP
 ifneq ($(NEW_IMAGE_FLASH_OFFSET),)
 KBUILD_CPPFLAGS += -DNEW_IMAGE_FLASH_OFFSET=$(NEW_IMAGE_FLASH_OFFSET)
 endif
-ifeq ($(OTA_TZ_ENABLE),1)
-KBUILD_CPPFLAGS += -DOTA_TZ_ENABLE
-endif
 endif # OTA
 
-ifneq ($(BT_BUILD_WITH_CUSTOMER_HOST),1)
-ifneq ($(filter 1, $(BES_OTA) $(AI_OTA)),)
-export BES_OTA := 1
+ifeq ($(BES_OTA),1)
+export BES_OTA
 KBUILD_CPPFLAGS += -DBES_OTA
 
 ifeq ($(IBRT),1)
@@ -4181,13 +3544,12 @@ ifeq ($(AI_OTA),1)
 export AI_OTA
 KBUILD_CPPFLAGS += -DAI_OTA
 endif
-endif
 
 # shall not be updated by application project, as it influences the ibrt core library
-ifneq ($(filter 1, $(GFPS_ENABLE) $(TILE_DATAPATH_ENABLED) $(AI_VOICE) $(BES_OTA)),)
+ifneq ($(filter 1, $(GFPS_ENABLE) $(TILE_DATAPATH_ENABLED) $(GMA_VOICE) $(BES_OTA) $(DUAL_MIC_RECORDING)),)
 export APP_TWS_MTU_SIZE := 672
 else
-export APP_TWS_MTU_SIZE := 672
+export APP_TWS_MTU_SIZE := 348
 endif
 KBUILD_CPPFLAGS += -DAPP_TWS_CTRL_BUFFER_MAX_LEN=$(APP_TWS_MTU_SIZE)
 
@@ -4215,12 +3577,6 @@ ifeq ($(COMBO_CUSBIN_IN_FLASH),1)
 KBUILD_CPPFLAGS += -DCOMBO_CUSBIN_IN_FLASH
 endif
 
-ifeq ($(PROMPT_USE_AAC),1)
-export FDKAAC_SUPPORT_ADTS ?= 1
-KBUILD_CPPFLAGS += -DPROMPT_USE_AAC
-else
-endif
-
 # vvvvvvvvvvvvvvvvvvvvvvvvvvvvv
 # Flash suspend features
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -4229,15 +3585,26 @@ KBUILD_CPPFLAGS += -DFLASH_SUSPEND
 endif
 
 # vvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+# BLE features
+# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+ifeq ($(CFG_LE_PWR_CTRL),1)
+KBUILD_CPPFLAGS += -DCFG_LE_PWR_CTRL
+endif
+
+# vvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+# GATT over BR/EDR features
+# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ifeq ($(GATT_OVER_BR_EDR),1)
+export GATT_OVER_BR_EDR
+KBUILD_CPPFLAGS += -D__GATT_OVER_BR_EDR__
+endif
+
+# vvvvvvvvvvvvvvvvvvvvvvvvvvvvv
 # Sensor Hub features
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 ifeq ($(SENSOR_HUB),1)
 KBUILD_CPPFLAGS += -DSENSOR_HUB
-endif
-
-export SENSORHUB_START_WHEN_MAIN_MCU_ON ?= 1
-ifeq ($(SENSORHUB_START_WHEN_MAIN_MCU_ON), 1)
-KBUILD_CPPFLAGS += -DSENSORHUB_START_WHEN_MAIN_MCU_ON
 endif
 
 ifeq ($(DSP_M55),1)
@@ -4251,6 +3618,20 @@ endif
 KBUILD_CPPFLAGS += -DMULTIPOINT_DUAL_SLAVE
 
 endif # FULL_APP_PROJECT
+
+# -------------------------------------------
+# Uart features
+# -------------------------------------------
+
+ifeq ($(APP_UART_MODULE),1)
+export APP_UART_MODULE
+KBUILD_CPPFLAGS += -DAPP_UART_MODULE
+endif
+
+ifeq ($(APP_UART_BRIDGE_MODULE),1)
+export APP_UART_BRIDGE_MODULE
+KBUILD_CPPFLAGS += -DAPP_UART_BRIDGE_MODULE
+endif
 
 # -------------------------------------------
 # DSP features
@@ -4295,13 +3676,13 @@ export SCO_ADD_CUSTOMER_CODEC
 KBUILD_CPPFLAGS += -DSCO_ADD_CUSTOMER_CODEC
 endif
 
-ifeq ($(SPEECH_ARMCC_LIB),1)
-export SPEECH_ARMCC_LIB
-KBUILD_CPPFLAGS += -DSPEECH_ARMCC_LIB
+ifeq ($(HFP_SUPPORT_LC3_SWB),1)
+export HFP_SUPPORT_LC3_SWB
+KBUILD_CPPFLAGS += -DHFP_SUPPORT_LC3_SWB
 endif
 
-ifeq ($(SPEECH_ALGO_DSP),1)
-export SPEECH_ALGO_DSP
+ifeq ($(SPEECH_ALGO_DSP_TEST),1)
+export SPEECH_ALGO_DSP_TEST
 export SPEECH_TX_24BIT := 1
 endif
 
@@ -4364,7 +3745,6 @@ export HFP_DISABLE_NREC := 1
 ifeq ($(CHIP_HAS_EC_CODEC_REF),1)
 export SPEECH_TX_AEC_CODEC_REF := 1
 endif
-export NN_LIB ?= 1
 endif
 
 ifeq ($(SPEECH_TX_NS),1)
@@ -4410,7 +3790,6 @@ export SPEECH_TX_DTLN
 KBUILD_CPPFLAGS += -DSPEECH_TX_DTLN
 export HFP_DISABLE_NREC := 1
 export NN_LIB ?= 1
-core-y += thirdparty/tflite/
 endif
 
 ifeq ($(DTLN_CP),1)
@@ -4434,18 +3813,29 @@ ifeq ($(SPEECH_TX_NS5),1)
 export SPEECH_TX_NS5
 KBUILD_CPPFLAGS += -DSPEECH_TX_NS5
 export HFP_DISABLE_NREC := 1
+export SPEECH_CODEC_FIXED_SAMPLE_RATE := 16000
+export SPEECH_VQE_FIXED_SAMPLE_RATE := 16000
 export NN_LIB ?= 1
 endif
 
-ifeq ($(SPEECH_TX_1MIC_NS),1)
-export SPEECH_TX_1MIC_NS
-KBUILD_CPPFLAGS += -DSPEECH_TX_1MIC_NS
+ifeq ($(SPEECH_TX_NS7),1)
+export SPEECH_TX_NS7
+KBUILD_CPPFLAGS += -DSPEECH_TX_NS7
 export NN_LIB ?= 1
-export DSP_LIB ?= 1
+endif
+
+ifeq ($(SPEECH_TX_NS8),1)
+export SPEECH_TX_NS8
+KBUILD_CPPFLAGS += -DSPEECH_TX_NS8
+export NN_LIB ?= 1
 export BECO ?= 1
-export SPEECH_NS_BECO ?= 1
-export SPEECH_NS10L ?= 1
-KBUILD_CPPFLAGS += -DSPEECH_NS10L
+export DSP_LIB ?= 1
+endif
+
+ifeq ($(SPEECH_VAD_NN),1)
+export SPEECH_VAD_NN
+KBUILD_CPPFLAGS += -DSPEECH_VAD_NN
+export HFP_DISABLE_NREC := 1
 endif
 
 ifeq ($(SPEECH_TX_WNR),1)
@@ -4461,7 +3851,6 @@ export HFP_DISABLE_NREC := 1
 endif
 
 export SPEECH_CODEC_CAPTURE_CHANNEL_NUM ?= 1
-export AEC_OUT_BUF_CHAN_NUM ?= 1
 
 #export SPEECH_TX_2MIC_SWAP_CHANNELS ?= 0
 
@@ -4491,14 +3880,13 @@ ifeq ($(SPEECH_TX_2MIC_NS4),1)
 export SPEECH_TX_2MIC_NS4
 KBUILD_CPPFLAGS += -DSPEECH_TX_2MIC_NS4
 export HFP_DISABLE_NREC := 1
-export NN_LIB ?= 1
+
 ifeq ($(SPEECH_BONE_SENSOR),1)
 # Get 1 channel from sensor
 export SPEECH_CODEC_CAPTURE_CHANNEL_NUM = 1
 else
 export SPEECH_CODEC_CAPTURE_CHANNEL_NUM = 2
 endif
-core-y += thirdparty/tflite/
 endif
 
 ifeq ($(SPEECH_TX_2MIC_NS5),1)
@@ -4521,8 +3909,6 @@ KBUILD_CPPFLAGS += -DSPEECH_TX_2MIC_NS7
 export HFP_DISABLE_NREC := 1
 KBUILD_CPPFLAGS += -DCOH_FRAME_LENGTH=$(COH_FRAME_LENGTH)
 export SPEECH_CODEC_CAPTURE_CHANNEL_NUM = 2
-export NN_LIB ?= 1
-export SPEECH_TX_AEC_CODEC_REF := 1
 endif
 
 ifeq ($(SPEECH_TX_2MIC_NS8),1)
@@ -4530,44 +3916,19 @@ export SPEECH_TX_2MIC_NS8
 KBUILD_CPPFLAGS += -DSPEECH_TX_2MIC_NS8
 KBUILD_CPPFLAGS += -DHFP_DISABLE_NREC
 export SPEECH_CODEC_CAPTURE_CHANNEL_NUM = 2
-export NN_LIB ?= 1
-export DSP_LIB ?= 1
-export BECO ?= 1
-export SPEECH_NS_BECO ?= 1
-export LIBM_ALL_IN_RAM := 1
-export SPEECH_TX_AEC_CODEC_REF := 1
-export AEC_OUT_BUF_CHAN_NUM = 0
-endif
-
-ifeq ($(SPEECH_TX_2MIC_PREAF),1)
-export SPEECH_TX_2MIC_PREAF
-KBUILD_CPPFLAGS += -DSPEECH_TX_2MIC_PREAF
-KBUILD_CPPFLAGS += -DHFP_DISABLE_NREC
-export SPEECH_CODEC_CAPTURE_CHANNEL_NUM = 2
-export SPEECH_TX_AEC_CODEC_REF := 1
-export AEC_OUT_BUF_CHAN_NUM = 2
-endif
-
-ifeq ($(SPEECH_TX_3MIC_AI_NS),1)
-export SPEECH_TX_3MIC_AI_NS
-KBUILD_CPPFLAGS += -DSPEECH_TX_3MIC_AI_NS
-export SPEECH_TX_3MIC_NS := 1
-export NN_LIB ?= 1
+export NN_LIB := 1
 endif
 
 ifeq ($(SPEECH_TX_3MIC_NS),1)
 export SPEECH_TX_3MIC_NS
 KBUILD_CPPFLAGS += -DSPEECH_TX_3MIC_NS
-KBUILD_CPPFLAGS += -DHFP_DISABLE_NREC
+export HFP_DISABLE_NREC := 1
+ifeq ($(SPEECH_BONE_SENSOR),1)
+# Get 1 channel from sensor
+export SPEECH_CODEC_CAPTURE_CHANNEL_NUM = 2
+else
 export SPEECH_CODEC_CAPTURE_CHANNEL_NUM = 3
-export SPEECH_TX_3MIC_SWAP_CHANNELS ?= 1
-export NN_LIB ?= 1
-export DSP_LIB ?= 1
-export BECO ?= 1
-export SPEECH_NS_BECO ?= 1
-export LIBM_ALL_IN_RAM := 1
-export SPEECH_TX_AEC_CODEC_REF := 1
-export AEC_OUT_BUF_CHAN_NUM = 3
+endif
 endif
 
 ifeq ($(SPEECH_TX_3MIC_NS2),1)
@@ -4638,16 +3999,8 @@ export SPEECH_TX_POST_GAIN
 KBUILD_CPPFLAGS += -DSPEECH_TX_POST_GAIN
 endif
 
-ifeq ($(SPEECH_NS_CMSIS),1)
-KBUILD_CPPFLAGS += -DSPEECH_NS_CMSIS
-endif
-
-ifeq ($(SPEECH_NS_BECO),1)
-KBUILD_CPPFLAGS += -DSPEECH_NS_BECO
-endif
-
-ifeq ($(SPEECH_NS_NAIVE),1)
-KBUILD_CPPFLAGS += -DSPEECH_NS_NAIVE
+ifeq ($(BECO),1)
+KBUILD_CPPFLAGS += -DBECO
 endif
 
 ifneq ($(SCO_DMA_SNAPSHOT),1)
@@ -4733,10 +4086,6 @@ ifeq ($(SPEECH_RX_EQ),1)
 export SPEECH_RX_24BIT := 1
 endif
 
-ifeq ($(SPEECH_ALGO_IN_ROM),1)
-KBUILD_CPPFLAGS += -DSPEECH_ALGO_IN_ROM
-endif
-
 ifeq ($(SPEECH_DC_FILTER_IN_ROM),1)
 KBUILD_CPPFLAGS += -DSPEECH_DC_FILTER_IN_ROM
 endif
@@ -4749,42 +4098,61 @@ ifeq ($(SPEECH_NS2FLOAT_IN_ROM),1)
 KBUILD_CPPFLAGS += -DSPEECH_NS2FLOAT_IN_ROM
 endif
 
-ifeq ($(SPEECH_NS9_IN_ROM),1)
-KBUILD_CPPFLAGS += -DSPEECH_NS9_IN_ROM
+ifeq ($(SPEECH_NS7_IN_ROM),1)
+KBUILD_CPPFLAGS += -DSPEECH_NS7_IN_ROM
 endif
 
-ifeq ($(SPEECH_TX_1MIC_NS_IN_ROM),1)
-KBUILD_CPPFLAGS += -DSPEECH_TX_1MIC_NS_IN_ROM
+ifeq ($(SPEECH_NS8_IN_ROM),1)
+KBUILD_CPPFLAGS += -DSPEECH_NS8_IN_ROM
 endif
 
 ifeq ($(SPEECH_2MIC_NS8_IN_ROM),1)
 KBUILD_CPPFLAGS += -DSPEECH_2MIC_NS8_IN_ROM
+KBUILD_CPPFLAGS += -DSPEECH_NS7_IN_ROM
 endif
 
 ifeq ($(SPEECH_EQ_IN_ROM),1)
 KBUILD_CPPFLAGS += -DSPEECH_EQ_IN_ROM
 endif
 
-ifeq ($(SPEECH_TX_COMPEXP_IN_ROM),1)
-KBUILD_CPPFLAGS += -DSPEECH_TX_COMPEXP_IN_ROM
-endif
-
 export SPEECH_PROCESS_FRAME_MS 	?= 15
-ifeq ($(SPEECH_TX_DTLN),1)
+ifeq ($(SPEECH_CODEC_CAPTURE_CHANNEL_NUM),1)
+export SPEECH_PROCESS_FRAME_MS := 15
+endif
+ifeq ($(SPEECH_TX_NN_NS),1)
+export SPEECH_PROCESS_FRAME_MS := 16
+endif
+ifeq ($(SPEECH_TX_NN_NS2),1)
 export SPEECH_PROCESS_FRAME_MS := 16
 endif
 ifeq ($(SPEECH_TX_NS5),1)
-export SPEECH_PROCESS_FRAME_MS := 16
+export SPEECH_PROCESS_FRAME_MS := 15
+endif
+ifeq ($(SPEECH_TX_2MIC_NS2),1)
+export SPEECH_PROCESS_FRAME_MS := 15
 endif
 ifeq ($(SPEECH_TX_2MIC_NS4),1)
-export SPEECH_PROCESS_FRAME_MS := 16
+export SPEECH_PROCESS_FRAME_MS := 15
+endif
+ifeq ($(SPEECH_TX_2MIC_NS5),1)
+export SPEECH_PROCESS_FRAME_MS := 15
+endif
+ifeq ($(SPEECH_TX_2MIC_NS7),1)
+export SPEECH_PROCESS_FRAME_MS := 15
 endif
 ifeq ($(SPEECH_TX_3MIC_NS),1)
 export SPEECH_PROCESS_FRAME_MS := 15
 endif
-ifeq ($(SPEECH_TX_3MIC_AI_NS),1)
+ifeq ($(SPEECH_TX_THIRDPARTY),1)
+export SPEECH_PROCESS_FRAME_MS := 15
+endif
+ifeq ($(SPEECH_TX_DTLN),1)
 export SPEECH_PROCESS_FRAME_MS := 16
 endif
+ifeq ($(SPEECH_TX_NS8),1)
+export SPEECH_PROCESS_FRAME_MS := 15
+endif
+
 KBUILD_CPPFLAGS += -DSPEECH_PROCESS_FRAME_MS=$(SPEECH_PROCESS_FRAME_MS)
 
 export SPEECH_SCO_FRAME_MS 		?= 15
@@ -4823,22 +4191,6 @@ KBUILD_CPPFLAGS += -DAQE_KWS_$(AQE_KWS_NAME)
 KBUILD_CPPFLAGS += -DGLOBAL_SRAM_CMSIS_FFT
 endif
 
-ifeq ($(NN_KWS),1)
-export NN_LIB := 1
-export DSP_LIB ?= 1
-endif
-
-ifeq ($(NN_VAD),1)
-export NN_LIB := 1
-export DSP_LIB ?= 1
-export BECO ?= 1
-KBUILD_CFLAGS += -DNN_VAD
-ifeq ($(BECO),1)
-KBUILD_CPPFLAGS += -DUSE_BECO_NN
-endif
-KBUILD_CPPFLAGS += -DGLOBAL_SRAM_CMSIS_FFT
-endif
-
 ifeq ($(AUDIO_HEARING_COMPSATN),1)
 export AUDIO_HEARING_COMPSATN
 KBUILD_CPPFLAGS += -DGLOBAL_SRAM_CMSIS_FFT
@@ -4856,136 +4208,14 @@ export USE_CMSIS_FFT_LEN_1024 := 1
 KBUILD_CPPFLAGS += -DGLOBAL_SRAM_CMSIS_FFT
 endif
 
-ifeq ($(VOICE_ASSIST_ONESHOT_ADAPTIVE_ANC),1)
-USE_CMSIS_FFT_LEN_1024 := 1
-KBUILD_CPPFLAGS += -DVOICE_ASSIST_ONESHOT_ADAPTIVE_ANC
-endif
-
-ifeq ($(VOICE_ASSIST_FF_FIR_LMS),1)
-KBUILD_CPPFLAGS += -DVOICE_ASSIST_FF_FIR_LMS
-KBUILD_CPPFLAGS += -DGLOBAL_SRAM_KISS_FFT
-AUDIO_ANC_FIR_HW := 1
-ifeq ($(FIR_LMS_AEC_ENABLED),1)
-KBUILD_CPPFLAGS += -DFIR_LMS_AEC_ENABLED
-endif
-ifeq ($(APP_MCPP_CLI),M55)
-KBUILD_CPPFLAGS += -DVOICE_ASSIST_FF_FIR_LMS_M55
-else ifeq ($(APP_MCPP_CLI),SENS)
-KBUILD_CPPFLAGS += -DVOICE_ASSIST_FF_FIR_LMS_SENS
-export NN_LIB := 1
-export BECO ?= 1
-endif
-
-ifeq ($(VOICE_ASSIST_FF_FIR_LMS_BTH_M55),1)
-KBUILD_CPPFLAGS += -DVOICE_ASSIST_FF_FIR_LMS_BTH_M55
-else ifeq ($(VOICE_ASSIST_FF_FIR_LMS_BTH_SENS),1)
-KBUILD_CPPFLAGS += -DVOICE_ASSIST_FF_FIR_LMS_BTH_SENS
-endif
-endif
-
-ifeq ($(VOICE_ASSIST_FF_IIR_LMS),1)
-KBUILD_CPPFLAGS += -DVOICE_ASSIST_FF_IIR_LMS
-KBUILD_CPPFLAGS += -DGLOBAL_SRAM_CMSIS_FFT
-AUDIO_ANC_FIR_HW := 1
-ifeq ($(FIR_LMS_AEC_ENABLED),1)
-KBUILD_CPPFLAGS += -DFIR_LMS_AEC_ENABLED
-endif
-export NN_LIB := 1
-export BECO := 1
-endif
-
-ifeq ($(VOICE_ASSIST_ADA_IIR),1)
-ifeq ($(ASSIST_LOW_RAM_MOD),1)
-# low sample rate
-KBUILD_CPPFLAGS += -DLOW_FS_8k
-endif
-ifeq ($(POWER_KEY_IN_IIR),1)
-# use power key to test
-KBUILD_CPPFLAGS += -DPOWER_KEY_IN_IIR
-endif
-ifeq ($(DEBUG_TEST_ADA_IIR),1)
-# whether open fb before cpt / test performance
-KBUILD_CPPFLAGS += -DDEBUG_TEST_ADA_IIR
-endif
-
-export USE_CMSIS_FFT_LEN_1024 := 1
-
-ifeq ($(CHIP),best1501)
-KBUILD_CPPFLAGS += -DVOICE_ASSIST_ADA_IIR
-# freq domain resolution
-KBUILD_CPPFLAGS += -DRESOLUTION_1024
-# show fitted filter params
-KBUILD_CPPFLAGS += -DSHOW_FILTER_PARAM
-# detect howling or not
-KBUILD_CPPFLAGS += -DOPEN_HOWLING
-endif
-ifeq ($(CHIP),best1501p)
-KBUILD_CPPFLAGS += -DVOICE_ASSIST_ADA_IIR
-KBUILD_CPPFLAGS += -DRESOLUTION_1024
-KBUILD_CPPFLAGS += -DSHOW_FILTER_PARAM
-KBUILD_CPPFLAGS += -DOPEN_HOWLING
-endif
-ifeq ($(CHIP),best1306p)
-KBUILD_CPPFLAGS += -DVOICE_ASSIST_ADA_IIR
-KBUILD_CPPFLAGS += -DRESOLUTION_1024
-KBUILD_CPPFLAGS += -DSHOW_FILTER_PARAM
-endif
-ifeq ($(CHIP),best1306)
-KBUILD_CPPFLAGS += -DVOICE_ASSIST_ADA_IIR
-KBUILD_CPPFLAGS += -DRESOLUTION_1024
-KBUILD_CPPFLAGS += -DSHOW_FILTER_PARAM
-# NO TT can be used
-KBUILD_CPPFLAGS += -DONLY_FF_IN_IIR
-# only 5+3ff, poor.
-# KBUILD_CPPFLAGS += -DLITTLE_FF
-endif
-endif
-
-ifeq ($(AUDIO_ANC_FIR_HW),1)
-KBUILD_CPPFLAGS += -DAUDIO_ANC_FIR_HW
-endif
-
-ifeq ($(VOICE_ASSIST_CUSTOM_LEAK_DETECT),1)
-KBUILD_CPPFLAGS += -DVOICE_ASSIST_CUSTOM_LEAK_DETECT
-endif
-
-ifeq ($(VOICE_ASSIST_NOISE),1)
-KBUILD_CPPFLAGS += -DVOICE_ASSIST_NOISE
-endif
-
-ifeq ($(VOICE_ASSIST_NOISE_CLASSIFY),1)
-KBUILD_CPPFLAGS += -DVOICE_ASSIST_NOISE_CLASSIFY
-endif
-
-ifeq ($(VOICE_ASSIST_PROMPT_LEAK_DETECT),1)
-KBUILD_CPPFLAGS += -DVOICE_ASSIST_PROMPT_LEAK_DETECT
-endif
-
-ifeq ($(VOICE_ASSIST_PSAP_NS),1)
-KBUILD_CPPFLAGS += -DVOICE_ASSIST_PSAP_NS
-endif
-
-ifeq ($(VOICE_ASSIST_WIND_SINGLE_MIC),1)
-KBUILD_CPPFLAGS += -DVOICE_ASSIST_WIND_SINGLE_MIC
-endif
-
-ifeq ($(VOICE_ASSIST_OPT_TF),1)
-KBUILD_CPPFLAGS += -DVOICE_ASSIST_OPT_TF
-endif
-
 ifeq ($(USE_CMSIS_FFT_LEN_1024),1)
 KBUILD_CPPFLAGS += -DARM_TABLE_TWIDDLECOEF_F32_512
 KBUILD_CPPFLAGS += -DARM_TABLE_TWIDDLECOEF_RFFT_F32_1024
 KBUILD_CPPFLAGS += -DARM_TABLE_BITREVIDX_FLT_512
 endif
 
-export CALL_BYPASS_SLAVE_TX_PROCESS ?= 1
-ifeq ($(CALL_BYPASS_SLAVE_TX_PROCESS),1)
-KBUILD_CPPFLAGS += -DCALL_BYPASS_SLAVE_TX_PROCESS
-endif
-
 KBUILD_CPPFLAGS += -DSPEECH_CODEC_CAPTURE_CHANNEL_NUM=$(SPEECH_CODEC_CAPTURE_CHANNEL_NUM)
-KBUILD_CPPFLAGS += -DAEC_OUT_BUF_CHAN_NUM=$(AEC_OUT_BUF_CHAN_NUM)
+
 endif # SPEECH_LIB
 
 # -------------------------------------------
@@ -5004,11 +4234,11 @@ ifeq ($(FLASH_CHIP),)
 FLASH_CHIP := ALL
 endif
 VALID_FLASH_CHIP_LIST := ALL SIMU \
-	GD25LE255E GD25LE128E GD25LQ64C GD25LQ32C GD25LQ16C GD25LF16E GD25LQ80C \
+	GD25LE255E GD25LE128E GD25UF128E GD25LF128E GD25Q128E GD25LQ64C GD25UF64E GD25LF64E GD25LQ32C GD25LF32E GD25LQ16C GD25LF16E GD25LQ80C GD25LF80E \
 	GD25Q32C GD25Q80C GD25Q40C GD25D20C \
-	P25Q256L P25Q128L P25Q64L P25Q32L P25Q32SN P25Q16L \
-	P25Q32SL P25Q16SL \
-	P25Q128H P25Q80H P25Q40H P25Q21H \
+	P25Q256L P25Q128L PY25Q128LAA PY25Q128LAC P25Q128SN P25Q64L P25Q64SLE P25Q64SLD P25Q64SN P25Q64HA \
+	P25Q32L P25Q32SL P25Q32SN P25Q16L P25Q16SL \
+	P25Q80H P25Q40H P25Q21H \
 	ZB25VQ128B ZB25LQ64A \
 	XM25QU256C XM25QU128C XM25LU64C XM25QH16C XM25QH80B \
 	XT25Q08B \
@@ -5035,19 +4265,15 @@ KBUILD_CPPFLAGS += -D__WATCHER_DOG_RESET__
 endif
 
 ifeq ($(OTA_BIN_COMPRESSED),1)
+ifeq ($(FLASH_REMAP),1)
+$(error OTA_BIN_COMPRESSED conflicts with FLASH_REMAP)
+endif
 KBUILD_CPPFLAGS += -DOTA_BIN_COMPRESSED
 endif
 
 export FAULT_DUMP ?= 1
-export CP_FAULT_DUMP ?= 0
-ifeq ($(CP_FAULT_DUMP),1)
-KBUILD_CPPFLAGS += -DCP_FAULT_DUMP
-endif
 
 export CODEC_POWER_DOWN ?= 1
-
-export AUDIO_OUTPUT_VOLUME_DEFAULT ?= 10
-KBUILD_CPPFLAGS += -DAUDIO_OUTPUT_VOLUME_DEFAULT=$(AUDIO_OUTPUT_VOLUME_DEFAULT)
 
 NV_REC_DEV_VER ?= 2
 
@@ -5057,8 +4283,23 @@ core-y += utils/eshell/
 core-y += apps/app_eshell/
 KBUILD_CPPFLAGS += -Iutils/eshell/
 KBUILD_CPPFLAGS += -DUTILS_ESHELL_EN
+export ESHELL_ON_TRACE ?= 1
+
+ifeq ($(ESHELL_ON_TRACE),1)
 KBUILD_CPPFLAGS += -DESHELL_ON_TRACE
-endif
+else
+export ESHELL_BAUDRATE ?= 1152000
+KBUILD_CPPFLAGS += -DESHELL_BAUDRATE=$(ESHELL_BAUDRATE)
+endif #ESHELL_ON_TRACE
+
+export ESHELL_USB_CDC ?= 0
+ifeq ($(ESHELL_USB_CDC),1)
+KBUILD_CPPFLAGS += -DESHELL_USB_CDC -DDUMP_LOG_ENABLE
+ifeq ($(PROGRAMMER),1)
+KBUILD_CPPFLAGS += -DTRACE_TO_APP -DCRASH_DUMP_ENABLE
+endif  #PROGRAMMER
+endif  #ESHELL_USB_CDC
+endif  #UTILS_ESHELL_EN
 
 ifeq ($(NO_PWRKEY),1)
 export NO_PWRKEY
@@ -5069,9 +4310,6 @@ export NO_GROUPKEY
 endif
 
 ifeq ($(NO_SLEEP),1)
-ifeq ($(BT_LOG_POWEROFF),1)
-$(error Invalid config! NO_SLEEP conflict with BT_LOG_POWEROFF, use HAL_CMU_FREQ_MAX=HAL_CMU_FREQ_26M to disable deep sleep)
-endif
 export NO_SLEEP
 endif
 
@@ -5122,7 +4360,10 @@ endif
 
 ifeq ($(AUDIO_OUTPUT_I2S_SW_GAIN),1)
 export AUDIO_OUTPUT_I2S_SW_GAIN
-KBUILD_CPPFLAGS += -DAUDIO_OUTPUT_I2S_SW_GAIN
+endif
+
+ifeq ($(AUDIO_OUTPUT_TDM_SW_GAIN),1)
+export AUDIO_OUTPUT_TDM_SW_GAIN
 endif
 
 ifeq ($(AUDIO_OUTPUT_DAC2_SW_GAIN),1)
@@ -5153,12 +4394,6 @@ ifeq ($(HW_FIR_EQ_PROCESS),1)
 export HW_FIR_EQ_PROCESS
 endif
 
-ifeq ($(IIR_EQ_PROCESS_LR_2CH),1)
-export IIR_EQ_PROCESS_LR_2CH
-KBUILD_CPPFLAGS += -D__IIR_EQ_PROCESS_LR_2CH__
-# export HW_DAC_IIR_EQ_PROCESS := 1
-endif
-
 ifeq ($(HW_IIR_EQ_PROCESS),1)
 export HW_IIR_EQ_PROCESS
 endif
@@ -5167,52 +4402,18 @@ ifeq ($(HW_DAC_IIR_EQ_PROCESS),1)
 export HW_DAC_IIR_EQ_PROCESS
 endif
 
-ifeq ($(A2DP_VIRTUAL_SURROUND),1)
-export A2DP_VIRTUAL_SURROUND
-export AUDIO_OUTPUT_SW_GAIN := 1
-export AUDIO_OUTPUT_SW_GAIN_BEFORE_DRC := 1
-KBUILD_CPPFLAGS += -D__VIRTUAL_SURROUND__
-endif
-
-ifeq ($(A2DP_VIRTUAL_SURROUND_HWFIR),1)
-export A2DP_VIRTUAL_SURROUND_HWFIR
-export AUDIO_OUTPUT_SW_GAIN := 1
-export AUDIO_OUTPUT_SW_GAIN_BEFORE_DRC := 1
-KBUILD_CPPFLAGS += -D__VIRTUAL_SURROUND_HWFIR__
-endif
-
-ifeq ($(A2DP_VIRTUAL_SURROUND_STEREO),1)
-export A2DP_VIRTUAL_SURROUND_STEREO
-export AUDIO_OUTPUT_SW_GAIN := 1
-export AUDIO_OUTPUT_SW_GAIN_BEFORE_DRC := 1
-KBUILD_CPPFLAGS += -D__VIRTUAL_SURROUND_STEREO__
-endif
-
-ifeq ($(AUDIO_DYNAMIC_BOOST),1)
-export AUDIO_DYNAMIC_BOOST
-export AUDIO_OUTPUT_SW_GAIN := 1
-export AUDIO_OUTPUT_SW_GAIN_BEFORE_DRC := 1
-KBUILD_CPPFLAGS += -DAUDIO_DYNAMIC_BOOST
-endif
-
-ifeq ($(AUDIO_DYNAMIC_EQ),1)
-export AUDIO_DYNAMIC_EQ
-export AUDIO_OUTPUT_SW_GAIN := 1
-export AUDIO_OUTPUT_SW_GAIN_BEFORE_DRC := 1
-KBUILD_CPPFLAGS += -DAUDIO_DYNAMIC_EQ
-endif
-
 ifeq ($(AUDIO_DRC),1)
 export AUDIO_DRC
-export AUDIO_OUTPUT_SW_GAIN := 1
-export AUDIO_OUTPUT_SW_GAIN_BEFORE_DRC := 1
+export AUDIO_OUTPUT_SW_GAIN ?= 1
+# alsa need set to 0 in target for multi-instances
+export AUDIO_OUTPUT_SW_GAIN_BEFORE_DRC ?= 1
 endif
 
 ifeq ($(AUDIO_LIMITER),1)
 export AUDIO_LIMITER
-export AUDIO_OUTPUT_SW_GAIN := 1
-export AUDIO_OUTPUT_SW_GAIN_BEFORE_DRC := 1
-KBUILD_CPPFLAGS += -DAUDIO_LIMITER
+export AUDIO_OUTPUT_SW_GAIN ?= 1
+# alsa need set to 0 in target for multi-instances
+export AUDIO_OUTPUT_SW_GAIN_BEFORE_DRC ?= 1
 endif
 
 ifeq ($(AUDIO_REVERB),1)
@@ -5221,9 +4422,6 @@ endif
 
 ifeq ($(AUDIO_BASS_ENHANCER),1)
 export AUDIO_BASS_ENHANCER
-export AUDIO_OUTPUT_SW_GAIN := 1
-export AUDIO_OUTPUT_SW_GAIN_BEFORE_DRC := 1
-KBUILD_CPPFLAGS += -DAUDIO_BASS_ENHANCER
 endif
 
 ifeq ($(AUDIO_HW_LIMITER),1)
@@ -5240,13 +4438,8 @@ KBUILD_CPPFLAGS += -DNO_ISPI
 endif
 
 ifeq ($(USER_SECURE_BOOT),1)
-#export BOOT_LOADER_POST_INIT_HOOK := 1
-core-y += utils/user_secure_boot/ \
-               utils/system_info/
+core-y += utils/user_secure_boot/
 KBUILD_CPPFLAGS += -DUSER_SECURE_BOOT
-
-export USER_SECURE_BOOT_JUMP_ENTRY_ADDR ?=0xffffffff
-KBUILD_CPPFLAGS += -DUSER_SECURE_BOOT_JUMP_ENTRY_ADDR=$(USER_SECURE_BOOT_JUMP_ENTRY_ADDR)
 endif
 
 ifeq ($(ASSERT_SHOW_FILE_FUNC),1)
@@ -5263,12 +4456,6 @@ endif
 
 ifeq ($(LARGE_SENS_RAM),1)
 KBUILD_CPPFLAGS += -DLARGE_SENS_RAM
-endif
-
-ifneq ($(SENS_FIR_LMS_SIZE),)
-KBUILD_CPPFLAGS += -DSENS_FIR_LMS_SIZE=$(SENS_FIR_LMS_SIZE)
-export SENS_PRI_RAM_AS_BUFFER_SECTION := 1
-KBUILD_CPPFLAGS += -DSENS_PRI_RAM_AS_BUFFER_SECTION=$(SENS_PRI_RAM_AS_BUFFER_SECTION)
 endif
 
 ifeq ($(TWS),1)
@@ -5300,13 +4487,19 @@ endif
 ifneq ($(FLASH_DUAL_CHIP),)
 KBUILD_CPPFLAGS += -DFLASH_DUAL_CHIP=$(FLASH_DUAL_CHIP)
 endif
+
 ifeq ($(USB_AUDIO_APP),1)
 ifneq ($(BTUSB_AUDIO_MODE),1)
 export NO_OVERLAY ?= 1
 endif
 endif
+
 ifeq ($(NO_OVERLAY),1)
-KBUILD_CPPFLAGS +=  -DNO_OVERLAY
+KBUILD_CPPFLAGS += -DNO_OVERLAY
+endif
+
+ifeq ($(NO_SPEECH_ALGO_OVERLAY),1)
+KBUILD_CPPFLAGS += -DNO_SPEECH_ALGO_OVERLAY
 endif
 
 ifeq ($(CALIB_SLOW_TIMER),1)
@@ -5331,9 +4524,6 @@ ifeq ($(TRACE_STR_SECTION),1)
 KBUILD_CPPFLAGS += -DTRACE_STR_SECTION
 LDS_CPPFLAGS += -DTRACE_STR_SECTION
 endif
-
-export TRACE_MAXIMUM_LOG_LEN ?= 120
-KBUILD_CPPFLAGS += -DTRACE_MAXIMUM_LOG_LEN=$(TRACE_MAXIMUM_LOG_LEN)
 
 ifeq ($(ANC_APP),1)
 export ANC_FF_ENABLED ?= 1
@@ -5369,6 +4559,16 @@ ifeq ($(AUD_PLL_DOUBLE),1)
 KBUILD_CPPFLAGS += -DAUD_PLL_DOUBLE
 endif
 
+ifeq ($(OPENAMP_ENABLE),1)
+KBUILD_CPPFLAGS += -DOPENAMP_ENABLE
+KBUILD_CPPFLAGS += -Iinclude/open-amp/
+
+export OPENAMP_ECHO_EXAMPLE ?= 1
+ifeq ($(OPENAMP_ECHO_EXAMPLE),1)
+KBUILD_CPPFLAGS += -DOPENAMP_ECHO_EXAMPLE
+endif
+endif #OPENAMP_ENABLE
+
 ifeq ($(CHIP),best1000)
 ifeq ($(DUAL_AUX_MIC),1)
 KBUILD_CPPFLAGS += -D_DUAL_AUX_MIC_
@@ -5390,6 +4590,15 @@ ifeq ($(AUDIO_ANC_FB_MC_HW),1)
 KBUILD_CPPFLAGS += -DAUDIO_ANC_FB_MC_HW
 endif
 
+ifeq ($(ANC_IIR_LINEAR_SMOOTH_MODE),1)
+KBUILD_CPPFLAGS += -DANC_IIR_LINEAR_SMOOTH_MODE
+KBUILD_CPPFLAGS += -DANC_LINEAR_SMOOTH_CHECK
+endif
+
+ifeq ($(PSAP_IIR_LINEAR_SMOOTH_MODE),1)
+KBUILD_CPPFLAGS += -DPSAP_IIR_LINEAR_SMOOTH_MODE
+endif
+
 ifeq ($(AUDIO_ANC_FB_MC),1)
 ifeq ($(AUDIO_RESAMPLE),1)
 $(error AUDIO_ANC_FB_MC conflicts with AUDIO_RESAMPLE)
@@ -5409,9 +4618,8 @@ KBUILD_CPPFLAGS += -DANC_NOISE_TRACKER_CHANNEL_NUM=2
 endif
 endif
 
-ifeq ($(PC_CMD_UART),1)
-export PC_CMD_UART
-KBUILD_CPPFLAGS += -D__PC_CMD_UART__
+ifneq ($(PC_CMD_UART_ID),)
+KBUILD_CPPFLAGS += -DPC_CMD_UART_ID=$(PC_CMD_UART_ID)
 KBUILD_CPPFLAGS += -DAUDIO_EQ_TUNING
 endif
 
@@ -5478,12 +4686,8 @@ ifeq ($(HAS_BT_SYNC),1)
 KBUILD_CPPFLAGS += -D__BT_SYNC__
 endif
 
-ifeq ($(SINGLE_WIRE_UART_PMU_1802),1)
-KBUILD_CPPFLAGS += -DSINGLE_WIRE_UART_PMU_1802
-endif
-
-ifeq ($(SINGLE_WIRE_UART_PMU_1803),1)
-KBUILD_CPPFLAGS += -DSINGLE_WIRE_UART_PMU_1803
+ifeq ($(SINGLE_WIRE_UART_PMU),1)
+KBUILD_CPPFLAGS += -DSINGLE_WIRE_UART_PMU
 endif
 
 ifeq ($(INTERSYS_RX_DMA_SPEEDUP),1)
@@ -5494,12 +4698,12 @@ ifeq ($(REPORT_EVENT_TO_CUSTOMIZED_UX),1)
 KBUILD_CPPFLAGS += -D__REPORT_EVENT_TO_CUSTOMIZED_UX__
 endif
 
-export LIST_NUM ?= 6
+export LIST_NUM ?= 7
 ifeq ($(AOB_MOBILE_ENABLED),1)
 LIST_NUM := $(LIST_NUM)+1
 endif
 
-ifeq ($(BLE_WALKIE_TALKIE_FULL_DUPLEX),1)
+ifeq ($(BLE_WALKIE_TALKIE),1)
 LIST_NUM := $(LIST_NUM)+2
 endif
 
@@ -5508,38 +4712,23 @@ KBUILD_CPPFLAGS += -DMTEST_BUILTIN
 endif
 
 #capsensor
-ifneq ($(CHIP_CAPSENSOR_VER),)
-KBUILD_CPPFLAGS += -DCHIP_CAPSENSOR_VER=$(CHIP_CAPSENSOR_VER)
-endif
-
 ifeq ($(CAPSENSOR_ENABLE),1)
 KBUILD_CPPFLAGS += -DCAPSENSOR_ENABLE
 #CHIP_CAPSENSOR_VER:0 =>1501/1501p/1502x
 #CHIP_CAPSENSOR_VER:1 =>1805
 #CHIP_CAPSENSOR_VER:2 =>1809
 #CHIP_CAPSENSOR_VER:3 =>1306
-#CHIP_CAPSENSOR_VER:4 =>1503/1306p
-ifeq ($(CHIP),best1306)
-CHIP_CAPSENSOR_VER ?= 3
-else ifeq ($(CHIP),best1503)
-CHIP_CAPSENSOR_VER ?= 4
-else
+#CHIP_CAPSENSOR_VER:4 =>1503
 CHIP_CAPSENSOR_VER ?= 0
+ifneq ($(CHIP_CAPSENSOR_VER),)
+KBUILD_CPPFLAGS += -DCHIP_CAPSENSOR_VER=$(CHIP_CAPSENSOR_VER)
 endif
-
 ifeq ($(CAPSENSOR_SLIDE),1)
 KBUILD_CFLAGS += -DCAPSENSOR_SLIDE
 endif
 ifeq ($(CAPSENSOR_SPP_SERVER), 1)
 KBUILD_CPPFLAGS += -DCAPSENSOR_SPP_SERVER
 endif
-ifeq ($(CAP_CHNL_BONDING_WITH_GPIO),1)
-KBUILD_CPPFLAGS += -DCAP_CHNL_BONDING_WITH_GPIO
-endif
-endif
-
-ifeq ($(PRESSURE_ENABLE),1)
-KBUILD_CPPFLAGS += -DPRESSURE_ENABLE
 endif
 
 # vvvvvvvvvvvvvvvvvvvvvvvvvvvvv
@@ -5549,8 +4738,8 @@ endif
 # vvvvvvvvvvvvvvvvvvvvvvvvvvvvv
 # Obsoleted features
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-OBSOLETED_FEATURE_LIST := EQ_PROCESS RB_CODEC AUDIO_EQ_PROCESS MEDIA_PLAYER_RBCODEC
-USED_OBSOLETED_FEATURE := $(strip $(foreach f,$(OBSOLETED_FEATURE_LIST),$(if $(filter 1,$($f)),$f)))
+OBSOLETED_FEATURE_LIST := EQ_PROCESS RB_CODEC AUDIO_EQ_PROCESS MEDIA_PLAYER_RBCODEC CORE_PD_SUBSYS_PU
+USED_OBSOLETED_FEATURE := $(strip $(foreach f,$(OBSOLETED_FEATURE_LIST),$(if $(filter-out undefined,$(flavor $f)),$f)))
 ifneq ($(USED_OBSOLETED_FEATURE),)
 $(error Obsoleted features: $(USED_OBSOLETED_FEATURE))
 endif
@@ -5558,20 +4747,6 @@ endif
 # -------------------------------------------
 # Size and LDS macros
 # -------------------------------------------
-
-export CUSTOMER_LOAD_RAM_DATA_SECTION_SIZE ?= 0
-export CUSTOMER_LOAD_SRAM_TEXT_RAMX_SECTION_SIZE ?= 0
-
-ifneq ($(CUSTOMER_LOAD_RAM_DATA_SECTION_SIZE),0)
-KBUILD_CPPFLAGS += -DCUSTOMER_LOAD_RAM_DATA_SECTION_SIZE=$(CUSTOMER_LOAD_RAM_DATA_SECTION_SIZE)
-endif
-ifneq ($(CUSTOMER_LOAD_SRAM_TEXT_RAMX_SECTION_SIZE),0)
-KBUILD_CPPFLAGS += -DCUSTOMER_LOAD_SRAM_TEXT_RAMX_SECTION_SIZE=$(CUSTOMER_LOAD_SRAM_TEXT_RAMX_SECTION_SIZE)
-endif
-
-ifneq (($(CUSTOMER_LOAD_SRAM_TEXT_RAMX_SECTION_SIZE)-$(CUSTOMER_LOAD_RAM_DATA_SECTION_SIZE)),0-0)
-export CUSTOMER_LOAD_ENC_DEC_RECORD_SECTION_SIZE ?= 0x32000
-endif
 
 ifneq ($(ROM_SIZE),)
 KBUILD_CPPFLAGS += -DROM_SIZE=$(ROM_SIZE)
@@ -5581,10 +4756,18 @@ ifneq ($(RAM_SIZE),)
 KBUILD_CPPFLAGS += -DRAM_SIZE=$(RAM_SIZE)
 endif
 
-ifeq ($(CHIP_HAS_CP),1)
+ifneq ($(BT_RAMRUN_SIZE),)
+KBUILD_CPPFLAGS += -DBT_RAMRUN_SIZE=$(BT_RAMRUN_SIZE)
+endif
+
+ifneq ($(BT_RAMRUN_BASE),)
+KBUILD_CPPFLAGS += -DBT_RAMRUN_BASE=$(BT_RAMRUN_BASE)
+endif
+
 ifneq ($(RAMCP_SIZE),)
 KBUILD_CPPFLAGS += -DRAMCP_SIZE=$(RAMCP_SIZE)
 endif
+
 ifneq ($(RAMCPX_SIZE),)
 KBUILD_CPPFLAGS += -DRAMCPX_SIZE=$(RAMCPX_SIZE)
 endif
@@ -5592,6 +4775,9 @@ endif
 ifneq ($(SENS_RAMCP_TOP),)
 KBUILD_CPPFLAGS += -DSENS_RAMCP_TOP=$(SENS_RAMCP_TOP)
 endif
+
+ifneq ($(DSP_RAM_SIZE),)
+KBUILD_CPPFLAGS += -DDSP_RAM_SIZE=$(DSP_RAM_SIZE)
 endif
 
 export FLASH_SIZE ?= 0x100000
@@ -5628,6 +4814,10 @@ KBUILD_CPPFLAGS += -DPSRAMUHS_SIZE=$(PSRAMUHS_SIZE)
 endif
 endif
 
+ifeq ($(CHIP_HAS_DDR),1)
+export DDRPLL_MHZ ?= 400
+endif
+
 # NOTE: This size cannot be changed so that audio section address is fixed.
 #       This rule can be removed once audio tool can set audio section address dynamically.
 
@@ -5644,35 +4834,34 @@ endif
 
 ifeq ($(AUDIO_SECTION_ENABLE),1)
 KBUILD_CPPFLAGS += -DAUDIO_SECTION_ENABLE
-# depend on length of (AUDIO + SPEECH) in aud_section.c
+# depend on length of (ANC + AUDIO + SPEECH) in aud_section.c
 AUD_SECTION_SIZE ?= 0x8000
-else
-AUD_SECTION_SIZE ?= 0
+ifeq ($(ANC_APP),1)
+$(error Can not enable AUDIO_SECTION_ENABLE and ANC_APP together)
+endif
 endif
 
 ifeq ($(ANC_APP),1)
 ifeq ($(CHIP),best1000)
-ANC_SECTION_SIZE ?= 0x8000
+AUD_SECTION_SIZE ?= 0x8000
 else
-ANC_SECTION_SIZE ?= 0x10000
-KBUILD_CPPFLAGS += -DANC_SECTION_SIZE=$(ANC_SECTION_SIZE)
+AUD_SECTION_SIZE ?= 0x10000
 endif
 else
-ANC_SECTION_SIZE ?= 0
+AUD_SECTION_SIZE ?= 0
 endif
-
-AUD_SECTION_SIZE := $(shell printf "0x%X" $$(( $(AUD_SECTION_SIZE) + $(ANC_SECTION_SIZE) )))
 
 USERDATA_SECTION_SIZE ?= $(FLASH_SECTOR_SIZE)
 
-ifeq ($(DIRAC_AUDIO_ENABLE),1)
-DIRAC_TUNING_DATA_SIZE += 0x3000
-# Dynamic loading of dirac tuning data will only work if FLASH_SECTOR_SIZE is 0x1000.
-CUSTOM_PARAMETER_SECTION_SIZE ?= $(FLASH_SECTOR_SIZE)+$(DIRAC_TUNING_DATA_SIZE)
-KBUILD_CPPFLAGS += -DDIRAC_AUDIO_ENABLE
-else
-CUSTOM_PARAMETER_SECTION_SIZE ?= $(FLASH_SECTOR_SIZE)
+ifndef LITTLEFS_SECTION_SIZE
+LITTLEFS_SECTION_SIZE := 0
 endif
+
+ifndef FACTORY_DATA_SECTION_SIZE
+FACTORY_DATA_SECTION_SIZE := 0
+endif
+
+CUSTOM_PARAMETER_SECTION_SIZE ?= $(FLASH_SECTOR_SIZE)
 
 ifeq ($(ENABLE_CALCU_CPU_FREQ_LOG),1)
 export ENABLE_CALCU_CPU_FREQ_LOG
@@ -5758,14 +4947,24 @@ else
 CORE_DUMP_SECTION_SIZE ?= 0
 endif
 
+ifeq ($(USER_DATA_TO_FLASH),1)
+USER_DATA_SECTION_SIZE ?= 4*1024
+KBUILD_CPPFLAGS += -DUSER_DATA_TO_FLASH
+else
+USER_DATA_SECTION_SIZE ?= 0
+endif
+
+ifeq ($(USER_GPS_TO_FLASH),1)
+USER_GPS_SECTION_SIZE ?= 10*1024
+KBUILD_CPPFLAGS += -DUSER_GPS_TO_FLASH
+else
+USER_GPS_SECTION_SIZE ?= 0
+endif
+
 ifeq ($(GSOUND_HOTWORD_ENABLE),1)
 # used to store hotword model, currently 240KB
 # this value is used in link file
-ifeq ($(MODEL_FILE_EMBEDED), 1)
-HOTWORD_SECTION_SIZE ?= 0x12000
-else
 HOTWORD_SECTION_SIZE ?= 0x3C000
-endif
 else
 HOTWORD_SECTION_SIZE ?= 0x0
 endif
@@ -5785,30 +4984,45 @@ COMBO_SECTION_SIZE ?= 0
 endif
 
 export LDS_SECTION_FLAGS := \
-	-DOTA_APP_BOOT_INFO_SECTION_SIZE=$(OTA_APP_BOOT_INFO_SECTION_SIZE) \
 	-DCOMBO_SECTION_SIZE=$(COMBO_SECTION_SIZE) \
 	-DPROMPT_SECTION_SIZE=$(PROMPT_SECTION_SIZE) \
 	-DHOTWORD_SECTION_SIZE=$(HOTWORD_SECTION_SIZE) \
 	-DCORE_DUMP_SECTION_SIZE=$(CORE_DUMP_SECTION_SIZE) \
+	-DUSER_DATA_SECTION_SIZE=$(USER_DATA_SECTION_SIZE) \
+	-DUSER_GPS_SECTION_SIZE=$(USER_GPS_SECTION_SIZE) \
 	-DOTA_UPGRADE_SECTION_SIZE=$(OTA_UPGRADE_SECTION_SIZE) \
 	-DLOG_DUMP_SECTION_SIZE=$(LOG_DUMP_SECTION_SIZE) \
 	-DCRASH_DUMP_SECTION_SIZE=$(CRASH_DUMP_SECTION_SIZE) \
 	-DCUSTOM_PARAMETER_SECTION_SIZE=$(CUSTOM_PARAMETER_SECTION_SIZE) \
 	-DLHDC_LICENSE_SECTION_SIZE=$(LHDC_LICENSE_SECTION_SIZE) \
 	-DUSERDATA_SECTION_SIZE=$(USERDATA_SECTION_SIZE) \
+	-DLITTLEFS_SECTION_SIZE=$(LITTLEFS_SECTION_SIZE) \
+	-DFACTORY_DATA_SECTION_SIZE=$(FACTORY_DATA_SECTION_SIZE) \
 	-DAUD_SECTION_SIZE=$(AUD_SECTION_SIZE) \
 	-DRESERVED_SECTION_SIZE=$(RESERVED_SECTION_SIZE) \
 	-DFACTORY_SECTION_SIZE=$(FACTORY_SECTION_SIZE) \
 	-DRAM_DUMP_SECTION_SIZE=$(RAM_DUMP_SECTION_SIZE) \
-	-DBT_CONTROLLER_RAM_DUMP_SECTION_SIZE=$(BT_CONTROLLER_RAM_DUMP_SECTION_SIZE) \
-    -DFINDMY_INFO_SECTION_SIZE=$(FINDMY_INFO_SECTION_SIZE)
+	-DBT_CONTROLLER_RAM_DUMP_SECTION_SIZE=$(BT_CONTROLLER_RAM_DUMP_SECTION_SIZE)
+
+ifeq ($(USE_MULTI_FLASH),1)
+FLASH1_CALIB_SECTION_SIZE ?= $(FLASH_SECTOR_SIZE)
+endif
+
+ifneq ($(FLASH1_CALIB_SECTION_SIZE),)
+LDS_SECTION_FLAGS += -DFLASH1_CALIB_SECTION_SIZE=$(FLASH1_CALIB_SECTION_SIZE)
+KBUILD_CPPFLAGS += -DFLASH1_CALIB_SECTION_SIZE=$(FLASH1_CALIB_SECTION_SIZE)
+endif
+
+ifneq ($(FILE_SYSTEM_SECTION_SIZE),)
+LDS_SECTION_FLAGS += -DFILE_SYSTEM_SECTION_SIZE=$(FILE_SYSTEM_SECTION_SIZE)
+endif
+
+ifneq ($(PERSIST_DATA_SECTION_SIZE),)
+LDS_SECTION_FLAGS += -DPERSIST_DATA_SECTION_SIZE=$(PERSIST_DATA_SECTION_SIZE)
+endif
 
 ifneq ($(FAST_XRAM_SECTION_SIZE),)
 LDS_SECTION_FLAGS += -DFAST_XRAM_SECTION_SIZE=$(FAST_XRAM_SECTION_SIZE)
-endif
-
-ifneq ($(CUSTOMER_LOAD_ENC_DEC_RECORD_SECTION_SIZE),0)
-LDS_SECTION_FLAGS += -DCUSTOMER_LOAD_ENC_DEC_RECORD_SECTION_SIZE=$(CUSTOMER_LOAD_ENC_DEC_RECORD_SECTION_SIZE)
 endif
 
 ifneq ($(OTA_BOOT_OFFSET),)
@@ -5819,12 +5033,13 @@ endif
 ifneq ($(OTA_BOOT_SIZE),)
 export OTA_BOOT_SIZE
 LDS_SECTION_FLAGS += -DOTA_BOOT_SIZE=$(OTA_BOOT_SIZE)
+endif
 
+ifneq ($(OTA_BOOT_INFO_OFFSET),)
+export OTA_BOOT_INFO_OFFSET
+LDS_SECTION_FLAGS += -DOTA_BOOT_INFO_OFFSET=$(OTA_BOOT_INFO_OFFSET)
 OTA_BOOT_INFO_SECTION_SIZE ?= $(FLASH_SECTOR_SIZE)
-OTA_BOOT_REV_SECTION_SIZE ?= $(FLASH_SECTOR_SIZE)
-LDS_SECTION_FLAGS += \
-	-DOTA_BOOT_INFO_SECTION_SIZE=$(OTA_BOOT_INFO_SECTION_SIZE) \
-	-DOTA_BOOT_REV_SECTION_SIZE=$(OTA_BOOT_REV_SECTION_SIZE)
+LDS_SECTION_FLAGS += -DOTA_BOOT_INFO_SECTION_SIZE=$(OTA_BOOT_INFO_SECTION_SIZE)
 endif
 
 ifneq ($(OTA_CODE_OFFSET),)
@@ -5856,6 +5071,7 @@ endif
 ifneq ($(FLASH1_REGION_SIZE),)
 LDS_SECTION_FLAGS += -DFLASH1_REGION_SIZE=$(FLASH1_REGION_SIZE)
 endif
+
 ifneq ($(FLASH_IMAGE_SIZE),)
 LDS_SECTION_FLAGS += -DFLASH_IMAGE_SIZE=$(FLASH_IMAGE_SIZE)
 endif
@@ -5876,6 +5092,10 @@ KBUILD_CPPFLAGS += -DPSRAMUHS_ENABLE
 BOOT_CODE_IN_RAM ?= 1
 endif
 
+ifeq ($(NO_SUBSYS_RAM),1)
+KBUILD_CPPFLAGS += -DNO_SUBSYS_RAM
+endif
+
 ifeq ($(BOOT_CODE_IN_RAM),1)
 LDS_CPPFLAGS += -DBOOT_CODE_IN_RAM
 endif
@@ -5891,12 +5111,30 @@ ifeq ($(MEM_POOL_IN_CP_RAM),1)
 LDS_CPPFLAGS += -DMEM_POOL_IN_CP_RAM
 endif
 
+ifneq ($(MIN_BURN_BUFFER_SIZE),)
+LDS_CPPFLAGS += -DMIN_BURN_BUFFER_SIZE=$(MIN_BURN_BUFFER_SIZE)
+endif
+
 ifeq ($(PROGRAMMER_LOAD_SIMU),1)
 LDS_CPPFLAGS += -DPROGRAMMER_LOAD_SIMU
 endif
 
+ifeq ($(ROM_IN_FLASH),1)
+LDS_CPPFLAGS += -DROM_IN_FLASH
+endif
+
 ifeq ($(RB_CODEC),1)
 LDS_CPPFLAGS += -DRB_CODEC
+endif
+
+ifeq ($(MCU_SPI_SLAVE), 1)
+LDS_CPPFLAGS += -DMCU_SPI_SLAVE
+ifeq ($(MCU_SPI_SLAVE_SPECIFY_MEM), 1)
+LDS_CPPFLAGS += -DMCU_SPI_SLAVE_SPECIFY_MEM
+ifneq ($(MCU_SPI_SLAVE_BUF_SIZE),)
+LDS_CPPFLAGS += -DMCU_SPI_SLAVE_BUF_SIZE=$(MCU_SPI_SLAVE_BUF_SIZE)
+endif
+endif
 endif
 
 ifneq ($(SLAVE_BIN_FLASH_OFFSET),)
@@ -5926,52 +5164,22 @@ ifeq ($(PSRAM_HEAP_ONLY),1)
 LDS_CPPFLAGS += -DPSRAM_HEAP_ONLY
 endif
 
-ifeq ($(LIBM_ALL_IN_RAM),1)
-LDS_CPPFLAGS += -DLIBM_ALL_IN_RAM
+ifeq ($(SDIO_HOST_IN_RAM),1)
+LDS_CPPFLAGS += -DSDIO_HOST_IN_RAM
 endif
 
-export SIMULTANEOUS_AWAKEN ?= 1
-ifeq ($(SIMULTANEOUS_AWAKEN),1)
-KBUILD_CPPFLAGS += -DSIMULTANEOUS_AWAKEN
-CALIB_SLOW_TIMER ?= 1
+ifeq ($(OTA_BOOT_TO_DUAL_CHIP),1)
+LDS_CPPFLAGS += -DOTA_BOOT_TO_DUAL_CHIP
 endif
 
-ifeq ($(KARAOKE_ALGO_EQ),1)
-LDS_CPPFLAGS += -DKARAOKE_ALGO_EQ
-endif
-
-ifeq ($(KARAOKE_ALGO_NS),1)
-LDS_CPPFLAGS += -DKARAOKE_ALGO_NS
-endif
-
-ifeq ($(FINDMY_ENABLE),1)
-core-y += utils/mbedtls/
+ifneq ($(CROSS_CORE_HEAP_SIZE),)
+export CROSS_CORE_HEAP_SIZE
+LDS_CPPFLAGS += -DCROSS_CORE_HEAP_SIZE=$(CROSS_CORE_HEAP_SIZE)
 endif
 
 # -------------------------------------------
 # General
 # -------------------------------------------
-
-ifeq ($(BECO),1)
-KBUILD_CPPFLAGS += -DBECO
-endif
-
-ifeq ($(BECO_TEST),1)
-export NN_LIB ?= 1
-export DSP_LIB ?= 1
-KBUILD_CPPFLAGS += -DBECO_TEST
-endif
-
-# bes nn folder, default required.
-ifeq ($(NN_LIB),1)
-core-y += nn/
-endif
-export NN_INCLUDE := -Inn/cmsis-nn/Include
-export BECO_INCLUDE := -Inn/beco/Include \
-                       -Inn/beco/Include/beco_dsp \
-                       -Inn/beco/Include/beco_nn \
-                       -Inn/cmsis-nn/Include \
-                       -Iinclude/cmsis_dsp
 
 ifneq ($(NO_CONFIG),1)
 core-y += config/
@@ -6000,7 +5208,14 @@ endif
 
 CPU_CFLAGS := -mthumb
 ifeq ($(CPU),a7)
+export A7_THUMB ?= 1
+ifneq ($(A7_THUMB),1)
+CPU_CFLAGS := -marm
+endif
 CPU_CFLAGS += -mcpu=cortex-a7
+else ifeq ($(CPU),a55)
+CPU_CFLAGS := -marm
+CPU_CFLAGS += -mcpu=cortex-a55
 else ifeq ($(CPU),m55)
 ifeq ($(TOOLCHAIN),armclang)
 KBUILD_CPPFLAGS += -D__ARM_ARCH_8M_MAIN__
@@ -6033,13 +5248,12 @@ export BOOT_LOADER_ENTRY_HOOK := 0
 endif
 endif
 
-ifeq ($(LARGE_SE_RAM),1)
-KBUILD_CPPFLAGS += -DLARGE_SE_RAM
-endif
 
 ifeq ($(CHIP_HAS_FPU),1)
 ifeq ($(CPU),a7)
 CPU_CFLAGS += -mfpu=neon-vfpv4
+else ifeq ($(CPU),a55)
+CPU_CFLAGS += -mfpu=auto
 else ifeq ($(CPU),m33)
 CPU_CFLAGS += -mfpu=fpv5-sp-d16
 else ifeq ($(CPU),m55)
@@ -6059,8 +5273,10 @@ else # !CHIP_HAS_FPU
 CPU_CFLAGS += -mfloat-abi=soft
 endif # !CHIP_HAS_FPU
 
-ifeq ($(KERNEL),RTTHREAD)
+ifneq ($(CPU),a7)
+ifneq ($(filter RTTHREAD RHINO,$(KERNEL)),)
 CPU_CFLAGS += -Wa,-mimplicit-it=thumb
+endif
 endif
 
 export UNALIGNED_ACCESS ?= 1
@@ -6120,8 +5336,9 @@ endif
 else # GCC
 ifeq ($(LTO),1)
 ifeq ($(NOSTD),1)
-# Link libgcc as whole archive
-IMAGE_EXTRA += -lgcc
+$(info )
+$(info Note that libgcc will not be linked when both LTO=1 and NOSTD=1)
+$(info )
 endif
 ifeq ($(NO_FAT_LTO_OBJ),1)
 LTO_PLUGIN_PATH := $(shell arm-none-eabi-gcc --print-file-name=liblto_plugin.so)
@@ -6158,283 +5375,14 @@ LDFLAGS_IMAGE += --defsym __ctype_ptr__=0
 endif
 endif
 
-export UNIFY_HEAP_ENABLED ?= 0
-ifeq ($(UNIFY_HEAP_ENABLED),1)
-KBUILD_CPPFLAGS += -DUNIFY_HEAP_ENABLED
-endif
-
-export USE_BASIC_THREADS ?= 0
-ifeq ($(USE_BASIC_THREADS),1)
-KBUILD_CPPFLAGS += -DUSE_BASIC_THREADS
-endif
-
-ifeq ($(APP_ANC_ASSIST_THREAD),1)
-KBUILD_CPPFLAGS += -DAPP_ANC_ASSIST_THREAD
-endif
-
-export APP_UI_THREAD_SIZE ?= 2048
-ifneq ($(APP_UI_THREAD_SIZE), )
-KBUILD_CPPFLAGS += -DAPP_UI_THREAD_SIZE=$(APP_UI_THREAD_SIZE)
-endif
-
-export SBC_REDUCE_SIZE ?= 0
-ifeq ($(SBC_REDUCE_SIZE),1)
-KBUILD_CPPFLAGS += -DSBC_REDUCE_SIZE
-endif
-
-export TRACE_CP_CPU_OUTPUT ?= 1
-ifeq ($(TRACE_CP_CPU_OUTPUT),1)
-KBUILD_CPPFLAGS += -DTRACE_CODE_IN_RAM
-KBUILD_CPPFLAGS += -DTRACE_CP_CPU_OUTPUT
-endif
-
-export CHG_OUT_PWRON ?= 0
-ifeq ($(CHG_OUT_PWRON),1)
-KBUILD_CPPFLAGS += -DCHG_OUT_PWRON
-endif
-
-ifeq ($(SPA_AUDIO_SEC),1)
-KBUILD_CPPFLAGS += -DSPA_AUDIO_SEC
-endif
-
-ifeq ($(SPA_AUDIO_SEC_TEST),1)
-KBUILD_CPPFLAGS += -DSPA_AUDIO_SEC_TEST
-endif
-
-ifeq ($(TZ_ROM_UTILS_IF),1)
-KBUILD_CPPFLAGS += -DTZ_ROM_UTILS_IF
-endif
-
-ifeq ($(AUDIO_HEARING_COMPSATN),1)
-APP_TRACE_RX_ENABLE := 1
-HEARING_MOD ?= HWIIR
-HEARING_MOD_VAL ?= 0
-endif
-# HWFIR
-# SWIIR
-# HWIIR
-
-ifeq ($(AUDIO_HEARING_COMPSATN),1)
-HEARING_USE_STATIC_RAM := 1
-ifeq ($(HEARING_MOD),HWFIR)
-HW_FIR_EQ_PROCESS := 1
-HEARING_MOD_VAL := 0
-USE_CMSIS_FFT_LEN_1024 := 1
-else
-ifeq ($(HEARING_MOD),SWIIR)
-SW_IIR_EQ_PROCESS := 1
-HEARING_MOD_VAL := 1
-else
-HW_DAC_IIR_EQ_PROCESS := 1
-HEARING_MOD_VAL := 2
-endif
-endif
-endif
-
-ifeq ($(FAST_RAM_OPTIMIZE), 1)
-KBUILD_CPPFLAGS += -DFAST_RAM_OPTIMIZE
-endif
-
-ifeq ($(USE_OVERLAY_TXT_GAP), 1)
-KBUILD_CPPFLAGS += -DUSE_OVERLAY_TXT_GAP
-endif
-
-ifeq ($(NORMAL_TEST_MODE_SWITCH),1)
-KBUILD_CPPFLAGS += -DNORMAL_TEST_MODE_SWITCH
-endif
-
-ifeq ($(OTA_SUPPORT_SLAVE_BIN),1)
-export SLAVE_BIN_FLASH_OFFSET ?= 0x100000
-export SLAVE_BIN_TARGET_NAME ?= anc_usb
-endif
-
-ifeq ($(BES_OTA),1)
-# enabled when 1501 flash remap is ready
-FLASH_REMAP ?= 0
-ifeq ($(FLASH_REMAP),1)
-NEW_IMAGE_FLASH_OFFSET ?= OTA_REMAP_OFFSET
-endif
-IS_BLE_RX_HANDLER_THREAD_ENABLED ?= 1
-endif
-
-ifneq ($(A2DP_DECODER_VER), )
-KBUILD_CPPFLAGS += -DA2DP_DECODER_VER=$(A2DP_DECODER_VER)
-endif
-
-ifneq ($(AUDIO_TRIGGER_VER), )
-KBUILD_CPPFLAGS += -DAUDIO_TRIGGER_VER=$(AUDIO_TRIGGER_VER)
-endif
-
-ifeq ($(HOST_GEN_FULL_ECDH_KEY),1)
-KBUILD_CPPFLAGS += -D__HOST_GEN_FULL_ECDH_KEY__
-export HOST_GEN_ECDH_KEY := 1
-endif
-
-ifeq ($(HOST_GEN_ECDH_KEY),1)
-KBUILD_CPPFLAGS += -D__HOST_GEN_ECDH_KEY__
-endif
-
-ifeq ($(AUDIO_OUTPUT_DC_AUTO_CALIB), 1)
-export AUDIO_OUTPUT_DC_CALIB := 1
-export AUDIO_OUTPUT_DC_CALIB_ANA := 0
-ifeq ($(FREEMAN_ENABLED_STERO),1)
-export AUDIO_OUTPUT_DC_CALIB_DUAL_CHAN ?= 1
-else
-export AUDIO_OUTPUT_DC_CALIB_DUAL_CHAN ?= 0
-endif
-export AUDIO_OUTPUT_SET_LARGE_ANA_DC ?= 0
-export AUDIO_OUTPUT_DIG_DC_DEEP_CALIB ?= 1
-export DAC_DRE_ENABLE ?= 1
-export CODEC_DAC_DC_NV_DATA ?= 1
-export CODEC_DAC_DC_DYN_BUF ?= 1
-export CODEC_DAC_DC_CHECK ?= 1
-else
-export AUDIO_OUTPUT_DC_CALIB_ANA := 0
-endif
-
-ifeq ($(AUDIO_OUTPUT_DC_AUTO_CALIB),1)
-KBUILD_CPPFLAGS += -DAUDIO_OUTPUT_DC_AUTO_CALIB
-endif
-
-ifeq ($(CODEC_DAC_DC_NV_DATA), 1)
-KBUILD_CPPFLAGS += -DCODEC_DAC_DC_NV_DATA
-endif
-
-ifeq ($(AUDIO_ADC_DC_AUTO_CALIB), 1)
-export ADC_DC_CALIB_USE_FIXED_DC ?= 0
-export AUDIO_ADC_DIG_DC_CALIB ?= 0
-export CODEC_ADC_DC_DYN_BUF ?= 1
-export CODEC_ADC_DC_NV_DATA ?= 1
-KBUILD_CPPFLAGS += -DAUDIO_ADC_DC_AUTO_CALIB
-endif
-
-ifeq ($(CODEC_ADC_DC_NV_DATA), 1)
-KBUILD_CPPFLAGS += -DCODEC_ADC_DC_NV_DATA
-endif
-
-ifeq ($(ADC_DC_CALIB_USE_FIXED_DC), 1)
-KBUILD_CPPFLAGS += -DADC_DC_CALIB_USE_FIXED_DC
-endif
-
-ifeq ($(AUDIO_ADC_DIG_DC_CALIB), 1)
-KBUILD_CPPFLAGS += -DAUDIO_ADC_DIG_DC_CALIB
-endif
-
-ifeq ($(REPORT_CONNECTIVITY_LOG),1)
-KBUILD_CPPFLAGS += -D__CONNECTIVITY_LOG_REPORT__
-KBUILD_CPPFLAGS += -D__AUDIO_RETRIGGER_REPORT__
-endif
-
-
-# if VAD enabled, sensor hub always use large ram memory
-ifeq ($(VOICE_DETECTOR_SENS_EN),1)
-export LARGE_SENS_RAM ?= 1
-export SENSOR_HUB ?= 1
-else
-export SENSOR_HUB ?= 0
-endif
-
-# for usb mass storage class
-ifeq ($(MSD_MODE),1)
-KBUILD_CPPFLAGS += -DMSD_MODE
-endif
-
-export AAC_BECO_FFT ?= 0
-ifeq ($(AAC_BECO_FFT),1)
-export BECO := 1
-KBUILD_CPPFLAGS += -DBECO
-KBUILD_CPPFLAGS += -DAAC_BECO_FFT
-endif
-
-export HEAD_TRACK_ENABLE ?= 0
-ifeq ($(HEAD_TRACK_ENABLE),1)
-KBUILD_CPPFLAGS += -DHEAD_TRACK_ENABLE
-endif
-
-ifeq ($(SECURE_BOOT),1)
-export OTA_SEC_BOOT_INFO_OFFSET ?= 0x18000
-endif
-
-ifneq ($(OTA_SEC_BOOT_INFO_OFFSET),)
-KBUILD_CPPFLAGS += -DOTA_SEC_BOOT_INFO_OFFSET=$(OTA_SEC_BOOT_INFO_OFFSET)
-endif
-
-export AUDIO_OUTPUT_SWAP ?= 0
-ifeq ($(AUDIO_OUTPUT_SWAP),1)
-KBUILD_CPPFLAGS += -DAUDIO_OUTPUT_SWAP
-endif
-
-ifneq ($(CPU_PC_DUMP),)
-KBUILD_CPPFLAGS += -DCPU_PC_DUMP
-ifeq ($(CPU_PC_DUMP),PC)
-KBUILD_CPPFLAGS += -DCPU_PC_DUMP_PC
-else
-ifeq ($(CPU_PC_DUMP),LR)
-KBUILD_CPPFLAGS += -DCPU_PC_DUMP_LR
-endif
-endif
-endif
-
-export FREEMAN_ENABLED_STERO ?= 0
-ifeq ($(FREEMAN_ENABLED_STERO),1)
-KBUILD_CPPFLAGS += -DFREEMAN_ENABLED_STERO
-export POWER_ON_OPEN_BOX_ENABLED ?= 0
-ifeq ($(BES_OTA),1)
-export FREEMAN_OTA_ENABLE := 1
-endif
-endif
-
-export FREEMAN_OTA_ENABLE ?= 0
-ifeq ($(FREEMAN_OTA_ENABLE),1)
-KBUILD_CPPFLAGS += -DFREEMAN_OTA_ENABLED
-endif
-
-export CUSTOMER_APP_BOAT ?= 0
-ifeq ($(CUSTOMER_APP_BOAT),1)
-KBUILD_CPPFLAGS += -DCUSTOMER_APP_BOAT
-endif
-
-export SPA_AUDIO_ENABLE ?= 0
-ifeq ($(SPA_AUDIO_ENABLE),1)
-export USE_THIRDPARTY := 1
-KBUILD_CPPFLAGS += -DSPA_AUDIO_ENABLE
-KBUILD_CPPFLAGS += -DSPA_AUDIO_BTH
-endif
-
-export SPP_TEST_ENABLE ?= 0
-ifeq ($(SPP_TEST_ENABLE), 1)
-export SPP_SERVER_TEST_ENABLE ?= 1
-ifeq ($(SPP_SERVER_TEST_ENABLE),1)
-KBUILD_CPPFLAGS += -DSPP_SERVER_TEST
-else
-KBUILD_CPPFLAGS += -DSPP_CLIENT_TEST
-endif
-endif
-
-ifeq ($(BT_RAM_DISTRIBUTION),1)
-KBUILD_CPPFLAGS += -D__BT_RAM_DISTRIBUTION__
-endif
-
-ifeq ($(APP_RSSI),1)
-export TOTA_v2 := 1
-export BT_APP_RSSI := 1
-ifeq ($(BT_APP_RSSI),1)
-KBUILD_CPPFLAGS += -DBT_APP_RSSI
-endif
-endif
-
-ifeq ($(SW_TRIG),1)
-KBUILD_CPPFLAGS += -D__SW_TRIG__
-endif
-
-$(info ----------common.mk in flash---------------------)
-$(info FLASH_REMAP: $(FLASH_REMAP))
-$(info NEW_IMAGE_FLASH_OFFSET: $(NEW_IMAGE_FLASH_OFFSET))
-$(info OTA_CODE_OFFSET: $(OTA_CODE_OFFSET))
-$(info -------------------------------)
-
 #---------------------------------------------
 # Do NOT add application specific macros here!
 # Search above domains for:
 # BT_APP / BLE / FULL_APP_PROJECT
 #---------------------------------------------
+
+ifeq ($(ENABLE_PRINT_FLOAT), 1)
+ifneq ($(TOOLCHAIN),armclang)
+CFLAGS_IMAGE += -u _printf_float -u _scanf_float
+endif
+endif

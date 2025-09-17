@@ -4,31 +4,24 @@ obj_s := $(patsubst $(cur_dir)%,%,$(wildcard $(cur_dir)*.s))
 obj_c := $(patsubst $(cur_dir)%,%,$(wildcard $(cur_dir)*.c))
 obj_cpp := $(patsubst $(cur_dir)%,%,$(wildcard $(cur_dir)*.cpp))
 
+ifneq ($(AUDIO_DEBUG_VIA_TOTA), 1)
+obj_cpp := $(filter-out app_tota_audio_dump.cpp, $(obj_cpp))
+endif
+
 src_obj := $(obj_c:.c=.o) $(obj_s:.S=.o) $(obj_cpp:.cpp=.o)
 
-GEN_LIB_NAME := libtota
-root_dir := $(abspath $(dir $(realpath $(firstword $(MAKEFILE_LIST))))/..)
-sinclude $(root_dir)/config/lib.mk
-$(GEN_LIB_NAME)-y := $(src_obj)
+TOTA_LIB_NAME := libtota
 
-obj-y += $(GEN_LIB_NAME).a
-
-export BUDSODIN2_TOTA ?= 0
-ifeq ($(BUDSODIN2_TOTA),1)
-subdir-ccflags-y += -DBUDSODIN2_TOTA
+ifeq ($(USE_TRACE_ID), 1)
+TOTA_LIB_NAME := $(TOTA_LIB_NAME)_log_compressed
 endif
-KBUILD_CPPFLAGS += -DSDK_TOTA_CMD
+
+$(TOTA_LIB_NAME)-y := $(src_obj)
+
+obj-y += $(TOTA_LIB_NAME).a
 
 ifeq ($(TOTA_EQ_TUNING), 1)
 CFLAGS_app_tota_audio_EQ.o += -DTOTA_EQ_TUNING
-endif
-
-ifeq ($(ANC_APP),1)
-CFLAGS_app_tota_general.o += -DANC_APP
-endif
-
-ifeq ($(APP_DEBUG_TOOL), TOTA)
-CFLAGS_app_tota_general.o += -DAPP_DEBUG_TOOL_TOTA
 endif
 
 CFLAGS_app_tota_general.o += $(LDS_SECTION_FLAGS)
@@ -36,69 +29,65 @@ CFLAGS_app_tota_general.o += $(LDS_SECTION_FLAGS)
 CFLAGS_app_tota.o += -DBESLIB_INFO=$(BESLIB_INFO)
 
 subdir-ccflags-y += -Iplatform/drivers/ana \
-                    -Iplatform/hal \
-                    -Iservices/bluedroid/adapter/src \
-                    -Iapps/btapp/app_rssi/ \
-                    -Iapps/key \
-                    -Iservices/audio_bt \
-                    -Iservices/audio_eq \
-                    -Iservices/fs/fat \
-                    -Iservices/fs/sd \
-                    -Iservices/fs/fat/ChaN \
-                    $(BLUETOOTH_ADAPTER_INCLUDES) \
-                    $(BT_SERVICE_UX_INCLUDES) \
-                    -Iservices/overlay \
-                    -Iservices/resources \
-                    -Imultimedia/inc/audio/codec/sbc/inc \
-                    -Imultimedia/inc/audio/process/anc/include \
-                    -Imultimedia/inc/speech/inc/ \
-                    -Iservices/nv_section/aud_section \
-                    -Iservices/nv_section/include \
-                    -Iservices/bt_app/a2dp_codecs/include \
-                    -Iplatform/drivers/uarthci \
-                    -Iplatform/drivers/ana \
-                    -Iplatform/drivers/bt \
-                    -Iutils/cqueue \
-                    -Iutils/heap \
-                    -Iutils/retention_ram \
-                    -Iservices/audioflinger \
-                    -Iutils/lockcqueue \
-                    -Iutils/intersyshci \
+					-Iplatform/hal \
+					-Iservices/bluedroid/adapter/src \
+					-Iapps/key \
+					-Iservices/ux/common/ibrt/ibrt_middleware/inc \
+					-Iservices/audio_bt \
+					-Iservices/audio_eq \
+					-Iservices/fs/fat \
+					-Iservices/fs/sd \
+					-Iservices/fs/fat/ChaN \
+					$(BLUETOOTH_ADAPTER_INCLUDES) \
+					-Iservices/overlay \
+					-Iservices/resources \
+					-Imultimedia/inc/audio/codec/sbc/inc \
+					-Iservices/bt_app/a2dp_codecs/include \
+					-Iplatform/drivers/uarthci \
+					-Iplatform/drivers/ana \
+					-Iplatform/drivers/bt \
+					-Iutils/ \
+					-Iutils/cqueue \
+					-Iutils/heap \
+					-Iutils/retention_ram \
+					-Iservices/audioflinger \
+					-Iutils/lockcqueue \
+					-Iutils/intersyshci \
                     -Iutils/boot_struct \
-                    -Iutils \
-                    -Iutils/hsm \
-                    -Iutils/sha256 \
-                    -Iutils/kfifo \
-                    -Iapps/main \
-                    -Iapps/common \
-                    -Iapps/audioplayers \
-                    -Iservices/app_ai/inc \
-                    -Iapps/factory \
-                    -Iservices/bridge/ \
-                    -Iservices/bt_app \
-                    -Imultimedia/speech/codec/codecs/adpcm \
-                    -Iservices/anc_spp_tool \
+					-Iutils/encrypt \
+					-Iutils/sha256 \
+					-Iutils/kfifo \
+					-Iapps/main \
+					-Iapps/common \
+					-Iapps/audioplayers \
+					-Iservices/app_ai/inc \
+					-Iapps/factory \
+					-Iservices/bridge/ \
+					-Iservices/bt_app \
+					-Imultimedia/inc/speech/codec/codecs/adpcm \
+					-Iservices/anc_spp_tool \
                     -Iservices/tws/inc \
-                    -Iutils/crc \
-                    -Ithirdparty/userapi \
-                    -Iapps/battery \
-                    -Iservices/nv_section/factory_section \
-                    -Iservices/ \
-                    -Iservices/audio_manager/audio_policy/bredr_policy/inc \
-                    -Iapps/earbuds/conn \
-                    -Iapps/ota \
-                    -Iservices/ota/bes_ota/inc/ \
-                    -Iservices/ota/ \
-                    -Iservices/audio_manager \
-                    -Iservices/audio_process \
-                    -Iapps/anc/inc \
-                    -Iapps/voice_assist/inc \
-					-Iservices/nv_section/aud_section \
-					-Iservices/nv_section/include \
-					-Iservices/norflash_api\
-					-Ibthost/service/ble_app_new/inc
+					-Iservices/ux/common/ibrt/app_ibrt/inc \
+					-Iservices/ux/common/ibrt/ibrt_core/inc \
+					-Iservices/ux/common/ibrt/ibrt_ui/inc \
+					-Iutils/crc32 \
+					-Ithirdparty/userapi \
+					-Iapps/battery \
+					-Iservices/nv_section/factory_section \
+					-Iservices/ \
+					-Iservices/ux/common/ibrt/ibrt_middleware/inc/ \
+                                        -Iservices/ux/product/earbud_tws/inc \
+					-Iservices/ota/bes_ota/inc/ \
+					-Iservices/ota/ \
+					-Iservices/audio_manager \
+					-Iservices/audio_processs \
+					-Iservices/norflash_api
 
-ifeq ($(CUSTOMER_APP_BOAT),1)
-subdir-ccflags-y += -Iservices/nv_section/factory_section \
-					-Iapps/battery
+ifeq ($(USB_OTA_ENABLE),1)
+subdir-ccflags-y += \
+    -Iplatform/drivers/usb/usb_dev/inc
+endif
+
+ifeq ($(APP_UART_BRIDGE_MODULE),1)
+ccflags-y += -Iapps/common/uart_bridge
 endif

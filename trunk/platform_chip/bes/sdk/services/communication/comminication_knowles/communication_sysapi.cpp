@@ -15,9 +15,6 @@
 #include "communication_sysapi.h"
 #include "tgt_hardware.h"
 
-//#define FLASH_BASE                              0x6C000000
-//#define FLASH_TO_FLASHX(d)                      ((uint32_t)(d) & 0x0FFFFFFF)
-
 #define WAIT_TRACE_TIMEOUT                      MS_TO_TICKS(200)
 
 static uint32_t send_timeout = MS_TO_TICKS(500);
@@ -33,7 +30,7 @@ static const struct HAL_UART_CFG_T uart_cfg = {
     HAL_UART_FLOW_CONTROL_NONE, // RTC/CTS pins might be unavailable for some chip packages
     HAL_UART_FIFO_LEVEL_1_2,
     HAL_UART_FIFO_LEVEL_1_2,
-#ifdef __PC_CMD_UART__
+#ifdef PC_CMD_UART_ID
         115200,
 #else
         921600,
@@ -42,7 +39,7 @@ static const struct HAL_UART_CFG_T uart_cfg = {
     false,
     false,
 };
-#ifdef __PC_CMD_UART__
+#ifdef PC_CMD_UART_ID
 static const enum HAL_UART_ID_T comm_uart = HAL_UART_ID_0;
 #else
 #ifdef CHIP_BEST2300P
@@ -123,17 +120,17 @@ static void app_uart_flow_control_timeout_timer_cb(void const *n)
     available_buffer = avil_len_of_the_fifo();
     available_buffer = AMA_STREAM_UART_FIFO_SIZE - available_buffer;
 
-    COMMUNICATION_TRACE(1,"UART_FLOW_CONTROL: Available UART Buffer %d\n", available_buffer);
+    TRACE(1,"UART_FLOW_CONTROL: Available UART Buffer %d\n", available_buffer);
     if(available_buffer > 1024)
     {
-        //COMMUNICATION_TRACE(0,"More than 1024 bytes availble hence sending next chunk command \n");
+        //TRACE(0,"More than 1024 bytes availble hence sending next chunk command \n");
         send_data(get_next_chunk_cmd, 4);
         osTimerStop(app_uart_flow_control_timeout_timer_id);
         osTimerStart(app_uart_flow_control_timeout_timer_id, APP_UART_FLOW_CONTROL_TIMEOUT_INTERVEL);
     }
     else
     {
-        //COMMUNICATION_TRACE(0,"no buffer available hence triggering timer for 10ms\n");
+        //TRACE(0,"no buffer available hence triggering timer for 10ms\n");
         osTimerStop(app_uart_flow_control_timeout_timer_id);
         osTimerStart(app_uart_flow_control_timeout_timer_id, APP_UART_FLOW_CONTROL_TIMEOUT_INTERVEL);
     }
@@ -165,17 +162,17 @@ uint32_t ama_uart_get_fifo_data(uint8_t *buf)
     avail = LengthOfCQueue(&ama_uart_queue);
     if (avail > 0) {
         if (avail < knowles_uart_packet_len) {
-            COMMUNICATION_TRACE(2,"%s: Invalid  UART STREAM SIZE: %d", __FUNCTION__, avail);
+            TRACE(2,"%s: Invalid  UART STREAM SIZE: %d", __FUNCTION__, avail);
             return 0;
         } else {
-            //COMMUNICATION_TRACE(1,"UART_GET_len %d",knowles_uart_packet_len);
+            //TRACE(1,"UART_GET_len %d",knowles_uart_packet_len);
             if(!DeCQueue(&ama_uart_queue, buf, knowles_uart_packet_len))
                 return knowles_uart_packet_len;
-            COMMUNICATION_TRACE(2,"%s: queue get data error len %d", __func__, knowles_uart_packet_len);
+            TRACE(2,"%s: queue get data error len %d", __func__, knowles_uart_packet_len);
             return 0;
         }
     } else {
-        COMMUNICATION_TRACE(0,"uart no stream to get");
+        TRACE(0,"uart no stream to get");
         return 0;
     }
 }
@@ -194,7 +191,7 @@ void send_message()
 
 static void uart_break_handler(void)
 {
-    COMMUNICATION_TRACE(0,"****** Handle break ******");
+    TRACE(0,"****** Handle break ******");
 
     cancel_xfer = true;
     hal_uart_stop_dma_recv(comm_uart);
@@ -218,20 +215,20 @@ static void uart_rx_dma_handler(uint32_t xfer_size, int dma_error, union HAL_UAR
 #endif
     uart_dma_rx_size = xfer_size;
     if (dma_error || status.FE || status.OE || status.PE || status.BE) {
-        COMMUNICATION_TRACE(2,"UART-RX Error: dma_error=%d, status=0x%08x", dma_error, status.reg);
+        TRACE(2,"UART-RX Error: dma_error=%d, status=0x%08x", dma_error, status.reg);
         uart_dma_rx_state = UART_DMA_ERROR;
     } else {
-        //COMMUNICATION_TRACE(1,"UART-RX OK: rx_size=%d", uart_dma_rx_size);
+        //TRACE(1,"UART-RX OK: rx_size=%d", uart_dma_rx_size);
         uart_dma_rx_state = UART_DMA_DONE;
         int ret = 0;
-        //COMMUNICATION_TRACE(1,"UART DMA INTERUPT TIME=%d",hal_sys_timer_get()-uart_dma_interval);
+        //TRACE(1,"UART DMA INTERUPT TIME=%d",hal_sys_timer_get()-uart_dma_interval);
         uart_dma_interval=hal_sys_timer_get();
          if(app_ai_is_stream_running())
          {
             if(!EnCQueue(&ama_uart_queue, (uint8_t *)&audio_data_receive_buf[pp_index*knowles_uart_packet_len], FRAME_SIZE))
                 ret = FRAME_SIZE;
             if (ret < FRAME_SIZE) {
-                COMMUNICATION_TRACE(2,"%s:WARNING !!! UART STREAM OVERFLOW Dropping %d Bytes", __FUNCTION__, (FRAME_SIZE - ret));
+                TRACE(2,"%s:WARNING !!! UART STREAM OVERFLOW Dropping %d Bytes", __FUNCTION__, (FRAME_SIZE - ret));
             }
 
             osSignalSet(knowles_uart_audio_tid, UART_OUT_SIGNAL_ID);
@@ -263,7 +260,7 @@ void init_transport(void)
 	ama_uart_stream_fifo_init();
 #endif
     if (!uart_opened) {
-#ifdef __PC_CMD_UART__
+#ifdef PC_CMD_UART_ID
 		hal_iomux_set_uart0();
 #else
 #ifdef CHIP_BEST2300P
@@ -290,7 +287,7 @@ void init_transport(void)
     hal_uart_flush(comm_uart,0);
 #ifdef KNOWLES_UART_DATA
     if(recv_data(&audio_data_receive_buf[0], knowles_uart_packet_len*2) < 0)
-        COMMUNICATION_TRACE(1,"%s error", __func__);
+        TRACE(1,"%s error", __func__);
     smart_mic_stream_header_parser_init(FRAME_SIZE);
 #endif
 
@@ -321,7 +318,7 @@ void deinit_transport(void)
 	osTimerStop(app_uart_flow_control_timeout_timer_id);
     if (osTimerDelete(app_uart_flow_control_timeout_timer_id) != osOK)
     {
-        COMMUNICATION_TRACE(0,"app_uart_flow_control_timeout_timer_id Failed !!!!");
+        TRACE(0,"app_uart_flow_control_timeout_timer_id Failed !!!!");
     }
 
 }
@@ -358,12 +355,12 @@ void set_send_timeout(uint32_t timeout)
 
 int debug_read_enabled(void)
 {
-    return !!(hal_sw_bootmode_get() & HAL_SW_BOOTMODE_READ_ENABLED);
+    return true;
 }
 
 int debug_write_enabled(void)
 {
-    return !!(hal_sw_bootmode_get() & HAL_SW_BOOTMODE_WRITE_ENABLED);
+    return true;
 }
 
 static int uart_send_data(const unsigned char *buf, unsigned int len)
@@ -439,16 +436,16 @@ static int uart_recv_data_dma(unsigned char *buf, unsigned int len, unsigned int
     hal_uart_irq_set_mask(comm_uart, mask);
 
 _no_state_exit:
-    COMMUNICATION_TRACE(2,"%s ret %d", __func__, ret);
+    TRACE(2,"%s ret %d", __func__, ret);
     return ret;
 err_exit:
-    COMMUNICATION_TRACE(2,"%s err_exit ret %d", __func__, ret);
+    TRACE(2,"%s err_exit ret %d", __func__, ret);
     return -1;
 }
 
 int recv_data(unsigned char *buf, unsigned int len)
 {
-	COMMUNICATION_TRACE(3,"%s %d %d",__func__, cancel_xfer, len);
+	TRACE(3,"%s %d %d",__func__, cancel_xfer, len);
     if (cancel_xfer) {
         return -1;
     }
@@ -466,7 +463,7 @@ int recv_data_dma(unsigned char *buf, unsigned int len, unsigned int expect)
 
 static int uart_handle_error(void)
 {
-    COMMUNICATION_TRACE(0,"****** Send break ******");
+    TRACE(0,"****** Send break ******");
 
     // Send break signal, to tell the peer to reset the connection
     cancel_output();
@@ -539,13 +536,11 @@ void system_shutdown(void)
 
 void system_set_bootmode(unsigned int bootmode)
 {
-    bootmode &= ~(HAL_SW_BOOTMODE_READ_ENABLED | HAL_SW_BOOTMODE_WRITE_ENABLED);
     hal_sw_bootmode_set(bootmode);
 }
 
 void system_clear_bootmode(unsigned int bootmode)
 {
-    bootmode &= ~(HAL_SW_BOOTMODE_READ_ENABLED | HAL_SW_BOOTMODE_WRITE_ENABLED);
     hal_sw_bootmode_clear(bootmode);
 }
 
@@ -588,7 +583,7 @@ int app_ai_voice_uart_audio_init()
     if(knowles_uart_audio_tid==NULL)
         knowles_uart_audio_tid = osThreadCreate(osThread(uart_data_process_thread), NULL);
     if (knowles_uart_audio_tid == NULL)  {
-        COMMUNICATION_TRACE(0,"[UART AUDIO]Create thread error\n");
+        TRACE(0,"[UART AUDIO]Create thread error\n");
         return -1;
     }
 
@@ -603,14 +598,14 @@ void uart_data_process_thread(const void *arg)
     
     while(1)
     {
-        //COMMUNICATION_TRACE(0,"---in uart_process_thread\n");
+        //TRACE(0,"---in uart_process_thread\n");
         osEvent evt;
         
         if(avil_len_of_the_fifo()<=640){
             evt = osSignalWait(0x0, osWaitForever);
         }
 
-        //COMMUNICATION_TRACE(1,"#####Available len of fifo  %d####",avil_len_of_the_fifo());
+        //TRACE(1,"#####Available len of fifo  %d####",avil_len_of_the_fifo());
         //get role from signal value
         if(evt.status == osEventSignal)
         {
@@ -623,8 +618,8 @@ void uart_data_process_thread(const void *arg)
                 }
 
                 if(frame_len != 0) {
-                    COMMUNICATION_TRACE(1,"--data start encode %d", frame_len);
-                    //COMMUNICATION_DUMP8("%02x ",uart_stream_buf,10);
+                    TRACE(1,"--data start encode %d", frame_len);
+                    //DUMP8("%02x ",uart_stream_buf,10);
 
                     //stime=hal_sys_timer_get();
 
@@ -634,8 +629,8 @@ void uart_data_process_thread(const void *arg)
                     ai_function_handle(API_DATA_SEND, NULL, 0);
 
                     //etime=hal_sys_timer_get();
-                    //COMMUNICATION_TRACE(1,"OPUS COST TIME %d", TICKS_TO_MS(etime-stime));
-                    //COMMUNICATION_TRACE(2,"%s ====>sys freq calc : %d\n", __func__, hal_sys_timer_calc_cpu_freq(50, 0));
+                    //TRACE(1,"OPUS COST TIME %d", TICKS_TO_MS(etime-stime));
+                    //TRACE(2,"%s ====>sys freq calc : %d\n", __func__, hal_sys_timer_calc_cpu_freq(50, 0));
                     audio_dump_add_channel_data(0, (short *)uart_stream_buf, frame_len/2); 
                     audio_dump_run();
                     send_message();

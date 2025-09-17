@@ -51,17 +51,13 @@ static const mpu_regions_t mpu_boot_table[] = {
 #define RAM_RWX_END                             0x40000000
     {RAM_RX_START,  (RAM_RX_END - RAM_RX_START),    MPU_ATTR_READ_EXEC,         MEM_ATTR_INT_SRAM },
     {RAM_RWX_START, (RAM_RWX_END - RAM_RWX_START),  MPU_ATTR_READ_WRITE_EXEC,   MEM_ATTR_INT_SRAM },
-    {0x40000000,    (0xE0000000 - 0x40000000),      MPU_ATTR_READ_WRITE,        MEM_ATTR_DEVICE   },
+    // On M33, non-cacheable memory is almost the same as device memory,
+    // except that non-cacheable memory allows non-aligned access
+    // (which is needed when accessing BT/WIFI RAM)
+    {0x40000000,    (0xE0000000 - 0x40000000),      MPU_ATTR_READ_WRITE,        MEM_ATTR_NORMAL_NON_CACHEABLE },
 #else
     {0,             ROM_DATA_MAP_BASE,              MPU_ATTR_EXEC,              MEM_ATTR_INT_SRAM },
     {RAMX_BASE,     RAM_TOTAL_SIZE,                 MPU_ATTR_READ_EXEC,         MEM_ATTR_INT_SRAM },
-#ifdef WIFI_PAS_BASE
-    // Exchange memory end to wifi space end
-    {0x82020000,    (0xA0000000 - 0x82020000),      MPU_ATTR_READ_WRITE,        MEM_ATTR_DEVICE   },
-#elif defined(WIFI_SUBSYS_BASE)
-    // Register space start to wifi space end
-    {0x90000000,    (0xA0000000 - 0x90000000),      MPU_ATTR_READ_WRITE,        MEM_ATTR_DEVICE   },
-#endif
 #if 0 //def BT_SUBSYS_BASE
     // Register space 0 start to exchange memory 0 start
     {0xD0000000,    (0xD0210000 - 0xD0000000),      MPU_ATTR_READ_WRITE,        MEM_ATTR_DEVICE   },
@@ -101,3 +97,118 @@ void mpu_cfg(void)
         TR_INFO(TR_MOD(MAIN), "Warning, MPU is not setup correctly: %d", ret);
     }
 }
+
+#ifdef CP_IN_SAME_EE
+
+#if defined(__ARM_ARCH_8M_MAIN__)
+
+#if defined(ROMX_BASE) && (ROMX_BASE != ROM_BASE)
+#define CP_CODE_MAP_BASE                    ROMX_BASE
+#define CP_ROM_DATA_MAP_BASE                ROM_BASE
+#define CP_ROM_DATA_MAP_SIZE                ROM_TOTAL_SIZE
+#elif (ROM_BASE)
+#define CP_CODE_MAP_BASE                    ROM_BASE
+#else
+#define CP_CODE_MAP_BASE                    (0x800)
+#endif
+#if (RAMCPX_BASE >= RAMX_BASE + RAM_TOTAL_SIZE)
+#define CP_CODE_MAP_SIZE                    (RAMCPX_BASE + RAMCPX_SIZE - CP_CODE_MAP_BASE)
+#else
+#define CP_CODE_MAP_SIZE                    (RAMX_BASE + RAM_TOTAL_SIZE - CP_CODE_MAP_BASE)
+#endif
+
+#if (RAMCP_BASE < RAM_BASE)
+#define CP_DATA_RAM_START                   RAMCP_BASE
+#else
+#define CP_DATA_RAM_START                   RAM_BASE
+#endif
+#if (RAMCP_BASE >= RAM_BASE + RAM_TOTAL_SIZE)
+#define CP_DATA_RAM_SIZE                    (RAMCP_BASE + RAMCP_SIZE - CP_DATA_RAM_START)
+#else
+#define CP_DATA_RAM_SIZE                    (RAM_BASE + RAM_TOTAL_SIZE - CP_DATA_RAM_START)
+#endif
+
+#ifdef CHIP_SUBSYS_BTH
+#define CP_CMU_REG_BASE                     BTH_CMU_BASE
+#elif defined(CHIP_SUBSYS_SENS)
+#define CP_CMU_REG_BASE                     SENS_CMU_BASE
+#else
+#define CP_CMU_REG_BASE                     CMU_BASE
+#endif
+#if !defined(AON_CMU_BASE) || (AON_CMU_BASE > CP_CMU_REG_BASE)
+#define CP_DEV_REG_START                    CP_CMU_REG_BASE
+#else
+#define CP_DEV_REG_START                    AON_CMU_BASE
+#endif
+#if !defined(AON_CMU_BASE) || (AON_CMU_BASE < CP_CMU_REG_BASE)
+#define CP_DEV_REG_SIZE                     (CP_CMU_REG_BASE + 0x01000000 - CP_DEV_REG_START)
+#else
+#define CP_DEV_REG_SIZE                     (AON_CMU_BASE + 0x01000000 - CP_DEV_REG_START)
+#endif
+
+static CP_DATA_LOC const mpu_regions_t mpu_table_cp[] = {
+#ifdef CP_MPU_INIT_TABLE
+    CP_MPU_INIT_TABLE
+#else // !CP_MPU_INIT_TABLE
+    // ROMX and RAMX
+    {CP_CODE_MAP_BASE,      CP_CODE_MAP_SIZE,       MPU_ATTR_READ_EXEC,     MEM_ATTR_INT_SRAM},
+#ifdef CP_ROM_DATA_MAP_BASE
+    // ROM data is located at a different address range from ROM code
+    {CP_ROM_DATA_MAP_BASE,  CP_ROM_DATA_MAP_SIZE,   MPU_ATTR_READ,          MEM_ATTR_INT_SRAM},
+#endif
+    // RAM
+    {CP_DATA_RAM_START,     CP_DATA_RAM_SIZE,       MPU_ATTR_READ_WRITE,    MEM_ATTR_INT_SRAM},
+#ifdef MEM_POOL_BASE
+#if ((MEM_POOL_BASE + MEM_POOL_SIZE) <= RAM_BASE || MEM_POOL_BASE >= (RAM_BASE + RAM_TOTAL_SIZE))
+    // Memory pool
+    {MEM_POOL_BASE,         MEM_POOL_SIZE,          MPU_ATTR_READ_WRITE,    MEM_ATTR_INT_SRAM},
+#endif
+#endif
+    // Device Registers
+    {CP_DEV_REG_START,      CP_DEV_REG_SIZE,        MPU_ATTR_READ_WRITE,    MEM_ATTR_DEVICE},
+#ifdef CP_FLASH_ACCESS
+#ifdef ICACHECP_CTRL_BASE
+    // Might be merged with RAMX
+    {ICACHECP_CTRL_BASE,    0x00001000,             MPU_ATTR_READ_WRITE,    MEM_ATTR_DEVICE},
+#if defined(DCACHECP_CTRL_BASE) && (DCACHECP_CTRL_BASE != ICACHECP_CTRL_BASE)
+    // Might be merged with RAM or RAMX
+    {DCACHECP_CTRL_BASE,    0x00001000,             MPU_ATTR_READ_WRITE,    MEM_ATTR_DEVICE},
+#endif
+#endif
+    // Might be merged with RAMX
+    {FLASHX_BASE,           FLASH_SIZE,             MPU_ATTR_READ_EXEC,     MEM_ATTR_FLASH},
+    // Might be merged with RAM
+    {FLASH_BASE,            FLASH_SIZE,             MPU_ATTR_READ,          MEM_ATTR_FLASH},
+#endif
+#ifdef CP_PSRAM_ACCESS
+#if defined(PSRAM_BASE) && (PSRAM_TOTAL_SIZE > 0)
+    // Might be merged with RAMX
+    {PSRAMX_BASE,           PSRAM_TOTAL_SIZE,       MPU_ATTR_READ_WRITE,    MEM_ATTR_INT_SRAM},
+    // Might be merged with RAM
+    {PSRAM_BASE,            PSRAM_TOTAL_SIZE,       MPU_ATTR_READ_WRITE,    MEM_ATTR_INT_SRAM},
+#endif
+#endif
+#ifdef WIFI_PAS_BASE
+    {WIFI_PAS_BASE,         0x01000000,             MPU_ATTR_READ_WRITE,    MEM_ATTR_DEVICE},
+#endif
+#endif // !CP_MPU_INIT_TABLE
+};
+
+#else // !__ARM_ARCH_8M_MAIN__
+
+static CP_DATA_LOC const mpu_regions_t mpu_table_cp[] = {
+    {0,                 0x800,      MPU_ATTR_NO_ACCESS},
+    {FLASHX_BASE,       0x4000000,  MPU_ATTR_NO_ACCESS},
+    {FLASH_BASE,        0x4000000,  MPU_ATTR_NO_ACCESS},
+    {FLASH_NC_BASE,     0x4000000,  MPU_ATTR_NO_ACCESS},
+};
+
+#endif // !__ARM_ARCH_8M_MAIN__
+
+CP_TEXT_SRAM_LOC
+void mpu_cfg_cp(void)
+{
+    mpu_setup_cp(mpu_table_cp, ARRAY_SIZE(mpu_table_cp));
+}
+
+#endif // CP_IN_SAME_EE

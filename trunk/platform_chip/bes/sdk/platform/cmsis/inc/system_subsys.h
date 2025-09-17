@@ -21,18 +21,24 @@ extern "C" {
 #endif
 
 #include "plat_types.h"
-#include "hal_overlay_subsys.h"
 
-#define SUBSYS_IMAGE_DESC_VERSION           0
+#define SEG_NAME_LEN                        16
 
-#define SUBSYS_IMAGE_TYPE_SIMPLE            0
-#define SUBSYS_IMAGE_TYPE_SEGMENT           1
-#define SUBSYS_IMAGE_TYPE_OVERLAY           2
+struct SUBSYS_SEGMENT {
+    char seg_name[SEG_NAME_LEN];
+    uint32_t laddr_offset;
+    uint32_t laddr_end;
+    uint32_t vaddr_start;
+    uint32_t vaddr_end;
+    uint32_t flags;
+};
+
+#define SUBSYS_SEGMENT_LOC                  __attribute__((section(".subsys_segment")))
 
 struct SUBSYS_IMAGE_DESC_T {
     uint16_t version;
     uint8_t  type;
-    uint8_t  reserved_003;
+    uint8_t  compress;
     uint32_t image_size;
     uint32_t code_start_offset;
     union {
@@ -47,12 +53,7 @@ struct CODE_SEG_MAP_ITEM_T {
     uint32_t size;
 };
 
-#define SUBSYS_OVERLAY_CNT                  8
-
-struct OVERLAY_INFO_T {
-    struct SUBSYS_OVERLAY_EXEC_T exec_info;
-    struct SUBSYS_OVERLAY_ITEM_T overlay_seg[SUBSYS_OVERLAY_CNT];
-};
+typedef uint32_t (*SUBSYS_EXEC_ADDR_CONV_CB)(uint32_t addr);
 
 //---------------------------------------------------------------------
 // Subsys APIs
@@ -66,13 +67,17 @@ void system_subsys_term(void);
 //---------------------------------------------------------------------
 // AP APIs
 //---------------------------------------------------------------------
-int subsys_loader_check_image(uint32_t addr, uint32_t len, int check_magic);
+int subsys_loader_load_image(uint32_t addr, uint32_t len, int check_magic,
+                             SUBSYS_EXEC_ADDR_CONV_CB conv_cb, uint32_t *code_start_addr);
 
-const struct SUBSYS_IMAGE_DESC_T *subsys_loader_get_image_desc(uint32_t addr);
+struct SUBSYS_SEGMENT *subsys_loader_get_segment(uint32_t image_addr, const char *seg_name);
 
-const struct CODE_SEG_MAP_ITEM_T *subsys_loader_get_seg_map(uint32_t addr);
+int subsys_loader_load_image_fs(const char *file_name,
+                                SUBSYS_EXEC_ADDR_CONV_CB conv_cb, uint32_t *code_start_addr);
 
-const struct OVERLAY_INFO_T *subsys_loader_get_overlay_info(uint32_t addr);
+int subsys_loader_get_segment_fs(const char *file_name, const char *seg_name, struct SUBSYS_SEGMENT *seg_out);
+
+int subsys_customized_copy(void *dst, void *src, unsigned int size);
 
 #ifdef __cplusplus
 }

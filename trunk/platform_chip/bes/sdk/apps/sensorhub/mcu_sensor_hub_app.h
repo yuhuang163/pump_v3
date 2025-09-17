@@ -108,6 +108,11 @@ void app_mcu_reset_sesor_hub(void);
 void app_sensor_hub_at_cmd_send(uint8_t *buf, uint16_t len);
 #endif
 
+#if defined (POWER_TEST)
+void app_mcu_sensor_hub_coremark_wfi_power_test_req(uint32_t coremark_test_mode,
+                                                                    enum HAL_CMU_FREQ_T freq);
+#endif
+
 #ifdef __cplusplus
 }
 #endif

@@ -23,6 +23,8 @@
 #include "hal_trace.h"
 #include "reg_spi.h"
 #include "string.h"
+#include "hal_iomux.h"
+#include "hal_gpio.h"
 
 // TODO:
 // 1) Add transfer timeout control
@@ -49,18 +51,28 @@
 #define ISPI_CS_QTY                         HAL_SPI_CS_QTY
 #endif
 
+// Valid values: 1, 4, 8, 16 (consistent with AHB burst size)
+#ifndef SPI_DMA_TX_FIFO_LEVEL
+#define SPI_DMA_TX_FIFO_LEVEL               (SPI_TX_FIFO_DEPTH / 2)
+#endif
+#ifndef SPI_DMA_RX_FIFO_LEVEL
+#define SPI_DMA_RX_FIFO_LEVEL               (SPI_RX_FIFO_DEPTH / 2)
+#endif
+
 enum HAL_SPI_ID_T {
+#ifndef NO_ISPI
     HAL_SPI_ID_INTERNAL,
-#ifdef CHIP_HAS_SPI
+#endif
+#ifdef SPI_BASE
     HAL_SPI_ID_0,
 #endif
-#ifdef CHIP_HAS_SPILCD
+#ifdef SPILCD_BASE
     HAL_SPI_ID_SLCD,
 #endif
-#ifdef CHIP_HAS_SPIPHY
+#ifdef SPIPHY_BASE
     HAL_SPI_ID_PHY,
 #endif
-#ifdef CHIP_HAS_SPIDPD
+#ifdef SPIDPD_BASE
     HAL_SPI_ID_DPD,
 #endif
 
@@ -102,16 +114,16 @@ static struct SPI_T * const spi[HAL_SPI_ID_QTY] = {
 #ifndef NO_ISPI
     (struct SPI_T *)ISPI_BASE,
 #endif
-#ifdef CHIP_HAS_SPI
+#ifdef SPI_BASE
     (struct SPI_T *)SPI_BASE,
 #endif
-#ifdef CHIP_HAS_SPILCD
+#ifdef SPILCD_BASE
     (struct SPI_T *)SPILCD_BASE,
 #endif
-#ifdef CHIP_HAS_SPIPHY
+#ifdef SPIPHY_BASE
     (struct SPI_T *)SPIPHY_BASE,
 #endif
-#ifdef CHIP_HAS_SPIDPD
+#ifdef SPIDPD_BASE
     (struct SPI_T *)SPIDPD_BASE,
 #endif
 };
@@ -123,25 +135,25 @@ static const struct HAL_SPI_MOD_NAME_T spi_mod[HAL_SPI_ID_QTY] = {
         .apb = HAL_CMU_MOD_P_SPI_ITN,
     },
 #endif
-#ifdef CHIP_HAS_SPI
+#ifdef SPI_BASE
     {
         .mod = HAL_CMU_MOD_O_SPI,
         .apb = HAL_CMU_MOD_P_SPI,
     },
 #endif
-#ifdef CHIP_HAS_SPILCD
+#ifdef SPILCD_BASE
     {
         .mod = HAL_CMU_MOD_O_SLCD,
         .apb = HAL_CMU_MOD_P_SLCD,
     },
 #endif
-#ifdef CHIP_HAS_SPIPHY
+#ifdef SPIPHY_BASE
     {
         .mod = HAL_CMU_MOD_O_SPI_PHY,
         .apb = HAL_CMU_MOD_P_SPI_PHY,
     },
 #endif
-#ifdef CHIP_HAS_SPIDPD
+#ifdef SPIDPD_BASE
     {
         .mod = HAL_CMU_MOD_O_SPI_DPD,
         .apb = HAL_CMU_MOD_P_SPI_DPD,
@@ -151,13 +163,13 @@ static const struct HAL_SPI_MOD_NAME_T spi_mod[HAL_SPI_ID_QTY] = {
 
 #ifndef NO_ISPI
 static BOOT_BSS_LOC struct HAL_SPI_CTRL_T ispi_ctrl;
-#endif
 #ifdef SPIPHY_BASE
 static BOOT_BSS_LOC struct HAL_SPI_CTRL_T spiphy_ctrl;
 #endif
+#endif
 
 #ifndef SPI_ROM_ONLY
-#ifdef CHIP_HAS_SPI
+#ifdef SPI_BASE
 static struct HAL_SPI_CTRL_T spi0_ctrl[HAL_SPI_CS_QTY];
 #if (CHIP_SPI_VER >= 2)
 static enum HAL_SPI_CS_T spi0_cs = HAL_SPI_CS_0;
@@ -165,7 +177,7 @@ static enum HAL_SPI_CS_T spi0_cs = HAL_SPI_CS_0;
 static const enum HAL_SPI_CS_T spi0_cs = HAL_SPI_CS_0;
 #endif
 #endif
-#ifdef CHIP_HAS_SPILCD
+#ifdef SPILCD_BASE
 static struct HAL_SPI_CTRL_T spilcd_ctrl[HAL_SPI_CS_QTY];
 #if (CHIP_SPI_VER >= 2)
 static enum HAL_SPI_CS_T spilcd_cs = HAL_SPI_CS_0;
@@ -173,8 +185,13 @@ static enum HAL_SPI_CS_T spilcd_cs = HAL_SPI_CS_0;
 static const enum HAL_SPI_CS_T spilcd_cs = HAL_SPI_CS_0;
 #endif
 #endif
-#ifdef CHIP_HAS_SPIDPD
-static struct HAL_SPI_CTRL_T spidpd_ctrl;
+#ifdef SPIDPD_BASE
+static struct HAL_SPI_CTRL_T spidpd_ctrl[HAL_SPI_CS_QTY];
+#if (CHIP_SPI_VER >= 2)
+static enum HAL_SPI_CS_T spidpd_cs = HAL_SPI_CS_0;
+#else
+static const enum HAL_SPI_CS_T spidpd_cs = HAL_SPI_CS_0;
+#endif
 #endif
 
 #ifdef CORE_SLEEP_POWER_DOWN
@@ -184,7 +201,7 @@ static SRAM_BSS_LOC struct SAVED_SPI_REGS_T saved_spi_regs[HAL_SPI_ID_QTY];
 static uint8_t BOOT_BSS_LOC spi_cs_map[HAL_SPI_ID_QTY];
 STATIC_ASSERT(sizeof(spi_cs_map[0]) * 8 >= HAL_SPI_CS_QTY, "spi_cs_map size too small");
 
-static bool BOOT_BSS_LOC in_use[HAL_SPI_ID_QTY] = {};
+static MUTEX_FLAG_T BOOT_BSS_LOC in_use[HAL_SPI_ID_QTY];
 
 static HAL_SPI_DMA_HANDLER_T BOOT_BSS_LOC spi_txdma_handler[HAL_SPI_ID_QTY];
 static HAL_SPI_DMA_HANDLER_T BOOT_BSS_LOC spi_rxdma_handler[HAL_SPI_ID_QTY];
@@ -284,7 +301,11 @@ int hal_spi_init_ctrl(const struct HAL_SPI_CFG_T *cfg, struct HAL_SPI_CTRL_T *ct
     mod_clk = 0;
 #ifdef SPI_SLAVE_ENABLE
     if (cfg->slave) {
+#if (CHIP_SPI_VER >= 7)
+        min_div = 2;
+#else
         min_div = 8;
+#endif
     }
 #else
     SPI_ASSERT(!cfg->slave, "SPI_SLAVE_ENABLE macro undefined");
@@ -391,17 +412,17 @@ int hal_spi_init_ctrl(const struct HAL_SPI_CFG_T *cfg, struct HAL_SPI_CTRL_T *ct
                      SPI_SSPCR0_DSS(dss);
     ctrl->sspcr1 =
 #if (CHIP_SPI_VER >= 7)
-                    (cfg->tx_big_endian ? SPI_TX_BIG_ENDIAN : 0) |
-                    (cfg->rx_big_endian ? SPI_RX_BIG_ENDIAN : 0) |
-                    (cfg->slave ? SPI_SLAVE_ASYNC : 0) |
+                    (cfg->tx_big_endian ? SPI_SSPCR1_TX_BIG_ENDIAN : 0) |
+                    (cfg->rx_big_endian ? SPI_SSPCR1_RX_BIG_ENDIAN : 0) |
+                    (cfg->slave ? SPI_SSPCR1_SLAVE_ASYNC : 0) |
 #endif
-                    (cfg->rx_sep_line ? SPI_RX_SEL_EN : 0) |
-                    SPI_SLAVE_ID(cfg->cs) |
+                    (cfg->rx_sep_line ? SPI_SSPCR1_RX_SEL_EN : 0) |
+                    SPI_SSPCR1_SLAVE_ID(cfg->cs) |
 #ifdef SPI_MULTI_SLAVE
-                   SPI_SSPCR1_SOD |
+                    SPI_SSPCR1_SOD |
 #endif
-                   (cfg->slave ? SPI_SSPCR1_MS : 0) |
-                   (cfg->skip_en ? 0 : SPI_SSPCR1_SSE);
+                    (cfg->slave ? SPI_SSPCR1_MS : 0) |
+                    (cfg->skip_en ? 0 : SPI_SSPCR1_SSE);
     ctrl->sspcpsr = SPI_SSPCPSR_CPSDVSR(cpsdvsr);
     ctrl->sspdmacr = (cfg->dma_tx ? SPI_SSPDMACR_TXDMAE : 0) |
                      (cfg->dma_rx ? SPI_SSPDMACR_RXDMAE : 0);
@@ -418,7 +439,8 @@ int hal_spi_init_ctrl(const struct HAL_SPI_CFG_T *cfg, struct HAL_SPI_CTRL_T *ct
         }
 #endif
         ctrl->sspcr0_rx = SET_BITFIELD(ctrl->sspcr0_tx, SPI_SSPCR0_DSS, dss);
-        ctrl->ssprxcr_rx = SPI_SSPRXCR_EN | SPI_SSPRXCR_OEN_POLARITY | SPI_SSPRXCR_RXBITS(cfg->rx_bits - 1);
+        ctrl->ssprxcr_rx = ctrl->ssprxcr_tx | SPI_SSPRXCR_EN |
+            SPI_SSPRXCR_OEN_POLARITY | SPI_SSPRXCR_RXBITS(cfg->rx_bits - 1);
     } else {
         dss = cfg->rx_bits - 1;
 #if (CHIP_SPI_VER == 6)
@@ -445,14 +467,6 @@ static void NOINLINE hal_spi_set_xfer_type_id(enum HAL_SPI_ID_T id, const struct
     } else {
         sspcr0 = ctrl->sspcr0_rx;
         ssprxcr = ctrl->ssprxcr_rx;
-#if (CHIP_SPI_VER >= 6)
-        if (ctrl->samp_delay) {
-            spi[id]->SSPSRCNT = ctrl->max_samp_delay;
-            spi[id]->SSPDLYCR = SPI_SSPDLYCR_DLY_FINE(ctrl->samp_delay) | SPI_SSPDLYCR_DLY_SAMP_EN;
-        } else {
-            spi[id]->SSPDLYCR = 0;
-        }
-#endif
     }
 
     spi[id]->SSPCR0 = sspcr0;
@@ -467,40 +481,41 @@ static void NOINLINE hal_spi_enable_id(enum HAL_SPI_ID_T id, const struct HAL_SP
     spi[id]->SSPCPSR = ctrl->sspcpsr;
     spi[id]->SSPDMACR = ctrl->sspdmacr;
 
-#ifdef SPI_ROM_ONLY
-    if (0) {
-#ifndef NO_ISPI
-    } else if (id == HAL_SPI_ID_INTERNAL) {
-        hal_cmu_ispi_set_freq(HAL_CMU_PERIPH_FREQ_26M);
-#endif
-#ifdef CHIP_HAS_SPI
-    } else if (id == HAL_SPI_ID_0) {
-        hal_cmu_spi_set_freq(HAL_CMU_PERIPH_FREQ_26M);
-#endif
-#ifdef CHIP_HAS_SPILCD
-    } else if (id == HAL_SPI_ID_SLCD) {
-        hal_cmu_slcd_set_freq(HAL_CMU_PERIPH_FREQ_26M);
-#endif
+#if (CHIP_SPI_VER >= 6)
+    // For rx only
+    if (ctrl->samp_delay) {
+        spi[id]->SSPSRCNT = ctrl->max_samp_delay;
+        spi[id]->SSPDLYCR = SPI_SSPDLYCR_DLY_FINE(ctrl->samp_delay) | SPI_SSPDLYCR_DLY_SAMP_EN;
+    } else {
+        spi[id]->SSPDLYCR = 0;
     }
-#else // !SPI_ROM_ONLY
+#endif
+
+    // SPI_ROM_ONLY=1: Assume spi clock uses h/w default 26M
+    // Otherwise     : Configure spi clock based on ctrl->clk_sel
+#ifndef SPI_ROM_ONLY
     if (clk_sel[id] != ctrl->clk_sel) {
         clk_sel[id] = ctrl->clk_sel;
         if (ctrl->clk_sel == HAL_SPI_MOD_CLK_SEL_PLL) {
 #ifdef PERIPH_PLL_FREQ
             if (0) {
-#ifdef CHIP_HAS_SPI
+#ifdef SPI_BASE
             } else if (id == HAL_SPI_ID_0) {
                 hal_cmu_spi_set_div(2);
 #endif
-#ifdef CHIP_HAS_SPILCD
+#ifdef SPILCD_BASE
             } else if (id == HAL_SPI_ID_SLCD) {
                 hal_cmu_slcd_set_div(2);
+#endif
+#ifdef SPIDPD_BASE
+            } else if (id == HAL_SPI_ID_DPD) {
+                hal_cmu_spidpd_set_div(2);
 #endif
             }
             // ISPI cannot use PLL clock
 #endif
         } else {
-            enum HAL_CMU_PERIPH_FREQ_T periph_freq;
+            enum HAL_CMU_PERIPH_FREQ_T POSSIBLY_UNUSED periph_freq;
 
             if (ctrl->clk_sel == HAL_SPI_MOD_CLK_SEL_OSC_X2) {
                 periph_freq = HAL_CMU_PERIPH_FREQ_52M;
@@ -509,15 +524,21 @@ static void NOINLINE hal_spi_enable_id(enum HAL_SPI_ID_T id, const struct HAL_SP
             }
 
             if (0) {
+#ifndef NO_ISPI
             } else if (id == HAL_SPI_ID_INTERNAL) {
                 hal_cmu_ispi_set_freq(periph_freq);
-#ifdef CHIP_HAS_SPI
+#endif
+#ifdef SPI_BASE
             } else if (id == HAL_SPI_ID_0) {
                 hal_cmu_spi_set_freq(periph_freq);
 #endif
-#ifdef CHIP_HAS_SPILCD
+#ifdef SPILCD_BASE
             } else if (id == HAL_SPI_ID_SLCD) {
                 hal_cmu_slcd_set_freq(periph_freq);
+#endif
+#ifdef SPIDPD_BASE
+            } else if (id == HAL_SPI_ID_DPD) {
+                hal_cmu_spidpd_set_freq(periph_freq);
 #endif
             }
         }
@@ -561,7 +582,7 @@ static int NOINLINE hal_spi_open_id(enum HAL_SPI_ID_T id, const struct HAL_SPI_C
 #ifndef SPI_ROM_ONLY
     if (!spi_init_done) {
         spi_init_done = true;
-        for (int i = HAL_SPI_ID_INTERNAL; i < HAL_SPI_ID_QTY; i++) {
+        for (int i = 0; i < HAL_SPI_ID_QTY; i++) {
             spi_txdma_chan[i] = HAL_DMA_CHAN_NONE;
             spi_rxdma_chan[i] = HAL_DMA_CHAN_NONE;
         }
@@ -581,6 +602,15 @@ static int NOINLINE hal_spi_open_id(enum HAL_SPI_ID_T id, const struct HAL_SPI_C
     }
 
     hal_spi_enable_id(id, ctrl, HAL_SPI_XFER_TYPE_SEND);
+
+#if (CHIP_SPI_VER >= 7)
+#if (SPI_DMA_TX_FIFO_LEVEL != (SPI_TX_FIFO_DEPTH / 2))
+    spi[id]->SSPTXFL = SPI_SSPTXFL_SSPTXFL(SPI_DMA_TX_FIFO_LEVEL);
+#endif
+#if (SPI_DMA_RX_FIFO_LEVEL != (SPI_RX_FIFO_DEPTH / 2))
+    spi[id]->SSPRXFL = SPI_SSPRXFL_SSPRXFL(SPI_DMA_RX_FIFO_LEVEL);
+#endif
+#endif
 
     return 0;
 }
@@ -617,10 +647,32 @@ static int hal_spi_close_id(enum HAL_SPI_ID_T id, uint32_t cs)
     return ret;
 }
 
+static POSSIBLY_UNUSED void hal_spi_reset_module_state(enum HAL_SPI_ID_T id, const struct HAL_SPI_CTRL_T *ctrl, enum HAL_SPI_XFER_TYPE_T type)
+{
+#if defined(CHIP_BEST1600) || defined(CHIP_BEST1603)
+        // Workaround:
+        // Sample delay mode might cause the increment of RX-FIFO immediately after
+        // the mode is enabled, if SPI MODULE reset is cleared
+        hal_cmu_reset_set(spi_mod[id].apb);
+        hal_cmu_reset_set(spi_mod[id].mod);
+        hal_cmu_reset_clear(spi_mod[id].apb);
+#else
+        // Reset SPI MODULE might cause the increment of the FIFO pointer
+        hal_cmu_reset_pulse(spi_mod[id].mod);
+        // Reset SPI APB will reset the FIFO pointer
+        hal_cmu_reset_pulse(spi_mod[id].apb);
+#endif
+        // hal_spi_set_xfer_type_id() is not enough, for all the registers have been reset by APB reset
+        hal_spi_enable_id(id, ctrl, type);
+#if defined(CHIP_BEST1600) || defined(CHIP_BEST1603)
+        hal_cmu_reset_clear(spi_mod[id].mod);
+#endif
+}
+
 POSSIBLY_UNUSED
 static void ISPI_API_LOC hal_spi_set_cs_id(enum HAL_SPI_ID_T id, uint32_t cs)
 {
-    spi[id]->SSPCR1 = SET_BITFIELD(spi[id]->SSPCR1, SPI_SLAVE_ID, cs);
+    spi[id]->SSPCR1 = SET_BITFIELD(spi[id]->SSPCR1, SPI_SSPCR1_SLAVE_ID, cs);
 }
 
 static bool ISPI_API_LOC hal_spi_busy_id(enum HAL_SPI_ID_T id)
@@ -646,11 +698,13 @@ static void ISPI_API_LOC hal_spi_disable_slave_output_id(enum HAL_SPI_ID_T id, c
 #endif
 }
 
+POSSIBLY_UNUSED
 static int ISPI_API_LOC hal_spi_send_id(enum HAL_SPI_ID_T id, const struct HAL_SPI_CTRL_T *ctrl, const void *data, uint32_t len)
 {
     uint8_t cnt;
     uint32_t sent, value;
     int ret;
+    POSSIBLY_UNUSED uint32_t slave_tx_data = 0;
 
     //SPI_ASSERT(id < HAL_SPI_ID_QTY, invalid_id, id);
     SPI_ASSERT((ctrl->sspdmacr & SPI_SSPDMACR_TXDMAE) == 0, "TX-DMA configured on SPI %d", id);
@@ -661,9 +715,26 @@ static int ISPI_API_LOC hal_spi_send_id(enum HAL_SPI_ID_T id, const struct HAL_S
         return -1;
     }
 
+#if (CHIP_SPI_VER >= 7) && defined(SPI_SLAVE_ENABLE)
+    if (ctrl->sspcr1 & SPI_SSPCR1_MS) {
+        // Flush the TX FIFO by reset
+        hal_spi_reset_module_state(id, ctrl, HAL_SPI_XFER_TYPE_SEND);
+        // Avoid spi slave exiting busy state in asynchronous mode
+        if (cnt == 1 && len == 1) {
+            slave_tx_data = *(uint8_t *)data;
+            data = &slave_tx_data;
+            len = 2;
+        }
+    }
+#endif
+
     sent = 0;
 
     hal_spi_enable_slave_output_id(id, ctrl);
+
+#if (CHIP_SPI_VER >= 8)
+    spi[id]->SSPCR0 |= SPI_SSPCR0_RX_BYPASS;
+#endif
 
     while (sent < len) {
         if ((spi[id]->SSPCR1 & SPI_SSPCR1_SSE) == 0) {
@@ -690,6 +761,7 @@ static int ISPI_API_LOC hal_spi_send_id(enum HAL_SPI_ID_T id, const struct HAL_S
     return ret;
 }
 
+POSSIBLY_UNUSED
 static int ISPI_API_LOC hal_spi_recv_id(enum HAL_SPI_ID_T id, const struct HAL_SPI_CTRL_T *ctrl, const void *cmd, void *data, uint32_t len)
 {
     uint8_t cnt;
@@ -719,20 +791,25 @@ static int ISPI_API_LOC hal_spi_recv_id(enum HAL_SPI_ID_T id, const struct HAL_S
 #endif
     recv = 0;
 
-    // Flush the RX FIFO by reset or CPU read
+    // Flush the RX FIFO by FIFO-read (SPI clock will toggle if SPI module is reset)
     while (spi[id]->SSPSR & SPI_SSPSR_RNE) {
+        spi[id]->SSPDR;
         spi[id]->SSPDR;
     }
     spi[id]->SSPICR = ~0UL;
 
     hal_spi_enable_slave_output_id(id, ctrl);
 
+#if (CHIP_SPI_VER >= 8)
+    spi[id]->SSPCR0 &= ~SPI_SSPCR0_RX_BYPASS;
+#endif
+
     while (recv < len || sent < len) {
         if ((spi[id]->SSPCR1 & SPI_SSPCR1_SSE) == 0) {
             break;
         }
         if (sent < len && sent < (recv + SPI_RX_FIFO_DEPTH) && (spi[id]->SSPSR & SPI_SSPSR_TNF)) {
-            value = 0;
+            value = ~0UL;
             if (cmd) {
                 copy_frame_from_bytes(&value, (uint8_t *)cmd + sent, cnt);
             }
@@ -759,8 +836,77 @@ static int ISPI_API_LOC hal_spi_recv_id(enum HAL_SPI_ID_T id, const struct HAL_S
     return ret;
 }
 
+#if (CHIP_SPI_VER >= 7)
+POSSIBLY_UNUSED
+static int hal_spi_recv_only_id(enum HAL_SPI_ID_T id, const struct HAL_SPI_CTRL_T *ctrl, void *data, uint32_t len)
+{
+    uint8_t cnt;
+    uint32_t recv, value;
+    int ret;
+
+    //SPI_ASSERT(id < HAL_SPI_ID_QTY, invalid_id, id);
+    SPI_ASSERT((ctrl->sspdmacr & SPI_SSPDMACR_RXDMAE) == 0, "RX-DMA configured on SPI %d", id);
+
+    cnt = get_frame_bytes(id, ctrl->sspcr0_rx);
+
+    if (len == 0 || (len & (cnt - 1)) != 0) {
+        return -1;
+    }
+
+    // Rx transaction should start from idle state
+    if (spi[id]->SSPSR & SPI_SSPSR_BSY) {
+        return -11;
+    }
+
+    recv = 0;
+
+    // Flush the RX FIFO by FIFO-read (SPI clock will toggle if SPI module is reset)
+    while (spi[id]->SSPSR & SPI_SSPSR_RNE) {
+        spi[id]->SSPDR;
+        spi[id]->SSPDR;
+    }
+    spi[id]->SSPICR = ~0UL;
+
+    hal_spi_enable_slave_output_id(id, ctrl);
+
+#if (CHIP_SPI_VER >= 8)
+    spi[id]->SSPCR0 &= ~SPI_SSPCR0_RX_BYPASS;
+#endif
+    value = SPI_SSPRXONLY_RXCNT(len / cnt);
+    spi[id]->SSPRXONLY = value;
+    value |= SPI_SSPRXONLY_RXONLY;
+    spi[id]->SSPRXONLY = value;
+
+    while (recv < len) {
+        if ((spi[id]->SSPCR1 & SPI_SSPCR1_SSE) == 0) {
+            break;
+        }
+        if (recv < len && (spi[id]->SSPSR & SPI_SSPSR_RNE)) {
+            value = spi[id]->SSPDR;
+            copy_bytes_from_frame((uint8_t *)data + recv, value, cnt);
+            recv += cnt;
+        }
+    }
+
+    if (recv >= len) {
+        ret = 0;
+    } else {
+        ret = 1;
+    }
+
+    while (hal_spi_busy_id(id));
+
+    spi[id]->SSPRXONLY = 0;
+
+    hal_spi_disable_slave_output_id(id, ctrl);
+
+    return ret;
+}
+#endif // (CHIP_SPI_VER >= 7)
+
 #ifdef SPI_ROM_ONLY
 
+#ifndef NO_ISPI
 //------------------------------------------------------------
 // ISPI ROM functions
 //------------------------------------------------------------
@@ -769,9 +915,6 @@ int hal_ispi_rom_open(const struct HAL_SPI_CFG_T *cfg)
 {
     SPI_ASSERT(cfg->tx_bits == cfg->rx_bits && cfg->rx_frame_bits == 0, "ISPI_ROM: Bad bits cfg");
 
-#ifdef NO_ISPI
-    return 0;
-#endif
     return hal_spi_open_id(HAL_SPI_ID_INTERNAL, cfg, &ispi_ctrl);
 }
 
@@ -779,46 +922,47 @@ void hal_ispi_rom_activate_cs(uint32_t cs)
 {
     SPI_ASSERT(cs < ISPI_CS_QTY, "ISPI_ROM: SPI cs bad: %d", cs);
 
-#ifdef NO_ISPI
-    return;
-#endif
     hal_spi_set_cs_id(HAL_SPI_ID_INTERNAL, cs);
+}
+
+int hal_ispi_rom_enable_ctrl(const struct HAL_SPI_CTRL_T *ctrl)
+{
+    hal_spi_enable_id(HAL_SPI_ID_INTERNAL, ctrl, HAL_SPI_XFER_TYPE_SEND);
+    return 0;
+}
+
+int hal_ispi_rom_restore_ctrl(void)
+{
+    hal_spi_enable_id(HAL_SPI_ID_INTERNAL, &ispi_ctrl, HAL_SPI_XFER_TYPE_SEND);
+    return 0;
 }
 
 int hal_ispi_rom_busy(void)
 {
-#ifdef NO_ISPI
-    return 0;
-#endif
     return hal_spi_busy_id(HAL_SPI_ID_INTERNAL);
 }
 
 int hal_ispi_rom_send(const void *data, uint32_t len)
 {
-    int ret;
-
-#ifdef NO_ISPI
-    return 0;
-#endif
-    ret = hal_spi_send_id(HAL_SPI_ID_INTERNAL, &ispi_ctrl, data, len);
-
-    return ret;
+    return hal_spi_send_id(HAL_SPI_ID_INTERNAL, &ispi_ctrl, data, len);
 }
 
 int hal_ispi_rom_recv(const void *cmd, void *data, uint32_t len)
 {
-    int ret;
-
-#ifdef NO_ISPI
-    memset(data, 0, len);
-    return 0;
-#endif
-    ret = hal_spi_recv_id(HAL_SPI_ID_INTERNAL, &ispi_ctrl, cmd, data, len);
-
-    return ret;
+    return hal_spi_recv_id(HAL_SPI_ID_INTERNAL, &ispi_ctrl, cmd, data, len);
 }
 
-#ifdef CHIP_HAS_SPIPHY
+int hal_ispi_rom_send_ex(const struct HAL_SPI_CTRL_T *ctrl, const void *data, uint32_t len)
+{
+    return hal_spi_send_id(HAL_SPI_ID_INTERNAL, ctrl, data, len);
+}
+
+int hal_ispi_rom_recv_ex(const struct HAL_SPI_CTRL_T *ctrl, const void *cmd, void *data, uint32_t len)
+{
+    return hal_spi_recv_id(HAL_SPI_ID_INTERNAL, ctrl, cmd, data, len);
+}
+
+#ifdef SPIPHY_BASE
 //------------------------------------------------------------
 // SPI PHY ROM functions
 //------------------------------------------------------------
@@ -827,45 +971,33 @@ int hal_spiphy_rom_open(const struct HAL_SPI_CFG_T *cfg)
 {
     SPI_ASSERT(cfg->tx_bits == cfg->rx_bits && cfg->rx_frame_bits == 0, "SPIPHY_ROM: Bad bits cfg");
 
-#ifdef NO_ISPI
-    return 0;
-#endif
     return hal_spi_open_id(HAL_SPI_ID_PHY, cfg, &spiphy_ctrl);
 }
 
 int hal_spiphy_rom_busy(void)
 {
-#ifdef NO_ISPI
-    return 0;
-#endif
     return hal_spi_busy_id(HAL_SPI_ID_PHY);
 }
 
 int hal_spiphy_rom_send(const void *data, uint32_t len)
 {
-    int ret;
-
-#ifdef NO_ISPI
-    return 0;
-#endif
-    ret = hal_spi_send_id(HAL_SPI_ID_PHY, &spiphy_ctrl, data, len);
-
-    return ret;
+    return hal_spi_send_id(HAL_SPI_ID_PHY, &spiphy_ctrl, data, len);
 }
 
 int hal_spiphy_rom_recv(const void *cmd, void *data, uint32_t len)
 {
-    int ret;
+    return hal_spi_recv_id(HAL_SPI_ID_PHY, &spiphy_ctrl, cmd, data, len);
+}
 
-#ifdef NO_ISPI
-    memset(data, 0, len);
-    return 0;
-#endif
-    ret = hal_spi_recv_id(HAL_SPI_ID_PHY, &spiphy_ctrl, cmd, data, len);
+void hal_spiphy_rom_activate_cs(uint32_t cs)
+{
+    SPI_ASSERT(cs < ISPI_CS_QTY, "SPIPHY_ROM: SPI cs bad: %d", cs);
 
-    return ret;
+    hal_spi_set_cs_id(HAL_SPI_ID_PHY, cs);
 }
 #endif
+
+#endif // !NO_ISPI
 
 #else // !SPI_ROM_ONLY
 
@@ -874,13 +1006,13 @@ static int ISPI_API_LOC hal_spi_send_id_prt(enum HAL_SPI_ID_T id, const struct H
 {
     int ret;
 
-    if (set_bool_flag(&in_use[id])) {
+    if (mutex_flag_lock(&in_use[id])) {
         return -31;
     }
 
     ret = hal_spi_send_id(id, ctrl, data, len);
 
-    clear_bool_flag(&in_use[id]);
+    mutex_flag_unlock(&in_use[id]);
 
     return ret;
 }
@@ -890,13 +1022,13 @@ static int ISPI_API_LOC hal_spi_recv_id_prt(enum HAL_SPI_ID_T id, const struct H
 {
     int ret;
 
-    if (set_bool_flag(&in_use[id])) {
+    if (mutex_flag_lock(&in_use[id])) {
         return -31;
     }
 
     ret = hal_spi_recv_id(id, ctrl, cmd, data, len);
 
-    clear_bool_flag(&in_use[id]);
+    mutex_flag_unlock(&in_use[id]);
 
     return ret;
 }
@@ -906,7 +1038,7 @@ static int ISPI_API_LOC hal_spi_recv_id_prt_xt(enum HAL_SPI_ID_T id, const struc
 {
     int ret;
 
-    if (set_bool_flag(&in_use[id])) {
+    if (mutex_flag_lock(&in_use[id])) {
         return -31;
     }
 
@@ -914,44 +1046,132 @@ static int ISPI_API_LOC hal_spi_recv_id_prt_xt(enum HAL_SPI_ID_T id, const struc
     ret = hal_spi_recv_id(id, ctrl, cmd, data, len);
     hal_spi_set_xfer_type_id(id, ctrl, HAL_SPI_XFER_TYPE_SEND);
 
-    clear_bool_flag(&in_use[id]);
+    mutex_flag_unlock(&in_use[id]);
 
     return ret;
+}
+
+#if (CHIP_SPI_VER >= 7)
+POSSIBLY_UNUSED
+static int ISPI_API_LOC hal_spi_recv_only_id_prt(enum HAL_SPI_ID_T id, const struct HAL_SPI_CTRL_T *ctrl, void *data, uint32_t len)
+{
+    int ret;
+
+    if (mutex_flag_lock(&in_use[id])) {
+        return -31;
+    }
+
+    ret = hal_spi_recv_only_id(id, ctrl, data, len);
+
+    mutex_flag_unlock(&in_use[id]);
+
+    return ret;
+}
+
+POSSIBLY_UNUSED
+static int ISPI_API_LOC hal_spi_recv_only_id_prt_xt(enum HAL_SPI_ID_T id, const struct HAL_SPI_CTRL_T *ctrl, void *data, uint32_t len)
+{
+    int ret;
+
+    if (mutex_flag_lock(&in_use[id])) {
+        return -31;
+    }
+
+    hal_spi_set_xfer_type_id(id, ctrl, HAL_SPI_XFER_TYPE_RECV);
+    ret = hal_spi_recv_only_id(id, ctrl, data, len);
+    hal_spi_set_xfer_type_id(id, ctrl, HAL_SPI_XFER_TYPE_SEND);
+
+    mutex_flag_unlock(&in_use[id]);
+
+    return ret;
+}
+#endif // (CHIP_SPI_VER >= 7)
+
+POSSIBLY_UNUSED
+static void hal_spi_clk_iomux_switch(enum HAL_SPI_ID_T id, bool enable)
+{
+    struct HAL_IOMUX_PIN_FUNCTION_MAP clk_pinmux;
+
+    if (0) {
+#ifdef SPI_BASE
+    } else if (id == HAL_SPI_ID_0) {
+        clk_pinmux.pin = hal_iomux_get_spi_clk();
+        clk_pinmux.function = HAL_IOMUX_FUNC_MCU_SPI_CLK;
+#endif
+#ifdef SPILCD_BASE
+    } else if (id == HAL_SPI_ID_SLCD) {
+        clk_pinmux.pin = hal_iomux_get_spilcd_clk();
+        clk_pinmux.function = HAL_IOMUX_FUNC_MCU_SPILCD_CLK;
+#endif
+#ifdef SPIDPD_BASE
+    } else if (id == HAL_SPI_ID_DPD) {
+        clk_pinmux.pin = hal_iomux_get_spi2_clk();
+        clk_pinmux.function = HAL_IOMUX_FUNC_MCU_SPI2_CLK;
+#endif
+    }
+
+    clk_pinmux.volt = HAL_IOMUX_PIN_VOLTAGE_VIO;
+    clk_pinmux.pull_sel = HAL_IOMUX_PIN_NOPULL;
+
+    if(!enable) {
+        clk_pinmux.function = HAL_IOMUX_FUNC_AS_GPIO;
+        clk_pinmux.pull_sel = HAL_IOMUX_PIN_PULLUP_ENABLE;
+    }
+    hal_iomux_init(&clk_pinmux, 1);
 }
 
 POSSIBLY_UNUSED
 static int hal_spi_activate_cs_id(enum HAL_SPI_ID_T id, uint32_t cs)
 {
     struct HAL_SPI_CTRL_T *ctrl = NULL;
+    uint8_t clk_polarity;
 
     SPI_ASSERT(cs < HAL_SPI_CS_QTY, "SPI cs bad: %d", cs);
     SPI_ASSERT(spi_cs_map[id] & (1 << cs), "SPI cs not opened: %d", cs);
+    clk_polarity = (spi[id]->SSPCR0 >> SPI_SSPCR0_SPO_SHIFT) & 0x1;
 
 #if (CHIP_SPI_VER >= 2)
     if (0) {
-#ifdef CHIP_HAS_SPI
+#ifdef SPI_BASE
     } else if (id == HAL_SPI_ID_0) {
         spi0_cs = cs;
 #endif
-#ifdef CHIP_HAS_SPILCD
+#ifdef SPILCD_BASE
     } else if (id == HAL_SPI_ID_SLCD) {
         spilcd_cs = cs;
+#endif
+#ifdef SPIDPD_BASE
+    } else if (id == HAL_SPI_ID_DPD) {
+        spidpd_cs = cs;
 #endif
     }
 #endif
 
     if (0) {
-#ifdef CHIP_HAS_SPI
+#ifdef SPI_BASE
     } else if (id == HAL_SPI_ID_0) {
         ctrl = &spi0_ctrl[spi0_cs];
 #endif
-#ifdef CHIP_HAS_SPILCD
+#ifdef SPILCD_BASE
     } else if (id == HAL_SPI_ID_SLCD) {
         ctrl = &spilcd_ctrl[spilcd_cs];
 #endif
+#ifdef SPIDPD_BASE
+    } else if (id == HAL_SPI_ID_DPD) {
+        ctrl = &spidpd_ctrl[spidpd_cs];
+#endif
     }
     if (ctrl) {
+        if (clk_polarity) {
+            hal_spi_clk_iomux_switch(id, false);
+        }
+        hal_cmu_reset_pulse(spi_mod[id].mod);
+        // Reset SPI APB will reset the FIFO pointer
+        hal_cmu_reset_pulse(spi_mod[id].apb);
         hal_spi_enable_id(id, ctrl, HAL_SPI_XFER_TYPE_SEND);
+        if (clk_polarity) {
+            hal_spi_clk_iomux_switch(id, true);
+        }
     }
 
     return 0;
@@ -960,12 +1180,20 @@ static int hal_spi_activate_cs_id(enum HAL_SPI_ID_T id, uint32_t cs)
 POSSIBLY_UNUSED
 static void hal_spi_get_ctrl_id(enum HAL_SPI_ID_T id, struct HAL_SPI_CTRL_T *ctrl)
 {
-    // Only get sending paramters
+    // TODO: Zero *ctrl
+
+    // Only get paramters used by hal_spi_enable_id() with HAL_SPI_XFER_TYPE_SEND
     ctrl->sspcr0_tx = spi[id]->SSPCR0;
+    ctrl->ssprxcr_tx = spi[id]->SSPRXCR;
     ctrl->sspcr1 = spi[id]->SSPCR1;
     ctrl->sspcpsr = spi[id]->SSPCPSR;
     ctrl->sspdmacr = spi[id]->SSPDMACR;
-    ctrl->ssprxcr_tx = spi[id]->SSPRXCR;
+#if (CHIP_SPI_VER >= 6)
+    ctrl->samp_delay = GET_BITFIELD(spi[id]->SSPDLYCR, SPI_SSPDLYCR_DLY_FINE);
+    if (ctrl->samp_delay) {
+        ctrl->max_samp_delay = spi[id]->SSPSRCNT;
+    }
+#endif
     ctrl->clk_sel = clk_sel[id];
 }
 
@@ -975,7 +1203,7 @@ static int hal_spi_enable_and_send_id_prt(enum HAL_SPI_ID_T id, const struct HAL
     int ret;
     struct HAL_SPI_CTRL_T saved;
 
-    if (set_bool_flag(&in_use[id])) {
+    if (mutex_flag_lock(&in_use[id])) {
         return -31;
     }
 
@@ -984,7 +1212,7 @@ static int hal_spi_enable_and_send_id_prt(enum HAL_SPI_ID_T id, const struct HAL
     ret = hal_spi_send_id(id, ctrl, data, len);
     hal_spi_enable_id(id, &saved, HAL_SPI_XFER_TYPE_SEND);
 
-    clear_bool_flag(&in_use[id]);
+    mutex_flag_unlock(&in_use[id]);
 
     return ret;
 }
@@ -995,7 +1223,7 @@ static int hal_spi_enable_and_recv_id_prt(enum HAL_SPI_ID_T id, const struct HAL
     int ret;
     struct HAL_SPI_CTRL_T saved;
 
-    if (set_bool_flag(&in_use[id])) {
+    if (mutex_flag_lock(&in_use[id])) {
         return -31;
     }
 
@@ -1004,10 +1232,32 @@ static int hal_spi_enable_and_recv_id_prt(enum HAL_SPI_ID_T id, const struct HAL
     ret = hal_spi_recv_id(id, ctrl, cmd, data, len);
     hal_spi_enable_id(id, &saved, HAL_SPI_XFER_TYPE_SEND);
 
-    clear_bool_flag(&in_use[id]);
+    mutex_flag_unlock(&in_use[id]);
 
     return ret;
 }
+
+#if (CHIP_SPI_VER >= 7)
+POSSIBLY_UNUSED
+static int hal_spi_enable_and_recv_only_id_prt(enum HAL_SPI_ID_T id, const struct HAL_SPI_CTRL_T *ctrl, void *data, uint32_t len)
+{
+    int ret;
+    struct HAL_SPI_CTRL_T saved;
+
+    if (mutex_flag_lock(&in_use[id])) {
+        return -31;
+    }
+
+    hal_spi_get_ctrl_id(id, &saved);
+    hal_spi_enable_id(id, ctrl, HAL_SPI_XFER_TYPE_RECV);
+    ret = hal_spi_recv_only_id(id, ctrl, data, len);
+    hal_spi_enable_id(id, &saved, HAL_SPI_XFER_TYPE_SEND);
+
+    mutex_flag_unlock(&in_use[id]);
+
+    return ret;
+}
+#endif
 
 static void hal_spi_txdma_handler(uint8_t chan, uint32_t remains, uint32_t error, struct HAL_DMA_DESC_T *lli)
 {
@@ -1016,7 +1266,7 @@ static void hal_spi_txdma_handler(uint8_t chan, uint32_t remains, uint32_t error
     struct HAL_SPI_CTRL_T *ctrl = NULL;
 
     lock = int_lock();
-    for (id = HAL_SPI_ID_INTERNAL; id < HAL_SPI_ID_QTY; id++) {
+    for (id = (enum HAL_SPI_ID_T)0; id < HAL_SPI_ID_QTY; id++) {
         if (spi_txdma_chan[id] == chan) {
             spi_txdma_chan[id] = HAL_DMA_CHAN_NONE;
             break;
@@ -1032,20 +1282,24 @@ static void hal_spi_txdma_handler(uint8_t chan, uint32_t remains, uint32_t error
 
     if (0) {
         // ISPI has the same config for both recv and send
-#ifdef CHIP_HAS_SPI
+#ifdef SPI_BASE
     } else if (id == HAL_SPI_ID_0) {
         ctrl = &spi0_ctrl[spi0_cs];
 #endif
-#ifdef CHIP_HAS_SPILCD
+#ifdef SPILCD_BASE
     } else if (id == HAL_SPI_ID_SLCD) {
         ctrl = &spilcd_ctrl[spilcd_cs];
+#endif
+#ifdef SPIDPD_BASE
+    } else if (id == HAL_SPI_ID_DPD) {
+        ctrl = &spidpd_ctrl[spidpd_cs];
 #endif
     }
     if (ctrl) {
         hal_spi_disable_slave_output_id(id, ctrl);
     }
 
-    clear_bool_flag(&in_use[id]);
+    mutex_flag_unlock(&in_use[id]);
 
     if (spi_txdma_handler[id]) {
         spi_txdma_handler[id](error);
@@ -1058,9 +1312,10 @@ static int hal_spi_dma_send_id(enum HAL_SPI_ID_T id, const struct HAL_SPI_CTRL_T
     int ret = 0;
     enum HAL_DMA_RET_T dma_ret;
     struct HAL_DMA_CH_CFG_T dma_cfg;
-    enum HAL_DMA_WDITH_T dma_width;
+    enum HAL_DMA_WIDTH_T dma_width;
     uint32_t lock;
-    enum HAL_DMA_PERIPH_T dst_periph;
+    enum HAL_DMA_PERIPH_T dst_periph = HAL_DMA_PERIPH_NULL;
+    POSSIBLY_UNUSED uint32_t slave_tx_data = 0;
 
     //SPI_ASSERT(id < HAL_SPI_ID_QTY, invalid_id, id);
     SPI_ASSERT((ctrl->sspdmacr & SPI_SSPDMACR_TXDMAE), "TX-DMA not configured on SPI %d", id);
@@ -1079,13 +1334,17 @@ static int hal_spi_dma_send_id(enum HAL_SPI_ID_T id, const struct HAL_SPI_CTRL_T
     } else if (id == HAL_SPI_ID_INTERNAL) {
         dst_periph = HAL_GPDMA_ISPI_TX;
 #endif
-#ifdef CHIP_HAS_SPI
+#ifdef SPI_BASE
     } else if (id == HAL_SPI_ID_0) {
         dst_periph = HAL_GPDMA_SPI_TX;
 #endif
-#ifdef CHIP_HAS_SPILCD
+#ifdef SPILCD_BASE
     } else if (id == HAL_SPI_ID_SLCD) {
-        dst_periph = HAL_GPDMA_SPILCD_TX;
+        dst_periph = HAL_AUDMA_SPILCD_TX;
+#endif
+#ifdef SPIDPD_BASE
+    } else if (id == HAL_SPI_ID_DPD) {
+        dst_periph = HAL_GPDMA_SPIDPD_TX;
 #endif
     } else {
         return -3;
@@ -1093,25 +1352,40 @@ static int hal_spi_dma_send_id(enum HAL_SPI_ID_T id, const struct HAL_SPI_CTRL_T
 
     // Tx transaction should start from idle state for SPI mode 1 and 3 (SPH=1)
     if ((spi[id]->SSPCR0 & SPI_SSPCR0_SPH) && (spi[id]->SSPSR & SPI_SSPSR_BSY)) {
-        ret = -4;
-        goto _exit;
+        return -4;
     }
+
+#if (CHIP_SPI_VER >= 7) && defined(SPI_SLAVE_ENABLE)
+    if (ctrl->sspcr1 & SPI_SSPCR1_MS) {
+        // Flush the TX FIFO by reset
+        hal_spi_reset_module_state(id, ctrl, HAL_SPI_XFER_TYPE_SEND);
+        // Avoid spi slave exiting busy state in asynchronous mode
+        if (cnt == 1 && len == 1) {
+            slave_tx_data = *(uint8_t *)data;
+            data = &slave_tx_data;
+            len = 2;
+        }
+    }
+#endif
 
     spi_txdma_handler[id] = handler;
 
     lock = int_lock();
     if (spi_txdma_chan[id] != HAL_DMA_CHAN_NONE) {
-        int_unlock(lock);
         ret = -5;
-        goto _exit;
+        goto _unlock;
     }
     spi_txdma_chan[id] = hal_gpdma_get_chan(dst_periph, HAL_DMA_HIGH_PRIO);
     if (spi_txdma_chan[id] == HAL_DMA_CHAN_NONE) {
-        int_unlock(lock);
         ret = -6;
-        goto _exit;
+        goto _unlock;
     }
+_unlock:
     int_unlock(lock);
+
+    if (ret) {
+        return ret;
+    }
 
     if (cnt == 1) {
         dma_width = HAL_DMA_WIDTH_BYTE;
@@ -1138,22 +1412,46 @@ static int hal_spi_dma_send_id(enum HAL_SPI_ID_T id, const struct HAL_SPI_CTRL_T
 
     hal_spi_enable_slave_output_id(id, ctrl);
 
+#if (CHIP_SPI_VER >= 8)
+    spi[id]->SSPCR0 |= SPI_SSPCR0_RX_BYPASS;
+#endif
+
     dma_ret = hal_gpdma_start(&dma_cfg);
     if (dma_ret != HAL_DMA_OK) {
-        hal_spi_disable_slave_output_id(id, ctrl);
         ret = -7;
         goto _exit;
     }
 
     if (handler == NULL) {
-        while ((spi[id]->SSPCR1 & SPI_SSPCR1_SSE) && hal_gpdma_chan_busy(spi_txdma_chan[id]));
-        hal_gpdma_free_chan(spi_txdma_chan[id]);
-        spi_txdma_chan[id] = HAL_DMA_CHAN_NONE;
+        uint8_t ch;
+
+        while ((spi[id]->SSPCR1 & SPI_SSPCR1_SSE) &&
+            (ch = spi_txdma_chan[id]) != HAL_DMA_CHAN_NONE &&
+            hal_gpdma_chan_busy(ch));
+
+        if ((spi[id]->SSPCR1 & SPI_SSPCR1_SSE) == 0) {
+            // SPI is disabled
+            ret = -10;
+        }
+        if (spi_txdma_chan[id] == HAL_DMA_CHAN_NONE) {
+            // DMA is stopped
+            ret = -11;
+        }
+    }
+
+_exit:
+    if (ret || handler == NULL) {
+        lock = int_lock();
+        if (spi_txdma_chan[id] != HAL_DMA_CHAN_NONE) {
+            hal_gpdma_free_chan(spi_txdma_chan[id]);
+            spi_txdma_chan[id] = HAL_DMA_CHAN_NONE;
+        }
+        int_unlock(lock);
+
         while (hal_spi_busy_id(id));
         hal_spi_disable_slave_output_id(id, ctrl);
     }
 
-_exit:
     return ret;
 }
 
@@ -1162,14 +1460,14 @@ static int hal_spi_dma_send_id_prt(enum HAL_SPI_ID_T id, const struct HAL_SPI_CT
 {
     int ret;
 
-    if (set_bool_flag(&in_use[id])) {
+    if (mutex_flag_lock(&in_use[id])) {
         return -31;
     }
 
     ret = hal_spi_dma_send_id(id, ctrl, data, len, handler);
 
     if (ret || handler == NULL) {
-        clear_bool_flag(&in_use[id]);
+        mutex_flag_unlock(&in_use[id]);
     }
 
     return ret;
@@ -1197,21 +1495,26 @@ static void hal_spi_stop_dma_send_id_prt(enum HAL_SPI_ID_T id)
 
     if (0) {
         // ISPI has the same config for both recv and send
-#ifdef CHIP_HAS_SPI
+#ifdef SPI_BASE
     } else if (id == HAL_SPI_ID_0) {
         ctrl = &spi0_ctrl[spi0_cs];
 #endif
-#ifdef CHIP_HAS_SPILCD
+#ifdef SPILCD_BASE
     } else if (id == HAL_SPI_ID_SLCD) {
         ctrl = &spilcd_ctrl[spilcd_cs];
 #endif
+#ifdef SPIDPD_BASE
+    } else if (id == HAL_SPI_ID_DPD) {
+        ctrl = &spidpd_ctrl[spidpd_cs];
+#endif
     }
     if (ctrl) {
+        while (hal_spi_busy_id(id));
         hal_spi_disable_slave_output_id(id, ctrl);
     }
 
     if (has_hdlr) {
-        clear_bool_flag(&in_use[id]);
+        mutex_flag_unlock(&in_use[id]);
     }
 }
 
@@ -1223,7 +1526,7 @@ static void hal_spi_rxdma_handler(uint8_t chan, uint32_t remains, uint32_t error
     struct HAL_SPI_CTRL_T *ctrl = NULL;
 
     lock = int_lock();
-    for (id = HAL_SPI_ID_INTERNAL; id < HAL_SPI_ID_QTY; id++) {
+    for (id = (enum HAL_SPI_ID_T)0; id < HAL_SPI_ID_QTY; id++) {
         if (spi_rxdma_chan[id] == chan) {
             tx_chan = spi_txdma_chan[id];
             spi_rxdma_chan[id] = HAL_DMA_CHAN_NONE;
@@ -1245,13 +1548,17 @@ static void hal_spi_rxdma_handler(uint8_t chan, uint32_t remains, uint32_t error
 
     if (0) {
         // ISPI has the same config for both recv and send
-#ifdef CHIP_HAS_SPI
+#ifdef SPI_BASE
     } else if (id == HAL_SPI_ID_0) {
         ctrl = &spi0_ctrl[spi0_cs];
 #endif
-#ifdef CHIP_HAS_SPILCD
+#ifdef SPILCD_BASE
     } else if (id == HAL_SPI_ID_SLCD) {
         ctrl = &spilcd_ctrl[spilcd_cs];
+#endif
+#ifdef SPIDPD_BASE
+    } else if (id == HAL_SPI_ID_DPD) {
+        ctrl = &spidpd_ctrl[spidpd_cs];
 #endif
     }
     if (ctrl) {
@@ -1260,7 +1567,10 @@ static void hal_spi_rxdma_handler(uint8_t chan, uint32_t remains, uint32_t error
         }
         hal_spi_set_xfer_type_id(id, ctrl, HAL_SPI_XFER_TYPE_SEND);
     }
-    clear_bool_flag(&in_use[id]);
+#if (CHIP_SPI_VER >= 7)
+    spi[id]->SSPRXONLY = 0;
+#endif
+    mutex_flag_unlock(&in_use[id]);
 
     if (spi_rxdma_handler[id]) {
         spi_rxdma_handler[id](error);
@@ -1273,9 +1583,10 @@ static int hal_spi_dma_recv_id(enum HAL_SPI_ID_T id, const struct HAL_SPI_CTRL_T
     int ret = 0;
     enum HAL_DMA_RET_T dma_ret;
     struct HAL_DMA_CH_CFG_T dma_cfg;
-    enum HAL_DMA_WDITH_T dma_width;
+    enum HAL_DMA_WIDTH_T dma_width;
     uint32_t lock;
-    enum HAL_DMA_PERIPH_T dst_periph, src_periph;
+    enum HAL_DMA_PERIPH_T src_periph = HAL_DMA_PERIPH_NULL;
+    enum HAL_DMA_PERIPH_T dst_periph = HAL_DMA_PERIPH_NULL;
     bool slave;
 
     //SPI_ASSERT(id < HAL_SPI_ID_QTY, invalid_id, id);
@@ -1284,11 +1595,14 @@ static int hal_spi_dma_recv_id(enum HAL_SPI_ID_T id, const struct HAL_SPI_CTRL_T
 
     cnt = get_frame_bytes(id, ctrl->sspcr0_rx);
 
-    if ((len & (cnt - 1)) != 0) {
+    if (((uint32_t)cmd & (cnt - 1)) != 0) {
         return -1;
     }
     if (((uint32_t)data & (cnt - 1)) != 0) {
         return -2;
+    }
+    if ((len & (cnt - 1)) != 0) {
+        return -3;
     }
 
     if (0) {
@@ -1297,25 +1611,30 @@ static int hal_spi_dma_recv_id(enum HAL_SPI_ID_T id, const struct HAL_SPI_CTRL_T
         src_periph = HAL_GPDMA_ISPI_RX;
         dst_periph = HAL_GPDMA_ISPI_TX;
 #endif
-#ifdef CHIP_HAS_SPI
+#ifdef SPI_BASE
     } else if (id == HAL_SPI_ID_0) {
         src_periph = HAL_GPDMA_SPI_RX;
         dst_periph = HAL_GPDMA_SPI_TX;
 #endif
-#ifdef CHIP_HAS_SPILCD
+#ifdef SPILCD_BASE
     } else if (id == HAL_SPI_ID_SLCD) {
-        src_periph = HAL_GPDMA_SPILCD_RX;
-        dst_periph = HAL_GPDMA_SPILCD_TX;
+        src_periph = HAL_AUDMA_SPILCD_RX;
+        dst_periph = HAL_AUDMA_SPILCD_TX;
+#endif
+#ifdef SPIDPD_BASE
+    } else if (id == HAL_SPI_ID_DPD) {
+        src_periph = HAL_GPDMA_SPIDPD_RX;
+        dst_periph = HAL_GPDMA_SPIDPD_TX;
 #endif
     } else {
-        return -3;
+        return -4;
     }
 
     spi_rxdma_handler[id] = handler;
 
     // Rx transaction should start from idle state
     if (spi[id]->SSPSR & SPI_SSPSR_BSY) {
-        return -4;
+        return -5;
     }
 
     slave = false;
@@ -1327,24 +1646,29 @@ static int hal_spi_dma_recv_id(enum HAL_SPI_ID_T id, const struct HAL_SPI_CTRL_T
 
     lock = int_lock();
     if (spi_txdma_chan[id] != HAL_DMA_CHAN_NONE || spi_rxdma_chan[id] != HAL_DMA_CHAN_NONE) {
-        int_unlock(lock);
-        return -5;
+        ret = -6;
+        goto _unlock;
+    }
+    spi_rxdma_chan[id] = hal_gpdma_get_chan(src_periph, HAL_DMA_HIGH_PRIO);
+    if (spi_rxdma_chan[id] == HAL_DMA_CHAN_NONE) {
+        ret = -7;
+        goto _unlock;
     }
     if (!slave) {
         spi_txdma_chan[id] = hal_gpdma_get_chan(dst_periph, HAL_DMA_HIGH_PRIO);
         if (spi_txdma_chan[id] == HAL_DMA_CHAN_NONE) {
-            int_unlock(lock);
-            ret = -6;
-            goto _exit;
+            hal_gpdma_free_chan(spi_rxdma_chan[id]);
+            spi_rxdma_chan[id] = HAL_DMA_CHAN_NONE;
+            ret = -8;
+            goto _unlock;
         }
     }
-    spi_rxdma_chan[id] = hal_gpdma_get_chan(src_periph, HAL_DMA_HIGH_PRIO);
-    if (spi_rxdma_chan[id] == HAL_DMA_CHAN_NONE) {
-        int_unlock(lock);
-        ret = -7;
-        goto _exit;
-    }
+_unlock:
     int_unlock(lock);
+
+    if (ret) {
+        return ret;
+    }
 
     if (cnt == 1) {
         dma_width = HAL_DMA_WIDTH_BYTE;
@@ -1369,24 +1693,28 @@ static int hal_spi_dma_recv_id(enum HAL_SPI_ID_T id, const struct HAL_SPI_CTRL_T
     dma_cfg.try_burst = 0;
     dma_cfg.type = HAL_DMA_FLOW_P2M_DMA;
 
-    // Flush the RX FIFO by reset or DMA read (CPU read is forbidden when DMA is enabled)
+    // Flush the RX FIFO by FIFO-read (SPI clock will toggle if SPI module is reset)
     if (spi[id]->SSPSR & SPI_SSPSR_RNE) {
-        // Reset SPI MODULE might cause the increment of the FIFO pointer
-        hal_cmu_reset_pulse(spi_mod[id].mod);
-        // Reset SPI APB will reset the FIFO pointer
-        hal_cmu_reset_pulse(spi_mod[id].apb);
-        // hal_spi_set_xfer_type_id() is not enough, for all the registers have been reset by APB reset
-        hal_spi_enable_id(id, ctrl, HAL_SPI_XFER_TYPE_RECV);
+        spi[id]->SSPDMACR &= ~SPI_SSPDMACR_RXDMAE;
+        do {
+            spi[id]->SSPDR;
+            spi[id]->SSPDR;
+        } while (spi[id]->SSPSR & SPI_SSPSR_RNE);
+        spi[id]->SSPDMACR |= SPI_SSPDMACR_RXDMAE;
     }
     spi[id]->SSPICR = ~0UL;
 
     dma_ret = hal_gpdma_start(&dma_cfg);
     if (dma_ret != HAL_DMA_OK) {
-        ret = -8;
+        ret = -9;
         goto _exit;
     }
 
     if (!slave) {
+        if (cmd == NULL) {
+            cmd = data;
+            memset(data, 0xff, len);
+        }
         dma_cfg.ch = spi_txdma_chan[id];
         dma_cfg.dst = 0; // useless
         dma_cfg.dst_bsize = HAL_DMA_BSIZE_4;
@@ -1403,34 +1731,54 @@ static int hal_spi_dma_recv_id(enum HAL_SPI_ID_T id, const struct HAL_SPI_CTRL_T
 
         hal_spi_enable_slave_output_id(id, ctrl);
 
+#if (CHIP_SPI_VER >= 8)
+        spi[id]->SSPCR0 &= ~SPI_SSPCR0_RX_BYPASS;
+#endif
+
         dma_ret = hal_gpdma_start(&dma_cfg);
         if (dma_ret != HAL_DMA_OK) {
-            ret = -9;
+            ret = -10;
             goto _exit;
         }
     }
 
     if (handler == NULL) {
-        while ((spi[id]->SSPCR1 & SPI_SSPCR1_SSE) && hal_gpdma_chan_busy(spi_rxdma_chan[id]));
+        uint8_t ch;
+
+        while ((spi[id]->SSPCR1 & SPI_SSPCR1_SSE) &&
+            (ch = spi_rxdma_chan[id]) != HAL_DMA_CHAN_NONE &&
+            hal_gpdma_chan_busy(ch));
+
+        if ((spi[id]->SSPCR1 & SPI_SSPCR1_SSE) == 0) {
+            // SPI is disabled
+            ret = -10;
+        }
+        if (spi_rxdma_chan[id] == HAL_DMA_CHAN_NONE) {
+            // DMA is stopped
+            ret = -11;
+        }
     }
 
 _exit:
     if (ret || handler == NULL) {
+        lock = int_lock();
         if (spi_txdma_chan[id] != HAL_DMA_CHAN_NONE) {
             hal_gpdma_cancel(spi_txdma_chan[id]);
             hal_gpdma_free_chan(spi_txdma_chan[id]);
             spi_txdma_chan[id] = HAL_DMA_CHAN_NONE;
-
-            while (hal_spi_busy_id(id));
-
-            hal_spi_disable_slave_output_id(id, ctrl);
         }
+        int_unlock(lock);
 
+        while (hal_spi_busy_id(id));
+        hal_spi_disable_slave_output_id(id, ctrl);
+
+        lock = int_lock();
         if (spi_rxdma_chan[id] != HAL_DMA_CHAN_NONE) {
             hal_gpdma_cancel(spi_rxdma_chan[id]);
             hal_gpdma_free_chan(spi_rxdma_chan[id]);
             spi_rxdma_chan[id] = HAL_DMA_CHAN_NONE;
         }
+        int_unlock(lock);
     }
 
     return ret;
@@ -1441,14 +1789,14 @@ static int hal_spi_dma_recv_id_prt(enum HAL_SPI_ID_T id, const struct HAL_SPI_CT
 {
     int ret;
 
-    if (set_bool_flag(&in_use[id])) {
+    if (mutex_flag_lock(&in_use[id])) {
         return -31;
     }
 
     ret = hal_spi_dma_recv_id(id, ctrl, cmd, data, len, handler);
 
     if (ret || handler == NULL) {
-        clear_bool_flag(&in_use[id]);
+        mutex_flag_unlock(&in_use[id]);
     }
 
     return ret;
@@ -1459,7 +1807,7 @@ static int hal_spi_dma_recv_id_prt_xt(enum HAL_SPI_ID_T id, const struct HAL_SPI
 {
     int ret;
 
-    if (set_bool_flag(&in_use[id])) {
+    if (mutex_flag_lock(&in_use[id])) {
         return -31;
     }
 
@@ -1470,11 +1818,202 @@ static int hal_spi_dma_recv_id_prt_xt(enum HAL_SPI_ID_T id, const struct HAL_SPI
     if (ret || handler == NULL) {
         hal_spi_set_xfer_type_id(id, ctrl, HAL_SPI_XFER_TYPE_SEND);
 
-        clear_bool_flag(&in_use[id]);
+        mutex_flag_unlock(&in_use[id]);
     }
 
     return ret;
 }
+
+#if (CHIP_SPI_VER >= 7)
+static int hal_spi_dma_recv_only_id(enum HAL_SPI_ID_T id, const struct HAL_SPI_CTRL_T *ctrl, void *data, uint32_t len, HAL_SPI_DMA_HANDLER_T handler)
+{
+    uint8_t cnt;
+    int ret = 0;
+    enum HAL_DMA_RET_T dma_ret;
+    struct HAL_DMA_CH_CFG_T dma_cfg;
+    enum HAL_DMA_WIDTH_T dma_width;
+    uint32_t lock, value;
+    enum HAL_DMA_PERIPH_T src_periph = HAL_DMA_PERIPH_NULL;
+
+    //SPI_ASSERT(id < HAL_SPI_ID_QTY, invalid_id, id);
+    SPI_ASSERT((ctrl->sspdmacr & SPI_SSPDMACR_RXDMAE) == SPI_SSPDMACR_RXDMAE,
+        "RX-DMA not configured on SPI %d", id);
+
+    cnt = get_frame_bytes(id, ctrl->sspcr0_rx);
+
+    if (((uint32_t)data & (cnt - 1)) != 0) {
+        return -2;
+    }
+    if ((len & (cnt - 1)) != 0) {
+        return -3;
+    }
+
+    if (0) {
+#ifndef NO_ISPI
+    } else if (id == HAL_SPI_ID_INTERNAL) {
+        src_periph = HAL_GPDMA_ISPI_RX;
+#endif
+#ifdef SPI_BASE
+    } else if (id == HAL_SPI_ID_0) {
+        src_periph = HAL_GPDMA_SPI_RX;
+#endif
+#ifdef SPILCD_BASE
+    } else if (id == HAL_SPI_ID_SLCD) {
+        src_periph = HAL_AUDMA_SPILCD_RX;
+#endif
+#ifdef SPIDPD_BASE
+    } else if (id == HAL_SPI_ID_DPD) {
+        src_periph = HAL_GPDMA_SPIDPD_RX;
+#endif
+    } else {
+        return -4;
+    }
+
+    spi_rxdma_handler[id] = handler;
+
+    // Rx transaction should start from idle state
+    if (spi[id]->SSPSR & SPI_SSPSR_BSY) {
+        return -5;
+    }
+
+    lock = int_lock();
+    if (spi_rxdma_chan[id] != HAL_DMA_CHAN_NONE) {
+        ret = -6;
+        goto _unlock;
+    }
+    spi_rxdma_chan[id] = hal_gpdma_get_chan(src_periph, HAL_DMA_HIGH_PRIO);
+    if (spi_rxdma_chan[id] == HAL_DMA_CHAN_NONE) {
+        ret = -7;
+        goto _unlock;
+    }
+_unlock:
+    int_unlock(lock);
+
+    if (ret) {
+        return ret;
+    }
+
+    if (cnt == 1) {
+        dma_width = HAL_DMA_WIDTH_BYTE;
+    } else if (cnt == 2) {
+        dma_width = HAL_DMA_WIDTH_HALFWORD;
+    } else {
+        dma_width = HAL_DMA_WIDTH_WORD;
+    }
+
+    memset(&dma_cfg, 0, sizeof(dma_cfg));
+    dma_cfg.ch = spi_rxdma_chan[id];
+    dma_cfg.dst = (uint32_t)data;
+    dma_cfg.dst_bsize = HAL_DMA_BSIZE_16;
+    //dma_cfg.dst_periph = HAL_GPDMA_PERIPH_QTY; // useless
+    dma_cfg.dst_width = dma_width;
+    dma_cfg.handler = handler ? hal_spi_rxdma_handler : NULL;
+    dma_cfg.src = 0; // useless
+    dma_cfg.src_periph = src_periph;
+    dma_cfg.src_bsize = HAL_DMA_BSIZE_4;
+    dma_cfg.src_tsize = len / cnt;
+    dma_cfg.src_width = dma_width;
+    dma_cfg.try_burst = 0;
+    dma_cfg.type = HAL_DMA_FLOW_P2M_DMA;
+
+    // Flush the RX FIFO by FIFO-read (SPI clock will toggle if SPI module is reset)
+    if (spi[id]->SSPSR & SPI_SSPSR_RNE) {
+        spi[id]->SSPDMACR &= ~SPI_SSPDMACR_RXDMAE;
+        do {
+            spi[id]->SSPDR;
+            spi[id]->SSPDR;
+        } while (spi[id]->SSPSR & SPI_SSPSR_RNE);
+        spi[id]->SSPDMACR |= SPI_SSPDMACR_RXDMAE;
+    }
+    spi[id]->SSPICR = ~0UL;
+
+    dma_ret = hal_gpdma_start(&dma_cfg);
+    if (dma_ret != HAL_DMA_OK) {
+        ret = -9;
+        goto _exit;
+    }
+
+#if (CHIP_SPI_VER >= 8)
+    spi[id]->SSPCR0 &= ~SPI_SSPCR0_RX_BYPASS;
+#endif
+    value = SPI_SSPRXONLY_RXCNT(dma_cfg.src_tsize);
+    spi[id]->SSPRXONLY = value;
+    value |= SPI_SSPRXONLY_RXONLY;
+    spi[id]->SSPRXONLY = value;
+
+    if (handler == NULL) {
+        uint8_t ch;
+
+        while ((spi[id]->SSPCR1 & SPI_SSPCR1_SSE) &&
+            (ch = spi_rxdma_chan[id]) != HAL_DMA_CHAN_NONE &&
+            hal_gpdma_chan_busy(ch));
+
+        spi[id]->SSPRXONLY = 0;
+
+        if ((spi[id]->SSPCR1 & SPI_SSPCR1_SSE) == 0) {
+            // SPI is disabled
+            ret = -10;
+        }
+        if (spi_rxdma_chan[id] == HAL_DMA_CHAN_NONE) {
+            // DMA is stopped
+            ret = -11;
+        }
+    }
+
+_exit:
+    if (ret || handler == NULL) {
+        lock = int_lock();
+        if (spi_rxdma_chan[id] != HAL_DMA_CHAN_NONE) {
+            hal_gpdma_cancel(spi_rxdma_chan[id]);
+            hal_gpdma_free_chan(spi_rxdma_chan[id]);
+            spi_rxdma_chan[id] = HAL_DMA_CHAN_NONE;
+        }
+        int_unlock(lock);
+    }
+
+    return ret;
+}
+
+POSSIBLY_UNUSED
+static int hal_spi_dma_recv_only_id_prt(enum HAL_SPI_ID_T id, const struct HAL_SPI_CTRL_T *ctrl, void *data, uint32_t len, HAL_SPI_DMA_HANDLER_T handler)
+{
+    int ret;
+
+    if (mutex_flag_lock(&in_use[id])) {
+        return -31;
+    }
+
+    ret = hal_spi_dma_recv_only_id(id, ctrl, data, len, handler);
+
+    if (ret || handler == NULL) {
+        mutex_flag_unlock(&in_use[id]);
+    }
+
+    return ret;
+}
+
+POSSIBLY_UNUSED
+static int hal_spi_dma_recv_only_id_prt_xt(enum HAL_SPI_ID_T id, const struct HAL_SPI_CTRL_T *ctrl, void *data, uint32_t len, HAL_SPI_DMA_HANDLER_T handler)
+{
+    int ret;
+
+    if (mutex_flag_lock(&in_use[id])) {
+        return -31;
+    }
+
+    hal_spi_set_xfer_type_id(id, ctrl, HAL_SPI_XFER_TYPE_RECV);
+
+    ret = hal_spi_dma_recv_only_id(id, ctrl, data, len, handler);
+
+    if (ret || handler == NULL) {
+        hal_spi_set_xfer_type_id(id, ctrl, HAL_SPI_XFER_TYPE_SEND);
+
+        mutex_flag_unlock(&in_use[id]);
+    }
+
+    return ret;
+}
+#endif // (CHIP_SPI_VER >= 7)
 
 static void hal_spi_stop_dma_recv_id_prt(enum HAL_SPI_ID_T id)
 {
@@ -1506,24 +2045,32 @@ static void hal_spi_stop_dma_recv_id_prt(enum HAL_SPI_ID_T id)
 
     if (0) {
         // ISPI has the same config for both recv and send
-#ifdef CHIP_HAS_SPI
+#ifdef SPI_BASE
     } else if (id == HAL_SPI_ID_0) {
         ctrl = &spi0_ctrl[spi0_cs];
 #endif
-#ifdef CHIP_HAS_SPILCD
+#ifdef SPILCD_BASE
     } else if (id == HAL_SPI_ID_SLCD) {
         ctrl = &spilcd_ctrl[spilcd_cs];
+#endif
+#ifdef SPIDPD_BASE
+    } else if (id == HAL_SPI_ID_DPD) {
+        ctrl = &spidpd_ctrl[spidpd_cs];
 #endif
     }
     if (ctrl) {
         if (tx_chan != HAL_DMA_CHAN_NONE) {
+            while (hal_spi_busy_id(id));
             hal_spi_disable_slave_output_id(id, ctrl);
         }
         hal_spi_set_xfer_type_id(id, ctrl, HAL_SPI_XFER_TYPE_SEND);
     }
 
     if (has_hdlr) {
-        clear_bool_flag(&in_use[id]);
+#if (CHIP_SPI_VER >= 7)
+        spi[id]->SSPRXONLY = 0;
+#endif
+        mutex_flag_unlock(&in_use[id]);
     }
 }
 
@@ -1551,9 +2098,16 @@ void ISPI_API_LOC hal_ispi_activate_cs(uint32_t cs)
     hal_spi_set_cs_id(HAL_SPI_ID_INTERNAL, cs);
 }
 
-void ISPI_API_LOC hal_ispi_enable_ctrl(const struct HAL_SPI_CTRL_T *ctrl)
+int ISPI_API_LOC hal_ispi_enable_ctrl(const struct HAL_SPI_CTRL_T *ctrl)
 {
     hal_spi_enable_id(HAL_SPI_ID_INTERNAL, ctrl, HAL_SPI_XFER_TYPE_SEND);
+    return 0;
+}
+
+int ISPI_API_LOC hal_ispi_restore_ctrl(void)
+{
+    hal_spi_enable_id(HAL_SPI_ID_INTERNAL, &ispi_ctrl, HAL_SPI_XFER_TYPE_SEND);
+    return 0;
 }
 
 int hal_ispi_busy(void)
@@ -1563,22 +2117,24 @@ int hal_ispi_busy(void)
 
 int ISPI_API_LOC hal_ispi_send(const void *data, uint32_t len)
 {
-    int ret;
-
     // ISPI access from hal_analogif has been protected by int_lock()
-    ret = hal_spi_send_id(HAL_SPI_ID_INTERNAL, &ispi_ctrl, data, len);
-
-    return ret;
+    return hal_spi_send_id(HAL_SPI_ID_INTERNAL, &ispi_ctrl, data, len);
 }
 
 int ISPI_API_LOC hal_ispi_recv(const void *cmd, void *data, uint32_t len)
 {
-    int ret;
-
     // ISPI access from hal_analogif has been protected by int_lock()
-    ret = hal_spi_recv_id(HAL_SPI_ID_INTERNAL, &ispi_ctrl, cmd, data, len);
+    return hal_spi_recv_id(HAL_SPI_ID_INTERNAL, &ispi_ctrl, cmd, data, len);
+}
 
-    return ret;
+int ISPI_API_LOC hal_ispi_send_ex(const struct HAL_SPI_CTRL_T *ctrl, const void *data, uint32_t len)
+{
+    return hal_spi_send_id(HAL_SPI_ID_INTERNAL, ctrl, data, len);
+}
+
+int ISPI_API_LOC hal_ispi_recv_ex(const struct HAL_SPI_CTRL_T *ctrl, const void *cmd, void *data, uint32_t len)
+{
+    return hal_spi_recv_id(HAL_SPI_ID_INTERNAL, ctrl, cmd, data, len);
 }
 
 int hal_ispi_dma_send(const void *data, uint32_t len, HAL_SPI_DMA_HANDLER_T handler)
@@ -1602,7 +2158,7 @@ void hal_ispi_stop_dma_recv(void)
 }
 #endif // !NO_ISPI
 
-#ifdef CHIP_HAS_SPI
+#ifdef SPI_BASE
 //------------------------------------------------------------
 // SPI peripheral functions
 //------------------------------------------------------------
@@ -1644,7 +2200,7 @@ int hal_spi_close(uint32_t cs)
     if (ret == 0 && spi0_cs == cs) {
         uint32_t lowest_cs;
 
-        lowest_cs = __CLZ(__RBIT(spi_cs_map[HAL_SPI_ID_0]));
+        lowest_cs = get_lsb_pos(spi_cs_map[HAL_SPI_ID_0]);
         if (lowest_cs < HAL_SPI_CS_QTY) {
             hal_spi_activate_cs_id(HAL_SPI_ID_0, lowest_cs);
         } else {
@@ -1679,6 +2235,13 @@ int hal_spi_recv(const void *cmd, void *data, uint32_t len)
     return hal_spi_recv_id_prt_xt(HAL_SPI_ID_0, &spi0_ctrl[spi0_cs], cmd, data, len);
 }
 
+#if (CHIP_SPI_VER >= 7)
+int hal_spi_recv_only(void *data, uint32_t len)
+{
+    return hal_spi_recv_only_id_prt_xt(HAL_SPI_ID_0, &spi0_ctrl[spi0_cs], data, len);
+}
+#endif
+
 int hal_spi_dma_send(const void *data, uint32_t len, HAL_SPI_DMA_HANDLER_T handler)
 {
     return hal_spi_dma_send_id_prt(HAL_SPI_ID_0, &spi0_ctrl[spi0_cs], data, len, handler);
@@ -1688,6 +2251,13 @@ int hal_spi_dma_recv(const void *cmd, void *data, uint32_t len, HAL_SPI_DMA_HAND
 {
     return hal_spi_dma_recv_id_prt_xt(HAL_SPI_ID_0, &spi0_ctrl[spi0_cs], cmd, data, len, handler);
 }
+
+#if (CHIP_SPI_VER >= 7)
+int hal_spi_dma_recv_only(void *data, uint32_t len, HAL_SPI_DMA_HANDLER_T handler)
+{
+    return hal_spi_dma_recv_only_id_prt_xt(HAL_SPI_ID_0, &spi0_ctrl[spi0_cs], data, len, handler);
+}
+#endif
 
 void hal_spi_stop_dma_send(void)
 {
@@ -1708,9 +2278,16 @@ int hal_spi_enable_and_recv(const struct HAL_SPI_CTRL_T *ctrl, const void *cmd, 
 {
     return hal_spi_enable_and_recv_id_prt(HAL_SPI_ID_0, ctrl, cmd, data, len);
 }
-#endif // CHIP_HAS_SPI
 
-#ifdef CHIP_HAS_SPILCD
+#if (CHIP_SPI_VER >= 7)
+int hal_spi_enable_and_recv_only(const struct HAL_SPI_CTRL_T *ctrl, void *data, uint32_t len)
+{
+    return hal_spi_enable_and_recv_only_id_prt(HAL_SPI_ID_0, ctrl, data, len);
+}
+#endif
+#endif // SPI_BASE
+
+#ifdef SPILCD_BASE
 //------------------------------------------------------------
 // SPI LCD functions
 //------------------------------------------------------------
@@ -1752,7 +2329,7 @@ int hal_spilcd_close(uint32_t cs)
     if (ret == 0 && spilcd_cs == cs) {
         uint32_t lowest_cs;
 
-        lowest_cs = __CLZ(__RBIT(spi_cs_map[HAL_SPI_ID_SLCD]));
+        lowest_cs = get_lsb_pos(spi_cs_map[HAL_SPI_ID_SLCD]);
         if (lowest_cs < HAL_SPI_CS_QTY) {
             hal_spi_activate_cs_id(HAL_SPI_ID_SLCD, lowest_cs);
         } else {
@@ -1787,6 +2364,13 @@ int hal_spilcd_recv(const void *cmd, void *data, uint32_t len)
     return hal_spi_recv_id_prt_xt(HAL_SPI_ID_SLCD, &spilcd_ctrl[spilcd_cs], cmd, data, len);
 }
 
+#if (CHIP_SPI_VER >= 7)
+int hal_spilcd_recv_only(void *data, uint32_t len)
+{
+    return hal_spi_recv_only_id_prt_xt(HAL_SPI_ID_SLCD, &spilcd_ctrl[spilcd_cs], data, len);
+}
+#endif
+
 int hal_spilcd_dma_send(const void *data, uint32_t len, HAL_SPI_DMA_HANDLER_T handler)
 {
     return hal_spi_dma_send_id_prt(HAL_SPI_ID_SLCD, &spilcd_ctrl[spilcd_cs], data, len, handler);
@@ -1796,6 +2380,13 @@ int hal_spilcd_dma_recv(const void *cmd, void *data, uint32_t len, HAL_SPI_DMA_H
 {
     return hal_spi_dma_recv_id_prt_xt(HAL_SPI_ID_SLCD, &spilcd_ctrl[spilcd_cs], cmd, data, len, handler);
 }
+
+#if (CHIP_SPI_VER >= 7)
+int hal_spilcd_dma_recv_only(void *data, uint32_t len, HAL_SPI_DMA_HANDLER_T handler)
+{
+    return hal_spi_dma_recv_only_id_prt_xt(HAL_SPI_ID_SLCD, &spilcd_ctrl[spilcd_cs], data, len, handler);
+}
+#endif
 
 void hal_spilcd_stop_dma_send(void)
 {
@@ -1809,25 +2400,25 @@ void hal_spilcd_stop_dma_recv(void)
 
 int hal_spilcd_set_data_mode(void)
 {
-    if (set_bool_flag(&in_use[HAL_SPI_ID_SLCD])) {
+    if (mutex_flag_lock(&in_use[HAL_SPI_ID_SLCD])) {
         return -31;
     }
 
-    spi[HAL_SPI_ID_SLCD]->SSPCR1 |= SPI_LCD_DC_DATA;
+    spi[HAL_SPI_ID_SLCD]->SSPCR1 |= SPI_SSPCR1_LCD_DC_DATA;
 
-    clear_bool_flag(&in_use[HAL_SPI_ID_SLCD]);
+    mutex_flag_unlock(&in_use[HAL_SPI_ID_SLCD]);
     return 0;
 }
 
 int hal_spilcd_set_cmd_mode(void)
 {
-    if (set_bool_flag(&in_use[HAL_SPI_ID_SLCD])) {
+    if (mutex_flag_lock(&in_use[HAL_SPI_ID_SLCD])) {
         return -31;
     }
 
-    spi[HAL_SPI_ID_SLCD]->SSPCR1 &= ~SPI_LCD_DC_DATA;
+    spi[HAL_SPI_ID_SLCD]->SSPCR1 &= ~SPI_SSPCR1_LCD_DC_DATA;
 
-    clear_bool_flag(&in_use[HAL_SPI_ID_SLCD]);
+    mutex_flag_unlock(&in_use[HAL_SPI_ID_SLCD]);
     return 0;
 }
 
@@ -1840,9 +2431,16 @@ int hal_spilcd_enable_and_recv(const struct HAL_SPI_CTRL_T *ctrl, const void *cm
 {
     return hal_spi_enable_and_recv_id_prt(HAL_SPI_ID_SLCD, ctrl, cmd, data, len);
 }
-#endif // CHIP_HAS_SPILCD
 
-#ifdef CHIP_HAS_SPIPHY
+#if (CHIP_SPI_VER >= 7)
+int hal_spilcd_enable_and_recv_only(const struct HAL_SPI_CTRL_T *ctrl, void *data, uint32_t len)
+{
+    return hal_spi_enable_and_recv_only_id_prt(HAL_SPI_ID_SLCD, ctrl, data, len);
+}
+#endif
+#endif // SPILCD_BASE
+
+#if defined(SPIPHY_BASE) && !defined(NO_ISPI)
 //------------------------------------------------------------
 // SPI PHY functions
 //------------------------------------------------------------
@@ -1882,9 +2480,9 @@ int hal_spiphy_recv(const void *cmd, void *data, uint32_t len)
     // SPIPHY access from hal_phyif has been protected by int_lock()
     return hal_spi_recv_id(HAL_SPI_ID_PHY, &spiphy_ctrl, cmd, data, len);
 }
-#endif // CHIP_HAS_SPIPHY
+#endif // SPIPHY_BASE
 
-#ifdef CHIP_HAS_SPIDPD
+#ifdef SPIDPD_BASE
 //------------------------------------------------------------
 // SPI DPD functions
 //------------------------------------------------------------
@@ -1893,7 +2491,7 @@ int hal_spidpd_open(const struct HAL_SPI_CFG_T *cfg)
 {
     SPI_ASSERT(cfg->rx_frame_bits == 0, "SPIDPD: Bad bits cfg");
 
-    return hal_spi_open_id(HAL_SPI_ID_DPD, cfg, &spidpd_ctrl);
+    return hal_spi_open_id(HAL_SPI_ID_DPD, cfg, &spidpd_ctrl[cfg->cs]);
 }
 
 int hal_spidpd_close(uint32_t cs)
@@ -1901,11 +2499,11 @@ int hal_spidpd_close(uint32_t cs)
     return hal_spi_close_id(HAL_SPI_ID_DPD, cs);
 }
 
-void hal_spidpd_activate_cs(uint32_t cs)
+int hal_spidpd_activate_cs(uint32_t cs)
 {
     SPI_ASSERT(cs < HAL_SPI_CS_QTY, "SPIDPD: SPI cs bad: %d", cs);
 
-    hal_spi_set_cs_id(HAL_SPI_ID_DPD, cs);
+    return hal_spi_activate_cs_id(HAL_SPI_ID_DPD, cs);
 }
 
 int hal_spidpd_busy(void)
@@ -1915,21 +2513,45 @@ int hal_spidpd_busy(void)
 
 int hal_spidpd_send(const void *data, uint32_t len)
 {
-    return hal_spi_send_id_prt(HAL_SPI_ID_DPD, &spidpd_ctrl, data, len);
+    return hal_spi_send_id_prt(HAL_SPI_ID_DPD, &spidpd_ctrl[spidpd_cs], data, len);
 }
 
 int hal_spidpd_recv(const void *cmd, void *data, uint32_t len)
 {
-    return hal_spi_recv_id_prt_xt(HAL_SPI_ID_DPD, &spidpd_ctrl, cmd, data, len);
+    return hal_spi_recv_id_prt_xt(HAL_SPI_ID_DPD, &spidpd_ctrl[spidpd_cs], cmd, data, len);
 }
-#endif // CHIP_HAS_SPIDPD
+
+int hal_spidpd_dma_send(const void *data, uint32_t len, HAL_SPI_DMA_HANDLER_T handler)
+{
+    return hal_spi_dma_send_id_prt(HAL_SPI_ID_DPD, &spidpd_ctrl[spidpd_cs], data, len, handler);
+}
+
+int hal_spidpd_dma_recv(const void *cmd, void *data, uint32_t len, HAL_SPI_DMA_HANDLER_T handler)
+{
+    return hal_spi_dma_recv_id_prt_xt(HAL_SPI_ID_DPD, &spidpd_ctrl[spidpd_cs], cmd, data, len, handler);
+}
+
+void hal_spidpd_stop_dma_send(void)
+{
+    hal_spi_stop_dma_send_id_prt(HAL_SPI_ID_DPD);
+}
+
+void hal_spidpd_stop_dma_recv(void)
+{
+    hal_spi_stop_dma_recv_id_prt(HAL_SPI_ID_DPD);
+}
+#endif // SPIDPD_BASE
 
 #ifdef CORE_SLEEP_POWER_DOWN
-void SRAM_TEXT_LOC hal_spi_sleep(void)
+void SRAM_TEXT_LOC hal_spi_sleep(enum HAL_CMU_LPU_SLEEP_MODE_T mode)
 {
     enum HAL_SPI_ID_T id;
 
-    for (id = 0; id < HAL_SPI_ID_QTY; id++) {
+    if (mode != HAL_CMU_LPU_SLEEP_MODE_SUBSYS_PD) {
+        return;
+    }
+
+    for (id = (enum HAL_SPI_ID_T)0; id < HAL_SPI_ID_QTY; id++) {
         if (spi_cs_map[id]) {
             saved_spi_regs[id].SSPCR0   = spi[id]->SSPCR0;
             saved_spi_regs[id].SSPCR1   = spi[id]->SSPCR1;
@@ -1944,11 +2566,15 @@ void SRAM_TEXT_LOC hal_spi_sleep(void)
     }
 }
 
-void SRAM_TEXT_LOC hal_spi_wakeup(void)
+void SRAM_TEXT_LOC hal_spi_wakeup(enum HAL_CMU_LPU_SLEEP_MODE_T mode)
 {
     enum HAL_SPI_ID_T id;
 
-    for (id = 0; id < HAL_SPI_ID_QTY; id++) {
+    if (mode != HAL_CMU_LPU_SLEEP_MODE_SUBSYS_PD) {
+        return;
+    }
+
+    for (id = (enum HAL_SPI_ID_T)0; id < HAL_SPI_ID_QTY; id++) {
         if (spi_cs_map[id]) {
             spi[id]->SSPCR0     = saved_spi_regs[id].SSPCR0;
             spi[id]->SSPCR1     = saved_spi_regs[id].SSPCR1;
@@ -1956,8 +2582,16 @@ void SRAM_TEXT_LOC hal_spi_wakeup(void)
             spi[id]->SSPDMACR   = saved_spi_regs[id].SSPDMACR;
             spi[id]->SSPRXCR    = saved_spi_regs[id].SSPRXCR;
 #if (CHIP_SPI_VER >= 6)
-            spi[id]->SSPSRCNT = saved_spi_regs[id].SSPSRCNT;
-            spi[id]->SSPDLYCR = saved_spi_regs[id].SSPDLYCR;
+            spi[id]->SSPSRCNT   = saved_spi_regs[id].SSPSRCNT;
+            spi[id]->SSPDLYCR   = saved_spi_regs[id].SSPDLYCR;
+#endif
+#if (CHIP_SPI_VER >= 7)
+#if (SPI_DMA_TX_FIFO_LEVEL != (SPI_TX_FIFO_DEPTH / 2))
+            spi[id]->SSPTXFL    = SPI_SSPTXFL_SSPTXFL(SPI_DMA_TX_FIFO_LEVEL);
+#endif
+#if (SPI_DMA_RX_FIFO_LEVEL != (SPI_RX_FIFO_DEPTH / 2))
+            spi[id]->SSPRXFL    = SPI_SSPRXFL_SSPRXFL(SPI_DMA_RX_FIFO_LEVEL);
+#endif
 #endif
         }
     }

@@ -19,6 +19,8 @@
 #ifndef __ACC_OT_COMMON__
 #define __ACC_OT_COMMON__
 
+#include "bluetooth.h"
+
 #include "gaf_cfg.h"
 
 /*DEFINE*/

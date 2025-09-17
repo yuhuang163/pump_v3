@@ -31,9 +31,12 @@
 #include "hal_location.h"
 #include "hal_cmu.h"
 
-extern uint32_t __sram_text_data_start_load__[];
-extern uint32_t __sram_text_data_end_load__[];
-extern uint32_t __sram_text_data_start__[];
+extern uint32_t __sram_text_start_load__[];
+extern uint32_t __sram_text_end_load__[];
+extern uint32_t __sram_text_start__[];
+extern uint32_t __sram_data_start_load__[];
+extern uint32_t __sram_data_end_load__[];
+extern uint32_t __sram_data_start__[];
 extern uint32_t __sram_bss_start__[];
 extern uint32_t __sram_bss_end__[];
 extern uint32_t __bss_start__[];
@@ -56,16 +59,30 @@ void GPV_init(void)
 #endif
 }
 
+#ifndef KERNEL_LITEOS_A
 /*----------------------------------------------------------------------------
   System Initialization
  *----------------------------------------------------------------------------*/
+extern void dsp_decompress(void);
 void SystemInit (void)
 {
     uint32_t *dst, *src;
 
-    if (__sram_text_data_start__ != __sram_text_data_start_load__) {
-        for (dst = __sram_text_data_start__, src = __sram_text_data_start_load__;
-                src < __sram_text_data_end_load__;
+#ifdef COMPRESS_DSP_CODE
+    dsp_decompress();
+#endif
+
+    if (__sram_text_start__ != __sram_text_start_load__) {
+        for (dst = __sram_text_start__, src = __sram_text_start_load__;
+                src < __sram_text_end_load__;
+                dst++, src++) {
+            *dst = *src;
+        }
+    }
+
+    if (__sram_data_start__ != __sram_data_start_load__) {
+        for (dst = __sram_data_start__, src = __sram_data_start_load__;
+                src < __sram_data_end_load__;
                 dst++, src++) {
             *dst = *src;
         }
@@ -143,6 +160,7 @@ void SystemInit (void)
   // IRQ Initialize
   IRQ_Initialize();
 }
+#endif
 
 uint32_t BOOT_TEXT_SRAM_DEF(get_cpu_id) (void)
 {

@@ -18,6 +18,7 @@
  ****************************************************************************/
 #ifndef __BAP_BC_DELEG_INC__
 #define __BAP_BC_DELEG_INC__
+#include "bluetooth.h"
 
 #include "gaf_cfg.h"
 
@@ -89,8 +90,6 @@ typedef struct bap_scan_deleg_init_cfg
     uint16_t pa_sync_to_10ms;
     /// Wait PAST timeout 10ms
     uint16_t wait_past_to_10ms;
-    /// Sync BIG or PA sync estb timeout 10ms
-    uint16_t wait_estb_to_10ms;
     /// Scan for PA sync timeout
     uint16_t scan_for_pa_to_10ms;
     /// Sync BIG MSE

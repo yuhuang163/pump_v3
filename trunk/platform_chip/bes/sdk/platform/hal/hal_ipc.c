@@ -28,13 +28,13 @@ int hal_ipc_interrupt_core(enum HAL_IPC_CORE_TYPE_T core, enum HAL_IPC_SUB_ID_T 
     switch(core)
     {
         case HAL_IPC_CORE_AP_BT:
-            hal_ipc_mcu2bt_peer_irq_set(id, HAL_IPC_IRQ_SEND_IND);
+            hal_ipc_mcu2bt_peer_irq_set(id, HAL_IPC_IRQ_DATA_IND);
             break;
         case HAL_IPC_CORE_AP_SYS:
-            hal_ipc_mcu2sys_peer_irq_set(id, HAL_IPC_IRQ_SEND_IND);
+            hal_ipc_mcu2sys_peer_irq_set(id, HAL_IPC_IRQ_DATA_IND);
             break;
         case HAL_IPC_CORE_SENSORHUB:
-            hal_ipc_mcu2sens_peer_irq_set(id, HAL_IPC_IRQ_SEND_IND);
+            hal_ipc_mcu2sens_peer_irq_set(id, HAL_IPC_IRQ_DATA_IND);
             break;
         default:
             break;

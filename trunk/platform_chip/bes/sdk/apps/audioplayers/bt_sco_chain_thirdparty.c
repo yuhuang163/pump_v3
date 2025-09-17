@@ -6,8 +6,6 @@
 #include "bt_sco_chain_cfg.h"
 #include "bt_sco_chain_tuning.h"
 #include "speech_cfg.h"
-#include "app_bt_stream.h"
-#include "arm_math_ex.h"
 
 #if defined(SCO_CP_ACCEL)
 #include "hal_location.h"
@@ -17,6 +15,12 @@
 #if defined(SPEECH_ALGO_DSP)
 #include "app_mcpp.h"
 #endif
+
+#if defined(SPEECH_ALGO_DSP_TEST)
+#include "speech_algo_dsp_test.h"
+#endif
+
+#include "audio_manager.h"
 
 // #define BT_SCO_CHAIN_AUDIO_DUMP
 // #define SPEEHC_THIRDPARTY_REFRAME
@@ -46,12 +50,21 @@ SPEECH_PCM_T *g_pcm_tmp_buf = NULL;
 SpeechDcFilterState *speech_tx_dc_filter_st = NULL;
 #endif
 
+#if defined(SPEECH_RX_NS2FLOAT)
+static uint32_t g_ringtone_cnt = 0;
+SpeechNs2FloatState *speech_rx_ns2float_st = NULL;
+#endif
+
 #if defined(SPEECH_RX_COMPEXP)
 static MultiCompexpState *speech_rx_compexp_st = NULL;
 #endif
 
 #if defined(SPEECH_RX_EQ)
 EqState *speech_rx_eq_st = NULL;
+#endif
+
+#if defined(SPEECH_RX_DAC_EQ)
+SpeechDacEqState *speech_rx_dac_eq_st = NULL;
 #endif
 
 extern const SpeechConfig speech_cfg_default;
@@ -64,16 +77,8 @@ static int speech_rx_frame_len = 256;
 static bool speech_tx_frame_resizer_enable = false;
 static bool speech_rx_frame_resizer_enable = false;
 
-int _speech_tx_process_(void *_pcm_buf, void *_ref_buf, int *_pcm_len);
-int _speech_rx_process_(void *pcm_buf, int *pcm_len);
-
 #if defined(SPEECH_BONE_SENSOR)
 #include "speech_bone_sensor.h"
-#if defined(LOW_DELAY_SCO)
-#define BONE_SENSOR_PCM_LEN     (120)
-#else
-#define BONE_SENSOR_PCM_LEN     (240)
-#endif
 static SPEECH_PCM_T *vpu_buf = NULL;
 #endif
 
@@ -82,14 +87,31 @@ typedef SPEECH_PCM_T    _DUMP_PCM_T;
 static _DUMP_PCM_T audio_dump_buf[256];
 #endif
 
-extern bool bt_sco_codec_is_cvsd(void);
+int _speech_tx_process_(void *_pcm_buf, void *_ref_buf, int *_pcm_len);
+int _speech_rx_process_(void *pcm_buf, int *pcm_len);
 
-#ifdef SPEECH_ALGO_DSP
-static bool g_mcpp_enable = false;
-POSSIBLY_UNUSED int speech_enable_mcpp(bool en)
+extern bool is_le_call_mode(void);
+extern bool bt_sco_codec_is_cvsd(void);
+extern bool bt_sco_is_record_mode(void);
+
+#if defined(SPEECH_TUNING_CALL_VIA_CMD)
+static call_algo_cfg_t g_tuning_call_cfg;
+static bool g_tuning_call_cfg_flag = false;
+
+int speech_tuning_call_algo_set_cfg(const uint8_t *buf, uint32_t len)
 {
-    AUDIOPLAYERS_TRACE(0, "%s, old:%d, new:%d", __func__, g_mcpp_enable, en);
-    g_mcpp_enable = en;
+    ASSERT(buf != NULL, "[%s] buf is NULL", __func__);
+
+    if (len != sizeof(call_algo_cfg_t)) {
+        TRACE(3, "[%s] Invalid len: %d != %d", __func__, len, sizeof(call_algo_cfg_t));
+        return 1;
+    }
+
+    uint32_t lock = int_lock();
+    memcpy((uint8_t *)&g_tuning_call_cfg, buf, len);
+    g_tuning_call_cfg_flag = true;
+    int_unlock(lock);
+
     return 0;
 }
 #endif
@@ -99,7 +121,7 @@ int speech_store_config(const SpeechConfig *cfg)
     if (speech_cfg) {
         memcpy(speech_cfg, cfg, sizeof(SpeechConfig));
     } else {
-        AUDIOPLAYERS_TRACE(1,"[%s] WARNING: Please phone call...", __func__);
+        TRACE(1,"[%s] WARNING: Please phone call...", __func__);
     }
 
     return 0;
@@ -125,18 +147,37 @@ int speech_init(int tx_sample_rate, int rx_sample_rate,
                      int sco_frame_ms,
                      uint8_t *buf, int len)
 {
-    speech_tx_frame_len = SPEECH_FRAME_MS_TO_LEN(tx_sample_rate, tx_frame_ms);
-    speech_rx_frame_len = SPEECH_FRAME_MS_TO_LEN(rx_sample_rate, rx_frame_ms);
-
     // we shoule keep a minmum buffer for speech heap
     // sample rate 8k : 4k bytes
     // sample rate 16k: 10k bytes
     speech_heap_init(buf, len);
 
-    int frame_len = speech_tx_frame_len;
+    if (sco_frame_ms) {
+        speech_tx_frame_len = SPEECH_FRAME_MS_TO_LEN(tx_sample_rate, tx_frame_ms);
+        speech_rx_frame_len = SPEECH_FRAME_MS_TO_LEN(rx_sample_rate, rx_frame_ms);
+    } else {
+        TRACE(1, "[%s] Workaround to support set frame len", __func__);
+        speech_tx_frame_len = tx_frame_ms;
+        speech_rx_frame_len = rx_frame_ms;
+        tx_frame_ms = 0;
+        rx_frame_ms = 0;
+    }
 
     speech_cfg = (SpeechConfig *)speech_calloc(1, sizeof(SpeechConfig));
-    speech_store_config(&speech_cfg_default);
+
+    if (bt_sco_codec_is_cvsd()) {
+        speech_store_config(&speech_cfg_default);
+#ifdef BLE_AUDIO_ENABLED
+    } else if (is_le_call_mode()) {
+        speech_store_config(&speech_cfg_default);
+#endif
+    } else {
+        speech_store_config(&speech_cfg_default);
+    }
+
+#if defined(SPEECH_TUNING_CALL_VIA_CMD)
+    g_tuning_call_cfg_flag = false;
+#endif
 
 #ifdef AUDIO_DEBUG
     speech_tuning_open();
@@ -179,7 +220,7 @@ int speech_init(int tx_sample_rate, int rx_sample_rate,
 #endif
 
 #if defined(SPEECH_ALGO_DSP)
-    if (g_mcpp_enable && amgr_is_bluetooth_sco_on()) {
+    if (amgr_is_bluetooth_sco_on()) {
 #ifdef SPEECH_BONE_SENSOR
         bool vpu_flag = true;
 #else
@@ -206,10 +247,10 @@ int speech_init(int tx_sample_rate, int rx_sample_rate,
 #endif
 
         dsp_cfg.playback.stream_enable  = true;
-        dsp_cfg.playback.sample_rate    = rx_sample_rate;
+        dsp_cfg.playback.sample_rate    = tx_sample_rate;
         dsp_cfg.playback.sample_bytes   = playback_sample_size;
-        dsp_cfg.playback.frame_len      = speech_rx_frame_len;
-        dsp_cfg.playback.algo_frame_len = speech_rx_frame_len;
+        dsp_cfg.playback.frame_len      = speech_tx_frame_len;
+        dsp_cfg.playback.algo_frame_len = speech_tx_frame_len;
         dsp_cfg.playback.channel_num    = 1;
 #if defined(SPEECH_ALGO_DSP_M55)
         dsp_cfg.playback.core_server    = APP_MCPP_CORE_M55;
@@ -225,29 +266,53 @@ int speech_init(int tx_sample_rate, int rx_sample_rate,
     }
 #endif
 
-    aec_echo_buf = (SPEECH_PCM_T *)speech_calloc(frame_len, sizeof(SPEECH_PCM_T));
+#if defined(SPEECH_ALGO_DSP_TEST)
+    speech_algo_dsp_cfg_t dsp_cfg;
+    memset(&dsp_cfg, 0, sizeof(dsp_cfg));
+    dsp_cfg.sample_rate = tx_sample_rate;
+    dsp_cfg.frame_len   = frame_len;
+    dsp_cfg.mic_num     = SPEECH_TX_CH_NUM;
+    dsp_cfg.mode        = (bt_sco_codec_is_cvsd() == false);
+    speech_algo_dsp_test_open(&dsp_cfg);
+#endif
+
+    aec_echo_buf = (SPEECH_PCM_T *)speech_calloc(speech_tx_frame_len, sizeof(SPEECH_PCM_T));
     aec_echo_buf_ptr = aec_echo_buf;
 
 #if defined(SPEECH_TX_DC_FILTER)
     int channel_num = SPEECH_TX_CH_NUM;
     int data_separation = 0;
 
-    speech_tx_dc_filter_st = speech_dc_filter_create(tx_sample_rate, frame_len, &speech_cfg->tx_dc_filter);
+    speech_tx_dc_filter_st = speech_dc_filter_create(tx_sample_rate, speech_tx_frame_len, &speech_cfg->tx_dc_filter);
     speech_dc_filter_ctl(speech_tx_dc_filter_st, SPEECH_DC_FILTER_SET_CHANNEL_NUM, &channel_num);
     speech_dc_filter_ctl(speech_tx_dc_filter_st, SPEECH_DC_FILTER_SET_DATA_SEPARATION, &data_separation);
 #endif
 
+#if defined(SPEECH_RX_NS2FLOAT)
+    g_ringtone_cnt = 0;
+    speech_rx_ns2float_st = speech_ns2float_create(rx_sample_rate, speech_rx_frame_len, 0, &speech_cfg->rx_ns2float);
+#endif
+
 #if defined(SPEECH_RX_COMPEXP)
-    speech_rx_compexp_st = multi_compexp_create(rx_sample_rate, frame_len, &speech_cfg->rx_compexp);
+    speech_rx_compexp_st = multi_compexp_create(rx_sample_rate, speech_rx_frame_len, &speech_cfg->rx_compexp);
 #endif
 
 #if defined(SPEECH_RX_EQ)
-    speech_rx_eq_st = eq_init(rx_sample_rate, frame_len, &speech_cfg->rx_eq);
+    speech_rx_eq_st = eq_init(rx_sample_rate, speech_rx_frame_len, &speech_cfg->rx_eq);
+#endif
+
+#if defined(SPEECH_RX_DAC_EQ)
+    //dac sample rate should be same as codec sample rate. With default setting is fixed to 16K
+    int32_t dac_sample_rate = rx_sample_rate;
+#if defined(__AUDIO_RESAMPLE__)
+    dac_sample_rate = hal_codec_get_real_sample_rate(dac_sample_rate, 1);
+#endif
+    speech_rx_dac_eq_st = speech_dac_eq_init(dac_sample_rate, speech_rx_frame_len, &speech_cfg->rx_dac_eq);
 #endif
 
 #if defined(SPEEHC_THIRDPARTY_REFRAME)
-    g_pcm_tmp_buf = (SPEECH_PCM_T *)speech_calloc(frame_len, sizeof(SPEECH_PCM_T));
-    bt_sco_chain_reframe_open(tx_sample_rate, frame_len);
+    g_pcm_tmp_buf = (SPEECH_PCM_T *)speech_calloc(speech_tx_frame_len, sizeof(SPEECH_PCM_T));
+    bt_sco_chain_reframe_open(tx_sample_rate, speech_tx_frame_len);
 #else
     // TODO: Call thridpart algo init function
 #endif
@@ -257,7 +322,7 @@ int speech_init(int tx_sample_rate, int rx_sample_rate,
 #endif
 
 #if defined(BT_SCO_CHAIN_AUDIO_DUMP)
-    audio_dump_init(frame_len, sizeof(_DUMP_PCM_T), 3);
+    audio_dump_init(speech_tx_frame_len, sizeof(_DUMP_PCM_T), 3);
 #endif
 
     return 0;
@@ -284,8 +349,16 @@ int speech_deinit(void)
     eq_destroy(speech_rx_eq_st);
 #endif
 
+#if defined(SPEECH_RX_DAC_EQ)
+    speech_dac_eq_destroy(speech_rx_dac_eq_st);
+#endif
+
 #if defined(SPEECH_RX_COMPEXP)
     multi_compexp_destroy(speech_rx_compexp_st);
+#endif
+
+#if defined(SPEECH_RX_NS2FLOAT)
+    speech_ns2float_destroy(speech_rx_ns2float_st);
 #endif
 
 #if defined(SPEECH_TX_DC_FILTER)
@@ -295,10 +368,13 @@ int speech_deinit(void)
     speech_free(aec_echo_buf_ptr);
 
 #if defined(SPEECH_ALGO_DSP)
-    if (g_mcpp_enable && amgr_is_bluetooth_sco_on()) {
+    if (amgr_is_bluetooth_sco_on()) {
         app_mcpp_close(APP_MCPP_USER_CALL);
-        speech_enable_mcpp(false);
     }
+#endif
+
+#if defined(SPEECH_ALGO_DSP_TEST)
+    speech_algo_dsp_test_close();
 #endif
 
     if (speech_frame_resize_st != NULL) {
@@ -316,7 +392,7 @@ int speech_deinit(void)
 
     size_t total = 0, used = 0, max_used = 0;
     speech_memory_info(&total, &used, &max_used);
-    AUDIOPLAYERS_TRACE(3,"SPEECH MALLOC MEM: total - %d, used - %d, max_used - %d.", total, used, max_used);
+    TRACE(3,"SPEECH MALLOC MEM: total - %d, used - %d, max_used - %d.", total, used, max_used);
     ASSERT(used == 0, "[%s] used != 0", __func__);
 
     return 0;
@@ -324,19 +400,17 @@ int speech_deinit(void)
 
 #if defined(SCO_CP_ACCEL)
 CP_TEXT_SRAM_LOC
-int sco_cp_algo(short *pcm_buf, short *ref_buf, short *fb_buf, int *_pcm_len, sco_status_t *status)
+int sco_cp_algo(short *pcm_buf, short *ref_buf, int *_pcm_len, sco_status_t *status)
 {
 #if defined(SCO_TRACE_CP_ACCEL)
-    AUDIOPLAYERS_TRACE(1,"[%s] ...", __func__);
+    TRACE(1,"[%s] ...", __func__);
 #endif
 
-    //AUDIOPLAYERS_TRACE(0,"[%s] cp vad = %d", __FUNCTION__, status->vad);
+    //TRACE("[%s] cp vad = %d", __FUNCTION__, status->vad);
 
     return 0;
 }
 #endif
-
-int32_t speech_bone_sensor_resample_process(void *pcm_buf, int pcm_len);
 
 int _speech_tx_process_(void *_pcm_buf, void *_ref_buf, int *_pcm_len)
 {
@@ -347,19 +421,38 @@ int _speech_tx_process_(void *_pcm_buf, void *_ref_buf, int *_pcm_len)
     SPEECH_PCM_T POSSIBLY_UNUSED *pcm_buf = (SPEECH_PCM_T *)_pcm_buf;
     SPEECH_PCM_T POSSIBLY_UNUSED *ref_buf = (SPEECH_PCM_T *)_ref_buf;
 
-    int16_t POSSIBLY_UNUSED *pcm16_buf = (int16_t *)_pcm_buf;
-    int16_t POSSIBLY_UNUSED *ref16_buf = (int16_t *)_ref_buf;
-
     int POSSIBLY_UNUSED pcm_len = *_pcm_len;
     int POSSIBLY_UNUSED frame_len = pcm_len / SPEECH_TX_CH_NUM;
 
+/**
+ * BT support headset hand-free voice recognition feature, we call this as record mode.
+ * If it's record mode, you can bypass all MIC algo.
+ * Normally, there are two cases which can trigger record mode:
+ *  1. Voice recognition via BT hfp
+ *  2. Some APP on phone can record voice via BT hfp
+ */
+#if 0
+    if (bt_sco_is_record_mode() == true) {
+        for (int i = 0; i < frame_len; i++) {
+            // 10: 20dB
+#if defined(SPEECH_TX_24BIT)
+            pcm_buf[i] = speech_ssat_int16((pcm_buf[i * SPEECH_TX_CH_NUM + 0] * 10)  / 256);
+#else
+            pcm_buf[i] = speech_ssat_int16((int32_t)pcm_buf[i * SPEECH_TX_CH_NUM + 0] * 10);
+#endif
+        }
+        *_pcm_len = frame_len;
+
+        return 0;
+    }
+#endif
+
 #if defined(SPEECH_BONE_SENSOR)
 #if defined(SPEECH_TX_24BIT)
-    speech_bone_sensor_get_data(vpu_buf, BONE_SENSOR_PCM_LEN, SPEECH_BS_CHANNEL_X, 24);
+    speech_bone_sensor_get_data(vpu_buf, frame_len, SPEECH_BS_CHANNEL_X, 24);
 #else
-    speech_bone_sensor_get_data(vpu_buf, BONE_SENSOR_PCM_LEN, SPEECH_BS_CHANNEL_X, 16);
+    speech_bone_sensor_get_data(vpu_buf, frame_len, SPEECH_BS_CHANNEL_X, 16);
 #endif
-    speech_bone_sensor_resample_process(vpu_buf, BONE_SENSOR_PCM_LEN);
 #endif
 
 #ifdef AUDIO_DEBUG
@@ -396,55 +489,62 @@ int _speech_tx_process_(void *_pcm_buf, void *_ref_buf, int *_pcm_len)
 
     // Add your algrithm here and disable #if macro
 #if defined(SPEEHC_THIRDPARTY_REFRAME)
-    for (int i = 0; i < frame_len; i++) {
-        g_pcm_tmp_buf[i] = pcm_buf[i * SPEECH_TX_CH_NUM + REFRAME_CHANNEL_VP];
-    }
-    bt_sco_chain_reframe_cache_tx_pcm(g_pcm_tmp_buf, frame_len, REFRAME_CHANNEL_VP);
-
-    for (int i = 0; i < frame_len; i++) {
-        g_pcm_tmp_buf[i] = pcm_buf[i * SPEECH_TX_CH_NUM + REFRAME_CHANNEL_FF];
-    }
-    bt_sco_chain_reframe_cache_tx_pcm(g_pcm_tmp_buf, frame_len, REFRAME_CHANNEL_FF);
-
-    for (int i = 0; i < frame_len; i++) {
-        g_pcm_tmp_buf[i] = pcm_buf[i * SPEECH_TX_CH_NUM + REFRAME_CHANNEL_FB];
-    }
-    bt_sco_chain_reframe_cache_tx_pcm(g_pcm_tmp_buf, frame_len, REFRAME_CHANNEL_FB);
-
-    bt_sco_chain_reframe_cache_tx_pcm(ref_buf, frame_len, REFRAME_CHANNEL_REF);
-
+    REFRAME_TX_PCM_T pcm_cfg = {0};
+    pcm_cfg.in = pcm_buf;
+    pcm_cfg.ref = ref_buf;
 #if defined(SPEECH_BONE_SENSOR)
-    bt_sco_chain_reframe_cache_tx_pcm(vpu_buf, frame_len, REFRAME_CHANNEL_BS);
-#endif
-
-    bt_sco_chain_reframe_tx_process(NULL, frame_len, pcm_buf);
-#elif defined(SPEECH_ALGO_DSP)
-    if (g_mcpp_enable && amgr_is_bluetooth_sco_on()) {
-        APP_MCPP_CAP_PCM_T pcm_cfg;
-        memset(&pcm_cfg, 0, sizeof(pcm_cfg));
-        pcm_cfg.in = pcm_buf;
-        pcm_cfg.ref = ref_buf;
-#if defined(SPEECH_BONE_SENSOR)
-        pcm_cfg.vpu = vpu_buf;
+    pcm_cfg.vpu = vpu_buf;
 #else
-        pcm_cfg.vpu = NULL;
+    pcm_cfg.vpu = NULL;
 #endif
-        pcm_cfg.out = pcm_buf;
-        pcm_cfg.frame_len = frame_len;
+    pcm_cfg.out = pcm_buf;
+    pcm_cfg.frame_len = frame_len;
 
-        app_mcpp_capture_process(APP_MCPP_USER_CALL, &pcm_cfg);
+    bt_sco_chain_reframe_tx_process(&pcm_cfg);
+#elif defined(SPEECH_ALGO_DSP_TEST)
+    speech_algo_dsp_pcm_t pcm_cfg = {0};
+    memset(&pcm_cfg, 0, sizeof(pcm_cfg));
+    pcm_cfg.mic = pcm_buf;
+    pcm_cfg.ref = ref_buf;
+#if defined(SPEECH_BONE_SENSOR)
+    pcm_cfg.vpu = vpu_buf;
+#else
+    pcm_cfg.vpu = NULL;
+#endif
+    pcm_cfg.out = pcm_buf;
+    pcm_cfg.len = frame_len;
+    speech_algo_dsp_test_process(&pcm_cfg);
+#elif defined(SPEECH_ALGO_DSP)
+    APP_MCPP_CAP_PCM_T pcm_cfg;
+    memset(&pcm_cfg, 0, sizeof(pcm_cfg));
+    pcm_cfg.in = pcm_buf;
+    pcm_cfg.ref = ref_buf;
+#if defined(SPEECH_BONE_SENSOR)
+    pcm_cfg.vpu = vpu_buf;
+#else
+    pcm_cfg.vpu = NULL;
+#endif
+    pcm_cfg.out = pcm_buf;
+    pcm_cfg.frame_len = frame_len;
+
+    app_mcpp_capture_process(APP_MCPP_USER_CALL, &pcm_cfg);
+
+#if defined(SPEECH_TUNING_CALL_VIA_CMD)
+    if (g_tuning_call_cfg_flag) {
+        g_tuning_call_cfg_flag = false;
+        if (pcm_cfg.ret != 0) {
+            TRACE(1, "[%s] SV tx tuning OK", __func__);
+        } else {
+            TRACE(2, "[%s] WARNING: SV tx tuning error: %d", __func__, pcm_cfg.ret);
+        }
     }
+#endif
 #else
     // TODO: Call thirdparty algo process function
 
-#if defined(SPEECH_TX_24BIT)
-    arm_q23_to_q15(pcm_buf, pcm16_buf, pcm_len);
-    arm_q23_to_q15(ref_buf, ref16_buf, frame_len);
-#endif
-
     for (int i = 0; i < frame_len; i++) {
         // choose main microphone data
-        pcm16_buf[i] = pcm16_buf[i * SPEECH_TX_CH_NUM + 0];
+        pcm_buf[i] = pcm_buf[i * SPEECH_TX_CH_NUM + 0];
         // choose reference data, i.e. loopback
         // pcm_buf[i] = ref_buf[j];
     }
@@ -456,13 +556,7 @@ int _speech_tx_process_(void *_pcm_buf, void *_ref_buf, int *_pcm_len)
 #endif
 
 #if defined(SCO_CP_ACCEL)
-    sco_cp_process(pcm16_buf, ref16_buf, NULL, &frame_len, &status);
-#endif
-
-#if !defined(SPEEHC_THIRDPARTY_REFRAME) && !(SPEECH_ALGO_DSP)
-#if defined(SPEECH_TX_24BIT)
-    arm_q15_to_q23(pcm16_buf, pcm_buf, frame_len);
-#endif
+    sco_cp_process((short*)pcm_buf, (short*)ref_buf, &frame_len, &status);
 #endif
 
 #if defined(BT_SCO_CHAIN_AUDIO_DUMP)
@@ -479,17 +573,26 @@ int _speech_tx_process_(void *_pcm_buf, void *_ref_buf, int *_pcm_len)
 int _speech_rx_process_(void *pcm_buf, int *pcm_len)
 {
 #if defined(SPEECH_ALGO_DSP)
-    if (g_mcpp_enable && amgr_is_bluetooth_sco_on()) {
-        APP_MCPP_PLAY_PCM_T pcm_cfg;
-        memset(&pcm_cfg, 0, sizeof(pcm_cfg));
-        pcm_cfg.in = pcm_buf;
-        pcm_cfg.out = pcm_buf;
-        pcm_cfg.frame_len = *pcm_len;
-        app_mcpp_playback_process(APP_MCPP_USER_CALL, &pcm_cfg);
-    }
+    APP_MCPP_PLAY_PCM_T pcm_cfg;
+    memset(&pcm_cfg, 0, sizeof(pcm_cfg));
+    pcm_cfg.in = pcm_buf;
+    pcm_cfg.out = pcm_buf;
+    pcm_cfg.frame_len = *pcm_len;
+    app_mcpp_playback_process(APP_MCPP_USER_CALL, &pcm_cfg);
 #endif
 
 #if defined(SPEECH_RX_24BIT)
+#if defined(SPEECH_RX_NS2FLOAT)
+    if (amgr_is_bt_sco_ringtone_mode() == false) {
+        speech_ns2float_process_int24(speech_rx_ns2float_st, pcm_buf, *pcm_len);
+    } else {
+        if (g_ringtone_cnt % 400 == 0) {
+            TRACE(2, "[%s] Bypass denoise during Ringtone: %d", __func__, g_ringtone_cnt);
+        }
+        g_ringtone_cnt++;
+    }
+#endif
+
 #if defined(SPEECH_RX_COMPEXP)
     multi_compexp_process_int24(speech_rx_compexp_st, pcm_buf, *pcm_len);
 #endif
@@ -499,12 +602,23 @@ int _speech_rx_process_(void *pcm_buf, int *pcm_len)
 #endif
 
 #else
+#if defined(SPEECH_RX_NS2FLOAT)
+    if (amgr_is_bt_sco_ringtone_mode() == false) {
+        speech_ns2float_process(speech_rx_ns2float_st, pcm_buf, *pcm_len);
+    } else {
+        if (g_ringtone_cnt % 400 == 0) {
+            TRACE(2, "[%s] Bypass denoise during Ringtone: %d", __func__, g_ringtone_cnt);
+        }
+        g_ringtone_cnt++;
+    }
+#endif
+
 #if defined(SPEECH_RX_COMPEXP)
-    multi_compexp_process(speech_rx_compexp_st, pcm_buf, *pcm_len);
+    multi_compexp_process(speech_rx_compexp_st, pcm_buf, pcm_len);
 #endif
 
 #if defined(SPEECH_RX_EQ)
-    eq_process(speech_rx_eq_st, pcm_buf, *pcm_len);
+    eq_process(speech_rx_eq_st, pcm_buf, pcm_len);
 #endif
 #endif
 

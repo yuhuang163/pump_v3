@@ -212,9 +212,9 @@ void pmu_sar_adc_vref_enable(void);
 
 void pmu_sar_adc_vref_disable(void);
 
-int pmu_sar_input_buf_enable(int enable);
-
 int pmu_wdt_reboot(void);
+
+int pmu_sar_input_buf_enable(int enable);
 
 void pmu_ldo_vsensor_off_pull_down(void);
 

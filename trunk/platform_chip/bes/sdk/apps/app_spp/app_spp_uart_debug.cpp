@@ -20,8 +20,8 @@
 #include "app_sensor_hub.h"
 #endif
 #include "btapp.h"
-#include "bts_bt_if.h"
 #include "app_tws_ibrt.h"
+#include "app_tws_ibrt_conn.h"
 #include "app_ibrt_middleware.h"
 
 #define APP_SPP_SERVICE_ENABLE
@@ -124,25 +124,25 @@ static bt_sdp_record_attr_t AppSppSdpAttributes[] = { // list attr id in ascendi
 #if (CHIP_CAPSENSOR_VER < 1)
 void app_send_spp_capsensor_test_data(uint8_t cmd)
 {
-    //APP_SPP_TRACE(2, "%s  send capsensor test %d", __func__, cmd);
+    //TRACE(2, "%s  send capsensor test %d", __func__, cmd);
     app_core_bridge_send_cmd(MCU_SENSOR_HUB_TASK_CMD_SPP_CAPSENSOR_TEST, &cmd, 1);
 }
 
 static void app_sensor_hub_spp_capsensor_test_cmd_received_handler(uint8_t* ptr, uint16_t len)
 {
-    //APP_SPP_TRACE(2, "%s receive sensor hub data len %d", __func__, len);
+    //TRACE(2, "%s receive sensor hub data len %d", __func__, len);
     app_spp_server_send_data(ptr, len);
 }
 
 static void app_sensor_hub_spp_capsensor_test_cmd_handler(uint8_t* ptr, uint16_t len)
 {
-    //APP_SPP_TRACE(2, "%s len %d", __func__, len);
+    //TRACE(2, "%s len %d", __func__, len);
     app_core_bridge_send_data_without_waiting_rsp(MCU_SENSOR_HUB_TASK_CMD_SPP_CAPSENSOR_TEST, ptr, len);
 }
 
 static void app_sensor_hub_spp_capsensor_test_tx_done_handler(uint16_t cmdCode, uint8_t* ptr, uint16_t len)
 {
-    //APP_SPP_TRACE(2, "%s cmdCode 0x%x", __func__, cmdCode);
+    //TRACE(2, "%s cmdCode 0x%x", __func__, cmdCode);
 }
 
 CORE_BRIDGE_TASK_COMMAND_TO_ADD(MCU_SENSOR_HUB_TASK_CMD_SPP_CAPSENSOR_TEST,
@@ -162,8 +162,8 @@ static int app_spp_server_receive_data(const bt_bdaddr_t *remote, bt_spp_callbac
     uint16_t dataLen = param->rx_data_len;
 #endif
 
-    // APP_SPP_TRACE(2,"%s rx:%d", __func__, dataLen);
-    // APP_SPP_DUMP8("%x", pData, dataLen);
+    // TRACE(2,"%s rx:%d", __func__, dataLen);
+    // DUMP8("%x", pData, dataLen);
 
     if(app_spp_server_cb && app_spp_server_cb->spp_server_recv_data_cb)
     {
@@ -180,23 +180,24 @@ static int app_spp_server_receive_data(const bt_bdaddr_t *remote, bt_spp_callbac
 static int app_spp_server_callback(const bt_bdaddr_t *remote, bt_spp_event_t event, bt_spp_callback_param_t *param)
 {
     struct BT_DEVICE_T *curr_device = NULL;
+    ibrt_mobile_info_t *p_mobile_info = NULL;
     bt_bdaddr_t *mobile_addr = NULL;
 
     switch (event)
     {
     case BT_SPP_EVENT_OPENED:
-        APP_SPP_TRACE(1, "%s ::BTIF_SPP_EVENT_REMDEV_CONNECTED", __func__);
+        TRACE(1, "%s ::BTIF_SPP_EVENT_REMDEV_CONNECTED", __func__);
         for (uint8_t i = 0; i < BT_DEVICE_NUM; ++i)
         {
             curr_device = app_bt_get_device(i);
             mobile_addr = &curr_device->remote;
+            p_mobile_info = (ibrt_mobile_info_t *)app_ibrt_conn_get_mobile_sm_by_addr(mobile_addr);
 
-            if (bts_bt_if_get_dev_link_mode(mobile_addr)== IBRT_SNIFF_MODE)
-            {
-                bts_bt_if_dev_link_exit_sniff_mode(mobile_addr);
+            if ((NULL != p_mobile_info) && (p_mobile_info->mobile_mode == IBRT_SNIFF_MODE)) {
+                app_tws_ibrt_exit_sniff_with_mobile(mobile_addr);
                 break;
             }
-            app_ibrt_if_prevent_sniff_set((uint8_t*)mobile_addr, OTA_ONGOING);
+            app_ibrt_middleware_prevent_sniff_set((uint8_t*)mobile_addr, OTA_ONGOING);
         }
 
         bth_spp_ctl.isConnected = true;
@@ -207,18 +208,18 @@ static int app_spp_server_callback(const bt_bdaddr_t *remote, bt_spp_event_t eve
         }
         break;
     case BT_SPP_EVENT_CLOSED:
-        APP_SPP_TRACE(1, "%s ::BTIF_SPP_EVENT_REMDEV_DISCONNECTED", __func__);
+        TRACE(1, "%s ::BTIF_SPP_EVENT_REMDEV_DISCONNECTED", __func__);
         for (uint8_t i = 0; i < BT_DEVICE_NUM; ++i)
         {
             curr_device = app_bt_get_device(i);
             mobile_addr = &curr_device->remote;
+            p_mobile_info = (ibrt_mobile_info_t *)app_ibrt_conn_get_mobile_sm_by_addr(mobile_addr);
 
-            if (bts_bt_if_get_dev_link_mode(mobile_addr) == IBRT_SNIFF_MODE)
-            {
-                bts_bt_if_dev_link_exit_sniff_mode(mobile_addr);
+            if ((NULL != p_mobile_info) && (p_mobile_info->mobile_mode == IBRT_SNIFF_MODE)) {
+                app_tws_ibrt_exit_sniff_with_mobile(mobile_addr);
                 break;
             }
-            app_ibrt_if_prevent_sniff_clear((uint8_t*)mobile_addr, OTA_ONGOING);
+            app_ibrt_middleware_prevent_sniff_clear((uint8_t*)mobile_addr, OTA_ONGOING);
         }
 
         bth_spp_ctl.isConnected = false;
@@ -228,7 +229,7 @@ static int app_spp_server_callback(const bt_bdaddr_t *remote, bt_spp_event_t eve
         }
         break;
     case BT_SPP_EVENT_TX_DONE:
-        // APP_SPP_TRACE(1, "%s ::BTIF_SPP_EVENT_DATA_SENT", __func__);
+        // TRACE(1, "%s ::BTIF_SPP_EVENT_DATA_SENT", __func__);
         if(app_spp_server_cb && app_spp_server_cb->spp_server_tx_done)
         {
             app_spp_server_cb->spp_server_tx_done();
@@ -245,12 +246,12 @@ static int app_spp_server_callback(const bt_bdaddr_t *remote, bt_spp_event_t eve
 
 void app_spp_server_init(app_spp_server_callback_t *cb)
 {
-    APP_SPP_TRACE(1, "%s", __func__);
+    TRACE(1, "%s", __func__);
     app_spp_server_cb = cb;
-    bta_spp_create_port(RFCOMM_CHANNEL_CUSTOM_2, AppSppSdpAttributes, ARRAY_SIZE(AppSppSdpAttributes));
-    bta_spp_set_callback(RFCOMM_CHANNEL_CUSTOM_2, MAX_SPP_PACKET_SIZE*MAX_SPP_PACKET_NUM, app_spp_server_callback, NULL);
-    bta_spp_listen(RFCOMM_CHANNEL_CUSTOM_2, false, NULL);
-    bth_spp_ctl.pSppDevice = bta_spp_create_channel(BT_DEVICE_ID_1, RFCOMM_CHANNEL_CUSTOM_2);
+    bt_spp_create_port(RFCOMM_CHANNEL_CUSTOM_2, AppSppSdpAttributes, ARRAY_SIZE(AppSppSdpAttributes));
+    bt_spp_set_callback(RFCOMM_CHANNEL_CUSTOM_2, MAX_SPP_PACKET_SIZE*MAX_SPP_PACKET_NUM, app_spp_server_callback, NULL);
+    bt_spp_listen(RFCOMM_CHANNEL_CUSTOM_2, false, NULL);
+    bth_spp_ctl.pSppDevice = bt_spp_create_channel(BT_DEVICE_ID_1, RFCOMM_CHANNEL_CUSTOM_2);
 }
 
 
@@ -263,17 +264,17 @@ bool app_spp_server_send_data(uint8_t* ptrData, uint16_t length)
         return false;
     }
 
-    // APP_SPP_TRACE(1, "app spp tx:%d", length);
-    ret = bta_spp_write(bth_spp_ctl.pSppDevice->rfcomm_handle, ptrData, length);
+    // TRACE(1, "app spp tx:%d", length);
+    ret = bt_spp_write(bth_spp_ctl.pSppDevice->rfcomm_handle, ptrData, length);
 
     if (BT_STS_SUCCESS != ret)
     {
-        // APP_SPP_TRACE(1, "BT_STS fail");
+        // TRACE(1, "BT_STS fail");
         return false;
     }
     else
     {
-        // APP_SPP_TRACE(1, "BT_STS success");
+        // TRACE(1, "BT_STS success");
         return true;
     }
 }

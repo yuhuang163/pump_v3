@@ -26,6 +26,12 @@
 #include "hal_trace.h"
 #include "string.h"
 
+#ifdef SPI_NORFLASH_DRV_DEBUG
+    #define SPIFLASH_TRACE(n, s, ...)    TRACE(n, s, ##__VA_ARGS__)
+#else
+    #define SPIFLASH_TRACE(n, s, ...)    TRACE_DUMMY(n, s, ##__VA_ARGS__)
+#endif
+
 #define SPI_CMD_SIZE            32
 #define SPI_BUFFER_SIZE         256
 #define SPI_WORD_ALIGN(x,y)     (((x+y-1)/y)*y)
@@ -155,7 +161,7 @@ static int32_t _spi_send_word(uint8_t *cmd, uint32_t cmd_len, uint8_t *buff, uin
 
     ret = SPI_DMA_SEND(dst_buff, len, NULL);
     if (ret) {
-        DRIVERS_TRACE(1, "%s, spi dma send failed! ret = %d",
+        SPIFLASH_TRACE(1, "%s, spi dma send failed! ret = %d",
                        __func__, ret);
     }
 
@@ -180,7 +186,7 @@ static int32_t _spi_recv_word(uint8_t *cmd, uint32_t cmd_len, uint8_t *buff, uin
 
     ret = SPI_DMA_RECV(spi_send_buffer, spi_recv_buffer, len, NULL);
     if (ret) {
-        DRIVERS_TRACE(1, "%s, spi dma recv failed! ret = %d",
+        SPIFLASH_TRACE(1, "%s, spi dma recv failed! ret = %d",
                        __func__, ret);
     }
     _drv_to_little_endian(buff, spi_recv_buffer + cmd_len, buff_len);
@@ -210,7 +216,7 @@ static int32_t _spi_send_byte(uint8_t *cmd, uint32_t cmd_len, uint8_t *buff, uin
 
     ret = SPI_ENABLE_AND_SEND(&_spi_ctrl_8bit, spi_send_buffer, len);
     if (ret) {
-        DRIVERS_TRACE(1, "%s, spi enable and send failed! ret = %d",
+        SPIFLASH_TRACE(1, "%s, spi enable and send failed! ret = %d",
                        __func__, ret);
     }
 
@@ -236,7 +242,7 @@ static int32_t _spi_recv_byte(uint8_t *cmd, uint32_t cmd_len, uint8_t *buff, uin
 
     ret = SPI_ENABLE_AND_RECV(&_spi_ctrl_8bit, spi_send_buffer, spi_recv_buffer, len);
     if (ret) {
-        DRIVERS_TRACE(1, "%s, spi enable and recv failed! ret = %d",
+        SPIFLASH_TRACE(1, "%s, spi enable and recv failed! ret = %d",
                        __func__, ret);
     }
     memcpy(buff, spi_recv_buffer + cmd_len, buff_len);
@@ -253,7 +259,7 @@ static int _drv_busy_wait(void)
     while (1) {
         ret = _spi_recv_byte(&cmd, sizeof(cmd), &status, sizeof(status));
         if (ret) {
-            DRIVERS_TRACE(1, "%s: _spi_recv_byte failed,ret = %d", __func__, ret);
+            SPIFLASH_TRACE(1, "%s: _spi_recv_byte failed,ret = %d", __func__, ret);
             break;
         }
         if (!(status & GD25Q32C_WIP_BIT_MASK)) {
@@ -270,7 +276,7 @@ static int32_t _write_enable(void)
 
     ret = _spi_send_byte(&cmd, sizeof(cmd), NULL, 0);
     if (ret != 0) {
-        DRIVERS_TRACE(1, "%s: _spi_send_byte failed,ret = %d", __func__, ret);
+        SPIFLASH_TRACE(1, "%s: _spi_send_byte failed,ret = %d", __func__, ret);
     }
     return ret;
 }
@@ -282,7 +288,7 @@ static int32_t _drv_reset_enable(void)
 
     ret = _spi_send_byte(&cmd, sizeof(cmd), NULL, 0);
     if (ret != 0) {
-        DRIVERS_TRACE(1, "%s: _spi_send_byte failed,ret = %d", __func__, ret);
+        SPIFLASH_TRACE(1, "%s: _spi_send_byte failed,ret = %d", __func__, ret);
     }
     _drv_busy_wait();
     return ret;
@@ -295,7 +301,7 @@ static int32_t _drv_reset(void)
 
     ret = _spi_send_byte(&cmd, sizeof(cmd), NULL, 0);
     if (ret != 0) {
-        DRIVERS_TRACE(1, "%s: _spi_send_byte failed,ret = %d", __func__, ret);
+        SPIFLASH_TRACE(1, "%s: _spi_send_byte failed,ret = %d", __func__, ret);
     }
     _drv_busy_wait();
     return ret;
@@ -316,24 +322,24 @@ int32_t spi_norflash_drv_spi_init(const struct HAL_SPI_CFG_T *spi_cfg)
     spi_cfg_8bit.tx_bits = 8;
     spi_cfg_8bit.rx_bits = 8;
 
-    DRIVERS_TRACE(0, "  ");
-    DRIVERS_TRACE(1, "spi_cfg_8bit.clk_delay_half:%d", spi_cfg_8bit.clk_delay_half);
-    DRIVERS_TRACE(1, "spi_cfg_8bit.clk_polarity  :%d", spi_cfg_8bit.clk_polarity);
-    DRIVERS_TRACE(1, "spi_cfg_8bit.slave         :%d", spi_cfg_8bit.slave);
-    DRIVERS_TRACE(1, "spi_cfg_8bit.dma_rx        :%d", spi_cfg_8bit.dma_rx);
-    DRIVERS_TRACE(1, "spi_cfg_8bit.dma_tx        :%d", spi_cfg_8bit.dma_tx);
-    DRIVERS_TRACE(1, "spi_cfg_8bit.rx_sep_line   :%d", spi_cfg_8bit.rx_sep_line);
-    DRIVERS_TRACE(1, "spi_cfg_8bit.cs            :%d", spi_cfg_8bit.cs);
-    DRIVERS_TRACE(1, "spi_cfg_8bit.rate          :%d", spi_cfg_8bit.rate);
-    DRIVERS_TRACE(1, "spi_cfg_8bit.rx_bits       :%d", spi_cfg_8bit.rx_bits);
-    DRIVERS_TRACE(1, "spi_cfg_8bit.tx_bits       :%d", spi_cfg_8bit.tx_bits);
-    DRIVERS_TRACE(1, "spi_cfg_8bit.rx_frame_bits :%d", spi_cfg_8bit.rx_frame_bits);
-    DRIVERS_TRACE(0, "  ");
+    SPIFLASH_TRACE(0, "  ");
+    SPIFLASH_TRACE(1, "spi_cfg_8bit.clk_delay_half:%d", spi_cfg_8bit.clk_delay_half);
+    SPIFLASH_TRACE(1, "spi_cfg_8bit.clk_polarity  :%d", spi_cfg_8bit.clk_polarity);
+    SPIFLASH_TRACE(1, "spi_cfg_8bit.slave         :%d", spi_cfg_8bit.slave);
+    SPIFLASH_TRACE(1, "spi_cfg_8bit.dma_rx        :%d", spi_cfg_8bit.dma_rx);
+    SPIFLASH_TRACE(1, "spi_cfg_8bit.dma_tx        :%d", spi_cfg_8bit.dma_tx);
+    SPIFLASH_TRACE(1, "spi_cfg_8bit.rx_sep_line   :%d", spi_cfg_8bit.rx_sep_line);
+    SPIFLASH_TRACE(1, "spi_cfg_8bit.cs            :%d", spi_cfg_8bit.cs);
+    SPIFLASH_TRACE(1, "spi_cfg_8bit.rate          :%d", spi_cfg_8bit.rate);
+    SPIFLASH_TRACE(1, "spi_cfg_8bit.rx_bits       :%d", spi_cfg_8bit.rx_bits);
+    SPIFLASH_TRACE(1, "spi_cfg_8bit.tx_bits       :%d", spi_cfg_8bit.tx_bits);
+    SPIFLASH_TRACE(1, "spi_cfg_8bit.rx_frame_bits :%d", spi_cfg_8bit.rx_frame_bits);
+    SPIFLASH_TRACE(0, "  ");
 
     IOMUX_SET_SPI();
     ret = SPI_OPEN(spi_cfg);
     if (ret) {
-        DRIVERS_TRACE(1, "%s, spi open failed! ret = %d", __func__, ret);
+        SPIFLASH_TRACE(1, "%s, spi open failed! ret = %d", __func__, ret);
     }
 
     hal_spi_init_ctrl(&spi_cfg_8bit, &_spi_ctrl_8bit);//Use additional SPI configuration
@@ -354,7 +360,7 @@ int32_t spi_norflash_drv_get_id(uint8_t *id, uint32_t len)
     _drv_busy_wait();
     ret = _spi_recv_byte(&cmd, sizeof(cmd), id, len);
     if (ret != 0) {
-        DRIVERS_TRACE(1, "%s: _spi_recv_byte failed,ret = %d", __func__, ret);
+        SPIFLASH_TRACE(1, "%s: _spi_recv_byte failed,ret = %d", __func__, ret);
         return SPI_NORFLASH_DRV_RET_SPI_ERROR;
     }
 
@@ -370,7 +376,7 @@ int32_t spi_norflash_drv_get_unique_id(uint8_t *id, uint32_t len)
     _drv_busy_wait();
     ret = _spi_recv_byte(cmd, sizeof(cmd), id, len);
     if (ret != 0) {
-        DRIVERS_TRACE(1, "%s: _spi_recv_byte failed,ret = %d", __func__, ret);
+        SPIFLASH_TRACE(1, "%s: _spi_recv_byte failed,ret = %d", __func__, ret);
         return SPI_NORFLASH_DRV_RET_SPI_ERROR;
     }
 
@@ -400,7 +406,7 @@ int32_t spi_norflash_drv_read(uint32_t addr, uint8_t *buff, uint32_t len)
         tmp_len = remain_len <= SPI_BUFFER_SIZE ? remain_len : SPI_BUFFER_SIZE;
         ret = _spi_recv_word(cmd, sizeof(cmd), pbuff, tmp_len);
         if (ret) {
-            DRIVERS_TRACE(1, "%s: _spi_recv_word failed!ret = %d", __func__, ret);
+            SPIFLASH_TRACE(1, "%s: _spi_recv_word failed!ret = %d", __func__, ret);
             return SPI_NORFLASH_DRV_RET_SPI_ERROR;
         }
         cur_addr += tmp_len;
@@ -435,7 +441,7 @@ int32_t spi_norflash_drv_write(uint32_t addr, uint8_t *buff, uint32_t len)
         tmp_len = remain_len <= SPI_BUFFER_SIZE ? remain_len : SPI_BUFFER_SIZE;
         ret = _spi_send_word(cmd, sizeof(cmd), pbuff, tmp_len);
         if (ret) {
-            DRIVERS_TRACE(1, "%s: _spi_send_word failed!ret = %d", __func__, ret);
+            SPIFLASH_TRACE(1, "%s: _spi_send_word failed!ret = %d", __func__, ret);
             return SPI_NORFLASH_DRV_RET_SPI_ERROR;
         }
         remain_len -= tmp_len;
@@ -535,7 +541,7 @@ int32_t spi_norflash_drv_erase(uint32_t addr, uint32_t len)
 
         ret = _spi_send_word(cmd, sizeof(cmd), NULL, 0);
         if (ret) {
-            DRIVERS_TRACE(1, "%s: _spi_send_word failed!.ret = %d", __func__, ret);
+            SPIFLASH_TRACE(1, "%s: _spi_send_word failed!.ret = %d", __func__, ret);
             return SPI_NORFLASH_DRV_RET_SPI_ERROR;
         }
 

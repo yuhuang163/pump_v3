@@ -30,7 +30,6 @@ void nvrecord_rebuild_system_env(struct nvrecord_env_t* pSystemEnv, bool isRebui
         memset((uint8_t *)pSystemEnv, 0, sizeof(struct nvrecord_env_t));
 
         pSystemEnv->ibrt_mode.mode = NVRAM_ENV_TWS_MODE_DEFAULT;
-        pSystemEnv->ibrt_mode.conn_mode = NV_DEFAULT_EVN_TWS_CONN_MODE;
         pSystemEnv->ibrt_mode.tws_connect_success = 0;
     }
 
@@ -119,7 +118,7 @@ void nv_record_update_ibrt_info(uint32_t newMode, bt_bdaddr_t *ibrtPeerAddr)
         return;
     }
 
-    NV_SECTION_TRACE(2,"##%s,%d",__func__,newMode);
+    TRACE(2,"##%s,%d",__func__,newMode);
 
     uint32_t lock = nv_record_pre_write_operation();
 
@@ -137,7 +136,7 @@ void nv_record_update_tws_side(uint8_t side)
         return;
     }
 
-    NV_SECTION_TRACE(2, "##%s,%d", __func__, side);
+    TRACE(2, "##%s,%d", __func__, side);
 
     uint32_t lock = nv_record_pre_write_operation();
 
@@ -158,7 +157,7 @@ void nv_record_update_conn_mode(uint8_t mode)
         return;
     }
 
-    NV_SECTION_TRACE(2, "##%s,%d", __func__, mode);
+    TRACE(2, "##%s,%d", __func__, mode);
 
     uint32_t lock = nv_record_pre_write_operation();
 
@@ -177,12 +176,12 @@ int nv_record_set_tws_name(uint8_t* name, uint8_t length)
 {
     if (NULL == nvrecord_extension_p)
     {
-        NV_SECTION_TRACE(0,"nv_record: nvrecord_extension is null!");
+        TRACE(0,"nv_record: nvrecord_extension is null!");
         return -1;
     }
     if (TWS_NAME_MAX_LENGTH <= length)
     {
-        NV_SECTION_TRACE(2,"nv_record: tws name invalid length, current len:%d,max:%d", length, TWS_NAME_MAX_LENGTH);
+        TRACE(2,"nv_record: tws name invalid length, current len:%d,max:%d", length, TWS_NAME_MAX_LENGTH);
         return -1;
     }
 
@@ -193,7 +192,7 @@ int nv_record_set_tws_name(uint8_t* name, uint8_t length)
         memcpy(nvrecord_extension_p->system_info.ibrt_mode.tws_name, name, length);
         nv_record_update_runtime_userdata();
         nv_record_post_write_operation(lock);
-        NV_SECTION_TRACE(0,"nv_record: set tws name success");
+        TRACE(0,"nv_record: set tws name success");
     }
     return 0;
 }
@@ -201,12 +200,12 @@ int nv_record_set_tws_name(uint8_t* name, uint8_t length)
 int nv_record_get_tws_name(uint8_t* name, uint8_t* length)
 {
     if (NULL == nvrecord_extension_p) {
-        NV_SECTION_TRACE(0, "nv_record: nvrecord_extension is null!");
+        TRACE(0, "nv_record: nvrecord_extension is null!");
         return -1;
     }
     uint8_t len = nvrecord_extension_p->system_info.ibrt_mode.tws_name_len;
     if (len == 0) {
-        NV_SECTION_TRACE(0, "nv_record: tws name is invalid!");
+        TRACE(0, "nv_record: tws name is invalid!");
         return -1;
     }
 
@@ -227,7 +226,7 @@ void nv_record_clean_tws_name(void)
     nvrecord_extension_p->system_info.ibrt_mode.tws_name_len = 0;
     nv_record_update_runtime_userdata();
     nv_record_post_write_operation(lock);
-    NV_SECTION_TRACE(0,"nv_record: clesn tws name success");
+    TRACE(0,"nv_record: clesn tws name success");
 }
 
 bool nv_record_tws_name_is_valid(void)
@@ -236,14 +235,14 @@ bool nv_record_tws_name_is_valid(void)
 
     if (NULL == nvrecord_extension_p)
     {
-        NV_SECTION_TRACE(0,"nv_record: nvrecord_extension is null!");
+        TRACE(0,"nv_record: nvrecord_extension is null!");
         return status;
     }
     if (nvrecord_extension_p->system_info.ibrt_mode.tws_name_len > 0)
     {
         status = true;
     }
-    NV_SECTION_TRACE(1,"nv_record: tws name valid:%d", status);
+    TRACE(1,"nv_record: tws name valid:%d", status);
     return status;
 
 }
@@ -258,7 +257,7 @@ void nv_record_set_tws_enable(void)
     nvrecord_extension_p->system_info.ibrt_mode.tws_enable = true;
     nv_record_update_runtime_userdata();
     nv_record_post_write_operation(lock);
-    NV_SECTION_TRACE(0,"nv_record: set tws enble");
+    TRACE(0,"nv_record: set tws enble");
 }
 
 void nv_record_clean_tws_enable(void)
@@ -271,7 +270,7 @@ void nv_record_clean_tws_enable(void)
     nvrecord_extension_p->system_info.ibrt_mode.tws_enable = false;
     nv_record_update_runtime_userdata();
     nv_record_post_write_operation(lock);
-    NV_SECTION_TRACE(0,"nv_record: clean tws enble");
+    TRACE(0,"nv_record: clean tws enble");
 }
 
 bool nv_record_tws_is_enabled(void)
@@ -280,11 +279,11 @@ bool nv_record_tws_is_enabled(void)
 
     if (NULL == nvrecord_extension_p)
     {
-        NV_SECTION_TRACE(0,"nv_record: nvrecord_extension is null!");
+        TRACE(0,"nv_record: nvrecord_extension is null!");
         return status;
     }
     status  = nvrecord_extension_p->system_info.ibrt_mode.tws_enable;
-    NV_SECTION_TRACE(1,"nv_record: get tws enble:%d", status);
+    TRACE(1,"nv_record: get tws enble:%d", status);
     return status;
 }
 
@@ -310,7 +309,7 @@ void nv_record_update_factory_tx_single_tone_env(uint8_t channel)
         return;
     }
 
-    NV_SECTION_TRACE(1,"factory tx single tone %d \n", channel);
+    TRACE(1,"factory tx single tone %d \n", channel);
 
     uint32_t lock = nv_record_pre_write_operation();
 

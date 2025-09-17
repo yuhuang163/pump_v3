@@ -155,6 +155,8 @@ typedef U16 avrcp_panel_operation_t;
 
 #define BTIF_AVRCP_SUBUNIT_OP_QUEUE_MAX  15
 
+
+
 typedef uint8_t avrcp_error_code_t;
 
 #define BTIF_AVRCP_INVALID_CMD_ERR         0x00
@@ -208,7 +210,6 @@ typedef U8 btif_avctp_errorcode_t;
 
 #define BTIF_AVRCP_ERR_INVALID_CMD         0x00
 #define BTIF_AVRCP_ERR_INVALID_PARM        0x01
-#define BTIF_AVRCP_ERR_PARM_CONTENT_ERR    0x02
 
 typedef void avctp_cmdframe_t;
 typedef void avctp_rspframe_t;
@@ -228,6 +229,35 @@ typedef struct {
         void *rspFrame;
     } p;
 } avctp_callback_parms_t;
+
+typedef enum
+{
+    AVRCP_USER_EVENT_CONNECTION_STATE = 0x00,
+    AVRCP_USER_EVENT_KEY_PRESS_STATE = 0x01,
+    AVRCP_USER_EVENT_KEY_RELEASE_STATE = 0x02,
+    AVRCP_USER_EVENT_COMPANY_ID = 0x03,
+    AVRCP_USER_EVENT_CAPABILITY = 0x04,
+    AVRCP_USER_EVENT_MEDIA_INFO  = 0x05,
+    AVRCP_USER_EVENT_PLAY_STATUS = 0x06,
+    AVRCP_USER_EVENT_NOTIFICATION = 0x07
+}avrcp_user_event_e;
+
+typedef struct
+{
+    unsigned char companyNum;
+    unsigned int companyId[12];
+} btif_avrcp_support_company_para;
+
+typedef struct
+{
+    /* The number of elements returned */
+    uint8_t numIds;
+
+    /* An array of element value text information */
+    avrcp_media_attr_t txt[BTIF_AVRCP_NUM_MEDIA_ATTRIBUTES];
+}btif_avrcp_media_info_element;
+
+typedef void (*btif_avrcp_user_event_callback)(avrcp_user_event_e type, uint8_t* addr, uint32_t para);
 
 typedef uint16_t avrcp_event_mask_t;
 
@@ -309,7 +339,6 @@ typedef uint32_t avrcp_media_attrId_t;
 #define BTIF_AVRCP_MEDIA_ATTR_NUM_TRACKS  0x00000005
 #define BTIF_AVRCP_MEDIA_ATTR_GENRE       0x00000006
 #define BTIF_AVRCP_MEDIA_ATTR_DURATION    0x00000007
-#define BTIF_AVRCP_MEDIA_ATTR_COVER_ART   0x00000008
 
 typedef uint32_t avrcp_media_attrId_mask_t;
 
@@ -320,7 +349,6 @@ typedef uint32_t avrcp_media_attrId_mask_t;
 #define BTIF_AVRCP_ENABLE_MEDIA_ATTR_NUM_TRACKS  0x10
 #define BTIF_AVRCP_ENABLE_MEDIA_ATTR_GENRE       0x20
 #define BTIF_AVRCP_ENABLE_MEDIA_ATTR_DURATION    0x40
-#define BTIF_AVRCP_ENABLE_MEDIA_ATTR_COVER_ART   0x80
 
 typedef uint8_t avrcp_ctype_t;
 
@@ -917,17 +945,9 @@ typedef union {
     } search;
 } avrcp_browse_rsp_parms_t;
 
-typedef struct {
-    uint8_t res_type;
-    uint8_t op;
-    uint8_t trans_id;
-    uint8_t *buf;
-    bool is_browsing;
-} avrcp_gen_adv_rsp_params_t;
-
 typedef struct avrcp_callback_parms_t { /* empty */ } avrcp_callback_parms_t; /* used to hold the pointer to btif_avrcp_callback_parms_t */
 
-typedef void (*btif_avrcp_callback_t)(uint8_t device_id, btif_avrcp_channel_t *btif_avrcp, const avrcp_callback_parms_t *parms);
+typedef void (*btif_avrcp_callback)(uint8_t device_id, btif_avrcp_channel_t *btif_avrcp, const avrcp_callback_parms_t *parms);
 
 static POSSIBLY_UNUSED inline btif_avctp_event_t btif_convert_avrcp_event(btif_avrcp_event_t event)
 {
@@ -937,14 +957,16 @@ static POSSIBLY_UNUSED inline btif_avctp_event_t btif_convert_avrcp_event(btif_a
 #define BTIF_AVRCP_EVENT(stack_avrcp_event)   btif_convert_avrcp_event(stack_avrcp_event)
 #define BTIF_AVRCP_ERROR_CODE(statck_error_code)  statck_error_code
 
+btif_avrcp_channel_t *btif_avrcp_get_channel(int *count);
 btif_avrcp_channel_t *btif_get_avrcp_channel(avrcp_channel_t* handle);
 
-void btif_avrcp_init();
-void btif_avrcp_stack_init(void);
-void btif_avrcp_set_tg_callback(btif_avrcp_callback_t tg_callback);
-void btif_avrcp_set_ct_callback(btif_avrcp_callback_t ct_callback);
+void btif_avrcp_init(void (*cb)(uint8_t device_id, btif_avrcp_channel_t* btif_avrcp, const avrcp_callback_parms_t* parms));
 
-btif_avrcp_channel_t *btif_avrcp_get_channel(uint8_t device_id);
+bt_status_t btif_avrcp_register(btif_avrcp_channel_t *channel, btif_avrcp_callback cb, avrcp_features_t feat);
+
+btif_avrcp_channel_t *btif_alloc_avrcp_ct_channel(void);
+
+btif_avrcp_channel_t *btif_alloc_avrcp_tg_channel(void);
 
 btif_avctp_event_t btif_avrcp_get_callback_event(const avrcp_callback_parms_t * parms);
 
@@ -956,7 +978,7 @@ void btif_avrcp_send_unit_info_cmd(btif_avrcp_channel_t *btif_avrcp);
 
 void btif_avrcp_send_custom_cmd_generic(btif_avrcp_channel_t * chnl, uint8_t * ptrData,
                                         uint32_t len);
-bt_status_t btif_avrcp_tg_accept_custom_cmd(btif_avrcp_channel_t * chnl, uint8_t isAccept, uint8_t trans_id);
+bt_status_t btif_avrcp_ct_accept_custom_cmd(btif_avrcp_channel_t * chnl, uint8_t isAccept, uint8_t trans_id);
 bt_status_t btif_avrcp_connect(bt_bdaddr_t *addr);
 
 bt_status_t btif_avrcp_disconnect(btif_avrcp_channel_t* channel);
@@ -985,7 +1007,6 @@ bt_status_t btif_avrcp_ct_register_volume_change_notification(btif_avrcp_channel
 bt_status_t btif_avrcp_ct_register_media_status_notification(btif_avrcp_channel_t * channel, uint32_t interval);
 bt_status_t btif_avrcp_ct_register_play_pos_notification(btif_avrcp_channel_t * channel, uint32_t interval);
 bt_status_t btif_avrcp_ct_register_track_change_notification(btif_avrcp_channel_t * channel, uint32_t interval);
-bt_status_t btif_avrcp_ct_register_addressed_player_change_notification(btif_avrcp_channel_t * channel, uint32_t interval);
 
 bt_status_t btif_get_avrcp_cb_channel_state(const avrcp_callback_parms_t * parms);
 
@@ -1016,22 +1037,16 @@ void btif_set_avrcp_adv_rem_event_mask(btif_avrcp_channel_t * channel, uint16_t 
 bt_status_t btif_avrcp_ct_get_media_Info(btif_avrcp_channel_t * channel, avrcp_media_attrId_mask_t mediaMask);
 avctp_cmd_frame_t *btif_get_avrcp_cmd_frame(const avrcp_callback_parms_t * parms);
 
-bt_status_t btif_avrcp_tg_send_capability_company_id_rsp(btif_avrcp_channel_t * channel, uint8_t trans_id);
+bt_status_t btif_avrcp_ct_send_capability_company_id_rsp(btif_avrcp_channel_t * channel, uint8_t trans_id);
 
-bt_status_t btif_avrcp_tg_send_capability_rsp(btif_avrcp_channel_t * channel, avrcp_capabilityId_t capid, uint16_t mask, uint8_t trans_id);
+bt_status_t btif_avrcp_ct_send_capability_rsp(btif_avrcp_channel_t * channel, avrcp_capabilityId_t capid, uint16_t mask, uint8_t trans_id);
 
-bt_status_t btif_avrcp_tg_send_error_rsp_for_specific_avc_commands(btif_avrcp_channel_t * channel, uint8_t trans_id,  uint8_t op, uint8_t error);
+bt_status_t btif_avrcp_ct_send_absolute_volume_rsp(btif_avrcp_channel_t * channel, uint8_t volume, uint8_t trans_id, uint8_t error_n);
 
-/**
- * @note This function means that the processing of "Set Abs Vol" was successful.
- *       If you need to respond to an error, use `btif_avrcp_tg_send_error_rsp_for_specific_avc_commands`.
- */
-bt_status_t btif_avrcp_tg_send_absolute_volume_rsp(btif_avrcp_channel_t * channel, uint8_t volume, uint8_t trans_id);
+bt_status_t btif_avrcp_ct_send_volume_change_interim_rsp(btif_avrcp_channel_t * channel, uint8_t volume);
+bt_status_t btif_avrcp_ct_send_volume_change_actual_rsp(btif_avrcp_channel_t * channel, int volume);
 
-bt_status_t btif_avrcp_tg_send_volume_change_interim_rsp(btif_avrcp_channel_t * channel, uint8_t volume);
-bt_status_t btif_avrcp_tg_send_volume_change_actual_rsp(btif_avrcp_channel_t * channel, int volume);
-
-bt_status_t btif_avrcp_tg_send_battery_change_interim_rsp(btif_avrcp_channel_t * channel, uint8_t batt, uint8_t trans_id);
+bt_status_t btif_avrcp_ct_send_battery_change_interim_rsp(btif_avrcp_channel_t * channel, uint8_t batt, uint8_t trans_id);
 
 bt_status_t btif_avrcp_send_play_status_change_interim_rsp(btif_avrcp_channel_t * channel, uint8_t play_status);
 bt_status_t btif_avrcp_send_play_status_change_actual_rsp(btif_avrcp_channel_t * channel, uint8_t play_status);
@@ -1055,14 +1070,19 @@ void btif_avrcp_set_channel_adv_event_mask(btif_avrcp_channel_t* handle, uint16_
 
 bt_status_t btif_avrcp_tg_send_general_rsp(btif_avrcp_channel_t * channel, uint8_t op, uint8_t error_code, uint8_t trans_id, uint8_t ctype);
 
+bt_status_t btif_avrcp_ct_send_invalid_volume_rsp(btif_avrcp_channel_t * channel, uint8_t trans_id);
 uint8_t btif_avrcp_get_avrcp_channel_index(btif_remote_device_t *rem_dev);
 
 struct avrcp_remote_sdp_info btif_avrcp_get_remote_sdp_info(btif_avrcp_channel_t * channel, bool is_target);
 bool btif_avrcp_is_profile_initiator(const bt_bdaddr_t* remote);
 
-btif_avrcp_channel_t *btif_get_avrcp_channel_by_addr(const uint8_t* addr);
+btif_avrcp_channel_t *btif_get_avrcp_channel_by_addr(uint8_t* addr);
 
 uint8_t btif_avcp_get_connect_status(btif_avrcp_channel_t *channel);
+
+void btif_avcp_register_user_event_callback(btif_avrcp_user_event_callback cb);
+
+btif_avrcp_user_event_callback btif_avrcp_get_user_event_callback(void);
 
 #if defined(IBRT)
 uint32_t btif_avrcp_profile_save_ctxs(const bt_bdaddr_t *remote, uint8_t *buf, uint32_t buf_len);
@@ -1074,44 +1094,6 @@ void btif_avrcp_ibrt_slave_restore_sdp_info(uint8_t device_id, uint16_t avctp_ve
     uint16_t avrcp_version, uint16_t support_feature);
 bool btif_avrcp_is_remote_ct_info_got(const bt_bdaddr_t *remote);
 bool btif_avrcp_is_connecting(bt_bdaddr_t *addr);
-
-bt_status_t btif_avrcp_ct_set_addressed_player(const bt_bdaddr_t *remote, uint16_t player_id);
-
-bt_status_t btif_avrcp_ct_set_browsed_player(const bt_bdaddr_t *remote, uint16_t player_id);
-
-bt_status_t btif_avrcp_ct_get_folder_items(const bt_bdaddr_t *remote, bt_avrcp_get_folder_items_t *param);
-
-bt_status_t btif_avrcp_ct_send_change_patch(const bt_bdaddr_t *remote, bt_avrcp_change_patch_t *param);
-
-bt_status_t btif_avrcp_ct_send_get_item_attributes(const bt_bdaddr_t *remote, bt_avrcp_get_item_att_t *param);
-
-bt_status_t btif_avrcp_ct_send_search(const bt_bdaddr_t *remote, const char * string, uint16_t string_len);
-
-bt_status_t btif_avrcp_ct_get_total_number_of_items(const bt_bdaddr_t *remote, uint8_t scope);
-
-void btif_avrcp_connect_browsing_channel(const bt_bdaddr_t *remote);
-
-void btif_avrcp_connect_obex_channel(const bt_bdaddr_t *remote);
-
-bool btif_avrcp_browsing_channel_is_connected(const bt_bdaddr_t *remote);
-
-bool btif_avrcp_obex_channel_is_connected(const bt_bdaddr_t *remote);
-
-void btif_avrcp_record_cover_art_handle(uint8_t device_id, const char *string, uint16_t length);
-
-bt_status_t btif_avrcp_get_image_properties(const bt_bdaddr_t *remote, const char *image_handle);
-
-bt_status_t btif_avrcp_send_obex_get_image_by_art_handle(const bt_bdaddr_t *remote, const char *image_handle, const char *descriptor, uint16_t descriptor_len);
-
-bt_status_t btif_avrcp_send_obex_get_link_thumbnail_by_art_handle(const bt_bdaddr_t *remote, const char *art_handle);
-
-bt_status_t btif_avrcp_send_obex_get_link_thumbnail(const bt_bdaddr_t *remote);
-
-void *btif_avrcp_get_rsp_buf(void *(*malloc_cb)(uint16 size), void (*free_cb)(void *), uint16_t size);
-
-bt_status_t btif_avrcp_tg_send_general_adv_rsp(btif_avrcp_channel_t * channel, avrcp_gen_adv_rsp_params_t *params);
-
-bt_status_t btif_avrcp_set_obex_srm_mode(const bt_bdaddr_t *remote, bool srm_mode_enable);
 
 #endif /* BT_AVRCP_SUPPORT */
 #ifdef __cplusplus

@@ -6,65 +6,46 @@ obj_c := $(patsubst $(cur_dir)%,%,$(wildcard $(cur_dir)*.c))
 obj_cpp := $(patsubst $(cur_dir)%,%,$(wildcard $(cur_dir)*.cpp))
 
 obj-y := $(obj_c:.c=.o) $(obj_s:.S=.o) $(obj_cpp:.cpp=.o)
-ifeq ($(DIRAC_AUDIO_ENABLE),1)
-obj-y += libdirac/
-endif
+
 ccflags-y := \
 	-Imultimedia/inc/audio/process/filters/include \
 	-Imultimedia/inc/audio/process/common/include \
 	-Imultimedia/inc/audio/process/drc/include \
+	-Imultimedia/inc/audio/process/adj_mc/inc \
 	-Imultimedia/inc/audio/process/limiter/include \
 	-Imultimedia/inc/audio/process/reverb/include \
-	-Imultimedia/inc/audio/process/dynamic_eq/include \
 	-Imultimedia/inc/audio/process/bass_enhancer/include \
-	-Imultimedia/inc/audio/process/virtual_surround_process/include \
-	-Imultimedia/inc \
 	-Imultimedia/inc/speech/inc \
 	-Iplatform/drivers/bt \
 	-Iservices/bt_app/a2dp_codecs/include \
 	-Iutils/cqueue \
-	-Iutils/crc \
-	-Iutils/heap \
 	-Iapps/anc/inc \
 	-Iapps/key \
-	-Iapps/earbuds/conn \
-	-Iapps/audioplayers \
 	-Iservices/bt_app \
-	-Iapps/anc_assist/inc \
-	-Iapps/voice_assist/inc \
-	-Imultimedia/inc/audio/process/adj_mc/inc \
+	-Iservices/ux/common/ibrt/ibrt_middleware/inc \
 	$(BLUETOOTH_ADAPTER_INCLUDES) \
-	$(BT_SERVICE_UX_INCLUDES) \
 	-Iservices/nv_section/aud_section \
 	-Iservices/nv_section/include \
 	-Iservices/hw_dsp/inc \
 	-Iservices/audio_dump/include \
 	-Iservices/audioflinger \
-	-Iservices/audio_manager \
-	-Iinclude/cmsis_dsp \
-	-Iservices/norflash_api \
+	-Iservices/mcpp \
+	-Iutils/kfifo \
 	-Iutils/heap \
-	-Iapps/common/ \
-	-Iapps/audioplayers/a2dp_decoder/ \
-	-Iservices/audio_bt/ \
-	-Ibthost/service/ble_app_new/inc \
-	-Imultimedia/inc/audio/process/psap/include \
-	-Imultimedia/inc/audio/process/dynamic_boost/include
+	-Iinclude/cmsis_dsp
 
-ifeq ($(DIRAC_AUDIO_ENABLE),1)
-ccflags-y += \
-	-Iservices/ibrt_core/inc \
-	-Iservices/bt_if_enhanced/inc \
-	$(BES_MULTIMEDIA_INCLUDES) \
-	-Iutils/cqueue \
-	-Iplatform/drivers/bt \
-	-Iservices/audio_process/libdirac/inc
+ifeq ($(IBRT),1)
+ifeq ($(IBRT_UI),1)
+subdir-ccflags-y += \
+    -Iservices/ux/common/ibrt/app_ibrt/inc \
+    -Iservices/ux/common/ibrt/ibrt_core/inc \
+    -Iservices/ux/common/ibrt/ibrt_ui/inc
+endif
 endif
 
-ifneq ($(AUDIO_DSP_ACCEL),)
+ifeq ($(BLE_AUDIO_ENABLED),1)
 subdir-ccflags-y += \
-	-Iservices/mcpp \
-	-Iutils/kfifo
+    -Iservices/audio_manager
 endif
 
 ifeq ($(HW_FIR_EQ_PROCESS),1)
@@ -95,10 +76,6 @@ ifeq ($(AUDIO_BASS_ENHANCER),1)
 ccflags-y += -D__AUDIO_BASS_ENHANCER__
 endif
 
-ifeq ($(AUDIO_EQ_DYNAMICS_MEM),1)
-ccflags-y += -D__AUDIO_EQ_DYNAMICS_MEM__
-endif
-
 ifeq ($(AUDIO_RESAMPLE),1)
 ccflags-y += -D__AUDIO_RESAMPLE__
 endif
@@ -109,10 +86,6 @@ endif
 
 ifeq ($(AUDIO_ADJ_EQ),1)
 ccflags-y += -D__AUDIO_ADJ_EQ__
-endif
-
-ifeq ($(AUDIO_ADJ_EQ_REV),1)
-ccflags-y += -D__AUDIO_ADJ_EQ_REV__
 endif
 
 ifeq ($(HW_DAC_IIR_EQ_PROCESS),1)
@@ -130,37 +103,37 @@ ifeq ($(FIR_HIGHSPEED),1)
 ccflags-y += -DFIR_HIGHSPEED
 endif
 
-ifeq ($(PC_CMD_UART),1)
-CFLAGS_audio_process.o += -D__PC_CMD_UART__
+ifneq ($(PC_CMD_UART_ID),)
+CFLAGS_audio_process.o += -DPC_CMD_UART_ID=$(PC_CMD_UART_ID)
 CFLAGS_audio_process.o += -DAUDIO_EQ_TUNING
 endif
 
 ifeq ($(TOTA_EQ_TUNING), 1)
-ccflags-y += -DTOTA_EQ_TUNING
+CFLAGS_audio_process.o += -DTOTA_EQ_TUNING
 CFLAGS_audio_process.o += -DAUDIO_EQ_TUNING
 endif
 
 ifeq ($(USB_EQ_TUNING), 1)
 ccflags-y += -DUSB_EQ_TUNING
-CFLAGS_audio_process.o += -DAUDIO_EQ_TUNING
+ccflags-y += -DAUDIO_EQ_TUNING
 endif
 
 ifeq ($(USB_AUDIO_APP), 1)
-CFLAGS_audio_process.o += -DUSB_AUDIO_APP
+ccflags-y += -DUSB_AUDIO_APP
 endif
 
 ifeq ($(AUDIO_ADAPTIVE_IIR_EQ),1)
-CFLAGS_audio_process.o += -DAUDIO_ADAPTIVE_IIR_EQ
-CFLAGS_audio_process.o += -DAUDIO_ADAPTIVE_EQ
+ccflags-y += -DAUDIO_ADAPTIVE_IIR_EQ
+ccflags-y += -DAUDIO_ADAPTIVE_EQ
 endif
 
 ifeq ($(AUDIO_ADAPTIVE_FIR_EQ),1)
-CFLAGS_audio_process.o += -DAUDIO_ADAPTIVE_FIR_EQ
-CFLAGS_audio_process.o += -DAUDIO_ADAPTIVE_EQ
+ccflags-y += -DAUDIO_ADAPTIVE_FIR_EQ
+ccflags-y += -DAUDIO_ADAPTIVE_EQ
 endif
 
-ifeq ($(AUDIO_VOL_CTRL_EQ),1)
-CFLAGS_audio_process.o += -DAUDIO_VOL_CTRL_EQ
+ifeq ($(AUDIO_EQ_MC),1)
+ccflags-y += -DAUDIO_EQ_MC
 endif
 
 ifeq ($(SPEECH_LIB),1)
@@ -178,30 +151,5 @@ CFLAGS_audio_process.o += -DAUDIO_OUTPUT_SW_GAIN_BEFORE_DRC
 endif
 
 ifeq ($(AUDIO_CUSTOM_EQ),1)
-CFLAGS_audio_process.o += -DAUDIO_CUSTOM_EQ
+ccflags-y += -DAUDIO_CUSTOM_EQ
 endif
-
-ifeq ($(AUDIO_DYNAMIC_BOOST),1)
-CFLAGS_audio_process.o += -D__AUDIO_DYNAMIC_BOOST__
-endif
-
-ifeq ($(SPA_AUDIO_ENABLE),1)
-ccflags-y += -Ithirdparty/userapi/spa_dummy_app/inc
-ifeq ($(SPA_AUDIO_SEC),1)
-ccflags-y += -Ithirdparty/userapi/spa_dummy_app/sec
-endif
-endif
-
-ifeq ($(AUDIO_DYNAMIC_EQ),1)
-CFLAGS_audio_process.o += -D__AUDIO_DYNAMIC_EQ__
-endif
-
-
-ifeq ($(DOLBY_AUDIO_ENABLE),1)
-ccflags-y += \
-        -Ithirdparty/userapi/spa_dummy_app/inc \
-        -Ithirdparty/userapi/spa_dummy_app/sec \
-	    -Ithirdparty/thirdparty_lib \
-        -Ithirdparty/thirdparty_lib/inc
-endif
-

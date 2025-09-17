@@ -87,7 +87,7 @@ void crash_dump_init_buffer(void)
     crash_data_buffer.offset = 0;
     syspool_init_specific_size(CRASH_DUMP_SECTOR_SIZE*4);
     syspool_get_buff(&(crash_data_buffer.buffer), CRASH_DUMP_SECTOR_SIZE*4);
-    NV_SECTION_TRACE(1,"buffer addr %p",crash_data_buffer.buffer);
+    CRASH_DUMP_TRACE(1,"buffer addr %p",crash_data_buffer.buffer);
 }
 
 void crash_dump_clear_buffer(void)
@@ -111,7 +111,7 @@ int32_t crash_dump_write(uint32_t addr,uint8_t* ptr,uint32_t len)
 
     if(CRASH_LOG_ALIGN(addr,CRASH_DUMP_SECTOR_SIZE) != addr)
     {
-        NV_SECTION_TRACE(2,"__CRASH_DUMP:%s: addr not aligned! addr = 0x%x.",__func__,addr);
+        CRASH_DUMP_TRACE(2,"__CRASH_DUMP:%s: addr not aligned! addr = 0x%x.",__func__,addr);
         return (int32_t)NORFLASH_API_BAD_ADDR;
     }
     ret = norflash_api_erase(NORFLASH_API_MODULE_ID_CRASH_DUMP,
@@ -120,7 +120,7 @@ int32_t crash_dump_write(uint32_t addr,uint8_t* ptr,uint32_t len)
                         false);
     if(ret != NORFLASH_API_OK)
     {
-        NV_SECTION_TRACE(3,"__CRASH_DUMP:%s: norflash_api_erase failed! addr = 0x%x,ret = %d.",
+        CRASH_DUMP_TRACE(3,"__CRASH_DUMP:%s: norflash_api_erase failed! addr = 0x%x,ret = %d.",
                         __func__,addr,ret);
         return (int32_t)ret;
     }
@@ -132,7 +132,7 @@ int32_t crash_dump_write(uint32_t addr,uint8_t* ptr,uint32_t len)
                 false);
     if(ret != NORFLASH_API_OK)
     {
-        NV_SECTION_TRACE(4,"__CRASH_DUMP:%s: norflash_api_write,addr = 0x%x,len = 0x%x,ret = %d.",
+        CRASH_DUMP_TRACE(4,"__CRASH_DUMP:%s: norflash_api_write,addr = 0x%x,len = 0x%x,ret = %d.",
                         __func__,addr,len,ret);
         return (int32_t)ret;
     }
@@ -213,7 +213,7 @@ void crash_dump_clac_trace_total_len(void)
         total_len += (data_buffer_list[i].offset - sizeof(LOG_DUMP_HEADER));
     }
 
-    NV_SECTION_TRACE(1,"ZYH clac_trace_log %d",total_len);
+    CRASH_DUMP_TRACE(1,"ZYH clac_trace_log %d",total_len);
 }
 
 void crash_dump_write_trace_to_flash(void)
@@ -262,7 +262,7 @@ void crash_dump_get_info(void)
 
     crash_dump_init_buffer();
 
-    NV_SECTION_TRACE(4,"ZYH get info");
+    CRASH_DUMP_TRACE(4,"ZYH get info");
 
     ret = norflash_sync_read(NORFLASH_API_MODULE_ID_CRASH_DUMP,
                              crash_dump_flash_info_start_addr,
@@ -271,7 +271,7 @@ void crash_dump_get_info(void)
 
     if(ret != NORFLASH_API_OK)
     {
-        NV_SECTION_TRACE(4,"__CRASH_DUMP:%s: norflash_sync_read,addr = 0x%x,len = 0x%x,ret = %d.",
+        CRASH_DUMP_TRACE(4,"__CRASH_DUMP:%s: norflash_sync_read,addr = 0x%x,len = 0x%x,ret = %d.",
                         __func__,crash_dump_flash_info_start_addr,(crash_dump_flash_end_addr - crash_dump_flash_start_addr),ret);
         return ;
     }
@@ -280,7 +280,7 @@ void crash_dump_get_info(void)
     if(!((CRASH_DUMP_MAGIC_CODE == *((uint32_t*)(crash_data_buffer.buffer)))&&
         (CRASH_DUMP_VERSION == *((uint32_t*)(crash_data_buffer.buffer+4)))))
     {
-        NV_SECTION_TRACE(0,"read fail , get info");
+        CRASH_DUMP_TRACE(0,"read fail , get info");
         return;
     }
 
@@ -294,7 +294,7 @@ void crash_dump_get_info(void)
     for(i = 0;i<local_crash_info.blk_num;i++)
     {
         cur_id = local_crash_info.crash_info_blk[i].crash_id;
-        NV_SECTION_TRACE(1,"read has been done, id %d",cur_id);/*error*/
+        CRASH_DUMP_TRACE(1,"read has been done, id %d",cur_id);/*error*/
         if(cur_id == 1)
         {
             tmp_addr = crash_dump_flash_blk0_start_addr;
@@ -308,7 +308,7 @@ void crash_dump_get_info(void)
                                   tmp_addr,
                                   crash_data_buffer.buffer,
                                   CRASH_DUMP_SECTOR_SIZE);
-        NV_SECTION_TRACE(2,"read has been done, read error %x %x",*((uint32_t*)(crash_data_buffer.buffer)),*((uint32_t*)(crash_data_buffer.buffer+4)));/*error*/
+        CRASH_DUMP_TRACE(2,"read has been done, read error %x %x",*((uint32_t*)(crash_data_buffer.buffer)),*((uint32_t*)(crash_data_buffer.buffer+4)));/*error*/
         if(!((DUMP_LOG_MAGIC == *((uint32_t*)(crash_data_buffer.buffer)))&&
             (DUMP_LOG_VERSION == *((uint32_t*)(crash_data_buffer.buffer+4)))))
         {
@@ -334,10 +334,10 @@ void crash_dump_record_peer_crash_info(uint8_t**peer_info,uint8_t length)
 {
     if(length != sizeof(CRASH_INFO_T))
     {
-        NV_SECTION_TRACE(1,"%s:length is invaild",__func__);
+        CRASH_DUMP_TRACE(1,"%s:length is invaild",__func__);
         return;
     }
-    NV_SECTION_TRACE(2,"ZYH: %p %d %d",*peer_info,length,sizeof(CRASH_INFO_T));
+    CRASH_DUMP_TRACE(2,"ZYH: %p %d %d",*peer_info,length,sizeof(CRASH_INFO_T));
     memset((uint8_t*)(&peer_crash_info),0x00,sizeof(CRASH_INFO_T));
     memcpy((uint8_t*)(&peer_crash_info),(uint8_t*)(*peer_info),sizeof(CRASH_INFO_T));
 }
@@ -434,12 +434,12 @@ uint32_t crash_dump_check_param_is_vaild(uint8_t crash_id,uint8_t role)
 
     for(i = 0; i < info->blk_num ; i++)
     {
-        NV_SECTION_TRACE(2,"[ZYH] id %d %d",info->crash_info_blk[i].crash_id,crash_id);
+        TRACE(2,"[ZYH] id %d %d",info->crash_info_blk[i].crash_id,crash_id);
         if(crash_id == info->crash_info_blk[i].crash_id)
         {
-            NV_SECTION_TRACE(2,"[ZYH] id %d %d ",info->crash_info_blk[i].crash_id,crash_id);
+            TRACE(2,"[ZYH] id %d %d ",info->crash_info_blk[i].crash_id,crash_id);
             length = info->crash_info_blk[i].trace_len + info->crash_info_blk[i].crash_len;
-            NV_SECTION_TRACE(2,"[ZYH] length %d %d",info->crash_info_blk[i].trace_len,info->crash_info_blk[i].crash_len);
+            TRACE(2,"[ZYH] length %d %d",info->crash_info_blk[i].trace_len,info->crash_info_blk[i].crash_len);
             break;
         }
     }
@@ -482,7 +482,7 @@ int32_t crash_dump_get_assert_content(uint8_t** ptr,uint32_t* bytenum, uint8_t i
 
     crash_dump_init_buffer();
 
-    NV_SECTION_TRACE(2,"%s : type %d id %d offset %d",__func__,type, id,assert_info_offset);
+    CRASH_DUMP_TRACE(2,"%s : type %d id %d offset %d",__func__,type, id,assert_info_offset);
 
     if(!type)
     {
@@ -509,14 +509,14 @@ int32_t crash_dump_get_assert_content(uint8_t** ptr,uint32_t* bytenum, uint8_t i
 
     if(ret != NORFLASH_API_OK)
     {
-        NV_SECTION_TRACE(4,"__CRASH_DUMP:%s: norflash_sync_read,addr = 0x%x,len = 0x%x,ret = %d.",
+        CRASH_DUMP_TRACE(4,"__CRASH_DUMP:%s: norflash_sync_read,addr = 0x%x,len = 0x%x,ret = %d.",
                         __func__,crash_dump_flash_start_addr,(crash_dump_flash_end_addr - crash_dump_flash_start_addr),ret);
         return ret;
     }
 
     *ptr = crash_data_buffer.buffer;
     *bytenum = length;
-    NV_SECTION_TRACE(3, "[ZYH]%s %p %d",__func__,*ptr,*bytenum);
+    CRASH_DUMP_TRACE(3, "[ZYH]%s %p %d",__func__,*ptr,*bytenum);
 
     return 0;
 }
@@ -532,7 +532,7 @@ uint8_t crash_dump_erase_crash_info(void)
 
     if(ret != NORFLASH_API_OK)
     {
-        NV_SECTION_TRACE(3,"__CRASH_DUMP:%s: norflash_api_erase failed! addr = 0x%x,ret = %d.",
+        CRASH_DUMP_TRACE(3,"__CRASH_DUMP:%s: norflash_api_erase failed! addr = 0x%x,ret = %d.",
                         __func__,(crash_dump_flash_start_addr),ret);
         return (int32_t)ret;
     }
@@ -713,12 +713,12 @@ void crash_dump_record_output(const unsigned char *buf, unsigned int buf_len)
 {
     if(is_suspend_log_record)
     {
-        //NV_SECTION_TRACE(0,"crash_dump_record_output");
+        //CRASH_DUMP_TRACE(0,"crash_dump_record_output");
         _crash_dump_output(buf,buf_len);
     }
     else
     {
-        //NV_SECTION_TRACE(0,"crash_dump_record_output trace");
+        //CRASH_DUMP_TRACE(0,"crash_dump_record_output trace");
         crash_dump_trace_output_handler(buf,buf_len);
     }
 }
@@ -728,7 +728,7 @@ void crash_dump_record_notify_handler(enum HAL_TRACE_STATE_T state)
     uint32_t lock;
     CRASH_DATA_BUFFER *data_buff;
 
-    NV_SECTION_TRACE(2,"ZYH %s: %d", __func__,state);
+    CRASH_DUMP_TRACE(2,"ZYH %s: %d", __func__,state);
 
     if ((state == HAL_TRACE_STATE_CRASH_ASSERT_START)||\
         (state == HAL_TRACE_STATE_CRASH_FAULT_START))
@@ -760,7 +760,7 @@ void crash_dump_record_notify_handler(enum HAL_TRACE_STATE_T state)
                                  data_buff->buffer,data_buff->offset);
 
         int_unlock_global(lock);
-        NV_SECTION_TRACE(2,"__CRASH_DUMP END:%s: len = %d.",__func__,data_buff->offset);
+        CRASH_DUMP_TRACE(2,"__CRASH_DUMP END:%s: len = %d.",__func__,data_buff->offset);
     }
 }
 
@@ -778,7 +778,7 @@ void crash_dump_init(void)
     flash_id = norflash_api_get_dev_id_by_addr(crash_dump_flash_start_addr);
     hal_norflash_get_size(flash_id, NULL, &block_size, &sector_size, &page_size);
     buffer_len = CRASH_DUMP_NORFALSH_BUFFER_LEN;
-    NV_SECTION_TRACE(4,"__CRASH_DUMP:%s: crash_dump_start = 0x%x, crash_dump_end = 0x%x, buff_len = 0x%x sector size %d.",
+    CRASH_DUMP_TRACE(4,"__CRASH_DUMP:%s: crash_dump_start = 0x%x, crash_dump_end = 0x%x, buff_len = 0x%x sector size %d.",
                     __func__,
                     crash_dump_flash_start_addr,
                     crash_dump_flash_end_addr,
@@ -798,7 +798,7 @@ void crash_dump_init(void)
 
     if(result != NORFLASH_API_OK)
     {
-        NV_SECTION_TRACE(1,"__CRASH_DUMP:%s: norflash_api_register ok.", __func__);
+        CRASH_DUMP_TRACE(1,"__CRASH_DUMP:%s: norflash_api_register ok.", __func__);
     }
 
     hal_trace_app_register(HAL_TRACE_APP_REG_ID_0, crash_dump_record_notify_handler,crash_dump_record_output);

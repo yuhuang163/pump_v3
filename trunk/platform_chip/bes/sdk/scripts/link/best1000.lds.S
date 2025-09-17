@@ -16,20 +16,16 @@
 
 #include "plat_addr_map.h"
 
-#ifdef RB_CODEC
+#ifndef HEAP_SECTION_SIZE
+#if (RAM_SIZE <= 0x00020000)
 #define HEAP_SECTION_SIZE			0x1000
 #else
-#ifdef VOICE_ASSIST_ADA_IIR
-	#ifndef RESOLUTION_2048
-#define HEAP_SECTION_SIZE			0x10000
-	#else
-#define HEAP_SECTION_SIZE			0x20000
-	#endif
-#elif defined FINDMY_ENABLED
 #define HEAP_SECTION_SIZE			0x2000
-#else
-#define HEAP_SECTION_SIZE			0x1000
 #endif
+#endif
+
+#ifndef STACK_SECTION_SIZE
+#define STACK_SECTION_SIZE			0x1100
 #endif
 
 #if defined(__NuttX__)
@@ -37,10 +33,13 @@
 #define NUTTX_HEAP_SECTION_SIZE		0x30000
 #undef STACK_SECTION_SIZE
 #define STACK_SECTION_SIZE			CONFIG_IDLETHREAD_STACKSIZE
-#else
-#define STACK_SECTION_SIZE			0x2100
+#undef HEAP_SECTION_SIZE
+#define HEAP_SECTION_SIZE			0x32
 #endif
+
+#ifndef CP_STACK_SECTION_SIZE
 #define CP_STACK_SECTION_SIZE		0x1000
+#endif
 
 #if defined(ROM_UTILS_ON)
 #if defined(CHIP_BEST1400) || defined(CHIP_BEST1402)
@@ -54,19 +53,23 @@
 #define OVERLAY_DATA_SECTION_SIZE	0x10000
 #elif defined(RB_CODEC)
 #define OVERLAY_DATA_SECTION_SIZE	0xA000
-#elif ((BLE_AUDIO_ENABLED) || (KEEP_BLE_AUDIO_IN_NV_RECORD))
+#elif (BLE_AUDIO_ENABLED)
 #define OVERLAY_DATA_SECTION_SIZE	0x10000
 #else
-#define OVERLAY_DATA_SECTION_SIZE	0x8000
+#define OVERLAY_DATA_SECTION_SIZE	0x10000
 #endif
 
-#if !defined(FAST_XRAM_SECTION_SIZE)
+#if !defined(FAST_XRAM_SECTION_SIZE) && !(defined(SEPARATE_RAM_RAMX) || defined(MAIN_RAM_USE_TCM))
 #if (RAM_SIZE >= 0x48000)
 #define RTOS_IN_RAM
 #if defined(BTUSB_AUDIO_MODE)
 #define FAST_XRAM_SECTION_SIZE		0x20000
-#elif ((BLE_AUDIO_ENABLED) || (KEEP_BLE_AUDIO_IN_NV_RECORD))
+#elif (BLE_AUDIO_ENABLED)
+#if defined(IS_USE_NEW_LC3_CODEC)
+#define FAST_XRAM_SECTION_SIZE		0x21800
+#else
 #define FAST_XRAM_SECTION_SIZE		0x30000
+#endif
 #elif (defined(CHIP_BEST1402) && defined(SPEECH_TX_2MIC_NS2))
 #define FAST_XRAM_SECTION_SIZE		0xF800
 #elif defined(DUAL_MIC_RECORDING)
@@ -74,7 +77,7 @@
 #elif defined(CMSIS_TEST)
 #define FAST_XRAM_SECTION_SIZE		0x20000
 #else
-#define FAST_XRAM_SECTION_SIZE		0x19000
+#define FAST_XRAM_SECTION_SIZE		0x16000
 #endif
 #elif (RAM_SIZE >= 0x40000)
 #if defined(CHIP_BEST1402) || defined(CHIP_BEST1400)
@@ -85,15 +88,15 @@
 #else
 #define FAST_XRAM_SECTION_SIZE		0x6000
 #endif
-#endif
 #if (FAST_XRAM_SECTION_SIZE & (32 - 1))
 #error "FAST_XRAM_SECTION_SIZE should align with 32 bytes"
 #endif
+#endif
 
-#ifdef RAM_NC_BASE
-#define REGION_VECTOR				RAM_NC
+#ifdef OTA_BOOT_TO_DUAL_CHIP
+#define OTA_SIZE_FACTOR				2
 #else
-#define REGION_VECTOR				RAM
+#define OTA_SIZE_FACTOR				1
 #endif
 
 #if !defined(OTA_BOOT_SIZE) && defined(OTA_CODE_OFFSET)
@@ -141,6 +144,12 @@
 #define PSRAM_REGION_SIZE			(PSRAM_SIZE)
 #endif
 
+#ifdef RAM_NC_BASE
+#define REGION_VECTOR				RAM_NC
+#else
+#define REGION_VECTOR				RAM
+#endif
+
 #if defined(CP_IN_SAME_EE) && (RAMCP_SIZE > 0)
 #define OVERLAY_FOR_CP
 #endif
@@ -156,6 +165,15 @@
 #if (FLASH_BASE == FLASHX_BASE)
 #define FLASHX						FLASH
 #endif
+#if (FLASH_BASE == FLASH_NC_BASE)
+#define FLASH_NC					FLASH
+#endif
+#ifdef USE_MULTI_FLASH
+#if (FLASH1_BASE == FLASH1_NC_BASE)
+#define FLASH1_NC					FLASH1
+#endif
+#endif
+
 #if defined(PSRAM_BASE) && (PSRAM_BASE == PSRAMX_BASE)
 #define PSRAMX						PSRAM
 #endif
@@ -163,7 +181,7 @@
 #define PSRAMUHSX					PSRAMUHS
 #endif
 
-#ifdef MAIN_RAM_USE_TCM
+#if defined(SEPARATE_RAM_RAMX) || defined(MAIN_RAM_USE_TCM)
 #define FRAMX						RAMX
 #endif
 
@@ -172,30 +190,28 @@
 MEMORY
 {
 	ROM			(rx)	: ORIGIN = ROM_BASE,				LENGTH = ROM_SIZE
-	FLASH 		(r)		: ORIGIN = FLASH_REGION_BASE,		LENGTH = FLASH_REGION_SIZE
-	FLASH_NC	(r)		: ORIGIN = FLASH_NC_REGION_BASE,	LENGTH = FLASH_REGION_SIZE
-#ifdef USE_MULTI_FLASH
-	FLASH1 		(r)		: ORIGIN = FLASH1_REGION_BASE,		LENGTH = FLASH1_REGION_SIZE
-	FLASH1_NC	(r)		: ORIGIN = FLASH1_NC_REGION_BASE,	LENGTH = FLASH1_REGION_SIZE
-#endif
-#ifndef FLASHX
+#if (FLASH_BASE == FLASHX_BASE)
+	FLASH		(rx)	: ORIGIN = FLASH_REGION_BASE,		LENGTH = FLASH_REGION_SIZE
+#else
+	FLASH		(r)		: ORIGIN = FLASH_REGION_BASE,		LENGTH = FLASH_REGION_SIZE
 	FLASHX		(rx)	: ORIGIN = FLASHX_REGION_BASE,		LENGTH = FLASH_REGION_SIZE
 #endif
-#ifdef MAIN_RAM_USE_TCM
-	RAM			(rwx)	: ORIGIN = RAM_BASE,				LENGTH = RAM_SIZE
-	RAMX		(rx)	: ORIGIN = RAMX_BASE,				LENGTH = RAMX_SIZE
-#else
-#if (CUSTOMER_LOAD_RAM_DATA_SECTION_SIZE > 0)
-	RAM			(rwx)	: ORIGIN = RAM_BASE,				LENGTH = RAM_SIZE - FAST_XRAM_SECTION_SIZE - CUSTOMER_LOAD_SRAM_TEXT_RAMX_SECTION_SIZE - CUSTOMER_LOAD_RAM_DATA_SECTION_SIZE
-	RAMX		(rx)	: ORIGIN = RAMX_BASE,				LENGTH = RAM_SIZE - FAST_XRAM_SECTION_SIZE - CUSTOMER_LOAD_SRAM_TEXT_RAMX_SECTION_SIZE - CUSTOMER_LOAD_RAM_DATA_SECTION_SIZE
-	FRAMX		(rwx)	: ORIGIN = RAMX_BASE + RAM_SIZE - FAST_XRAM_SECTION_SIZE,	LENGTH = FAST_XRAM_SECTION_SIZE
-	CUSTOMER_LOAD_RAM_DATA_SECTION		(rwx)	: ORIGIN = RAM_BASE + RAM_SIZE - FAST_XRAM_SECTION_SIZE - CUSTOMER_LOAD_SRAM_TEXT_RAMX_SECTION_SIZE - CUSTOMER_LOAD_RAM_DATA_SECTION_SIZE,	LENGTH = CUSTOMER_LOAD_RAM_DATA_SECTION_SIZE
-	CUSTOMER_LOAD_SRAM_TEXT_SECTION		(rwx)	: ORIGIN = RAMX_BASE + RAM_SIZE - FAST_XRAM_SECTION_SIZE - CUSTOMER_LOAD_SRAM_TEXT_RAMX_SECTION_SIZE,	LENGTH = CUSTOMER_LOAD_SRAM_TEXT_RAMX_SECTION_SIZE
-#else
-	RAM			(rwx)	: ORIGIN = RAM_BASE,				LENGTH = RAM_SIZE - FAST_XRAM_SECTION_SIZE
-	RAMX		(rx)	: ORIGIN = RAMX_BASE,				LENGTH = RAM_SIZE - FAST_XRAM_SECTION_SIZE
-	FRAMX		(rwx)	: ORIGIN = RAMX_BASE + RAM_SIZE - FAST_XRAM_SECTION_SIZE,	LENGTH = FAST_XRAM_SECTION_SIZE
+#if (FLASH_BASE != FLASH_NC_BASE)
+	FLASH_NC	(r)		: ORIGIN = FLASH_NC_REGION_BASE,	LENGTH = FLASH_REGION_SIZE
 #endif
+#ifdef USE_MULTI_FLASH
+	FLASH1		(r)		: ORIGIN = FLASH1_REGION_BASE,		LENGTH = FLASH1_REGION_SIZE
+#if (FLASH1_BASE != FLASH1_NC_BASE)
+	FLASH1_NC	(r)		: ORIGIN = FLASH1_NC_REGION_BASE,	LENGTH = FLASH1_REGION_SIZE
+#endif
+#endif
+#if defined(SEPARATE_RAM_RAMX) || defined(MAIN_RAM_USE_TCM)
+	RAM			(rwx)	: ORIGIN = RAM_REGION_BASE,			LENGTH = RAM_REGION_SIZE
+	RAMX		(rx)	: ORIGIN = RAMX_REGION_BASE,		LENGTH = RAMX_REGION_SIZE
+#else
+	RAM			(rwx)	: ORIGIN = RAM_REGION_BASE,			LENGTH = RAM_REGION_SIZE - FAST_XRAM_SECTION_SIZE
+	RAMX		(rx)	: ORIGIN = RAMX_REGION_BASE,		LENGTH = RAM_REGION_SIZE - FAST_XRAM_SECTION_SIZE
+	FRAMX		(rwx)	: ORIGIN = RAMX_REGION_BASE + RAM_REGION_SIZE - FAST_XRAM_SECTION_SIZE,	LENGTH = FAST_XRAM_SECTION_SIZE
 #endif
 #ifdef RAM_NC_BASE
 	RAM_NC		(rw)	: ORIGIN = RAM_NC_BASE,				LENGTH = RAM_NC_SIZE
@@ -204,7 +220,7 @@ MEMORY
 	RAMX_NSC	(rx)	: ORIGIN = RAMX_BASE + RAM_S_SIZE,	LENGTH = RAM_NSC_SIZE
 #endif
 #if (defined(PSRAM_ENABLE) || defined(PSRAM_HEAP_ONLY)) && defined(PSRAM_BASE) && (PSRAM_SIZE > 0)
-	PSRAM 		(rwx)	: ORIGIN = PSRAM_BASE,				LENGTH = PSRAM_REGION_SIZE
+	PSRAM		(rwx)	: ORIGIN = PSRAM_BASE,				LENGTH = PSRAM_REGION_SIZE
 	PSRAM_NC	(rwx)	: ORIGIN = PSRAM_NC_BASE,			LENGTH = PSRAM_REGION_SIZE
 #ifndef PSRAMX
 	PSRAMX		(rwx)   : ORIGIN = PSRAMX_BASE,				LENGTH = PSRAM_REGION_SIZE
@@ -218,15 +234,14 @@ MEMORY
 #endif
 #endif
 #if defined(CP_IN_SAME_EE) && (RAMCP_SIZE > 0)
-	RAMCP 		(rwx)	: ORIGIN = RAMCP_BASE,				LENGTH = RAMCP_SIZE
-	RAMCPX 		(rwx)	: ORIGIN = RAMCPX_BASE,				LENGTH = RAMCPX_SIZE
+	RAMCP		(rwx)	: ORIGIN = RAMCP_BASE,				LENGTH = RAMCP_SIZE
+	RAMCPX		(rwx)	: ORIGIN = RAMCPX_BASE,				LENGTH = RAMCPX_SIZE
 #endif
 #ifdef MEM_POOL_BASE
-	MEM_POOL	(rwx)	: ORIGIN = MEM_POOL_BASE,			LENGTH = MEM_POOL_SIZE
+	MEM_POOL	(rw)	: ORIGIN = MEM_POOL_BASE,			LENGTH = MEM_POOL_SIZE
 #endif
-#if defined(ARM_CMSE) && defined(CMSE_RAM_RAMX_LEND_NSE)
-	ARM_CMSE_RAM_DATA_LEND 		(rwx)	: ORIGIN = RAM2_BASE,				LENGTH = RAM2_BASE - RAM1_BASE
-	ARM_CMSE_RAMX_TEXT_LEND 		(rwx)	: ORIGIN = RAMX3_BASE,				LENGTH = RAM3_BASE - RAM2_BASE
+#ifdef AON_MAILBOX_BASE
+	AON_MAILBOX	(rw)	: ORIGIN = AON_MAILBOX_BASE,		LENGTH = AON_MAILBOX_SIZE
 #endif
 }
 
@@ -276,17 +291,22 @@ GROUP(libgcc.a libc.a libm.a libnosys.a)
  *   __flash1_start
  *   __flash1_end
  *   __free_flash1
- *   __boot_sram_start_flash__
- *   __boot_sram_end_flash__
- *   __boot_sram_start__
+ *   __boot_text_sram_start_flash__
+ *   __boot_text_sram_end_flash__
+ *   __boot_text_sram_start__
+ *   __boot_text_sram_end__
+ *   __boot_data_sram_start_flash__
+ *   __boot_data_sram_end_flash__
+ *   __boot_data_sram_start__
+ *   __boot_data_sram_end__
  *   __boot_bss_sram_start__
  *   __boot_bss_sram_end__
- *   __sram_text_data_start_flash__
- *   __sram_text_data_end_flash__
+ *   __sram_text_start_flash__
+ *   __sram_data_end_flash__
  *   __fast_sram_text_data_start__
  *   __fast_sram_text_data_end__
- *   __fast_sram_text_data_start_flash__
- *   __fast_sram_text_data_end_flash__
+ *   __fast_sram_text_start_flash__
+ *   __fast_sram_text_end_flash__
  *   __sram_text_data_start__
  *   __sram_bss_start__
  *   __sram_bss_end__
@@ -317,22 +337,6 @@ SECTIONS
 		*(.boot_rodata_flash*)
 		. = ALIGN(4);
 	} > FLASHX
-
-#if defined(__BES_OTA_MODE__)
-	.ota_boot_info (ALIGN(4096)) :
-	{
-		__ota_boot_info_start = .;
-		*(.ota_boot_info)
-		. = (0x1000);
-	} > FLASHX
-
-	.ota_boot_rev (ALIGN(4096)) :
-	{
-		__ota_boot_rev_start = .;
-		*(.ota_boot_rev)
-		. = (0x1000);
-	} > FLASHX
-#endif
 
 	. = FLASHX_TO_FLASH(.);
 
@@ -370,9 +374,27 @@ SECTIONS
 	.share_memory_pool (NOLOAD) :
 	{
 		__share_memory_pool_start = .;
-        . = SHARE_MEMORY_POOL;
+		. = SHARE_MEMORY_POOL;
 		__share_memory_pool_end = .;
 		. = ALIGN(4);;
+	} > RAM
+#endif
+
+#if defined(MCU_SPI_SLAVE) && defined (MCU_SPI_SLAVE_SPECIFY_MEM)
+	.spi_m_share_mem (NOLOAD) :
+	{
+		__spi_share_mem_master_tx_start = .;
+		. = MCU_SPI_SLAVE_BUF_SIZE;
+		__spi_share_mem_master_tx_end = .;
+		. = ALIGN(4);
+	} > RAM
+
+	.spi_s_share_mem (NOLOAD) :
+	{
+		__spi_share_mem_slave_tx_start = .;
+		. = MCU_SPI_SLAVE_BUF_SIZE;
+		__spi_share_mem_slave_tx_end = .;
+		. = ALIGN(4);
 	} > RAM
 #endif
 
@@ -380,21 +402,17 @@ SECTIONS
 	{
 		*(.userdata_pool)
 		. = ALIGN(4);
-		__userdata_pool_end__ = .;
 	} > RAM
 
-	__boot_sram_start_flash__ = LOADADDR(.got_info) + SIZEOF(.got_info);
-#ifndef MAIN_RAM_USE_TCM
-	__boot_sram_start__ = ALIGN(__userdata_pool_end__, 32);
-#endif
+	__boot_text_sram_start_flash__ = LOADADDR(.got_info) + SIZEOF(.got_info);
 
 	.boot_text_sram
-#ifdef MAIN_RAM_USE_TCM
+#if defined(SEPARATE_RAM_RAMX) || defined(MAIN_RAM_USE_TCM)
 		(ALIGN(ORIGIN(RAMX), 32))
 #else
-		(RAM_TO_RAMX(__boot_sram_start__))
+		(ALIGN(RAM_TO_RAMX(.), 32))
 #endif
-		: AT (__boot_sram_start_flash__)
+		: AT (__boot_text_sram_start_flash__)
 	{
 		__boot_text_sram_start__ = .;
 		_stext = __boot_text_sram_start__;
@@ -411,30 +429,30 @@ SECTIONS
 		*:aeabi_memset.o(.text*)
 		*:aeabi_memset-soft.o(.text*)
 		*:lib_a-memset*.o(.text*)
+		*:lib_memset*.o(.text*)
+		*:*arch_mem*.o(.text*)
+		*:*arch_str*.o(.text*)
+		*:bin(.text*)
 
 		*:hal_norflash*.o(.text*)
 		*:norflash_*.o(EXCLUDE_FILE(*:norflash_api.o) .text*)
-
-#ifdef BECO
-		*:hal_*cmu_*.o(.text.hal_cmu_beco_enable)
-		*:hal_*cmu_*.o(.text.hal_cmu_beco_disable)
-		*:hal_*cmu_*.o(.text.hal_cmu_cp_beco_enable)
-		*:hal_*cmu_*.o(.text.hal_cmu_cp_beco_disable)
-		*:system_ARMCM.o(.text.set_beco_coprocessor)
-#endif
 
 #ifdef BOOT_CODE_IN_RAM
 		*:hal_*cmu_*.o(.text*)
 		*:stack_protector*.o(.text*)
 		*:hal_iomux_*.o(.text*)
 		*:hal_analogif_*.o(.text*)
+		*:hal_phyif.o(.text*)
 		*:hal_spi.o(.text*)
 		*:hal_timer.o(.text*)
 		*:hal_sysfreq.o(.text*)
 #if defined(PSRAM_ENABLE) || defined(PSRAMUHS_ENABLE)
 		*:hal_psram*.o(.text*)
-		*:hal_trace.o(.text*)
+        *:psram_drv*.o(.text*)
+		*:psram_opi*.o(.text*)
+		*:hal_trace*.o(.text*)
 		*:pmu_*.o(.text*)
+		*:hal_sleep.o(.text*)
 #if defined(__NuttX__)
 		*:irq_*.o(.text*)
 #endif
@@ -442,7 +460,7 @@ SECTIONS
 #endif
 #ifdef TRACE_CODE_IN_RAM
 		*:hal_dma.o(.text*)
-		*:hal_trace.o(.text*)
+		*:hal_trace*.o(.text*)
 		*:hal_uart.o(.text*)
 #ifdef NOSTD
 		*:vsprintf.o(.text*)
@@ -464,123 +482,6 @@ SECTIONS
 #if defined(ARM_CMSE) && defined(INTSRAM_RUN)
 		/* BEST1501 SAU set FLASH_BASE region as nonsecure region becase of the SAU region number limitation,
 		CPU can't access FLASH_BASE region in secure state, so the text should be located in SRAM */
-#if (defined(CMSE_RAM_RAMX_LEND_NSE))
-	#if !defined(DLB_SEC_LOAD_DEMO)
-		EXCLUDE_FILE(*:rsa_test.o *:user_secure_boot.o *:crypt_lib.o *:bin_aes_crypt.o *:parser.o)
-	#else
-/*
-ask for algo supplier for confirm.
-guess 2 lib can put in first line in 'EXCLUDE_FILE'
-*/
-		EXCLUDE_FILE(
-						*:dlb_sec_boot.a 
-						*:1.o 
-						*:user_secure_boot.o
-						*:bin_aes_crypt.o
-						*:parser.o
-						//*:crypt_lib.o
-						*:ssl_ticket.o
-						*:psa_crypto_mac.o
-						*:psa_crypto_aead.o
-						*:chacha20.o
-						*:ssl_cookie.o
-						*:cipher_wrap.o
-						*:padlock.o
-						*:pkparse.o
-						*:x509_crl.o
-						*:pem.o
-						*:md5.o
-						*:base64.o
-						*:pkcs12.o
-						*:des.o
-						*:oid.o
-						//*:sha256.o
-						*:chachapoly.o
-						*:ecp_curves.o
-						*:constant_time.o
-						*:nist_kw.o
-						*:debug.o
-						*:ctr_drbg.o
-						*:sha1.o
-						*:ssl_msg.o
-						*:x509_crt.o
-						*:x509_csr.o
-						*:x509write_crt.o
-						*:camellia.o
-						*:mps_reader.o
-						*:gcm.o
-						*:hmac_drbg.o
-						*:cipher.o
-						*:x509.o
-						*:asn1write.o
-						*:pkcs5.o
-						*:aria.o
-						*:psa_crypto_hash.o
-						*:net_sockets.o
-						*:ccm.o
-						*:psa_crypto_ecp.o
-						*:psa_crypto.o
-						*:hkdf.o
-						*:bignum.o
-						*:aesni.o
-						*:ssl_tls12_client.o
-						*:ssl_tls13_client.o
-						*:ssl_tls.o
-						*:ssl_tls13_generic.o
-						*:timing.o
-						*:entropy_poll.o
-						*:x509_create.o
-						*:hash_info.o
-						*:rsa_alt_helpers.o
-						*:sha512.o
-						*:threading.o
-						//*:platform_util.o
-						*:ripemd160.o
-						*:poly1305.o
-						*:ssl_tls13_server.o
-						*:psa_its_file.o
-						*:rsa.o
-						*:cmac.o
-						*:ecp.o
-						*:pk_wrap.o
-						*:dhm.o
-						*:ssl_ciphersuites.o
-						*:psa_crypto_slot_management.o
-						*:pkwrite.o
-						*:ssl_tls13_keys.o
-						*:asn1parse.o
-						*:psa_crypto_cipher.o
-						*:x509write_csr.o
-						*:pk.o
-						*:mps_trace.o
-						//*:platform.o
-						*:psa_crypto_se.o
-						*:psa_crypto_storage.o
-						*:md.o
-						*:entropy.o
-						*:psa_crypto_rsa.o
-						//*:memory_buffer_alloc.o
-						*:psa_crypto_client.o
-						*:ssl_cache.o
-						*:ecdh.o
-						//*:aes.o
-						*:ssl_client.o
-						*:ecjpake.o
-						*:ecdsa.o
-						*:ssl_tls12_server.o
-						*:version.o)
-	#endif
-#elif defined(CMSE_CRYPT_TEST_DEMO)
-	#if !defined(DLB_SEC_LOAD_DEMO)
-		EXCLUDE_FILE(*:rsa_test.o)
-	#else
-/*
-ask for algo supplier for confirm.
-guess 2 lib can put in first line in 'EXCLUDE_FILE'
-*/
-		EXCLUDE_FILE(*:dlb_sec_boot.a *:1.o)
-	#endif
-#endif
 		*(EXCLUDE_FILE(*crt*) .text* .flash_text*)
 #endif
 		*(.boot_text_sram*)
@@ -588,11 +489,12 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 		__boot_text_sram_end__ = .;
 	} > RAMX
 
-	__boot_text_sram_end_flash__ = __boot_sram_start_flash__ + SIZEOF(.boot_text_sram);
+	__boot_text_data_sram_start__ = RAMX_TO_RAM(__boot_text_sram_start__);
+	__boot_text_sram_end_flash__ = __boot_text_sram_start_flash__ + SIZEOF(.boot_text_sram);
 	__boot_data_sram_start_flash__ = __boot_text_sram_end_flash__;
 
 	.boot_data_sram
-#ifndef MAIN_RAM_USE_TCM
+#if !(defined(SEPARATE_RAM_RAMX) || defined(MAIN_RAM_USE_TCM))
 		(RAMX_TO_RAM(ADDR(.boot_text_sram) + SIZEOF(.boot_text_sram)))
 #endif
 		: AT (__boot_data_sram_start_flash__)
@@ -613,18 +515,22 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 #endif
 		*:hal_iomux_*.o(.data* .rodata*)
 		*:hal_analogif_*.o(.data* .rodata*)
+		*:hal_phyif.o(.data* .rodata*)
 		*:hal_spi.o(.data* .rodata*)
 		*:hal_timer.o(.data* .rodata*)
 		*:hal_sysfreq.o(.data* .rodata*)
 #if defined(PSRAM_ENABLE) || defined(PSRAMUHS_ENABLE)
 		*:hal_psram*.o(.data* .rodata*)
-		*:hal_trace.o(.data* .rodata*)
+        *:psram_drv*.o(.data* .rodata*)
+		*:psram_opi*.o(.data* .rodata*)
+		*:hal_trace*.o(.data* .rodata*)
 		*:pmu_*.o(.data* .rodata*)
+		*:hal_sleep.o(.data* .rodata*)
 #endif
 #endif
 #ifdef TRACE_CODE_IN_RAM
 		*:hal_dma.o(.data* .rodata*)
-		*:hal_trace.o(.data* .rodata*)
+		*:hal_trace*.o(.data* .rodata*)
 		*:hal_uart.o(.data* .rodata*)
 #ifdef NOSTD
 		*:vsprintf.o(.data* .rodata*)
@@ -639,123 +545,6 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 #if defined(ARM_CMSE) && defined(INTSRAM_RUN)
 		/* BEST1501 SAU set FLASH_BASE region as nonsecure region becase of the SAU region number limitation,
 		CPU can't access FLASH_BASE region in secure state, so the data and rodata should be located in SRAM */
-#if (defined(CMSE_RAM_RAMX_LEND_NSE))
-	#if !defined(DLB_SEC_LOAD_DEMO)
-		EXCLUDE_FILE(*:rsa_test.o *:user_secure_boot.o *:crypt_lib.o *:bin_aes_crypt.o *:parser.o)
-	#else
-/*
-ask for algo supplier for confirm.
-guess 2 lib can put in first line in 'EXCLUDE_FILE'
-*/
-		EXCLUDE_FILE(
-						*:dlb_sec_boot.a 
-						*:1.o 
-						*:user_secure_boot.o
-						*:bin_aes_crypt.o
-						*:parser.o
-						//*:crypt_lib.o
-						*:ssl_ticket.o
-						*:psa_crypto_mac.o
-						*:psa_crypto_aead.o
-						*:chacha20.o
-						*:ssl_cookie.o
-						*:cipher_wrap.o
-						*:padlock.o
-						*:pkparse.o
-						*:x509_crl.o
-						*:pem.o
-						*:md5.o
-						*:base64.o
-						*:pkcs12.o
-						*:des.o
-						*:oid.o
-						//*:sha256.o
-						*:chachapoly.o
-						*:ecp_curves.o
-						*:constant_time.o
-						*:nist_kw.o
-						*:debug.o
-						*:ctr_drbg.o
-						*:sha1.o
-						*:ssl_msg.o
-						*:x509_crt.o
-						*:x509_csr.o
-						*:x509write_crt.o
-						*:camellia.o
-						*:mps_reader.o
-						*:gcm.o
-						*:hmac_drbg.o
-						*:cipher.o
-						*:x509.o
-						*:asn1write.o
-						*:pkcs5.o
-						*:aria.o
-						*:psa_crypto_hash.o
-						*:net_sockets.o
-						*:ccm.o
-						*:psa_crypto_ecp.o
-						*:psa_crypto.o
-						*:hkdf.o
-						*:bignum.o
-						*:aesni.o
-						*:ssl_tls12_client.o
-						*:ssl_tls13_client.o
-						*:ssl_tls.o
-						*:ssl_tls13_generic.o
-						*:timing.o
-						*:entropy_poll.o
-						*:x509_create.o
-						*:hash_info.o
-						*:rsa_alt_helpers.o
-						*:sha512.o
-						*:threading.o
-						//*:platform_util.o
-						*:ripemd160.o
-						*:poly1305.o
-						*:ssl_tls13_server.o
-						*:psa_its_file.o
-						*:rsa.o
-						*:cmac.o
-						*:ecp.o
-						*:pk_wrap.o
-						*:dhm.o
-						*:ssl_ciphersuites.o
-						*:psa_crypto_slot_management.o
-						*:pkwrite.o
-						*:ssl_tls13_keys.o
-						*:asn1parse.o
-						*:psa_crypto_cipher.o
-						*:x509write_csr.o
-						*:pk.o
-						*:mps_trace.o
-						//*:platform.o
-						*:psa_crypto_se.o
-						*:psa_crypto_storage.o
-						*:md.o
-						*:entropy.o
-						*:psa_crypto_rsa.o
-						//*:memory_buffer_alloc.o
-						*:psa_crypto_client.o
-						*:ssl_cache.o
-						*:ecdh.o
-						//*:aes.o
-						*:ssl_client.o
-						*:ecjpake.o
-						*:ecdsa.o
-						*:ssl_tls12_server.o
-						*:version.o)
-	#endif
-#elif defined(CMSE_CRYPT_TEST_DEMO)
-	#if !defined(DLB_SEC_LOAD_DEMO)
-		EXCLUDE_FILE(*:rsa_test.o)
-	#else
-/*
-ask for algo supplier for confirm.
-guess 2 lib can put in first line in 'EXCLUDE_FILE'
-*/
-		EXCLUDE_FILE(*:dlb_sec_boot.a *:1.o)
-	#endif
-#endif
 		*(.data* .rodata*)
 #endif
 
@@ -768,7 +557,7 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 		__boot_data_sram_end__ = .;
 	} > RAM
 
-	__boot_sram_end_flash__ = __boot_data_sram_start_flash__ + SIZEOF(.boot_data_sram);
+	__boot_data_sram_end_flash__ = __boot_data_sram_start_flash__ + SIZEOF(.boot_data_sram);
 
 	.boot_bss_sram (.) (NOLOAD) : AT (ADDR(.boot_bss_sram))
 	{
@@ -790,18 +579,22 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 #endif
 		*:hal_iomux_*.o(.bss*)
 		*:hal_analogif_*.o(.bss*)
+		*:hal_phyif.o(.bss*)
 		*:hal_spi.o(.bss*)
 		*:hal_timer.o(.bss*)
 		*:hal_sysfreq.o(.bss*)
 #if defined(PSRAM_ENABLE) || defined(PSRAMUHS_ENABLE)
 		*:hal_psram*.o(.bss*)
-		*:hal_trace.o(.bss*)
+        *:psram_drv*.o(.bss*)
+		*:psram_opi*.o(.bss*)
+		*:hal_trace*.o(.bss*)
 		*:pmu_*.o(.bss*)
+		*:hal_sleep.o(.bss*)
 #endif
 #endif
 #ifdef TRACE_CODE_IN_RAM
 		*:hal_dma.o(.bss*)
-		*:hal_trace.o(.bss*)
+		*:hal_trace*.o(.bss*)
 		*:hal_uart.o(.bss*)
 #ifdef NOSTD
 		*:vsprintf.o(.bss*)
@@ -819,6 +612,19 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 	} > RAM
 
 #ifdef RAM_NC_BASE
+	__sram_nc_data_start_flash__ = __boot_data_sram_end_flash__;
+
+	.sram_nc_data : AT (__sram_nc_data_start_flash__)
+	{
+		__sram_nc_data_start__ = .;
+		*(.sram_nc_rodata*)
+		. = ALIGN(4);
+		*(.sram_nc_data*)
+		__sram_nc_data_end__ = .;
+	} > RAM_NC
+
+	__sram_nc_data_end_flash__ = __sram_nc_data_start_flash__ + SIZEOF(.sram_nc_data);
+
 	.sram_nc_bss (NOLOAD) : AT (ADDR(.sram_nc_bss))
 	{
 		__sram_nc_bss_start__ = .;
@@ -830,42 +636,159 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 
 	__ram_nc_top = ORIGIN(RAM_NC) + LENGTH(RAM_NC);
 	__free_ram_nc = __ram_nc_top - __sram_nc_bss_end__;
-#endif
+#else /* !RAM_NC_BASE */
+	__sram_nc_data_end_flash__ = __boot_data_sram_end_flash__;
+#endif /* !RAM_NC_BASE */
 
-	__sram_text_data_start_flash__ = __boot_sram_end_flash__;
-#ifdef MAIN_RAM_USE_TCM
-	__sram_text_data_start__ = ALIGN(__boot_text_sram_end__, 32);
+	__sram_text_start_flash__ = __sram_nc_data_end_flash__;
+#if defined(SEPARATE_RAM_RAMX) || defined(MAIN_RAM_USE_TCM)
+	__sram_text_data_start__ = RAMX_TO_RAM(ALIGN(__boot_text_sram_end__, 32));
 #else
 	__sram_text_data_start__ = ALIGN(__boot_bss_sram_end__, 32);
 #endif
 
-	.sram_text (RAM_TO_RAMX(__sram_text_data_start__)) : AT (__sram_text_data_start_flash__)
+	.sram_text (RAM_TO_RAMX(__sram_text_data_start__)) : AT (__sram_text_start_flash__)
 	{
 		__sram_text_start__ = .;
+#ifdef AMR_NB_CODE_IN_SRAM
+		*:amr_nb_lib.o(.text*)
+#endif
+#ifdef AMR_WB_CODE_IN_SRAM
+		*:amr_wb_lib.o(.text*)
+#endif
+#ifdef OPENSSL_BN_ASM_IN_RAM
+		*:bn_asm.o(.text*)
+#endif
+#if defined(__NuttX__) && (RAMX_REGION_SIZE >= 0x80000) && defined(WIFI_STACK_IN_RAM)
+		*:ip*.o(.text*)
+		*:udp*.o(.text*)
+		*:iperf*.o(.text*)
+
+		/* tcpip related files */
+		*:recv.o(.text*)
+		*:recvfrom.o(.text*)
+		*:send.o(.text*)
+		*:sendto.o(.text*)
+		*:socket.o(.text*)
+		*:net_sockets.o(.text*)
+		*:net_sockif.o(.text*)
+		*:net_poll.o(.text*)
+		*:inet_sockif.o(.text*)
+		*:netlink_sockif.o(.text*)
+		*:tcp_recvfrom.o(.text*)
+		*:tcp_send_buffered.o(.text*)
+		*:arp_arpin.o(.text*)
+		*:arp_out.o(.text*)
+		*:arp_send.o(.text*)
+		*:tcp_conn.o(.text*)
+		*:tcp_send.o(.text*)
+		*:tcp_input.o(.text*)
+		*:tcp_appsend.o(.text*)
+		*:tcp_monitor.o(.text*)
+		*:tcp_callback.o(.text*)
+		*:tcp_netpoll.o(.text*)
+		*:tcp_wrbuffer.o(.text*)
+		*:devif_callback.o(.text*)
+		*:devif_iobsend.o(.text*)
+		*:devif_poll.o(.text*)
+		*:devif_loopback.o(.text*)
+		*:devif_callback.o(.text*)
+		*:tcp_devpoll.o(.text*)
+		*:tcp_timer.o(.text*)
+		*:tcp_seqno.o(.text*)
+		*:tcp_recvwindow.o(.text*)
+		*:tcp_ipselect.o(.text*)
+		*:tcp_finddev.o(.text*)
+		*:net_incr32.o(.text*)
+		*:net_lock.o(.text*)
+		*:net_tcpchksum.o(.text*)
+		*:net_dev.o(.text*)
+
+		/* iobuffer related files */
+		*:iob_add_queue.o(.text*)
+		*:iob_alloc.o(.text*)
+		*:iob_alloc_qentry.o(.text*)
+		*:iob_copyin.o(.text*)
+		*:iob_copyout.o(.text*)
+		*:iob_free.o(.text*)
+		*:iob_free_chain.o(.text*)
+		*:iob_peek_queue.o(.text*)
+
+		*:mm_free.o(.text*)
+		*:mm_malloc.o(.text*)
+
+		*:hal_sdio*.o(.text*)
+		*:wifi_sdio*.o(.text*)
+		*:bes_netdev*.o(.text*)
+
+		*:besf_driver_2003.o(.text*)
+		*:besf_wlan_2003.o(.text*)
+		*:besf_netdev_2003.o(.text*)
+		*:besf_net_arch_2003.o(.text*)
+#endif
+
+#ifdef WIFI_STACK_IN_RAM
+#if (WIFI_STACK_VER == 1)
+		/* wifi adapter */
+		*:wifi_agent.o(.text*)
+		*:wifi_srv.o(.text*)
+		*:net_memory.o(.text*)
+		*:net_timer.o(.text*)
+		*:net_tasklet.o(.text*)
+		*:net_mutex.o(.text*)
+		*:net_workqueue.o(.text*)
+
+		/* wifi-stack v1 */
+		*:agg-rx.o(.text*)
+		*:agg-tx.o(.text*)
+		*:event.o(.text*)
+		*:tx.o(.text*)
+		*:status.o(.text*)
+		*:hw_crc.o(.text*)
+		*:queue.o(.text*)
+#elif (WIFI_STACK_VER == 2)
+		/* wifi adapter */
+		*:net_al.o(.text*)
+		*:rtos_al.o(.text*)
+		*:net_tasklet.o(.text*)
+		*:net_timer.o(.text*)
+		*:net_mutex.o(.text*)
+		*:net_workqueue.o(.text*)
+
+		/* wifi-stack v2 */
+		*:rwnx_fdrv_perf.o(.text*)
+#endif
+#endif
+
+#ifdef __P2P_MODE_SUPPORT__
+		*:crypto_internal-modexp.o(.text*)
+		*:bignum.o(.text*)
+		*:libtommath.o(.text*)
+#endif
+
+#ifdef RNDIS_IN_RAM
+		*:hal_usb.o(.text*)
+		*:besf_wlan.o(.text*)
+		*:bes_usbdev.o(.text*)
+		*:rndis.o(.text*)
+		*:besf_netdev.o(.text*)
+		*:besf_driver.o(.text*)
+		*:sq_queue.o(.text*)
+		*:mymemcpy.o(.text*)
+#endif
+
+#ifdef RX_CODE_IN_RAM
+		*:skbuff.o(.text*)
+		*:bh.o(.text*)
+		*:txrx.o(.text*)
+		*:rx.o(.text*)
+		*:mymemcpy.o(.text*)
+#endif
+
 #ifdef RTOS_IN_RAM
 		*:rtos_lib.o(.text*)
 #endif
-		*:lib_a-s_fabs.o(.text*)
-		*:lib_a-s_tanh.o(.text*)
-		*:lib_a-s_expm1.o(.text*)
-		*:lib_a-wf_log10.o(.text*)
-		*:lib_a-ef_log10.o(.text*)
-		*:lib_a-ef_log.o(.text*)
-		*:lib_a-sf_frexp.o(.text*)
-		*:lib_a-wf_exp.o(.text*)
-		*:lib_a-ef_exp.o(.text*)
-		*:lib_a-sf_tanh.o(.text*)
-		*:lib_a-sf_fabs.o(.text*)
-		*:lib_a-sf_finite.o(.text*)
-		*:lib_a-sf_expm1.o(.text*)
-		*:lib_a-wf_log10.o(.text*)
-		*:lib_a-ef_log10.o(.text*)
-		*:lib_a-ef_log.o(.text*)
-		*:lib_a-wf_pow.o(.text*)
-		*:lib_a-ef_pow.o(.text*)
-		*:lib_a-s_matherr.o(.text*)
-		*:app_anc.o(.text.app_anc_get_curr_mode)
-#if 1
+#if 0
 		*:*apps.graphics.lvgl*.o(.text*)
 		*:vg_lite*.o(.text*)
 #else
@@ -886,15 +809,15 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 		*:lv_obj.c*graphics.lvgl.o(.text*)
 #endif
 #if defined(CP_IN_SAME_EE) && (RAMCP_SIZE > 0)
+		*:iir_process.o(.text*)
+		*:audio_process.o(.text*)
 		*:hal_memsc.o(.text*)
-		*:hal_trace.o(.text*)
-		*:hal_trace_mod.o(.text*)
+		*:hal_trace*.o(.text*)
 		*:mpu_armv*.o(.text*)
 		*:codec_sbc.o(.text*)
 		*:multi_heap.o(.text*)
 		*:pool_api.o(.text*)
 		*libgcc.a:(.text*)
-		*:conv.o(.text*)
 
 		/* for LIBC_ROM=0 */
 #ifndef MTEST_IN_FLASH
@@ -927,19 +850,7 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 #if defined(SCO_CP_ACCEL)
 		*:cmsis_dsp.o(.text*)
 #endif
-#ifdef LIBM_ALL_IN_RAM
 		*libm.a:(.text*)
-#else
-		*libm.a:(.text.floorf)
-		*libm.a:(.text.sqrtf)
-		*libm.a:(.text.__ieee754_sqrtf)
-		*libm.a:(.text.sqrt)
-		*libm.a:(.text.__ieee754_sqrt)
-		*libm.a:(.text.cos)
-		*libm.a:(.text.__kernel_cos)
-		*libm.a:(.text.__kernel_sin)
-		*libm.a:(.text.__ieee754_rem_pio2)
-#endif
 
 		*:a2dp_encoder_cp.o(.text*)
 		*:a2dp_encoder_sbc_cp.o(.text*)
@@ -956,17 +867,87 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 #endif
 
 #if defined(GSOUND_HOTWORD_EXTERNAL)
-		*:sbc_api.o(.text*)
 		*:voice_sbc.o(.text*)
 		*:gsound_custom_audio.o(.text*)
 		*:gsound_custom_hotword_external.o(.text*)
 		*:libspeech*.o(.text*)
 #endif
-#if defined(SCO_OPTIMIZE_FOR_RAM) || defined(USE_OVERLAY_TXT_GAP)
-		*:hal_overlay.o(.text*)
+
+#if defined(SDIO_WIFI_TEST) || defined(USB_WIFI_TEST)
+		*:hal_usb.o(.text*)
+		*:usb_wifi_conn.o(.text*)
+		*:usb_drv.o(.text*)
+		*:hal_sdio_device.o(.text*)
+		*:sdio_drv.o(.text*)
+		*:conn.o(.text*)
+		*:ipc_host.o(.text*)
+		*:rwnx_drvmcu_msg.o(.text*)
+		*:rwnx_irqs.o(.text*)
+		*:rwnx_msg_tx.o(.text*)
+		*:rwnx_nonsig.o(.text*)
+		*:rwnx_platform.o(.text*)
+		*:rwnx_psa_slave.o(.text*)
+		*:rwnx_utils.o(.text*)
+		*:net_tasklet.o(.text*)
+		*:pbuf.o(.text*)
 #endif
+
+#ifdef SDIO_DEVICE_IN_RAM
+		/* sdio host and its wrapper */
+		*:hal_sdio_device.o(.text*)
+		*:wifi_sdio_device_v1.o(.text*)
+		*:wifi_sdio_device_v2.o(.text*)
+		*:sdio_device_adapter.o(.text*)
+#endif
+
+#ifdef SDIO_HOST_IN_RAM
+		/* sdio host and its wrapper */
+		*:hal_sdio_host.o(.text*)
+		*:wifi_sdio_host.o(.text*)
+#endif
+
+#ifdef VOWLAN_SUPPORT
+		/* vowlan needs to run in sram  */
+#if !defined(BLE_WIFI_DUAL_MODE_DONGLE)
+		*:vowlan_main.o(.text*)
+		*:wui.o(.text*)
+#endif
+		*:vow_session.o(.text*)
+		*:vow_dev.o(.text*)
+		*:hal_dma.o(.text*)
+#ifdef VOWLAN_SUPPORT_INPUT_BY_USB
+#if !defined(BLE_WIFI_DUAL_MODE_DONGLE)
+		*:wusb.o(.text*)
+#endif
+		*:hal_usb.o(.text*)
+		*:usb_audio.o(.text*)
+		*:usb_audio_app.o(.text*)
+#endif
+#ifdef VOWLAN_SUPPORT_INPUT_BY_I2S
+		*:wi2s.o(.text*)
+#endif
+#ifdef VOWLAN_SUPPORT_INPUT_BY_RF_SINK
+		*:wlink.o(.text*)
+#endif
+#if defined(VOWLAN_SUPPORT_OUTPUT_BY_I2S)
+		*:audioflinger.o(.text*)
+		*:vow_trigger.o(.text*)
+		*:vow_stream_i2s.o(.text*)
+		*:vow_stream_common.o(.text*)
+		*:analog_best*.o(.text*)
+		*:pciephy_best*.o(.text*)
+#endif
+#endif
+
+#ifdef BECO
+		*:hal_*cmu_*.o(.text.hal_cmu_beco_enable)
+		*:hal_*cmu_*.o(.text.hal_cmu_beco_disable)
+		*:hal_*cmu_*.o(.text.hal_cmu_cp_beco_enable)
+		*:hal_*cmu_*.o(.text.hal_cmu_cp_beco_disable)
+		*:system_ARMCM.o(.text.set_beco_coprocessor)
+#endif
+
 		*:norflash_api.o(.text*)
-		*:speech_win.o(.text*)
 		*(.sram_text*)
 		/*
 		   If you want protect one section by armv8's mpu, the section should
@@ -976,92 +957,17 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 		__sram_text_end__ = .;
 	} > RAMX
 
-	__sram_text_end_flash__ = __sram_text_data_start_flash__ + SIZEOF(.sram_text);
+	__sram_text_end_flash__ = __sram_text_start_flash__ + SIZEOF(.sram_text);
 	__sram_data_start_flash__ = __sram_text_end_flash__;
 
 	.sram_data
-#ifndef MAIN_RAM_USE_TCM
+#if !(defined(SEPARATE_RAM_RAMX) || defined(MAIN_RAM_USE_TCM))
 		(RAMX_TO_RAM(ADDR(.sram_text) + SIZEOF(.sram_text)))
 #endif
 		: AT (__sram_data_start_flash__)
 	{
 		__sram_data_start__ = .;
-		*:conv.o(.data* .rodata*)
-		/**:lib_a-s_fabs.o(.data* .rodata*)
-		*:lib_a-s_tanh.o(.data* .rodata*)
-		*:lib_a-s_expm1.o(.data* .rodata*)
-		*:lib_a-wf_log10.o(.data* .rodata*)
-		*:lib_a-ef_log10.o(.data* .rodata*)
-		*:lib_a-ef_log.o(.data* .rodata*)*/
-#if defined(SPEECH_TX_2MIC_NS7) || defined(SPEECH_TX_2MIC_NS8)
-		*:lib_a-wf_sqrt.o(.data* .rodata*)
-		*:lib_a-ef_sqrt.o(.data* .rodata*)
-		*:lib_a-sf_fabs.o(.data* .rodata*)
-		*:lib_a-sf_frexp.o(.data* .rodata*)
-		*:beco.o(.data* .rodata*)
-#endif
-#if defined(PROMPT_USE_AAC)
-		*:aac_api.o(.data .rodata*)
-#ifdef A2DP_SOURCE_AAC_ON
-		*:aacenc_lib.o(.data* .rodata*)
-		*:aacenc.o(.data* .rodata*)
-		*:adj_thr.o(.data* .rodata*)
-		*:bit_cnt.o(.data* .rodata*)
-		*:quantize.o(.data* .rodata*)
-		*:tpenc_lib.o(.data* .rodata*)
-		*:tpenc_latm.o(.data* .rodata*)
-		*:line_pe.o(.data* .rodata*)
-		*:spreading.o(.data* .rodata*)
-		*:bitenc.o(.data* .rodata*)
-		*:qc_main.o(.data* .rodata*)
-		*:band_nrg.o(.data* .rodata*)
-		*:aacenc_tns.o(.data* .rodata*)
-		*:pre_echo_control.o(.data* .rodata*)
-		*:transform.o(.data* .rodata*)
-		*:dyn_bits.o(.data* .rodata*)
-		*:aacenc_pns.o(.data* .rodata*)
-		*:aacEnc_ram.o(.data* .rodata*)
-		*:aacEnc_rom.o(.data* .rodata*)
-		*:bandwidth.o(.data* .rodata*)
-		*:block_switch.o(.data* .rodata*)
-		*:channel_map.o(.data* .rodata*)
-		*:chaosmeasure.o(.data* .rodata*)
-		*:grp_data.o(.data* .rodata*)
-		*:intensity.o(.data* .rodata*)
-		*:metadata_compressor.o(.data* .rodata*)
-		*:metadata_main.o(.data* .rodata*)
-		*:ms_stereo.o(.data* .rodata*)
-		*:noisedet.o(.data* .rodata*)
-		*:pnsparam.o(.data* .rodata*)
-		*:psy_configuration.o(.data* .rodata*)
-		*:psy_main.o(.data* .rodata*)
-		*:sf_estim.o(.data* .rodata*)
-		*:tonality.o(.data* .rodata*)
-#else
-#if defined(A2DP_AAC_ON)
-		*:block.o(.data* .rodata*)
-		*:tpdec_lib.o(.data* .rodata*)
-		*:tpdec_latm.o(.data* .rodata*)
-		*:aacdec_pns.o(.data* .rodata*)
-		*:aacdec_tns.o(.data* .rodata*)
-		*:pulsedata.o(.data* .rodata*)
-		*:channel.o(.data* .rodata*)
-		*:tpdec_asc.o(.data* .rodata*)
-		*:aacdecoder.o(.data* .rodata*)
-		*:channelinfo.o(.data* .rodata*)
-		*:aacdecoder_lib.o(.data* .rodata*)
-		*:stereo.o(.data* .rodata*)
-		*:fixpoint_math.o(.data* .rodata*)
-		*:FDK_bitbuffer.o(.data* .rodata*)
-#endif
-#if defined(CP_IN_SAME_EE) && (RAMCP_SIZE > 0)
-		*:a2dp_decoder_aac_lc.o(.rodata*)
-		*:aac_com.o(.data .rodata*)
-		*:aac_dec.o(.data .rodata*)
-		*:aac_enc.o(.data .rodata*)
-#endif
-#endif
-#endif
+
 #if defined(CMSIS_TEST)
 		*:basicmathfunctions.o(.data* .rodata*)
 		*:basicmathfunctionsf16.o(.data* .rodata*)
@@ -1082,20 +988,15 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 		*:functions.o(.data* .rodata*)
 		*:convolutionfunctions.o(.data* .rodata*)
 #endif
-		*:speech_win.o(.data* .rodata*)
+#ifdef AMR_NB_CODE_IN_SRAM
+		*:amr_nb_lib.o(.data* .rodata*)
+#endif
+#ifdef AMR_WB_CODE_IN_SRAM
+		*:amr_wb_lib.o(.data* .rodata*)
+#endif
 
 #ifdef RTOS_IN_RAM
 		*:rtos_lib.o(.data* .rodata*)
-#endif
-
-#if defined(SCO_OPTIMIZE_FOR_RAM) || defined(USE_OVERLAY_TXT_GAP)
-		*:hal_overlay.o(.data* .rodata*)
-#endif
-
-#if defined(VOICE_ASSIST_FF_FIR_LMS)
-		*:anc_ff_fir_lms.o(.data* .rodata*)
-		*:mdf4.o(.data* .rodata*)
-		*:event_detection.o(.data* .rodata*)
 #endif
 
 #if defined(GLOBAL_SRAM_KISS_FFT)
@@ -1114,19 +1015,6 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 		*:CommonTables.o(.rodata.twiddleCoef_rfft_256)
 #endif
 
-#if defined(VOICE_ALGO_CP_ACCEL)
-		*:CommonTables.o(.rodata.armBitRevIndexTable256)
-		*:CommonTables.o(.rodata.twiddleCoef_256)
-		*:CommonTables.o(.rodata.twiddleCoef_rfft_512)
-
-#if defined(VOICE_TX_AEC)
-		*:ssp_aec.o(.data* .rodata*)
-#endif
-#if defined(APP_NOISE_ESTIMATION)
-		*:noise_estimator.o(.data* .rodata*)
-#endif
-#endif
-
 #if defined(BTUSB_AUDIO_MODE)
 		*:hal_usb.o(.rodata*)
 #endif
@@ -1140,39 +1028,26 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 		*:table.o(.data* .rodata*)
 		*:plc_16000.o(.data* .rodata*)
 		/* Move algos from overlay to here */
+
+#if defined(SPEECH_TX_NS7) || defined(SPEECH_TX_NS8) || defined(SPEECH_TX_2MIC_NS7) || defined(SPEECH_TX_2MIC_NS8)
+		*:lib_a-wf_sqrt.o(.data* .rodata*)
+		*:lib_a-ef_sqrt.o(.data* .rodata*)
+		*:lib_a-sf_fabs.o(.data* .rodata*)
+		*:lib_a-sf_frexp.o(.data* .rodata*)
+		*:beco.o(.data* .rodata*)
+#endif
 #endif
 
 		*:utils.o(.data* .rodata*)
 		*:cqueue.o(.data* .rodata*)
 		*:iir_process.o(.data* .rodata*)
-		*:sbcplc.o(.data* .rodata*)
 		*:kfifo.o(.data* .rodata*)
-#if !defined(ROM_UTILS_ON) && !defined(TZ_ROM_UTILS_IF)
+		*:sbcplc.o(.data* .rodata*)
 		*:sbc.o(.data* .rodata*)
 		*:sbc_math.o(.data* .rodata*)
-        *:sbc_api.o(.data* .rodata*)
-#endif
-#if defined(CP_IN_SAME_EE) && (RAMCP_SIZE > 0)
 		*:sbc_api.o(.data* .rodata*)
-#endif
-#if defined(TZ_ROM_UTILS_IF)
-#if defined(ARM_CMNS)
-		*:tz_rom_utils.o(.data* .rodata*)
-#endif
-#if defined(ARM_CMSE)
-		*:tz_rom_utils_se.o(.data* .rodata*)
-#endif
-#endif
-		*:aac_tool.o(.data* .rodata*)
 		*:crossover_filter.o(.data* .rodata*)
 		*:exp_func_tables.o(.data* .rodata*)
-
-#if defined(ARM_CMNS) && defined(TZ_ROM_UTILS_IF)
-		*:tz_rom_utils.o(.data* .rodata*)
-#endif
-#if defined(ARM_CMSE) && defined(TZ_ROM_UTILS_IF)
-		*:tz_rom_utils_se.o(.data* .rodata*)
-#endif
 
 #if defined(AQE_KWS)
 		*:kws_nn.o(.data* .rodata.second_conv_wt)
@@ -1199,9 +1074,10 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 #endif
 
 #if defined(CP_IN_SAME_EE) && (RAMCP_SIZE > 0)
+		*:iir_process.o(.data* .rodata*)
+		*:audio_process.o(.data* .rodata*)
 		*:hal_memsc.o(.rodata*)
-		*:hal_trace.o(.rodata*)
-		*:hal_trace_mod.o(.rodata*)
+		*:hal_trace*.o(.rodata*)
 		*:mpu_armv*.o(.rodata*)
 		*:multi_heap.o(.rodata*)
 		*:pool_api.o(.rodata*)
@@ -1239,9 +1115,7 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 #if defined(SCO_CP_ACCEL)
 		*:cmsis_dsp.o(.rodata*)
 #endif
-#ifdef LIBM_ALL_IN_RAM
 		*libm.a:(.rodata*)
-#endif
 #endif
 
 #ifdef INTERSYS_RX_DMA_SPEEDUP
@@ -1251,7 +1125,6 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 #endif
 
 #if defined(GSOUND_HOTWORD_EXTERNAL)
-		*:sbc_api.o(.data* .rodata*)
 		*:voice_sbc.o(.data* .rodata*)
 		*:gsound_custom_audio.o(.data* .rodata*)
 		*:gsound_custom_hotword_external.o(.data* .rodata*)
@@ -1259,40 +1132,51 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 #endif
 
 		*:sbcplc.o(.data* .rodata*)
-		*libm.a:(.data* .rodata*)
+
+#ifdef SDIO_HOST_IN_RAM
+		/* sdio host and its wrapper */
+		*:hal_sdio_host.o(.data* .rodata*)
+		*:wifi_sdio_host.o(.data* .rodata*)
+#endif
+
+#ifdef SDIO_DEVICE_IN_RAM
+		/* sdio host and its wrapper */
+		*:hal_sdio_device.o(.data* .rodata*)
+		*:wifi_sdio_device_v1.o(.data* .rodata*)
+		*:wifi_sdio_device_v2.o(.data* .rodata*)
+		*:sdio_device_adapter.o(.data* .rodata*)
+#endif
 
 		*:norflash_api.o(.rodata*)
 #if defined(A2DP_SCALABLE_ON)
 		*:util.o(.data* .rodata*)
 #endif
 
-#ifdef FAST_RAM_RUN_LC3_CODEC
-        *:lc3_com.o(.data* .rodata*)
-        *:lc3_dec.o(.data* .rodata*)
-        *:lc3_enc.o(.data* .rodata*)
-#endif
-
 #if RTT_APP_SUPPORT > 0
-    /* section information for finsh shell */
-        . = ALIGN(4);
-        __fsymtab_start = .;
-        KEEP(*(FSymTab))
-        __fsymtab_end = .;
+		/* section information for finsh shell */
+		. = ALIGN(4);
+		__fsymtab_start = .;
+		KEEP(*(FSymTab))
+		__fsymtab_end = .;
 
-        . = ALIGN(4);
-        __vsymtab_start = .;
-        KEEP(*(VSymTab))
-        __vsymtab_end = .;
+		. = ALIGN(4);
+		__vsymtab_start = .;
+		KEEP(*(VSymTab))
+		__vsymtab_end = .;
 
-        /* section information for initial. */
-        . = ALIGN(4);
-        __rt_init_start = .;
-        KEEP(*(SORT(.rti_fn*)))
-        __rt_init_end = .;
+		/* section information for initial. */
+		. = ALIGN(4);
+		__rt_init_start = .;
+		KEEP(*(SORT(.rti_fn*)))
+		__rt_init_end = .;
 #endif
+
+#ifdef ohos_build
+		. = ALIGN(4);
 		_hdf_drivers_start = .;
 		KEEP(*(.hdf.driver))
 		_hdf_drivers_end = .;
+#endif
 
 #ifdef ARM_CMSE
 		. = ALIGN(4);
@@ -1336,6 +1220,10 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 		KEEP(*(.tota_handler_table))
 		__tota_handler_table_end = .;
 		. = ALIGN(4);
+		__sound_init_table_start = .;
+		KEEP(*(.sound_init_table))
+		__sound_init_table_end = .;
+		. = ALIGN(4);
 		__ai_handler_function_table_start = .;
 		KEEP(*(.ai_handler_function_table))
 		__ai_handler_function_table_end = .;
@@ -1360,6 +1248,18 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 		KEEP(*(.rpc_bth_dsp_cmd_table))
 		__rpc_bth_dsp_cmd_table_end = .;
 		. = ALIGN(4);
+		__rpc_m55_dsp_cmd_table_start = .;
+		KEEP(*(.rpc_m55_dsp_cmd_table))
+		__rpc_m55_dsp_cmd_table_end = .;
+		. = ALIGN(4);
+		__uart_bridge_task_cmd_table_start = .;
+		KEEP(*(.uart_bridge_task_cmd_table))
+		__uart_bridge_task_cmd_table_end = .;
+		. = ALIGN(4);
+		__uart_bridge_instant_cmd_table_start = .;
+		KEEP(*(.uart_bridge_instant_cmd_table))
+		__uart_bridge_instant_cmd_table_end = .;
+		. = ALIGN(4);
 		__app_bt_sync_command_handler_table_start = .;
 		KEEP(*(.app_bt_sync_command_handler_table))
 		__app_bt_sync_command_handler_table_end = .;
@@ -1369,6 +1269,12 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 #endif
 
 		*(.sram_rodata*)
+#ifdef FAST_RAM_RUN_LC3_CODEC
+        *:lc3_com.o(.data* .rodata*)
+        *:lc3_dec.o(.data* .rodata*)
+        *:lc3_enc.o(.data* .rodata*)
+#endif
+
 		*(.sram_data*)
 #if (RAMCP_SIZE == 0)
 		*(.cp_data*)
@@ -1377,7 +1283,7 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 		__sram_data_end__ = .;
 	} > RAM
 
-	__sram_text_data_end_flash__ = __sram_data_start_flash__ + SIZEOF(.sram_data);
+	__sram_data_end_flash__ = __sram_data_start_flash__ + SIZEOF(.sram_data);
 
 	.sram_bss (.) (NOLOAD) : AT (ADDR(.sram_bss))
 	{
@@ -1388,16 +1294,12 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 		*:cvsd_codec.o(.bss*)
 #endif
 
-#if defined(VOICE_TX_AEC)
-		*:ssp_aec.o(.bss*)
-#endif
-
-#if defined(APP_NOISE_ESTIMATION)
-		*:noise_estimator.o(.bss*)
-#endif
 		*(.sram_bss*)
 #if (RAMCP_SIZE == 0)
 		*(.cp_bss*)
+#endif
+#if defined(DEFAULT_BSS_IN_PSRAM)
+		*:rpc_bth_dsp.o(.bss*)
 #endif
 #ifdef BLE_BIS_TRANSPORT
 		. = ALIGN(4);
@@ -1409,9 +1311,8 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 		__sram_bss_end__ = .;
 	} > RAM
 
-
 #if defined(ARM_CMSE) && defined(INTSRAM_RUN)
-	__sram_nsc_text_start_flash__ = __sram_text_data_end_flash__;
+	__sram_nsc_text_start_flash__ = __sram_data_end_flash__;
 	.gnu.sgstubs (ORIGIN(RAMX_NSC)) : AT (__sram_nsc_text_start_flash__)
 	{
 		__sram_nsc_text_start__ = .;
@@ -1419,106 +1320,15 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 		. = ALIGN(4);
 	} > RAMX_NSC
 	__sram_nsc_text_end_flash__ = __sram_nsc_text_start_flash__ + SIZEOF(.gnu.sgstubs);
-	__fast_sram_text_data_start_flash__ = __sram_nsc_text_end_flash__;
+	__fast_sram_text_start_flash__ = __sram_nsc_text_end_flash__;
 #else
-	__fast_sram_text_data_start_flash__ = __sram_text_data_end_flash__;
+	__fast_sram_text_start_flash__ = __sram_data_end_flash__;
 #endif
 
-	.fast_text_sram : AT (__fast_sram_text_data_start_flash__)
+	.fast_text_sram : AT (__fast_sram_text_start_flash__)
 	{
 		__fast_sram_text_exec_start__ = .;
-#if defined(PROMPT_USE_AAC)
-		*:aac_api.o(.text*)
-#ifdef A2DP_SOURCE_AAC_ON
-		*:adj_thr.o(.text.*FDKaacEnc_AdjThrClose*)
-		*:bit_cnt.o(.text*)
-		*:quantize.o(.text*FDKaacEnc_quantizeLines*)
-		*:adj_thr.o(.text*CalcRedValPower*)
-		*:tpenc_lib.o(.text.*transportEnc_GetStaticBits*)
-		*:tpenc_latm.o(.text.*transportEnc_LatmCountTotalBitDemandHeader*)
-		*:tpenc_lib.o(.text.*transportEnc_GetBitstream*)
-		*:line_pe.o(.text.*FDKaacEnc_calcSfbPe*)
-		*:adj_thr.o(.text.*FDKaacEnc_calcPe*)
-		*:spreading.o(.text.*FDKaacEnc_SpreadingMax*)
-		*:bitenc.o(.text.*FDKaacEnc_writeExtensionData*)
-		*:bitenc.o(.text.*FDKaacEnc_ChannelElementWrite*)
-		*:qc_main.o(.text.*FDKaacEnc_getTotalConsumedBits*)
-		*:adj_thr.o(.text.*FDKaacEnc_reduceThresholdsCBR*)
-		*:band_nrg.o(.text.*FDKaacEnc_CalcSfbMaxScaleSpec*)
-		*:aacenc_tns.o(.text.*FDKaacEnc_AutoToParcor*)
-		*:aacenc_tns.o(.text.*FDKaacEnc_Parcor2Index*)
-		*:aacenc_tns.o(.text.*FDKaacEnc_TnsDetect*)
-		*:aacenc_tns.o(.text.*FDKaacEnc_TnsEncode*)
-		*:pre_echo_control.o(.text.*FDKaacEnc_PreEchoControl*)
-		*:transform.o(.text.*FDKaacEnc_Transform_Real*)
-		*:band_nrg.o(.text.*FDKaacEnc_CheckBandEnergyOptim*)
-		*:tpenc_latm.o(.text.*AdvanceAudioMuxElement*)
-		*:aacenc.o(.text.*FDKaacEnc_EncodeFrame*)
-		*:aacenc_pns.o(.text.*FDKaacEnc_PnsDetect*)
-#else
-#if defined(A2DP_AAC_ON)
-		*:block.o(.text*.*CBlock_GetEscape*)
-		*:tpdec_lib.o(.text*.*transportDec_GetBitstream*)
-		*:tpdec_lib.o(.text*.*transportDec_GetAuBitsRemaining*)
-		*:tpdec_latm.o(.text*.*CLatmDemux_GetValue*)
-		*:tpdec_latm.o(.text*.*CLatmDemux_Read*)
-		*:tpdec_lib.o(.text*.*transportDec_FillData*)
-		*:tpdec_lib.o(.text*.*transportDec_ReadAccessUnit*)
-		*:tpdec_lib.o(.text*.*transportDec_readHeader*)
-		*:block.o(.text*.*ApplyTools*)
-		*:aacdec_pns.o(.text*.*CPns_Apply*)
-		*:aacdec_tns.o(.text*.*CTns_Apply*)
-		*:aacdec_tns.o(.text*.*CTns_Reset*)
-		*:aacdec_pns.o(.text*.*CPns_ResetData*)
-		*:pulsedata.o(.text*.*CPulseData_Read*)
-#if !defined(AAC_TEXT_PARTIAL_IN_FLASH)
-		*:channel.o(.text*.*CChannelElement_Read*)
-		*:tpdec_asc.o(.text*.*CProgramConfig_Reset*)
-		*:tpdec_lib.o(.text*.*transportDec_CrcCheck*)
-		*:block.o(.text*.*CBlock_FrequencyToTime*)
-		*:block.o(.text*.*CBlock_ReadSectionData*)
-		*:channel.o(.text*.*CChannelElement_Decode*)
-		*:tpdec_lib.o(.text*.*transportDec_CrcEndReg*)
-		*:aacdecoder.o(.text*.*CAacDecoder_DecodeFrame*)
-		*:aac_mdct.o(.text*)
-#endif
-#if !defined(__SBC_FUNC_IN_ROM_VBEST2000__) && !defined(AAC_TEXT_PARTIAL_IN_FLASH)
-		*:block.o(.text*.*CBlock_ReadSpectralData*)
-		*:block.o(.text*.*CBlock_ScaleSpectralData*)
-		*:aacdec_tns.o(.text*.*CTns_ReadDataPresentFlag*)
-		*:tpdec_lib.o(.text*.*transportDec_CrcStartReg*)
-		*:block.o(.text*.*CBlock_ReadScaleFactorData*)
-		*:tpdec_lib.o(.text*.*transportDec_EndAccessUnit*)
-		*:tpdec_latm.o(.text*.*CLatmDemux_GetNrOfSubFrames*)
-		*:tpdec_lib.o(.text*.*transportDec_GetAuBitsTotal*)
-		*:tpdec_asc.o(.text*.*CProgramConfig_LookupElement*)
-		*:tpdec_latm.o(.text*.*CLatmDemux_GetFrameLengthInBits*)
-		*:tpdec_latm.o(.text*.*CLatmDemux_ReadPayloadLengthInfo*)
-		*:block.o(.text*.*CBlock_InverseQuantizeSpectralData*)
-		*:channelinfo.o(.text*.*IcsRead*)
-		*:aacdec_tns.o(.text*.*CTns_Read*)
-		*:tpdec_lib.o(.text*.*transportDec_AdjustEndOfAccessUnit*)
-		*:pulsedata.o(.text*.*CPulseData_Apply*)
-		*:tpdec_asc.o(.text*.*AudioSpecificConfig_Init*)
-		*:tpdec_asc.o(.text*.*AudioSpecificConfig_Parse*)
-		*:tpdec_latm.o(.text*.*CLatmDemux_ReadStreamMuxConfig*)
-		*:tpdec_asc.o(.text*.*getSampleRate*)
-		*:tpdec_asc.o(.text*.*getAOT*)
-		*:aacdecoder.o(.text*.*CAacDecoder_Init*)
-		*:tpdec_asc.o(.text*.*CProgramConfig_Init*)
-		*:aacdecoder_lib.o(.text*.*aacDecoder_ConfigCallback*)
-		*:aacdecoder.o(.text*.*CAacDecoder_ExtPayloadParse*)
-		*:stereo.o(.text*.*CJointStereo_Read*)
-#endif
-#endif
-#if defined(CP_IN_SAME_EE) && (RAMCP_SIZE > 0)
-		*:a2dp_decoder_aac_lc.o(.text*)
-		*:aac_com.o(.text*)
-		*:aac_enc.o(.text*)
-		*:aac_dec.o(.text*)
-#endif
-#endif
-#endif
+
 #if defined(CMSIS_TEST)
 		*:basicmathfunctions.o(.text*)
 		*:basicmathfunctionsf16.o(.text*)
@@ -1540,11 +1350,6 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 		*:convolutionfunctions.o(.text*)
 #endif
 
-#if defined(ROM_UTILS_ON)
-		*:rom_utils.o(.text*)
-#endif
-
-#if !defined(FAST_RAM_OPTIMIZE)
 #if defined(GLOBAL_SRAM_KISS_FFT)
 		*:fftwrap.o(.text*)
 		*:smallft.o(.text*)
@@ -1558,33 +1363,8 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 		*:arm_cfft_f32.o(.text*)
 #endif
 
-#if defined(VOICE_ASSIST_FF_FIR_LMS)
-		*:anc_ff_fir_lms.o(.text*)
-		*:mdf4.o(.text*)
-		*:event_detection.o(.text*)
-#endif
-
 #if defined(SPEECH_TX_2MIC_NS8) && defined(AUDIO_LIMITER)
 		*:floatlimiter.o(.text.ApplyFloatLimiter)
-#endif
-
-#if defined(VOICE_ALGO_CP_ACCEL)
-		*:cmsis_fftwrap.o(.text*)
-		*:arm_rfft_fast_f32.o(.text*)
-		*:arm_cfft_f32.o(.text*.arm_cfft_f32)
-		*:arm_bitreversal2.o(.text*.arm_bitreversal_32)
-		*:arm_cfft_radix8_f32.o(.text*.arm_radix8_butterfly_f32)
-
-		*:voice_algo.o(.text*.voice_algo_process_impl)
-		*:voice_algo.o(.text*.algo_process_impl)
-#if defined(VOICE_TX_AEC)
-		*:voice_tx_aec.o(.text*.voice_tx_aec_process)
-		*:ssp_aec.o(.text*)
-#endif
-#if defined(APP_NOISE_ESTIMATION)
-		*:voice_noise_est.o(.text*.voice_noise_est_process)
-		*:noise_estimator.o(.text*)
-#endif
 #endif
 
 #if defined(SCO_CP_ACCEL)
@@ -1602,12 +1382,30 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 		*:sbc_filter.o(.text*)
 /* Move algos from overlay to here */
 
+#if defined(SPEECH_TX_NS7) || defined(SPEECH_TX_2MIC_NS7) || defined(SPEECH_TX_2MIC_NS8) || defined(SPEECH_TX_NS8)
+		*:lib_a-wf_sqrt.o(.text*)
+		*:lib_a-ef_sqrt.o(.text*)
+		*:lib_a-sf_fabs.o(.text*)
+		*:lib_a-sf_tanh.o(.text*)
+		*:lib_a-sf_frexp.o(.text*) /* besnet_utils.c */
+		*:lib_a-sf_expm1.o(.text*)
+		*:lib_a-ef_exp.o(.text*)
+		*:lib_a-wf_exp.o(.text*)
+		*:lib_a-wf_log.o(.text*)
+		*:lib_a-w_sqrt.o(.text*)
+		*:lib_a-e_sqrt.o(.text*)
+		*:beco.o(.text*)
+#endif
+#endif
+
+#if defined(ROM_UTILS_ON)
+		*:rom_utils.o(.text*)
 #endif
 
 #if defined(BTUSB_AUDIO_MODE)
 		*:hal_dma.o(.text*)
 		*:hal_uart.o(.text*)
-		*:hal_trace.o(.text*)
+		*:hal_trace*.o(.text*)
 #endif
 
 #if defined(BTUSB_AUDIO_MODE)
@@ -1631,16 +1429,6 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 #if defined(MIX_MIC_DURING_MUSIC)
 		*:app_bt_stream.o(.text*)
 #endif
-
-#if defined(TZ_ROM_UTILS_IF)
-#if defined(ARM_CMNS)
-		*:tz_rom_utils.o(.text*)
-#endif
-#if defined(ARM_CMSE)
-		*:tz_rom_utils_se.o(.text*)
-#endif
-#endif
-
 #if defined(__SBC_FUNC_IN_ROM__) || (defined(CP_IN_SAME_EE) && (RAMCP_SIZE > 0))
 		*:sbc.o(.text*)
 #else
@@ -1669,7 +1457,6 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 #endif
 		*:sbc_math.o(.text*)
 		*:sbc_api.o(.text*)
-		*:aac_tool.o(.text*)
 #if defined(A2DP_AAC_ON)
 		*:fixpoint_math.o(.text*)
 		*:FDK_bitbuffer.o(.text*)
@@ -1685,7 +1472,7 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 		*:voice_opus.o(.text*)
 #elif defined(VOICE_DATAPATH) || defined(__ALEXA_WWE) || defined(AQE_KWS_ALEXA)
 		*:opus_encoder.o(.text*)
-#elif defined(__AI_VOICE__) && (RAM_SIZE >= 0x48000)
+#elif defined(__AI_VOICE__) && (RAMX_REGION_SIZE >= 0x48000)
 		*:voice_opus.o(.text*)
 		/**:opus_encoder.o(.text*)*/
 		*:opus_encoder.o(.text*.frame_size_select)
@@ -1856,44 +1643,43 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 		*:vector_scaling_operations.o(.text*)
 #endif
 #if defined(SPEECH_TX_NN_NS2)
-	*:nn_ns_pitch.o(.text*)
-	*:nn_ns_celt_lpc.o(.text*)
-	*:nn_ns_model.o(.text*)
-	*:nn_ns2.o(.text*)
+		*:nn_ns_pitch.o(.text*)
+		*:nn_ns_celt_lpc.o(.text*)
+		*:nn_ns_model.o(.text*)
+		*:nn_ns2.o(.text*)
 #endif
-#if !defined(SCO_OPTIMIZE_FOR_RAM) || defined(USE_OVERLAY_TXT_GAP)
+
+#if !defined(SCO_OPTIMIZE_FOR_RAM)
 		:audio_prompt_sbc.o(.text*)
 #endif
 
 		*:sbcplc.o(.text*)
 		*:iirfilt.o(.text*)
 
+#ifdef FAST_RAM_RUN_LC3_CODEC
+		*:lc3_com.o(.text*)
+		*:lc3_dec.o(.text*)
+		*:lc3_enc.o(.text*)
+#endif
+
 #if defined(A2DP_SCALABLE_ON)
 		*:util.o(.text*)
 #endif
-#endif//if !defined(FAST_RAM_OPTIMIZE)
 
-#ifdef FAST_RAM_RUN_LC3_CODEC
-        *:lc3_com.o(.text*)
-        *:lc3_dec.o(.text*)
-        *:lc3_enc.o(.text*)
+#if defined(LWIP_IN_RAM)
+		*:udp*.o(.text*)
+		*:ip*.o(.text*)
+		*:tcp*.o(.text*)
+		*:mem*.o(.text*)
+		*:pbuf.o(.text*)
+		*:icmp.o(.text*)
+		*:net*.o(.text*)
+		*:eth*.o(.text*)
+		*:iperf*.o(.text*)
+		*:nts*.o(.text*)
+		*:socket*.o(.text*)
+		*:hw_crc.o(.text*)
 #endif
-#if defined(__VIRTUAL_SURROUND__) || defined(__VIRTUAL_SURROUND_STEREO__)
-			*:cmsis_dsp.o(.text.arm_copy_f32)
-#endif
-#if defined(__VIRTUAL_SURROUND_CP__)
-			*:cmsis_dsp.o(.text.arm_copy_f32)
-			*:virtual_surround_process.o(.text*)
-#endif
-#if defined(SPEECH_TX_2MIC_NS7) || defined(SPEECH_TX_2MIC_NS8)
-		*:lib_a-wf_sqrt.o(.text*)
-		*:lib_a-ef_sqrt.o(.text*)
-		*:lib_a-sf_fabs.o(.text*)
-		*:lib_a-sf_frexp.o(.text*) /* besnet_utils.c */
-		*:beco.o(.text*)
-#endif
-		*:fastmath_approx.o(.text*)
-
 		*(.fast_text_sram*)
 #if (RAMCP_SIZE == 0)
 		*(.cp_text_sram*)
@@ -1906,12 +1692,12 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 		__fast_sram_text_exec_end__ = .;
 	} > FRAMX
 
-	__fast_sram_text_data_end_flash__ = __fast_sram_text_data_start_flash__ + SIZEOF(.fast_text_sram);
+	__fast_sram_text_end_flash__ = __fast_sram_text_start_flash__ + SIZEOF(.fast_text_sram);
 	__fast_sram_text_data_start__ = RAMX_TO_RAM(__fast_sram_text_exec_start__);
 	__fast_sram_text_data_end__ = RAMX_TO_RAM(__fast_sram_text_exec_end__);
 
 #if defined(CP_IN_SAME_EE) && (RAMCP_SIZE > 0)
-	__cp_text_sram_start_flash__ = __fast_sram_text_data_end_flash__;
+	__cp_text_sram_start_flash__ = __fast_sram_text_end_flash__;
 
 	.cp_text_sram (ORIGIN(RAMCPX)) : AT (__cp_text_sram_start_flash__)
 	{
@@ -1951,17 +1737,40 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 
 	__cp_sram_end_flash__ = __cp_data_sram_start_flash__ + SIZEOF(.cp_data_sram);
 
+	__cp_always_on_data_sram_start_flash__ = __cp_sram_end_flash__;
+
+#ifdef CP_ALWAYS_ON_DATA
+	.cp_always_on_data_sram (.) : AT (__cp_always_on_data_sram_start_flash__)
+	{
+		__cp_always_on_data_sram_start = .;
+		*(.cp_always_on_data*)
+		. = ALIGN(4);
+		__cp_always_on_data_sram_end = .;
+	} > RAMCP
+
+	__cp_always_on_sram_end_flash__ = __cp_always_on_data_sram_start_flash__ + SIZEOF(.cp_always_on_data_sram);
+#else
+	__cp_always_on_sram_end_flash__ = __cp_always_on_data_sram_start_flash__;
+#endif
+
 	.cp_bss_sram (.) (NOLOAD) : AT (ADDR(.cp_bss_sram))
 	{
 		__cp_bss_sram_start = .;
 		*(.cp_bss*)
 		. = ALIGN(4);
 		__cp_bss_sram_end = .;
+
+#ifdef CP_ALWAYS_ON_DATA
+		__cp_always_on_bss_sram_start = .;
+		*(.cp_always_on_bss*)
+		. = ALIGN(4);
+		__cp_always_on_bss_sram_end = .;
+#endif
 	} > RAMCP
 
-	__overlay_text_start_flash__ = __cp_sram_end_flash__;
+	__overlay_text_start_flash__ = __cp_always_on_sram_end_flash__;
 #else
-	__overlay_text_start_flash__ = __fast_sram_text_data_end_flash__;
+	__overlay_text_start_flash__ = __fast_sram_text_end_flash__;
 #endif
 
 #ifdef OVERLAY_FOR_CP
@@ -1977,12 +1786,7 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 		.overlay_text0
 		{
 			LONG(0);
-			*:filterbank_pflt.o(.text*)
-#if defined(CP_IN_SAME_EE) && (RAMCP_SIZE > 0)
-			/*:bt_sco_chain.o(.text*)*/
-			*:bt_sco_chain_cp.o(.text*)
-#endif
-
+#ifndef NO_SPEECH_ALGO_OVERLAY
 #if !defined(GLOBAL_SRAM_KISS_FFT)
 			*:kiss_fft.o(.text*)
 			*:kiss_fftr.o(.text*)
@@ -2012,7 +1816,22 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 			*:arm_fully_connected_mat_q7_vec_q15.o(.text*)
 #endif
 
-#if defined(SCO_OPTIMIZE_FOR_RAM) && !defined(USE_OVERLAY_TXT_GAP)
+#if defined(SPEECH_VAD_NN)
+			*:vad_pitch.o(.text*)
+			*:vad_celt_lpc.o(.text*)
+			*:rnn.o(.text*)
+			*:rnn_data.o(.text*)
+			*:vad_nn.o(.text*)
+
+			*:nsx_core_freq.o(.text*)
+			*:copy_set_operations.o(.text*)
+			*:division_operations.o(.text*)
+			*:energy.o(.text*)
+			*:get_scaling_square.o(.text*)
+			*:spl_sqrt_floor.o(.text*)
+#endif
+
+#if defined(SCO_OPTIMIZE_FOR_RAM)
 			*:arm_biquad_cascade_df1_f32.o(.text*)
 			*:integer_delay.o(.text*)
 			*:lc_mmse_ns_float.o(.text*.speech_ns2float_process)
@@ -2044,7 +1863,7 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 			*:ringbuf.o(.text*)
 #endif
 			*:scale_int16.o(.text*)
-			/*:speech_conv.o(.text*)*/
+			*:speech_conv.o(.text*)
 			*:speech_trans_buf.o(.text*)
 
 #if !defined(SCO_CP_ACCEL)
@@ -2095,13 +1914,17 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 #if defined(SPEECH_TX_2MIC_NS5)
             *:leftright_denoise.o(.text*)
 #endif
+#if defined(SPEECH_TX_2MIC_NS6)
+			*:speech_2mic_ns6.o(.text*)
+			*:mmse_snr.o(.text*)
+#endif
 #if defined(SPEECH_TX_NS2) || defined(SPEECH_RX_NS2)
 			*:lc_mmse_ns.o(.text*)
 #endif
 #if defined(SPEECH_TX_NS2FLOAT) || defined(SPEECH_RX_NS2FLOAT)
 			*:lc_mmse_ns_float.o(.text*)
 #endif
-#if defined(SPEECH_TX_NS3) || defined(SPEECH_RX_NS3) || defined(SPEECH_TX_2MIC_NS4)
+#if defined(SPEECH_TX_NS3) || defined(SPEECH_RX_NS3) || defined(SPEECH_TX_3MIC_NS)
 			*:ns3.o(.text*)
 			*:noise_suppression_x.o(.text*)
 			*:nsx_core.o(.text*)
@@ -2124,16 +1947,13 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 			*:spl_sqrt_floor.o(.text*)
 			*:vector_scaling_operations.o(.text*)
 #endif
-#if (defined(SPEECH_TX_DTLN) && defined(DTLN_CP)) || defined(SPEECH_TX_3MIC_AI_NS) || defined(SPEECH_TX_2MIC_NS4)
+#if defined(SPEECH_TX_DTLN) && defined(DTLN_CP)
 			*:fully_connected_common.o(.text*)
 			*:dequantize.o(.text*)
 			*:logistic.o(.text*)
 			*:kernel_util.o(.text*)
 			*:tanh.o(.text*)
 			*:sub_common.o(.text*)
-			*:slice.o(.text*)
-			*:micro_interpreter.o(.text*)
-			*:micro_graph.o(.text*)
 			*:strided_slice.o(.text*)
 			*:quantize_common.o(.text*)
 			*:quantize.o(.text*)
@@ -2177,105 +1997,55 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 			*:debug_log.o(.text*)
 			*:micro_string.o(.text*)
 			*:cmsis_fftwrap.o(.text*)
-			*:sm_fftwrap.o(.text*)
 			*:arm_fully_connected_q7.o(.text*)
 			*:arm_fully_connected_s8.o(.text*)
 			*:arm_q7_to_q15_reordered_no_shift.o(.text*)
-			*:cumsum.o(.text*)
-			*:hard_swish.o(.text*)
-			*:floor_mod.o(.text*)
-			*:l2_pool_2d.o(.text*)
-			*:expand_dims.o(.text*)
-			*:comparisons.o(.text*)
-			*:prelu.o(.text*)
-			*:log_softmax.o(.text*)
-			*:transpose.o(.text*)
 #endif
-
-#if defined(SPEECH_TX_1MIC_NS) || defined(SPEECH_TX_2MIC_NS8) || defined(SPEECH_TX_3MIC_NS)
-			*:beco.o(.text*)
-			*:speech_1mic_ns.o(.text*)
-			/* stft */
-			*:speech_nn_stft.o(.text*)
-			/* nn */
-			*:speech_nn_ns95l.o(.text*)
-			*:speech_nn_ns94l.o(.text*)
-			*:speech_nn_ns93l.o(.text*)
-			*:speech_nn_ns91s.o(.text*)
-			*:speech_nn_ns95s.o(.text*)
-			*:speech_nn_ns100l.o(.text*)
-			*:speech_nn_ns101l.o(.text*)
-			*:speech_nn_ns102l.o(.text*)
-			*:filterbank_pflt.o(.text*)
-			*:lcmmse.o(.text*)
-			*:logmmse.o(.text*)
-			/* layer */
-			*:besnet_add_layer.o(.text*)
-			*:besnet_base_layer.o(.text*)
-			*:besnet_common.o(.text*)
-			*:besnet_conv1x1_layer.o(.text*)
-			*:besnet_gru_layer.o(.text*)
-			*:besnet_instance_norm_layer.o(.text*)
-			*:besnet_instance_norm1_layer.o(.text*)
-			*:besnet_prelu_layer.o(.text*)
-			*:besnet_separable_conv_layer.o(.text*)
-			*:besnet_separable_transposed_conv_layer.o(.text*)
-			/* kernel */
-			*:arm_instance_norm_f32.o(.text*)
-			*:arm_depthwise_separable_conv_ns_s16.o(.text*)
-			*:arm_depthwise_transposed_conv_ns_s16.o(.text*)
-#if defined(SPEECH_NS_BECO)
-			*:beco_support_functions.o(.text*)
-			*:beco_convolve_1x1_ns_s16.o(.text*)
-			*:beco_convolve_1x1_norelu_ns_s16.o(.text*)
-			*:beco_convolve_1x1och1_ns_s16.o(.text*)
-			*:beco_fully_connected_ns_s16.o(.text*)
-			*:beco_gru_ns_s16.o(.text*)
-#endif
-#if defined(SPEECH_NS_CMSIS)
-			*:arm_convolve_1x1_ns_s16.o(.text*)
-			*:arm_convolve_1x1och1_ns_s16.o(.text*)
-			*:arm_fully_connected_ns_s16.o(.text*)
-			*:arm_gru_ns_s16.o(.text*)
-#endif
-#if defined(SPEECH_NS_NAIVE)
-			*:naive_convolve_1x1_ns_s16.o(.text*)
-			*:naive_convolve_1x1och1_ns_s16.o(.text*)
-			*:naive_fully_connected_ns_s16.o(.text*)
-			*:naive_gru_ns_s16.o(.text*)
-#endif
-			/* others */
-			*:spectral_wdrc.o(.text*)
-			*:arm_nn_activation_s16.o(.text*)
-			*:arm_nntables.o(.text*)
-			*:cmsis_dsp.o(.text.arm_scale_q15)
-			*:cmsis_dsp.o(.text.arm_mat_trans_q15)
-			*:cmsis_dsp.o(.text.arm_add_q15)
-			*:cmsis_dsp.o(.text.arm_mult_q15)
-			*:cmsis_dsp.o(.text.arm_offset_q15)
-			*:cmsis_dsp.o(.text.arm_negate_q15)
-			*:cmsis_dsp.o(.text.arm_scale_f32)
-			*:cmsis_dsp.o(.text.arm_mean_f32)
-			*:cmsis_dsp.o(.text.arm_cmplx_mag_f32)
-			*:cmsis_dsp.o(.text.arm_dot_prod_f32)
-			*:cmsis_dsp.o(.text.arm_add_f32)
-#endif
-
-#if defined(SPEECH_TX_NS4) || defined(SPEECH_TX_2MIC_NS4) || defined(SPEECH_TX_AEC2FLOAT)
+#if defined(SPEECH_TX_NS4)
 			*:speech_ns4.o(.text*)
-			*:speech_ns4_core.o(.text*)
 #endif
+#if defined(SPEECH_TX_NS7) || defined(SPEECH_TX_2MIC_NS8)
+			*:base_layer.o(.text*)
+			*:logmmse.o(.text*)
+			*:lcmmse.o(.text*)
+			*:besnet_utils.o(.text*)
+			*:dw_conv_layer.o(.text*)
+			*:dw_deconv_layer.o(.text*)
+			*:fully_connected_layer.o(.text*)
+			*:gru_layer.o(.text*)
+			*:output_layer.o(.text*)
+			*:speech_ns7.o(.text*)
+			*:filterbank_pflt.o(.text*)
+			*:arm_depthwise_separable_conv2x4_q15_q7_q31.o(.text*)
+			*:arm_convolve_1x1_HWC_q15_q7_q31.o(.text*)
+			*:arm_depthwise_transposed_conv2x4_q15_q7.o(.text*)
+			*:arm_fully_connected_q15_q7_q31.o(.text*)
+			*:arm_depthwise_transposedconv_2x4_q15_q7.o(.text*)
+			*:cmsis_dsp.o(.text.arm_mat_trans_q15)
+			*:cmsis_dsp.o(.text.arm_mat_inverse_f64)
+			*:cmsis_dsp.o(.text.arm_cos_f32)
+#endif
+
+#if defined(SPEECH_TX_NS8) || defined(SPEECH_TX_2MIC_NS8)
+			*:speech_ns8.o(.text*)
+			*:besnet_RealDeconv2d_nob.o(.text*)
+			*:besnet_RealConvDeTranspose2d_nob.o(.text*)
+			*:besnet_tranform_col.o(.text*)
+			*:besnet_weights.o(.text*)
+			*:arm_depthwise_separable_conv_2x4_HCW.o(.text*)
+			*:beco_convolve_1x1_q15_q7_q31_och1.o(.text*)
+			*:beco_convolve_1x1_q15_q7_q31.o(.text*)
+			*:beco_fully_connected_q15_q7_q31.o(.text*)
+			*:besnet_gru_layer.o(.text*)
+			*:besnet_InstantLayerNorm.o(.text*)
+			*:besnet_ouput_layer.o(.text*)
+			*:besnet_utils.o(.text*)
+			*:arm_depthwise_transposed_conv_1x4_HCW.o(.text*)
+			*:_arm_unorddf2.o(.text*)
+#endif
+
 #if defined(SPEECH_TX_2MIC_NS7)
-			*:integer_delay.o(.text*)
-			*:noise_suppression.o(.text*)
-			*:ns_core.o(.text*)
 			*:speech_2mic_ns7.o(.text*)
-			*:rls.o(.text*)
-			*:coherence.o(.text*)
-			*:echo_suppression_core.o(.text*)
-			*:spectral_wdrc.o(.text*)
-			*:wind_detection.o(.text*)
-			*:floatlimiter.o(.text.ApplyFloatLimiter)
 #endif
 #if defined(SPEECH_TX_2MIC_NS8)
 			*:speech_2mic_ns8.o(.text*)
@@ -2286,35 +2056,20 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 			*:echo_suppression_core.o(.text*)
 			*:spectral_wdrc.o(.text*)
 			*:wind_detection.o(.text*)
-			*:cmsis_dsp.o(.text.arm_fill_q31)
-			*:cmsis_dsp.o(.text.arm_absmax_f32)
+			*:cmsis_dsp.o(.text.arm_scale_f32)
 #if !defined(AUDIO_LIMITER)
 			*:floatlimiter.o(.text.ApplyFloatLimiter)
 #endif
 #endif
-
-			*:cmsis_fftwrap.o(.text*)
-			*:arm_rfft_fast_f32.o(.text*)
-			*:arm_cfft_f32.o(.text*)
-#if defined(SPEECH_TX_AEC2FLOAT) || defined(SPEECH_TX_2MIC_NS4)
-			*:rnn.o(.text*)
-			*:bes_fully_connected_mat_q7_vec_f32.o(.text.bes_fully_connected_mat_q7_vec_f32_no_bias)
-			*:bes_fully_connected_mat_q7_vec_f32.o(.text.bes_fully_connected_mat_q7_vec_f32)
-			*:arm_fully_connected_q7.o(.text.arm_fully_connected_q7_bes_q31)
-			*:arm_q7_to_q15_reordered_no_shift.o(.text.arm_q7_to_q15_reordered_no_shift)
-#endif
-#if (defined(SPEECH_TX_AEC2FLOAT) || defined(SPEECH_TX_2MIC_NS4)) && !defined(AUDIO_ANC_FB_ADJ_MC) && !defined(AUDIO_ADJ_EQ)
+#if (defined(SPEECH_TX_AEC2FLOAT) || defined(SPEECH_TX_3MIC_NS)) && !defined(AUDIO_ANC_FB_ADJ_MC) && !defined(AUDIO_ADJ_EQ)
 			*:coherence.o(.text*)
 			*:echo_canceller.o(.text*)
 			*:echo_suppression.o(.text*)
-			*:echo_suppression_core.o(.text*)
 			*:lcmmse.o(.text*)
 			*:logmmse.o(.text*)
 			*:mdf.o(.text*)
 			*:mdf1.o(.text*)
 			*:mdf2.o(.text*)
-			*:mdf3.o(.text*)
-			*:ssp_aec.o(.text*)
 			*:noise_generator.o(.text*)
 			*:pink_noise_gen.o(.text*)
 			*:white_noise_gen.o(.text*)
@@ -2323,35 +2078,7 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 			*:SubBandBasedAEC.o(.text*)
 #endif
 #if defined(SPEECH_TX_3MIC_NS)
-			*:coherence.o(.text*)
-			*:echo_suppression.o(.text*)
-			*:echo_suppression_core.o(.text*)
-			*:lcmmse.o(.text*)
-			*:logmmse.o(.text*)
-			*:mdf5.o(.text*)
 			*:speech_3mic_ns.o(.text*)
-			*:filterbank_pflt.o(.text*)
-			*:lib_a-sf_frexp.o(.text*)
-			*:libm.a(.text*)
-			*:spectral_wdrc.o(.text*)
-			*:fixed_beamforming.o(.text*)
-			*:ns3.o(.text*)
-			*:noise_suppression_x.o(.text*)
-			*:nsx_core.o(.text*)
-			*:nsx_core_c.o(.text*)
-			*:noise_suppression.o(.text*)
-			*:ns_core.o(.text*)
-			*:stft.o(.text*)
-			*:rls.o(.text*)
-			*:wind_detection_in_3mic.o(.text*)
-			*:spectral_wdrc.o(.text*)
-			*:cmsis_dsp.o(.text.arm_scale_f32)
-			*:cmsis_dsp.o(.text.arm_fill_q31)
-#if !defined(AUDIO_LIMITER)
-			*:floatlimiter.o(.text.ApplyFloatLimiter)
-#endif
-#endif
-#if defined(SPEECH_TX_2MIC_NS4) || defined(SPEECH_TX_3MIC_NS)
 			*:fftfilt.o(.text*)
 #endif
 #if defined(SPEECH_CODEC_FIXED_SAMPLE_RATE)
@@ -2360,7 +2087,9 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 #if defined(SPEECH_TX_COMPEXP)&& !defined(AUDIO_ADJ_EQ)
 			*:compexp.o(.text*)
 #endif
-#if (defined(SPEECH_TX_EQ) || defined(SPEECH_RX_EQ) || defined(SPEECH_CODEC_FIXED_SAMPLE_RATE)) && !defined(VOICE_ASSIST_FF_FIR_LMS) && !defined(AUDIO_DYNAMIC_EQ)
+#if defined(SPEECH_TX_EQ) || defined(SPEECH_RX_EQ) || defined(SPEECH_CODEC_FIXED_SAMPLE_RATE)
+			*:speech_eq.o(.text*)
+			*:speech_arm_eq.o(.text*)
 			*:arm_biquad_cascade_df1_f32.o(.text*)
 			*:arm_biquad_cascade_df1_ex_f32.o(.text*)
 #endif
@@ -2375,7 +2104,8 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 #endif
 #endif
 
-#endif // #if defined(SCO_OPTIMIZE_FOR_RAM) && !defined(USE_OVERLAY_TXT_GAP)
+#endif // #if !defined(SCO_OPTIMIZE_FOR_RAM)
+#endif // #ifndef NO_SPEECH_ALGO_OVERLAY
 			*(.overlay_text0)
 			. = ALIGN(4);
 		}
@@ -2392,7 +2122,7 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 			*:dsp_sample_output.o(.text*)
 			*:eq.o(.text*)
 			*:pga.o(.text*)
-#if !defined(A2DP_AAC_ON) && !defined(A2DP_LHDC_ON)
+#if !defined(A2DP_AAC_ON) && !defined(A2DP_LHDC_ON)&& !defined(A2DP_LHDCV5_ON)
 			*:fir_process.o(.text*)
 			*:iir_process.o(.text*.iir_run .text*.*iir_run_per_*)
 #endif
@@ -2408,10 +2138,10 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 		{
 			LONG(0);
 #if 0 // LC3 work together with call algo and need to overlay Call algo firstly
-		    *:lc3_com.o(.text*)
-		    *:lc3_dec.o(.text*)
-		    *:lc3_enc.o(.text*)
-		    *(.overlay_a2dp_lc3*)
+			*:lc3_com.o(.text*)
+			*:lc3_dec.o(.text*)
+			*:lc3_enc.o(.text*)
+			*(.overlay_a2dp_lc3*)
 #endif
 			*(.overlay_text2)
 			. = ALIGN(4);
@@ -2426,33 +2156,32 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 		.overlay_text4
 		{
 			LONG(0);
-#if !defined(PROMPT_USE_AAC)
 #ifdef A2DP_SOURCE_AAC_ON
-			*:adj_thr.o(.text.*FDKaacEnc_AdjThrClose*)
-			*:bit_cnt.o(.text*)
-			*:quantize.o(.text*FDKaacEnc_quantizeLines*)
-			*:adj_thr.o(.text*CalcRedValPower*)
-			*:tpenc_lib.o(.text.*transportEnc_GetStaticBits*)
-			*:tpenc_latm.o(.text.*transportEnc_LatmCountTotalBitDemandHeader*)
-			*:tpenc_lib.o(.text.*transportEnc_GetBitstream*)
-			*:line_pe.o(.text.*FDKaacEnc_calcSfbPe*)
-			*:adj_thr.o(.text.*FDKaacEnc_calcPe*)
-			*:spreading.o(.text.*FDKaacEnc_SpreadingMax*)
-			*:bitenc.o(.text.*FDKaacEnc_writeExtensionData*)
-			*:bitenc.o(.text.*FDKaacEnc_ChannelElementWrite*)
-			*:qc_main.o(.text.*FDKaacEnc_getTotalConsumedBits*)
-			*:adj_thr.o(.text.*FDKaacEnc_reduceThresholdsCBR*)
-			*:band_nrg.o(.text.*FDKaacEnc_CalcSfbMaxScaleSpec*)
-			*:aacenc_tns.o(.text.*FDKaacEnc_AutoToParcor*)
-			*:aacenc_tns.o(.text.*FDKaacEnc_Parcor2Index*)
-			*:aacenc_tns.o(.text.*FDKaacEnc_TnsDetect*)
-			*:aacenc_tns.o(.text.*FDKaacEnc_TnsEncode*)
-			*:pre_echo_control.o(.text.*FDKaacEnc_PreEchoControl*)
-			*:transform.o(.text.*FDKaacEnc_Transform_Real*)
-			*:band_nrg.o(.text.*FDKaacEnc_CheckBandEnergyOptim*)
-			*:tpenc_latm.o(.text.*AdvanceAudioMuxElement*)
-			*:aacenc.o(.text.*FDKaacEnc_EncodeFrame*)
-			*:aacenc_pns.o(.text.*FDKaacEnc_PnsDetect*)
+            *:adj_thr.o(.text.*FDKaacEnc_AdjThrClose*)
+            *:bit_cnt.o(.text*)
+            *:quantize.o(.text*FDKaacEnc_quantizeLines*)
+            *:adj_thr.o(.text*CalcRedValPower*)
+            *:tpenc_lib.o(.text.*transportEnc_GetStaticBits*)
+            *:tpenc_latm.o(.text.*transportEnc_LatmCountTotalBitDemandHeader*)
+            *:tpenc_lib.o(.text.*transportEnc_GetBitstream*)
+            *:line_pe.o(.text.*FDKaacEnc_calcSfbPe*)
+            *:adj_thr.o(.text.*FDKaacEnc_calcPe*)
+            *:spreading.o(.text.*FDKaacEnc_SpreadingMax*)
+            *:bitenc.o(.text.*FDKaacEnc_writeExtensionData*)
+            *:bitenc.o(.text.*FDKaacEnc_ChannelElementWrite*)
+            *:qc_main.o(.text.*FDKaacEnc_getTotalConsumedBits*)
+            *:adj_thr.o(.text.*FDKaacEnc_reduceThresholdsCBR*)
+            *:band_nrg.o(.text.*FDKaacEnc_CalcSfbMaxScaleSpec*)
+            *:aacenc_tns.o(.text.*FDKaacEnc_AutoToParcor*)
+            *:aacenc_tns.o(.text.*FDKaacEnc_Parcor2Index*)
+            *:aacenc_tns.o(.text.*FDKaacEnc_TnsDetect*)
+            *:aacenc_tns.o(.text.*FDKaacEnc_TnsEncode*)
+            *:pre_echo_control.o(.text.*FDKaacEnc_PreEchoControl*)
+            *:transform.o(.text.*FDKaacEnc_Transform_Real*)
+            *:band_nrg.o(.text.*FDKaacEnc_CheckBandEnergyOptim*)
+            *:tpenc_latm.o(.text.*AdvanceAudioMuxElement*)
+            *:aacenc.o(.text.*FDKaacEnc_EncodeFrame*)
+            *:aacenc_pns.o(.text.*FDKaacEnc_PnsDetect*)
 #else
 #if defined(A2DP_AAC_ON)
 			*:block.o(.text*.*CBlock_GetEscape*)
@@ -2518,7 +2247,6 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 			*:aac_api.o(.text*)
 #endif
 			*(.overlay_a2dp_aac*)
-#endif
 #endif
 			*(.overlay_text4)
 			. = ALIGN(4);
@@ -2594,8 +2322,6 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 			*:dec.o(.text*)
 			*:cirbuf.o(.text*)
 			*:DecodeUps2xLPF.o(.text*)
-			*:lib_a-wf_log2.o(.text*)
-            *:lib_a-wf_log.o(.text*)
 			/**:arm_biquad_cascade_df2T_init_f32.o(.text*)*/
 #endif
 #if defined(A2DP_SOURCE_LHDC_ON)
@@ -2611,12 +2337,6 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 			*:win_sinc.o(.text*)
 			*:a2dp_encoder_lhdc_cp.o(.text*)
 #endif
-			*(.overlay_text6)
-			. = ALIGN(4);
-		}
-		.overlay_text7
-		{
-			LONG(0);
 #if defined(A2DP_LDAC_ON)
 			*:a2dp_decoder_ldac.o(.text*)
 			*:bitalloc_ldac.o(.text*)
@@ -2641,40 +2361,55 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 			*:unpack_ldac.o(.text*)
 			*(.overlay_a2dp_ldac*)
 #endif
-			*(.overlay_text7)
+
+
+			*(.overlay_text6)
 			. = ALIGN(4);
 		}
-		.overlay_text8
+		.overlay_text7
 		{
 			LONG(0);
 #if defined(A2DP_LHDCV5_ON)
 			/* LHDC V5*/
 			*(.overlay_a2dp_lhdcv5*)
 			*:a2dp_decoder_lhdcv5.o(.text*)
-			*:lhdc_v5_kiss_fft.o(.text*)
-			*:lhdc_v5_dec_process.o(.text*)
 			*:lhdcv5_util_dec.o(.text*)
-			*:lhdc_v5_dec_lossless.o(.text*)
-			*:lhdc_v5_dec_time_process.o(.text*)
-			*:lhdc_v5_global_table.o(.text*)
 			*:svlice_v5_encdec.o(.text*)
-			*:lhdc_v5_arith.o(.text*)
 			*:svlice_v5_lic_check.o(.text*)
-			*:lhdc_v5_dec_workspace.o(.text*)
-			*:lhdc_v5_level.o(.text*)
-			*:lhdc_log.o(.text*)
-			*:lhdc_v5_dec_header.o(.text*)
-			*:lhdc_v5_accelerate.o(.text*)
-			*:lhdc_v5_bit_inputter.o(.text*)
 			*:svlice_v5_licdecrypt.o(.text*)
-			*:lhdc_v5_freq_shift.o(.text*)
+			*:lhdc_v5_adsq.o(.text*)
+			*:lhdc_v5_bit_op.o(.text*)
+			*:lhdc_v5_bit_read.o(.text*)
+			*:lhdc_v5_bit_write.o(.text*)
+			*:lhdc_v5_bpc.o(.text*)
+			*:lhdc_v5_constant.o(.text*)
+			*:lhdc_v5_dec_header.o(.text*)
+			*:lhdc_v5_dec_imdct.o(.text*)
+			*:lhdc_v5_dec.o(.text*)
+			*:lhdc_v5_dec_workspace.o(.text*)
+			*:lhdc_v5_fac.o(.text*)
+			*:lhdc_v5_fast_math.o(.text*)
+			*:lhdc_v5_kiss_fft.o(.text*)
+			*:lhdc_v5_mem.o(.text*)
+			*:lhdc_v5_sns.o(.text*)
+            *:lhdc_v5_lossless.o(.text*)
 #endif
-			*(.overlay_text8)
-			. = ALIGN(4);
-		}
-		.overlay_text9
-		{
-			LONG(0);
+#if defined(A2DP_SOURCE_LHDCV5_ON)
+            *:svlice_encdec.o(.text*)
+            *:lhdc_v5_enc_mdct.o(.text*)
+            *:svlice_licdecrypt.o(.text*)
+            *:svlice_cc.o(.text*)
+            *:svlog.o(.text*)
+            *:cirbuf.o(.text*)
+            *:lhdc_v5_enc.o(.text*)
+            *:svlice.o(.text*)
+            *:lhdc_v5_enc_header.o(.text*)
+            *:svlice_lic_check.o(.text*)
+            *:svlice_lic_check.o(.text*)
+            *:lhdc_v5_enc_workspace.o(.text*)
+            *:svlice_cc_lic.o(.text*)
+            *:lhdcv5_api.o(.text*)
+#endif
 #if defined(OPUS_OPT_OVERLAY)
 			/**:voice_opus.o(.text*)*/
 			*:opus_encoder.o(.text*)
@@ -2737,35 +2472,35 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 #else
 			*:opus_com.o(.text*)
 #endif
+			*(.overlay_text7)
+			. = ALIGN(4);
+		}
+		.overlay_text8
+		{
+			LONG(0);
+			*:ogg_com.o(.text*)
+			*:vorbis_com.o(.text*)
+			*(.overlay_text8)
+			. = ALIGN(4);
+		}
+		.overlay_text9
+		{
+			LONG(0);
+			*:alac_com.o(.text*)
 			*(.overlay_text9)
 			. = ALIGN(4);
 		}
 		.overlay_text10
 		{
 			LONG(0);
-			*:ogg_com.o(.text*)
-			*:vorbis_com.o(.text*)
+			*:flac_com.o(.text*)
 			*(.overlay_text10)
 			. = ALIGN(4);
 		}
 		.overlay_text11
 		{
 			LONG(0);
-			*:alac_com.o(.text*)
 			*(.overlay_text11)
-			. = ALIGN(4);
-		}
-		.overlay_text12
-		{
-			LONG(0);
-			*:flac_com.o(.text*)
-			*(.overlay_text12)
-			. = ALIGN(4);
-		}
-		.overlay_text13
-		{
-			LONG(0);
-			*(.overlay_text13)
 			. = ALIGN(4);
 		}
 #endif
@@ -2787,7 +2522,7 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 	__fast_sram_end__ = RAMX_TO_RAM(__overlay_text_exec_end__);
 #endif
 
-#ifdef MAIN_RAM_USE_TCM
+#if defined(SEPARATE_RAM_RAMX) || defined(MAIN_RAM_USE_TCM)
 	__ramx_end = __fast_sram_end__;
 	__ramx_top = ORIGIN(RAMX) + LENGTH(RAMX);
 	__free_ramx = __ramx_top - __ramx_end;
@@ -2809,6 +2544,7 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 		{
 			/* Explicitly place 4 bytes at section start to avoid "section type changed to PROGBITS" warnings */
 			LONG(0);
+#ifndef NO_SPEECH_ALGO_OVERLAY
 #if defined(CP_IN_SAME_EE) && (RAMCP_SIZE > 0)
 			*:bt_sco_chain.o(.data* .rodata*)
 			*:bt_sco_chain_cp.o(.data* .rodata*)
@@ -2837,7 +2573,26 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 		*:arm_fully_connected_mat_q7_vec_q15.o(.data* .rodata*)
 #endif
 
-#if !defined(SCO_OPTIMIZE_FOR_RAM) || defined(USE_OVERLAY_TXT_GAP)
+#if defined(SPEECH_VAD_NN)
+		*:vad_pitch.o(.data* .rodata*)
+		*:vad_celt_lpc.o(.data* .rodata*)
+		*:rnn.o(.data* .rodata*)
+
+		*:rnn_data.o(.data* .rodata.input_dense*)
+		*:rnn_data.o(.data* .rodata.vad_gru_weights*)
+		*:rnn_data.o(.data* .rodata.vad_gru_bias*)
+		*:rnn_data.o(.data* .rodata.vad_gru)
+
+		*:rnn_data.o(.data* .rodata.vad_output_weights*)
+		*:rnn_data.o(.data* .rodata.vad_output_bias)
+		*:rnn_data.o(.data* .rodata.vad_output)
+		*:rnn_data.o(.data* .rodata.rnnoise_model_vad)
+
+		*:vad_nn.o(.data* .rodata*)
+		*:nsx_core_freq.o(.data* .rodata*)
+#endif
+
+#if !defined(SCO_OPTIMIZE_FOR_RAM)
 
 #if !defined(GLOBAL_SRAM_KISS_FFT)
 			*:fftwrap.o(.data* .rodata*)
@@ -2847,9 +2602,6 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 #endif
 
 #if !defined(GLOBAL_SRAM_CMSIS_FFT)
-			*:cmsis_fftwrap.o(.rodata*)
-			*:arm_rfft_fast_f32.o(.rodata*)
-			*:arm_cfft_f32.o(.rodata*)
 			*:CommonTables.o(.rodata.armBitRevIndexTable256)
 			*:CommonTables.o(.rodata.twiddleCoef_256)
 			*:CommonTables.o(.rodata.twiddleCoef_rfft_512)
@@ -2900,24 +2652,26 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 #endif
 #if defined(SPEECH_TX_2MIC_NS4)
 			*:sensormic_denoise.o(.data* .rodata*)
-			*:echo_suppression_core.o(.data* .rodata*)
 #endif
 #if defined(SPEECH_TX_2MIC_NS5)
             *:leftright_denoise.o(.data* .rodata*)
 #endif
+#if defined(SPEECH_TX_2MIC_NS6)
+			*:speech_2mic_ns6.o(.data* .rodata*)
+			*:mmse_snr.o(.data* .rodata*)
+#endif
 #if defined(SPEECH_TX_NS2) || defined(SPEECH_RX_NS2)
 			*:lc_mmse_ns.o(.data* .rodata*)
 #endif
-#if defined(SPEECH_TX_NS3) || defined(SPEECH_RX_NS3) || defined(SPEECH_TX_2MIC_NS4) || defined(SPEECH_TX_3MIC_NS)
+#if defined(SPEECH_TX_NS3) || defined(SPEECH_RX_NS3) || defined(SPEECH_TX_3MIC_NS)
 			*:nsx_core.o(.data* .rodata*)
 			*:ns_core.o(.data* .rodata*)
 #endif
-#if defined(SPEECH_TX_NS4) || defined(SPEECH_TX_2MIC_NS4) || defined(SPEECH_TX_AEC2FLOAT)
+#if defined(SPEECH_TX_NS4)
 			*:speech_ns4.o(.data* .rodata*)
-			*:speech_ns4_core.o(.data* .rodata*)
 #endif
 
-#if (defined(SPEECH_TX_DTLN) && defined(DTLN_CP)) || defined(SPEECH_TX_3MIC_AI_NS) || defined(SPEECH_TX_2MIC_NS4)
+#if defined(SPEECH_TX_DTLN) && defined(DTLN_CP)
 			*:fully_connected_common.o(.data* .rodata*)
 			*:dequantize.o(.data* .rodata*)
 			*:logistic.o(.data* .rodata*)
@@ -2957,84 +2711,52 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 			*:flatbuffer_conversions.o(.data* .rodata*)
 			*:micro_error_reporter.o(.data* .rodata*)
 			*:cmsis_fftwrap.o(.data* .rodata*)
-			*:sm_fftwrap.o(.data* .rodata*)
-			*:cumsum.o(.data* .rodata*)
-			*:prelu.o(.data* .rodata*)
-			*:log_softmax.o(.data* .rodata*)
-			*:quantization_util.o(.data* .rodata*)
-			*:memory_helpers.o(.data* .rodata*)
-			*:error_reporter.o(.data* .rodata*)
-			*:maximum_minimum.o(.data* .rodata*)
 #endif
 
-#if defined(SPEECH_TX_1MIC_NS) || defined(SPEECH_TX_2MIC_NS8) || defined(SPEECH_TX_3MIC_NS)
-			*:beco.o(.data* .rodata*)
-			*:speech_1mic_ns.o(.data* .rodata*)
-			/* stft */
-			*:speech_nn_stft.o(.data* .rodata*)
-			/* nn */
-			*:speech_nn_ns95l.o(.data* .rodata*)
-			*:speech_nn_ns94l.o(.data* .rodata*)
-			*:speech_nn_ns93l.o(.data* .rodata*)
-			*:speech_nn_ns91s.o(.data* .rodata*)
-			*:speech_nn_ns95s.o(.data* .rodata*)
-			*:speech_nn_ns100l.o(.data* .rodata*)
-			*:speech_nn_ns101l.o(.data* .rodata*)
-			*:speech_nn_ns102l.o(.data* .rodata*)
-			*:filterbank_pflt.o(.data* .rodata*)
-			*:lcmmse.o(.data* .rodata*)
+#if defined(SPEECH_TX_NS7) || defined(SPEECH_TX_2MIC_NS8)
 			*:logmmse.o(.data* .rodata*)
-			/* layer */
-			*:besnet_add_layer.o(.data* .rodata*)
-			*:besnet_base_layer.o(.data* .rodata*)
-			*:besnet_common.o(.data* .rodata*)
-			*:besnet_conv1x1_layer.o(.data* .rodata*)
+			*:lcmmse.o(.data* .rodata*)
+			*:besnet_utils.o(.data* .rodata*)
+			*:dw_conv_layer.o(.data* .rodata*)
+			*:dw_deconv_layer.o(.data* .rodata*)
+			*:fully_connected_layer.o(.data* .rodata*)
+			*:gru_layer.o(.data* .rodata*)
+			*:output_layer.o(.data* .rodata*)
+			*:speech_ns7.o(.data* .rodata*)
+			*:filterbank_pflt.o(.data* .rodata*)
+			*:arm_depthwise_separable_conv2x4_q15_q7_q31.o(.data* .rodata*)
+			*:arm_convolve_1x1_HWC_q15_q7_q31.o(.data* .rodata*)
+			*:arm_depthwise_transposedconv_2x4_q15_q7.o(.data* .rodata*)
+			*:echo_suppression_core.o(.data* .rodata*)
+			*:integer_delay.o(.data* .rodata*)
+			*:coherence.o(.data* .rodata*)
+			*:mdf2.o(.data* .rodata*)
+			*:noise_generator.o(.data* .rodata*)
+			*:pink_noise_gen.o(.data* .rodata*)
+			*:white_noise_gen.o(.data* .rodata*)
+			*:cmsis_dsp.o(.rodata.sinTable_f32)
+#endif
+
+#if defined(SPEECH_TX_NS8) || defined(SPEECH_TX_2MIC_NS8)
+			*:speech_ns8.o(.data* .rodata*)
+			*:besnet_RealDeconv2d_nob.o(.data* .rodata*)
+			*:besnet_RealConvDeTranspose2d_nob.o(.data* .rodata*)
+			*:besnet_tranform_col.o(.data* .rodata*)
+			*:besnet_weights.o(.data* .rodata*)
+			*:arm_depthwise_separable_conv_2x4_HCW.o(.data* .rodata*)
+			*:beco_convolve_1x1_q15_q7_q31_och1.o(.data* .rodata*)
+			*:beco_convolve_1x1_q15_q7_q31.o(.data* .rodata*)
+			*:beco_fully_connected_q15_q7_q31.o(.data* .rodata*)
 			*:besnet_gru_layer.o(.data* .rodata*)
-			*:besnet_instance_norm_layer.o(.data* .rodata*)
-			*:besnet_instance_norm1_layer.o(.data* .rodata*)
-			*:besnet_prelu_layer.o(.data* .rodata*)
-			*:besnet_separable_conv_layer.o(.data* .rodata*)
-			*:besnet_separable_transposed_conv_layer.o(.data* .rodata*)
-			/* kernel */
-			*:arm_instance_norm_f32.o(.data* .rodata*)
-			*:arm_depthwise_separable_conv_ns_s16.o(.data* .rodata*)
-			*:arm_depthwise_transposed_conv_ns_s16.o(.data* .rodata*)
-#if defined(SPEECH_NS_BECO)
-			*:beco_support_functions.o(.data* .rodata*)
-			*:beco_convolve_1x1_ns_s16.o(.data* .rodata*)
-			*:beco_convolve_1x1_norelu_ns_s16.o(.data* .rodata*)
-			*:beco_convolve_1x1och1_ns_s16.o(.data* .rodata*)
-			*:beco_fully_connected_ns_s16.o(.data* .rodata*)
-			*:beco_gru_ns_s16.o(.data* .rodata*)
-#endif
-#if defined(SPEECH_NS_CMSIS)
-			*:arm_convolve_1x1_ns_s16.o(.data* .rodata*)
-			*:arm_convolve_1x1och1_ns_s16.o(.data* .rodata*)
-			*:arm_fully_connected_ns_s16.o(.data* .rodata*)
-			*:arm_gru_ns_s16.o(.data* .rodata*)
-#endif
-#if defined(SPEECH_NS_NAIVE)
-			*:naive_convolve_1x1_ns_s16.o(.data* .rodata*)
-			*:naive_convolve_1x1och1_ns_s16.o(.data* .rodata*)
-			*:naive_fully_connected_ns_s16.o(.data* .rodata*)
-			*:naive_gru_ns_s16.o(.data* .rodata*)
-#endif
-			/* others */
-			*:spectral_wdrc.o(.data* .rodata*)
-			*:arm_nn_activation_s16.o(.data* .rodata*)
-			*:arm_nntables.o(.data* .rodata*)
+			*:besnet_InstantLayerNorm.o(.data* .rodata*)
+			*:besnet_ouput_layer.o(.data* .rodata*)
+			*:besnet_utils.o(.data* .rodata*)
+			*:arm_depthwise_transposed_conv_1x4_HCW.o(.data* .rodata*)
+			*:_arm_unorddf2.o(.data* .rodata*)
 #endif
 
 #if defined(SPEECH_TX_2MIC_NS7)
-			*:integer_delay.o(.data* .rodata*)
-			*:ns_core.o(.data* .rodata*)
-			*:noise_suppression.o(.data* .rodata*)
 			*:speech_2mic_ns7.o(.data* .rodata*)
-			*:rls.o(.data* .rodata*)
-			*:coherence.o(.data* .rodata*)
-			*:echo_suppression_core.o(.data* .rodata*)
-			*:spectral_wdrc.o(.data* .rodata*)
-			*:wind_detection.o(.data* .rodata*)
 #endif
 #if defined(SPEECH_TX_2MIC_NS8)
 			*:speech_2mic_ns8.o(.data* .rodata*)
@@ -3045,36 +2767,12 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 			*:echo_suppression_core.o(.data* .rodata*)
 			*:spectral_wdrc.o(.data* .rodata*)
 			*:wind_detection.o(.data* .rodata*)
-			*:cmsis_dsp.o(.data*.arm_fill_q31)
-			*:cmsis_dsp.o(.data*.arm_absmax_f32)
-#endif
-#if defined(SPEECH_TX_AEC2FLOAT) || defined(SPEECH_TX_2MIC_NS4)
-			*:rnn.o(.data* .rodata*)
 #endif
 #if defined(SPEECH_TX_NS2FLOAT) || defined(SPEECH_RX_NS2FLOAT)
 			*:lc_mmse_ns_float.o(.data* .rodata*)
 #endif
 #if defined(SPEECH_TX_3MIC_NS)
 			*:speech_3mic_ns.o(.data* .rodata*)
-			*:logmmse.o(.data* .rodata*)
-			*:lcmmse.o(.data* .rodata*)
-			*:filterbank_pflt.o(.data* .rodata*)
-			*:arm_mat_trans_q15.o(.data* .rodata*)
-			*:arm_mat_inverse_f64.o(.data* .rodata*)
-			*:libm.a(.data* .rodata*)
-			*:spectral_wdrc.o(.data* .rodata*)
-			*:fixed_beamforming.o(.data* .rodata*)
-			*:stft.o(.data* .rodata*)
-			*:rls.o(.data* .rodata*)
-			*:coherence.o(.data* .rodata*)
-			*:echo_suppression_core.o(.data* .rodata*)
-			*:spectral_wdrc.o(.data* .rodata*)
-			*:wind_detection_in_3mic.o(.data* .rodata*)
-			*:mdf5.o(.data* .rodata*)
-			*:ns3.o(.data* .rodata*)
-			*:noise_suppression_x.o(.data* .rodata*)
-			*:noise_suppression.o(.data* .rodata*)
-			*:ns_core.o(.data* .rodata*)
 #endif
 #if defined(SPEECH_TX_AEC3)
 			*:SubBandBasedAEC.o(.data* .rodata*)
@@ -3082,8 +2780,18 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 #if defined(SPEECH_CODEC_FIXED_SAMPLE_RATE)
 			*:iir_resample.o(.data* .rodata*)
 #endif
-#endif // #if !defined(SCO_OPTIMIZE_FOR_RAM) || defined(USE_OVERLAY_TXT_GAP)
 
+#endif // #if !defined(SCO_OPTIMIZE_FOR_RAM)
+
+#if defined(SCO_CP_ACCEL)
+			*:speech_win.o(.rodata.conj_fwin_60_128_cp)
+			*:speech_win.o(.rodata.conj_fwin_120_256_cp)
+			*:speech_win.o(.rodata.conj_fwin_128_256_cp)
+			*:speech_win.o(.rodata.conj_fwin_160_256_cp)
+			*:speech_win.o(.rodata.conj_fwin_240_512_cp)
+			*:speech_win.o(.rodata.conj_fwin_256_512_cp)
+#endif
+#endif // #ifndef NO_SPEECH_ALGO_OVERLAY
 			*(.overlay_data0 .overlay_rodata0)
 			. = ALIGN(4);
 			*(.overlay_sco_cache*)
@@ -3133,42 +2841,42 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 		.overlay_data4
 		{
 			LONG(0);
-#if !defined(PROMPT_USE_AAC)
 #ifdef A2DP_SOURCE_AAC_ON
 			*:aacenc_lib.o(.data* .rodata*)
-			*:aacenc.o(.data* .rodata*)
-			*:adj_thr.o(.data* .rodata*)
-			*:bit_cnt.o(.data* .rodata*)
-			*:quantize.o(.data* .rodata*)
-			*:tpenc_lib.o(.data* .rodata*)
-			*:tpenc_latm.o(.data* .rodata*)
-			*:line_pe.o(.data* .rodata*)
-			*:spreading.o(.data* .rodata*)
-			*:bitenc.o(.data* .rodata*)
-			*:qc_main.o(.data* .rodata*)
-			*:band_nrg.o(.data* .rodata*)
-			*:aacenc_tns.o(.data* .rodata*)
-			*:pre_echo_control.o(.data* .rodata*)
-			*:transform.o(.data* .rodata*)
-			*:dyn_bits.o(.data* .rodata*)
-			*:aacenc_pns.o(.data* .rodata*)
-			*:aacEnc_ram.o(.data* .rodata*)
-			*:aacEnc_rom.o(.data* .rodata*)
-			*:bandwidth.o(.data* .rodata*)
-			*:block_switch.o(.data* .rodata*)
-			*:channel_map.o(.data* .rodata*)
-			*:chaosmeasure.o(.data* .rodata*)
-			*:grp_data.o(.data* .rodata*)
-			*:intensity.o(.data* .rodata*)
-			*:metadata_compressor.o(.data* .rodata*)
-			*:metadata_main.o(.data* .rodata*)
-			*:ms_stereo.o(.data* .rodata*)
-			*:noisedet.o(.data* .rodata*)
-			*:pnsparam.o(.data* .rodata*)
-			*:psy_configuration.o(.data* .rodata*)
-			*:psy_main.o(.data* .rodata*)
-			*:sf_estim.o(.data* .rodata*)
-			*:tonality.o(.data* .rodata*)
+            *:aacenc.o(.data* .rodata*)
+            *:adj_thr.o(.data* .rodata*)
+            *:bit_cnt.o(.data* .rodata*)
+            *:quantize.o(.data* .rodata*)
+            *:tpenc_lib.o(.data* .rodata*)
+            *:tpenc_latm.o(.data* .rodata*)
+            *:line_pe.o(.data* .rodata*)
+            *:spreading.o(.data* .rodata*)
+            *:bitenc.o(.data* .rodata*)
+            *:qc_main.o(.data* .rodata*)
+            *:band_nrg.o(.data* .rodata*)
+            *:aacenc_tns.o(.data* .rodata*)
+            *:pre_echo_control.o(.data* .rodata*)
+
+            *:transform.o(.data* .rodata*)
+            *:dyn_bits.o(.data* .rodata*)
+            *:aacenc_pns.o(.data* .rodata*)
+            *:aacEnc_ram.o(.data* .rodata*)
+            *:aacEnc_rom.o(.data* .rodata*)
+            *:bandwidth.o(.data* .rodata*)
+            *:block_switch.o(.data* .rodata*)
+            *:channel_map.o(.data* .rodata*)
+            *:chaosmeasure.o(.data* .rodata*)
+            *:grp_data.o(.data* .rodata*)
+            *:intensity.o(.data* .rodata*)
+            *:metadata_compressor.o(.data* .rodata*)
+            *:metadata_main.o(.data* .rodata*)
+            *:ms_stereo.o(.data* .rodata*)
+            *:noisedet.o(.data* .rodata*)
+            *:pnsparam.o(.data* .rodata*)
+            *:psy_configuration.o(.data* .rodata*)
+            *:psy_main.o(.data* .rodata*)
+            *:sf_estim.o(.data* .rodata*)
+            *:tonality.o(.data* .rodata*)
 #else
 #if defined(A2DP_AAC_ON)
 			*:block.o(.data* .rodata*)
@@ -3192,7 +2900,6 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 			*:aac_dec.o(.data .rodata*)
 			*:aac_enc.o(.data .rodata*)
 			*:aac_api.o(.data .rodata*)
-#endif
 #endif
 #endif
 			*(.overlay_data4 .overlay_rodata4)
@@ -3265,8 +2972,6 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 			*:dec.o(.data* .rodata*)
 			*:cirbuf.o(.data* .rodata*)
 			*:DecodeUps2xLPF.o(.data* .rodata*)
-			*:lib_a-wf_log2.o(.data* .rodata*)
-			*:lib_a-wf_log.o(.data* .rodata*)
 #endif
 #if defined(A2DP_SOURCE_LHDC_ON)
 			*:EncodeLPF.o(.data* .rodata*)
@@ -3280,14 +2985,6 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 			*:win_sinc.o(.data* .rodata*)
 			*:a2dp_encoder_lhdc_cp.o(.data* .rodata*)
 #endif
-			*:mp3_dec.o(.data* .rodata*)
-			*:mp3_enc.o(.data* .rodata*)
-			*(.overlay_data6 .overlay_rodata6)
-			. = ALIGN(4);
-		}
-		.overlay_data7
-		{
-			LONG(0);
 #if defined(A2DP_LDAC_ON)
 			*:a2dp_decoder_ldac.o(.data* .rodata*)
 			*:bitalloc_ldac.o(.data* .rodata*)
@@ -3311,39 +3008,53 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 			*:tables_sigproc_ldac.o(.data* .rodata*)
 			*:unpack_ldac.o(.data* .rodata*)
 #endif
-			*(.overlay_data7 .overlay_rodata7)
+			*:mp3_dec.o(.data* .rodata*)
+			*:mp3_enc.o(.data* .rodata*)
+			*(.overlay_data6 .overlay_rodata6)
 			. = ALIGN(4);
 		}
-		.overlay_data8
+		.overlay_data7
 		{
 			LONG(0);
 #if defined(A2DP_LHDCV5_ON)
 			/* LHDC V5*/
 			*:a2dp_decoder_lhdcv5.o(.data* .rodata*)
-			*:lhdc_v5_kiss_fft.o(.data* .rodata*)
-			*:lhdc_v5_dec_process.o(.data* .rodata*)
 			*:lhdcv5_util_dec.o(.data* .rodata*)
-			*:lhdc_v5_dec_lossless.o(.data* .rodata*)
-			*:lhdc_v5_dec_time_process.o(.data* .rodata*)
-			*:lhdc_v5_global_table.o(.data* .rodata*)
 			*:svlice_v5_encdec.o(.data* .rodata*)
-			*:lhdc_v5_arith.o(.data* .rodata*)
 			*:svlice_v5_lic_check.o(.data* .rodata*)
-			*:lhdc_v5_dec_workspace.o(.data* .rodata*)
-			*:lhdc_v5_level.o(.data* .rodata*)
-			*:lhdc_log.o(.data* .rodata*)
-			*:lhdc_v5_dec_header.o(.data* .rodata*)
-			*:lhdc_v5_accelerate.o(.data* .rodata*)
-			*:lhdc_v5_bit_inputter.o(.data* .rodata*)
 			*:svlice_v5_licdecrypt.o(.data* .rodata*)
-			*:lhdc_v5_freq_shift.o(.data* .rodata*)
+			*:lhdc_v5_adsq.o(.data* .rodata*)
+			*:lhdc_v5_bit_op.o(.data* .rodata*)
+			*:lhdc_v5_bit_read.o(.data* .rodata*)
+			*:lhdc_v5_bit_write.o(.data* .rodata*)
+			*:lhdc_v5_bpc.o(.data* .rodata*)
+			*:lhdc_v5_constant.o(.data* .rodata*)
+			*:lhdc_v5_dec_header.o(.data* .rodata*)
+			*:lhdc_v5_dec_imdct.o(.data* .rodata*)
+			*:lhdc_v5_dec.o(.data* .rodata*)
+			*:lhdc_v5_dec_workspace.o(.data* .rodata*)
+			*:lhdc_v5_fac.o(.data* .rodata*)
+			*:lhdc_v5_fast_math.o(.data* .rodata*)
+			*:lhdc_v5_kiss_fft.o(.data* .rodata*)
+			*:lhdc_v5_mem.o(.data* .rodata*)
+			*:lhdc_v5_sns.o(.data* .rodata*)
+            *:lhdc_v5_lossless.o(.data* .rodata*)
 #endif
-			*(.overlay_data8 .overlay_rodata8)
-			. = ALIGN(4);
-		}
-		.overlay_data9
-		{
-			LONG(0);
+#if defined(A2DP_SOURCE_LHDCV5_ON)
+            *:svlice_encdec.o(.data* .rodata*)
+            *:lhdc_v5_enc_mdct.o(.data* .rodata*)
+            *:svlice_licdecrypt.o(.data* .rodata*)
+            *:svlice_cc.o(.data* .rodata*)
+            *:svlog.o(.data* .rodata*)
+            *:cirbuf.o(.data* .rodata*)
+            *:lhdc_v5_enc.o(.data* .rodata*)
+            *:svlice.o(.data* .rodata*)
+            *:lhdc_v5_enc_header.o(.data* .rodata*)
+            *:svlice_lic_check.o(.data* .rodata*)
+            *:lhdc_v5_enc_workspace.o(.data* .rodata*)
+            *:svlice_cc_lic.o(.data* .rodata*)
+            *:lhdcv5_api.o(.data* .rodata*)
+#endif
 #if defined(OPUS_OPT_OVERLAY)
 			*:voice_opus.o(.data* .rodata*)
 			*:opus_encoder.o(.data* .rodata*)
@@ -3386,35 +3097,35 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 #else
 			*:opus_com.o(.data* .rodata*)
 #endif
+			*(.overlay_data7 .overlay_rodata7)
+			. = ALIGN(4);
+		}
+		.overlay_data8
+		{
+			LONG(0);
+			*:ogg_com.o(.text*)
+			*:vorbis_com.o(.data* .rodata*)
+			*(.overlay_data8 .overlay_rodata8)
+			. = ALIGN(4);
+		}
+		.overlay_data9
+		{
+			LONG(0);
+			*:alac_com.o(.data* .rodata*)
 			*(.overlay_data9 .overlay_rodata9)
 			. = ALIGN(4);
 		}
 		.overlay_data10
 		{
 			LONG(0);
-			*:ogg_com.o(.text*)
-			*:vorbis_com.o(.data* .rodata*)
+			*:flac_com.o(.data* .rodata*)
 			*(.overlay_data10 .overlay_rodata10)
 			. = ALIGN(4);
 		}
 		.overlay_data11
 		{
 			LONG(0);
-			*:alac_com.o(.data* .rodata*)
 			*(.overlay_data11 .overlay_rodata11)
-			. = ALIGN(4);
-		}
-		.overlay_data12
-		{
-			LONG(0);
-			*:flac_com.o(.data* .rodata*)
-			*(.overlay_data12 .overlay_rodata12)
-			. = ALIGN(4);
-		}
-		.overlay_data13
-		{
-			LONG(0);
-			*(.overlay_data13 .overlay_rodata13)
 			. = ALIGN(4);
 		}
 #endif
@@ -3464,79 +3175,10 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 #endif
 #endif
 
-#if (CUSTOMER_LOAD_RAM_DATA_SECTION_SIZE > 0)
-    __customer_load_sram_text_start_flash__ = __load_stop_overlay_data_last;
-	.customer_load_sram_text_section : AT(__customer_load_sram_text_start_flash__)
-	{
-        __customer_load_sram_text_exec_start__ = .;
-#if defined(DLB_SEC_LOAD_DEMO)
-/*
-ask for algo supplier for confirm.
-guess 2 lib can put in first line in 'EXCLUDE_FILE'
-*/
-		*:dlb_sec_boot.o(.text*)
-		*:1.o(.text*)
-#elif defined(CMSE_CRYPT_TEST_DEMO)
-		//*:rsa_test.o(.text*)
-#endif
-		//*:ree_audio_process.o(.text*)
-#if defined(DOLBY_AUDIO_ENABLE)
-		*:liblwh_cortex-m33_gf32_basic_sec.o(.text*)
-		*:dlb_daw.o(.text*)
-		//*:1.o(.text*)
-#endif
-        *(.customer_load_sram_text_section*)
-        . = ALIGN(32);
-        __customer_load_sram_text_exec_end__ = .;
-	} > CUSTOMER_LOAD_SRAM_TEXT_SECTION
-
-	__customer_load_sram_text_end_flash__ = __customer_load_sram_text_start_flash__ + SIZEOF(.customer_load_sram_text_section);
-
-	__customer_load_sram_text_start__ = RAMX_TO_RAM(__customer_load_sram_text_exec_start__);
-	__customer_load_sram_text_end__ = RAMX_TO_RAM(__customer_load_sram_text_exec_end__);
-
-	ASSERT(__customer_load_sram_text_exec_end__ - __customer_load_sram_text_exec_start__ <= CUSTOMER_LOAD_SRAM_TEXT_RAMX_SECTION_SIZE, "customer_load_sram_text_section too large")
-	__customer_free_load_sram_text = CUSTOMER_LOAD_SRAM_TEXT_RAMX_SECTION_SIZE - (__customer_load_sram_text_exec_end__ - __customer_load_sram_text_exec_start__);
-
-    __customer_load_ram_data_start_flash__ = __customer_load_sram_text_end_flash__;
-
-	.customer_load_ram_data_section : AT(__customer_load_ram_data_start_flash__)
-	{
-        __customer_load_ram_data_start__ = .;
-#if defined(DLB_SEC_LOAD_DEMO)
-
-/*
-ask for algo supplier for confirm.
-guess 2 lib can put in first line in 'EXCLUDE_FILE'
-*/
-
-#elif defined(CMSE_CRYPT_TEST_DEMO)
-		//*:rsa_test.o(.data* .rodata*)
-#endif
-		//*:ree_audio_process.o(.data* .rodata*)
-		*:dlb_sec_boot.o(.data* .rodata*)
-		*:1.o(.data* .rodata*)
-		
-        *(.customer_load_ram_data_section*)
-        . = ALIGN(32);
-        __customer_load_ram_data_end__ = .;
-    } > CUSTOMER_LOAD_RAM_DATA_SECTION
-
-	__customer_load_ram_data_end_flash__ = __customer_load_ram_data_start_flash__ + SIZEOF(.customer_load_ram_data_section);
-	ASSERT(__customer_load_ram_data_end__ - __customer_load_ram_data_start__ <= CUSTOMER_LOAD_RAM_DATA_SECTION_SIZE, "customer_load_ram_data_section too large")
-
-	__customer_load_ram_data_text_total_flash__ = __customer_load_ram_data_end_flash__ - __customer_load_sram_text_start_flash__;
-	__customer_free_load_ram_data = CUSTOMER_LOAD_RAM_DATA_SECTION_SIZE - (__customer_load_ram_data_end__ - __customer_load_ram_data_start__);
-#endif
-
-#if (CUSTOMER_LOAD_RAM_DATA_SECTION_SIZE > 0)
-	__flash_text_data_start__ = __customer_load_ram_data_end_flash__;
-#else
-	__flash_text_data_start__ = __load_stop_overlay_data_last;
-#endif
 #if (defined(PSRAM_ENABLE) || defined(PSRAM_HEAP_ONLY)) && defined(PSRAM_BASE) && (PSRAM_SIZE > 0)
 	__psram_text_data_start__ = ORIGIN(PSRAM);
-	__psram_text_data_start_flash__ = __flash_text_data_start__;
+	__psram_text_data_start_flash__ = __load_stop_overlay_data_last;
+
 	.psram_text (PSRAM_TO_PSRAMX(__psram_text_data_start__)) : AT (__psram_text_data_start_flash__)
 	{
 		__psramx_text_start__ = .;
@@ -3584,7 +3226,21 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 		__psram_bss_end__ = .;
 	} > PSRAM
 
-	.psram_nc_bss (PSRAM_C_TO_NC(.)) (NOLOAD) : AT (ADDR(.psram_nc_bss))
+	__psram_nc_data_start_flash__ = __psram_text_data_end_flash__;
+
+	.psram_nc_data (PSRAM_C_TO_NC(.)) : AT (__psram_nc_data_start_flash__)
+	{
+		__psram_nc_data_start__ = .;
+		*(.psram_nc_rodata*)
+		. = ALIGN(32);
+		*(.psram_nc_data*)
+		. = ALIGN(32);
+		__psram_nc_data_end__ = .;
+	} > PSRAM_NC
+
+	__psram_nc_data_end_flash__ = __psram_nc_data_start_flash__ + SIZEOF(.psram_nc_data);
+
+	.psram_nc_bss (.) (NOLOAD) : AT (ADDR(.psram_nc_bss))
 	{
 		__psram_nc_bss_start__ = .;
 #if !defined(PSRAM_HEAP_ONLY)
@@ -3606,382 +3262,69 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 		_nuttx_heap_end = ABSOLUTE(PSRAM_BASE+PSRAM_REGION_SIZE);
 #endif
 	} > PSRAM
-
-	__flash_text_data_start__ = __psram_text_data_end_flash__;
-#endif
+#else /* !PSRAM_ENABLE */
+	 __psram_nc_data_end_flash__ = __load_stop_overlay_data_last;
+#endif /* !PSRAM_ENABLE */
 
 #if defined(PSRAMUHS_ENABLE) && defined(PSRAMUHS_BASE) && (MCU_PSRAMUHS_SIZE > 0)
 	__psramuhs_text_data_start__ = ORIGIN(PSRAMUHS);
-	__psramuhs_text_data_start_flash__ = __flash_text_data_start__;
+	__psramuhs_text_data_start_flash__ = __psram_nc_data_end_flash__;
+
 	.psramuhs_text (PSRAMUHS_TO_PSRAMUHSX(__psramuhs_text_data_start__)) : AT (__psramuhs_text_data_start_flash__)
 	{
-	    __psramux_text_start__ = .;
-	    *(.psramuhs_text*)
-	    . = ALIGN(32);
-	    __psramux_text_end__ = .;
+		__psramux_text_start__ = .;
+		*(.psramuhs_text*)
+		. = ALIGN(32);
+		__psramux_text_end__ = .;
 	} > PSRAMUHSX
 
 	.psramuhs_data (__psramuhs_text_data_start__ + SIZEOF(.psramuhs_text)) :
-	            AT (__psramuhs_text_data_start_flash__ + SIZEOF(.psramuhs_text))
+				AT (__psramuhs_text_data_start_flash__ + SIZEOF(.psramuhs_text))
 	{
 		__psramuhs_data_start__ = .;
-	    *(.psramuhs_rodata*)
-	    *(.psramuhs_data*)
+		*(.psramuhs_rodata*)
+		*(.psramuhs_data*)
 		__psramuhs_data_end__ = .;
-	    . = ALIGN(32);
+		. = ALIGN(32);
 	} > PSRAMUHS
 
-	__psramuhs_text_data_end_flash__ = __psramuhs_text_data_start_flash__ + SIZEOF(.psramuhs_text)+ SIZEOF(.psramuhs_data);
+	__psramuhs_text_data_end_flash__ = __psramuhs_text_data_start_flash__ + SIZEOF(.psramuhs_text) + SIZEOF(.psramuhs_data);
 
 	.psramuhs_bss (.) (NOLOAD) : AT (ADDR(.psramuhs_bss))
 	{
-	    __psramuhs_bss_start__ = .;
-	    *(.psramuhs_bss*)
-	    . = ALIGN(32);
-	    __psramuhs_bss_end__ = .;
+		__psramuhs_bss_start__ = .;
+		*(.psramuhs_bss*)
+		. = ALIGN(32);
+		__psramuhs_bss_end__ = .;
 	} > PSRAMUHS
+
+	__psramuhs_nc_data_start_flash__ = __psramuhs_text_data_end_flash__;
+
+	.psramuhs_nc_data (PSRAM_C_TO_NC(.)) : AT (__psramuhs_nc_data_start_flash__)
+	{
+		__psramuhs_nc_data_start__ = .;
+		*(.psramuhs_nc_rodata*)
+		. = ALIGN(32);
+		*(.psramuhs_nc_data*)
+		. = ALIGN(32);
+		__psramuhs_nc_data_end__ = .;
+	} > PSRAM_NC
+
+	__psramuhs_nc_data_end_flash__ = __psramuhs_nc_data_start_flash__ + SIZEOF(.psramuhs_nc_data);
 
 	.psramuhs_nc_bss (PSRAMUHS_C_TO_NC(.)) (NOLOAD) : AT (ADDR(.psramuhs_nc_bss))
 	{
-	    __psramuhs_nc_bss_start__ = .;
-	    *(.psramuhs_nc_bss*)
+		__psramuhs_nc_bss_start__ = .;
+		*(.psramuhs_nc_bss*)
 		*(.sync_flags_psramuhs*)
-	    . = ALIGN(32);
-	    __psramuhs_nc_bss_end__ = .;
+		. = ALIGN(32);
+		__psramuhs_nc_bss_end__ = .;
 	} > PSRAMUHS_NC
+#else /* !PSRAMUHS_ENABLE */
+	__psramuhs_nc_data_end_flash__ = __psram_nc_data_end_flash__;
+#endif /* !PSRAMUHS_ENABLE */
 
-	__flash_text_data_start__ = __psramuhs_text_data_end_flash__;
-#endif
-
-#if defined(ARM_CMSE) && defined(CMSE_RAM_RAMX_LEND_NSE)
-
-    __cmse_ramx_lend_text_section_start__ = ORIGIN(ARM_CMSE_RAMX_TEXT_LEND);
-    __cmse_ramx_lend_text_section_start_flash__ = __flash_text_data_start__ ;
-    __cmse_ramx_lend_text_section_start_flash__ = ALIGN(__cmse_ramx_lend_text_section_start_flash__, 32);
-    .cmse_ramx_lend_text_section (__cmse_ramx_lend_text_section_start__) : AT (__cmse_ramx_lend_text_section_start_flash__)
-    {
-        __cmse_ramx_lend_text_section_exec_start__ = .;
-        *(.cmse_ramx_lend_text_section*)
-        *:user_secure_boot.o(.text*)
-        //*:crypt_lib.o(.text*)
-        *:bin_aes_crypt.o(.text*)
-        *:parser.o(.text*)
-		*:ssl_ticket.o(.text*)
-		*:psa_crypto_mac.o(.text*)
-		*:psa_crypto_aead.o(.text*)
-		*:chacha20.o(.text*)
-		*:ssl_cookie.o(.text*)
-		*:cipher_wrap.o(.text*)
-		*:padlock.o(.text*)
-		*:pkparse.o(.text*)
-		*:x509_crl.o(.text*)
-		*:pem.o(.text*)
-		*:md5.o(.text*)
-		*:base64.o(.text*)
-		*:pkcs12.o(.text*)
-		*:des.o(.text*)
-		*:oid.o(.text*)
-		//*:sha256.o(.text*)
-		*:chachapoly.o(.text*)
-		*:ecp_curves.o(.text*)
-		*:constant_time.o(.text*)
-		*:nist_kw.o(.text*)
-		*:debug.o(.text*)
-		*:ctr_drbg.o(.text*)
-		*:sha1.o(.text*)
-		*:ssl_msg.o(.text*)
-		*:x509_crt.o(.text*)
-		*:x509_csr.o(.text*)
-		*:x509write_crt.o(.text*)
-		*:camellia.o(.text*)
-		*:mps_reader.o(.text*)
-		*:gcm.o(.text*)
-		*:hmac_drbg.o(.text*)
-		*:cipher.o(.text*)
-		*:x509.o(.text*)
-		*:asn1write.o(.text*)
-		*:pkcs5.o(.text*)
-		*:aria.o(.text*)
-		*:psa_crypto_hash.o(.text*)
-		*:net_sockets.o(.text*)
-		*:ccm.o(.text*)
-		*:psa_crypto_ecp.o(.text*)
-		*:psa_crypto.o(.text*)
-		*:hkdf.o(.text*)
-		*:bignum.o(.text*)
-		*:aesni.o(.text*)
-		*:ssl_tls12_client.o(.text*)
-		*:ssl_tls13_client.o(.text*)
-		*:ssl_tls.o(.text*)
-		*:ssl_tls13_generic.o(.text*)
-		*:timing.o(.text*)
-		*:entropy_poll.o(.text*)
-		*:x509_create.o(.text*)
-		*:hash_info.o(.text*)
-		*:rsa_alt_helpers.o(.text*)
-		*:sha512.o(.text*)
-		*:threading.o(.text*)
-		//*:platform_util.o(.text*)
-		*:ripemd160.o(.text*)
-		*:poly1305.o(.text*)
-		*:ssl_tls13_server.o(.text*)
-		*:psa_its_file.o(.text*)
-		*:rsa.o(.text*)
-		*:cmac.o(.text*)
-		*:ecp.o(.text*)
-		*:pk_wrap.o(.text*)
-		*:dhm.o(.text*)
-		*:ssl_ciphersuites.o(.text*)
-		*:psa_crypto_slot_management.o(.text*)
-		*:pkwrite.o(.text*)
-		*:ssl_tls13_keys.o(.text*)
-		*:asn1parse.o(.text*)
-		*:psa_crypto_cipher.o(.text*)
-		*:x509write_csr.o(.text*)
-		*:pk.o(.text*)
-		*:mps_trace.o(.text*)
-		//*:platform.o(.text*)
-		*:psa_crypto_se.o(.text*)
-		*:psa_crypto_storage.o(.text*)
-		*:md.o(.text*)
-		*:entropy.o(.text*)
-		*:psa_crypto_rsa.o(.text*)
-		//*:memory_buffer_alloc.o(.text*)
-		*:psa_crypto_client.o(.text*)
-		*:ssl_cache.o(.text*)
-		*:ecdh.o(.text*)
-		//*:aes.o(.text*)
-		*:ssl_client.o(.text*)
-		*:ecjpake.o(.text*)
-		*:ecdsa.o(.text*)
-		*:ssl_tls12_server.o(.text*)
-		*:version.o(.text*)
-        . = ALIGN(32);
-        __cmse_ramx_lend_text_section_exec_end__ = .;
-    } > ARM_CMSE_RAMX_TEXT_LEND
-
-    __cmse_ramx_lend_text_section_end_flash__ = __cmse_ramx_lend_text_section_start_flash__ + SIZEOF(.cmse_ramx_lend_text_section);
-
-	__cmse_ramx_lend_text_section_ram_start__ = RAMX_TO_RAM(__cmse_ramx_lend_text_section_exec_start__);
-	__cmse_ramx_lend_text_section_ram_end__ = RAMX_TO_RAM(__cmse_ramx_lend_text_section_exec_end__);
-
-    __cmse_ram_lend_data_section_start__ = ORIGIN(ARM_CMSE_RAM_DATA_LEND);
-
-    __cmse_ram_lend_data_section_start_flash__ = __cmse_ramx_lend_text_section_start_flash__ + SIZEOF(.cmse_ramx_lend_text_section);
-
-    .cmse_ram_lend_data_section(__cmse_ram_lend_data_section_start__)  : AT (__cmse_ram_lend_data_section_start_flash__)
-    {
-        __cmse_ram_lend_data_section_exec_start__ = .;
-
-        *(.cmse_ram_lend_data_section*)
-		//*:crypt_lib.o(.data* .rodata*)
-        *:user_secure_boot.o(.data* .rodata*)
-        *:bin_aes_crypt.o(.data* .rodata*)
-        *:parser.o(.data* .rodata*)
-		*:ssl_ticket.o(.data* .rodata*)
-		*:psa_crypto_mac.o(.data* .rodata*)
-		*:psa_crypto_aead.o(.data* .rodata*)
-		*:chacha20.o(.data* .rodata*)
-		*:ssl_cookie.o(.data* .rodata*)
-		*:cipher_wrap.o(.data* .rodata*)
-		*:padlock.o(.data* .rodata*)
-		*:pkparse.o(.data* .rodata*)
-		*:x509_crl.o(.data* .rodata*)
-		*:pem.o(.data* .rodata*)
-		*:md5.o(.data* .rodata*)
-		*:base64.o(.data* .rodata*)
-		*:pkcs12.o(.data* .rodata*)
-		*:des.o(.data* .rodata*)
-		*:oid.o(.data* .rodata*)
-		//*:sha256.o(.data* .rodata*)
-		*:chachapoly.o(.data* .rodata*)
-		*:ecp_curves.o(.data* .rodata*)
-		*:constant_time.o(.data* .rodata*)
-		*:nist_kw.o(.data* .rodata*)
-		*:debug.o(.data* .rodata*)
-		*:ctr_drbg.o(.data* .rodata*)
-		*:sha1.o(.data* .rodata*)
-		*:ssl_msg.o(.data* .rodata*)
-		*:x509_crt.o(.data* .rodata*)
-		*:x509_csr.o(.data* .rodata*)
-		*:x509write_crt.o(.data* .rodata*)
-		*:camellia.o(.data* .rodata*)
-		*:mps_reader.o(.data* .rodata*)
-		*:gcm.o(.data* .rodata*)
-		*:hmac_drbg.o(.data* .rodata*)
-		*:cipher.o(.data* .rodata*)
-		*:x509.o(.data* .rodata*)
-		*:asn1write.o(.data* .rodata*)
-		*:pkcs5.o(.data* .rodata*)
-		*:aria.o(.data* .rodata*)
-		*:psa_crypto_hash.o(.data* .rodata*)
-		*:net_sockets.o(.data* .rodata*)
-		*:ccm.o(.data* .rodata*)
-		*:psa_crypto_ecp.o(.data* .rodata*)
-		*:psa_crypto.o(.data* .rodata*)
-		*:hkdf.o(.data* .rodata*)
-		*:bignum.o(.data* .rodata*)
-		*:aesni.o(.data* .rodata*)
-		*:ssl_tls12_client.o(.data* .rodata*)
-		*:ssl_tls13_client.o(.data* .rodata*)
-		*:ssl_tls.o(.data* .rodata*)
-		*:ssl_tls13_generic.o(.data* .rodata*)
-		*:timing.o(.data* .rodata*)
-		*:entropy_poll.o(.data* .rodata*)
-		*:x509_create.o(.data* .rodata*)
-		*:hash_info.o(.data* .rodata*)
-		*:rsa_alt_helpers.o(.data* .rodata*)
-		*:sha512.o(.data* .rodata*)
-		*:threading.o(.data* .rodata*)
-		//*:platform_util.o(.data* .rodata*)
-		*:ripemd160.o(.data* .rodata*)
-		*:poly1305.o(.data* .rodata*)
-		*:ssl_tls13_server.o(.data* .rodata*)
-		*:psa_its_file.o(.data* .rodata*)
-		*:rsa.o(.data* .rodata*)
-		*:cmac.o(.data* .rodata*)
-		*:ecp.o(.data* .rodata*)
-		*:pk_wrap.o(.data* .rodata*)
-		*:dhm.o(.data* .rodata*)
-		*:ssl_ciphersuites.o(.data* .rodata*)
-		*:psa_crypto_slot_management.o(.data* .rodata*)
-		*:pkwrite.o(.data* .rodata*)
-		*:ssl_tls13_keys.o(.data* .rodata*)
-		*:asn1parse.o(.data* .rodata*)
-		*:psa_crypto_cipher.o(.data* .rodata*)
-		*:x509write_csr.o(.data* .rodata*)
-		*:pk.o(.data* .rodata*)
-		*:mps_trace.o(.data* .rodata*)
-		//*:platform.o(.data* .rodata*)
-		*:psa_crypto_se.o(.data* .rodata*)
-		*:psa_crypto_storage.o(.data* .rodata*)
-		*:md.o(.data* .rodata*)
-		*:entropy.o(.data* .rodata*)
-		*:psa_crypto_rsa.o(.data* .rodata*)
-		//*:memory_buffer_alloc.o(.data* .rodata*)
-		*:psa_crypto_client.o(.data* .rodata*)
-		*:ssl_cache.o(.data* .rodata*)
-		*:ecdh.o(.data* .rodata*)
-		//*:aes.o(.data* .rodata*)
-		*:ssl_client.o(.data* .rodata*)
-		*:ecjpake.o(.data* .rodata*)
-		*:ecdsa.o(.data* .rodata*)
-		*:ssl_tls12_server.o(.data* .rodata*)
-		*:version.o(.data* .rodata*)
-        . = ALIGN(32);
-        __cmse_ram_lend_data_section_exec_end__ = .;
-    } > ARM_CMSE_RAM_DATA_LEND
-
-	__cmse_ram_ramx_data_text_end_flash__ = __cmse_ramx_lend_text_section_start_flash__ + SIZEOF(.cmse_ramx_lend_text_section)+ SIZEOF(.cmse_ram_lend_data_section);
-
-    .cmse_ram_lend_bss_sram_section (.) (NOLOAD) : AT (ADDR(.cmse_ram_lend_bss_sram_section))
-    {
-        __cmse_ram_lend_bss_sram_section_start = .;
-
-        *(.cmse_ram_lend_bss_sram_section*)
-		//*:crypt_lib.o(.bss*)
-        *:user_secure_boot.o(.bss*)
-        *:bin_aes_crypt.o(.bss*)
-        *:parser.o(.bss*)
-		*:ssl_ticket.o(.bss*)
-		*:psa_crypto_mac.o(.bss*)
-		*:psa_crypto_aead.o(.bss*)
-		*:chacha20.o(.bss*)
-		*:ssl_cookie.o(.bss*)
-		*:cipher_wrap.o(.bss*)
-		*:padlock.o(.bss*)
-		*:pkparse.o(.bss*)
-		*:x509_crl.o(.bss*)
-		*:pem.o(.bss*)
-		*:md5.o(.bss*)
-		*:base64.o(.bss*)
-		*:pkcs12.o(.bss*)
-		*:des.o(.bss*)
-		*:oid.o(.bss*)
-		//*:sha256.o(.bss*)
-		*:chachapoly.o(.bss*)
-		*:ecp_curves.o(.bss*)
-		*:constant_time.o(.bss*)
-		*:nist_kw.o(.bss*)
-		*:debug.o(.bss*)
-		*:ctr_drbg.o(.bss*)
-		*:sha1.o(.bss*)
-		*:ssl_msg.o(.bss*)
-		*:x509_crt.o(.bss*)
-		*:x509_csr.o(.bss*)
-		*:x509write_crt.o(.bss*)
-		*:camellia.o(.bss*)
-		*:mps_reader.o(.bss*)
-		*:gcm.o(.bss*)
-		*:hmac_drbg.o(.bss*)
-		*:cipher.o(.bss*)
-		*:x509.o(.bss*)
-		*:asn1write.o(.bss*)
-		*:pkcs5.o(.bss*)
-		*:aria.o(.bss*)
-		*:psa_crypto_hash.o(.bss*)
-		*:net_sockets.o(.bss*)
-		*:ccm.o(.bss*)
-		*:psa_crypto_ecp.o(.bss*)
-		*:psa_crypto.o(.bss*)
-		*:hkdf.o(.bss*)
-		*:bignum.o(.bss*)
-		*:aesni.o(.bss*)
-		*:ssl_tls12_client.o(.bss*)
-		*:ssl_tls13_client.o(.bss*)
-		*:ssl_tls.o(.bss*)
-		*:ssl_tls13_generic.o(.bss*)
-		*:timing.o(.bss*)
-		*:entropy_poll.o(.bss*)
-		*:x509_create.o(.bss*)
-		*:hash_info.o(.bss*)
-		*:rsa_alt_helpers.o(.bss*)
-		*:sha512.o(.bss*)
-		*:threading.o(.bss*)
-		//*:platform_util.o(.bss*)
-		*:ripemd160.o(.bss*)
-		*:poly1305.o(.bss*)
-		*:ssl_tls13_server.o(.bss*)
-		*:psa_its_file.o(.bss*)
-		*:rsa.o(.bss*)
-		*:cmac.o(.bss*)
-		*:ecp.o(.bss*)
-		*:pk_wrap.o(.bss*)
-		*:dhm.o(.bss*)
-		*:ssl_ciphersuites.o(.bss*)
-		*:psa_crypto_slot_management.o(.bss*)
-		*:pkwrite.o(.bss*)
-		*:ssl_tls13_keys.o(.bss*)
-		*:asn1parse.o(.bss*)
-		*:psa_crypto_cipher.o(.bss*)
-		*:x509write_csr.o(.bss*)
-		*:pk.o(.bss*)
-		*:mps_trace.o(.bss*)
-		//*:platform.o(.bss*)
-		*:psa_crypto_se.o(.bss*)
-		*:psa_crypto_storage.o(.bss*)
-		*:md.o(.bss*)
-		*:entropy.o(.bss*)
-		*:psa_crypto_rsa.o(.bss*)
-		//*:memory_buffer_alloc.o(.bss*)
-		*:psa_crypto_client.o(.bss*)
-		*:ssl_cache.o(.bss*)
-		*:ecdh.o(.bss*)
-		//*:aes.o(.bss*)
-		*:ssl_client.o(.bss*)
-		*:ecjpake.o(.bss*)
-		*:ecdsa.o(.bss*)
-		*:ssl_tls12_server.o(.bss*)
-		*:version.o(.bss*)
-#if 0
-		*:rsa_test.o(.bss*)
-#endif
-        . = ALIGN(32);
-        __cmse_ram_lend_bss_sram_section_end = .;
-    } > ARM_CMSE_RAM_DATA_LEND
-
-	__flash_text_data_start__ = __cmse_ram_ramx_data_text_end_flash__;
-#endif
+	__flash_text_data_start__ = __psramuhs_nc_data_end_flash__;
 
 	.text (FLASH_TO_FLASHX(__flash_text_data_start__)) : AT (FLASHX_TO_FLASH(ADDR(.text)))
 	{
@@ -4021,6 +3364,7 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 		*(SORT(.dtors.*))
 		*(.dtors)
 	} > FLASHX
+
 #if defined(ARM_CMSE) && !defined(INTSRAM_RUN)
 	. = ALIGN(32);
 	__nsc_text_start__ = .;
@@ -4032,6 +3376,7 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 	. = ALIGN(32);
 	__nsc_text_end__ = .;
 #endif
+
 	.ARM.extab (.) : AT (FLASHX_TO_FLASH(ADDR(.ARM.extab)))
 	{
 		*(.ARM.extab* .gnu.linkonce.armextab.*)
@@ -4061,7 +3406,7 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 #ifdef TRACE_STR_SECTION
 	.rodata_str (.):
 	{
-	    __rodata_str_start__ = .;
+		__rodata_str_start__ = .;
 		*(.rodata.__func__.*)
 		*(.rodata.*__func__)
 		*(.rodata.str1*)
@@ -4075,16 +3420,23 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 	. = TRACE_ID_STR_OFFSET;
 	.trc_str (.):
 	{
-	    __trace_str_start__ = .;
 		*(.rodata.__func__.*)
 		*(.rodata.*__func__)
 		*(.rodata.__FUNCTION__.*)
 		*(.rodata.*__FUNCTION__)
 		*(.trc_str*)
-	    __trace_str_end__ = .;
 	}
 	. = RODATA_ADDRESS;
 #endif
+
+	.rodata_nc (FLASH_C_TO_NC(.)) : AT (FLASH_NC_TO_C(ADDR(.rodata_nc)))
+	{
+		*(.rodata_nc*)
+		*(.flash_nc_rodata*)
+		. = ALIGN(4);
+	} > FLASH_NC
+
+	. = FLASH_NC_TO_C(.);
 
 	.rodata (.) :
 	{
@@ -4161,6 +3513,18 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 		KEEP(*(.rpc_bth_dsp_cmd_table))
 		__rpc_bth_dsp_cmd_table_end = .;
 		. = ALIGN(4);
+		__rpc_m55_dsp_cmd_table_start = .;
+		KEEP(*(.rpc_m55_dsp_cmd_table))
+		__rpc_m55_dsp_cmd_table_end = .;
+		. = ALIGN(4);
+		__uart_bridge_task_cmd_table_start = .;
+		KEEP(*(.uart_bridge_task_cmd_table))
+		__uart_bridge_task_cmd_table_end = .;
+		. = ALIGN(4);
+		__uart_bridge_instant_cmd_table_start = .;
+		KEEP(*(.uart_bridge_instant_cmd_table))
+		__uart_bridge_instant_cmd_table_end = .;
+		. = ALIGN(4);
 		__eshell_command_table_start = .;
 		KEEP(*(.eshell_command_table))
 		__eshell_command_table_end = .;
@@ -4169,22 +3533,20 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 		KEEP(*(.app_bt_sync_command_handler_table))
 		__app_bt_sync_command_handler_table_end = .;
 		. = ALIGN(4);
+		__custom_apps_message_handler_table_start = .;
+		KEEP(*(.custom_apps_message_handler_table))
+		__custom_apps_message_handler_table_end = .;
 		. = ALIGN(4);
-	 	KEEP(*(.eh_frame*))
+		. = ALIGN(4);
+		KEEP(*(.eh_frame*))
 		*(.note.gnu.build-id)
 
 		. = ALIGN(4);
 		_etext = .;
 	} > FLASH
 
-#if defined(FIRMWARE_REV)
-	.firmware_rev (.) :
-	{
-		. = ALIGN(64);
-		*(.fw_rev)
-	} > FLASH
-#endif
-/* zInit code and data - will be freed after init */
+#ifdef ohos_build
+	/* zInit code and data - will be freed after init */
 	.zInit (.) :
 	{
 		__zinitcall_bsp_start = .;
@@ -4248,7 +3610,7 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 		KEEP (*(.zinitcall.app.feature1.init))
 		KEEP (*(.zinitcall.app.feature2.init))
 		KEEP (*(.zinitcall.app.feature3.init))
-     		  KEEP (*(.zinitcall.app.feature4.init))
+			  KEEP (*(.zinitcall.app.feature4.init))
 		__zinitcall_app_feature_end = .;
 		. = ALIGN(4);
 		__zinitcall_test_start = .;
@@ -4268,7 +3630,7 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 		__zinitcall_exit_end = .;
 		. = ALIGN(4);
 	} > FLASH
-
+#endif
 
 	/* To copy multiple FLASH to RAM sections,
 	 * uncomment .copy.table section and,
@@ -4321,13 +3683,16 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 
 		KEEP(*(.jcr*))
 
+#if defined(__NuttX__)
+		__shell_root_cmds_start = .;
+		KEEP(*(SORT(.shell_root_cmd_*)));
+		__shell_root_cmds_end = .;
+#endif
+
 		/* All data end */
 		. = ALIGN(4);
 		__data_end__ = .;
 		_edata = .;
-        __shell_root_cmds_start = .;
-        KEEP(*(SORT(.shell_root_cmd_*)));
-        __shell_root_cmds_end = .;
 	} > RAM
 
 	.bss (.) (NOLOAD) : AT (ADDR(.bss))
@@ -4379,6 +3744,16 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 		. += NUTTX_HEAP_SECTION_SIZE;
 		. = ALIGN(8);
 		_nuttx_heap_end = .;
+	} > RAM
+#endif
+
+#if defined(CROSS_CORE_HEAP_SIZE) && (CROSS_CORE_HEAP_SIZE > 0)
+	.cross_core_heap (.) (NOLOAD) :
+	{
+		. = ALIGN(4);
+		__cross_core_heap_start__ = .;
+		. += CROSS_CORE_HEAP_SIZE;
+		__cross_core_heap_end__ = .;
 	} > RAM
 #endif
 
@@ -4443,54 +3818,62 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 	__mem_pool_end__ = __StackLimit;
 #endif
 
-	. = __etext + SIZEOF(.data);
+	__aon_mbx_data_start_load__ = __etext + SIZEOF(.data);
 
-#if (CUSTOMER_LOAD_RAM_DATA_SECTION_SIZE > 0)
-    .inc_enc_bin_section(.) :
-    {
-		. = ALIGN(32);
-        inc_enc_bin_sec_start = .;
-        . = CUSTOMER_LOAD_ENC_DEC_RECORD_SECTION_SIZE;
-        inc_enc_bin_sec_end = .;
-		. = ALIGN(32);
-    } > FLASH
+#ifdef AON_MAILBOX_BASE
+	.aon_mbx_data (ORIGIN(AON_MAILBOX)) : AT (__aon_mbx_data_start_load__)
+	{
+		__aon_mbx_data_start__ = .;
+		*(.aon_mbx_data*)
+		. = ALIGN(4);
+		__aon_mbx_data_end__ = .;
+	} > AON_MAILBOX
 
+	__aon_mbx_data_end_load__ = __aon_mbx_data_start_load__ + SIZEOF(.aon_mbx_data);
+
+	.aon_mbx_bss (.) (NOLOAD) :
+	{
+		__aon_mbx_bss_start__ = .;
+		*(.aon_mbx_bss*)
+		. = ALIGN(4);
+		__aon_mbx_bss_end__ = .;
+		*(.aon_mbx_buf*);
+		. = ALIGN(4);
+	} > AON_MAILBOX
+
+	__aon_mbx_heap_start__ = .;
+	__aon_mbx_heap_end__ = ORIGIN(AON_MAILBOX) + LENGTH(AON_MAILBOX);
+	__aon_mbx_heap_size__ = __aon_mbx_heap_end__ - __aon_mbx_heap_start__;
+#else
+	__aon_mbx_data_end_load__ = __aon_mbx_data_start_load__;
 #endif
 
+	. = __aon_mbx_data_end_load__;
 	. = FLASH_C_TO_NC(.);
-	.system_info (.) : AT (FLASH_NC_TO_C(ADDR(.system_info)))
-	{
-		KEEP(*(.system_info_list_size))
-		KEEP(*(.system_info_list))
-		. = ALIGN(4);
-	}  > FLASH_NC = 0x00000000
+
 	.build_info (.) : AT (FLASH_NC_TO_C(ADDR(.build_info)))
 	{
 		KEEP(*(.build_info))
 		. = ALIGN(4);
 	} > FLASH_NC = 0x00000000
-	. = FLASH_NC_TO_C(.);
+
+	__boot_struct_build_info = ADDR(.build_info);
 
 #ifdef SLAVE_BIN_FLASH_OFFSET
-	.slave_code (ORIGIN(FLASH) + SLAVE_BIN_FLASH_OFFSET):
+	.slave_code (ORIGIN(FLASH_NC) + SLAVE_BIN_FLASH_OFFSET) : AT (FLASH_NC_TO_C(ADDR(.slave_code)))
 	{
 		KEEP(*(.slave_code_flash_rodata))
-	} > FLASH
+	} > FLASH_NC
 #endif
+
+	. = FLASH_NC_TO_C(.);
 
 	/* The following section MUST be the last loaded section */
 	.code_start_addr (.) :
 	{
 #ifdef TRACE_STR_SECTION
-		LONG(ABSOLUTE(__rodata_str_start__));
-		LONG(ABSOLUTE(__rodata_str_end__));
-		LONG(0x80);  /* RODATA_STR_OFFSET, should same to --change-section-lma .rodata_str value in Makefile  */
-		LONG(ABSOLUTE(__sram_data_start__));
-		LONG(ABSOLUTE(__sram_data_end__));
-		LONG(0x30000);  /* SRAM_STR_OFFSET, should same to --change-section-lma .sram_data value in Makefile  */
-		LONG(__trace_str_start__ - TRACE_ID_STR_OFFSET);
-		LONG(__trace_str_end__ - TRACE_ID_STR_OFFSET);
-		LONG(0x60000);  /* TRC_STR_OFFSET, should same to --change-section-lma .trc_str value in Makefile  */
+		LONG(FLASH_C_TO_NC(ABSOLUTE(__rodata_str_start__)));
+		LONG(0x30000);  /* TRC_STR_OFFSET, should same to --change-section-lma .trc_str value in Makefile  */
 #else
 		LONG(0);
 		LONG(0);
@@ -4508,19 +3891,22 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 #if (OTA_BOOT_SIZE > FLASH_REGION_SIZE)
 #error "OTA_BOOT_SIZE should <= FLASH_REGION_SIZE"
 #endif
-#ifdef OTA_CODE_OFFSET
-#if defined(OTA_BOOT_OFFSET) && ((OTA_BOOT_OFFSET + OTA_BOOT_SIZE) > OTA_CODE_OFFSET)
-#error "(OTA_BOOT_OFFSET + OTA_BOOT_SIZE) should <= OTA_CODE_OFFSET"
-#elif (OTA_BOOT_SIZE > OTA_CODE_OFFSET)
-#error "OTA_BOOT_SIZE should <= OTA_CODE_OFFSET"
+#ifndef OTA_CODE_OFFSET
+#error "OTA_CODE_OFFSET should be defined along with OTA_BOOT_SIZE"
 #endif
+#if defined(OTA_BOOT_OFFSET) && ((OTA_BOOT_OFFSET + OTA_BOOT_SIZE) * OTA_SIZE_FACTOR > OTA_CODE_OFFSET)
+#error "(OTA_BOOT_OFFSET + OTA_BOOT_SIZE) * OTA_SIZE_FACTOR should <= OTA_CODE_OFFSET"
+#elif ((OTA_BOOT_SIZE) * OTA_SIZE_FACTOR > OTA_CODE_OFFSET)
+#error "(OTA_BOOT_SIZE) * OTA_SIZE_FACTOR should <= OTA_CODE_OFFSET"
 #endif
+
 #ifdef OTA_BOOT_OFFSET
 	__tail_section_start = FLASH_NC_BASE + OTA_BOOT_OFFSET + OTA_BOOT_SIZE;
 #else
 	__tail_section_start = FLASH_NC_BASE + OTA_BOOT_SIZE;
 #endif
 #else /* !OTA_BOOT_SIZE */
+
 	__tail_section_start = __flash_tail_sec_start;
 #endif /* !OTA_BOOT_SIZE */
 
@@ -4549,8 +3935,40 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 #endif
 #endif
 
+#ifdef OTA_BOOT_INFO_OFFSET
+#ifdef OTA_BOOT_SIZE
+#if (OTA_CODE_OFFSET < (OTA_BOOT_INFO_OFFSET + (OTA_BOOT_INFO_SECTION_SIZE) * 2))
+#error "OTA_CODE_OFFSET should >= (OTA_BOOT_INFO_OFFSET + (OTA_BOOT_INFO_SECTION_SIZE) * 2)"
+#endif
+	.ota_boot_info (FLASH_NC_BASE + OTA_BOOT_INFO_OFFSET) (NOLOAD) :
+	{
+		__ota_boot_info_start = .;
+		*(.ota_boot_info)
+		. = OTA_BOOT_INFO_SECTION_SIZE;
+		__ota_boot_info_bak_start = .;
+		*(.ota_boot_info_bak)
+		. = (OTA_BOOT_INFO_SECTION_SIZE) * 2;
+	} > FLASH_NC
+
+#ifdef OTA_BOOT_OFFSET
+	__ota_boot_code_end = FLASH_NC_BASE + (OTA_BOOT_OFFSET + OTA_BOOT_SIZE) * OTA_SIZE_FACTOR;
+#else
+	__ota_boot_code_end = FLASH_NC_BASE + (OTA_BOOT_SIZE) * OTA_SIZE_FACTOR;
+#endif
+	ASSERT(__ota_boot_info_start >= __ota_boot_code_end, ".ota_boot_info section overlaps with ota boot codes")
+#else /* !OTA_BOOT_SIZE */
+	__ota_boot_info_start = FLASH_NC_BASE + OTA_BOOT_INFO_OFFSET;
+	__ota_boot_info_bak_start = FLASH_NC_BASE + OTA_BOOT_INFO_OFFSET + OTA_BOOT_INFO_SECTION_SIZE;
+	ASSERT(__ota_boot_info_bak_start + OTA_BOOT_INFO_SECTION_SIZE <= __flash_start, ".ota_boot_info section overlaps with application codes")
+#endif /* !OTA_BOOT_SIZE */
+#endif
+
 #ifdef USE_MULTI_FLASH
+#ifdef HAL_NORFLASH_ADDR_MASK
+	ASSERT((FLASH1_BASE & HAL_NORFLASH_ADDR_MASK) == 0, "bad FLASH1_BASE")
+#else
 	ASSERT((FLASH1_BASE & 0x03FFFFFF) == 0, "bad FLASH1_BASE")
+#endif
 	ASSERT((FLASH1_SIZE & (FLASH1_SIZE - 1)) == 0, "bad FLASH1_SIZE")
 #endif
 
@@ -4573,3 +3991,4 @@ guess 2 lib can put in first line in 'EXCLUDE_FILE'
 		*(.dynamic)
 	}
 }
+

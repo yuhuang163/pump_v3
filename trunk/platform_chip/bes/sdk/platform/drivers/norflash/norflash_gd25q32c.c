@@ -216,6 +216,50 @@ const struct NORFLASH_CFG_T p25q256l_cfg =
     .write_status = gd25q32c_write_status,
 };
 
+struct NORFLASH_CFG_T py25q256lc_cfg = {
+    .id = { 0x85, 0x65, 0x19, },
+    .speed_ratio = {
+        .s = {
+            .std_read = SPEED_RATIO_6_EIGHTH,
+            .others = SPEED_RATIO_8_EIGHTH,
+        },
+    },
+    .dtr_quad_cfg = {
+        .s = {
+            .speed_ratio = SPEED_RATIO_8_EIGHTH,
+            .dummy_cycles = 9,
+        },
+    },
+    .crm_en_bits = (1 << 5) | (0 << 4),
+    .crm_dis_bits = 0,
+    .block_protect_mask = 0x407C,
+    .sec_reg_cfg = {
+        .s = {
+            .enabled = true,
+            .base = SEC_REG_BASE_0X1000,
+            .size = SEC_REG_SIZE_1024,
+            .offset = SEC_REG_OFFSET_0X1000,
+            .cnt = SEC_REG_CNT_3,
+            .pp = SEC_REG_PP_256,
+            .lb = SEC_REG_LB_S11_S13,
+        },
+    },
+    .total_size = P25Q256L_TOTAL_SIZE,
+    .mode = (HAL_NORFLASH_OP_MODE_STAND_SPI |
+                HAL_NORFLASH_OP_MODE_FAST_SPI |
+                HAL_NORFLASH_OP_MODE_DUAL_OUTPUT |
+                HAL_NORFLASH_OP_MODE_DUAL_IO |
+                HAL_NORFLASH_OP_MODE_QUAD_OUTPUT |
+                HAL_NORFLASH_OP_MODE_QUAD_IO |
+                HAL_NORFLASH_OP_MODE_DTR |
+                HAL_NORFLASH_OP_MODE_CONTINUOUS_READ |
+                HAL_NORFLASH_OP_MODE_PAGE_PROGRAM |
+                HAL_NORFLASH_OP_MODE_QUAD_PAGE_PROGRAM |
+                HAL_NORFLASH_OP_MODE_SUSPEND),
+    .max_speed = 104 * 1000 * 1000,
+    .write_status = gd25q32c_write_status,
+};
+
 const struct NORFLASH_SFDP_CFG_T p25q128l_sfdp_cfg[] = {
     // PY25Q128LAC-T
     {
@@ -323,7 +367,7 @@ struct NORFLASH_CFG_T py25q128lac_cfg = {
     .dtr_quad_cfg = {
         .s = {
             .speed_ratio = SPEED_RATIO_5_EIGHTH,
-            .dummy_cycles = 7,
+            .dummy_cycles = 9,
         },
     },
     .crm_en_bits = (1 << 5) | (0 << 4),
@@ -336,7 +380,7 @@ struct NORFLASH_CFG_T py25q128lac_cfg = {
             .size = SEC_REG_SIZE_1024,
             .offset = SEC_REG_OFFSET_0X1000,
             .cnt = SEC_REG_CNT_3,
-            .pp = SEC_REG_PP_1024,
+            .pp = SEC_REG_PP_256,
             .lb = SEC_REG_LB_S11_S13,
         },
     },
@@ -382,7 +426,7 @@ const struct NORFLASH_CFG_T py25q128laa_cfg = {
             .size = SEC_REG_SIZE_1024,
             .offset = SEC_REG_OFFSET_0X1000,
             .cnt = SEC_REG_CNT_3,
-            .pp = SEC_REG_PP_1024,
+            .pp = SEC_REG_PP_256,
             .lb = SEC_REG_LB_S11_S13,
         },
     },
@@ -400,6 +444,54 @@ const struct NORFLASH_CFG_T py25q128laa_cfg = {
                 HAL_NORFLASH_OP_MODE_QUAD_PAGE_PROGRAM |
                 HAL_NORFLASH_OP_MODE_SUSPEND),
     .max_speed = 128 * 1000 * 1000, // 133Mhz STD_READ=80MHz DTR_READ=85MHz
+    .write_status = gd25q32c_write_status,
+};
+
+const struct NORFLASH_CFG_T p25q128sn_cfg = {
+    .id = { 0x85, 0x66, 0x18, },
+    .speed_ratio = {
+        .s = {
+            .std_read = SPEED_RATIO_3_EIGHTH,
+            .others = SPEED_RATIO_8_EIGHTH,
+        },
+    },
+    .dtr_quad_cfg = {
+        .s = {
+            .speed_ratio = SPEED_RATIO_5_EIGHTH,
+            .dummy_cycles = 7,
+        },
+    },
+    .crm_en_bits = (1 << 5) | (0 << 4),
+    .crm_dis_bits = 0,
+    .block_protect_mask = 0x407C,
+    .sec_reg_cfg = {
+        .s = {
+            .enabled = true,
+            .base = SEC_REG_BASE_0X1000,
+            .size = SEC_REG_SIZE_1024,
+            .offset = SEC_REG_OFFSET_0X1000,
+            .cnt = SEC_REG_CNT_3,
+            .pp = SEC_REG_PP_1024,
+            .lb = SEC_REG_LB_S11_S13,
+        },
+    },
+    .total_size = P25Q128L_TOTAL_SIZE,
+    .mode = (HAL_NORFLASH_OP_MODE_STAND_SPI |
+                HAL_NORFLASH_OP_MODE_FAST_SPI |
+                HAL_NORFLASH_OP_MODE_DUAL_OUTPUT |
+                HAL_NORFLASH_OP_MODE_DUAL_IO |
+                HAL_NORFLASH_OP_MODE_QUAD_OUTPUT |
+                HAL_NORFLASH_OP_MODE_QUAD_IO |
+                HAL_NORFLASH_OP_MODE_DTR |
+                HAL_NORFLASH_OP_MODE_CONTINUOUS_READ |
+                HAL_NORFLASH_OP_MODE_READ_WRAP |
+                HAL_NORFLASH_OP_MODE_PAGE_PROGRAM |
+                HAL_NORFLASH_OP_MODE_DUAL_PAGE_PROGRAM |
+                HAL_NORFLASH_OP_MODE_QUAD_PAGE_PROGRAM |
+                HAL_NORFLASH_OP_MODE_PAGE_SIZE_1K |
+                HAL_NORFLASH_OP_MODE_SUSPEND),
+
+    .max_speed = 120 * 1000 * 1000,
     .write_status = gd25q32c_write_status,
 };
 
@@ -540,7 +632,7 @@ const struct NORFLASH_CFG_T p25q64ha_cfg = {
             .size = SEC_REG_SIZE_1024,
             .offset = SEC_REG_OFFSET_0X1000,
             .cnt = SEC_REG_CNT_3,
-            .pp = SEC_REG_PP_1024,
+            .pp = SEC_REG_PP_256,
             .lb = SEC_REG_LB_S11_S13,
         },
     },

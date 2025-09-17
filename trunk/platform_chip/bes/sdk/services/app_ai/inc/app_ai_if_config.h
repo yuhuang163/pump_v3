@@ -7,7 +7,7 @@
 #endif
 
 #ifdef __AMA_VOICE__
-#define PUSH_AND_HOLD_ENABLED
+//#define PUSH_AND_HOLD_ENABLED
 //#define AI_32KBPS_VOICE
 //#define NO_LOCAL_START_TONE
 #endif

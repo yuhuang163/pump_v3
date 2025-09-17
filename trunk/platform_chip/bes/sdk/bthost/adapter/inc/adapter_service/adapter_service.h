@@ -352,338 +352,6 @@ typedef int bt_status_t;
 #define BT_STS_BTGATT_PROFILE_DATA_RESTORE  0x14A
 #define BT_STS_CANCEL_INITIATING            0x14B
 #define BT_STS_RESO_LIST_ADD_ALL            0x14C
-#define BT_STS_INVALID_CHANNEL_ID           0x14D
-#define BT_STS_INVALID_PEER_ID              0x14E
-#define BT_STS_INVALID_CHANNEL              0x14F
-#define BT_STS_INVALID_CONNECTION           0x150
-#define BT_STS_INVALID_IDENTIFIER           0x151
-#define BT_STS_INVALID_FLAG                 0x152
-#define BT_STS_INVALID_ATTR_HANDLE          0x153
-#define BT_STS_ADD_FAILED                   0x154
-#define BT_STS_CURR_PROC_WAIT_MORE_PDU      0x155
-#define BT_STS_NOT_IN_THE_SAME_SERVICE      0x156
-#define BT_STS_NOT_SAME_TYPE                0x157
-#define BT_STS_ACTIVE_STATUS                0x158
-#define BT_STS_NO_CLIENT_NOTIFIED           0x159
-#define BT_STS_AUTHOR_REQ_FAILED            0x15A
-#define BT_STS_READ_REQ_FAILED              0x15B
-#define BT_STS_WRITE_REQ_FAILED             0x15C
-#define BT_STS_CALL_METHOD_FAILED           0x15D
-#define BT_STS_OUTSTANDING_CMD_MISMATCH     0x15E
-#define BT_STS_OUTSTANDING_CMD_IS_NULL      0x15F
-#define BT_STS_SLE_ADDRESS                  0x160
-#define BT_STS_CREATE_FAILED                0x161
-#define BT_STS_CANCEL_FAILED                0x162
-#define BT_STS_WRITE_WORKING_STATE          0x163
-#define BT_STS_WRITE_REPORT_INFO            0x164
-#define BT_STS_NEAR_SERVICE                 0x165
-#define BT_STS_NEAR_PROPERTY                0x166
-#define BT_STS_PROPERTY_NOT_FOUND           0x167
-#define BT_STS_START_DISCOVER               0x168
-#define BT_STS_REPORT_NOT_FOUND             0x169
-#define BT_STS_NEAR_HID_REPORT              0x16A
-#define BT_STS_INVALID_DESCRIPTOR           0x16B
-#define BT_STS_RECV_REPORT                  0x16C
-#define BT_STS_RECV_SERVICE                 0x16D
-#define BT_STS_HID_DESCRIPTOR               0x16E
-#define BT_STS_WORKING_STATE                0x16F
-#define BT_STS_REPORT_INFO                  0x170
-#define BT_STS_READ_REQ                     0x171
-#define BT_STS_WRITE_REQ                    0x172
-#define BT_STS_WRITE_RSP                    0x173
-#define BT_STS_GATT_DEFER_RSP               0x174
-#define BT_STS_INVALID_DEFER_CODE           0x175
-#define BT_STS_SET_DECISION_DATA            0x176
-#define BT_STS_DECISION_RESOLVABLE_TAG      0x177
-#define BT_STS_SET_DECISION_INSTRUCTIONS    0x178
-#define BT_STS_ADD_ADVS_TO_MONITORED_LIST   0x179
-#define BT_STS_RM_ADVS_TO_MONITORED_LIST    0x17A
-#define BT_STS_CLR_ADVS_TO_MONITORED_LIST   0x17B
-#define BT_STS_EN_MONITORING_ADVERTISERS    0x17C
-#define BT_STS_CS_MGR_INIT                  0x17D
-#define BT_STS_CS_CTRL_EVT_CB_REGISTER      0x17E
-#define BT_STS_CS_UNKNOWN_CMD               0x17F
-#define BT_STS_CS_UNKNOWN_EVENT             0x180
-#define BT_STS_CS_CONFIG_ID_OVERFLOW        0x181
-#define BT_STS_CS_NO_REMOTE                 0x182
-#define BT_STS_CS_NO_CONN_MGR               0x183
-#define BT_STS_CS_UNKNOWN_SPEC_INFO         0x184
-#define BT_STS_CS_UNMATACHED_PKT_LEN        0x185
-#define BT_STS_CS_CONN_MGR_ALLOC_FAILED     0x186
-#define BT_STS_CS_CONNECTED                 0x187
-#define BT_STS_CS_DISCONNECTED              0x188
-#define BT_STS_CS_NO_GLOBAL_MGR             0x189
-#define BT_STS_CS_SEND_CMD                  0x18A
-#define BT_STS_CS_CMD_FAILED                0x18B
-#define BT_STS_CS_EMPTY_POINTER             0x18C
-#define BT_STS_CS_DEFAULT_SETTINGS_INVALID  0x18D
-#define BT_STS_CS_ALLOC_CMD_FAILED          0x18E
-#define BT_STS_CS_NUM_ANTENNA_PATH_UNMATCH  0x18F
-#define BT_STS_SRV_USER_REGISTER            0x200
-#define BT_STS_SRV_USER_UNREGISTER          0x201
-#define BT_STS_BAP_CIS_UPDATE               0x202
-
-/*BT Link layer Error*/
-#define BT_LL_ERR_NO_ERROR                  0x00
-#define BT_LL_ERR_UNKNOWN_HCI_COMMAND       0x01
-#define BT_LL_ERR_UNKNOWN_CONNECTION_ID     0x02
-#define BT_LL_ERR_HARDWARE_FAILURE          0x03
-#define BT_LL_ERR_PAGE_TIMEOUT              0x04
-#define BT_LL_ERR_AUTH_FAILURE              0x05
-#define BT_LL_ERR_PIN_MISSING               0x06
-#define BT_LL_ERR_MEMORY_CAPA_EXCEED        0x07
-#define BT_LL_ERR_CON_TIMEOUT               0x08
-#define BT_LL_ERR_CON_LIMIT_EXCEED          0x09
-#define BT_LL_ERR_SYNC_CON_LIMIT_DEV_EXCEED 0x0A
-#define BT_LL_ERR_CON_ALREADY_EXISTS        0x0B
-#define BT_LL_ERR_COMMAND_DISALLOWED        0x0C
-#define BT_LL_ERR_CON_REJ_LIMITED_RES       0x0D
-#define BT_LL_ERR_CON_REJ_SECURITY_REASONS  0x0E
-#define BT_LL_ERR_CON_REJ_UNACCEPT_BDADDR   0x0F
-#define BT_LL_ERR_CON_ACCEPT_TIMEOUT_EXCEED 0x10
-#define BT_LL_ERR_UNSUPPORTED               0x11
-#define BT_LL_ERR_INVALID_HCI_PARAM         0x12
-#define BT_LL_ERR_REMOTE_USER_TERM_CON      0x13
-#define BT_LL_ERR_REMOTE_DEV_TERM_LOW_RES   0x14
-#define BT_LL_ERR_REMOTE_DEV_POWER_OFF      0x15
-#define BT_LL_ERR_CON_TERM_BY_LOCAL_HOST    0x16
-#define BT_LL_ERR_REPEATED_ATTEMPTS         0x17
-#define BT_LL_ERR_PAIRING_NOT_ALLOWED       0x18
-#define BT_LL_ERR_UNKNOWN_LMP_PDU           0x19
-#define BT_LL_ERR_UNSUPPORTED_REMOTE_FEAT   0x1A
-#define BT_LL_ERR_SCO_OFFSET_REJECTED       0x1B
-#define BT_LL_ERR_SCO_INTERVAL_REJECTED     0x1C
-#define BT_LL_ERR_SCO_AIR_MODE_REJECTED     0x1D
-#define BT_LL_ERR_INVALID_LMP_PARAM         0x1E
-#define BT_LL_ERR_UNSPECIFIED_ERROR         0x1F
-#define BT_LL_ERR_UNSUPPORTED_LMP_PARAM     0x20
-#define BT_LL_ERR_ROLE_CHANGE_NOT_ALLOWED   0x21
-#define BT_LL_ERR_LMP_RSP_TIMEOUT           0x22
-#define BT_LL_ERR_LMP_COLLISION             0x23
-#define BT_LL_ERR_LMP_PDU_NOT_ALLOWED       0x24
-#define BT_LL_ERR_ENC_MODE_NOT_ACCEPT       0x25
-#define BT_LL_ERR_LINK_KEY_CANT_CHANGE      0x26
-#define BT_LL_ERR_QOS_NOT_SUPPORTED         0x27
-#define BT_LL_ERR_INSTANT_PASSED            0x28
-#define BT_LL_ERR_PAIR_UNIT_KEY_NOT_SUP     0x29
-#define BT_LL_ERR_DIFF_TRANS_COLLISION      0x2A
-#define BT_LL_ERR_QOS_UNACCEPTABLE_PARAM    0x2C
-#define BT_LL_ERR_QOS_REJECTED              0x2D
-#define BT_LL_ERR_CHANNEL_CLASS_NOT_SUP     0x2E
-#define BT_LL_ERR_INSUFFICIENT_SECURITY     0x2F
-#define BT_LL_ERR_PARAM_OUT_OF_MAND_RANGE   0x30
-#define BT_LL_ERR_ROLE_SWITCH_PEND          0x32 /* LM_ROLE_SWITCH_PENDING               */
-#define BT_LL_ERR_RESERVED_SLOT_VIOLATION   0x34 /* LM_RESERVED_SLOT_VIOLATION           */
-#define BT_LL_ERR_ROLE_SWITCH_FAIL          0x35 /* LM_ROLE_SWITCH_FAILED                */
-#define BT_LL_ERR_EIR_TOO_LARGE             0x36 /* LM_EXTENDED_INQUIRY_RESPONSE_TOO_LARGE */
-#define BT_LL_ERR_SP_NOT_SUPPORTED_HOST     0x37
-#define BT_LL_ERR_HOST_BUSY_PAIRING         0x38
-#define BT_LL_ERR_CONTROLLER_BUSY           0x3A
-#define BT_LL_ERR_UNACCEPTABLE_CON_PARAM    0x3B
-#define BT_LL_ERR_ADV_TIMEOUT               0x3C
-#define BT_LL_ERR_TERMINATED_MIC_FAILURE    0x3D
-#define BT_LL_ERR_CON_FAILED_TO_BE_EST      0x3E
-#define BT_LL_ERR_CCA_REJ_USE_CLOCK_DRAG    0x40
-#define BT_LL_ERR_TYPE0_SUBMAP_NOT_DEFINED  0x41
-#define BT_LL_ERR_UNKNOWN_ADVERTISING_ID    0x42
-#define BT_LL_ERR_LIMIT_REACHED             0x43
-#define BT_LL_ERR_OP_CANCELED_BY_HOST       0x44
-#define BT_LL_ERR_PKT_TOO_LONG              0x45
-
-typedef enum {
-    NEAR_STS_SUCCESS                      = 0x00,
-    NEAR_STS_FAILED                       ,
-    NEAR_STS_PENDING                      ,
-    NEAR_STS_ONGOING                      ,
-    NEAR_STS_IN_PROGRESS                  ,
-    NEAR_STS_IN_USE                       ,
-    NEAR_STS_IS_EMPTY                     ,
-    NEAR_STS_IS_FULL                      ,
-    NEAR_STS_IS_BUSY                      ,
-    NEAR_STS_POWER_OFF                    ,
-    NEAR_STS_LIST_FULL                    ,
-    NEAR_STS_QUEUE_FULL                   ,
-    NEAR_STS_ERROR_RESULT                 ,
-    NEAR_STS_ERROR_STATUS                 ,
-    NEAR_STS_RECV_ERROR                   ,
-    NEAR_STS_START_FAILED                 ,
-    NEAR_STS_STOP_FAILED                  ,
-    NEAR_STS_ENABLE_FAILED                ,
-    NEAR_STS_DISABLE_FAILED               ,
-    NEAR_STS_READ_FAILED                  ,
-    NEAR_STS_WRITE_FAILED                 ,
-    NEAR_STS_CONFIG_FAILED                ,
-    NEAR_STS_SET_FAILED                   ,
-    NEAR_STS_ADD_FAILED                   ,
-    NEAR_STS_CONN_FAILED                  ,
-    NEAR_STS_SEND_FAILED                  ,
-    NEAR_STS_SEND_DATA_FAILED             ,
-    NEAR_STS_SEND_CMD_FAILED              ,
-    NEAR_STS_CREATE_FAILED                ,
-    NEAR_STS_CANCEL_FAILED                ,
-    NEAR_STS_REGISTER_FAILED              ,
-    NEAR_STS_AUTHOR_REQ_FAILED            ,
-    NEAR_STS_READ_REQ_FAILED              ,
-    NEAR_STS_WRITE_REQ_FAILED             ,
-    NEAR_STS_CALL_METHOD_FAILED           ,
-    NEAR_STS_APP_INIT                     ,
-    NEAR_STS_INITIALIZE                   ,
-    NEAR_STS_APP_READY                    ,
-    NEAR_STS_STACK_READY                  ,
-    NEAR_STS_CANCELLED                    ,
-    NEAR_STS_RESTRICTED                   ,
-    NEAR_STS_CONNECT                      ,
-    NEAR_STS_DISCONNECT                   ,
-    NEAR_STS_TERMINATE                    ,
-    NEAR_STS_REGISTER                     ,
-    NEAR_STS_UNREGISTER                   ,
-    NEAR_STS_CANCEL                       ,
-    NEAR_STS_DISCOVER                     ,
-    NEAR_STS_START_DISCOVER               ,
-    NEAR_STS_CONN_OPENED                  ,
-    NEAR_STS_CONN_CLOSED                  ,
-    NEAR_STS_CHANNEL_OPENED               ,
-    NEAR_STS_CHANNEL_CLOSED               ,
-    NEAR_STS_INITIATING                   ,
-    NEAR_STS_SCANNING                     ,
-    NEAR_STS_START_SCAN                   ,
-    NEAR_STS_STOP_SCAN                    ,
-    NEAR_STS_BROADCAST                    ,
-    NEAR_STS_START_BROADCAST              ,
-    NEAR_STS_STOP_BROADCAST               ,
-    NEAR_STS_TIMEOUT                      ,
-    NEAR_STS_PROC_TIMEOUT                 ,
-    NEAR_STS_MULTIPLE_INSTANCE            ,
-    NEAR_STS_PEER_MULTIPLE_INSTANCE       ,
-    NEAR_STS_NO_LINK                      ,
-    NEAR_STS_NO_CONNECTION                ,
-    NEAR_STS_NO_RESOURCES                 ,
-    NEAR_STS_NO_BOND_DEVICE               ,
-    NEAR_STS_NO_CLIENT_NOTIFIED           ,
-    NEAR_STS_NOT_AUTHENTICATED            ,
-    NEAR_STS_NOT_AUTHORIZED               ,
-    NEAR_STS_NOT_ENCRYPTED                ,
-    NEAR_STS_NOT_READY                    ,
-    NEAR_STS_NOT_OPEN                     ,
-    NEAR_STS_NOT_ALLOW                    ,
-    NEAR_STS_NOT_AVAILABLE                ,
-    NEAR_STS_NOT_IN_LIST                  ,
-    NEAR_STS_NOT_IN_ORDER                 ,
-    NEAR_STS_NOT_MATCH                    ,
-    NEAR_STS_NOT_SAME_TYPE                ,
-    NEAR_STS_NOT_IN_SAME_SERVICE          ,
-    NEAR_STS_NOT_SUPPORT                  ,
-    NEAR_STS_NOT_FOUND                    ,
-    NEAR_STS_CONN_NOT_FOUND               ,
-    NEAR_STS_LINK_NOT_FOUND               ,
-    NEAR_STS_CHANNEL_NOT_FOUND            ,
-    NEAR_STS_RECROD_NOT_FOUND             ,
-    NEAR_STS_DEVICE_NOT_FOUND             ,
-    NEAR_STS_SERVICE_NOT_FOUND            ,
-    NEAR_STS_PROPERTY_NOT_FOUND           ,
-    NEAR_STS_REPORT_NOT_FOUND             ,
-    NEAR_STS_USE_EXIST_CONN               ,
-    NEAR_STS_CONN_ALREADY_EXIST           ,
-    NEAR_STS_ALREADY_EXIST                ,
-    NEAR_STS_ALREADY_OPEN                 ,
-    NEAR_STS_ALREADY_IN_LIST              ,
-    NEAR_STS_ALREADY_REGISTERED           ,
-    NEAR_STS_INVALID_PARM                 ,
-    NEAR_STS_INVALID_TYPE                 ,
-    NEAR_STS_INVALID_ID                   ,
-    NEAR_STS_INVALID_INSTANCE             ,
-    NEAR_STS_INVALID_INSTANCE_ID          ,
-    NEAR_STS_INVALID_IDENTIFIER           ,
-    NEAR_STS_INVALID_PEER_ID              ,
-    NEAR_STS_INVALID_CHANNEL_ID           ,
-    NEAR_STS_INVALID_TCID                 ,
-    NEAR_STS_INVALID_OPID                 ,
-    NEAR_STS_INVALID_UUID                 ,
-    NEAR_STS_INVALID_UUID_LEN             ,
-    NEAR_STS_INVALID_VALUE                ,
-    NEAR_STS_INVALID_LENGTH               ,
-    NEAR_STS_INVALID_SIZE                 ,
-    NEAR_STS_INVALID_DATA                 ,
-    NEAR_STS_INVALID_PROC                 ,
-    NEAR_STS_INVALID_OPCODE               ,
-    NEAR_STS_INVALID_MTU                  ,
-    NEAR_STS_INVALID_PDU                  ,
-    NEAR_STS_INVALID_FRAME                ,
-    NEAR_STS_INVALID_HEADER               ,
-    NEAR_STS_INVALID_CONN                 ,
-    NEAR_STS_INVALID_CHANNEL              ,
-    NEAR_STS_INVALID_CONIDX               ,
-    NEAR_STS_INVALID_INDEX                ,
-    NEAR_STS_INVALID_HANDLE               ,
-    NEAR_STS_INVALID_CONN_HANDLE          ,
-    NEAR_STS_INVALID_ATTR_HANDLE          ,
-    NEAR_STS_INVALID_SERVICE_HANDLE       ,
-    NEAR_STS_INVALID_PROPERTY_HANDLE      ,
-    NEAR_STS_INVALID_INTERVAL             ,
-    NEAR_STS_INVALID_WINDOW               ,
-    NEAR_STS_INVALID_DURATION             ,
-    NEAR_STS_INVALID_PERIOD               ,
-    NEAR_STS_INVALID_TIMEOUT              ,
-    NEAR_STS_INVALID_PEER_TYPE            ,
-    NEAR_STS_INVALID_ADDR_TYPE            ,
-    NEAR_STS_INVALID_ADDRESS              ,
-    NEAR_STS_INVALID_PEER_ADDRESS         ,
-    NEAR_STS_INVALID_COUNT                ,
-    NEAR_STS_INVALID_ITEM                 ,
-    NEAR_STS_INVALID_FLAG                 ,
-    NEAR_STS_INVALID_STATE                ,
-    NEAR_STS_INVALID_STATUS               ,
-    NEAR_STS_INVALID_METHOD               ,
-    NEAR_STS_INVALID_PHASE                ,
-    NEAR_STS_INVALID_EVENT                ,
-    NEAR_STS_INVALID_ROLE                 ,
-    NEAR_STS_INVALID_CALLBACK             ,
-    NEAR_STS_INVALID_SERVICE              ,
-    NEAR_STS_INVALID_PROPERTY             ,
-    NEAR_STS_INVALID_SERVICE_ATTR         ,
-    NEAR_STS_INVALID_PROPERTY_ATTR        ,
-    NEAR_STS_INVALID_REPORT               ,
-    NEAR_STS_INVALID_DESCRIPOTR           ,
-    NEAR_STS_INVALID_BITFILED             ,
-    NEAR_STS_ALLOC_FAILED                 ,
-    NEAR_STS_ALLOC_PPB_FAILED             ,
-    NEAR_STS_ALLOC_HCI_FAILED             ,
-    NEAR_STS_REACH_MAX_SIZE               ,
-    NEAR_STS_REACH_MAX_COUNT              ,
-    NEAR_STS_REACH_MAX_NUMBER             ,
-    NEAR_STS_LENGTH_TOO_LONG              ,
-    NEAR_STS_SIZE_TOO_LARGE               ,
-    NEAR_STS_DATA_TOO_LONG                ,
-    NEAR_STS_VALUE_TOO_LARGE              ,
-    NEAR_STS_REACH_UPPER_LIMIT            ,
-    NEAR_STS_REACH_LOWER_LIMIT            ,
-    NEAR_STS_OVERFLOW                     ,
-    NEAR_STS_UNDERFLOW                    ,
-    NEAR_STS_WAIT_MORE_PDU                ,
-    NEAR_STS_RECV_REQ                     ,
-    NEAR_STS_RECV_RSP                     ,
-    NEAR_STS_RECV_SERVICE                 ,
-    NEAR_STS_RECV_PROPERTY                ,
-    NEAR_STS_RECV_REPORT                  ,
-    NEAR_STS_SEND_REQ                     ,
-    NEAR_STS_SEND_RSP                     ,
-    NEAR_STS_OUTSTANDING_CMD_MISMATCH     ,
-    NEAR_STS_OUTSTANDING_CMD_IS_NULL      ,
-    NEAR_STS_SLE_ADDRESS                  ,
-    NEAR_STS_WRITE_WORKING_STATE          ,
-    NEAR_STS_WRITE_REPORT_INFO            ,
-    NEAR_STS_SERVICE                      ,
-    NEAR_STS_PROPERTY                     ,
-    NEAR_STS_PEER_SERVICE                 ,
-    NEAR_STS_PEER_PROPERTY                ,
-    NEAR_STS_HID_REPORT                   ,
-    NEAR_STS_HID_DESCRIPTOR               ,
-    NEAR_STS_WORKING_STATE                ,
-    NEAR_STS_REPORT_INFO                  ,
-    NEAR_STS_DEVICE_ADDRESS               ,
-    NEAR_STS_LOCAL_ADDRESS                ,
-    NEAR_STS_PEER_ADDRESS                 ,
-} near_status_t;
 
 typedef enum {
     BT_GROUP_INDEX_LINK = 0,    // 0x1000
@@ -704,7 +372,6 @@ typedef enum {
     BT_GROUP_INDEX_GATT,        // 0x1F00
     BT_GROUP_INDEX_GAP,         // 0x2000
     BT_GROUP_INDEX_BAP,         // 0x2100
-    BT_GROUP_INDEX_CS,          // 0x2200
 } bt_event_group_index_t;
 
 #define BT_EVENT_ID_START_BASE 0x1000
@@ -730,18 +397,14 @@ typedef enum {
 #define BT_EVENT_MASK_GATT_GROUP        (1<<BT_GROUP_INDEX_GATT)
 #define BT_EVENT_MASK_GAP_GROUP         (1<<BT_GROUP_INDEX_GAP)
 #define BT_EVENT_MASK_BAP_GROUP         (1<<BT_GROUP_INDEX_BAP)
-#define BT_EVENT_MASK_CS_GROUP          (1<<BT_GROUP_INDEX_CS)
 
 typedef enum {
     BT_EVENT_INVALID_EVENT = 0,
 
     BT_EVENT_ACL_OPENED = BT_EVENT_ID_GROUP_START(BT_GROUP_INDEX_LINK), // 0x1000
     BT_EVENT_ACL_CLOSED,
-    BT_EVENT_ACL_CONNECT_REQ,
     BT_EVENT_SCO_OPENED,
     BT_EVENT_SCO_CLOSED,
-    BT_EVENT_SCO_CONNECT_REQ,
-    BT_EVENT_SCO_CONNECT_FAIL,
     BT_EVENT_ACCESS_CHANGE,
     BT_EVENT_ROLE_DISCOVER,
     BT_EVENT_ROLE_CHANGE,
@@ -756,6 +419,8 @@ typedef enum {
 
     BT_EVENT_HF_OPENED = BT_EVENT_ID_GROUP_START(BT_GROUP_INDEX_HFP_HF), // 0x1100
     BT_EVENT_HF_CLOSED,
+    BT_EVENT_HF_AUDIO_OPENED,
+    BT_EVENT_HF_AUDIO_CLOSED,
     BT_EVENT_HF_NETWORK_STATE,
     BT_EVENT_HF_NETWORK_ROAMING,
     BT_EVENT_HF_NETWORK_SIGNAL,
@@ -807,9 +472,6 @@ typedef enum {
     BT_EVENT_A2DP_STREAM_RECONFIG,
     BT_EVENT_A2DP_STREAM_SUSPEND,
     BT_EVENT_A2DP_STREAM_CLOSE,
-    BT_EVENT_A2DP_STREAM_DATA_IND,
-    BT_EVENT_A2DP_CUSTOM_CMD_REQ,
-    BT_EVENT_A2DP_CUSTOM_CMD_RSP,
     BT_EVENT_A2DP_END,
 
     BT_EVENT_A2DP_SOURCE_OPENED = BT_EVENT_ID_GROUP_START(BT_GROUP_INDEX_A2DP_SRC), // 0x1400
@@ -830,30 +492,11 @@ typedef enum {
     BT_EVENT_AVRCP_RECV_PASSTHROUGH_CMD,
     BT_EVENT_AVRCP_RECV_PLAY_STATUS,
     BT_EVENT_AVRCP_RECV_MEDIA_STATUS,
-    BT_EVENT_AVRCP_SEND_KEY_INFO,
-    BT_EVENT_AVRCP_GET_COMPANY_ID,
-    BT_EVENT_AVRCP_GET_CAPABILITY,
-    BT_EVENT_AVRCP_NOTIFY_CHANGE,
-    BT_EVENT_AVRCP_ADDRESSED_PLAYER_CHANGED,
-    BT_EVENT_AVRCP_BROSING_OPENED,
-    BT_EVENT_AVRCP_BROSING_CMD_INFO,
-    BT_EVENT_AVRCP_BROSING_RSP_INFO,
-    BT_EVENT_AVRCP_BROSING_CLOSED,
-    BT_EVENT_AVRCP_OBEX_OPENED,
-    BT_EVENT_AVRCP_OBEX_CLOSED,
-    BT_EVENT_AVRCP_OBEX_GET_IMAGE_DONE,
-    BT_EVENT_AVRCP_OBEX_GET_THM_DONE,
-    BT_EVENT_AVRCP_OBEX_GET_IMAGE_PROPERTIES_DONE,
-    BT_EVENT_AVRCP_OBEX_EVENT_INFO,
     BT_EVENT_AVRCP_END,
 
     BT_EVENT_HID_OPENED = BT_EVENT_ID_GROUP_START(BT_GROUP_INDEX_HID), // 0x1600
     BT_EVENT_HID_CLOSED,
     BT_EVENT_HID_SENSOR_STATE_CHANGED,
-    BT_EVENT_HID_RCV_CTL_DATA,
-    BT_EVENT_HID_RCV_INT_DATA,
-    BT_EVENT_HID_SDP_REC_DATA,
-    BT_EVENT_HID_TXDONE,
     BT_EVENT_HID_END,
 
     BT_EVENT_MAP_OPENED = BT_EVENT_ID_GROUP_START(BT_GROUP_INDEX_MAP), // 0x1700
@@ -864,11 +507,6 @@ typedef enum {
     BT_EVENT_MAP_PUT_MSG_RSP,
     BT_EVENT_MAP_READ_STATUS_CHANGED,
     BT_EVENT_MAP_END,
-
-    BT_EVENT_DIP_START  = BT_EVENT_ID_GROUP_START(BT_GROUP_INDEX_DIP), // 0x1900
-    BT_EVENT_DIP_QUIRED_SUCCESS,
-    BT_EVENT_DIP_QUIRED_FAIL,
-    BT_EVENT_DIP_END,
 
     BT_EVENT_SPP_OPENED = BT_EVENT_ID_GROUP_START(BT_GROUP_INDEX_SPP), // 0x1C00
     BT_EVENT_SPP_CLOSED,
@@ -903,11 +541,9 @@ typedef enum {
     BT_EVENT_BAP_EVENT_START = BT_EVENT_ID_GROUP_START(BT_GROUP_INDEX_BAP),
     BT_EVENT_BAP_EVENT_END = BT_EVENT_BAP_EVENT_START + 0xf,
 
-    BT_EVENT_CS_EVENT_START = BT_EVENT_ID_GROUP_START(BT_GROUP_INDEX_CS),
-    BT_EVENT_CS_EVENT_END   = BT_EVENT_CS_EVENT_START + 0x1f,
 } BT_EVENT_T;
 
-#define BT_SOCKET_MAX_TX_PEND_PACKETS (12) // bt controller max support 12 acl data buffer for speed
+#define BT_SOCKET_MAX_TX_PEND_PACKETS (6) // bt controller max support 6 acl data buffer
 
 typedef struct bt_socket_t bt_socket_t;
 typedef struct bt_service_port_t bt_service_port_t;
@@ -948,11 +584,6 @@ typedef struct {
     void *set_sock_priv;
 } bt_socket_accept_t;
 
-typedef struct {
-    bt_socket_t *socket;
-    uint8_t credits;
-} bt_socket_give_credits_t;
-
 typedef union {
     void *param_ptr;
     bt_socket_opened_t *opened;
@@ -960,7 +591,6 @@ typedef union {
     bt_socket_tx_done_t *tx_done;
     bt_socket_rx_data_t *rx_data;
     bt_socket_accept_t *accept;
-    bt_socket_give_credits_t *give_credits;
 } bt_socket_callback_param_t;
 
 typedef enum {
@@ -969,7 +599,6 @@ typedef enum {
     BT_SOCKET_EVENT_TX_DONE,
     BT_SOCKET_EVENT_RX_DATA,
     BT_SOCKET_EVENT_ACCEPT,
-    BT_SOCKET_EVENT_GIVE_CREDITS,
 } bt_socket_event_t;
 
 typedef enum {
@@ -1023,6 +652,7 @@ bt_status_t bt_socket_disconnect(uint32_t channel_handle, uint8_t reason);
 bt_status_t bt_socket_write(uint32_t channel_handle, const uint8_t *data, uint16_t size);
 uint16_t bt_socket_count_free_tx_packets(uint32_t channel_handle);
 bool bt_socket_is_connected(uint32_t channel_handle);
+uint32_t bt_get_class_of_device(void);
 
 #include "hci_service.h"
 #include "l2cap_service.h"
@@ -1033,7 +663,6 @@ bool bt_socket_is_connected(uint32_t channel_handle);
 #include "spp_service.h"
 #include "hid_service.h"
 #include "map_service.h"
-#include "pan_service.h"
 
 typedef enum {
     BT_PROPERTY_TYPE_LOCAL_BDNAME = 0x01,   // only set
@@ -1079,14 +708,8 @@ typedef struct {
 
 typedef struct {
     uint8_t error_code;
-} bt_adapter_acl_connect_req_param_t;
-
-typedef struct {
-    uint8_t error_code;
     uint8_t codec;
     uint16_t sco_handle;
-    uint8_t interval;
-    uint8_t window;
 } bt_adapter_sco_opened_param_t;
 
 typedef struct {
@@ -1094,11 +717,6 @@ typedef struct {
     uint8_t disc_reason;
     uint16_t sco_handle;
 } bt_adapter_sco_closed_param_t;
-
-typedef struct {
-    uint8_t device_id;
-    const uint8_t *remote;
-} bt_adapter_sco_conn_req_param_t;
 
 typedef struct {
     bt_access_mode_t access_mode;
@@ -1157,7 +775,6 @@ typedef struct {
 typedef union {
     bt_adapter_acl_opened_param_t *acl_opened;
     bt_adapter_acl_closed_param_t *acl_closed;
-    bt_adapter_acl_connect_req_param_t *acl_connect_req;
     bt_adapter_sco_opened_param_t *sco_opened;
     bt_adapter_sco_closed_param_t *sco_closed;
     bt_adapter_access_change_param_t *access_change;
@@ -1175,7 +792,6 @@ typedef union {
 typedef enum {
     BT_ADAPTER_EVENT_ACL_OPENED = BT_EVENT_ACL_OPENED,
     BT_ADAPTER_EVENT_ACL_CLOSED,
-    BT_ADAPTER_EVENT_ACL_CONNECT_REQ,
     BT_ADAPTER_EVENT_SCO_OPENED,
     BT_ADAPTER_EVENT_SCO_CLOSED,
     BT_ADAPTER_EVENT_ACCESS_CHANGE,
@@ -1200,7 +816,6 @@ bt_status_t bt_adapter_init(bt_adapter_callback_t callback);
 bt_status_t bt_adapter_cleanup(void);
 bt_status_t bt_adapter_start_inquiry(void);
 bt_status_t bt_adapter_cancel_inquiry(void);
-bt_status_t bt_adapter_connect_acl_with_page_timeout(const bt_bdaddr_t *bd_addr, uint16_t page_timeout);
 bt_status_t bt_adapter_connect_acl(const bt_bdaddr_t *bd_addr);
 bt_status_t bt_adapter_disconnect_acl(const bt_bdaddr_t *bd_addr);
 bt_status_t bt_adapter_create_bond(const bt_bdaddr_t *bd_addr);
@@ -1224,7 +839,7 @@ typedef union {
 #ifdef BT_AVRCP_SUPPORT
     bt_avrcp_callback_param_t ar;
 #endif
-#if defined(BT_HID_DEVICE) || defined(BT_HID_HOST)
+#ifdef BT_HID_DEVICE
     bt_hid_callback_param_t hid;
 #endif
 #ifdef BT_MAP_SUPPORT
@@ -1233,30 +848,6 @@ typedef union {
 } BT_CALLBACK_PARAM_T;
 
 typedef int (*bt_event_callback_t)(const bt_bdaddr_t *bd_addr, BT_EVENT_T event, BT_CALLBACK_PARAM_T param);
-
-typedef struct _hfp_adapter_context
-{
-    bool hfp_is_connected;
-    uint8_t hfp_call_state;
-    uint8_t hfp_callsetup_state;
-    uint8_t hfp_callhold_state;
-    uint8_t hfp_speak_vol;
-} HFP_ADAPTER_CONTEXT;
-
-typedef struct _a2dp_adapter_context
-{
-    bool a2dp_is_connected;
-    bool a2dp_is_streaming;
-    uint8_t a2dp_codec_type;
-    uint8_t a2dp_sample_rate;
-    bool rsv_avdtp_start_signal;
-} A2DP_ADAPTER_CONTEXT;
-
-typedef struct _avrcp_adapter_context
-{
-    bool avrcp_is_connected;
-    uint8_t avrcp_playback_status;
-} AVRCP_ADAPTER_CONTEXT;
 
 struct BT_ADAPTER_DEVICE_T {
     bt_bdaddr_t remote;
@@ -1271,18 +862,30 @@ struct BT_ADAPTER_DEVICE_T {
     uint8_t sco_codec_type;
     uint16_t sco_handle;
 
+    bool hfp_is_connected;
+    uint8_t hfp_call_state;
+    uint8_t hfp_callsetup_state;
+    uint8_t hfp_callhold_state;
+    uint8_t hfp_speak_vol;
+
+    bool avrcp_is_connected;
+    uint8_t avrcp_playback_status;
+
+    bool a2dp_is_connected;
+    bool a2dp_is_streaming;
+    uint8_t a2dp_codec_type;
+    uint8_t a2dp_sample_rate;
+    bool rsv_avdtp_start_signal;
+
     uint8_t is_use_local_sbm;
     uint16_t media_active;
-
-    HFP_ADAPTER_CONTEXT hfp_ctx;
-    A2DP_ADAPTER_CONTEXT a2dp_ctx;
-    AVRCP_ADAPTER_CONTEXT avrcp_ctx;
 };
 
-#define BT_ADAPTER_MAX_DEVICE_NUM BT_DEVICE_NUM
+#define BT_ADAPTER_MAX_DEVICE_NUM (BT_DEVICE_NUM+BT_SOURCE_DEVICE_NUM)
 
 struct BT_ADAPTER_MANAGER_T {
-    struct BT_ADAPTER_DEVICE_T bt_device[BT_DEVICE_NUM];
+    struct BT_ADAPTER_DEVICE_T bt_sink_device[BT_ADAPTER_MAX_DEVICE_NUM];
+    struct BT_ADAPTER_DEVICE_T bt_source_device[BT_ADAPTER_MAX_DEVICE_NUM];
     struct BT_ADAPTER_DEVICE_T bt_tws_device;
 #ifdef RTOS
     osMutexId adapter_lock;
@@ -1298,8 +901,9 @@ typedef struct bes_aud_bt_t {
     uint8_t (*aud_get_curr_a2dp_device)(void); // app_bt_audio_get_curr_a2dp_device
     uint8_t (*aud_get_curr_sco_device)(void); // app_bt_audio_get_curr_sco_device
     bool (*aud_is_sco_prompt_play_mode)(void); // app_bt_manager.config.sco_prompt_play_mode
-    uint8_t (*aud_get_max_sco_number)(void); // btif_sco_get_max_number
-    uint8_t (*aud_get_a2dp_codec_type)(int device_id); // bt_a2dp_player_get_codec_type
+    uint8_t (*aud_get_max_sco_number)(void); // bt_get_max_sco_number
+    uint8_t (*aud_get_a2dp_codec_type)(int device_id); // bt_sbc_player_get_codec_type
+    uint8_t (*aud_get_a2dp_sample_rate)(int device_id); // curr_device->sample_rate
     int (*aud_switch_sco)(uint16_t sco_handle); // app_bt_Me_switch_sco
     void (*aud_report_hfp_speak_gain)(void); // btapp_hfp_report_speak_gain
     void (*aud_report_a2dp_speak_gain)(void); // btapp_a2dp_report_speak_gain
@@ -1312,16 +916,9 @@ typedef struct bes_aud_bt_t {
 #if defined(A2DP_LHDC_ON) || defined(A2DP_LHDCV5_ON)
     bool (*a2dp_lhdc_get_ext_flags)(uint32_t flags); // a2dp_lhdc_get_ext_flags
     uint8_t (*a2dp_lhdc_config_llc_get)(void); // a2dp_lhdc_config_llc_get
+    uint8_t (*a2dp_lhdc_get_non_type_by_device_id)(uint8_t device_id);
 #endif
-    uint8_t (*a2dp_get_non_type_by_device_id)(uint8_t device_id);
 } bes_aud_bt_t;
-
-typedef struct {
-    void (*key_click_func)(void);
-    void (*key_doubleclick_func)(void);
-    void (*key_tripleclick_func)(void);
-    void (*key_longpress_func)(void);
-}bta_key_click_event_cb_t;
 
 extern const bes_aud_bt_t * const bes_aud_bt;
 
@@ -1329,6 +926,8 @@ struct BT_ADAPTER_DEVICE_T *bt_adapter_get_device(int device_id);
 struct BT_ADAPTER_DEVICE_T *bt_adapter_get_connected_device_by_id(int device_id);
 struct BT_ADAPTER_DEVICE_T *bt_adapter_get_connected_device_by_connhdl(uint16_t connhdl);
 struct BT_ADAPTER_DEVICE_T *bt_adapter_get_connected_device_byaddr(const bt_bdaddr_t *remote);
+uint8_t bt_adapter_reset_device_id(struct BT_ADAPTER_DEVICE_T *curr_device, bool reset_to_source);
+uint8_t bt_adapter_get_a2dp_codec_type(int device_id);
 uint8_t bt_adapter_get_hfp_sco_codec_type(int device_id);
 uint8_t bt_adapter_count_mobile_link(void);
 uint8_t bt_adapter_count_connected_hfp(void);
@@ -1360,11 +959,6 @@ void bt_adapter_report_authenticated(const bt_bdaddr_t *bd_addr, const bt_adapte
 void bt_adapter_report_enc_change(const bt_bdaddr_t *bd_addr, const bt_adapter_enc_change_param_t *enc_change);
 void bt_adapter_report_inquiry_result(const bt_bdaddr_t *bd_addr, const bt_adapter_inquiry_result_param_t *inq_result);
 void bt_adapter_report_inquiry_complete(const bt_bdaddr_t *bd_addr, const bt_adapter_inquiry_complete_param_t *inq_complete);
-void bt_adapter_echo_register(void(*echo_req)(uint8_t device_id, uint16_t conhdl, uint8_t id, uint16_t len, uint8_t *data),
-                                     void(*echo_rsp)(uint8_t device_id, uint16_t conhdl, uint8_t *rxdata, uint16_t rxle));
-void bt_adapter_echo_req_send(uint8_t device_id, void *conn, uint8_t *data, uint16_t data_len);
-void bt_adapter_echo_rsp_send(uint8_t device_id, uint16 conn_handle, uint8 sigid, uint16 len, const uint8* data);
-void bt_adapter_export_esco_param_cb(void(*cb)(void *bdaddr, uint8_t tesco, uint8_t wesco));
 #ifdef BT_HFP_SUPPORT
 void bt_adapter_report_hfp_connected(const bt_bdaddr_t *bd_addr, const bt_hf_opened_param_t *hfp_conn);
 void bt_adapter_report_hfp_disconnected(const bt_bdaddr_t *bd_addr, const bt_hf_closed_param_t *hfp_disc);
@@ -1388,21 +982,6 @@ void bt_adapter_report_avrcp_connected(const bt_bdaddr_t *bd_addr, const bt_avrc
 void bt_adapter_report_avrcp_disconnected(const bt_bdaddr_t *bd_addr, const bt_avrcp_closed_t *avrcp_disc);
 void bt_adapter_report_avrcp_status_changed(const bt_bdaddr_t *bd_addr, const bt_avrcp_play_status_change_t *avrcp_changed);
 #endif /* BT_AVRCP_SUPPORT */
-void bes_bt_a2dp_get_device_codec_info(uint8_t dev_num, uint8_t *codec);
-
-void app_bt_get_local_device_address(void *bd_addr);
-
-void bt_adapter_register_hci_log_report_callback(uint16_t max_len,
-                int (*tx_cb)(const uint8_t *buf, uint16_t len),
-                int (*rx_cb)(const uint8_t *buf, uint16_t len));
-
-void bt_adapter_register_key_evt_handle_cb(const bta_key_click_event_cb_t *cbs);
-
-void bta_register_bt_sink_callback(void *cbs);
-
-void bta_register_tws_ibrt_callback(void *cbs);
-
-void bta_register_tws_callback(void *cbs);
 
 #ifdef __cplusplus
 }

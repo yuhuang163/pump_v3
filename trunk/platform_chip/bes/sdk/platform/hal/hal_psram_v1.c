@@ -229,9 +229,13 @@ void pmu_open_bbpll_for_psram();
 /*psram 120M use bbpll(div 4), 160M use bbpll(dir4), 100M use audio pll*/
 FLASH_TEXT_LOC void hal_psram_init(void)
 {
-#ifndef PSRAM_LOW_SPEED
+#ifdef PSRAM_LOW_SPEED
+    hal_cmu_mem_set_freq(HAL_CMU_FREQ_26M);
+    pmu_psram_freq_config(HAL_PSRAM_SPEED_26M);
+#else
     uint8_t mr = 0;
 //    enum HAL_PSRAM_ID_T id = HAL_PSRAM_ID_0;
+    pmu_psram_freq_config(HAL_PSRAM_SPEED_208M);
 #if defined(PSRAM_120M) || defined(PSRAM_160M)
     pmu_open_bbpll_for_psram();
     hal_cmu_mem_set_freq(HAL_CMU_FREQ_208M);
@@ -242,10 +246,6 @@ FLASH_TEXT_LOC void hal_psram_init(void)
     hal_cmu_mem_set_freq(HAL_CMU_FREQ_208M);
 #endif
 #endif /*PSRAM_160M*/
-    pmu_psram_freq_config(HAL_PSRAM_SPEED_208M);
-#else
-    hal_cmu_mem_set_freq(HAL_CMU_FREQ_26M);
-    pmu_psram_freq_config(HAL_PSRAM_SPEED_26M);
 #endif
 
     hal_cmu_clock_enable(HAL_CMU_MOD_O_PSRAM);
@@ -327,14 +327,14 @@ FLASH_TEXT_LOC void hal_psram_init(void)
     mr |= (0x1 << 0); //driver strength '01 -> half
     hal_psramip_write_reg(0x0, mr);
     mr = hal_psramip_read_reg(0x0);
-    //HAL_TRACE(2,"PSRAM MODE REG 0 = 0x%x, status = 0x%x", mr, psramip_r_status(0x40150000));
+    //TRACE(2,"PSRAM MODE REG 0 = 0x%x, status = 0x%x", mr, psramip_r_status(0x40150000));
 
     mr = hal_psramip_read_reg(0x4);
     mr &= ~(0x01 << 7);
     mr |= (0x01 << 7); // MR[7] '1 -> write latency 1 for clk > 166MHz
     //hal_psramip_write_reg(0x4, mr);
     mr = hal_psramip_read_reg(0x4);
-    //HAL_TRACE(2,"PSRAM MODE REG 4 = 0x%x, status = 0x%x", mr, psramip_r_status(0x40150000));
+    //TRACE(2,"PSRAM MODE REG 4 = 0x%x, status = 0x%x", mr, psramip_r_status(0x40150000));
 
 #endif
     hal_sys_timer_delay(US_TO_TICKS(10));
@@ -363,17 +363,17 @@ FLASH_TEXT_LOC void hal_psram_wakeup_init(void)
     DIGITAL_REG(0x40150044) = 0x200040b1;
     DIGITAL_REG(0x40150044) |= (1<<1)|(1<<30);
 
-    //HAL_TRACE(1,"0x40150044 = 0x%x \n",DIGITAL_REG(0x40150044));
+    //TRACE(1,"0x40150044 = 0x%x \n",DIGITAL_REG(0x40150044));
     while (((DIGITAL_REG(0x40150044)) & (0x1<<30)));
     //hal_sys_timer_delay(MS_TO_TICKS(10));
     DIGITAL_REG(0x40150044) &= ~(1<<0);
 
-    //HAL_TRACE(1,"0x40150044 = 0x%x \n", DIGITAL_REG(0x40150044));
+    //TRACE(1,"0x40150044 = 0x%x \n", DIGITAL_REG(0x40150044));
     while (!((DIGITAL_REG(0x40150044)) & (0x1<<0)));
     //hal_sys_timer_delay(MS_TO_TICKS(10));
 
     DIGITAL_REG(0x40000090) = 0x0001ffff;
-    //HAL_TRACE(1,"0x40000090 = 0x%x \n", DIGITAL_REG(0x40000090));
+    //TRACE(1,"0x40000090 = 0x%x \n", DIGITAL_REG(0x40000090));
     while (!((DIGITAL_REG(0x40000090)) & (0x1<<20)));
     //hal_sys_timer_delay(MS_TO_TICKS(10));
 #endif
@@ -381,7 +381,7 @@ FLASH_TEXT_LOC void hal_psram_wakeup_init(void)
     hal_psram_resume(HAL_PSRAM_ID_0);
 }
 
-FLASH_TEXT_LOC void hal_psram_sleep(void)
+FLASH_TEXT_LOC void hal_psram_sleep(enum HAL_CMU_LPU_SLEEP_MODE_T power_down)
 {
 #ifndef PSRAM_LOW_SPEED
      hal_psram_suspend(HAL_PSRAM_ID_0);
@@ -400,6 +400,8 @@ FLASH_TEXT_LOC void hal_psram_init(void)
     unsigned int mr = 0;
     enum HAL_PSRAM_ID_T id = HAL_PSRAM_ID_0;
 #endif
+    pmu_psram_freq_config(HAL_PSRAM_SPEED_208M);
+
     hal_cmu_mem_set_freq(HAL_CMU_FREQ_208M);
 
     hal_cmu_clock_enable(HAL_CMU_MOD_O_PSRAM);
@@ -510,7 +512,7 @@ FLASH_TEXT_LOC void hal_psram_wakeup_init(void)
     hal_psram_resume(HAL_PSRAM_ID_0);
 }
 
-FLASH_TEXT_LOC void hal_psram_sleep(void)
+FLASH_TEXT_LOC void hal_psram_sleep(enum HAL_CMU_LPU_SLEEP_MODE_T mode)
 {
 #ifndef PSRAM_LOW_SPEED
      hal_psram_suspend(HAL_PSRAM_ID_0);
@@ -523,14 +525,14 @@ FLASH_TEXT_LOC void hal_psram_sleep(void)
 
 #endif
 
-FLASH_TEXT_LOC void hal_psram_wakeup(void)
+FLASH_TEXT_LOC void hal_psram_wakeup(enum HAL_CMU_LPU_SLEEP_MODE_T mode)
 {
 #ifndef PSRAM_LOW_SPEED
     hal_psram_wakeup_init();
 #endif
 }
 
-void hal_psram_write_buffer_invalidate(void)
+void hal_psram_wait_write_buffer_empty(enum HAL_PSRAM_ID_T id)
 {
 }
 

@@ -1,6 +1,6 @@
 /***************************************************************************
  *
- * Copyright 2015-2019 BES.
+ * Copyright 2015-2023 BES.
  * All rights reserved. All unpublished rights reserved.
  *
  * No part of this work may be used or reproduced in any form or by any
@@ -16,12 +16,18 @@
 #ifndef __APP_USBHOST_H__
 #define __APP_USBHOST_H__
 
+#include "hal_trace.h"
+#include <stdint.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#ifdef __cplusplus
-	}
-#endif
+#define myprintf(n, fmt, ...)           TRACE(n, fmt, ## __VA_ARGS__)
 
+void app_usb_host_disk_test(void);
+
+#ifdef __cplusplus
+}
+#endif
 #endif//__FMDEC_H__

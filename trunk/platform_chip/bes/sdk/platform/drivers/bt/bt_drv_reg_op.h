@@ -33,6 +33,24 @@ typedef struct
     uint8_t rxgain;
 } rx_agc_t;
 
+typedef struct
+{
+    uint8_t agc_idx0;
+    int8_t rssi0;
+    int8_t rssi0_max;
+    int8_t rssi0_min;
+    uint8_t agc_idx1;
+    int8_t rssi1;
+    int8_t rssi1_max;
+    int8_t rssi1_min;
+    uint8_t agc_idx2;
+    int8_t rssi2;
+    int8_t rssi2_max;
+    int8_t rssi2_min;
+    uint16_t ser;
+    uint16_t rx_data_sum;
+} __attribute__((packed)) rssi_t;
+
 /** Bluetooth Address */
 typedef struct {
     uint8_t address[6];
@@ -146,7 +164,8 @@ bool bt_drv_reg_op_read_rssi_in_dbm(uint16_t connHandle,rx_agc_t* rx_val);
 uint8_t bt_drv_reg_op_read_bt_3m_rxgain(void);
 bool bt_drv_reg_op_read_ble_rssi_in_dbm(uint16_t connHandle,rx_agc_t* rx_val);
 void bt_drv_reg_op_set_swagc_mode(uint8_t mode);
-
+void btdrv_reg_op_mhdt_swagc_enable(uint8_t enable);
+void btdrv_reg_op_rx_gain_ths_mhdt_init(void);
 uint16_t bt_drv_reg_op_bitoff_getf(int elt_idx);
 void bt_drv_reg_op_set_tpoll(uint8_t linkid,uint16_t poll_interval);
 uint16_t bt_drv_reg_op_get_tpoll(uint8_t linkid);
@@ -199,6 +218,7 @@ void bt_drv_reg_op_dgb_link_gain_ctrl_clear(uint16_t connHandle, uint8_t bt_ble_
 void bt_drv_reg_op_dgb_link_gain_ctrl_init(void);
 void bt_drv_reg_op_rx_gain_fix(uint16_t connHandle, uint8_t bt_ble_mode, uint8_t gain_idx, uint8_t enable, uint8_t table_idx);
 void bt_drv_reg_op_afh_follow_en(bool enable, uint8_t be_followed_link_id, uint8_t follow_link_id);
+void bt_drv_reg_op_bt_high_prio_en(bool enable);
 /// Index for DM1 packet type (used in both BR and EDR)
 #define DM1_IDX         0
 /// Enhanced Data Rate packet types indexes (classified by packet size)
@@ -299,6 +319,7 @@ void btdrv_reg_op_syn_set_tg_ticks_master_role(void);
 void btdrv_reg_op_syn_set_tg_ticks_slave_role(uint32_t num);
 uint32_t btdrv_reg_op_syn_get_curr_ticks(void);
 uint32_t btdrv_reg_op_syn_get_cis_curr_time(void);
+void btdrv_reg_op_sync_clr_trigger(uint8_t trig_route);
 uint32_t btdrv_reg_op_get_syn_trigger_codec_en(void);
 uint32_t btdrv_reg_op_get_trigger_ticks(void);
 void btdrv_reg_op_syn_set_tg_ticks_linkid(uint8_t link_id);
@@ -307,6 +328,7 @@ void btdrv_reg_op_play_trig_mode_set(uint8_t mode);
 void btdrv_reg_op_disable_playback_triggler(void);
 void btdrv_reg_op_pcm_enable(void);
 void btdrv_reg_op_pcm_disable(void);
+void btdrv_reg_voice_bits_wide_cvsd_codec_config(void);
 #ifdef PCM_FAST_MODE
 void btdrv_reg_op_open_pcm_fast_mode_enable(void);
 void btdrv_reg_op_open_pcm_fast_mode_disable(void);
@@ -333,11 +355,11 @@ void btdrv_regop_host_set_txpwr(uint16_t acl_connhdl, uint8_t txpwr_idx);
 void bt_drv_i2v_disable_sleep_for_bt_access(void);
 void bt_drv_i2v_enable_sleep_for_bt_access(void);
 
-int8_t bt_drv_reg_op_get_tx_pwr_dbm(uint16_t conhdl);
 void bt_drv_reg_op_get_pkt_ts_rssi(uint16_t connhdl, CLKN_SER_NUM_T* buf);
 void bt_drv_reg_op_rssi_adjust_mode_setting_for_test_mode(uint8_t enable);
 bool bt_drv_reg_op_check_link_exist(uint16_t con_hdl);
 void bt_drv_reg_op_setting_wesco(uint8_t wesco);
+uint32_t btdrv_reg_op_cig_anchor_timestamp(uint8_t link_id);
 uint32_t btdrv_reg_op_big_anchor_timestamp(uint8_t link_id);
 
 void bt_drv_reg_op_ble_audio_config_ramrun_init(void);
@@ -346,17 +368,16 @@ void btdrv_reg_op_sw_trig_route_extra_set(uint8_t trig_route);
 uint8_t bt_drv_reg_op_get_max_acl_nb(void);
 void bt_drv_reg_op_set_btclk_seed(uint32_t seed);
 uint8_t bt_drv_reg_op_get_sco_type(uint8_t sco_link_id);
+void btdrv_common_test_rx_gain_fix(uint8_t bt_ble_mode, uint8_t gain_idx, uint8_t enable, uint8_t table_idx);
+void btdrv_reg_op_config_coex_mode(uint8_t mode);
+uint32_t btdrv_reg_op_per_adv_anchor_timestamp(void);
+void bt_drv_regop_disable_le_slave_latency(uint8_t idx);
+void bt_drv_regop_clear_le_slave_latency_flag(uint8_t idx);
 
 void bt_drv_reg_op_set_page_device_support_le_audio(bool support);
-void bt_drv_reg_op_sec_con_base_on_le_aud(bool en);
-int8_t btdrv_ultra_lowpwr_rssidbm(int8_t adv_tx_pwr, uint8_t den_step);
-void bt_drv_reg_op_set_sleep_duration(uint32_t tws_slp_dura_dec, uint32_t normal_slp_dura_inc);
-void btdrv_regop_set_btc_srand_seed_initial(void);
-void bt_drv_reg_op_config_tport_type(uint32_t tport_type, uint8_t iomux_type);
-
-void bt_drv_reg_op_set_le_con_allow_use_same_addr(bool en);
 #ifdef __cplusplus
 }
 #endif
 
 #endif
+

@@ -92,11 +92,6 @@ uint32_t app_ai_if_custom_get_ai_cmd_transport_fifo_length(void)
 void app_ai_if_custom_send_rest_cmd_in_ai_cmd_transport_fifo(void)
 {
     AI_connect_info *ai_info = app_ai_get_connect_info(ai_manager_get_foreground_ai_conidx());
-    if (!ai_info)   //BES intentional code. ai_info has been checked.
-    {
-        APP_AI_TRACE(0,"NULL pointer in %s", __func__);
-        return;
-    }
     uint8_t dest_id = app_ai_get_dest_id(ai_info);
     ai_mailbox_put(SIGN_AI_TRANSPORT, 0, ai_info->ai_spec, dest_id);
 }
@@ -110,7 +105,7 @@ bool app_ai_if_custom_ui_send_cmd(uint8_t *cmd_buf, uint16_t cmd_len)
 bool app_ai_if_custom_ui_send_cmd_generic(uint8_t *cmd_buf, uint16_t cmd_len, bool isSkipWhenFifoOverflow)
 {
 #ifdef __AI_VOICE__
-    APP_AI_TRACE(1, "%s", __func__);
+    TRACE(1, "%s", __func__);
     AI_connect_info *ai_info = app_ai_get_connect_info(ai_manager_get_foreground_ai_conidx());
     if(NULL == ai_info) {
         return false;

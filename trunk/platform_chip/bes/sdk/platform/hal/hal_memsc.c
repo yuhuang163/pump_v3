@@ -20,8 +20,13 @@
 
 #ifdef CHIP_SUBSYS_SENS
 #include CHIP_SPECIFIC_HDR(reg_senscmu)
-
 static struct SENSCMU_T * const cmu = (struct SENSCMU_T *)SENS_CMU_BASE;
+#elif defined(CHIP_SUBSYS_CSP)
+#include CHIP_SPECIFIC_HDR(reg_cspcmu)
+static struct CSPCMU_T * const cmu = (struct CSPCMU_T *)CSP_CMU_BASE;
+#elif defined(CHIP_SUBSYS_BTH)
+#include CHIP_SPECIFIC_HDR(reg_bthcmu)
+static struct BTHCMU_T * const  cmu = (struct BTHCMU_T *)BTH_CMU_BASE;
 #else
 #include CHIP_SPECIFIC_HDR(reg_cmu)
 

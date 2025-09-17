@@ -19,7 +19,9 @@
 #include "mpu.h"
 #include "hal_location.h"
 #include "hal_trace.h"
-#include "hal_overlay.h"
+#ifdef __ARMCC_VERSION
+#include "link_sym_armclang.h"
+#endif
 
 extern uint32_t __sram_text_start__[];
 extern uint32_t __sram_text_end__[];
@@ -27,8 +29,8 @@ extern uint32_t __fast_sram_text_exec_start__[];
 extern uint32_t __fast_sram_text_exec_end__[];
 
 // Non-Transient, Write-Back, Read-Allocation, Write-Allocation
-#define NORM_MEM_WT_RA_ATTR             ARM_MPU_ATTR_MEMORY_(1, 0, 1, 0)
-#define NORM_MEM_WB_WA_ATTR             ARM_MPU_ATTR_MEMORY_(1, 1, 1, 1)
+#define NORM_MEM_WT_RA_ATTR             ARM_MPU_ATTR_MEMORY_(0, 0, 1, 0)
+#define NORM_MEM_WB_WA_ATTR             ARM_MPU_ATTR_MEMORY_(0, 1, 1, 1)
 #define NORM_MEM_NC_ATTR                ARM_MPU_ATTR_NON_CACHEABLE
 #define DEV_MEM_ATTR_INNER              ARM_MPU_ATTR_DEVICE_nGnRnE
 #define DEV_MEM_ATTR_OUTER              ARM_MPU_ATTR_DEVICE
@@ -48,20 +50,26 @@ static void init_mair_attr(void)
     ARM_MPU_SetMemAttr(MEM_ATTR_DEVICE,                 ARM_MPU_ATTR(DEV_MEM_ATTR_OUTER,    DEV_MEM_ATTR_INNER));
 }
 
-static int mpu_enable(void)
+int mpu_enable(void)
 {
     int flags = 0;
+    bool is_cp;
 
 #ifdef CP_IN_SAME_EE
-    if (get_cpu_id()) {
+    is_cp = !!get_cpu_id();
+#elif defined(CHIP_ROLE_CP)
+    is_cp = true;
+#else
+    is_cp = false;
+#endif
+
+    if (is_cp) {
         /*
          * if cpu is CP, we will use different mpu maps, that is, every map needed by CP will
          * be mapped, and the memory is not mapped will issue abort when access
          */
         flags |= MPU_CTRL_HFNMIENA_Msk;
-    } else
-#endif
-    {
+    } else {
 #ifndef NO_MPU_DEFAULT_MAP
         /*
          * mpu maps use default map designed by arm, that is, if the memory is not mapped,
@@ -75,7 +83,8 @@ static int mpu_enable(void)
     return 0;
 }
 
-static int mpu_disable(void)
+BOOT_TEXT_FLASH_LOC
+int mpu_disable(void)
 {
     ARM_MPU_Disable();
     return 0;
@@ -101,6 +110,7 @@ int mpu_open(void)
     return 0;
 }
 
+BOOT_TEXT_FLASH_LOC
 int mpu_close(void)
 {
     mpu_disable();
@@ -208,7 +218,7 @@ static int mpu_boot_set_armv8(uint8_t id, uint32_t addr, uint32_t len,
     return 0;
 }
 
-static uint8_t mpu_alloc_region(void)
+uint8_t mpu_alloc_region(void)
 {
     uint8_t i;
     uint32_t lock;
@@ -228,7 +238,7 @@ static uint8_t mpu_alloc_region(void)
     return i;
 }
 
-static void mpu_free_region(uint8_t id)
+void mpu_free_region(uint8_t id)
 {
     uint32_t lock;
 
@@ -305,7 +315,7 @@ static int mpu_set_rbar_rlar(uint32_t addr, uint32_t len, enum MPU_ATTR_T attr, 
     mpu_get_region_addr_range(r_rbar, r_rlar, &r_start, &r_end);
 
 #ifdef MPU_DEBUG
-    CMSIS_TRACE(0, "%s: check=%d addr=0x%08X end=0x%08X r_id=%u r_addr=0x%08X r_end=0x%08X",
+    TRACE(0, "%s: check=%d addr=0x%08X end=0x%08X r_id=%u r_addr=0x%08X r_end=0x%08X",
         __func__, check, addr, end, r_id, r_start, r_end);
 #endif
 
@@ -375,7 +385,7 @@ static int mpu_set_rbar_rlar(uint32_t addr, uint32_t len, enum MPU_ATTR_T attr, 
     for (i = 0; i < id_cnt; i++) {
         id_new[i + 1] = mpu_alloc_region();
         if (id_new[i + 1] == MPU_INVALID_ID) {
-            CMSIS_TRACE(0, "%s: Failed to alloc id: needed=%u alloc=%u", __func__, id_cnt, i);
+            TRACE(0, "%s: Failed to alloc id: needed=%u alloc=%u", __func__, id_cnt, i);
             for (int k = 0; k < i; k++) {
                 mpu_free_region(id_new[k + 1]);
             }
@@ -466,6 +476,23 @@ int mpu_set(uint32_t addr, uint32_t len, enum MPU_ATTR_T attr, enum MEM_ATTR_T m
     return ret;
 }
 
+int mpu_set_with_id(uint8_t id, uint32_t addr, uint32_t len,
+                         enum MPU_ATTR_T ap_attr, enum MEM_ATTR_T mem_attr)
+{
+    int ret = -1;
+    uint32_t lock;
+
+    lock = int_lock();
+
+    mpu_disable();
+    ret = mpu_set_armv8(id, addr, len, ap_attr, mem_attr);
+    mpu_enable();
+
+    int_unlock(lock);
+
+    return ret;
+}
+
 int mpu_clear(uint32_t addr, uint32_t len)
 {
     uint8_t id;
@@ -502,6 +529,75 @@ int mpu_clear(uint32_t addr, uint32_t len)
     int_unlock_global(lock);
 
     return ret;
+}
+
+int mpu_no_access_set(uint32_t addr, uint32_t len)
+{
+    int ret;
+    uint32_t rbar, rlar;
+    uint8_t id[2];
+    uint32_t lock;
+
+    if (len == 0) {
+        return 0;
+    }
+
+    ret = mpu_gen_rbar_rlar(addr, len, MPU_ATTR_READ, MEM_ATTR_DEVICE, &rbar, &rlar);
+    if (ret) {
+        return ret;
+    }
+
+    id[0] = mpu_alloc_region();
+    if (id[0] == MPU_INVALID_ID) {
+        return -2;
+    }
+    id[1] = mpu_alloc_region();
+    if (id[1] == MPU_INVALID_ID) {
+        mpu_free_region(id[0]);
+        return -2;
+    }
+
+    lock = int_lock_global();
+    mpu_disable();
+    mpu_set_region_armv8(id[0], rbar, rlar);
+    mpu_set_region_armv8(id[1], rbar, rlar);
+    mpu_enable();
+    int_unlock_global(lock);
+
+    return (id[0] | (id[1] << 8));
+}
+
+int mpu_no_access_clear(int no_access_id)
+{
+    uint8_t id[2];
+    uint32_t lock;
+
+    if (no_access_id < 0) {
+        return -41;
+    }
+    if (no_access_id == 0) {
+        return 0;
+    }
+
+    id[0] = no_access_id & 0xFF;
+    id[1] = (no_access_id >> 8) & 0xFF;
+    if (id[0] >= MPU_ID_QTY || id[1] >= MPU_ID_QTY) {
+        return -1;
+    }
+    if (id[0] == id[1]) {
+        return -1;
+    }
+
+    lock = int_lock_global();
+    ARM_MPU_ClrRegion(id[0]);
+    ARM_MPU_ClrRegion(id[1]);
+    __DSB();
+    __ISB();
+    mpu_free_region(id[0]);
+    mpu_free_region(id[1]);
+    int_unlock_global(lock);
+
+    return 0;
 }
 
 BOOT_TEXT_FLASH_LOC
@@ -551,9 +647,6 @@ static int mpu_init_table(const mpu_regions_t *mpu_table, uint32_t region_num, i
     uint32_t failed_map = 0;
     uint32_t cnt = 0;
 
-    if (update_map)
-        mpu_region_map = 0;
-
     for (i = 0; i < region_num; i++) {
         region = &mpu_table[i];
         if (region->len == 0) {
@@ -580,50 +673,15 @@ static int mpu_init_table(const mpu_regions_t *mpu_table, uint32_t region_num, i
         cnt++;
     }
 
-#if defined(SCO_OPTIMIZE_FOR_RAM)
-    mpu_regions_t cp_region = {0};
-    enum HAL_OVERLAY_ID_T id = hal_overlay_get_curr_id();
-    if((!update_map)&&(id != HAL_OVERLAY_ID_QTY)){
-        cp_region.addr = hal_overlay_get_text_free_addr(id);
-        cp_region.len = hal_overlay_get_text_free_size(id);
-        cp_region.ap_attr = MPU_ATTR_READ_WRITE;
-        cp_region.mem_attr = MEM_ATTR_INT_SRAM;
-        if (cp_region.len == 0) {
-            goto mpu_enable_func;
-        }
-#ifdef NO_MPU_DEFAULT_MAP
-        if (cp_region.ap_attr == MPU_ATTR_NO_ACCESS) {
-            goto mpu_enable_func;
-        }
-#endif
-        if (cnt >= MPU_ID_QTY) {
-            failed_map |= (1 << i);
-            goto mpu_enable_func;
-        }
-        ret = mpu_set_armv8(cnt, cp_region.addr, cp_region.len, cp_region.ap_attr, cp_region.mem_attr);
-        if (ret) {
-            failed_map |= (1 << i);
-        }
-    }
-mpu_enable_func:
-#endif
+    mpu_enable();
+
     // Trace after enabling MPU (to avoid trace buffer attribute error)
     for (i = 0; i < region_num; i++) {
         region = &mpu_table[i];
-        CMSIS_TRACE(0, "mpu[%s]: addr=0x%08X len=0x%08X ap_attr=%d mem_attr=%d",
+        TRACE(0, "mpu[%s]: addr=0x%08X len=0x%08X ap_attr=%d mem_attr=%d",
             (failed_map & (1 << i)) ? "KO" : "OK",
             region->addr, region->len, region->ap_attr, region->mem_attr);
     }
-
-#if defined(SCO_OPTIMIZE_FOR_RAM)
-    if((!update_map)&&(id != HAL_OVERLAY_ID_QTY)){
-        CMSIS_TRACE(0, "mpu[%s]: addr=0x%08X len=0x%08X ap_attr=%d mem_attr=%d",
-            (failed_map & (1 << i)) ? "KO" : "OK",
-            cp_region.addr, cp_region.len, cp_region.ap_attr, cp_region.mem_attr);
-    }
-#endif
-
-    mpu_enable();
 
     return ret;
 }
@@ -644,11 +702,35 @@ int mpu_boot_setup(const mpu_regions_t *mpu_table, uint32_t region_num)
     return 0;
 }
 
-int mpu_ram_region_protect(uint32_t start, uint32_t len, enum MPU_ATTR_T ap_attr)
+#ifdef MAIN_RAM_USE_TCM
+static int mpu_itcm_text_protect(void)
 {
     int ret;
-    mpu_disable();
-    CMSIS_TRACE(0, "sram_text start %x size %x ap_attr %x", start, len, ap_attr);
+    uint32_t start = RAMX_BASE;
+    uint32_t end = (uint32_t)((&__fast_sram_text_exec_end__[0] > &__sram_text_end__[0]) ?
+        __fast_sram_text_exec_end__ : __sram_text_end__);
+    uint32_t len = end - start;
+
+    ret = mpu_set(start, len, MPU_ATTR_READ_EXEC, MEM_ATTR_INT_SRAM);
+    if (ret) {
+        TRACE(0, "%s: failed ret=%d", __func__, ret);
+    }
+
+#ifdef MPU_DEBUG
+    mpu_region_dump();
+#endif
+
+    return ret;
+}
+#else
+static int mpu_sram_text_protect(void)
+{
+    int ret;
+    uint32_t start = RAMX_TO_RAM((uint32_t)__sram_text_start__);
+    uint32_t end = RAMX_TO_RAM((uint32_t)__sram_text_end__);
+    uint32_t len = end - start;
+
+    TRACE(0, "sram_text start %x size %x", start, len);
     if (!len)
         return 0;
 
@@ -664,7 +746,7 @@ int mpu_ram_region_protect(uint32_t start, uint32_t len, enum MPU_ATTR_T ap_attr
     if (id == MPU_INVALID_ID)
         return -1;
 
-    ret = mpu_set_armv8(id, start, len, ap_attr, MEM_ATTR_INT_SRAM);
+    ret = mpu_set_armv8(id, start, len, MPU_ATTR_READ_EXEC, MEM_ATTR_INT_SRAM);
     if (ret) {
         mpu_free_region(id);
     } else {
@@ -675,29 +757,50 @@ int mpu_ram_region_protect(uint32_t start, uint32_t len, enum MPU_ATTR_T ap_attr
 #endif
 
     if (ret) {
-        CMSIS_TRACE(0, "%s: failed ret=%d", __func__, ret);
+        TRACE(0, "%s: failed ret=%d", __func__, ret);
     }
-    mpu_enable();
+
     return ret;
 }
 
-#ifdef MAIN_RAM_USE_TCM
-static int mpu_itcm_text_protect(void)
+static int mpu_fast_ram_protect(void)
 {
+    uint32_t framx_start  = (uint32_t)__fast_sram_text_exec_start__;
+    uint32_t framx_end = (uint32_t)__fast_sram_text_exec_end__;
+    uint32_t fram_start = RAMX_TO_RAM(framx_start);
+    uint32_t fram_end = RAMX_TO_RAM(framx_end);
+    uint32_t len = fram_end - fram_start;
     int ret;
-    uint32_t start = RAMX_BASE;
-    uint32_t end = (uint32_t)((__fast_sram_text_exec_end__ > __sram_text_end__) ?
-        __fast_sram_text_exec_end__ : __sram_text_end__);
-    uint32_t len = end - start;
 
-    ret = mpu_set(start, len, MPU_ATTR_READ_EXEC, MEM_ATTR_INT_SRAM);
+    TRACE(0, "fram start %x size %x", fram_start, len);
+    if (!len)
+        return 0;
+
+    if ((fram_start % 32 != 0) || (len % 32 != 0))
+        ASSERT(0, "fram_start %x and len %d must be aligned to 32", fram_start, len);
+
+#ifdef NO_MPU_DEFAULT_MAP
+    ret = mpu_set(fram_start, len, MPU_ATTR_NO_ACCESS, MEM_ATTR_INT_SRAM);
+#else
+    uint8_t id;
+
+    id = mpu_alloc_region();
+    if (id == MPU_INVALID_ID)
+        return -1;
+
+    ret = mpu_set_armv8(id, fram_start, len, MPU_ATTR_READ_EXEC, MEM_ATTR_INT_SRAM);
     if (ret) {
-        CMSIS_TRACE(0, "%s: failed ret=%d", __func__, ret);
-    }
-
+        mpu_free_region(id);
+    } else {
 #ifdef MPU_DEBUG
-    mpu_region_dump();
+        mpu_region_dump();
 #endif
+    }
+#endif
+
+    if (ret) {
+        TRACE(0, "%s: failed ret=%d", __func__, ret);
+    }
 
     return ret;
 }
@@ -706,9 +809,7 @@ static int mpu_itcm_text_protect(void)
 int mpu_setup(const mpu_regions_t *mpu_table, uint32_t region_num)
 {
     int ret;
-#if defined(SCO_OPTIMIZE_FOR_RAM)
-    mpu_close();
-#endif
+
     ret = mpu_open();
     if (ret)
         return ret;
@@ -722,18 +823,11 @@ int mpu_setup(const mpu_regions_t *mpu_table, uint32_t region_num)
     if (ret)
         return ret;
 #else
-    ret = mpu_ram_region_protect(RAMX_TO_RAM((uint32_t)__sram_text_start__),RAMX_TO_RAM((uint32_t)__sram_text_end__)-RAMX_TO_RAM((uint32_t)__sram_text_start__),MPU_ATTR_READ_EXEC);
+    ret = mpu_sram_text_protect();
     if (ret)
         return ret;
 
-    ret = mpu_ram_region_protect(RAMX_TO_RAM((uint32_t)__fast_sram_text_exec_start__),RAMX_TO_RAM((uint32_t)__fast_sram_text_exec_end__)-RAMX_TO_RAM((uint32_t)__fast_sram_text_exec_start__),MPU_ATTR_READ_EXEC);
-    if (ret)
-        return ret;
-
-    enum HAL_OVERLAY_ID_T id = hal_overlay_get_curr_id();
-    if(id != HAL_OVERLAY_ID_QTY){
-        ret = mpu_ram_region_protect(hal_overlay_get_text_free_addr(id), hal_overlay_get_text_free_size(id),MPU_ATTR_READ_WRITE);
-    }
+    ret = mpu_fast_ram_protect();
 #endif
 
     return ret;
@@ -757,10 +851,10 @@ void mpu_region_dump(void)
     int i;
     uint32_t rbar, rlar;
     uint32_t r_start, r_end;
-    POSSIBLY_UNUSED uint8_t sh, ap, xn;
-    POSSIBLY_UNUSED enum MEM_ATTR_T mem_attr;
+    uint8_t sh, ap, xn;
+    enum MEM_ATTR_T mem_attr;
 
-    CMSIS_TRACE(0, "MPU-CTRL: 0x%08X", MPU->CTRL);
+    TRACE(0, "MPU-CTRL: 0x%08X", MPU->CTRL);
     for (i = 0; i < MPU_ID_QTY; i++) {
         mpu_get_region(i, &rbar, &rlar);
         if (rlar & MPU_RLAR_EN_Msk) {
@@ -769,7 +863,7 @@ void mpu_region_dump(void)
             ap = (rbar & MPU_RBAR_AP_Msk) >> MPU_RBAR_AP_Pos;
             xn = (rbar & MPU_RBAR_XN_Msk) >> MPU_RBAR_XN_Pos;
             mem_attr = (rlar & MPU_RLAR_AttrIndx_Msk) >> MPU_RLAR_AttrIndx_Pos;
-            CMSIS_TRACE(0, "MPU-%u: 0x%08X-0x%08X SH=%X AP=%X XN=%u MEM_ATTR=%u",
+            TRACE(0, "MPU-%u: 0x%08X-0x%08X SH=%X AP=%X XN=%u MEM_ATTR=%u",
                 i, r_start, r_end, sh, ap, xn, mem_attr);
         }
     }
@@ -783,9 +877,9 @@ struct MPU_SAVED_REGS_T {
     uint32_t rlar[MPU_ID_QTY];
 };
 
-static struct MPU_SAVED_REGS_T mpu_saved_regs;
+SRAM_BSS_LOC static struct MPU_SAVED_REGS_T mpu_saved_regs;
 #if defined (__ARM_FEATURE_CMSE) && (__ARM_FEATURE_CMSE == 3U)
-static struct MPU_SAVED_REGS_T mpu_ns_regs;
+SRAM_BSS_LOC static struct MPU_SAVED_REGS_T mpu_ns_regs;
 #endif
 
 void SRAM_TEXT_LOC mpu_sleep(void)

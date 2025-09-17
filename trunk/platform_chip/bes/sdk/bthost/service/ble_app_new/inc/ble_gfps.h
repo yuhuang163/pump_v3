@@ -44,7 +44,6 @@ void ble_app_gfps_send_beacon_data(uint8_t conidx, const uint8_t *data, uint32_t
 #endif
 
 void ble_app_gfps_l2cap_disconnect(uint8_t conidx);
-uint8_t ble_app_gfps_is_connected(uint8_t conidx);
 
 
 #ifdef __cplusplus

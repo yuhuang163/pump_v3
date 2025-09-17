@@ -6,16 +6,19 @@
 #endif
 
 #if defined(WITH_OS)
+
 #ifdef __NuttX__
 #define dma2d_sem_post       nxsem_post
 #define dma2d_sem_wait       nxsem_wait
+#define dma2d_lock_wait      sem_wait
 #define dma2d_sem_init       nxsem_init
 #define dma2d_sem_trywait    nxsem_trywait
 #define dma2d_sem_reset      nxsem_reset
-#elif defined(KERNEL_RTX5)
+#else
 #include "semaphore.h"
 #define local_sem_post       sem_post
 #define local_sem_wait       sem_wait
+#define dma2d_lock_wait      sem_wait
 #define local_sem_init       sem_init
 #define local_sem_trywait    sem_trywait
 #define local_sem_reset      sem_reset
@@ -24,9 +27,8 @@
 #define dma2d_sem_trywait    sem_trywait
 #define dma2d_sem_init       sem_init
 #define dma2d_sem_reset      sem_reset
-#else
-#error("Invalid OS SELECTED")
 #endif
+
 #else
 
 typedef struct {
@@ -43,6 +45,12 @@ static __inline int no_os_dma2d_sem_wait(volatile int *sem)
     }
     return 0;
 }
+
+static __inline int no_os_dma2d_lock_wait(volatile int *sem)
+{
+    return 0;
+}
+
 
 static __inline int no_os_dma2d_sem_init(volatile int *sem, int flag, int initnum)
 {
@@ -85,6 +93,7 @@ static __inline int no_os_dma2d_sem_post(volatile int *sem)
 
 #define dma2d_sem_post      no_os_dma2d_sem_post
 #define dma2d_sem_wait      no_os_dma2d_sem_wait
+#define dma2d_lock_wait      no_os_dma2d_lock_wait
 #define dma2d_sem_trywait   no_os_dma2d_sem_trywait
 #define dma2d_sem_init      no_os_dma2d_sem_init
 #define dma2d_sem_reset     no_os_dma2d_sem_reset

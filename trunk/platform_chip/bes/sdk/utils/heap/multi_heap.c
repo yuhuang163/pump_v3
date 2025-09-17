@@ -353,7 +353,7 @@ size_t multi_heap_get_allocated_size_impl(multi_heap_handle_t heap, void *p)
 
 multi_heap_handle_t multi_heap_register_impl(void *start, size_t size)
 {
-    HEAP_TRACE(0, "[%s] start=%p size=%d user=%p", __func__, start, size, __builtin_return_address(0));
+    TRACE(0, "[%s] start=%p size=%d user=%p", __func__, start, size, __builtin_return_address(0));
     heap_t *heap = (heap_t *)HEAP_ALIGN_UP((intptr_t)start);
     uintptr_t end = HEAP_ALIGN((uintptr_t)start + size);
     if (end - (uintptr_t)start < sizeof(heap_t) + 2*sizeof(heap_block_t)) {
@@ -440,7 +440,9 @@ void *multi_heap_malloc_impl(multi_heap_handle_t heap, size_t size)
         return NULL;
     }
 
+#ifndef MULTI_HEAP_POISONING
     uint32_t flags = multi_heap_internal_lock(heap);
+#endif
 
     /* Note: this check must be done while holding the lock as both
        malloc & realloc may temporarily shrink the free_bytes value
@@ -471,7 +473,9 @@ void *multi_heap_malloc_impl(multi_heap_handle_t heap, size_t size)
     }
 
     if (best_block == NULL) {
+#ifndef MULTI_HEAP_POISONING
         multi_heap_internal_unlock(heap, flags);
+#endif
         return NULL; /* No room in heap */
     }
 
@@ -486,10 +490,12 @@ void *multi_heap_malloc_impl(multi_heap_handle_t heap, size_t size)
         heap->minimum_free_bytes = heap->free_bytes;
     }
 
+#ifndef MULTI_HEAP_POISONING
     multi_heap_internal_unlock(heap, flags);
+#endif
 
 #ifdef HEAP_DEBUG
-    HEAP_TRACE(0, "[%s] heap=%p ptr=%p size=%u user=%p", __func__, heap, best_block->data, size, __builtin_return_address(0));
+    TRACE(0, "[%s] heap=%p ptr=%p size=%u user=%p", __func__, heap, best_block->data, size, __builtin_return_address(0));
 #endif
 
     return best_block->data;
@@ -549,10 +555,12 @@ void multi_heap_free_impl(multi_heap_handle_t heap, void *p)
     }
 
 #ifdef HEAP_DEBUG
-    HEAP_TRACE(0, "[%s] heap=%p ptr=%p user=%p", __func__, heap, p, __builtin_return_address(0));
+    TRACE(0, "[%s] heap=%p ptr=%p user=%p", __func__, heap, p, __builtin_return_address(0));
 #endif
 
+#ifndef MULTI_HEAP_POISONING
     uint32_t flags = multi_heap_internal_lock(heap);
+#endif
 
     assert_valid_block(heap, pb);
     MULTI_HEAP_ASSERT(!is_free(pb), pb); // block should not be free
@@ -583,7 +591,9 @@ void multi_heap_free_impl(multi_heap_handle_t heap, void *p)
         pb = merge_adjacent(heap, pb, next);
     }
 
+#ifndef MULTI_HEAP_POISONING
     multi_heap_internal_unlock(heap, flags);
+#endif
 }
 
 
@@ -614,7 +624,10 @@ void *multi_heap_realloc_impl(multi_heap_handle_t heap, void *p, size_t size)
         return NULL;
     }
 
+#ifndef MULTI_HEAP_POISONING
     uint32_t flags = multi_heap_internal_lock(heap);
+#endif
+
     result = NULL;
 
     if (size <= block_data_size(pb)) {
@@ -624,7 +637,9 @@ void *multi_heap_realloc_impl(multi_heap_handle_t heap, void *p, size_t size)
     }
     else if (heap->free_bytes < size - block_data_size(pb)) {
         // Growing, but there's not enough total free space in the heap
+#ifndef MULTI_HEAP_POISONING
         multi_heap_internal_unlock(heap, flags);
+#endif
         return NULL;
     }
 
@@ -675,10 +690,12 @@ void *multi_heap_realloc_impl(multi_heap_handle_t heap, void *p, size_t size)
         heap->minimum_free_bytes = heap->free_bytes;
     }
 
+#ifndef MULTI_HEAP_POISONING
     multi_heap_internal_unlock(heap, flags);
+#endif
 
 #ifdef HEAP_DEBUG
-    HEAP_TRACE(0, "[%s] heap=%p ptr=%p/%p size=%u user=%p", __func__, heap, p, result, size, __builtin_return_address(0));
+    TRACE(0, "[%s] heap=%p ptr=%p/%p size=%u user=%p", __func__, heap, p, result, size, __builtin_return_address(0));
 #endif
 
     return result;
@@ -695,6 +712,14 @@ bool multi_heap_ptr_in_heap(multi_heap_handle_t heap, void *p)
     return false;
 }
 
+#define FAIL_PRINT(num,MSG, ...) do {                                       \
+        if (print_errors) {                                             \
+            MULTI_HEAP_STDERR_PRINTF(num,MSG, __VA_ARGS__);                 \
+        }                                                               \
+        valid = false;                                                  \
+    }                                                                   \
+    while(0)
+
 bool multi_heap_check(multi_heap_handle_t heap, bool print_errors)
 {
     bool valid = true;
@@ -704,29 +729,29 @@ bool multi_heap_check(multi_heap_handle_t heap, bool print_errors)
     uint32_t flags = multi_heap_internal_lock(heap);
 
     heap_block_t *prev = NULL;
-    POSSIBLY_UNUSED heap_block_t *prev_free = NULL;
+    heap_block_t *prev_free = NULL;
     heap_block_t *expected_free = NULL;
 
     /* note: not using get_next_block() in loop, so that assertions aren't checked here */
     for(heap_block_t *b = &heap->first_block; b != NULL; b = (heap_block_t *)(b->header & NEXT_BLOCK_MASK)) {
         if (b == prev) {
-            HEAP_TRACE(1,"CORRUPT HEAP: Block %p points to itself\n", b);
+            FAIL_PRINT(1,"CORRUPT HEAP: Block %p points to itself\n", b);
             goto done;
         }
         if (b < prev) {
-            HEAP_TRACE(2,"CORRUPT HEAP: Block %p is before prev block %p\n", b, prev);
+            FAIL_PRINT(2,"CORRUPT HEAP: Block %p is before prev block %p\n", b, prev);
             goto done;
         }
         if (b > heap->last_block || b < &heap->first_block) {
-            HEAP_TRACE(2,"CORRUPT HEAP: Block %p is outside heap (last valid block %p)\n", b, prev);
+            FAIL_PRINT(2,"CORRUPT HEAP: Block %p is outside heap (last valid block %p)\n", b, prev);
             goto done;
         }
         if (is_free(b)) {
             if (prev != NULL && is_free(prev) && !is_first_block(heap, prev) && !is_last_block(b)) {
-                HEAP_TRACE(2,"CORRUPT HEAP: Two adjacent free blocks found, %p and %p\n", prev, b);
+                FAIL_PRINT(2,"CORRUPT HEAP: Two adjacent free blocks found, %p and %p\n", prev, b);
             }
             if (expected_free != NULL && expected_free != b) {
-                HEAP_TRACE(3,"CORRUPT HEAP: Prev free block %p pointed to next free %p but this free block is %p\n",
+                FAIL_PRINT(3,"CORRUPT HEAP: Prev free block %p pointed to next free %p but this free block is %p\n",
                        prev_free, expected_free, b);
             }
             prev_free = b;
@@ -755,14 +780,14 @@ bool multi_heap_check(multi_heap_handle_t heap, bool print_errors)
     } /* for(heap_block_t b = ... */
 
     if (prev != heap->last_block) {
-        HEAP_TRACE(2,"CORRUPT HEAP: Last block %p not %p\n", prev, heap->last_block);
+        FAIL_PRINT(2,"CORRUPT HEAP: Last block %p not %p\n", prev, heap->last_block);
     }
     if (!is_free(heap->last_block)) {
-        HEAP_TRACE(1,"CORRUPT HEAP: Expected prev block %p to be free\n", heap->last_block);
+        FAIL_PRINT(1,"CORRUPT HEAP: Expected prev block %p to be free\n", heap->last_block);
     }
 
     if (heap->free_bytes != total_free_bytes) {
-        HEAP_TRACE(2,"CORRUPT HEAP: Expected %u free bytes counted %u\n", (unsigned)heap->free_bytes, (unsigned)total_free_bytes);
+        FAIL_PRINT(2,"CORRUPT HEAP: Expected %u free bytes counted %u\n", (unsigned)heap->free_bytes, (unsigned)total_free_bytes);
     }
 
  done:
@@ -776,13 +801,13 @@ void multi_heap_dump(multi_heap_handle_t heap)
     assert(heap != NULL);
 
     uint32_t flags = multi_heap_internal_lock(heap);
-    HEAP_TRACE(3,"Heap start %p end %p First free block %p\n", &heap->first_block, heap->last_block, heap->first_block.next_free);
+    MULTI_HEAP_STDERR_PRINTF(3,"Heap start %p end %p\nFirst free block %p\n", &heap->first_block, heap->last_block, heap->first_block.next_free);
     for(heap_block_t *b = &heap->first_block; b != NULL; b = get_next_block(b)) {
-        HEAP_TRACE(3,"Block %p data size 0x%08x bytes next block %p", b, block_data_size(b), get_next_block(b));
+        MULTI_HEAP_STDERR_PRINTF(3,"Block %p data size 0x%08x bytes next block %p", b, block_data_size(b), get_next_block(b));
         if (is_free(b)) {
-            HEAP_TRACE(1," FREE. Next free %p\n", b->next_free);
+            MULTI_HEAP_STDERR_PRINTF(1," FREE. Next free %p\n", b->next_free);
         } else {
-            HEAP_TRACE(1,"%s", "\n"); /* C macros & optional __VA_ARGS__ */
+            MULTI_HEAP_STDERR_PRINTF(1,"%s", "\n"); /* C macros & optional __VA_ARGS__ */
         }
     }
     multi_heap_internal_unlock(heap, flags);
@@ -792,7 +817,6 @@ void multi_heap_dump_with_callback(multi_heap_handle_t heap, void (*cb)(void *bl
 {
     assert(heap != NULL);
     uint32_t flags = multi_heap_internal_lock(heap);
-    HEAP_TRACE(3,"Heap start %p end %p First free block %p\n", &heap->first_block, heap->last_block, heap->first_block.next_free);
     for (heap_block_t *b = &heap->first_block; b != NULL; b = get_next_block(b)) {
         if (cb) {
             cb((((uint8_t *)b) + sizeof(b->header)), block_data_size(b), is_free(b));

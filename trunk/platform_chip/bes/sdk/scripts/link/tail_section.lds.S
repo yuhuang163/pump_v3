@@ -34,17 +34,19 @@
 #endif
 #endif
 
-#define OTA_BOOT_INFO_SECTION_LOC			0
-#define OTA_BOOT_REV_SECTION_LOC			0
 #define PROMPT_SECTION_LOC					0
 #define AUD_SECTION_LOC						0
 #define FACTORY_SECTION_LOC					0
+
 #ifdef USE_MULTI_FLASH
+#define FLASH1_CALIB_SECTION_LOC			1
 #define COMBO_SECTION_LOC					1
 #define HOTWORD_SECTION_LOC					1
 #define RAM_DUMP_SECTION_LOC				1
 #define BT_CONTROLLER_RAM_DUMP_SECTION_LOC	1
 #define CORE_DUMP_SECTION_LOC				1
+#define USER_DATA_SECTION_LOC				1
+#define USER_GPS_SECTION_LOC				1
 #define OTA_UPGRADE_SECTION_LOC				1
 #define LOG_DUMP_SECTION_LOC				1
 #define CRASH_DUMP_SECTION_LOC				1
@@ -52,13 +54,16 @@
 #define LHDC_LICENSE_SECTION_LOC			1
 #define USERDATA_SECTION_LOC				1
 #define RESERVED_SECTION_LOC				1
-#define FINDMY_INFO_SECTION_LOC             1
+#define LITTLEFS_SECTION_LOC				1
+#define FACTORY_DATA_SECTION_LOC		    1
 #else
 #define COMBO_SECTION_LOC					0
 #define HOTWORD_SECTION_LOC					0
 #define RAM_DUMP_SECTION_LOC				0
 #define BT_CONTROLLER_RAM_DUMP_SECTION_LOC	0
 #define CORE_DUMP_SECTION_LOC				0
+#define USER_DATA_SECTION_LOC				0
+#define USER_GPS_SECTION_LOC				0
 #define OTA_UPGRADE_SECTION_LOC				0
 #define LOG_DUMP_SECTION_LOC				0
 #define CRASH_DUMP_SECTION_LOC				0
@@ -66,7 +71,8 @@
 #define LHDC_LICENSE_SECTION_LOC			0
 #define USERDATA_SECTION_LOC				0
 #define RESERVED_SECTION_LOC				0
-#define FINDMY_INFO_SECTION_LOC             0
+#define LITTLEFS_SECTION_LOC				0
+#define FACTORY_DATA_SECTION_LOC		    0
 #endif
 
 #ifdef USE_MULTI_FLASH
@@ -84,24 +90,23 @@
 	__flash_tail_sec_start = ORIGIN(FLASH_NC) + LENGTH(FLASH_NC) -
 							SECTION_SIZE_LOC(0, FACTORY) -
 							SECTION_SIZE_LOC(0, RESERVED) -
+							SECTION_SIZE_LOC(0, AUD) -
 							SECTION_SIZE_LOC(0, USERDATA) * 2 -
+							SECTION_SIZE_LOC(0, LITTLEFS) * 2 -
+							SECTION_SIZE_LOC(0, FACTORY_DATA) * 2 -
 							SECTION_SIZE_LOC(0, CUSTOM_PARAMETER) -
 							SECTION_SIZE_LOC(0, LHDC_LICENSE) -
 							SECTION_SIZE_LOC(0, CRASH_DUMP) -
 							SECTION_SIZE_LOC(0, LOG_DUMP) -
 							SECTION_SIZE_LOC(0, OTA_UPGRADE) -
 							SECTION_SIZE_LOC(0, CORE_DUMP) -
+							SECTION_SIZE_LOC(0, USER_DATA) -
+							SECTION_SIZE_LOC(0, USER_GPS) -
 							SECTION_SIZE_LOC(0, BT_CONTROLLER_RAM_DUMP) -
 							SECTION_SIZE_LOC(0, RAM_DUMP) -
 							SECTION_SIZE_LOC(0, HOTWORD) -
 							SECTION_SIZE_LOC(0, PROMPT) -
 							SECTION_SIZE_LOC(0, COMBO) -
-							SECTION_SIZE_LOC(0, AUD) -
-							SECTION_SIZE_LOC(0, OTA_APP_BOOT_INFO) -
-#if defined(SPA_AUDIO_SEC_TEST)
-							SECTION_SIZE_LOC(0, CUSTOMER_LOAD_ENC_DEC_RECORD) -
-#endif
-							SECTION_SIZE_LOC(0, FINDMY_INFO) -
 							0;
 
 	.dummy_flash_tail (__flash_tail_sec_start - 16) (NOLOAD) : AT (ADDR(.dummy_flash_tail))
@@ -116,21 +121,24 @@
 	__flash1_tail_sec_start = ORIGIN(FLASH1_NC) + LENGTH(FLASH1_NC) -
 							SECTION_SIZE_LOC(1, FACTORY) -
 							SECTION_SIZE_LOC(1, RESERVED) -
+							SECTION_SIZE_LOC(1, AUD) -
 							SECTION_SIZE_LOC(1, USERDATA) * 2 -
+							SECTION_SIZE_LOC(1, LITTLEFS) * 2 -
+							SECTION_SIZE_LOC(1, FACTORY_DATA) * 2 -
 							SECTION_SIZE_LOC(1, CUSTOM_PARAMETER) -
 							SECTION_SIZE_LOC(1, LHDC_LICENSE) -
 							SECTION_SIZE_LOC(1, CRASH_DUMP) -
 							SECTION_SIZE_LOC(1, LOG_DUMP) -
 							SECTION_SIZE_LOC(1, OTA_UPGRADE) -
 							SECTION_SIZE_LOC(1, CORE_DUMP) -
+							SECTION_SIZE_LOC(1, USER_DATA) -
+							SECTION_SIZE_LOC(1, USER_GPS) -
 							SECTION_SIZE_LOC(1, BT_CONTROLLER_RAM_DUMP) -
 							SECTION_SIZE_LOC(1, RAM_DUMP) -
 							SECTION_SIZE_LOC(1, HOTWORD) -
 							SECTION_SIZE_LOC(1, PROMPT) -
 							SECTION_SIZE_LOC(1, COMBO) -
-							SECTION_SIZE_LOC(1, AUD) -
-							SECTION_SIZE_LOC(1, OTA_APP_BOOT_INFO) -
-							SECTION_SIZE_LOC(0, FINDMY_INFO) -
+							SECTION_SIZE_LOC(1, FLASH1_CALIB) -
 							0;
 
 
@@ -141,6 +149,15 @@
 		__dummy_flash1_tail_end = .;
 	} > FLASH1_NC
 	ASSERT(__flash1_tail_sec_start == __dummy_flash1_tail_end, "Bad dummy_flash1_tail")
+#endif
+
+#ifdef FLASH1_CALIB_SECTION_SIZE
+    .flash1_calib (NOLOAD):
+	{
+		__flash1_calib_start = .;
+		. = SECTION_SIZE(FLASH1_CALIB);
+		__flash1_calib_end = .;
+	} > FLASH_LOC(FLASH1_CALIB)
 #endif
 
 	.combo (NOLOAD):
@@ -164,20 +181,6 @@
 		__hotword_model_end = .;
 	} > FLASH_LOC(HOTWORD)
 
-	.ota_app_boot_info (NOLOAD) :
-	{
-		__ota_app_boot_info_start = .;
-		. = SECTION_SIZE(OTA_APP_BOOT_INFO);
-		__ota_app_boot_info_end = .;
-	} > FLASH_LOC(OTA_APP_BOOT_INFO)
-
-	.findmy_info_section (NOLOAD):
-	{
-		__findmy_info_start = .;
-		. = SECTION_SIZE(FINDMY_INFO);
-		__findmy_info_end = .;
-	} > FLASH_LOC(FINDMY_INFO)
-
 	.ramdump_section (NOLOAD) :
 	{
 		__ramdump_section_start = .;
@@ -198,14 +201,20 @@
 		. = SECTION_SIZE(CORE_DUMP);
 		__coredump_section_end = .;
 	} > FLASH_LOC(CORE_DUMP)
-#if defined(SPA_AUDIO_SEC_TEST)
-	.inc_dec_bin_section (NOLOAD) :
+
+	.user_data_section (NOLOAD) :
 	{
-		inc_dec_bin_sec_start = .;
-		. = SECTION_SIZE(CUSTOMER_LOAD_ENC_DEC_RECORD);
-		inc_dec_bin_sec_end = .;
-	} > FLASH_LOC(CUSTOMER_LOAD_ENC_DEC_RECORD)
-#endif
+		__user_data_section_start = .;
+		. = SECTION_SIZE(USER_DATA);
+		__user_data_section_end = .;
+	} > FLASH_LOC(USER_DATA)
+
+	.user_gps_section (NOLOAD) :
+	{
+		__user_gps_section_start = .;
+		. = SECTION_SIZE(USER_GPS);
+		__user_gps_section_end = .;
+	} > FLASH_LOC(USER_GPS)
 
 	.ota_upgrade_log (NOLOAD) :
 	{
@@ -269,3 +278,18 @@
 		. = SECTION_SIZE(FACTORY);
 		__factory_end = .;
 	} > FLASH_LOC(FACTORY)
+
+	.littlefs (NOLOAD) :
+	{
+		__littlefs_start = .;
+		. = SECTION_SIZE(LITTLEFS);
+		__littlefs_end = .;
+	} > FLASH_LOC(LITTLEFS)
+
+	.factory_data (NOLOAD) :
+	{
+		__factory_data_start = .;
+		. = SECTION_SIZE(FACTORY_DATA);
+		__factory_data_end = .;
+	} > FLASH_LOC(FACTORY_DATA)
+

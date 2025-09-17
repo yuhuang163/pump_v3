@@ -20,11 +20,21 @@
 #include "hal_trace.h"
 #include "hal_dma.h"
 #include "hal_tdm.h"
-#ifndef CHIP_HAS_TDM
+#ifdef NO_NATIVE_TDM
 #include "hal_i2s_tdm.h"
 #endif
 
-#ifdef CHIP_HAS_TDM
+#ifdef I2S0_BASE
+
+#if 0
+#define TDM_TRACE   TRACE
+#define TDM_DUMP8   DUMP8
+#else
+#define TDM_TRACE(n, str, ...)
+#define TDM_DUMP8(str, ...)
+#endif
+
+#ifndef NO_NATIVE_TDM
 static bool tdm_stream_status[HAL_I2S_ID_QTY][AUD_STREAM_NUM];
 static bool tdm_chan_sep_buf[HAL_I2S_ID_QTY];
 static bool tdm_sync_start[HAL_I2S_ID_QTY];
@@ -52,7 +62,7 @@ static inline uint32_t _tdm_get_reg_base(enum HAL_I2S_ID_T id)
     case HAL_I2S_ID_0:
         addr = I2S0_BASE | I2SIP_TDM_CTRL_REG_OFFSET;
         break;
-#if defined(CHIP_HAS_I2S) && (CHIP_HAS_I2S > 1)
+#ifdef I2S1_BASE
     case HAL_I2S_ID_1:
         addr = I2S1_BASE | I2SIP_TDM_CTRL_REG_OFFSET;
         break;
@@ -104,15 +114,15 @@ static inline bool tdm_fs_cycles_in_arrays(uint16_t fs_cycles)
 POSSIBLY_UNUSED static void tdm_dump_config(const char *title,
     struct HAL_TDM_CONFIG_T *cfg)
 {
-    HAL_TRACE(1, "%s: TDM DUMP CONFIG", title);
-    HAL_TRACE(1, "mode:%d",       cfg->mode);
-    HAL_TRACE(1, "edge:%d",       cfg->edge);
-    HAL_TRACE(1, "cycles:%d",     cfg->cycles);
-    HAL_TRACE(1, "fs_cycles:%d",  cfg->fs_cycles);
-    HAL_TRACE(1, "slot_cycles:%d",cfg->slot_cycles);
-    HAL_TRACE(1, "bits:%d",       cfg->bits);
-    HAL_TRACE(1, "chan:%d",       cfg->channel_num);
-    HAL_TRACE(1, "DUMP END");
+    TRACE(1, "%s: TDM DUMP CONFIG", title);
+    TRACE(1, "mode:%d",       cfg->mode);
+    TRACE(1, "edge:%d",       cfg->edge);
+    TRACE(1, "cycles:%d",     cfg->cycles);
+    TRACE(1, "fs_cycles:%d",  cfg->fs_cycles);
+    TRACE(1, "slot_cycles:%d",cfg->slot_cycles);
+    TRACE(1, "bits:%d",       cfg->bits);
+    TRACE(1, "chan:%d",       cfg->channel_num);
+    TRACE(1, "DUMP END");
 }
 
 static void tdm_get_config(enum HAL_I2S_ID_T i2s_id,struct HAL_TDM_CONFIG_T *tdm_config)
@@ -123,7 +133,7 @@ static void tdm_get_config(enum HAL_I2S_ID_T i2s_id,struct HAL_TDM_CONFIG_T *tdm
     base_addr = (uint32_t*)_tdm_get_reg_base(i2s_id);
     val = *base_addr;
 
-    HAL_TRACE(1, "%s: val=%x", __func__, val);
+    TDM_TRACE(1, "%s: val=%x", __func__, val);
 
     if((val & (TDM_MODE_FS_ASSERTED_AT_LAST << TDM_MODE_FS_ASSERTED_SHIFT)) == (TDM_MODE_FS_ASSERTED_AT_LAST << TDM_MODE_FS_ASSERTED_SHIFT)) {
         tdm_config->mode = HAL_TDM_MODE_FS_ASSERTED_AT_LAST;
@@ -188,7 +198,7 @@ static void tdm_get_config(enum HAL_I2S_ID_T i2s_id,struct HAL_TDM_CONFIG_T *tdm
     } else {
         tdm_config->slot_cycles = HAL_TDM_SLOT_CYCLES_32;
     }
-    tdm_config->bits = tdm_config->slot_cycles;
+    tdm_config->bits = (enum AUD_BITS_T)tdm_config->slot_cycles;
     tdm_config->channel_num = tdm_config->cycles / tdm_config->slot_cycles;
     tdm_config->chan_sep_buf = tdm_chan_sep_buf[i2s_id];
     tdm_config->sync_start = tdm_sync_start[i2s_id];
@@ -275,7 +285,7 @@ static void tdm_set_config(enum HAL_I2S_ID_T i2s_id,struct HAL_TDM_CONFIG_T *tdm
         val |= (tdm_config->data_offset << TDM_DATA_OFFSET_SHIT);
     }
     val |= tdm_en;
-    HAL_TRACE(1, "%s: val=%x", __func__, val);
+    TDM_TRACE(1, "%s: val=%x", __func__, val);
     *base_addr = val;
 }
 
@@ -349,7 +359,7 @@ static int32_t tdm_open(enum HAL_I2S_ID_T i2s_id,enum AUD_STREAM_T stream,enum H
 {
     int ret;
 
-    HAL_TRACE(4,"%s:i2s_id=%d,stream=%d,mode=%d", __func__, i2s_id, stream, mode);
+    TDM_TRACE(4,"%s:i2s_id=%d,stream=%d,mode=%d", __func__, i2s_id, stream, mode);
     ret = hal_i2s_open(i2s_id, stream, mode);
     ASSERT(ret==0,"%s: i2s open failed,ret=%d", __func__, ret);
     return ret;
@@ -363,10 +373,10 @@ static int32_t tdm_setup_stream(enum HAL_I2S_ID_T i2s_id,
     struct HAL_I2S_CONFIG_T i2s_cfg;
     int ret;
 
-    HAL_TRACE(4,"%s: i2s_id = %d, stream = %d, sample_rate = %d",
+    TDM_TRACE(4,"%s: i2s_id = %d, stream = %d, sample_rate = %d",
           __func__, i2s_id, stream, sample_rate);
 
-    HAL_TRACE(5,"%s: tdm_cfg: mode = %d,edge = %d,cycles = %d,fs_cycles = %d,"
+    TDM_TRACE(5,"%s: tdm_cfg: mode = %d,edge = %d,cycles = %d,fs_cycles = %d,"
               "slot_cycles= %d, offs = %d.",
               __func__, tdm_cfg->mode, tdm_cfg->edge, tdm_cfg->cycles,
               tdm_cfg->fs_cycles,tdm_cfg->slot_cycles,tdm_cfg->data_offset);
@@ -397,7 +407,7 @@ static int32_t tdm_setup_stream(enum HAL_I2S_ID_T i2s_id,
     }
     tdm_set_config(i2s_id, tdm_cfg);
 
-    HAL_TRACE(1,"%s done", __func__);
+    TDM_TRACE(1,"%s done", __func__);
     return ret;
 }
 
@@ -410,7 +420,7 @@ static int32_t tdm_as_i2s_setup_stream(enum HAL_I2S_ID_T i2s_id,
     struct HAL_TDM_CONFIG_T tdm_cfg;
     int ret;
 
-    HAL_TRACE(4,"%s: i2s_id = %d, stream = %d, sample_rate = 0x%x.",
+    TDM_TRACE(4,"%s: i2s_id = %d, stream = %d, sample_rate = 0x%x.",
                   __func__, i2s_id, stream, sample_rate);
 
     memset(&i2s_cfg, 0, sizeof(i2s_cfg));
@@ -428,7 +438,7 @@ static int32_t tdm_as_i2s_setup_stream(enum HAL_I2S_ID_T i2s_id,
     tdm_get_i2s_config(&tdm_cfg, bits);
     tdm_set_config(i2s_id, &tdm_cfg);
 
-    HAL_TRACE(1,"%s: done.", __func__);
+    TDM_TRACE(1,"%s: done.", __func__);
     return ret;
 }
 
@@ -436,7 +446,7 @@ static int32_t tdm_start_stream(enum HAL_I2S_ID_T i2s_id, enum AUD_STREAM_T stre
 {
     int ret;
 
-    HAL_TRACE(3,"%s: i2s_id = %d, stream = %d.", __func__, i2s_id, stream);
+    TDM_TRACE(3,"%s: i2s_id = %d, stream = %d.", __func__, i2s_id, stream);
     if (tdm_stream_status[i2s_id][AUD_STREAM_PLAYBACK] == false &&
         tdm_stream_status[i2s_id][AUD_STREAM_CAPTURE] == false) {
 
@@ -446,7 +456,7 @@ static int32_t tdm_start_stream(enum HAL_I2S_ID_T i2s_id, enum AUD_STREAM_T stre
     ret = hal_i2s_start_stream(i2s_id, stream);
     ASSERT(ret==0, "%s: i2s start stream faild, ret=%d", __func__, ret);
 
-    HAL_TRACE(2,"%s done. ret = %d.", __func__, ret);
+    TDM_TRACE(2,"%s done. ret = %d.", __func__, ret);
     return ret;
 }
 
@@ -454,7 +464,7 @@ static int32_t tdm_stop_stream(enum HAL_I2S_ID_T i2s_id, enum AUD_STREAM_T strea
 {
     int ret;
 
-    HAL_TRACE(3,"%s: i2s_id = %d, stream = %d.", __func__, i2s_id, stream);
+    TDM_TRACE(3,"%s: i2s_id = %d, stream = %d.", __func__, i2s_id, stream);
     tdm_stream_status[i2s_id][stream] = false;
     if (tdm_stream_status[i2s_id][AUD_STREAM_PLAYBACK] == false &&
         tdm_stream_status[i2s_id][AUD_STREAM_CAPTURE] == false) {
@@ -464,7 +474,7 @@ static int32_t tdm_stop_stream(enum HAL_I2S_ID_T i2s_id, enum AUD_STREAM_T strea
     ret = hal_i2s_stop_stream(i2s_id,stream);
     ASSERT(ret==0, "%s: i2s stop stream faild, ret=%d", __func__, ret);
 
-    HAL_TRACE(2,"%s done. ret = %d.", __func__, ret);
+    TDM_TRACE(2,"%s done. ret = %d.", __func__, ret);
     return ret;
 }
 
@@ -472,31 +482,31 @@ static int32_t tdm_close(enum HAL_I2S_ID_T i2s_id, enum AUD_STREAM_T stream)
 {
     int ret;
 
-    HAL_TRACE(3,"%s: i2s_id = %d, stream = %d.", __func__, i2s_id, stream);
+    TDM_TRACE(3,"%s: i2s_id = %d, stream = %d.", __func__, i2s_id, stream);
 
     ret = hal_i2s_close(i2s_id,stream);
 
-    HAL_TRACE(2,"%s done. ret = %d.", __func__, ret);
+    TDM_TRACE(2,"%s done. ret = %d.", __func__, ret);
     return ret;
 }
-#endif // CHIP_HAS_TDM
+#endif
 
 int32_t hal_tdm_open(enum HAL_I2S_ID_T i2s_id,enum AUD_STREAM_T stream,enum HAL_I2S_MODE_T mode)
 {
     int ret;
 
-    HAL_TRACE(3,"hal_tdm_open:i2s_id = %d, stream = %d, mode = %d.",
+    TDM_TRACE(3,"hal_tdm_open:i2s_id = %d, stream = %d, mode = %d.",
               i2s_id, stream, mode);
     ASSERT(i2s_id < HAL_I2S_ID_QTY,"%s: i2s_id = %d!", __func__, i2s_id);
 
-#ifdef CHIP_HAS_TDM
-    ret = tdm_open(i2s_id, stream, mode);
-#else
+#ifdef NO_NATIVE_TDM
     ASSERT(stream == AUD_STREAM_CAPTURE, "stream = AUD_STREAM_PLAYBACK!");
     ret = hal_i2s_tdm_open(i2s_id, mode);
+#else
+    ret = tdm_open(i2s_id, stream, mode);
 #endif
 
-    HAL_TRACE(2,"%s done. ret = %d.", __func__, ret);
+    TDM_TRACE(2,"%s done. ret = %d.", __func__, ret);
     return ret;
 }
 
@@ -507,18 +517,16 @@ int32_t hal_tdm_setup_stream(enum HAL_I2S_ID_T i2s_id,
 {
     int ret;
 
-    HAL_TRACE(4,"%s:i2s_id = %d, stream = %d, sample_rate = %d.",
+    TDM_TRACE(4,"%s:i2s_id = %d, stream = %d, sample_rate = %d.",
         __func__, i2s_id, stream, sample_rate);
     ASSERT(i2s_id < HAL_I2S_ID_QTY,"%s: i2s_id = %d!", __func__, i2s_id);
-    HAL_TRACE(4,"%s: cycles = %d, fs_cycles = %d,slot_cycles = %d.",
+    TDM_TRACE(4,"%s: cycles = %d, fs_cycles = %d,slot_cycles = %d.",
                 __func__,
                 tdm_cfg->cycles,
                 tdm_cfg->fs_cycles,
                 tdm_cfg->slot_cycles);
 
-#ifdef CHIP_HAS_TDM
-    ret = tdm_setup_stream(i2s_id, stream, sample_rate,tdm_cfg);
-#else
+#ifdef NO_NATIVE_TDM
     struct HAL_I2S_TDM_CONFIG_T i2s_tdm_cfg;
 
     i2s_tdm_cfg.cycles = (enum HAL_I2S_TDM_CYCLES_T)tdm_cfg->cycles;
@@ -526,9 +534,11 @@ int32_t hal_tdm_setup_stream(enum HAL_I2S_ID_T i2s_id,
     i2s_tdm_cfg.slot_cycles = (enum HAL_I2S_TDM_SLOT_CYCLES_T)tdm_cfg->slot_cycles;
     i2s_tdm_cfg.data_offset = tdm_cfg->data_offset;
     ret = hal_i2s_tdm_setup(i2s_id, sample_rate, &i2s_tdm_cfg);
+#else
+    ret = tdm_setup_stream(i2s_id, stream, sample_rate,tdm_cfg);
 #endif
 
-    HAL_TRACE(2,"%s done. ret = %d.", __func__, ret);
+    TDM_TRACE(2,"%s done. ret = %d.", __func__, ret);
     return ret;
 }
 
@@ -539,22 +549,22 @@ int32_t hal_tdm_as_i2s_setup_stream(enum HAL_I2S_ID_T i2s_id,
 {
     int ret;
 
-    HAL_TRACE(4,"%s: i2s_id = %d, stream = %d, sample_rate = %d, bits = %d.",
+    TDM_TRACE(4,"%s: i2s_id = %d, stream = %d, sample_rate = %d, bits = %d.",
         __func__, i2s_id, stream, sample_rate, bits);
     ASSERT(i2s_id < HAL_I2S_ID_QTY,"%s: i2s_id = %d!", __func__, i2s_id);
 
     // i2s setup stream playback and capture.
-#ifdef CHIP_HAS_TDM
-    ret = tdm_as_i2s_setup_stream(i2s_id, stream, sample_rate,bits);
-#else
+#ifdef NO_NATIVE_TDM
     struct HAL_I2S_TDM_CONFIG_T i2s_tdm_cfg={
         bits == 16 ? HAL_I2S_TDM_CYCLES_32 : HAL_I2S_TDM_CYCLES_64,
         bits == 16 ? HAL_I2S_TDM_FS_CYCLES_16 : HAL_I2S_TDM_FS_CYCLES_32,
         bits == 16 ? HAL_I2S_TDM_SLOT_CYCLES_16 : HAL_I2S_TDM_SLOT_CYCLES_32,};
     ret = hal_i2s_tdm_setup(i2s_id, sample_rate, &i2s_tdm_cfg);
+#else
+    ret = tdm_as_i2s_setup_stream(i2s_id, stream, sample_rate,bits);
 #endif
 
-    HAL_TRACE(2,"%s done. ret = %d.", __func__, ret);
+    TDM_TRACE(2,"%s done. ret = %d.", __func__, ret);
     return ret;
 }
 
@@ -562,16 +572,16 @@ int32_t hal_tdm_start_stream(enum HAL_I2S_ID_T i2s_id, enum AUD_STREAM_T stream)
 {
     int ret;
 
-    HAL_TRACE(3,"%s: i2s_id = %d stream = %d.",
+    TDM_TRACE(3,"%s: i2s_id = %d stream = %d.",
               __func__, i2s_id, stream);
     ASSERT(i2s_id < HAL_I2S_ID_QTY,"%s: i2s_id = %d!", __func__, i2s_id);
 
-#ifdef CHIP_HAS_TDM
-    ret = tdm_start_stream(i2s_id, stream);
-#else
+#ifdef NO_NATIVE_TDM
     ret = hal_i2s_tdm_start_stream(i2s_id);
+#else
+    ret = tdm_start_stream(i2s_id, stream);
 #endif
-    HAL_TRACE(2,"%s done. ret = %d.", __func__, ret);
+    TDM_TRACE(2,"%s done. ret = %d.", __func__, ret);
     return ret;
 }
 
@@ -579,15 +589,15 @@ int32_t hal_tdm_stop_stream(enum HAL_I2S_ID_T i2s_id, enum AUD_STREAM_T stream)
 {
     int32_t ret;
 
-    HAL_TRACE(3,"%s: i2s_id = %d stream = %d.",
+    TDM_TRACE(3,"%s: i2s_id = %d stream = %d.",
               __func__, i2s_id, stream);
     ASSERT(i2s_id < HAL_I2S_ID_QTY,"%s: i2s_id = %d!", __func__, i2s_id);
-#ifdef CHIP_HAS_TDM
-    ret = tdm_stop_stream(i2s_id, stream);
-#else
+#ifdef NO_NATIVE_TDM
     ret = hal_i2s_tdm_stop_stream(i2s_id);
+#else
+    ret = tdm_stop_stream(i2s_id, stream);
 #endif
-    HAL_TRACE(2,"%s done. ret = %d.", __func__, ret);
+    TDM_TRACE(2,"%s done. ret = %d.", __func__, ret);
     return ret;
 }
 
@@ -595,24 +605,22 @@ int32_t hal_tdm_close(enum HAL_I2S_ID_T i2s_id, enum AUD_STREAM_T stream)
 {
     int32_t ret;
 
-    HAL_TRACE(3,"%s: i2s_id = %d stream = %d.",
+    TDM_TRACE(3,"%s: i2s_id = %d stream = %d.",
               __func__, i2s_id, stream);
     ASSERT(i2s_id < HAL_I2S_ID_QTY,"%s: i2s_id = %d!", __func__, i2s_id);
-#ifdef CHIP_HAS_TDM
-    ret = tdm_close(i2s_id, stream);
-#else
+#ifdef NO_NATIVE_TDM
     ret = hal_i2s_tdm_close(i2s_id);
+#else
+    ret = tdm_close(i2s_id, stream);
 #endif
-    HAL_TRACE(2,"%s done. ret = %d.", __func__, ret);
+    TDM_TRACE(2,"%s done. ret = %d.", __func__, ret);
     return ret;
 }
 
 void hal_tdm_get_config(enum HAL_I2S_ID_T i2s_id,struct HAL_TDM_CONFIG_T *tdm_cfg)
 {
     ASSERT(i2s_id < HAL_I2S_ID_QTY,"%s: i2s_id = %d!", __func__, i2s_id);
-#ifdef CHIP_HAS_TDM
-    tdm_get_config(i2s_id,tdm_cfg);
-#else
+#ifdef NO_NATIVE_TDM
     struct HAL_I2S_TDM_CONFIG_T i2s_tdm_cfg;
     hal_i2s_tdm_get_config(i2s_id, &i2s_tdm_cfg);
     tdm_cfg->mode = HAL_TDM_MODE_FS_ASSERTED_AT_FIRST;
@@ -621,21 +629,24 @@ void hal_tdm_get_config(enum HAL_I2S_ID_T i2s_id,struct HAL_TDM_CONFIG_T *tdm_cf
     tdm_cfg->fs_cycles = (enum HAL_TDM_FS_CYCLES)i2s_tdm_cfg.fs_cycles;
     tdm_cfg->slot_cycles = (enum HAL_TDM_SLOT_CYCLES_T)i2s_tdm_cfg.slot_cycles;
     tdm_cfg->data_offset = i2s_tdm_cfg.data_offset;
+#else
+    tdm_get_config(i2s_id,tdm_cfg);
 #endif
 }
 
 void hal_tdm_set_config(enum HAL_I2S_ID_T i2s_id,struct HAL_TDM_CONFIG_T *tdm_cfg)
 {
     ASSERT(i2s_id < HAL_I2S_ID_QTY,"%s: i2s_id = %d!", __func__, i2s_id);
-#ifdef CHIP_HAS_TDM
-    tdm_set_config(i2s_id,tdm_cfg);
-#else
+#ifdef NO_NATIVE_TDM
     struct HAL_I2S_TDM_CONFIG_T i2s_tdm_cfg;
     i2s_tdm_cfg.cycles = HAL_I2S_TDM_CYCLES_32;
     i2s_tdm_cfg.fs_cycles = HAL_I2S_TDM_FS_CYCLES_16;
     i2s_tdm_cfg.slot_cycles = HAL_I2S_TDM_SLOT_CYCLES_16;
     i2s_tdm_cfg.data_offset = 0;
     hal_i2s_tdm_set_config(i2s_id, &i2s_tdm_cfg);
+#else
+    tdm_set_config(i2s_id,tdm_cfg);
 #endif
 }
 
+#endif

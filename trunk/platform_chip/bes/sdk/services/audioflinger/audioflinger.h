@@ -42,13 +42,14 @@ typedef enum  {
     AF_USER_SCO,
     AF_USER_TEST,
     AF_USER_HEARING_AID,
-    AF_USER_AOB_CAPTURE,
-    AF_USER_AOB_PLAYBACK,
 #ifdef BLE_WALKIE_TALKIE
     AF_USER_WT_PLAYBACK,
     AF_USER_WT_CAPATRUE,
 #endif
+    AF_USER_AOB_CAPTURE,
+    AF_USER_AOB_PLAYBACK,
     AF_USER_BIS_TRAN_PLAYBACK,
+    AF_USER_WIFI,
     AF_USER_NUM
 } AF_USER_E;
 
@@ -97,7 +98,6 @@ uint32_t af_stream_dma_tc_irq_enable(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T 
 uint32_t af_stream_dma_tc_irq_disable(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T stream);
 uint32_t af_stream_get_dma_base_addr(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T stream);
 uint8_t af_stream_get_dma_chan(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T stream);
-void af_stream_tune(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T stream, float ratio);
 void af_set_irq_notification(AF_IRQ_NOTIFICATION_T notif);
 
 void af_lock_thread(void);
@@ -107,24 +107,15 @@ int af_get_priority(void);
 int af_get_default_priority(void);
 void af_reset_priority(void);
 
-void af_codec_tune_resample_rate(enum AUD_STREAM_T stream, float ratio);
-void af_codec_direct_tune_resample_rate(enum AUD_STREAM_T stream, float ratio);
-void af_codec_tune_both_resample_rate(float ratio);
-void af_codec_tune_pll(float ratio);
-void af_codec_tune_xtal(float ratio);
-void af_codec_tune(enum AUD_STREAM_T stream, float ratio);
-void af_codec_direct_tune(enum AUD_STREAM_T stream, float ratio);
-
-void af_codec_tune_dac2_resample_rate(enum AUD_STREAM_T stream, float ratio);
-void af_codec_direct_tune_dac2_resample_rate(enum AUD_STREAM_T stream, float ratio);
-void af_codec_tune_dac2(enum AUD_STREAM_T stream, float ratio);
-void af_codec_direct_tune_dac2(enum AUD_STREAM_T stream, float ratio);
+uint32_t af_stream_tune(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T stream, float ratio);
+uint32_t af_stream_direct_tune(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T stream, float ratio);
 
 void af_codec_set_perf_test_power(int type);
 void af_codec_set_noise_reduction(bool enable);
 void af_codec_swap_output(bool swap);
 void af_codec_set_playback_post_handler(AF_CODEC_PLAYBACK_POST_HANDLER_T hdlr);
 void af_codec_set_playback2_post_handler(AF_CODEC_PLAYBACK_POST_HANDLER_T hdlr);
+void af_codec_set_playback3_post_handler(AF_CODEC_PLAYBACK_POST_HANDLER_T hdlr);
 void af_codec_min_phase_mode_enable(enum AUD_STREAM_T stream);
 void af_codec_min_phase_mode_disable(enum AUD_STREAM_T stream);
 
@@ -139,6 +130,7 @@ enum AF_I2S_SYNC_TYPE_T {
     AF_I2S_SYNC_TYPE_NONE,
     AF_I2S_SYNC_TYPE_BT,
     AF_I2S_SYNC_TYPE_GPIO,
+    AF_I2S_SYNC_TYPE_WIFI,
 };
 
 
@@ -147,10 +139,15 @@ void af_codec_sync_config(enum AUD_STREAM_T stream, enum AF_CODEC_SYNC_TYPE_T ty
 void af_codec_sync_resample_rate_config(enum AUD_STREAM_T stream, enum AF_CODEC_SYNC_TYPE_T type, bool enable);
 void af_codec_sync_gain_config(enum AUD_STREAM_T stream, enum AF_CODEC_SYNC_TYPE_T type, bool enable);
 
-void af_codec_set_dac2_bt_sync_source(enum AUD_STREAM_T stream, uint32_t src);
-void af_codec_sync_dac2_config(enum AUD_STREAM_T stream, enum AF_CODEC_SYNC_TYPE_T type, bool enable);
-void af_codec_sync_dac2_resample_rate_config(enum AUD_STREAM_T stream, enum AF_CODEC_SYNC_TYPE_T type, bool enable);
-void af_codec_sync_dac2_gain_config(enum AUD_STREAM_T stream, enum AF_CODEC_SYNC_TYPE_T type, bool enable);
+void af_codec2_set_bt_sync_source(enum AUD_STREAM_T stream, uint32_t src);
+void af_codec2_sync_config(enum AUD_STREAM_T stream, enum AF_CODEC_SYNC_TYPE_T type, bool enable);
+void af_codec2_sync_resample_rate_config(enum AUD_STREAM_T stream, enum AF_CODEC_SYNC_TYPE_T type, bool enable);
+void af_codec2_sync_gain_config(enum AUD_STREAM_T stream, enum AF_CODEC_SYNC_TYPE_T type, bool enable);
+
+void af_codec3_set_bt_sync_source(enum AUD_STREAM_T stream, uint32_t src);
+void af_codec3_sync_config(enum AUD_STREAM_T stream, enum AF_CODEC_SYNC_TYPE_T type, bool enable);
+void af_codec3_sync_resample_rate_config(enum AUD_STREAM_T stream, enum AF_CODEC_SYNC_TYPE_T type, bool enable);
+void af_codec3_sync_gain_config(enum AUD_STREAM_T stream, enum AF_CODEC_SYNC_TYPE_T type, bool enable);
 
 void af_codec_set_device_bt_sync_source(enum AUD_STREAM_USE_DEVICE_T device, enum AUD_STREAM_T stream, uint32_t src);
 void af_codec_sync_device_config(enum AUD_STREAM_USE_DEVICE_T device, enum AUD_STREAM_T stream, enum AF_CODEC_SYNC_TYPE_T type, bool enable);
@@ -171,7 +168,7 @@ void af_vad_get_data_info(struct CODEC_VAD_BUF_INFO_T * vad_buf_info);
 void af_dsd_enable(void);
 void af_dsd_disable(void);
 
-void af_i2s_sync_config(enum AUD_STREAM_T stream, enum AF_I2S_SYNC_TYPE_T type, bool enable);
+void af_i2s_sync_config(enum AUD_STREAM_ID_T id,enum AUD_STREAM_T stream, enum AF_I2S_SYNC_TYPE_T type, bool enable);
 int af_i2s_resample_enable(enum AUD_STREAM_USE_DEVICE_T dev);
 int af_i2s_resample_disable(enum AUD_STREAM_USE_DEVICE_T dev);
 int af_tdm_resample_enable(enum AUD_STREAM_USE_DEVICE_T dev);
@@ -179,7 +176,7 @@ int af_tdm_resample_disable(enum AUD_STREAM_USE_DEVICE_T dev);
 
 typedef void (*AF_CODEC_BT_TRIGGER_CALLBACK)(void);
 void af_codec_bt_trigger_config(bool en, AF_CODEC_BT_TRIGGER_CALLBACK callback);
-uint32_t af_stream_playback_fadeout(enum AUD_STREAM_ID_T id, uint32_t ms);
+uint32_t af_stream_playback_fadeout(uint32_t ms);
 
 /* DAC DC and Gain calibration */
 enum AF_CODEC_CALIB_CMD_T {
@@ -233,17 +230,7 @@ int af_codec_calib_dac_dc(enum AF_CODEC_CALIB_CMD_T cmd, struct AF_CODEC_CALIB_C
 void af_codec_calib_dac_chan_enable(bool en_l, bool en_r);
 void af_codec_calib_param_setup(enum AF_CODEC_CALIB_PARAM_T type, uint32_t p0, uint32_t p1, uint32_t p2);
 
-void af_codec_dac1_sw_gain_process(uint8_t *buf, uint32_t len, enum AUD_BITS_T bits, enum AUD_CHANNEL_NUM_T chans);
-void af_codec_dac1_sw_gain_enable(bool enable);
-
-#ifdef ADVANCE_FILL_ENABLED
 void af_pre_fill_handler(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T stream, uint8_t pre_fill_seq);
-#endif
-
-#ifdef AUDIO_OUTPUT_SW_GAIN
-void af_codec_dac1_set_algo_gain(float coef);
-void af_codec_dac1_set_custom_eq_peak(float peak);
-#endif
 
 #ifdef __cplusplus
 }

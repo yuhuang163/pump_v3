@@ -41,7 +41,7 @@
 #ifdef RTOS
 #include "cmsis_os.h"
 #endif
-#ifdef __PC_CMD_UART__
+#ifdef PC_CMD_UART_ID
 #include "hal_cmd.h"
 #endif
 
@@ -120,10 +120,20 @@
 #ifdef AUDIO_ANC_FB_MC
 static uint8_t ALIGNED4 playback_buff[USB_AUDIO_PLAYBACK_BUFF_SIZE * 9];//max 48->384 or 44.1->44.1*8;
 #else
+#if defined(APP_USB_A2DP_SOURCE)
+static uint8_t ALIGNED4 playback_buff[USB_AUDIO_PLAYBACK_BUFF_SIZE*2];
+#else
 static uint8_t ALIGNED4 playback_buff[USB_AUDIO_PLAYBACK_BUFF_SIZE];
 #endif
+#endif
 
+#if defined(APP_USB_A2DP_SOURCE)
+static uint8_t ALIGNED4 capture_buff[USB_AUDIO_CAPTURE_BUFF_SIZE*2];
+#elif defined(BLE_WIFI_DUAL_MODE_DONGLE)
+static uint8_t ALIGNED4 capture_buff[USB_AUDIO_CAPTURE_BUFF_SIZE*5];
+#else
 static uint8_t ALIGNED4 capture_buff[USB_AUDIO_CAPTURE_BUFF_SIZE];
+#endif
 
 #endif
 
@@ -144,8 +154,16 @@ static uint8_t ALIGNED4 resample_buff[USB_AUDIO_RESAMPLE_BUFF_SIZE];
 static uint8_t ALIGNED4 resample_buff[0];
 #endif
 
+#if defined(APP_USB_A2DP_SOURCE)
+static uint8_t ALIGNED4 recv_buff[USB_AUDIO_RECV_BUFF_SIZE*2];
+static uint8_t ALIGNED4 send_buff[USB_AUDIO_SEND_BUFF_SIZE*2];
+#elif defined(BLE_WIFI_DUAL_MODE_DONGLE)
+static uint8_t ALIGNED4 recv_buff[USB_AUDIO_RECV_BUFF_SIZE];
+static uint8_t ALIGNED4 send_buff[USB_AUDIO_SEND_BUFF_SIZE*5];
+#else
 static uint8_t ALIGNED4 recv_buff[USB_AUDIO_RECV_BUFF_SIZE];
 static uint8_t ALIGNED4 send_buff[USB_AUDIO_SEND_BUFF_SIZE];
+#endif
 #endif
 
 #ifdef CFG_HW_KEY_LED_PIN
@@ -173,7 +191,7 @@ static void uart_i2c_switch(void)
 
 static int POSSIBLY_UNUSED key_event_process(uint32_t key_code, uint8_t key_event)
 {
-    USBAUDIO_TRACE(3,"%s: code=0x%X, event=%u", __FUNCTION__, key_code, key_event);
+    TRACE(3,"%s: code=0x%X, event=%u", __FUNCTION__, key_code, key_event);
 
 #ifdef CFG_HW_KEY_LED_PIN
     if (key_event == HAL_KEY_EVENT_DOWN) {
@@ -230,7 +248,7 @@ void btusb_usb_pre_open(void)
 
 void anc_usb_open(void)
 {
-    USBAUDIO_TRACE(1,"%s", __FUNCTION__);
+    TRACE(1,"%s", __FUNCTION__);
 
 #ifdef __AUDIO_RESAMPLE__
     hal_cmu_audio_resample_enable();
@@ -274,7 +292,7 @@ void anc_usb_open(void)
 #if defined(CFG_MIC_KEY)
     mic_key_open();
 #endif
-#ifdef BT_USB_AUDIO_DUAL_MODE
+#if defined(BT_USB_AUDIO_DUAL_MODE) || defined(WIFI_USB_AUDIO_SUPPORT)
     return;
 #endif
     // Allow sleep
@@ -294,7 +312,7 @@ void anc_usb_open(void)
         osDelay(20);
 #else // !RTOS
 
-#ifdef __PC_CMD_UART__
+#ifdef PC_CMD_UART_ID
         hal_cmd_run();
 #endif
 
@@ -323,10 +341,10 @@ void gpadc_key_handler(uint16_t irq_val, HAL_GPADC_MV_T volt)
 
     if (volt < 100) {
         stable_cnt++;
-        //USBAUDIO_TRACE(5,"adc_key down: volt=%u stable=%u click_cnt=%u click_time=%u time=%u", volt, stable_cnt, click_cnt, click_time, time);
+        //TRACE(5,"adc_key down: volt=%u stable=%u click_cnt=%u click_time=%u time=%u", volt, stable_cnt, click_cnt, click_time, time);
     } else {
         if (stable_cnt > 1) {
-            //USBAUDIO_TRACE(5,"adc_key up: volt=%u stable=%u click_cnt=%u click_time=%u time=%u", volt, stable_cnt, click_cnt, click_time, time);
+            //TRACE(5,"adc_key up: volt=%u stable=%u click_cnt=%u click_time=%u time=%u", volt, stable_cnt, click_cnt, click_time, time);
             if (click_cnt == 0 || (time - click_time) < MS_TO_TICKS(500)) {
                 click_time = time;
                 click_cnt++;
@@ -344,7 +362,7 @@ void gpadc_key_handler(uint16_t irq_val, HAL_GPADC_MV_T volt)
         }
 
         if (send_event) {
-            //USBAUDIO_TRACE(5,"adc_key click: volt=%u stable=%u click_cnt=%u click_time=%u time=%u", volt, stable_cnt, click_cnt, click_time, time);
+            //TRACE(5,"adc_key click: volt=%u stable=%u click_cnt=%u click_time=%u time=%u", volt, stable_cnt, click_cnt, click_time, time);
             if (click_cnt == 1) {
                 event = HAL_KEY_EVENT_CLICK;
             } else if (click_cnt == 2) {
@@ -372,4 +390,13 @@ void btusbaudio_exit(void)
     anc_usb_close();
 }
 
+int wifiusbaudio_entry(void)
+{
+    anc_usb_open();
+    return 0;
+}
 
+void wifiusbaudio_exit(void)
+{
+    anc_usb_close();
+}

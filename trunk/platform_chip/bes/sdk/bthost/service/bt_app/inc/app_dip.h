@@ -16,7 +16,6 @@
 #ifndef __APP_DIP_H__
 #define __APP_DIP_H__
 
-#include "dip_service.h"
 #include "dip_common_define.h"
 
 #ifdef __cplusplus
@@ -30,7 +29,7 @@ typedef void (*app_dip_info_queried_callback_func_t)(uint8_t *remote_addr, bt_di
 
 void app_dip_register_dip_info_queried_callback(app_dip_info_queried_callback_func_t func);
 
-void app_dip_query_remote_info(uint8_t device_id);
+void app_dip_get_remote_info(uint8_t device_id);
 
 #ifdef __cplusplus
 }

@@ -35,19 +35,23 @@
  * user overlayers
  */
 
-#include "fb.h"
+#include "lcdc_fb.h"
 
 #include "cmsis_nvic.h"
-#include "dma2d.h"
 #include "hal_cache.h"
 #include "hal_psram.h"
 #include "hal_timer.h"
 #include "hal_trace.h"
+#include "hal_lcdc.h"
 #include "heap_api.h"
 #include "lcdc.h"
 #include "string.h"
 #include "hal_gpio.h"
 #include "hal_iomux.h"
+#include "hal_location.h"
+#include "hal_dsi.h"
+#include "lcd_panel.h"
+#include "lpcmd.h"
 
 /**
  *      DEFINES
@@ -55,8 +59,20 @@
 #ifndef FBDEV_PATH
 
 #define FBDEV_FB0_PATH "/dev/fb0"
-#define FBDEV_DMA2D_PATH "/dev/fb_dma2d"
 
+#endif
+
+#define FB_BUF_SIZE  (CONFIG_LCDC_FB_SIZE)
+
+#if defined(CHIP_BEST2003)
+#define fb_buf 0x3c000000
+#elif defined(CHIP_BEST2009)
+#define fb_buf  0x80000000
+#else
+#ifdef PSRAM_ENABLE
+PSRAM_NC_BSS_LOC
+#endif
+static char fb_buf[FB_BUF_SIZE] ALIGNED(64) ;
 #endif
 
 //#define GPIO_TRIGGER_FOR_TEST
@@ -126,28 +142,20 @@ void lcd_set_end_flag(void)
         olptr->accl = laccl;                       \
     } while (0)
 
-/**
- * typedef struct  lv_2d_drv_t  - dma2d driver struct
- * @fb       : fb driver interface
- * @fbp      : fb memory base address
- */
+typedef int16_t lv_coord_t;
+typedef uint8_t lv_opa_t;
+
+/** Represents an area of the screen. */
 typedef struct {
-    struct fb_chardev_s *fb;
-    char *fbp;
-} lv_2d_drv_t;
+    lv_coord_t x1;
+    lv_coord_t y1;
+    lv_coord_t x2;
+    lv_coord_t y2;
+} lv_area_t;
 
 /**
  *  Private variables
  */
-
-/* lcdc/dma test program allocates layer buffers from below share memory blocks   */
-
-#if defined(LCDC_DMA2D_CPU_PSRAM_PARALL_TEST) || defined(CONFIG_DMA2D)
-//static volatile uint32_t *fb_base = (uint32_t *) M55_SYS_RAM_BASE;//PSRAM_NC_BASE;
-static volatile uint32_t *fb_base = (uint32_t *)PSRAM_BASE;
-#endif
-
-static heap_handle_t fb_heap;
 
 POSSIBLY_UNUSED
 static heap_handle_t fb_mem_setup(uint32_t * base_addr, uint32_t size)
@@ -158,51 +166,13 @@ static heap_handle_t fb_mem_setup(uint32_t * base_addr, uint32_t size)
     return heap_register(base_addr, size);
 }
 
-static void *fb_malloc(uint32_t size)
-{
-    return heap_malloc(fb_heap, size + 8);
-}
-
-static void fb_mfree(void *mem)
-{
-    heap_free(fb_heap, mem);
-}
-
-#define FB_MALLOC fb_malloc
-#define FB_FREE fb_mfree
-
 #if defined(WITH_OS)
 static long int screensize = 0;
 #endif
 
 static uint32_t fb0fd = 0;    /*handle for fb0 */
 
-POSSIBLY_UNUSED
-static uint32_t fbfd_dma2d = 0;    /*handle for dma2d device driver */
-
-static lv_2d_drv_t lv_2d;
-
-static struct fb_overlayinfo_s oinfo[2];
-static uint8_t cfmt[3];
-
-static void fb_overlay_cfmt_set(uint8_t lid, uint8_t fmt)
-{
-    cfmt[lid] = fmt;
-}
-
-#if defined(CONFIG_DMA2D)||defined(LCDC_DMA2D_CPU_PSRAM_PARALL_TEST)
-static uint8_t get_color_fmt(int lid)
-{
-    uint32_t fmt = 0;
-    fmt = cfmt[lid];
-    return (uint8_t) fmt;
-}
-
-static struct fb_overlayinfo_s *get_oinfo(int lid)
-{
-    return &oinfo[lid];
-}
-#endif
+static struct fb_overlayinfo_s g_oinfo[2];
 
 /**
  * fb_ioctl  - lcdc framebuffer driver ioctrl interface
@@ -454,105 +424,6 @@ POSSIBLY_UNUSED static char *no_os_mmap(void *addr, size_t length, int prot, int
 #endif
 
 
-#if defined(CONFIG_DMA2D)||defined(LCDC_DMA2D_CPU_PSRAM_PARALL_TEST)
-
-/**
- *  private dma2d fb ioctrl functions.
- */
-
-static int dma2d_fillcolor(FAR struct fb_vtable_s *vtable, FAR const struct fb_overlayinfo_s *oinfo)
-{
-    struct dma2d_overlay_s dol;
-    struct dma2d_layer_s *dma2d = dma2ddev();
-    dol.oinfo = get_oinfo(oinfo->overlay);
-    dol.fmt = get_color_fmt(oinfo->overlay);
-    dol.xres = oinfo->stride * 8 / oinfo->bpp;
-    dol.yres = oinfo->fblen * 8 / oinfo->bpp / oinfo->stride;
-    // dol.oinfo = (struct fb_overlayinfo_s *)oinfo;
-
-    return dma2d->fillcolor(&dol, &oinfo->sarea, oinfo->color);
-}
-
-static int dma2d_blit(FAR struct fb_vtable_s *vtable, FAR const struct fb_overlayblit_s *blit)
-{
-    struct dma2d_layer_s *dma2d = dma2ddev();
-    struct dma2d_overlay_s dol;
-    struct dma2d_overlay_s sol;
-
-    dol.oinfo = get_oinfo(blit->dest.overlay);
-    dol.fmt = get_color_fmt(blit->dest.overlay);
-    dol.xres = dol.oinfo->stride * 8 / dol.oinfo->bpp;
-    dol.yres = dol.oinfo->fblen / dol.oinfo->stride;
-
-    sol.oinfo = get_oinfo(blit->src.overlay);
-    sol.fmt = get_color_fmt(blit->src.overlay);
-    sol.xres = sol.oinfo->stride * 8 / sol.oinfo->bpp;
-    sol.yres = sol.oinfo->fblen / sol.oinfo->stride;
-
-    return dma2d->blit(&dol, &blit->dest.area, &sol, &blit->src.area);
-}
-
-static int dma2d_blend(FAR struct fb_vtable_s *vtable, FAR const struct fb_overlayblend_s *blend)
-{
-    struct dma2d_layer_s *dma2d = dma2ddev();
-    struct dma2d_overlay_s dol;
-    struct dma2d_overlay_s fol;
-    struct dma2d_overlay_s bol;
-
-    dol.oinfo = get_oinfo(blend->dest.overlay);
-    dol.fmt = get_color_fmt(blend->dest.overlay);
-    dol.transp_mode = dol.oinfo->transp.transp_mode;
-    dol.xres = dol.oinfo->stride * 8 / dol.oinfo->bpp;
-    dol.yres = dol.oinfo->fblen * 8 / dol.oinfo->bpp / dol.oinfo->stride;
-
-    fol.oinfo = get_oinfo(blend->foreground.overlay);
-    fol.fmt = get_color_fmt(blend->foreground.overlay);
-    fol.transp_mode = fol.oinfo->transp.transp_mode;
-    fol.xres = fol.oinfo->stride * 8 / fol.oinfo->bpp;
-    fol.yres = fol.oinfo->fblen / fol.oinfo->stride;
-
-    bol.oinfo = get_oinfo(blend->background.overlay);
-    bol.fmt = get_color_fmt(blend->background.overlay);
-    bol.transp_mode = bol.oinfo->transp.transp_mode;
-    bol.xres = bol.oinfo->stride * 8 / bol.oinfo->bpp;
-    bol.yres = bol.oinfo->fblen / bol.oinfo->stride;
-
-    return dma2d->blend(&dol, &blend->dest.area, &fol, &blend->foreground.area, &bol, &blend->dest.area);
-}
-
-#ifdef CONFIG_FB_CMAP
-/* The following are provided only if the video hardware supports RGB
- * color mapping
- */
-
-static int dma2d_getcmap(FAR struct fb_vtable_s *vtable, FAR struct fb_cmap_s *cmap)
-{
-    struct dma2d_layer_s *dma2d = dma2ddev();
-    return dma2d->getclut(cmap);
-}
-
-static int dma2d_putcmap(FAR struct fb_vtable_s *vtable, FAR const struct fb_cmap_s *cmap)
-{
-    struct dma2d_layer_s *dma2d = dma2ddev();
-    return dma2d->setclut(cmap);
-}
-
-#endif
-
-#ifdef CONFIG_FB_COLORDITHER
-/* The following are provided only if the video hardware supports RGB
- * color dither mapping
- */
-static int dma2d_putcmap(FAR struct fb_vtable_s *vtable, FAR const struct fb_cdithermap_s *cmap)
-{
-    struct dma2d_layer_s *dma2d = dma2ddev();
-    return dma2d->setdither(cmap);
-}
-
-#endif
-
-#endif
-
 #define ioctl no_os_ioctl
 //#define mmap    no_os_mmap
 
@@ -561,35 +432,9 @@ static int dma2d_putcmap(FAR struct fb_vtable_s *vtable, FAR const struct fb_cdi
  */
 static struct fb_chardev_s lcdc_fb0fd;
 
-/**
- *  struct fb_chardev_s fd_dma2d - dma2d driver instance handle
- */
-static struct fb_chardev_s fd_dma2d;
-//#endif
-
-/**
- * struct fb_vtable_s vtable  -  dam2d driver operation interface
- *
- */
-struct fb_vtable_s vtable = {
-#if defined(CONFIG_DMA2D)||defined(LCDC_DMA2D_CPU_PSRAM_PARALL_TEST)
-    //.getoverlayinfo = dma2d_getoverlayinfo,
-    .setcolor = dma2d_fillcolor,.blit = dma2d_blit,.blend = dma2d_blend,
-#ifdef CONFIG_FB_CMAP
-    .getcmap = dma2d_getcmap,.putcmap = dma2d_putcmap,
-#endif
-#endif
-
-};
-
 static bool is_fb0(char *dev_path)
 {
     return !memcmp(dev_path, FBDEV_FB0_PATH, strlen(FBDEV_FB0_PATH));
-}
-
-static bool is_fbdma2d(char *dev_path)
-{
-    return !memcmp(dev_path, FBDEV_DMA2D_PATH, strlen(FBDEV_DMA2D_PATH));
 }
 
 static void fbdev_init(uint32_t * fd, char *dev_path)
@@ -598,14 +443,6 @@ static void fbdev_init(uint32_t * fd, char *dev_path)
 
     if (is_fb0(dev_path)) {
         fbfd = (uint32_t) & lcdc_fb0fd;
-    } else if (is_fbdma2d(dev_path)) {
-        fd_dma2d.vtable = &vtable;
-        fbfd = (uint32_t) & fd_dma2d;
-        #ifndef FB_SIM
-        memset(&lv_2d, 0, sizeof(lv_2d_drv_t));
-        #endif
-        lv_2d.fb = (struct fb_chardev_s *)fbfd;
-        lv_2d.fb->vtable = &vtable;
     } else {
         fbfd = -1;
     }
@@ -619,7 +456,7 @@ static void fbdev_init(uint32_t * fd, char *dev_path)
     FB_REP("The framebuffer device %s was opened successfully.\n", dev_path);
 }
 
-void fbdev_exit(int *fd)
+void fbdev_exit(uint32_t *fd)
 {
 #if defined(NUTTX_OS)
     close(fbfd);
@@ -642,15 +479,15 @@ static int fb_init(uint32_t * fd, char *dev_path)
 
     if (fb) {
         // Get variable screen information
-        oinfo[0].overlay = 0;
-        ret = ioctl((uint32_t) fb, FBIOGET_OVERLAYINFO, &oinfo[0]);
+        g_oinfo[0].overlay = 0;
+        ret = ioctl((uint32_t) fb, FBIOGET_OVERLAYINFO, &g_oinfo[0]);
         if (ret) {
             FB_ERR("Error reading overlay information");
             return ret;
         }
 
-        oinfo[1].overlay = 1;
-        ret = ioctl((uint32_t) fb, FBIOGET_OVERLAYINFO, &oinfo[1]);
+        g_oinfo[1].overlay = 1;
+        ret = ioctl((uint32_t) fb, FBIOGET_OVERLAYINFO, &g_oinfo[1]);
         if (ret) {
             FB_ERR("Error reading overlay information");
             return ret;
@@ -661,768 +498,295 @@ static int fb_init(uint32_t * fd, char *dev_path)
     return ret;
 }
 
-static void hw_blit(lv_2d_drv_t * disp_drv, struct fb_overlayblit_s *blit)
+int fb_open(void)
 {
-    disp_drv->fb->vtable->blit(disp_drv->fb->vtable, blit);
+    fb_init(&fb0fd, FBDEV_FB0_PATH);
+    return fb0fd;
 }
 
-static void hw_blend(lv_2d_drv_t * disp_drv, struct fb_overlayblend_s *blend)
+void fb_close(int display)
 {
-    disp_drv->fb->vtable->blend(disp_drv->fb->vtable, blend);
+    if (fb0fd >= 0) {
+        fbdev_exit(&fb0fd);
+
+        up_fbuninitialize(display);
+    }
 }
 
-#ifdef CONFIG_DMA2D_FB_CMAP
-static void hw_setclut(lv_2d_drv_t * disp_drv, struct fb_cmap_s *cmap)
+struct lcd_dev_s g_lcd = {0};
+
+
+static void fb_lcd_set_disp_area(int x, int y, int w, int h)
 {
-    disp_drv->fb->vtable->putcmap(disp_drv->fb->vtable, cmap);
-}
+    uint16_t hstart = 14 + x;
+    uint16_t hend = hstart + w - 1;
+    uint16_t vstart = y;
+    uint16_t vend = vstart + h - 1;
+    lpcmd_node_t cmds[] = {
+        {0x2a, 4, LPCMD_TYPE_WRITE, { hstart >> 8, hstart & 0xff, hend >> 8, hend & 0xff }},
+        {0x2b, 4, LPCMD_TYPE_WRITE, { vstart >> 8, vstart & 0xff, vend >> 8, vend & 0xff }},
+    };
+
+#ifdef CONFIG_LCDC_DSI
+    hal_dsi_reset(0, w);
 #endif
 
-static void hw_fill_cb(lv_2d_drv_t * disp_drv, struct fb_overlayinfo_s *ol)
-{
-    disp_drv->fb->vtable->setcolor(disp_drv->fb->vtable, ol);
+    lpcmds_register_cmds(cmds, ARRAY_SIZE(cmds), LPCMDS_BLOCK);
+    lpcmds_flush();
 }
 
-// argb888
-#define RED 0xFFFF0000
-#define YELLOW 0xFF00FF00
-#define BLUE 0xFF0000FF
-#define WHITE 0xFFFFFFFF
-#define BLACK 0xFF000000
-
-static uint32_t test_colors[] = { RED, YELLOW, BLUE, WHITE, BLACK };
-
-#ifdef CONFIG_DMA2D_FB_CMAP
-static void fb2d_setclut(lv_2d_drv_t * fd, struct fb_cmap_s *cmap)
+static int fb_lcd_get_status(int flag)
 {
-    hw_setclut(fd, cmap);
-}
-#endif
+    lpcmd_node_t cmds[] = { //{ 0xFE, 1, LPCMD_TYPE_WRITE, { 0x00 } },
+                              { 0x0A, 1, LPCMD_TYPE_READ, { 0x0 } } };
 
-/**
- * fb2d_fill_rects - dma2d fill overlay color test
- * @fd :   dma2d driver interface
- *
- */
+    lpcmds_register_cmds(cmds, ARRAY_SIZE(cmds), flag);
+    FB_INFO("[lcd] panel status register = 0x%x\n", cmds[0].params[0]);
+    return cmds[0].params[0];
+}
+
+static void fb_lcd_enter_idle_mode(void)
+{
+    lpcmd_node_t cmds[] = { { 0xFF, 1, LPCMD_TYPE_WRITE, { 0x10 } },
+                            { 0xFB, 1, LPCMD_TYPE_WRITE, { 0x01 } },
+                            { 0x39, 0, LPCMD_TYPE_WRITE, { 0x0 } },
+                            { 0x51, 1, LPCMD_TYPE_WRITE, { 128 } }};
+
+    lpcmds_register_cmds(cmds, ARRAY_SIZE(cmds), LPCMDS_NONBLOCK);
+    if (0x9c == fb_lcd_get_status(LPCMDS_BLOCK)) {
+        FB_INFO("[lcd] enter idle mode failed, will retry 1 times.");
+        lpcmds_register_cmds(cmds, ARRAY_SIZE(cmds), LPCMDS_NONBLOCK);
+    }
+    FB_INFO("[lcd] lcd enter idle mode, current power = %d\n",
+        cmds[3].params[0]);
+}
+
+static void fb_lcd_exit_idle_mode(void)
+{
+    lpcmd_node_t cmds[] = { { 0xFF, 1, LPCMD_TYPE_WRITE, { 0x10 } },
+                            { 0xFB, 1, LPCMD_TYPE_WRITE, { 0x01 } },
+                            { 0x38, 0, LPCMD_TYPE_WRITE, { 0x0 } },
+                            { 0x51, 1, LPCMD_TYPE_WRITE, { 128} } };
+
+    lpcmds_register_cmds(cmds, ARRAY_SIZE(cmds), LPCMDS_NONBLOCK);
+    if (0xdc == fb_lcd_get_status(LPCMDS_BLOCK)) {
+        FB_INFO("[lcd] exit idle mode failed, will retry 1 times.");
+        lpcmds_register_cmds(cmds, ARRAY_SIZE(cmds), LPCMDS_NONBLOCK);
+    }
+
+    FB_INFO("[lcd] lcd exit idle mode, current power = %d\n",
+        cmds[3].params[0]);
+}
+
+static void fb_lcd_enter_standby_mode(void)
+{
+    lpcmd_node_t cmds[] = { //{ 0xFE, 1, LPCMD_TYPE_WRITE, { 0x00 } },
+                                    { 0x51, 1, LPCMD_TYPE_WRITE, { 0x0 } },
+                                    { 0x28, 0, LPCMD_TYPE_WRITE, { 0x0 } },
+                                    { 0x10, 0, LPCMD_TYPE_WRITE, { 0x0 } },
+                                  };
+
+    lpcmds_register_cmds(cmds, ARRAY_SIZE(cmds),
+                          LPCMDS_NONBLOCK);
+    FB_INFO("[lcd] lcd enter deep standby\n");
+    while (0x88 != fb_lcd_get_status(LPCMDS_BLOCK)) {
+        FB_INFO("[lcd] enter deep mode failed, will retry 1 times.");
+        lpcmds_register_cmds(cmds, ARRAY_SIZE(cmds),
+                              LPCMDS_NONBLOCK);
+    }
+}
+
+static void fb_lcd_exit_standby_mode(void)
+{
+    lpcmd_node_t cmds[] = { //{ 0xFE, 1, LPCMD_TYPE_WRITE, { 0x00 } },
+                                    { 0x51, 1, LPCMD_TYPE_WRITE, { 0xff } },
+                                    { 0x11, 0, LPCMD_TYPE_WRITE, { 0x0 } },
+                                    { 6, 0, LPCMD_TYPE_DELAY, { 0x0 } },
+                                    { 0x29, 0, LPCMD_TYPE_WRITE, { 0x0 } },
+                                  };
+
+    lpcmds_clear_buffer();
+    lpcmds_register_cmds(cmds, ARRAY_SIZE(cmds), LPCMDS_NONBLOCK);
+    FB_INFO("[lcd] lcd exit deep standby\n");
+    /* direct flush just can do from task for exit deepsleep*/
+    lpcmds_flush();
+
+    while (0x9c != fb_lcd_get_status(LPCMDS_BLOCK|LPCMDS_FLUSH)) {
+        FB_INFO("[lcd] exit deep mode failed, will retry 1 times.");
+        lpcmds_register_cmds(cmds, ARRAY_SIZE(cmds), LPCMDS_NONBLOCK);
+        lpcmds_flush();
+    }
+}
+
 POSSIBLY_UNUSED
-static int fb2d_fill_rects(lv_2d_drv_t * fd)
+static int putarea(fb_coord_t row_start, fb_coord_t row_end,
+               fb_coord_t col_start, fb_coord_t col_end,
+               FAR const uint8_t *buffer)
 {
-    int ret = 0;
-    int loop = sizeof(test_colors) / sizeof(uint32_t);
-    loop = 1;
+    uint16_t width,height;
+    uint32_t fbmem = (uint32_t)buffer;
+    col_start &= 0xfffe;
+    row_start &= 0xfffe;
+    width = (col_end - col_start +1)&0xfffe;
+    height = (row_end - row_start +1)&0xfffe;
 
-    uint32_t x, y;
-    lv_coord_t lw = 454;
-    lv_coord_t lh = 454;
-    uint8_t bpp = 32;
+    fb_lcd_set_disp_area(col_start, row_start, width, height);
 
-for(int j =4; j < 454; j+=4){
-    lw = j;//240;
-    lh = j;//240;
-
-    lv_coord_t lstride = lw * bpp / 8;
-
-    uint8_t ltransp = 0xff;
-    uint8_t ltransp_mode = 0;    // const alpha
-    uint32_t memsize = lw * lh * bpp / 8;
-    char *fbp;
-    uint32_t fb;
-    uint32_t *dest_buf;
-    lv_coord_t dest_width = lw;//454;
-    lv_area_t fill_area;
-    uint32_t color;
-
-    fbp = (char *)FB_MALLOC(memsize + 64);
-    fb = (uint32_t) (fbp);
-    fb = fb + (32 - fb % 32);
-    dest_buf = (uint32_t *) fb;
-    // struct fb_overlayinfo_s oinfo;
-    fill_area.x1 = 0;
-    fill_area.y1 = 0;
-    fill_area.x2 = lw;//454;
-    fill_area.y2 = lh;//454;
-
-#if defined(FB_MEM_RESULT_CHECK)
-    uint32_t *dest_buf_org = dest_buf + fill_area.x1;
+#ifdef CONFIG_FB_VMIRRO
+    if(in_vmirro_mode()) {
+        fbmem += (row_end*BOARD_LCDC_WIDTH*CONFIG_LCDC_FB_BPP/8)+
+                  col_start*CONFIG_LCDC_FB_BPP/8;
+    }
+    else
 #endif
-    for (int i = 0; i < loop; i++) {
-        color = test_colors[i];
-        struct fb_overlayinfo_s *ol = &oinfo[0];
-        struct fb_area_s area;
-        area.x = fill_area.x1;
-        area.y = fill_area.y1;
-        area.w = fill_area.x2 - fill_area.x1;
-        area.h = fill_area.y2 - fill_area.y1;
-        ol->sarea = area;
-
-        fb_overlay_alloc(ol, fb, memsize, lstride, 0, bpp, color, ltransp, ltransp_mode, 0);
-
-        fb_overlay_cfmt_set(0, FB_FMT_RGB32);
-        fb_overlay_cfmt_set(1, FB_FMT_RGB32);
-        hw_fill_cb(fd, ol);
-
-#if defined(FB_MEM_RESULT_CHECK)
-        // check result
-        dest_buf = dest_buf_org;
-        dest_buf += dest_width * fill_area.y1;    /*Go to the first line */
-
-        for (y = fill_area.y1; y < fill_area.y2; y++) {
-            for (x = fill_area.x1; x < fill_area.x2; x++) {
-                if (dest_buf[x] != (0xffffff & color)) {
-                    FB_ERR("%s test fail l:%d dest_buf[%d] %p ", __func__, y, x, dest_buf);
-                    FB_FREE(fbp);
-                    return -1;
-                }
-            }
-            dest_buf += dest_width;    /*Go to the next line */
-        }
-#endif
-    }
-    DRIVERS_TRACE(3,"%s o fbp:%p", __func__, fbp);
-
-    FB_FREE(fbp);
-    DRIVERS_TRACE(3,"%s o1 fbp:%p", __func__, fbp);
- }//loop test
-    FB_REP("%s test OK", __func__);
-    return ret;
-}
-
-/**
- * Opacity percentages.
- */
-enum {
-    LV_OPA_TRANSP = 0,
-    LV_OPA_0 = 0,
-    LV_OPA_10 = 25,
-    LV_OPA_20 = 51,
-    LV_OPA_30 = 76,
-    LV_OPA_40 = 102,
-    LV_OPA_50 = 127,
-    LV_OPA_60 = 153,
-    LV_OPA_70 = 178,
-    LV_OPA_80 = 204,
-    LV_OPA_90 = 229,
-    LV_OPA_100 = 255,
-    LV_OPA_COVER = 255,
-};
-
-static lv_opa_t test_opa[] = {
-    LV_OPA_TRANSP, LV_OPA_0, LV_OPA_10, LV_OPA_20, LV_OPA_30, LV_OPA_40,
-    LV_OPA_50,
-    LV_OPA_60, LV_OPA_70, LV_OPA_80, LV_OPA_90, LV_OPA_100, LV_OPA_COVER,
-};
-
-static void fb_overlay_clear(char *saddr, uint32_t argb888, uint32_t pixes)
-{
-
-    uint32_t *mem = (uint32_t *) saddr;
-    for (int i = 0; i < pixes; i++) {
-        *(mem + i) = argb888;
-    }
-  //  FB_REP("%s ", __func__);
-}
-
-static void fb_overlay_clear_cmap(char *saddr, uint8_t cidx, uint32_t pixes)
-{
-    uint8_t *mem = (uint8_t *) saddr;
-    for (int i = 0; i < pixes; i++) {
-        *(mem + i) = cidx;
-    }
-}
-
-static uint32_t dma2d_memaddress(struct fb_overlayinfo_s *ol, uint32_t xpos, uint32_t ypos)
-{
-    uint32_t offset;
-
-    offset = xpos * (ol->bpp / 8) + ol->stride * ypos;
-
-    return ((uint32_t) ol->fbmem) + offset;
-}
-
-#ifdef LCDC_DMA2D_CPU_PSRAM_PARALL_TEST
-
-static lv_2d_drv_t * fd_psram_test;
-static struct fb_overlayblit_s *blit_psram_test;
-void dma2d_psram_loop_test(void)
-{
-    hw_blit(fd_psram_test, blit_psram_test);
-}
-extern int hal_lcdc_spu_framedone_irq_enable(bool ena);
-extern int lcdc_update(void);
-static volatile uint32_t * psram_test_addr = NULL;
-static uint32_t  psram_test_lw = 454;
-static uint32_t  psram_test_lh = 454;
-void gra_psram_test(void)
-{
-    uint32_t count = psram_test_lw * psram_test_lh;
-
-    while(psram_test_addr == NULL){
-     ;
-    }
-
-    hal_sys_timer_delay_us(200000);
-
-    while(1)
     {
-     DRIVERS_TRACE(3, "%s", __func__);
-
-     dma2d_psram_loop_test();
-      hal_lcdc_spu_framedone_irq_enable(false);
-      lcdc_update();
-
-     memset(psram_test_addr, 0x5a,count*4);
-    for (int i  = 0; i < count; i++){
-        if(*(psram_test_addr + i) != 0x5a5a5a5a){
-
-            while(1){
-                DRIVERS_TRACE(3, "%s fail addr: %p ", __func__, (psram_test_addr + i));
-                DRIVERS_TRACE(3, "%s fail 0x5a5a5a5a: 0x%8x ", __func__, *(psram_test_addr + i));
-                while(1);
-            }
-        }
-    }
-    hal_sys_timer_delay_us(200000);
-
+        fbmem += (row_start*BOARD_LCDC_WIDTH*CONFIG_LCDC_FB_BPP/8)+
+                  col_start*CONFIG_LCDC_FB_BPP/8;
     }
 
+    /* Configure Layer start addr register */
+    hal_lcdc_lstartaddr(LCDC_LAYER_LFORE, fbmem);
+    /* Configure Layer size register */
+    hal_lcdc_lsize(LCDC_LAYER_LFORE, width, height);
+    hal_lcdc_lsize(LCDC_LAYER_SPU, width, height);
+    hal_lcdc_lzoom_set(LCDC_LAYER_LFORE, width, height);
+    return 0;
 }
-#endif
+
+static int fb_lcd_getplaneinfo(FAR struct lcd_dev_s *dev,
+                               unsigned int planeno,
+                               FAR struct lcd_planeinfo_s *pinfo)
+{
+
+  pinfo->putarea = putarea;
+  return OK;
+}
+
+static int fb_lcd_setpower(FAR struct lcd_dev_s *dev, int power)
+{
+    lpcmd_node_t cmds[] = {
+        { 0x51, 1, LPCMD_TYPE_WRITE, {power & 0xff} },
+    };
+    lpcmds_register_cmds(cmds, ARRAY_SIZE(cmds), LPCMDS_NONBLOCK);
+    FB_INFO("set power: %d\n", power);
+    return OK;
+}
+
+static int fb_lcd_ioctl(FAR struct lcd_dev_s *dev, PANNEL_IOCTL_CMD cmd)
+{
+    TRACE(0,"ioctl: %d\n", cmd);
+    switch(cmd) {
+        case PANNEL_ENTER_IDLE:
+            fb_lcd_enter_idle_mode();
+            break;
+        case PANNEL_EXIT_IDLE:
+            fb_lcd_exit_idle_mode();
+            break;
+        case PANNEL_ENTER_DEEPSLEEP:
+            fb_lcd_enter_standby_mode();
+            break;
+        case PANNEL_EXIT_DEEPSLEEP:
+            fb_lcd_exit_standby_mode();
+            break;
+        case PANNEL_READSTATUS:
+            return fb_lcd_get_status(LPCMDS_BLOCK);
+            break;
+        default :
+            break;
+    }
+    return OK;
+}
+
 
 /**
- * fb2d_blit
- * @fd   :    dma2d driver interface
- * @cmap :    cmap enable/disable
+ * board_lcd_getdev - Return a reference to the LCD object for the specified LCD Device.
+ *   This allows support for multiple LCD devices.
+ * @lcddev - Number of the LDC Device.
  *
- *   Copy image from a source overlay (defined by sarea) to destination
- *   overlay position (defined by destxpos and destypos).
+ * Returns: Reference to the LCD object if exist otherwise NULL
+ *
  */
-POSSIBLY_UNUSED
-static int fb2d_blit(lv_2d_drv_t * fd, bool cmap)
+
+FAR struct lcd_dev_s *board_lcd_getdev(int lcddev)
 {
-    int ret = 0;
-    struct fb_overlayblit_s blit;
-    struct fb_area_s sarea;
-    struct fb_overlayinfo_s *ol = &oinfo[0];
-    lv_coord_t lw = 454;//480;//360;//480;
-    lv_coord_t lh = 454;//480;//360;//480;
-    uint8_t bpp = 32;
-
-for(int j =4; j < 454; j+=4){
-
-#ifdef LCDC_DMA2D_CPU_PSRAM_PARALL_TEST
-#else
-    lw = j;//240;
-    lh = j;//240;
-#endif
-    lv_coord_t lstride = lw * bpp / 8;
-    uint8_t ltransp = 0xff;
-    uint8_t ltransp_mode = 0;    // const alpha
-    uint32_t memsize = lw * lh * bpp / 8;
-
-    char *fb0p = (char *)FB_MALLOC(memsize + 64 );
- //   char *fb0p = (char *)SYS_RAM_BASE;
-#ifdef LCDC_DMA2D_CPU_PSRAM_PARALL_TEST
-    if(psram_test_addr == NULL){
-          psram_test_addr = FB_MALLOC(memsize + 64);
-          //psram_test_addr = (uint32_t *)SYS_RAM_BASE;
-    }
-    char *fb1p = fb0p;
-    DRIVERS_TRACE(3,"%s psram_test_addr:%p", __func__, psram_test_addr);
-    DRIVERS_TRACE(3,"%s psram_fb:%p", __func__, fb0p);
-    DRIVERS_TRACE(3,"%s psram_wb:%p", __func__, fb1p);
-#else
-    char *fb1p = (char *)FB_MALLOC(memsize + 64 );
-  //  char *fb1p = (char *)SYS_RAM_BASE;
-
-#endif
-    uint32_t fb0 = (uint32_t) fb0p;
-    uint32_t fb1 = (uint32_t) fb1p;
-    fb0 = fb0 + (32 - fb0 % 32);
-    fb1 = fb1 + (32 - fb1 % 32);
-
-    if (fb0p == 0 || fb1p == 0) {
-        ASSERT(0, "%s fb0: %p fb1: %p", __func__, fb0p, fb1p);
-    }
-
-    sarea.w = lw;//454;//320;
-    sarea.h = lh;//454;//320;
-    sarea.x = 0;        // 0;
-    sarea.y = 0;        // 0 ;
-
-    // setup source layer
-    ol = &oinfo[0];
-    ol->sarea = sarea;
-    if (cmap) {        // cmap test
-        uint8_t cidx = 15;
-        fb_overlay_alloc(ol, fb0, memsize, lstride, 0, 8, cidx, ltransp, ltransp_mode, 0);
-
-        fb_overlay_cfmt_set(0, 6);
-
-        // clear source with color index
-        fb_overlay_clear_cmap((char *)fb0, cidx, lw * lh);
-    } else {
-        fb_overlay_alloc(ol, fb0, memsize, lstride, 0, 32, 0, ltransp, ltransp_mode, 0);
-
-        fb_overlay_cfmt_set(0, FB_FMT_RGB32);
-        #ifdef LCDC_DMA2D_CPU_PSRAM_PARALL_TEST
-        #else
-        // clear source with RED
-        fb_overlay_clear((char *)fb0, 0xFFDDCCBB, lw * lh);
-        #endif
-    }
-    // setup dest layer
-    ol = &oinfo[1];
-    ol->sarea = sarea;
-    fb_overlay_alloc(ol, fb1, memsize, lstride, 1, 32, 0, ltransp, ltransp_mode, 0);
-
-    fb_overlay_cfmt_set(1, FB_FMT_RGB32);
-    #ifdef LCDC_DMA2D_CPU_PSRAM_PARALL_TEST
-    #else
-    fb_overlay_clear((char *)fb1, 0x0, lw * lh);
-    #endif
-    blit.dest.overlay = 1;
-    blit.dest.area = sarea;
-
-    blit.src.overlay = 0;
-    blit.src.area = sarea;
-
-#ifdef LCDC_DMA2D_CPU_PSRAM_PARALL_TEST
-{
-   fd_psram_test = fd;
-   blit_psram_test = &blit;
-   gra_psram_test();
-}
-#else
-        DRIVERS_TRACE(3,"%s sfb:%p l:0x%x", __func__,oinfo[0].fbmem, oinfo[0].fblen );
-
-    hw_blit(fd, &blit);
-#endif
-#if defined(FB_MEM_RESULT_CHECK)
-
-    char *src = (char *)dma2d_memaddress(&oinfo[0], blit.src.area.x,
-                         blit.src.area.y);
-    char *dest = (char *)dma2d_memaddress(&oinfo[1], blit.dest.area.x,
-                          blit.dest.area.y);
-    uint8_t sbpp = oinfo[0].bpp;
-    // uint8_t dbpp = oinfo[1].bpp;
-    //DRIVERS_TRACE(3,"s xxxx - d xxxx \r " );
-    uint16_t copy_w = sarea.w;
-    //DRIVERS_TRACE(3,"s xxxx - d xxxx \r " );
-
-    for (int i = 0; i < sarea.h; i++) {
-        if (cfmt[0] == cfmt[1]) {
-//            if (memcmp(src, dest, sarea.w * sbpp / 8)) {
-                //FB_ERR("s xxxx - d xxxx \r " );
-                for (int c =0; c < sarea.w * sbpp / 8; c++){
-                    if ((0xff & src[c]) != (0xff & dest[c])){
-                        DRIVERS_TRACE(3,"%s test fail line:%d", __func__,i);
-                        DRIVERS_TRACE(3,"s 0x%x - d 0x%x \r ",0xff & src[c], 0xff & dest[c] );
-                        {
-                           volatile uint32_t v = 1;
-                           //volatile uint8_t  pixbs = 0xff & src[c];
-                           //volatile uint8_t  pixbd = 0xff & dest[c];
-                           while(v);
-                        }
-                        ret = -1;
-                        goto __exit;
-
-                    }
-                 }
-
-            src += oinfo[0].stride;
-            dest += oinfo[1].stride;
-        } else if (cfmt[0] == 6 && cfmt[1] == FB_FMT_RGB32) {
-            uint32_t *dest_color = (uint32_t *) dest;
-            for (int c = 0; c < copy_w; c++) {
-                if (*(dest_color + c) != 0x000f0f0f) {
-                    FB_ERR("%s test fail c:%d dest:%p v: 0x%x", __func__, c, dest, *(dest_color + c));
-                    ret = -1;
-                    goto __exit;
-                }
-            }
-            src += oinfo[0].stride;
-            dest += oinfo[1].stride;
-        }
-    }
-
-#endif
-
-__exit:
-
-    FB_FREE(fb0p);
-    FB_FREE(fb1p);
-}
-    if (ret){
-       FB_REP("%s with cmap:%d test fail", __func__, cmap);
-    }else
-        FB_REP("%s with cmap:%d test OK", __func__, cmap);
-
-    return ret;
+    g_lcd.getplaneinfo = fb_lcd_getplaneinfo;
+    g_lcd.setpower     = fb_lcd_setpower;
+    g_lcd.pannel_ioctl = fb_lcd_ioctl;
+    return &g_lcd;
 }
 
 /**
- * fb2d_blend   -  dma2d blend test
- * @fd     :       dma2d driver interface
- * @const_alpha   : true/false
+ * up_fbinitialize - Initialize the framebuffer video hardware associated with the display.
+ * @display : In the case of hardware with multiple displays, this
+ *     specifies the display.  Normally this is zero.
  *
- * FB_CONST_ALPHA mode:
- * dest(opa) = dest(opa) + src(0xff-opa)
- * FB_PIXEL_ALPHA mode:
- * dest(pix_opa) = dest(pix_opa) + src(0xff-pix_opa)
+ * Returns: Zero is returned on success; a negated errno value is returned on any
+ *   failure.
  */
-POSSIBLY_UNUSED
-static int fb2d_blend(lv_2d_drv_t * fd, bool const_alpha)
+
+static bool initialized = false;
+int up_fbinitialize(int display)
 {
-    int ret = 0;
-    int loop = sizeof(test_opa) / sizeof(lv_opa_t);
-    loop = 1;
-    lv_opa_t opa;
-    uint8_t alpha_mode = 0;
+  int ret = OK;
 
-    struct fb_overlayinfo_s *ol;
-    lv_coord_t lw = 454;//240;
-    lv_coord_t lh = 454;//240;
+  if (initialized)
+      return ret;
 
-    for(int j =4; j < 454; j+=4){
-    lw = j;//240;
-    lh = j;//240;
-  //  lv_coord_t lh = 100;//240;
-    uint8_t bpp = 32;
-    lv_coord_t lstride = lw * bpp / 8;
-    uint32_t memsize = lw * lh * bpp / 8;
+  board_lcd_initialize();
+  FB_INFO("FBSIZE: %d\n",FB_BUF_SIZE );
+  FB_INFO("FBW: %d\n",BOARD_LCDC_WIDTH );
+  FB_INFO("FBH: %d\n",BOARD_LCDC_HEIGHT);
 
-    char *fb0p = (char *)FB_MALLOC(memsize + 64);
-   // char *fb0p = (char *)0x20400000;
-    char *fb1p = (char *)FB_MALLOC(memsize + 64);
-    uint32_t fb0 = (uint32_t) fb0p;
-    uint32_t fb1 = (uint32_t) fb1p;
-    struct fb_overlayblend_s blend;
-    struct fb_area_s sarea;
+  ret = lcdc_initialize((void *)fb_buf, FB_BUF_SIZE);
+  initialized = (ret >= OK);
+  return ret;
+}
 
-    fb0 = fb0 + (32 - fb0 % 32);
-    fb1 = fb1 + (32 - fb1 % 32);
+/**
+ * up_fbgetvplane -  Return a a reference to the framebuffer object for the specified video
+ *   plane of the specified plane.  Many OSDs support multiple planes of video.
+ * @display : In the case of hardware with multiple displays, this
+ *     specifies the display.  Normally this is zero.
+ * @vplane : Identifies the plane being queried.
+ *
+ * Returns: A non-NULL pointer to the frame buffer access structure is returned on
+ *   success; NULL is returned on any failure.
+ *
+ */
 
-#if BLEND_AREA_TEST
+FAR struct fb_vtable_s *up_fbgetvplane(int display, int vplane)
+{
+    return lcdcgetvplane(vplane);
+}
 
-    sarea.w = 10;
-    sarea.h = 2;
-    sarea.x = 2;
-    sarea.y = 2;
-#else
-    sarea.w = lw;//454;//240;
-    sarea.h = lh;//454;//240;
-//    sarea.h = 100;//240;
-    sarea.x = 0;
-    sarea.y = 0;
+/**
+ * up_fbuninitialize - Uninitialize the framebuffer support for the specified display.
+ * @display : In the case of hardware with multiple displays, this
+ *     specifies the display.  Normally this is zero.
+ *
+ */
 
-#endif
-
-    if (const_alpha) {
-        alpha_mode = FB_CONST_ALPHA;
-    } else {
-        alpha_mode = FB_PIXEL_ALPHA;
+void up_fbuninitialize(int display)
+{
+    if (initialized) {
+        board_lcd_uninitialize();
+        lcdcuninitialize();
+        initialized = false;
     }
+}
 
-//while(1){
-
-    for (int i = 0; i < loop; i++) {
-        opa = test_opa[i];
-
-        // setup source layer
-        ol = &oinfo[0];
-        ol->sarea = sarea;
-        fb_overlay_alloc(ol, fb0, memsize, lstride, 0, bpp, 0, 0xff - opa, alpha_mode, 0);
-
-        fb_overlay_cfmt_set(0, FB_FMT_RGB32);
-        fb_overlay_clear((char *)fb0, 0xffDD00BB, lw * lh);
-
-        // setup dest layer
-        ol = &oinfo[1];
-        ol->sarea = sarea;
-        fb_overlay_alloc(ol, fb1, memsize, lstride, 1, bpp, 0, opa, alpha_mode, 0);
-        fb_overlay_cfmt_set(1, FB_FMT_RGB32);
-        fb_overlay_clear((char *)fb1, 0xFFDDCCBB, lw * lh);
-
-        blend.dest.area = sarea;
-        blend.dest.overlay = 1;
-
-        blend.foreground.area = sarea;
-        blend.foreground.overlay = 0;
-
-        blend.background.area = sarea;
-        blend.background.overlay = 1;
-        hw_blend(fd, &blend);
-       // hal_sys_timer_delay_us(5000000);
-#if defined(FB_MEM_RESULT_CHECK)
-        char *src = (char *)dma2d_memaddress(&oinfo[0], blend.foreground.area.x,
-                             blend.foreground.area.y);
-        char *dest = (char *)dma2d_memaddress(&oinfo[1], blend.dest.area.x,
-                              blend.dest.area.y);
-
-        uint16_t copy_w = sarea.w;
-        int cal_gcolor = (LV_MATH_UDIV255(0xcc * opa));
-        int rel_gcolor = 0;
-        uint8_t rel_alpha = 0;
-        uint32_t cal_color = opa << 24 | 0x00dd00bb | cal_gcolor << 8;
-        for (int i = 0; i < sarea.h; i++) {
-            if (cfmt[0] == cfmt[1]) {
-                uint32_t *dest_color = (uint32_t *) dest;
-                for (int c = 0; c < copy_w; c++) {
-                    rel_gcolor = ((*(dest_color + c)) & 0x0000ff00)
-                        >> 8;
-                    rel_alpha = ((*(dest_color + c)) & 0xff000000)
-                        >> 24;
-                    if (alpha_mode == FB_CONST_ALPHA) {
-                        if ((opa != rel_alpha)
-                            || (LV_MATH_ABS((rel_gcolor - cal_gcolor)) > 2)) {
-                            FB_ERR("%s test fail color:0x%x != 0x%x ", __func__, *(dest_color + c), cal_color);
-                            ret = -1;
-                            goto __exit;
-                        }
-                    } else {
-                        cal_gcolor = (LV_MATH_UDIV255(0xcc * 0xff));
-                        if ((0xff != rel_alpha)
-                            || (LV_MATH_ABS((rel_gcolor - cal_gcolor)) > 2)) {
-                            FB_ERR("%s test fail color:0x%x != 0x%x ", __func__, *(dest_color + c), cal_color);
-                            ret = -1;
-                            goto __exit;
-                        }
-                    }
-                }
-
-                src += oinfo[0].stride;
-                dest += oinfo[1].stride;
-            }
-        }
-#endif
-    }
-//}
-__exit:
-    FB_FREE(fb0p);
-    FB_FREE(fb1p);
-    } //loop test
-    FB_REP("%s alpha mode:%d test OK", __func__, alpha_mode);
-    return ret;
+/**
+ * get_fb_base - Get the fb buffer base address.
+ *
+ */
+uint32_t get_fb_base(void)
+{
+    return (uint32_t)fb_buf;
 }
 
 static void fb_wait_log_out(void)
 {
   //  hal_sys_timer_delay_us(5000);
-}
-
-static int check_blit_result(struct fb_overlayblit_s *blit, struct fb_overlayinfo_s *soinfo, struct fb_overlayinfo_s *doinfo)
-{
-    char *src = (char *)dma2d_memaddress(soinfo, blit->src.area.x,
-                         blit->src.area.y);
-    char *dest = (char *)dma2d_memaddress(doinfo, blit->dest.area.x,
-                          blit->dest.area.y);
-
-    uint8_t sbpp = soinfo->bpp;
-    uint16_t copy_w = blit->dest.area.w;
-    int lines = blit->dest.area.h;
-    FB_INFO("%s src:%p dest:%p", __func__, src, dest);
-    FB_INFO("lines:%d stride:%d copy_w:%d sbpp:%d", lines, soinfo->stride, copy_w, sbpp);
-
-    for (int i = 0; i < lines; i++) {
-        if (soinfo->bpp == doinfo->bpp) {    //
-            if (memcmp(src, dest, copy_w * sbpp / 8)) {
-                FB_ERR("%s test fail ", __func__);
-                uint32_t *cv = (uint32_t *) src;
-                FB_ERR("%s %d src color:0x%x ", __func__, i, *cv);
-                cv = (uint32_t *) dest;
-                FB_ERR("%s %d dest color:0x%x ", __func__, i, *cv);
-                return -1;
-            }
-        } else if (soinfo->bpp == 16 && doinfo->bpp == 32) {
-            FB_ERR("%s blit test dest bpp:%d src bpp: 0%d", __func__, doinfo->bpp, soinfo->bpp);
-#if 1
-            uint32_t *dest_color = (uint32_t *) dest;
-            for (int c = 0; c < copy_w; c++) {
-                if (*(dest_color + c) != 0x000f0f0f) {
-                    FB_ERR("%s test fail c:%d dest:%p v: 0x%x", __func__, c, dest, *(dest_color + c));
-                     return -1;
-                }
-
-            }
-
-#endif
-        } else {
-            FB_ERR("%s blit test dest bpp:%d src bpp: 0%d", __func__, doinfo->bpp, soinfo->bpp);
-            return -1;
-        }
-        src += soinfo->stride;
-        dest += doinfo->stride;
-
-    }
-        FB_REP("%s pass", __func__);
-        return 0;
-
-}
-
-extern uint32_t *lcdc_get_wb(void);
-
-static int check_outlayer_result(char *wbptr, struct fb_overlayinfo_s *oinfo, uint32_t color)
-{
-    #ifdef WB_TEST
-    uint32_t *wbp = 0;
-    uint32_t rcolor = 0;
-    uint32_t ecolor = color & 0xffffff;
-    int dr, dg, db;
-    int count = oinfo->fblen * 8 / oinfo->bpp;
-    if (wbptr == 0) {
-        wbp = lcdc_get_wb();
-    }
-    for (int i = 0; i < count; i++) {
-        rcolor = (((uint32_t *) wbp)[i] & 0xffffff);
-        dr = LV_MATH_ABS(((int)(rcolor & 0xff) - (int)(ecolor & 0xff)));
-        dg = LV_MATH_ABS(((int)((rcolor & 0xff00) >> 8) - (int)((ecolor & 0xff00) >> 8)));
-        db = LV_MATH_ABS(((int)((rcolor & 0xff0000) >> 16) - (int)((ecolor & 0xff0000) >> 16)));
-
-        if ((dr > 2) || (dg > 2) || (db > 2)) {
-            FB_REP("%s fail wbp[%d] color: %x  != %x", __func__, i, ((uint32_t *) wbp)[i], color);
-
-            return -1;
-        }
-    }
-
-    FB_REP("%s pass  wbp:%p", __func__, wbp);
-    return 0;
-    #else
-    return 0;
-    #endif
-}
-
-POSSIBLY_UNUSED static int check_outlayer_update_result(char *wbptr, struct fb_overlayinfo_s *oinfo, struct fb_area_s *area, uint32_t color)
-{
-    #ifdef WB_TEST
-    char *src = (char *)dma2d_memaddress(oinfo, area->x, area->y);
-
-    char *dest;
-    char *wbp;
-
-    uint8_t sbpp = oinfo->bpp;
-    uint16_t copy_w = area->w;
-    int lines = area->h;
-
-    if (wbptr == 0) {
-        wbp = (char *)lcdc_get_wb();
-    }
-
-    dest = wbp + area->x * (sbpp / 8) + oinfo->stride * area->y;
-
-    FB_INFO("%s src:%p dest:%p", __func__, src, dest);
-
-    for (int i = 0; i < lines; i++) {
-        if (memcmp(src, dest, copy_w * sbpp / 8)) {
-            FB_ERR("%s test fail ", __func__);
-            uint32_t *cv = (uint32_t *) src;
-            FB_ERR("%s %d src color:0x%x ", __func__, i, *cv);
-            cv = (uint32_t *) dest;
-            FB_ERR("%s %d dest color:0x%x ", __func__, i, *cv);
-            //while(1);
-            return -1;
-        }
-
-        src += oinfo->stride;
-        dest += oinfo->stride;
-    }
-    FB_REP("%s pass", __func__);
-    return 0;
-    #else
-    return 0;
-    #endif
-}
-
-#ifndef CONFIG_FB_PANDISPLAY
-static int check_outlayer_result_blend(char *wbptr, struct fb_overlayinfo_s *oinfo, uint32_t color)
-{
-    #ifdef WB_TEST
-
-    int ret = 0;
-    uint32_t *wbp = 0;
-    uint32_t rcolor = 0;
-    uint32_t ecolor = color & 0xffffff;
-    uint8_t dr, dg, db;
-    int count = oinfo->fblen * 8 / oinfo->bpp;
-    if (wbptr == 0) {
-        wbp = lcdc_get_wb();
-    }
-    for (int i = 0; i < count; i++) {
-        rcolor = (((uint32_t *) wbp)[i] & 0xffffff);
-        dr = LV_MATH_ABS(((int)(rcolor & 0xff) - (ecolor & 0xff)));
-        dg = LV_MATH_ABS(((int)((rcolor & 0xff00) >> 8) - (int)((ecolor & 0xff00) >> 8)));
-        db = LV_MATH_ABS(((int)((rcolor & 0xff0000) >> 16) - (int)((ecolor & 0xff0000) >> 16)));
-
-        if ((dr > 2) || (dg > 2) || (db > 2)) {
-            FB_REP("%s fail wbp[%d] color: %x  != %x", __func__, i, ((uint32_t *) wbp)[i], color);
-            ret = -1;
-            break;
-        }
-    }
-
-    //for (int i = 0; i < count; i++) {
-        //   ((uint32_t *)wbp)[i] = 0;
-    //}
-
-    FB_REP("%s pass  wbp:%p", __func__, wbp);
-    return ret;
-    #else
-    return 0;
-    #endif
-}
-#endif
-
-extern struct fb_overlayinfo_s *lcdc_get_oinfo(int lid);
-
-static int check_outlayer_result_blend_area(char *wbptr, struct fb_overlayblend_s *blend, uint32_t color)
-{                // wb color fmt bpp32
-#ifndef WB_TEST
-    return 0;
-#endif
-
-    int ret = 0;
-    uint32_t *wbp = 0;
-    uint32_t rcolor = 0;
-    uint32_t ecolor = color & 0xffffff;
-    uint8_t dr, dg, db;
-    struct fb_overlayinfo_s *oinfo;
-    struct fb_area_s *area;
-
-    oinfo = lcdc_get_oinfo(blend->dest.overlay);
-    area = &blend->dest.area;
-
-    int count = area->w;
-    int lines = area->h;
-    if (wbptr == 0) {
-        wbp = lcdc_get_wb();
-    }
-
-    wbp = (uint32_t *) ((uint32_t) wbp + area->x * (oinfo->bpp / 8) + oinfo->stride * area->y);
-
-    for (int l = 0; l < lines; l++) {
-        for (int i = 0; i < count; i++) {
-            rcolor = (((uint32_t *) wbp)[i] & 0xffffff);
-            dr = LV_MATH_ABS(((int)(rcolor & 0xff) - (int)(ecolor & 0xff)));
-            dg = LV_MATH_ABS(((int)((rcolor & 0xff00) >> 8)
-                      - (int)((ecolor & 0xff00) >> 8)));
-            db = LV_MATH_ABS(((int)
-                      ((rcolor & 0xff0000) >> 16) - (int)((ecolor & 0xff0000) >> 16)));
-
-            if ((dr > 2) || (dg > 2) || (db > 2)) {
-                FB_REP("%s fail wbp[%d] color: %x  != %x", __func__, i, ((uint32_t *) wbp)[i], color);
-                return -1;
-            }
-        }
-
-        wbp += oinfo->stride / ((oinfo->bpp / 8));
-    }
-
-    for (int i = 0; i < count; i++) {
-        //   ((uint32_t *)wbp)[i] = 0;
-    }
-
-    FB_REP("%s pass  wbp:%p", __func__, wbp);
-    return ret;
 }
 
 POSSIBLY_UNUSED
@@ -1438,7 +802,7 @@ static int check_overlay_color(struct fb_overlayinfo_s *oinfo, uint32_t color)
          val = (((uint32_t *) oinfo->fbmem)[i] & 0xffffff);
         if (val != color) {
             FB_REP("%s fail pcount:%d fbp:%p oinfo->fbmem[%d] color: %x  != %x", __func__, count,oinfo->fbmem,i,((uint32_t *) oinfo->fbmem)[i], color);
-            //DRIVERS_TRACE(3, "%s",__func__);
+            //TRACE(3, "%s",__func__);
             //while(1);
             ret = -1;
              break;
@@ -1473,10 +837,6 @@ static int check_overlay_color_565(struct fb_overlayinfo_s *oinfo, uint16_t colo
     return 0;
     #endif
 }
-#endif
-
-#ifdef CONFIG_DMA2D_FB_CMAP
-static uint8_t clut_table[256 * 3];
 #endif
 
 #ifdef CONFIG_FB_COLORADJCURVE
@@ -1594,15 +954,6 @@ static int lcdc_update_rect_test(struct fb_overlayinfo_s *oinfo, uint32_t ecolor
         FB_ERR("Error %s %d", __func__, __LINE__);
         return ret;
     }
-#ifdef CONFIG_FG_YUV_FMT
-    // check_outlayer_result(0,&foinfo, 0xffba00 );
-#else
-    ret = check_outlayer_update_result(0, oinfo, &uarea, ecolor);
-    if (ret) {
-        FB_ERR("Error %s %d", __func__, __LINE__);
-        return ret;
-    }
-#endif
     uarea.x = 0;
     uarea.y = 0;
     uarea.w = 120;
@@ -1613,224 +964,7 @@ static int lcdc_update_rect_test(struct fb_overlayinfo_s *oinfo, uint32_t ecolor
         FB_ERR("Error %s %d", __func__, __LINE__);
         return ret;
     }
-#ifdef CONFIG_FG_YUV_FMT
-// check_outlayer_result(0,&foinfo, 0xffba00 );
-#else
-    ret = check_outlayer_update_result(0, oinfo, &uarea, ecolor);
-    if (ret) {
-        FB_ERR("Error %s %d", __func__, __LINE__);
-        return ret;
-    }
-#endif
     return ret;
-}
-#endif
-
-static int lcdc_video_mirror_test(struct fb_overlayinfo_s *foinfo, struct fb_overlayinfo_s *boinfo, struct fb_var_screeninfo *var)
-{
-    int ret = 0;
-
-#ifndef WB_TEST
-    return 0;
-#endif
-
-#ifdef LCDC_MIRROR_TEST
-    // vertical mirro test
-    uint32_t *pixs;
-    uint16_t lines, count;
-    pixs = (uint32_t *) foinfo->fbmem;
-    lines = foinfo->fblen / foinfo->stride;
-    count = foinfo->stride * 8 / foinfo->bpp;
-    FB_REP("lines:%d count:%d", lines, count);
-    for (int i = 0; i < lines; i++) {
-        for (int c = 0; c < count; c++) {
-            pixs[c] = i;
-        }
-        pixs += count;
-    }
-    var->yoffset = 0;
-    var->xoffset = 0;
-    var->rotate = 180;
-    ret = ioctl(fb0fd, FBIOSET_VMIRRO, var);
-    if (ret) {
-        FB_ERR("Error %s %d", __func__, __LINE__);
-        return ret;
-    }
-
-    fb_wait_log_out();
-
-    ret = ioctl(fb0fd, FBIOPAN_DISPLAY, var);
-    if (ret) {
-        FB_ERR("Error %s %d", __func__, __LINE__);
-        return ret;
-    }
-    // check mirro result
-    pixs = lcdc_get_wb();
-    lines = foinfo->fblen / foinfo->stride;
-    count = foinfo->stride * 8 / foinfo->bpp;
-    for (int i = 0; i < lines; i++) {
-        for (int c = 0; c < count; c++) {
-            if (pixs[c] != (lines - i - 1)) {
-                FB_REP("check mirro test fail c:%d i:%d", c, i);
-                return ret;
-            }
-        }
-        pixs += count;
-    }
-
-    FB_REP("mirro test pass");
-
-    // disable vmirro
-    var->yoffset = 0;
-    var->xoffset = 0;
-    var->rotate = 0;
-    ret = ioctl(fb0fd, FBIOSET_VMIRRO, var);
-    if (ret) {
-        FB_ERR("Error %s %d", __func__, __LINE__);
-        return ret;
-    }
-#endif
-    return ret;
-}
-
-static int lcdc_blend_test(struct fb_overlayinfo_s *foinfo, struct fb_overlayinfo_s *boinfo, uint32_t ecolor)
-{
-    int ret = 0;
-#ifndef CONFIG_FB_PANDISPLAY
-    FB_REP("fb0 fb1 blending display");
-    fb_wait_log_out();
-
-    ret = ioctl(fb0fd, FBIOSET_TRANSP, foinfo);
-    if (ret) {
-        FB_ERR("Error %s %d", __func__, __LINE__);
-        return ret;
-    }
-
-    lcdc_update();
-    fb_wait_log_out();
-
-    ret = check_outlayer_result_blend(0, boinfo, ecolor);
-    if (ret) {
-        FB_ERR("Error %s %d", __func__, __LINE__);
-        return ret;
-    }
-#endif // ndef CONFIG_FB_PANDISPLAY
-    return ret;
-}
-
-static int lcdc_blend_scale_test(uint32_t fb0fd, struct fb_overlayinfo_s *foinfo, struct fb_overlayinfo_s *boinfo, uint32_t ecolor)
-{
-    FB_REP("dma2d blend  fb0 to fb1 with scale to wb ");
-    int ret = 0;
-
-    foinfo->transp.transp = 0x7f;
-    foinfo->transp.transp_mode = FB_CONST_ALPHA;
-    ret = ioctl(fb0fd, FBIOSET_TRANSP, foinfo);
-    if (ret) {
-        FB_ERR("Error %s %d", __func__, __LINE__);
-        return ret;
-    }
-
-    boinfo->transp.transp = 0xff - 0x7f;
-    boinfo->transp.transp_mode = FB_CONST_ALPHA;
-    ret = ioctl(fb0fd, FBIOSET_TRANSP, boinfo);
-    if (ret) {
-        FB_ERR("Error %s %d", __func__, __LINE__);
-        return ret;
-    }
-
-    struct fb_overlayblend_s blend;
-    struct fb_area_s area;
-#if 1
-    area.x = 0;
-    area.y = 0;
-    area.w = 120;
-    area.h = 120;
-#else
-    area.w = 10;
-    area.h = 2;
-    area.x = 2;
-    area.y = 2;
-#endif
-    blend.dest.area = area;
-    blend.dest.overlay = 2;
-    // blend.dest.overlay = 1;
-    blend.foreground.area = area;
-    blend.foreground.overlay = 0;
-    blend.background.area = area;
-    blend.background.overlay = 1;
-
-    ret = ioctl(fb0fd, FBIOSET_BLEND, &blend);
-
-    if (ret) {
-        FB_ERR("Error %s %d", __func__, __LINE__);
-        return ret;
-    }
-#ifdef CONFIG_FB_COLORDITHER
-#else
-    ret = check_outlayer_result_blend_area(0, &blend, ecolor);
-    if (ret) {
-        FB_ERR("Error %s %d", __func__, __LINE__);
-        return ret;
-    }
-#endif
-    return ret;
-}
-
-static int lcdc_blit_test(struct fb_overlayinfo_s *foinfo, struct fb_overlayinfo_s *boinfo)
-{
-    FB_REP("lcdc dma2d copy fb0 to fb1 with scale ");
-    int ret = 0;
-    struct fb_overlayblit_s blit;
-    blit.dest.overlay = 1;
-    blit.dest.area.x = 0;
-    blit.dest.area.y = 0;
-    blit.dest.area.w = 3;
-    blit.dest.area.h = 2;
-    blit.src.overlay = 0;
-    blit.src.area.x = 0;
-    blit.src.area.y = 0;
-    blit.src.area.w = 11;
-    blit.src.area.h = 2;
-
-    ret = ioctl(fb0fd, FBIOSET_BLIT, &blit);
-    if (ret) {
-        FB_ERR("Error %s %d", __func__, __LINE__);
-        return ret;
-    }
-
-    FB_REP("dma2d blit test ");
-
-    fb_wait_log_out();
-
-    ret = check_blit_result(&blit, foinfo, boinfo);
-    if (ret) {
-        FB_ERR("Error %s %d", __func__, __LINE__);
-        return ret;
-    }
-    return ret;
-}
-
-#if 0
-static void fb_test_spram(void)
-{
-#ifdef PSRAM_TEST
-    //enable psram 0x38000000 -
-    *(volatile uint32_t *)0x400850d0 = 0xcafe00fb;
-
-    {
-        uint32_t *st = (volatile uint32_t *)0x38100000;
-        for (int i = 0; i < 20; i++) {
-            st[i] = 0x0;
-        }
-
-        *(volatile uint32_t *)0x38100000 = 0xa;
-
-        for (int i = 0; i < 20; i++) {
-            FB_ERR("x%x", st[i]);
-        }
-    }
-#endif
 }
 #endif
 
@@ -1872,7 +1006,7 @@ static HWTIMER_ID dsi_1s_timer;
 static void fb_dsi_1s_timer_cb(void *param)
 {
     enum FB_DSI_1S_TIMER_EVENT_T evt = (enum FB_DSI_1S_TIMER_EVENT_T)param;
-    DRIVERS_TRACE(0, "%s: evt=%d", __func__, evt);
+    TRACE(0, "%s: evt=%d", __func__, evt);
 
     if (evt == FB_DSI_1S_DRAW_START) {
         dsi_1s_draw_start = true;
@@ -1884,7 +1018,7 @@ static void fb_dsi_1s_timer_cb(void *param)
 
 static void fb_dsi_1s_lcdc_irq_cb(int error)
 {
-    DRIVERS_TRACE(0, "%s: error=%d", __func__, error);
+    TRACE(0, "%s: error=%d", __func__, error);
     dsi_1s_lcdc_done = true;
     hal_cpu_wake_lock(HAL_CPU_WAKE_LOCK_USER_12);
 }
@@ -1897,7 +1031,7 @@ static void fb_dsi_1s_te_gpio_irq(int error)
         dsi_1s_got_te = true;
         hal_cpu_wake_lock(HAL_CPU_WAKE_LOCK_USER_12);
 
-        DRIVERS_TRACE(0, "Got %u te irq", dsi_1s_te_cnt);
+        TRACE(0, "Got %u te irq", dsi_1s_te_cnt);
         dsi_1s_te_cnt = 0;
     }
 }
@@ -1927,7 +1061,7 @@ static void fb_dsi_1s_loop(void)
         time = hal_sys_timer_get();
         interval = time - dsi_1s_draw_time;
 
-        DRIVERS_TRACE(0, "Draw+LCDC+DSI: %u ms", TICKS_TO_MS(interval));
+        TRACE(0, "Draw+LCDC+DSI: %u ms", TICKS_TO_MS(interval));
         hal_sysfreq_req(HAL_SYSFREQ_USER_APP_0, HAL_CMU_FREQ_32K);
     }
     if (got_te) {
@@ -1955,7 +1089,7 @@ static void fb_dsi_1s_loop(void)
         time = hal_sys_timer_get();
         interval = time - dsi_1s_draw_time;
         dsi_1s_draw_time = time;
-        DRIVERS_TRACE(0, "Draw interval: %u ms", TICKS_TO_MS(interval));
+        TRACE(0, "Draw interval: %u ms", TICKS_TO_MS(interval));
 
         lcd_set_start_flag();
         fb_single_rect_draw_test(fb0fd);
@@ -1993,7 +1127,7 @@ extern int fb_rect_draw_test(uint32_t fb_fd);
 int fb_lcdc_test(void)
 {
     int ret = 0;
-    uint32_t ecolor;
+    POSSIBLY_UNUSED uint32_t ecolor;
 
     fb_register(0, 0);
     fb_init(&fb0fd, FBDEV_FB0_PATH);
@@ -2023,87 +1157,6 @@ int fb_lcdc_test(void)
             FB_ERR("Error %s %d", __func__, __LINE__);
             return ret;
         }
-        fb_wait_log_out();
-#ifdef CONFIG_DMA2D
-
-#ifdef CONFIG_FB_COLORADJCURVE
-        ret = lcdc_set_cadjmap();
-#endif
-        if (ret) {
-            FB_ERR("Error %s %d", __func__, __LINE__);
-            return ret;
-        }
-#ifdef CONFIG_FB_COLORDITHER
-        lcdc_set_cdithermap();
-        foinfo.color = 0x1861;
-#else
-        foinfo.color = 0xff00ff00;
-//        foinfo.color = 0xffff00ff;
-#endif // CONFIG_FB_COLORDITHER
-
-/*set layer color*/
-#ifdef CONFIG_FG_YUV_FMT
-        // fill fgl with "0x80, 0x0, 0x80, 0xFF"
-        {
-            int count = 120 * 120 / 2;
-
-            for (int i = 0; i < count; i++) {
-                ((uint32_t *) foinfo.fbmem)[i] = 0x800080ff;
-            }
-        }
-
-#else
-
-        ret = ioctl(fb0fd, FBIOSET_COLOR, &foinfo);
-        if (ret) {
-            FB_ERR("Error %s %d", __func__, __LINE__);
-        #ifdef CONFIG_DMA2D
-            return ret;
-        #endif
-        }
-#endif
-
-       fb_wait_log_out();
-
-#ifdef CONFIG_FB_COLORDITHER
-        ecolor = 0x1861;
-#else
-        ecolor = 0x00ff00;
-
-#endif // CONFIG_FB_COLORDITHER
-
-#ifdef CONFIG_FB_COLORDITHER
-        check_overlay_color_565(&foinfo, ecolor);
-#else
-        check_overlay_color(&foinfo, ecolor);
-#endif
-
-
-        FB_REP("lcdc set background fb1 color with red color");
-
-        boinfo.overlay = 1;
-        ret = ioctl(fb0fd, FBIOGET_OVERLAYINFO, &boinfo);
-        if (ret) {
-            FB_ERR("Error %s %d", __func__, __LINE__);
-            return ret;
-        }
-#ifdef CONFIG_FB_COLORDITHER
-        boinfo.color = 0xffff;
-#else
-        boinfo.color = 0xffff0000;
-#endif
-        ret = ioctl(fb0fd, FBIOSET_COLOR, &boinfo);
-        if (ret) {
-            FB_ERR("Error %s %d", __func__, __LINE__);
-            return ret;
-        }
-#ifdef CONFIG_FB_COLORDITHER
-        check_overlay_color_565(&boinfo, boinfo.color);
-#else
-        check_overlay_color(&boinfo, 0xffffff & boinfo.color);
-#endif
-
-#endif
 
         fb_wait_log_out();
 
@@ -2136,11 +1189,6 @@ int fb_lcdc_test(void)
             FB_ERR("Error %s %d", __func__, __LINE__);
          //   return ret;
         }
-#ifdef CONFIG_FG_YUV_FMT
-        check_outlayer_result(0, &foinfo, 0xffba00);
-#else
-        check_outlayer_result(0, &foinfo, 0x00ff00);
-#endif
 
 #ifdef CONFIG_FG_YUV_FMT
         ecolor = 0xff0000;
@@ -2165,14 +1213,6 @@ int fb_lcdc_test(void)
 
 
 #ifdef CONFIG_FG_YUV_FMT
-        check_outlayer_result(0, &foinfo, 0xff0000);
-#else
-        check_outlayer_result(0, &foinfo, 0xff0000);
-#endif
-
-       // fb_overlay_clear((char *)lcdc_get_wb(), 0x0, 120 * 120);
-
-#ifdef CONFIG_FG_YUV_FMT
         ecolor = 0xff00;
 #else
         ecolor = 0xff00;
@@ -2195,50 +1235,9 @@ int fb_lcdc_test(void)
          //   return ret;
         }
 
-       // fb_overlay_clear((char *)lcdc_get_wb(), 0x0, 120 * 120);
         lcdc_update();
-
-#ifdef LCDC_DMA2D_CPU_PSRAM_PARALL_TEST
-return 0;
-#endif
-        fb_wait_log_out();
-
-#ifdef CONFIG_FB_COLORDITHER
-        check_outlayer_result(0, &foinfo, 0x1f0f0f);
-#else
-#ifdef CONFIG_FG_YUV_FMT
-        check_outlayer_result(0, &foinfo, 0xffba00);
-#else
-        check_outlayer_result(0, &foinfo, 0x00ff00);
-#endif
-
-#endif
-
 #endif // CONFIG_FB_PANDISPLAY
 
-#ifdef CONFIG_LCDC_L1_CHROMAKEYEN
-    #if WB_TEST
-        pixs = (uint32_t *) lcdc_get_wb();
-        for (int i = 0; i < count; i++) {
-            if (((pixs[i]) & 0xffffff) != 0) {
-                FB_ERR(" chromakey test fail %s pixs[%d]:0x%x  ", __func__, i, pixs[i]);
-                return ret;
-            }
-        }
-        FB_REP("chromakey test pass %s ", __func__);
-
-        for (int i = 0; i < count; i++) {
-            pixs[i] = 0xff00;
-        }
-    #endif
-#else
-#ifdef CONFIG_FB_COLORADJCURVE
-        check_outlayer_result(0, &foinfo, 0x007f00);
-        lcdc_cadjcurves_enable(false);
-#else
-// check_outlayer_result(0,&foinfo, 0x00ff00 );
-#endif
-#endif
         fb_wait_log_out();
 
         ret = lcdc_setarea_test(&boinfo);
@@ -2280,23 +1279,6 @@ return 0;
         }
 #endif
 
-        /*blend display blayer only */
-        foinfo.transp.transp = 0xff;    // background alpha
-        foinfo.transp.transp_mode = FB_CONST_ALPHA;
-
-#ifdef CONFIG_FB_COLORDITHER
-        ecolor = 0xffffff;
-#else
-        ecolor = 0xff0000;
-#endif
-        fb_wait_log_out();
-        //fb_overlay_clear((char *)lcdc_get_wb(), 0x0, 120 * 120);
-
-        ret = lcdc_blend_test(&foinfo, &boinfo, ecolor);
-        if (ret) {
-            FB_ERR("Error %s %d", __func__, __LINE__);
-            return ret;
-        }
         /*blend display b(a =0x7f) + f(0xff - 0x7f) layers */
         foinfo.transp.transp = 0x7f;
         foinfo.transp.transp_mode = FB_CONST_ALPHA;
@@ -2306,29 +1288,6 @@ return 0;
         ecolor = 0x7f7f00;
 #endif
 
-        fb_wait_log_out();
-        ret = lcdc_blend_test(&foinfo, &boinfo, ecolor);
-        if (ret) {
-            FB_ERR("Error %s %d", __func__, __LINE__);
-            return ret;
-        }
-        fb_wait_log_out();
-        ret = lcdc_blend_scale_test(fb0fd, &foinfo, &boinfo, 0x7f7f00);
-        if (ret) {
-            FB_ERR("Error %s %d", __func__, __LINE__);
-            return ret;
-        }
-        fb_wait_log_out();
-        ret = lcdc_blit_test(&foinfo, &boinfo);
-        if (ret) {
-            FB_ERR("Error %s %d", __func__, __LINE__);
-            return ret;
-        }
-        ret = lcdc_video_mirror_test(&foinfo, &boinfo, &var);
-        if (ret) {
-            FB_ERR("Error %s %d", __func__, __LINE__);
-            return ret;
-        }
 #if defined(WITH_OS)
         munmap(fbp, screensize);
         close(fp);
@@ -2342,152 +1301,118 @@ return 0;
 
 
 int fb_buffer_draw_test(uint32_t fb_fd,uint8_t *buffer);
+int fb_gpu_test_init(void);
+static bool is_fb_setup = false;
 
 int fb_lcdc_display_buffer_test(uint8_t *buffer)
 {
+    if (!is_fb_setup) {
+       fb_gpu_test_init();
+      // is_fb_setup = true;
+    }
     fb_buffer_draw_test(fb0fd,buffer);
     return 0;
 }
+#ifdef CONFIG_FB_PANDISPLAY
+static struct fb_var_screeninfo  screen_ctx;
+static struct fb_planeinfo_s     screen_fb;
 
-
-/**
- * fb_dma2d_test -  dma2d driver test entry
- */
-
-int fb_dma2d_test(void)
+uint32_t  fb_update_display_buffer(void)
 {
-#if defined(LCDC_DMA2D_CPU_PSRAM_PARALL_TEST) || defined(CONFIG_DMA2D)
-
-    int ret = 0;
-    fb_heap = fb_mem_setup(fb_base, 480 * 480 * 12);
-
-    /*create  fb_2d */
-    fb_init(&fbfd_dma2d, FBDEV_DMA2D_PATH);
-
-#ifdef LCDC_DMA2D_CPU_PSRAM_PARALL_TEST
-#else
-    dma2dinitialize();
-#endif
-
-#ifdef CONFIG_DMA2D_FB_CMAP
-    struct fb_cmap_s cmap;
-    cmap.first = 0;
-    cmap.len = 256;
-    cmap.blue = &clut_table[0];
-    cmap.red = &clut_table[256];
-    cmap.green = &clut_table[512];
-    for (int n = cmap.first; n < cmap.len - 1; n++) {
-        cmap.blue[n] = n;
-        cmap.green[n] = n;
-        cmap.red[n] = n;
-    }
-    fb2d_setclut(&lv_2d, &cmap);
-#endif
-  while(1){
-  //  while(0){
-
-#ifndef LCDC_DMA2D_CPU_PSRAM_PARALL_TEST
-
-    FB_REP("fb2d_fill");
-    fb_wait_log_out();
-    ret = fb2d_fill_rects(&lv_2d);
+    int ret;
+    TRACE(3,"%s %d",__func__, __LINE__);
+    ret = ioctl(fb0fd, FBIOPAN_DISPLAY, &screen_fb);
     if (ret) {
-        FB_ERR("Error %s %d", __func__, __LINE__);
-        return ret;
+       FB_ERR("%s pan display err:%d",__func__, ret);
+       return ret;
     }
-#endif
-   // }
-
-    fb_wait_log_out();
-
-
-    FB_ERR("blit loop test %s %d", __func__, __LINE__);
-    //while(0){
-    #if 1
-    ret = fb2d_blit(&lv_2d, 0);
-    if (ret) {
-        FB_ERR("Error %s %d", __func__, __LINE__);
-        return ret;
-    }
-    #ifdef LCDC_DMA2D_CPU_PSRAM_PARALL_TEST
-    return 0;
-    #endif
-
-    #endif
-  //  };
-#if 0
-    fb_wait_log_out();
-    ret = fb2d_blit(&lv_2d, 1);
-    if (ret) {
-        FB_ERR("Error %s %d", __func__, __LINE__);
-        return ret;
-    }
-    fb_wait_log_out();
-#endif
-#ifdef LCDC_DMA2D_CPU_PSRAM_PARALL_TEST
-while(0){
-#else
-//while(1){
-#endif
-    ret = fb2d_blend(&lv_2d, 1);
-    if (ret) {
-        FB_ERR("Error %s %d", __func__, __LINE__);
-        return ret;
-    }
-#ifdef LCDC_DMA2D_CPU_PSRAM_PARALL_TEST
-  }
-#else
-//}
-#endif
-     #ifndef FB_LOOP_TEST
-         break;
-     #endif
-}
-    fb_wait_log_out();
-    ret = fb2d_blend(&lv_2d, 0);
-    if (ret) {
-        FB_ERR("Error %s %d", __func__, __LINE__);
-        return ret;
-    }
-
-#if defined(WITH_OS)
-    munmap(fbp, screensize);
-    close(fp);
-#endif
-    FB_REP("dma2d test pass ");
+    screen_fb.yoffset = (screen_fb.yoffset > 0) ? 0: screen_ctx.yres;
     return ret;
-
-#else
-    return 0;
-#endif
 }
+
+uint32_t  fb_get_display_buffer(void)
+{
+    int ret;
+    uint32_t fbmem = (uint32_t)NULL;
+    struct fb_videoinfo_s vinfo;
+    TRACE(3,"%s %d",__func__, __LINE__);
+
+    if (!is_fb_setup) {
+       fb_gpu_test_init();
+       is_fb_setup = true;
+
+       screen_ctx.yoffset = 0;
+       screen_ctx.xoffset = 0;
+       vinfo.noverlays = 0;
+       ret = ioctl(fb0fd, FBIOGET_VIDEOINFO, &vinfo);
+       if (ret) {
+          FB_ERR("%s get video info err:%d",__func__, ret);
+          return 0;
+       }
+       screen_ctx.xres = vinfo.xres;
+       screen_ctx.yres = vinfo.yres;
+
+       TRACE(3,"%s %d",__func__, __LINE__);
+       ret = ioctl(fb0fd, FBIOGET_PLANEINFO, &screen_fb);
+       if (ret) {
+          FB_ERR("%s get plane info err:%d",__func__, ret);
+          return 0;
+       }
+       screen_fb.yoffset = 0;
+       screen_fb.xoffset = 0;
+       TRACE(3,"%s yres: %d",__func__, screen_ctx.yres);
+       TRACE(3,"%s stride: %d",__func__, screen_fb.stride);
+
+    }
+
+    fbmem = (uint32_t)screen_fb.fbmem;
+    if (screen_fb.yoffset > 0) {
+        #ifdef USE_GAMU_FB
+            if (screen_fb.bpp == 24) {
+                fbmem += 0x100000;
+            } else {
+                fbmem += screen_ctx.yres * screen_fb.stride;
+            }
+        #else
+        fbmem += screen_ctx.yres * screen_fb.stride;
+        #endif
+        if (fbmem%64){
+            fbmem = (fbmem + 63) & ~63;
+        }
+    }
+    TRACE(3,"%s fbmem:0x%x",__func__, fbmem);
+    return fbmem;
+}
+#endif
+
+int fb_lcdc_vmirro_enable(bool vmirro)
+{
+#ifdef CONFIG_FB_VMIRRO
+    struct fb_var_screeninfo var;
+    var.xoffset = 0;
+    var.yoffset = 0;
+    if (vmirro) {
+        var.rotate = 180;
+    } else {
+        var.rotate = 0;
+    }
+    if (fb0fd) {
+        fb_ioctl(fb0fd, FBIOSET_VMIRRO,
+              (unsigned long)((uintptr_t)&var));
+    } else {
+        TRACE(0,"%s err: fb not open", __func__);
+    }
+#endif
+    return 0;
+}
+
+#define FB_LOOP_TEST
 
 int fb_gpu_test_init(void)
 {
     fb_register(0, 0);
     fb_init(&fb0fd, FBDEV_FB0_PATH);
     return 0;
-}
-
-POSSIBLY_UNUSED
-static void psram_pll_init(void)
-{
-    enum HAL_CMU_PLL_T pll;
-    enum HAL_CMU_PLL_USER_T user;
-
-#if 0
-#elif defined(CHIP_BEST1501) || defined(CHIP_BEST1600)
-    pll = HAL_CMU_PLL_BB;
-    user = HAL_CMU_PLL_USER_PSRAM;
-#elif defined(CHIP_BEST2001)
-    pll = HAL_CMU_PLL_BB_PSRAM;
-    user = HAL_CMU_PLL_USER_PSRAM;
-#else
-    pll = HAL_CMU_PLL_USB;
-    user = HAL_CMU_PLL_USER_SYS;
-#endif
-    hal_cmu_pll_enable(pll, user);
-    hal_cmu_mem_select_pll(pll);
 }
 
 //#define  LCDC_TEST
@@ -2506,13 +1431,11 @@ int fb_graphic_test(void)
         ret = -1;
     }
 #endif
-    ret = fb_dma2d_test();
-
-    if (ret) {
-        ret = -1;
-        FB_REP("dma2d test fail !!!!!!");
-    }
     return ret;
+}
+
+void fb_pollnotify(FAR struct fb_vtable_s *vtbl)
+{
 }
 
 /**
@@ -2600,9 +1523,19 @@ int fb_register(int display, int plane)
     fb->bpp = pinfo.bpp;
 
     /* Clear the framebuffer memory */
-
 #ifndef FB_SIM
-    memset(pinfo.fbmem, 0, pinfo.fblen);
+    #ifdef USE_GAMU_FB
+        if (fb->bpp == 24) {
+            memset(pinfo.fbmem, 0, pinfo.fblen/2);
+            memset(pinfo.fbmem + 0x100000, 0, pinfo.fblen/2);
+
+        } else {
+            memset(pinfo.fbmem, 0, pinfo.fblen);
+        }
+
+    #else
+        memset(pinfo.fbmem, 0, pinfo.fblen);
+    #endif
 #endif
 
 #ifdef CONFIG_FB_OVERLAY
@@ -2620,7 +1553,7 @@ int fb_register(int display, int plane)
      */
 
 #ifndef FB_SIM
-    memset(oinfo.fbmem, 0, oinfo.fblen);
+  //  memset(oinfo.fbmem, 0, oinfo.fblen);
 #endif
 #endif
 
@@ -2651,14 +1584,13 @@ errout_with_fb:
 }
 
 #include "hal_lcdc.h"
+#include "lpcmd.h"
 
 #define PICTURE_BUFFER_ATT POSSIBLY_UNUSED static const
 
-#if !defined(FPGA) && !defined(SIMU)
 PICTURE_BUFFER_ATT uint8_t background_368_448[] = {
 #include "display_resource/RGB888_unpacked_368x448.txt"
 };
-#endif
 
 struct fb_planeinfo_s g_pinfo;
 struct fb_videoinfo_s g_vinfo;
@@ -2666,15 +1598,48 @@ struct fb_videoinfo_s g_vinfo;
 static bool lcd_frame_done = 0;
 static uint32_t lcd_frame_count = 0;
 static uint32_t lcd_te_count = 0;
+static uint32_t yoffset = 1;
+static uint32_t first_framedone_time = 0;
+
+#ifdef FB_DSI_60HZ_TEST_CURRENT_TEST_1HZ_REFRESH
+#include "hal_iomux.h"
+#include "hal_gpio.h"
+static const struct HAL_IOMUX_PIN_FUNCTION_MAP fb_gpio_iomux[] = {
+    {HAL_IOMUX_PIN_P0_0, HAL_IOMUX_FUNC_GPIO, HAL_IOMUX_PIN_VOLTAGE_VIO, HAL_IOMUX_PIN_PULLDOWN_ENABLE},
+    {HAL_IOMUX_PIN_P0_1, HAL_IOMUX_FUNC_GPIO, HAL_IOMUX_PIN_VOLTAGE_VIO, HAL_IOMUX_PIN_PULLDOWN_ENABLE},
+    {HAL_IOMUX_PIN_P0_2, HAL_IOMUX_FUNC_GPIO, HAL_IOMUX_PIN_VOLTAGE_VIO, HAL_IOMUX_PIN_PULLDOWN_ENABLE},
+};
+
+void fb_gpio_set(int pin)
+{
+    hal_gpio_pin_set((enum HAL_GPIO_PIN_T)fb_gpio_iomux[pin].pin);
+}
+void fb_gpio_clr(int pin)
+{
+    hal_gpio_pin_clr((enum HAL_GPIO_PIN_T)fb_gpio_iomux[pin].pin);
+}
+void fb_gpio_open(void)
+{
+    int i = 0;
+    hal_iomux_init(fb_gpio_iomux, ARRAY_SIZE(fb_gpio_iomux));
+    for (i = 0; i < ARRAY_SIZE(fb_gpio_iomux); ++i) {
+        hal_gpio_pin_set_dir((enum HAL_GPIO_PIN_T)fb_gpio_iomux[i].pin, HAL_GPIO_DIR_OUT, 0);
+    }
+}
+#endif
 
 static void fb_dsi_60hz_lcdc_irq_cb(int error)
 {
+    if (lcd_frame_done == 0)
+        first_framedone_time = GET_CURRENT_MS();
     lcd_frame_done = 1;
     lcd_frame_count ++;
-#if defined(CONFIG_TRIGGER_FRAME_BY_SW)
-    lcdc_enter_lowpower();
-#else
-    static uint32_t yoffset = 1;
+
+#if defined(FB_DSI_60HZ_TEST_CURRENT_TEST_1HZ_REFRESH)
+    fb_gpio_clr(1);
+#endif
+
+#if 0//!defined(CONFIG_TRIGGER_FRAME_BY_SW)
     if (g_pinfo.yres_virtual == g_vinfo.yres)
         yoffset = 0;
     uint8_t *row = (uint8_t *)g_pinfo.fbmem + g_pinfo.stride * yoffset;
@@ -2683,38 +1648,100 @@ static void fb_dsi_60hz_lcdc_irq_cb(int error)
     else
         yoffset = 0;
     hal_lcdc_lstartaddr(0, (uint32_t)row);
+#if !defined(CONFIG_DSI_VIDEO_MODE)
     hal_lcdc_start_dsi();
+#endif
 #endif
 }
 
 static void ulps_exit_hander(int fb)
 {
+#if defined(FB_DSI_60HZ_TEST_CURRENT_TEST_1HZ_REFRESH)
+    fb_gpio_clr(0);
+    fb_gpio_set(1);
+#endif
     hal_lcdc_lstartaddr(0, (uint32_t)fb);
-    hal_lcdc_gen_start();
+    lcdc_trigger_frame();
 }
 
 static void fb_dsi_60hz_te_gpio_irq(int error)
 {
+    int refresh = 1;
     if (lcd_frame_done > 0)
     {
         lcd_te_count++;
-        if (lcd_te_count == 61)
+
+        if (lcd_te_count >= 61)
         {
-            FB_REP("frame rate:%d\n",lcd_frame_count);
+            uint32_t current_ms = GET_CURRENT_MS();
+            if (current_ms - first_framedone_time >0) {
+                uint32_t frame_vsync_rate = 1000 / ((current_ms - first_framedone_time) / lcd_te_count);
+                uint32_t frame_done_rate = 1000 / ((current_ms - first_framedone_time) / lcd_frame_count);
+                first_framedone_time = current_ms;
+                FB_REP("framedone rate:%d, vsync rate:%d\n",frame_done_rate, frame_vsync_rate);
+            }
             lcd_te_count = 0;
             lcd_frame_count = 0;
+
         }
-#if defined(CONFIG_TRIGGER_FRAME_BY_SW)
-        static uint32_t yoffset = 1;
-        if (g_pinfo.yres_virtual == g_vinfo.yres)
-            yoffset = 0;
-        uint8_t *row = (uint8_t *)g_pinfo.fbmem + g_pinfo.stride * yoffset;
-        if (yoffset < g_vinfo.yres)
-            yoffset += 1;
-        else
-            yoffset = 0;
-        lcdc_exit_lowpower_with_cb(ulps_exit_hander,row);
+#if defined(FB_DSI_60HZ_TEST_CURRENT_TEST_1HZ_REFRESH)
+        else {
+            refresh = 0;
+        }
 #endif
+
+        if (refresh) {
+            if (g_pinfo.yres_virtual == g_vinfo.yres)
+                yoffset = 0;
+            uint8_t *row = (uint8_t *)g_pinfo.fbmem + g_pinfo.stride * yoffset;
+            if (yoffset < g_vinfo.yres)
+                yoffset += 1;
+            else
+                yoffset = 0;
+#if defined(FB_DSI_60HZ_TEST_CURRENT_TEST_1HZ_REFRESH)
+            fb_gpio_set(0);
+#endif
+            lcdc_exit_lowpower_with_cb(ulps_exit_hander,row);
+        }
+    }
+}
+
+static HWTIMER_ID dsi_lpcmd_timer;
+static bool lpcmd_test_update;
+
+static void fb_dsi_lpcmd_timer_cb(void *param)
+{
+    lpcmd_test_update = true;
+}
+
+static void do_lpcmd(void)
+{
+    if (lpcmd_test_update)
+    {
+        static bool onoff = 0;
+        TRACE(0, "%s: %s", __func__, onoff?"on":"off");
+        if (onoff == 0)
+        {
+            lcdc_pannel_enter_deepstandby();
+        }
+        else
+        {
+            lcdc_exit_lowpower();
+            lcdc_pannel_exit_deepstandby();
+            if (g_pinfo.yres_virtual == g_vinfo.yres)
+                yoffset = 0;
+            uint8_t *row = (uint8_t *)g_pinfo.fbmem + g_pinfo.stride * yoffset;
+            if (yoffset < g_vinfo.yres)
+                yoffset += 1;
+            else
+                yoffset = 0;
+
+            hal_lcdc_lstartaddr(0, (uint32_t)row);
+            lcdc_trigger_frame();
+        }
+        onoff = !onoff;
+        lpcmd_test_update = false;
+        hwtimer_start(dsi_lpcmd_timer, MS_TO_TICKS(1000));
     }
 }
 
@@ -2722,9 +1749,18 @@ int  fb_dsi_60hz_test()
 {
     lcdc_irq_callback_register(fb_dsi_60hz_lcdc_irq_cb);
     lcdc_teirq_callback_register(fb_dsi_60hz_te_gpio_irq);
+    dsi_lpcmd_timer = hwtimer_alloc(fb_dsi_lpcmd_timer_cb, NULL);
+#ifndef CONFIG_DSI_VIDEO_MODE
+    hwtimer_start(dsi_lpcmd_timer, MS_TO_TICKS(1000));
+#endif
+    sleep_test_register_loop_callback(do_lpcmd);
 
     fb_register(0, 0);
     fb_init(&fb0fd, FBDEV_FB0_PATH);
+
+#if defined(FB_DSI_60HZ_TEST_CURRENT_TEST_1HZ_REFRESH)
+    fb_gpio_open();
+#endif
 
     int ret = fb_ioctl(fb0fd, FBIOGET_VIDEOINFO,
                 (unsigned long)((uintptr_t)&g_vinfo));
@@ -2744,15 +1780,16 @@ int  fb_dsi_60hz_test()
     FB_REP("  display: %u\n", g_pinfo.display);
     FB_REP("      bpp: %u\n", g_pinfo.bpp);
 
-    int xoffset = (g_vinfo.xres - 368) /2;
-    int yoffset = (g_vinfo.yres - 448) /2;
+    int xoff = (g_vinfo.xres - 368) /2;
+    int yoff = (g_vinfo.yres - 448) /2;
 
-    memset(g_pinfo.fbmem,0,g_pinfo.fblen);
-    if (xoffset >= 0 && yoffset >= 0)
+    memset(g_pinfo.fbmem,0x00,g_pinfo.fblen);
+
+    if (xoff >= 0 && yoff >= 0)
     {
         for (int y = 0; y < 448; y++)
           {
-            uint8_t *dist_addr = (uint8_t *)g_pinfo.fbmem + g_pinfo.stride * (yoffset+y) + (g_pinfo.bpp/8)*xoffset;
+            uint8_t *dist_addr = (uint8_t *)g_pinfo.fbmem + g_pinfo.stride * (yoff+y) + (g_pinfo.bpp/8)*xoff;
             uint8_t *src_addr = (uint8_t *)background_368_448 + 368*4*y;
             memcpy(dist_addr,src_addr,368*4);
           }
@@ -2761,11 +1798,14 @@ int  fb_dsi_60hz_test()
     }
     else
     {
-        memcpy(g_pinfo.fbmem, background_368_448, g_pinfo.fblen);
+        for (int y = 0; y < (yoff<0?g_vinfo.yres:448); y++)
+          {
+            memcpy(g_pinfo.fbmem+y*g_pinfo.stride, (uint8_t *)background_368_448 + 368*4*y, g_pinfo.stride);
+          }
+        if (g_pinfo.yres_virtual == (g_vinfo.yres * 2))
+            memcpy(g_pinfo.fbmem + g_pinfo.fblen/2, g_pinfo.fbmem, g_pinfo.fblen/2);
     }
-#if defined(CONFIG_TRIGGER_FRAME_BY_SW)
-    lcd_frame_done = 1;
-#else
+
     struct fb_area_s area;
     area.x = 0;
     area.y = 0;
@@ -2773,8 +1813,40 @@ int  fb_dsi_60hz_test()
     area.h = g_vinfo.yres;
     ret = fb_ioctl(fb0fd, FBIO_UPDATE,
                 (unsigned long)((uintptr_t)&area));
-#endif
     FB_REP("fb_ioctl(FBIO_UPDATE) ret: %d\n",ret);
     return ret;
+}
+
+static HWTIMER_ID dsi_60hz_cpu_sim_timer;
+
+static void fb_dsi_60hz_cpu_sim_timer_cb(void *param)
+{
+    lcd_te_count++;
+    lcd_frame_count ++;
+    if (lcd_te_count == 61)
+    {
+        FB_REP("frame rate:%d\n",lcd_frame_count);
+        lcd_te_count = 0;
+        lcd_frame_count = 0;
+    }
+    hwtimer_start(dsi_60hz_cpu_sim_timer, MS_TO_TICKS(16));
+}
+
+static void do_dsi_60hz_cpu_sim_sleep_cb(void)
+{
+}
+
+int  fb_dsi_60hz_cpu_sim_test()
+{
+    FB_REP("fb dsi 60hz cpu sim start\n");
+
+    lcd_te_count = 0;
+    lcd_frame_count = 0;
+
+    dsi_60hz_cpu_sim_timer = hwtimer_alloc(fb_dsi_60hz_cpu_sim_timer_cb, NULL);
+    hwtimer_start(dsi_60hz_cpu_sim_timer, MS_TO_TICKS(16));
+    sleep_test_register_loop_callback(do_dsi_60hz_cpu_sim_sleep_cb);
+
+    return 0;
 }
 

@@ -18,6 +18,8 @@
 
 #ifdef CHIP_SUBSYS_SENS
 #include CHIP_SPECIFIC_HDR(reg_senscmu)
+#elif defined(CHIP_SUBSYS_CSP)
+#include CHIP_SPECIFIC_HDR(reg_cspcmu)
 #else
 #include CHIP_SPECIFIC_HDR(reg_cmu)
 #endif
@@ -37,6 +39,7 @@
 #include "hal_sysfreq.h"
 #include "hal_timer.h"
 #include "hal_trace.h"
+#include "hal_cpudump.h"
 #include "pmu.h"
 
 #if defined(CHIP_HAS_USB) && (defined(MCU_HIGH_PERFORMANCE_MODE) && !(defined(ULTRA_LOW_POWER) || defined(OSC_26M_X4_AUD2BB)))
@@ -52,6 +55,8 @@ typedef void (*HAL_POWER_DOWN_WAKEUP_HANDLER)(void);
 
 #ifdef CHIP_SUBSYS_SENS
 static struct SENSCMU_T * const cmu = (struct SENSCMU_T *)SENS_CMU_BASE;
+#elif defined(CHIP_SUBSYS_CSP)
+static struct CSPCMU_T * const cmu = (struct CSPCMU_T *)CSP_CMU_BASE;
 #else
 static struct CMU_T * const cmu = (struct CMU_T *)CMU_BASE;
 #endif
@@ -61,26 +66,14 @@ static struct AONCMU_T * const POSSIBLY_UNUSED aoncmu = (struct AONCMU_T *)AON_C
 
 #ifdef HAL_CMU_VALID_CRYSTAL_FREQ
 static const uint32_t valid_crystal_freq_list[] = HAL_CMU_VALID_CRYSTAL_FREQ;
-#define CRYSTAL_FREQ_ATTR                   BOOT_DATA_LOC
-#else
-#define CRYSTAL_FREQ_ATTR                   const
-#endif
-
-static uint32_t CRYSTAL_FREQ_ATTR crystal_freq = HAL_CMU_DEFAULT_CRYSTAL_FREQ;
+static uint32_t BOOT_DATA_LOC crystal_freq = HAL_CMU_DEFAULT_CRYSTAL_FREQ;
 
 void BOOT_TEXT_FLASH_LOC hal_cmu_set_crystal_freq_index(uint32_t index)
 {
-#ifdef HAL_CMU_VALID_CRYSTAL_FREQ
     if (index >= ARRAY_SIZE(valid_crystal_freq_list)) {
         index %= ARRAY_SIZE(valid_crystal_freq_list);
     }
     crystal_freq = valid_crystal_freq_list[index];
-#endif
-}
-
-uint32_t BOOT_TEXT_SRAM_LOC hal_cmu_get_crystal_freq(void)
-{
-    return crystal_freq;
 }
 
 uint32_t BOOT_TEXT_FLASH_LOC hal_cmu_get_default_crystal_freq(void)
@@ -88,10 +81,9 @@ uint32_t BOOT_TEXT_FLASH_LOC hal_cmu_get_default_crystal_freq(void)
     return HAL_CMU_DEFAULT_CRYSTAL_FREQ;
 }
 
-#ifndef CMU_FAST_TIMER_FREQ
-uint32_t BOOT_TEXT_SRAM_LOC hal_cmu_get_fast_timer_freq(void)
+uint32_t BOOT_TEXT_SRAM_LOC hal_cmu_get_crystal_freq(void)
 {
-    return crystal_freq / 4;
+    return crystal_freq;
 }
 #endif
 
@@ -148,6 +140,15 @@ void hal_cmu_simu_fail(void)
 #endif
 }
 
+void hal_cmu_simu_finish(void)
+{
+#if defined(CHIP_BEST1501SIMU)
+    cmu->MISC_0F8 = CMU_SIMU_RES_FINISHED;
+#else
+    cmu->SIMU_RES = CMU_SIMU_RES_FINISHED;
+#endif
+}
+
 void hal_cmu_simu_tag(uint8_t shift)
 {
 #if defined(CHIP_BEST1501SIMU)
@@ -192,9 +193,26 @@ void hal_cmu_subsys_setup(void)
     // Get chip id
     hal_chipid_init();
 
+#ifdef CLOCK_OUT_ID
+    hal_iomux_set_clock_out();
+    hal_cmu_clock_out_enable((enum HAL_CMU_CLOCK_OUT_ID_T)CLOCK_OUT_ID);
+#endif
+
     hal_sys_timer_open();
 
-#ifndef NO_CMU_INIT
+#ifdef NO_CMU_INIT
+
+#ifdef RAM_RET_MASK_INIT
+    hal_psc_core_init_ram_ret_mask();
+#endif
+
+#ifdef CPU_PC_DUMP
+    // Enable cpudump module
+    hal_cpudump_enable(HAL_CPUDUMP_ID_0);
+#endif
+
+#else // NO_CMU_INIT 
+
     int ret;
     enum HAL_CMU_FREQ_T freq;
 
@@ -207,6 +225,11 @@ void hal_cmu_subsys_setup(void)
 
     hal_cmu_module_init_state();
 
+#ifdef CPU_PC_DUMP
+    // Enable cpudump module
+    hal_cpudump_enable(HAL_CPUDUMP_ID_0);
+#endif
+
     // Set ISPI module freq
     hal_cmu_ispi_set_freq(HAL_CMU_PERIPH_FREQ_26M);
     // Open analogif (ISPI)
@@ -216,7 +239,7 @@ void hal_cmu_subsys_setup(void)
         do { volatile int i = 0; i++; } while (1);
     }
 
-#ifdef CALIB_SLOW_TIMER
+#if defined(CALIB_SLOW_TIMER) && !defined(SLOW_TIMER_USE_EXT_XTAL)
     // Calib slow timer after determining the crystal freq
     hal_sys_timer_calib();
 #endif
@@ -238,19 +261,22 @@ void hal_cmu_subsys_setup(void)
     // Init system clock
     freq = HAL_CMU_FREQ_26M;
     hal_sysfreq_req(HAL_SYSFREQ_USER_INIT, freq);
+#ifdef IDLE_MIN_SYS_FREQ_MHZ
+    hal_sysfreq_inc_min_freq(MACRO_CONCAT(MACRO_CONCAT(HAL_CMU_FREQ_, IDLE_MIN_SYS_FREQ_MHZ), M));
+#endif
 
     // Init flash
 #if defined(SUBSYS_FLASH_BOOT) && !defined(NO_FLASH_INIT)
     hal_norflash_init(HAL_FLASH_ID_0);
 #endif
+
 #endif // !NO_CMU_INIT
 }
 
-#if !(defined(CHIP_ROLE_CP) || defined(CHIP_SUBSYS_SENS) || (defined(CHIP_SUBSYS_BTH) ^ defined(BTH_AS_MAIN_MCU)))
+#if !(defined(CHIP_ROLE_CP) || defined(CHIP_SUBSYS_SENS) || defined(CHIP_SUBSYS_CSP) || (defined(CHIP_SUBSYS_BTH) ^ defined(BTH_AS_MAIN_MCU)))
 
 #if defined(CHIP_BEST1501) || defined(CHIP_BEST1501P) || defined(CHIP_BEST2000) || \
-        defined(CHIP_BEST2300) || defined(CHIP_BEST2300A) || defined(CHIP_BEST2300P) \
-        || defined(CHIP_BEST1502)
+        defined(CHIP_BEST2300) || defined(CHIP_BEST2300A) || defined(CHIP_BEST2300P)
 void hal_cmu_set_wakeup_pc(uint32_t pc)
 {
     uint32_t *wake_pc =
@@ -321,6 +347,25 @@ __STATIC_FORCEINLINE int hal_cmu_flash_all_set_freq(enum HAL_CMU_FREQ_T freq)
     hal_cmu_flash2_set_freq(freq);
 #endif
     return 0;
+}
+
+#ifdef ROM_IN_FLASH
+SRAM_TEXT_LOC
+#endif
+void hal_cmu_cache_reset_clear(int reset)
+{
+#ifdef ICACHE_CTRL_BASE
+    if (reset) {
+        hal_cmu_reset_set(HAL_CMU_MOD_H_ICACHE);
+    }
+    hal_cmu_reset_clear(HAL_CMU_MOD_H_ICACHE);
+#endif
+#ifdef DCACHE_CTRL_BASE
+    if (reset) {
+        hal_cmu_reset_set(HAL_CMU_MOD_H_DCACHE);
+    }
+    hal_cmu_reset_clear(HAL_CMU_MOD_H_DCACHE);
+#endif
 }
 
 #ifdef ROM_IN_FLASH
@@ -496,12 +541,17 @@ void hal_cmu_rom_setup(void)
 #else
     reset_flash = true;
 #endif
+#ifdef ROM_CACHE_ACCESS_WORKAROUND
+    hal_cmu_cache_reset_clear(reset_flash);
+#endif
     hal_cmu_flash_all_reset_clear(reset_flash);
 
+#ifndef ROM_CACHE_ACCESS_WORKAROUND
     // TODO: Check why system crashes when ROM_IN_FLASH=1 and INSRAM_RUN=0
     // Disable cache (for JTAG reset and run)
     hal_cache_disable(HAL_CACHE_ID_I_CACHE);
     hal_cache_disable(HAL_CACHE_ID_D_CACHE);
+#endif
 
     // Init APB clock
     hal_cmu_apb_init_div();
@@ -511,7 +561,8 @@ void hal_cmu_programmer_setup(void)
 {
 #ifdef PROGRAMMER_HAL_FULL_INIT
     hal_iomux_set_default_config();
-    hal_cmu_module_init_state();
+#elif defined(PROGRAMMER_HAL_CHIP_INIT)
+    hal_cmu_programmer_chip_init();
 #endif
 
 #ifdef JTAG_ENABLE
@@ -525,13 +576,15 @@ void hal_cmu_programmer_setup(void)
 
     hal_sys_timer_open();
 
-    // Init system/flash/memory clocks before initializing clock setting
-    // and before switching PLL
+    // Set system/flash/memory clocks to 26M before disabling faster clocks (X2/X4/PLL)
+    // in hal_cmu_module_init_state() or hal_cmu_init_pll_selection()
     hal_cmu_flash_all_set_freq(HAL_CMU_FREQ_26M);
     hal_cmu_mem_set_freq(HAL_CMU_FREQ_26M);
     hal_cmu_sys_set_freq(HAL_CMU_FREQ_26M);
 
 #ifdef PROGRAMMER_HAL_FULL_INIT
+    hal_cmu_module_init_state();
+
 #ifdef NO_LPU_26M
     while (hal_cmu_lpu_init(HAL_CMU_LPU_CLK_NONE) == -1);
 #else
@@ -567,14 +620,23 @@ void hal_cmu_programmer_setup(void)
 void BOOT_TEXT_FLASH_LOC hal_cmu_fpga_setup(void)
 {
     hal_sys_timer_open();
-    hal_sysfreq_req(HAL_SYSFREQ_USER_INIT, HAL_CMU_FREQ_52M);
 
     hal_cmu_apb_init_div();
+
+    // Set system/flash/memory clocks to 26M before disabling faster clocks (X2/X4/PLL)
+    // in hal_cmu_module_init_state() or hal_cmu_init_pll_selection()
+    hal_cmu_sys_set_freq(HAL_CMU_FREQ_26M);
+
+    hal_cmu_module_init_state();
+
     hal_cmu_ispi_set_freq(HAL_CMU_PERIPH_FREQ_26M);
 
-    // Init peripheral clocks
-    hal_cmu_init_periph_clock();
-    hal_cmu_module_init_state();
+    hal_cmu_periph_init_pll_div();
+
+    hal_sysfreq_req(HAL_SYSFREQ_USER_INIT, HAL_CMU_FREQ_52M);
+#ifdef IDLE_MIN_SYS_FREQ_MHZ
+    hal_sysfreq_inc_min_freq(MACRO_CONCAT(MACRO_CONCAT(HAL_CMU_FREQ_, IDLE_MIN_SYS_FREQ_MHZ), M));
+#endif
 }
 
 #else // !FPGA
@@ -582,10 +644,9 @@ void BOOT_TEXT_FLASH_LOC hal_cmu_setup(void)
 {
     int ret;
     enum HAL_CMU_FREQ_T freq;
-    hal_cmu_simu_set_val(0x06);
+
 #if !defined(ARM_CMNS)
     hal_iomux_set_default_config();
-#endif
 #ifdef JTAG_ENABLE
     hal_iomux_set_jtag();
     hal_cmu_jtag_clock_enable();
@@ -593,6 +654,7 @@ void BOOT_TEXT_FLASH_LOC hal_cmu_setup(void)
 #ifdef CLOCK_OUT_ID
     hal_iomux_set_clock_out();
     hal_cmu_clock_out_enable((enum HAL_CMU_CLOCK_OUT_ID_T)CLOCK_OUT_ID);
+#endif
 #endif
 
     hal_sys_timer_open();
@@ -604,15 +666,19 @@ void BOOT_TEXT_FLASH_LOC hal_cmu_setup(void)
 #ifndef NO_FLASH_INIT
     hal_norflash_set_boot_freq(HAL_CMU_FREQ_26M);
 #endif
-#ifdef CHIP_HAS_PSRAM
     hal_cmu_mem_set_freq(HAL_CMU_FREQ_26M);
-#endif
     hal_cmu_sys_set_freq(HAL_CMU_FREQ_26M);
 #endif
 
     // arm_cmns: Init ram map and ram retention map
     hal_cmu_module_init_state();
 
+#if !defined(ARM_CMNS) && defined(CPU_PC_DUMP)
+    // Enable cpudump module
+    hal_cpudump_enable(HAL_CPUDUMP_ID_0);
+#endif
+
+    // arm_cmns: Init ISPI ctrl/cs and chip id
     // Set ISPI module freq
     hal_cmu_ispi_set_freq(HAL_CMU_PERIPH_FREQ_26M);
     // Open analogif (ISPI)
@@ -663,9 +729,10 @@ void BOOT_TEXT_FLASH_LOC hal_cmu_setup(void)
     freq = HAL_CMU_FREQ_104M;
 #endif
     hal_sysfreq_req(HAL_SYSFREQ_USER_INIT, freq);
-#ifdef IDLE_SYS_FREQ_52M
-    hal_sysfreq_inc_min_freq(HAL_CMU_FREQ_52M);
+#ifdef IDLE_MIN_SYS_FREQ_MHZ
+    hal_sysfreq_inc_min_freq(MACRO_CONCAT(MACRO_CONCAT(HAL_CMU_FREQ_, IDLE_MIN_SYS_FREQ_MHZ), M));
 #endif
+
     // Init flash
 #if !defined(ARM_CMNS) && !defined(NO_FLASH_INIT)
     hal_norflash_init(HAL_FLASH_ID_0);
@@ -674,5 +741,5 @@ void BOOT_TEXT_FLASH_LOC hal_cmu_setup(void)
 
 #endif // !FPGA
 
-#endif // !(CHIP_ROLE_CP || CHIP_SUBSYS_SENS || (CHIP_SUBSYS_BTH ^ BTH_AS_MAIN_MCU))
+#endif // !(CHIP_ROLE_CP || CHIP_SUBSYS_SENS || CHIP_SUBSYS_CSP || (CHIP_SUBSYS_BTH ^ BTH_AS_MAIN_MCU))
 

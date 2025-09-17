@@ -36,7 +36,76 @@
 #endif
 
 #ifndef __ASSEMBLER__
+#ifdef KERNEL_RHINO
+#include "ca/irq_ctrl.h"
+#include "driver/interrupt.h"
+extern void gic_clear_pending(u32 id);
+#define NVIC_SetPriority(irq, prio)         gic_set_irq_priority(irq, (prio))
+#define NVIC_GetPriority(irq)               GIC_GetPriority(irq)
+#define NVIC_ClearPendingIRQ(irq)           gic_clear_pending(irq)
+#define NVIC_GetPendingIRQ(irq)             GIC_GetPendingIRQ(irq)
+#define NVIC_GetEnableIRQ(irq)              GIC_GetEnableIRQ(irq)
+#define NVIC_EnableIRQ(irq)                 irq_enable(irq)
+#define NVIC_DisableIRQ(irq)                irq_disable(irq)
+//#define NVIC_GetActive(irq)                 (GIC_GetIRQStatus(irq) & (1 << 1))
+#define NVIC_GetActive(irq)                 (((GICDistributor->ISACTIVER[(irq) / 32U])  >> ((irq) % 32U)) & 1UL)
+
+#define NVIC_SetVector(irq, vector)         irq_request(irq, (void *)(vector), 0)
+#elif defined (KERNEL_RTT)
+#include "ca/irq_ctrl.h"
+#include "gic.h"
+#include "interrupt.h"
+#define NVIC_SetPriority(irq, prio)         arm_gic_set_priority(irq, (prio))
+#define NVIC_GetPriority(irq)               GIC_GetPriority(irq)
+#define NVIC_ClearPendingIRQ(irq)           arm_gic_clear_pending(0, irq)
+#define NVIC_GetPendingIRQ(irq)             GIC_GetPendingIRQ(irq)
+#define NVIC_GetEnableIRQ(irq)              GIC_GetEnableIRQ(irq)
+#define NVIC_EnableIRQ(irq)                 rt_hw_interrupt_umask(irq)
+#define NVIC_DisableIRQ(irq)                rt_hw_interrupt_mask(irq)
+#define NVIC_GetActive(irq)                 (rt_hw_interrupt_get_irq() == (irq))
+//#define NVIC_GetActive(irq)                 (((GICDistributor->ISACTIVER[(irq) / 32U])  >> ((irq) % 32U)) & 1UL)
+#define NVIC_SetVector(irq, vector)         rt_hw_interrupt_install(irq, (rt_isr_handler_t)vector, NULL, NULL)
+#elif defined (KERNEL_LITEOS_A)
+//#include "los_hwi.h"
+#include "ca/irq_ctrl.h"
+typedef void (*LOS_ISR)(void);
+extern void HalIrqClear(unsigned int vector);
+extern void HalIrqUnmask(unsigned int vector);
+extern void HalIrqMask(unsigned int vector);
+extern unsigned int HalCurIrqGet(void);
+extern unsigned int hal_irq_create(unsigned int hwiNum,
+                                           unsigned short hwiPrio,
+                                           unsigned short hwiMode,
+                                           LOS_ISR hwiHandler,
+                                           void *irqParam);
 #define NVIC_SetPriority(irq, prio)         GIC_SetPriority(irq, ((prio) << (8 - __GIC_PRIO_BITS)))
+#define NVIC_GetPriority(irq)               GIC_GetPriority(irq)
+#define NVIC_ClearPendingIRQ(irq)           HalIrqClear(irq)
+#define NVIC_GetPendingIRQ(irq)             GIC_GetPendingIRQ(irq)
+#define NVIC_GetEnableIRQ(irq)              GIC_GetEnableIRQ(irq)
+#define NVIC_EnableIRQ(irq)                 HalIrqUnmask(irq)
+#define NVIC_DisableIRQ(irq)                HalIrqMask(irq)
+#define NVIC_GetActive(irq)                 (HalCurIrqGet() == (irq))
+#define NVIC_SetVector(irq, vector)         hal_irq_create(irq, 0xa0U, 0, (LOS_ISR)vector, 0)
+#elif defined(__NuttX__)
+#include "ca/irq_ctrl.h"
+extern void up_enable_irq(int irq);
+extern void up_disable_irq(int irq);
+extern int up_prioritize_irq(int irq, int priority);
+typedef CODE int (*xcpt_t)(int irq, void *context, void *arg);
+extern int irq_attach(int irq, xcpt_t isr, void *arg);
+#define NVIC_SetPriority(irq, prio)         up_prioritize_irq(irq, (prio))
+#define NVIC_GetPriority(irq)               GIC_GetPriority(irq)
+#define NVIC_ClearPendingIRQ(irq)           GIC_ClearPendingIRQ(irq)
+#define NVIC_GetPendingIRQ(irq)             GIC_GetPendingIRQ(irq)
+#define NVIC_GetEnableIRQ(irq)              GIC_GetEnableIRQ(irq)
+#define NVIC_EnableIRQ(irq)                 up_enable_irq(irq)
+#define NVIC_DisableIRQ(irq)                up_disable_irq(irq)
+#define NVIC_GetActive(irq)                 (((GICDistributor->ISACTIVER[(irq) / 32U])  >> ((irq) % 32U)) & 1UL)
+#define NVIC_SetVector(irq, vector)         irq_attach(irq, (void *)(vector), 0)
+#else
+#define NVIC_SetPriority(irq, prio)         GIC_SetPriority(irq, ((prio) << (8 - __GIC_PRIO_BITS)))
+#define NVIC_GetPriority(irq)               GIC_GetPriority(irq)
 #define NVIC_ClearPendingIRQ(irq)           GIC_ClearPendingIRQ(irq)
 #define NVIC_GetPendingIRQ(irq)             GIC_GetPendingIRQ(irq)
 #define NVIC_GetEnableIRQ(irq)              GIC_GetEnableIRQ(irq)
@@ -50,6 +119,11 @@
 
 uint32_t __get_SPSR(void);
 void __set_SPSR(uint32_t spsr);
+#endif
+#endif
+
+#ifndef CA_L1C_LEVEL
+#define CA_L1C_LEVEL             (7U)
 #endif
 
 /*******************************************************************************
@@ -1015,7 +1089,7 @@ __STATIC_FORCEINLINE void L1C_CleanInvalidateCache(uint32_t op) {
   uint32_t clidr;
   uint32_t cache_type;
   clidr =  __get_CLIDR();
-  for(uint32_t i = 0U; i<7U; i++)
+  for(uint32_t i = 0U; i<CA_L1C_LEVEL; i++)
   {
     cache_type = (clidr >> i*3U) & 0x7UL;
     if ((cache_type >= 2U) && (cache_type <= 4U))
@@ -1023,6 +1097,34 @@ __STATIC_FORCEINLINE void L1C_CleanInvalidateCache(uint32_t op) {
       __L1C_MaintainDCacheSetWay(i, op);
     }
   }
+}
+
+/** \brief  Clean and Invalidate cache by address range
+* \param [in] op 0 - invalidate, 1 - clean, otherwise - invalidate and clean
+*/
+__STATIC_FORCEINLINE void L1C_CleanInvalidateCacheRange(uint32_t op, uint32_t start, uint32_t end) {
+  uint32_t ccsidr;
+  uint32_t size;
+
+  /* set csselr, select ccsidr register */
+  __set_CSSELR(0);
+  /* get current ccsidr register */
+  ccsidr = __get_CCSIDR();
+
+  /* get cache line size */
+  size = 1 << ((ccsidr & 0x00000007U) + 2U + 2U);
+  start &= ~(size - 1);
+  end &= ~(size - 1);
+  while (start <= end) {
+    switch (op)
+    {
+      case 0U: __set_DCIMVAC(start);  break;
+      case 1U: __set_DCCMVAC(start);  break;
+      default: __set_DCCIMVAC(start); break;
+    }
+    start += size;
+  }
+  __DMB();
 }
 
 /** \brief  Clean and Invalidate the entire data or unified cache
@@ -1901,6 +2003,21 @@ typedef struct RegionStruct {
                                    region.sh_t = NON_SHARED; \
                                    MMU_GetSectionDescriptor(&descriptor_l1, region);
 
+//Sect_Normal_Share. Outer & inner wb/wa, shareable, executable, rw, domain 0
+#define section_normal_share(descriptor_l1, region)     region.rg_t = SECTION; \
+                                   region.domain = 0x0; \
+                                   region.e_t = ECC_DISABLED; \
+                                   region.g_t = GLOBAL; \
+                                   region.inner_norm_t = WB_WA; \
+                                   region.outer_norm_t = WB_WA; \
+                                   region.mem_t = NORMAL; \
+                                   region.sec_t = SECURE; \
+                                   region.xn_t = EXECUTE; \
+                                   region.priv_t = RW; \
+                                   region.user_t = RW; \
+                                   region.sh_t = SHARED; \
+                                   MMU_GetSectionDescriptor(&descriptor_l1, region);
+
 //Sect_Normal_NC. Outer & inner non-cacheable, non-shareable, executable, rw, domain 0
 #define section_normal_nc(descriptor_l1, region)    region.rg_t = SECTION; \
                                    region.domain = 0x0; \
@@ -1946,6 +2063,21 @@ typedef struct RegionStruct {
                                    region.sh_t = NON_SHARED; \
                                    MMU_GetSectionDescriptor(&descriptor_l1, region);
 
+//Sect_Normal_Cod_Share. Outer & inner wb/wa, shareable, executable, ro, domain 0
+#define section_normal_cod_share(descriptor_l1, region) region.rg_t = SECTION; \
+                                   region.domain = 0x0; \
+                                   region.e_t = ECC_DISABLED; \
+                                   region.g_t = GLOBAL; \
+                                   region.inner_norm_t = WB_WA; \
+                                   region.outer_norm_t = WB_WA; \
+                                   region.mem_t = NORMAL; \
+                                   region.sec_t = SECURE; \
+                                   region.xn_t = EXECUTE; \
+                                   region.priv_t = READ; \
+                                   region.user_t = READ; \
+                                   region.sh_t = SHARED; \
+                                   MMU_GetSectionDescriptor(&descriptor_l1, region);
+
 //Sect_Normal_RO. Sect_Normal_Cod, but not executable
 #define section_normal_ro(descriptor_l1, region)  region.rg_t = SECTION; \
                                    region.domain = 0x0; \
@@ -1959,6 +2091,21 @@ typedef struct RegionStruct {
                                    region.priv_t = READ; \
                                    region.user_t = READ; \
                                    region.sh_t = NON_SHARED; \
+                                   MMU_GetSectionDescriptor(&descriptor_l1, region);
+
+//Sect_Normal_RO_Share. Sect_Normal_Cod, but not executable
+#define section_normal_ro_share(descriptor_l1, region)  region.rg_t = SECTION; \
+                                   region.domain = 0x0; \
+                                   region.e_t = ECC_DISABLED; \
+                                   region.g_t = GLOBAL; \
+                                   region.inner_norm_t = WB_WA; \
+                                   region.outer_norm_t = WB_WA; \
+                                   region.mem_t = NORMAL; \
+                                   region.sec_t = SECURE; \
+                                   region.xn_t = NON_EXECUTE; \
+                                   region.priv_t = READ; \
+                                   region.user_t = READ; \
+                                   region.sh_t = SHARED; \
                                    MMU_GetSectionDescriptor(&descriptor_l1, region);
 
 //Sect_Normal_RW. Sect_Normal_Cod, but writeable and not executable
@@ -1975,6 +2122,22 @@ typedef struct RegionStruct {
                                    region.user_t = RW; \
                                    region.sh_t = NON_SHARED; \
                                    MMU_GetSectionDescriptor(&descriptor_l1, region);
+
+//Sect_Normal_RW_Share. Sect_Normal_Cod, but writeable and not executable
+#define section_normal_rw_share(descriptor_l1, region) region.rg_t = SECTION; \
+                                   region.domain = 0x0; \
+                                   region.e_t = ECC_DISABLED; \
+                                   region.g_t = GLOBAL; \
+                                   region.inner_norm_t = WB_WA; \
+                                   region.outer_norm_t = WB_WA; \
+                                   region.mem_t = NORMAL; \
+                                   region.sec_t = SECURE; \
+                                   region.xn_t = NON_EXECUTE; \
+                                   region.priv_t = RW; \
+                                   region.user_t = RW; \
+                                   region.sh_t = SHARED; \
+                                   MMU_GetSectionDescriptor(&descriptor_l1, region);
+
 //Sect_SO. Strongly-ordered (therefore shareable), not executable, rw, domain 0, base addr 0
 #define section_so(descriptor_l1, region) region.rg_t = SECTION; \
                                    region.domain = 0x0; \
@@ -2082,6 +2245,21 @@ typedef struct RegionStruct {
                                    region.sh_t = NON_SHARED; \
                                    MMU_GetPageDescriptor(&descriptor_l1, &descriptor_l2, region);
 
+//Page_4k_Normal_Share. Outer & inner wb/wa, shareable, executable, rw, domain 0
+#define page4k_normal_share(descriptor_l1, descriptor_l2, region) region.rg_t = PAGE_4k; \
+                                   region.domain = 0x0; \
+                                   region.e_t = ECC_DISABLED; \
+                                   region.g_t = GLOBAL; \
+                                   region.inner_norm_t = WB_WA; \
+                                   region.outer_norm_t = WB_WA; \
+                                   region.mem_t = NORMAL; \
+                                   region.sec_t = SECURE; \
+                                   region.xn_t = EXECUTE; \
+                                   region.priv_t = RW; \
+                                   region.user_t = RW; \
+                                   region.sh_t = SHARED; \
+                                   MMU_GetPageDescriptor(&descriptor_l1, &descriptor_l2, region);
+
 //Page_4k_Normal. Outer & inner non-cacheable, non-shareable, executable, rw, domain 0
 #define page4k_normal_nc(descriptor_l1, descriptor_l2, region) region.rg_t = PAGE_4k; \
                                    region.domain = 0x0; \
@@ -2094,7 +2272,7 @@ typedef struct RegionStruct {
                                    region.xn_t = EXECUTE; \
                                    region.priv_t = RW; \
                                    region.user_t = RW; \
-                                   region.sh_t = NON_SHARED; \
+                                   region.sh_t = SHARED; \
                                    MMU_GetPageDescriptor(&descriptor_l1, &descriptor_l2, region);
 
 //Page_64k_Device_RW.  Shared device, not executable, rw, domain 0
@@ -2464,6 +2642,12 @@ __STATIC_INLINE int MMU_MemoryPage(uint32_t *descriptor_l2, mmu_memory_Type mem,
     }
     else if (NORMAL == mem)
     {
+      if (inner == NON_CACHEABLE && outer == NON_CACHEABLE)
+      {
+        *descriptor_l2 |= (1 << PAGE_4K_TEX0_SHIFT);
+        return 0;
+      }
+
       *descriptor_l2 |= 1 << PAGE_4K_TEX2_SHIFT;
       switch(inner)
       {
@@ -2708,7 +2892,20 @@ __STATIC_INLINE void MMU_Enable(void)
   // Set M bit 0 to enable the MMU
   // Set AFE bit to enable simplified access permissions model
   // Clear TRE bit to disable TEX remap and A bit to disable strict alignment fault checking
+#if 1
   __set_SCTLR( (__get_SCTLR() & ~(1 << 28) & ~(1 << 1)) | 1 | (1 << 29));
+#else
+    uint32_t reg;
+
+    reg  = __get_SCTLR();
+    /*
+    SCTLR.M, bit[0]   MMU enable.
+    0  PL1&0 stage 1 MMU disabled.
+    1  PL1&0 stage 1 MMU enabled.
+    */
+    reg |= 0x1;
+    __set_SCTLR(reg);
+#endif
   __ISB();
 }
 

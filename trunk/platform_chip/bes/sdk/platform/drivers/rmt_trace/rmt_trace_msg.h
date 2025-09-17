@@ -29,10 +29,16 @@ typedef int (*RMT_TRC_SEND_CB)(const void *data, unsigned int len, unsigned int 
 
 enum RMT_TRC_MSG_ID_T {
     RMT_TRC_MSG_ID_TRACE,
-    RMT_TRC_MSG_ID_CRASH_ASSERT_START,
-    RMT_TRC_MSG_ID_CRASH_FAULT_START,
-    RMT_TRC_MSG_ID_CRASH_END,
+    RMT_TRC_MSG_ID_FLUSH,
+    RMT_TRC_MSG_ID_CRASH,
     RMT_TRC_MSG_ID_SERVER_DUMP,
+};
+
+enum RMT_TRC_STATE_T {
+    RMT_TRC_STATE_TRACE,
+    RMT_TRC_STATE_CRASH_ASSERT_START,
+    RMT_TRC_STATE_CRASH_FAULT_START,
+    RMT_TRC_STATE_CRASH_END,
 };
 
 struct RMT_TRC_CTRL_T {
@@ -41,17 +47,17 @@ struct RMT_TRC_CTRL_T {
     const uint16_t *entry_start;
     uint16_t buf_size;
     uint16_t entry_cnt;
-    uint16_t entry_rpos;
-    uint16_t entry_wpos;
+    volatile uint16_t entry_rpos;
+    volatile uint16_t entry_wpos;
     uint16_t discard_cnt_r;
     uint16_t discard_cnt_w;
-    uint8_t seq_r;
-    uint8_t seq_w;
+    uint16_t server_discard_cnt;
+    uint8_t state;
 };
 
 struct RMT_TRC_MSG_T {
     uint32_t msg_magic;
-    enum RMT_TRC_MSG_ID_T id;
+    uint32_t id;
     void *param;
 };
 

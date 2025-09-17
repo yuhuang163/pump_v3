@@ -74,24 +74,15 @@ void ble_ai_dma_send_data(app_ble_ai_data_send_param_t *param)
 {
     enum gatt_evt_type evt_type = param->gatt_event_type;
     const uint8_t *character = (param->data_type == BLE_AI_DATA_TYPE) ? g_ble_ai_dma_tx_data_character : g_ble_ai_dma_tx_cmd_character;
-
-    gatt_char_notify_t val_ind_ntf=
-    {
-        .character = character,
-        .service = g_ble_ai_dma_service,
-    };
-
     if (evt_type == GATT_NOTIFY)
     {
-        gatts_send_value_notification(gap_conn_bf(param->conidx), &val_ind_ntf, param->data, (uint16_t)param->data_len);
+        gatts_send_notification(gap_conn_bf(param->conidx), character, param->data, (uint16_t)param->data_len);
     }
     else
     {
-        gatts_send_value_indication(gap_conn_bf(param->conidx), &val_ind_ntf, param->data, (uint16_t)param->data_len);
+        gatts_send_indication(gap_conn_bf(param->conidx), character, param->data, (uint16_t)param->data_len);
     }
 }
-
-static bool ntf_enabled[BLE_CONNECTION_MAX] = {0};
 
 static int ble_ai_dma_server_callback(gatt_svc_t *svc, gatt_server_event_t event, gatt_server_callback_param_t param)
 {
@@ -117,7 +108,6 @@ static int ble_ai_dma_server_callback(gatt_svc_t *svc, gatt_server_event_t event
             {
                 notify_enabled = true;
             }
-            ntf_enabled[gap_zero_based_conidx(svc->con_idx)] = notify_enabled;
             if (notify_enabled)
             {
                 ble_ai_report_connected(APP_BLE_AI_SPEC_DMA, svc->con_idx, svc->connhdl);
@@ -126,14 +116,6 @@ static int ble_ai_dma_server_callback(gatt_svc_t *svc, gatt_server_event_t event
             {
                 ble_ai_report_disconnected(APP_BLE_AI_SPEC_DMA, svc->con_idx, svc->connhdl);
             }
-            return true;
-        }
-        case GATT_SERV_EVENT_DESC_READ:
-        {
-            gatt_server_desc_read_t *p = param.desc_read;
-            uint16_t cccd_config = ntf_enabled[gap_zero_based_conidx(svc->con_idx)] ? 0x0001 : 0x0000;
-            cccd_config = co_host_to_uint16_le(cccd_config);
-            gatts_send_read_rsp(p->conn->connhdl, p->token, 0, (uint8_t *)&cccd_config, sizeof(uint16_t));
             return true;
         }
         case GATT_SERV_EVENT_NTF_TX_DONE:

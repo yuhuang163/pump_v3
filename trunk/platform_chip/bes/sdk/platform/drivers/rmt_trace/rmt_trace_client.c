@@ -33,14 +33,12 @@
 #ifndef RMT_TRC_ENTRY_CNT
 #define RMT_TRC_ENTRY_CNT                   100
 #endif
-
-/* CONFIG_USE_SLOW_TIMER=y hwtimer_* unsupported */
-#ifdef __NuttX__
-#define RMT_TRC_INTVL_MS                    0
-#endif
-
 #ifndef RMT_TRC_INTVL_MS
+#ifdef SIMU
+#define RMT_TRC_INTVL_MS                    2
+#else
 #define RMT_TRC_INTVL_MS                    100
+#endif
 #endif
 
 #define RMT_CRASH_WAIT_TIMEOUT_MS           200
@@ -52,62 +50,221 @@ STATIC_ASSERT(RMT_TRC_ENTRY_CNT < VAR_MAX_VALUE(((struct RMT_TRC_CTRL_T *)0)->en
 STATIC_ASSERT(RMT_TRC_ENTRY_CNT < VAR_MAX_VALUE(((struct RMT_TRC_CTRL_T *)0)->entry_rpos), "RMT_TRC_ENTRY_CNT too large");
 STATIC_ASSERT(RMT_TRC_ENTRY_CNT < VAR_MAX_VALUE(((struct RMT_TRC_CTRL_T *)0)->entry_wpos), "RMT_TRC_ENTRY_CNT too large");
 
-SYNC_FLAGS_LOC
-static uint8_t trc_buf[RMT_TRC_BUF_SIZE];
-SYNC_FLAGS_LOC
-static uint16_t trc_entry_list[RMT_TRC_ENTRY_CNT];
-SYNC_FLAGS_LOC
-static struct RMT_TRC_CTRL_T ctrl;
-static unsigned int last_seq;
-static bool in_crash;
-
-#ifdef NO_SUBSYS_FLASH_ADDR_ACCESS
-SRAM_RODATA_LOC
+#if defined(AON_MAILBOX_SIZE) && (AON_MAILBOX_SIZE > 0)
+#ifndef RMT_TRC_AON_BUF_SIZE
+#define RMT_TRC_AON_BUF_SIZE                1024
 #endif
-static const struct RMT_TRC_MSG_T trc_msg = {
-    .msg_magic = RMT_TRC_MSG_MAGIC_WORD,
-    .id = RMT_TRC_MSG_ID_TRACE,
-    .param = &ctrl,
-};
+#define RMT_TRC_CTRL_LOC
+#define RMT_TRC_MSG_LOC                     AON_MBX_BSS_LOC
+
+AON_MBX_BUF_LOC
+static uint8_t aon_trc_buf[RMT_TRC_AON_BUF_SIZE];
+AON_MBX_BSS_LOC
+static uint16_t aon_trc_entry_list[2];
+AON_MBX_BSS_LOC
+static struct RMT_TRC_CTRL_T aon_trc_ctrl;
+#else
+#define RMT_TRC_CTRL_LOC                  SYNC_FLAGS_LOC
+#define RMT_TRC_MSG_LOC                   SYNC_FLAGS_LOC
+#endif
+
+RMT_TRC_CTRL_LOC
+static uint8_t trc_buf[RMT_TRC_BUF_SIZE];
+RMT_TRC_CTRL_LOC
+static uint16_t trc_entry_list[RMT_TRC_ENTRY_CNT];
+RMT_TRC_CTRL_LOC
+static struct RMT_TRC_CTRL_T trc_ctrl;
+RMT_TRC_MSG_LOC
+static struct RMT_TRC_MSG_T trc_msg;
+RMT_TRC_MSG_LOC
+static struct RMT_TRC_MSG_T flush_msg;
+
+static bool in_crash;
+static bool in_server_dump;
+static bool trc_msg_sending;
 
 static char trc_tag[16];
 static uint8_t trc_tag_len;
 
 static RMT_TRC_SEND_CB send_cb;
-static RMT_TRC_TX_ACTIVE_CB tx_active_cb;
 static RMT_TRC_TX_IRQ_RUN_CB tx_irq_run_cb;
+
+#if defined(AON_MAILBOX_SIZE) && (AON_MAILBOX_SIZE > 0)
+static int rmt_trace_fill_aon_buffer(void)
+{
+    uint32_t aon_entry_rpos, aon_entry_wpos;
+    uint32_t entry_rpos, entry_wpos, next_rpos;
+    uint32_t trace_start, trace_end;
+    uint32_t len, aon_len;
+
+    aon_trc_ctrl.discard_cnt_w = trc_ctrl.discard_cnt_w;
+
+    aon_entry_rpos = aon_trc_ctrl.entry_rpos;
+    aon_entry_wpos = aon_trc_ctrl.entry_wpos;
+    if (aon_entry_rpos != aon_entry_wpos) {
+        // Previous trace not processed yet. Just continue
+        return 0;
+    }
+
+    entry_rpos = trc_ctrl.entry_rpos;
+    entry_wpos = trc_ctrl.entry_wpos;
+    if (entry_rpos >= ARRAY_SIZE(trc_entry_list) || entry_wpos >= ARRAY_SIZE(trc_entry_list)) {
+        return 1;
+    }
+
+    trace_start = trc_entry_list[entry_rpos];
+    if (trace_start > sizeof(trc_buf)) {
+        return 2;
+    }
+
+    aon_len = 0;
+
+    while (entry_rpos != entry_wpos) {
+        next_rpos = entry_rpos + 1;
+        if (next_rpos >= ARRAY_SIZE(trc_entry_list)) {
+            next_rpos = 0;
+        }
+        trace_end = trc_entry_list[next_rpos];
+        if (trace_end > sizeof(trc_buf)) {
+            return 3;
+        }
+        if (trace_end <= trace_start || trace_start >= sizeof(trc_buf)) {
+            // Trace starts from buffer head
+            // Client trace will never wrap buffer so that one invokation of TRACE_OUTPUT can process one trace.
+            trace_start = 0;
+        }
+        len = trace_end - trace_start;
+        if (len) {
+            if (len > sizeof(aon_trc_buf)) {
+                len = sizeof(aon_trc_buf);
+            }
+            if (len + aon_len > sizeof(aon_trc_buf)) {
+                break;
+            }
+            memcpy(&aon_trc_buf[aon_len], &trc_buf[trace_start], len);
+            aon_len += len;
+        }
+        trace_start = trace_end;
+        entry_rpos = next_rpos;
+    }
+
+    trc_ctrl.entry_rpos = entry_rpos;
+    aon_trc_entry_list[aon_entry_wpos] = 0;
+    aon_entry_wpos++;
+    if (aon_entry_wpos >= ARRAY_SIZE(aon_trc_entry_list)) {
+        aon_entry_wpos = 0;
+    }
+    aon_trc_entry_list[aon_entry_wpos] = aon_len;
+    aon_trc_ctrl.entry_wpos = aon_entry_wpos;
+    return 0;
+}
+#endif
 
 static void rmt_wait_tx_msg_done(void)
 {
     uint32_t time;
 
     time = hal_sys_timer_get();
-    while (tx_active_cb(last_seq) &&
-            (hal_sys_timer_get() - time < MS_TO_TICKS(RMT_CRASH_WAIT_TIMEOUT_MS))) {
-        tx_irq_run_cb();
+
+    if (in_server_dump) {
+        while (trc_ctrl.entry_rpos != trc_ctrl.entry_wpos &&
+                (hal_sys_timer_get() - time < MS_TO_TICKS(RMT_CRASH_WAIT_TIMEOUT_MS))) {
+#if defined(AON_MAILBOX_SIZE) && (AON_MAILBOX_SIZE > 0)
+            rmt_trace_fill_aon_buffer();
+#endif
+        }
+#if defined(AON_MAILBOX_SIZE) && (AON_MAILBOX_SIZE > 0)
+        if (trc_ctrl.entry_rpos == trc_ctrl.entry_wpos) {
+            aon_trc_ctrl.state = trc_ctrl.state;
+        }
+#endif
+    } else {
+        while (trc_msg_sending &&
+                (hal_sys_timer_get() - time < MS_TO_TICKS(RMT_CRASH_WAIT_TIMEOUT_MS))) {
+            tx_irq_run_cb();
+        }
     }
+}
+
+static int send_trace_msg_raw(void)
+{
+    int ret;
+
+    if (trc_msg_sending) {
+        return 1;
+    }
+
+#if defined(AON_MAILBOX_SIZE) && (AON_MAILBOX_SIZE > 0)
+    ret = rmt_trace_fill_aon_buffer();
+    if (ret) {
+        return ret;
+    }
+#endif
+
+    ret = send_cb(&trc_msg, sizeof(trc_msg), NULL);
+    if (ret == 0) {
+        trc_msg_sending = true;
+    }
+
+    return 0;
 }
 
 static void rmt_send_trace_msg(void)
 {
     uint32_t lock;
+    int ret;
+
+    if (in_server_dump) {
+        rmt_wait_tx_msg_done();
+        return;
+    }
 
     lock = int_lock();
 
-#if (RMT_TRC_INTVL_MS > 0)
-    if (!in_crash && tx_active_cb(last_seq) && ctrl.seq_r != ctrl.seq_w) {
+    ret = send_trace_msg_raw();
+    if (ret) {
         goto _exit;
     }
-#endif
-
-    ctrl.seq_w++;
-    send_cb(&trc_msg, sizeof(trc_msg), &last_seq);
 
     if (in_crash) {
         rmt_wait_tx_msg_done();
     }
 
-_exit: POSSIBLY_UNUSED;
+_exit:
+    int_unlock(lock);
+}
+
+static void rmt_trace_flush_handler(void)
+{
+    uint32_t lock;
+    uint32_t entry_rpos, entry_wpos;
+    uint32_t discard_cnt_r, discard_cnt_w;
+
+    if (in_server_dump || in_crash) {
+        return;
+    }
+
+    lock = int_lock();
+
+    entry_rpos = trc_ctrl.entry_rpos;
+    entry_wpos = trc_ctrl.entry_wpos;
+    discard_cnt_r = trc_ctrl.discard_cnt_r;
+    discard_cnt_w = trc_ctrl.discard_cnt_w;
+    if (entry_rpos == entry_wpos && discard_cnt_r == discard_cnt_w) {
+        goto _exit;
+    }
+
+    rmt_wait_tx_msg_done();
+
+    rmt_send_trace_msg();
+
+    rmt_wait_tx_msg_done();
+
+    send_cb(&flush_msg, sizeof(flush_msg), NULL);
+
+    rmt_wait_tx_msg_done();
+
+_exit:
     int_unlock(lock);
 }
 
@@ -116,47 +273,66 @@ static HWTIMER_ID msg_timer;
 
 static void msg_timer_handler(void *param)
 {
+    uint32_t lock;
+    uint32_t entry_rpos, entry_wpos;
+    uint32_t discard_cnt_r, discard_cnt_w;
+
+    lock = int_lock();
+
+    entry_rpos = trc_ctrl.entry_rpos;
+    entry_wpos = trc_ctrl.entry_wpos;
+    discard_cnt_r = trc_ctrl.discard_cnt_r;
+    discard_cnt_w = trc_ctrl.discard_cnt_w;
+    if (entry_rpos == entry_wpos && discard_cnt_r == discard_cnt_w) {
+        goto _exit;
+    }
+
     rmt_send_trace_msg();
+
+_exit:
+    int_unlock(lock);
 }
 #endif
 
 static void rmt_trace_notify_handler(enum HAL_TRACE_STATE_T state)
 {
-    int ret;
-    struct RMT_TRC_MSG_T crash_msg;
-
     in_crash = true;
 
-    memset(&crash_msg, 0, sizeof(crash_msg));
-    crash_msg.msg_magic = RMT_TRC_MSG_MAGIC_WORD;
+    trc_msg.id = RMT_TRC_MSG_ID_CRASH;
+
     if (state == HAL_TRACE_STATE_CRASH_ASSERT_START) {
-        crash_msg.id = RMT_TRC_MSG_ID_CRASH_ASSERT_START;
+        trc_ctrl.state = RMT_TRC_STATE_CRASH_ASSERT_START;
     } else if (state == HAL_TRACE_STATE_CRASH_FAULT_START) {
-        crash_msg.id = RMT_TRC_MSG_ID_CRASH_FAULT_START;
+        trc_ctrl.state = RMT_TRC_STATE_CRASH_FAULT_START;
     } else {
-        crash_msg.id = RMT_TRC_MSG_ID_CRASH_END;
+        trc_ctrl.state = RMT_TRC_STATE_CRASH_END;
     }
-    crash_msg.param = &ctrl;
 
 #if (RMT_TRC_INTVL_MS > 0)
     hwtimer_stop(msg_timer);
 #endif
     rmt_wait_tx_msg_done();
 
-    ctrl.seq_w++;
-    ret = send_cb(&crash_msg, sizeof(crash_msg), &last_seq);
-    if (ret == 0) {
-        rmt_wait_tx_msg_done();
-    }
+    rmt_send_trace_msg();
 }
 
 static int rmt_global_tag_handler(char *buf, unsigned int buf_len)
 {
 #ifdef USE_TRACE_ID
-    uint32_t id = hal_trace_get_id(buf);
-    hal_trace_set_id(buf, SET_BITFIELD(id, USER_ID_CPUID, trc_tag[0] + get_cpu_id()));
-    return id;
+    if (buf_len == 0) {
+        uint32_t tag = hal_trace_get_tag(buf);
+        uint32_t cpu_id;
+
+#ifdef RMT_TRC_CPU_ID
+        cpu_id = RMT_TRC_CPU_ID;
 #else
+        cpu_id = get_cpu_id();
+#endif
+        hal_trace_set_tag(buf, SET_BITFIELD(tag, TAG_VAL_CPUID, cpu_id));
+        return 0;
+    }
+#endif
+
     unsigned int len;
 
     if (buf_len && trc_tag_len) {
@@ -166,7 +342,6 @@ static int rmt_global_tag_handler(char *buf, unsigned int buf_len)
     }
 
     return 0;
-#endif
 }
 
 static void rmt_trace_output_handler(const unsigned char *buf, unsigned int buf_len)
@@ -181,8 +356,8 @@ static void rmt_trace_output_handler(const unsigned char *buf, unsigned int buf_
         return;
     }
 
-    entry_rpos = ctrl.entry_rpos;
-    entry_wpos = ctrl.entry_wpos;
+    entry_rpos = trc_ctrl.entry_rpos;
+    entry_wpos = trc_ctrl.entry_wpos;
 
     if (entry_wpos >= entry_rpos) {
         entry_avail = ARRAY_SIZE(trc_entry_list) - (entry_wpos - entry_rpos) - 1;
@@ -191,7 +366,7 @@ static void rmt_trace_output_handler(const unsigned char *buf, unsigned int buf_
     }
 
     if (entry_avail < 1) {
-        ctrl.discard_cnt_w++;
+        trc_ctrl.discard_cnt_w++;
         goto _tell_server;
     }
 
@@ -209,7 +384,7 @@ static void rmt_trace_output_handler(const unsigned char *buf, unsigned int buf_
     }
 
     if (buf_avail < buf_len) {
-        ctrl.discard_cnt_w++;
+        trc_ctrl.discard_cnt_w++;
         goto _tell_server;
     }
 
@@ -223,7 +398,7 @@ static void rmt_trace_output_handler(const unsigned char *buf, unsigned int buf_
     }
 
     trc_entry_list[entry_wpos] = buf_wpos;
-    ctrl.entry_wpos = entry_wpos;
+    trc_ctrl.entry_wpos = entry_wpos;
 
 _tell_server:
     // Send message to SERVER
@@ -260,11 +435,8 @@ int rmt_trace_client_open(const struct RMT_TRC_CLIENT_CFG_T *cfg)
     if (!cfg->send_cb) {
         return 3;
     }
-    if (!cfg->tx_active_cb) {
-        return 4;
-    }
     if (!cfg->tx_irq_run_cb) {
-        return 5;
+        return 4;
     }
 
     int i = 0;
@@ -274,24 +446,55 @@ int rmt_trace_client_open(const struct RMT_TRC_CLIENT_CFG_T *cfg)
     }
     trc_tag_len = i;
     send_cb = cfg->send_cb;
-    tx_active_cb = cfg->tx_active_cb;
     tx_irq_run_cb = cfg->tx_irq_run_cb;
 
-    ctrl.ctrl_magic = RMT_TRC_CTRL_MAGIC_WORD;
-    ctrl.buf_start = trc_buf;
-    ctrl.entry_start = trc_entry_list;
-    ctrl.buf_size = sizeof(trc_buf);
-    ctrl.entry_cnt = ARRAY_SIZE(trc_entry_list);
-    ctrl.entry_rpos = 0;
-    ctrl.entry_wpos = 0;
-    ctrl.discard_cnt_r = 0;
-    ctrl.discard_cnt_w = 0;
+    trc_msg.msg_magic = RMT_TRC_MSG_MAGIC_WORD;
+    trc_msg.id = RMT_TRC_MSG_ID_TRACE;
+#if defined(AON_MAILBOX_SIZE) && (AON_MAILBOX_SIZE > 0)
+    trc_msg.param = &aon_trc_ctrl;
+#else
+    trc_msg.param = ADDR_CPU_TO_DEV(&trc_ctrl);
+#endif
 
-    trc_entry_list[ctrl.entry_rpos] = 0;
-    trc_entry_list[ctrl.entry_wpos] = 0;
+    flush_msg.msg_magic = RMT_TRC_MSG_MAGIC_WORD;
+    flush_msg.id = RMT_TRC_MSG_ID_FLUSH;
+    flush_msg.param = NULL;
 
-    last_seq = 0;
+    trc_ctrl.ctrl_magic = RMT_TRC_CTRL_MAGIC_WORD;
+    trc_ctrl.buf_start = ADDR_CPU_TO_DEV(&trc_buf[0]);
+    trc_ctrl.entry_start = ADDR_CPU_TO_DEV(&trc_entry_list[0]);
+    trc_ctrl.buf_size = sizeof(trc_buf);
+    trc_ctrl.entry_cnt = ARRAY_SIZE(trc_entry_list);
+    trc_ctrl.entry_rpos = 0;
+    trc_ctrl.entry_wpos = 0;
+    trc_ctrl.discard_cnt_r = 0;
+    trc_ctrl.discard_cnt_w = 0;
+    trc_ctrl.server_discard_cnt = 0;
+    trc_ctrl.state = RMT_TRC_STATE_TRACE;
+
+    trc_entry_list[0] = 0;
+    trc_entry_list[1] = 0;
+
+#if defined(AON_MAILBOX_SIZE) && (AON_MAILBOX_SIZE > 0)
+    aon_trc_ctrl.ctrl_magic = RMT_TRC_CTRL_MAGIC_WORD;
+    aon_trc_ctrl.buf_start = &aon_trc_buf[0];
+    aon_trc_ctrl.entry_start =&aon_trc_entry_list[0];
+    aon_trc_ctrl.buf_size = sizeof(aon_trc_buf);
+    aon_trc_ctrl.entry_cnt = ARRAY_SIZE(aon_trc_entry_list);
+    aon_trc_ctrl.entry_rpos = 0;
+    aon_trc_ctrl.entry_wpos = 0;
+    aon_trc_ctrl.discard_cnt_r = 0;
+    aon_trc_ctrl.discard_cnt_w = 0;
+    aon_trc_ctrl.server_discard_cnt = 0;
+    aon_trc_ctrl.state = RMT_TRC_STATE_TRACE;
+
+    aon_trc_entry_list[0] = 0;
+    aon_trc_entry_list[0] = 0;
+#endif
+
     in_crash = false;
+    in_server_dump = false;
+    trc_msg_sending = false;
 
 #if (RMT_TRC_INTVL_MS > 0)
     msg_timer = hwtimer_alloc(msg_timer_handler, NULL);
@@ -300,13 +503,14 @@ int rmt_trace_client_open(const struct RMT_TRC_CLIENT_CFG_T *cfg)
 
     hal_trace_global_tag_register(rmt_global_tag_handler);
     hal_trace_app_register(HAL_TRACE_APP_REG_ID_0, rmt_trace_notify_handler, rmt_trace_output_handler);
+    hal_trace_app_flush_register(rmt_trace_flush_handler);
 
     return 0;
 }
 
-unsigned int rmt_trace_client_msg_handler(const void *data, unsigned int len)
+unsigned int rmt_trace_client_rx_handler(const void *data, unsigned int len)
 {
-    const struct RMT_TRC_MSG_T *trc_msg;
+    const struct RMT_TRC_MSG_T *msg;
 
 #ifdef RMT_TRC_IN_MSG_CHAN
     if (!rmt_trace_check_trace(data, len)) {
@@ -315,15 +519,52 @@ unsigned int rmt_trace_client_msg_handler(const void *data, unsigned int len)
 #endif
 
     ASSERT(data, "%s: data ptr null", __func__);
-    ASSERT(len == sizeof(*trc_msg), "%s: Bad msg len %u (expecting %u", __func__, len, sizeof(*trc_msg));
+    ASSERT(len == sizeof(*msg), "%s: Bad msg len %u (expecting %u)", __func__, len, sizeof(*msg));
 
-    trc_msg = (const struct RMT_TRC_MSG_T *)data;
-    ASSERT(trc_msg->id == RMT_TRC_MSG_ID_SERVER_DUMP, "%s: Bad msg id %d (expecting %d)", __func__, trc_msg->id, RMT_TRC_MSG_ID_SERVER_DUMP);
+    msg = (const struct RMT_TRC_MSG_T *)data;
+    ASSERT((enum RMT_TRC_MSG_ID_T)msg->id == RMT_TRC_MSG_ID_SERVER_DUMP, "%s: Bad msg id %d (expecting %d)", __func__, msg->id, RMT_TRC_MSG_ID_SERVER_DUMP);
 
-    // Just make the ram wakeup
-    while (1) {
-        __WFI();
-    }
+    in_server_dump = true;
+
+    ASSERT(false, "%s: trace server dump", __func__);
 
     return len;
+}
+
+void rmt_trace_client_tx_handler(const void *data, unsigned int len)
+{
+    uint32_t lock;
+    uint32_t entry_rpos, entry_wpos;
+
+#if 0
+    if (!rmt_trace_check_trace(data, len)) {
+        return;
+    }
+#endif
+    if (data != &trc_msg) {
+        return;
+    }
+
+    lock = int_lock();
+
+    trc_msg_sending = false;
+
+    entry_rpos = trc_ctrl.entry_rpos;
+    entry_wpos = trc_ctrl.entry_wpos;
+
+    if (entry_rpos != entry_wpos) {
+        send_trace_msg_raw();
+    }
+
+    int_unlock(lock);
+}
+
+int rmt_trace_client_tx_handler_ext(const void *data, unsigned int len)
+{
+    if (rmt_trace_check_trace(data, len)) {
+        rmt_trace_client_tx_handler(data, len);
+        return len;
+    }
+
+    return 0;
 }

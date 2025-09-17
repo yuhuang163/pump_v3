@@ -87,8 +87,18 @@ struct SPDIF_SAMPLE_RATE_T {
 
 // SAMPLE_RATE * 128 = PLL_nominal / PCM_DIV / TX_RATIO
 // 128 = 32-bit-frame * 2-chan * 2-BPM-coding-clock
-static const struct SPDIF_SAMPLE_RATE_T spdif_sample_rate[]={
-#if defined(CHIP_BEST1000) && defined(AUD_PLL_DOUBLE)
+static const struct SPDIF_SAMPLE_RATE_T spdif_sample_rate[] = {
+#ifdef SPDIF_CLK_STRICT_WORKAROUND
+    // SPDIF module clock >= 5 * (SAMPLE_RATE * 128)
+    {AUD_SAMPRATE_8000,   AUD_SAMPRATE_48000 * 128 * 10, 3 * (CODEC_PLL_DIV / CODEC_CMU_DIV), 3, 60},
+    {AUD_SAMPRATE_16000,  AUD_SAMPRATE_48000 * 128 * 10, 3 * (CODEC_PLL_DIV / CODEC_CMU_DIV), 3, 30},
+    {AUD_SAMPRATE_22050,  AUD_SAMPRATE_44100 * 128 * 10, 3 * (CODEC_PLL_DIV / CODEC_CMU_DIV), 3, 20},
+    {AUD_SAMPRATE_24000,  AUD_SAMPRATE_48000 * 128 * 10, 3 * (CODEC_PLL_DIV / CODEC_CMU_DIV), 3, 20},
+    {AUD_SAMPRATE_32000,  AUD_SAMPRATE_32000 * 128 * 16, 3 * (CODEC_PLL_DIV / CODEC_CMU_DIV), 3, 16},
+    {AUD_SAMPRATE_44100,  AUD_SAMPRATE_44100 * 128 * 10, 3 * (CODEC_PLL_DIV / CODEC_CMU_DIV), 3, 10},
+    {AUD_SAMPRATE_48000,  AUD_SAMPRATE_48000 * 128 * 10, 3 * (CODEC_PLL_DIV / CODEC_CMU_DIV), 3, 10},
+    {AUD_SAMPRATE_96000,  AUD_SAMPRATE_48000 * 128 * 10, 3 * (CODEC_PLL_DIV / CODEC_CMU_DIV), 3,  5},
+#elif defined(CHIP_BEST1000) && defined(AUD_PLL_DOUBLE)
     {AUD_SAMPRATE_96000,  CODEC_FREQ_48K_SERIES*2, CODEC_PLL_DIV, SPDIF_CMU_DIV,  4},
     {AUD_SAMPRATE_192000, CODEC_FREQ_48K_SERIES*2, CODEC_PLL_DIV, SPDIF_CMU_DIV,  2},
     {AUD_SAMPRATE_384000, CODEC_FREQ_48K_SERIES*2, CODEC_PLL_DIV, SPDIF_CMU_DIV,  1},
@@ -133,7 +143,10 @@ static void _spdif_update_clock_dependency(void)
     enum HAL_CMU_FREQ_T sys_freq;
     uint32_t mod_clk = 0;
 
-    // TO-BE-FIXED: RX/TX FIFO requires APB clock >= SPDIF module clock
+    // TO-BE-FIXED:
+    // RX/TX FIFO requires
+    // 1) 2 * SPDIF module clock > APB clock > SPDIF module clock; or
+    // 2) APB clock > 3.1 * SPDIF module clock
 
     for (i = 0; i < HAL_SPDIF_ID_QTY; i++) {
         if (spdif_status[i][AUD_STREAM_PLAYBACK] != HAL_SPDIF_STATUS_NULL ||
@@ -146,10 +159,15 @@ static void _spdif_update_clock_dependency(void)
 
     if (mod_clk == 0) {
         sys_freq = HAL_CMU_FREQ_32K;
+#ifdef SPDIF_CLK_STRICT_WORKAROUND
+    } else {
+        sys_freq = HAL_CMU_FREQ_208M;
+#else
     } else if (mod_clk < hal_cmu_get_crystal_freq()) {
         sys_freq = HAL_CMU_FREQ_52M;
     } else {
         sys_freq = HAL_CMU_FREQ_104M;
+#endif
     }
     hal_sysfreq_req(HAL_SYSFREQ_USER_SPDIF, sys_freq);
 }
@@ -161,7 +179,7 @@ int hal_spdif_open(enum HAL_SPDIF_ID_T id, enum AUD_STREAM_T stream)
     reg_base = _spdif_get_reg_base(id);
 
     if (spdif_status[id][stream] != HAL_SPDIF_STATUS_NULL) {
-        HAL_TRACE(2,"Invalid SPDIF opening status for stream %d: %d", stream, spdif_status[id][stream]);
+        TRACE(2,"Invalid SPDIF opening status for stream %d: %d", stream, spdif_status[id][stream]);
         return 1;
     }
 
@@ -215,7 +233,7 @@ int hal_spdif_close(enum HAL_SPDIF_ID_T id, enum AUD_STREAM_T stream)
     }
 
     if (spdif_status[id][stream] != HAL_SPDIF_STATUS_OPENED) {
-        HAL_TRACE(2,"Invalid SPDIF closing status for stream %d: %d", stream, spdif_status[id][stream]);
+        TRACE(2,"Invalid SPDIF closing status for stream %d: %d", stream, spdif_status[id][stream]);
         return 1;
     }
 
@@ -264,7 +282,7 @@ int hal_spdif_start_stream(enum HAL_SPDIF_ID_T id, enum AUD_STREAM_T stream)
     reg_base = _spdif_get_reg_base(id);
 
     if (spdif_status[id][stream] != HAL_SPDIF_STATUS_OPENED) {
-        HAL_TRACE(2,"Invalid SPDIF starting status for stream %d: %d", stream, spdif_status[id][stream]);
+        TRACE(2,"Invalid SPDIF starting status for stream %d: %d", stream, spdif_status[id][stream]);
         return 1;
     }
 
@@ -298,7 +316,7 @@ int hal_spdif_stop_stream(enum HAL_SPDIF_ID_T id, enum AUD_STREAM_T stream)
     reg_base = _spdif_get_reg_base(id);
 
     if (spdif_status[id][stream] != HAL_SPDIF_STATUS_STARTED) {
-        HAL_TRACE(2,"Invalid SPDIF stopping status for stream %d: %d", stream, spdif_status[id][stream]);
+        TRACE(2,"Invalid SPDIF stopping status for stream %d: %d", stream, spdif_status[id][stream]);
         return 1;
     }
 
@@ -328,7 +346,7 @@ int hal_spdif_setup_stream(enum HAL_SPDIF_ID_T id, enum AUD_STREAM_T stream, str
     reg_base = _spdif_get_reg_base(id);
 
     if (spdif_status[id][stream] != HAL_SPDIF_STATUS_OPENED) {
-        HAL_TRACE(2,"Invalid SPDIF setup status for stream %d: %d", stream, spdif_status[id][stream]);
+        TRACE(2,"Invalid SPDIF setup status for stream %d: %d", stream, spdif_status[id][stream]);
         return 1;
     }
 
@@ -339,7 +357,7 @@ int hal_spdif_setup_stream(enum HAL_SPDIF_ID_T id, enum AUD_STREAM_T stream, str
     }
     ASSERT(i < ARRAY_SIZE(spdif_sample_rate), "%s: Invalid spdif sample rate: %d", __func__, cfg->sample_rate);
 
-    HAL_TRACE(3,"[%s] stream=%d sample_rate=%d", __func__, stream, cfg->sample_rate);
+    TRACE(3,"[%s] stream=%d sample_rate=%d", __func__, stream, cfg->sample_rate);
 
     spdif_rate_idx[id] = i;
     _spdif_update_clock_dependency();

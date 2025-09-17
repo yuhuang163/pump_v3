@@ -35,7 +35,7 @@ typedef struct
 {
     // 0: player send,  1:device read
     uint8_t data_transfer_mode;
-    void (*output_start)(uint32_t sample_rate, uint8_t bits_depth, uint8_t num_channels, uint32_t frame_samples, uint8_t vol);
+    void (*output_start)(uint32_t sample_rate, uint8_t bits_depth, uint8_t num_channels, uint32_t frame_samples);
     void (*output_stop)();
     void (*output_set_volume)(uint8_t vol);
     // data_transfer_mode = 0

@@ -37,10 +37,6 @@ typedef struct {
   uint32_t state[8];  // upto SHA2
 }SHA256_CTX;
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /**@brief Function for initializing a @ref sha256_context_t instance.
  *
  * @param[out] ctx  Context instance to be initialized.

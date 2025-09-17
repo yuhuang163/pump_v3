@@ -262,8 +262,6 @@ typedef struct
 #define BTDRV_CONFIG_ACTIVE   1
 #define BTDRV_CONFIG_INACTIVE 0
 
-#define BT_COM_SET_T2_1306P_T0_PATCH_LEN  63
-
 enum{
     ECC_8PSK = 0,
     ECC_DPSK = 1,

@@ -177,7 +177,6 @@ void rtx_thread_show(const os_thread_t *thread)
         }
         REL_TRACE_NOCRLF_NOTS(0,"--- Thread  %d ", rt_get_TID((const osThreadId_t)thread));
         REL_TRACE_NOCRLF_NOTS(1,"name=%s", thread->name ? thread->name : "NULL");
-        REL_TRACE_NOCRLF_NOTS(1," name_mutex=%s ", thread->name_mutex ? thread->name_mutex : "NULL");
 
         REL_TRACE_NOTS(4," thread=0x%x, prio=%u state=%-9s thread_addr=0x%08X", (uint32_t)thread, thread->priority, thread_st_str, thread->thread_addr);
 #ifdef RTX_DUMP_VERBOSE
@@ -356,33 +355,84 @@ void check_hung_threads(void)
 
 static inline void print_thread_sw_statitics(const os_thread_t *thread)
 {
-    /*
-    REL_TRACE_NOTS(3,"--- Thread swap in:%d  out=%d runings %d",
-            thread->swap_in_time,
-            thread->swap_out_time,
-            thread->rtime);
-     */
+    /* REL_TRACE_NOTS(3,"--- Thread swap in:%d  out=%d runings %d", */
+    /*         thread->swap_in_time, */
+    /*         thread->swap_out_time, */
+    /*         thread->rtime); */
 }
 
 FLASH_TEXT_LOC
-static void _rtx_show_thread_usage(const os_thread_t *thread, uint32_t sample_time)
+static uint32_t _rtx_show_thread_usage(const os_thread_t *thread, uint32_t sample_time, uint32_t period)
 {
+    uint32_t usage = 0;
     if (thread) {
         if (thread->thread_addr && thread->stack_mem) {
             uint32_t min_free_stack_sz = rtx_thread_get_stack_space(thread);
+            uint32_t offset = 0;
+
+            if (osRtxInfo.thread.run.curr == thread) {
+                if ((sample_time - thread->swap_in_time) < UINT32_MAX / 2)
+                    offset = sample_time - thread->swap_in_time;
+            }
+
+            usage = period != 0 ? ((thread->rtime - thread->sample_rtime + offset) * 100 / period) : 0;
 
             REL_TRACE_NOTS(4,"--- Thread name=%s cpu=%%%d min-free-stack=%d",
                     thread->name==NULL ? "null" : (char *)thread->name,
-                    sample_time != 0 ? ((thread->rtime - thread->step_rtime) * 100 / sample_time) : 0,
+                    usage,
                     min_free_stack_sz);
             print_thread_sw_statitics(thread);
-            ((os_thread_t *)thread)->step_rtime = thread->rtime;
+            ((os_thread_t *)thread)->sample_rtime = thread->rtime + offset;
         } else {
             REL_TRACE_NOTS(0,"--- Thread BAD");
         }
     } else {
         REL_TRACE_NOTS(0,"--- Thread NONE");
     }
+
+    return usage;
+}
+
+static void _rtx_update_threads_sample_rtime(uint32_t sample_time)
+{
+    os_thread_t *thread;
+    uint32_t offset = 0;
+
+    uint32_t delay = osKernelSuspend();
+
+    thread = osRtxInfo.thread.run.curr;
+    offset = sample_time - thread->swap_in_time;
+    thread->sample_rtime = offset + thread->rtime;
+    // Next List
+    thread = osRtxInfo.thread.run.next;
+    if ( thread != osRtxInfo.thread.run.curr) {
+        thread->sample_rtime = thread->rtime;
+    }
+
+    // Ready List
+    for (thread = osRtxInfo.thread.ready.thread_list;
+        thread != NULL; thread = thread->thread_next) {
+        thread->sample_rtime = thread->rtime;
+    }
+
+    // Delay List
+    for (thread = osRtxInfo.thread.delay_list;
+        thread != NULL; thread = thread->delay_next) {
+        thread->sample_rtime = thread->rtime;
+    }
+
+    // Wait List
+    for (thread = osRtxInfo.thread.wait_list;
+        thread != NULL; thread = thread->delay_next) {
+        thread->sample_rtime = thread->rtime;
+    }
+
+    // Terminate List
+    for (thread = osRtxInfo.thread.terminate_list;
+        thread != NULL; thread = thread->thread_next) {
+        thread->sample_rtime = thread->rtime;
+    }
+    osKernelResume(delay);
 }
 
 FLASH_TEXT_LOC
@@ -391,50 +441,58 @@ void rtx_show_all_threads_usage(void)
     const os_thread_t *thread;
     static bool first_time  = 1;
     uint32_t sample_time;
+    uint32_t period;
     static uint32_t start_sample_time  = 0;
 
     if (first_time) {
         start_sample_time  = rtx_get_hwticks();
+        _rtx_update_threads_sample_rtime(start_sample_time);
         first_time = 0;
         return;
     }
 
-    sample_time = HWTICKS_TO_MS(rtx_get_hwticks() - start_sample_time);
-    REL_TRACE_IMM_NOTS(0," ");
+    REL_TRACE_NOTS(0," ");
     REL_TRACE_NOTS(0,"Thread List:");
 
+    uint32_t delay = osKernelSuspend();
+    sample_time = rtx_get_hwticks();
+    period = sample_time - start_sample_time;
+
+    uint32_t usage = 0;
     // Current List
-    _rtx_show_thread_usage(osRtxInfo.thread.run.curr, sample_time);
+    usage = _rtx_show_thread_usage(osRtxInfo.thread.run.curr, sample_time, period);
 
     // Next List
     if (osRtxInfo.thread.run.next != osRtxInfo.thread.run.curr)
-        _rtx_show_thread_usage(osRtxInfo.thread.run.next, sample_time);
+        usage += _rtx_show_thread_usage(osRtxInfo.thread.run.next, sample_time, period);
 
     // Ready List
     for (thread = osRtxInfo.thread.ready.thread_list;
         thread != NULL; thread = thread->thread_next) {
-        _rtx_show_thread_usage(thread, sample_time);
+        usage += _rtx_show_thread_usage(thread, sample_time, period);
     }
 
     // Delay List
     for (thread = osRtxInfo.thread.delay_list;
         thread != NULL; thread = thread->delay_next) {
-        _rtx_show_thread_usage(thread, sample_time);
+        usage += _rtx_show_thread_usage(thread, sample_time, period);
     }
 
     // Wait List
     for (thread = osRtxInfo.thread.wait_list;
         thread != NULL; thread = thread->delay_next) {
-        _rtx_show_thread_usage(thread, sample_time);
+        usage += _rtx_show_thread_usage(thread, sample_time, period);
     }
 
     // Terminate List
     for (thread = osRtxInfo.thread.terminate_list;
         thread != NULL; thread = thread->thread_next) {
-        _rtx_show_thread_usage(thread, sample_time);
+        usage += _rtx_show_thread_usage(thread, sample_time, period);
     }
+    osKernelResume(delay);
     start_sample_time  = rtx_get_hwticks();
-    REL_TRACE_IMM_NOTS(0," ");
+    REL_TRACE_NOTS(0,"CPU total usage %d", usage);
+    REL_TRACE_NOTS(0," ");
 }
 
 #endif

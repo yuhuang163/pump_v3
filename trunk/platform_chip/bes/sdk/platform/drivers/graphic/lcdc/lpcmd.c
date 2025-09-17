@@ -2,32 +2,59 @@
 #include "string.h"
 #include "lpcmd.h"
 #include "hal_dsi.h"
+#include "hal_chipid.h"
 #include "hal_trace.h"
-#include "local_sem.h"
+#include "hal_timer.h"
 #include "plat_types.h"
+#include "gra_sem.h"
 #include "cmsis.h"
+#ifdef RTOS
+#include "cmsis_os.h"
+#endif
+
 #ifdef __NuttX__
 #include <arch/board/board.h>
 #include <debug.h>
-#include <semaphore.h>
+#include <nuttx/power/pm.h>
 #include <nuttx/arch.h>
 #else
-#include "fb.h"
-#ifdef RTOS
-#include "semaphore.h"
+#include "lcdc_fb.h"
 #endif
+#include "lcdc_drv.h"
+#include "lcdc.h"
+
+/* Debug option */
+//#define GRAPHIC_DRV_DEBUG
+//#define GRAPHIC_DRV_VERBOSE
+
+#ifdef  GRAPHIC_DRV_VERBOSE
+#ifndef GRAPHIC_DRV_DEBUG
+#define GRAPHIC_DRV_DEBUG
+#endif
+#define LCDC_INFO(...)  TR_INFO( TR_MOD(TEST), "//"  __VA_ARGS__)
+#define LCDC_REGINFO(...)  TR_INFO( TR_MOD(TEST), __VA_ARGS__)
+#else
+#define LCDC_INFO(...)
+#define LCDC_REGINFO(...)
 #endif
 
-#define LCDC_WARN(...) TR_WARN(TR_MOD(TEST), "//" __VA_ARGS__)
-#define LCDC_ERR(...) TR_ERROR(TR_MOD(TEST), "//" __VA_ARGS__)
+#ifdef  GRAPHIC_DRV_DEBUG
+#define LCDC_REP(...)  TR_INFO( TR_MOD(TEST), "//" __VA_ARGS__)
+#else
+#define LCDC_REP(...)
+#endif
+
+#define LCDC_ERR(...)   TR_ERROR( TR_MOD(TEST), "//" __VA_ARGS__)
 
 typedef struct lpcmd_cmds_s
 {
   uint8_t cmd;
   uint8_t count;
-  int optype;
-  uint8_t* pbuf;
-  uint8_t params[LPCMDS_MAX_PARAMS_NUM];
+  uint8_t optype;
+  union {
+      uint8_t* pbuf;
+      uint8_t params[LPCMDS_MAX_PARAMS_NUM];
+  };
 } lpcmd_cmds_t;
 
 struct lpcmd_group_s {
@@ -57,10 +84,10 @@ static struct lpcmd_s* lpcmds_getdev(void)
     if (!g_initalize) {
         memset(&lpcmds.gcmds, 0, sizeof(lpcmds.gcmds));
 
-        lcdc_sem_init(lpcmds.lock, 0, 1);
+        gra_sem_init(lpcmds.lock, 0, 1);
 
         for (int i = 0; i < LPCMDS_MAX_GROUP_NUM; i++) {
-            lcdc_sem_init(&lpcmds.gcmds[i].sem, 0, 0);
+            gra_sem_init(&lpcmds.gcmds[i].sem, 0, 0);
         }
 
         g_initalize = 1;
@@ -82,32 +109,34 @@ int lpcmds_register_cmds(void* cmds, int nums, int flag)
     struct lpcmd_node_s* pcmds = cmds;
     int i;
     struct lpcmd_s* priv = lpcmds_getdev();
+    int ret = 0;
+    LCDC_ERR("lpcmds_register_cmds in cmd=%p,nums=%d\n",cmds,nums);
 
     if (!cmds || nums <= 0) {
         return -1;
     }
 
     /* lock */
-
-    lcdc_sem_wait(priv->lock);
+    gra_sem_wait(priv->lock);
     /* too many params, support max num LPCMDS_MAX_PARAMS_NUM, default 4  */
 
     if (pcmds->count > LPCMDS_MAX_PARAMS_NUM) {
-        DRIVERS_TRACE(0,"lpcmd mode register lpcmds failed, cmds too many params.");
+        LCDC_ERR("lpcmd mode register lpcmds failed, cmds too many params.\n");
         goto _exit;
     }
 
     /* busy */
 
     if (priv->groups >= LPCMDS_MAX_GROUP_NUM) {
-        DRIVERS_TRACE(0,"lpcmd mode register failed, no memory to store new cmds.");
+        LCDC_ERR("lpcmd mode register failed, no memory to store new cmds.\n");
         goto _exit;
     }
 
     i = priv->groups;
     priv->gcmds[i].flag = flag;
-    if (flag == LPCMDS_BLOCK) {
-        lcdc_sem_reset(&priv->gcmds[i].sem, 0);
+
+    if (flag & LPCMDS_BLOCK) {
+        gra_sem_reset(&priv->gcmds[i].sem, 0);
     }
 
     priv->groups++;
@@ -116,70 +145,124 @@ int lpcmds_register_cmds(void* cmds, int nums, int flag)
         priv->gcmds[i].cmds[j].cmd = pcmds[j].cmd;
         priv->gcmds[i].cmds[j].count = pcmds[j].count;
         priv->gcmds[i].cmds[j].optype = pcmds[j].optype;
-        if (pcmds[j].optype == LPCMD_TYPE_READ && flag == LPCMDS_NONBLOCK) {
-            priv->gcmds[i].cmds[j].pbuf = NULL;
-        }
-        else {
-            priv->gcmds[i].cmds[j].pbuf = pcmds[j].params;
-        }
-
-        for (int k = 0; k < pcmds[j].count; k++) {
-            priv->gcmds[i].cmds[j].params[k] = pcmds[j].params[k];
+        if (pcmds[j].optype == LPCMD_TYPE_WRITE) {
+            for (int k = 0; k < pcmds[j].count; k++) {
+                priv->gcmds[i].cmds[j].params[k] = pcmds[j].params[k];
+            }
+        } else {
+            if (flag & LPCMDS_NONBLOCK) {
+                priv->gcmds[i].cmds[j].pbuf = NULL;
+            } else {
+                priv->gcmds[i].cmds[j].pbuf = pcmds[j].params;
+            }
         }
     }
 
     priv->gcmds[i].count = nums;
-
     /* unlock */
-    lcdc_sem_post(priv->lock);
-
-    if (flag == LPCMDS_BLOCK) {
-        lcdc_sem_wait(&priv->gcmds[i].sem);
+    gra_sem_post(priv->lock);
+    if (flag & LPCMDS_BLOCK) {
+        if (in_isr()) {
+            if (lcdc_lock()) {
+                lpcmds_flush();
+                lcdc_unlock();
+            }
+        }
+        else {
+            if (flag & LPCMDS_FLUSH) {
+                if (lcdc_lock()) {
+                    lpcmds_flush();
+                    lcdc_unlock();
+                }
+            }
+            ret = gra_sem_timedwait(&priv->gcmds[i].sem, 200);
+            if (OK != ret) {
+                LCDC_ERR("[lpcmd] register cmd wait send timeout, "
+                "no te signal happend, clear has registered cmds ret = %d\n", ret);
+            }
+        }
     }
-
-    return 0;
+    return ret;
 
 _exit:
     /* unlock */
-    lcdc_sem_post(priv->lock);
+    gra_sem_post(priv->lock);
 
     return -1;
 }
+extern void lcdc_exit_lowpower();
 
 /**
  * @brief lpcmds_flush - send all cmds at cache
  *
  * @return int - success 0; failed -1;
  */
+
 int lpcmds_flush(void)
 {
+    struct lcdc_config_t *config = NULL;
     struct lpcmd_s* priv = lpcmds_getdev();
     struct lpcmd_group_s* gcmds;
+#ifdef CONFIG_LCDC_DSI
+    enum HAL_CHIP_METAL_ID_T fixed_metal_id = HAL_CHIP_METAL_ID_0;
+#if defined(CHIP_BEST2003)
+    fixed_metal_id= HAL_CHIP_METAL_ID_7;
+#elif defined(CHIP_BEST1502X)
+    fixed_metal_id= HAL_CHIP_METAL_ID_2;
+#elif defined(CHIP_BEST1600)
+    fixed_metal_id= HAL_CHIP_METAL_ID_2;
+#endif
+#endif
+
     int ret = 0;
     int i;
     static int count = 0;
 
+    if (lcdc_get_config(&config) != LCDC_OK)
+        return -1;
+
     /* lock */
     if (in_isr()) {
-        lcdc_sem_get_value(priv->lock, &ret);
+        gra_sem_get_value(priv->lock, &ret);
         if (ret <= 0)
+        {
+            LCDC_INFO("in_isr %d\n",ret);
             return -1;
+        }
     } else {
-        ret = lcdc_sem_trywait(priv->lock);
+        ret = gra_sem_trywait(priv->lock);
         if (ret != OK)
+        {
+            LCDC_INFO("trywait %d\n",ret);
             return -1;
+        }
     }
+
+    if (priv->groups > 0)
+        lcdc_exit_lowpower();
 
     for (i = 0; i < priv->groups; i++) {
         gcmds = &priv->gcmds[i];
-        hal_dsi_reset(BOARD_LCDC_WIDTH);
+#ifdef CONFIG_LCDC_DSI
+        if (fixed_metal_id > HAL_CHIP_METAL_ID_0 && hal_get_chip_metal_id() < fixed_metal_id) {
+            /* will cause error pin set hight */
+            hal_dsi_reset(config->bus_port0, BOARD_LCDC_WIDTH);
+            if (config->bus == LCDC_BUS_DUAL_DSI)
+                hal_dsi_reset(config->bus_port1, BOARD_LCDC_WIDTH);
+        }
+#endif
         for (int j = 0; j < gcmds->count; j++) {
 
             switch (gcmds->cmds[j].optype) {
             case LPCMD_TYPE_WRITE:
-                hal_dsi_send_cmd_list(gcmds->cmds[j].cmd, gcmds->cmds[j].count,
+                lcdc_send_cmd_list(config->bus_port0, gcmds->cmds[j].cmd, gcmds->cmds[j].count,
                                       gcmds->cmds[j].params);
-                DRIVERS_TRACE(0,"count = %d, cmd write cmd = 0x%02x, count = %d, "
+                if (config->bus == LCDC_BUS_DUAL_DSI) {
+                    lcdc_send_cmd_list(config->bus_port1, gcmds->cmds[j].cmd, gcmds->cmds[j].count,
+                                          gcmds->cmds[j].params);
+                }
+
+                LCDC_INFO("count = %d, cmd write cmd = 0x%02x, count = %d, "
                           "param = 0x%02x, 0x%02x, 0x%02x, 0x%02x\n", count,
                           gcmds->cmds[j].cmd, gcmds->cmds[j].count,
                           gcmds->cmds[j].params[0], gcmds->cmds[j].params[1],
@@ -187,21 +270,30 @@ int lpcmds_flush(void)
                 break;
             case LPCMD_TYPE_READ:
                 if (!gcmds->cmds[j].pbuf) {
-                    LCDC_WARN("cmd read cmd = 0x%02x, count = %d, "
+                    LCDC_ERR("cmd read cmd = 0x%02x, count = %d, "
                             "read buffer is NULL.\n",
                             gcmds->cmds[j].cmd, gcmds->cmds[j].count);
                     break;
                 }
 
-                hal_dsi_read_cmd(gcmds->cmds[j].cmd, gcmds->cmds[j].pbuf,
+                lcdc_read_cmd(config->bus_port0, gcmds->cmds[j].cmd, gcmds->cmds[j].pbuf,
                                  gcmds->cmds[j].count);
-                DRIVERS_TRACE(0,"count = %d, cmd read cmd = 0x%02x, count = %d, "
+
+                LCDC_INFO("count = %d, cmd read cmd = 0x%02x, count = %d, "
                           "param = 0x%02x, 0x%02x\n", count,
                           gcmds->cmds[j].cmd, gcmds->cmds[j].count,
                           gcmds->cmds[j].pbuf[0], gcmds->cmds[j].pbuf[1]);
                 break;
+            case LPCMD_TYPE_DELAY:
+                LCDC_INFO("count = %d, cmd Delay = 0x%02x ms\n", count,
+                         gcmds->cmds[j].cmd);
+                if (in_isr())
+                    hal_sys_timer_delay(MS_TO_TICKS(gcmds->cmds[j].cmd));
+                else
+                    osDelay(gcmds->cmds[j].cmd);
+                break;
             default:
-                LCDC_WARN("cmd optype error, type = %d, "
+                LCDC_ERR("cmd optype error, type = %d, "
                           "cmd = 0x%02x, count = %d, "
                           "param = 0x%02x, 0x%02x, 0x%02x, 0x%02x\n",
                           gcmds->cmds[j].optype, gcmds->cmds[j].cmd,
@@ -215,16 +307,31 @@ int lpcmds_flush(void)
 
         gcmds->count = 0;
 
-        if (gcmds->flag == LPCMDS_BLOCK) {
+        if (gcmds->flag & LPCMDS_BLOCK) {
             /* notify wait tasks */
-            lcdc_sem_post(&gcmds->sem);
+            gra_sem_post(&gcmds->sem);
         }
     }
 
     priv->groups = 0;
 
     /* unlock */
-    lcdc_sem_post(priv->lock);
-
+    if (!in_isr())
+        gra_sem_post(priv->lock);
     return 0;
+}
+
+/**
+ * @brief lpcmds_clear_buffer - clear lpcmds buffer
+ *
+ */
+void lpcmds_clear_buffer(void)
+{
+    struct lpcmd_s* priv = lpcmds_getdev();
+
+    gra_sem_wait(priv->lock);
+
+    priv->groups = 0;
+
+    gra_sem_post(priv->lock);
 }

@@ -30,6 +30,11 @@ extern "C"{
 /******************************macro defination*****************************/
 
 /******************************type defination******************************/
+typedef struct {
+    uint32_t dump_flag;
+    uint32_t len;
+    uint32_t crc;
+} DUMP_INFO_T;
 
 /****************************function declearation**************************/
 /**
@@ -137,26 +142,6 @@ void app_flash_sync_read(enum NORFLASH_API_MODULE_ID_T module,
  * @param addr          flash module addr
  */
 enum HAL_FLASH_ID_T app_flash_get_dev_id_by_addr(uint32_t addr);
-
-/**
- * @brief set sync mode, default async
- *
- * @param async
- */
-void app_flash_api_set_async(bool async);
-
-#ifdef ARM_CMNS
-#ifdef FLASH_REMAP
-void app_flash_set_trust_zone_ota_remap_config(void);
-#endif
-
-void app_flash_tz_ota_start(void);
-uint32_t app_flash_tz_ota_program(uint32_t flashOffset, uint8_t *ptr, uint32_t len);
-void app_flash_tz_ota_set_segment_crc(uint32_t crc_origin);
-uint32_t app_flash_tz_ota_get_segment_crc(void);
-uint32_t app_flash_tz_ota_get_whole_crc(void);
-uint32_t app_flash_tz_ota_apply(uint32_t ns_offset, uint32_t ns_length, uint32_t ns_crc);
-#endif
 
 #ifdef __cplusplus
 }

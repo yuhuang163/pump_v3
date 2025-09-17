@@ -19,11 +19,19 @@
 #include "hal_timer.h"
 #include "hal_trace.h"
 #include "cmsis.h"
+#ifdef PSRAM_ENABLE
+#include "hal_psram.h"
+#endif
 
-#if !(defined(ROM_BUILD) || defined(CHIP_ROLE_CP) || \
+#if !(defined(ROM_BUILD) || defined(ARM_CMSE) || defined(CHIP_ROLE_CP) || \
         (defined(CHIP_SUBSYS_BTH) ^ defined(BTH_AS_MAIN_MCU)) || \
+        defined(CHIP_SUBSYS_CSP) || defined(CHIP_SUBSYS_DSP) || \
         defined(CHIP_SUBSYS_SENS))
 #define PMU_CTRL_ENABLE
+#endif
+
+#if defined(NO_CMU_INIT) && !defined(SUBSYS_RMT_SYSFREQ_REQ)
+#define SUBSYS_RMT_SYSFREQ_REQ
 #endif
 
 #ifdef PMU_CTRL_ENABLE
@@ -40,10 +48,64 @@ static enum HAL_SYSFREQ_USER_T BOOT_DATA_LOC top_user = HAL_SYSFREQ_USER_QTY;
 // NOTE: min_sysfreq must be initialized to 32K to avoid first hal_sysfreq_req() error
 static enum HAL_CMU_FREQ_T BOOT_DATA_LOC min_sysfreq = HAL_CMU_FREQ_32K;
 
+static uint64_t start_time, end_time;
+static uint64_t freq_time[HAL_CMU_FREQ_QTY] = {0};
+static struct CPU_SYSFREQ_T cpu_freq = {0};
+
+static enum HAL_CMU_FREQ_T hal_sysfreq_revise_freq(enum HAL_CMU_FREQ_T freq);
+
+static void hal_sysfreq_time_get(enum HAL_CMU_FREQ_T freq)
+{
+    end_time = hal_sys_ms64_get_safe();
+    freq_time[freq] += (end_time - start_time);
+    start_time = end_time;
+}
+
+static void hal_sysfreq_time_get_cur()
+{
+    enum HAL_CMU_FREQ_T cur_freq;
+    enum HAL_CMU_FREQ_T real_cur_freq;
+    enum HAL_CMU_FREQ_T idx;
+
+    cur_freq = hal_sysfreq_get();
+    real_cur_freq = hal_sysfreq_revise_freq(cur_freq);
+    idx = (cur_freq == HAL_CMU_FREQ_32K) ? cur_freq : real_cur_freq;
+    hal_sysfreq_time_get(idx);
+
+    cpu_freq.sleep_ms = freq_time[HAL_CMU_FREQ_32K];
+    cpu_freq.CPU_52M_ms = freq_time[HAL_CMU_FREQ_52M];
+    cpu_freq.CPU_104M_ms = freq_time[HAL_CMU_FREQ_104M];
+    cpu_freq.CPU_208M_ms = freq_time[HAL_CMU_FREQ_208M];
+    cpu_freq.resume_ms = cpu_freq.CPU_52M_ms + cpu_freq.CPU_104M_ms + cpu_freq.CPU_208M_ms;
+    cpu_freq.total_ms = cpu_freq.resume_ms + cpu_freq.sleep_ms;
+
+}
+
+void hal_sysfreq_print(void)
+{
+    hal_sysfreq_time_get_cur();
+
+    TRACE(0, "[CPU] total_ms:    %llu ms\n", cpu_freq.total_ms);
+    TRACE(0, "[CPU] sleep_ms:    %llu ms", cpu_freq.sleep_ms);
+    TRACE(0, "[CPU] resume_ms:   %llu ms", cpu_freq.resume_ms);
+    TRACE(0, "[CPU] CPU_52M_ms:  %llu ms", cpu_freq.CPU_52M_ms);
+    TRACE(0, "[CPU] CPU_104M_ms: %llu ms", cpu_freq.CPU_104M_ms);
+    TRACE(0, "[CPU] CPU_208M_ms: %llu ms", cpu_freq.CPU_208M_ms);
+}
+
 #ifdef SYSFREQ_STATS
 static uint32_t BOOT_BSS_LOC last_check_time;
 static uint32_t BOOT_BSS_LOC sysfreq_intvl[HAL_SYSFREQ_USER_QTY][2];
-static SYSTEM_SYSFREQ_STAT_T system_sysfreq_stat_info;
+static struct SYSTEM_SYSFREQ_STAT_T system_sysfreq_stat_info;
+#endif
+
+#ifdef SUBSYS_RMT_SYSFREQ_REQ
+static HAL_SYSFREQ_SUBSYS_SET_FREQ_CB_T subsys_sys_set_freq_cb = NULL;
+
+void hal_sysfreq_subsys_set_freq_register(HAL_SYSFREQ_SUBSYS_SET_FREQ_CB_T cb)
+{
+    subsys_sys_set_freq_cb = cb;
+}
 #endif
 
 #ifdef SYSFREQ_STATS
@@ -72,7 +134,13 @@ void hal_sysfreq_set_min_freq(enum HAL_CMU_FREQ_T freq)
         min_sysfreq = freq;
         new_revised_freq = hal_sysfreq_revise_freq(cur_freq);
         if (old_revised_freq != new_revised_freq) {
+#ifdef SUBSYS_RMT_SYSFREQ_REQ
+            if (subsys_sys_set_freq_cb) {
+                subsys_sys_set_freq_cb(new_revised_freq);
+            }
+#else
             hal_cmu_sys_set_freq(new_revised_freq);
+#endif
         }
     }
 
@@ -104,11 +172,16 @@ int hal_sysfreq_req(enum HAL_SYSFREQ_USER_T user, enum HAL_CMU_FREQ_T freq)
     enum HAL_CMU_FREQ_T real_freq;
     enum HAL_CMU_FREQ_T real_cur_freq;
     int i;
+#ifdef SUBSYS_RMT_SYSFREQ_REQ
+    bool send_req = false;
+#endif
 
     if (user >= HAL_SYSFREQ_USER_QTY) {
+        ASSERT(false, "Bad hal_sysfreq_req user: %u (0x%X)", user, user);
         return 1;
     }
     if (freq >= HAL_CMU_FREQ_QTY) {
+        ASSERT(false, "Bad hal_sysfreq_req freq: %u", freq);
         return 2;
     }
 
@@ -132,6 +205,9 @@ int hal_sysfreq_req(enum HAL_SYSFREQ_USER_T user, enum HAL_CMU_FREQ_T freq)
         real_cur_freq = hal_sysfreq_revise_freq(cur_freq);
         // It is possible that revised freq <= revised cur_freq (e.g., when cur_freq=32K)
         if (real_freq != real_cur_freq) {
+#ifdef SUBSYS_RMT_SYSFREQ_REQ
+            send_req = true;
+#else // !SUBSYS_RMT_SYSFREQ_REQ
 #ifdef PMU_CTRL_ENABLE
             pmu_sys_freq_config(real_freq);
 #endif
@@ -140,6 +216,13 @@ int hal_sysfreq_req(enum HAL_SYSFREQ_USER_T user, enum HAL_CMU_FREQ_T freq)
             hal_cmu_low_freq_mode_disable(real_cur_freq, real_freq);
 #endif
             hal_cmu_sys_set_freq(real_freq);
+#endif // !SUBSYS_RMT_SYSFREQ_REQ
+        }
+        if (hal_sys_timer_opened() == true) {
+            if (real_freq != real_cur_freq || cur_freq == HAL_CMU_FREQ_32K) {
+                enum HAL_SYSFREQ_USER_T idx = (cur_freq == HAL_CMU_FREQ_32K) ? cur_freq : real_cur_freq;
+                hal_sysfreq_time_get(idx);
+            }
         }
 #ifdef SYSFREQ_STATS
         if (real_freq != real_cur_freq || cur_freq == HAL_CMU_FREQ_32K) {
@@ -167,6 +250,9 @@ int hal_sysfreq_req(enum HAL_SYSFREQ_USER_T user, enum HAL_CMU_FREQ_T freq)
                 real_cur_freq = hal_sysfreq_revise_freq(cur_freq);
                 // It is possible that revised freq >= revised cur_freq (e.g., when freq=32K)
                 if (real_freq != real_cur_freq) {
+#ifdef SUBSYS_RMT_SYSFREQ_REQ
+                    send_req = true;
+#else // !SUBSYS_RMT_SYSFREQ_REQ
                     hal_cmu_sys_set_freq(real_freq);
 #ifdef ULTRA_LOW_POWER
                     // Disable PLL if capable
@@ -175,6 +261,12 @@ int hal_sysfreq_req(enum HAL_SYSFREQ_USER_T user, enum HAL_CMU_FREQ_T freq)
 #ifdef PMU_CTRL_ENABLE
                     pmu_sys_freq_config(real_freq);
 #endif
+#endif // !SUBSYS_RMT_SYSFREQ_REQ
+                }
+                if (hal_sys_timer_opened() == true) {
+                    if (real_freq != real_cur_freq || freq == HAL_CMU_FREQ_32K) {
+                        hal_sysfreq_time_get(real_cur_freq);
+                    }
                 }
 #ifdef SYSFREQ_STATS
                 if (real_freq != real_cur_freq || freq == HAL_CMU_FREQ_32K) {
@@ -189,7 +281,25 @@ int hal_sysfreq_req(enum HAL_SYSFREQ_USER_T user, enum HAL_CMU_FREQ_T freq)
 
     int_unlock(lock);
 
+#ifdef SUBSYS_RMT_SYSFREQ_REQ
+    if (send_req) {
+        // Send the message when IRQ is re-enabled (it might involve OS calls)
+        if (subsys_sys_set_freq_cb) {
+            subsys_sys_set_freq_cb(freq);
+        }
+    }
+#endif
+
     return 0;
+}
+
+enum HAL_CMU_FREQ_T hal_sysfreq_get_user_freq(enum HAL_SYSFREQ_USER_T user)
+{
+    if (user < HAL_SYSFREQ_USER_QTY) {
+        return sysfreq_per_user[user];
+    } else {
+        return HAL_CMU_FREQ_32K;
+    }
 }
 
 enum HAL_CMU_FREQ_T hal_sysfreq_get(void)
@@ -203,9 +313,12 @@ enum HAL_CMU_FREQ_T hal_sysfreq_get(void)
 
 enum HAL_CMU_FREQ_T hal_sysfreq_get_hw_freq(void)
 {
+#ifndef SUBSYS_RMT_SYSFREQ_REQ
     if (top_user < HAL_SYSFREQ_USER_QTY) {
         return hal_sysfreq_revise_freq(sysfreq_per_user[top_user]);
-    } else {
+    } else
+#endif
+    {
         return hal_cmu_sys_get_freq();
     }
 }
@@ -227,14 +340,61 @@ void hal_sysfreq_print_user_freq(void)
 {
     int i;
 
-    HAL_TRACE(0, "SYSFREQ USER FREQ:");
+    TRACE(0, "SYSFREQ USER FREQ:");
     for (i = 0; i < HAL_SYSFREQ_USER_QTY; i++) {
         if (sysfreq_per_user[i] != 0) {
-            HAL_TRACE(TR_ATTR_NO_TS,"\t[%2u] f=%2u", i, sysfreq_per_user[i]);
+            TRACE(TR_ATTR_NO_TS,"\t[%2u] f=%2u", i, sysfreq_per_user[i]);
         }
     }
-    HAL_TRACE(TR_ATTR_NO_TS,"\ttop_user=%2u", top_user);
+    TRACE(TR_ATTR_NO_TS,"\ttop_user=%2u", top_user);
 }
+
+#ifdef CHIP_BEST1503
+void hal_sysfreq_select_clock(enum HAL_SYSFREQ_SELECT_CLOCK_T sel_clk)
+{
+    enum HAL_CMU_FREQ_T curFreq;
+    uint32_t lock;
+    int i;
+    uint32_t sysfreq_bundle_back[(HAL_SYSFREQ_USER_QTY + 3) / 4] = {0,};
+
+    lock = int_lock();
+    curFreq = hal_sysfreq_get_hw_freq();
+
+    if (top_user < HAL_SYSFREQ_USER_QTY && hal_sysfreq_busy()) {
+        for (i = 0; i < ARRAY_SIZE(sysfreq_bundle); i++) {
+            sysfreq_bundle_back[i] = sysfreq_bundle[i];
+        }
+        do {
+            hal_sysfreq_req(top_user, HAL_CMU_FREQ_104M);
+        } while (hal_sysfreq_get() != HAL_CMU_FREQ_104M);
+    } else {
+        hal_cmu_sys_set_freq(HAL_CMU_FREQ_104M);
+    }
+
+    if (sel_clk == HAL_SYSFREQ_SELECT_CLOCK_OSC) {
+        hal_cmu_select_osc_clock(HAL_CMU_CLK_SEL_OSC_USER_SYS);
+#ifdef PSRAM_ENABLE
+        hal_psram_change_speed(200000000);
+#endif
+    } else {
+        hal_cmu_select_osc_clock(HAL_CMU_CLK_SEL_OSC_USER_SYS);
+#ifdef PSRAM_ENABLE
+        hal_psram_change_speed(52000000);
+#endif
+        hal_cmu_select_rc_clock(HAL_CMU_CLK_SEL_OSC_USER_SYS);
+    }
+
+    if (top_user < HAL_SYSFREQ_USER_QTY && hal_sysfreq_busy()) {
+        hal_sysfreq_req(top_user, curFreq);
+        for (i = 0; i < ARRAY_SIZE(sysfreq_bundle); i++) {
+            sysfreq_bundle[i] = sysfreq_bundle_back[i];
+        }
+    } else {
+        hal_cmu_sys_set_freq(curFreq);
+    }
+    int_unlock(lock);
+}
+#endif
 
 #ifdef SYSFREQ_STATS
 SRAM_TEXT_LOC
@@ -287,14 +447,14 @@ void hal_sysfreq_print_freq_stats(void)
         total_intvl += sysfreq_intvl[i][0] + sysfreq_intvl[i][1];
     }
 
-    HAL_TRACE(0, "SYSFREQ FREQ STATS:");
+    TRACE(0, "SYSFREQ FREQ STATS:");
 
     if (total_intvl) {
         for (i = 0; i < ARRAY_SIZE(sysfreq_intvl); i++) {
             if (sysfreq_intvl[i][0] || sysfreq_intvl[i][1]) {
                 ratio[0] = sysfreq_intvl[i][0] * 100 / total_intvl;
                 ratio[1] = sysfreq_intvl[i][1] * 100 / total_intvl;
-                HAL_TRACE(TR_ATTR_NO_TS, "\t[%2u]: B=(%5u ms %2u%%) I=(%5u ms %2u%%)", i,
+                TRACE(TR_ATTR_NO_TS, "\t[%2u]: B=(%5u ms %2u%%) I=(%5u ms %2u%%)", i,
                     TICKS_TO_MS(sysfreq_intvl[i][0]), ratio[0],
                     TICKS_TO_MS(sysfreq_intvl[i][1]), ratio[1]);
             }
@@ -312,15 +472,15 @@ void hal_sysfreq_print_freq_stats(void)
     int_unlock(lock);
 }
 
-WEAK SYSTEM_SYSFREQ_STAT_T* system_sysfreq_stat_get(void)
+WEAK struct SYSTEM_SYSFREQ_STAT_T* system_sysfreq_stat_get(void)
 {
     return &system_sysfreq_stat_info;
 }
 
-WEAK void system_sysfreq_stat_update(uint32_t tot, uint32_t arrFreq[][2], uint8_t size)
+WEAK void system_sysfreq_stat_update(uint32_t tot, uint32_t arrFreq[][2], uint32_t size)
 {
     system_sysfreq_stat_info.total_intvl = tot;
-    memcpy((uint8_t*)(system_sysfreq_stat_info.sysfreq_intvl), (uint8_t*)arrFreq, size);
+    memcpy(system_sysfreq_stat_info.sysfreq_intvl, arrFreq, size);
 }
 
 #endif

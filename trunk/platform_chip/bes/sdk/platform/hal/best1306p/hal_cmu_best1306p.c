@@ -39,6 +39,8 @@
 #include "pmu.h"
 #include "system_cp.h"
 
+// #define FORCE_RAM_ACTIVE_IN_RET_SLEEP
+
 #ifdef USB_HIGH_SPEED
 #ifndef USB_CLK_SRC_PLL
 #define USB_CLK_SRC_PLL
@@ -217,10 +219,6 @@ static uint8_t dcdc_user_map;
 STATIC_ASSERT(HAL_CMU_DCDC_CLOCK_USER_QTY <= sizeof(dcdc_user_map) * 8, "Too many DCDC clock users");
 #endif
 
-#ifdef CHIP_ROLE_CP
-static HAL_CMU_CP_SYS_SET_FREQ_CB_T cp_sys_set_freq_cb = NULL;
-#endif
-
 #ifndef ROM_BUILD
 static enum HAL_CMU_PLL_T BOOT_DATA_LOC sys_pll_sel = HAL_CMU_PLL_QTY;
 #endif
@@ -231,10 +229,12 @@ static bool BOOT_DATA_LOC rc_enabled = false;
 #endif // !ARM_CMNS
 #endif
 
+#ifndef CHIP_ROLE_CP
 #ifdef LOW_SYS_FREQ
 static enum HAL_CMU_FREQ_T BOOT_BSS_LOC cmu_sys_freq;
 #endif
 static uint8_t BOOT_BSS_LOC force_sys_div;
+#endif
 
 BOOT_BSS_LOC
 static enum HAL_CMU_PU_OSC_USER_T pu_osc_user_map;
@@ -830,13 +830,7 @@ BOOT_TEXT_SRAM_LOC SYS_SET_FREQ_FUNC(flash, FLS0, FLASH);
 SYS_SET_FREQ_FUNC(flash1, FLS1, FLASH1);
 #endif
 
-#ifdef CHIP_ROLE_CP
-void hal_cmu_cp_sys_set_freq_register(HAL_CMU_CP_SYS_SET_FREQ_CB_T cb)
-{
-    cp_sys_set_freq_cb = cb;
-}
-#endif
-
+#ifndef CHIP_ROLE_CP
 #ifdef LOW_SYS_FREQ
 #ifdef LOW_SYS_FREQ_6P5M
 int hal_cmu_fast_timer_offline(void)
@@ -853,13 +847,6 @@ void hal_cmu_force_sys_pll_div(uint32_t div)
 
 int hal_cmu_sys_set_freq(enum HAL_CMU_FREQ_T freq)
 {
-#ifdef CHIP_ROLE_CP
-    if (cp_sys_set_freq_cb) {
-        cp_sys_set_freq_cb(freq);
-    }
-
-    return 0;
-#else
     uint32_t enable;
     uint32_t disable;
     int div;
@@ -926,11 +913,12 @@ int hal_cmu_sys_set_freq(enum HAL_CMU_FREQ_T freq)
 #endif
         break;
 #endif
+    case HAL_CMU_FREQ_144M:
     case HAL_CMU_FREQ_208M:
 #ifndef AUD_PLL_DOUBLE
     default:
 #endif
-#if defined(AUD_PLL_DOUBLE) && !defined(OSC_26M_X8_AUD2BB)
+#if defined(AUD_PLL_DOUBLE) && !defined(OSC_26M_X4_AUD2BB)
         enable = CMU_SEL_SLOW_SYS_ENABLE | CMU_RSTN_DIV_SYS_ENABLE | CMU_SEL_OSCX2_SYS_ENABLE | CMU_SEL_PLL_SYS_ENABLE;
         disable = CMU_BYPASS_DIV_SYS_DISABLE;
         div = 0;
@@ -982,9 +970,10 @@ int hal_cmu_sys_set_freq(enum HAL_CMU_FREQ_T freq)
         cmu->SYS_CLK_DISABLE = CMU_BYPASS_DIV_SYS_DISABLE;
         cmu->SYS_CLK_DISABLE = CMU_RSTN_DIV_SYS_DISABLE;
     }
-#endif //CHIP_ROLE_CP
+
     return 0;
 }
+#endif // !CHIP_ROLE_CP
 
 int hal_cmu_mem_set_freq(enum HAL_CMU_FREQ_T freq)
 {
@@ -1129,7 +1118,7 @@ int hal_cmu_mem_select_pll(enum HAL_CMU_PLL_T pll)
 void TZ_hal_cmu_update_sys_pll_sel_S(enum HAL_CMU_PLL_T pll);
 
 #ifdef ARM_CMSE
-__attribute__((cmse_nonsecure_entry))
+CMSE_API
 void TZ_hal_cmu_update_sys_pll_sel_S(enum HAL_CMU_PLL_T pll)
 {
     sys_pll_sel = pll;
@@ -1222,13 +1211,13 @@ int TZ_hal_cmu_pll_enable_S(enum HAL_CMU_PLL_T pll, enum HAL_CMU_PLL_USER_T user
 int TZ_hal_cmu_pll_disable_S(enum HAL_CMU_PLL_T pll, enum HAL_CMU_PLL_USER_T user);
 
 #ifdef ARM_CMSE
-__attribute__((cmse_nonsecure_entry))
+CMSE_API
 int TZ_hal_cmu_pll_enable_S(enum HAL_CMU_PLL_T pll, enum HAL_CMU_PLL_USER_T user)
 {
     return hal_cmu_pll_enable(pll, user);
 }
 
-__attribute__((cmse_nonsecure_entry))
+CMSE_API
 int TZ_hal_cmu_pll_disable_S(enum HAL_CMU_PLL_T pll, enum HAL_CMU_PLL_USER_T user)
 {
     return hal_cmu_pll_disable(pll, user);
@@ -1496,21 +1485,29 @@ void hal_cmu_low_freq_mode_enable(enum HAL_CMU_FREQ_T old_freq, enum HAL_CMU_FRE
     pll = sys_pll_sel;
 
 #ifdef OSC_26M_X4_AUD2BB
-    if (old_freq > HAL_CMU_FREQ_104M && new_freq <= HAL_CMU_FREQ_104M) {
+    if (old_freq > HAL_CMU_FREQ_144M && new_freq == HAL_CMU_FREQ_144M) {
+            cmu->DSI_CLK_ENABLE = CMU_PU_OSCX6_ENABLE;
+            cmu->DSI_CLK_DISABLE = CMU_PU_OSCX8_DISABLE;
+    } else if (old_freq == HAL_CMU_FREQ_144M && new_freq <= HAL_CMU_FREQ_104M) {
+            cmu->SEL_OSCX8 |= CMU_SEL_HCLK_OSCX8_PLLBB;
+            cmu->DSI_CLK_DISABLE = CMU_EN_OSCX8_DISABLE;
+            cmu->DSI_CLK_DISABLE = CMU_PU_OSCX6_DISABLE;
+    } else if (old_freq > HAL_CMU_FREQ_144M && new_freq <= HAL_CMU_FREQ_104M) {
 #ifdef RC_CLK_ENABLE
         if (rc_enabled) {
             aoncmu->CLK_OUT &= ~AON_CMU_SEL_RC_PLLBB;
+            cmu->SYS_CLK_DISABLE = CMU_EN_PLL_DISABLE;
         } else
 #endif
         {
-#ifdef OSC_26M_X8_AUD2BB
             cmu->SEL_OSCX8 |= CMU_SEL_HCLK_OSCX8_PLLBB;
             cmu->DSI_CLK_DISABLE = CMU_EN_OSCX8_DISABLE;
             cmu->DSI_CLK_DISABLE = CMU_PU_OSCX8_DISABLE;
-#else
+        }
+#ifdef AUD_PLL_DOUBLE
+    } else if (old_freq > HAL_CMU_FREQ_208M && new_freq <= HAL_CMU_FREQ_208M) {
             hal_cmu_pll_disable(pll, HAL_CMU_PLL_USER_SYS);
 #endif
-        }
     }
 #else
 #ifdef FLASH_LOW_SPEED
@@ -1535,7 +1532,11 @@ void hal_cmu_low_freq_mode_disable(enum HAL_CMU_FREQ_T old_freq, enum HAL_CMU_FR
     pll = sys_pll_sel;
 
 #ifdef OSC_26M_X4_AUD2BB
-    if (old_freq <= HAL_CMU_FREQ_104M && new_freq > HAL_CMU_FREQ_104M) {
+    if (old_freq <= HAL_CMU_FREQ_104M && new_freq == HAL_CMU_FREQ_144M) {
+            cmu->DSI_CLK_ENABLE = CMU_PU_OSCX6_ENABLE;
+            cmu->DSI_CLK_ENABLE = CMU_EN_OSCX8_ENABLE;
+            cmu->SEL_OSCX8 &= ~CMU_SEL_HCLK_OSCX8_PLLBB;
+    } else if (old_freq <= HAL_CMU_FREQ_144M && new_freq == HAL_CMU_FREQ_208M) {
 #ifdef RC_CLK_ENABLE
         if (rc_enabled) {
             aoncmu->CLK_OUT |= AON_CMU_SEL_RC_PLLBB;
@@ -1543,15 +1544,16 @@ void hal_cmu_low_freq_mode_disable(enum HAL_CMU_FREQ_T old_freq, enum HAL_CMU_FR
         } else
 #endif
         {
-#ifdef OSC_26M_X8_AUD2BB
             // x2/x4 is derived from x8, and pu x2/x4 has been enabled, no need delay
             cmu->DSI_CLK_ENABLE = CMU_PU_OSCX8_ENABLE;
             cmu->DSI_CLK_ENABLE = CMU_EN_OSCX8_ENABLE;
             cmu->SEL_OSCX8 &= ~CMU_SEL_HCLK_OSCX8_PLLBB;
-#else
+            cmu->DSI_CLK_DISABLE = CMU_PU_OSCX6_DISABLE;
+        }
+#ifdef AUD_PLL_DOUBLE
+    } else if (old_freq <= HAL_CMU_FREQ_208M && new_freq > HAL_CMU_FREQ_208M) {
             hal_cmu_pll_enable(pll, HAL_CMU_PLL_USER_SYS);
 #endif
-        }
     }
 #else
 #ifdef FLASH_LOW_SPEED
@@ -1592,7 +1594,7 @@ void hal_cmu_programmer_chip_init(void)
 void TZ_hal_cmu_get_sys_pll_sel(enum HAL_CMU_PLL_T *sel);
 
 #ifdef ARM_CMSE
-__attribute__((cmse_nonsecure_entry))
+CMSE_API
 void TZ_hal_cmu_get_sys_pll_sel(enum HAL_CMU_PLL_T *sel)
 {
     sel = cmse_check_address_range(sel, sizeof(*sel), CMSE_NONSECURE);
@@ -2051,6 +2053,8 @@ void hal_cmu_usb_set_device_mode(void)
     lock = int_lock();
     cmu->SYS_DIV |= CMU_USB_ID;
     aoncmu->SLEEP_TIMER_OSC &= ~AON_CMU_USB_RX_PD;
+    aoncmu->RAM_LP_TIMER &= ~(AON_CMU_USB_EN_RFS | AON_CMU_CFG_FS_EN_RFS_DR);
+    aoncmu->RAM_LP_TIMER |= AON_CMU_USB_EN_RFS;
     int_unlock(lock);
 }
 
@@ -2060,6 +2064,9 @@ void hal_cmu_usb_set_host_mode(void)
 
     lock = int_lock();
     cmu->SYS_DIV &= ~CMU_USB_ID;
+    aoncmu->SLEEP_TIMER_OSC &= ~AON_CMU_USB_RX_PD;
+    aoncmu->RAM_LP_TIMER &= ~(AON_CMU_USB_EN_RFS | AON_CMU_CFG_FS_EN_RFS_DR);
+    aoncmu->RAM_LP_TIMER |= AON_CMU_CFG_FS_EN_RFS_DR;
     int_unlock(lock);
 }
 
@@ -2247,7 +2254,7 @@ int hal_cmu_ ##f## _set_div(uint32_t div) \
 PERPH_SET_DIV_FUNC(uart0, UART0, UART_CLK);
 PERPH_SET_DIV_FUNC(uart1, UART1, UART_CLK);
 PERPH_SET_DIV_FUNC(uart2, UART2, UART_CLK);
-PERPH_SET_DIV_FUNC(uart3, UART3, UART_CLK);
+PERPH_SET_DIV_FUNC(uart3, UART3, PERIPH_CLK1);
 PERPH_SET_DIV_FUNC(spi, SPI1, SYS_DIV);
 PERPH_SET_DIV_FUNC(sdmmc0, SDMMC1, ADMA_CH15_REQ);
 PERPH_SET_DIV_FUNC(i2c, I2C, I2C_CLK);
@@ -2505,6 +2512,12 @@ void hal_cmu_rom_clock_init(void)
 
     // Debug Select CMU REG F4
     cmu->MCU_TIMER = SET_BITFIELD(cmu->MCU_TIMER, CMU_DEBUG_REG_SEL, CMU_DEBUG_REG_SEL_DEBUG);
+
+#ifdef ROM_STARTUP_GLOBAL_RESET_WORKAROUND
+    hal_cmu_rom_startup_global_reset();
+#else
+    hal_cmu_rom_startup_wdt_reset();
+#endif
 }
 
 void hal_cmu_init_chip_feature(uint16_t feature)
@@ -2538,13 +2551,13 @@ void TZ_hal_cmu_acquire_x2_x4_S(void);
 void TZ_hal_cmu_release_x2_x4_S(void);
 
 #ifdef ARM_CMSE
-__attribute__((cmse_nonsecure_entry))
+CMSE_API
 void TZ_hal_cmu_acquire_x2_x4_S(void)
 {
     hal_cmu_acquire_x2_x4();
 }
 
-__attribute__((cmse_nonsecure_entry))
+CMSE_API
 void TZ_hal_cmu_release_x2_x4_S(void)
 {
     hal_cmu_release_x2_x4();
@@ -2599,18 +2612,9 @@ void BOOT_TEXT_FLASH_LOC hal_cmu_xreset_set(void)
 }
 void boot_loader_entry_hook(void) __attribute__((alias("hal_cmu_xreset_set")));
 
-void hal_cmu_set_cp_wakeup_vector(uint32_t vector)
-{
-    aoncmu->CP_VTOR = (aoncmu->CP_VTOR & ~AON_CMU_VTOR_CORE1_MCU_MASK) | (vector & AON_CMU_VTOR_CORE1_MCU_MASK);
-}
-
 void hal_cmu_set_wakeup_vector(uint32_t vector)
 {
-#ifdef CHIP_ROLE_CP
-    hal_cmu_set_cp_wakeup_vector(vector);
-#else
     aoncmu->MCU_VTOR = (aoncmu->MCU_VTOR & ~AON_CMU_VTOR_CORE0_MCU_MASK) | (vector & AON_CMU_VTOR_CORE0_MCU_MASK);
-#endif
 }
 
 void BOOT_TEXT_FLASH_LOC hal_cmu_module_init_state(void)
@@ -2620,7 +2624,7 @@ void BOOT_TEXT_FLASH_LOC hal_cmu_module_init_state(void)
     aoncmu->CLK_SELECT |= AON_CMU_SEL_SLOW_SYS_BYPASS;
 #endif
     aoncmu->AON_CLK |= AON_CMU_BYPASS_LOCK_PLLUSB | AON_CMU_BYPASS_LOCK_PLLBB | AON_CMU_BYPASS_LOCK_PLLAUD |
-        AON_CMU_BYPASS_LOCK_PLLDSI | AON_CMU_SEL_CLK_OSC;
+        AON_CMU_BYPASS_LOCK_PLLDSI | AON_CMU_SEL_CLK_OSC | AON_CMU_POL_SPI_CS_MASK;
     // Disable AON OSC always on
     aoncmu->TOP_CLK_DISABLE = AON_CMU_EN_CLK_TOP_OSC_DISABLE;
     // Slow down PMU fast clock
@@ -3015,7 +3019,6 @@ void hal_cmu_select_rc_clock(enum HAL_CMU_CLK_SEL_OSC_USER_T user)
 #endif
 
     aoncmu->CLK_OUT |= AON_CMU_SEL_RC_PLLBB;
-    cmu->SYS_CLK_ENABLE = CMU_EN_PLL_ENABLE;
     int_unlock(lock);
 }
 
@@ -3078,372 +3081,7 @@ void hal_cmu_select_osc_clock(enum HAL_CMU_CLK_SEL_OSC_USER_T user)
     int_unlock(lock);
 }
 
-static void hal_cmu_cp_wakeup_irq_register(void);
-static void hal_cmu_cp_wakeup_irq_deregister(void);
-static void hal_cmu_cp_sleep_irq_register(void);
-static void hal_cmu_cp_sleep_irq_deregister(void);
-
-struct CP_CORE_SLEEP_SLOT_T {
-    uint32_t irq_mask[4];
-    uint32_t rsv[2];
-    uint32_t vector;
-    uint32_t core;
-};
-
-#ifdef CP_INTR_RELAY
-// First 8 bytes used by sys2bth
-#define CP_CORE_SLEEP_REQUEST_PTR      (CP_SUBSYS_MAILBOX_BASE + 3*sizeof(struct HAL_RMT_IPC_CFG_T *))
-#define CP_CORE_SLEEP_STATUS_PTR       (CP_CORE_SLEEP_REQUEST_PTR + sizeof(struct CP_CORE_SLEEP_SLOT_T))
-#else
-#define CP_CORE_SLEEP_REQUEST_PTR      NULL
-#define CP_CORE_SLEEP_STATUS_PTR       NULL
-#endif
-
-#define CP_CORE_SLEEP_VALID_FLAG       (1 << 7)
-STATIC_ASSERT(CP_CORE_SLEEP_VALID_FLAG >= HAL_CMU_LPU_SLEEP_MODE_QTY, "CP_CORE_SLEEP_VALID_FLAG error");
-
-static struct CP_CORE_SLEEP_SLOT_T * const sleep_req_slot = (struct CP_CORE_SLEEP_SLOT_T *)CP_CORE_SLEEP_REQUEST_PTR;
-
-static struct CP_CORE_SLEEP_SLOT_T * const sleep_status_slot = (struct CP_CORE_SLEEP_SLOT_T *)CP_CORE_SLEEP_STATUS_PTR;
-
-static uint32_t cp_irq_mask[2];
-
-void hal_sleep_wakeup_mask_get(uint32_t mask[2])
-{
-    mask[0] = sleep_req_slot->irq_mask[0];
-    mask[1] = sleep_req_slot->irq_mask[1];
-}
-
-void hal_cmu_cp_subsys_pd(void)
-{
-    hal_cmu_reset_set(HAL_CMU_MOD_H_CP);
-    hal_cmu_clock_disable(HAL_CMU_MOD_H_CP);
-}
-
-void hal_cmu_cp_subsys_pu(struct CP_CORE_SLEEP_SLOT_T * slot)
-{
-    if (slot->vector != 0) {
-        // set cp reset handle
-        hal_cmu_set_cp_wakeup_vector(slot->vector);
-        __DMB();
-        // pu cp core
-        hal_cmu_clock_enable(HAL_CMU_MOD_H_CP);
-        hal_cmu_reset_clear(HAL_CMU_MOD_H_CP);
-
-        hal_sys_timer_delay_us(10);
-    }
-}
-
-SRAM_TEXT_LOC void hal_cmu_cp_sleep_signal_set(void)
-{
-    cmu->CP2MCU_IRQ_SET = CMU_CP2MCU_DATA2_IND_SET;
-    __DSB();
-}
-
-SRAM_TEXT_LOC void hal_cmu_cp_sleep_signal_clear(void)
-{
-    cmu->CP2MCU_IRQ_CLR = CMU_CP2MCU_DATA2_IND_CLR;
-    __DSB();
-}
-
-SRAM_TEXT_LOC int hal_cmu_cp_sleep_signal_get(void)
-{
-    return !!(cmu->CP2MCU_IRQ_SET & CMU_CP2MCU_DATA2_IND_SET);
-}
-
-SRAM_TEXT_LOC void hal_cmu_cp_wakeup_signal_set(void)
-{
-    cmu->MCU2CP_IRQ_SET = CMU_CP2MCU_DATA2_DONE_SET;
-    __DSB();
-}
-
-SRAM_TEXT_LOC void hal_cmu_cp_wakeup_signal_clear(void)
-{
-    cmu->MCU2CP_IRQ_CLR = CMU_CP2MCU_DATA2_DONE_CLR;
-    __DSB();
-}
-
-SRAM_TEXT_LOC int hal_cmu_cp_wakeup_signal_get(void)
-{
-    return !!(cmu->MCU2CP_IRQ_SET & CMU_CP2MCU_DATA2_DONE_SET);
-}
-
-static int hal_cmu_cp_in_sleep(void)
-{
-    return 1;
-}
-
-static void hal_cmu_cp_wakeup_allow(void)
-{
-
-}
-
-__STATIC_FORCEINLINE void hal_cmu_update_sleep_status(enum HAL_CMU_LPU_SLEEP_MODE_T mode)
-{
-    uint8_t status;
-
-    if (sleep_req_slot->core & CP_CORE_SLEEP_VALID_FLAG) {
-        status = sleep_status_slot->core & ~CP_CORE_SLEEP_VALID_FLAG;
-        if (status < mode) {
-            status = mode;
-        }
-        sleep_status_slot->core = status | CP_CORE_SLEEP_VALID_FLAG;
-    }
-}
-
-__STATIC_FORCEINLINE void hal_cmu_cp_sleep_req_set(enum HAL_CMU_LPU_SLEEP_MODE_T mode)
-{
-    sleep_req_slot->core = mode | CP_CORE_SLEEP_VALID_FLAG;
-    sleep_req_slot->irq_mask[0] = NVIC->ISER[0];
-    sleep_req_slot->irq_mask[1] = NVIC->ISER[1];
-    sleep_req_slot->rsv[0]++;
-    sleep_req_slot->vector = SCB->VTOR;
-
-    sleep_status_slot->core = 0;
-    sleep_status_slot->irq_mask[0] = 0;
-    sleep_status_slot->irq_mask[1] = 0;
-    sleep_status_slot->vector = 0;
-    __DSB();
-}
-
-__STATIC_FORCEINLINE void hal_cmu_cp_sleep_req_clear(void)
-{
-    sleep_req_slot->core = 0;
-    sleep_req_slot->irq_mask[0] = 0;
-    sleep_req_slot->irq_mask[1] = 0;
-    sleep_req_slot->vector = 0;
-    __DSB();
-}
-
-SRAM_TEXT_LOC
-uint32_t hal_cmu_cp_sleep_req_get(void)
-{
-    return sleep_req_slot->core;
-}
-
-uint32_t hal_cmu_cp_sleep_status_get(void)
-{
-    return sleep_status_slot->core;
-}
-
-static void cp_wakeup_handler(void)
-{
-    uint32_t req;
-
-    req = sleep_req_slot->core;
-    if (req == 0) {
-        // Core has been disabled
-        hal_cmu_cp_wakeup_irq_deregister();
-        return;
-    }
-    ASSERT((req & CP_CORE_SLEEP_VALID_FLAG), "%s: Bad sleep req: 0x%X", __func__, req);
-
-    req &= ~CP_CORE_SLEEP_VALID_FLAG;
-
-    hal_sys_wake_lock(HAL_BUS_WAKE_LOCK_USER_CP);
-    hal_cmu_cp_wakeup_irq_deregister();
-    hal_cmu_cp_sleep_irq_register();
-    hal_cmu_cp_wakeup_allow();
-
-    hal_cmu_cp_wakeup_signal_set();
-
-    if (req == HAL_CMU_LPU_SLEEP_MODE_CPU_PD_BUS_32K ||
-        req == HAL_CMU_LPU_SLEEP_MODE_CPU_PD_SUBSYS_32K ||
-        req == HAL_CMU_LPU_SLEEP_MODE_SUBSYS_PD){
-        hal_cmu_cp_subsys_pu(sleep_req_slot);
-    }
-}
-
-static void cp_sleep_handler(void)
-{
-    uint8_t req;
-
-    if (hal_cmu_reset_get_status(HAL_CMU_MOD_H_CP) == HAL_CMU_RST_SET) {
-        hal_cmu_cp_sleep_irq_deregister();
-        return;
-    }
-
-    if (!hal_cmu_cp_sleep_signal_get()) {
-        return;
-    }
-    hal_cmu_cp_sleep_signal_clear();
-
-    if (!hal_cmu_cp_in_sleep()) {
-        return;
-    }
-
-    req = sleep_req_slot->core;
-    ASSERT((req & CP_CORE_SLEEP_VALID_FLAG), "%s: Bad sleep req: 0x%X", __func__, req);
-
-    req &= ~CP_CORE_SLEEP_VALID_FLAG;
-
-    hal_sys_wake_unlock(HAL_BUS_WAKE_LOCK_USER_CP);
-
-    //todo add ramconfig
-    if (req == HAL_CMU_LPU_SLEEP_MODE_CPU_PD_BUS_32K ||
-        req == HAL_CMU_LPU_SLEEP_MODE_CPU_PD_SUBSYS_32K ||
-        req == HAL_CMU_LPU_SLEEP_MODE_SUBSYS_PD){
-        hal_cmu_cp_subsys_pd();
-    }
-
-    hal_cmu_cp_sleep_irq_deregister();
-    hal_cmu_cp_wakeup_irq_register();
-}
-
-static void hal_cmu_cp_sleep_irq_register(void)
-{
-    IRQn_Type irq = CP2MCU_DATA2_IRQn;
-
-    NVIC_SetVector(irq, (uint32_t)cp_sleep_handler);
-    NVIC_SetPriority(irq, IRQ_PRIORITY_NORMAL);
-    NVIC_ClearPendingIRQ(irq);
-    NVIC_EnableIRQ(irq);
-}
-
-static void hal_cmu_cp_sleep_irq_deregister(void)
-{
-    IRQn_Type irq = CP2MCU_DATA2_IRQn;
-
-    NVIC_DisableIRQ(irq);
-}
-
-static void hal_cmu_cp_wakeup_irq_register(void)
-{
-    uint32_t i, j;
-    uint32_t mask[2];
-    IRQn_Type irq;
-
-    // Get wakeup irq mask
-    hal_sleep_wakeup_mask_get(mask);
-    cp_irq_mask[0] = mask[0];
-    cp_irq_mask[1] = mask[1];
-
-    // Register wakeup handler
-    for (i = 0; i < 2; i++) {
-        for (j = 0; j < 32; j++) {
-            if (cp_irq_mask[i] & (1 << j)) {
-                irq = i * 32 + j;
-                if (NVIC_GetEnableIRQ(irq)) {
-                    cp_irq_mask[i] &= ~(1 << j);
-                    continue;
-                }
-                NVIC_SetVector(irq, (uint32_t)cp_wakeup_handler);
-                NVIC_SetPriority(irq, IRQ_PRIORITY_NORMAL);
-                NVIC_ClearPendingIRQ(irq);
-                NVIC_EnableIRQ(irq);
-            }
-        }
-    }
-}
-
-static void hal_cmu_cp_wakeup_irq_deregister(void)
-{
-    uint32_t i, j;
-    IRQn_Type irq;
-
-    for (i = 0; i < 2; i++) {
-        for (j = 0; j < 32; j++) {
-            if (cp_irq_mask[i] & (1 << j)) {
-                irq = i * 32 + j;
-                NVIC_DisableIRQ(irq);
-                NVIC_ClearPendingIRQ(irq);
-            }
-        }
-    }
-}
-
-void hal_cmu_cp_sleep_register(void)
-{
-    hal_cmu_cp_sleep_signal_clear();
-    hal_cmu_cp_sleep_irq_register();
-    hal_cmu_cp_wakeup_irq_deregister();
-    hal_sys_wake_lock(HAL_BUS_WAKE_LOCK_USER_CP);
-}
-
-void hal_cmu_cp_sleep_deregister(void)
-{
-    hal_cmu_cp_sleep_irq_deregister();
-    hal_cmu_cp_wakeup_irq_deregister();
-    hal_cmu_cp_sleep_req_clear();
-    hal_sys_wake_unlock(HAL_BUS_WAKE_LOCK_USER_CP);
-}
-
-void hal_cmu_lpu_sleep_cp_tst(void)
-{
-    hal_cmu_cp_wakeup_signal_set();
-}
-
-
 #ifdef CHIP_ROLE_CP
-#ifdef CP_INTR_RELAY
-uint32_t cp_sleep_cnt = 0;
-
-
-static int SRAM_TEXT_LOC hal_cmu_lpu_sleep_cp(enum HAL_CMU_LPU_SLEEP_MODE_T mode)
-{
-    uint32_t mask[2];
-
-#ifdef CORE_SLEEP_POWER_DOWN
-        uint32_t cpu_regs[50];
-        bool pd = false;
-
-        if (mode == HAL_CMU_LPU_SLEEP_MODE_CPU_PD_BUS_32K ||
-                mode == HAL_CMU_LPU_SLEEP_MODE_CPU_PD_SUBSYS_32K ||
-                mode == HAL_CMU_LPU_SLEEP_MODE_SUBSYS_PD) {
-            pd = true;
-            NVIC_PowerDownSleep(cpu_regs, ARRAY_SIZE(cpu_regs));
-        }
-#endif
-    sleep_req_slot->rsv[1] = 1;
-
-    hal_cmu_cp_sleep_req_set(mode);
-    mask[0] = NVIC->ISER[0];
-    mask[1] = NVIC->ISER[1];
-
-    NVIC->ICER[0] = 0xffffffff;
-    NVIC->ICER[1] = 0xffffffff;
-    NVIC->ISER[1] = 0x00040000;
-
-    cp_sleep_cnt++;
-
-#ifdef CORE_SLEEP_POWER_DOWN
-    if (pd) {
-        sleep_req_slot->rsv[1] = 2;
-        hal_sleep_core_power_down(true);
-    } else
-#endif
-    {
-        sleep_req_slot->rsv[1] = 3;
-        hal_cmu_cp_sleep_signal_set();
-        SCB->SCR = SCB_SCR_SLEEPDEEP_Msk;
-        __DSB();
-        __WFI();
-    }
-    sleep_req_slot->rsv[1] = 4;
-    // Wait until main cpu ack the sleep request
-    hal_cmu_cp_wakeup_signal_clear();
-    sleep_req_slot->rsv[1] = 5;
-    while (hal_cmu_cp_sleep_signal_get()) {}
-    sleep_req_slot->rsv[1] = 7;
-    hal_cmu_cp_sleep_req_clear();
-    sleep_req_slot->rsv[1] = 8;
-
-    NVIC->ICPR[1] = 0x00040000;
-    NVIC->ICER[1] = 0x00040000;
-    NVIC->ISER[0] = mask[0];
-    NVIC->ISER[1] = mask[1];
-
-#ifdef CORE_SLEEP_POWER_DOWN
-    if (pd) {
-        NVIC_PowerDownWakeup(cpu_regs, ARRAY_SIZE(cpu_regs));
-    }
-#endif
-
-    return 0;
-}
-
-
-#else
 
 static int SRAM_TEXT_LOC hal_cmu_lpu_sleep_cp(enum HAL_CMU_LPU_SLEEP_MODE_T mode)
 {
@@ -3454,7 +3092,6 @@ static int SRAM_TEXT_LOC hal_cmu_lpu_sleep_cp(enum HAL_CMU_LPU_SLEEP_MODE_T mode
     return 0;
 }
 
-#endif //CP_INTR_RELAY
 #else // !CHIP_ROLE_CP
 
 #ifdef CORE_SLEEP_POWER_DOWN
@@ -3522,8 +3159,6 @@ static void SRAM_TEXT_LOC save_cmu_regs(struct SAVED_CMU_REGS_T *sav)
     sav->PPI_CFG            = cmu->PPI_CFG;
     sav->WAKEUP_MASK3       = cmu->WAKEUP_MASK3;
     sav->WAKEUP_MASK4       = cmu->WAKEUP_MASK4;
-    sav->CP2MCU_IRQ_SET     = cmu->CP2MCU_IRQ_SET;
-    sav->MCU2CP_IRQ_SET     = cmu->MCU2CP_IRQ_SET;
 }
 
 static void SRAM_TEXT_LOC restore_cmu_regs(const struct SAVED_CMU_REGS_T *sav)
@@ -3600,8 +3235,6 @@ static void SRAM_TEXT_LOC restore_cmu_regs(const struct SAVED_CMU_REGS_T *sav)
     cmu->PPI_CFG            = sav->PPI_CFG;
     cmu->WAKEUP_MASK3       = sav->WAKEUP_MASK3;
     cmu->WAKEUP_MASK4       = sav->WAKEUP_MASK4;
-    cmu->CP2MCU_IRQ_SET     = sav->CP2MCU_IRQ_SET;
-    cmu->MCU2CP_IRQ_SET     = sav->MCU2CP_IRQ_SET;
 }
 #endif // !ARM_CMNS
 
@@ -3766,10 +3399,10 @@ static int SRAM_TEXT_LOC hal_cmu_lpu_sleep_pd(enum HAL_CMU_LPU_SLEEP_MODE_T mode
     // Restore system freq
     cmu->SYS_CLK_ENABLE = saved_clk_cfg &
         (CMU_RSTN_DIV_FLS0_ENABLE | CMU_RSTN_DIV_FLS1_ENABLE | CMU_RSTN_DIV_PSRAM_ENABLE |
-        CMU_RSTN_DIV_DSI_ENABLE | CMU_RSTN_DIV_SYS_ENABLE);
+        CMU_RSTN_DIV_PIX_ENABLE | CMU_RSTN_DIV_SYS_ENABLE);
     cmu->SYS_CLK_ENABLE = saved_clk_cfg &
         (CMU_BYPASS_DIV_FLS0_ENABLE | CMU_BYPASS_DIV_FLS1_ENABLE | CMU_BYPASS_DIV_PSRAM_ENABLE |
-        CMU_BYPASS_DIV_DSI_ENABLE | CMU_BYPASS_DIV_SYS_ENABLE);
+        CMU_BYPASS_DIV_PIX_ENABLE | CMU_BYPASS_DIV_SYS_ENABLE);
     cmu->SYS_CLK_ENABLE = saved_clk_cfg;
     cmu->SYS_CLK_DISABLE = ~saved_clk_cfg;
 
@@ -4067,48 +3700,23 @@ static int SRAM_TEXT_LOC hal_cmu_lpu_sleep_normal(enum HAL_CMU_LPU_SLEEP_MODE_T 
 
 int SRAM_TEXT_LOC hal_cmu_lpu_sleep(enum HAL_CMU_LPU_SLEEP_MODE_T mode)
 {
-#ifdef CP_INTR_RELAY
-#ifdef CHIP_ROLE_CP
-    return hal_cmu_lpu_sleep_cp(mode);
-#else
-    enum HAL_CMU_LPU_SLEEP_MODE_T cp_mode;
-
-    cp_mode = sleep_req_slot->core & ~CP_CORE_SLEEP_VALID_FLAG;
-
-#ifdef CORE_SLEEP_POWER_DOWN
-    if (cp_mode == HAL_CMU_LPU_SLEEP_MODE_BUS_32K ||
-            cp_mode == HAL_CMU_LPU_SLEEP_MODE_CPU_PD_BUS_32K) {
-        {
-            mode = HAL_CMU_LPU_SLEEP_MODE_BUS_32K;
-        }
-    } else if (cp_mode == HAL_CMU_LPU_SLEEP_MODE_SUBSYS_32K ||
-            cp_mode == HAL_CMU_LPU_SLEEP_MODE_CPU_PD_SUBSYS_32K) {
-        {
-            mode = HAL_CMU_LPU_SLEEP_MODE_SUBSYS_32K;
-        }
-    }
-
-    if (mode == HAL_CMU_LPU_SLEEP_MODE_SUBSYS_PD) {
-        return hal_cmu_lpu_sleep_pd(mode);
-    }
-#else // !CORE_SLEEP_POWER_DOWN
-    if (cp_mode == HAL_CMU_LPU_SLEEP_MODE_BUS_32K) {
-        mode = HAL_CMU_LPU_SLEEP_MODE_BUS_32K;
-    }
-#endif // !CORE_SLEEP_POWER_DOWN
-    return hal_cmu_lpu_sleep_normal(mode);
-#endif
-#else // !CP_INTR_RELAY
 #ifdef CHIP_ROLE_CP
     return hal_cmu_lpu_sleep_cp(mode);
 #else
 #ifdef CORE_SLEEP_POWER_DOWN
     if (mode == HAL_CMU_LPU_SLEEP_MODE_POWER_DOWN) {
+#ifdef FORCE_RAM_ACTIVE_IN_RET_SLEEP
+        hal_psc_mcu_ram_auto_psw_enable(true);
+#endif
         return hal_cmu_lpu_sleep_pd(mode);
-        }
+    }
+#endif
+#ifdef FORCE_RAM_ACTIVE_IN_RET_SLEEP
+    if (mode == HAL_CMU_LPU_SLEEP_MODE_CHIP) {
+        hal_psc_mcu_ram_auto_psw_enable(false);
+    }
 #endif
     return hal_cmu_lpu_sleep_normal(mode);
-#endif
 #endif
 }
 
@@ -4124,28 +3732,6 @@ uint32_t BOOT_TEXT_FLASH_LOC hal_cmu_get_aon_revision_id(void)
 
 void hal_cmu_cp_subsys_enable(uint32_t sp)
 {
-#ifdef CP_INTR_RELAY
-    sleep_req_slot->core = 0;
-    sleep_req_slot->irq_mask[0] = 0;
-    sleep_req_slot->irq_mask[1] = 0;
-    sleep_req_slot->irq_mask[2] = 0;
-    sleep_req_slot->irq_mask[3] = 0;
-    sleep_req_slot->rsv[0] = 0;
-    sleep_req_slot->rsv[1] = 0;
-    sleep_req_slot->vector = 0;
-
-    sleep_status_slot->core = 0;
-    sleep_status_slot->irq_mask[0] = 0;
-    sleep_status_slot->irq_mask[1] = 0;
-    sleep_status_slot->irq_mask[2] = 0;
-    sleep_status_slot->irq_mask[3] = 0;
-    sleep_status_slot->rsv[0] = 0;
-    sleep_status_slot->rsv[1] = 0;
-    sleep_status_slot->vector = 0;
-
-    hal_cmu_cp_wakeup_signal_clear();
-    hal_cmu_cp_sleep_register();
-#endif
 }
 
 void hal_cmu_cp_start_cpu(uint32_t sp, uint32_t entry)
@@ -4181,20 +3767,16 @@ void hal_cmu_cp_subsys_disable(void)
     hal_cmu_reset_set(HAL_CMU_MOD_H_CP);
     hal_cmu_clock_disable(HAL_CMU_MOD_H_CP);
 
+    // Clear IPC signals
+    cmu->CP2MCU_IRQ_CLR = CMU_MCU2CP_DATA_DONE_CLR | CMU_CP2MCU_DATA_IND_CLR |
+                          CMU_MCU2CP_DATA1_DONE_CLR | CMU_CP2MCU_DATA1_IND_CLR;
+
 #if (defined(CP_SUBSYS_TIMER0_BASE) && CP_SUBSYS_TIMER0_BASE == MCU_TIMER2_BASE) || \
         (defined(CP_SUBSYS_TIMER1_BASE) && CP_SUBSYS_TIMER1_BASE == MCU_TIMER2_BASE)
     hal_cmu_reset_set(HAL_CMU_MOD_P_TIMER2);
     hal_cmu_reset_set(HAL_CMU_MOD_O_TIMER2);
     hal_cmu_clock_disable(HAL_CMU_MOD_P_TIMER2);
     hal_cmu_clock_disable(HAL_CMU_MOD_O_TIMER2);
-#endif
-#ifdef CP_INTR_RELAY
-    // Clear IPC signals
-    cmu->CP2MCU_IRQ_CLR = CMU_MCU2CP_DATA_DONE_CLR | CMU_CP2MCU_DATA_IND_CLR |
-                          CMU_MCU2CP_DATA1_DONE_CLR | CMU_CP2MCU_DATA1_IND_CLR |
-                          CMU_MCU2CP_DATA2_DONE_CLR | CMU_CP2MCU_DATA2_IND_CLR |
-                          CMU_MCU2CP_DATA3_DONE_CLR | CMU_CP2MCU_DATA3_IND_CLR;
-    hal_cmu_cp_sleep_deregister();
 #endif
 }
 
@@ -4399,35 +3981,6 @@ void BOOT_TEXT_FLASH_LOC hal_cmu_ispi_access_init(void)
     aoncmu->AON_CLK |= AON_CMU_EN_CLK_SPI_ARB;
 }
 
-uint32_t hal_cmu_cpudump_get_last_pc_addr(void)
-{
-    uint32_t addr = DUMPPC_TOTAL_NUM;
-    aocmu_reg_update_wait();
-    if(aoncmu->MCU_STROE_INFO & AON_CMU_MCU_STORE_READY)
-        addr = GET_BITFIELD(aoncmu->MCU_STROE_INFO, AON_CMU_MCU_STORE_PC_ADDR);
-    return addr;
-}
-
-static void hal_cmu_disppre_hclk_enable(bool ena)
-{
-    return;
-    static int hcount = 0;
-    uint32_t lock;
-    lock = int_lock();
-    if (ena) {
-        hcount += 1;
-        if (hcount == 1) {
-            hal_cmu_clock_enable(HAL_CMU_MOD_H_DISPPRE);
-        }
-    } else {
-        hcount = hcount > 0 ? hcount - 1: 0;
-    }
-    if (hcount == 0) {
-        hal_cmu_clock_disable(HAL_CMU_MOD_H_DISPPRE);
-    }
-    int_unlock(lock);
-}
-
 void hal_cmu_gpu_set_mhz(uint32_t freqmhz)
 {
     if (freqmhz == 24) {
@@ -4462,57 +4015,48 @@ void hal_cmu_gpu_set_mhz(uint32_t freqmhz)
         hal_cmu_pll_disable(HAL_CMU_PLL_BB, HAL_CMU_PLL_USER_GPU);
 }
 
-void hal_cmu_gpu_clock_enable(void)
+void hal_cmu_gpu_clock_enable(uint32_t freqmhz)
 {
-    uint32_t freqmhz = 0;
+    hal_psc_display_enable(HAL_PSC_DISPLAY_MOD_GPU);
     hal_cmu_gpu_set_mhz(freqmhz);
 
-    hal_cmu_disppre_hclk_enable(true);
-
-    hal_cmu_clock_enable(HAL_CMU_MOD_H_GPU);
-    hal_cmu_clock_enable(HAL_CMU_MOD_X_GPU);
-    hal_cmu_clock_enable(HAL_CMU_MOD_O_GPU);
-
-    hal_cmu_reset_set(HAL_CMU_MOD_H_GPU);
-    hal_sys_timer_delay(1);
-    hal_cmu_reset_clear(HAL_CMU_MOD_H_GPU);
-
-    hal_cmu_reset_set(HAL_CMU_MOD_X_GPU);
-    hal_sys_timer_delay(1);
-    hal_cmu_reset_clear(HAL_CMU_MOD_X_GPU);
-
     hal_cmu_reset_set(HAL_CMU_MOD_O_GPU);
+    hal_cmu_reset_set(HAL_CMU_MOD_X_GPU);
+    hal_sys_timer_delay_us(2);
+
+    hal_cmu_clock_enable(HAL_CMU_MOD_O_GPU);
+    hal_cmu_clock_enable(HAL_CMU_MOD_X_GPU);
+    hal_sys_timer_delay_us(2);
+
+    cmu->MISC_0F8 |= CMU_GPU_ENABLE;
     hal_sys_timer_delay(2);
+
     hal_cmu_reset_clear(HAL_CMU_MOD_O_GPU);
+    hal_cmu_reset_clear(HAL_CMU_MOD_X_GPU);
 }
 
 void hal_cmu_gpu_clock_disable(void)
 {
-    hal_cmu_reset_set(HAL_CMU_MOD_H_GPU);
-    hal_cmu_reset_set(HAL_CMU_MOD_X_GPU);
     hal_cmu_reset_set(HAL_CMU_MOD_O_GPU);
+    hal_cmu_reset_set(HAL_CMU_MOD_X_GPU);
+    hal_sys_timer_delay_us(5);
 
-    hal_cmu_disppre_hclk_enable(false);
-    hal_cmu_clock_disable(HAL_CMU_MOD_H_GPU);
-    hal_cmu_clock_disable(HAL_CMU_MOD_X_GPU);
     hal_cmu_clock_disable(HAL_CMU_MOD_O_GPU);
+    hal_cmu_clock_disable(HAL_CMU_MOD_X_GPU);
     hal_cmu_pll_disable(HAL_CMU_PLL_BB, HAL_CMU_PLL_USER_GPU);
+    hal_psc_display_disable(HAL_PSC_DISPLAY_MOD_GPU);
 }
 
 void hal_cmu_gpu_wakeup(void)
 {
-    hal_cmu_disppre_hclk_enable(true);
-    hal_cmu_clock_enable(HAL_CMU_MOD_H_GPU);
-    hal_cmu_clock_enable(HAL_CMU_MOD_X_GPU);
     hal_cmu_clock_enable(HAL_CMU_MOD_O_GPU);
+    hal_cmu_clock_enable(HAL_CMU_MOD_X_GPU);
 }
 
 void hal_cmu_gpu_sleep(void)
 {
-    hal_cmu_disppre_hclk_enable(false);
-    hal_cmu_clock_disable(HAL_CMU_MOD_H_GPU);
-    hal_cmu_clock_disable(HAL_CMU_MOD_X_GPU);
     hal_cmu_clock_disable(HAL_CMU_MOD_O_GPU);
+    hal_cmu_clock_disable(HAL_CMU_MOD_X_GPU);
 }
 
 #define LCDC_QSPI_PLL_MHZ        200
@@ -4543,15 +4087,11 @@ uint32_t hal_cmu_lcdc_get_pixmhz(void)
 
 int hal_cmu_lcdc_set_pixmhz(uint32_t freqmhz)
 {
-    uint32_t enable = cmu->DSI_CLK_ENABLE;
-    uint32_t disable = cmu->DSI_CLK_DISABLE;
-
-    enable &= ~(CMU_SEL_PLL_PIX_ENABLE | CMU_RSTN_DIV_PIX_ENABLE |
-               CMU_BYPASS_DIV_PIX_ENABLE | CMU_SEL_OSCX4_PIX_ENABLE |
-               CMU_SEL_OSCX2_PIX_ENABLE);
-    disable |= (CMU_SEL_PLL_PIX_DISABLE | CMU_RSTN_DIV_PIX_DISABLE |
-               CMU_BYPASS_DIV_PIX_DISABLE | CMU_SEL_OSCX4_PIX_DISABLE |
-               CMU_SEL_OSCX2_PIX_DISABLE);
+    int ret = 0;
+    uint32_t enable = 0;
+    uint32_t disable = (CMU_SEL_PLL_PIX_DISABLE | CMU_RSTN_DIV_PIX_DISABLE |
+                        CMU_BYPASS_DIV_PIX_DISABLE | CMU_SEL_OSCX4_PIX_DISABLE |
+                        CMU_SEL_OSCX2_PIX_DISABLE);
 
     if (freqmhz >= 24 && freqmhz <= 25) {
         /* OSCX1 */
@@ -4565,8 +4105,6 @@ int hal_cmu_lcdc_set_pixmhz(uint32_t freqmhz)
         enable |= CMU_SEL_OSCX4_PIX_ENABLE;
     } else {
         /* PLL */
-        hal_cmu_pll_enable(HAL_CMU_PLL_BB, HAL_CMU_PLL_USER_LCDC);
-
         if (freqmhz >= LCDC_QSPI_PLL_MHZ) { /* bypass */
             disable &= ~(CMU_SEL_PLL_PIX_DISABLE | CMU_BYPASS_DIV_PIX_DISABLE);
             enable |= CMU_SEL_PLL_PIX_ENABLE | CMU_BYPASS_DIV_PIX_ENABLE;
@@ -4574,8 +4112,10 @@ int hal_cmu_lcdc_set_pixmhz(uint32_t freqmhz)
             uint32_t lock;
             uint32_t div = LCDC_QSPI_PLL_DIV(freqmhz);
 
-            if (div > 15)
-                goto error;
+            if (div > 15) {
+                ret = -1;
+                goto _exit;
+            }
 
             lock = int_lock();
             cmu->I2S1_CLK = SET_BITFIELD(cmu->I2S1_CLK, CMU_CFG_DIV_PIX, div);
@@ -4586,20 +4126,18 @@ int hal_cmu_lcdc_set_pixmhz(uint32_t freqmhz)
         }
     }
 
-    cmu->DSI_CLK_DISABLE = disable;
+_exit:
+    if (enable & CMU_SEL_PLL_PIX_ENABLE)
+        hal_cmu_pll_enable(HAL_CMU_PLL_BB, HAL_CMU_PLL_USER_LCDC);
+
     cmu->DSI_CLK_ENABLE = enable;
+    cmu->DSI_CLK_DISABLE = disable;
 
     if (disable & CMU_SEL_PLL_PIX_DISABLE)
         hal_cmu_pll_disable(HAL_CMU_PLL_BB, HAL_CMU_PLL_USER_LCDC);
 
     g_pixmhz = hal_cmu_lcdc_get_pixmhz();
-    return 0;
-
-error:
-    cmu->DSI_CLK_DISABLE = (CMU_SEL_PLL_PIX_DISABLE | CMU_RSTN_DIV_PIX_DISABLE |
-                            CMU_BYPASS_DIV_PIX_DISABLE | CMU_SEL_OSCX4_PIX_DISABLE |
-                            CMU_SEL_OSCX2_PIX_DISABLE);
-    return -1;
+    return ret;
 }
 
 uint32_t hal_cmu_lcdc_get_qspimhz(void)
@@ -4626,15 +4164,11 @@ uint32_t hal_cmu_lcdc_get_qspimhz(void)
 
 int hal_cmu_lcdc_set_qspimhz(uint32_t freqmhz)
 {
-    uint32_t enable = cmu->DSI_CLK_ENABLE;
-    uint32_t disable = cmu->DSI_CLK_DISABLE;
-
-    enable &= ~(CMU_BYPASS_DIV_DISQSPI_ENABLE | CMU_SEL_PLL_DISQSPI_ENABLE |
-                CMU_RSTN_DIV_DISQSPI_ENABLE | CMU_SEL_OSCX2_DISQSPI_ENABLE |
-                CMU_SEL_OSCX4_DISQSPI_ENABLE);
-    disable |= (CMU_BYPASS_DIV_DISQSPI_DISABLE | CMU_SEL_PLL_DISQSPI_DISABLE |
-                CMU_RSTN_DIV_DISQSPI_DISABLE | CMU_SEL_OSCX2_DISQSPI_DISABLE |
-                CMU_SEL_OSCX4_DISQSPI_DISABLE);
+    int ret = 0;
+    uint32_t enable = 0;
+    uint32_t disable = (CMU_BYPASS_DIV_DISQSPI_DISABLE | CMU_SEL_PLL_DISQSPI_DISABLE |
+                        CMU_RSTN_DIV_DISQSPI_DISABLE | CMU_SEL_OSCX2_DISQSPI_DISABLE |
+                        CMU_SEL_OSCX4_DISQSPI_DISABLE);
 
     if (freqmhz >= 24 && freqmhz <= 25) {
         /* OSCX1 */
@@ -4648,8 +4182,6 @@ int hal_cmu_lcdc_set_qspimhz(uint32_t freqmhz)
         enable |= CMU_SEL_OSCX4_DISQSPI_ENABLE;
     } else {
         /* PLL */
-        hal_cmu_pll_enable(HAL_CMU_PLL_BB, HAL_CMU_PLL_USER_QSPI);
-
         if (freqmhz >= LCDC_QSPI_PLL_MHZ) { /* bypass */
             disable &= ~(CMU_SEL_PLL_DISQSPI_DISABLE | CMU_BYPASS_DIV_DISQSPI_DISABLE);
             enable |= CMU_SEL_PLL_DISQSPI_ENABLE | CMU_BYPASS_DIV_DISQSPI_ENABLE;
@@ -4657,8 +4189,10 @@ int hal_cmu_lcdc_set_qspimhz(uint32_t freqmhz)
             uint32_t lock;
             uint32_t div = LCDC_QSPI_PLL_DIV(freqmhz);
 
-            if (div > 15)
-                goto error;
+            if (div > 15) {
+                ret = -1;
+                goto _exit;
+            }
 
             lock = int_lock();
             cmu->PERIPH_CLK1 = SET_BITFIELD(cmu->PERIPH_CLK1, CMU_CFG_DIV_DISQSPI, div);
@@ -4669,20 +4203,18 @@ int hal_cmu_lcdc_set_qspimhz(uint32_t freqmhz)
         }
     }
 
-    cmu->DSI_CLK_DISABLE = disable;
+_exit:
+    if (enable & CMU_SEL_PLL_DISQSPI_ENABLE)
+        hal_cmu_pll_enable(HAL_CMU_PLL_BB, HAL_CMU_PLL_USER_QSPI);
+
     cmu->DSI_CLK_ENABLE = enable;
+    cmu->DSI_CLK_DISABLE = disable;
 
     if (disable & CMU_SEL_PLL_DISQSPI_DISABLE)
         hal_cmu_pll_disable(HAL_CMU_PLL_BB, HAL_CMU_PLL_USER_QSPI);
 
     g_qspimhz = hal_cmu_lcdc_get_qspimhz();
-    return 0;
-
-error:
-    cmu->DSI_CLK_DISABLE = (CMU_BYPASS_DIV_DISQSPI_DISABLE | CMU_SEL_PLL_DISQSPI_DISABLE |
-                            CMU_RSTN_DIV_DISQSPI_DISABLE | CMU_SEL_OSCX2_DISQSPI_DISABLE |
-                            CMU_SEL_OSCX4_DISQSPI_DISABLE);
-    return -1;
+    return ret;
 }
 
 static void hal_cmu_lcdc_clksrc_enable(uint16_t pixmhz)
@@ -4724,7 +4256,6 @@ void hal_cmu_lcdc_sleep(void)
     hal_cmu_reset_set(HAL_CMU_MOD_X_DISPB);
     hal_cmu_reset_set(HAL_CMU_MOD_Q_DIS_PN);
     hal_cmu_reset_set(HAL_CMU_MOD_Q_DIS_TV);
-    hal_cmu_disppre_hclk_enable(false);
     hal_cmu_clock_disable(HAL_CMU_MOD_H_DISP);
     hal_cmu_clock_disable(HAL_CMU_MOD_X_DISP);
     hal_cmu_clock_disable(HAL_CMU_MOD_Q_LCDC_P);
@@ -4737,7 +4268,6 @@ void hal_cmu_lcdc_sleep(void)
 void hal_cmu_lcdc_wakeup(void)
 {
     hal_cmu_lcdc_clksrc_enable(g_pixmhz);
-    hal_cmu_disppre_hclk_enable(true);
     hal_cmu_clock_enable(HAL_CMU_MOD_H_DISP);
     hal_cmu_clock_enable(HAL_CMU_MOD_X_DISP);
     hal_cmu_clock_enable(HAL_CMU_MOD_Q_LCDC_P);
@@ -4750,11 +4280,25 @@ void hal_cmu_lcdc_wakeup(void)
     hal_cmu_reset_clear(HAL_CMU_MOD_Q_DIS_TV);
 }
 
+void hal_cmu_lcdc_disp_pn_reset(void)
+{
+    hal_cmu_reset_set(HAL_CMU_MOD_Q_DIS_PN);
+    hal_sys_timer_delay(1);
+    hal_cmu_reset_clear(HAL_CMU_MOD_Q_DIS_PN);
+
+    hal_cmu_reset_set(HAL_CMU_MOD_X_DISP);
+    hal_sys_timer_delay(1);
+    hal_cmu_reset_clear(HAL_CMU_MOD_X_DISP);
+
+    hal_cmu_reset_set(HAL_CMU_MOD_Q_DIS_TV);
+    hal_sys_timer_delay(1);
+    hal_cmu_reset_clear(HAL_CMU_MOD_Q_DIS_TV);
+}
+
 void hal_cmu_lcdc_clock_enable(uint32_t pixmhz)
 {
     hal_cmu_lcdc_clksrc_enable(pixmhz);
     hal_psc_display_enable(HAL_PSC_DISPLAY_MOD_LCDC);
-    hal_cmu_disppre_hclk_enable(true);
 
     hal_cmu_clock_enable(HAL_CMU_MOD_O_LCDC_P);
     hal_cmu_clock_enable(HAL_CMU_MOD_X_LCDC);
@@ -4807,7 +4351,6 @@ void hal_cmu_lcdc_clock_disable(void)
     hal_cmu_reset_set(HAL_CMU_MOD_O_DISPN);
     hal_cmu_reset_set(HAL_CMU_MOD_O_DISTV);
 
-    hal_cmu_disppre_hclk_enable(false);
     hal_cmu_clock_disable(HAL_CMU_MOD_O_LCDC_P);
     hal_cmu_clock_disable(HAL_CMU_MOD_X_LCDC);
     hal_cmu_clock_disable(HAL_CMU_MOD_H_LCDC);
@@ -5031,7 +4574,7 @@ void hal_cmu_btc_start_cpu(uint32_t sp, uint32_t entry)
     core_cfg = (volatile struct CORE_STARTUP_CFG_T *)cfg_addr;
     core_cfg->stack = sp;
     core_cfg->reset_hdlr = entry;
-    HAL_TRACE(0,"cfg=%x, corecfg=%p, stack=%x, hdl=%x", cfg_addr, core_cfg, core_cfg->stack, core_cfg->reset_hdlr);
+    TRACE(0,"cfg=%x, corecfg=%p, stack=%x, hdl=%x", cfg_addr, core_cfg, core_cfg->stack, core_cfg->reset_hdlr);
 
     // Flush previous write operation
     __DSB();
@@ -5091,22 +4634,22 @@ int hal_cmu_osc_wakeup_test_reload_wt24m_us(uint32_t us)
         return 2;
     }
 
-    HAL_TRACE(0, "[%s]: old_cfg, us=%u, aon_wt24m_cnt=0x%X, mcu_wt24m_cnt=0x%X",
+    TRACE(0, "[%s]: old_cfg, us=%u, aon_wt24m_cnt=0x%X, mcu_wt24m_cnt=0x%X",
             __func__, HAL_CMU_OSC_STABLE_TIME, GET_BITFIELD(aoncmu->CLK_SELECT, AON_CMU_TIMER_WT24), GET_BITFIELD(cmu->WAKEUP_CLK_CFG, CMU_TIMER_WT26));
 
     aoncmu->CLK_SELECT = SET_BITFIELD(aoncmu->CLK_SELECT, AON_CMU_TIMER_WT24, timer_26m);
     cmu->WAKEUP_CLK_CFG = SET_BITFIELD(cmu->WAKEUP_CLK_CFG, CMU_TIMER_WT26, timer_26m);
 
-    HAL_TRACE(0, "[%s]: new_cfg, us=%u, aon_wt24m_cnt=0x%X, mcu_wt24m_cnt=0x%X",
+    TRACE(0, "[%s]: new_cfg, us=%u, aon_wt24m_cnt=0x%X, mcu_wt24m_cnt=0x%X",
             __func__, us, GET_BITFIELD(aoncmu->CLK_SELECT, AON_CMU_TIMER_WT24), GET_BITFIELD(cmu->WAKEUP_CLK_CFG, CMU_TIMER_WT26));
 
     return 0;
 }
 #endif
 
-void hal_cmu_rom_start_wdt(uint32_t time)
+void hal_cmu_rom_start_wdt(uint32_t ms)
 {
-    hal_wdt_set_timeout(HAL_WDT_ID_0, time);
+    hal_wdt_set_timeout_ms(HAL_WDT_ID_0, ms);
     hal_wdt_start(HAL_WDT_ID_0);
 }
 
@@ -5119,14 +4662,28 @@ void hal_cmu_rom_startup_global_reset(void)
 {
     union HAL_HW_BOOTMODE_T hw;
 
+    hal_sys_timer_open();
     hw = hal_rom_hw_bootmode_get();
     if (hw.global == 0) {
+        hal_sys_timer_delay(MS_TO_TICKS(50));
         hal_cmu_reset_set(HAL_CMU_MOD_GLOBAL);
+        while(1) {}
     } else {
-        hal_cmu_rom_start_wdt(1);
+        hal_cmu_rom_start_wdt(500);
     }
 }
-void rom_entry_hook(void) __attribute__((alias("hal_cmu_rom_startup_global_reset")));
+
+void hal_cmu_rom_startup_wdt_reset(void)
+{
+    union HAL_HW_BOOTMODE_T hw;
+
+    hw = hal_rom_hw_bootmode_get();
+    if (hw.watchdog == 0) {
+        hal_cmu_rom_start_wdt(25);
+    } else {
+        hal_cmu_rom_start_wdt(500);
+    }
+}
 
 void hal_cmu_psram_clock_enable(void)
 {

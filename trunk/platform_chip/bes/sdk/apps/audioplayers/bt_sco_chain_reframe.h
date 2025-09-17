@@ -30,15 +30,24 @@ typedef enum {
     REFRAME_CHANNEL_VP,             // Voice Pick MIC
     // REFRAME_CHANNEL_EV,             // Environment MIC 
     REFRAME_CHANNEL_REF,            // ECHO REF
-    // REFRAME_CHANNEL_BS,             // Bone Sensor
+#ifdef SPEECH_BONE_SENSOR
+    REFRAME_CHANNEL_BS,             // Bone Sensor
+#endif
     REFRAME_CHANNEL_QTY
 } reframe_channel_t;
+
+typedef struct {
+    void    *in;
+    void    *ref;
+    void    *vpu;
+    void    *out;
+    int     frame_len;
+} REFRAME_TX_PCM_T;
 
 int32_t bt_sco_chain_reframe_open(uint32_t tx_sample_rate, uint32_t tx_frame_len);
 int32_t bt_sco_chain_reframe_close(void);
 
-int32_t bt_sco_chain_reframe_cache_tx_pcm(void *pcm_buf, uint32_t frame_len, reframe_channel_t ch);
-int32_t bt_sco_chain_reframe_tx_process(void *in_buf[], uint32_t frame_len, void *out_buf);
+int32_t bt_sco_chain_reframe_tx_process(REFRAME_TX_PCM_T *pcm_buf);
 
 #ifdef __cplusplus
 }

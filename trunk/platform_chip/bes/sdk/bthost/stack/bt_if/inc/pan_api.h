@@ -17,7 +17,7 @@
 #define __BT_APP_PAN_API_H__
 
 #ifdef BT_PAN_SUPPORT
-#include "pan_service.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -70,7 +70,7 @@ struct pan_callback_parm_t {
     struct pan_ethernet_data ethernet_data;
 };
 
-// struct bt_pan_ethernet_data_info;
+struct pan_ethernet_data_info;
 
 struct btif_pan_channel_t;
 
@@ -108,9 +108,7 @@ uint16_t btif_pan_ethernet_payload_length(const struct pan_ethernet_data *data);
 
 int btif_pan_send_ethernet_data(struct btif_pan_channel_t *pan_chan, pan_protocol_type protocol, const uint8_t *payload_data, uint16_t payload_length);
 
-int btif_pan_send_address_specified_ethernet_data(struct btif_pan_channel_t *pan_chan, const bt_pan_ethernet_data_info *data_info);
-
-void btif_pan_send_bnep_setup_req(struct btif_pan_channel_t *pan_chan);
+int btif_pan_send_address_specified_ethernet_data(struct btif_pan_channel_t *pan_chan, const struct pan_ethernet_data_info *data_info);
 
 #ifdef __cplusplus
 }

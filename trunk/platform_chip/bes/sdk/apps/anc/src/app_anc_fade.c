@@ -42,7 +42,7 @@ static void anc_fadein_impl(uint32_t types)
     float gain_step = 1.0 / ANC_FADE_CNT;
     uint32_t delay_us = (ANC_FADE_MS * 1000) / ANC_FADE_CNT;
 
-    ANC_TRACE(0, "[%s] types: 0x%x", __func__, types);
+    TRACE(0, "[%s] types: 0x%x", __func__, types);
 
     // Reset all user gain to 1.0
     for (uint32_t index=0; index<ANC_TYPE_NUM; index++) {
@@ -57,7 +57,7 @@ static void anc_fadein_impl(uint32_t types)
 
     anc_set_fade_gain(types, 1.0);
 
-    ANC_TRACE(1, "[%s] OK", __func__);
+    TRACE(1, "[%s] OK", __func__);
 }
 
 static void anc_fadeout_impl(uint32_t types)
@@ -66,7 +66,7 @@ static void anc_fadeout_impl(uint32_t types)
     float gain_step = 1.0 / ANC_FADE_CNT;
     uint32_t delay_us = (ANC_FADE_MS * 1000) / ANC_FADE_CNT;
 
-    ANC_TRACE(0, "[%s] types: 0x%x", __func__, types);
+    TRACE(0, "[%s] types: 0x%x", __func__, types);
 
     for (uint32_t cnt=0; cnt<ANC_FADE_CNT; cnt++) {
         gain -= gain_step;
@@ -76,27 +76,34 @@ static void anc_fadeout_impl(uint32_t types)
 
     anc_set_fade_gain(types, 0.0);
 
-    ANC_TRACE(1, "[%s] OK", __func__);
+    TRACE(1, "[%s] OK", __func__);
 }
 #endif
 
 int32_t app_anc_fade_init(void)
 {
-    ANC_TRACE(0, "[%s] ...", __func__);
+    TRACE(0, "[%s] ...", __func__);
 
     return 0;
 }
 
 int32_t app_anc_fade_deinit(void)
 {
-    ANC_TRACE(0, "[%s] ...", __func__);
+    TRACE(0, "[%s] ...", __func__);
 
     return 0;
 }
 
 int32_t app_anc_fadein(uint32_t types)
 {
-    ANC_TRACE(0, "[%s] types: 0x%0x, APP_ANC_FADE_IN ...", __func__, types);
+    TRACE(0, "[%s] types: 0x%0x, APP_ANC_FADE_IN ...", __func__, types);
+
+#if defined(PSAP_SW_APP)
+    if (types & PSAP_SW) {
+        // Don't need to call fadein API
+        types &= ~PSAP_SW;
+    }
+#endif
 
 #if defined(ANC_IIR_LINEAR_SMOOTH_MODE)
     int i = 0;
@@ -123,7 +130,15 @@ int32_t app_anc_fadein(uint32_t types)
 
 int32_t app_anc_fadeout(uint32_t types)
 {
-    ANC_TRACE(0, "[%s] types: 0x%0x, APP_ANC_FADE_OUT ...", __func__, types);
+    TRACE(0, "[%s] types: 0x%0x, APP_ANC_FADE_OUT ...", __func__, types);
+
+#if defined(PSAP_SW_APP)
+    if (types & PSAP_SW) {
+        extern void psap_sw_app_fadeout(uint32_t ms);
+        psap_sw_app_fadeout(100);
+        types &= ~PSAP_SW;
+    }
+#endif
 
 #if defined(ANC_IIR_LINEAR_SMOOTH_MODE)
     int i = 0;

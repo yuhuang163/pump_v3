@@ -55,7 +55,6 @@ bt_status_t nv_record_enum_dev_records(unsigned short index,btif_device_record_t
 bt_status_t nv_record_ddbrec_find(const bt_bdaddr_t *bd_ddr, btif_device_record_t*record);
 bool nv_record_get_pnp_info(bt_bdaddr_t *bdAddr, bt_dip_pnp_info_t *pPnpInfo);
 bt_status_t nv_record_add(SECTIONS_ADP_ENUM type,void *record);
-bt_status_t nv_record_change_order(const btif_device_record_t *record, uint8_t target);
 int nv_record_get_paired_dev_count(void);
 void ram_record_ddbrec_init(void);
 #ifdef FPGA
@@ -133,13 +132,10 @@ const char* nvrec_dev_get_ble_name(void);
 void nvrecord_bt_init(void);
 
 int nv_record_get_sink_paired_dev(btif_device_record_t *record, uint8_t max_num);
-#ifdef APP_SOUND_ENABLE
 int nv_record_stash_original_bt_record(void);
 int nv_record_pop_original_bt_record(void);
-#endif
 
 #ifdef __cplusplus
 }
 #endif
 #endif
-

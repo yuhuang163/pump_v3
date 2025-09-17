@@ -62,7 +62,7 @@ void rf_xtal_startup_enable()
     val = SET_BITFIELD(val, REG_XTAL_STARTUP_INJ_PERIOD, 0x14);
     rf_write(RF_REG_50A, val);
 
-    DRIVERS_TRACE(2, "rf_xtal_rcosc_cal_startup_enable is done !!!");
+    TRACE(2, "rf_xtal_rcosc_cal_startup_enable is done !!!");
 }
 
 uint16_t rf_xtal_rcosc_cal_cnt(uint16_t fre_trim_val)
@@ -116,7 +116,7 @@ void rf_xtal_rcosc_cal()
     uint16_t val = 0;
     uint16_t xtal_osc_goal = XTAL_OSC_GOAL;
     uint8_t fre_final_integer = 0;
-    POSSIBLY_UNUSED uint8_t fre_final_decimal = 0;
+    uint8_t fre_final_decimal = 0;
     uint8_t fre_final_temp = 0;
 
     if (XTAL_OSC_GOAL == 0x100) //GOAL is 256 bit[10:8] 010
@@ -152,7 +152,7 @@ void rf_xtal_rcosc_cal()
     {
         if(left_val < right_val)
         {
-            DRIVERS_TRACE(2,"rf_xtal_rcosc_cal is failed!!,the calculate border is error!!!");
+            TRACE(2,"rf_xtal_rcosc_cal is failed!!,the calculate border is error!!!");
         }
         rcosc_fre_trim = ((left_val + right_val) >> 1);
         REG_14_cnt = rf_xtal_rcosc_cal_cnt(rcosc_fre_trim);
@@ -173,12 +173,12 @@ void rf_xtal_rcosc_cal()
                 break;
             }
         }else{
-            DRIVERS_TRACE(2,"rf_xtal_rcosc_cal is failed!!,bt_rcosc_cal_done not be 1,rcosc_fre_trim isREG_14_cnt %d!!!",rcosc_fre_trim);
+            TRACE(2,"rf_xtal_rcosc_cal is failed!!,bt_rcosc_cal_done not be 1,rcosc_fre_trim isREG_14_cnt %d!!!",rcosc_fre_trim);
         }
         cycle_cnt++;
         if(cycle_cnt > 50)
         {
-            DRIVERS_TRACE(2,"rf_xtal_rcosc_cal is failed!!,can not match the goal !!!");
+            TRACE(2,"rf_xtal_rcosc_cal is failed!!,can not match the goal !!!");
             break;
         }
     }while(ABS(delta_margin)> 1);
@@ -190,8 +190,8 @@ void rf_xtal_rcosc_cal()
         fre_final_temp = (240 * XTAL_OSC_GOAL / rcosc_cal_cnt);
         fre_final_integer = fre_final_temp / 10;
         fre_final_decimal = fre_final_temp - fre_final_integer * 10;
-        DRIVERS_TRACE(2,"%s is done! ", __func__);
-        DRIVERS_TRACE(2, "fre_final=%d.%dMHz,Goal=%d,delta_margin=%d,rf_0x509=%d,rf_0x514=%d.", fre_final_integer,fre_final_decimal,xtal_osc_goal,delta_margin,rcosc_fre_trim,rcosc_cal_cnt);
+        TRACE(2,"%s is done! ", __func__);
+        TRACE(2, "fre_final=%d.%dMHz,Goal=%d,delta_margin=%d,rf_0x509=%d,rf_0x514=%d.", fre_final_integer,fre_final_decimal,xtal_osc_goal,delta_margin,rcosc_fre_trim,rcosc_cal_cnt);
         rf_xtal_startup_enable();
     }
 }

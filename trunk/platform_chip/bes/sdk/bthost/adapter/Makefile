@@ -2,10 +2,6 @@ cur_dir := $(dir $(lastword $(MAKEFILE_LIST)))
 
 obj_c := $(patsubst $(cur_dir)%,%,$(wildcard $(cur_dir)src/adapter_service.c))
 
-obj_c += $(patsubst $(cur_dir)%,%,$(wildcard $(cur_dir)src/bluetooth_nv_mgr.c))
-
-obj_c += $(patsubst $(cur_dir)%,%,$(wildcard $(cur_dir)src/bthost_logger.c))
-
 ifneq ($(BLE_ONLY_ENABLED),1)
 obj_c += $(patsubst $(cur_dir)%,%,$(wildcard $(cur_dir)src/bt_api_export.c))
 endif
@@ -18,8 +14,6 @@ obj-y := $(obj_c:.c=.o)
 
 obj-y += test/
 
-subdir-ccflags-y += -DMODULE=SERVICE
-
 ccflags-y += \
     -Iservices/audio_bt \
 	$(AAC_INCLUDES) \
@@ -30,13 +24,12 @@ ccflags-y += \
 	-Iservices/hw_dsp/inc \
 	-Ibthost/rom/ \
 	-Ibthost/stack/ble_if/inc \
-	-Ibthost/porting/api \
 	$(BLUETOOTH_ADAPTER_INCLUDES) \
 	$(BES_BT_IMPL_INCLUDES) \
 	$(BLE_APP_INCLUDES) \
 	$(BLE_STACK_INCLUDES) \
 	$(BLE_STACK_INC_INTERNAL) \
-	$(BT_SERVICE_UX_INCLUDES) \
+	-Iservices/ux/common/ble_audio_core/inc \
 	-Imultimedia/inc/speech/inc \
 	-Iservices/bone_sensor \
 	-Iservices/overlay \
@@ -58,18 +51,14 @@ ccflags-y += \
 	-Iservices/voicepath/gsound/gsound_target \
 	-Iservices/voicepath/gsound/gsound_custom/inc \
 	-Iservices/voicepath/gsound/gsound_target_api_read_only \
-	-Iservices/ai_voice/protocol/gva/gsound_target \
-	-Iservices/ai_voice/protocol/gva/gsound_custom/inc \
-	-Iservices/ai_voice/protocol/gva/gsound_target_api_read_only \
 	-Iplatform/drivers/uarthci \
 	-Iplatform/drivers/ana \
 	-Iplatform/cmsis \
 	-Iplatform/drivers/bt \
 	-Iutils/cqueue \
 	-Iutils/heap \
-	-Iutils/crc \
+	-Iutils/crc16 \
 	-Iutils/rom_utils \
-	-Iutils/cfifo \
 	-Iservices/audioflinger \
 	-Iutils/lockcqueue \
 	-Iutils/intersyshci \
@@ -83,8 +72,7 @@ ccflags-y += \
 	-Iapps/common \
 	-Iapps/factory \
 	-Iapps/voice_assist/inc \
-	-Iapps/app_test/ble_audio_test \
-	-Iapps/ble_audio_central_app/ble_audio_usb \
+	-Iapps/ble_audio_test \
 	-Iutils/hwtimer_list \
 	-Iservices/voicepath \
 	-Ithirdparty/userapi \
@@ -96,36 +84,28 @@ ccflags-y += \
 	-Iservices/interconnection/red \
 	-Iservices/interconnection/green \
 	-Iservices/interconnection/umm_malloc \
-	-Iservices/lea_player/inc \
+	-Iservices/ux/common/ibrt/custom_api \
 	$(SOURCE_INCLUDES) \
 	-Ithirdparty/tile/tile_target \
 	-Iservices/osif \
+	-Iservices/ux/common/ibrt/ibrt_middleware/inc \
 	-Iutils/list \
 	-Iutils/string \
 	-Iservices/ai_voice/protocol/bixbyvoice \
 	-Iservices/ai_voice/protocol/bixbyvoice/bixbyvoice_manager \
-	-Iservices/bt_watch_service/inc \
-	-Iservices/gfps/inc \
-	-Iservices/bt_watch_service/inc \
-	-Iapps/earbuds/conn \
+	-Iservices/bt_service/inc \
 	-Iservices/bt_sync \
-	-Iapps/bt_sync/ \
-	-Iservices/audio_manager/audio_policy/bredr_policy/inc \
 	-Ibthost/service/bt_app/inc \
 	-Iservices/lea_player/inc \
-	-Iutils/hsm \
 	-Iutils/rom_utils/$(CHIP) \
 	-I$(BT_ROM_PATCH_PATH) \
-	-Ibthost/porting \
-	-Ibthost/stack/common \
-	-Ibthost/service/ble_app_new/inc \
-	-Iservices/btservice/module/bt/if
+    -Ibthost/porting
 
-ifeq ($(GFPS_ENABLE),1)
+ifeq ($(IBRT),1)
+ifeq ($(IBRT_UI),1)
 ccflags-y += \
-	-Iservices/gfps/inc
+    -Iservices/ux/common/ibrt/app_ibrt/inc \
+    -Iservices/ux/common/ibrt/ibrt_ui/inc \
+    -Iservices/ux/common/ibrt/ibrt_core/inc
 endif
-
-ifeq ($(CHIP),best1306p)
-KBUILD_CPPFLAGS += -DCHIP_1306p
 endif

@@ -37,6 +37,8 @@
 
 #include "app_bt_stream_pcm_player.h"
 
+#define PCM_PLAYER_LOGD(...) TRACE(1, __VA_ARGS__)
+
 static int audio_pcm_player_on = 0;
 static audio_pcm_player_t *g_player = NULL;
 
@@ -55,7 +57,7 @@ static void audio_pcm_player_get_size(uint32_t *sample_size, uint32_t *dma_size)
     // dma size
     *dma_size = (player_config->frame_length_samples*(*sample_size)) * 2;
 
-    AUDIO_BT_TRACE(0,"audio_pcm_player_get_size:sample_size=%d,dma_size=%d", *sample_size, *dma_size);
+    PCM_PLAYER_LOGD("audio_pcm_player_get_size:sample_size=%d,dma_size=%d", *sample_size, *dma_size);
 }
 
 // API
@@ -124,10 +126,10 @@ int audio_pcm_player_onoff(char onoff)
 
     (void)play_samp_size;
 
-    AUDIO_BT_TRACE(0,"audio_pcm_player_onoff : now %d, onoff %d", audio_pcm_player_on, onoff);
+    PCM_PLAYER_LOGD("audio_pcm_player_onoff : now %d, onoff %d", audio_pcm_player_on, onoff);
 
     if (audio_pcm_player_on == onoff) {
-        AUDIO_BT_TRACE(0,"audio_pcm_player_onoff : waring,already %d, do nothing!", onoff);
+        PCM_PLAYER_LOGD("audio_pcm_player_onoff : waring,already %d, do nothing!", onoff);
         return 0;
     }
 
@@ -151,7 +153,7 @@ int audio_pcm_player_onoff(char onoff)
         stream_cfg.device = AUD_STREAM_USE_EXT_CODEC;
 #endif
         stream_cfg.vol = player_config->volume;
-        AUDIO_BT_TRACE(0,"audio_pcm_player_onoff : vol = %d", player_config->volume);
+        PCM_PLAYER_LOGD("audio_pcm_player_onoff : vol = %d", player_config->volume);
         stream_cfg.io_path = AUD_OUTPUT_PATH_SPEAKER;
         stream_cfg.handler = audio_pcm_player_need_pcm_data;
         stream_cfg.data_ptr = BT_AUDIO_CACHE_2_UNCACHE(audio_pcm_player_audio_play_buff);
@@ -168,7 +170,7 @@ int audio_pcm_player_onoff(char onoff)
     }
 
     audio_pcm_player_on = onoff;
-    AUDIO_BT_TRACE(0,"audio_pcm_player_onoff : end!\n");
+    PCM_PLAYER_LOGD("audio_pcm_player_onoff : end!\n");
     return 0;
 }
 

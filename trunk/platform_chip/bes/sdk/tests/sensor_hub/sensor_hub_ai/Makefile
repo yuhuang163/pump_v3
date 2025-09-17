@@ -17,6 +17,7 @@ ccflags-y := -Iplatform/hal \
 	-Itests/sensor_hub/vad \
 	-Itests/sensor_hub/sensor_hub_ai \
 	-Itests/sensor_hub/test \
+	-Iservices/audio_dump/include \
 
 ifeq ($(AI_VOICE),1)
 ccflags-y += -DAI_VOICE

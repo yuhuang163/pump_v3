@@ -21,6 +21,14 @@
 #include "hal_dma.h"
 #include "hal_i2s_tdm.h"
 
+#if 0
+#define I2S_TDM_TRACE   TRACE
+#define I2S_TDM_DUMP8   DUMP8
+#else
+#define I2S_TDM_TRACE(n, str, ...)
+#define I2S_TDM_DUMP8(str, ...)
+#endif
+
 #define I2S_TDM_FRAME_SIZE_MAX   512
 #define I2S_TDM_TX_FRAME_NUM     2
 #define I2S_TDM_TX_FRAME_SIZE    I2S_TDM_FRAME_SIZE_MAX/16
@@ -76,8 +84,8 @@ static void i2s_tdm0_tx_handler(uint8_t chan, uint32_t remains, uint32_t error, 
     cnt++;
     if (cnt % 600 == 0)
     {
-        HAL_TRACE(4,"I2S_TDM0-TX: remains=%ld, error=%ld, cnt=%d,tx_buff_len = %d.", remains, error, cnt,sizeof(i2s_tdm_tx_buf[HAL_I2S_ID_0]));
-        HAL_DUMP8("0x%x,",i2s_tdm_tx_buf[HAL_I2S_ID_0],sizeof(i2s_tdm_tx_buf[HAL_I2S_ID_0]) <= 32 ? sizeof(i2s_tdm_tx_buf[HAL_I2S_ID_0]) : 32 );
+        I2S_TDM_TRACE(4,"I2S_TDM0-TX: remains=%ld, error=%ld, cnt=%d,tx_buff_len = %d.", remains, error, cnt,sizeof(i2s_tdm_tx_buf[HAL_I2S_ID_0]));
+        I2S_TDM_DUMP8("0x%x,",i2s_tdm_tx_buf[HAL_I2S_ID_0],sizeof(i2s_tdm_tx_buf[HAL_I2S_ID_0]) <= 32 ? sizeof(i2s_tdm_tx_buf[HAL_I2S_ID_0]) : 32 );
     }
 #endif
 }
@@ -89,8 +97,8 @@ static void i2s_tdm1_tx_handler(uint8_t chan, uint32_t remains, uint32_t error, 
 
     cnt++;
     if (cnt % 600 == 0) {
-        HAL_TRACE(4,"I2S_TDM1-TX: remains=%ld, error=%ld, cnt=%d,tx_buff_len = %d.", remains, error, cnt,sizeof(i2s_tdm_tx_buf[HAL_I2S_ID_1]));
-        HAL_DUMP8("0x%x,",i2s_tdm_tx_buf[HAL_I2S_ID_1],sizeof(i2s_tdm_tx_buf[HAL_I2S_ID_1]) <= 32 ? sizeof(i2s_tdm_tx_buf[HAL_I2S_ID_1]) : 32 );
+        I2S_TDM_TRACE(4,"I2S_TDM1-TX: remains=%ld, error=%ld, cnt=%d,tx_buff_len = %d.", remains, error, cnt,sizeof(i2s_tdm_tx_buf[HAL_I2S_ID_1]));
+        I2S_TDM_DUMP8("0x%x,",i2s_tdm_tx_buf[HAL_I2S_ID_1],sizeof(i2s_tdm_tx_buf[HAL_I2S_ID_1]) <= 32 ? sizeof(i2s_tdm_tx_buf[HAL_I2S_ID_1]) : 32 );
     }
 #endif
 }
@@ -99,27 +107,27 @@ int32_t hal_i2s_tdm_open(enum HAL_I2S_ID_T i2s_id,enum HAL_I2S_MODE_T mode)
 {
     int ret;
 
-    HAL_TRACE(3,"%s: i2s_id = %d,mode = %d.", __func__, i2s_id, mode);
+    I2S_TDM_TRACE(3,"%s: i2s_id = %d,mode = %d.", __func__, i2s_id, mode);
     ASSERT(i2s_id < HAL_I2S_ID_QTY,"%s: i2s_id = %d!", __func__, i2s_id);
     // i2s open playback and capture.
     ret = hal_i2s_open(i2s_id, AUD_STREAM_PLAYBACK, mode);
     if(ret)
     {
-        HAL_TRACE(2,"%s: hal_i2s_open playback failed.ret = %d.", __func__, ret);
+        I2S_TDM_TRACE(2,"%s: hal_i2s_open playback failed.ret = %d.", __func__, ret);
         goto __func_fail;
     }
     ret = hal_i2s_open(i2s_id, AUD_STREAM_CAPTURE, mode);
     if(ret)
     {
-        HAL_TRACE(2,"%s: hal_i2s_open capture failed.ret = %d.", __func__, ret);
+        I2S_TDM_TRACE(2,"%s: hal_i2s_open capture failed.ret = %d.", __func__, ret);
         goto __func_fail;
     }
 
-    HAL_TRACE(1,"%s done.", __func__);
+    I2S_TDM_TRACE(1,"%s done.", __func__);
     return 0;
 
 __func_fail:
-    HAL_TRACE(2,"%s failed. ret = %d.", __func__, ret);
+    I2S_TDM_TRACE(2,"%s failed. ret = %d.", __func__, ret);
     return ret;
 }
 
@@ -136,7 +144,7 @@ int32_t hal_i2s_tdm_setup(enum HAL_I2S_ID_T i2s_id,
     uint32_t slot_cycles;
     uint32_t fs_remain;
 
-    HAL_TRACE(3,"%s: i2s_id = %d,sample_rate = %d.", __func__, i2s_id, sample_rate);
+    I2S_TDM_TRACE(3,"%s: i2s_id = %d,sample_rate = %d.", __func__, i2s_id, sample_rate);
     ASSERT(i2s_id < HAL_I2S_ID_QTY,"%s: i2s_id = %d!", __func__, i2s_id);
     ASSERT(i2s_tdm_cycles_in_arrays(tdm_cfg->cycles),
            "%s: cycles(%d) error!", __func__, tdm_cfg->cycles);
@@ -145,7 +153,7 @@ int32_t hal_i2s_tdm_setup(enum HAL_I2S_ID_T i2s_id,
     ASSERT(i2s_tdm_slot_cycles_in_arrays(tdm_cfg->slot_cycles),
            "%s: slot_cycles(%d) error!",  __func__, tdm_cfg->slot_cycles);
 
-    tdm_cfg[i2s_id] = *tdm_cfg;
+    i2s_tdm_cfg[i2s_id] = *tdm_cfg;
     cycles = tdm_cfg->cycles;
     fs_cycles = tdm_cfg->fs_cycles == HAL_I2S_TDM_FS_CYCLES_ONE_LESS ?\
                 cycles - 1: tdm_cfg->fs_cycles;
@@ -162,19 +170,19 @@ int32_t hal_i2s_tdm_setup(enum HAL_I2S_ID_T i2s_id,
     ret = hal_i2s_setup_stream(i2s_id, AUD_STREAM_PLAYBACK, &i2s_cfg);
     if(ret)
     {
-        HAL_TRACE(2,"%s: playback failed.ret = %d.", __func__, ret);
+        I2S_TDM_TRACE(2,"%s: playback failed.ret = %d.", __func__, ret);
         goto __func_fail;
     }
     i2s_cfg.sync_start = false;
     ret = hal_i2s_setup_stream(i2s_id, AUD_STREAM_CAPTURE, &i2s_cfg);
     if(ret || (cycles < 16))
     {
-        HAL_TRACE(1,"hal_i2s_setup_stream capture failed.ret = %d.", ret);
+        I2S_TDM_TRACE(1,"hal_i2s_setup_stream capture failed.ret = %d.", ret);
         goto __func_fail;
     }
 
     // Set tx buffer, output signal as slave device ws.
-    HAL_TRACE(3,"%s: cycles = %d, fs_cycles = %d", __func__, cycles, fs_cycles);
+    I2S_TDM_TRACE(3,"%s: cycles = %d, fs_cycles = %d", __func__, cycles, fs_cycles);
     for (i = 0; i < I2S_TDM_TX_FRAME_NUM ; i++) {
         buf = (uint16_t*)(&i2s_tdm_tx_buf[i2s_id][i][0]);
         for(j = 0; j < I2S_TDM_TX_FRAME_SIZE/(cycles/16); j ++){
@@ -193,11 +201,11 @@ int32_t hal_i2s_tdm_setup(enum HAL_I2S_ID_T i2s_id,
         }
     }
 
-    HAL_TRACE(1,"%s done.", __func__);
+    I2S_TDM_TRACE(1,"%s done.", __func__);
     return 0;
 
 __func_fail:
-    HAL_TRACE(2,"%s failed. ret = %d.", __func__, ret);
+    I2S_TDM_TRACE(2,"%s failed. ret = %d.", __func__, ret);
     return ret;
 }
 
@@ -206,7 +214,7 @@ int32_t hal_i2s_tdm_start_stream(enum HAL_I2S_ID_T i2s_id)
     uint32_t i;
     int ret;
 
-    HAL_TRACE(2,"%s: i2s_id = %d.", __func__, i2s_id);
+    I2S_TDM_TRACE(2,"%s: i2s_id = %d.", __func__, i2s_id);
     ASSERT(i2s_id < HAL_I2S_ID_QTY,"%s: i2s_id = %d!", __func__, i2s_id);
 
     memset(&tx_dma_cfg[i2s_id], 0, sizeof(tx_dma_cfg[i2s_id]));
@@ -230,7 +238,7 @@ int32_t hal_i2s_tdm_start_stream(enum HAL_I2S_ID_T i2s_id)
                 1);
         if(ret)
         {
-            HAL_TRACE(2,"%s: hal_audma_init_desc tx failed.ret = %d.", __func__, ret);
+            I2S_TDM_TRACE(2,"%s: hal_audma_init_desc tx failed.ret = %d.", __func__, ret);
             goto __func_fail;
         }
     }
@@ -238,7 +246,7 @@ int32_t hal_i2s_tdm_start_stream(enum HAL_I2S_ID_T i2s_id)
     ret = hal_audma_sg_start(&i2s_tdm_tx_dma_desc[i2s_id][0], &tx_dma_cfg[i2s_id]);
     if(ret)
     {
-        HAL_TRACE(2,"%s: hal_audma_sg_start tx failed.ret = %d.", __func__, ret);
+        I2S_TDM_TRACE(2,"%s: hal_audma_sg_start tx failed.ret = %d.", __func__, ret);
         goto __func_fail;
     }
 
@@ -246,52 +254,52 @@ int32_t hal_i2s_tdm_start_stream(enum HAL_I2S_ID_T i2s_id)
     ret = hal_i2s_start_stream(i2s_id, AUD_STREAM_PLAYBACK);
     if(ret)
     {
-        HAL_TRACE(2,"%s: hal_i2s_start_stream failed.ret = %d.", __func__, ret);
+        I2S_TDM_TRACE(2,"%s: hal_i2s_start_stream failed.ret = %d.", __func__, ret);
     }
 
     ret = hal_i2s_start_stream(i2s_id, AUD_STREAM_CAPTURE);
     if(ret)
     {
-        HAL_TRACE(1,"hal_i2s_start_stream tx failed.ret = %d.", ret);
+        I2S_TDM_TRACE(1,"hal_i2s_start_stream tx failed.ret = %d.", ret);
         goto __func_fail;
     }
 
-    HAL_TRACE(1,"%s done.", __func__);
+    I2S_TDM_TRACE(1,"%s done.", __func__);
     return ret;
 
 __func_fail:
-    HAL_TRACE(2,"%s failed.ret = %d.", __func__, ret);
+    I2S_TDM_TRACE(2,"%s failed.ret = %d.", __func__, ret);
     return ret;
 }
 
 int32_t hal_i2s_tdm_stop_stream(enum HAL_I2S_ID_T i2s_id)
 {
-    HAL_TRACE(2,"%s: i2s_id = %d.", __func__, i2s_id);
+    I2S_TDM_TRACE(2,"%s: i2s_id = %d.", __func__, i2s_id);
     ASSERT(i2s_id < HAL_I2S_ID_QTY,"%s: i2s_id = %d!", __func__, i2s_id);
 
     hal_dma_stop(tx_dma_cfg[i2s_id].ch);
     hal_i2s_stop_stream(i2s_id,AUD_STREAM_PLAYBACK);
     hal_i2s_stop_stream(i2s_id,AUD_STREAM_CAPTURE);
 
-    HAL_TRACE(1,"%s done.", __func__);
+    I2S_TDM_TRACE(1,"%s done.", __func__);
     return 0;
 }
 
 int32_t hal_i2s_tdm_close(enum HAL_I2S_ID_T i2s_id)
 {
-    HAL_TRACE(2,"%s: i2s_id = %d.", __func__, i2s_id);
+    I2S_TDM_TRACE(2,"%s: i2s_id = %d.", __func__, i2s_id);
     ASSERT(i2s_id < HAL_I2S_ID_QTY,"%s: i2s_id = %d!", __func__, i2s_id);
 
     hal_i2s_close(i2s_id,AUD_STREAM_PLAYBACK);
     hal_i2s_close(i2s_id,AUD_STREAM_CAPTURE);
 
-    HAL_TRACE(1,"%s done.", __func__);
+    I2S_TDM_TRACE(1,"%s done.", __func__);
     return 0;
 }
 
 void hal_i2s_tdm_get_config(enum HAL_I2S_ID_T i2s_id,struct HAL_I2S_TDM_CONFIG_T *tdm_cfg)
 {
-    HAL_TRACE(2,"%s: i2s_id = %d.", __func__, i2s_id);
+    I2S_TDM_TRACE(2,"%s: i2s_id = %d.", __func__, i2s_id);
     ASSERT(i2s_id < HAL_I2S_ID_QTY,"%s: i2s_id = %d!", __func__, i2s_id);
 
     *tdm_cfg = i2s_tdm_cfg[i2s_id];
@@ -299,7 +307,7 @@ void hal_i2s_tdm_get_config(enum HAL_I2S_ID_T i2s_id,struct HAL_I2S_TDM_CONFIG_T
 
 void hal_i2s_tdm_set_config(enum HAL_I2S_ID_T i2s_id,struct HAL_I2S_TDM_CONFIG_T *tdm_cfg)
 {
-    HAL_TRACE(2,"%s: i2s_id = %d.", __func__, i2s_id);
+    I2S_TDM_TRACE(2,"%s: i2s_id = %d.", __func__, i2s_id);
     ASSERT(i2s_id < HAL_I2S_ID_QTY,"%s: i2s_id = %d!", __func__, i2s_id);
 
     i2s_tdm_cfg[i2s_id] = *tdm_cfg;

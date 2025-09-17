@@ -46,6 +46,11 @@ enum CACHE_CNT_IDX_T {
     CACHE_CNT_IDX_DCACHE_MISS_H,
 };
 
+#ifdef CORE_SLEEP_POWER_DOWN
+SRAM_BSS_LOC
+static bool cache_enabled[HAL_CACHE_ID_NUM];
+#endif
+
 static uint8_t mon_map;
 STATIC_ASSERT(sizeof(mon_map) * 8 >= HAL_CACHE_ID_NUM, "mon_map too small");
 
@@ -110,41 +115,10 @@ uint8_t SRAM_TEXT_LOC hal_cache_disable(enum HAL_CACHE_ID_T id)
     return 0;
 }
 
-uint8_t BOOT_TEXT_FLASH_LOC hal_cache_writebuffer_enable(enum HAL_CACHE_ID_T id)
-{
-    return 0;
-}
-
-uint8_t hal_cache_writebuffer_disable(enum HAL_CACHE_ID_T id)
-{
-    return 0;
-}
-
 uint8_t hal_cache_writebuffer_flush(enum HAL_CACHE_ID_T id)
 {
     // Drain the store buffer
     __DSB();
-    return 0;
-}
-
-uint8_t BOOT_TEXT_FLASH_LOC hal_cache_writeback_enable(enum HAL_CACHE_ID_T id)
-{
-    return 0;
-}
-
-uint8_t hal_cache_writeback_disable(enum HAL_CACHE_ID_T id)
-{
-    return 0;
-}
-
-// Wrap is configured during flash init
-uint8_t BOOT_TEXT_SRAM_LOC hal_cache_wrap_enable(enum HAL_CACHE_ID_T id)
-{
-    return 0;
-}
-
-uint8_t BOOT_TEXT_SRAM_LOC hal_cache_wrap_disable(enum HAL_CACHE_ID_T id)
-{
     return 0;
 }
 
@@ -329,7 +303,7 @@ static uint32_t hal_cache_get_cnt(uint32_t idx)
         low = ARM_PMU_Get_EVCNTR(idx);
     }
 
-    //HAL_TRACE(0, "low[%u]=%u high[%u]=%u", idx, low, idx + 1, high);
+    //TRACE(0, "low[%u]=%u high[%u]=%u", idx, low, idx + 1, high);
 
     return (low | (high << 16));
 }
@@ -388,7 +362,7 @@ void hal_cache_print_stats(void)
     uint64_t total;
     uint32_t r_ppm;
 
-    HAL_TRACE(0, "CACHE STATS:");
+    TRACE(0, "CACHE STATS:");
     for (int i = HAL_CACHE_ID_I_CACHE; i < HAL_CACHE_ID_NUM; i++) {
         hal_cache_get_monitor_data(i, &data);
         total = data.r_hit + data.r_miss;
@@ -397,36 +371,42 @@ void hal_cache_print_stats(void)
         } else {
             r_ppm = 0;
         }
-        HAL_TRACE(TR_ATTR_NO_TS, "\t[%2u] hit=%u miss=%u miss(ppm)=%3u", i, (uint32_t)data.r_hit, (uint32_t)data.r_miss, r_ppm);
+        TRACE(TR_ATTR_NO_TS, "\t[%2u] hit=%u miss=%u miss(ppm)=%3u", i, (uint32_t)data.r_hit, (uint32_t)data.r_miss, r_ppm);
     }
 
     hal_cache_reset_monitor_data(HAL_CACHE_ID_I_CACHE);
 }
 
 #ifdef CORE_SLEEP_POWER_DOWN
-SRAM_BSS_LOC
-static bool cache_enabled[HAL_CACHE_ID_NUM];
-
-void hal_cache_sleep(void)
+void hal_cache_sleep(enum HAL_CMU_LPU_SLEEP_MODE_T mode)
 {
-    bool cache_en;
+    if (mode != HAL_CMU_LPU_SLEEP_MODE_SUBSYS_PD &&
+            mode != HAL_CMU_LPU_SLEEP_MODE_CPU_PD_SUBSYS_32K &&
+            mode != HAL_CMU_LPU_SLEEP_MODE_CPU_PD_BUS_32K) {
+        return;
+    }
 
-    cache_en = !!(SCB->CCR & SCB_CCR_DC_Msk);
-    if (cache_en) {
+    // Save current cache status (which cannot be saved at boot stage)
+    cache_enabled[HAL_CACHE_ID_I_CACHE] = !!(SCB->CCR & SCB_CCR_IC_Msk);
+    cache_enabled[HAL_CACHE_ID_D_CACHE] = !!(SCB->CCR & SCB_CCR_DC_Msk);
+
+    if (cache_enabled[HAL_CACHE_ID_D_CACHE]) {
         // D-Cache will be cleaned and invalidated after disabled
         cacheip_disable_cache(HAL_CACHE_ID_D_CACHE);
     }
-    cache_enabled[HAL_CACHE_ID_D_CACHE] = cache_en;
-
-    cache_en = !!(SCB->CCR & SCB_CCR_IC_Msk);
-    if (cache_en) {
+    if (cache_enabled[HAL_CACHE_ID_I_CACHE]) {
         cacheip_disable_cache(HAL_CACHE_ID_I_CACHE);
     }
-    cache_enabled[HAL_CACHE_ID_I_CACHE] = cache_en;
 }
 
-void SRAM_TEXT_LOC hal_cache_wakeup(void)
+void SRAM_TEXT_LOC hal_cache_wakeup(enum HAL_CMU_LPU_SLEEP_MODE_T mode)
 {
+    if (mode != HAL_CMU_LPU_SLEEP_MODE_SUBSYS_PD &&
+            mode != HAL_CMU_LPU_SLEEP_MODE_CPU_PD_SUBSYS_32K &&
+            mode != HAL_CMU_LPU_SLEEP_MODE_CPU_PD_BUS_32K) {
+        return;
+    }
+
     __DSB();
     __ISB();
     if (cache_enabled[HAL_CACHE_ID_I_CACHE]) {

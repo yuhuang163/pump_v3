@@ -9,7 +9,6 @@ ccflags-y := -Iplatform/hal \
 	-Iplatform/drivers/sensor_hub \
 	-Iutils/hwtimer_list \
 	-Iservices/audioflinger \
-	-Imultimedia/inc \
 	-Imultimedia/inc/speech/inc \
 	-Iapps/sensorhub \
 	-Iapps/voice_detector \

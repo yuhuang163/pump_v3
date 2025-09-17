@@ -19,6 +19,8 @@
 #include "hal_location.h"
 #include "system_ARMCM.h"
 
+#define REG(a)                              (*(volatile uint32_t *)(a))
+
 void BOOT_TEXT_FLASH_LOC SystemInit (void)
 {
 #if (__FPU_USED == 1) || \
@@ -33,6 +35,11 @@ void BOOT_TEXT_FLASH_LOC SystemInit (void)
 
 #if defined (__PMU_PRESENT) && (__PMU_PRESENT == 1U)
     PMU->CTRL = 0;
+#endif
+
+#if (defined (__ARM_FEATURE_MVE) && (__ARM_FEATURE_MVE > 0U))
+    // M55-r1: PFCR.MAX_OS=6
+    REG(PFCR) = (REG(PFCR) & ~(0x7 << 7)) | ((6 & 0x7) << 7);
 #endif
 
     SCB->CCR |= SCB_CCR_DIV_0_TRP_Msk;
@@ -100,7 +107,11 @@ bool config_unaligned_access(bool enable)
 uint32_t BOOT_TEXT_SRAM_DEF(get_cpu_id) (void)
 {
 #ifdef __ARM_ARCH_8M_MAIN__
+#if defined(CHIP_BEST1603) || defined(CHIP_BEST1605)
+    return (SCB->ID_ADR & 4);
+#else
     return (SCB->ID_ADR & 3);
+#endif
 #else
     return (SCB->ADR & 3);
 #endif
@@ -110,7 +121,7 @@ uint32_t BOOT_TEXT_SRAM_DEF(get_cpu_id) (void)
 void TZ_set_beco_coprocessor_S(int enable);
 
 #ifdef ARM_CMSE
-__attribute__((cmse_nonsecure_entry))
+CMSE_API
 void TZ_set_beco_coprocessor_S(int enable)
 {
     if (enable) {
@@ -126,9 +137,8 @@ void TZ_set_beco_coprocessor_S(int enable)
 
 int set_beco_coprocessor(int enable)
 {
-    uint32_t val;
 #ifdef ARM_CMNS
-#if defined(CHIP_BEST1501P) || defined(CHIP_BEST1306P)
+#ifdef CP_IN_SAME_EE
     if (get_cpu_id() == 0)
 #endif
     {
@@ -137,13 +147,11 @@ int set_beco_coprocessor(int enable)
 #endif
 
     if (enable) {
-        val = SCB->CPACR;
-        val |= (3UL << 0*2);               /* set CP0 Full Access */
-        SCB->CPACR = val;
+        // Set CP0 Full Access
+        SCB->CPACR |= (3UL << 0*2);
     } else {
-        val = SCB->CPACR;
-        val &= ~(3UL << 0*2);               /* clear CP0 Full Access */
-        SCB->CPACR = val;
+        // Clear CP0 Full Access
+        SCB->CPACR &= ~(3UL << 0*2);
     }
 
     return 0;

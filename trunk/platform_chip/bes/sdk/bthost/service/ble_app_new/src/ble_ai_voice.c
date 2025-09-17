@@ -13,8 +13,6 @@
  * trademark and other intellectual property rights.
  *
  ****************************************************************************/
-#include "bthost_logger.h"
-
 #ifdef __AI_VOICE_BLE_ENABLE__
 #include "ble_ai_voice.h"
 
@@ -59,7 +57,7 @@ void app_ai_data_send(app_ble_ai_data_send_param_t *param)
         break;
 #endif
     default:
-        DEBUG_VERBOSE(0, "%s[ERROR]: not find ai type=%d", __func__, param->ai_type);
+        TRACE(0, "%s[ERROR]: not find ai type=%d", __func__, param->ai_type);
         return;
     }
 }

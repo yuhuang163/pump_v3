@@ -65,14 +65,14 @@ void nv_record_ota_update_breakpoint(uint8_t user,
     uint32_t lock = nv_record_pre_write_operation();
     if (user != pOta->user)
     {
-        NV_SECTION_TRACE(0,"OTA user update:%d->%d", pOta->user, user);
+        LOG_I("OTA user update:%d->%d", pOta->user, user);
         pOta->user = user;
         update = true;
     }
 
     if (otaOffset != pOta->breakPoint)
     {
-        NV_SECTION_TRACE(0,"OTA break point update:%x->%x", pOta->breakPoint, otaOffset);
+        LOG_I("OTA break point update:%x->%x", pOta->breakPoint, otaOffset);
         pOta->breakPoint = otaOffset;
         update = true;
     }
@@ -93,8 +93,8 @@ bool nv_record_ota_update_info(uint8_t user,
 {
     NV_OTA_INFO_T *pOta = &nvrecord_ota_p[deviceIndex];
 
-    NV_SECTION_TRACE(0,"%s", __func__);
-    NV_SECTION_TRACE(0,"ota_status:%d->%d, user:%d, device_index:%d, imageSize:%d, version:%s",
+    LOG_I("%s", __func__);
+    LOG_I("ota_status:%d->%d, user:%d, device_index:%d, imageSize:%d, version:%s",
           pOta->otaStatus,
           status,
           user,
@@ -128,7 +128,7 @@ bool nv_record_ota_update_info(uint8_t user,
         {
             pOta->otaStatus = status;
             update = true;
-            NV_SECTION_TRACE(0,"update device %d ota status to %d",
+            LOG_I("update device %d ota status to %d",
                   deviceIndex,
                   pOta->otaStatus);
         }
@@ -167,14 +167,14 @@ bool nv_record_ota_update_info(uint8_t user,
 
         if (update)
         {
-            NV_SECTION_TRACE(0,"will update info into flash.");
+            LOG_I("will update info into flash.");
             nv_record_extension_update();
             nv_record_execute_async_flush();
         }
     }
     else
     {
-        NV_SECTION_TRACE(0,"insert not allowed");
+        LOG_I("insert not allowed");
     }
 
     return ret;

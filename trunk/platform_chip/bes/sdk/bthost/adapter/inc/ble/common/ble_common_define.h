@@ -24,28 +24,11 @@ extern "C" {
 /// APS3 is little endian
 #define CPU_LE          1
 
-/// CIS Channel handle mapping
-#define BLE_CISHDL_MIN                  (0x100)
-#define BLE_ACTID_TO_CISHDL(act_id)     ((uint16_t) (BLE_CISHDL_MIN + (act_id)))
-#define BLE_CISHDL_TO_ACTID(cishdl)     ((uint8_t) ((cishdl) - BLE_CISHDL_MIN))
-#define BLE_IS_CISHDL(conhdl)           ((((conhdl) >= BLE_CISHDL_MIN) && ((conhdl) < BLE_BISHDL_MIN)) ? true : false)
-/// BIS Channel handle mapping
-#define BLE_BISHDL_MIN                  (0x200)
-
-#ifdef WALKIE_TALKIE_ENABLED
-#define BLE_BISHDL_TO_ACTID(bishdl)     ((uint8_t) ((bishdl) - BLE_BISHDL_MIN)/3) 
-/*controller say that each bis iso need 3 ACT_IDX ,so the interval for bis hdl is 3 ,for example 0x205,0x208,0x20b,0x20d*/
-#else
-#define BLE_ACTID_TO_BISHDL(act_id)     ((uint16_t) (BLE_BISHDL_MIN + (act_id)))
-#define BLE_BISHDL_TO_ACTID(bishdl)     ((uint8_t) ((bishdl) - BLE_BISHDL_MIN))
-#endif
-
-#define BLE_IS_BISHDL(conhdl)           (((conhdl) >= BLE_BISHDL_MIN) ? true : false)
-
-/// ISO Channel handle mapping
-#define BLE_ISOHDL_TO_ACTID(isohdl)     (((isohdl >= BLE_BISHDL_MIN) \
-                                                    ? BLE_BISHDL_TO_ACTID(isohdl) \
-                                                    : BLE_CISHDL_TO_ACTID(isohdl)))
+typedef enum
+{
+    BLE_CORE_ACC_MCC,
+    BLE_CORE_ACC_TBC,
+} BLE_CORE_ACC_TYPE_E;
 
 #ifdef __cplusplus
 }

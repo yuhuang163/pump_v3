@@ -97,7 +97,7 @@ static int16_t *audio_dump_temp_buf = NULL;
  **/
 int32_t bt_sco_codec_msbc_init(uint32_t sample_rate)
 {
-    AUDIOPLAYERS_TRACE(0, "[%s] SCO: MSBC...", __func__);
+    TRACE(0, "[%s] SCO: MSBC...", __func__);
 
     ASSERT(SCO_PACKET_SIZE == sizeof(sco_msbc_packet_t),
         "[%s] SCO_PACKET_SIZE != sizeof(sco_msbc_packet_t)", __func__);
@@ -159,7 +159,7 @@ int32_t bt_sco_codec_msbc_init(uint32_t sample_rate)
 
 int32_t bt_sco_codec_msbc_deinit(void)
 {
-    AUDIOPLAYERS_TRACE(0, "[%s] ...", __func__);
+    TRACE(0, "[%s] ...", __func__);
 
     packet_loss_detection_report(&pld);
 
@@ -186,7 +186,7 @@ int32_t bt_sco_codec_msbc_deinit(void)
 // msbc_size = 120, pcm_size = 480
 int32_t bt_sco_codec_msbc_encoder(uint8_t *msbc_buf, uint32_t msbc_size, uint8_t *pcm_buf, uint32_t pcm_size)
 {
-    // AUDIOPLAYERS_TRACE(0, "[%s] msbc_size: %d, pcm_size: %d", __func__, msbc_size, pcm_size);
+    // TRACE(0, "[%s] msbc_size: %d, pcm_size: %d", __func__, msbc_size, pcm_size);
 
     ASSERT(msbc_size / SCO_PACKET_SIZE == pcm_size / MSBC_PCM_FRAME_SIZE,
         "[%s] msbc_size = %d, pcm_size = %d", __func__, msbc_size, pcm_size);
@@ -194,7 +194,7 @@ int32_t bt_sco_codec_msbc_encoder(uint8_t *msbc_buf, uint32_t msbc_size, uint8_t
     uint32_t loop_cnt = msbc_size / SCO_PACKET_SIZE;
     sco_msbc_packet_t *sco_packet_ptr = (sco_msbc_packet_t *)msbc_buf;
 
-    // AUDIOPLAYERS_TRACE(0, "[%s] msbc_size = %d, pcm_size = %d", __func__, msbc_size, pcm_size);
+    // TRACE(0, "[%s] msbc_size = %d, pcm_size = %d", __func__, msbc_size, pcm_size);
 
     // Parser packet
     for (uint32_t i=0; i<loop_cnt; i++) {
@@ -206,7 +206,6 @@ int32_t bt_sco_codec_msbc_encoder(uint8_t *msbc_buf, uint32_t msbc_size, uint8_t
         sbc_frame_t sbc_data;
         sbc_data.sbc_data = sco_packet_ptr->payload;
         sbc_data.valid_size = 0;
-        sbc_data.buffer_size = SCO_PACKET_SIZE;
         pcm_data.pcm_data = (int16_t *)pcm_buf;
         pcm_data.buffer_size = MSBC_PCM_FRAME_SIZE;
         pcm_data.valid_size = MSBC_PCM_FRAME_SIZE;
@@ -220,15 +219,15 @@ int32_t bt_sco_codec_msbc_encoder(uint8_t *msbc_buf, uint32_t msbc_size, uint8_t
     return 0;
 }
 
-extern uint32_t btdrv_syn_get_curr_ticks(void);
 int32_t bt_sco_codec_msbc_decoder(uint8_t *msbc_buf, uint32_t msbc_size, uint8_t *pcm_buf, uint32_t pcm_size)
 {
-    // AUDIOPLAYERS_TRACE(0, "[%s] msbc_size: %d, pcm_size: %d", __func__, msbc_size, pcm_size);
+    // TRACE(0, "[%s] msbc_size: %d, pcm_size: %d", __func__, msbc_size, pcm_size);
 
     ASSERT(msbc_size / SCO_PACKET_SIZE == pcm_size / MSBC_PCM_FRAME_SIZE,
         "[%s] msbc_size = %d, pcm_size = %d", __func__, msbc_size, pcm_size);
 
     pcm_frame_t pcm_data;
+    sbc_frame_t sbc_data;
     uint32_t msbc_offset_lowdelay = 0;
     uint32_t i,j;
     uint8_t *msbc_buffer=(uint8_t *)msbc_buf;
@@ -243,9 +242,9 @@ int32_t bt_sco_codec_msbc_decoder(uint8_t *msbc_buf, uint32_t msbc_size, uint8_t
 
     // uint32_t timer_begin=hal_sys_timer_get();
 
-    // AUDIOPLAYERS_TRACE(2,"process_downlink_msbc_frames:pcm_size:%d,msbc_size:%d",pcm_size,msbc_size);
+    // TRACE(2,"process_downlink_msbc_frames:pcm_size:%d,msbc_size:%d",pcm_size,msbc_size);
 
-    // AUDIOPLAYERS_TRACE(1,"decode_msbc_frame,msbc_size:%d",msbc_size);
+    // TRACE(1,"decode_msbc_frame,msbc_size:%d",msbc_size);
     for(i =0; i<msbc_size; i++) {
         msbc_buf_all[i + SCO_PACKET_SIZE] = msbc_buffer[i];
     }
@@ -253,7 +252,7 @@ int32_t bt_sco_codec_msbc_decoder(uint8_t *msbc_buf, uint32_t msbc_size, uint8_t
     /*
     for(i =0; i<msbc_size/2; i=i+10)
     {
-       AUDIOPLAYERS_TRACE(10,"0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,",
+       TRACE(10,"0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,",
        DecMsbcBufAll[i],DecMsbcBufAll[i+1],DecMsbcBufAll[i+2],DecMsbcBufAll[i+3],DecMsbcBufAll[i+4],
        DecMsbcBufAll[i+5],DecMsbcBufAll[i+6],DecMsbcBufAll[i+7],DecMsbcBufAll[i+8],DecMsbcBufAll[i+9]);
     }
@@ -268,7 +267,7 @@ int32_t bt_sco_codec_msbc_decoder(uint8_t *msbc_buf, uint32_t msbc_size, uint8_t
             if((msbc_buf_all[i]==0x01)&&((msbc_buf_all[i+1]&0x0f)==0x08)&&(msbc_buf_all[i+2]==0xad))break;
         }
 
-        AUDIOPLAYERS_TRACE(1,"sync......:%d",i);
+        TRACE(1,"sync......:%d",i);
 
         if (i < msbc_size) {
             msbc_find_first_sync = 1;
@@ -326,7 +325,7 @@ int32_t bt_sco_codec_msbc_decoder(uint8_t *msbc_buf, uint32_t msbc_size, uint8_t
                 frame_flag[j] = 0;
                 // It seems that offset is reduced by 1
                 msbc_offset_drift[j] = -1;
-                AUDIOPLAYERS_TRACE(1,"[%s] msbc_offset is reduced by 1", __FUNCTION__);
+                TRACE(1,"[%s] msbc_offset is reduced by 1", __FUNCTION__);
                 /*
                 tail0 = msbc_buf_all[msbc_offset_lowdelay + j*SCO_PACKET_SIZE + 59 - 1];
                 if (tail0 == 0x00 || tail0 == 0x01|| tail0==0xff)
@@ -356,7 +355,7 @@ int32_t bt_sco_codec_msbc_decoder(uint8_t *msbc_buf, uint32_t msbc_size, uint8_t
             } else if ((header1 == 0x01) && ((header2 & 0x0f) == 0x08) && (header3 == 0xad)) {
                 frame_flag[j] = 0;
                 msbc_offset_drift[j] = 1;
-                AUDIOPLAYERS_TRACE(1,"[%s] msbc_offset is increased by 1", __FUNCTION__);
+                TRACE(1,"[%s] msbc_offset is increased by 1", __FUNCTION__);
                 /*
                 tail0 = msbc_buf_all[msbc_offset_lowdelay + j*SCO_PACKET_SIZE + 59 + 1];
                 if (tail0 == 0x00 || tail0==0x01|| tail0==0xff)
@@ -394,7 +393,7 @@ int32_t bt_sco_codec_msbc_decoder(uint8_t *msbc_buf, uint32_t msbc_size, uint8_t
 
     while ( (frame_counter < msbc_size / SCO_PACKET_SIZE) &&
             (frame_counter < pcm_size / MSBC_PCM_FRAME_SIZE)) {
-        //AUDIOPLAYERS_TRACE(3,"[%s] decoding, offset %d, offset drift %d", __FUNCTION__, msbc_offset, msbc_offset_drift[frame_counter]);
+        //TRACE(3,"[%s] decoding, offset %d, offset drift %d", __FUNCTION__, msbc_offset, msbc_offset_drift[frame_counter]);
         // skip first byte when msbc_offset == 0 and msbc_offset_drift == -1
         uint32_t start_idx = 0;
         if (msbc_offset_lowdelay == 0 && msbc_offset_drift[frame_counter] == -1) {
@@ -407,7 +406,7 @@ int32_t bt_sco_codec_msbc_decoder(uint8_t *msbc_buf, uint32_t msbc_size, uint8_t
             dec_msbc_buf[i]=msbc_buf_all[i+msbc_offset_lowdelay+msbc_offset_drift[frame_counter]+frame_counter*SCO_PACKET_SIZE];
         }
 
-        //AUDIOPLAYERS_TRACE(1,"msbc header:0x%x",DecMsbcBuf[0]);
+        //TRACE(1,"msbc header:0x%x",DecMsbcBuf[0]);
 
 #ifdef SPEECH_RX_PLC_DUMP_DATA
         audio_dump_add_channel_data(2, (short *)dec_msbc_buf, SCO_PACKET_SIZE/2);
@@ -427,9 +426,9 @@ int32_t bt_sco_codec_msbc_decoder(uint8_t *msbc_buf, uint32_t msbc_size, uint8_t
         pcm_data.pcm_data = dec_pcm_buf;
         pcm_data.buffer_size = MSBC_PCM_FRAME_SAMPLES*2;
         pcm_data.valid_size = 0;
-        sbc_frame_t sbc_data;
         sbc_data.sbc_data = dec_msbc_buf;
         sbc_data.valid_size = SCO_PACKET_SIZE;
+        sbc_data.buffer_size = SCO_PACKET_SIZE;
         ret = sbc_decoder_process_frame(msbc_decoder, &sbc_data, &pcm_data);
         //ASSERT(ret == BT_STS_SUCCESS, "[%s] msbc decoder should never fail", __FUNCTION__);
         if (ret != SBC_OK) {
@@ -448,17 +447,13 @@ do_plc:
             audio_dump_add_channel_data(0, (short *)dec_pcm_buf, MSBC_PCM_FRAME_SIZE/2);
 #endif
         } else {
-            AUDIOPLAYERS_TRACE(1,"PLC bad frame, plc type: %d, curr clk=%x", plc_type, btdrv_syn_get_curr_ticks());
-            if(plc_type != 1)
-            {
+            TRACE(1,"PLC bad frame, plc type: %d", plc_type);
 #if defined(PLC_DEBUG_PRINT_DATA)
-                AUDIOPLAYERS_TRACE(3,"0x4000E000:%x,0x4000E010:%x,0xD022069C:%x", 
-					BTDIGITAL_REG(0x4000E000),BTDIGITAL_REG(0x4000E010),BTDIGITAL_REG(0xD022069C));
-                btdrv_regop_dump_btpcm_reg();
-                bt_drv_reg_sco_fifo_dump();
-                AUDIOPLAYERS_DUMP16("0x%x ", dec_msbc_buf, MSBC_PCM_FRAME_SIZE/2);
+            TRACE(1,"0x4000E000:%x,0x4000E010:%x", BTDIGITAL_REG(0x4000E000),BTDIGITAL_REG(0x4000E010));
+            btdrv_regop_dump_btpcm_reg();
+            DUMP8("0x%02x, ", dec_msbc_buf, 5);
 #endif
-            }
+
 #ifdef SPEECH_RX_PLC_DUMP_DATA
             for(uint32_t i=0; i< MSBC_PCM_FRAME_SIZE/2; i++) {
                   audio_dump_temp_buf[i] = (plc_type - 1) * 5000;
@@ -482,20 +477,17 @@ do_plc:
 #endif
 
 #else
-            pcm_data.sampleFreq = BTIF_SBC_CHNL_SAMPLE_FREQ_16;
-            pcm_data.numChannels = 1;
-            pcm_data.dataLen = 0;
-            pcm_data.data = (uint8_t *)dec_pcm_buf;
-
-            ret = btif_sbc_decode_frames(msbc_decoder,
-                    (uint8_t *)indices0,
-                    SCO_PACKET_SIZE, &byte_decode,
-                    &pcm_data, MSBC_PCM_FRAME_SAMPLES*2,
-                    msbc_eq_band_gain);
+            pcm_data.pcm_data = dec_pcm_buf;
+            pcm_data.buffer_size = MSBC_PCM_FRAME_SAMPLES*2;
+            pcm_data.valid_size = 0;
+            sbc_data.sbc_data = indices0;
+            sbc_data.valid_size = SCO_PACKET_SIZE;
+            sbc_data.buffer_size = SCO_PACKET_SIZE;
+            ret = sbc_decoder_process_frame(msbc_decoder, &sbc_data, &pcm_data);
 
             PLC_bad_frame(&plc_st, dec_pcm_buf, dec_pcm_buf);
 
-            ASSERT(ret == BT_STS_SUCCESS, "[%s] msbc decoder should never fail", __FUNCTION__);
+            ASSERT(ret == SBC_OK, "[%s] msbc decoder should never fail", __FUNCTION__);
 #endif
         }
 
@@ -512,7 +504,7 @@ do_plc:
         msbc_buf_all[i]=msbc_buf_all[i+msbc_size];
     }
 
-    //AUDIOPLAYERS_TRACE(1,"msbc + plc:%d", (hal_sys_timer_get()-timer_begin));
+    //TRACE(1,"msbc + plc:%d", (hal_sys_timer_get()-timer_begin));
     return 0;
 }
 

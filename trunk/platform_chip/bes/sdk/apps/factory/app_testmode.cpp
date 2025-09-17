@@ -180,7 +180,9 @@ int app_testmode_enter(void)
     uint8_t enable = btif_me_get_testmode_enable();
     if (!enable)
     {
+    #ifdef __WATCHER_DOG_RESET__
         app_wdt_close();
+    #endif
         app_stop_10_second_timer(APP_PAIR_TIMER_ID);
         app_stop_10_second_timer(APP_POWEROFF_TIMER_ID);
         if (!testmode_error_check_timer_id){
@@ -219,7 +221,7 @@ void app_enter_normal_mode(void)
     }
     else
     {
-        FACTROY_TRACE(1,"WARNING!!!, %s must called after app_testmode_exit\n", __func__);
+        BT_DRV_TRACE(1,"WARNING!!!, %s must called after app_testmode_exit\n", __func__);
     }
 }
 
@@ -230,7 +232,9 @@ int app_testmode_exit(void)
 
     if (enable)
     {
+    #ifdef __WATCHER_DOG_RESET__
         app_wdt_open(30);
+    #endif
         app_start_10_second_timer(APP_PAIR_TIMER_ID);
         app_start_10_second_timer(APP_POWEROFF_TIMER_ID);
         if (testmode_error_check_timer_id) {
@@ -264,7 +268,7 @@ int app_testmode_bt_nonsig_tx(APP_DBG_NONSIG_TESTER_SETUP_SLIM_CMD_TX_T *tx_cfg)
 {
     int sRet = 0;
 
-     FACTROY_TRACE(1,"%s\n", __func__);
+     BT_DRV_TRACE(1,"%s\n", __func__);
 
      btdrv_hci_reset();
 
@@ -282,7 +286,7 @@ int app_testmode_bt_nonsig_tx(APP_DBG_NONSIG_TESTER_SETUP_SLIM_CMD_TX_T *tx_cfg)
      sRet = memcpy_s(&hci_cmd_nonsig_tx_buf[12], BT_BD_ADDR_SIZE, tx_cfg->addr, BT_BD_ADDR_SIZE);
      if(sRet != 0)
      {
-         FACTORY_TRACE(1,"func-s line:%d sRet:%d %s ", __LINE__, sRet, __func__);
+         TRACE(1,"func-s line:%d sRet:%d %s ", __LINE__, sRet, __func__);
      }
      for(uint8_t i = 0; i < APP_DBG_NONSIG_TYPE_END; i++)
      {
@@ -311,7 +315,7 @@ int app_testmode_bt_nonsig_rx(APP_DBG_NONSIG_TESTER_SETUP_SLIM_CMD_RX_T *rx_cfg)
 {
     int sRet = 0;
 
-     FACTROY_TRACE(1,"%s\n", __func__);
+     BT_DRV_TRACE(1,"%s\n", __func__);
 
      btdrv_hci_reset();
 
@@ -328,7 +332,7 @@ int app_testmode_bt_nonsig_rx(APP_DBG_NONSIG_TESTER_SETUP_SLIM_CMD_RX_T *rx_cfg)
      sRet = memcpy_s(&hci_cmd_nonsig_rx_buf[12], BT_BD_ADDR_SIZE, rx_cfg->addr, BT_BD_ADDR_SIZE);
      if(sRet != 0)
      {
-         FACTORY_TRACE(1,"func-s line:%d sRet:%d %s ", __LINE__, sRet, __func__);
+         TRACE(1,"func-s line:%d sRet:%d %s ", __LINE__, sRet, __func__);
      }
      for(uint8_t i = 0; i < APP_DBG_NONSIG_TYPE_END; i++)
      {
@@ -354,7 +358,7 @@ int app_testmode_bt_nonsig_rx(APP_DBG_NONSIG_TESTER_SETUP_SLIM_CMD_RX_T *rx_cfg)
 
 int app_testmode_bt_nonsig_endtest()
 {
-     FACTROY_TRACE(1,"%s\n", __func__);
+     BT_DRV_TRACE(1,"%s\n", __func__);
 
      uint8_t hci_cmd_nonsig_end_test_buf[] =
      {
@@ -371,7 +375,7 @@ int app_testmode_nonsig_test_result_save(const unsigned char *data, unsigned int
 {
     int sRet = 0;
 
-    FACTROY_TRACE(1,"%s", __func__);
+    BT_DRV_TRACE(1,"%s", __func__);
 
     const unsigned char nonsig_test_report_bt[] = {0x04, 0x0e, 0x12};
 
@@ -389,12 +393,12 @@ int app_testmode_nonsig_test_result_save(const unsigned char *data, unsigned int
             sRet = memcpy_s(&base_test_result_bt, sizeof(base_test_result_bt), pBaseResultBt, sizeof(base_test_result_bt));
             if(sRet != 0)
             {
-                FACTORY_TRACE(1,"func-s line:%d sRet:%d %s ", __LINE__, sRet, __func__);
+                TRACE(1,"func-s line:%d sRet:%d %s ", __LINE__, sRet, __func__);
             }
             app_testmode_test_result_bt.pkt_counters = base_test_result_bt.pkt_counters;
             app_testmode_test_result_bt.head_errors = base_test_result_bt.head_errors;
             app_testmode_test_result_bt.payload_errors = base_test_result_bt.payload_errors;
-            FACTORY_TRACE(3, "bt result save cnt:%d head:%d payload:%d", app_testmode_test_result_bt.pkt_counters,
+            TRACE(3, "bt result save cnt:%d head:%d payload:%d", app_testmode_test_result_bt.pkt_counters,
                                                         app_testmode_test_result_bt.head_errors, app_testmode_test_result_bt.payload_errors);
         }
     }
@@ -404,10 +408,10 @@ int app_testmode_nonsig_test_result_save(const unsigned char *data, unsigned int
             sRet = memcpy_s(&base_test_result_ble, sizeof(base_test_result_ble), pBaseResultBle, sizeof(base_test_result_ble));
             if(sRet != 0)
             {
-                FACTORY_TRACE(1,"func-s line:%d sRet:%d %s ", __LINE__, sRet, __func__);
+                TRACE(1,"func-s line:%d sRet:%d %s ", __LINE__, sRet, __func__);
             }
             app_testmode_test_result_ble.pkt_counters = base_test_result_ble.pkt_counters;
-            FACTORY_TRACE(1, "ble result save cnt:%d", app_testmode_test_result_ble.pkt_counters);
+            TRACE(1, "ble result save cnt:%d", app_testmode_test_result_ble.pkt_counters);
         }
     }
     return 0;
@@ -423,7 +427,7 @@ int app_testmode_bt_nonsig_result_clear(void)
     app_testmode_test_result_bt.payload_errors = 0;
     app_testmode_test_result_bt.head_errors = 0;
 
-    FACTORY_TRACE(0, "clear bt test reult");
+    TRACE(0, "clear bt test reult");
 
     return 0;
 }
@@ -436,7 +440,7 @@ int app_testmode_ble_nonsig_result_clear(void)
 
     app_testmode_test_result_ble.pkt_counters = 0;
 
-    FACTORY_TRACE(0, "clear ble test reult");
+    TRACE(0, "clear ble test reult");
 
     return 0;
 }
@@ -451,7 +455,7 @@ int app_testmode_bt_nonsig_result_get(APP_DBG_NONSIG_TESTER_RESULT_BT_T *bt_resu
     bt_result->payload_errors = app_testmode_test_result_bt.payload_errors;
     bt_result->head_errors = app_testmode_test_result_bt.head_errors;
 
-    FACTORY_TRACE(3, "final bt test result cnt:%d head:%d payload:%d", bt_result->pkt_counters, bt_result->head_errors, bt_result->payload_errors);
+    TRACE(3, "final bt test result cnt:%d head:%d payload:%d", bt_result->pkt_counters, bt_result->head_errors, bt_result->payload_errors);
 
     app_testmode_bt_nonsig_result_clear();
 
@@ -460,7 +464,7 @@ int app_testmode_bt_nonsig_result_get(APP_DBG_NONSIG_TESTER_RESULT_BT_T *bt_resu
 
 int app_testmode_ble_tx_v1(APP_DBG_NONSIG_TESTER_SETUP_CMD_BLE_TX_V1_T *ble_tx_cfg)
 {
-     FACTROY_TRACE(1,"%s\n", __func__);
+     BT_DRV_TRACE(1,"%s\n", __func__);
 
      btdrv_hci_reset();
 
@@ -480,7 +484,7 @@ int app_testmode_ble_tx_v1(APP_DBG_NONSIG_TESTER_SETUP_CMD_BLE_TX_V1_T *ble_tx_c
 
 int app_testmode_ble_rx_v1(APP_DBG_NONSIG_TESTER_SETUP_CMD_BLE_RX_V1_T *ble_rx_cfg)
 {
-    FACTROY_TRACE(1,"%s\n", __func__);
+    BT_DRV_TRACE(1,"%s\n", __func__);
 
     btdrv_hci_reset();
 
@@ -498,7 +502,7 @@ int app_testmode_ble_rx_v1(APP_DBG_NONSIG_TESTER_SETUP_CMD_BLE_RX_V1_T *ble_rx_c
 
 int app_testmode_ble_tx_v2(APP_DBG_NONSIG_TESTER_SETUP_CMD_BLE_TX_V2_T *ble_tx_cfg)
 {
-     FACTROY_TRACE(1,"%s\n", __func__);
+     BT_DRV_TRACE(1,"%s\n", __func__);
 
      btdrv_hci_reset();
 
@@ -519,7 +523,7 @@ int app_testmode_ble_tx_v2(APP_DBG_NONSIG_TESTER_SETUP_CMD_BLE_TX_V2_T *ble_tx_c
 
 int app_testmode_ble_rx_v2(APP_DBG_NONSIG_TESTER_SETUP_CMD_BLE_RX_V2_T *ble_rx_cfg)
 {
-    FACTROY_TRACE(1,"%s\n", __func__);
+    BT_DRV_TRACE(1,"%s\n", __func__);
 
     btdrv_hci_reset();
 
@@ -539,7 +543,7 @@ int app_testmode_ble_rx_v2(APP_DBG_NONSIG_TESTER_SETUP_CMD_BLE_RX_V2_T *ble_rx_c
 
 int app_testmode_ble_tx_v3(APP_DBG_NONSIG_TESTER_SETUP_CMD_BLE_TX_V3_T *ble_tx_cfg)
 {
-     FACTROY_TRACE(1,"%s\n", __func__);
+     BT_DRV_TRACE(1,"%s\n", __func__);
 
      btdrv_hci_reset();
 
@@ -568,7 +572,7 @@ int app_testmode_ble_tx_v3(APP_DBG_NONSIG_TESTER_SETUP_CMD_BLE_TX_V3_T *ble_tx_c
 
 int app_testmode_ble_rx_v3(APP_DBG_NONSIG_TESTER_SETUP_CMD_BLE_RX_V3_T *ble_rx_cfg)
 {
-    FACTROY_TRACE(1,"%s\n", __func__);
+    BT_DRV_TRACE(1,"%s\n", __func__);
 
     btdrv_hci_reset();
 
@@ -597,7 +601,7 @@ int app_testmode_ble_rx_v3(APP_DBG_NONSIG_TESTER_SETUP_CMD_BLE_RX_V3_T *ble_rx_c
 
 int app_testmode_ble_tx_v4(APP_DBG_NONSIG_TESTER_SETUP_CMD_BLE_TX_V4_T *ble_tx_cfg)
 {
-     FACTROY_TRACE(1,"%s\n", __func__);
+     BT_DRV_TRACE(1,"%s\n", __func__);
 
      btdrv_hci_reset();
 
@@ -629,7 +633,7 @@ int app_testmode_ble_tx_v4(APP_DBG_NONSIG_TESTER_SETUP_CMD_BLE_TX_V4_T *ble_tx_c
 
 int app_testmode_ble_endtest(void)
 {
-    FACTROY_TRACE(1,"%s\n", __func__);
+    BT_DRV_TRACE(1,"%s\n", __func__);
 
     uint8_t hci_cmd_nonsig_ble_end_test_buf[] =
     {
@@ -649,7 +653,7 @@ int app_testmode_ble_result_get(APP_DBG_NONSIG_TESTER_RESULT_BLE_T *ble_result)
 
     ble_result->pkt_counters = app_testmode_test_result_ble.pkt_counters;
 
-    FACTORY_TRACE(1, "final ble test cnt:%d", ble_result->pkt_counters);
+    TRACE(1, "final ble test cnt:%d", ble_result->pkt_counters);
 
     app_testmode_ble_nonsig_result_clear();
 
@@ -716,6 +720,20 @@ void app_exit_signal_testmode(void)
 {
     app_testmode_exit();
     btdrv_dut_mode_enable = false;
+}
+
+void app_reboot_and_enter_nosignal_testmode(void)
+{
+    TRACE(0, "APP: enter non-signaling test");
+    hal_sw_bootmode_set(HAL_SW_BOOTMODE_TEST_MODE|HAL_SW_BOOTMODE_TEST_NOSIGNALINGMODE);
+    app_reset();
+}
+
+void app_reboot_and_enter_signal_testmode(void)
+{
+    TRACE(0, "APP: enter signaling test");
+    hal_sw_bootmode_set(HAL_SW_BOOTMODE_TEST_MODE|HAL_SW_BOOTMODE_TEST_SIGNALINGMODE);
+    app_reset();
 }
 
 void app_enter_nosignal_tx_testmode(void)

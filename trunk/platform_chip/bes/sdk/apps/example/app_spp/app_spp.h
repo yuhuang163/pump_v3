@@ -28,6 +28,8 @@ void app_spp_serial_port_server_init(void);
 
 void app_spp_register_client_callback_handle(APP_SPP_CLIENT_CALLBACK_IND handle);
 
+void app_spp_register_server_callback_handle(APP_SPP_SERVER_CALLBACK_IND handle);
+
 bool app_spp_serial_port_is_connected(const bt_bdaddr_t *remote);
 
 void app_spp_close_serial_port(const bt_bdaddr_t *remote);

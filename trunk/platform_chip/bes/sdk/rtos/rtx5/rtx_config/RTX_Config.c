@@ -66,6 +66,7 @@ __NO_RETURN void osRtxIdleThread (void *argument) {
 #if defined(DEBUG_SLEEP) && (DEBUG_SLEEP >= 2)
     unsigned int start_os_time;
     unsigned int start_tick;
+    uint32_t lock;
 #endif
     unsigned int hw_restore_ticks = 0;
     unsigned int sleep_hwticks;
@@ -85,14 +86,14 @@ __NO_RETURN void osRtxIdleThread (void *argument) {
             os_ticks = osKernelSuspend();
             if (MS_TO_HWTICKS(os_ticks * OS_TICK_FREQ / 1000) > hw_restore_ticks) {
 #if defined(DEBUG_SLEEP) && (DEBUG_SLEEP >= 2)
-                __disable_irq();
+                lock = int_lock();
 #endif
                 start_time = hal_sys_timer_get();
                 ret = hwtimer_start(timer, MS_TO_HWTICKS(os_ticks * OS_TICK_FREQ / 1000) - hw_restore_ticks);
 #if defined(DEBUG_SLEEP) && (DEBUG_SLEEP >= 2)
                 start_tick = SysTick->VAL;
                 start_os_time = osRtxInfo.kernel.tick;
-                __enable_irq();
+                int_unlock(lock);
 #endif
                 if (ret == 0) {
                     sleep();
@@ -100,7 +101,7 @@ __NO_RETURN void osRtxIdleThread (void *argument) {
                 }
 #if defined(DEBUG_SLEEP) && (DEBUG_SLEEP >= 2)
                 if (hal_sys_timer_get() - start_time >= MS_TO_HWTICKS(1)) {
-                    RTX5_TRACE(5,"[%u/0x%X][%2u/%u] os_idle_demon start timer. tick:%u",
+                    TRACE(5,"[%u/0x%X][%2u/%u] os_idle_demon start timer. tick:%u",
                         TICKS_TO_MS(start_time), start_time, start_tick, start_os_time, os_ticks);
                 }
 #endif
@@ -110,7 +111,7 @@ __NO_RETURN void osRtxIdleThread (void *argument) {
                     if (hw_restore_ticks > MS_TO_HWTICKS(3))
                         hw_restore_ticks = MS_TO_HWTICKS(3);
                 }
-                //RTX5_TRACE(0, "os_ticks:%d, sleep %d, %d ms, hw_restore_ticks:%d",
+                //TRACE(0, "os_ticks:%d, sleep %d, %d ms, hw_restore_ticks:%d",
                 //    os_ticks, sleep_hwticks, HWTICKS_TO_MS(sleep_hwticks), hw_restore_ticks);
             } else {
                 hal_sys_timer_delay(MS_TO_TICKS(os_ticks));

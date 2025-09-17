@@ -5,7 +5,7 @@
 #include "app_tota_flash_program.h"
 #include "app_tota_data_transceiver.h"
 
-#if (TOTA_DATA_TRANSCEIVER)
+
 
 typedef struct{
     bool        isRuning;
@@ -49,7 +49,7 @@ osTimerDef(handle_timeout, data_handle_timeout_callback);
 
 static void tota_data_transceiver_cmd_handle(APP_TOTA_CMD_CODE_E opCode, uint8_t* ptrParam, uint32_t paramLen)
 {
-    TOTA_V2_TRACE(3,"[%s]: opCode:0x%x, paramLen:%d", __func__, opCode, paramLen);
+    TOTA_LOG_DBG(3,"[%s]: opCode:0x%x, paramLen:%d", __func__, opCode, paramLen);
 
     switch ( opCode )
     {
@@ -69,7 +69,7 @@ static void tota_data_transceiver_cmd_handle(APP_TOTA_CMD_CODE_E opCode, uint8_t
             handle_status_e status = handle_with_data(ptrParam, paramLen);
             if ( status == HANDLE_OK )
             {
-                TOTA_V2_TRACE(0, "[__handle__] >>>>>send-data>>>>>");
+                TOTA_LOG_DBG(0, "[__handle__] >>>>>send-data>>>>>");
                 app_tota_send_rsp(opCode, TOTA_NO_ERROR,NULL,0);
                 //osTimerStart(dataHandle.dataHandleTimer, 5000);
             }
@@ -178,7 +178,7 @@ static void set_data_handle(DATA_TRANSCEIVER_CTL_T * pCtl)
     dataHandle.buffPos          = 0;
     dataHandle.flushBytes       = 4096 - (pCtl->addr%4096);
     dataHandle.dataHandleTimer  = osTimerCreate(osTimer(handle_timeout), osTimerOnce, NULL);
-    TOTA_V2_TRACE(4, "[get] mode:%d, data length:%d, addr:0x%x, pdu:%d", dataHandle.handleMode, dataHandle.handleLength, dataHandle.handleAddr, dataHandle.packetMaxSize);
+    TOTA_LOG_DBG(4, "[get] mode:%d, data length:%d, addr:0x%x, pdu:%d", dataHandle.handleMode, dataHandle.handleLength, dataHandle.handleAddr, dataHandle.packetMaxSize);
     //osTimerStart(dataHandle.dataHandleTimer, 5000);
 }
 
@@ -186,15 +186,15 @@ static bool check_recieve_cmd_sanity(DATA_TRANSCEIVER_CTL_T * pCtl)
 {
     if ( pCtl->mode != WRITE_FLASH && pCtl->mode != WRITE_RAM && pCtl->mode != READ_FLASH && pCtl->mode != READ_RAM )
     {
-        TOTA_V2_TRACE(0, "[check cmd sanity]: data mode is unkonwn!");
+        TOTA_LOG_DBG(0, "[check cmd sanity]: data mode is unkonwn!");
         return false;
     }
     if ( pCtl->status != REQUEST )
     {
-        TOTA_V2_TRACE(0, "[check cmd sanity]: data status is not REQUEST!");
+        TOTA_LOG_DBG(0, "[check cmd sanity]: data status is not REQUEST!");
         return false;
     }
-    TOTA_V2_TRACE(0, "[check cmd sanity]: pass");
+    TOTA_LOG_DBG(0, "[check cmd sanity]: pass");
     return true;
 }
 
@@ -209,19 +209,19 @@ static handle_status_e handle_with_data(uint8_t * pdata, uint16_t dataLen)
     switch (dataHandle.handleMode)
     {
         case WRITE_FLASH:
-            TOTA_V2_TRACE(0, "[handle] WRITE FLASH");
+            TOTA_LOG_DBG(0, "[handle] WRITE FLASH");
             return __handle_with_data_write_flash(pdata, dataLen);
         case WRITE_RAM:
-            TOTA_V2_TRACE(0, "[handle] WRITE_RAM not define...");
+            TOTA_LOG_DBG(0, "[handle] WRITE_RAM not define...");
             return HANDLE_ERROR;
         case READ_FLASH:
-            TOTA_V2_TRACE(0, "[handle] READ FLASH");
+            TOTA_LOG_DBG(0, "[handle] READ FLASH");
             return __handle_with_data_read_flash(pdata, dataLen);
         case READ_RAM:
-            TOTA_V2_TRACE(0, "[handle] READ RAM not define...");
+            TOTA_LOG_DBG(0, "[handle] READ RAM not define...");
             break;
         default:
-            TOTA_V2_TRACE(0, "unknown dataHandle Mode");
+            TOTA_LOG_DBG(0, "unknown dataHandle Mode");
 
     }
     return HANDLE_ERROR;
@@ -230,17 +230,17 @@ static handle_status_e handle_with_data(uint8_t * pdata, uint16_t dataLen)
 
 static handle_status_e __handle_with_data_write_flash(uint8_t * pdata, uint16_t dataLen)
 {
-    TOTA_V2_TRACE(0, "[__handle__] <<<<<recv-data<<<<<");
-    TOTA_V2_TRACE(2, "[__handle__] recv dataLen:%d, buffPos:%d", dataLen, dataHandle.buffPos);
+    TOTA_LOG_DBG(0, "[__handle__] <<<<<recv-data<<<<<");
+    TOTA_LOG_DBG(2, "[__handle__] recv dataLen:%d, buffPos:%d", dataLen, dataHandle.buffPos);
 
     if (!tota_write_flash(dataHandle.handleAddr+dataHandle.buffPos, pdata, dataLen))
     {
-        TOTA_V2_TRACE(0, "[__handle__] error! how to deal with write flash error");
+        TOTA_LOG_DBG(0, "[__handle__] error! how to deal with write flash error");
         reset_data_handle();
         return HANDLE_ERROR;
     }
     dataHandle.buffPos += dataLen;
-    TOTA_V2_TRACE(0, "[__handle__] handle success...");
+    TOTA_LOG_DBG(0, "[__handle__] handle success...");
     reset_data_handle();
     return HANDLE_FINISH;
 }
@@ -250,25 +250,25 @@ static handle_status_e __handle_with_data_read_flash(uint8_t * pdata, uint16_t d
     uint16_t readLen  = dataHandle.packetMaxSize;
     TOTA_FLASH_DATA_T *flashData = NULL;
 
-    TOTA_V2_TRACE(2, "[__handle__] %d / %d", dataHandle.processedBytes, dataHandle.handleLength);
+    TOTA_LOG_DBG(2, "[__handle__] %d / %d", dataHandle.processedBytes, dataHandle.handleLength);
 
     if ( dataHandle.processedBytes + readLen > dataHandle.handleLength )
     {
         readLen = dataHandle.handleLength - dataHandle.processedBytes;
-        TOTA_V2_TRACE(0, "[__handle__] read success");
-        TOTA_V2_TRACE(2, "[__handle__] addr: 0x%x, len: %d", dataHandle.handleAddr, readLen);
+        TOTA_LOG_DBG(0, "[__handle__] read success");
+        TOTA_LOG_DBG(2, "[__handle__] addr: 0x%x, len: %d", dataHandle.handleAddr, readLen);
         flashData = tota_read_flash(readAddr, readLen);
-        TOTA_V2_TRACE(0, "[__handle__] >>>>>send-data>>>>>");
+        TOTA_LOG_DBG(0, "[__handle__] >>>>>send-data>>>>>");
         app_tota_send((uint8_t*)flashData->address, readLen, OP_TOTA_DATA);
         dataHandle.handleAddr += readLen;
         dataHandle.processedBytes += readLen;
         return HANDLE_SEND_DATA_DONE;
     }
 
-    TOTA_V2_TRACE(0, "[__handle__] read a packet");
-    TOTA_V2_TRACE(2, "[__handle__] addr: 0x%x, len: %d", dataHandle.handleAddr, readLen);
+    TOTA_LOG_DBG(0, "[__handle__] read a packet");
+    TOTA_LOG_DBG(2, "[__handle__] addr: 0x%x, len: %d", dataHandle.handleAddr, readLen);
     flashData = tota_read_flash(readAddr, readLen);
-    TOTA_V2_TRACE(0, "[__handle__] >>>>>send-data>>>>>");
+    TOTA_LOG_DBG(0, "[__handle__] >>>>>send-data>>>>>");
     app_tota_send((uint8_t*)flashData->address, readLen, OP_TOTA_DATA);
 
 
@@ -284,16 +284,15 @@ static void __read_flash_one_time(uint32_t readAddr, uint32_t readLen)
 
     while ( readLen > 640 )
     {
-        TOTA_V2_TRACE(2, "[__handle__] addr: 0x%x, len: %d, rest: %d", readAddr, readMax, readLen);
+        TOTA_LOG_DBG(2, "[__handle__] addr: 0x%x, len: %d, rest: %d", readAddr, readMax, readLen);
         flashData = tota_read_flash(readAddr, readMax);
         app_tota_send((uint8_t*)flashData->address, readMax, OP_TOTA_DATA_ENCODE);
-        TOTA_V2_TRACE(0, "[__handle__] >>>>>send-data>>>>>");
+        TOTA_LOG_DBG(0, "[__handle__] >>>>>send-data>>>>>");
         readAddr += readMax;
         readLen -= readMax;
     }
-    TOTA_V2_TRACE(2, "[__handle__] addr: 0x%x, len: %d", readAddr, readLen);
+    TOTA_LOG_DBG(2, "[__handle__] addr: 0x%x, len: %d", readAddr, readLen);
     flashData = tota_read_flash(readAddr, readLen);
     app_tota_send((uint8_t*)flashData->address, readLen, OP_TOTA_DATA_ENCODE);
-    TOTA_V2_TRACE(0, "[__handle__] >>>>>send-data>>>>>");
+    TOTA_LOG_DBG(0, "[__handle__] >>>>>send-data>>>>>");
 }
-#endif

@@ -166,7 +166,7 @@ struct pbap_callback_parm_t;
 
 typedef void (*btif_pbap_callback_t)(uint8_t device_id, struct btif_pbap_channel_t *pbap_ctl, const struct pbap_callback_parm_t *parm);
 
-struct btif_pbap_channel_t *btif_get_pbap_channel(uint8_t device_id);
+struct btif_pbap_channel_t *btif_alloc_pbap_channel(void);
 
 void btif_pbap_init(btif_pbap_callback_t btif_pbap_callback);
 

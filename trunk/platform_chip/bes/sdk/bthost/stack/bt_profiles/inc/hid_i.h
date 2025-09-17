@@ -15,13 +15,10 @@
  ****************************************************************************/
 #ifndef __HID_I_H__
 #define __HID_I_H__
-
 #include "hid_service.h"
 #include "btm_i.h"
 #include "sdp_i.h"
-
-#if defined(BT_HID_HOST) || defined(BT_HID_DEVICE)
-
+#ifdef BT_HID_DEVICE
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -127,6 +124,7 @@ struct hid_stack_interface_t {
     struct hid_control_t *(*hid_search_from_control_handle)(uint32_t l2cap_handle);
     struct hid_control_t *(*hid_search_from_interrupt_handle)(uint32_t l2cap_handle);
     struct hid_control_t *(*hid_search_from_remote_bdaddr)(void *remote);
+    const bt_hid_custom_descriptor_t *(*hid_get_custom_descriptor)(void);
 };
 
 struct hid_ctx_input {
@@ -137,25 +135,11 @@ struct hid_ctx_input {
     uint32 hid_intr_handle;
 };
 
-void hid_stack_if_init(struct hid_stack_interface_t *stack_if);
-
-void hid_stack_init_device_get_custom_descriptor_cb(bt_hid_custom_descriptor_t *(*cb)(void));
-
-int hid_stack_init_port(void);
-
-int hid_stack_init_device_sdp_record(void);
+int hid_stack_init(struct hid_stack_interface_t *stack_if, uint8_t is_hid_device_role);
 
 int hid_connect_req(uint8_t device_id, struct hid_control_t *hid_ctl);
 
 void hid_disconnect_req(struct hid_control_t *hid_ctl);
-
-int hid_send_get_report(struct hid_control_t *hid_ctl, hid_report_type_enum_t report_type, uint8_t report_id); // sent by HID Host;
-
-int hid_send_set_report(struct hid_control_t *hid_ctl, hid_report_type_enum_t report_type, struct hid_report_data_t *report); // sent by HID Host
-
-int hid_send_get_protocol(struct hid_control_t *hid_ctl); // sent by HID Host
-
-int hid_host_send_set_protocol(struct hid_control_t *hid_ctl, bool boot_proto_mode); // sent by HID Host;
 
 hid_state_t hid_get_state(struct hid_control_t *hid_ctl);
 
@@ -174,11 +158,8 @@ int hid_send_control(struct hid_control_t *hid_ctl, uint8_t ctrl_op);
 void hid_sensor_send_input_report(struct hid_control_t *hid_ctl, const struct bt_hid_sensor_report_t *data);
 
 void hid_consumer_send_ctrl_key(struct hid_control_t *hid_ctl, uint8_t ctrl_key);
-
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* BT_HID_HOST BT_HID_DEVICE */
-
+#endif /* BT_HID_DEVICE */
 #endif /* __HID_I_H__ */

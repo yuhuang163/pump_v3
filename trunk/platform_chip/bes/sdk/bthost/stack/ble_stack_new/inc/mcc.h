@@ -96,8 +96,6 @@ typedef struct mcc_init_cfg
     bool cp_write_reliable;
     /// Discovery with on character value read and cccd set
     bool discovery_only_find_char;
-    /// Preferred MTU size
-    uint16_t pref_mtu;
 } mcc_init_cfg_t;
 
 struct mcc_prf_svc_info

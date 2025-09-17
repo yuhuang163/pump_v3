@@ -19,6 +19,8 @@
 #ifndef __HAP_COMMON__
 #define __HAP_COMMON__
 
+#include "bluetooth.h"
+
 #include "gaf_cfg.h"
 
 /// Minimal length of Preset name value

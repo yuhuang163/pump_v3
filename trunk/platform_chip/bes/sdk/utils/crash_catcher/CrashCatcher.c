@@ -66,6 +66,7 @@ static void dumpLR_PC_PSR(const Object* pObject);
 static void dumpMSPandPSPandExceptionPSR(const Object* pObject);
 static void dumpFloatingPointRegisters(const Object* pObject);
 static void dumpMemoryRegions(const CrashCatcherMemoryRegion* pRegion);
+static void dumpSramMemoryRegions(const CrashCatcherMemoryRegion* pRegion);
 static void checkStackSentinelForStackOverflow(void);
 static int isARMv6MDevice(void);
 static void dumpFaultStatusRegisters(void);
@@ -90,6 +91,9 @@ void AssertCatcher_Entry(const CrashCatcherAssertRegisters* pAssertRegisters)
         if (ret)
             break;
 
+#ifdef DUMP_RAM_RAW_ONLY
+        dumpSramMemoryRegions(CrashCatcher_GetSramMemoryRegions());
+#else
         dumpSignature();
         dumpFlags(&object);
 
@@ -100,6 +104,7 @@ void AssertCatcher_Entry(const CrashCatcherAssertRegisters* pAssertRegisters)
         dumpMemoryRegions(CrashCatcher_GetMemoryRegions());
         if (!isARMv6MDevice())
             dumpFaultStatusRegisters();
+#endif
 
     }
     while (CrashCatcher_DumpEnd() == CRASH_CATCHER_TRY_AGAIN);
@@ -122,6 +127,9 @@ void CrashCatcher_Entry(const CrashCatcherExceptionRegisters* pExceptionRegister
         if (ret)
             break;
 
+#ifdef DUMP_RAM_RAW_ONLY
+        dumpSramMemoryRegions(CrashCatcher_GetSramMemoryRegions());
+#else
         dumpSignature();
         dumpFlags(&object);
         dumpR0toR3(&object);
@@ -136,6 +144,7 @@ void CrashCatcher_Entry(const CrashCatcherExceptionRegisters* pExceptionRegister
         if (!isARMv6MDevice())
             dumpFaultStatusRegisters();
         checkStackSentinelForStackOverflow();
+#endif
     }
     while (CrashCatcher_DumpEnd() == CRASH_CATCHER_TRY_AGAIN);
 
@@ -302,6 +311,18 @@ static void dumpMemoryRegions(const CrashCatcherMemoryRegion* pRegion)
     {
         /* Just dump the two addresses in pRegion.  The element size isn't required. */
         CrashCatcher_DumpMemory(pRegion, CRASH_CATCHER_BYTE, 2 * sizeof(uint32_t));
+        CrashCatcher_DumpMemory(uint32AddressToPointer(pRegion->startAddress),
+                                pRegion->elementSize,
+                                (pRegion->endAddress - pRegion->startAddress) / pRegion->elementSize);
+        pRegion++;
+    }
+}
+
+static void dumpSramMemoryRegions(const CrashCatcherMemoryRegion* pRegion)
+{
+    while (pRegion && pRegion->startAddress != 0xFFFFFFFF)
+    {
+        /* Just dump the two addresses in pRegion.  The element size isn't required. */
         CrashCatcher_DumpMemory(uint32AddressToPointer(pRegion->startAddress),
                                 pRegion->elementSize,
                                 (pRegion->endAddress - pRegion->startAddress) / pRegion->elementSize);

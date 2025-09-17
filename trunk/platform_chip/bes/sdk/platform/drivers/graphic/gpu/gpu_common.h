@@ -19,6 +19,12 @@
 #define _GPU_COMMON_H
 
 #include "gpu_conf.h"
+#if defined(__NuttX__)
+#include <nuttx/config.h>
+#include <nuttx/video/fb.h>
+#else
+#include "fb.h"
+#endif
 
 #ifdef __cplusplus
 extern "C" {

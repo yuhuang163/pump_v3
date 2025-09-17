@@ -335,9 +335,9 @@ void app_ai_tws_reboot_record_box_state(void);
  *    void
  *
  * Return:
- *    uint8_t box action
+ *    uint16_t box action
  */
-uint8_t app_ai_tws_reboot_get_box_action(void);
+uint16_t app_ai_tws_reboot_get_box_action(void);
 
 /*---------------------------------------------------------------------------
  *            app_ai_tws_clear_reboot_box_state

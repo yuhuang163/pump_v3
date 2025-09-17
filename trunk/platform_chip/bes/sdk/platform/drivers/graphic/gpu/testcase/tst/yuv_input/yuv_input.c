@@ -14,19 +14,36 @@
 #include <math.h>
 #include "vg_lite.h"
 #include "vg_lite_util.h"
+#include "hal_trace.h"
+#include "hal_timer.h"
+#include "hal_location.h"
+#include "gpu_port.h"
+#include "gpu_common.h"
 
-#define DEFAULT_SIZE 640.0f;
+#ifdef RTOS
+#include "cmsis_os.h"
+#endif
+#define GPU_REP(...)   TR_INFO( TR_MOD(TEST), "//" __VA_ARGS__)
+#define GPU_ERR(...)   TR_ERROR( TR_MOD(TEST), "//" __VA_ARGS__)
+
+#define printf GPU_ERR
+
+#undef malloc
+#define malloc  gpu_malloc
+#undef free
+#define free  gpu_free
+
 #define DEFAULT_WIDTH 640
 #define DEFAULT_HEIGHT 480
 
 #define __func__ __FUNCTION__
 
-char *error_type[] = 
+char *error_type[] =
 {
     "VG_LITE_SUCCESS",
     "VG_LITE_INVALID_ARGUMENT",
     "VG_LITE_OUT_OF_MEMORY",
-    "VG_LITE_NO_CONTEXT",      
+    "VG_LITE_NO_CONTEXT",
     "VG_LITE_TIMEOUT",
     "VG_LITE_OUT_OF_RESOURCES",
     "VG_LITE_GENERIC_IO",
@@ -45,6 +62,7 @@ char *error_type[] =
 
 static int fb_width = DEFAULT_WIDTH, fb_height = DEFAULT_HEIGHT;
 static float fb_scale = 1.0f;
+
 static vg_lite_buffer_t srcbuffer[4];
 static vg_lite_buffer_t dstbuffer;
 static vg_lite_buffer_t image;
@@ -55,7 +73,7 @@ static vg_lite_buffer_format_t formats[] = {
     VG_LITE_YV12,
     VG_LITE_YV16,
 };
-void cleanup(void)
+static void cleanup(void)
 {
     int i;
     for (i = 0; i < sizeof(srcbuffer)/sizeof(srcbuffer[0]); i++) {
@@ -69,7 +87,11 @@ void cleanup(void)
     vg_lite_close();
 }
 
-int main(int argc, const char * argv[])
+extern uint32_t __start_flash_nv12_raw[];
+extern uint32_t __start_flash_nv16_raw[];
+extern uint32_t __start_flash_yv12_raw[];
+
+int yuv_input_test_main(int argc, const char * argv[])
 {
     int i = 0;
     uint32_t feature_check = 0;
@@ -97,6 +119,9 @@ int main(int argc, const char * argv[])
     dstbuffer.format = VG_LITE_BGRA8888;
 
     CHECK_ERROR(vg_lite_allocate(&dstbuffer));
+
+#ifdef __TESTWITH_LOCALFS__
+
     if (0 != vg_lite_load_raw_yuv(&srcbuffer[0], "nv12.raw")) {
         printf("load raw file error\n");
         cleanup();
@@ -112,7 +137,25 @@ int main(int argc, const char * argv[])
         cleanup();
         return -1;
     }
+#else
+    int vg_lite_load_raw_yuv_buffer(vg_lite_buffer_t * buffer, const char * raw);
 
+    if (0 != vg_lite_load_raw_yuv_buffer(&srcbuffer[0], __start_flash_nv12_raw)) {
+        printf("load raw file error\n");
+        cleanup();
+        return -1;
+    }
+    if (0 != vg_lite_load_raw_yuv_buffer(&srcbuffer[1], __start_flash_nv16_raw)) {
+        printf("load raw file error\n");
+        cleanup();
+        return -1;
+    }
+    if (0 != vg_lite_load_raw_yuv_buffer(&srcbuffer[2], __start_flash_yv12_raw)) {
+        printf("load raw file error\n");
+        cleanup();
+        return -1;
+    }
+#endif
     vg_lite_yv12toyv16(&srcbuffer[3],&srcbuffer[2]);
 
     for (i = 0; i < sizeof(srcbuffer)/sizeof(srcbuffer[0]); i++) {
@@ -120,8 +163,18 @@ int main(int argc, const char * argv[])
         vg_lite_identity(&matrix);
         CHECK_ERROR(vg_lite_blit(&dstbuffer, &srcbuffer[i], &matrix, VG_LITE_BLEND_NONE, 0, filter));
         CHECK_ERROR(vg_lite_finish());
-        sprintf(fname, "yuv_input_%d.png", i);
-        vg_lite_save_png(fname, &dstbuffer);
+        sprintf(fname, "yuv_input_%d.raw", i);
+        gpu_save_raw(fname, &dstbuffer);
+
+#ifdef PLD_PSRAMDUMP
+        set_pld_dump_mem_description(dstbuffer.memory, dstbuffer.height * dstbuffer.stride, i, 1);
+        trigger_pld_dump_mem();
+#else
+        sprintf(fname, "yuv_input_%d.raw", i);
+        gpu_save_raw(fname, &dstbuffer);
+#endif
+
+
     }
 
 ErrorHandler:

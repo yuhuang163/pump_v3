@@ -125,19 +125,19 @@ void osif_lock_stack(void)
     t = TICKS_TO_MS(hal_sys_timer_get()-t);
 
     if ((t > 10) || (status != osOK)) {
-        OSIF_TRACE(2,"stack lock wait %d ms, status=0x%x", t, status);
-        POSSIBLY_UNUSED const char *name = osThreadGetName(request);
-        OSIF_TRACE(1, "request_thread:%s", name ? name: "null");
+        TRACE(2,"stack lock wait %d ms, status=0x%x", t, status);
+        const char *name = osThreadGetName(request);
+        TRACE(1, "request_thread:%s", name ? name: "null");
         name = osThreadGetName(hold);
-        OSIF_TRACE(1, "hold_thread:%s", name ? name: "null");
+        TRACE(1, "hold_thread:%s", name ? name: "null");
     }
 
     success = (status == osOK);
     if (!success) {
-        POSSIBLY_UNUSED const char *name = osThreadGetName(request);
-        OSIF_TRACE(1,"request thread=%s", name ? name: "null");
+        const char *name = osThreadGetName(request);
+        TRACE(1,"request thread=%s", name ? name: "null");
         name = osThreadGetName(hold);
-        OSIF_TRACE(1,"hold thread=%s", name ? name: "null");
+        TRACE(1,"hold thread=%s", name ? name: "null");
         OS_LockStack_Info_Print();
         ASSERT(0,"cannot lock stack %d\n", status);
         return;

@@ -1,4 +1,4 @@
-  
+
 cur_dir := $(dir $(lastword $(MAKEFILE_LIST)))
 
 obj_s := $(patsubst $(cur_dir)%,%,$(wildcard $(cur_dir)src/*.S))
@@ -23,6 +23,22 @@ ifeq ($(PSAP_APP),1)
 CFLAGS_app_anc.o += -DPSAP_APP
 endif
 
+ifeq ($(PSAP_SW_APP),1)
+subdir-ccflags-y += -Iapps/psap_sw
+endif
+
+ifeq ($(PROMPT_CTRL_ANC),1)
+CFLAGS_app_prompt_ctrl_anc.o += -DPROMPT_CTRL_ANC
+subdir-ccflags-y += -Iapps/psap_sw
+else
+obj_c := $(filter-out app_prompt_ctrl_anc.c,$(obj_c))
+endif
+
+ifeq ($(ANC_PROMPT_CTRL_MUSIC),1)
+CFLAGS_app_prompt_ctrl_anc.o += -DANC_PROMPT_CTRL_MUSIC
+subdir-ccflags-y += -Iservices/audio_process
+endif
+
 ifeq ($(AUDIO_RESAMPLE),1)
 CFLAGS_app_anc.o += -D__AUDIO_RESAMPLE__
 endif
@@ -40,7 +56,11 @@ ifeq ($(ANC_CALIB_WITH_GAIN),1)
 CFLAGS_app_anc.o += -DANC_CALIB_WITH_GAIN
 endif
 
-ifneq ($(filter 1, $(PC_CMD_UART) $(TOTA_EQ_TUNING) $(USB_EQ_TUNING)),)
+ifeq ($(AUDIO_EQ_MC),1)
+CFLAGS_app_anc.o += -DAUDIO_EQ_MC
+endif
+
+ifneq ($(PC_CMD_UART_ID)$(filter 1,$(TOTA_EQ_TUNING) $(USB_EQ_TUNING)),)
 CFLAGS_app_anc.o += -DAUDIO_EQ_TUNING
 endif
 
@@ -49,13 +69,12 @@ obj-y := $(obj_c:.c=.o) $(obj_s:.S=.o) $(obj_cpp:.cpp=.o)
 
 subdir-ccflags-y += \
 	-Iservices/overlay \
-	-Iservices/nvrecord \
 	-Iservices/resources \
+	-Iservices/ux/common/ibrt/ibrt_middleware/inc \
 	-Imultimedia/inc/audio/process/resample/include \
 	-Imultimedia/inc/audio/process/integer_resampling/include \
     -Imultimedia/inc/audio/process/anc/include \
 	-Imultimedia/inc/audio/process/psap/include \
-	-Imultimedia/inc \
     -Imultimedia/inc/speech/inc \
 	-Iplatform/drivers/uarthci \
 	-Iplatform/drivers/ana \
@@ -66,23 +85,31 @@ subdir-ccflags-y += \
 	-Iutils/lockcqueue \
 	-Iutils/intersyshci \
 	-Iapps/anc/inc \
+	-Iapps/anc_assist/inc \
 	-Iapps/key \
 	-Iapps/main \
 	-Iapps/common \
 	-Iapps/audioplayers \
 	-Iapps/factory \
 	-Iapps/voice_detector \
-	-Iapps/anc/src/assist \
 	-Iservices/anc/inc \
+	-Imultimedia/audio/codec/sbc/src/inc \
+	-Imultimedia/inc/audio/codec/sbc/inc \
     -Iservices/nv_section/aud_section \
     -Iservices/nv_section/include   \
     -Iutils/hwtimer_list \
 	-Iservices/tota \
 	$(BLUETOOTH_ADAPTER_INCLUDES) \
-	$(BLE_STACK_INCLUDES) \
-	$(BT_SERVICE_UX_INCLUDES) \
 	-Iinclude/cmsis_dsp \
 	-Iservices/audio_dump/include/ \
-	-Iservices/audio_manager \
-	-Iservices/audio_manager/audio_policy/bredr_policy/inc \
-	-Iapps/earbuds/conn
+	-Iservices/audio_manager
+
+ifeq ($(IBRT),1)
+ifeq ($(IBRT_UI),1)
+subdir-ccflags-y += \
+    -Iservices/ux/common/ibrt/app_ibrt/inc \
+    -Iservices/ux/common/ibrt/ibrt_core/inc \
+    -Iservices/ux/common/ibrt/ibrt_ui/inc
+endif
+endif
+

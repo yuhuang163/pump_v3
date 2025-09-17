@@ -54,7 +54,7 @@ extern "C" {
 #define NORFLASHIP_HAS_REMAP
 #define NORFLASHIP_REMAP_NUM                    4
 #endif
-#endif
+#endif // CHIP_FLASH_CTRL_VER >= 2
 
 uint8_t norflaship_continuous_read_mode_bit(enum HAL_FLASH_ID_T id, uint8_t mode_bit);
 
@@ -65,9 +65,9 @@ uint8_t norflaship_continuous_read_on(enum HAL_FLASH_ID_T id);
 void norflaship_write_txfifo(enum HAL_FLASH_ID_T id, const uint8_t *val, uint32_t len);
 
 #if (CHIP_FLASH_CTRL_VER <= 1)
-uint32_t norflaship_v1_write_txfifo_safe(const uint8_t *val, uint32_t len);
+uint32_t norflaship_v1_write_txfifo_safe(enum HAL_FLASH_ID_T id, const uint8_t *val, uint32_t len);
 
-uint32_t norflaship_v1_write_txfifo_all(const uint8_t *val, uint32_t len);
+void norflaship_v1_write_txfifo_all(enum HAL_FLASH_ID_T id, const uint8_t *val, uint32_t len);
 #else
 uint32_t norflaship_write_txfifo_start(enum HAL_FLASH_ID_T id, const uint8_t *val, uint32_t len);
 
@@ -75,14 +75,14 @@ uint32_t norflaship_write_txfifo_cont(enum HAL_FLASH_ID_T id, const uint8_t *val
 #endif
 
 #if (CHIP_FLASH_CTRL_VER >= 3) && defined(UNALIGNED_ACCESS)
-uint32_t norflaship_write4_txfifo(enum HAL_FLASH_ID_T id, const uint8_t *val, uint32_t len);
+uint32_t norflaship_write4_txfifo_start(enum HAL_FLASH_ID_T id, const uint8_t *val, uint32_t len);
 
 uint32_t norflaship_write4_txfifo_cont(enum HAL_FLASH_ID_T id, const uint8_t *val, uint32_t len);
 #endif
 
-uint8_t norflaship_read_rxfifo_count(enum HAL_FLASH_ID_T id);
+uint32_t norflaship_read_rxfifo_count(enum HAL_FLASH_ID_T id);
 
-uint8_t norflaship_read_rxfifo(enum HAL_FLASH_ID_T id);
+uint32_t norflaship_read_rxfifo(enum HAL_FLASH_ID_T id);
 
 void norflaship_blksize(enum HAL_FLASH_ID_T id, uint32_t blksize);
 
@@ -103,6 +103,10 @@ void norflaship_cmd_done(enum HAL_FLASH_ID_T id);
 void norflaship_rxfifo_count_wait(enum HAL_FLASH_ID_T id, uint8_t cnt);
 
 void norflaship_rxfifo_empty_wait(enum HAL_FLASH_ID_T id);
+
+int norflaship_rxfifo_is_empty(enum HAL_FLASH_ID_T id);
+
+int norflaship_txfifo_is_full(enum HAL_FLASH_ID_T id);
 
 void norflaship_busy_wait(enum HAL_FLASH_ID_T id);
 
@@ -132,11 +136,11 @@ void norflaship_samdly(enum HAL_FLASH_ID_T id, uint32_t v);
 
 void norflaship_dual_mode(enum HAL_FLASH_ID_T id, uint32_t v);
 
-void norflaship_hold_pin(enum HAL_FLASH_ID_T id, uint32_t v);
+void norflaship_hold_pin(enum HAL_FLASH_ID_T id, uint32_t active_low);
 
-void norflaship_wpr_pin(enum HAL_FLASH_ID_T id, uint32_t v);
+void norflaship_wpr_pin(enum HAL_FLASH_ID_T id, uint32_t active_low);
 
-void norflaship_reset_pin(enum HAL_FLASH_ID_T id, uint32_t v);
+void norflaship_reset_pin(enum HAL_FLASH_ID_T id, uint32_t active_low);
 
 void norflaship_quad_mode(enum HAL_FLASH_ID_T id, uint32_t v);
 
@@ -158,7 +162,7 @@ void norflaship_dma_rx_threshold(enum HAL_FLASH_ID_T id, uint32_t v);
 
 void norflaship_dma_tx_threshold(enum HAL_FLASH_ID_T id, uint32_t v);
 
-void norflaship_dma_rx_size(enum HAL_FLASH_ID_T id, uint32_t v);
+void norflaship_dma_rx_size(enum HAL_FLASH_ID_T id, uint32_t size);
 
 void norflaship_ruen(enum HAL_FLASH_ID_T id, uint32_t v);
 
@@ -176,9 +180,9 @@ uint32_t norflaship_get_rdcmd(enum HAL_FLASH_ID_T id);
 
 void norflaship_set_idle_io_dir(enum HAL_FLASH_ID_T id, uint32_t v);
 
-void norflaship_sleep(enum HAL_FLASH_ID_T id);
+void norflaship_sleep(enum HAL_FLASH_ID_T id, enum HAL_CMU_LPU_SLEEP_MODE_T mode);
 
-void norflaship_wakeup(enum HAL_FLASH_ID_T id);
+void norflaship_wakeup(enum HAL_FLASH_ID_T id, enum HAL_CMU_LPU_SLEEP_MODE_T mode);
 
 void norflaship_dec_index(enum HAL_FLASH_ID_T id, uint32_t idx);
 
@@ -189,6 +193,8 @@ void norflaship_dec_eaddr(enum HAL_FLASH_ID_T id, uint32_t addr);
 void norflaship_dec_enable(enum HAL_FLASH_ID_T id);
 
 void norflaship_dec_disable(enum HAL_FLASH_ID_T id);
+
+int norflaship_get_dec_status(enum HAL_FLASH_ID_T id);
 
 void norflaship_man_wrap_width(enum HAL_FLASH_ID_T id, uint32_t width);
 
@@ -221,6 +227,8 @@ void norflaship_boot_enable_remap(enum HAL_FLASH_ID_T id, uint32_t index);
 void norflaship_boot_disable_remap(enum HAL_FLASH_ID_T id, uint32_t index);
 
 int norflaship_boot_get_remap_status(enum HAL_FLASH_ID_T id, uint32_t index);
+
+int norflaship_select_spi_mode(enum HAL_FLASH_ID_T id, uint32_t mode);
 
 void norflaship_qpi_mode(enum HAL_FLASH_ID_T id, uint32_t v);
 
@@ -307,8 +315,6 @@ void norflaship_rclk_dly_enable(enum HAL_FLASH_ID_T id, uint32_t map);
 void norflaship_rclk_dly_disable(enum HAL_FLASH_ID_T id, uint32_t map);
 
 uint32_t norflaship_get_rclk_dly_status(enum HAL_FLASH_ID_T id);
-
-void norflaship_set_rxfifo_ctrl(enum HAL_FLASH_ID_T id, uint32_t val);
 
 #ifdef __cplusplus
 }

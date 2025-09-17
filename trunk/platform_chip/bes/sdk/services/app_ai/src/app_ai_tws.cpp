@@ -1,6 +1,5 @@
 #include "cmsis_os.h"
 #include "bluetooth_bt_api.h"
-#include "spp_api.h"
 #include "hal_trace.h"
 #include "app_ai_if.h"
 #include "app_ai_tws.h"
@@ -22,11 +21,16 @@
 
 #if defined(IBRT)
 #include "app_tws_ibrt.h"
+#include "app_tws_ctrl_thread.h"
 #include "app_tws_ibrt_cmd_handler.h"
+#include "app_tws_ctrl_thread.h"
 #include "app_ibrt_internal.h"
 #include "app_ibrt_customif_cmd.h"
 #include "earbud_ux_api.h"
-#include "bts_module_if.h"
+
+#if defined(IBRT_UI)
+#include "app_tws_ibrt_conn_api.h"
+#endif
 #endif
 
 #ifdef BISTO_ENABLED
@@ -37,10 +41,6 @@
 
 #ifdef __BIXBY_VOICE__
 #include "app_bixby_thirdparty_if.h"
-#endif
-
-#ifdef DUAL_MIC_RECORDING
-#include "app_recording_handle.h"
 #endif
 
 #define CASE_S(s) \
@@ -75,7 +75,7 @@ extern "C" uint16_t app_ai_ble_get_conhdl(uint8_t connect_index);
 
 static void app_ai_ble_disc_timeout_cb(void const *n)
 {
-    APP_AI_TRACE(1, "%s", __func__);
+    TRACE(1, "%s", __func__);
 
     app_ai_tws_role_switch_direct();
 }
@@ -100,14 +100,14 @@ bool app_ai_tws_role_switch_direct(void)
 
         if (!app_ai_is_role_switching(ai_index))
         {
-            APP_AI_TRACE(1,"%s isn't switching now", __func__);
+            TRACE(1,"%s isn't switching now", __func__);
             return ret;
         }
 
-        APP_AI_TRACE(2,"%s initiative %d", __func__, app_ai_is_initiative_switch(ai_index));
+        TRACE(2,"%s initiative %d", __func__, app_ai_is_initiative_switch(ai_index));
         if (app_ai_is_role_switch_direct(ai_index))
         {
-            APP_AI_TRACE(1,"%s has done", __func__);
+            TRACE(1,"%s has done", __func__);
             return ret;
         }
     }
@@ -119,8 +119,7 @@ bool app_ai_tws_role_switch_direct(void)
 
     if (app_ai_is_initiative_switch(ai_index))
     {
-        bts_tws_if_switch_prepare_done(IBRT_ROLE_SWITCH_USER_AI, app_ai_get_ai_spec(ai_index));
-        //BES intentional code. ai_index will not be 10.
+        app_ibrt_if_tws_switch_prepare_done_in_bt_thread(IBRT_ROLE_SWITCH_USER_AI, app_ai_get_ai_spec(ai_index));
         return ret;
     }
     else
@@ -169,7 +168,7 @@ bool app_ai_tws_role_switch_dis_ble(void)
 #if defined(IBRT) && defined(__AI_VOICE__)
 static void app_ai_tws_slave_request_master_role_switch(void)
 {
-    //APP_AI_TRACE(3,"%s complete %d switching %d", __func__,
+    //TRACE(3,"%s complete %d switching %d", __func__,
     //        app_ai_is_setup_complete(),
     //        app_ai_is_role_switching());
     AI_connect_info *ai_info =  app_ai_get_connect_info(ai_manager_get_foreground_ai_conidx());
@@ -187,7 +186,7 @@ bool app_ai_tws_master_role_switch(void)
 {
     bool ret = false;
 #if defined(IBRT) && defined(__AI_VOICE__)
-    //APP_AI_TRACE(3,"%s complete %d switching %d", __func__,
+    //TRACE(3,"%s complete %d switching %d", __func__,
     //        app_ai_is_setup_complete(),
     //        app_ai_is_role_switching());
     AI_connect_info *ai_info =  app_ai_get_connect_info(ai_manager_get_foreground_ai_conidx());
@@ -201,17 +200,15 @@ bool app_ai_tws_master_role_switch(void)
 
     if (app_ai_is_use_thirdparty(ai_index))
     {
-        APP_AI_TRACE(0, "do role switch.");
-        #ifdef __THIRDPARTY
+        TRACE(0, "do role switch.");
         app_ai_if_thirdparty_event_handle(THIRDPARTY_FUNC_KWS, THIRDPARTY_AI_DISCONNECT, ai_index);
-        #endif
     }
 
     app_ai_set_role_switching(true, ai_index);
     osTimerStart(app_ai_role_switch_timer_id, APP_AI_ROLE_SWITCH_TIME_IN_MS);
     if (app_ai_is_stream_running(ai_index) || (app_ai_get_speech_state(ai_index) != AI_SPEECH_STATE__IDLE))
     {
-        APP_AI_TRACE(2,"%s stream runing %d", __func__, app_ai_is_stream_running(ai_index));
+        TRACE(2,"%s stream runing %d", __func__, app_ai_is_stream_running(ai_index));
 
         ai_function_handle(CALLBACK_STOP_SPEECH, NULL, 0, ai_index, dest_id);
     }
@@ -240,13 +237,13 @@ bool app_ai_role_switch(void)
     {
         ai_index = app_ai_get_ai_index_from_connect_index(ai_connect_index);
 
-        APP_AI_TRACE(3,"%s complete %d switching %d", __func__, \
+        TRACE(3,"%s complete %d switching %d", __func__, \
                 app_ai_is_setup_complete(ai_index), \
                 app_ai_is_role_switching(ai_index));
 
         if (app_ai_is_role_switching(ai_index))
         {
-            APP_AI_TRACE(1,"%s is switching now", __func__);
+            TRACE(1,"%s is switching now", __func__);
             app_ai_set_role_switching(false, ai_index_tmep);
             app_ai_set_initiative_switch(false, ai_index_tmep);
             return ret;
@@ -257,9 +254,8 @@ bool app_ai_role_switch(void)
         ai_index_tmep = ai_index;
 
         if(!app_ai_is_setup_complete(ai_index) && !app_ai_is_peer_setup_complete(ai_index))
-            //BES intentional code. ai_index will not be 10
         {
-            APP_AI_TRACE(1,"%s ai not setup complete", __func__);
+            TRACE(1,"%s ai not setup complete", __func__);
             return ret;
         }
     }
@@ -305,7 +301,7 @@ uint32_t app_ai_tws_role_switch_prepare(uint32_t *wait_ms)
 #endif
 #endif
 
-    APP_AI_TRACE(3, "[%s] ret=%d, wait_ms=%d", __func__, ret, *wait_ms);
+    TRACE(3, "[%s] ret=%d, wait_ms=%d", __func__, ret, *wait_ms);
     return ret;
 }
 
@@ -319,12 +315,7 @@ void app_ai_tws_master_role_switch_prepare(void)
 void app_ai_tws_role_switch_prepare_done(void)
 {
 #if defined(IBRT) && defined(__AI_VOICE__)
-    APP_AI_TRACE(1, "%s", __func__);
-    if (APP_AI_TWS_MASTER == app_ai_tws_get_local_role())
-    {
-        bts_tws_if_user_sync_tws_info(TWS_SYNC_USER_AI_INFO);
-        bts_tws_if_user_sync_tws_info(TWS_SYNC_USER_AI_MANAGER);
-    }
+    TRACE(1, "%s", __func__);
 
     app_ai_tws_role_switch_direct();
 #endif
@@ -332,7 +323,7 @@ void app_ai_tws_role_switch_prepare_done(void)
 
 void app_ai_tws_role_switch(void)
 {
-    APP_AI_TRACE(1, "[%s]", __func__);
+    TRACE(1, "[%s]", __func__);
 
 #ifdef BISTO_ENABLED
     gsound_tws_request_roleswitch();
@@ -342,7 +333,7 @@ void app_ai_tws_role_switch(void)
 void app_ai_tws_role_switch_complete(void)
 {
 #ifdef __AI_VOICE__
-    APP_AI_TRACE(1, "%s", __func__);
+    TRACE(1, "%s", __func__);
 
 #ifdef __IAG_BLE_INCLUDE__
     app_ai_if_ble_set_adv(AI_BLE_ADVERTISING_INTERVAL);
@@ -362,7 +353,7 @@ void app_ai_tws_role_switch_complete(void)
             app_ai_set_speech_state(AI_SPEECH_STATE__IDLE, ai_index);
             app_ai_voice_deinit(ai_index, ai_connect_index);
 #if defined(IBRT) && defined(__AI_VOICE__)
-            if (bts_tws_if_is_tws_link_connected() && (app_ai_tws_get_local_role() == APP_AI_TWS_MASTER))
+            if (app_tws_ibrt_tws_link_connected() && (app_ai_tws_get_local_role() == APP_AI_TWS_MASTER))
 #endif
             {
                 if (app_ai_is_in_multi_ai_mode())
@@ -376,14 +367,12 @@ void app_ai_tws_role_switch_complete(void)
 
                 if (app_ai_is_use_thirdparty(ai_index))
                 {
-                    #ifdef __THIRDPARTY
                     app_ai_if_thirdparty_event_handle(THIRDPARTY_FUNC_KWS, THIRDPARTY_AI_CONNECT, ai_index);
-                    #endif
                 }
                 app_ai_voice_stream_control(true, app_ai_voice_get_user_from_spec(ai_index));
             }
 #if defined(IBRT) && defined(__AI_VOICE__)
-            else if (bts_tws_if_is_tws_link_connected() && (APP_AI_TWS_SLAVE == app_ai_tws_get_local_role()))
+            else if (app_tws_ibrt_tws_link_connected() && (APP_AI_TWS_SLAVE == app_ai_tws_get_local_role()))
             {
                 /// close mic if slave is not allowed to open mic
                 if (!app_ai_voice_get_slave_open_mic_flag(app_ai_voice_get_user_from_spec(ai_index)))
@@ -394,10 +383,6 @@ void app_ai_tws_role_switch_complete(void)
 #endif
         }
     }
-#ifdef DUAL_MIC_RECORDING
-    app_recording_role_switch_done_handle();
-#endif
-
 #else
     app_bixby_role_switch_done_handle();
 #endif
@@ -434,7 +419,7 @@ void app_ai_tws_sync_init(void)
         NULL,
     };
 
-    bts_tws_if_register_tws_sync_user(TWS_SYNC_USER_AI_INFO, &user_app_ai_t);
+    app_ibrt_if_register_sync_user(TWS_SYNC_USER_AI_INFO, &user_app_ai_t);
 
     if (NULL == app_ai_role_switch_timer_id)
     {
@@ -452,9 +437,9 @@ void app_ai_tws_sync_init(void)
 void app_ai_tws_sync_ai_info(void)
 {
 #if defined(IBRT) && defined(__AI_VOICE__)
-    bts_tws_if_prepare_user_sync_tws_info();
-    bts_tws_if_user_sync_tws_info(TWS_SYNC_USER_AI_INFO);
-    bts_tws_if_flush_user_sync_tws_info();
+    app_ibrt_if_prepare_sync_info();
+    app_ibrt_if_sync_info(TWS_SYNC_USER_AI_INFO);
+    app_ibrt_if_flush_sync_info();
 #endif
 }
 
@@ -488,35 +473,86 @@ void ai_manager_sync_init(void)
     TWS_SYNC_USER_T user_ai_manager_t = {
         ai_manager_sync_info_prepare_handler,
         ai_manager_sync_info_received_handler,
-        ai_manager_sync_info_prepare_handler,
+        NULL,
         ai_manager_sync_info_received_rsp_handler,
         ai_manager_sync_info_received_rsp_handler,
     };
 
-    bts_tws_if_register_tws_sync_user(TWS_SYNC_USER_AI_MANAGER, &user_ai_manager_t);
+    app_ibrt_if_register_sync_user(TWS_SYNC_USER_AI_MANAGER, &user_ai_manager_t);
 #endif
 }
 
 void app_ai_tws_sync_ai_manager_info(void)
 {
-#if defined(IBRT) && defined(IS_MULTI_AI_ENABLED) && !defined(FREEMAN_ENABLED_STERO)
-    bts_tws_if_prepare_user_sync_tws_info();
-    bts_tws_if_user_sync_tws_info(TWS_SYNC_USER_AI_MANAGER);
-    bts_tws_if_flush_user_sync_tws_info();
+#if defined(IBRT) && defined(IS_MULTI_AI_ENABLED)
+    app_ibrt_if_prepare_sync_info();
+    app_ibrt_if_sync_info(TWS_SYNC_USER_AI_MANAGER);
+    app_ibrt_if_flush_sync_info();
+#endif
+}
+
+#ifdef IBRT
+static void gsound_connect_sync_info_prepare_handler(uint8_t *buf,
+    uint16_t *totalLen, uint16_t *len, uint16_t expectLen)
+{
+#ifdef BISTO_ENABLED
+    AI_CONNECTION_STATE_T *pAiInfo = (AI_CONNECTION_STATE_T *)buf;
+
+    pAiInfo->connBtState = gsound_is_bt_connected();
+    pAiInfo->connPathType = gsound_custom_get_connection_path();
+    memcpy(pAiInfo->connBdAddr, gsound_get_connected_bd_addr(), 6);
+
+    if (CONNECTION_BLE == pAiInfo->connPathType)
+    {
+        pAiInfo->connPathState = gsound_get_ble_connect_state();
+    }
+    else if (CONNECTION_BT == pAiInfo->connPathType)
+    {
+        pAiInfo->connPathState = gsound_get_bt_connect_state();
+    }
+    else
+    {
+        pAiInfo->connPathState = 0;
+    }
+
+    *totalLen = *len = sizeof(AI_CONNECTION_STATE_T);
+#endif
+}
+
+static void gsound_connect_sync_info_received_handler(uint8_t *buf, uint16_t length, bool isContinueInfo)
+{
+#ifdef BISTO_ENABLED
+    gsound_custom_connection_state_received_handler(buf);
+#endif
+}
+#endif
+
+void app_ai_tws_gsound_sync_init(void)
+{
+#ifdef IBRT
+    TWS_SYNC_USER_T userAiConnect = {
+        gsound_connect_sync_info_prepare_handler,
+        gsound_connect_sync_info_received_handler,
+        NULL,
+        NULL,
+        NULL,
+    };
+
+    app_ibrt_if_register_sync_user(TWS_SYNC_USER_AI_CONNECTION, &userAiConnect);
 #endif
 }
 
 #if defined(IBRT)
 void app_tws_ai_send_cmd_to_peer(uint8_t *p_buff, uint16_t length)
 {
-    APP_AI_TRACE(1,"[%s]", __func__);
+    TRACE(1,"[%s]", __func__);
 
     tws_ctrl_send_cmd(APP_TWS_CMD_AI_SEND_CMD_TO_PEER, p_buff, length);
 }
 
 void app_tws_ai_rev_peer_cmd_hanlder(uint16_t rsp_seq, uint8_t *p_buff, uint16_t length)
 {
-    APP_AI_TRACE(1,"[%s]", __func__);
+    TRACE(1,"[%s]", __func__);
 
 #ifdef __AI_VOICE__
     app_ai_tws_rev_peer_cmd_hanlder(rsp_seq, p_buff, length);
@@ -525,19 +561,19 @@ void app_tws_ai_rev_peer_cmd_hanlder(uint16_t rsp_seq, uint8_t *p_buff, uint16_t
 
 void app_tws_ai_send_cmd_with_rsp_to_peer(uint8_t *p_buff, uint16_t length)
 {
-    APP_AI_TRACE(1,"[%s]", __func__);
+    TRACE(1,"[%s]", __func__);
     tws_ctrl_send_cmd(APP_TWS_CMD_AI_SEND_CMD_TO_PEER_WITH_RSP, p_buff, length);
 }
 
 void app_tws_ai_send_cmd_rsp_to_peer(uint8_t *p_buff, uint16_t rsp_seq, uint16_t length)
 {
-    APP_AI_TRACE(1,"[%s]", __func__);
+    TRACE(1,"[%s]", __func__);
     tws_ctrl_send_rsp(APP_TWS_CMD_AI_SEND_CMD_TO_PEER_WITH_RSP, rsp_seq, p_buff, length);
 }
 
 void app_tws_ai_rev_peer_cmd_with_rsp_hanlder(uint16_t rsp_seq, uint8_t *p_buff, uint16_t length)
 {
-    APP_AI_TRACE(1,"[%s]", __func__);
+    TRACE(1,"[%s]", __func__);
 
 #ifdef __AI_VOICE__
     app_ai_tws_rev_peer_cmd_with_rsp_hanlder(rsp_seq, p_buff, length);
@@ -546,7 +582,7 @@ void app_tws_ai_rev_peer_cmd_with_rsp_hanlder(uint16_t rsp_seq, uint8_t *p_buff,
 
 void app_tws_ai_rev_cmd_rsp_from_peer_hanlder(uint16_t rsp_seq, uint8_t *p_buff, uint16_t length)
 {
-    APP_AI_TRACE(1,"[%s]", __func__);
+    TRACE(1,"[%s]", __func__);
 
 #ifdef __AI_VOICE__
     app_ai_tws_rev_cmd_rsp_from_peer_hanlder(rsp_seq, p_buff, length);
@@ -555,7 +591,7 @@ void app_tws_ai_rev_cmd_rsp_from_peer_hanlder(uint16_t rsp_seq, uint8_t *p_buff,
 
 void app_tws_ai_rev_cmd_rsp_timeout_hanlder(uint16_t rsp_seq, uint8_t *p_buff, uint16_t length)
 {
-    APP_AI_TRACE(1,"[%s]", __func__);
+    TRACE(1,"[%s]", __func__);
 
 #ifdef __AI_VOICE__
     app_ai_tws_rev_cmd_rsp_timeout_hanlder(rsp_seq, p_buff, length);
@@ -565,7 +601,7 @@ void app_tws_ai_rev_cmd_rsp_timeout_hanlder(uint16_t rsp_seq, uint8_t *p_buff, u
 void app_ai_tws_send_cmd_to_peer(uint8_t *p_buff, uint16_t length)
 {
 #ifdef IBRT
-    if (bts_tws_if_is_tws_link_connected())
+    if (app_tws_ibrt_tws_link_connected())
     {
         app_tws_ai_send_cmd_to_peer(p_buff, length);
     }
@@ -582,7 +618,7 @@ void app_ai_tws_rev_peer_cmd_hanlder(uint16_t rsp_seq, uint8_t *p_buff, uint16_t
 void app_ai_tws_send_cmd_with_rsp_to_peer(uint8_t *p_buff, uint16_t length)
 {
 #ifdef IBRT
-    if (bts_tws_if_is_tws_link_connected())
+    if (app_tws_ibrt_tws_link_connected())
     {
         app_tws_ai_send_cmd_with_rsp_to_peer(p_buff, length);
     }
@@ -592,7 +628,7 @@ void app_ai_tws_send_cmd_with_rsp_to_peer(uint8_t *p_buff, uint16_t length)
 void app_ai_tws_send_cmd_rsp_to_peer(uint8_t *p_buff, uint16_t rsp_seq, uint16_t length)
 {
 #ifdef IBRT
-    if (bts_tws_if_is_tws_link_connected())
+    if (app_tws_ibrt_tws_link_connected())
     {
         app_tws_ai_send_cmd_rsp_to_peer(p_buff, rsp_seq, length);
     }
@@ -634,7 +670,7 @@ bool app_ai_tws_init_done(void)
 bool app_ai_tws_link_connected(void)
 {
 #if defined(IBRT)
-    return bts_tws_if_is_tws_link_connected();
+    return app_tws_ibrt_tws_link_connected();
 #endif
     return false;
 }
@@ -651,18 +687,45 @@ uint8_t *app_ai_tws_local_address(void)
 
 void app_ai_tws_reboot_record_box_state(void)
 {
-
+#if defined(IBRT) && defined(IBRT_UI)
+    app_ai_tws_reboot.is_ai_reboot = true;
+    app_ai_tws_reboot.box_state = app_ui_get_local_box_state();
+    TRACE(2, "%s box state %d", __func__, app_ui_get_local_box_state());
+#endif
 }
 
-uint8_t app_ai_tws_reboot_get_box_action(void)
+uint16_t app_ai_tws_reboot_get_box_action(void)
 {
+#if defined(IBRT) && defined(IBRT_UI)
+    uint8_t box_state = 0xFF;
+
+    if (app_ai_tws_reboot.is_ai_reboot)
+    {
+        box_state = app_ai_tws_reboot.box_state;
+    }
+
+    TRACE(2, "%s box state %d", __func__, box_state);
+    if (box_state == IBRT_IN_BOX_OPEN)
+    {
+        return APP_UI_EV_CASE_OPEN;
+    }
+    else if (box_state == IBRT_OUT_BOX)
+    {
+        return APP_UI_EV_UNDOCK;
+    }
+    else if (box_state == IBRT_OUT_BOX_WEARED)
+    {
+        return APP_UI_EV_WEAR_UP;
+    }
+#endif
+
     return 0xFF;
 }
 
 void app_ai_tws_clear_reboot_box_state(void)
 {
 #if defined(IBRT)
-    APP_AI_TRACE(2, "%s box state %d", __func__, app_ai_tws_reboot.box_state);
+    TRACE(2, "%s box state %d", __func__, app_ai_tws_reboot.box_state);
     app_ai_tws_reboot.is_ai_reboot = false;
     app_ai_tws_reboot.box_state = 0xFF;
 #endif
@@ -670,19 +733,20 @@ void app_ai_tws_clear_reboot_box_state(void)
 
 void app_ai_tws_disconnect_all_bt_connection(void)
 {
-
+#if defined(IBRT)
+    app_tws_ibrt_disconnect_all_connection();
+#endif
 }
 
 bool app_ai_tws_is_mobile_link_connected(void)
 {
 #ifdef IBRT
-    static bt_bdaddr_t device_addr[BT_DEVICE_NUM];
-    uint8_t count = bts_bt_if_get_dev_connected_list(&device_addr[0]);
-    if (count)
-    {
-        return bts_bt_if_is_dev_link_connected(&device_addr[0]);
-    }
-    return false;
+
+#ifdef IBRT_UI
+    ibrt_mobile_info_t *p_mobile_info = app_ibrt_conn_get_mobile_info_ext();
+    return app_tws_ibrt_mobile_link_connected(&p_mobile_info->mobile_addr);
+#endif
+
 #else   //IBRT
     return false;
 #endif
@@ -691,13 +755,12 @@ bool app_ai_tws_is_mobile_link_connected(void)
 bool app_ai_tws_is_profile_exchanged(void)
 {
 #ifdef IBRT
-    static bt_bdaddr_t device_addr[BT_DEVICE_NUM];
-    uint8_t count = bts_bt_if_get_dev_connected_list(&device_addr[0]);
-    if (count)
-    {
-        return bts_ibrt_if_is_profile_exchanged(&device_addr[0]);
-    }
-    return false;
+
+#ifdef IBRT_UI
+    ibrt_mobile_info_t *p_mobile_info = app_ibrt_conn_get_mobile_info_ext();
+    return app_ibrt_conn_is_profile_exchanged(&p_mobile_info->mobile_addr);
+#endif
+
 #else   //IBRT
     return false;
 #endif
@@ -706,13 +769,12 @@ bool app_ai_tws_is_profile_exchanged(void)
 bool app_ai_tws_is_slave_ibrt_link_connected(void)
 {
 #ifdef IBRT
-    static bt_bdaddr_t device_addr[BT_DEVICE_NUM];
-    uint8_t count = bts_bt_if_get_dev_connected_list(&device_addr[0]);
-    if (count)
-    {
-        return bts_ibrt_if_is_ibrt_link_connected(&device_addr[0]);
-    }
-    return false;
+
+#ifdef IBRT_UI
+    ibrt_mobile_info_t *p_mobile_info = app_ibrt_conn_get_mobile_info_ext();
+    return app_tws_ibrt_slave_ibrt_link_connected(&p_mobile_info->mobile_addr);
+#endif
+
 #else   //IBRT
     return false;
 #endif
@@ -722,11 +784,11 @@ uint8_t app_ai_tws_get_local_role(void)
 {
     uint8_t local_role = APP_AI_TWS_UNKNOW;
 #if defined(IBRT)
-    bool tws_link_connected = bts_tws_if_is_tws_link_connected();
+    bool tws_link_connected = app_tws_ibrt_tws_link_connected();
     bool tws_profile_exchanged = app_ai_tws_is_profile_exchanged();
     bool mobile_link_connected = app_ai_tws_is_mobile_link_connected();
     bool slave_ibrt_link_connected = app_ai_tws_is_slave_ibrt_link_connected();
-    TWS_UI_ROLE_E current_role = bts_core_get_ui_role();
+    TWS_UI_ROLE_E current_role = app_ibrt_if_get_ui_role();
 
     if (tws_profile_exchanged)
     {
@@ -771,8 +833,7 @@ uint8_t app_ai_tws_get_local_role(void)
         }
     }
 
-#if 0
-    APP_AI_TRACE(5, "[%s] %d ex %d tws %d mob %d ibrt %d cur %d",
+    TRACE(5, "[%s] %d ex %d tws %d mob %d ibrt %d cur %d",
                             __func__, local_role,
                             tws_profile_exchanged,
                             tws_link_connected,
@@ -780,17 +841,12 @@ uint8_t app_ai_tws_get_local_role(void)
                             slave_ibrt_link_connected,
                             current_role);
 #endif
-#endif
     return local_role;
 }
 
 void app_ai_tws_init(void)
 {
 #if defined(IBRT) && defined(__AI_VOICE__)
-#ifdef FREEMAN_ENABLED_STERO
-    app_ai_set_in_tws_mode(false, 0);
-#else
     app_ai_set_in_tws_mode(true, 0);
-#endif
 #endif
 }

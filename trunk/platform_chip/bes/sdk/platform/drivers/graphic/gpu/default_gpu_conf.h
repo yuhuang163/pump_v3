@@ -22,11 +22,20 @@
 extern "C" {
 #endif
 
-#define    GPU_FB_WIDTH    454
-#define    GPU_FB_HEIGHT   454
-#define    GPU_FB_FORMAT   VG_LITE_RGBA8888
-#define    GPU_USE_PSRAM
+#include "default_graphic_conf.h"
 
+#define    GPU_FB_WIDTH    BOARD_LCDC_WIDTH
+#define    GPU_FB_HEIGHT   BOARD_LCDC_HEIGHT
+#if (CONFIG_LCDC_FB_BPP == 16)
+    #define    GPU_FB_FORMAT   VG_LITE_RGB565
+    #define    GPU_FB_BPP      16
+#elif (CONFIG_LCDC_FB_BPP == 24)
+    #define    GPU_FB_FORMAT   VG_LITE_RGB888
+    #define    GPU_FB_BPP      24
+#else
+    #define    GPU_FB_FORMAT   VG_LITE_RGBA8888
+    #define    GPU_FB_BPP      32
+#endif
 
 #ifdef __cplusplus
 }

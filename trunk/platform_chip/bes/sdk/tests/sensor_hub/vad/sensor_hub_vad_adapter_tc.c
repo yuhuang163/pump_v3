@@ -34,6 +34,12 @@
 
 #define ADPT_TC_VERBOSE 1
 
+#if (ADPT_TC_VERBOSE > 0)
+#define ADPT_TC_LOG TRACE
+#else
+#define ADPT_TC_LOG(...) do{}while(0)
+#endif
+
 #ifndef VAD_ADPT_TEST_ID
 #define VAD_ADPT_TEST_ID APP_VAD_ADPT_ID_DEMO
 #endif
@@ -79,7 +85,7 @@ POSSIBLY_UNUSED static void do_mem_test(void *param)
             sum += pd[i+7];
         }
 #if (ADPT_TC_VERBOSE > 1)
-        SENSOR_HUB_TRACE(0, "MEM_SCAN:addr=%x, size=%d, sum=%x, cnt=%d", (uint32_t)pd, MBUF_SIZE, sum, ++mem_test_cnt);
+        ADPT_TC_LOG(0, "MEM_SCAN:addr=%x, size=%d, sum=%x, cnt=%d", (uint32_t)pd, MBUF_SIZE, sum, ++mem_test_cnt);
 #endif
     }
     /*The threads maybe switched when call osDelay() */
@@ -92,7 +98,7 @@ POSSIBLY_UNUSED static void do_mem_test(void *param)
 
 static int app_vad_adapter_tc_mem_test(bool on)
 {
-    SENSOR_HUB_TRACE(0, "%s: on=%d", __func__, on);
+    ADPT_TC_LOG(0, "%s: on=%d", __func__, on);
 
     if (on) {
         mem_test_cnt = 0;
@@ -158,13 +164,13 @@ POSSIBLY_UNUSED static void test_smmul_1(void *param)
     uint32_t i, j;
     uint32_t x,y;
 
-//    SENSOR_HUB_TRACE(1,"%s", __func__);
+//    ADPT_TC_LOG(1,"%s", __func__);
     for(i=0; i<32; i++) {
         for(j=0; j<32; j++) {
             int a = 1<<i;
             int b = 1<<j;
             if ((x = smmulx(a,b)) != (y = smmul(a, b))) {
-                SENSOR_HUB_TRACE(4,"1<<%d (*>>32) 1<<%d = 0x%08x/0x%08x\n", i,j, y, x);
+                ADPT_TC_LOG(4,"1<<%d (*>>32) 1<<%d = 0x%08x/0x%08x\n", i,j, y, x);
                 error = 1;
             }
         }
@@ -176,7 +182,7 @@ POSSIBLY_UNUSED static void test_smmul_1(void *param)
 
 static int app_vad_adapter_tc_cpu_test(bool on)
 {
-    SENSOR_HUB_TRACE(0, "%s: on=%d", __func__, on);
+    ADPT_TC_LOG(0, "%s: on=%d", __func__, on);
 
     if (on) {
 #ifdef FULL_WORKLOAD_MODE_ENABLED
@@ -205,14 +211,14 @@ static POSSIBLY_UNUSED bool cpu_low_sys_clk = false;
 #ifdef THIRDPARTY_LIB_GG
 static void vad_adpt_gs_kws_handler(void *param, uint16_t len)
 {
-    SENSOR_HUB_TRACE(0, "%s============> OK GOOGLE", __func__);
+    TRACE(0, "%s============> OK GOOGLE", __func__);
     app_sensor_hub_core_vad_send_evt_msg(SENS_EVT_ID_VAD_VOICE_CMD, 0, 0, 0);
 }
 #endif
 
 static int app_vad_adapter_tc_kws_test(bool on)
 {
-    SENSOR_HUB_TRACE(0, "%s: on=%d", __func__, on);
+    ADPT_TC_LOG(0, "%s: on=%d", __func__, on);
 #ifdef THIRDPARTY_LIB_GG
     gsound_lib_init(on, vad_adpt_gs_kws_handler);
     vad_adpt_kws_test = on;
@@ -223,10 +229,10 @@ static int app_vad_adapter_tc_kws_test(bool on)
 
 int app_vad_adapter_test_handler(enum APP_VAD_ADPT_ID_T id, uint32_t scmd, uint32_t arg1, uint32_t arg2)
 {
-    SENSOR_HUB_TRACE(0, "%s:id=%d,%d/%d/%d", __func__, id, scmd, arg1, arg2);
+    ADPT_TC_LOG(0, "%s:id=%d,%d/%d/%d", __func__, id, scmd, arg1, arg2);
 
     if (id != VAD_ADPT_TEST_ID) {
-        SENSOR_HUB_TRACE(0, "%s: WARNING: bad adpt id %d", __func__, id);
+        TRACE(0, "%s: WARNING: bad adpt id %d", __func__, id);
         return -1;
     }
     switch (scmd) {
@@ -251,7 +257,7 @@ int app_vad_adapter_test_handler(enum APP_VAD_ADPT_ID_T id, uint32_t scmd, uint3
         break;
 #endif
     default:
-        SENSOR_HUB_TRACE(0, "%s: WARNING: unknown test cmd %d", __func__, scmd);
+        TRACE(0, "%s: WARNING: unknown test cmd %d", __func__, scmd);
         break;
     }
     return 0;

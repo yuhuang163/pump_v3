@@ -86,13 +86,13 @@ uint32_t sensor_hub_vad_adpt_demo_capture_stream(uint8_t *buf, uint32_t len)
 {
 #if 0
     int16_t *pd = (int16_t *)buf;
-    SENSOR_HUB_TRACE(4,"buf=%x, len=%d, mic data=[%d %d %d %d]", (int)pd,len,pd[0],pd[1],pd[2],pd[3]);
+    TRACE(4,"buf=%x, len=%d, mic data=[%d %d %d %d]", (int)pd,len,pd[0],pd[1],pd[2],pd[3]);
 #endif
     demo_cap_cnt++;
     if (demo_cap_cnt >= (len/32*10)) {
         enum HAL_CMU_FREQ_T idx = hal_sysfreq_get();
         uint32_t freq[] = {0,6,13,24,48,72,96,192};
-        SENSOR_HUB_TRACE(4, "demo_cap: idx=%d, CPU freq=%d MHz", idx, freq[idx]);
+        TRACE(4, "demo_cap: idx=%d, CPU freq=%d MHz", idx, freq[idx]);
         demo_cap_cnt = 0;
     }
 #ifdef VAD_ADPT_TEST_ENABLE
@@ -109,7 +109,7 @@ uint32_t sensor_hub_vad_adpt_demo_stream_prepare_start(uint8_t *buf, uint32_t le
 
 void sensor_hub_vad_adpt_demo_init_capture_stream(struct AF_STREAM_CONFIG_T *cfg)
 {
-    SENSOR_HUB_TRACE(0, "%s:", __func__);
+    TRACE(0, "%s:", __func__);
 
     memset(cfg, 0, sizeof(struct AF_STREAM_CONFIG_T));
 
@@ -156,7 +156,7 @@ static app_vad_adpt_if_t app_vad_adpt_ifs[] =
 #ifdef AI_VOICE
     {
         .id = APP_VAD_ADPT_ID_AI_KWS,
-        .cap_freq = HAL_CMU_FREQ_52M,
+        .cap_freq = HAL_CMU_FREQ_78M,
         .stream_prepare_start_handler = sensor_hub_voice_kws_stream_prepare_start,
         .stream_prepare_stop_handler = sensor_hub_voice_kws_stream_prepare_stop,
         .stream_handler = sensor_hub_voice_kws_raw_pcm_data_input_signal,

@@ -89,11 +89,11 @@ typedef struct {
     hal_cmd_rx_status_t rx_status;
     uint8_t     cur_seq;
 
-#ifdef __PC_CMD_UART__
+#ifdef PC_CMD_UART_ID
     uint8_t     rx_len;
 #endif
     uint8_t     tx_len;
-#ifdef __PC_CMD_UART__
+#ifdef PC_CMD_UART_ID
     uint8_t     rx_buf[HAL_CMD_RX_BUF_SIZE];
 #endif
     uint8_t     tx_buf[HAL_CMD_TX_BUF_SIZE];
@@ -108,9 +108,9 @@ typedef struct {
 hal_cmd_t hal_cmd;
 CMD_CALLBACK_HANDLER_T hal_cmd_callback = NULL;
 
-#ifdef __PC_CMD_UART__
+#ifdef PC_CMD_UART_ID
 
-#define HAL_CMD_ID              HAL_UART_ID_0
+static enum HAL_UART_ID_T pc_cmd_uart = HAL_UART_ID_0 + PC_CMD_UART_ID;
 
 static const struct HAL_UART_CFG_T hal_cmd_cfg = {
     .parity = HAL_UART_PARITY_NONE,
@@ -126,13 +126,14 @@ static const struct HAL_UART_CFG_T hal_cmd_cfg = {
 };
 #endif
 
+#define HAL_CMD_TRACE   TRACE
 
 static int hal_cmd_list_register(const char *name, hal_cmd_callback_t callback);
 
-#ifdef __PC_CMD_UART__
+#ifdef PC_CMD_UART_ID
 void hal_cmd_break_irq_handler (void)
 {
-    HAL_TRACE(1,"%s", __func__);
+    HAL_CMD_TRACE(1,"%s", __func__);
 
     // gElCtx.sync_step = EL_SYNC_ERROR;
 
@@ -144,7 +145,7 @@ void hal_cmd_dma_rx_irq_handler(uint32_t xfer_size, int dma_error, union HAL_UAR
     //	uint8_t type	= gpElUartCtx->rx_buf[EL_TYPE_OFFSET];
     //	uint8_t len		= gpElUartCtx->rx_buf[EL_LEN_OFFSET];
     //	uint8_t cmd	= gpElUartCtx->rx_buf[EL_CMD_OFFSET];
-    HAL_TRACE(5,"%s: xfer_size[%d], dma_error[%x], status[%x], rx_status[%d]",
+    HAL_CMD_TRACE(5,"%s: xfer_size[%d], dma_error[%x], status[%x], rx_status[%d]",
             __func__, xfer_size, dma_error, status.reg, hal_cmd.rx_status);
 
     if (status.BE) {
@@ -174,8 +175,8 @@ void hal_cmd_dma_rx_irq_handler(uint32_t xfer_size, int dma_error, union HAL_UAR
 
 int hal_cmd_init(void)
 {
-#ifdef __PC_CMD_UART__
-    HAL_TRACE(1,"[%s]", __func__);
+#ifdef PC_CMD_UART_ID
+    HAL_CMD_TRACE(1,"[%s]", __func__);
     hal_iomux_set_uart0();
 #endif
 
@@ -191,19 +192,37 @@ void hal_cmd_set_callback(CMD_CALLBACK_HANDLER_T handler)
     hal_cmd_callback = handler;
 }
 
-#ifdef __PC_CMD_UART__
+#ifdef PC_CMD_UART_ID
 static union HAL_UART_IRQ_T mask;
 #endif
 
 int hal_cmd_open(void)
 {
-#ifdef __PC_CMD_UART__
+#ifdef PC_CMD_UART_ID
     int ret = -1;
+#ifdef UART0_BASE
+    if (HAL_UART_ID_0 == pc_cmd_uart) {
+        hal_iomux_set_uart0();
+    } else
+#endif
+#ifdef UART1_BASE
+    if (HAL_UART_ID_1 == pc_cmd_uart) {
+        hal_iomux_set_uart1();
+    }else
+#endif
+#ifdef UART2_BASE
+    if (HAL_UART_ID_2 == pc_cmd_uart) {
+        hal_iomux_set_uart2();
+    } else
+#endif
+    {
+        ASSERT(1, "pc_cmd_uart is error");
+    }
 
-    ret = hal_uart_open(HAL_CMD_ID, &hal_cmd_cfg);
+    ret = hal_uart_open(pc_cmd_uart, &hal_cmd_cfg);
     ASSERT(!ret, "!!%s: UART open failed (%d)!!", __func__, ret);
 
-    hal_uart_irq_set_dma_handler(HAL_CMD_ID, hal_cmd_dma_rx_irq_handler, NULL);
+    hal_uart_irq_set_dma_handler(pc_cmd_uart, hal_cmd_dma_rx_irq_handler, NULL);
 
     // Do not enable tx and rx interrupt, use dma
     mask.reg = 0;
@@ -212,7 +231,7 @@ int hal_cmd_open(void)
     mask.OE = 1;
     mask.PE = 1;
     mask.RT = 1;
-    hal_uart_irq_set_mask(HAL_CMD_ID, mask);
+    hal_uart_irq_set_mask(pc_cmd_uart, mask);
 
     hal_cmd.uart_work = 1;
     hal_cmd.rx_status = HAL_CMD_RX_STOP;
@@ -224,11 +243,11 @@ int hal_cmd_open(void)
 
 int hal_cmd_close(void)
 {
-#ifdef __PC_CMD_UART__
+#ifdef PC_CMD_UART_ID
     mask.reg = 0;
-    hal_uart_irq_set_mask(HAL_CMD_ID, mask);
-    hal_uart_irq_set_dma_handler(HAL_CMD_ID, NULL, NULL);
-    hal_uart_close(HAL_CMD_ID);
+    hal_uart_irq_set_mask(pc_cmd_uart, mask);
+    hal_uart_irq_set_dma_handler(pc_cmd_uart, NULL, NULL);
+    hal_uart_close(pc_cmd_uart);
 
     hal_cmd.uart_work = 0;
 #endif
@@ -249,7 +268,7 @@ int hal_cmd_register(const char *name, hal_cmd_callback_t callback)
     return ret;
 }
 
-#ifdef __PC_CMD_UART__
+#ifdef PC_CMD_UART_ID
 static int hal_cmd_send(void)
 {
     int ret = -1;
@@ -259,9 +278,9 @@ static int hal_cmd_send(void)
         hal_cmd_open();
     }
 
-    ret = hal_uart_dma_send(HAL_CMD_ID, hal_cmd.tx_buf, hal_cmd.tx_len, NULL, NULL);
+    ret = hal_uart_dma_send(pc_cmd_uart, hal_cmd.tx_buf, hal_cmd.tx_len, NULL, NULL);
 
-    HAL_TRACE(4,"%s: %d - %d - %d", __func__, hal_cmd.tx_len, hal_cmd.uart_work, ret);
+    HAL_CMD_TRACE(4,"%s: %d - %d - %d", __func__, hal_cmd.tx_len, hal_cmd.uart_work, ret);
 
     return ret;
 }
@@ -275,7 +294,7 @@ static int hal_cmd_rx_start(void)
         hal_cmd_open();
     }
 
-    ret = hal_uart_dma_recv_mask(HAL_CMD_ID, hal_cmd.rx_buf, HAL_CMD_RX_BUF_SIZE, NULL, NULL, &mask);   //HAL_CMD_RX_BUF_SIZE
+    ret = hal_uart_dma_recv_mask(pc_cmd_uart, hal_cmd.rx_buf, HAL_CMD_RX_BUF_SIZE, NULL, NULL, &mask);   //HAL_CMD_RX_BUF_SIZE
 
     ASSERT(!ret, "!!%s: UART recv failed (%d)!!", __func__, ret);
 
@@ -288,7 +307,7 @@ static int hal_cmd_rx_process(void)
 {
     int ret = -1;
 
-    HAL_TRACE(1,"[%s] start...", __func__);
+    HAL_CMD_TRACE(1,"[%s] start...", __func__);
 
     ret = hal_cmd_list_process(hal_cmd.rx_buf);
 
@@ -308,7 +327,7 @@ static int hal_cmd_tx_process_impl(void)
 {
     int ret = -1;
 
-    HAL_TRACE(1,"[%s] start...", __func__);
+    HAL_CMD_TRACE(1,"[%s] start...", __func__);
 
 #if 0
     // Test loop
@@ -318,7 +337,7 @@ static int hal_cmd_tx_process_impl(void)
 
 #if 1
     hal_cmd.tx_len = sizeof(hal_cmd.res);
-    HAL_TRACE(5,"[%s] len : %d, %c, %d, %s", __func__, hal_cmd.tx_len, hal_cmd.res.prefix, hal_cmd.res.crc, hal_cmd.res.name);
+    TRACE(5,"[%s] len : %d, %c, %d, %s", __func__, hal_cmd.tx_len, hal_cmd.res.prefix, hal_cmd.res.crc, hal_cmd.res.name);
     memcpy(hal_cmd.tx_buf, &hal_cmd.res, hal_cmd.tx_len);
 
     if (hal_cmd.res_payload.len) {
@@ -351,7 +370,7 @@ void hal_cmd_tx_process(uint8_t **ppbuf, uint16_t *plen)
         *plen = hal_cmd.tx_len;
 }
 
-#ifdef __PC_CMD_UART__
+#ifdef PC_CMD_UART_ID
 int hal_cmd_run (hal_cmd_rx_status_t status)
 {
     int ret = -1;
@@ -364,7 +383,7 @@ int hal_cmd_run (hal_cmd_rx_status_t status)
 
     // if(curr_time_ms - pre_time_ms > 1000)
     // {
-    //     HAL_TRACE(1,"[%s] start...", __func__);
+    //     HAL_CMD_TRACE(1,"[%s] start...", __func__);
     //     pre_time_ms = curr_time_ms;
     // }
 
@@ -395,10 +414,10 @@ static int hal_cmd_list_get_id(const char *name)
         }
     }
 
-    HAL_TRACE(2,"[%s] rx = %s", __func__, name);
+    TRACE(2,"[%s] rx = %s", __func__, name);
     for(int i=0;i<hal_cmd.list_num;i++)
     {
-        HAL_TRACE(3,"[%s] list[%d] = %s", __func__, i, hal_cmd.list[i].name);
+        TRACE(3,"[%s] list[%d] = %s", __func__, i, hal_cmd.list[i].name);
     }
     return -1;
 }
@@ -407,11 +426,6 @@ static int hal_cmd_list_add(const char *name, hal_cmd_callback_t callback)
 {
     if(hal_cmd.list_num < HAL_CMD_LIST_NUM)
     {
-        if(strlen(name) > HAL_CMD_NAME_SIZE)
-        {
-            HAL_TRACE(1,"[%s] cmd name is too long", __func__);
-            return -1;
-        }
         strcpy(hal_cmd.list[hal_cmd.list_num].name, name);
         hal_cmd.list[hal_cmd.list_num].callback = callback;
         hal_cmd.list_num++;
@@ -444,22 +458,22 @@ static int hal_cmd_list_register(const char *name, hal_cmd_callback_t callback)
 static int hal_cmd_list_parse(const uint8_t *buf, hal_cmd_cfg_t *cfg)
 {
     cfg->prefix = *((uint32_t *)buf);
-    HAL_TRACE(2,"[%s] PREFIX = %c", __func__, cfg->prefix);
+    HAL_CMD_TRACE(2,"[%s] PREFIX = %c", __func__, cfg->prefix);
     buf += HAL_CMD_PREFIX_SIZE;
     hal_cmd.res.prefix = cfg->prefix;
 
     cfg->crc = *((uint32_t *)buf);
-    HAL_TRACE(2,"[%s] crc = %d", __func__, cfg->crc);
+    HAL_CMD_TRACE(2,"[%s] crc = %d", __func__, cfg->crc);
     buf += HAL_CMD_CRC_SIZE;
     hal_cmd.res.crc = cfg->crc;
 
     cfg->name = (char *)buf;
-    HAL_TRACE(2,"[%s] NAME = %s", __func__, cfg->name);
+    HAL_CMD_TRACE(2,"[%s] NAME = %s", __func__, cfg->name);
     buf += HAL_CMD_NAME_SIZE;
     memcpy(hal_cmd.res.name, cfg->name, HAL_CMD_NAME_SIZE);
 
     cfg->len = *((uint32_t *)buf);
-    HAL_TRACE(2,"[%s] LEN = %d", __func__, cfg->len);
+    HAL_CMD_TRACE(2,"[%s] LEN = %d", __func__, cfg->len);
     buf += HAL_CMD_LEN_SIZE;
 
     cfg->data = (uint8_t *)buf;
@@ -478,13 +492,13 @@ int hal_cmd_list_process(const uint8_t *buf)
     id = hal_cmd_list_get_id(cfg.name);
 
     if(id == -1) {
-        HAL_TRACE(2,"[%s] %s is invalid", __func__, cfg.name);
+        TRACE(2,"[%s] %s is invalid", __func__, cfg.name);
         ret = -2;
     } else {
         if(hal_cmd.list[id].callback) {
             ret = hal_cmd.list[id].callback(cfg.data, cfg.len);
         } else {
-            HAL_TRACE(2,"[%s] %s has not callback", __func__, hal_cmd.list[id].name);
+            TRACE(2,"[%s] %s has not callback", __func__, hal_cmd.list[id].name);
             ret = -3;
         }
     }
@@ -508,15 +522,8 @@ uint8_t *hal_cmd_debug_process(uint8_t *cmd, uint16_t len, uint16_t *out_len)
 {
     hal_cmd_list_process(cmd);
     hal_cmd_tx_process(&cmd, out_len);
-    HAL_TRACE(0, "[%s] ret_len: %d", __func__, *out_len);
-    HAL_DUMP8("%02x ", cmd, *out_len);
+    TRACE(0, "[%s] ret_len: %d", __func__, *out_len);
+    DUMP8("%02x ", cmd, *out_len);
 
     return cmd;
 }
-
-#if defined(TOTA_EQ_TUNING)
-int app_tota_audio_EQ(uint8_t *buf, uint16_t len)
-{
-    return hal_cmd_list_process(buf);
-}
-#endif

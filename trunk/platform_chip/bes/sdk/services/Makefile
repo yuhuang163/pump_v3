@@ -1,33 +1,41 @@
 obj-y := \
-    audio_bt/ \
-    audio_dump/ \
-    audioflinger/ \
-    audio_process/ \
-    hw_dsp/ \
-    voice_dev/ \
-    overlay/ \
-    ../utils/crc/ \
-    ../utils/heap/ \
-    ../utils/hsm/ \
-    osif/ \
-    norflash_api/ \
-    audio_manager/
+    ../utils/crc32/     \
+    ../utils/crc16/     \
+    ../utils/heap/      \
+    osif/               \
+    overlay/            \
+    nv_section/         \
+    norflash_api/
 
-ifneq ($(filter 1, $(GATT_RATE_TESTC) $(GATT_RATE_TESTS)),)
-obj-y += rate_test_demo/
+ifneq ($(BTH_SUBSYS_ONLY),1)
+obj-y +=            \
+    audio_bt/       \
+    audio_dump/     \
+    audioflinger/   \
+    audio_process/  \
+    hw_dsp/         \
+    bt_sync/        \
+    communication/  \
+    audio_manager/
 endif
 
 ifeq ($(SPEECH_BONE_SENSOR),1)
 obj-y += bone_sensor/
 endif
 
-ifneq ($(BT_BUILD_WITH_CUSTOMER_HOST),1)
+ifeq ($(BINAURAL_RECORD_PROCESS),1)
+obj-y += binaural_record_process/
+endif
+
 ifneq ($(filter 1,$(INTERCONNECTION) $(INTERACTION) $(AI_VOICE)),)
 obj-y += interconnection/
 endif
-endif
 
 obj-y += ../bthost/
+
+ifeq ($(BTHCI_ENABLE),1)
+obj-y += bthci/
+endif
 
 ifeq ($(MBED),1)
 obj-y += fs/
@@ -37,29 +45,21 @@ ifneq ($(filter 1, $(MBED) $(AI_VOICE) $(IBRT) $(TOTA_v2)),)
 obj-y += ../utils/kfifo/
 endif
 
+ifeq ($(VOICE_DATAPATH_ENABLED),1)
+obj-y += voicepath/
+obj-y += voicepath/$(VOICE_DATAPATH_TYPE)
+endif
+
+ifneq ($(filter 1, $(VOICE_DATAPATH_ENABLED) $(AI_VOICE)),)
+obj-y += app_ai/
+endif
+
+ifneq ($(IBRT_UI),1)
+obj-y += ../utils/hsm/
+endif
+
 ifeq ($(AUTO_TEST),1)
 obj-y += auto_test/
-endif
-
-obj-y += nv_section/
-
-obj-y += communication/
-
-ifeq ($(RSA_SHA),1)
-obj-y +=../utils/sha256/
-endif
-
-ifeq ($(AES256_FOR_BIN),1)
-obj-y +=../utils/aes256/
-endif
-
-ifeq ($(RPC_SUPPORT),1)
-obj-y += rpc/
-endif
-
-ifneq ($(BT_BUILD_WITH_CUSTOMER_HOST),1)
-ifeq ($(AI_VOICE),1)
-obj-y += app_ai/
 endif
 
 ifeq ($(VOICE_RECOGNITION),1)
@@ -78,7 +78,7 @@ ifeq ($(TEST_OVER_THE_AIR_v2),1)
 obj-y += tota_v2/
 endif
 
-ifneq ($(filter 1, $(BES_OTA) $(AI_OTA) $(GMA_VOICE)),)
+ifeq ($(OTA_ENABLE),1)
 ifeq ($(FPGA_IBRT_OTA),1)
 obj-y += fpga_ibrt_ota/
 else
@@ -94,12 +94,27 @@ ifeq ($(AI_VOICE),1)
 obj-y += ai_voice/
 endif
 
+
 ifeq ($(GFPS_ENABLE),1)
 obj-y += gfps/
 endif
 
-ifeq ($(BT_SERVICE_ENABLE),1)
-obj-y += btservice/
+ifeq ($(IBRT),1)
+obj-y += ../utils/hsm/
+obj-y += ux/common/ibrt/app_ibrt/
+obj-y += ux/common/config/
+endif
+
+ifneq ($(filter 1,$(BLE_AUDIO_ENABLED) $(IBRT)),)
+obj-y += ux/
+endif
+
+ifeq ($(RSA_SHA),1)
+obj-y +=../utils/sha256/
+endif
+
+ifeq ($(AES256_FOR_BIN),1)
+obj-y +=../utils/aes256/
 endif
 
 ifeq ($(THROUGH_PUT),1)
@@ -117,23 +132,19 @@ ifeq ($(ETRANSPORT_ON),1)
 obj-y += etransport/
 endif
 
-ifneq ($(APP_MCPP_CLI),)
-obj-y += mcpp/
-endif
-
 ifeq ($(ECOMM_ON),1)
 obj-y += ecomm/
 endif
 
-ifeq ($(BT_WATCH_SERVICE_ON),1)
-ifeq ($(BT_WATCH_SERVICE_NATIVE),1)
-obj-y += bt_watch_service/native/
+ifeq ($(BT_SERVICE_ON),1)
+ifeq ($(BT_SERVICE_NATIVE),1)
+obj-y += bt_service/native/
 endif
-ifeq ($(BT_WATCH_SERVICE_DISTRIBUTE),1)
-obj-y += bt_watch_service/distribute/
+ifeq ($(BT_SERVICE_DISTRIBUTE),1)
+obj-y += bt_service/distribute/
 endif
-ifeq ($(BT_WATCH_SERVICE_TEST),1)
-obj-y += bt_watch_service/tests/
+ifeq ($(BT_SERVICE_TEST),1)
+obj-y += bt_service/tests/
 endif
 endif
 
@@ -149,18 +160,33 @@ obj-y += eaudio/tests/
 endif
 endif
 
+ifeq ($(TDM_RELAY),1)
+obj-y += tdm_relay/
+endif
+
 ifeq ($(BLE_WALKIE_TALKIE),1)
 obj-y += walkie_talkie/
 endif
-endif # BT_BUILD_WITH_CUSTOMER_HOST
+
+ifeq ($(MTP_ENABLE),1)
+obj-y += mtp/
+endif
+
+ifeq ($(SPEECH_ALGO_DSP_TEST),1)
+obj-y += speech_algo_dsp_test/
+endif
 
 ifeq ($(ACTIVITY_MANAGER_ENABLE),1)
 obj-y += activity_manager/
 endif
 
-#ifeq ($(CAPSENSOR_ENABLE),1)
+ifneq ($(APP_MCPP_CLI),)
+obj-y += mcpp/
+endif
+
+ifeq ($(CAPSENSOR_ENABLE),1)
 obj-y += capsensor/
-#endif
+endif
 
 ifeq ($(BLE),1)
 ifeq ($(BLE_AUDIO_ENABLED),1)
@@ -168,6 +194,10 @@ obj-y += lea_player/
 endif
 endif
 
-ifeq ($(SPP_TEST_ENABLE),1)
-obj-y += spp_test/
+ifeq ($(OPENAMP_ENABLE),1)
+obj-y += openamp/
+endif
+
+ifeq ($(HEAD_TRACK_ENABLE),1)
+obj-y += head_track/
 endif

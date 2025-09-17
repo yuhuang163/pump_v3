@@ -10,18 +10,25 @@ subdir-ccflags-y += \
     -Iplatform/hal \
     -Iplatform/drivers/bt \
     -Iplatform/drivers/norflash \
-    -Iservices/audio_bt \
     -Iservices/norflash_api \
     $(BLUETOOTH_ADAPTER_INCLUDES) \
-    $(BT_SERVICE_UX_INCLUDES) \
-    $(BLE_APP_INCLUDES) \
+    -Imultimedia/inc/audio/codec/sbc/inc \
+    -Imultimedia/audio/codec/sbc/src/inc \
     -Iservices/ota \
-    -Iapps/ota \
-    -Iutils/crc \
+    -Iservices/ux/common/ibrt/ibrt_middleware/inc \
+    -Iutils/crc32 \
     -Iutils/cqueue \
     -Iapps/common \
     -Iapps/key \
     -Iapps/main \
-    -Iservices/audio_manager \
-    -Iutils/hsm
+	-Iservices/audio_manager
 
+ifeq ($(IBRT),1)
+ifeq ($(IBRT_UI),1)
+subdir-ccflags-y += \
+    -Iservices/ux/common/ibrt/app_ibrt/inc \
+    -Iservices/ux/common/ibrt/ibrt_core/inc \
+    -Iservices/ux/common/ibrt/ibrt_ui/inc \
+    -Iservices/ux/product/earbud_tws/inc
+endif
+endif

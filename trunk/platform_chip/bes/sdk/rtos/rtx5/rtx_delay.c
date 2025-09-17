@@ -24,7 +24,7 @@
  */
 
 #include "rtx_lib.h"
-
+#include "hal_trace.h"
 
 //  ==== Service Calls ====
 
@@ -79,6 +79,9 @@ osStatus_t osDelay (uint32_t ticks) {
   EvrRtxDelay(ticks);
   if (IsIrqMode() || IsIrqMasked()) {
     EvrRtxDelayError((int32_t)osErrorISR);
+#ifdef DEBUG
+    ASSERT(false, "Calling %s in ISR or IntLockedState", __func__);
+#endif
     status = osErrorISR;
   } else {
     status = __svcDelay(ticks);
@@ -93,6 +96,9 @@ osStatus_t osDelayUntil (uint32_t ticks) {
   EvrRtxDelayUntil(ticks);
   if (IsIrqMode() || IsIrqMasked()) {
     EvrRtxDelayError((int32_t)osErrorISR);
+#ifdef DEBUG
+    ASSERT(false, "Calling %s in ISR or IntLockedState", __func__);
+#endif
     status = osErrorISR;
   } else {
     status = __svcDelayUntil(ticks);

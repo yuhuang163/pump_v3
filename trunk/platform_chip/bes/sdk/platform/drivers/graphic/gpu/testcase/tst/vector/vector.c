@@ -16,11 +16,14 @@
 #include "hal_trace.h"
 #include "gpu_port.h"
 #include "gpu_common.h"
-
+#ifdef RTOS
+#include "cmsis_os.h"
+#endif
 #define GPU_REP(...)   TR_INFO( TR_MOD(TEST), "//" __VA_ARGS__)
 #define GPU_ERR(...)   TR_ERROR( TR_MOD(TEST), "//" __VA_ARGS__)
 
-#define DEFAULT_SIZE   454.0f;
+//#define DEFAULT_SIZE   454.0f;
+#define DEFAULT_SIZE   240.0f;
 #define __func__ __FUNCTION__
 static char *error_type[] =
 {
@@ -41,7 +44,8 @@ static char *error_type[] =
         printf("[%s: %d] failed.error type is %s\n", __func__, __LINE__,error_type[error]);\
         goto ErrorHandler; \
     }
-static int   fb_width = GPU_FB_WIDTH, fb_height = GPU_FB_HEIGHT;
+//static int   fb_width = GPU_FB_WIDTH, fb_height = GPU_FB_HEIGHT;
+static int   fb_width = 240, fb_height = 240;
 static float fb_scale = 1.0f;
 
 static vg_lite_buffer_t buffer;     //offscreen framebuffer object for rendering.
@@ -385,7 +389,7 @@ int vector_test_main_entry(int argc, const char * argv[])
     vg_lite_error_t error = VG_LITE_SUCCESS;
     vg_lite_matrix_t matrix;
     TC_INIT
-    DRIVERS_TRACE(0,"%s", __func__);
+    GPU_REP("%s", __func__);
 
     #ifdef strb_test
     test_strb();
@@ -433,8 +437,13 @@ __again:
     CHECK_ERROR(vg_lite_finish());
     TC_END
     TC_REP(vector_gcost);
-
-    gpu_lcdc_display(&buffer);
+    while(0)
+     {
+       gpu_lcdc_display(&buffer);
+       gpu_clks_enter_gating();
+       osDelay(1000);
+       gpu_clks_exit_gating();
+    }
 
     // Save PNG file.
     gpu_save_raw("vector.raw", &buffer);
@@ -448,6 +457,6 @@ ErrorHandler:
 #ifdef GPU_LOOP_TEST
     goto __again;
 #endif
-    DRIVERS_TRACE(0,"%s test pass", __func__);
+    GPU_REP("%s test pass", __func__);
     return 0;
 }

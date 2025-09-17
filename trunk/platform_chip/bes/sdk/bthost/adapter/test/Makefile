@@ -1,21 +1,10 @@
 cur_dir := $(dir $(lastword $(MAKEFILE_LIST)))
 
-
-ifeq ($(UTILS_ESHELL_EN),1)
-obj_cpp := $(patsubst $(cur_dir)%,%,$(wildcard $(cur_dir)bt_eshell_test.cpp))
-
-ifeq ($(BLE_HOST_SUPPORT),1)
-obj_cpp += $(patsubst $(cur_dir)%,%,$(wildcard $(cur_dir)ble_eshell_test.cpp))
-endif
-
-else
 obj_cpp := $(patsubst $(cur_dir)%,%,$(wildcard $(cur_dir)app_bt_cmd.cpp))
 
+ifeq ($(BLE_STACK_NEW_DESIGN),1)
 ifeq ($(BLE_HOST_SUPPORT),1)
 obj_cpp += $(patsubst $(cur_dir)%,%,$(wildcard $(cur_dir)app_ble_test.cpp))
-ifeq ($(BLE_ISO_ENABLED),1)
-obj_cpp += $(patsubst $(cur_dir)%,%,$(wildcard $(cur_dir)app_cis_iso_test.cpp))
-endif
 endif
 endif
 
@@ -24,25 +13,20 @@ src_obj := $(obj_c:.c=.o) $(obj_s:.S=.o) $(obj_cpp:.cpp=.o)
 obj-y := $(src_obj)
 
 ccflags-y += -DBLUETOOTH_BLE_IMPL
-subdir-ccflags-y += -UMODULE -DMODULE=TEST
 
 subdir-ccflags-y += \
     $(BLUETOOTH_ADAPTER_INCLUDES) \
     $(BLE_APP_INCLUDES) \
     $(BLE_STACK_INCLUDES) \
     $(BLE_STACK_INC_INTERNAL) \
-    $(BT_SERVICE_UX_INCLUDES) \
     -I$(BLE_AOB_APP_DIR_PATH)/inc \
-    -I./bthost/stack/ble_stack_new/inc \
-    -I./bthost/service/ble_app_new/inc \
-    -I./bthost/porting/api \
     -Iservices/bt_app \
     -Iservices/fs/fat \
     -Iservices/fs/sd \
     -Iservices/fs/fat/ChaN \
     -Iservices/overlay \
     -Iservices/resources \
-    -Iservices/bt_watch_service/inc \
+    -Iservices/bt_service/inc \
     -Iservices/lea_player/inc \
     -Imultimedia/inc/audio/process/resample/include \
     -Iservices/nv_section/factory_section \
@@ -51,14 +35,11 @@ subdir-ccflags-y += \
     -Iplatform/drivers/ana \
     -Iplatform/drivers/bt \
     -Iutils/cqueue \
-    -Iservices/app_custom \
-    -Iservices/app_custom/ble_custom \
     -Iutils/heap \
     -Iservices/audioflinger \
     -Iservices/audio_dump/include \
     -Iutils/lockcqueue \
     -Iutils/intersyshci \
-    -Iutils/cfifo \
     -Iapps/key \
     -Iapps/main \
     -Iapps/common \
@@ -73,20 +54,32 @@ subdir-ccflags-y += \
     -Iservices/ai_voice/manager \
     -Iservices/app_ai/inc \
     -Iapps/battery/ \
-    -Iutils/crc \
+    -Iutils/crc16 \
+    -Iutils/crc32 \
     -Iutils/rom_utils \
-    $(SMF_DEFINES) \
+    -Imultimedia/inc/audio/codec/lc3/inc \
     -Iservices/bt_app/a2dp_codecs/include \
     -Iservices/voicepath/gsound/gsound_target \
-    -Iservices/ai_voice/protocol/gva/gsound_target \
     -Iservices/osif \
-    $(BT_SERVICE_UX_INCLUDES) \
+    -Iservices/ux/common/ibrt/custom_api \
+    -Iservices/ux/common/ibrt/ibrt_middleware/inc \
+    -Iservices/ux/common/ble_audio_core/inc \
     -Iservices/audio_manager \
-	-Iservices/audio_manager/audio_policy/local_audio \
     -Iservices/ota \
     -Iutils/list \
-    -Iservices/aob_app/gaf_audio \
-    -Iservices/aob_app/gaf_codec_off_bth \
-    -Iservices/audio_bt \
-    -Ibthost/stack/common \
+    -Iservices/aob_app/gaf_audio\
+    -Iservices/aob_app/gaf_codec_off_bth
+
+ifeq ($(IBRT),1)
+ifeq ($(IBRT_UI),1)
+ccflags-y += \
+    -Iservices/ux/common/ibrt/app_ibrt/inc \
+    -Iservices/ux/common/ibrt/ibrt_core/inc \
+    -Iservices/ux/product/earbud_tws/inc
+endif
+ifeq ($(IBRT_UI),1)
+subdir-ccflags-y += \
+    -Iservices/ux/common/ibrt/ibrt_ui/inc \
     -Iapps/earbuds/conn
+endif
+endif

@@ -11,7 +11,6 @@ subdir-ccflags-y += \
     -Iservices/audio_bt \
     -Iservices/audioflinger \
     -Iservices/audio_process \
-    -Iservices/audio_manager \
     -Iapps/audioplayers \
     $(BLUETOOTH_ADAPTER_INCLUDES) \
     -Iplatform/drivers/bt \
@@ -20,25 +19,30 @@ subdir-ccflags-y += \
     -Iapps/main \
     -Iapps/key \
     -Iapps/common \
-    -Iapps/earbuds/conn \
     -Iservices/bt_app/ \
     -Iservices/osif/ \
     -Iservices/ota/ \
-    -Iservices/norflash_api \
     -Iplatform/drivers/cp_accel \
     $(BLE_APP_INCLUDES) \
     $(BLE_STACK_INCLUDES) \
-    $(BT_SERVICE_UX_INCLUDES) \
-    $(BES_MULTIMEDIA_INCLUDES) \
     -Iutils/list \
+    -Imultimedia/inc/audio/codec/lc3/inc \
+    -Imultimedia/inc/audio/codec/sbc/inc \
+    -Imultimedia/audio/codec/sbc/src/inc \
     -Iservices/ble_audio/ble_audio_core/inc
+
+ifeq ($(IBRT),1)
+ifeq ($(IBRT_UI),1)
+ccflags-y += \
+    -Iservices/ux/common/ibrt/app_ibrt/inc \
+    -Iservices/ux/common/ibrt/ibrt_core/inc \
+    -Iservices/ux/common/ibrt/custom_api \
+    -Iservices/ux/common/ibrt/ibrt_ui/inc
+endif
+endif
 
 ifeq ($(BES_OTA),1)
 subdir-ccflags-y += \
     -Iservices/ota/bes_ota/inc
 endif
 
-ifeq ($(AI_OTA),1)
-subdir-ccflags-y += \
-    -Iservices/ota/ai_ota
-endif

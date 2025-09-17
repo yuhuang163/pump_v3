@@ -80,8 +80,8 @@ typedef enum IRQn
     MCU_IRQn                    =  16,      /*!< MCU to SENSOR CPU Interrupt        */
     BT_IRQn                     =  17,      /*!< BT to SENSOR CPU Interrupt         */
     CODEC_TX_PEAK_IRQn          =  18,      /*!< CODEC TX PEAK Interrupt            */
-    MCU_TIMER1_IRQn             =  19,      /*!< Timer10 Interrupt                  */
-    MCU_TIMER2_IRQn             =  20,      /*!< Timer11 Interrupt                  */
+    MCU_TIMER10_IRQn            =  19,      /*!< Timer10 Interrupt                  */
+    MCU_TIMER11_IRQn            =  20,      /*!< Timer11 Interrupt                  */
     I2C1_IRQn                   =  21,      /*!< I2C1 Interrupt                     */
     ISDONE_IRQn                 =  22,      /*!< Intersys MCU2BT Data Done Interrupt */
     ISDONE1_IRQn                =  23,      /*!< Intersys MCU2BT Data1 Done Interrupt */
@@ -126,12 +126,15 @@ typedef enum IRQn
 #define GPIO_IRQn               AON_IRQn
 #define GPADC_IRQn              INVALID_IRQn
 #define PWRKEY_IRQn             INVALID_IRQn
-
+#ifdef CORE_SLEEP_POWER_DOWN
 #define TIMER00_IRQn            AON_TIMER10_IRQn
 #define TIMER01_IRQn            AON_TIMER11_IRQn
-
-#define TIMER10_IRQn            MCU_TIMER1_IRQn
-#define TIMER11_IRQn            MCU_TIMER1_IRQn
+#else
+#define TIMER00_IRQn            MCU_TIMER00_IRQn
+#define TIMER01_IRQn            MCU_TIMER01_IRQn
+#endif
+#define TIMER10_IRQn            MCU_TIMER10_IRQn
+#define TIMER11_IRQn            MCU_TIMER11_IRQn
 #define WDT_IRQn                AON_WDT_IRQn
 
 #endif

@@ -58,18 +58,22 @@ extern "C" {
     _TR_MODULE_DEF(AI_BIXBY),               \
     _TR_MODULE_DEF(AOB_SM),                 \
     _TR_MODULE_DEF(SPEECH),                 \
-    _TR_MODULE_DEF(WALKIE_TALKIE),          \
     _TR_MODULE_DEF(VOICE_COMPRESS),         \
     _TR_MODULE_DEF(BT_GATT),                \
     _TR_MODULE_DEF(APP_UX),                 \
     _TR_MODULE_DEF(IBRT_CORE),              \
     _TR_MODULE_DEF(APP_IBRT),               \
     _TR_MODULE_DEF(CC_DECODE),              \
+    _TR_MODULE_DEF(CC_ENCODE),              \
     _TR_MODULE_DEF(ESHELL),                 \
+    _TR_MODULE_DEF(WALKIE_TALKIE),          \
+    _TR_MODULE_DEF(RPC_SENSOR),             \
+    _TR_MODULE_DEF(WIFI),                   \
+    _TR_MODULE_DEF(NET),                    \
     _TR_MODULE_DEF(SPA),                    \
-    _TR_MODULE_DEF(BTSPK),                  \
     _TR_MODULE_DEF(BIS_T),                  \
-    _TR_MODULE_DEF(BT_SVC),                 \
+    _TR_MODULE_DEF(BT_ADAPTOR),             \
+    _TR_MODULE_DEF(AOSFS),                  \
 
 enum TR_MODULE_T {
     _TR_MODULE_LIST

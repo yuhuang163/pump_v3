@@ -1,6 +1,6 @@
 /***************************************************************************
  *
- * Copyright 2015-2025 BES.
+ * Copyright 2015-2023 BES.
  * All rights reserved. All unpublished rights reserved.
  *
  * No part of this work may be used or reproduced in any form or by any
@@ -15,363 +15,86 @@
  ****************************************************************************/
 #ifndef __BLE_GAP_I_H__
 #define __BLE_GAP_I_H__
-
+#include "bluetooth.h"
 #include "gap_service.h"
 #include "hci_i.h"
-#include "smp_i.h"
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
-/* DEFINES */
+typedef struct {
+    bool bonding_type;
+    bool require_mitm_protection;
+    bool secure_connection_support;
+    bool keypress_notify;
+    bool ct2; // security h7 function support or not
+} smp_auth_requirements_t;
 
-/* TYPEDEFINES */
-typedef struct
-{
-    uint32_t adv_interval_min;
-    uint32_t adv_interval_max;
-    uint16_t adv_event_props;
-    uint8_t own_addr_type;
-    uint8_t peer_type;
-    uint8_t adv_channel_map;
-    uint8_t adv_filter_policy;
-    bt_bdaddr_t local_addr;
-    bt_bdaddr_t peer_addr;
-    int8_t adv_tx_power;
-    uint8_t primary_adv_phy;
-    uint8_t primary_coded_phy_prefer;
-    uint8_t secondary_adv_phy;
-    uint8_t secondary_coded_phy_prefer;
-    uint8_t secondary_adv_max_skip;
-    uint8_t scan_req_notify_enable;
-} gap_adv_set_param_t;
-
-typedef struct
-{
-    bool adv_params_set;
-    bool adv_enabled;
-    uint8_t adv_handle;
-    bool legacy_advertising;
-    int8_t selected_tx_power;
-    bool fast_advertising;
-    bool continue_advertising;
-    bool start_bg_advertising;
-    bool directed_advertising;
-    uint8_t activity_priority;
-    uint8_t adv_stop_timer;
-    bool pa_is_enabled;
-    uint32_t duration_ms;
-    gap_dt_buf_t adv_data;
-    gap_dt_buf_t scan_rsp_data;
-    // Keep it until remove adv set
-    gap_decision_t decision_data;
-    gap_adv_callback_t adv_callback;
-    gap_adv_set_param_t set_param;
-    gap_adv_timing_t timing_cfg;
-} gap_advertising_t;
-
-typedef struct
-{
-    bool scan_enabled;
-    bool legacy_scanning;
-    bool background_scan;
-    bool initiating_scan;
-    bt_addr_type_t own_addr_type;
-    uint8_t scan_handle;
-    uint8_t scan_stop_timer;
-    uint16_t period_1_28s;
-    uint32_t duration_ms;
-    uint16_t scan_interval_slots;
-    uint16_t scan_interval_coded;
-    uint16_t scan_window_slots;
-    uint16_t scan_window_coded;
-    gap_scan_param_t param;
-    gap_scan_callback_t scan_callback;
-} gap_scanning_t;
-
-typedef struct
-{
-    bool legacy_initiating;
-    bool is_conn_creating;
-    bool is_direct_initiating;
-    uint8_t peer_type;
-    bt_addr_type_t own_addr_type;
-    bt_bdaddr_t peer_addr;
-    uint32_t init_proc_timeout_ms;
-    bool timeout_and_restart_initiating;
-    bool start_bg_initiating;
-    bool peer_is_ble_audio;
-    uint8_t init_handle;
-    uint8_t init_stop_timer;
-    uint8_t pa_adv_handle;
-    uint8_t sd_subevent;
-    uint16_t scan_interval_slots;
-    uint16_t scan_interval_coded;
-    uint16_t scan_window_slots;
-    uint16_t scan_window_coded;
-    uint16_t min_conn_interval_1_25ms;  // 0x06 to 0x0C80 * 1.25ms, 7.5ms to 4s
-    uint16_t max_conn_interval_1_25ms;  // 0x06 to 0x0C80 * 1.25ms, 7.5ms to 4s
-    uint16_t min_conn_interval_coded;   // 0x06 to 0x0C80 * 1.25ms, 7.5ms to 4s
-    uint16_t max_conn_interval_coded;   // 0x06 to 0x0C80 * 1.25ms, 7.5ms to 4s
-    uint16_t superv_timeout_ms;         // 100ms to 32s
-    uint16_t min_ce_length_slots;       // min len of connection event, 0x00 to 0xFFFF * 0.625ms
-    uint16_t max_ce_length_slots;       // max len of connection event, 0x00 to 0xFFFF * 0.625ms
-    gap_init_callback_t init_callback;
-    gap_init_param_t init_param;
-} gap_initiating_t;
-
-typedef struct
-{
-    bt_bdaddr_t factory_bt_addr;
-    bt_bdaddr_t factory_le_addr;
-    bt_bdaddr_t le_static_addr;
-    const bt_bdaddr_t *hci_bt_addr;
-    const bt_bdaddr_t *hci_le_addr;
-    const bt_bdaddr_t *hci_random_addr;
-    // Used for speed up smp pairing
-    // when using DHkey generation
-    const uint8_t *secret_key_256;
-    const uint8_t *public_key_256;
-    uint32_t sign_counter;
-    uint8_t irk[16];
-    uint8_t csrk[16];
-    uint8_t local_database_hash[16];
-    uint8_t max_filter_list_size;
-    uint8_t max_resolving_list_size;
-    uint8_t max_pa_list_size;
-    uint8_t max_adv_monitored_list_size;
-    uint8_t max_num_adv_sets;
-    uint8_t max_size_att_prep_q;
-    uint16_t max_adv_data_len;
-    uint32_t le_feat_page_0[2];
-    uint32_t le_feat_page_1[1];
-    uint16_t data_sign_support: 1;
-    uint16_t use_random_identity_address: 1;
-    uint16_t reso_address_by_host: 1;
-    uint16_t address_reso_support: 1;
-    uint16_t aes_encrypt_by_host: 1;
-    uint16_t gatt_collect_cache: 1;
-} gap_local_info_t;
+typedef struct {
+    uint8_t opcode;
+    uint8_t io_cap; // RFU if SC pairing intiated over BR/EDR
+    uint8_t oob_flag; // 0x00 OOB auth data not present, 0x01 present, RFU if SC pairing intiated over BR/EDR
+    uint8_t auth_req; // RFU if SC pairing intiated over BR/EDR except the CT2 bit
+    uint8_t max_enc_key_size; // max encryption key size the device can support, 7 to 16 octets
+    uint8_t init_key_dist; // which keys the initiator is requesting to distribute / generate or use during the Transport Specific Key Distribution phase
+    uint8_t resp_key_dist; // which keys the initiator is requesting the responder to distribute / generate or use during the TSKD phase
+} __attribute__ ((packed)) smp_pairing_req_t;
 
 typedef void (*gap_user_confirm_func_t)(void *priv, bool user_confirmed);
 typedef void (*gap_data_func_t)(void *priv, const uint8_t *data);
 typedef void (*gap_passkey_func_t)(void *priv, uint32_t passkey);
 typedef void (*gap_oob_auth_data_callback_t)(void *priv, const gap_smp_oob_auth_data_t *data);
 
-typedef struct gap_enc_ase_128
-{
-    uint8_t key[GAP_KEY_LEN];
-    uint8_t data[GAP_KEY_LEN];
-    hci_cmd_evt_func_t cmd_cb;
-    void *priv;
-    void *cont;
-    void *cmpl;
-} gap_enc_aes_128_t;
-
-#if defined(__cplusplus)
-extern "C" {
-#endif
-
-/**
- * @brief Get gap connection item by connhdl
- *
- * @param[in] connhdl  Connection handle
- *
- * @return gap_conn_item_t
- *                     Gap connection stored info
- */
-gap_conn_item_t *gap_get_conn_item(uint16_t connhdl);
-
-/**
- * @brief Get gap connection item by bt address
- *
- * @param[in] remote   BDAddress
- *
- * @return gap_conn_item_t
- *                     Gap connection stored info
- */
-gap_conn_item_t *gap_get_conn_by_bt_address(const bt_bdaddr_t *remote);
-
-/**
- * @brief Get gap connection item by ble address
- *
- * @param[in] peer_type
- *                     Peer address type
- * @param[in] peer_addr
- *                     Peer BDAddress
- *
- * @return gap_conn_item_t
- *                     Gap connection stored info
- */
-gap_conn_item_t *gap_get_conn_by_le_address(bt_addr_type_t peer_type, const bt_bdaddr_t *peer_addr);
-
-/**
- * @brief Get connection used indentity address by connection item
- *
- * @param[in] conn     Connetion item
- *
- * @return ble_bdaddr_t
- *                     ble address
- */
-ble_bdaddr_t gap_conn_own_identity_address(const gap_conn_item_t *conn);
-
-/**
- * @brief Get local le indentity address that will used for CTKD (Random or public)
- *
- * @param[in] conn     Connection item run CTKD (SMP IA Exchange)
- *
- * @return ble_bdaddr_t
- *                     ble address
- */
-ble_bdaddr_t gap_ctkd_get_le_identity_address(const gap_conn_item_t *conn);
-
-/**
- * @brief Get resolving list item by index
- *
- * @param[in] index    Resolving list item index in list
- *
- * @return const gap_resolv_item_t*
- *                     Return index's resolving list item
- */
-const gap_resolv_item_t *gap_resolving_list_get_item(int index);
-
-/**
- * @brief Get items specified by index
- *
- * @param[in] index    Item index
- *
- * @return const gap_filter_item_t*
- *                     Return item in raw device structures format
- */
-const gap_filter_item_t *gap_filter_list_get_item(int index);
-
-/**
- * @brief Remove device from resolving list status by index
- *
- * @param[in] index    Device index in resolving list
- * @param[in] check_addr_reso_switch
- *                     Check address resolution state and auto disable and enable control
- *                     Now leave it as false, we can stop all related adv no matter addr reso
- *
- * @return bt_status_t Remove device from resolving list by index status
- */
-bt_status_t gap_resolving_list_remove_by_index(int index, bool check_addr_reso_switch);
-
-bt_status_t gap_start_aes_128_encrypt(const uint8_t *key, const uint8_t *data, hci_cmd_evt_func_t cmd_cb, void *priv, void *cont, void *cmpl);
-bt_status_t gap_send_hci_le_encrypt(const uint8_t *key, const uint8_t *data, hci_cmd_evt_func_t cmd_cb, void *priv, void *cont, void *cmpl);
+bt_status_t gap_send_hci_le_encrypt(const uint8_t *key, const uint8_t *data,
+        hci_cmd_evt_func_t cmd_cb, void *priv, void *cont, void *cmpl);
 bt_status_t gap_send_hci_le_rand(hci_cmd_evt_func_t cmpl_status_cb, void *priv, void *cont);
-bt_status_t gap_send_raw_hci_cmd(uint16_t cmd_opcode, uint16_t cmd_len, const uint8_t *data_little_endian, hci_cmd_evt_func_t cmd_cb, void *priv);
-bt_status_t gap_send_raw_hci_cmd_extra(uint16_t cmd_opcode, uint16_t cmd_len, const uint8_t *data_little_endian,
-                                       hci_cmd_evt_func_t cmd_cb, void *priv, void *cont, void *cmpl);
-gap_local_info_t *gap_local_info(void);
-gap_config_t gap_get_config(void);
-const uint8_t *gap_get_local_irk(void);
-void gap_set_local_irk(const uint8_t *p_irk);
-const uint8_t *gap_get_local_csrk(void);
-ble_bdaddr_t gap_local_identity_address(bt_addr_type_t own_addr_type);
-uint32_t gap_conn_bf(uint8_t conidx);
-uint8_t gap_count_ble_connections(void);
-uint32_t gap_local_le_features(void);
-uint32_t gap_local_le_high_features(void);
-bt_status_t gap_gen_local_rpa(void (*cmpl)(void *priv, const bt_bdaddr_t *local_rpa), void *priv);
-bt_status_t gap_resolve_rpa(const bt_bdaddr_t *rpa, void (*cmpl)(void *priv, const gap_bond_sec_t *out), void *priv);
-bt_status_t gap_generate_local_host_rpa(void *priv);
-bt_status_t gap_use_aes_encrypt_by_host_enable(bool enable);
-void gap_set_send_sec_error_rsp_directly(uint8_t send_sec_error_rsp);
-void gap_set_report_sec_error_directly(uint8_t report_sec_error);
-bool gap_dt_start_encrypt_data(const gap_key_material_t *key, const uint8_t *data, uint16_t len, gap_dt_encrypt_callback_t func, void *priv);
-bool gap_dt_start_decrypt_data(const gap_key_material_t *key, const gap_enc_data_t *p, gap_key_callback_t func, void *priv);
-bool gap_address_reso_is_enabled(void);
-bool gap_is_refresh_adv_after_addr_reso_enable(void);
-uint8_t gap_resolving_list_curr_size(void);
-uint8_t gap_resolving_list_max_size(void);
-bool gap_filter_list_user_item_exist(uint8_t user);
-uint8_t gap_filter_list_curr_size(void);
-uint8_t gap_filter_list_max_size(void);
-uint8_t gap_pa_list_max_size(void);
-uint8_t gap_adv_monitored_list_curr_size(void);
-uint8_t gap_adv_monitored_list_max_size(void);
-uint8_t gap_adv_get_adv_set_id(uint8_t adv_hdl);
-gap_scan_timing_t gap_default_scan_timing(void);
-gap_init_timing_t gap_default_init_timing(void);
-bt_status_t gap_register_past_received_callback(const gap_pa_sync_callback_t past_recv_cb);
-bool gap_stack_is_ready(void);
-bool gap_dt_add_data_type(gap_dt_buf_t *buf, uint8_t type, const uint8_t *data, uint16_t len);
-bool gap_dt_add_raw_data(gap_dt_buf_t *buf, const uint8_t *data, uint16_t len);
-bool gap_dt_buf_is_empty(const gap_dt_buf_t *buf);
-const uint8_t *gap_dt_buf_data(const gap_dt_buf_t *buf);
-uint16_t gap_dt_buf_len(const gap_dt_buf_t *buf);
-void gap_dt_buf_clear(gap_dt_buf_t *buf);
-bool gap_dt_add_flags(gap_dt_buf_t *buf, uint8_t discoverable, bool simu_bredr_support);
-const gap_dt_head_t *gap_dt_buf_find_type(const gap_dt_buf_t *buf, uint8_t ad_type, uint8_t ad_type_2);
-bool gap_dt_add_local_le_name(gap_dt_buf_t *buf, bool use_legacy_pdu, const char *cust_le_name);
-bool gap_set_le_service_16_uuid(gap_dt_buf_t *buf, const uint16_t *uuid, uint16_t count);
-bool gap_set_le_service_128_uuid(gap_dt_buf_t *buf, const gap_uuid_128_t *uuid_le, uint16_t count);
-bool gap_dt_add_service_data(gap_dt_buf_t *buf, uint16_t service_uuid, const uint8_t *data, uint8_t len);
-bool gap_dt_add_tx_power(gap_dt_buf_t *buf, uint8_t tx_power_level);
-bool gap_dt_add_peripheral_conn_interval(gap_dt_buf_t *buf, uint16_t min_interval_1_25ms, uint16_t max_interval_1_25ms);
-bool gap_dt_add_manufacturer_data(gap_dt_buf_t *buf, uint16_t company_id, const uint8_t *data_ptr, uint8_t data_len);
-void gap_dump_ble_status(void);
-const char *gap_local_le_name(uint8_t *len);
-const bt_bdaddr_t *gap_factory_bt_address(void);
-const bt_bdaddr_t *gap_factory_le_address(void);
-const bt_bdaddr_t *gap_le_static_address(void);
-const bt_bdaddr_t *gap_hci_bt_address(void);
-const bt_bdaddr_t *gap_hci_le_address(void);
-const bt_bdaddr_t *gap_hci_random_address(void);
-const bt_bdaddr_t *gap_public_identity_address(void);
-const bt_bdaddr_t *gap_random_identity_address(void);
-ble_bdaddr_t gap_local_identity_address(bt_addr_type_t own_addr_type);
-bt_status_t gap_get_peer_oob_auth_data(gap_conn_item_t *conn);
+bt_status_t gap_send_hci_le_read_local_p256_public_key(hci_cmd_evt_func_t cmpl_status_cb, void *priv, void *cont);
+bt_status_t gap_send_hci_le_gen_dhkey(const uint8_t *pkx, const uint8_t *pky, bool use_debug_private_key,
+        hci_cmd_evt_func_t cmpl_status_cb, void *priv, void *cont);
+bt_status_t gap_send_hci_le_enable_encryption(gap_conn_item_t *conn, const uint8_t *rand, const uint8_t *ediv, const uint8_t *ltk,
+        hci_cmd_evt_func_t cmd_cb, void *priv, void *cont);
+bt_status_t gap_send_le_ltk_request_reply(gap_conn_item_t *conn, const uint8_t *ltk, bool positive_reply);
+bt_status_t gap_ask_user_numeric_comparison(gap_conn_item_t *conn, uint32_t user_confirm_value, gap_user_confirm_func_t cb, void *priv);
+bt_status_t gap_ask_input_6_digit_passkey(gap_conn_item_t *conn, gap_passkey_func_t passkey_cb, void *priv);
+bt_status_t gap_ask_display_6_digit_passkey(gap_conn_item_t *conn, uint32_t passkey);
+bt_status_t gap_get_tk_from_oob_data(gap_conn_item_t *conn, gap_data_func_t tk_cb, void *priv);
+bt_status_t gap_get_peer_oob_auth_data(gap_conn_item_t *conn, gap_oob_auth_data_callback_t oob_cb, void *priv);
+bt_status_t gap_get_local_oob_auth_data(gap_conn_item_t *conn, gap_oob_auth_data_callback_t oob_cb, void *priv);
 bt_status_t gap_start_tx_block_authentication(gap_conn_item_t *conn, gap_who_started_auth_t who);
 bt_status_t gap_start_rx_block_authentication(gap_conn_item_t *conn, gap_who_started_auth_t who);
 bt_status_t gap_tx_rx_block_authentication(gap_conn_item_t *conn, gap_who_started_auth_t who);
 bt_status_t gap_start_eatt_block_authentication(gap_conn_item_t *conn, gap_who_started_auth_t who);
-void gap_report_le_conn_disconnected(gap_conn_item_t *conn, uint8_t reason);
-void gap_report_le_conn_cache_data(gap_conn_item_t *conn, const gatt_client_cache_t *cli_cache,
-                                   const gatt_server_cache_t *srv_cache);
-void gap_report_le_conn_restore_done(gap_conn_item_t *conn);
-void gap_report_mtu_is_exchanged(gap_conn_item_t *conn, uint16_t mtu);
-bool gap_is_directly_send_sec_error_rsp(void);
-bool gap_is_directly_report_sec_error(void);
-bt_status_t gap_send_hci_le_read_local_p256_public_key(hci_cmd_evt_func_t cmpl_status_cb, void *priv, void *cont);
-bt_status_t gap_send_hci_le_gen_dhkey(const uint8_t *pkx, const uint8_t *pky, bool use_debug_private_key,
-                                      hci_cmd_evt_func_t cmpl_status_cb, void *priv, void *cont);
-bt_status_t gap_send_hci_le_enable_encryption(gap_conn_item_t *conn, const uint8_t *rand, const uint8_t *ediv,
-                                              const uint8_t *ltk, hci_cmd_evt_func_t cmd_cb, void *priv, void *cont);
-bt_status_t gap_send_le_ltk_request_reply(gap_conn_item_t *conn, const uint8_t *ltk, bool positive_reply);
-bt_status_t gap_ask_user_numeric_comparison(gap_conn_item_t *conn, uint32_t user_confirm_value, void *priv);
-bt_status_t gap_ask_user_ltk_req_reply(gap_conn_item_t *conn, const gap_ltk_enc_info_t *p_req_enc);
-bt_status_t gap_ask_input_6_digit_passkey(gap_conn_item_t *conn, gap_passkey_func_t passkey_cb, void *priv);
-bt_status_t gap_ask_display_6_digit_passkey(gap_conn_item_t *conn, uint32_t passkey);
-bt_status_t gap_get_tk_from_oob_data(gap_conn_item_t *conn, gap_data_func_t tk_cb, void *priv);
-bt_status_t gap_get_peer_oob_auth_data(gap_conn_item_t *conn);
-bt_status_t gap_get_local_oob_auth_data(gap_conn_item_t *conn);
-void gap_get_smp_own_specific_ia(gap_conn_item_t *conn, ble_bdaddr_t *ia);
+ble_bdaddr_t gap_get_smp_own_identity_address(gap_conn_item_t *conn);
+bool gap_is_gatt_need_start_mtu_exchange(gap_conn_item_t *conn);
+
 void gap_prepare_ble_stack(void);
 void gap_gen_local_random(uint8_t *random, uint8_t bytes);
 bool gap_is_pairing_method_accept(const gap_bond_sec_t *sec, uint8_t accept_method);
-void gap_get_smp_own_specific_irk(gap_conn_item_t *conn, uint8_t *irk);
+smp_requirements_t gap_local_smp_requirements(gap_conn_item_t *conn, smp_pairing_req_t *peer_req);
 int gatt_conn_event_handler(uintptr_t connhdl, gap_conn_event_t event, gap_conn_callback_param_t param);
 bt_status_t gatt_conn_ready_handler(gap_conn_item_t *conn);
 void gatt_continue_rx_packet(gap_conn_item_t *item);
 void gatt_continue_tx_packet(gap_conn_item_t *item);
 bool gap_is_gatt_data_allowed_send(gap_conn_item_t *conn);
+bool gap_load_gatt_client_cache(gap_bond_sec_t *bond);
+void gap_free_gatt_client_cache(gap_bond_sec_t *bond);
+void gap_clear_gatt_client_cache(const gap_bond_sec_t *bond);
+bool gap_has_gatt_client_cache(gap_bond_sec_t *bond);
+uint8_t gap_impl_start_advertising(bt_addr_type_t own_addr_type, gap_adv_callback_t cb, uint32_t cont_filter_legacy_conn_scan, const bt_bdaddr_t *custom_local_addr);
 void gap_report_mtu_is_exchanged(gap_conn_item_t *conn, uint16_t mtu);
-void gap_report_mtu_exchange_req(gap_conn_item_t *conn, uint16_t mtu_request);
-void gap_report_smp_pairing_complete(gap_conn_item_t *conn, uint8_t err_code);
-void gap_report_gatt_over_bredr_state(gap_conn_item_t *bredr_conn, bool is_connected, uint8_t reason);
-void gap_get_local_secret_public_key_pair(const uint8_t **pp_sec_key_256, const uint8_t **pp_pub_key_256);
+void data_path_init(uint8_t init_type);
+void bap_audio_evt_handle(uint8_t subcode, const uint8_t *evt_data, uint8_t len);
 void gap_ctkd_notify_ltk_derived(gap_conn_item_t *bredr_conn, bt_addr_type_t peer_type, const bt_bdaddr_t *peer_addr, bool wait_peer_kdist);
 void gap_ctkd_notify_link_key_derived(gap_conn_item_t *conn, const bt_bdaddr_t *bt_addr, const uint8_t *link_key, bool wait_peer_ia);
 void gap_ltk_from_lk_generated(gap_conn_item_t *conn, const uint8_t *ltk, bool waiting_peer_kdist);
 void gap_lk_from_ltk_generated(gap_conn_item_t *conn, const uint8_t *link_key, bool waiting_peer_ia);
 void gap_recv_smp_encrypted(gap_conn_item_t *conn, bool new_pair, uint8_t error_code);
-bool gap_recv_smp_security_request(gap_conn_item_t *conn, uint8_t auth_req);
-bool gap_recv_smp_pairing_requirements(gap_conn_item_t *conn, bool is_pairing_request, const smp_requirements_t *p_smp_req);
 void gap_legacy_ltk_ediv_rand_generated(gap_conn_item_t *conn);
 void gap_recv_peer_legacy_ltk_ediv_rand(gap_conn_item_t *conn);
 void gap_recv_peer_irk_ia(gap_conn_item_t *conn);
 void gap_recv_peer_csrk(gap_conn_item_t *conn);
 bool gap_is_directly_send_sec_error_rsp(void);
-bool gap_is_directly_report_sec_error(void);
+void gap_set_min_conn_interval(uint16_t min_conn_interval_1_25ms);
 void gap_set_default_key_size(uint8_t key_size);
 void gap_set_default_auth_req(uint8_t mitm_auth);
 void gap_pts_set_ble_l2cap_test(bool test);
@@ -388,16 +111,220 @@ void gap_pts_gen_linkkey_from_ltk(void);
 void gap_pts_set_dist_irk_only(void);
 void gap_pts_set_dist_csrk(void);
 
-/**
- * bes tws fast pair host support apis
- * usage: set enable before le adv/scan
-*/
+/*SMP INTF*/
+void smp_init(void);
+void smp_pairing_end(gap_conn_item_t *conn, uint8_t error_code);
+bt_status_t smp_start_authentication(gap_conn_item_t *conn, gap_who_started_auth_t who, uint32_t ca);
+bt_status_t smp_bredr_ctkd_request(uint16_t connhdl);
+void smp_continue_bredr_pairing(gap_conn_item_t *conn);
+void smp_receive_peer_ltk_req(gap_conn_item_t *conn, struct hci_ev_le_ltk_request *p);
+void smp_receive_enc_change(gap_conn_item_t *conn, uint8_t opcode, struct hci_ev_encryption_change_v2 *p);
+bool smp_random(void *priv, gap_key_callback_t cmpl);
+bool smp_e(const uint8_t *key_128_le, const uint8_t *plain_128_le, gap_key_callback_t cmpl, void *priv);
+bool smp_gen_irk(gap_key_callback_t func, void *priv);
+bool smp_gen_csrk(gap_key_callback_t func, void *priv);
+bool smp_ah(const uint8_t *k_128_le, const uint8_t *r_24_le, gap_key_callback_t func, void* priv);
+bool smp_aes_ccm(const uint8_t *key_128_le, const uint8_t *nonce_le, const uint8_t *m, uint16_t m_len, bool encrypt, uint8_t add_auth_data, gap_key_callback_t func, void *priv);
+bool smp_aes_cmac(const uint8_t *k_128_le, const uint8_t *m_le, uint16_t m_len, gap_key_callback_t func, void *priv);
+bool smp_f5_gen_key_T(const uint8_t *DHKey_256_le, gap_key_callback_t func, void *priv);
+bool smp_f5_gen_mackey_ltk(const uint8_t *key_T_128_le, const uint8_t *Ra_128_le, const uint8_t *Rb_128_le,
+        const uint8_t *A, const uint8_t *B, gap_key_callback_t mackey, gap_key_callback_t ltk, void *priv);
+bool smp_f6(const uint8_t *W_128_le, const uint8_t *N1_128_le, const uint8_t *N2_128_le,
+        const uint8_t *R_128_le, const uint8_t *IOcap_24_le, const uint8_t *A1_56_le, const uint8_t *A2_56_le,
+        gap_key_callback_t func, void *priv);
+bool smp_g2(const uint8_t *PKax_U_256_le, const uint8_t *PKbx_V_256_le, const uint8_t *Ra_X_128_le,
+        const uint8_t *Rb_Y_128_le, gap_key_callback_t func, void *priv);
+bool smp_h6(const uint8_t *W_128_le, const uint8_t *key_id_32_le, gap_key_callback_t func, void *priv);
+bool smp_h7(const uint8_t *salt_128_le, const uint8_t *W_128_le, gap_key_callback_t func, void *priv);
+bool smp_h8(const uint8_t *k_128_le, const uint8_t *s_128_le, const uint8_t *key_id_32_le, gap_key_callback_t func, void *priv);
+bool smp_big_gsk_gen(const uint8_t *gltk_128_le, const uint8_t *rand_gskd_128_le, gap_key_callback_t func, void *priv);
+bool smp_signature(uint8_t *m_le, uint16_t len, uint32_t sign_counter, gap_key_callback_t func, void *priv);
+bool smp_linkkey_to_iltk(const uint8_t *linkkey, bool ct2, gap_key_callback_t func, void *priv);
+bool smp_iltk_to_ltk(const uint8_t *iltk, gap_key_callback_t func, void *priv);
+bool smp_ltk_to_ilk(const uint8_t *ltk, bool ct2, gap_key_callback_t func, void *priv);
+bool smp_ilk_to_linkkey(const uint8_t *ilk, gap_key_callback_t func, void *priv);
+void smp_aes_key_xor(const uint8_t *a, const uint8_t *b, gap_key_callback_t func, void *priv);
+void smp_aes_key_shift(const uint8_t *key, gap_key_callback_t func, void *priv);
+void smp_gen_secure_oob_auth_data(gap_oob_auth_data_callback_t cb, void *priv);
+void smp_input_oob_legacy_tk(uint16_t peer_type_or_connhdl, const bt_bdaddr_t *peer_addr, const uint8_t *tk);
+void smp_input_6_digit_passkey(uint16_t peer_type_or_connhdl, const bt_bdaddr_t *peer_addr, uint32_t passkey);
+void smp_input_numeric_confirm(uint16_t peer_type_or_connhdl, const bt_bdaddr_t *peer_addr, bool user_confirmed);
+void smp_input_peer_oob_auth_data(uint16_t peer_type_or_connhdl, const bt_bdaddr_t *peer_addr, const gap_smp_oob_auth_data_t *data);
+void smp_input_local_oob_auth_data(uint16_t peer_type_or_connhdl, const bt_bdaddr_t *peer_addr, const gap_smp_oob_auth_data_t *data);
 
-void gap_vendor_enable_besfp(uint8_t *tws_bt_addr, uint8_t *peer_le_addr);
-void gap_vendor_disable_besfp();
-bool gap_vendor_is_besfp_enabled();
-uint8_t *gap_vender_besfp_get_tws_bt_addr();
-uint8_t *gap_vender_besfp_get_peer_le_addr();
+struct attr_context_t;
+
+typedef struct {
+    uint8_t error_code;
+    uint8_t req_opcode;
+    uint16_t err_handle;
+} att_rsp_header_t;
+
+typedef struct {
+    att_rsp_header_t head;
+    const uint8_t *pdu_data;
+    uint16_t pdu_len;
+} att_response_t;
+
+typedef enum {
+    SMP_PAIRING_REQ             = 0x01, // le-u acl-u
+    SMP_PAIRING_RSP             = 0x02, // le-u acl-u
+    SMP_PAIRING_CONFIRM         = 0x03, // le-u
+    SMP_PAIRING_RANDOM          = 0x04, // le-u
+    SMP_PAIRING_FAILED          = 0x05, // le-u acl-u
+    SMP_ENCRYPTION_INFO         = 0x06, // le-u
+    SMP_CENTRAL_IDENTIFICATION  = 0x07, // le-u
+    SMP_IDENTITY_INFO           = 0x08, // le-u acl-u
+    SMP_IDENTITY_ADDR_INFO      = 0x09, // le-u acl-u
+    SMP_SIGNING_INFO            = 0x0a, // le-u acl-u
+    SMP_SECURITY_REQ            = 0x0b, // le-u
+    SMP_PAIRING_PUBLIC_KEY      = 0x0c, // le-u
+    SMP_PAIRING_DHKEY_CHECK     = 0x0d, // le-u
+    SMP_PAIRING_KEYPRESS_NOTIFY = 0x0e, // le-u
+} smp_opcode_t;
+
+typedef smp_pairing_req_t smp_pairing_rsp_t;
+
+typedef enum {
+    SMP_PHASE_IDLE                          = 0x00,
+    SMP_PHASE_PAIRING_START                 = 0x01,
+    SMP_PHASE_GEN_TK_RAND                   = 0x02,
+    SMP_PHASE_GEN_CFM_VALUE                 = 0x03,
+    SMP_PHASE_WAIT_PAIRING_CONFIRM          = 0x04,
+    SMP_PHASE_WAIT_PAIRING_RANDOM           = 0x05,
+    SMP_PHASE_VERIFY_CONFIRM                = 0x06,
+    SMP_PHASE_GEN_STK                       = 0x07,
+    SMP_PHASE_GEN_PUB_KEY                   = 0x08,
+    SMP_PHASE_WAIT_PAIRING_PUBLIC_KEY       = 0x09,
+    SMP_PHASE_GEN_DHKEY                     = 0x0a,
+    SMP_PHASE_GET_PASSKEY                   = 0x0b,
+    SMP_PHASE_GET_L_OOB_AUTH_DATA           = 0x0c,
+    SMP_PHASE_GET_P_OOB_AUTH_DATA           = 0x0d,
+    SMP_PHASE_GEN_RANDOM                    = 0x0e,
+    SMP_PHASE_GEN_USER_VALUE                = 0x0f,
+    SMP_PHASE_START_STAGE_2                 = 0x10,
+    SMP_PHASE_GEN_LTK                       = 0x11,
+    SMP_PHASE_GEN_CHECK_VALUE               = 0x12,
+    SMP_PHASE_WAIT_PAIRING_DHKEY_CHECK      = 0x13,
+    SMP_PHASE_VERIFY_CHECK                  = 0x14,
+    SMP_PHASE_WAIT_PEER_LTK_REQ             = 0x15,
+    SMP_PHASE_WAIT_ENC_CHANGE               = 0x16,
+    SMP_PHASE_START_PHASE_3                 = 0x17,
+    SMP_PHASE_WAIT_DIST_KEY                 = 0x18,
+    SMP_PHASE_FINISHED                      = 0x19,
+    SMP_PHASE_MAX_NUM                       = 0x1a,
+} smp_phase_t;
+
+typedef enum {
+    SMP_EVENT_NONE                      = 0x00,
+    SMP_EVENT_PAIRING_REQ               = SMP_PAIRING_REQ,              // 0x01
+    SMP_EVENT_PAIRING_RSP               = SMP_PAIRING_RSP,              // 0x02
+    SMP_EVENT_PAIRING_CONFIRM           = SMP_PAIRING_CONFIRM,          // 0x03
+    SMP_EVENT_PAIRING_RANDOM            = SMP_PAIRING_RANDOM,           // 0x04
+    SMP_EVENT_PAIRING_FAILED            = SMP_PAIRING_FAILED,           // 0x05
+    SMP_EVENT_ENCRYPTION_INFO           = SMP_ENCRYPTION_INFO,          // 0x06
+    SMP_EVENT_CENTRAL_IDENTIFICATION    = SMP_CENTRAL_IDENTIFICATION,   // 0x07
+    SMP_EVENT_IDENTITY_INFO             = SMP_IDENTITY_INFO,            // 0x08
+    SMP_EVENT_IDENTITY_ADDR_INFO        = SMP_IDENTITY_ADDR_INFO,       // 0x09
+    SMP_EVENT_SIGNING_INFO              = SMP_SIGNING_INFO,             // 0x0a
+    SMP_EVENT_SECURITY_REQ              = SMP_SECURITY_REQ,             // 0x0b
+    SMP_EVENT_PAIRING_PUBLIC_KEY        = SMP_PAIRING_PUBLIC_KEY,       // 0x0c
+    SMP_EVENT_PAIRING_DHKEY_CHECK       = SMP_PAIRING_DHKEY_CHECK,      // 0x0d
+    SMP_EVENT_PAIRING_KEYPRESS_NOTIFY   = SMP_PAIRING_KEYPRESS_NOTIFY,  // 0x0e
+    SMP_EVENT_RECV_PASSKEY              = 0x11,
+    SMP_EVENT_RECV_L_OOB_AUTH_DATA      = 0x12,
+    SMP_EVENT_RECV_P_OOB_AUTH_DATA      = 0x13,
+    SMP_EVENT_RECV_RANDOM               = 0x14,
+    SMP_EVENT_RECV_STK                  = 0x15,
+    SMP_EVENT_RECV_CFM_VALUE            = 0x16,
+    SMP_EVENT_RECV_PUB_KEY              = 0x17,
+    SMP_EVENT_RECV_DHKEY                = 0x18,
+    SMP_EVENT_RECV_USER_VALUE           = 0x19,
+    SMP_EVENT_RECV_LTK                  = 0x1a,
+    SMP_EVENT_RECV_CHECK_VALUE          = 0x1b,
+    SMP_EVENT_RECV_PEER_LTK_REQ         = 0x1c,
+    SMP_EVENT_RECV_ENC_CHANGE           = 0x1d,
+} smp_event_t;
+
+typedef struct {
+    smp_phase_t curr_phase;
+    smp_event_t allow_event;
+    smp_phase_t next_phase;
+    smp_event_t second_event;
+} smp_transfer_t;
+
+typedef struct {
+    uint16_t initiator: 1;
+    uint16_t secure_debug_mode: 1;
+    uint16_t pairing_random_received: 1;
+    uint16_t pairing_confirm_received: 1;
+    uint16_t pairing_dhkey_check_received: 1;
+    uint16_t peer_ltk_req_received: 1;
+} smp_conn_flag;
+
+#define SMP_SECURE_PAIRING_FLAG 0x10
+#define SMP_PAIRING_METHOD_MASK 0x0f
+
+struct smp_conn_item_t;
+struct smp_receive_t;
+
+typedef void (*smp_recv_func_t)(struct smp_conn_item_t *smp, const struct smp_receive_t *recv);
+typedef void (*smp_rx_handle_t)(struct smp_conn_item_t *smp, smp_event_t event, const struct smp_receive_t *recv);
+
+typedef struct smp_receive_t {
+    uint8_t error_code;
+    uint16_t data_len;
+    const uint8_t *data;
+    smp_recv_func_t cmpl;
+} smp_receive_t;
+
+typedef struct smp_conn_item_t {
+    smp_conn_flag flag;
+    smp_phase_t phase;
+    uint8_t smp_rsp_wait_timer;
+    uint8_t init_key_dist;
+    uint8_t resp_key_dist;
+    uint8_t wait_peer_kdist;
+    smp_event_t curr_expect_event;
+    smp_pairing_method_t method;
+    smp_pairing_req_t pair_req;
+    smp_pairing_rsp_t pair_rsp;
+    smp_pairing_req_t *l_pair;
+    smp_pairing_req_t *p_pair;
+    uint8_t tk[GAP_KEY_LEN];
+    uint8_t l_rand[GAP_KEY_LEN];
+    uint8_t p_rand[GAP_KEY_LEN];
+    uint8_t c1_p2_le[GAP_KEY_LEN];
+    uint8_t l_confirm[GAP_KEY_LEN];
+    uint8_t p_confirm[GAP_KEY_LEN];
+    uint8_t p_legacy_ediv[2];
+    uint8_t p_legacy_rand[8];
+    uint8_t iltk[GAP_KEY_LEN];
+    uint8_t ilk[GAP_KEY_LEN];
+    uint8_t l_pkx[GAP_PUB_KEY_LEN];
+    uint8_t l_pky[GAP_PUB_KEY_LEN];
+    uint8_t p_pkx[GAP_PUB_KEY_LEN];
+    uint8_t p_pky[GAP_PUB_KEY_LEN];
+    uint8_t l_dhkey[GAP_PUB_KEY_LEN];
+    uint8_t l_mackey[GAP_KEY_LEN];
+    uint8_t l_dhkey_check_value[GAP_KEY_LEN];
+    uint8_t p_dhkey_check_value[GAP_KEY_LEN];
+    uint8_t ra[GAP_KEY_LEN];
+    uint8_t rb[GAP_KEY_LEN];
+    uint8_t a_addr[GAP_ADDR_LEN+1];
+    uint8_t a_iocap[3];
+    uint8_t b_addr[GAP_ADDR_LEN+1];
+    uint8_t b_iocap[3];
+    const uint8_t *a_rand;
+    const uint8_t *b_rand;
+    uint32_t user_confirm_value;
+    uint32_t passkey;
+    uint8_t passkey_entry_repeat;
+    uint16_t connhdl;
+    gap_conn_item_t *conn;
+    struct hci_ev_le_ltk_request ltk_req;
+    smp_rx_handle_t curr_rx_handle;
+} smp_conn_item_t;
 
 #if defined(__cplusplus)
 }

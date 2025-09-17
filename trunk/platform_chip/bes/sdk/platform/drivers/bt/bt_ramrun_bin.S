@@ -20,7 +20,7 @@
 #ifdef __BT_RAMRUN__
 .globl __bt_ramrun_code_start_flash
 .globl __bt_ramrun_code_end_flash
-.section .rodata
+.section .flash_nc_rodata_bt_ramrun, "a", %progbits
 .balign 4
 
 __bt_ramrun_code_start_flash:

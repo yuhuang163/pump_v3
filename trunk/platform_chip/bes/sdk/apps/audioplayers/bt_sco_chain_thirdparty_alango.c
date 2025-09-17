@@ -6,7 +6,7 @@
 #include "vcp-api.h"
 #include "spf-postapi.h"
 
-#define ALANGO_TRACE(s, ...) AUDIOPLAYERS_TRACE(1,"%s: " s, __FUNCTION__, ## __VA_ARGS__)
+#define ALANGO_TRACE(s, ...) TRACE(1,"%s: " s, __FUNCTION__, ## __VA_ARGS__)
 
 #if defined(SPEECH_TX_24BIT)
 typedef int     SPEECH_PCM_T;
@@ -121,7 +121,7 @@ int speech_deinit(void)
 
     size_t total = 0, used = 0, max_used = 0;
     speech_memory_info(&total, &used, &max_used);
-    AUDIOPLAYERS_TRACE(3,"SPEECH MALLOC MEM: total - %d, used - %d, max_used - %d.", total, used, max_used);
+    TRACE(3,"SPEECH MALLOC MEM: total - %d, used - %d, max_used - %d.", total, used, max_used);
     ASSERT(used == 0, "[%s] used != 0", __func__);
 
     return 0;

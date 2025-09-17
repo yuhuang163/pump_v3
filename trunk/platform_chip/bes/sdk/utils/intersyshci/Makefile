@@ -6,26 +6,30 @@ obj_cpp := $(patsubst $(cur_dir)%,%,$(wildcard $(cur_dir)intersyshci.cpp))
 
 src_obj := $(obj_c:.c=.o) $(obj_s:.S=.o) $(obj_cpp:.cpp=.o)
 
-GEN_LIB_NAME := libintersyshci_enhanced_stack
+INTERSYSHCI_LIB_NAME := libintersyshci
 
 ifeq ($(INTERSYS_NO_THREAD),1)
-GEN_LIB_NAME := $(GEN_LIB_NAME)_nothread
+INTERSYSHCI_LIB_NAME := $(INTERSYSHCI_LIB_NAME)_nothread
 endif
 
 ifeq ($(BYPASS_STACK_AUDIO_STREAM),1)
-GEN_LIB_NAME := $(GEN_LIB_NAME)_bypasssas
+INTERSYSHCI_LIB_NAME := $(INTERSYSHCI_LIB_NAME)_bypasssas
+endif
+
+INTERSYSHCI_LIB_NAME := $(INTERSYSHCI_LIB_NAME)_enhanced_stack
+
+ifeq ($(USE_TRACE_ID), 1)
+INTERSYSHCI_LIB_NAME := $(INTERSYSHCI_LIB_NAME)_log_compressed
 endif
 
 ifeq ($(BLE_AUDIO_ENABLED), 1)
-GEN_LIB_NAME := $(GEN_LIB_NAME)_aob
+INTERSYSHCI_LIB_NAME := $(INTERSYSHCI_LIB_NAME)_aob
 endif
 
 CFLAGS_intersyshci.o += -DBESLIB_INFO=$(BESLIB_INFO)
-root_dir := $(abspath $(dir $(realpath $(firstword $(MAKEFILE_LIST))))/..)
-include $(root_dir)/config/lib.mk
 
-$(GEN_LIB_NAME)-y := $(src_obj)
-obj-y += $(GEN_LIB_NAME).a
+$(INTERSYSHCI_LIB_NAME)-y := $(src_obj)
+obj-y += $(INTERSYSHCI_LIB_NAME).a
 ccflags-y := \
     $(BLUETOOTH_ADAPTER_INCLUDES) \
     -Iapps/common/ \
@@ -42,3 +46,4 @@ ifneq ($(DISPLAY_PREFIX_HCI_CMD_EVT_),0)
 subdir-ccflags-y += -DDISPLAY_PREFIX_HCI_CMD_EVT
 endif
 endif
+

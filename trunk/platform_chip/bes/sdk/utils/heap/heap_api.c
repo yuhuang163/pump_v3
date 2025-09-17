@@ -1,9 +1,24 @@
+/***************************************************************************
+ *
+ * Copyright 2015-2023 BES.
+ * All rights reserved. All unpublished rights reserved.
+ *
+ * No part of this work may be used or reproduced in any form or by any
+ * means, or stored in a database or retrieval system, without prior written
+ * permission of BES.
+ *
+ * Use of this work is governed by a license granted by BES.
+ * This work contains confidential and proprietary information of
+ * BES. which is protected by copyright, trade secret,
+ * trademark and other intellectual property rights.
+ *
+ ****************************************************************************/
 #include "multi_heap.h"
 #include "heap_api.h"
 #include "string.h"
 #include "hal_trace.h"
 #ifdef BECO
-#include "beco.h"
+#include "beco-if.h"
 #endif
 
 // TODO: multi heap and block
@@ -44,7 +59,7 @@ static int med_help_get_index(void *ptr)
         diff_addr = (char *)ptr - (char *)g_med_heap[index];
 
 #ifdef MED_HEAP_DEBUG
-        HEAP_TRACE(0, "[%s] index=%d diff_addr=%d", __func__, index, diff_addr);
+        TRACE(0, "[%s] index=%d diff_addr=%d", __func__, index, diff_addr);
 #endif
 
         if ((diff_addr > 0) && (diff_addr < info.total_bytes))
@@ -58,7 +73,7 @@ static int med_help_get_index(void *ptr)
     return index;
 }
 
-void med_heap_reset(void)
+static void med_heap_reset(void)
 {
     g_block_index = 0;
     g_switch_cp = 0;
@@ -74,16 +89,13 @@ void med_heap_reset(void)
 
 void med_heap_set_cp(int switch_cp)
 {
-#if defined(UNIFY_HEAP_ENABLED)
-    switch_cp = 0;
-#endif
-    HEAP_TRACE(0, "[%s] switch_cp: %d", __func__, switch_cp);
+    TRACE(0, "[%s] switch_cp: %d", __func__, switch_cp);
     g_switch_cp = switch_cp;
 }
 
 void med_heap_add_block(void *begin_addr, size_t size)
 {
-    HEAP_TRACE(0, "[%s] g_block_index=%d begin_addr=%p size=%d", __func__, g_block_index, begin_addr, size);
+    TRACE(0, "[%s] g_block_index=%d begin_addr=%p size=%d", __func__, g_block_index, begin_addr, size);
     ASSERT(g_block_index < MED_HEAP_BLOCK_MAX_NUM, "[%s] g_block_index(%d) >= MED_HEAP_BLOCK_MAX_NUM", __func__, g_block_index);
 
     memset(begin_addr, 0, size);
@@ -130,7 +142,7 @@ void *med_malloc(size_t size)
     }
 
 #ifdef MED_HEAP_DEBUG
-    HEAP_TRACE(0, "[%s] index=%d size=%d user=%p", __func__, index, size, __builtin_return_address(0));
+    TRACE(0, "[%s] index=%d size=%d user=%p", __func__, index, size, __builtin_return_address(0));
 #endif
 
     ASSERT(index < g_block_index, "[%s] index=%d g_block_index=%d. Cannot malloc any RAM", __func__, index, g_block_index);
@@ -203,25 +215,9 @@ void med_memory_info(size_t *total,
         *max_used += _max_used;
 
 #ifdef MED_HEAP_DEBUG
-        HEAP_TRACE(0, "[%s] %d: g_med_heap=%p size=%d", __func__, i, g_med_heap[i], _total);
+        TRACE(0, "[%s] %d: g_med_heap=%p size=%d", __func__, i, g_med_heap[i], _total);
 #endif
     }
-}
-
-custom_allocator med_allocator = {
-    .malloc = med_malloc,
-    .calloc = med_calloc,
-    .free = med_free,
-    .log = hal_trace_printf,
-#ifdef BECO
-    .beco_init = beco_init,
-    .beco_exit = beco_exit,
-#endif
-};
-
-custom_allocator *default_allocator(void)
-{
-    return &med_allocator;
 }
 
 // Number of bytes we're using for storing the aligned pointer offset
@@ -254,7 +250,7 @@ void *heap_malloc_align(multi_heap_handle_t heap, size_t size, size_t align)
             *((offset_t*)ptr - 1) = (offset_t)((uintptr_t)ptr - (uintptr_t)p);
 
 #ifdef MED_HEAP_DEBUG
-            HEAP_TRACE(0, "%s origin %p(aligned to %d) real %p", __func__, p, align, ptr);
+            TRACE(0, "%s origin %p(aligned to %d) real %p", __func__, p, align, ptr);
 #endif
         }
     }
@@ -273,8 +269,24 @@ void heap_free_align(multi_heap_handle_t heap, void *ptr)
      */
     void* p = (void*)((uint8_t*)ptr - offset);
 #ifdef MED_HEAP_DEBUG
-    HEAP_TRACE(0, "%s %p real %p", __func__, ptr, p);
+    TRACE(0, "%s %p real %p", __func__, ptr, p);
 #endif
     heap_free(heap, p);
 }
 
+custom_allocator med_allocator = {
+    .malloc = med_malloc,
+    .calloc = med_calloc,
+    .free = med_free,
+    .log = hal_trace_printf,
+#ifdef BECO
+    .beco_init = beco_init,
+    .beco_exit = beco_exit,
+#endif
+};
+
+
+custom_allocator *default_allocator(void)
+{
+    return &med_allocator;
+}

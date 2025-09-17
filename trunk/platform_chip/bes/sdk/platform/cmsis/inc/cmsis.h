@@ -44,16 +44,23 @@ __extension__ \
  })
 #endif
 
-#ifdef DEBUG_IRQ_HUNG
 struct irq_masked_address {
     uint32_t pc;
     uint32_t lr;
 };
 extern struct irq_masked_address irq_masked_addr;
 extern struct irq_masked_address irq_g_masked_addr;
-#endif
 
 extern uint32_t __got_info_start[];
+
+// #define DEBUG_IRQ_LATENCY
+#ifdef DEBUG_IRQ_LATENCY
+extern void irq_lock_save_ts(int global);
+extern void irq_lock_check_ts(int global);
+#else
+__STATIC_FORCEINLINE void irq_lock_save_ts(int global) {}
+__STATIC_FORCEINLINE void irq_lock_check_ts(int global) {}
+#endif
 
 __STATIC_FORCEINLINE uint32_t int_lock_global(void)
 {
@@ -71,14 +78,13 @@ __STATIC_FORCEINLINE uint32_t int_lock_global(void)
     return st;
 #else
     uint32_t pri = __get_PRIMASK();
+    uint32_t pc;
     if ((pri & 0x1) == 0) {
-#ifdef DEBUG_IRQ_HUNG
-        uint32_t pc;
+        irq_lock_save_ts(1);
+        __disable_irq();
         __ASM volatile ("mov %0, PC" : "=r"(pc));
         irq_g_masked_addr.pc = pc;
         irq_g_masked_addr.lr = (uint32_t)__builtin_return_address(0);
-#endif
-        __disable_irq();
     }
     return pri;
 #endif
@@ -98,9 +104,8 @@ __STATIC_FORCEINLINE void int_unlock_global(uint32_t pri)
     }
 #else
     if ((pri & 0x1) == 0) {
-#ifdef DEBUG_IRQ_HUNG
+        irq_lock_check_ts(1);
         irq_g_masked_addr.pc = -1U;
-#endif
         __enable_irq();
     }
 #endif
@@ -141,12 +146,16 @@ __STATIC_FORCEINLINE int in_int_locked(void)
     return false;
 }
 
-#if defined(__NuttX__)
+#if defined(__NuttX__) || defined(KERNEL_LITEOS_A) ||\
+     (defined(__ARM_ARCH_ISA_ARM) && (defined(KERNEL_RHINO) || defined(KERNEL_RTT)))
+
 extern uint32_t int_lock(void);
 extern void int_unlock(uint32_t pri);
 extern uint32_t int_lock_local(void);
 extern void int_unlock_local(uint32_t pri);
+
 #else
+
 __STATIC_FORCEINLINE uint32_t int_lock(void)
 {
 #ifdef INT_LOCK_EXCEPTION
@@ -157,17 +166,17 @@ __STATIC_FORCEINLINE uint32_t int_lock(void)
     return mask;
 #else
     uint32_t pri = __get_BASEPRI();
+
     if (pri != ((IRQ_PRIORITY_HIGHPLUS << (8 - __NVIC_PRIO_BITS)) & (uint32_t)0xFFUL)) {
-#ifdef DEBUG_IRQ_HUNG
         uint32_t pc;
+        irq_lock_save_ts(0);
+        // Only allow IRQs with priority IRQ_PRIORITY_HIGHPLUSPLUS and IRQ_PRIORITY_REALTIME
+        __set_BASEPRI(((IRQ_PRIORITY_HIGHPLUS << (8 - __NVIC_PRIO_BITS)) & (uint32_t)0xFFUL));
         __ASM volatile ("mov %0, PC" : "=r"(pc));
         irq_masked_addr.pc = pc;
         irq_masked_addr.lr = (uint32_t)__builtin_return_address(0);
-#endif
     }
 
-    // Only allow IRQs with priority IRQ_PRIORITY_HIGHPLUSPLUS and IRQ_PRIORITY_REALTIME
-    __set_BASEPRI(((IRQ_PRIORITY_HIGHPLUS << (8 - __NVIC_PRIO_BITS)) & (uint32_t)0xFFUL));
     return pri;
 #endif
 #else
@@ -182,9 +191,8 @@ __STATIC_FORCEINLINE void int_unlock(uint32_t pri)
     GIC_SetInterfacePriorityMask(pri);
 #else
     if (pri == 0) {
-#ifdef DEBUG_IRQ_HUNG
+        irq_lock_check_ts(0);
         irq_masked_addr.pc = -1U;
-#endif
     }
     __set_BASEPRI(pri);
 #endif
@@ -197,29 +205,32 @@ __STATIC_FORCEINLINE uint32_t int_lock_local(void)
 {
     return int_lock();
 }
+
 __STATIC_FORCEINLINE void int_unlock_local(uint32_t pri)
 {
     int_unlock(pri);
 }
 
-__STATIC_FORCEINLINE uint32_t int_lock_smp_com(void)
-{
-    return int_lock();
-}
-__STATIC_FORCEINLINE void int_unlock_smp_com(uint32_t pri)
-{
-    int_unlock(pri);
-}
-
-
 #endif
+
+#ifdef __NuttX__
+#include "arch/irq.h"
+#endif
+
 __STATIC_FORCEINLINE int in_isr(void)
 {
+#ifdef __NuttX__
+    return (int)up_interrupt_context();
+#elif defined(KERNEL_LITEOS_A) || defined(KERNEL_RHINO)
+    extern int os_in_isr(void);
+    return (int)os_in_isr();
+#else
 #ifdef __ARM_ARCH_ISA_ARM
     uint32_t mode = __get_mode();
     return mode != CPSR_M_USR && mode != CPSR_M_SYS;
 #else
     return __get_IPSR() != 0;
+#endif
 #endif
 }
 
@@ -241,36 +252,36 @@ __STATIC_FORCEINLINE uint32_t unsigned_range_value_map(uint32_t from_val, uint32
 
 __STATIC_FORCEINLINE void GotBaseInit(void)
 {
-#ifndef __ARMCC_VERSION
-    asm volatile("ldr r9, =__got_info_start");
+#if defined(__PIE__) && !defined(__ARMCC_VERSION)
+    asm volatile("ldr r9, =__got_info_start; b 1f; .pool; 1:;");
 #endif
 }
-
-void customer_load_sram_ram_text_memcpy_with_offset(uint32_t src_start[],uint32_t src_end[],uint32_t src_len,uint32_t dst_start[],uint32_t dst_end[]);
-
-void customer_load_sram_ram_text_data_init_offset_reset(void);
-
-void customer_load_sram_ram_text_init_with_offset(uint32_t text_start[],uint32_t text_end[],uint32_t len);
-
-void customer_load_sram_ram_text_init(uint32_t text_start[],uint32_t text_end[]);
-
-void customer_load_sram_ram_data_init_with_offset(uint32_t data_start[],uint32_t data_end[],uint32_t len);
-
-void customer_load_sram_ram_data_init(uint32_t data_start[],uint32_t data_end[]);
-
-void customer_load_sram_ram_text_data_init(uint32_t text_start[],uint32_t text_end[],uint32_t data_start[],uint32_t data_end[]);
 
 void boot_init_boot_sections(void);
 
 void boot_init_sram_sections(void);
 
+void boot_init_psram_sections(void);
+
+void boot_init_sram_sections_cp(int load_code);
+
 int subsys_check_boot_struct(uint32_t boot_struct_addr, uint32_t *code_start_addr);
 
 void boot_init_rom_in_flash(void);
 
-int set_bool_flag(bool *flag);
+//-------------------------------------------------------------------
+// Mutex flag
+//-------------------------------------------------------------------
 
-void clear_bool_flag(bool *flag);
+typedef bool MUTEX_FLAG_T;
+
+int mutex_flag_lock(MUTEX_FLAG_T *flag);
+
+void mutex_flag_unlock(MUTEX_FLAG_T *flag);
+
+//-------------------------------------------------------------------
+// Some simple math functions
+//-------------------------------------------------------------------
 
 float db_to_float(float db);
 
@@ -281,28 +292,6 @@ uint32_t get_lsb_pos(uint32_t val);
 uint32_t integer_sqrt(uint32_t val);
 
 uint32_t integer_sqrt_nearest(uint32_t val);
-
-// --------------------------------
-// Calendar time conversion functions
-// --------------------------------
-
-struct RTC_CALENDAR_FORMAT_T {
-    uint16_t year;
-    uint8_t month;
-    uint8_t day;
-    uint8_t week;
-    uint8_t hour;
-    uint8_t minute;
-    uint8_t second;
-};
-
-uint8_t rtc_calendar_is_invalid(struct RTC_CALENDAR_FORMAT_T *calendar, const bool check_real_week);
-
-int rtc_is_leap_year(unsigned int year);
-
-uint32_t rtc_calendar_to_unix(struct RTC_CALENDAR_FORMAT_T *calendar);
-
-void rtc_unix_to_calendar(uint32_t *unix, struct RTC_CALENDAR_FORMAT_T *calendar);
 
 #endif
 

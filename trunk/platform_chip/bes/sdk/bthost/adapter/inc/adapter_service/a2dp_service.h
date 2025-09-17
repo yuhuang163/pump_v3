@@ -68,33 +68,6 @@ typedef struct {
     uint8_t error_code;
 } bt_a2dp_stream_close_param_t;
 
-typedef struct {
-    uint8_t *buf;
-    uint16_t len;
-} bt_a2dp_stream_data_param_t;
-
-typedef struct {
-    uint8_t message_type : 2;
-    uint8_t packet_type : 2;
-    uint8_t transaction : 4;
-    uint8_t signal_id : 6;
-    uint8_t reserve : 2;
-} bt_a2dp_signal_msg_header_t;
-
-typedef struct {
-    uint8_t trans_lable;
-    uint8_t cmd_id;
-    uint16_t data_len;
-    uint8_t *cmd_data;
-} bt_a2dp_custom_cmd_req_param_t;
-
-typedef struct {
-    bool accepted;
-    uint8_t cmd_id;
-    uint16_t data_len;
-    uint8_t *cmd_data;
-} bt_a2dp_custom_cmd_rsp_param_t;
-
 typedef union {
     bt_a2dp_opened_param_t *opened;
     bt_a2dp_closed_param_t *closed;
@@ -102,9 +75,6 @@ typedef union {
     bt_a2dp_stream_reconfig_param_t *stream_reconfig;
     bt_a2dp_stream_suspend_param_t *stream_suspend;
     bt_a2dp_stream_close_param_t *stream_close;
-    bt_a2dp_stream_data_param_t *stream_data;
-    bt_a2dp_custom_cmd_req_param_t *custom_cmd_req;
-    bt_a2dp_custom_cmd_rsp_param_t *custom_cmd_rsp;
 } bt_a2dp_callback_param_t;
 
 typedef enum {
@@ -114,9 +84,6 @@ typedef enum {
     BT_A2DP_EVENT_STREAM_RECONFIG,
     BT_A2DP_EVENT_STREAM_SUSPEND,
     BT_A2DP_EVENT_STREAM_CLOSE,
-    BT_A2DP_EVENT_STREAM_DATA_IND,
-    BT_A2DP_EVENT_CUSTOM_CMD_REQ,
-    BT_A2DP_EVENT_CUSTOM_CMD_RSP,
     BT_A2DP_EVENT_END,
 } bt_a2dp_event_t;
 
@@ -128,10 +95,8 @@ typedef int (*bt_a2dp_callback_t)(const bt_bdaddr_t *bd_addr, bt_a2dp_event_t ev
 
 bt_status_t bt_a2dp_init(bt_a2dp_callback_t callback);
 bt_status_t bt_a2dp_cleanup(void);
-bt_status_t bt_a2dp_connect(const bt_bdaddr_t *bd_addr, enum A2DP_ROLE role_expected);
+bt_status_t bt_a2dp_connect(const bt_bdaddr_t *bd_addr);
 bt_status_t bt_a2dp_disconnect(const bt_bdaddr_t *bd_addr);
-bt_status_t bt_a2dp_accept_custom_cmd(const bt_bdaddr_t *bd_addr, const bt_a2dp_custom_cmd_req_param_t *cmd, bool accept);
-bt_status_t bt_a2dp_send_custom_cmd(const bt_bdaddr_t *bd_addr, uint8_t custom_cmd_id, const uint8_t *data, uint16_t len);
 
 /**
  * standard a2dp (source role) interface
@@ -156,12 +121,12 @@ typedef enum {
 
 typedef int (*bt_a2dp_source_callback_t)(const bt_bdaddr_t *bd_addr, bt_a2dp_source_event_t event, bt_a2dp_callback_param_t param);
 
-bt_status_t bt_a2dp_src_init(bt_a2dp_source_callback_t callback);
-bt_status_t bt_a2dp_src_cleanup(void);
-bt_status_t bt_a2dp_src_connect(const bt_bdaddr_t *bd_addr);
-bt_status_t bt_a2dp_src_disconnect(const bt_bdaddr_t *bd_addr);
-bt_status_t bt_a2dp_src_start_stream(const bt_bdaddr_t *bd_addr);
-bt_status_t bt_a2dp_src_suspend_stream(const bt_bdaddr_t *bd_addr);
+bt_status_t bt_a2dp_source_init(bt_a2dp_source_callback_t callback);
+bt_status_t bt_a2dp_source_cleanup(void);
+bt_status_t bt_a2dp_source_connect(const bt_bdaddr_t *bd_addr);
+bt_status_t bt_a2dp_source_disconnect(const bt_bdaddr_t *bd_addr);
+bt_status_t bt_a2dp_source_start_stream(const bt_bdaddr_t *bd_addr);
+bt_status_t bt_a2dp_source_suspend_stream(const bt_bdaddr_t *bd_addr);
 
 #endif /* BT_SOURCE */
 #ifdef __cplusplus

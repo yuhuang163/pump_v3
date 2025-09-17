@@ -19,6 +19,7 @@
 #include "hal_cmu.h"
 #include "hal_dma.h"
 #include "hal_gpadc.h"
+#include "hal_l2cache.h"
 #include "hal_location.h"
 #include "hal_norflash.h"
 #include "hal_psram.h"
@@ -29,9 +30,12 @@
 #include "hal_trace.h"
 #include "hal_timer.h"
 #include "hal_uart.h"
+#include "hal_wdt.h"
 #include "pmu.h"
+#include "hal_cpudump.h"
 
 #if !(defined(CHIP_ROLE_CP) || defined(CHIP_SUBSYS_SENS) || \
+        defined(CHIP_SUBSYS_CSP) || \
         (defined(CHIP_SUBSYS_BTH) ^ defined(BTH_AS_MAIN_MCU)))
 #define MAIN_MCU_SLEEP_CTRL
 #endif
@@ -51,10 +55,15 @@ static HAL_SLEEP_HOOK_HANDLER sleep_hook_handler[HAL_SLEEP_HOOK_USER_QTY];
 static HAL_DEEP_SLEEP_HOOK_HANDLER deep_sleep_hook_handler[HAL_DEEP_SLEEP_HOOK_USER_QTY];
 
 static uint32_t cpu_wake_lock_map;
-static uint32_t sys_wake_lock_map;
-static uint32_t chip_wake_lock_map;
+static uint32_t bus_wake_lock_map;
+static uint32_t subsys_wake_lock_map;
 #ifdef CORE_SLEEP_POWER_DOWN
-static bool power_down_en = true;
+static enum HAL_SLEEP_POWER_DOWN_MODE_T power_down_mode =
+#ifdef CPU_PD_SUBSYS_PU
+    HAL_SLEEP_POWER_DOWN_MODE_CPU;
+#else
+    HAL_SLEEP_POWER_DOWN_MODE_SUBSYS;
+#endif
 #endif
 
 static uint8_t pm_user_cnt;
@@ -74,14 +83,14 @@ static uint32_t wakeup_total_interval[USER_IRQn_QTY];
 #endif
 static uint32_t stats_interval;
 static uint32_t stats_start_time;
-static uint32_t light_sleep_time;
-static uint32_t sys_deep_sleep_time;
-static uint32_t chip_deep_sleep_time;
+static uint32_t cpu_sleep_time;
+static uint32_t bus_sleep_time;
+static uint32_t subsys_sleep_time;
 static bool stats_started;
 static bool stats_valid;
-static uint8_t light_sleep_ratio;
-static uint8_t sys_deep_sleep_ratio;
-static uint8_t chip_deep_sleep_ratio;
+static uint8_t cpu_sleep_ratio;
+static uint8_t bus_sleep_ratio;
+static uint8_t subsys_sleep_ratio;
 static SYSTEM_SLEEP_STAT_T system_sleep_stat_info;
 
 void hal_sleep_start_stats(uint32_t stats_interval_ms, uint32_t trace_interval_ms)
@@ -92,9 +101,9 @@ void hal_sleep_start_stats(uint32_t stats_interval_ms, uint32_t trace_interval_m
     if (stats_interval_ms) {
         stats_interval = MS_TO_TICKS(stats_interval_ms);
         stats_start_time = hal_sys_timer_get();
-        light_sleep_time = 0;
-        sys_deep_sleep_time = 0;
-        chip_deep_sleep_time = 0;
+        cpu_sleep_time = 0;
+        bus_sleep_time = 0;
+        subsys_sleep_time = 0;
         stats_valid = false;
         stats_started = true;
     } else {
@@ -138,10 +147,10 @@ int hal_sleep_get_stats(struct CPU_USAGE_T *usage)
 
     lock = int_lock();
     if (stats_valid) {
-        usage->light_sleep = light_sleep_ratio;
-        usage->sys_deep_sleep = sys_deep_sleep_ratio;
-        usage->chip_deep_sleep = chip_deep_sleep_ratio;
-        usage->busy = 100 - (light_sleep_ratio + sys_deep_sleep_ratio + chip_deep_sleep_ratio);
+        usage->cpu_sleep = cpu_sleep_ratio;
+        usage->bus_sleep = bus_sleep_ratio;
+        usage->subsys_sleep = subsys_sleep_ratio;
+        usage->busy = 100 - (cpu_sleep_ratio + bus_sleep_ratio + subsys_sleep_ratio);
         ret = 0;
     } else {
         ret = 1;
@@ -204,10 +213,10 @@ static void hal_sleep_print_wakeup_src(void)
     // Set wakeup start time to current time
     wakeup_start_time = cur_time;
 
-    HAL_TRACE(0, "DEEP SLEEP WAKEUP SRC STATS:");
+    TRACE(0, "DEEP SLEEP WAKEUP SRC STATS:");
     for (i = 0; i < ARRAY_SIZE(wakeup_total_interval); i++) {
         if (wakeup_total_interval[i]) {
-            HAL_TRACE(TR_ATTR_NO_TS, "\t[%2u]: %5u ms", i, TICKS_TO_MS(wakeup_total_interval[i]));
+            TRACE(TR_ATTR_NO_TS, "\t[%2u]: %5u ms", i, TICKS_TO_MS(wakeup_total_interval[i]));
             // Reset the total interval
             wakeup_total_interval[i] = 0;
         }
@@ -292,7 +301,7 @@ int SRAM_TEXT_LOC hal_sleep_irq_pending(void)
     }
 #else
     // If there is any pending and enabled exception (including sysTick)
-    // SCB_ICSR_VECTPENDING is not banked between security states
+    // SCB_ICSR_VECTPENDING_Msk is not banked between security states
     if (SCB->ICSR & SCB_ICSR_VECTPENDING_Msk) {
         return 1;
     }
@@ -403,26 +412,38 @@ static enum HAL_SLEEP_STATUS_T SRAM_TEXT_LOC hal_sleep_lowpower_mode(void)
         return ret;
     }
 
-#ifdef SLEEP_SYS_FREQ_52M
+#ifdef SLEEP_MIN_SYS_FREQ_MHZ
     enum HAL_CMU_FREQ_T old_min_freq;
 
-    old_min_freq = hal_sysfreq_inc_min_freq(HAL_CMU_FREQ_52M);
+    old_min_freq = hal_sysfreq_inc_min_freq(MACRO_CONCAT(MACRO_CONCAT(HAL_CMU_FREQ_, SLEEP_MIN_SYS_FREQ_MHZ), M));
 #endif
 
 #ifdef CORE_SLEEP_POWER_DOWN
-    if (power_down_en) {
-        if (chip_wake_lock_map) {
-            mode = HAL_CMU_LPU_SLEEP_MODE_SYS_32K_CORE_PD;
+    if (power_down_mode != HAL_SLEEP_POWER_DOWN_MODE_NONE) {
+        if (subsys_wake_lock_map) {
+#ifdef CPU_PD_SUBSYS_PU
+            mode = HAL_CMU_LPU_SLEEP_MODE_CPU_PD_BUS_32K;
+#else
+            mode = HAL_CMU_LPU_SLEEP_MODE_BUS_32K;
+#endif
         } else {
-            mode = HAL_CMU_LPU_SLEEP_MODE_POWER_DOWN;
+            if (power_down_mode == HAL_SLEEP_POWER_DOWN_MODE_CPU) {
+#ifdef CPU_PD_SUBSYS_PU
+                mode = HAL_CMU_LPU_SLEEP_MODE_CPU_PD_SUBSYS_32K;
+#else
+                mode = HAL_CMU_LPU_SLEEP_MODE_BUS_32K;
+#endif
+            } else {
+                mode = HAL_CMU_LPU_SLEEP_MODE_SUBSYS_PD;
+            }
         }
     } else
 #endif
     {
-        if (chip_wake_lock_map) {
-            mode = HAL_CMU_LPU_SLEEP_MODE_SYS;
+        if (subsys_wake_lock_map) {
+            mode = HAL_CMU_LPU_SLEEP_MODE_BUS_32K;
         } else {
-            mode = HAL_CMU_LPU_SLEEP_MODE_CHIP;
+            mode = HAL_CMU_LPU_SLEEP_MODE_SUBSYS_32K;
         }
     }
 
@@ -431,19 +452,24 @@ static enum HAL_SLEEP_STATUS_T SRAM_TEXT_LOC hal_sleep_lowpower_mode(void)
 
     // analog interface is handled by NS image
 #if defined(MAIN_MCU_SLEEP_CTRL) && !defined(ARM_CMSE)
-    if (chip_wake_lock_map == 0) {
+    if (subsys_wake_lock_map == 0) {
         analog_sleep();
+#ifndef NO_GPADC_CTRL
         hal_gpadc_sleep();
+#endif
         pmu_sleep();
     }
 #endif
     // End of stopping normal modules
 
+    hal_wdt_sleep(mode);
+
 #ifdef CORE_SLEEP_POWER_DOWN
     // Save uart trace related cfg
-    hal_dma_sleep();
-    hal_uart_sleep();
-    hal_cache_sleep();
+    hal_dma_sleep(mode);
+    hal_uart_sleep(mode);
+    hal_l2cache_sleep(mode);
+    hal_cache_sleep(mode);
 #endif
 
     // flash and psram is handled by SE image
@@ -451,20 +477,20 @@ static enum HAL_SLEEP_STATUS_T SRAM_TEXT_LOC hal_sleep_lowpower_mode(void)
 #ifdef MAIN_MCU_SLEEP_CTRL
     // Stop psram and then flash
 #ifdef PSRAMUHS_ENABLE
-    hal_psramuhs_sleep();
+    hal_psramuhs_sleep(mode);
 #endif
 #ifdef PSRAM_ENABLE
-    hal_psram_sleep();
+    hal_psram_sleep(mode);
 #endif
 #endif // MAIN_MCU_SLEEP_CTRL
 #ifdef FLASH_SLEEP_CTRL
-    hal_norflash_sleep(HAL_FLASH_ID_0);
+    hal_norflash_sleep(HAL_FLASH_ID_0, mode);
 #endif
 #endif // !ARM_CMNS
 
 #ifdef CORE_SLEEP_POWER_DOWN
     // Save ispi cfg
-    hal_spi_sleep();
+    hal_spi_sleep(mode);
 #endif
 
 #ifdef FAST_TIMER_COMPENSATE
@@ -490,10 +516,10 @@ static enum HAL_SLEEP_STATUS_T SRAM_TEXT_LOC hal_sleep_lowpower_mode(void)
         if (stats_started) {
             cur_time = hal_sys_timer_get();
             interval = cur_time - prev_time;
-            if (chip_wake_lock_map) {
-                sys_deep_sleep_time += interval;
+            if (subsys_wake_lock_map) {
+                bus_sleep_time += interval;
             } else {
-                chip_deep_sleep_time += interval;
+                subsys_sleep_time += interval;
             }
 #ifdef SLEEP_STATS_TRACE
 #ifdef WAKEUP_SRC_STATS
@@ -515,56 +541,64 @@ static enum HAL_SLEEP_STATUS_T SRAM_TEXT_LOC hal_sleep_lowpower_mode(void)
 
 #ifdef CORE_SLEEP_POWER_DOWN
     // Restore ispi cfg
-    hal_spi_wakeup();
+    hal_spi_wakeup(mode);
 #endif
 
     // flash and psram is handled by SE image
 #ifndef ARM_CMNS
     // Restore flash and then psram
 #ifdef FLASH_SLEEP_CTRL
-    hal_norflash_wakeup(HAL_FLASH_ID_0);
+    hal_norflash_wakeup(HAL_FLASH_ID_0, mode);
 #endif
 #ifdef MAIN_MCU_SLEEP_CTRL
 #ifdef PSRAM_ENABLE
-    hal_psram_wakeup();
+    hal_psram_wakeup(mode);
 #endif
 #ifdef PSRAMUHS_ENABLE
-    hal_psramuhs_wakeup();
+    hal_psramuhs_wakeup(mode);
 #endif
 #endif // MAIN_MCU_SLEEP_CTRL
 #endif // !ARM_CMNS
 
 #ifdef CORE_SLEEP_POWER_DOWN
-    hal_cache_wakeup();
+    hal_cache_wakeup(mode);
+    hal_l2cache_wakeup(mode);
     // Restore uart trace related cfg
-    hal_uart_wakeup();
-    hal_dma_wakeup();
+    hal_uart_wakeup(mode);
+    hal_dma_wakeup(mode);
+#endif
+
+    hal_wdt_wakeup(mode);
+
+#ifdef CPU_PC_DUMP
+    // Enable cpudump module
+    hal_cpudump_enable(HAL_CPUDUMP_ID_0);
 #endif
 
     // Restore normal modules
     // analog interface is handled by NS image
 #if defined(MAIN_MCU_SLEEP_CTRL) && !defined(ARM_CMSE)
-    if (chip_wake_lock_map == 0) {
+    if (subsys_wake_lock_map == 0) {
         pmu_wakeup();
+#ifndef NO_GPADC_CTRL
         hal_gpadc_wakeup();
+#endif
         analog_wakeup();
     }
 #endif
 
     pm_notif_wakeup(mode);
     // End of restoring normal modules
+    hal_fast_sys_timer_flag_set(true);
 
-#ifdef SLEEP_SYS_FREQ_52M
+#ifdef SLEEP_MIN_SYS_FREQ_MHZ
     hal_sysfreq_set_min_freq(old_min_freq);
 #endif
 
     return ret;
 }
 
-// GCC has trouble in detecting static function usage in embedded ASM statements.
-// The following function might be optimized away if there is no explicted call in C codes.
-// Specifying "used" (or "noclone") attribute on the function can avoid the mistaken optimization.
-enum HAL_SLEEP_STATUS_T SRAM_TEXT_LOC NOINLINE USED hal_sleep_proc(int light_sleep)
+enum HAL_SLEEP_STATUS_T SRAM_TEXT_LOC NOINLINE hal_sleep_proc(int light_sleep)
 {
     enum HAL_SLEEP_STATUS_T ret;
     uint32_t prev_time = 0;
@@ -585,7 +619,11 @@ enum HAL_SLEEP_STATUS_T SRAM_TEXT_LOC NOINLINE USED hal_sleep_proc(int light_sle
             goto _exit_sleep;
         }
 
-        if (sys_wake_lock_map || hal_sysfreq_busy() || (dma_busy = hal_dma_busy())) {
+        if (bus_wake_lock_map ||
+#ifndef DEEP_SLEEP_NO_SYSFERQ_CHECK
+                hal_sysfreq_busy() ||
+#endif
+                (dma_busy = hal_dma_busy())) {
             // Light sleep
 
             if (stats_started) {
@@ -608,7 +646,7 @@ enum HAL_SLEEP_STATUS_T SRAM_TEXT_LOC NOINLINE USED hal_sleep_proc(int light_sle
 
             if (stats_started) {
                 cur_time = hal_sys_timer_get();
-                light_sleep_time += cur_time - prev_time;
+                cpu_sleep_time += cur_time - prev_time;
 #ifdef SYSFREQ_STATS
                 hal_sysfreq_add_freq_time(true, cur_time);
 #endif
@@ -630,7 +668,7 @@ enum HAL_SLEEP_STATUS_T SRAM_TEXT_LOC NOINLINE USED hal_sleep_proc(int light_sle
 
             if (stats_started) {
                 cur_time = hal_sys_timer_get();
-                light_sleep_time += cur_time - prev_time;
+                cpu_sleep_time += cur_time - prev_time;
 #ifdef SYSFREQ_STATS
                 hal_sysfreq_add_freq_time(true, cur_time);
 #endif
@@ -658,28 +696,28 @@ _exit_sleep:
         cur_time = hal_sys_timer_get();
         interval = cur_time - stats_start_time;
         if (interval >= stats_interval) {
-            if (light_sleep_time > UINT32_MAX / 100) {
-                light_sleep_ratio = (uint64_t)light_sleep_time * 100 / interval;
+            if (cpu_sleep_time > UINT32_MAX / 100) {
+                cpu_sleep_ratio = (uint64_t)cpu_sleep_time * 100 / interval;
             } else {
-                light_sleep_ratio = light_sleep_time * 100 / interval;
+                cpu_sleep_ratio = cpu_sleep_time * 100 / interval;
             }
-            if (sys_deep_sleep_time > UINT32_MAX / 100) {
-                sys_deep_sleep_ratio = (uint64_t)sys_deep_sleep_time * 100 / interval;
+            if (bus_sleep_time > UINT32_MAX / 100) {
+                bus_sleep_ratio = (uint64_t)bus_sleep_time * 100 / interval;
             } else {
-                sys_deep_sleep_ratio = sys_deep_sleep_time * 100 / interval;
+                bus_sleep_ratio = bus_sleep_time * 100 / interval;
             }
-            if (chip_deep_sleep_time > UINT32_MAX / 100) {
-                chip_deep_sleep_ratio = (uint64_t)chip_deep_sleep_time * 100 / interval;
+            if (subsys_sleep_time > UINT32_MAX / 100) {
+                subsys_sleep_ratio = (uint64_t)subsys_sleep_time * 100 / interval;
             } else {
-                chip_deep_sleep_ratio = chip_deep_sleep_time * 100 / interval;
+                subsys_sleep_ratio = subsys_sleep_time * 100 / interval;
             }
             stats_valid = true;
-            light_sleep_time = 0;
-            sys_deep_sleep_time = 0;
-            chip_deep_sleep_time = 0;
+            cpu_sleep_time = 0;
+            bus_sleep_time = 0;
+            subsys_sleep_time = 0;
             stats_start_time = cur_time;
 
-            system_sleep_stat_update(light_sleep_ratio, sys_deep_sleep_ratio, chip_deep_sleep_ratio);
+            system_sleep_stat_update(cpu_sleep_ratio, bus_sleep_ratio, subsys_sleep_ratio);
         }
 #ifdef SLEEP_STATS_TRACE
         if (stats_valid && stats_trace_interval) {
@@ -687,15 +725,39 @@ _exit_sleep:
 #ifdef DEBUG_SLEEP_USER
                 hal_dma_record_busy_chan();
 #endif
-                HAL_TRACE(0, "CPU USAGE: busy=%d light=%d sys_deep=%d chip_deep=%d",
-                    100 - (light_sleep_ratio + sys_deep_sleep_ratio + chip_deep_sleep_ratio),
-                    light_sleep_ratio, sys_deep_sleep_ratio, chip_deep_sleep_ratio);
+                TRACE(0, "CPU USAGE: busy=%d cpu_sleep=%d bus_sleep=%d subsys_sleep=%d",
+                    100 - (cpu_sleep_ratio + bus_sleep_ratio + subsys_sleep_ratio),
+                    cpu_sleep_ratio, bus_sleep_ratio, subsys_sleep_ratio);
                 stats_trace_time = cur_time;
 #ifdef DEBUG_SLEEP_USER
-                HAL_TRACE(0, "SLEEP USER: cpu=0x%X sys=0x%X chip=0x%X irq=0x%08X_%08X",
-                    cpu_wake_lock_map, sys_wake_lock_map, chip_wake_lock_map,
-                    (NVIC->ICPR[1] & NVIC->ISER[1]), (NVIC->ICPR[0] & NVIC->ISER[0]));
-                HAL_TRACE(0, "BUSY: LPU=%d DMA=%d TRACE=%d", lpu_busy, dma_busy, trace_busy);
+                TRACE(0, "WAKE LOCK: cpu=0x%X bus=0x%X subsys=0x%X",
+                    cpu_wake_lock_map, bus_wake_lock_map, subsys_wake_lock_map);
+                TRACE_NOCRLF(0, "PENDING IRQ: 0x");
+                uint32_t irqs;
+                uint32_t words = (USER_IRQn_QTY + 31) / 32;
+                while (words--) {
+#if defined(__GIC_PRESENT) && (__GIC_PRESENT)
+                    irqs = GICDistributor->ICPENDR[words] & GICDistributor->ISENABLER[words];
+#else
+                    irqs = NVIC->ICPR[words] & NVIC->ISER[words];
+#endif
+                    TRACE(TR_ATTR_NO_TS | TR_ATTR_NO_LF, "%08X", irqs);
+                    if (words) {
+                        TRACE_OUTPUT((const uint8_t *)"-", 1);
+                    }
+                }
+#ifndef __ARM_ARCH_ISA_ARM
+                if ((SysTick->CTRL & (SysTick_CTRL_TICKINT_Msk | SysTick_CTRL_ENABLE_Msk)) ==
+                        (SysTick_CTRL_TICKINT_Msk | SysTick_CTRL_ENABLE_Msk)) {
+                    TRACE_NOCRLF_NOTS(0, " systick=%u", !!(SCB->ICSR & SCB_ICSR_PENDSTSET_Msk));
+                }
+                if (SCB->ICSR & SCB_ICSR_VECTPENDING_Msk) {
+                    TRACE_NOCRLF_NOTS(0, " vector=%u",
+                        (unsigned)((SCB->ICSR & SCB_ICSR_VECTPENDING_Msk) >> SCB_ICSR_VECTPENDING_Pos));
+                }
+#endif
+                TRACE_OUTPUT_LINEFEED();
+                TRACE(0, "BUSY: lpu=%d dma=%d trace=%d", lpu_busy, dma_busy, trace_busy);
                 hal_sysfreq_print_user_freq();
                 hal_dma_print_busy_chan();
 #endif
@@ -717,22 +779,22 @@ _exit_sleep:
 }
 
 #ifndef __ARM_ARCH_ISA_ARM
-static enum HAL_SLEEP_STATUS_T SRAM_TEXT_LOC NOINLINE USED NAKED hal_sleep_deep_sleep_wrapper(void)
+static enum HAL_SLEEP_STATUS_T SRAM_TEXT_LOC NOINLINE NAKED hal_sleep_deep_sleep_wrapper(void)
 {
-    asm volatile(
-        "push {r4, lr} \n"
+    asm volatile (
+        "push {r4, lr};"
         // Switch current stack pointer to MSP
-        "mrs r4, control \n"
-        "bic r4, #2 \n"
-        "msr control, r4 \n"
-        "isb \n"
-        "movs r0, #0 \n"
-        "bl hal_sleep_proc \n"
+        "mrs r4, control;"
+        "bic r4, #2;"
+        "msr control, r4;"
+        "isb;"
+        "movs r0, #0;"
+        "bl hal_sleep_proc;"
         // Switch current stack pointer back to PSP
-        "orr r4, #2 \n"
-        "msr control, r4 \n"
-        "isb \n"
-        "pop {r4, pc} \n"
+        "orr r4, #2;"
+        "msr control, r4;"
+        "isb;"
+        "pop {r4, pc};"
 #ifdef LTO_OPTIMIZE
         ".pool"
         : : "X"(hal_sleep_proc)
@@ -822,143 +884,113 @@ int hal_cpu_wake_unlock(enum HAL_CPU_WAKE_LOCK_USER_T user)
     return 0;
 }
 
-uint32_t hal_cpu_wake_lock_get()
+uint32_t hal_cpu_wake_lock_get(void)
 {
     return cpu_wake_lock_map;
 }
 
-int hal_sys_wake_lock(enum HAL_SYS_WAKE_LOCK_USER_T user)
+int hal_bus_wake_lock(enum HAL_BUS_WAKE_LOCK_USER_T user)
 {
     uint32_t lock;
 
-    if (user >= HAL_SYS_WAKE_LOCK_USER_QTY) {
+    if (user >= HAL_BUS_WAKE_LOCK_USER_QTY) {
         return 1;
     }
 
     lock = int_lock();
-    sys_wake_lock_map |= (1 << user);
+    bus_wake_lock_map |= (1 << user);
     int_unlock(lock);
 
     return 0;
 }
 
-int hal_sys_wake_unlock(enum HAL_SYS_WAKE_LOCK_USER_T user)
+int hal_bus_wake_unlock(enum HAL_BUS_WAKE_LOCK_USER_T user)
 {
     uint32_t lock;
 
-    if (user >= HAL_SYS_WAKE_LOCK_USER_QTY) {
+    if (user >= HAL_BUS_WAKE_LOCK_USER_QTY) {
         return 1;
     }
 
     lock = int_lock();
-    sys_wake_lock_map &= ~(1 << user);
+    bus_wake_lock_map &= ~(1 << user);
     int_unlock(lock);
 
     return 0;
 }
 
-uint32_t hal_sys_wake_lock_get()
+uint32_t hal_bus_wake_lock_get(void)
 {
-    return sys_wake_lock_map;
+    return bus_wake_lock_map;
 }
 
-#if defined(__NuttX__)
-int hal_bus_wake_lock(enum HAL_SYS_WAKE_LOCK_USER_T user)
-{
-    return hal_sys_wake_lock(user);
-}
-
-int hal_bus_wake_unlock(enum HAL_SYS_WAKE_LOCK_USER_T user)
-{
-    return hal_sys_wake_unlock(user);
-}
-
-uint32_t hal_bus_wake_lock_get()
-{
-    return hal_sys_wake_lock_get();
-}
-#endif
-
-int hal_chip_wake_lock(enum HAL_CHIP_WAKE_LOCK_USER_T user)
+int hal_subsys_wake_lock(enum HAL_SUBSYS_WAKE_LOCK_USER_T user)
 {
     uint32_t lock;
 
-    if (user >= HAL_CHIP_WAKE_LOCK_USER_QTY) {
+    if (user >= HAL_SUBSYS_WAKE_LOCK_USER_QTY) {
         return 1;
     }
 
     lock = int_lock();
-    chip_wake_lock_map |= (1 << user);
+    subsys_wake_lock_map |= (1 << user);
     int_unlock(lock);
 
     return 0;
 }
 
-int hal_chip_wake_unlock(enum HAL_CHIP_WAKE_LOCK_USER_T user)
+int hal_subsys_wake_unlock(enum HAL_SUBSYS_WAKE_LOCK_USER_T user)
 {
     uint32_t lock;
 
-    if (user >= HAL_CHIP_WAKE_LOCK_USER_QTY) {
+    if (user >= HAL_SUBSYS_WAKE_LOCK_USER_QTY) {
         return 1;
     }
 
     lock = int_lock();
-    chip_wake_lock_map &= ~(1 << user);
+    subsys_wake_lock_map &= ~(1 << user);
     int_unlock(lock);
 
     return 0;
 }
 
-uint32_t hal_chip_wake_lock_get()
+uint32_t hal_subsys_wake_lock_get(void)
 {
-    return chip_wake_lock_map;
+    return subsys_wake_lock_map;
 }
 
-void hal_sleep_power_down_enable(void)
+void hal_sleep_power_down_mode_set(enum HAL_SLEEP_POWER_DOWN_MODE_T mode)
 {
 #ifdef CORE_SLEEP_POWER_DOWN
-    power_down_en = true;
+#ifndef CPU_PD_SUBSYS_PU
+    ASSERT(mode != HAL_SLEEP_POWER_DOWN_MODE_CPU, "%s: MODE CPU should work with CPU_PD_SUBSYS_PU", __func__);
+#endif
+    power_down_mode = mode;
 #ifdef ARM_CMNS
-    TZ_hal_sleep_power_down_enable_S();
+    TZ_hal_sleep_power_down_mode_set_S(mode);
 #endif
 #endif
 }
 
-void hal_sleep_power_down_disable(void)
+enum HAL_SLEEP_POWER_DOWN_MODE_T hal_sleep_power_down_mode_get(void)
 {
 #ifdef CORE_SLEEP_POWER_DOWN
-    power_down_en = false;
-#ifdef ARM_CMNS
-    TZ_hal_sleep_power_down_disable_S();
-#endif
-#endif
-}
-
-int hal_sleep_power_down_enabled(void)
-{
-#ifdef CORE_SLEEP_POWER_DOWN
-    return power_down_en;
+    return power_down_mode;
 #else
-    return false;
+    return HAL_SLEEP_POWER_DOWN_MODE_NONE;
 #endif
 }
 
 #ifdef ARM_CMSE
 #ifdef CORE_SLEEP_POWER_DOWN
-__attribute__((cmse_nonsecure_entry))
-void TZ_hal_sleep_power_down_enable_S(void)
+CMSE_API
+void TZ_hal_sleep_power_down_mode_set_S(enum HAL_SLEEP_POWER_DOWN_MODE_T mode)
 {
-    hal_sleep_power_down_enable();
-}
-
-__attribute__((cmse_nonsecure_entry))
-void TZ_hal_sleep_power_down_disable_S(void)
-{
-    hal_sleep_power_down_disable();
+    hal_sleep_power_down_mode_set(mode);
 }
 #endif
 
-__attribute__((cmse_nonsecure_entry))
+CMSE_API
 int TZ_hal_sleep_deep_sleep_S(void)
 {
     enum HAL_SLEEP_STATUS_T ret;
@@ -1062,9 +1094,9 @@ WEAK SYSTEM_SLEEP_STAT_T* system_sleep_stat_get(void)
     return &system_sleep_stat_info;
 }
 
-WEAK void system_sleep_stat_update(uint8_t light, uint8_t sys_deep, uint8_t chip_deep)
+WEAK void system_sleep_stat_update(uint8_t cpu_sleep, uint8_t bus_sleep, uint8_t subsys_sleep)
 {
-    system_sleep_stat_info.light_sleep_ratio = light;
-    system_sleep_stat_info.sys_deep_sleep_ratio = sys_deep;
-    system_sleep_stat_info.chip_deep_sleep_ratio = chip_deep;
+    system_sleep_stat_info.cpu_sleep_ratio = cpu_sleep;
+    system_sleep_stat_info.bus_sleep_ratio = bus_sleep;
+    system_sleep_stat_info.subsys_sleep_ratio = subsys_sleep;
 }

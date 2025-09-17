@@ -17,7 +17,7 @@
 #define __BT_1306P_REG_MAP_H__
 
 #ifndef ASSERT_ERR
-#define ASSERT_ERR(cond)                             { if (!(cond)) { DRIVERS_TRACE(2,"line is %d file is %s", __LINE__, __FILE__); } }
+#define ASSERT_ERR(cond)                             { if (!(cond)) { BT_DRV_TRACE(2,"line is %d file is %s", __LINE__, __FILE__); } }
 #endif
 
 /***************************************************************************
@@ -325,12 +325,6 @@ __STATIC_FORCEINLINE void bt_bes_cntl3_reg_fa_gain_en_setf(uint8_t regfagainen)
 {
     ASSERT_ERR((((uint32_t)regfagainen << 30) & ~((uint32_t)0x40000000)) == 0);
     REG_BT_WR(BT_BES_CNTL3_ADDR, (REG_BT_RD(BT_BES_CNTL3_ADDR) & ~((uint32_t)0x40000000)) | ((uint32_t)regfagainen << 30));
-}
-
-__STATIC_FORCEINLINE void bt_bes_cntl3_reg_fec_comp_bit_setf(uint8_t regfeccompbit)
-{
-    ASSERT_ERR((((uint32_t)regfeccompbit << 16) & ~((uint32_t)0x001F0000)) == 0);
-    REG_PL_WR(BT_BES_CNTL3_ADDR, (REG_PL_RD(BT_BES_CNTL3_ADDR) & ~((uint32_t)0x001F0000)) | ((uint32_t)regfeccompbit << 16));
 }
 
 /**
@@ -886,42 +880,32 @@ __STATIC_FORCEINLINE void btdrv_hdt_2m_rxpathdly_pack(uint8_t btsyncpos2m, uint8
  */
 #define BT_BES_CNTL15_ADDR   (BT_CORE_BASE_ADDR + 0xD04)
 /**
- * @brief BLE_MTK_MHDT_0 register definition
+ * @brief MTK_MHDT_0 register definition
  * <pre>
  *   Bits           Field Name   Reset Value
  *  -----   ------------------   -----------
- *     30          trig_irq_en   0
- *     29        micerr_lendsb   0
- *     28      soft_rst_irq_en   0
- *     27       mic_pktlen_sel   0
- *     26      mhdt_ble_fa_dsb   0
- *     25          mhdt_fa_dsb   0
- *  24:23           txrate4cfg   0x0
- *  22:16     ble_txpathdly_4m   0x0
- *  15:08       ble_txpwrup_4m   0x0
- *  06:00      ble_tx_pwrdn_4m   0x0
+ *     30   reg_trigger_irq_en   0
+ *     28   reg_soft_rst_irq_en   0
+ *     26   reg_mhdt_ble_fa_dsb   0
+ *     25      reg_mhdt_fa_dsb   0
+ *  24:23       ble_txrate4cfg   0x0
+ *  22:16    reg_ble_txpathdly   0x0
+ *  15:08    reg_ble_txpwrup4m   0x0
+ *  06:00      reg_ble_pwrdn4m   0x0
  * </pre>
  */
 #define BLE_MTK_MHDT_0_ADDR   (BT_CORE_BASE_ADDR + 0xD78)
-__INLINE void ble_mtk_mhdt_0_pack(uint8_t trigirqen, uint8_t micerrlendsb, uint8_t softrstirqen, uint8_t micpktlensel, uint8_t mhdtblefadsb, uint8_t mhdtfadsb, uint8_t txrate4cfg, uint8_t bletxpathdly4m, uint8_t bletxpwrup4m, uint8_t bletxpwrdn4m)
+__STATIC_FORCEINLINE void ble_mtk_mhdt_0_pack(uint8_t regtriggerirqen, uint8_t regsoftrstirqen, uint8_t regmhdtblefadsb, uint8_t regmhdtfadsb, uint8_t bletxrate4cfg, uint8_t regbletxpathdly, uint8_t regbletxpwrup4m, uint8_t regblepwrdn4m)
 {
-    ASSERT_ERR((((uint32_t)trigirqen << 30) & ~((uint32_t)0x40000000)) == 0);
-    ASSERT_ERR((((uint32_t)micerrlendsb << 29) & ~((uint32_t)0x20000000)) == 0);
-    ASSERT_ERR((((uint32_t)softrstirqen << 28) & ~((uint32_t)0x10000000)) == 0);
-    ASSERT_ERR((((uint32_t)micpktlensel << 27) & ~((uint32_t)0x08000000)) == 0);
-    ASSERT_ERR((((uint32_t)mhdtblefadsb << 26) & ~((uint32_t)0x04000000)) == 0);
-    ASSERT_ERR((((uint32_t)mhdtfadsb << 25) & ~((uint32_t)0x02000000)) == 0);
-    ASSERT_ERR((((uint32_t)txrate4cfg << 23) & ~((uint32_t)0x01800000)) == 0);
-    ASSERT_ERR((((uint32_t)bletxpathdly4m << 16) & ~((uint32_t)0x007F0000)) == 0);
-    ASSERT_ERR((((uint32_t)bletxpwrup4m << 8) & ~((uint32_t)0x0000FF00)) == 0);
-    ASSERT_ERR((((uint32_t)bletxpwrdn4m << 0) & ~((uint32_t)0x0000007F)) == 0);
-    REG_BT_WR(BLE_MTK_MHDT_0_ADDR,  ((uint32_t)trigirqen << 30) | ((uint32_t)micerrlendsb << 29) | ((uint32_t)softrstirqen << 28) | ((uint32_t)micpktlensel << 27) | ((uint32_t)mhdtblefadsb << 26) | ((uint32_t)mhdtfadsb << 25) | ((uint32_t)txrate4cfg << 23) | ((uint32_t)bletxpathdly4m << 16) | ((uint32_t)bletxpwrup4m << 8) | ((uint32_t)bletxpwrdn4m << 0));
-}
-
-__STATIC_FORCEINLINE void ble_mtk_mhdt_0_pack_mic_pktlen_setf(uint8_t enable)
-{
-    ASSERT_ERR((((uint32_t)enable << 27) & ~((uint32_t)0x8000000)) == 0);
-    REG_BT_WR(BLE_MTK_MHDT_0_ADDR, (REG_BT_RD(BLE_MTK_MHDT_0_ADDR) & ~((uint32_t)0x8000000)) | ((uint32_t)enable << 27));
+    ASSERT_ERR((((uint32_t)regtriggerirqen << 30) & ~((uint32_t)0x40000000)) == 0);
+    ASSERT_ERR((((uint32_t)regsoftrstirqen << 28) & ~((uint32_t)0x10000000)) == 0);
+    ASSERT_ERR((((uint32_t)regmhdtblefadsb << 26) & ~((uint32_t)0x04000000)) == 0);
+    ASSERT_ERR((((uint32_t)regmhdtfadsb << 25) & ~((uint32_t)0x02000000)) == 0);
+    ASSERT_ERR((((uint32_t)bletxrate4cfg << 23) & ~((uint32_t)0x01800000)) == 0);
+    ASSERT_ERR((((uint32_t)regbletxpathdly << 16) & ~((uint32_t)0x007F0000)) == 0);
+    ASSERT_ERR((((uint32_t)regbletxpwrup4m << 8) & ~((uint32_t)0x0000FF00)) == 0);
+    ASSERT_ERR((((uint32_t)regblepwrdn4m << 0) & ~((uint32_t)0x0000007F)) == 0);
+    REG_BT_WR(BLE_MTK_MHDT_0_ADDR,  ((uint32_t)regtriggerirqen << 30) | ((uint32_t)regsoftrstirqen << 28) | ((uint32_t)regmhdtblefadsb << 26) | ((uint32_t)regmhdtfadsb << 25) | ((uint32_t)bletxrate4cfg << 23) | ((uint32_t)regbletxpathdly << 16) | ((uint32_t)regbletxpwrup4m << 8) | ((uint32_t)regblepwrdn4m << 0));
 }
 
 /**

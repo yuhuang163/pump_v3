@@ -43,9 +43,6 @@
 #include "touch_wear_core.h"
 #endif
 
-#if defined(SPA_AUDIO_ENABLE)
-#include "spa_sens_main.h"
-#endif
 /*
  * sensor hub AT command receive
  */
@@ -56,7 +53,7 @@
 static void app_sensor_hub_at_cmd_receive_handler(uint8_t *buf, uint16_t len)
 {
     buf[len] = '\0';
-    SENSOR_HUB_TRACE(0, "[AT command received]: \"%s\"", buf);
+    TRACE(0, "[AT command received]: \"%s\"", buf);
     uart_cmd_callback(buf, len);
 }
 
@@ -120,15 +117,15 @@ static void app_sensor_hub_core_transmit_demo_no_rsp_cmd_handler(uint8_t* ptr, u
 
 static void app_sensor_hub_core_demo_no_rsp_cmd_received_handler(uint8_t* ptr, uint16_t len)
 {
-    SENSOR_HUB_TRACE(0, "Get demo no rsp command from mcu:");
-    SENSOR_HUB_DUMP8("%02x ", ptr, len);
+    TRACE(0, "Get demo no rsp command from mcu:");
+    DUMP8("%02x ", ptr, len);
 }
 
 static void app_sensor_hub_core_demo_no_rsp_cmd_tx_done_handler(uint16_t cmdCode,
     uint8_t* ptr, uint16_t len)
 {
-    SENSOR_HUB_TRACE(0, "cmdCode 0x%x tx done", cmdCode);
-    SENSOR_HUB_DUMP8("%02x ", ptr, len);
+    TRACE(0, "cmdCode 0x%x tx done", cmdCode);
+    DUMP8("%02x ", ptr, len);
 }
 
 void app_sensor_hub_core_send_demo_req_no_rsp(void)
@@ -155,8 +152,8 @@ static void app_sensor_hub_core_transmit_demo_wait_rsp_cmd_handler(uint8_t* ptr,
 
 static void app_sensor_hub_core_demo_wait_rsp_cmd_received_handler(uint8_t* ptr, uint16_t len)
 {
-    SENSOR_HUB_TRACE(0, "Get demo with rsp command from mcu:");
-    SENSOR_HUB_DUMP8("%02x ", ptr, len);
+    TRACE(0, "Get demo with rsp command from mcu:");
+    DUMP8("%02x ", ptr, len);
     APP_SENSOR_HUB_CORE_DEMO_RSP_T rsp;
     rsp.rspData = CORE_BRIDGE_DEMO_REQ_RSP_DATA;
     app_core_bridge_send_rsp(MCU_SENSOR_HUB_TASK_CMD_DEMO_REQ_WITH_RSP, (uint8_t *)&rsp, sizeof(rsp));
@@ -164,19 +161,19 @@ static void app_sensor_hub_core_demo_wait_rsp_cmd_received_handler(uint8_t* ptr,
 
 static void app_sensor_hub_core_demo_wait_rsp_cmd_wait_rsp_timeout(uint8_t* ptr, uint16_t len)
 {
-    SENSOR_HUB_TRACE(0, "sensor core waiting for rsp to demo cmd timeout.");
+    TRACE(0, "sensor core waiting for rsp to demo cmd timeout.");
 }
 
 static void app_sensor_hub_core_demo_wait_rsp_cmd_rsp_received_handler(uint8_t* ptr, uint16_t len)
 {
     APP_SENSOR_HUB_CORE_DEMO_RSP_T* ptrRsp = (APP_SENSOR_HUB_CORE_DEMO_RSP_T *)ptr;
-    SENSOR_HUB_TRACE(0, "Sensor hub gets rsp 0x%x from mcu:", ptrRsp->rspData);
+    TRACE(0, "Sensor hub gets rsp 0x%x from mcu:", ptrRsp->rspData);
 }
 
 static void app_sensor_hub_core_demo_with_rsp_cmd_tx_done_handler(uint16_t cmdCode,
     uint8_t* ptr, uint16_t len)
 {
-    SENSOR_HUB_TRACE(0, "cmdCode 0x%x tx done", cmdCode);
+    TRACE(0, "cmdCode 0x%x tx done", cmdCode);
 }
 
 void app_sensor_hub_core_send_demo_req_with_rsp(void)
@@ -207,8 +204,8 @@ static void app_sensor_hub_core_demo_instant_req_handler(uint8_t* ptr, uint16_t 
     // for test purpose, we add log print here.
     // but as instant cmd handler will be directly called in intersys irq context,
     // for realistic use, should never do log print
-    SENSOR_HUB_TRACE(0, "Get demo instant req command from mcu:");
-    SENSOR_HUB_DUMP8("%02x ", ptr, len);
+    TRACE(0, "Get demo instant req command from mcu:");
+    DUMP8("%02x ", ptr, len);
 }
 
 CORE_BRIDGE_INSTANT_COMMAND_TO_ADD(MCU_SENSOR_HUB_INSTANT_CMD_DEMO_REQ,
@@ -231,10 +228,10 @@ static void app_sensor_hub_core_vpu_wait_rsp_cmd_received_handler(uint8_t* ptr, 
     bool vpu_enable = ptr[0];
 
     if (vpu_enable) {
-        SENSOR_HUB_TRACE(0, "Turn on VPU.");
+        TRACE(0, "Turn on VPU.");
         ret = vpu_cfg_init();
     } else {
-        SENSOR_HUB_TRACE(0, "Turn off VPU.");
+        TRACE(0, "Turn off VPU.");
         ret = vpu_cfg_deinit();
     }
 
@@ -260,28 +257,29 @@ CORE_BRIDGE_TASK_COMMAND_TO_ADD(MCU_SENSOR_HUB_TASK_CMD_VPU,
 
 static void sensor_hub_ping_mcu_timer_handler(void const *param);
 osTimerDef(sensor_hub_ping_mcu_timer, sensor_hub_ping_mcu_timer_handler);
-static osTimerId sensor_hub_ping_mcu_timer_id = NULL;
+static osTimerId POSSIBLY_UNUSED sensor_hub_ping_mcu_timer_id = NULL;
 
-static void sensor_hub_ping_mcu_timer_handler(void const *param)
+static void POSSIBLY_UNUSED sensor_hub_ping_mcu_timer_handler(void const *param)
 {
     app_sensor_hub_core_ping_mcu();
 }
 
 static void app_sensor_hub_core_timer_init(void)
 {
-    SENSOR_HUB_TRACE(0, "%s:", __func__);
-
+#ifndef SLEEP_PD_CURRENT_TEST
+    TRACE(0, "%s:", __func__);
     if (sensor_hub_ping_mcu_timer_id == NULL) {
         sensor_hub_ping_mcu_timer_id = osTimerCreate(osTimer(sensor_hub_ping_mcu_timer), osTimerPeriodic, NULL);
     }
     if (sensor_hub_ping_mcu_timer_id != NULL) {
         osTimerStart(sensor_hub_ping_mcu_timer_id, APP_SENSOR_HUB_PING_MCU_TIMER_PERIOD_MS);
     }
+#endif
 }
 
 void sensor_hub_core_app_init(void)
 {
-
+    hal_sysfreq_req(HAL_SYSFREQ_USER_INIT, HAL_CMU_FREQ_52M);
 
 #if defined(VOICE_DETECTOR_EN) || defined(AI_VOICE) \
 //    || defined(CAPSENSOR_ENABLE)
@@ -292,9 +290,9 @@ void sensor_hub_core_app_init(void)
 
     app_core_bridge_init();
 
-    sensor_hub_core_register_rx_irq_handler(app_core_bridge_data_received);
+    sensor_hub_core_register_rx_irq_handler(CORE_IRQ_HDLR_PRIO_LOW, app_core_bridge_data_received);
 
-    sensor_hub_core_register_tx_done_irq_handler(app_core_bridge_data_tx_done);
+    sensor_hub_core_register_tx_done_irq_handler(CORE_IRQ_HDLR_PRIO_LOW, app_core_bridge_data_tx_done);
 
     app_sensor_hub_core_ping_mcu();
 
@@ -312,8 +310,9 @@ void sensor_hub_core_app_init(void)
 #ifdef CAPSENSOR_ENABLE
     cap_sensor_core_thread_init();
 #endif
-#if defined(SPA_AUDIO_ENABLE)
-    spatial_audio_sens_process_init_if(0,0,0,0,NULL);
-#endif
 }
 
+WEAK void sensor_hub_core_custom_app_init(void)
+{
+
+}

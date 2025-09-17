@@ -46,7 +46,7 @@ static void playlist_insert(playlist_item* item)
     int fd;
     fd = open(PLAYLIST_PATH, O_RDWR | O_CREAT);
     if (fd <= 0) {
-        AUDIOPLAYERS_TRACE(0,"Playlist open fail");
+        error("Playlist open fail");
         return;
     }
 
@@ -64,7 +64,7 @@ static bool sdcard_mount(void)
 
     sdfs = new SDFileSystem(SD_LABEL);
     if (sdfs == NULL) {
-        AUDIOPLAYERS_TRACE(0,"No memory for sd file system");
+        error("No memory for sd file system");
         return false;
     }
 
@@ -93,7 +93,7 @@ static void app_rbplay_gen_playlist(playlist_struct *list)
 
     d = opendir("/" SD_LABEL);
     if (!d) {
-        AUDIOPLAYERS_TRACE(0,"SD card open fail");
+        error("SD card open fail");
         return;
     }
 
@@ -115,7 +115,7 @@ static void app_rbplay_gen_playlist(playlist_struct *list)
         fd = open(sd_curritem.file_path, O_RDONLY);
 
         if (fd <= 0) {
-            AUDIOPLAYERS_TRACE(0,"File %s open error", p->d_name);
+            error("File %s open error", p->d_name);
             break;
         }
 

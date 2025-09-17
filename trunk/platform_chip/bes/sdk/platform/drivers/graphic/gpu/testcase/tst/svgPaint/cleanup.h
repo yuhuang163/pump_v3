@@ -1,0 +1,1 @@
+int cleanup(vg_lite_path_t * path, vg_lite_buffer_t *buffer);

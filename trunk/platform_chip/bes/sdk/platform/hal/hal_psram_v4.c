@@ -17,10 +17,13 @@
 
 #include "plat_types.h"
 #include "plat_addr_map.h"
+
+#ifdef PSRAM_CTRL_BASE
+
 #include "cmsis.h"
 #include "hal_cache.h"
+#include "hal_cmu.h"
 #include "hal_location.h"
-#include "hal_psc.h"
 #include "hal_psram.h"
 #include "hal_timer.h"
 #include "hal_trace.h"
@@ -29,34 +32,62 @@
 #include "reg_psram_phy_v4.h"
 #include "string.h"
 
+#define PSRAM_XCCELA_MODE
+
+//#define PSRAM_XCCELA_DUAL_WORKAROUND
 //#define PSRAM_DUAL_8BIT
-//#define PSRAM_DUAL_SWITCH
+//#define PSRAM_X16_MODE
+//#define PSRAM_X8_MODE
+
+#define PSRAM_DUAL_ENTRY
+#define PSRAM_AUTO_LOW_POWER
 //#define PSRAM_SNOOP_DISABLE
-//#define PSRAM_AUTO_LOW_POWER
+
+//#define PSRAM_CALIB_TEST
+//#define PSRAM_DUAL_SWITCH
+
+#ifdef PSRAM_XCCELA_DUAL_WORKAROUND
+#undef PSRAM_X8_MODE
+#undef PSRAM_X16_MODE
+#if !defined(PSRAM_DUAL_8BIT)
+#define PSRAM_DUAL_8BIT
+#endif
+#elif defined(PSRAM_DUAL_8BIT)
+#undef PSRAM_X8_MODE
+#undef PSRAM_X16_MODE
+#elif defined(PSRAM_X8_MODE)
+#undef PSRAM_X16_MODE
+#elif !defined(PSRAM_X16_MODE)
+#define PSRAM_X16_MODE
+#endif
 
 #ifndef PSRAM_APS3208K
     //#define PSRAM_WRAP_ENABLE
 #endif
-#define PSRAM_DUAL_ENTRY
-#define PSRAM_XCCELA_MODE
-//#define PSRAM_X16_MODE
-#define PSRAM_XCCELA_DUAL_WORKAROUND
-//#define PSRAM_CALIB_TEST
 
-#ifdef PSRAM_XCCELA_DUAL_WORKAROUND
-#define PSRAM_DUAL_8BIT
-//#define PSRAM_DUAL_SWITCH
-#undef PSRAM_X16_MODE
+#ifdef PSRAM_1V2_ENABLE
+#ifndef PSRAM_XCCELA_MODE
+#define PSRAM_XCCELA_MODE
+#endif
+#endif
+
+#ifdef PSRAM_XCCELA_MODE
+#define PSRAM_TX_CEB_DLY_OFFSET             8
+#endif
+
+#if (defined(PSRAM_DUAL_8BIT) && !defined(PSRAM_XCCELA_DUAL_WORKAROUND))
+#define PSRAM_PAGE_ZIZE_EXTEND  (2)
+#else
+#define PSRAM_PAGE_ZIZE_EXTEND  (1)
 #endif
 
 #ifndef PSRAM_PAGE_SIZE
 #ifdef PSRAM_XCCELA_MODE
-#define PSRAM_TX_CEB_DLY_OFFSET             8
 // APS128xxN APS256xxN APS512xxN
-#define PSRAM_PAGE_SIZE                     2048
+#define PSRAM_PAGE_SIZE                     (2048 * PSRAM_PAGE_ZIZE_EXTEND)
 #else /* PSRAM_XCCELA_MODE */
 // APS3208K APS6408L
-#define PSRAM_PAGE_SIZE                     1024
+#define PSRAM_PAGE_SIZE                     (1024 * PSRAM_PAGE_ZIZE_EXTEND)
 #endif /* PSRAM_XCCELA_MODE */
 #endif
 
@@ -64,11 +95,27 @@
 #ifdef PSRAM_WINDOW_TEST
 #undef PSRAM_AUTO_LOW_POWER
 #else
-#define PSRAM_QUEUE_IDLE_TIME_US            (100)
+#define PSRAM_QUEUE_IDLE_TIME_US            (10)
 #endif
 #endif
 
-#define PSRAM_CALIB_TEST_CTRL               RAM_BASE
+#ifdef PSRAM_DEBUG
+    #define PSRAM_TRACE TRACE_IMM
+#else
+    #define PSRAM_TRACE(...)
+#endif
+
+#ifdef PSRAM_DEBUG
+    #define PSRAM_TRACENOCRLF_NOTS          TRACE_NOCRLF_NOTS
+    #define PSRAM_TRACE_NOTS                TRACE_NOTS
+    #define PSRAM_TRACE_LINEFEED            TRACE_OUTPUT_LINEFEED
+#else
+    #define PSRAM_TRACENOCRLF_NOTS(...)
+    #define PSRAM_TRACE_NOTS(...)
+    #define PSRAM_TRACE_LINEFEED()
+#endif
+
+#define PSRAM_CALIB_TEST_CTRL               RAM_REGION_BASE
 
 #define TX_FIFO_DEPTH                       8
 #define RX_FIFO_DEPTH                       8
@@ -183,10 +230,12 @@ enum MEMIF_CMD_T {
 
 static struct PSRAM_MC_T *const psram_mc = (struct PSRAM_MC_T *)PSRAM_CTRL_BASE;
 static struct PSRAM_PHY_T *const psram_phy = (struct PSRAM_PHY_T *)(PSRAM_CTRL_BASE + 0x8000);
+static uint32_t psram_sleep_time;
 
 #ifdef CORE_SLEEP_POWER_DOWN
-    volatile uint32_t psramphy_save_reg_058 = 0;
-    volatile uint32_t psramphy_save_reg_05c = 0;
+uint32_t psramphy_save_range = 0;
+uint32_t psramphy_save_reg_058 = 0;
+uint32_t psramphy_save_reg_05c = 0;
 #endif
 
 #ifdef FPGA
@@ -209,14 +258,14 @@ static struct PSRAM_PHY_T *const psram_phy = (struct PSRAM_PHY_T *)(PSRAM_CTRL_B
 #ifdef PSRAM_CALIB_ON_1D
 static HAL_PSRAM_WINDOW_1D_CB_T hal_psram_window_1d_cb_func = NULL;
 
-void hal_psram_window_1d_cb_register(HAL_PSRAM_WINDOW_1D_CB_T func)
+void hal_psram_window_1d_cb_register(enum HAL_PSRAM_ID_T id, HAL_PSRAM_WINDOW_1D_CB_T func)
 {
     hal_psram_window_1d_cb_func = func;
 }
 #else
 static HAL_PSRAM_WINDOW_2D_CB_T hal_psram_window_2d_cb_func = NULL;
 
-void hal_psram_window_2d_cb_register(HAL_PSRAM_WINDOW_2D_CB_T func)
+void hal_psram_window_2d_cb_register(enum HAL_PSRAM_ID_T id, HAL_PSRAM_WINDOW_2D_CB_T func)
 {
     hal_psram_window_2d_cb_func = func;
 }
@@ -327,6 +376,12 @@ void hal_psramip_set_cmd(enum MEMIF_CMD_T cmd)
     psram_mc->REG_004 = cmd;
 }
 
+POSSIBLY_UNUSED static bool hal_psramip_is_mc_reset(void)
+{
+    return !(psram_mc->REG_400 & PSRAM_ULP_MC_INIT_COMPLETE);
+}
+
+
 POSSIBLY_UNUSED void psram_read_reg(uint32_t reg, uint32_t *val)
 {
     hal_psramip_flush_all_fifo();
@@ -358,7 +413,7 @@ static void psram_write_reg(uint32_t reg, uint32_t val)
 
     psram_send_cmd_reg(MEMIF_MRS, reg, val);
     //psram_read_reg(reg, &read_val);
-    //HAL_TRACE(0, "MRS reg 0x%X: w=0x%08X r=0x%08X", reg, val, read_val);
+    //TRACE(0, "MRS reg 0x%X: w=0x%08X r=0x%08X", reg, val, read_val);
 }
 
 static void psram_single_cmd(enum MEMIF_CMD_T cmd)
@@ -398,6 +453,19 @@ static void psram_set_timing(uint32_t clk)
     psram_write_reg(reg, val);
 
     reg = 0;
+#ifdef PSRAM_1V2_ENABLE
+    if (clk <= 66000000) {
+        val = 1;
+    } else if (clk <= 109000000) {
+        val = 2;
+    } else if (clk <= 133000000) {
+        val = 3;
+    } else if (clk <= 166000000) {
+        val = 4;
+    } else {
+        val = 5; // 6
+    }
+#else
     if (clk <= 66000000) {
         val = 0;
     } else if (clk <= 109000000) {
@@ -412,11 +480,25 @@ static void psram_set_timing(uint32_t clk)
 #ifdef CHIP_BEST1600
     val = 4;
 #endif
+#endif
     // Latency type: Variable
     val = MR0_DRIVE_STR(3) | MR0_READ_LATENCY(val);
     psram_write_reg(reg, val);
 
     reg = 4;
+#ifdef PSRAM_1V2_ENABLE
+    if (clk <= 66000000) {
+        val = 2;
+    } else if (clk <= 109000000) {
+        val = 6;
+    } else if (clk <= 133000000) {
+        val = 1;
+    } else if (clk <= 166000000) {
+        val = 5;
+    } else {
+        val = 3; // 7
+    }
+#else
     if (clk <= 66000000) {
         val = 0;
     } else if (clk <= 109000000) {
@@ -428,6 +510,7 @@ static void psram_set_timing(uint32_t clk)
     } else {
         val = 1;
     }
+#endif
     //enable 0.5x RF to lower power
     val = MR4_PASR(0) | MR4_WRITE_LATENCY(val) | MR4_RF_RATE(MR4_RF_RATE_HALF);
     psram_write_reg(reg, val);
@@ -483,7 +566,7 @@ static void hal_psram_phy_wait_lock()
 
     start = hal_sys_timer_get();
     while ((psram_phy->REG_060 & PSRAM_ULP_PHY_PSRAM_DLL_LOCK) == 0 &&
-            hal_sys_timer_get() - start < MS_TO_TICKS(2));
+            hal_sys_timer_get() - start < MS_TO_TICKS(2)) {};
     ASSERT((psram_phy->REG_060 & PSRAM_ULP_PHY_PSRAM_DLL_LOCK), "%s: Failed to wait lock", __func__);
 }
 
@@ -499,6 +582,26 @@ static void hal_psram_phy_set_range(uint32_t range)
 #if !defined(FPGA) && !defined(SIMU)
     hal_psram_phy_wait_lock();
 #endif
+}
+
+uint32_t hal_psram_phy_get_range_val(enum HAL_PSRAM_ID_T id)
+{
+    uint32_t val;
+
+    val = psram_phy->REG_048;
+    val = GET_BITFIELD(val, PSRAM_ULP_PHY_REG0_PSRAM_DLL_RANGE);
+
+    return val;
+}
+
+uint32_t hal_psram_phy_get_dly_in_val(enum HAL_PSRAM_ID_T id)
+{
+    uint32_t val;
+
+    val = psram_phy->REG_060;
+    val = GET_BITFIELD(val, PSRAM_ULP_PHY_PSRAM_DLL_DLY_IN);
+
+    return val;
 }
 
 static uint32_t hal_psram_phy_get_init_range(uint32_t clk)
@@ -525,7 +628,7 @@ static void hal_psram_phy_dll_config(uint32_t clk)
     hal_psram_phy_set_range(range);
 }
 
-static void hal_psram_phy_init(uint32_t clk)
+static void hal_psram_phy_power_up(void)
 {
     int dual = false;
 
@@ -533,16 +636,12 @@ static void hal_psram_phy_init(uint32_t clk)
     dual = true;
 #endif
 
-#if 0
-    psram_phy->REG_048 = SET_BITFIELD(psram_phy->REG_048, PSRAM_ULP_PHY_REG0_PSRAM_DLL_SWRC, 0x0);
-    psram_phy->REG_050 = SET_BITFIELD(psram_phy->REG_050, PSRAM_ULP_PHY_REG0_PSRAM_TXDRV, 3);
-#endif
+    hal_cmu_psram_phy_init(dual);
+}
 
-    psram_phy->REG_050 = SET_BITFIELD(psram_phy->REG_050, PSRAM_ULP_PHY_REG0_PSRAM_PCK_SEL, 2);
-    psram_phy->REG_054 = SET_BITFIELD(psram_phy->REG_054, PSRAM_ULP_PHY_REG0_PSRAM_PCK_SEL2, 2);
-
-    hal_cmu_psram_phy_power_up(dual);
-
+static void hal_psram_phy_init(uint32_t clk)
+{
+    hal_psram_phy_power_up();
     hal_psram_phy_dll_config(clk);
 }
 
@@ -550,14 +649,19 @@ static void hal_psram_digphy_init()
 {
     uint32_t val;
 
+    psram_phy->REG_050 = SET_BITFIELD(psram_phy->REG_050, PSRAM_ULP_PHY_REG0_PSRAM_PCK_SEL, 2);
+    psram_phy->REG_054 = SET_BITFIELD(psram_phy->REG_054, PSRAM_ULP_PHY_REG0_PSRAM_PCK_SEL2, 2);
+
+#ifdef  PSRAM_1V2_ENABLE
+    psram_phy->REG_050 = SET_BITFIELD(psram_phy->REG_050, PSRAM_ULP_PHY_REG0_PSRAM_RX_VREF_TUNE, 15);
+    psram_phy->REG_054 = SET_BITFIELD(psram_phy->REG_054, PSRAM_ULP_PHY_REG0_PSRAM_RX_VREF_TUNE2, 15);
+#endif
+
     val = psram_phy->REG_004;
-    //val &= ~PSRAM_ULP_PHY_IDLE_DQ_OEN;
+    val &= ~PSRAM_ULP_PHY_IDLE_DQ_OEN;
 #ifdef PSRAM_XCCELA_MODE
     val |= PSRAM_ULP_PHY_DQS_DM_MERGE_EN;
     val &= ~PSRAM_ULP_PHY_PHY_DUMMY_CYC_EN;
-#endif
-#ifdef PSRAM_X16_MODE
-    val &= ~PSRAM_ULP_PHY_IDLE_DQ_OEN;
 #endif
     val = SET_BITFIELD(val, PSRAM_ULP_PHY_CTRL_DELAY, 0);
     val &= ~PSRAM_ULP_PHY_PHY_DLY_AUTO_EN;
@@ -570,30 +674,24 @@ static void hal_psram_digphy_init()
     seq = PHY_CA_CMD_CYCLE_1 | PHY_CA_ADDR_BYTES_4 | PHY_CA_ADDR_MODE_DDR;
     val = psram_phy->REG_020;
     val = SET_BITFIELD(val, PSRAM_ULP_PHY_CA_SEQ, seq);
-    val = SET_BITFIELD(val, PSRAM_ULP_PHY_REG_RX_DLY_OF_DESIGN, 4);
+    val = SET_BITFIELD(val, PSRAM_ULP_PHY_REG_RX_DLY_OF_DESIGN, 2);
     psram_phy->REG_020 = val;
 #endif
 }
 
-POSSIBLY_UNUSED void hal_psram_phy_sleep(void)
+POSSIBLY_UNUSED void hal_psram_phy_sleep(enum HAL_CMU_LPU_SLEEP_MODE_T mode)
 {
-    hal_cmu_psram_phy_power_down();
+    hal_cmu_psram_phy_sleep();
 }
 
-POSSIBLY_UNUSED static void hal_psram_phy_wakeup(void)
+POSSIBLY_UNUSED static void hal_psram_phy_wakeup(enum HAL_CMU_LPU_SLEEP_MODE_T mode)
 {
     int dual = false;
 
 #if defined(PSRAM_X16_MODE) || defined(PSRAM_DUAL_8BIT)
     dual = true;
 #endif
-
-#if 0
-    psram_phy->REG_048 = SET_BITFIELD(psram_phy->REG_048, PSRAM_ULP_PHY_REG0_PSRAM_DLL_SWRC, 0x0);
-    psram_phy->REG_050 = SET_BITFIELD(psram_phy->REG_050, PSRAM_ULP_PHY_REG0_PSRAM_TXDRV, 3);
-#endif
-
-    hal_cmu_psram_phy_power_up(dual);
+    hal_cmu_psram_phy_wakeup(dual);
 }
 
 static void hal_psram_mc_set_timing(uint32_t clk, bool init)
@@ -604,6 +702,19 @@ static void hal_psram_mc_set_timing(uint32_t clk, bool init)
     if (init) {
         val = PSRAM_ULP_MC_WRITE_LATENCY_0(1);
     } else {
+#ifdef PSRAM_1V2_ENABLE
+        if (clk <= 66000000) {
+            val = PSRAM_ULP_MC_WRITE_LATENCY_0(5);
+        } else if (clk <= 109000000) {
+            val = PSRAM_ULP_MC_WRITE_LATENCY_0(6);
+        } else if (clk <= 133000000) {
+            val = PSRAM_ULP_MC_WRITE_LATENCY_0(7);
+        } else if (clk <= 166000000) {
+            val = PSRAM_ULP_MC_WRITE_LATENCY_0(8);
+        } else {
+            val = PSRAM_ULP_MC_WRITE_LATENCY_0(9); // 10
+        }
+#else
         if (clk <= 66000000) {
             val = PSRAM_ULP_MC_WRITE_LATENCY_0(3);
         } else if (clk <= 109000000) {
@@ -615,8 +726,22 @@ static void hal_psram_mc_set_timing(uint32_t clk, bool init)
         } else {
             val = PSRAM_ULP_MC_WRITE_LATENCY_0(7);
         }
+#endif
     }
     psram_mc->REG_028 = val;
+#ifdef PSRAM_1V2_ENABLE
+    if (clk <= 66000000) {
+        val = PSRAM_ULP_MC_READ_LATENCY_0(4);
+    } else if (clk <= 109000000) {
+        val = PSRAM_ULP_MC_READ_LATENCY_0(5);
+    } else if (clk <= 133000000) {
+        val = PSRAM_ULP_MC_READ_LATENCY_0(6);
+    } else if (clk <= 166000000) {
+        val = PSRAM_ULP_MC_READ_LATENCY_0(7);
+    } else {
+        val = PSRAM_ULP_MC_READ_LATENCY_0(8); //9
+    }
+#else
     if (clk <= 66000000) {
         val = PSRAM_ULP_MC_READ_LATENCY_0(3);
     } else if (clk <= 109000000) {
@@ -631,13 +756,14 @@ static void hal_psram_mc_set_timing(uint32_t clk, bool init)
 #ifdef CHIP_BEST1600
     val = PSRAM_ULP_MC_READ_LATENCY_0(7);
 #endif
+#endif
     psram_mc->REG_02C = val;
     // tCPH >= 24 ns
     val = (clk / 1000000 * 24 + (1000 - 1)) / 1000;
 #ifdef CHIP_BEST1600
     psram_mc->REG_058 = PSRAM_ULP_MC_T_CPHR_0((val > 2) ? (val - 2) : 0);
     // Avoid error when 2 writing operations arrive closely:
-    uint32_t t_cphw_plus = 6;
+    uint32_t t_cphw_plus = 16;
     if (psram_run_clk <= 160 * 1000 * 1000) {
         t_cphw_plus = 11;
     }
@@ -701,9 +827,6 @@ static void hal_psram_mc_set_timing(uint32_t clk, bool init)
     val = clk / 1000000 * 150 + 1;
     psram_mc->REG_088 = PSRAM_ULP_MC_T_XHS_0(val);
     psram_mc->REG_09C = PSRAM_ULP_MC_WR_DMY_CYC(1) | PSRAM_ULP_MC_CMD_DMY_CYC(2);
-#ifdef CHIP_BEST1600
-    psram_mc->REG_09C |= PSRAM_ULP_MC_STOP_CLK_IN_NOP;
-#endif
     // NOP dummy cycles, same as tXPHS in [60 ns, 2 us]
     val = (clk / 1000000 * 100 + (1000 - 1)) / 1000;
     psram_mc->REG_0A0 = PSRAM_ULP_MC_STOP_CLK_IN_NOP |
@@ -869,13 +992,10 @@ static void hal_psram_mc_init(uint32_t clk)
 #endif
 
     hal_psramip_set_reg_data_mask();
-    hal_sys_timer_delay_us(100);
 
     hal_psram_mc_set_timing(clk, true);
-    hal_sys_timer_delay_us(100);
 
     psram_mc->REG_400 = PSRAM_ULP_MC_INIT_COMPLETE;
-    hal_sys_timer_delay_us(100);
 }
 
 #ifdef PSRAM_AUTO_LOW_POWER
@@ -883,24 +1003,38 @@ static void hal_psram_auto_low_power_enable(void)
 {
     psram_mc->REG_024 =
         PSRAM_ULP_MC_AUTOWAKEUP_EN |
-        PSRAM_ULP_MC_PD_MR(6) |
 #ifdef PSRAM_DIE_HALF_SLEEP_ENABLE
+        PSRAM_ULP_MC_PD_MR(6) |
         PSRAM_ULP_MC_PD_CMD(0xf0);
 #else
-        PSRAM_ULP_MC_PD_CMD(0);
+        PSRAM_ULP_MC_PD_MR(0x2) |
+        PSRAM_ULP_MC_PD_CMD(0x6);
 #endif
     psram_mc->REG_0A4 = PSRAM_ULP_MC_QUEUE_IDLE_CYCLE(psram_run_clk / 1000000 * PSRAM_QUEUE_IDLE_TIME_US);
     psram_mc->REG_198 |= PSRAM_ULP_MC_AUTO_PD_ENTER_EN;
     hal_cmu_psram_auto_lp_cfg_set();
     psram_mc->REG_024 |= PSRAM_ULP_MC_ENTRY_SLEEP_IDLE;
+
+    psram_mc->REG_080 = PSRAM_ULP_MC_T_HS_0(psram_run_clk / 1000000 * 1 + 1);
+    // tXHS >= 10us  wait for phy power up
+    psram_mc->REG_088 = PSRAM_ULP_MC_T_XHS_0(psram_run_clk / 1000000 * 10 + 1);
 }
 
 static void hal_psram_auto_low_power_disable(void)
 {
+    uint32_t val;
+
+    val = psram_run_clk / 1000000 * 150 + 1;
+    psram_mc->REG_080 = PSRAM_ULP_MC_T_HS_0(val);
+    val = psram_run_clk / 1000000 * 150 + 1;
+    psram_mc->REG_088 = PSRAM_ULP_MC_T_XHS_0(val);
+
     psram_mc->REG_024 =
         PSRAM_ULP_MC_AUTOWAKEUP_EN |
         PSRAM_ULP_MC_PD_MR(6) |
         PSRAM_ULP_MC_PD_CMD(0xf0);
+    // hal_sys_timer_delay_us(10);
+    hal_psramip_set_cmd(MEMIF_NOP);
     hal_cmu_psram_auto_lp_cfg_clear();
 }
 #endif
@@ -928,63 +1062,98 @@ static void psram_mc_set_freq(uint32_t clk)
     hal_cmu_mem_set_freq(freq);
 }
 
-
-void hal_psram_sleep(void)
+void hal_psram_sleep(enum HAL_CMU_LPU_SLEEP_MODE_T mode)
 {
 #ifdef CORE_SLEEP_POWER_DOWN
-    psramphy_save_reg_058 = psram_phy->REG_058;
-    psramphy_save_reg_05c = psram_phy->REG_05C;
+    if (mode == HAL_CMU_LPU_SLEEP_MODE_SUBSYS_PD) {
+        psramphy_save_reg_058 = psram_phy->REG_058;
+        psramphy_save_reg_05c = psram_phy->REG_05C;
+        psramphy_save_range = hal_psram_phy_get_range_val(HAL_PSRAM_ID_0);
+    }
 #endif
 
-#ifdef PSRAM_AUTO_LOW_POWER
-   hal_psram_auto_low_power_disable();
-#endif
     __DSB();
     hal_cache_sync_all(HAL_CACHE_ID_D_CACHE);
+    hal_psramip_wb_busy_wait();
     hal_psramip_mc_busy_wait();
-    if (!hal_psramip_mc_in_sleep()) {
-        psram_mc->REG_19C |= PSRAM_ULP_MC_SW_BUS_HALT_EN;
-        __DSB();
-        while ((psram_mc->REG_19C & PSRAM_ULP_MC_SW_BUS_HALT_STS) == 0);
+
+    psram_mc->REG_19C |= PSRAM_ULP_MC_SW_BUS_HALT_EN;
+    __DSB();
+    while ((psram_mc->REG_19C & PSRAM_ULP_MC_SW_BUS_HALT_STS) == 0);
+
+#ifdef PSRAM_AUTO_LOW_POWER
+    hal_psram_auto_low_power_disable();
+#endif
 
 #ifdef PSRAM_XCCELA_MODE
-        int val = psram_mc->REG_028;
-        psram_mc->REG_028 = PSRAM_ULP_MC_WRITE_LATENCY_0(1);
-        __DSB();
-        hal_psramip_mc_busy_wait();
+    int val = psram_mc->REG_028;
+    psram_mc->REG_028 = PSRAM_ULP_MC_WRITE_LATENCY_0(1);
+    __DSB();
+    hal_psramip_mc_busy_wait();
 #endif
-        hal_psramip_set_cmd(MEMIF_PD);
-        hal_psramip_mc_busy_wait();
+
+    hal_psramip_set_cmd(MEMIF_PD);
+    hal_psramip_mc_busy_wait();
+
 #ifdef PSRAM_XCCELA_MODE
-        psram_mc->REG_028 = val;
-        hal_psramip_mc_busy_wait();
+    psram_mc->REG_028 = val;
+    hal_psramip_mc_busy_wait();
 #endif
-    }
-    hal_psram_phy_sleep();
+
+    hal_psram_phy_sleep(mode);
+    psram_sleep_time = hal_sys_timer_get();
 }
 
-void hal_psram_wakeup(void)
+void hal_psram_wakeup(enum HAL_CMU_LPU_SLEEP_MODE_T mode)
 {
-    hal_psram_phy_wakeup();
+    uint32_t val;
 
+    hal_psram_phy_wakeup(mode);
+
+    if (0) {
 #ifdef CORE_SLEEP_POWER_DOWN
-    hal_psram_phy_init(psram_run_clk);
-    hal_psram_digphy_init();
-    psram_phy->REG_058 = psramphy_save_reg_058;
-    psram_phy->REG_05C = psramphy_save_reg_05c;
-    psram_mc_set_freq(psram_run_clk);
-    hal_psram_mc_init(psram_run_clk);
-    hal_sys_timer_delay_us(500);
-    hal_psram_mc_set_timing(psram_run_clk, false);
-    hal_sys_timer_delay_us(100);
+    } else if ((mode == HAL_CMU_LPU_SLEEP_MODE_SUBSYS_PD) && (hal_psramip_is_mc_reset())) {
+        hal_cmu_psram_dll_reset_set();
+        hal_cmu_psram_dll_clock_disable();
+        psram_phy->REG_048 = SET_BITFIELD(psram_phy->REG_048, PSRAM_ULP_PHY_REG0_PSRAM_DLL_RANGE, psramphy_save_range);
+        hal_cmu_psram_dll_clock_enable();
+        hal_cmu_psram_dll_reset_clear();
+
+        hal_psram_digphy_init();
+        psram_phy->REG_058 = psramphy_save_reg_058;
+        psram_phy->REG_05C = psramphy_save_reg_05c;
+        psram_mc_set_freq(psram_run_clk);
+        hal_psram_mc_init(psram_run_clk);
+        hal_sys_timer_delay_us(2);
+        hal_psram_mc_set_timing(psram_run_clk, false);
+
+        // tHS >= 150 us
+        val = psram_mc->REG_080;
+        if (hal_sys_timer_get() - psram_sleep_time >= US_TO_TICKS(150) + 1) {
+            psram_mc->REG_080 = PSRAM_ULP_MC_T_HS_0(0);
+        }
+        hal_psramip_set_cmd(MEMIF_PD);
+        hal_psramip_mc_busy_wait();
 #endif
+    } else {
+        val = psram_mc->REG_080;
+        // tHS >= 150 us
+        if (hal_sys_timer_get() - psram_sleep_time >= US_TO_TICKS(150) + 1) {
+            psram_mc->REG_080 = PSRAM_ULP_MC_T_HS_0(0);
+        }
+    }
+
     hal_psramip_set_cmd(MEMIF_NOP);
     hal_psramip_mc_busy_wait();
 
+    psram_mc->REG_080 = val;
+
 #ifdef PSRAM_AUTO_LOW_POWER
+    // tXHS >= 150 us
+    hal_sys_timer_delay_us(150);
     hal_psram_auto_low_power_enable();
 #endif
-    //hal_sys_timer_delay_us(150);
+
     psram_mc->REG_19C &= ~PSRAM_ULP_MC_SW_BUS_HALT_EN;
     __DSB();
 }
@@ -996,29 +1165,45 @@ static void psram_chip_timing_config(uint32_t clk, bool update_psram_first)
     }
 
     psram_mc_set_freq(clk);
-    hal_sys_timer_delay_us(500);
+    hal_sys_timer_delay_us(2);
     hal_psram_phy_dll_config(clk);
     hal_psram_init_calib();
     hal_psram_mc_set_timing(clk, false);
     if (!update_psram_first) {
         psram_set_timing(clk);
     }
-    hal_sys_timer_delay_us(100);
+    hal_sys_timer_delay_us(2);
 }
 
-void hal_psram_snoop_enable(void)
+void hal_psram_dump_mr(enum HAL_PSRAM_ID_T id)
+{
+    uint32_t reg, val = 0;
+    uint8_t real_bit = 0;
+
+    TRACE_IMM(0, "MR Dump:");
+    for (reg = 0; reg <= 8; reg++) {
+        if (5 <= reg && reg <= 7) {
+            continue;
+        }
+        psram_read_reg(reg, &val);
+        real_bit = val & 0xff;
+        TRACE_IMM(0, "MR%u: 0x%02x", reg, real_bit);
+    }
+}
+
+void hal_psram_snoop_enable(enum HAL_PSRAM_ID_T id)
 {
 #ifndef PSRAM_SNOOP_DISABLE
     psram_mc->REG_044 &= ~PSRAM_ULP_MC_SNP_DISABLE;
 #endif
 }
 
-void hal_psram_snoop_disable(void)
+void hal_psram_snoop_disable(enum HAL_PSRAM_ID_T id)
 {
     psram_mc->REG_044 |= PSRAM_ULP_MC_SNP_DISABLE;
 }
 
-void hal_psram_write_buffer_invalidate(void)
+void hal_psram_wait_write_buffer_empty(enum HAL_PSRAM_ID_T id)
 {
     uint32_t level;
     uint32_t start = hal_sys_timer_get();
@@ -1029,20 +1214,14 @@ void hal_psram_write_buffer_invalidate(void)
         if (level == 0) {
             break;
         }
-    } while (hal_sys_timer_get() - start < MS_TO_TICKS(1));
+    } while (hal_sys_timer_get() - start < MS_TO_TICKS(10));
 
     ASSERT(level == 0, "%s: Drain timeout: level=%u status=0x%08X", __func__, level, psram_mc->REG_404);
-
-    psram_mc->REG_044 |= PSRAM_ULP_MC_WB_INVALID;
-    __DSB();
 }
 
 POSSIBLY_UNUSED static void psram_mc_reset(uint32_t range)
 {
-    hal_cmu_reset_set(HAL_CMU_MOD_H_PSRAM);
-    hal_cmu_reset_set(HAL_CMU_MOD_O_PSRAM);
-    hal_cmu_reset_clear(HAL_CMU_MOD_H_PSRAM);
-    hal_cmu_reset_clear(HAL_CMU_MOD_O_PSRAM);
+    hal_cmu_psram_soft_reset();
 
     psram_mc_set_freq(psram_cfg_clk);
     hal_psram_phy_init(psram_cfg_clk);
@@ -1091,15 +1270,15 @@ int hal_psram_change_clk(uint32_t clk)
         val = psram_phy->REG_060;
         delay = GET_BITFIELD(psram_phy->REG_060, PSRAM_ULP_PHY_PSRAM_DLL_DLY_IN);
         if (val & PSRAM_ULP_PHY_PSRAM_DLL_ALL_ONE) {
-            HAL_TRACE(2, "%s: range=%d all one", __func__, range);
+            PSRAM_TRACE(2, "%s: range=%d all one", __func__, range);
             if (range < (PSRAM_ULP_PHY_REG0_PSRAM_DLL_RANGE_MASK >> PSRAM_ULP_PHY_REG0_PSRAM_DLL_RANGE_SHIFT)) {
                 range++;
                 continue;
             }
         }
-        HAL_TRACE(4, "%s, range=%d T/4=0x%x (REG60=0x%x)", __func__, range, delay / 2, val);
+        PSRAM_TRACE(4, "%s, range=%d T/4=0x%x (REG60=0x%x)", __func__, range, delay / 2, val);
         if (delay > (PSRAM_ULP_PHY_REG0_PSRAM_TX_DQS_DLY_MASK >> PSRAM_ULP_PHY_REG0_PSRAM_TX_DQS_DLY_SHIFT)) {
-            HAL_TRACE(2, "%s: range=%d bad delay (T/2 > max_tx_dqs_dly) T/2 = 0x%x", __func__, range , delay);
+            PSRAM_TRACE(2, "%s: range=%d bad delay (T/2 > max_tx_dqs_dly) T/2 = 0x%x", __func__, range , delay);
             if (range < (PSRAM_ULP_PHY_REG0_PSRAM_DLL_RANGE_MASK >> PSRAM_ULP_PHY_REG0_PSRAM_DLL_RANGE_SHIFT)) {
                 range++;
                 continue;
@@ -1142,7 +1321,7 @@ POSSIBLY_UNUSED void psram_write_pattern()
        psram_base[i] =  pattern[i];
     }
     __DSB();
-    hal_psram_write_buffer_invalidate();
+    hal_psram_wait_write_buffer_empty(HAL_PSRAM_ID_0);
     hal_psramip_wb_busy_wait();
     hal_psramip_mc_busy_wait();
 }
@@ -1155,7 +1334,7 @@ static int psram_read_pattern_and_check(bool clear_after_read)
     volatile uint32_t *psram_base = (volatile uint32_t *)PSRAM_NC_BASE;
 
     for(int i = 0; i < ARRAY_SIZE(pattern); i++) {
-        //HAL_TRACE(5,"%x:: 0x%08x, 0x%08x",i,psram_base[i] ,pattern[i]);
+        //TRACE(5,"%x:: 0x%08x, 0x%08x",i,psram_base[i] ,pattern[i]);
         if (psram_base[i] !=  pattern[i])  {
             ret = 1;
         }
@@ -1337,15 +1516,15 @@ uint32_t static hal_psram_get_dll_delay(uint32_t range)
         val = psram_phy->REG_060;
         delay = GET_BITFIELD(psram_phy->REG_060, PSRAM_ULP_PHY_PSRAM_DLL_DLY_IN);
         if (val & PSRAM_ULP_PHY_PSRAM_DLL_ALL_ONE) {
-            HAL_TRACE(2, "%s: range=%d all one", __func__, range);
+            PSRAM_TRACE(2, "%s: range=%d all one", __func__, range);
             if (range < (PSRAM_ULP_PHY_REG0_PSRAM_DLL_RANGE_MASK >> PSRAM_ULP_PHY_REG0_PSRAM_DLL_RANGE_SHIFT)) {
                 range++;
                 continue;
             }
         }
-        HAL_TRACE(4, "%s, range=%d T/4=0x%x (REG60=0x%x)", __func__, range, delay / 2, val);
+        PSRAM_TRACE(4, "%s, range=%d T/4=0x%x (REG60=0x%x)", __func__, range, delay / 2, val);
         if (delay > (PSRAM_ULP_PHY_REG0_PSRAM_TX_DQS_DLY_MASK >> PSRAM_ULP_PHY_REG0_PSRAM_TX_DQS_DLY_SHIFT)) {
-            HAL_TRACE(2, "%s: range=%d bad delay (T/2 > max_tx_dqs_dly) T/2 = 0x%x", __func__, range , delay);
+            PSRAM_TRACE(2, "%s: range=%d bad delay (T/2 > max_tx_dqs_dly) T/2 = 0x%x", __func__, range , delay);
             if (range < (PSRAM_ULP_PHY_REG0_PSRAM_DLL_RANGE_MASK >> PSRAM_ULP_PHY_REG0_PSRAM_DLL_RANGE_SHIFT)) {
                 range++;
                 continue;
@@ -1374,95 +1553,69 @@ static void hal_psram_calib_on_1d(uint32_t range)
     //tx_clk = psram_tx_clk_calib();
     //tx_ceb = psram_tx_ceb_calib();
     __DSB();
-    //HAL_TRACE(0,"%d, %d",rx_dqs, tx_dqs);
+    //TRACE(0,"%d, %d",rx_dqs, tx_dqs);
 }
 
 #else
-static uint8_t find_largest_extension_square_of_point(void *array, uint8_t column_row_num, uint8_t x, uint8_t y, int byte_pos)
-{
-    uint8_t (*p)[PSRAM_WINDOW_SIZE] = (uint8_t (*)[PSRAM_WINDOW_SIZE])array;
-    uint8_t range = 0;
 
-    while (1) {
-        for (int i = 0; i <= range; i++) {
-            if (((p[x + range][y + i] & (1 << byte_pos)) == 0) || ((p[x + i][y + range] & (1 << byte_pos)) == 0)) {
-               return (range == 0 ? 0 : range - 1);
+static int find_the_largest_window_of_array(void *p_matrix, uint8_t column_row_num, int byte_pos, struct HAL_PSRAM_RECTANGLE_T *rectangle)
+{
+    uint8_t (*matrix)[PSRAM_WINDOW_SIZE] = (uint8_t (*)[PSRAM_WINDOW_SIZE])p_matrix;
+    uint8_t dp[PSRAM_WINDOW_SIZE][PSRAM_WINDOW_SIZE];
+    int y_statr = 0, x_statr = 0, y_end = 0, x_end = 0;
+    int max_size, min_height, size;
+    uint8_t mask;
+
+    y_statr = y_end = 0;
+    x_statr = x_end = 0;
+    max_size = min_height = size = 0;
+    mask = (1 << byte_pos);
+
+    for (int j = 0; j < column_row_num; j++) {
+        dp[0][j] = !!(matrix[0][j] & mask);
+    }
+    for (int i = 1; i < column_row_num; i++) {
+        dp[i][0] = (matrix[i][0] & mask) ? dp[i - 1][0] + 1 : 0;
+    }
+    for (int i = 1; i < column_row_num; i++) {
+        for (int j = 1; j < column_row_num; j++) {
+            if ((matrix[i][j] & mask)) {
+                dp[i][j] = dp[i - 1][j] + 1;
+            } else {
+                dp[i][j] = 0;
             }
-        }
-        range++;
-        if ((x + range >= column_row_num) || (y + range >= column_row_num)) {
-            return range - 1;
         }
     }
-}
 
-static int find_the_largest_window_of_array(void *array, uint8_t row_column_num, int byte_pos, struct HAL_PSRAM_RECTANGLE_T *rectangle)
-{
-    uint8_t (*p)[PSRAM_WINDOW_SIZE] = (uint8_t (*)[PSRAM_WINDOW_SIZE])array;
-    uint8_t square_len = 0, max_square_len = 0;
-    uint8_t row_extend = 0, column_extend = 0;
-    uint8_t width = 0, max_width = 0, hight = 0, max_hight = 0;
-    int i, j, column, row;
-    int ret = 0;
-
-    rectangle->x_start = 0;
-    rectangle->y_start = 0;
-    rectangle->x_end = 0;
-    rectangle->y_end = 0;
-    for(i = 0; i < row_column_num; i++) {
-        for (j = 0; j < row_column_num; j++) {
-            if ((p[i][j] & (1 << byte_pos)) == 0) {
-                continue;
-            }
-            square_len = find_largest_extension_square_of_point(array, row_column_num, i, j, byte_pos);
-            if (max_square_len <= square_len) {
-                max_square_len = square_len;
-                ///> row extend
-                for(row_extend = i + square_len + 1; row_extend < row_column_num; row_extend++) {
-                    for(column = j; column <= j + square_len; column++) {
-                        if ((p[row_extend][column] & (1 << byte_pos)) == 0)
-                            break;
-                    }
-                    if (column <= j + square_len)
-                        break;
-                }
-                ///> column extend
-                for(column_extend = j + square_len + 1; column_extend < row_column_num; column_extend++) {
-                    for(row = i; row <= i + square_len; row++) {
-                        if ((p[row][column_extend] & (1 << byte_pos)) == 0)
-                            break;
-                    }
-                    if (row <= i + square_len)
-                        break;
-                }
-                hight = row_extend - i - 1;
-                width = column_extend - j - 1;
-                if (hight > width) {
-                    width = square_len;
-                } else {
-                    hight = square_len;
-                }
-                if ((MIN(width, hight) > (MIN(max_width, max_hight))) ||
-                        ((MIN(width, hight) == (MIN(max_width, max_hight))) && (MAX(width, hight) > (MAX(max_width, max_hight))))) {
-                    rectangle->y_start = i;
-                    rectangle->x_start = j;
-                    rectangle->y_end = i + hight;
-                    rectangle->x_end = j + width;
-                    max_width = width;
-                    max_hight = hight;
-                    ret = square_len;
+    for (int i = 0; i < column_row_num; i++) {
+        for (int j = 0; j < column_row_num; j++) {
+            min_height = dp[i][j];
+            for (int k = j; k >= 0 && dp[i][k] > 0; k--) {
+                min_height = MIN(min_height, dp[i][k]);
+                size = min_height * (j - k + 1);
+                if (size > max_size) {
+                    max_size = size;
+                    y_statr = i - min_height + 1;
+                    x_statr = k;
+                    y_end = i;
+                    x_end = j;
                 }
             }
         }
     }
-    return ret;
+    rectangle->x_start = x_statr;
+    rectangle->x_end = x_end;
+    rectangle->y_start = y_statr;
+    rectangle->y_end = y_end;
+
+    return max_size;
 }
 
 POSSIBLY_UNUSED static bool psramphy_check_tx_ceb_valid(uint32_t range)
 {
     int retry = 2;
 
-    hal_psram_write_buffer_invalidate();
+    hal_psram_wait_write_buffer_empty(HAL_PSRAM_ID_0);
 
     while (retry--) {
         int count = 0;
@@ -1471,7 +1624,7 @@ POSSIBLY_UNUSED static bool psramphy_check_tx_ceb_valid(uint32_t range)
         hal_psramip_set_cmd(MEMIF_READ);
         while (hal_psramip_rx_fifo_empty()) {
             if (count++ > 10) {
-                //HAL_TRACE(1, "%s, rx fifo empty, return false", __FUNCTION__);
+                //PSRAM_TRACE(1, "%s, rx fifo empty, return false", __FUNCTION__);
                 psram_mc_reset(range);
                 return false;
             }
@@ -1484,7 +1637,7 @@ POSSIBLY_UNUSED static bool psramphy_check_tx_clk_valid(uint32_t range)
 {
     uint32_t time;
 
-    hal_psram_write_buffer_invalidate();
+    hal_psram_wait_write_buffer_empty(HAL_PSRAM_ID_0);
     time = hal_fast_sys_timer_get();
     psram_mc->REG_01C = PSRAM_ULP_MC_MGR_TX_FIFO_CLR | PSRAM_ULP_MC_MGR_RX_FIFO_CLR;
     hal_psramip_xfer_addr_len(0xAA55AA55, 1);
@@ -1498,6 +1651,35 @@ POSSIBLY_UNUSED static bool psramphy_check_tx_clk_valid(uint32_t range)
         }
     }
     return true;
+}
+
+int hal_psram_mgr_write_4byte(uint32_t addr, uint32_t val)
+{
+    hal_psramip_set_mem_data_mask();
+    hal_psramip_flush_all_fifo();
+    hal_psramip_write_fifo(&val, 1);
+    hal_psramip_xfer_addr_len(addr & 0x3ffffff, 1);
+    hal_psramip_set_cmd(MEMIF_WRITE);
+
+    while (hal_psramip_get_tx_fifo_free_len() != TX_FIFO_DEPTH) { }
+    __DSB();
+    hal_psram_wait_write_buffer_empty(HAL_PSRAM_ID_0);
+    hal_psramip_wb_busy_wait();
+    hal_psramip_mc_busy_wait();
+    hal_psramip_set_reg_data_mask();
+
+    return 0;
+}
+
+int hal_psram_mgr_read_4byte(uint32_t addr, uint32_t *val)
+{
+    hal_psramip_flush_all_fifo();
+    hal_psramip_xfer_addr_len(addr & 0x3ffffff, 1); //64MB max
+    hal_psramip_set_cmd(MEMIF_READ);
+    while (hal_psramip_rx_fifo_empty()) { }
+    hal_psramip_read_fifo(val, 1);
+
+    return 0;
 }
 
 POSSIBLY_UNUSED static uint8_t psramphy_check_write_valid(void)
@@ -1523,7 +1705,7 @@ POSSIBLY_UNUSED static uint8_t psramphy_check_write_valid(void)
         *(psram_base1 + i) = val1;
     }
     __DSB();
-    hal_psram_write_buffer_invalidate();
+    hal_psram_wait_write_buffer_empty(HAL_PSRAM_ID_0);
     hal_psramip_wb_busy_wait();
     hal_psramip_mc_busy_wait();
     for (i = 0; i < 0x100; ++i) {
@@ -1533,39 +1715,41 @@ POSSIBLY_UNUSED static uint8_t psramphy_check_write_valid(void)
         val1 = (val & 0xFF0000FF) | ((~val) & 0x00FFFF00);
         val2 = *(psram_base + i);
         val3 = *(psram_base1 + i);
+        // hal_psram_mgr_read_4byte((uint32_t)(psram_base + i), &val2);
+        // hal_psram_mgr_read_4byte((uint32_t)(psram_base1 + i), &val3);
         if (val2 != val0) {
 #if defined(PSRAM_DUAL_8BIT) || defined(PSRAM_X16_MODE)
             if (valid_l && ((val2 & mask_l) != (val0 & mask_l))) {
-                HAL_TRACE(3, "%s:0: i=%d 0x%08x 0x%08x m=0x%08x", __FUNCTION__, i, val2, val0, mask_l);
+                PSRAM_TRACE(3, "%s:0: i=%d 0x%08x 0x%08x m=0x%08x", __FUNCTION__, i, val2, val0, mask_l);
                 valid_l = false;
             }
             if (valid_h && ((val2 & mask_h) != (val0 & mask_h))) {
-                HAL_TRACE(3, "%s:0: i=%d 0x%08x 0x%08x m=0x%08x", __FUNCTION__, i, val2, val0, mask_h);
+                PSRAM_TRACE(3, "%s:0: i=%d 0x%08x 0x%08x m=0x%08x", __FUNCTION__, i, val2, val0, mask_h);
                 valid_h = false;
             }
             if (!valid_l && !valid_h) {
                 return 0;
             }
 #else
-            HAL_TRACE(3, "%s:0: i=%d 0x%08x 0x%08x", __FUNCTION__, i, val2, val0);
+            PSRAM_TRACE(3, "%s:0: i=%d 0x%08x 0x%08x", __FUNCTION__, i, val2, val0);
             return 0;
 #endif
         }
         if (val3 != val1) {
 #if defined(PSRAM_DUAL_8BIT) || defined(PSRAM_X16_MODE)
-            if (valid_l && ((val3 & mask_l) != (val0 & mask_l))) {
-                HAL_TRACE(3, "%s:0: i=%d 0x%08x 0x%08x m=0x%08x", __FUNCTION__, i, val3, val0, mask_l);
+            if (valid_l && ((val3 & mask_l) != (val1 & mask_l))) {
+                PSRAM_TRACE(3, "%s:0: i=%d 0x%08x 0x%08x m=0x%08x", __FUNCTION__, i, val3, val1, mask_l);
                 valid_l = false;
             }
-            if (valid_h && ((val3 & mask_h) != (val0 & mask_h))) {
-                HAL_TRACE(3, "%s:0: i=%d 0x%08x 0x%08x m=0x%08x", __FUNCTION__, i, val3, val0, mask_h);
+            if (valid_h && ((val3 & mask_h) != (val1 & mask_h))) {
+                PSRAM_TRACE(3, "%s:0: i=%d 0x%08x 0x%08x m=0x%08x", __FUNCTION__, i, val3, val1, mask_h);
                 valid_h = false;
             }
             if (!valid_l && !valid_h) {
                 return 0;
             }
 #else
-            HAL_TRACE(3, "%s:0: i=%d 0x%08x 0x%08x", __FUNCTION__, i, val3, val0);
+            PSRAM_TRACE(3, "%s:0: i=%d 0x%08x 0x%08x", __FUNCTION__, i, val3, val1);
             return 0;
 #endif
         }
@@ -1605,7 +1789,7 @@ POSSIBLY_UNUSED static void hal_psram_calib_on_2d(uint32_t range)
         val = psram_phy->REG_060;
         delay = GET_BITFIELD(val, PSRAM_ULP_PHY_PSRAM_DLL_DLY_IN);
         if (val & PSRAM_ULP_PHY_PSRAM_DLL_ALL_ONE) {
-            HAL_TRACE(2, "%s: range=%d all one", __func__, range);
+            PSRAM_TRACE(2, "%s: range=%d all one", __func__, range);
 #ifndef PSRAM_CALIB_TEST
             if (range < (PSRAM_ULP_PHY_REG0_PSRAM_DLL_RANGE_MASK >> PSRAM_ULP_PHY_REG0_PSRAM_DLL_RANGE_SHIFT)) {
                 range++;
@@ -1613,12 +1797,9 @@ POSSIBLY_UNUSED static void hal_psram_calib_on_2d(uint32_t range)
             }
 #endif
         }
-        HAL_TRACE(4, "%s, range=%d T/4=0x%x (REG=0x%x)", __func__, range, delay / 2, val);
-#ifdef PSRAM_WINDOW_TEST
-        HAL_TRACE_IMM(TR_ATTR_NO_LF | TR_ATTR_NO_TS | TR_ATTR_NO_ID, ", T/4=0x%02x", delay / 2);
-#endif
+        PSRAM_TRACE(4, "%s, range=%d T/4=0x%x (REG=0x%x)", __func__, range, delay / 2, val);
         if (delay > (PSRAM_ULP_PHY_REG0_PSRAM_TX_DQS_DLY_MASK >> PSRAM_ULP_PHY_REG0_PSRAM_TX_DQS_DLY_SHIFT)) {
-            HAL_TRACE(2, "%s: range=%d bad delay (T/2 > max_tx_dqs_dly)", __func__, range);
+            PSRAM_TRACE(2, "%s: range=%d bad delay (T/2 > max_tx_dqs_dly)", __func__, range);
 #ifndef PSRAM_CALIB_TEST
             if (range < (PSRAM_ULP_PHY_REG0_PSRAM_DLL_RANGE_MASK >> PSRAM_ULP_PHY_REG0_PSRAM_DLL_RANGE_SHIFT)) {
                 range++;
@@ -1628,14 +1809,22 @@ POSSIBLY_UNUSED static void hal_psram_calib_on_2d(uint32_t range)
         }
         break;
     }
-    inc_delay = delay / 8;
-    if (inc_delay == 0)
+
+    if (0) {
+#ifdef PSRAM_WINDOW_TEST
+    } else if (1) {
         inc_delay = 1;
+#endif
+    } else if (delay < 0x10) {
+        inc_delay = 1;
+    } else {
+        inc_delay = delay / 8;
+    }
     tx_ceb = delay / 2;
     tx_clk = delay / 2;
-    HAL_TRACE(2, "tx_ceb:0x%x, tx_clk:0x%x", tx_ceb, tx_clk);
+    PSRAM_TRACE(2, "tx_ceb:0x%x, tx_clk:0x%x", tx_ceb, tx_clk);
     volume = MIN(delay, (PSRAM_ULP_PHY_REG0_PSRAM_TX_DQS_DLY_MASK >> PSRAM_ULP_PHY_REG0_PSRAM_TX_DQS_DLY_SHIFT)) / inc_delay;
-    HAL_TRACE(2, "volume:%d, inc_delay:%d", volume, inc_delay);
+    PSRAM_TRACE(2, "volume:%d, inc_delay:%d", volume, inc_delay);
     //calibrate tx_dqs and rx_dqs
     memset(cali_valid, 0, sizeof(cali_valid));
     for (tx_dqs = 0; tx_dqs <= volume; tx_dqs++) {
@@ -1655,7 +1844,7 @@ POSSIBLY_UNUSED static void hal_psram_calib_on_2d(uint32_t range)
             psram_phy->REG_05C = psram_phy->REG_058;
             __DSB();
             cali_valid[tx_dqs][rx_dqs] = psramphy_check_write_valid();
-            //HAL_TRACE(0, "tx_dqs:0x%x, rx_dqs:0x%x, valid:%d", tx_dqs * inc_delay, rx_dqs * inc_delay, cali_valid[tx_dqs][rx_dqs]);
+            //PSRAM_TRACE(0, "tx_dqs:0x%x, rx_dqs:0x%x, valid:%d", tx_dqs * inc_delay, rx_dqs * inc_delay, cali_valid[tx_dqs][rx_dqs]);
         }
     }
 
@@ -1672,40 +1861,40 @@ POSSIBLY_UNUSED static void hal_psram_calib_on_2d(uint32_t range)
         } else {
             phy_delay_reg = &psram_phy->REG_05C;
         }
-        
-        
-        HAL_TRACE(TR_ATTR_IMM, " ----------------------------------------------------------------------");
-        
-        HAL_TRACE(TR_ATTR_IMM, "  rx_dqs        ");
+#ifdef PSRAM_DEBUG
+        PSRAM_TRACE_LINEFEED();
+        PSRAM_TRACE_LINEFEED();
+        PSRAM_TRACENOCRLF_NOTS(TR_ATTR_IMM, " ----------------------------------------------------------------------");
+        PSRAM_TRACE_LINEFEED();
+        PSRAM_TRACENOCRLF_NOTS(TR_ATTR_IMM, "  rx_dqs        ");
         for (tx_dqs = 0; tx_dqs <= volume; tx_dqs++) {
-            HAL_TRACE(TR_ATTR_IMM, "  %02d ", tx_dqs * inc_delay);
+            PSRAM_TRACENOCRLF_NOTS(TR_ATTR_IMM, "  %02d ", tx_dqs * inc_delay);
         }
-        
+        PSRAM_TRACE_LINEFEED();
         for (tx_dqs = 0; tx_dqs <= volume; tx_dqs++) {
-            HAL_TRACE(1, "%d-tx_dqs (%2d) ", byte_pos, tx_dqs * inc_delay);
+            PSRAM_TRACENOCRLF_NOTS(1, "%d-tx_dqs (%2d) ", byte_pos, tx_dqs * inc_delay);
             for (rx_dqs = 0; rx_dqs <= volume; rx_dqs++) {
-                HAL_TRACE(TR_ATTR_IMM, "    %d", !!(cali_valid[tx_dqs][rx_dqs] & (1 << byte_pos)));
+                PSRAM_TRACENOCRLF_NOTS(TR_ATTR_IMM, "    %d", !!(cali_valid[tx_dqs][rx_dqs] & (1 << byte_pos)));
             }
-            
+            PSRAM_TRACE_LINEFEED();
         }
-        HAL_TRACE(TR_ATTR_IMM, " -------------------------------------------------------------------------- ");
-        
-
+        PSRAM_TRACENOCRLF_NOTS(TR_ATTR_IMM, " -------------------------------------------------------------------------- ");
+        PSRAM_TRACE_LINEFEED();
+#endif
         find_the_largest_window_of_array(cali_valid, volume + 1, byte_pos, &new_rectangle);
 
 #ifdef PSRAM_WINDOW_TEST
         ASSERT((volume + 1) <= PSRAM_WINDOW_SIZE ,"%s : volume+1 is larger than PSRAM_WINDOW_SIZE ,you may increase macro PSRAM_WINDOW_SIZE", __func__);
         if (hal_psram_window_2d_cb_func != NULL)
             hal_psram_window_2d_cb_func(cali_valid, volume + 1, inc_delay, byte_pos, &new_rectangle);
-        
-#else
+        PSRAM_TRACE_LINEFEED();
+#endif
         ASSERT((MIN(new_rectangle.y_end - new_rectangle.y_start, new_rectangle.x_end - new_rectangle.x_start)) > 1,
                 "%s : dqs window is too small to ensure data access accurately ", __func__);
-#endif
 
         rx_dqs = ((new_rectangle.x_end + new_rectangle.x_start) * inc_delay) >> 1;
         tx_dqs = ((new_rectangle.y_end + new_rectangle.y_start) * inc_delay) >> 1;
-        HAL_TRACE(2,"rx_dqs: %d , tx_dqs: %d ",rx_dqs, tx_dqs);
+        PSRAM_TRACE_NOTS(2,"rx_dqs: %d , tx_dqs: %d ",rx_dqs, tx_dqs);
 
 #ifdef PSRAM_XCCELA_MODE
         *phy_delay_reg = PSRAM_ULP_PHY_REG0_PSRAM_TX_CEB_DLY(tx_dqs > PSRAM_TX_CEB_DLY_OFFSET ? tx_dqs - PSRAM_TX_CEB_DLY_OFFSET : 0) |
@@ -1726,7 +1915,7 @@ void hal_psram_calib(uint32_t clk)
 {
     uint32_t range;
 
-    HAL_TRACE(2, "%s: speed = %d", __func__, clk);
+    PSRAM_TRACE(2, "%s: speed = %d", __func__, clk);
     range = hal_psram_phy_get_init_range(clk);
 #ifdef PSRAM_CALIB_TEST
     hal_psram_phy_set_range(range);
@@ -1746,7 +1935,7 @@ _retry:
 
 #ifdef PSRAM_CALIB_TEST
     while (*(volatile uint32_t *)(PSRAM_CALIB_TEST_CTRL));
-    HAL_TRACE(0, "retry calib");
+    PSRAM_TRACE(0, "retry calib");
     goto _retry;
 #endif
     hal_cmu_psram_dll_reset_set();
@@ -1761,13 +1950,7 @@ void hal_psram_init(void)
 
     psram_mc_set_freq(psram_cfg_clk);
 
-    hal_psc_mem_enable();
-    hal_cmu_clock_enable(HAL_CMU_MOD_O_PSRAM);
-    hal_cmu_clock_enable(HAL_CMU_MOD_H_PSRAM);
-    hal_cmu_clock_enable(HAL_CMU_MOD_X_PSRAM);
-    hal_cmu_reset_clear(HAL_CMU_MOD_O_PSRAM);
-    hal_cmu_reset_clear(HAL_CMU_MOD_H_PSRAM);
-    hal_cmu_reset_clear(HAL_CMU_MOD_X_PSRAM);
+    hal_cmu_psram_clock_enable();
 
 #ifndef FPGA
     hal_psram_phy_init(psram_cfg_clk);
@@ -1777,7 +1960,7 @@ void hal_psram_init(void)
     hal_psram_mc_init(psram_cfg_clk);
     hal_psram_init_calib();
     psram_reset();
-    hal_psram_snoop_disable();
+    hal_psram_snoop_disable(HAL_PSRAM_ID_0);
 
 #if !defined(FPGA) && !defined(SIMU) && defined(PSRAM_CALIB_ON_1D)
     psram_init_pattern_array();
@@ -1792,12 +1975,13 @@ void hal_psram_init(void)
     hal_psram_calib(psram_run_clk);
 #endif
 
-    hal_psram_snoop_enable();
+    hal_psram_snoop_enable(HAL_PSRAM_ID_0);
 
 #ifdef PSRAM_AUTO_LOW_POWER
     hal_psram_auto_low_power_enable();
 #endif
-
 }
+
+#endif // PSRAM_CTRL_BASE
 
 #endif

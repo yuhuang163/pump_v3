@@ -24,7 +24,7 @@
  */
 
 #include "rtx_lib.h"
-
+#include "hal_trace.h"
 
 //  OS Runtime Object Memory Usage
 #if ((defined(OS_OBJ_MEM_USAGE) && (OS_OBJ_MEM_USAGE != 0)))
@@ -434,6 +434,9 @@ osSemaphoreId_t osSemaphoreNew (uint32_t max_count, uint32_t initial_count, cons
   EvrRtxSemaphoreNew(max_count, initial_count, attr);
   if (IsIrqMode() || IsIrqMasked()) {
     EvrRtxSemaphoreError(NULL, (int32_t)osErrorISR);
+#ifdef DEBUG
+    ASSERT(false, "Calling %s in ISR or IntLockedState", __func__);
+#endif
     semaphore_id = NULL;
   } else {
     semaphore_id = __svcSemaphoreNew(max_count, initial_count, attr);
@@ -499,6 +502,9 @@ osStatus_t osSemaphoreDelete (osSemaphoreId_t semaphore_id) {
   EvrRtxSemaphoreDelete(semaphore_id);
   if (IsIrqMode() || IsIrqMasked()) {
     EvrRtxSemaphoreError(semaphore_id, (int32_t)osErrorISR);
+#ifdef DEBUG
+    ASSERT(false, "Calling %s in ISR or IntLockedState", __func__);
+#endif
     status = osErrorISR;
   } else {
     status = __svcSemaphoreDelete(semaphore_id);

@@ -399,7 +399,7 @@ static uint32_t svcRtxKernelSuspend (void) {
 }
 
 extern uint32_t SystemCoreClock;
-extern uint32_t Remainder;
+
 /// Resume the RTOS Kernel scheduler.
 /// \note API identical to osKernelResume
 static void svcRtxKernelResume (uint32_t sleep_ticks) {
@@ -411,10 +411,8 @@ static void svcRtxKernelResume (uint32_t sleep_ticks) {
   uint32_t     resume_ts;
   uint32_t     tick_interval;
   uint32_t     sysclk_remain;
-  uint32_t     tick_cnt_remain;
   uint32_t     delta_clk;
   uint32_t     sleep_clk;
-  static uint32_t accumulation = 0;
 
   if (osRtxInfo.kernel.state != osRtxKernelSuspended) {
     EvrRtxKernelResumed();
@@ -425,26 +423,21 @@ static void svcRtxKernelResume (uint32_t sleep_ticks) {
   tick_interval = OS_Tick_GetInterval();
   resume_ts = hal_sys_timer_get();
 #ifdef CALIB_SLOW_TIMER
-  sleep_clk = (uint32_t)((float)(resume_ts - systick_lock_ts));
+  sleep_clk = (uint32_t)((float)(resume_ts - systick_lock_ts) * SystemCoreClock / hal_sys_timer_systick_hz_float() + 0.5);
 #else
   sleep_clk = (uint32_t)((uint64_t)(resume_ts - systick_lock_ts) * SystemCoreClock / CONFIG_SYSTICK_HZ);
 #endif
-  sleep_ticks = sleep_clk * OS_TICK_FREQ / SystemCoreClock;
-  sysclk_remain = sleep_clk * OS_TICK_FREQ - sleep_ticks * SystemCoreClock;
-  tick_cnt_remain = sysclk_remain / OS_TICK_FREQ;
-  if (sleep_clk > systick_lock_val) {
-    delta_clk = (sleep_clk - systick_lock_val) * OS_TICK_FREQ - Remainder;
-    sleep_ticks = delta_clk / SystemCoreClock + 1;
-    sysclk_remain = delta_clk - (sleep_ticks - 1) * SystemCoreClock;
-    accumulation += sysclk_remain % OS_TICK_FREQ;
-    tick_cnt_remain = sysclk_remain / OS_TICK_FREQ;
+
+  if (systick_lock_val == 0) {
+    sleep_ticks = sleep_clk / tick_interval;
+    sysclk_remain = sleep_clk % tick_interval;
+  } else if (sleep_clk >= systick_lock_val) {
+    delta_clk = sleep_clk - systick_lock_val;
+    sleep_ticks = delta_clk / tick_interval + 1;
+    sysclk_remain = tick_interval - delta_clk % tick_interval;
   } else {
-    accumulation += sysclk_remain % OS_TICK_FREQ;
-    tick_cnt_remain = sysclk_remain / OS_TICK_FREQ;
-  }
-  if(accumulation > OS_TICK_FREQ){
-    accumulation -= OS_TICK_FREQ;
-    tick_cnt_remain++;
+    sleep_ticks = 0;
+    sysclk_remain = systick_lock_val - sleep_clk;
   }
   osRtxInfo.kernel.tick += sleep_ticks;
 
@@ -486,16 +479,16 @@ static void svcRtxKernelResume (uint32_t sleep_ticks) {
 
   osRtxThreadDispatch(NULL);
 
-  if (tick_cnt_remain == tick_interval) {
-      tick_cnt_remain = 0;
+  if (sysclk_remain == tick_interval) {
+      sysclk_remain = 0;
   }
-  if (tick_cnt_remain) {
+  if (sysclk_remain) {
 #ifdef OSTICK_USE_FAST_TIMER
-    hal_fast_timer_reload(tick_cnt_remain);
+    hal_fast_timer_reload(sysclk_remain);
     __ISB();
     hal_fast_timer_bgload(tick_interval);//don't need sub 1
 #else
-    SysTick->LOAD = tick_cnt_remain;
+    SysTick->LOAD = sysclk_remain;
     SysTick->VAL = 0;
     SysTick->CTRL |= SysTick_CTRL_ENABLE_Msk;
     while (SysTick->VAL == 0);
@@ -513,8 +506,8 @@ static void svcRtxKernelResume (uint32_t sleep_ticks) {
 
 #if defined(DEBUG_SLEEP) && (DEBUG_SLEEP >= 1)
   if (sleep_clk > 0) {
-    RTX5_TRACE(7,"[%u/0x%X][%2u/%u] resume: suspend tick:%u, sleep_clk=%u ticks=%u",
-      TICKS_TO_MS(hal_sys_timer_get()), hal_sys_timer_get(), tick_cnt_remain, SysTick->VAL, systick_lock_val,
+    TRACE(7,"[%u/0x%X][%2u/%u] resume: suspend tick:%u, sleep_clk=%u ticks=%u",
+      TICKS_TO_MS(hal_sys_timer_get()), hal_sys_timer_get(), sysclk_remain, SysTick->VAL, systick_lock_val,
       sleep_clk, sleep_ticks);
   }
 #endif

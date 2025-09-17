@@ -14,7 +14,7 @@ extern "C" {
 #define BOOT_KEY_TYPE_ECDSA192      2
 #define BOOT_KEY_TYPE_ECDSA256      3
 
-#ifdef __PC_CMD_UART__
+#ifdef PC_CMD_UART_ID
 #define PREFIX_CHAR                 0x7b//{
 #else
 #define PREFIX_CHAR                 0xBE

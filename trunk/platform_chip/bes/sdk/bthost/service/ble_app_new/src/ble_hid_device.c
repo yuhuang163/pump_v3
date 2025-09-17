@@ -13,8 +13,6 @@
  * trademark and other intellectual property rights.
  *
  ****************************************************************************/
-#include "bthost_logger.h"
-
 #if defined(BLE_HID_ENABLE)
 #include "gatt_service.h"
 #include "me_api.h"
@@ -304,33 +302,32 @@ static const gatt_attribute_t g_ble_hid_attr_list[] = {
 #endif
 };
 
-static bool hogpd_report_read_ind_handler(ble_hid_svc_t *hid, const uint8_t *character, uint8_t report_idx, uint16_t connhdl, uint32_t token)
+static bool hogpd_report_read_ind_handler(ble_hid_svc_t *hid, const uint8_t *character, uint8_t report_idx, void *read_ctx)
 {
     if (character == g_ble_hid_boot_keyboard_input_report)
     {
-        gatts_send_read_rsp(connhdl, token, 0, (uint8_t *)&hid->inst.keyboard_boot_input, sizeof(hid_keyboard_boot_input_report_t));
+        gatts_write_read_rsp_data(read_ctx, (uint8_t *)&hid->inst.keyboard_boot_input, sizeof(hid_keyboard_boot_input_report_t));
         return true;
     }
     else if (character == g_ble_hid_boot_keyboard_output_report)
     {
-        gatts_send_read_rsp(connhdl, token, 0, (uint8_t *)&hid->inst.keyboard_boot_output, sizeof(hid_keyboard_boot_output_report_t));
+        gatts_write_read_rsp_data(read_ctx, (uint8_t *)&hid->inst.keyboard_boot_output, sizeof(hid_keyboard_boot_output_report_t));
         return true;
     }
     else if (character == g_ble_hid_boot_mouse_input_report)
     {
-        gatts_send_read_rsp(connhdl, token, 0, (uint8_t *)&hid->inst.mouse_boot_input, sizeof(hid_mouse_boot_input_report_t));
+        gatts_write_read_rsp_data(read_ctx, (uint8_t *)&hid->inst.mouse_boot_input, sizeof(hid_mouse_boot_input_report_t));
         return true;
     }
 
 #ifdef HOGP_HEAD_TRACKER_PROTOCOL
-    if ((character == g_ble_hid_input_report_character ||
-         character == g_ble_hid_output_report_character ||
-         character == g_ble_hid_feature_report_character) &&
+    if (gatts_get_char_byte_16_bit_uuid(character) == GATT_CHAR_UUID_HID_REPORT &&
         hid->svc.service_inst_id == HOGP_SENSOR_BELONG_INSTANCE)
     {
         if (report_idx == HOGP_REPORT_INDEX_SENSOR_DESCR_FEATURE)
         {
             uint8_t desc_feature[23 + 10 + 6];
+            uint8_t report_data_len = 23 + 10 + 6;
             struct bdaddr_t remote = {{0}};
             uint8_t *dest_remote = desc_feature+23+10;
             app_bt_get_local_device_address(&remote);
@@ -342,17 +339,17 @@ static bool hogpd_report_read_ind_handler(ble_hid_svc_t *hid, const uint8_t *cha
             dest_remote[3] = remote.address[2];
             dest_remote[4] = remote.address[1];
             dest_remote[5] = remote.address[0];
-            gatts_send_read_rsp(connhdl, token, 0, desc_feature, sizeof(desc_feature));
+            gatts_write_read_rsp_data(read_ctx, desc_feature, sizeof(desc_feature));
             return true;
         }
         else if (report_idx == HOGP_REPORT_INDEX_SENSOR_STATE_FEATURE)
         {
-            gatts_send_read_rsp(connhdl, token, 0, &hid->inst.sensor_state_feature, 1);
+            gatts_write_read_rsp_data(read_ctx, &hid->inst.sensor_state_feature, 1);
             return true;
         }
         else if (report_idx == HOGP_REPORT_INDEX_SENSOR_VALUE_INPUT)
         {
-            gatts_send_read_rsp(connhdl, token, 0, (uint8_t *)&hid->inst.sensor_report, sizeof(struct bt_hid_sensor_report_t));
+            gatts_write_read_rsp_data(read_ctx, (uint8_t *)&hid->inst.sensor_report, sizeof(struct bt_hid_sensor_report_t));
             return true;
         }
     }
@@ -371,9 +368,7 @@ static bool hogpd_report_write_ind_handler(ble_hid_svc_t *hid, gatt_server_char_
     }
 
 #ifdef HOGP_HEAD_TRACKER_PROTOCOL
-    if ((character == g_ble_hid_input_report_character ||
-         character == g_ble_hid_output_report_character ||
-         character == g_ble_hid_feature_report_character) &&
+    if (gatts_get_char_byte_16_bit_uuid(p->character) == GATT_CHAR_UUID_HID_REPORT &&
         hid->svc.service_inst_id == HOGP_SENSOR_BELONG_INSTANCE)
     {
         if (report_idx == HOGP_REPORT_INDEX_SENSOR_STATE_FEATURE)
@@ -383,7 +378,7 @@ static bool hogpd_report_write_ind_handler(ble_hid_svc_t *hid, gatt_server_char_
             uint8_t sensor_reporting_state = (sensor_state & 0x01) ? true : false;
             uint8_t sensor_interval = 10 + ((sensor_state & 0xfc) >> 2);
             hid->inst.sensor_state_feature = sensor_state;
-            DEBUG_VERBOSE(0, "hogp head tracker state: sesnor power %d reporting %d interval %d ms",
+            TRACE(0, "hogp head tracker state: sesnor power %d reporting %d interval %d ms",
                 sensor_power_state, sensor_reporting_state, sensor_interval);
             return true;
         }
@@ -443,12 +438,8 @@ static int ble_hid_server_callback(gatt_svc_t *svc, gatt_server_event_t event, g
             {
                 if (report_index < hid->inst.report_cfg->nb_report)
                 {
-                    if (p->value_offset < hid->inst.report_cfg->report_map_len)
-                    {
-                        gatts_send_read_rsp(p->conn->connhdl, p->token, 0, &hid->inst.report_cfg->report_map[p->value_offset], hid->inst.report_cfg->report_map_len-p->value_offset);
-                        return true;
-                    }
-                    return false;
+                    gatts_write_read_rsp_data(p->ctx, hid->inst.report_cfg->report_map, hid->inst.report_cfg->report_map_len);
+                    return true;
                 }
                 else
                 {
@@ -457,12 +448,12 @@ static int ble_hid_server_callback(gatt_svc_t *svc, gatt_server_event_t event, g
             }
             else if (p->character == g_ble_hid_protocol_mode)
             {
-                gatts_send_read_rsp(p->conn->connhdl, p->token, 0, &hid->inst.proto_mode, 1);
+                gatts_write_read_rsp_data(p->ctx, &hid->inst.proto_mode, 1);
                 return true;
             }
             else
             {
-                if (hogpd_report_read_ind_handler(hid, p->character, report_index, p->conn->connhdl, p->token))
+                if (hogpd_report_read_ind_handler(hid, p->character, report_index, p->ctx))
                 {
                     return true;
                 }
@@ -500,42 +491,18 @@ static int ble_hid_server_callback(gatt_svc_t *svc, gatt_server_event_t event, g
         {
             gatt_server_desc_read_t *p = param.desc_read;
             uint8_t report_index = p->char_attr->inst_id;
-            uint16_t cccd_config = 0;
-            if ((uint8_t *)p->desc_attr->attr_data == g_ble_hid_report_rrcd)
+            if (p->descriptor == g_ble_hid_report_rrcd)
             {
                 if (report_index < hid->inst.report_cfg->nb_report)
                 {
                     gatt_rrcd_value_t value;
                     value.report_id = hid->inst.report_cfg->report_id[report_index];
                     value.report_type = hid->inst.report_cfg->report_type[report_index];
-                    gatts_send_read_rsp(p->conn->connhdl, p->token, 0, (uint8_t *)&value, sizeof(gatt_rrcd_value_t));
+                    gatts_write_read_rsp_data(p->ctx, (uint8_t *)&value, sizeof(gatt_rrcd_value_t));
                     return true;
                 }
             }
-            else if ((uint8_t *)p->desc_attr->attr_data == g_ble_hid_boot_keyboard_input_report_cccd)
-            {
-                cccd_config = hid->inst.keyboard_boot_input_notify_enabled ? 0x0001 : 0;
-            }
-            else if ((uint8_t *)p->desc_attr->attr_data == g_ble_hid_boot_mouse_input_report_cccd)
-            {
-                cccd_config = hid->inst.mouse_boot_input_notify_enabled ? 0x0001 : 0;
-            }
-            else if ((uint8_t *)p->desc_attr->attr_data == g_ble_hid_report_cccd)
-            {
-                if (report_index < hid->inst.report_cfg->nb_report)
-                {
-                    cccd_config = hid->inst.report_notify_enabled[report_index] ? 0x0001 : 0;
-                }
-                else
-                {
-                    CO_LOG_ERR_2(BT_STS_INVALID_REPORT_INDEX, report_index, hid->inst.report_cfg->nb_report);
-                    return false;
-                }
-            }
-
-            cccd_config = co_host_to_uint16_le(cccd_config);
-            gatts_send_read_rsp(p->conn->connhdl, p->token, 0, (uint8_t *)&cccd_config, sizeof(uint16_t));
-            return true;
+            break;
         }
         case GATT_SERV_EVENT_DESC_WRITE:
         {
@@ -547,15 +514,15 @@ static int ble_hid_server_callback(gatt_svc_t *svc, gatt_server_event_t event, g
             {
                 notify_enabled = true;
             }
-            if ((uint8_t *)p->desc_attr->attr_data == g_ble_hid_boot_keyboard_input_report_cccd)
+            if (p->descriptor == g_ble_hid_boot_keyboard_input_report_cccd)
             {
                 hid->inst.keyboard_boot_input_notify_enabled = notify_enabled;
             }
-            else if ((uint8_t *)p->desc_attr->attr_data == g_ble_hid_boot_mouse_input_report_cccd)
+            else if (p->descriptor == g_ble_hid_boot_mouse_input_report_cccd)
             {
                 hid->inst.mouse_boot_input_notify_enabled = notify_enabled;
             }
-            else if ((uint8_t *)p->desc_attr->attr_data == g_ble_hid_report_cccd)
+            else if (p->descriptor == g_ble_hid_report_cccd)
             {
                 if (report_index < hid->inst.report_cfg->nb_report)
                 {
@@ -598,7 +565,6 @@ void ble_hid_device_init(void)
     cfg.svc_size = sizeof(ble_hid_svc_t);
     cfg.preferred_mtu = HID_PREFERRED_MTU;
     cfg.eatt_preferred = false;
-    cfg.dont_delay_report_conn_open = true;
 
     for (i = 0; i < nb_hid_inst; i += 1)
     {
@@ -614,8 +580,8 @@ void ble_hid_device_init(void)
         curr_cfg->nb_report = nb_report;
         curr_cfg->report_map_len = sizeof(hid_consumer_report_map);
         curr_cfg->report_map = hid_consumer_report_map;
-        curr_cfg->report_type = hid_report_type;
-        curr_cfg->report_id = hid_report_id;
+        curr_cfg->report_type = hid_report_id;
+        curr_cfg->report_id = hid_report_type;
 
         cfg.service_inst_id = i;
         gatts_register_service(g_ble_hid_attr_list, ARRAY_SIZE(g_ble_hid_attr_list), ble_hid_server_callback, &cfg);
@@ -642,19 +608,13 @@ static void ble_hid_device_send_boot_report(uint8_t hid_inst_id, const uint8_t *
         return;
     }
 
-    hid = (ble_hid_svc_t *)gatts_get_service(gap_get_conn_hdl(conidx), g_ble_hid_service, hid_inst_id);
+    hid = (ble_hid_svc_t *)gatts_get_service(gap_conn_idx_as_hdl(conidx), g_ble_hid_service, hid_inst_id);
     if (hid == NULL)
     {
         return;
     }
 
-    gatt_char_notify_t val_ntf=
-    {
-        .character = character,
-        .service = g_ble_hid_service,
-    };
-
-    gatts_send_value_notification(gap_conn_bf(conidx), &val_ntf, report, len);
+    gatts_send_notification(gap_conn_bf(conidx), character, report, len);
 }
 
 bt_status_t ble_hid_send_boot_mouse_report(const hid_mouse_boot_input_report_t *report)
@@ -692,7 +652,7 @@ static void ble_hid_device_send_report(uint8_t hid_inst_id, uint8_t report_idx, 
         return;
     }
 
-    hid = (ble_hid_svc_t *)gatts_get_service(gap_get_conn_hdl(conidx), g_ble_hid_service, hid_inst_id);
+    hid = (ble_hid_svc_t *)gatts_get_service(gap_conn_idx_as_hdl(conidx), g_ble_hid_service, hid_inst_id);
     if (hid == NULL || report_idx > hid->inst.report_cfg->nb_report)
     {
         return;
@@ -709,6 +669,7 @@ static void ble_hid_device_send_report(uint8_t hid_inst_id, uint8_t report_idx, 
 
     notify.character = g_ble_hid_input_report_character;
     notify.char_instance_id = report_idx;
+    notify.force_send_value = true;
 
     gatts_send_value_notification(gap_conn_bf(conidx), &notify, report, len);
 

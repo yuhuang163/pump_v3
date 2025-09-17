@@ -13,8 +13,8 @@
  * trademark and other intellectual property rights.
  *
  ****************************************************************************/
-#include "bthost_logger.h"
-
+#undef MOUDLE
+#define MOUDLE APP_BT
 #include <stdio.h>
 #include <stdlib.h>
 #include "string.h"
@@ -23,6 +23,7 @@
 #include "hal_timer.h"
 #include "audioflinger.h"
 #include "lockcqueue.h"
+#include "hal_trace.h"
 #include "hal_cmu.h"
 #include "hal_chipid.h"
 #include "analog.h"
@@ -30,35 +31,26 @@
 #include "app_thread.h"
 #include "app_status_ind.h"
 #include "app_utils.h"
-#include "app_bt_stream.h"
 #include "app_a2dp.h"
 #include "app_hfp.h"
 #include "nvrecord_dev.h"
 #include "nvrecord_ble.h"
 #include "tgt_hardware.h"
+#include "besbt_cfg.h"
 #include "hfp_api.h"
 #include "app_bt_func.h"
 #include "bt_if.h"
-#include "sco_api.h"
 #include "dip_api.h"
 #include "sdp_api.h"
 #include "spp_api.h"
 #include "intersyshci.h"
+#include "bt_drv_reg_op.h"
 #include "bth_rom_init.h"
 #include "hci_i.h"
-#include "app_bt_cmd.h"
-#include "bt_drv_reg_op.h"
-#include "buf_porting.h"
-
-#if defined(WIFI_BT_COEX_SERVICE)
-#include "coex_service_main.h"
-#endif
-
-#if defined(NEARLINK_HOST_SUPPORT)
-#include "near_app.h"
-#endif
 
 #ifdef BLE_HOST_SUPPORT
+#ifdef BLE_STACK_NEW_DESIGN
+#include "app_ble_test.h"
 #include "app_ble.h"
 #if BLE_AUDIO_ENABLED
 extern "C" {
@@ -66,13 +58,14 @@ extern "C" {
 }
 #endif
 #endif
-
-#if defined(BT_HID_DEVICE)
-#include "app_hid_device.h"
 #endif
 
-#if defined(BT_HID_HOST)
-#include "app_hid_host.h"
+#if defined(__GATT_OVER_BR_EDR__) && !defined(BLE_STACK_NEW_DESIGN)
+#include "btgatt.h"
+#endif
+
+#ifdef BT_HID_DEVICE
+#include "app_bt_hid.h"
 #endif
 
 #ifdef BT_DIP_SUPPORT
@@ -98,11 +91,6 @@ extern "C" {
 #include "app_btgatt.h"
 #include "l2cap_api.h"
 
-#ifdef SPOT_ENABLED
-#include "hwtimer_list.h"
-#include "pmu.h"
-#endif
-
 #ifdef __AI_VOICE__
 #include "app_ai_if.h"
 #endif
@@ -122,8 +110,15 @@ extern "C" {
 #endif
 
 #if defined(IBRT)
+#include "app_tws_ibrt_cmd_handler.h"
+#include "app_tws_ctrl_thread.h"
 #include "app_bt_cmd.h"
 #include "app_ibrt_internal.h"
+#include "app_ibrt_custom_cmd.h"
+#endif
+
+#ifdef __AI_VOICE__
+#include "ai_thread.h"
 #endif
 
 #ifdef TILE_DATAPATH
@@ -142,36 +137,35 @@ extern "C" {
 #include "gfps.h"
 #endif
 
-#ifdef WATCH_AI_ENABLED
-#include "app_ai_control.h"
+#if defined(IBRT)
+rssi_t raw_rssi[2];
 #endif
 
-#ifdef FINDMY_ENABLED
-#include "findmy.h"
-#endif
-
-#if LOCAL_AUDIO_SUPPORT
-#include "app_local_audio_stream_handler.h"
-#endif //LOCAL_AUDIO_SUPPORT
-
-#ifdef IOS_IAP2_BLUETOOTH
-#include "accessory_authen.h"
-#include "accessory_ident.h"
-#include "ext_accessory.h"
-#include "iap2_link_adapter.h"
-#include "app_iap2_spp.h"
-#endif
-
-static void (*g_notify_tws_txrx_handler)(void) = NULL;
-
-static bthost_cfg_t bthost_info =
-{
-/********************** BASIC ************************/
-#ifdef __BTIF_SNIFF__
-    .sniff = true,
+struct besbt_cfg_t besbt_cfg = {
+    .dip_vendor_id = 0,
+    .dip_product_id = 0,
+    .dip_product_version = 0,
+#ifdef BT_HFP_DONT_SUPPORT_APPLE_HF_AT_COMMAND
+    .apple_hf_at_support = false,
 #else
-    .sniff = false,
+    .apple_hf_at_support = true,
 #endif
+#ifdef BT_HFP_DONT_SUPPORT_CLI_FEATURE
+    .hf_dont_support_cli_feature = true,
+#else
+    .hf_dont_support_cli_feature = false,
+#endif
+#ifdef BT_HFP_DONT_SUPPORT_ENHANCED_CALL_FEATURE
+    .hf_dont_support_enhanced_call = true,
+#else
+    .hf_dont_support_enhanced_call = false,
+#endif
+#ifdef BT_HFP_SUPPORT_HF_INDICATORS_FEATURE
+    .hf_support_hf_ind_feature = true,
+#else
+    .hf_support_hf_ind_feature = false,
+#endif
+    .sniff = true,
 #if defined(BT_DONT_AUTO_REPORT_DELAY_REPORT)
     .dont_auto_report_delay_report = true,
 #else
@@ -181,6 +175,11 @@ static bthost_cfg_t bthost_info =
     .vendor_codec_en = true,
 #else
     .vendor_codec_en = false,
+#endif
+#if defined(HFP_SUPPORT_LC3_SWB)
+    .hfp_support_lc3_swb_en = true,
+#else
+    .hfp_support_lc3_swb_en = false,
 #endif
 #if defined(SCO_FORCE_CVSD)
     .force_use_cvsd = true,
@@ -192,8 +191,67 @@ static bthost_cfg_t bthost_info =
 #else
     .support_enre_mode = false,
 #endif
+#ifdef BT_HID_DEVICE
+    .bt_hid_cod_enable = false,
+#else
+    .bt_hid_cod_enable = false,
+#endif
+#ifdef BT_WATCH_APP
+    .bt_watch_enable = true,
+#else
+    .bt_watch_enable = false,
+#endif
+#ifdef __A2DP_AVDTP_CP__
+    .avdtp_cp_enable = true,
+#else
+    .avdtp_cp_enable = false,
+#endif
+    .bt_source_enable = false,
+#if defined(APP_USB_A2DP_SOURCE)
+    .bt_source_48k = true,
+#else
+    .bt_source_48k = false,
+#endif
+    .bt_sink_enable = true,
+#ifdef BT_SOURCE
+#if defined(BT_A2DP_SINK_SOURCE_BOTH_SUPPORT)
+    .a2dp_sink_enable = true,
+#else
+    .a2dp_sink_enable = false,
+#endif
+#else
+#ifdef BT_A2DP_SUPPORT
+    .a2dp_sink_enable = true,
+#else
+    .a2dp_sink_enable = false,
+#endif
+#endif
+#if defined (A2DP_LHDC_V3) || defined (A2DP_SOURCE_LHDC_ON)
+    .lhdc_v3 = true,
+#else
+    .lhdc_v3 = false,
+#endif
+    .hfp_ag_pts_enable = false,
+    .hfp_ag_pts_ecs_01 = false,
+    .hfp_ag_pts_ecs_02 = false,
+    .hfp_ag_pts_ecc = false,
     .source_get_all_cap_flag = false,
+    .source_suspend_err_flag = false,
     .source_unknown_cmd_flag = false,
+    .acl_tx_flow_debug = false,
+    .hci_tx_cmd_debug = false,
+#ifdef BT_DONT_PLAY_MUTE_WHEN_A2DP_STUCK_PATCH
+    .dont_play_mute_when_a2dp_stuck = true,
+#else
+    .dont_play_mute_when_a2dp_stuck = false,
+#endif
+    .send_l2cap_echo_req = false,
+#ifdef A2DP_PLAY_STOP_MEDIA_FIRST
+    .a2dp_play_stop_media_first = false,
+#else
+    .a2dp_play_stop_media_first = true,
+#endif
+
 #ifdef BT_DISC_ACL_AFTER_AUTH_KEY_MISSING
     .disc_acl_after_auth_key_missing = true,
 #else
@@ -210,142 +268,30 @@ static bthost_cfg_t bthost_info =
     .normal_test_mode_switch = false,
 #endif
     .mark_some_code_for_fuzz_test = false,
-    .pts_test_dont_bt_role_switch = false,
-#ifdef BT_SOURCE
-    .bt_source_enable = true,
-#else
-    .bt_source_enable = false,
-#endif
-    .bt_sink_enable = true,
-
-/********************** L2CAP ************************/
-    .send_l2cap_echo_req = false,
-
-/********************** DIP ************************/
-    .dip_vendor_id = 0,
-    .dip_product_id = 0,
-    .dip_product_version = 0,
-    .dip_vendor_id_source = 0,
-
-/********************** A2DP ************************/
-#if defined(BT_SOURCE)
-    .a2dp_source_enable = true,
-#if defined(BT_A2DP_SINK_SOURCE_BOTH_SUPPORT)
-    .a2dp_sink_enable = true,
-#else
-    .a2dp_sink_enable = false,
-#endif
-#else
-    .a2dp_source_enable = false,
-#ifdef BT_A2DP_SUPPORT
-    .a2dp_sink_enable = true,
-#else
-    .a2dp_sink_enable = false,
-#endif
-#endif
-#ifdef A2DP_PLAY_STOP_MEDIA_FIRST
-    .a2dp_play_stop_media_first = false,
-#else
-    .a2dp_play_stop_media_first = true,
-#endif
-#ifdef __A2DP_AVDTP_CP__
-    .avdtp_cp_enable = true,
-#else
-    .avdtp_cp_enable = false,
-#endif
-
-#if defined(APP_USB_A2DP_SOURCE)
-    .bt_source_48k = true,
-#else
-    .bt_source_48k = false,
-#endif
-#if defined (A2DP_LHDC_V3) || defined (A2DP_SOURCE_LHDC_ON)
-    .lhdc_v3 = true,
-#else
-    .lhdc_v3 = false,
-#endif
-#ifdef BT_DONT_PLAY_MUTE_WHEN_A2DP_STUCK_PATCH
-    .dont_play_mute_when_a2dp_stuck = true,
-#else
-    .dont_play_mute_when_a2dp_stuck = false,
-#endif
-
-/********************** AVRCP ************************/
-    .avrcp_tg_enable = false,
-    .avrcp_ct_enable = true,
-
-/********************** HFP ************************/
-    .hfp_ag_enable = false,
-    .hfp_cli_enable = true,
-#ifdef BT_HFP_DONT_SUPPORT_APPLE_HF_AT_COMMAND
-    .apple_hf_at_support = false,
-#else
-    .apple_hf_at_support = true,
-#endif
-#ifdef BT_HFP_DONT_SUPPORT_CLI_FEATURE
-    .hf_dont_support_cli_feature = true,
-#else
-    .hf_dont_support_cli_feature = false,
-#endif
-#ifdef BT_HFP_DONT_SUPPORT_ENHANCED_CALL_FEATURE
-    .hf_dont_support_enhanced_call = true,
-#else
-    .hf_dont_support_enhanced_call = false,
-#endif
-#ifdef BT_HFP_DONT_SUPPORT_3WAY_CALL_FEATURE
-    .hf_dont_support_3way_call = true,
-#else
-    .hf_dont_support_3way_call = false,
-#endif
-#if defined(HFP_SUPPORT_LC3_SWB)
-    .hfp_support_lc3_swb_en = true,
-#else
-    .hfp_support_lc3_swb_en = false,
-#endif
-#ifdef BT_HFP_SUPPORT_HF_INDICATORS_FEATURE
-    .hf_support_hf_ind_feature = true,
-#else
-    .hf_support_hf_ind_feature = false,
-#endif
-    .hfp_ag_pts_enable = false,
-    .hfp_ag_pts_ecs_01 = false,
-    .hfp_ag_pts_ecs_02 = false,
-    .hfp_ag_pts_ecc    = false,
+    .rfcomm_rx_credit_new_strategy = false,
     .hfp_hf_pts_acs_bv_09_i = false,
-
-/********************** HSP ************************/
-    .hsp_enable = true,
-
-/********************** HID ************************/
-#if defined(BT_HID_HOST) || defined(BT_HID_DEVICE)
-    .bt_hid_cod_enable = false,
-#else
-    .bt_hid_cod_enable = false,
-#endif
-
-/********************** BLE ************************/
+    .pts_test_dont_bt_role_switch = false,
 #if BLE_AUDIO_ENABLED
     .le_audio_enabled = true,
 #else
     .le_audio_enabled = false,
 #endif
-
-/********************** BLE ************************/
-    .hci_buff_trace_enable          = false,
-    .hci_buffer_trace_high_enable   = false,
-    .hci_trace_enable               = true,
-    .hci_a2dp_stream_trace_enable   = false,
-    .hci_acl_packet_trace_enable    = true,
-    .hci_iso_packet_trace_enable    = true,
-
-/******************** HFP or A2DP********************/
-    .need_handle_specially = false,
-    .handle_code = 0,
+    .hsp_enable = true,
 };
 
-bthost_cfg_t* bt_host_get_cfg(void)
+bool app_bt_source_is_enabled(void)
 {
-    return &bthost_info;
+    return besbt_cfg.bt_source_enable;
+}
+
+bool app_bt_sink_is_enabled(void)
+{
+    return besbt_cfg.bt_sink_enable;
+}
+
+bool app_bt_a2dp_sink_is_enabled(void)
+{
+    return besbt_cfg.a2dp_sink_enable;
 }
 
 #define APP_BT_MAILBOX_MAX (40)
@@ -354,11 +300,7 @@ static osMailQId app_bt_mailbox = NULL;
 
 osMessageQDef(evm_queue, 128, uint32_t);
 osMessageQId  evm_queue_id;
-#ifdef APP_TRACE_RX_ENABLE
 #define BT_STATE_CHECKER_INTERVAL_MS 5000
-#else
-#define BT_STATE_CHECKER_INTERVAL_MS 15000
-#endif
 #if defined(GET_PEER_RSSI_ENABLE)
 #define GET_PEER_RSSI_CMD_INTERVAL_MS 3000
 #endif
@@ -367,7 +309,7 @@ osMessageQId  evm_queue_id;
 #define BESBT_STACK_SIZE (3326)
 #endif
 
-#if (BLE_AUDIO_ENABLED)
+#if defined(BLE_STACK_NEW_DESIGN) && (BLE_AUDIO_ENABLED)
 #if (BESBT_STACK_SIZE < 3072)
 #undef BESBT_STACK_SIZE
 #define BESBT_STACK_SIZE 3072
@@ -377,34 +319,15 @@ osMessageQId  evm_queue_id;
 /*
  when open the LHDC and lossless enable, need to improve the priority of the btthread.
  because: the a2dp_send_thread Priority is osPriorityHigh, and will alloc many app_bt_mailbox
- when it cant alloc, the RUNTIME_ASSERT will happen
+ when it cant alloc, the ASSERT will happen
 */
-osThreadId besbt_tid = NULL;
-void bt_host_thread(void const *argument);
-uint8_t host_init_done_flg = 0;
-void (*host_init_done_cb)() = NULL;
-static int bt_thread_priority = osPriorityHigh;
-osThreadDef(bt_host_thread, (osPriorityHigh), 1, (BESBT_STACK_SIZE), "bes_bt_main");
+#if defined(BT_SOURCE) && defined(A2DP_SOURCE_LHDC_ON) && defined(A2DP_SOURCE_LHDCV5_ON)
+osThreadDef(BesbtThread, (osPriorityHigh1), 1, (BESBT_STACK_SIZE), "bes_bt_main");
+#else
+osThreadDef(BesbtThread, (osPriorityHigh), 1, (BESBT_STACK_SIZE), "bes_bt_main");
+#endif
 
 static BESBT_HOOK_HANDLER bt_hook_handler[BESBT_HOOK_USER_QTY] = {0};
-
-void app_bt_set_main_priority(int priority)
-{
-    bt_thread_priority = priority;
-
-    if (besbt_tid)
-    {
-        if (bt_thread_priority != (int)osThreadGetPriority(besbt_tid))
-        {
-            osThreadSetPriority(besbt_tid, (osPriority)bt_thread_priority);
-        }
-    }
-}
-
-int app_bt_get_main_priority(void)
-{
-    return bt_thread_priority;
-}
 
 int Besbt_hook_handler_set(enum BESBT_HOOK_USER_T user, BESBT_HOOK_HANDLER handler)
 {
@@ -420,6 +343,20 @@ static void Besbt_hook_proc(void)
             bt_hook_handler[i]();
         }
     }
+}
+
+int app_bt_send_request(uint32_t message_id, uint32_t param0, uint32_t param1, uint32_t param2,uint32_t ptr)
+{
+    APP_MESSAGE_BLOCK msg;
+
+    msg.mod_id = APP_MODULE_BT;
+    msg.msg_body.message_id = message_id;
+    msg.msg_body.message_Param0 = param0;
+    msg.msg_body.message_Param1 = param1;
+    msg.msg_body.message_Param2 = param2;
+    msg.msg_body.message_ptr = ptr;
+
+    return app_mailbox_put(&msg);
 }
 
 static int app_bt_common_mail_process(APP_BT_MAIL* mail_p)
@@ -483,7 +420,7 @@ static int app_bt_common_mail_process(APP_BT_MAIL* mail_p)
                     (void *)alloc_param->param1,
                     (void *)alloc_param->param2,
                     (void *)alloc_param->param3);
-                cobuf_free(alloc_param);
+                bes_bt_me_cobuf_free((uint8_t *)alloc_param);
             }
             break;
         default:
@@ -496,7 +433,7 @@ static int app_bt_common_mail_process(APP_BT_MAIL* mail_p)
 int app_bt_mail_alloc(APP_BT_MAIL** mail)
 {
     *mail = (APP_BT_MAIL*)osMailAlloc(app_bt_mailbox, 0);
-    RUNTIME_ASSERT(*mail, "app_bt_mail_alloc error");
+    ASSERT(*mail, "app_bt_mail_alloc error");
     return 0;
 }
 
@@ -504,9 +441,9 @@ int app_bt_mail_send(APP_BT_MAIL* mail)
 {
     osStatus status;
 
-    RUNTIME_ASSERT(mail, "osMailAlloc NULL");
+    ASSERT(mail, "osMailAlloc NULL");
     status = osMailPut(app_bt_mailbox, mail);
-    RUNTIME_ASSERT(osOK == status, "osMailAlloc Put failed");
+    ASSERT(osOK == status, "osMailAlloc Put failed");
 
     btif_osapi_notify_evm();
 
@@ -518,7 +455,7 @@ static int app_bt_mail_free(APP_BT_MAIL* mail_p)
     osStatus status;
 
     status = osMailFree(app_bt_mailbox, mail_p);
-    RUNTIME_ASSERT(osOK == status, "osMailAlloc Put failed");
+    ASSERT(osOK == status, "osMailAlloc Put failed");
 
     return (int)status;
 }
@@ -657,6 +594,11 @@ int app_bt_ME_Read_Controller_Memory_Fortest(uint32_t addr,uint32_t len,uint8_t 
 }
 #endif /* FPGA */
 
+int bes_bt_call_func_in_app_thread(uint32_t message_id, uint32_t param0, uint32_t param1, uint32_t param2,uint32_t ptr)
+{
+    return app_bt_send_request(message_id, param0, param1, param2, ptr);
+}
+
 int bes_bt_call_func_in_bt_thread(uint32_t param0, uint32_t param1, uint32_t param2, uint32_t param3, uint32_t funcPtr)
 {
     return app_bt_call_func_in_bt_thread(param0, param1, param2, param3, funcPtr);
@@ -678,8 +620,8 @@ void gen_bt_addr_for_debug(void)
     hlen = strlen(host);
     ulen = strlen(user);
 
-    DEBUG_VERBOSE(0,"Configured BT addr is:");
-    DUMP8_D(bt_global_addr, BT_ADDR_OUTPUT_PRINT_NUM);
+    DEBUG_INFO(0,"Configured BT addr is:");
+    DUMP8("%02x ", bt_global_addr, BT_ADDR_OUTPUT_PRINT_NUM);
 
     j = 0;
     for (i = 0; i < hlen; i++) {
@@ -697,8 +639,8 @@ void gen_bt_addr_for_debug(void)
         }
     }
 
-    DEBUG_VERBOSE(0,"Modified debug BT addr is:");
-    DUMP8_D(bt_global_addr, BT_ADDR_OUTPUT_PRINT_NUM);
+    DEBUG_INFO(0,"Modified debug BT addr is:");
+    DUMP8("%02x ", bt_global_addr, BT_ADDR_OUTPUT_PRINT_NUM);
 }
 
 static void add_randomness(void)
@@ -713,24 +655,35 @@ static void add_randomness(void)
 }
 
 #ifndef BLE_ONLY_ENABLED
+static void __set_bt_sco_num(void)
+{
+    uint8_t sco_num = 1;
+#if defined(__BT_ONE_BRING_TWO__)
+    sco_num = 1;
+#elif defined(IBRT_UI)
+    sco_num = 2;
+#endif
+    bt_set_max_sco_number(sco_num);
+}
+
 static void app_bt_l2cap_process_echo_req_func(uint8_t device_id, uint16_t conhdl, uint8_t id, uint16_t len, uint8_t *data)
 {
-    DEBUG_VERBOSE(0,"process_echo_req rxdata:\n");
-    DUMP8_D(data, len);
+    DEBUG_INFO(0,"process_echo_req rxdata:\n");
+    DUMP8("%x ",data,len);
     btif_l2cap_process_echo_req_rewrite_rsp_data(device_id,conhdl,id,len,data);
 }
 
 static void app_bt_l2cap_fill_in_echo_req_data_func(uint8_t device_id, struct l2cap_conn *conn, uint8_t *data, uint16_t data_len)
 {
-    DEBUG_VERBOSE(0,"fill_in_echo_req_data data:\n");
+    DEBUG_INFO(0,"fill_in_echo_req_data data:\n");
     uint8_t echo_data[10] = {0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,0x09,0x0a};
     btif_l2cap_fill_in_echo_req_data(device_id, conn, echo_data, sizeof(echo_data));
 }
 
 static void app_bt_l2cap_process_echo_res_func(uint8_t device_id, uint16_t conhdl, uint8_t* rxdata, uint16_t rxlen)
 {
-    DEBUG_VERBOSE(0,"process_echo_res rxdata: rxlen=%d\n",rxlen);
-    DUMP8_D(rxdata, rxlen);
+    DEBUG_INFO(0,"process_echo_res rxdata: rxlen=%d\n",rxlen);
+    DUMP8("%x ",rxdata,rxlen);
 
     //analyze echo data when receive echo res
 
@@ -743,6 +696,38 @@ WEAK char* app_get_cusom_bt_local_dev_name_pointer(void)
     // TODO: customer can define this function on their side
     // to return the pointer of the dev name
     return NULL;
+}
+
+uint32_t bt_get_class_of_device(void)
+{
+    uint32_t class_of_device = 0;
+    uint32_t services = CFG_COD_AUDIO | CFG_COD_RENDERING;
+
+#ifdef BT_A2DP_SRC_ROLE
+    services |= CFG_COD_CAPTURING;
+#endif
+
+    if (besbt_cfg.bt_hid_cod_enable)
+    {
+        class_of_device = CFG_COD_MAJOR_PERIPHERAL | CFG_COD_MINOR_PERIPH_KEYBOARD;
+    }
+    else
+    {
+#if defined(BLE_USB_AUDIO_SUPPORT) || defined(APP_USB_A2DP_SOURCE)
+        class_of_device = CFG_COD_MAJOR_AUDIO | CFG_COD_MINOR_AUDIO_PORTABLEAUDIO;
+#else
+        class_of_device = CFG_COD_MAJOR_AUDIO | CFG_COD_MINOR_AUDIO_HEADSET;
+#endif
+    }
+
+#if BLE_AUDIO_ENABLED
+    if (besbt_cfg.le_audio_enabled)
+    {
+        class_of_device |= CFG_COD_MAJOR_LE_AUDIO;
+    }
+#endif
+
+    return services | class_of_device;
 }
 
 static void app_set_bt_host_supp_feat_cmpl(uint16_t cmd_opcode, struct hci_cmd_evt_param_t *param)
@@ -764,7 +749,7 @@ static void app_set_bt_host_supp_features(void)
         0};
 
     uint8_t sec_conn_host_supp[] = {
-#if defined(CTKD_ENABLE) && defined(IS_CTKD_OVER_BR_EDR_ENABLED)
+#if BLE_AUDIO_ENABLED || (defined(CTKD_ENABLE) && defined(IS_CTKD_OVER_BR_EDR_ENABLED))
         1,
 #else
         0,
@@ -776,51 +761,7 @@ static void app_set_bt_host_supp_features(void)
     gap_send_raw_hci_cmd(HCI_WR_SEC_CON_HOST_SUPP, sizeof(sec_conn_host_supp), sec_conn_host_supp, app_set_bt_host_supp_feat_cmpl, NULL);
 }
 
-bool bt_host_is_ready(void)
-{
-#ifdef __IAG_BLE_INCLUDE__
-    if (host_init_done_flg == (STACK_READY_BT|STACK_READY_BLE))
-#else
-    if (host_init_done_flg == STACK_READY_BT)
-#endif
-    {
-        return true;
-    }
-
-    return false;
-}
-
-void bt_host_ready(uint8_t ready_flag)
-{
-    host_init_done_flg |= ready_flag;
-
-#ifdef __IAG_BLE_INCLUDE__
-    if (host_init_done_flg != (STACK_READY_BT|STACK_READY_BLE))
-#else
-    if (host_init_done_flg != STACK_READY_BT)
-#endif
-    {
-        return;
-    }
-
-    if (host_init_done_cb)
-    {
-        host_init_done_cb();
-    }
-
-#ifndef BLE_ONLY_ENABLED
-    app_bt_global_handle_init();
-#endif
-
-#ifdef __HOST_GEN_FULL_ECDH_KEY__
-    bt_generate_full_ecdh_key_pair();
-    bt_apply_full_ecdh_key_pair();
-#else
-    bt_generate_ecdh_key_pair();
-    bt_apply_ecdh_key_pair();
-#endif
-}
-
+void app_notify_stack_ready(uint8_t ready_flag);
 static void stack_ready_callback(int status)
 {
     dev_addr_name devinfo;
@@ -859,7 +800,11 @@ static void stack_ready_callback(int status)
     bt_stack_config((const unsigned char*)devinfo.localname, strlen(devinfo.localname) + 1);
 #endif
 
-    bt_host_ready(STACK_READY_BT);
+#ifdef __IAG_BLE_INCLUDE__
+    bes_ble_init_ble_name(devinfo.ble_name);
+#endif
+
+    app_notify_stack_ready(STACK_READY_BT);
 }
 
 static void bt_controller_state_checker(void)
@@ -872,51 +817,7 @@ static void bt_controller_state_checker(void)
         bt_drv_reg_op_get_controller_ble_tx_free_buffer());
 }
 
-int besmain_sysfreq_get(void)
-{
-    enum APP_SYSFREQ_FREQ_T sysfreq;
-#if 0
-//#ifdef A2DP_DECODER_CROSS_CORE
-        sysfreq = APP_SYSFREQ_26M;
-#else
-#if !defined(BLE_ONLY_ENABLED)
-#ifdef A2DP_CP_ACCEL
-        sysfreq = APP_SYSFREQ_26M;
-#else
-        sysfreq = APP_SYSFREQ_52M;
-#endif
-#else
-        sysfreq = APP_SYSFREQ_26M;
-#endif
-#endif
-    return sysfreq;
-}
-
-
-#ifdef SPOT_ENABLED
-static HWTIMER_ID spot_auto_poweroff_timer_id = NULL;
-static void spot_auto_poweroff_handler(const void *param);
-#define SPOT_AUTO_POWER_ON_TIME              30
-void ble_gfps_spot_auto_power_off_init(void)
-{
-    DEBUG_VERBOSE(1,"%s,", __func__);
-    if (spot_auto_poweroff_timer_id == NULL)
-    {
-        spot_auto_poweroff_timer_id = hwtimer_alloc((HWTIMER_CALLBACK_T)spot_auto_poweroff_handler, NULL);
-    }
-    hwtimer_start(spot_auto_poweroff_timer_id, MS_TO_TICKS(SPOT_AUTO_POWER_ON_TIME*1000)); 
-}
-
-static void spot_auto_poweroff_handler(const void * param)
-{
-    DEBUG_VERBOSE(1,"%s", __func__);
-    app_shutdown();
-}
-#endif
-
-
-
-void bt_host_thread(void const *argument)
+int besmain(void)
 {
     enum APP_SYSFREQ_FREQ_T sysfreq;
     POSSIBLY_UNUSED uint32_t checkerSysTick = 0;
@@ -924,8 +825,19 @@ void bt_host_thread(void const *argument)
     uint32_t checkerRssiTick = 0;
 #endif
 
-    sysfreq = (enum APP_SYSFREQ_FREQ_T)besmain_sysfreq_get();
-    besbt_tid = osThreadGetId();
+#ifdef A2DP_DECODER_CROSS_CORE
+    sysfreq = APP_SYSFREQ_15M;
+#else
+#if !defined(BLE_ONLY_ENABLED)
+#ifdef A2DP_CP_ACCEL
+    sysfreq = APP_SYSFREQ_26M;
+#else
+    sysfreq = APP_SYSFREQ_52M;
+#endif
+#else
+    sysfreq = APP_SYSFREQ_26M;
+#endif
+#endif
 
     DEBUG_INFO(0, "BESBT_STACK_SIZE %04x %d", BESBT_STACK_SIZE, BESBT_STACK_SIZE);
 
@@ -936,13 +848,15 @@ void bt_host_thread(void const *argument)
         hal_intersys_mic_open(HAL_INTERSYS_ID_1,store_encode_frame2buff);
 #endif
 
+#ifndef BLE_ONLY_ENABLED
+    __set_bt_sco_num();
+#endif
+
     add_randomness();
 
 #ifndef BLE_ONLY_ENABLED
     btif_set_btstack_chip_config(bt_drv_get_btstack_chip_config());
 #endif
-
-    bt_stack_buf_init();
 
     bt_adapter_callback_func_init();
 
@@ -954,27 +868,51 @@ void bt_host_thread(void const *argument)
 
 #ifdef BLE_ONLY_ENABLED
     bt_chip_common_init(true);
-#else
-    bt_stack_initilize();
 #endif
 
 #ifdef BLE_HOST_SUPPORT
-    nv_record_blerec_init();
-
-    app_ble_init();
-#else
-    bt_l2cap_config_t l2cap_cfg =
-    {
+    gap_config_t gap_cfg = {0};
 #if defined(__GATT_OVER_BR_EDR__)
-        .gatt_over_br_edr = true,
+    gap_cfg.cfg.gatt_over_br_edr = true;
 #endif
 
 #if defined(__HFP_ACS_BV17_I__) || (defined(CTKD_ENABLE) && defined(IS_CTKD_OVER_BR_EDR_ENABLED))
-        .smp_over_br_edr = true,
+    gap_cfg.cfg.ctkd_over_br_edr = true;
 #endif
+
+#if defined (BLE_ADV_RPA_ENABLED)
+    gap_cfg.address_reso_support = true;
+#endif
+
+    nv_record_blerec_init();
+
+#ifdef BLE_STACK_NEW_DESIGN
+    gap_cfg.server_database_hash_support = true;
+
+    gap_init(&gap_cfg,
+             app_ble_recv_stack_global_event,
+             app_ble_get_gap_ext_callbacks());
+
+    app_ble_init();
+    app_ble_test_cmd_init();
+
+#if BLE_AUDIO_ENABLED
+    gaf_prf_cfg_t gaf_cfg =
+    {
+#ifdef USB_AUDIO_APP
+        /// USB Audio enable will need more tolerence time
+        .rx_ntf_ind_timeout_s = 2,
+#else
+        .rx_ntf_ind_timeout_s = 1,
+#endif /* USB_AUDIO_APP */
     };
 
-    l2cap_config_set(&l2cap_cfg);
+    gaf_prf_init(&gaf_cfg);
+#endif /* BLE_AUDIO_ENABLED */
+
+#else
+    bt_l2cap_set_config(&gap_cfg.cfg);
+#endif /* BLE_STACK_NEW_DESIGN */
 #endif /* BLE_HOST_SUPPORT */
 
 #ifndef BLE_ONLY_ENABLED
@@ -983,15 +921,21 @@ void bt_host_thread(void const *argument)
 
     bt_adapter_manager_init();
 
-#ifdef APP_TRACE_RX_ENABLE
-    app_bt_host_cmd_init();
-#endif
     /* bes stack init */
 
     bt_stack_register_ready_callback(stack_ready_callback);
 
-#if defined(NEARLINK_HOST_SUPPORT)
-    near_app_init();
+#ifndef BLE_ONLY_ENABLED
+    bt_stack_initilize();
+#endif
+
+#if defined(__GATT_OVER_BR_EDR__) && !defined(BLE_STACK_NEW_DESIGN)
+    Btgatt_init();
+#endif
+
+#ifdef __IAG_BLE_INCLUDE__
+    bes_ble_stack_init();
+    bt_stack_register_init_start_callback(bes_ble_reset_start);
 #endif
 
     bt_drv_register_send_hci_cmd_hander(btif_me_send_hci_cmd);
@@ -1005,7 +949,7 @@ void bt_host_thread(void const *argument)
     btif_hci_register_controller_state_check(bt_controller_state_checker);
 #ifdef IBRT
     btif_hci_set_start_ibrt_reserve_buff(true);
-
+    btif_hci_register_acl_tx_buff_tss_process(app_tws_ibrt_hci_tx_buf_tss_process);
 #endif
 
 #ifndef BLE_ONLY_ENABLED
@@ -1017,53 +961,52 @@ void bt_host_thread(void const *argument)
 #endif
 
 #if defined(BT_SOURCE)
-    if (bthost_info.bt_source_enable)
-    {
-        /* this init shall be in front of normal profile init */
-        app_bt_source_init();
-    }
+    /* this init shall be in front of normal profile init */
+    app_bt_source_init();
 #endif
 
     /* normal profile init*/
 #ifdef BT_AVRCP_SUPPORT
-    if (bthost_info.avrcp_ct_enable)
-    {
-        btif_avrcp_init();
-        btif_avrcp_set_ct_callback(avrcp_callback_CT);
+    btif_avrcp_init(avrcp_callback_CT);
 #ifndef BT_A2DP_SUPPORT
-        avrcp_init();
+    avrcp_init();
 #endif
-    }
 #endif
 
 #ifdef BT_A2DP_SUPPORT
-    if (bthost_info.a2dp_sink_enable)
-    {
-        a2dp_init();
-    }
+    a2dp_init();
 #endif
 
 #ifdef BT_HFP_SUPPORT
-    if (bthost_info.hfp_cli_enable)
-    {
-        app_hfp_init();
-    }
+    app_hfp_init();
+#endif
+
+#ifdef TILE_DATAPATH
+    app_tile_init();
+#endif
+
+#ifdef __AI_VOICE__
+    app_ai_init();
+#endif
+
+#ifdef GFPS_ENABLED
+    gfps_init();
 #endif
 
 #if defined(BT_MAP_SUPPORT)
     bt_map_init(NULL);
 #endif
 
+#if defined(__GATT_OVER_BR_EDR__)
+    app_btgatt_init();
+#endif
+
 #ifndef BLE_ONLY_ENABLED
     bt_pairing_init();
 #endif
 
-#if defined(BT_HID_DEVICE)
-    app_hid_device_init();
-#endif
-
-#if defined(BT_HID_HOST)
-    app_hid_host_init();
+#ifdef BT_HID_DEVICE
+    bt_hid_init(NULL);
 #endif
 
 #ifdef BT_DIP_SUPPORT
@@ -1082,87 +1025,45 @@ void bt_host_thread(void const *argument)
     app_bt_pan_init();
 #endif
 
-#ifdef WATCH_AI_ENABLED
-    app_watch_ai_init();
-#endif
-
 #ifndef BLE_ONLY_ENABLED
     btif_l2cap_echo_init(app_bt_l2cap_process_echo_req_func,
                          app_bt_l2cap_process_echo_res_func,
                          app_bt_l2cap_fill_in_echo_req_data_func);
 #endif
 
-#ifdef APP_KEY_ENABLE
-    bt_key_init();
+#if defined(IBRT)
+    app_ibrt_set_cmdhandle(TWS_CMD_IBRT, app_ibrt_cmd_table_get);
+    app_ibrt_set_cmdhandle(TWS_CMD_CUSTOMER, app_ibrt_customif_cmd_table_get);
+#if defined(BES_OTA) || defined(AI_OTA) || defined(__GMA_OTA_TWS__)
+    app_ibrt_set_cmdhandle(TWS_CMD_IBRT_OTA, app_ibrt_ota_tws_cmd_table_get);
 #endif
+#ifdef __INTERACTION__
+    app_ibrt_set_cmdhandle(TWS_CMD_OTA, app_ibrt_ota_cmd_table_get);
+#endif
+
+#if BLE_AUDIO_ENABLED
+    app_ibrt_set_cmdhandle(TWS_CMD_AOB, bes_ble_aob_tws_cmd_table_get);
+#endif
+
+    tws_ctrl_thread_init();
+#endif
+
+    bt_key_init();
 
 #ifdef TEST_OVER_THE_AIR_ENANBLED
     app_tota_init();
-#endif
-
-#ifdef TILE_DATAPATH
-    app_tile_init();
-#endif
-
-#ifdef GFPS_ENABLED
-    gfps_init();
-#endif
-
-#ifdef FINDMY_ENABLED
-    findmy_init();
-#endif
-
-#ifdef __AI_VOICE__
-    app_ai_init();
-#endif
-
-#ifdef IOS_IAP2_BLUETOOTH
-    mfi_fea_accessory_authen_init();
-    mfi_fea_accessory_ident_init();
-    mfi_fea_ext_accessory_init();
-    DEBUG_INFO(0,"iap2_link_adapter_init");
-    iap2_link_adapter_init();
-    app_iap2_spp_init();
-#endif
-
-#ifdef SPOT_ENABLED
-    if(pmu_boot_cause_get() == PMU_BOOT_CAUSE_RTC)
-    {
-        ble_gfps_spot_auto_power_off_init();
-    }
 #endif
 
 #ifdef BTH_IN_ROM
     bth_stack_patch_init();
 #endif
 
-#ifdef LOCAL_AUDIO_SUPPORT
-    app_local_audio_player_config_init();
-    app_local_audio_obj_init();
-#endif // LOCAL_AUDIO_SUPPORT
-
-#if defined(WIFI_BT_COEX_SERVICE)
-    coex_service_init(COEX_SRV_USER_BT);
-#endif
-
     btif_osapi_notify_evm();
     while(1) {
         app_sysfreq_req(APP_SYSFREQ_USER_BT_MAIN, APP_SYSFREQ_32K);
         osMessageGet(evm_queue_id, osWaitForever);
+        app_sysfreq_req(APP_SYSFREQ_USER_BT_MAIN, sysfreq);
 
-//pending too much pkts from btc, so boost freq to handle quickly
-#if 1
-        if (hci_rx_queue_available_space() < 6)
-        {
-            app_sysfreq_req(APP_SYSFREQ_USER_BT_MAIN, APP_SYSFREQ_104M);
-        }
-        else
-#endif
-        {
-            app_sysfreq_req(APP_SYSFREQ_USER_BT_MAIN, sysfreq);
-        }
-
-        //    BESHCI_LOCK_TX();
 #ifdef __LOCK_AUDIO_THREAD__
         bool stream_a2dp_sbc_isrun = app_bt_stream_isrun(APP_BT_STREAM_A2DP_SBC);
         if (stream_a2dp_sbc_isrun) {
@@ -1172,6 +1073,10 @@ void bt_host_thread(void const *argument)
 
         bt_process_stack_events();
 
+#ifdef __IAG_BLE_INCLUDE__
+        bes_ble_ke_event_schedule();
+#endif
+
         Besbt_hook_proc();
 
 #ifdef __LOCK_AUDIO_THREAD__
@@ -1180,15 +1085,15 @@ void bt_host_thread(void const *argument)
         }
 #endif
 
-        if (g_notify_tws_txrx_handler)
-        {
-            g_notify_tws_txrx_handler();
-        }
+#if defined(IBRT)
+        app_ibrt_data_send_handler();
+        app_ibrt_data_receive_handler();
+#endif
 
 #ifndef BLE_ONLY_ENABLED
         app_check_pending_stop_sniff_op();
         if(TICKS_TO_MS(hal_sys_timer_get()-checkerSysTick) > BT_STATE_CHECKER_INTERVAL_MS) {
-            if (bt_host_is_ready() && !btif_me_get_testmode_enable())
+            if (app_is_stack_ready() && !btif_me_get_testmode_enable())
             {
                 app_bt_state_checker();
             }
@@ -1197,7 +1102,7 @@ void bt_host_thread(void const *argument)
 
 #if defined(GET_PEER_RSSI_ENABLE)
         if(TICKS_TO_MS(hal_sys_timer_get()-checkerRssiTick) > GET_PEER_RSSI_CMD_INTERVAL_MS) {
-            if (bts_tws_if_is_besaud_connnected())
+            if (app_tws_is_connected())
             {
                 app_bt_ibrt_rssi_status_checker();
             }
@@ -1206,7 +1111,16 @@ void bt_host_thread(void const *argument)
 #endif
 #endif /* BLE_ONLY_ENABLED */
     }
+
+    return 0;
 }
+
+void BesbtThread(void const *argument)
+{
+    besmain();
+}
+
+osThreadId besbt_tid;
 
 bool app_bt_is_besbt_thread(void)
 {
@@ -1218,40 +1132,10 @@ osThreadId app_get_bt_thread_id(void)
     return besbt_tid;
 }
 
-void bt_host_thread_init(int priority, void (*init_done_cb)())
+void BesbtInit(void)
 {
-    host_init_done_flg = 0;
-    bt_thread_priority = priority;
-    host_init_done_cb = init_done_cb;
-
     evm_queue_id = osMessageCreate(osMessageQ(evm_queue), NULL);
     /* bt */
-    besbt_tid = osThreadCreate(osThread(bt_host_thread), NULL);
-    DEBUG_VERBOSE(1,"bt_host_thread_id: %p\n", besbt_tid);
-    if (besbt_tid)
-    {
-        if (bt_thread_priority != (int)osThreadGetPriority(besbt_tid))
-        {
-            osThreadSetPriority(besbt_tid, (osPriority)bt_thread_priority);
-        }
-    }
-}
-
-void bt_host_thread_deinit()
-{
-    POSSIBLY_UNUSED osStatus evt;
-
-    if(besbt_tid)
-    {
-        evt = osThreadTerminate(besbt_tid);
-        if(evt == osOK)
-        {
-            besbt_tid = NULL;
-        }
-    }
-}
-
-void app_bt_register_tws_txrx_handler(void (*cb)(void))
-{
-    g_notify_tws_txrx_handler = cb;
+    besbt_tid = osThreadCreate(osThread(BesbtThread), NULL);
+    DEBUG_INFO(1,"BesbtThread: %p\n", besbt_tid);
 }

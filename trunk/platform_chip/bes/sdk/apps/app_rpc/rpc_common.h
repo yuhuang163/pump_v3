@@ -16,8 +16,6 @@
 #ifndef __RPC_COMMON_H__
 #define __RPC_COMMON_H__
 
-#include "rpc_bth_dsp.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif

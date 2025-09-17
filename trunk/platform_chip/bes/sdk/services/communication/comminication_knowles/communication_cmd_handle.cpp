@@ -52,11 +52,11 @@ enum ERR_CODE communication_cmd_handle_cmd(enum COMMUNICATION_CMD_TYPE cmd, unsi
     //cret[0] = ERR_NONE;
 	
 
-	COMMUNICATION_TRACE(1,"###communication_cmd_handle_cmd,len=%d",len);
+	TRACE(1,"###communication_cmd_handle_cmd,len=%d",len);
     switch (cmd) {
         case COMMUNICATION_CMD_EQ_OP: {
-#ifdef __PC_CMD_UART__	
-		//COMMUNICATION_DUMP8("%02x ",param,len);
+#ifdef PC_CMD_UART_ID
+		//DUMP8("%02x ",param,len);
 			communication_cmd_send_reply(param,len);
 #endif
         }
@@ -69,7 +69,7 @@ enum ERR_CODE communication_cmd_handle_cmd(enum COMMUNICATION_CMD_TYPE cmd, unsi
         }        
         break;
         default: {
-            COMMUNICATION_TRACE(1,"Invalid command: 0x%x", cmd);
+            TRACE(1,"Invalid command: 0x%x", cmd);
             nRet = ERR_INTERNAL;
         }
     }

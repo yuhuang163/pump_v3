@@ -10,7 +10,6 @@ subdir-ccflags-y += \
     -Iservices/audio_bt \
     -Iapps/audioplayers \
     $(BLUETOOTH_ADAPTER_INCLUDES) \
-    $(BT_SERVICE_UX_INCLUDES) \
     -Iplatform/drivers/bt \
     -Iutils/cqueue \
     -Iapps/main \
@@ -21,4 +20,6 @@ subdir-ccflags-y += \
     $(BLE_APP_INCLUDES) \
     $(BLE_STACK_INCLUDES) \
     -Iutils/list \
-    -Iservices/audio_manager
+    -Imultimedia/inc/audio/codec/sbc/inc \
+    -Iservices/audio_manager \
+    -Iservices/ux/common/ibrt/ibrt_core/inc

@@ -23,7 +23,6 @@ subdir-ccflags-y += -Iplatform/drivers/ana \
 					-Iapps/key \
 					-Iservices/audio_process \
 					$(BLUETOOTH_ADAPTER_INCLUDES) \
-					$(BT_SERVICE_UX_INCLUDES) \
 					-Iservices/overlay \
 					-Iservices/resources \
 					-Iplatform/drivers/uarthci \
@@ -37,34 +36,47 @@ subdir-ccflags-y += -Iplatform/drivers/ana \
 					-Iapps/main \
 					-Iapps/common \
 					-Iapps/audioplayers \
+					-Iservices/audio_manager \
 					-Iapps/factory \
 					-Iservices/audio_bt \
+					-Iservices/voicepath/gsound/gsound_target/ \
 					-Iservices/bridge/ \
 					-Iservices/interconnection/red \
 					-Iservices/interconnection/green \
 					-Iservices/interconnection/umm_malloc \
 					-Iservices/ota \
 					-Iservices/norflash_api \
-					$(BES_MULTIMEDIA_INCLUDES) \
-					-Imultimedia/speech/application/Pcm8kCvsd/include \
-					-Imultimedia/speech/codec/codecs/adpcm \
-					-Imultimedia/speech/process/lc_mmse_ns/include \
-					-Imultimedia/speech/process/ns_and_ec/include \
-					-Imultimedia/speech/process/speech_2mic_ns2_denoise/include \
-					-Imultimedia/speech/process/dual_mic_denoise/include \
-					-Imultimedia/speech/process/far_field_speech_enhancement/include \
-					-Imultimedia/speech/process/plc/include \
-					-Imultimedia/speech/process/common/include \
+					-Imultimedia/inc/opus121/include \
+					-Imultimedia/inc/speech/application/Pcm8kCvsd/include \
+					-Imultimedia/inc/speech/codec/codecs/adpcm \
+					-Imultimedia/inc/speech/process/lc_mmse_ns/include \
+					-Imultimedia/inc/speech/process/ns_and_ec/include \
+					-Imultimedia/inc/speech/process/speech_2mic_ns2_denoise/include \
+					-Imultimedia/inc/speech/process/dual_mic_denoise/include \
+					-Imultimedia/inc/speech/process/far_field_speech_enhancement/include \
+					-Imultimedia/inc/speech/process/plc/include \
+					-Imultimedia/inc/speech/process/common/include \
+					-Iservices/voicepath \
 					-Iservices/nv_section/factory_section \
+					-Iservices/voicepath/smartvoice  \
 					-Iapps/battery   \
 					-Ithirdparty/userapi \
-					-Iutils/crc \
+					-Iutils/crc16 \
+					-Iutils/crc32 \
 					-Iutils/sha256	\
 					-Iutils/aes256 \
 					-Iutils/heap \
-					-Iservices/norflash_api \
-					-Iservices/audio_manager
+					-Imultimedia/inc/audio/codec/sbc/inc \
+					-Iservices/norflash_api
 
 ifeq ($(VOICE_PROMPT),1)
 ccflags-y += -DMEDIA_PLAYER_SUPPORT
+endif
+
+ifeq ($(IBRT),1)
+ifeq ($(IBRT_UI),1)
+subdir-ccflags-y += \
+    -Iservices/ux/common/ibrt/app_ibrt/inc \
+    -Iservices/ux/common/ibrt/ibrt_core/inc
+endif
 endif

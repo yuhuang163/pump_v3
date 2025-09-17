@@ -30,11 +30,11 @@
 // #define DUMP_NO_ROLLBACK
 #define LOG_DUMP_PREFIX     "__LOG_DUMP:"
 #if 0
-#define LOG_DUMP_TRACE(num,fmt, ...)  NV_SECTION_TRACE(num,fmt, ##__VA_ARGS__)
+#define LOG_DUMP_TRACE(num,fmt, ...)  TRACE(num,fmt, ##__VA_ARGS__)
 #else
 #define LOG_DUMP_TRACE(num,fmt, ...)
 #endif
-#define NV_SECTION_TRACE(num,fmt, ...)  NV_SECTION_TRACE(num,fmt, ##__VA_ARGS__)
+#define LOG_DUMP_TRACE_FORCE(num,fmt, ...)  TRACE(num,fmt, ##__VA_ARGS__)
 #define DUMP_LOG_ALIGN(x,a)  (uint32_t)(((x + a - 1)/a) * a)
 
 extern uint32_t __log_dump_start;
@@ -441,7 +441,7 @@ void log_dump_output_handler(const unsigned char *buf, unsigned int buf_len)
 
         if(write_len > 0)
         {
-            //NV_SECTION_TRACE(4,LOG_DUMP_PREFIX" write_len: %d bytes, offset %d, written_len %d.", write_len, data_buff->offset, written_len);
+            //LOG_DUMP_TRACE_FORCE(4,LOG_DUMP_PREFIX" write_len: %d bytes, offset %d, written_len %d.", write_len, data_buff->offset, written_len);
             memcpy(data_buff->buffer + data_buff->offset,
                     buf + written_len,
                     write_len);
@@ -466,12 +466,12 @@ void log_dump_output_handler(const unsigned char *buf, unsigned int buf_len)
 
                 //log_dump_f_seqnum = log_dump_f_seqnum + 1 == LOG_DUMP_SECTOR_BUFFER_COUNT ?
                 //               0 : log_dump_f_seqnum + 1;
-                NV_SECTION_TRACE(4,LOG_DUMP_PREFIX" LOST LOG: %d bytes.", remain_len);
-                NV_SECTION_TRACE(4,LOG_DUMP_PREFIX" look_at_count = %d.", look_at_count);
+                LOG_DUMP_TRACE_FORCE(4,LOG_DUMP_PREFIX" LOST LOG: %d bytes.", remain_len);
+                LOG_DUMP_TRACE_FORCE(4,LOG_DUMP_PREFIX" look_at_count = %d.", look_at_count);
                 break;
             }
 
-            // NV_SECTION_TRACE(4,LOG_DUMP_PREFIX" w_seqnum = %d,dump_seqnum = %d, remain_len = %d.",
+            // LOG_DUMP_TRACE_FORCE(4,LOG_DUMP_PREFIX" w_seqnum = %d,dump_seqnum = %d, remain_len = %d.",
             //    log_dump_w_seqnum, log_dump_cur_dump_seqnum, remain_len);
 
             data_buff = &data_buffer_list[log_dump_w_seqnum];
@@ -492,13 +492,13 @@ void log_dump_callback(void* param)
     opera_result = (NORFLASH_API_OPERA_RESULT*)param;
     static uint32_t is_fst = 1;
 
-    NV_SECTION_TRACE(6,LOG_DUMP_PREFIX"%s:type = %d, addr = 0x%x,len = 0x%x.",
+    LOG_DUMP_TRACE_FORCE(6,LOG_DUMP_PREFIX"%s:type = %d, addr = 0x%x,len = 0x%x.",
                 __func__,
                 opera_result->type,
                 opera_result->addr,
                 opera_result->len
                 );
-    NV_SECTION_TRACE(6,LOG_DUMP_PREFIX" :remain = %d,result = %d,suspend_num = %d.",
+    LOG_DUMP_TRACE_FORCE(6,LOG_DUMP_PREFIX" :remain = %d,result = %d,suspend_num = %d.",
                 opera_result->remain_num,
                 opera_result->result,
                 opera_result->suspend_num);
@@ -530,12 +530,12 @@ void log_dump_init(void)
     hal_norflash_get_size(flash_id, NULL, &block_size, &sector_size, &page_size);
     buffer_len = LOG_DUMP_NORFALSH_BUFFER_LEN;
 
-    NV_SECTION_TRACE(4,LOG_DUMP_PREFIX"%s: log_dump_start = 0x%x, log_dump_len = 0x%x, buff_len = 0x%x.",
+    LOG_DUMP_TRACE_FORCE(4,LOG_DUMP_PREFIX"%s: log_dump_start = 0x%x, log_dump_len = 0x%x, buff_len = 0x%x.",
                     __func__,
                     log_dump_flash_start_addr,
                     log_dump_flash_len,
                     buffer_len);
-    NV_SECTION_TRACE(4,LOG_DUMP_PREFIX"%s: flash_id = %d.",
+    LOG_DUMP_TRACE_FORCE(4,LOG_DUMP_PREFIX"%s: flash_id = %d.",
                     __func__,
                     flash_id);
     result = norflash_api_register(

@@ -106,7 +106,7 @@ static void app_sensor_hub_core_handle_vad_cmd(uint32_t *data, uint16_t len)
     req = (struct ANA_RPC_REQ_MSG_T *)data;
     cmd = (enum ANALOG_RPC_ID_T)(req->rpc_id);
 
-    SENSOR_HUB_TRACE(0, "%s: cmd=[%d]", __func__, cmd);
+    TRACE(0, "%s: cmd=[%d]", __func__, cmd);
 
     (void)active_state;
     (void)request_state;
@@ -116,21 +116,21 @@ static void app_sensor_hub_core_handle_vad_cmd(uint32_t *data, uint16_t len)
     if ((cmd == SENS_CMD_ID_VAD_START)
         || (cmd == SENS_CMD_ID_VAD_STOP)) {
         vad_adpt_id = req->param[0];
-        SENSOR_HUB_TRACE(0, "%s: set vad_adpt_id = %d", __func__, vad_adpt_id);
+        TRACE(0, "%s: set vad_adpt_id = %d", __func__, vad_adpt_id);
     } else if (cmd == SENS_CMD_ID_VAD_REQ_DATA) {
         request_state = req->param[0];
         data_size  = req->param[1];
         seek_size = req->param[2];
-        SENSOR_HUB_TRACE(4, "%s: request_state=%d, data_size=%d seek = %d", __func__, request_state, data_size,seek_size);
+        TRACE(4, "%s: request_state=%d, data_size=%d seek = %d", __func__, request_state, data_size,seek_size);
     } else if(cmd == SENS_CMD_ID_VAD_SEEK_DATA){
         seek_size = req->param[0];
     } else if (cmd == SENS_CMD_ID_VAD_SET_ACTIVE) {
         active_state = req->param[0];
-        SENSOR_HUB_TRACE(0, "%s: set active_state = %d", __func__, active_state);
+        TRACE(0, "%s: set active_state = %d", __func__, active_state);
 #ifdef VAD_ADPT_TEST_ENABLE
     } else if (cmd == SENS_CMD_ID_VAD_TEST) {
         if (!vad_adpt_opened) {
-            SENSOR_HUB_TRACE(0, "%s:VAD is not opened, ignore test cmd", __func__);
+            TRACE(0, "%s:VAD is not opened, ignore test cmd", __func__);
             goto _exit;
         }
 #endif /* VAD_ADPT_TEST_ENABLE  */
@@ -147,24 +147,24 @@ static void app_sensor_hub_core_handle_vad_cmd(uint32_t *data, uint16_t len)
     // start/stop vad adapter
     switch (cmd) {
     case SENS_CMD_ID_VAD_START:
-        SENSOR_HUB_TRACE(0, "SENS_CMD_ID_VAD_START");
+        TRACE(0, "SENS_CMD_ID_VAD_START");
         app_vad_adapter_open(vad_adpt_id);
         app_vad_adapter_start(vad_adpt_id);
         break;
     case SENS_CMD_ID_VAD_STOP:
-        SENSOR_HUB_TRACE(0, "SENS_CMD_ID_VAD_STOP");
+        TRACE(0, "SENS_CMD_ID_VAD_STOP");
         app_vad_adapter_stop(vad_adpt_id);
 //        app_vad_adapter_close(vad_adpt_id);
         break;
     case SENS_CMD_ID_VAD_REQ_DATA:
-        SENSOR_HUB_TRACE(0, "SENS_CMD_ID_VAD_REQ_DATA");
+        TRACE(0, "SENS_CMD_ID_VAD_REQ_DATA");
         app_vad_adapter_set_vad_request(vad_adpt_id, request_state, data_size,seek_size);
         break;
     case SENS_CMD_ID_VAD_SEEK_DATA:
         app_vad_adapter_seek_data_update(seek_size);
         break;
     case SENS_CMD_ID_VAD_SET_ACTIVE:
-        SENSOR_HUB_TRACE(0, "SENS_CMD_ID_VAD_SET_ACTIVE");
+        TRACE(0, "SENS_CMD_ID_VAD_SET_ACTIVE");
         app_vad_adapter_set_vad_active(vad_adpt_id, active_state);
         break;
 #ifdef VAD_ADPT_TEST_ENABLE
@@ -174,7 +174,7 @@ static void app_sensor_hub_core_handle_vad_cmd(uint32_t *data, uint16_t len)
         uint32_t arg1 = req->param[1];
         uint32_t arg2 = req->param[2];
 
-        SENSOR_HUB_TRACE(0, "SENS_CMD_ID_VAD_TEST");
+        TRACE(0, "SENS_CMD_ID_VAD_TEST");
         app_vad_adapter_test_handler(vad_adpt_id, scmd, arg1, arg2);
     }
         break;
@@ -191,7 +191,7 @@ _exit:
 
 static void app_sensor_hub_core_vad_cmd_trasmit_handler(uint8_t* ptr, uint16_t len)
 {
-    SENSOR_HUB_TRACE(0, "%s: len=%d", __func__, len);
+    TRACE(0, "%s: len=%d", __func__, len);
 #ifndef NOAPP
     app_core_bridge_send_data_with_waiting_rsp(MCU_SENSOR_HUB_TASK_CMD_VAD, ptr, len);
 #endif
@@ -202,7 +202,7 @@ static void app_sensor_hub_core_vad_cmd_received_handler(uint8_t* ptr, uint16_t 
     uint32_t data[SENS_VAD_MSG_MAX_SIZE/4] = {0};
     struct SENS_MSG_HDR_T *hdr;
 
-    //SENSOR_HUB_DUMP8("%02x ", ptr, len);
+    //DUMP8("%02x ", ptr, len);
 
     ASSERT(len<sizeof(data), "%s: invalid len=%d >= %d", __func__, len, sizeof(data));
     memcpy(data, ptr, len);
@@ -218,24 +218,24 @@ static void app_sensor_hub_core_vad_cmd_received_handler(uint8_t* ptr, uint16_t 
 
 static void app_sensor_hub_core_vad_cmd_wait_rsp_timeout(uint8_t* ptr, uint16_t len)
 {
-    SENSOR_HUB_TRACE(0, "%s: len=%d", __func__, len);
-//    SENSOR_HUB_DUMP8("%02x ", ptr, len);
+    TRACE(0, "%s: len=%d", __func__, len);
+//    DUMP8("%02x ", ptr, len);
 }
 
 static void app_sensor_hub_core_vad_cmd_rsp_received_handler(uint8_t* ptr, uint16_t len)
 {
-    SENSOR_HUB_TRACE(0, "%s: len=%d", __func__, len);
-//    SENSOR_HUB_DUMP8("%02x ", ptr, len);
+    TRACE(0, "%s: len=%d", __func__, len);
+//    DUMP8("%02x ", ptr, len);
 }
 
 static void app_sensor_hub_core_vad_cmd_tx_done_handler(uint16_t cmdCode, uint8_t* ptr, uint16_t len)
 {
-    SENSOR_HUB_TRACE(0, "%s: cmdCode=0x%x, len=%d", __func__, cmdCode, len);
+    TRACE(0, "%s: cmdCode=0x%x, len=%d", __func__, cmdCode, len);
 }
 
 int app_sensor_hub_core_vad_send_evt_msg(enum SENS_VAD_EVT_ID_T id, uint32_t param0, uint32_t param1, uint32_t param2)
 {
-    SENSOR_HUB_TRACE(0, "%s: opened = %d evt=%d param=0x%X/0x%X/0x%X", __func__, vad_adpt_opened,id, param0, param1, param2);
+    TRACE(0, "%s: opened = %d evt=%d param=0x%X/0x%X/0x%X", __func__, vad_adpt_opened,id, param0, param1, param2);
     if (vad_adpt_opened) {
         app_vad_adapter_event_handler(vad_adpt_id, id, param0, param1, param2);
     }
@@ -244,13 +244,13 @@ int app_sensor_hub_core_vad_send_evt_msg(enum SENS_VAD_EVT_ID_T id, uint32_t par
 
 static int app_sensor_hub_core_vad_rpc_cb(enum ANALOG_RPC_ID_T id, uint32_t param0, uint32_t param1, uint32_t param2)
 {
-    SENSOR_HUB_TRACE(0, "%s: id=%d param=0x%X/0x%X/0x%X", __func__, id, param0, param1, param2);
+    TRACE(0, "%s: id=%d param=0x%X/0x%X/0x%X", __func__, id, param0, param1, param2);
     return app_sensor_hub_core_send_req_msg(SENS_MSG_ID_ANA_RPC, id, param0, param1, param2);
 }
 
 void app_sensor_hub_core_vad_init(void)
 {
-    SENSOR_HUB_TRACE(0, "%s:", __func__);
+    TRACE(0, "%s:", __func__);
     analog_aud_register_rpc_callback(app_sensor_hub_core_vad_rpc_cb);
     app_vad_adapter_init();
 }

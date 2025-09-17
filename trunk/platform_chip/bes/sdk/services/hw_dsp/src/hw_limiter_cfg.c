@@ -37,7 +37,7 @@ const struct_psap_cfg * WEAK hwlimiter_para_list_44p1k[HWLIMITER_PARA_LIST_NUM] 
 
 int hwlimiter_open(int ch_map)
 {
-    HW_DSP_TRACE(1,"%s", __func__);
+    TRACE(1,"%s", __func__);
     int err = 0;
     err = psap_open(ch_map);
     return err;
@@ -45,25 +45,25 @@ int hwlimiter_open(int ch_map)
 
 void hwlimiter_enable(int ch_map)
 {
-    HW_DSP_TRACE(1,"%s", __func__);
+    TRACE(1,"%s", __func__);
     psap_enable(ch_map);
 }
 
 void hwlimiter_disable(int ch_map)
 {
-    HW_DSP_TRACE(1,"%s", __func__);
+    TRACE(1,"%s", __func__);
     psap_disable(ch_map);
 }
 
 void hwlimiter_close(void)
 {
-    HW_DSP_TRACE(1,"%s", __func__);
+    TRACE(1,"%s", __func__);
     psap_close();
 }
 
 int hwlimiter_set_cfg(enum AUD_SAMPRATE_T rate,int index)
 {
-    HW_DSP_TRACE(1,"%s", __func__);
+    TRACE(1,"%s", __func__);
     const struct_psap_cfg **list=NULL;
 
     if (index >= HWLIMITER_PARA_LIST_NUM) {

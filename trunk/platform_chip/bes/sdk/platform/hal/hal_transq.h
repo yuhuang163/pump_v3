@@ -65,6 +65,7 @@ struct HAL_TRANSQ_SLOT_NUM_T {
 
 struct HAL_TRANSQ_CFG_T {
     struct HAL_TRANSQ_SLOT_NUM_T slot;
+    uint8_t rx_irq_count;
     HAL_TRANSQ_RX_IRQ_HANDLER rx_handler;
     HAL_TRANSQ_TX_IRQ_HANDLER tx_handler;
 };
@@ -85,7 +86,13 @@ enum HAL_TRANSQ_RET_T hal_transq_open(enum HAL_TRANSQ_ID_T id, const struct HAL_
 
 enum HAL_TRANSQ_RET_T hal_transq_close(enum HAL_TRANSQ_ID_T id);
 
-#endif
+enum HAL_TRANSQ_RET_T hal_transq_flush(enum HAL_TRANSQ_ID_T id);
+
+uint8_t hal_transq_get_rx_irq_count(enum HAL_TRANSQ_ID_T id);
+
+bool hal_transq_tx_busy(enum HAL_TRANSQ_ID_T id);
+
+#endif // TRANSQ0_BASE
 
 #ifdef __cplusplus
 }

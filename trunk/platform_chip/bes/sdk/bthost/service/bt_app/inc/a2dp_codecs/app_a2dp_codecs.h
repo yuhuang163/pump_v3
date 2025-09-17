@@ -24,8 +24,6 @@
 #include "a2dp_codec_opus.h"
 #include "a2dp_codec_scalable.h"
 #include "a2dp_codec_lc3.h"
-#include "a2dp_codec_l2hc.h"
-#include "a2dp_codec_mihc.h"
 
 #if defined(__cplusplus)
 extern "C" {

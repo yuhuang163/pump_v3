@@ -26,9 +26,15 @@ extern "C" {
 #ifdef _WIN32
 #include "stdio.h"
 
+#ifndef TRACE
+#define TRACE(n, str, ...)                  do { printf("[%u] %s/" str "\n", get_current_time(), __FUNCTION__, __VA_ARGS__); } while (0)
+#endif
 #ifndef ASSERT
 #define ASSERT(cond, str, ...)              \
     do { if (!(cond)) { printf("[%u] [ASSERT] %s/" str "\n", get_current_time(), __FUNCTION__, __VA_ARGS__); while (1); } } while (0)
+#endif
+#ifndef TRACE_TIME
+#define TRACE_TIME(n, str, ...)             TRACE(n, str, __VA_ARGS__)
 #endif
 #define CUST_CMD_INIT_TBL_LOC
 #define CUST_CMD_HDLR_TBL_LOC
@@ -38,6 +44,7 @@ int write_flash_data(const unsigned char *data, unsigned int len);
 #include "hal_trace.h"
 #include "hal_timer.h"
 
+#define TRACE_TIME(n, str, ...)             TRACE(n, "[%05u] " str, TICKS_TO_MS(hal_sys_timer_get()), ##__VA_ARGS__)
 #define CUST_CMD_INIT_TBL_LOC               __attribute__((section(".cust_cmd_init_tbl"), used))
 #define CUST_CMD_HDLR_TBL_LOC               __attribute__((section(".cust_cmd_hldr_tbl"), used))
 #endif
@@ -133,14 +140,15 @@ int lock_security_register(unsigned int addr, unsigned int reg_len);
 int burn_security_register(unsigned int addr, const unsigned char *data, unsigned int len);
 int verify_security_register_data(unsigned int addr, unsigned char *load_buf, const unsigned char *data, unsigned int len);
 
+const unsigned char *read_flash_data_from_fifo(unsigned int addr, unsigned int len);
+
 int send_debug_event(const void *buf, size_t len);
 
 void programmer_watchdog_init(void);
 void programmer_watchdog_ping(void);
 
 void copy_new_image(void);
-bool programmer_copy_new_image(uint32_t srcFlashOffset, uint32_t dstFlashOffset,
-                                uint32_t imageCrc, uint32_t imageSize);
+void programmer_copy_new_image(uint32_t srcFlashOffset, uint32_t dstFlashOffset);
 
 typedef void (*PROGRAMMER_EXTRA_TASK_CALLBACK_T)(void);
 void programmer_extra_task_setup_callback(PROGRAMMER_EXTRA_TASK_CALLBACK_T cb);

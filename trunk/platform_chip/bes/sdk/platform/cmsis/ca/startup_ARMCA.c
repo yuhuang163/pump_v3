@@ -24,6 +24,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#ifndef RTOS
 
 #include "cmsis.h"
 #include "plat_addr_map.h"
@@ -149,3 +150,4 @@ void Reset_Handler(void) {
 void Default_Handler(void) {
   while(1);
 }
+#endif

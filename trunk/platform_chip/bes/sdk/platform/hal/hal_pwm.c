@@ -54,6 +54,8 @@ static const enum HAL_CMU_MOD_ID_T pwm_p_mod[] = {
 static uint8_t pwm_map;
 STATIC_ASSERT(sizeof(pwm_map) * 8 >= HAL_PWM_ID_QTY, "pwm_map size too small");
 
+static uint32_t pwm_mod_freq[HAL_PWM_ID_QTY];
+
 int hal_pwm_enable(enum HAL_PWM_ID_T id, const struct HAL_PWM_CFG_T *cfg)
 {
     uint32_t mod_freq;
@@ -141,7 +143,10 @@ int hal_pwm_enable(enum HAL_PWM_ID_T id, const struct HAL_PWM_CFG_T *cfg)
         goto _exit;
     }
 
-    hal_cmu_pwm_set_freq(id, (mod_freq == PWM_FAST_CLOCK) ? mod_freq : 0);
+    if (mod_freq != pwm_mod_freq[id]) {
+        pwm_mod_freq[id] = mod_freq;
+        hal_cmu_pwm_set_freq(id, (mod_freq == PWM_FAST_CLOCK) ? mod_freq : 0);
+    }
 
     if (offset == 0) {
         pwm[index]->LOAD01 = SET_BITFIELD(pwm[index]->LOAD01, PWM_LOAD01_0, load);
@@ -157,7 +162,7 @@ int hal_pwm_enable(enum HAL_PWM_ID_T id, const struct HAL_PWM_CFG_T *cfg)
         pwm[index]->TOGGLE23 = SET_BITFIELD(pwm[index]->TOGGLE23, PWM_TOGGLE23_3, toggle);
     }
 
-    if (cfg->inv) {
+    if (cfg->inv && cfg->ratio != 0) {
         pwm[index]->INV |= (1 << offset);
     } else {
         pwm[index]->INV &= ~(1 << offset);

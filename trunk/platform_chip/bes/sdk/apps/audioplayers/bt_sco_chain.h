@@ -17,7 +17,6 @@
 #define __BT_SCO_CHAIN_H__
 
 #include <stdint.h>
-#include <stdbool.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -37,11 +36,6 @@ extern "C" {
 int speech_init(int tx_sample_rate, int rx_sample_rate,
                      int tx_frame_ms, int rx_frame_ms,
                      int sco_frame_ms,
-                     uint8_t *buf, int len);
-
-int speech_init2(int tx_sample_rate, int rx_sample_rate,
-                     int tx_frame_len, int rx_frame_len,
-                     int sco_frame_len,
                      uint8_t *buf, int len);
 
 /*
@@ -77,10 +71,6 @@ void *speech_get_ext_buff(int size);
 
 /*audio dump test*/
 int speech_tx_process_audio_dump(void *pcm_buf, int *_pcm_len, int channel_num);
-
-#ifdef SPEECH_ALGO_DSP
-int speech_enable_mcpp(bool en);
-#endif
 
 #ifdef __cplusplus
 }

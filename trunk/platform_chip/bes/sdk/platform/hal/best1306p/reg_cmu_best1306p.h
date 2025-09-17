@@ -189,8 +189,6 @@ struct SAVED_CMU_REGS_T {
     uint32_t SEL_OSCX8;
     uint32_t WAKEUP_MASK3;
     uint32_t WAKEUP_MASK4;
-    uint32_t CP2MCU_IRQ_SET;
-    uint32_t MCU2CP_IRQ_SET;
 };
 
 // reg_000
@@ -876,6 +874,7 @@ struct SAVED_CMU_REGS_T {
 #define CMU_RESERVED_3_MASK                                 (0xFFFFFFFF << 0)
 #define CMU_RESERVED_3_SHIFT                                (0)
 
+#define CMU_GPU_ENABLE                                      (1 << 0)
 #define CMU_SEL_I2S1_OSC                                    (1 << 30)
 #define CMU_SEL_I2S0_OSC                                    (1 << 31)
 

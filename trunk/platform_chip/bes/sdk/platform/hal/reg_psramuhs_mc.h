@@ -119,8 +119,8 @@ struct PSRAMUHS_MC_T {
 #define PSRAM_UHS_MC_CHIP_CA_PATTERN(n)          (((n) & 0x7) << 4)
 #define PSRAM_UHS_MC_CHIP_CA_PATTERN_MASK        (0x7 << 4)
 #define PSRAM_UHS_MC_CHIP_CA_PATTERN_SHIFT       (4)
-#define PSRAM_UHS_MC_CHIP_MEM_SIZE(n)            (((n) & 0x3) << 7)
-#define PSRAM_UHS_MC_CHIP_MEM_SIZE_MASK          (0x3 << 7)
+#define PSRAM_UHS_MC_CHIP_MEM_SIZE(n)            (((n) & 0x7) << 7)
+#define PSRAM_UHS_MC_CHIP_MEM_SIZE_MASK          (0x7 << 7)
 #define PSRAM_UHS_MC_CHIP_MEM_SIZE_SHIFT         (7)
 
 // reg_04

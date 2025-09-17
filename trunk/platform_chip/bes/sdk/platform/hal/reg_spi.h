@@ -20,20 +20,23 @@
 
 struct SPI_T
 {
-    __IO uint32_t SSPCR0;           //0x00000000
-    __IO uint32_t SSPCR1;           //0x00000004
-    __IO uint32_t SSPDR;            //0x00000008
-    __I  uint32_t SSPSR;            //0x0000000C
-    __IO uint32_t SSPCPSR;          //0x00000010
-    __IO uint32_t SSPIMSC;          //0x00000014
-    __I  uint32_t SSPRIS;           //0x00000018
-    __I  uint32_t SSPMIS;           //0x0000001C
-    __O  uint32_t SSPICR;           //0x00000020
-    __IO uint32_t SSPDMACR;         //0x00000024
-    __IO uint32_t SSPSRCNT;         //0x00000028
-    __IO uint32_t SSPDLYCR;         //0x0000002C
-         uint32_t reserved[0x16];   //0x00000030
-    __IO uint32_t SSPRXCR;          //0x00000088
+    __IO uint32_t SSPCR0;           // 0x000
+    __IO uint32_t SSPCR1;           // 0x004
+    __IO uint32_t SSPDR;            // 0x008
+    __I  uint32_t SSPSR;            // 0x00C
+    __IO uint32_t SSPCPSR;          // 0x010
+    __IO uint32_t SSPIMSC;          // 0x014
+    __I  uint32_t SSPRIS;           // 0x018
+    __I  uint32_t SSPMIS;           // 0x01C
+    __O  uint32_t SSPICR;           // 0x020
+    __IO uint32_t SSPDMACR;         // 0x024
+    __IO uint32_t SSPSRCNT;         // 0x028
+    __IO uint32_t SSPDLYCR;         // 0x02C
+    __IO uint32_t SSPRXONLY;        // 0x030
+    __IO uint32_t SSPTXFL;          // 0x034
+    __IO uint32_t SSPRXFL;          // 0x038
+         uint32_t reserved[0x13];   // 0x03C
+    __IO uint32_t SSPRXCR;          // 0x088
 };
 
 struct SAVED_SPI_REGS_T {
@@ -61,29 +64,33 @@ struct SAVED_SPI_REGS_T {
 #define SPI_SSPCR0_SCR_SHIFT                (8)
 #define SPI_SSPCR0_SPH                      (1 << 7)
 #define SPI_SSPCR0_SPO                      (1 << 6)
+#define SPI_SSPCR0_SPO_SHIFT                (6)
 #define SPI_SSPCR0_FRF(n)                   (((n) & 3) << 4)
 #define SPI_SSPCR0_FRF_MASK                 (3 << 4)
 #define SPI_SSPCR0_FRF_SHIFT                (4)
+#if (CHIP_SPI_VER >= 8)
+#define SPI_SSPCR0_RX_BYPASS                (1 << 3)
+#endif
 
+#if (CHIP_SPI_VER >= 7)
+#define SPI_SSPCR1_TX_BIG_ENDIAN            (1 << 13)
+#define SPI_SSPCR1_RX_BIG_ENDIAN            (1 << 12)
+#endif
 #if (CHIP_SPI_VER >= 4)
-#if (CHIP_SPI_VER >= 7)
-#define SPI_TX_BIG_ENDIAN                   (1 << 13)
-#define SPI_RX_BIG_ENDIAN                   (1 << 12)
-#endif
-#define SPI_RX_SEL_EN                       (1 << 11)
-#define SPI_SLAVE_ID_SHIFT                  (7)
-#define SPI_SLAVE_ID_MASK                   (0xF << SPI_SLAVE_ID_SHIFT)
-#define SPI_SLAVE_ID(n)                     BITFIELD_VAL(SPI_SLAVE_ID, n)
-#if (CHIP_SPI_VER >= 7)
-#define SPI_SLAVE_ASYNC                     (1 << 5)
-#endif
+#define SPI_SSPCR1_RX_SEL_EN                (1 << 11)
+#define SPI_SSPCR1_SLAVE_ID_SHIFT           (7)
+#define SPI_SSPCR1_SLAVE_ID_MASK            (0xF << SPI_SSPCR1_SLAVE_ID_SHIFT)
+#define SPI_SSPCR1_SLAVE_ID(n)              BITFIELD_VAL(SPI_SSPCR1_SLAVE_ID, n)
 #else
-#define SPI_RX_SEL_EN                       (1 << 9)
-#define SPI_SLAVE_ID_SHIFT                  (7)
-#define SPI_SLAVE_ID_MASK                   (3 << SPI_SLAVE_ID_SHIFT)
-#define SPI_SLAVE_ID(n)                     BITFIELD_VAL(SPI_SLAVE_ID, n)
+#define SPI_SSPCR1_RX_SEL_EN                (1 << 9)
+#define SPI_SSPCR1_SLAVE_ID_SHIFT           (7)
+#define SPI_SSPCR1_SLAVE_ID_MASK            (3 << SPI_SSPCR1_SLAVE_ID_SHIFT)
+#define SPI_SSPCR1_SLAVE_ID(n)              BITFIELD_VAL(SPI_SSPCR1_SLAVE_ID, n)
 #endif
-#define SPI_LCD_DC_DATA                     (1 << 4)
+#if (CHIP_SPI_VER >= 7)
+#define SPI_SSPCR1_SLAVE_ASYNC              (1 << 5)
+#endif
+#define SPI_SSPCR1_LCD_DC_DATA              (1 << 4)
 #define SPI_SSPCR1_SOD                      (1 << 3)
 #define SPI_SSPCR1_MS                       (1 << 2)
 #define SPI_SSPCR1_SSE                      (1 << 1)
@@ -138,6 +145,21 @@ struct SAVED_SPI_REGS_T {
 #define SPI_SSPDLYCR_EXTEND_CS_EN           (1 << 19)
 #endif
 
+#if (CHIP_SPI_VER >= 7)
+#define SPI_SSPRXONLY_RXONLY                (1 << 31)
+#define SPI_SSPRXONLY_RXCNT_SHIFT           0
+#define SPI_SSPRXONLY_RXCNT_MASK            (0x7FFFFFFF << SPI_SSPRXONLY_RXCNT_SHIFT)
+#define SPI_SSPRXONLY_RXCNT(n)              BITFIELD_VAL(SPI_SSPRXONLY_RXCNT, n)
+
+#define SPI_SSPTXFL_SSPTXFL_SHIFT           0
+#define SPI_SSPTXFL_SSPTXFL_MASK            (0x3F << SPI_SSPTXFL_SSPTXFL_SHIFT)
+#define SPI_SSPTXFL_SSPTXFL(n)              BITFIELD_VAL(SPI_SSPTXFL_SSPTXFL, n)
+
+#define SPI_SSPRXFL_SSPRXFL_SHIFT           0
+#define SPI_SSPRXFL_SSPRXFL_MASK            (0x3F << SPI_SSPRXFL_SSPRXFL_SHIFT)
+#define SPI_SSPRXFL_SSPRXFL(n)              BITFIELD_VAL(SPI_SSPRXFL_SSPRXFL, n)
+#endif
+
 #if (CHIP_SPI_VER >= 6)
 #define SPI_SSPRXCR_CMD_CTRL                (1 << 7)
 #endif
@@ -147,7 +169,12 @@ struct SAVED_SPI_REGS_T {
 #define SPI_SSPRXCR_RXBITS_MASK             (0x1F << 0)
 #define SPI_SSPRXCR_RXBITS_SHIFT            (0)
 
+#if (CHIP_SPI_VER >= 7)
+#define SPI_TX_FIFO_DEPTH                   32
+#define SPI_RX_FIFO_DEPTH                   32
+#else
 #define SPI_TX_FIFO_DEPTH                   8
 #define SPI_RX_FIFO_DEPTH                   8
+#endif
 
 #endif

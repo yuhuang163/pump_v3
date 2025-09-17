@@ -124,11 +124,7 @@ void BOOT_TEXT_FLASH_LOC hal_psc_init(void)
     reg_0fc = psc->REG_0FC;
 #if defined(CORE_SLEEP_POWER_DOWN)
     //mcu ram
-#ifdef MCU_RAM_CE_ALWAYS_ON
-    reg_0fc &= ~PSC_AON_MCU_RETMEM_PDEN;
-#else
     reg_0fc |= PSC_AON_MCU_RETMEM_PDEN;
-#endif
     //share mem
     reg_0fc |= PSC_AON_SRAM4_PE_PSW_EN_REG | PSC_AON_SRAM5_PE_PSW_EN_REG | PSC_AON_SRAM6_PE_PSW_EN_REG;
     reg_0fc &= ~(PSC_AON_SRAM4_CE_PSW_EN_REG | PSC_AON_SRAM5_CE_PSW_EN_REG | PSC_AON_SRAM6_CE_PSW_EN_REG |
@@ -144,17 +140,17 @@ void BOOT_TEXT_FLASH_LOC hal_psc_init(void)
     psc->REG_0F8 = PSC_WRITE_ENABLE | reg_0f8;
     psc->REG_0EC = PSC_AON_REG_RAMRET_CFG(0xFF);
 
-// #ifndef ARM_CMSE
-//     uint32_t ram_map;
-//     // Power down unused share ram
-//     ram_map = 0x0007 & ~(
-//     gen_bth_shr_ram_mask(RAM_S_TO_NS(RAM_BASE), RAM_SIZE)
-// #if defined(MEM_POOL_BASE) && defined(MEM_POOL_SIZE)
-//     | gen_bth_shr_ram_mask(RAM_S_TO_NS(MEM_POOL_BASE), MEM_POOL_SIZE)
-// #endif
-//                         );
-//     hal_psc_shr_ram_config(ram_map, HAL_PSC_SHR_RAM_FORCE_PD);
-// #endif
+#ifndef ARM_CMSE
+    uint32_t ram_map;
+    // Power down unused share ram
+    ram_map = 0x0007 & ~(
+    gen_bth_shr_ram_mask(RAM_S_TO_NS(RAM_BASE), RAM_SIZE + AP_MAILBOX_SIZE)
+#if defined(MEM_POOL_BASE) && defined(MEM_POOL_SIZE)
+    | gen_bth_shr_ram_mask(RAM_S_TO_NS(MEM_POOL_BASE), MEM_POOL_SIZE)
+#endif
+                        );
+    hal_psc_shr_ram_config(ram_map, HAL_PSC_SHR_RAM_FORCE_PD);
+#endif
 
     hal_psc_bt_disable();
     hal_psc_display_disable(HAL_PSC_DISPLAY_MOD_ALL);
@@ -241,15 +237,15 @@ void BOOT_TEXT_FLASH_LOC hal_psc_display_enable(enum HAL_PSC_DISPLAY_MOD_T mod)
     psc->REG_028 = PSC_WRITE_ENABLE |
         PSC_AON_DISP_MEM_PSW_EN_DR |
         PSC_AON_DISP_PSW_EN_DR |
-        PSC_AON_DISP_RESETN_ASSERT_DR |
+        PSC_AON_DISP_RESETN_ASSERT_DR | PSC_AON_DISP_RESETN_ASSERT_REG |
         PSC_AON_DISP_ISO_EN_DR | PSC_AON_DISP_ISO_EN_REG |
-        PSC_AON_DISP_CLK_STOP_DR | PSC_AON_DISP_CLK_STOP_REG;
+        PSC_AON_DISP_CLK_STOP_DR;
     psc->REG_028 = PSC_WRITE_ENABLE |
         PSC_AON_DISP_MEM_PSW_EN_DR |
         PSC_AON_DISP_PSW_EN_DR |
         PSC_AON_DISP_RESETN_ASSERT_DR |
-        PSC_AON_DISP_ISO_EN_DR |
-        PSC_AON_DISP_CLK_STOP_DR | PSC_AON_DISP_CLK_STOP_REG;
+        PSC_AON_DISP_ISO_EN_DR | PSC_AON_DISP_ISO_EN_REG |
+        PSC_AON_DISP_CLK_STOP_DR;
     psc->REG_028 = PSC_WRITE_ENABLE |
         PSC_AON_DISP_MEM_PSW_EN_DR |
         PSC_AON_DISP_PSW_EN_DR |
@@ -470,22 +466,15 @@ void hal_psc_bt_enable_auto_power_down(void)
 
 void SRAM_TEXT_LOC hal_psc_core_auto_power_down(int core_only)
 {
-#ifdef CHIP_ROLE_CP
-        hal_cmu_cp_sleep_signal_set();
-        SCB->SCR = SCB_SCR_SLEEPDEEP_Msk;
-        __DSB();
-        __WFI();
-#else
-#ifdef CHIP_SUBSYS_SENS
-    hal_psc_sens_auto_power_down(core_only);
-#else
 #ifdef ARM_CMNS
     TZ_hal_sleep_deep_sleep_S();
 #else
     hal_psc_mcu_auto_power_down();
 #endif
-#endif
-#endif
+}
+
+void SRAM_TEXT_LOC hal_psc_core_auto_wakeup(void)
+{
 }
 
 BOOT_TEXT_FLASH_LOC

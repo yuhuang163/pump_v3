@@ -25,7 +25,7 @@
 extern "C" {
 #endif
 
-#define AG_AT_CMD_UPPER_HANDLE AT_CMD_UPPER_HANDLE
+#define HF_CHANNEL_NUM (BT_DEVICE_NUM+BT_SOURCE_DEVICE_NUM)
 
 typedef uint16_t hf_gateway_version;
 
@@ -45,23 +45,12 @@ typedef uint16_t hf_gateway_version;
 
 #define BTIF_HF_GW_VERSION_1_7     0x0107
 
-/* End of hf_gateway_version */
-
 struct hfp_vendor_info {
     uint16_t vendor_id;
     uint16_t product_id;
     uint16_t version_id;
     uint16_t feature_id;  //default is 3, if you do not known, set it 0
 };
-
-typedef struct {
-    uint8_t device_id;
-    struct bdaddr_t *remote;
-    // 0: connect_fail or disconnected, 1:connected
-    uint8_t connected;
-    // state = BTM_CONN_SCO_OPENED, set this param
-    uint8_t* connected_codec;
-} hfp_set_sco_state_param_t;
 
 typedef void (*hf_event_cb_t) (uint8_t device_id, btif_hf_channel_t* chan, struct hfp_context * ctx);
 
@@ -84,16 +73,19 @@ struct btif_hf_cind_value btif_hf_get_cind_signal_value(btif_hf_channel_t* chan_
 struct btif_hf_cind_value btif_hf_get_cind_roam_value(btif_hf_channel_t* chan_h);
 struct btif_hf_cind_value btif_hf_get_cind_battchg_value(btif_hf_channel_t* chan_h);
 uint32_t btif_hf_get_ag_features(btif_hf_channel_t *chan_h);
-uint32_t btif_hf_get_chld_features(btif_hf_channel_t *chan_h);
 void app_ibrt_register_sco_link(uint8_t device_id, bt_bdaddr_t *remote);
 
 void btif_register_tws_current_ibrt_slave_role_callback(bool (*cb)(void* addr));
-void btif_hf_set_sco_path_status(hfp_set_sco_state_param_t *param);
+struct _hshf_channel *btif_hfp_get_channel(int *count);
 
+/*
+ *  AT+XAPL=[vendorID]-[productID]-[version],[features]
+ *  if you set features as 0,this api will ignore your features setting and use default value
+ */
+void btif_hf_init_vendor_info(struct hfp_vendor_info *info_ptr);
 int btif_hfp_initialize(void);
 int btif_hf_register_callback(hf_event_cb_t callback);
 int btif_ag_register_callback(hf_event_cb_t callback);
-enum HFP_ROLE btif_hfp_get_role(uint8_t device_id);
 hf_gateway_version btif_hf_get_version(btif_hf_channel_t* chan_h);
 bt_status_t btif_hf_update_indicators_batt_level(btif_hf_channel_t* chan_h, uint32_t level);
 bt_status_t btif_hf_batt_report(btif_hf_channel_t* chan_h, uint8_t level);
@@ -118,28 +110,21 @@ bt_status_t btif_hf_hang_up_call(btif_hf_channel_t* chan_h);
 bt_status_t btif_hf_redial_call(btif_hf_channel_t* chan_h);
 bt_status_t btif_hf_dial_number(btif_hf_channel_t* chan_h, uint8_t *number, uint16_t len);
 bt_status_t btif_hf_dial_memory(btif_hf_channel_t* chan_h, int location);
-bt_status_t btif_hf_call_action(int device_id, BT_HFP_CALL_ACTION_T action);
 bt_status_t btif_hf_disc_audio_link(btif_hf_channel_t* chan_h);
 bt_status_t btif_hf_create_audio_link(btif_hf_channel_t* chan_h);
 bt_status_t btif_hf_create_sco_directly(btif_hf_channel_t* chan_h);
 bt_status_t btif_hf_call_hold(btif_hf_channel_t* chan_h, btif_hf_hold_call_t action, uint8_t index);
-bt_status_t btif_hf_switch_calls(btif_hf_channel_t* hangup_chan_h,
-                                 btif_hf_channel_t* answer_chan_h);
-uint8_t btif_get_hf_chan_audio_up_flag(btif_hf_channel_t* chan_h);
 bt_hfp_chan_state_t btif_get_hf_chan_state(btif_hf_channel_t* chan_h);
-bool btif_hf_check_AudioConnect_status(btif_hf_channel_t* chan_h);
-btif_hf_channel_t* btif_hfp_get_channel(uint8_t device_id);
+btif_hf_channel_t* btif_hf_alloc_channel(void);
+btif_hf_channel_t* btif_ag_alloc_channel(void);
 int btif_hf_init_channel(btif_hf_channel_t* chan_h);
 bt_status_t btif_hf_disconnect_service_link(btif_hf_channel_t* chan_h);
 bt_status_t btif_hf_create_service_link(bt_bdaddr_t * bt_addr);
 void btif_hf_query_remote_sdp(bt_bdaddr_t *addr);
-bool btif_hfp_profile_is_connecting(uint8_t device_id);
 bool btif_hf_get_remote_bdaddr(btif_hf_channel_t* chan_h, bt_bdaddr_t *bdaddr_p);
 void btif_hfp_register_peer_sco_codec_receive_handler(void (*cb)(uint8_t device_id,void * chan,uint8_t codec));
 void btif_hf_receive_peer_sco_codec_info(const void* remote, uint8_t codec);
 uint16_t btif_hf_get_sco_hcihandle(btif_hf_channel_t* chan_h);
-btif_hci_handle_t btif_hf_get_remote_hci_handle(btif_hf_channel_t* chan_h);
-bool btif_hf_is_acl_connected(btif_hf_channel_t* chan_h);
 struct hshf_control* _hshf_get_control_from_id(uint8_t device_id);
 btif_remote_device_t *btif_hf_cmgr_get_remote_device(btif_hf_channel_t* chan_h);
 bool btif_hf_check_rfcomm_l2cap_channel_is_creating(bt_bdaddr_t *bdaddr);
@@ -157,15 +142,11 @@ uint32_t btif_hfp_profile_restore_ctx(const bt_bdaddr_t *bdaddr_p, uint8_t *buf,
 bt_status_t btif_hf_sync_conn_audio_connected(hfp_sco_codec_t codec,uint16_t conhdl);
 bt_status_t btif_hf_sync_conn_audio_disconnected(uint16_t conhdl);
 bt_status_t btif_hfp_force_disconnect_hfp_profile(uint8_t device_id,uint8_t reason);
-void btif_hfp_ibrt_role_switch_handle(const bt_bdaddr_t *remote);
 #endif
 bt_status_t btif_hf_indicators_1(btif_hf_channel_t* chan_h);
 bt_status_t btif_hf_indicators_2(btif_hf_channel_t* chan_h);
 bt_status_t btif_hf_indicators_3(btif_hf_channel_t* chan_h);
 bt_status_t btif_hf_send_key_pressed(btif_hf_channel_t* chan_h);
-
-typedef void(*hfp_hold_result_callback)(uint8_t device_id, uint8_t result);
-void btif_hfp_hold_result_callback(hfp_hold_result_callback cb);
 
 #ifdef BT_HFP_AG_ROLE
 struct btif_ag_call_info
@@ -205,10 +186,6 @@ struct btif_ag_module_handler
     btif_ag_handler_str handle_at_command;
     btif_ag_query_operator_handler query_current_operator;
     btif_ag_iterate_call_handler iterate_current_call;
-    btif_ag_handler cind_req;
-    btif_ag_handler clcc_req;
-    btif_ag_handler cops_req;
-    btif_ag_handler_int hf_enhance_safety_change;
 };
 
 uint32_t btif_ag_get_hf_features(btif_hf_channel_t *chan_h);
@@ -216,7 +193,7 @@ bool btif_ag_cmee_enabled(btif_hf_channel_t *chan_h);
 bt_ag_ind_status_t btif_ag_get_ind_status(btif_hf_channel_t *chan_h);
 void btif_ag_set_ind_status(btif_hf_channel_t *chan_h, const bt_ag_ind_status_t *status);
 bt_status_t btif_ag_set_curr_at_upper_handle(btif_hf_channel_t* chan_h);
-bt_status_t btif_ag_create_service_link(bt_bdaddr_t * bt_addr);
+bt_status_t btif_ag_create_service_link(btif_hf_channel_t* chan_h, bt_bdaddr_t * bt_addr);
 bt_status_t btif_ag_disconnect_service_link(btif_hf_channel_t* chan_h);
 bt_status_t btif_ag_create_audio_link(btif_hf_channel_t* chan_h);
 bt_status_t btif_ag_disc_audio_link(btif_hf_channel_t* chan_h);
@@ -251,7 +228,6 @@ void btif_hfp_aud_discon_report_callback_deregister(void);
 
 void btif_hfp_report_user_audio_play_stop_status(void);
 
-bool btif_hfp_remote_support_codec_negotiation(btif_hf_channel_t* chan_h);
 #ifdef __cplusplus
 }
 #endif

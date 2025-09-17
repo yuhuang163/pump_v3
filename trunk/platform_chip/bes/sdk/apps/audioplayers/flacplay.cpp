@@ -107,7 +107,7 @@ get_again:
 
 uint32_t flac_audio_data_come(uint8_t *buf, uint32_t len)
 {
-    AUDIOPLAYERS_TRACE(1,"data come %d\n", len);
+    TRACE(1,"data come %d\n", len);
 
     return 0;
 }
@@ -123,7 +123,7 @@ uint32_t flac_audio_more_data(uint8_t *buf, uint32_t len)
     //ticks = hal_sys_timer_get();
     l = decode_flac_frame(buf, len);
     //cur_ticks = hal_sys_timer_get();
-//    AUDIOPLAYERS_TRACE(1,"flac %d t\n", (cur_ticks-ticks));
+//    TRACE(1,"flac %d t\n", (cur_ticks-ticks));
 
     return l;
 }

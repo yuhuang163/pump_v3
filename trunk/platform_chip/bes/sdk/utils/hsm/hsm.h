@@ -67,7 +67,7 @@ void HsmExit_(Hsm *me, unsigned char toLca);
         toLca_ = HsmToLCA_((Hsm *)(me_), (target_)); \
     HsmExit_((Hsm *)(me_), toLca_); \
     ((Hsm *)(me_))->next = (target_); \
-    HSM_TRACE(1, "target=%s",((Hsm *)(me_))->next->name);\
+    TRACE(1, "target=%s",((Hsm *)(me_))->next->name);\
 } else ((void)0)
 
 #define START_EVT ((Event)(-1))

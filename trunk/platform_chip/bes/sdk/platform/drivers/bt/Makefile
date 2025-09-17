@@ -16,10 +16,8 @@ subdir-ccflags-y += \
     -Iplatform/drivers/ana \
     -Iutils/cqueue \
     -Iutils/heap \
-    -Iutils/lzma \
     $(BLUETOOTH_ADAPTER_INCLUDES) \
-    -Iservices/nv_section/userdata_section\
-    -Iapps/key
+    -Iservices/nv_section/userdata_section
 
 ifeq ($(BT_XTAL_SYNC),1)
 subdir-ccflags-y += -DBT_XTAL_SYNC
@@ -83,6 +81,10 @@ endif
 
 ifeq ($(BT_SYSTEM_52M),1)
 subdir-ccflags-y += -DBT_SYSTEM_52M
+else
+ifeq ($(BT_SYSTEM_104M),1)
+subdir-ccflags-y += -DBT_SYSTEM_104M
+endif
 endif
 
 ifeq ($(BT_FA_ECC),1)
@@ -150,10 +152,6 @@ endif
 
 ifeq ($(MHDT_SWAGC),1)
 subdir-ccflags-y += -D__MHDT_SWAGC__
-endif
-
-ifeq ($(MHDT_HWAGC),1)
-subdir-ccflags-y += -D__MHDT_HWAGC__
 endif
 
 ifeq ($(BLE_NEW_SWAGC_MODE),1)
@@ -236,10 +234,6 @@ ifeq ($(3WIRE_TPORTS),1)
 subdir-ccflags-y += -D__BT_3WIRE_TPORTS__
 endif
 
-ifeq ($(2WIRE_TPORTS),1)
-subdir-ccflags-y += -D__BT_2WIRE_TPORTS__
-endif
-
 ifeq ($(NO_MULTI_HEAP),1)
 subdir-ccflags-y += -DNO_MULTI_HEAP=1
 endif
@@ -248,8 +242,17 @@ ifeq ($(IS_HCI_ISO_PACKET_TRACE_ENABLED),1)
 subdir-ccflags-y += -DIS_HCI_ISO_PACKET_TRACE_ENABLED
 endif
 
-ifeq ($(BT_RAMRUN_BIN_COMPRESSED),1)
-subdir-ccflags-y += -D__BT_RAMRUN_BIN_COMPRESSED__
+ifeq ($(BT_RF_PHY),BT_PHY)
+obj-y += $(CHIP)/bt_phy/
+subdir-ccflags-y += -DBT_RF_PHY_USE_BT_PHY
+else
+ifeq ($(BT_RF_PHY),WIFI_PHY)
+obj-y += $(CHIP)/combine_phy/
+subdir-ccflags-y += -DBT_RF_PHY_USE_WIFI_PHY
+ifneq ($(BT_RF_PHY),)
+$(error Invalid BT_RF_PHY: $(BT_RF_PHY))
+endif
+endif
 endif
 
 ifneq ($(ISO_BUF_SIZE),)
@@ -262,10 +265,6 @@ ifneq ($(ISO_BUF_NB),)
 subdir-ccflags-y += -DISO_BUF_NB=$(ISO_BUF_NB)
 else
 subdir-ccflags-y += -DISO_BUF_NB=20
-endif
-
-ifeq ($(LE_ADV_TX_LOWPOWER),1)
-subdir-ccflags-y += -DLE_ADV_TX_LOWPOWER
 endif
 
 ifeq ($(BT_MASTER_SLEEP),1)

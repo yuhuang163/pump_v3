@@ -8,6 +8,5 @@ obj-y := $(obj-y:.S=.o)
 
 ccflags-y += \
 	$(BLUETOOTH_ADAPTER_INCLUDES) \
-	-Iutils/heap \
-    -Iapps/key
+	-Iutils/heap
 

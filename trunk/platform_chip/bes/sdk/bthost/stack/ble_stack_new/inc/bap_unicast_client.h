@@ -18,6 +18,7 @@
  ****************************************************************************/
 #ifndef __BAP_UC_CLI_INC__
 #define __BAP_UC_CLI_INC__
+#include "bluetooth.h"
 
 #include "gaf_cfg.h"
 #include "gaf_log.h"
@@ -39,6 +40,7 @@
 #define BAP_UC_CLI_MAX_SUPP_CIS_NUM                   (GAF_SUPP_MAX_CIS_NUM)
 
 #define BAP_UC_CLI_MAX_CIS_NUM_PREPARE_IN_GRP         (BAP_UC_CLI_MAX_SUPP_CIS_NUM)
+
 
 /// CIS EVENT
 enum bap_uc_cli_cis_event
@@ -72,6 +74,7 @@ typedef struct bap_uc_cli_prf_svc_info bap_uc_cli_ascc_prf_svc_t;
 typedef struct bap_uc_cli_ase_qos_cfg_param bap_uc_cli_ase_qos_cfg_t;
 typedef struct bap_uc_cli_ase_qos_req_param bap_uc_cli_ase_qos_req_t;
 
+
 /// Callback for ascs discovery cmp
 typedef void (*bap_uc_cli_cb_discovery_cmp)(uint8_t con_lid, uint16_t err_code);
 /// Callback for ascs bond data
@@ -84,7 +87,7 @@ typedef void (*bap_uc_cli_cb_ase_err_state_ind)(uint8_t con_lid, uint8_t ase_id,
 /// Callback for ascs ase idle
 typedef void (*bap_uc_cli_cb_ase_idle_state_ind)(uint8_t con_lid, uint8_t ase_id, uint8_t direction);
 /// Callback for ascs ase codec configured
-typedef void (*bap_uc_cli_cb_ase_codec_cfg_state_ind)(uint8_t con_lid, uint8_t ase_id, uint8_t direction,
+typedef void (*bap_uc_cli_cb_ase_codec_cfg_state_ind)(uint8_t con_lid, uint8_t ase_id,
                                                       const uint8_t *codec_id, const gen_aud_cc_ptr_t *p_codec_cfg, const bap_uc_cli_ase_qos_req_t *p_qos_req);
 /// Callback for ascs ase qos configured
 typedef void (*bap_uc_cli_cb_ase_qos_cfg_state_ind)(uint8_t con_lid, uint8_t ase_id, uint8_t cig_id,
@@ -148,8 +151,8 @@ struct bap_uc_cli_ase_qos_cfg_param
     uint32_t sdu_interval;
     /// QoS Framing
     uint8_t framing;
-    /// QoS PHY Bitfield
-    uint8_t phy_bf;
+    /// QoS PHY
+    uint8_t phy;
     /// QoS Max SDU size*/
     uint16_t max_sdu_size;
     /// QoS Retransmission Number
@@ -158,11 +161,6 @@ struct bap_uc_cli_ase_qos_cfg_param
     uint16_t max_trans_latency;
     /// QoS Presentation Delay
     uint32_t pres_delay;
-    /// Preferred rates bitfiled @see bap_phy_rates_bf
-    /// Only valid when Coded PHY used
-    uint16_t coded_rates_bf;
-    /// Only valid when HDT PHY used
-    uint16_t hdt_rates_bf;
 };
 
 typedef struct bap_uc_cli_create_cig_test_param
@@ -234,10 +232,6 @@ typedef struct bap_uc_cli_ascc_init_cfg
     bool cp_write_reliable;
     /// CIS auto disconnect after stream close
     bool auto_cis_disconn;
-    /// Preferred MTU size
-    uint16_t pref_mtu;
-    /// CIS initate immediately after enable is sent out
-    bool create_cis_imm;
 } bap_uc_cli_ascc_init_cfg_t;
 #endif /// (BAP_ASCC_ENABLE)
 
@@ -299,7 +293,6 @@ int bap_uc_cli_delete_uc_stream_group(uint8_t grp_lid);
  * @return int         status
  */
 int bap_uc_cli_ase_operation(uint8_t op_code,  const bap_uc_cli_ase_op_param_t *p_ase_param);
-
 #if 0
 int bap_uc_cli_disconnect_ase_cis(uint8_t con_lid, uint8_t ase_id);
 int bap_uc_cli_update_configuration(bool cp_write_reliable, bool auto_disconn_cis);

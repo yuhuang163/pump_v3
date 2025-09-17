@@ -19,6 +19,8 @@
 #ifndef __HAP_HAC_INC__
 #define __HAP_HAC_INC__
 
+#include "bluetooth.h"
+
 #include "gaf_cfg.h"
 
 #include "gaf_prf.h"
@@ -83,8 +85,7 @@ typedef struct hac_cb
 
 typedef struct hac_init_cfg
 {
-    /// Preferred MTU size
-    uint16_t pref_mtu;
+
 } hac_init_cfg_t;
 
 struct hac_prf_svc_info

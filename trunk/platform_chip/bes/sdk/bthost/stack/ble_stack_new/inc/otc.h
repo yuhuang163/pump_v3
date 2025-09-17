@@ -19,6 +19,8 @@
 #ifndef __ACC_OTC__
 #define __ACC_OTC__
 
+#include "bluetooth.h"
+
 #include "gaf_cfg.h"
 #include "gaf_prf.h"
 
@@ -44,8 +46,6 @@ typedef struct otc_init_cfg
 {
     /// Max supported ots instant found
     uint8_t supp_ots_found_max;
-    /// Preferred MTU size
-    uint16_t pref_mtu;
 } otc_init_cfg_t;
 
 /// Callback function called when a discovery is complete

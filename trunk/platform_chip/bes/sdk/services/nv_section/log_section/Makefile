@@ -12,10 +12,25 @@ filtout_c := tota_crash_dump_tool.c
 obj_c := $(filter-out $(filtout_c),$(obj_c))
 endif
 
+ifeq ($(CORE_DUMP_TO_FLASH), )
+filtout_c := coredump_section.c
+obj_c := $(filter-out $(filtout_c),$(obj_c))
+endif
+
+ifeq ($(USER_DATA_TO_FLASH), )
+filtout_c := user_data_section.c
+obj_c := $(filter-out $(filtout_c),$(obj_c))
+endif
+
+ifeq ($(USER_GPS_TO_FLASH), )
+filtout_c := user_gps_section.c
+obj_c := $(filter-out $(filtout_c),$(obj_c))
+endif
+
 obj-y := $(obj_c:.c=.o) $(obj_s:.S=.o) $(obj_cpp:.cpp=.o)
 
 ccflags-y := \
-	-Iutils/crc \
+	-Iutils/crc32 \
 	-Iutils/heap \
 	-Iplatform/drivers/ana \
 	-Iservices/norflash_api \

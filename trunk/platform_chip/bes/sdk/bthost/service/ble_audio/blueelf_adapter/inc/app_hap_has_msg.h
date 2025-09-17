@@ -16,7 +16,7 @@
 #ifndef _APP_HAP_HAS_MSG_H_
 #define _APP_HAP_HAS_MSG_H_
 
-#if BLE_AUDIO_ENABLED
+#ifdef BLE_AUDIO_ENABLED
 #include "bluetooth.h"
 
 #define APP_HAP_HAS_INIT_2_MORE_PRESET  (false)

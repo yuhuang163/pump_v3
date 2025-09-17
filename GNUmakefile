@@ -2,7 +2,7 @@ SDK_SRCTREE := $(CURDIR)/trunk/platform_chip/bes/sdk
 PROJECT_ROOT := $(CURDIR)
 O ?= $(PROJECT_ROOT)/project/build
 BIN_DIR ?= $(PROJECT_ROOT)/project/bin
-T ?= best1306p
+CHIP ?= best1306p
 CONFIG_CROSS_COMPILE ?= arm-none-eabi-
 CROSS_COMPILE ?= $(CONFIG_CROSS_COMPILE)
 
@@ -18,6 +18,12 @@ REL_TRACE_ENABLE ?= 1
 # RTC calendar feature switch
 RTC_CALENDAR ?= 1
 
+# littlefs section size
+LITTLEFS_SECTION_SIZE ?= 0x4000
+
+# factory data section size
+FACTORY_DATA_SECTION_SIZE ?= 0x2000
+
 # SDK 头文件（最小必需集）
 SDK_INCLUDE_PATHS := \
 	-I$(PROJECT_ROOT)/trunk/platform_chip/bes/sdk/include \
@@ -30,9 +36,14 @@ SDK_INCLUDE_PATHS := \
 	-I$(PROJECT_ROOT)/trunk/platform_chip/bes/sdk/platform/drivers/ana \
 	-I$(PROJECT_ROOT)/trunk/platform_chip/bes/sdk/platform/cmsis/inc \
 	-I$(PROJECT_ROOT)/trunk/platform_chip/bes/sdk/services/nv_section/include \
+	-I$(PROJECT_ROOT)/trunk/platform_chip/bes/sdk/services/nv_section/log_section \
+	-I$(PROJECT_ROOT)/trunk/platform_chip/bes/sdk/services/norflash_api \
+	-I$(PROJECT_ROOT)/trunk/platform_chip/bes/sdk/services/nv_section/factory_section \
 	-I$(PROJECT_ROOT)/trunk/platform_chip/bes/sdk/utils/heap \
 	-I$(PROJECT_ROOT)/trunk/platform_chip/bes/sdk/utils/libc/inc \
+	-I$(PROJECT_ROOT)/trunk/platform_chip/bes/sdk/utils/hwtimer_list \
 	-I$(PROJECT_ROOT)/trunk/platform_chip/bes/sdk/platform/cmsis/inc \
+	-I$(PROJECT_ROOT)/trunk/platform_chip/bes/sdk/apps/main \
 	-I$(PROJECT_ROOT)/boards \
 	-I$(PROJECT_ROOT)/drivers/audio \
 	-I$(PROJECT_ROOT)/drivers/base \
@@ -60,6 +71,7 @@ SDK_INCLUDE_PATHS := \
 	-I$(PROJECT_ROOT)/overlay/windows/ota \
 	-I$(PROJECT_ROOT)/overlay/windows/pop_windows \
 	-I$(PROJECT_ROOT)/overlay/windows/setting \
+	-I$(PROJECT_ROOT)/overlay/windows \
 	-I$(PROJECT_ROOT)/overlay/sensor/imu \
 	-I$(PROJECT_ROOT)/overlay/sensor/force_sensor \
 	-I$(PROJECT_ROOT)/overlay/sensor/air_pressure \
@@ -69,6 +81,8 @@ SDK_INCLUDE_PATHS := \
 	-I$(PROJECT_ROOT)/overlay/storage\
 	-I$(PROJECT_ROOT)/trunk/include \
 	-I$(PROJECT_ROOT)/trunk/extern \
+	-I$(PROJECT_ROOT)/trunk/external/littlefs \
+	-I$(PROJECT_ROOT)/trunk/external/littlefs/fds \
 	-I$(PROJECT_ROOT)/trunk/root_source/airplane \
 	-I$(PROJECT_ROOT)/trunk/root_source/algorithm \
 	-I$(PROJECT_ROOT)/trunk/root_source/audio \
@@ -99,49 +113,52 @@ ifeq ($(RTC_CALENDAR),1)
 CPPFLAGS += -DRTC_CALENDAR
 endif
 
-# 根据 T 映射芯片宏，确保与 SDK 头文件匹配
-ifeq ($(T),best1306p)
+CPPFLAGS += -DLITTLEFS_SECTION_SIZE=$(LITTLEFS_SECTION_SIZE)
+CPPFLAGS += -DFACTORY_DATA_SECTION_SIZE=$(FACTORY_DATA_SECTION_SIZE)
+
+# 根据 CHIP 映射芯片宏，确保与 SDK 头文件匹配（避免将 T=ble_only_lt 误当作芯片）
+ifeq ($(CHIP),best1306p)
 CHIP_DEFINES := -DCHIP_BEST1306P
-else ifeq ($(T),best1306)
+else ifeq ($(CHIP),best1306)
 CHIP_DEFINES := -DCHIP_BEST1306
-else ifeq ($(T),best1305)
+else ifeq ($(CHIP),best1305)
 CHIP_DEFINES := -DCHIP_BEST1305
-else ifeq ($(T),best1000)
+else ifeq ($(CHIP),best1000)
 CHIP_DEFINES := -DCHIP_BEST1000
-else ifeq ($(T),best1400)
+else ifeq ($(CHIP),best1400)
 CHIP_DEFINES := -DCHIP_BEST1400
-else ifeq ($(T),best1501)
+else ifeq ($(CHIP),best1501)
 CHIP_DEFINES := -DCHIP_BEST1501
-else ifeq ($(T),best1502p)
+else ifeq ($(CHIP),best1502p)
 CHIP_DEFINES := -DCHIP_BEST1502P
-else ifeq ($(T),best1502x)
+else ifeq ($(CHIP),best1502x)
 CHIP_DEFINES := -DCHIP_BEST1502X
-else ifeq ($(T),best1503)
+else ifeq ($(CHIP),best1503)
 CHIP_DEFINES := -DCHIP_BEST1503
-else ifeq ($(T),best1600)
+else ifeq ($(CHIP),best1600)
 CHIP_DEFINES := -DCHIP_BEST1600
-else ifeq ($(T),best2000)
+else ifeq ($(CHIP),best2000)
 CHIP_DEFINES := -DCHIP_BEST2000
-else ifeq ($(T),best2001)
+else ifeq ($(CHIP),best2001)
 CHIP_DEFINES := -DCHIP_BEST2001
-else ifeq ($(T),best2003)
+else ifeq ($(CHIP),best2003)
 CHIP_DEFINES := -DCHIP_BEST2003
-else ifeq ($(T),best2300)
+else ifeq ($(CHIP),best2300)
 CHIP_DEFINES := -DCHIP_BEST2300
-else ifeq ($(T),best2300a)
+else ifeq ($(CHIP),best2300a)
 CHIP_DEFINES := -DCHIP_BEST2300A
-else ifeq ($(T),best2300p)
+else ifeq ($(CHIP),best2300p)
 CHIP_DEFINES := -DCHIP_BEST2300P
-else ifeq ($(T),best3001)
+else ifeq ($(CHIP),best3001)
 CHIP_DEFINES := -DCHIP_BEST3001
-else ifeq ($(T),best3003)
+else ifeq ($(CHIP),best3003)
 CHIP_DEFINES := -DCHIP_BEST3003
-else ifeq ($(T),best3005)
+else ifeq ($(CHIP),best3005)
 CHIP_DEFINES := -DCHIP_BEST3005
-else ifeq ($(T),fpga1000)
+else ifeq ($(CHIP),fpga1000)
 CHIP_DEFINES := -DCHIP_FPGA1000
 else
-CHIP_DEFINES := -DCHIP_$(shell echo $(T) | tr '[:lower:]' '[:upper:]')
+CHIP_DEFINES := -DCHIP_$(shell echo $(CHIP) | tr '[:lower:]' '[:upper:]')
 endif
 CPPFLAGS += $(CHIP_DEFINES)
 
@@ -177,6 +194,7 @@ EXTRA_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/overlay/storage/breath_pump/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/storage/resource/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/storage/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/windows/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/windows/battery/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/windows/breath_pump/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/windows/charge/*.c) \
@@ -186,6 +204,8 @@ EXTRA_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/overlay/windows/ota/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/windows/pop_windows/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/windows/setting/*.c) \
+	$(wildcard $(PROJECT_ROOT)/trunk/external/littlefs/*.c) \
+	$(wildcard $(PROJECT_ROOT)/trunk/external/littlefs/fds/*.c) \
 	$(wildcard $(PROJECT_ROOT)/trunk/root_source/airplane/*.c) \
 	$(wildcard $(PROJECT_ROOT)/trunk/root_source/algorithm/*.c) \
 	$(wildcard $(PROJECT_ROOT)/trunk/root_source/audio/*.c) \
@@ -216,7 +236,11 @@ all: extra sdk
 sdk: $(EXTRA_LIB) | $(BIN_DIR)
 	$(MAKE) -C $(SDK_SRCTREE) O=$(O) T=$(T) CONFIG_CROSS_COMPILE=$(CONFIG_CROSS_COMPILE) \
 	  C++_ONLY_FLAGS+=" -fno-threadsafe-statics " \
-	  LIB_LDFLAGS+=" $(EXTRA_LIB) -Wl,-defsym,__EXTRA_LIB_MTIME=$(shell stat -c %Y $(EXTRA_LIB)) " REL_TRACE_ENABLE=$(REL_TRACE_ENABLE) RTC_CALENDAR=$(RTC_CALENDAR)
+	  LIB_LDFLAGS+=" $(EXTRA_LIB) -Wl,-defsym,__EXTRA_LIB_MTIME=$(shell stat -c %Y $(EXTRA_LIB)) " \
+	  REL_TRACE_ENABLE=$(REL_TRACE_ENABLE) \
+	  LITTLEFS_SECTION_SIZE=$(LITTLEFS_SECTION_SIZE) \
+	  FACTORY_DATA_SECTION_SIZE=$(FACTORY_DATA_SECTION_SIZE)
+	#   RTC_CALENDAR=$(RTC_CALENDAR)
 	@set -e; \
 	  out_dir="$(O)/$(T)"; \
 	  for ext in elf bin map lst; do \

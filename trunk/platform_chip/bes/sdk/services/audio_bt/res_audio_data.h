@@ -66,10 +66,6 @@ const uint8_t EN_SOUND_PROMPT_ADAPTIVE_ANC [] = {
 #include "res/adapt_anc/SOUND_PROMPT_ADAPTIVE_ANC.txt"
 };
 
-const uint8_t EN_SOUND_CUSTOM_LEAK_DETECT [] = {
-#include "res/ld/SOUND_PROMPT_CUSTOM_LEAK.txt"
-};
-
 const uint8_t EN_SOUND_NINE [] = {
 #include "res/en/SOUND_NINE.txt"
 };
@@ -157,6 +153,12 @@ const uint8_t EN_BT_GSOUND_NC[] = {
 #ifdef __INTERACTION__
 const uint8_t EN_BT_FINDME[] = {
 #include "res/en/SOUND_FINDME.txt"
+};
+#endif
+
+#ifdef SLT_AUTO_TEST
+const uint8_t EN_TONE_1K[] = {
+#include "res/en/SOUND_1K_TONE.txt"
 };
 #endif
 

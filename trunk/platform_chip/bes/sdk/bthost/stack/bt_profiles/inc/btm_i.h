@@ -18,9 +18,6 @@
 #include "bluetooth.h"
 #include "co_ppbuff.h"
 #include "hci_i.h"
-#include "btm_vendor.h"
-#include "btm_mhdt.h"
-#include "me_common_define.h"
 #if defined(__cplusplus)
 extern "C" {
 #endif
@@ -96,25 +93,11 @@ enum btm_l2cap_event_enum {
     BTM_EV_SECURITY_AUTORITY_FAILURE
 };
 
-
 enum conn_sco_stat_enum{
-
-    //disconnected
     BTM_CONN_SCO_CLOSED,
-    BTM_CONN_SCO_WAIT,     //the sco connection is waiting for the acl connection to be connected first
-
-    //outgoing connecting
     BTM_CONN_SCO_CONNECTING,
-
-    //incoming connecting
-    BTM_CONN_SCO_INCOMING_REQ,
-    BTM_CONN_SCO_INCOMING_ACCEPT,
-    BTM_CONN_SCO_INCOMING_REJECT,
-
-    //connected
     BTM_CONN_SCO_OPENED,
-    //MAX
-    BTM_CONN_SCO_INVAILD
+    BTM_CONN_SCO_WAIT      /*the sco connection is waiting for the acl connection to be connected first*/
 };
 
 enum btm_pairing_event
@@ -141,156 +124,222 @@ enum btm_name_event
 	NAME_CANCEL_FAIL
 };
 
-enum btm_check_hfp_codec_enable_type
-{
-    BTM_CHECK_MSBC_ENABLE,
-    BTM_CHECK_CVSD_ENABLE,
-    BTM_CHECK_VENDER_ENABLE,
-    BTM_CHECK_LC3_ENABLE,
-};
-
 typedef void (*btm_pairing_callback_t)(enum btm_pairing_event event,void *pdata);
+typedef void (*btm_confirmation_req_callback_t)(struct bdaddr_t *bdaddr, uint32 numeric_value);
 
 typedef void (*btm_chip_init_ready_callback_t)(int status);
 
-/**
- * bt event definition to application layer
- */
-#define BTEVENT_INQUIRY_RESULT                  1
-#define BTEVENT_INQUIRY_COMPLETE                2
-#define BTEVENT_INQUIRY_CANCELED                3
-#define BTEVENT_LINK_CONNECT_IND                4
-#define BTEVENT_SCO_CONNECT_IND                 5
-#define BTEVENT_LINK_DISCONNECT                 6
-#define BTEVENT_LINK_CONNECT_CNF                7
-#define BTEVENT_ROLE_DISCOVERED                 8
-#define BTEVENT_MODE_CHANGE                     9
-#define BTEVENT_ACCESSIBLE_CHANGE               10
-#define BTEVENT_AUTHENTICATED                   11
-#define BTEVENT_ENCRYPTION_CHANGE               12
-#define BTEVENT_SECURITY_CHANGE                 13
-#define BTEVENT_ROLE_CHANGE                     14
-#define BTEVENT_SCO_DISCONNECT                  15
-#define BTEVENT_SCO_CONNECT_CNF                 16
-#define BTEVENT_SIMPLE_PAIRING_COMPLETE         17
-#define BTEVENT_REMOTE_FEATURES                 18
-#define BTEVENT_REM_HOST_FEATURES               19
-#define BTEVENT_LINK_SUPERV_TIMEOUT_CHANGED     20
-#define BTEVENT_SET_SNIFF_SUBRATING_PARMS_CNF   21
-#define BTEVENT_SNIFF_SUBRATE_INFO              22
-#define BTEVENT_SET_INQUIRY_MODE_CNF            23
-#define BTEVENT_SET_INQ_TX_PWR_LVL_CNF          24
-#define BTEVENT_SET_EXT_INQUIRY_RESP_CNF        25
-#define BTEVENT_SET_ERR_DATA_REPORTING_CNF      26
-#define BTEVENT_KEY_PRESSED                     27
-#define BTEVENT_QOS_SETUP_COMPLETE              28
+/*bt event definition to application layer*/
+#define BTEVENT_INQUIRY_RESULT       1
 
-/* Indicates the name of a remote device or cancellation of a name request. */
-#define BTEVENT_NAME_RESULT                     30
-#define BTEVENT_SCO_DATA_IND                    31
-/**
- * Outgoing SCO data has been sent and the packet is free for re-use by
- * the application.
+#define BTEVENT_INQUIRY_COMPLETE     2
+
+#define BTEVENT_INQUIRY_CANCELED     3
+
+#define BTEVENT_LINK_CONNECT_IND     4
+
+#define BTEVENT_SCO_CONNECT_IND      5
+
+#define BTEVENT_LINK_DISCONNECT      6
+
+#define BTEVENT_LINK_CONNECT_CNF     7
+
+#define BTEVENT_ROLE_DISCOVERED      8
+
+#define BTEVENT_MODE_CHANGE          9
+
+#define BTEVENT_ACCESSIBLE_CHANGE   10
+
+#define BTEVENT_AUTHENTICATED       11
+
+#define BTEVENT_ENCRYPTION_CHANGE   12
+
+#define BTEVENT_SECURITY_CHANGE     13
+
+#define BTEVENT_ROLE_CHANGE         14
+
+#define BTEVENT_SCO_DISCONNECT      15
+
+#define BTEVENT_SCO_CONNECT_CNF     16
+
+#define BTEVENT_SIMPLE_PAIRING_COMPLETE       17
+
+#define BTEVENT_REMOTE_FEATURES               18
+
+#define BTEVENT_REM_HOST_FEATURES             19
+
+#define BTEVENT_LINK_SUPERV_TIMEOUT_CHANGED   20
+
+#define BTEVENT_SET_SNIFF_SUBRATING_PARMS_CNF 21
+
+#define BTEVENT_SNIFF_SUBRATE_INFO            22
+
+#define BTEVENT_SET_INQUIRY_MODE_CNF          23
+
+#define BTEVENT_SET_INQ_TX_PWR_LVL_CNF        24
+
+#define BTEVENT_SET_EXT_INQUIRY_RESP_CNF      25
+
+#define BTEVENT_SET_ERR_DATA_REPORTING_CNF    26
+
+#define BTEVENT_KEY_PRESSED                   27
+
+#define BTEVENT_QOS_SETUP_COMPLETE            28
+
+#ifdef __TWS_RECONNECT_USE_BLE__
+#define BTEVENT_TWS_BLE_ADV_REPORT_EVENT      29
+#endif /*  */
+
+/**  an ACL connection has received an internal data transmit
+ *  request while it is in hold, park or sniff mode. The data will still be
+ *  passed to the radio in park and sniff modes. However, hold mode will
+ *  block data transmit. It may be necessary to return the ACL to active
+ *  mode to restore normal data transfer.
  */
-#define BTEVENT_SCO_DATA_CNF                    32
-#define BTEVENT_LINK_CONNECT_REQ                33
-/* Incoming link accept complete. */
-#define BTEVENT_LINK_ACCEPT_RSP                 34
-/* Incoming link reject complete. */
-#define BTEVENT_LINK_REJECT_RSP                 35
-#define BTEVENT_COMMAND_COMPLETE                36
-#define BTEVENT_SCO_CONNECT_REQ                 37
-/* Set Audio/Voice settings complete. */
-#define BTEVENT_SCO_VSET_COMPLETE               38
-/* SCO link connection process started. */
-#define BTEVENT_SCO_STARTED                     39
-/* Select Device operation complete, "p.select" is valid. */
-#define BTEVENT_DEVICE_SELECTED                 40
-/* The eSCO connection has changed. "p.scoConnect" is valid. */
-#define BTEVENT_SCO_CONN_CHNG                   41
+#define BTEVENT_ACL_DATA_NOT_ACTIVE 99
+
+/*
+Indicate that an ACL connection is sending or receiving data
+while it is in active mode. Then, keep resetting the sniff timer.
+*/
+#define BTEVENT_ACL_DATA_ACTIVE 98
+/** Indicates that the HCI failed to initialize.
+ */
+#define BTEVENT_HCI_INIT_ERROR      100
+
+#define BTEVENT_HCI_INITIALIZED     101
+/** Indicates that a fatal error has occurred in the radio or the HCI transport.
+ */
+#define BTEVENT_HCI_FATAL_ERROR     102
+
+/** Indicates that the HCI has been deinitialized.
+ */
+#define BTEVENT_HCI_DEINITIALIZED   103
+
+/** Indicates that the HCI cannot be initialized.
+ */
+#define BTEVENT_HCI_FAILED          104
+
+#define BTEVENT_HCI_COMMAND_SENT    105
+
+/** Indicates the name of a remote device or cancellation of a name request.
+ */
+#define BTEVENT_NAME_RESULT         30
+
+#define BTEVENT_SCO_DATA_IND        31
+
+/** Outgoing SCO data has been sent and the packet is free for re-use by
+ *  the application.
+ */
+#define BTEVENT_SCO_DATA_CNF        32
+
+#define BTEVENT_LINK_CONNECT_REQ    33
+
+/** Incoming link accept complete.  */
+#define BTEVENT_LINK_ACCEPT_RSP     34
+
+/** Incoming link reject complete. . */
+#define BTEVENT_LINK_REJECT_RSP     35
+
+#define BTEVENT_COMMAND_COMPLETE    36
+
+#define BTEVENT_SCO_CONNECT_REQ     37
+
+/** Set Audio/Voice settings complete.  */
+#define BTEVENT_SCO_VSET_COMPLETE   38
+
+/** SCO link connection process started. */
+#define BTEVENT_SCO_STARTED         39
+
+/** Select Device operation complete, "p.select" is valid. */
+#define BTEVENT_DEVICE_SELECTED     40
+
+/** The eSCO connection has changed. "p.scoConnect" is valid.
+ */
+#define BTEVENT_SCO_CONN_CHNG       41
 
 /* Group: Security-related events. */
 
-/* Indicates access request is successful. "p.secToken" is valid. */
-#define BTEVENT_ACCESS_APPROVED                 50
-/* Indicates access request failed. "p.secToken" is valid. */
-#define BTEVENT_ACCESS_DENIED                   51
-/**
- * Request authorization when "errCode" is BEC_NO_ERROR.
- * "p.remDev" is valid.
+/** Indicates access request is successful. "p.secToken" is valid. */
+#define BTEVENT_ACCESS_APPROVED     50
+
+/** Indicates access request failed. "p.secToken" is valid. */
+#define BTEVENT_ACCESS_DENIED       51
+
+/** Request authorization when "errCode" is BEC_NO_ERROR.
+ *  "p.remDev" is valid.
  */
-#define BTEVENT_AUTHORIZATION_REQ               52
-/**
- * Request a Pin for pairing when "errCode" is BEC_NO_ERROR.
- * "p.pinReq" is valid. If p.pinReq.pinLen is > 0 then SEC_SetPin()
- * must be called in response to this event with a pin length >=
- * p.pinReq.pinLen.
+#define BTEVENT_AUTHORIZATION_REQ   52
+
+/** Request a Pin for pairing when "errCode" is BEC_NO_ERROR.
+ *  "p.pinReq" is valid. If p.pinReq.pinLen is > 0 then SEC_SetPin()
+ *  must be called in response to this event with a pin length >=
+ *  p.pinReq.pinLen.
  */
-#define BTEVENT_PIN_REQ                         53
-/* Pairing operation is complete. */
-#define BTEVENT_PAIRING_COMPLETE                54
-/* Authentication operation complete. "p.remDev" is valid. */
-#define BTEVENT_AUTHENTICATE_CNF                55
-/* Encryption operation complete. "p.remDev" is valid. */
-#define BTEVENT_ENCRYPT_COMPLETE                56
-/* Security mode 3 operation complete. "p.secMode" is valid. */
-#define BTEVENT_SECURITY3_COMPLETE              57
-/* A link key is returned. "p.bdLinkKey" is valid. */
-#define BTEVENT_RETURN_LINK_KEYS                58
-/* Out of Band data has been received from the host controller. */
-#define BTEVENT_LOCAL_OOB_DATA                  59
-/**
- * Request a Pass Key for simple pairing when "errCode" is BEC_NO_ERROR. The
- * application should call SEC_SetPassKey() to provide the passkey or reject
- * the request, and optionally save the link key.
+#define BTEVENT_PIN_REQ             53
+
+/** Pairing operation is complete.
  */
-#define BTEVENT_PASS_KEY_REQ                    60
-/**
- * Request a User Confirmation for simple pairing when "errCode" is
- * BEC_NO_ERROR.
+#define BTEVENT_PAIRING_COMPLETE    54
+
+/** Authentication operation complete. "p.remDev" is valid. */
+#define BTEVENT_AUTHENTICATE_CNF    55
+
+/** Encryption operation complete. "p.remDev" is valid. */
+#define BTEVENT_ENCRYPT_COMPLETE    56
+
+/** Security mode 3 operation complete. "p.secMode" is valid. */
+#define BTEVENT_SECURITY3_COMPLETE  57
+
+/** A link key is returned. "p.bdLinkKey" is valid.  */
+#define BTEVENT_RETURN_LINK_KEYS    58
+
+/** Out of Band data has been received from the host controller. */
+#define BTEVENT_LOCAL_OOB_DATA      59
+
+/** Request a Pass Key for simple pairing when "errCode" is BEC_NO_ERROR. The
+ *  application should call SEC_SetPassKey() to provide the passkey or reject
+ *  the request, and optionally save the link key.
  */
-#define BTEVENT_CONFIRM_NUMERIC_REQ             61
-#define BTEVENT_DISPLAY_NUMERIC_IND             62
-#define BTEVENT_CONN_PACKET_TYPE_CHNG           63
-#define SDEVENT_QUERY_RSP                       70
-#define SDEVENT_QUERY_ERR                       71
-#define SDEVENT_QUERY_FAILED                    72
-#define BTEVENT_SELECT_DEVICE_REQ               80
-#define BTEVENT_DEVICE_ADDED                    81
-#define BTEVENT_DEVICE_DELETED      	        82
-#define BTEVENT_MAX_SLOT_CHANGED		        83
-#define BTEVENT_SNIFFER_CONTROL_DONE 	        84
-#define BTEVENT_LINK_POLICY_CHANGED		        85
+#define BTEVENT_PASS_KEY_REQ        60
+
+/** Request a User Confirmation for simple pairing when "errCode" is
+ *  BEC_NO_ERROR.
+ */
+
+#define BTEVENT_CONFIRM_NUMERIC_REQ 61
+
+#define BTEVENT_DISPLAY_NUMERIC_IND 62
+
+#define BTEVENT_CONN_PACKET_TYPE_CHNG   63
+
+#define SDEVENT_QUERY_RSP           70
+
+#define SDEVENT_QUERY_ERR           71
+
+#define SDEVENT_QUERY_FAILED        72
+
+#define BTEVENT_SELECT_DEVICE_REQ   80
+
+#define BTEVENT_DEVICE_ADDED        81
+
+#define BTEVENT_DEVICE_DELETED      	82
+
+#define BTEVENT_MAX_SLOT_CHANGED		83
+
+#define BTEVENT_SNIFFER_CONTROL_DONE 	84
+
+#define BTEVENT_LINK_POLICY_CHANGED		85
+
 /* added for pass command status to up level */
-#define BTEVENT_COMMAND_STATUS	    	        86
-#define BTEVENT_VENDOR_EVENT	    	        87
-#define BTEVENT_COMMAND_CMP_EVENT	            88
+#define BTEVENT_COMMAND_STATUS	    	86
+
+#define BTEVENT_VENDOR_EVENT	    	87
+
+#define BTEVENT_COMMAND_CMP_EVENT	    88
+
 #define BTEVENT_USER_PASSKEY_NOTIFY_EVENT	    89
 #define BTEVENT_USER_PASSKEY_REQUEST_EVENT	    90
-#define BTEVENT_SET_BT_BLE_ACTIVE_LINK_COMPLETE 93
-/**
- * Indicate that an ACL connection is sending or receiving data
- * while it is in active mode. Then, keep resetting the sniff timer.
- */
-#define BTEVENT_ACL_DATA_ACTIVE                 98
-/**
- * an ACL connection has received an internal data transmit
- * request while it is in hold, park or sniff mode. The data will still be
- * passed to the radio in park and sniff modes. However, hold mode will
- * block data transmit. It may be necessary to return the ACL to active
- * mode to restore normal data transfer.
- */
-#define BTEVENT_ACL_DATA_NOT_ACTIVE             99
-/* Indicates that the HCI failed to initialize. */
-#define BTEVENT_HCI_INIT_ERROR                  100
-#define BTEVENT_HCI_INITIALIZED                 101
-/* Indicates that a fatal error has occurred in the radio or the HCI transport. */
-#define BTEVENT_HCI_FATAL_ERROR                 102
-/* Indicates that the HCI has been deinitialized. */
-#define BTEVENT_HCI_DEINITIALIZED               103
-/* Indicates that the HCI cannot be initialized. */
-#define BTEVENT_HCI_FAILED                      104
-#define BTEVENT_HCI_COMMAND_SENT                105
 
 
 typedef uint32_t event_mask_t;
@@ -332,12 +381,11 @@ typedef uint32_t event_mask_t;
 
 #define BTM_ACL_ST_DISCONNECTED  0x00
 #define BTM_ACL_ST_OUT_CON       0x01
-#define BTM_ACL_ST_IN_CON1       0x02  /*income but not accept*/
+#define BTM_ACL_ST_IN_CON        0x02
 #define BTM_ACL_ST_CONNECTED     0x03
 #define BTM_ACL_ST_OUT_DISC      0x04
 #define BTM_ACL_ST_OUT_DISC2     0x05
 #define BTM_ACL_ST_OUT_CON2      0x06
-#define BTM_ACL_ST_IN_CON2       0x07 /*accept but not complete*/
 
 #define BTM_CMGR_INIT_REQ       0x00
 #define BTM_CMGR_DEINIT_REQ     0x01
@@ -365,8 +413,6 @@ struct sco_open_data{
     uint8 err_code;
     uint8 device_id;
     uint8 sco_codec;
-    uint8 interval;
-    uint8 window;
     uint32 emask;
 };
 
@@ -396,13 +442,6 @@ struct command_status_data{
 	uint8  num_hci_cmd_packets;
 	uint16 cmd_opcode;
 	struct bdaddr_t bdaddr;
-    uint32 emask;
-};
-
-struct bt_ibrt_event{
-    uint8  status;
-    uint16 cmd_opcode;
-    bt_bdaddr_t addr;
     uint32 emask;
 };
 
@@ -503,9 +542,15 @@ struct user_passkey_request_data{
     uint32 emask;
 };
 
-struct set_bt_ble_active_link_complete_data{
-    uint8 err_code;
-    uint32 emask;
+struct btm_ctx_input {
+    struct bdaddr_t *remote;
+    struct ctx_content ctx;
+    uint16 conn_handle;
+};
+
+struct btm_ctx_output {
+    uint16 conn_handle;
+    struct btm_conn_item_t *btm_conn;
 };
 
 struct btm_security_auth_pending_item_t {
@@ -543,6 +588,8 @@ typedef uint8  connection_role;
 #define BCR_SLAVE    0x01
 #define BCR_ANY      0x02
 #define BCR_UNKNOWN  0x03
+
+#define GAP_INVALID_CONIDX  0xFF
 
 #define BTM_MAX_xSCO_NUMS BT_ACL_MAX_LINK_NUMS
 
@@ -631,6 +678,7 @@ struct btm_feature_t
 
 #define BTM_DEVICE_INVALID_ID 0xff
 #define BT_TWS_DEVICE_ID 0x0f
+#define BT_SOURCE_DEVICE_ID_BASE 0x10
 
 struct btm_acl_open_report
 {
@@ -638,6 +686,32 @@ struct btm_acl_open_report
     uint8 event;
     bool report;
 };
+
+struct btm_dip_info
+{
+    uint16 spec_id;
+    uint16 vend_id;
+    uint16 prod_id;
+    uint16 prod_ver;
+    uint8  prim_rec;
+    uint16 vend_id_source;
+};
+
+#if mHDT_SUPPORT
+//mhdt state status
+typedef enum mhdt_state_enum {
+    MHDT_MODE_DISABLED = 0,
+    MHDT_MODE_ENTERING,
+    MHDT_MODE_ENABLED,
+    MHDT_MODE_EXITING,
+} mhdt_state_e;
+
+struct bt_mhdt_data_rate
+{
+    uint8 tx_rates;
+    uint8 rx_rates;
+}__attribute__ ((packed));
+#endif
 
 struct btm_conn_item_t
 {
@@ -648,12 +722,16 @@ struct btm_conn_item_t
     void *cmgr_handler;
     uint16 conn_handle;
     bool marked_as_source;
+    bool dip_is_in_query;
+    bool dip_is_queried;
     bool is_tws_link;
     uint8 sco_req_type;
     bool conn_perferred_as_slave;
     bool conn_perferred_as_master;
+    bool ibrt_slave_ignore_tx_data;
     bool ibrt_both_side_save_credit_before_danger;
     bool ibrt_master_wait_remote_new_master_ready;
+    struct btm_dip_info dip_info;
 
     uint8 used;
     /*1: positive connet to the remote or 0: negtive be connected*/
@@ -702,8 +780,6 @@ struct btm_conn_item_t
     uint8_t l2cap_wait_enc_timer;
     uint8_t enc_key_size;
 
-    btm_tx_data_delay_monitor_t tx_data_delay_monitor;
-
 #if mHDT_SUPPORT
     //move to le ACL link later
     uint32  le_mhdt_remote_feature;//bit0(BLE4M),bit8(BLE Audio ABR),get from TC hci command
@@ -718,13 +794,6 @@ struct btm_conn_item_t
     char remote_name[BTM_MAX_REMOTE_NAME_LEN];
 };
 
-struct remote_version_t
-{
-    uint8    lmp_version;
-    uint16   manufacturer_name;
-    uint16   lmp_subversion;
-} __attribute__ ((packed));
-
 #define IS_REMOTE_FEAT_SUPPORT(conn, FEAT_MASK) \
     btm_is_remote_feature_support(conn, FEAT_MASK)
 
@@ -734,7 +803,7 @@ struct btm_sco_conn_item_t
     struct btm_conn_item_t *conn;  /*acl connection*/
     uint16 conn_handle;
     uint8 link_type;  /* HCI_LINK_TYPE_ESCO or HCI_LINK_TYPE_SCO */
-    enum conn_sco_stat_enum conn_status;
+    enum conn_sco_stat_enum status;
     connection_role role;
     uint8 index;
     uint8 used;
@@ -790,6 +859,7 @@ enum btm_stack_init_sub_state {
 };
 
 typedef void (*btm_init_start_callback_t)(void);
+typedef void (*btm_mhdt_mode_change_callback_t)(struct bdaddr_t, bool);
 
 struct btm_sync_conn_param {
     uint16 max_latency;
@@ -798,12 +868,6 @@ struct btm_sync_conn_param {
     uint8  retrans_effort;
     uint32 receive_bandwidth;
     uint32 transmit_bandwidth;
-};
-
-struct btm_nv_operator {
-    bool (*find_record_device)(const bt_bdaddr_t *bd_addr, btif_device_record_t *rec_dev);
-    bool (*link_key_notify)(const bt_bdaddr_t *bd_addr, btif_device_record_t *rec_dev);
-    bool (*encrypt_changed)(const bt_bdaddr_t *bd_addr, uint8_t *cod);
 };
 
 struct btm_ctrl_t {
@@ -829,7 +893,7 @@ struct btm_ctrl_t {
 
     // security
     uint8 security_bonding_mode;
-    uint8 security_mitm_protection;
+    uint8 security_auth_requirements;
     uint8 security_io_capability;
     uint8 security_oob_present;
     uint8 pin_code[16];
@@ -837,27 +901,21 @@ struct btm_ctrl_t {
     uint8 host_ssp_mode;
 
     void (*btm_event_report)(uint16 evt_id, void* pdata);
-    void (*btm_user_event_report)(const void* pdata);
     void (*btm_cmgr_event_report)(uint16 evt_id, void* conn);
-    void (*btm_debug_event_report)(uint8_t* p_buf, uint16_t buf_len);
-    void (*btm_get_local_address_cb)(void *remote);
-    bool (*btm_is_creating_source_link_cb)(const void *remote);
-    void (*btm_ibrt_snoop_acl_connected_report)(uint8_t device_id, void* remote, void* btm_conn);
-    void (*btm_ibrt_snoop_acl_disconnected_report)(uint8_t device_id, void* remote);
-    void (*btm_notify_save_creadit_cb)(const bt_bdaddr_t *remote);
-    void (*btm_mesh_list_func)(uint16_t opcode, uint8_t status, uint8_t size);
-    void (*btm_read_avg_rssi_cb)(uint8_t status, uint16_t conhdl, int8_t rssi);
     bool conn_req_cb_enable;
     uint8 con_num;
+    uint8 sync_cmd_busy;
 
     uint16 init_sub_state_opcode_normal_test_switch;
     uint8_t testmode_enable;
+
+    btm_init_start_callback_t btm_init_start_cb;
 
     uint8_t allow_resp_trigger_auth;
     uint8_t min_enc_key_size;
 
 #if mHDT_SUPPORT
-    void    (*btm_mhdt_mode_change_cb)(struct bdaddr_t remote, bool isIn_mhdt_mode);
+    btm_mhdt_mode_change_callback_t btm_mhdt_mode_change_cb;
     uint8_t bt_mhdt_host_support;//local bt host mhdt support,used for enable/disable bt mHDT feature
     uint8_t bt_mhdt_feature;//bit0-bit3,local bt controller mhdt feature
 
@@ -865,10 +923,6 @@ struct btm_ctrl_t {
     uint32_t le_mhdt_feature;//bit0(BLE4M),bit8(BLE Audio ABR),local le controller mhdt feature
 #endif
 
-#ifdef SUPPORT_ME_MEDIATOR
-    uint16_t last_page_timeout;
-#endif
-    struct btm_nv_operator nv_operator;
 };
 
 extern struct btm_ctrl_t btm_ctrl;
@@ -876,15 +930,29 @@ struct btm_conn_env_t {
     struct btm_conn_item_t *conn_item;
 };
 
+#ifdef BQB_PROFILE_TEST
+struct btm_pts_ctrl_t{
+    uint8_t pts_mode;
+    uint8_t pts_accept;
+    uint8_t pts_reject_code;
+};
+extern struct btm_pts_ctrl_t btm_pts_ctrl;
+#endif
+
 void btm_event_handle(struct hci_evt_packet_t *pkt);
 void btm_acl_handle(uint16_t conn_handle, struct pp_buff *ppb);
 void btm_acl_tx_done(uint16_t connhdl, struct pp_buff *ppb);
 void btm_debug_trace_handle(struct hci_evt_packet_t *pkt);
+#if (CFG_SCO_OVER_HCI == 1)
+void btm_sco_handle(uint16_t connhdl, hci_sco_ps_flag_t sco_ps_flag, const uint8_t *sco_data, uint8_t data_len);
+#endif
+
+typedef bool (*ibrt_io_capbility_callback)(void *bdaddr);
 
 void btm_security_link_key_notify(struct bdaddr_t *remote, uint8 *linkkey, uint8 key_type);
 void btm_security_pin_code_req(struct bdaddr_t *remote);
 void btm_security_link_key_req(struct bdaddr_t *remote);
-bool btm_security_authen_complete(uint8 status, uint16 conn_handle);
+void btm_security_authen_complete(uint8 status, uint16 conn_handle);
 void btm_security_encryption_change(uint8 status, uint16 conn_handle, uint8 encrypt_en);
 void btm_security_user_passkey_req(struct bdaddr_t *remote);
 void btm_security_user_passkey_notify(struct bdaddr_t *remote, uint32 passkey);
@@ -916,7 +984,6 @@ void btm_process_cmd_complete_inquiry_cancel (uint8 *data);
 void btm_process_cmd_complete_remote_name_cancel(uint8 *data);
 void btm_process_cmd_complete_evt(struct hci_evt_packet_t *pkt);
 void btm_process_return_linkkeys_evt (struct hci_evt_packet_t *pkt);
-void btm_process_vendor_evt(uint8_t* pbuf, uint32_t length);
 void btm_acl_handle_nocopy(uint16 conn_handle, uint16 data_len, uint8 *data_p);
 
 struct btm_ctrl_t *btm_get_ctrl_ptr(void);
@@ -928,19 +995,27 @@ int8 btm_init(void);
 
 void btm_start_ble_stack_init(void);
 
+#if defined(mHDT_SUPPORT)
+void btm_register_mhdt_mode_change_callback(void (*modechange_cb)(struct bdaddr_t remote, bool isIn_mhdt_mode));
+#endif
+
 int8 btm_device_mode_set(enum device_mode_dis_enum discoverable, enum device_mode_conn_enum connectable);
 int8 btm_device_mode_recover(void);
 int8 btm_device_write_iac(uint8 num);
 int8 btm_device_write_page_scan_activity(uint16 interval, uint16 window);
 int8 btm_device_write_inquiry_scan_activity(uint16 interval, uint16 window);
 
+int8 btm_conn_sco_is_open (struct btm_conn_item_t *conn);
 uint16 btm_conn_acl_get_conn_handle ( struct bdaddr_t *remote_bdaddr);
 
 uint32_t btm_get_class_of_device(void);
 
-int8 btm_conn_acl_req(const struct bdaddr_t *remote_bdaddr);
+int8 btm_conn_acl_req ( struct bdaddr_t *remote_bdaddr);
 bool btm_conn_acl_is_open( struct bdaddr_t *remote_bdaddr);
 
+int8 btm_conn_sco_req ( struct bdaddr_t *remote_bdaddr);
+
+int8 btm_conn_sco_disconnect(struct bdaddr_t *remote_bdaddr, uint8 reason);  //added by zmchen on 20070205
 int8 btm_conn_acl_senddata (struct bdaddr_t *remote_bdaddr, uint8 *data_buf_p, uint16 data_buf_len);
 
 int8 btm_conn_acl_send_ppb (uint16 conn_handle, struct pp_buff *ppb);
@@ -963,7 +1038,7 @@ void btm_start_pairing(	struct bdaddr_t remote_addr, btm_pairing_callback_t call
 void btm_unpair_reomte(struct bdaddr_t remote_addr, btm_pairing_callback_t callback);
 
 void btm_pairing_register_callback(btm_pairing_callback_t callback);
-void btm_confirmation_register_callback(void (*cb)(struct bdaddr_t *bdaddr, uint32 numeric_value));
+void btm_confirmation_register_callback(btm_confirmation_req_callback_t callback);
 int8 btm_confirmation_resp(struct bdaddr_t *bdaddr, bool accept);
 
 void btm_pairing_exit(void);
@@ -981,11 +1056,45 @@ void btm_remote_name_cancel(struct bdaddr_t *remote, void (*btm_name_notify_call
 void btm_hcicmd_sniff_mode(struct bdaddr_t *remote_bdaddr, uint16 sniff_max_interval,uint16 sniff_min_interval, uint16 sniff_attempt,uint16 sniff_timeout);
 int8 btm_exit_sniff (struct bdaddr_t *remote_bdaddr);
 
-void register_hci_read_avg_rssi_callback(void (*cb)(uint8_t status, uint16_t conhdl, int8_t rssi));
+typedef void (*bt_hci_vendor_event_handler_func)(uint8_t* pbuf, uint32_t length);
+
+typedef uint8_t (*bt_hci_sync_airmode_check_ind_func)(uint8_t status, struct bdaddr_t *bdaddr);
+
+uint32 btm_save_ctx(struct bdaddr_t *remote, uint8_t *buf, uint32_t buf_len);
+uint32 btm_restore_ctx(struct btm_ctx_input *input, struct btm_ctx_output *output);
+
+int8 btm_sync_conn_audio_connected(struct bdaddr_t *bdAddr, uint8 codec, uint16_t conhdl);
+int8 btm_sync_conn_audio_disconnected(struct bdaddr_t *bdAddr, uint16_t conhdl);
+
+int8 btm_acl_conn_connected(struct bdaddr_t *bdAddr, uint16 conn_handle);
+int8 btm_acl_conn_disconnected(struct bdaddr_t *bdAddr, uint16 conn_handle, uint8_t status, uint8_t reason);
+
+void btm_conn_reset_as_source_device_id(struct btm_conn_item_t *conn);
+struct btm_conn_item_t *btm_conn_reset_this_device_to_source_device_id(uint8_t device_id);
+
+void btm_register_sco_request_handle_func(int (*cb)(uint8_t device_id, const uint8_t *remote));
+
+void btm_accept_sync_conn_from_upper_layer(struct btm_conn_item_t *conn, bool accept);
 
 bool btm_conn_accept_extra_acl_req_check(struct bdaddr_t *remote, bool connected);
 
-bool btm_find_record_device(const struct bdaddr_t *bd_addr, btif_device_record_t *record);
+void btm_register_check_to_accept_new_sco_callback(void (*cb)(uint8_t device_id));
+
+void btm_conn_ibrt_disconnected_handle(struct btm_conn_item_t *btm_conn);
+
+bool btm_ibrt_master_wait_remote_new_master_ready(const bt_bdaddr_t *remote);
+
+bool btm_ibrt_master_tws_switch_start(const bt_bdaddr_t *remote);
+
+bool btm_ibrt_slave_tws_switch_start(const bt_bdaddr_t *remote);
+
+bool btm_ibrt_master_become_slave(const bt_bdaddr_t *remote);
+
+bool btm_ibrt_slave_become_master(const bt_bdaddr_t *remote);
+
+void btm_ibrt_old_master_receive_ready_req(const bt_bdaddr_t *remote);
+
+void btm_ibrt_new_master_receive_ready_rsp(const bt_bdaddr_t *remote);
 
 const char *btm_state2str(uint8 state);
 const char *btm_errorcode2str(uint32 errorcode);
@@ -999,12 +1108,12 @@ struct btstack_chip_config_t
 
 struct btstack_chip_config_t* btm_get_btstack_chip_config(void);
 void btm_set_btstack_chip_config(void* config);
+int8 btm_device_set_ecc_ibrt_data_test(uint8  ecc_data_test_en, uint8 ecc_data_len, uint16 ecc_count, uint32 data_pattern);
 int8 btm_device_send_prefer_rate(uint16 connhdl, uint8 rate);
 void btm_security_user_passkey_input(struct bdaddr_t *remote,uint32 passkey);
 void btm_security_set_host_pin_code(uint8 *pin, uint8 pinlen);
 void btm_security_write_host_ssp_mode(uint8 enable);
 uint8_t btm_conn_get_mobile_link_num(void);
-void btm_conn_set_device_id(struct btm_conn_item_t *curr_conn, bool is_snoop_link);
 void btm_get_local_device(struct bdaddr_t *remote);
 void btm_register_get_local_device_callback(void (*cb)(void *remote));
 void *btm_get_con_cmgr_handler(void);
@@ -1014,12 +1123,14 @@ void btif_report_bt_event(const bt_bdaddr_t *bd_addr, BT_EVENT_T event, void *pa
 
 struct btm_inquiry_result_item_t *btm_inquiry_result_search ( struct bdaddr_t *bdaddr );
 struct btm_inquiry_result_item_t *btm_inquiry_result_find_or_add ( struct bdaddr_t *bdaddr );
-struct btm_conn_item_t *btm_conn_add_new(const struct bdaddr_t *bdaddr);
-struct btm_conn_item_t *btm_conn_search(const struct bdaddr_t *bdaddr);
+struct btm_conn_item_t *btm_conn_add_new ( struct bdaddr_t *bdaddr );
+struct btm_conn_item_t *btm_conn_search ( struct bdaddr_t *bdaddr );
 struct btm_conn_item_t *btm_conn_search_by_device_id(uint8 device_id);
+uint16 btm_conn_find_scohdl_by_connhdl(uint16 conn_handle);
 struct btm_conn_item_t *btm_conn_search_linkup ( struct bdaddr_t *bdaddr );
 struct btm_sco_conn_item_t *btm_conn_sco_find_or_add( struct btm_conn_item_t *conn);
 struct btm_conn_item_t *btm_conn_acl_search_by_handle( uint16 conn_handle);
+struct btm_sco_conn_item_t *btm_conn_sco_search_by_handle( uint16 conn_handle);
 int btm_get_bt_role_by_device_id(uint8 device_id);
 void btm_set_conn_preferred_as_slave_role(uint8 device_id);
 void btm_set_conn_preferred_as_master_role(uint8 device_id);
@@ -1030,11 +1141,10 @@ bool btm_is_conn_preferred_as_master(uint8 device_id);
 bool btm_is_remote_feature_support(struct btm_conn_item_t* conn, uint8 page, uint8 i, uint8 mask);
 void btm_conn_disconnect_process(uint16 handle, uint8 status, uint8 reason);
 int8 btlib_hcicmd_read_remote_name(struct bdaddr_t *bdaddr, uint8 page_scan_repetition_mode, uint16 clk_off);
+void btm_sco_conn_status_notify  (uint8_t device_id, struct bdaddr_t *remote_bdaddr, uint8 codec, enum conn_sco_stat_enum sco_conn_notify_type);
 int8 btm_conn_acl_send_ppb_done(uint8 device_id, uint16 conn_handle, struct pp_buff *ppb);
 void btm_register_event_report( void (*evt_cb)(uint16 evt_id, void *pdata));
-void btm_register_user_event_report( void (*evt_cb)(const void *pdata));
 void btm_register_cmgr_event_report(void (*evt_cb)(uint16 evt_id, void* conn));
-void btm_register_check_hfp_codec_enable_callback(bool (*cb)(uint8_t codec_type, uint8_t device_id, struct bdaddr_t *bdaddr));
 extern uint8 gapc_get_conidx(uint16 conhdl);
 extern void gapc_inc_rx_packet_count(uint8 idx,uint8 inc_count);
 extern uint8 gapc_get_rx_packet_counnt(uint8 idx);
@@ -1049,12 +1159,37 @@ struct btm_conn_item_t * btm_conn_get_item_by_idx(uint8 dev_idx);
 uint8 btm_get_bt_version(void);
 uint8 btm_get_bt_features(uint8 index);
 void btm_conn_delete_free(struct btm_conn_item_t *conn);
+struct btm_sco_conn_item_t *btm_conn_sco_find( struct btm_conn_item_t *conn);
+struct btm_sco_conn_item_t *btm_sco_malloc_add( struct btm_conn_item_t *conn);
+void btm_sco_delete_free(struct btm_sco_conn_item_t *sco);
 bool btm_acl_role_switch_pending(uint16_t conn_handle);
 uint8_t btm_conn_get_device_id(struct bdaddr_t* remote);
-void btm_chip_init_noraml_test_mode_switch(void);
-bool btm_is_stack_ready(void);
+void btm_register_snoop_acl_connection_callback(
+        void (*conn)(uint8_t device_id, void* remote, void* btm_conn),
+        void (*disc)(uint8_t device_id, void* remote));
+void btm_set_conn_tws_link(void *conn, uint8_t is_tws_link);
+uint8_t btm_get_conn_tws_link(void *conn);
+void btm_ibrt_report_snoop_acl_disconnected(uint8_t device_id, bt_bdaddr_t* remote);
+struct btm_conn_item_t *btm_ibrt_create_new_snoop_link(struct bdaddr_t *remote, uint16 conn_handle);
 
-int8 btlib_hcicmd_acl_connect(const struct bdaddr_t *bdaddr,
+uint8_t btm_sco_conn_count();
+uint8_t btm_get_sco_max_number();
+void btm_set_sco_max_number(uint8_t num);
+void btm_chip_init_noraml_test_mode_switch(void);
+void btm_conn_clear_rfcomm_credit_ignore_tx_flag(void);
+void btm_conn_set_rfcomm_credit_ignore_tx_flag(void);
+bool btm_is_stack_ready(void);
+struct bdaddr_t *btm_conn_search_bdaddr_by_sco_connhdl(uint16_t sco_handle);
+
+#if mHDT_SUPPORT
+void btm_set_bt_mhdt_host_remote_feature(uint16_t conn_handle,uint8_t remote_support);
+bool btm_is_bt_mhdt_feature_support(uint16_t conn_handle,uint8_t check_masks);
+uint8_t btm_get_bt_mhdt_state(uint16_t conn_handle);
+int8 btm_get_bt_mhdt_data_rate(uint16_t conn_handle,uint8 *tx_rates,uint8 *rx_rates);
+#endif
+
+
+int8 btlib_hcicmd_acl_connect(struct bdaddr_t *bdaddr,
                               uint16 pkt_type,
                               uint8 page_scan_repetition_mode,
                               uint16 clk_off,
@@ -1062,7 +1197,6 @@ int8 btlib_hcicmd_acl_connect(const struct bdaddr_t *bdaddr,
 int8 btlib_hcicmd_addsyc_conn(struct btm_conn_item_t *conn);
 int8 btlib_hcicmd_addsco_conn(struct btm_conn_item_t *conn, uint16 pkt_type);
 int8 btlib_hcicmd_write_scan_enable(int8 scan_enable);
-int8 btlib_hcicmd_write_automatic_flush_timeout(uint16 connhandle, uint16 flush_timeout);
 int8 btlib_hcicmd_write_current_iac_lap(uint8 num);
 int8 btlib_hcicmd_reject_conn_req(struct bdaddr_t *bdaddr, uint8 reason);
 int8 btlib_hcicmd_accept_conn_req(struct bdaddr_t *bdaddr, uint8 role);
@@ -1072,9 +1206,21 @@ int8 btlib_hcicmd_write_wait_connection_accept_timeout(uint16_t timeout);
 int8 btlib_hcicmd_write_superv_timeout(uint16 connhandle, uint16 superv_timeout);
 int8 btlib_hcicmd_create_connection_cancel(const bt_bdaddr_t *bdaddr);
 int8 btlib_hcicmd_set_extended_inquiry_response(uint8 fec, uint8 *buff, uint32 len);
+int8 btlib_hcicmd_start_tws_exchange(uint16_t tws_slave_conn_handle, uint16_t mobile_conn_handle);
 int8 btlib_hcicmd_enable_fastack(uint16_t conhdl, uint8_t direction, uint8_t enable);
+int8 btlib_hcicmd_suspend_ibrt(void);
+int8 btlib_hcicmd_stop_ibrt(uint8_t enable,uint8_t reason);
+int8 btlib_hcicmd_set_tws_fix_interval_param(uint16 duration, uint16 interval);
+int8 btlib_hcicmd_stop_multi_point_ibrt(uint16 mobile_conhdl,uint8_t reason);
+int8 btlib_hcicmd_ibrt_mode_init(uint8_t enable);
+int8 btlib_hcicmd_ibrt_role_switch(uint8_t switch_op);
+int8 btlib_hcicmd_multi_point_ibrt_switch_cmd(uint16 mobile_conhdl);
+int8 btlib_hcicmd_start_ibrt(uint16 slaveConnHandle, uint16 mobileConnHandle);
+int8 btlib_hcicmd_resume_ibrt(uint8_t enable);
+int8 btlib_hcicmd_set_tws_pool_interval(uint16_t conn_handle, uint16_t poll_interval);
 int8 btlib_hcicmd_set_sniffer_env(uint8 sniffer_active, uint8 sniffer_role, struct bdaddr_t *monitor_bdaddr, struct bdaddr_t *sniffer_bdaddr);
-
+int8 btlib_hcicmd_get_slave_mobile_rssi(uint16_t conn_handle);
+int8 btlib_hcicmd_set_link_lbrt_enable(uint16 conn_handle, uint8 enable);
 int8 btlib_hcicmd_qos_setup(uint16 conn_handle);
 int8 btlib_hcicmd_qos_setup_with_tpoll(uint16 conn_handle, uint32_t tpoll_slot, uint8_t service_type);
 int8 btlib_hcicmd_ble_write_random_addr(struct bdaddr_t *bdaddr);
@@ -1086,8 +1232,11 @@ int8 btlib_hcicmd_ble_write_scan_param(struct hci_write_ble_scan_param *para);
 int8 btlib_hcicmd_ble_write_scan_en(uint8 scan_en, uint8 filter_duplicate);
 int8 btlib_hcicmd_ble_clear_wl(void);
 int8 btlib_hcicmd_ble_add_dev_to_wl(uint8 addr_type, struct bdaddr_t *bdaddr);
+int8 btlib_hcicmd_tws_bdaddr_exchange(uint16 conn_handle);
+int8 btlib_hcicmd_accept_sync_conn_req(struct bdaddr_t *bdaddr, uint32 tx_bandwidth, uint32 rx_bandwidth, uint16 max_latency, uint16 voice_setting, uint8 retx_effort, uint16 pkt_type);
 
 int8 btlib_hcicmd_pincode_reply(struct bdaddr_t *bdaddr, uint8 *pin, int8 pinlen);
+
 int8 btlib_hcicmd_pincode_neg_reply(struct bdaddr_t *bdaddr);
 int8 btlib_hcicmd_linkkey_reply(struct bdaddr_t *bdaddr, uint8 *linkkey);
 int8 btlib_hcicmd_linkkey_neg_reply(struct bdaddr_t *bdaddr);
@@ -1097,7 +1246,7 @@ int8 btlib_hcicmd_write_auth_enable(uint8 flag);
 int8 btlib_hcicmd_set_conn_encryption (uint16 conn_handle, uint8 encry_enable);
 int8 btlib_hcicmd_disconnect (uint16 conn_handle, uint8 reason);
 
-int8 btlib_hcicmd_write_class_of_device(uint8 *cod);
+int8 btlib_hcicmd_write_classofdevice (uint8 *class_de);
 int8 btlib_hcicmd_write_localname (uint8 *local_name);
 int8 btlib_hcicmd_set_bdaddr (uint8 *address);
 int8 btlib_hcicmd_set_ble_bdaddr (const uint8 *address);
@@ -1129,7 +1278,9 @@ int8 btlib_hcicmd_write_pagescan_type (const uint8 pagescan_type);
 int8 btlib_hcicmd_write_inqscan_type (const uint8 inqscan_type);
 int8 btlib_hcicmd_write_sleep_enable(uint8 sleep_en);
 int8 btlib_hcicmd_write_inquiry_mode(uint8 mode);
+int8 btlib_hcicmd_set_sco_switch (const uint16 sco_handle);
 int8 btlib_hcicmd_dbg_sniffer_interface (const uint8 subcode, const uint16 connhandle);
+int8 btlib_hcicmd_sco_tx_silence (const uint16 connhandle, const uint8 slience_on);
 
 int8 btlib_hcicmd_set_clear_all_filters(void);
 int8 btlib_hcicmd_set_inquiry_no_filter(void);
@@ -1154,17 +1305,228 @@ int8 btlib_hcicmd_user_passkey_request_neg_reply(struct bdaddr_t *bdaddr);
 int8 btlib_hcicmd_write_simple_pairing_mode(uint8 enable);
 int8 btlib_hcicmd_dbg_le_tx_power_request(uint16 conn_handle,  uint8 enable, int8 delta, uint8 rx_rate);
 int8 btlib_hcicmd_ble_audio_dbg_trc_enable_cmd(uint32_t trc_enable_opcode);
-int8 btlib_hcicmd_dbg_set_bt_ble_active_link(uint8_t traffic_mode, uint16_t link_handle);
-void register_hci_debug_trace_callback(void (*cb)(uint8_t* p_buf, uint16_t buf_len));
+int8 btlib_hcicmd_dbg_ibrt_update_time_slice(uint8_t nb, struct link_env* multi_ibrt);
+typedef void (*ble_audio_hci_debug_trace_handler)(uint8_t* p_buf, uint16_t buf_len);
+void register_hci_debug_trace_callback(ble_audio_hci_debug_trace_handler func);
 #if BLE_AUDIO_ENABLED
 int8 btlib_hcicmd_dbg_set_iso_quality_rep_thr(uint16 conn_handle,                   uint16 qlty_rep_evt_cnt_thr,
     uint16 tx_unack_pkts_thr, uint16 tx_flush_pkts_thr, uint16 tx_last_subevent_pkts_thr, uint16 retrans_pkts_thr,
     uint16 crc_err_pkts_thr, uint16 rx_unreceived_pkts_thr, uint16 duplicate_pkts_thr);
 #endif
 
-int8 btlib_hcicmd_set_local_class_of_device(uint32_t class_of_device);
-int8 btlib_hcicmd_set_host_secure_connections_support(bool support);
-int8 btlib_hcicmd_set_ble_host_support(bool support);
+#if (mHDT_SUPPORT) || (mHDT_LE_SUPPORT)
+#define HCI_DBG_MHDT_EVENT                                          0xe9
+#define TCI_SUBEVENT_LE_READ_REMOTE_PROPRIETARY_FEATURE_COMPLETE    0x04
+#define TCI_SUBEVENT_LE_READ_LOCAL_PROPRIETARY_FEATURE_COMPLETE     0x05
+#endif
+
+#if mHDT_SUPPORT
+/*
+ *  mHDT_Core_v1.05 specification
+ */
+
+//Vendor HCI command
+#define HCI_DBG_MHDT_COMMAND_OPCODE             0xfcdf
+#define TCI_SUBCODE_READ_LOCAL_MHDT_FEATURE     0x01
+#define TCI_SUBCODE_READ_REMOTE_MHDT_FEATURE    0x02
+#define TCI_SUBCODE_MHDT_MODE                   0x03
+#define TCI_SUBCODE_EXIT_MHDT_MODE              0x04
+#define TCI_SUBCODE_WRITE_MHDT_TIMEOUT          0x05
+#define TCI_SUBCODE_READ_MHDT_TIMEOUT           0x06
+#define TCI_SUBCODE_LE_READ_LOCAL_PROPRIETARY_FEATURE    0x07
+#define TCI_SUBCODE_LE_READ_REMOTE_PROPRIETARY_FEATURE   0x08
+
+///Vendor HCI event(others are command complete event)
+#define TCI_SUBEVENT_READ_REMOTE_MHDT_FEATURE_COMPLETE       0x01
+#define TCI_SUBEVENT_MHDT_DATA_RATE_CHANGE                   0x02
+#define TCI_SUBEVENT_MHDT_TIMEOUT_CHANGE                     0x03
+#define TCI_SUBEVENT_READ_LOCAL_MHDT_FEATURE_COMPLETE        0x06
+
+
+//bt data rate bits
+#define  MHDT_BT_RATE_1MBPS_BIT       0x01
+#define  MHDT_BT_RATE_2MBPS_BIT       0x02
+#define  MHDT_BT_RATE_3MBPS_BIT       0x04
+#define  MHDT_BT_RATE_4MBPS_BIT       0x08
+#define  MHDT_BT_RATE_6MBPS_BIT       0x10
+#define  MHDT_BT_RATE_8MBPS_BIT       0x20
+
+//le proprietary bits
+#define  MHDT_LE_RATE_4MBPS_BIT       0x0001
+#define  MHDT_LE_AUDIO_ABR_BIT        0x0100
+
+//max mHDT payload
+//4DH5 --> 1392 bytes
+//6DH5 --> 2089 bytes
+//8DH5 --> 2820 bytes
+
+//command/event paramtetes structure
+struct hci_read_local_mhdt_feture_type
+{
+    uint8  subcode;
+    uint8   param[4];
+} __attribute__ ((packed));
+
+//command complete parameters of TCI_SUBCODE_READ_LOCAL_MHDT_FEATURE
+ struct hci_ev_cmd_complete_read_local_mhdt_feature
+ {
+     uint8 subcode;  //TCI_SUBCODE_READ_LOCAL_MHDT_FEATURE
+     uint8 status;
+     uint8 mhdt_feature; //bit0(EDR4),bit1(EDR6),bit2(EDR8),bit3(different mode in mHDT)
+ }__attribute__ ((packed));
+
+struct hci_read_remote_mhdt_feture_type
+{
+    uint8  subcode;
+    uint16 conn_handle;
+    uint8   param[2];
+} __attribute__ ((packed));
+
+//command status parameters of TCI_SUBCODE_READ_REMOTE_MHDT_FEATURE:
+//status,numofcompleted,opcode,subcode
+
+struct hci_ev_read_remote_mhdt_feature_complete
+ {
+     uint8 subevent;  //TCI_SUBEVENT_READ_REMOTE_MHDT_FEATURE_COMPLETE
+     uint8 status;
+     uint16 conn_handle;
+     uint8 mhdt_feature; //bit0(EDR4),bit1(EDR6),bit2(EDR8),bit3(different mode in mHDT)
+}__attribute__ ((packed));
+
+struct hci_enter_mhdt_mode_type
+{
+    uint8  subcode;
+    uint16 conn_handle;
+    struct bt_mhdt_data_rate data_rate;
+} __attribute__ ((packed));
+
+//command status parameters of TCI_SUBCODE_MHDT_MODE:
+//status,numofcompleted,opcode,subcode
+
+struct hci_ev_mhdt_data_rate_change
+ {
+     uint8 subevent;  //TCI_SUBEVENT_MHDT_DATA_RATE_CHANGE
+     uint8 status;
+     uint16 conn_handle;
+     uint8 mhdt_state; //0,disabled;1,enabled
+     struct bt_mhdt_data_rate data_rate;
+}__attribute__ ((packed));
+
+struct hci_exit_mhdt_mode_type
+{
+    uint8  subcode;
+    uint16 conn_handle;
+} __attribute__ ((packed));
+
+struct hci_exit_mhdt_mode_type2
+{
+    uint8  subcode;
+    uint16 conn_handle;
+    struct bt_mhdt_data_rate data_rate;
+} __attribute__ ((packed));
+
+//command status parameters of TCI_SUBCODE_EXIT_MHDT_MODE:
+//status,numofcompleted,opcode,subcode
+
+struct hci_write_mhdt_timeout_type
+{
+    uint8  subcode;
+    uint16 conn_handle;
+    uint16 mhdt_timeout;
+} __attribute__ ((packed));
+
+
+//master command complete parameters of TCI_SUBCODE_WRITE_MHDT_TIMEOUT
+struct hci_ev_cmd_complete_write_mhdt_timeout
+{
+    uint8 subcode;  //TCI_SUBCODE_WRITE_MHDT_TIMEOUT
+    uint8 status;
+    uint16 conn_handle;
+}__attribute__ ((packed));
+
+//slave report to its host when mhdt timeout time changed
+struct hci_ev_mhdt_timeout_change
+ {
+     uint8 subevent;  //TCI_SUBEVENT_MHDT_TIMEOUT_CHANGE
+     uint16 conn_handle;
+     uint16 mhdt_timeout;
+}__attribute__ ((packed));
+
+struct hci_read_mhdt_timeout_type
+{
+    uint8  subcode;
+    uint16 conn_handle;
+} __attribute__ ((packed));
+
+//command complete parameters of TCI_SUBCODE_READ_MHDT_TIMEOUT
+struct hci_ev_cmd_complete_read_mhdt_timeout
+{
+    uint8 subcode;  //TCI_SUBCODE_READ_MHDT_TIMEOUT
+    uint8 status;
+    uint16 conn_handle;
+    uint16 mhdt_timeout;
+}__attribute__ ((packed));
+
+struct hci_le_read_local_proprietary_feture_type
+{
+    uint8  subcode;
+} __attribute__ ((packed));
+
+//command complete parameters of TCI_SUBCODE_LE_READ_LOCAL_PROPRIETARY_FEATURE
+ struct hci_ev_cmd_complete_le_read_local_proprietary_feature
+ {
+     uint8 subcode;  //TCI_SUBCODE_LE_READ_LOCAL_PROPRIETARY_FEATURE
+     uint8 status;
+     uint32 le_mhdt_feature; //bit0(BLE4M),bit8(BLE Audio ABR)
+ }__attribute__ ((packed));
+
+
+struct hci_le_read_remote_proprietary_feture_type
+{
+    uint8  subcode;
+    uint16 conn_handle;
+} __attribute__ ((packed));
+
+//command status parameters of TCI_SUBCODE_LE_READ_REMOTE_PROPRIETARY_FEATURE:
+//status,numofcompleted,opcode,subcode
+
+struct hci_ev_le_read_remote_proprietary_feature_complete
+ {
+     uint8 subevent;  //TCI_SUBEVENT_LE_READ_REMOTE_PROPRIETARY_FEATURE_COMPLETE
+     uint8 status;
+     uint16 conn_handle;
+     uint32 le_mhdt_feature; //bit0(BLE4M),bit8(BLE Audio ABR)
+}__attribute__ ((packed));
+
+/*
+ *  LE PHY parameter need add BLE4M in CMD/event:
+ *     bit7 as BLE4M in bit form
+ *     0x08 as BLE4M in value form
+ *
+ *  PDU max value change to 0x03FB in CMD/event
+ */
+//HCI_LE_BIGinfo_Adertising_Report
+//HCI_LE_Create_Big
+//HCI_LE_Create_BIG_Complete
+
+//HCI_LE_Set_CIG_Parameters
+//HCI_LE_CIS_Established
+
+//HCI_LE_Set_PHY
+//HCI_LE_PHY_Update_Complete
+
+//hci commands functions declaration
+int8 btlib_hcicmd_mhdt_read_local_feature(void);
+int8 btlib_hcicmd_mhdt_read_remote_feature(uint16 conn_handle);
+int8 btlib_hcicmd_mhdt_enter_mhdt_mode(uint16 conn_handle,struct bt_mhdt_data_rate data_rate);
+int8 btlib_hcicmd_mhdt_exit_mhdt_mode(uint16 conn_handle);
+int8 btlib_hcicmd_mhdt_exit_mhdt_mode_v2(uint16 conn_handle);
+int8 btlib_hcicmd_mhdt_write_mhdt_timeout(uint16 conn_handle,uint16 mhdt_timeout);
+int8 btlib_hcicmd_mhdt_read_mhdt_timeout(uint16 conn_handle);
+int8 btlib_hcicmd_mhdt_le_read_local_feature(void);
+int8 btlib_hcicmd_mhdt_le_read_remote_feature(uint16 conn_handle);
+
+#endif /* mHDT_SUPPORT */
 
 #ifdef __cplusplus
 }

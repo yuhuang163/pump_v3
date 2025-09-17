@@ -19,6 +19,8 @@
 #ifndef __ARC_VCS_INT__
 #define __ARC_VCS_INT__
 
+#include "bluetooth.h"
+
 #include "gaf_cfg.h"
 #include "gaf_log.h"
 
@@ -32,7 +34,7 @@ typedef void (*vcs_cb_bond_data_evt)(uint8_t con_lid, uint8_t char_type, uint8_t
 typedef void (*vcs_cb_volume_state_change_evt)(uint8_t volume, uint8_t mute, uint8_t change_cnt,
                                                bool is_local, uint8_t con_lid);
 /// Callback for vcs flags change
-typedef void (*vcs_cb_volume_flags_change_evt)(uint8_t con_lid, uint8_t flags);
+typedef void (*vcs_cb_volume_flags_change_evt)(uint8_t flags);
 
 typedef struct vcs_event_callback
 {
@@ -48,8 +50,14 @@ typedef struct vcs_init_cfg
 {
     /// Preferred MTU size
     uint16_t pref_mtu;
+    /// Mute
+    bool mute;
+    /// Volume Setting
+    uint8_t vol_setting;
     /// Volume Step
     uint8_t vol_step;
+    /// Volume Setting Persisted
+    bool vol_setting_persisted;
 #if (ARC_AICS_ENABLE)
     /// AICS(s) include by VCS
     uint8_t include_aics_num;
@@ -63,16 +71,6 @@ typedef struct vcs_init_cfg
     const uint8_t *p_output_lid_list;
 #endif /// (ARC_VOCS_ENABLE)
 } vcs_cfg_t;
-
-typedef struct vcs_volume_cfg
-{
-    /// Mute
-    bool mute;
-    /// Volume Setting
-    uint8_t vol_setting;
-    /// Volume Setting Persisted
-    bool vol_setting_persisted;
-} vcs_vol_cfg_t;
 
 /*FUCNTIONS DECLARATION*/
 /**
@@ -106,19 +104,8 @@ int vcs_restore_cli_cfg_cache(uint8_t con_lid, uint8_t cli_cfg_bf);
 #endif /// (GAF_USE_CACHE_GATT_CCCD)
 
 /**
- * @brief Volume Control server restore Volume info
- *
- * @param  con_lid     Connection local index
- * @param  p_vol_cfg   Voume Configuraton
- *
- * @return int         status
- */
-int vcs_restore_volume_info(uint8_t con_lid, const vcs_vol_cfg_t *p_vol_cfg);
-
-/**
  * @brief Volume Control server control local volume
  *
- * @param  con_lid     Connection local index
  * @param  op_code     Operation code @see vcs_opcode
  * @param  volume      Volume setting
  * @param  need_cb_upper
@@ -127,6 +114,6 @@ int vcs_restore_volume_info(uint8_t con_lid, const vcs_vol_cfg_t *p_vol_cfg);
  *
  * @return int         status
  */
-int vcs_control(uint8_t con_lid, uint8_t op_code, uint8_t volume, bool need_cb_upper, bool need_ntf);
+int vcs_control(uint8_t op_code, uint8_t volume, bool need_cb_upper, bool need_ntf);
 
 #endif /// __ARC_VCS_INT__

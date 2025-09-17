@@ -132,6 +132,7 @@ used throughout the whole project.
 #define osFeature_Signals      16      ///< maximum number of Signal Flags available per thread
 #define osFeature_Semaphore    65535   ///< maximum count for \ref osSemaphoreCreate function
 #define osFeature_Wait         0       ///< osWait function: 1=available, 0=not available
+#define CMSIS_V1_SIGNAL_ANY    ((1u<<16)-1u) ///< thread flags: Flags zero, wait for any signal
 
 #if defined (__CC_ARM)
 #define os_InRegs __value_in_regs      // Compiler specific: force struct in registers

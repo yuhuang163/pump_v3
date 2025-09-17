@@ -29,7 +29,7 @@
 #include "sensor_hub_core_app_ai_ota.h"
 #include "mcu_sensor_hub_app_ai.h"
 #include "mcu_sensor_hub_app_ai_ota.h"
-#include "crc_c.h"
+#include "crc32_c.h"
 #include "app_utils.h"
 
 #define CASE_ENUM(e) case e: return "["#e"]"
@@ -104,7 +104,7 @@ static inline bool sensor_hub_ai_mcu_allocate_user(uint16_t *index)
 void sensor_hub_ai_mcu_register_ai_user(SENSOR_HUB_AI_USER_E user,SENSOR_HUB_AI_OPERATOR_T ai_operator)
 {
     if(SENSOR_HUB_AI_USER_NONE == user){
-        SENSORHUB_TRACE(1,"%s role invalid",__func__);
+        TRACE(1,"%s role invalid",__func__);
         return ;
     }
 
@@ -121,7 +121,7 @@ void sensor_hub_ai_mcu_register_ai_user(SENSOR_HUB_AI_USER_E user,SENSOR_HUB_AI_
         if(SENSOR_HUB_MAXIAM_AI_USER == sensor_hub_ai_operator_manager_instant.ai_user_num){
             found = sensor_hub_ai_mcu_allocate_user(&index);
             if(found == false){
-                SENSORHUB_TRACE(0,"already have the maxiam ai user . can not add");
+                TRACE(0,"already have the maxiam ai user . can not add");
             }else{
                 sensor_hub_ai_operator_manager_instant.ai_operator[index].ai_user = user;
                 sensor_hub_ai_operator_manager_instant.ai_operator[index] = ai_operator;
@@ -134,13 +134,13 @@ void sensor_hub_ai_mcu_register_ai_user(SENSOR_HUB_AI_USER_E user,SENSOR_HUB_AI_
         }
     }
 
-    SENSORHUB_TRACE(5,"%s user = %d update ?= %d num = %d current = %d",__func__,user,found,sensor_hub_ai_operator_manager_instant.ai_user_num,sensor_hub_ai_operator_manager_instant.ai_current_user);
+    TRACE(5,"%s user = %d update ?= %d num = %d current = %d",__func__,user,found,sensor_hub_ai_operator_manager_instant.ai_user_num,sensor_hub_ai_operator_manager_instant.ai_current_user);
 }
 
 void sensor_hub_ai_mcu_unregister_ai_user(SENSOR_HUB_AI_USER_E user)
 {
     if(SENSOR_HUB_AI_USER_NONE == user){
-        SENSORHUB_TRACE(1,"%s role invalid",__func__);
+        TRACE(1,"%s role invalid",__func__);
         return ;
     }
 
@@ -184,7 +184,7 @@ static inline void sensor_hub_ai_mcu_kws_infor_process_handler(uint8_t * buf,uin
     len -= OFFSETOF(AI_KWS_INFOR_T, kws_infor);
     len -= OFFSETOF(AI_KWS_INFOR_PAYLOAD_T,p);
 
-    SENSORHUB_TRACE(3,"%s user = %d historyBytes = %d ",__func__,user,kws_info->env_info.history_pcm_data_len);
+    TRACE(3,"%s user = %d historyBytes = %d ",__func__,user,kws_info->env_info.history_pcm_data_len);
     app_sysfreq_req(APP_SYSFREQ_USER_AI_VOICE, SENSOR_HUB_MCU_AI_REQUEST_FREQ);
 
     if(sensor_hub_ai_mcu_find_user(user,&index) == true){
@@ -212,16 +212,16 @@ static inline void sensor_hub_ai_mcu_kws_infor_process_handler(uint8_t * buf,uin
 
 static void app_sensor_hub_ai_mcu_vad_event_handler(enum APP_VAD_EVENT_T event, uint8_t *param)
 {
-    SENSORHUB_TRACE(0, "%s: event=%d", __func__, event);
+    TRACE(0, "%s: event=%d", __func__, event);
     if (APP_VAD_EVT_VOICE_CMD == event) {
 //        app_mcu_sensor_hub_request_vad_data(true,0);
-        SENSORHUB_TRACE(1, "%s",__func__);
+        TRACE(1, "%s",__func__);
     }
 }
 
 static void app_sensor_hub_ai_mcu_vad_data_handler(uint32_t pkt_id, uint8_t *payload, uint32_t bytes)
 {
-    SENSORHUB_TRACE(4, "%s: pkt_id=%d, payload = %p bytes=%d", __func__, pkt_id, payload,bytes);
+    TRACE(4, "%s: pkt_id=%d, payload = %p bytes=%d", __func__, pkt_id, payload,bytes);
     uint16_t user = sensor_hub_ai_operator_manager_instant.ai_current_user;
     uint16_t index ;
 
@@ -246,7 +246,7 @@ static void app_sensor_hub_mcu_ai_msg_handler(uint8_t* buf, uint16_t len)
     uint16_t param_len = rpc_msg->param_len;
     
     uint8_t *param = (uint8_t *)rpc_msg->param_buf;
-    SENSORHUB_TRACE(0, "%s: %s", __func__, sens_ai_evt_to_str(evt));
+    TRACE(0, "%s: %s", __func__, sens_ai_evt_to_str(evt));
 
     app_sensor_hub_mcu_ai_reply_msg(0, evt);
 
@@ -266,8 +266,8 @@ static void app_sensor_hub_mcu_ai_cmd_received_handler(uint8_t* ptr, uint16_t le
 
     memcpy((uint8_t*)req_msg,ptr,len);
 
-    SENSORHUB_TRACE(0, "%s: len=%d", __func__, len);
-    SENSORHUB_DUMP8("%02x ",(uint8_t*)req_msg,MIN(len,32));
+    TRACE(0, "%s: len=%d", __func__, len);
+    DUMP8("%02x ",(uint8_t*)req_msg,MIN(len,32));
 
     if (req_msg->hdr.reply) {
         ASSERT(false, "%s: Bad reply msg: id=%d", __func__, req_msg->hdr.id);
@@ -350,7 +350,7 @@ static void app_sensor_hub_mcu_ai_cmd_transmit_handler(uint8_t* ptr, uint16_t le
 
 static void app_sensor_hub_mcu_ai_cmd_wait_rsp_timeout(uint8_t* ptr, uint16_t len)
 {
-    SENSORHUB_TRACE(0, "%s: len=%d", __func__, len);
+    TRACE(0, "%s: len=%d", __func__, len);
 }
 
 static void app_sensor_hub_mcu_ai_cmd_rsp_received_handler(uint8_t* ptr, uint16_t len)
@@ -359,8 +359,8 @@ static void app_sensor_hub_mcu_ai_cmd_rsp_received_handler(uint8_t* ptr, uint16_
 
     memcpy((uint8_t*)rsp_msg,ptr,len);
 
-    SENSORHUB_TRACE(0, "%s: len=%d", __func__, len);
-    SENSORHUB_DUMP8("%02x ",(uint8_t*)rsp_msg,MIN(len,32));
+    TRACE(0, "%s: len=%d", __func__, len);
+    DUMP8("%02x ",(uint8_t*)rsp_msg,MIN(len,32));
 
     if (rsp_msg->hdr.reply == 0) {
         ASSERT(false, "%s: Bad reply msg: id=%d", __func__, rsp_msg->hdr.id);
@@ -378,7 +378,7 @@ static void app_sensor_hub_mcu_ai_cmd_rsp_received_handler(uint8_t* ptr, uint16_
 
 static void app_sensor_hub_mcu_ai_cmd_tx_done_handler(uint16_t cmdCode, uint8_t* ptr, uint16_t len)
 {
-    SENSORHUB_TRACE(0, "%s: cmdCode 0x%x tx done", __func__, cmdCode);
+    TRACE(0, "%s: cmdCode 0x%x tx done", __func__, cmdCode);
 }
 
 CORE_BRIDGE_TASK_COMMAND_TO_ADD(MCU_SENSOR_HUB_TASK_CMD_AI,

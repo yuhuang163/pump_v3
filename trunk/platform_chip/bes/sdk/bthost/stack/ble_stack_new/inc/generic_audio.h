@@ -19,6 +19,7 @@
 #ifndef __GEN_AUD__
 #define __GEN_AUD__
 
+#include "bluetooth.h"
 #include "bap_service.h"
 #include "gaf_cfg.h"
 /*Defination*/
@@ -57,16 +58,6 @@ enum generic_audio_codec_capa_type
     GEN_AUD_CAPA_TYPE_SUPP_OCTS_FRAME,
     /// Maximum Supported Codec Frames per SDU
     GEN_AUD_CAPA_TYPE_SUPP_FRAMES_SDU,
-    /// Supported channel capabilities
-    GEN_AUD_CAPA_TYPE_SUPP_CHAN_CAPA = 0xE0,
-    /// Supported Codec Frame Interval
-    GEN_AUD_CAPA_TYPE_SUPP_CF_INTV = 0xE2,
-    /// Supported HT Frame Formats
-    GEN_AUD_CAPA_TYPE_SUPP_HTF_FMT = 0xE5,
-    /// Supported HT Frame Interval
-    GEN_AUD_CAPA_TYPE_SUPP_HTF_INTV = 0xE6,
-    /// Supported Rendering Info Frame Interval
-    GEN_AUD_CAPA_TYPE_SUPP_RIF_INTV = 0xEA,
 };
 
 /// Codec Specific Configuration Types values
@@ -82,31 +73,13 @@ enum generic_audio_codec_cfg_type
     GEN_AUD_CC_TYPE_OCTETS_FRAME,
     /// Codec Frame Blocks Per SDU
     GEN_AUD_CC_TYPE_FRAME_BLOCKS_SDU,
-    /// Channel Type Configurations
-    GEN_AUD_CC_TYPE_CHAN_TYPE_CFG = 0xE1,
-    // Codec Frame Interval
-    GEN_AUD_CC_TYPE_CF_FRAME_INTV = 0xE3,
-    // Codec Frame CID
-    GEN_AUD_CC_TYPE_CF_FRAME_CID = 0xE4,
-    // Headtracking Frame Interval
-    GEN_AUD_CC_TYPE_HT_FRAME_INTV = 0xE9,
-    // Headtracking Frame CID
-    GEN_AUD_CC_TYPE_HT_FRAME_CID = 0xE7,
-    // Headtracking Frame Format
-    GEN_AUD_CC_TYPE_HT_FRAME_FMT = 0xE8,
-    // Rendering Info Frame Format
-    GEN_AUD_CC_TYPE_RI_FRAME_CID = 0xEB,
-    // Rendering Info Frame
-    GEN_AUD_CC_TYPE_RI_FRAME = 0xEC,
-    // Rendering Info Frame Interval
-    GEN_AUD_CC_TYPE_RI_FRAME_INTV = 0xED,
 };
 
 /// Metadata Types values
 enum generic_audio_metadata_type
 {
     /// Preferred Audio Contexts
-    GEN_AUD_METADATA_TYPE_PREF_CONTEXTS = 0x01,
+    GEN_AUD_METADATA_TYPE_PREF_CONTEXTS = 1,
     /// Streaming Audio Contexts
     GEN_AUD_METADATA_TYPE_STREAM_CONTEXTS,
     /// UTF-8 encoded title or summary of stream content
@@ -122,11 +95,7 @@ enum generic_audio_metadata_type
     /// Audio_Active_State
     GEN_AUD_METADATA_TYPE_AUD_ACTIVE_STATE,
     /// Broadcast_Audio_Immediate_Rendering_Flag
-    GEN_AUD_METADATA_TYPE_BCAST_AUD_IMME_REND_FLAG = 0x09,
-    /// Assisted_Listening_Stream
-    GEN_AUD_METADATA_TYPE_ASSISTED_LISTENING_STREAM = 0x0A,
-    /// Broadcast_Name
-    GEN_AUD_METADATA_TYPE_BROADCAST_NAME = 0x0B,
+    GEN_AUD_METADATA_TYPE_BCAST_AUD_IMME_REND_FLAG = 9,
     /// Extended
     GEN_AUD_METADATA_TYPE_EXTENDED = 0xFE,
     /// Vendor Specific
@@ -210,11 +179,6 @@ typedef enum generic_audio_frame_dur
     GEN_AUD_FRAME_DUR_5MS,
     /// Use 2.5ms Codec frames
     GEN_AUD_FRAME_DUR_2_5MS,
-    /// for PTS 441_1/441_2
-    /// Use 8.163ms Codec frames
-    GEN_AUD_FRAME_DUR_8_163MS,
-    /// Use 10.884ms Codec frames
-    GEN_AUD_FRAME_DUR_10_884MS = 0x08,
     /// Maximum value
     GEN_AUD_FRAME_DUR_MAX = 0xFF,
 } gen_aud_frame_dur_e;
@@ -310,21 +274,6 @@ typedef enum generic_audio_supp_audio_locations_bf
     GEN_AUD_AUDIO_LOCATION_RFU                      = 0xF0000000,
 } gen_aud_supp_loc_bf_e;
 
-/// Raw Audio Channel type descriptor
-typedef enum generic_audio_raw_audio_channel_bf
-{
-    GEN_AUD_RAW_AUDIO_CHANNEL_INVALID               = 0x00000000,
-    GEN_AUD_RAW_AUDIO_CHANNEL_1                     = 0x00000001,
-    GEN_AUD_RAW_AUDIO_CHANNEL_2                     = 0x00000002,
-    GEN_AUD_RAW_AUDIO_CHANNEL_3                     = 0x00000004,
-    GEN_AUD_RAW_AUDIO_CHANNEL_4                     = 0x00000008,
-    GEN_AUD_RAW_AUDIO_CHANNEL_5                     = 0x00000010,
-    GEN_AUD_RAW_AUDIO_CHANNEL_6                     = 0x00000020,
-    GEN_AUD_RAW_AUDIO_CHANNEL_7                     = 0x00000040,
-    GEN_AUD_RAW_AUDIO_CHANNEL_8                     = 0x00000080,
-    GEN_AUD_RAW_AUDIO_CHANNEL_MASK                  = 0x000000FF,
-} gen_aud_raw_aud_chan_e;
-
 /**
  * @brief Parental rating defined by the assigned numbers
  *
@@ -395,49 +344,6 @@ enum generic_audio_codec_cfg_length
     GEN_AUD_CC_LENGTH_FRAMES_SDU = 2,
 };
 
-enum generic_audio_ht_f_data_format
-{
-    /// Quaternion is used
-    GEN_AUD_HT_TYPE_DATA_QUATERNION = 0x00,
-    /// Rotation Vector is used
-    GEN_AUD_HT_TYPE_ROTATION_VECTOR = 0x01,
-};
-
-enum generic_audio_ht_frame_interval
-{
-    /// HT Frame Interval 7.5MS
-    GEN_AUD_HT_FRAME_INTV_7_5MS = 0x00,
-    /// HT Frame Interval 10MS
-    GEN_AUD_HT_FRAME_INTV_10MS = 0x01,
-    /// HT Frame Interval 20MS
-    GEN_AUD_HT_FRAME_INTV_20MS = 0x02,
-};
-
-
-enum generic_audio_ht_f_data_formats_bit
-{
-    /// Quaternion is supported
-    GEN_AUD_HT_DATA_QUATERNION_BIT = 0x01,
-    /// Rotation Vector is supported
-    GEN_AUD_HT_ROTATION_VECTOR_BIT = 0x02,
-};
-
-enum generic_audio_ht_f_related_flags_bit
-{
-    /// Timestamp Included. Indicates whether a timestamp is included with the IMU data.
-    GEN_AUD_HT_FLAG_TS_INC_BIT = 0x01,
-};
-
-enum generic_audio_ht_frame_interval_bit
-{
-    /// HT Frame Interval 7.5MS
-    GEN_AUD_HT_FRAME_7_5MS_BIT = 0x01,
-    /// HT Frame Interval 10MS
-    GEN_AUD_HT_FRAME_10MS_BIT = 0x02,
-    /// HT Frame Interval 20MS
-    GEN_AUD_HT_FRAME_20MS_BIT = 0x04,
-};
-
 /*Type Define*/
 /*****************************************************************************************************
  *                                                                                                   *
@@ -488,53 +394,6 @@ typedef struct generic_audio_metadata_context_packed
     uint8_t type;
     uint16_t context_bf;
 } __attribute__((packed)) gen_aud_metadata_context_p_t;
-
-typedef struct generic_audio_chan_capa_supp_index_list_packed
-{
-    uint8_t len;
-    uint8_t type;
-    uint8_t supp_chan_capa_idx[GAF_ARRAY_EMPTY];
-} __attribute__((packed)) gen_aud_chan_capa_supp_idx_p_t;
-
-typedef struct generic_audio_capa_ht_frame_supp_formats_packed
-{
-    uint8_t len;
-    uint8_t type;
-    /// Octet 0: bitfield of supported data formats
-    /// Octet 1: bitfield of related flags
-    /// @see generic_audio_ht_f_data_formats_bit
-    uint8_t supp_data_formats;
-    /// @see generic_audio_ht_f_related_flags_bit
-    uint8_t related_flags;
-} __attribute__((packed)) gen_aud_capa_ht_formats_p_t;
-
-typedef struct generic_audio_capa_ht_frame_supp_interval_packed
-{
-    uint8_t len;
-    uint8_t type;
-    /// IMU supported frame rates, dependent on IMU model
-    /// @see generic_audio_ht_frame_interval_bit
-    uint8_t intv_bf;
-} __attribute__((packed)) gen_aud_capa_ht_interval_p_t;
-
-// This LTV exposes support for handling Codec Frames at dissimilar rates to the SDU interval.
-// This allows implemention flexibility for multiplexing audio and non-audio data in the same
-// CIS and at differing frame generation/delivery rates.
-typedef struct generic_audio_capa_codec_frame_supp_interval_packed
-{
-    uint8_t len;
-    uint8_t type;
-    /// @see generic_audio_frame_dur_bf
-    uint8_t intv_bf;
-} __attribute__((packed)) gen_aud_capa_cf_interval_p_t;
-
-typedef struct generic_audio_capa_ri_frame_supp_interval_packed
-{
-    uint8_t len;
-    uint8_t type;
-    /// @see generic_audio_frame_dur_bf
-    uint8_t intv_bf;
-} __attribute__((packed)) gen_aud_capa_rif_interval_p_t;
 
 /************************************************CODEC SPECIFIC CAPABLITY PARAMETER**********************************************/
 typedef struct gen_aud_codec_capa_param
@@ -609,83 +468,6 @@ typedef struct generic_audio_codec_cfg_frames_sdu_packed
     uint8_t frame_blocks_per_sdu;
 } __attribute__((packed)) gen_aud_cc_frame_blocks_sdu_p_t;
 
-typedef struct generic_audio_codec_cfg_chan_type_packed
-{
-    uint8_t len;
-    uint8_t type;
-    uint32_t chan_type;
-    /// For Raw chan type using Format_Channel_Allocation
-    /// 1-octet bitfield of channels
-    uint8_t chan_type_specifc_cfg[GAF_ARRAY_EMPTY];
-} __attribute__((packed)) gen_aud_cc_channel_type_p_t;
-
-typedef struct generic_audio_codec_cfg_ht_frame_formats_packed
-{
-    uint8_t len;
-    uint8_t type;
-    /// Octet 0: enum of data formats
-    /// Octet 1: bitfield of used flags
-    /// @see generic_audio_ht_f_data_format
-    uint8_t data_formats;
-    /// @see generic_audio_ht_f_related_flags_bit
-    uint8_t used_flags;
-} __attribute__((packed)) gen_aud_cc_ht_formats_p_t;
-
-typedef struct generic_audio_codec_cfg_ht_frame_interval_packed
-{
-    uint8_t len;
-    uint8_t type;
-    /// Configured HT frame interval
-    /// @see generic_audio_ht_frame_interval
-    uint8_t intv_bf;
-} __attribute__((packed)) gen_aud_cc_ht_interval_p_t;
-
-typedef struct generic_audio_codec_cfg_ht_frame_cid_packed
-{
-    uint8_t len;
-    uint8_t type;
-    /// Configured HT frame cid
-    /// Any value from 0x0 to 0xF
-    uint16_t cid;
-} __attribute__((packed)) gen_aud_cc_htf_cid_p_t;
-
-typedef struct generic_audio_codec_cfg_codec_frame_interval_packed
-{
-    uint8_t len;
-    uint8_t type;
-    /// Configured Codec frame interval
-    /// @see generic_audio_frame_dur_bf
-    uint8_t intv_bf;
-} __attribute__((packed)) gen_aud_cc_cf_interval_p_t;
-
-typedef struct generic_audio_codec_cfg_codec_frame_cid_packed
-{
-    uint8_t len;
-    uint8_t type;
-    /// Configured Codec frame cid
-    /// 0x00xx, 0x03xx-0x0Fxx
-    uint16_t cid;
-} __attribute__((packed)) gen_aud_cc_cf_cid_p_t;
-
-typedef struct generic_audio_codec_cfg_ri_frame_interval_packed
-{
-    uint8_t len;
-    uint8_t type;
-    /// Configured RI frame interval
-    /// Rendering_Info update rate in integer
-    /// multiples of the SDU_Interval.
-    uint8_t num_sdu_intv;
-} __attribute__((packed)) gen_aud_cc_rif_interval_p_t;
-
-typedef struct generic_audio_codec_cfg_ri_frame_cid_packed
-{
-    uint8_t len;
-    uint8_t type;
-    /// Configured RI frame cid
-    /// 0x00xx, 0x03xx-0x0Fxx
-    uint16_t cid;
-} __attribute__((packed)) gen_aud_cc_rif_cid_p_t;
-
 /*****************************CODEC SPECIFIC CONFIGURATION PARAMETER*********************************/
 typedef struct gen_aud_codec_configuration_param
 {
@@ -717,14 +499,6 @@ typedef struct generic_audio_variable_list
     uint8_t data[GAF_ARRAY_EMPTY];
 } gen_aud_var_info_t;
 
-typedef struct generic_audio_variable_list_ptr
-{
-    /// len of data
-    uint8_t len;
-    /// data
-    const uint8_t *data;
-} gen_aud_var_info_ptr_t;
-
 typedef struct generic_audio_ltv
 {
     /// len of data
@@ -747,8 +521,6 @@ typedef struct generic_audio_metadata_ltv_ptr
     const gen_aud_ltv_t *p_extended_md;
     /// Vendor
     const gen_aud_ltv_t *p_vendor_info;
-    /// The UTF-8 string of the Broadcast_Name
-    const gen_aud_ltv_t *p_broadcast_name;
 } gen_aud_metadata_ltv_ptr_t;
 
 typedef struct generic_audio_metadata_param
@@ -765,8 +537,6 @@ typedef struct generic_audio_metadata_param
     uint8_t audio_active_state;
     /// Broadcast audio immediate rendering flag
     bool bcast_imme_rend_flag_present;
-    /// Assisted Listening Stream method
-    uint8_t assisted_listening_stream_method;
 } gen_aud_metadata_param_t;
 
 /*PACS CAPA*/
@@ -779,7 +549,7 @@ typedef struct generic_audio_capa
 typedef struct generic_audio_capa_ptr
 {
     gen_aud_codec_capa_param_t basic_capa_param;
-    gen_aud_var_info_ptr_t add_capa_param_ptr;
+    const gen_aud_var_info_t *p_add_capa_param;
 } gen_aud_capa_ptr_t;
 
 /*ASCS CC*/
@@ -792,7 +562,7 @@ typedef struct generic_audio_codec_cfg
 typedef struct generic_audio_codec_cfg_ptr
 {
     gen_aud_codec_cfg_param_t basic_cc_param;
-    gen_aud_var_info_ptr_t add_cc_param_ptr;
+    const gen_aud_var_info_t *p_add_cc_param;
 } gen_aud_cc_ptr_t;
 
 /*Metadata*/
@@ -830,6 +600,7 @@ typedef struct generic_audio_metadata_ptr
  */
 int gen_aud_ltv_check(const gen_aud_var_info_t *p_ltv_data);
 
+#if (BAP_ASCS_ENABLE || BAP_ASCC_ENABLE)
 /**
  ****************************************************************************************
  * @brief TODO [LT]
@@ -838,14 +609,18 @@ int gen_aud_ltv_check(const gen_aud_var_info_t *p_ltv_data);
 int gen_aud_codec_cfg_check(const uint8_t *p_codec_id, const gen_aud_cc_t *p_cc,
                             const gen_aud_metadata_t *p_metadata, uint8_t *p_cc_ltv_len,
                             uint8_t *p_metadata_ltv_len);
+#endif //(BAP_ASCS_ENABLE || BAP_ASCC_ENABLE)
 
+#if (BAP_ASCS_ENABLE || BAP_ASCC_ENABLE || BAP_BC_SRC_ENABLE)
 /**
  ****************************************************************************************
  * @brief TODO [LT]
  ****************************************************************************************
  */
 int gen_aud_codec_cfg_pack(uint8_t *p_data, const gen_aud_cc_t *p_cc, bool with_add_cfg);
+#endif //(BAP_ASCS_ENABLE || BAP_ASCC_ENABLE || BAP_BC_SRC_ENABLE)
 
+#if (BAP_ASCS_ENABLE || BAP_ASCC_ENABLE)
 /**
  ****************************************************************************************
  * @brief TODO [LT]
@@ -853,7 +628,9 @@ int gen_aud_codec_cfg_pack(uint8_t *p_data, const gen_aud_cc_t *p_cc, bool with_
  */
 int gen_aud_codec_cfg_unpack(const uint8_t *p_codec_id, gen_aud_cc_ptr_t *p_cc,
                              gen_aud_var_info_t *p_capa_ltv);
+#endif //(BAP_ASCS_ENABLE || BAP_ASCC_ENABLE)
 
+#if (BAP_PACS_ENABLE || BAP_PACC_ENABLE)
 /**
  ****************************************************************************************
  * @brief TODO [LT]
@@ -861,7 +638,9 @@ int gen_aud_codec_cfg_unpack(const uint8_t *p_codec_id, gen_aud_cc_ptr_t *p_cc,
  */
 int gen_aud_codec_capa_check(const uint8_t *p_codec_id, const gen_aud_capa_t *p_capa,
                              const gen_aud_metadata_t *p_metadata, uint16_t *p_ltv_len);
+#endif //(BAP_PACS_ENABLE || BAP_PACC_ENABLE)
 
+#if (BAP_PACS_ENABLE)
 /**
  ****************************************************************************************
  * @brief TODO [LT]
@@ -869,6 +648,9 @@ int gen_aud_codec_capa_check(const uint8_t *p_codec_id, const gen_aud_capa_t *p_
  */
 int gen_aud_codec_capa_pack(uint8_t *p_data, const gen_aud_capa_t *p_capa);
 
+#endif //(BAP_PACS_ENABLE)
+
+#if (BAP_PACC_ENABLE)
 /**
  ****************************************************************************************
  * @brief TODO [LT]
@@ -876,7 +658,9 @@ int gen_aud_codec_capa_pack(uint8_t *p_data, const gen_aud_capa_t *p_capa);
  */
 int gen_aud_codec_capa_unpack(const uint8_t *p_codec_id, gen_aud_capa_ptr_t *p_capa,
                               gen_aud_var_info_t *p_capa_ltv);
+#endif //(BAP_PACC_ENABLE)
 
+#if (BAP_ASCS_ENABLE || BAP_ASCC_ENABLE || GAF_BAP_BC_DELEG || BAP_BROADCAST_ASSIST)
 /**
  ****************************************************************************************
  * @brief Init gen_aud_metadata_t
@@ -935,6 +719,7 @@ int gen_aud_unpack_metadata_with_err_type_ret(const uint8_t *p_codec_id, gen_aud
  */
 int gen_aud_codec_unpack_metadata(const uint8_t *p_codec_id, gen_aud_metadata_ptr_t *p_metadata,
                                   gen_aud_var_info_t *p_metadata_ltv);
+#endif //(BAP_ASCS_ENABLE || BAP_ASCC_ENABLE || GAF_BAP_BC_DELEG || BAP_BROADCAST_ASSIST)
 
 /**
  ****************************************************************************************
@@ -959,6 +744,17 @@ bool gen_aud_codec_is_lc3(const uint8_t *p_codec_id);
 
 /**
  ****************************************************************************************
+ * @brief Check if a Codec ID is Codec ID for LC3plus
+ *
+ * @param[in] p_codec_id        Pointer to Codec ID
+ *
+ * @return True if Codec ID is for LC3plus, else false
+ ****************************************************************************************
+ */
+bool gen_aud_codec_is_lc3plus(const uint8_t *p_codec_id);
+
+/**
+ ****************************************************************************************
  * @brief Check if a Codec ID is valid
  *
  * @param[in] p_codec_id        Pointer to Codec ID
@@ -968,13 +764,7 @@ bool gen_aud_codec_is_lc3(const uint8_t *p_codec_id);
  */
 bool gen_aud_codec_is_id_valid(const uint8_t *p_codec_id);
 
-/**
- ****************************************************************************************
- * @brief Get specific type LTV value pointer from LTV data
- ****************************************************************************************
- */
-uint8_t *gen_aud_get_ltv_value_by_type(gen_aud_var_info_t *p_ltv_data, uint8_t ltv_type);
-
+#if (BAP_ASCS_ENABLE || BAP_ASCC_ENABLE || GEN_AUD_BC_DELEG || GEN_AUD_BC_ASSIST)
 /**
  ****************************************************************************************
  * @brief Print Codec ID
@@ -1004,22 +794,7 @@ void gen_aud_codec_cfg_print(const uint8_t *p_codec_id, const gen_aud_cc_t *p_co
  */
 void gen_aud_codec_capa_print(const uint8_t *p_codec_id, const gen_aud_capa_t *p_capa,
                               const gen_aud_metadata_t *p_metadata);
-
-/**
- ****************************************************************************************
- * @brief Print Codec Specific configuration ptr
- ****************************************************************************************
- */
-void gen_aud_codec_cfg_ptr_print(const uint8_t *p_codec_id, const gen_aud_cc_ptr_t *p_codec_cfg,
-                                 const gen_aud_metadata_ptr_t *p_metadata);
-
-/**
- ****************************************************************************************
- * @brief Print Codec capability ptr
- ****************************************************************************************
- */
-void gen_aud_codec_capa_ptr_print(const uint8_t *p_codec_id, const gen_aud_capa_ptr_t *p_capa,
-                                  const gen_aud_metadata_ptr_t *p_metadata);
+#endif // (BAP_ASCS_ENABLE || BAP_ASCC_ENABLE || GEN_AUD_BC_DELEG || GEN_AUD_BC_ASSIST)
 
 #if defined (BUILD_BTH_ROM)
 extern gen_aud_metadata_param_t init_basic_md;

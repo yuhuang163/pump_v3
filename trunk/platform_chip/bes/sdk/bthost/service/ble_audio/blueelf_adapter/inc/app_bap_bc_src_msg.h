@@ -69,36 +69,6 @@
 #define APP_BAP_DFT_BC_SRC_PA_ADV_DATA            "bis_pa_adv_test"
 #define APP_BAP_DFT_BC_SRC_MAX_ADV_DATA_LEN       252
 
-/// Structure for #BAP_BC_SRC_INFO indication message
-typedef struct app_bap_bc_src_cmp_info
-{
-    /// Number of BISes
-    uint8_t nb_bis;
-    /// Broadcast Group configuration
-      /// Transmission delay time in microseconds of all BISs in the BIG (in us range 0x0000EA-0x7FFFFF)
-    uint32_t sync_delay_us;
-    /// The maximum delay time, in microseconds, for transmission of SDUs of all BISes
-    /// (in us range 0x0000EA-0x7FFFFF)
-    uint32_t tlatency_us;
-    /// ISO interval in frames\n
-    /// From 5ms to 4s
-    uint16_t iso_interval_frames;
-    /// The number of subevents in each BIS event in the BIG, range 0x01-0x1E
-    uint8_t nse;
-    /// The number of new payloads in each BIS event, range 0x01-0x07
-    uint8_t bn;
-    /// Offset used for pre-transmissions, range 0x00-0x0F
-    uint8_t pto;
-    /// The number of times a payload is transmitted in a BIS event, range 0x01-0x0F
-    uint8_t irc;
-    /// Maximum size of the payload in octets, range 0x00-0xFB
-    uint8_t max_pdu;
-    /// PHY
-    uint8_t phy;
-    /// List of Connection Handle values provided by the Controller (nb_bis elements)
-    uint16_t conhdl[3];
-} app_bap_bc_src_cmp_info_t;
-
 /// Stream information
 typedef struct app_bap_bc_src_stream_info
 {
@@ -132,6 +102,36 @@ typedef struct app_bap_bc_src_subgrp_info
     /// Pointer to Metadata structure
     app_gaf_bap_cfg_metadata_t  *p_metadata;
 } app_bap_bc_src_subgrp_info_t;
+
+/// Structure for #BAP_BC_SRC_INFO indication message
+typedef struct app_bap_bc_src_cmp_info
+{
+    /// Number of BISes
+    uint8_t nb_bis;
+    /// Broadcast Group configuration
+      /// Transmission delay time in microseconds of all BISs in the BIG (in us range 0x0000EA-0x7FFFFF)
+    uint32_t sync_delay_us;
+    /// The maximum delay time, in microseconds, for transmission of SDUs of all BISes
+    /// (in us range 0x0000EA-0x7FFFFF)
+    uint32_t tlatency_us;
+    /// ISO interval in frames\n
+    /// From 5ms to 4s
+    uint16_t iso_interval_frames;
+    /// The number of subevents in each BIS event in the BIG, range 0x01-0x1E
+    uint8_t nse;
+    /// The number of new payloads in each BIS event, range 0x01-0x07
+    uint8_t bn;
+    /// Offset used for pre-transmissions, range 0x00-0x0F
+    uint8_t pto;
+    /// The number of times a payload is transmitted in a BIS event, range 0x01-0x0F
+    uint8_t irc;
+    /// Maximum size of the payload in octets, range 0x00-0xFB
+    uint8_t max_pdu;
+    /// PHY
+    uint8_t phy;
+    /// List of Connection Handle values provided by the Controller (nb_bis elements)
+    uint16_t conhdl[3];
+} app_bap_bc_src_cmp_info_t;
 
 /// Broadcast Source BIG Information Structure
 typedef struct app_bap_bc_src_grp_param

@@ -22,20 +22,22 @@ extern "C" {
 
 #include "rmt_trace_msg.h"
 
-typedef int (*RMT_TRC_TX_ACTIVE_CB)(unsigned int seq);
 typedef void (*RMT_TRC_TX_IRQ_RUN_CB)(void);
 
 struct RMT_TRC_CLIENT_CFG_T {
     const char *tag;
 
     RMT_TRC_SEND_CB send_cb;
-    RMT_TRC_TX_ACTIVE_CB tx_active_cb;
     RMT_TRC_TX_IRQ_RUN_CB tx_irq_run_cb;
 };
 
 int rmt_trace_client_open(const struct RMT_TRC_CLIENT_CFG_T *cfg);
 
-unsigned int rmt_trace_client_msg_handler(const void *data, unsigned int len);
+unsigned int rmt_trace_client_rx_handler(const void *data, unsigned int len);
+
+void rmt_trace_client_tx_handler(const void *data, unsigned int len);
+
+int rmt_trace_client_tx_handler_ext(const void *data, unsigned int len);
 
 #ifdef __cplusplus
 }

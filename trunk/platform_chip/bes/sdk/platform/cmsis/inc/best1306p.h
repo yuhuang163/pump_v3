@@ -64,8 +64,8 @@ typedef enum IRQn
     FPU_IRQn                    =   0,      /*!< FPU Interrupt                      */
     SPI_WAKEUP_IRQn             =   1,      /*!< SPI Slave Wakeup Interrupt         */
     UART3_IRQn                  =   2,      /*!< UART3 Interrupt                    */
-    REAL_AUDMA_IRQn             =   3,      /*!< Audio DMA Interrupt                */
-    REAL_GPDMA_IRQn             =   4,      /*!< General Purpose DMA Interrupt      */
+    AUDMA_IRQn                  =   3,      /*!< Audio DMA Interrupt                */
+    GPDMA_IRQn                  =   4,      /*!< General Purpose DMA Interrupt      */
     AON_WDT_IRQn                =   5,      /*!< AON Watchdog Timer Interrupt       */
     NONE6_IRQn                  =   6,      /*!< None6 Interrupt                   */
     SPILCD_IRQn                 =   7,      /*!< SPILCD Interrupt                   */
@@ -156,20 +156,7 @@ typedef enum IRQn
 #define PWRKEY_IRQn             INVALID_IRQn
 #define WDT_IRQn                AON_WDT_IRQn
 #define RTC_IRQn                PMU_IRQn
-#if defined(CHIP_DMA_CFG_IDX) && (CHIP_DMA_CFG_IDX == 1)
-#if defined(CHIP_ROLE_CP)
-/*cp use audma*/
-#define    AUDMA_IRQn                  REAL_AUDMA_IRQn      /*!< Audio DMA Interrupt                */
-#else
-/*ap use gpdma*/
-#define    AUDMA_IRQn                  REAL_GPDMA_IRQn      /*!< Audio DMA Interrupt                */
-#endif/*CHIP_ROLE_CP*/
-#else
-#ifndef CHIP_ROLE_CP
-#define    AUDMA_IRQn                  REAL_AUDMA_IRQn      /*!< Audio DMA Interrupt                */
-#define    GPDMA_IRQn                  REAL_GPDMA_IRQn      /*!< General Purpose DMA Interrupt      */
-#endif/*CHIP_ROLE_CP*/
-#endif
+
 #include "plat_addr_map.h"
 
 #if (TIMER0_BASE == AON_TIMER0_BASE)
@@ -207,9 +194,6 @@ typedef enum IRQn
 #elif (TIMER2_BASE == MCU_TIMER2_BASE)
 #define TIMER20_IRQn            MCU_TIMER20_IRQn
 #define TIMER21_IRQn            MCU_TIMER21_IRQn
-#else
-#define TIMER20_IRQn            INVALID_IRQn
-#define TIMER21_IRQn            INVALID_IRQn
 #endif
 #endif
 
@@ -293,3 +277,4 @@ typedef enum IRQn
 #endif
 
 #endif
+

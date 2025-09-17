@@ -23,12 +23,12 @@
 extern "C" {
 #endif
 
-void app_tota_audio_dump_init();
+int32_t app_tota_audio_dump_init(void);
 
-void app_tota_audio_dump_start();
-void app_tota_audio_dump_stop();
-void app_tota_audio_dump_flush();
-bool app_tota_audio_dump_send(uint8_t * pdata, uint32_t dataLen);
+int32_t app_tota_audio_dump_start(void);
+int32_t app_tota_audio_dump_stop(void);
+
+int32_t app_tota_audio_dump_send(uint8_t *buf, uint32_t len);
 
 #ifdef __cplusplus
 }

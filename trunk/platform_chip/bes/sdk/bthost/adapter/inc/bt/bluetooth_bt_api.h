@@ -1,6 +1,6 @@
 /***************************************************************************
  *
- * Copyright 2015-2024 BES.
+ * Copyright 2015-2022 BES.
  * All rights reserved. All unpublished rights reserved.
  *
  * No part of this work may be used or reproduced in any form or by any
@@ -12,20 +12,16 @@
  * BES. which is protected by copyright, trade secret,
  * trademark and other intellectual property rights.
  *
- * @brief Bluetooth Application Programming Interface.
- *
  ****************************************************************************/
 #ifndef __BLUETOOTH_BT_API_H__
 #define __BLUETOOTH_BT_API_H__
-
-/****************************** header include ********************************/
 #include "tgt_hardware.h"
-#include "bluetooth_bt_info.h"
 #include "bt_common_define.h"
 #include "source_common_define.h"
 #include "adapter_service.h"
 #include "bes_source_api.h"
 #include "bes_me_api.h"
+#include "bes_l2cap_api.h"
 #include "bes_a2dp_api.h"
 #include "bes_avrcp_api.h"
 #include "bes_hfp_api.h"
@@ -34,86 +30,16 @@
 #include "bes_hid_api.h"
 #include "hci_api.h"
 #include "spp_api.h"
+#include "app_bt_hid.h"
 #include "app_map.h"
 #include "besbt.h"
+#ifdef BLE_STACK_NEW_DESIGN
 #include "gap_service.h"
 #include "gatt_service.h"
+#endif
 
 #if defined(__GATT_OVER_BR_EDR__)
 #include "app_btgatt.h"
-#endif
-
-#if defined(BT_HID_HOST)
-#include "app_hid_host.h"
-#endif
-
-#if defined(BT_HID_DEVICE)
-#include "app_hid_device.h"
-#endif
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-/***************************** external declaration *****************************/
-
-/***************************** macro defination *******************************/
-
-/*****************************  type defination ********************************/
-
-/*****************************  function declaration ****************************/
-/**
- ***************************************************************************
- * @brief Bluetooth host initialization
- * @param[in]  : init_done_cb, initialization completed callback function
- * @param[out] : none
- * @return: error code, see@bt_status_t
- ***************************************************************************
- */
-int bt_host_init(void (*init_done_cb)(void));
-
-/**
- ***************************************************************************
- * @brief Bluetooth host deinitialization
- * @param[in]  : none
- * @param[out] : none
- * @return: error code, see@bt_status_t
- ***************************************************************************
- */
-int bt_host_deinit(void);
-
-/**
- ***************************************************************************
- * @brief Bluetooth host get config
- * @param[in]  : none
- * @param[out] : none
- * @return: Bluetooth host config, see@bthost_cfg_t
- ***************************************************************************
- */
-bthost_cfg_t* bt_host_get_cfg(void);
-
-/**
- ***************************************************************************
- * @brief Convert bdaddr to str
- * @param[in]  : addr
- * @param[out] : none
- * @return: none
- ***************************************************************************
- */
-const char *bdaddr2str(const struct bdaddr_t *addr);
-
-/**
- ***************************************************************************
- * @brief Whether it is an all-zero address
- * @param[in]  : bdaddr_array
- * @param[out] : none
- * @return: bool
- ***************************************************************************
- */
-bool bt_is_allzero_bdaddr(const uint8_t *bdaddr_array);
-
-#ifdef __cplusplus
-}
 #endif
 
 #endif /* __BLUETOOTH_BT_API_H__ */

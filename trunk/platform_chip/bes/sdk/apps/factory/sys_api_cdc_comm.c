@@ -40,7 +40,7 @@ void reset_transport(void)
     }
 
     usb_serial_flush_recv_buffer();
-    usb_serial_init_xfer();
+    usb_serial_init_xfer(USB_SERIAL_XFER_TYPE_ALL);
     set_recv_timeout(default_recv_timeout_short);
     set_send_timeout(default_send_timeout);
 }
@@ -144,12 +144,12 @@ static int usb_handle_error(void)
 {
     int ret;
 
-    FACTORY_TRACE(0,"****** Send break ******");
+    TRACE(0,"****** Send break ******");
 
     // Send break signal, to tell the peer to reset the connection
     ret = usb_serial_send_break();
     if (ret) {
-        FACTORY_TRACE(1,"Sending break failed: %d", ret);
+        TRACE(1,"Sending break failed: %d", ret);
     }
     return ret;
 }
@@ -212,13 +212,11 @@ void system_shutdown(void)
 
 void system_set_bootmode(unsigned int bootmode)
 {
-    bootmode &= ~(HAL_SW_BOOTMODE_READ_ENABLED | HAL_SW_BOOTMODE_WRITE_ENABLED);
     hal_sw_bootmode_set(bootmode);
 }
 
 void system_clear_bootmode(unsigned int bootmode)
 {
-    bootmode &= ~(HAL_SW_BOOTMODE_READ_ENABLED | HAL_SW_BOOTMODE_WRITE_ENABLED);
     hal_sw_bootmode_clear(bootmode);
 }
 

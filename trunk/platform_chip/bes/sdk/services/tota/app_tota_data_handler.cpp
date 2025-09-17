@@ -22,8 +22,8 @@
 #include "app_tota_cmd_code.h"
 #include "app_tota_cmd_handler.h"
 #include "app_tota_data_handler.h"
-#include "bluetooth_ble_api.h"
-#include "crc_c.h"
+//#include "rwapp_config.h"
+#include "crc32_c.h"
 #include "app_spp_tota.h"
 
 
@@ -98,24 +98,24 @@ void app_tota_data_xfer_control_handler(APP_TOTA_CMD_CODE_E funcCode, uint8_t* p
 {
 	APP_TOTA_CMD_RET_STATUS_E retStatus = TOTA_NO_ERROR;
 	APP_TOTA_TRANSMISSION_PATH_E dataPath = app_tota_get_datapath();
-    TOTA_TRACE(3,"[%s] funcCode = 0x%x, datapath = %d",__func__, funcCode,dataPath);
+    TOTA_LOG_DBG(3,"[%s] funcCode = 0x%x, datapath = %d",__func__, funcCode,dataPath);
 	if (OP_TOTA_START_DATA_XFER == funcCode)
 	{
 		if (app_tota_data_rec_handler_env.isDataXferInProgress)
 		{
-			TOTA_TRACE(1,"[%s]error TOTA_DATA_XFER_ALREADY_STARTED",__func__);
+			TOTA_LOG_DBG(1,"[%s]error TOTA_DATA_XFER_ALREADY_STARTED",__func__);
 			retStatus = TOTA_DATA_XFER_ALREADY_STARTED;
 		}
 		else
 		{
 			if (paramLen < sizeof(APP_TOTA_START_DATA_XFER_T))
 			{
-				TOTA_TRACE(1,"[%s]error TOTA_PARAMETER_LENGTH_TOO_SHORT",__func__);
+				TOTA_LOG_DBG(1,"[%s]error TOTA_PARAMETER_LENGTH_TOO_SHORT",__func__);
 				retStatus = TOTA_PARAMETER_LENGTH_TOO_SHORT;
 			}
 			else if (paramLen > sizeof(APP_TOTA_START_DATA_XFER_T))
 			{
-				TOTA_TRACE(1,"[%s]error TOTA_PARAM_LEN_OUT_OF_RANGE",__func__);
+				TOTA_LOG_DBG(1,"[%s]error TOTA_PARAM_LEN_OUT_OF_RANGE",__func__);
 				retStatus = TOTA_PARAM_LEN_OUT_OF_RANGE;
 			}
 			else
@@ -330,7 +330,7 @@ void app_tota_send_data(APP_TOTA_TRANSMISSION_PATH_E path, uint8_t* ptrData, uin
 		}
 		switch (path)
 		{
-			case :
+			case APP_TOTA_VIA_SPP:
                 app_tota_send_data_via_spp(app_tota_tmpDataXferBuf, dataLength + TOTA_CMD_CODE_SIZE);
 				break;
 			default:
@@ -422,18 +422,18 @@ void app_tota_data_xfer_ack_handler(APP_TOTA_CMD_RET_STATUS_E retStatus, uint8_t
 #else
 void app_tota_data_xfer_ack_handler(APP_TOTA_CMD_RET_STATUS_E retStatus, uint8_t* ptrParam, uint32_t paramLen)
 {
-    TOTA_TRACE(2,"retStatus 0x%x, param len %d", retStatus, paramLen);
+    TOTA_LOG_DBG(2,"retStatus 0x%x, param len %d", retStatus, paramLen);
     app_tota_data_ack_received(((APP_TOTA_DATA_ACK_T *)ptrParam)->dataLenReceivedByPeerDev);
 }
 #endif
 
 void app_tota_handle_received_data(uint8_t* buffer, uint16_t maxBytes)
 {
-    TOTA_TRACE(2,"[%s]data receive data length = %d",__func__,maxBytes);
-    TOTA_DUMP8("[0x%x]",buffer,(maxBytes>20 ? 20 : maxBytes));
+    TOTA_LOG_DBG(2,"[%s]data receive data length = %d",__func__,maxBytes);
+    TOTA_LOG_DUMP("[0x%x]",buffer,(maxBytes>20 ? 20 : maxBytes));
     if (OP_TOTA_DATA_XFER == *(uint16_t *)buffer)
         {
-            TOTA_TRACE(0,"APP TOTA DATA RECEIVED");
+            TRACE(0,"APP TOTA DATA RECEIVED");
             app_tota_data_received(buffer, (uint32_t)maxBytes);
         }
         // otherwise it will be a command packet

@@ -1,6 +1,6 @@
 /***************************************************************************
  *
- * Copyright 2015-2019 BES.
+ * Copyright 2015-2024 BES.
  * All rights reserved. All unpublished rights reserved.
  *
  * No part of this work may be used or reproduced in any form or by any
@@ -56,6 +56,13 @@ enum USB_SERIAL_RET_VALUE {
     USB_ERR_RXTX_CANCEL                 = -14,
 };
 
+enum USB_SERIAL_XFER_TYPE_TYPE_T {
+    USB_SERIAL_XFER_TYPE_ALL,
+    USB_SERIAL_XFER_TYPE_RX,
+    USB_SERIAL_XFER_TYPE_TX,
+    USB_SERIAL_XFER_TYPE_NOTIF,
+};
+
 enum USB_SERIAL_STOP_BITS_T {
     USB_SERIAL_STOP_BITS_1              = 0,
     USB_SERIAL_STOP_BITS_1P5            = 1,
@@ -91,7 +98,7 @@ typedef void (*USB_SERIAL_STATE_CALLBACK)(enum USB_SERIAL_STATE_EVENT_T event);
 typedef void (*USB_SERIAL_BREAK_CALLBACK)(uint16_t ms);
 typedef int (*USB_SERIAL_GET_LINE_CODING_CALLBACK)(struct USB_SERIAL_LINE_CODING_T *coding);
 typedef int (*USB_SERIAL_SET_LINE_CODING_CALLBACK)(const struct USB_SERIAL_LINE_CODING_T *coding);
-typedef void (*USB_SERIAL_XFER_CALLBACK)(const uint8_t *data, uint32_t size, int error);
+typedef void (*USB_SERIAL_XFER_CALLBACK)(const void *data, uint32_t size, int error);
 
 struct USB_SERIAL_CFG_T {
     USB_SERIAL_STATE_CALLBACK state_callback;
@@ -111,22 +118,24 @@ int usb_serial_ready(void);
 
 int usb_serial_connected(void);
 
-void usb_serial_init_xfer(void);
+void usb_serial_init_xfer(enum USB_SERIAL_XFER_TYPE_TYPE_T type);
+
+int usb_serial_irq_run(void);
 
 void usb_serial_cancel_recv(void);
 
 int usb_serial_flush_recv_buffer(void);
 
-int usb_serial_recv(uint8_t *buf, uint32_t size);
+int usb_serial_recv(void *buf, uint32_t size);
 
-int usb_serial_direct_recv(uint8_t *dma_buf, uint32_t size, uint32_t expect, uint32_t *recv,
+int usb_serial_direct_recv(void *dma_buf, uint32_t size, uint32_t expect, uint32_t *recv,
                            USB_SERIAL_XFER_CALLBACK callback);
 
 void usb_serial_cancel_send(void);
 
-int usb_serial_send(const uint8_t *buf, uint32_t size);
+int usb_serial_send(const void *buf, uint32_t size);
 
-int usb_serial_direct_send(const uint8_t *dma_buf, uint32_t size, USB_SERIAL_XFER_CALLBACK callback);
+int usb_serial_direct_send(const void *dma_buf, uint32_t size, USB_SERIAL_XFER_CALLBACK callback);
 
 int usb_serial_state_notif_busy(void);
 
@@ -138,6 +147,17 @@ int usb_serial_break_clear(void);
 
 // Auto clear break signal
 int usb_serial_send_break(void);
+
+// for custom hid if define CUSTOM_CDC_HID
+typedef void (*USB_CUSTOM_CDC_HID_XFER_CALLBACK)(const uint8_t *data, uint32_t size, int error);
+typedef int (*USB_CUSTOM_CDC_HID_SET_REPORT_CALLBACK)(const uint8_t *data, uint32_t size);
+
+void usb_custom_cdc_hid_open(USB_CUSTOM_CDC_HID_XFER_CALLBACK send_callback,
+                           USB_CUSTOM_CDC_HID_SET_REPORT_CALLBACK recv_callback);
+
+void usb_custom_cdc_hid_close(void);
+
+void usb_custom_cdc_hid_set_data(uint8_t *data, uint16_t size);
 
 #ifdef __cplusplus
 }

@@ -1,44 +1,61 @@
 #include <stdio.h>
 #include "cmsis_os.h"
 #include "bluetooth_bt_api.h"
-#include "app_bt_audio.h"
 #include "app_utils.h"
-#include "app_bt.h"
 #include "app_audio.h"
 #include "audio_trigger_checker.h"
 #include "a2dp_decoder.h"
-#include "btapp.h"
 #include "bt_drv.h"
 #include "bt_drv_reg_op.h"
 #include "bt_drv_interface.h"
 #include "audio_trigger_common.h"
 #include "audio_trigger_a2dp.h"
-#include "audioflinger.h"
+#include "app_bt_audio.h"
+#include "app_audio_trace.h"
+#include "a2dp_decoder_internal.h"
 
-#if defined(BT_SVC_MODULE_IBRT_ENABLED)
+#ifdef ADVANCE_FILL_ENABLED
+#include "audioflinger.h"
+#endif
+
+#if defined(IBRT)
+#include "app_tws_ctrl_thread.h"
 #include "app_tws_ibrt_audio_analysis.h"
 #include "app_tws_ibrt_audio_sync.h"
 #include "audio_trigger_ibrt.h"
-#include "app_ibrt_internal.h"
-#include "earbud_ux_api.h"
-#include "app_tws_profile_sync.h"
-#include "app_tws_ibrt_cmd_handler.h"
-#include "bts_module_if.h"
+#include "app_ibrt_a2dp.h"
+
+#ifdef IBRT_UI
+#include "app_tws_ibrt_conn_api.h"
+#include "app_tws_ibrt_retrigger.h"
+#endif
+
+#ifdef A2DP_DECODER_CROSS_CORE
+extern void a2dp_decoder_bth_set_first_run(A2DP_AUDIO_STARTFRAME_INFO_T headframe);
+#endif
+
 #if BLE_AUDIO_ENABLED
 #include "app_audio_active_device_manager.h"
+#endif
+
+#ifdef ADVANCE_FILL_ENABLED
+void app_bt_stream_advance_fill_handler(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T stream);
+extern bool is_doing_pre_fill;
 #endif
 
 #ifdef A2DP_CP_ACCEL
 #define APP_BT_STREAM_IBRT_AUTO_SYNCHRONIZE_INITSYNC_SKIP_FRAME (8)
 #else
+#ifdef DECREASE_INITIAL_JITTER_BUF_LEN_ENABLED
+#define APP_BT_STREAM_IBRT_AUTO_SYNCHRONIZE_INITSYNC_SKIP_FRAME (0)
+#else
 #define APP_BT_STREAM_IBRT_AUTO_SYNCHRONIZE_INITSYNC_SKIP_FRAME (4)
+#endif
 #endif
 #if defined(A2DP_LHDC_ON) || defined(A2DP_LHDCV5_ON)
 #define APP_BT_STREAM_IBRT_AUTO_SYNCHRONIZE_INITSYNC_SKIP_FRAME_LHDC (0)
 #endif
 
-extern uint32_t app_bt_stream_get_dma_buffer_delay_us(void);
-extern uint32_t app_bt_stream_get_dma_buffer_samples(void);
 extern uint32_t tg_acl_trigger_time;
 
 bool is_need_discards_samples = false;
@@ -52,20 +69,19 @@ int app_bt_stream_ibrt_auto_synchronize_initsync_dataind_cb(uint8_t device_id, b
     APP_TWS_IBRT_AUDIO_SYNC_TRIGGER_T *sync_trigger = &app_bt_stream_ibrt_auto_synchronize_initsync_trigger;
     bool synchronize_ok = false;
     A2DP_AUDIO_LASTFRAME_INFO_T lastframe_info;
-
-    AUDIOPLAYERS_TRACE(0,"[AUTO_SYNC][INITSYNC][DATAIND] dataind_seq:%d/%d timestamp:%d/%d", header->sequenceNumber,
+    TRACE_AUD_STREAM_I("[AUTO_SYNC][INITSYNC][DATAIND] dataind_seq:%d/%d timestamp:%d/%d", header->sequenceNumber,
                                                                              sync_trigger->sequenceNumberStart,
                                                                              header->timestamp,
                                                                              sync_trigger->audio_info.timestamp);
 
     if (a2dp_audio_lastframe_info_get(&lastframe_info)<0){
-        AUDIOPLAYERS_TRACE(0,"[AUTO_SYNC][INITSYNC][DATAIND] force retrigger");
+        TRACE_AUD_STREAM_W("[AUTO_SYNC][INITSYNC][DATAIND] force retrigger");
         app_ibrt_if_force_audio_retrigger(RETRIGGER_BY_DECODE_STATUS_ERROR);
         return 0;
     }
 
     if (app_bt_stream_trigger_stauts_get() != BT_STREAM_TRIGGER_STATUS_WAIT){
-        AUDIOPLAYERS_TRACE(0,"[AUTO_SYNC][INITSYNC][DATAIND] already end");
+        TRACE_AUD_STREAM_W("[AUTO_SYNC][INITSYNC][DATAIND] already end");
         a2dp_audio_detect_next_packet_callback_register(NULL);
         a2dp_audio_detect_store_packet_callback_register(NULL);
         return 0;
@@ -75,20 +91,22 @@ int app_bt_stream_ibrt_auto_synchronize_initsync_dataind_cb(uint8_t device_id, b
 #ifdef A2DP_PLAYER_PLAYBACK_WATER_LINE
         A2DP_AUDIO_HEADFRAME_INFO_T headframe_info;
         if (a2dp_audio_decoder_headframe_info_get(&headframe_info) < 0) {
-            AUDIOPLAYERS_TRACE(0,"[AUTO_SYNC][INITSYNC][DATAIND] force retrigger");
+            TRACE_AUD_STREAM_W("[AUTO_SYNC][INITSYNC][DATAIND] force retrigger");
             app_ibrt_if_force_audio_retrigger(RETRIGGER_BY_DECODE_STATUS_ERROR);
             return 0;
         }
+
         if (sync_trigger->sequenceNumberStart >= headframe_info.sequenceNumber) {
-            AUDIOPLAYERS_TRACE(0,"[AUTO_SYNC][INITSYNC][DATAIND] seq:sync_trigger<header");
+            TRACE_AUD_STREAM_W("[AUTO_SYNC][INITSYNC][DATAIND] seq:sync_trigger<header");
             synchronize_ok = true;
         } else {
-            AUDIOPLAYERS_TRACE(0,"[AUTO_SYNC][INITSYNC][DATAIND] do not retrigger");
+            TRACE_AUD_STREAM_W("[AUTO_SYNC][INITSYNC][DATAIND] do not retrigger");
             synchronize_ok = true;
+            //TRACE_AUD_STREAM_W("[AUTO_SYNC][INITSYNC][DATAIND] force retrigger");
             //app_ibrt_if_force_audio_retrigger(RETRIGGER_BY_SEQ_MISMATCH);
         }
 #else
-        AUDIOPLAYERS_TRACE(0,"[AUTO_SYNC][INITSYNC][DATAIND] force retrigger");
+        TRACE_AUD_STREAM_W("[AUTO_SYNC][INITSYNC][DATAIND] force retrigger");
         app_ibrt_if_force_audio_retrigger(RETRIGGER_BY_SEQ_MISMATCH);
 #endif
     }else{
@@ -97,7 +115,7 @@ int app_bt_stream_ibrt_auto_synchronize_initsync_dataind_cb(uint8_t device_id, b
         }
 
         if (synchronize_ok && app_bt_stream_trigger_stauts_get() != BT_STREAM_TRIGGER_STATUS_WAIT){
-            AUDIOPLAYERS_TRACE(0,"[AUTO_SYNC][INITSYNC][DATAIND] synchronize_failed");
+            TRACE_AUD_STREAM_W("[AUTO_SYNC][INITSYNC][DATAIND] synchronize_failed");
             app_ibrt_if_force_audio_retrigger(RETRIGGER_BY_STATUS_ERROR);
             return 0;
         }
@@ -107,10 +125,10 @@ int app_bt_stream_ibrt_auto_synchronize_initsync_dataind_cb(uint8_t device_id, b
         uint32_t limter_water_line_samples = 0;
         limter_water_line_samples = (a2dp_audio_dest_packet_mut_get() * lastframe_info.list_samples);
         a2dp_audio_convert_list_to_samples(&list_samples);
-        AUDIOPLAYERS_TRACE(0,"[AUTO_SYNC][INITSYNC][DATAIND] synchronize:%d/%d", list_samples, limter_water_line_samples);
+        TRACE_AUD_STREAM_W("[AUTO_SYNC][INITSYNC][DATAIND] synchronize:%d/%d", list_samples, limter_water_line_samples);
         if (list_samples > limter_water_line_samples){
             is_need_discards_samples = true;
-            // AUDIOPLAYERS_TRACE(0,"[AUTO_SYNC][INITSYNC][DATAIND] skip discards:%d", list_samples - limter_water_line_samples);
+            // TRACE_AUD_STREAM_W("[AUTO_SYNC][INITSYNC][DATAIND] skip discards:%d", list_samples - limter_water_line_samples);
             // a2dp_audio_discards_samples(list_samples - limter_water_line_samples);
         }
 #else
@@ -122,9 +140,27 @@ int app_bt_stream_ibrt_auto_synchronize_initsync_dataind_cb(uint8_t device_id, b
     if (synchronize_ok){
         A2DP_AUDIO_HEADFRAME_INFO_T headframe_info;
         a2dp_audio_decoder_headframe_info_get(&headframe_info);
-        AUDIOPLAYERS_TRACE(0,"[AUTO_SYNC][INITSYNC][DATAIND] synchronize_ok :%d", headframe_info.sequenceNumber);
+        TRACE_AUD_STREAM_W("[AUTO_SYNC][INITSYNC][DATAIND] synchronize_ok :%d", headframe_info.sequenceNumber);
         a2dp_audio_detect_next_packet_callback_register(NULL);
         a2dp_audio_detect_store_packet_callback_register(NULL);
+#ifdef ADVANCE_FILL_ENABLED
+        is_doing_pre_fill = true;
+        uint8_t codecType = bes_bt_a2dp_get_curr_codec_type();
+        switch (codecType)
+        {
+            case BT_A2DP_CODEC_TYPE_SBC:
+                break;
+            case BT_A2DP_CODEC_TYPE_MPEG2_4_AAC:
+                //app_bt_stream_advance_fill_handler(AUD_STREAM_ID_0, AUD_STREAM_PLAYBACK);
+                break;
+            case BT_A2DP_CODEC_TYPE_NON_A2DP:
+                //app_bt_stream_advance_fill_handler(AUD_STREAM_ID_0, AUD_STREAM_PLAYBACK);
+                break;
+            default:
+                break;
+        }
+        is_doing_pre_fill = false;
+#endif
     }else{
         a2dp_audio_detect_first_packet();
     }
@@ -133,39 +169,40 @@ int app_bt_stream_ibrt_auto_synchronize_initsync_dataind_cb(uint8_t device_id, b
 
 void app_bt_stream_ibrt_auto_synchronize_initsync_start(uint8_t device_id, APP_TWS_IBRT_AUDIO_SYNC_TRIGGER_T *sync_trigger)
 {
-    AUDIOPLAYERS_TRACE(0,"[AUTO_SYNC][INITSYNC] trigger_time:%d seq:%d timestamp:%d SubSeq:%d/%d", sync_trigger->trigger_time,
+    TRACE_AUD_STREAM_I("[AUTO_SYNC][INITSYNC] trigger_time:%d seq:%d timestamp:%d SubSeq:%d/%d", sync_trigger->trigger_time,
                                                                                        sync_trigger->audio_info.sequenceNumber,
                                                                                        sync_trigger->audio_info.timestamp,
                                                                                        sync_trigger->audio_info.curSubSequenceNumber,
                                                                                        sync_trigger->audio_info.totalSubSequenceNumber
                                                                                        );
-    POSSIBLY_UNUSED struct BT_DEVICE_T *curr_device = app_bt_get_device(device_id);
+    POSSIBLY_UNUSED bt_acl_state_t acl_state = bes_bt_me_acl_get_state(device_id);
 
     app_bt_stream_ibrt_auto_synchronize_initsync_trigger = *sync_trigger;
     a2dp_audio_detect_next_packet_callback_register(app_bt_stream_ibrt_auto_synchronize_initsync_dataind_cb);
     a2dp_audio_detect_first_packet();
-    if (bts_ibrt_if_is_ibrt_link_connected(&curr_device->remote))
+    if (app_tws_ibrt_slave_ibrt_link_connected(&acl_state.remote))
     {
-        if (sync_trigger->trigger_time > bt_syn_get_curr_ticks(bts_ibrt_if_get_dev_ibrt_handle(&curr_device->remote)))
+        uint32_t curr_ticks;
+        curr_ticks = bt_syn_get_curr_ticks(app_tws_ibrt_get_ibrt_handle(&acl_state.remote));
+        if (sync_trigger->trigger_time > curr_ticks)
         {
             uint32_t tg_tick = sync_trigger->trigger_time;
+            btdrv_syn_trigger_codec_en(1);
             btdrv_syn_clr_trigger(0);
             btdrv_enable_playback_triggler(ACL_TRIGGLE_MODE);
-#if BLE_AUDIO_ENABLED
-            af_codec_set_device_bt_sync_source(AUD_STREAM_USE_INT_CODEC, AUD_STREAM_PLAYBACK, 0);
-#endif
-            bt_syn_set_tg_ticks(tg_tick, bts_ibrt_if_get_dev_ibrt_handle(&curr_device->remote), BT_TRIG_SLAVE_ROLE,0,false);
+            bt_syn_set_tg_ticks(tg_tick, app_tws_ibrt_get_ibrt_handle(&acl_state.remote), BT_TRIG_SLAVE_ROLE,0,false);
             tg_acl_trigger_time = tg_tick;
             app_bt_stream_trigger_stauts_set(BT_STREAM_TRIGGER_STATUS_WAIT);
-            AUDIOPLAYERS_TRACE(0,"[AUTO_SYNC][INITSYNC] start slave trigger curr(%d)-->tg(%d)", bt_syn_get_curr_ticks(bts_ibrt_if_get_dev_ibrt_handle(&curr_device->remote)), tg_tick);
+            TRACE_AUD_STREAM_I("[AUTO_SYNC][INITSYNC] start slave trigger curr(%d)-->tg(%d)", curr_ticks, tg_tick);
             app_tws_ibrt_audio_analysis_start(sync_trigger->handler_cnt, AUDIO_ANALYSIS_CHECKER_INTERVEL_INVALID);
             app_tws_ibrt_audio_sync_start();
             app_tws_ibrt_audio_sync_new_reference(sync_trigger->factor_reference);
         }else{
-            AUDIOPLAYERS_TRACE(0,"[AUTO_SYNC][INITSYNC] slave failed trigger(%d)-->tg(%d) need resume",
-                                                            bt_syn_get_curr_ticks(bts_ibrt_if_get_dev_ibrt_handle(NULL)),
+            TRACE_AUD_STREAM_I("[AUTO_SYNC][INITSYNC] slave failed trigger(%d)-->tg(%d) need resume",
+                                                            bt_syn_get_curr_ticks(app_tws_ibrt_get_ibrt_handle(NULL)),
                                                             sync_trigger->trigger_time);
-            app_tws_ibrt_audio_sync_mismatch_resume_notify(device_id);
+            app_ibrt_if_force_audio_retrigger(RETRIGGER_BY_TRIGGER_FAIL);
+            //app_tws_ibrt_audio_sync_mismatch_resume_notify(device_id);
         }
     }
 }
@@ -180,22 +217,30 @@ int app_bt_stream_ibrt_audio_master_detect_next_packet_cb(uint8_t device_id, bti
     if(app_bt_stream_trigger_stauts_get() == BT_STREAM_TRIGGER_STATUS_INIT){
         ibrt_ctrl_t  *p_ibrt_ctrl = app_tws_ibrt_get_bt_ctrl_ctx();
         int32_t dma_buffer_samples = app_bt_stream_get_dma_buffer_samples()/2;
-        POSSIBLY_UNUSED struct BT_DEVICE_T *curr_device = app_bt_get_device(device_id);
+        POSSIBLY_UNUSED bt_acl_state_t acl_state = bes_bt_me_acl_get_state(device_id);
+        bool start_ibrt_onprocess = (app_ibrt_conn_is_ibrt_idle(&acl_state.remote) ? false : true);
+        bool a2dp_sync_onprocess = app_ibrt_sync_a2dp_status_onporcess(&acl_state.remote);
 
-        if (bts_ibrt_if_is_ibrt_link_connected(&curr_device->remote)){
-            AUDIOPLAYERS_TRACE(0,"[AUTO_SYNC][MASTER]cache ok but is_ibrt_master_connected:%d mismatch\n", bts_bt_if_is_dev_link_connected(&curr_device->remote));
+        if (app_tws_ibrt_slave_ibrt_link_connected(&acl_state.remote)){
+            TRACE_AUD_STREAM_W("[AUTO_SYNC][MASTER]cache ok but currRole:%d mismatch\n", app_tws_get_ibrt_role(&acl_state.remote));
             app_ibrt_if_force_audio_retrigger(RETRIGGER_BY_ROLE_MISMATCH);
-        }else if (!bts_ibrt_if_is_profile_exchanged(&curr_device->remote) &&
-                  !app_ibrt_if_start_ibrt_onprocess(&curr_device->remote) &&
-                  !app_ibrt_sync_a2dp_status_onprocess(&curr_device->remote)){
-            if (bts_bt_if_get_dev_link_mode(&curr_device->remote) == IBRT_SNIFF_MODE){
+        }else if (!app_ibrt_conn_is_profile_exchanged(&acl_state.remote) &&
+                  !start_ibrt_onprocess && !a2dp_sync_onprocess){
+            if (app_ibrt_conn_get_mobile_mode(&acl_state.remote) == IBRT_SNIFF_MODE){
                 //flush all
                 a2dp_audio_synchronize_dest_packet_mut(0);
                 a2dp_audio_detect_first_packet();
-                AUDIOPLAYERS_TRACE(0,"[AUTO_SYNC][MASTER] cache skip delay dma trigger1\n");
+                TRACE_AUD_STREAM_I("[AUTO_SYNC][MASTER] cache skip delay dma trigger1\n");
                 return 0;
             }
-            AUDIOPLAYERS_TRACE(0,"[AUTO_SYNC][MASTER] cache ok use dma trigger1\n");
+#ifdef A2DP_DECODER_CROSS_CORE
+            A2DP_AUDIO_STARTFRAME_INFO_T start_frame_info;
+            start_frame_info.sequenceNumber = header->sequenceNumber;
+            start_frame_info.curSubSequenceNumber = 0;
+            start_frame_info.is_ignore = false;
+            a2dp_decoder_bth_set_first_run(start_frame_info);
+#endif
+            TRACE_AUD_STREAM_I("[AUTO_SYNC][MASTER] cache ok use dma trigger1\n");
             a2dp_audio_detect_next_packet_callback_register(NULL);
             a2dp_audio_detect_store_packet_callback_register(NULL);
 #ifdef A2DP_PLAYER_PLAYBACK_WATER_LINE
@@ -203,45 +248,54 @@ int app_bt_stream_ibrt_audio_master_detect_next_packet_cb(uint8_t device_id, bti
 #else
             app_bt_stream_trigger_start(device_id, 0);
 #endif
-        }else if (app_ibrt_if_start_ibrt_onprocess(&curr_device->remote) ||
-                  app_ibrt_sync_a2dp_status_onprocess(&curr_device->remote) ||
-                  !bts_ibrt_if_a2dp_profile_is_exchanged(&curr_device->remote)
+        }else if (start_ibrt_onprocess || a2dp_sync_onprocess ||
+                  !app_ibrt_a2dp_profile_is_exchanged(&acl_state.remote) ||
 #if BLE_AUDIO_ENABLED
-                  || (app_audio_adm_get_le_audio_music_stream_device() != BT_DEVICE_INVALID_ID)
+                  (app_audio_adm_get_le_audio_music_stream_device() != BT_DEVICE_INVALID_ID) ||
 #endif
-                  ){
+                  app_ibrt_waiting_cmd_rsp()){
             //flush all
             a2dp_audio_synchronize_dest_packet_mut(0);
             a2dp_audio_detect_first_packet();
-            AUDIOPLAYERS_TRACE(0,"[AUTO_SYNC][MASTER] ibrt_onporcess:%d,sync_a2dp_status_onporcess:%d,a2dp_profile_exchanged:%d",
-                                app_ibrt_if_start_ibrt_onprocess(&curr_device->remote),
-                                app_ibrt_sync_a2dp_status_onprocess(&curr_device->remote),
-                                bts_ibrt_if_a2dp_profile_is_exchanged(&curr_device->remote));
-            AUDIOPLAYERS_TRACE(0,"[AUTO_SYNC][MASTER] cache skip profile_exchanged sync_a2dp_status_onporcess\n");
+            TRACE_AUD_STREAM_I("[AUTO_SYNC][MASTER] ibrt_onporcess:%d,sync_a2dp_status_onporcess:%d,waiting_cmd_rsp:%d,a2dp_profile_exchanged:%d",
+                                start_ibrt_onprocess,
+                                a2dp_sync_onprocess,
+                                app_ibrt_waiting_cmd_rsp(),
+                                app_ibrt_a2dp_profile_is_exchanged(&acl_state.remote));
+            TRACE_AUD_STREAM_I("[AUTO_SYNC][MASTER] cache skip profile_exchanged sync_a2dp_status_onporcess\n");
             return 0;
         }else{
             if (p_ibrt_ctrl->tws_mode == IBRT_SNIFF_MODE    ||
-                bts_bt_if_get_dev_link_mode(&curr_device->remote) == IBRT_SNIFF_MODE){
+                app_ibrt_conn_get_mobile_mode(&acl_state.remote) == IBRT_SNIFF_MODE){
                 //flush all
                 a2dp_audio_synchronize_dest_packet_mut(0);
                 a2dp_audio_detect_first_packet();
-                AUDIOPLAYERS_TRACE(0,"[AUTO_SYNC][MASTER] cache skip delay dma trigger2\n");
+                TRACE_AUD_STREAM_I("[AUTO_SYNC][MASTER] cache skip delay dma trigger2\n");
                 return 0;
             }
 
 #ifdef A2DP_PLAYER_PLAYBACK_WATER_LINE
             uint32_t dest_waterline_samples = 0;
             uint32_t list_samples = 0;
-            dest_waterline_samples = app_bt_stream_get_dma_buffer_samples()/2*A2DP_PLAYER_PLAYBACK_WATER_LINE;
+
+            if (a2dp_audio_chopping_is_in_post())
+            {
+                dest_waterline_samples = app_bt_stream_get_dma_buffer_samples()/2*(uint32_t)(1.5);
+            }
+            else
+            {
+                dest_waterline_samples = app_bt_stream_get_dma_buffer_samples()/2*A2DP_PLAYER_PLAYBACK_WATER_LINE;
+            }
+
             a2dp_audio_convert_list_to_samples(&list_samples);
             if (list_samples < dest_waterline_samples){
                 a2dp_audio_detect_first_packet();
-                AUDIOPLAYERS_TRACE(0,"[AUTO_SYNC][MASTER] cache skip fill data sample:%d\n", list_samples);
+                TRACE_AUD_STREAM_I("[AUTO_SYNC][MASTER] cache skip fill data sample:%d\n", list_samples);
                 return 0;
             }
             a2dp_audio_decoder_headframe_info_get(&headframe_info);
+            uint8_t codec_type = bes_bt_a2dp_get_curr_codec_type();
 #if defined(A2DP_LHDC_ON) || defined(A2DP_LHDCV5_ON)
-            uint8_t codec_type = bta_get_curr_a2dp_codec_type();
             if(codec_type == BT_A2DP_CODEC_TYPE_LHDC)
             {
                 sync_info.sequenceNumber = headframe_info.sequenceNumber;
@@ -249,14 +303,35 @@ int app_bt_stream_ibrt_audio_master_detect_next_packet_cb(uint8_t device_id, bti
             else
 #endif
             {
-                sync_info.sequenceNumber = headframe_info.sequenceNumber+1;
+                if (a2dp_audio_chopping_is_in_post())
+                {
+                    sync_info.sequenceNumber = headframe_info.sequenceNumber;
+                }
+                else
+                {
+                    sync_info.sequenceNumber = headframe_info.sequenceNumber + 1;
+                }
+            }
+            uint32_t currentSampleRate = (uint32_t)bt_get_sbc_sample_rate();
+
+            if ((codec_type==BT_A2DP_CODEC_TYPE_NON_A2DP)&&(currentSampleRate==96000))
+            {
+                sync_info.sequenceNumber &= 0x00FF;
             }
             a2dp_audio_synchronize_packet(&sync_info, A2DP_AUDIO_SYNCFRAME_MASK_SEQ);
+#ifdef A2DP_DECODER_CROSS_CORE
+            A2DP_AUDIO_STARTFRAME_INFO_T start_frame_info;
+            start_frame_info.sequenceNumber = sync_info.sequenceNumber;
+            start_frame_info.curSubSequenceNumber = 0;
+            start_frame_info.is_ignore = false;
+            a2dp_decoder_bth_set_first_run(start_frame_info);
+#endif
 #else
             a2dp_audio_synchronize_dest_packet_mut(0);
 #endif
-            AUDIOPLAYERS_TRACE(0,"[AUTO_SYNC][MASTER] cache ok use dma trigger2\n");
-
+            TRACE_AUD_STREAM_I("[AUTO_SYNC][MASTER] cache ok use dma trigger2\n");
+            a2dp_audio_detect_next_packet_callback_register(NULL);
+            a2dp_audio_detect_store_packet_callback_register(NULL);
 #ifdef A2DP_CP_ACCEL
 #if defined(A2DP_LHDC_ON) || defined(A2DP_LHDCV5_ON)
             if(codec_type == BT_A2DP_CODEC_TYPE_LHDC)
@@ -269,10 +344,9 @@ int app_bt_stream_ibrt_audio_master_detect_next_packet_cb(uint8_t device_id, bti
                 app_bt_stream_trigger_start(device_id, APP_BT_STREAM_IBRT_AUTO_SYNCHRONIZE_INITSYNC_SKIP_FRAME - a2dp_audio_frame_delay_get());
             }
 #else
-            app_bt_stream_trigger_start(device_id, APP_BT_STREAM_IBRT_AUTO_SYNCHRONIZE_INITSYNC_SKIP_FRAME);
+            app_bt_stream_trigger_start(device_id, APP_BT_STREAM_IBRT_AUTO_SYNCHRONIZE_INITSYNC_SKIP_FRAME - a2dp_audio_frame_delay_get());
 #endif
             APP_TWS_IBRT_AUDIO_SYNC_TRIGGER_T sync_trigger;
-            A2DP_AUDIO_HEADFRAME_INFO_T headframe_info;
             A2DP_AUDIO_LASTFRAME_INFO_T lastframe_info;
             sync_trigger.trigger_time = tg_acl_trigger_time;
 #if defined(A2DP_LHDC_ON) || defined(A2DP_LHDCV5_ON)
@@ -285,14 +359,16 @@ int app_bt_stream_ibrt_audio_master_detect_next_packet_cb(uint8_t device_id, bti
             {
                 sync_trigger.trigger_skip_frame = APP_BT_STREAM_IBRT_AUTO_SYNCHRONIZE_INITSYNC_SKIP_FRAME - a2dp_audio_frame_delay_get();
             }
+            if (sync_trigger.trigger_skip_frame < 0)
+            {
+                sync_trigger.trigger_skip_frame = 0;
+            }
             sync_trigger.trigger_type = APP_TWS_IBRT_AUDIO_TRIGGER_TYPE_INIT_SYNC;
             if (a2dp_audio_lastframe_info_get(&lastframe_info)<0){
                 goto exit;
             }
 
-            a2dp_audio_decoder_headframe_info_get(&headframe_info);
-            sync_trigger.sequenceNumberStart = headframe_info.sequenceNumber;
-            AUDIOPLAYERS_TRACE(0, "sequenceNumberStart %d", sync_trigger.sequenceNumberStart);
+            sync_trigger.sequenceNumberStart = sync_info.sequenceNumber;
 #if defined(A2DP_LHDC_ON) || defined(A2DP_LHDCV5_ON)
             if(codec_type == BT_A2DP_CODEC_TYPE_LHDC)
             {
@@ -310,7 +386,7 @@ int app_bt_stream_ibrt_audio_master_detect_next_packet_cb(uint8_t device_id, bti
             {
                 sync_trigger.audio_info.sequenceNumber = lastframe_info.sequenceNumber + APP_BT_STREAM_IBRT_AUTO_SYNCHRONIZE_INITSYNC_SKIP_FRAME;
                 if (lastframe_info.totalSubSequenceNumber){
-                    sync_trigger.audio_info.timestamp = lastframe_info.timestamp +
+                    sync_trigger.audio_info.timestamp = lastframe_info.timestamp + 1 +
                                                         (lastframe_info.totalSubSequenceNumber * lastframe_info.frame_samples) *
                                                         APP_BT_STREAM_IBRT_AUTO_SYNCHRONIZE_INITSYNC_SKIP_FRAME;
                 }else{
@@ -321,23 +397,24 @@ int app_bt_stream_ibrt_audio_master_detect_next_packet_cb(uint8_t device_id, bti
             sync_trigger.audio_info.totalSubSequenceNumber = lastframe_info.totalSubSequenceNumber;
             sync_trigger.audio_info.frame_samples = lastframe_info.frame_samples;
             sync_trigger.factor_reference = a2dp_audio_get_output_config()->factor_reference;
-            sync_trigger.a2dp_session = bta_tws_a2dp_get_ibrt_session(device_id);
+            sync_trigger.a2dp_session = bes_bt_tws_a2dp_get_ibrt_session(device_id);
             sync_trigger.handler_cnt = 0;
 #if defined(IBRT_UI)
-            sync_trigger.mobile_addr = curr_device->remote;
+            sync_trigger.mobile_addr = acl_state.remote;
 #endif
             app_bt_stream_ibrt_auto_synchronize_initsync_start(device_id, &sync_trigger);
 
-            if (bts_bt_if_is_dev_link_connected(&curr_device->remote) &&
-                bts_ibrt_if_is_profile_exchanged(&curr_device->remote)){
-                tws_ctrl_send_cmd(APP_TWS_CMD_SET_TRIGGER_TIME, (uint8_t*)&sync_trigger, sizeof(APP_TWS_IBRT_AUDIO_SYNC_TRIGGER_T));
+            if (app_tws_ibrt_mobile_link_connected(&acl_state.remote) &&
+                app_ibrt_conn_is_profile_exchanged(&acl_state.remote)){
+                app_ibrt_cmd_set_trigger((uint8_t*)&sync_trigger, sizeof(APP_TWS_IBRT_AUDIO_SYNC_TRIGGER_T));
+                //tws_ctrl_send_cmd_high_priority(APP_TWS_CMD_SET_TRIGGER_TIME, (uint8_t*)&sync_trigger, sizeof(APP_TWS_IBRT_AUDIO_SYNC_TRIGGER_T));
             }
         }
     }else{
         if(app_bt_stream_trigger_stauts_get() == BT_STREAM_TRIGGER_STATUS_NULL){
-            AUDIOPLAYERS_TRACE(0,"[AUTO_SYNC][MASTER] audio not ready skip it");
+            TRACE_AUD_STREAM_W("[AUTO_SYNC][MASTER] audio not ready skip it");
         }else{
-            AUDIOPLAYERS_TRACE(0,"[AUTO_SYNC][MASTER] unhandle status:%d", app_bt_stream_trigger_stauts_get());
+            TRACE_AUD_STREAM_I("[AUTO_SYNC][MASTER] unhandle status:%d", app_bt_stream_trigger_stauts_get());
             app_ibrt_if_force_audio_retrigger(RETRIGGER_BY_UNKNOW);
         }
     }
@@ -347,7 +424,7 @@ exit:
 
 int app_bt_stream_ibrt_audio_master_detect_next_packet_start(void)
 {
-    AUDIOPLAYERS_TRACE(0,"[AUTO_SYNC][MASTER] start");
+    TRACE_AUD_STREAM_I("[AUTO_SYNC][MASTER] start");
 
     a2dp_audio_detect_next_packet_callback_register(app_bt_stream_ibrt_audio_master_detect_next_packet_cb);
     return 0;
@@ -355,16 +432,18 @@ int app_bt_stream_ibrt_audio_master_detect_next_packet_start(void)
 
 #define SLAVE_DETECT_NEXT_PACKET_TO_RETRIGGER_THRESHOLD (120)
 static uint32_t slave_detect_next_packet_cnt = 0;
-int app_bt_stream_ibrt_audio_slave_detect_next_packet_waitforever_cb(uint8_t device_id, btif_media_header_t * header, unsigned char *buf, unsigned int len)
+int app_bt_stream_ibrt_audio_slave_detect_next_packet_waitforever_cb(uint8_t device_id,
+    btif_media_header_t * header, unsigned char *buf, unsigned int len)
 {
-    POSSIBLY_UNUSED struct BT_DEVICE_T *curr_device = app_bt_get_device(device_id);
-    if (bts_bt_if_is_dev_link_connected(&curr_device->remote) || ++slave_detect_next_packet_cnt > SLAVE_DETECT_NEXT_PACKET_TO_RETRIGGER_THRESHOLD){
-        AUDIOPLAYERS_TRACE(0,"[AUTO_SYNC][SLAVE] detect_next_packet ok but is_ibrt_master_connected:%d mismatch packet_cnt:%d\n", bts_bt_if_is_dev_link_connected(&curr_device->remote),
-                                                                                slave_detect_next_packet_cnt);
+    POSSIBLY_UNUSED bt_acl_state_t acl_state = bes_bt_me_acl_get_state(device_id);
+    if (app_tws_ibrt_mobile_link_connected(&acl_state.remote) ||
+        ++slave_detect_next_packet_cnt > SLAVE_DETECT_NEXT_PACKET_TO_RETRIGGER_THRESHOLD){
+        TRACE_AUD_STREAM_W("[AUTO_SYNC][SLAVE] detect_next_packet ok but currRole:%d mismatch packet_cnt:%d\n",
+            app_tws_get_ibrt_role(&acl_state.remote), slave_detect_next_packet_cnt);
         slave_detect_next_packet_cnt = 0;
         app_ibrt_if_force_audio_retrigger(RETRIGGER_BY_ROLE_MISMATCH);
     }else{
-        AUDIOPLAYERS_TRACE(0,"[AUTO_SYNC][SLAVE] detect_next_packet cnt:%d\n", slave_detect_next_packet_cnt);
+        TRACE_AUD_STREAM_I("[AUTO_SYNC][SLAVE] detect_next_packet cnt:%d\n", slave_detect_next_packet_cnt);
         a2dp_audio_detect_first_packet();
     }
     return 0;
@@ -375,31 +454,31 @@ int app_bt_stream_ibrt_audio_slave_detect_next_packet_cb(uint8_t device_id, btif
     if(app_bt_stream_trigger_onprocess()){
         ibrt_ctrl_t  *p_ibrt_ctrl = app_tws_ibrt_get_bt_ctrl_ctx();
         int32_t dma_buffer_samples = app_bt_stream_get_dma_buffer_samples()/2;
-        POSSIBLY_UNUSED struct BT_DEVICE_T *curr_device = app_bt_get_device(device_id);
+        POSSIBLY_UNUSED bt_acl_state_t acl_state = bes_bt_me_acl_get_state(device_id);
 
-        if (bts_bt_if_is_dev_link_connected(&curr_device->remote))
+        if (app_tws_ibrt_mobile_link_connected(&acl_state.remote))
         {
-            AUDIOPLAYERS_TRACE(0,"[AUTO_SYNC][SLAVE] cache ok but is_ibrt_master_connected:%d mismatch\n", bts_bt_if_is_dev_link_connected(&curr_device->remote));
+            TRACE_AUD_STREAM_W("[AUTO_SYNC][SLAVE] cache ok but currRole:%d mismatch\n", app_tws_get_ibrt_role(&acl_state.remote));
             app_ibrt_if_force_audio_retrigger(RETRIGGER_BY_ROLE_MISMATCH);
         }
         else
         {
-            if (bts_ibrt_if_is_ibrt_link_connected(&curr_device->remote) &&
+            if (app_tws_ibrt_slave_ibrt_link_connected(&acl_state.remote) &&
                 (p_ibrt_ctrl->tws_mode == IBRT_SNIFF_MODE    ||
-                 bts_bt_if_get_dev_link_mode(&curr_device->remote) == IBRT_SNIFF_MODE ||
-                !bts_ibrt_if_is_profile_exchanged(&curr_device->remote)))
+                 app_ibrt_conn_get_mobile_mode(&acl_state.remote) == IBRT_SNIFF_MODE ||
+                !app_ibrt_conn_is_profile_exchanged(&acl_state.remote)))
             {
                 //flush all
                 a2dp_audio_synchronize_dest_packet_mut(0);
                 a2dp_audio_detect_first_packet();
-                AUDIOPLAYERS_TRACE(0,"[AUTO_SYNC][SLAVE]cache skip delay dma trigger2\n");
+                TRACE_AUD_STREAM_W("[AUTO_SYNC][SLAVE]cache skip delay dma trigger2\n");
                 return 0;
             }
-            AUDIOPLAYERS_TRACE(0,"[AUTO_SYNC][SLAVE]cache ok use dma trigger2\n");
+            TRACE_AUD_STREAM_I("[AUTO_SYNC][SLAVE]cache ok use dma trigger2\n");
             //flush all
             a2dp_audio_synchronize_dest_packet_mut(0);
 #if defined(A2DP_LHDC_ON) || defined(A2DP_LHDCV5_ON)
-            uint8_t codec_type = bta_get_curr_a2dp_codec_type();
+            uint8_t codec_type = bes_bt_a2dp_get_curr_codec_type();
 #endif
 #ifdef A2DP_CP_ACCEL
 #if defined(A2DP_LHDC_ON) || defined(A2DP_LHDCV5_ON)
@@ -448,7 +527,7 @@ int app_bt_stream_ibrt_audio_slave_detect_next_packet_cb(uint8_t device_id, btif
             sync_trigger.audio_info.totalSubSequenceNumber = lastframe_info.totalSubSequenceNumber;
             sync_trigger.audio_info.frame_samples = lastframe_info.frame_samples;
             sync_trigger.factor_reference = a2dp_audio_get_output_config() ? a2dp_audio_get_output_config()->factor_reference : 1.0f;
-            sync_trigger.a2dp_session = bta_tws_a2dp_get_ibrt_session(device_id);
+            sync_trigger.a2dp_session = bes_bt_tws_a2dp_get_ibrt_session(device_id);
             sync_trigger.handler_cnt = 0;
 
             app_bt_stream_ibrt_auto_synchronize_initsync_start(device_id, &sync_trigger);
@@ -460,7 +539,7 @@ exit:
 
 int app_bt_stream_ibrt_audio_slave_detect_next_packet_start(int need_autotrigger)
 {
-    AUDIOPLAYERS_TRACE(0,"[AUTO_SYNC][SLAVE] start");
+    TRACE_AUD_STREAM_I("[AUTO_SYNC][SLAVE] start");
     slave_detect_next_packet_cnt = 0;
     if (need_autotrigger){
         a2dp_audio_detect_next_packet_callback_register(app_bt_stream_ibrt_audio_slave_detect_next_packet_waitforever_cb);
@@ -491,45 +570,47 @@ static APP_TWS_IBRT_AUDIO_SYNCHRONIZE_STATUS_TYPE ibrt_auto_synchronize_status =
 
 int app_bt_stream_ibrt_auto_synchronize_status_set(APP_TWS_IBRT_AUDIO_SYNCHRONIZE_STATUS_TYPE status)
 {
-    AUDIOPLAYERS_TRACE(0,"[AUTO_SYNC] status set:%d", status);
+    TRACE_AUD_STREAM_I("[AUTO_SYNC] status:%d", status);
     ibrt_auto_synchronize_status = status;
     return 0;
 }
 
 APP_TWS_IBRT_AUDIO_SYNCHRONIZE_STATUS_TYPE app_bt_stream_ibrt_auto_synchronize_status_get(void)
 {
-    AUDIOPLAYERS_TRACE(0,"[AUTO_SYNC] get status:%d", ibrt_auto_synchronize_status);
+    TRACE_AUD_STREAM_I("[AUTO_SYNC] status:%d", ibrt_auto_synchronize_status);
     return ibrt_auto_synchronize_status;
 }
 
 int app_bt_stream_ibrt_auto_synchronize_trigger_start(uint8_t device_id, btif_media_header_t * header, unsigned char *buf, unsigned int len)
 {
     APP_TWS_IBRT_AUDIO_SYNC_TRIGGER_T *sync_trigger = &app_bt_stream_ibrt_auto_synchronize_trigger;
-    struct BT_DEVICE_T *curr_device = app_bt_get_device(device_id);
+    bt_acl_state_t acl_state = bes_bt_me_acl_get_state(device_id);
 
     app_bt_stream_ibrt_auto_synchronize_stop();
-    AUDIOPLAYERS_TRACE(0,"[AUTO_SYNC] trigger:%d Seq:%d timestamp:%d SubSeq:%d/%d currSeq:%d",
-                                                                                   sync_trigger->trigger_time,
-                                                                                   sync_trigger->audio_info.sequenceNumber,
-                                                                                   sync_trigger->audio_info.timestamp,
-                                                                                   sync_trigger->audio_info.curSubSequenceNumber,
-                                                                                   sync_trigger->audio_info.totalSubSequenceNumber,
-                                                                                   header->sequenceNumber
-                                                                                   );
+    TRACE_AUD_STREAM_I("[AUTO_SYNC] trigger:%d Seq:%d timestamp:%d SubSeq:%d/%d currSeq:%d",
+            sync_trigger->trigger_time,
+            sync_trigger->audio_info.sequenceNumber,
+            sync_trigger->audio_info.timestamp,
+            sync_trigger->audio_info.curSubSequenceNumber,
+            sync_trigger->audio_info.totalSubSequenceNumber,
+            header->sequenceNumber
+            );
 
-    if (bts_ibrt_if_is_ibrt_link_connected(&curr_device->remote)){
-        if (sync_trigger->trigger_time >= bt_syn_get_curr_ticks(bts_ibrt_if_get_dev_ibrt_handle(&curr_device->remote))){
+    uint32_t curr_ticks;
+    curr_ticks = bt_syn_get_curr_ticks(app_tws_ibrt_get_ibrt_handle(&acl_state.remote));
+    if (app_tws_ibrt_slave_ibrt_link_connected(&acl_state.remote)){
+        if (sync_trigger->trigger_time >= curr_ticks){
             app_bt_stream_ibrt_set_trigger_time(device_id, sync_trigger);
         }else{
-            AUDIOPLAYERS_TRACE(0,"[AUTO_SYNC]failed trigger(%d)-->tg(%d) need resume",
-                    bt_syn_get_curr_ticks(bts_ibrt_if_get_dev_ibrt_handle(&curr_device->remote)),
+            TRACE_AUD_STREAM_W("[AUTO_SYNC]failed trigger(%d)-->tg(%d) need resume",
+                    curr_ticks,
                     sync_trigger->trigger_time);
 
             app_ibrt_if_force_audio_retrigger(RETRIGGER_BY_TRIGGER_FAIL);
             //app_tws_ibrt_audio_sync_mismatch_resume_notify(device_id);
         }
     }else{
-        AUDIOPLAYERS_TRACE(0,"[AUTO_SYNC] ok but is_ibrt_master_connected:%d mismatch\n", bts_bt_if_is_dev_link_connected(&curr_device->remote));
+        TRACE_AUD_STREAM_I("[AUTO_SYNC] ok but currRole:%d mismatch\n", app_tws_get_ibrt_role(&acl_state.remote));
         app_ibrt_if_force_audio_retrigger(RETRIGGER_BY_ROLE_MISMATCH);
     }
 
@@ -543,12 +624,12 @@ int app_bt_stream_ibrt_auto_synchronize_dataind_cb(uint8_t device_id, btif_media
     int32_t timestamp_diff = 0;
     int32_t dma_buffer_samples = 0;
     int32_t frame_totle_samples = 0;
-    POSSIBLY_UNUSED struct BT_DEVICE_T *curr_device = app_bt_get_device(device_id);
+    POSSIBLY_UNUSED bt_acl_state_t acl_state = bes_bt_me_acl_get_state(device_id);
 
     frame_totle_samples = sync_trigger->audio_info.totalSubSequenceNumber * sync_trigger->audio_info.frame_samples;
     timestamp_diff = sync_trigger->audio_info.timestamp - header->timestamp;
 
-    AUDIOPLAYERS_TRACE(0,"[AUTO_SYNC][DATAIND] seq:%d/%d timestamp:%d/%d cnt:%d", header->sequenceNumber,
+    TRACE_AUD_STREAM_I("[AUTO_SYNC][DATAIND] seq:%d/%d timestamp:%d/%d cnt:%d", header->sequenceNumber,
                                                                                     sync_trigger->audio_info.sequenceNumber,
                                                                                     header->timestamp,
                                                                                     sync_trigger->audio_info.timestamp,
@@ -556,15 +637,15 @@ int app_bt_stream_ibrt_auto_synchronize_dataind_cb(uint8_t device_id, btif_media
 
     if (++app_bt_stream_ibrt_auto_synchronize_cnt > APP_BT_STREAM_IBRT_AUTO_SYNCHRONIZE_CNT_LIMIT){
         app_bt_stream_ibrt_auto_synchronize_stop();
-        AUDIOPLAYERS_TRACE(0,"[AUTO_SYNC][DATAIND] SYNCHRONIZE_CNT_LIMIT, we need force retrigger");
+        TRACE_AUD_STREAM_W("[AUTO_SYNC][DATAIND] SYNCHRONIZE_CNT_LIMIT, we need force retrigger");
         app_ibrt_if_force_audio_retrigger(RETRIGGER_BY_SYNCHRONIZE_CNT_LIMIT);
-    }else if (bts_bt_if_is_dev_link_connected(&curr_device->remote)){
+    }else if (app_tws_ibrt_mobile_link_connected(&acl_state.remote)){
         app_bt_stream_ibrt_auto_synchronize_stop();
-        AUDIOPLAYERS_TRACE(0,"[AUTO_SYNC][DATAIND] find role to master, we need force retrigger");
+        TRACE_AUD_STREAM_W("[AUTO_SYNC][DATAIND] find role to master, we need force retrigger");
         app_ibrt_if_force_audio_retrigger(RETRIGGER_BY_ROLE_MISMATCH);
     }else if (sync_trigger->audio_info.sequenceNumber < header->sequenceNumber){
         app_bt_stream_ibrt_auto_synchronize_stop();
-        AUDIOPLAYERS_TRACE(0,"[AUTO_SYNC][DATAIND] seq timestamp:%d/%d mismatch need resume", header->timestamp,
+        TRACE_AUD_STREAM_W("[AUTO_SYNC][DATAIND] seq timestamp:%d/%d mismatch need resume", header->timestamp,
                                                                                                sync_trigger->audio_info.timestamp);
         app_ibrt_if_force_audio_retrigger(RETRIGGER_BY_SEQ_MISMATCH);
     }else{
@@ -579,21 +660,21 @@ int app_bt_stream_ibrt_auto_synchronize_dataind_cb(uint8_t device_id, btif_media
 
         if (sync_trigger->audio_info.timestamp >= header->timestamp && sync_trigger->audio_info.totalSubSequenceNumber){
             if (timestamp_diff < dma_buffer_samples){
-                AUDIOPLAYERS_TRACE(0,"[AUTO_SYNC][DATAIND] timestamp_diff < dma_buffer_samples synchronize ok");
+                TRACE_AUD_STREAM_I("[AUTO_SYNC][DATAIND] timestamp_diff < dma_buffer_samples synchronize ok");
                 synchronize_ok = true;
             }else if (timestamp_diff < frame_totle_samples){
-                AUDIOPLAYERS_TRACE(0,"[AUTO_SYNC][DATAIND] timestamp_diff < frame_totle_samples synchronize ok");
+                TRACE_AUD_STREAM_I("[AUTO_SYNC][DATAIND] timestamp_diff < frame_totle_samples synchronize ok");
                 synchronize_ok = true;
             }
         }
 
         if (!synchronize_ok && header->sequenceNumber >= sync_trigger->audio_info.sequenceNumber){
 
-            AUDIOPLAYERS_TRACE(0,"[AUTO_SYNC][DATAIND] timestamp %d vs %d", sync_trigger->audio_info.timestamp - header->timestamp,
+            TRACE_AUD_STREAM_I("[AUTO_SYNC][DATAIND] timestamp %d vs %d", sync_trigger->audio_info.timestamp - header->timestamp,
                                                                       frame_totle_samples);
             if ((sync_trigger->audio_info.timestamp - header->timestamp) <= (uint32_t)(frame_totle_samples*3)){
                 sync_trigger->audio_info.sequenceNumber++;
-                AUDIOPLAYERS_TRACE(0,"[AUTO_SYNC][DATAIND] timestamp try sequenceNumber:%d", header->sequenceNumber);
+                TRACE_AUD_STREAM_I("[AUTO_SYNC][DATAIND] timestamp try sequenceNumber:%d", header->sequenceNumber);
             }
         }
 
@@ -603,18 +684,18 @@ int app_bt_stream_ibrt_auto_synchronize_dataind_cb(uint8_t device_id, btif_media
         if (synchronize_ok){
             A2DP_AUDIO_LASTFRAME_INFO_T lastframe_info;
             if (a2dp_audio_lastframe_info_get(&lastframe_info) < 0){
-                AUDIOPLAYERS_TRACE(0,"[AUTO_SYNC][DATAIND]synchronize ok but lastframe error");
+                TRACE_AUD_STREAM_I("[AUTO_SYNC][DATAIND]synchronize ok but lastframe error");
                 goto exit;
             }
 
-            AUDIOPLAYERS_TRACE(0,"[AUTO_SYNC][DATAIND]synchronize ok timestamp_diff:%d frame_samples:%d", timestamp_diff,
+            TRACE_AUD_STREAM_I("[AUTO_SYNC][DATAIND]synchronize ok timestamp_diff:%d frame_samples:%d", timestamp_diff,
                                                                                                     lastframe_info.frame_samples);
             sync_trigger->trigger_type = APP_TWS_IBRT_AUDIO_TRIGGER_TYPE_LOCAL;
             sync_trigger->audio_info.sequenceNumber = header->sequenceNumber;
             sync_trigger->audio_info.timestamp = header->timestamp;
             if (sync_trigger->audio_info.totalSubSequenceNumber){
                 sync_trigger->audio_info.curSubSequenceNumber = timestamp_diff/lastframe_info.frame_samples;
-                AUDIOPLAYERS_TRACE(0,"[AUTO_SYNC][DATAIND]synchronize ok tstmp_diff:%d/%d SubSeq:%d", timestamp_diff, sync_trigger->audio_info.frame_samples,
+                TRACE_AUD_STREAM_I("[AUTO_SYNC][DATAIND]synchronize ok tstmp_diff:%d/%d SubSeq:%d", timestamp_diff, sync_trigger->audio_info.frame_samples,
                                                                                            sync_trigger->audio_info.curSubSequenceNumber);
             }else{
                 sync_trigger->audio_info.curSubSequenceNumber = 0;
@@ -623,7 +704,7 @@ int app_bt_stream_ibrt_auto_synchronize_dataind_cb(uint8_t device_id, btif_media
             sync_trigger->audio_info.frame_samples = lastframe_info.frame_samples;
             if (sync_trigger->audio_info.totalSubSequenceNumber &&
                 sync_trigger->audio_info.curSubSequenceNumber >= sync_trigger->audio_info.totalSubSequenceNumber){
-                AUDIOPLAYERS_TRACE(0,"[AUTO_SYNC][DATAIND]synchronize ok but sbc & timestamp is ms so force trigger");
+                TRACE_AUD_STREAM_W("[AUTO_SYNC][DATAIND]synchronize ok but sbc & timestamp is ms so force trigger");
                 app_bt_stream_ibrt_auto_synchronize_stop();
                 app_ibrt_if_force_audio_retrigger(RETRIGGER_BY_SEQ_MISMATCH);
             }else{
@@ -639,7 +720,7 @@ exit:
 
 void app_bt_stream_ibrt_auto_synchronize_start(APP_TWS_IBRT_AUDIO_SYNC_TRIGGER_T *sync_trigger)
 {
-    AUDIOPLAYERS_TRACE(0,"[AUTO_SYNC][DATAIND] trigger_time:%d seq:%d timestamp:%d SubSeq:%d/%d", sync_trigger->trigger_time,
+    TRACE_AUD_STREAM_I("[AUTO_SYNC][DATAIND] trigger_time:%d seq:%d timestamp:%d SubSeq:%d/%d", sync_trigger->trigger_time,
                                                                                        sync_trigger->audio_info.sequenceNumber,
                                                                                        sync_trigger->audio_info.timestamp,
                                                                                        sync_trigger->audio_info.curSubSequenceNumber,
@@ -666,11 +747,6 @@ void app_bt_stream_ibrt_auto_synchronize_stop(void)
     app_bt_stream_ibrt_auto_synchronize_status_set(APP_TWS_IBRT_AUDIO_SYNCHRONIZE_STATUS_IDLE);
 }
 
-void app_bt_stream_ibrt_reset_synchronize_status(void)
-{
-    app_bt_stream_ibrt_auto_synchronize_status_set(APP_TWS_IBRT_AUDIO_SYNCHRONIZE_STATUS_IDLE);
-}
-
 bool app_bt_stream_ibrt_auto_synchronize_on_porcess(void)
 {
     bool nRet = true;
@@ -684,10 +760,10 @@ bool app_bt_stream_ibrt_auto_synchronize_on_porcess(void)
 void app_bt_stream_ibrt_start_sbc_player_callback(uint8_t device_id, uint32_t status, uint32_t param)
 {
     if (app_bt_stream_isrun(APP_BT_STREAM_A2DP_SBC)){
-        AUDIOPLAYERS_TRACE(0,"start_sbc_player_cb trigger(%d)-->tg(%d)", param, ((APP_TWS_IBRT_AUDIO_SYNC_TRIGGER_T *)param)->trigger_time);
+        TRACE_AUD_STREAM_I("start_sbc_player_cb trigger(%d)-->tg(%d)", param, ((APP_TWS_IBRT_AUDIO_SYNC_TRIGGER_T *)param)->trigger_time);
         app_bt_stream_ibrt_set_trigger_time(device_id, (APP_TWS_IBRT_AUDIO_SYNC_TRIGGER_T *)param);
     }else{
-        AUDIOPLAYERS_TRACE(0,"start_sbc_player_cb try again");
+        TRACE_AUD_STREAM_I("start_sbc_player_cb try again");
         app_audio_manager_sendrequest_need_callback(
                                                     APP_BT_STREAM_MANAGER_START,BT_STREAM_MUSIC,
                                                     device_id,
@@ -699,7 +775,7 @@ void app_bt_stream_ibrt_start_sbc_player_callback(uint8_t device_id, uint32_t st
 
 int app_bt_stream_ibrt_start_sbc_player(uint8_t device_id, APP_TWS_IBRT_AUDIO_SYNC_TRIGGER_T *sync_trigger)
 {
-    AUDIOPLAYERS_TRACE(0,"start_sbc_player tg(%d)", sync_trigger->trigger_time);
+    TRACE_AUD_STREAM_I("start_sbc_player tg(%d)", sync_trigger->trigger_time);
     app_audio_manager_sendrequest_need_callback(
                                                 APP_BT_STREAM_MANAGER_START,BT_STREAM_MUSIC,
                                                 device_id,
@@ -726,6 +802,24 @@ uint16_t app_bt_stream_ibrt_trigger_seq_diff_calc(int32_t dma_samples, int32_t f
 static int synchronize_need_discards_dma_cnt = 0;
 static int synchronize_dataind_cnt = 0;
 
+#ifdef ADVANCE_FILL_ENABLED
+void app_bt_stream_advance_fill_handler(enum AUD_STREAM_ID_T id, enum AUD_STREAM_T stream)
+{
+    TRACE(0, "start of pre fill");
+    app_sysfreq_req(APP_SYSFREQ_USER_STREAM_BOOST, APP_SYSFREQ_208M);
+    osThreadId localThread = osThreadGetId();
+    osPriority currentPriority = osThreadGetPriority(localThread);
+    osThreadSetPriority(localThread, osPriorityHigh);
+    for (uint8_t i=0; i<2; i++)
+    {
+        af_pre_fill_handler(id, stream, i);
+    }
+    osThreadSetPriority(localThread, currentPriority);
+    app_sysfreq_req(APP_SYSFREQ_USER_STREAM_BOOST, APP_SYSFREQ_32K);
+    TRACE(0, "end of pre fill");
+}
+#endif
+
 int app_bt_stream_ibrt_auto_synchronize_initsync_dataind_cb_v2(uint8_t device_id, btif_media_header_t * header, unsigned char *buf, unsigned int len)
 {
     bool synchronize_ok = false;
@@ -735,17 +829,17 @@ int app_bt_stream_ibrt_auto_synchronize_initsync_dataind_cb_v2(uint8_t device_id
     uint32_t curr_ticks = 0;
     A2DP_AUDIO_HEADFRAME_INFO_T headframe_info;
     APP_TWS_IBRT_AUDIO_SYNC_TRIGGER_T *sync_trigger = &app_bt_stream_ibrt_auto_synchronize_trigger;
-    POSSIBLY_UNUSED struct BT_DEVICE_T *curr_device = app_bt_get_device(device_id);
+    POSSIBLY_UNUSED bt_acl_state_t acl_state = bes_bt_me_acl_get_state(device_id);
 
     synchronize_dataind_cnt++;
-    if (bts_bt_if_is_dev_link_connected(&curr_device->remote)){
-        AUDIOPLAYERS_TRACE(0,"[AUTO_SYNCV2] mobile_link is connect retrigger because role switch");
+    if (app_tws_ibrt_mobile_link_connected(&acl_state.remote)){
+        TRACE_AUD_STREAM_W("[AUTO_SYNCV2] mobile_link is connect retrigger because role switch");
         app_ibrt_if_force_audio_retrigger(RETRIGGER_BY_ROLE_SWITCH);
         return 0;
     }
 
     if (synchronize_dataind_cnt >= SYNCHRONIZE_DATAIND_CNT_LIMIT){
-        AUDIOPLAYERS_TRACE(0,"[AUTO_SYNCV2] mobile_link is connect retrigger because CNT_LIMIT");
+        TRACE_AUD_STREAM_W("[AUTO_SYNCV2] mobile_link is connect retrigger because CNT_LIMIT");
         app_ibrt_if_force_audio_retrigger(RETRIGGER_BY_SYNCHRONIZE_CNT_LIMIT);
         return 0;
     }
@@ -758,7 +852,7 @@ int app_bt_stream_ibrt_auto_synchronize_initsync_dataind_cb_v2(uint8_t device_id
         a2dp_audio_discards_samples(dest_discards_samples);
     }
     a2dp_audio_decoder_headframe_info_get(&headframe_info);
-    AUDIOPLAYERS_TRACE(0,"[AUTO_SYNCV2] sample:%d->%d seq:%d sub_seq:%d/%d",
+    TRACE_AUD_STREAM_I("[AUTO_SYNCV2] sample:%d->%d seq:%d sub_seq:%d/%d",
                                                       list_samples,dest_discards_samples,
                                                       headframe_info.sequenceNumber,
                                                       headframe_info.curSubSequenceNumber,
@@ -767,39 +861,44 @@ int app_bt_stream_ibrt_auto_synchronize_initsync_dataind_cb_v2(uint8_t device_id
     if (discards_samples_finished){
         uint32_t lock = int_lock();
         bool trig_valid = false;
-        curr_ticks = bt_syn_get_curr_ticks(bts_ibrt_if_get_dev_ibrt_handle(&curr_device->remote));
+        curr_ticks = bt_syn_get_curr_ticks(app_tws_ibrt_get_ibrt_handle(&acl_state.remote));
         if (sync_trigger->trigger_time > curr_ticks){
             trig_valid =  true;
         }else{
-            AUDIOPLAYERS_TRACE(0,"[AUTO_SYNCV2] trig:%x/%x", curr_ticks, sync_trigger->trigger_time);
+            TRACE_AUD_STREAM_I("[AUTO_SYNCV2] trig:%x/%x", curr_ticks, sync_trigger->trigger_time);
         }
         if (trig_valid){
             synchronize_ok = true;
             tg_acl_trigger_time = sync_trigger->trigger_time;
+            btdrv_syn_trigger_codec_en(1);
             btdrv_syn_clr_trigger(0);
             btdrv_enable_playback_triggler(ACL_TRIGGLE_MODE);
-#if BLE_AUDIO_ENABLED
-            af_codec_set_device_bt_sync_source(AUD_STREAM_USE_INT_CODEC, AUD_STREAM_PLAYBACK, 0);
-#endif
-            bt_syn_set_tg_ticks(sync_trigger->trigger_time, bts_ibrt_if_get_dev_ibrt_handle(&curr_device->remote), BT_TRIG_SLAVE_ROLE,0,false);
+            bt_syn_set_tg_ticks(sync_trigger->trigger_time, app_tws_ibrt_get_ibrt_handle(&acl_state.remote), BT_TRIG_SLAVE_ROLE,0,false);
         }
         int_unlock(lock);
         if (trig_valid){
             app_tws_ibrt_audio_analysis_start(sync_trigger->handler_cnt, AUDIO_ANALYSIS_CHECKER_INTERVEL_INVALID);
             app_tws_ibrt_audio_sync_start();
             app_tws_ibrt_audio_sync_new_reference(sync_trigger->factor_reference);
-            AUDIOPLAYERS_TRACE(0,"[AUTO_SYNCV2] trigger curr(%d)-->tg(%d)",
-                                                                bt_syn_get_curr_ticks(bts_ibrt_if_get_dev_ibrt_handle(&curr_device->remote)),
+            TRACE_AUD_STREAM_I("[AUTO_SYNCV2] trigger curr(%d)-->tg(%d)",
+                                                                curr_ticks,
                                                                 sync_trigger->trigger_time);
+#ifdef A2DP_DECODER_CROSS_CORE
+            A2DP_AUDIO_STARTFRAME_INFO_T start_frame_info;
+            start_frame_info.is_ignore = true;
+            start_frame_info.sequenceNumber = 0;
+            start_frame_info.curSubSequenceNumber = 0;
+            a2dp_decoder_bth_set_first_run(start_frame_info);
+#endif
             synchronize_need_discards_dma_cnt = 0;
             synchronize_dataind_cnt = 0;
             a2dp_audio_detect_first_packet_clear();
             a2dp_audio_detect_next_packet_callback_register(NULL);
             a2dp_audio_detect_store_packet_callback_register(NULL);
-            AUDIOPLAYERS_TRACE(0,"[AUTO_SYNCV2] synchronize_ok");
+            TRACE_AUD_STREAM_I("[AUTO_SYNCV2] synchronize_ok");
             return 0;
         }else{
-            AUDIOPLAYERS_TRACE(0,"[AUTO_SYNCV2] synchronize_failed");
+            TRACE_AUD_STREAM_I("[AUTO_SYNCV2] synchronize_failed");
             app_ibrt_if_force_audio_retrigger(RETRIGGER_BY_SYNC_FAIL);
             return 0;
         }
@@ -821,41 +920,41 @@ void app_bt_stream_ibrt_mobile_link_playback_info_receive(uint8_t device_id, APP
     A2DP_AUDIO_SYNCFRAME_INFO_T sync_info;
     A2DP_AUDIO_HEADFRAME_INFO_T headframe_info;
     APP_TWS_IBRT_AUDIO_SYNC_TRIGGER_T *sync_trigger_loc = &app_bt_stream_ibrt_auto_synchronize_trigger;
-    struct BT_DEVICE_T* POSSIBLY_UNUSED p_bt_device = app_bt_get_device(device_id);
-    uint32_t a2dp_session_temp = bta_tws_a2dp_get_ibrt_session(device_id);
-    AUDIOPLAYERS_TRACE(0,"[AUTO_SYNCV2][INFO_RECV] session:%d hdl:%d clk:%d cnt:%d seq:%d/%d/%d", sync_trigger->a2dp_session,
+    POSSIBLY_UNUSED bt_acl_state_t acl_state = bes_bt_me_acl_get_state(device_id);
+
+    TRACE_AUD_STREAM_I("[AUTO_SYNCV2][INFO_RECV] session:%d hdl:%d clk:%d cnt:%d seq:%d/%d/%d jb:%d", sync_trigger->a2dp_session,
                                                                                     sync_trigger->handler_cnt,
                                                                                     sync_trigger->trigger_bt_clk,
                                                                                     sync_trigger->trigger_bt_cnt,
                                                                                     sync_trigger->audio_info.sequenceNumber,
                                                                                     sync_trigger->audio_info.curSubSequenceNumber,
-                                                                                    sync_trigger->audio_info.totalSubSequenceNumber);
+                                                                                    sync_trigger->audio_info.totalSubSequenceNumber,
+                                                                                    sync_trigger->custom_delay_ms);
 
     if (app_bt_stream_ibrt_auto_synchronize_on_porcess()){
-        AUDIOPLAYERS_TRACE(0,"[AUTO_SYNCV2][INFO_RECV] auto_synchronize_on_porcess skip it");
+        TRACE_AUD_STREAM_W("[AUTO_SYNCV2][INFO_RECV] auto_synchronize_on_porcess skip it");
         return;
     }
 
-    if (!app_bt_is_a2dp_streaming(device_id)){
-        AUDIOPLAYERS_TRACE(0,"[AUTO_SYNCV2][INFO_RECV] streaming not ready skip it");
+    if (!(bes_bt_a2dp_get_state(device_id).a2dp_is_streaming)){
+        TRACE_AUD_STREAM_W("[AUTO_SYNCV2][INFO_RECV] streaming not ready skip it");
         app_bt_stream_ibrt_audio_mismatch_stopaudio(device_id);
         return;
     }
 
-    if (a2dp_session_temp != sync_trigger->a2dp_session){
-        AUDIOPLAYERS_TRACE(0,"[AUTO_SYNCV2][INFO_RECV] session mismatch skip it loc:%d rmt:%d", a2dp_session_temp, sync_trigger->a2dp_session);
-        AUDIOPLAYERS_TRACE(0,"[AUTO_SYNCV2][INFO_RECV] session froce resume and try retrigger");
-        bta_tws_a2dp_set_ibrt_session(sync_trigger->a2dp_session,device_id);
+    if (bes_bt_tws_a2dp_get_ibrt_session(device_id) != sync_trigger->a2dp_session){
+        TRACE_AUD_STREAM_W("[AUTO_SYNCV2][INFO_RECV] session mismatch skip it loc:%d rmt:%d", bes_bt_tws_a2dp_get_ibrt_session(device_id), sync_trigger->a2dp_session);
+        TRACE_AUD_STREAM_W("[AUTO_SYNCV2][INFO_RECV] session froce resume and try retrigger");
+        bes_bt_tws_a2dp_set_ibrt_session(sync_trigger->a2dp_session,device_id);
         app_bt_stream_ibrt_audio_mismatch_stopaudio(device_id);
         return;
     }
 
     if (a2dp_audio_lastframe_info_get(&lastframe_info) < 0){
-        AUDIOPLAYERS_TRACE(0,"[AUTO_SYNCV2][INFO_RECV] lastframe not ready mismatch_stopaudio");
+        TRACE_AUD_STREAM_W("[AUTO_SYNCV2][INFO_RECV] lastframe not ready mismatch_stopaudio");
         app_bt_stream_ibrt_audio_mismatch_stopaudio(device_id);
         return;
     }
-    a2dp_audio_decoder_headframe_info_get(&headframe_info);
 
     *sync_trigger_loc = *sync_trigger;
 
@@ -864,39 +963,25 @@ void app_bt_stream_ibrt_mobile_link_playback_info_receive(uint8_t device_id, APP
     sync_info.curSubSequenceNumber = sync_trigger->audio_info.curSubSequenceNumber;
     sync_info.totalSubSequenceNumber = sync_trigger->audio_info.totalSubSequenceNumber;
     sync_info.frame_samples = sync_trigger->audio_info.frame_samples;
-
-    int32_t discard_cnt = 0;
-    int16_t pk_diff = headframe_info.sequenceNumber - sync_trigger->audio_info.sequenceNumber;
-    int32_t dma_mtu = app_bt_stream_get_dma_buffer_samples() / 2 / lastframe_info.frame_samples;
-
-    if (headframe_info.totalSubSequenceNumber) {
-        pk_diff *= headframe_info.totalSubSequenceNumber;
-    }
-    if (pk_diff > 0 && pk_diff < (MOBILE_LINK_PLAYBACK_INFO_TRIG_DUMMY_DMA_CNT + 2) * dma_mtu)
-    {
-        discard_cnt = (pk_diff / dma_mtu) * (-1);
-    }
-    else
-    {
-        if (a2dp_audio_synchronize_packet(&sync_info, A2DP_AUDIO_SYNCFRAME_MASK_SEQ)){
-            AUDIOPLAYERS_TRACE(0,"[playback_info_receive] synchronize_packe mismatch");
-            app_ibrt_if_force_audio_retrigger(RETRIGGER_BY_SYNC_MISMATCH);
-            return;
-        }
+    if (a2dp_audio_synchronize_packet(&sync_info, A2DP_AUDIO_SYNCFRAME_MASK_ALL)){
+        TRACE_AUD_STREAM_W("[AUTO_SYNCV2][INFO_RECV] synchronize_packe mismatch");
+        app_ibrt_if_force_audio_retrigger(RETRIGGER_BY_SYNC_MISMATCH);
+        return;
     }
 
-    AUDIOPLAYERS_TRACE(0,"[AUTO_SYNCV2][INFO_RECV] sync with master packet step1 seq:%d sub_seq:%d/%d",
+    a2dp_audio_decoder_headframe_info_get(&headframe_info);
+    TRACE_AUD_STREAM_I("[AUTO_SYNCV2][INFO_RECV] sync with master packet step1 seq:%d sub_seq:%d/%d",
                                                                   headframe_info.sequenceNumber,
                                                                   headframe_info.curSubSequenceNumber,
                                                                   headframe_info.totalSubSequenceNumber);
     is_need_discards_samples = false;
+
     a2dp_audio_discards_samples(lastframe_info.list_samples);
     a2dp_audio_decoder_headframe_info_get(&headframe_info);
-    AUDIOPLAYERS_TRACE(0,"[AUTO_SYNCV2][INFO_RECV] sync with master packet step2 seq:%d sub_seq:%d/%d",
+    TRACE_AUD_STREAM_I("[AUTO_SYNCV2][INFO_RECV] sync with master packet step2 seq:%d sub_seq:%d/%d",
                                                                   headframe_info.sequenceNumber,
                                                                   headframe_info.curSubSequenceNumber,
                                                                   headframe_info.totalSubSequenceNumber);
-
     uint32_t btclk;
     uint16_t btcnt;
     uint32_t mobile_master_clk = 0;
@@ -932,9 +1017,10 @@ void app_bt_stream_ibrt_mobile_link_playback_info_receive(uint8_t device_id, APP
     }while(1);
     next_dma_cnt += MOBILE_LINK_PLAYBACK_INFO_TRIG_DUMMY_DMA_CNT ;
     tmp_mobile_master_us += dma_buffer_us * (MOBILE_LINK_PLAYBACK_INFO_TRIG_DUMMY_DMA_CNT-1);
-    synchronize_need_discards_dma_cnt = next_dma_cnt + a2dp_audio_frame_delay_get() - 1 + discard_cnt;
+    synchronize_need_discards_dma_cnt = next_dma_cnt + a2dp_audio_frame_delay_get() - 1;
+
     synchronize_dataind_cnt = 0;
-    AUDIOPLAYERS_TRACE(0,"[AUTO_SYNCV2][INFO_RECV] loc:%08x%08x rmt:%08x%08x tg:%08x%08x", (uint32_t)((uint64_t)mobile_master_us>>32U), (uint32_t)((uint64_t)mobile_master_us&0xffffffff),
+    TRACE_AUD_STREAM_I("[AUTO_SYNCV2][INFO_RECV] loc:%08x%08x rmt:%08x%08x tg:%08x%08x", (uint32_t)((uint64_t)mobile_master_us>>32U), (uint32_t)((uint64_t)mobile_master_us&0xffffffff),
                                                                              (uint32_t)((uint64_t)rmt_mobile_master_us>>32U), (uint32_t)((uint64_t)rmt_mobile_master_us&0xffffffff),
                                                                              (uint32_t)((uint64_t)tmp_mobile_master_us>>32U), (uint32_t)((uint64_t)tmp_mobile_master_us&0xffffffff));
 
@@ -942,18 +1028,23 @@ void app_bt_stream_ibrt_mobile_link_playback_info_receive(uint8_t device_id, APP
 
     tg_tick = tmp_mobile_master_us * 2;
     tg_tick &= 0x0fffffff;
-
+    a2dp_audio_custom_delay_ms_set(sync_trigger->custom_delay_ms);
+    if (sync_trigger->custom_delay_ms!=UINT16_MAX)
+    {
+        uint8_t custom_mtu = sbm_convert_targetMs_to_mtu(sync_trigger->custom_delay_ms);
+        a2dp_audio_dest_packet_mut_set(custom_mtu);
+        TRACE_AUD_STREAM_I("[AUTO_SYNCV2][INFO_RECV] custom mtu %d", custom_mtu);
+    }
     sync_trigger_loc->trigger_type = APP_TWS_IBRT_AUDIO_TRIGGER_TYPE_LOCAL;
     sync_trigger_loc->trigger_time = tg_tick;
     sync_trigger_loc->handler_cnt += next_dma_cnt;
     a2dp_audio_detect_next_packet_callback_register(app_bt_stream_ibrt_auto_synchronize_initsync_dataind_cb_v2);
     a2dp_audio_detect_first_packet();
 
+    TRACE_AUD_STREAM_I("[AUTO_SYNCV2][INFO_RECV] mobile clk:%x/%x tg:%x",
+    bt_syn_get_curr_ticks(app_tws_ibrt_get_ibrt_handle(&acl_state.remote))/2,mobile_master_clk,tg_tick/2);
 
-    AUDIOPLAYERS_TRACE(0,"[AUTO_SYNCV2][INFO_RECV] mobile clk:%x/%x tg:%x",
-    bt_syn_get_curr_ticks(bts_ibrt_if_get_dev_ibrt_handle(&p_bt_device->remote))/2,mobile_master_clk,tg_tick/2);
-
-    AUDIOPLAYERS_TRACE(0,"[AUTO_SYNCV2][INFO_RECV] master_us:%x/%x/%x dma_cnt:%d/%d", (int32_t)mobile_master_us, (int32_t)rmt_mobile_master_us, (int32_t)tmp_mobile_master_us,
+    TRACE_AUD_STREAM_I("[AUTO_SYNCV2][INFO_RECV] master_us:%x/%x/%x dma_cnt:%d/%d", (int32_t)mobile_master_us, (int32_t)rmt_mobile_master_us, (int32_t)tmp_mobile_master_us,
                                                                          next_dma_cnt, sync_trigger_loc->handler_cnt);
 }
 
@@ -966,41 +1057,43 @@ void app_bt_stream_ibrt_set_trigger_time(uint8_t device_id, APP_TWS_IBRT_AUDIO_S
     int synchronize_ret;
     A2DP_AUDIO_LASTFRAME_INFO_T lastframe_info;
     A2DP_AUDIO_HEADFRAME_INFO_T headframe_info;
-    uint32_t a2dp_session_temp = bta_tws_a2dp_get_ibrt_session(device_id);
+    uint32_t a2dp_session = 0;
 
     if (app_bt_stream_ibrt_auto_synchronize_on_porcess()){
-        AUDIOPLAYERS_TRACE(0,"[STRM_TRIG][A2DP][IBRT] auto_synchronize_on_porcess skip it");
+        TRACE_AUD_STREAM_W("[STRM_TRIG][A2DP][IBRT] auto_synchronize_on_porcess skip it");
         return;
     }
 
-    if (!app_bt_is_a2dp_streaming(device_id)){
-        AUDIOPLAYERS_TRACE(0,"[STRM_TRIG][A2DP][IBRT] streaming not ready skip it");
+    if (!(bes_bt_a2dp_get_state(device_id).a2dp_is_streaming)){
+        TRACE_AUD_STREAM_W("[STRM_TRIG][A2DP][IBRT] streaming not ready skip it");
         app_bt_stream_ibrt_audio_mismatch_stopaudio(device_id);
         return;
     }
 
-    if (a2dp_session_temp != sync_trigger->a2dp_session){
-        AUDIOPLAYERS_TRACE(0,"[STRM_TRIG][A2DP][IBRT] session mismatch skip it loc:%d rmt:%d", a2dp_session_temp, sync_trigger->a2dp_session);
-        AUDIOPLAYERS_TRACE(0,"[STRM_TRIG][A2DP][IBRT] session froce resume and try retrigger");
-        bta_tws_a2dp_set_ibrt_session(sync_trigger->a2dp_session,device_id);
+    a2dp_session = bes_bt_tws_a2dp_get_ibrt_session(device_id);
+    if (a2dp_session != sync_trigger->a2dp_session){
+        TRACE_AUD_STREAM_W("[STRM_TRIG][A2DP][IBRT] session mismatch skip it loc:%d rmt:%d",
+            a2dp_session, sync_trigger->a2dp_session);
+        TRACE_AUD_STREAM_W("[STRM_TRIG][A2DP][IBRT] session froce resume and try retrigger");
+        bes_bt_tws_a2dp_set_ibrt_session(sync_trigger->a2dp_session,device_id);
         app_bt_stream_ibrt_audio_mismatch_stopaudio(device_id);
         return;
     }
 
     if (a2dp_audio_lastframe_info_get(&lastframe_info) < 0){
-        AUDIOPLAYERS_TRACE(0,"[STRM_TRIG][A2DP][IBRT] lastframe not ready mismatch_stopaudio");
+        TRACE_AUD_STREAM_W("[STRM_TRIG][A2DP][IBRT] lastframe not ready mismatch_stopaudio");
         app_bt_stream_ibrt_audio_mismatch_stopaudio(device_id);
         return;
     }
 
-    struct BT_DEVICE_T* POSSIBLY_UNUSED p_bt_device = app_bt_get_device(device_id);
+    POSSIBLY_UNUSED bt_acl_state_t acl_state = bes_bt_me_acl_get_state(device_id);
 
     if (a2dp_audio_decoder_headframe_info_get(&headframe_info) < 0){
-        AUDIOPLAYERS_TRACE(0,"[STRM_TRIG][A2DP][IBRT] lastframe not ready mismatch_stopaudio");
+        TRACE_AUD_STREAM_W("[STRM_TRIG][A2DP][IBRT] lastframe not ready mismatch_stopaudio");
         app_bt_stream_ibrt_audio_mismatch_stopaudio(device_id);
         goto exit;
     }
-    AUDIOPLAYERS_TRACE(0,"[STRM_TRIG][A2DP][IBRT] info base_seq:%d/%d", headframe_info.sequenceNumber, sync_trigger->sequenceNumberStart);
+    TRACE_AUD_STREAM_W("[STRM_TRIG][A2DP][IBRT] info base_seq:%d/%d", headframe_info.sequenceNumber, sync_trigger->sequenceNumberStart);
 
     a2dp_audio_detect_next_packet_callback_register(NULL);
     a2dp_audio_detect_store_packet_callback_register(NULL);
@@ -1011,35 +1104,41 @@ void app_bt_stream_ibrt_set_trigger_time(uint8_t device_id, APP_TWS_IBRT_AUDIO_S
     if ((headframe_info.sequenceNumber>sync_trigger->sequenceNumberStart)
         &&((headframe_info.sequenceNumber-sync_trigger->sequenceNumberStart)<APP_BT_STREAM_MISMATCH_PACKET_THRESHOLD))
     {
-        AUDIOPLAYERS_TRACE(0,"[STRM_TRIG][A2DP][IBRT] synchronize_packet failed");
-        AUDIOPLAYERS_TRACE(0,"[STRM_TRIG][A2DP][IBRT] do_not_retrigger");
-        uint8_t diff_subframe = 0;
-        if (0 == headframe_info.totalSubSequenceNumber)
-        {
-            diff_subframe = headframe_info.sequenceNumber-sync_trigger->sequenceNumberStart;
-        }
-        else
-        {
-            diff_subframe = (headframe_info.sequenceNumber-sync_trigger->sequenceNumberStart)*headframe_info.totalSubSequenceNumber;
-        }
-        app_tws_ibrt_audio_analysis_set_refill_frames(diff_subframe);
+        TRACE_AUD_STREAM_W("[STRM_TRIG][A2DP][IBRT] synchronize_packet failed");
+        TRACE_AUD_STREAM_W("[STRM_TRIG][A2DP][IBRT] do_not_retrigger");
     }
+#ifdef A2DP_DECODER_CROSS_CORE
+    else if ((headframe_info.sequenceNumber+a2dp_audio_list_length_TWP()<=sync_trigger->sequenceNumberStart) &&
+                0 != headframe_info.sequenceNumber)
+    {
+        a2dp_audio_store_fake_packet(sync_trigger->sequenceNumberStart);
+        synchronize_ret = a2dp_audio_synchronize_packet(&sync_info, A2DP_AUDIO_SYNCFRAME_MASK_SEQ);
+    }
+#endif
     else
     {
         synchronize_ret = a2dp_audio_synchronize_packet(&sync_info, A2DP_AUDIO_SYNCFRAME_MASK_SEQ);
     }
+#ifdef A2DP_DECODER_CROSS_CORE
+    A2DP_AUDIO_STARTFRAME_INFO_T start_frame_info;
+    start_frame_info.sequenceNumber = sync_info.sequenceNumber;
+    start_frame_info.curSubSequenceNumber = 0;
+    start_frame_info.is_ignore = false;
+    a2dp_decoder_bth_set_first_run(start_frame_info);
+#endif
+
     if (synchronize_ret){
-        AUDIOPLAYERS_TRACE(0,"[STRM_TRIG][A2DP][IBRT] synchronize_packet failed");
-        AUDIOPLAYERS_TRACE(0,"[STRM_TRIG][A2DP][IBRT] force_audio_retrigger");
+        TRACE_AUD_STREAM_I("[STRM_TRIG][A2DP][IBRT] synchronize_packet failed");
+        TRACE_AUD_STREAM_I("[STRM_TRIG][A2DP][IBRT] force_audio_retrigger");
         app_bt_stream_ibrt_auto_synchronize_stop();
         app_ibrt_if_force_audio_retrigger(RETRIGGER_BY_SYNC_FAIL);
         goto exit;
     }
 
-    curr_ticks = bt_syn_get_curr_ticks(bts_ibrt_if_get_dev_ibrt_handle(&p_bt_device->remote));
+    curr_ticks = bt_syn_get_curr_ticks(app_tws_ibrt_get_ibrt_handle(&acl_state.remote));
     if (tg_tick < curr_ticks){
-        AUDIOPLAYERS_TRACE(0,"[STRM_TRIG][A2DP][IBRT] synchronize tick failed:%x->%x", curr_ticks, tg_tick);
-        AUDIOPLAYERS_TRACE(0,"[STRM_TRIG][A2DP][IBRT] force_audio_retrigger");
+        TRACE_AUD_STREAM_I("[STRM_TRIG][A2DP][IBRT] synchronize tick failed:%x->%x", curr_ticks, tg_tick);
+        TRACE_AUD_STREAM_I("[STRM_TRIG][A2DP][IBRT] force_audio_retrigger");
         app_bt_stream_ibrt_auto_synchronize_stop();
         app_ibrt_if_force_audio_retrigger(RETRIGGER_BY_SYNC_FAIL);
         goto exit;
@@ -1050,31 +1149,34 @@ void app_bt_stream_ibrt_set_trigger_time(uint8_t device_id, APP_TWS_IBRT_AUDIO_S
     sync_info.totalSubSequenceNumber = sync_trigger->audio_info.totalSubSequenceNumber;
     sync_info.frame_samples = sync_trigger->audio_info.frame_samples;
 
-    if (bts_ibrt_if_is_ibrt_link_connected(&p_bt_device->remote)){
-        if (app_bt_stream_isrun(APP_BT_STREAM_A2DP_SBC)){
+    if (app_tws_ibrt_slave_ibrt_link_connected(&acl_state.remote)){
+        bool isStarted = a2dp_audio_is_started();
+        if (app_bt_stream_isrun(APP_BT_STREAM_A2DP_SBC) ||
+            isStarted){
             if (sync_trigger->trigger_type == APP_TWS_IBRT_AUDIO_TRIGGER_TYPE_INIT_SYNC){
-                AUDIOPLAYERS_TRACE(0,"[STRM_TRIG][A2DP][IBRT] TRIGGER_TYPE_INIT_SYNC needskip:%d", sync_trigger->trigger_skip_frame);
+                TRACE_AUD_STREAM_I("[STRM_TRIG][A2DP][IBRT] TRIGGER_TYPE_INIT_SYNC needskip:%d, isStarted:%d",
+                    sync_trigger->trigger_skip_frame, isStarted);
                 //limter to water line upper
                 uint32_t list_samples = 0;
                 uint32_t limter_water_line_samples = 0;
                 limter_water_line_samples = (a2dp_audio_dest_packet_mut_get() * lastframe_info.list_samples);
                 a2dp_audio_convert_list_to_samples(&list_samples);
-                AUDIOPLAYERS_TRACE(0,"[STRM_TRIG][A2DP][IBRT] synchronize:%d/%d", list_samples, limter_water_line_samples);
+                TRACE_AUD_STREAM_I("[STRM_TRIG][A2DP][IBRT] synchronize:%d/%d", list_samples, limter_water_line_samples);
                 if (list_samples > limter_water_line_samples){
                     is_need_discards_samples = true;
-                    // AUDIOPLAYERS_TRACE(0,"[STRM_TRIG][A2DP][IBRT] skip discards:%d", list_samples - limter_water_line_samples);
+                    // TRACE_AUD_STREAM_I("[STRM_TRIG][A2DP][IBRT] skip discards:%d", list_samples - limter_water_line_samples);
                     // a2dp_audio_discards_samples(list_samples - limter_water_line_samples);
                 }
                 app_bt_stream_ibrt_auto_synchronize_initsync_start(device_id, sync_trigger);
                 app_bt_stream_ibrt_auto_synchronize_status_set(APP_TWS_IBRT_AUDIO_SYNCHRONIZE_STATUS_SYNCOK);
             }
         }else if (!app_bt_stream_isrun(APP_BT_STREAM_HFP_PCM)){
-            AUDIOPLAYERS_TRACE(0,"[STRM_TRIG][A2DP][IBRT] sbc player not active, so try to start it");
+            TRACE_AUD_STREAM_I("[STRM_TRIG][A2DP][IBRT] sbc player not active, so try to start it");
             app_bt_stream_ibrt_auto_synchronize_trigger = *sync_trigger;
             app_bt_stream_ibrt_audio_mismatch_stopaudio(device_id);
         }
     }else{
-        AUDIOPLAYERS_TRACE(0,"[STRM_TRIG][A2DP][IBRT] Not Connected");
+        TRACE_AUD_STREAM_W("[STRM_TRIG][A2DP][IBRT] Not Connected");
     }
 exit:
     return;
@@ -1084,15 +1186,15 @@ void app_bt_stream_ibrt_audio_mismatch_resume(uint8_t device_id)
 {
     ibrt_a2dp_status_t a2dp_status;
 
-    POSSIBLY_UNUSED struct BT_DEVICE_T *curr_device = app_bt_get_device(device_id);
+    POSSIBLY_UNUSED bt_acl_state_t acl_state = bes_bt_me_acl_get_state(device_id);
 
-    bta_tws_ibrt_a2dp_sync_get_status(device_id, &a2dp_status);
+    bes_bt_tws_ibrt_a2dp_sync_get_status(device_id, &a2dp_status);
 
-    AUDIOPLAYERS_TRACE(0,"[MISMATCH] resume state:%d", a2dp_status.state);
+    TRACE_AUD_STREAM_I("[MISMATCH] resume state:%d", a2dp_status.state);
 
     if (a2dp_status.state == BT_A2DP_STREAM_STATE_STREAMING){
-        if (bts_bt_if_is_dev_link_connected(&curr_device->remote)){
-            AUDIOPLAYERS_TRACE(0,"[MISMATCH] resume find role switch so force retrigger");
+        if (app_tws_ibrt_mobile_link_connected(&acl_state.remote)){
+            TRACE_AUD_STREAM_I("[MISMATCH] resume find role switch so force retrigger");
             app_ibrt_if_force_audio_retrigger(RETRIGGER_BY_ROLE_SWITCH);
         }else{
             app_tws_ibrt_audio_sync_mismatch_resume_notify(device_id);
@@ -1102,10 +1204,10 @@ void app_bt_stream_ibrt_audio_mismatch_resume(uint8_t device_id)
 
 void app_bt_stream_ibrt_audio_mismatch_stopaudio_cb(uint8_t device_id, uint32_t status, uint32_t param)
 {
-    AUDIOPLAYERS_TRACE(0,"[MISMATCH] stopaudio_cb");
+    TRACE_AUD_STREAM_I("[MISMATCH] stopaudio_cb");
 
     if (app_bt_stream_isrun(APP_BT_STREAM_A2DP_SBC)){
-        AUDIOPLAYERS_TRACE(0,"[MISMATCH] stopaudio_cb try again");
+        TRACE_AUD_STREAM_I("[MISMATCH] stopaudio_cb try again");
         app_audio_manager_sendrequest_need_callback(
                                                     APP_BT_STREAM_MANAGER_STOP,BT_STREAM_MUSIC,
                                                     device_id,
@@ -1120,39 +1222,42 @@ void app_bt_stream_ibrt_audio_mismatch_stopaudio_cb(uint8_t device_id, uint32_t 
 int app_bt_stream_ibrt_audio_mismatch_stopaudio(uint8_t device_id)
 {
     ibrt_a2dp_status_t a2dp_status;
-    POSSIBLY_UNUSED struct BT_DEVICE_T* curr_device = app_bt_get_device(device_id);
+    POSSIBLY_UNUSED bt_acl_state_t acl_state = bes_bt_me_acl_get_state(device_id);
+    bool a2dp_is_active = app_audio_manager_a2dp_is_active((enum BT_DEVICE_ID_T)device_id);
+    bool stream_is_run = app_bt_stream_isrun(APP_PLAY_BACK_AUDIO);
 
-    bta_tws_ibrt_a2dp_sync_get_status(device_id, &a2dp_status);
+    bes_bt_tws_ibrt_a2dp_sync_get_status(device_id, &a2dp_status);
 
-    AUDIOPLAYERS_TRACE(0,"[MISMATCH] stopaudio state:%d sco:%d sbc:%d media:%d", a2dp_status.state,
-                                                 app_audio_manager_hfp_is_active(device_id),
-                                                 app_audio_manager_a2dp_is_active(device_id),
-                                                 app_bt_stream_isrun(APP_PLAY_BACK_AUDIO));
+    TRACE_AUD_STREAM_I("[MISMATCH] stopaudio state:%d sco:%d sbc:%d media:%d", a2dp_status.state,
+                                                 app_audio_manager_hfp_is_active((enum BT_DEVICE_ID_T)device_id),
+                                                 a2dp_is_active,
+                                                 stream_is_run);
 
     if (a2dp_status.state == BT_A2DP_STREAM_STATE_STREAMING){
-        if (app_audio_manager_a2dp_is_active(device_id)){
-            AUDIOPLAYERS_TRACE(0,"[MISMATCH] stopaudio");
+        if (a2dp_is_active){
+            TRACE_AUD_STREAM_I("[MISMATCH] stopaudio");
             app_audio_sendrequest_param(APP_BT_STREAM_A2DP_SBC, (uint8_t)APP_BT_SETTING_RESTART, 0, APP_SYSFREQ_52M);
             app_bt_stream_ibrt_audio_mismatch_resume(device_id);
         }else{
-            if (bts_ibrt_if_is_profile_exchanged(&curr_device->remote)){
-                if (!bt_media_is_music_media_active()){
-                    AUDIOPLAYERS_TRACE(0,"[MISMATCH] stopaudio not active resume it & force retrigger");
+            if (app_ibrt_conn_is_profile_exchanged(&acl_state.remote)){
+                if (!bt_media_is_media_active_by_music()){
+                    TRACE_AUD_STREAM_I("[MISMATCH] stopaudio not active resume it & force retrigger");
+                    app_audio_manager_sendrequest(APP_BT_STREAM_MANAGER_START,BT_STREAM_MUSIC, device_id,MAX_RECORD_NUM);
                     app_ibrt_if_force_audio_retrigger(RETRIGGER_BY_PLAYER_NOT_ACTIVE);
                 }else{
-                    if (app_bt_stream_isrun(APP_PLAY_BACK_AUDIO)
+                    if (stream_is_run
 #ifdef MEDIA_PLAYER_SUPPORT
-                        &&app_play_audio_get_aud_id() == AUDIO_ID_BT_MUTE
+                        && app_play_audio_get_aud_id() == AUDIO_ID_BT_MUTE
 #endif
                         ){
-                        AUDIOPLAYERS_TRACE(0,"[MISMATCH] stopaudio resum on process skip it");
+                        TRACE_AUD_STREAM_I("[MISMATCH] stopaudio resum on process skip it");
                     }else{
-                        AUDIOPLAYERS_TRACE(0,"[MISMATCH] stopaudio cancel_media and force retrigger");
+                        TRACE_AUD_STREAM_I("[MISMATCH] stopaudio cancel_media and force retrigger");
                         app_ibrt_if_force_audio_retrigger(RETRIGGER_BY_UNKNOW);
                     }
                 }
             }else{
-                AUDIOPLAYERS_TRACE(0,"[MISMATCH] stopaudio profile not exchanged skip it");
+                TRACE_AUD_STREAM_I("[MISMATCH] stopaudio profile not exchanged skip it");
             }
         }
     }
@@ -1160,3 +1265,4 @@ int app_bt_stream_ibrt_audio_mismatch_stopaudio(uint8_t device_id)
     return 0;
 }
 #endif
+

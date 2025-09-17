@@ -101,8 +101,6 @@ int pan_client_close_req(struct pan_control_t *pan_ctl);
 
 int pan_send_ethernet_data(struct pan_control_t *pan_ctl, const struct bnep_ethernet_data_info *data);
 
-void pan_send_bnep_setup_req(struct pan_control_t *pan_ctl);
-
 #ifdef __cplusplus
 }
 #endif

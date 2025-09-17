@@ -16,15 +16,26 @@
 
 #include "plat_addr_map.h"
 
-#define MIN_BURN_BUFFER_SIZE		0x2000
-#define BURN_BUFFER_END				0x11000
+#define MAX(a, b)					((a) > (b) ? (a) : (b))
 
+#ifdef NO_TRUSTZONE
+#define RAMRUN_SEC_ADDR(a)      	RAM_NS_TO_S(a)
+#else
+#define RAMRUN_SEC_ADDR(a)      	(a)
+#endif
+
+#define MIN_BURN_BUFFER_SIZE		0x4000
+
+#ifdef NOSTD
 #define HEAP_SECTION_SIZE			0x40
+#else
+#define HEAP_SECTION_SIZE			0x2000
+#endif
 #define STACK_SECTION_SIZE			0x1000
 
 #define CODE_MSG_OVERHEAD			8
 
-LR_vector (RAMX_BASE + BURN_BUFFER_END) NOCOMPRESS
+LR_vector RAM_BASE NOCOMPRESS
 {
 	vector_table RAM_BASE UNINIT VECTOR_SECTION_SIZE
 	{
@@ -38,25 +49,33 @@ LR_vector (RAMX_BASE + BURN_BUFFER_END) NOCOMPRESS
 
 	burn_buffer (ImageBase(reboot_param) + REBOOT_PARAM_SECTION_SIZE) UNINIT
 	{
-		/* The size of .burn_buffer should be greater than __rom_HeapLimit. In most cases 8K is enough. */
+		/* The size of .burn_buffer should be greater than __rom_HeapLimit. In most cases 16K is enough. */
 		*(.bss.burn_buffer)
 	}
-
-	ScatterAssert(ImageLimit(burn_buffer) <= (ImageBase(vector_table) + BURN_BUFFER_END))
 }
 
-LR_boot_struct +0
+#ifdef MAIN_RAM_USE_TCM
+#define BOOT_STRUCT_LOAD_ADDR		RAMX_BASE
+#else
+#define BOOT_STRUCT_LOAD_ADDR		MAX((RAM_BASE + MIN_BURN_BUFFER_SIZE), ImageLimit(burn_buffer))
+#endif
+
+LR_boot_struct BOOT_STRUCT_LOAD_ADDR
 {
-	boot_struct RAMX_TO_RAM(+0)
+	boot_struct +0
 	{
 		*(.boot_struct, +FIRST)
 	}
 
-	exec_struct +0
+	exec_struct RAMRUN_SEC_ADDR(+0)
 	{
-		*(.exec_struct, +FIRST)
+		*(.pgm_code_ver)
+		*(.exec_struct, +LAST)
 	}
+}
 
+LR_text +0
+{
 	got_info +0
 	{
 		*(.got)
@@ -64,11 +83,19 @@ LR_boot_struct +0
 		*(.igot.plt)
 		*(.dynamic)
 	}
-}
 
-LR_text +0
-{
-	text +0 FIXED
+	/* The initial entry point must be in a root region, which has
+	 * the same load and execution address.
+	 * In order to use data address space (RAM) as the load address,
+	 * armcc_pgm_start section is created to run in data address space (RAM),
+	 * whereas other code sections run in code address space (RAMX).
+	 */
+	armcc_pgm_start +0 FIXED
+	{
+		*(.armcc_pgm_start)
+	}
+
+	text RAM_TO_RAMX(+0)
 	{
 		*(.text*)
 
@@ -93,6 +120,8 @@ LR_text +0
 	rodata RAMX_TO_RAM(+0)
 	{
 		*(.rodata*)
+		*(.flash_rodata*)
+		*(.flash_nc_rodata*)
 
 #ifndef NOSTD
 		*armlib*(+CONST)
@@ -121,7 +150,7 @@ LR_text +0
 #endif
 	}
 
-	.build_info +0
+	build_info +0
 	{
 		*(.build_info, +FIRST)
 	}
@@ -132,7 +161,13 @@ LR_text +0
 		*(.code_start_addr, +LAST)
 	}
 
-	bss +0 UNINIT
+#ifdef MAIN_RAM_USE_TCM
+#define BSS_SECTION_START			AlignExpr(ImageLimit(burn_buffer), 16)
+#else
+#define BSS_SECTION_START			+0
+#endif
+
+	bss BSS_SECTION_START UNINIT
 	{
 		*(.bss*)
 		*(COMMON)

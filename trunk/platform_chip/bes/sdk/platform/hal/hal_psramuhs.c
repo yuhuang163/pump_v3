@@ -24,7 +24,7 @@
 #include "hal_cache.h"
 #include "hal_chipid.h"
 #include "pmu.h"
-#include "psramuhsphy.h"
+#include "psramphy.h"
 #include "reg_psramuhs_mc.h"
 
 //#define PSRAMUHS_DUAL_8BIT
@@ -37,12 +37,8 @@
 //#define PSRAMUHS_ANA_LOOPBACK
 
 #ifndef CHIP_BEST2001
-
-#ifndef PSRAMULS_MODE
-#define PSRAMUHS_WRAP_ENABLE
-#define PSRAMUHS_AUTO_PRECHARGE
-#endif
-
+//#define PSRAMUHS_WRAP_ENABLE
+//#define PSRAMUHS_AUTO_PRECHARGE
 //#define PSRAMUHS_DUAL_ENTRY_MODE
 #endif /* CHIP_BEST2001 */
 
@@ -263,7 +259,7 @@ static void psramuhs_send_cmd_reg(enum MEMIF_CMD_T cmd, uint32_t reg, uint32_t v
 #endif
 }
 
-static void psramuhs_write_reg(uint32_t reg, uint32_t val)
+void psramuhs_write_reg(uint32_t reg, uint32_t val)
 {
     psramuhs_send_cmd_reg(MEMIF_MRS, reg, val);
 }
@@ -351,7 +347,42 @@ static void psramuhs_set_timing(uint32_t clk)
     psramuhs_write_reg(reg, val);
     hal_sys_timer_delay_us(5);
 #else /*PSRAMULS_MODE*/
+    uint32_t reg0_val,reg2_val;
     reg = 0;
+#if defined(PSRAMUHS_AP325608A) || defined(PSRAMUHS_AP351208C)
+    uint32_t wl_save = 0;
+    uint32_t rl_save = 0;
+
+    wl_save = psramuhs_mc->REG_028;
+    rl_save = psramuhs_mc->REG_02C;
+#ifdef PSRAMUHS_AP351208C
+    psramuhs_mc->REG_028 = PSRAM_UHS_MC_WRITE_LATENCY(14 - 1);
+    psramuhs_mc->REG_02C = PSRAM_UHS_MC_READ_LATENCY(29);
+#else
+    psramuhs_mc->REG_028 = PSRAM_UHS_MC_WRITE_LATENCY(6 - 1);
+    psramuhs_mc->REG_02C = PSRAM_UHS_MC_READ_LATENCY(16);
+#endif
+
+    if (clk <= 200000000) {
+        val = 7;
+    } else if (clk <= 333000000) {
+        val = 6;
+    } else if (clk <= 400000000) {
+        val = 5;
+    } else if (clk <= 533000000) {
+        val = 0;
+    } else if (clk <= 667000000) {
+        val = 1;
+    } else if (clk <= 800000000) {
+        val = 1;
+    } else if (clk <= 933000000) {
+        val = 2;
+    } else {
+        val = 3;
+    }
+    // Latency, drive
+    val = (val << 0) | (8 << 3);
+#else
     if (clk <= 200000000) {
         val = 7;
     } else if (clk <= 333000000) {
@@ -371,11 +402,12 @@ static void psramuhs_set_timing(uint32_t clk)
     }
     // Latency, drive
     val = (val << 0) | (1 << 3);
+#endif
 #if 0
     //refresh disable
     val |= (1 << 7);
 #endif
-    psramuhs_write_reg(reg, val);
+    reg0_val = val;
 
     reg = 2;
 #if defined(__ARM_ARCH_ISA_ARM) || defined(DSP_ENABLE)
@@ -406,12 +438,39 @@ static void psramuhs_set_timing(uint32_t clk)
 #ifdef PSRAMUHS_WRAP_ENABLE
     val |= (1 << 2);
 #endif
-    psramuhs_write_reg(reg, val);
 
+#if defined(PSRAMUHS_AP325608A) || defined(PSRAMUHS_AP351208C)
+#ifdef PSRAMUHS_WRAP_ENABLE
+    val = ((burst_len << 1) << 3);
+#else
+    val = 0;
+#endif
+#endif
+    reg2_val = val;
+
+#if defined(PSRAMUHS_AP325608A) || defined(PSRAMUHS_AP351208C)
+    reg = 2;
+    psramuhs_write_reg(reg, reg2_val);
+    reg = 0;
+    psramuhs_write_reg(reg, reg0_val);
+#else
+    reg = 0;
+    psramuhs_write_reg(reg, reg0_val);
+    reg = 2;
+    psramuhs_write_reg(reg, reg2_val);
+#endif
+
+#if defined(PSRAMUHS_AP325608A) || defined(PSRAMUHS_AP351208C)
+#else
     reg = 6;
     // Vref trim
     val = (8 << 0);
     psramuhs_write_reg(reg, val);
+#endif
+#if defined(PSRAMUHS_AP325608A) || defined(PSRAMUHS_AP351208C)
+    psramuhs_mc->REG_028 = wl_save;
+    psramuhs_mc->REG_02C = rl_save;
+#endif
     hal_sys_timer_delay_us(5);
 
     psramuhs_zq_calib_reset();
@@ -419,22 +478,29 @@ static void psramuhs_set_timing(uint32_t clk)
 #endif /*PSRAMULS_MODE*/
 }
 
-void hal_psramuhs_sleep(void)
+void hal_psramuhs_sleep(enum HAL_CMU_LPU_SLEEP_MODE_T mode)
 {
-    psramuhs_mc->REG_158 = LP_SELF_REFRESH;
+    psramuhs_mc->REG_158 = LP_HALF_SLEEP;
+    __DSB();
+    hal_psramuhsip_mc_busy_wait();
+    while (GET_BITFIELD(psramuhs_mc->REG_404, PSRAM_UHS_MC_WB_FILL_LEVEL) != 0) {}
     psramuhs_single_cmd(MEMIF_PD);
-    psramuhsphy_sleep();
+    psramphy_sleep();
     hal_cmu_ddr_reset_set();
     hal_cmu_ddr_clock_disable();
+    pmu_psramuhs_freq_config(0);
 }
 
-void hal_psramuhs_wakeup(void)
+void hal_psramuhs_wakeup(enum HAL_CMU_LPU_SLEEP_MODE_T mode)
 {
+    pmu_psramuhs_freq_config(psramuhs_run_clk);
     hal_cmu_ddr_clock_enable();
     hal_cmu_ddr_reset_clear();
+    psramphy_wakeup();
     hal_psramuhs_mc_init(psramuhs_run_clk);
-    psramuhsphy_wakeup();
+    psramuhs_mc->REG_044 |= PSRAM_UHS_MC_WB_INVALID;
     psramuhs_single_cmd(MEMIF_NOP);
+    hal_psramuhs_refresh_enable();
 }
 
 static void hal_psramuhs_mc_set_timing(uint32_t clk)
@@ -466,6 +532,34 @@ static void hal_psramuhs_mc_set_timing(uint32_t clk)
     }
     if (val2 < 4)
         val2 = 4;
+#elif defined(PSRAMUHS_AP325608A) || defined(PSRAMUHS_AP351208C)
+    if (clk <= 200000000) {
+        val1 = 9;
+        val2 = 5;
+    } else if (clk <= 333000000) {
+        val1 = 13;
+        val2 = 5;
+    } else if (clk <= 400000000) {
+        val1 = 16;
+        val2 = 6;
+    } else if (clk <= 533000000) {
+        val1 = 20;
+        val2 = 10;
+    } else if (clk <= 667000000) {
+        val1 = 29;
+        val2 = 14;
+    } else if (clk <= 800000000) {
+        val1 = 29;
+        val2 = 14;
+    } else if (clk <= 933000000) {
+        val1 = 33;
+        val2 = 16;
+    } else {
+        val1 = 37;
+        val2 = 18;
+    }
+    if (clk >= 466000000)
+        val2--;
 #else
     if (clk <= 200000000) {
         val1 = 9;
@@ -512,9 +606,15 @@ static void hal_psramuhs_mc_set_timing(uint32_t clk)
     // tRC >= 60 ns
     val = ((clk / 1000000) * 60 + (1000 - 1)) / 1000;
     psramuhs_mc->REG_050 = PSRAM_UHS_MC_T_RC(val);
+#if defined(PSRAMUHS_AP325608A) || defined(PSRAMUHS_AP351208C)
+    // tRFC >= 90 ns
+    val = 90;
+#else
     // tRFC >= 60 ns
-    val = ((clk / 1000000) * 60 + (1000 - 1)) / 1000;
-    psramuhs_mc->REG_054 = PSRAM_UHS_MC_T_RFC(val);
+    val = 60;
+#endif
+    val = ((clk / 1000000) * val + (1000 - 1)) / 1000;
+    psramuhs_mc->REG_054 = PSRAM_UHS_MC_T_RFC(val + 5);
 #ifdef PSRAMUHS_AUTO_PRECHARGE
 
     // tCPHR >= 5 ns (auto precharge)
@@ -594,6 +694,85 @@ static void hal_psramuhs_mc_set_timing(uint32_t clk)
     psramuhs_mc->REG_0A8 = PSRAM_UHS_MC_T_EXPANDRD(val);
 }
 
+#ifdef PSRAMUHS_AP325608A
+static void hal_psram_ca_map_init_256Mb(void)
+{
+    psramuhs_mc ->REG_180 = PSRAM_UHS_MC_CA_MAP_BIT0(31) |
+        PSRAM_UHS_MC_CA_MAP_BIT1(31) |
+        PSRAM_UHS_MC_CA_MAP_BIT2(31) |
+        PSRAM_UHS_MC_CA_MAP_BIT3(2) |
+        PSRAM_UHS_MC_CA_MAP_BIT4(3) |
+        PSRAM_UHS_MC_CA_MAP_BIT5(4);
+    psramuhs_mc ->REG_184 = PSRAM_UHS_MC_CA_MAP_BIT6(5) |
+        PSRAM_UHS_MC_CA_MAP_BIT7(6) |
+        PSRAM_UHS_MC_CA_MAP_BIT8(7) |
+        PSRAM_UHS_MC_CA_MAP_BIT9(8) |
+        PSRAM_UHS_MC_CA_MAP_BIT10(10) |
+        PSRAM_UHS_MC_CA_MAP_BIT11(11);
+    psramuhs_mc ->REG_188 = PSRAM_UHS_MC_CA_MAP_BIT12(12) |
+        PSRAM_UHS_MC_CA_MAP_BIT13(13) |
+        PSRAM_UHS_MC_CA_MAP_BIT14(14) |
+        PSRAM_UHS_MC_CA_MAP_BIT15(15) |
+        PSRAM_UHS_MC_CA_MAP_BIT16(16) |
+        PSRAM_UHS_MC_CA_MAP_BIT17(17);
+    psramuhs_mc ->REG_18C = PSRAM_UHS_MC_CA_MAP_BIT18(18) |
+        PSRAM_UHS_MC_CA_MAP_BIT19(19) |
+        PSRAM_UHS_MC_CA_MAP_BIT20(20) |
+        PSRAM_UHS_MC_CA_MAP_BIT21(21) |
+        PSRAM_UHS_MC_CA_MAP_BIT22(22) |
+        PSRAM_UHS_MC_CA_MAP_BIT23(24);
+    psramuhs_mc ->REG_190 = PSRAM_UHS_MC_CA_MAP_BIT24(25) |
+        PSRAM_UHS_MC_CA_MAP_BIT25(31) |
+        PSRAM_UHS_MC_CA_MAP_BIT26(31) |
+        PSRAM_UHS_MC_CA_MAP_BIT27(31) |
+        PSRAM_UHS_MC_CA_MAP_BIT28(31) |
+        PSRAM_UHS_MC_CA_MAP_BIT29(31);
+    // psramuhs_mc ->REG_194 = PSRAM_UHS_MC_CA_MAP_BIT30(31) |
+    //     PSRAM_UHS_MC_CA_MAP_BIT31(31);
+
+    psramuhs_mc ->REG_150 = PSRAM_UHS_MC_CMD_TABLE_AUTO_REFR(0xE0);
+}
+
+#elif defined(PSRAMUHS_AP351208C)
+static void hal_psram_ca_map_init_512Mb(void)
+{
+    psramuhs_mc ->REG_180 = PSRAM_UHS_MC_CA_MAP_BIT0(31) |
+        PSRAM_UHS_MC_CA_MAP_BIT1(31) |
+        PSRAM_UHS_MC_CA_MAP_BIT2(31) |
+        PSRAM_UHS_MC_CA_MAP_BIT3(2) |
+        PSRAM_UHS_MC_CA_MAP_BIT4(3) |
+        PSRAM_UHS_MC_CA_MAP_BIT5(4);
+    psramuhs_mc ->REG_184 = PSRAM_UHS_MC_CA_MAP_BIT6(5) |
+        PSRAM_UHS_MC_CA_MAP_BIT7(6) |
+        PSRAM_UHS_MC_CA_MAP_BIT8(7) |
+        PSRAM_UHS_MC_CA_MAP_BIT9(8) |
+        PSRAM_UHS_MC_CA_MAP_BIT10(9) |
+        PSRAM_UHS_MC_CA_MAP_BIT11(10);
+    psramuhs_mc ->REG_188 = PSRAM_UHS_MC_CA_MAP_BIT12(11) |
+        PSRAM_UHS_MC_CA_MAP_BIT13(12) |
+        PSRAM_UHS_MC_CA_MAP_BIT14(13) |
+        PSRAM_UHS_MC_CA_MAP_BIT15(14) |
+        PSRAM_UHS_MC_CA_MAP_BIT16(15) |
+        PSRAM_UHS_MC_CA_MAP_BIT17(16);
+    psramuhs_mc ->REG_18C = PSRAM_UHS_MC_CA_MAP_BIT18(17) |
+        PSRAM_UHS_MC_CA_MAP_BIT19(18) |
+        PSRAM_UHS_MC_CA_MAP_BIT20(19) |
+        PSRAM_UHS_MC_CA_MAP_BIT21(20) |
+        PSRAM_UHS_MC_CA_MAP_BIT22(21) |
+        PSRAM_UHS_MC_CA_MAP_BIT23(22);
+    psramuhs_mc ->REG_190 = PSRAM_UHS_MC_CA_MAP_BIT24(24) |
+        PSRAM_UHS_MC_CA_MAP_BIT25(25) |
+        PSRAM_UHS_MC_CA_MAP_BIT26(31) |
+        PSRAM_UHS_MC_CA_MAP_BIT27(31) |
+        PSRAM_UHS_MC_CA_MAP_BIT28(31) |
+        PSRAM_UHS_MC_CA_MAP_BIT29(31);
+    // psramuhs_mc ->REG_194 = PSRAM_UHS_MC_CA_MAP_BIT30(31) |
+    //     PSRAM_UHS_MC_CA_MAP_BIT31(31);
+
+    psramuhs_mc ->REG_150 = PSRAM_UHS_MC_CMD_TABLE_AUTO_REFR(0xE0);
+}
+#endif
+
 static void hal_psramuhs_mc_init(uint32_t clk)
 {
     uint32_t val;
@@ -610,8 +789,10 @@ static void hal_psramuhs_mc_init(uint32_t clk)
 #ifdef PSRAMUHS_16BIT
     val |= PSRAM_UHS_MC_CHIP_IO_X16 | PSRAM_UHS_MC_CHIP_CA_PATTERN(2);
 #else
-#ifdef PSRAMULS_MODE
+#if defined(PSRAMULS_MODE)
     val |= PSRAM_UHS_MC_CHIP_CA_PATTERN(3);
+#elif defined(PSRAMUHS_AP325608A) || defined(PSRAMUHS_AP351208C)
+    val |= PSRAM_UHS_MC_CHIP_CA_PATTERN(0);
 #else
     val |= PSRAM_UHS_MC_CHIP_CA_PATTERN(1);
 #endif
@@ -624,6 +805,8 @@ static void hal_psramuhs_mc_init(uint32_t clk)
     val |= PSRAM_UHS_MC_CHIP_MEM_SIZE(2);
 #elif (PSRAMUHS_SIZE == 0x2000000)
     val |= PSRAM_UHS_MC_CHIP_MEM_SIZE(3);
+#elif (PSRAMUHS_SIZE == 0x4000000)
+    val |= PSRAM_UHS_MC_CHIP_MEM_SIZE(4);
 #else
     ASSERT(false, "Bad PSRAMUHS_SIZE=0x%08X", PSRAMUHS_SIZE);
 #endif
@@ -701,6 +884,12 @@ static void hal_psramuhs_mc_init(uint32_t clk)
 #endif
     psramuhs_mc->REG_844 = PSRAM_UHS_MC_T_WPST(2);
 
+#ifdef PSRAMUHS_AP325608A
+    hal_psram_ca_map_init_256Mb();
+#elif defined(PSRAMUHS_AP351208C)
+    hal_psram_ca_map_init_512Mb();
+#endif
+
     hal_psramuhsip_set_reg_fifo_width();
     hal_psramuhsip_set_reg_data_mask();
 
@@ -734,7 +923,7 @@ void hal_psramuhs_snoop_disable()
 {
     psramuhs_mc->REG_044 |= PSRAM_UHS_MC_SNP_DISABLE;
 }
-void hal_psramuhs_refresh_enable()
+void hal_psramuhs_refresh_enable(void)
 {
 #ifdef PSRAMUHS_BURST_REFRESH
     psramuhs_mc->REG_020 = PSRAM_UHS_MC_REFRESH_MODE | PSRAM_UHS_MC_BURST_REFRESH_EN;
@@ -742,7 +931,7 @@ void hal_psramuhs_refresh_enable()
     psramuhs_mc->REG_020 = PSRAM_UHS_MC_REFRESH_MODE;
 #endif
 }
-void hal_psramuhs_refresh_disable()
+void hal_psramuhs_refresh_disable(void)
 {
 #ifdef PSRAMUHS_BURST_REFRESH
     psramuhs_mc->REG_020 &= ~(PSRAM_UHS_MC_REFRESH_MODE | PSRAM_UHS_MC_BURST_REFRESH_EN);
@@ -750,7 +939,7 @@ void hal_psramuhs_refresh_disable()
     psramuhs_mc->REG_020 &= ~(PSRAM_UHS_MC_REFRESH_MODE);
 #endif
 }
-void hal_psramuhs_hold()
+void hal_psramuhs_hold(void)
 {
     hal_sys_timer_delay_us(1000); //wait for WIFI/BT CPU
     hal_psramuhsip_wb_busy_wait();
@@ -758,7 +947,7 @@ void hal_psramuhs_hold()
     psramuhs_single_cmd(MEMIF_PD);
     hal_sys_timer_delay_us(100);
 }
-void hal_psramuhs_release()
+void hal_psramuhs_release(void)
 {
     hal_psramuhs_mc_init(psramuhs_run_clk);
 
@@ -768,7 +957,7 @@ void hal_psramuhs_release()
     hal_sys_timer_delay_us(100);
 }
 
-uint32_t hal_psramuhs_ca_calib_result()
+uint32_t hal_psramuhs_ca_calib_result(void)
 {
     uint32_t val;
     uint32_t toggling = 0;
@@ -797,13 +986,13 @@ void hal_psramuhs_init(void)
     hal_cmu_ddr_clock_enable();
     hal_cmu_ddr_reset_clear();
 
-#ifndef FPGA
-    psramuhsphy_open(psramuhs_run_clk);
+#if !defined(FPGA) && !defined(SIMU)
+    psramphy_open(psramuhs_run_clk);
 #endif
     hal_psramuhs_mc_init(psramuhs_run_clk);
-#ifndef FPGA
+#if !defined(FPGA) && !defined(SIMU)
 #if !defined(PSRAMUHS_DIG_LOOPBACK) && !defined(PSRAMUHS_ANA_LOOPBACK)
-    psramuhsphy_init_calib();
+    psramphy_init_calib();
 #endif
 #endif
     psramuhs_start_clock();
@@ -815,7 +1004,7 @@ void hal_psramuhs_init(void)
 #if !defined(FPGA) && !defined(SIMU)
 #if !defined(PSRAMUHS_DIG_LOOPBACK) && !defined(PSRAMUHS_ANA_LOOPBACK)
     hal_psramuhs_snoop_disable();
-    psramuhsphy_calib(psramuhs_run_clk);
+    psramphy_calib(psramuhs_run_clk);
     hal_psramuhs_snoop_enable();
 #endif
 #endif

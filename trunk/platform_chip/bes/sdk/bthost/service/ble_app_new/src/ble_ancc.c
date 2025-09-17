@@ -13,8 +13,6 @@
  * trademark and other intellectual property rights.
  *
  ****************************************************************************/
-#include "bthost_logger.h"
-
 #if defined(ANCC_ENABLED)
 #include "gatt_service.h"
 
@@ -307,15 +305,15 @@ void app_anc_parse_message_detail(const uint8_t *data, uint32_t dataLen)
     uint32_t len = sizeof(uint32_t) + sizeof(enum anc_cmd_id);
     uint8_t attrId;
     uint16_t attrLen = 0;
-    DEBUG_VERBOSE(1, "Received ANC rsp ntf attr uid:%d", uid);
+    TRACE(1, "Received ANC rsp ntf attr uid:%d", uid);
 
     while (dataLen > len)
     {
         attrId = data[len];
         attrLen = (uint16_t)(data[len+1]);
         len += (3+attrLen);
-        DEBUG_VERBOSE(1, "Received ANC attr:%d data", attrId);
-        DUMP8_D("%2x ", data+len-attrLen, attrLen);
+        TRACE(1, "Received ANC attr:%d data", attrId);
+        DUMP8("%2x ", data+len-attrLen, attrLen);
 
     }
 }
@@ -326,7 +324,7 @@ void app_anc_parse_app_detail(const uint8_t *data, uint32_t dataLen)
     uint32_t len = sizeof(enum anc_cmd_id);
     uint8_t attrId;
     uint16_t attrLen = 0;
-    DEBUG_VERBOSE(1, "Received ANC rsp ntf attr uid:%d", uid);
+    TRACE(1, "Received ANC rsp ntf attr uid:%d", uid);
 
     while (data[len] != '\0')
     {
@@ -338,8 +336,8 @@ void app_anc_parse_app_detail(const uint8_t *data, uint32_t dataLen)
         attrId = data[len];
         attrLen = (uint16_t)(data[len+1]);
         len += (3+attrLen);
-        DEBUG_VERBOSE(1, "Received ANC attr:%d data", attrId);
-        DUMP8_D("%2x ", data+len-attrLen, attrLen);
+        TRACE(1, "Received ANC attr:%d data", attrId);
+        DUMP8("%2x ", data+len-attrLen, attrLen);
 
     }
 }
@@ -386,13 +384,13 @@ static void app_ancc_parse_notification_info(anc_prf_t *prf, anc_char_enum_t cha
             p_count[categoryId] = count;
         }
 
-        DEBUG_VERBOSE(3, "Received ANC notification count:%d, id:%d, flag:%d", count, categoryId, flag);
+        TRACE(3, "Received ANC notification count:%d, id:%d, flag:%d", count, categoryId, flag);
 
         switch (info->evtID)
         {
             case EventIDNtfAdded:
             {
-                DEBUG_VERBOSE(0, "Received ANC notification added.");
+                TRACE(0, "Received ANC notification added.");
                 app_anc_get_msg_detail detail = 
                     {
                         .appId = true,
@@ -410,7 +408,7 @@ static void app_ancc_parse_notification_info(anc_prf_t *prf, anc_char_enum_t cha
             }
             case EventIDNtfModified:
             {
-                DEBUG_VERBOSE(0, "Received ANC notification modified.");
+                TRACE(0, "Received ANC notification modified.");
 #ifdef ANCS_ENABLED
                 ancs_proxy_send_notification(prf->head.connhdl, ANC_CHAR_NTFY_SOURCE, value, len);
 #endif
@@ -418,7 +416,7 @@ static void app_ancc_parse_notification_info(anc_prf_t *prf, anc_char_enum_t cha
             }
             case EventIDNtfRemoved:
             {
-                DEBUG_VERBOSE(0, "Received ANC notification removed.");
+                TRACE(0, "Received ANC notification removed.");
 #ifdef ANCS_ENABLED
                 ancs_proxy_send_notification(prf->head.connhdl, ANC_CHAR_NTFY_SOURCE, value, len);
 #endif
@@ -445,7 +443,7 @@ bt_status_t ble_ancc_start_discover(uint16_t connhdl)
     return BT_STS_SUCCESS;
 }
 
-static bool ble_anc_client_callback(gatt_prf_t *prf, gatt_profile_event_t event, gatt_profile_callback_param_t param)
+static int ble_anc_client_callback(gatt_prf_t *prf, gatt_profile_event_t event, gatt_profile_callback_param_t param)
 {
     anc_prf_t *anc = (anc_prf_t *)prf;
 
@@ -539,7 +537,7 @@ static bool ble_anc_client_callback(gatt_prf_t *prf, gatt_profile_event_t event,
         }
     }
 
-    return true;
+    return 0;
 }
 
 void ble_ancc_init(void)

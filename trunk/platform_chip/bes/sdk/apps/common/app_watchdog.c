@@ -24,18 +24,19 @@
 #include "app_utils.h"
 #include "cmsis_os.h"
 #include "watchdog/watchdog.h"
-#include "hal_cpudump.h"
 
 #ifdef SENSOR_HUB
 extern void app_mcu_sensor_hub_watch_dog_polling_handler(void);
 #endif
 
 #ifdef APP_WATCHDOG
+#ifndef NO_WDT_TIMER
 extern int task_idle_health_check(void);
 static void watchdog_ping_handler(void const *n);
 static osTimerId wdt_ping_timer_id = NULL;
 osTimerDef(wdt_ping_timer, watchdog_ping_handler);
 static uint32_t wdt_ping_period;
+#endif
 
 /// Check if IRQ is Masked
 /// \return     true=masked, false=not masked
@@ -52,19 +53,14 @@ static inline bool IsIrqMasked (void) {
 
 static void app_wdt_irq_handle(enum HAL_WDT_ID_T id, enum HAL_WDT_EVENT_T event)
 {
-#if (defined(CPU_PC_DUMP) && defined(CPUDUMP_BASE))
-    hal_cpudump_disable();
-#endif
     int irq_disabled = IsIrqMasked();
 
     analog_aud_codec_mute();
     if (irq_disabled) {
-#ifdef DEBUG_IRQ_HUNG
-        COMMON_TRACE(0, "irq is local disabled in 0x%x called by 0x%x",
+        TRACE(0, "irq is local disabled in 0x%x called by 0x%x",
                             irq_masked_addr.pc, irq_masked_addr.lr);
-        COMMON_TRACE(0, "irq is global disabled in 0x%x called by 0x%x",
+        TRACE(0, "irq is global disabled in 0x%x called by 0x%x",
                             irq_g_masked_addr.pc, irq_g_masked_addr.lr);
-#endif
     }
 
     ASSERT(0, "%s id:%d event:%d irq status %d",__func__, id, event, irq_disabled);
@@ -76,15 +72,14 @@ static void pmu_wdt_irq_handle(void)
 
     analog_aud_codec_mute();
     if (irq_disabled) {
-#ifdef DEBUG_IRQ_HUNG
-        COMMON_TRACE(0, "irq is disabled in 0x%x called by 0x%x",
+        TRACE(0, "irq is disabled in 0x%x called by 0x%x",
                             irq_masked_addr.pc, irq_masked_addr.lr);
-#endif
     }
 
     ASSERT(0, "%s irq disabled %d", __func__, irq_disabled);
 }
 
+#ifndef NO_WDT_TIMER
 static int hung_task_check = true;
 
 int app_wdt_hung_task_check_enable(int enable)
@@ -95,7 +90,7 @@ int app_wdt_hung_task_check_enable(int enable)
 
 static void watchdog_ping_handler(void const *unused)
 {
-    COMMON_TRACE(0, "feed watchdog");
+    TRACE(0, "feed watchdog");
     watchdog_ping();
 
     if (hung_task_check) {
@@ -110,11 +105,11 @@ static void watchdog_ping_handler(void const *unused)
     app_mcu_sensor_hub_watch_dog_polling_handler();
 #endif
 }
+#endif
 
 int app_wdt_open(int seconds)
 {
     uint32_t lock;
-    int ret;
     static int wdt_opened = 0;
 
     lock = int_lock();
@@ -126,44 +121,46 @@ int app_wdt_open(int seconds)
     wdt_opened = 1;
     watchdog_hw_stop();
     hal_wdt_set_irq_callback(HAL_WDT_ID_0, app_wdt_irq_handle);
-#ifndef CHIP_BEST2000
+#if !defined(CHIP_BEST2000)
     pmu_wdt_set_irq_handler(pmu_wdt_irq_handle);
 #endif
     watchdog_hw_start(seconds);
     int_unlock(lock);
 
+#ifndef NO_WDT_TIMER
     wdt_ping_timer_id = osTimerCreate(osTimer(wdt_ping_timer), osTimerPeriodic, NULL);
     if (!wdt_ping_timer_id) {
-        COMMON_TRACE(0,"Warning: can not create watchdog ping timer");
+        TRACE(0,"Warning: can not create watchdog ping timer");
         return -1;
     }
     wdt_ping_period = seconds * 1000 / 4;
 
-    ret = osTimerStart(wdt_ping_timer_id, wdt_ping_period);
+    int ret = osTimerStart(wdt_ping_timer_id, wdt_ping_period);
     if (ret != osOK)
         ASSERT(0, "watchdog start timer error");
-
+#endif
     return 0;
 }
 
 int app_wdt_reopen(int seconds)
 {
-    int ret;
     uint32_t lock = int_lock();
 
     watchdog_hw_stop();
     watchdog_hw_start(seconds);
     int_unlock(lock);
 
+#ifndef NO_WDT_TIMER
     wdt_ping_period = seconds * 1000 / 4;
 
-    ret = osTimerStart(wdt_ping_timer_id, wdt_ping_period);
+    int ret = osTimerStart(wdt_ping_timer_id, wdt_ping_period);
     if(ret != osOK)
         return -1;
-
+#endif
     return 0;
 }
 
+#ifndef NO_WDT_TIMER
 int app_wdt_set_ping_time(int seconds)
 {
     int ret;
@@ -176,13 +173,14 @@ int app_wdt_set_ping_time(int seconds)
 
     return 0;
 }
+#endif
 
 int app_wdt_close(void)
 {
     uint32_t lock;
-
+#ifndef NO_WDT_TIMER
     osTimerStop(wdt_ping_timer_id);
-
+#endif
     lock = int_lock();
     watchdog_hw_stop();
     int_unlock(lock);

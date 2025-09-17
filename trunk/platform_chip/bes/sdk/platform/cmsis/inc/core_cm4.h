@@ -1616,7 +1616,7 @@ typedef struct
   #define NVIC_SetPendingIRQ          __NVIC_SetPendingIRQ
   #define NVIC_ClearPendingIRQ        __NVIC_ClearPendingIRQ
   #define NVIC_GetActive              __NVIC_GetActive
-#ifdef KERNEL_NUTTX
+#ifdef __NuttX__
   #define NVIC_SetPriority(a,b)        __NVIC_SetPriority(a,5)
 #else
   #define NVIC_SetPriority            __NVIC_SetPriority
@@ -1631,7 +1631,7 @@ typedef struct
   #endif
   #include CMSIS_VECTAB_VIRTUAL_HEADER_FILE
 #else
-#ifdef KERNEL_NUTTX
+#ifdef __NuttX__
 typedef int (*xcpt_t)(int irq, void *context, void *arg);
 void nuttx_irq_attach(IRQn_Type IRQn, xcpt_t isr, uint32_t arg);
 int up_irq_handler(int irq, FAR void *context, FAR void *arg);
@@ -1926,9 +1926,24 @@ __STATIC_FORCEINLINE void NVIC_DecodePriority (uint32_t Priority, uint32_t Prior
   \param [in]   IRQn      Interrupt number
   \param [in]   vector    Address of interrupt handler function
  */
+#if defined(COMMON_IRQ_ENTRY) && defined(CP_IN_SAME_EE)
+#include "system_ARMCM.h"
+#endif
 __STATIC_FORCEINLINE void __NVIC_SetVector(IRQn_Type IRQn, uint32_t vector)
 {
   uint32_t *vectors = (uint32_t *)SCB->VTOR;
+#ifdef COMMON_IRQ_ENTRY
+  if (IRQn >= -14) {
+    extern uint32_t os_vector_table[];
+    vectors = os_vector_table;
+#ifdef CP_IN_SAME_EE
+    if (get_cpu_id()) {
+      extern uint32_t os_vector_table_cp[];
+      vectors = os_vector_table_cp;
+    }
+#endif
+  }
+#endif
   vectors[(int32_t)IRQn + NVIC_USER_IRQ_OFFSET] = vector;
   /* ARM Application Note 321 states that the M4 does not require the architectural barrier */
 }

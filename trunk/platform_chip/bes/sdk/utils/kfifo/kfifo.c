@@ -23,7 +23,8 @@ void kfifo_init(struct kfifo *fifo, unsigned char *buffer, unsigned int len)
 unsigned int kfifo_put(struct kfifo *fifo, unsigned char *buffer, unsigned int len)
 {
     unsigned int l;
-    len = MIN(len, fifo->size - fifo->in + fifo->out); 
+    l = fifo->size - fifo->in + fifo->out;
+    len = MIN(len, l); 
     __sync_synchronize();
 
     l = MIN(len, fifo->size - (fifo->in & (fifo->size - 1)));
@@ -38,7 +39,8 @@ unsigned int kfifo_put(struct kfifo *fifo, unsigned char *buffer, unsigned int l
 unsigned int kfifo_get(struct kfifo *fifo, unsigned char *buffer, unsigned int len)
 {
     unsigned int l;
-    len = MIN(len, fifo->in - fifo->out);
+    l = fifo->in - fifo->out;
+    len = MIN(len, l);
     __sync_synchronize();
 
     l = MIN(len, fifo->size - (fifo->out & (fifo->size - 1)));
@@ -52,18 +54,20 @@ unsigned int kfifo_get(struct kfifo *fifo, unsigned char *buffer, unsigned int l
 }
 unsigned int kfifo_peek(struct kfifo *fifo, unsigned int len_want, unsigned char **buff1, unsigned char **buff2, unsigned int *len1, unsigned int *len2)
 {
-    unsigned int l,len;
+    unsigned int l,len,off;
 
     *buff1 = *buff2 = NULL;
     *len1 = *len2 = 0;
-    len = MIN(len_want, fifo->in - fifo->out);
+    l = fifo->in - fifo->out;
+    len = MIN(len_want, l);
     if (len < len_want) {
         return 0;
     }
 
     __sync_synchronize();
-    l = MIN(len, fifo->size - (fifo->out & (fifo->size - 1)));
-    *buff1 = fifo->buffer + (fifo->out & (fifo->size - 1));
+    off = fifo->out & (fifo->size - 1);
+    l = MIN(len, fifo->size - off);
+    *buff1 = fifo->buffer + off;
     *len1 = l;
     if (l < len) {
         *buff2 = fifo->buffer;
@@ -100,6 +104,11 @@ unsigned int kfifo_get_free_space(struct kfifo *fifo)
     return (fifo->size - fifo->in + fifo->out);
 }
 
+unsigned int kfifo_available(struct kfifo *fifo)
+{
+    return (fifo->size - kfifo_len(fifo));
+}
+
 #if 0
 struct kfifo test_kfifo;
 unsigned char kfifo_buffer[32];
@@ -107,47 +116,47 @@ void kfifo_test(void)
 {
     unsigned char b[10];
     kfifo_init(&test_kfifo, kfifo_buffer, 32);
-    KFIFO_TRACE(1,"init 32 : fifo size %d", test_kfifo.size);
+    TRACE(1,"init 32 : fifo size %d", test_kfifo.size);
 
     kfifo_put(&test_kfifo, "1234567890", 10);
-    KFIFO_TRACE(1,"put 10 : fifo  len %d", kfifo_len(&test_kfifo));
+    TRACE(1,"put 10 : fifo  len %d", kfifo_len(&test_kfifo));
 
     kfifo_put(&test_kfifo, "abcdefghij", 10);
-    KFIFO_TRACE(1,"put 10 : fifo  len %d", kfifo_len(&test_kfifo));
+    TRACE(1,"put 10 : fifo  len %d", kfifo_len(&test_kfifo));
 
     kfifo_put(&test_kfifo, "!@#$%^&*()", 10);
-    KFIFO_TRACE(1,"put 10 : fifo  len %d", kfifo_len(&test_kfifo));
+    TRACE(1,"put 10 : fifo  len %d", kfifo_len(&test_kfifo));
 
     kfifo_put(&test_kfifo, "VVVV", 4);
-    KFIFO_TRACE(1,"put 4 : fifo  len %d", kfifo_len(&test_kfifo));
+    TRACE(1,"put 4 : fifo  len %d", kfifo_len(&test_kfifo));
 
     kfifo_get(&test_kfifo, b, 2);
-    KFIFO_TRACE(1,"get 2 : fifo  len %d", kfifo_len(&test_kfifo));
-    KFIFO_TRACE(0,"data:");
+    TRACE(1,"get 2 : fifo  len %d", kfifo_len(&test_kfifo));
+    TRACE(0,"data:");
     for(int i = 0; i < 2; ++i) {
-        KFIFO_TRACE(1,"%c-", b[i]);
+        TRACE(1,"%c-", b[i]);
     }
-    KFIFO_TRACE(0," ");
+    TRACE(0," ");
     kfifo_get(&test_kfifo, b, 10);
-    KFIFO_TRACE(1,"get 10 : fifo  len %d", kfifo_len(&test_kfifo));
-    KFIFO_TRACE(0,"data:");
+    TRACE(1,"get 10 : fifo  len %d", kfifo_len(&test_kfifo));
+    TRACE(0,"data:");
     for(int i = 0; i < 10; ++i) {
-        KFIFO_TRACE(1,"%c-", b[i]);
+        TRACE(1,"%c-", b[i]);
     }
-    KFIFO_TRACE(0," ");
+    TRACE(0," ");
     kfifo_get(&test_kfifo, b, 10);
-    KFIFO_TRACE(1,"get 10 : fifo  len %d", kfifo_len(&test_kfifo));
-    KFIFO_TRACE(0,"data:");
+    TRACE(1,"get 10 : fifo  len %d", kfifo_len(&test_kfifo));
+    TRACE(0,"data:");
     for(int i = 0; i < 10; ++i) {
-        KFIFO_TRACE(1,"%c-", b[i]);
+        TRACE(1,"%c-", b[i]);
     }
-    KFIFO_TRACE(0," ");
+    TRACE(0," ");
     kfifo_get(&test_kfifo, b, 10);
-    KFIFO_TRACE(1,"get 10 : fifo  len %d", kfifo_len(&test_kfifo));
-    KFIFO_TRACE(0,"data:");
+    TRACE(1,"get 10 : fifo  len %d", kfifo_len(&test_kfifo));
+    TRACE(0,"data:");
     for(int i = 0; i < 10; ++i) {
-        KFIFO_TRACE(1,"%c-", b[i]);
+        TRACE(1,"%c-", b[i]);
     }
-    KFIFO_TRACE(0," ");
+    TRACE(0," ");
 }
 #endif

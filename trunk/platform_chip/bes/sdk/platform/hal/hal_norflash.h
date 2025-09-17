@@ -24,11 +24,6 @@ extern "C" {
 #include "plat_addr_map.h"
 #include "hal_cmu.h"
 
-// 64M Bytes
-#ifndef HAL_NORFLASH_ADDR_MASK
-#define HAL_NORFLASH_ADDR_MASK              0x03FFFFFF
-#endif
-
 #define HAL_NORFLASH_DEVICE_ID_LEN          3
 
 #define HAL_NORFLASH_CP_ID_LEN              2
@@ -63,28 +58,26 @@ extern "C" {
 #define NORFLASH_XT_ID_PREFIX               0x0B
 
 enum HAL_NORFLASH_RET_T {
-    HAL_NORFLASH_OK                 = 0,
-    HAL_NORFLASH_SUSPENDED          = 1,
-    HAL_NORFLASH_ERR                = 2,
-    HAL_NORFLASH_BAD_ID             = 3,
-    HAL_NORFLASH_BAD_DIV            = 4,
-    HAL_NORFLASH_BAD_CALIB_ID       = 5,
-    HAL_NORFLASH_BAD_CALIB_MAGIC    = 6,
-    HAL_NORFLASH_BAD_CALIB_SEQ      = 7,
-    HAL_NORFLASH_BAD_CFG            = 8,
-    HAL_NORFLASH_BAD_MODE           = 9,
-    HAL_NORFLASH_BAD_OP             = 10,
-    HAL_NORFLASH_BAD_ADDR           = 11,
-    HAL_NORFLASH_BAD_LEN            = 12,
-    HAL_NORFLASH_BAD_REMAP_ID       = 13,
-    HAL_NORFLASH_BAD_REMAP_OFFSET   = 14,
-    HAL_NORFLASH_BAD_ERASE_TYPE     = 15,
-    HAL_NORFLASH_BAD_NS_ADDR        = 16,
-    HAL_NORFLASH_BAD_PRIVILEGE      = 17,
-    HAL_NORFLASH_NOT_OPENED         = 18,
-    HAL_NORFLASH_CFG_NULL           = 19,
-    HAL_NORFLASH_TIMING_NULL        = 20,
-    HAL_NORFLASH_BUFFER_NULL        = 21,
+    HAL_NORFLASH_OK,
+    HAL_NORFLASH_SUSPENDED,
+    HAL_NORFLASH_ERR,
+    HAL_NORFLASH_BAD_ID,
+    HAL_NORFLASH_BAD_DIV,
+    HAL_NORFLASH_BAD_CALIB_ID,
+    HAL_NORFLASH_BAD_CALIB_MAGIC,
+    HAL_NORFLASH_BAD_CALIB_SEQ,
+    HAL_NORFLASH_BAD_CFG,
+    HAL_NORFLASH_BAD_MODE,
+    HAL_NORFLASH_BAD_OP,
+    HAL_NORFLASH_BAD_ADDR,
+    HAL_NORFLASH_BAD_LEN,
+    HAL_NORFLASH_BAD_REMAP_ID,
+    HAL_NORFLASH_BAD_REMAP_OFFSET,
+    HAL_NORFLASH_BAD_ERASE_TYPE,
+    HAL_NORFLASH_BAD_NS_ADDR,
+    HAL_NORFLASH_BAD_PRIVILEGE,
+    HAL_NORFLASH_NOT_OPENED,
+    HAL_NORFLASH_CFG_NULL,
 };
 
 enum HAL_NORFLASH_SPEED {
@@ -165,6 +158,7 @@ enum HAL_NORFLASH_OPT_T {
     HAL_NORFLASH_OPT_CALIB_SEQ_PATTERN          = (1 << 2),
     HAL_NORFLASH_OPT_DUAL_CHIP                  = (1 << 3),
     HAL_NORFLASH_OPT_SEC_REG_DUAL_CHIP          = (1 << 4),
+    HAL_NORFLASH_OPT_DECODE                     = (1 << 5),
 
     HAL_NORFLASH_OPT_RESERVED                   = ~0UL,
 };
@@ -182,10 +176,76 @@ struct HAL_NORFLASH_TIMING_CONFIG_T {
     uint8_t delay_val;
 };
 
-#ifdef ARM_CMNS
+#ifndef ARM_CMNS
 
-//#define hal_norflash_get_init_config hal_norflash_get_init_config_se
-#define hal_norflash_get_init_config_ex hal_norflash_get_init_config_ex_se
+void hal_norflash_set_boot_freq(enum HAL_CMU_FREQ_T freq);
+const struct HAL_NORFLASH_CONFIG_T *hal_norflash_get_init_config(void);
+enum HAL_NORFLASH_RET_T hal_norflash_init(enum HAL_FLASH_ID_T id);
+enum HAL_NORFLASH_RET_T hal_norflash_open(enum HAL_FLASH_ID_T id, const struct HAL_NORFLASH_CONFIG_T *cfg);
+enum HAL_NORFLASH_RET_T hal_norflash_reopen(enum HAL_FLASH_ID_T id, const struct HAL_NORFLASH_CONFIG_T *cfg);
+enum HAL_NORFLASH_RET_T hal_norflash_apply_config(enum HAL_FLASH_ID_T id, const struct HAL_NORFLASH_CONFIG_T *cfg, const struct HAL_NORFLASH_TIMING_CONFIG_T *timing);
+enum HAL_NORFLASH_RET_T hal_norflash_get_timing_config(enum HAL_FLASH_ID_T id, struct HAL_NORFLASH_TIMING_CONFIG_T *timing);
+void hal_norflash_show_calib_result(enum HAL_FLASH_ID_T id);
+void hal_norflash_show_sfdp_check_param(enum HAL_FLASH_ID_T id);
+enum HAL_CMU_FREQ_T hal_norflash_clk_to_cmu_freq(uint32_t clk);
+enum HAL_NORFLASH_RET_T hal_norflash_get_size(enum HAL_FLASH_ID_T id, uint32_t *total_size, uint32_t *block_size, uint32_t *sector_size, uint32_t *page_size);
+enum HAL_NORFLASH_RET_T hal_norflash_get_boundary(enum HAL_FLASH_ID_T id, uint32_t address, uint32_t* block_boundary, uint32_t* sector_boundary);
+enum HAL_NORFLASH_RET_T hal_norflash_get_id(enum HAL_FLASH_ID_T id, uint8_t *value, uint32_t len);
+enum HAL_NORFLASH_RET_T hal_norflash_dual_chip_get_id(enum HAL_FLASH_ID_T id, uint8_t *value0, uint8_t *value1, uint32_t len);
+enum HAL_NORFLASH_RET_T hal_norflash_get_unique_id(enum HAL_FLASH_ID_T id, uint8_t *value, uint32_t len);
+enum HAL_NORFLASH_RET_T hal_norflash_dual_chip_get_unique_id(enum HAL_FLASH_ID_T id, uint8_t *value0, uint8_t *value1, uint32_t len);
+enum HAL_NORFLASH_RET_T hal_norflash_read_sfdp_reg(enum HAL_FLASH_ID_T id, uint8_t addr, uint8_t *value, uint32_t len);
+enum HAL_NORFLASH_RET_T hal_norflash_dual_chip_read_sfdp_reg(enum HAL_FLASH_ID_T id, uint8_t addr, uint8_t *value0, uint8_t *value1, uint32_t len);
+enum HAL_NORFLASH_RET_T hal_norflash_enable_protection(enum HAL_FLASH_ID_T id);
+enum HAL_NORFLASH_RET_T hal_norflash_disable_protection(enum HAL_FLASH_ID_T id);
+enum HAL_NORFLASH_RET_T hal_norflash_set_protection(enum HAL_FLASH_ID_T id, uint32_t bp);
+enum HAL_NORFLASH_RET_T hal_norflash_erase_chip(enum HAL_FLASH_ID_T id);
+enum HAL_NORFLASH_RET_T hal_norflash_erase_suspend(enum HAL_FLASH_ID_T id, uint32_t start_address, uint32_t len, int suspend);
+enum HAL_NORFLASH_RET_T hal_norflash_erase(enum HAL_FLASH_ID_T id, uint32_t start_address, uint32_t len);
+enum HAL_NORFLASH_RET_T hal_norflash_erase_resume(enum HAL_FLASH_ID_T id, int suspend);
+enum HAL_NORFLASH_RET_T hal_norflash_write_suspend(enum HAL_FLASH_ID_T id, uint32_t start_address, const uint8_t *buffer, uint32_t len, int suspend);
+enum HAL_NORFLASH_RET_T hal_norflash_write(enum HAL_FLASH_ID_T id, uint32_t start_address, const uint8_t *buffer, uint32_t len);
+enum HAL_NORFLASH_RET_T hal_norflash_write_resume(enum HAL_FLASH_ID_T id, int suspend);
+enum HAL_NORFLASH_RET_T hal_norflash_suspend_check_irq(enum HAL_FLASH_ID_T id, uint32_t irq_num, int enable);
+enum HAL_NORFLASH_RET_T hal_norflash_suspend_check_flash_read(enum HAL_FLASH_ID_T id, int enable);
+enum HAL_NORFLASH_RET_T hal_norflash_read(enum HAL_FLASH_ID_T id, uint32_t start_address, uint8_t *buffer, uint32_t len);
+enum HAL_NORFLASH_RET_T hal_norflash_close(enum HAL_FLASH_ID_T id);
+void hal_norflash_force_sleep(enum HAL_FLASH_ID_T id);
+void hal_norflash_force_wakeup(enum HAL_FLASH_ID_T id);
+void hal_norflash_sleep(enum HAL_FLASH_ID_T id, enum HAL_CMU_LPU_SLEEP_MODE_T mode);
+void hal_norflash_wakeup(enum HAL_FLASH_ID_T id, enum HAL_CMU_LPU_SLEEP_MODE_T mode);
+int hal_norflash_busy(enum HAL_FLASH_ID_T id);
+uint32_t hal_norflash_mem_read_bus_lock(enum HAL_FLASH_ID_T id);
+void hal_norflash_mem_read_bus_unlock(enum HAL_FLASH_ID_T id, uint32_t status);
+enum HAL_NORFLASH_RET_T hal_norflash_set_dual_chip_mode(enum HAL_FLASH_ID_T id, int dual_flash, int dual_sec_reg);
+enum HAL_NORFLASH_RET_T hal_norflash_get_dual_chip_mode(enum HAL_FLASH_ID_T id, int *dual_flash, int *dual_sec_reg);
+uint32_t hal_norflash_get_flash_total_size(enum HAL_FLASH_ID_T id);
+int hal_norflash_opened(enum HAL_FLASH_ID_T id);
+enum HAL_NORFLASH_RET_T hal_norflash_get_open_state(enum HAL_FLASH_ID_T id);
+int hal_norflash_security_register_is_locked(enum HAL_FLASH_ID_T id, uint32_t start_address, uint32_t len);
+enum HAL_NORFLASH_RET_T hal_norflash_security_register_lock(enum HAL_FLASH_ID_T id, uint32_t start_address, uint32_t len);
+enum HAL_NORFLASH_RET_T hal_norflash_security_register_erase(enum HAL_FLASH_ID_T id, uint32_t start_address, uint32_t len);
+enum HAL_NORFLASH_RET_T hal_norflash_security_register_write(enum HAL_FLASH_ID_T id, uint32_t start_address, const uint8_t *buffer, uint32_t len);
+enum HAL_NORFLASH_RET_T hal_norflash_security_register_read(enum HAL_FLASH_ID_T id, uint32_t start_address, uint8_t *buffer, uint32_t len);
+void hal_norflash_reset_remap(enum HAL_FLASH_ID_T id);
+enum HAL_NORFLASH_RET_T hal_norflash_config_remap(enum HAL_FLASH_ID_T id, enum HAL_NORFLASH_REMAP_ID_T remap_id, uint32_t addr, uint32_t len, int32_t offset);
+enum HAL_NORFLASH_RET_T hal_norflash_enable_remap(enum HAL_FLASH_ID_T id, enum HAL_NORFLASH_REMAP_ID_T remap_id);
+enum HAL_NORFLASH_RET_T hal_norflash_disable_remap(enum HAL_FLASH_ID_T id, enum HAL_NORFLASH_REMAP_ID_T remap_id);
+int hal_norflash_get_remap_status(enum HAL_FLASH_ID_T id, enum HAL_NORFLASH_REMAP_ID_T remap_id);
+void hal_norflash_boot_reset_remap(enum HAL_FLASH_ID_T id);
+enum HAL_NORFLASH_RET_T hal_norflash_boot_config_remap(enum HAL_FLASH_ID_T id, enum HAL_NORFLASH_REMAP_ID_T remap_id, uint32_t addr, uint32_t len, int32_t offset);
+enum HAL_NORFLASH_RET_T hal_norflash_boot_disable_remap(enum HAL_FLASH_ID_T id, enum HAL_NORFLASH_REMAP_ID_T remap_id);
+enum HAL_NORFLASH_RET_T hal_norflash_boot_enable_remap(enum HAL_FLASH_ID_T id, enum HAL_NORFLASH_REMAP_ID_T remap_id);
+int hal_norflash_boot_get_remap_status(enum HAL_FLASH_ID_T id, enum HAL_NORFLASH_REMAP_ID_T remap_id);
+enum HAL_FLASH_ID_T hal_norflash_addr_to_id(uint32_t addr);
+uint32_t hal_norflash_get_addr_offset(uint32_t addr);
+void hal_norflash_show_id_state(enum HAL_FLASH_ID_T id, int assert_on_error);
+enum HAL_NORFLASH_RET_T hal_norflash_dec_enable(enum HAL_FLASH_ID_T id);
+enum HAL_NORFLASH_RET_T hal_norflash_dec_disable(enum HAL_FLASH_ID_T id);
+
+#else /* ARM_CMNS */
+
+#define hal_norflash_get_init_config hal_norflash_get_init_config_se
 #define hal_norflash_init hal_norflash_init_se
 #define hal_norflash_open hal_norflash_open_se
 #define hal_norflash_reopen hal_norflash_reopen_se
@@ -231,78 +291,11 @@ struct HAL_NORFLASH_TIMING_CONFIG_T {
 #define hal_norflash_dec_enable hal_norflash_dec_enable_sec
 #define hal_norflash_dec_disable hal_norflash_dec_disable_sec
 
-#else /* !ARM_CMNS */
-
-void hal_norflash_set_boot_freq(enum HAL_CMU_FREQ_T freq);
-const struct HAL_NORFLASH_CONFIG_T *hal_norflash_get_init_config(void);
-enum HAL_NORFLASH_RET_T hal_norflash_get_init_config_ex(struct HAL_NORFLASH_CONFIG_T *cfg);
-enum HAL_NORFLASH_RET_T hal_norflash_init(enum HAL_FLASH_ID_T id);
-enum HAL_NORFLASH_RET_T hal_norflash_open(enum HAL_FLASH_ID_T id, const struct HAL_NORFLASH_CONFIG_T *cfg);
-enum HAL_NORFLASH_RET_T hal_norflash_reopen(enum HAL_FLASH_ID_T id, const struct HAL_NORFLASH_CONFIG_T *cfg);
-enum HAL_NORFLASH_RET_T hal_norflash_apply_config(enum HAL_FLASH_ID_T id, const struct HAL_NORFLASH_CONFIG_T *cfg, const struct HAL_NORFLASH_TIMING_CONFIG_T *timing);
-enum HAL_NORFLASH_RET_T hal_norflash_get_timing_config(enum HAL_FLASH_ID_T id, struct HAL_NORFLASH_TIMING_CONFIG_T *timing);
-void hal_norflash_show_calib_result(enum HAL_FLASH_ID_T id);
-void hal_norflash_show_sfdp_check_param(enum HAL_FLASH_ID_T id);
-enum HAL_CMU_FREQ_T hal_norflash_clk_to_cmu_freq(uint32_t clk);
-enum HAL_NORFLASH_RET_T hal_norflash_get_size(enum HAL_FLASH_ID_T id, uint32_t *total_size, uint32_t *block_size, uint32_t *sector_size, uint32_t *page_size);
-enum HAL_NORFLASH_RET_T hal_norflash_get_boundary(enum HAL_FLASH_ID_T id, uint32_t address, uint32_t* block_boundary, uint32_t* sector_boundary);
-enum HAL_NORFLASH_RET_T hal_norflash_get_id(enum HAL_FLASH_ID_T id, uint8_t *value, uint32_t len);
-enum HAL_NORFLASH_RET_T hal_norflash_dual_chip_get_id(enum HAL_FLASH_ID_T id, uint8_t *value0, uint8_t *value1, uint32_t len);
-enum HAL_NORFLASH_RET_T hal_norflash_get_unique_id(enum HAL_FLASH_ID_T id, uint8_t *value, uint32_t len);
-enum HAL_NORFLASH_RET_T hal_norflash_dual_chip_get_unique_id(enum HAL_FLASH_ID_T id, uint8_t *value0, uint8_t *value1, uint32_t len);
-enum HAL_NORFLASH_RET_T hal_norflash_read_sfdp_reg(enum HAL_FLASH_ID_T id, uint8_t addr, uint8_t *value, uint32_t len);
-enum HAL_NORFLASH_RET_T hal_norflash_dual_chip_read_sfdp_reg(enum HAL_FLASH_ID_T id, uint8_t addr, uint8_t *value0, uint8_t *value1, uint32_t len);
-enum HAL_NORFLASH_RET_T hal_norflash_enable_protection(enum HAL_FLASH_ID_T id);
-enum HAL_NORFLASH_RET_T hal_norflash_disable_protection(enum HAL_FLASH_ID_T id);
-enum HAL_NORFLASH_RET_T hal_norflash_set_protection(enum HAL_FLASH_ID_T id, uint32_t bp);
-enum HAL_NORFLASH_RET_T hal_norflash_erase_chip(enum HAL_FLASH_ID_T id);
-enum HAL_NORFLASH_RET_T hal_norflash_erase_suspend(enum HAL_FLASH_ID_T id, uint32_t start_address, uint32_t len, int suspend);
-enum HAL_NORFLASH_RET_T hal_norflash_erase(enum HAL_FLASH_ID_T id, uint32_t start_address, uint32_t len);
-enum HAL_NORFLASH_RET_T hal_norflash_erase_resume(enum HAL_FLASH_ID_T id, int suspend);
-enum HAL_NORFLASH_RET_T hal_norflash_write_suspend(enum HAL_FLASH_ID_T id, uint32_t start_address, const uint8_t *buffer, uint32_t len, int suspend);
-enum HAL_NORFLASH_RET_T hal_norflash_write(enum HAL_FLASH_ID_T id, uint32_t start_address, const uint8_t *buffer, uint32_t len);
-enum HAL_NORFLASH_RET_T hal_norflash_write_resume(enum HAL_FLASH_ID_T id, int suspend);
-enum HAL_NORFLASH_RET_T hal_norflash_suspend_check_irq(enum HAL_FLASH_ID_T id, uint32_t irq_num, int enable);
-enum HAL_NORFLASH_RET_T hal_norflash_suspend_check_flash_read(enum HAL_FLASH_ID_T id, int enable);
-enum HAL_NORFLASH_RET_T hal_norflash_read(enum HAL_FLASH_ID_T id, uint32_t start_address, uint8_t *buffer, uint32_t len);
-enum HAL_NORFLASH_RET_T hal_norflash_close(enum HAL_FLASH_ID_T id);
-void hal_norflash_force_sleep(enum HAL_FLASH_ID_T id);
-void hal_norflash_force_wakeup(enum HAL_FLASH_ID_T id);
-void hal_norflash_sleep(enum HAL_FLASH_ID_T id);
-void hal_norflash_wakeup(enum HAL_FLASH_ID_T id);
-int hal_norflash_busy(enum HAL_FLASH_ID_T id);
-uint32_t hal_norflash_mem_read_bus_lock(enum HAL_FLASH_ID_T id);
-void hal_norflash_mem_read_bus_unlock(enum HAL_FLASH_ID_T id, uint32_t status);
-enum HAL_NORFLASH_RET_T hal_norflash_set_dual_chip_mode(enum HAL_FLASH_ID_T id, int dual_flash, int dual_sec_reg);
-enum HAL_NORFLASH_RET_T hal_norflash_get_dual_chip_mode(enum HAL_FLASH_ID_T id, int *dual_flash, int *dual_sec_reg);
-uint32_t hal_norflash_get_flash_total_size(enum HAL_FLASH_ID_T id);
-int hal_norflash_opened(enum HAL_FLASH_ID_T id);
-enum HAL_NORFLASH_RET_T hal_norflash_get_open_state(enum HAL_FLASH_ID_T id);
-int hal_norflash_security_register_is_locked(enum HAL_FLASH_ID_T id, uint32_t start_address, uint32_t len);
-enum HAL_NORFLASH_RET_T hal_norflash_security_register_lock(enum HAL_FLASH_ID_T id, uint32_t start_address, uint32_t len);
-enum HAL_NORFLASH_RET_T hal_norflash_security_register_erase(enum HAL_FLASH_ID_T id, uint32_t start_address, uint32_t len);
-enum HAL_NORFLASH_RET_T hal_norflash_security_register_write(enum HAL_FLASH_ID_T id, uint32_t start_address, const uint8_t *buffer, uint32_t len);
-enum HAL_NORFLASH_RET_T hal_norflash_security_register_read(enum HAL_FLASH_ID_T id, uint32_t start_address, uint8_t *buffer, uint32_t len);
-void hal_norflash_reset_remap(enum HAL_FLASH_ID_T id);
-enum HAL_NORFLASH_RET_T hal_norflash_config_remap(enum HAL_FLASH_ID_T id, enum HAL_NORFLASH_REMAP_ID_T remap_id, uint32_t addr, uint32_t len, uint32_t offset);
-enum HAL_NORFLASH_RET_T hal_norflash_enable_remap(enum HAL_FLASH_ID_T id, enum HAL_NORFLASH_REMAP_ID_T remap_id);
-enum HAL_NORFLASH_RET_T hal_norflash_disable_remap(enum HAL_FLASH_ID_T id, enum HAL_NORFLASH_REMAP_ID_T remap_id);
-int hal_norflash_get_remap_status(enum HAL_FLASH_ID_T id, enum HAL_NORFLASH_REMAP_ID_T remap_id);
-void hal_norflash_boot_reset_remap(enum HAL_FLASH_ID_T id);
-enum HAL_NORFLASH_RET_T hal_norflash_boot_config_remap(enum HAL_FLASH_ID_T id, enum HAL_NORFLASH_REMAP_ID_T remap_id, uint32_t addr, uint32_t len, uint32_t offset);
-enum HAL_NORFLASH_RET_T hal_norflash_boot_disable_remap(enum HAL_FLASH_ID_T id, enum HAL_NORFLASH_REMAP_ID_T remap_id);
-enum HAL_NORFLASH_RET_T hal_norflash_boot_enable_remap(enum HAL_FLASH_ID_T id, enum HAL_NORFLASH_REMAP_ID_T remap_id);
-int hal_norflash_boot_get_remap_status(enum HAL_FLASH_ID_T id, enum HAL_NORFLASH_REMAP_ID_T remap_id);
-enum HAL_FLASH_ID_T hal_norflash_addr_to_id(uint32_t addr);
-uint32_t hal_norflash_get_addr_offset(uint32_t addr);
-void hal_norflash_show_id_state(enum HAL_FLASH_ID_T id, int assert_on_error);
-
-#endif /* !ARM_CMNS */
+#endif /* ARM_CMNS */
 
 #if defined(ARM_CMSE) || defined(ARM_CMNS)
 
-//const struct HAL_NORFLASH_CONFIG_T *hal_norflash_get_init_config_se(void);
-enum HAL_NORFLASH_RET_T hal_norflash_get_init_config_ex_se(struct HAL_NORFLASH_CONFIG_T *cfg);
+const struct HAL_NORFLASH_CONFIG_T *hal_norflash_get_init_config_se(void);
 enum HAL_NORFLASH_RET_T hal_norflash_init_se(enum HAL_FLASH_ID_T id);
 enum HAL_NORFLASH_RET_T hal_norflash_open_se(enum HAL_FLASH_ID_T id, const struct HAL_NORFLASH_CONFIG_T *cfg);
 enum HAL_NORFLASH_RET_T hal_norflash_reopen_se(enum HAL_FLASH_ID_T id, const struct HAL_NORFLASH_CONFIG_T *cfg);
@@ -332,11 +325,13 @@ static inline enum HAL_NORFLASH_RET_T hal_norflash_get_size_se(enum HAL_FLASH_ID
 }
 enum HAL_NORFLASH_RET_T hal_norflash_get_boundary_se(enum HAL_FLASH_ID_T id, uint32_t address, uint32_t* block_boundary, uint32_t* sector_boundary);
 void hal_norflash_show_calib_result_se(enum HAL_FLASH_ID_T id);
+void hal_norflash_show_sfdp_check_param_se(enum HAL_FLASH_ID_T id);
 enum HAL_NORFLASH_RET_T hal_norflash_erase_se(enum HAL_FLASH_ID_T id, uint32_t start_address, uint32_t len);
 enum HAL_NORFLASH_RET_T hal_norflash_write_se(enum HAL_FLASH_ID_T id, uint32_t start_address, const uint8_t *buffer, uint32_t len);
 enum HAL_NORFLASH_RET_T hal_norflash_read_se(enum HAL_FLASH_ID_T id, uint32_t start_address, uint8_t *buffer, uint32_t len);
-void hal_norflash_sleep_se(enum HAL_FLASH_ID_T id);
-void hal_norflash_wakeup_se(enum HAL_FLASH_ID_T id);
+void hal_norflash_force_wakeup_se(enum HAL_FLASH_ID_T id);
+void hal_norflash_sleep_se(enum HAL_FLASH_ID_T id, enum HAL_CMU_LPU_SLEEP_MODE_T mode);
+void hal_norflash_wakeup_se(enum HAL_FLASH_ID_T id, enum HAL_CMU_LPU_SLEEP_MODE_T mode);
 int hal_norflash_opened_se(enum HAL_FLASH_ID_T id);
 enum HAL_NORFLASH_RET_T hal_norflash_get_open_state_se(enum HAL_FLASH_ID_T id);
 enum HAL_NORFLASH_RET_T hal_norflash_write_resume_se(enum HAL_FLASH_ID_T id, int suspend);
@@ -346,10 +341,10 @@ enum HAL_NORFLASH_RET_T hal_norflash_suspend_check_flash_read_se(enum HAL_FLASH_
 enum HAL_NORFLASH_RET_T hal_norflash_enable_remap_se(enum HAL_FLASH_ID_T id, enum HAL_NORFLASH_REMAP_ID_T remap_id);
 enum HAL_NORFLASH_RET_T hal_norflash_disable_remap_se(enum HAL_FLASH_ID_T id, enum HAL_NORFLASH_REMAP_ID_T remap_id);
 // 'cmse_nonsecure_entry' functions only allow 4 arguments
-enum HAL_NORFLASH_RET_T hal_norflash_config_remap_se0(enum HAL_NORFLASH_REMAP_ID_T remap_id, uint32_t addr, uint32_t len, uint32_t offset);
-enum HAL_NORFLASH_RET_T hal_norflash_config_remap_se1(enum HAL_NORFLASH_REMAP_ID_T remap_id, uint32_t addr, uint32_t len, uint32_t offset);
-enum HAL_NORFLASH_RET_T hal_norflash_config_remap_se2(enum HAL_NORFLASH_REMAP_ID_T remap_id, uint32_t addr, uint32_t len, uint32_t offset);
-static inline enum HAL_NORFLASH_RET_T hal_norflash_config_remap_se(enum HAL_FLASH_ID_T id, enum HAL_NORFLASH_REMAP_ID_T remap_id, uint32_t addr, uint32_t len, uint32_t offset)
+enum HAL_NORFLASH_RET_T hal_norflash_config_remap_se0(enum HAL_NORFLASH_REMAP_ID_T remap_id, uint32_t addr, uint32_t len, int32_t offset);
+enum HAL_NORFLASH_RET_T hal_norflash_config_remap_se1(enum HAL_NORFLASH_REMAP_ID_T remap_id, uint32_t addr, uint32_t len, int32_t offset);
+enum HAL_NORFLASH_RET_T hal_norflash_config_remap_se2(enum HAL_NORFLASH_REMAP_ID_T remap_id, uint32_t addr, uint32_t len, int32_t offset);
+static inline enum HAL_NORFLASH_RET_T hal_norflash_config_remap_se(enum HAL_FLASH_ID_T id, enum HAL_NORFLASH_REMAP_ID_T remap_id, uint32_t addr, uint32_t len, int32_t offset)
 {
     if (id == HAL_FLASH_ID_0)
         return hal_norflash_config_remap_se0(remap_id, addr, len, offset);
@@ -416,6 +411,8 @@ enum HAL_NORFLASH_RET_T hal_norflash_get_dual_chip_mode_se(enum HAL_FLASH_ID_T i
 void hal_norflash_show_id_state_se(enum HAL_FLASH_ID_T id, int assert_on_error);
 enum HAL_FLASH_ID_T hal_norflash_addr_to_id_se(uint32_t addr);
 uint32_t hal_norflash_get_addr_offset_se(uint32_t addr);
+enum HAL_NORFLASH_RET_T hal_norflash_dec_enable_sec(enum HAL_FLASH_ID_T id);
+enum HAL_NORFLASH_RET_T hal_norflash_dec_disable_sec(enum HAL_FLASH_ID_T id);
 
 #endif /* ARM_CMSE || ARM_CMNS */
 

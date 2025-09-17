@@ -20,35 +20,27 @@
 
 #include "hal_trace.h"
 #include "hal_aud.h"
-#include "bluetooth_bt_api.h"
-#if defined(USE_BASIC_THREADS)
-#include "app_thread.h"
-#else
+
+#ifdef USE_APP_AUDIO_THREAD
 #include "app_audio_thread.h"
+#else
+#include "app_thread.h"
 #endif
 #include "app_audio.h"
-#include "app_media_player.h"
-#include "app_ring_merge.h"
+#include "bluetooth_bt_api.h"
 #include "nvrecord_bt.h"
 #include <assert.h>
 
-
-#include "a2dp_api.h"
-
-#include "btapp.h"
-#include "app_bt_media_manager.h"
 #include "hal_location.h"
-
-#include "app_anc_assist.h"
+#include "app_bt_audio.h"
 
 #ifdef __AI_VOICE__
 #include "app_ai_voice.h"
 #endif
 
+static size_t heap_size;
+
 static bool app_audio_init = false;
-static uint32_t ANC_ASSIST_BUFF_SIZE = 0;
-static uint32_t TOTA_BUFF_SIZE = 0;
-static uint32_t ANC_TEST_BUFF_SIZE = 0;
 
 static uint32_t capture_audio_buff_size_used;
 // from the bottom of the system available memory pool, size is APP_CAPTURE_AUDIO_BUFFER_SIZE
@@ -57,12 +49,17 @@ static uint8_t* capture_audio_buffer;
 
 int app_capture_audio_mempool_init(void)
 {
-    AUDIOPLAYERS_TRACE(1,"init the app capture audio mem pool size %d.", APP_CAPTURE_AUDIO_BUFFER_SIZE);
-    capture_audio_buffer = syspool_start_addr() + app_audio_mempool_size();
+    TRACE(1,"init the app capture audio mem pool size %d.", APP_CAPTURE_AUDIO_BUFFER_SIZE);
+    heap_size = syspool_original_size();
+    /// audio buffer use syspool from the beginning, capture buffer use syspool from the end
+    /// make sure they are not overlapping with each other
+    ASSERT(heap_size > (APP_CAPTURE_AUDIO_BUFFER_SIZE + APP_AUDIO_BUFFER_SIZE),
+           "%s: heap_size=%u too small (should > %u)",
+           __func__, heap_size, (APP_CAPTURE_AUDIO_BUFFER_SIZE + APP_AUDIO_BUFFER_SIZE));
+    capture_audio_buffer = syspool_start_addr() + heap_size - APP_CAPTURE_AUDIO_BUFFER_SIZE;
     capture_audio_buff_size_used = 0;
 
     memset((uint8_t *)capture_audio_buffer, 0, APP_CAPTURE_AUDIO_BUFFER_SIZE);
-    AUDIOPLAYERS_TRACE(1,"capture syspool start addr: %p, %p.", syspool_start_addr(), capture_audio_buffer);
 
     return 0;
 }
@@ -82,182 +79,35 @@ int app_capture_audio_mempool_get_buff(uint8_t **buff, uint32_t size)
         size = size + (4 - size % 4);
     }
 
-    AUDIOPLAYERS_TRACE(2,"Get capture buf, current free %d to allocate %d", buff_size_free, size);
+    TRACE(2,"Get capture buf, current free %d to allocate %d", buff_size_free, size);
 
     ASSERT(size <= buff_size_free, "[%s] size = %d > free size = %d", __func__, size, buff_size_free);
 
     *buff = capture_buf_addr + capture_audio_buff_size_used;
 
     capture_audio_buff_size_used += size;
-    AUDIOPLAYERS_TRACE(3,"Allocate %d, now used %d left %d",
+    TRACE(3,"Allocate %d, now used %d left %d",
         size, capture_audio_buff_size_used, app_capture_audio_mempool_free_buff_size());
 
     return 0;
 }
 
-#if defined(ANC_ASSIST_ENABLED)
-static uint32_t anc_assist_buffer_size_used;
-static uint8_t *anc_assist_buffer = NULL;
-int app_anc_assist_mempool_init(uint32_t buff_size)
-{
-    ANC_ASSIST_BUFF_SIZE = buff_size;
-    AUDIOPLAYERS_TRACE(1,"[%s]init the app anc assist mem pool size %d.", __func__, ANC_ASSIST_BUFF_SIZE);
-    anc_assist_buffer =  syspool_start_addr() + app_audio_mempool_size() + APP_CAPTURE_AUDIO_BUFFER_SIZE;
-    anc_assist_buffer_size_used = 0;
-
-    memset((uint8_t *)anc_assist_buffer, 0, ANC_ASSIST_BUFF_SIZE);
-    AUDIOPLAYERS_TRACE(1,"[%s]capture syspool start addr: %p, %p.", __func__, syspool_start_addr(), anc_assist_buffer);
-
-    return 0;
-}
-
-uint32_t app_anc_assist_mempool_free_buff_size()
-{
-    return ANC_ASSIST_BUFF_SIZE - anc_assist_buffer_size_used;
-}
-
-int app_anc_assist_mempool_get_buff(uint8_t **buff, uint32_t size)
-{
-    uint32_t buff_size_free;
-    uint8_t* capture_buf_addr = (uint8_t *)anc_assist_buffer;
-    buff_size_free = app_anc_assist_mempool_free_buff_size();
-
-    if (size % 4){
-        size = size + (4 - size % 4);
-    }
-
-    AUDIOPLAYERS_TRACE(2,"[%s]Get capture buf, current free %d to allocate %d", __func__, buff_size_free, size);
-
-    ASSERT(size <= buff_size_free, "[%s] size = %d > free size = %d", __func__, size, buff_size_free);
-
-    *buff = capture_buf_addr + anc_assist_buffer_size_used;
-
-    anc_assist_buffer_size_used += size;
-    AUDIOPLAYERS_TRACE(3,"[%s]Allocate %d, now used %d left %d",
-        __func__, size, anc_assist_buffer_size_used, app_anc_assist_mempool_free_buff_size());
-
-    return 0;
-}
-#endif
-
-#if defined(TOTA_FACTORY_USED)
-static uint32_t tota_buffer_size_used;
-static uint8_t *tota_buffer = NULL;
-
-int app_tota_mempool_init(uint32_t buff_size)
-{
-    if (buff_size % 4){
-        buff_size = buff_size + (4 - buff_size % 4);
-    }
-
-    TOTA_BUFF_SIZE = buff_size;
-    AUDIOPLAYERS_TRACE(1,"[%s]init the app anc test mem pool size %d.", __func__, TOTA_BUFF_SIZE);
-    tota_buffer =  syspool_start_addr() + app_audio_mempool_size() + APP_CAPTURE_AUDIO_BUFFER_SIZE + ANC_ASSIST_BUFF_SIZE;
-    tota_buffer_size_used = 0;
-
-    memset((uint8_t *)tota_buffer, 0, TOTA_BUFF_SIZE);
-    AUDIOPLAYERS_TRACE(1,"[%s]capture syspool start addr: %p, %p.", __func__, syspool_start_addr(), tota_buffer);
-
-    return 0;
-}
-
-uint32_t app_tota_mempool_free_buff_size()
-{
-    return TOTA_BUFF_SIZE - tota_buffer_size_used;
-}
-
-int app_tota_mempool_get_buff(uint8_t **buff, uint32_t size)
-{
-    uint32_t buff_size_free;
-    uint8_t* capture_buf_addr = (uint8_t *)tota_buffer;
-    buff_size_free = app_tota_mempool_free_buff_size();
-
-    if (size % 4){
-        size = size + (4 - size % 4);
-    }
-
-    AUDIOPLAYERS_TRACE(2,"[%s]Get capture buf, current free %d to allocate %d", __func__, buff_size_free, size);
-
-    ASSERT(size <= buff_size_free, "[%s] size = %d > free size = %d", __func__, size, buff_size_free);
-
-    *buff = capture_buf_addr + tota_buffer_size_used;
-
-    tota_buffer_size_used += size;
-    AUDIOPLAYERS_TRACE(3,"[%s]Allocate %d, now used %d left %d",
-        __func__, size, tota_buffer_size_used, app_tota_mempool_free_buff_size());
-
-    return 0;
-}
-#endif
-
-#if defined(APP_ANC_TEST)
-static uint32_t anc_test_buffer_size_used;
-static uint8_t *anc_test_buffer = NULL;
-int app_anc_test_mempool_init(uint32_t buff_size)
-{
-    ANC_TEST_BUFF_SIZE = buff_size;
-    AUDIOPLAYERS_TRACE(1,"[%s]init the app anc test mem pool size %d.", __func__, ANC_TEST_BUFF_SIZE);
-    anc_test_buffer =  syspool_start_addr() + app_audio_mempool_size() + 
-                        APP_CAPTURE_AUDIO_BUFFER_SIZE + ANC_ASSIST_BUFF_SIZE + TOTA_BUFF_SIZE;
-    anc_test_buffer_size_used = 0;
-
-    memset((uint8_t *)anc_test_buffer, 0, ANC_TEST_BUFF_SIZE);
-    AUDIOPLAYERS_TRACE(1,"[%s]capture syspool start addr: %p, %p.", __func__, syspool_start_addr(), anc_test_buffer);
-
-    return 0;
-}
-
-uint32_t app_anc_test_mempool_free_buff_size()
-{
-    return ANC_TEST_BUFF_SIZE - anc_test_buffer_size_used;
-}
-
-int app_anc_test_mempool_get_buff(uint8_t **buff, uint32_t size)
-{
-    uint32_t buff_size_free;
-    uint8_t* capture_buf_addr = (uint8_t *)anc_test_buffer;
-    buff_size_free = app_anc_test_mempool_free_buff_size();
-
-    if (size % 4){
-        size = size + (4 - size % 4);
-    }
-
-    AUDIOPLAYERS_TRACE(2,"[%s]Get capture buf, current free %d to allocate %d", __func__, buff_size_free, size);
-
-    ASSERT(size <= buff_size_free, "[%s] size = %d > free size = %d", __func__, size, buff_size_free);
-
-    *buff = capture_buf_addr + anc_test_buffer_size_used;
-
-    anc_test_buffer_size_used += size;
-    AUDIOPLAYERS_TRACE(3,"[%s]Allocate %d, now used %d left %d",
-        __func__, size, anc_test_buffer_size_used, app_anc_test_mempool_free_buff_size());
-
-    return 0;
-}
-#endif
-
-
-
-#if (defined(PLAYBACK_USE_I2S) || defined(FREEMAN_ENABLED_STERO))
-#define APP_MEDIA_BUFFER_SIZE (11*1024)
-#elif (PROMPT_USE_AAC) 
-#define APP_MEDIA_BUFFER_SIZE (50*1024)
+#if defined(__BT_ANC__) || defined(PSAP_FORCE_STREAM_48K)
+#define APP_MEDIA_BUFFER_SIZE (18*1024)
 #else
-//SBC_Original need 5888, SBC Reduce need 5888+2424
-#define APP_MEDIA_BUFFER_SIZE (5888+2424)
+#define APP_MEDIA_BUFFER_SIZE (9*1024+3072)
 #endif
 
 static uint8_t media_buffer[APP_MEDIA_BUFFER_SIZE] __attribute__((aligned(4)));
 
 static uint32_t media_buff_size_used;
-
-app_ble_audio_callback_t g_app_ble_audio_start_cb = NULL;
-app_ble_audio_callback_t g_app_ble_audio_stop_cb = NULL;
-app_ble_audio_callback_t g_app_ble_audio_stop_single_stream_cb = NULL;
+APP_BLE_AUDIO_CALLBACK_T g_app_ble_audio_start_cb = NULL;
+APP_BLE_AUDIO_CALLBACK_T g_app_ble_audio_stop_cb = NULL;
+APP_BLE_AUDIO_CALLBACK_T g_app_ble_audio_stop_single_stream_cb = NULL;
 
 int app_media_mempool_init(void)
 {
-    AUDIOPLAYERS_TRACE(1, "init the app media mem pool size %d.", APP_MEDIA_BUFFER_SIZE);
+    TRACE(1, "init the app media mem pool size %d.", APP_MEDIA_BUFFER_SIZE);
     media_buff_size_used = 0;
     memset((uint8_t *)media_buffer, 0, APP_MEDIA_BUFFER_SIZE);
 
@@ -279,14 +129,14 @@ int app_media_mempool_get_buff(uint8_t **buff, uint32_t size)
         size = size + (4 - size % 4);
     }
 
-    AUDIOPLAYERS_TRACE(2,"Get media buf, current free %d to allocate %d", buff_size_free, size);
+    TRACE(2,"Get media buf, current free %d to allocate %d", buff_size_free, size);
 
     ASSERT(size <= buff_size_free, "[%s] size = %d > free size = %d", __func__, size, buff_size_free);
 
     *buff = media_buf_addr + media_buff_size_used;
 
     media_buff_size_used += size;
-    AUDIOPLAYERS_TRACE(3,"Allocate %d, now used %d left %d",
+    TRACE(3,"Allocate %d, now used %d left %d",
         size, media_buff_size_used, app_media_mempool_free_buff_size());
 
     return 0;
@@ -305,6 +155,13 @@ static osMutexId app_audio_pcmbuff_mutex_id = NULL;
 osMutexDef(app_audio_pcmbuff_mutex);
 
 #ifdef __AUDIO_QUEUE_SUPPORT__
+#define DEBUG_AUDIO
+#ifdef DEBUG_AUDIO
+#define debug_trace TRACE
+#else
+#define debug_trace(...)
+#endif
+
 typedef struct {
   list_t *audio_list;
 }APP_AUDIO_CONFIG;
@@ -352,21 +209,6 @@ uint32_t app_audio_lr_balance(uint8_t *buf, uint32_t len, int8_t balance)
 		}
 	}
     return 0;
-}
-
-void app_audio_mempool_init_with_specific_size(uint32_t size)
-{
-	syspool_init_specific_size(size);
-}
-
-uint32_t app_audio_mempool_original_size(void)
-{
-    return syspool_original_size();
-}
-
-uint32_t app_audio_mempool_size(void)
-{
-    return syspool_original_size() - APP_CAPTURE_AUDIO_BUFFER_SIZE - ANC_ASSIST_BUFF_SIZE - TOTA_BUFF_SIZE - ANC_TEST_BUFF_SIZE;
 }
 
 int app_audio_pcmbuff_init(uint8_t *buff, uint16_t len)
@@ -472,35 +314,13 @@ void app_audio_memset_16bit(int16_t *des, int16_t val, int len)
 }
 
 #ifdef __AUDIO_QUEUE_SUPPORT__
-#if defined(USE_BASIC_THREADS)
 int app_audio_sendrequest_param(uint16_t id, uint8_t status, uint32_t ptr, uint32_t param)
 {
     uint32_t audevt;
-    APP_MESSAGE_BLOCK msg;
-
-    AUDIOPLAYERS_TRACE(7,"%s ca=%p type %d%s op %d%s aud %d", __func__, __builtin_return_address(0),
-                id, player2str(id), status, audio_op_to_str((enum APP_BT_SETTING_T)status), ptr);
-
-    if(app_audio_init == false)
-        return -1;
-
-    msg.mod_id = APP_MODULE_AUDIO;
-    msg.mod_level = APP_MOD_LEVEL_3;
-    APP_AUDIO_SET_MESSAGE(audevt, id, status);
-    msg.msg_body.message_id = audevt;
-    msg.msg_body.message_ptr = ptr;
-    msg.msg_body.message_Param0 = param;
-    app_mailbox_put(&msg);
-
-    return 0;
-}
-#else
-int app_audio_sendrequest_param(uint16_t id, uint8_t status, uint32_t ptr, uint32_t param)
-{
-    uint32_t audevt;
+#ifdef USE_APP_AUDIO_THREAD
     APP_AUDIO_MESSAGE_BLOCK msg;
 
-    AUDIOPLAYERS_TRACE(7,"%s ca=%p type %d%s op %d%s aud %d", __func__, __builtin_return_address(0),
+    TRACE(7,"%s ca=%p type %d%s op %d%s aud %d", __func__, __builtin_return_address(0),
                 id, player2str(id), status, audio_op_to_str((enum APP_BT_SETTING_T)status), ptr);
 
     if(app_audio_init == false)
@@ -512,10 +332,25 @@ int app_audio_sendrequest_param(uint16_t id, uint8_t status, uint32_t ptr, uint3
     msg.msg_body.message_ptr = ptr;
     msg.msg_body.message_Param0 = param;
     app_audio_mailbox_put(&msg);
+#else
+    APP_MESSAGE_BLOCK msg;
+
+    TRACE(7,"%s ca=%p type %d%s op %d%s aud %d", __func__, __builtin_return_address(0),
+                id, player2str(id), status, audio_op_to_str((enum APP_BT_SETTING_T)status), ptr);
+
+    if(app_audio_init == false)
+        return -1;
+
+    msg.mod_id = APP_MODULE_AUDIO;
+    APP_AUDIO_SET_MESSAGE(audevt, id, status);
+    msg.msg_body.message_id = audevt;
+    msg.msg_body.message_ptr = ptr;
+    msg.msg_body.message_Param0 = param;
+    app_mailbox_put(&msg);
+#endif
 
     return 0;
 }
-#endif
 
 extern bool app_audio_list_playback_exist(void);
 #if defined(MEDIA_PLAYER_SUPPORT)&&(!defined(PROMPT_SELF_MANAGEMENT))
@@ -564,14 +399,13 @@ static void app_audio_switch_flash_proc(void)
 #endif
     }
 }
-
-#if defined(USE_BASIC_THREADS)
-static int app_audio_handle_process(APP_MESSAGE_BODY *msg_body)
-#else
+#ifdef USE_APP_AUDIO_THREAD
 static int app_audio_handle_process(APP_AUDIO_MESSAGE_BODY *msg_body)
+#else
+static int app_audio_handle_process(APP_MESSAGE_BODY *msg_body)
 #endif
 {
-    int nRet = 0;
+    int nRet = -1;
 
     APP_AUDIO_STATUS aud_status = {0};
     POSSIBLY_UNUSED APP_AUDIO_STATUS next_status = {0};
@@ -588,7 +422,7 @@ static int app_audio_handle_process(APP_AUDIO_MESSAGE_BODY *msg_body)
     {
     case APP_BT_SETTING_OPEN:
 #ifdef __AUDIO_QUEUE_SUPPORT__
-        AUDIOPLAYERS_TRACE(4,
+        debug_trace(4,
                     "=======>APP_BT_SETTING_OPEN,##before status_id: 0x%x%s, aud_id: 0x%x, len = %d",
                     aud_status.id,
                     player2str(aud_status.id),
@@ -598,15 +432,11 @@ static int app_audio_handle_process(APP_AUDIO_MESSAGE_BODY *msg_body)
         if (app_audio_list_append(&aud_status))
         {
             app_bt_stream_open(&aud_status);
-            AUDIOPLAYERS_TRACE(3,
+            debug_trace(3,
                         "=======>APP_BT_SETTING_OPEN, ##after status_id: 0x%x%s, len = %d",
                         aud_status.id,
                         player2str(aud_status.id),
                         list_length(app_audio_conifg.audio_list));
-            if(aud_status.id == APP_BT_STREAM_HFP_PCM)
-            {
-                app_bt_media_set_current_media(BT_STREAM_VOICE);
-            }
         }
         else if(!app_bt_stream_isrun(APP_PLAY_BACK_AUDIO))
         {
@@ -620,7 +450,7 @@ static int app_audio_handle_process(APP_AUDIO_MESSAGE_BODY *msg_body)
     case APP_BT_SETTING_CLOSE:
         app_audio_switch_flash_proc();
 #ifdef __AUDIO_QUEUE_SUPPORT__
-        AUDIOPLAYERS_TRACE(2,
+        debug_trace(2,
                     "=======>APP_BT_SETTING_CLOSE, current id: 0x%x%s",
                     aud_status.id,
                     player2str(aud_status.id));
@@ -629,10 +459,10 @@ static int app_audio_handle_process(APP_AUDIO_MESSAGE_BODY *msg_body)
 #if defined(MEDIA_PLAYER_SUPPORT)&&(!defined(PROMPT_SELF_MANAGEMENT))
         if (aud_status.id == APP_PLAY_BACK_AUDIO)
         {
-            AUDIOPLAYERS_TRACE(1, "=======>APP_BT_SETTING_CLOSE, list: %d", app_audio_get_list_playback_num());
+            debug_trace(1, "=======>APP_BT_SETTING_CLOSE, list: %d", app_audio_get_list_playback_num());
             if (app_audio_get_list_playback_num() == 1)
             {
-                AUDIOPLAYERS_TRACE(0, "=======>APP_BT_SETTING_CLOSE MEDIA");
+                debug_trace(0, "=======>APP_BT_SETTING_CLOSE MEDIA");
                 bt_media_stop(BT_STREAM_MEDIA, BT_DEVICE_ID_1, aud_status.aud_id);
             }
             app_prompt_inform_completed_event();
@@ -640,7 +470,7 @@ static int app_audio_handle_process(APP_AUDIO_MESSAGE_BODY *msg_body)
 #endif
         if (app_audio_list_rmv_callback(&aud_status, &next_status, APP_BT_SETTING_Q_POS_HEAD))
         {
-            AUDIOPLAYERS_TRACE(4,
+            debug_trace(4,
                         "=======>APP_BT_SETTING_CLOSE, %p, next id: 0x%x%s, status %d",
                         &next_status,
                         next_status.id,
@@ -691,25 +521,27 @@ static int app_audio_handle_process(APP_AUDIO_MESSAGE_BODY *msg_body)
         break;
     }
 #endif
-    case APP_BT_SETTING_START_BLEAUDIO:
-    if (g_app_ble_audio_start_cb)
-    {
-        g_app_ble_audio_start_cb((uint8_t)aud_status.id);
-    } break;
-    case APP_BT_SETTING_STOP_BLEAUDIO:
-    if (g_app_ble_audio_stop_cb)
-    {
-        g_app_ble_audio_stop_cb((uint8_t)aud_status.id);
-    } break;
-    case APP_BT_SETTING_STOP_SINGLE_STREAM:
-    if (g_app_ble_audio_stop_single_stream_cb)
-    {
-        g_app_ble_audio_stop_single_stream_cb((uint8_t)aud_status.id);
-    } break;
     case APP_BT_SETTING_OUTPUT_ROUTE:
-    {
         app_bt_stream_set_output_route((void *)msg_body->message_ptr);
-    } break;
+        break;
+    case APP_BT_SETTING_START_BLEAUDIO:
+        if (g_app_ble_audio_start_cb)
+        {
+            g_app_ble_audio_start_cb(aud_status.id, aud_status.aud_id);
+        }
+        break;
+    case APP_BT_SETTING_STOP_BLEAUDIO:
+        if (g_app_ble_audio_stop_cb)
+        {
+            g_app_ble_audio_stop_cb(aud_status.id, aud_status.aud_id);
+        }
+        break;
+    case APP_BT_SETTING_STOP_SINGLE_STREAM:
+        if (g_app_ble_audio_stop_single_stream_cb)
+        {
+            g_app_ble_audio_stop_single_stream_cb(aud_status.id, aud_status.aud_id);
+        }
+        break;
     default:
         break;
     }
@@ -746,7 +578,7 @@ static void app_audio_handle_free(void* data)
 
     if(status->id == APP_PLAY_BACK_AUDIO)
     {
-        AUDIOPLAYERS_TRACE(2,"=======>app_audio_handle_free playback , aud_id: 0x%x, type = 0x%x", status->aud_id, status->aud_type);
+        debug_trace(2,"=======>app_audio_handle_free playback , aud_id: 0x%x, type = 0x%x", status->aud_id, status->aud_type);
     }
 #endif
     osPoolFree (app_audio_status_mempool, data);
@@ -777,12 +609,12 @@ bool app_audio_list_stream_exist()
 #ifdef __AI_VOICE__
             audio_handle->id == APP_BT_STREAM_AI_VOICE ||
 #endif
-#ifdef AUDIO_LINEIN
-            audio_handle->id == APP_PLAY_LINEIN_AUDIO ||
+#ifdef BT_SOURCE
+            audio_handle->id == APP_A2DP_SOURCE_USB_AUDIO ||
 #endif
             audio_handle->id == APP_BT_STREAM_A2DP_VENDOR
         ) {
-            AUDIOPLAYERS_TRACE(3,"%s id 0x%x%s", __func__, audio_handle->id, player2str(audio_handle->id));
+            debug_trace(3,"%s id 0x%x%s", __func__, audio_handle->id, player2str(audio_handle->id));
             return true;
         }
     }
@@ -808,7 +640,7 @@ bool app_audio_list_filter_exist(APP_AUDIO_STATUS* aud_status)
             audio_handle = (APP_AUDIO_STATUS *)list_node(node);
             if (audio_handle->id == APP_PLAY_BACK_AUDIO
                 && audio_handle->aud_id == AUD_ID_BT_CALL_INCOMING_CALL) {
-                AUDIOPLAYERS_TRACE(3,"%s id 0x%x%s", __func__, audio_handle->id, player2str(audio_handle->id));
+                debug_trace(3,"%s id 0x%x%s", __func__, audio_handle->id, player2str(audio_handle->id));
                 return true;
             }
         }
@@ -818,7 +650,7 @@ bool app_audio_list_filter_exist(APP_AUDIO_STATUS* aud_status)
              node = list_next(node)) {
             audio_handle = (APP_AUDIO_STATUS *)list_node(node);
             if (cnt++ > 1) {
-                AUDIOPLAYERS_TRACE(2,"%s cnt %d", __func__, cnt);
+                debug_trace(2,"%s cnt %d", __func__, cnt);
                 return true;
             }
         }
@@ -843,7 +675,7 @@ bool app_audio_list_playback_exist(void)
 #else
         if (audio_handle->id == APP_PLAY_BACK_AUDIO) {
 #endif
-            AUDIOPLAYERS_TRACE(1,"%s", __func__);
+            debug_trace(1,"%s", __func__);
             return true;
         }
     }
@@ -874,7 +706,7 @@ bool app_audio_list_append(APP_AUDIO_STATUS* aud_status)
     bool add_data_to_head_of_list = false;
     bool ret = true;
 
-    AUDIOPLAYERS_TRACE(3,"%s id 0x%x%s", __func__, aud_status->id, player2str(aud_status->id));
+    debug_trace(3,"%s id 0x%x%s", __func__, aud_status->id, player2str(aud_status->id));
 #if defined(MEDIA_PLAYER_SUPPORT)&&(!defined(PROMPT_SELF_MANAGEMENT))
 #if defined(A2DP_SOURCE_TEST) && defined(APP_LINEIN_A2DP_SOURCE)
     if ((aud_status->id == APP_PLAY_BACK_AUDIO) || (aud_status->id == APP_A2DP_SOURCE_LINEIN_AUDIO))
@@ -901,7 +733,7 @@ bool app_audio_list_append(APP_AUDIO_STATUS* aud_status)
 
                 app_audio_list_clear();
                 app_prompt_stop_all();
-                AUDIOPLAYERS_TRACE(0,"#####app_audio_list_append error!!! FIXME!!!!\n ");
+                TRACE(0,"#####app_audio_list_append error!!! FIXME!!!!\n ");
             }
             else
             {
@@ -931,7 +763,7 @@ bool app_audio_list_append(APP_AUDIO_STATUS* aud_status)
     }
     if (data_to_append)
     {
-        AUDIOPLAYERS_TRACE(7,"%s id 0x%x%s status %d len %d ret %d aud_id %p",
+        debug_trace(7,"%s id 0x%x%s status %d len %d ret %d aud_id %p",
             __func__, data_to_append->id, player2str(data_to_append->id), \
             data_to_append->status, list_length(app_audio_conifg.audio_list),\
             ret, data_to_append);
@@ -945,14 +777,14 @@ bool app_audio_list_rmv_callback(APP_AUDIO_STATUS *status_close, APP_AUDIO_STATU
     bool ret = false;
 
     //for status: first bt_a2dp->APP_BT_SETTING_CLOSE,then ring-> APP_BT_SETTING_CLOSE
-    AUDIOPLAYERS_TRACE(3, "pre audio list len %d close_id 0x%x%s, pos:%d",
+    debug_trace(3, "pre audio list len %d close_id 0x%x%s, pos:%d",
                 list_length(app_audio_conifg.audio_list),
                 status_close->id,
                 player2str(status_close->id), pos);
 
     if(0 == list_length(app_audio_conifg.audio_list))
     {
-        AUDIOPLAYERS_TRACE(0, "no listed audio anymore.");
+        debug_trace(0, "no listed audio anymore.");
         return false;
     }
 
@@ -965,7 +797,7 @@ bool app_audio_list_rmv_callback(APP_AUDIO_STATUS *status_close, APP_AUDIO_STATU
         for (node = list_begin(app_audio_conifg.audio_list); node != list_end(app_audio_conifg.audio_list); node = list_next(node))
         {
             audio_handle = (APP_AUDIO_STATUS *)list_node(node);
-            AUDIOPLAYERS_TRACE(2, "Aud list, ID:0x%x%s", audio_handle->id, player2str(audio_handle->id));
+            debug_trace(2, "Aud list, ID:0x%x%s", audio_handle->id, player2str(audio_handle->id));
 
             if (APP_PLAY_BACK_AUDIO == audio_handle->id)
             {
@@ -1006,7 +838,7 @@ bool app_audio_list_rmv_callback(APP_AUDIO_STATUS *status_close, APP_AUDIO_STATU
             if (bt_media_is_media_active_by_music() &&
                 (!bt_media_is_media_active_by_call()))
             {
-                AUDIOPLAYERS_TRACE(0, "music in active list but not pushed into audio list for some reason!!!");
+                TRACE(0, "music in active list but not pushed into audio list for some reason!!!");
                 status_next->id = APP_BT_STREAM_A2DP_SBC;
                 ret = true;
             }
@@ -1024,7 +856,7 @@ bool app_audio_list_rmv_callback(APP_AUDIO_STATUS *status_close, APP_AUDIO_STATU
                      node != list_end(app_audio_conifg.audio_list);
                      node = list_next(node)) {
                     audio_handle = (APP_AUDIO_STATUS *)list_node(node);
-                    AUDIOPLAYERS_TRACE(2, "Aud list, ID:0x%x%s", audio_handle->id, player2str(audio_handle->id));
+                    debug_trace(2, "Aud list, ID:0x%x%s", audio_handle->id, player2str(audio_handle->id));
 
                     if (APP_BT_STREAM_AI_VOICE == audio_handle->id)
                     {
@@ -1052,13 +884,13 @@ bool app_audio_list_rmv_callback(APP_AUDIO_STATUS *status_close, APP_AUDIO_STATU
         }
     }
 
-    AUDIOPLAYERS_TRACE(3,"Updated audio list len = %d ret %d data %p", list_length(app_audio_conifg.audio_list), ret, data_to_remove);
+    debug_trace(3,"Updated audio list len = %d ret %d data %p", list_length(app_audio_conifg.audio_list), ret, data_to_remove);
     return ret;
 }
 
 void app_audio_list_rmv_by_info(APP_AUDIO_STATUS *info)
 {
-    AUDIOPLAYERS_TRACE(4, "%s id:0x%x%s list_len:%d", __func__, info->id, player2str(info->id), list_length(app_audio_conifg.audio_list));
+    TRACE(4, "%s id:0x%x%s list_len:%d", __func__, info->id, player2str(info->id), list_length(app_audio_conifg.audio_list));
 
     list_node_t *node = NULL, *next = NULL;
     APP_AUDIO_STATUS *nodeInfo = NULL;
@@ -1070,19 +902,19 @@ void app_audio_list_rmv_by_info(APP_AUDIO_STATUS *info)
 
         if (nodeInfo)
         {
-            AUDIOPLAYERS_TRACE(3, "%s listed id:0x%x, aud_id:%p, list_len:%d", __func__,
+            TRACE(3, "%s listed id:0x%x, aud_id:%p, list_len:%d", __func__,
                     nodeInfo->id, nodeInfo, list_length(app_audio_conifg.audio_list));
             // TODO: add more info check here
-            if ((info->id == nodeInfo->id))
+            if (info->id == nodeInfo->id)
             {
-                AUDIOPLAYERS_TRACE(3, "%s remove:0x%x%s", __func__, info->id, player2str(info->id));
+                debug_trace(3, "%s remove:0x%x%s", __func__, info->id, player2str(info->id));
                 list_remove(app_audio_conifg.audio_list, nodeInfo);
                 break;
             }
         }
         else
         {
-            AUDIOPLAYERS_TRACE(0, "ERROR: null pointer detected!!!");
+            TRACE(0, "ERROR: null pointer detected!!!");
             break;
         }
 
@@ -1121,19 +953,14 @@ void app_audio_open(void)
 #ifdef MEDIA_PLAYER_SUPPORT
     app_prompt_list_init();
 #endif
-
-#ifndef PROMPT_SELF_MANAGEMENT 
     app_ring_merge_init();
-#endif
-
-#if defined(USE_BASIC_THREADS)
-    app_set_threadhandle(APP_MODULE_AUDIO, app_audio_handle_process);
-#else
+#ifdef USE_APP_AUDIO_THREAD
     app_audio_thread_init();
 
     app_audio_set_threadhandle(APP_AUDIO_MODULE_AUDIO, app_audio_handle_process);
+#else
+    app_set_threadhandle(APP_MODULE_AUDIO, app_audio_handle_process);
 #endif
-
     app_bt_stream_init();
 
     app_audio_init = true;
@@ -1141,25 +968,25 @@ void app_audio_open(void)
 
 void app_audio_close(void)
 {
-#if defined(USE_BASIC_THREADS)
-    app_set_threadhandle(APP_MODULE_AUDIO, NULL);
-#else
+#ifdef USE_APP_AUDIO_THREAD
     app_audio_set_threadhandle(APP_AUDIO_MODULE_AUDIO, NULL);
+#else
+    app_set_threadhandle(APP_MODULE_AUDIO, NULL);
 #endif
     app_audio_init = false;
 }
 
-void app_ble_audio_register_start_callback(app_ble_audio_callback_t cb)
+void app_ble_audio_register_start_callback(APP_BLE_AUDIO_CALLBACK_T cb)
 {
     g_app_ble_audio_start_cb = cb;
 }
 
-void app_ble_audio_register_stop_callback(app_ble_audio_callback_t cb)
+void app_ble_audio_register_stop_callback(APP_BLE_AUDIO_CALLBACK_T cb)
 {
     g_app_ble_audio_stop_cb = cb;
 }
 
-void app_ble_audio_register_stop_single_stream_callback(app_ble_audio_callback_t cb)
+void app_ble_audio_register_stop_single_stream_callback(APP_BLE_AUDIO_CALLBACK_T cb)
 {
     g_app_ble_audio_stop_single_stream_cb = cb;
 }

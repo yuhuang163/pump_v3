@@ -63,96 +63,19 @@
 #include "plat_types.h"
 #include "bt_sco_chain_cfg.h"
 
-
-#if defined(SPEECH_TX_2MIC_NS7) || defined(SPEECH_TX_MIC_FIR_CALIBRATION)
-const static float mic_calib_filter[128] = {
-     6.202919261e-01f,  8.037469076e-01f, -1.600362194e-01f,  3.098796151e-01f, -3.221007158e-01f, 
-     6.939522926e-02f, -2.197326434e-01f,  2.967445051e-01f, -1.539558681e-01f,  1.568673645e-01f, 
-    -1.535676006e-01f,  1.369199806e-01f, -2.429241633e-01f,  6.370278107e-02f, -2.454364959e-01f, 
-     1.543613835e-01f, -4.580953075e-02f,  1.705936100e-01f, -6.333049682e-02f,  1.238209135e-01f, 
-    -1.269522492e-01f,  1.090682257e-02f, -1.690590571e-01f, -6.945397953e-03f, -6.874834727e-02f, 
-     8.313176183e-02f,  3.683071812e-02f,  1.182126965e-01f, -8.714021074e-02f,  3.599273165e-02f, 
-    -6.635071944e-02f, -7.726752726e-03f, -8.982504885e-02f,  2.535089617e-02f,  1.904896891e-03f, 
-     1.137365307e-02f,  1.579722023e-02f,  2.234187135e-03f, -1.259744181e-02f, -1.052641627e-02f, 
-    -3.160779299e-03f, -4.308732781e-03f, -2.812431946e-03f, -2.865492236e-02f,  7.055175018e-03f, 
-     1.632257853e-03f, -2.453137528e-02f, -2.026903600e-02f,  1.625059811e-02f, -1.554967366e-02f, 
-     2.293516485e-02f, -3.462459914e-02f,  1.177648751e-02f, -1.107641958e-02f,  1.647448209e-02f, 
-    -1.275720956e-02f,  1.870987238e-02f, -9.541430327e-03f, -2.279155082e-02f, -1.880658300e-02f, 
-    -1.747780988e-03f, -2.118554372e-02f,  2.768046975e-02f, -6.465657026e-03f,  9.752833140e-03f, 
-    -9.199369244e-04f,  1.034062978e-02f, -2.557081197e-02f, -1.801663383e-02f, -2.738124722e-02f, 
-     1.130984266e-02f,  1.041767636e-02f,  1.666619542e-02f, -3.742378371e-03f,  4.828140526e-03f, 
-    -3.255728256e-03f, -1.305059016e-02f, -1.090098809e-02f,  4.608301917e-03f, -5.172471726e-03f, 
-     2.755225255e-02f, -1.551118604e-02f,  6.938741753e-03f, -7.030827325e-03f, -1.026446677e-02f, 
-     6.106218967e-03f, -5.845722644e-03f, -5.205985339e-03f,  1.087467760e-02f,  5.145789063e-03f, 
-    -6.800453577e-03f, -2.537260719e-03f, -1.509579397e-03f, -2.865543830e-02f, -2.042679265e-02f, 
-     8.295039855e-02f,  1.629582054e-02f, -3.068044115e-02f, -2.584086633e-02f, -3.042421751e-02f, 
-     1.623167179e-02f, -5.899060800e-02f,  1.060265049e-01f, -8.688999331e-02f,  6.031029718e-02f, 
-     2.415070403e-02f, -1.989490836e-02f, -3.644763576e-02f, -1.889818182e-02f, -3.096998379e-02f, 
-     2.044977544e-02f,  5.202091545e-02f, -6.494013764e-03f,  1.345467028e-03f,  2.218268903e-02f, 
-    -1.594742541e-02f, -1.927969228e-02f,  1.264985783e-02f, -3.812827724e-02f,  8.355320499e-03f, 
-    -6.805840437e-03f,  2.302310573e-02f, -3.559824605e-03f, -4.154173247e-03f, -2.753796987e-03f, 
-    -3.451901209e-03f, -1.141899385e-02f, -5.590265047e-03f, 
-};
+#if defined(SPEECH_TX_2MIC_NS4) || defined(SPEECH_TX_3MIC_NS)
+static float ff_fb_h[128] = {1.f, };
 #endif
 
-#if defined(SPEECH_TX_3MIC_NS)
-const static float normal_calib_filter[128] = {
- 2.903313999e-02f,  1.234944203e-02f,  1.135405935e-01f,  2.233567069e-02f, -5.926028720e-03f, 
- 5.501445479e-02f,  1.055334296e-02f, -1.826491233e-02f,  8.379170549e-02f,  2.233128762e-02f, 
--4.193084090e-02f, -6.941120701e-04f,  6.499388016e-02f, -2.420757255e-02f, -2.227276410e-02f, 
- 2.151652574e-02f,  2.234119532e-02f, -4.009064528e-02f,  3.568788039e-03f,  2.454178026e-02f, 
--3.123466384e-03f, -2.702777124e-02f,  1.836450464e-02f,  7.909207939e-03f, -7.128864528e-03f, 
--8.242539111e-03f,  1.700044289e-02f, -2.819606398e-03f, -6.699048536e-03f,  6.882263214e-04f, 
- 1.255761600e-02f, -8.117299630e-03f, -3.370034855e-03f,  6.335945073e-03f,  3.594259035e-03f, 
--1.106256285e-02f,  5.222976895e-03f,  6.296391727e-03f, -5.105046369e-03f, -5.770325368e-03f, 
- 9.233165873e-03f, -1.203419154e-03f, -5.769932205e-03f,  2.311771107e-03f,  6.171691849e-03f, 
--4.885128100e-03f, -2.371395118e-03f,  4.514144596e-03f,  4.839152581e-04f, -3.790125005e-03f, 
- 2.574726515e-03f,  1.734601500e-03f, -2.897891237e-03f,  8.961139055e-05f,  2.511876270e-03f, 
--9.912638272e-04f, -2.060183695e-03f,  1.378896368e-03f,  2.063182645e-03f, -2.867432598e-03f, 
- 6.901036081e-04f,  1.735859967e-03f, -5.059698644e-04f, -2.261230032e-03f,  1.817785723e-03f, 
- 2.762739166e-03f, -3.933727888e-03f, -3.981742024e-04f,  4.153348995e-03f, -3.269554868e-04f, 
--2.729779769e-03f,  1.373064803e-03f,  1.917878612e-03f, -1.294458277e-03f, -1.680680894e-03f, 
- 2.956788634e-03f, -3.578283582e-04f, -2.794391614e-03f,  2.939259095e-03f,  2.487130206e-03f, 
--3.238371817e-03f, -8.886090953e-04f,  3.619304057e-03f,  8.392056356e-04f, -4.068279718e-03f, 
- 9.308132889e-04f,  4.575067485e-03f, -2.564935648e-03f, -1.808653263e-03f,  1.599891634e-03f, 
- 1.548674627e-03f, -1.513651920e-03f,  4.987807203e-04f, -1.452309526e-04f,  7.045284833e-04f, 
--1.101350416e-03f,  2.694699314e-03f, -3.169641753e-03f,  1.307472660e-03f,  1.385822820e-03f, 
--2.356150086e-04f, -3.443875559e-03f,  3.761352954e-03f, -1.358873016e-03f, -3.706547802e-04f, 
--1.461271569e-03f,  2.932774364e-03f, -4.127845546e-03f,  2.554403255e-03f, -5.637081509e-04f, 
--2.662903129e-04f, -2.387506499e-03f,  2.831932680e-03f, -2.387203785e-03f, -5.654509014e-04f, 
--5.711966310e-05f,  3.049947659e-03f, -4.699998026e-03f,  9.951429509e-04f,  6.693839345e-04f, 
- 1.961912188e-04f, -3.684116972e-03f,  6.752975258e-04f,  5.486629140e-04f, -1.687440999e-04f, 
--2.958174659e-03f,  1.183516611e-03f, -3.251841933e-03f, 
-};
-const static float tt_calib_filter[128] = {
- 5.264907041e-03f,  5.405581193e-02f,  2.960867215e-01f,  1.231566005e-01f, -5.886309438e-02f, 
--1.073677716e-01f, -7.326609173e-03f,  9.356123071e-02f,  9.039441555e-02f, -3.625940130e-02f, 
--8.747018066e-02f,  1.078155290e-02f, -9.818255775e-03f, -2.027068719e-02f,  2.909006394e-02f, 
- 1.084935608e-02f, -3.379080225e-02f, -2.034241131e-02f,  3.617140487e-02f, -2.868178874e-03f, 
--9.697754924e-03f,  8.996119266e-03f,  4.369094139e-03f, -1.787822711e-02f,  3.961938162e-03f, 
- 1.041807832e-02f, -6.806393468e-03f, -1.051036952e-02f,  4.650316857e-03f, -2.229146193e-03f, 
--7.324748716e-03f,  1.799763060e-03f,  2.004041394e-03f, -6.548666746e-03f, -1.172731555e-03f, 
- 2.671778579e-03f, -8.353991507e-04f, -3.732380224e-03f,  1.676484350e-03f,  8.138684644e-04f, 
--2.415811225e-03f, -2.580231776e-04f,  3.831236622e-03f, -2.888465862e-03f,  5.606007414e-05f, 
- 1.005042960e-03f,  2.651998269e-04f,  8.137239888e-05f,  3.989861155e-04f,  1.483649417e-03f, 
- 2.665748591e-04f,  3.528147921e-04f,  1.506750595e-03f, -5.696667820e-06f,  2.347253889e-04f, 
- 3.003349409e-04f,  1.494441311e-03f, -5.650967338e-04f,  5.161902121e-04f,  9.771846909e-04f, 
--4.611814409e-05f,  9.315715043e-04f,  7.063157593e-04f,  1.199085028e-03f, -6.075040750e-05f, 
- 1.444777830e-03f,  9.837773479e-04f, -1.635278116e-04f,  4.020045110e-04f,  2.376727623e-03f, 
--5.187474952e-04f,  3.598402230e-04f,  1.144302830e-03f,  1.398545798e-03f, -1.323453503e-03f, 
- 2.255561584e-03f,  1.065290526e-04f, -1.069769504e-04f,  5.078339239e-04f,  1.548547900e-03f, 
--5.896576204e-04f,  1.752413625e-03f, -6.465033174e-04f,  2.755726492e-03f, -1.085273691e-03f, 
- 2.128265322e-03f,  8.457332228e-04f,  1.022531770e-03f,  1.166506172e-03f,  2.288244944e-03f, 
- 2.991596048e-04f,  1.927451361e-03f, -4.204656766e-05f,  3.215331622e-03f, -1.611955408e-03f, 
- 5.354421628e-03f, -2.187433302e-03f,  4.371884608e-03f, -1.092113320e-03f,  4.667069134e-03f, 
--2.888380838e-03f,  6.596303032e-03f, -3.717569688e-03f,  5.467706597e-03f, -2.970076174e-03f, 
- 6.320069307e-03f, -3.447539073e-03f,  5.953479619e-03f, -3.556563619e-03f,  5.665726116e-03f, 
--5.138195045e-03f,  7.914915237e-03f, -7.135613279e-03f,  1.011567070e-02f, -8.525915602e-03f, 
- 1.071933969e-02f, -7.300576148e-03f,  9.145539332e-03f, -5.232127703e-03f,  6.612405352e-03f, 
--3.550333778e-03f,  7.658410879e-03f, -7.359003755e-03f,  1.208892635e-02f, -1.432434108e-02f, 
- 1.441610296e-02f, -8.876295654e-03f,  2.137929849e-02f, 
-};
+#if defined(SPEECH_TX_2MIC_NS7) || defined(SPEECH_TX_3MIC_NS)
+static float mic_calib_filter[128] = {1.f, };
 #endif
+
+#if defined(SPEECH_TX_3MIC_NS4)
+static float mic_calib_filter1[128] = {1.f, };
+static float mic_calib_filter2[128] = {1.f, };
+#endif
+
 #if defined(SPEECH_TX_MIC_CALIBRATION)
 /****************************************************************************************************
  * Describtion:
@@ -207,11 +130,11 @@ const SpeechFirCalibConfig WEAK speech_tx_mic_fir_calib_cfg =
 {
     .bypass = 0,
     .mic_num = SPEECH_CODEC_CAPTURE_CHANNEL_NUM,
-    .delay = 2,
+    .delay = 0,
     .calib = {
         {
-            .filter = (float*)mic_calib_filter,
-            .filter_length = ARRAY_SIZE(mic_calib_filter),
+            .filter = mic2_ft_caliration,
+            .filter_length = ARRAY_SIZE(mic2_ft_caliration),
         },
     },
 };
@@ -334,7 +257,7 @@ const SpeechConfig WEAK speech_cfg_default = {
         .stsupp_enabled = false,
         .hfsupp_enabled = false,
         .constrain_enabled = false,
-#if defined(SPEECH_TX_NS3) || defined(SPEECH_TX_NS4) || defined(SPEECH_TX_NS5) || defined(SPEECH_TX_DTLN) || defined(SPEECH_TX_1MIC_NS)
+#if defined(SPEECH_TX_NS3) || defined(SPEECH_TX_NS4) || defined(SPEECH_TX_NS5) || defined(SPEECH_TX_DTLN)
         .ns_enabled     = false,
 #else
         .ns_enabled     = true,
@@ -346,7 +269,6 @@ const SpeechConfig WEAK speech_cfg_default = {
 #else
         .delay          = 139,
 #endif
-        .error_threshold = 1.5e-5f,
         .gamma          = 0.9,
         .echo_band_start = 300,
         .echo_band_end  = 1800,
@@ -359,9 +281,7 @@ const SpeechConfig WEAK speech_cfg_default = {
         .cng_level      = -60,
         .clip_threshold = -20.f,
         .banks          = 64,
-		.filter_len     = 32,
         .ref_thd        = 1000,
-        .reset_ec_thd   = 1.03,
     },
 #endif
 
@@ -369,31 +289,6 @@ const SpeechConfig WEAK speech_cfg_default = {
     .tx_aec3 = {
         .bypass         = 0,
         .filter_size     = 16,
-    },
-#endif
-
-#if defined(SPEECH_TX_1MIC_NS)
-/****************************************************************************************************
- * Describtion:
- *     2 MICs Noise Suppression
- * Parameters:
- *     bypass(0/1): bypass enable or disable.
- * Resource consumption:
- *     RAM:     None
- *     FLASE:   None
- *     MIPS:    fs = 16kHz;
- * Note:
- *     None
-****************************************************************************************************/
-    .tx_1mic_ns = {
-        .bypass             = 0,
-        .nn_gain_db         = 5,
-        .wdrc_enable        = 1,
-#if defined(SPEECH_NS10L)
-        .pf_denoise_db      = -10,
-#else
-        .pf_denoise_db      = -5,
-#endif
     },
 #endif
 
@@ -412,16 +307,10 @@ const SpeechConfig WEAK speech_cfg_default = {
 ****************************************************************************************************/
     .tx_2mic_ns = {
         .bypass             = 0,
-        .alpha_h            = 0.8,
-        .alpha_slow         = 0.9,
-        .alpha_fast         = 0.6,
-        .thegma             = 0.01,
-        .thre_corr          = 0.2,
-        .thre_filter_diff   = 0.2,
-        .cal_left_gain      = 1.0,
-        .cal_right_gain     = 1.0,
-        .delay_mono_sample  = 6,
-        .wnr_enable         = 0,
+        .dist               = 0.15,
+        .feat_min           = 0.8,
+        .feat_max           = 0.85,
+        .denoise_db         = -30,
     },
 #endif
 
@@ -539,30 +428,20 @@ const SpeechConfig WEAK speech_cfg_default = {
 ****************************************************************************************************/
     .tx_2mic_ns4 = {
         .bypass             = 0,
-        .wnr_enable =   1,
-        .wind_thd =     0.8,
-        .wnd_pwr_thd =  20,
-        .wind_gamma =   0.7,
-        .state_trans_frame_thd = 60,
-        .af_enable =    1,
-        .filter_gamma = 0.9,
-
-        .vad_bin_start = 50,
-        .vad_bin_end =  1000,
-        .coef1_thd =    0.85F,
-        .coef2_thd =    3.5F,
-
-        .low_ram_enable=    0,
-        .echo_supp_enable=  1,
-        .ref_delay= 0,
-
-        .post_supp_enable=  1,
-        .denoise_db=    -20,
-
-        .blend_en = 1,
-        .comp_num = 4,
-        .comp_freq = { 600, 1000, 3000, 4000},
-        .comp_gaindB = { -5, 0, 8, 5 },
+        .blend_en           = 1,
+        // .left_gain          = 1.0f,
+        // .right_gain         = 1.0f,
+        .delay_tapsM        = 0,
+        .delay_tapsS        = 0,
+        // .delay_tapsC        = 32,
+        //////////////////////////{{a0,a1,a2,a3,a4},{b0,b1,b2,b3,b4}}///////////////////////////
+        // .coefH[0]           = {1.0, -1.88561808316413, 1.55555555555556, -0.628539361054709, 0.111111111111111},
+        // .coefH[1]           = {0.323801506930344, -1.29520602772138, 1.94280904158206, -1.29520602772138, 0.323801506930344},
+        // .coefL[0]           = {1.0, -1.88561808316413, 1.55555555555556, -0.628539361054709, 0.111111111111111},
+        // .coefL[1]           = {0.00953182640298944, 0.0381273056119578, 0.0571909584179366, 0.0381273056119578, 0.00953182640298944},
+        .crossover_freq     = 1000,
+        .ff_fb_coeff        = ff_fb_h,
+        .ff_fb_coeff_len    = ARRAY_SIZE(ff_fb_h),
     },
 #endif
 
@@ -625,53 +504,37 @@ const SpeechConfig WEAK speech_cfg_default = {
 ****************************************************************************************************/
     .tx_2mic_ns7 = {
         .bypass =       0,
+        .wnr_enable =   1,
+        .wind_thd =     0.7,
+        .wnd_pwr_thd =  1600,
+        .wind_gamma =   0.7,
+        .state_trans_frame_thd = 60,
+        .af_enable =    1,
+        .filter_gamma = 0.9,
         .vad_bin_start1 =   50,
         .vad_bin_end1 =   3230,
-        .vad_bin_start2 =   150,
-        .vad_bin_end2 =   1000,
+        .vad_bin_start2 =   300,
+        .vad_bin_end2 =   930,
         .vad_bin_start3 =   150,
         .vad_bin_end3 =   1500,
         .coef1_thd =    0.94F,
-        .coef2_thd =    0.94F,
+        .coef2_thd =    0.9F,
         .coef3_thd =    30.0F,
         .supp_times =   2,
 
-        .calib_enable=  0,
+        .calib_enable=  1,
         .calib_delay=   2,
         .filter=       mic_calib_filter,
         .filter_len=  ARRAY_SIZE(mic_calib_filter),
 
-        .wind_supp_enable   = 1,
-        .echo_supp_enable   = 1,
-        .post_supp_enable   = 1,
-        .wdrc_enable        = 1,
+        .low_ram_enable=    0,
+        .low_mips_enable=    0,
 
-        .pre_gain           = 10,
-        .post_gain          = 5,
-        .denoise_dB         = 0,
-        .dnn_denoise_dB     = -10,
-    },
-#endif
+        .echo_supp_enable=  0,
+        .ref_delay= 0,
 
-#if defined(SPEECH_TX_2MIC_PREAF)
-/****************************************************************************************************
- * Describtion:
- *     2 MICs Noise Suppression
- * Parameters:
- *     bypass(0/1): bypass enable or disable.
- *     talk_error_threshold(float): error_threshold for talk mic. (level:1e-5 ~ 1e-9)                      (for echo_af_enable)
- *     ff_error_threshold(float): error_threshold for ff mic.  (level:1e-5 ~ 1e-9)                         (for echo_af_enable)
- *     ref_delay(-240-240): delay for ref signal (no use so far, TBD)
- * Note:
- *     None
-****************************************************************************************************/
-    .tx_2mic_preaf = {
-        .bypass                  = 0,
-        .ref_delay               = 0,
-        .talk_error_threshold    = 1.5e-7,
-        .ff_error_threshold      = 1.5e-8,
-        .talk_filter_len         = 32,
-        .ff_filter_len           = 32,
+        .post_supp_enable=  0,
+        .denoise_db=    -20,
     },
 #endif
 
@@ -681,31 +544,14 @@ const SpeechConfig WEAK speech_cfg_default = {
  *     2 MICs Noise Suppression
  * Parameters:
  *     bypass(0/1): bypass enable or disable.
- *     dist: The distance between two mics.
- *     min_frequency(0-fs/2): denoise tunning para.
- *     max_frequency(0-fs/2): denoise tunning para.
- *     energy_threshold(0.1-32768): denoise tunning para.
- *     corr_threshold(0.1-0.999): denoise tunning para.
- *     fb_ratio(0.1-0.999): denoise tunning para.
- *     wind_supp_enable(0/1): bypass wind enhancment enable or disable.
- *     echo_af_enable(0/1): adaptive filter enable or disable. If the echo signal is very large, enable this.
- *     echo_supp_enable(0/1): enable echo suppression function
- *     ref_delay(-240-240): delay for ref signal (no use so far, TBD)
- **    gamma(0~1): forgetting factor for psd estimation.
- *     echo_band_start(0~8000): start band for echo detection, unit(Hz)
- *     echo_band_end(echo_band_start~8000): end band for echo detection, unit(Hz)
- *     min_ovrd(1~6): supression factor, min_ovrd becomes larger and echo suppression becomes larger.
- *     post_supp_enable(0/1): enable post denoise function
- *     wdrc_enable(0/1): enable WDRC function.
- *     pre_gain(float): normalized gain(before processing).
- *     post_gain(float): normalized gain(after processing).
- *     denoise_dB(0--20): max denoise dB for post denoise
- *     dnn_denoise_dB(0--20): max denoise dB for post denoise
+ *     delay_taps(0~4): ceil{[d(MIC1~mouth) - d(MIC2~mouth)] / 2}. Default as 0
+ *         ceil: Returns the largest integer less than or equal to the specified data
+ *         d(MIC~mouth): The dinstance from MIC to mouth
+ *         e.g. 0: 0~2cm; 1: 2~4; 2: 5~6...
  * Resource consumption:
- *     base ram: 40k, base mips: 31M, base flash:98k
- *     IF set echo_supp_enable = 1. Need more RAM += 8K & MIPS += 7M
- *     IF set echo_af_enable = 1. Need more RAM += 61K & MIPS += 63M
- *     IF set post_supp_enable = 1. Need more RAM += 60K & MIPS += 52M
+ *     RAM:     None
+ *     FLASE:   None
+ *     MIPS:    fs = 16kHz, 32M;
  * Note:
  *     None
 ****************************************************************************************************/
@@ -716,43 +562,15 @@ const SpeechConfig WEAK speech_cfg_default = {
         .max_frequency      = 3000.f,
         .energy_threshold   = 1.5f,
         .corr_threshold     = 0.9f,
-        .fb_ratio           = 1.0f,
-        .crossover_threshold= 1.0f,
-        .Pb_energy_db       = -55,
-        .update_snr         = -15,
-        .update_count       = 32,
-        .wind_mic_switch_thr = 1.5,
-
         .wind_supp_enable   = 1,
-        .echo_af_enable     = 0,
         .echo_supp_enable   = 1,
-        .ref_delay          = 0,
-        .gamma              = 0.8f,
-        .echo_band_start    = 100,
-        .echo_band_end      = 1800,
-        .min_ovrd           = 3,
-
-        .wdrc_enable        = 1,
-        .wdrc_CT             = -10.f,
-        .wdrc_CS             = 2.f,        //same as speech_tx_compexp comp_ratio
-        .wdrc_ET             = -100.f,
-        .wdrc_ES             = 0.5556f,    //same as speech_tx_compexp expand_ratio
-
-        .talk_pre_gain      = -2,    //Calibrate 2-mic frequency response(reduce the talk mic), usually gain <=0
-        .pre_gain           = 0,     //Amplify all microphones with pre gain
-        .post_gain          = 14,
-        .bf_ns_nowind_gain  = 20,
-        .bf_ns_wind_gain    = 10,
-
         .post_supp_enable   = 1,
-        .denoise_dB         = -5,
+        .wdrc_enable        = 1,
+        .pre_gain           = 10,
+        .post_gain          = 14,
+        .denoise_dB         = -15,
         .dnn_denoise_dB     = -35,
-        .reset_ec_thd       = 1.0,
-        .target_supp        = -20,
-        .vad_min_frequency  = 160,
-        .vad_max_frequency  = 8000,
-        .corr_threshold1    = 0.6,
-        .wind_gamma         = 0.5,
+        .dnn_energy_threshold = -50,
     },
 #endif
 
@@ -775,174 +593,49 @@ const SpeechConfig WEAK speech_cfg_default = {
  *     None
 ****************************************************************************************************/
     .tx_3mic_ns = {
-        {
-        .bypass =          0,
-        .wnr_enable =      1,
+        .bypass =       1,
+        .wnr_enable =   1,
+        .wind_thd =     0.85,
+        .wnd_pwr_thd =  1600,
+        .wind_gamma =   0.7,
+        .state_trans_frame_thd = 60,
+        .af_enable =    1,
+        .filter_gamma = 0.9,
+        .vad_bin_start1 =   50,
+        .vad_bin_end1 =   6230,
+        .vad_bin_start2 =   300,
+        .vad_bin_end2 =   930,
+        .vad_bin_start3 =   290,
+        .vad_bin_end3 =   2100,
+        .vad_bin_start4 = 50,
+        .vad_bin_end4 = 1000,
+        .coef1_thd =    0.94F,
+        .coef2_thd =    0.9F,
+        .coef3_thd =    30.0F,
+        .coef4_thd =    0.9,
 
-        .dist =            0.025F,
-        .mode_flag =       0,           //normal
-        .talk_pre_gain =   -2,
-        .bf_bin_start =    150,
-        .bf_bin_end =      3000,
-        .vad_bin_start =   200,
-        .vad_bin_end =     2000,
-        .energy_ratio =    1.0F,
-        .coef1_thd =       0.8F,
-        .energy1_thd =     1.2F,
-        .coef2_thd =       0.75F,
-        .energy2_thd =     1.5F,
-        .vad_speech_prob_thd =      0.04F,
+        .calib_enable=  1,
+        .calib_delay=   2,
+        .filter=       mic_calib_filter,
+        .filter_len=  ARRAY_SIZE(mic_calib_filter),
 
-        .outer_echo_af_enable =     1,
-        .outer_af_error_threshold = 1.5e-8,
-        .fb_af_error_threshold =    5e-7,
-        .outer_af_filter_len =      32,
-        .fb_af_filter_len =         64,
+        .low_ram_enable=    1,
+        .low_mips_enable=    1,
 
-        .echo_supp_enable = 1,
-        .ref_delay =        0,
-        .outer_echo_band_start =    300,
-        .outer_echo_band_end =      5000,
-        .fb_echo_band_start =       100,
-        .fb_echo_band_end =         2000,
+        .echo_supp_enable=  1,
+        .ref_delay= 0,
 
         .post_supp_enable=  1,
-        .pf_denoise_db =    -15,         //ns7_pf for outer
-        .complete_3mic_enable =  1,          //use fb
-        .inner_denoise_db = -10,       //ns3 for inner
-        .fb_filter =        normal_calib_filter,
+        .denoise_db=    -12,
+		
+        .blend_en = 1,
 
-        .fb_energy_diff_min = 0.02,
-        .fb_energy_diff_max = 0.04,
+        .ff_fb_coeff = ff_fb_h,
+        .ff_fb_coeff_len = ARRAY_SIZE(ff_fb_h),
 
-        .blend_en =         1,
-        .blend_mix_start =  1000,
-        .blend_mix_end =    2000,
-        .noise_blend_band =         {1000, 2800},
-        .blend_noise_power_thd =    {8000, 4000},
-        .blend_snr_thd =    {1.0, 1.5},     
-
-        .comp_num =         4,
-        .comp_freq =        {500, 1000, 1500, 2000},
-        .comp_gaindB =      {-5, 0, 0, 6},   //for wind
-
-        .wdrc_enable =      1,
-        .pre_gain =         10,
-        .post_gain =        8,
-        .comp_speech_prob_thd =     0.95,
-        },//normal
-            {
-            .bypass =          0,
-            .wnr_enable =      1,
-
-            .dist =            0.025F,
-            .mode_flag =       0,           //normal
-            .talk_pre_gain =   -2,
-            .bf_bin_start =    150,
-            .bf_bin_end =      3000,
-            .vad_bin_start =   200,
-            .vad_bin_end =     2000,
-            .energy_ratio =    1.0F,
-            .coef1_thd =       0.8F,
-            .energy1_thd =     1.2F,
-            .coef2_thd =       0.75F,
-            .energy2_thd =     1.5F,
-            .vad_speech_prob_thd =      0.04F,
-
-            .outer_echo_af_enable =     1,
-            .outer_af_error_threshold = 1.5e-8,
-            .fb_af_error_threshold =    5e-7,
-            .outer_af_filter_len =      32,
-            .fb_af_filter_len =         64,
-
-            .echo_supp_enable = 1,
-            .ref_delay =        0,
-            .outer_echo_band_start =    300,
-            .outer_echo_band_end =      5000,
-            .fb_echo_band_start =       100,
-            .fb_echo_band_end =         2000,
-
-            .post_supp_enable=  1,
-            .pf_denoise_db =    -15,         //ns7_pf for outer
-            .complete_3mic_enable =  1,          //use fb
-            .inner_denoise_db = -10,       //ns3 for inner
-            .fb_filter =        NULL,
-
-            .fb_energy_diff_min = 0.04,
-            .fb_energy_diff_max = 0.08,
-
-            .blend_en =         1,
-            .blend_mix_start =  1000,
-            .blend_mix_end =    2000,
-            .noise_blend_band =         {1000, 2800},
-            .blend_noise_power_thd =    {8000, 4000},
-            .blend_snr_thd =    {1.0, 1.5},     
-
-            .comp_num =         4,
-            .comp_freq =        {500, 1000, 1500, 2000},
-            .comp_gaindB =      {-5, 0, 0, 6},   //for wind
-
-            .wdrc_enable =      1,
-            .pre_gain =         10,
-            .post_gain =        8,
-            .comp_speech_prob_thd =     0.95,
-            },//anc
-                {
-                .bypass =          0,
-                .wnr_enable =      1,
-
-                .dist =            0.025F,
-                .mode_flag =       0,           //normal
-                .talk_pre_gain =   -2,
-                .bf_bin_start =    150,
-                .bf_bin_end =      3000,
-                .vad_bin_start =   200,
-                .vad_bin_end =     2000,
-                .energy_ratio =    1.0F,
-                .coef1_thd =       0.8F,
-                .energy1_thd =     1.2F,
-                .coef2_thd =       0.75F,
-                .energy2_thd =     1.5F,
-                .vad_speech_prob_thd =      0.04F,
-
-                .outer_echo_af_enable =     1,
-                .outer_af_error_threshold = 1.5e-8,
-                .fb_af_error_threshold =    5e-7,
-                .outer_af_filter_len =      32,
-                .fb_af_filter_len =         64,
-
-                .echo_supp_enable = 1,
-                .ref_delay =        0,
-                .outer_echo_band_start =    300,
-                .outer_echo_band_end =      5000,
-                .fb_echo_band_start =       100,
-                .fb_echo_band_end =         2000,
-
-                .post_supp_enable=  1,
-                .pf_denoise_db =    -15,         //ns7_pf for outer
-                .complete_3mic_enable =  1,          //use fb
-                .inner_denoise_db = -10,       //ns3 for inner
-                .fb_filter =        tt_calib_filter,
-
-                .fb_energy_diff_min = 0.06,
-                .fb_energy_diff_max = 0.01,
-
-                .blend_en =         1,
-                .blend_mix_start =  1000,
-                .blend_mix_end =    2000,
-                .noise_blend_band =         {1000, 2800},
-                .blend_noise_power_thd =    {8000, 4000},
-                .blend_snr_thd =    {1.0, 1.5},     
-
-                .comp_num =         4,
-                .comp_freq =        {500, 1000, 1500, 2000},
-                .comp_gaindB =      { -5, 0, 6, 12},   //for wind
-
-                .wdrc_enable =      1,
-                .pre_gain =         10,
-                .post_gain =        8,
-                .comp_speech_prob_thd =     0.95,
-                },//ff
+        .comp_num = 4,
+        .comp_freq = { 500, 1000, 2000, 4000 },
+        .comp_gaindB = { 5, 15, 20, 20 },
     },
 #endif
 
@@ -996,6 +689,52 @@ const SpeechConfig WEAK speech_cfg_default = {
         .delay_taps         = 0.7f,  
         .freq_smooth_enable = 1,
         .wnr_enable         = 0, 
+    },
+#endif
+
+#if defined(SPEECH_TX_3MIC_NS4)
+/****************************************************************************************************
+
+
+****************************************************************************************************/
+    .tx_3mic_ns4 = {
+        .bypass = 0,
+        .wnr_enable = 1,
+        .wind_thd = 0.6,
+        .wnd_pwr_thd = 1600,
+        .wind_gamma = 0.7,
+
+        .state_trans_frame_thd = 60,
+        .af_enable = 1,
+        .filter_gamma = 0.9,
+        .vad_bin_start1= 50,
+        .vad_bin_start1= 6230,
+        .vad_bin_start2= 300,
+        .vad_bin_start2= 930,
+        .vad_bin_start3= 290,
+        .vad_bin_start3= 2100,
+        .coef1_thd= 0.94F,
+        .coef2_thd= 0.9F,
+        .coef3_thd= 30.0F,
+
+        .calib_enable=  1,
+        .calib_delay=   2,
+        .filter=        mic_calib_filter1,
+        .filter_len=    ARRAY_SIZE(mic_calib_filter1),
+        .filter2=       mic_calib_filter2,
+        .filter2_len=   ARRAY_SIZE(mic_calib_filter2),
+
+        .low_ram_enable=  0,
+        .low_mips_enable= 0,
+
+        .echo_supp_enable=  0,
+        .ref_delay= 0,  //no use so far
+
+        .post_supp_enable=  1,
+        .denoise_db=    -20,
+
+        .mix_band_index= 64,
+        .mix_band_ratio= 0.5,
     },
 #endif
 
@@ -1076,6 +815,10 @@ const SpeechConfig WEAK speech_cfg_default = {
         .bypass     = 0,
         .denoise_dB = -15,
         .banks      = 64,
+#if defined(DTLN_37K)
+        .denoise_dB = -20,
+        .banks      = 128,
+#endif
     },
 #endif
 
@@ -1129,6 +872,56 @@ const SpeechConfig WEAK speech_cfg_default = {
     .tx_ns5 = {
         .bypass     = 0,
         .denoise_dB = -30,
+    },
+#endif
+
+#if defined(SPEECH_TX_NS7)
+/****************************************************************************************************
+ * Describtion:
+ *     Noise Suppression
+ * Parameters:
+ *     bypass(0/1): bypass enable or disable.
+ * Resource consumption:
+
+ * Note:
+****************************************************************************************************/
+    .tx_ns7 = {
+        .bypass     = 0,
+        .denoise_dB = -10,
+		.echo_supp_enable = 0,
+    	.ref_delay = 0,
+   	 	.gamma =  0.9,
+    	.echo_band_start = 150,
+    	.echo_band_end = 1800,
+    	.min_ovrd = 2,
+    	.target_supp = -40,
+    },
+#endif
+
+#if defined(SPEECH_TX_NS8)
+/****************************************************************************************************
+ * Describtion:
+ *     Noise Suppression
+ * Parameters:
+ *     bypass(0/1): bypass enable or disable.
+ * Resource consumption:
+
+ * Note:
+****************************************************************************************************/
+    .tx_ns8 = {
+        .bypass     = 0,
+        .denoise_dB = -10,
+        .ref_delay = 148,
+        .gamma = 0.9,
+        .echo_band_start = 300,
+        .echo_band_end = 7000,
+        .min_ovrd = 2,
+        .target_supp = -50,
+        .ga_thr = 0.7,
+        .en_thr = 100,
+        .postfilter_enable = 1,
+        .pf_enable = 1,
+        .dnn_denoise_dB = -25,
     },
 #endif
 
@@ -1202,14 +995,14 @@ const SpeechConfig WEAK speech_cfg_default = {
     .tx_compexp = {
         .bypass             = 0,
         .type               = 0,
-        .comp_threshold     = -25.f,
-        .comp_ratio         = 3.f,
-        .expand_threshold   = -60.f,
-        .expand_ratio       = 0.333f,
-        .attack_time        = 0.008f,
-        .release_time       = 0.06f,
-        .makeup_gain        = 15,
-        .delay              = 128,
+        .comp_threshold     = -15.f,
+        .comp_ratio         = 2.f,
+        .expand_threshold   = -45.f,
+        .expand_ratio       = 0.555f,
+        .attack_time        = 0.001f,
+        .release_time       = 0.006f,
+        .makeup_gain        = 6,
+        .delay              = 32,
         .tav                = 0.2f,
     },
 #endif
@@ -1259,8 +1052,7 @@ const SpeechConfig WEAK speech_cfg_default = {
         .gain       = 0.f,
         .num        = 1,
         .params = {
-			{IIR_BIQUARD_HIGHSHELF, {{4000, 0, 0.707}}},
-			//{IIR_BIQUARD_PEAKINGEQ, {{3100, 8, 5}}},
+            {IIR_BIQUARD_HPF, {{60, 0, 0.707f}}},
         },
     },
 #endif

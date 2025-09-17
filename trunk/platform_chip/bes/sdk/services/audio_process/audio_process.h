@@ -23,35 +23,13 @@ extern "C" {
 #include "stdint.h"
 #include "iir_process.h"
 #include "fir_process.h"
-
-typedef enum {
-    AUDIO_EQ_TYPE_SW_IIR = 0,
-    AUDIO_EQ_TYPE_HW_FIR,
-    AUDIO_EQ_TYPE_HW_DAC_IIR,
-    AUDIO_EQ_TYPE_HW_IIR,
-} AUDIO_EQ_TYPE_T;
+#include "audio_process_eq.h"
 
 int audio_process_init(void);
 uint32_t audio_process_need_audio_buf_size(void);
 int audio_process_open(enum AUD_SAMPRATE_T sample_rate, enum AUD_BITS_T sample_bits,enum AUD_CHANNEL_NUM_T sw_ch_num, enum AUD_CHANNEL_NUM_T hw_ch_num,int32_t frame_size, void *eq_buf, uint32_t len);
 int audio_process_run(uint8_t *buf, uint32_t len);
 int audio_process_close(void);
-
-#if defined(__HW_FIR_EQ_PROCESS_2CH__)
-int audio_eq_set_cfg(const FIR_CFG_T *fir_cfg,const FIR_CFG_T *fir_cfg_2,const IIR_CFG_T *iir_cfg,AUDIO_EQ_TYPE_T audio_eq_type);
-#elif defined(__IIR_EQ_PROCESS_LR_2CH__)
-int audio_eq_set_cfg(const FIR_CFG_T *fir_cfg,const IIR_CFG_T *iir_cfg,const IIR_CFG_T *iir_cfg_2,AUDIO_EQ_TYPE_T audio_eq_type);
-#else
-int audio_eq_set_cfg(const FIR_CFG_T *fir_cfg,const IIR_CFG_T *iir_cfg,AUDIO_EQ_TYPE_T audio_eq_type);
-#endif
-int32_t audio_eq_set_onoff(int32_t onoff, AUDIO_EQ_TYPE_T audio_eq_type);
-
-void audio_process_set_vol_ctrl_eq_index(uint32_t index);
-
-#ifdef USB_EQ_TUNING
-void audio_eq_usb_eq_update (void);
-#endif
-bool audio_process_is_opened(void);
 
 #ifdef __cplusplus
 }

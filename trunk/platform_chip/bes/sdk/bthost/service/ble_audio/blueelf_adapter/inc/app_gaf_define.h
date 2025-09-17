@@ -40,8 +40,9 @@
 #include <stddef.h>        // standard definitions
 #include <stdint.h>        // standard integer definitions
 
+#include "app_gaf_common.h"
+
 #include "co_math.h"
-#include "co_bt_defines.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -57,7 +58,6 @@ extern "C" {
 
 #define AOB_CODEC_ID_LC3          (&codec_id_lc3)
 #define AOB_CODEC_ID_LC3PLUS      (&codec_id_lc3plus)
-#define AOB_CODEC_ID_LHDC         (&codec_id_lhdc)
 
 #define APP_GAF_CSIS_SIRK_LEN_VALUE         (16)
 #define APP_GAF_CSIS_RSI_LEN                (6)
@@ -70,19 +70,6 @@ extern "C" {
 #define APP_GAF_INVALID_CON_LID             (0xFF)
 #define APP_GAF_INVALID_ANY_LID             (0xFF)
 #define APP_GAF_INVALID_CON_HDL             (0xFFFF)
-
-#define APP_CO_BIT(pos) (1UL<<(pos))
-
-/// Length of GAP Broadcast ID
-#define APP_GAP_BCAST_ID_LEN    (3)
-/// Length of GAP broadcast Key
-#define APP_GAP_KEY_LEN         (16)
-/// Length of Device Address
-#define APP_GAP_BD_ADDR_LEN     (6)
-/// Default Preffered MTU
-#define APP_GAF_DFT_PREF_MTU    (128)
-/// Length of Codec ID value
-#define APP_GAF_CODEC_ID_LEN    (5)
 
 typedef struct app_gaf_codec_id app_gaf_codec_id_t;
 
@@ -105,14 +92,14 @@ struct app_co_list
     /// pointer to the last element
     struct app_co_list_hdr *last;
 
-#if (KE_PROFILING)
+    #if (KE_PROFILING)
     /// number of element in the list
     uint32_t cnt;
     /// max number of element in the list
     uint32_t maxcnt;
     /// min number of element in the list
     uint32_t mincnt;
-#endif //KE_PROFILING
+    #endif //KE_PROFILING
 };
 
 /// simplify type name of list
@@ -142,8 +129,17 @@ typedef struct
 /*****************************value declaration*****************************/
 extern const app_gaf_codec_id_t codec_id_lc3;
 extern const app_gaf_codec_id_t codec_id_lc3plus;
-extern const app_gaf_codec_id_t codec_id_lhdc;
 /******************************type defination******************************/
+/// Error codes
+enum app_gaf_err
+{
+    /// No Error
+    APP_GAF_ERR_NO_ERROR = 0,
+    /// Params Invalid
+    APP_GAF_ERR_INVALID_PARAM,
+    /// Mermory Malloced Failed
+    APP_GAF_ERR_MALLOC_ERROR,
+};
 
 /// Codec Type values
 typedef enum app_gaf_codec_type
@@ -183,16 +179,6 @@ enum app_gaf_bap_capa_type
     APP_GAF_BAP_CAPA_TYPE_OCTETS_FRAME,
     /// Maximum Supported Codec Frames per SDU
     APP_GAF_BAP_CAPA_TYPE_FRAMES_SDU,
-    /// Supported channel capabilities
-    APP_GAF_BAP_CAPA_TYPE_SUPP_CHAN_CAPA = 0xE0,
-    /// Supported Codec Frame Interval
-    APP_GAF_BAP_CAPA_TYPE_SUPP_CF_INTV = 0xE2,
-    /// Supported HT Frame Formats
-    APP_GAF_BAP_CAPA_TYPE_SUPP_HTF_FMT = 0xE5,
-    /// Supported HT Frame Interval
-    APP_GAF_BAP_CAPA_TYPE_SUPP_HTF_INTV = 0xE6,
-    /// Supported Rendering Info Frame Interval
-    APP_GAF_BAP_CAPA_TYPE_SUPP_RIF_INTV,
 };
 
 /// Metadata Types values
@@ -244,34 +230,7 @@ enum app_gaf_bap_cfg_type
     APP_GAF_BAP_CFG_TYPE_OCTETS_FRAME,
     /// Codec Frame Blocks Per SDU
     APP_GAF_BAP_CFG_TYPE_FRAMES_SDU,
-    /// Channel Type Configurations
-    APP_GAF_BAP_CFG_TYPE_CHAN_TYPE_CFG = 0xE1,
-    // Codec Frame Interval
-    APP_GAF_BAP_CFG_TYPE_CF_FRAME_INTV = 0xE3,
-    // Codec Frame CID
-    APP_GAF_BAP_CFG_TYPE_CF_FRAME_CID = 0xE4,
-    // Headtracking Frame CID
-    APP_GAF_BAP_CFG_TYPE_HT_FRAME_CID = 0xE7,
-    // Headtracking Frame Format
-    APP_GAF_BAP_CFG_TYPE_HT_FRAME_FMT = 0xE8,
-    // Headtracking Frame Interval
-    APP_GAF_BAP_CFG_TYPE_HT_FRAME_INTV = 0xE9,
-    // Rendering Info Frame Format
-    APP_GAF_BAP_CFG_TYPE_RI_FRAME_CID,
-    // Rendering Info Frame Interval
-    APP_GAF_BAP_CFG_TYPE_RI_FRAME_INTV,
 };
-
-/// ASE Direction
-typedef enum app_gaf_direction
-{
-    /// Sink direction
-    APP_GAF_DIRECTION_SINK = 0,
-    /// Source direction
-    APP_GAF_DIRECTION_SRC,
-
-    APP_GAF_DIRECTION_MAX,
-} app_gaf_direction_t;
 
 /// Sampling_Frequency
 typedef enum gaf_bap_sampling_freq
@@ -300,9 +259,6 @@ enum gaf_bap_frame_duration
     APP_GAF_BAP_FRAME_DURATION_10MS     = 0x01,
     APP_GAF_BAP_FRAME_DURATION_5MS      = 0x02,
     APP_GAF_BAP_FRAME_DURATION_2_5MS    = 0x03,
-    /// for PTS 441_1/441_2
-    APP_GAF_BAP_FRAME_DURATION_8_163MS  = 0x04,
-    APP_GAF_BAP_FRAME_DURATION_10_884MS = 0x02,
     APP_GAF_BAP_FRAME_DURATION_MAX,
 };
 
@@ -433,10 +389,12 @@ enum app_gaf_bap_frame_dur
     APP_GAF_BAP_FRAME_DUR_7_5MS  = 0,
     /// Use 10ms Codec frames
     APP_GAF_BAP_FRAME_DUR_10MS   = 1,
+#ifdef LC3PLUS_SUPPORT
     /// Use 5ms Codec frames
     APP_GAF_BAP_FRAME_DUR_5MS    = 2,
     /// Use 2.5ms Codec frames
     APP_GAF_BAP_FRAME_DUR_2_5MS  = 3,
+#endif
     /// Maximum value
     APP_GAF_BAP_FRAME_DUR_MAX
 };
@@ -462,6 +420,7 @@ enum app_gaf_bap_frame_dur_bf
     /// 10ms frame duration is supported - Bit
     APP_GAF_BAP_FRAME_DUR_10MS_BIT = APP_CO_BIT(APP_GAF_BAP_FRAME_DUR_10MS_POS),
 
+#ifdef LC3PLUS_SUPPORT
     /// 5ms frame duration is supported - Position
     APP_GAF_BAP_FRAME_DUR_5MS_POS  = 2,
     /// 5ms frame duration is supported - Bit
@@ -471,6 +430,7 @@ enum app_gaf_bap_frame_dur_bf
     APP_GAF_BAP_FRAME_DUR_2_5MS_POS = 3,
     /// 10ms frame duration is supported - Bit
     APP_GAF_BAP_FRAME_DUR_2_5MS_BIT = APP_CO_BIT(APP_GAF_BAP_FRAME_DUR_2_5MS_POS),
+#endif
 
     /// 7.5ms frame duration is preferred - Position
     APP_GAF_BAP_FRAME_DUR_7_5MS_PREF_POS = 4,
@@ -481,6 +441,7 @@ enum app_gaf_bap_frame_dur_bf
     APP_GAF_BAP_FRAME_DUR_10MS_PREF_POS = 5,
     /// 10ms frame duration is preferred - Bit
     APP_GAF_BAP_FRAME_DUR_10MS_PREF_BIT = APP_CO_BIT(APP_GAF_BAP_FRAME_DUR_10MS_PREF_POS),
+#ifdef LC3PLUS_SUPPORT
     /// 10ms frame duration is preferred - Position
     APP_GAF_BAP_FRAME_DUR_5MS_PREF_POS = 6,
     /// 10ms frame duration is preferred - Bit
@@ -490,6 +451,7 @@ enum app_gaf_bap_frame_dur_bf
     APP_GAF_BAP_FRAME_DUR_2_5MS_PREF_POS = 7,
     /// 10ms frame duration is preferred - Bit
     APP_GAF_BAP_FRAME_DUR_2_5MS_PREF_BIT = APP_CO_BIT(APP_GAF_BAP_FRAME_DUR_2_5MS_PREF_POS),
+#endif
 };
 
 /// Context type bit field meaning
@@ -629,8 +591,9 @@ enum app_le_phy_value
     APP_PHY_1MBPS_VALUE    = 1,
     APP_PHY_2MBPS_VALUE    = 2,
     APP_PHY_CODED_VALUE    = 3,
-    APP_PHY_HDT_VALUE      = 5,
-    APP_PHY_4MBPS_VALUE    = 8,
+#if (mHDT_LE_SUPPORT)
+    APP_PHY_4MBPS_VALUE    = 128,
+#endif
 };
 
 /// Specify what PHY Host prefers to use for RX or TX HCI:7.8.48 / HCI:7.8.49
@@ -645,45 +608,17 @@ enum app_le_phy_mask
     /// The Host prefers to use the LE Coded transmitter/receiver PHY (possibly among others)
     APP_PHY_CODED_BIT      = (1 << 2),
     APP_PHY_CODED_POS      = (2),
-    /// The Host prefers to use the LE HDT transmitter/receiver PHY (possibly among others)
-    APP_PHY_HDT_BIT        = (1 << 4),
-    APP_PHY_HDT_POS        = (4),
     /// The Host prefers to use the LE 4M transmitter/receiver PHY (possibly among others)
+#if (mHDT_LE_SUPPORT)
     APP_PHY_4MBPS_BIT      = (1 << 7),
     APP_PHY_4MBPS_POS      = (7),
+#endif
     /// The Host prefers to use the LE Coded transmitter/receiver PHY (possibly among others)
     APP_PHY_ALL        = (APP_PHY_1MBPS_BIT | APP_PHY_2MBPS_BIT | APP_PHY_CODED_BIT
-#if (HDT_LE_SUPPORT)
-                          | APP_PHY_HDT_BIT
-#endif
 #if (mHDT_LE_SUPPORT)
                           | APP_PHY_4MBPS_BIT
 #endif
                          ),
-};
-
-enum app_gaf_phy_rates_bf
-{
-    // Coded PHY S=2
-    APP_GAF_PHY_RATES_BIT_CODED_S2 = 0x01,
-    // Coded PHY S=8
-    APP_GAF_PHY_RATES_BIT_CODED_S8 = 0x02,
-    // Coded PHY Rates bit mask
-    APP_GAF_PHY_RATES_BIT_CODED_MASK = 0x03,
-    // LE HDT PHY HDT2
-    APP_GAF_PHY_RATES_BIT_LE_HDT_2 = 0x01,
-    // LE HDT PHY HDT3
-    APP_GAF_PHY_RATES_BIT_LE_HDT_3 = 0x02,
-    // LE HDT PHY HDT4
-    APP_GAF_PHY_RATES_BIT_LE_HDT_4 = 0x04,
-    // LE HDT PHY HDT5
-    APP_GAF_PHY_RATES_BIT_LE_HDT_5 = 0x08,
-    // LE HDT PHY HDT7.5
-    APP_GAF_PHY_RATES_BIT_LE_HDT_7_5 = 0x10,
-    // LE HDT PHY Rates bit mask
-    APP_GAF_PHY_RATES_BIT_LE_HDT_MASK = 0x1F,
-
-    APP_GAF_PHY_RATES_BIT_ALL_MASK = 0x1F,
 };
 
 /// Isochronous Group packing preference
@@ -717,149 +652,6 @@ enum app_gaf_bap_capa_context_type
     APP_GAF_BAP_CAPA_CONTEXT_TYPE_AVA,
 
     APP_GAF_BAP_CAPA_CONTEXT_TYPE_MAX
-};
-
-enum app_gaf_bap_ht_f_data_format
-{
-    /// Quaternion is supported
-    APP_GAF_BAP_HT_TYPE_DATA_QUATERNION = 0x00,
-    /// Rotation Vector is supported
-    APP_GAF_BAP_HT_TYPE_ROTATION_VECTOR = 0x01,
-};
-
-enum app_gaf_bap_ht_frame_interval
-{
-    /// HT Frame Interval 7.5MS
-    APP_GAF_BAP_HT_FRAME_INTV_7_5MS = 0x00,
-    /// HT Frame Interval 10MS
-    APP_GAF_BAP_HT_FRAME_INTV_10MS = 0x01,
-    /// HT Frame Interval 20MS
-    APP_GAF_BAP_HT_FRAME_INTV_20MS = 0x02,
-};
-
-enum app_gaf_bap_ht_f_data_formats_bit
-{
-    /// Quaternion is supported
-    APP_GAF_BAP_HT_DATA_QUATERNION_BIT = 0x01,
-    /// Rotation Vector is supported
-    APP_GAF_BAP_HT_ROTATION_VECTOR_BIT = 0x02,
-};
-
-enum app_gaf_bap_ht_f_related_flags_bit
-{
-    /// Timestamp Included. Indicates whether a timestamp is included with the IMU data.
-    APP_GAF_BAP_HT_FLAG_TS_INC_BIT = 0x01,
-};
-
-enum app_gaf_bap_ht_frame_interval_bit
-{
-    /// HT Frame Interval 7.5MS
-    APP_GAF_BAP_HT_FRAME_7_5MS_BIT = 0x01,
-    /// HT Frame Interval 10MS
-    APP_GAF_BAP_HT_FRAME_10MS_BIT = 0x02,
-    /// HT Frame Interval 20MS
-    APP_GAF_BAP_HT_FRAME_20MS_BIT = 0x04,
-};
-
-enum app_gaf_bap_aud_cfg_fields_present_bit
-{
-    /// Preferred Audio Configuration Unicast AC ID
-    APP_GAF_PREF_AC_DATA_UNICAST_AC_ID        = 0b01,
-    /// Preferred Audio Configuration Broadcast AC ID
-    APP_GAF_PREF_AC_DATA_BROADCAST_AC_ID      = 0b10,
-    /// Preferred Audio Configuration
-    APP_GAF_PREF_AC_DATA_AUDIO_CONFIG_ID_MASK = 0b11,
-    /// Preferred Audio Configuration
-    APP_GAF_PREF_AC_DATA_AUDIO_CONFIG_ID_RFU  = 0b11,
-    /// Preferred Channel Capability index
-    APP_GAF_PREF_AC_DATA_CHAN_CAPA_RECORD_IDX = 0x04,
-    /// Preferred Sink PAC Record List
-    APP_GAF_PREF_AC_DATA_SINK_PAC_RECORD_LIST = 0x08,
-    /// Preferred QoS Setting Sink
-    APP_GAF_PREF_AC_DATA_SINK_QOS_SETTING     = 0x10,
-    /// Preferred Source PAC Record List
-    APP_GAF_PREF_AC_DATA_SRC_PAC_RECORD_LIST  = 0x20,
-    /// Preferred QoS Setting Source
-    APP_GAF_PREF_AC_DATA_SRC_QOS_SETTING      = 0x40,
-    /// Preferred Codec Configuration
-    APP_GAF_PREF_AC_DATA_CODEC_CONFIGURATION  = 0x80,
-    /// Preferred Presentation Delay
-    APP_GAF_PREF_AC_DATA_PRES_DELAY_US_SINK   = 0x100,
-    /// Preferred Presentation Delay
-    APP_GAF_PREF_AC_DATA_PRES_DELAY_US_SRC    = 0x200,
-
-    APP_GAF_PREF_AC_DATA_PRES_MASK            = 0x3FF,
-};
-
-enum app_gaf_bap_use_case_id
-{
-    /// Conversational
-    APP_GAF_USE_CASE_ID_CONVERSATIONAL      = 0x0002,
-    /// Spatial Conversational
-    APP_GAF_USE_CASE_ID_SPA_CONVERSATIONAL  = 0x4002,
-    /// Media
-    APP_GAF_USE_CASE_ID_MEDIA               = 0x0003,
-    /// Media with AV Sync
-    APP_GAF_USE_CASE_ID_MEDIA_AV_SYNC       = 0x2003,
-    /// Spatial Media
-    APP_GAF_USE_CASE_ID_SPA_MEDIA           = 0x4003,
-    /// Spatial Media with AV Sync
-    APP_GAF_USE_CASE_ID_SPA_MEDIA_AV_SYNC   = 0x6003,
-    /// Gaming
-    APP_GAF_USE_CASE_ID_GAMING              = 0x0008,
-    /// Spatial Gaming
-    APP_GAF_USE_CASE_ID_SPA_GAMING          = 0x4008,
-    /// Gaming with voice back channel
-    APP_GAF_USE_CASE_ID_GAMING_VOICE_BACK   = 0x000A,
-    /// Spatial Gaming with Voice back channel
-    APP_GAF_USE_CASE_ID_SPA_GAMING_VOICE    = 0x400A,
-};
-
-enum app_gaf_bap_low_latency_mode
-{
-    APP_BAP_LOW_LATENCY_MODE_NORMAL = 0,
-    APP_BAP_LOW_LATENCY_MODE_CP,
-};
-
-enum app_gaf_lc3p_capa_ltv_type
-{
-    // Frame Duration bitfiled support
-    APP_GAF_LC3P_CAPA_TYPE_FRAME_DURATION   = 0xF1,
-    // Frame octets min and max 10ms
-    APP_GAF_LC3P_CAPA_TYPE_FRAME_OCT_10MS   = 0xF2,
-    // Frame octets min and max 7.5ms
-    APP_GAF_LC3P_CAPA_TYPE_FRAME_OCT_7_5MS  = 0xF3,
-};
-
-enum app_gaf_lc3p_cfg_ltv_type
-{
-    // Frame Duration selected
-    APP_GAF_LC3P_CFG_TYPE_FRAME_DURATION    = 0xF1,
-};
-
-enum app_gaf_lc3p_frame_duration_bit
-{
-    APP_GAF_LC3P_CFG_FRAME_DURATION_10MS    = 0x00,
-    APP_GAF_LC3P_CAPA_FRAME_DUR_BIT_10MS    = APP_CO_BIT(APP_GAF_LC3P_CFG_FRAME_DURATION_10MS),
-
-    APP_GAF_LC3P_CFG_FRAME_DURATION_7_5MS   = 0x01,
-    APP_GAF_LC3P_CAPA_FRAME_DUR_BIT_7_5MS   = APP_CO_BIT(APP_GAF_LC3P_CFG_FRAME_DURATION_7_5MS),
-
-    APP_GAF_LC3P_CFG_FRAME_DURATION_5MS     = 0x02,
-    APP_GAF_LC3P_CAPA_FRAME_DUR_BIT_5MS     = APP_CO_BIT(APP_GAF_LC3P_CFG_FRAME_DURATION_5MS),
-
-    APP_GAF_LC3P_CFG_FRAME_DURATION_2_5MS   = 0x03,
-    APP_GAF_LC3P_CAPA_FRAME_DUR_BIT_2_5MS   = APP_CO_BIT(APP_GAF_LC3P_CFG_FRAME_DURATION_2_5MS),
-
-    APP_GAF_LC3P_CAPA_FRAME_DUR_ALL_MASK    = 0x000F,
-    APP_GAF_LC3P_CAPA_FRAME_DUR_RFU_MASK    = 0x00F0,
-
-    APP_GAF_LC3P_PREF_FRAME_DUR_BIT_10MS    = (APP_GAF_LC3P_CAPA_FRAME_DUR_BIT_10MS << 8),
-    APP_GAF_LC3P_PREF_FRAME_DUR_BIT_7_5MS   = (APP_GAF_LC3P_CAPA_FRAME_DUR_BIT_7_5MS << 8),
-    APP_GAF_LC3P_PREF_FRAME_DUR_BIT_5MS     = (APP_GAF_LC3P_CAPA_FRAME_DUR_BIT_5MS << 8),
-    APP_GAF_LC3P_PREF_FRAME_DUR_BIT_2_5MS   = (APP_GAF_LC3P_CFG_FRAME_DURATION_2_5MS << 8),
-
-    APP_GAF_LC3P_PREF_FRAME_DUR_RFU_MASK    = 0xF000,
 };
 
 /// Data value in LTV format
@@ -1025,28 +817,6 @@ typedef struct app_gaf_bap_capa
     app_gaf_ltv_t add_capa;
 } app_gaf_bap_capa_t;
 
-typedef struct app_gaf_bap_lc3plus_supp_frame_dur_bf
-{
-    uint8_t len;
-    uint8_t type;
-    uint16_t frame_dur_bf;
-} __attribute__((packed)) app_gaf_bap_lc3p_supp_fr_dur_bf_ltv_t;
-
-typedef struct app_gaf_bap_lc3plus_supp_octets_per_frame
-{
-    uint8_t len;
-    uint8_t type;
-    uint16_t frame_octet_min;
-    uint16_t frame_octet_max;
-} __attribute__((packed)) app_gaf_bap_lc3p_frame_octets_ltv_t;
-
-typedef struct app_gaf_bap_lc3plus_frame_duration
-{
-    uint8_t len;
-    uint8_t type;
-    uint8_t frame_dur;
-} __attribute__((packed)) app_gaf_bap_lc3p_frame_dur_ltv_t;
-
 /// Codec Capabilities Metadata parameters structure
 typedef struct app_gaf_bap_capa_metadata_param
 {
@@ -1062,34 +832,6 @@ typedef struct app_gaf_bap_capa_metadata
     /// Additional Metadata (in LTV format)
     app_gaf_ltv_t add_metadata;
 } app_gaf_bap_capa_metadata_t;
-
-typedef struct app_gaf_bap_chan_capa_supp_index_list_packed
-{
-    uint8_t len;
-    uint8_t type;
-    uint8_t supp_chan_capa_idx[__ARRAY_EMPTY];
-} __attribute__((packed)) app_gaf_bap_chan_capa_supp_ltv_t;
-
-typedef struct app_gaf_bap_ht_frame_supp_formats_packed
-{
-    uint8_t len;
-    uint8_t type;
-    /// Octet 0: bitfield of supported data formats
-    /// Octet 1: bitfield of related flags
-    /// @see app_gaf_bap_ht_f_data_formats_bit
-    uint8_t supp_data_formats;
-    /// @see app_gaf_bap_ht_f_related_flags_bit
-    uint8_t related_flags;
-} __attribute__((packed)) app_gaf_bap_ht_supp_fmt_ltv_t;
-
-typedef struct app_gaf_bap_ht_frame_supp_interval_packed
-{
-    uint8_t len;
-    uint8_t type;
-    /// IMU supported frame rates, dependent on IMU model
-    /// @see app_gaf_bap_ht_frame_interval_bit
-    uint8_t intv_bf;
-} __attribute__((packed)) app_gaf_bap_ht_supp_intv_ltv_t;
 
 typedef struct app_gaf_bap_vendor_specific_cfg
 {
@@ -1142,94 +884,6 @@ typedef struct app_gaf_bap_cfg_metadata
     /// Additional Metadata value (in LTV format)
     app_gaf_ltv_t add_metadata;
 } app_gaf_bap_cfg_metadata_t;
-
-typedef struct
-{
-    uint8_t len;
-    uint8_t type;
-    // Company ID
-    uint16_t company_id;
-    // Audio data bit depth, e.g:8/16/24/32
-    uint8_t  audio_depth;
-    // Audio low latency mode, @see app_gaf_bap_low_latency_mode
-    uint8_t  low_latency_mode;
-} __attribute__((packed)) app_gaf_bap_metadata_vendor_ltv_t;
-
-typedef struct app_gaf_bap_ht_frame_cfg_format_packed
-{
-    uint8_t len;
-    uint8_t type;
-    /// Octet 0: bitfield of supported data formats
-    /// Octet 1: bitfield of related flags
-    /// @see app_gaf_bap_ht_f_data_format
-    uint8_t data_format;
-    /// @see app_gaf_bap_ht_f_related_flags_bit
-    uint8_t related_flags;
-} __attribute__((packed)) app_gaf_bap_ht_cfg_fmt_ltv_t;
-
-typedef struct app_gaf_bap_ht_frame_cfg_interval_packed
-{
-    uint8_t len;
-    uint8_t type;
-    /// IMU supported frame rates, dependent on IMU model
-    /// @see app_gaf_bap_ht_frame_interval
-    uint8_t intv;
-} __attribute__((packed)) app_gaf_bap_ht_cfg_intv_ltv_t;
-
-typedef union app_gaf_pref_aud_cfg_data_aud_cfg
-{
-    uint8_t ac_id[13];
-    uint8_t uc_ac_id[13];
-    uint8_t bc_ac_id[4];
-} app_gaf_pref_ac_data_aud_cfg_id_u;
-
-typedef struct app_gaf_pref_aud_cfg_data_chan_capa
-{
-    uint8_t chan_capa_idx;
-} app_gaf_pref_ac_data_chan_capa_idx_t;
-
-typedef struct app_gaf_pref_aud_cfg_data_pac_record
-{
-    uint8_t pref_pac_num;
-    struct pac_info
-    {
-        uint8_t pac_set_id;
-        uint8_t pac_idx;
-    } pac_info[__ARRAY_EMPTY];
-} app_gaf_pref_ac_data_pac_rec_t;
-
-typedef struct app_gaf_pref_aud_cfg_data_qos_setting
-{
-    uint32_t sdu_interval_us;
-    uint8_t framing_type;
-    uint16_t max_sdu_size;
-    uint8_t rtn;
-    uint16_t trans_latency_ms;
-} app_gaf_pref_ac_data_qos_setting_t;
-
-typedef struct app_gaf_pref_aud_cfg_data_codec_cfg
-{
-    uint8_t codec_id[5];
-    app_gaf_bap_cfg_t codec_cfg;
-} app_gaf_pref_ac_data_specific_cc_t;
-
-typedef struct app_gaf_pref_aud_cfg_data_pres_delay
-{
-    uint32_t pres_delay_us;
-} app_gaf_pref_ac_data_pres_delay_t;
-
-typedef struct app_gaf_pref_aud_cfg_field
-{
-    app_gaf_pref_ac_data_aud_cfg_id_u *pref_aud_cfg_id;
-    app_gaf_pref_ac_data_chan_capa_idx_t *pref_chan_capa;
-    app_gaf_pref_ac_data_pac_rec_t *pref_pac_sink;
-    app_gaf_pref_ac_data_qos_setting_t *pref_qos_setting_sink;
-    app_gaf_pref_ac_data_pac_rec_t *pref_pac_src;
-    app_gaf_pref_ac_data_qos_setting_t *pref_qos_setting_src;
-    app_gaf_pref_ac_data_specific_cc_t *pref_codec_cfg;
-    app_gaf_pref_ac_data_pres_delay_t *pref_pres_delay_sink;
-    app_gaf_pref_ac_data_pres_delay_t *pref_pres_delay_src;
-} app_gaf_pref_aud_cfg_data_t;
 
 /// Supported Audio Location Bitfield
 enum gaf_bap_supported_locations_bf
@@ -1829,8 +1483,8 @@ typedef struct app_gaf_bap_qos_cfg
 {
     /// PDU framing arrangement
     uint8_t framing;
-    /// PHY Bitfield
-    uint8_t phy_bf;
+    /// PHY
+    uint8_t phy;
     /// Maximum number of retransmissions for each CIS Data PDU
     /// From 0 to 15
     uint8_t retx_nb;
@@ -1964,6 +1618,9 @@ enum app_gaf_bap_bc_scan_state
     APP_GAF_BAP_BC_SCAN_STATE_SYNCHRONIZED,
     ///  group in stream state
     APP_GAF_BAP_BC_SCAN_STATE_STREAMING,
+
+    /// BIS was established but now it is lossed
+    APP_GAF_BAP_BC_SCAN_STATE_SYNC_LOST,
 };
 
 /// scan method
@@ -2030,8 +1687,6 @@ typedef struct
     uint8_t             scan_trigger_method;
     /// Broadcast ID
     app_gaf_bap_bcast_id_t      bcast_id;
-
-    int8_t                      rssi;
 
     app_gaf_extend_adv_report_t adv_report;
 } app_gaf_bc_scan_adv_report_t;
@@ -2213,15 +1868,6 @@ typedef struct
     bool      encrypted;
 } app_gaf_bc_scan_state_stream_t;
 
-///  Basic structure for GAF_CMP_EVT message
-typedef struct
-{
-    /// Command code
-    uint16_t cmd_code;
-    /// Status
-    uint16_t status;
-} app_gaf_cmp_evt_t;
-
 /// Structure for BAP_BC_SCAN_PA_REPORT indication message
 typedef struct
 {
@@ -2331,8 +1977,7 @@ typedef struct
     uint8_t              metadata_len;
     /// Codec Configuration value followed by Metadata value
     /// Both values are in LTV format
-    const uint8_t        *cfg_val;
-    const uint8_t        *metadata_val;
+    uint8_t              val[__ARRAY_EMPTY];
 } app_gaf_bc_scan_subgroup_report_ind_t;
 
 /// Structure for BAP_BC_SCAN_STREAM_REPORT indication message
@@ -2814,8 +2459,6 @@ typedef struct
     uint8_t              src_lid;
     /// Connection local index
     uint8_t              con_lid;
-    /// PA sync request
-    uint8_t              pa_sync_req;
     /// Metadata in LTV format
     app_gaf_ltv_t        metadata;
 } app_gaf_bc_deleg_source_update_req_ind_t;
@@ -3178,6 +2821,7 @@ typedef struct
     /// Connection local index
     uint8_t con_lid;
 } app_gaf_acc_tbc_svc_changed_ind_t;
+
 
 /// Call state values
 enum
@@ -3564,16 +3208,17 @@ typedef struct
 /// Structure for ARC_VCS_VOLUME indication message
 typedef struct
 {
-    ///  Connection local index
-    uint16_t con_lid;
+    /// Indication code (@see enum arc_vcs_ind_code)
+    ///  - ARC_VCS_VOLUME
+    uint16_t ind_code;
     /// Volume
     uint8_t volume;
     /// Mute
     uint8_t mute;
-    /// Change counter
-    uint8_t change_cnt;
+#ifdef BLE_STACK_PORTING_CHANGES
     /// Reason
     uint8_t reason;
+#endif
 } app_gaf_arc_vcs_volume_ind_t;
 
 /// Structure for ARC_VCS_FLAGS indication message
@@ -3581,7 +3226,7 @@ typedef struct
 {
     /// Indication code (@see enum arc_vcs_ind_code)
     ///  - ARC_VCS_FLAGS
-    uint16_t con_lid;
+    uint16_t ind_code;
     /// Volume Flags
     uint8_t flags;
 } app_gaf_arc_vcs_flags_ind_t;
@@ -4103,8 +3748,6 @@ typedef struct
     /// Stream configuration\n
     /// Meaningful only if conhdl is not GAP_INVALID_CONHDL
     app_gaf_iap_us_config_t cis_config;
-    /// reason
-    uint8_t reason;
 } app_gaf_uc_cli_cis_state_ind_t;
 
 /// Structure for cis stream started indication message
@@ -4319,8 +3962,6 @@ typedef struct
     uint8_t volume;
     /// Mute
     uint8_t mute;
-    /// Change counter
-    uint8_t change_cnt;
 } app_gaf_vcc_volume_ind_t;
 
 /// Structure for CSISC_DISCOVER_SERVER_COMPLETE indication message
@@ -4379,17 +4020,6 @@ typedef struct
     uint8_t sdu[__ARRAY_EMPTY];
 } app_gaf_dtc_coc_data_ind_t;
 
-/// Structure command complete event
-typedef struct app_gaf_tmap_role_evt
-{
-    /// Status
-    uint16_t status;
-    /// Connection local index of LE connection the TMAP is read with
-    uint8_t con_lid;
-    /// TMAP Role @see gaf_tmap_role_bf
-    uint16_t role_bf;
-} app_gaf_tmap_role_evt_t;
-
 typedef enum
 {
     APP_GAF_ASCS_MODULE             = 0,
@@ -4409,7 +4039,6 @@ typedef enum
     APP_GAF_BC_SCAN_STATE_MODULE    = 14,
     APP_GAF_DTC_MODULE              = 15,
     APP_GAF_DTS_MODULE              = 16,
-    APP_GAF_TMAP_MODULE             = 17,
 
     APP_GAF_MAX_MODULE,
 } app_gaf_evt_module_e;
@@ -4453,6 +4082,7 @@ typedef enum
     APP_GAF_SCAN_BIGINFO_REPORT_IND         = GAF_BUILD_ID(APP_GAF_BIS_SCAN_MODULE, 0x8),
     APP_GAF_SCAN_PA_SYNC_REQ_IND            = GAF_BUILD_ID(APP_GAF_BIS_SCAN_MODULE, 0x9),
     APP_GAF_SCAN_PA_TERMINATED_REQ_IND      = GAF_BUILD_ID(APP_GAF_BIS_SCAN_MODULE, 0xa),
+    APP_GAF_SCAN_STOPPED_IND                = GAF_BUILD_ID(APP_GAF_BIS_SCAN_MODULE, 0xb),
 
     // BIS Source Events
     APP_GAF_SRC_BIS_PA_ENABLED_IND          = GAF_BUILD_ID(APP_GAF_BIS_SOURCE_MODULE, 0X0),
@@ -4540,14 +4170,11 @@ typedef enum
     APP_BAP_BC_SCAN_STATE_STREAMING_IND     = GAF_BUILD_ID(APP_GAF_BC_SCAN_STATE_MODULE, 0x4),
 
     // DTS event
-    APP_DTS_COC_REGISTERED_IND              = GAF_BUILD_ID(APP_GAF_DTS_MODULE, 0x0),
-    APP_DTS_COC_CONNECTED_IND               = GAF_BUILD_ID(APP_GAF_DTS_MODULE, 0x1),
-    APP_DTS_COC_DISCONNECTED_IND            = GAF_BUILD_ID(APP_GAF_DTS_MODULE, 0x2),
-    APP_DTS_COC_DATA_IND                    = GAF_BUILD_ID(APP_GAF_DTS_MODULE, 0x3),
-    APP_DTS_COC_SEND_IND                    = GAF_BUILD_ID(APP_GAF_DTS_MODULE, 0x4),
-
-    // TMAP event
-    APP_TMAP_ROLE_READ_CMP_IND              = GAF_BUILD_ID(APP_GAF_TMAP_MODULE, 0x0),
+    APP_DTS_COC_REGISTERED_IND                  = GAF_BUILD_ID(APP_GAF_DTS_MODULE, 0x0),
+    APP_DTS_COC_CONNECTED_IND                   = GAF_BUILD_ID(APP_GAF_DTS_MODULE, 0x1),
+    APP_DTS_COC_DISCONNECTED_IND                = GAF_BUILD_ID(APP_GAF_DTS_MODULE, 0x2),
+    APP_DTS_COC_DATA_IND                        = GAF_BUILD_ID(APP_GAF_DTS_MODULE, 0x3),
+    APP_DTS_COC_SEND_IND                        = GAF_BUILD_ID(APP_GAF_DTS_MODULE, 0x4),
 
     APP_GAF_EVENT_LAST                      = 0xFFFF
 } app_gaf_evt_e;

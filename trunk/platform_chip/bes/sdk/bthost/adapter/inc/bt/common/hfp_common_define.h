@@ -84,13 +84,6 @@ typedef enum {
     BT_HFP_SCO_CODEC_XXXX = 16,    // Cunstomer Codec
 } hfp_sco_codec_t;
 
-enum HFP_ROLE
-{
-    HFP_ROLE_AG,
-    HFP_ROLE_HF,
-    HFP_ROLE_UNKNOWN,
-};
-
 typedef enum {
     BTIF_HF_HOLD_RELEASE_HELD_CALLS = 0,
     BTIF_HF_HOLD_RELEASE_ACTIVE_CALLS = 1,
@@ -204,7 +197,6 @@ typedef enum {
     BTIF_HF_EVENT_AUDIO_MOCK_CONNECTED = 51,
     BTIF_HF_EVENT_AUDIO_MOCK_DISCONNECTED = 52,
     BTIF_HF_EVENT_SERVICE_MOCK_CONNECTED = 53,
-    BTIF_HF_EVENT_AUDIO_CON_FAIL = 54,
 } hf_event_t;
 
 struct hfp_context {
@@ -214,7 +206,6 @@ struct hfp_context {
     bt_hfp_chan_state_t state;
     bt_bdaddr_t remote_dev_bdaddr;
     const char *call_number;
-    const char *sim_card_number;
     bt_hfp_call_active_t call;
     bt_hfp_call_setup_t call_setup;
     bt_hfp_call_held_t call_held;
@@ -222,7 +213,6 @@ struct hfp_context {
     uint8_t *audio_data;
     uint16_t audio_data_len;
     uint8_t error_code;
-    uint8_t cme_reason;
     uint8_t disc_reason;
     uint8_t disc_reason_saved;
     uint8_t speaker_volume;
@@ -230,13 +220,10 @@ struct hfp_context {
     uint8_t bsir_enable;
     uint8_t voice_rec_state;
     uint8_t ciev_status;
-    uint8_t rsp_hold_status;
-    void* data;
     uint32_t **chan_sel_channel;
     void *chan_sel_remDev;
     char *ptr;
     uint8_t sco_codec;
-    uint8_t sco_con_fail_reason;
 };
 
 typedef struct bt_hfp_state_t {
@@ -273,17 +260,8 @@ typedef struct ibrt_hfp_status_t
     uint8_t localVolume;
     uint8_t sync_ctx;
     bt_bdaddr_t mobile_addr;
-    uint8_t callsetup_state;
-    uint8_t call_state;
-    uint8_t callhold_state;
 } __attribute__((packed)) ibrt_hfp_status_t;
 #endif
-
-// Maintain consistency with MAX_NUMBER_LEN
-#define MAX_CARD_NUMBER_LEN               (33)
-struct hfp_sim_card_number {
-    char number[MAX_CARD_NUMBER_LEN];
-};
 
 #ifdef __cplusplus
 }

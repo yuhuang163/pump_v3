@@ -19,6 +19,8 @@
 #ifndef __BAP_ASC_COMMON__
 #define __BAP_ASC_COMMON__
 
+#include "bluetooth.h"
+
 #include "gaf_cfg.h"
 #include "generic_audio.h"
 
@@ -46,6 +48,7 @@
 #define BASS_BCAST_AUDIO_ANNOUNCEMENT_LEN       (6)
 
 #define BASS_RX_SRC_INVLAID_ID                  (GAF_INVALID_ANY_LID)
+
 
 /*
  * ENUMERATIONS

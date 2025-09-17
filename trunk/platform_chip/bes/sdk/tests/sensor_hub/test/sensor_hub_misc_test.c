@@ -29,7 +29,7 @@ POSSIBLY_UNUSED void core_busy_func1(void *param)
     uint32_t *pcnt = (uint32_t *)param;
 
     *pcnt = *pcnt + 1;
-    SENSOR_HUB_TRACE(1, "%s: cnt=%d", __func__, *pcnt);
+    TRACE(1, "%s: cnt=%d", __func__, *pcnt);
     osDelay(100);
 }
 
@@ -37,12 +37,12 @@ POSSIBLY_UNUSED void core_busy_func2(void *param)
 {
     uint32_t *pcnt = (uint32_t *)param;
 
-    SENSOR_HUB_TRACE(1, "%s: cnt=%d", __func__, *pcnt);
+    TRACE(1, "%s: cnt=%d", __func__, *pcnt);
     osDelay(100);
 
     if (*pcnt > 100) {
         // stop the workload and remove it
-        SENSOR_HUB_TRACE(1, "%s: cnt=%d, will stopped", __func__, *pcnt);
+        TRACE(1, "%s: cnt=%d, will stopped", __func__, *pcnt);
         sensor_hub_disable_workload(WORKLOAD_ID_0);
         sensor_hub_remove_workload(WORKLOAD_ID_0);
         sensor_hub_disable_workload(WORKLOAD_ID_1);
@@ -52,7 +52,7 @@ POSSIBLY_UNUSED void core_busy_func2(void *param)
 
 POSSIBLY_UNUSED void sensor_hub_core_workload_test(void)
 {
-    SENSOR_HUB_TRACE(1, "%s", __func__);
+    TRACE(1, "%s", __func__);
     core_busy_cnt = 0;
 
     // add new workload and enable it

@@ -1,3 +1,18 @@
+/***************************************************************************
+ *
+ * Copyright 2015-2023 BES.
+ * All rights reserved. All unpublished rights reserved.
+ *
+ * No part of this work may be used or reproduced in any form or by any
+ * means, or stored in a database or retrieval system, without prior written
+ * permission of BES.
+ *
+ * Use of this work is governed by a license granted by BES.
+ * This work contains confidential and proprietary information of
+ * BES. which is protected by copyright, trade secret,
+ * trademark and other intellectual property rights.
+ *
+ ****************************************************************************/
 #ifndef __HEAP_API__
 #define __HEAP_API__
 #include "stdint.h"
@@ -9,11 +24,7 @@
 extern "C" {
 #endif
 
-#if defined(__GNUC__)
 #define SYSPOOL_PURE __attribute__((__const__))
-#else
-#define SYSPOOL_PURE
-#endif
 
 void syspool_init(void);
 void syspool_init_specific_size(uint32_t size);
@@ -37,7 +48,7 @@ int cp_pool_get_available(uint8_t **buff);
 uint8_t* cp_pool_start_addr(void) SYSPOOL_PURE;
 uint32_t cp_pool_total_size(void);
 
-#if defined(A2DP_DECODER_CROSS_CORE) || defined(GAF_CODEC_CROSS_CORE) || defined(APP_MCPP_SRV)
+#if defined(A2DP_DECODER_CROSS_CORE) || defined(GAF_CODEC_CROSS_CORE) || defined(APP_MCPP_SRV) || defined(A2DP_ENCODER_CROSS_CORE)
 typedef void (*off_bth_user_callback)(void);
 typedef enum {
     SYSPOOL_USER_SPEECH = 0,
@@ -61,6 +72,7 @@ uint32_t ble_bis_tran_syspool_original_size(void);
 uint32_t ble_bis_tran_syspool_get_free_size(void);
 uint32_t ble_bis_tran_syspool_get_buff(uint8_t **buff, uint32_t size);
 #endif
+
 
 #define heap_malloc multi_heap_malloc
 
@@ -113,12 +125,19 @@ void med_heap_set_cp(int switch_cp);
 void med_heap_add_block(void *begin_addr, size_t size);
 void *med_malloc(size_t size);
 void med_free(void *p);
-void med_heap_reset(void);
 void *med_calloc(size_t nmemb, size_t size);
 void *med_realloc(void *ptr, size_t size);
 void med_memory_info(size_t *total,
                     size_t *used,
                     size_t *max_used);
+
+int aon_mbx_heap_init(void);
+void *aon_mbx_heap_malloc(size_t size);
+void aon_mbx_heap_free(void *p);
+void *aon_mbx_heap_realloc(void *p, size_t size);
+bool aon_mbx_heap_check(bool print_errors);
+void aon_mbx_heap_dump(void);
+size_t aon_mbx_heap_free_size(void);
 
 #ifdef __cplusplus
 }

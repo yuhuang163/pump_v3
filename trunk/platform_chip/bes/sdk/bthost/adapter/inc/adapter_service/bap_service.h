@@ -15,15 +15,15 @@
  ****************************************************************************/
 #ifndef __BAP_SERVICE_H__
 #define __BAP_SERVICE_H__
-
-#include "bluetooth.h"
-
+#include "gatt_service.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 void bap_global_init(void);
 void bap_set_security_requirements(uint16_t connhdl);
+bt_status_t bap_start_connection(bt_addr_type_t own_addr_type);
+bt_status_t bap_start_direct_connection(bt_addr_type_t own_addr_type, bt_addr_type_t peer_type, const bt_bdaddr_t *peer_addr);
 
 /**
  * BAP CIS and BIS
@@ -55,9 +55,6 @@ void bap_set_security_requirements(uint16_t connhdl);
 /// Maximum number of retransmission
 #define BAP_CIS_MAX_RTN                          (0x0F)
 
-/// Initilized number of configs
-#define BAP_CIS_UPDATE_CONFIGS                   (0x05)
-
 /// Isochronous PDU Framing mode
 enum bap_iso_frame
 {
@@ -78,42 +75,6 @@ enum bap_direction
     BAP_DIRECTION_SRC,
 
     BAP_DIRECTION_MAX,
-};
-
-enum bap_phy_rates_bf
-{
-    // Coded PHY S=2
-    BAP_PHY_RATES_BIT_CODED_S2 = 0x01,
-    // Coded PHY S=8
-    BAP_PHY_RATES_BIT_CODED_S8 = 0x02,
-    // Coded PHY Rates bit mask
-    BAP_PHY_RATES_BIT_CODED_MASK = 0x03,
-    // LE HDT PHY HDT2
-    BAP_PHY_RATES_BIT_LE_HDT_2 = 0x01,
-    // LE HDT PHY HDT3
-    BAP_PHY_RATES_BIT_LE_HDT_3 = 0x02,
-    // LE HDT PHY HDT4
-    BAP_PHY_RATES_BIT_LE_HDT_4 = 0x04,
-    // LE HDT PHY HDT5
-    BAP_PHY_RATES_BIT_LE_HDT_5 = 0x08,
-    // LE HDT PHY HDT7.5
-    BAP_PHY_RATES_BIT_LE_HDT_7_5 = 0x10,
-    // LE HDT PHY Rates bit mask
-    BAP_PHY_RATES_BIT_LE_HDT_MASK = 0x1F,
-
-    BAP_PHY_RATES_BIT_ALL_MASK = 0x1F,
-};
-
-enum bap_cis_udpate_state
-{
-    // 0x00 Label is created.
-    BAP_CIS_UPDATE_STATE_CREATED = 0x00,
-    // 0x01 Label update is to be initiated.
-    BAP_CIS_UPDATE_STATE_INITIATED = 0x01,
-    // 0x02 Label update is completed.
-    BAP_CIS_UPDATE_STATE_COMPLETED = 0x02,
-    // 0x03 Label is removed.
-    BAP_CIS_UPDATE_STATE_REMOVED = 0x03,
 };
 
 #define ASCS_GENERAL_ANNOUNCEMENT 0x00
@@ -180,21 +141,9 @@ typedef struct {
     uint8_t bn_p2c; // 0x00 no ISO data from P to C, 0x01 to 0x0F BN for P to C transmission
     uint8_t ft_c2p; // 0x01 to 0xFF, flush timeout in multiples of ISO_Interval for each payload sent from C to P
     uint8_t ft_p2c; // 0x01 to 0xFF, flush timeout in multiples of ISO_Interval for each payload sent from P to C
-    uint16_t max_pdu_c2p; // 0x00 to 0xFB, max octets of the pdu payload from C LL to P LL, HDT max up to 0x1FEF
-    uint16_t max_pdu_p2c; // 0x00 to 0xFB, max octets of the pdu payload from P LL to C LL, HDT max up to 0x1FEF
+    uint16_t max_pdu_c2p; // 0x00 to 0xFB, max octets of the pdu payload from C LL to P LL
+    uint16_t max_pdu_p2c; // 0x00 to 0xFB, max octets of the pdu payload from P LL to C LL
     uint16_t iso_interval_1_25ms; // 0x04 to 0x0C80, per 1.25ms, 5ms to 4s, CIS anchor points interval
-    /// Below are Core Spec 6.0 present parameters, other version may be invalid data
-    uint32_t sub_interval_us; // 0:NSE=1. Time between the start of consecutive subevents in a CIS event Range: 0x000190 to ISO_Interval×1250 – 1
-    uint16_t max_sdu_c2p; // Maximum size, in octets, of the payload from the Central’s Host. Range: 0 to 0x0FFF
-    uint16_t max_sdu_p2c; // Maximum size, in octets, of the payload from the Peripheral’s Host. Range: 0 to 0x0FFF
-    uint32_t sdu_interval_us_c2p; // Time between the start of consecutive SDUs sent by the Central. Range: 0x0000FF to 0x0FFFFF
-    uint32_t sdu_interval_us_p2c; // Time between the start of consecutive SDUs sent by the Peripheral. Range: 0x0000FF to 0x0FFFFF
-    uint8_t framing; // 0x00:Unframed PDUs, 0x01:Framed PDUs (Segmentable mode), Core Spec 6.0: 0x02 framed (Unsegmented mode)
-    /// Below are HDT present parameters, other version may be invalid data
-    uint16_t rates_bf_c2p; // Multiple rates, specifies the set of contiguous rates, bit 0 - S=2/HDT2, 1 - S=8/HDT3, 2 - HDT4, 3 - HDT 6, 4 - HDT 7.5
-    uint16_t rates_bf_p2c; // Multiple rates, specifies the set of contiguous rates, bit 0 - S=2/HDT2, 1 - S=8/HDT3, 2 - HDT4, 3 - HDT 6, 4 - HDT 7.5
-    uint8_t encryption_enabled; // Encryption is enabled or disabled on the CIS
-    uint8_t mic_length; // MIC length, 0x00 - 32bits, 0x01 - 64bits, 0x02 - 128bits
 } bap_cis_timing_t;
 
 typedef struct {
@@ -204,7 +153,7 @@ typedef struct {
     uint8_t bn; // 0x01 to 0x07, the number of new payloads in each BIS event
     uint8_t pto; // 0x00 to 0x0F, offset used for pre-transmissions
     uint8_t irc; // 0x01 to 0x0F, num of times a payload is transmitted in a BIS event
-    uint16_t max_pdu_size; // 0x01 to 0xFB, max octets of the PDU payload, HDT max up to 0x1FEF
+    uint16_t max_pdu_size; // 0x01 to 0xFB, max octets of the PDU payload
     uint16_t iso_interval_1_25ms; // 0x04 to 0x0C80, per 1.25ms, 5ms to 4s, BIG anchor points interval
 } bap_bis_timing_t;
 
@@ -223,8 +172,6 @@ typedef struct {
     uint8_t error_code;
     const bap_iso_stream_t *stream;
     const bap_cis_timing_t *timing;
-    uint8_t config_index;
-    uint8_t trans_latency_grp_index;
 } bap_cis_opened_t;
 
 typedef struct {
@@ -262,53 +209,6 @@ typedef struct {
     const bap_iso_stream_t *stream;
 } bap_iso_path_setup_t;
 
-typedef struct {
-    uint8_t cig_id;
-    uint8_t cis_count;
-    uint8_t upsn_offset_suggested;
-    uint16_t cis_hdl[BAP_MAX_CIS_PER_CIG];
-    uint16_t max_sdu[BAP_MAX_CIS_PER_CIG];
-} bap_cig_bitrate_t;
-
-typedef struct {
-    /// CIS udpate status
-    uint8_t update_status;
-    /// Indicates the configuration index to which the Label_ID belongs.
-    uint8_t config_index;
-    /// Transport latency group identifier associated with the Config_ID.
-    uint8_t trans_latency_grp_index;
-    //// @see enum bap_cis_udpate_state
-    uint8_t update_state;
-    /// Packet sequence number of the first SDU sequence number that can be transmitted only after the update instant.
-    uint16_t update_pkt_seq_number;
-    /// CIS stream
-    const bap_iso_stream_t *stream;
-    /// Update timing
-    const bap_cis_timing_t *timing;
-} bap_cis_upd_state_t;
-
-typedef struct {
-    /// CIS bitrate options set status
-    uint8_t status;
-    /// CIS stream
-    const bap_iso_stream_t *stream;
-    /// CIS bitrate options count
-    uint8_t count;
-    /// CIS bitrate options is rejected or not by local controller
-    bool cis_br_opt_rejected[0];
-} bap_cis_br_opt_t;
-
-typedef struct {
-    /// CIS configurations add or remove options status
-    uint8_t status;
-    /// CIG ID
-    uint8_t cig_id;
-    /// Config Index
-    uint8_t config_index;
-    /// Transport latency group index
-    uint8_t trans_latency_grp_index;
-} bap_cig_upd_cfg_t;
-
 typedef union {
     void *param_ptr;
     bap_cig_opened_t *cig_opened;
@@ -322,11 +222,6 @@ typedef union {
     bap_big_closed_t *big_closed;
     bap_iso_path_setup_t *iso_path_setup;
     bap_iso_path_setup_t *iso_path_removed;
-    bap_cig_bitrate_t *cig_bitrate_req;
-    bap_cis_upd_state_t *cis_upd_state;
-    bap_cis_br_opt_t *cis_bitrate_opt;
-    bap_cig_upd_cfg_t *upd_cfg_added;
-    bap_cig_upd_cfg_t *upd_cfg_removed;
 } bap_event_param_t;
 
 typedef enum {
@@ -341,11 +236,6 @@ typedef enum {
     BAP_EVENT_BIG_CLOSED,
     BAP_EVENT_ISO_PATH_SETUP,
     BAP_EVENT_ISO_PATH_REMOVED,
-    BAP_EVENT_CIG_BR_CHG_REQ,
-    BAP_EVENT_CIS_UPDATED,
-    BAP_EVENT_CIS_BR_OPTIONS,
-    BAP_EVENT_CIG_CFG_ADDED,
-    BAP_EVENT_CIG_CFG_REMOVED,
 } bap_event_t;
 
 typedef int (*bap_event_callback_t)(uintptr_t group_id, bap_event_t event, bap_event_param_t param);
@@ -370,11 +260,21 @@ typedef struct bap_iso_stream_t {
 } bap_iso_stream_t;
 
 typedef struct {
+    bap_iso_stream_t stream;
+    bap_cis_timing_t timing;
+    uint8_t cis_accept_timer;
+} bap_cis_t;
+
+typedef struct {
+    bap_iso_stream_t stream;
+} bap_bis_t;
+
+typedef struct {
     uint32_t sdu_interval_c2p_us; // 0xFF to 0x0F_FFFF, SDU interval from the C Host for all CISes in CIG
     uint32_t sdu_interval_p2c_us; // 0xFF to 0x0F_FFFF, SDU interval from the P host for all CISes in CIG
     uint8_t worst_case_sca; // worst case sleep clock accuracy of all the Peripherals that will participate in the CIG
     uint8_t packing; // 0x00 sequential, 0x01 interleaved, this is a recommendation the controller may ignore
-    uint8_t framing; // 0x00 unframed, 0x01 framed (Segmentable mode), Core Spec 6.0: 0x02 framed (Unsegmented mode)
+    uint8_t framing; // 0x00 unframed, 0x01 framed
     uint16_t max_transport_latency_c2p_ms; // 0x05 to 0x0FA0, max transport latency from C btc to P btc, ignored for test cmd
     uint16_t max_transport_latency_p2c_ms; // 0x05 to 0x0FA0, max transport latency from C btc to P btc, ignored for test cmd
     uint8_t test_ft_c2p; // 0x01 to 0xFF, flush timeout in multiples of ISO_Interval for each payload sent from C to P
@@ -395,94 +295,7 @@ typedef struct {
     uint8_t test_bn_c2p; // 0x00 no ISO data from C to P, 0x01 to 0x0F BN for C to P transmission
     uint8_t test_bn_p2c; // 0x00 no ISO data from P to C, 0x01 to 0x0F BN for P to C transmission
     uint8_t cis_id; // only valid when update cis configure
-    // Only valid when phy bit set Coded or/ and HDT
-    uint16_t coded_rates_bf_c2p; // bit 0 - S=2, 1 - S=8
-    uint16_t coded_rates_bf_p2c; // bit 0 - S=2, 1 - S=8
-    uint16_t hdt_rates_bf_c2p; // bit 0 - HDT2, 1 - HDT3, 2 - HDT4, 3 - HDT 6, 4 - HDT 7.5
-    uint16_t hdt_rates_bf_p2c; // bit 0 - HDT2, 1 - HDT3, 2 - HDT4, 3 - HDT 6, 4 - HDT 7.5
 } bap_cis_param_t;
-
-typedef struct {
-    /// Connection Handle of the CIS in the CIG.
-    uint16_t cis_hdl;
-    /// Selected maximum SDU size, in octets, of the payload.
-    uint16_t selected_max_sdu;
-    /// Packet sequence number of the SDU when the Host can switch to new bit rate.
-    uint16_t update_pkt_seq_num;
-} bap_cis_bitrate_t;
-
-typedef struct {
-    /// CIG ID
-    uint8_t cig_id;
-    /// Indicates the configuration index used for the update.
-    uint8_t config_index;
-    /// Connection Handle of the CIS in the CIG. Only valid when role is Peripheral
-    uint16_t cis_hdl;
-    /// Suggested offset to the SDU sequence number that starts with the
-    /// update instant from the current packet sequence number when this event is received.
-    uint8_t upsn_offset_suggested;
-    /// CIS count for test cmd
-    uint8_t cis_count;
-    /// The time offset to the CIS anchor point in units of microseconds (signed integer)
-    int16_t anchor_offset_ms[0];
-} bap_update_cig_param_t;
-
-typedef struct {
-    /// Transport Latency group index
-    uint8_t trans_latency_grp_index;
-    /// 0xFF to 0x0F_FFFF, SDU interval for all CISes in CIG
-    uint32_t sdu_interval_c2p_us;
-    uint32_t sdu_interval_p2c_us;
-    /// worst case sleep clock accuracy of all the Peripherals that will participate in the CIG
-    uint8_t worst_case_sca;
-    /// 0x00 sequential, 0x01 interleaved, this is a recommendation the controller may ignore
-    uint8_t packing;
-    /// 0x00 unframed, 0x01 framed (Segmentable mode), Core Spec 6.0: 0x02 framed (Unsegmented mode)
-    uint8_t framing;
-    /// 0x05 to 0x0FA0, max transport latency, ignored for test cmd
-    uint16_t max_transport_latency_c2p_ms;
-    uint16_t max_transport_latency_p2c_ms;
-    /// 0x01 to 0xFF, flush timeout in multiples of ISO_Interval for each payload
-    uint8_t test_ft_c2p;
-    uint8_t test_ft_p2c;
-    /// 0x04 to 0x0C80, per 1.25ms, 5ms to 4s, CIS anchor points interval
-    uint16_t test_iso_interval_1_25ms;
-} bap_cig_update_cfg_t;
-
-typedef struct {
-    /// CIS handle
-    uint16_t cis_hdl;
-    /// 0x01 to 0x1F, max number of subevents in each CIS event
-    uint8_t test_nse;
-    /// 0x0000 to 0x0FFF, max octets of the sdu payload
-    uint16_t max_sdu_c2p;
-    uint16_t max_sdu_p2c;
-    /// 0x00 to 0xFB, max octets of the pdu payload from C LL to P LL
-    uint16_t test_max_pdu_c2p;
-    uint16_t test_max_pdu_p2c;
-    /// bit 0 - C TX PHY is LE 1M, bit 1 - LE 2M, bit 2 - LE Coded, host shall set at least one bit
-    /// Test cmd should only set one bit
-    uint8_t phy_bits_c2p;
-    uint8_t phy_bits_p2c;
-    /// 0x00 no ISO data, 0x01 to 0x0F BN for transmission
-    uint8_t test_bn_c2p;
-    uint8_t test_bn_p2c;
-    /// retx number of every CIS Data PDU before ack or flushed, just recommendation, ignore for test
-    uint8_t rtn_c2p;
-    uint8_t rtn_p2c;
-    /// bit 0 - S=2/HDT2, 1 - S=8/HDT3, 2 - HDT4, 3 - HDT 6, 4 - HDT 7.5
-    uint8_t rates_bf_c2p;
-    uint8_t rates_bf_p2c;
-} bap_cis_update_cfg_t;
-
-// These cmds below are used by IPU
-bt_status_t bap_read_cis_update_capabilities(void);
-bt_status_t bap_set_default_cis_update_params(uint16_t suggested_update_offset_ms);
-bt_status_t bap_accept_cig_bitrate_request(uint8_t update_status, uint8_t cis_count, const bap_cis_bitrate_t *cis_br_item);
-bt_status_t bap_add_cig_update_config(uint8_t cig_id, uint8_t config_index, const bap_cig_update_cfg_t *cig,
-                                      uint8_t cis_count, const bap_cis_update_cfg_t *cis, bool use_test_cmd);
-bt_status_t bap_remove_cig_update_config(uint8_t cig_id, uint8_t config_index);
-bt_status_t bap_update_cig_cis(bool is_central, bool use_test_cmd, const bap_update_cig_param_t *params);
 
 uint8_t bap_set_cig_parameters(bap_event_callback_t cb, const bap_cig_param_t *cig, const bap_cis_param_t *cis, uint8_t cis_count, bool use_test_cmd);
 bt_status_t bap_add_cis_configure(uint8_t cig_id, const bap_cis_param_t *cis, uint8_t cis_count);
@@ -490,19 +303,22 @@ bt_status_t bap_update_cis_configure(uint8_t cig_id, const bap_cis_param_t *cis,
 bt_status_t bap_remove_cig(uint8_t cig_id);
 bt_status_t bap_create_cis(uint16_t cis_handle, uint16_t connhdl);
 bt_status_t bap_create_multi_cis(uint8_t cis_count, const uint16_t *cis_handle, const uint16_t *connhdl);
-bt_status_t bap_create_multi_cis_use_cfg(uint8_t cfg_id, uint8_t cis_count, const uint16_t *cis_handle, const uint16_t *connhdl);
 bt_status_t bap_register_cis_callback(uint16_t connhdl, bap_event_callback_t cb);
 bt_status_t bap_accept_cis_request(uint16_t cis_handle, bool accept);
 bt_status_t bap_disconnect_cis(uint16_t cis_handle);
 bt_status_t bap_disconnect_associated_cis(uint16_t connhdl);
+uint16_t bap_get_cis_handle_from_id(uint8_t cig_id, uint8_t cis_id);
+uint16_t bap_get_acl_handle_from_cis_id(uint8_t cig_id, uint8_t cis_id);
+uint16_t bap_get_acl_handle_from_cis_handle(uint16_t cis_handle);
+bap_cis_t *bap_get_cis_item(uint16_t cis_handle);
 
 typedef struct {
     uint8_t bis_count; // 0x01 to 0x1F
-    uint8_t phy_bits; // bit 0: transmitter phy is LE 1M, bit 1: LE 2M, bit 2: LE Coded, bit 4: LE HDT, Host shall set at least one bit
+    uint8_t phy_bits; // bit 0: transmitter phy is LE 1M, bit 1: LE 2M, bit 2: LE Coded, Host shall set at least one bit
     uint16_t max_sdu_size; // 0x01 to 0x0FFFF, max octets of an SDU
     uint32_t sdu_interval_us; // 0xFF to 0x0F_FFFF, the interval in us of periodic SDUs
     uint8_t packing; // 0x00 sequential, 0x01 interleaved, just recommendation
-    uint8_t framing; // 0x00 unframed, 0x01 framed (Segmentable mode), Core Spec 6.0: 0x02 framed (Unsegmented mode)
+    uint8_t framing; // 0x00 unframed, 0x01 framed
     uint8_t broadcast_code[16]; // used to derive the session key that is used to encrypt and decrpt BIS payloads
     uint8_t encryption; // 0x00 unencrypted, 0x01 encrypted
     uint8_t rtn; // 0x00 to 0x1E, retrans num of every BIS data PDU, just recommend, ignored for test cmd
@@ -513,10 +329,6 @@ typedef struct {
     uint8_t test_bn; // 0x01 to 0x07, number of new payloads in each interval for each BIS
     uint8_t test_irc; // 0x01 to 0x0F, number of times the scheduled payloads are transmitted in a given event
     uint8_t test_pto; // 0x00 to 0x0F, offset used for pre-transmissions
-    uint16_t coded_rates_bf; // bit 0 - S=2, 1 - S=8
-    uint16_t hdt_rates_bf; // bit 0 - HDT2, 1 - HDT3, 2 - HDT4, 3 - HDT 6, 4 - HDT 7.5
-    uint8_t mic_length; // 0x00 - 32bits, 0x01 - 64bits, 0x02 - 128bits
-    uint8_t max_plds_per_pkt; // Max number of payloads per packet, range 1 to 4
 } bap_big_param_t;
 
 typedef struct {
@@ -529,11 +341,10 @@ typedef struct {
 } bap_big_sync_param_t;
 
 bt_status_t bap_create_big(bap_event_callback_t cb, uint8_t pa_train_adv_handle, const bap_big_param_t *big, bool use_test_cmd);
-bt_status_t bap_terminate_big(uint8_t big_id);
 bt_status_t bap_create_big_sync(bap_event_callback_t cb, uint16_t sync_handle, const bap_big_sync_param_t *big);
-bt_status_t bap_terminate_big_sync(uint8_t big_id);
-bt_status_t bap_terminate_big_sync_by_sync_hdl(uint16_t sync_handle);
+bt_status_t bap_terminate_big(uint8_t big_id);
 bt_status_t bap_set_big_sec_level(uint8_t big_id, gap_big_sec_level_t sec_level);
+bap_bis_t *bap_get_bis_item(uint16_t bis_handle);
 
 typedef struct bap_big_info
 {
@@ -557,12 +368,15 @@ typedef struct bap_big_info
     uint8_t   irc;
     /// PHY used for transmission (0x01: 1M, 0x02: 2M, 0x03: Coded, All other values: RFU)
     uint8_t   phy;
-    /// Framing mode (0x00: Unframed, 0x01: Framed (Segmentable mode),
-    /// Core Spec 6.0: 0x02 framed (Unsegmented mode), All other values: RFU)
+    /// Framing mode (0x00: Unframed, 0x01: Framed, All other values: RFU)
     uint8_t   framing;
     /// True if broadcast isochronous group is encrypted, False otherwise
     bool      encrypted;
 } bap_big_info_t;
+
+typedef void (*bap_big_info_adv_report_callback_t)(uintptr_t pa_sync_hdl, const bap_big_info_t *p_big_info);
+
+bt_status_t bap_register_big_info_adv_report_callback(const bap_big_info_adv_report_callback_t big_info_recv_cb);
 
 typedef struct {
     uint32_t controller_delay_us;
@@ -576,6 +390,49 @@ bt_status_t bap_setup_iso_rx_data_path(uint16_t iso_handle, const bap_iso_param_
 bt_status_t bap_remove_iso_data_path(uint16_t iso_handle);
 bt_status_t bap_remove_iso_rx_data_path(uint16_t iso_handle);
 bt_status_t bap_remove_iso_tx_data_path(uint16_t iso_handle);
+
+typedef struct bap_cis_node_t
+{
+    struct bap_cis_node_t *next;
+    bap_cis_t cis;
+} bap_cis_node_t;
+
+typedef struct
+{
+    bap_cis_node_t *next;
+} bap_cis_list_t;
+
+typedef struct
+{
+    uint8_t cig_id; // 0x00 to 0xEF
+    uint8_t cig_op_id;
+    uint8_t cig_op_cis_count;
+    bap_event_callback_t bap_callback;
+    bap_cis_list_t cis_list;
+    bap_cig_param_t cig_param;
+    uint8_t cig_op_id_list[BAP_MAX_CIS_PER_CIG];
+} bap_cig_t;
+
+typedef struct
+{
+    bap_cig_t *cig;
+} bap_cig_item_t;
+
+typedef struct bap_big_node_t bap_big_node_t;
+
+typedef struct
+{
+    bap_big_node_t *next;
+} bap_big_list_t;
+
+typedef struct
+{
+    bap_cig_item_t cig[BAP_TOTAL_CIG_COUNT];
+    bap_big_list_t big_list;
+    uint8_t big_count;
+    uint8_t adv_handle;
+    bap_big_info_adv_report_callback_t big_info_recv_cb;
+} bap_global_t;
 
 #ifdef __cplusplus
 }

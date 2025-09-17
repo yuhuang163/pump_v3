@@ -13,8 +13,6 @@
  * trademark and other intellectual property rights.
  *
  ****************************************************************************/
-#include "bthost_logger.h"
-
 #ifdef SWIFT_ENABLED // microsoft bluetooth swift pair
 #include "gatt_service.h"
 #include "app_ble.h"
@@ -151,14 +149,14 @@ static bool app_swift_adv_activity_prepare(ble_adv_activity_t *adv)
 
 void app_swift_init(void)
 {
-    DEBUG_VERBOSE(1, "[%s]", __func__);
+    TRACE(1, "[%s]", __func__);
     app_ble_register_advertising(BLE_SWIFT_ADV_HANDLE, app_swift_adv_activity_prepare);
 }
 
 void app_swift_enter_pairing_mode(void)
 {
     enable_swift = true;
-    bes_bt_me_write_access_mode(BTIF_BAM_GENERAL_ACCESSIBLE, 0);
+    bes_bt_me_write_access_mode(BTIF_BAM_GENERAL_ACCESSIBLE,0);
 }
 
 void app_swift_exit_pairing_mode(void)

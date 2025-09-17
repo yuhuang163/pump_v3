@@ -15,7 +15,9 @@
  ****************************************************************************/
 #include "plat_addr_map.h"
 #include "cmsis.h"
-#include "pmu.h"
+#ifdef COMMON_IRQ_ENTRY
+#include "cmsis_nvic.h"
+#endif
 #include "hal_cache.h"
 #include "hal_cmu.h"
 #include "hal_location.h"
@@ -25,22 +27,21 @@
 #include "hal_psram.h"
 #include "hal_psramuhs.h"
 #include "hal_trace.h"
-#if !defined(NOSTD) && defined(ACCURATE_DB_TO_FLOAT)
-#include <math.h>
-#endif
 #ifdef __ARMCC_VERSION
 #include "link_sym_armclang.h"
 #endif
+#if !defined(NOSTD) && defined(ACCURATE_DB_TO_FLOAT)
+#include <math.h>
+#endif
 #include "mpu_cfg.h"
 #include "tool_msg.h"
+#include "hal_timer.h"
 
-#ifdef DEBUG_IRQ_HUNG
 BOOT_BSS_LOC
 struct irq_masked_address irq_masked_addr;
 
 BOOT_BSS_LOC
 struct irq_masked_address irq_g_masked_addr;
-#endif
 
 #if defined(__GNUC__) && !defined(__ARMCC_VERSION)
 // CAUTION:
@@ -51,59 +52,57 @@ struct irq_masked_address irq_g_masked_addr;
 #define BOOT_CODE_OPT_ATTR
 #endif
 
-#ifndef __ARM_ARCH_ISA_ARM
+#if !defined(__ARM_ARCH_ISA_ARM) || defined(CONFIG_BOOT_RUNFROMFLASH)
 // -----------------------------------------------------------
 // Boot initialization
 // CAUTION: This function and all the functions it called must
 //          NOT access global data/bss, for the global data/bss
 //          is not available at that time.
 // -----------------------------------------------------------
-extern uint32_t __boot_sram_start_flash__[];
+extern uint32_t __boot_text_sram_start_flash__[];
 extern uint32_t __boot_text_sram_end_flash__[];
 extern uint32_t __boot_data_sram_start_flash__[];
-extern uint32_t __boot_sram_end_flash__[];
-extern uint32_t __boot_sram_start__[];
-extern uint32_t __boot_text_sram_start__[];
+extern uint32_t __boot_data_sram_end_flash__[];
+extern uint32_t __boot_text_data_sram_start__[];
 extern uint32_t __boot_data_sram_start__[];
 extern uint32_t __boot_bss_sram_start__[];
 extern uint32_t __boot_bss_sram_end__[];
 
-extern uint32_t __sram_text_data_start_flash__[];
+extern uint32_t __sram_text_start_flash__[];
 extern uint32_t __sram_text_end_flash__[];
-extern uint32_t __sram_data_start_flash__[];
-extern uint32_t __sram_text_data_end_flash__[];
 extern uint32_t __sram_text_data_start__[];
-extern uint32_t __sram_text_start__[];
+extern uint32_t __sram_data_start_flash__[];
+extern uint32_t __sram_data_end_flash__[];
 extern uint32_t __sram_data_start__[];
 extern uint32_t __sram_bss_start__[];
 extern uint32_t __sram_bss_end__[];
-extern uint32_t __sram_nc_bss_start__[];
-extern uint32_t __sram_nc_bss_end__[];
 extern uint32_t __fast_sram_text_data_start__[];
 extern uint32_t __fast_sram_text_data_end__[];
-extern uint32_t __fast_sram_text_data_start_flash__[];
-extern uint32_t __fast_sram_text_data_end_flash__[];
-
-#if (CUSTOMER_LOAD_RAM_DATA_SECTION_SIZE > 0)
-extern uint32_t __customer_load_ram_data_start__[];
-extern uint32_t __customer_load_ram_data_end__[];
-extern uint32_t __customer_load_ram_data_start_flash__[];
-extern uint32_t __customer_load_ram_data_end_flash__[];
-
-extern uint32_t __customer_load_sram_text_start__[];
-extern uint32_t __customer_load_sram_text_end__[];
-extern uint32_t __customer_load_sram_text_start_flash__[];
-extern uint32_t __customer_load_sram_text_end_flash__[];
-
-extern uint32_t inc_enc_bin_sec_start[];
-
-
-static uint32_t customer_load_sram_text_offset = 0;
-static uint32_t customer_load_sram_data_offset = 0;
-
-static uint32_t cusotmer_load_sram_memcpy_offset = 0;
+extern uint32_t __fast_sram_text_start_flash__[];
+extern uint32_t __fast_sram_text_end_flash__[];
+#ifdef RAM_NC_BASE
+extern uint32_t __sram_nc_data_start_flash__[];
+extern uint32_t __sram_nc_data_end_flash__[];
+extern uint32_t __sram_nc_data_start__[];
+extern uint32_t __sram_nc_data_end__[];
+extern uint32_t __sram_nc_bss_start__[];
+extern uint32_t __sram_nc_bss_end__[];
 #endif
-
+#ifdef RAM_EXTRA0_BASE
+extern uint32_t __ram_extra0_text_data_start_flash__[];
+extern uint32_t __ram_extra0_text_data_end_flash__[];
+extern uint32_t __ram_extra0_text_data_start__[];
+extern uint32_t __ram_extra0_text_data_end__[];
+extern uint32_t __ram_extra0_bss_start__[];
+extern uint32_t __ram_extra0_bss_end__[];
+#endif
+#ifdef AON_MAILBOX_BASE
+extern uint32_t __aon_mbx_data_start_load__[];
+extern uint32_t __aon_mbx_data_end_load__[];
+extern uint32_t __aon_mbx_data_start__[];
+extern uint32_t __aon_mbx_bss_start__[];
+extern uint32_t __aon_mbx_bss_end__[];
+#endif
 #ifdef ARM_CMSE
 extern uint32_t __sram_nsc_text_start__[];
 extern uint32_t __sram_nsc_text_start_flash__[];
@@ -116,6 +115,10 @@ extern uint32_t __psram_text_data_start_flash__[];
 extern uint32_t __psram_text_data_end_flash__[];
 extern uint32_t __psram_bss_start__[];
 extern uint32_t __psram_bss_end__[];
+extern uint32_t __psram_nc_data_start_flash__[];
+extern uint32_t __psram_nc_data_end_flash__[];
+extern uint32_t __psram_nc_data_start__[];
+extern uint32_t __psram_nc_data_end__[];
 extern uint32_t __psram_nc_bss_start__[];
 extern uint32_t __psram_nc_bss_end__[];
 #endif
@@ -126,32 +129,36 @@ extern uint32_t __psramuhs_text_data_start_flash__[];
 extern uint32_t __psramuhs_text_data_end_flash__[];
 extern uint32_t __psramuhs_bss_start__[];
 extern uint32_t __psramuhs_bss_end__[];
+extern uint32_t __psramuhs_nc_data_start_flash__[];
+extern uint32_t __psramuhs_nc_data_end_flash__[];
+extern uint32_t __psramuhs_nc_data_start__[];
+extern uint32_t __psramuhs_nc_data_end__[];
 extern uint32_t __psramuhs_nc_bss_start__[];
 extern uint32_t __psramuhs_nc_bss_end__[];
+#endif
+
+#if defined(CP_IN_SAME_EE)
+extern uint32_t __cp_always_on_data_sram_start_flash__[];
+extern uint32_t __cp_always_on_data_sram_start[];
+extern uint32_t __cp_always_on_data_sram_end[];
+extern uint32_t __cp_always_on_bss_sram_start[];
+extern uint32_t __cp_always_on_bss_sram_end[];
 #endif
 
 void BOOT_TEXT_FLASH_LOC BOOT_CODE_OPT_ATTR boot_init_boot_sections(void)
 {
     uint32_t *dst, *src;
 
-#ifdef MAIN_RAM_USE_TCM
-    for (dst = __boot_text_sram_start__, src = __boot_sram_start_flash__;
+    for (dst = __boot_text_data_sram_start__, src = __boot_text_sram_start_flash__;
             src < __boot_text_sram_end_flash__;
             dst++, src++) {
         *dst = *src;
     }
     for (dst = __boot_data_sram_start__, src = __boot_data_sram_start_flash__;
-            src < __boot_sram_end_flash__;
+            src < __boot_data_sram_end_flash__;
             dst++, src++) {
         *dst = *src;
     }
-#else
-    for (dst = __boot_sram_start__, src = __boot_sram_start_flash__;
-            src < __boot_sram_end_flash__;
-            dst++, src++) {
-        *dst = *src;
-    }
-#endif
 #ifdef MAIN_RAM_USE_SYS_RAM
     hal_cache_boot_sync_all(HAL_CACHE_ID_D_CACHE);
 #else
@@ -164,133 +171,49 @@ void BOOT_TEXT_FLASH_LOC BOOT_CODE_OPT_ATTR boot_init_boot_sections(void)
     }
 }
 
-#if (CUSTOMER_LOAD_RAM_DATA_SECTION_SIZE > 0)
-void customer_load_sram_ram_text_data_init_offset_reset(void)
-{
-    customer_load_sram_text_offset = 0;
-    customer_load_sram_data_offset = 0;
-
-    cusotmer_load_sram_memcpy_offset = 0;
-}
-
-void customer_load_sram_ram_text_init_with_offset(uint32_t text_start[],uint32_t text_end[],uint32_t len)
-{
-    uint32_t *dst, *src;
-    // CMSIS_TRACE(1,"offset dst: 0x%02x 0x%02x 0x%02x in:0x%02x 0x%02x 0x%02x ",(uint32_t)__load_sram_text_start__,(uint32_t)load_sram_text_offset,(uint32_t)(__load_sram_text_start__ + load_sram_text_offset),
-    //         (uint32_t)text_start,(uint32_t)text_end,len);
-    for (dst = __customer_load_sram_text_start__ + customer_load_sram_text_offset, src = text_start;
-            src < text_end;
-            dst++, src++) {
-        *dst = *src;
-    }
-
-    customer_load_sram_text_offset += len;
-}
-
-void customer_load_sram_ram_text_init(uint32_t text_start[],uint32_t text_end[])
-{
-    uint32_t *dst, *src;
-    for (dst = __customer_load_sram_text_start__, src = text_start;
-            src < text_end;
-            dst++, src++) {
-        *dst = *src;
-    }
-}
-
-void customer_load_sram_ram_data_init_with_offset(uint32_t data_start[],uint32_t data_end[],uint32_t len)
-{
-    uint32_t *dst, *src;
-    for (dst = __customer_load_ram_data_start__ + customer_load_sram_data_offset, src = data_start;
-            src < data_end;
-            dst++, src++) {
-        *dst = *src;
-    }
-
-    customer_load_sram_data_offset += len;
-}
-
-void customer_load_sram_ram_data_init(uint32_t data_start[],uint32_t data_end[])
-{
-    uint32_t *dst, *src;
-    for (dst = __customer_load_ram_data_start__, src = data_start;
-            src < data_end;
-            dst++, src++) {
-        *dst = *src;
-    }
-}
-
-void customer_load_sram_ram_text_data_init(uint32_t text_start[],uint32_t text_end[],uint32_t data_start[],uint32_t data_end[])
-{
-    uint32_t *dst, *src;
-    for (dst = __customer_load_ram_data_start__, src = data_start;
-            src < data_end;
-            dst++, src++) {
-        *dst = *src;
-    }
-
-    for (dst = __customer_load_sram_text_start__, src = text_start;
-            src < text_end;
-            dst++, src++) {
-        *dst = *src;
-    }
-}
-
-void customer_load_sram_ram_text_memcpy_with_offset(uint32_t src_start[],uint32_t src_end[],uint32_t src_len,
-                                                    uint32_t dst_start[],uint32_t dst_end[])
-
-{
-    uint32_t *dst, *src;
-//     CMSIS_TRACE(1,"offset dst: 0x%02x 0x%02x 0x%02x in:0x%02x 0x%02x 0x%02x ",(uint32_t)dst_start,(uint32_t)cusotmer_load_sram_memcpy_offset,(uint32_t)(dst_start + cusotmer_load_sram_memcpy_offset),
-//             (uint32_t)src_start,(uint32_t)src_end,src_len*sizeof(4));
-    for (dst = dst_start + cusotmer_load_sram_memcpy_offset, src = src_start;
-            src < src_end;
-            dst++, src++) {
-        *dst = *src;
-    }
-
-    cusotmer_load_sram_memcpy_offset += src_len;
-
-    if((uint32_t)dst_start + cusotmer_load_sram_memcpy_offset*sizeof(int) > (uint32_t)dst_end){
-        CMSIS_TRACE(1,"%s",__func__);
-        ASSERT(0,"LR 0x%02x info: 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x",(uint32_t)__builtin_return_address(0),(uint32_t)dst_start,(uint32_t)dst_end,
-                (uint32_t)src_start,(uint32_t)src_end,src_len*sizeof(int));
-    }
-}
-#endif
-
+#ifndef COMPRESS_SRAM_CODE
 void BOOT_TEXT_FLASH_LOC BOOT_CODE_OPT_ATTR boot_init_sram_sections(void)
 {
     uint32_t *dst, *src;
 
-#ifdef MAIN_RAM_USE_TCM
-    for (dst = __sram_text_start__, src = __sram_text_data_start_flash__;
+    for (dst = __sram_text_data_start__, src = __sram_text_start_flash__;
             src < __sram_text_end_flash__;
             dst++, src++) {
         *dst = *src;
     }
     for (dst = __sram_data_start__, src = __sram_data_start_flash__;
-            src < __sram_text_data_end_flash__;
+            src < __sram_data_end_flash__;
             dst++, src++) {
         *dst = *src;
     }
-#else
-    for (dst = __sram_text_data_start__, src = __sram_text_data_start_flash__;
-            src < __sram_text_data_end_flash__;
+
+    for (dst = __fast_sram_text_data_start__, src = __fast_sram_text_start_flash__;
+            src < __fast_sram_text_end_flash__;
+            dst++, src++) {
+        *dst = *src;
+    }
+
+#ifdef AON_MAILBOX_BASE
+    for (dst = __aon_mbx_data_start__, src = __aon_mbx_data_start_load__;
+            src < __aon_mbx_data_end_load__;
             dst++, src++) {
         *dst = *src;
     }
 #endif
 
-    for (dst = __fast_sram_text_data_start__, src = __fast_sram_text_data_start_flash__;
-            src < __fast_sram_text_data_end_flash__;
-            dst++, src++) {
+#if defined(CP_IN_SAME_EE) && defined(CP_ALWAYS_ON_DATA)
+    dst = __cp_always_on_data_sram_start;
+    src = __cp_always_on_data_sram_start_flash__;
+    for (; dst < __cp_always_on_data_sram_end; dst++, src++) {
         *dst = *src;
     }
-#if 0
-//#if (CUSTOMER_LOAD_RAM_DATA_SECTION_SIZE > 0)
-    load_sram_ram_text_data_init(__load_sram_text_start_flash__,__load_sram_text_end_flash__,
-        __load_ram_data_start_flash__,__load_ram_data_end_flash__);
+
+    dst = __cp_always_on_bss_sram_start;
+    for (; dst < __cp_always_on_bss_sram_end; dst++) {
+        *dst = 0;
+    }
 #endif
+
 #ifdef MAIN_RAM_USE_SYS_RAM
     hal_cache_boot_sync_all(HAL_CACHE_ID_D_CACHE);
 #else
@@ -301,14 +224,40 @@ void BOOT_TEXT_FLASH_LOC BOOT_CODE_OPT_ATTR boot_init_sram_sections(void)
     for (dst = __sram_bss_start__; dst < __sram_bss_end__; dst++) {
         *dst = 0;
     }
+
 #ifdef RAM_NC_BASE
+    for (dst = __sram_nc_data_start__, src = __sram_nc_data_start_flash__;
+            src < __sram_nc_data_end_flash__;
+            dst++, src++) {
+        *dst = *src;
+    }
+
     for (dst = __sram_nc_bss_start__; dst < __sram_nc_bss_end__; dst++) {
         *dst = 0;
     }
 #endif
-}
 
-#if defined(CHIP_HAS_PSRAM) && defined(PSRAM_ENABLE)
+#ifdef RAM_EXTRA0_BASE
+    for (dst = __ram_extra0_text_data_start__, src = __ram_extra0_text_data_start_flash__;
+            src < __ram_extra0_text_data_end_flash__;
+            dst++, src++) {
+        *dst = *src;
+    }
+
+    for (dst = __ram_extra0_bss_start__; dst < __ram_extra0_bss_end__; dst++) {
+        *dst = 0;
+    }
+#endif
+
+#ifdef AON_MAILBOX_BASE
+    for (dst = __aon_mbx_bss_start__; dst < __aon_mbx_bss_end__; dst++) {
+        *dst = 0;
+    }
+#endif
+}
+#endif
+
+#if defined(CHIP_HAS_PSRAM) && defined(PSRAM_ENABLE) && !defined(COMPRESS_PSRAM_CODE)
 void BOOT_TEXT_FLASH_LOC BOOT_CODE_OPT_ATTR boot_init_psram_sections(void)
 {
 #if (PSRAM_SIZE !=0)
@@ -329,6 +278,13 @@ void BOOT_TEXT_FLASH_LOC BOOT_CODE_OPT_ATTR boot_init_psram_sections(void)
     for (dst = __psram_bss_start__; dst < __psram_bss_end__; dst++) {
         *dst = 0;
     }
+
+    for (dst = __psram_nc_data_start__, src = __psram_nc_data_start_flash__;
+            src < __psram_nc_data_end_flash__;
+            dst++, src++) {
+        *dst = *src;
+    }
+
     for (dst = __psram_nc_bss_start__; dst < __psram_nc_bss_end__; dst++) {
         *dst = 0;
     }
@@ -357,6 +313,13 @@ void BOOT_TEXT_FLASH_LOC BOOT_CODE_OPT_ATTR boot_init_psramuhs_sections(void)
     for (dst = __psramuhs_bss_start__; dst < __psramuhs_bss_end__; dst++) {
         *dst = 0;
     }
+
+    for (dst = __psramuhs_nc_data_start__, src = __psramuhs_nc_data_start_flash__;
+            src < __psramuhs_nc_data_end_flash__;
+            dst++, src++) {
+        *dst = *src;
+    }
+
     for (dst = __psramuhs_nc_bss_start__; dst < __psramuhs_nc_bss_end__; dst++) {
         *dst = 0;
     }
@@ -389,12 +352,12 @@ void BOOT_TEXT_FLASH_LOC BOOT_CODE_OPT_ATTR BootInit(void)
 #ifndef NO_CACHE
     // Enable icache
     hal_cache_enable(HAL_CACHE_ID_I_CACHE);
-    // Enable dcache
-    hal_cache_enable(HAL_CACHE_ID_D_CACHE);
     // Enable write buffer
     hal_cache_writebuffer_enable(HAL_CACHE_ID_D_CACHE);
     // Enable write back
     hal_cache_writeback_enable(HAL_CACHE_ID_D_CACHE);
+    // Enable dcache
+    hal_cache_enable(HAL_CACHE_ID_D_CACHE);
 #endif
 
 #if !defined(FPGA)
@@ -420,10 +383,14 @@ void BOOT_TEXT_FLASH_LOC BOOT_CODE_OPT_ATTR BootInit(void)
     boot_init_security_sections();
 #endif
 
+#ifdef COMMON_IRQ_ENTRY
+    // Init common irq entry after initializing all the sram sections
+    NVIC_InitCommonIrqEntry();
+#endif
+
 #if defined(CHIP_HAS_PSRAM) && defined(PSRAM_ENABLE)
     // Init psram
 #if !defined(ARM_CMNS)
-    pmu_open();
     hal_psram_init();
 #endif
     boot_init_psram_sections();
@@ -432,7 +399,6 @@ void BOOT_TEXT_FLASH_LOC BOOT_CODE_OPT_ATTR BootInit(void)
 #if defined(CHIP_HAS_PSRAMUHS) && defined(PSRAMUHS_ENABLE)
     // Init psramuhs
 #if !defined(ARM_CMNS)
-    pmu_open();
     hal_cmu_dsp_clock_enable();
     hal_cmu_dsp_reset_clear();
     hal_psramuhs_init();
@@ -487,6 +453,7 @@ int subsys_check_boot_struct(uint32_t boot_struct_addr, uint32_t *code_start_add
 void BOOT_TEXT_FLASH_LOC boot_init_rom_in_flash(void)
 {
 #ifdef __ARMCC_VERSION
+    // Workaround to include .code_start_addr section
     extern uint32_t __code_start_addr[];
     asm volatile("" : : "r"(__code_start_addr));
 #endif
@@ -508,12 +475,12 @@ void BOOT_TEXT_FLASH_LOC boot_init_rom_in_flash(void)
 // Mutex flag
 // -----------------------------------------------------------
 
-int BOOT_TEXT_SRAM_LOC set_bool_flag(bool *flag)
+int BOOT_TEXT_SRAM_LOC mutex_flag_lock(MUTEX_FLAG_T *flag)
 {
-    bool busy;
+    MUTEX_FLAG_T busy;
 
     do {
-        busy = (bool)__LDREXB((unsigned char *)flag);
+        busy = (MUTEX_FLAG_T)__LDREXB((unsigned char *)flag);
         if (busy) {
             __CLREX();
             return -1;
@@ -524,7 +491,7 @@ int BOOT_TEXT_SRAM_LOC set_bool_flag(bool *flag)
     return 0;
 }
 
-void BOOT_TEXT_SRAM_LOC clear_bool_flag(bool *flag)
+void BOOT_TEXT_SRAM_LOC mutex_flag_unlock(MUTEX_FLAG_T *flag)
 {
     *flag = false;
     __DMB();
@@ -627,7 +594,7 @@ uint32_t integer_sqrt(uint32_t val)
         }
     }
 
-    x = ((1UL << msb) + 1) / 2;
+    x = ((1 << msb) + 1) / 2;
 
     while (1) {
         y = (x + val / x) / 2;
@@ -648,121 +615,41 @@ uint32_t integer_sqrt_nearest(uint32_t val)
     return (s + 1) / 2;
 }
 
-// --------------------------------
-// Calendar time conversion functions
-// --------------------------------
+#ifdef DEBUG_IRQ_LATENCY
+#define MAX_IRQ_LATENCY 30 /*30ms*/
 
-// Hardware RTC month is 1 to 12, day of week is 1 to 7.
+BOOT_BSS_LOC
+uint32_t irq_lock_time;
 
-#define LEAPS_THRU_END_OF(y)                                  ((y) / 4 - (y) / 100 + (y) / 400)
+BOOT_BSS_LOC
+uint32_t irq_g_lock_time;
 
-static const uint8_t days_in_month[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
-
-uint8_t rtc_calendar_is_invalid(struct RTC_CALENDAR_FORMAT_T *calendar, const bool check_real_week)
+BOOT_TEXT_SRAM_LOC
+void irq_lock_save_ts(int global)
 {
-    uint8_t error_val = 0;
-    char month_buf[12] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+    uint32_t time = hal_sys_timer_get();
 
-    if (calendar->year < 1970) {
-        error_val |= (1 << 0);
-    }
-
-    if (calendar->week > 7 || calendar->week < 1) {
-        error_val |= (1 << 1);
-    }
-
-    if (calendar->hour > 23 || calendar->minute > 59 || calendar->second > 59) {
-        error_val |= (1 << 2);
-    }
-
-    if (calendar->month == 2) {
-        if (rtc_is_leap_year(calendar->year)) {
-            month_buf[1] += 1;
-        }
-    }
-
-    if (calendar->month > 12 || calendar->month < 1 ||
-            calendar->day > month_buf[calendar->month - 1] || calendar->day < 1) {
-        error_val |= (1 << 3);
-    }
-
-    if (check_real_week) {
-        struct RTC_CALENDAR_FORMAT_T calendar_ref;
-        uint32_t unix = rtc_calendar_to_unix(calendar);
-
-        rtc_unix_to_calendar(&unix, &calendar_ref);
-        if (calendar_ref.week != calendar->week) {
-            error_val |= (1 << 4);
-        }
-    }
-
-    return error_val;
+    if (global)
+        irq_g_lock_time = time;
+    else
+        irq_lock_time = time;
 }
 
-int rtc_is_leap_year(unsigned int year)
+
+BOOT_TEXT_SRAM_LOC
+void irq_lock_check_ts(int global)
 {
-    return (!(year % 4) && (year % 100)) || !(year % 400);
-}
+    uint32_t now = hal_sys_timer_get();
+    uint32_t dur;
 
-uint32_t rtc_calendar_to_unix(struct RTC_CALENDAR_FORMAT_T *calendar)
-{
-    unsigned int mon, year;
-
-    mon = calendar->month;
-    year = calendar->year;
-
-    /* 1..12 -> 11,12,1..10 */
-    if (0 >= (int) (mon -= 2)) {
-        mon += 12;    /* Puts Feb last since it has leap day */
-        year -= 1;
-    }
-
-    return ((((unsigned long)
-          (year/4 - year/100 + year/400 + 367*mon/12 + calendar->day) +
-          year*365 - 719499
-        )*24 + calendar->hour /* now have hours */
-      )*60 + calendar->minute /* now have minutes */
-    )*60 + calendar->second; /* finally seconds */
-}
-
-void rtc_unix_to_calendar(uint32_t *unix, struct RTC_CALENDAR_FORMAT_T *calendar)
-{
-    uint32_t seconds_per_day = 86400;
-    int16_t days = *unix / seconds_per_day;
-    uint32_t total_days = days;
-    uint32_t seconds_remaining = *unix % seconds_per_day;
-    unsigned int month, year;
-
-    calendar->hour = seconds_remaining / 3600;
-    calendar->minute = (seconds_remaining % 3600) / 60;
-    calendar->second = seconds_remaining % 60;
-
-    year = 1970 + days / 365;
-    days -= (year - 1970) * 365
-          + LEAPS_THRU_END_OF(year - 1)
-          - LEAPS_THRU_END_OF(1970 - 1);
-    if (days < 0) {
-        year -= 1;
-        days += 365 + rtc_is_leap_year(year);
-    }
-    calendar->year = year;
-
-    for (month = 0; month < 11; month++) {
-        int newdays = days - days_in_month[month];
-        if (month == 1 && rtc_is_leap_year(year)) {
-            newdays--;
-        }
-        if (newdays < 0)
-            break;
-        days = newdays;
-    }
-    calendar->month = month + 1;
-    calendar->day = days + 1;
-
-    // 1970.1.1 is Thursday
-    calendar->week = (4 + total_days) % 7;
-    if (calendar->week == 0) {
-        calendar->week = 7;
+    if (global) {
+        dur = __SLIM_TICKS_TO_MS(now - irq_g_lock_time);
+        if (dur > MAX_IRQ_LATENCY)
+            TRACE(0, "WARNING:irq global lock in pc=%x lr=%x too long %d,", irq_g_masked_addr.pc, irq_g_masked_addr.lr, dur);
+    } else {
+        dur = __SLIM_TICKS_TO_MS(now - irq_lock_time);
+        if (dur > MAX_IRQ_LATENCY)
+            TRACE(0, "WARNING:irq lock in pc=%x lr=%x too long %d,", irq_masked_addr.pc, irq_g_masked_addr.lr, dur);
     }
 }
-
+#endif

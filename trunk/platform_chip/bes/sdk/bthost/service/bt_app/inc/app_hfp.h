@@ -26,13 +26,14 @@ void app_hfp_hf_register_callback(app_hfp_hf_callback_t cb);
 void btapp_hfp_report_speak_gain(void);
 bool btapp_hfp_mic_need_skip_frame(void);
 uint8_t btapp_hfp_need_mute(void);
-uint8_t hfp_volume_local_get(int id);
 void hfp_volume_local_set(int id, uint8_t vol);
 uint8_t app_bt_hfp_adjust_volume(uint8_t device_id, bool up, bool adjust_local_vol_level);
 void app_pts_hfp_siri_voice_enable(void);
 void app_pts_hfp_siri_voice_disable(void);
 void app_pts_hf_acs_bi_13_i_set_enable(void);
 void app_pts_hf_acs_bi_13_i_set_disable(void);
+void app_pts_hf_acs_bv_09_i_set_enable(void);
+void app_pts_hf_acs_bv_09_i_set_disable(void);
 void app_pts_av_create_channel(bt_bdaddr_t *btaddr);
 void app_pts_av_set_sink_delay(void);
 void app_pts_hf_create_service_link(bt_bdaddr_t *btaddr);
@@ -121,7 +122,6 @@ void app_bt_hfp_enahnced_battery_report(uint8_t level);
 bool app_bt_is_hfp_disconnected(uint8_t device_id);
 
 void app_hfp_init(void);
-void app_hfp_common_init(void);
 
 void app_hfp_set_battery_level(uint8_t level);
 
@@ -131,15 +131,13 @@ void hfp_speak_volume_handler(uint8_t device_id, btif_hf_channel_t* chan, struct
 
 void btapp_hfp_mic_need_skip_frame_set(int32_t skip_frame);
 
-uint8_t btapp_hfp_incoming_calls(void);
-
 uint8_t btapp_hfp_get_call_setup(void);
-
-bool btapp_hfp_is_pc_call_active(void);
 
 bool btapp_hfp_is_call_active(void);
 
 bool btapp_hfp_is_sco_active(void);
+
+int app_hfp_set_scocodecid(int dev_id, uint8_t codec_id);
 
 #ifdef __INTERCONNECTION__
 uint8_t ask_is_selfdefined_battery_report_AT_command_support(void);
@@ -161,10 +159,6 @@ void app_hfp_restore_master_local_volume(void);
 void hfp_ibrt_sync_status_sent_callback(void);
 
 bt_status_t app_hf_send_current_call_at_commond(btif_hf_channel_t* chan_h);
-
-bool app_hfp_check_whether_need_to_mute_hfp(void);
-
-void app_bt_audio_hfp_recon_timeout_handler(void const *param);
 #ifdef IBRT
 int hfp_ibrt_sync_get_status(uint8_t device_id,ibrt_hfp_status_t *hfp_status);
 int hfp_ibrt_sync_set_status(uint8_t device_id,ibrt_hfp_status_t *hfp_status);

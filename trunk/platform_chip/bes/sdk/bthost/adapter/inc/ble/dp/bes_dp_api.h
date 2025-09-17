@@ -22,9 +22,8 @@ extern "C" {
 #endif
 
 #define BTIF_BLE_APP_DATAPATH_SERVER
-#define BTIF_BLE_APP_DATAPATH_CLIENT
 
-#if (defined(BES_OTA) || defined(BES_OTA_BASIC))&& !defined(OTA_OVER_TOTA_ENABLED)
+#if defined(BES_OTA) && !defined(OTA_OVER_TOTA_ENABLED)
 typedef enum {
     BES_BLE_OTA_CCC_CHANGED = 0,
     BES_BLE_OTA_DISCONN,
@@ -108,51 +107,13 @@ bool bes_ble_tota_send_indication(uint8_t conidx, uint8_t* ptrData, uint32_t len
 
 #endif
 
-void bes_ble_datapath_server_register_event_callback(app_datapath_event_cb cb);
-void bes_ble_datapath_server_send_data_via_notification(uint8_t conidx, uint8_t* ptrData, uint32_t length);
-void bes_ble_datapath_server_send_data_via_indication(uint8_t conidx, uint8_t* ptrData, uint32_t length);
+void bes_ble_datapath_server_control_notification(uint8_t conidx,bool isEnable);
+void bes_ble_datapath_server_send_data_via_notification(uint8_t* ptrData, uint32_t length);
+void bes_ble_datapath_server_send_data_via_intification(uint8_t* ptrData, uint32_t length);
+void bes_ble_datapath_server_send_data_via_write_command(uint8_t* ptrData, uint32_t length);
+void bes_ble_datapath_server_send_data_via_write_request(uint8_t* ptrData, uint32_t length);
 void bes_ble_add_datapathps(void);
 void bes_ble_datapath_server_register_event_cb(app_datapath_event_cb callback);
-
-void bes_ble_datapath_client_control_notification(uint8_t conidx, bool isEnable);
-void bes_ble_datapath_client_send_data_via_write_command(uint8_t conidx, uint8_t* ptrData, uint32_t length);
-void bes_ble_datapath_client_send_data_via_write_request(uint8_t conidx, uint8_t* ptrData, uint32_t length);
-void bes_ble_datapath_client_register_callbacK(void *callback);
-
-#ifdef BLE_WIRELESS_TRANS_SRV_ENABLED
-void app_ble_wireless_trans_srv_register_callback(void *callback);
-uint8_t app_ble_srv_send_attr1_data_via_notification(uint8_t *value, uint16_t len);
-#endif
-
-#ifdef BLE_WIRELESS_TRANS_CLI_ENABLED
-void app_ble_wireless_trans_cli_register_callback(void *callback);
-uint8_t app_ble_wireless_trans_cli_send_attr0_data_handler(uint16_t connhdl, const uint8_t *value, uint16_t len);
-#endif
-
-#ifdef BLE_WIFI_SRV_ENABLED
-typedef struct {
-    uint8_t event;
-    uint8_t conidx;
-    uint8_t* data;
-    uint16_t len;
-} __attribute__((packed)) ble_wifi_param_u;
-
-enum BLE_WIFI_EVENT_TYPE_E
-{
-    BLE_WIFI_SRV_CONN = 1,
-
-    BLE_WIFI_SRV_DISCONN,
-    BLE_WIFI_SRV_MTU,
-    BLE_WIFI_SRV_RX,
-    BLE_WIFI_SRV_SENDDONE,
-    BLE_WIFI_SRV_EVENT_NUM,
-};
-
-typedef void(*ble_wifi_event_cb)(ble_wifi_param_u *para_p);
-void bes_ble_wifi_srv_register_event_cb(ble_wifi_event_cb callback);
-void bes_ble_wifi_srv_send_data_via_notification(uint8_t conidx, uint8_t *data, uint16_t len);
-#endif
-
 
 #ifdef __cplusplus
 }

@@ -13,9 +13,9 @@ ccflags-y +=  \
     -Iservices/overlay \
     -Iservices/resources \
     -Iservices/audio_process \
-    -Iapps/app_test/apptester \
+    -Iapps/apptester \
     -Iapps/factory \
-    -Iutils/crc \
+    -Iutils/crc32 \
     -Iplatform/drivers/bt \
     -Iplatform/drivers/ana \
     -Iapps/audioplayers/rbplay \
@@ -23,10 +23,15 @@ ccflags-y +=  \
     -Iapps/anc/inc \
     -Iapps/ota \
     -Ithirdparty/userapi \
+    -Iservices/voicepath \
+    -Iservices/voicepath/gsound/gsound_service \
+    -Iservices/voicepath/gsound/gsound_target \
     -Iservices/communication \
     -Iutils/cqueue \
     -Iservices/ai_voice/ama/ama_manager \
     -Iservices/ai_voice/manager \
+	-Imultimedia/inc/audio/codec/sbc/inc \
+	-Imultimedia/audio/codec/sbc/src/inc \
     -Iservices/interconnection \
     $(EPLAYER_INCLUDES) \
     $(ECOMM_INCLUDES) \

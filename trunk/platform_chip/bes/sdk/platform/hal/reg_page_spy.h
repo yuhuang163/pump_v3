@@ -17,6 +17,11 @@
 #define __REG_PAGE_SPY_H__
 
 #include "plat_types.h"
+#include "plat_addr_map.h"
+
+#ifndef PAGE_SPY_VER
+#define PAGE_SPY_VER                            1
+#endif
 
 struct PAGE_SPY_T {
     __IO uint32_t REG_000;
@@ -50,15 +55,29 @@ struct PAGE_SPY_T {
 #define PAGE_SPY_PPC_IRQ_ENABLE_RD                          (1 << 6)
 #define PAGE_SPY_PPC_IRQ_ENABLE_WR                          (1 << 7)
 #define PAGE_SPY_CFG_INIT_VALUE                             (1 << 8)
+#if (PAGE_SPY_VER >= 2)
+#define PAGE_SPY_CFG_MPC_BYPASS                             (1 << 9)
+#endif
 #endif
 
 // reg_04
+#if (PAGE_SPY_VER <= 1)
 #define PAGE_SPY_REG_ENABLE0                                (1 << 0)
 #define PAGE_SPY_REG_DETECT_READ0                           (1 << 1)
 #define PAGE_SPY_REG_DETECT_WRITE0                          (1 << 2)
 #define PAGE_SPY_REG_ENABLE1                                (1 << 3)
 #define PAGE_SPY_REG_DETECT_READ1                           (1 << 4)
 #define PAGE_SPY_REG_DETECT_WRITE1                          (1 << 5)
+#else
+#define PAGE_SPY_REG_ENABLE0                                (1 << 0)
+#define PAGE_SPY_REG_DETECT_READ0                           (1 << 1)
+#define PAGE_SPY_REG_DETECT_WRITE0                          (1 << 2)
+#define PAGE_SPY_REG_DETECT_ONCE0                           (1 << 3)
+#define PAGE_SPY_REG_ENABLE1                                (1 << 4)
+#define PAGE_SPY_REG_DETECT_READ1                           (1 << 5)
+#define PAGE_SPY_REG_DETECT_WRITE1                          (1 << 6)
+#define PAGE_SPY_REG_DETECT_ONCE1                           (1 << 7)
+#endif
 
 // reg_08
 #define PAGE_SPY_REG_STR_ADDR0(n)                           (((n) & 0xFFFFFFFF) << 0)

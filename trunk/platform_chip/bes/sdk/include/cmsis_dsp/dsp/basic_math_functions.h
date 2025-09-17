@@ -70,7 +70,13 @@ extern "C"
         q15_t * pDst,
         uint32_t blockSize);
 
-
+void arm_mult_q15_q7_bias_q31(q15_t *pSrc,
+                              const q7_t *wt,
+                              const q31_t *bias,
+                              q15_t *pDst,
+                              uint32_t out_shift,
+                              uint32_t blockSize);
+                              
   /**
    * @brief Q31 vector multiplication.
    * @param[in]  pSrcA      points to the first input vector

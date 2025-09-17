@@ -6,7 +6,6 @@ obj-y := $(obj-y:.cpp=.o)
 obj-y := $(obj-y:.S=.o)
 
 subdir-ccflags-y += \
-	-Iservices/rpc/inc \
 	-Iplatform/hal \
 	-Iutils/cqueue \
 	-Iapps/app_rpc

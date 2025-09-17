@@ -34,7 +34,7 @@ extern "C" {
 #define SPI_USBPHY_REG(reg)             (reg)
 #endif
 
-#ifdef CHIP_HAS_SPIPHY
+#ifdef SPIPHY_BASE
 #define usbphy_read(reg, val)           hal_phyif_reg_read(SPI_USBPHY_REG(reg), val)
 #define usbphy_write(reg, val)          hal_phyif_reg_write(SPI_USBPHY_REG(reg), val)
 #else

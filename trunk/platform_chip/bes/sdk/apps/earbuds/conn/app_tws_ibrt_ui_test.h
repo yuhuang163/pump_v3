@@ -16,30 +16,64 @@
 #ifndef __APP_IBRT_UI_TEST_H__
 #define __APP_IBRT_UI_TEST_H__
 #include <stdint.h>
+#include "app_tws_ibrt.h"
 
 #if defined(IBRT) && defined(IBRT_UI)
+
+typedef void (*app_uart_test_function_handle)(void);
+typedef void (*app_uart_test_function_handle_with_param)(unsigned char *, unsigned int);
+
+typedef struct
+{
+    const char* string;
+    app_uart_test_function_handle function;
+} app_uart_handle_t;
+
+typedef struct
+{
+    const char* string;
+    app_uart_test_function_handle_with_param function;
+} app_uart_handle_t_p;
+
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 int app_ibrt_ui_v2_test_config_load(void *config);
 void app_tws_ibrt_raw_ui_test_key_init();
-
-#ifdef SPA_AUDIO_SEC
-void app_tz_add_test_cmd_table(void);
-#endif
-
-int app_ibrt_raw_ui_test_cmd_handler_with_param(unsigned char *buf, unsigned char *param, unsigned int length);
+void app_ibrt_ui_v2_add_test_cmd_table(void);
+int app_ibrt_ui_test_cmd_handler_with_param(unsigned char *buf, unsigned char *param, unsigned int length);
 void app_ibrt_ui_automate_test_cmd_handler(uint8_t group_code, uint8_t operation_code, uint8_t *param, uint8_t param_len);
 void app_ibrt_auto_test_inform_cmd_received(uint8_t group_code, uint8_t operation_code);
 
+void app_ibrt_tws_hfp_answer_test(void);
+void app_ibrt_tws_hfp_hangup_test(void);
+
 //void app_ibrt_search_ui_gpio_key_handle(APP_KEY_STATUS *status, void *param);
 WEAK void app_ibrt_initialize_nv_role_callback(void *config, void * record_env);
+/**
+ ****************************************************************************************
+ * @brief Write local tws role and peer device bt address, the TWS pairing will be
+ * immediately started.
+ *
+ * @param[in] role                  The tws role to update
+ * @param[in] peerAddr              The peer device bt address to update
+ ****************************************************************************************
+ */
+void app_ibrt_if_start_tws_pairing(ibrt_role_e role, uint8_t* peerAddr);
 
 
-void app_tws_ibrt_ui_cmd_init(void);
+/**
+ ****************************************************************************************
+ * @brief Write local tws role and peer device bt address, the TWS pairing won’t be started.
+ *
+ * @param[in] role                  The tws role to update
+ * @param[in] peerAddr              The peer device bt address to update
+ ****************************************************************************************
+ */
+void app_ibrt_if_update_tws_pairing_info(ibrt_role_e role, uint8_t* peerAddr);
 
-void app_tws_ibrt_ui_cmd_deinit(void);
 #ifdef __cplusplus
 }
 #endif

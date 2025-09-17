@@ -88,8 +88,11 @@ static void hal_ir_irq_handler(void)
 #ifdef HAL_IR_DEBUG
     uint16_t fifostatus;
     hal_ir_get_fifo_status(&fifostatus);
-    HAL_TRACE(1,"ir irq status=0x%X,tx/rx fifo level=0x%X/0x%X", status, (fifostatus)>>8, (fifostatus)&0x3F);
+    TRACE(1,"ir irq status=0x%X,tx/rx fifo level=0x%X/0x%X", status, (fifostatus)>>8, (fifostatus)&0x3F);
 #endif
+
+    ir->INT_CLR = 0xFFFF;
+    __DSB();
 
     if(rx_tx_flag == HAL_IR_MODE_TX)
     {
@@ -129,8 +132,6 @@ static void hal_ir_irq_handler(void)
             }
         }
     }
-    ir->INT_CLR = 0xFFFF;
-    ir->INT_CLR = 0xFFFF;
 }
 
 static void hal_ir_irq_enable(void)
@@ -187,44 +188,8 @@ void hal_ir_open(const struct HAL_IR_CFG_T *cfg)
     {
         rx_tx_flag = HAL_IR_MODE_TX;
         ir->TX_CLK_DIV = (uint16_t)(IR_CLK / cfg->tx_clk - 1);
-        switch(cfg->tx_clk_duty)
-        {
-            case HAL_IR_TX_CLK_DUTY_1_1:
-            {
-                ir->TX_CLK_DUTY = (uint16_t)(IR_CLK / cfg->tx_clk / 2);
-                break;
-            }
-            case HAL_IR_TX_CLK_DUTY_1_2:
-            {
-                ir->TX_CLK_DUTY = (uint16_t)(IR_CLK / cfg->tx_clk / 3);
-                break;
-            }
-            case HAL_IR_TX_CLK_DUTY_1_3:
-            {
-                ir->TX_CLK_DUTY = (uint16_t)(IR_CLK / cfg->tx_clk / 4);
-                break;
-            }
-            case HAL_IR_TX_CLK_DUTY_1_4:
-            {
-                ir->TX_CLK_DUTY = (uint16_t)(IR_CLK / cfg->tx_clk / 5);
-                break;
-            }
-            case HAL_IR_TX_CLK_DUTY_1_5:
-            {
-                ir->TX_CLK_DUTY = (uint16_t)(IR_CLK / cfg->tx_clk / 6);
-                break;
-            }
-            case HAL_IR_TX_CLK_DUTY_1_6:
-            {
-                ir->TX_CLK_DUTY = (uint16_t)(IR_CLK / cfg->tx_clk / 7);
-                break;
-            }
-            default:
-            {
-                ASSERT(0, "%s:ir tx_clk_duty error,line=%d",__func__,__LINE__);
-                break;
-            }
-        }
+        ASSERT(((cfg->tx_clk_duty > 0) && (cfg->tx_clk_duty < 100)), "%s:%d ir tx_clk_duty=%d error",__func__,__LINE__,cfg->tx_clk_duty);
+        ir->TX_CLK_DUTY = (uint16_t)(IR_CLK / cfg->tx_clk * cfg->tx_clk_duty / 100);
 
         if(cfg->use_dma)
         {
@@ -273,7 +238,7 @@ void hal_ir_close(void)
     uint8_t time = 0;
     if(rx_tx_flag == HAL_IR_MODE_RX)
     {
-        while(hal_ir_check_rx_busy() == true)
+        while(hal_ir_check_rx_busy() == false)
         {
 #ifdef RTOS
             osDelay(2);
@@ -289,7 +254,7 @@ void hal_ir_close(void)
     }
     else
     {
-        while(hal_ir_check_tx_busy() == true)
+        while(hal_ir_check_tx_busy() == false)
         {
 #ifdef RTOS
             osDelay(2);
@@ -356,7 +321,7 @@ void hal_ir_rx(uint8_t *data, uint8_t length)
 #define HAL_IR_ID       0
 #define HAL_IR_ID_QTY   1
 
-static bool in_use[HAL_IR_ID_QTY] = { false, };
+static MUTEX_FLAG_T in_use[HAL_IR_ID_QTY] = { false, };
 static HAL_IR_DMA_HANDLER_T ir_txdma_handler[HAL_IR_ID_QTY];
 static HAL_IR_DMA_HANDLER_T ir_rxdma_handler[HAL_IR_ID_QTY];
 static uint8_t ir_txdma_chan[HAL_IR_ID_QTY] = {HAL_DMA_CHAN_NONE};
@@ -373,7 +338,7 @@ static void hal_ir_rxdma_handler(uint8_t chan, uint32_t remains, uint32_t error,
     int_unlock(lock);
 
     hal_gpdma_free_chan(chan);
-    clear_bool_flag(&in_use[id]);
+    mutex_flag_unlock(&in_use[id]);
     if (ir_rxdma_handler[id])
     {
         ir_rxdma_handler[id](error);
@@ -386,7 +351,7 @@ static int hal_ir_dma_recv(uint8_t id, uint8_t *data, uint32_t len, HAL_IR_DMA_H
     uint32_t lock;
     enum HAL_DMA_RET_T ret;
     struct HAL_DMA_CH_CFG_T dma_cfg;
-    enum HAL_DMA_WDITH_T dma_width;
+    enum HAL_DMA_WIDTH_T dma_width;
     enum HAL_DMA_PERIPH_T src_periph;
 
     ASSERT((ir->CONFIG & IR_DMA_MODE), "%s:DMA not configured on IR,line=%d",__func__,__LINE__);
@@ -470,7 +435,7 @@ void hal_ir_stop_dma_rx(void)
         hal_gpdma_cancel(rx_chan);
         hal_gpdma_free_chan(rx_chan);
     }
-    clear_bool_flag(&in_use[id]);
+    mutex_flag_unlock(&in_use[id]);
 }
 
 static void hal_ir_txdma_handler(uint8_t chan, uint32_t remains, uint32_t error, struct HAL_DMA_DESC_T *lli)
@@ -484,7 +449,7 @@ static void hal_ir_txdma_handler(uint8_t chan, uint32_t remains, uint32_t error,
     int_unlock(lock);
 
     hal_gpdma_free_chan(chan);
-    clear_bool_flag(&in_use[id]);
+    mutex_flag_unlock(&in_use[id]);
     if (ir_txdma_handler[id])
     {
         ir_txdma_handler[id](error);
@@ -497,7 +462,7 @@ static int hal_ir_dma_send(uint8_t id, const uint8_t *data, uint32_t len, HAL_IR
     uint32_t lock;
     enum HAL_DMA_RET_T ret;
     struct HAL_DMA_CH_CFG_T dma_cfg;
-    enum HAL_DMA_WDITH_T dma_width;
+    enum HAL_DMA_WIDTH_T dma_width;
     enum HAL_DMA_PERIPH_T dst_periph;
 
     ASSERT((ir->CONFIG & IR_DMA_MODE), "%s:DMA not configured on IR,line=%d",__func__,__LINE__);
@@ -577,13 +542,13 @@ void hal_ir_stop_dma_tx(void)
         hal_gpdma_free_chan(tx_chan);
     }
 
-    clear_bool_flag(&in_use[id]);
+    mutex_flag_unlock(&in_use[id]);
 }
 
 int hal_ir_dma_rx(uint8_t *data, uint32_t len, HAL_IR_DMA_HANDLER_T handler)
 {
     int ret;
-    if (set_bool_flag(&in_use[HAL_IR_ID]))
+    if (mutex_flag_lock(&in_use[HAL_IR_ID]))
     {
         return -31;
     }
@@ -593,7 +558,7 @@ int hal_ir_dma_rx(uint8_t *data, uint32_t len, HAL_IR_DMA_HANDLER_T handler)
     ret = hal_ir_dma_recv(HAL_IR_ID, data, len, handler);
     if (ret || handler == NULL)
     {
-        clear_bool_flag(&in_use[HAL_IR_ID]);
+        mutex_flag_unlock(&in_use[HAL_IR_ID]);
     }
 
     return ret;
@@ -602,7 +567,7 @@ int hal_ir_dma_rx(uint8_t *data, uint32_t len, HAL_IR_DMA_HANDLER_T handler)
 int hal_ir_dma_tx(const uint8_t *data, uint32_t len, HAL_IR_DMA_HANDLER_T handler)
 {
     int ret;
-    if (set_bool_flag(&in_use[HAL_IR_ID]))
+    if (mutex_flag_lock(&in_use[HAL_IR_ID]))
     {
         return -31;
     }
@@ -612,7 +577,7 @@ int hal_ir_dma_tx(const uint8_t *data, uint32_t len, HAL_IR_DMA_HANDLER_T handle
     ret = hal_ir_dma_send(HAL_IR_ID, data, len, handler);
     if (ret || handler == NULL)
     {
-        clear_bool_flag(&in_use[HAL_IR_ID]);
+        mutex_flag_unlock(&in_use[HAL_IR_ID]);
     }
 
     return ret;

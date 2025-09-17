@@ -27,7 +27,7 @@ osTimerDef(pilot_anc, pilot_anc_handler);
 static osTimerId pilot_anc_id = NULL;
 static void pilot_anc_handler(void const *param)
 {
-	VOICE_ASSIST_TRACE(0, "[%s]", __FUNCTION__);
+	TRACE(0, "[%s]", __FUNCTION__);
 
 	if (app_anc_work_status()) {
 		app_voice_assist_pilot_anc_open();
@@ -75,18 +75,18 @@ extern int32_t get_pilot_stop_flag(void);
 
 static int32_t _voice_assist_pilot_anc_callback(void *buf, uint32_t len, void *other)
 {
-    // VOICE_ASSIST_TRACE(0, "[%s] len = %d", __func__, len);
+    // TRACE(0, "[%s] len = %d", __func__, len);
 
     AncAssistRes *assist_res = (AncAssistRes *)other;
 
     // close pilot anc when pilot stops
     if (last_stop_flag == 0 && get_pilot_stop_flag()) {
-        VOICE_ASSIST_TRACE(0, "[%s] pilot finished, %d/%d", __FUNCTION__, last_stop_flag, get_pilot_stop_flag());
+        TRACE(0, "[%s] pilot finished, %d/%d", __FUNCTION__, last_stop_flag, get_pilot_stop_flag());
         app_voice_assist_pilot_anc_close();
     }
 
     if (assist_res->curve_changed[0] == 1 && assist_res->curve_id[0] == ANC_ASSIST_ALGO_ID_PILOT) {
-        VOICE_ASSIST_TRACE(0,"!!!!!!!!!!!!!!!!!!!!!!!! current state is %d",assist_res->curve_index[0]);
+        TRACE(0,"!!!!!!!!!!!!!!!!!!!!!!!! current state is %d",assist_res->curve_index[0]);
     }
 
     last_stop_flag = get_pilot_stop_flag();

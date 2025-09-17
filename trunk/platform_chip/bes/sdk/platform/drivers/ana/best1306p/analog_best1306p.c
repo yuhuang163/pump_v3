@@ -2088,6 +2088,13 @@ void analog_aud_adc_dc_calib_offset_update(enum AUD_CHANNEL_MAP_T ch_map, uint16
     }
 }
 
+void analog_aud_adc_dc_offset_update(enum AUD_CHANNEL_MAP_T ch_map, uint16_t calib_step, uint16_t calib_value)
+{
+    analog_aud_adc_dc_calib_set_step(ch_map, calib_step);
+    analog_aud_adc_dc_calib_offset_update(ch_map, calib_value);
+    analog_aud_adc_dc_calib_offset_update_enable(ch_map, true);
+}
+
 void analog_capsensor_open(void) //0x82, 0x7779 \ 0x83, 0x0081 \ 0x84,0x0240
 {
     analog_aud_enable_codec_bias_lp(true);  //0x80, 0x4000
@@ -2129,4 +2136,16 @@ void analog_capsensor_clk_gate_off(void)
     analog_read(ANA_REG_51, &val);
     val |= REG_CLK_CAPSENSOR_GATE_EN | REG_CLK_32K_CAPSENSOR_GATE_EN;
     analog_write(ANA_REG_51, val);
+}
+
+void analog_reg_val_print(void)
+{
+    uint16_t val, reg;
+
+    TRACE(0, "%s start", __func__);
+    for (reg = 0x00; reg <= 0x8D; reg++) {
+        analog_read(reg, &val);
+        TRACE_IMM(0, "0x%04X=0x%04X", reg, val);
+    }
+    TRACE(0, "%s done", __func__);
 }

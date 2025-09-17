@@ -71,8 +71,8 @@ typedef enum IRQn
     CODEC_IRQn                  =   2,      /*!< CODEC Interrupt                    */
     CODEC_TX_PEAK_IRQn          =   3,      /*!< CODEC TX PEAK Interrupt            */
     SDMMC0_IRQn                 =   4,      /*!< SDMMC Interrupt                    */
-    BES2003_AUDMA_IRQn          =   5,      /*!< Audio DMA Interrupt                */
-    BES2003_GPDMA_IRQn          =   6,      /*!< General Purpose DMA Interrupt      */
+    MCU_AUDMA_IRQn              =   5,      /*!< Audio DMA Interrupt                */
+    MCU_GPDMA_IRQn              =   6,      /*!< General Purpose DMA Interrupt      */
     USB_IRQn                    =   7,      /*!< USB Interrupt                      */
     USB_AUX_IRQn                =   8,      /*!< USB AUX Interrupt                  */
     USB_EXT_IRQn                =   9,      /*!< USB EXT Interrupt                  */
@@ -133,7 +133,7 @@ typedef enum IRQn
     CHKSUM_IRQn                 =  64,      /*!< Checksum Interrupt                 */
     CRC_IRQn                    =  65,      /*!< CRC Interrupt                      */
     CP_DSLP_IRQn                =  66,      /*!< CP Deep Sleep Interrupt            */
-    PAGESPY_IRQn                =  67,      /*!< PAGESPY Interrupt                  */
+    PAGE_SPY_IRQn               =  67,      /*!< PAGE SPY Interrupt                 */
     TRUSTZONE_IRQn              =  68,      /*!< TrustZone Interrupt                */
     BT_STAMP_IRQn               =  69,      /*!< BT Playtime Stamp Interrupt        */
     CSI0_IRQn                   =  70,      /*!< CSI0 Interrupt                     */
@@ -141,7 +141,7 @@ typedef enum IRQn
     CSIDMA_IRQn                 =  CSI0_IRQn, /*!< CSI DMA Interrupt                */
     DSI0_IRQn                   =  71,       /*!< DSI0 Interrupt                    */
     DSI1_IRQn                   =  DSI0_IRQn, /*!< DSI1 Interrupt                   */
-    DSI_IRQn                    =  DSI0_IRQn, /*!< DSI Interrupt                   */
+    DSI_IRQn                    =  DSI0_IRQn, /*!< DSI Interrupt                    */
     DISPLAY_IRQn                =  DSI0_IRQn, /*!< DISPLAY Interrupt                */
 
     USER_IRQn_QTY,
@@ -149,20 +149,45 @@ typedef enum IRQn
 } IRQn_Type;
 
 #ifndef DSP_USE_GPDMA
-#define AUDMA_IRQn              BES2003_AUDMA_IRQn
-#define GPDMA_IRQn              BES2003_GPDMA_IRQn
-#else
-#define AUDMA_IRQn              BES2003_AUDMA_IRQn //MCU use AUDMA
+#if !defined(CHIP_ROLE_CP)
+#if defined(CHIP_DMA_CFG_IDX) && (CHIP_DMA_CFG_IDX == 1)
+#define MCU_USE_GPDMA
 #endif
+#endif
+#ifdef MCU_USE_GPDMA
+#define AUDMA_IRQn              MCU_GPDMA_IRQn
+#else
+#define AUDMA_IRQn              MCU_AUDMA_IRQn
+#define GPDMA_IRQn              MCU_GPDMA_IRQn
+#endif /* MCU_USE_GPDMA */
+#else
+#define AUDMA_IRQn              MCU_AUDMA_IRQn //MCU use AUDMA
+#endif /* DSP_USE_GPDMA */
 
 #define GPIO_IRQn               AON_GPIO_IRQn
 #define GPIOAUX_IRQn            AON_GPIOAUX_IRQn
+
+#ifdef CHIP_ROLE_CP
+#define TIMER00_IRQn            MCU_TIMER20_IRQn
+#define TIMER01_IRQn            MCU_TIMER21_IRQn
+#define TIMER20_IRQn            MCU_TIMER00_IRQn
+#define TIMER21_IRQn            MCU_TIMER01_IRQn
+#else
+#ifdef CORE_SLEEP_POWER_DOWN
+#define TIMER00_IRQn            AON_TIMER00_IRQn
+#define TIMER01_IRQn            AON_TIMER01_IRQn
+#define TIMER20_IRQn            MCU_TIMER00_IRQn
+#define TIMER21_IRQn            MCU_TIMER01_IRQn
+#else
 #define TIMER00_IRQn            MCU_TIMER00_IRQn
 #define TIMER01_IRQn            MCU_TIMER01_IRQn
-#define TIMER10_IRQn            MCU_TIMER10_IRQn
-#define TIMER11_IRQn            MCU_TIMER11_IRQn
 #define TIMER20_IRQn            MCU_TIMER20_IRQn
 #define TIMER21_IRQn            MCU_TIMER21_IRQn
+#endif
+#endif
+#define TIMER10_IRQn            MCU_TIMER10_IRQn
+#define TIMER11_IRQn            MCU_TIMER11_IRQn
+
 #define WDT_IRQn                AON_WDT_IRQn
 
 #define TRANSQ0_RMT_IRQn        TRANSQW_RMT_IRQn

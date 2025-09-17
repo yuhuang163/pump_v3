@@ -19,7 +19,7 @@
 
 .globl __evo_fontsdata_start_flash
 .globl __evo_fontsdata_end_flash
-.section .rodata, "a", %progbits
+.section .flash_nc_rodata_evo, "a", %progbits
 .balign 64
 
 __evo_fontsdata_start_flash:

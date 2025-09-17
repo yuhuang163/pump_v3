@@ -18,6 +18,7 @@
  ****************************************************************************/
 #ifndef __TMAP_TMAC_INC__
 #define __TMAP_TMAC_INC__
+#include "bluetooth.h"
 
 #include "generic_audio.h"
 #include "gaf_prf.h"
@@ -34,7 +35,7 @@ typedef struct tmac_prf_svc_info tmac_prf_svc_t;
 typedef void (*tmac_cb_bond_data_evt)(uint8_t con_lid, const tmac_prf_svc_t *param);
 /// Callback for tmac discovery done
 typedef void (*tmac_cb_discovery_cmp_evt)(uint8_t con_lid, uint16_t err_code);
-/// Callback for tmac role char value received or read
+/// Callback for tmac cccd cfg value received or read
 typedef void (*tmac_cb_role_value_evt)(uint8_t con_lid, uint16_t role_bf, uint16_t err_code);
 /// Callback function called when prf status event generated
 typedef gatt_prf_status_event_callback tmac_cb_prf_status_evt;

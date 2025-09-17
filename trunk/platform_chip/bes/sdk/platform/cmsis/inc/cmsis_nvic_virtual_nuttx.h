@@ -15,7 +15,7 @@
  ****************************************************************************/
 #include "nuttx/irq.h"
 
-#if 1//defined(CONFIG_BES_HAVE_DVFS) || defined(CONFIG_PM)
+#if defined(CONFIG_BES_HAVE_DVFS) || defined(CONFIG_PM)
 #define CONFIG_IRQ_TO_CORE0
 #endif
 
@@ -69,7 +69,7 @@ extern int NXIC_IrqAttach(int irq, xcpt_t isr, FAR void *arg);
 //api_id:1
 __STATIC_FORCEINLINE void NXIC_SetPriorityGrouping(uint32_t PriorityGroup)
 {
-    //CMSIS_TRACE(0,"%s:%d,PriorityGroup:%d",__FUNCTION__,__LINE__,PriorityGroup);
+    //TRACE(0,"%s:%d,PriorityGroup:%d",__FUNCTION__,__LINE__,PriorityGroup);
 #if defined(CONFIG_SMP) && defined(CONFIG_IRQ_TO_CORE0)
     if (get_cpu_id() == 1)
     {
@@ -83,7 +83,7 @@ __STATIC_FORCEINLINE void NXIC_SetPriorityGrouping(uint32_t PriorityGroup)
 //api_id:2
 __STATIC_FORCEINLINE uint32_t NXIC_GetPriorityGrouping(void)
 {
-    //CMSIS_TRACE(0,"%s:%d",__FUNCTION__,__LINE__);
+    //TRACE(0,"%s:%d",__FUNCTION__,__LINE__);
 #if defined(CONFIG_SMP) && defined(CONFIG_IRQ_TO_CORE0)
     if (get_cpu_id() == 1)
     {
@@ -97,7 +97,7 @@ __STATIC_FORCEINLINE uint32_t NXIC_GetPriorityGrouping(void)
 //api_id:3
 __STATIC_FORCEINLINE void NXIC_EnableIRQ(int irq)
 {
-    //CMSIS_TRACE(0,"%s:%d,irq:%d",__FUNCTION__,__LINE__,irq);
+    //TRACE(0,"%s:%d,irq:%d",__FUNCTION__,__LINE__,irq);
 #if defined(CONFIG_SMP) && defined(CONFIG_IRQ_TO_CORE0)
     if ((irq >= NVIC_USER_IRQ_OFFSET) && (get_cpu_id() == 1) && isValidIrq(irq))
     {
@@ -111,7 +111,7 @@ __STATIC_FORCEINLINE void NXIC_EnableIRQ(int irq)
 //api_id:4
 __STATIC_FORCEINLINE void NXIC_DisableIRQ(int irq)
 {
-    //CMSIS_TRACE(0,"%s:%d,irq:%d",__FUNCTION__,__LINE__,irq);
+    //TRACE(0,"%s:%d,irq:%d",__FUNCTION__,__LINE__,irq);
 #if defined(CONFIG_SMP) && defined(CONFIG_IRQ_TO_CORE0)
     if ((irq >= NVIC_USER_IRQ_OFFSET) && (get_cpu_id() == 1) && isValidIrq(irq))
     {
@@ -125,7 +125,7 @@ __STATIC_FORCEINLINE void NXIC_DisableIRQ(int irq)
 //api_id:5
 __STATIC_FORCEINLINE uint32_t NXIC_GetEnableIRQ(int irq)
 {
-    //CMSIS_TRACE(0,"%s:%d,irq:%d",__FUNCTION__,__LINE__,irq);
+    //TRACE(0,"%s:%d,irq:%d",__FUNCTION__,__LINE__,irq);
 #if defined(CONFIG_SMP) && defined(CONFIG_IRQ_TO_CORE0)
     if ((irq >= NVIC_USER_IRQ_OFFSET) && (get_cpu_id() == 1) && isValidIrq(irq))
     {
@@ -139,7 +139,7 @@ __STATIC_FORCEINLINE uint32_t NXIC_GetEnableIRQ(int irq)
 //api_id:6
 __STATIC_FORCEINLINE uint32_t NXIC_GetPendingIRQ(int irq)
 {
-    //CMSIS_TRACE(0,"%s:%d,irq:%d",__FUNCTION__,__LINE__,irq);
+    //TRACE(0,"%s:%d,irq:%d",__FUNCTION__,__LINE__,irq);
 #if defined(CONFIG_SMP) && defined(CONFIG_IRQ_TO_CORE0)
     if ((irq >= NVIC_USER_IRQ_OFFSET) && (get_cpu_id() == 1) && isValidIrq(irq))
     {
@@ -153,7 +153,7 @@ __STATIC_FORCEINLINE uint32_t NXIC_GetPendingIRQ(int irq)
 //api_id:7
 __STATIC_FORCEINLINE void NXIC_SetPendingIRQ(int irq)
 {
-    //CMSIS_TRACE(0,"%s:%d,irq:%d",__FUNCTION__,__LINE__,irq);
+    //TRACE(0,"%s:%d,irq:%d",__FUNCTION__,__LINE__,irq);
 #if defined(CONFIG_SMP) && defined(CONFIG_IRQ_TO_CORE0)
     if ((irq >= NVIC_USER_IRQ_OFFSET) && (get_cpu_id() == 1) && isValidIrq(irq))
     {
@@ -167,7 +167,7 @@ __STATIC_FORCEINLINE void NXIC_SetPendingIRQ(int irq)
 //api_id:8
 __STATIC_FORCEINLINE void NXIC_ClearPendingIRQ(int irq)
 {
-    //CMSIS_TRACE(0,"%s:%d,irq:%d",__FUNCTION__,__LINE__,irq);
+    //TRACE(0,"%s:%d,irq:%d",__FUNCTION__,__LINE__,irq);
 #if defined(CONFIG_SMP) && defined(CONFIG_IRQ_TO_CORE0)
     if ((irq >= NVIC_USER_IRQ_OFFSET) && (get_cpu_id() == 1) && isValidIrq(irq))
     {
@@ -181,7 +181,7 @@ __STATIC_FORCEINLINE void NXIC_ClearPendingIRQ(int irq)
 //api_id:9
 __STATIC_FORCEINLINE uint32_t NXIC_GetActive(int irq)
 {
-    //CMSIS_TRACE(0,"%s:%d,irq:%d",__FUNCTION__,__LINE__,irq);
+    //TRACE(0,"%s:%d,irq:%d",__FUNCTION__,__LINE__,irq);
 #if defined(CONFIG_SMP) && defined(CONFIG_IRQ_TO_CORE0)
     if ((irq >= NVIC_USER_IRQ_OFFSET) && (get_cpu_id() == 1) && isValidIrq(irq))
     {
@@ -195,7 +195,7 @@ __STATIC_FORCEINLINE uint32_t NXIC_GetActive(int irq)
 //api_id:10
 __STATIC_FORCEINLINE uint32_t NXIC_GetPriority(int irq)
 {
-    //CMSIS_TRACE(0,"%s:%d,irq:%d",__FUNCTION__,__LINE__,irq);
+    //TRACE(0,"%s:%d,irq:%d",__FUNCTION__,__LINE__,irq);
 #if defined(CONFIG_SMP) && defined(CONFIG_IRQ_TO_CORE0)
     if ((irq >= NVIC_USER_IRQ_OFFSET) && (get_cpu_id() == 1) && isValidIrq(irq))
     {
@@ -209,7 +209,7 @@ __STATIC_FORCEINLINE uint32_t NXIC_GetPriority(int irq)
 //api_id:11
 __STATIC_FORCEINLINE void NXIC_SetPriority(int irq, uint32_t priority)
 {
-    //CMSIS_TRACE(0,"%s:%d,irq:%d",__FUNCTION__,__LINE__,irq);
+    //TRACE(0,"%s:%d,irq:%d",__FUNCTION__,__LINE__,irq);
 #if defined(CONFIG_SMP)
     if (isHiproIrq(irq-NVIC_USER_IRQ_OFFSET)) {
         __NVIC_SetPriority((IRQn_Type)(irq-NVIC_USER_IRQ_OFFSET),0);
@@ -251,7 +251,7 @@ __STATIC_FORCEINLINE void NXIC_SetVector(int irq, uint32_t vector)
 //api_id:12
 __STATIC_FORCEINLINE void NXIC_SystemReset(void)
 {
-    //CMSIS_TRACE(0,"%s:%d",__FUNCTION__,__LINE__);
+    //TRACE(0,"%s:%d",__FUNCTION__,__LINE__);
 #if defined(CONFIG_SMP) && defined(CONFIG_IRQ_TO_CORE0)
     if (get_cpu_id() == 1)
     {

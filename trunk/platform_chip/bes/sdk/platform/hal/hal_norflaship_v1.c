@@ -113,15 +113,14 @@ uint8_t norflaship_continuous_read_on(enum HAL_FLASH_ID_T id)
     norflaship_write32(val, TX_CONFIG2_BASE);
     return 0;
 }
-uint32_t norflaship_write_txfifo(enum HAL_FLASH_ID_T id, const uint8_t *val, uint32_t len)
+void norflaship_write_txfifo(enum HAL_FLASH_ID_T id, const uint8_t *val, uint32_t len)
 {
     uint32_t i = 0;
     for (i = 0; i < len; ++i) {
         norflaship_write32(val[i], TXDATA_BASE);
     }
-    return 0;
 }
-uint32_t norflaship_v1_write_txfifo_safe(const uint8_t *val, uint32_t len)
+uint32_t norflaship_v1_write_txfifo_safe(enum HAL_FLASH_ID_T id, const uint8_t *val, uint32_t len)
 {
     uint32_t i;
     uint32_t st;
@@ -134,7 +133,7 @@ uint32_t norflaship_v1_write_txfifo_safe(const uint8_t *val, uint32_t len)
     }
     return len - i;
 }
-uint32_t norflaship_v1_write_txfifo_all(const uint8_t *val, uint32_t len)
+void norflaship_v1_write_txfifo_all(enum HAL_FLASH_ID_T id, const uint8_t *val, uint32_t len)
 {
     uint32_t st;
     while (len > 0) {
@@ -146,15 +145,14 @@ uint32_t norflaship_v1_write_txfifo_all(const uint8_t *val, uint32_t len)
         val++;
         len--;
     }
-    return 0;
 }
-uint8_t norflaship_read_rxfifo_count(enum HAL_FLASH_ID_T id)
+uint32_t norflaship_read_rxfifo_count(enum HAL_FLASH_ID_T id)
 {
     uint32_t val = 0;
     val = norflaship_readb(INT_STATUS_BASE);
     return ((val&RXFIFOCOUNT_MASK)>>RXFIFOCOUNT_SHIFT);
 }
-uint8_t norflaship_read_rxfifo(enum HAL_FLASH_ID_T id)
+uint32_t norflaship_read_rxfifo(enum HAL_FLASH_ID_T id)
 {
     uint32_t val = 0;
     val = norflaship_readb(RXDATA_BASE);
@@ -316,21 +314,21 @@ void norflaship_dual_mode(enum HAL_FLASH_ID_T id, uint32_t v)
         val &= ~DUALMODE_MASK;
     norflaship_write32(val, MODE1_CONFIG_BASE);
 }
-void norflaship_hold_pin(enum HAL_FLASH_ID_T id, uint32_t v)
+void norflaship_hold_pin(enum HAL_FLASH_ID_T id, uint32_t active_low)
 {
     uint32_t val = 0;
     val = norflaship_read32(MODE1_CONFIG_BASE);
-    if (v)
+    if (active_low)
         val |= HOLDPIN_MASK;
     else
         val &= ~HOLDPIN_MASK;
     norflaship_write32(val, MODE1_CONFIG_BASE);
 }
-void norflaship_wpr_pin(enum HAL_FLASH_ID_T id, uint32_t v)
+void norflaship_wpr_pin(enum HAL_FLASH_ID_T id, uint32_t active_low)
 {
     uint32_t val = 0;
     val = norflaship_read32(MODE1_CONFIG_BASE);
-    if (v)
+    if (active_low)
         val |= WPRPIN_MASK;
     else
         val &= ~WPRPIN_MASK;
@@ -422,10 +420,10 @@ uint32_t norflaship_get_rdcmd(enum HAL_FLASH_ID_T id)
     val = norflaship_read32(MODE2_CONFIG_BASE);
     return ((RDCMD_MASK & val) >> RDCMD_SHIFT);
 }
-void norflaship_sleep(enum HAL_FLASH_ID_T id)
+void norflaship_sleep(enum HAL_FLASH_ID_T id, enum HAL_CMU_LPU_SLEEP_MODE_T mode)
 {
 }
-void norflaship_wakeup(enum HAL_FLASH_ID_T id)
+void norflaship_wakeup(enum HAL_FLASH_ID_T id, enum HAL_CMU_LPU_SLEEP_MODE_T mode)
 {
 }
 

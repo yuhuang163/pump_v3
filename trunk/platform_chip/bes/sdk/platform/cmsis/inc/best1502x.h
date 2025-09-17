@@ -70,8 +70,8 @@ typedef enum IRQn
     FPU_IRQn                    =   0,      /*!< FPU Interrupt                      */
     SPI_WAKEUP_IRQn             =   1,      /*!< SPI Slave Wakeup Interrupt         */
     SDMMC1_IRQn                 =   2,      /*!< sdmmc1 Interrupt                   */
-    AUDMA_IRQn                  =   3,      /*!< Audio DMA Interrupt                */
-    GPDMA_IRQn                  =   4,      /*!< General Purpose DMA Interrupt      */
+    MCU_AUDMA_IRQn              =   3,      /*!< Audio DMA Interrupt                */
+    MCU_GPDMA_IRQn              =   4,      /*!< General Purpose DMA Interrupt      */
     AON_WDT_IRQn                =   5,      /*!< AON Watchdog Timer Interrupt       */
     USB_PHY_IRQn                =   6,      /*!< USB PHY Interrupt                  */
     USB_IRQn                    =   7,      /*!< USB Interrupt                      */
@@ -148,24 +148,64 @@ typedef enum IRQn
     INVALID_IRQn                = USER_IRQn_QTY,
 } IRQn_Type;
 
+#if !defined(CHIP_ROLE_CP)
+#if defined(CHIP_DMA_CFG_IDX) && (CHIP_DMA_CFG_IDX == 1)
+#define MCU_USE_GPDMA
+#endif
+#endif
+
+#ifdef MCU_USE_GPDMA
+#define AUDMA_IRQn             MCU_GPDMA_IRQn
+#else
+#define AUDMA_IRQn             MCU_AUDMA_IRQn
+#define GPDMA_IRQn             MCU_GPDMA_IRQn
+#endif
+
 #define GPIO_IRQn               AON_IRQn
 #define GPADC_IRQn              INVALID_IRQn
 #define PWRKEY_IRQn             INVALID_IRQn
-#ifdef CORE_SLEEP_POWER_DOWN
-#define TIMER00_IRQn            AON_TIMER00_IRQn
-#define TIMER01_IRQn            AON_TIMER01_IRQn
-#define TIMER20_IRQn            MCU_TIMER00_IRQn
-#define TIMER21_IRQn            MCU_TIMER01_IRQn
-#else
-#define TIMER00_IRQn            MCU_TIMER00_IRQn
-#define TIMER01_IRQn            MCU_TIMER01_IRQn
-#define TIMER20_IRQn            AON_TIMER00_IRQn
-#define TIMER21_IRQn            AON_TIMER01_IRQn
-#endif
-#define TIMER10_IRQn            MCU_TIMER10_IRQn
-#define TIMER11_IRQn            MCU_TIMER11_IRQn
 #define WDT_IRQn                AON_WDT_IRQn
 #define RTC_IRQn                PMU_IRQn
+
+#include "plat_addr_map.h"
+
+#if (TIMER0_BASE == AON_TIMER0_BASE)
+#define TIMER00_IRQn            AON_TIMER00_IRQn
+#define TIMER01_IRQn            AON_TIMER01_IRQn
+#elif (TIMER0_BASE == MCU_TIMER0_BASE)
+#define TIMER00_IRQn            MCU_TIMER00_IRQn
+#define TIMER01_IRQn            MCU_TIMER01_IRQn
+#elif (TIMER0_BASE == MCU_TIMER1_BASE)
+#define TIMER00_IRQn            MCU_TIMER10_IRQn
+#define TIMER01_IRQn            MCU_TIMER11_IRQn
+#elif (TIMER0_BASE == MCU_TIMER2_BASE)
+#define TIMER00_IRQn            MCU_TIMER20_IRQn
+#define TIMER01_IRQn            MCU_TIMER21_IRQn
+#endif
+
+#if (TIMER1_BASE == MCU_TIMER0_BASE)
+#define TIMER10_IRQn            MCU_TIMER00_IRQn
+#define TIMER11_IRQn            MCU_TIMER01_IRQn
+#elif (TIMER1_BASE == MCU_TIMER1_BASE)
+#define TIMER10_IRQn            MCU_TIMER10_IRQn
+#define TIMER11_IRQn            MCU_TIMER11_IRQn
+#elif (TIMER1_BASE == MCU_TIMER2_BASE)
+#define TIMER10_IRQn            MCU_TIMER20_IRQn
+#define TIMER11_IRQn            MCU_TIMER21_IRQn
+#endif
+
+#ifdef TIMER2_BASE
+#if (TIMER2_BASE == MCU_TIMER0_BASE)
+#define TIMER20_IRQn            MCU_TIMER00_IRQn
+#define TIMER21_IRQn            MCU_TIMER01_IRQn
+#elif (TIMER2_BASE == MCU_TIMER1_BASE)
+#define TIMER20_IRQn            MCU_TIMER10_IRQn
+#define TIMER21_IRQn            MCU_TIMER11_IRQn
+#elif (TIMER2_BASE == MCU_TIMER2_BASE)
+#define TIMER20_IRQn            MCU_TIMER20_IRQn
+#define TIMER21_IRQn            MCU_TIMER21_IRQn
+#endif
+#endif
 
 #endif
 

@@ -18,6 +18,7 @@
  ****************************************************************************/
 #ifndef __GMAP_GMAC_INC__
 #define __GMAP_GMAC_INC__
+#include "bluetooth.h"
 
 #include "generic_audio.h"
 #include "gaf_prf.h"

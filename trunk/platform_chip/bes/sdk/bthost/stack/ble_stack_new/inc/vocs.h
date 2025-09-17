@@ -18,6 +18,7 @@
  ****************************************************************************/
 #ifndef __ARC_VOCS__
 #define __ARC_VOCS__
+#include "bluetooth.h"
 
 #include "gaf_cfg.h"
 #include "generic_audio.h"
@@ -51,6 +52,7 @@ typedef struct vocs_evt_cb
     /// Callback for vocs description write req
     vocs_cb_description_req cb_desc_req;
 } vocs_evt_cb_t;
+
 
 typedef struct vocs_inst_cfg
 {

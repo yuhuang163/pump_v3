@@ -27,14 +27,14 @@ static int read_long(FILE * fp)
 
 /**
 */
-int writeImage(char *filename, int width, int height, char *fbbuf, int scale_rate, char *title)
+int writeImage(char *filename, int stride, int height, int bpp ,char *fbbuf, int scale_rate, char *title)
 {
 	int code = 0;
 	FILE *fp = NULL;
 	png_structp png_ptr = NULL;
 	png_infop info_ptr = NULL;
 	png_bytep row = NULL;
-	char *fbd = (char *)malloc(width * height * 4 / scale_rate / scale_rate);
+	char *fbd = (char *)malloc(stride * height / scale_rate / scale_rate);
 	// Open file for writing (binary mode)
 	fp = fopen(filename, "wb");
 	if (fp == NULL) {
@@ -45,14 +45,14 @@ int writeImage(char *filename, int width, int height, char *fbbuf, int scale_rat
 	char *cl = fbbuf;
 	char *cr = fbd;
 	for (int i = 0; i < height / scale_rate; i++) {
-		cl = fbbuf + width * 4 * i * scale_rate;
-		for (int c = 0; c < width / scale_rate; c++) {
-			*(int32_t *) (cr) = *(int32_t *) (cl + c * 4 * scale_rate);
-			cr += 4;
+		cl = fbbuf + stride * i * scale_rate;
+		for (int c = 0; c < stride/bpp/scale_rate; c++) {
+			memcpy(cr ,(cl + c * bpp * scale_rate),bpp);
+			cr += bpp;
 		}
 	}
 
-	fwrite(fbd, width * height * 4 / scale_rate / scale_rate, 1, fp);
+	fwrite(fbd, stride * height  / scale_rate / scale_rate, 1, fp);
 
 	if (fp != NULL)
 		fclose(fp);
@@ -61,7 +61,7 @@ int writeImage(char *filename, int width, int height, char *fbbuf, int scale_rat
 
 int main(int argc, char *argv[])
 {
-	// Make sure that the output filename argument has been provided
+    // Make sure that the output filename argument has been provided
 	char *fbbuf = NULL;
 
 	int fbbufsize = 0;
@@ -94,33 +94,9 @@ int main(int argc, char *argv[])
 	fbbuf = (char *)malloc(fbbufsize);
 	fread(fbbuf, fbbufsize, 1, fp);
 	fclose(fp);
-#if 0				//test
-	char *fbr;
-	int x, y;
-	unsigned char red = 0xff;
-	unsigned char green = 0xff;
-	unsigned char blue = 0xff;
-	for (y = 0; y < height; y++) {
-		fbr = fbbuf + width * 4 * y;
-		for (x = 0; x < width; x++) {
-			if (y % 4 == 0) {
-
-				fbr[x * 4 + 0] = red;
-				fbr[x * 4 + 1] = 0x00;
-				fbr[x * 4 + 2] = 0x00;
-				fbr[x * 4 + 3] = 0xff;
-			} else {
-				fbr[x * 4 + 0] = 0x00;
-				fbr[x * 4 + 1] = green;
-				fbr[x * 4 + 2] = 0x00;
-				fbr[x * 4 + 3] = 0xff;
-			}
-		}
-	}
-#endif
 
 	printf("Saving fbfile\n");
-	int result = writeImage(argv[1], raw_width, raw_height, fbbuf, scale_rate, "This is my test image");
+	int result = writeImage(argv[1], raw_stride, raw_height,raw_stride/raw_width ,fbbuf, scale_rate, "This is my test image");
 	if (result) {
 		printf("Saving err\n");
 	}

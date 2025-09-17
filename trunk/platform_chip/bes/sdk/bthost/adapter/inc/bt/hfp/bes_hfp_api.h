@@ -20,13 +20,6 @@
 extern "C" {
 #endif
 
-#define APP_BT_SCO_REJECT_REQUEST 0
-#define APP_BT_SCO_ACCEPT_REQUEST 1
-#define APP_BT_SCO_LET_UPPER_LAYER_HANDLE 2
-
-int bta_hfp_battery_report(uint8_t level);
-int bta_hfp_enable_siri_voice(bool en);
-
 uint8_t bes_bt_hfp_has_service_connected(void);
 bool bes_bt_hfp_has_sco_connected(void);
 bool bes_bt_hfp_has_call_active(void);

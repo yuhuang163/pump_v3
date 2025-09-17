@@ -598,7 +598,7 @@ const uint8_t bt_common_setting_1306p[38] =
     0x14, //page_gap_slot_in_a2dp
 };
 
-const uint8_t bt_common_setting_t2_1306p[] =
+const uint8_t bt_common_setting_t2_1306p[66] =
 {
     0x64,0x00, //mhdt_instant;
     0xff,0x00, //walkie_talkie_pa_data_size;
@@ -616,8 +616,8 @@ const uint8_t bt_common_setting_t2_1306p[] =
     -90 ,     //ecc_no_sync_rssi;
     0x0a,     //ecc_no_sync_cnt_thr;
     -60 ,     //antenna_low_thr;
-    0x01,     //page_no_prio_inc;
-    0x01,     //pscan_no_prio_inc;
+    0x00,     //page_no_prio_inc;
+    0x00,     //pscan_no_prio_inc;
     0xff,0xff,0xff,0xff,0xff,  //dbg_evt_filter[HCI_FILTER]
     0x01,     //bt_sync_found_hecerror_check;
     0x05,     //wait_setup_cmp_to;
@@ -650,20 +650,8 @@ const uint8_t bt_common_setting_t2_1306p[] =
     0x03,     //vendor_evt_itf;
     0x00,     //mic_data_via_tws;
     0x00,     //high_eff_tx_pwr_cntl;
-    0x00,//multi_cis_sch_plan_en
+    0x00,     //multi_cis_sch_plan_en
     0x20,0x00,//multi_cis_iso_interval
-    0x00,//le_3rd_link_rob_en,
-    0x89,0x8e,//bes_fp_sync_w_l
-    0xd6,0xbe,//bes_fp_sync_w_h
-    0xaa,0x55,//bes_fp_crcinit0
-    0x01,//power_control_type
-    0x00,//dhkey_calc_mode
-    0xe1,0x04,//sniff_win_lim
-    0x07,//bg_cig_skip_max_nb
-    0x05,//bg_cig_start_max_nb
-    0x00,//walkie_talkie_cis_mode
-    0x00,//pa_sync
-    0x78,//hci_sync_data_trx_buf_size
 };
 
 const uint8_t bt_sche_setting_1306p[24] =
@@ -875,7 +863,7 @@ static BTDRV_CFG_TBL_STRUCT  btdrv_cfg_tbl[] = {
     {BTDRV_CONFIG_ACTIVE,HCI_RD_LOCAL_VER_INFO_CMD_OPCODE, 0, NULL},
     {BTDRV_CONFIG_ACTIVE,HCI_DBG_SET_LOCAL_FEATURE_CMD_OPCODE,sizeof(local_feature),local_feature},
     {BTDRV_CONFIG_ACTIVE,HCI_DBG_SET_BT_SETTING_CMD_OPCODE,sizeof(bt_common_setting_1306p),bt_common_setting_1306p},
-    {BTDRV_CONFIG_ACTIVE,HCI_DBG_BT_COMMON_SETTING_T2_CMD_OPCODE,sizeof(bt_common_setting_t2_1306p),bt_common_setting_t2_1306p},
+    //{BTDRV_CONFIG_ACTIVE,HCI_DBG_BT_COMMON_SETTING_T2_CMD_OPCODE,sizeof(bt_common_setting_t2_2007p),bt_common_setting_t2_2007p},
     {BTDRV_CONFIG_ACTIVE,HCI_DBG_SET_BT_SCHE_SETTING_CMD_OPCODE,sizeof(bt_sche_setting_1306p),bt_sche_setting_1306p},
     {BTDRV_CONFIG_ACTIVE,HCI_DBG_SET_BT_IBRT_SETTING_CMD_OPCODE,sizeof(bt_ibrt_setting_1306p),bt_ibrt_setting_1306p},
     {BTDRV_CONFIG_ACTIVE,HCI_DBG_SET_BT_HW_FEAT_SETTING_CMD_OPCODE,sizeof(bt_hw_feat_setting_1306p),bt_hw_feat_setting_1306p},
@@ -898,13 +886,13 @@ void btdrv_set_bdr_ble_txpower(uint8_t txpwr_idx, uint16_t n)
     uint32_t reg;
     if(txpwr_idx > 7)
     {
-        DRIVERS_TRACE(1, "%s txpwr idx err:%d\n", __func__, txpwr_idx);
+        BT_DRV_TRACE(1, "%s txpwr idx err:%d\n", __func__, txpwr_idx);
         return;
     }
 
     if(n > 1023)
     {
-        DRIVERS_TRACE(1, "%s n err:%d\n", __func__, n);
+        BT_DRV_TRACE(1, "%s n err:%d\n", __func__, n);
         return;
     }
 
@@ -937,7 +925,7 @@ static void btdrv_hci_init_sleep_wakeup_param(void)
 
     btdrv_send_cmd(HCI_DBG_SET_WAKEUP_TIME_CMD_OPCODE, sizeof(struct hci_dbg_set_sleep_para_cmd),(const uint8_t *)&sleep_wakeup_param);
     btdrv_delay(1);
-    DRIVERS_TRACE(1, "%s,wait26m cycle=%d,twosc=%d",__func__, wait_26m_cnt, twosc_cnt);
+    BT_DRV_TRACE(1, "%s,wait26m cycle=%d,twosc=%d",__func__, wait_26m_cnt, twosc_cnt);
 }
 
 void btdrv_hci_set_ble_rpl_tx_pwr_conv_tbl(void)
@@ -1083,8 +1071,6 @@ void btdrv_fa_basic_config(btdrv_fa_basic_config_t* p_fa_basic_config)
     }
 
     btdrv_fa_margin_timig_setting(FA_CNT_PKT_US);
-    ble_mtk_mhdt_0_pack_mic_pktlen_setf(1);
-    bt_bes_cntl3_reg_fec_comp_bit_setf(0x0);//DM1
 }
 
 void btdrv_fast_ack_config(void)
@@ -1138,13 +1124,13 @@ static void btdrv_digital_common_config(void)
 
 static void btdrv_ble_modem_config(void)
 {
-    DRIVERS_TRACE(1,"%s",__func__);
+    BT_DRV_TRACE(1,"%s",__func__);
     //add BLE modem config here
 }
 
 static void btdrv_bt_modem_config(void)
 {
-    DRIVERS_TRACE(1,"%s",__func__);
+    BT_DRV_TRACE(1,"%s",__func__);
     //add BT modem config here
 
     besmdm_bw_2m_rc_if_value_setf(0x1000147B);
@@ -1266,7 +1252,7 @@ void bt_drv_bt_tport_type_config(void)
 #endif
     BTDIGITAL_REG(IP_DIAGCNTL_ADDR) = tport_type;
 
-    DRIVERS_TRACE(1,"BT_DRV: tport type=0x%x",tport_type);
+    BT_DRV_TRACE(1,"BT_DRV: tport type=0x%x",tport_type);
 }
 
 void btdrv_config_end(void)
@@ -1278,21 +1264,11 @@ void btdrv_config_end(void)
 
 void btdrv_hciprocess(void)
 {
-    DRIVERS_TRACE(1,"%s", __func__);
-
-    enum HAL_CHIP_METAL_ID_T metal_id = hal_get_chip_metal_id();
+    BT_DRV_TRACE(1,"%s", __func__);
 
     for(uint8_t i=0; i<sizeof(btdrv_cfg_tbl)/sizeof(btdrv_cfg_tbl[0]); i++){
         //BT other config
         if(btdrv_cfg_tbl[i].is_act == BTDRV_CONFIG_ACTIVE){
-            if(btdrv_cfg_tbl[i].opcode == HCI_DBG_BT_COMMON_SETTING_T2_CMD_OPCODE)
-            {
-                if (metal_id >= HAL_CHIP_METAL_ID_3) {
-                    btdrv_cfg_tbl[i].parlen = sizeof(bt_common_setting_t2_1306p);
-                } else {
-                    btdrv_cfg_tbl[i].parlen = BT_COM_SET_T2_1306P_T0_PATCH_LEN;
-                }
-            }
             btdrv_send_cmd(btdrv_cfg_tbl[i].opcode,btdrv_cfg_tbl[i].parlen,btdrv_cfg_tbl[i].param);
 #ifdef NORMAL_TEST_MODE_SWITCH
             btdrv_delay(20);
@@ -1309,7 +1285,7 @@ void btdrv_hciprocess(void)
 
 void btdrv_digital_init(void)
 {
-    DRIVERS_TRACE(1,"%s", __func__);
+    BT_DRV_TRACE(1,"%s", __func__);
 
     btdrv_digital_common_config();
 

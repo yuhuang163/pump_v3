@@ -21,9 +21,8 @@
 #include "hal_location.h"
 #include "a2dp_decoder_internal.h"
 #include "lc3_process.h"
-#include "bluetooth_bt_api.h"
-#include "btapp.h"
 #include "app_overlay.h"
+#include "bluetooth_bt_api.h"
 
 #define LC3_READBUF_SIZE (800)
 #define LC3_MTU_LIMITER (30)
@@ -47,8 +46,8 @@ static void lc3_free(void* pool, void*ptr){
     a2dp_audio_heap_free(ptr);
 }
 static void lc3_overlay(LC3_Enc_Info* info){
-    //APP_OVERLAY_ID_T id = info->is_lc3plus ? APP_OVERLAY_LC3PLUS : APP_OVERLAY_LC3;
-    //app_overlay_select(id);
+    APP_OVERLAY_ID_T id = info->is_lc3plus ? APP_OVERLAY_LC3PLUS : APP_OVERLAY_LC3;
+    app_overlay_select(id);
 }
 
 int a2dp_audio_lc3_decoder_init(uint32_t sampleRate, uint8_t channelNum, uint8_t bits)
@@ -56,7 +55,7 @@ int a2dp_audio_lc3_decoder_init(uint32_t sampleRate, uint8_t channelNum, uint8_t
     LC3_API_PlcMode plcMeth = LC3_API_PLC_ADVANCED;
     uint8_t frame_dms = 100;	
     uint32_t epmode = 0;
-    AUDIOPLAYERS_TRACE(3, "lc3_dec_init sample Rate=%d, channel_mode = %d, bits = %d\n", sampleRate, channelNum, bits);
+    TRACE(3, "lc3_dec_init sample Rate=%d, channel_mode = %d, bits = %d\n", sampleRate, channelNum, bits);
 
     LC3_Dec_Info*info = (LC3_Dec_Info*)a2dp_audio_heap_malloc(sizeof(LC3_Dec_Info));
     lc3_dec_info = info;
@@ -77,12 +76,12 @@ int a2dp_audio_lc3_decoder_init(uint32_t sampleRate, uint8_t channelNum, uint8_t
     lc3_pcm_frame_len = info->frame_samples*channelNum*bits/8;
 
     /* Print info */
-    AUDIOPLAYERS_TRACE(1, "Decoder size:     %i", info->instance_size);
-    AUDIOPLAYERS_TRACE(1, "Scratch size:     %i", info->scratch_size);
-    AUDIOPLAYERS_TRACE(1, "Sample rate:      %i", sampleRate);
-    AUDIOPLAYERS_TRACE(1, "Channels:         %i", channelNum);
-    AUDIOPLAYERS_TRACE(1, "Frame length:     %i", info->frame_samples);
-    AUDIOPLAYERS_TRACE(1, "PLC mode:         %i", plcMeth);
+    TRACE(1, "Decoder size:     %i", info->instance_size);
+    TRACE(1, "Scratch size:     %i", info->scratch_size);
+    TRACE(1, "Sample rate:      %i", sampleRate);
+    TRACE(1, "Channels:         %i", channelNum);
+    TRACE(1, "Frame length:     %i", info->frame_samples);
+    TRACE(1, "PLC mode:         %i", plcMeth);
 
     return 0;
 }
@@ -137,7 +136,7 @@ static int a2dp_audio_lc3_list_checker(void)
         }
     }while(node);
 
-    AUDIOPLAYERS_TRACE(3,"%s cnt:%d list:%d", __func__, cnt, a2dp_audio_list_length(list));
+    TRACE(3,"%s cnt:%d list:%d", __func__, cnt, a2dp_audio_list_length(list));
 
     return 0;
 }
@@ -157,7 +156,7 @@ static int a2dp_audio_lc3_mcu_decode_frame(uint8_t * buffer, uint32_t buffer_byt
 
     node = a2dp_audio_list_begin(list);    
     if (!node){
-        AUDIOPLAYERS_TRACE(0,"lc3_decode cache underflow");
+        TRACE(0,"lc3_decode cache underflow");
         cache_underflow = true;
         goto exit;
     }else{
@@ -168,7 +167,7 @@ static int a2dp_audio_lc3_mcu_decode_frame(uint8_t * buffer, uint32_t buffer_byt
             if (err == LC3_API_OK){
                 output_byte += lc3_pcm_frame_len;
             }else{
-                AUDIOPLAYERS_TRACE(1, "lc3 decode err %d", err);
+                TRACE(1, "lc3 decode err %d", err);
                 break;
             }            
             lstframes->sequenceNumber = lc3_decoder_frame_p->header.sequenceNumber;
@@ -209,7 +208,7 @@ int a2dp_audio_lc3_preparse_packet(btif_media_header_t * header, uint8_t *buffer
     lstframes->undecode_frames = 0;
     a2dp_audio_decoder_internal_lastframe_info_set(lstframes);
 
-    AUDIOPLAYERS_TRACE(3,"%s seq:%d timestamp:%08x", __func__, header->sequenceNumber, header->timestamp);
+    TRACE(3,"%s seq:%d timestamp:%08x", __func__, header->sequenceNumber, header->timestamp);
 
     return A2DP_DECODER_NO_ERROR;
 }
@@ -228,10 +227,10 @@ int a2dp_audio_lc3_store_packet(btif_media_header_t * header, uint8_t *buffer, u
     uint16_t frame_len = 0;
 
     frame_len = (buffer[0]) | (buffer[1] << 8);
-    //AUDIOPLAYERS_TRACE(2,"%s, frame_len:%d %d, %d", __func__, frame_len, buffer_bytes, a2dp_audio_list_length(list));
+    //TRACE(2,"%s, frame_len:%d %d, %d", __func__, frame_len, buffer_bytes, a2dp_audio_list_length(list));
     if (a2dp_audio_list_length(list) < LC3_MTU_LIMITER) {	
         a2dp_audio_lc3_decoder_frame_t *decoder_frame_p = (a2dp_audio_lc3_decoder_frame_t *)a2dp_audio_lc3_frame_malloc(frame_len);
-        //AUDIOPLAYERS_TRACE(3,"%s seq:%d len:%d", __func__, header->sequenceNumber, frame_len);
+        //TRACE(3,"%s seq:%d len:%d", __func__, header->sequenceNumber, frame_len);
         decoder_frame_p->header.sequenceNumber = header->sequenceNumber;
         decoder_frame_p->header.timestamp = header->timestamp;
         memcpy(decoder_frame_p->header.ptrData, buffer+2, frame_len);
@@ -239,7 +238,7 @@ int a2dp_audio_lc3_store_packet(btif_media_header_t * header, uint8_t *buffer, u
         a2dp_audio_list_append(list, decoder_frame_p);       
         return A2DP_DECODER_NO_ERROR;
     }else{
-        AUDIOPLAYERS_TRACE(3,"%s list full current list_len:%d buff_len:%d", __func__, a2dp_audio_list_length(list), frame_len);
+        TRACE(3,"%s list full current list_len:%d buff_len:%d", __func__, a2dp_audio_list_length(list), frame_len);
         nRet = A2DP_DECODER_MTU_LIMTER_ERROR;
     }
 
@@ -263,7 +262,7 @@ int a2dp_audio_lc3_discards_packet(uint32_t packets)
         }
         nRet = A2DP_DECODER_NO_ERROR;
     }
-    AUDIOPLAYERS_TRACE(3,"%s packets:%d nRet:%d", __func__, packets, nRet);
+    TRACE(3,"%s packets:%d nRet:%d", __func__, packets, nRet);
     return nRet;
 
 }
@@ -295,7 +294,7 @@ int a2dp_audio_lc3_info_get(void *info)
 
 int a2dp_audio_lc3_init(A2DP_AUDIO_OUTPUT_CONFIG_T *config, void *context)
 {
-    AUDIOPLAYERS_TRACE(4,"%s ch:%d freq:%d bits:%d", __func__, config->num_channels, config->sample_rate, config->bits_depth);
+    TRACE(4,"%s ch:%d freq:%d bits:%d", __func__, config->num_channels, config->sample_rate, config->bits_depth);
 
     a2dp_audio_context_p = (A2DP_AUDIO_CONTEXT_T *)context;
     A2DP_AUDIO_DECODER_LASTFRAME_INFO_T *lstframes = &a2dp_audio_lc3_lastframe_info;
@@ -346,10 +345,10 @@ int  a2dp_audio_lc3_synchronize_packet(A2DP_AUDIO_SYNCFRAME_INFO_T *sync_info, u
     node = a2dp_audio_list_begin(list);
     if (node){
         lc3_decoder_frame = (a2dp_audio_lc3_decoder_frame_t *)a2dp_audio_list_node(node);
-        AUDIOPLAYERS_TRACE(6,"%s nRet:%d SEQ:%d timestamp:%d %d/%d", __func__, nRet, lc3_decoder_frame->header.sequenceNumber, lc3_decoder_frame->header.timestamp,
+        TRACE(6,"%s nRet:%d SEQ:%d timestamp:%d %d/%d", __func__, nRet, lc3_decoder_frame->header.sequenceNumber, lc3_decoder_frame->header.timestamp,
                                                       lc3_decoder_frame->header.curSubSequenceNumber, lc3_decoder_frame->header.totalSubSequenceNumber);
     }else{
-        AUDIOPLAYERS_TRACE(1,",%s nRet:%d", __func__, nRet);
+        TRACE(1,",%s nRet:%d", __func__, nRet);
     }
 
     return nRet;
@@ -372,7 +371,7 @@ int a2dp_audio_lc3_synchronize_dest_packet_mut(uint16_t packet_mut)
         }while(a2dp_audio_list_length(list) > packet_mut);
     }
 
-    AUDIOPLAYERS_TRACE(2,"%s list:%d", __func__, a2dp_audio_list_length(list));
+    TRACE(2,"%s list:%d", __func__, a2dp_audio_list_length(list));
 
     return A2DP_DECODER_NO_ERROR;
 }
@@ -386,7 +385,7 @@ int a2dp_audio_lc3_convert_list_to_samples(uint32_t *samples)
     list_len = a2dp_audio_list_length(list);
     *samples = LC3_OUTPUT_FRAME_SAMPLES*list_len;
 
-    AUDIOPLAYERS_TRACE(3, "%s list:%d samples:%d", __func__, list_len, *samples);
+    TRACE(3, "%s list:%d samples:%d", __func__, list_len, *samples);
 
     return A2DP_DECODER_NO_ERROR;
 }

@@ -27,7 +27,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#include "fb.h"
+#include "hal_trace.h"
+#include "hal_timer.h"
+#include "lcdc_fb.h"
 /****************************************************************************
  * Included Files
  ****************************************************************************/
@@ -564,7 +566,7 @@ static void draw_rect(FAR struct fb_state_s *state,
 #define PRIu64      "llu"
 
 #define PRIuPTR     "u"
-    
+
 #define PRIx8       "x"
 #define PRIx16      "x"
 #define PRIx32      "lx"
@@ -678,7 +680,7 @@ int fb_single_rect_draw_test(uint32_t fb_fd)
    * certain color formats are supported.
    */
 
-  if (state.pinfo.bpp != 32 && state.pinfo.bpp != 16 &&
+  if (state.pinfo.bpp != 32 && state.pinfo.bpp != 24 && state.pinfo.bpp != 16 &&
       state.pinfo.bpp != 8  && state.pinfo.bpp != 1)
     {
       FB_REP("ERROR: bpp=%u not supported\n", state.pinfo.bpp);
@@ -851,7 +853,7 @@ int fb_rect_draw_test(uint32_t fb_fd)
    * certain color formats are supported.
    */
 
-  if (state.pinfo.bpp != 32 && state.pinfo.bpp != 16 &&
+  if (state.pinfo.bpp != 32 && state.pinfo.bpp != 24 && state.pinfo.bpp != 16 &&
       state.pinfo.bpp != 8  && state.pinfo.bpp != 1)
     {
       FB_REP("ERROR: bpp=%u not supported\n", state.pinfo.bpp);
@@ -1013,7 +1015,7 @@ int fb_buffer_draw_test(uint32_t fb_fd,uint8_t *buffer)
    * certain color formats are supported.
    */
 
-  if (state.pinfo.bpp != 32 && state.pinfo.bpp != 16 &&
+  if (state.pinfo.bpp != 32 && state.pinfo.bpp != 24 && state.pinfo.bpp != 16 &&
       state.pinfo.bpp != 8  && state.pinfo.bpp != 1)
     {
       FB_REP("ERROR: bpp=%u not supported\n", state.pinfo.bpp);
@@ -1047,18 +1049,24 @@ int fb_buffer_draw_test(uint32_t fb_fd,uint8_t *buffer)
   width  = state.vinfo.xres;
   height = state.vinfo.yres;
 
+#ifdef USE_GAMU_FB
+  area.x = SCREEN_OFFSET;
+  area.y = SCREEN_OFFSET;
+  area.w = SCREEN_WIDTH;
+  area.h = SCREEN_HEIGHT;
+#else
   area.x = 0;
   area.y = 0;
   area.w = width;
   area.h = height;
-  
+#endif
   FB_REP("++++++++++++++++++++++++++++===========display picture: (%3d,%3d) (%3d,%3d)\n",
          area.x, area.y, area.w, area.h);
 
   if( buffer!= NULL) {
   #if 0
       uint32_t offset_lcd = 0;
-      uint32_t offset_gpu = 0;  
+      uint32_t offset_gpu = 0;
       for(int i=0; i < 454; i++){
         memcpy((FAR uint8_t *)(state->fbmem+offset_lcd),(uint8_t *)(buffer+offset_gpu),454*4);
         offset_lcd+=(454*4);
@@ -1071,7 +1079,7 @@ int fb_buffer_draw_test(uint32_t fb_fd,uint8_t *buffer)
   #ifdef CONFIG_FB_UPDATE
   ret = fb_ioctl(state.fd, FBIO_UPDATE,
               (unsigned long)((uintptr_t)&area));
-  
+
   if (ret < 0)
     {
       int errcode = -1;

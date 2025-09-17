@@ -71,36 +71,74 @@
 #include <arch/board/board.h>
 #include <nuttx/lcd/lcd.h>
 #include <nuttx/irq.h>
+#include <nuttx/cache.h>
 #include <debug.h>
 #include <nuttx/power/pm.h>
+#if defined(CONFIG_PM)
+#include <arch/board/pm_domain.h>
+#endif
 #define TC_INIT
 #define TC_START
 #define TC_END
 #define TC_REP(s)
 #else
-#include "fb.h"
+#include "lcdc_fb.h"
 #ifdef CONFIG_PM
 #include "pm.h"
 #endif
 #endif
+#include "hal_timer.h"
 #include "lcdc.h"
 #include "hal_lcdc.h"
 #include "hal_dsi.h"
 #include "hal_psc.h"
 #include "hal_cache.h"
-#include "hal_dma2d.h"
-#include "dma2d.h"
 #include "cmsis_nvic.h"
 #include "hal_cmu.h"
 #include "hal_sysfreq.h"
+#include "hal_trace.h"
+#include "gra_sem.h"
+#include "lpcmd.h"
+#include "hal_location.h"
+#include "hal_timer.h"
+#include "hwtimer_list.h"
+#ifdef RTOS
+#include "cmsis_os.h"
+#endif
+
+#if !defined(__NuttX__)
+#include "graphic_conf.h"
+#endif
+
+#include "lcdc_drv.h"
 
 #if defined(CONFIG_FBMEM_CACHED)
 #define LCDC_DRV_WITH_CACHEOPS
 #endif
 
-#include "hal_trace.h"
-#include "local_sem.h"
-#include "lpcmd.h"
+static void fb_ratate_init(uint32_t lcd_x,uint32_t lcd_y);
+
+#if defined(CONFIG_A7_DSP_BOOT_EARLY) && defined(CONFIG_FB_STATIC_BUFFER)
+#define SUPPORT_REPLACE_FBMEM
+#endif
+
+#ifdef SUPPORT_REPLACE_FBMEM
+#define ROTATE_USE_CPU(fbmem)   (fbmem != (void *)0x50000000)
+#else
+#ifdef CONFIG_ROTATE_CPU
+#define ROTATE_USE_CPU(fbmem)   (true)
+#else
+#define ROTATE_USE_CPU(fbmem)   (false)
+#endif
+#endif
+
+#if defined(CONFIG_ROTATE_CPU) && !defined(CONFIG_FB_DOUBLE_BUFFER)
+#define ROTATE_DIRECT
+#endif
+
+#if defined(ROTATE_DIRECT) && defined(CONFIG_DSI_VIDEO_MODE)
+#undef CONFIG_LCDC_TE_IRQ_ENABLE
+#endif
 
 #if defined(CONFIG_VIDEO_FB)
 #if !(defined(CONFIG_LCDC_L1) || defined(CONFIG_LCDC_L2))
@@ -112,16 +150,15 @@
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(a[0]))
 #endif
 
-#if defined(CONFIG_LCDC_TE_IRQ_ENABLE) && defined(CHIP_BEST2003) && !defined(CHIP_BEST2003_DSP)
-#define CONFIG_DSI_UNIFIED_IRQ
+#if defined(CHIP_BEST2003_DSP)
+#undef SIMU
 #endif
 
-#if defined(CONFIG_LCDC_TE_IRQ_ENABLE) && (defined(CONFIG_DSI_SLEEP) || defined(CONFIG_LCDC_SLEEP))
-#define CONFIG_DSI_GPIO_TE_IRQ
+#if defined(SIMU) || defined(CONFIG_LCDC_TE_IRQ_ENABLE) && (defined(CONFIG_DSI_VIDEO_MODE) || defined(CONFIG_DSI_SLEEP) || defined(CONFIG_LCDC_SLEEP))
+#define CONFIG_GPIO_TE_IRQ
+#if defined(CONFIG_LCDC_SLEEP)
+#define CONFIG_TRIGGER_FRAME_BY_SW
 #endif
-
-#if defined(CONFIG_DSI_GPIO_TE_IRQ)
-#undef CONFIG_DSI_UNIFIED_IRQ
 #endif
 
 /**
@@ -131,11 +168,6 @@
 #define LCDC_HEIGHT                 BOARD_LCDC_HEIGHT
 #define LCDC_WIDTH                  BOARD_LCDC_WIDTH
 
-#define CONFIG_DMA2D_LAYER_PPLINE   BOARD_LCDC_WIDTH
-
-#define CONFIG_DMA2D_FB_SIZE        (LCDC_HEIGHT*LCDC_WIDTH*4*2)
-
-//#define CONFIG_DMA2D_L8
 #define CONFIG_LCDC_DITHER_RED     BOARD_LCDC_GCR_DRW
 
 #define CONFIG_LCDC_DITHER_GREEN   BOARD_LCDC_GCR_DGW
@@ -164,12 +196,15 @@
 
 #define LCDC_BPCR_AHBP        (LCDC_LxWHPCR_WHSTPOS)
 
-#define LCDC_TWCR_TOTALH      (BOARD_LCDC_VSYNC + \
+#define LCDC_TWCR_PROC_TOTALH      (BOARD_LCDC_VSYNC + \
                                     BOARD_LCDC_VBP + \
-                                    LCDC_HEIGHT + BOARD_LCDC_VFP - 1)
-#define LCDC_TWCR_TOTALW      (BOARD_LCDC_HSYNC + \
+                                    BOARD_LCDC_VFP - 1)
+#define LCDC_TWCR_PROC_TOTALW      (BOARD_LCDC_HSYNC + \
                                     BOARD_LCDC_HBP + \
-                                    LCDC_WIDTH + BOARD_LCDC_HFP - 1)
+                                    BOARD_LCDC_HFP - 1)
+
+#define LCDC_TWCR_TOTALH      (LCDC_TWCR_PROC_TOTALH + LCDC_HEIGHT)
+#define LCDC_TWCR_TOTALW      (LCDC_TWCR_PROC_TOTALW + LCDC_WIDTH)
 
 /* Synchronisation and Polarity */
 
@@ -205,28 +240,23 @@
 #define LCDC_L1_BPP         8
 #define LCDC_L1_COLOR_FMT   FB_FMT_RGB8
 #define LCDC_L1PFCR_PF      LCDC_L1_COLOR_FMT
-#define LCDC_L1_DMA2D_PF    FB_FMT_RGB8
 #define LCDC_L1CMAP
 #elif defined(CONFIG_LCDC_L1_RGB565)
 #define LCDC_L1_BPP         16
 #define LCDC_L1_COLOR_FMT   FB_FMT_RGB16_565
 #define LCDC_L1PFCR_PF      FB_FMT_RGB16_565
-#define LCDC_L1_DMA2D_PF    FB_FMT_RGB16_565
 #elif defined(CONFIG_LCDC_L1_RGB888)
 #define LCDC_L1_BPP         24
 #define LCDC_L1_COLOR_FMT   FB_FMT_RGB24
 #define LCDC_L1PFCR_PF      LCDC_L1_COLOR_FMT
-#define LCDC_L1_DMA2D_PF    FB_FMT_RGB24
 #elif defined(CONFIG_LCDC_L1_ARGB8888)
 #define LCDC_L1_BPP         32
 #define LCDC_L1_COLOR_FMT   FB_FMT_RGB32
 #define LCDC_L1PFCR_PF      LCDC_L1_COLOR_FMT
-#define LCDC_L1_DMA2D_PF    FB_FMT_RGB32
 #elif defined(CONFIG_LCDC_L1_YUV422)
 #define LCDC_L1_BPP         16
 #define LCDC_L1_COLOR_FMT   FB_FMT_YUVP
 #define LCDC_L1PFCR_PF      LCDC_L1_COLOR_FMT
-#define LCDC_L1_DMA2D_PF    FB_FMT_YUVP
 #else
 #error "LCDC pixel format not supported"
 #endif
@@ -238,41 +268,23 @@
 #define LCDC_L2_BPP         8
 #define LCDC_L2_COLOR_FMT   FB_FMT_RGB8
 #define LCDC_L2PFCR_PF      LCDC_L2_COLOR_FMT
-#define LCDC_L2_DMA2D_PF    FB_FMT_RGB8
 #define LCDC_L2CMAP
 #elif defined(CONFIG_LCDC_L2_RGB565)
 #define LCDC_L2_BPP         16
 #define LCDC_L2_COLOR_FMT   FB_FMT_RGB16_565
 #define LCDC_L2PFCR_PF      LCDC_L2_COLOR_FMT
-#define LCDC_L2_DMA2D_PF    FB_FMT_RGB16_565
 #elif defined(CONFIG_LCDC_L2_RGB888)
 #define LCDC_L2_BPP         24
 #define LCDC_L2_COLOR_FMT   FB_FMT_RGB24
 #define LCDC_L2PFCR_PF      LCDC_L2_COLOR_FMT
-#define LCDC_L2_DMA2D_PF    FB_FMT_RGB24
 #elif defined(CONFIG_LCDC_L2_ARGB8888)
 #define LCDC_L2_BPP         32
 #define LCDC_L2_COLOR_FMT   FB_FMT_RGB32
 #define LCDC_L2PFCR_PF      LCDC_L2_COLOR_FMT
-#define LCDC_L2_DMA2D_PF    FB_FMT_RGB32
 #else
 #error "LCDC pixel format not supported"
 #endif
 #endif /* CONFIG_LCDC_L2 */
-
-/*Write Back /Output Layer format*/
-
-#if defined(CONFIG_LCDC_WB_TEST)
-#if defined(CONFIG_LCDC_LO_RGB888)
-#define  LCDC_LOPFCR_PF  FB_FMT_RGB32
-#define  LCDC_LO_STRIDE  ((LCDC_WIDTH * 32 + 7) / 8)
-#define  LCDC_LO_FBSIZE  (LCDC_LO_STRIDE * LCDC_HEIGHT)
-#elif defined(CONFIG_LCDC_LO_RGB565)
-#define  LCDC_LO_STRIDE  ((LCDC_WIDTH * 16 + 7) / 8)
-#define  LCDC_LO_FBSIZE  (LCDC_LO_STRIDE * LCDC_HEIGHT)
-#define  LCDC_LOPFCR_PF  FB_FMT_RGB16_565
-#endif
-#endif
 
 /* Framebuffer sizes in bytes */
 
@@ -288,6 +300,9 @@
 #error Undefined or unrecognized base resolution
 #endif
 
+#ifndef CONFIG_LCDC_FB_BPP
+#define CONFIG_LCDC_FB_BPP LCDC_L1_BPP
+#endif
 /* LCDC only supports 8 bit per pixel overal */
 
 #define LCDC_Lx_BYPP(n)       ((n) / 8)
@@ -344,11 +359,28 @@
 #else
 #define LCDC_TOTAL_FBSIZE     (LCDC_L1_FBSIZE)
 #endif
+
 /* Debug option */
 //#define GRAPHIC_DRV_DEBUG
+//#define GRAPHIC_DRV_VERBOSE
 
+#ifdef  GRAPHIC_DRV_VERBOSE
+#ifndef GRAPHIC_DRV_DEBUG
+#define GRAPHIC_DRV_DEBUG
+#endif
+#define LCDC_INFO(...)  TR_INFO( TR_MOD(TEST), "//"  __VA_ARGS__)
+#define LCDC_REGINFO(...)  TR_INFO( TR_MOD(TEST), __VA_ARGS__)
+#else
+#define LCDC_INFO(...)
+#define LCDC_REGINFO(...)
+#endif
 
+#ifdef  GRAPHIC_DRV_DEBUG
 #define LCDC_REP(...)  TR_INFO( TR_MOD(TEST), "//" __VA_ARGS__)
+#else
+#define LCDC_REP(...)
+#endif
+
 #define LCDC_ERR(...)   TR_ERROR( TR_MOD(TEST), "//" __VA_ARGS__)
 
 /* Preallocated LCDC framebuffers */
@@ -387,55 +419,7 @@
 #define LCDC_NLAYERS 1
 #endif
 
-/* DMA2D layer */
-
-#if defined(CONFIG_DMA2D) && (CONFIG_DMA2D_NLAYERS > 0)
-#define LCDC_DMA2D_NLAYERS             CONFIG_DMA2D_NLAYERS
-#if LCDC_DMA2D_NLAYERS < 1
-#error "DMA2D must at least support 1 overlay"
-#endif
-
-#define DMA2D_WIDTH           CONFIG_DMA2D_LAYER_PPLINE
-
-#if defined(CONFIG_DMA2D_L8)
-#define DMA2D_STRIDE      (DMA2D_WIDTH)
-#define DMA2D_BPP         8
-#define DMA2D_COLOR_FMT   FB_FMT_RGB8
-#elif defined(CONFIG_DMA2D_RGB565)
-#define DMA2D_STRIDE      ((DMA2D_WIDTH * 16 + 7) / 8)
-#define DMA2D_BPP         16
-#define DMA2D_COLOR_FMT   FB_FMT_RGB16_565
-#elif defined(CONFIG_DMA2D_RGB888)
-#define DMA2D_STRIDE      ((DMA2D_WIDTH * 24 + 7) / 8)
-#define DMA2D_BPP         24
-#define DMA2D_COLOR_FMT   FB_FMT_RGB24
-#elif defined(CONFIG_DMA2D_ARGB8888)
-#define DMA2D_STRIDE      ((DMA2D_WIDTH * 32 + 7) / 8)
-#define DMA2D_BPP         32
-#define DMA2D_COLOR_FMT   FB_FMT_RGB32
-#else
-#error "DMA2D pixel format not supported"
-#endif
-
-#ifdef CONFIG_DMA2D_LAYER_SHARED
-#define DMA2D_FBSIZE      CONFIG_DMA2D_FB_SIZE
-#define DMA2D_LAYER_SIZE  0
-#else
-#define DMA2D_FBSIZE      CONFIG_DMA2D_FB_SIZE / LCDC_DMA2D_NLAYERS
-#define DMA2D_LAYER_SIZE  DMA2D_FBSIZE
-#if DMA2D_FBSIZE * LCDC_DMA2D_NLAYERS > CONFIG_DMA2D_FB_SIZE
-#error "DMA2D framebuffer size to small for configured number of overlays"
-#endif
-#endif /* CONFIG_DMA2D_LAYER_SHARED */
-
-#define DMA2D_HEIGHT         DMA2D_FBSIZE / DMA2D_STRIDE
-
-#define DMA2D_BUFFER_START   CONFIG_DMA2D_FB_BASE
-#else
-#define LCDC_DMA2D_NLAYERS              0
-#endif /* CONFIG_DMA2D */
-
-#define LCDC_NOVERLAYS              LCDC_NLAYERS + LCDC_DMA2D_NLAYERS
+#define LCDC_NOVERLAYS              LCDC_NLAYERS
 
 /* Dithering */
 
@@ -485,41 +469,9 @@
 #endif
 #endif
 
-/* Check pixel format support by DMA2D driver */
-
-#ifdef CONFIG_DMA2D
-#if defined(CONFIG_LCDC_L1_L8) || \
-      defined(CONFIG_LCDC_L2_L8)
-#if !defined(CONFIG_DMA2D_L8)
-#error "DMA2D must support FB_FMT_RGB8 pixel format"
-#endif
-#endif
-#if defined(CONFIG_LCDC_L1_RGB565) || \
-      defined(CONFIG_LCDC_L2_RGB565)
-#if !defined(CONFIG_DMA2D_RGB565)
-#error "DMA2D must support FB_FMT_RGB16_565 pixel format"
-#endif
-#endif
-#if defined(CONFIG_LCDC_L1_RGB888) || \
-      defined(CONFIG_LCDC_L2_RGB888)
-#if !defined(CONFIG_DMA2D_RGB888)
-#error "DMA2D must support FB_FMT_RGB24 pixel format"
-#endif
-#endif
-#if defined(CONFIG_LCDC_L1_ARGB8888) || \
-      defined(CONFIG_LCDC_L2_ARGB8888)
-#if !defined(CONFIG_DMA2D_ARGB8888)
-#error "DMA2D must support FB_FMT_RGB32 pixel format"
-#endif
-#endif
-#endif
-
 /* Calculate the size of the layers clut table */
 
 #ifdef CONFIG_FB_CMAP
-#if defined(CONFIG_DMA2D) && !defined(CONFIG_DMA2D_L8)
-#error "DMA2D must also support L8 CLUT pixel format if supported by LCDC"
-#endif
 #ifdef LCDC_L1CMAP
 #ifdef CONFIG_FB_TRANSPARENCY
 #define LAYER_CLUT_SIZE LCDC_NCLUT * sizeof(uint32_t)
@@ -585,22 +537,12 @@
 #define LCDC_LCDC_ACCL_L2         FB_ACCL_TRANSP
 #endif
 
-#define LCDC_BLIT_ACCL          0
+#define LCDC_BLIT_ACCL            0
 
-#define LCDC_DMA2D_ACCL           0
-
-#define LCDC_L1_ACCL                LCDC_LCDC_ACCL_L1 | LCDC_DMA2D_ACCL
+#define LCDC_L1_ACCL              LCDC_LCDC_ACCL_L1
 #ifdef CONFIG_LCDC_L2
-#define LCDC_L2_ACCL              LCDC_LCDC_ACCL_L2 | LCDC_DMA2D_ACCL
+#define LCDC_L2_ACCL              LCDC_LCDC_ACCL_L2
 #endif
-
-/* Acceleration support for DMA2D overlays */
-
-#define DMA2D_ACCL              FB_ACCL_AREA  | \
-                                    FB_ACCL_TRANSP | \
-                                    FB_ACCL_COLOR | \
-                                    FB_ACCL_BLIT | \
-                                    FB_ACCL_BLEND
 
 /* Color normalization */
 
@@ -613,10 +555,6 @@
                                       RGB888_B(x))
 #else
 #define ARGB8888(x)               (x)
-#endif
-
-#ifdef CONFIG_PM
-#define NPMCALL   2
 #endif
 
 /****************************************************************************
@@ -640,7 +578,6 @@ enum layer_e {
  * struct lcdc_s  - LCDC General layer information
  * @layerno        :  layer number
  * @oinfo          :  Overlay info
- * @dma2dinfo      :  Overlay info for DMA2D
  */
 
 struct lcdc_s {
@@ -650,19 +587,37 @@ struct lcdc_s {
     struct fb_overlayinfo_s oinfo;
 #endif
 
-#ifdef CONFIG_DMA2D
-    struct dma2d_overlay_s dma2dinfo;
-#endif
 /**
  * @lock  : Ensure mutually exclusive access
  */
     sem_t *lock;
 };
 
-struct paninfo_s {
-    sem_t sem_sync;;
+enum dispbuf_states_s {
+    BUF_NONE,
+    BUF_INIT,
+    BUF_ROTATE,
+    BUF_READY,
+    BUF_COMMIT,
+};
+
+struct paninfo_buf_s {
+    void *addr;
     uint32_t yoffset;
-    uint8_t volatile* panaddr;
+    uint32_t current_frame;
+    enum dispbuf_states_s state;
+#ifdef ROTATE_DIRECT
+    uint8_t rotate_id;
+#endif
+};
+
+struct paninfo_s {
+    volatile struct paninfo_buf_s queue[2];
+    volatile int cnt;
+    volatile int frame_num;
+#ifdef ROTATE_DIRECT
+    volatile uint8_t pre_rotate_id;
+#endif
 };
 
 /**
@@ -674,7 +629,6 @@ struct paninfo_s {
  * @cadjmap    :   Color adjust map information
  * @cdithermap :   Color dither map information
  * @layer[]    :   Layers information
- * @dma2d      :   DMA2D Driver interface
  *
  */
 
@@ -692,19 +646,18 @@ struct lcdcdev_s {
     struct fb_cdithermap_s cdithermap;
 #endif
     struct lcdc_s layer[LCDC_NOVERLAYS + 1];
-#ifdef CONFIG_DMA2D
-    FAR struct dma2d_layer_s *dma2d;
-#endif
 
-#if defined(CONFIG_FB_PANDISPLAY)
     struct paninfo_s panfo;
-#endif
+
+    int refresh_oneself;
 
     FAR struct lcd_dev_s *lcddev;
 #ifdef CONFIG_PM
-    sem_t pmlock;
-    enum pm_state_e sys_pmstate;
-    FAR struct pm_callback_s *pmcb[NPMCALL];
+    enum pm_state_e panel_state;
+    enum pm_state_e cpu_state;
+    int ref_cnt;
+    int ref_cnt_cmd;
+    bool sleep;
 #endif
 };
 
@@ -731,42 +684,42 @@ struct teinterrupt_s {
 };
 #endif
 
+#if defined(CONFIG_FB_DRV_ROTATE)
+static void fb_rotate_trigger(struct lcdcdev_s *priv);
+static uint8_t get_rotate_buf();
+static void free_rotate_buf(uint8_t i);
+
+#ifndef CONFIG_FBDST_BUFFER_SECTION
+#define CONFIG_FBDST_BUFFER_SECTION ".framebuffer"
+#endif
+
+#define FB_DST_LOC __attribute__((section(CONFIG_FBDST_BUFFER_SECTION)))
+
+#if defined(ROTATE_DIRECT)
+#define ROTATE_BUF_COUNT    2
+FB_PIX_TYPE dst_fb_buf[ROTATE_BUF_COUNT][LCDC_WIDTH*LCDC_HEIGHT] FB_DST_LOC;
+#else
+FB_PIX_TYPE dst_fb_buf[LCDC_WIDTH*LCDC_HEIGHT] FB_DST_LOC;
+#endif
+//uint32_t *dst_fb_buf = (uint32_t *)0x20089000;
+#endif
+
+static struct lcdc_config_t *lcdc_config = NULL;
+
 /**
  * Private Function Prototypes
  */
-static uint8_t lcdc_cache_sync(enum HAL_CACHE_ID_T id, uint32_t start_address, uint32_t len);
-static uint8_t lcdc_cache_invalidate(enum HAL_CACHE_ID_T id, uint32_t start_address, uint32_t len);
-
-static void lcdc_periphconfig(void);
-static void lcdc_bgcolor(uint32_t rgb);
-static void lcdc_dither(bool enable, uint8_t level, uint8_t red,
-            uint8_t green, uint8_t blue);
-static int lcd_irq(int irq, void *context, FAR void *arg);
 static int lcdc_waitforirq(void);
 
-static void lcdc_lpixelformat(FAR struct lcdc_s *layer);
-static void lcdc_lframebuffer(FAR struct lcdc_s *layer);
-static void lcdc_lenable(FAR struct lcdc_s *layer, bool enable);
-static void lcdc_ldefaultcolor(FAR struct lcdc_s *layer, uint32_t rgb);
 static void lcdc_ltransp(FAR struct lcdc_s *layer, uint8_t transp,
              uint32_t mode);
 
 #ifdef CONFIG_LCDC_CHROMAKEY
-static void lcdc_lchromakey(FAR struct lcdc_s *layer,
+static void lcdc_lchromakey_enable(FAR struct lcdc_s *layer,
                 uint32_t chroma, uint32_t rchroma);
-static void lcdc_lchromakeyenable(FAR struct lcdc_s *layer, bool enable);
 #endif
 
 static void lcdc_linit(uint8_t lid);
-
-#ifdef CONFIG_DMA2D
-static void lcdc_dma2dlinit(void);
-
-#ifdef CONFIG_FB_OVERLAY_BLIT
-static bool lcdc_lvalidate(FAR const struct lcdc_s *layer,
-               FAR const struct fb_area_s *area);
-#endif
-#endif
 
 #ifdef CONFIG_FB_CMAP
 static void lcdc_lputclut(FAR struct lcdc_s *layer,
@@ -783,16 +736,13 @@ static void lcdc_lgetcadjcurves(FAR struct lcdc_s *layer,
 static void lcdc_lcadjcurves_enable(FAR struct lcdc_s *layer, bool enable);
 #endif
 
-static void lcdc_lclear(uint8_t overlayno);
 
 static int getvideoinfo(FAR struct fb_vtable_s *vtable,
             FAR struct fb_videoinfo_s *vinfo);
 static int getplaneinfo(FAR struct fb_vtable_s *vtable,
             int planeno, FAR struct fb_planeinfo_s *pinfo);
-#ifdef CONFIG_PM
 static int setpower(FAR struct fb_vtable_s *vtable, int power);
 static int getpower(FAR struct fb_vtable_s *vtable);
-#endif
 #ifdef CONFIG_FB_CMAP
 static int getcmap(FAR struct fb_vtable_s *vtable, FAR struct fb_cmap_s *cmap);
 static int putcmap(FAR struct fb_vtable_s *vtable,
@@ -855,24 +805,9 @@ static int settransp(FAR struct fb_vtable_s *vtable,
 static int setchromakey(FAR struct fb_vtable_s *vtable,
             FAR const struct fb_overlayinfo_s *oinfo);
 #endif
-static int setcolor(FAR struct fb_vtable_s *vtable,
-            FAR const struct fb_overlayinfo_s *oinfo);
 static int setblank(FAR struct fb_vtable_s *vtable,
             FAR const struct fb_overlayinfo_s *oinfo);
-static int setarea(FAR struct fb_vtable_s *vtable,
-           FAR const struct fb_overlayinfo_s *oinfo);
 
-/**
- * The following is provided only if the video hardware supports blit and blend
- * operation
- */
-
-#ifdef CONFIG_FB_OVERLAY_BLIT
-static int blit(FAR struct fb_vtable_s *vtable,
-        FAR const struct fb_overlayblit_s *blit);
-static int blend(FAR struct fb_vtable_s *vtable,
-         FAR const struct fb_overlayblend_s *blend);
-#endif /* CONFIG_FB_OVERLAY_BLIT */
 #endif /* CONFIG_FB_OVERLAY */
 
 /**
@@ -912,7 +847,7 @@ static sem_t g_semirq;
 
 /* The semaphore for te interrupt handling */
 
-static sem_t g_semirq_te;
+POSSIBLY_UNUSED static sem_t g_semirq_te;
 
 /* This structure provides irq handling */
 
@@ -942,11 +877,9 @@ static struct lcdcdev_s g_vtable = {
     .vtable = {
            .getvideoinfo = getvideoinfo,
            .getplaneinfo = getplaneinfo
-#ifdef CONFIG_PM
             ,
            .setpower = setpower,
            .getpower = getpower
-#endif
 #ifdef CONFIG_FB_SYNC
            ,
            .waitforvsync = waitforvsync
@@ -985,14 +918,7 @@ static struct lcdcdev_s g_vtable = {
 #ifdef CONFIG_LCDC_CHROMAKEY
            .setchromakey = setchromakey,
 #endif
-           .setcolor = setcolor,
            .setblank = setblank,
-           .setarea = setarea
-#ifdef CONFIG_FB_OVERLAY_BLIT
-           ,
-           .blit = blit,
-           .blend = blend
-#endif
 #endif /* CONFIG_FB_OVERLAY */
            },
 #ifdef CONFIG_LCDC_L2
@@ -1094,16 +1020,6 @@ static struct lcdcdev_s g_vtable = {
                        .accl = LCDC_L1_ACCL},
 #endif
 
-#ifdef CONFIG_DMA2D
-                 .dma2dinfo = {
-                           .fmt = LCDC_L1_DMA2D_PF,
-                           .transp_mode = FB_CONST_ALPHA,
-                           .xres = LCDC_WIDTH,
-                           .yres = LCDC_HEIGHT,
-                           .oinfo =
-                           &g_vtable.layer[LCDC_LAYER_L1].
-                           oinfo},
-#endif
                  .lock = &g_lock}
 #ifdef CONFIG_LCDC_L2
     ,
@@ -1131,99 +1047,24 @@ static struct lcdcdev_s g_vtable = {
                        .accl = LCDC_L2_ACCL},
 #endif
 
-#ifdef CONFIG_DMA2D
-                 .dma2dinfo = {
-                           .fmt = LCDC_L2_DMA2D_PF,
-                           .transp_mode = FB_CONST_ALPHA,
-                           .xres = LCDC_WIDTH,
-                           .yres = LCDC_HEIGHT,
-                           .oinfo =
-                           &g_vtable.layer[LCDC_LAYER_L2].
-                           oinfo},
-#endif
                  .lock = &g_lock}
-#endif
-#ifdef CONFIG_LCDC_LWB
-    ,
-    .layer[LCDC_LAYER_O] = {
-                .layerno = LCDC_LAYER_O,
-#ifdef CONFIG_FB_OVERLAY
-                .oinfo = {
-                      .overlay = LCDC_LAYER_O,
-                      .fbmem =
-                      (uint8_t *) CONFIG_LCDC_FBWB_BASE,
-                      .fblen = LCDC_LO_FBSIZE,
-                      .stride = LCDC_LO_STRIDE,
-                      .bpp = CONFIG_LCDC_FBWB_BPP,
-                      .blank = 0,
-                      .chromakey = 0,
-                      .color = 0,
-                      .transp = {
-                             .transp = 0,
-                             .transp_mode =
-                             FB_CONST_ALPHA},
-                      .sarea = {
-                            .x = 0,
-                            .y = 0,
-                            .w = LCDC_WIDTH,
-                            .h = LCDC_HEIGHT},
-                      .accl = LCDC_L2_ACCL},
-#endif
-
-#ifdef CONFIG_DMA2D
-                .dma2dinfo = {
-                          .fmt = LCDC_LOPFCR_PF,
-                          .transp_mode = FB_CONST_ALPHA,
-                          .xres = LCDC_WIDTH,
-                          .yres = LCDC_HEIGHT,
-                          .oinfo =
-                          &g_vtable.layer[LCDC_LAYER_O].
-                          oinfo},
-#endif
-                .lock = &g_lock}
-#endif
-#if defined(CONFIG_FB_PANDISPLAY)
-    ,
-    .panfo = {
-        .yoffset = 0,
-        .panaddr = NULL,
-    },
-#endif
-};
-
-/* LCDC width */
-
-static const uint32_t width_layer_t[LCDC_NLAYERS] = {
-    LCDC_WIDTH
-#ifdef CONFIG_LCDC_L2
-        , LCDC_WIDTH
-#endif
-};
-
-/* LCDC height */
-
-static const uint32_t height_layer_t[LCDC_NLAYERS] = {
-    LCDC_HEIGHT
-#ifdef CONFIG_LCDC_L2
-        , LCDC_HEIGHT
 #endif
 };
 
 /* LCDC stride */
-
 static const uint32_t stride_layer_t[LCDC_NLAYERS] = {
-    LCDC_L1_STRIDE
+    LCDC_L1_STRIDE,
 #ifdef CONFIG_LCDC_L2
-        , LCDC_L2_STRIDE
+    LCDC_L2_STRIDE,
 #endif
 };
 
 /* LCDC framebuffer len */
-
+POSSIBLY_UNUSED
 static const uint32_t fblen_layer_t[LCDC_NLAYERS] = {
-    LCDC_L1_FBSIZE
+    LCDC_L1_FBSIZE,
 #ifdef CONFIG_LCDC_L2
-        , LCDC_L2_FBSIZE
+    LCDC_L2_FBSIZE,
 #endif
 };
 
@@ -1237,32 +1078,23 @@ static uint32_t fbmem_layer_t[LCDC_NLAYERS + 1] = {
     0,
 };
 
-/* LCDC default color lookup table */
-
-static const uint32_t defaultcolor_layer_t[LCDC_NLAYERS] = {
-    LCDC_L1_COLOR
-#ifdef CONFIG_LCDC_L2
-        , LCDC_L2_COLOR
-#endif
-};
-
 #ifdef CONFIG_LCDC_CHROMAKEY
 
 /* LCDC default chromakey */
 
 static const uint32_t chromakey_layer_t[LCDC_NLAYERS] = {
-    LCDC_L1_CHROMAKEY
+    LCDC_L1_CHROMAKEY,
 #ifdef CONFIG_LCDC_L2
-        , LCDC_L2_CHROMAKEY
+    LCDC_L2_CHROMAKEY,
 #endif
 };
 
 /* LCDC chromakey enabled state */
 
 static const bool chromakeyen_layer_t[LCDC_NLAYERS] = {
-    LCDC_L1_CHROMAEN
+    LCDC_L1_CHROMAEN,
 #ifdef CONFIG_LCDC_L2
-        , LCDC_L2_CHROMAEN
+    LCDC_L2_CHROMAEN,
 #endif
 };
 
@@ -1271,12 +1103,9 @@ static const bool chromakeyen_layer_t[LCDC_NLAYERS] = {
 /* LCDC pixel format lookup table */
 
 static const uint32_t fmt_layer_t[LCDC_NLAYERS + 1] = {
-    LCDC_L1PFCR_PF
+    LCDC_L1PFCR_PF,
 #ifdef CONFIG_LCDC_L2
-        , LCDC_L2PFCR_PF
-#endif
-#ifdef CONFIG_LCDC_WB_TEST
-    , LCDC_LOPFCR_PF
+    LCDC_L2PFCR_PF,
 #endif
 };
 
@@ -1292,22 +1121,35 @@ static bool g_initialized;
 #ifndef __unused
 #define __unused __attribute__((unused))
 #endif
-__unused static bool in_work_stat = false;
+
+#ifndef __NuttX__
+#define pm_register(cb)   (0)
+#define lcdc_pmcb_register(cb)              (0)
+#else
+extern int lcdc_pmcb_register(struct pm_callback_s *cb);
+#endif
 
 static void pm_notify(struct pm_callback_s *cb, int domain,
                    enum pm_state_e pmstate);
 static int pm_prepare(struct pm_callback_s *cb, int domain,
                    enum pm_state_e pmstate);
 
-static struct pm_callback_s module_pmcb = {
+static void pm_panel_notify(struct pm_callback_s *cb, int domain,
+                   enum pm_state_e pmstate);
+static int pm_panel_prepare(struct pm_callback_s *cb, int domain,
+                   enum pm_state_e pmstate);
+
+static struct pm_callback_s pm_lcdc = {
     .notify = pm_notify,
     .prepare = pm_prepare,
 };
 
-__unused static bool allow_lower_pwr(void)
-{
-    return (in_work_stat) ? false : true;
-}
+static struct pm_callback_s panel_pmcb = {
+    .notify = pm_panel_notify,
+    .prepare = pm_panel_prepare,
+};
+
+
 
 /**
  * pm_notify -  Notify the driver of new power state.
@@ -1324,28 +1166,35 @@ __unused static bool allow_lower_pwr(void)
 static void pm_notify(struct pm_callback_s *cb, int domain,
               enum pm_state_e pmstate)
 {
-    int i;
 
-    if (PM_NORMAL == pmstate) {
-        for (i = ARRAY_SIZE(g_vtable.pmcb) - 1; i >= 0; i--) {
-            if (g_vtable.pmcb[i] != NULL) {
-                DRIVERS_TRACE(0,"%s, call pm notify function %p\n", __func__,
-                          g_vtable.pmcb[i]->notify);
-                g_vtable.pmcb[i]->notify(g_vtable.pmcb[i], domain, pmstate);
-            }
-        }
-    }
-    else {
-        for (i = 0; i < ARRAY_SIZE(g_vtable.pmcb); i++) {
-            if (g_vtable.pmcb[i] != NULL) {
-                DRIVERS_TRACE(0,"%s, call pm notify function %p\n", __func__,
-                          g_vtable.pmcb[i]->notify);
-                g_vtable.pmcb[i]->notify(g_vtable.pmcb[i], domain, pmstate);
-            }
-        }
+    FAR struct lcdcdev_s *priv = &g_vtable;
+
+    if (domain != PM_DOMAIN_CPU) {
+        return;
     }
 
-    g_vtable.sys_pmstate = pmstate;
+    if (priv->cpu_state == pmstate) {
+        return;
+    }
+
+    /* support for aod mode */
+    if (pmstate > priv->cpu_state && priv->panel_state == PM_IDLE) {
+      switch (pmstate) {
+      case PM_IDLE:
+      case PM_STANDBY:
+      case PM_SLEEP:
+          if (g_vtable.ref_cnt > 0 || g_vtable.ref_cnt_cmd > 0) {
+              break;
+          }
+
+          lcd_sleep_disp_domain();
+          break;
+      default:
+          break;
+      }
+    }
+
+    priv->cpu_state = pmstate;
 }
 
 /**
@@ -1377,44 +1226,20 @@ static void pm_notify(struct pm_callback_s *cb, int domain,
 static int pm_prepare(struct pm_callback_s *cb, int domain,
               enum pm_state_e pmstate)
 {
-    /* Logic to prepare for a reduced power state goes here. */
-    int i;
-    int ret = OK;
-
-    if (PM_STANDBY == g_vtable.sys_pmstate && PM_NORMAL == pmstate) {
-        for (i = ARRAY_SIZE(g_vtable.pmcb) - 1; i >= 0; i--) {
-            if (g_vtable.pmcb[i] != NULL) {
-                DRIVERS_TRACE(0,"%s, call pm prepare function %p\n", __func__,
-                      g_vtable.pmcb[i]->prepare);
-                ret |= g_vtable.pmcb[i]->prepare(g_vtable.pmcb[i], domain, pmstate);
-            }
-        }
-    }
-    else {
-        for (i = 0; i < ARRAY_SIZE(g_vtable.pmcb); i++) {
-            if (g_vtable.pmcb[i] != NULL) {
-                DRIVERS_TRACE(0,"%s, call pm prepare function %p\n", __func__,
-                      g_vtable.pmcb[i]->prepare);
-                ret |= g_vtable.pmcb[i]->prepare(g_vtable.pmcb[i], domain, pmstate);
-            }
-        }
+    if (domain != PM_DOMAIN_CPU) {
+      return OK;
     }
 
-    return ret;
-    // if (pmstate > sys_pmstate) {
-    //     if (allow_lower_pwr()) {
-    //         return OK;
-    //     } else {
-    //         return -1;
-    //     }
-    // } else {
-    //     return OK;
-    // }
+    if (pmstate > g_vtable.cpu_state && (pmstate > PM_NORMAL)) {
+        if (g_vtable.ref_cnt > 0 || g_vtable.ref_cnt_cmd > 0) {
+            return -EINVAL;
+        } else {
+            return OK;
+        }
+    } else {
+        return OK;
+    }
 }
-
-#ifndef __NuttX__
-#define pm_register(cb)              (0)
-#endif
 
 __unused static void module_pm_activity(void)
 {
@@ -1422,105 +1247,59 @@ __unused static void module_pm_activity(void)
     //pm_activity(RPMSG_IO_PDOMAIN , RPMSG_IO_ACTIVITY_PRIORITY);
 }
 
-/**
- * @brief lcdc_pmcb_init - init lcdc pm callbacks.
- *
- */
-static void lcdc_pmcb_init(void)
+static void pm_panel_notify(struct pm_callback_s *cb, int domain,
+                   enum pm_state_e pmstate)
 {
-    static bool volatile has_init = false;
+    FAR struct lcdcdev_s *priv = &g_vtable;
 
-    if (false == has_init) {
-        lcdc_sem_init(&g_vtable.pmlock, 0, 1);
-        g_vtable.sys_pmstate = PM_NORMAL;
+    /* save panel state */
+    g_vtable.panel_state = pmstate;
 
-        for (int i = 0; i < ARRAY_SIZE(g_vtable.pmcb); i++) {
-            g_vtable.pmcb[i] = NULL;
-        }
+    switch(pmstate) {
+    case PM_NORMAL:
+        pmu_dsi_aod_mode_enable(true);
+        break;
+    case PM_IDLE:
+        pmu_dsi_aod_mode_enable(false);
+        break;
+    case PM_STANDBY:
+    case PM_SLEEP:
+        /* clear cmds buffers, if panel enter standby mode */
+        lpcmds_clear_buffer();
 
-        has_init = true;
+        priv->ref_cnt_cmd = 0;
+        priv->ref_cnt = 0;
+        pmu_dsi_aod_mode_enable(false);
+        break;
+    default:
+        break;
     }
 }
 
-/**
- * @brief lcdc_pmcb_early_register - register pm callbacks by touchdev
- *
- * @param cb  : pm callbacks
- * @return int : (OK) success; (<0) failed
- */
-int lcdc_pmcb_early_register(struct pm_callback_s *cb)
+static int pm_panel_prepare(struct pm_callback_s *cb, int domain,
+                   enum pm_state_e pmstate)
 {
-    int i;
-
-    lcdc_pmcb_init();
-    lcdc_sem_wait(&g_vtable.pmlock);
-    for (i = 0; i < ARRAY_SIZE(g_vtable.pmcb) / 2; i++) {
-        if (g_vtable.pmcb[i] == NULL) {
-            g_vtable.pmcb[i] = cb;
-            break;
-        }
-    }
-
-    lcdc_sem_post(&g_vtable.pmlock);
-    if (i == ARRAY_SIZE(g_vtable.pmcb) / 2) {
-        return -EBUSY;
-    }
     return OK;
 }
 
-/**
- * @brief lcdc_pmcb_register - register pm callbacks by lcddev
- *
- * @param cb : pm callbacks
- * @return int : (OK) success; (<0) failed
- */
-int lcdc_pmcb_register(struct pm_callback_s *cb)
+void lcdc_pm_ref_cnt_increase(void)
 {
-    int i;
-
-    lcdc_pmcb_init();
-    lcdc_sem_wait(&g_vtable.pmlock);
-    for (i = ARRAY_SIZE(g_vtable.pmcb) / 2;
-         i < ARRAY_SIZE(g_vtable.pmcb); i++) {
-        if (g_vtable.pmcb[i] == NULL) {
-            g_vtable.pmcb[i] = cb;
-            break;
-        }
+    /* if panel is off will drop setting cmds */
+    if (g_vtable.panel_state == PM_STANDBY ||
+        g_vtable.panel_state == PM_SLEEP) {
+        return;
     }
 
-    lcdc_sem_post(&g_vtable.pmlock);
-    if (i == ARRAY_SIZE(g_vtable.pmcb)) {
-        return -EBUSY;
-    }
-
-    return OK;
+    lcdc_wakeup_disp_domain();
+    g_vtable.ref_cnt_cmd++;
 }
 
-/**
- * @brief lcdc_pmcb_unregister - unregister pm callbacks
- *
- * @param cb : callbacks
- * @return int : always success
- */
-int lcdc_pmcb_unregister(struct pm_callback_s *cb)
+void lcdc_pm_ref_cnt_decrease(void)
 {
-    int i;
-
-    lcdc_pmcb_init();
-    lcdc_sem_wait(&g_vtable.pmlock);
-    for (i = 0; i < ARRAY_SIZE(g_vtable.pmcb); i++) {
-        if (g_vtable.pmcb[i] == cb) {
-            g_vtable.pmcb[i] = NULL;
-            break;
-        }
-    }
-
-    lcdc_sem_post(&g_vtable.pmlock);
-
-
-    return OK;
+  if (g_vtable.ref_cnt_cmd > 0) {
+      g_vtable.ref_cnt_cmd--;
+  }
 }
-
 
 #endif //CONFIG_PM
 
@@ -1567,203 +1346,121 @@ static void lcdc_setup_layer_fbmem(void *fbmem, uint32_t fbsize)
 #endif
 }
 
-/**
- * lcdc_periphconfig - lcdc display panel related configuration
- *
- * Configures the synchronous timings
- * Configures the synchronous signals and clock polarity
- *
- */
+POSSIBLY_UNUSED static volatile int lcdc_busy = 0;
+POSSIBLY_UNUSED static volatile int lcdc_irq_locked_count = 0;
+POSSIBLY_UNUSED static sem_t  lcdc_work;
 
-static void lcdc_periphconfig(void)
+bool lcdc_lock(void)
 {
-#ifdef FPGA
-    hal_lcdc_stby_vsync_set(0x400, 1, 5);
+#ifdef CONFIG_DSI_VIDEO_MODE
+    return true;
 #else
-    if (((CONFIG_LCDC_FB_BASE & 0xFF000000) != PSRAM_BASE ) &&
-       ((CONFIG_LCDC_FB_BASE & 0xFF000000) != PSRAM_NC_BASE )) {//framebuffer use sram
-        hal_lcdc_stby_vsync_set(0x1e0, 1, 5);
-    }else{
-         hal_lcdc_stby_vsync_set(0x200, 1, 5);
+    int ret = 0;
+    uint32_t lk = int_lock();
+#ifdef GRAPHIC_DRV_VERBOSE
+    gra_sem_get_value(&lcdc_work, &ret);
+    LCDC_INFO("lcdc_lock %d,lcdc_busy=%d,lock_count=%d,in_isr=%d\n",ret,lcdc_busy,lcdc_irq_locked_count,in_isr());
+#endif
+    if (in_isr()) {
+        gra_sem_get_value(&lcdc_work, &ret);
+        if (ret <= 0) {
+            LCDC_INFO("lcdc_lock %d,lcdc_busy=%d,lock_count=%d\n",ret,lcdc_busy,lcdc_irq_locked_count);
+            int_unlock(lk);
+            return false;
+        } else {
+            gra_sem_init(&lcdc_work,0, 0);
+            lcdc_busy = true;
+            lcdc_irq_locked_count++;
+            int_unlock(lk);
+            return true;
+        }
+    } else {
+        ret = gra_sem_trywait(&lcdc_work);
+        if (ret <  OK) {
+            gra_sem_get_value(&lcdc_work, &ret);
+            LCDC_INFO("lcdc_lock trywait %d,lcdc_busy=%d\n",ret,lcdc_busy);
+            int_unlock(lk);
+            return false;
+        } else {
+            lcdc_busy = true;
+            int_unlock(lk);
+            return true;
+        }
     }
 #endif
-    hal_lcdc_porch_vsync_set(32, 32, 10);
+}
 
-    hal_lcdc_pix_vsync_set(30, 31);
-
-    hal_lcdc_sponscreen_set(LCDC_LAYER_LFORE, 1, 1);
-
-    hal_lcdc_sponscreen_set(LCDC_LAYER_LBACK, 1, 1);
-
-    /* Configure LCDC_BFPCR */
-    hal_lcdc_bgl_hporch_set(BOARD_LCDC_HBP, BOARD_LCDC_HFP);
-    hal_lcdc_bgl_vporch_set(BOARD_LCDC_VBP, BOARD_LCDC_VFP);
-    /* Configure LCDC_TWCR */
+bool lcdc_unlock(void)
+{
 #ifdef CONFIG_DSI_VIDEO_MODE
-    hal_lcdc_bgl_vhtotal_set(LCDC_TWCR_TOTALW+4, LCDC_TWCR_TOTALH+8);
+    return true;
 #else
-    hal_lcdc_bgl_vhtotal_set(LCDC_TWCR_TOTALW, LCDC_TWCR_TOTALH);
+    int ret = 0;
+    uint32_t lk = int_lock();
+#ifdef GRAPHIC_DRV_VERBOSE
+    gra_sem_get_value(&lcdc_work, &ret);
+    LCDC_INFO("lcdc_unlock %d,lcdc_busy=%d,lock_count=%d,in_isr=%d\n",ret,lcdc_busy,lcdc_irq_locked_count,in_isr());
 #endif
-
-#ifdef CONFIG_DSI_VIDEO_MODE
-    hal_lcdc_lvsepxcount(0x17e,0x17e);
-#else
-    hal_lcdcl_enable(LCDC_LAYER_SPU, true);
+    if (in_isr() && lcdc_irq_locked_count) {
+        gra_sem_init(&lcdc_work,0, 1);
+        lcdc_irq_locked_count--;
+    } else {
+        gra_sem_get_value(&lcdc_work, &ret);
+        if (ret < 1) {
+            ret = gra_sem_post(&lcdc_work);
+        } else {
+            LCDC_INFO("lcdc_unlock %d,lcdc_busy=%d,lock_count=%d\n",ret,lcdc_busy,lcdc_irq_locked_count);
+        }
+    }
+    lcdc_busy = false;
+    int_unlock(lk);
+    return true;
 #endif
-
-#ifdef TEST_WITH_GPU
-    hal_lcdc_lsize(LCDC_LAYER_SPU, SCREEN_WIDTH, LCDC_HEIGHT);
-#else
-    hal_lcdc_lsize(LCDC_LAYER_SPU, LCDC_WIDTH, LCDC_HEIGHT);
-#endif
-    hal_lcdc_select_top(LCDC_LAYER_LFORE);
-
-#ifdef CONFIG_LCDC_LWB
-    hal_lcdcl_enable(LCDC_LAYER_LWB, true);
-    hal_lcdc_lsize(LCDC_LAYER_LWB, LCDC_WIDTH, LCDC_HEIGHT);
-    hal_lcdc_lpfc_fmt(LCDC_LAYER_LWB, fmt_layer_t[LCDC_LAYER_LWB]);
-    hal_lcdc_lstartaddr(LCDC_LAYER_LWB, CONFIG_LCDC_FBWB_BASE);
-
-    uint16_t pitch = LCDC_WIDTH * CONFIG_LCDC_FBWB_BPP / 8;
-    hal_lcdc_lpitch(LCDC_LAYER_LWB, pitch);
-#endif
-    hal_lcdc_framedone_irq_enable(true);
-    hal_lcdc_disp_avsync_trigger_disable(true);
-    hal_lcdc_disp_svsync_trigger_disable(true);
-
-    if (g_vtable.pinfo.bpp == 32) {
-        hal_lcdc_smpn_mode_set(3);
-    } else if (g_vtable.pinfo.bpp == 16) {
-        hal_lcdc_smpn_mode_set(5);
-    } else
-        hal_lcdc_smpn_mode_set(3);
-
-    hal_lcdc_disp_mem_enable(true);
-
-    hal_lcdc_panelpath_dmatrans_trigger_enable(LCDC_LAYER_LFORE, true);
-
-#if 0 //defined(CONFIG_ULPS_MODE_SUPPORT)
-    hal_lcdc_set_sync_line_pixs(0x55);
-    hal_lcdc_set_sync_lines(0x23d);
-#else
-    hal_lcdc_set_sync_line_pixs(5);
-    hal_lcdc_set_sync_lines(0);
-#endif
-    hal_lcdc_smpn_vsync_delaymode_set(1);
-    hal_lcdc_disp_extra_delay(0);
-    hal_lcdc_sl_dmaburst_length_set(0x0f);
-    hal_lcdc_ol_dmaburst_length_set(8);
-
 }
 
-/**
- * lcdc_ldefaultcolor - Configures layer default color.
- * @layer : Reference to the layer control structure
- * @rgb : RGB888 background color
- *
- */
-
-static void lcdc_ldefaultcolor(FAR struct lcdc_s *layer, uint32_t rgb)
+bool is_lcdc_busy(void)
 {
-    ASSERT(layer->layerno < LCDC_NLAYERS, "%s", __func__);
-    DRIVERS_TRACE(0,"set LCDC_L%dDCCR=%08x\n", layer->layerno + 1, (unsigned int)rgb);
-    hal_lcdc_lcolor(LCDC_LAYER_SPU, rgb);
-
-}
-
-/**
- * lcdc_bgcolor - Configures background color.
- * @rgb : RGB888 background color
- */
-
-static void lcdc_bgcolor(uint32_t rgb)
-{
-    hal_lcdc_lcolor(LCDC_LAYER_SPU, rgb);
-}
-
-/**
- * lcdc_byteorder - Configures dsi byte order of rgb.
- * @border : Reference enum hal_lcdc_dsi_dswap_e
- */
-static void lcdc_byteorder(enum hal_lcdc_dsi_dswap_e border)
-{
-    hal_lcdc_disp_dsi_data_swap(border);
-}
-
-/**
- * lcdc_dither - Configures dither settings of the LCD controller.
- * @enable : Enable/disable dithering
- * @red    : Red dither width
- * @green  : Green dither width
- * @blue   : Blue dither width
- *
- */
-
-static void lcdc_dither(bool enable, uint8_t level, uint8_t red,
-            uint8_t green, uint8_t blue)
-{
-    hal_lcdc_dither_s4x8(true);
-    hal_lcdc_dither(enable, level, red, green, blue);
-}
-
-/**
- * lcdc_axifastmode - Configures axi axi bus arbiter fast mode.
- * @enable : Enable/disable axi bus fast mode
- */
-static void lcdc_axifastmode(bool enable)
-{
-    hal_lcdc_axifastmode_enable(enable);
+    return lcdc_busy == 1;
 }
 
 void lcdc_enter_lowpower()
 {
-    //DRIVERS_TRACE(0,"%s\n", __func__);
-#ifndef CONFIG_DSI_VIDEO_MODE
-#if defined(CONFIG_ULPS_MODE_SUPPORT)
-    hal_dsi_enter_ulps_mode();
+#ifdef CONFIG_DSI_VIDEO_MODE
+    return;
 #endif
-#ifdef CONFIG_DSI_SLEEP
-    hal_dsi_sleep();
-#endif
+    LCDC_INFO("%s\n", __func__);
 #ifdef CONFIG_LCDC_SLEEP
-    hal_lcdc_sleep();
-#endif
+    lcdc_sleep();
 #endif
     hal_sysfreq_req(HAL_SYSFREQ_USER_LCDC, HAL_CMU_FREQ_32K);
 }
 
 void lcdc_exit_lowpower()
 {
-    //DRIVERS_TRACE(0,"%s\n", __func__);
+#ifdef CONFIG_DSI_VIDEO_MODE
+    return;
+#endif
+    LCDC_INFO("%s\n", __func__);
     hal_sysfreq_req(HAL_SYSFREQ_USER_LCDC, HAL_CMU_FREQ_104M);
-#ifndef CONFIG_DSI_VIDEO_MODE
 #ifdef CONFIG_LCDC_SLEEP
-    hal_lcdc_wakeup();
-#endif
-#ifdef CONFIG_DSI_SLEEP
-    hal_dsi_wakeup();
-#endif
-#if defined(CONFIG_ULPS_MODE_SUPPORT)
-    hal_dsi_exit_ulps_mode();
-#endif
+    lcdc_wakeup();
 #endif
 }
 
 void lcdc_exit_lowpower_with_cb(LCDC_IRQ_CALLBACK cb, void *param)
 {
-    //DRIVERS_TRACE(0,"%s\n", __func__);
+#ifdef CONFIG_DSI_VIDEO_MODE
+    if (cb)
+        cb((int)param);
+    return;
+#endif
+    LCDC_INFO("%s\n", __func__);
     hal_sysfreq_req(HAL_SYSFREQ_USER_LCDC, HAL_CMU_FREQ_104M);
-#ifndef CONFIG_DSI_VIDEO_MODE
 #ifdef CONFIG_LCDC_SLEEP
-    hal_lcdc_wakeup();
+    lcdc_wakeup();
 #endif
-#ifdef CONFIG_DSI_SLEEP
-    hal_dsi_wakeup();
-#endif
-#if defined(CONFIG_ULPS_MODE_SUPPORT)
-    hal_dsi_exit_ulps_with_cb((HAL_DSI_ULPS_CB_HANDLER)cb, param);
-#endif
-#endif
+    if (cb)
+        cb((int)param);
 }
 
 #if defined(CONFIG_FB_PANDISPLAY)
@@ -1772,113 +1469,153 @@ static void lcdc_pandisp_init(void)
 {
     FAR struct lcdcdev_s* priv = &g_vtable;
 
-    lcdc_sem_init(&priv->panfo.sem_sync, 0, 0);
+    priv->panfo.cnt = 0;
+    priv->panfo.queue[0].state = BUF_NONE;
+    priv->panfo.queue[0].addr = priv->pinfo.fbmem;
+#ifdef ROTATE_DIRECT
+    priv->panfo.pre_rotate_id = 0xff;
+#endif
 }
 
 static void lcdc_pandisp_exec(void)
 {
     FAR struct lcdcdev_s* priv = &g_vtable;
-    if (priv->panfo.panaddr) {
-        lcdc_exit_lowpower();
-        DRIVERS_TRACE(0,"%s panaddr = %08x,yoffset = %d\n", __func__, priv->panfo.panaddr,priv->panfo.yoffset);
-        hal_lcdc_lstartaddr(0, (uint32_t)priv->panfo.panaddr);
-        priv->pinfo.yoffset = priv->panfo.yoffset;
-#ifndef CONFIG_DSI_VIDEO_MODE
-#ifdef CONFIG_TRIGGER_FRAME_BY_SW
-        hal_lcdc_gen_start();
-#else
-        hal_lcdc_te_trigger();
-#endif
-#endif
-        priv->panfo.panaddr = NULL;
-    }
-    else {
-        lpcmds_flush();
-    }
-#ifdef CONFIG_LCDC_L2
+    uint32_t lk = int_lock();
 
+    /*If there is ready data in the queue*/
+    LCDC_REP("%s cnt=%d, panaddr = %08x,state = %d,frame_num = %d\n", __func__,priv->panfo.cnt,\
+        priv->panfo.queue[0].addr,priv->panfo.queue[0].state,priv->panfo.queue[0].current_frame);
+#ifdef ROTATE_DIRECT
+    LCDC_REP("%s pre_rotate_id=%d, rotate_id = %d\n", __func__,priv->panfo.pre_rotate_id, priv->panfo.queue[0].rotate_id);
 #endif
-}
 
-__attribute__((unused)) static void lcdc_pandisp_postsync(void)
-{
-    FAR struct lcdcdev_s* priv = &g_vtable;
-    lcdc_sem_post(&priv->panfo.sem_sync);
+#if defined(CONFIG_LCDC_TE_IRQ_ENABLE)
+    fb_pollnotify(&g_vtable.vtable);
+#endif
+
+    if (priv->panfo.cnt > 0) {
+        /*The buffer of the sending head node*/
+        //ASSERT(priv->panfo.queue[0].state != BUF_ROTATE,"frame cross vsync\n");
+        if (priv->panfo.queue[0].state == BUF_ROTATE)
+            LCDC_ERR("frame cross vsync\n");
+        if (priv->panfo.queue[0].state == BUF_READY)
+        {
+            //ASSERT(priv->panfo.queue[0].state == BUF_INIT, "queue status is wrong :%d",priv->panfo.queue[0].state);
+            lcdc_exit_lowpower();
+            lcdc_layer_set_buffer(0, (uint8_t *)priv->panfo.queue[0].addr);
+            priv->pinfo.yoffset = priv->panfo.queue[0].yoffset;
+            priv->panfo.queue[0].state = BUF_COMMIT;
+#ifdef ROTATE_DIRECT
+            ASSERT(priv->panfo.pre_rotate_id != priv->panfo.queue[0].rotate_id, \
+                "Wrong rotate id, pre is:%d, current is:%d",priv->panfo.pre_rotate_id, \
+                priv->panfo.queue[0].rotate_id);
+            if (priv->panfo.pre_rotate_id != 0xff)
+                free_rotate_buf(priv->panfo.pre_rotate_id);
+            priv->panfo.pre_rotate_id = priv->panfo.queue[0].rotate_id;
+#endif
+            lcdc_trigger_frame();
+        }
+        else
+        {
+#if defined(CONFIG_FB_DRV_ROTATE) && !defined(CONFIG_DSI_VIDEO_MODE) && !defined(ROTATE_DIRECT)
+            fb_rotate_trigger(priv);
+#endif
+        }
+    }
+    else if (priv->refresh_oneself > 0) {
+        lcdc_trigger_frame();
+    }
+    int_unlock(lk);
 }
 
 #ifdef CONFIG_FB_SYNC
 static int lcdc_pandisp_trywait(void)
 {
     FAR struct lcdcdev_s* priv = &g_vtable;
-    int ret;
 
-    ret = lcdc_sem_trywait(&priv->panfo.sem_sync);
-
-    return ret;
+    /*Check if the queue is empty*/
+#if defined(CONFIG_DSI_VIDEO_MODE) && !defined(CONFIG_FB_DRV_ROTATE)
+    return (priv->panfo.cnt < 1) ? OK : ERROR;
+#else
+    return (priv->panfo.cnt < 2) ? OK : ERROR;
+#endif
 }
 #endif
 #endif
 
-/**
- * lcd_irq -LCDC interrupt handler
- *
- */
-
-#ifdef CONFIG_DSI_UNIFIED_IRQ
-static int dsi_irq(int irq, void *context, FAR void *arg);
-#endif
-
-static int lcd_irq(int irq, void *context, FAR void *arg)
+static void lcdc_irq_cb(uint32_t regval, uint32_t flags)
 {
     FAR struct interrupt_s *priv = &g_interrupt;
-    uint32_t regval = hal_lcdc_get_irqstat();
-    DRIVERS_TRACE(0,"%s lcd irq = %d, regval = %08x\n", __func__, irq,regval);
+    uint32_t lk = int_lock();
+    LCDC_REP("%s framedone = %d, cnt:%d, state= %08x\n", __func__, hal_lcdc_irq_is_framedone(regval),
+                g_vtable.panfo.cnt, g_vtable.panfo.queue[0].state);
+    if (flags != 0) {
+        LCDC_ERR("%s dsi underflow or overflow :%x\n", __func__, flags);
+    }
+#ifdef ROTATE_DIRECT
+    LCDC_REP("%s pre_rotate_id=%d, rotate_id = %d\n", __func__,
+            g_vtable.panfo.pre_rotate_id, g_vtable.panfo.queue[0].rotate_id);
+#endif
+    if (hal_lcdc_irq_is_error(regval)) {
+        priv->error = -ECANCELED;
+        LCDC_ERR("%s error regval = %08x\n", __func__, regval);
+        LCDC_ERR("ERROR: configuration\n");
+    }
     if (regval & 0xffffff00) {
         if (hal_lcdc_irq_is_framedone(regval)) {
-            hal_lcdc_framedone_irqstat_clr(); //clear irq
             /* Register reload interrupt */
             if ((hal_lcdc_irq_is_framedone_irq0(regval)
                  || hal_lcdc_irq_is_framedone_irq1(regval))) {
-#if defined(CONFIG_DSI_VIDEO_MODE)
-                lcdc_pandisp_exec();
-                lcdc_pandisp_postsync();
-#else
-#if defined(CONFIG_LCDC_AUTOREFRESH_MODE) && !defined(CONFIG_TRIGGER_FRAME_BY_SW)
-                lcdc_pandisp_exec();
-#endif
-#endif
-                if (priv->cb) {
-                    priv->cb(priv->error);
+                lpcmds_flush();
+
+#if defined(CONFIG_FB_PANDISPLAY)
+                fb_pollnotify(&g_vtable.vtable);
+                if (g_vtable.refresh_oneself > 0) {
+                    g_vtable.refresh_oneself = 0;
+                } else if (g_vtable.panfo.cnt > 0 && g_vtable.panfo.queue[0].state == BUF_COMMIT) {
+                    /*If there are two data in the queue, move the tail node to the head*/
+                    g_vtable.panfo.queue[0].state = BUF_NONE;
+                    if (g_vtable.panfo.cnt == 2) {
+                        g_vtable.panfo.queue[0] = g_vtable.panfo.queue[1];
+                    }
+
+                    g_vtable.panfo.cnt--;
                 }
 
-                /* Unlock the semaphore if locked */
-                int ret = 0;
-                lcdc_sem_get_value(priv->sem, &ret);
-                if (ret < 1)
-                    lcdc_sem_post(priv->sem);
+#ifdef CONFIG_PM
+                if (g_vtable.ref_cnt > 0) {
+                    g_vtable.ref_cnt--;
+                }
+#endif
+#if defined(CONFIG_FB_DRV_ROTATE)
+#ifdef ROTATE_DIRECT
+                lcdc_pandisp_exec();
+#else
+                fb_rotate_trigger(&g_vtable);
+#endif
+#endif
+#endif
                 priv->error = OK;
-            }  else if (hal_lcdc_irq_is_error(regval)) {
-                /* Configuration error interrupt */
-                DRIVERS_TRACE(0,"%s irq = %d, regval = %08x\n", __func__, irq, regval);
-                DRIVERS_TRACE(0,"ERROR: configuration\n");
-                //hal_lcdc_error_irqstat_clr();
-                priv->error = -ECANCELED;
-            } else {
-                DRIVERS_TRACE(0,"%s irq = %d, regval = %08x\n", __func__, irq,regval);
+            }  else {
+                LCDC_REP("%s regval = %08x\n", __func__, regval);
                 priv->error = -EINVAL;
             }
-
-        } else {
-            /* Unknown irq, should not occur */
-            //ASSERT(0, "Unknown interrupt error\n");
-            //DRIVERS_TRACE(0,"%s Unknown status irq = %d, regval = %08x\n", __func__, irq,regval);
+            /* frame transfer is done, enter low power mode */
+            lcdc_enter_lowpower();
+            lcdc_unlock();
+            if (priv->cb) {
+                priv->cb(priv->error);
+            }
+            /* Unlock the semaphore if locked */
+            int ret = 0;
+            gra_sem_get_value(priv->sem, &ret);
+            if (ret < 1)
+                gra_sem_post(priv->sem);
         }
     }
-#ifdef CONFIG_DSI_UNIFIED_IRQ
-    dsi_irq(irq, context, arg);
-#endif
-    return priv->error;
+    int_unlock(lk);
 }
+
 
 /**
  * lcdc_waitforirq - Helper waits until the lcdc irq occurs.
@@ -1888,12 +1625,12 @@ __attribute__((unused)) static int lcdc_waitforirq(void)
     int ret = OK;
     FAR struct interrupt_s *priv = &g_interrupt;
     TC_INIT
-    DRIVERS_TRACE(0,"lcdc_waitforirq();");
+    LCDC_REGINFO("lcdc_waitforirq();");
     TC_START
-    ret = lcdc_sem_wait(priv->sem);
+    ret = gra_sem_wait(priv->sem);
 
     if (ret < 0) {
-        DRIVERS_TRACE(0,"ERROR: lcdc_sem_wait() failed\n");
+        LCDC_ERR("ERROR: gra_sem_wait() failed\n");
     }
 
     ret = priv->error;
@@ -1908,231 +1645,56 @@ __attribute__((unused)) static int lcdc_waitforirq(void)
 
 static void lcdc_irqconfig(void)
 {
-    g_interrupt.irq = hal_lcdc_irqn();
-    hal_lcdc_irq_disable();
-    //hal_lcdc_error_irq_enable();
-
     /* Initialize the LCDC semaphore that enforces mutually exclusive access */
-    lcdc_sem_init(&g_lock, 0, 1);
+    gra_sem_init(&g_lock, 0, 1);
+    gra_sem_init(&lcdc_work, 0, 1);
     /* Initialize the semaphore for interrupt handling.  This waitsem
      * semaphore is used for signaling and, hence, should not have priority
      * inheritance enabled.
      */
-    lcdc_sem_init(g_interrupt.sem, 0, 1);
-    //lcdc_sem_setprotocol(g_interrupt.sem, SEM_PRIO_NONE);
-    /* Attach LCDC interrupt vector */
-    DRIVERS_TRACE(0,"g_interrupt.irq = hal_lcdc_irqn();");
+    gra_sem_init(g_interrupt.sem, 0, 1);
+    //gra_sem_setprotocol(g_interrupt.sem, SEM_PRIO_NONE);
 
-    DRIVERS_TRACE(0,"%s irq:%d irq_handler:%p", __func__, g_interrupt.irq,
-          lcd_irq);
-    NVIC_SetVector(g_interrupt.irq, (uint32_t) lcd_irq);
-    DRIVERS_TRACE(0,"NVIC_SetVector(g_interrupt.irq, (uint32_t)lcd_irq);");
-    NVIC_SetPriority(g_interrupt.irq, IRQ_PRIORITY_NORMAL);
-    DRIVERS_TRACE(0,"NVIC_SetPriority(g_interrupt.irq, IRQ_PRIORITY_NORMAL);");
-    NVIC_ClearPendingIRQ(g_interrupt.irq);
-    DRIVERS_TRACE(0,"NVIC_ClearPendingIRQ(g_interrupt.irq);");
-    NVIC_EnableIRQ(g_interrupt.irq);
-    DRIVERS_TRACE(0,"NVIC_EnableIRQ(g_interrupt.irq);");
+    lcdc_register_irq_cb(lcdc_irq_cb);
 }
-
 
 #ifdef CONFIG_LCDC_TE_IRQ_ENABLE
-
-/**
- * dsi_irq -dsi interrupt handler
- *
- */
-__attribute__((unused)) static int dsi_irq(int irq, void *context, FAR void *arg)
+static void lcdc_vsync_cb(void)
 {
+    LCDC_INFO("%s\n", __func__);
     FAR struct teinterrupt_s *priv = &g_teinterrupt;
-    uint32_t regval = hal_dsi_get_irqstate();
-    DRIVERS_TRACE(0,"%s dsi irq = %d, regval = %08x\n", __func__, irq,regval);
-    if (hal_dsi_irq_is_te(regval)) {
-        hal_dsi_clear_teirq_flag();
-#if defined(CONFIG_LCDC_AUTOREFRESH_MODE) && defined(CONFIG_TRIGGER_FRAME_BY_SW)
-        lcdc_pandisp_exec();
-        lcdc_pandisp_postsync();
-#endif
-        priv->error = OK;
-        if (priv->cb) {
-            priv->cb(priv->error);
-        }
-
-        /* Unlock the semaphore if locked */
-
-        int ret = 0;
-        lcdc_sem_get_value(priv->sem, &ret);
-        if (ret < 1)
-            lcdc_sem_post(priv->sem);
-        if (ret < 0) {
-            DRIVERS_TRACE(0,"ERROR: lcdc_sem_post() failed at dsi interrupt\n");
-        }
-    }
-
-    if (hal_dsi_irq_is_err(regval)) {
-        hal_dsi_irq_clear_err(regval);
-    }
-
-    return priv->error;
-}
-
-#ifdef CONFIG_DSI_GPIO_TE_IRQ
-static void dsi_te_gpio_irq(void)
-{
-    DRIVERS_TRACE(0,"%s\n", __func__);
-    FAR struct teinterrupt_s *priv = &g_teinterrupt;
-#if defined(CONFIG_LCDC_AUTOREFRESH_MODE) && defined(CONFIG_TRIGGER_FRAME_BY_SW)
+#if defined(CONFIG_FB_PANDISPLAY)
     lcdc_pandisp_exec();
-    lcdc_pandisp_postsync();
 #endif
     priv->error = OK;
     if (priv->cb) {
         priv->cb(priv->error);
     }
-    /* Unlock the semaphore if locked */
 
+    /* Unlock the semaphore if locked */
     int ret = 0;
-    lcdc_sem_get_value(priv->sem, &ret);
+    gra_sem_get_value(priv->sem, &ret);
     if (ret < 1)
-        lcdc_sem_post(priv->sem);
+        gra_sem_post(priv->sem);
     if (ret < 0) {
-        DRIVERS_TRACE(0,"ERROR: lcdc_sem_post() failed at dsi interrupt\n");
+        LCDC_ERR("ERROR: gra_sem_post() failed at dsi interrupt\n");
     }
 }
-#endif
 
 /**
  * lcdc_teirqconfig - config te interrupt
  */
 static void lcdc_teirqconfig(void)
 {
-    //g_teinterrupt
-    g_teinterrupt.irq = hal_dsi_irqn();
-    hal_dsi_irq_disable();
     /* Initialize the semaphore for interrupt handling.  This waitsem
      * semaphore is used for signaling and, hence, should not have priority
      * inheritance enabled.
      */
-    lcdc_sem_init(g_teinterrupt.sem, 0, 0);
-#ifdef CONFIG_DSI_GPIO_TE_IRQ
-#if !defined(SIMU)
-    hal_dsi_te_gpio_irq_register(dsi_te_gpio_irq);
-    hal_dsi_te_gpio_irq_enable();
-#endif
-#else
-#ifndef CONFIG_DSI_UNIFIED_IRQ
-    NVIC_SetVector(g_teinterrupt.irq, (uint32_t)dsi_irq);
-    NVIC_SetPriority(g_teinterrupt.irq, IRQ_PRIORITY_NORMAL);
-    NVIC_ClearPendingIRQ(g_teinterrupt.irq);
-    NVIC_EnableIRQ(g_teinterrupt.irq);
-#endif
-    hal_dsi_teirq_enable();
-#endif
+    gra_sem_init(g_teinterrupt.sem, 0, 0);
+
+    lcdc_register_vsync_cb(lcdc_vsync_cb);
 }
-
 #endif
-
-/**
- * lcdc_globalconfig - Configure background color and dithering
- *
- */
-
-static void lcdc_globalconfig(void)
-{
-    /* Configure dither */
-    lcdc_dither(
-#ifdef CONFIG_LCDC_DITHER
-               true,
-#else
-               false,
-#endif
-               LCDC_DITHER_LEVEL,
-               LCDC_DITHER_RED,
-               LCDC_DITHER_GREEN, LCDC_DITHER_BLUE);
-
-    /* Configure background color */
-
-    lcdc_bgcolor(LCDC_BACKCOLOR);
-
-#ifdef CONFIG_DSIPHY_OUTFMT_RGB565
-    hal_lcdc_disp_color_fmt(DSI_RGB565);
-#elif defined(CONFIG_DSIPHY_OUTFMT_RGB888)
-    hal_lcdc_disp_color_fmt(DSI_RGB888);
-#else
-    hal_lcdc_disp_color_fmt(DSI_RGB888);
-#endif
-    /* Configure dsi byte order as rgb */
-
-    lcdc_byteorder(DSI_BD_RGB);
-
-    /* Configure enable axi bus arbiter fast mode */
-
-    lcdc_axifastmode(true);
-}
-
-/**
- * lcdc_lpixelformat - Set the layer pixel format.
- * @layer   Reference to the layer control structure
- *
- */
-static void lcdc_lpixelformat(FAR struct lcdc_s *layer)
-{
-    uint8_t overlay = layer->layerno;
-    ASSERT(layer->layerno < LCDC_NLAYERS, "%s", __func__);
-
-    /* Configure PFCR register */
-
-    DRIVERS_TRACE(0,"set LCDC_L%dPFCR=%08x\n", overlay + 1, (unsigned int)fmt_layer_t[overlay]);
-    hal_lcdc_lpfc_fmt(layer->layerno, fmt_layer_t[overlay]);
-
-}
-
-/**
- * lcdc_lframebuffer - Configure layer framebuffer of the entire window.
- * @layer   Reference to the layer control structure
- */
-
-static void lcdc_lframebuffer(FAR struct lcdc_s *layer)
-{
-
-    uint8_t layerno = layer->layerno;
-
-    ASSERT(layer->layerno < LCDC_NLAYERS, "%s", __func__);
-    DRIVERS_TRACE(0,"xpos = %d, ypos = %d, xres = %d, yres = %d\n", 0, 0,
-          (int)width_layer_t[layerno], (int)height_layer_t[layerno]);
-
-    /* Configure Layer start addr register */
-    hal_lcdc_lstartaddr(layerno, fbmem_layer_t[layerno]);
-
-    /* Configure Layer size register */
-
-    hal_lcdc_lsize(layerno, width_layer_t[layerno],
-               height_layer_t[layerno]);
-
-    /* Configure Layer pitch register */
-
-    hal_lcdc_lpitch(layerno, stride_layer_t[layerno]);
-
-    hal_lcdc_lzoom_set(layerno, width_layer_t[layerno],
-               height_layer_t[layerno]);
-#ifdef CONFIG_DSI_VIDEO_MODE
-    hal_lcdc_sponscreen_set(layerno, 0, 0);
-#else
-    hal_lcdc_sponscreen_set(layerno, 1, 1);
-#endif
-}
-
-/**
- * lcdc_lenable - Enable or disable layer.
- * @layer  : Reference to the layer control structure
- * @enable : Enable or disable layer
- */
-static void lcdc_lenable(FAR struct lcdc_s *layer, bool enable)
-{
-    ASSERT(layer->layerno < LCDC_NLAYERS, "%s", __func__);
-    /* Enable/Disable layer */
-    hal_lcdcl_enable(layer->layerno, enable);
-}
 
 /**
  * lcdc_ltransp - Change layer transparency.
@@ -2147,16 +1709,13 @@ static void lcdc_ltransp(FAR struct lcdc_s *layer, uint8_t transp,
     ASSERT(layer->layerno < LCDC_NLAYERS, "%s", __func__);
     FAR struct lcdcdev_s *dev = &g_vtable;
 
-    //for dma2d blend setting
     dev->layer[layer->layerno].oinfo.transp.transp = transp;
     dev->layer[layer->layerno].oinfo.transp.transp_mode = mode;
 
-    hal_lcdc_lpfc_ltransp(layer->layerno, mode, transp);
-
+    lcdc_layer_blend(0, 0, mode, transp);
 }
 
 #ifdef CONFIG_LCDC_CHROMAKEY
-
 /**
  * lcdc_lchromakey - Change layer chromakey.
  * @layer    : Reference to the layer control structure
@@ -2164,7 +1723,7 @@ static void lcdc_ltransp(FAR struct lcdc_s *layer, uint8_t transp,
  * @rchroma  : color to replace chromakey
  *
  */
-static void lcdc_lchromakey(FAR struct lcdc_s *layer,
+static void lcdc_lchromakey_enable(FAR struct lcdc_s *layer,
                 uint32_t chroma, uint32_t rchroma)
 {
 #if 1
@@ -2207,25 +1766,10 @@ static void lcdc_lchromakey(FAR struct lcdc_s *layer,
 
 #endif
 
-    DRIVERS_TRACE(0,"set LCDC_L%dCKCR=%08x\n", layer->layerno + 1, rgb);
+    LCDC_INFO("set LCDC_L%dCKCR=%08x\n", layer->layerno + 1, rgb);
 
-    hal_lcdc_lchromakey(layer->layerno, rgb, rrgb, 0);
-
+    lcdc_chromakey_enable(rgb, rrgb, 0);
 #endif
-}
-
-/**
- * lcdc_lchromakeyenable - layers chromkey enable
- * @layer  : Reference to the layer control structure
- * @enable : Enable or disable chromakey
- *
- * Enable or disable layer chromakey support.
- * Note!  F/B layer share same chromakey.
- */
-static void lcdc_lchromakeyenable(FAR struct lcdc_s *layer, bool enable)
-{
-    ASSERT(layer->layerno < LCDC_NLAYERS, "%s", __func__);
-    hal_lcdc_lchromakeyenable(layer->layerno, enable);
 }
 
 #endif //CONFIG_LCDC_CHROMAKEY
@@ -2264,7 +1808,7 @@ int lcdc_setclut(FAR const struct fb_cmap_s *cmap)
         citem =
             ((cmap->red[n] << 16) | (cmap->green[n] << 8) | cmap->
              blue[n]) & 0xffffff;
-        //DRIVERS_TRACE(0,"n=%d, red=%02x, green=%02x, blue=%02x\n", n, cmap->red[n],
+        //LCDC_INFO("n=%d, red=%02x, green=%02x, blue=%02x\n", n, cmap->red[n],
         //        cmap->green[n], cmap->blue[n]);
 
         hal_lcdc_write_clut(citem, n);
@@ -2322,8 +1866,8 @@ static void lcdc_lgetclut(FAR struct lcdc_s *layer, FAR struct fb_cmap_s *cmap)
         cmap->green[n] = priv_cmap->green[n];
         cmap->blue[n] = priv_cmap->blue[n];
 
-        DRIVERS_TRACE
-            (0,"color = %d, transp=%02x, red=%02x, green=%02x, blue=%02x\n",
+        LCDC_INFO
+            ("color = %d, transp=%02x, red=%02x, green=%02x, blue=%02x\n",
              n,
 #ifdef CONFIG_FB_TRANSPARENCY
              cmap->transp[n],
@@ -2374,7 +1918,7 @@ static int lcdc_setcadjcurves(FAR const struct fb_cadjmap_s *cadjmap)
             ((cadjmap->red[n] << 16) | (cadjmap->green[n] << 8) |
              cadjmap->blue[n]) & 0xffffff;
 
-        DRIVERS_TRACE(0,"n=%d, red=%02x, green=%02x, blue=%02x\n", n,
+        LCDC_INFO("n=%d, red=%02x, green=%02x, blue=%02x\n", n,
               cadjmap->red[n], cadjmap->green[n], cadjmap->blue[n]);
 
         hal_lcdc_write_gamma(citem, n);
@@ -2428,22 +1972,11 @@ static void lcdc_lgetcadjcurves(FAR struct lcdc_s *layer,
         cadjmap->green[n] = priv_cmap->green[n];
         cadjmap->blue[n] = priv_cmap->blue[n];
 
-        DRIVERS_TRACE(0,"color = %d, red=%02x, green=%02x, blue=%02x\n", n,
+        LCDC_INFO("color = %d, red=%02x, green=%02x, blue=%02x\n", n,
               cadjmap->red[n], cadjmap->green[n], cadjmap->blue[n]);
     }
 }
 #endif /* CONFIG_FB_COLORADJCURVE */
-
-/**
- * lcdc_lclear - Clear the whole layer
- * @overlayno : Number overlay
- *
- */
-static void lcdc_lclear(uint8_t overlayno)
-{
-    memset((uint8_t *) fbmem_layer_t[overlayno], 0,
-           fblen_layer_t[overlayno]);
-}
 
 #if defined(CONFIG_FB_PANDISPLAY)
 
@@ -2454,38 +1987,120 @@ static void lcdc_lclear(uint8_t overlayno)
  *
  * Used for fb double buffer application,change display layer by xoffset and yoffset
  */
+
+static bool fb_replace_ok = false;
 static int pan_display(FAR struct fb_vtable_s *vtable,
                        FAR struct fb_planeinfo_s *pinfo)
 {
     FAR struct lcdcdev_s *priv = &g_vtable;
     FAR struct fb_planeinfo_s *pri_pinfo = &priv->pinfo;
 
-#if defined(CONFIG_FB_DOUBLE_BUFFER)
-    if (pinfo->yoffset > pri_pinfo->yres_virtual - priv->vinfo.yres ||
-        pinfo->xoffset > pri_pinfo->xres_virtual - priv->vinfo.xres) {
-        return -EINVAL;
+#ifdef SUPPORT_REPLACE_FBMEM
+    if (pinfo->yoffset == UINT_MAX || fb_replace_ok)
+    {
+        memcpy((void *)0x50000000,priv->pinfo.fbmem,priv->pinfo.fblen);
+        free(priv->pinfo.fbmem);
+        lcdc_setup_layer_fbmem((void *)0x50000000,priv->pinfo.fblen);
+        fb_replace_ok = false;
+        return OK;
     }
 #endif
-    uint32_t flags = int_lock();
-    lcdc_sem_reset(&priv->panfo.sem_sync, 0);
     uint32_t dispbuff = (uint32_t)priv->pinfo.fbmem;
-#if defined(CONFIG_FB_DOUBLE_BUFFER)
-    dispbuff = (uint32_t)priv->pinfo.fbmem + priv->pinfo.stride * pinfo->yoffset;
-#else
-    if (pinfo->yoffset != 0)
+
+    if (vtable == NULL && pinfo->yoffset != 0) {
         dispbuff = pinfo->yoffset;
+    } else {
+#if defined(CONFIG_FB_DOUBLE_BUFFER)
+        if (pinfo->yoffset > pri_pinfo->yres_virtual - priv->vinfo.yres ||
+            pinfo->xoffset > pri_pinfo->xres_virtual - priv->vinfo.xres) {
+            return -EINVAL;
+        }
 #endif
-    DRIVERS_TRACE(0,"%s panaddr =%08x, %08x,yoffset = %d\n", __func__, priv->panfo.panaddr, dispbuff ,priv->panfo.yoffset);
-    lcdc_cache_sync(HAL_CACHE_ID_D_CACHE, dispbuff, LCDC_WIDTH*4*LCDC_HEIGHT);
-    priv->panfo.panaddr = (uint8_t *)dispbuff;
-    priv->panfo.yoffset = pinfo->yoffset;
+
+#if defined(CONFIG_FB_DOUBLE_BUFFER) || defined(CONFIG_DISCONTNUOUS_FB_DOUBLE_BUFFER)
+        #ifdef USE_GAMU_FB
+            if (priv->pinfo.bpp == 24) {
+                dispbuff = (uint32_t)priv->pinfo.fbmem + 0x100000;
+            } else {
+                dispbuff = (uint32_t)priv->pinfo.fbmem + priv->pinfo.stride * pinfo->yoffset;
+            }
+        #else
+            dispbuff = (uint32_t)priv->pinfo.fbmem + priv->pinfo.stride * pinfo->yoffset;
+        #endif
+#else
+        if (pinfo->yoffset != 0)
+            dispbuff = pinfo->yoffset;
+#endif
+    }
+
+#if defined(ROTATE_DIRECT)
+    uint8_t id = get_rotate_buf();
+    if (id == 0xff)
+        return ERROR;
+    cpu_rotate_90((uint32_t)dispbuff,(uint32_t)dst_fb_buf[id],LCDC_HEIGHT,LCDC_WIDTH);
+    dispbuff = (uint32_t)dst_fb_buf[id];
+#endif
+
+    uint32_t flags = int_lock();
+    priv->panfo.frame_num++;
+    LCDC_REP("%s cnt=%d,frame_num:%d, pre panaddr = %08x,yoffset = %08x,fbmem = %08x,\n", __func__,priv->panfo.cnt, priv->panfo.frame_num, priv->panfo.queue[0].addr,pinfo->yoffset,priv->pinfo.fbmem);
+    /*If there is space in the queue, fill it with a new buffer*/
+#if defined(CONFIG_DSI_VIDEO_MODE) && !defined(CONFIG_FB_DRV_ROTATE)
+    if(priv->panfo.cnt < 1
+#else
+    if(priv->panfo.cnt < 2
+#endif
+#ifdef CONFIG_PM
+      && (priv->panel_state != PM_STANDBY && priv->panel_state != PM_SLEEP)
+#endif
+      ) {
+        uint8_t next_buf = priv->panfo.cnt;
+        priv->panfo.queue[next_buf].yoffset = pinfo->yoffset;
+        priv->panfo.queue[next_buf].addr = (void *)dispbuff;
+        priv->panfo.queue[next_buf].state = BUF_INIT;
+        priv->panfo.queue[next_buf].current_frame = priv->panfo.frame_num;
+        priv->panfo.cnt++;
+#if defined(CONFIG_FB_DRV_ROTATE)
+#if defined(CONFIG_ROTATE_DMA)
+        if (!ROTATE_USE_CPU(priv->pinfo.fbmem))
+            lcdc_cache_sync(dispbuff, LCDC_L1_STRIDE*LCDC_HEIGHT);
+#endif
+#if defined(ROTATE_DIRECT)
+        LCDC_REP("%s pre_rotate_id=%d, rotate_id = %d\n", __func__,priv->panfo.pre_rotate_id, id);
+        priv->panfo.queue[next_buf].rotate_id = id;
+        priv->panfo.queue[next_buf].state = BUF_READY;
+#elif !defined(CONFIG_DSI_VIDEO_MODE)
+        fb_rotate_trigger(priv);
+#endif
+#else
+        lcdc_cache_sync(dispbuff, LCDC_L1_STRIDE*LCDC_HEIGHT);
+        priv->panfo.queue[next_buf].state = BUF_READY;
+#endif
+#ifdef CONFIG_PM
+        /* first to post buffer, need wakeup lcdc/dsi */
+        if (priv->panel_state == PM_IDLE) {
+            /* It's more realistic to wake up  */
+            lcdc_wakeup_disp_domain();
+        }
+
+        priv->ref_cnt++;
+#endif
+        int_unlock(flags);
+        return OK;
+    }
+    else
+        LCDC_ERR("%s Lossing frame_num:%d\n", __func__,priv->panfo.frame_num);
     int_unlock(flags);
-    return OK;
+#if defined(ROTATE_DIRECT)
+    free_rotate_buf(id);
+#endif
+    return ERROR;
 }
 #endif
 
 #ifdef CONFIG_FB_VMIRRO
 
+static bool vmirro_mode = false;
 /**
  * video_mirror - lcdc set mirror display layer enable
  * @vtable : Reference to lcdc driver interface
@@ -2497,32 +2112,40 @@ static int video_mirror(FAR struct fb_vtable_s *vtable,
 {
     int ret = 0;
     uint8_t lid = 0;
-    bool mirro_enable = false;
     struct fb_overlayinfo_s *poverlay;
+    int32_t lsa = 0;
 
     if (var->xoffset == 0 && var->yoffset == 0) {
         lid = 0;
     } else {
         lid = 1;
     }
+
     poverlay = &g_vtable.layer[lid].oinfo;
 
-    mirro_enable = (var->rotate == 180) ? true : false;
+    vmirro_mode = (var->rotate == 180) ? true : false;
 
-    DRIVERS_TRACE(0,"%s enable lid:%d", __func__, lid);
-    if (mirro_enable) {
-        hal_lcdc_lstartaddr(lid,
-                    lcdc_memaddress(poverlay, poverlay->sarea.x,
-                            poverlay->sarea.h - 1));
+    LCDC_INFO("%s enable lid:%d", __func__, lid);
+
+    if (vmirro_mode) {
+        lsa = lcdc_memaddress(poverlay, poverlay->sarea.x,
+                            poverlay->sarea.h - 1);
     } else {
-        hal_lcdc_lstartaddr(lid,
-                    lcdc_memaddress(poverlay, poverlay->sarea.x,
-                            poverlay->sarea.y));
+        lsa = lcdc_memaddress(poverlay, poverlay->sarea.x,
+                            poverlay->sarea.y);
     }
-    hal_lcdc_set_vmirro_enable(lid, mirro_enable);
-    // ret = lcdc_update();
+
+    lcdc_layer_set_buffer(lid, (uint8_t *)lsa);
+    LCDC_INFO("%s enable lid:%d lsa:%p", __func__, lid, lsa);
+    hal_lcdc_set_vmirro_enable(lid, vmirro_mode);
     return ret;
 }
+
+bool in_vmirro_mode(void)
+{
+    return vmirro_mode;
+}
+
 #endif
 
 /**
@@ -2541,13 +2164,16 @@ uint32_t lcdc_memaddress(struct fb_overlayinfo_s * poverlay,
 
     offset = xpos * (poverlay->bpp / 8) + poverlay->stride * ypos;
 
-    //DRIVERS_TRACE(0,"0x%x, offset=%d\n", ((uint32_t) poverlay->fbmem) + offset,
+    //LCDC_INFO("0x%x, offset=%d\n", ((uint32_t) poverlay->fbmem) + offset,
     //      offset);
     return ((uint32_t) poverlay->fbmem) + offset;
 }
 
 #ifdef CONFIG_FB_UPDATE
-#define FULL_SCREEN_REDRAWN
+    #ifdef USE_GAMU_FB
+    #else
+        #define FULL_SCREEN_REDRAWN
+    #endif
 /**
  * updatearea - lcdc update display with area
  * @vtable : Reference to lcdc driver interface
@@ -2555,19 +2181,28 @@ uint32_t lcdc_memaddress(struct fb_overlayinfo_s * poverlay,
  */
 static int updatearea(FAR struct fb_vtable_s *vtable, const struct fb_area_s *area)
 {
-
     struct fb_overlayinfo_s *poverlay;
-    int ret = 0;
     FAR struct lcdcdev_s *dev = &g_vtable;
     FAR struct lcdc_s *layer = &dev->layer[LCDC_LAYER_L1];
     poverlay = &layer->oinfo;
 
-#if defined(CONFIG_LCDC_AUTOREFRESH_MODE) || defined(CONFIG_DSI_VIDEO_MODE)
+    if (vtable != NULL) {
 #if defined(CONFIG_FB_PANDISPLAY)
-    if (dev->panfo.panaddr != 0)
+#if defined(CONFIG_FB_DOUBLE_BUFFER)
         return 0;
+#else
+        struct fb_planeinfo_s pinfo = {
+            .yoffset = 0,
+        };
+        LCDC_REP("updatearea:x:%d,y:%d  w: %d h:%d", area->x,area->y, area->w,area->h);
+        while (pan_display(vtable, &pinfo) == ERROR)
+        {
+            lcdc_waitforirq();
+        }
+        return OK;
 #endif
 #endif
+    }
 
 #if defined(CONFIG_FB_DOUBLE_BUFFER)
     uint8_t *display_buffer = (uint8_t *)lcdc_memaddress(poverlay, area->x,area->y+
@@ -2575,20 +2210,35 @@ static int updatearea(FAR struct fb_vtable_s *vtable, const struct fb_area_s *ar
 #else
     uint8_t *display_buffer = (uint8_t *)lcdc_memaddress(poverlay, area->x,area->y);
 #if defined(CONFIG_FB_PANDISPLAY)
-    if (dev->panfo.yoffset != 0)
-        display_buffer = dev->panfo.yoffset;
+#if defined(CONFIG_DSI_VIDEO_MODE) && defined(CONFIG_FB_DRV_ROTATE)
+    return 0;
+#endif
+    if (dev->panfo.queue[0].yoffset != 0)
+        display_buffer = (uint8_t *)dev->panfo.queue[0].yoffset;
+#elif defined(ROTATE_DIRECT)
+/*
+        uint32_t current_tick = hal_fast_sys_timer_get();
+        if (times_to_line(FAST_TICKS_TO_US(current_tick - prev_framedone_ticks)) > (area->x+area->w))
+        {
+        }
+*/
+        lcdc_waitforirq();
+        display_buffer = (uint8_t *)lcdc_memaddress(poverlay, 0,0);
+        cpu_rotate_area_90((uint32_t)display_buffer,(uint32_t)dst_fb_buf,area->x,area->y, area->w,area->h);
+        //cpu_rotate_90((uint32_t)display_buffer,(uint32_t)dst_fb_buf,LCDC_HEIGHT,LCDC_WIDTH);
+        return 0;
 #endif
 #endif
 
     uint32_t flags;
     flags = int_lock();
     if (0 == area->x && area->w == LCDC_WIDTH)
-        lcdc_cache_sync(HAL_CACHE_ID_D_CACHE, (uint32_t)display_buffer, LCDC_WIDTH*4*area->h);
+        lcdc_cache_sync((uint32_t)display_buffer, LCDC_L1_STRIDE*area->h);
     else
     {
         for(int i = 0; i < area->h; i ++)
           {
-              lcdc_cache_sync(HAL_CACHE_ID_D_CACHE, (uint32_t)display_buffer + i * poverlay->stride, area->w * poverlay->bpp / 8);
+              lcdc_cache_sync((uint32_t)display_buffer + i * poverlay->stride, area->w * poverlay->bpp / 8);
           }
     }
     int_unlock(flags);
@@ -2596,8 +2246,6 @@ static int updatearea(FAR struct fb_vtable_s *vtable, const struct fb_area_s *ar
 #if defined(CONFIG_DSI_VIDEO_MODE)
     return 0;
 #endif
-
-    lcdc_waitforirq();
 
 #if !defined(FULL_SCREEN_REDRAWN) // !whole screen redrawn
     lcdc_exit_lowpower();
@@ -2615,60 +2263,52 @@ static int updatearea(FAR struct fb_vtable_s *vtable, const struct fb_area_s *ar
         uint16_t tmphend,tmpvend;
         tmphend = area->x+area->w-1;
         tmpvend = area->y+area->h-1;
-        area->x &= 0xfffe;
-        area->y &= 0xfffe;
-        area->w = (tmphend - area->x +2)&0xfffe;
-        area->h = (tmpvend - area->y +2)&0xfffe;
+        struct fb_area_s tarea;
+        tarea.x = area->x;
+        tarea.y = area->y;
+        tarea.w = area->w;
+        tarea.h = area->h;
 
-        uint16_t hstart = 14 + area->x;
-        uint16_t hend = hstart+area->w -1;
-        uint16_t vstart = area->y;
-        uint16_t vend = vstart+area->h-1;
+        tarea.x &= 0xfffe;
+        tarea.y &= 0xfffe;
+        tarea.w = (tmphend - tarea.x +2)&0xfffe;
+        tarea.h = (tmpvend - tarea.y +2)&0xfffe;
 
-        hal_dsi_reset(area->w);
-        hal_dsi_send_cmd_data(0x2a, 4, hstart>>8, hstart&0xff, hend>>8, hend&0xff);
-        hal_dsi_send_cmd_data(0x2b, 4, vstart>>8, vstart&0xff, vend>>8, vend&0xff);
+        uint16_t hstart = 14 + tarea.x;
+        uint16_t hend = hstart+tarea.w -1;
+        uint16_t vstart = tarea.y;
+        uint16_t vend = vstart+tarea.h-1;
+        uint8_t hparams[4] = { hstart>>8, hstart&0xff, hend>>8, hend&0xff };
+        uint8_t vparams[4] = { vstart>>8, vstart&0xff, vend>>8, vend&0xff };
 
-        display_buffer = lcdc_memaddress(poverlay, area->x,area->y+dev->pinfo.yoffset);
-        /* Configure Layer start addr register */
-        hal_lcdc_lstartaddr(LCDC_LAYER_LFORE, display_buffer);
-        /* Configure Layer size register */
-        hal_lcdc_lsize(LCDC_LAYER_LFORE, area->w,area->h);
-        hal_lcdc_lsize(LCDC_LAYER_SPU, area->w,area->h);
-        hal_lcdc_lzoom_set(LCDC_LAYER_LFORE, area->w,area->h);
+#ifdef CONFIG_LCDC_DSI
+        hal_dsi_reset(lcdc_config->bus_port0, tarea.w);
+        lcdc_send_cmd_list(lcdc_config->bus_port0, 0x2a, 4, hparams);
+        lcdc_send_cmd_list(lcdc_config->bus_port0, 0x2b, 4, vparams);
+#elif defined(CONFIG_LCDC_DUAL_DSI)
+        hal_dsi_reset(lcdc_config->bus_port0, tarea.w);
+        lcdc_send_cmd_list(lcdc_config->bus_port0, 0x2a, 4, hparams);
+        lcdc_send_cmd_list(lcdc_config->bus_port0, 0x2b, 4, vparams);
+        hal_dsi_reset(lcdc_config->bus_port1, tarea.w);
+        lcdc_send_cmd_list(lcdc_config->bus_port1, 0x2a, 4, hparams);
+        lcdc_send_cmd_list(lcdc_config->bus_port1, 0x2b, 4, vparams);
+#else
+        lcdc_send_cmd_list(lcdc_config->bus_port0, 0x2a, 4, hparams);
+        lcdc_send_cmd_list(lcdc_config->bus_port0, 0x2b, 4, vparams);
+#endif
+
+        display_buffer = (uint8_t *)lcdc_memaddress(poverlay, tarea.x,tarea.y+dev->pinfo.yoffset);
+
+        lcdc_layer_set_buffer(LCDC_LAYER_LFORE, display_buffer);
+        lcdc_layer_resize(LCDC_LAYER_LFORE, tarea.w, tarea.h);
     }
 #endif
     /* update Layer start addr register */
-    //lcdc_lenable(layer, true);
-    DRIVERS_TRACE(0,"updatearea:x:%d,y:%d  w: %d h:%d", area->x,area->y, area->w,area->h);
-    ret = lcdc_update();
-    return ret;
+    //lcdc_layer_enable(layer->layerno);
+    LCDC_INFO("updatearea:x:%d,y:%d  w: %d h:%d", area->x,area->y, area->w,area->h);
+    return lcdc_update();
 }
 #endif
-
-/**
- * lcdc_lvalidate - Validates if the given area is within the overlay framebuffer memory
- * @layer  : Reference to the layer control structure
- * @area   : Reference to the overlay area
- *
- */
-#if defined(CONFIG_DMA2D) && defined(CONFIG_FB_OVERLAY_BLIT)
-static bool lcdc_lvalidate(FAR const struct lcdc_s *layer,
-               FAR const struct fb_area_s *area)
-{
-    uint32_t offset;
-
-    offset =
-        (area->y + area->h - 1) * layer->oinfo.stride + (area->x +
-                                 area->w) *
-        layer->oinfo.bpp / 8;
-    DRIVERS_TRACE(0,"layer->oinfo.fblen: %d", layer->oinfo.fblen);
-    DRIVERS_TRACE(0,"offset: %ld", offset);
-    DRIVERS_TRACE(0," stride:%d  w: %d h:%d", layer->oinfo.stride, area->w,
-          area->h);
-    return (offset <= layer->oinfo.fblen && area->w > 0 && area->h > 0);
-}
-#endif /* defined(CONFIG_DMA2D) && defined(CONFIG_FB_OVERLAY_BLIT) */
 
 /**
  * lcdc_linit - Initialize layer to their default states.
@@ -2685,122 +2325,79 @@ static bool lcdc_lvalidate(FAR const struct lcdc_s *layer,
  */
 static void lcdc_linit(uint8_t overlay)
 {
+    struct fb_videoinfo_s devvinfo;
+    uint32_t real_screen_w = BOARD_LCDC_WIDTH;
+    uint32_t real_screen_h = BOARD_LCDC_HEIGHT;
+    uint32_t x_offset = 0;
+    uint32_t y_offset = 0;
+
     ASSERT(overlay < LCDC_NLAYERS, "%s", __func__);
 
     FAR struct lcdcdev_s *dev = &g_vtable;
     FAR struct lcdc_s *layer = &dev->layer[overlay];
 
-    /* Disable layer */
+    struct lcdc_layer_config_t config;
+    uint8_t layerno = layer->layerno;
 
-    lcdc_lenable(layer, false);
+    if (g_vtable.lcddev != NULL && g_vtable.lcddev->getvideoinfo != NULL) {
+        g_vtable.lcddev->getvideoinfo(g_vtable.lcddev, &devvinfo);
+        real_screen_w = devvinfo.xres;
+        real_screen_h = devvinfo.yres;
+    }
+#ifdef LCD_WIDTH
+    real_screen_w = LCD_WIDTH;
+#endif
+#ifdef LCD_HEIGHT
+    real_screen_h = LCD_HEIGHT;
+#endif
 
-    /* Clear the layer framebuffer */
+#if defined(CONFIG_LCDC_ALIGN_MIDDLE)
+    if (rel_screen_w > LCD_WIDTH)
+        x_offset += (BOARD_LCDC_WIDTH - real_screen_w) / 2;
+    if (rel_screen_h > LCD_HEIGHT)
+        y_offset += (BOARD_LCDC_HEIGHT - real_screen_h) / 2;
+#endif
 
-    lcdc_lclear(overlay);
+    LCDC_ERR("buffer size %dx%d, panel size %dx%d, offset [%d, %d]\n",
+            BOARD_LCDC_WIDTH, BOARD_LCDC_HEIGHT, real_screen_w, real_screen_h, x_offset, y_offset);
 
-    /* Set layers framebuffer */
+    memset(&config, 0, sizeof(config));
 
-    lcdc_lframebuffer(layer);
+    config.enable = false;
+    config.format = fmt_layer_t[layerno];
+    config.width = real_screen_w;
+    config.height = real_screen_h;
+    config.offset_x = x_offset;
+    config.offset_y = y_offset;
+    config.buffer = (uint8_t *)fbmem_layer_t[layerno];
+    config.stride = stride_layer_t[layerno];
 
-    /* Set layers pixel input format */
-
-    lcdc_lpixelformat(layer);
-
-    /* Configure layer default color */
-
-    lcdc_ldefaultcolor(layer, defaultcolor_layer_t[overlay]);
+    lcdc_layer_config(layerno, &config);
 
     /* Layers default transparency */
-
     lcdc_ltransp(layer, layer->oinfo.transp.transp,
              layer->oinfo.transp.transp_mode);
 
     /* Layers chromakey */
 #ifdef CONFIG_LCDC_CHROMAKEY
-
-    DRIVERS_TRACE(0,"%s chromkey:0x%x", __func__, chromakey_layer_t[overlay]);
-    lcdc_lchromakey(layer, chromakey_layer_t[overlay], 0);
-
-    /* Enable chromakey */
-
-    lcdc_lchromakeyenable(layer, chromakeyen_layer_t[overlay]);
+    LCDC_INFO("%s chromkey:0x%x", __func__, chromakey_layer_t[overlay]);
+    lcdc_lchromakey_enable(layer, chromakey_layer_t[overlay], 0);
 #endif
+
 #ifdef CONFIG_FB_CMAP
     /* Disable clut by default */
-
     if (dev->vinfo.fmt == FB_FMT_RGB8) {
         /* Initialize LCDC clut register */
-
         lcdc_lputclut(layer, &g_vtable.cmap);
 
         /* Configure the clut register */
-
         lcdc_lclutenable(layer, true);
     }
 #endif
 
-#ifdef CONFIG_FB_COLORADJCURVE
-    //    lcdc_lputcadjcurves(layer, &g_vtable.cadjmap);
-    //   lcdc_lcadjcurves_enable(layer, true);
-#endif
-
     /* Finally enable the layer */
-    lcdc_lenable(layer, true);
+    lcdc_layer_enable(layer->layerno);
 }
-
-/**
- * lcdc_dma2dlinit - Initialize dma2d layer to their default states.
- * @layer : Reference to the layer control structure
- *
- * Initialize:
- * - ``-layer framebuffer
- * - ``-layer pixelformat
- * - ``-layer size
- * - ``-layer color
- * - ``-layer chromakey
- * - ``-layer transparency
- * - ``-layer clut
- */
-#if defined(CONFIG_DMA2D)
-static void lcdc_dma2dlinit(void)
-{
-
-#if (LCDC_DMA2D_NLAYERS > 0)
-    int n;
-    FAR struct lcdcdev_s *dev = &g_vtable;
-
-    uint8_t *fbmem = (uint8_t *) DMA2D_BUFFER_START;
-
-    for (n = 0; n < LCDC_DMA2D_NLAYERS; n++) {
-        uint32_t overlay = n + LCDC_NLAYERS;
-        FAR struct lcdc_s *layer = &dev->layer[overlay];
-
-        layer->layerno = overlay;
-        layer->oinfo.fbmem = fbmem + DMA2D_LAYER_SIZE * n;
-        layer->oinfo.fblen = DMA2D_FBSIZE;
-        layer->oinfo.stride = DMA2D_STRIDE;
-        layer->oinfo.overlay = overlay;
-        layer->oinfo.bpp = DMA2D_BPP;
-        layer->oinfo.blank = 0;
-        layer->oinfo.chromakey = 0;
-        layer->oinfo.color = 0;
-        layer->oinfo.transp.transp = 0xff;
-        layer->oinfo.transp.transp_mode = 0;
-        layer->oinfo.sarea.x = 0;
-        layer->oinfo.sarea.y = 0;
-        layer->oinfo.sarea.w = DMA2D_WIDTH;
-        layer->oinfo.sarea.h = DMA2D_HEIGHT;
-        layer->oinfo.accl = DMA2D_ACCL;
-        layer->lock = &g_lock;
-        layer->dma2dinfo.fmt = DMA2D_COLOR_FMT;
-        layer->dma2dinfo.transp_mode = 0;
-        layer->dma2dinfo.xres = layer->oinfo.sarea.w;
-        layer->dma2dinfo.yres = layer->oinfo.sarea.h;
-        layer->dma2dinfo.oinfo = &layer->oinfo;
-    }
-#endif
-}
-#endif /* CONFIG_DMA2D */
 
 /****************************************************************************
  * Public Functions
@@ -2821,7 +2418,7 @@ static int getvideoinfo(struct fb_vtable_s *vtable,
 {
     FAR struct lcdcdev_s *priv = (FAR struct lcdcdev_s *)vtable;
 
-    DRIVERS_TRACE(0,"vtable=%p vinfo=%p\n", vtable, vinfo);
+    LCDC_INFO("vtable=%p vinfo=%p\n", vtable, vinfo);
     ASSERT(vtable != NULL && priv == &g_vtable
            && vinfo != NULL, "%s", __func__);
 
@@ -2856,18 +2453,38 @@ static int getplaneinfo(struct fb_vtable_s *vtable, int planeno,
     FAR struct lcdcdev_s *priv = (FAR struct lcdcdev_s *)vtable;
 
     ASSERT(vtable != NULL && priv == &g_vtable, "%s", __func__);
-    //DRIVERS_TRACE(0,"vtable=%p planeno=%d pinfo=%p\n", vtable, planeno, pinfo);
+    //LCDC_INFO("vtable=%p planeno=%d pinfo=%p\n", vtable, planeno, pinfo);
 
     if (planeno == 0) {
+        int display = pinfo->display;
+	(void) display;
         memcpy(pinfo, &priv->pinfo, sizeof(struct fb_planeinfo_s));
+#if defined(CONFIG_DISCONTNUOUS_FB_DOUBLE_BUFFER)
+#if !defined(CONFIG_FB_DOUBLE_BUFFER)
+        if (display == 1) {
+            unsigned int mem1 = (uint32_t)pinfo->fbmem;
+            pinfo->display = 1;
+            pinfo->fbmem = memalign(64, pinfo->fblen+pinfo->stride);
+            ASSERT(pinfo->fbmem!=NULL, "LCDC:fbmem2 alloc fail!!!\n");
+            if (pinfo->fbmem > mem1) {
+                pinfo->fbmem = mem1 + (((uint32_t)pinfo->fbmem-mem1)/pinfo->stride+1)*pinfo->stride;
+            }
+            else {
+                ASSERT(0, "LCDC:fbmem2 should larger than mem1!!!\n");
+            }
+#ifdef TEST_WITH_GPU
+            ASSERT((((uint32_t)pinfo->fbmem%64)==0), "LCDC:fbmem2 is not 64B align!!!\n");
+#endif
+        }
+#endif
+#endif
         return OK;
     }
 
-    DRIVERS_TRACE(0,"ERROR: Returning EINVAL\n");
+    LCDC_ERR("ERROR: Returning EINVAL\n");
     return -EINVAL;
 }
 
-#ifdef CONFIG_PM
 /**
  * setpower - set panel power.
  * @vtable : Reference to lcdc driver interface
@@ -2899,10 +2516,9 @@ static int getpower(FAR struct fb_vtable_s *vtable)
     ASSERT(vtable != NULL && priv == &g_vtable, "%s", __func__);
     ASSERT(priv->lcddev != NULL && priv->lcddev->getpower != NULL,
            "%s", __func__);
-    DRIVERS_TRACE(0,"lcdc get power %d\n");
+
     return priv->lcddev->getpower(priv->lcddev);
 }
-#endif
 
 /**
  * getcmap - Get a range of CLUT values for the LCD
@@ -2923,7 +2539,7 @@ static int getcmap(struct fb_vtable_s *vtable, struct fb_cmap_s *cmap)
 
     ASSERT(vtable != NULL && priv == &g_vtable
            && cmap != NULL, "%s", __func__);
-    DRIVERS_TRACE(0,"vtable=%p cmap=%p\n", vtable, cmap);
+    LCDC_INFO("vtable=%p cmap=%p\n", vtable, cmap);
 
     if (priv->vinfo.fmt != FB_FMT_RGB8) {
         LCDC_ERR
@@ -2931,7 +2547,7 @@ static int getcmap(struct fb_vtable_s *vtable, struct fb_cmap_s *cmap)
              priv->vinfo.fmt);
         ret = -EINVAL;
     } else if (cmap->first >= LCDC_NCLUT) {
-        DRIVERS_TRACE(0,"ERROR: only %d color table entries supported\n",
+        LCDC_ERR("ERROR: only %d color table entries supported\n",
              LCDC_NCLUT);
         ret = -EINVAL;
     } else {
@@ -2947,11 +2563,11 @@ static int getcmap(struct fb_vtable_s *vtable, struct fb_cmap_s *cmap)
         layer = &priv->layer[LCDC_LAYER_L1];
 #endif
 
-        lcdc_sem_wait(layer->lock);
+        gra_sem_wait(layer->lock);
 
         lcdc_lgetclut(layer, cmap);
 
-        lcdc_sem_post(layer->lock);
+        gra_sem_post(layer->lock);
         ret = OK;
     }
 
@@ -2975,7 +2591,7 @@ static int putcmap(struct fb_vtable_s *vtable, const struct fb_cmap_s *cmap)
 
     ASSERT(vtable != NULL && priv == &g_vtable
            && cmap != NULL, "%s", __func__);
-    DRIVERS_TRACE(0,"vtable=%p cmap=%p\n", vtable, cmap);
+    LCDC_INFO("vtable=%p cmap=%p\n", vtable, cmap);
 
     if (priv->vinfo.fmt != FB_FMT_RGB8) {
         LCDC_ERR
@@ -2983,7 +2599,7 @@ static int putcmap(struct fb_vtable_s *vtable, const struct fb_cmap_s *cmap)
              priv->vinfo.fmt);
         ret = -EINVAL;
     } else if (cmap->first >= LCDC_NCLUT) {
-        DRIVERS_TRACE(0,"ERROR: only %d color table entries supported\n",
+        LCDC_ERR("ERROR: only %d color table entries supported\n",
              LCDC_NCLUT);
         ret = -EINVAL;
     } else {
@@ -3012,17 +2628,12 @@ static int putcmap(struct fb_vtable_s *vtable, const struct fb_cmap_s *cmap)
         priv_cmap->len = cmap->len;
 
         /* Update the layer clut register */
-        lcdc_sem_wait(&g_lock);
+        gra_sem_wait(&g_lock);
         for (n = 0; n < LCDC_NLAYERS; n++) {
             FAR struct lcdc_s *layer = &priv->layer[n];
             lcdc_lputclut(layer, priv_cmap);
         }
-#ifdef CONFIG_DMA2D
-        /* Update dma2d cmap */
-
-        priv->dma2d->setclut(cmap);
-#endif
-        lcdc_sem_post(&g_lock);
+        gra_sem_post(&g_lock);
         ret = OK;
     }
 
@@ -3048,10 +2659,10 @@ static int getcadjmap(struct fb_vtable_s *vtable, struct fb_cadjmap_s *cadjmap)
 
     ASSERT(vtable != NULL && priv == &g_vtable
            && cadjmap != NULL, "%s", __func__);
-    DRIVERS_TRACE(0,"vtable=%p cadjmap=%p\n", vtable, cadjmap);
+    LCDC_INFO("vtable=%p cadjmap=%p\n", vtable, cadjmap);
 
     if (cadjmap->first >= LCDC_NCLUT) {
-        DRIVERS_TRACE(0,"ERROR: only %d color table entries supported\n",
+        LCDC_ERR("ERROR: only %d color table entries supported\n",
              LCDC_NCLUT);
         ret = -EINVAL;
     } else {
@@ -3067,11 +2678,11 @@ static int getcadjmap(struct fb_vtable_s *vtable, struct fb_cadjmap_s *cadjmap)
         layer = &priv->layer[LCDC_LAYER_L1];
 #endif
 
-        lcdc_sem_wait(layer->lock);
+        gra_sem_wait(layer->lock);
 
         lcdc_lgetcadjcurves(layer, cadjmap);
 
-        lcdc_sem_post(layer->lock);
+        gra_sem_post(layer->lock);
         ret = OK;
     }
 
@@ -3096,10 +2707,10 @@ static int putcadjmap(struct fb_vtable_s *vtable,
 
     ASSERT(vtable != NULL && priv == &g_vtable
            && cadjmap != NULL, "%s", __func__);
-    DRIVERS_TRACE(0,"vtable=%p cadjmap=%p\n", vtable, cadjmap);
+    LCDC_INFO("vtable=%p cadjmap=%p\n", vtable, cadjmap);
 
     if (cadjmap->first >= LCDC_NCLUT) {
-        DRIVERS_TRACE(0,"ERROR: only %d color table entries supported\n",
+        LCDC_ERR("ERROR: only %d color table entries supported\n",
              LCDC_NCLUT);
         ret = -EINVAL;
     } else {
@@ -3124,16 +2735,12 @@ static int putcadjmap(struct fb_vtable_s *vtable,
         priv_cmap->len = cadjmap->len;
 
         /* Update the layer clut register */
-        lcdc_sem_wait(&g_lock);
+        gra_sem_wait(&g_lock);
         for (n = 0; n < LCDC_NLAYERS; n++) {
             FAR struct lcdc_s *layer = &priv->layer[n];
             lcdc_lputcadjcurves(layer, priv_cmap);
         }
-#ifdef CONFIG_DMA2D
-        /* Update dma2d cmap */
-//      priv->dma2d->setclut(cmap);
-#endif
-        lcdc_sem_post(&g_lock);
+        gra_sem_post(&g_lock);
         ret = OK;
     }
 
@@ -3182,7 +2789,7 @@ static int putcdithermap(struct fb_vtable_s *vtable,
 
     ASSERT(vtable != NULL && priv == &g_vtable
            && cdithermap != NULL, "%s", __func__);
-    DRIVERS_TRACE(0,"vtable=%p cdithermap=%p\n", vtable, cdithermap);
+    LCDC_INFO("vtable=%p cdithermap=%p\n", vtable, cdithermap);
 
     if (cdithermap->first >= 4) {
         LCDC_ERR
@@ -3202,20 +2809,16 @@ static int putcdithermap(struct fb_vtable_s *vtable,
 
         for (n = cdithermap->first; n < cdithermap->len && n < 4; n++) {
             priv_cmap->data[n] = cdithermap->data[n];
-            //DRIVERS_TRACE(0,"cdithermap->data[%d]: 0x%x", n, cdithermap->data[n]);
+            //LCDC_REP("cdithermap->data[%d]: 0x%x", n, cdithermap->data[n]);
         }
 
         priv_cmap->first = cdithermap->first;
         priv_cmap->len = cdithermap->len;
 
         /* Update the layer clut register */
-        lcdc_sem_wait(&g_lock);
+        gra_sem_wait(&g_lock);
         lcdc_setcdither(priv_cmap);
-#ifdef CONFIG_DMA2D
-        /* Update dma2d cmap */
-        priv->dma2d->setdither(priv_cmap);
-#endif
-        lcdc_sem_post(&g_lock);
+        gra_sem_post(&g_lock);
         ret = OK;
     }
 
@@ -3234,19 +2837,19 @@ extern int lcdc_waitforirq(void);
 
 #ifdef CONFIG_LCDC_TE_IRQ_ENABLE
 /**
- * dsi_waitforirq - Helper waits until the dsi te irq occurs.
+ * waitfor_vsync - Helper waits until the dsi te irq occurs.
  */
-static int dsi_waitforirq(void)
+static int wait_for_vsync(void)
 {
     int ret = OK;
     FAR struct teinterrupt_s *priv = &g_teinterrupt;
     //TC_INIT
-    DRIVERS_TRACE(0,"dsi_waitforirq();");
+    LCDC_REGINFO("wait_for_vsync;");
     //TC_START
-    ret = lcdc_sem_wait(priv->sem);
+    ret = gra_sem_wait(priv->sem);
 
     if (ret < 0) {
-        DRIVERS_TRACE(0,"ERROR: lcdc_sem_wait() failed\n");
+        LCDC_ERR("ERROR: gra_sem_wait() failed\n");
     }
 
     ret = priv->error;
@@ -3264,8 +2867,8 @@ static int waitforvsync(FAR struct fb_vtable_s *vtable)
 #if defined(CONFIG_FB_PANDISPLAY)
     ret = lcdc_pandisp_trywait();
 #elif defined(CONFIG_LCDC_TE_IRQ_ENABLE)
-    ret = dsi_waitforirq();
-#else
+    ret = wait_for_vsync();
+#else /* just use framedone */
     ret = lcdc_waitforirq();
 #endif
     return ret;
@@ -3286,17 +2889,17 @@ static int getoverlayinfo(FAR struct fb_vtable_s *vtable,
 {
     FAR struct lcdcdev_s *priv = (FAR struct lcdcdev_s *)vtable;
 
-    DRIVERS_TRACE(0,"vtable=%p overlay=%d oinfo=%p\n", vtable, overlayno, oinfo);
+    LCDC_INFO("vtable=%p overlay=%d oinfo=%p\n", vtable, overlayno, oinfo);
     ASSERT(vtable != NULL && priv == &g_vtable, "%s", __func__);
 
     if (overlayno < LCDC_NOVERLAYS) {
         FAR struct lcdc_s *layer = &priv->layer[overlayno];
         memcpy(oinfo, &layer->oinfo, sizeof(struct fb_overlayinfo_s));
-        DRIVERS_TRACE(0,"oinfo->fbmem=%p\n", oinfo->fbmem);
+        LCDC_INFO("oinfo->fbmem=%p\n", oinfo->fbmem);
         return OK;
     }
 
-    DRIVERS_TRACE(0,"ERROR: Returning EINVAL\n");
+    LCDC_ERR("ERROR: Returning EINVAL\n");
     return -EINVAL;
 }
 
@@ -3312,7 +2915,7 @@ static int settransp(FAR struct fb_vtable_s *vtable,
              FAR const struct fb_overlayinfo_s *oinfo)
 {
     FAR struct lcdcdev_s *priv = (FAR struct lcdcdev_s *)vtable;
-    DRIVERS_TRACE(0,"vtable=%p, overlay=%d, transp=%02x, transp_mode=%02x\n",
+    LCDC_INFO("vtable=%p, overlay=%d, transp=%02x, transp_mode=%02x\n",
           vtable, oinfo->overlay, oinfo->transp.transp,
           oinfo->transp.transp_mode);
 
@@ -3327,30 +2930,19 @@ static int settransp(FAR struct fb_vtable_s *vtable,
     if (oinfo->overlay < LCDC_NOVERLAYS) {
         FAR struct lcdc_s *layer = &priv->layer[oinfo->overlay];
 
-        lcdc_sem_wait(layer->lock);
+        gra_sem_wait(layer->lock);
         layer->oinfo.transp.transp = oinfo->transp.transp;
         layer->oinfo.transp.transp_mode = oinfo->transp.transp_mode;
 
-#ifdef CONFIG_DMA2D
-        if (layer->oinfo.transp.transp_mode == 0) {
-            layer->dma2dinfo.transp_mode = FB_CONST_ALPHA;
-        } else if (layer->oinfo.transp.transp_mode == 1) {
-            layer->dma2dinfo.transp_mode = FB_PIXEL_ALPHA;
-        }
-
-        if (oinfo->overlay < LCDC_NLAYERS)
-#endif
-        {
-            /* Set LCDC blendmode and alpha value */
-
-            lcdc_ltransp(layer, layer->oinfo.transp.transp,
+        /* Set LCDC blendmode and alpha value */
+        lcdc_ltransp(layer, layer->oinfo.transp.transp,
                      layer->oinfo.transp.transp_mode);
-        }
-        lcdc_sem_post(layer->lock);
+
+        gra_sem_post(layer->lock);
         return OK;
     }
 
-    DRIVERS_TRACE(0,"ERROR: Returning EINVAL\n");
+    LCDC_ERR("ERROR: Returning EINVAL\n");
     return -EINVAL;
 }
 
@@ -3370,7 +2962,7 @@ static int setchromakey(FAR struct fb_vtable_s *vtable,
     FAR struct lcdcdev_s *priv = (FAR struct lcdcdev_s *)vtable;
     ASSERT(vtable != NULL && priv == &g_vtable
            && oinfo != NULL, "%s", __func__);
-    DRIVERS_TRACE(0,"vtable=%p, overlay=%d, chromakey=%08x\n", vtable,
+    LCDC_INFO("vtable=%p, overlay=%d, chromakey=%08x\n", vtable,
           oinfo->overlay, oinfo->chromakey);
 
     if (oinfo->overlay < LCDC_NLAYERS) {
@@ -3388,10 +2980,10 @@ static int setchromakey(FAR struct fb_vtable_s *vtable,
         }
 #endif
 
-        lcdc_sem_wait(layer->lock);
+        gra_sem_wait(layer->lock);
 #ifdef CONFIG_FB_CMAP
         if (oinfo->chromakey >= g_vtable.cmap.len) {
-            DRIVERS_TRACE(0,"ERROR: Clut index %d is out of range\n",
+            LCDC_ERR("ERROR: Clut index %d is out of range\n",
                  oinfo->chromakey);
             ret = -EINVAL;
         } else
@@ -3400,72 +2992,19 @@ static int setchromakey(FAR struct fb_vtable_s *vtable,
             layer->oinfo.chromakey = oinfo->chromakey;
 
             /* Set chromakey */
-
-            lcdc_lchromakey(layer, layer->oinfo.chromakey, 0);
+            lcdc_lchromakey_enable(layer, layer->oinfo.chromakey, 0);
             ret = OK;
         }
 
-        lcdc_sem_post(layer->lock);
+        gra_sem_post(layer->lock);
         return ret;
     }
-#ifdef CONFIG_DMA2D
-    else if (oinfo->overlay < LCDC_NOVERLAYS) {
-        /* Chromakey not supported by DMA2D */
 
-        return -ENOSYS;
-    }
-#endif
-
-    DRIVERS_TRACE(0,"ERROR: Returning EINVAL\n");
+    LCDC_ERR("ERROR: Returning EINVAL\n");
     return -EINVAL;
 }
 
 #endif
-
-/**
- * setcolor  - set fb layer color by DMA2D
- *
- * Entrypoint ioctl FBIOSET_COLOR
- *
- * Returns:   OK on success, -errno on failure.
- */
-static int setcolor(FAR struct fb_vtable_s *vtable,
-            FAR const struct fb_overlayinfo_s *oinfo)
-{
-    ASSERT(vtable != NULL && vtable == &g_vtable.vtable
-           && oinfo != NULL, "%s", __func__);
-    DRIVERS_TRACE(0," %s vtable=%p,lid:%d color=%08x\n",__func__,vtable ,oinfo->overlay, (unsigned int)oinfo->color);
-
-    if (oinfo->overlay < LCDC_NOVERLAYS) {
-#ifdef CONFIG_DMA2D
-        /* Set color within the active overlay is not supported by LCDC. So use
-         * DMA2D controller instead when configured.
-         */
-
-        int ret;
-        FAR struct lcdcdev_s *priv = (FAR struct lcdcdev_s *)vtable;
-        FAR struct lcdc_s *layer = &priv->layer[oinfo->overlay];
-        FAR struct fb_overlayinfo_s *poverlay = layer->dma2dinfo.oinfo;
-
-        ASSERT(&layer->oinfo == poverlay, "%s", __func__);
-
-        lcdc_sem_wait(layer->lock);
-        poverlay->color = oinfo->color;
-        ret =
-            priv->dma2d->fillcolor(&layer->dma2dinfo, &poverlay->sarea,
-                       poverlay->color);
-        lcdc_sem_post(layer->lock);
-        return ret;
-#else
-        /* Coloring not supported by LCDC */
-
-        return -ENOSYS;
-#endif
-    }
-
-    DRIVERS_TRACE(0,"ERROR: Returning EINVAL\n");
-    return -EINVAL;
-}
 
 /**
  * setblank - blank fb layer
@@ -3482,202 +3021,25 @@ static int setblank(FAR struct fb_vtable_s *vtable,
 
     ASSERT(vtable != NULL && priv == &g_vtable
            && oinfo != NULL, "%s", __func__);
-    DRIVERS_TRACE(0,"vtable=%p, overlay=%d, blank=%02x\n", vtable ,oinfo->overlay ,oinfo->blank);
+    LCDC_INFO("vtable=%p, overlay=%d, blank=%02x\n", vtable ,oinfo->overlay ,oinfo->blank);
 
     if (oinfo->overlay < LCDC_NLAYERS) {
         FAR struct lcdc_s *layer = &priv->layer[oinfo->overlay];
-        lcdc_sem_wait(layer->lock);
+        gra_sem_wait(layer->lock);
         layer->oinfo.blank = oinfo->blank;
 
         /* Enable or disable layer */
 
-        lcdc_lenable(layer, (layer->oinfo.blank == 0));
-        lcdc_sem_post(layer->lock);
+        if (layer->oinfo.blank == 0)
+            lcdc_layer_enable(layer->layerno);
+        gra_sem_post(layer->lock);
         return OK;
     }
-#ifdef CONFIG_DMA2D
-    else if (oinfo->overlay < LCDC_NOVERLAYS) {
-        /* DMA2D overlays are non visible */
 
-        return OK;
-    }
-#endif
-
-    DRIVERS_TRACE(0,"ERROR: Returning EINVAL\n");
+    LCDC_ERR("ERROR: Returning EINVAL\n");
     return -EINVAL;
 }
 
-/**
- * setarea - set dma2d layer select area
- * @vtable : Reference to lcdc driver interface
- * @oinfo : Reference to fb overlay info structure
- *
- * Entrypoint ioctl FBIOSET_AREA
- * Returns:   OK on success, -errno on failure.
- */
-static int setarea(FAR struct fb_vtable_s *vtable,
-           FAR const struct fb_overlayinfo_s *oinfo)
-{
-    ASSERT(vtable != NULL && vtable == &g_vtable.vtable
-           && oinfo != NULL, "%s", __func__);
-    DRIVERS_TRACE(0,"vtable=%p, overlay=%d, x=%d, y=%d, w=%d, h=%d\n", vtable,
-          oinfo->overlay, oinfo->sarea.x, oinfo->sarea.y,
-          oinfo->sarea.w, oinfo->sarea.h);
-
-    if (oinfo->overlay < LCDC_NLAYERS) {
-        /* LCDC area is defined by the overlay size (display resolution) only */
-
-        return -ENOSYS;
-    }
-#ifdef CONFIG_DMA2D
-    if (oinfo->overlay < LCDC_NOVERLAYS) {
-        FAR struct lcdcdev_s *priv = (FAR struct lcdcdev_s *)vtable;
-        FAR struct lcdc_s *layer = &priv->layer[oinfo->overlay];
-        lcdc_sem_wait(layer->lock);
-        memcpy(&layer->oinfo.sarea, &oinfo->sarea,
-               sizeof(struct fb_area_s));
-
-        lcdc_sem_post(layer->lock);
-        return OK;
-    }
-#endif
-
-    DRIVERS_TRACE(0,"ERROR: Returning EINVAL\n");
-    return -EINVAL;
-}
-
-/**
- * blit - copy image form source to dest area
- * @vtable : Reference to lcdc driver interface
- * @blit : Reference to fb overlay blit info structure
- *
- * Entrypoint ioctl FBIOSET_BLIT
- * Returns:   OK on success, -errno on failure.
- */
-#ifdef CONFIG_FB_OVERLAY_BLIT
-static int blit(FAR struct fb_vtable_s *vtable,
-        FAR const struct fb_overlayblit_s *blit)
-{
-    ASSERT(vtable != NULL && vtable == &g_vtable.vtable
-           && blit != NULL, "%s", __func__);
-    DRIVERS_TRACE(0,"vtable = %p, blit = %p\n", vtable, blit);
-    if (blit->dest.overlay < LCDC_NOVERLAYS
-        && blit->src.overlay < LCDC_NOVERLAYS) {
-#ifdef CONFIG_DMA2D
-        int ret;
-        struct fb_area_s sarea;
-        FAR const struct fb_area_s *darea = &blit->dest.area;
-        FAR struct lcdcdev_s *priv = (FAR struct lcdcdev_s *)vtable;
-        FAR struct lcdc_s *dlayer = &priv->layer[blit->dest.overlay];
-        FAR struct lcdc_s *slayer = &priv->layer[blit->src.overlay];
-
-        ASSERT(&dlayer->oinfo == dlayer->dma2dinfo.oinfo &&
-               &slayer->oinfo == slayer->dma2dinfo.oinfo, "%s",
-               __func__);
-
-        /* DMA2D support image scale, so set to the smallest area */
-
-        memcpy(&sarea, &blit->src.area, sizeof(struct fb_area_s));
-        DRIVERS_TRACE(0,"darea x = %d y = %d, sarea x = %d y = %d \n",
-              darea->x, darea->y, sarea.x, sarea.y);
-
-        /* Check if area is within the entire overlay */
-
-        if (!lcdc_lvalidate(dlayer, darea) ||
-            !lcdc_lvalidate(slayer, &sarea)) {
-            DRIVERS_TRACE(0,"%s lcdc_linvalidate", __func__);
-            return -EINVAL;
-        }
-        lcdc_sem_wait(dlayer->lock);
-
-        ret = priv->dma2d->blit(&dlayer->dma2dinfo, darea,
-                    &slayer->dma2dinfo, &sarea);
-
-        lcdc_sem_post(dlayer->lock);
-
-        return ret;
-#else
-        /* LCDC doesn't support blit transfer */
-
-        return -ENOSYS;
-#endif
-    }
-
-    DRIVERS_TRACE(0,"ERROR: Returning EINVAL\n");
-    return -EINVAL;
-}
-
-/**
- * blend - blend Back and fore Ground layers to dest layer
- * @vtable : Reference to lcdc driver interface
- * @blend : Reference to fb overlay blend info structure
- *
- * Entrypoint ioctl FBIOSET_BLEND
- * Returns:   OK on success, -errno on failure.
- */
-static int blend(FAR struct fb_vtable_s *vtable,
-         FAR const struct fb_overlayblend_s *blend)
-{
-    DRIVERS_TRACE(0,"vtable = %p, blend = %p\n", vtable, blend);
-    ASSERT(vtable != NULL && vtable == &g_vtable.vtable
-           && blend != NULL, "%s", __func__);
-
-    if (blend->dest.overlay < LCDC_NOVERLAYS &&
-        blend->foreground.overlay < LCDC_NOVERLAYS &&
-        blend->background.overlay < LCDC_NOVERLAYS) {
-#ifdef CONFIG_DMA2D
-        int ret;
-        struct fb_area_s barea;
-        FAR const struct fb_area_s *darea = &blend->dest.area;
-        FAR const struct fb_area_s *farea = &blend->foreground.area;
-        FAR struct lcdcdev_s *priv = (FAR struct lcdcdev_s *)vtable;
-        FAR struct lcdc_s *dlayer = &priv->layer[blend->dest.overlay];
-        FAR struct lcdc_s *flayer =
-            &priv->layer[blend->foreground.overlay];
-        FAR struct lcdc_s *blayer =
-            &priv->layer[blend->background.overlay];
-
-        ASSERT(&dlayer->oinfo == dlayer->dma2dinfo.oinfo &&
-               &flayer->oinfo == flayer->dma2dinfo.oinfo &&
-               &blayer->oinfo == blayer->dma2dinfo.oinfo, "%s",
-               __func__);
-
-        /* DMA2D support image scale */
-
-        memcpy(&barea, &blend->background.area,
-               sizeof(struct fb_area_s));
-
-        /* Check if area is within the entire overlay */
-
-        DRIVERS_TRACE(0,"%s dlayer on:%d stride:%d  fmt:%d", __func__,
-             blend->dest.overlay, dlayer->oinfo.stride,
-             dlayer->dma2dinfo.fmt);
-
-        if (!lcdc_lvalidate(dlayer, darea) ||
-            !lcdc_lvalidate(flayer, farea) ||
-            !lcdc_lvalidate(blayer, &barea)) {
-            DRIVERS_TRACE(0,"ERROR: Returning EINVAL\n");
-            return -EINVAL;
-        }
-        lcdc_sem_wait(dlayer->lock);
-
-        ret = priv->dma2d->blend(&dlayer->dma2dinfo, darea,
-                     &flayer->dma2dinfo, farea,
-                     &blayer->dma2dinfo, &barea);
-
-        lcdc_sem_post(dlayer->lock);
-        return ret;
-#else
-        /* LCDC doesn't support blend transfer */
-
-        return -ENOSYS;
-#endif
-    }
-
-    DRIVERS_TRACE(0,"ERROR: Returning EINVAL\n");
-    return -EINVAL;
-}
-#endif /* CONFIG_FB_OVERLAY_BLIT */
 #endif /* CONFIG_FB_OVERLAY */
 
 /**
@@ -3688,19 +3050,25 @@ static int blend(FAR struct fb_vtable_s *vtable,
  */
 void lcdcreset(void)
 {
-    hal_lcdc_reset();
+    lcdc_reset();
 }
 
-FAR struct lcd_dev_s *board_lcd_getdev(int lcddev);
-
 #if defined(SIMU) && !defined(CONFIG_DSI_VIDEO_MODE)
-#include "hal_timer.h"
-#include "hwtimer_list.h"
 static HWTIMER_ID hw_timer = NULL;
 static void timer_handler(void *param)
 {
-    dsi_te_gpio_irq();
+    lcdc_vsync_cb();
     hwtimer_start(hw_timer, MS_TO_TICKS(17));
+}
+#endif
+
+#ifdef SUPPORT_REPLACE_FBMEM
+static HWTIMER_ID fb_replace_timer = NULL;
+static void fb_replace_handler(void *param)
+{
+    hwtimer_free(fb_replace_timer);
+    fb_replace_timer = NULL;
+    fb_replace_ok = true;
 }
 #endif
 
@@ -3709,66 +3077,56 @@ static void timer_handler(void *param)
  *
  * Returns:   OK on success, -errno on failure.
  */
+
+FAR struct lcd_dev_s *board_lcd_getdev(int lcddev);
 int lcdc_initialize(void *fbmem, uint32_t fbsize)
 {
     int ret = OK;
-    DRIVERS_TRACE(0,"Initialize LCDC driver fbmem:0x%x,fbsize:%d\n",fbmem,fbsize);
+    LCDC_REP("Initialize LCDC driver fbmem:%p,fbsize:%d\n",fbmem,fbsize);
     if (g_initialized == true) {
         return ret;
     }
+    lcdc_get_config(&lcdc_config);
+    if (lcdc_config == NULL) {
+        LCDC_REP("Failed to get lcdc_config.");
+        return -1;
+    }
+    g_vtable.lcddev = (struct lcd_dev_s *)board_lcd_getdev(0);
 
-    /* reset clk */
-    hal_lcdc_disp_pn_reset();
-
-#ifdef CONFIG_LCDC_WB_TEST
-    hal_cmu_lcdc_clock_enable(0);
+#ifdef SUPPORT_REPLACE_FBMEM
+    if (fbmem == NULL)
+        fbmem = memalign(64,CONFIG_LCDC_FB_SIZE);
+    ASSERT(fbmem, "fbmem malloc fail!!");
+    memset(fbmem, 0, CONFIG_LCDC_FB_SIZE);
+    if (fb_replace_timer == NULL)
+        fb_replace_timer = hwtimer_alloc(fb_replace_handler, 0);
+    hwtimer_start(fb_replace_timer, MS_TO_TICKS(5*1000));
 #endif
+
     lcdc_setup_layer_fbmem(fbmem, fbsize);
 
-    DRIVERS_TRACE(0,"Configuring the LCD controller\n");
-    /* Configure LCD periphery */
-    DRIVERS_TRACE(0,"Configure lcd periphery\n");
-    lcdc_periphconfig();
-
     /* Configure interrupts */
-    DRIVERS_TRACE(0,"Configure interrupts\n");
+    LCDC_INFO("Configure interrupts\n");
 
     lcdc_irqconfig();
 
 #if defined(CONFIG_LCDC_TE_IRQ_ENABLE)
-    DRIVERS_TRACE(0,"Configure dsi interrupts\n");
+    LCDC_INFO("Configure dsi interrupts\n");
     lcdc_teirqconfig();
 #endif
 
     /* Configure global lcdc register */
-    DRIVERS_TRACE(0,"Configure global register\n");
+    LCDC_INFO("Configure global register\n");
 
-    lcdc_globalconfig();
-
-    hal_lcdc_axibus_arbiter_fastmode_enable();
-    g_vtable.lcddev = (struct lcd_dev_s *)board_lcd_getdev(0);
-
-#if defined(CONFIG_DMA2D) || defined(LCDC_DMA2D_CPU_PSRAM_PARALL_TEST)
-    /* Initialize the dma2d controller */
-
-    ret = dma2dinitialize();
-    DRIVERS_TRACE(0,"dma2dinitialize();");
-
-    if (ret != OK) {
-        return ret;
-    }
-
-    /* Bind the dma2d interface */
-
-#ifndef LCDC_DMA2D_CPU_PSRAM_PARALL_TEST
-    g_vtable.dma2d = dma2ddev();
-    ASSERT(g_vtable.dma2d != NULL, "%s", __func__);
-#endif
+#ifdef CONFIG_LCDC_DITHER
+    lcdc_dither_enable(true, LCDC_DITHER_LEVEL, LCDC_DITHER_RED, LCDC_DITHER_GREEN,
+                       LCDC_DITHER_BLUE);
+#else
+    lcdc_dither_disable();
 #endif
 
 #ifdef CONFIG_FB_CMAP
     /* Cleanup clut */
-
     memset(&g_redclut, 0, LCDC_NCLUT);
     memset(&g_blueclut, 0, LCDC_NCLUT);
     memset(&g_greenclut, 0, LCDC_NCLUT);
@@ -3779,85 +3137,59 @@ int lcdc_initialize(void *fbmem, uint32_t fbsize)
 
     /* Initialize lcdc layer */
 
-    DRIVERS_TRACE(0,"Initialize lcdc layer\n");
+    LCDC_INFO("Initialize lcdc layer\n");
     lcdc_linit(LCDC_LAYER_L1);
 #ifdef CONFIG_LCDC_L2
     lcdc_linit(LCDC_LAYER_L2);
 #endif
 
+    fb_ratate_init(g_vtable.vinfo.xres,g_vtable.vinfo.yres);
+
+#if defined(CONFIG_FB_DRV_ROTATE)
+    memset((void *)dst_fb_buf, 0, sizeof(dst_fb_buf));
+    lcdc_layer_set_buffer(LCDC_LAYER_L1, dst_fb_buf);
+    lcdc_cache_sync((uint32_t)dst_fb_buf, LCDC_L1_STRIDE*LCDC_HEIGHT);
+#endif
+
 #ifdef CONFIG_DSI_VIDEO_MODE
-    hal_lcdcl_dumb_enable(true);
-    hal_lcdc_dumb_vsync_mode(2);
-    hal_lcdc_source_switch(true);
+#if defined(CONFIG_FB_PANDISPLAY) && defined(CONFIG_FB_DOUBLE_BUFFER)
+    lcdc_layer_set_buffer(LCDC_LAYER_L1, (fbmem + fbsize/2));
+    lcdc_cache_sync((uint32_t)(fbmem + fbsize/2), LCDC_L1_STRIDE*LCDC_HEIGHT);
+#endif
 #endif
 
-#ifdef CONFIG_DMA2D
-    /* Initialize lcdc dma2d layer */
-    lcdc_dma2dlinit();
-#endif
     /* Enable the backlight */
-
 #ifdef CONFIG_LCD_BACKLIGHT
     backlight(true);
 #endif
 
-    DRIVERS_TRACE(0,"Enabling the display\n");
+    LCDC_INFO("Enabling the display\n");
 
     /* Set initialized state */
 #ifdef CONFIG_PM
-    lcdc_pmcb_init();
-    ret = pm_register(&module_pmcb);
-    if (ret) {
-        DRIVERS_TRACE(0,"fail to register module pmcb !!!!!!");
-    }
+    g_vtable.ref_cnt = 0;
+    g_vtable.ref_cnt_cmd = 0;
+    pmu_dsi_aod_mode_enable(true);
+    pm_register(&pm_lcdc);
+    lcdc_pmcb_register(&panel_pmcb);
 #endif
 
 #if defined(CONFIG_FB_PANDISPLAY)
-    DRIVERS_TRACE(0,"Init mutible buffer support.\n");
+    LCDC_INFO("Init mutible buffer support.\n");
     lcdc_pandisp_init();
 #endif
 
-#if defined(CONFIG_ZOOM_TO_SCREEN)
-    struct fb_videoinfo_s devvinfo;
-    if (g_vtable.lcddev != NULL && g_vtable.lcddev->getvideoinfo != NULL)
-        g_vtable.lcddev->getvideoinfo(g_vtable.lcddev,&devvinfo);
-
-    hal_lcdc_lsize(LCDC_LAYER_SPU, devvinfo.xres,devvinfo.yres);
-    hal_lcdc_lzoom_set(LCDC_LAYER_LFORE, devvinfo.xres,devvinfo.yres);
-
-#define LCD_TWCR_TOTALH      (BOARD_LCDC_VSYNC + \
-                                        BOARD_LCDC_VBP + \
-                                        devvinfo.yres + BOARD_LCDC_VFP - 1)
-#define LCD_TWCR_TOTALW      (BOARD_LCDC_HSYNC + \
-                                        BOARD_LCDC_HBP + \
-                                        devvinfo.xres + BOARD_LCDC_HFP - 1)
-#ifdef CONFIG_DSI_VIDEO_MODE
-        hal_lcdc_bgl_vhtotal_set(LCD_TWCR_TOTALH+4, LCD_TWCR_TOTALH+8);
-#else
-        hal_lcdc_bgl_vhtotal_set(LCD_TWCR_TOTALW, LCD_TWCR_TOTALH);
-#endif
-#endif
-
-    g_initialized = true;
+    lcdc_start();
 
 #ifndef CONFIG_DSI_VIDEO_MODE
-#ifdef CONFIG_TRIGGER_FRAME_BY_SW
-    /* enable software start transfer data, not use te trigger hardware. */
-    hal_lcdc_gen_frame_enable(true);
-#else
-#ifdef CONFIG_LCDC_AUTOREFRESH_MODE
-    /* use te trigger hardware to auto transfer */
-    hal_lcdc_start_dsi();
-#endif
-#endif
 #if defined(SIMU)
     hw_timer = hwtimer_alloc(timer_handler, 0);
     hwtimer_start(hw_timer, MS_TO_TICKS(17));
 #endif
-#endif
-
-    hal_lcdc_framedone_irq_enable(true);
     lcdc_enter_lowpower();
+#endif
+    LCDC_REP("lcdc_initialize done\n");
+    g_initialized = true;
     return ret;
 }
 
@@ -3885,7 +3217,7 @@ int lcdc_teirq_callback_register(LCDC_IRQ_CALLBACK cb)
  */
 struct fb_vtable_s *lcdcgetvplane(int vplane)
 {
-    DRIVERS_TRACE(0,"vplane: %d\n", vplane);
+    LCDC_INFO("vplane: %d\n", vplane);
 
     if (vplane == 0) {
         return &g_vtable.vtable;
@@ -3903,14 +3235,27 @@ struct fb_vtable_s *lcdcgetvplane(int vplane)
 void lcdcuninitialize(void)
 {
     /* Disable all lcdc interrupts */
-    hal_lcdc_irq_disable();
-    NVIC_ClearPendingIRQ(g_interrupt.irq);
-    NVIC_DisableIRQ(g_interrupt.irq);
+    lcdc_stop();
 
-    hal_cmu_dsi_clock_disable();
-    hal_cmu_lcdc_clock_disable();
+#ifdef SUPPORT_REPLACE_FBMEM
+    if (fb_replace_timer)
+        hwtimer_free(fb_replace_timer);
+    fb_replace_timer = NULL;
+#endif
+
+    /* clear semaphores */
+    gra_sem_destroy(&g_lock);
+    gra_sem_destroy(g_interrupt.sem);
+
+#if defined(CONFIG_LCDC_TE_IRQ_ENABLE)
+    gra_sem_destroy(g_teinterrupt.sem);
+#endif
+
+    lcdc_exit();
+
+    lcdc_config = NULL;
+
     /* Set initialized state */
-
     g_initialized = false;
 }
 
@@ -3925,9 +3270,37 @@ void backlight(bool blon)
 {
     /* Set default backlight level CONFIG_STM32_LCDC_DEFBACKLIGHT */
 
-    DRIVERS_TRACE(0,"ERROR: Not supported\n");
+    LCDC_ERR("ERROR: Not supported\n");
 }
 #endif
+
+static bool lcdc_address_nocached(uint32_t addr, uint32_t len)
+{
+#ifdef LCDC_DRV_WITH_CACHEOPS
+    return false;
+#endif
+#if defined(PSRAM_NC_BASE) && defined(PSRAM_SIZE) && (PSRAM_SIZE > 0)
+    if (addr >= PSRAM_NC_BASE && addr < (PSRAM_NC_BASE+PSRAM_SIZE))
+        return true;
+#endif
+#if defined(PSRAMUHS_NC_BASE) && defined(PSRAMUHS_SIZE) && (PSRAMUHS_SIZE > 0)
+    if (addr >= PSRAMUHS_NC_BASE && addr < (PSRAMUHS_NC_BASE+PSRAMUHS_SIZE))
+        return true;
+#endif
+#if defined(M55_DTCM_BASE) && defined(M55_DTCM_SIZE) && (M55_DTCM_SIZE > 0)
+    if (addr >= M55_DTCM_BASE && addr < (M55_DTCM_BASE+M55_DTCM_SIZE))
+        return true;
+#endif
+#if defined(M55C0_DTCM_BASE) && defined(M55C0_DTCM_SIZE) && (M55C0_DTCM_SIZE > 0)
+    if (addr >= M55C0_DTCM_BASE && addr < (M55C0_DTCM_BASE+M55C0_DTCM_SIZE))
+        return true;
+#endif
+#if defined(M55C1_DTCM_BASE) && defined(M55C1_DTCM_SIZE) && (M55C1_DTCM_SIZE > 0)
+    if (addr >= M55C1_DTCM_BASE && addr < (M55C1_DTCM_BASE+M55C1_DTCM_SIZE))
+        return true;
+#endif
+    return true;
+}
 
 /**lcdc_cache_sync - Flush cache to external memory
  * @id : cache ID
@@ -3940,20 +3313,22 @@ void backlight(bool blon)
   | s  |    32*n        |  e  |   safe range
     32                     32
 */
-POSSIBLY_UNUSED
-static inline uint8_t lcdc_cache_sync(enum HAL_CACHE_ID_T id, uint32_t start_address, uint32_t len)
+uint8_t lcdc_cache_sync(uint32_t start_address, uint32_t len)
 {
-#ifndef LCDC_DRV_WITH_CACHEOPS
-    return 0;
-#endif
+    if (lcdc_address_nocached(start_address, len))
+        return 0;
 #ifndef __ARM_ARCH_ISA_ARM
-    return hal_cache_sync(id, start_address, len);
+    return hal_cache_sync(HAL_CACHE_ID_D_CACHE, start_address, len);
 #else
 #if defined(__NuttX__)
-    //return up_flush_dcache(start_address,start_address+len);
-    return up_clean_dcache(start_address,start_address+len);
-    //return up_coherent_dcache(start_address,len);
+#if defined(CONFIG_SMP)
+    up_invalidate_dcache(start_address, start_address+len);
+#else
+    up_clean_dcache(start_address,start_address+len);
 #endif
+    return 0;
+#endif
+    return 0;
 #endif
 }
 
@@ -3968,70 +3343,95 @@ static inline uint8_t lcdc_cache_sync(enum HAL_CACHE_ID_T id, uint32_t start_add
   | s  |    32*n        |  e  |   safe range
     32                     32
 */
-POSSIBLY_UNUSED
-static inline uint8_t lcdc_cache_invalidate(enum HAL_CACHE_ID_T id, uint32_t start_address, uint32_t len)
+uint8_t lcdc_cache_invalidate(uint32_t start_address, uint32_t len)
 {
-#ifndef LCDC_DRV_WITH_CACHEOPS
-    return 0;
-#endif
+    if (lcdc_address_nocached(start_address, len))
+        return 0;
 #ifndef __ARM_ARCH_ISA_ARM
-    return hal_cache_invalidate(id, start_address, len);
+    return hal_cache_invalidate(HAL_CACHE_ID_D_CACHE, start_address, len);
 #else
 #if defined(__NuttX__)
-    return up_invalidate_dcache(start_address, start_address+len);
+    up_invalidate_dcache(start_address, start_address+len);
+    return 0;
 #endif
+    return 0;
 #endif
 }
 
 /**
- * lcdc_update - trigger lcdc to generate one frame for display
+ * lcdc_trigger_frame - trigger lcdc to generate one frame for display
+ */
+void lcdc_trigger_frame(void)
+{
+#ifndef CONFIG_DSI_VIDEO_MODE
+    if (lcdc_lock()) {
+        uint32_t flags = int_lock();
+        lcdc_xfer_frame();
+        int_unlock(flags);
+    }
+#endif
+}
+
+/**
+ * lcdc_update - wait lcdc idle and trigger lcdc to generate one frame for display
  */
 int lcdc_update(void)
 {
     int ret = 0;
-    DRIVERS_TRACE(0,"%s enter", __func__);
+    LCDC_INFO("%s enter", __func__);
 
 #ifdef CONFIG_PM
     module_pm_activity();
 #endif
 
+    lcdc_waitforirq();
     lcdc_exit_lowpower();
 
-#ifdef CONFIG_LCDC_WB_TEST
-    lcdc_cache_sync(HAL_CACHE_ID_D_CACHE,CONFIG_LCDC_FBWB_BASE, LCDC_L1_STRIDE * LCDC_HEIGHT);
-    hal_lcdc_wdma_toggle_frame();
-    hal_lcdc_lstartaddr(LCDC_LAYER_LWB, CONFIG_LCDC_FBWB_BASE);
-    hal_lcdc_start_wb();
-#else
-#ifndef CONFIG_DSI_VIDEO_MODE
-#ifdef CONFIG_TRIGGER_FRAME_BY_SW
-    hal_lcdc_gen_start();
-#else
-    hal_lcdc_start_dsi();
-#endif
-#endif
-#endif
+    lcdc_trigger_frame();
 
-#ifdef CONFIG_LCDC_WB_TEST
-    lcdc_cache_invalidate(HAL_CACHE_ID_D_CACHE,CONFIG_LCDC_FBWB_BASE, LCDC_L1_STRIDE * LCDC_HEIGHT);
-#endif
-
-    DRIVERS_TRACE(0,"lcdcirqstatus:0x%x", (unsigned int)hal_lcdc_get_irqstat());
-    DRIVERS_TRACE(0,"%s exit", __func__);
+    LCDC_INFO("%s exit", __func__);
     return ret;
 }
 
 /**
- * lcdc_get_wb - get start memory address of lcdc write back layer
+ * lcdc_update_area - tirger color_p as the fb frame for display
  */
-uint32_t *lcdc_get_wb(void)
+int lcdc_update_area(const struct fb_area_s *area, const uint32_t *color_p)
 {
-    uint32_t *addr = NULL;
-#ifdef CONFIG_LCDC_WB_TEST
-
-    addr = (uint32_t *) CONFIG_LCDC_FBWB_BASE;
+#if defined(CONFIG_FB_PANDISPLAY)
+    if (area == NULL) {
+        struct fb_planeinfo_s pinfo = {
+            .yoffset = (uint32_t)color_p,
+        };
+        while (pan_display(NULL, &pinfo) == ERROR) {
+            lcdc_waitforirq();
+        }
+        return 0;
+    }
+    else
 #endif
-    return addr;
+    {
+        /** Represents an area of the screen. */
+        uint32_t flags;
+        flags = int_lock();
+        if (area != NULL) {
+            if (0 == area->x && area->w == LCDC_WIDTH) {
+                lcdc_cache_sync((uint32_t)color_p, LCDC_L1_STRIDE*area->h);
+            } else {
+                for(int i = 0; i < area->h; i ++) {
+                      lcdc_cache_sync((uint32_t)color_p + i * LCDC_L1_STRIDE, area->w * LCDC_L1_BPP / 8);
+                  }
+            }
+        } else {
+            lcdc_cache_sync((uint32_t)color_p, LCDC_L1_STRIDE*LCDC_HEIGHT);
+        }
+        int_unlock(flags);
+        lcdc_waitforirq();
+        lcdc_exit_lowpower();
+        lcdc_layer_set_buffer(0, (uint8_t *)color_p);
+        lcdc_trigger_frame();
+    }
+    return 0;
 }
 
 struct fb_overlayinfo_s *lcdc_get_oinfo(int lid)
@@ -4040,6 +3440,241 @@ struct fb_overlayinfo_s *lcdc_get_oinfo(int lid)
     return &dev->layer[lid].oinfo;
 
 }
+
+void lcdc_need_refresh_onec(void)
+{
+#ifdef CONFIG_PM
+    FAR struct lcdcdev_s *dev = &g_vtable;
+    if (dev->panel_state == PM_NORMAL || dev->panel_state == PM_IDLE) {
+        dev->ref_cnt++;
+        dev->refresh_oneself = 1;
+    }
+#endif
+}
+
+void lcd_sleep_disp_domain(void)
+{
+#ifdef CONFIG_PM
+    FAR struct lcdcdev_s *priv = &g_vtable;
+    uint32_t irqflag = int_lock();
+  /* when cpu sleep will close dsi and lcdc */
+  if (priv->sleep == false) {
+      lcdc_sleep();
+      priv->sleep = true;
+  }
+  int_unlock(irqflag);
+#endif
+}
+
+void lcdc_wakeup_disp_domain(void)
+{
+#ifdef CONFIG_PM
+    FAR struct lcdcdev_s *priv = &g_vtable;
+    uint32_t irqflag = int_lock();
+
+    if (true == priv->sleep) {
+        priv->sleep = false;
+        int_unlock(irqflag);
+        lcdc_wakeup();
+    } else {
+        int_unlock(irqflag);
+    }
+#endif
+}
+
+#if defined(CONFIG_FB_DRV_ROTATE)
+static osThreadId fb_rotate_tid = NULL;
+static sem_t new_fb_sem;
+
+#if defined(ROTATE_DIRECT)
+uint8_t buf_bitmap = 0;
+//#include <nuttx/spinlock.h>
+//spinlock_t g_bitmap_lock;
+
+static uint8_t get_rotate_buf()
+{
+    uint32_t lk = int_lock();
+    //irqstate_t lk = spin_lock_irqsave(&g_bitmap_lock);
+    for (int i = 0; i < ROTATE_BUF_COUNT; i++) {
+        if ((buf_bitmap & (1<<i)) == 0) {
+            buf_bitmap |= (1<<i);
+            int_unlock(lk);
+            //spin_unlock_irqrestore(&g_bitmap_lock, lk);
+            return i;
+        }
+    }
+    int_unlock(lk);
+    //spin_unlock_irqrestore(&g_bitmap_lock, lk);
+    //ASSERT(0,"no free buf buf_bitmap:0x%x",buf_bitmap);
+    LCDC_ERR("no free rotate buf buf_bitmap:0x%x",buf_bitmap);
+    return 0xff;
+}
+static void free_rotate_buf(uint8_t i)
+{
+    uint32_t lk = int_lock();
+    //irqstate_t lk = spin_lock_irqsave(&g_bitmap_lock);
+    ASSERT((buf_bitmap & (1<<i)) != 0,"buf_bitmap:0x%x, buf id:%d not used",buf_bitmap,i);
+    buf_bitmap &= ~(1<<i);
+    int_unlock(lk);
+    //spin_unlock_irqrestore(&g_bitmap_lock, lk);
+}
+#endif
+
+static void dma_irq_done_cb(void *dst_buf)
+{
+    struct lcdcdev_s *priv = (FAR struct lcdcdev_s *)&g_vtable;
+    ASSERT(priv->panfo.cnt > 0,"cnt error:%d\n",priv->panfo.cnt);
+    ASSERT(priv->panfo.queue[0].state == BUF_ROTATE,"state error:%d\n",priv->panfo.queue[0].state);
+    uint32_t tmp = (uint32_t)priv->panfo.queue[0].addr;
+    priv->panfo.queue[0].addr = dst_buf;
+    priv->panfo.queue[0].state = BUF_READY;
+}
+
+static void fb_rotate_trigger(struct lcdcdev_s *priv)
+{
+    uint32_t lk = int_lock();
+    if (priv->panfo.cnt>0 && priv->panfo.queue[0].state == BUF_INIT)
+    {
+#if defined(CONFIG_ROTATE_DMA)
+        if (!ROTATE_USE_CPU(priv->pinfo.fbmem)) {
+            priv->panfo.queue[0].state = BUF_ROTATE;
+            dma2d_rotate_90((uint32_t)priv->panfo.queue[0].addr,(uint32_t)dst_fb_buf,LCDC_HEIGHT,LCDC_WIDTH, dma_irq_done_cb);
+        }
+        else
+#endif
+        {
+            gra_sem_post(&new_fb_sem);
+        }
+    }
+    int_unlock(lk);
+}
+
+static void fb_rotate(const void *arg)
+{
+    osEvent evt;
+    uint32_t signals = 0;
+    struct lcdcdev_s *priv = (struct lcdcdev_s *)arg;
+    while(1)
+    {
+        gra_sem_wait(&new_fb_sem);
+        {
+            if (priv->panfo.cnt > 0) {
+                LCDC_REP("%s cnt=%d, panaddr = %08x,state = %d\n", __func__,priv->panfo.cnt, priv->panfo.queue[0].addr,priv->panfo.queue[0].state);
+                /*The buffer of the sending head node*/
+                //ASSERT(priv->panfo.queue[0].state == BUF_INIT, "queue status is wrong :%d",priv->panfo.queue[0].state);
+                uint32_t lk = int_lock();
+                if (priv->panfo.queue[0].state == BUF_INIT)
+                {
+                    priv->panfo.queue[0].state = BUF_ROTATE;
+                    int_unlock(lk);
+                    cpu_rotate_90((uint32_t)priv->panfo.queue[0].addr,(uint32_t)dst_fb_buf,LCDC_HEIGHT,LCDC_WIDTH);
+                    priv->panfo.queue[0].addr = dst_fb_buf;
+                    priv->panfo.queue[0].state = BUF_READY;
+                }
+                else
+                    int_unlock(lk);
+            }
+        }
+        if (!ROTATE_USE_CPU(priv->pinfo.fbmem))
+            return ;
+    }
+    return ;
+}
+
+osThreadDef(fb_rotate, (osPriorityAboveNormal), 1, (4096), "fb_rotate");
+
+static void fb_ratate_init(uint32_t lcd_x,uint32_t lcd_y)
+{
+    g_vtable.vinfo.xres = lcd_y;
+    g_vtable.vinfo.yres = lcd_x;
+    g_vtable.pinfo.xres_virtual = lcd_y;
+    g_vtable.pinfo.yres_virtual = lcd_x;
+    g_vtable.pinfo.stride = g_vtable.pinfo.xres_virtual * g_vtable.pinfo.bpp / 8;
+#if defined(CONFIG_FB_DOUBLE_BUFFER)
+    g_vtable.pinfo.yres_virtual *= 2;
+#endif
+#ifdef CONFIG_FB_OVERLAY
+    g_vtable.layer[0].oinfo.stride = g_vtable.pinfo.stride;
+    g_vtable.layer[0].oinfo.sarea.x = lcd_y;
+    g_vtable.layer[0].oinfo.sarea.y = lcd_x;
+    //hal_lcdc_lpfc_fmt(g_vtable.layer[0]->layerno, FB_FMT_RGB24);
+#ifdef CONFIG_LCDC_L2
+    g_vtable.layer[1].oinfo.stride = g_vtable.pinfo.stride;
+    g_vtable.layer[1].oinfo.sarea.x = lcd_y;
+    g_vtable.layer[1].oinfo.sarea.y = lcd_x;
+    //hal_lcdc_lpfc_fmt(g_vtable.layer[1]->layerno, FB_FMT_RGB24);
+#endif
+#endif
+#if !defined(ROTATE_DIRECT)
+    if (ROTATE_USE_CPU(g_vtable.pinfo.fbmem))
+    {
+        gra_sem_init(&new_fb_sem, 0, 0);
+        fb_rotate_tid = osThreadCreate(osThread(fb_rotate), &g_vtable);
+    }
+#endif
+}
+
+#else
+static void fb_ratate_init(uint32_t lcd_x,uint32_t lcd_y) { };
+#endif
+
+#ifndef __NuttX__
+void lcdc_pannel_entery_idle_mode(void)
+{
+    FAR struct lcdcdev_s *priv = &g_vtable;
+
+    ASSERT(priv->lcddev!=NULL,"lcd dev is NULL\n");
+    if (priv->lcddev->pannel_ioctl)
+        priv->lcddev->pannel_ioctl(priv->lcddev, PANNEL_ENTER_IDLE);
+}
+
+void lcdc_pannel_exit_idle_mode(void)
+{
+    FAR struct lcdcdev_s *priv = &g_vtable;
+
+    ASSERT(priv->lcddev!=NULL,"lcd dev is NULL\n");
+    if (priv->lcddev->pannel_ioctl)
+        priv->lcddev->pannel_ioctl(priv->lcddev, PANNEL_EXIT_IDLE);
+}
+
+void lcdc_pannel_enter_deepstandby(void)
+{
+    FAR struct lcdcdev_s *priv = &g_vtable;
+
+    ASSERT(priv->lcddev!=NULL,"lcd dev is NULL\n");
+    if (priv->lcddev->pannel_ioctl)
+        priv->lcddev->pannel_ioctl(priv->lcddev, PANNEL_ENTER_DEEPSLEEP);
+}
+
+void lcdc_pannel_exit_deepstandby(void)
+{
+    FAR struct lcdcdev_s *priv = &g_vtable;
+
+    ASSERT(priv->lcddev!=NULL,"lcd dev is NULL\n");
+    if (priv->lcddev->pannel_ioctl)
+        priv->lcddev->pannel_ioctl(priv->lcddev, PANNEL_EXIT_DEEPSLEEP);
+}
+
+int lcdc_pannel_read_status(void)
+{
+    FAR struct lcdcdev_s *priv = &g_vtable;
+
+    ASSERT(priv->lcddev!=NULL,"lcd dev is NULL\n");
+    if (priv->lcddev->pannel_ioctl)
+        return priv->lcddev->pannel_ioctl(priv->lcddev, PANNEL_READSTATUS);
+    return 0;
+}
+
+int lcdc_pannel_setpower(int power)
+{
+    FAR struct lcdcdev_s *priv = &g_vtable;
+
+    ASSERT(priv->lcddev!=NULL,"lcd dev is NULL\n");
+    if (priv->lcddev->setpower)
+        return priv->lcddev->setpower(priv->lcddev, power);
+    return 0;
+}
+#endif
 
 #ifdef LCDC_SIMU_TEST_CODE
 #include "lcdc_sim_test.h"

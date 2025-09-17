@@ -34,7 +34,6 @@
 #include "string.h"
 #include "ctype.h"
 #include "stdint.h"
-#include "stdarg.h"
 
 #define _put(c,buf,ebuf,count)  __put(c,&buf,ebuf,&count)
 
@@ -193,8 +192,30 @@ reswitch:   switch (ch = *fmt++) {
             break;
         case 's':
             p = va_arg(ap, char *);
-            if(p != NULL)
+            if (p != NULL)
             {
+#ifdef VSPRINTF_STR_WIDTH
+                ul = strlen(p);
+                if ((flags & FLAG_WITH_PREC) && prec)
+                {
+                    if (ul > prec)
+                        ul = prec;
+                }
+                if (width && width > ul)
+                    tmp_count = width - ul;
+                else
+                    tmp_count = 0;
+                if (tmp_count && !(flags & FLAG_RIGHT_PAD))
+                {
+                    while (tmp_count--)
+                        _put(' ',buf,ebuf,count);
+                    tmp_count = 0;
+                }
+                while (ul--)
+                    _put((ch = *p++),buf,ebuf,count);
+                while (tmp_count--)
+                    _put(' ',buf,ebuf,count);
+#else
                 if ((flags & FLAG_WITH_PREC) && prec)
                 {
                     while ((prec--) && (ch = *p++))
@@ -205,6 +226,7 @@ reswitch:   switch (ch = *fmt++) {
                     while ((ch = *p++))
                         _put(ch,buf,ebuf,count);
                 }
+#endif
             }
             break;
         case 'i':
@@ -345,3 +367,4 @@ _printn(unsigned long ul, unsigned int width, unsigned int flags,char *tbuf, cha
 
     return count;
 }
+

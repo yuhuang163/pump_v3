@@ -14,20 +14,25 @@ endif
 endif
 
 ifeq ($(BLE),1)
+ifeq ($(BLE_STACK_NEW_DESIGN),1)
 obj-y += ble_app_new/
+else
+obj-y += ble_app/
+endif #BLE_STACK_NEW_DESIGN
+
 ifeq ($(BLE_AUDIO_ENABLED),1)
 obj-y += ble_audio/aob_app/
+ifeq ($(BLE_STACK_NEW_DESIGN),1)
 obj-y += ble_audio/blueelf_adapter/
+else
+obj-y += ble_audio/gaf_core/
+endif #BLE_STACK_NEW_DESIGN
 endif #BLE_AUDIO_ENABLED
-endif #BLE
 
-ifeq ($(NEARLINK_HOST_SUPPORT),1)
-obj-y += near_app/
-endif
+endif #BLE
 
 ccflags-y += -DBLUETOOTH_BT_IMPL
 ccflags-y += -DBLUETOOTH_BLE_IMPL
-subdir-ccflags-y += -DMODULE=SERVICE
 
 ccflags-y += \
 	$(AAC_INCLUDES) \
@@ -37,17 +42,15 @@ ccflags-y += \
 	-Iservices/audio_dump/include \
 	-Iservices/hw_dsp/inc \
 	-Ibthost/rom/ \
-	-Ibthost/porting/api \
+	-Ibthost/stack/ble_if/inc \
 	$(BLUETOOTH_ADAPTER_INCLUDES) \
 	$(BES_BT_IMPL_INCLUDES) \
 	$(BLE_APP_INCLUDES) \
 	$(BLE_STACK_INCLUDES) \
-	$(BT_SERVICE_UX_INCLUDES) \
 	-Imultimedia/inc/speech/inc \
 	-Iservices/bone_sensor \
 	-Iservices/overlay \
 	-Iservices/audio_manager \
-	-Iservices/gfps/inc \
 	-Ithirdparty/tile/tile_common/tile_storage \
 	-Ithirdparty/tile/tile_common/tile_features \
 	-Iservices/resources \
@@ -65,16 +68,13 @@ ccflags-y += \
 	-Iservices/voicepath/gsound/gsound_target \
 	-Iservices/voicepath/gsound/gsound_custom/inc \
 	-Iservices/voicepath/gsound/gsound_target_api_read_only \
-	-Iservices/ai_voice/protocol/gva/gsound/gsound_target \
-	-Iservices/ai_voice/protocol/gva/gsound_custom/inc \
-	-Iservices/ai_voice/protocol/gva/gsound_target_api_read_only \
 	-Iplatform/drivers/uarthci \
 	-Iplatform/drivers/ana \
 	-Iplatform/cmsis \
 	-Iplatform/drivers/bt \
 	-Iutils/cqueue \
 	-Iutils/heap \
-	-Iutils/crc \
+	-Iutils/crc16 \
 	-Iservices/audioflinger \
 	-Iutils/lockcqueue \
 	-Iutils/intersyshci \
@@ -83,7 +83,6 @@ ccflags-y += \
 	-Iapps/main \
 	-Iapps/common \
 	-Iapps/audioplayers \
-	-Iapps/app_test/ble_audio_test \
 	-Iapps/audioplayers/a2dp_decoder \
 	-Iapps/battery \
 	-Iapps/common \
@@ -100,12 +99,22 @@ ccflags-y += \
 	-Iservices/interconnection/red \
 	-Iservices/interconnection/green \
 	-Iservices/interconnection/umm_malloc \
+	-Iservices/ux/common/ibrt/custom_api \
 	$(SOURCE_INCLUDES) \
 	-Ithirdparty/tile/tile_target \
 	-Iservices/osif \
+	-Iservices/ux/common/ibrt/ibrt_middleware/inc \
 	-Iutils/list \
 	-Iutils/string \
 	-Iservices/ai_voice/protocol/bixbyvoice \
 	-Iservices/ai_voice/protocol/bixbyvoice/bixbyvoice_manager \
-	-Iservices/bt_watch_service/inc \
-	-Iservices/iap2_spp
+	-Iservices/bt_service/inc
+
+ifeq ($(IBRT),1)
+ifeq ($(IBRT_UI),1)
+ccflags-y += \
+    -Iservices/ux/common/ibrt/app_ibrt/inc \
+    -Iservices/ux/common/ibrt/ibrt_ui/inc \
+    -Iservices/ux/common/ibrt/ibrt_core/inc
+endif
+endif

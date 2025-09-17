@@ -15,7 +15,6 @@
  ****************************************************************************/
 #ifndef __APP_BTGATT_H__
 #define __APP_BTGATT_H__
-#include "bluetooth.h"
 
 #if defined(__GATT_OVER_BR_EDR__)
 
@@ -24,16 +23,22 @@
 extern "C" {
 #endif
 
+#include "btgatt_api.h"
+
 bool app_btgatt_over_br_edr_enabled(void);
 bool app_btgatt_is_connected(uint8_t device_id);
 bool app_btgatt_is_connected_by_conidx(uint8_t con_idx);
 void app_btgatt_client_create(const bt_bdaddr_t *remote);
 void app_btgatt_disconnect(uint8_t device_id);
-void app_btgatt_report_prf_state(uint8_t device_id, const bt_bdaddr_t *remote, bool is_connected, uint8_t reason);
-void app_btgatt_state_callback_register(void (*p_cb)(const bt_bdaddr_t *remote, bool is_connected, uint8_t reason));
+
+void app_btgatt_init(void);
+void app_btgatt_addsdp(uint16_t pServiceUUID, uint16_t startHandle, uint16_t endHandle);
+void app_btgatt_register_callback(btgatt_event_callback cb);
+
 #ifdef __cplusplus
 }
 #endif
 
 #endif
 #endif
+

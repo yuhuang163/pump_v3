@@ -18,7 +18,8 @@
  ****************************************************************************/
 #ifndef __TBS_COMMON__
 #define __TBS_COMMON__
-
+#include "bluetooth.h"
+#include "gatt_service.h"
 #include "gaf_cfg.h"
 
 /// Length of Bearer Technology characteristic value
@@ -78,6 +79,7 @@ enum tbs_char_type
 
     TBS_CHAR_TYPE_MAX,
 };
+
 
 /// Descriptor type values
 enum tbs_desc_type

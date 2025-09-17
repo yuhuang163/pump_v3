@@ -63,6 +63,7 @@ typedef void (*tbc_cb_value_evt)(uint8_t con_lid, uint8_t bearer_lid, uint8_t ca
 /// Callback function called when prf status event generated
 typedef gatt_prf_status_event_callback tbc_cb_prf_status_evt;
 
+
 /*Structure*/
 typedef struct tbc_evt_cb
 {
@@ -106,8 +107,6 @@ typedef struct tbc_init_cfg
     bool cp_write_reliable;
     /// TBS discovery with character value read and cccd write
     uint8_t discovery_only_find_char;
-    /// Preferred MTU size
-    uint16_t pref_mtu;
 } tbc_init_cfg_t;
 
 /*FUCNTIONS DECLARATION*/

@@ -44,7 +44,7 @@ endif
 archive-obj-y	:= $(foreach m, $(archive-src-y) $(archive_custom_valid), $($(m:.a=-y)))
 real-objs-y		+= $(filter-out %/, $(archive-obj-y))
 subdir-y		+= $(patsubst %/, %, $(filter %/, $(archive-obj-y)))
-archive-obj-y	:= $(patsubst %/, %/built-in$(built_in_suffix), $(archive-obj-y))
+archive-objs-y	:= $(patsubst %/, %/built-in$(built_in_suffix), $(archive-objs-y))
 endif # archive-y
 
 # Handle composite objects

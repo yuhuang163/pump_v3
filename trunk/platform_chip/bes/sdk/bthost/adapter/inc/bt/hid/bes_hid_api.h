@@ -20,7 +20,7 @@
 extern "C" {
 #endif
 
-void bes_hid_device_send_consumer_ctrl_request(uint8_t ctrl_key);
+void bes_bt_hid_send_consumer_ctrl_request(uint8_t ctrl_key);
 
 #ifdef __cplusplus
 }

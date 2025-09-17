@@ -182,15 +182,15 @@ static uint32_t codec_capture_callback(uint8_t *buf, uint32_t len)
     if(NULL!=noise_det_st)
         cur_noise_staus = NoiseDetection_process(noise_det_st, pcm_buf, pcm_len, TX_CHANNEL_NUM);
     else
-        HEARING_DETEC_TRACE(1,"[%s] WARNING!!! state is NULL",__func__);
+        TRACE(1,"[%s] WARNING!!! state is NULL",__func__);
     if(0==cur_noise_staus)
         hear_noise_state = 1;
     else
         hear_noise_state = 0;
     if(last_status != cur_noise_staus || 0 == trace_cnt)
-        HEARING_DETEC_TRACE(1,"---------------cur_noise_staus = %d---------",cur_noise_staus);
+        TRACE(1,"---------------cur_noise_staus = %d---------",cur_noise_staus);
     if(0==trace_cnt && 1==hear_noise_state)
-        HEARING_DETEC_TRACE(0,"------------- Noise env, pls retry!!! -------------");
+        TRACE(0,"------------- Noise env, pls retry!!! -------------");
     trace_cnt = (trace_cnt+1)%64;
 #endif
     return len;
@@ -232,12 +232,12 @@ int hearing_det_stream_start(bool on)
     }
 
     if (on) {
-        HEARING_DETEC_TRACE(1, "[%s]] ON", __func__);
+        TRACE(1, "[%s]] ON", __func__);
 
         af_set_priority(AF_USER_TEST, osPriorityHigh);
 
         app_sysfreq_req(APP_SYSFREQ_USER_APP_0, freq);
-        // HEARING_DETEC_TRACE(2, "[%s] sys freq calc : %d\n", __func__, hal_sys_timer_calc_cpu_freq(5, 0));
+        // TRACE(2, "[%s] sys freq calc : %d\n", __func__, hal_sys_timer_calc_cpu_freq(5, 0));
 
         // Initialize Cqueue
         codec_capture_cnt = 0;
@@ -260,7 +260,7 @@ int hearing_det_stream_start(bool on)
         stream_cfg.handler = codec_capture_callback;
         stream_cfg.data_ptr = codec_capture_buf;
 
-        HEARING_DETEC_TRACE(3, "[%s] codec capture sample_rate: %d, data_size: %d", __func__, stream_cfg.sample_rate, stream_cfg.data_size);
+        TRACE(3, "[%s] codec capture sample_rate: %d, data_size: %d", __func__, stream_cfg.sample_rate, stream_cfg.data_size);
         af_stream_open(CODEC_STREAM_ID, AUD_STREAM_CAPTURE, &stream_cfg);
         ASSERT(ret == 0, "codec capture failed: %d", ret);
 
@@ -276,7 +276,7 @@ int hearing_det_stream_start(bool on)
         stream_cfg.handler = codec_playback_callback;
         stream_cfg.data_ptr = codec_playback_buf;
 
-        HEARING_DETEC_TRACE(3, "[%s] codec playback sample_rate: %d, data_size: %d", __func__, stream_cfg.sample_rate, stream_cfg.data_size);
+        TRACE(3, "[%s] codec playback sample_rate: %d, data_size: %d", __func__, stream_cfg.sample_rate, stream_cfg.data_size);
         af_stream_open(CODEC_STREAM_ID, AUD_STREAM_PLAYBACK, &stream_cfg);
         ASSERT(ret == 0, "codec playback failed: %d", ret);
 #if defined(TX_HEAR_COMPEN_DUMP)
@@ -300,7 +300,7 @@ int hearing_det_stream_start(bool on)
     } else {
         // Close stream
 #ifdef AF_STREAM_ID_0_PLAYBACK_FADEOUT
-        af_stream_playback_fadeout(AUD_STREAM_ID_0, 10);
+        af_stream_playback_fadeout(10);
 #endif
         af_stream_stop(CODEC_STREAM_ID, AUD_STREAM_PLAYBACK);
         af_stream_stop(CODEC_STREAM_ID, AUD_STREAM_CAPTURE);
@@ -308,7 +308,7 @@ int hearing_det_stream_start(bool on)
         NoiseDetection_destroy(noise_det_st);
         size_t total = 0, used = 0, max_used = 0;
         speech_memory_info(&total, &used, &max_used);
-        HEARING_DETEC_TRACE(3,"HEAP INFO: total=%d, used=%d, max_used=%d", total, used, max_used);
+        TRACE(3,"HEAP INFO: total=%d, used=%d, max_used=%d", total, used, max_used);
         ASSERT(used == 0, "[%s] used != 0", __func__);
 #endif
         af_stream_close(CODEC_STREAM_ID, AUD_STREAM_PLAYBACK);
@@ -318,7 +318,7 @@ int hearing_det_stream_start(bool on)
 
         //af_set_priority(AF_USER_TEST, osPriorityAboveNormal);
 
-        HEARING_DETEC_TRACE(1, "[%s] OFF", __func__);
+        TRACE(1, "[%s] OFF", __func__);
     }
 
     isRun=on;

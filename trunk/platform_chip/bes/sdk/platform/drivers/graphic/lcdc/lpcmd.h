@@ -8,22 +8,24 @@ extern "C" {
 
 #define LPCMDS_MAX_PARAMS_NUM 4
 #define LPCMDS_MAX_CMDS_NUM 20
-#define LPCMDS_MAX_GROUP_NUM 30
+#define LPCMDS_MAX_GROUP_NUM 100
 
-#define LPCMDS_NONBLOCK 0
-#define LPCMDS_BLOCK    1
+#define LPCMDS_NONBLOCK 1
+#define LPCMDS_BLOCK    2
+#define LPCMDS_FLUSH    4
 
 enum lpcmd_type_e
 {
     LPCMD_TYPE_WRITE,
     LPCMD_TYPE_READ,
+    LPCMD_TYPE_DELAY,
 };
 
 typedef struct lpcmd_node_s
 {
   uint8_t cmd;
   uint8_t count;
-  int optype;
+  uint8_t optype;
   uint8_t params[LPCMDS_MAX_PARAMS_NUM];
 } lpcmd_node_t;
 
@@ -42,6 +44,12 @@ int lpcmds_register_cmds(void *cmds, int nums, int flag);
  * @return int - success 0; failed -1;
  */
 int lpcmds_flush(void);
+
+/**
+ * @brief lpcmds_clear_buffer - clear lpcmds buffer
+ *
+ */
+void lpcmds_clear_buffer(void);
 
 #ifdef cplusplus
 }

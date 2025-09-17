@@ -4,31 +4,19 @@ obj_s += $(patsubst $(cur_dir)%,%,$(wildcard $(cur_dir)*.S))
 obj_c += $(patsubst $(cur_dir)%,%,$(wildcard $(cur_dir)*.c))
 obj_cpp += $(patsubst $(cur_dir)%,%,$(wildcard $(cur_dir)*.cpp))
 
-ifeq ($(OTA_BIN_COMPRESSED),1)
-GEN_LIB_NAME := libprogrammer_ext_compressed
-else
-GEN_LIB_NAME := libprogrammer_ext
-endif
-
-ifeq ($(SECURE_BOOT),1)
-GEN_LIB_NAME := $(GEN_LIB_NAME)_scboot
-endif
-
-ifeq ($(OTA_TZ_ENABLE),1)
-GEN_LIB_NAME := $(GEN_LIB_NAME)_tz
-endif
-
-root_dir := $(abspath $(dir $(realpath $(firstword $(MAKEFILE_LIST))))/..)
-sinclude $(root_dir)/config/lib.mk
-$(GEN_LIB_NAME)-y := $(obj_c:.c=.o) $(obj_s:.S=.o) $(obj_cpp:.cpp=.o)
-obj-y += $(GEN_LIB_NAME).a
+PROGRAMMER_EXT_LIB_NAME := libprogrammer_ext
+$(PROGRAMMER_EXT_LIB_NAME)-y := $(obj_c:.c=.o) $(obj_s:.S=.o) $(obj_cpp:.cpp=.o)
+obj-y += $(PROGRAMMER_EXT_LIB_NAME).a
 
 ccflags-y += \
     -Iplatform/drivers/ana \
     -Itests/programmer/inc \
     -Iutils/boot_struct \
-	-Iutils/crc \
+	-Iutils/crc32 \
+	-Iutils/crc16 \
     -Iutils/rom_utils
+
+ccflags-y += -DOTA_CODE_OFFSET=$(OTA_CODE_OFFSET)
 
 ifeq ($(SINGLE_WIRE_DOWNLOAD),1)
 ccflags-y += -DSINGLE_WIRE_DOWNLOAD
@@ -42,6 +30,14 @@ ifeq ($(FORCE_COPY_NEW_IMAGE),1)
 ccflags-y += -DFORCE_COPY_NEW_IMAGE
 endif
 
-ifeq ($(OTA_TZ_ENABLE),1)
-ccflags-y += -DOTA_TZ_ENABLE
+ifeq ($(OTA_BOOT_TO_DUAL_CHIP),1)
+ccflags-y += -DOTA_BOOT_TO_DUAL_CHIP
+endif
+
+ifeq ($(OTA_BOOT_REMAP_SWAP),1)
+ccflags-y += -DOTA_BOOT_REMAP_SWAP
+endif
+
+ifeq ($(OTA_BOOT_DEBUG),1)
+ccflags-y += -DOTA_BOOT_DEBUG
 endif

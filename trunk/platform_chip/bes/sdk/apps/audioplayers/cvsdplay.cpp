@@ -76,7 +76,7 @@ int store_voicecvsd_buffer(unsigned char *buf, unsigned int len)
     EnCQueue(&voicecvsd_queue, buf, len);
 #if 0
     dump_buffer_to_psram((char *)buf, len);
-    AUDIOPLAYERS_TRACE(1,"%d\n", LengthOfCQueue(&voicecvsd_queue));
+    TRACE(1,"%d\n", LengthOfCQueue(&voicecvsd_queue));
 #endif
     if (LengthOfCQueue(&voicecvsd_queue) > VOICECVSD_TEMP_BUFFER_SIZE*10) {
         voicecvsd_cache_status = APP_AUDIO_CACHE_OK;
@@ -113,7 +113,7 @@ int store_voice_pcm2cvsd(unsigned char *buf, unsigned int len)
 
 #if 0
     dump_buffer_to_psram((char *)buf, len);
-    AUDIOPLAYERS_TRACE(1,"%d\n", LengthOfCQueue(&voicecvsd_queue));
+    TRACE(1,"%d\n", LengthOfCQueue(&voicecvsd_queue));
 #endif
     if (LengthOfCQueue(&voicecvsd_queue) > VOICECVSD_TEMP_BUFFER_SIZE*10) {
         voicecvsd_cache_status = APP_AUDIO_CACHE_OK;
@@ -224,12 +224,12 @@ uint32_t voicecvsd_audio_more_data(uint8_t *buf, uint32_t len)
     if (voicecvsd_cache_status == APP_AUDIO_CACHE_CACHEING)
        return 0;
 
-    AUDIOPLAYERS_TRACE(2,"%s enter reamin:%d", __func__, LengthOfCQueue(&voicecvsd_queue));
+    TRACE(2,"%s enter reamin:%d", __func__, LengthOfCQueue(&voicecvsd_queue));
 
     ticks = hal_sys_timer_get();
     l = decode_cvsd_frame_noblock(buf, len);
     cur_ticks = hal_sys_timer_get();
-    AUDIOPLAYERS_TRACE(3,"%s exit  reamin:%d spend:%d\n", __func__, LengthOfCQueue(&voicecvsd_queue) ,TICKS_TO_MS(cur_ticks-ticks));
+    TRACE(3,"%s exit  reamin:%d spend:%d\n", __func__, LengthOfCQueue(&voicecvsd_queue) ,TICKS_TO_MS(cur_ticks-ticks));
 
     return l;
 }

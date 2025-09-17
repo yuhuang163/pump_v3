@@ -32,6 +32,7 @@
 #include "app_overlay.h"
 #include "string.h"
 #include "pmu.h"
+#include "app_bt_stream.h"
 
 //#define FM_DEBUG 1
 
@@ -53,7 +54,6 @@
 #endif
 #define FM_AUDIO_BUFFER_SIZE (4096)
 
-extern int app_bt_stream_local_volume_get(void);
 static int32_t *fm_sample_buffer_p;
 
 static void fm_handler(uint8_t chan, uint32_t remains, uint32_t error, struct HAL_DMA_DESC_T *lli)
@@ -80,7 +80,7 @@ static void fm_handler(uint8_t chan, uint32_t remains, uint32_t error, struct HA
             diff_ticks = TICKS_TO_MS(cur_ticks - preTicks);
             preTicks = cur_ticks;
         }
-        AUDIOPLAYERS_TRACE(3,"[fm_handler]       diff=%d add:%d remain:%d input", diff_ticks, (FM_SAMPLE_NUM/9)<<1, app_audio_pcmbuff_length());
+        TRACE(3,"[fm_handler]       diff=%d add:%d remain:%d input", diff_ticks, (FM_SAMPLE_NUM/9)<<1, app_audio_pcmbuff_length());
     }
 #endif
 }
@@ -100,7 +100,7 @@ uint32_t fm_pcm_more_data(uint8_t *buf, uint32_t len)
             preTicks = cur_ticks;
         }
 
-        AUDIOPLAYERS_TRACE(5,"[fm_pcm_more_data] diff=%d get:%d remain:%d output isr:0x%08x cnt:%d", diff_ticks, len/2, app_audio_pcmbuff_length(), FM_DIGITAL_REG(0x40160020), FM_DIGITAL_REG(0x40160028));
+        TRACE(5,"[fm_pcm_more_data] diff=%d get:%d remain:%d output isr:0x%08x cnt:%d", diff_ticks, len/2, app_audio_pcmbuff_length(), FM_DIGITAL_REG(0x40160020), FM_DIGITAL_REG(0x40160028));
     }
 #endif
     return 0;
@@ -428,7 +428,7 @@ int fm_radio_player(bool on)
     static bool isRun =  false;
     uint8_t *buff = NULL;
 
-    AUDIOPLAYERS_TRACE(2,"fm_radio_player work:%d op:%d", isRun, on);
+    TRACE(2,"fm_radio_player work:%d op:%d", isRun, on);
     if (isRun==on)
         return 0;
 

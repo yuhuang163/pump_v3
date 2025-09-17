@@ -7,4 +7,5 @@ obj-y := $(obj-y:.S=.o)
 
 subdir-ccflags-y += \
 					-Iservices/audio_process \
-					-Imultimedia/inc/audio/process/filters/include
+					-Imultimedia/inc/audio/process/filters/include \
+					-Iutils/list

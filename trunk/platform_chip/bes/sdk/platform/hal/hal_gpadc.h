@@ -68,7 +68,7 @@ enum HAL_ADCKEY_IRQ_STATUS_T {
 typedef uint16_t HAL_GPADC_MV_T;
 
 typedef void (*HAL_GPADC_EVENT_CB_T)(uint16_t raw_val, HAL_GPADC_MV_T volt);
-typedef void (*HAL_ADCKEY_EVENT_CB_T)(enum HAL_ADCKEY_IRQ_STATUS_T irq_status, uint16_t raw_val);
+typedef void (*HAL_ADCKEY_EVENT_CB_T)(enum HAL_ADCKEY_IRQ_STATUS_T irq_status, HAL_GPADC_MV_T volt);
 
 int hal_gpadc_masked_irq_valid(uint16_t irq);
 

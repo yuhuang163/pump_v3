@@ -26,7 +26,6 @@
 
 #if BLE_AUDIO_ENABLED
 #include "bluetooth_ble_api.h"
-#include "bt_svc_lea_api.h"
 #endif
 
 #ifdef APP_SOUND_UI_ENABLE
@@ -34,7 +33,7 @@
 #endif
 void soundModeChanged(SoundMode mode)
 {
-    SOUND_TRACE(0,"Custom:Mode[%s] Ready!!!", soundMode2str(mode));
+    LOG_D("Custom:Mode[%s] Ready!!!", soundMode2str(mode));
 #ifdef APP_SOUND_UI_ENABLE
     struct app_sound_ctrl_t *app_sound_ctrl = app_sound_get_ctrl();
 
@@ -55,7 +54,7 @@ void soundModeChanged(SoundMode mode)
 
 void soundEvtRunComplete(SoundEvtPkt *evtPkt)
 {
-    SOUND_TRACE(0,"Custom:Evt[%s] Complete", soundEvt2str(evtPkt->evt));
+    LOG_D("Custom:Evt[%s] Complete", soundEvt2str(evtPkt->evt));
 #ifdef APP_SOUND_UI_ENABLE
     struct app_sound_ctrl_t *app_sound_ctrl = app_sound_get_ctrl();
     SOUND_ACTION_E action = SOUND_ACTION_END;
@@ -87,9 +86,11 @@ void soundEvtRunComplete(SoundEvtPkt *evtPkt)
 
 void soundBisSetParam(SoundBisParam *param)
 {
+    uint8_t bis_tran_broadcast_id[3] = {1,2,3};
+    uint8_t bis_tran_broadcast_key[16] = {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16};
+    uint8_t sync_policy = SOUND_BIS_SYNC_POLICY_BCAST_ID | SOUND_BIS_SYNC_POLICY_COMPANY_ID | SOUND_BIS_SYNC_POLICY_BCAST_NAME;
     uint16_t company_id       = 0x02B0;
     const char *broadcast_name = "BES_BCAST";
-    uint8_t sync_policy = SOUND_BIS_SYNC_POLICY_BCAST_ID | SOUND_BIS_SYNC_POLICY_COMPANY_ID | SOUND_BIS_SYNC_POLICY_BCAST_NAME;
     static uint8_t adv_mfrs_data[5] = {0x11, 0x22, 0x33, 0x44, 0x55};
 
     memcpy(param->broadcast_id, bis_tran_broadcast_id, 3);
@@ -100,24 +101,23 @@ void soundBisSetParam(SoundBisParam *param)
     param->bcast_name        = broadcast_name;
     param->company_id        = company_id;
     param->sync_policy       = sync_policy;
-
-    SOUND_TRACE(0,"Custom:Bis Param Set Complete");
+    LOG_D("Custom:Bis Param Set Complete");
 }
 
 void soundBisStreamStateChangeFunc(bool state, uint8_t role)
 {
-    SOUND_TRACE(0,"[%s][%d]: stream state=%d role=%d", __FUNCTION__, __LINE__, state, role);
+    LOG_I("[%s][%d]: stream state=%d", __FUNCTION__, __LINE__, state);
 }
 
 void soundBisSinkReceiveManufacturerDataFunc(uint8_t *data, uint8_t len)
 {
-    SOUND_TRACE(0,"[%s][%d]: receive User adv data:", __FUNCTION__, __LINE__);
-    SOUND_DUMP8("%02x ", data, len);
+    LOG_I("[%s][%d]: receive User adv data:", __FUNCTION__, __LINE__);
+    DUMP8("%02x ", data, len);
 }
 
 void soundBtGlobalStateCallback(ibrt_global_state_change_event *state)
 {
-    SOUND_TRACE(0,"Custom:global_status changed = %d", state->state);
+    LOG_D("Custom:global_status changed = %d", state->state);
 
     switch (state->state) {
         case IBRT_BLUETOOTH_ENABLED:
@@ -145,10 +145,10 @@ void soundBtGlobalStateCallback(ibrt_global_state_change_event *state)
 void soundBtA2dpCallback(const bt_bdaddr_t *addr, ibrt_conn_a2dp_state_change *state)
 {
     if (addr != NULL) {
-        SOUND_TRACE(0,"Custom:[d%x][%02x:%02x:*:*:*:%02x]A2dpStatus changed = %d",
+        LOG_D("Custom:[d%x][%02x:%02x:*:*:*:%02x]A2dpStatus changed = %d",
               state->device_id, addr->address[0], addr->address[1], addr->address[5], state->a2dp_state);
     } else {
-        SOUND_TRACE(0,"Custom:[d%x]A2dp_status changed = %d addr is NULL",
+        LOG_D("Custom:[d%x]A2dp_status changed = %d addr is NULL",
               state->device_id, state->a2dp_state);
     }
 
@@ -161,22 +161,22 @@ void soundBtA2dpCallback(const bt_bdaddr_t *addr, ibrt_conn_a2dp_state_change *s
 #endif
             break;
         case IBRT_CONN_A2DP_CODEC_CONFIGURED:
-            SOUND_TRACE(0,"Custom:delay report support %d", state->delay_report_support);
+            LOG_D("Custom:delay report support %d", state->delay_report_support);
             break;
         case IBRT_CONN_A2DP_STREAMING:
-            SOUND_TRACE(0,"Custom:A2dp Streaming");
+            LOG_D("Custom:A2dp Streaming");
 #ifdef APP_SOUND_UI_ENABLE
             app_sound_a2dp_state_handle(state->device_id, (device_addr_t *)addr, SOUND_BT_A2DP_STREAM_STARTED);
 #endif
             break;
         case IBRT_CONN_A2DP_SUSPENED:
-            SOUND_TRACE(0,"Custom:A2dp Suspened");
+            LOG_D("Custom:A2dp Suspened");
 #ifdef APP_SOUND_UI_ENABLE
             app_sound_a2dp_state_handle(state->device_id, (device_addr_t *)addr, SOUND_BT_A2DP_STREAM_CLOSE);
 #endif
             break;
         case IBRT_CONN_A2DP_CLOSED:
-            SOUND_TRACE(0,"Custom:A2dp Closed");
+            LOG_D("Custom:A2dp Closed");
 #ifdef APP_SOUND_UI_ENABLE
             app_sound_a2dp_state_handle(state->device_id, (device_addr_t *)addr, SOUND_BT_A2DP_DISCONNECTED);
 #endif
@@ -189,10 +189,10 @@ void soundBtA2dpCallback(const bt_bdaddr_t *addr, ibrt_conn_a2dp_state_change *s
 void soundBtHfpCallback(const bt_bdaddr_t *addr, ibrt_conn_hfp_state_change *state)
 {
     if (addr != NULL) {
-        SOUND_TRACE(0,"Custom:[d%x][%02x:%02x:*:*:*:%02x]HfpStatus changed = %d",
+        LOG_D("Custom:[d%x][%02x:%02x:*:*:*:%02x]HfpStatus changed = %d",
               state->device_id, addr->address[0], addr->address[1], addr->address[5], state->hfp_state);
     } else {
-        SOUND_TRACE(0,"Custom:[d%x]Hfp_status changed = %d addr is NULL",
+        LOG_D("Custom:[d%x]Hfp_status changed = %d addr is NULL",
               state->device_id, state->hfp_state);
     }
 
@@ -245,7 +245,7 @@ void soundBtHfpCallback(const bt_bdaddr_t *addr, ibrt_conn_hfp_state_change *sta
         case IBRT_CONN_HFP_MIC_VOLUME_IND:
             break;
         case IBRT_CONN_HFP_IN_BAND_RING_IND:
-            SOUND_TRACE(0,"Custom:is in-band ring %d", state->in_band_ring_enable);
+            LOG_D("Custom:is in-band ring %d", state->in_band_ring_enable);
             // app_ibrt_if_BSIR_command_event(state->in_band_ring_enable);
             break;
         case IBRT_CONN_HFP_VR_STATE_IND:
@@ -260,10 +260,10 @@ void soundBtHfpCallback(const bt_bdaddr_t *addr, ibrt_conn_hfp_state_change *sta
 void soundBtAvrcpCallback(const bt_bdaddr_t *addr, ibrt_conn_avrcp_state_change *state)
 {
     if (addr != NULL) {
-        SOUND_TRACE(0,"Custom:[d%x][%02x:%02x:*:*:*:%02x]AvrcpStatus changed = %d",
+        LOG_D("Custom:[d%x][%02x:%02x:*:*:*:%02x]AvrcpStatus changed = %d",
               state->device_id, addr->address[0], addr->address[1], addr->address[5], state->avrcp_state);
     } else {
-        SOUND_TRACE(0,"Custom:[d%x]Avrcp_status changed = %d addr is NULL",
+        LOG_D("Custom:[d%x]Avrcp_status changed = %d addr is NULL",
               state->device_id, state->avrcp_state);
     }
 
@@ -273,22 +273,22 @@ void soundBtAvrcpCallback(const bt_bdaddr_t *addr, ibrt_conn_avrcp_state_change 
         case IBRT_CONN_AVRCP_CONNECTED:
             break;
         case IBRT_CONN_AVRCP_VOLUME_UPDATED:
-            SOUND_TRACE(0,"Custom:volume %d %d%%", state->volume, state->volume * 100 / 128);
+            LOG_D("Custom:volume %d %d%%", state->volume, state->volume * 100 / 128);
             break;
         case IBRT_CONN_AVRCP_REMOTE_CT_0104:
-            SOUND_TRACE(0,"Custom:remote ct 1.4 support %d volume %d", state->support, state->volume);
+            LOG_D("Custom:remote ct 1.4 support %d volume %d", state->support, state->volume);
             break;
         case IBRT_CONN_AVRCP_REMOTE_SUPPORT_PLAYBACK_STATUS_CHANGED_EVENT:
-            SOUND_TRACE(0,"Custom:playback status support %d", state->support);
+            LOG_D("Custom:playback status support %d", state->support);
             break;
         case IBRT_CONN_AVRCP_PLAYBACK_STATUS_CHANGED:
-            SOUND_TRACE(0,"Custom:playback status %d", state->playback_status);
+            LOG_D("Custom:playback status %d", state->playback_status);
             break;
         case IBRT_CONN_AVRCP_PLAY_STATUS_CHANGED:
-            SOUND_TRACE(0,"Custom:playStatus=%d, pos/totle=[%d/%d]", state->playback_status, state->play_position, state->play_length);
+            LOG_D("Custom:playStatus=%d, pos/totle=[%d/%d]", state->playback_status, state->play_position, state->play_length);
             break;
         case IBRT_CONN_AVRCP_PLAY_POS_CHANGED:
-            SOUND_TRACE(0,"Custom:playPos=%d", state->play_position);
+            LOG_D("Custom:playPos=%d", state->play_position);
         default:
             break;
     }
@@ -296,13 +296,13 @@ void soundBtAvrcpCallback(const bt_bdaddr_t *addr, ibrt_conn_avrcp_state_change 
 
 void soundBtAvrcpMediaInfoCallback(const bt_bdaddr_t *addr, const avrcp_adv_rsp_parms_t *mediainforsp)
 {
-    SOUND_TRACE(0,"Custom:[%02x:%02x:*:*:*:%02x] Media info update.",
+    LOG_D("Custom:[%02x:%02x:*:*:*:%02x] Media info update.",
           addr->address[0], addr->address[1], addr->address[5]);
 
     uint8_t num_of_elements = mediainforsp->element.numIds;
     for (int i = 0; i < num_of_elements && i < BTIF_AVRCP_NUM_MEDIA_ATTRIBUTES; i++) {
         if (mediainforsp->element.txt[i].length > 0) {
-            SOUND_TRACE(0,"Custom:MediaInfo:[%d] %s %d: %s", i,
+            LOG_D("Custom:MediaInfo:[%d] %s %d: %s", i,
                   avrcp_get_track_element_name(mediainforsp->element.txt[i].attrId),
                   mediainforsp->element.txt[i].length, mediainforsp->element.txt[i].string);
         }
@@ -312,22 +312,22 @@ void soundBtAvrcpMediaInfoCallback(const bt_bdaddr_t *addr, const avrcp_adv_rsp_
 void soundBtNewlyPairedTwsCallback(const bt_bdaddr_t *addr)
 {
     uint8_t *p = (uint8_t *)addr;
-    SOUND_TRACE(0,"Custom:newly tws paired.");
-    SOUND_TRACE(0,"tws_addr:  %02x:%02x:%02x:%02x:%02x:%02x",
+    LOG_D("Custom:newly tws paired.");
+    LOG_D("tws_addr:  %02x:%02x:%02x:%02x:%02x:%02x",
           p[0], p[1], p[2], p[3], p[4], p[5]);
 }
 
 void soundBtNewlyPairedMobileCallback(const bt_bdaddr_t *addr)
 {
     uint8_t *p = (uint8_t *)addr;
-    SOUND_TRACE(0,"Custom:newly mobile paired.");
-    SOUND_TRACE(0,"mob_addr:  %02x:%02x:%02x:%02x:%02x:%02x",
+    LOG_D("Custom:newly mobile paired.");
+    LOG_D("mob_addr:  %02x:%02x:%02x:%02x:%02x:%02x",
           p[0], p[1], p[2], p[3], p[4], p[5]);
 }
 
 void soundBtTwsParingStateChanged(ibrt_conn_pairing_state state, uint8_t reason_code)
 {
-    SOUND_TRACE(0,"Custom:tws_pairing_state changed = %d with reason 0x%x", state, reason_code);
+    LOG_D("Custom:tws_pairing_state changed = %d with reason 0x%x", state, reason_code);
 
     switch (state) {
         case IBRT_CONN_PAIRING_IDLE:
@@ -335,6 +335,8 @@ void soundBtTwsParingStateChanged(ibrt_conn_pairing_state state, uint8_t reason_
         case IBRT_CONN_PAIRING_IN_PROGRESS:
             break;
         case IBRT_CONN_PAIRING_COMPLETE:
+            break;
+        case IBRT_CONN_PAIRING_TIMEOUT:
             break;
         default:
             break;
@@ -347,7 +349,7 @@ void soundBtTwsAclStateChanged(ibrt_conn_tws_conn_state_event *state, uint8_t re
     struct app_sound_ctrl_t *app_sound_ctrl = app_sound_get_ctrl();
     struct app_sound_tws_info_t *p_tws_info = &app_sound_ctrl->bt_device_info.tws_info;
 #endif
-    SOUND_TRACE(0,"Custom:tws_acl_state changed = %d with reason 0x%x role %d", state->state.acl_state, reason_code, state->current_role);
+    LOG_D("Custom:tws_acl_state changed = %d with reason 0x%x role %d", state->state.acl_state, reason_code, state->current_role);
 
     switch (state->state.acl_state) {
         case IBRT_CONN_ACL_CONNECTED:
@@ -361,10 +363,10 @@ void soundBtTwsAclStateChanged(ibrt_conn_tws_conn_state_event *state, uint8_t re
             if ((reason_code > 0x47) || (reason_code == 0)) {
                 p_tws_info->connect_status = SOUND_ACL_CONNECTED;
                 app_sound_ui_event_handler(SOUND_ACTION_TWS_CONNECTE_SIG, SOUND_UI_NO_ERROR);
-                SOUND_TRACE(0,"Custom:tws_acl_state changed CONNECTED connect_status=%d reason 0x%x role %d",app_sound_ctrl->bt_device_info.tws_info.connect_status, reason_code, state->current_role);
+                LOG_D("Custom:tws_acl_state changed CONNECTED connect_status=%d reason 0x%x role %d",app_sound_ctrl->bt_device_info.tws_info.connect_status, reason_code, state->current_role);
             } else  {
                 p_tws_info->connect_status = SOUND_ACL_DISCONNECTED;
-                SOUND_TRACE(0,"Custom:tws_acl_state changed CONNECTE fail connect_status=%d; with reason 0x%x role %d",app_sound_ctrl->bt_device_info.tws_info.connect_status, reason_code, state->current_role);
+                LOG_D("Custom:tws_acl_state changed CONNECTE fail connect_status=%d; with reason 0x%x role %d",app_sound_ctrl->bt_device_info.tws_info.connect_status, reason_code, state->current_role);
             }
 #endif
             break;
@@ -390,10 +392,10 @@ void soundBtTwsAclStateChanged(ibrt_conn_tws_conn_state_event *state, uint8_t re
 void soundBtMobileAclStateChanged(const bt_bdaddr_t *addr, ibrt_mobile_conn_state_event *state, uint8_t reason_code)
 {
     if (addr != NULL) {
-        SOUND_TRACE(0,"Custom:[d%x][%02x:%02x:*:*:*:%02x]AclStatus changed = %d reason 0x%x",
+        LOG_D("Custom:[d%x][%02x:%02x:*:*:*:%02x]AclStatus changed = %d reason 0x%x",
               state->device_id, addr->address[0], addr->address[1], addr->address[5], state->state.acl_state, reason_code);
     } else {
-        SOUND_TRACE(0,"Custom:[d%x]Acl state changed = %d reason 0x%x, addr is NULL",
+        LOG_D("Custom:[d%x]Acl state changed = %d reason 0x%x, addr is NULL",
               state->device_id, state->state.acl_state, reason_code);
     }
 
@@ -439,10 +441,10 @@ void soundBtMobileAclStateChanged(const bt_bdaddr_t *addr, ibrt_mobile_conn_stat
 void soundBtScoStateChanged(const bt_bdaddr_t *addr, ibrt_sco_conn_state_event *state, uint8_t reason_code)
 {
     if (addr != NULL) {
-        SOUND_TRACE(0,"Custom:[d%x][%02x:%02x:*:*:*:%02x]ScoStatus changed = %d with reason 0x%x",
+        LOG_D("Custom:[d%x][%02x:%02x:*:*:*:%02x]ScoStatus changed = %d with reason 0x%x",
               state->device_id, addr->address[0], addr->address[1], addr->address[5], state->state.sco_state, reason_code);
     } else {
-        SOUND_TRACE(0,"Custom:ScoState changed = %d with reason 0x%x", state->state.sco_state, reason_code);
+        LOG_D("Custom:ScoState changed = %d with reason 0x%x", state->state.sco_state, reason_code);
     }
 
     switch (state->state.sco_state) {
@@ -458,10 +460,10 @@ void soundBtScoStateChanged(const bt_bdaddr_t *addr, ibrt_sco_conn_state_event *
 void soundBtIbrtRoleSwitchStatusChanged(const bt_bdaddr_t *addr, ibrt_conn_role_change_state state, ibrt_role_e role)
 {
     if (addr != NULL) {
-        SOUND_TRACE(0,"Custom:[%02x:%02x:*:*:*:%02x]ibrt role switch changed = %d with role 0x%x",
+        LOG_D("Custom:[%02x:%02x:*:*:*:%02x]ibrt role switch changed = %d with role 0x%x",
               addr->address[0], addr->address[1], addr->address[5], state, role);
     } else {
-        SOUND_TRACE(0,"Custom:ibrt role switch changed = %d with role 0x%x addr is NULL", state, role);
+        LOG_D("Custom:ibrt role switch changed = %d with role 0x%x addr is NULL", state, role);
     }
 
     switch (state) {
@@ -482,10 +484,10 @@ void soundBtIbrtRoleSwitchStatusChanged(const bt_bdaddr_t *addr, ibrt_conn_role_
 void soundBtIbrtStateChanged(const bt_bdaddr_t *addr, ibrt_connection_state_event *state, ibrt_role_e role, uint8_t reason_code)
 {
     if (addr != NULL) {
-        SOUND_TRACE(0,"Custom:[d%x][%02x:%02x:*:*:*:%02x] ibrt_state_changed = %d with reason 0x%x role=%d",
+        LOG_D("Custom:[d%x][%02x:%02x:*:*:*:%02x] ibrt_state_changed = %d with reason 0x%x role=%d",
               state->device_id, addr->address[0], addr->address[1], addr->address[5], state->state.ibrt_state, reason_code, role);
     } else {
-        SOUND_TRACE(0,"Custom:[d%x] ibrt_state_changed = %d with reason 0x%x role=%d addr is NULL",
+        LOG_D("Custom:[d%x] ibrt_state_changed = %d with reason 0x%x role=%d addr is NULL",
               state->device_id, state->state.ibrt_state, reason_code, role);
     }
 
@@ -505,7 +507,7 @@ void soundBtIbrtStateChanged(const bt_bdaddr_t *addr, ibrt_connection_state_even
 
 void soundBtAccessModeChanged(btif_accessible_mode_t accessMode)
 {
-    SOUND_TRACE(0,"Custom:AccessMode changed=%d", accessMode);
+    LOG_D("Custom:AccessMode changed=%d", accessMode);
 
     switch (accessMode) {
         case BTIF_BAM_NOT_ACCESSIBLE:
@@ -526,10 +528,10 @@ void soundBtAccessModeChanged(btif_accessible_mode_t accessMode)
 bool soundBtIncomingConnReqCallback(const bt_bdaddr_t *addr)
 {
     if (addr == NULL) {
-        SOUND_TRACE(0,"Custom:Incoming_conn_req addr is NULL, reject");
+        LOG_D("Custom:Incoming_conn_req addr is NULL, reject");
         return false;
     }
-    SOUND_TRACE(0,"Custom:[%02x:%02x:*:*:*:%02x]Incoming_conn_req",
+    LOG_D("Custom:[%02x:%02x:*:*:*:%02x]Incoming_conn_req",
           addr->address[0], addr->address[1], addr->address[5]);
     return true;
 }
@@ -537,30 +539,36 @@ bool soundBtIncomingConnReqCallback(const bt_bdaddr_t *addr)
 bool soundBtExtraIncomingConnReqCallback(const bt_bdaddr_t *incoming_addr, bt_bdaddr_t *steal_addr)
 {
     if (incoming_addr == NULL) {
-        SOUND_TRACE(0,"Custom:Extra_incoming_conn_req addr is NULL, reject");
+        LOG_D("Custom:Extra_incoming_conn_req addr is NULL, reject");
         return false;
     }
-    SOUND_TRACE(0,"Custom:[%02x:%02x:*:*:*:%02x]Extra_incoming_conn_req",
+    LOG_D("Custom:[%02x:%02x:*:*:*:%02x]Extra_incoming_conn_req",
           incoming_addr->address[0], incoming_addr->address[1], incoming_addr->address[5]);
     return true;
 }
 
-bool soundDisallowReconnectCallback(const bt_bdaddr_t* addr, const uint16_t active_event)
+bool soundDisallowReconnectMobCallback(const bt_bdaddr_t* addr, const uint16_t active_event)
 {
-    SOUND_TRACE(0,"Custom:Reconnect dev addr: %02x:%02x:*:*:*:%02x, event:0x%02x",
+    LOG_D("Custom:Reconnect dev addr: %02x:%02x:*:*:*:%02x, event:0x%02x",
           addr->address[0], addr->address[1], addr->address[5], active_event);
+    return false;
+}
+
+bool soundDisallowReconnectTwsCallback(void)
+{
+    LOG_D("Custom:Reconnect tws");
     return false;
 }
 
 bool soundDisallowTwsRoleSwitchCallback()
 {
-    SOUND_TRACE(0,"Custom:tws role switch ext-policy");
+    LOG_D("Custom:tws role switch ext-policy");
     return false;
 }
 
 static void soundEarbudEvtRunComplete(app_ui_evt_t evt)
 {
-    SOUND_TRACE(0,"Earbud:evt=[%s] complete", app_ui_event_to_string(evt));
+    LOG_D("Earbud:evt=[%s] complete", app_ui_event_to_string(evt));
 
     switch (evt) {
         case APP_UI_EV_CASE_OPEN:
@@ -569,7 +577,7 @@ static void soundEarbudEvtRunComplete(app_ui_evt_t evt)
             break;
         case APP_UI_EV_TWS_PAIRING:
             break;
-        case APP_UI_EV_ALL_DISCONNECT_SIG:
+        case BEST_ALL_DISCONNECT_SIG:
             break;
         case APP_UI_EV_KEEP_ONLY_MOB_LINK:
         default:
@@ -579,39 +587,39 @@ static void soundEarbudEvtRunComplete(app_ui_evt_t evt)
 
 void soundBtPairingModeEntry()
 {
-    SOUND_TRACE(0,"Custom:Pairing Entry");
+    LOG_D("Custom:Pairing Entry");
 }
 
 void soundBtPairingModeExit()
 {
-    SOUND_TRACE(0,"Custom:Pairing Exit");
+    LOG_D("Custom:Pairing Exit");
 }
 
 void soundBtPairingModeTimeoutPre()
 {
-    SOUND_TRACE(0,"Custom:Pairing timeout pre");
+    LOG_D("Custom:Pairing timeout pre");
 }
 
 void soundBtPairingModeTimeoutPost()
 {
-    SOUND_TRACE(0,"Custom:Pairing timeout post");
+    LOG_D("Custom:Pairing timeout post");
 }
 
 void soundBtTwsRoleSwitchCompleteCallback(TWS_UI_ROLE_E current_role, uint8_t errCode)
 {
-    SOUND_TRACE(0,"Custom:TWS Role switch complete, role=%d, errorCode=%d", current_role, errCode);
+    LOG_D("Custom:TWS Role switch complete, role=%d, errorCode=%d", current_role, errCode);
 }
 
 void soundBtPeerBoxStateUpdateCallback(bud_box_state box_state)
 {
-    SOUND_TRACE(0,"Custom:peer box state update=%s", app_ui_box_state_to_string(box_state));
+    LOG_D("Custom:peer box state update=%s", app_ui_box_state_to_string(box_state));
 }
 
 void soundBtVenderEventCallback(uint8_t evt_type, uint8_t *buffer, uint8_t length)
 {
     uint8_t subcode = evt_type;
 
-    SOUND_TRACE(0,"Custom:Vender event, subcode=%d", subcode);
+    LOG_D("Custom:Vender event, subcode=%d", subcode);
 
     switch (subcode) {
         case HCI_DBG_SNIFFER_INIT_CMP_EVT_SUBCODE:
@@ -676,14 +684,15 @@ static ibrt_mgr_status_changed_cb_t mgr_status_cbs = {
 static ibrt_ext_conn_policy_cb_t conn_policy_cbs = {
     .accept_incoming_conn_req_hook              = soundBtIncomingConnReqCallback,
     .accept_extra_incoming_conn_req_hook        = soundBtExtraIncomingConnReqCallback,
-    .disallow_start_reconnect_hook              = soundDisallowReconnectCallback,
+    .disallow_start_reconnect_mob_hook          = soundDisallowReconnectMobCallback,
+    .disallow_start_reconnect_tws_hook          = soundDisallowReconnectTwsCallback,
     .disallow_tws_role_switch_hook              = soundDisallowTwsRoleSwitchCallback,
 };
 
 #if BLE_AUDIO_ENABLED
 static void soundLeaAdvStateChanged(AOB_ADV_STATE_T state, uint8_t err_code)
 {
-    SOUND_TRACE(0,"Custom:LEA:adv state changed=%d", state);
+    LOG_D("Custom:LEA:adv state changed=%d", state);
     switch (state) {
         case AOB_ADV_START:
             break;
@@ -698,7 +707,7 @@ static void soundLeaAdvStateChanged(AOB_ADV_STATE_T state, uint8_t err_code)
 
 static void soundLeaMobAclStateChanged(uint8_t conidx, const ble_bdaddr_t *addr, AOB_ACL_STATE_T state, uint8_t errCode)
 {
-    SOUND_TRACE(0,"Custom:LEA:[%d][%02x:%02x:*:*:*:%02x]Acl state changed=%d, errcode=0x%x",
+    LOG_D("Custom:LEA:[%d][%02x:%02x:*:*:*:%02x]Acl state changed=%d, errcode=0x%x",
           conidx, addr->addr[0], addr->addr[1], addr->addr[5], state, errCode);
     static bool first_bond = true;
 
@@ -721,7 +730,7 @@ static void soundLeaMobAclStateChanged(uint8_t conidx, const ble_bdaddr_t *addr,
             break;
         case AOB_ACL_ATTR_BOND:
             if (first_bond) {
-                SOUND_TRACE(0, "LE AUDIO ATTR BOND!!!");
+                TRACE(0, "LE AUDIO ATTR BOND!!!");
                 first_bond = false;
                 app_ui_keep_only_the_leaudio_device(conidx);
             }
@@ -733,32 +742,32 @@ static void soundLeaMobAclStateChanged(uint8_t conidx, const ble_bdaddr_t *addr,
 
 static void soundLeaVolChanged(uint8_t con_lid, uint8_t volume, uint8_t mute)
 {
-    SOUND_TRACE(0,"Custom:LEA:[%d] vol=%d, mute=%d", con_lid, volume, mute);
+    LOG_D("Custom:LEA:[%d] vol=%d, mute=%d", con_lid, volume, mute);
 }
 
 static void soundLeaVocsOffsetChanged(int16_t offset, uint8_t output_lid)
 {
-    SOUND_TRACE(0,"Custom:LEA:vocs offset=%d, output_lid=%d", offset, output_lid);
+    LOG_D("Custom:LEA:vocs offset=%d, output_lid=%d", offset, output_lid);
 }
 
 static void soundLeaVocsBondDataChanged(uint8_t output_lid, uint8_t cli_cfg_bf)
 {
-    SOUND_TRACE(0,"Custom:LEA:vocs bond data=%d, output_lid=%d", cli_cfg_bf, output_lid);
+    LOG_D("Custom:LEA:vocs bond data=%d, output_lid=%d", cli_cfg_bf, output_lid);
 }
 
 static void soundLeaMediaTrackChanged(uint8_t con_lid)
 {
-    SOUND_TRACE(0,"Custom:LEA:mob[%d] media trace changed", con_lid);
+    LOG_D("Custom:LEA:mob[%d] media trace changed", con_lid);
 }
 
 static void soundLeaMediaStreamStatusChanged(uint8_t con_lid, uint8_t ase_lid, AOB_MGR_STREAM_STATE_E state)
 {
-    SOUND_TRACE(0,"Custom:LEA:mob[%d] ase_id=%d, stream_state=%d", con_lid, ase_lid, state);
+    LOG_D("Custom:LEA:mob[%d] ase_id=%d, stream_state=%d", con_lid, ase_lid, state);
 }
 
 static void soundLeaMediaPlaybackStatusChanged(uint8_t con_lid, AOB_MGR_PLAYBACK_STATE_E state)
 {
-    SOUND_TRACE(0,"Custom:LEA:mob[%d] media_pb_status_changed=%d", con_lid, state);
+    LOG_D("Custom:LEA:mob[%d] media_pb_status_changed=%d", con_lid, state);
 
     switch (state) {
         case AOB_MGR_PLAYBACK_STATE_INACTIVE:
@@ -776,24 +785,24 @@ static void soundLeaMediaPlaybackStatusChanged(uint8_t con_lid, AOB_MGR_PLAYBACK
 
 static void soundLeaMediaMicStateChanged(uint8_t mute)
 {
-    SOUND_TRACE(0,"Custom:LEA:media mic mute=%d", mute);
+    LOG_D("Custom:LEA:media mic mute=%d", mute);
 }
 
-static void soundLeaMediaIsoLinkQualityChanged(AOB_ISO_LINK_QUALITY_INFO_T *param)
+static void soundLeaMediaIsoLinkQualityChanged(AOB_ISO_LINK_QUALITY_INFO_T param)
 {
-    SOUND_TRACE(0,"Custom:LEA:Iso link quality");
+    LOG_D("Custom:LEA:Iso link quality");
 }
 
 static void soundLeaMediaPacsCccdWrittenChanged(uint8_t con_lid)
 {
-    SOUND_TRACE(0,"Custom:LEA:mob[%d] pacs cccd writen", con_lid);
+    LOG_D("Custom:LEA:mob[%d] pacs cccd writen", con_lid);
 }
 
 static void soundLeaCallStateChanged(uint8_t con_lid, void *param)
 {
     AOB_SINGLE_CALL_INFO_T *call_state_changed = (AOB_SINGLE_CALL_INFO_T *)param;
 
-    SOUND_TRACE(0,"Custom:LEA:mob[%d] call state changed=%d", con_lid, call_state_changed->state);
+    LOG_D("Custom:LEA:mob[%d] call state changed=%d", con_lid, call_state_changed->state);
 
     switch (call_state_changed->state) {
         case AOB_CALL_STATE_INCOMING:
@@ -819,40 +828,40 @@ static void soundLeaCallStateChanged(uint8_t con_lid, void *param)
 
 static void soundLeaCallSrvSignalStrengthValueChanged(uint8_t con_lid, uint8_t value)
 {
-    SOUND_TRACE(0,"Custom:LEA:mob[%d] call srv signal strength value=%d", con_lid, value);
+    LOG_D("Custom:LEA:mob[%d] call srv signal strength value=%d", con_lid, value);
 }
 
 static void soundLeaCallStatusFlagsChanged(uint8_t con_lid, bool inband_ring, bool silent_mode)
 {
-    SOUND_TRACE(0,"Custom:LEA:mob[%d] call status, inband_ring=%d, slient_mode=%d", con_lid, inband_ring, silent_mode);
+    LOG_D("Custom:LEA:mob[%d] call status, inband_ring=%d, slient_mode=%d", con_lid, inband_ring, silent_mode);
 }
 
 static void soundLea_call_ccp_opt_supported_opcode_ind_cb(uint8_t con_lid, bool local_hold_op_supported, bool join_op_supported)
 {
-    SOUND_TRACE(0,"Custom:LEA:mob[%d] call ccp opt local_hold_op_supported=%d, join_op_supported=%d", con_lid, local_hold_op_supported, join_op_supported);
+    LOG_D("Custom:LEA:mob[%d] call ccp opt local_hold_op_supported=%d, join_op_supported=%d", con_lid, local_hold_op_supported, join_op_supported);
 }
 
 static void soundLeaCallTerminateReasonChanged(uint8_t con_lid, uint8_t call_id, uint8_t reason)
 {
-    SOUND_TRACE(0,"Custom:LEA:mob[%d] call[%d] terminate reason=%d", con_lid, call_id, reason);
+    LOG_D("Custom:LEA:mob[%d] call[%d] terminate reason=%d", con_lid, call_id, reason);
 }
 
 static void soundLeaCallIncomingNumberInfChanged(uint8_t con_lid, uint8_t url_len, uint8_t *url)
 {
-    SOUND_TRACE(0,"Custom:LEA:mob[%d] call incoming number inf", con_lid);
+    LOG_D("Custom:LEA:mob[%d] call incoming number inf", con_lid);
 }
 
 static void soundLeaAobCallSvcChanged(uint8_t con_lid)
 {
-    SOUND_TRACE(0,"Custom:LEA:mob[%d] AOB call svc changed", con_lid);
+    LOG_D("Custom:LEA:mob[%d] AOB call svc changed", con_lid);
 }
 
 static void soundLeaCallActionResultChanged(uint8_t con_lid, void *param)
 {
-    SOUND_TRACE(0,"Custom:LEA:mob[%d] call action result changed", con_lid);
+    LOG_D("Custom:LEA:mob[%d] call action result changed", con_lid);
 }
 
-const static bts_ble_audio_event_cb_t custom_ui_le_audio_event_cb = {
+static app_ble_audio_event_cb_t custom_ui_le_audio_event_cb = {
     .ble_audio_adv_state_changed                = soundLeaAdvStateChanged,
     .mob_acl_state_changed                      = soundLeaMobAclStateChanged,
     .vol_changed_cb                             = soundLeaVolChanged,
@@ -940,10 +949,16 @@ void soundCustomConfig(void)
     config.paring_with_disc_mob_num                         = IBRT_PAIRING_DISC_ALL_MOB;
 
     // disconnect SCO or not when accepting phone connection in pairing mode
-    config.pairing_with_disc_hf_cfg                         = IBRT_PAIRING_DISC_SCO;
+    config.pairing_with_disc_sco                            = true;
 
     // not start ibrt in pairing mode, the default should be false
     config.pairing_without_start_ibrt                       = false;
+
+    //set nv master to tws master for lea connection
+    config.pairing_with_set_nv_master_as_master             = true;
+
+    //accept new dev only in pairing state
+    config.accept_new_dev_only_in_pairing                   = false;
 
     // disconnect tws immediately when single bud closed in box
     config.disc_tws_imm_on_single_bud_closed                = false;
@@ -982,7 +997,7 @@ void soundCustomConfig(void)
 
     config.check_plugin_excute_closedbox_event              = true;
     config.ibrt_with_ai                                     = false;
-    config.no_profile_stop_ibrt                             = true;
+    config.giveup_reconn_when_peer_unpaired                 = true;
 
     // if tws&mobile disc, reconnect tws first until tws connected then reconn mobile
     config.delay_reconn_mob_until_tws_connected             = false;
@@ -1057,11 +1072,11 @@ void soundCustomConfig(void)
 
     config.always_interlaced_scan                           = true;
 
-    config.disallow_reconnect_bt_device_in_streaming_state = false;
-
-    config.disallow_reconnect_tws_in_streaming_state       = false;
+    config.disallow_reconnect_in_streaming_state            = false;
 
     config.open_without_auto_reconnect                      = false;
+
+    config.without_reconnect_if_remote_driving_disc       = false;
 
     config.without_reconnect_when_fetch_out_wear_up         = false;
 
@@ -1073,11 +1088,6 @@ void soundCustomConfig(void)
 
     config.is_changed_to_ui_master_on_tws_disconnected      = false;
 
-    config.connected_max_device_num_allow_new_connect       = true;
-
-    config.lea_connected_allow_new_connect                  = true;
-
-    config.dev_idle_allow_nonsupport_stay_connected       = true;
     app_ui_register_vender_event_update_ind(soundBtVenderEventCallback);
     app_ui_reconfig_env(&config);
 
@@ -1087,8 +1097,9 @@ void soundCustomConfig(void)
     event_callback.bisStreamStateChangeFunc   = soundBisStreamStateChangeFunc;
     event_callback.bisSinkReceiveMfrsDataFunc = soundBisSinkReceiveManufacturerDataFunc;
     soundRegisterEvtCallback(event_callback);
+    soundRegisterEarbudCalbacks();
 #if BLE_AUDIO_ENABLED
-    bts_lea_register_audio_event_callback(&custom_ui_le_audio_event_cb);
+    app_ui_register_custom_ui_le_aud_callback(&custom_ui_le_audio_event_cb);
 #endif
 }
 

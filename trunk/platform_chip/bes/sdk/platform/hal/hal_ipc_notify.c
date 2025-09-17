@@ -16,6 +16,7 @@
 #include "hal_ipc_notify_api.h"
 #include "hal_ipc_notify.h"
 #include "hal_trace.h"
+#include "hal_cmu.h"
 #include "string.h"
 
 
@@ -30,7 +31,7 @@ void hal_ipc_notify_internal_rx_irq_handler(const struct HAL_IPC_NOTIFY_CFG_T *c
         if (!cfg->chan_cfg[id].chan_opened){
             continue;
         }
-        if (cfg->irq_active(id, HAL_IPC_NOTIFY_IRQ_SEND_IND)) {
+        if (cfg->irq_active(id, HAL_IPC_NOTIFY_IRQ_DATA_IND)) {
             cfg->rx_done(id);
             if (chan_cfg[id].rx_irq_handler) {
                  chan_cfg[id].rx_irq_handler(cfg->core, id);
@@ -45,7 +46,7 @@ static void hal_rmt_ipc_tx_irq_handler_by_id(const struct HAL_IPC_NOTIFY_CFG_T *
 
     chan_cfg = cfg->chan_cfg;
 
-    if (cfg->irq_active(id, HAL_IPC_NOTIFY_IRQ_RECV_DONE)) {
+    if (cfg->irq_active(id, HAL_IPC_NOTIFY_IRQ_DATA_DONE)) {
         cfg->local_tx_irq_clear(id);
         if (chan_cfg[id].tx_irq_handler) {
              chan_cfg[id].tx_irq_handler(cfg->core, id);
@@ -64,6 +65,25 @@ void hal_ipc_notify_internal_tx_irq_handler(const struct HAL_IPC_NOTIFY_CFG_T *c
         hal_rmt_ipc_tx_irq_handler_by_id(cfg, id);
     }
 }
+
+#ifdef CORE_SLEEP_POWER_DOWN
+int hal_ipc_notify_pm_notif_handler(const struct HAL_IPC_NOTIFY_CFG_T *cfg, enum HAL_PM_STATE_T state)
+{
+    struct HAL_IPC_NOTIFY_CH_CFG_T *chan_cfg;
+
+    chan_cfg = ADDR_DEV_TO_CPU(cfg->chan_cfg);
+
+    if (state == HAL_PM_STATE_POWER_DOWN_WAKEUP) {
+        for (uint32_t i = 0; i < cfg->chan_num; i++) {
+            if (chan_cfg[i].chan_opened) {
+                cfg->irq_init(i);
+            }
+        }
+    }
+
+    return 0;
+}
+#endif
 
 int hal_ipc_notify_internal_open(const struct HAL_IPC_NOTIFY_CFG_T *cfg, uint32_t id, HAL_IPC_NOTIFY_RX_IRQ_HANDLER rxhandler, HAL_IPC_NOTIFY_RX_IRQ_HANDLER txhandler)
 {
@@ -94,10 +114,25 @@ int hal_ipc_notify_internal_open(const struct HAL_IPC_NOTIFY_CFG_T *cfg, uint32_
         NVIC_EnableIRQ(cfg->tx_irq_id[id]);
     }
 
-    cfg->chan_cfg[id].chan_opened = true;
+#ifdef CORE_SLEEP_POWER_DOWN
+    if (cfg->pm_notif_handler) {
+        uint32_t i;
+
+        for (i = 0; i < cfg->chan_num; i++) {
+            if (cfg->chan_cfg[i].chan_opened) {
+                break;
+            }
+        }
+        if (i >= cfg->chan_num) {
+            hal_pm_notif_register(HAL_PM_USER_HAL, cfg->pm_notif_handler);
+        }
+    }
+#endif
 
     cfg->chan_cfg[id].rx_irq_handler = rxhandler;
     cfg->chan_cfg[id].tx_irq_handler = txhandler;
+
+    cfg->chan_cfg[id].chan_opened = true;
 
     return 0;
 }
@@ -117,6 +152,21 @@ int hal_ipc_notify_internal_close(const struct HAL_IPC_NOTIFY_CFG_T *cfg, uint32
 
     memset(&cfg->chan_cfg[id], 0, sizeof(cfg->chan_cfg[id]));
 
+#ifdef CORE_SLEEP_POWER_DOWN
+    if (cfg->pm_notif_handler) {
+        uint32_t i;
+
+        for (i = 0; i < cfg->chan_num; i++) {
+            if (cfg->chan_cfg[i].chan_opened) {
+                break;
+            }
+        }
+        if (i >= cfg->chan_num) {
+            hal_pm_notif_deregister(HAL_PM_USER_HAL, cfg->pm_notif_handler);
+        }
+    }
+#endif
+
     return 0;
 }
 
@@ -126,11 +176,11 @@ int hal_ipc_notify_internal_start_recv(const struct HAL_IPC_NOTIFY_CFG_T *cfg, u
     if (id >= cfg->chan_num) {
         return 1;
     }
-    
+
     if (!cfg->chan_cfg[id].chan_opened){
         return 1;
     }
-    
+
     NVIC_ClearPendingIRQ(cfg->rx_irq_id[id]);
     NVIC_EnableIRQ(cfg->rx_irq_id[id]);
 

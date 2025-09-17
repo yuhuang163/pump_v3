@@ -219,4 +219,8 @@ extern void osRtxPostProcess    (os_object_t *object);
 
 extern uint32_t rt_get_TID (const osThreadId_t id);
 
+extern int osRtxThreadAtomicSet (osThreadId_t thread_id);
+
+extern bool_t osRtxThreadAtomicCheck (osThreadId_t thread_id);
+
 #endif  // RTX_LIB_H_

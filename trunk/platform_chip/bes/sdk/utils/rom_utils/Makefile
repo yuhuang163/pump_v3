@@ -15,13 +15,11 @@ ifeq ($(rulib-y),)
 rulib-y := rom_utils_dummy.o
 endif
 
-GEN_LIB_NAME := $(CHIP)_librom_utils
-root_dir := $(abspath $(dir $(realpath $(firstword $(MAKEFILE_LIST))))/..)
-sinclude $(root_dir)/config/lib.mk
+ROM_UTILS_LIB := $(CHIP)_librom_utils
 
-$(GEN_LIB_NAME)-y := $(rulib-y)
+$(ROM_UTILS_LIB)-y := $(rulib-y)
 
-obj-y := $(GEN_LIB_NAME).a
+obj-y := $(ROM_UTILS_LIB).a
 
 subdir-asflags-y += -Iutils/rom_utils
 

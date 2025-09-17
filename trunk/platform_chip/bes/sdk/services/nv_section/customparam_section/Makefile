@@ -11,4 +11,4 @@ ccflags-y := \
 	-I$(obj)/../../nv_section/include \
 	-I$(obj)/../../norflash_api \
 	-I$(obj)/../platform/cmsis/inc \
-	-Iutils/crc
+	-Iutils/crc32

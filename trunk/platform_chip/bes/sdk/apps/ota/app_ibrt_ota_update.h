@@ -19,6 +19,17 @@
 
 #include "app_ibrt_custom_cmd.h"
 
+typedef enum
+{
+    APP_TWS_CMD_OTA_UPDATE_NOW = APP_IBRT_OTA_CMD_PREFIX | 0x01,
+    APP_TWS_CMD_UPDATE_SECTION = APP_IBRT_OTA_CMD_PREFIX | 0x02,
+    APP_TWS_CMD_CHECK_UPDATE_INFO = APP_IBRT_OTA_CMD_PREFIX | 0x03,
+    APP_TWS_CMD_CHECK_UPDATE_INFO2 = APP_IBRT_OTA_CMD_PREFIX | 0x04,
+    APP_TWS_CMD_SYNC_BREAKPIONT = APP_IBRT_OTA_CMD_PREFIX | 0x05,
+    APP_TWS_CMD_VALIDATION_DONE = APP_IBRT_OTA_CMD_PREFIX | 0x06,
+    //new customer cmd add here
+} app_ibrt_ota_cmd_code_e;
+
 typedef struct
 {
     uint8_t* address;

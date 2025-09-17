@@ -35,9 +35,14 @@
 Boot_Loader:
 /* Jump to code address space */
     ldr     r0, =.L_boot_loader_start
+#ifdef __ARMCC_VERSION
+    orr     r0, 1
+#endif
     bx      r0
 
+#ifndef __ARMCC_VERSION
     .type   .L_boot_loader_start, %function
+#endif
 .L_boot_loader_start:
 #ifdef BOOT_LOADER_ENTRY_HOOK
     bl      boot_loader_entry_hook

@@ -50,6 +50,8 @@ enum HAL_SE_RET_T {
     HAL_SE_BAD_SEG_OPER,
     HAL_SE_BAD_SEG_CTX_BUF,
     HAL_SE_BAD_SEG_CTX_LEN,
+    HAL_SE_BAD_ECP_TYPE,
+    HAL_SE_BAD_ECP_POINT,
 };
 
 enum HAL_SE_AES_MODE_T {
@@ -89,6 +91,7 @@ enum HAL_SE_DONE_ERR_T {
     HAL_SE_DONE_ERR_ENG_ERR2,
     HAL_SE_DONE_ERR_ENG_ERR1_ERR2,
     HAL_SE_DONE_ERR_GET_DIGEST,
+    HAL_SE_DONE_ERR_ECP,
 };
 
 enum HAL_SE_HASH_MODE_T {
@@ -100,6 +103,26 @@ enum HAL_SE_HASH_MODE_T {
     HAL_SE_HASH_SHA384,
 
     HAL_SE_HASH_QTY,
+};
+
+enum HAL_SE_ECP_OP_MODE_T {
+    HAL_SE_ECP_OP_MUL                   = 0,
+    HAL_SE_ECP_OP_ADD,
+    HAL_SE_ECP_OP_SUB,
+    HAL_SE_ECP_OP_DBL,
+    HAL_SE_ECP_OP_ADD_INV,
+    HAL_SE_ECP_OP_ZERO,
+
+    HAL_SE_ECP_OP_QTY,
+};
+
+enum HAL_SE_ECP_TYPE_T {
+    HAL_SE_ECP_P224                     = 0,
+    HAL_SE_ECP_P256,
+    HAL_SE_ECP_P384,
+    HAL_SE_ECP_P521,
+
+    HAL_SE_ECP_TYPE_QTY,
 };
 
 typedef void (*HAL_SE_DONE_HANDLER_T)(void *buf, uint32_t len, enum HAL_SE_DONE_ERR_T err);
@@ -129,6 +152,11 @@ struct HAL_SE_HASH_CFG_T {
     enum HAL_SE_SEG_OPER_T seg_oper;
     void *seg_ctx_buf;
     uint32_t seg_ctx_len;
+};
+
+struct HAL_SE_ECP_POINT_T {
+    uint32_t *x;
+    uint32_t *y;
 };
 
 enum HAL_SE_RET_T hal_se_open(void);
@@ -180,6 +208,36 @@ enum HAL_SE_RET_T hal_se_hmac_get_digest(void *out, uint32_t out_len, uint32_t *
 int hal_se_hmac_busy(void);
 
 enum HAL_SE_RET_T hal_se_hmac_reset(void);
+
+enum HAL_SE_RET_T hal_se_zmodp_montgomery_mul(uint32_t M[], uint32_t X[],
+                uint32_t Y[], uint32_t Z[],
+                uint32_t num_coefs, uint32_t mod_size);
+
+enum HAL_SE_RET_T hal_se_zmodp_modular_mul(uint32_t M[], uint32_t X[],
+                uint32_t Y[], uint32_t X1[],
+                uint32_t Z[], uint32_t num_coefs, uint32_t mod_size);
+
+enum HAL_SE_RET_T hal_se_zmodp_modular_exp(uint32_t M[], uint32_t X[],
+                uint32_t Y[], uint32_t EXP[],
+                uint32_t Z[], uint32_t num_coefs, uint32_t mod_size);
+
+enum HAL_SE_RET_T hal_se_zmodp_modular_inv(uint32_t M[], uint32_t X[],
+                uint32_t Y[], uint32_t Z[],
+                uint32_t num_coefs, uint32_t mod_size);
+
+enum HAL_SE_RET_T hal_se_zmodp_pre_comput(uint32_t M[], uint32_t Z[],
+                uint32_t num_coefs, uint32_t mod_size);
+
+enum HAL_SE_RET_T hal_se_zmodp_init(int secure_mode);
+
+enum HAL_SE_RET_T hal_se_ecp_calc(enum HAL_SE_ECP_TYPE_T type,
+                                  enum HAL_SE_ECP_OP_MODE_T op,
+                                  const struct HAL_SE_ECP_POINT_T *ab,
+                                  const struct HAL_SE_ECP_POINT_T *xy1,
+                                  const struct HAL_SE_ECP_POINT_T *xy2,
+                                  struct HAL_SE_ECP_POINT_T *r);
+
+enum HAL_SE_RET_T hal_se_ecp_init(void);
 
 // ------------------------------------------------------------------------------
 // ROM Functions

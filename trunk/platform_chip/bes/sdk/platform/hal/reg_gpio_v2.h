@@ -48,6 +48,14 @@ struct GPIO_BANK_T {
     __I  uint32_t GPIO_EXT_PORT;                        // 0x50
     __IO uint32_t RESERVED_54[3];                       // 0x54
     __IO uint32_t GPIO_LS_SYNC;                         // 0x60
+    __IO uint32_t RESERVED_64[7];                       // 0x64
+    __IO uint32_t GPIO_INTEN_F_CLR;                     // 0x80
+    __IO uint32_t GPIO_INTEN_F_SET;                     // 0x84
+    __IO uint32_t GPIO_INTMASK_F_CLR;                   // 0x88
+    __IO uint32_t GPIO_INTMASK_F_SET;                   // 0x8C
+    __I  uint32_t GPIO_INTSTATUS_F;                     // 0x90
+    __I  uint32_t GPIO_RAW_INTSTATUS_F;                 // 0x94
+    __O  uint32_t GPIO_PORTA_EOI_F;                     // 0x98
 };
 
 #endif

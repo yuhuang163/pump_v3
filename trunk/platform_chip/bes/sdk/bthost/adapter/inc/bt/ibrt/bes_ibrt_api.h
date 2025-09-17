@@ -43,6 +43,8 @@ void bes_bt_tws_ibrt_set_field(int device_id, BT_IBRT_FIELD_ENUM_T field, uint32
 
 void bes_bt_tws_ibrt_reconnect_mobile_profile(const bt_bdaddr_t *remote);
 
+void bes_bt_tws_ibrt_set_rfcomm_ignore_tx(bool ignore);
+
 void bes_bt_tws_ibrt_set_remote_tws_device(const bt_bdaddr_t *remote, bool tws_link);
 
 bool bes_bt_tws_ibrt_is_remote_tws_device(const bt_bdaddr_t *remote);
@@ -89,7 +91,7 @@ void bes_bt_tws_ibrt_report_snoop_acl_disconnected(uint8_t device_id, bt_bdaddr_
 
 void bes_bt_tws_ibrt_clean_slave_state(const bt_bdaddr_t* remote);
 
-void bes_bt_tws_ibrt_response_acl_conn_req(bt_bdaddr_t *remote, bool accept);
+void bes_bt_tws_ibrt_peripheral_auto_test_stop(void);
 
 #ifdef BT_A2DP_SUPPORT
 uint8_t bes_bt_tws_ibrt_is_critical_avdtp_cmd_handling(void);
@@ -111,13 +113,13 @@ void bes_bt_tws_ibrt_mock_a2dp_callback(uint8_t device_id, const bt_bdaddr_t *re
 
 void bes_bt_tws_ibrt_mock_avrcp_callback(uint8_t device_id, const bt_bdaddr_t *remote, const avrcp_callback_parms_t *parms);
 
-uint32_t bta_tws_a2dp_get_ibrt_session(uint8_t device_id);
+uint32_t bes_bt_tws_a2dp_get_ibrt_session(uint8_t device_id);
 
-int bta_tws_a2dp_set_ibrt_session(uint8_t session, uint8_t device_id);
+int bes_bt_tws_a2dp_set_ibrt_session(uint8_t session, uint8_t device_id);
 
-int bta_tws_ibrt_a2dp_sync_get_status(uint8_t device_id, ibrt_a2dp_status_t *a2dp_status);
+int bes_bt_tws_ibrt_a2dp_sync_get_status(uint8_t device_id, ibrt_a2dp_status_t *a2dp_status);
 
-int bta_tws_ibrt_a2dp_sync_set_status(uint8_t device_id, ibrt_a2dp_status_t *a2dp_status);
+int bes_bt_tws_ibrt_a2dp_sync_set_status(uint8_t device_id, ibrt_a2dp_status_t *a2dp_status);
 
 #ifdef BT_HFP_SUPPORT
 void bes_bt_tws_ibrt_register_sco_link(uint8_t device_id, bt_bdaddr_t *remote);

@@ -1,0 +1,79 @@
+1. 介绍
+eshell是一个终端在线调试工具，支持uart/usb等传输方式，支持本地核命令查询/执行和跨核命令查询/执行。
+
+2. 打开eshell功能
+如果只是本地核使用：
+export UTILS_ESHELL_EN ?= 1
+如果需要跨核使用：
+export UTILS_ESHELL_EN ?= 1
+export APP_RPC_ENABLE ?= 1
+
+3. 添加eshell指令
+使用ESHELL_DEF_COMMAND(grp_id, cmd_str,help_str,cmd_handler)添加。
+grp_id:		添加的指令所属的分组，使用eshell_cmd_grp_id_e枚举类型的分组。如果需要添加新的分组，在eshell_cmd_grp_id_e末尾添加，同时在grp_id_str_table[]对应位置添加分组字符串。
+cmd_str:	添加的指令。
+help_str:	指令帮助说明。
+cmd_handler：指令的回调实现函数。
+例如：
+ESHELL_DEF_COMMAND(ESHELL_CMD_GRP_SYSTEM, "mw", "write mem or reg", do_mem_write);
+
+4. 使用说明
+1) 查询所有的指令
+查询本地的所有指令：help或者help -L
+查询BTH的所有指令：help -R
+
+2) 执行指令
+如果是本地命令，使用加上-L输入参数或者不带-L；如果是跨核命令，使用加上-R参数。
+其它输入参数使用空格或者","分开。
+
+例如：
+--查询本地的所有指令：help
+[19:34:29.163] -- Usage:
+[19:34:29.163]     [built-in]
+[19:34:29.163]         help
+[19:34:29.163]           - get all cmds, usage: help -L or help -R
+[19:34:29.163] 
+[19:34:29.163]         echo
+[19:34:29.165]           - switch on/off command echo
+[19:34:29.165] 
+[19:34:29.165]     [SYSTEM]
+[19:34:29.165]         mw
+[19:34:29.165]           - write mem or reg
+[19:34:29.165] 
+[19:34:29.165]         md
+[19:34:29.171]           - read mem or reg
+
+--查询BTH的所有指令：help -R
+[19:36:30.504] -- Usage:
+[19:36:30.504]     [built-in]
+[19:36:30.504]         help
+[19:36:30.504]           - get all cmds, usage: help -L or help -R
+[19:36:30.504] 
+[19:36:30.504]         echo
+[19:36:30.504]           - switch on/off command echo
+[19:36:30.504] 
+[19:36:30.504]     [BT_COMMON]
+[19:36:30.507]         bt_connect_dev
+[19:36:30.507]           - bt_connect_dev [mac_addr]
+[19:36:30.507] 
+[19:36:30.507]         bt_set_access_mode
+[19:36:30.507]           - bt_set_access_mode [scan_mode]
+[19:36:30.507] 
+[19:36:30.508]         bt_search_dev
+[19:36:30.529]           - bt_search_dev
+[19:36:30.529] 
+[19:36:30.529] -- Example:
+[19:36:30.530]     add 1,2
+
+--读寄存器和写寄存器：md和mw
+[19:34:58.120] eshell >md 0x4008600C
+[19:34:58.121] 0x4008600c = 0x77ff33ff
+[19:34:58.121] 
+[19:35:05.968] eshell >md 4008600C
+[19:35:05.968] 0x4008600c = 0x77ff33ff
+[19:35:05.968] 
+[19:36:09.294] eshell >mw 0x4008600C,0x77ff33fe
+[19:36:09.294] write 0x4008600c=0x77ff33fe done .(check 0x77ff33fe)
+[19:36:09.294] 
+[19:36:16.656] eshell >md 4008600C
+[19:36:16.656] 0x4008600c = 0x77ff33fe
