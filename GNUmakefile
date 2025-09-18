@@ -24,6 +24,14 @@ LITTLEFS_SECTION_SIZE ?= 0x4000
 # factory data section size
 FACTORY_DATA_SECTION_SIZE ?= 0x2000
 
+# BLE 头文件子目录
+BLE_INC_DIRS := $(shell find $(PROJECT_ROOT)/trunk/platform_chip/bes/sdk/bthost -type d)\
+# BLE 头文件
+BLE_INC_FLAGS := $(patsubst %,-I%,$(BLE_INC_DIRS))
+
+# BLE 自定义服务开关
+CFG_CUSTOM_BLE_SERVICE ?= 1
+
 # SDK 头文件（最小必需集）
 SDK_INCLUDE_PATHS := \
 	-I$(PROJECT_ROOT)/trunk/platform_chip/bes/sdk/include \
@@ -44,11 +52,15 @@ SDK_INCLUDE_PATHS := \
 	-I$(PROJECT_ROOT)/trunk/platform_chip/bes/sdk/utils/hwtimer_list \
 	-I$(PROJECT_ROOT)/trunk/platform_chip/bes/sdk/platform/cmsis/inc \
 	-I$(PROJECT_ROOT)/trunk/platform_chip/bes/sdk/apps/main \
+	$(BLE_INC_FLAGS) \
 	-I$(PROJECT_ROOT)/boards \
 	-I$(PROJECT_ROOT)/drivers/audio \
 	-I$(PROJECT_ROOT)/drivers/base \
 	-I$(PROJECT_ROOT)/drivers/battery \
 	-I$(PROJECT_ROOT)/drivers/ble \
+	-I$(PROJECT_ROOT)/drivers/ble/services \
+	-I$(PROJECT_ROOT)/drivers/ble/advs \
+	-I$(PROJECT_ROOT)/drivers/ble/connect \
 	-I$(PROJECT_ROOT)/drivers/common \
 	-I$(PROJECT_ROOT)/drivers/database \
 	-I$(PROJECT_ROOT)/drivers/fatfs \
@@ -116,6 +128,20 @@ endif
 CPPFLAGS += -DLITTLEFS_SECTION_SIZE=$(LITTLEFS_SECTION_SIZE)
 CPPFLAGS += -DFACTORY_DATA_SECTION_SIZE=$(FACTORY_DATA_SECTION_SIZE)
 
+# BLE 相关宏定义
+CPPFLAGS += -DBLE_HOST_SUPPORT
+CPPFLAGS += -DNEW_NV_RECORD_ENABLED
+CPPFLAGS += -I$(PROJECT_ROOT)/trunk/platform_chip/bes/sdk/services/nv_section/userdata_section
+CPPFLAGS += -I$(SDK_SRCTREE)/config/_default_cfg_src_
+
+# SDK 目标映射：若传入的 T 在 SDK/config 下无效，则回退到 ble_only_lt
+SDK_T ?= $(T)
+ifeq ($(wildcard $(SDK_SRCTREE)/config/$(SDK_T)/target.mk),)
+SDK_T := ble_only_lt
+endif
+
+CPPFLAGS += -I$(SDK_SRCTREE)/config/$(SDK_T)
+
 # 根据 CHIP 映射芯片宏，确保与 SDK 头文件匹配（避免将 T=ble_only_lt 误当作芯片）
 ifeq ($(CHIP),best1306p)
 CHIP_DEFINES := -DCHIP_BEST1306P
@@ -173,6 +199,9 @@ EXTRA_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/drivers/battery/charge/*.c) \
 	$(wildcard $(PROJECT_ROOT)/drivers/battery/adc/*.c) \
 	$(wildcard $(PROJECT_ROOT)/drivers/ble/*.c) \
+	$(wildcard $(PROJECT_ROOT)/drivers/ble/advs/*.c) \
+	$(wildcard $(PROJECT_ROOT)/drivers/ble/connect/*.c) \
+	$(wildcard $(PROJECT_ROOT)/drivers/ble/services/*.c) \
 	$(wildcard $(PROJECT_ROOT)/drivers/common/*.c) \
 	$(wildcard $(PROJECT_ROOT)/drivers/database/*.c) \
 	$(wildcard $(PROJECT_ROOT)/drivers/fatfs/*.c) \
@@ -234,20 +263,21 @@ EXTRA_OBJS := $(patsubst $(PROJECT_ROOT)/%.c,$(O)/extra/%.o,$(filter %.c,$(EXTRA
 all: extra sdk
 
 sdk: $(EXTRA_LIB) | $(BIN_DIR)
-	$(MAKE) -C $(SDK_SRCTREE) O=$(O) T=$(T) CONFIG_CROSS_COMPILE=$(CONFIG_CROSS_COMPILE) \
-	  C++_ONLY_FLAGS+=" -fno-threadsafe-statics " \
-	  LIB_LDFLAGS+=" $(EXTRA_LIB) -Wl,-defsym,__EXTRA_LIB_MTIME=$(shell stat -c %Y $(EXTRA_LIB)) " \
-	  REL_TRACE_ENABLE=$(REL_TRACE_ENABLE) \
-	  LITTLEFS_SECTION_SIZE=$(LITTLEFS_SECTION_SIZE) \
-	  FACTORY_DATA_SECTION_SIZE=$(FACTORY_DATA_SECTION_SIZE)
+	$(MAKE) -C $(SDK_SRCTREE) O=$(O) T=$(SDK_T) CONFIG_CROSS_COMPILE=$(CONFIG_CROSS_COMPILE) \
+		C++_ONLY_FLAGS+=" -fno-threadsafe-statics " \
+		LIB_LDFLAGS+=" $(EXTRA_LIB) -Wl,-defsym,__EXTRA_LIB_MTIME=$(shell stat -c %Y $(EXTRA_LIB)) " \
+		REL_TRACE_ENABLE=$(REL_TRACE_ENABLE) \
+		LITTLEFS_SECTION_SIZE=$(LITTLEFS_SECTION_SIZE) \
+		FACTORY_DATA_SECTION_SIZE=$(FACTORY_DATA_SECTION_SIZE) \
+		CFG_CUSTOM_BLE_SERVICE=$(CFG_CUSTOM_BLE_SERVICE)
 	#   RTC_CALENDAR=$(RTC_CALENDAR)
 	@set -e; \
-	  out_dir="$(O)/$(T)"; \
-	  for ext in elf bin map lst; do \
-	    f="$$out_dir/$(T).$$ext"; \
-	    if [ -f "$$f" ]; then cp -f "$$f" "$(BIN_DIR)/"; fi; \
-	  done; \
-	  echo "[OK] Output copied to $(BIN_DIR)"
+		out_dir="$(O)/$(T)"; \
+		for ext in elf bin map lst; do \
+		f="$$out_dir/$(T).$$ext"; \
+		if [ -f "$$f" ]; then cp -f "$$f" "$(BIN_DIR)/"; fi; \
+		done; \
+		echo "[OK] Output copied to $(BIN_DIR)"
 
 $(BIN_DIR):
 	@mkdir -p $@

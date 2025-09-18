@@ -234,7 +234,7 @@ static int on_perpare_sensor_init(void *self)
     on_perpare_air_pressure_init(ptr);
     #endif
     MUTEX_INIT(&ptr->priv.m_lock, sensor_client_mutex);
-    INIT_LIST_HEAD(&ptr->priv.client_list);
+    USE_INIT_LIST_HEAD(&ptr->priv.client_list);
 
     return 0;
 }

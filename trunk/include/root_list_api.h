@@ -18,13 +18,13 @@ typedef struct list_head {
 
 typedef void *(*list_del_condition_cb_fptr)(void *data, list_head_t *pos);
 
-#ifndef LIST_HEAD
-#define LIST_HEAD(name) \
+#ifndef USE_LIST_HEAD
+#define USE_LIST_HEAD(name) \
     struct list_head name = {NULL}
 #endif
 
-#ifndef INIT_LIST_HEAD
-#define INIT_LIST_HEAD(head) \
+#ifndef USE_INIT_LIST_HEAD
+#define USE_INIT_LIST_HEAD(head) \
     (head)->next = NULL
 #endif
 

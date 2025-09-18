@@ -2245,6 +2245,11 @@ export BLE := 1
 endif
 
 ifeq ($(BLE),1)
+export CFG_CUSTOM_BLE_SERVICE ?= 0
+ifeq ($(CFG_CUSTOM_BLE_SERVICE),1)
+KBUILD_CPPFLAGS += -DCFG_CUSTOM_BLE_SERVICE
+endif
+
 
 export BLE_HOST_SUPPORT := 1
 ifeq ($(BLE_HOST_SUPPORT), 1)
@@ -2345,7 +2350,9 @@ endif
 endif
 
 # rwapp_config
+ifndef CFG_CUSTOM_BLE_SERVICE
 KBUILD_CPPFLAGS += -DCFG_APP_DATAPATH_SERVER
+endif
 
 #KBUILD_CPPFLAGS += -DBLE_IAS_ENABLED
 

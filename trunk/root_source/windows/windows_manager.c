@@ -787,7 +787,7 @@ void *register_module_for_window_manager_new(list_head_t *list_head)
     ptr->get_current_window_id = get_current_window_id;
     ptr->dispatch_new_window_args = dispatch_new_window_args;
 
-    INIT_LIST_HEAD(&ptr->priv.history_list);
+    USE_INIT_LIST_HEAD(&ptr->priv.history_list);
     MUTEX_INIT(&ptr->priv.history_lock, history_stack_lock);
     MUTEX_INIT(&ptr->priv.window_switch_lock, window_switch_lock);
     MUTEX_INIT(&ptr->priv.ui_draw_lock, ui_update_draw_lock);

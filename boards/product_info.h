@@ -5,9 +5,32 @@
 extern "C" {
 #endif
 
+/**
+ * 产品型号
+ * 说明: 为了兼容预处理器条件判断，增加数值宏定义
+*/
+typedef enum {
+    PRODUCT_INFO_V3 = 0,
+    PRODUCT_INFO_V3PRO = 1,
+} product_info_t;
+
+#define PRODUCT_INFO_V3_VALUE           0
+#define PRODUCT_INFO_V3PRO_VALUE        1
+
+/**
+ * 产品信息
+*/
+#ifndef ROOT_PRODUCT_ID
+#define ROOT_PRODUCT_ID                               PRODUCT_INFO_V3_VALUE
+#endif
+
+#if (ROOT_PRODUCT_ID == 1)
+#define ROOT_FW_NAME                                  "BREATH_PUMP_V3PRO"
+#define ROOT_DEVICE_NAME                              "V3PRO"
+#else
 #define ROOT_FW_NAME                                  "BREATH_PUMP_V3"
 #define ROOT_DEVICE_NAME                              "V3"
-#define ROOT_PRODUCT_ID                               0x01
+#endif
 
 /*
 * 主固件版本类型:

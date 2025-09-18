@@ -45,3 +45,9 @@ unsigned short crc16_compute(unsigned char const *p_data, unsigned int size, uns
     return crc;
 }
 
+void hex_to_ascii(const unsigned char *hex, int len, char *out)
+{
+    for (int i = 0; i < len; i++) {
+        sprintf(out + i * 2, "%02X", hex[i]);  // 每个字节转成两个ASCII字符
+    }
+}

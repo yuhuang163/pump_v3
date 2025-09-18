@@ -61,6 +61,9 @@ do { \
 /// 计算CRC16.
 #define CRC16(data, len)            crc16_compute((const uint8_t *)(data), len, NULL)
 
+// 将hex转换为ascii
+#define HEX_TO_ASCII(hex, len, out)  hex_to_ascii((const unsigned char *)(hex), len, (char *)(out))
+
 /// 空指针检查判断.
 #define CHECK_IF_VALID(x, closure) \
 do { \
@@ -99,7 +102,7 @@ do { \
  *****************************************************************************************
  */
 unsigned short crc16_compute(unsigned char const *p_data, unsigned int size, unsigned short const *p_crc);
-
+void hex_to_ascii(const unsigned char *hex, int len, char *out);
 #ifdef __cplusplus
 }
 #endif

@@ -198,7 +198,7 @@ static int on_perpare_key_input_init(void *self)
         DEVICE_IOCTL_ARGS(ctx->priv.key_dev, OP_CODE_INPUT_ADD_CALLBACK, internal_keyevent_callback);
     }
     MUTEX_INIT(&ctx->priv.key_evt_lock, key_evt_mutex);
-    INIT_LIST_HEAD(&ctx->priv.key_evt_list);
+    USE_INIT_LIST_HEAD(&ctx->priv.key_evt_list);
 
     return 0;
 }

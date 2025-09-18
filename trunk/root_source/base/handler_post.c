@@ -414,7 +414,7 @@ void init_handler_post_context(void)
         return;
     }
 
-    INIT_LIST_HEAD(&ctx->hdr_post_list);
+    USE_INIT_LIST_HEAD(&ctx->hdr_post_list);
     MUTEX_INIT(&ctx->hdr_lock, m_hdr_mutex);
     for (int i = 0; i < HDR_WORK_THREAD_NUM; i++) {
         MUTEX_INIT(&ctx->hdr_post_thd[i].lock_id, "hd_lock");

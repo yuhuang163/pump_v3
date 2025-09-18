@@ -570,6 +570,7 @@ int main(void)
     TRACE(1,"main_thread_tid=%x", (uint32_t)main_thread_tid);
 
     if (hal_sw_bootmode_get() & HAL_SW_BOOTMODE_TEST_MODE) {
+        TRACE(0, "-->-->bootmode test mode!!!");
         hal_sw_bootmode_clear(HAL_SW_BOOTMODE_TEST_MODE);
         btdrv_start_bt();
 
@@ -588,12 +589,11 @@ int main(void)
     } else {
         ble_app_init();
         ble_start_adv();
+        root_main(0, NULL);
     }
-    root_main(0, NULL);
-
+ 
     uint32_t flags = 0;
     while (1) {
-        TRACE(0, "bleonly alive");
         flags = osThreadFlagsWait(CMSIS_V1_SIGNAL_ANY, osFlagsWaitAny, 5000);
         if ((flags > 0U) && (flags < 0x80000000U)) {
             if (flags & 0x08) {

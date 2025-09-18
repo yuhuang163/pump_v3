@@ -261,7 +261,7 @@
      bcr_context_t *ctx = (bcr_context_t *)u_malloz(sizeof(bcr_context_t));
      thiz = ctx;
      
-     INIT_LIST_HEAD(&ctx->list);
+     USE_INIT_LIST_HEAD(&ctx->list);
      MUTEX_INIT(&ctx->m_lock, m_broadcast_mutex);
  
      for (int i = 0; i < BCR_WORK_THREAD_NUM; i++) {

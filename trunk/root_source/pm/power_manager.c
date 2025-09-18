@@ -785,7 +785,7 @@ void *register_module_for_pm_new(list_head_t *list_head)
 
     MUTEX_INIT(&ptr->priv.m_wake_lock, mutex_caller_wakelock);
     MUTEX_INIT(&ptr->priv.m_suspend_lock, mutex_suspend_lock);
-    INIT_LIST_HEAD(&ptr->priv.wake_lock_list);
+    USE_INIT_LIST_HEAD(&ptr->priv.wake_lock_list);
     thiz = ptr;
 
     return ADD_MODULE("pm", ID_MODULE_POWER, 0, on_post_pm_init, 
