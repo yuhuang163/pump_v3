@@ -5,8 +5,7 @@
 #include "bsp_common.h" // IWYU pragma: keep
 #include "gatt_service.h" // IWYU pragma: keep
 #include "ble_core_common.h" // IWYU pragma: keep
-#include "besbt.h"
-#include "bsp_ble_internal.h"
+#include "bsp_ble_internal.h" // IWYU pragma: keep
 
 /*
 * DEFINES
@@ -29,11 +28,6 @@ static ble_event_cb_func s_ble_event_callback = NULL;
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-static void ble_custom_mac_addr_set(uint8_t *mac_addr)
-{
-    bt_set_ble_local_address(mac_addr);
-}
-
 static void add_ble_custom_service_callback(ble_event_cb_func cb)
 {
     if (cb) {
@@ -87,7 +81,7 @@ static int ble_dev_ioctl(struct rt_device_node *dev, uint32_t op_code, void *arg
 
         case OP_CODE_BLE_MAC_ADDR_SET: {
             uint8_t *mac_addr = (uint8_t *)tmp[0];
-            ble_custom_mac_addr_set(mac_addr);
+            ble_custom_gap_mac_addr_set(mac_addr);
             break;
         }
 

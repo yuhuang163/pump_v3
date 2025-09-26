@@ -9,35 +9,29 @@ extern "C" {
 /*******************************************************************************
  * Include files
  ******************************************************************************/
-#include <stdint.h>
+#include <stdint.h> // IWYU pragma: keep
 
-#ifndef KEY_S1_ID
-#define KEY_S1_ID                        0
-#define KEY_S1_TYPE                      0
-#endif
-
-#ifndef POWER_KEY_ID
-#define POWER_KEY_ID                     0
-#define POWER_KEY_TYPE                   0
-#endif
-
-#ifndef MODE_KEY_ID
-#define MODE_KEY_ID                      1
-#define MODE_KEY_TYPE                    0
-#endif
-
-#ifndef FAST_MMI_ID
-#define FAST_MMI_ID                      2
-#define FAST_MMI_TYPE                    0
-#endif
+typedef enum scan_key_id_e {
+    SCAN_KEY_ID_BEGIN = 0,
+    SCAN_KEY_ID1 = SCAN_KEY_ID_BEGIN,
+    SCAN_KEY_ID2,
+    SCAN_KEY_ID3,
+    SCAN_KEY_ID4,
+    SCAN_KEY_ID5,
+    SCAN_KEY_ID6,
+    SCAN_KEY_ID_MAX,
+} scan_key_id_e;
 
 typedef enum {
-    SCAN_KEY_BEGIN = 0,
-    SCAN_KEY_POWER = SCAN_KEY_BEGIN,
-    SCAN_KEY_MODE,
-    SCAN_KEY_MMI,
-    SCAN_KEY_MAX,
-} scan_key_id_e;
+    SCAN_KEY_CODE_BEGIN = 0,
+    SCAN_KEY_CODE_1 = SCAN_KEY_CODE_BEGIN,
+    SCAN_KEY_CODE_2,
+    SCAN_KEY_CODE_3,
+    SCAN_KEY_CODE_4,
+    SCAN_KEY_CODE_5,
+    SCAN_KEY_CODE_6,
+    SCAN_KEY_CODE_MAX,
+} scan_key_code_e;
 
 typedef enum {
     KEY_TYPE_BEGIN = 0,
@@ -70,7 +64,7 @@ void scan_key_timer_start(int key);
 /// 具体平台读取io状态接口
 int platform_read_key_value(int type, int pin);
 /// 初始化scankey
-int scan_key_input_init(struct rt_device_node *key_dev);
+int scan_key_input_init(struct rt_device_node *key_dev, uint8_t key_code_size);
 
 #ifdef __cplusplus
 }

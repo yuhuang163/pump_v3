@@ -33,7 +33,7 @@ static rt_device_node_t *node = NULL;
 */
 static int lcd_dev_open(struct rt_device_node *dev)
 {
-    return 0;
+    return bsp_lcd_uart_init();
 }
 
 static int lcd_dev_close(struct rt_device_node *dev)

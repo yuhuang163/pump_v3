@@ -30,7 +30,6 @@
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-
 static void init_thread(const void *thd)
 {
     platform_post_init();
@@ -54,7 +53,7 @@ static void init_thread(const void *thd)
 void root_main(int argc, const char *argv[])
 {
     static thread_context_t init_thd = {0};
-
+    msleep(2000);
     platform_prepare_init();
     reset_log_filter(LOG_FILTER);
 
@@ -72,7 +71,7 @@ void root_main(int argc, const char *argv[])
     LOG_STEP("****************************************************\n");
 
     RUN_NEW_THREAD(&init_thd, "init_thd", init_thread, RT_PRIO_MAIN_THREAD, (MAIN_THREAD_STACKSIZE));
-    // msleep(10000);
+    msleep(10000);
     os_kernel_start_wrapper();
 }
  

@@ -2,7 +2,7 @@
 * INCLUDE FILES
 *****************************************************************************************
 */
-#include "bsp_force_sensor_internal.h"
+#include "bsp_force_sensor_internal.h" // IWYU pragma: keep
 
 /*
 * DEFINES

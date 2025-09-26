@@ -23,7 +23,7 @@ typedef struct {
 */
 void ble_custom_gap_advs_start(void);
 void ble_custom_gap_advs_stop(void);
-
+int ble_custom_gap_mac_addr_set(uint8_t *mac_addr);
 #ifdef __cplusplus
 }
 #endif

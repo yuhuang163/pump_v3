@@ -20,7 +20,7 @@ typedef void (*key_input_evt_cb_fptr)(void *user_data, uint16_t keycode, uint16_
 typedef enum {
     ID_DEVICE_BEGIN = 0,
     ID_DEVICE_IRQ,
-    ID_DEVICE_LOG_UART,
+    ID_DEVICE_UART,
     ID_DEVICE_POWER,
     ID_DEVICE_PMU,
     ID_DEVICE_FLASH,

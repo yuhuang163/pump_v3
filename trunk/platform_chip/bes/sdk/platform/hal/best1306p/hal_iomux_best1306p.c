@@ -1267,7 +1267,11 @@ void hal_iomux_set_i2c4(void)
 void hal_iomux_set_pwm0(void)
 {
     struct HAL_IOMUX_PIN_FUNCTION_MAP pinmux_pwm[] = {
+#if (PWM0_IOMUX_INDEX == 40)
+        {HAL_IOMUX_PIN_P4_0, HAL_IOMUX_FUNC_PWM0, HAL_IOMUX_PIN_VOLTAGE_VIO, HAL_IOMUX_PIN_NOPULL},
+#else
         {HAL_IOMUX_PIN_P3_0, HAL_IOMUX_FUNC_PWM0, HAL_IOMUX_PIN_VOLTAGE_VIO, HAL_IOMUX_PIN_NOPULL},
+#endif
     };
     hal_iomux_init(pinmux_pwm, ARRAY_SIZE(pinmux_pwm));
 }
@@ -1275,7 +1279,11 @@ void hal_iomux_set_pwm0(void)
 void hal_iomux_set_pwm1(void)
 {
     struct HAL_IOMUX_PIN_FUNCTION_MAP pinmux_pwm[] = {
+#if (PWM1_IOMUX_INDEX == 41)
+        {HAL_IOMUX_PIN_P4_1, HAL_IOMUX_FUNC_PWM1, HAL_IOMUX_PIN_VOLTAGE_VIO, HAL_IOMUX_PIN_NOPULL},
+#else
         {HAL_IOMUX_PIN_P3_1, HAL_IOMUX_FUNC_PWM1, HAL_IOMUX_PIN_VOLTAGE_VIO, HAL_IOMUX_PIN_NOPULL},
+#endif
     };
     hal_iomux_init(pinmux_pwm, ARRAY_SIZE(pinmux_pwm));
 }
@@ -1283,7 +1291,11 @@ void hal_iomux_set_pwm1(void)
 void hal_iomux_set_pwm2(void)
 {
     struct HAL_IOMUX_PIN_FUNCTION_MAP pinmux_pwm[] = {
+#if (PWM2_IOMUX_INDEX == 42)
+        {HAL_IOMUX_PIN_P4_2, HAL_IOMUX_FUNC_PWM2, HAL_IOMUX_PIN_VOLTAGE_VIO, HAL_IOMUX_PIN_NOPULL},
+#else
         {HAL_IOMUX_PIN_P3_2, HAL_IOMUX_FUNC_PWM2, HAL_IOMUX_PIN_VOLTAGE_VIO, HAL_IOMUX_PIN_NOPULL},
+#endif
     };
     hal_iomux_init(pinmux_pwm, ARRAY_SIZE(pinmux_pwm));
 }
@@ -1291,7 +1303,11 @@ void hal_iomux_set_pwm2(void)
 void hal_iomux_set_pwm3(void)
 {
     struct HAL_IOMUX_PIN_FUNCTION_MAP pinmux_pwm[] = {
+#if (PWM3_IOMUX_INDEX == 43)
+        {HAL_IOMUX_PIN_P4_3, HAL_IOMUX_FUNC_PWM3, HAL_IOMUX_PIN_VOLTAGE_VIO, HAL_IOMUX_PIN_NOPULL},
+#else
         {HAL_IOMUX_PIN_P3_3, HAL_IOMUX_FUNC_PWM3, HAL_IOMUX_PIN_VOLTAGE_VIO, HAL_IOMUX_PIN_NOPULL},
+#endif
     };
     hal_iomux_init(pinmux_pwm, ARRAY_SIZE(pinmux_pwm));
 }

@@ -2,7 +2,7 @@
 * INCLUDE FILES
 *****************************************************************************************
 */
-#include "bsp_common.h"
+#include "bsp_common.h" // IWYU pragma: keep
 #include "bsp_battery_internal.h"
 
 /*

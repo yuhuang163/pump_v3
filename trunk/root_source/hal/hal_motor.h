@@ -25,17 +25,17 @@ extern "C" {
  * @brief 描述电机操作码
 */
 typedef enum {
-    OP_CODE_MOTOR_START_PLAY = (1 << 1),
-    OP_CODE_MOTOR_STOP_PLAY = (1 << 2),
-    OP_CODE_MOTOR_SET_PARAMETER = (1 << 3),
-    OP_CODE_MOTOR_GET_STATUS = (1 << 4),
-    OP_CODE_MOTOR_RESET = (1 << 5),
-    OP_CODE_MOTOR_SET_POWER = (1 << 6),
-    OP_CODE_MOTOR_ADD_CB_UPGRADE = (1 << 7),
-    OP_CODE_MOTOR_ADD_CB_CALI = (1 << 8),
-    OP_CODE_MOTOR_ADD_CB_ERROR = (1 << 9),
-    OP_CODE_MOTOR_SET_PWM_DUTY = (1 << 10),
-    OP_CODE_MOTOR_DUTY_CLIMB = (1 << 11),
+    OP_CODE_MOTOR_START_PLAY = 1,
+    OP_CODE_MOTOR_STOP_PLAY = 2,
+    OP_CODE_MOTOR_SET_PARAMETER = 3,
+    OP_CODE_MOTOR_GET_STATUS = 4,
+    OP_CODE_MOTOR_RESET = 5,
+    OP_CODE_MOTOR_SET_POWER = 6,
+    OP_CODE_MOTOR_ADD_CB_UPGRADE = 7,
+    OP_CODE_MOTOR_ADD_CB_CALI = 8,
+    OP_CODE_MOTOR_ADD_CB_ERROR = 9,
+    OP_CODE_MOTOR_SET_PWM_DUTY = 10,
+    OP_CODE_MOTOR_DUTY_CLIMB = 11,
 } motor_dev_op_code_e;
 
 /**
@@ -53,6 +53,17 @@ typedef enum {
     BLDC_DATA_CONTROL = 0,        // 透传数据控制
     BLDC_LOOKUP_TABLE_CONTROL,    // 查表控制
 } bldc_contorl_type_e;
+
+/**
+ * @brief 描述无刷/扫震电机控制类型
+*/
+typedef enum {
+    PWM_PUMP_1 = 0,
+    PWM_PUMP_2,
+    PWM_RELIEF_VALVE_1,
+    PWM_RELIEF_VALVE_2,
+    PWM_ID_MAX,
+} pwm_control_id_e;
 
 /**
  * @brief 描述无刷/扫震电机参数
@@ -82,6 +93,11 @@ typedef struct {
     uint16_t climb_time;
 } dcm_cfg_t;
 
+typedef struct {
+    uint8_t duty;
+    uint16_t freq;
+} pwm_cfg_t;
+
 /**
  * @brief 描述电机混合参数
 */
@@ -90,7 +106,8 @@ typedef struct {
         bldc_para_t bldc;
         bldc_table_t table;
         dcm_cfg_t   dcm;
-    } item; 
+        pwm_cfg_t   pwm;
+    } un; 
 } motor_para_t;
 
 /**

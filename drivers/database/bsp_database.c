@@ -71,7 +71,6 @@ static int database_dev_open(struct rt_device_node *dev)
         LOGE("database init failure!:%d", ret);
         return -1;
     }
-    LOG_PBUS("database init success");
     return BSP_OK;
 }
 

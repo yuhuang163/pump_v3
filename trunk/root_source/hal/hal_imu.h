@@ -14,11 +14,11 @@ extern "C" {
  * @brief 描述IMU操作码
 */
 typedef enum {
-    OP_CODE_IMU_ADD_IRQ_CALLBACK = (1 << 1),
-    OP_CODE_IMU_ENABLE_IRQ = (1 << 2),
-    OP_CODE_IMU_DISABLE_IRQ = (1 << 3),
-    OP_CODE_IMU_GET_CHIP_ID = (1 << 4),
-    OP_CODE_IMU_GET_IMU_FIFO_DATA = (1 << 5),
+    OP_CODE_IMU_ADD_IRQ_CALLBACK = 1,
+    OP_CODE_IMU_ENABLE_IRQ = 2,
+    OP_CODE_IMU_DISABLE_IRQ = 3,
+    OP_CODE_IMU_GET_CHIP_ID = 4,
+    OP_CODE_IMU_GET_IMU_FIFO_DATA = 5,
 } imu_dev_op_code_e;
 
 /**

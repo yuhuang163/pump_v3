@@ -15,7 +15,7 @@ extern "C" {
  * @brief 描述LED操作码
 */
 typedef enum {
-    OP_CODE_LED_REFRESH = (1 << 1),
+    OP_CODE_LED_REFRESH = 1,
 } led_dev_op_code_e;
 
 /**

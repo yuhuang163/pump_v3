@@ -6,6 +6,18 @@ CHIP ?= best1306p
 CONFIG_CROSS_COMPILE ?= arm-none-eabi-
 CROSS_COMPILE ?= $(CONFIG_CROSS_COMPILE)
 
+# -------------- 应用配置 --------------
+# UART1 IOMUX 配置（传递给 SDK 的编译宏）
+UART1_IOMUX_INDEX ?= 20
+# UART3 IOMUX 配置（传递给 SDK 的编译宏）
+UART3_IOMUX_INDEX ?= 24
+
+# PWM IOMUX 配置（传递给 SDK 的编译宏）
+PWM0_IOMUX_INDEX ?= 40
+PWM1_IOMUX_INDEX ?= 41
+PWM2_IOMUX_INDEX ?= 42
+PWM3_IOMUX_INDEX ?= 43
+
 # -------------- 应用源码与编译参数 --------------
 CSTD ?= gnu11
 CFLAGS ?= -O2 -g -std=$(CSTD) -fvisibility=default
@@ -66,11 +78,17 @@ SDK_INCLUDE_PATHS := \
 	-I$(PROJECT_ROOT)/drivers/fatfs \
 	-I$(PROJECT_ROOT)/drivers/flash \
 	-I$(PROJECT_ROOT)/drivers/force_sensor \
+	-I$(PROJECT_ROOT)/drivers/i2c \
 	-I$(PROJECT_ROOT)/drivers/imu \
 	-I$(PROJECT_ROOT)/drivers/key \
+	-I$(PROJECT_ROOT)/drivers/key/chip/sc09b \
 	-I$(PROJECT_ROOT)/drivers/lcd \
+	-I$(PROJECT_ROOT)/drivers/lcd/interface/lcd_uart \
+	-I$(PROJECT_ROOT)/drivers/lcd/chip/uart_extension \
 	-I$(PROJECT_ROOT)/drivers/led \
 	-I$(PROJECT_ROOT)/drivers/motor \
+	-I$(PROJECT_ROOT)/drivers/motor/chip/motor_pwm \
+	-I$(PROJECT_ROOT)/drivers/uart \
 	-I$(PROJECT_ROOT)/drivers/wifi \
 	-I$(PROJECT_ROOT)/overlay/framework_hooks \
 	-I$(PROJECT_ROOT)/overlay/framework_hooks/algo \
@@ -95,6 +113,7 @@ SDK_INCLUDE_PATHS := \
 	-I$(PROJECT_ROOT)/trunk/extern \
 	-I$(PROJECT_ROOT)/trunk/external/littlefs \
 	-I$(PROJECT_ROOT)/trunk/external/littlefs/fds \
+	-I$(PROJECT_ROOT)/trunk/external/scan_key \
 	-I$(PROJECT_ROOT)/trunk/root_source/airplane \
 	-I$(PROJECT_ROOT)/trunk/root_source/algorithm \
 	-I$(PROJECT_ROOT)/trunk/root_source/audio \
@@ -115,17 +134,29 @@ SDK_INCLUDE_PATHS := \
 	-I$(PROJECT_ROOT)/trunk/root_source/utils \
 	-I$(PROJECT_ROOT)/trunk/root_source/windows
 
+# 添加项目根目录和 SDK 头文件路径
 CPPFLAGS ?= -I$(PROJECT_ROOT) -I$(PROJECT_ROOT)/trunk $(SDK_INCLUDE_PATHS)
 
+# 调试日志相关宏定义
 ifeq ($(REL_TRACE_ENABLE),1)
 CPPFLAGS += -DREL_TRACE_ENABLE
 endif
 
+# RTC 日历相关宏定义
 ifeq ($(RTC_CALENDAR),1)
 CPPFLAGS += -DRTC_CALENDAR
 endif
 
+# PWM IOMUX 相关宏定义
+CPPFLAGS += -DPWM0_IOMUX_INDEX=$(PWM0_IOMUX_INDEX)
+CPPFLAGS += -DPWM1_IOMUX_INDEX=$(PWM1_IOMUX_INDEX)
+CPPFLAGS += -DPWM2_IOMUX_INDEX=$(PWM2_IOMUX_INDEX)
+CPPFLAGS += -DPWM3_IOMUX_INDEX=$(PWM3_IOMUX_INDEX)
+
+# LITTLEFS 相关宏定义
 CPPFLAGS += -DLITTLEFS_SECTION_SIZE=$(LITTLEFS_SECTION_SIZE)
+
+# 工厂数据相关宏定义
 CPPFLAGS += -DFACTORY_DATA_SECTION_SIZE=$(FACTORY_DATA_SECTION_SIZE)
 
 # BLE 相关宏定义
@@ -210,9 +241,14 @@ EXTRA_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/drivers/i2c/*.c) \
 	$(wildcard $(PROJECT_ROOT)/drivers/imu/*.c) \
 	$(wildcard $(PROJECT_ROOT)/drivers/key/*.c) \
+	$(wildcard $(PROJECT_ROOT)/drivers/key/chip/sc09b/*.c) \
 	$(wildcard $(PROJECT_ROOT)/drivers/lcd/*.c) \
+	$(wildcard $(PROJECT_ROOT)/drivers/lcd/interface/lcd_uart/*.c) \
+	$(wildcard $(PROJECT_ROOT)/drivers/lcd/chip/uart_extension/*.c) \
 	$(wildcard $(PROJECT_ROOT)/drivers/led/*.c) \
 	$(wildcard $(PROJECT_ROOT)/drivers/motor/*.c) \
+	$(wildcard $(PROJECT_ROOT)/drivers/motor/chip/motor_pwm/*.c) \
+	$(wildcard $(PROJECT_ROOT)/drivers/uart/*.c) \
 	$(wildcard $(PROJECT_ROOT)/drivers/wifi/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/framework_hooks/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/framework_hooks/algo/*.c) \
@@ -235,6 +271,7 @@ EXTRA_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/overlay/windows/setting/*.c) \
 	$(wildcard $(PROJECT_ROOT)/trunk/external/littlefs/*.c) \
 	$(wildcard $(PROJECT_ROOT)/trunk/external/littlefs/fds/*.c) \
+	$(wildcard $(PROJECT_ROOT)/trunk/external/scan_key/*.c) \
 	$(wildcard $(PROJECT_ROOT)/trunk/root_source/airplane/*.c) \
 	$(wildcard $(PROJECT_ROOT)/trunk/root_source/algorithm/*.c) \
 	$(wildcard $(PROJECT_ROOT)/trunk/root_source/audio/*.c) \
@@ -269,6 +306,12 @@ sdk: $(EXTRA_LIB) | $(BIN_DIR)
 		REL_TRACE_ENABLE=$(REL_TRACE_ENABLE) \
 		LITTLEFS_SECTION_SIZE=$(LITTLEFS_SECTION_SIZE) \
 		FACTORY_DATA_SECTION_SIZE=$(FACTORY_DATA_SECTION_SIZE) \
+		UART1_IOMUX_INDEX=$(UART1_IOMUX_INDEX) \
+		UART3_IOMUX_INDEX=$(UART3_IOMUX_INDEX) \
+		PWM0_IOMUX_INDEX=$(PWM0_IOMUX_INDEX) \
+		PWM1_IOMUX_INDEX=$(PWM1_IOMUX_INDEX) \
+		PWM2_IOMUX_INDEX=$(PWM2_IOMUX_INDEX) \
+		PWM3_IOMUX_INDEX=$(PWM3_IOMUX_INDEX) \
 		CFG_CUSTOM_BLE_SERVICE=$(CFG_CUSTOM_BLE_SERVICE)
 	#   RTC_CALENDAR=$(RTC_CALENDAR)
 	@set -e; \

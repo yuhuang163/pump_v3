@@ -32,6 +32,7 @@ DECLARE_DEVICE_REGISTER(register_device_for_power);
 DECLARE_DEVICE_REGISTER(register_device_for_irq);
 DECLARE_DEVICE_REGISTER(register_device_for_ble);
 DECLARE_DEVICE_REGISTER(register_device_for_wifi);
+DECLARE_DEVICE_REGISTER(register_device_for_uart);
 
 /*
 * @brief 模块注册函数声明.

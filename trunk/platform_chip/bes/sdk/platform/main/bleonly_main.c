@@ -532,6 +532,8 @@ int main(void)
 
 #ifdef TRACE_LVL_DEBUG
     hal_trace_set_log_level(LOG_LEVEL_DEBUG);
+#else
+    // hal_trace_set_log_level(TR_LEVEL_WARN);
 #endif
     hal_norflash_show_id_state(HAL_FLASH_ID_0, true);
 

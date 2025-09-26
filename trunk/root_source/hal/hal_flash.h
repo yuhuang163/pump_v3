@@ -15,8 +15,8 @@ extern "C" {
  * @brief 描述FLASH操作码
 */
 typedef enum {
-    OP_CODE_FLASH_ERASE = (1 << 3),
-    OP_CODE_FLASH_ERASE_ALL = (1 << 4),
+    OP_CODE_FLASH_ERASE = 1,
+    OP_CODE_FLASH_ERASE_ALL = 2,
 } flash_dev_op_code_e;
 
 /**

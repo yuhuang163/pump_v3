@@ -30,8 +30,8 @@ static const device_register_fptr s_device_register[] = {
     #if IS_SUPPORT_DEVICE_IRQ
     register_device_for_irq,
     #endif
-    #if IS_SUPPORT_DEVICE_LOG_UART
-    register_device_for_log_uart,
+    #if IS_SUPPORT_DEVICE_UART
+    register_device_for_uart,
     #endif
     #if IS_SUPPORT_DEVICE_POWER
     register_device_for_power,

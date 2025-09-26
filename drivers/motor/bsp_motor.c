@@ -2,7 +2,6 @@
 * INCLUDE FILES
 *****************************************************************************************
 */
-#include "bsp_common.h"
 #include "bsp_motor_internal.h"
 
 /*
@@ -28,7 +27,7 @@ static rt_device_node_t *node = NULL;
 */
 static int motor_dev_open(struct rt_device_node *dev)
 {
-    return 0;
+    return bsp_motor_init();
 }
 
 static int motor_dev_close(struct rt_device_node *dev)
@@ -48,28 +47,39 @@ static int motor_dev_write(struct rt_device_node *dev, const void *buf, uint32_t
 
 static int motor_dev_ioctl(struct rt_device_node *dev, uint32_t op_code, void *args)
 {
-    return 0;
+    switch (op_code) {
+        case OP_CODE_MOTOR_START_PLAY:
+            return bsp_motor_start(args);
+
+        case OP_CODE_MOTOR_STOP_PLAY:
+            return bsp_motor_stop(args);
+
+        case OP_CODE_MOTOR_SET_PARAMETER:
+            return bsp_motor_parameter_set(args);
+    
+        case OP_CODE_MOTOR_GET_STATUS:
+            return bsp_motor_is_running(args);
+
+        default:
+            LOGE("err op_code: %lx", op_code);
+            return -1;
+    }
 }
 
 static int motor_dev_suspend(struct rt_device_node *dev)
 {
-    return 0;
+    return bsp_motor_deinit();
 }
 
 static int motor_dev_resume(struct rt_device_node *dev)
 {
-    return 0;
+    return bsp_motor_init();
 }
 
 /*
- * GLOBAL FUNCTION DEFINITIONS
- *****************************************************************************************
- */
-bool bsp_motor_is_running(void)
-{
-    return false;
-}
-
+* GLOBAL FUNCTION DEFINITIONS
+*****************************************************************************************
+*/
 void *register_device_for_motor(list_head_t *list_head)
 {
     node = u_malloz(sizeof(rt_device_node_t));

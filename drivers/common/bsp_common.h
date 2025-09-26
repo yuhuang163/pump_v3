@@ -18,22 +18,25 @@ extern "C" {
 #endif
 
 typedef enum {
-    INT_NUM_NONE     = 255,
+    INT_NUM_NONE     = -1,
     INT_NUM_KEY_1    = 0,
     INT_NUM_KEY_2,
     INT_NUM_KEY_3,
     INT_NUM_KEY_4,
+    INT_NUM_KEY_5,
+    INT_NUM_KEY_6,
+    INT_NUM_TOUCH_KEY,
 
-    INT_NUM_IMU      = 0x10,
-    INT_NUM_F_SENSOR = 0x11,
-    INT_NUM_CHARGE   = 0x12,
-    INT_NUM_AUDIO    = 0x13,
+    INT_NUM_IMU       = 0x10,
+    INT_NUM_F_SENSOR  = 0x11,
+    INT_NUM_CHARGE    = 0x12,
+    INT_NUM_AUDIO     = 0x13,
 } interrupt_number_e;
 
 typedef enum {
-    BSP_OK       = 0x00U,                /**< Operation is OK. */
-    BSP_ERROR    = 0x01U,                /**< Parameter error or operation is not supported. */
-    BSP_BUSY     = 0x02U,                /**< Driver is busy. */
+    BSP_OK       = 0x00,                /**< Operation is OK. */
+    BSP_ERROR    = 0x01,                /**< Parameter error or operation is not supported. */
+    BSP_BUSY     = 0x02,                /**< Driver is busy. */
     BSP_TIMEOUT  = 0x03,                 /**< Timeout occurred. */
     BSP_FULL     = 0x04,                 /**< . */
     BSP_OVERFLOW = 0x05,                 /**< . */

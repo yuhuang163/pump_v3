@@ -20,7 +20,10 @@ extern "C" {
 * GLOBAL FUNCTION DECLARATION
 *****************************************************************************************
 */
-
+int bsp_key_init(void);
+int bsp_key_deinit(void);
+int bsp_read_key_value(uint8_t key_index);
+int bsp_key_sensitivity_set(uint8_t key_index, uint8_t sensitivity);
 
 #ifdef __cplusplus
 }

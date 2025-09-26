@@ -10,6 +10,7 @@
 #include "app_ble.h" // IWYU pragma: keep
 #include "ble_core_common.h"
 #include "product_info.h"
+#include "factory_section.h"
 
 /*
 * DEFINES
@@ -76,12 +77,10 @@ static uint8_t s_mac_addr[6] = {0x20, 0x19, 0x07, 0xEC, 0x01, 0xFF};
 static void ble_custom_mac_sync(void)
 {
     /// TODO: 需要从storage中读取mac地址
-
-    /// TODO: 设备随机生成mac地址
-    #if 0
-    const uint8_t *mac_addr = (const uint8_t *)bt_get_ble_local_address();
-    memcpy(s_mac_addr, mac_addr, 6);
-    #endif
+    uint8_t *ble_addr = factory_section_get_ble_address();
+    LOGI("factory mac address: %02x:%02x:%02x:%02x:%02x:%02x", 
+        ble_addr[0], ble_addr[1], ble_addr[2], ble_addr[3], ble_addr[4], ble_addr[5]);
+    memcpy(s_mac_addr, ble_addr, 6);
 }
 
 static void ble_custom_adv_data_update(void)
@@ -153,3 +152,8 @@ void ble_custom_gap_advs_stop(void)
     ble_core_disable_stub_adv();
 }
 
+int ble_custom_gap_mac_addr_set(uint8_t *mac_addr)
+{
+    memcpy(s_mac_addr, mac_addr, 6);
+    return factory_section_set_ble_address(mac_addr);
+}

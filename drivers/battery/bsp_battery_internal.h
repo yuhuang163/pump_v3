@@ -9,10 +9,9 @@ extern "C" {
 /*******************************************************************************
 * Include files
 ******************************************************************************/
-#include <stdio.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include "bsp_internal.h"
+#include "bsp_internal.h" // IWYU pragma: keep
 
 /**@brief Firmware information define*/
 

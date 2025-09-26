@@ -27,13 +27,13 @@ typedef enum {
  * @brief 描述电池操作码
 */
 typedef enum {
-    OP_CODE_BAT_GET_LEVEL = (1 << 1),
-    OP_CODE_BAT_GET_VOLTAGE = (1 << 2),
-    OP_CODE_BAT_POLL_VOLTAGE = (1 << 3),
-    OP_CODE_BAT_HEALTH_SET = (1 << 4),
-    OP_CODE_BAT_CHARGE_IS_PLUG_IN = (1 << 5),
-    OP_CODE_BAT_CHARGE_ADD_IRQ_CALLBACK = (1 << 6),
-    OP_CODE_BAT_GET_CHARGE_STATUS = (1 << 7),
+    OP_CODE_BAT_GET_LEVEL = 1,
+    OP_CODE_BAT_GET_VOLTAGE = 2,
+    OP_CODE_BAT_POLL_VOLTAGE = 3,
+    OP_CODE_BAT_HEALTH_SET = 4,
+    OP_CODE_BAT_CHARGE_IS_PLUG_IN = 5,
+    OP_CODE_BAT_CHARGE_ADD_IRQ_CALLBACK = 6,
+    OP_CODE_BAT_GET_CHARGE_STATUS = 7,
     OP_CODE_BAT_END
 } batery_dev_op_code_e;
 

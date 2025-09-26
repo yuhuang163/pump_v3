@@ -9,12 +9,18 @@ extern "C" {
 /*******************************************************************************
 * Include files
 ******************************************************************************/
-#include "bsp_common.h"
+#include "bsp_common.h" // IWYU pragma: keep
 
 /*
 * GLOBAL FUNCTION DECLARATION
 *****************************************************************************************
 */
+int bsp_motor_init(void);
+int bsp_motor_deinit(void);
+int bsp_motor_start(void *args);
+int bsp_motor_stop(void *args);
+int bsp_motor_parameter_set(void *args);
+int bsp_motor_is_running(void *args);
 
 #ifdef __cplusplus
 }

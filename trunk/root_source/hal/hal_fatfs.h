@@ -15,11 +15,11 @@ extern "C" {
  * @brief 描述FS操作码
 */
 typedef enum {
-    OP_CODE_FS_MOUNT = (1 << 5),
-    OP_CODE_FS_UNMOUNT = (1 << 6),
-    OP_CODE_FS_FORMAT = (1 << 7),
-    OP_CODE_FS_IS_READY = (1 << 8),
-    OP_CODE_FS_INTERFACE_GET = (1 << 9),
+    OP_CODE_FS_MOUNT = 1,
+    OP_CODE_FS_UNMOUNT = 2,
+    OP_CODE_FS_FORMAT = 3,
+    OP_CODE_FS_IS_READY = 4,
+    OP_CODE_FS_INTERFACE_GET = 5,
 } fs_dev_op_code_e;
 
 /*

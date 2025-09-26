@@ -14,7 +14,7 @@ extern "C" {
  * @brief 描述BLE读取码
 */
 typedef enum {
-    READ_CODE_BLE_MAC_ADDR_GET = (1 << 0),
+    READ_CODE_BLE_MAC_ADDR_GET = 1,
     READ_CODE_BLE_END
 } ble_dev_read_code_e;
 
@@ -23,14 +23,14 @@ typedef enum {
 */
 typedef enum {
     // adv
-    OP_CODE_BLE_ADV_OPEN = (1 << 0),
-    OP_CODE_BLE_ADV_CLOSE = (1 << 1),
-    OP_CODE_BLE_ADV_PARAM_UPDATE = (1 << 2),
+    OP_CODE_BLE_ADV_OPEN = 1,
+    OP_CODE_BLE_ADV_CLOSE = 2,
+    OP_CODE_BLE_ADV_PARAM_UPDATE = 3,
     // gatt
-    OP_CODE_BLE_DISCONNECT = (1 << 4),
-    OP_CODE_BLE_MAC_ADDR_SET = (1 << 5),
-    OP_CODE_BLE_ADD_EVENT_CALLBACK = (1 << 6),
-    OP_CODE_BLE_ADD_DATA_CALLBACK = (1 << 7),
+    OP_CODE_BLE_DISCONNECT = 4,
+    OP_CODE_BLE_MAC_ADDR_SET = 5,
+    OP_CODE_BLE_ADD_EVENT_CALLBACK = 6,
+    OP_CODE_BLE_ADD_DATA_CALLBACK = 7,
     OP_CODE_BLE_END
 } ble_dev_op_code_e;
 

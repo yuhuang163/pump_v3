@@ -9,8 +9,8 @@ extern "C" {
 /*******************************************************************************
 * Include files
 ******************************************************************************/
-#include <stdio.h>
-#include <stdint.h>
+#include <stdint.h> // IWYU pragma: keep
+#include "bsp_lcd_uart.h" // IWYU pragma: keep
 
 // pixel offset
 #define LCD_H_OFFSET                    26

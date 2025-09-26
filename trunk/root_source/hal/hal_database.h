@@ -15,8 +15,8 @@ extern "C" {
  * @brief 描述数据库操作码
 */
 typedef enum {
-    OP_CODE_DB_DELETE_ALL = (1 << 1),
-    OP_CODE_DB_DELETE = (1 << 2),
+    OP_CODE_DB_DELETE_ALL = 1,
+    OP_CODE_DB_DELETE = 2,
 } db_dev_op_code_e;
 
 #ifdef __cplusplus
