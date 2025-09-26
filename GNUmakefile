@@ -86,6 +86,7 @@ SDK_INCLUDE_PATHS := \
 	-I$(PROJECT_ROOT)/drivers/lcd/interface/lcd_uart \
 	-I$(PROJECT_ROOT)/drivers/lcd/chip/uart_extension \
 	-I$(PROJECT_ROOT)/drivers/led \
+	-I$(PROJECT_ROOT)/drivers/led/chip/led_pwm \
 	-I$(PROJECT_ROOT)/drivers/motor \
 	-I$(PROJECT_ROOT)/drivers/motor/chip/motor_pwm \
 	-I$(PROJECT_ROOT)/drivers/uart \
@@ -246,6 +247,7 @@ EXTRA_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/drivers/lcd/interface/lcd_uart/*.c) \
 	$(wildcard $(PROJECT_ROOT)/drivers/lcd/chip/uart_extension/*.c) \
 	$(wildcard $(PROJECT_ROOT)/drivers/led/*.c) \
+	$(wildcard $(PROJECT_ROOT)/drivers/led/chip/led_pwm/*.c) \
 	$(wildcard $(PROJECT_ROOT)/drivers/motor/*.c) \
 	$(wildcard $(PROJECT_ROOT)/drivers/motor/chip/motor_pwm/*.c) \
 	$(wildcard $(PROJECT_ROOT)/drivers/uart/*.c) \
