@@ -67,7 +67,7 @@ endif
 
 export NO_CP := 1
 
-export USE_NORFLASH_API ?= 0
+export USE_NORFLASH_API ?= 1
 ifeq ($(USE_NORFLASH_API), 1)
 KBUILD_CPPFLAGS += -DUSE_NORFLASH_API
 # core-y += services/norflash_api/

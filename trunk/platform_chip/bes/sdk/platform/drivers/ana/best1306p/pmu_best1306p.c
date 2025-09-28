@@ -407,6 +407,14 @@
 #define REG_ANALOG_CLK_SEL_DSI                  (1 << 0)
 #define REG_ANALOG_EN_CLK_DSI                   (1 << 1)
 
+#define PMU_CONFIG_SYSTICK_HZ_NOMINAL               (16000)
+#define PMU_MAX_CALIB_SYSTICK_HZ                    (PMU_CONFIG_SYSTICK_HZ_NOMINAL * 2)
+#define PMU_MIN_CALIB_TICKS                         (30 * (PMU_CONFIG_SYSTICK_HZ_NOMINAL / 1000))
+#define PMU_MAX_CALIB_TICKS                         (30 * PMU_CONFIG_SYSTICK_HZ_NOMINAL)
+#ifdef FAST_TIMER_COMPENSATE
+#define PMU_FAST_TICK_RATIO_NUM                     3
+#endif
+
 #define PMU_EFUSE_TEMPSENSOR_DEFAULT            32347
 
 #define REG_CP_WAFER_CTX_XY                     PMU_EFUSE_PAGE_CP_WAFER_XY_CTX
@@ -659,6 +667,8 @@ static HWTIMER_ID ntc_monitor_timer = NULL;
 
 static HWTIMER_ID charger_1622_timer = NULL;
 
+static HWTIMER_ID charger_1622_timer_2 = NULL;
+
 #if defined(_AUTO_TEST_)
 static bool at_skip_shutdown = false;
 
@@ -674,6 +684,20 @@ void pmu_at_skip_shutdown(bool enable)
 #define RTC_CALENDAR2REG_VAL_UNITS(RTC_CALENDAR)              ((RTC_CALENDAR) / 1 % 10)
 
 #define RTC_CALENDAR_LOAD_TIME_STABLE_TIME_US                 (100)
+#define EXTERNAL_CRYSTAL_FREQ                                 (32768)
+#define RTC_STATUS_STABLE_TIME_MS                             (1000)
+
+#define RTC_MONTH_MAX                                         (12)
+#define RTC_MONTH_MIN                                         (1)
+#define RTC_DAY_MIN                                           (1)
+#define RTC_WEEK_MAX                                          (7)
+#define RTC_WEEK_MIN                                          (1)
+#define RTC_HOUR_MAX                                          (23)
+#define RTC_HOUR_MIN                                          (0)
+#define RTC_MINUTE_MAX                                        (59)
+#define RTC_MINUTE_MIN                                        (0)
+#define RTC_SECOND_MAX                                        (59)
+#define RTC_SECOND_MIN                                        (0)
 
 struct RTC_REG_VAL_FORMAT_T {
     uint8_t year_tens;
@@ -729,6 +753,31 @@ static void pmu_rtc_calendar_init(void)
     val = CONFIG_SYSTICK_HZ * 2 - 2;
 #endif
     pmu_write(PMU_REG_RTC_DIV_1HZ, val);
+}
+
+static void pmu_rtc_calendar_data_valid_check(struct RTC_CALENDAR_FORMAT_T *calendar)
+{
+    char month_buf[RTC_MONTH_MAX] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+
+    if (calendar->week > RTC_WEEK_MAX || calendar->week < RTC_WEEK_MIN) {
+        ASSERT(0, "invalid week! week:%d", calendar->week);
+    }
+
+    if ((calendar->hour > RTC_HOUR_MAX || calendar->minute > RTC_MINUTE_MAX || calendar->second > RTC_SECOND_MAX)) {
+        ASSERT(0, "invalid time! hour/min/sec:%d/%d/%d", calendar->hour, calendar->minute, calendar->second);
+    }
+
+    if (calendar->month == 2) {
+        // leap year
+        if (((calendar->year % 4 == 0) && (calendar->year % 100 != 0)) || (calendar->year % 400 == 0)) {
+            month_buf[1] += 1;
+        }
+    }
+
+    if (calendar->month > RTC_MONTH_MAX || calendar->month < RTC_MONTH_MIN ||
+            calendar->day > month_buf[calendar->month - 1] || calendar->day < RTC_DAY_MIN) {
+        ASSERT(0, "invalid data! month/day:%d/%d", calendar->month, calendar->day);
+    }
 }
 
 static void _pmu_rtc_calendar_alarm_irq_handler(uint16_t irq_status)
@@ -807,10 +856,7 @@ int pmu_rtc_calendar_alarm_set(struct RTC_CALENDAR_FORMAT_T *alarm_set)
 
     lock = int_lock();
 
-    val = rtc_calendar_is_invalid(alarm_set, true);
-    if (val) {
-        ASSERT(false, "%s: Invalid calendar! error=0x%04x", __func__, val);
-    }
+    pmu_rtc_calendar_data_valid_check(alarm_set);
 
     rtc_reg_fmt.year_tens = RTC_CALENDAR2REG_VAL_TENS(alarm_set->year);
     rtc_reg_fmt.year_units = RTC_CALENDAR2REG_VAL_UNITS(alarm_set->year);
@@ -931,10 +977,7 @@ int pmu_rtc_calendar_set(struct RTC_CALENDAR_FORMAT_T *calendar_set)
 
     lock = int_lock();
 
-    val = rtc_calendar_is_invalid(calendar_set, true);
-    if (val) {
-        ASSERT(false, "%s: Invalid calendar! error=0x%04x", __func__, val);
-    }
+    pmu_rtc_calendar_data_valid_check(calendar_set);
 
     rtc_reg_fmt.year_tens = RTC_CALENDAR2REG_VAL_TENS(calendar_set->year);
     rtc_reg_fmt.year_units = RTC_CALENDAR2REG_VAL_UNITS(calendar_set->year);
@@ -3661,6 +3704,11 @@ static void pmu_charger_1622_timer_handler(void *param)
     charger_plug_conig(PMU_CHARGER_PLUGOUT);
 }
 
+static void pmu_charger_1622_timer_2_handler(void *param)
+{
+    charger_acin2vsys_ldo_soft_start_enable(true);
+}
+
 static void pmu_charger_irq_handler(PMU_IRQ_HDLR_PARAM)
 {
     enum PMU_CHARGER_STATUS_T status = PMU_CHARGER_UNKNOWN;
@@ -3696,6 +3744,14 @@ static void pmu_charger_irq_handler(PMU_IRQ_HDLR_PARAM)
                 hwtimer_stop(charger_1622_timer);
             }
             charger_plug_conig(PMU_CHARGER_PLUGIN);
+            // Resume ACIN2VSYS LDO soft startup to avoid VSYS and ACIN voltages being equally high.
+            if (charger_1622_timer_2 == NULL) {
+                charger_1622_timer_2 = hwtimer_alloc(pmu_charger_1622_timer_2_handler, 0);
+            }
+            if (charger_1622_timer_2) {
+                hwtimer_stop(charger_1622_timer_2);
+                hwtimer_start(charger_1622_timer_2, MS_TO_TICKS(20));
+            }
         } else {
             if (charger_1622_timer == NULL) {
                 charger_1622_timer = hwtimer_alloc(pmu_charger_1622_timer_handler, 0);
@@ -3704,6 +3760,11 @@ static void pmu_charger_irq_handler(PMU_IRQ_HDLR_PARAM)
                 hwtimer_stop(charger_1622_timer);
                 hwtimer_start(charger_1622_timer, MS_TO_TICKS(100));
             }
+            // Disable ACIN2VSYS LDO soft startup to avoid VSYS drop.
+            if (charger_1622_timer_2) {
+                hwtimer_stop(charger_1622_timer_2);
+            }
+            charger_acin2vsys_ldo_soft_start_enable(false);
         }
     }
 
@@ -5504,3 +5565,83 @@ enum PMU_PACKAGE_TYPE_T pmu_get_chip_package_type(void)
 {
     return pmu_pkg_type;
 }
+
+#ifdef RTC_CALENDAR
+static float pmu_sys_tick_hz = PMU_CONFIG_SYSTICK_HZ_NOMINAL;
+static uint32_t pmu_slow_val;
+static uint32_t pmu_fast_val;
+
+static void BOOT_TEXT_SRAM_LOC pmu_sys_timer_calib_start(void)
+{
+    uint32_t lock;
+    uint32_t slow;
+    uint32_t fast;
+
+    lock = int_lock();
+    slow = hal_sys_timer_get();
+    while (hal_sys_timer_get() == slow);
+    __ISB();
+    fast = hal_fast_sys_timer_get();
+    int_unlock(lock);
+
+    pmu_slow_val = slow + 1;
+    pmu_fast_val = fast;
+}
+
+static int BOOT_TEXT_SRAM_LOC pmu_sys_timer_calib_end(void)
+{
+    uint32_t lock;
+    uint32_t slow;
+    uint32_t fast;
+    uint32_t slow_diff;
+
+    lock = int_lock();
+    slow = hal_sys_timer_get();
+    while (hal_sys_timer_get() == slow);
+    __ISB();
+    fast = hal_fast_sys_timer_get();
+    int_unlock(lock);
+
+    slow += 1;
+    slow_diff = slow - pmu_slow_val;
+
+    // Avoid computation error
+    if (slow_diff < PMU_MIN_CALIB_TICKS) {
+        return 1;
+    }
+    // Avoid fast tick overflow
+    if (slow_diff > PMU_MAX_CALIB_TICKS) {
+        return 2;
+    }
+
+    pmu_sys_tick_hz = (float)CONFIG_FAST_SYSTICK_HZ / (fast - pmu_fast_val) * slow_diff;
+
+    if (pmu_sys_tick_hz > PMU_MAX_CALIB_SYSTICK_HZ) {
+        pmu_sys_tick_hz = PMU_MAX_CALIB_SYSTICK_HZ;
+    }
+
+    return 0;
+}
+
+static void BOOT_TEXT_SRAM_LOC pmu_sys_timer_calib(void)
+{
+    pmu_sys_timer_calib_start();
+    hal_sys_timer_delay(PMU_MIN_CALIB_TICKS);
+    pmu_sys_timer_calib_end();
+}
+
+static uint32_t pmu_sys_timer_systick_hz(void)
+{
+    return (uint32_t)(pmu_sys_tick_hz + 0.5);
+}
+
+void pmu_rtc_clk_div_reload(void)
+{
+    uint32_t lpo_freq;
+
+    pmu_sys_timer_calib();
+    lpo_freq = pmu_sys_timer_systick_hz() << 1;
+
+    pmu_write(PMU_REG_RTC_DIV_1HZ, lpo_freq - 2);
+}
+#endif

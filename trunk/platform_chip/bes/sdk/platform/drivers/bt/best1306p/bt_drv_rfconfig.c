@@ -120,7 +120,7 @@ const uint16_t rf_init_tbl_1[][3] =
     {0x0051, 0x0200, 0},    // lna hg en dr=0; bit15=0
     {0x0052, 0xB730, 0},    // lna ic res, hg, ic_t dr=0;  bit0 7 11=0
     {0x0081, 0x8002, 0},    // i2v rin dr=0; bit 12=0
-    {0x0082, 0X12AB, 0},    //increase LDO_VRES
+    {0x0082, 0x18AB, 0},    //increase LDO_VRES
     {0x008C, 0x0000, 0},    //reg_bt_dac_gain_ctrl
     {0x008D, 0x0020, 0},
     {0x008F, 0x080B, 0},
@@ -130,13 +130,13 @@ const uint16_t rf_init_tbl_1[][3] =
     {0x0095, 0x4838, 0},    //adc vcm 000
     {0x0099, 0x303B, 0},    //adc ibias 1M 0011
     {0x009A, 0X8088, 0},    //rfvco_vres_txbuf
-    {0x009B, 0X570A, 0},    //kvco maxa
+    {0x009B, 0x5700, 0},    //kvco maxa
     {0x009C, 0x0071, 0},
     {0x009D, 0x0F04, 0},    // vco div2 dr=0 bit12 =0
-    {0x009E, 0x3F68, 0},    //cap_ofst=1000
+    {0x009E, 0x3F78, 0},    //cap_ofst=1000
     {0x009F, 0xE911, 0},    //dac tst
-    {0x00A0, 0x0908, 0},    //idn=1000
-    {0x00A2, 0X15E8, 0},    //manu_ofsten=0,iup=1000
+    {0x00A0, 0x1908, 0},    //idn=1000
+    {0x00A2, 0x18E8, 0},    //manu_ofsten=0,iup=1000
     {0x00A3, 0x0733, 0},
     {0x00A4, 0X8086, 0},    //vres_cp=0110
     {0x00A6, 0xC800, 0},

@@ -6,8 +6,11 @@
 
 ```
 FIRMWARE_V3/
-├── Makefile                         ← 构建入口（目标/芯片/配置）
+├── GNUmakefile                      ← 构建入口（目标/芯片/配置）
 ├── build_helper.sh                  ← 构建辅助脚本
+├── scripts/                         ← 根目录脚本（构建/发布/工具）
+├── docs/                            ← 项目文档与说明
+├── compile_commands.json            ← 编译数据库（IDE/静态分析）
 ├── boards/                          ← 工程级项目/产品配置入口（头文件集中）
 │   ├── product_info.h               ← 产品信息与型号定义
 │   ├── project_config.h             ← 编译/功能开关/宏定义（顶层聚合）
@@ -31,6 +34,9 @@ FIRMWARE_V3/
 │   ├── lcd/                         ← 显示屏/显示控制器
 │   ├── led/                         ← 指示灯/背光控制
 │   ├── motor/                       ← 振动马达/线性马达驱动
+│   ├── adc/                         ← 模数转换（ADC）
+│   ├── air_pressure/                ← 气压传感器/气压计
+│   ├── uart/                        ← 串口/UART驱动
 │   └── wifi/                        ← WiFi驱动支持（新增）
 │
 ├── overlay/                         ← 资源与钩子（工程可重写/定制）
@@ -79,6 +85,10 @@ FIRMWARE_V3/
     │   ├── root_list_api.h          ← 链表管理接口（新增）
     │   ├── root_log_define.h        ← 日志系统定义
     │   ├── storage_manager_api.h    ← 存储管理接口
+    │   ├── key_input_manager_api.h  ← 输入系统管理接口（新增）
+    │   ├── sensor_manager_api.h     ← 传感器管理接口（新增）
+    │   ├── project_default_features.h ← 默认功能开关（新增）
+    │   ├── project_default_parameter.h ← 默认参数定义（新增）
     │   └── windows_manager_api.h    ← 窗口管理接口
     │
     ├── root_source/                 ← 核心子系统实现（面向上层的服务）
@@ -91,6 +101,7 @@ FIRMWARE_V3/
     │   ├── hal/                     ← 面向上层的硬件抽象
     │   ├── key_input/               ← 输入系统（按键/触摸）
     │   ├── misc/                    ← 杂项能力（时间/随机数/配置）
+    │   ├── motor/                   ← 马达子系统
     │   ├── network/                 ← 网络与协议
     │   ├── ota/                     ← 升级子系统
     │   ├── pm/                      ← 电源管理/低功耗策略
@@ -99,6 +110,7 @@ FIRMWARE_V3/
     │   ├── sensor/                  ← 传感器封装（IMU/FSensor汇聚）
     │   ├── storage/                 ← 存储抽象（KV/FS/分区）
     │   ├── utils/                   ← 通用工具集
+    │   ├── tests/                   ← 自检/产测/集成测试模块（新增）
     │   └── windows/                 ← UI窗口框架/页面管理
     │
     ├── platform_chip/               ← 芯片平台相关适配层
@@ -173,6 +185,35 @@ FIRMWARE_V3/
 - **文件**: `trunk/include/root_common_config.h`
 - **功能**: 统一线程优先级、栈深与关键业务配置项
 
+### 12. 串口驱动（UART）
+- **目录**: `drivers/uart/`
+- **功能**: 提供 UART 外设访问能力，支持后续协议/日志转储
+
+### 13. ADC 驱动
+- **目录**: `drivers/adc/`
+- **功能**: 提供模拟量采样能力，面向传感器读取与校准
+
+### 14. 气压传感器驱动
+- **目录**: `drivers/air_pressure/`
+- **功能**: 气压/海拔等相关传感器适配与读数
+
+### 15. 输入系统管理接口
+- **文件**: `trunk/include/key_input_manager_api.h`
+- **功能**: 抽象按键/触摸输入事件，统一上报与去抖
+
+### 16. 传感器管理接口
+- **文件**: `trunk/include/sensor_manager_api.h`
+- **功能**: 统一多类传感器的注册、轮询/中断与数据分发
+
+### 17. 项目默认功能与参数
+- **文件**: `trunk/include/project_default_features.h`
+- **文件**: `trunk/include/project_default_parameter.h`
+- **功能**: 汇总项目级默认开关与参数，便于产品化覆盖
+
+### 18. 测试模块（Tests）
+- **目录**: `trunk/root_source/tests/`
+- **功能**: 提供固件自检、产测钩子与集成用例的统一入口（`tests_manager`）。
+
 ## 体系结构（逻辑分层）
 
 - **上层调用下层**，唯一与RTOS直接交互的应在平台/OS抽象处（若集成RTOS）
@@ -210,6 +251,66 @@ make clean
 # 查看帮助
 make help
 ```
+
+### build_helper.sh 使用与功能
+
+- **位置**: `build_helper.sh`
+- **作用**: 一键编译/清理、生成编译数据库（bear）、生成 OTA、拷贝到共享目录、按产品信息重命名归档。
+
+#### 交互模式（推荐日常使用）
+- **启动**: `./build_helper.sh`
+- **菜单项**（数字对应脚本内功能）:
+  - 1: 编译固件（目标: `firmware`），并拷贝产物
+  - 2: 清理固件构建目录
+  - 3: bear -- make（生成 `compile_commands.json`，会先清理固件构建目录）
+  - 4: 编译 Bootloader（目标: `bootloader`），并拷贝产物
+  - 5: 清理 Bootloader 构建目录
+  - 6: 生成压缩 OTA（`*_ota.bin`），并尝试拷贝
+  - 7: 仅拷贝当前可用产物到共享目录（固件/Bootloader/OTA）
+  - 8: 依据 `boards/product_info.h` 重命名并归档 APP/BOOT/OTA
+
+#### 非交互模式（适合 CI 或脚本集成）
+- **用法**: `./build_helper.sh --non-interactive <subcmd>`
+- **子命令**:
+  - `build-firmware`: 编译固件并拷贝产物
+  - `build-only`: 仅编译固件（不拷贝）
+  - `rebuild-firmware`: 先清理后编译固件，并拷贝产物
+  - `clean-firmware`: 清理固件构建目录
+  - `build-bootloader`: 编译 Bootloader 并拷贝产物
+  - `build-bootloader-only`: 仅编译 Bootloader（不拷贝）
+  - `clean-bootloader`: 清理 Bootloader 构建目录
+  - `copy`: 仅拷贝当前产物
+  - `bear`: 使用 bear 生成编译数据库
+
+示例:
+```bash
+# 交互式
+./build_helper.sh
+
+# 非交互：编译固件并拷贝
+./build_helper.sh --non-interactive build-firmware
+
+# 非交互：仅生成编译数据库
+./build_helper.sh --non-interactive bear
+```
+
+#### 产物与共享目录
+- **默认共享目录**: `/mnt/hgfs/ubuntu_share/v3_firmware`（脚本内变量 `SHARE_DIR`）。
+- **拷贝内容**: `.bin/.elf/.map`（不拷贝 `.lst`）。
+- **固件输出目录**: `project/bin/firmware/`；**Bootloader 输出目录**: `project/bin/bootloader/`。
+- **目标前缀**: 固件 `ble_only_lt`，Bootloader `ota_copy`（由内部逻辑与 Make 变量解析得到）。
+
+#### OTA 生成
+- 从 `project/bin/firmware/ble_only_lt.bin` 生成压缩 OTA：`ble_only_lt_ota.bin`。
+- 依赖脚本: `trunk/platform_chip/bes/sdk/tools/build_compressed_ota.sh`。
+
+#### 归档与命名规则
+- 读取 `boards/product_info.h`：`ROOT_PRODUCT_ID`、`ROOT_FIRMWARE_TYPE`、`ROOT_RES_MAJOR_VERSION/ROOT_RES_MINOR_VERSION` 与 git 短哈希。
+- 生成目录与文件名模式：
+  - 目录: `${DEVICE}_${TYPE}${MAJOR}_${MINOR}`（示例: `V3_P01_01`）
+  - 文件: `${DEVICE}_${DATE}_${TYPE}${MAJOR.MINOR}_${GIT}_{APP|BOOT|OTA}.bin`
+
+备注：若需修改共享目录或默认目标等，可直接调整脚本顶部的 `SHARE_DIR` 与 `MAKE_ARGS`。
 
 ## 版本与命名
 

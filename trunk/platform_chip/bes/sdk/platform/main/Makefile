@@ -1435,7 +1435,9 @@ ccflags-y +=  \
 	-Iutils/cqueue \
 	-Iutils/heap \
 	-Iutils/hwtimer_list \
-	-Iutils/list
+	-Iutils/list \
+	-Iservices/ota/bes_ota/inc \
+	-Iservices/ota
 
 ifneq ($(FLASH_FILL),)
 ccflags-y += -DFLASH_FILL=$(FLASH_FILL)

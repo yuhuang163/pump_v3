@@ -401,6 +401,14 @@
 #define REG_ANALOG_CLK_SEL_DSI                  (1 << 0)
 #define REG_ANALOG_EN_CLK_DSI                   (1 << 1)
 
+#define PMU_CONFIG_SYSTICK_HZ_NOMINAL               (16000)
+#define PMU_MAX_CALIB_SYSTICK_HZ                    (PMU_CONFIG_SYSTICK_HZ_NOMINAL * 2)
+#define PMU_MIN_CALIB_TICKS                         (30 * (PMU_CONFIG_SYSTICK_HZ_NOMINAL / 1000))
+#define PMU_MAX_CALIB_TICKS                         (30 * PMU_CONFIG_SYSTICK_HZ_NOMINAL)
+#ifdef FAST_TIMER_COMPENSATE
+#define PMU_FAST_TICK_RATIO_NUM                     3
+#endif
+
 #define PMU_VCORE_RC_MODE_FIXED_VDIG            PMU_VDIG_0_7V
 #define PMU_VCORE_RC_MODE_FIXED_DCDC_DIG        PMU_DCDC_DIG_0_7V
 #define PMU_VCORE_RC_MODE_FIXED_VDIG_L          PMU_VDIG_L_0_65V
@@ -5871,3 +5879,84 @@ void pmu_ldo_vsensor_on_lp_dr(bool dr_lp)
 #endif
     int_unlock(lock);
 }
+
+#ifdef RTC_CALENDAR
+static float pmu_sys_tick_hz = PMU_CONFIG_SYSTICK_HZ_NOMINAL;
+static uint32_t pmu_slow_val;
+static uint32_t pmu_fast_val;
+
+
+static void BOOT_TEXT_SRAM_LOC pmu_sys_timer_calib_start(void)
+{
+    uint32_t lock;
+    uint32_t slow;
+    uint32_t fast;
+
+    lock = int_lock();
+    slow = hal_sys_timer_get();
+    while (hal_sys_timer_get() == slow);
+    __ISB();
+    fast = hal_fast_sys_timer_get();
+    int_unlock(lock);
+
+    pmu_slow_val = slow + 1;
+    pmu_fast_val = fast;
+}
+
+static int BOOT_TEXT_SRAM_LOC pmu_sys_timer_calib_end(void)
+{
+    uint32_t lock;
+    uint32_t slow;
+    uint32_t fast;
+    uint32_t slow_diff;
+
+    lock = int_lock();
+    slow = hal_sys_timer_get();
+    while (hal_sys_timer_get() == slow);
+    __ISB();
+    fast = hal_fast_sys_timer_get();
+    int_unlock(lock);
+
+    slow += 1;
+    slow_diff = slow - pmu_slow_val;
+
+    // Avoid computation error
+    if (slow_diff < PMU_MIN_CALIB_TICKS) {
+        return 1;
+    }
+    // Avoid fast tick overflow
+    if (slow_diff > PMU_MAX_CALIB_TICKS) {
+        return 2;
+    }
+
+    pmu_sys_tick_hz = (float)CONFIG_FAST_SYSTICK_HZ / (fast - pmu_fast_val) * slow_diff;
+
+    if (pmu_sys_tick_hz > PMU_MAX_CALIB_SYSTICK_HZ) {
+        pmu_sys_tick_hz = PMU_MAX_CALIB_SYSTICK_HZ;
+    }
+
+    return 0;
+}
+
+static void BOOT_TEXT_SRAM_LOC pmu_sys_timer_calib(void)
+{
+    pmu_sys_timer_calib_start();
+    hal_sys_timer_delay(PMU_MIN_CALIB_TICKS);
+    pmu_sys_timer_calib_end();
+}
+
+static uint32_t pmu_sys_timer_systick_hz(void)
+{
+    return (uint32_t)(pmu_sys_tick_hz + 0.5);
+}
+
+void pmu_rtc_clk_div_reload(void)
+{
+    uint32_t lpo_freq;
+
+    pmu_sys_timer_calib();
+    lpo_freq = pmu_sys_timer_systick_hz() << 1;
+
+    pmu_write(PMU_REG_RTC_DIV_1HZ, lpo_freq - 2);
+}
+#endif

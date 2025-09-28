@@ -21,14 +21,142 @@
 #include "bluetooth_ble_api.h"
 #include "app_custom.h"
 #include "app_ble.h"
+
+#if defined(BLE_ONLY_LT)
+#include "cqueue.h"
 #ifdef TEST_HAL_PATTERN
 #include "test_hal_main.h"
+#endif
+
+#ifdef BES_OTA
+#include "ota_bes.h"
+#include "ota_control.h"
+#include "ota_config.h"
+#endif
+
+#ifdef OTA_ENABLE
+#include "ota_basic.h"
+#endif
 #endif
 
 #define STACK_READY_BT  0x01
 #define STACK_READY_BLE 0x02
 
+#if defined(BLE_ONLY_LT)
+#ifdef FIRMWARE_REV
+#define SYS_STORE_FW_VER(x) \
+      if(fw_rev_##x) { \
+        *fw_rev_##x = fw.softwareRevByte##x; \
+      }
+
+typedef struct
+{
+    uint8_t softwareRevByte0;
+    uint8_t softwareRevByte1;
+    uint8_t softwareRevByte2;
+    uint8_t softwareRevByte3;
+} FIRMWARE_REV_INFO_T;
+
+static const FIRMWARE_REV_INFO_T fwRevInfoInFlash = {0, 0, 1, 0};
+FIRMWARE_REV_INFO_T fwRevInfoInRam;
+
+void system_get_info(uint8_t *fw_rev_0, uint8_t *fw_rev_1, uint8_t *fw_rev_2, uint8_t *fw_rev_3)
+{
+  FIRMWARE_REV_INFO_T fw = fwRevInfoInFlash;
+
+  SYS_STORE_FW_VER(0);
+  SYS_STORE_FW_VER(1);
+  SYS_STORE_FW_VER(2);
+  SYS_STORE_FW_VER(3);
+}
+#endif
+
 static osThreadId main_thread_tid = NULL;
+
+int system_reset(void)
+{
+    osThreadSetPriority(main_thread_tid, osPriorityRealtime);
+    osThreadFlagsSet(main_thread_tid, 0x8);
+    return 0;
+}
+
+int app_reset(void)
+{
+    TRACE(0, "Retention bit when reset happens is 0x%x", hal_sw_bootmode_get());
+    system_reset();
+    return 0;
+}
+
+static void app_postponed_reset_timer_handler(void const *param);
+osTimerDef(APP_POSTPONED_RESET_TIMER, app_postponed_reset_timer_handler);
+static osTimerId app_postponed_reset_timer = NULL;
+#define APP_RESET_PONTPONED_TIME_IN_MS  2000
+static void app_postponed_reset_timer_handler(void const *param)
+{
+    app_reset();
+}
+
+void app_start_postponed_reset(void)
+{
+    if (NULL == app_postponed_reset_timer)
+    {
+        app_postponed_reset_timer = osTimerCreate(osTimer(APP_POSTPONED_RESET_TIMER), osTimerOnce, NULL);
+    }
+
+#ifndef FLASH_REMAP
+    hal_sw_bootmode_set(HAL_SW_BOOTMODE_ENTER_HIDE_BOOT);
+#endif
+    osTimerStart(app_postponed_reset_timer, APP_RESET_PONTPONED_TIME_IN_MS);
+}
+#else
+#define BOOT_MAGIC_NUMBER               0xBE57EC1C
+#define BOOT_WORD_A                     0xAAAAAAAA
+#define BOOT_WORD_B                     0xBBBBBBBB
+
+typedef struct
+{
+    uint32_t magicNumber; // NORMAL_BOOT or COPY_NEW_IMAGE
+    uint32_t imageSize;
+    uint32_t imageCrc;
+    uint32_t newImageFlashOffset;
+    uint32_t boot_word;
+} FLASH_OTA_BOOT_INFO_T;
+
+typedef void (*FLASH_ENTRY)(void);
+FLASH_OTA_BOOT_INFO_T otaBootInfoInFlash __attribute((section(".ota_boot_info"))) = {
+    BOOT_MAGIC_NUMBER, 0, 0, OTA_CODE_OFFSET, BOOT_WORD_A
+};
+
+static const struct boot_struct_t *boot_struct = (struct boot_struct_t *)(FLASH_BASE + OTA_CODE_OFFSET);
+
+static bool app_is_ble_mode(void)
+{
+    uint32_t bootmode = hal_sw_bootmode_get();
+
+    return (bootmode & HAL_SW_BOOTMODE_ENTER_HIDE_BOOT);
+}
+
+void SelectEnterApp(void)
+{
+	FLASH_ENTRY entry;
+
+    if (app_is_ble_mode()) {
+        hal_sw_bootmode_clear(HAL_SW_BOOTMODE_ENTER_HIDE_BOOT);
+        return;
+    }
+
+    if (BOOT_MAGIC_NUMBER == boot_struct->hdr.magic)
+    {
+        NVIC_DisableAllIRQs();
+        entry = (FLASH_ENTRY)(&boot_struct->hdr + 1);
+        entry = (FLASH_ENTRY)((uint32_t)entry | 1);
+        entry();
+    }
+}
+void boot_loader_pre_init_hook(void) __attribute__((alias("SelectEnterApp")));
+
+static osThreadId main_thread_tid = NULL;
+#endif
 
 int signal_send_to_main_thread(uint32_t signals)
 {
@@ -333,26 +461,26 @@ void app_factory_tota_nonsignalingtest_handler(void)
             app_bt_start_nonsignalingtest_end_timer(test_end_timeout, LE_TEST_TX_TYPE);
         //fall through
         case NV_LE_NONSIGNALING_CONT_TX_MODE:
-        btdrv_le_tx_test_v2(nvrecord_env->le_tx_env.tx_channel, nvrecord_env->le_tx_env.data_len,
-            nvrecord_env->le_tx_env.pkt_payload, nvrecord_env->le_tx_env.phy);
-        break;
+            btdrv_le_tx_test_v2(nvrecord_env->le_tx_env.tx_channel, nvrecord_env->le_tx_env.data_len,
+                nvrecord_env->le_tx_env.pkt_payload, nvrecord_env->le_tx_env.phy);
+            break;
 
-    case NV_LE_NONSIGNALING_RX_MODE:
-        app_bt_start_nonsignalingtest_end_timer(test_end_timeout, LE_TEST_RX_TYPE);
-        btdrv_regist_le_teset_end_callback(app_le_test_end_hander);
-    //fall through
-    case NV_LE_NONSIGNALING_CONT_RX_MODE:
-        btdrv_le_rx_test_v2(nvrecord_env->le_rx_env.rx_channel, nvrecord_env->le_rx_env.phy,
-            nvrecord_env->le_rx_env.mod_idx);
-        break;
+        case NV_LE_NONSIGNALING_RX_MODE:
+            app_bt_start_nonsignalingtest_end_timer(test_end_timeout, LE_TEST_RX_TYPE);
+            btdrv_regist_le_teset_end_callback(app_le_test_end_hander);
+        //fall through
+        case NV_LE_NONSIGNALING_CONT_RX_MODE:
+            btdrv_le_rx_test_v2(nvrecord_env->le_rx_env.rx_channel, nvrecord_env->le_rx_env.phy,
+                nvrecord_env->le_rx_env.mod_idx);
+            break;
 
-    default:
-        TRACE(1,"app fatorty:error type, test type=0x%x", test_type);
-        break;
-}
+        default:
+            TRACE(1,"app fatorty:error type, test type=0x%x", test_type);
+            break;
+    }
 
-//clear the test mode in nv
-nv_record_reset_factory_test_env();
+    //clear the test mode in nv
+    nv_record_reset_factory_test_env();
 }
 
 void app_factorymode_bt_signalingtest_handler(void)
@@ -488,9 +616,23 @@ void ble_app_init(void)
     bes_bt_app_init();
     app_start_bt_module_thread();
 
+#if defined(BES_OTA)
+    bes_ota_init_handler();
+#endif
+
     app_wait_stack_ready();
 
     bes_bt_call_custom_function_in_bt_thread((uint32_t)0, 0, (uint32_t)app_bluetooth_application_init);
+
+#if defined(OTA_ENABLE)
+    ota_basic_env_init();
+#endif
+
+#ifdef BES_OTA
+#if !defined(OTA_OVER_TOTA_ENABLED)
+    bes_ota_init();
+#endif
+#endif
 
     TRACE(1,"\n\n\nbt_stack_init_done:\n\n\n");
     bes_bt_sleep_init();

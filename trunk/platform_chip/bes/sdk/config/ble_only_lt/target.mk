@@ -42,7 +42,7 @@ export TRACE_BAUD_RATE := 8*115200
 export TRACE_BUF_SIZE ?= 4*1024
 
 init-y      :=
-core-y      := platform/main/ platform/cmsis/ platform/drivers/ platform/hal/
+core-y      := platform/main/ platform/cmsis/ platform/drivers/ platform/hal/ utils/cqueue/
 
 KBUILD_CPPFLAGS += -Iplatform/cmsis/inc -Iplatform/hal -Iplatform/drivers/bt -Iapps/common
 
@@ -85,4 +85,7 @@ export OS_SCHEDULERSTKSIZE ?= 512
 export OS_IDLESTKSIZE ?= 1024
 export OS_FIFOSZ ?= 24
 
-export NO_CP ?= 1
+export BLE_ONLY_LT := 1
+ifeq ($(BLE_ONLY_LT),1)
+KBUILD_CPPFLAGS += -DBLE_ONLY_LT
+endif

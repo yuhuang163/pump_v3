@@ -459,7 +459,11 @@ void ota_control_update_MTU(uint16_t mtu)
 #if defined(OTA_OVER_TOTA_ENABLED)
     mtu = (mtu / 16) * 16 - 4;
 #endif
+#if defined(BLE_ONLY_LT)
+    ota_control_env.dataPacketSize = 240;
+#else
     ota_control_env.dataPacketSize = mtu;
+#endif
     LOG_D("updated ota data packet size is %d", ota_control_env.dataPacketSize);
 }
 

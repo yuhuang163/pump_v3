@@ -42,6 +42,7 @@ extern "C" {
 #define IS_SUPPORT_MODULE_MISC                           (0)
 #define IS_SUPPORT_MODULE_MOTOR                          (0)
 #define IS_SUPPORT_MODULE_BREATH_PUMP                    (0)
+#define IS_SUPPORT_MODULE_TESTS                          (0)
 #define IS_SUPPORT_MODULE_US_ALGO                        (0)
 #define IS_SUPPORT_MODULE_AUDIO                          (0)
 #define IS_SUPPORT_MODULE_AIRPLANE                       (0)

@@ -353,6 +353,8 @@ uint32_t charger_reg_write(uint8_t addr, uint16_t val);
 
 void charger_plug_conig(enum PMU_CHARGER_STATUS_T status);
 
+void charger_acin2vsys_ldo_soft_start_enable(int enable);
+
 #ifdef __cplusplus
 }
 #endif

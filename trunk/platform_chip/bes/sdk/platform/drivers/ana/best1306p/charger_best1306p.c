@@ -1248,3 +1248,20 @@ void charger_plug_conig(enum PMU_CHARGER_STATUS_T status)
         }
     }
 }
+
+void charger_acin2vsys_ldo_soft_start_enable(int enable)
+{
+    uint16_t val;
+
+    if (chg_type != CHARGER_CHIP_TYPE_1622) {
+        return;
+    }
+
+    i2cif_reg_read(CHG_REG_06, &val);
+    if (enable) {
+        val &= ~(REG_PP_CS_EN | REG_PP_CS_EN_DR);
+    } else {
+        val = (val & ~REG_PP_CS_EN) | REG_PP_CS_EN_DR;
+    }
+    i2cif_reg_write(CHG_REG_06, val);
+}

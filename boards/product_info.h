@@ -34,10 +34,12 @@ typedef enum {
 
 /*
 * 主固件版本类型:
-* 'V' 正式版本
+* 'P' 正式版本
+* 'D' 开发版本
 * 'T' 测试版本
+* 'C' 定制版本
 */
-#define ROOT_FIRMWARE_TYPE                            'T'
+#define ROOT_FIRMWARE_TYPE                            'D'
 
 /*
 * 蓝牙协议版本号
@@ -56,7 +58,7 @@ typedef enum {
  * major版本表示固件支持的资源版本. 
  * minor表示资源差异化的版本.
 */
-#define ROOT_RES_MAJOR_VERSION                         (100)
+#define ROOT_RES_MAJOR_VERSION                         (01)
 #define ROOT_RES_MINOR_VERSION                         (01)
 
 /**

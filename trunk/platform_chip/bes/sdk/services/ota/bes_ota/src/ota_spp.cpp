@@ -17,7 +17,7 @@
  ****************************************************************************/
 #include "cmsis_os.h"
 #include "hal_timer.h"
-#include "audioflinger.h"
+//#include "audioflinger.h"
 #include "app_audio.h"
 #include "bluetooth_bt_api.h"
 #include "nvrecord_env.h"

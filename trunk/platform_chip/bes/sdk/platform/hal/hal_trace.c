@@ -3910,6 +3910,7 @@ typedef struct {
 
 static CrashRegisters_t crash_info = {0};
 
+POSSIBLY_UNUSED
 static void FillCrashInfo_Assert(const struct ASSERT_INFO_T *info)
 {
 #ifdef RTOS
@@ -3928,7 +3929,8 @@ static void FillCrashInfo_Assert(const struct ASSERT_INFO_T *info)
     crash_info.r[16] = __get_xPSR();
 }
 
-POSSIBLY_UNUSED static void FillCrashInfo_Exception(const struct EXCEPTION_INFO_T *info)
+POSSIBLY_UNUSED
+static void FillCrashInfo_Exception(const struct EXCEPTION_INFO_T *info)
 {
 #ifdef RTOS
     crash_info.rtos = 1;

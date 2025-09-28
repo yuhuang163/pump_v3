@@ -11,7 +11,6 @@
  *********************/
 #include "lv_port_indev.h"
 #include "lvgl.h"
-#include "usmile_app_internal.h"
 
 /*********************
  *      DEFINES

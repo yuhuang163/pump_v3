@@ -47,6 +47,10 @@ extern "C" {
 #define  PMU_DSLEEP_MODE_ON                 1
 #define  PMU_DSLEEP_MODE_OFF                0
 
+#ifndef RTC_CALENDAR_YEAR_REF
+#define RTC_CALENDAR_YEAR_REF               2000
+#endif
+
 #ifndef SECURITY_VALUE_T
 union SECURITY_VALUE_T {
     struct {
@@ -324,6 +328,8 @@ void pmu_capsensor_close(void);
 void pmu_capsensor_open(uint8_t clk_cap_div);
 
 int pmu_capsensor_set_irq_handler(PMU_CAP_IRQ_HANDLER_T handler);
+
+void pmu_rtc_clk_div_reload(void);
 
 #ifdef __cplusplus
 }

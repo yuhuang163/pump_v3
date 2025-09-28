@@ -22,7 +22,11 @@ extern bool btif_btgatt_is_connected_by_conidx(uint8_t conidx);
 
 #if defined(BES_OTA)
 #define OTA_BLE_RX_EVENT_MAX_MAILBOX    16
+#if defined(BLE_ONLY_LT)
+#define OTA_BLE_RX_BUF_SIZE             (4096)
+#else
 #define OTA_BLE_RX_BUF_SIZE             (2048)
+#endif
 
 static uint8_t ota_ble_rx_buf[OTA_BLE_RX_BUF_SIZE];
 static CQueue ota_ble_rx_cqueue;

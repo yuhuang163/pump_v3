@@ -80,7 +80,15 @@ enum CHG_REG_T {
 #define REG_CHARGER_BAT_OVP_DET_EN_DR                   (1 << 7)
 
 // REG_06
+#define REG_PP_CL_EN                                    (1 << 0)
+#define REG_PP_CL_EN_DR                                 (1 << 1)
+#define REG_PP_CS_EN                                    (1 << 2)
+#define REG_PP_CS_EN_DR                                 (1 << 3)
 #define REG_PP_ID_MODE_EN                               (1 << 4)
+#define REG_PP_SS_PUP_EN                                (1 << 6)
+#define REG_PP_SS_PUP_EN_DR                             (1 << 7)
+#define REG_PP_VDIV_EN                                  (1 << 8)
+#define REG_PP_VDIV_EN_DR                               (1 << 9)
 #define REG_PP_VIN_DPM_EN                               (1 << 10)
 #define REG_PP_VIN_DPM_EN_DR                            (1 << 11)
 #define REG_PP_VIN_FR_EN                                (1 << 12)

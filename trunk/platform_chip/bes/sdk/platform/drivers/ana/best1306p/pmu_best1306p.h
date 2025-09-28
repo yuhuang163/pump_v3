@@ -120,6 +120,16 @@ union SECURITY_VALUE_T {
 };
 #define SECURITY_VALUE_T                    SECURITY_VALUE_T
 
+struct RTC_CALENDAR_FORMAT_T {
+    uint16_t year;
+    uint8_t month;
+    uint8_t day;
+    uint8_t week;
+    uint8_t hour;
+    uint8_t minute;
+    uint8_t second;
+};
+
 enum PMU_CLK_SEL_RC_USER_T {
     PMU_CLK_SEL_RC_USER_SYS      = (1 << 0),
     PMU_CLK_SEL_RC_USER_CAP      = (1 << 1),
@@ -227,6 +237,26 @@ void pmu_get_ext_gpadc_calib_value(unsigned short *val_lv, unsigned short *val_h
 int pmu_get_acin_volt(uint16_t *volt);
 
 enum PMU_PACKAGE_TYPE_T pmu_get_chip_package_type(void);
+
+//=========================================================================
+// APIs for pmu rtc
+//=========================================================================
+
+typedef void (*PMU_RTC_CALENDAR_IRQ_HANDLER_T)(struct RTC_CALENDAR_FORMAT_T *calendar);
+
+int pmu_rtc_calendar_alarm_irq_handler_set(PMU_RTC_CALENDAR_IRQ_HANDLER_T handler);
+
+int pmu_rtc_calendar_alarm_clear(void);
+
+int pmu_rtc_calendar_alarm_set(struct RTC_CALENDAR_FORMAT_T *alarm_set);
+
+int pmu_rtc_calendar_alarm_get(struct RTC_CALENDAR_FORMAT_T *alarm_get);
+
+int pmu_rtc_calendar_set(struct RTC_CALENDAR_FORMAT_T *calendar_set);
+
+int pmu_rtc_calendar_get(struct RTC_CALENDAR_FORMAT_T *calendar_get);
+
+int pmu_rtc_calendar_pwron_enable(bool en);
 
 #ifdef __cplusplus
 }

@@ -1,7 +1,7 @@
 SDK_SRCTREE := $(CURDIR)/trunk/platform_chip/bes/sdk
 PROJECT_ROOT := $(CURDIR)
 O ?= $(PROJECT_ROOT)/project/build
-BIN_DIR ?= $(PROJECT_ROOT)/project/bin
+BIN_DIR ?= $(PROJECT_ROOT)/project/bin/firmware
 CHIP ?= best1306p
 CONFIG_CROSS_COMPILE ?= arm-none-eabi-
 CROSS_COMPILE ?= $(CONFIG_CROSS_COMPILE)
@@ -174,6 +174,9 @@ endif
 
 CPPFLAGS += -I$(SDK_SRCTREE)/config/$(SDK_T)
 
+# 当 T 含有斜杠时，取其 basename 用于产物文件名匹配
+T_BASENAME := $(notdir $(T))
+
 # 根据 CHIP 映射芯片宏，确保与 SDK 头文件匹配（避免将 T=ble_only_lt 误当作芯片）
 ifeq ($(CHIP),best1306p)
 CHIP_DEFINES := -DCHIP_BEST1306P
@@ -297,7 +300,7 @@ AR := $(if $(strip $(CROSS_COMPILE)),$(CROSS_COMPILE)ar,ar)
 EXTRA_LIB := $(O)/lib/libextra.a
 EXTRA_OBJS := $(patsubst $(PROJECT_ROOT)/%.c,$(O)/extra/%.o,$(filter %.c,$(EXTRA_SRCS)))
 
-.PHONY: all extra sdk clean allclean help print-vars
+.PHONY: all extra sdk sdk_only clean allclean help print-vars firmware bootloader
 
 all: extra sdk
 
@@ -319,8 +322,40 @@ sdk: $(EXTRA_LIB) | $(BIN_DIR)
 	@set -e; \
 		out_dir="$(O)/$(T)"; \
 		for ext in elf bin map lst; do \
-		f="$$out_dir/$(T).$$ext"; \
-		if [ -f "$$f" ]; then cp -f "$$f" "$(BIN_DIR)/"; fi; \
+			copied=0; \
+			for nm in "$(T)" "$(T_BASENAME)"; do \
+				f="$$out_dir/$$nm.$$ext"; \
+				if [ -f "$$f" ]; then \
+					cp -f "$$f" "$(BIN_DIR)/"; \
+					copied=1; \
+					break; \
+				fi; \
+			done; \
+			if [ "$$copied" -eq 0 ]; then \
+				:; \
+			fi; \
+		done; \
+		echo "[OK] Output copied to $(BIN_DIR)"
+
+# 仅构建 SDK，不链接 EXTRA_LIB（供 bootloader 使用）
+sdk_only: | $(BIN_DIR)
+	$(MAKE) -C $(SDK_SRCTREE) O=$(O) T=$(SDK_T) CONFIG_CROSS_COMPILE=$(CONFIG_CROSS_COMPILE) \
+		C++_ONLY_FLAGS+=" -fno-threadsafe-statics " 
+	@set -e; \
+		out_dir="$(O)/$(T)"; \
+		for ext in elf bin map lst; do \
+			copied=0; \
+			for nm in "$(T)" "$(T_BASENAME)"; do \
+				f="$$out_dir/$$nm.$$ext"; \
+				if [ -f "$$f" ]; then \
+					cp -f "$$f" "$(BIN_DIR)/"; \
+					copied=1; \
+					break; \
+				fi; \
+			done; \
+			if [ "$$copied" -eq 0 ]; then \
+				:; \
+			fi; \
 		done; \
 		echo "[OK] Output copied to $(BIN_DIR)"
 
@@ -357,10 +392,57 @@ print-vars:
 	@echo O=$(O)
 	@echo BIN_DIR=$(BIN_DIR)
 	@echo T=$(T)
+	@echo T_BASENAME=$(T_BASENAME)
 	@echo CONFIG_CROSS_COMPILE=$(CONFIG_CROSS_COMPILE)
 	@echo EXTRA_LIB=$(EXTRA_LIB)
 	@echo EXTRA_OBJS=$(EXTRA_OBJS)
 	@echo REL_TRACE_ENABLE=$(REL_TRACE_ENABLE)
 	@echo RTC_CALENDAR=$(RTC_CALENDAR)
+
+# -------------- 便捷目标：固件与 Bootloader 隔离构建 --------------
+
+# 透传关键编译变量到子 make（仅导出，不设默认值，避免影响普通构建）
+export NO_CP
+export BES_OTA
+export BLE
+export OTA_ENABLE
+export FLASH_SIZE
+export FREEMAN_OTA_ENABLE
+export OTA_BIN_COMPRESSED
+export DEBUG
+export FLASH_REMAP
+export CHIP_HAS_CP
+export CHIP
+
+# 固件构建（默认参数）
+firmware:
+	@$(MAKE) \
+		T=ble_only_lt \
+		O=$(PROJECT_ROOT)/project/build/firmware \
+		BIN_DIR=$(PROJECT_ROOT)/project/bin/firmware \
+		NO_CP=1 \
+		BES_OTA=1 \
+		BLE=1 \
+		OTA_ENABLE=1 \
+		FLASH_SIZE=0x400000 \
+		FREEMAN_OTA_ENABLE=1 \
+		OTA_BIN_COMPRESSED=1 \
+		all
+
+# Bootloader 构建（默认参数）
+bootloader:
+	@$(MAKE) \
+		T=prod_test/ota_copy \
+		CHIP=best1306p \
+		O=$(PROJECT_ROOT)/project/build/bootloader \
+		BIN_DIR=$(PROJECT_ROOT)/project/bin/bootloader \
+		DEBUG=1 \
+		BES_OTA=1 \
+		FLASH_REMAP=0 \
+		FLASH_SIZE=0x400000 \
+		CHIP_HAS_CP=0 \
+		FREEMAN_OTA_ENABLE=1 \
+		OTA_BIN_COMPRESSED=1 \
+		sdk_only
 
 
