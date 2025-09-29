@@ -6,6 +6,8 @@
 #include <stdarg.h>
 #include "hal_trace.h"
 #include "cmsis_os_api.h"
+#include "product_info.h"
+#include "root_log_define.h"
 
 /*
 * DEFINES
@@ -71,4 +73,24 @@ char *platform_log_header(void)
     static char log_header[32] = {0};
     snprintf(log_header, sizeof(log_header), "[%lld][%d]", platform_get_utc_time_ms(), platform_get_tid());
     return log_header;
+}
+
+void platform_log_init(void)
+{
+    /// 设置日志等级
+    hal_trace_set_log_level(TR_LEVEL_ERROR);
+
+    /// 打印日志头
+    LOG_STEP("********Welcome to root develop platform.********");
+    char build_time[32] = {0};
+    platform_get_build_time(build_time);
+    LOG_STEP("BUILD_TIME: %s", build_time);
+    LOG_STEP("DEVICE_NAME: %s", ROOT_DEVICE_NAME);
+    LOG_STEP("FIRMWARE_TYPE: %c", ROOT_FIRMWARE_TYPE);
+    LOG_STEP("FIRMWARE_VERSION: %d", ROOT_FIRMWARE_VERSION);
+    LOG_STEP("RES_MAJOR_VERSION: %d", ROOT_RES_MAJOR_VERSION);
+    LOG_STEP("RES_MINOR_VERSION: %d", ROOT_RES_MINOR_VERSION);
+    LOG_STEP("BLE_PROTOCOL_VERSION: %d", ROOT_BLE_PROTOCOL_VERSION);
+    LOG_STEP("PRODUCT_ID: 0x%x", ROOT_PRODUCT_ID);
+    LOG_STEP("****************************************************\n");
 }

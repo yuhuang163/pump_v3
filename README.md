@@ -89,7 +89,8 @@ FIRMWARE_V3/
     │   ├── sensor_manager_api.h     ← 传感器管理接口（新增）
     │   ├── project_default_features.h ← 默认功能开关（新增）
     │   ├── project_default_parameter.h ← 默认参数定义（新增）
-    │   └── windows_manager_api.h    ← 窗口管理接口
+    │   ├── windows_manager_api.h    ← 窗口管理接口
+    │   └── tests_manager_api.h      ← 测试模块接口（新增）
     │
     ├── root_source/                 ← 核心子系统实现（面向上层的服务）
     │   ├── airplane_mode/           ← 飞行模式

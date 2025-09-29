@@ -24,11 +24,17 @@ CFLAGS ?= -O2 -g -std=$(CSTD) -fvisibility=default
 EXTRA_SDK_ARCH_FLAGS := -mthumb -mcpu=cortex-m33 -mfpu=fpv5-sp-d16 -mfloat-abi=hard
 EXTRA_CFLAGS ?= -std=gnu99 $(EXTRA_SDK_ARCH_FLAGS)
 
+# custom app switch
+CFG_CUSTOM_APP ?= 1
+
 # Release trace switch for both EXTRA_LIB and SDK build
 REL_TRACE_ENABLE ?= 1
 
 # RTC calendar feature switch
 RTC_CALENDAR ?= 1
+
+# PMU clock use external crystal switch
+PMU_CLK_USE_EXT_CRYSTAL ?= 1
 
 # littlefs section size
 LITTLEFS_SECTION_SIZE ?= 0x4000
@@ -138,6 +144,11 @@ SDK_INCLUDE_PATHS := \
 # 添加项目根目录和 SDK 头文件路径
 CPPFLAGS ?= -I$(PROJECT_ROOT) -I$(PROJECT_ROOT)/trunk $(SDK_INCLUDE_PATHS)
 
+# custom app switch
+ifeq ($(CFG_CUSTOM_APP),1)
+CPPFLAGS += -DCFG_CUSTOM_APP
+endif
+
 # 调试日志相关宏定义
 ifeq ($(REL_TRACE_ENABLE),1)
 CPPFLAGS += -DREL_TRACE_ENABLE
@@ -146,6 +157,15 @@ endif
 # RTC 日历相关宏定义
 ifeq ($(RTC_CALENDAR),1)
 CPPFLAGS += -DRTC_CALENDAR
+endif
+
+# PMU clock use external crystal switch
+ifeq ($(PMU_CLK_USE_EXT_CRYSTAL),1)
+export CALIB_SLOW_TIMER := 0
+CPPFLAGS += -DPMU_CLK_USE_EXT_CRYSTAL
+else
+export CALIB_SLOW_TIMER := 1
+CPPFLAGS += -DCALIB_SLOW_TIMER
 endif
 
 # PWM IOMUX 相关宏定义
@@ -317,8 +337,12 @@ sdk: $(EXTRA_LIB) | $(BIN_DIR)
 		PWM1_IOMUX_INDEX=$(PWM1_IOMUX_INDEX) \
 		PWM2_IOMUX_INDEX=$(PWM2_IOMUX_INDEX) \
 		PWM3_IOMUX_INDEX=$(PWM3_IOMUX_INDEX) \
-		CFG_CUSTOM_BLE_SERVICE=$(CFG_CUSTOM_BLE_SERVICE)
-	#   RTC_CALENDAR=$(RTC_CALENDAR)
+		RTC_CALENDAR=$(RTC_CALENDAR) \
+		PMU_CLK_USE_EXT_CRYSTAL=$(PMU_CLK_USE_EXT_CRYSTAL) \
+		CALIB_SLOW_TIMER=$(CALIB_SLOW_TIMER) \
+		CFG_CUSTOM_BLE_SERVICE=$(CFG_CUSTOM_BLE_SERVICE) \
+		CFG_CUSTOM_APP=$(CFG_CUSTOM_APP)
+
 	@set -e; \
 		out_dir="$(O)/$(T)"; \
 		for ext in elf bin map lst; do \
@@ -398,6 +422,7 @@ print-vars:
 	@echo EXTRA_OBJS=$(EXTRA_OBJS)
 	@echo REL_TRACE_ENABLE=$(REL_TRACE_ENABLE)
 	@echo RTC_CALENDAR=$(RTC_CALENDAR)
+	@echo PMU_CLK_USE_EXT_CRYSTAL=$(PMU_CLK_USE_EXT_CRYSTAL)
 
 # -------------- 便捷目标：固件与 Bootloader 隔离构建 --------------
 

@@ -11,7 +11,6 @@
  *********************/
 #include "lv_port_disp.h"
 #include <stdbool.h>
-#include "usmile_common_api.h"
 
 /**********************
  *      TYPEDEFS

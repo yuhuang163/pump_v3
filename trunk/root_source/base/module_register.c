@@ -54,6 +54,9 @@ static const module_register_fptr s_module_register[] = {
     #if IS_SUPPORT_MODULE_BREATH_PUMP
     register_module_for_breath_pump_new,
     #endif
+    #if IS_SUPPORT_MODULE_TESTS
+    register_module_for_tests_manager_new,
+    #endif
     #if IS_SUPPORT_MODULE_US_ALGO
     register_module_for_algo_fusion_new,
     #endif

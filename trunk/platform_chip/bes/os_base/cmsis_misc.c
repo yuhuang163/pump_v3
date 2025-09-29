@@ -79,7 +79,7 @@ void platform_system_reboot(void)
 uint32_t platform_get_utc_time(void)
 {
     utc_time_t utc_time = {0};
-    // pmu_rtc_calendar_get(&utc_time);
+    pmu_rtc_calendar_get((struct RTC_CALENDAR_FORMAT_T *)&utc_time);
     return utc_time_to_timestamp(&utc_time);
 }
 
@@ -94,7 +94,7 @@ void platform_set_utc_time(uint32_t timestemp, int timezone)
     timestamp_to_utc_time(timestemp, &utc_time);
     LOGI("utc_time: %d-%d-%d %d:%d:%d", utc_time.year, utc_time.month, 
         utc_time.day, utc_time.hour, utc_time.minute, utc_time.second);
-    // pmu_rtc_calendar_set(&utc_time);
+    pmu_rtc_calendar_set((struct RTC_CALENDAR_FORMAT_T *)&utc_time);
 }
 
 void platform_get_build_time(char *build_time)

@@ -4097,7 +4097,10 @@ void app_ble_init(void)
 #else
     ble_custom_gap_connect_init(&params);
 #endif
-    gap_set_peripheral_prefer_conn_parameters(&params);
+    int ret = gap_set_peripheral_prefer_conn_parameters(&params);
+    if (ret != BT_STS_SUCCESS) {
+        CO_LOG_ERR_1(BT_STS_FAILED, ret);
+    }
 
     nv_record_blerec_init();
 

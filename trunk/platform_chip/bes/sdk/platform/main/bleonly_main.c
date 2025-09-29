@@ -651,7 +651,10 @@ void ble_start_adv(void)
     app_ble_start_connectable_adv(500);
 }
 
+#if CFG_CUSTOM_APP
+extern void platform_log_init(void);
 extern void root_main(int argc, const char *argv[]);
+#endif
 int main(void)
 {
     hwtimer_init();
@@ -674,9 +677,12 @@ int main(void)
 
 #ifdef TRACE_LVL_DEBUG
     hal_trace_set_log_level(LOG_LEVEL_DEBUG);
-#else
-    // hal_trace_set_log_level(TR_LEVEL_WARN);
 #endif
+
+#if CFG_CUSTOM_APP
+    platform_log_init();
+#endif
+
     hal_norflash_show_id_state(HAL_FLASH_ID_0, true);
 
     hal_iomux_ispi_access_init();
@@ -733,7 +739,9 @@ int main(void)
     } else {
         ble_app_init();
         ble_start_adv();
+#if CFG_CUSTOM_APP
         root_main(0, NULL);
+#endif
     }
  
     uint32_t flags = 0;

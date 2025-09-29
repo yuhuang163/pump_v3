@@ -53,25 +53,9 @@ static void init_thread(const void *thd)
 void root_main(int argc, const char *argv[])
 {
     static thread_context_t init_thd = {0};
-    msleep(2000);
     platform_prepare_init();
     reset_log_filter(LOG_FILTER);
-
-    LOG_STEP("********Welcome to root develop platform.********");
-    char build_time[32] = {0};
-    platform_get_build_time(build_time);
-    LOG_STEP("BUILD_TIME: %s", build_time);
-    LOG_STEP("DEVICE_NAME: %s", ROOT_DEVICE_NAME);
-    LOG_STEP("FIRMWARE_TYPE: %c", ROOT_FIRMWARE_TYPE);
-    LOG_STEP("FIRMWARE_VERSION: %d", ROOT_FIRMWARE_VERSION);
-    LOG_STEP("RES_MAJOR_VERSION: %d", ROOT_RES_MAJOR_VERSION);
-    LOG_STEP("RES_MINOR_VERSION: %d", ROOT_RES_MINOR_VERSION);
-    LOG_STEP("BLE_PROTOCOL_VERSION: %d", ROOT_BLE_PROTOCOL_VERSION);
-    LOG_STEP("PRODUCT_ID: 0x%x", ROOT_PRODUCT_ID);
-    LOG_STEP("****************************************************\n");
-
     RUN_NEW_THREAD(&init_thd, "init_thd", init_thread, RT_PRIO_MAIN_THREAD, (MAIN_THREAD_STACKSIZE));
-    msleep(10000);
     os_kernel_start_wrapper();
 }
  
