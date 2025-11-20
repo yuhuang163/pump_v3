@@ -74,7 +74,7 @@ void timestamp_to_utc_time(uint32_t seconds, utc_time_t *utc_time)
         time.month += 1;
 
     time.day = days - dayp[time.month - 1] + 1;
-    time.year = year;
+    time.year = year - 2000;
 
     memcpy(utc_time, &time, sizeof(utc_time_t));
 }

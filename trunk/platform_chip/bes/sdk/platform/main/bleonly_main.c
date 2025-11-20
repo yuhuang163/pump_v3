@@ -39,8 +39,12 @@
 #endif
 #endif
 
+#include "watchdog/watchdog.h"
+
 #define STACK_READY_BT  0x01
 #define STACK_READY_BLE 0x02
+
+static osThreadId main_thread_tid = NULL;
 
 #if defined(BLE_ONLY_LT)
 #ifdef FIRMWARE_REV
@@ -70,8 +74,6 @@ void system_get_info(uint8_t *fw_rev_0, uint8_t *fw_rev_1, uint8_t *fw_rev_2, ui
   SYS_STORE_FW_VER(3);
 }
 #endif
-
-static osThreadId main_thread_tid = NULL;
 
 int system_reset(void)
 {
@@ -154,8 +156,6 @@ void SelectEnterApp(void)
     }
 }
 void boot_loader_pre_init_hook(void) __attribute__((alias("SelectEnterApp")));
-
-static osThreadId main_thread_tid = NULL;
 #endif
 
 int signal_send_to_main_thread(uint32_t signals)
@@ -545,7 +545,6 @@ void app_factorymode_bt_nosignalingtest_handler(void)
     bt_drv_reg_op_key_gen_after_reset(false);
     btdrv_hci_reset();
     btdrv_sleep_config(0);
-    btdrv_delay_for_wakeup();
     btdrv_testmode_start();
     btdrv_feature_default();
     devinfo.btd_addr = bt_get_local_address();
@@ -580,7 +579,7 @@ void app_enter_non_signalingtest_mode(void)
     pmu_reboot();
 }
 /***************************************************************/
-
+#if 0
 static int key_event_process(uint32_t key_code, uint8_t key_event)
 {
     TRACE(2,"%s: key_code:%04x key_event:%d", __func__, key_code, key_event);
@@ -601,6 +600,7 @@ static int key_event_process(uint32_t key_code, uint8_t key_event)
 
     return 0;
 }
+#endif
 
 static void app_ble_stub_user_data_fill_handler(void *param)
 {
@@ -657,13 +657,15 @@ extern void root_main(int argc, const char *argv[]);
 #endif
 int main(void)
 {
+    app_wdt_open(15);
+    app_wdt_hung_task_check_enable(true);
+
     hwtimer_init();
     hal_sys_timer_open();
-
     hal_audma_open();
     hal_gpdma_open();
 
-    hal_key_open(0, key_event_process);
+    // hal_key_open(0, key_event_process);
 
 #if (DEBUG_PORT == 1)
     hal_iomux_set_uart0();
@@ -681,6 +683,9 @@ int main(void)
 
 #if CFG_CUSTOM_APP
     platform_log_init();
+#else
+    hal_trace_set_log_level(TR_LEVEL_DEBUG);
+    TRACE(0, "-->-->no custom app log level: debug");
 #endif
 
     hal_norflash_show_id_state(HAL_FLASH_ID_0, true);
@@ -741,6 +746,8 @@ int main(void)
         ble_start_adv();
 #if CFG_CUSTOM_APP
         root_main(0, NULL);
+#else
+        TRACE(0, "no custom app enter");
 #endif
     }
  
@@ -752,6 +759,10 @@ int main(void)
                 break;
             }
         }
+        #if CFG_CUSTOM_APP
+        #else
+        TRACE(0, "-->-->no custom app loop");
+        #endif
     }
 
     ble_app_deinit();

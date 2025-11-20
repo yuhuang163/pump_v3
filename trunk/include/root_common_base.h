@@ -43,6 +43,7 @@ extern "C" {
 #include "hal_pmu.h" // IWYU pragma: keep
 #include "hal_power.h" // IWYU pragma: keep
 #include "hal_uarts.h" // IWYU pragma: keep
+#include "hal_air_pressure.h" // IWYU pragma: keep
 
 /// 内存申请宏定义.
 #define MALLOC_FOR_PTR(ptr, __struct_type) \
@@ -65,11 +66,10 @@ extern "C" {
 #define EXECUTE_EVERY_X_DELAY(dest_time, closure) \
 do { \
     static uint32_t __t0 = 0; \
-    uint32_t __t1 = get_timestamp(); \
     if (__t0 == 0) { \
-        __t0 = __t1; \
-    } else if (__t1 - __t0 > (dest_time)) { \
-         __t0 = __t1; \
+        __t0 = get_timestamp(); \
+    } else if (get_timestamp_ms(__t0) > (dest_time)) { \
+         __t0 = get_timestamp(); \
         { closure } \
     } \
 } while (0)   

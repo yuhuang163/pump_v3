@@ -20,7 +20,6 @@
 #include "plat_types.h"
 #include "hal_chipid.h"
 #include "bt_drv.h"
-#include "bt_drv_internal.h"
 #include "bt_drv_interface.h"
 #include "bt_drv_reg_op.h"
 #include "besbt_string.h"

@@ -598,7 +598,7 @@ void dc_iq_calib_1503(void)
 #endif
     //common RF register init
     BTDIGITAL_REG_SET_FIELD(BESMDM_IQMCNTL_ADDR_CT_ADDR, 0x1, 31, 1);
-    BT_DRV_TRACE(1,"use time: %d ms", __TICKS_TO_MS(hal_sys_timer_get()-time_start));
+    BT_DRV_TRACE(1,"use time: %d ms", TICKS_TO_MS(hal_sys_timer_get()-time_start));
 }
 
 #define RX_AGC_IDX      7
@@ -619,10 +619,17 @@ void rx_dc_cal_1503(void)
 
     for (uint8_t i = 0; i <= RX_AGC_IDX; i++) {
 #ifdef __HW_AGC__
+#ifdef BT_RF_I2V_BYPASS
         // dr rx gain
         BTRF_REG_SET_FIELD(0x309, 0x1, 9, 1);
         // dr rx gain idx
         BTRF_REG_SET_FIELD(0x309, 0x7, 10, i);
+#else
+        // dr rx gain
+        BTRF_REG_SET_FIELD(0x209, 0x1, 9, 1);
+        // dr rx gain idx
+        BTRF_REG_SET_FIELD(0x209, 0x7, 10, i);
+#endif
 #else
         // dr rx gain
         BTRF_REG_SET_FIELD(0x24, 0x1, 0, 1);
@@ -660,7 +667,7 @@ void rx_dc_cal_1503(void)
         //dccal_dac_en
         BTRF_REG_SET_FIELD(0x409, 0x3, 6, 3);
     }
-    BT_DRV_TRACE(1,"use time: %d ms", __TICKS_TO_MS(hal_sys_timer_get()-time_start));
+    BT_DRV_TRACE(1,"use time: %d ms", TICKS_TO_MS(hal_sys_timer_get()-time_start));
 }
 #endif
 #endif

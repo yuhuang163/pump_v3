@@ -9,11 +9,11 @@ obj-y += C/LzmaDec.c
 obj-y += bes_lzma_api.c  lzma_decode.c bes_lzma_dec_code.c
 #obj-y := bes_lzma_api.c lzma_decode.c
 
-obj-y += bes_lzma_utils.c
-
 obj-y := $(obj-y:.c=.o)
 obj-y := $(obj-y:.cpp=.o)
 obj-y := $(obj-y:.S=.o)
+
+LIC_FILE_PATTERN := NOTICE
 
 ccflags-y := \
 	-Iplatform/cmsis/inc/ \

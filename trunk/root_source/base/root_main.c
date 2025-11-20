@@ -42,7 +42,7 @@ static void init_thread(const void *thd)
     init_module();
     init_user_log_filter();
     run_user_thread_dispatch();
-    LOG_STEP("init escaped: %lu", (get_timestamp() - t0));
+    LOG_STEP("init escaped: %lu", get_timestamp_ms(t0));
     EXIT_THREAD((thread_context_t *)thd);
 }
 

@@ -63,7 +63,7 @@ static int wifi_dev_resume(struct rt_device_node *dev)
  * GLOBAL FUNCTION DEFINITIONS
  *****************************************************************************************
  */
-void *register_device_for_motor(list_head_t *list_head)
+void *register_device_for_wifi(list_head_t *list_head)
 {
     node = u_malloz(sizeof(rt_device_node_t));
     node->name = "wifi";

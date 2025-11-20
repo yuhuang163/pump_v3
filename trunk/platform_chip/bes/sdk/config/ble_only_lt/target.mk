@@ -34,11 +34,11 @@ DEBUG_PORT  ?= 1
 
 export FLASH_SIZE ?= 0x400000
 export FLASH_SUSPEND ?= 1
-export FAULT_DUMP := 0
+export FAULT_DUMP := 1
 
 export NO_OVERLAY := 1
 
-export TRACE_BAUD_RATE := 8*115200
+export TRACE_BAUD_RATE := 2000000
 export TRACE_BUF_SIZE ?= 4*1024
 
 init-y      :=
@@ -80,7 +80,7 @@ export ENABLE_PRINT_FLOAT ?= 1
 export CORE_DUMP ?= 0
 export ALLOW_WARNING ?= 1
 
-export OS_TASKCNT ?= 16
+export OS_TASKCNT ?= 28
 export OS_SCHEDULERSTKSIZE ?= 512
 export OS_IDLESTKSIZE ?= 1024
 export OS_FIFOSZ ?= 24

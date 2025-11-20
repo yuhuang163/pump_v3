@@ -2,6 +2,7 @@
 * INCLUDE FILES
 *****************************************************************************************
 */
+#include "cmsis_os_api.h"
 #include "root_common_api.h" // IWYU pragma: keep
 #include "handler_post.h" 
 
@@ -110,7 +111,7 @@ static void hdr_dispatch_task(hdr_post_context_t *ctx, hdr_post_args_t *post)
 
         /// 运行中的短时任务加入到数组中保存,用于策略调度.
         running[j].id = i;
-        running[j].total_run_time = get_timestamp() - run_timestamp;
+        running[j].total_run_time = get_timestamp_ms(run_timestamp);
         j++;
     }
 
@@ -155,7 +156,7 @@ static int hdr_post_process_cb(multi_func_msg_data_t *msg, thread_context_t *thd
     thd->task_name = (char *)target->name;
     target->cb(target);
     thd->task_name = "idle";
-    diff_time = (get_timestamp() - exec_time);
+    diff_time = (get_timestamp_ms(exec_time));
     if (thd->exclusive_task) {
         thd->exclusive_task = 0;
     }
@@ -209,7 +210,7 @@ static void post_timer_callback(void *handle)
         /// 2. 任务时间到,推送执行.
         if (node->arrival_time == 0) {
             /// 计算时间补偿.
-            int exec_time = get_timestamp() - node->create_time;
+            int exec_time = get_timestamp_ms(node->create_time);
             if (exec_time < node->excpect_time) {
                 node->arrival_time = node->excpect_time - exec_time;
                 #if DEBUG_HDR_TASK

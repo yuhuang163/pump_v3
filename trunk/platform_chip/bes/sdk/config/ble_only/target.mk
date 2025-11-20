@@ -34,7 +34,7 @@ DEBUG_PORT  ?= 1
 
 export FLASH_SIZE ?= 0x400000
 export FLASH_SUSPEND ?= 1
-export FAULT_DUMP := 0
+export FAULT_DUMP := 1
 
 export NO_OVERLAY := 1
 

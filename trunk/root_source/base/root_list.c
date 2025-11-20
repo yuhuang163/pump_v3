@@ -4,6 +4,7 @@
  */
 #include "root_list_api.h" 
 #include "cmsis_os_api.h" 
+#include "root_log_define.h" 
 
 /*
  * DEFINES
@@ -85,6 +86,10 @@ int __list_empty(list_head_t *head, list_del_condition_cb_fptr cb)
      
     for (list_head_t *pos = head->next; pos != NULL; ) {
         node = cb(NULL, pos);
+        if (node == NULL) {
+            LOGE("list error, memery leak !!!!!");
+            break;
+        }
         head->next = pos->next;
         pos = pos->next;
         u_free(node);

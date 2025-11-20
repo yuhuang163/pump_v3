@@ -71,7 +71,7 @@ static void on_ota_broadcast_receive(broadcast_mask_id_t id,
     LOG_OTA("ota_broadcast rcv_id: 0x%lx", id.code);
 
     switch (id.code) {
-    case ID_BROADCAST_BT_CONNECT_STATE_CHANGE:
+    case ID_BROADCAST_BLE_CONNECT_STATE_CHANGE:
         if (arg1) {
             ota_manager_thread_resume();
         } else {
@@ -182,7 +182,7 @@ static int on_post_ota_init(void *ptr)
     ctx->priv.ota_bcd = u_malloz(sizeof(broadcast_obj_t));
     ctx->priv.ota_bcd->context = ctx;
     ctx->priv.ota_bcd->name = "ota_manager";
-    ctx->priv.ota_bcd->id.code |= ID_BROADCAST_BT_CONNECT_STATE_CHANGE;
+    ctx->priv.ota_bcd->id.code |= ID_BROADCAST_BLE_CONNECT_STATE_CHANGE;
     ctx->priv.ota_bcd->receiver_cb = on_ota_broadcast_receive;
     register_broadcast_receiver(ctx->priv.ota_bcd);
     CREATE_TIMER(&ctx->priv.ota_timer[0], "ota_timer_progress", ctx, 

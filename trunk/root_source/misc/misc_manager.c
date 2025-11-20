@@ -3,6 +3,7 @@
 *****************************************************************************************
 */
 #include "root_common_api.h"
+#include "root_log_define.h"
 
 /*
 * DEFINES
@@ -66,7 +67,8 @@ static void polling_battery_status(misc_manager_context_t *ctx, window_manager_c
     if (!is_plug_state_changed && ctx->priv.low_battery) {      
         if (ctx->priv.battery_ui_has_show == 0) {
             if (!pm->is_pm_suspend()) {
-                ctx->show_battery_ui_if_need(wm, false); /// 低电量提醒UI,仅在未休眠时弹出提醒.
+                LOG_MISC("#show_battery_ui_if_need");
+                // ctx->show_battery_ui_if_need(wm, false); /// 低电量提醒UI,仅在未休眠时弹出提醒.
             }
         }
         msleep(1000);
@@ -94,15 +96,14 @@ static void polling_charge_status(misc_manager_context_t *ctx, window_manager_co
     }
     LOG_MISC("charge:%d", chage_state);
 
-    #if IS_SUPPORT_AIRPLANE_MODE
-    /// 飞行模式下不弹充电界面
-    airplane_mode_context_t *ap = (airplane_mode_context_t *)find_module(ID_MODULE_AP_MODE);
+/// 飞行模式下不弹充电界面
+#if IS_SUPPORT_AIRPLANE_MODE
+    airplane_mode_context_t *ap = (airplane_mode_context_t *)find_module(ID_MODULE_AIRPLANE_MODE);
     if (ap && ap->is_on_airplane_mode()) {
         LOG_MISC("airplane_mode ignore");
         return;
     }
-    #endif
-
+#endif
     *is_plug_state_changed = plug_status;
     if (chage_state != CHARGE_STATE_ERROR) {
         if (*is_plug_state_changed) {
@@ -110,7 +111,7 @@ static void polling_charge_status(misc_manager_context_t *ctx, window_manager_co
                 pm->pm_wakeup(PM_WAKEUP_REASON_CHARGE_PLUG_IN);
             } else {
                 LOG_MISC("#show_charge_ui_if_need");
-                ctx->show_charge_ui_if_need(wm, false);
+                // ctx->show_charge_ui_if_need(wm, false);
             }
         } else {
             if (!pm->is_pm_suspend()) {
@@ -118,7 +119,7 @@ static void polling_charge_status(misc_manager_context_t *ctx, window_manager_co
             }
         }
     }
-    SEND_BROADCAST_ARGS1(ID_BROADCAST_CHARGE_PLUG_IN_STATE, chage_state);  /// 发送充电状态广播.
+    SEND_BROADCAST_ARGS1(ID_BROADCAST_CHARGE_STATE_CHANGE, chage_state);  /// 发送充电状态广播.
 }
 
 static void misc_work_broadcast_receive(broadcast_mask_id_t id, void *context, int32_t args0, int32_t args1,
@@ -135,9 +136,7 @@ static void misc_work_broadcast_receive(broadcast_mask_id_t id, void *context, i
             START_TIMER(ctx->priv.misc_timer, MISC_POLLING_PERIOD);
             ctx->priv.battery_ui_has_show = 0;
         }
-    } else if (id.code == ID_BROADCAST_PM_FREEZE_STATE_CHANGE) {
-        platform_sysinfo_print(ctx);
-    }
+    } 
 }
 
 static void charge_irq_callback(uint8_t *data)
@@ -183,7 +182,7 @@ static void misc_work_polling_thread(const void *args)
         }
 
         if (!sys_ready && wm) {
-            sys_ready = wm->system_is_ready();
+            sys_ready = wm->system_is_ready(wm);
             continue;
         }
 
@@ -211,8 +210,7 @@ static uint8_t local_get_battery_percent(void)
     EXCEPTION_CHECK_UINT(thiz->priv.battery);
     uint16_t val = DEVICE_READ(thiz->priv.battery);
     val = (val) ? val : 1;
-    LOG_MISC("get_percent: %d", val);
-
+    // LOG_MISC("get_percent: %d", val);
     return val;
 }
 
@@ -235,16 +233,13 @@ static void local_set_battery_ui_show_flag(int flag)
 static int on_post_misc_init(void *ptr)
 {
     misc_manager_context_t *ctx = ptr;
-
     /// 注册广播监听.
     ctx->priv.misc_bcd = u_malloz(sizeof(broadcast_obj_t));
     ctx->priv.misc_bcd->context = ctx;
     ctx->priv.misc_bcd->name = "misc_bcd_ctx";
     ctx->priv.misc_bcd->id.code |= ID_BROADCAST_PM_STATE_CHANGE;
-    ctx->priv.misc_bcd->id.code |= ID_BROADCAST_PM_FREEZE_STATE_CHANGE;
     ctx->priv.misc_bcd->receiver_cb = misc_work_broadcast_receive;
     register_broadcast_receiver(ctx->priv.misc_bcd);
-    
     /// 电量状态初始化
     DEVICE_IOCTL_NO_RET(thiz->priv.battery, OP_CODE_BAT_POLL_VOLTAGE);
     ctx->priv.low_battery = check_if_low_battery(ctx);
@@ -302,6 +297,13 @@ static uint8_t local_is_charge_plug_in(void)
     return CHARGE_STATE_ERROR;
 }
 
+static uint8_t local_get_charge_status(void)
+{
+    EXCEPTION_CHECK_UINT(thiz->priv.battery);
+    DEVICE_IOCTL_HAS_RET(thiz->priv.battery, OP_CODE_BAT_GET_CHARGE_STATUS, ret);
+    return ret;
+}
+
 static uint8_t local_charge_show_ui_if_need(void *wm, int is_fg)
 {
     window_manager_context_t *wm_ctx = (window_manager_context_t *)wm;
@@ -351,6 +353,7 @@ void *register_module_for_misc_manager_new(list_head_t *list_head)
 
     ptr->priv.battery_percent = 5;
     ptr->is_charge_plug_in = local_is_charge_plug_in;
+    ptr->get_charge_status = local_get_charge_status;
     ptr->set_charge_ui_show_flag = local_set_charge_ui_show_flag;
     ptr->show_charge_ui_if_need = local_charge_show_ui_if_need;
     ptr->set_state_change_listener = local_state_change_listener;

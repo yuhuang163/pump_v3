@@ -16,102 +16,9 @@
 #ifndef __BT_DRV_INTERFACE_H__
 #define  __BT_DRV_INTERFACE_H__
 
-#include "stdint.h"
-#include "stdbool.h"
-
-//LMP Opcodes
-#define LMP_NAME_REQ_OPCODE                1
-#define LMP_NAME_RES_OPCODE                2
-#define LMP_ACCEPTED_OPCODE                3
-#define LMP_NOT_ACCEPTED_OPCODE            4
-#define LMP_CLK_OFF_REQ_OPCODE             5
-#define LMP_CLK_OFF_RES_OPCODE             6
-#define LMP_DETACH_OPCODE                  7
-#define LMP_INRAND_OPCODE                  8
-#define LMP_COMBKEY_OPCODE                 9
-#define LMP_UNITKEY_OPCODE                10
-#define LMP_AURAND_OPCODE                 11
-#define LMP_SRES_OPCODE                   12
-#define LMP_TEMPRAND_OPCODE               13
-#define LMP_TEMPKEY_OPCODE                14
-#define LMP_ENC_MODE_REQ_OPCODE           15
-#define LMP_ENC_KEY_SIZE_REQ_OPCODE       16
-#define LMP_START_ENC_REQ_OPCODE          17
-#define LMP_STOP_ENC_REQ_OPCODE           18
-#define LMP_SWITCH_REQ_OPCODE             19
-#define LMP_HOLD_OPCODE                   20
-#define LMP_HOLD_REQ_OPCODE               21
-#define LMP_SNIFF_REQ_OPCODE              23
-#define LMP_UNSNIFF_REQ_OPCODE            24
-#define LMP_PARK_REQ_OPCODE               25
-#define LMP_SET_BSWIN_OPCODE              27
-#define LMP_MODIF_BEACON_OPCODE           28
-#define LMP_UNPARK_BD_REQ_OPCODE          29
-#define LMP_UNPARK_PM_REQ_OPCODE          30
-#define LMP_INCR_PWR_REQ_OPCODE           31
-#define LMP_DECR_PWR_REQ_OPCODE           32
-#define LMP_MAX_PWR_OPCODE                33
-#define LMP_MIN_PWR_OPCODE                34
-#define LMP_AUTO_RATE_OPCODE              35
-#define LMP_PREF_RATE_OPCODE              36
-#define LMP_VER_REQ_OPCODE                37
-#define LMP_VER_RES_OPCODE                38
-#define LMP_FEATS_REQ_OPCODE              39
-#define LMP_FEATS_RES_OPCODE              40
-#define LMP_QOS_OPCODE                    41
-#define LMP_QOS_REQ_OPCODE                42
-#define LMP_SCO_LINK_REQ_OPCODE           43
-#define LMP_RMV_SCO_LINK_REQ_OPCODE       44
-#define LMP_MAX_SLOT_OPCODE               45
-#define LMP_MAX_SLOT_REQ_OPCODE           46
-#define LMP_TIMING_ACCU_REQ_OPCODE        47
-#define LMP_TIMING_ACCU_RES_OPCODE        48
-#define LMP_SETUP_CMP_OPCODE              49
-#define LMP_USE_SEMI_PERM_KEY_OPCODE      50
-#define LMP_HOST_CON_REQ_OPCODE           51
-#define LMP_SLOT_OFF_OPCODE               52
-#define LMP_PAGE_MODE_REQ_OPCODE          53
-#define LMP_PAGE_SCAN_MODE_REQ_OPCODE     54
-#define LMP_SUPV_TO_OPCODE                55
-#define LMP_TEST_ACTIVATE_OPCODE          56
-#define LMP_TEST_CTRL_OPCODE              57
-#define LMP_ENC_KEY_SIZE_MASK_REQ_OPCODE  58
-#define LMP_ENC_KEY_SIZE_MASK_RES_OPCODE  59
-#define LMP_SET_AFH_OPCODE                60
-#define LMP_ENCAPS_HDR_OPCODE             61
-#define LMP_ENCAPS_PAYL_OPCODE            62
-#define LMP_SP_CFM_OPCODE                 63
-#define LMP_SP_NB_OPCODE                  64
-#define LMP_DHKEY_CHK_OPCODE              65
-#define LMP_PAUSE_ENC_AES_REQ_OPCODE      66
-
-///LMP Escape 4 Extended Opcodes
-#define LMP_ACCEPTED_EXT_EXTOPCODE         1
-#define LMP_NOT_ACCEPTED_EXT_EXTOPCODE     2
-#define LMP_FEATS_REQ_EXT_EXTOPCODE        3
-#define LMP_FEATS_RES_EXT_EXTOPCODE        4
-#define LMP_CLK_ADJ_EXTOPCODE              5
-#define LMP_CLK_ADJ_ACK_EXTOPCODE          6
-#define LMP_CLK_ADJ_REQ_EXTOPCODE          7
-#define LMP_PKT_TYPE_TBL_REQ_EXTOPCODE    11
-#define LMP_ESCO_LINK_REQ_EXTOPCODE       12
-#define LMP_RMV_ESCO_LINK_REQ_EXTOPCODE   13
-#define LMP_CH_CLASS_REQ_EXTOPCODE        16
-#define LMP_CH_CLASS_EXTOPCODE            17
-#define LMP_SSR_REQ_EXTOPCODE             21
-#define LMP_SSR_RES_EXTOPCODE             22
-#define LMP_PAUSE_ENC_REQ_EXTOPCODE       23
-#define LMP_RESUME_ENC_REQ_EXTOPCODE      24
-#define LMP_IO_CAP_REQ_EXTOPCODE          25
-#define LMP_IO_CAP_RES_EXTOPCODE          26
-#define LMP_NUM_COMPARISON_FAIL_EXTOPCODE 27
-#define LMP_PASSKEY_FAIL_EXTOPCODE        28
-#define LMP_OOB_FAIL_EXTOPCODE            29
-#define LMP_KEYPRESS_NOTIF_EXTOPCODE      30
-#define LMP_PWR_CTRL_REQ_EXTOPCODE        31
-#define LMP_PWR_CTRL_RES_EXTOPCODE        32
-#define LMP_PING_REQ_EXTOPCODE            33
-#define LMP_PING_RES_EXTOPCODE            34
+#include <stdint.h>
+#include <stdbool.h>
+#include <stddef.h>
 
 // CARE: round-off error
 #define BT_CLK_UNIT 312.5       //us
@@ -120,12 +27,6 @@
 #define US_TO_BTCLKS(us)    ((uint64_t)(us) * 2 / BT_CLK_UNIT_2X)
 #define BTCLKS_TO_US(n)     ((uint64_t)(n) * BT_CLK_UNIT_2X / 2)
 #define HALF_SLOT_INV(x)  (HALF_SLOT_SIZE - (x) - 1)
-
-#define BD_NAME_SIZE        0xF8
-
-#define DUT_CONNECT_STATUS_CONNECTED (1)
-#define DUT_CONNECT_STATUS_DISCONNECTED (2)
-
 #define BT_TRIG_NONE_ROLE      (0)
 #define BT_TRIG_MASTER_ROLE    (1)
 #define BT_TRIG_SLAVE_ROLE     (2)
@@ -246,6 +147,14 @@ enum BT_RSSI_THR_TYPE_T{
    READ_TWS_TYPE,
 };
 
+enum BES_AIOT_MODE
+{
+    AIOT_BT_BLE_MODE       = 0,
+    AIOT_ANT_MODE          = 1,
+    AIOT_MAC154_MODE       = 2,
+    AIOT_SLE_MODE          = 3,
+};
+
 /// BT driver customer config structure
 struct btdrv_customer_rf_config_t
 {
@@ -254,24 +163,32 @@ struct btdrv_customer_rf_config_t
     uint16_t xtal_cap_val;
     int8_t bt_tx_idx7_pwr;
     int8_t le_tx_idx7_pwr;
+    int8_t edr_tx_idx7_pwr;
     int8_t bt_tx_page_pwr;
     int8_t bt_tx_idx6_pwr;
     int8_t le_tx_idx6_pwr;
+    int8_t edr_tx_idx6_pwr;
     int8_t bt_tx_page_high_pwr;
     int8_t bt_tx_max_pwr;
     int8_t le_tx_max_pwr;
     int8_t bt_tx_idx5_pwr;
     int8_t le_tx_idx5_pwr;
+    int8_t edr_tx_idx5_pwr;
     int8_t bt_tx_idx4_pwr;
     int8_t le_tx_idx4_pwr;
+    int8_t edr_tx_idx4_pwr;
     int8_t bt_tx_idx3_pwr;
     int8_t le_tx_idx3_pwr;
+    int8_t edr_tx_idx3_pwr;
     int8_t bt_tx_idx2_pwr;
     int8_t le_tx_idx2_pwr;
+    int8_t edr_tx_idx2_pwr;
     int8_t bt_tx_idx1_pwr;
     int8_t le_tx_idx1_pwr;
+    int8_t edr_tx_idx1_pwr;
     int8_t bt_tx_idx0_pwr;
     int8_t le_tx_idx0_pwr;
+    int8_t edr_tx_idx0_pwr;
 };
 
 //add bt magic call back function here
@@ -291,16 +208,6 @@ struct rssi_txpower_link_thd
 };
 typedef int (* btstack_send_hci_cmd_t)(uint16_t , uint8_t *, uint8_t );
 
-#define btdrv_set_intersys_trace_enable(isEnable)  beshci_set_intersys_trace_enable(isEnable)
-#define btdrv_set_spuv_hci_buff_trace_enable()  beshci_set_supv_hci_buff_trace_enable()
-#define btdrv_set_a2dp_stream_trace_disable()  beshci_set_a2dp_stream_trace_enable(false)
-#define btdrv_enable_sleep_checker(isEnable)   beshci_enable_sleep_checker(isEnable)
-#define btdrv_set_spuv_hci_buff_trace_enable_high()  beshci_set_supv_hci_buff_trace_enable_high()
-#define btdrv_set_acl_packet_trace_enable()  beshci_set_acl_packet_trace_enable(true)
-#define btdrv_set_acl_packet_trace_disable()  beshci_set_acl_packet_trace_enable(false)
-#define btdrv_set_iso_packet_trace_enable()  beshci_set_iso_packet_trace_enable(true)
-#define btdrv_set_iso_packet_trace_disable()  beshci_set_iso_packet_trace_enable(false)
-
 #define HCI_LINK_INDEX_INVALID  (0xFF)
 #define btdrv_is_link_index_valid(index)  (index != HCI_LINK_INDEX_INVALID)
 
@@ -312,8 +219,7 @@ void btdrv_hcioff(void);
 void btdrv_start_bt(void);
 void btdrv_SendData(const uint8_t *buff,uint8_t len);
 void bt_drv_config_after_hci_reset(void);
-void btdrv_rf_init_ext(void);
-
+void bt_drv_extra_config_after_init(void);
 void btdrv_stop_bt(void);
 void btdrv_testmode_start(void);
 void btdrv_testmode_end(void);
@@ -323,6 +229,8 @@ void btdrv_enable_nonsig_tx(uint8_t index);
 void btdrv_enable_nonsig_rx(uint8_t index);
 void btdrv_vco_test_start(uint8_t chnl);
 void btdrv_vco_test_stop(void);
+void bt_drv_reg_op_vco_test(uint8_t chnl, uint8_t enable);
+void btdrv_reg_op_fix_tx_idx(uint16_t idx);
 void bt_drv_calib_open(void);
 void bt_drv_check_calib(void);
 void bt_drv_calib_close(void);
@@ -378,6 +286,7 @@ void ble_nosignal_start(void);
 void ble_nosignal_close(void);
 void ble_nosignal_uart_bridge_loop(void);
 void btdrv_hci_bridge_start(void);
+void btdrv_hci_bridge_stop(void);
 
 #define ACL_TRIGGLE_MODE       1
 #define SCO_TRIGGLE_MODE      2
@@ -387,8 +296,6 @@ void btdrv_enable_tports(void);
 uint8_t btdrv_conhdl_to_linkid(uint16_t connect_hdl);
 void btdrv_ins_patch_test_init(void);
 uint32_t btdrv_dut_get_connect_status(void);
-
-void btdrv_enable_one_packet_more_head(bool enable);
 void btdrv_reconn(bool en);
 
 void btdrv_pcm_enable(void);
@@ -400,31 +307,15 @@ void btdrv_set_spi_trig_enable(uint8_t spi_sel);
 void btdrv_clear_spi_trig_enable(uint8_t spi_sel);
 void btdrv_spi_trig_init(void);
 void btdrv_spi_trig_select(uint8_t link_id, bool spi_set);
-void bt_drv_reg_op_cs_monitor(void);
-void btdrv_set_controller_trace_enable(uint8_t trace_level);
-uint8_t btdrv_get_controller_trace_level(void);
-bool btdrv_get_lmp_trace_enable(void);
-void btdrv_set_lmp_trace_enable(void);
+
 const struct rssi_txpower_link_thd* btdrv_get_tws_link_txpwr_thd_ptr(void);
-void bt_drv_hwspi_select(uint8_t link_id, uint8_t spi_idx);
-void bt_drv_enable_hw_spi(uint8_t elt_idx, bool hwspien);
-void beshci_enable_sleep_checker(bool isEnable);
-void beshci_set_intersys_trace_enable(bool isEnable);
-void beshci_set_supv_hci_buff_trace_enable(void);
-void beshci_set_supv_hci_buff_trace_enable_high(void);
-void beshci_set_a2dp_stream_trace_enable(bool enable);
-void beshci_set_acl_packet_trace_enable(bool enable);
-void beshci_set_iso_packet_trace_enable(bool enable);
 void btdrv_send_cmd(uint16_t opcode,uint8_t cmdlen,const uint8_t *param);
 void btdrv_write_memory(uint8_t wr_type,uint32_t address,const uint8_t *value,uint8_t length);
 void bt_drv_reg_op_music_link_config(uint16_t active_link,uint8_t active_role,uint16_t inactive_link,uint8_t inactive_role);
 struct bt_cb_tag* bt_drv_get_func_cb_ptr(void);
-
 void btdrv_memory_copy(uint32_t *dest,const uint32_t *src,uint16_t length);
 void *btdrv_memcpy_word(void * d, const void * s, size_t n);
-#if defined(TX_RX_PCM_MASK)
-uint8_t  btdrv_is_pcm_mask_enable(void);
-#endif
+
 void btdrv_set_lpo_times(void);
 
 #if defined(PCM_FAST_MODE)
@@ -454,7 +345,7 @@ int btdrv_clkcnt_diff(int32_t clk1, int16_t cnt1,
 int64_t btdrv_clkcnt_to_us(uint32_t clk, uint16_t cnt);
 int64_t btdrv_iso_clkcnt_to_us(uint32_t clk, uint16_t cnt);
 bool bt_drv_reg_op_set_ble_conn_latency(uint16_t ble_conhdl, uint16_t conn_latency);
-bool bt_drv_is_enhanced_ibrt_rom(void);
+
 bool bt_drv_is_bes_fa_mode_en(void);
 bool bt_drv_is_support_multipoint_ibrt(void);
 
@@ -462,19 +353,12 @@ uint16_t bt_drv_reg_op_get_ibrt_sco_hdl(uint16_t acl_hdl);
 void bt_drv_reg_op_get_ibrt_address(uint8_t *addr);
 
 void btdrv_enable_rf_sw(int rx_on, int tx_on);
-void btdrv_trigger_coredump(void);
-bool btdrv_is_ecc_enable(void);
 void* bt_drv_get_btstack_chip_config(void);
 bool bt_drv_is_esco_auto_accept_support(void);
 
-#if defined(IBRT)
-bool btdrv_is_acl_ecc_softbit_support(void);
-void btdrv_softbit_enable(uint16_t connhdl, uint8_t type1,uint8_t type2,uint8_t type3, uint8_t num);
-#endif
-
 void btdrv_play_trig_mode_set(uint8_t mode);
 #ifdef __SW_TRIG__
-void btdrv_sw_trig_master_set(uint32_t Tclk_M, int16_t Tbit_M_h_ori, uint8_t trig_route);
+void btdrv_sw_trig_master_set(uint32_t Tclk_M, uint16_t Tbit_M_h_ori, uint8_t trig_route);
 void btdrv_sw_trig_slave_calculate_and_set(uint16_t conhdl, uint32_t Tclk_M, int16_t Tbit_M_h_ori, uint8_t trig_route);
 #endif
 #if defined(PCM_FAST_MODE) && defined(PCM_PRIVATE_DATA_FLAG)
@@ -485,12 +369,6 @@ void bt_drv_reg_op_set_pcm_flag();
 void btdrv_self_trig_gen_set(uint8_t en);
 void btdrv_trig_playtime_stamp_en(uint8_t en);
 #endif
-void bt_drv_productiontest_settings_checker(void);
-
-#if (defined(SOFTBIT_EN))
-void btdrv_softbit_config(uint16_t connhdl, uint8_t type1,uint8_t type2,uint8_t type3, uint8_t num);
-#endif
-
 
 #ifdef __IBRT_IBRT_TESTMODE__
 void btdrv_enable_ibrt_test(void);
@@ -502,8 +380,6 @@ bool bt_drv_error_check_handler(void);
 void bt_drv_rssi_dump_handler(void);
 void bt_drv_testmode_adaptive_adjust_param(void);
 void bt_drv_reg_op_ble_sup_timeout_set(uint16_t ble_conhdl, uint16_t sup_to);
-void btdrv_delay_for_wakeup(void);
-
 #ifdef VCO_TEST_TOOL
 //vco test callback
 bool btdrv_vco_test_bridge_intsys_callback(const unsigned char *data);
@@ -515,6 +391,9 @@ unsigned short btdrv_get_vco_test_set_xtal_fcap_process_flag(void);
 unsigned short btdrv_pmu_reboot_hci_process_flag(void);
 bool btdrv_pmu_reboot_hci_intsys_callback(const unsigned char *data);
 void btdrv_pmu_reboot_hci_process(uint8_t op);
+unsigned short btdrv_get_vco_test_set_power_process_flag(void);
+bool btdrv_vco_test_set_power_bridge_intsys_callback(const unsigned char *data);
+void btdrv_vco_test_set_power_process(uint8_t op);
 #endif
 
 void btdrv_le_rx_test_v2(uint8_t rx_channel, uint8_t phy, uint8_t mod_idx);
@@ -570,10 +449,6 @@ typedef int (*btdrv_testmode_nonsig_rx_process_func)(const unsigned char *data, 
 void btdrv_testmode_register_nonsig_rx_process(btdrv_testmode_nonsig_rx_process_func cb);
 #endif
 
-#define UART_DUMP8(str, buf, cnt)            hal_uart_dump(str, sizeof(uint8_t), cnt, buf)
-#define UART_DUMP16(str, buf, cnt)           hal_uart_dump(str, sizeof(uint16_t), cnt, buf)
-#define UART_DUMP32(str, buf, cnt)           hal_uart_dump(str, sizeof(uint32_t), cnt, buf)
-
 void iomux_restore_function_on_tport_disabled(void);
 void bt_drv_ctrl_tports(bool en);
 
@@ -592,10 +467,19 @@ void bt_set_ble_local_address(uint8_t* bleAddr);
 bool bt_drv_work_in_ramrun_mode(void);
 bool bt_drv_is_support_hci_set_tws_link(void);
 bool bt_drv_is_support_hci_enable_btpcm(void);
+bool bt_drv_is_support_set_bt_ble_active_link_switch(void);
 void bt_drv_rx_status_dump(uint16_t conhdl);
 uint32_t bt_drv_reg_op_get_multi_ibrt_slice(uint8_t active);
 bool bt_drv_is_support_hci_config_multi_ibrt_sche(void);
+bool bt_drv_is_support_dual_sco(void);
 void bt_drv_only_wakeup_btcore(void);
+void bt_drv_tports_switch(uint8_t enable, uint8_t iomux_type, uint32_t tport_type);
+void bt_drv_reg_op_read_register(uint32_t addr, uint32_t* reg_val);
+void bt_drv_reg_op_write_register(uint32_t addr, uint32_t reg_val);
+void bt_drv_dump_rf_reg(void);
+void btdrv_tx_power_dig_decrease(float decrease_db, uint8_t idx);
+void bt_drv_reg_op_hci_vender_ibrt_ll_monitor(uint8_t* ptr, uint16_t* p_sum_err,uint16_t* p_rx_total);
+void bt_drv_reg_op_afh_assess_en(bool en);
 #ifdef __cplusplus
 }
 #endif

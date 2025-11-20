@@ -4,16 +4,6 @@
 */
 #include "root_common_api.h"
 #include "sensor_manager.h"
-
-#if IS_SUPPORT_DEVICE_IMU
-#include "imu_module_internal.h"
-#endif
-#if IS_SUPPORT_DEVICE_FSENSOR
-#include "force_sensor_module_internal.h"
-#endif
-#if IS_SUPPORT_DEVICE_AIR_PRESSURE
-#include "air_pressure_module_internal.h"
-#endif
 #include "sensor_manager_api.h" // IWYU pragma: keep
 
 /*
@@ -36,34 +26,6 @@ static sensor_manager_context_t *thiz = NULL;
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-/// sensor事件分发.
-static int dispatch_sensor_client(sensor_wrapper_data_t *sensor_data)
-{
-    sensor_manager_context_t *obj = thiz;
-    list_head_t *head = &obj->priv.client_list;
-    
-    MUTEX_LOCK(obj->priv.m_lock);
-    LIST_FOR_EACH(pos, (head)) { 
-        sensor_evt_client_node_t *node = CONTAINER_OF(pos, sensor_evt_client_node_t, list);
-        if (node->report_type == IMU_EVT_POLLING ) {
-            #if IS_SUPPORT_DEVICE_IMU
-            dispatch_imu_client(sensor_data, node);
-            #endif
-        } else if (node->report_type == F_SENSOR_EVT_POLLING) {
-            #if IS_SUPPORT_DEVICE_FSENSOR
-            dispatch_force_sensor_client(sensor_data, node);
-            #endif
-        } else if (node->report_type == AIR_PRESSURE_EVT_POLLING) {
-            #if IS_SUPPORT_DEVICE_AIR_PRESSURE
-            dispatch_air_pressure_client(sensor_data, node);
-            #endif
-        }
-    }
-    MUTEX_UNLOCK(obj->priv.m_lock);
-
-    return 0;
-}
-
 static void sensor_polling_timer_handler(void *handle)
 {
     uint8_t msg = 0;
@@ -126,9 +88,9 @@ static void on_sensor_input_receiver(broadcast_mask_id_t id, void *context, int 
 {
     sensor_manager_context_t *ctx = context;
 
-    #if IS_SUPPORT_DEVICE_IMU
-    on_imu_sensor_receiver(id, context, arg1, arg2, pdata);
-    #endif
+    if (ctx->hook && ctx->hook->on_post_init_route) {
+        ctx->hook->on_sensor_receiver_route(id, context, arg1, arg2, pdata);
+    }
 
     switch (id.code) {
         case ID_BROADCAST_PM_STATE_CHANGE:
@@ -176,32 +138,30 @@ static int is_on_running(void)
 
 static void sensor_manager_internal_dispatch_thread(const void *args)
 {
-    thread_context_t *thd = (thread_context_t *)args;
     uint8_t msg = 0;
+    uint32_t log_time = 0;
+    thread_context_t *thd = (thread_context_t *)args;
     sensor_wrapper_data_t sensor_data = {0};
     sensor_manager_context_t *obj = thiz;
     CREATE_MSG_TYPE_QUEUE(&thd->msg_id, INPUT_DISPATCH_SENSOR_EVT_MESQ_NUM, 1);
-    CREATE_TIMER(&obj->priv.polling_timer, "sensor_polling_timer", obj, OS_TIMER_PERIODIC, sensor_polling_timer_handler);
+    CREATE_TIMER(&obj->priv.polling_timer, "sensor_polling_timer", obj, OS_TIMER_PERIODIC, 
+        sensor_polling_timer_handler);
     START_TIMER(obj->priv.polling_timer, SENSOR_THREAD_POLLING_PERIOD);
     for (;;) {
         MSG_QUEUE_RECV(thd->msg_id, &msg, OS_WAIT_FOREVER);
-        #if IS_SUPPORT_DEVICE_IMU
-        imu_polling_handler(&sensor_data);
-        #endif
-        #if IS_SUPPORT_DEVICE_FSENSOR
-        force_sensor_polling_handler(&sensor_data);
-        #endif
-        #if IS_SUPPORT_DEVICE_AIR_PRESSURE
-        air_pressure_polling_handler(&sensor_data);
-        #endif
-        dispatch_sensor_client(&sensor_data);
+        if (obj->hook && obj->hook->on_post_init_route) {
+            obj->hook->sensor_thread_route(obj, &sensor_data);
+        }
+        log_time++;
+        if (log_time % 500 == 0) {
+            LOG_SENSOR("sensor polling: %d", log_time);
+        }
     }
 }
 
 static int on_post_sensor_init(void *ptr)
 {
     sensor_manager_context_t *ctx = ptr;
-
     /// 注册广播监听.
     ctx->priv.bcd = u_malloz(sizeof(broadcast_obj_t));
     ctx->priv.bcd->context = ctx;
@@ -211,9 +171,12 @@ static int on_post_sensor_init(void *ptr)
     ctx->priv.bcd->id.code |= ID_BROADCAST_OTA_UI_SCREEN_STATE_CHANGE;
     ctx->priv.bcd->receiver_cb = on_sensor_input_receiver;
     register_broadcast_receiver(ctx->priv.bcd);
-    #if IS_SUPPORT_DEVICE_IMU
-    on_post_imu_init(ctx);
-    #endif
+
+    /// 钩子参数初始化
+    if (ctx->hook && ctx->hook->on_post_init_route) {
+        ctx->hook->on_post_init_route(ctx);
+    }
+
     /// 启动线程.
     RUN_NEW_THREAD(&ctx->priv.thd, "sensor_thd", 
         sensor_manager_internal_dispatch_thread, RT_PRIO_SENSOR_INPUT_DISPATCH_THREAD, INPUT_SENSOR_THREAD_STACKSIZE);
@@ -224,15 +187,10 @@ static int on_post_sensor_init(void *ptr)
 static int on_perpare_sensor_init(void *self)
 {
     sensor_manager_context_t *ptr = self;
-    #if IS_SUPPORT_DEVICE_IMU
-    on_perpare_imu_init(ptr);
-    #endif
-    #if IS_SUPPORT_DEVICE_FSENSOR
-    on_perpare_force_sensor_init(ptr);
-    #endif
-    #if IS_SUPPORT_DEVICE_AIR_PRESSURE
-    on_perpare_air_pressure_init(ptr);
-    #endif
+    /// 钩子参数初始化
+    if (ptr->hook && ptr->hook->on_perpare_init_route) {
+        ptr->hook->on_perpare_init_route(ptr);
+    }
     MUTEX_INIT(&ptr->priv.m_lock, sensor_client_mutex);
     USE_INIT_LIST_HEAD(&ptr->priv.client_list);
 
@@ -249,9 +207,6 @@ void *register_module_for_sensor_manager_new(list_head_t *list_head)
     ptr->add_sensor_evt_lisenser = add_sensor_evt_lisenser;
     ptr->remove_sensor_evt_lisenser = remove_sensor_evt_lisenser;
     ptr->is_on_running = is_on_running;
-    #if IS_SUPPORT_DEVICE_IMU
-    register_imu_module_ctx(ptr);
-    #endif
     thiz = ptr;
     return ADD_MODULE("sensor", ID_MODULE_SENSOR, on_perpare_sensor_init, on_post_sensor_init, 
         ptr, list_head, sizeof(sensor_manager_context_t));

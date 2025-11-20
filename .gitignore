@@ -4,3 +4,4 @@ project/logs/*
 Makefile copy
 compile_commands copy.json
 .cache/*
+.vscode/settings.json

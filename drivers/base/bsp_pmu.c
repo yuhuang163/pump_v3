@@ -98,3 +98,8 @@ void *register_device_for_pmu(list_head_t *list_head)
 
     return node;
 }
+
+bool is_full_load_running(void)
+{
+    return 0;
+}

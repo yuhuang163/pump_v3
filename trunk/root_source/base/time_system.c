@@ -25,21 +25,18 @@ static time_system_t *s_time_system = NULL;
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-static void on_time_receive_internal(broadcast_mask_id_t id, void *context, int pm_state, 
+static void on_time_receive_internal(broadcast_mask_id_t id, void *context, int power_state, 
                     int wakeup_reason, broadcast_priv_data_t *pdata)
 {
     time_system_t *ts = context;
     storage_manager_context_t *ctx = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
     EXCEPTION_CHECK_VOID(ctx);
-    if (id.code == ID_BROADCAST_SYS_SHUTDOWN) {
-        LOG_TIME("=>shutdown save timestamp: %d", ts->priv.timestamp);
-        ctx->put_store_val(STORE_ID_SYS_UTC_TIMESTAMP, ts->priv.timestamp, 0, NULL);
-        return;
-    }
-
-    if (pm_state == ID_SYS_PM_SUSPEND) {
-        LOG_TIME("=>suspend save timestamp: %d", ts->priv.timestamp);
-        ctx->put_store_val(STORE_ID_SYS_UTC_TIMESTAMP, 0, 0, &ts->priv.timestamp);
+    if (id.code == ID_BROADCAST_SYS_POWER_STATE_CHANGE) {
+        if (power_state == ID_BROADCAST_SYS_POWER_OFF) {
+            LOG_TIME("=>shutdown save timestamp: %d", ts->priv.timestamp);
+            ctx->put_store_val(STORE_ID_SYS_UTC_TIMESTAMP, ts->priv.timestamp, 0, NULL);
+            return;
+        }
     }
 }
 
@@ -67,7 +64,7 @@ static int time_system_init(void *ptr)
     ts->priv.time_bcd->context = ts;
     ts->priv.time_bcd->name = "time_system";
     ts->priv.time_bcd->id.code |= ID_BROADCAST_PM_STATE_CHANGE;
-    ts->priv.time_bcd->id.code |= ID_BROADCAST_SYS_SHUTDOWN;
+    ts->priv.time_bcd->id.code |= ID_BROADCAST_SYS_POWER_STATE_CHANGE;
     ts->priv.time_bcd->receiver_cb = on_time_receive_internal;
     register_broadcast_receiver(ts->priv.time_bcd);
 

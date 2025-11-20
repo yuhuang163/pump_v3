@@ -39,8 +39,19 @@
 *Warning: Prohibit reading and writing EM memory in Bluetooth drivers
 *
 *****************************************************************************/
-static uint32_t reg_op_clk_enb = 0;
+#ifdef MCU_WAKEUP_BT_V2
+#define BT_DRV_REG_OP_FORCE_WAKE_ENB()  do {    \
+                                            bt_drv_oper_btcore_with_rsp(WAKEUP_BT_USER_DRV, MSG_WAKEUP_BT_AND_DIS_SLP);  \
 
+#define BT_DRV_REG_OP_FORCE_WAKE_DIB()  \
+                                            bt_drv_oper_btcore_with_rsp(WAKEUP_BT_USER_DRV, MSG_WAKEUP_BT_AND_EN_SLP);   \
+                                        } while(0);
+
+#define BT_DRV_REG_OP_CLK_ENB()         BT_DRV_REG_OP_FORCE_WAKE_ENB()
+#define BT_DRV_REG_OP_CLK_TRY_ENB()     BT_DRV_REG_OP_FORCE_WAKE_ENB()
+#define BT_DRV_REG_OP_CLK_DIB()         BT_DRV_REG_OP_FORCE_WAKE_DIB()
+#else /* MCU_WAKEUP_BT_V2 */
+static uint32_t reg_op_clk_enb = 0;
 #define BT_DRV_REG_OP_FORCE_WAKE_ENB()  do{\
                                             uint32_t op_clk_lock = int_lock(); \
                                             uint32_t local_enb = reg_op_clk_enb; \
@@ -131,7 +142,7 @@ static uint32_t reg_op_clk_enb = 0;
                                             int_unlock(op_clk_lock); \
                                     }while(0);
 
-#else
+#else /* BT_LOG_POWEROFF */
 #define BT_DRV_REG_OP_CLK_ENB()    do{\
                                         uint32_t op_clk_lock = int_lock(); \
                                         if (!reg_op_clk_enb){ \
@@ -149,14 +160,8 @@ static uint32_t reg_op_clk_enb = 0;
                                     } \
                                     int_unlock(op_clk_lock); \
                                     }while(0);
-#endif
-
-static __INLINE uint32_t co_mod(uint32_t val, uint32_t div)
-{
-   ASSERT_ERR(div);
-   return ((val) % (div));
-}
-#define CO_MOD(val, div) co_mod(val, div)
+#endif /* BT_LOG_POWEROFF */
+#endif /* MCU_WAKEUP_BT_V2 */
 
 struct dbg_set_ebq_test_cmd
 {
@@ -1305,6 +1310,20 @@ bool bt_drv_is_support_dual_sco(void)
     return true;
 }
 
+bool bt_drv_is_support_set_bt_ble_active_link_switch(void)
+{
+    uint8_t metal_id = hal_get_chip_metal_id();
+    if (metal_id >= HAL_CHIP_METAL_ID_3)
+    {
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+
+}
+
 bool bt_drv_is_support_hci_set_tws_link(void)
 {
     return true;
@@ -1851,11 +1870,6 @@ uint32_t bt_drv_us_2_lpcycles(uint32_t us,uint32_t lp_clk)
     return((uint32_t)lpcycles);
 }
 
-static __INLINE uint32_t co_max(uint32_t a, uint32_t b)
-{
-    return a > b ? a : b;
-}
-
 void bt_drv_reg_op_data_bakeup_init(void)
 {
     BT_DRV_REG_OP_CLK_ENB();
@@ -2022,6 +2036,19 @@ bool bt_drv_error_check_handler(void)
     return ret;
 }
 
+#ifdef MCU_WAKEUP_BT_V2
+void bt_drv_i2v_disable_sleep_for_bt_access(void)
+{
+    bt_drv_oper_btcore_with_rsp(WAKEUP_BT_USER_TRIG, MSG_WAKEUP_BT_AND_DIS_SLP);
+    BT_DRV_TRACE(0, "BT:trigger req wakeup");
+}
+
+void bt_drv_i2v_enable_sleep_for_bt_access(void)
+{
+    bt_drv_oper_btcore_with_rsp(WAKEUP_BT_USER_TRIG, MSG_WAKEUP_BT_AND_EN_SLP);
+    BT_DRV_TRACE(0, "BT:resume sleep");
+}
+#else
 void bt_drv_i2v_disable_sleep_for_bt_access(void)
 {
     hal_intersys_wakeup_btcore();
@@ -2039,6 +2066,7 @@ void bt_drv_i2v_enable_sleep_for_bt_access(void)
         }
     }
 }
+#endif /* MCU_WAKEUP_BT_V2 */
 
 void bt_drv_reg_op_trigger_controller_assert(void)
 {

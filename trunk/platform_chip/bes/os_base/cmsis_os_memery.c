@@ -9,7 +9,7 @@
 * DEFINES
 *****************************************************************************************
 */
-#define U_HEAP_SIZE (32 * 1024)
+#define U_HEAP_SIZE (80 * 1024)
 
 /*
 * LOCAL VARIABLE DEFINITIONS
@@ -113,9 +113,10 @@ void u_heap_info_output(void)
 {
     multi_heap_info_t info;
     heap_get_info(u_heap, &info);
-    LOGI("total_free: %ld, total alloc:%ld, largest_free: %ld, mini_free: %ld, alloc_blocks: %ld, free_blocks: %ld, total_blocks: %ld, total: %ld", 
-        info.total_free_bytes, info.total_allocated_bytes, info.largest_free_block, info.minimum_free_bytes,
-        info.allocated_blocks, info.free_blocks, info.total_blocks, info.total_bytes);
+    PRINT_LOG("total:bytes=%ld, blocks=%ld; alloc:bytes=%ld, blocks=%ld; free:bytes=%ld, blocks=%ld, largest=%ld, mini=%ld\r\n", 
+        info.total_allocated_bytes, info.allocated_blocks, info.total_bytes, info.total_blocks,
+        info.total_free_bytes, info.free_blocks, info.largest_free_block, info.minimum_free_bytes);
+
 }
 
 void u_heap_init(void)

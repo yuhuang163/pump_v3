@@ -40,18 +40,37 @@ FIRMWARE_V3/
 │   └── wifi/                        ← WiFi驱动支持（新增）
 │
 ├── overlay/                         ← 资源与钩子（工程可重写/定制）
+│   ├── breast_pump/                 ← 吸奶泵业务配置（模式/参数表）
+│   │   ├── mode/                    ← 吸奶泵工作模式配置
+│   │   └── table/                   ← 吸奶泵参数表
 │   ├── font/                        ← 字体资源
 │   ├── framework_hooks/             ← 框架钩子（任务/事件/日志等）
-│   ├── motor_config/                ← 马达参数
-│   ├── protocol_hooks/              ← 协议处理钩子（产品差异点）
+│   │   ├── algo/                    ← 算法模块钩子
+│   │   ├── ble/                     ← 蓝牙模块钩子
+│   │   ├── breast_pump/             ← 吸奶泵业务钩子
+│   │   ├── input_key/               ← 输入按键钩子
+│   │   ├── motor/                   ← 马达控制钩子
+│   │   ├── protocol/                ← 协议处理钩子（产品差异点）
+│   │   ├── sensor/                  ← 传感器处理钩子
+│   │   └── storage/                 ← 存储配置钩子
+│   ├── input_key/                   ← 输入按键码定义与映射
 │   ├── resources/                   ← 图片/语言包/二进制资源
+│   ├── sensor/                      ← 传感器配置与校准参数
+│   │   ├── air_pressure/            ← 气压传感器配置
+│   │   ├── force_sensor/            ← 力传感器配置
+│   │   └── imu/                     ← IMU传感器配置
+│   ├── storage/                     ← 存储分区配置与持久化定义
+│   │   ├── breast_pump/             ← 吸奶泵业务存储配置
+│   │   ├── factory/                 ← 工厂校准数据存储
+│   │   ├── resource/                ← 资源存储配置
+│   │   └── system/                  ← 系统配置存储
 │   └── windows/                     ← UI窗口/页面资源与布局
 │       ├── home/                    ← 主页/主屏窗口
 │       ├── battery/                 ← 电池状态/电量展示窗口
 │       ├── charge/                  ← 充电过程/满电提示窗口
 │       ├── ota/                     ← OTA升级流程窗口
 │       ├── setting/                 ← 设置/选项类窗口
-│       ├── breath_pump/             ← 吸奶泵业务相关窗口
+│       ├── breast_pump/             ← 吸奶泵业务相关窗口
 │       ├── logo/                    ← 开机Logo/品牌展示
 │       ├── pop_windows/             ← 通用弹窗集合（提示/确认/错误等）
 │       └── dummy/                   ← 占位/示例窗口（可根据产品裁剪）
@@ -61,36 +80,38 @@ FIRMWARE_V3/
 └── trunk/                           ← 框架主干（平台与核心业务）
     ├── include/                     ← 对外API头文件（管理器/服务接口）
     │   ├── airplane_mode_api.h      ← 飞行模式管理接口
-    │   ├── algorithm_api.h          ← 算法框架接口
+    │   ├── algorithm_manager_api.h  ← 算法框架管理接口
     │   ├── audio_manager_api.h      ← 音频管理接口
     │   ├── ble_manager_api.h        ← BLE管理接口
+    │   ├── breast_pump_manager_api.h ← 吸奶泵管理接口
     │   ├── broadcast_manager_api.h  ← 广播管理接口
-    │   ├── root_message.h           ← 异步消息实体/统一消息封装
-    │   ├── root_storage_base.h      ← 存储分区/魔数基础定义
     │   ├── handler_post.h           ← 任务/消息派发接口
     │   ├── hang_detect.h            ← 卡死检测/线程看门狗
+    │   ├── key_input_manager_api.h  ← 输入系统管理接口
     │   ├── misc_manager_api.h       ← 杂项能力管理接口
     │   ├── motor_manager_api.h      ← 马达管理接口
     │   ├── ota_manager_api.h        ← OTA升级管理接口
     │   ├── peripheral_bus_api.h     ← 外设总线接口
     │   ├── power_manager_api.h      ← 电源管理接口
-    │   ├── time_system_api.h        ← 时间系统接口
-    │   ├── thread_api.h             ← 线程接口抽象
+    │   ├── project_default_features.h ← 默认功能开关
+    │   ├── project_default_parameter.h ← 默认参数定义
     │   ├── resource_manager_api.h   ← 资源管理接口
     │   ├── root_common.h            ← 通用接口集合
     │   ├── root_common_api.h        ← 通用接口集合（已统一命名）
+    │   ├── root_common_base.h       ← 公共基类/宏/类型
     │   ├── root_common_config.h     ← 统一配置/线程栈与优先级
     │   ├── root_common_register.h   ← 模块注册/框架入口
-    │   ├── root_common_base.h       ← 公共基类/宏/类型
-    │   ├── root_list_api.h          ← 链表管理接口（新增）
+    │   ├── root_list_api.h          ← 链表管理接口
     │   ├── root_log_define.h        ← 日志系统定义
+    │   ├── root_message.h           ← 异步消息实体/统一消息封装
+    │   ├── root_storage_base.h      ← 存储分区/魔数基础定义
+    │   ├── sensor_manager_api.h     ← 传感器管理接口
     │   ├── storage_manager_api.h    ← 存储管理接口
-    │   ├── key_input_manager_api.h  ← 输入系统管理接口（新增）
-    │   ├── sensor_manager_api.h     ← 传感器管理接口（新增）
-    │   ├── project_default_features.h ← 默认功能开关（新增）
-    │   ├── project_default_parameter.h ← 默认参数定义（新增）
-    │   ├── windows_manager_api.h    ← 窗口管理接口
-    │   └── tests_manager_api.h      ← 测试模块接口（新增）
+    │   ├── tests_manager_api.h      ← 测试模块接口
+    │   ├── thread_api.h             ← 线程接口抽象
+    │   ├── time_system_api.h        ← 时间系统接口
+    │   ├── ui_manager_api.h         ← UI管理接口
+    │   └── windows_manager_api.h    ← 窗口管理接口
     │
     ├── root_source/                 ← 核心子系统实现（面向上层的服务）
     │   ├── airplane_mode/           ← 飞行模式
@@ -98,7 +119,7 @@ FIRMWARE_V3/
     │   ├── audio/                   ← 音频子系统
     │   ├── base/                    ← 基础设施（初始化/错误码/工具）
     │   ├── ble/                     ← BLE主干（Host/Profile/Manager）
-    │   ├── breath_pump/             ← 吸奶泵示例模块（演示/占位）
+    │   ├── breast_pump/             ← 吸奶泵业务模块（模式/控制/状态管理）
     │   ├── hal/                     ← 面向上层的硬件抽象
     │   ├── key_input/               ← 输入系统（按键/触摸）
     │   ├── misc/                    ← 杂项能力（时间/随机数/配置）
@@ -108,10 +129,11 @@ FIRMWARE_V3/
     │   ├── pm/                      ← 电源管理/低功耗策略
     │   ├── protocol/                ← 应用/产测/私有协议
     │   ├── resource/                ← 资源管理/解压/缓存
-    │   ├── sensor/                  ← 传感器封装（IMU/FSensor汇聚）
+    │   ├── sensor/                  ← 传感器封装（IMU/FSensor/气压汇聚）
     │   ├── storage/                 ← 存储抽象（KV/FS/分区）
+    │   ├── tests/                   ← 自检/产测/集成测试模块
+    │   ├── ui/                      ← UI管理子系统（界面控制/交互）
     │   ├── utils/                   ← 通用工具集
-    │   ├── tests/                   ← 自检/产测/集成测试模块（新增）
     │   └── windows/                 ← UI窗口框架/页面管理
     │
     ├── platform_chip/               ← 芯片平台相关适配层
@@ -120,9 +142,13 @@ FIRMWARE_V3/
     │       └── sdk/                 ← BES SDK适配
     │
     ├── external/                    ← 外部组件/第三方库
+    │   ├── base64/                  ← Base64编解码库
+    │   ├── cJSON/                   ← JSON解析库
     │   ├── crypto/                  ← 加解密/哈希/安全库
-    │   ├── lvgl/                    ← 图形界面库
-    │   ├── quicklz/                 ← 资源压缩/解压
+    │   ├── littlefs/                ← 嵌入式文件系统（轻量级FS）
+    │   ├── lvgl/                    ← 图形界面库（Light and Versatile Graphics Library）
+    │   ├── md5/                     ← MD5哈希算法库
+    │   ├── quicklz/                 ← 资源压缩/解压库
     │   └── scan_key/                ← 按键扫描库
     │
     ├── simulator/                   ← 仿真/PC侧开发调试（如有）
@@ -130,7 +156,7 @@ FIRMWARE_V3/
     └── tools/                       ← 开发/发布工具脚本
 ```
 
-## 新增功能特性
+## 核心功能特性
 
 ### 1. 外设总线系统 (Peripheral Bus)
 - **文件**: `trunk/include/peripheral_bus_api.h`
@@ -142,7 +168,7 @@ FIRMWARE_V3/
   - 宏封装简化设备操作
 
 ### 2. 增强日志系统
-- **文件**: `trunk/include/root_log_define.h`
+- **文件**: `trunk/include/root_log_define.h`、`boards/project_log_filter.h`
 - **功能**: 模块化日志过滤和彩色输出支持
 - **特性**:
   - 多级日志级别（ERROR/WARN/INFO/DEBUG/VERBOSE）
@@ -150,76 +176,387 @@ FIRMWARE_V3/
   - 彩色日志输出支持
   - 时间戳和线程ID支持
 
-### 3. WiFi驱动支持
-- **目录**: `drivers/wifi/`
-- **功能**: 新增WiFi驱动支持，扩展网络连接能力
-
-### 4. 广播管理接口
-- **文件**: `trunk/include/broadcast_manager_api.h`
-- **功能**: 系统级广播消息管理
-
-### 5. 链表管理接口
-- **文件**: `trunk/include/root_list_api.h`
-- **功能**: 通用链表数据结构管理接口
-
-### 6. 任务/消息派发（Handler Post）
+### 3. 任务/消息派发（Handler Post）
 - **文件**: `trunk/include/handler_post.h`
 - **功能**: 轻量级任务/消息派发与异步执行，降低线程耦合
+- **特性**:
+  - 支持延时消息投递
+  - 消息队列管理
+  - 回调函数封装
 
-### 7. 卡死检测（Hang Detect）
+### 4. 卡死检测（Hang Detect）
 - **文件**: `trunk/include/hang_detect.h`
 - **功能**: 线程卡死/超时检测，支持独立监控线程
+- **特性**:
+  - 独立看门狗线程
+  - 可配置超时阈值
+  - 自动复位或告警
 
-### 8. 通用I2C总线驱动
-- **目录**: `drivers/i2c/`
-- **功能**: 统一I2C适配层，支持后续多设备挂载
-
-### 9. FATFS 文件系统适配
-- **目录**: `drivers/fatfs/`
-- **功能**: 对接 FATFS，提供基础文件系统能力
-
-### 10. 吸奶泵示例模块（Breath Pump）
-- **目录**: `trunk/root_source/breath_pump/`
-- **功能**: 示例子系统结构与接入方式（占位/演示）
-
-### 11. 统一配置基座
+### 5. 统一配置基座
 - **文件**: `trunk/include/root_common_config.h`
 - **功能**: 统一线程优先级、栈深与关键业务配置项
+- **特性**:
+  - 集中管理所有线程配置
+  - 统一优先级定义
+  - 便于平台移植和调优
 
-### 12. 串口驱动（UART）
-- **目录**: `drivers/uart/`
-- **功能**: 提供 UART 外设访问能力，支持后续协议/日志转储
-
-### 13. ADC 驱动
-- **目录**: `drivers/adc/`
-- **功能**: 提供模拟量采样能力，面向传感器读取与校准
-
-### 14. 气压传感器驱动
-- **目录**: `drivers/air_pressure/`
-- **功能**: 气压/海拔等相关传感器适配与读数
-
-### 15. 输入系统管理接口
-- **文件**: `trunk/include/key_input_manager_api.h`
-- **功能**: 抽象按键/触摸输入事件，统一上报与去抖
-
-### 16. 传感器管理接口
-- **文件**: `trunk/include/sensor_manager_api.h`
-- **功能**: 统一多类传感器的注册、轮询/中断与数据分发
-
-### 17. 项目默认功能与参数
+### 6. 项目默认功能与参数
 - **文件**: `trunk/include/project_default_features.h`
 - **文件**: `trunk/include/project_default_parameter.h`
 - **功能**: 汇总项目级默认开关与参数，便于产品化覆盖
+- **特性**:
+  - 功能开关集中管理
+  - 参数默认值定义
+  - 支持`boards/project_config.h`覆盖
 
-### 18. 测试模块（Tests）
-- **目录**: `trunk/root_source/tests/`
-- **功能**: 提供固件自检、产测钩子与集成用例的统一入口（`tests_manager`）。
+### 7. 链表管理接口
+- **文件**: `trunk/include/root_list_api.h`
+- **功能**: 通用链表数据结构管理接口
+- **特性**:
+  - 双向链表操作
+  - 线程安全版本
+  - 统一接口封装
+
+### 8. 广播管理接口
+- **文件**: `trunk/include/broadcast_manager_api.h`
+- **功能**: 系统级广播消息管理
+- **特性**:
+  - 事件订阅机制
+  - 跨模块消息分发
+  - 支持优先级过滤
+
+## 业务管理器（Manager Layer）
+
+### 9. UI管理系统
+- **文件**: `trunk/include/ui_manager_api.h`
+- **实现**: `trunk/root_source/ui/`
+- **功能**: UI界面整体管理与控制
+- **特性**:
+  - UI任务调度
+  - 界面刷新控制
+  - 触摸事件分发
+  - 与LVGL集成
+
+### 10. 马达管理系统
+- **文件**: `trunk/include/motor_manager_api.h`
+- **实现**: `trunk/root_source/motor/`
+- **配置**: `overlay/framework_hooks/motor/`
+- **功能**: 马达/泵体控制核心模块，为吸奶泵提供底层驱动能力
+- **特性**:
+  - 马达策略管理（支持复杂的时序控制）
+  - PWM波形生成与控制
+  - 压力/频率闭环调节
+  - 多级策略嵌套（定时策略 + 子策略）
+  - 实时参数调整
+  - 马达状态监控与保护
+
+### 11. 吸奶泵管理系统
+- **文件**: `trunk/include/breast_pump_manager_api.h`
+- **实现**: `trunk/root_source/breast_pump/`
+- **配置**: `overlay/breast_pump/`
+- **功能**: 吸奶泵业务核心管理模块
+- **特性**:
+  - 多种工作模式支持（共7种模式）:
+    - **刺激模式** (Stimulation Mode): 快速频率刺激，促进泌乳反射
+    - **吸乳模式** (Pump Mode): 标准吸乳工作模式
+    - **混合模式** (Mix Mode): 刺激+吸乳组合模式
+    - **开奶模式** (Lactation Start Mode): 专为哺乳初期设计
+    - **个性化模式** (Custom Mode): 用户可自定义参数的模式
+    - **PP追奶模式** (PP Milk Track Mode): 专为追奶场景优化
+    - **2+8奶量提升模式** (Milk Boost Mode): 2分钟刺激+8分钟吸乳的增产模式
+  - 压力/频率闭环控制
+  - 状态机管理
+  - 参数表配置化（支持定时策略与子策略组合）
+  - 历史记录管理
+  - 动态模式参数更新（支持自定义模式在线调整）
+
+### 12. 输入系统管理接口
+- **文件**: `trunk/include/key_input_manager_api.h`
+- **实现**: `trunk/root_source/key_input/`
+- **配置**: `overlay/input_key/`
+- **功能**: 抽象按键/触摸输入事件，统一上报与去抖
+- **特性**:
+  - 按键事件统一管理
+  - 支持短按/长按/连击
+  - 可配置按键码映射
+  - 触摸事件支持
+
+### 13. 传感器管理接口
+- **文件**: `trunk/include/sensor_manager_api.h`
+- **实现**: `trunk/root_source/sensor/`
+- **配置**: `overlay/sensor/`
+- **功能**: 统一多类传感器的注册、轮询/中断与数据分发
+- **特性**:
+  - IMU传感器（加速度/陀螺仪）
+  - 力传感器/压力传感器
+  - 气压传感器
+  - 传感器校准与滤波
+  - 数据融合算法接入
+
+### 14. 算法框架管理
+- **文件**: `trunk/include/algorithm_manager_api.h`
+- **实现**: `trunk/root_source/algorithm/`
+- **功能**: 算法框架调度与管理
+- **特性**:
+  - 算法任务调度
+  - 数据流管理
+  - 算法链式处理
+
+### 15. 测试模块（Tests）
+- **文件**: `trunk/include/tests_manager_api.h`
+- **实现**: `trunk/root_source/tests/`
+- **功能**: 提供固件自检、产测钩子与集成用例的统一入口
+- **特性**:
+  - 产测命令处理
+  - 自检流程
+  - 测试用例框架
+
+## 吸奶泵工作模式详解
+
+吸奶泵管理系统是业务层模块，负责工作模式、状态管理、历史记录等高层业务逻辑。它依赖于马达管理系统提供的底层驱动能力来实现实际的泵体控制。
+
+**系统分层关系**:
+```
+吸奶泵管理系统 (breast_pump_manager)
+    ↓ 调用
+马达管理系统 (motor_manager)
+    ↓ 控制
+马达驱动 (drivers/motor)
+    ↓ 输出
+硬件泵体
+```
+
+### 模式架构设计
+吸奶泵系统基于策略模式设计，每种工作模式由以下层次结构组成：
+- **总策略管理器** (`motor_policy_manager_t`): 管理整个模式的生命周期
+- **定时策略节点** (`motor_timed_policy_node_t`): 定义阶段性的时间分段
+- **子策略节点** (`motor_policy_node_t`): 具体的马达控制参数（压力、频率、持续时间等）
+
+策略配置通过 `overlay/breast_pump/table/` 中的参数表定义，在运行时由马达管理系统执行。
+
+### 七种标准工作模式
+
+#### 1. 刺激模式 (Stimulation Mode)
+- **模式ID**: `BREAST_PUMP_STIMULATION_MODE`
+- **用途**: 模拟婴儿初始吸吮动作，快速频率刺激乳腺，促进泌乳反射
+- **特点**: 高频率、低压力、短周期
+- **工作时长**: 标准时长（可配置）
+- **适用场景**: 吸乳前的预备阶段，帮助乳汁快速流出
+
+#### 2. 吸乳模式 (Pump Mode)
+- **模式ID**: `BREAST_PUMP_PUMP_MODE`
+- **用途**: 标准的吸乳工作模式，模拟婴儿深度吸吮
+- **特点**: 中等频率、可调压力、长周期
+- **工作时长**: 标准时长（可配置）
+- **适用场景**: 主要吸乳阶段，适合常规使用
+
+#### 3. 混合模式 (Mix Mode)
+- **模式ID**: `BREAST_PUMP_MIX_MODE`
+- **用途**: 结合刺激和吸乳两种模式的优势
+- **特点**: 先快速刺激后深度吸乳，自动切换
+- **工作时长**: 标准时长（可配置）
+- **适用场景**: 一键完成刺激到吸乳的完整流程
+
+#### 4. 开奶模式 (Lactation Start Mode)
+- **模式ID**: `BREAST_PUMP_LACTATION_START_MODE`
+- **用途**: 专为产后初期（产后1-3天）设计，帮助建立泌乳
+- **特点**: 温和压力、特殊节奏、延长工作时间
+- **工作时长**: 延长时长（通常20分钟，由`LACTATION_START_MODE_WORK_TIME`定义）
+- **适用场景**: 产后开奶期，需要更长时间和特殊节奏刺激乳腺
+
+#### 5. 个性化模式 (Custom Mode)
+- **模式ID**: `BREAST_PUMP_CUSTOM_MODE`
+- **用途**: 用户可根据自身情况自定义参数
+- **特点**: 
+  - 支持动态参数更新（通过`custom_mode_parameter_update()`）
+  - 可调整压力、频率、持续时间等所有参数
+  - 工作时长根据配置的子策略动态计算
+- **工作时长**: 动态计算（所有子策略持续时间总和）
+- **适用场景**: 特殊需求用户，或通过APP学习用户习惯后自动生成
+
+#### 6. PP追奶模式 (PP Milk Track Mode)
+- **模式ID**: `BREAST_PUMP_PP_MILK_TRACK_MODE`
+- **用途**: 专为追奶场景设计，增加泌乳量
+- **特点**: 特殊的频率和压力组合，优化追奶效果
+- **工作时长**: 标准时长（可配置）
+- **适用场景**: 奶量不足的妈妈，需要增加泌乳量
+
+#### 7. 2+8奶量提升模式 (Milk Boost Mode)
+- **模式ID**: `BREAST_PUMP_MILK_BOOST_MODE`
+- **用途**: 通过科学的时间分配提升泌乳量
+- **特点**: 2分钟刺激 + 8分钟吸乳的黄金组合
+- **工作时长**: 固定10分钟（由`MILK_BOOST_MODE_WORK_TIME`定义）
+- **适用场景**: 追求高效吸乳，时间有限的场景
+
+### 模式参数配置
+- **配置文件位置**: `overlay/breast_pump/table/pump_mode_default_config.h`
+- **参数类型**: 
+  - `motor_policy_cfg_t`: 单个策略配置（压力、频率、持续时间、循环次数等）
+  - 支持`MOTOR_TIME_POLICY`类型（定时策略）和子策略的嵌套组合
+- **配置示例**: 每种模式有对应的默认参数数组（如`stimulation_default[]`、`pump_default[]`等）
+
+### 模式管理接口
+```c
+// 获取模式参数
+const motor_policy_cfg_t *get_breast_pump_mode_para(int mode);
+
+// 获取模式工作时长（秒）
+int breast_pump_mode_work_time_get(int mode);
+
+// 模式策略初始化
+motor_policy_manager_t *breast_pump_mode_parameter_init(
+    const motor_policy_cfg_t *cfg, 
+    uint8_t cfg_num, 
+    char *name
+);
+
+// 模式策略释放
+int breast_pump_mode_parameter_deinit(motor_policy_manager_t *obj);
+
+// 自定义模式参数更新（仅限Custom Mode）
+int custom_mode_parameter_update(motor_policy_cfg_t *cfg, uint8_t cfg_num);
+```
+
+### 模式扩展指南
+要添加新的工作模式，需要：
+1. 在模式枚举中添加新的模式ID
+2. 在`overlay/breast_pump/table/`中定义参数表
+3. 在`overlay/breast_pump/mode/`中创建模式文件（参考现有模式）
+4. 在`breast_pump_mode.c`的`get_breast_pump_mode_para()`中添加分支
+5. 在`breast_pump_mode_work_time_get()`中设置工作时长
+6. 在业务层注册新模式
+
+## 驱动支持
+
+### 16. 通用I2C总线驱动
+- **目录**: `drivers/i2c/`
+- **功能**: 统一I2C适配层，支持后续多设备挂载
+
+### 17. FATFS 文件系统适配
+- **目录**: `drivers/fatfs/`
+- **功能**: 对接 FATFS，提供基础文件系统能力
+
+### 18. WiFi驱动支持
+- **目录**: `drivers/wifi/`
+- **功能**: 新增WiFi驱动支持，扩展网络连接能力
+
+### 19. 串口驱动（UART）
+- **目录**: `drivers/uart/`
+- **功能**: 提供 UART 外设访问能力，支持后续协议/日志转储
+
+### 20. ADC 驱动
+- **目录**: `drivers/adc/`
+- **功能**: 提供模拟量采样能力，面向传感器读取与校准
+
+### 21. 气压传感器驱动
+- **目录**: `drivers/air_pressure/`
+- **功能**: 气压/海拔等相关传感器适配与读数
+
+## 外部库集成
+
+### 22. LVGL图形库
+- **目录**: `trunk/external/lvgl/`
+- **功能**: 轻量级嵌入式图形界面库
+
+### 23. LittleFS文件系统
+- **目录**: `trunk/external/littlefs/`
+- **功能**: 为嵌入式系统设计的轻量级文件系统
+
+### 24. cJSON解析库
+- **目录**: `trunk/external/cJSON/`
+- **功能**: 轻量级JSON解析与生成
+
+### 25. 加密与哈希库
+- **目录**: `trunk/external/crypto/`、`trunk/external/md5/`、`trunk/external/base64/`
+- **功能**: 提供加解密、哈希、编码能力
+
+### 26. QuickLZ压缩库
+- **目录**: `trunk/external/quicklz/`
+- **功能**: 快速资源压缩/解压
 
 ## 体系结构（逻辑分层）
 
 - **上层调用下层**，唯一与RTOS直接交互的应在平台/OS抽象处（若集成RTOS）
 - **UI/业务 → 管理器/服务 → 平台抽象/驱动 → 芯片平台/硬件**
 - 通过`overlay/`实现产品差异化与资源替换，避免改动`trunk/`主干代码
+
+## Overlay配置系统详解
+
+`overlay/`目录是框架的配置层，用于实现产品差异化定制，不同产品可通过覆盖该目录实现差异化配置。
+
+### Overlay目录结构与用途
+
+#### 1. `overlay/breast_pump/` - 吸奶泵业务配置
+- **mode/**: 工作模式定义，支持7种标准模式
+  - `stimulation_mode.c` - 刺激模式（快速频率促进泌乳）
+  - `pump_mode.c` - 标准吸乳模式
+  - `mix_mode.c` - 混合模式（刺激+吸乳）
+  - `lactation_start_mode.c` - 开奶模式（初期哺乳优化）
+  - `custom_mode.c` - 个性化模式（支持动态参数更新）
+  - `pp_milk_track_mode.c` - PP追奶模式
+  - `milk_boost_mode.c` - 2+8奶量提升模式
+  - `breast_pump_mode.c/h` - 模式管理框架（模式初始化、参数获取、工作时长管理）
+- **table/**: 参数表配置（压力曲线、频率表、时间配置、定时策略等）
+- **用途**: 
+  - 产品可根据不同型号配置不同的工作模式和参数
+  - 每种模式由定时策略（Time Policy）和子策略（Sub Policy）组成
+  - 支持模式级的工作时长配置（如开奶模式20分钟，奶量提升模式10分钟等）
+
+#### 2. `overlay/framework_hooks/` - 框架钩子
+- **algo/**: 算法模块初始化与回调钩子
+- **ble/**: 蓝牙模块初始化与事件钩子
+- **breast_pump/**: 吸奶泵业务钩子（模式切换、状态回调等）
+- **input_key/**: 按键事件处理钩子
+- **motor/**: 马达控制钩子（PWM调整、反馈处理等）
+- **protocol/**: 协议处理钩子（产品差异化协议处理）
+- **sensor/**: 传感器数据处理钩子
+- **storage/**: 存储初始化与配置钩子
+- **用途**: 在不修改框架核心代码的前提下，注入产品特定逻辑
+
+#### 3. `overlay/input_key/` - 输入按键配置
+- **input_key_code.h**: 按键码定义与映射
+- **用途**: 不同产品可能有不同的按键布局，通过该文件定义按键功能映射
+
+#### 4. `overlay/sensor/` - 传感器配置
+- **air_pressure/**: 气压传感器校准参数与配置
+- **force_sensor/**: 力传感器校准参数与配置
+- **imu/**: IMU传感器配置（采样率、量程、滤波参数等）
+- **用途**: 不同批次或型号的传感器可能需要不同的校准参数
+
+#### 5. `overlay/storage/` - 存储分区配置
+- **breast_pump/**: 吸奶泵业务数据存储定义（历史记录、用户设置等）
+- **factory/**: 工厂校准数据存储（MAC地址、校准系数等）
+- **resource/**: 资源文件存储配置
+- **system/**: 系统配置存储（设备信息、系统参数等）
+- **persist_storage.h**: 持久化存储结构定义
+- **用途**: 定义各类数据的存储结构和分区布局
+
+#### 6. `overlay/font/` - 字体资源
+- **用途**: 存放LVGL使用的字体文件，支持多语言显示
+
+#### 7. `overlay/resources/` - 多媒体资源
+- **用途**: 存放图片、语言包、音频等二进制资源文件
+
+#### 8. `overlay/windows/` - UI窗口资源
+- **home/**: 主页窗口资源与布局
+- **battery/**: 电池显示窗口
+- **charge/**: 充电窗口
+- **ota/**: OTA升级窗口
+- **setting/**: 设置窗口
+- **breast_pump/**: 吸奶泵业务窗口（工作界面、参数调整等）
+- **logo/**: 开机Logo
+- **pop_windows/**: 弹窗集合（提示、确认、错误等）
+- **dummy/**: 示例/占位窗口
+- **windows_map_define.c/h**: 窗口映射表与注册
+- **用途**: UI页面的资源文件、布局定义与窗口管理
+
+### Overlay使用原则
+
+1. **框架主干不变**: `trunk/`目录中的代码应保持通用性，不包含产品特定逻辑
+2. **配置优先覆盖**: `overlay/`中的配置会覆盖框架默认配置
+3. **钩子注入逻辑**: 通过`framework_hooks/`注入产品特定的业务逻辑
+4. **资源分离管理**: UI资源、字体、图片等与代码分离，便于独立更新
+5. **多产品支持**: 不同产品可使用不同的overlay配置，实现一套框架支持多个产品
 
 ## 开发规范
 

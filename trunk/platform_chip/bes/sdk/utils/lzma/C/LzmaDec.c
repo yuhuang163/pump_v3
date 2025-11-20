@@ -1170,6 +1170,9 @@ SRes LzmaDecode(Byte *dest, SizeT *destLen, const Byte *src, SizeT *srcLen,
   *status = LZMA_STATUS_NOT_SPECIFIED;
   if (inSize < RC_INIT_SIZE)
     return SZ_ERROR_INPUT_EOF;
+  // it's probably normal
+  // if (outSize < inSize)
+  //   return SZ_ERROR_OUTPUT_EOF;
   LzmaDec_Construct(&p);
   RINOK(LzmaDec_AllocateProbs(&p, propData, propSize, alloc));
   p.dic = dest;

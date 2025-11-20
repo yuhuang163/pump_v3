@@ -15,7 +15,7 @@
 #define I2C_MASTER_TIMEOUT_MS(x)                    ((x > 20) ? ((x / 20) * 50) : 50)
 #define I2C_MASTER_COUNT                            3
 #define I2C_MASTER_SPEED                            400000
-#define IS_SUPPORT_I2C_MASTER_TASK                  1 
+#define IS_SUPPORT_I2C_MASTER_TASK                  0 
 #define I2C_MASTER_ID_IS_INVALID(x) \
 do { \
     if ((x >= I2C_MASTER_ID_MAX) || (x < 0)) { \
@@ -85,7 +85,7 @@ int bsp_i2c_write_byte(i2c_master_id_e device_id, i2c_master_data_t *data)
             data_buf, data->len + 1);
         #endif
         if (ret != 0) {
-            LOGE("write timeout:%x, ret:%d", data->dev_address, ret);
+            LOGE("write i2c-%d timeout:%x, ret:%d", device_id, data->dev_address, ret);
         }
     } else {
         LOGE("i2c is no ready"); 
@@ -111,7 +111,7 @@ int bsp_i2c_read_byte(i2c_master_id_e device_id, i2c_master_data_t *data)
             1, data->data, data->len);
         #endif
         if (ret != 0) {
-            LOGE("read timeout:%x ret:%d", data->dev_address, ret);
+            LOGE("read i2c-%d timeout:%x ret:%d", device_id, data->dev_address, ret);
         }
     } else {
         LOGE("i2c is no ready");  
@@ -126,13 +126,13 @@ int bsp_i2c_init(i2c_master_id_e device_id)
     int ret = 0;
     I2C_MASTER_ID_IS_INVALID(device_id);
     struct HAL_I2C_CONFIG_T i2c_cfg = {
-        #if IS_SUPPORT_I2C_MASTER_TASK
+    #if IS_SUPPORT_I2C_MASTER_TASK
         .mode = HAL_I2C_API_MODE_TASK,
         .use_dma = false, // 当前SDK只有I2C0和I2C1支持dma
         .use_sync = true,
-        #else
+    #else
         .mode = HAL_I2C_API_MODE_SIMPLE,
-        #endif
+    #endif
         .as_master = true,
         .rising_time_ns = 0,
         .speed = I2C_MASTER_SPEED,

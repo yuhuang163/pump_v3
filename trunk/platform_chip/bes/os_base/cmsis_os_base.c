@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "rtx_lib.h"  // IWYU pragma: keep
+#include "hal_timer.h"
 #include "cmsis_os_api.h"  // IWYU pragma: keep
 
 /*
@@ -48,4 +49,11 @@ void msleep(uint32_t time_ms)
 uint32_t get_timestamp(void)
 {
     return osKernelGetSysTimerCount();
+}
+
+uint32_t get_timestamp_ms(uint32_t time_tick)
+{
+    uint32_t offset = get_timestamp() - time_tick;
+
+    return TICKS_TO_MS(offset);
 }

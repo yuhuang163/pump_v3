@@ -2,6 +2,7 @@
  * INCLUDE FILES
  *****************************************************************************************
  */
+#include "bsp_common.h"
 #include "bsp_led_internal.h"
 
 /*
@@ -26,7 +27,9 @@ static rt_device_node_t *node = NULL;
  */
 static int led_dev_open(struct rt_device_node *dev)
 {
-    return bsp_led_init();
+    bsp_led_init();
+    bsp_night_light_init();
+    return BSP_OK;
 }
 
 static int led_dev_close(struct rt_device_node *dev)
@@ -41,6 +44,10 @@ static int led_dev_ioctl(struct rt_device_node *dev, uint32_t op_code, void *arg
             return bsp_led_status_set(args);
         case OP_CODE_LED_STATUS_GET:
             return (int)bsp_led_status_get(args);
+        case OP_CODE_NIGHT_LIGHT_STATUS_SET:
+            return bsp_night_light_status_set(args);
+        case OP_CODE_NIGHT_LIGHT_STATUS_GET:
+            return (int)bsp_night_light_status_get(args);
         default:
             LOGE("err op_code: %lx", op_code);
             return -1;
@@ -49,11 +56,15 @@ static int led_dev_ioctl(struct rt_device_node *dev, uint32_t op_code, void *arg
 
 static int led_dev_suspend(struct rt_device_node *dev)
 {
+    bsp_led_suspend();
+    bsp_night_light_suspend();
     return 0;
 }
 
 static int led_dev_resume(struct rt_device_node *dev)
 {
+    bsp_led_resume();
+    bsp_night_light_resume();
     return 0;
 }
 

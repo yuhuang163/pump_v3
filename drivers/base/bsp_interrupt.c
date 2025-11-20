@@ -34,11 +34,13 @@ static void interrupt_msg_thread(const void *args)
             case INT_NUM_KEY_1:
             case INT_NUM_KEY_2:
             {
-                key_irq_event_callback(1 << io_num);
+                // LOG_PBUS("key irq:%ld", io_num);
+                key_irq_event_callback(io_num);
             }
             break;
             case INT_NUM_TOUCH_KEY:
             {
+                // LOG_PBUS("touch key irq");
                 key_irq_event_callback(-1);
             }
             break;

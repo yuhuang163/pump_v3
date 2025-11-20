@@ -8,7 +8,9 @@ extern "C" {
 /*******************************************************************************
 * Include files
 ******************************************************************************/
-#include "root_common_api.h" // IWYU pragma: keep
+#include "root_common_base.h" // IWYU pragma: keep
+
+#define AIR_PRESSURE_POLLING_PERIOD              (10)
 
 struct rt_device_node;
 typedef struct _air_pressure_module_data {

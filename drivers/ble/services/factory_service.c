@@ -44,11 +44,11 @@ static const gatt_attribute_t ble_factory_attr_list[] = {
     gatt_attribute(ble_factory_service),
     /* Characteristics */
     gatt_attribute(ble_factory_rx_character),
-    gatt_attribute(ble_factory_rx_cudd),
+    // gatt_attribute(ble_factory_rx_cudd),
     /* Characteristics */
     gatt_attribute(ble_factory_tx_character),
     gatt_attribute(ble_factory_tx_cccd),
-    gatt_attribute(ble_factory_tx_cudd),
+    // gatt_attribute(ble_factory_tx_cudd),
 };
 
 static uint8_t notification_enabled = false;
@@ -65,9 +65,9 @@ static uint8_t conn_idx = 0;
 */
 static void ble_factory_service_rx_data_received(uint8_t conidx, uint16_t connhdl, const uint8_t *data, uint16_t len)
 {
-    LOG_PBUS("factory service recv data length %d", len);
+    // LOG_PBUS("factory service recv data length %d", len);
     ble_service_data_recv(BLE_SRV_ID_FACTORY, (uint8_t *)data, len);
-    ble_factory_service_notify_data_send((uint8_t *)data, len);
+    // ble_factory_service_notify_data_send((uint8_t *)data, len);
 }
 
 static void ble_factory_service_tx_ccc_changed(uint8_t conidx, uint16_t connhdl, bool notify_enabled)

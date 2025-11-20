@@ -18,11 +18,31 @@ PWM1_IOMUX_INDEX ?= 41
 PWM2_IOMUX_INDEX ?= 42
 PWM3_IOMUX_INDEX ?= 43
 
+# -------------- 工具宏定义 --------------
+# 递归查找指定目录下的所有 .c 文件
+# 用法: $(call rwildcard,目录路径)
+rwildcard = $(shell find $(1) -name '*.c')
+
 # -------------- 应用源码与编译参数 --------------
 CSTD ?= gnu11
 CFLAGS ?= -O2 -g -std=$(CSTD) -fvisibility=default
 EXTRA_SDK_ARCH_FLAGS := -mthumb -mcpu=cortex-m33 -mfpu=fpv5-sp-d16 -mfloat-abi=hard
 EXTRA_CFLAGS ?= -std=gnu99 $(EXTRA_SDK_ARCH_FLAGS)
+
+# Add -Werror if WERROR_ENABLE is set to 1
+ifeq ($(WERROR_ENABLE),1)
+CFLAGS += -Werror
+EXTRA_CFLAGS += -Werror
+endif
+
+# crash reboot switch
+CRASH_REBOOT ?= 1
+
+# watchdog switch
+WATCHER_DOG ?= 1
+
+# warnings as errors switch (0=disabled, 1=enabled)
+WERROR_ENABLE ?= 0
 
 # custom app switch
 CFG_CUSTOM_APP ?= 1
@@ -36,6 +56,10 @@ RTC_CALENDAR ?= 1
 # PMU clock use external crystal switch
 PMU_CLK_USE_EXT_CRYSTAL ?= 1
 
+# VHPPA voltage switch
+VHPPA_VOLT ?= 1.95V
+VCODEC_VOLT ?= 1.95V
+
 # littlefs section size
 LITTLEFS_SECTION_SIZE ?= 0x4000
 
@@ -46,6 +70,11 @@ FACTORY_DATA_SECTION_SIZE ?= 0x2000
 BLE_INC_DIRS := $(shell find $(PROJECT_ROOT)/trunk/platform_chip/bes/sdk/bthost -type d)\
 # BLE 头文件
 BLE_INC_FLAGS := $(patsubst %,-I%,$(BLE_INC_DIRS))
+
+# UI 头文件子目录
+UI_INC_DIRS := $(shell find $(PROJECT_ROOT)/overlay/ui -type d)
+# UI 头文件
+UI_INC_FLAGS := $(patsubst %,-I%,$(UI_INC_DIRS))
 
 # BLE 自定义服务开关
 CFG_CUSTOM_BLE_SERVICE ?= 1
@@ -72,6 +101,7 @@ SDK_INCLUDE_PATHS := \
 	-I$(PROJECT_ROOT)/trunk/platform_chip/bes/sdk/apps/main \
 	$(BLE_INC_FLAGS) \
 	-I$(PROJECT_ROOT)/boards \
+	-I$(PROJECT_ROOT)/drivers/adc \
 	-I$(PROJECT_ROOT)/drivers/audio \
 	-I$(PROJECT_ROOT)/drivers/base \
 	-I$(PROJECT_ROOT)/drivers/battery \
@@ -92,15 +122,26 @@ SDK_INCLUDE_PATHS := \
 	-I$(PROJECT_ROOT)/drivers/lcd/interface/lcd_uart \
 	-I$(PROJECT_ROOT)/drivers/lcd/chip/uart_extension \
 	-I$(PROJECT_ROOT)/drivers/led \
-	-I$(PROJECT_ROOT)/drivers/led/chip/led_pwm \
 	-I$(PROJECT_ROOT)/drivers/motor \
 	-I$(PROJECT_ROOT)/drivers/motor/chip/motor_pwm \
 	-I$(PROJECT_ROOT)/drivers/uart \
 	-I$(PROJECT_ROOT)/drivers/wifi \
+	-I$(PROJECT_ROOT)/overlay/algo \
+	-I$(PROJECT_ROOT)/overlay/ble/factory_service \
+	-I$(PROJECT_ROOT)/overlay/ble/master_service \
+	-I$(PROJECT_ROOT)/overlay/ble/remot_service \
+	-I$(PROJECT_ROOT)/overlay/breast_pump/mode \
+	-I$(PROJECT_ROOT)/overlay/breast_pump/table \
 	-I$(PROJECT_ROOT)/overlay/framework_hooks \
 	-I$(PROJECT_ROOT)/overlay/framework_hooks/algo \
+	-I$(PROJECT_ROOT)/overlay/framework_hooks/airplane_mode \
+	-I$(PROJECT_ROOT)/overlay/framework_hooks/power \
+	-I$(PROJECT_ROOT)/overlay/framework_hooks/ui \
+	-I$(PROJECT_ROOT)/overlay/framework_hooks/protocol \
+	-I$(PROJECT_ROOT)/overlay/input_key \
 	-I$(PROJECT_ROOT)/overlay/windows/battery \
-	-I$(PROJECT_ROOT)/overlay/windows/breath_pump \
+	-I$(PROJECT_ROOT)/overlay/windows/airplane_mode \
+	-I$(PROJECT_ROOT)/overlay/windows/breast_pump \
 	-I$(PROJECT_ROOT)/overlay/windows/charge \
 	-I$(PROJECT_ROOT)/overlay/windows/dummy \
 	-I$(PROJECT_ROOT)/overlay/windows/home \
@@ -108,36 +149,48 @@ SDK_INCLUDE_PATHS := \
 	-I$(PROJECT_ROOT)/overlay/windows/ota \
 	-I$(PROJECT_ROOT)/overlay/windows/pop_windows \
 	-I$(PROJECT_ROOT)/overlay/windows/setting \
+	-I$(PROJECT_ROOT)/overlay/windows/product_test_window \
 	-I$(PROJECT_ROOT)/overlay/windows \
 	-I$(PROJECT_ROOT)/overlay/sensor/imu \
 	-I$(PROJECT_ROOT)/overlay/sensor/force_sensor \
 	-I$(PROJECT_ROOT)/overlay/sensor/air_pressure \
+	-I$(PROJECT_ROOT)/overlay/product_tests/comm \
+	-I$(PROJECT_ROOT)/overlay/product_tests/factory_tests \
+	-I$(PROJECT_ROOT)//overlay/product_tests/hardware_self_tests \
+	-I$(PROJECT_ROOT)//overlay/product_tests/stress_tests \
+	-I$(PROJECT_ROOT)//overlay/protocol/factory_protocol \
+	-I$(PROJECT_ROOT)//overlay/protocol/app_commication \
 	-I$(PROJECT_ROOT)/overlay/storage/factory \
-	-I$(PROJECT_ROOT)/overlay/storage/breath_pump \
+	-I$(PROJECT_ROOT)/overlay/storage/breast_pump \
 	-I$(PROJECT_ROOT)/overlay/storage/resource \
+	-I$(PROJECT_ROOT)/overlay/storage/system \
 	-I$(PROJECT_ROOT)/overlay/storage\
+	$(UI_INC_FLAGS)\
 	-I$(PROJECT_ROOT)/trunk/include \
 	-I$(PROJECT_ROOT)/trunk/extern \
 	-I$(PROJECT_ROOT)/trunk/external/littlefs \
 	-I$(PROJECT_ROOT)/trunk/external/littlefs/fds \
 	-I$(PROJECT_ROOT)/trunk/external/scan_key \
-	-I$(PROJECT_ROOT)/trunk/root_source/airplane \
+	-I$(PROJECT_ROOT)/trunk/root_source/airplane_mode \
 	-I$(PROJECT_ROOT)/trunk/root_source/algorithm \
 	-I$(PROJECT_ROOT)/trunk/root_source/audio \
 	-I$(PROJECT_ROOT)/trunk/root_source/base \
 	-I$(PROJECT_ROOT)/trunk/root_source/ble \
-	-I$(PROJECT_ROOT)/trunk/root_source/breath_pump \
+	-I$(PROJECT_ROOT)/trunk/root_source/breast_pump \
 	-I$(PROJECT_ROOT)/trunk/root_source/hal \
 	-I$(PROJECT_ROOT)/trunk/root_source/key_input \
 	-I$(PROJECT_ROOT)/trunk/root_source/misc \
 	-I$(PROJECT_ROOT)/trunk/root_source/motor \
+	-I$(PROJECT_ROOT)/trunk/root_source/motor/breast_pump_policy \
 	-I$(PROJECT_ROOT)/trunk/root_source/network \
 	-I$(PROJECT_ROOT)/trunk/root_source/ota \
 	-I$(PROJECT_ROOT)/trunk/root_source/pm \
 	-I$(PROJECT_ROOT)/trunk/root_source/protocol \
 	-I$(PROJECT_ROOT)/trunk/root_source/resource \
+	-I$(PROJECT_ROOT)/trunk/root_source/tests \
 	-I$(PROJECT_ROOT)/trunk/root_source/sensor \
 	-I$(PROJECT_ROOT)/trunk/root_source/storage \
+	-I$(PROJECT_ROOT)/trunk/root_source/ui \
 	-I$(PROJECT_ROOT)/trunk/root_source/utils \
 	-I$(PROJECT_ROOT)/trunk/root_source/windows
 
@@ -248,6 +301,9 @@ EXTRA_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/trunk/platform_chip/bes/os_base/*.c) \
 	$(wildcard $(PROJECT_ROOT)/trunk/root_source/utils/*.c) \
 	$(wildcard $(PROJECT_ROOT)/trunk/root_source/base/*.c) \
+	$(wildcard $(PROJECT_ROOT)/drivers/adc/*.c) \
+	$(wildcard $(PROJECT_ROOT)/drivers/air_pressure/*.c) \
+	$(wildcard $(PROJECT_ROOT)/drivers/air_pressure/chip/wf100d/*.c) \
 	$(wildcard $(PROJECT_ROOT)/drivers/audio/*.c) \
 	$(wildcard $(PROJECT_ROOT)/drivers/base/*.c) \
 	$(wildcard $(PROJECT_ROOT)/drivers/battery/*.c) \
@@ -270,23 +326,50 @@ EXTRA_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/drivers/lcd/interface/lcd_uart/*.c) \
 	$(wildcard $(PROJECT_ROOT)/drivers/lcd/chip/uart_extension/*.c) \
 	$(wildcard $(PROJECT_ROOT)/drivers/led/*.c) \
-	$(wildcard $(PROJECT_ROOT)/drivers/led/chip/led_pwm/*.c) \
+	$(wildcard $(PROJECT_ROOT)/drivers/led/led_control/*.c) \
+	$(wildcard $(PROJECT_ROOT)/drivers/led/night_light/*.c) \
 	$(wildcard $(PROJECT_ROOT)/drivers/motor/*.c) \
 	$(wildcard $(PROJECT_ROOT)/drivers/motor/chip/motor_pwm/*.c) \
 	$(wildcard $(PROJECT_ROOT)/drivers/uart/*.c) \
 	$(wildcard $(PROJECT_ROOT)/drivers/wifi/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/algo/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/ble/factory_service/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/ble/master_service/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/ble/remot_service/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/breast_pump/mode/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/breast_pump/table/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/framework_hooks/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/framework_hooks/algo/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/framework_hooks/airplane_mode/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/framework_hooks/breast_pump/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/framework_hooks/power/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/framework_hooks/motor/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/framework_hooks/input_key/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/framework_hooks/sensor/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/framework_hooks/storage/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/framework_hooks/ui/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/framework_hooks/product_tests/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/framework_hooks/protocol/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/sensor/imu/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/sensor/force_sensor/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/sensor/air_pressure/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/product_tests/factory_tests/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/product_tests/hardware_self_tests/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/product_tests/stress_tests/*.c) \
+    $(wildcard $(PROJECT_ROOT)/overlay/product_tests/comm/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/protocol/app_commication/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/protocol/factory_protocol/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/storage/factory/*.c) \
-	$(wildcard $(PROJECT_ROOT)/overlay/storage/breath_pump/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/storage/breast_pump/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/storage/resource/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/storage/system/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/storage/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/input_key/*.c) \
+	$(call rwildcard,$(PROJECT_ROOT)/overlay/ui) \
 	$(wildcard $(PROJECT_ROOT)/overlay/windows/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/windows/airplane_mode/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/windows/battery/*.c) \
-	$(wildcard $(PROJECT_ROOT)/overlay/windows/breath_pump/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/windows/breast_pump/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/windows/charge/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/windows/dummy/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/windows/home/*.c) \
@@ -294,17 +377,19 @@ EXTRA_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/overlay/windows/ota/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/windows/pop_windows/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/windows/setting/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/windows/product_test_window/*.c) \
 	$(wildcard $(PROJECT_ROOT)/trunk/external/littlefs/*.c) \
 	$(wildcard $(PROJECT_ROOT)/trunk/external/littlefs/fds/*.c) \
 	$(wildcard $(PROJECT_ROOT)/trunk/external/scan_key/*.c) \
-	$(wildcard $(PROJECT_ROOT)/trunk/root_source/airplane/*.c) \
+	$(wildcard $(PROJECT_ROOT)/trunk/root_source/airplane_mode/*.c) \
 	$(wildcard $(PROJECT_ROOT)/trunk/root_source/algorithm/*.c) \
 	$(wildcard $(PROJECT_ROOT)/trunk/root_source/audio/*.c) \
 	$(wildcard $(PROJECT_ROOT)/trunk/root_source/ble/*.c) \
-	$(wildcard $(PROJECT_ROOT)/trunk/root_source/breath_pump/*.c) \
+	$(wildcard $(PROJECT_ROOT)/trunk/root_source/breast_pump/*.c) \
 	$(wildcard $(PROJECT_ROOT)/trunk/root_source/key_input/*.c) \
 	$(wildcard $(PROJECT_ROOT)/trunk/root_source/misc/*.c) \
 	$(wildcard $(PROJECT_ROOT)/trunk/root_source/motor/*.c) \
+	$(wildcard $(PROJECT_ROOT)/trunk/root_source/motor/breast_pump_policy/*.c) \
 	$(wildcard $(PROJECT_ROOT)/trunk/root_source/network/*.c) \
 	$(wildcard $(PROJECT_ROOT)/trunk/root_source/ota/*.c) \
 	$(wildcard $(PROJECT_ROOT)/trunk/root_source/pm/*.c) \
@@ -312,6 +397,9 @@ EXTRA_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/trunk/root_source/resource/*.c) \
 	$(wildcard $(PROJECT_ROOT)/trunk/root_source/sensor/*.c) \
 	$(wildcard $(PROJECT_ROOT)/trunk/root_source/storage/*.c) \
+	$(wildcard $(PROJECT_ROOT)/trunk/root_source/ui/*.c) \
+	$(wildcard $(PROJECT_ROOT)/trunk/root_source/utils/*.c) \
+	$(wildcard $(PROJECT_ROOT)/trunk/root_source/tests/*.c) \
 	$(wildcard $(PROJECT_ROOT)/trunk/root_source/windows/*.c) 
 
 CC := $(if $(strip $(CROSS_COMPILE)),$(CROSS_COMPILE)gcc,gcc)
@@ -328,6 +416,9 @@ sdk: $(EXTRA_LIB) | $(BIN_DIR)
 	$(MAKE) -C $(SDK_SRCTREE) O=$(O) T=$(SDK_T) CONFIG_CROSS_COMPILE=$(CONFIG_CROSS_COMPILE) \
 		C++_ONLY_FLAGS+=" -fno-threadsafe-statics " \
 		LIB_LDFLAGS+=" $(EXTRA_LIB) -Wl,-defsym,__EXTRA_LIB_MTIME=$(shell stat -c %Y $(EXTRA_LIB)) " \
+		WATCHER_DOG=$(WATCHER_DOG) \
+		CRASH_REBOOT=$(CRASH_REBOOT) \
+		WERROR_ENABLE=$(WERROR_ENABLE) \
 		REL_TRACE_ENABLE=$(REL_TRACE_ENABLE) \
 		LITTLEFS_SECTION_SIZE=$(LITTLEFS_SECTION_SIZE) \
 		FACTORY_DATA_SECTION_SIZE=$(FACTORY_DATA_SECTION_SIZE) \
@@ -341,7 +432,9 @@ sdk: $(EXTRA_LIB) | $(BIN_DIR)
 		PMU_CLK_USE_EXT_CRYSTAL=$(PMU_CLK_USE_EXT_CRYSTAL) \
 		CALIB_SLOW_TIMER=$(CALIB_SLOW_TIMER) \
 		CFG_CUSTOM_BLE_SERVICE=$(CFG_CUSTOM_BLE_SERVICE) \
-		CFG_CUSTOM_APP=$(CFG_CUSTOM_APP)
+		CFG_CUSTOM_APP=$(CFG_CUSTOM_APP) \
+		VHPPA_VOLT=$(VHPPA_VOLT) \
+		VCODEC_VOLT=$(VCODEC_VOLT)
 
 	@set -e; \
 		out_dir="$(O)/$(T)"; \
@@ -423,6 +516,7 @@ print-vars:
 	@echo REL_TRACE_ENABLE=$(REL_TRACE_ENABLE)
 	@echo RTC_CALENDAR=$(RTC_CALENDAR)
 	@echo PMU_CLK_USE_EXT_CRYSTAL=$(PMU_CLK_USE_EXT_CRYSTAL)
+	@echo WERROR_ENABLE=$(WERROR_ENABLE)
 
 # -------------- 便捷目标：固件与 Bootloader 隔离构建 --------------
 
@@ -438,6 +532,7 @@ export DEBUG
 export FLASH_REMAP
 export CHIP_HAS_CP
 export CHIP
+export WERROR_ENABLE
 
 # 固件构建（默认参数）
 firmware:
@@ -452,22 +547,29 @@ firmware:
 		FLASH_SIZE=0x400000 \
 		FREEMAN_OTA_ENABLE=1 \
 		OTA_BIN_COMPRESSED=1 \
+		OTA_CODE_OFFSET=0x66000 \
+		OTA_BOOT_INFO_OFFSET=0x62000 \
+		DEBUG_PORT=1 \
 		all
 
 # Bootloader 构建（默认参数）
 bootloader:
 	@$(MAKE) \
-		T=prod_test/ota_copy \
+		T=ota_boot_v2 \
 		CHIP=best1306p \
 		O=$(PROJECT_ROOT)/project/build/bootloader \
 		BIN_DIR=$(PROJECT_ROOT)/project/bin/bootloader \
-		DEBUG=1 \
-		BES_OTA=1 \
-		FLASH_REMAP=0 \
-		FLASH_SIZE=0x400000 \
-		CHIP_HAS_CP=0 \
-		FREEMAN_OTA_ENABLE=1 \
+		SYS_AS_MAIN=1 \
+		OTA_BOOT_SIZE=0x62000 \
+		OTA_BOOT_INFO_OFFSET=0x62000 \
+		OTA_CODE_OFFSET=0x66000 \
 		OTA_BIN_COMPRESSED=1 \
+		FLASH_SIZE=0x400000 \
+		OTA_BOOT_OFFSET=0 \
+		DEBUG_PORT=1 \
+		TRACE_CPU_IMM_OUTPUT=1 \
+		TRACE_BUF_SIZE=0 \
+		APP_BOOT_GPIO_CONTROL=1 \
 		sdk_only
 
 

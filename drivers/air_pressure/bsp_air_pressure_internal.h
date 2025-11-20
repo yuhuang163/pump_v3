@@ -9,7 +9,7 @@ extern "C" {
 /*******************************************************************************
 * Include files
 ******************************************************************************/
-#include "bsp_common.h"
+#include "bsp_common.h" // IWYU pragma: keep
 
 /**@brief Firmware information define*/
 
@@ -17,6 +17,9 @@ extern "C" {
 * GLOBAL FUNCTION DECLARATION
 *****************************************************************************************
 */
+int bsp_air_pressure_init(void);
+int bsp_air_pressure_deinit(void);
+int bsp_read_air_pressure_status(void *args);
 
 #ifdef __cplusplus
 }

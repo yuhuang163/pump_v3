@@ -1,0 +1,197 @@
+
+CHIP		?= best1600
+
+DEBUG		?= 1
+
+FPGA		?= 0
+
+DEBUG_PORT	?= 1
+
+FLASH_CHIP	?= ALL
+
+NOSTD		?= 0
+
+export HW_AGC ?= 1
+
+export LIBC_OVERRIDE ?= 1
+
+export OSC_26M_X4_AUD2BB	        ?= 1
+export ULTRA_LOW_POWER		        ?= 1
+ifneq ($(CHIP), best1306p)
+export CORE_SLEEP_POWER_DOWN ?= 1
+export BT_LOG_POWEROFF ?= 1
+endif
+export FLASH_DEEP_SLEEP ?= 1
+export SPLIT_CORE_M_CORE_L ?= 0
+export ALLOW_WARNING ?= 1
+export PSRAM_ENABLE ?=0
+export PSRAM_SPEED ?= 0
+export POWER_MODE			?= DIG_DCDC
+
+init-y		:=
+core-y		:= tests/ota_boot_watch/ platform/cmsis/ platform/hal/ \
+	platform/drivers/norflash/  platform/drivers/ana/
+
+KBUILD_CPPFLAGS += -Iplatform/cmsis/inc -Iplatform/hal
+
+LDS_FILE	:= best1000.lds
+
+export TRACE_BUF_SIZE ?= 32*1024
+export TRACE_BAUD_RATE ?= 921600
+
+ifneq ($(filter best1600 best1700,$(CHIP)),)
+export FLASH_DUAL_CHIP ?= 1
+endif
+
+# export BTWATCH ?= 1
+
+# export USE_MEM_CFG ?= 1
+# ifeq ($(USE_MEM_CFG), 1)
+# -include $(srctree)/config/$(CHIP)/mem_cfg.mk
+# endif
+
+ifeq ($(FLASH_DUAL_CHIP),1)
+KBUILD_CPPFLAGS += -DFLASH_DUAL_CHIP=1
+export FLASH_SIZE ?= 0x1000000
+# double flash support with the following options
+export FLASH_SUSPEND ?= 1
+export FLASH_DUAL_CHIP_INIT_ON ?= 1
+export OTA_CODE_OFFSET ?= 0x20000
+endif
+
+KBUILD_CPPFLAGS += -DSYS_USE_BBPLL=1
+KBUILD_CPPFLAGS += -DAUD_PLL_DOUBLE=1
+
+ifeq ($(filter best1700,$(CHIP)),)
+export BBPLL_MHZ ?= 400
+endif
+
+ifeq ($(OTA_CODE_OFFSET),)
+KBUILD_CPPFLAGS += -DOTA_CODE_OFFSET=0x118000
+else
+KBUILD_CPPFLAGS += -DOTA_CODE_OFFSET=$(OTA_CODE_OFFSET)
+endif
+
+export OTA_BARE_BOOT ?= 0
+ifeq ($(OTA_BARE_BOOT),1)
+KBUILD_CPPFLAGS += -DOTA_BARE_BOOT=1
+endif
+
+export SYS_USE_SENSOR_FLASH ?= 0
+ifeq ($(SYS_USE_SENSOR_FLASH),1)
+KBUILD_CPPFLAGS += -DSYS_USE_SENSOR_FLASH
+endif
+
+export SYS_USE_BTH_FLASH ?= 0
+ifeq ($(SYS_USE_BTH_FLASH),1)
+KBUILD_CPPFLAGS += -DSYS_USE_BTH_FLASH
+export USE_MULTI_FLASH ?= 1
+ifeq ($(USE_MULTI_FLASH),1)
+export FLASH1_SIZE ?= 0x400000
+KBUILD_CPPFLAGS += \
+        -DUSE_MULTI_FLASH \
+        -DFLASH1_SIZE=$(FLASH1_SIZE)
+LDS_CPPFLAGS += \
+        -DUSE_MULTI_FLASH \
+        -DFLASH1_SIZE=$(FLASH1_SIZE)
+endif
+endif
+
+LIB_LDFLAGS += -lstdc++ -lsupc++
+
+#CFLAGS_IMAGE += -u _printf_float -u _scanf_float
+
+#LDFLAGS_IMAGE += --wrap main
+STACK_SECTION_SIZE := 0x8000
+
+core-y += utils/hwtimer_list/
+
+export SYS_USE_BTH_FLASH ?= 1
+export OTA_USE_DIFF ?= 0
+export OTA_BIN_COMPRESSED ?= 1
+
+ifeq ($(OTA_BOOT_INFO_OFFSET),)
+KBUILD_CPPFLAGS += -DOTA_BOOT_INFO_OFFSET=0x110000
+else
+KBUILD_CPPFLAGS += -DOTA_BOOT_INFO_OFFSET=$(OTA_BOOT_INFO_OFFSET)
+endif
+
+ifneq ($(APP_RESTORE_FLASH_ADDR), )
+KBUILD_CPPFLAGS += -DAPP_RESTORE_FLASH_ADDR=$(APP_RESTORE_FLASH_ADDR)
+endif
+ifneq ($(APP_RESTORE_EMMC_ADDR), )
+KBUILD_CPPFLAGS += -DAPP_RESTORE_EMMC_ADDR=$(APP_RESTORE_EMMC_ADDR)
+endif
+ifneq ($(OTA_BACKUP_ADDR), )
+KBUILD_CPPFLAGS += -DOTA_BACKUP_ADDR=$(OTA_BACKUP_ADDR)
+endif
+ifneq ($(MAX_RESOURCE_COUNT), )
+KBUILD_CPPFLAGS += -DMAX_RESOURCE_COUNT=$(MAX_RESOURCE_COUNT)
+endif
+
+ifeq ($(OTA_USE_DIFF),1)
+KBUILD_CPPFLAGS += -DOTA_USE_DIFF
+OTA_BIN_COMPRESSED := 1
+core-y  += utils/bsdiff/
+endif
+
+ifeq ($(OTA_BIN_COMPRESSED),1)
+KBUILD_CPPFLAGS += -DOTA_BIN_COMPRESSED
+KBUILD_CPPFLAGS += -DMAIN_FILE_NAME=\"maincomp.bin\"
+KBUILD_CPPFLAGS += -DBTH_FILE_NAME=\"bthcomp.bin\"
+core-y  += utils/heap/
+core-y  += utils/lzma/
+endif
+
+ifeq ($(APP_BOOT_GPIO_CONTROL),1)
+KBUILD_CPPFLAGS += -DAPP_BOOT_GPIO_CONTROL
+endif
+
+export ZE7_EVB    ?= 0
+ifeq ($(ZE7_EVB),1)
+KBUILD_CPPFLAGS += -DZE7_EVB
+endif
+
+export BOOT_USE_STORAGE_NOFS ?= 0
+ifeq ($(BOOT_USE_STORAGE_NOFS),1)
+KBUILD_CPPFLAGS += -DBOOT_USE_STORAGE_NOFS
+core-y += services/fs/
+core-y += utils/hwtimer_list/
+ifneq ($(OTA_BIN_COMPRESSED),1)
+core-y  += utils/heap/
+endif
+
+ifeq ($(EMMC_ENABLE),1)
+export EMMC_ENABLE ?= 1
+export EMMC_PARTITION_ENABLE ?= 1
+core-y += platform/drivers/emmc/
+
+export AOS_EMMCPART1_BLOCK_NUM ?= 2097152
+KBUILD_CPPFLAGS += -DAOS_EMMCPART1_BLOCK_NUM=$(AOS_EMMCPART1_BLOCK_NUM)
+export AOS_EMMCPART2_BLOCK_NUM ?= 2097152
+KBUILD_CPPFLAGS += -DAOS_EMMCPART2_BLOCK_NUM=$(AOS_EMMCPART2_BLOCK_NUM)
+export AOS_EMMCPART3_BLOCK_NUM ?= 2097152
+KBUILD_CPPFLAGS += -DAOS_EMMCPART3_BLOCK_NUM=$(AOS_EMMCPART3_BLOCK_NUM)
+export AOS_EMMCPART4_BLOCK_NUM ?= 2097152
+KBUILD_CPPFLAGS += -DAOS_EMMCPART4_BLOCK_NUM=$(AOS_EMMCPART4_BLOCK_NUM)
+endif
+
+ifeq ($(SDMMC_ENABLE),1)
+export SDMMC_ENABLE ?= 1
+KBUILD_CPPFLAGS += -DSDEMMC_PARTITION_ENABLE
+
+export AOS_SDMMCPART1_BLOCK_NUM ?= 2097152
+KBUILD_CPPFLAGS += -DAOS_SDMMCPART1_BLOCK_NUM=$(AOS_SDMMCPART1_BLOCK_NUM)
+export AOS_SDMMCPART2_BLOCK_NUM ?= 2097152
+KBUILD_CPPFLAGS += -DAOS_SDMMCPART2_BLOCK_NUM=$(AOS_SDMMCPART2_BLOCK_NUM)
+export AOS_SDMMCPART3_BLOCK_NUM ?= 2097152
+KBUILD_CPPFLAGS += -DAOS_SDMMCPART3_BLOCK_NUM=$(AOS_SDMMCPART3_BLOCK_NUM)
+export AOS_SDMMCPART4_BLOCK_NUM ?= 2097152
+KBUILD_CPPFLAGS += -DAOS_SDMMCPART4_BLOCK_NUM=$(AOS_SDMMCPART4_BLOCK_NUM)
+endif
+endif
+
+# export NANDFLASH_SUPPORT ?= 1
+# core-y += platform/drivers/nandflash/
+
+export override CHIP_HAS_CP := 0

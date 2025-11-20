@@ -44,7 +44,7 @@ static int uart_dev_ioctl(struct rt_device_node *dev, uint32_t op_code, void *ar
 {
     switch (op_code) {
         case OP_CODE_UART_ADD_EVENT_CB:
-            bsp_factory_uart_register_event_cb((uart_recv_event_cb_func)args);
+            bsp_factory_uart_register_event_cb((uart_recv_event_cb_func)args, dev);
             break;
 
         default:

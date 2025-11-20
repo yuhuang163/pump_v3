@@ -8,7 +8,7 @@ extern "C" {
 /*******************************************************************************
 * Include files
 ******************************************************************************/
-#include "root_common_api.h" // IWYU pragma: keep
+#include "root_common_base.h" // IWYU pragma: keep
 
 #define F_SENSOR_POLLING_PERIOD              (160)
 

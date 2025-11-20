@@ -127,6 +127,7 @@
 #define PMU_DCDC_ANA_DEFAULT            0xBB /* 1.3V */
 
 // 4mV
+#define PMU_DCDC_HPPA_1_95V             0x166
 #define PMU_DCDC_HPPA_1_9V              0x159
 #define PMU_DCDC_HPPA_1_8V              0x140
 #define PMU_DCDC_HPPA_1_75V             0x134
@@ -245,6 +246,8 @@
 #define PMU_EFUSE_PAGE_EXT_GPADC_HV_OFFSET_MASK  (0xFFF << PMU_EFUSE_PAGE_EXT_GPADC_HV_OFFSET_SHIFT)
 #define PMU_EFUSE_PAGE_EXT_GPADC_HV_OFFSET(n)    BITFIELD_VAL(PMU_EFUSE_PAGE_EXT_GPADC_HV_OFFSET, n)
 #define PMU_EFUSE_PAGE_EXT_GPADC_HV_BASE         36500
+#define PMU_EFUSE_PAGE_LPO_STABLE                (1 << 13)
+#define PMU_EFUSE_PAGE_ULTRA_LOW_SLEEP_VCORE     (1 << 14)
 
 #define PMU_EFUSE_GPADC_CALIB_DEFAULT            2000
 
@@ -539,11 +542,10 @@ static OPT_TYPE uint8_t ana_lp_dcdc = ana_act_dcdc;
 static OPT_TYPE POSSIBLY_UNUSED uint16_t vcodec_mv = (uint16_t)(VCODEC_VOLT * 1000);
 static OPT_TYPE POSSIBLY_UNUSED uint16_t vhppa_mv = (uint16_t)(VHPPA_VOLT * 1000);
 
-static OPT_TYPE uint8_t dig_lp_dcdc =
 #ifdef CAPSENSOR_ENABLE
-    PMU_DCDC_DIG_0_7V;
+static OPT_TYPE uint8_t dig_lp_dcdc = PMU_DCDC_DIG_0_7V;
 #else
-    PMU_DCDC_DIG_0_65V;
+static uint8_t BOOT_DATA_LOC dig_lp_dcdc = PMU_DCDC_DIG_0_65V;
 #endif
 
 static OPT_TYPE enum PMU_POWER_MODE_T BOOT_DATA_LOC pmu_power_mode = PMU_POWER_MODE_DIG_DCDC;
@@ -2238,11 +2240,10 @@ static void pmu_dcdc_dig_get_volt(unsigned short *normal_vp, unsigned short *dsl
 #endif
 }
 
-static void pmu_dcdc_dig_set_volt(unsigned short normal_v,unsigned short dsleep_v)
+static void pmu_dcdc_dig_set_volt(unsigned short normal_v, unsigned short dsleep_v, bool set_sleep_v)
 {
     unsigned short val;
     unsigned short rc_v = normal_v;
-    static bool cfg_sleep_v = true;
 
 #ifdef PMU_DCDC_CALIB
 #ifndef PMU_INTF_CALIBED_VOLT
@@ -2264,11 +2265,10 @@ static void pmu_dcdc_dig_set_volt(unsigned short normal_v,unsigned short dsleep_
     pmu_write(PMU_REG_BUCK_VCORE_RC_CFG, val);
 #endif
 
-    if (cfg_sleep_v) {
+    if (set_sleep_v) {
         pmu_read(PMU_REG_BUCK_VCORE_LP_CFG, &val);
         val = SET_BITFIELD(val, REG_BUCK_VCORE_VBIT_DSLEEP, dsleep_v);
         pmu_write(PMU_REG_BUCK_VCORE_LP_CFG, val);
-        cfg_sleep_v = false;
     }
 
     if (!dcdc_ramp_en) {
@@ -2313,7 +2313,7 @@ bool pmu_dig_set_volt_value(uint16_t dcdc_volt_mv, uint16_t logic_volt_mv, uint1
         }
     }
     if (find == 0x1) {
-        pmu_dcdc_dig_set_volt(dcdc_volt, dig_lp_dcdc);
+        pmu_dcdc_dig_set_volt(dcdc_volt, dig_lp_dcdc, true);
         success = true;
     }
     return success;
@@ -2387,7 +2387,7 @@ static void pmu_dig_set_volt(enum PMU_POWER_MODE_T mode)
         if (old_act_dcdc < dcdc_volt) {
             volt_inc = true;
             if (dcdc_ramp_en) {
-                pmu_dcdc_dig_set_volt(dcdc_volt, dig_lp_dcdc);
+                pmu_dcdc_dig_set_volt(dcdc_volt, dig_lp_dcdc, false);
             } else {
                 while (old_act_dcdc < dcdc_volt) {
                     if (old_act_dcdc + ramp_step < dcdc_volt) {
@@ -2395,11 +2395,11 @@ static void pmu_dig_set_volt(enum PMU_POWER_MODE_T mode)
                     } else {
                         old_act_dcdc = dcdc_volt;
                     }
-                    pmu_dcdc_dig_set_volt(old_act_dcdc, dig_lp_dcdc);
+                    pmu_dcdc_dig_set_volt(old_act_dcdc, dig_lp_dcdc, false);
                 }
             }
         } else {
-            pmu_dcdc_dig_set_volt(dcdc_volt, dig_lp_dcdc);
+            pmu_dcdc_dig_set_volt(dcdc_volt, dig_lp_dcdc, false);
         }
     }
 
@@ -2488,6 +2488,8 @@ static uint32_t pmu_dcdc_hppa_mv_to_val(uint16_t mv)
         val = PMU_DCDC_HPPA_1_75V;
     } else if (mv == 1900) {
         val = PMU_DCDC_HPPA_1_9V;
+    } else if (mv == 1950) {
+        val = PMU_DCDC_HPPA_1_95V;
     } else {
         val = PMU_DCDC_HPPA_1_8V;
     }
@@ -2808,10 +2810,10 @@ int BOOT_TEXT_FLASH_LOC pmu_open(void)
 #endif
 
     ASSERT(vcodec_mv == 1400 || vcodec_mv == 1450 || vcodec_mv == 1500 || vcodec_mv == 1550 || vcodec_mv == 1600 || vcodec_mv == 1650 ||
-        vcodec_mv == 1700 || vcodec_mv == 1750 || vcodec_mv == 1800 || vcodec_mv == 1900,
+        vcodec_mv == 1700 || vcodec_mv == 1750 || vcodec_mv == 1800 || vcodec_mv == 1900 || vcodec_mv == 1950,
         "Invalid vcodec cfg: vcodec_mv=%u", vcodec_mv);
     ASSERT(vhppa_mv == 1400 || vhppa_mv == 1450 || vhppa_mv == 1500 || vhppa_mv == 1550 || vhppa_mv == 1600 || vhppa_mv == 1650 ||
-        vhppa_mv == 1700 || vhppa_mv == 1750 || vhppa_mv == 1800 || vhppa_mv == 1900,
+        vhppa_mv == 1700 || vhppa_mv == 1750 || vhppa_mv == 1800 || vhppa_mv == 1900 || vhppa_mv == 1950,
         "Invalid vhppa cfg: vhppa_mv=%u", vhppa_mv);
     TRACE(0, "%s vcodec_mv:%d vhppa_mv:%d", __func__, vcodec_mv, vhppa_mv);
 
@@ -2970,7 +2972,7 @@ int BOOT_TEXT_FLASH_LOC pmu_open(void)
         pmu_write(PMU_REG_BUCK_VANA_RC_CFG_140, val);
     }
 
-if (hal_get_chip_metal_id() > HAL_CHIP_METAL_ID_3) {
+    if (hal_get_chip_metal_id() > HAL_CHIP_METAL_ID_3) {
         pmu_read(PMU_REG_RESERVED_ANA, &val);
         val &= ~REG_BUCK_CURRENT_REF_ULP;
         pmu_write(PMU_REG_RESERVED_ANA, val);
@@ -3189,7 +3191,17 @@ if (hal_get_chip_metal_id() > HAL_CHIP_METAL_ID_3) {
 
 #ifdef PMU_NTC_MONITOR
     pmu_ntc_monitor_init();
+#ifdef LOW_SLEEP_VCORE
+    pmu_get_efuse(PMU_EFUSE_PAGE_EXT_GPADC_HV, &val);
+    if ((val & PMU_EFUSE_PAGE_ULTRA_LOW_SLEEP_VCORE) && ntc_ctx.temperature > 5) {
+        dig_lp_dcdc = PMU_DCDC_DIG_0_6V;
+    }
 #endif
+#endif
+
+    // Set sleep VCORE
+    pmu_dcdc_dig_get_volt(&val, NULL);
+    pmu_dcdc_dig_set_volt(val, dig_lp_dcdc, true);
 
     charger_charge_open();
 

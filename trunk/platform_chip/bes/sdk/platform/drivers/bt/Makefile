@@ -5,19 +5,21 @@ obj-y := $(obj-y:.c=.o)
 obj-y := $(obj-y:.cpp=.o)
 obj-y := $(obj-y:.S=.o)
 
-ifeq ($(FPGA_VERSION),1500)
-obj-y += best1501simu/
-else
+# CFLAGS_bt_drv_uart_bridge_intsys.o += $(BT_DRV_UART_BRIDGE_FLAGS)
+CFLAGS_bt_drv_uart_bridge.o += $(BT_DRV_UART_BRIDGE_FLAGS)
+
 obj-y += $(CHIP)/
-endif
+
 subdir-ccflags-y += \
     -Iinclude/watchdog \
     -Iplatform/drivers/bt \
+    -Iplatform/drivers/coex \
     -Iplatform/drivers/ana \
     -Iutils/cqueue \
     -Iutils/heap \
     $(BLUETOOTH_ADAPTER_INCLUDES) \
-    -Iservices/nv_section/userdata_section
+    -Iservices/nv_section/userdata_section \
+    -Iutils/hci_transport_if
 
 ifeq ($(BT_XTAL_SYNC),1)
 subdir-ccflags-y += -DBT_XTAL_SYNC
@@ -139,6 +141,9 @@ subdir-ccflags-y += -D__HW_AGC__
 endif
 
 ifeq ($(BT_LOG_POWEROFF),1)
+ifeq ($(NO_SLEEP),1)
+$(error Invalid config! BT_LOG_POWEROFF conflict with NO_SLEEP)
+endif
 subdir-ccflags-y += -DBT_LOG_POWEROFF
 endif
 
@@ -154,8 +159,16 @@ ifeq ($(MHDT_SWAGC),1)
 subdir-ccflags-y += -D__MHDT_SWAGC__
 endif
 
+ifeq ($(MHDT_HWAGC),1)
+subdir-ccflags-y += -D__MHDT_HWAGC__
+endif
+
 ifeq ($(BLE_NEW_SWAGC_MODE),1)
 subdir-ccflags-y += -D__BLE_NEW_SWAGC_MODE__
+endif
+
+ifeq ($(HDT_NEW_SWAGC_MODE),1)
+subdir-ccflags-y += -D__HDT_NEW_SWAGC_MODE__
 endif
 
 ifeq ($(BT_EXT_LNA_PA),1)
@@ -283,10 +296,28 @@ ifneq ($(filter master slave 1, $(BT_PLD_SIMU) $(BT_PLD_SOURCE_SIMU)),)
 subdir-ccflags-y += -DBT_PLD_SIMU
 endif
 
-ifeq ($(TRANSQ_ENABLE),1)
-subdir-ccflags-y += -DTRANSQ_ENABLE
+ifeq ($(BT_PLD_SIMU),master)
+subdir-ccflags-y += -DBT_PLD_SIMU_MASTER
 endif
 
 ifeq ($(MCU_WAKEUP_BT_V2),1)
 subdir-ccflags-y += -DMCU_WAKEUP_BT_V2
+endif
+
+# SEC CON based on Cod LE Audio bit
+export BT_SEC_CON_BASED_ON_COD_LE_AUD ?= 0
+ifeq ($(BT_SEC_CON_BASED_ON_COD_LE_AUD),1)
+KBUILD_CPPFLAGS += -DBT_SEC_CON_BASED_ON_COD_LE_AUD
+endif
+
+ifeq ($(WIFI_BT_COEX_SUPPORT),1)
+subdir-ccflags-y += -Iplatform/drivers/wifi/$(CHIP)
+endif
+
+ifeq ($(FRAME_SPACE_CHECK),1)
+subdir-ccflags-y += -DFRAME_SPACE_CHECK
+endif
+
+ifeq ($(HCI_UART_USE_CTSRTS),1)
+subdir-ccflags-y += -DHCI_UART_USE_CTSRTS
 endif

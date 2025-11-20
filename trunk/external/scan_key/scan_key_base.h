@@ -56,18 +56,18 @@ extern "C" {
 #define DE_SK_EVENT_UP_CONTINUE_YES          (19) /**< 连按抬起通过抖动事件 */
 #define DE_SK_EVENT_UP_CONTINUE_NO           (20) /**< 连按抬起不通过抖动事件 */
 
+struct _scan_key_data;
+typedef void(*u_scan_key_cb)(struct _scan_key_data* scan_key, uint8_t code_index); /**< 定义扫描按键回调处理函数指针类型 */
 
-typedef void(*u_scan_key_cb)(void*);             /**< 定义扫描按键回调处理函数指针类型 */
-
-typedef struct {
-    int pin;
-    int type;
+typedef struct _scan_key_data {
+    uint8_t up_status;                          /**< 按键抬起状态机，1表示按键完全抬起，0表示按键未完全抬起，用来适配组合按键 */
     uint8_t event;                              /**< 扫描按键的事件 */
     uint8_t status;                             /**< 扫描按键的状态机 */
     uint8_t debounce_tick;                      /**< 按键消抖经历的滴答时间 */
     uint8_t level;                              /**< 激活电平 */
     uint16_t double_start_tick;                 /**< 记录按键双击开始的滴答时刻和连击开始的滴答时刻 */
     uint16_t scan_count;                        /**< 按键经历的滴答时间消抖验证通过后为非0值 */
+    uint32_t code_value;                        /**< 按键值 */
     u_scan_key_cb cb;                           /**< 按键事件回调函数 */
 } scan_key_data_t;
 
@@ -81,7 +81,7 @@ typedef struct {
  * GLOBAL FUNCTION DECLARATION
  *****************************************************************************************
  */
-void v_scan_key(scan_key_ctrl_data_t *key_ctrl, scan_key_data_t *key_data);
+void v_scan_key(scan_key_ctrl_data_t *key_ctrl, scan_key_data_t *key_data, uint8_t code_size);
 
 #ifdef __cplusplus
 }

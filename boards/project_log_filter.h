@@ -5,13 +5,22 @@
 extern "C" {
 #endif
 
+#define IS_SUPPORT_ALGO_UART_SAMPLE_LOG                 (0)
+
+#if IS_SUPPORT_ALGO_UART_SAMPLE_LOG
+#define LOG_FILTER (FILTER_NONE)
+#define BSP_LOG_HEX_SUPPORT                             (0)  //底层串口交互日志开关，量产前关闭 
+#define BSP_LOG_SUPPORT                                 (0)
+#else
 #define LOG_FILTER (\
     FILTER_BLE|FILTER_PBUS|FILTER_UI|FILTER_WM|FILTER_MOTOR|FILTER_STORE|FILTER_DB| \
-    FILTER_PMP|FILTER_PM|FILTER_STEP\
+    FILTER_PMP|FILTER_PM|FILTER_STEP|FILTER_KEY|FILTER_UI|FILTER_MISC|FILTER_AIR| \
+    FILTER_ALGO|FILTER_SENSOR|FILTER_PROTOCOL \
 )
+#define BSP_LOG_HEX_SUPPORT                             (1)  //底层串口交互日志开关，量产前关闭 
+#define BSP_LOG_SUPPORT                                 (1)
+#endif
 
-#define BSP_LOG_HEX_SUPPORT                     (1)  //底层串口交互日志开关，量产前关闭 
-#define BSP_LOG_SUPPORT                         (1)
 
 // #define PRINT_LOG(...)
 

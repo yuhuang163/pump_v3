@@ -28,9 +28,6 @@ int bes_lzma_dec_init(uint8_t *lzma_heap, uint32_t heap_size);
 void *bes_lzma_malloc(uint32_t size);
 void bes_lzma_free(void *p);
 int bes_lzma_dec_buf(uint8_t *input, uint32_t input_size, uint8_t *output, uint32_t *output_size);
-#ifdef OTA_BIN_COMPRESSED
-void ota_copy_compressed_image(uint32_t srcFlashOffset, uint32_t dstFlashOffset);
-#endif
 int bes_lzma_dec_code(unsigned char *outStream, unsigned int *uncompressedSize, unsigned char *inStream,  unsigned int  length);
 
 #ifdef __cplusplus

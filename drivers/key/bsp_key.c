@@ -10,7 +10,7 @@
 * DEFINES
 *****************************************************************************************
 */
-#define KEY_CODE_SIZE 6
+#define KEY_CODE_SIZE (6 + 1 + 2) // 6个按键 + 1个电源键 + 2个组合按键
 
 /*
 * LOCAL VARIABLE DEFINITIONS
@@ -18,6 +18,17 @@
 */
 static rt_device_node_t *node = NULL;
 static key_input_evt_cb_fptr key_cb = NULL;
+static const uint32_t key_code_value[SCAN_KEY_CODE_MAX] = {
+    SCAN_KEY_CODE_1_VALUE,
+    SCAN_KEY_CODE_2_VALUE,
+    SCAN_KEY_CODE_3_VALUE,
+    SCAN_KEY_CODE_4_VALUE,
+    SCAN_KEY_CODE_5_VALUE,
+    SCAN_KEY_CODE_6_VALUE,
+    SCAN_KEY_CODE_7_VALUE,
+    SCAN_KEY_CODE_56_VALUE,
+    SCAN_KEY_CODE_23_VALUE,
+};
 
 /*
 * GLOBAL VARIABLE DEFINITIONS
@@ -36,17 +47,16 @@ static int scan_key_module_init(void)
         LOGE("key init fail:%d", ret);
         return ret;
     }
-    ret = scan_key_input_init(node, KEY_CODE_SIZE);
+    ret = scan_key_input_init(node, key_code_value, KEY_CODE_SIZE);
     if (node) {
         node->status = DEVICE_BUS_INIT;
     }
-    LOG_PBUS("key init ok");
     return ret;
 }
 
 static int key_dev_open(struct rt_device_node *dev)
 {
-    bsp_key_init();
+    scan_key_module_init();
     return 0;
 }
 
@@ -82,6 +92,7 @@ static int key_dev_write(struct rt_device_node *dev, const void *buf, uint32_t n
         keytype = tmp[1];
     }
 
+    // LOG_PBUS("keycode: %d, keytype: %d, key_cb: %p", keycode, keytype, key_cb);
     if (keycode && key_cb) {
         key_cb(dev, keycode, keytype);
     }
@@ -114,11 +125,21 @@ int platform_read_key_value(int type, int index)
     return bsp_read_key_value(index);
 }
 
+int platform_all_key_value(void)
+{
+    return bsp_read_all_key_value();
+}
+
 void key_irq_event_callback(int index)
 {
-    if (platform_read_key_value(0, index) > 0) {
-        scan_key_timer_start(index);
-    }
+    scan_key_timer_start(index);
+}
+
+void knob_button_event_handler(int arg1, int arg2, void *param)
+{
+    LOGI("knob button event: arg1=%d, arg2=%d", arg1, arg2);
+    int keycode = arg1 == 0 ? KEY_CODE_10 : KEY_CODE_11;
+    key_cb(node, keycode, KEY_EVENT_CLICK);
 }
 
 void *register_device_for_input_key(list_head_t *list_head)

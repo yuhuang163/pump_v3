@@ -2,8 +2,9 @@
 * INCLUDE FILES
 *****************************************************************************************
 */
-#include "root_common_api.h"
-#include "sensor_manager.h"
+#include "root_common_api.h" // IWYU pragma: keep
+#if IS_SUPPORT_DEVICE_IMU
+#include "sensor_manager.h" 
 #include "imu_module.h"
 
 /*
@@ -181,3 +182,4 @@ void register_imu_module_ctx(sensor_manager_context_t *ptr)
     ptr->imu.irq_disable = imu_irq_disable;
     thiz = ptr;
 }
+#endif

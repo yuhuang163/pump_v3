@@ -27,6 +27,7 @@
 #include "hal_sysfreq.h"
 #include "hal_chipid.h"
 #include "pmu.h"
+#include "nvrecord_dev.h"
 #ifdef BTC_CPUDUMP_BASE
 #include "bt_drv_cpudump.h"
 #endif
@@ -446,7 +447,11 @@ const uint16_t rx_dccal_rf_set[][2] =
     {0x00bf,0x0034},
     {0x002c,0x240E},
     {0x0024,0x0000},
+#ifdef BT_RF_I2V_BYPASS
     {0x0309,0x0103},
+#else
+    {0x0209,0x8112},
+#endif
     {0x002A,0x0018},
 };
 
@@ -481,6 +486,104 @@ void btdrv_rx_dccal(void)
     }
 }
 
+#ifndef BT_RF_I2V_BYPASS
+struct RX_RCCAL_CALIB
+{
+    uint16_t rf_reg;
+    uint16_t mask;
+    uint16_t shift;
+};
+
+static struct RX_RCCAL_CALIB RX_RCCAL_CALIB_RF_REG_TBL[] =
+{
+    {0x134, 0xFF, 8},
+    {0x135, 0xFF, 8},
+    {0x136, 0xFF, 8},
+    {0x137, 0xFF, 8},
+    {0x138, 0xFF, 8},
+    {0x139, 0xFF, 8},
+    {0x13a, 0xFF, 8},
+    {0x13b, 0xFF, 8},    // bit[15:8] //i2v corner sw agc tab1
+    {0x23f, 0xFF, 8},
+    {0x242, 0xFF, 8},
+    {0x245, 0xFF, 8},
+    {0x248, 0xFF, 8},
+    {0x24b, 0xFF, 8},
+    {0x24e, 0xFF, 8},
+    {0x251, 0xFF, 8},
+    {0x254, 0xFF, 8},    // bit[15:8] //i2v corner hw agc tab1
+    {0x3e0, 0xFF, 0},    // bit[7:0] //adc corner 1M
+    {0x3df, 0xFF, 8},    // bit[15:8] //adc corner 2M
+    {0x3df, 0xFF, 0},    // bit[7:0] //adc corner 4M
+};
+
+void btdrv_rxbb_rccal(void)
+{
+    uint16_t value = 0;
+    uint16_t rccal_count = 0;
+    const uint16_t base_count = 0x1EB5;
+    float quotient = 0.0f;
+    float factor;
+    uint16_t read_val;
+    uint8_t i;
+
+    uint16_t rf_store_439;
+    uint16_t rf_store_407;
+    uint16_t rf_store_525;
+    uint32_t dig_store;
+
+    dig_store = BTDIGITAL_REG(BT_BES_TESTMODE_ADDR);
+    btdrv_read_rf_reg(0x439, &rf_store_439);
+    btdrv_read_rf_reg(0x407, &rf_store_407);
+    btdrv_read_rf_reg(0x525, &rf_store_525);
+
+    BTDIGITAL_REG_WR(BT_BES_TESTMODE_ADDR, 0x000A0080);       //rx on
+
+    BTRF_REG_SET_FIELD(0x439, 0x1, 4, 0x1);           //reg_rcosc_pu
+    BTRF_REG_SET_FIELD(0x407, 0x3, 3, 0x3);           //reg_rccal_en
+    BTRF_REG_SET_FIELD(0x525, 0x1, 0, 0x0);           //reset=0
+    BTRF_REG_SET_FIELD(0x525, 0x1, 0, 0x1);           //reset=1
+    btdrv_delay(1);
+
+    btdrv_read_rf_reg(0x406, &value);
+    BT_DRV_TRACE(2, "%s rf_406=0x%x", __func__, value);
+    //bit12: dig_rccal_finish
+    if (getbit(value, 15)) {
+        rccal_count = value & 0x7FFF;                //dig_rccal_count[11:0]
+        BT_DRV_TRACE(2, "%s rccal_count=0x%x", __func__, rccal_count);
+    } else {
+        BT_DRV_TRACE(1, "%s dig rccal not finish!!!", __func__);
+        goto exit;
+    }
+
+    quotient = (float)((float)rccal_count / (float)base_count);
+    //TRACE(1, "quotient=%f", (double)quotient);
+    if ((quotient > 0.7f) && (quotient < 1.3f)) {
+        factor = quotient;
+    } else {
+        // use efuse calib
+        BT_DRV_TRACE(0, "quotient not in range [0.7, 1.3]");
+        factor = 1.0f;
+    }
+
+    for (i = 0; i < ARRAY_SIZE(RX_RCCAL_CALIB_RF_REG_TBL); i++){
+        BTRF_REG_GET_FIELD(RX_RCCAL_CALIB_RF_REG_TBL[i].rf_reg, RX_RCCAL_CALIB_RF_REG_TBL[i].mask,
+            RX_RCCAL_CALIB_RF_REG_TBL[i].shift, read_val);
+        read_val = (uint16_t)((read_val / factor) + 0.5);
+        read_val &= 0xFF;
+        BTRF_REG_SET_FIELD(RX_RCCAL_CALIB_RF_REG_TBL[i].rf_reg, RX_RCCAL_CALIB_RF_REG_TBL[i].mask,
+            RX_RCCAL_CALIB_RF_REG_TBL[i].shift, read_val);
+    }
+
+exit:
+    //reset
+    BTDIGITAL_REG_WR(BT_BES_TESTMODE_ADDR, dig_store);
+    btdrv_write_rf_reg(0x525, rf_store_525);
+    btdrv_write_rf_reg(0x407, rf_store_407);
+    btdrv_write_rf_reg(0x439, rf_store_439);
+}
+#endif
+
 void bt_drv_calibration_init(void)
 {
     enum HAL_CHIP_METAL_ID_T metal_id;
@@ -491,6 +594,9 @@ void bt_drv_calibration_init(void)
         btdrv_txpower_calib();
         btdrv_rf_pll_aac_default_val();
     }
+#ifndef BT_RF_I2V_BYPASS
+    btdrv_rxbb_rccal();
+#endif
 #ifdef RX_DC_CAL
     btdrv_rx_dccal();
 #endif
@@ -580,19 +686,16 @@ static void compensate_irqhandler(uint16_t raw, HAL_GPADC_MV_T volt)
     } else {
         btdrv_regop_temp_calib_set_calib_value_v1(tmx_gain_final, pa_current_final);
     }
-
-    pmu_ntc_capture_disable();
 }
 
 static POSSIBLY_UNUSED void btdrv_compensate_power_based_on_temperature(void)
 {
-    pmu_ntc_capture_enable();
     hal_gpadc_open(HAL_GPADC_CHAN_0, HAL_GPADC_ATP_ONESHOT, compensate_irqhandler);
 }
 #endif
 
 #ifdef BT_RF_MODEM_REG_DUMP
-static void bt_drv_dump_rf_reg(void)
+void bt_drv_dump_rf_reg(void)
 {
     uint16_t read_val = 0;
 
@@ -638,7 +741,7 @@ static void bt_drv_dump_modem_reg(void)
     uint32_t read_val = 0;
 
     for (uint16_t i = 0; i <= 384; i++) {
-        read_val = BTDIGITAL_REG((CFG_MODEM_BASE_ADDR + i));
+        read_val = BTDIGITAL_REG((CFG_MODEM_BASE_ADDR + (i*4)));
         BT_DRV_TRACE(0,"0x%08x: 0x%08x", (CFG_MODEM_BASE_ADDR + (i*4)), read_val);
         btdrv_delay(1);
     }
@@ -668,20 +771,6 @@ void btdrv_start_bt(void)
     hal_sysfreq_req(HAL_SYSFREQ_USER_BT, HAL_CMU_FREQ_52M);
 
     btdrv_common_init();
-
-#if INTERSYS_DEBUG
-    btdrv_trace_config(BT_CONTROLER_TRACE_TYPE_INTERSYS |
-                       BT_CONTROLER_TRACE_TYPE_CONTROLLER |
-                       BT_CONTROLER_FILTER_TRACE_TYPE_A2DP_STREAM |
-                       BT_CONTROLER_TRACE_TYPE_SPUV_HCI_BUFF |
-                       BT_CONTROLER_TRACE_TYPE_ACL_PACKET);
-
-#ifdef IS_HCI_ISO_PACKET_TRACE_ENABLED
-    btdrv_set_iso_packet_trace_enable();
-#else
-    btdrv_set_iso_packet_trace_disable();
-#endif
-#endif
 
     hal_iomux_ispi_access_enable(HAL_IOMUX_ISPI_MCU_RF);
 
@@ -721,6 +810,8 @@ void btdrv_start_bt(void)
 #ifndef PROGRAMMER
     btdrv_register_temp_compensation_callback(btdrv_compensate_power_based_on_temperature);
 #endif
+    //write BTC srand seed
+    btdrv_regop_set_btc_srand_seed_initial();
 
     // config BTC default setting through HCI
     btdrv_hciopen();
@@ -1005,43 +1096,6 @@ static bool btdrv_vco_test_running = false;
 static uint32_t gfsk_dig_gain = 0;
 static uint32_t dc_gain = 0;
 static uint16_t vco_test_reg_val_24 = 0;
-#ifdef VCO_TEST_TOOL
-static unsigned short vco_test_hack_flag = 0;
-static unsigned short vco_test_channel = 0xff;
-
-unsigned short btdrv_get_vco_test_process_flag(void)
-{
-    return vco_test_hack_flag;
-}
-
-bool btdrv_vco_test_bridge_intsys_callback(const unsigned char *data)
-{
-    bool status = false;
-    if (data[0] == 0x01 && data[1] == 0xaa && data[2] == 0xfc && data[3] == 0x02)
-    {
-        status = true;
-        vco_test_hack_flag = data[5];
-        vco_test_channel = data[4];
-    }
-
-    return status;
-}
-
-void btdrv_vco_test_process(uint8_t op)
-{
-    if (op == 0x02) // vco test start
-    {
-        if (vco_test_channel != 0xff)
-            btdrv_vco_test_start(vco_test_channel);
-    }
-    else if (op == 0x04) // vco test stop
-    {
-        btdrv_vco_test_stop();
-    }
-    vco_test_channel = 0xff;
-    vco_test_hack_flag = 0;
-}
-#endif
 
 void btdrv_vco_test_start(uint8_t chnl)
 {
@@ -1076,6 +1130,9 @@ void btdrv_vco_test_stop(void)
 
 void btdrv_stop_bt(void)
 {
+    /*unregister BT crash dump*/
+    hal_trace_crash_dump_register(HAL_TRACE_CRASH_DUMP_MODULE_BT, NULL);
+
     btdrv_poweron(BT_POWEROFF);
 }
 

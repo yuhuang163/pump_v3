@@ -19,7 +19,6 @@
 #include "plat_types.h"
 #include "hal_chipid.h"
 #include "bt_drv.h"
-#include "bt_drv_internal.h"
 #include "bt_drv_interface.h"
 #include "bt_drv_reg_op.h"
 #include "besbt_string.h"
@@ -154,3 +153,43 @@ void btdrv_common_ble_scan_enable(uint8_t scan_type, uint16_t scan_interval, uin
     btdrv_common_test_cmd_ble_scan_en();
 }
 
+#ifndef NOSTD
+static void rssi_read_thread(void const *argument);
+osThreadDef(rssi_read_thread, osPriorityAboveNormal, 1, 4096, "rssi read");
+
+void rssi_read_thread(void const *argument)
+{
+    while (1) {
+        hal_sys_timer_delay(MS_TO_TICKS(200));
+        rx_agc_t rx_val;
+        bt_drv_reg_op_read_rssi_in_dbm(0x80, &rx_val);
+        TRACE(1, "bt RSSI[%d] Rx Gain[%d]\n", rx_val.rssi, rx_val.rxgain);
+        bt_drv_reg_op_read_ble_rssi_in_dbm(0x00, &rx_val);
+        TRACE(1, "ble RSSI[%d] Rx Gain[%d]\n", rx_val.rssi, rx_val.rxgain);
+    }
+}
+
+static void btdrv_bqbtest_start_rssi_read(void)
+{
+    osThreadCreate(osThread(rssi_read_thread), NULL);
+}
+
+void btdrv_bqbtest_loop(void)
+{
+    btdrv_start_bt();
+    hal_sysfreq_req(HAL_SYSFREQ_USER_BT, HAL_CMU_FREQ_208M);
+    btdrv_hciopen();
+    btdrv_ins_patch_test_init();
+    bt_drv_reg_op_key_gen_after_reset(false);
+    btdrv_hci_reset();
+    btdrv_sleep_config(0);
+    btdrv_testmode_start();
+    btdrv_feature_default();
+    bt_drv_config_after_hci_reset();
+
+    btdrv_hcioff();
+    btdrv_bqbtest_start_rssi_read();
+    btdrv_uart_bridge_loop();
+    hal_sysfreq_req(HAL_SYSFREQ_USER_BT, HAL_CMU_FREQ_32K);
+}
+#endif

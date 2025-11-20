@@ -12,6 +12,7 @@ extern "C" {
 #include "root_common_base.h" // IWYU pragma: keep
 #include "root_list_api.h" // IWYU pragma: keep
 #include "handler_post.h" // IWYU pragma: keep
+#include "broadcast_data_define.h" // IWYU pragma: keep
 
 #ifndef MAX_SIZE_FOR_PDATA
 #define MAX_SIZE_FOR_PDATA (64)
@@ -38,31 +39,26 @@ extern "C" {
 typedef enum {
     ID_BROADCAST_BEGIN = 0,
     ID_BROADCAST_UPDATE_BATTERY_INFO = (1 << 0),            /// 电量更新.
-    ID_BROADCAST_CHARGE_PLUG_IN_STATE = (1 << 1),           /// 充电拔插
+    ID_BROADCAST_CHARGE_STATE_CHANGE = (1 << 1),            /// 充电状态改变.
     ID_BROADCAST_PM_STATE_CHANGE = (1 << 2),                /// 休眠唤醒.
     ID_BROADCAST_SYS_BOOT_COMPLETED = (1 << 3),             /// 系统启动完成.
-    ID_BROADCAST_BT_CONNECT_STATE_CHANGE = (1 << 4),        /// 蓝牙连接状态改变.
+    ID_BROADCAST_BLE_CONNECT_STATE_CHANGE = (1 << 4),       /// 蓝牙连接状态改变.
     ID_BROADCAST_OTA_UPGREADING_CHANGE = (1 << 5),          /// ota升级进度广播
     ID_BROADCAST_ENTER_NEW_SCREEN = (1 << 6),               /// 进入新窗口.
     ID_BROADCAST_PM_WAKEUP_BY_USER = (1 << 7),              /// PM被外部唤醒
     ID_BROADCAST_SYS_PERSIST_INFO_SAVE = (1 << 8),          /// 持久化存储.
     ID_BROADCAST_REQ_PM_SUSPEND_BY_USER = (1 << 9),         /// User请求主动睡下去.
     ID_BROADCAST_FACTORY_TEST_CMD = (1 << 10),              /// 工厂测试指令.
-    ID_BROADCAST_BREATH_PUMP_MODE_CHANGE = (1 << 11),       /// 吸奶模式切换.
+    ID_BROADCAST_BREAST_PUMP_MODE_CHANGE = (1 << 11),       /// 吸奶模式切换.
     ID_BROADCAST_THEME_CHANGE = (1 << 12),                  /// 主题切换
     ID_BROADCAST_DELETE_MODE_UPDATE = (1 << 13),            /// 删除模式后刷新页面.
     ID_BROADCAST_OTA_UI_SCREEN_STATE_CHANGE = (1 << 14),    /// ota升级ui进入/退出
-    ID_BROADCAST_BREATH_PUMP_MODE_SOUND = (1 << 15),        /// 模式声音播放
-    ID_BROADCAST_SYS_SHUTDOWN = (1 << 16),                  /// 系统关机.
+    ID_BROADCAST_SYS_POWER_STATE_CHANGE = (1 << 16),        /// 系统电源状态改变.
     ID_BROADCAST_SET_BLACKLIGHT_BY_USER = (1 << 17),        /// 设置背光状态.
-    ID_BROADCAST_PM_FREEZE_STATE_CHANGE = (1 << 18),        /// PM freeze状态改变.
-    ID_BROADCAST_VOICE_SWITCH_STATE_CHANGE = (1 << 19),     /// 语音开关状态改变.
-    ID_BROADCAST_PLAY_SOUND = (1 << 20),                    /// 语音播放
-    ID_BROADCAST_BREATH_PUMP_STATE_CHANGE = (1 << 21),      /// 泵状态改变.
-    ID_BROADCAST_AIRPLANE_MODE_STATE_CHANGE = (1 << 22),    /// 飞行模式状态改变.
-    ID_BROADCAST_BREATH_PUMP_EVENT_SOUND_NOTIC = (1 << 23), /// 吸奶事件语音提醒
+    ID_BROADCAST_BREAST_PUMP_STATE_CHANGE = (1 << 21),      /// 吸奶状态改变.
+    ID_BROADCAST_BREAST_PUMP_FINISH = (1 << 22),            /// 吸奶完成.
+    ID_BROADCAST_AIRPLANE_MODE_STATE_CHANGE = (1 << 23),    /// 飞行模式状态改变.
     ID_BROADCAST_UPDATE_MOTOR_WORK_PARAMETER = (1 << 24),   /// 更新马达运行参数.
-    ID_BROADCAST_BREATH_PUMP_AREA_CHANGE = (1 << 25),       /// 吸奶面变化
     
     /// add new broadcast id above this.
     ID_BROADCAST_END,
@@ -74,7 +70,7 @@ typedef enum {
     ID_BROADCAST_V2_END,
 } broadcast_rcv_id_v2_enum_t;
 
-typedef struct {
+typedef struct _broadcast_mask_id{
     uint32_t code;
     uint32_t code_v2;
 } broadcast_mask_id_t;

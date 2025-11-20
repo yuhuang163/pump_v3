@@ -26,6 +26,7 @@ typedef enum {
     OP_CODE_BLE_ADV_OPEN = 1,
     OP_CODE_BLE_ADV_CLOSE = 2,
     OP_CODE_BLE_ADV_PARAM_UPDATE = 3,
+    OP_CODE_BLE_ADV_SPEED_SET = 4,
     // gatt
     OP_CODE_BLE_DISCONNECT = 4,
     OP_CODE_BLE_MAC_ADDR_SET = 5,
@@ -60,6 +61,12 @@ typedef enum {
     BLE_EVENT_CONN_PARAMS_UPDATE,
 } ble_event_e;
 
+typedef struct {
+    uint8_t srv_id;
+    uint8_t bind_state;
+    uint8_t *p_data;
+} ble_service_send_data_t;
+
 /**
  * @brief 描述BLE事件回调
 */
@@ -68,8 +75,7 @@ typedef void (*ble_event_cb_func)(ble_event_e event, void *param);
 /**
  * @brief 描述BLE数据回调
 */
-typedef void (*ble_data_cb_func)(ble_service_id_e service_id, void *data, uint32_t len);
-
+typedef void (*ble_data_cb_func)(ble_service_id_e service_id, uint8_t *p_data, uint16_t size);
 
 #ifdef __cplusplus
 }

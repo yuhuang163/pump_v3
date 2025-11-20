@@ -9,12 +9,9 @@ extern "C" {
 /*******************************************************************************
 * Include files
 ******************************************************************************/
-#include <stdio.h>
 #include <stdint.h>
 
-
 /**@brief Firmware information define*/
-
 
 /*
 * GLOBAL FUNCTION DECLARATION
@@ -23,6 +20,7 @@ extern "C" {
 int bsp_key_init(void);
 int bsp_key_deinit(void);
 int bsp_read_key_value(uint8_t key_index);
+int bsp_read_all_key_value(void);
 int bsp_key_sensitivity_set(uint8_t key_index, uint8_t sensitivity);
 
 #ifdef __cplusplus

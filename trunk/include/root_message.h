@@ -12,6 +12,8 @@ extern "C" {
 #include "root_common_base.h" // IWYU pragma: keep
 #include "handler_post.h" // IWYU pragma: keep
 #include "broadcast_manager_api.h" // IWYU pragma: keep
+#include "project_config.h" // IWYU pragma: keep
+#include "tests_manager_api.h" // IWYU pragma: keep
 
 /// 描述异步消息类型
 typedef enum {
@@ -30,8 +32,8 @@ typedef enum {
 typedef enum {
     ID_POPUP_WINDOW_BT_CONNECT,
     ID_POPUP_WINDOW_BT_DISCONNECT,
-    ID_POPUP_WINDOW_BREATH_PUMP_HEAD_REMIND,
-    ID_POPUP_WINDOW_BREATH_PUMP_HEAD_RESET,
+    ID_POPUP_WINDOW_BREAST_PUMP_HEAD_REMIND,
+    ID_POPUP_WINDOW_BREAST_PUMP_HEAD_RESET,
     ID_POPUP_WINDOW_DAMP,
     ID_POPUP_WINDOW_SMART_GENERATE_SUC,
     ID_POPUP_WINDOW_SMART_GENERATE,
@@ -44,10 +46,10 @@ typedef struct {
     uint8_t window_id;
     uint8_t pm_wakeup_reason;
     uint8_t set_bth_mode_flag;
-    uint8_t goto_breath_pump;
+    uint8_t goto_breast_pump;
     uint8_t setting_sub_menu_pos;
     uint8_t gretting_which_time;
-    uint8_t show_breath_pump_ui;
+    uint8_t show_breast_pump_ui;
     void *user_data;
     /**
      * 弹出框入参数参数描述.
@@ -57,7 +59,7 @@ typedef struct {
     uint32_t popup_exit_time;
     int (*popup_exit_cb)(void *user_data, int args1, int args2);
     /// 泵奶头显示index
-    uint8_t breath_pump_head_use_index;
+    uint8_t breast_pump_head_use_index;
     uint8_t is_background;
     /// 进入ota的异常类型.
     uint32_t ota_enter_exception_type;
@@ -104,17 +106,34 @@ typedef struct {
     uint8_t report_type;
 } sensor_event_type_t;
 
+/// 传感器掩码类型
+typedef enum {
+    SENSOR_MASK_IMU = 1 << 0,
+    SENSOR_MASK_FSENSOR = 1 << 1,
+    SENSOR_MASK_AIR_PRESSURE = 1 << 2,
+} sensor_wrapper_data_mask_e;
+
 /// sensor数据集
 typedef struct {
+    #if IS_SUPPORT_DEVICE_IMU
+    uint16_t imu_serial_num;
     imu_wrapper_data_t imu_data;
+    #endif
+    #if IS_SUPPORT_DEVICE_FSENSOR
+    uint16_t f_sensor_serial_num;
     f_sensor_data_t force_raw_data;
-    uint8_t fsensor_pressure_level; /// force_sensor_press_level_e
+    #endif
+    #if IS_SUPPORT_DEVICE_AIR_PRESSURE
+    uint16_t air_pressure_serial_num;
+    air_pressue_status_t air_pressure_data[AIR_PRESSURE_NUM];
+    #endif
+    uint32_t sensor_mask; /// 传感器掩码，用于记录传感器数据是否有效
 } sensor_wrapper_data_t;
 
 /// ble事件类型
 typedef struct {
     uint8_t msg_id;
-    uint8_t data_len;
+    uint16_t data_len;
     void *ble_data;
 } ble_event_type_t;
 
@@ -208,6 +227,7 @@ typedef struct multi_func_msg_data {
         ota_event_type_t ota_evt_type;
         input_key_event_data_t key_event_data;
         bcr_pkg_struct_t bcr_pkg;
+        product_test_entry_extra_t product_test_extra;
     } union_body;
 } multi_func_msg_data_t;
 

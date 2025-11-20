@@ -18,7 +18,7 @@ typedef enum {
     OP_CODE_UART_ADD_EVENT_CB = 1,
 } uart_dev_op_code_e;
 
-typedef void (*uart_recv_event_cb_func)(uint8_t event, int args, void *param);
+typedef void (*uart_recv_event_cb_func)(void *ctx, uint8_t *p_data, uint16_t ulLen);
 
 #ifdef __cplusplus
 }

@@ -31,6 +31,7 @@ void btdrv_common_bt_enter_sniff_test(uint16_t conhandle,uint16_t sniff_interval
 void btdrv_common_ble_adv_enable_test(uint16_t adv_interval);
 void btdrv_common_ble_create_connect_test(uint16_t conn_interval);
 void btdrv_common_ble_adv_enable_with_data_test(uint16_t adv_interval);
+void btdrv_bqbtest_loop(void);
 
 #ifdef __cplusplus
 }

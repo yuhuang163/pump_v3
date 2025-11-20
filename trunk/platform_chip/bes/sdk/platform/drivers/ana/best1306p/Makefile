@@ -12,7 +12,7 @@ VCODEC_VOLT ?= 1.8V
 else
 VCODEC_VOLT ?= 1.7V
 endif
-ifneq ($(filter-out 1.4V 1.45V 1.5V 1.55V 1.6V 1.65V 1.7V 1.75V 1.8V 1.9V,$(VCODEC_VOLT)),)
+ifneq ($(filter-out 1.4V 1.45V 1.5V 1.55V 1.6V 1.65V 1.7V 1.75V 1.8V 1.9V 1.95V,$(VCODEC_VOLT)),)
 $(error Invalid VCODEC_VOLT=$(VCODEC_VOLT))
 endif
 ifneq ($(VCODEC_VOLT),)
@@ -43,7 +43,7 @@ PMU_CFG_FLAGS += -DPMU_REG_DUMP
 endif
 
 VHPPA_VOLT ?= 1.7V
-ifneq ($(filter-out 1.4V 1.45V 1.5V 1.55V 1.6V 1.65V 1.7V 1.75V 1.8V 1.9V,$(VHPPA_VOLT)),)
+ifneq ($(filter-out 1.4V 1.45V 1.5V 1.55V 1.6V 1.65V 1.7V 1.75V 1.8V 1.9V 1.95V,$(VHPPA_VOLT)),)
 $(error Invalid VHPPA_VOLT=$(VHPPA_VOLT))
 endif
 ifneq ($(VHPPA_VOLT),)
@@ -193,6 +193,11 @@ endif
 
 ifeq ($(CHG_FORCE_LOW_CV_CURRENT),1)
 CHARGER_CFG_FLAGS += -DCHG_FORCE_LOW_CV_CURRENT
+endif
+
+ifeq ($(LOW_SLEEP_VCORE),1)
+PMU_CFG_FLAGS += -DLOW_SLEEP_VCORE
+PMU_NTC_MONITOR := 1
 endif
 
 ifeq ($(PMU_NTC_MONITOR),1)

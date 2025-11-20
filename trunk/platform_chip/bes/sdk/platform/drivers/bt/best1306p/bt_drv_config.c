@@ -1233,6 +1233,8 @@ static void btdrv_bt_modem_config(void)
 #else
     bt_agc_ble_rx_dig_i_2v_bypass_setf(0x1);
 #endif
+    besmdm_gsg_dphi_den_bt_setf(0x6);
+    besmdm_gsg_dphi_nom_bt_setf(0x43);
 }
 
 

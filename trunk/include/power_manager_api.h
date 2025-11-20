@@ -10,6 +10,7 @@ extern "C" {
  * Include files
  ******************************************************************************/
 #include "root_common_base.h" // IWYU pragma: keep
+#include "broadcast_manager_api.h"
 
 typedef enum {
     PM_WAKEUP_REASON_BOOT = 80,
@@ -36,6 +37,7 @@ struct broadcast_obj;
 typedef struct power_manager_context {
 /// private:
     struct __pm_private {
+        struct peripheral_bus_context *pbus;
         int pm_state;
         int pm_state_change_progress;
         int suspend_counter;
@@ -51,7 +53,10 @@ typedef struct power_manager_context {
         bool pmu_sleep_enable;
         bool user_set_to_sleep;
         bool is_back_ground_wakeup;
-        bool is_shutdown;
+        bool is_system_power_on;
+        bool is_power_on_timeout_detect;
+        bool allow_shutdown_or_standby;
+        bool is_goto_sys_standby;
     } priv;
 
 /// public:
@@ -62,12 +67,20 @@ typedef struct power_manager_context {
     void (*pm_wakeup)(pm_wakeup_reason_e reason);
     int (*enable_pmu_sleep)(const char *caller, bool enable);
     int (*is_pmu_sleep)(void);
-    
+    int (*system_power_control)(bool state);
     void (*set_period_wake_up)(int ms);
     bool (*is_background_wakeup)(void);
     bool (*is_on_suspend_gotoing)(void);
-    bool (*is_on_is_shutdown)(void);
+    bool (*is_system_power_on)(void);
     pm_wakeup_reason_e (*pm_get_wakeup_reason)(void);
+    /// 外部hook点.
+    struct __power_manager_hook {
+        int (*on_post_init_route)(struct power_manager_context *ctx);
+        int (*on_key_event_route)(struct power_manager_context *ctx, uint16_t keycode, uint16_t keytype);
+        int (*on_broadcast_receive_route)(broadcast_mask_id_t id, void *context, int arg1, int arg2, broadcast_priv_data_t *pdata);
+        /// 禁止进入待机状态的钩子.
+        bool (*is_prohibit_pm_suspend)(struct power_manager_context *ctx);
+    } *hook;
 } power_manager_context_t;
 
 

@@ -74,10 +74,13 @@ typedef struct rt_device_node {
     ((rt_device_node_t *)(dev))->read((dev), (NULL), (0))
 
 #define DEVICE_READ_ARGS(dev0, buf, n_bytes) \
+        ((rt_device_node_t *)(dev0))->read((dev0), (buf), (n_bytes)); 
+
+#define DEVICE_READ_NO_RET(dev0, buf, n_bytes) \
 do { \
     rt_device_node_t *__dev = dev0; \
     if ((__dev) && (__dev)->read) { \
-        ((rt_device_node_t *)(__dev))->read((__dev), (buf), (n_bytes)); \
+        DEVICE_READ((__dev), (buf), (n_bytes)); \
     } \
 } while (0)
 

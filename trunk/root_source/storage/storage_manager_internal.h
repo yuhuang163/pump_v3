@@ -15,9 +15,9 @@ extern "C" {
 * INTERNAL FUNCTION DECLARATION
 *****************************************************************************************
 */
-int user_database_put(storage_manager_context_t *ctx, database_key_t key, const uint8_t *buf, int buf_len);
-int user_database_get(storage_manager_context_t *ctx, database_key_t key, uint8_t *buf, int buf_len);
-int user_database_remove(storage_manager_context_t *ctx, database_key_t key);
+int user_database_put(storage_manager_context_t *ctx, int database_id, const uint8_t *buf, int buf_len);
+int user_database_get(storage_manager_context_t *ctx, int database_id, uint8_t *buf, int buf_len);
+int user_database_remove(storage_manager_context_t *ctx, int database_id);
 
 #ifdef __cplusplus
 }

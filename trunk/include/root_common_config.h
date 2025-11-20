@@ -13,7 +13,7 @@ extern "C" {
 /// 各关键业务线程优先级定义.
 #define RT_PRIO_MAIN_THREAD                            OS_PRIORITY_REALTIME5
 #define RT_PRIO_MISC_DISPATCH_THREAD                   OS_PRIORITY_BELOW_NORMAL
-#define RT_PRIO_BREATH_PUMP_DISPATCH_THREAD            OS_PRIORITY_NORMAL
+#define RT_PRIO_BREAST_PUMP_DISPATCH_THREAD            OS_PRIORITY_NORMAL
 #define RT_PRIO_OTA_DISPATCH_THREAD                    OS_PRIORITY_REALTIME
 #define RT_PRIO_LVGL_HANDLER_THREAD                    OS_PRIORITY_REALTIME
 #define RT_PRIO_BRC_DISPATCH_THREAD                    OS_PRIORITY_REALTIME
@@ -32,7 +32,7 @@ extern "C" {
 #endif
 
 #ifndef RT_PRIO_MOTOR_DISPATCH_THREAD
-#define RT_PRIO_MOTOR_DISPATCH_THREAD                  OS_PRIORITY_REALTIME2
+#define RT_PRIO_MOTOR_DISPATCH_THREAD                  OS_PRIORITY_REALTIME3
 #endif
 
 #ifndef RT_PRIO_BLE_DISPATCH_THREAD
@@ -41,6 +41,10 @@ extern "C" {
 
 #ifndef RT_PRIO_SENSOR_INPUT_DISPATCH_THREAD
 #define RT_PRIO_SENSOR_INPUT_DISPATCH_THREAD           OS_PRIORITY_REALTIME4
+#endif
+
+#ifndef RT_PRIO_PRODUCT_TESTS_DISPATCH_THREAD
+#define RT_PRIO_PRODUCT_TESTS_DISPATCH_THREAD           OS_PRIORITY_REALTIME4
 #endif
 
 #ifndef RT_PRIO_INTERRUPT_THREAD
@@ -52,19 +56,23 @@ extern "C" {
 #endif
 
 #ifndef RT_PRIO_LCD_UART_THREAD
-#define RT_PRIO_LCD_UART_THREAD                        OS_PRIORITY_REALTIME2
+#define RT_PRIO_LCD_UART_THREAD                        OS_PRIORITY_REALTIME
 #endif
 
 #ifndef RT_PRIO_FACTORY_UART_THREAD
-#define RT_PRIO_FACTORY_UART_THREAD                    OS_PRIORITY_REALTIME2
+#define RT_PRIO_FACTORY_UART_THREAD                    OS_PRIORITY_REALTIME
 #endif
 
 #ifndef RT_PRIO_KEY_DEVICE_THREAD
-#define RT_PRIO_KEY_DEVICE_THREAD                      OS_PRIORITY_REALTIME2
+#define RT_PRIO_KEY_DEVICE_THREAD                      OS_PRIORITY_REALTIME
+#endif
+
+#ifndef RT_PRIO_CHARGE_DEVICE_THREAD
+#define RT_PRIO_CHARGE_DEVICE_THREAD                   OS_PRIORITY_REALTIME
 #endif
 
 #ifndef RT_PRIO_LED_DEVICE_THREAD
-#define RT_PRIO_LED_DEVICE_THREAD                      OS_PRIORITY_REALTIME2
+#define RT_PRIO_LED_DEVICE_THREAD                      OS_PRIORITY_REALTIME
 #endif
 
 ///  各关键业务线程栈深度, 默认线程单位栈深1KB
@@ -156,6 +164,10 @@ extern "C" {
 #define KEY_DEVICE_THREAD_STACKSIZE                    (TASK_SIZE_DEFAULT * 1 + 0)
 #endif
 
+#ifndef CHARGE_DEVICE_THREAD_STACKSIZE
+#define CHARGE_DEVICE_THREAD_STACKSIZE                 (TASK_SIZE_DEFAULT * 1 + 0)
+#endif
+
 #ifndef LED_DEVICE_THREAD_STACKSIZE
 #define LED_DEVICE_THREAD_STACKSIZE                    (TASK_SIZE_DEFAULT * 1 + 0)
 #endif
@@ -170,8 +182,9 @@ extern "C" {
 #define IOT_WORK_DISPATCH_MESQ_NUM                    (2)
 #define MOTOR_IAP_DISPATCH_MESQ_NUM                   (2)
 #define MOTOR_PLAY_MESQ_NUM                           (2)
+#define PRODUCT_TEST_EVT_MESQ_NUM                     (2)
 
-#define BREATH_PUMP_WORK_DISPATCH_MESQ_NUM             (2)
+#define BREAST_PUMP_WORK_DISPATCH_MESQ_NUM            (2)
 #define PM_WORK_DISPATCH_MESQ_NUM                     (1)
 #define HDR_POST_MESQ_NUM                             (8)
 #define BCR_THD_MESQ_NUM                              (30)

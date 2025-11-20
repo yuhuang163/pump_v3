@@ -149,7 +149,7 @@ __INLINE void bt_cmu_mcu_2bt_data_1_msk_setf(uint8_t mcu2btdata1mskset)
 #define BT_SRAM_SIZE 0x10000
 
 #ifndef BT_CONTROLLER_CRASH_DUMP_ADDR_BASE
-#define BT_CONTROLLER_CRASH_DUMP_ADDR_BASE  (RAM_BASE_ADDR + 0x4060)
+#define BT_CONTROLLER_CRASH_DUMP_ADDR_BASE ((hal_get_chip_metal_id()>= HAL_CHIP_METAL_ID_7) ? (RAM_BASE_ADDR + 0x40A0) : (RAM_BASE_ADDR + 0x4060))
 #endif
 /***************************************************************************
  * BT EM define
@@ -386,6 +386,23 @@ __INLINE void bt_bes_cntl5_mode_1_fa_times_setf(uint8_t mode1fatimes)
 
 #define BT_BES_CNTLX_ADDR              (BT_CORE_BASE_ADDR + 0xC7C)
 #define BT_CAP_SEL_ADDR                (BT_CORE_BASE_ADDR + 0xC50)
+
+/**
+ * @brief REG_17 register definition
+ * <pre>
+ *   Bits           Field Name   Reset Value
+ *  -----   ------------------   -----------
+ *     31       reg_iot_em_sel   0
+ *     30   reg_rx_length_force_en   0
+ *  29:22   reg_rx_length_force   0x0
+ *  21:20         reg_iot_mode   0x0
+ *     19      reg_iot_mode_dr   0
+ *  18:16   reg_len_protect_ext   0x0
+ *     15   reg_slave_sniff_rx_ext_en   0
+ *  14:00   reg_slave_timer_value_ext   0x0
+ * </pre>
+ */
+#define BT_REG_17_ADDR                  (BT_CORE_BASE_ADDR + 0xC5C)
 
 /**
  * @brief TRIGREG register definition

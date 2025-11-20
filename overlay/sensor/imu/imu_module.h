@@ -8,7 +8,7 @@ extern "C" {
 /*******************************************************************************
 * Include files
 ******************************************************************************/
-#include "root_common_api.h" // IWYU pragma: keep
+#include "root_common_base.h" // IWYU pragma: keep
 
 #if IS_SUPPORT_IMU_FIFO
 #define IMU_POLLING_PERIOD                   (200)

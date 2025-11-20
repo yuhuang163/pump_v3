@@ -2,8 +2,9 @@
 * INCLUDE FILES
 *****************************************************************************************
 */
-#include "root_common_api.h"
-#include "sensor_manager.h"
+#include "root_common_api.h" // IWYU pragma: keep
+#if IS_SUPPORT_DEVICE_FSENSOR
+#include "sensor_manager.h" 
 #include "force_sensor_module.h"
 
 /*
@@ -55,3 +56,4 @@ void on_perpare_force_sensor_init(sensor_manager_context_t *ptr)
     ptr->priv.f_sensor.dev = pbus->find_device(ID_DEVICE_FSENSOR);
     thiz = ptr;
 }
+#endif

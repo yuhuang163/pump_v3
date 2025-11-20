@@ -339,15 +339,15 @@ __STATIC_FORCEINLINE void besmdm_gsg_edr_nom_setf(uint16_t gsgedrnom)
  * <pre>
  *   Bits           Field Name   Reset Value
  *  -----   ------------------   -----------
- *  05:03        tx_startupdel   0x0
+ *  07:00        tx_startupdel   0x0
  * </pre>
  */
 #define BESMDM_TX_STARTUPDEL_ADDR   0xD0350210
-#define BESMDM_TX_STARTUPDEL_MASK   ((uint32_t)0x00000038)
-#define BESMDM_TX_STARTUPDEL_LSB    3
+#define BESMDM_TX_STARTUPDEL_MASK   ((uint32_t)0x000000FF)
+#define BESMDM_TX_STARTUPDEL_LSB    0
 __STATIC_FORCEINLINE void besmdm_tx_startupdel_setf(uint8_t txstartupdel)
 {
-    ASSERT_ERR((((uint32_t)txstartupdel << 3) & ~((uint32_t)0x00000008)) == 0);
+    ASSERT_ERR((((uint32_t)txstartupdel << 0) & ~((uint32_t)0x000000FF)) == 0);
     REG_RPL_WR(BESMDM_TX_STARTUPDEL_ADDR, BESMDM_TX_STARTUPDEL_MASK, BESMDM_TX_STARTUPDEL_LSB, txstartupdel);
 }
 
@@ -1430,7 +1430,7 @@ __STATIC_FORCEINLINE void besmdm_rx_startup_delay_pack(uint8_t txstartupdelaybw4
     REG_RPL_WR(BESMDM_RX_STARTUP_DELAY_ADDR, BESMDM_TX_STARTUP_DELAY_BW_4M_MASK, BESMDM_TX_STARTUP_DELAY_BW_4M_LSB, txstartupdelaybw4m);
     REG_RPL_WR(BESMDM_RX_STARTUP_DELAY_ADDR, BESMDM_TX_STARTUP_DELAY_BW_2M_MASK, BESMDM_TX_STARTUP_DELAY_BW_2M_LSB, txstartupdelaybw2m);
     REG_RPL_WR(BESMDM_RX_STARTUP_DELAY_ADDR, BESMDM_RX_STARTUP_DELAY__4M_MASK, BESMDM_RX_STARTUP_DELAY__4M_LSB, rxstartupdelay4m);
-    REG_RPL_WR(BESMDM_RX_STARTUP_DELAY_ADDR, BESMDM_RX_STARTUP_DELAY_BW_2M_MASK, BESMDM_RX_STARTUP_DELAY_BW_2M_LSB, txstartupdelaybw4m);
+    REG_RPL_WR(BESMDM_RX_STARTUP_DELAY_ADDR, BESMDM_RX_STARTUP_DELAY_BW_2M_MASK, BESMDM_RX_STARTUP_DELAY_BW_2M_LSB, rxstartupdelaybw2m);
 }
 
 /**
@@ -1494,7 +1494,7 @@ __STATIC_FORCEINLINE void besmdm_osr_12_ble_2m_setf(uint8_t osr12ble2m)
 #define BESMDM_INT_DIG_GAIN_SCALE_1_LSB    10
 #define BESMDM_INT_DIG_GAIN_SCALE_0_MASK   ((uint32_t)0x000003FF)
 #define BESMDM_INT_DIG_GAIN_SCALE_0_LSB    0
-__INLINE void besmdm_int_dig_gain0_pack(uint16_t intdiggainscale2, uint16_t intdiggainscale1, uint16_t intdiggainscale0)
+__STATIC_FORCEINLINE void besmdm_int_dig_gain0_pack(uint16_t intdiggainscale2, uint16_t intdiggainscale1, uint16_t intdiggainscale0)
 {
     ASSERT_ERR((((uint32_t)intdiggainscale2 << 20) & ~((uint32_t)0x3FF00000)) == 0);
     ASSERT_ERR((((uint32_t)intdiggainscale1 << 10) & ~((uint32_t)0x000FFC00)) == 0);
@@ -1521,7 +1521,7 @@ __INLINE void besmdm_int_dig_gain0_pack(uint16_t intdiggainscale2, uint16_t intd
 #define BESMDM_INT_DIG_GAIN_SCALE_4_LSB    10
 #define BESMDM_INT_DIG_GAIN_SCALE_3_MASK   ((uint32_t)0x000003FF)
 #define BESMDM_INT_DIG_GAIN_SCALE_3_LSB    0
-__INLINE void besmdm_int_dig_gain1_pack(uint16_t intdiggainscale5, uint16_t intdiggainscale4, uint16_t intdiggainscale3)
+__STATIC_FORCEINLINE void besmdm_int_dig_gain1_pack(uint16_t intdiggainscale5, uint16_t intdiggainscale4, uint16_t intdiggainscale3)
 {
     ASSERT_ERR((((uint32_t)intdiggainscale5 << 20) & ~((uint32_t)0x3FF00000)) == 0);
     ASSERT_ERR((((uint32_t)intdiggainscale4 << 10) & ~((uint32_t)0x000FFC00)) == 0);
@@ -1545,12 +1545,46 @@ __INLINE void besmdm_int_dig_gain1_pack(uint16_t intdiggainscale5, uint16_t intd
 #define BESMDM_INT_DIG_GAIN_SCALE_7_LSB    10
 #define BESMDM_INT_DIG_GAIN_SCALE_6_MASK   ((uint32_t)0x000003FF)
 #define BESMDM_INT_DIG_GAIN_SCALE_6_LSB    0
-__INLINE void besmdm_int_dig_gain2_pack(uint16_t intdiggainscale7, uint16_t intdiggainscale6)
+__STATIC_FORCEINLINE void besmdm_int_dig_gain2_pack(uint16_t intdiggainscale7, uint16_t intdiggainscale6)
 {
     ASSERT_ERR((((uint32_t)intdiggainscale7 << 10) & ~((uint32_t)0x000FFC00)) == 0);
     ASSERT_ERR((((uint32_t)intdiggainscale6 << 0) & ~((uint32_t)0x000003FF)) == 0);
     REG_RPL_WR(BESMDM_INT_DIG_GAIN2_ADDR, BESMDM_INT_DIG_GAIN_SCALE_7_MASK, BESMDM_INT_DIG_GAIN_SCALE_7_LSB, intdiggainscale7);
     REG_RPL_WR(BESMDM_INT_DIG_GAIN2_ADDR, BESMDM_INT_DIG_GAIN_SCALE_6_MASK, BESMDM_INT_DIG_GAIN_SCALE_6_LSB, intdiggainscale6);
+}
+
+/**
+ * @brief DPSK_K3_EDR3M register definition
+ * <pre>
+ *   Bits           Field Name   Reset Value
+ *  -----   ------------------   -----------
+ *  30:23       dpsk_k3_edr3m2   0x0
+ * </pre>
+ */
+#define BESMDM_DPSK_K3_EDR3M_ADDR   0xD03501EC
+#define BESMDM_DPSK_K_3_EDR_3M_2_MASK   ((uint32_t)0x7F800000)
+#define BESMDM_DPSK_K_3_EDR_3M_2_LSB    23
+__STATIC_FORCEINLINE void besmdm_dpsk_k_3_edr_3m_2_setf(uint8_t dpskk3edr3m2)
+{
+    ASSERT_ERR((((uint32_t)dpskk3edr3m2 << 23) & ~((uint32_t)0x7F800000)) == 0);
+    REG_RPL_WR(BESMDM_DPSK_K3_EDR3M_ADDR, BESMDM_DPSK_K_3_EDR_3M_2_MASK, BESMDM_DPSK_K_3_EDR_3M_2_LSB, dpskk3edr3m2);
+}
+
+/**
+ * @brief INT_DACFIFO_BYPASS register definition
+ * <pre>
+ *   Bits           Field Name   Reset Value
+ *  -----   ------------------   -----------
+ *     03   int_dacfifo_bypass   0
+ * </pre>
+ */
+#define BESMDM_INT_DACFIFO_BYPASS_ADDR   0xD0350324
+#define BESMDM_INT_DACFIFO_BYPASS_BIT    ((uint32_t)0x00000008)
+#define BESMDM_INT_DACFIFO_BYPASS_POS    3
+__STATIC_FORCEINLINE void besmdm_int_dacfifo_bypass_setf(uint8_t intdacfifobypass)
+{
+    ASSERT_ERR((((uint32_t)intdacfifobypass << 3) & ~((uint32_t)0x00000008)) == 0);
+    REG_RPL_WR(BESMDM_INT_DACFIFO_BYPASS_ADDR, BESMDM_INT_DACFIFO_BYPASS_BIT, BESMDM_INT_DACFIFO_BYPASS_POS, intdacfifobypass);
 }
 
 /**

@@ -17,7 +17,7 @@ GATT_DECL_128_LE_PRI_SERVICE(ble_master_service,
 GATT_DECL_128_LE_CHAR(ble_master_rx_character,
     ROOT_MASTER_SRV_RX_CHAR_UUID_128,
     GATT_WR_REQ|GATT_WR_CMD,
-    ATT_WR_ENC);
+    ATT_SEC_NONE);
 
 GATT_DECL_CUDD_DESCRIPTOR(ble_master_rx_cudd,
     ATT_SEC_NONE);
@@ -65,7 +65,7 @@ static uint8_t conn_idx = 0;
 */
 static void ble_master_service_rx_data_received(uint8_t conidx, uint16_t connhdl, const uint8_t *data, uint16_t len)
 {
-    LOG_PBUS("master service recv data length %d", len);
+    // LOG_PBUS("master service recv data length %d", len);
     ble_service_data_recv(BLE_SRV_ID_MASTER, (uint8_t *)data, len);
 }
 

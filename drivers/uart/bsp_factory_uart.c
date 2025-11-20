@@ -103,7 +103,7 @@ static void factory_uart_recv_handler(uint8_t *buf, uint16_t len)
     }
 
     if (s_factory_uart_event_cb) {
-        s_factory_uart_event_cb(0, 0, NULL);
+        s_factory_uart_event_cb(node, buf, len);
     }
 }
 
@@ -124,9 +124,10 @@ static void factory_uart_event_thread(const void *args)
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-void bsp_factory_uart_register_event_cb(uart_recv_event_cb_func cb)
+void bsp_factory_uart_register_event_cb(uart_recv_event_cb_func cb, rt_device_node_t *dev)
 {
     s_factory_uart_event_cb = cb;
+    node = dev;
 }
 
 int bsp_factory_uart_send_data(uint8_t *buf, uint32_t len)

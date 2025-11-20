@@ -940,7 +940,7 @@ static int app_ble_conn_event_handle(uintptr_t connhdl, gap_conn_event_t event, 
             cb_event.p.connect_handled.peer_bdaddr.addr_type = (opened->peer_type & 0x01);
             memcpy(cb_event.p.connect_handled.peer_bdaddr.addr, opened->peer_addr.address, sizeof(bt_bdaddr_t));
             app_ble_global_handle(&cb_event, NULL);
-            app_ble_update_conn_param_mode_of_specific_connection(opened->con_idx, BLE_CONN_PARAM_MODE_DEFAULT, true);
+            // app_ble_update_conn_param_mode_of_specific_connection(opened->con_idx, BLE_CONN_PARAM_MODE_DEFAULT, true);
             break;
         }
         case GAP_CONN_EVENT_FAILED:
@@ -2920,6 +2920,7 @@ static const gatt_attribute_t g_gap_service_attr_list[] = {
     gatt_attribute(g_gap_service),
     /* Characteristics */
     gatt_attribute(g_gap_service_device_name),
+#ifndef BLE_ONLY_LT
     gatt_attribute(g_gap_service_appearance),
     gatt_attribute(g_gap_service_central_addr_reso_supp),
     gatt_attribute(g_gap_service_le_gatt_security_levels),
@@ -2930,6 +2931,7 @@ static const gatt_attribute_t g_gap_service_attr_list[] = {
     gatt_attribute(g_gap_service_use_only_rpa_after_bonding),
 #endif
     gatt_attribute(g_gap_service_periph_prefer_conn_params), // keep this as last characteristic
+#endif
 };
 
 /**
@@ -3171,9 +3173,11 @@ static const gatt_attribute_t g_gatt_service_attr_list[] = {
     gatt_attribute(g_gatt_service_changed),
         /* Descriptor */
         gatt_attribute(g_gatt_service_changed_cccd),
+#ifndef BLE_ONLY_LT
     gatt_attribute(g_gatt_client_supp_features),
     gatt_attribute(g_gatt_server_supp_features),
     gatt_attribute(g_gatt_server_database_hash), // keep this as last characteristic
+#endif
 };
 
 #ifndef BLE_ONLY_ENABLED
@@ -4097,10 +4101,7 @@ void app_ble_init(void)
 #else
     ble_custom_gap_connect_init(&params);
 #endif
-    int ret = gap_set_peripheral_prefer_conn_parameters(&params);
-    if (ret != BT_STS_SUCCESS) {
-        CO_LOG_ERR_1(BT_STS_FAILED, ret);
-    }
+    gap_set_peripheral_prefer_conn_parameters(&params);
 
     nv_record_blerec_init();
 
@@ -4113,7 +4114,6 @@ void app_ble_init(void)
     memcpy(ble_public_key, bes_demo_Public_key, sizeof(ble_public_key));
     memcpy(ble_private_key, bes_demo_private_key, sizeof(ble_private_key));
 #endif
-
 
     app_ble_register_advertising(BLE_BASIC_ADV_HANDLE, app_ble_stub_adv_activity_prepare);
 

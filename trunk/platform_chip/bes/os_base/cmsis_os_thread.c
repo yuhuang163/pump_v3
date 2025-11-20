@@ -122,7 +122,7 @@ int run_new_thread_wrapper(thread_context_t *thd, const char *name_s, void *cb, 
     if (thd->tid == NULL) {
         u_free(thd->p_thd);
         u_free_align(thd->p_thd->attr.stack_mem);
-        LOGE("Oops! osThreadNew: fail %s", "thd->tid");
+        LOGE("Oops! osThreadNew: fail %s, total num:%d", name_s, s_thd_total_num);
         return -1;
     }
     s_thd_total_statck_size += stack_s;

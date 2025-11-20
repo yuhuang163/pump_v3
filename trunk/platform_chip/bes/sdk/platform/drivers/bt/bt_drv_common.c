@@ -1,6 +1,6 @@
 /***************************************************************************
  *
- * Copyright 2015-2024 BES.
+ * Copyright 2015-2025 BES.
  * All rights reserved. All unpublished rights reserved.
  *
  * No part of this work may be used or reproduced in any form or by any
@@ -24,6 +24,8 @@
 #include "watchdog.h"
 #include "string.h"
 #include "besbt_string.h"
+#include "pmu.h"
+#include "nvrecord_dev.h"
 #ifdef BTC_CPUDUMP_BASE
 #include "bt_drv_cpudump.h"
 #endif
@@ -51,6 +53,12 @@
 #endif
 #define CLK_SUB(clock_a, clock_b)     ((uint32_t)(((clock_a) - (clock_b)) & MAX_SLOT_CLOCK))
 #define CLK_ADD_2(clock_a, clock_b)     ((uint32_t)(((clock_a) + (clock_b)) & MAX_SLOT_CLOCK))
+#ifdef MCU_WAKEUP_BT_V2
+static uint8_t s_bt_wakeup_msg[BT_DRV_OPER_BTCORE_MSG_LEN];
+static uint8_t s_bt_wakeup_cnt = 0;
+static bool s_is_bt_waking_up = false;
+static bool s_bt_wakeup_forced = false;
+#endif /* MCU_WAKEUP_BT_V2 */
 
 struct bt_cb_tag bt_drv_func_cb = {NULL};
 
@@ -196,12 +204,6 @@ void btdrv_load_sleep_config(uint8_t* config)
     memcpy_s(config, 8, sleep_param, 8);
 }
 
-void btdrv_trigger_coredump(void)
-{
-    uint8_t *null_pointer = 0;
-    *null_pointer = 0;//MPU trigger coredump
-}
-
 // This api should only be used to calculate dma capture clk diff, for chip after 1501, unit is hs and hus.
 int btdrv_clkcnt_diff(int32_t clk1, int16_t cnt1,
                       int32_t clk2, int16_t cnt2,
@@ -256,13 +258,6 @@ int64_t btdrv_iso_clkcnt_to_us(uint32_t clk, uint16_t cnt)
 #endif
     return total_cnt;
 }
-void WEAK btdrv_set_controller_trace_enable(uint8_t trace_level)
-{
-}
-
-void WEAK btdrv_set_lmp_trace_enable(void)
-{
-}
 
 void WEAK bt_drv_reg_op_enable_dma_tc(uint8_t adma_ch, uint32_t dma_base)
 {
@@ -280,14 +275,6 @@ void WEAK bt_drv_reg_op_multi_ibrt_music_config(uint8_t* link_id, uint8_t* activ
 {
 }
 
-void WEAK bt_drv_digital_config_for_ble_adv(bool en)
-{
-}
-
-void WEAK bt_drv_reg_op_clean_flags_of_ble_and_sco(void)
-{
-}
-
 void WEAK bt_drv_reg_op_set_ibrt_reject_sniff_req(bool en)
 {
 }
@@ -297,21 +284,39 @@ uint8_t WEAK bt_drv_reg_op_get_sync_id_by_conhdl(uint16_t conhdl)
     return MAX_NUM_SCO_LINKS;
 }
 
+void WEAK bt_drv_reg_op_cfg_coex_param(uint16_t con_hdl, uint8_t tdd)
+{
+}
+
+void WEAK bt_drv_reg_op_config_tport_type(uint32_t tport_type, uint8_t iomux_type)
+{
+}
+
+void WEAK bt_drv_reg_op_enable_3wire_tports(void)
+{
+}
+
+void WEAK bt_drv_reg_op_read_register(uint32_t addr, uint32_t* reg_val)
+{
+
+}
+
+void WEAK bt_drv_reg_op_write_register(uint32_t addr, uint32_t reg_val)
+{
+
+}
+
+uint8_t WEAK btdrv_reg_op_bt_role_get(uint16_t hciHandle)
+{
+    return 0xFF;
+}
+
 void WEAK bt_drv_reg_op_clear_skip_flag(void)
 {
 }
 
 void WEAK btdrv_reconn(bool en)
 {
-}
-
-void WEAK bt_drv_reg_op_reset_agc_thd(void)
-{
-}
-
-void WEAK bt_drv_reg_op_set_agc_thd(bool isMaster, bool isSco)
-{
-
 }
 
 void WEAK btdrv_regist_le_teset_end_callback(le_test_end_handler_func cb)
@@ -362,19 +367,19 @@ void WEAK bt_drv_reg_op_low_txpwr_set(uint8_t enable, uint8_t factor, uint8_t bt
 {
 }
 
+void WEAK bt_drv_reg_op_fix_tx_pwr_idx(uint8_t enable_dr, uint8_t tx_pwr_id, uint8_t aiot_mode)
+{
+}
+
+void WEAK bt_drv_reg_op_set_le_con_allow_use_same_addr(bool en)
+{
+}
+
 void WEAK bt_drv_rf_high_efficency_tx_pwr_ctrl(bool en, bool reset)
 {
 }
 
 void WEAK bt_drv_rf_high_efficency_rx_gain_ctrl(bool rx_idx)
-{
-}
-
-void WEAK bt_drv_reg_op_setting_wesco(uint8_t wesco)
-{
-}
-
-void WEAK bt_drv_reg_op_ecc_softbit_process(uint16_t* p_conn_handle1,uint16_t* p_conn_handle2, uint16_t length, uint8_t *data)
 {
 }
 
@@ -385,10 +390,6 @@ bool WEAK bt_drv_error_check_handler(void)
 }
 
 void WEAK bt_drv_reg_op_dump_rx_record(void)
-{
-}
-
-void WEAK bt_drv_reg_op_multi_ibrt_sche_dump(void)
 {
 }
 
@@ -445,6 +446,10 @@ void WEAK bt_drv_regop_clear_le_slave_latency_flag(uint8_t idx)
 uint8_t WEAK bt_drv_reg_op_get_sco_type(uint8_t sco_link_id)
 {
     return 0xff;
+}
+
+void WEAK bt_drv_reg_op_acl_tx_type_set(uint16_t hciHandle, uint8_t slot_sel, bool packet3m)
+{
 }
 
 #ifdef BTC_CPUDUMP_BASE
@@ -709,47 +714,6 @@ void btdrv_dump_mem_2_uart(uint8_t *dump_mem_start, uint32_t dump_length, uint8_
 
 #endif
 
-void btdrv_trace_config(BT_CONTROLER_TRACE_TYPE trace_config)
-{
-    if (trace_config & BT_CONTROLER_TRACE_TYPE_INTERSYS)
-    {
-        btdrv_set_intersys_trace_enable(true);
-    }
-
-    if (trace_config & BT_CONTROLER_TRACE_TYPE_CONTROLLER)
-    {
-        btdrv_set_controller_trace_enable(0x03);
-    }
-
-    if (trace_config & BT_CONTROLER_TRACE_TYPE_LMP_TRACE)
-    {
-        btdrv_set_lmp_trace_enable();
-    }
-
-    if (trace_config & BT_CONTROLER_TRACE_TYPE_SPUV_HCI_BUFF)
-    {
-        btdrv_set_spuv_hci_buff_trace_enable();
-    }
-
-    if (trace_config & BT_CONTROLER_FILTER_TRACE_TYPE_A2DP_STREAM)
-    {
-        btdrv_set_a2dp_stream_trace_disable();
-    }
-    if (trace_config & BT_CONTROLER_TRACE_TYPE_SPUV_HCI_BUFF_HIGH)
-    {
-        btdrv_set_spuv_hci_buff_trace_enable_high();
-    }
-
-    if (trace_config & BT_CONTROLER_TRACE_TYPE_ACL_PACKET)
-    {
-        btdrv_set_acl_packet_trace_enable();
-    }
-    else
-    {
-        btdrv_set_acl_packet_trace_disable();
-    }
-}
-
 void btdrv_enable_tports(void)
 {
 #ifdef __BT_DEBUG_TPORTS__
@@ -760,6 +724,32 @@ void btdrv_enable_tports(void)
 #endif
     bt_drv_bt_tport_type_config();
 #endif
+}
+
+void bt_drv_tports_switch(uint8_t enable, uint8_t iomux_type, uint32_t tport_type)
+{
+    if (enable == 1)
+    {
+        if (iomux_type == BT_TPORT_3WIRE)
+        {
+            bt_drv_reg_op_enable_3wire_tports();
+        }
+        else if ((iomux_type == BT_TPORT_8WIRE_TYPE1) || (iomux_type == BT_TPORT_8WIRE_NORMAL))
+        {
+            hal_iomux_set_bt_tport();
+        }
+
+        bt_drv_reg_op_config_tport_type(tport_type, iomux_type);
+    }
+    else if (enable == 0)
+    {
+        if ((iomux_type == BT_TPORT_8WIRE_NORMAL) || (iomux_type == BT_TPORT_8WIRE_TYPE1))
+        {
+            hal_iomux_clear_bt_tport();
+        }
+    }
+
+    BT_DRV_TRACE(1,"%s:en=%d,io_type=%d,type=0x%x",__func__, enable, iomux_type, tport_type);
 }
 
 bool bt_drv_is_enhanced_ibrt_rom(void)
@@ -803,53 +793,11 @@ bool bt_drv_is_esco_auto_accept_support(void)
     return ret;
 }
 
-void btdrv_delay_for_wakeup(void)
-{
-#ifndef BT_CLK_UNIT_IN_HSLOT
-    osDelay(2000);
-#endif
-}
-
-bool btdrv_is_acl_ecc_softbit_support(void)
-{
-    bool ret = false;
-#ifdef CHIP_BEST2300A
-        ret = true;
-#elif CHIP_BEST1501
-        ret = true;
-#elif CHIP_BEST2003
-        ret = true;
-#endif
-
-    return ret;
-}
-
-
-void btdrv_softbit_enable(uint16_t connhdl, uint8_t type1,uint8_t type2,uint8_t type3, uint8_t num)
-{
-    if(btdrv_is_acl_ecc_softbit_support())
-    {
-#if (defined(SOFTBIT_EN))
-        btdrv_softbit_config(connhdl,  type1, type2, type3,  num);
-#endif
-    }
-}
-
 void bt_drv_config_after_hci_reset(void)
 {
     bt_drv_extra_config_after_init();
     btdrv_enable_tports();
 }
-
-bool bt_drv_is_bes_fa_mode_en(void)
-{
-    bool ret = false;
-#ifdef __BES_FA_MODE__
-    ret = true;
-#endif
-    return ret;
-}
-
 bool bt_drv_is_support_multipoint_ibrt(void)
 {
     bool ret = false;
@@ -859,25 +807,9 @@ bool bt_drv_is_support_multipoint_ibrt(void)
     return ret;
 }
 
-void bt_drv_enable_hw_spi(uint8_t elt_idx, bool hwspien)
-{
-#if defined(CHIP_BEST2300A)
-    //only for 2300A fast lock
-    bt_drv_reg_op_hw_spi_en_setf(elt_idx, hwspien);
-#endif
-}
-
 void* bt_drv_get_btstack_chip_config(void)
 {
     return &g_bt_drv_btstack_chip_config;
-}
-
-void bt_drv_hwspi_select(uint8_t link_id, uint8_t spi_idx)
-{
-#ifdef __FA_RX_GAIN_CTRL__
-    // 1400 1402 1302 fix fast ack RX gain
-    btdrv_spi_trig_select(link_id, spi_idx);
-#endif
 }
 
 void bt_drv_rssi_dump_handler(void)
@@ -906,7 +838,6 @@ void bt_drv_rx_status_dump(uint16_t conhdl)
     BT_DRV_TRACE(2,"%s, hdl=0x%x",__func__, conhdl);
     bt_drv_rssi_dump_handler();
     bt_drv_reg_op_dump_rx_record();
-    bt_drv_reg_op_multi_ibrt_sche_dump();
 }
 
 void bt_drv_testmode_adaptive_adjust_param(void)
@@ -1391,6 +1322,24 @@ bool WEAK bt_drv_is_support_hci_config_multi_ibrt_sche(void)
     return false;
 }
 
+bool WEAK bt_drv_is_support_set_bt_ble_active_link_switch(void)
+{
+    bool ret = false;
+
+    if(bt_drv_work_in_ramrun_mode())
+    {
+        // if support rom version, add them
+        ret = true;
+    }
+
+    return ret;
+}
+
+bool WEAK bt_drv_is_support_dual_sco(void)
+{
+    return bt_drv_work_in_ramrun_mode();
+}
+
 bool WEAK bt_drv_is_support_hci_enable_btpcm(void)
 {
     return bt_drv_work_in_ramrun_mode();
@@ -1550,55 +1499,303 @@ void bt_tester_cmd_receive_evt_analyze(const unsigned char *data, unsigned int l
 }
 
 #ifdef MCU_WAKEUP_BT_V2
-static volatile uint32_t intersys1_tx_done_flag = INTERSYS_TX_DONE;
+__STATIC_FORCEINLINE bool bt_drv_oper_btcore_check(enum WAKEUP_BT_USER_T user, enum WAKEUP_BT_MSG_T msg)
+{
+    bool skip = false;
+    // Sanity check
+    if ((user >= WAKEUP_BT_USER_QTY) || (msg >= WAKEUP_BT_MSG_QTY) ||
+        (((MSG_ONLY_WAKEUP_BT == msg) || (MSG_WAKEUP_BT_AND_DIS_SLP == msg)) &&
+        (s_bt_wakeup_cnt >= UINT8_MAX)))
+    {
+        ASSERT(0, "%s, user:%d, msg:%d cnt:%d", __func__,
+            user, msg, s_bt_wakeup_cnt);
+    }
 
-void bt_intersys_oper_wait_bt_response(void)
+    switch (msg)
+    {
+        case MSG_WAKEUP_BT_AND_DIS_SLP:
+        {
+            uint32_t pre_cnt = s_bt_wakeup_cnt++;
+            skip = ((pre_cnt > 0) || s_bt_wakeup_forced);
+        } break;
+        case MSG_ONLY_WAKEUP_BT:
+        {
+            s_bt_wakeup_forced = true;
+            skip = (s_bt_wakeup_cnt > 0);
+        } break;
+        case MSG_WAKEUP_BT_AND_EN_SLP:
+        {
+            if (s_bt_wakeup_cnt > 0)
+            {
+                s_bt_wakeup_cnt--;
+            }
+            skip = ((s_bt_wakeup_cnt > 0) || s_bt_wakeup_forced);
+        } break;
+        default:
+        {
+        } break;
+    }
+
+    return skip;
+}
+
+__STATIC_FORCEINLINE int bt_drv_oper_btcore_wait_for_idle(uint32_t lock, uint32_t *new_lock)
 {
     uint32_t loop_cnt = 0;
+    uint32_t current_lock = lock;
 
-    // Check if the intersys wakeup flag is set
-    while(hal_intersys_get_wakeup_flag())
+    while (s_is_bt_waking_up && (loop_cnt < BT_DRV_OPER_BTCORE_RSP_MAX_RETRY_CNT))
     {
-        // If loop count exceeds the limit, trigger ASSERT
-        if (++loop_cnt >= 30)
-        {
-            ASSERT(0, "BT: Wake up BT fail,tx done=%d", intersys1_tx_done_flag);
-            break;
-        }
-        uint32_t wait_time = 10*loop_cnt;
-        hal_sys_timer_delay_us(wait_time);
-        //BT_DRV_TRACE(0, "cnt=%d, wait time=%d", loop_cnt,wait_time);
+        int_unlock(current_lock);
+        hal_sys_timer_delay_us(BT_DRV_OPER_BTCORE_BASE_DELAY_US * loop_cnt);
+        current_lock = int_lock();
+        loop_cnt++;
     }
-    //BT_DRV_TRACE(0, "%s", __func__);
-    intersys1_tx_done_flag = true;
+
+    *new_lock = current_lock;
+
+    return s_is_bt_waking_up ? -2 : 0;
 }
 
-static uint8_t bt_wakeup_send_msg[MCU_WAKEUP_BT_MSG_LEN];
-void bt_intersys_oper_btcore(enum WAKEUP_BT_USER_T user, enum WAKEUP_BT_MSG_T msg)
+__STATIC_FORCEINLINE int bt_drv_oper_btcore_send_message(uint32_t lock, uint32_t *new_lock)
 {
-    if (user >= WAKEUP_BT_USER_QTY || msg >= WAKEUP_BT_MSG_QTY)
+    int ret = 0;
+    uint32_t loop_cnt = 0;
+    uint32_t current_lock = lock;
+
+    do
     {
-        ASSERT(0, "%s, user=%d, msg=%d, flag=%d", __func__, user, msg, intersys1_tx_done_flag)
-    }
+        ret = hal_intersys_send(HAL_INTERSYS_ID_1, HAL_INTERSYS_MSG_HCI,
+                s_bt_wakeup_msg, BT_DRV_OPER_BTCORE_MSG_LEN);
 
-    if (intersys1_tx_done_flag == INTERSYS_WAIT_BTC_RESPONSE)
-    {
-        BT_DRV_TRACE(0, "%s fail", __func__);
-        return;
-    }
+        if (ret != 0)
+        {
+            int_unlock(current_lock);
+            int osRet = osThreadYield();
+            if (osRet != osOK)
+            {
+                loop_cnt = BT_DRV_OPER_BTCORE_IDLE_MAX_RETRY_CNT;
+            }
+            current_lock = int_lock();
+            loop_cnt++;
+        }
+    } while ((ret != 0) && (loop_cnt < BT_DRV_OPER_BTCORE_IDLE_MAX_RETRY_CNT));
 
-    uint32_t reg_op_user = user;
-    uint32_t reg_op_msg = msg;
+    *new_lock = current_lock;
 
-    // enum WAKEUP_BT_USER_T
-    co_write32(&bt_wakeup_send_msg[0], reg_op_user);
-    // bit 0 : wakeup BT and disable sleep
-    // bit 1 : disable sleep (0) / resume sleep (1)
-    // bit 2 : RFU
-    co_write32(&bt_wakeup_send_msg[4], reg_op_msg);
-
-    intersys1_tx_done_flag = INTERSYS_WAIT_BTC_RESPONSE;
-    hal_intersys_send(HAL_INTERSYS_ID_1, HAL_INTERSYS_MSG_HCI, bt_wakeup_send_msg, MCU_WAKEUP_BT_MSG_LEN);
-    //BT_DRV_TRACE(0, "%s user%d,msg=%d", __func__, user, msg);
+    return (ret == 0) ? 0 : -3;
 }
-#endif //MCU_WAKEUP_BT_V2
+
+__STATIC_FORCEINLINE int bt_drv_oper_btcore_polling_rsp(uint32_t lock, uint32_t *new_lock)
+{
+    uint32_t loop_cnt = 0;
+    uint32_t current_lock = lock;
+
+    while (hal_intersys_get_wakeup_flag())
+    {
+        if (++loop_cnt >= BT_DRV_OPER_BTCORE_RSP_MAX_RETRY_CNT)
+        {
+            ASSERT(0, "Wakeup BT timeout");
+            *new_lock = current_lock;
+            return -4;
+        }
+
+        int_unlock(current_lock);
+        hal_sys_timer_delay_us(BT_DRV_OPER_BTCORE_BASE_DELAY_US * loop_cnt);
+        current_lock = int_lock();
+    }
+
+    *new_lock = current_lock;
+    return 0;
+}
+
+/**
+ * @brief Perform BTC operation with response handling
+ * @param user The user who initiated the wakeup operation
+ * @param msg The wakeup message type
+ *
+ * This function handles the complete process of waking up the BT core,
+ * sending commands, and waiting for responses with proper locking mechanism.
+ */
+void bt_drv_oper_btcore_with_rsp(enum WAKEUP_BT_USER_T user, enum WAKEUP_BT_MSG_T msg)
+{
+#if BT_DRV_OPER_BTCORE_WAKE_UP_THD
+    uint32_t sTime = hal_sys_timer_get();
+    uint32_t elapsedTime = 0;
+#endif
+    int ret = 0;
+    uint32_t lock = int_lock();
+    uint32_t new_lock;  // Used to receive updated lock from sub-functions
+
+    // 1. Pre-operation check
+    if (bt_drv_oper_btcore_check(user, msg))
+    {
+        ret = -1;
+        goto exit;
+    }
+
+    // 2. Wait for BT core to be available
+    ret = bt_drv_oper_btcore_wait_for_idle(lock, &new_lock);
+    lock = new_lock;
+    if (ret != 0)
+    {
+        goto exit;
+    }
+
+    // 3. Set wakeup message parameters
+    s_is_bt_waking_up = true;
+    co_write32(&s_bt_wakeup_msg[0], user);   //@WAKEUP_BT_USER_T
+    co_write32(&s_bt_wakeup_msg[4], msg);    //@WAKEUP_BT_MSG_T
+
+    // 4. Send wakeup message to BT core
+    ret = bt_drv_oper_btcore_send_message(lock, &new_lock);
+    lock = new_lock;
+    if (ret != 0)
+    {
+        s_is_bt_waking_up = false;
+        goto exit;
+    }
+
+    // 5. Wait for response
+    ret = bt_drv_oper_btcore_polling_rsp(lock, &new_lock);
+    lock = new_lock;
+    s_is_bt_waking_up = false;
+
+exit:
+    int_unlock(lock);
+
+#if BT_DRV_OPER_BTCORE_WAKE_UP_THD
+    elapsedTime = TICKS_TO_US(hal_sys_timer_get() - sTime);
+    if ((ret < -1) || (elapsedTime > BT_DRV_OPER_BTCORE_WAKE_UP_THD))
+    {
+        TRACE(1, "%s exit, usr:%d msg:%d ret:%d elapsed:%d(us)",
+            __func__, user, msg, ret, elapsedTime);
+    }
+#endif
+}
+#endif /* MCU_WAKEUP_BT_V2 */
+
+#ifdef VCO_TEST_TOOL
+static unsigned short vco_test_hack_flag = 0;
+static unsigned short vco_test_channel = 0xff;
+static unsigned short set_xatl_facp_hack_flag = 0;
+static unsigned short vco_test_xtal_fcap = 0xffff;
+static unsigned short set_vco_power_hack_flag = 0;
+static unsigned short vco_test_idx = 0xff;
+static unsigned short pmu_reboot_hci_flag = 0;
+
+unsigned short btdrv_get_vco_test_process_flag(void)
+{
+    return vco_test_hack_flag;
+}
+
+bool btdrv_vco_test_bridge_intsys_callback(const unsigned char *data)
+{
+    bool status = false;
+    if (data[0] == 0x01 && data[1] == 0xaa && data[2] == 0xfc && data[3] == 0x02)
+    {
+        status = true;
+        vco_test_hack_flag = data[5];
+        vco_test_channel = data[4];
+    }
+
+    return status;
+}
+
+void btdrv_vco_test_process(uint8_t op)
+{
+    if (op == 0x02) // vco test start
+    {
+        if (vco_test_channel != 0xff)
+            btdrv_vco_test_start(vco_test_channel);
+    }
+    else if (op == 0x04) // vco test stop
+    {
+        btdrv_vco_test_stop();
+    }
+    vco_test_channel = 0xff;
+    vco_test_hack_flag = 0;
+}
+
+unsigned short btdrv_get_vco_test_set_power_process_flag(void)
+{
+    return set_vco_power_hack_flag;
+}
+
+bool btdrv_vco_test_set_power_bridge_intsys_callback(const unsigned char *data)
+{
+    bool status = false;
+    if(data[0]==0x01 && data[1]==0xfc && data[2]==0xfd && data[3]==0x02)
+    {
+        status = true;
+        vco_test_idx = data[4];
+        set_vco_power_hack_flag = data[5];
+    }
+
+    return status;
+}
+
+void btdrv_vco_test_set_power_process(uint8_t op)
+{
+    btdrv_reg_op_fix_tx_idx(vco_test_idx);
+    set_vco_power_hack_flag = 0;
+}
+
+unsigned short btdrv_get_vco_test_set_xtal_fcap_process_flag(void)
+{
+    return set_xatl_facp_hack_flag;
+}
+
+bool btdrv_vco_test_set_xtal_fcap_bridge_intsys_callback(const unsigned char *data)
+{
+    bool status = false;
+    if(data[0]==0x01 && data[1]==0xab && data[2]==0xfc && data[3]==0x03)
+    {
+        status = true;
+        vco_test_xtal_fcap = (data[5] << 8) | data[4];
+        set_xatl_facp_hack_flag = data[6];
+    }
+
+    return status;
+}
+
+void btdrv_vco_test_set_xtal_fcap_process(uint8_t op)
+{
+    if(op == 0x02)// set_xtal_fcap
+    {
+        btdrv_rf_init_xtal_fcap(vco_test_xtal_fcap);
+    }
+    else if (op == 0x04)// save_xtal_fcap
+    {
+        nvrec_dev_set_xtal_fcap(vco_test_xtal_fcap);
+    }
+    vco_test_xtal_fcap = 0xffff;
+    set_xatl_facp_hack_flag = 0;
+}
+
+unsigned short btdrv_pmu_reboot_hci_process_flag(void)
+{
+    return pmu_reboot_hci_flag;
+}
+
+bool btdrv_pmu_reboot_hci_intsys_callback(const unsigned char *data)
+{
+    bool status = false;
+    if(data[0]==0x01 && data[1]==0xac && data[2]==0xfc && data[3]==0x01)
+    {
+        status = true;
+        pmu_reboot_hci_flag = data[4];
+    }
+
+    return status;
+}
+
+void btdrv_pmu_reboot_hci_process(uint8_t op)
+{
+    if(op == 0x01)
+    {
+        pmu_reboot();
+    }
+    pmu_reboot_hci_flag = 0;
+}
+#endif

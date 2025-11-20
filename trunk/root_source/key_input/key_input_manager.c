@@ -80,8 +80,24 @@ static const char *to_event_name(uint32_t keytype)
             return ":2s";
         case KEY_EVENT_LONG_3S:
             return ":3s";
+        case KEY_EVENT_LONG_4S:
+            return ":4s";
+        case KEY_EVENT_LONG_5S:
+            return ":5s";
+        case KEY_EVENT_LONG_6S:
+            return ":6s";
+        case KEY_EVENT_LONG_7S:
+            return ":7s";
+        case KEY_EVENT_LONG_8S:
+            return ":8s";
+        case KEY_EVENT_LONG_9S:
+            return ":9s";
         case KEY_EVENT_LONG_10S:
             return ":10s";
+        case KEY_EVENT_LONG_AFTER_DOWN:
+            return ":long_press_after_down";
+        case KEY_EVENT_LONG_AFTER_CLICK:
+            return ":long_press_after_click";
         default:
             LOGE("keytype: %ld", keytype);
             return "unknow";
@@ -103,7 +119,7 @@ static int on_spec_press_key_handler(void *user_data, uint16_t keycode, uint16_t
         down_time = get_timestamp();
         return 0;  
     } else if (keytype == CUST_KEY_EVENT_FORCE_RESET) {
-        diff_time = get_timestamp() - down_time;
+        diff_time = get_timestamp_ms(down_time);
         if (diff_time < 7000) {
             LOGE("ignore diff_time: %ld", diff_time);
             return 0;
@@ -130,7 +146,7 @@ static void internal_keyevent_callback(void *user_data, uint16_t keycode, uint16
     key_input_context_t *input = thiz;
 
 #if IS_SUPPORT_KEY_SOFT_RESET      
-    if (keycode == KEY_CODE_POWER) {
+    if (keycode == KEY_CODE_1) {
         if (keytype == KEY_EVENT_DOWN || keytype == CUST_KEY_EVENT_FORCE_RESET) {
             on_spec_press_key_handler(NULL, keycode, keytype);
         }
@@ -160,6 +176,13 @@ static int internal_read_btn_id(void *context)
     }
 
     return btn_id;
+}
+
+static int internal_is_key_triggered(uint16_t key_index)
+{
+    EXCEPTION_CHECK_BOOL(thiz->priv.key_dev);
+    int args[] = {key_index};
+    return thiz->priv.key_dev->ioctl(thiz->priv.key_dev, OP_CODE_INPUT_IS_TRIGGERED, (void *)args) > 0 ? 1 : 0;
 }
 
 static void *list_del_condition_cb(void *data, list_head_t *pos)
@@ -221,7 +244,7 @@ static void key_input_internal_dispatch_thread(const void *args)
         keycode = msg.union_body.parms_16[0];
         keytype = msg.union_body.parms_16[1];
 
-        if (wm->is_on_window_dispatch()) {
+        if (wm->is_on_window_dispatch(wm)) {
             LOGE("on_window_dispatch, ignore: key_event(%d, %d)", keycode, keytype);
             continue;
         }
@@ -269,9 +292,10 @@ static void add_keyevent_handler_extra(const char *caller, void *user_data, uint
     MUTEX_UNLOCK_KEY(thiz->priv.key_evt_lock);
 }
 
-static void add_keyevent_handler(void *user_data, uint16_t keycode, uint16_t keytype, on_key_event_handler_fptr cb)
+static void add_keyevent_handler(const char *caller, void *user_data, uint16_t keycode, uint16_t keytype,
+     on_key_event_handler_fptr cb)
 {
-    add_keyevent_handler_extra("default", user_data, keycode, keytype, cb);
+    add_keyevent_handler_extra(caller, user_data, keycode, keytype, cb);
 }
 
 /// 注消按键响应.
@@ -298,9 +322,16 @@ static int dispatch_key_event_wrapper(void *context, int keycode, int keytype)
         .union_body.key_event_data.keycode = keycode,
         .union_body.key_event_data.keytype = keytype,
     };
-    LOG_KEY("event: %d/%d\n", keycode, keytype);
+
+    if (ctx->hook && ctx->hook->get_key_code_name) {
+        const char *name = ctx->hook->get_key_code_name(keycode);
+        LOG_KEY("event: %s/%s\n", name, to_event_name(keytype));
+    } else {
+        LOG_KEY("event: %d/%s\n", keycode, to_event_name(keytype));
+    }
+    
     window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
-    if (wm->post_msg_to_window) {
+    if (wm && wm->post_msg_to_window) {
         wm->post_msg_to_window(__func__, (&__msg));
     }
 
@@ -332,11 +363,11 @@ void *register_module_for_key_input_manager_new(list_head_t *list_head)
     MALLOC_FOR_PTR(ptr, key_input_context_t);
 
     ptr->read_btn_id = internal_read_btn_id;
+    ptr->is_key_triggered = internal_is_key_triggered;
     ptr->add_keyevent_handler = add_keyevent_handler;
     ptr->dispatch_client_input_key = dispatch_key_event_client;
     ptr->dispatch_key_event_wrapper = dispatch_key_event_wrapper;
     ptr->remove_keyevent_handler = remove_keyevent_handler;
-
     thiz = ptr;
 
     return ADD_MODULE("key_input", ID_MODULE_KEY_INPUT, on_perpare_key_input_init, on_post_key_input_init, 

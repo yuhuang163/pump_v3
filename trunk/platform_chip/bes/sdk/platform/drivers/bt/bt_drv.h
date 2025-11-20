@@ -39,41 +39,41 @@ extern "C" {
 #if defined(CHIP_BEST1000) || defined(CHIP_BEST2000) || defined(CHIP_BEST2300) || defined(CHIP_BEST2300P) || \
     defined(CHIP_BEST2300A) || defined(CHIP_BEST2300A)
 #define BTDRV_ISPI_RF_REG(reg)                  (reg)
-#elif defined(CHIP_BEST1700)
+#elif defined(CHIP_BEST1700) || defined(CHIP_BEST1605) || defined(CHIP_BEST1702) || defined(CHIP_BEST1503P) || \
+    defined(CHIP_BEST1607)
 #define BTDRV_ISPI_RF_REG(r)                           (((r) & 0x3FF) | (0 << 10) | 0x2000)
 #define BTDRV_ISPI_RF1_REG(r)                          (((r) & 0x3FF) | (1 << 10) | 0x2000)
 #define BTDRV_ISPI_RF2_REG(r)                          (((r) & 0x3FF) | (2 << 10) | 0x2000)
 #define BTDRV_ISPI_RF3_REG(r)                          (((r) & 0x3FF) | (3 << 10) | 0x2000)
-#elif defined(CHIP_BEST2007) || defined(CHIP_BEST2007H) || defined(CHIP_BEST2007P)
+#elif defined(CHIP_BEST2007P) || defined(CHIP_BEST2007HS)
 #define BTDRV_ISPI_RF_REG(r)                           (((r) & 0xF3FF) | 0x800)
 #else
 #define BTDRV_ISPI_RF_REG(reg)                  (((reg) & 0xFFF) | 0x2000)
 #endif
 
-// NOTE: Measure this value for every CHIP Version
-#if defined(CHIP_BEST1000) || defined(CHIP_BEST2000) || defined(CHIP_BEST2300) || defined(CHIP_BEST2300P) || \
-    defined(CHIP_BEST1400) || defined(CHIP_BEST1402)
-#define CVSD_OFFSET_BYTES (120 - 2)
-#else
-#define CVSD_OFFSET_BYTES (120)
+extern bool CFG_APB_RFINF;
+#if defined(CHIP_BEST1605) || defined(CHIP_BEST1702)
+#define CFG_APB_RFINF_BASE_WRITE_ADDR         0x400C0000
+#define CFG_APB_RFINF_BASE_READ_ADDR          0x400C1000
+
+#define btdrv_apb_read_rf_reg(reg, val) \
+                                do { \
+                                    uint32_t page = ((unsigned short)(reg) & 0x3000) >> 12; \
+                                    uint32_t addr = CFG_APB_RFINF_BASE_READ_ADDR + (page * 0x10000) + (((unsigned short)(reg) & 0x3FF) * 4); \
+                                    *((unsigned short *)(val)) = (unsigned short)((*(volatile uint32_t *)(addr)) & 0xFFFF); \
+                                } while (0)
+
+#define btdrv_apb_write_rf_reg(reg, val) \
+                                do { \
+                                    uint32_t page = ((unsigned short)(reg) & 0x3000) >> 12; \
+                                    uint32_t addr = CFG_APB_RFINF_BASE_WRITE_ADDR + (page * 0x10000) + (((unsigned short)(reg) & 0x3FF) * 4); \
+                                    (*(volatile uint32_t *)(addr)) = (uint32_t)((val) & 0xFFFF); \
+                                } while (0)
 #endif
 
-// NOTE: Measure this value for every CHIP Version
-#if defined(CHIP_BEST1000) || defined(CHIP_BEST2000) || defined(CHIP_BEST2300) || defined(CHIP_BEST2300P) || \
-    defined(CHIP_BEST1400) || defined(CHIP_BEST1402)
-#define MSBC_OFFSET_BYTES (1)
-#else
-#define MSBC_OFFSET_BYTES (0)
-#endif
-
-#if defined(CHIP_BEST1000) || defined(CHIP_BEST2000) || defined(CHIP_BEST2300)
-#define MSBC_MUTE_PATTERN (0x00)
-#else
-#define MSBC_MUTE_PATTERN (0x55)
-#endif
-
-#if defined(CHIP_BEST1700)
-#define btdrv_read_rf_reg(reg,val)\
+#if defined(CHIP_BEST1700) || defined(CHIP_BEST1605) || defined(CHIP_BEST1702) || defined(CHIP_BEST1503P) || \
+    defined(CHIP_BEST1607)
+#define btdrv_spi_read_rf_reg(reg,val)\
                                 do{ \
                                     uint16_t page = (reg & 0x3000) >> 12; \
                                     if (page == 0) { \
@@ -87,7 +87,7 @@ extern "C" {
                                     }\
                                 }while(0)
 
-#define btdrv_write_rf_reg(reg,val)\
+#define btdrv_spi_write_rf_reg(reg,val)\
                                 do{ \
                                     uint16_t page = (reg & 0x3000) >> 12; \
                                     if (page == 0) { \
@@ -99,6 +99,28 @@ extern "C" {
                                     } else if(page == 3) { \
                                         hal_analogif_reg_write(BTDRV_ISPI_RF3_REG(reg),val); \
                                     }\
+                                }while(0)
+#endif
+
+#if defined(CHIP_BEST1700) ||  defined(CHIP_BEST1503P) ||  defined(CHIP_BEST1607)
+#define btdrv_read_rf_reg(reg,val)              btdrv_spi_read_rf_reg(reg,val)
+#define btdrv_write_rf_reg(reg,val)             btdrv_spi_write_rf_reg(reg,val)
+#elif defined(CHIP_BEST1605)|| defined(CHIP_BEST1702)
+#define btdrv_read_rf_reg(reg,val) \
+                                do{ \
+                                    if (CFG_APB_RFINF) { \
+                                        btdrv_apb_read_rf_reg(reg, val); \
+                                    } else { \
+                                        btdrv_spi_read_rf_reg(reg,val); \
+                                    } \
+                                }while(0)
+#define btdrv_write_rf_reg(reg,val) \
+                                do{ \
+                                    if (CFG_APB_RFINF) { \
+                                        btdrv_apb_write_rf_reg(reg, val); \
+                                    } else { \
+                                        btdrv_spi_write_rf_reg(reg,val); \
+                                    } \
                                 }while(0)
 #else
 #define btdrv_read_rf_reg(reg,val)              hal_analogif_reg_read(BTDRV_ISPI_RF_REG(reg),val)

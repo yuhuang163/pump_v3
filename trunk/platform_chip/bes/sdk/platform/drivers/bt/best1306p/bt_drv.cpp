@@ -591,6 +591,13 @@ void btdrv_start_bt(void)
     btdrv_cpudump_clk_enable();
     btdrv_cpudump_enable();
 #endif
+#ifdef MCU_WAKEUP_BT_V2
+    enum HAL_CHIP_METAL_ID_T metal_id = hal_get_chip_metal_id();
+    if (metal_id >= HAL_CHIP_METAL_ID_3)
+    {
+        hal_intersys_open(HAL_INTERSYS_ID_1, HAL_INTERSYS_MSG_HCI, NULL, NULL, false);
+    }
+#endif //MCU_WAKEUP_BT_V2
     // RF module init
     btdrv_rf_init();
     // Digital module init
@@ -882,104 +889,6 @@ static uint32_t gfsk_dig_gain = 0;
 static uint32_t dc_gain = 0;
 static uint16_t vco_test_reg_val_24 = 0;
 static uint16_t vco_test_reg_val_9E = 0;
-#ifdef VCO_TEST_TOOL
-static unsigned short vco_test_hack_flag = 0;
-static unsigned short vco_test_channel = 0xff;
-static unsigned short set_xatl_facp_hack_flag = 0;
-static unsigned short vco_test_xtal_fcap = 0xffff;
-static unsigned short pmu_reboot_hci_flag = 0;
-
-unsigned short btdrv_get_vco_test_process_flag(void)
-{
-    return vco_test_hack_flag;
-}
-
-bool btdrv_vco_test_bridge_intsys_callback(const unsigned char *data)
-{
-    bool status = false;
-    if (data[0] == 0x01 && data[1] == 0xaa && data[2] == 0xfc && data[3] == 0x02)
-    {
-        status = true;
-        vco_test_hack_flag = data[5];
-        vco_test_channel = data[4];
-    }
-
-    return status;
-}
-
-void btdrv_vco_test_process(uint8_t op)
-{
-    if (op == 0x02) // vco test start
-    {
-        if (vco_test_channel != 0xff)
-            btdrv_vco_test_start(vco_test_channel);
-    }
-    else if (op == 0x04) // vco test stop
-    {
-        btdrv_vco_test_stop();
-    }
-    vco_test_channel = 0xff;
-    vco_test_hack_flag = 0;
-}
-
-unsigned short btdrv_get_vco_test_set_xtal_fcap_process_flag(void)
-{
-    return set_xatl_facp_hack_flag;
-}
-
-bool btdrv_vco_test_set_xtal_fcap_bridge_intsys_callback(const unsigned char *data)
-{
-    bool status = false;
-    if(data[0]==0x01 && data[1]==0xab && data[2]==0xfc && data[3]==0x03)
-    {
-        status = true;
-        vco_test_xtal_fcap = (data[5] << 8) | data[4];
-        set_xatl_facp_hack_flag = data[6];
-    }
-
-    return status;
-}
-
-void btdrv_vco_test_set_xtal_fcap_process(uint8_t op)
-{
-    if(op == 0x02)// set_xtal_fcap
-    {
-        btdrv_rf_init_xtal_fcap(vco_test_xtal_fcap);
-    }
-    else if (op == 0x04)// save_xtal_fcap
-    {
-        nvrec_dev_set_xtal_fcap(vco_test_xtal_fcap);
-    }
-    vco_test_xtal_fcap = 0xffff;
-    set_xatl_facp_hack_flag = 0;
-}
-
-unsigned short btdrv_pmu_reboot_hci_process_flag(void)
-{
-    return pmu_reboot_hci_flag;
-}
-
-bool btdrv_pmu_reboot_hci_intsys_callback(const unsigned char *data)
-{
-    bool status = false;
-    if(data[0]==0x01 && data[1]==0xac && data[2]==0xfc && data[3]==0x01)
-    {
-        status = true;
-        pmu_reboot_hci_flag = data[4];
-    }
-
-    return status;
-}
-
-void btdrv_pmu_reboot_hci_process(uint8_t op)
-{
-    if(op == 0x01)
-    {
-        pmu_reboot();
-    }
-    pmu_reboot_hci_flag = 0;
-}
-#endif
 void btdrv_vco_test_start(uint8_t chnl)
 {
     if (!btdrv_vco_test_running)

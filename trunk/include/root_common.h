@@ -24,7 +24,6 @@ extern "C" {
 
 /// 异常检查宏定义.
 #define LOG_EXCP      LOGW
-// #define LOG_EXCP(...)   do {} while (0)
 #define EXCEPTION_CHECK_VOID(x)     __EXCEPTION_POINTER_CHECK("", x, ;)
 #define EXCEPTION_CHECK_INT(x)      __EXCEPTION_POINTER_CHECK("", x, -1)
 #define EXCEPTION_CHECK_UINT(x)     __EXCEPTION_POINTER_CHECK("", x, 0)
@@ -33,7 +32,7 @@ extern "C" {
 #define __EXCEPTION_POINTER_CHECK(tag, x, r) \
 do { \
     if (!(x)) { \
-        LOG_EXCP("%s:null pointer.", tag); \
+        LOG_EXCP("%s:null pointer. line: %d", tag, __LINE__); \
         return r; \
     } \
 } while (0)
@@ -95,6 +94,26 @@ do { \
     f_sensor_data_t *__fsensor = (f_sensor_data_t *)data; \
     LOGW("fsensor adc(%d, %d) value(%d, %d)\n", __fsensor->adc[0], \
         __fsensor->adc[1], __fsensor->value[0], __fsensor->value[1]); \
+} while (0)
+
+/// 通用帧率打印方法.
+#define PRINTF_FPS(tag) LOG_FPS(tag, LOGW)
+#define LOG_FPS(tag, log) \
+do { \
+    static uint16_t fps = 0; \
+    static uint32_t time_last = 0; \
+    uint32_t current = get_timestamp(); \
+    if (time_last == 0) { \
+        time_last = current; \
+    }  \
+    else if (current - time_last >= 1000) { \
+        log("[fps-%s: %d]", (tag), fps); \
+        fps = 0; \
+        time_last = 0; \
+    }  \
+    else { \
+        fps++; \
+    } \
 } while (0)
 
 /*

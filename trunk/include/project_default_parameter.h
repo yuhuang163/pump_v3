@@ -10,16 +10,16 @@ extern "C" {
  * Include files
  ******************************************************************************/
 
-#ifndef BREATH_PUMP_HEAD_UI_START_DATE
-#define BREATH_PUMP_HEAD_UI_START_DATE                                       (85)
+#ifndef BREAST_PUMP_HEAD_UI_START_DATE
+#define BREAST_PUMP_HEAD_UI_START_DATE                                       (85)
 #endif
 
-#ifndef BREATH_PUMP_HEAD_UI_MAX_DAYS
-#define BREATH_PUMP_HEAD_UI_MAX_DAYS                                         (90)
+#ifndef BREAST_PUMP_HEAD_UI_MAX_DAYS
+#define BREAST_PUMP_HEAD_UI_MAX_DAYS                                         (90)
 #endif
 
-#ifndef BREATH_PUMP_HEAD_REMAIN_DAYS
-#define BREATH_PUMP_HEAD_REMAIN_DAYS                                         (BREATH_PUMP_HEAD_UI_MAX_DAYS - BREATH_PUMP_HEAD_UI_START_DATE)
+#ifndef BREAST_PUMP_HEAD_REMAIN_DAYS
+#define BREAST_PUMP_HEAD_REMAIN_DAYS                                         (BREAST_PUMP_HEAD_UI_MAX_DAYS - BREAST_PUMP_HEAD_UI_START_DATE)
 #endif
 
 #ifdef __cplusplus

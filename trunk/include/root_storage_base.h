@@ -72,8 +72,8 @@ extern "C" {
 #define STORAGE_SYS_STATE_MAGIC_NUM                                            (0xAFFA588C)
 #endif
 
-#ifndef STORAGE_BREATH_PUMP_MAGIC_NUM
-#define STORAGE_BREATH_PUMP_MAGIC_NUM                                      (0xAFFA5884)
+#ifndef STORAGE_BREAST_PUMP_INFO_MAGIC_NUM
+#define STORAGE_BREAST_PUMP_INFO_MAGIC_NUM                                     (0xAFFA5884)
 #endif
 
 #ifndef STORAGE_USER_BIND_MAGIC_NUM
@@ -96,12 +96,12 @@ extern "C" {
 #define STORAGE_AUDIO_THEME_MAGIC_NUM                                          (0xAFFA5888)
 #endif
 
-#ifndef STORAGE_BREATH_PUMP_DATA_HEAD_MAGIC_NUM
-#define STORAGE_BREATH_PUMP_DATA_HEAD_MAGIC_NUM                                (0xAFFA588E)
+#ifndef STORAGE_BREAST_PUMP_DATA_HEAD_MAGIC_NUM
+#define STORAGE_BREAST_PUMP_DATA_HEAD_MAGIC_NUM                                (0xAFFA588E)
 #endif
 
-#ifndef STORAGE_BREATH_PUMP_DATA_BODY_MAGIC_NUM
-#define STORAGE_BREATH_PUMP_DATA_BODY_MAGIC_NUM                                (0xAFFA588F)
+#ifndef STORAGE_BREAST_PUMP_DATA_BODY_MAGIC_NUM
+#define STORAGE_BREAST_PUMP_DATA_BODY_MAGIC_NUM                                (0xAFFA588F)
 #endif
 
 #ifndef STORAGE_UTC_TIMESTAMP_MAGIC_NUM

@@ -28,7 +28,9 @@ extern "C" {
 /// 按键线程深度
 #define INPUT_KEY_THREAD_STACKSIZE                     (TASK_SIZE_DEFAULT * 2 + 0)
 /// 传感器线程深度
-#define INPUT_SENSOR_THREAD_STACKSIZE                  (TASK_SIZE_DEFAULT * 10 + 0)
+#define INPUT_SENSOR_THREAD_STACKSIZE                  (TASK_SIZE_DEFAULT * 2 + 0)
+/// 产品测试线程深度
+#define INPUT_PRODUCT_TESTS_THREAD_STACKSIZE           (TASK_SIZE_DEFAULT * 2 + 0)
 /// 死锁检查线程深度
 #define HG_CHECK_THREAD_STACKSIZE                      (TASK_SIZE_DEFAULT * 2 + 0)
 /// 死锁检测线程深度
@@ -48,9 +50,11 @@ extern "C" {
 /// 工厂串口线程深度
 #define FACTORY_UART_THREAD_STACKSIZE                  (TASK_SIZE_DEFAULT * 2 + 0)
 /// 按键设备线程深度
-#define KEY_DEVICE_THREAD_STACKSIZE                    (TASK_SIZE_DEFAULT * 2 + 0)
+#define KEY_DEVICE_THREAD_STACKSIZE                    (TASK_SIZE_DEFAULT * 1 + 0)
+/// 充电设备线程深度
+#define CHARGE_DEVICE_THREAD_STACKSIZE                 (TASK_SIZE_DEFAULT * 1.5 + 0)
 /// led设备线程深度
-#define LED_DEVICE_THREAD_STACKSIZE                    (TASK_SIZE_DEFAULT * 2 + 0)
+#define LED_DEVICE_THREAD_STACKSIZE                    (TASK_SIZE_DEFAULT * 1 + 0)
 
 /// 中断消息队列数量定义
 #define INTERRUPT_MESQ_NUM                             (10)
@@ -67,7 +71,8 @@ extern "C" {
 /// 按键设备消息队列数量定义
 #define KEY_DEVICE_MESQ_NUM                            (1)
 /// 挂起超时
-#define PM_SUSPEND_TIME_S                              (10)
+#define PM_SUSPEND_TIME_S                              (10000)
+#define PM_SUSPEND_LOW_BAT_TIME_S                      (10000)
 /// 屏幕串口消息队列数量定义
 #define LCD_UART_MESQ_NUM                              (1)
 /// 文件名长度
@@ -78,7 +83,19 @@ extern "C" {
 #define US_IMU_FIFO_SIZE                               (160)
 /// IMU数据间隔
 #define US_IMU_DATA_INTERVAL                           (20)
-
+/// 吸奶器泵阀配置
+#define BREAST_PUMP_NUM                                (2)
+#define BREAST_PUMP_VALVE_FREQ                         (1000)
+#define BREAST_PUMP_VALVE_DUTY                         (100)
+#define BREAST_PUMP_PUMP_FREQ                          (1000)
+/// 叠图最大数量
+#define OVERLAY_IMG_NUM_MAX                            (2)
+/// 气压传感器数量
+#define AIR_PRESSURE_NUM                               (2)
+/// LVGL定时器周期
+#define LVGL_TIME_TICK_PERIOD                          (20) /// 单位ms
+/// 开机长按时间
+#define BOOT_LONG_PRESS_TIME                           (3000)
 #ifdef __cplusplus
 }
 #endif

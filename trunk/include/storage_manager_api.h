@@ -1,7 +1,6 @@
 #ifndef __STORAGE_MANAGER_API_H__
 #define __STORAGE_MANAGER_API_H__
 
-#include <stdint.h>
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -12,8 +11,8 @@ extern "C" {
  ******************************************************************************/
 #include "root_common_base.h" // IWYU pragma: keep
 #include "persist_storage.h"
+#include "broadcast_manager_api.h"
 
-typedef uint16_t database_key_t;
 #define ADDR_FACTORY_DATA_OFFSET                          (0)
 
 /*
@@ -34,19 +33,15 @@ typedef enum {
     STORE_ID_FACTORY_IMU_CALI_DATA,         /// 工厂陀螺仪校准数据
     STORE_ID_AUDIO_PACKET_INFO = 200,       /// 语音包信息
     STORE_ID_THEME_PACKET_INFO,             /// 主题包信息
-    STORE_ID_BREATH_PUMP_INFO = 300,               /// 吸奶信息
-    STORE_ID_BREATH_PUMP_TIME,                     /// 吸奶时间
-    STORE_ID_BREATH_PUMP_LEVEL,                    /// 吸奶力度
-    STORE_ID_REMIND_BREATH_PUMP_HEAD,              /// 吸奶刷头提醒
-    STORE_ID_REMIND_BREATH_PUMP_EXCEPTION,         /// 吸奶异常提醒
-    STORE_ID_REMIND_BREATH_PUMP_HORIZONTAL,        /// 吸奶水平提醒
-    STORE_ID_REMIND_BREATH_PUMP_MODE_CHANGE,       /// 吸奶模式切换提醒
-    STORE_ID_REMIND_BREATH_PUMP_AREA_CHANGE,       /// 吸奶区域切换提醒
-    STORE_ID_REMIND_BREATH_PUMP_OVER_PRESS,        /// 吸奶过压提醒
-    STORE_ID_REMIND_BREATH_PUMP_OVER_PRESS_LED,    /// 吸奶过压LED提示
-    STORE_ID_REMIND_BREATH_PUMP_FINISH,            /// 吸奶完成提醒
-    STORE_ID_BREATH_PUMP_DATA_HEAD,                /// 吸奶数据头
-    STORE_ID_BREATH_PUMP_DATA_BODY,                /// 吸奶数据体
+    STORE_ID_BREAST_PUMP_INFO = 300,        /// 吸奶信息
+    STORE_ID_BREAST_PUMP_TIME,              /// 吸奶时间
+    STORE_ID_PUMP_SETTING_INFO,             /// 吸奶设置信息
+    STORE_ID_PUMP_CONTROL_TYPE,             /// 吸奶控制类型
+    STORE_ID_REMIND_PUMP_EXCEPTION,         /// 吸奶异常提醒
+    STORE_ID_REMIND_PUMP_MODE_CHANGE,       /// 吸奶模式切换提醒
+    STORE_ID_REMIND_PUMP_FINISH,            /// 吸奶完成提醒
+    STORE_ID_BREAST_PUMP_DATA_HEAD,         /// 吸奶器数据头
+    STORE_ID_BREAST_PUMP_DATA_BODY,         /// 吸奶器数据体
     STORE_ID_SYS_CONFIG_INFO = 400,         /// 系统配置信息
     STORE_ID_SYS_TIME_ZONE,                 /// 系统时区
     STORE_ID_SYS_AP_MODE_ONOFF,             /// 系统飞航模式开关
@@ -54,14 +49,13 @@ typedef enum {
     STORE_ID_SYS_UI_STYLE,                  /// 系统UI风格
     STORE_ID_SYS_LOG_SWITCH,                /// 系统UART日志开关
     STORE_ID_SYS_LANGUAGE,                  /// 系统语言类型
-    STORE_ID_SYS_SOUND_MODE_ONOFF,          /// 系统语音提醒开关
-    STORE_ID_SYS_MICROSEISM_ONOFF,          /// 系统微震开关
-    STORE_ID_SYS_AI_MODE_ONOFF,             /// 系统AI模式开关
     STORE_ID_SYS_UTC_TIMESTAMP,             /// 系统时间戳
     STORE_ID_SYS_STATE_INFO = 500,          /// 系统状态信息
     STORE_ID_SYS_GUIDE_DEPLOYED,            /// 向导部署标志
     STORE_ID_SYS_BATTERY_HEALTH,            /// 电池健康
-    STORE_ID_SYS_BREATH_PUMP_HEADER_LIFE,          /// 吸嘴寿命
+    STORE_ID_SYS_BREAST_PUMP_HEADER_LIFE,   /// 吸嘴寿命
+    STORE_ID_SYS_NIGHT_LIGHT_INFO,          /// 夜灯信息
+    STORE_ID_SYS_AIRPLANE_MODE_STATE,       /// 飞行模式状态
     STORE_ID_SYS_SYNC_SYS_TIME,             /// 保存第一次同步系统时间时 本地经历的最终时间点 用于计算吸奶记录的差值.
     STORE_ID_SYS_LOG_FILTER,                /// 系统日志过滤
     STORE_ID_USER_BIND_INFO = 600,          /// 用户绑定信息
@@ -71,7 +65,7 @@ typedef enum {
 typedef enum {
     STORE_CRC_TYPE_SYS_CONFIG = 0,
     STORE_CRC_TYPE_SYS_STATE,
-    STORE_CRC_TYPE_SYS_BREATH_PUMP_INFO,
+    STORE_CRC_TYPE_PUMP_INFO,
     STORE_CRC_TYPE_MAX
 } store_crc_type_id_e;
 
@@ -92,23 +86,23 @@ typedef struct {
     struct storage_manager_context *ctx;
     int arg1;
     int arg2;
-    const void *val;
+    void *val;
 } store_func_args_t;
 
 /// 写入存储处理接口.
-typedef int (*put_store_process_func)(store_func_args_t *args);
+typedef int (*put_store_process_func)(store_func_args_t args);
 
 /// 读取存储处理接口.
-typedef int (*get_store_process_func)(store_func_args_t *args);
+typedef int (*get_store_process_func)(store_func_args_t args);
 
 /// 删除存储处理接口.
-typedef int (*del_store_process_func)(store_func_args_t *args);
+typedef int (*del_store_process_func)(store_func_args_t args);
 
 /// 写入系统ram值处理接口.
-typedef int (*put_store_ram_val_func)(store_func_args_t *args);
+typedef int (*put_store_ram_val_func)(store_func_args_t args);
 
 /// 读取存储处理接口.
-typedef int (*get_store_ram_val_func)(store_func_args_t *args);
+typedef int (*get_store_ram_val_func)(store_func_args_t args);
 
 /// 描述写入存储处理结构.
 typedef struct {
@@ -152,15 +146,18 @@ typedef struct storage_manager_context {
     sec_sys_ver_t *(*get_persist_ver_info)(void);
     factory_data_store_t *(*get_factory_data)(void);
     /// 通用数据存储写读操作接口.
-    int (*put_store_val)(persist_store_id_e id, int arg1, int arg2,  const void *val_in);
+    int (*put_store_val)(persist_store_id_e id, int arg1, int arg2,  void *val_in);
     int (*get_store_val)(persist_store_id_e id, int arg1, int arg2,  void *val_out);
-    int (*del_store_val)(persist_store_id_e id, int arg1, int arg2,  const void *val_in);
-    void (*put_store_ram_val)(persist_store_id_e id, int arg1, int arg2,  const void *val_in);
+    int (*del_store_val)(persist_store_id_e id, int arg1, int arg2,  void *val_in);
+    void (*put_store_ram_val)(persist_store_id_e id, int arg1, int arg2,  void *val_in);
     int (*get_store_ram_val)(persist_store_id_e id, int arg1, int arg2, void *val_out);
     int (*user_database_reset)(void);
+    int (*flash_protect)(int protect_enable);  /// 保护flash读写操作.
     /// 外部hook点.
     struct __storage_hook {
-        int (*read_old_sys_info)(struct storage_manager_context *st, persist_store_id_e id, void *val_in);
+        int (*on_post_init_route)(struct storage_manager_context *st);
+        int (*on_perpare_init_route)(struct storage_manager_context *st);
+        void (*on_storage_broadcast_route)(broadcast_mask_id_t id, void *context, int arg1, int arg2, broadcast_priv_data_t *pdata);
     } *hook;
 
 /// private
@@ -170,9 +167,7 @@ typedef struct storage_manager_context {
         struct rt_device_node *db_dev;
         /// 外挂flash
         // struct extflash_interface *extflash_if;
-        os_mutex_id db_rw_lock;
         os_mutex_id storage_rw_lock;
-        os_mutex_id breath_pump_data_rw_lock;
         /// 系统用户数据存储.
         sys_persist_info_t sys_info;
         /// 记录sys_info的crc,如果有改变则需要更新到flash.
@@ -181,7 +176,7 @@ typedef struct storage_manager_context {
         sec_sys_ver_t ver_info;
         /// 工厂数据集合.
         factory_data_store_t factory_data;
-        breath_pump_data_head_t pump_data_head;
+        breast_pump_data_head_t pump_data_head;
         /// 存储处理列表.
         const put_store_process_handle_t *put_store_process_list;
         const get_store_process_handle_t *get_store_process_list;

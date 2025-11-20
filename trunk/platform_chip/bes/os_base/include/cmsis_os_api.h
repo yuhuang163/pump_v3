@@ -165,6 +165,10 @@ void msleep(uint32_t time_ms);
 void platform_prepare_init(void);
 /// 后期初始化接口.
 void platform_post_init(void);
+/// 判断是否是重启.
+bool platform_is_startup_caused_by_reboot(void);
+/// 日志初始化接口.
+void platform_log_init(void);
 /// 平台相关轮询信息打印接口.
 void platform_sysinfo_print(void *user_data);
 /// 平台提供的获取UTC时间戳接口.
@@ -174,8 +178,10 @@ uint64_t platform_get_utc_time_ms(void);
 void platform_set_utc_time(uint32_t timestemp, int timezone);
 /// 平台提供的获取构建时间接口.
 void platform_get_build_time(char *build_time);
-/// 平台提供的获取当前时间戳接口.
-uint32_t get_timestamp(void);
+/// 平台提供的获取当前tick时间戳接口
+uint32_t get_timestamp(void); 
+/// 平台提供的获取ms时间戳接口，可以辅助计算tick插值
+uint32_t get_timestamp_ms(uint32_t time_tick);
 /// 系统重启.
 void platform_system_reboot(void);
 /// 平台提供的获取线程ID接口.

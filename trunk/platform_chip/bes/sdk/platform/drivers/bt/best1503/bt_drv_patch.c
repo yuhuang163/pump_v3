@@ -24,6 +24,7 @@
 #include "bt_patch_1503_t0.h"
 #include "bt_patch_1503_t1.h"
 #include "bt_patch_1503_t2.h"
+#include "bt_patch_1503_t3.h"
 
 //MAX patch number
 #define BT_PATCH_ENTRY_NUM  (64)
@@ -221,9 +222,12 @@ void btdrv_ins_patch_init(void)
     } else if ((metal_id >= HAL_CHIP_METAL_ID_3) && (metal_id < HAL_CHIP_METAL_ID_6)) {
         btdrv_function_patch_init_common((uint32_t *)bt_patch_1503_t1,sizeof(bt_patch_1503_t1));
         BT_DRV_TRACE(1,"BTC:1503 t1 work mode patch version:%08x", BTDIGITAL_REG(WORKMODE_PATCH_VERSION_1503_T1_ADDR));
-    } else if (metal_id >= HAL_CHIP_METAL_ID_6) {
+    } else if (metal_id == HAL_CHIP_METAL_ID_6) {
         btdrv_function_patch_init_common((uint32_t *)bt_patch_1503_t2,sizeof(bt_patch_1503_t2));
         BT_DRV_TRACE(1,"BTC:1503 t2 work mode patch version:%08x", BTDIGITAL_REG(WORKMODE_PATCH_VERSION_1503_T2_ADDR));
+    } else if (metal_id >= HAL_CHIP_METAL_ID_7) {
+        btdrv_function_patch_init_common((uint32_t *)bt_patch_1503_t3,sizeof(bt_patch_1503_t3));
+        BT_DRV_TRACE(1,"BTC:1503 t3 work mode patch version:%08x", BTDIGITAL_REG(WORKMODE_PATCH_VERSION_1503_T3_ADDR));
     }
     //Enable patch module
     btdrv_patch_en(1);

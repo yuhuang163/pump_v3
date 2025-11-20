@@ -39,6 +39,9 @@ static const module_register_fptr s_module_register[] = {
     #if IS_SUPPORT_MODULE_WM
     register_module_for_window_manager_new,
     #endif
+    #if IS_SUPPORT_MODULE_UI
+    register_module_for_ui_manager_new,
+    #endif
     #if IS_SUPPORT_MODULE_KEY_INPUT
     register_module_for_key_input_manager_new,
     #endif
@@ -51,8 +54,8 @@ static const module_register_fptr s_module_register[] = {
     #if IS_SUPPORT_MODULE_MISC
     register_module_for_misc_manager_new,
     #endif
-    #if IS_SUPPORT_MODULE_BREATH_PUMP
-    register_module_for_breath_pump_new,
+    #if IS_SUPPORT_MODULE_BREAST_PUMP
+    register_module_for_breast_pump_new,
     #endif
     #if IS_SUPPORT_MODULE_TESTS
     register_module_for_tests_manager_new,
@@ -66,8 +69,11 @@ static const module_register_fptr s_module_register[] = {
     #if IS_SUPPORT_MODULE_AUDIO
     register_module_for_audio_manager_new,
     #endif
-    #if IS_SUPPORT_MODULE_AIRPLANE
+    #if IS_SUPPORT_MODULE_AIRPLANE_MODE
     register_module_for_airplane_mode_new,
+    #endif
+    #if IS_SUPPORT_MODULE_PROTOCOL
+    register_module_for_protocol_manager_new,
     #endif
 };
 
@@ -164,7 +170,7 @@ int init_module(void)
         if (node->post_init) {
             // uint32_t t0 = get_timestamp();
             node->post_init(node->module_ptr);
-            // LOGI("node:[%s/%d],escaped: %lu ms",node->name, node->id, (get_timestamp() - t0));
+            // LOGI("node:[%s/%d],escaped: %lu ms",node->name, node->id, get_timestamp_ms(t0));
         }
     }
     return 0;

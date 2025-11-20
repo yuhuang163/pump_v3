@@ -80,6 +80,28 @@ static const struct TX_PWR_SELECT_ITEM tx_pwr_select[] =
     {0,   0x8207, 0x50E1, TX_PWR_0P7_PA},   //0dbm
     {-1,  0x8207, 0x5081, TX_PWR_0P7_PA},   //-1dbm
 };
+
+static const struct TX_PWR_SELECT_ITEM tx_pwr_select_version_G[] =
+{
+    {14,  0x6E01, 0x108A, TX_PWR_1P7_PA},   //14dbm
+    {13,  0x6E01, 0x1086, TX_PWR_1P7_PA},   //13dbm
+    {12,  0x6E01, 0x1084, TX_PWR_1P7_PA},   //12dbm
+    {11,  0x6E01, 0x1083, TX_PWR_1P7_PA},   //11dbm
+    {10,  0x6E01, 0x1082, TX_PWR_1P7_PA},   //10dbm
+    {9,   0x6601, 0x1082, TX_PWR_1P7_PA},   //9dbm
+    {8,   0x6E01, 0x1081, TX_PWR_1P7_PA},   //8dbm
+    {7,   0x6601, 0x1081, TX_PWR_1P7_PA},   //7dbm
+    {6,   0xa601, 0x5083, TX_PWR_0P7_PA},   //6dbm
+    {5,   0xa601, 0x5082, TX_PWR_0P7_PA},   //5dbm
+    {4,   0xa601, 0x5042, TX_PWR_0P7_PA},   //4dbm
+    {3,   0x9e01, 0x5042, TX_PWR_0P7_PA},   //3dbm
+    {2,   0x9601, 0x5042, TX_PWR_0P7_PA},   //2dbm
+    {1,   0x8e01, 0x5042, TX_PWR_0P7_PA},   //1dbm
+    {0,   0x8601, 0x5042, TX_PWR_0P7_PA},   //0dbm
+    {-1,  0x8e01, 0x5041, TX_PWR_0P7_PA},   //-1dbm
+    {-2,  0x8601, 0x5041, TX_PWR_0P7_PA},   //-2dbm
+    {-3,  0x8601, 0x5021, TX_PWR_0P7_PA},   //-3dbm
+};
 #else
 static const struct TX_PWR_SELECT_ITEM tx_pwr_select[] =
 {
@@ -138,11 +160,11 @@ const uint16_t rf_init_tbl_1[][3] =
     {0x0009, 0x5556, 0},    //precharge time
     {0x000A, 0x0C01, 0},    //bt_timing_r1=3
     {0x000F, 0x0000, 0},    //pa pwd
-    {0x0011, 0x4000, 0},    // lna mixer first en_s dr=0; bit2=0
+    {0x0011, 0x5000, 0},    // lna mixer first en_s dr=0; bit2=0
     {0x0013, 0x0000, 0},    //capbank d
     {0x0023, 0x01B0, 0},    // enable ble tx gain tbl
     {0x0024, 0x0000, 0},
-    {0x0025, 0x8047, 0},
+    {0x0025, 0x8043, 0},
     {0x0028, 0x400A, 0},    // i2v cap dr=0; bit 15=0
     {0x002B, 0x1000, 0},    //adc rstb
     {0x002c, 0x240e, 0},    // adc i2v gain dr=0; bit 0 9=0
@@ -178,7 +200,7 @@ const uint16_t rf_init_tbl_1[][3] =
     {0x015C, 0x0400, 0},
     {0x0160, 0x0000, 0},    // adc_sel_dac_ic_dr=0; bit 7=0
     {0x03E1, 0x0180, 0},    //adc inres
-    {0x03DE, 0xCC86, 0},    //ADC DAC IC
+    {0x03DE, 0xBB86, 0},    //ADC DAC IC
     {0x03DF, 0x3838, 0},    //ADC CORNER
     {0x03E2, 0x8686, 0},    //ADC STB
     {0x0408, 0x0000, 0},    //BT_RF_I2V_BYPASS
@@ -303,11 +325,11 @@ const uint16_t rf_init_tbl_1[][3] =
     {0x01AD, 0x00C8, 0},
     {0x01C5, 0x0088, 0},
     // [i2v SW agc ini]
-    {0x03e0, 0x0c38, 0}, //adc cap
+    {0x03e0, 0x0B38, 0}, //adc cap
     {0x0407, 0x0241, 0},
     {0x040E, 0x02f4, 0},
 
-    {0x00A1, 0x0D74, 0},    //adc en recv 2M/4M
+    {0x00A1, 0x2D74, 0},    //adc en recv 2M/4M
 #endif
     //BLE1M
     //rxgain0
@@ -569,20 +591,26 @@ const uint16_t rf_init_hw_agc_config[][3] =
 
 #ifdef BT_RF_I2V_BYPASS
     {0x027D, 0x0001, 0},
-    {0x0309, 0x0103, 0}, //s_hwagc lna apd en
+    {0x0309, 0x0112, 0}, //s_hwagc lna apd en
 
+    {0x030B, 0x02A0, 0},
     {0x030F, 0x0006, 0},
     {0x0310, 0x0258, 0},
+    {0x0311, 0x0108, 0},
     {0x0315, 0x7F7F, 0},
     {0x0316, 0x7F7F, 0},
     {0x0317, 0x4C01, 0},
-    {0x037D, 0x0780, 0},
+    {0x037D, 0x0000, 0},
     {0x037E, 0x11D4, 0},
     {0x037F, 0x11D4, 0},
     {0x0380, 0x11D4, 0},
     {0x0381, 0x00C0, 0},
+    {0x0383, 0x0084, 0},
+    {0x0384, 0x0042, 0},
     {0x0387, 0x013B, 0},
     {0x0388, 0x00AD, 0},
+    {0x038D, 0x0042, 0},
+    {0x038E, 0x0084, 0},
     {0x0391, 0x1417, 0},
     {0x0390, 0x090C, 0},
     {0x03BF, 0X090C, 0},
@@ -597,7 +625,7 @@ const uint16_t rf_init_hw_agc_config[][3] =
     {0x039A, 0x11D4, 0},
     {0x039B, 0x11D4, 0},
     {0x039C, 0x11D4, 0},
-    {0x03DD, 0x0000, 0},
+    {0x03DD, 0x0001, 0},
 
     //[HW AGC gain table]
     //gain 0
@@ -844,21 +872,27 @@ const uint16_t rf_init_hw_agc_config[][3] =
     {0x02dc, 0x2a95, 0}, //2M 4M tab2
 
     //[1503 hwagc ctrl dig]
-    {0x00d2,0x1140, 0},       //i2v pdt vref 00
+    {0x00d2,0x0140, 0},       //i2v pdt vref 00
     {0x0218,0x9555, 0},       //LNA pdt dr0
     {0x0209,0x8112, 0},
+    {0x020B,0x02A0, 0},
     {0x020F,0x0006, 0},
     {0x0210,0x0258, 0},
+    {0x0211,0x0108, 0},
     {0x0215,0x7F7F, 0},
     {0x0216,0x7F7F, 0},
     {0x0217,0x4C01, 0},
-    {0x027D,0x0781, 0},
+    {0x027D,0x0001, 0},
     {0x027E,0x11D4, 0},
     {0x027F,0x11D4, 0},
     {0x0280,0x11D4, 0},
     {0x0281,0x00C0, 0},
+    {0x0283,0x0084, 0},
+    {0x0284,0x0042, 0},
     {0x0287,0x013B, 0},
     {0x0288,0x00AD, 0},
+    {0x028D,0x0042, 0},
+    {0x028E,0x0084, 0},
     {0x0293,0x7F7F, 0},
     {0x0294,0x0000, 0},
     {0x0295,0x11D4, 0},

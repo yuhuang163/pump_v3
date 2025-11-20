@@ -56,7 +56,7 @@ do { \
     for (uint16_t i = 0; i < size; i++) { \
         sprintf((log_str + (i * 3)) , "%02X ", data[i]); \
     } \
-    PRINT_LOG("[%ld]:%s:%s\r\n", platform_get_utc_time(), tag, log_str); \
+    PRINT_LOG("[%d][%d]:%s:%s\r\n", platform_get_utc_time(), get_timestamp_ms(0), tag, log_str); \
     u_free(log_str);\
 } while (0)
 #else
@@ -66,7 +66,7 @@ do { \
 #if BSP_LOG_SUPPORT
 #define BSP_LOG(tag, format,...)  \
 do { \
-    PRINT_LOG("[%ld]:%s:", platform_get_utc_time(), tag); \
+    PRINT_LOG("[%d][%d]:%s:", platform_get_utc_time(), get_timestamp_ms(0),tag); \
     PRINT_LOG(format,##__VA_ARGS__); \
     PRINT_LOG("\r\n"); \
 } while (0)

@@ -21,7 +21,7 @@ extern "C" {
 * GLOBAL FUNCTION DECLARATION
 ******************************************************************************
 */
-
+uint16_t ble_custom_mtu_size_get(void);
 #ifdef __cplusplus
 }
 #endif

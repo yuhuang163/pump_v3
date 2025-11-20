@@ -9,7 +9,9 @@ extern "C" {
 /*******************************************************************************
 * Include files
 ******************************************************************************/
-#include "bsp_common.h"
+#include "bsp_common.h" // IWYU pragma: keep
+
+typedef int (*ble_service_notify_data_send)(uint8_t *p_data, uint32_t size);
 
 /*
 * GLOBAL FUNCTION DECLARATION

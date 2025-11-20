@@ -206,7 +206,7 @@
              DUMP_OBJ_BEGAN("EXEC_BCR_TASK", pkg, (int)(thd->tid) % 1000, THREAD_NAME_GET(thd));
              pkg->obj.receiver_cb(pkg->id, pkg->obj.context, pkg->arg1, pkg->arg2, &pkg->priv_data);
  
-             uint32_t diff_time = (get_timestamp() - exec_time);
+             uint32_t diff_time = (get_timestamp_ms(exec_time));
              if (diff_time >= 10) {
                  DUMP_OBJ_END("EXEC_BCR_TASK-endtime", pkg, (int)(thd->tid) % 1000, THREAD_NAME_GET(thd), diff_time);
              }

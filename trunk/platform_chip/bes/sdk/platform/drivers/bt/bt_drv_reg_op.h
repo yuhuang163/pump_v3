@@ -183,7 +183,7 @@ void bt_drv_reg_op_dma_tc_clkcnt_get_by_ch(uint32_t *btclk, uint16_t *btcnt, uin
 void bt_drv_reg_op_clean_flags_of_ble_and_sco(void);
 void bt_drv_reg_op_sco_txfifo_reset(uint16_t codec_id);
 void bt_drv_reg_op_ibrt_retx_att_nb_set(uint8_t retx_nb);
-void bt_drv_reg_op_acl_tx_type_set(uint16_t hciHandle, uint8_t slot_sel);
+void bt_drv_reg_op_acl_tx_type_set(uint16_t hciHandle, uint8_t slot_sel, bool packet3m);
 void bt_drv_reg_op_acl_tx_type_trace(uint16_t hciHandle);
 uint8_t bt_drv_reg_op_acl_tx_type_get(uint16_t hciHandle, uint8_t* br_type, uint8_t* edr_type);
 void bt_drv_reg_op_ibrt_env_reset(void);
@@ -207,18 +207,15 @@ void bt_drv_reg_op_set_link_policy(uint8_t linkid, uint8_t policy);
 uint8_t bt_drv_reg_op_lmp_sco_hdl_get(uint16_t sco_handle);
 bool bt_drv_reg_op_lmp_sco_hdl_set(uint16_t sco_handle, uint8_t lmp_hdl);
 void bt_drv_reg_op_controller_state_checker(void);
-void bt_drv_reg_op_controller_ble_flow_checker(void);
-void bt_drv_reg_op_force_set_lc_state(uint16_t conhdl, uint8_t state);
-uint8_t bt_drv_reg_op_force_get_lc_state(uint16_t conhdl);
-void bt_drv_digital_config_for_ble_adv(bool en);
-void bt_drv_reg_op_fa_gain_direct_set(uint8_t gain_idx);
-uint8_t bt_drv_reg_op_fa_gain_direct_get(void);
 void bt_drv_reg_op_dgb_link_gain_ctrl_set(uint16_t connHandle, uint8_t bt_ble_mode, uint8_t gain_idx, uint8_t enable);
 void bt_drv_reg_op_dgb_link_gain_ctrl_clear(uint16_t connHandle, uint8_t bt_ble_mode);
 void bt_drv_reg_op_dgb_link_gain_ctrl_init(void);
 void bt_drv_reg_op_rx_gain_fix(uint16_t connHandle, uint8_t bt_ble_mode, uint8_t gain_idx, uint8_t enable, uint8_t table_idx);
 void bt_drv_reg_op_afh_follow_en(bool enable, uint8_t be_followed_link_id, uint8_t follow_link_id);
 void bt_drv_reg_op_bt_high_prio_en(bool enable);
+void bt_drv_reg_op_sec_con_base_on_le_aud(bool en);
+uint8_t btdrv_reg_op_bt_role_get(uint16_t hciHandle);
+
 /// Index for DM1 packet type (used in both BR and EDR)
 #define DM1_IDX         0
 /// Enhanced Data Rate packet types indexes (classified by packet size)
@@ -243,6 +240,8 @@ void bt_drv_reg_op_bt_high_prio_en(bool enable);
 #define SNIFFER_IBRT_STOP                 6
 #define IDEL_CHECK                        0xff
 
+#define UNKNOWN_ROLE            0xFF   //Used in LC to init the links role
+
 enum REG_OP
 {
     READ_OP,
@@ -266,8 +265,6 @@ void bt_drv_reg_op_set_music_link(uint8_t link_id);
 void bt_drv_reg_op_sco_fifo_reset(void);
 void bt_drv_reg_sco_fifo_dump(void);
 uint8_t bt_drv_reg_op_get_sync_id_op(uint8_t op, uint8_t sync_id);
-void bt_drv_reg_op_set_agc_thd(bool isMaster, bool isSco);
-void bt_drv_reg_op_reset_agc_thd(void);
 void bt_drv_reg_op_global_symbols_init(void);
 void bt_drv_tx_pwr_init(void);
 void bt_drv_tx_pwr_init_for_testmode(void);
@@ -279,12 +276,8 @@ void bt_drv_reg_op_set_ibrt_reject_sniff_req(bool en);
 void bt_drv_reg_op_set_ibrt_second_sco_decision(uint8_t value);
 uint8_t bt_drv_reg_op_get_esco_nego_airmode(uint8_t sco_link_id);
 uint8_t bt_drv_reg_op_get_sync_id_by_conhdl(uint16_t conhdl);
-void bt_drv_reg_op_hci_vender_ibrt_ll_monitor(uint8_t* ptr, uint16_t* p_sum_err,uint16_t* p_rx_total);
 uint32_t bt_drv_reg_op_get_host_ref_clk(void);
-void bt_drv_reg_op_ecc_softbit_process(uint16_t* p_conn_handle1,uint16_t* p_conn_handle2, uint16_t length, uint8_t *data);
 void bt_drv_reg_op_ebq_test_setting(void);
-void bt_drv_reg_op_hw_spi_en_setf(int elt_idx, uint8_t hwspien);
-void bt_drv_enhance_fa_mode(bool enable);
 void bt_drv_reg_op_swagc_mode_set(uint8_t mode);
 void bt_drv_reg_op_key_gen_after_reset(bool enable);
 uint8_t bt_drv_reg_op_bt_sync_swagc_en_get(void);
@@ -319,7 +312,6 @@ void btdrv_reg_op_syn_set_tg_ticks_master_role(void);
 void btdrv_reg_op_syn_set_tg_ticks_slave_role(uint32_t num);
 uint32_t btdrv_reg_op_syn_get_curr_ticks(void);
 uint32_t btdrv_reg_op_syn_get_cis_curr_time(void);
-void btdrv_reg_op_sync_clr_trigger(uint8_t trig_route);
 uint32_t btdrv_reg_op_get_syn_trigger_codec_en(void);
 uint32_t btdrv_reg_op_get_trigger_ticks(void);
 void btdrv_reg_op_syn_set_tg_ticks_linkid(uint8_t link_id);
@@ -373,8 +365,31 @@ void btdrv_reg_op_config_coex_mode(uint8_t mode);
 uint32_t btdrv_reg_op_per_adv_anchor_timestamp(void);
 void bt_drv_regop_disable_le_slave_latency(uint8_t idx);
 void bt_drv_regop_clear_le_slave_latency_flag(uint8_t idx);
-
+void bt_drv_reg_op_pcm_set_stereo_normal_8k16bit(void);
 void bt_drv_reg_op_set_page_device_support_le_audio(bool support);
+uint16_t bt_drv_reg_op_get_ble_event_clock(uint16_t ble_conhdl);
+void btdrv_regop_set_btc_srand_seed_initial(void);
+void bt_drv_reg_op_config_tport_type(uint32_t tport_type, uint8_t iomux_type);
+void bt_drv_reg_op_cfg_coex_param(uint16_t con_hdl, uint8_t tdd);
+void bt_drv_reg_op_fix_tx_pwr_idx(uint8_t enable_dr, uint8_t tx_pwr_id, uint8_t aiot_mode);
+void bt_drv_reg_op_set_le_con_allow_use_same_addr(bool en);
+#ifdef FRAME_SPACE_CHECK
+#define CO_DIVIDE_CEIL(val, div) (((val) + ((div) - 1))/ (div))
+
+// Enumeration for BLE PHY types
+typedef enum
+{
+    // LE 1M PHY mask (1 Mbps physical layer)
+    LE_1M_PHY_MASK = 0x01,
+    // LE 2M PHY mask (2 Mbps physical layer)
+    LE_2M_PHY_MASK = 0x02,
+    // LE Coded PHY mask (coded physical layer)
+    LE_CODED_PHY_MASK = 0x04,
+} ble_phy_t;
+
+void bt_drv_reg_op_frame_space_check(void);
+#endif
+
 #ifdef __cplusplus
 }
 #endif

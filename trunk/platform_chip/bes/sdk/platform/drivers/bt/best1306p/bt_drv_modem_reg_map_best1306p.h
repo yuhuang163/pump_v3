@@ -1623,6 +1623,57 @@ __STATIC_FORCEINLINE void besmdm_int_dacfifo_bypass_setf(uint8_t intdacfifobypas
     REG_RPL_WR(BESMDM_INT_DACFIFO_BYPASS_ADDR, BESMDM_INT_DACFIFO_BYPASS_BIT, BESMDM_INT_DACFIFO_BYPASS_POS, intdacfifobypass);
 }
 
+/**
+ * @brief GSG_DPHI_DEN register definition
+ * <pre>
+ *   Bits           Field Name   Reset Value
+ *  -----   ------------------   -----------
+ *  19:16     gsg_dphi_den_ble   0x0
+ *  03:00      gsg_dphi_den_bt   0x0
+ * </pre>
+ */
+#define BESMDM_GSG_DPHI_DEN_ADDR   0xD035031C
+#define BESMDM_GSG_DPHI_DEN_BLE_MASK   ((uint32_t)0x000F0000)
+#define BESMDM_GSG_DPHI_DEN_BLE_LSB    16
+#define BESMDM_GSG_DPHI_DEN_BT_MASK    ((uint32_t)0x0000000F)
+#define BESMDM_GSG_DPHI_DEN_BT_LSB     0
+__STATIC_FORCEINLINE void besmdm_gsg_dphi_den_bt_setf(uint8_t gsgdphidenbt)
+{
+    ASSERT_ERR((((uint32_t)gsgdphidenbt << 0) & ~((uint32_t)0x0000000F)) == 0);
+    REG_RPL_WR(BESMDM_GSG_DPHI_DEN_ADDR, BESMDM_GSG_DPHI_DEN_BT_MASK, BESMDM_GSG_DPHI_DEN_BT_LSB, gsgdphidenbt);
+}
+
+__STATIC_FORCEINLINE void besmdm_gsg_dphi_den_ble_setf(uint8_t gsgdphidenble)
+{
+    ASSERT_ERR((((uint32_t)gsgdphidenble << 16) & ~((uint32_t)0x000F0000)) == 0);
+    REG_RPL_WR(BESMDM_GSG_DPHI_DEN_ADDR, BESMDM_GSG_DPHI_DEN_BLE_MASK, BESMDM_GSG_DPHI_DEN_BLE_LSB, gsgdphidenble);
+}
+
+/**
+ * @brief GSG_DPHI_NOM register definition
+ * <pre>
+ *   Bits           Field Name   Reset Value
+ *  -----   ------------------   -----------
+ *  22:16     gsg_dphi_nom_ble   0x0
+ *  06:00      gsg_dphi_nom_bt   0x0
+ * </pre>
+ */
+#define BESMDM_GSG_DPHI_NOM_ADDR   0xD0350320
+#define BESMDM_GSG_DPHI_NOM_BLE_MASK   ((uint32_t)0x007F0000)
+#define BESMDM_GSG_DPHI_NOM_BLE_LSB    16
+#define BESMDM_GSG_DPHI_NOM_BT_MASK    ((uint32_t)0x0000007F)
+#define BESMDM_GSG_DPHI_NOM_BT_LSB     0
+__STATIC_FORCEINLINE void besmdm_gsg_dphi_nom_bt_setf(uint8_t gsgdphinombt)
+{
+    ASSERT_ERR((((uint32_t)gsgdphinombt << 0) & ~((uint32_t)0x0000007F)) == 0);
+    REG_RPL_WR(BESMDM_GSG_DPHI_NOM_ADDR, BESMDM_GSG_DPHI_NOM_BT_MASK, BESMDM_GSG_DPHI_NOM_BT_LSB, gsgdphinombt);
+}
+
+__STATIC_FORCEINLINE void besmdm_gsg_dphi_nom_ble_setf(uint8_t gsgdphinomble)
+{
+    ASSERT_ERR((((uint32_t)gsgdphinomble << 16) & ~((uint32_t)0x007F0000)) == 0);
+    REG_RPL_WR(BESMDM_GSG_DPHI_NOM_ADDR, BESMDM_GSG_DPHI_NOM_BLE_MASK, BESMDM_GSG_DPHI_NOM_BLE_LSB, gsgdphinomble);
+}
 
 /**
  * @brief REG_58 register definition

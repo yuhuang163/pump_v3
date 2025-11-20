@@ -3,7 +3,7 @@
 *****************************************************************************************
 */
 #include "root_common_api.h" // IWYU pragma: keep
-#include "windows_internal_api.h"
+#include "windows_map_define.h"
 
 /*
 * DEFINES
@@ -14,7 +14,6 @@
 * LOCAL VARIABLE DEFINITIONS
 *****************************************************************************************
 */
-static window_manager_context_t *thiz = NULL;
 
 /*
 * GLOBAL VARIABLE DEFINITIONS
@@ -25,132 +24,133 @@ static window_manager_context_t *thiz = NULL;
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-
-/*
-* GLOBAL FUNCTION DEFINITIONS
-*****************************************************************************************
-*/
-void set_is_playing_rt_ani(bool flag)
+static bool is_on_window_dispatch(window_manager_context_t *wm)
 {
-    thiz->priv.is_playing_realtime_ani = flag;
+    EXCEPTION_CHECK_BOOL(wm);
+    return wm->priv.window_dispatch_thd.is_running > 0;
 }
 
-
-
-bool is_window_backlight_on(void)
+static bool is_current_window(window_manager_context_t *wm, uint8_t window_id)
 {
-    return thiz->priv.m_backlight_val > 0 ? true : false;
-}
-
-bool is_on_window_dispatch(void)
-{
-    return thiz->priv.window_dispatch_thd.is_running > 0;
-}
-
-bool is_current_window(uint8_t window_id)
-{
-    return thiz->get_current_window_id() == window_id ? true : false;
+    EXCEPTION_CHECK_BOOL(wm);
+    return wm->get_current_window_id() == window_id ? true : false;
 } 
 
-bool is_the_same_window(uint8_t new_window_id) 
+static bool is_the_same_window(window_manager_context_t *wm, uint8_t new_window_id) 
 {
-    return thiz->get_current_window_id() == new_window_id ? true : false;
+    EXCEPTION_CHECK_BOOL(wm);
+    return wm->get_current_window_id() == new_window_id ? true : false;
 }
 
-bool is_valid_window_id(uint8_t window_id)
+static bool is_valid_window_id(uint8_t window_id)
 {
-    if (window_id > ID_WINDOW_BEGIN && window_id < ID_WINDOW_MAX) {
-        return true;
+    if (window_id >= ID_WINDOW_MAX || window_id == ID_WINDOW_INVALID) {
+        return false;
     }
-    return false;
+    return window_id;
 }
 
-/// 是否完成首次开机部署.
-bool is_window_deployed(void)
+static bool is_window_guidance_deployed(void)
 {
     storage_manager_context_t *st_ctx = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
-    return st_ctx->get_store_ram_val(STORE_ID_SYS_GUIDE_DEPLOYED, 0, 0, NULL) ? 1 : 0;
+    int guide_deployed = 0;
+    st_ctx->get_store_ram_val(STORE_ID_SYS_GUIDE_DEPLOYED, 0, 0, &guide_deployed);
+    return guide_deployed ? 1 : 0;
 }
 
-/// 设置首次开机部署标志.
-void set_window_deployed_flag(void)
+static void set_window_guidance_deployed_flag(void)
 {
     storage_manager_context_t *st_ctx = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
     st_ctx->put_store_ram_val(STORE_ID_SYS_GUIDE_DEPLOYED, 1, 0, NULL);
 }
 
-bool window_system_is_ready(void)
+static bool is_window_system_is_ready(window_manager_context_t *wm)
 {
-    return thiz->priv.system_is_ready;
+    EXCEPTION_CHECK_BOOL(wm);
+    return wm->priv.system_is_ready > 0 ? true : false;
 }
 
-void window_boot_completed(void)
+static void window_boot_completed(window_manager_context_t *wm)
 {
-    if (!thiz->priv.system_is_ready) {
-        thiz->priv.system_is_ready = 1;
-        LOGW("**** congratulations! send ID_BROADCAST_SYS_BOOT_COMPLETED ****");
+    EXCEPTION_CHECK_VOID(wm);
+    if (!wm->priv.system_is_ready) {
+        wm->priv.system_is_ready = 1;
         SEND_BROADCAST_ARGS0(ID_BROADCAST_SYS_BOOT_COMPLETED);
     }
 }
 
-/// 记录窗口上下文指针
-void set_window_private_context(uint8_t window_id, void *context)
+static void set_window_private_context(window_manager_context_t *wm, uint8_t window_id, void *context)
 {
+    EXCEPTION_CHECK_VOID(wm);
     if (window_id < ID_WINDOW_MAX) {
-        thiz->priv.window_private[window_id] = context;
+        wm->priv.window_private[window_id] = context;
         return;
     }
     LOGE("error window_id: %d", window_id);
 }
 
-/// 获取窗口上下文指针
-void *get_window_private_context(uint8_t window_id)
+static void *get_window_private_context(window_manager_context_t *wm, uint8_t window_id)
 {
+    EXCEPTION_CHECK_POINT(wm);
     if (window_id < ID_WINDOW_MAX) {
-        return thiz->priv.window_private[window_id];
+        return wm->priv.window_private[window_id];
     }
     LOGE("error window_id: %d", window_id);
-
     return NULL;
 }
 
-/// 进入新窗口带入的参数.
-const void *get_window_entry_extra(void)
+static const void *get_window_entry_extra(window_manager_context_t *wm)
 {
-    return (const void *)&thiz->priv.new_msg.union_body.extra;
+    EXCEPTION_CHECK_POINT(wm);
+    return (const void *)&wm->priv.new_msg.union_body.extra;
 }
 
-void set_window_backlight(uint16_t val)
-{
-    DEVICE_IOCTL_ARGS_NO_RET(thiz->priv.panel_dev, OP_CODE_PANEL_SET_BL, &val);
-}
-
-void set_system_is_restting_device(bool val)
+static void set_system_is_restting_device(window_manager_context_t *wm, bool val)
 {
     LOG_WM("is_restting_device: %d", val);
-    thiz->priv.is_restting_device = val;
+    wm->priv.is_restting_device = val;
 }
 
-uint8_t get_system_is_restting_device(void)
+static bool get_system_is_restting_device(window_manager_context_t *wm)
 {
-    return thiz->priv.is_restting_device;
+    EXCEPTION_CHECK_BOOL(wm);
+    return wm->priv.is_restting_device > 0 ? true : false;
 }
 
-int set_window_switch_forbid(int forbid) 
+static int set_window_switch_forbid(window_manager_context_t *wm, int forbid) 
 {
+    EXCEPTION_CHECK_INT(wm);
     LOG_WM("forbid: %d", forbid);
-    thiz->priv.window_switch_forbid = forbid;
+    wm->priv.window_switch_forbid = forbid;
     return 0;
 }
 
-void clear_window_go_back_history_flag(void)
+static void clear_window_go_back_history_flag(window_manager_context_t *wm)
 {
-    if (thiz->priv.go_back_history_flag) {
-        thiz->priv.go_back_history_flag = 0;
+    EXCEPTION_CHECK_VOID(wm);
+    if (wm->priv.go_back_history_flag) {
+        wm->priv.go_back_history_flag = 0;
     }
 }
 
-void on_perpare_window_state_init(window_manager_context_t *wm)
+/*
+* GLOBAL FUNCTION DEFINITIONS
+*****************************************************************************************
+*/
+void register_window_state_module(window_manager_context_t *wm)
 {
-    thiz = wm;
+    wm->system_is_ready = is_window_system_is_ready;
+    wm->window_boot_completed = window_boot_completed;
+    wm->is_on_window_dispatch = is_on_window_dispatch;
+    wm->is_current_window = is_current_window;
+    wm->is_the_same_window = is_the_same_window;
+    wm->is_valid_window_id = is_valid_window_id;
+    wm->is_window_guidance_deployed = is_window_guidance_deployed;
+    wm->set_window_private_context = set_window_private_context;
+    wm->get_window_private_context = get_window_private_context;
+    wm->get_window_entry_extra = get_window_entry_extra;
+    wm->set_system_is_restting_device = set_system_is_restting_device;
+    wm->get_system_is_restting_device = get_system_is_restting_device;
+    wm->set_window_switch_forbid = set_window_switch_forbid;
+    wm->clear_window_go_back_history_flag = clear_window_go_back_history_flag;
 }

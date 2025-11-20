@@ -10,6 +10,14 @@ extern "C" {
  * Include files
  ******************************************************************************/
 
+
+/**
+ * 开机长按时间
+*/
+#ifndef BOOT_LONG_PRESS_TIME
+#define BOOT_LONG_PRESS_TIME                                         (2000) /// 单位：毫秒
+#endif
+
 /**
  * 屏幕显示分辨率.
 */
@@ -73,31 +81,51 @@ extern "C" {
 /**
  * 马达模式参数配置
 */
-#ifndef MOTOR_SOFT_MODE_LEN
-#define MOTOR_SOFT_MODE_LEN                                         (1)
+/// 刺激模式参数长度，短吸
+#ifndef STIMULATION_MODE_LEN             
+#define STIMULATION_MODE_LEN                                         (1)
 #endif
 
-#ifndef MOTOR_CLEAN_MODE_LEN             
-#define MOTOR_CLEAN_MODE_LEN                                        (1)
+/// 吸乳模式参数长度，长吸
+#ifndef PUMP_MODE_LEN
+#define PUMP_MODE_LEN                                                (1)
 #endif
 
-#ifndef MOTOR_WHITE_MODE_LEN
-#define MOTOR_WHITE_MODE_LEN                                        (1)
+/// 混合模式参数长度，短吸 + 长吸
+#ifndef MIX_MODE_LEN
+#define MIX_MODE_LEN                                                 (1 * 2)
 #endif
 
-#ifndef MOTOR_SMART_MODE_LEN 
-#define MOTOR_SMART_MODE_LEN                                        (6)
+/// 个性化模式默认参数长度，按摩 + 吸乳
+#ifndef CUSTOM_MODE_LEN 
+#define CUSTOM_MODE_LEN                                              (1 + 1)
 #endif
 
-#ifndef OVER_PRESSURE_MODE_LEN
-#define OVER_PRESSURE_MODE_LEN                                      (1)
+/// PP追奶模式参数长度 吸乳 + 停顿
+#ifndef PP_MODE_LEN 
+#define PP_MODE_LEN                                                  (5 * 1)
+#endif
+
+/// 2+8奶量提升模式参数长度 吸乳 + 停顿
+#ifndef MILK_BOOST_MODE_LEN 
+#define MILK_BOOST_MODE_LEN                                          (2 * 1)
+#endif
+
+/// 开奶模式 吸乳 + 停顿
+#ifndef LACTATION_START_MODE_LEN 
+#define LACTATION_START_MODE_LEN                                     (2 * 1)
+#endif
+
+/// 吸奶器泵数据
+#ifndef BREAST_PUMP_NUM
+#define BREAST_PUMP_NUM                                              (2)
 #endif
 
 /**
  * 陀螺仪在线标定支持.
 */
 #ifndef IS_USE_GYRO_ONLINE_CALI
-#define IS_USE_GYRO_ONLINE_CALI                                     (0)
+#define IS_USE_GYRO_ONLINE_CALI                                      (0)
 #endif
 
 /**

@@ -35,6 +35,7 @@ struct broadcast_obj;
 typedef struct misc_manager_context {
 /// public:
     uint8_t (*is_charge_plug_in)(void);
+    uint8_t (*get_charge_status)(void);
     void (*set_charge_ui_show_flag)(int flag);
     uint8_t (*show_charge_ui_if_need)(void *wm, int is_fg);
     void (*set_state_change_listener)(on_charge_state_change_fptr cb);

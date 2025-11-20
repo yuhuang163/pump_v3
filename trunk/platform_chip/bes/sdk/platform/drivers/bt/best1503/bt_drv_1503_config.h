@@ -159,7 +159,7 @@
 #ifdef mHDT_SUPPORT
 #define FA_RX_WIN_SIZE            (0x4)
 //MDHT todo
-#define FA_CNT_PKT_US             (0x1F)
+#define FA_CNT_PKT_US             (0x68)
 #else
 #define FA_RX_WIN_SIZE            (0xA)
 #define FA_CNT_PKT_US             (0x1F)
@@ -193,20 +193,20 @@
  *HDT trx RF timing configration
  ****************************************************************************/
 #ifdef mHDT_SUPPORT
-#define HDT4M_TXPWRUP_CNT (0x36)
-#define HDT4M_RXPWRUP_CNT (0x3b)
-#define HDT4M_TXPATH_DLY (0x3)  // real value, do not change this
-#define HDT4M_RXPATH_DLY (0x0)
+#define MHDT4M_TXPWRUP_CNT (0x36)
+#define MHDT4M_RXPWRUP_CNT (0x37)
+#define MHDT4M_TXPATH_DLY (0x3)  // real value, do not change this
+#define MHDT4M_RXPATH_DLY (0x0)
 
-#define HDT2M_TXPWRUP_CNT (0x36)
-#define HDT2M_RXPWRUP_CNT (0x40)
-#define HDT2M_TXPATH_DLY (0x5) // real value, do not change this
-#define HDT2M_RXPATH_DLY (0x0)
+#define MHDT2M_TXPWRUP_CNT (0x36)
+#define MHDT2M_RXPWRUP_CNT (0x41)
+#define MHDT2M_TXPATH_DLY (0x5) // real value, do not change this
+#define MHDT2M_RXPATH_DLY (0x0)
 
-#define HDT_LE4M_TXPWRUP_CNT (0x36)
-#define HDT_LE4M_RXPWRUP_CNT (0x43)
-#define HDT_LE4M_TXPATH_DLY (0x0)
-#define HDT_LE4M_RXPATH_DLY (0x3) // real value, do not change this
+#define MHDT_LE4M_TXPWRUP_CNT (0x36)
+#define MHDT_LE4M_RXPWRUP_CNT (0x37)
+#define MHDT_LE4M_TXPATH_DLY (0x0)
+#define MHDT_LE4M_RXPATH_DLY (0x3) // real value, do not change this
 
 #endif
 

@@ -10,7 +10,7 @@ extern "C" {
 ******************************************************************************/
 #include "root_common_api.h" // IWYU pragma: keep
 
-#define SENSOR_THREAD_POLLING_PERIOD         (20)
+#define SENSOR_THREAD_POLLING_PERIOD         (10)
 
 typedef struct {
     void *user_data;
