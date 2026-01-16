@@ -9,56 +9,44 @@ extern "C" {
 /*******************************************************************************
  * Include files
  ******************************************************************************/
-#include "root_common_base.h" // IWYU pragma: keep
+#include "root_common_api.h" // IWYU pragma: keep
 
-/// 定义空电量百分比
-#ifndef EMPTY_BAT_PERCENTAGE
-#define EMPTY_BAT_PERCENTAGE              5
-#endif
+typedef enum {
+    MISC_TASK_ID_SYSINFO_PRINT = 0,
+    MISC_TASK_ID_CHARGE_POLLING = 1,
+    MISC_TASK_ID_BATTERY_POLLING = 2,
+    MISC_TASK_ID_BATTERY_VOLTAGE_POLLING = 3,
+    MISC_TASK_ID_ADAPTIVE_DIMMING = 4,
+    MISC_TASK_ID_MAX
+} misc_task_id_e;
 
-/// 定义低电量百分比
-#ifndef LOW_BAT_PERCENTAGE
-#define LOW_BAT_PERCENTAGE                20
-#endif
+/// misc工作线程消息ID类型（位掩码类型）
+typedef enum {
+    MISC_WORK_MSG_ID_TIMER = (1 << 0),        /// 定时器触发
+    MISC_WORK_MSG_ID_CHARGE_INTERRUPT = (1 << 1), /// 充电中断触发
+} misc_work_msg_id_e;
 
-/**
- * 描述充电相关
- */
-typedef void (*on_charge_state_change_fptr)(void *wm, charge_state_e new_state);
-typedef void (*on_battery_state_change_fptr)(void *wm, int is_low_battery);
+/// misc工作线程消息ID位掩码类型
+typedef uint32_t misc_work_msg_id_mask_t;
 
-/**
- * 描述misc杂项管理上下文对象
- */
+/// 杂项任务回调函数类型
+typedef void (*on_misc_task_cb_fptr)(void *user_data);
+
+/// 描述misc杂项管理上下文对象
 struct rt_device_node;
 struct broadcast_obj;
 typedef struct misc_manager_context {
 /// public:
-    uint8_t (*is_charge_plug_in)(void);
-    uint8_t (*get_charge_status)(void);
-    void (*set_charge_ui_show_flag)(int flag);
-    uint8_t (*show_charge_ui_if_need)(void *wm, int is_fg);
-    void (*set_state_change_listener)(on_charge_state_change_fptr cb);
-
-    uint8_t (*is_low_battery)(void);
-    uint8_t (*is_empty_battery)(void);
-    uint8_t (*get_battery_percent)(void);
-    void (*set_battery_ui_show_flag)(int flag);
-    uint8_t (*show_battery_ui_if_need)(void *wm, int is_fg);
-    void (*set_state_battery_listener)(on_battery_state_change_fptr cb);
-    
+    void (*add_misc_task)(void *user_data, int task_id, uint32_t polling_period, misc_work_msg_id_mask_t msg_id_mask, on_misc_task_cb_fptr cb);
+    void (*remove_misc_task)(on_misc_task_cb_fptr cb);
+    void (*trigger_misc_work)(misc_work_msg_id_mask_t msg_id_mask);  /// 立即触发misc_work_polling_thread执行，带消息ID位掩码
 /// private:
     struct __misc_private {
         thread_context_t misc_work_thd;
         os_timer_id misc_timer;
-        struct broadcast_obj *misc_bcd;
-        uint8_t charge_ui_has_show;
-        uint8_t battery_percent;
-        uint8_t low_battery;
-        uint8_t battery_ui_has_show;   /// 0 未显示；1 正在显示；2 本次唤醒提醒过；
-        on_battery_state_change_fptr m_battery_listener_cb;
-        on_charge_state_change_fptr m_charge_listener_cb;
-        struct rt_device_node *battery;
+        struct broadcast_obj *misc_bcd;;
+        os_mutex_id m_lock;          /// 保护任务链表的互斥锁
+        list_head_t task_list;       /// 任务链表
     } priv;
 } misc_manager_context_t;
 

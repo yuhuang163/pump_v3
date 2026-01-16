@@ -41,11 +41,6 @@ typedef struct {
     list_head_t list;
 } pm_wake_lock_node_t;
 
-typedef enum {
-    SUSPEND_BY_WIN = 100,
-    SUSPEND_BY_BLE,
-    SUSPEND_BY_FAC,
-} pm_suspend_source_e;
 
 #ifdef __cplusplus
 }

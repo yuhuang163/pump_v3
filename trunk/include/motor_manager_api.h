@@ -1,6 +1,7 @@
 #ifndef __MOTOR_MANAGER_API_H__
 #define __MOTOR_MANAGER_API_H__
 
+#include <stdint.h>
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -85,7 +86,7 @@ typedef struct motor_manager_context {
         thread_context_t motor_play_thd;  /// 播放线程.
         list_head_t policy_list; /// 马达各种策略链表头指针.
         motor_policy_runtime_t runtime; /// 马达各种策略状态.
-        motor_policy_manager_t user_debug_policy; /// 用户调试策略.
+        motor_policy_manager_t *user_debug_policy; /// 用户调试策略.
         list_head_t policy_handler_list; /// 马达各种策略处理.
         char *interrupt_play_reason;  /// 中断播放标记原因.     
         uint8_t motor_state;          /// 马达状态
@@ -97,10 +98,13 @@ typedef struct motor_manager_context {
     int (*get_motor_state)(void);
     int (*start_motor)(motor_policy_action_e action);
     int (*stop_motor)(void);
+    int (*synchronous_stop_motor)(void);
     /// 当前是否允许播放.
     int (*is_can_play_now)(void);  
     /// 马达任务运行状态.
     bool (*is_on_motor_task_running)(struct motor_manager_context *ctx);
+    /// 获取马达策略索引
+    int (*get_runtime_policy_index)(motor_policy_type_e type);
     /// 外部钩子函数.
     struct __motor_manager_hook {
         int (*on_post_init_route)(struct motor_manager_context *ctx);
@@ -114,6 +118,8 @@ typedef struct motor_manager_context {
         int (*mode_policy_handler)(struct motor_manager_context *thiz, motor_task_para_t *play_para);
         /// 马达带参调试处理
         void (*motor_debug_with_user_para)(struct motor_manager_context *ctx, uint8_t id, void *user_data);
+         /// 马达体验模式设置处理
+         void (*motor_debug_with_taste_setting)(struct motor_manager_context *ctx, void *user_data);
     } *hook;
 
 } motor_manager_context_t;

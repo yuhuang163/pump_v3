@@ -20,11 +20,11 @@
 #include "gra_sem.h"
 
 #define SEM_VALUE_MAX   128
-#ifndef EINTR
-#define EINTR           4
-#endif
 #ifndef EINVAL
 #define EINVAL          1
+#endif
+#ifndef ETIMEDOUT
+#define ETIMEDOUT       110
 #endif
 #define OK              0
 
@@ -48,36 +48,48 @@ int gra_sem_init(sem_t *sem, int pshared, unsigned int value)
 
 int gra_sem_wait(sem_t *sem)
 {
-    if (sem && sem->id)
-        return osSemaphoreWait(sem->id, osWaitForever);
+    if (!(sem && sem->id))
+        return -EINVAL;
+
+    if (osSemaphoreAcquire(sem->id, osWaitForever) == osOK)
+        return OK;
     else
         return -EINVAL;
 }
 
 int gra_sem_timedwait(sem_t *sem, unsigned int ms)
 {
-    if (sem && sem->id)
-        return osSemaphoreWait(sem->id, ms) ? 0 : -1;
-    else
+    if (!(sem && sem->id))
         return -EINVAL;
+
+    if (osSemaphoreAcquire(sem->id, ms) == osOK)
+        return OK;
+    else
+        return -ETIMEDOUT;
 }
 
 int gra_sem_wait_uninterruptible(sem_t *sem)
 {
     int ret;
 
+    if (!(sem && sem->id))
+        return -EINVAL;
+
     do {
         /* Take the semaphore (perhaps waiting) */
-        ret = gra_sem_wait(sem);
-    } while (ret == -EINTR);
+        ret = osSemaphoreAcquire(sem->id, osWaitForever);
+    } while (ret == osErrorISR);
 
-    return ret;
+    return (ret == osOK) ? OK : -EINVAL;
 }
 
 int gra_sem_post(sem_t *sem)
 {
-    if (sem && sem->id)
-        return osSemaphoreRelease(sem->id);
+    if (!(sem && sem->id))
+        return -EINVAL;
+
+    if (osSemaphoreRelease(sem->id) == osOK)
+        return OK;
     else
         return -EINVAL;
 }
@@ -105,10 +117,13 @@ int gra_sem_destroy(sem_t *sem)
 
 int gra_sem_trywait(sem_t *sem)
 {
-    if (sem && sem->id)
-        return osSemaphoreWait(sem->id, 0);
+    if (!(sem && sem->id))
+        return -EINVAL;
 
-    return -EINVAL;
+    if (osSemaphoreAcquire(sem->id, 0) == osOK)
+        return OK;
+    else
+        return -EINVAL;
 }
 
 int gra_sem_reset(sem_t *sem, unsigned int value)

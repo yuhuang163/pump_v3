@@ -25,6 +25,17 @@ extern "C" {
 #include "plat_addr_map.h"
 #include "plat_types.h"
 
+#ifndef MAX_CACHE_LINE_SIZE
+#if defined(FLASH_CACHE_DOUBLE_LINEFILL) || defined(PSRAM_CACHE_DOUBLE_LINEFILL)
+#define MAX_CACHE_LINE_SIZE             64U
+#else
+#define MAX_CACHE_LINE_SIZE             32U
+#endif
+#endif
+#define LEN_ALIGN_TO_CACHE(len, addr)   (((uint32_t)(len) + \
+                                          ((uint32_t)(addr) & (MAX_CACHE_LINE_SIZE - 1)) + \
+                                          (MAX_CACHE_LINE_SIZE - 1)) & ~(MAX_CACHE_LINE_SIZE - 1))
+#define ADDR_ALIGN_TO_CACHE(addr)       ((uint32_t)(addr) & ~(MAX_CACHE_LINE_SIZE - 1))
 #if (defined(ICACHE_CTRL_BASE) || defined(DCACHE_CTRL_BASE)) || \
         (defined(__ICACHE_PRESENT) && (__ICACHE_PRESENT == 1U)) || \
         (defined(__DCACHE_PRESENT) && (__DCACHE_PRESENT == 1U))

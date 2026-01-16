@@ -82,10 +82,11 @@ ifneq ($(TEST_HAL_PATTERN), TEST_LVGL)
 ifeq ($(ENABLE_LVGL), 1)
 subdir-ccflags-y += -DENABLE_LVGL
 subdir-ccflags-y += \
-    -Ithirdparty/lvgl/bes-aos/ \
     -Ithirdparty/lvgl/ \
-    -Ithirdparty/lvgl/bes-aos/touchscreen/ \
-    -Ithirdparty/lvgl/bes-aos/demo/include/
+    -Ithirdparty/lvgl/bes/ \
+    -Ithirdparty/lvgl/bes/disp/ \
+    -Ithirdparty/lvgl/bes/touchscreen/ \
+    -Ithirdparty/lvgl/bes/demo/include/
 endif
 endif
 

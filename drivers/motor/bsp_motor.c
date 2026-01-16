@@ -29,6 +29,7 @@ static uint8_t motor_power_status = 0;
 */
 static void motor_power_gpio_init(void)
 {
+#if (V3_HARDWARE_VERSION == V3_2710IMP_HARDWARE_V1)
     struct HAL_IOMUX_PIN_FUNCTION_MAP gpio_map = {
         (enum HAL_IOMUX_PIN_T)PUMP_POWER_PIN,  
         HAL_IOMUX_FUNC_AS_GPIO, 
@@ -37,11 +38,23 @@ static void motor_power_gpio_init(void)
     };
     hal_iomux_init(&gpio_map, 1);
     hal_gpio_pin_set_dir(PUMP_POWER_PIN, HAL_GPIO_DIR_OUT, 0);
+#elif (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V2)
+    struct HAL_IOMUX_PIN_FUNCTION_MAP gpio_map = {
+        (enum HAL_IOMUX_PIN_T)PWM_PUMP_EN_PIN,  
+        HAL_IOMUX_FUNC_AS_GPIO, 
+        HAL_IOMUX_PIN_VOLTAGE_VIO, 
+        HAL_IOMUX_PIN_NOPULL,
+    };
+    hal_iomux_init(&gpio_map, 1);
+    hal_gpio_pin_set_dir(PWM_PUMP_EN_PIN, HAL_GPIO_DIR_OUT, 1);
+#endif
 }
 
 static void motor_power_control(uint8_t status)
 {
+#if (V3_HARDWARE_VERSION == V3_2710IMP_HARDWARE_V1)
     GPIO_PIN_CTRL(PUMP_POWER_PIN, status > 0 ? 1 : 0);
+#endif
 }
 
 static int motor_dev_open(struct rt_device_node *dev)

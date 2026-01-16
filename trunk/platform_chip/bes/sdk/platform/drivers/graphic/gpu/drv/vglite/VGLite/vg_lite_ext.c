@@ -23,37 +23,55 @@
 
 void * vg_lite_get_tsbuffer(void)
 {
-    return (void *)s_context.tessbuf.physical_addr;
+    vg_lite_task_t *task = vg_lite_os_get_tls();
+    if (!task)
+        return NULL;
+    return (void *)task->s_context.tessbuf.physical_addr;
 }
 
 
 uint32_t vg_lite_get_tsbuffer_size(void)
 {
-    return s_context.tessbuf.tessbuf_size;
+    vg_lite_task_t *task = vg_lite_os_get_tls();
+    if (!task)
+        return 0;
+    return task->s_context.tessbuf.tessbuf_size;
 }
 
 void * vg_lite_get_rtbuffer(void)
 {
-    return (void *)s_context.rtbuffer->memory;
+    vg_lite_task_t *task = vg_lite_os_get_tls();
+    if (!task)
+        return NULL;
+    return (void *)task->s_context.rtbuffer->memory;
 }
 
 
 uint32_t vg_lite_get_rtbuffer_size(void)
 {
-    return s_context.rtbuffer->stride * s_context.rtbuffer->height;
+    vg_lite_task_t *task = vg_lite_os_get_tls();
+    if (!task)
+        return 0;
+    return task->s_context.rtbuffer->stride * task->s_context.rtbuffer->height;
 }
 
 uint32_t vg_lite_get_vg_count_buffer_size(void)
 {
-    return s_context.tessbuf.countbuf_size;
+    vg_lite_task_t *task = vg_lite_os_get_tls();
+    if (!task)
+        return 0;
+    return task->s_context.tessbuf.countbuf_size;
 }
 
 
 void vg_lite_get_cmdbuf_info(uint32_t *start, uint32_t *bytes)
 {
+    vg_lite_task_t *task = vg_lite_os_get_tls();
+    if (!task)
+        return;
     ASSERT((start != 0 && bytes != 0),"%s", __func__ );
-    *start = (uint32_t)CMDBUF_BUFFER(s_context);
-    *bytes = (uint32_t)CMDBUF_OFFSET(s_context) ;
+    *start = (uint32_t)CMDBUF_BUFFER(task->s_context);
+    *bytes = (uint32_t)CMDBUF_OFFSET(task->s_context) ;
 }
 
 vg_lite_error_t vg_lite_set_multiply_color(vg_lite_color_t color)

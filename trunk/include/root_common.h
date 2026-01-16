@@ -60,6 +60,13 @@ do { \
 /// 计算CRC16.
 #define CRC16(data, len)            crc16_compute((const uint8_t *)(data), len, NULL)
 
+/// CRC16 增量更新（用于分块计算 / streaming）。
+#define CRC16_UPDATE(crc, data, len) \
+do { \
+    unsigned short __crc_prev = (unsigned short)(crc); \
+    (crc) = (unsigned short)crc16_compute((const uint8_t *)(data), (len), &__crc_prev); \
+} while (0)
+
 // 将hex转换为ascii
 #define HEX_TO_ASCII(hex, len, out)  hex_to_ascii((const unsigned char *)(hex), len, (char *)(out))
 

@@ -192,6 +192,7 @@ static int on_perpare_storage_init(void *self)
     storage_manager_context_t *st = self;
     peripheral_bus_context_t *pbus = (peripheral_bus_context_t *)find_module(ID_MODULE_DEVICE_BUS);
     st->priv.db_dev = pbus->find_device(ID_DEVICE_DB);
+    st->priv.factory_flash_dev = pbus->find_device(ID_DEVICE_FLASH);
     if (st->hook && st->hook->on_perpare_init_route) {
         st->hook->on_perpare_init_route(st);
     }
@@ -211,11 +212,9 @@ static int factory_reset(factory_reset_type_e is_reboot)
         LOG_STORE("reset done,but not reboot.");
         return 1;
     } else {
-        if (ui && ui->hook && ui->hook->set_ui_backlight) {
-            ui->hook->set_ui_backlight(ui, 0);
-        }
         wm->set_window_switch_forbid(wm, 1);
-        wm->set_system_is_restting_device(wm, 1);   
+        wm->set_system_is_restting_device(wm, 1);  
+        thiz->flash_protect(true); /// 禁止flash读写操作.
         msleep(1000);
         __system_reboot(__REBOOT_REASON_FACTORY_RESET);
     }
@@ -296,6 +295,95 @@ int user_database_remove(storage_manager_context_t *ctx, int database_id)
     if (db_dev && db_dev->ioctl) {
         ret = DEVICE_IOCTL_ARGS(db_dev, OP_CODE_DB_DELETE, &database_id);
     }    
+    return ret;
+}
+
+int factory_flash_put(storage_manager_context_t *ctx, const uint8_t *buf, int buf_len)
+{
+    int ret = -1, erase_ret = -1;
+    rt_device_node_t *factory_flash_dev = ctx->priv.factory_flash_dev;
+    EXCEPTION_CHECK_INT(factory_flash_dev);
+    if (factory_flash_dev && factory_flash_dev->write) {
+        flash_raw_data_info_t buf_wr_flash_info = {
+            .partition = PARTITION_FACTORY_DATA_NAME,
+            .addr = FACTORY_DATA_START_ADDR,
+            .size = buf_len,
+            .buf = (uint8_t *)buf,
+        };
+        flash_raw_data_info_t buf_flash_info_erase = {
+            .partition = PARTITION_FACTORY_DATA_NAME,
+            .addr = FACTORY_DATA_START_ADDR,
+            .size = 4096,  // 4096 is the sector size 必须一个扇区全部擦除，也不能同时擦除两个,如果文件跨扇区需要多次擦除
+            .buf = (uint8_t *)buf,
+        };
+        erase_ret = DEVICE_IOCTL_ARGS(factory_flash_dev, OP_CODE_FLASH_ERASE, &buf_flash_info_erase);
+        ret = DEVICE_WRITE(factory_flash_dev, &buf_wr_flash_info, sizeof(buf_wr_flash_info));
+        if (ret == 0 && erase_ret == 0) {
+            uint8_t *tmp_buf = u_malloz(buf_len);
+            if (tmp_buf == NULL) {
+                LOGE("factory flash malloc tmp_buf failed, size: %d", buf_len);
+                return -1;
+            }
+            flash_raw_data_info_t buf_wr_flash_info_temp = {
+                .partition = PARTITION_FACTORY_DATA_NAME,
+                .addr = FACTORY_DATA_START_ADDR,
+                .size = buf_len,
+                .buf = (uint8_t *)tmp_buf,
+            };
+            int read_ret = DEVICE_READ_ARGS(factory_flash_dev, &buf_wr_flash_info_temp, sizeof(buf_wr_flash_info_temp));
+            if (read_ret != 0) {
+                LOGE("factory flash read verify failed %d", read_ret);
+                u_free(tmp_buf);
+                return -1;
+            }
+            LOG_STORE("write factory flash, buf_len: %d", buf_len);
+            LOG_HEX("rx buf", buf, buf_len);
+            LOG_STORE("read factory flash, buf_len: %d", buf_len);
+            LOG_HEX("tx buf", tmp_buf, buf_len);
+            if (memcmp(tmp_buf, buf, buf_len) != 0) {
+                LOGE("factory flash write failed, retry write.");
+                erase_ret = DEVICE_IOCTL_ARGS(factory_flash_dev, OP_CODE_FLASH_ERASE, &buf_flash_info_erase);
+                if (erase_ret != 0) {
+                    LOGE("factory flash erase failed");
+                    u_free(tmp_buf);
+                    return -1;
+                }
+                ret = DEVICE_WRITE(factory_flash_dev, &buf_wr_flash_info, sizeof(buf_wr_flash_info));
+                if (ret != 0) {
+                    LOGE("factory flash write failed");
+                    u_free(tmp_buf);
+                    return -1;
+                }
+            }
+            u_free(tmp_buf);
+        } else {
+            LOGE("factory flash write failed");
+            return -1;
+        }
+    }
+    return ret;
+}
+
+int factory_flash_get(storage_manager_context_t *ctx, uint8_t *buf, int buf_len)
+{
+    int ret = -1;
+    rt_device_node_t *factory_flash_dev = ctx->priv.factory_flash_dev;
+    EXCEPTION_CHECK_INT(factory_flash_dev);
+    if (factory_flash_dev && factory_flash_dev->read) {
+        flash_raw_data_info_t buf_wr_flash_info = {
+            .partition = PARTITION_FACTORY_DATA_NAME,
+            .addr = FACTORY_DATA_START_ADDR,
+            .size = buf_len,
+            .buf = (uint8_t *)buf,
+        };
+        ret = DEVICE_READ_ARGS(factory_flash_dev, &buf_wr_flash_info, sizeof(buf_wr_flash_info));
+        if (ret == 0) {
+            LOG_STORE("read factory flash, buf_len: %d", buf_len);
+            LOG_HEX("buf_rd", buf, buf_len);
+        } else {
+            LOGE("factory flash read failed %d", ret);
+        }
+    }
     return ret;
 }
 

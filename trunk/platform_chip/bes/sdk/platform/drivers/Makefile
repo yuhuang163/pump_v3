@@ -70,6 +70,10 @@ ifeq ($(CHIP_HAS_HIFI4),1)
 obj-y += hifi4/
 endif
 
+ifeq ($(CHIP_HAS_JPEG),1)
+obj-y += jpeg/
+endif
+
 ifeq ($(BT_HOST),1)
 ifeq ($(CHIP_SUBSYS),)
 obj-y += bt_host/

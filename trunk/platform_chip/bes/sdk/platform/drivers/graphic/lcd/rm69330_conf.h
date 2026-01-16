@@ -21,8 +21,8 @@
 #define LCD_WIDTH               454
 #define LCD_HEIGHT              454
 #ifdef CONFIG_DSI_VIDEO_MODE
-#define LCD_HFP                 120
-#define LCD_HBP                 120
+#define LCD_HFP                 32
+#define LCD_HBP                 32
 #define LCD_VFP                 20
 #define LCD_VBP                 20
 #define LCD_HSYNC               1
@@ -44,6 +44,13 @@
 #define LCD_HEIGHT              320
 #define LCD_HSTART              82
 #define LCD_VSTART              66
+#elif defined(DISPLAY_NR320x240)
+#undef LCD_WIDTH
+#undef LCD_HEIGHT
+#define LCD_WIDTH               320
+#define LCD_HEIGHT              240
+#define LCD_HSTART              82
+#define LCD_VSTART              106
 #elif defined(DISPLAY_NR240x320)
 #undef LCD_WIDTH
 #undef LCD_HEIGHT

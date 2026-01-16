@@ -50,10 +50,8 @@ static void system_power_off_cb(hdr_post_args_t *args)
         return;
     }
     ui_proc_dummy_t *proc = (ui_proc_dummy_t *)args->user_data;
-    window_manager_context_t *wm = proc->wm;
-    EXCEPTION_CHECK_VOID(wm);
-    power_manager_context_t *pm = wm->priv.pm;
-    EXCEPTION_CHECK_VOID(pm);
+    EXCEPTION_CHECK_VOID(proc);
+    EXCEPTION_CHECK_VOID(proc->pm);
     uint32_t current_time = platform_get_utc_time();
     if (current_time - proc->enter_dummy_time > DUMMY_IDLE_POWER_OFF_TIME) {
         LOG_WM("system power off");
@@ -68,12 +66,18 @@ static void system_power_off_cb(hdr_post_args_t *args)
 static int wakup_enter_new_window_policy(ui_proc_dummy_t *proc, int wakeup_reason)
 {
     window_manager_context_t *wm = proc->wm;
+    tests_manager_context_t *tests = proc->tests;
+    EXCEPTION_CHECK_INT(tests);
     EXCEPTION_CHECK_INT(wm);
-    power_manager_context_t *pm = wm->priv.pm;
-    EXCEPTION_CHECK_INT(pm);
+    EXCEPTION_CHECK_INT(proc->pm);
     multi_func_msg_data_t msg = {0};
-    LOG_WM("goto pump window.");
-    msg.union_body.extra.window_id = ID_WINDOW_PUMP;
+    if (tests->tests_manager_get_current_mode() != TST_NONE_TYPE) {
+        msg.union_body.extra.window_id = ID_WINDOW_PRODUCT_TEST_MODE;
+        LOG_WM("goto product test mode window.");
+    } else {
+        msg.union_body.extra.window_id = ID_WINDOW_PUMP;
+        LOG_WM("goto pump window.");
+    }
     wm->dispatch_new_window_args(wm, &msg);
     return 0;
 }
@@ -130,16 +134,14 @@ static int entry_event_cb(window_lift_cycle_e new_state,
     EXCEPTION_CHECK_INT(ui);
     if (new_state == ID_SCR_STATE_ON_RESUME) {
         LOG_WM("==>%s window on resume", PAGE_NAME_STR);
-        wm->priv.key->add_keyevent_handler("dummy_wm", proc, KEY_CODE_1, KEY_EVENT_CLICK,
-             on_dummy_keyevent_hdr);
+        if (proc->key) {
+            proc->key->add_keyevent_handler("dummy_wm", proc, KEY_CODE_1, KEY_EVENT_CLICK,
+                 on_dummy_keyevent_hdr);
+        }
         proc->enter_dummy_time = platform_get_utc_time();
         POST_TASK_HANDLER_DELAYED_ARG1(system_power_off_cb, DUMMY_TIME_INTERVAL, proc, DUMMY_SYSTEM_POWER_OFF_TASK_NAME);
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);
-        if (ui && ui->hook && ui->hook->set_ui_backlight) {
-            ui->hook->set_ui_backlight(ui, 0);
-            LOG_WM("%s window set backlight off", PAGE_NAME_STR);
-        }
     }
     return 0;
 }
@@ -156,8 +158,9 @@ static int exit_event_cb(window_lift_cycle_e new_state,
             LOG_WM("==>%s window on pause", PAGE_NAME_STR);
             unregister_broadcast_receiver(&proc->receiver);
             REMOVE_ALL_HANDER_TASK();
-            EXCEPTION_CHECK_INT(wm->priv.key);
-            wm->priv.key->remove_keyevent_handler(on_dummy_keyevent_hdr);
+            if (proc->key) {
+                proc->key->remove_keyevent_handler(on_dummy_keyevent_hdr);
+            }
         break;
         case ID_SCR_STATE_ON_DESTORY:
             LOG_WM("==>%s window on destory", PAGE_NAME_STR);
@@ -184,8 +187,14 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
     ui_proc_dummy_t *proc = u_malloz(sizeof(ui_proc_dummy_t));
     SET_WINDOW_CONTEXT(proc);
     proc->margic = UI_WINDOW_MARGIC_CODE;
+    proc->current_ui_type = DUMMY_UI_TYPE_NONE;
     proc->wm = wm;
     proc->ui = (ui_manager_context_t *)find_module(ID_MODULE_UI);
+    proc->pm = (power_manager_context_t *)find_module(ID_MODULE_POWER);
+    proc->key = (key_input_context_t *)find_module(ID_MODULE_KEY_INPUT);
+    proc->pbus = (peripheral_bus_context_t *)find_module(ID_MODULE_DEVICE_BUS);
+    proc->st = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
+    proc->tests = (tests_manager_context_t *)find_module(ID_MODULE_TESTS);
     /// 监听PM状态改变.
     proc->receiver.id.code = ID_BROADCAST_PM_STATE_CHANGE;
     proc->receiver.id.code |= ID_BROADCAST_CHARGE_STATE_CHANGE;

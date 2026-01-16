@@ -1,0 +1,158 @@
+/*
+* INCLUDE FILES
+*****************************************************************************************
+*/
+#include "bsp_common.h"
+#include "bsp_lcd_internal.h"
+
+/*
+* DEFINES
+*****************************************************************************************
+*/
+
+/*
+* LOCAL VARIABLE DEFINITIONS
+*****************************************************************************************
+*/
+static const lcd_chip_config_t gc9a01_config[] = {
+    {0xFE, 0},
+    {0xEF, 0},
+    {0xEB, 1,  {0x14}},
+    {0x84, 1,  {0x40}},
+    {0x85, 1,  {0xF1}},
+    {0x86, 1,  {0x98}},
+    {0x87, 1,  {0x28}},
+    {0x88, 1,  {0x0A}},
+    {0x89, 1,  {0x21}},
+    {0x8A, 1,  {0x00}},
+    {0x8B, 1,  {0x80}},
+    {0x8C, 1,  {0x01}},
+    {0x8D, 1,  {0x00}},
+    {0x8E, 1,  {0xDF}},
+    {0x8F, 1,  {0x52}},
+    {0xB6, 1,  {0x20}},
+    {0x36, 1,  {0x08}},
+    {0x3A, 1,  {0x05}},
+    {0x90, 4,  {0x08, 0x08, 0x08, 0x08}},
+    {0xBD, 1,  {0x06}},
+    {0xA6, 1,  {0x74}},
+    {0xBF, 1,  {0x1C}},
+    {0xA7, 1,  {0x45}},
+    {0xA9, 1,  {0xBB}},
+    {0xB8, 1,  {0x63}},
+    {0xE8, 1,  {0x34}},
+    {0xFF, 3,  {0x60, 0x01, 0x04}},
+    // {0x74, 7,  {0x10, 0x69, 0x80, 0x00, 0x00, 0x4E, 0x00}}, // 90HZ
+    // {0x74, 7,  {0x10, 0x4D, 0x80, 0x00, 0x00, 0x4E, 0x00}}, // 80HZ
+    // {0x74, 7,  {0x10, 0xAB, 0x80, 0x00, 0x00, 0x4E, 0x00}}, // 70HZ
+    // {0x74, 7,  {0x10, 0x94, 0x80, 0x00, 0x00, 0x4E, 0x00}}, // 65HZ
+    // {0x74, 7,  {0x10, 0x80, 0x80, 0x00, 0x00, 0x4E, 0x00}}, // 60HZ
+    // {0x74, 7,  {0x11, 0x3B, 0x80, 0x00, 0x00, 0x4E, 0x00}}, // 50HZ
+    // {0x74, 7,  {0x11, 0x10, 0x80, 0x00, 0x00, 0x4E, 0x00}}, // 45HZ
+    {0x74, 7,  {0x11, 0x5A, 0x80, 0x00, 0x00, 0x4E, 0x00}}, // 40HZ
+    {0xC3, 1,  {0x19}}, 
+    {0xC4, 1,  {0x19}}, 
+    {0xC9, 1,  {0x25}}, 
+    {0xBE, 1,  {0x11}},
+    {0xBC, 1,  {0x00}},
+    {0xE1, 2,  {0x10, 0x0E}},
+    {0xDF, 3,  {0x21, 0x10, 0x02}},
+    {0xED, 2,  {0x1B, 0x0B}},
+    {0xAC, 1,  {0x47}},
+    {0xAE, 1,  {0x77}},
+    {0xCB, 1,  {0x02}},
+    {0xCD, 1,  {0x63}},
+    {0x70, 9,  {0x07, 0x09, 0x04, 0x0E, 0x0F, 0x09, 0x07,
+        0x08, 0x03}},
+    {0xF0, 6,  {0x45, 0x09, 0x08, 0x08, 0x26, 0x2A}},
+    {0xF1, 6,  {0x43, 0x70, 0x72, 0x36, 0x37, 0x6F}},
+    {0xF2, 6,  {0x45, 0x09, 0x08, 0x08, 0x26, 0x2A}},
+    {0xF3, 6,  {0x43, 0x70, 0x72, 0x36, 0x37, 0x6F}},
+    {0x62, 12, {0x18, 0x0D, 0x71, 0xED, 0x70, 0x70, 0x18,
+         0x0F, 0x71, 0xEF, 0x70, 0x70}},
+    {0x63, 12, {0x18, 0x11, 0x71, 0xF1, 0x70, 0x70, 0x18,
+         0x13, 0x71, 0xF3, 0x70, 0x70}},
+    {0x64, 7,  {0x28, 0x29, 0xF1, 0x01, 0xF1, 0x00, 0x07}},
+    {0x66, 10, {0x3C, 0x00, 0xCD, 0x67, 0x45, 0x45, 0x10, 0x00, 0x00, 0x00}},
+    {0x67, 10, {0x00, 0x3C, 0x00, 0x00, 0x00, 0x01, 0x54, 0x10, 0x32, 0x98}},
+};
+
+/*
+* GLOBAL VARIABLE DEFINITIONS
+*****************************************************************************************
+*/
+
+/*
+* LOCAL FUNCTION DEFINITIONS
+*****************************************************************************************
+*/
+
+/*
+* GLOBAL FUNCTION DEFINITIONS
+*****************************************************************************************
+*/
+int lcd_chip_init(void)   
+{   
+    uint8_t *reg_data = NULL, command, len;
+
+    /// 退出休眠模式
+    LCD_WRITE_CMD_PARAM(0x11, NULL, 0);
+    msleep(30);
+
+    reg_data = u_malloc(REGISTER_DATA_SIZE);
+    if (reg_data == NULL) {
+        LOGE("malloc failed");
+        return BSP_ERR_NO_MEM;
+    }
+
+    for (uint8_t i = 0; i < LENGTH_OF_ARRAY(gc9a01_config); i++) {
+        memcpy(reg_data, gc9a01_config[i].data, gc9a01_config[i].data_size);
+        command = gc9a01_config[i].command;
+        len = gc9a01_config[i].data_size;
+        LCD_WRITE_CMD_PARAM(command, reg_data, len);
+    }
+    u_free(reg_data);
+    /// TE enable
+    LCD_WRITE_CMD_PARAM(0x35, NULL, 0);
+    /// 显示反转
+    LCD_WRITE_CMD_PARAM(0x21, NULL, 0);
+    /// 显示开启
+    LCD_WRITE_CMD_PARAM(0x29, NULL, 0);
+
+    return BSP_OK;
+}
+
+int lcd_draw_bitmap(int x_start, int y_start, int x_end, int y_end, const void *color_data)
+{
+    uint8_t buff[4] = {0};
+
+    x_start += LCD_H_OFFSET;
+    x_end   += LCD_H_OFFSET;
+    y_start += LCD_V_OFFSET;
+    y_end   += LCD_V_OFFSET;
+
+    buff[0] = (uint8_t)(x_start >> 8);
+    buff[1] = (uint8_t)x_start;
+    buff[2] = (uint8_t)(x_end >> 8);
+    buff[3] = (uint8_t)x_end;
+    // LCD_WRITE_CMD_PARAM(0x2a, buff, 4);
+    // BSP_LOG_HEX("x", buff, 4);
+
+    buff[0] = (uint8_t)(y_start >> 8);
+    buff[1] = (uint8_t)y_start;
+    buff[2] = (uint8_t)(y_end >> 8);
+    buff[3] = (uint8_t)y_end;
+    // LCD_WRITE_CMD_PARAM(0x2b, buff, 4);
+    // BSP_LOG_HEX("y", buff, 4);
+
+    uint32_t data_size = (x_end - x_start + 1) * (y_end - y_start + 1) * (LCD_RGB565_PIXEL / 8);
+    return LCD_WRITE_IMG_PARAM(0x2c, (uint8_t *)color_data, data_size);
+}
+
+void lcd_chip_sleep(void)
+{
+    LCD_WRITE_CMD_PARAM(0x28, NULL, 0);
+    LCD_WRITE_CMD_PARAM(0x10, NULL, 0);
+    msleep(40);
+    LOG_PBUS("lcd_chip_sleep");
+}

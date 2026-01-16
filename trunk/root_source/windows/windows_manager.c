@@ -139,13 +139,15 @@ static void remove_window_history(uint8_t window_id)
 static int to_valid_window_id(window_manager_context_t *wm, uint8_t window_id)
 {
     if (!(window_id > ID_WINDOW_BEGIN && window_id < ID_WINDOW_MAX)) {
-        misc_manager_context_t *misc = (misc_manager_context_t *)find_module(ID_MODULE_MISC);
         LOG_WM("%s(window_id:%d)[%d~%d]", to_window_name(window_id), window_id, ID_WINDOW_BEGIN, ID_WINDOW_MAX);
         do {
-            if (misc->is_charge_plug_in()) {
+#if IS_SUPPORT_MODULE_BATTERY
+            battery_manager_context_t *battery = (battery_manager_context_t *)find_module(ID_MODULE_BATTERY);
+            if (battery && battery->is_charge_plug_in() > 0) {
                 window_id = ID_WINDOW_CHARGE;
                 break;
             }
+#endif
             window_id = wm->is_window_guidance_deployed() ? ID_WINDOW_PUMP : ID_WINDOW_HOME;
         } while (0);
     }
@@ -416,10 +418,22 @@ static void window_boot_completed_cb(hdr_post_args_t *args)
 {
     window_manager_context_t *wm = (window_manager_context_t *)args->user_data;
     EXCEPTION_CHECK_VOID(wm);
+#if IS_SUPPORT_MODULE_RES
+    if (wm->priv.res) {
+        LOG_WM("wait res ready");
+        wm->priv.res->wait_init_completed(wm->priv.res);
+    }
+#endif
     wm->window_boot_completed(wm);
+    power_manager_context_t *pm = (power_manager_context_t *)find_module(ID_MODULE_POWER);
     multi_func_msg_data_t __msg = {0};
-    __msg.union_body.extra.window_id = ID_WINDOW_LOGO;
-    LOG_WM("goto logo screen");
+    if (pm->is_system_power_on()) {
+        __msg.union_body.extra.window_id = ID_WINDOW_LOGO;
+        LOG_WM("goto logo screen");
+    } else {
+        __msg.union_body.extra.window_id = ID_WINDOW_DUMMY;
+        LOG_WM("goto dummy screen");
+    }
     dispatch_new_window_args(wm, &__msg);
 }
 
@@ -523,6 +537,23 @@ static int dispatch_new_window(window_context_t *ctx)
     window_context_record_t *record = &s_window_record;
     static uint32_t counter = 0;
 
+#if IS_SUPPORT_LVGL
+    /// 等待LVGL初始化完成，防止在初始化未完成时创建窗口导致崩溃
+    ui_manager_context_t *ui = (ui_manager_context_t *)find_module(ID_MODULE_UI);
+    if (ui && ui->is_lvgl_initialized) {
+        uint32_t wait_count = 0;
+        while (!ui->is_lvgl_initialized(ui) && wait_count < 100) {
+            LOG_WM("waiting for LVGL initialization... (%lu)", wait_count);
+            msleep(10);
+            wait_count++;
+        }
+        if (!ui->is_lvgl_initialized(ui)) {
+            LOG_WM("ERROR: LVGL initialization timeout, window creation aborted!");
+            return -99;
+        }
+    }
+#endif
+
     next = dichotomy_find_window_obj(ctx->new_window_id);
     if (!next) {
         LOG_WM("not found window_id: %d", ctx->new_window_id);
@@ -611,7 +642,6 @@ static int on_post_wm_init(void *ptr)
     wm->priv.bcd->name = "window_manager";
     wm->priv.bcd->id.code |= ID_BROADCAST_PM_STATE_CHANGE;
     wm->priv.bcd->id.code |= ID_BROADCAST_PM_WAKEUP_BY_USER;
-    wm->priv.bcd->id.code |= ID_BROADCAST_SET_BLACKLIGHT_BY_USER;
     wm->priv.bcd->id.code |= ID_BROADCAST_SYS_POWER_STATE_CHANGE;
     wm->priv.bcd->id.code |= ID_BROADCAST_AIRPLANE_MODE_STATE_CHANGE;
     wm->priv.bcd->receiver_cb = on_wm_receive_internal;
@@ -627,13 +657,6 @@ static int on_perpare_wm_init(void *self)
     window_manager_context_t *wm = self;
     wm->priv.res = (resource_manager_context_t *)find_module(ID_MODULE_RES);
     wm->priv.st = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
-    wm->priv.misc = (misc_manager_context_t *)find_module(ID_MODULE_MISC);
-    wm->priv.pm = (power_manager_context_t *)find_module(ID_MODULE_POWER);
-    wm->priv.key = (key_input_context_t *)find_module(ID_MODULE_KEY_INPUT);
-    wm->priv.pump = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
-    wm->priv.pbus = (peripheral_bus_context_t *)find_module(ID_MODULE_DEVICE_BUS);
-    wm->priv.product_tst = (tests_manager_context_t *)find_module(ID_MODULE_TESTS);
-    wm->priv.ble_ctx = (ble_manager_context_t *)find_module(ID_MODULE_BLE);
     return 0;
 }
 

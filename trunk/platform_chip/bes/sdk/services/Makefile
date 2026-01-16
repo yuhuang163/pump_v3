@@ -201,3 +201,7 @@ endif
 ifeq ($(HEAD_TRACK_ENABLE),1)
 obj-y += head_track/
 endif
+
+ifeq ($(SERVICE_GRABOX_ENABLE),1)
+obj-y += grabox/
+endif

@@ -1,7 +1,6 @@
 #ifndef __BREAST_PUMP_MANAGER_API_H__
 #define __BREAST_PUMP_MANAGER_API_H__
 
-#include <stdint.h>
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -31,11 +30,12 @@ typedef enum {
     BREAST_PUMP_PAUSE,
     BREAST_PUMP_CONTINUE,
     BREAST_PUMP_FINISH,
-    BREAST_PUMP_FACTORY
+    BREAST_PUMP_FACTORY,
+    BREAST_PUMP_RESET,
 } breast_pump_status_e;
 
 #define PUMP_IS_GOING(state) (state == BREAST_PUMP_START || state == BREAST_PUMP_CONTINUE)
-#define PUMP_IS_COMMON_MODE(mode) (mode == BREAST_PUMP_PUMP_MODE || mode == BREAST_PUMP_MIX_MODE ||\
+#define PUMP_IS_COMMON_MODE(mode) (mode == BREAST_PUMP_LACTATION_MODE || mode == BREAST_PUMP_MIX_MODE ||\
      mode == BREAST_PUMP_STIMULATION_MODE)
 
 typedef struct {
@@ -50,7 +50,7 @@ typedef struct {
 /// 泵奶数据
 typedef struct pump_result_info {
     uint8_t  mode;
-    pump_setting_t setting;
+    pump_setting_t setting[ROOT_BREAST_PUMP_STEP_MAX];
     uint8_t  report_flag;               /// 泵奶报告是否实时上传
     uint32_t timestamp;                 /// 开始泵奶时间
     uint32_t setting_time;              /// app设置的单次泵奶时间
@@ -58,6 +58,7 @@ typedef struct pump_result_info {
     uint32_t target_total_time;         /// 目标最大工作时长 电子压感存在时使用
     uint32_t work_total_time;           /// 泵奶总时长
     uint32_t work_valid_time;           /// 有效泵奶时长, 预留后续扩展使用
+    uint32_t current_mode_work_time;    /// 当前模式运行时间
 } pump_result_info_t;
 
 typedef void (*on_breast_pump_result_cb_ptr)(void *user_data, breast_pump_result_t *result);
@@ -66,6 +67,7 @@ typedef struct {
     uint8_t status;
     uint8_t do_work;
     uint8_t mode;
+    uint8_t step_index;
 } breast_pump_info_t;
 
 /// 吸奶结果ID
@@ -88,7 +90,7 @@ typedef struct breast_pump_manager_context {
         os_timer_id breast_pump_work_timer;
         breast_pump_result_t m_result;
         breast_pump_info_t m_info;
-        pump_setting_t setting;
+        pump_setting_t setting[ROOT_BREAST_PUMP_STEP_MAX];
         thread_context_t breast_pump_thd;
         list_head_t client_list;
         broadcast_obj_t m_bdc;
@@ -105,11 +107,12 @@ typedef struct breast_pump_manager_context {
     void (*remove_breast_pump_result_listener)(on_breast_pump_result_cb_ptr cb);
     int (*get_breast_pump_mode)(void);
     void (*set_breast_pump_mode)(uint32_t mode);
-    void (*get_breast_pump_setting)(pump_setting_t *setting);
-    void (*set_breast_pump_setting)(pump_setting_t *setting);
+    void (*get_breast_pump_setting)(pump_setting_t *setting, uint8_t step_index);
+    void (*set_breast_pump_setting)(pump_setting_t *setting, uint8_t step_index);
     void (*set_breast_pump_status)(int status);
     int (*get_breast_pump_status)(void);
     int (*get_breast_pump_status_async)(void);
+    uint8_t (*get_breast_pump_step_index)(void);
     int (*get_last_breast_pump_result)(breast_pump_result_t *result, uint8_t breast_pump_data_id);
     const breast_pump_result_t *(*get_curr_breast_pump_result)(void);
     pump_result_info_t *(*get_breast_pump_result)(breast_pump_result_id_e result_id);
@@ -122,6 +125,7 @@ typedef struct breast_pump_manager_context {
         int (*breast_pump_completed_route)(struct breast_pump_manager_context *ctx);
         int (*start_breast_pump_work_route)(struct breast_pump_manager_context *ctx, int state);
         int (*stop_breast_pump_work_route)(struct breast_pump_manager_context *ctx, int state);
+        int (*breast_pump_result_info_app_reset)(struct breast_pump_manager_context *ctx, pump_result_info_t *result_info);
     } *hook;
 } breast_pump_manager_context_t;
 

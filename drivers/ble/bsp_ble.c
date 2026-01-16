@@ -4,6 +4,7 @@
 */
 #include "bsp_common.h" // IWYU pragma: keep
 #include "gatt_service.h" // IWYU pragma: keep
+#include "ota_control.h" // IWYU pragma: keep
 #include "ble_core_common.h" // IWYU pragma: keep
 #include "bsp_ble_internal.h" // IWYU pragma: keep
 
@@ -20,7 +21,10 @@
 static rt_device_node_t *node = NULL;
 static ble_event_cb_func s_ble_event_callback = NULL;
 static uint16_t s_ble_mtu_size = BLE_MTU_SIZE_DEFAULT;
-
+static ota_event_cb_func s_ota_event_callback = NULL;
+static uint32_t img_total_size = 0;
+static uint32_t img_received_size = 0;
+static uint16_t img_progress = 0;
 /*
 * GLOBAL VARIABLE DEFINITIONS
 *****************************************************************************************
@@ -33,12 +37,85 @@ static uint16_t s_ble_mtu_size = BLE_MTU_SIZE_DEFAULT;
 static void add_ble_custom_service_callback(ble_event_cb_func cb)
 {
     if (cb) {
+        // LOG_PBUS("add ble event callback");
         s_ble_event_callback = cb;
     }
 }
 
+static void add_ble_custom_ota_event_callback(ota_event_cb_func cb)
+{
+    if (cb) {
+        // LOG_PBUS("add ota event callback");
+        s_ota_event_callback = cb;
+    }
+}
+
+
+#if CFG_OTA_EVENT_CALLBACK
+static void ota_event_router(ota_state_type_e state, uint8_t *otaBuf, bool isViaBle,uint16_t dataLenth)
+{
+    if (s_ota_event_callback == NULL) {
+        LOG_PBUS("ota event callback is NULL");
+        return;
+    }
+
+    if (state == OTA_STATE_FAIL_EXIT) {
+        LOG_PBUS("ota fail, progress:%d%%", img_progress);
+        s_ota_event_callback(OTA_EVENT_OTA_FAIL, img_progress);
+        return;
+    }
+    
+    if (state == OTA_STATE_UPDATE_IMG_TYPE) {
+        LOG_PBUS("ota update img type: %d", *otaBuf);
+        s_ota_event_callback(OTA_EVENT_UPDATE_IMG_TYPE, 0);
+        return;
+    }
+
+    if (state == OTA_STATE_RESUME_TOTAL_SIZE) {
+        img_total_size = *(uint32_t *)otaBuf;
+        LOG_PBUS("ota resume total size: %d", img_total_size);
+    }
+
+    if (state == OTA_STATE_RESUME_OFFSET_SIZE) {
+        img_received_size = *(uint32_t *)otaBuf;
+        LOG_PBUS("ota resume offset size: %d", img_received_size);
+    }   
+
+    OTA_LEGACY_PACKET_T *packet = (OTA_LEGACY_PACKET_T *)otaBuf;
+
+    switch (packet->packetType) {
+        case OTA_CMD_SET_USER:
+            // s_ota_event_callback(OTA_EVENT_SET_USER_TYPE, 0);
+            break;
+        case OTA_COMMAND_START:
+            img_total_size = packet->payload.cmdOtaStart.imageSize;
+            img_received_size = 0;
+            LOG_PBUS("img total size:%d", img_total_size);
+            s_ota_event_callback(OTA_EVENT_START_OTA, 0);
+            break;
+
+        case OTA_COMMAND_RESUME_VERIFY:
+            s_ota_event_callback(OTA_EVENT_RESUME_OTA, 0);
+            break;
+        case OTA_DATA_PACKET:
+            img_received_size += (dataLenth - 1);
+            img_progress = (img_received_size * 100) / img_total_size;
+            LOG_PBUS("img received size:%d, progress:%d%%", img_received_size, img_progress);
+            s_ota_event_callback(OTA_EVENT_OTA_PROGRESS, img_progress);
+            break;
+        case OTA_COMMAND_IMAGE_APPLY:
+            LOG_PBUS("ota success, progress:%d%%", img_progress);
+            s_ota_event_callback(OTA_EVENT_OTA_SUCCESS, 0);
+            break;
+    }
+}
+#endif
+
 static int ble_dev_open(struct rt_device_node *dev)
 {
+#if CFG_OTA_EVENT_CALLBACK
+    ota_event_router_register(ota_event_router);
+#endif
     return 0;
 }
 
@@ -82,8 +159,18 @@ static int ble_dev_ioctl(struct rt_device_node *dev, uint32_t op_code, void *arg
         }
 
         case OP_CODE_BLE_MAC_ADDR_SET: {
-            uint8_t *mac_addr = (uint8_t *)tmp[0];
-            ble_custom_gap_mac_addr_set(mac_addr);
+            uint8_t *mac_addr = (uint8_t *)tmp[1];
+            if (mac_addr) {
+                ble_custom_gap_mac_addr_set(mac_addr);
+            }
+            break;
+        }
+
+        case OP_CODE_BLE_MAC_ADDR_GET: {
+            uint8_t *get_mac_addr = (uint8_t *)tmp[0];
+            if (get_mac_addr) {
+                return ble_custom_gap_mac_addr_get(get_mac_addr);
+            }
             break;
         }
 
@@ -96,6 +183,12 @@ static int ble_dev_ioctl(struct rt_device_node *dev, uint32_t op_code, void *arg
         case OP_CODE_BLE_ADD_DATA_CALLBACK: {
             ble_data_cb_func cb = (ble_data_cb_func)args;
             add_ble_custom_data_callback(cb);
+            break;
+        }
+
+        case OP_CODE_BLE_ADD_OTA_EVENT_CALLBACK: {
+            ota_event_cb_func cb = (ota_event_cb_func)args;
+            add_ble_custom_ota_event_callback(cb);
             break;
         }
 
@@ -123,7 +216,7 @@ static int ble_dev_resume(struct rt_device_node *dev)
 */
 int ble_custom_event_callback(uintptr_t connhdl, gap_adv_event_t event, gap_adv_callback_param_t param)
 {
-    LOGI("ble conn index: %d, event: %d", connhdl, event);
+    LOG_PBUS("ble conn index: %d, event: %d", connhdl, event);
     if (!s_ble_event_callback) {
         return 0;
     }

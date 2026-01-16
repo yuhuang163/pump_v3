@@ -31,6 +31,7 @@
 
 #define VG_LITE_HW_CLOCK_CONTROL     0x000
 #define VG_LITE_HW_IDLE              0x004
+#define VG_LITE_AXI_STATUS           0x00C
 #define VG_LITE_INTR_STATUS          0x010
 #define VG_LITE_INTR_ENABLE          0x014
 #define VG_LITE_HW_CHIP_ID           0x020
@@ -50,7 +51,8 @@ typedef struct clock_control {
     uint32_t clock_gate : 1;
     uint32_t scale : 7;
     uint32_t scale_load : 1;
-    uint32_t reserved10 : 2;
+    uint32_t ram_clock_gating : 1;
+    uint32_t debug_registers : 1;
     uint32_t soft_reset : 1;
     uint32_t reserved13 : 6;
     uint32_t isolate : 1;

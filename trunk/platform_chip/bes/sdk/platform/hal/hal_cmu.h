@@ -653,6 +653,8 @@ void hal_cmu_lcdc_sleep(void);
 
 void hal_cmu_lcdc_wakeup(void);
 
+void hal_cmu_lcdc_disp_pn_reset(void);
+
 uint32_t hal_cmu_lcdc_get_pixmhz(void);
 
 int hal_cmu_lcdc_set_pixmhz(uint32_t freqmhz);

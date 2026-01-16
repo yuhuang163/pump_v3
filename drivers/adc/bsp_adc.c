@@ -44,7 +44,7 @@ POSSIBLY_UNUSED static void gpadc_irq_handler(uint16_t irq_val, HAL_GPADC_MV_T v
     s_adc_result.conv_times--;
     if (s_adc_result.conv_times == 0) {
         MSG_QUEUE_SEND(s_adc_msg_id, &s_adc_result.volid_count, 0);
-        // LOGI("raw_val = %d volt = %d ", irq_val, volt);
+        // LOG_PBUS("raw_val = %d volt = %d ", irq_val, volt);
     }
 }
 

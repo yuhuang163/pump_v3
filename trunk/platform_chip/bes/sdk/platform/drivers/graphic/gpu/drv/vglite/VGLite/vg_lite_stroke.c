@@ -468,6 +468,8 @@ ErrorHandler:
     return status;
 }
 
+//#define gcFEATURE_VG_SIMPLYFIED_BEZIER  1
+
 #if gcFEATURE_VG_SIMPLYFIED_BEZIER
 void quad_bezier(float* x, float* y, const float curve[6], float t) {
     const float* v0, * v1, * v2;
@@ -700,7 +702,7 @@ void split_cubic(float out1[8], float out2[8], float curve[8], float split) {
         out2[6] = C[0][3]; out2[7] = C[1][3];
     }
 }
-
+#if (CHIPID != 0x265)
 static vg_lite_error_t _flatten_quad_bezier(
     vg_lite_stroke_t* stroke_conversion,
     vg_lite_float_t rootCurve[6],
@@ -828,7 +830,101 @@ static vg_lite_error_t _flatten_quad_bezier(
 ErrorHandler:
     return error;
 }
+#else
+static vg_lite_error_t _flatten_quad_bezier_original(
+    vg_lite_stroke_t* stroke_conversion,
+    vg_lite_float_t curve[6],
+    vg_lite_uint8_t level)
+{
+    vg_lite_error_t error = VG_LITE_SUCCESS;
+    float* v0, * v1, * v2;
+    float dx2, dy2, d1;
+    float subCurve1[6], subCurve2[6];
+    vg_lite_path_point_ptr point0, point1;
 
+    if (!stroke_conversion)
+        return VG_LITE_INVALID_ARGUMENT;
+    if (level > 10) return error;
+
+    v0 = &curve[0];
+    v1 = &curve[2];
+    v2 = &curve[4];
+
+    if (level == 0) {
+        /* Add extra P0 for incoming tangent. */
+        point0 = stroke_conversion->path_end;
+        /* First add P1 to calculate incoming tangent, which is saved in P0. */
+        VG_LITE_ERROR_HANDLER(_add_point_to_point_list(stroke_conversion, v1[0], v1[1], vgcFLATTEN_NO));
+
+        point1 = stroke_conversion->path_end;
+        /* Change the point1's coordinates back to P0. */
+        point1->x = v0[0];
+        point1->y = v0[1];
+        point0->length = 0.0f;
+    }
+
+    dx2 = v2[0] - v0[0];
+    dy2 = v2[1] - v0[1];
+    d1 = fabsf((v1[0] - v2[0]) * dy2 - (v1[1] - v2[1]) * dx2);
+
+    if (d1 * d1 < 0.25 * (dx2 * dx2 + dy2 * dy2)) {
+        float bound[4];
+
+        bound[0] = MIN(v0[0], v2[0]);
+        bound[1] = MIN(v0[1], v2[1]);
+        bound[2] = MAX(v0[0], v2[0]);
+        bound[3] = MAX(v0[1], v2[1]);
+
+        if (!(v1[0] >= bound[0] && v1[0] <= bound[2] && v1[1] >= bound[1] && v1[1] <= bound[3])) {
+            /* Compute root. */
+            float alignedCurve[6];
+            float d, n, t, pt[2];
+
+            get_aligned_quad(alignedCurve, curve);
+
+            n = alignedCurve[0] - alignedCurve[2];
+            d = alignedCurve[0] - 2.f * alignedCurve[2] + alignedCurve[4];
+            if (fabsf(d) > 1e-12f) {
+                t = n / d;
+                if (t > 1e-12f && t < 1.f - 1e-12f) {
+                    quad_bezier(&pt[0], &pt[1], curve, t);
+                    VG_LITE_ERROR_HANDLER(_add_point_to_point_list(stroke_conversion, pt[0], pt[1], vgcFLATTEN_NO));
+                }
+            }
+        }
+        VG_LITE_ERROR_HANDLER(_add_point_to_point_list(stroke_conversion, v2[0], v2[1], vgcFLATTEN_NO));
+        return error;
+    }
+
+    split_quad(subCurve1, subCurve2, curve, 0.5);
+    VG_LITE_ERROR_HANDLER(_flatten_quad_bezier_original(stroke_conversion, subCurve1, level + 1));
+    VG_LITE_ERROR_HANDLER(_flatten_quad_bezier_original(stroke_conversion, subCurve2, level + 1));
+    if (level == 0) {
+        /* Add point 2 separately to avoid cumulative errors. */
+        VG_LITE_ERROR_HANDLER(_add_point_to_point_list(stroke_conversion, v2[0], v2[1], vgcFLATTEN_NO));
+
+        /* Add extra P2 for outgoing tangent. */
+        /* First change P2(point0)'s coordinates to P1. */
+        point0 = stroke_conversion->path_end;
+        point0->x = v1[0];
+        point0->y = v1[1];
+
+        /* Add P2 to calculate outgoing tangent. */
+        VG_LITE_ERROR_HANDLER(_add_point_to_point_list(stroke_conversion, v2[0], v2[1], vgcFLATTEN_NO));
+
+        point1 = stroke_conversion->path_end;
+
+        /* Change point0's coordinates back to P2. */
+        point0->x = v2[0];
+        point0->y = v2[1];
+        point0->length = 0.0f;
+    }
+ErrorHandler:
+    return error;
+}
+#endif
+
+#if (CHIPID != 0x265)
 static vg_lite_error_t _flatten_cubic_bezier(
     vg_lite_stroke_t* stroke_conversion,
     vg_lite_float_t rootCurve[8],
@@ -1080,6 +1176,149 @@ static vg_lite_error_t _flatten_cubic_bezier(
 ErrorHandler:
     return error;
 }
+#else
+static vg_lite_error_t _flatten_cubic_bezier_original(
+    vg_lite_stroke_t* stroke_conversion,
+    vg_lite_float_t curve[8],
+    vg_lite_uint8_t level)
+{
+    vg_lite_error_t error = VG_LITE_SUCCESS;
+    float* v0, * v1, * v2, * v3;
+    float dx3, dy3, d1, d2;
+    float subCurve1[8], subCurve2[8];
+    vg_lite_path_point_ptr point0, point1;
+
+    if (!stroke_conversion)
+        return VG_LITE_INVALID_ARGUMENT;
+    if (level > 10) return error;
+
+    v0 = &curve[0];
+    v1 = &curve[2];
+    v2 = &curve[4];
+    v3 = &curve[6];
+
+    if (level == 0) {
+        /* Add extra P0 for incoming tangent. */
+        point0 = stroke_conversion->path_end;
+        /* First add P1/P2/P3 to calculate incoming tangent, which is saved in P0. */
+        if (v0[0] != v1[0] || v0[1] != v1[1])
+        {
+            VG_LITE_ERROR_HANDLER(_add_point_to_point_list(stroke_conversion, v1[0], v1[1], vgcFLATTEN_NO));
+        }
+        else if (v0[0] != v2[0] || v0[1] != v2[1])
+        {
+            VG_LITE_ERROR_HANDLER(_add_point_to_point_list(stroke_conversion, v2[0], v2[1], vgcFLATTEN_NO));
+        }
+        else
+        {
+            VG_LITE_ERROR_HANDLER(_add_point_to_point_list(stroke_conversion, v3[0], v3[1], vgcFLATTEN_NO));
+        }
+        point1 = stroke_conversion->path_end;
+        /* Change the point1's coordinates back to P0. */
+        point1->x = v0[0];
+        point1->y = v0[1];
+        point0->length = 0.0f;
+    }
+
+    dx3 = v3[0] - v0[0];
+    dy3 = v3[1] - v0[1];
+    d1 = fabsf((v1[0] - v3[0]) * dy3 - (v1[1] - v3[1]) * dx3);
+    d2 = fabsf((v2[0] - v3[0]) * dy3 - (v2[1] - v3[1]) * dx3);
+
+    if ((d1 + d2) * (d1 + d2) < 0.25f * (dx3 * dx3 + dy3 * dy3)) {
+        float bound[4];
+
+        bound[0] = MIN(v0[0], v3[0]);
+        bound[1] = MIN(v0[1], v3[1]);
+        bound[2] = MAX(v0[0], v3[0]);
+        bound[3] = MAX(v0[1], v3[1]);
+        if (!(v1[0] >= bound[0] && v1[0] <= bound[2] && v1[1] >= bound[1] && v1[1] <= bound[3]) ||
+            !(v2[0] >= bound[0] && v2[0] <= bound[2] && v2[1] >= bound[1] && v2[1] <= bound[3])) {
+            /* Compute root. */
+            float alignedCurve[8];
+            float a, b, c, b2ac, root[2], t, pt[2];
+            uint8_t rootNum;
+
+            get_aligned_cubic(alignedCurve, curve);
+
+            a = -3.f * alignedCurve[0] + 9.f * alignedCurve[2] - 9.f * alignedCurve[4] + 3.f * alignedCurve[6];
+            b = 6.f * alignedCurve[0] - 12.f * alignedCurve[2] + 6.f * alignedCurve[4];
+            c = -3.f * alignedCurve[0] + 3.f * alignedCurve[2];
+            rootNum = 0;
+            if (fabs(a) < (double)(1e-12f)) {  // linear solution
+                t = -c / b;
+                if (t > 1e-12f && t < 1.f - 1e-12f)
+                    root[rootNum++] = t;
+            }
+            else {   // quadtratic solution
+                b2ac = b * b - 4.f * a * c;
+                if (b2ac > 1e-12f) {
+                    t = (-b + (float)sqrt(b2ac)) / (2.f * a);
+                    if (t > 1e-12f && t < 1.f - 1e-12f)
+                        root[rootNum++] = t;
+                    t = (-b - (float)sqrt(b2ac)) / (2.f * a);
+                    if (t > 1e-12f && t < 1.f - 1e-12f)
+                        root[rootNum++] = t;
+                }
+            }
+
+            if (rootNum == 2 && root[0] > root[1]) {
+                /* Exchange root. */
+                float tmp;
+                tmp = root[0];
+                root[0] = root[1];
+                root[1] = tmp;
+            }
+
+            for (uint8_t i = 0; i < rootNum; ++i) {
+                cubic_bezier(&pt[0], &pt[1], curve, root[i]);
+                VG_LITE_ERROR_HANDLER(_add_point_to_point_list(stroke_conversion, pt[0], pt[1], vgcFLATTEN_NO));
+            }
+        }
+        VG_LITE_ERROR_HANDLER(_add_point_to_point_list(stroke_conversion, v3[0], v3[1], vgcFLATTEN_NO));
+        return error;
+    }
+
+    split_cubic(subCurve1, subCurve2, curve, 0.5);
+    VG_LITE_ERROR_HANDLER(_flatten_cubic_bezier_original(stroke_conversion, subCurve1, level + 1));
+    VG_LITE_ERROR_HANDLER(_flatten_cubic_bezier_original(stroke_conversion, subCurve2, level + 1));
+    if (level == 0) {
+        /* Add point 3 separately to avoid cumulative errors. */
+        VG_LITE_ERROR_HANDLER(_add_point_to_point_list(stroke_conversion, v3[0], v3[1], vgcFLATTEN_NO));
+
+        /* Add extra P3 for outgoing tangent. */
+        /* First change P3(point0)'s coordinates to P0/P1/P2. */
+        point0 = stroke_conversion->path_end;
+        if (v3[0] != v2[0] || v3[1] != v2[1])
+        {
+            point0->x = v2[0];
+            point0->y = v2[1];
+        }
+        else if (v3[0] != v1[0] || v3[1] != v1[1])
+        {
+            point0->x = v1[0];
+            point0->y = v1[1];
+        }
+        else
+        {
+            point0->x = v0[0];
+            point0->y = v0[1];
+        }
+
+        /* Add P3 to calculate outgoing tangent. */
+        VG_LITE_ERROR_HANDLER(_add_point_to_point_list(stroke_conversion, v3[0], v3[1], vgcFLATTEN_NO));
+
+        point1 = stroke_conversion->path_end;
+
+        /* Change point0's coordinates back to P3. */
+        point0->x = v3[0];
+        point0->y = v3[1];
+        point0->length = 0.0f;
+    }
+ErrorHandler:
+    return error;
+}
+#endif
 #else
 static vg_lite_error_t
 _flatten_quad_bezier(
@@ -1762,8 +2001,12 @@ static vg_lite_error_t _flatten_path(
             {
 #if gcFEATURE_VG_SIMPLYFIED_BEZIER
                 vg_lite_float_t curve[6] = { ox, oy, x0, y0, x1, y1 };
+#if (CHIPID != 0x265)
                 vg_lite_float_t subCurve[6] = { 0, 0, 0, 0, 0, 0};
                 VG_LITE_ERROR_HANDLER(_flatten_quad_bezier(stroke_conversion, curve, subCurve, 0));
+#else
+                VG_LITE_ERROR_HANDLER(_flatten_quad_bezier_original(stroke_conversion, curve, 0));
+#endif
 #else
                 VG_LITE_ERROR_HANDLER(_flatten_quad_bezier(stroke_conversion, ox, oy, x0, y0, x1, y1));
 #endif
@@ -1794,8 +2037,12 @@ static vg_lite_error_t _flatten_path(
             {
 #if gcFEATURE_VG_SIMPLYFIED_BEZIER
                 vg_lite_float_t curve[8] = { ox, oy, x0, y0, x1, y1, x2, y2 };
+#if (CHIPID != 0x265)
                 vg_lite_float_t subCurve[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
                 VG_LITE_ERROR_HANDLER(_flatten_cubic_bezier(stroke_conversion, curve, subCurve, 0));
+#else
+                VG_LITE_ERROR_HANDLER(_flatten_cubic_bezier_original(stroke_conversion, curve, 0));
+#endif
 #else
                 VG_LITE_ERROR_HANDLER(_flatten_cubic_bezier(stroke_conversion, ox, oy, x0, y0, x1, y1, x2, y2));
 #endif
@@ -2688,25 +2935,14 @@ _process_line_joint(
                 stroke_conversion->swing_stroke = stroke_conversion->left_point;
             }
 
-#if USE_MIN_ARC_FILTER
-            if (cosTheta > FLOAT_MIN_ARC_ANGLE_COS)
-            {
-                /* Add a point. */
-                gcmERR_GOTO(_add_point_to_left_point_list_head(Context, stroke_conversion, X2, Y2));
+            /* Add curve. */
+            /* Note that the curve will be reversed, so the direction is CW. */
+            /* Then, left side is in reversed order, so the direction is CCW. */
+            VG_LITE_ERROR_HANDLER(_add_point_to_left_point_list_head(stroke_conversion, X2, Y2));
+            stroke_conversion->left_point->curve_type = CURVE_ARC_SCCW;
+            stroke_conversion->left_point->tangentX = Point->x;
+            stroke_conversion->left_point->tangentY = Point->y;
 
-                VGSL_STAT_COUNTER_INCREASE(vgStrokeFilteredByMinArcAngleCount);
-            }
-            else
-#endif
-            {
-                /* Add curve. */
-                /* Note that the curve will be reversed, so the direction is CW. */
-                /* Then, left side is in reversed order, so the direction is CCW. */
-                VG_LITE_ERROR_HANDLER(_add_point_to_left_point_list_head(stroke_conversion, X2, Y2));
-                stroke_conversion->left_point->curve_type = CURVE_ARC_SCCW;
-                stroke_conversion->left_point->tangentX = Point->x;
-                stroke_conversion->left_point->tangentY = Point->y;
-            }
             stroke_conversion->swing_count++;
         }
 
@@ -2880,14 +3116,8 @@ endCheck:
             stroke_conversion->swing_centlen += Point->length;
             if (stroke_conversion->swing_centlen > FLOAT_SWING_CENTER_RANGE)
             {
-#if USE_NEW_SWING_HANDLE_FOR_END
-                if (stroke_conversion->currentSubPath->length < half_width ||
-                    Point->next->flatten_flag == vgcFLATTEN_END)
-#endif
-                {
-                    /* Draw the swing area (pie area). */
-                    VG_LITE_ERROR_HANDLER(_draw_swing_pie_area(stroke_conversion, Point, 0));
-                }
+                /* Draw the swing area (pie area). */
+                VG_LITE_ERROR_HANDLER(_draw_swing_pie_area(stroke_conversion, Point, 0));
             }
         }
     }
@@ -3418,23 +3648,23 @@ _create_stroke_path(
             {
                 vg_lite_sub_path_ptr last_stroke = stroke_conversion->last_stroke;
                 vg_lite_path_point_ptr start_point = last_stroke->point_list;
-                vg_lite_path_point_ptr new_point;
+                vg_lite_path_point_ptr extra_point;
 
                 /* Add curve. */
                 /* Add extra point to the beginning with end point's coordinates. */
-                new_point = (vg_lite_path_point_ptr)vg_lite_os_malloc(sizeof(*new_point));
-                if (!new_point)
+                extra_point = (vg_lite_path_point_ptr)vg_lite_os_malloc(sizeof(*extra_point));
+                if (!extra_point)
                     return VG_LITE_OUT_OF_RESOURCES;
-                memset(new_point, 0, sizeof(*new_point));
+                memset(extra_point, 0, sizeof(*extra_point));
 
-                new_point->x = last_stroke->end_point->x;
-                new_point->y = last_stroke->end_point->y;
-                new_point->next = start_point;
-                start_point->prev = new_point;
+                extra_point->x = last_stroke->end_point->x;
+                extra_point->y = last_stroke->end_point->y;
+                extra_point->next = start_point;
+                start_point->prev = extra_point;
                 start_point->curve_type = CURVE_ARC_SCCW;
                 start_point->tangentX = stroke_conversion->path_points->x;
                 start_point->tangentY = stroke_conversion->path_points->y;
-                last_stroke->point_list = new_point;
+                last_stroke->point_list = extra_point;
             }
         }
     }
@@ -3899,6 +4129,8 @@ vg_lite_error_t vg_lite_set_stroke(
 
             if (path->stroke->dash_pattern)
                 vg_lite_os_free(path->stroke->dash_pattern);
+
+            path->stroke_valid = 0;
         }
 
         memset(path->stroke, 0, sizeof(vg_lite_stroke_t));
@@ -4657,9 +4889,15 @@ vg_lite_error_t vg_lite_init_arc_path(vg_lite_path_t* path,
     int32_t* path_data_s32_ptr;
     float* path_data_fp32_ptr;
     int32_t data_size, num = 0;
+
+    vg_lite_task_t *task = vg_lite_os_get_tls();
+    if (!task) {
+        return VG_LITE_NO_CONTEXT;
+    }
+
     memset(&coords, 0, sizeof(vg_lite_control_coord_t));
-    coords.lastX = s_context.path_lastX;
-    coords.lastY = s_context.path_lastY;
+    coords.lastX = task->s_context.path_lastX;
+    coords.lastY = task->s_context.path_lastY;
 
 #if gcFEATURE_VG_TRACE_API
     VGLITE_LOG("vg_lite_init_arc_path %p %d %d %d %p %f %f %f %f\n", path, data_format, quality, path_length, path_data, min_x, min_y, max_x, max_y);
@@ -4791,6 +5029,8 @@ vg_lite_error_t vg_lite_init_arc_path(vg_lite_path_t* path,
     vg_lite_clear_path(path);
 
     data_format = VG_LITE_FP32;
+    data_size = 4;
+
     if (!path_length)
     {
         path->format = data_format;
@@ -4827,6 +5067,14 @@ vg_lite_error_t vg_lite_init_arc_path(vg_lite_path_t* path,
         cpath = (char*)pfloat;
         command = (uint32_t)*cpath;
         pfloat++;
+#if (CHIPID==0x355)
+        uint8_t flag = 0;
+        if (command == VLC_OP_CLOSE) {
+            if (*((uint32_t*)cpath + 1) == VLC_OP_MOVE || *((uint32_t*)cpath + 1) == VLC_OP_MOVE_REL) {
+                flag = 1;
+            }
+        }
+#endif
         switch (command)
         {
         case VLC_OP_END:
@@ -4845,7 +5093,23 @@ vg_lite_error_t vg_lite_init_arc_path(vg_lite_path_t* path,
 
             cpath = (char*)pathdata + offset;
             fpath = (vg_lite_float_t*)cpath;
-            *cpath = VLC_OP_CLOSE;
+#if (CHIPID==0x355)
+            if (flag == 1) {
+                if (data_size == 1) {
+                    *cpath = VLC_OP_CLOSE;
+                }
+                else if (data_size == 2) {
+                    *(uint16_t*)cpath = 0x0101;
+                }
+                else if (data_size == 4) {
+                    *(uint32_t*)cpath = 0x01010101;
+                }
+            }
+            else
+#endif
+            {
+                *cpath = VLC_OP_CLOSE;
+            }
             offset += _commandSize_float[VLC_OP_CLOSE];
             i += _commandSize_float[VLC_OP_CLOSE];
             break;
@@ -5199,8 +5463,8 @@ vg_lite_error_t vg_lite_init_arc_path(vg_lite_path_t* path,
     path->uploaded.bytes = 0;
     path->uploaded.handle = NULL;
     path->uploaded.memory = NULL;
-    s_context.path_lastX = coords.lastX;
-    s_context.path_lastY = coords.lastY;
+    task->s_context.path_lastX = coords.lastX;
+    task->s_context.path_lastY = coords.lastY;
     return VG_LITE_SUCCESS;
 
 ErrorHandler:

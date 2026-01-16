@@ -75,21 +75,6 @@ static void on_ble_broadcast_receive(broadcast_mask_id_t id, void *context, int 
             ble_ota_upgrade_state_handler(user_data);
         }
         break;
-
-        case ID_BROADCAST_BREAST_PUMP_MODE_CHANGE:
-            // LOG_BLE("breast pump mode change: %d", arg1);
-            ctx->dispatch_ble_event_wrapper(ctx, BLE_MSG_BREAST_PUMP_MODE_CHANGE, (uint8_t *)ctx, 0);
-            break;
-
-        case ID_BROADCAST_BREAST_PUMP_STATE_CHANGE:
-            LOG_BLE("breast pump state change: %d, %d", arg1, arg2);
-            if (arg2 != BREAST_PUMP_IDLE && arg2 != BREAST_PUMP_FACTORY) {
-                ctx->dispatch_ble_event_wrapper(ctx, BLE_MSG_SEND_PUMP_REALTIME_INFO, (uint8_t *)ctx, 0);
-            }
-            break;
-
-        case ID_BROADCAST_AIRPLANE_MODE_STATE_CHANGE:
-            break;
        default:
            break;
     }
@@ -97,7 +82,18 @@ static void on_ble_broadcast_receive(broadcast_mask_id_t id, void *context, int 
 
 static int ble_mac_addr_get(uint8_t *mac)
 {
-    memcpy(mac, ble_obj->priv.mac_addr, BLE_MAC_ADDR_LEN);
+    if (ble_obj->priv.ble_dev && ble_obj->priv.ble_dev->ioctl) {
+        uint32_t args[] = {(uint32_t)mac};
+        int ret = DEVICE_IOCTL_ARGS(ble_obj->priv.ble_dev, OP_CODE_BLE_MAC_ADDR_GET, args);
+        if (ret == 0 && mac) {
+            memcpy(ble_obj->priv.mac_addr, mac, BLE_MAC_ADDR_LEN);
+            return 0;
+        }
+    }
+    // 如果底层获取失败，尝试从缓存读取
+    if (mac) {
+        memcpy(mac, ble_obj->priv.mac_addr, BLE_MAC_ADDR_LEN);
+    }
     return 0;
 }
 
@@ -207,22 +203,20 @@ static int ble_adv_state_set(int state)
     return 0;
 }
 
-static void set_factory_ble_register_cb(factory_ble_recv_data_cb cb)
-{
-    EXCEPTION_CHECK_VOID(cb);
-    ble_obj->priv.factory_cb = cb;
-}
-
-static void set_master_ble_register_cb(master_ble_recv_data_cb cb)
-{
-    EXCEPTION_CHECK_VOID(cb);
-    ble_obj->priv.master_cb = cb;
-}
-
 static void on_connect_status_change(ble_manager_context_t *ctx, int new_status, int forbid_popup)
 {
     window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
     airplane_mode_context_t *ap = (airplane_mode_context_t *)find_module(ID_MODULE_AIRPLANE_MODE);
+
+    //通知app server
+    servers_manager_context_t *servers_ctx = (servers_manager_context_t *)find_module(ID_MODULE_SERVERS);
+    EXCEPTION_CHECK_VOID(servers_ctx && servers_ctx->hook);
+    servers_publish_data_args_t args = {
+        .arg1 = new_status,
+        .arg2 = 0,
+        .val = NULL,
+    };
+    servers_ctx->hook->app_old_protocol_server_data_publish(APP_OLD_COMM_CID_NOTIFY_DISCON, &args);
 
     if (forbid_popup) {
         LOGW("forbid_popup");
@@ -339,12 +333,75 @@ static void ble_data_callback(ble_service_id_e service_id, uint8_t *p_data, uint
         case BLE_SRV_ID_FACTORY:
             ble_obj->dispatch_ble_event_wrapper(ble_obj, BLE_MSG_FAC_RECIVE_DATA, p_data, size);
             break;
-        case BLE_SRV_ID_REMOT:
+        case BLE_SRV_ID_REMOTE:
             ble_obj->dispatch_ble_event_wrapper(ble_obj, BLE_MSG_REMOT_RECIVE_DATA, p_data, size);
             break;
         default:
             break;
     }
+}
+
+static void add_ble_evt_lisenser(void *user_data, int msg_channel, on_ble_evt_data_cb_fptr cb)
+{
+    ble_manager_context_t *obj = ble_obj;
+    list_head_t *head = &obj->priv.client_list;
+    
+    MUTEX_LOCK(obj->priv.m_lock);
+    LIST_FOR_EACH(pos, (head)) { 
+        ble_evt_client_node_t *node = CONTAINER_OF(pos, ble_evt_client_node_t, list);
+        if (node->cb == cb && node->user_data == user_data) {
+            LOGW("ignore dumplicate add.");
+            MUTEX_UNLOCK(obj->priv.m_lock);
+            return;
+        }
+    }
+    ble_evt_client_node_t *node = u_malloz(sizeof(ble_evt_client_node_t));
+    node->cb = cb;
+    node->msg_channel = msg_channel;
+    node->user_data = user_data;
+    __list_add(&node->list, head);
+    LOG_BLE("add: user_data: %lx, msg_channel: %d, cb: %lx", user_data, msg_channel, cb);
+    MUTEX_UNLOCK(obj->priv.m_lock);
+}
+
+static void *list_del_ble_condition_cb(void *data, list_head_t *pos)
+{
+    on_ble_evt_data_cb_fptr cb = (on_ble_evt_data_cb_fptr)data;
+    ble_evt_client_node_t *node = CONTAINER_OF(pos, ble_evt_client_node_t, list);
+    if ((node->cb) == (cb)) {
+        LOG_BLE("del: user_data: %lx, msg_channel: %d, cb: %lx", node->user_data,
+             node->msg_channel, node->cb);
+        return node;
+    }
+
+    return NULL;
+}
+
+static void dispatch_ble_client(ble_manager_context_t *obj, int msg_channel, uint8_t *data, uint16_t size)
+{
+    list_head_t *head = &obj->priv.client_list;
+    LOG_BLE("==> dispatch_ble_client: msg_channel=%d, data=%p, size=%d", msg_channel, data, size);
+    MUTEX_LOCK(obj->priv.m_lock);
+    LIST_FOR_EACH(pos, (head)) { 
+        ble_evt_client_node_t *node = CONTAINER_OF(pos, ble_evt_client_node_t, list);
+        LOG_BLE("==> dispatch_ble_client: checking node, node->msg_channel=%d", node->msg_channel);
+        if (node->msg_channel == msg_channel) {
+            LOG_BLE("==> dispatch_ble_client: calling callback, node->cb=%p", node->cb);
+            node->cb(node->user_data, data, size);
+            LOG_BLE("==> dispatch_ble_client: callback returned");
+        }
+    }
+    MUTEX_UNLOCK(obj->priv.m_lock);
+    LOG_BLE("==> dispatch_ble_client: done");
+}
+
+static void remove_ble_evt_lisenser(on_ble_evt_data_cb_fptr cb)
+{
+    ble_manager_context_t *obj = ble_obj;
+    list_head_t *head = &obj->priv.client_list;
+    MUTEX_LOCK(obj->priv.m_lock);
+    __list_del(head, cb, list_del_ble_condition_cb);
+    MUTEX_UNLOCK(obj->priv.m_lock);
 }
 
 static int on_post_init(void *ptr)
@@ -356,7 +413,11 @@ static int on_post_init(void *ptr)
     if (ctx->priv.ble_dev && ctx->priv.ble_dev->ioctl) {
         DEVICE_IOCTL_ARGS(ctx->priv.ble_dev, OP_CODE_BLE_ADD_EVENT_CALLBACK, ble_event_callback);
     }
-
+    /// 获取BLE MAC地址
+    if (ctx->priv.ble_dev && ctx->priv.ble_dev->ioctl) {
+        uint32_t args[] = {(uint32_t)ctx->priv.mac_addr};
+        DEVICE_IOCTL_ARGS(ctx->priv.ble_dev, OP_CODE_BLE_MAC_ADDR_GET, args);
+    }
     /// 注册BLE数据回调
     if (ctx->priv.ble_dev && ctx->priv.ble_dev->ioctl) {
         DEVICE_IOCTL_ARGS(ctx->priv.ble_dev, OP_CODE_BLE_ADD_DATA_CALLBACK, ble_data_callback);
@@ -368,9 +429,6 @@ static int on_post_init(void *ptr)
     ctx->priv.bcreceiver->id.code |= ID_BROADCAST_CHARGE_STATE_CHANGE;
     ctx->priv.bcreceiver->id.code |= ID_BROADCAST_PM_STATE_CHANGE;
     ctx->priv.bcreceiver->id.code |= ID_BROADCAST_OTA_UPGREADING_CHANGE;
-    ctx->priv.bcreceiver->id.code |= ID_BROADCAST_BREAST_PUMP_MODE_CHANGE;
-    ctx->priv.bcreceiver->id.code |= ID_BROADCAST_BREAST_PUMP_STATE_CHANGE;
-    ctx->priv.bcreceiver->id.code |= ID_BROADCAST_AIRPLANE_MODE_STATE_CHANGE;
     ctx->priv.bcreceiver->receiver_cb = on_ble_broadcast_receive;
     register_broadcast_receiver(ctx->priv.bcreceiver);
     if (ctx->hook && ctx->hook->on_post_init_route) {
@@ -402,8 +460,9 @@ void *register_module_for_ble_manager_new(list_head_t *list_head)
     ptr->set_adv_state = ble_adv_state_set;
     ptr->on_connect_status_change = on_connect_status_change;
     ptr->dispatch_ble_event_wrapper = dispatch_ble_event_wrapper;
-    ptr->set_factory_ble_register_cb = set_factory_ble_register_cb;
-    ptr->set_master_ble_register_cb = set_master_ble_register_cb;
+    ptr->add_ble_evt_lisenser = add_ble_evt_lisenser;
+    ptr->remove_ble_evt_lisenser = remove_ble_evt_lisenser;
+    ptr->dispatch_ble_client = dispatch_ble_client;
     ble_obj = ptr;
     return ADD_MODULE("ble_module", ID_MODULE_BLE, 0, on_post_init, 
         ptr, list_head, sizeof(ble_manager_context_t));

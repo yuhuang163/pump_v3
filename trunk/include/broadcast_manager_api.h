@@ -59,6 +59,7 @@ typedef enum {
     ID_BROADCAST_BREAST_PUMP_FINISH = (1 << 22),            /// 吸奶完成.
     ID_BROADCAST_AIRPLANE_MODE_STATE_CHANGE = (1 << 23),    /// 飞行模式状态改变.
     ID_BROADCAST_UPDATE_MOTOR_WORK_PARAMETER = (1 << 24),   /// 更新马达运行参数.
+    ID_BROADCAST_BREAST_APP_PUMP_INFO_CHANGE = (1 << 25),    /// 吸奶app信息改变.
     
     /// add new broadcast id above this.
     ID_BROADCAST_END,

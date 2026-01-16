@@ -133,7 +133,7 @@ static void hal_trace_fault_handler(void);
 #ifdef TRACE_CPU_IMM_OUTPUT
 #define TRACE_BUF_SIZE                  0
 #else
-#define TRACE_BUF_SIZE                  (4 * 1024)
+#define TRACE_BUF_SIZE                  (16 * 1024)
 #endif
 #endif
 #if defined(TRACE_CPU_IMM_OUTPUT) && (TRACE_BUF_SIZE > 0)

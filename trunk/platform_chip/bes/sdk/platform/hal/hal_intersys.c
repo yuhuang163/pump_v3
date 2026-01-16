@@ -794,11 +794,13 @@ int hal_intersys_send(enum HAL_INTERSYS_ID_T id, enum HAL_INTERSYS_MSG_TYPE_T ty
         }
 
 #if defined(BTC_INTERSYS_DATA_RELAY)
-    if (len <= INTERSYS_BUF_LEN_MAX && DATA_NEED_TRANSFER(data)) {
-        memcpy(intersys_buf_sram[id][i], data, len);
-        data = (const unsigned char *)intersys_buf_sram[id][i];
-    } else {
-        ASSERT(0,"err hci length");
+    if (DATA_NEED_TRANSFER(data)) {
+        if (len <= INTERSYS_BUF_LEN_MAX) {
+            memcpy(intersys_buf_sram[id][i], data, len);
+            data = (const unsigned char *)intersys_buf_sram[id][i];
+        } else {
+            ASSERT(0,"err hci length");
+        }
     }
 #endif
 

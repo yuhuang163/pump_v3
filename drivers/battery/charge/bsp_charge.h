@@ -728,12 +728,14 @@ typedef struct {
 } charge_chip_status_t;
 
 /// 输入电流限制
-#define IBUS_SCALE_CFG                      IBAT_SCALE_2
+#define IBUS_SCALE_CFG                      IBUS_SCALE_2
 #define CHARGE_INPUT_CURRENT_LIMIT          3000
-#if IBUS_SCALE_CFG == IBAT_SCALE_2
+#if IBUS_SCALE_CFG == IBUS_SCALE_2
 #define CHARGE_INPUT_CURRENT_LIMIT_SCALE    50
+#define CHARGE_ADC_CURRENT_LIMIT_SCALE      12.5f
 #else
 #define CHARGE_INPUT_CURRENT_LIMIT_SCALE    25
+#define CHARGE_ADC_CURRENT_LIMIT_SCALE      6.25f
 #endif
 
 /// 输入电压限制
@@ -747,12 +749,14 @@ typedef struct {
 
 /// 电池输入/输出电流限制
 #define IBAT_SCALE_CFG                      IBAT_SCALE_2
-#define BATT_INPUT_CURRENT_LIMIT            2500
+#define BATT_INPUT_CURRENT_LIMIT            1500 // 2500
 #define BATT_OUTPUT_CURRENT_LIMIT           3000
 #if IBAT_SCALE_CFG == IBAT_SCALE_2
 #define BATT_CURRENT_LIMIT_SCALE            50
+#define BATT_ADC_CURRENT_LIMIT_SCALE        12.5f
 #else
 #define BATT_CURRENT_LIMIT_SCALE            25
+#define BATT_ADC_CURRENT_LIMIT_SCALE        6.25f
 #endif
 
 /// 电池输入/输出电压限制

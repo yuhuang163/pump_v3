@@ -40,6 +40,8 @@ void breast_pump_policy_prepare(struct motor_manager_context *thiz, uint8_t acti
 void negative_pressure_release(struct motor_manager_context *thiz);
 /// 爬升策略
 int pump_climb_policy_update(struct motor_manager_context *thiz, suction_strategy_mapping_t *map);
+/// 体验模式用户策略
+int taste_mode_user_policy_update(struct motor_manager_context *thiz, suction_strategy_mapping_t *map, uint8_t pump_id);
 
 #ifdef __cplusplus
 }

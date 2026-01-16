@@ -35,35 +35,43 @@
 #include "vg_lite_kernel.h"
 #include "hal_trace.h"
 #include "gpu_port.h"
-#include "vg_lite_options.h"
+#include "vg_lite_config.h"
+#include "../VGLiteKernel/vg_lite_option.h"
 
 #define DUMP_CAPTURE                            0
-#define DUMP_COMMAND_BY_USER                    0
 #define DUMP_COMMAND_CAPTURE                    0
+#define DUMP_INIT_COMMAND                       0
 #define DUMP_API                                0
+#define DUMP_LAST_CAPTURE                       0
 
 #if DUMP_API
 #include "dumpAPI.h"
 #endif
 
 #undef vg_lite_os_malloc
-#define vg_lite_os_malloc  gpu_hal_malloc
+#define vg_lite_os_malloc   gpu_hal_malloc
 #undef vg_lite_os_free
-#define vg_lite_os_free  gpu_hal_free
+#define vg_lite_os_free     gpu_hal_free
+#define vg_lite_os_lock     gpu_hal_os_lock
+#define vg_lite_os_unlock   gpu_hal_os_unlock
+#define vg_lite_os_set_tls  gpu_hal_os_set_tls
+#define vg_lite_os_get_tls  gpu_hal_os_get_tls
 
 #if gcFEATURE_VG_TRACE_API
 #define VGLITE_LOG(...)   TR_INFO(TR_MOD(HAL), "//" __VA_ARGS__)
 #endif
 
-/*** Global Context Access ***/
-#define GET_CONTEXT()               &s_context
-
 /*** Default command buffer size is 32KB. Double command buffer is used.
      App can call vg_lite_set_command_buffer_size(size) before vg_lite_init()
      to overwrite the default command buffer size.
 ***/
-#define VG_LITE_COMMAND_BUFFER_SIZE (32 << 10)
-#define VG_LITE_SINGLE_COMMAND_BUFFER_SIZE (64 << 10) /* For only using one command buffer. */
+#ifdef GPU_CMDBUF_SIZE
+#define VG_LITE_COMMAND_BUFFER_SIZE         (GPU_CMDBUF_SIZE)
+#define VG_LITE_SINGLE_COMMAND_BUFFER_SIZE  (GPU_CMDBUF_SIZE * 2)
+#else
+#define VG_LITE_COMMAND_BUFFER_SIZE         (32 << 10)
+#define VG_LITE_SINGLE_COMMAND_BUFFER_SIZE  (64 << 10) /* For only using one command buffer. */
+#endif
 
 #define CMDBUF_BUFFER(context)      (context).command_buffer[(context).command_buffer_current]
 #define CMDBUF_INDEX(context)       (context).command_buffer_current
@@ -85,7 +93,6 @@
 
 #define FC_BURST_BYTES              64
 #define FC_BIT_TO_BYTES             64
-#define DEST_ALIGNMENT_LIMITATION   64  /* To match hardware alignment requirement */
 
 #define STATES_COUNT                208
 #define MIN_TS_SIZE                 8 << 10
@@ -223,14 +230,33 @@ typedef struct vg_lite_context {
     uint32_t                    color_transform;
     uint32_t                    path_counter;
     vg_lite_filter_t            filter;
+#if DUMP_LAST_CAPTURE
+    void*                       last_command_buffer_logical;
+    size_t                      Physical;
+    uint32_t                    last_command_size;
+#endif
 
+    vg_lite_uint32_t            split_set;
 } vg_lite_context_t;
 
 typedef struct vg_lite_ftable {
     uint32_t                    ftable[gcFEATURE_COUNT];
 } vg_lite_ftable_t;
 
-extern vg_lite_context_t        s_context;
+typedef struct {
+    vg_lite_context_t s_context;
+} vg_lite_task_t;
+
+/*** Task Global Context Access ***/
+static inline vg_lite_context_t *GET_CONTEXT(void)
+{
+    vg_lite_task_t *task = vg_lite_os_get_tls();
+    if (task)
+        return &task->s_context;
+    else
+        return NULL;
+}
+
 extern vg_lite_ftable_t         s_ftable;
 
 extern vg_lite_error_t set_render_target(vg_lite_buffer_t* target);
@@ -249,6 +275,11 @@ extern vg_lite_void save_st_gamma_src_dest(vg_lite_buffer_t* source, vg_lite_buf
 extern vg_lite_void get_st_gamma_src_dest(vg_lite_buffer_t* source, vg_lite_buffer_t* target);
 
 extern vg_lite_void setup_lvgl_image(vg_lite_buffer_t* dst, vg_lite_buffer_t* src, vg_lite_buffer_t* temp, vg_lite_blend_t operation);
+
+extern vg_lite_void calculate_step_value(vg_lite_filter_t filter, vg_lite_matrix_t* inverse_matrix, vg_lite_int32_t width, vg_lite_int32_t height,
+                                         vg_lite_float_t x_step[3], vg_lite_float_t y_step[3], vg_lite_float_t c_step[3]);
+
+extern vg_lite_float_t _calc_decnano_compress_ratio(vg_lite_buffer_format_t format, vg_lite_compress_mode_t compress_mode);
 
 /**************************** Dump command, image ********************************************/
 
@@ -276,6 +307,12 @@ char filename[30];
 #   define vgliteDUMP_KEY                       "process"
 #endif
 
+#if DUMP_LAST_CAPTURE
+void _SetDumpFileInfo();
+vg_lite_error_t vglitefDumpBuffer_single(char* Tag, size_t Physical, void* Logical, size_t Offset, size_t Bytes);
+#define vglitemDUMP_single                             vglitefDump
+#define vglitemDUMP_BUFFER_single                     vglitefDumpBuffer_single
+#endif
 #if DUMP_CAPTURE
 void _SetDumpFileInfo();
 vg_lite_error_t vglitefDump(char* String, ...);
@@ -288,4 +325,5 @@ static inline void __dummy_dump_buffer(char* Tag, size_t Physical, void* Logical
 #define vglitemDUMP                             __dummy_dump
 #define vglitemDUMP_BUFFER                      __dummy_dump_buffer
 #endif
-/**************************** Capture ********************************************/
+
+/**********************************************************************************************/

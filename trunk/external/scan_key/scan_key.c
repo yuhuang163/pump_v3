@@ -87,6 +87,7 @@ static void scan_key_read(scan_key_ctrl_data_t *key_ctrl, scan_key_data_t *key_d
 {
     uint8_t key_change = 0;
     uint32_t key_value = platform_all_key_value(); 
+    // LOG_KEY("key_value: %x", key_value);
     /// 按键空闲计数
     if (key_value == 0) {
         long_press_flag = 0; // 释放所有按键后,长按标志位清零

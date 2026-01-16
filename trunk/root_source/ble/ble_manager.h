@@ -10,6 +10,13 @@ extern "C" {
 ******************************************************************************/
 #include "root_common_api.h" // IWYU pragma: keep
 
+typedef struct {
+    void *user_data;
+    int msg_channel; /// 消息通道
+    on_ble_evt_data_cb_fptr cb;
+    list_head_t list;
+} ble_evt_client_node_t;
+
 /*
 * INTERNAL FUNCTION DECLARATION
 *****************************************************************************************

@@ -43,7 +43,7 @@ extern "C" {
 /// public
 extern uint16_t g_log_level_set;
 extern uint32_t g_log_filter;
-
+uint16_t get_log_output_level(void);
 uint64_t platform_get_utc_time_ms(void);
 uint32_t platform_get_utc_time(void);
 int platform_get_tid(void);
@@ -52,6 +52,8 @@ void init_user_log_filter(void);
 uint32_t get_log_filter(void);
 uint32_t get_timestamp(void);
 uint32_t get_timestamp_ms(uint32_t time_tick);
+void set_log_ouput_level(uint16_t level);
+uint16_t get_log_output_level(void);
 
 /// log level define
 typedef enum {
@@ -87,8 +89,9 @@ typedef enum{
     FILTER_AIR = 1 << 20,
     FILTER_STORE = 1 << 21,
     FILTER_HG = 1 << 22,
-    FILTER_LED = 1 << 23,
+    FILTER_SRV = 1 << 23,
     FILTER_STEP = 1 << 24,
+    FILTER_TEST = 1 << 25,
     FILTER_FULL = -1,
 } log_filter_enum_t;
 
@@ -133,7 +136,7 @@ typedef enum{
 #define LOG_MISC(...)       do { IS_FILTER(FILTER_MISC)     { LOGI_TAG("LOG_MISC", __VA_ARGS__); } } while(0)
 #define LOG_PMP(...)        do { IS_FILTER(FILTER_PMP)      { LOGI_TAG("LOG_PMP", __VA_ARGS__); } } while(0)
 #define LOG_MOTOR(...)      do { IS_FILTER(FILTER_MOTOR)    { LOGI_TAG("LOG_MOTOR", __VA_ARGS__); } } while(0)
-#define LOG_SENSOR(...)     do { IS_FILTER(FILTER_SENSOR)   { LOGI_TAG("LOG_FSENSOR", __VA_ARGS__); } } while(0)
+#define LOG_SENSOR(...)     do { IS_FILTER(FILTER_SENSOR)   { LOGI_TAG("LOG_SENSOR", __VA_ARGS__); } } while(0)
 #define LOG_DB(...)         do { IS_FILTER(FILTER_DB)       { LOGW_TAG("LOG_DB", __VA_ARGS__); } } while(0)
 #define LOG_BCR(...)        do { IS_FILTER(FILTER_BCR)      { LOGI_TAG("LOG_BCR", __VA_ARGS__); } } while(0)
 #define LOG_HDR(...)        do { IS_FILTER(FILTER_HDR)      { LOGI_TAG("LOG_HDR", __VA_ARGS__); } } while(0)
@@ -141,13 +144,13 @@ typedef enum{
 #define LOG_OTA(...)        do { IS_FILTER(FILTER_OTA)      { LOGW_TAG("LOG_OTA", __VA_ARGS__); } } while(0)
 #define LOG_TIME(...)       do { IS_FILTER(FILTER_TIME)     { LOGI_TAG("LOG_TIME", __VA_ARGS__); } } while(0)
 #define LOG_ALGO(...)       do { IS_FILTER(FILTER_ALGO)     { LOGI_TAG("LOG_ALGO", __VA_ARGS__); } } while(0)
-#define LOG_PROTOCOL(...)   do { IS_FILTER(FILTER_PROTOCOL) { LOGI_TAG("LOG_PROTOCOL", __VA_ARGS__); } } while(0)
+#define LOG_PROTOCOL(...)   do { IS_FILTER(FILTER_PROTOCOL) { LOGI_TAG("LOG_PTCL", __VA_ARGS__); } } while(0)
 #define LOG_AUDIO(...)      do { IS_FILTER(FILTER_AUDIO)    { LOGI_TAG("LOG_AUDIO", __VA_ARGS__); } } while(0)
 #define LOG_AIR(...)        do { IS_FILTER(FILTER_AIR)      { LOGD_TAG("LOG_AIR", __VA_ARGS__); } } while(0)
 #define LOG_STORE(...)      do { IS_FILTER(FILTER_STORE)    { LOGW_TAG("LOG_STORE", __VA_ARGS__); } } while(0)
 #define LOG_HG(...)         do { IS_FILTER(FILTER_HG)       { LOGW_TAG("LOG_HG", __VA_ARGS__); } } while(0)
-#define LOG_LED(...)        do { IS_FILTER(FILTER_LED)      { LOGW_TAG("LOG_LED", __VA_ARGS__); } } while(0)
-
+#define LOG_SRV(...)        do { IS_FILTER(FILTER_SRV)      { LOGI_TAG("LOG_SRV", __VA_ARGS__); } } while(0)
+#define LOG_TEST(...)      do { IS_FILTER(FILTER_TEST)      { LOGI_TAG("LOG_TEST", __VA_ARGS__); } } while(0)
 /*
 * 进度日志输出.
 */
@@ -164,18 +167,28 @@ typedef enum{
 
 #define LOG_HEX(tag, data, size)  \
 do { \
+    if (get_log_output_level() < US_LOG_LEVEL_INFO) { \
+        break; \
+    } \
     uint32_t lenght = (size * 3) + 8;\
     if (lenght < 512) { lenght = 512;}\
     char *log_str = u_malloz(lenght);\
     if (log_str == NULL) { break; }\
+    const uint8_t *hex_data__ = (const uint8_t *)(data); \
     for (uint16_t i = 0; i < size; i++) { \
-        sprintf((log_str + (i * 3)) , "%02X ", data[i]); \
+        sprintf((log_str + (i * 3)) , "%02X ", (unsigned)hex_data__[i]); \
     } \
     PRINT_LOG("%s:%s\r\n", tag, log_str); \
     u_free(log_str);\
 } while (0)
 
-
+#define LOG_PASS(format, args...) \
+do { \
+    if (get_log_output_level() < US_LOG_LEVEL_INFO) { \
+        break; \
+    } \
+    PRINT_LOG(format, ##args); \
+} while(0)
 
 #else /// LOG_OUT_SUPPORT
 
@@ -209,6 +222,8 @@ do { \
 #define LOGI(format, args...) do { } while(0)
 #define LOGD(format, args...) do { } while(0)
 #define LOGV(format, args...) do { } while(0)
+#define LOG_HEX(tag, data, size) do { } while(0)
+#define LOG_PASS(format, args...) do { } while(0)
 
 #endif /// LOG_OUT_SUPPORT
 

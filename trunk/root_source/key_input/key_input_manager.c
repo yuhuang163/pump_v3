@@ -10,6 +10,8 @@
 *****************************************************************************************
 */
 #define KEY_LOCK_LOG                     LOG_KEY
+#define SYS_SOFT_RESET_CODE              KEY_CODE_8
+
 #if 0
 #define MUTEX_LOCK_KEY(__lock)           do { KEY_LOCK_LOG("=>LOCK_KEY"); MUTEX_LOCK(__lock); } while (0)
 #define MUTEX_UNLOCK_KEY(__lock)         do {  MUTEX_UNLOCK(__lock); KEY_LOCK_LOG("=>UNLOCK_KEY"); } while (0)
@@ -99,57 +101,23 @@ static const char *to_event_name(uint32_t keytype)
         case KEY_EVENT_LONG_AFTER_CLICK:
             return ":long_press_after_click";
         default:
-            LOGE("keytype: %ld", keytype);
+            LOGW("keytype: %ld", keytype);
             return "unknow";
     }
 }
 
-#if IS_SUPPORT_KEY_SOFT_RESET
-/// 长按15s强制reset系统.
-static int on_spec_press_key_handler(void *user_data, uint16_t keycode, uint16_t keytype)
-{
-    window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
-    power_manager_context_t *pm = (power_manager_context_t *)find_module(ID_MODULE_POWER);
-    static uint32_t down_time = 0;
-    uint32_t diff_time = 0;
-
-    LOG_KEY("keycode: %x, keytype: %x", keycode, keytype);
-
-    if (keytype == KEY_EVENT_DOWN) {
-        down_time = get_timestamp();
-        return 0;  
-    } else if (keytype == CUST_KEY_EVENT_FORCE_RESET) {
-        diff_time = get_timestamp_ms(down_time);
-        if (diff_time < 7000) {
-            LOGE("ignore diff_time: %ld", diff_time);
-            return 0;
-        }  
-    } else {
-        LOGE("invalid event, ignore: %d, %d", keycode, keytype);
-        return -1;
-    }
-
-    pm->acquire_wakelock("reboot", 10);
-
-    LOGE("(%ld)Oops! we will reset system!", diff_time);
-    storage_manager_context_t *st = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
-
-    LOGE("==========RESET_AND_REBOOT==========");
-    st->factory_reset(RESET_AND_REBOOT);
-
-    return 0;
-}
-#endif
-
 static void internal_keyevent_callback(void *user_data, uint16_t keycode, uint16_t keytype)
 {
     key_input_context_t *input = thiz;
-
 #if IS_SUPPORT_KEY_SOFT_RESET      
-    if (keycode == KEY_CODE_1) {
-        if (keytype == KEY_EVENT_DOWN || keytype == CUST_KEY_EVENT_FORCE_RESET) {
-            on_spec_press_key_handler(NULL, keycode, keytype);
-        }
+    if (keycode == SYS_SOFT_RESET_CODE && keytype == KEY_EVENT_LONG_10S) {
+        LOG_KEY("sys soft reset");
+        window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
+        EXCEPTION_CHECK_VOID(wm);
+        multi_func_msg_data_t msg = {0};
+        msg.union_body.extra.window_id = ID_WINDOW_FACTORY_RESET;
+        wm->dispatch_new_window_args(wm, &msg);
+        return;
     }
 #endif 
 
@@ -202,8 +170,6 @@ static void *list_del_condition_cb(void *data, list_head_t *pos)
 static int on_post_key_input_init(void *ptr)
 {
     key_input_context_t *ctx = ptr;
-
-
     #if (!IS_INPUT_KEY_TASK_POST_UI_THREAD)
     RUN_NEW_THREAD(&ctx->priv.key_evt_ctx.keyevent_thd, "keyevent_thd", 
         key_input_internal_dispatch_thread, RT_PRIO_KEY_INPUT_DISPATCH_THREAD, INPUT_KEY_THREAD_STACKSIZE);
@@ -245,7 +211,7 @@ static void key_input_internal_dispatch_thread(const void *args)
         keytype = msg.union_body.parms_16[1];
 
         if (wm->is_on_window_dispatch(wm)) {
-            LOGE("on_window_dispatch, ignore: key_event(%d, %d)", keycode, keytype);
+            LOGW("on_window_dispatch, ignore: key_event(%d, %d)", keycode, keytype);
             continue;
         }
 
@@ -275,7 +241,7 @@ static void add_keyevent_handler_extra(const char *caller, void *user_data, uint
             && node->handler.cb == cb
             && node->handler.keycode == keycode
             && node->handler.keytype == keytype) {
-            LOGE("ignore dumplicate add.");
+            LOGW("ignore dumplicate add.");
             MUTEX_UNLOCK_KEY(thiz->priv.key_evt_lock);
             return;
         }
@@ -325,7 +291,7 @@ static int dispatch_key_event_wrapper(void *context, int keycode, int keytype)
 
     if (ctx->hook && ctx->hook->get_key_code_name) {
         const char *name = ctx->hook->get_key_code_name(keycode);
-        LOG_KEY("event: %s/%s\n", name, to_event_name(keytype));
+        LOG_KEY("event: %d/%s/%s\n", keycode, name, to_event_name(keytype));
     } else {
         LOG_KEY("event: %d/%s\n", keycode, to_event_name(keytype));
     }

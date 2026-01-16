@@ -21,10 +21,16 @@ typedef enum {
  * 产品信息
 */
 #ifndef ROOT_PRODUCT_ID
-#define ROOT_PRODUCT_ID                               1
+#define ROOT_PRODUCT_ID                               PRODUCT_INFO_V3_VALUE
 #endif
 
-#if (ROOT_PRODUCT_ID == 1)
+#if (ROOT_PRODUCT_ID == PRODUCT_INFO_V3PRO_VALUE)
+#define DEFAULT_PID_CODE    0x09
+#else
+#define DEFAULT_PID_CODE    0x08
+#endif
+
+#if (ROOT_PRODUCT_ID == PRODUCT_INFO_V3PRO_VALUE)
 #define ROOT_FW_NAME                                  "BREAST_PUMP_V3PRO"
 #define ROOT_DEVICE_NAME                              "V3PRO"
 #else
@@ -48,18 +54,37 @@ typedef enum {
 #define ROOT_OTA_UPGRADE_TYPE                          4
 
 /**
+ * 硬件版本从100-900
+*/
+#define ROOT_HARDWARE_VERSION                          100
+#define ROOT_HW_VERSION_STR                            "100"
+
+
+/**
+ * 芯片平台从10-90
+*/
+#define ROOT_SOC_PLAT                                 10
+#define ROOT_SOC_PLAT_STR                            "10"
+
+/**
  * 正式版本从100-900
 */
-#define ROOT_FIRMWARE_VERSION                          100
-#define ROOT_FW_VERSION_STR                            "100"
+#define ROOT_FIRMWARE_VERSION                          102
+#define ROOT_FW_VERSION_STR                            "102"
 
 /**
  * 资源版本号定义(major*100 + minor)
  * major版本表示固件支持的资源版本. 
  * minor表示资源差异化的版本.
 */
-#define ROOT_RES_MAJOR_VERSION                         (01)
-#define ROOT_RES_MINOR_VERSION                         (01)
+#if V3_UI_VERSION == V3_UI_V2
+#define ROOT_RES_PATH                                  "V2" /// 资源路径
+#else
+#define ROOT_RES_PATH                                  "V1" /// 资源路径
+#endif
+#define ROOT_RES_VERSION                               (100) 
+#define ROOT_RES_MAJOR_VERSION                         (ROOT_RES_VERSION / 100)
+#define ROOT_RES_MINOR_VERSION                         (ROOT_RES_VERSION % 100)
 
 /**
  * 算法采测版本号:

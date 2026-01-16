@@ -92,7 +92,7 @@ static void add_imu_irq_cb_hanlder(hdr_post_args_t *args)
     sensor_manager_context_t *ctx = args->user_data;
     rt_device_node_t *dev = ctx->priv.imu.dev;
     if (dev && dev->ioctl) {
-        LOGI("add irq cb");
+        LOG_SENSOR("add irq cb");
         DEVICE_IOCTL_ARGS(dev, OP_CODE_IMU_ADD_IRQ_CALLBACK, imu_irq_callback);
     }
 }

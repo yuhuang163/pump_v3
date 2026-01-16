@@ -2,9 +2,7 @@
 * INCLUDE FILES
 *****************************************************************************************
 */
-#include "root_common_api.h" // IWYU pragma: keep
-#include "windows_manager.h" 
-#include "windows_map_define.h" // IWYU pragma: keep
+#include "window_screen_airplane_mode.h" // IWYU pragma: keep
 
 /*
 * DEFINES

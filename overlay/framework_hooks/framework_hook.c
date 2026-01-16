@@ -79,9 +79,9 @@ void framework_extra_hook(void)
     CHECK_IF_VALID(product_tests_ctx, {
         register_product_tests_hook(product_tests_ctx);
     });
-    /// 协议解析钩子.
-    protocol_manager_context_t *protocol_manager_ctx = (protocol_manager_context_t *)find_module(ID_MODULE_PROTOCOL);
-    CHECK_IF_VALID(protocol_manager_ctx, {
-        register_protocol_manager_hook(protocol_manager_ctx);
-   });
+    /// 注册服务器管理钩子.
+    servers_manager_context_t *servers_manager_ctx = (servers_manager_context_t *)find_module(ID_MODULE_SERVERS);
+    CHECK_IF_VALID(servers_manager_ctx, {
+        register_servers_manager_hook(servers_manager_ctx);
+    });
 }

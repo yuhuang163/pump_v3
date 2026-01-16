@@ -27,12 +27,13 @@ typedef enum {
  * 描述ota管理上下文对象
  */
 struct broadcast_obj;
+struct rt_device_node;
 typedef struct ota_manager_context {
 /// private
     struct __ota_private {
         thread_context_t ota_work_thd;
-        os_timer_id ota_timer[OTA_TIMER_MAX];
         struct broadcast_obj *ota_bcd;
+        struct rt_device_node *ble_dev;
         bool is_working;
         uint8_t ota_progress;
         ota_upgrade_state_e ota_state;

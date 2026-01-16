@@ -52,7 +52,7 @@ typedef struct {
     ble_srv_data_type_e data_type; /// 数据类型
 } ble_service_data_t;
 
-
+/// 描述ble消息ID.
 typedef enum {
     BLE_MSG_ADV_START_OK = 0, /// 广播启动成功
     BLE_MSG_ADV_STOP_OK, /// 广播停止成功
@@ -65,13 +65,6 @@ typedef enum {
     BLE_MSG_PERIPH_DISCONN, /// 设备断开连接
     BLE_MSG_PERIPH_CONNECT_SUC, /// 设备连接成功
     BLE_MSG_PERIPH_DISCONN_SUC, /// 设备断开连接成功
-    BLE_MSG_SEND_PUMP_REALTIME_INFO, /// 发送泵奶实时信息
-    BLE_MSG_SEND_ALGO_REMIND_DATA, /// 发送算法提醒数据
-    BLE_MSG_SEND_DEVICE_REMIND_DATA, /// 发送设备提醒数据
-    BLE_MSG_AIRPLANE_MODE_CHANGE, /// 飞行模式改变
-    BLE_MSG_BREAST_PUMP_STATE_CHANGE, /// 泵奶状态改变
-    BLE_MSG_BREAST_PUMP_MODE_CHANGE, /// 泵奶模式改变
-    BLE_MSG_NOTIY_APP_SETTINGS,  /// 提醒手柄收到了APP下发任意设置
     BLE_MSG_MASTER_SEND_DATA, /// 发送主设备数据
     BLE_MSG_MASTER_RECIVE_DATA, /// 主设备接收数据
     BLE_MSG_FAC_SEND_DATA, /// 发送工厂设备数据
@@ -80,6 +73,7 @@ typedef enum {
     BLE_MSG_REMOT_RECIVE_DATA, /// 远程设备接收数据
 } ble_msg_id_e;
 
+/// 描述ble消息处理函数.
 typedef void (*ble_msg_process_func)(void *context, void *data, int data_len);
 
 /// 描述ble消息处理结构.
@@ -100,14 +94,10 @@ typedef struct {
     int16_t connect_id;
 } ble_event_connect_t;
 
-/// 描述工厂ble接收回调.
-typedef uint16_t (*factory_ble_recv_data_cb)(void *ctx, uint8_t *p_data, uint16_t ulLen);
-/// 描述master ble接收回调.
-typedef uint16_t (*master_ble_recv_data_cb)(void *ctx, uint8_t *p_data, uint16_t ulLen);
-
 /// 描述ble发送数据结构.
 typedef uint16_t (*ble_send_data)(uint8_t *p_data, uint16_t ulLen);
-
+/// 描述ble事件回调函数
+typedef void (*on_ble_evt_data_cb_fptr)(void *user_data, uint8_t *data, uint16_t data_len);
 /// 描述ble服务接收发送接口结构.
 typedef struct {
     ble_service_recv_t recv_state;
@@ -126,9 +116,8 @@ typedef struct ble_manager_context {
     struct __ble_manager_private {
         thread_context_t ble_work_thd;
         struct broadcast_obj *bcreceiver;
-
-        // ble_msg_mem_poll_t mem_pool;
-        // sensor_collect_interface_t collect_if;  /// 算法采测接口
+        os_mutex_id m_lock;
+        list_head_t client_list;
         struct rt_device_node *ble_dev;
         uint8_t mac_addr[BLE_MAC_ADDR_LEN];
         uint8_t adv_speed_flag;     /// 广播速度标记，快或慢 
@@ -137,9 +126,6 @@ typedef struct ble_manager_context {
         uint8_t ble_connect_state;
         uint8_t fac_enter_sleep;
         uint16_t connect_idx;
-
-        factory_ble_recv_data_cb factory_cb;
-        master_ble_recv_data_cb master_cb;
     } priv;
 /// public
     int (*get_mac_addr)(uint8_t *addr);
@@ -154,8 +140,9 @@ typedef struct ble_manager_context {
     int (*set_adv_speed)(int flag);
     int (*get_adv_state)(void);
     int (*set_adv_state)(int state);
-    void (*set_factory_ble_register_cb)(factory_ble_recv_data_cb cb);
-    void (*set_master_ble_register_cb)(master_ble_recv_data_cb cb);
+    void (*add_ble_evt_lisenser)(void *user_data, int msg_channel, on_ble_evt_data_cb_fptr cb);
+    void (*remove_ble_evt_lisenser)(on_ble_evt_data_cb_fptr cb);
+    void (*dispatch_ble_client)(struct ble_manager_context *obj, int msg_channel, uint8_t *data, uint16_t size);
     void (*on_connect_status_change)(struct ble_manager_context *ctx, int new_status, int popup);
     int (*dispatch_ble_event_wrapper)(struct ble_manager_context *ctx, uint8_t _msg_id, uint8_t *_data, int _data_len);
     /// 钩子函数指针.

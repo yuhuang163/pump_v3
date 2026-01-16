@@ -31,6 +31,7 @@
 #include "mpu_cfg.h"
 #include "pmu.h"
 #include "hal_evr.h"
+#include "lv_main.h"
 
 #if defined(AON_MAILBOX_SIZE) && (AON_MAILBOX_SIZE > 0)
 #include "heap_api.h"
@@ -79,11 +80,19 @@
 #include "factory_section.h"
 #endif
 
+#if defined(SDIO_WIFI_TEST) || defined(USB_WIFI_TEST) || defined(DSPI_WIFI_TEST) || defined(MSPI_WIFI_TEST)
+#include "conn.h"
+#endif
+
+#if defined(USE_BES_RPCHAN) && defined(OPENAMP_ENABLE)
+#include "rpchan/bes_rpchan.h"
+#endif
+
 #ifdef SIMU
 #define TIMER_IRQ_PERIOD_MS             3
 #define DELAY_PERIOD_MS                 4
 #elif defined(SLEEP_TEST) && (SLEEP_TEST)
-#define TIMER_IRQ_PERIOD_MS             2000
+#define TIMER_IRQ_PERIOD_MS             3000
 #define DELAY_PERIOD_MS                 4000
 #else
 #define TIMER_IRQ_PERIOD_MS             1000
@@ -212,14 +221,17 @@ static void sleep_test_exec_loop_callback(void)
 static bool wakeup_flag = false;
 #endif
 #else
-POSSIBLY_UNUSED static HWTIMER_ID hw_timer = NULL;
+static HWTIMER_ID hw_timer = NULL;
 
-volatile static uint32_t start = 0;
-void timer_handler(void *param)
+static void timer_handler(void *param)
 {
-    TR_INFO_TIME(TR_MOD(MAIN), "gpio toggle: %u", (uint32_t)param);
-    start = 1;
-    }
+    TR_INFO_TIME(TR_MOD(MAIN), "Timer handler: %u", (uint32_t)param);
+
+    sleep_test_exec_timer_callback(param);
+
+    hwtimer_start(hw_timer, MS_TO_TICKS(TIMER_IRQ_PERIOD_MS));
+    TR_INFO_TIME(TR_MOD(MAIN), "Start timer %u ms", TIMER_IRQ_PERIOD_MS);
+}
 #endif
 
 static int (*key_cb[3])(uint32_t, uint8_t);
@@ -351,6 +363,10 @@ static void run_test_cases(void)
     lc3_test();
 #endif
 
+#ifdef L2HC_TEST
+    l2hc_test();
+#endif
+
 #ifdef SBC_TEST
     sbc_test();
 #endif
@@ -377,6 +393,10 @@ static void run_test_cases(void)
 
 #ifdef USB_MTP_TEST
     usb_mtp_test();
+#endif
+
+#ifdef USB_MSD_TEST
+    usb_msd_test();
 #endif
 
 #ifdef USB_SERIAL_DIRECT_XFER_TEST
@@ -445,6 +465,10 @@ static void run_test_cases(void)
 
 #ifdef A7_DSP_TEST
     a7_dsp_test();
+#endif
+
+#if defined(LOAD_LINUX)
+    fw_linux_main();
 #endif
 
 #ifdef A55_TEST
@@ -630,6 +654,10 @@ static void run_test_cases(void)
     qspi_lcdc_test();
 #endif
 
+#ifdef RGBIF_LCDC_TEST
+    rgbif_lcdc_test();
+#endif
+
 #ifdef QSPI_TEST
     qspi_test();
 #endif
@@ -730,12 +758,21 @@ static void run_test_cases(void)
     jiayu_test();
 #endif
 
+#ifdef LVGL_TEST
+extern void lvgl_test(void);
+    lvgl_test();
+#endif
+
 #if (defined(WIFI_TEST) || defined(BTHCI_ENABLE)) && defined(FLASH_NV_FACTORY)
     flash_init_factory();
 #endif
 
 #if defined(BTHCI_ENABLE) && !defined(CONN_HOST_POWER_CTRL)
     hci_open();
+#endif
+
+#if defined(SDIO_WIFI_TEST) || defined(USB_WIFI_TEST) || defined(DSPI_WIFI_TEST) || defined(MSPI_WIFI_TEST)
+    conn_device_init();
 #endif
 
 #ifdef WIFI_TEST
@@ -782,12 +819,12 @@ static void run_test_cases(void)
     pmu_wdt_test();
 #endif
 
-#if defined(LOAD_LINUX)
-    fw_linux_main();
-#endif
-
 #ifdef OSC_WAKEUP_TEST
     osc_wakeup_test();
+#endif
+
+#ifdef CHIP_WAKEUP_TEST
+    chip_wakeup_test();
 #endif
 
 #if !(defined(SLEEP_TEST) && (SLEEP_TEST))
@@ -816,10 +853,16 @@ static void run_test_cases(void)
 // GDB can set a breakpoint on the main function only if it is
 // declared as below, when linking with STD libraries.
 
+#if defined(GENERAL_SPI_MASTER)
+extern "C" void spi_host_test(void);
+#elif defined(GENERAL_SPI_SLAVE)
+extern "C" void spi_slv_test(void);
+#endif
+
 int MAIN_ENTRY(void)
 {
     int POSSIBLY_UNUSED ret;
-    POSSIBLY_UNUSED enum HAL_CMU_FREQ_T sys_freq;
+    enum HAL_CMU_FREQ_T sys_freq;
 
     hwtimer_init();
     hal_audma_open();
@@ -846,6 +889,11 @@ int MAIN_ENTRY(void)
 #endif
 #endif
 
+#if defined(USE_BES_RPCHAN) && defined(OPENAMP_ENABLE)
+    bes_rpchan_init();
+    bes_rpchan_start_all();
+#endif
+
 #ifdef EVR_TRACING
     hal_evr_init(0);
 #endif
@@ -868,6 +916,11 @@ int MAIN_ENTRY(void)
 
 #if defined(CHIP_BEST1503) && defined(RC_CLK_ENABLE)
     hal_sysfreq_select_clock(HAL_SYSFREQ_SELECT_CLOCK_RC);
+#endif
+
+#ifdef NOAPP_WAIT_PWRKEY
+    while (hal_pwrkey_pressed());
+    while (!hal_pwrkey_pressed());
 #endif
 
 #ifdef REBOOT_TEST
@@ -895,19 +948,20 @@ int MAIN_ENTRY(void)
     TR_INFO(TR_MOD(MAIN), "TIP: Long press PwrKey to switch between I2C and UART0");
 #endif
 
-    run_test_cases();
-
-#if defined(CP_AS_SUBSYS)
-    *((volatile uint32_t*)0x40085080) = 0xFFFFFFFF;
-    *((volatile uint32_t*)0x40085084) = 0xFFFFFFFF;
-    *((volatile uint32_t*)0x40085088) |= 0xFFFF;
-    hal_sysfreq_req(HAL_SYSFREQ_USER_INIT, HAL_CMU_FREQ_32K);
-
-    while(1) {
-        osSignalWait(0x0, osWaitForever);
+#ifdef LPO_TEST
+    for (int i = 0; i < 100; i++) {
+        hal_sys_timer_calib();
+        TR_INFO(TR_MOD(MAIN), "LPO freq: %u", hal_sys_timer_systick_hz() << 1);
     }
-
 #endif
+
+#if defined(GENERAL_SPI_MASTER)
+    spi_host_test();
+#elif defined(GENERAL_SPI_SLAVE)
+    spi_slv_test();
+#endif
+
+    run_test_cases();
 
 #ifdef NO_TIMER
 #if defined(SLEEP_TEST) && (SLEEP_TEST)
@@ -921,10 +975,9 @@ int MAIN_ENTRY(void)
 #endif
 #else
     hw_timer = hwtimer_alloc(timer_handler, 0);
-  //  hwtimer_start(hw_timer, MS_TO_TICKS(TIMER_IRQ_PERIOD_MS));
+    hwtimer_start(hw_timer, MS_TO_TICKS(TIMER_IRQ_PERIOD_MS));
     TR_INFO(TR_MOD(MAIN), TIME_STR " Start timer %u ms", CUR_TIME, TIMER_IRQ_PERIOD_MS);
 #endif
-//    hal_sysfreq_req(HAL_SYSFREQ_USER_INIT, HAL_CMU_FREQ_26M);
 
     hal_sysfreq_req(HAL_SYSFREQ_USER_INIT, HAL_CMU_FREQ_32K);
     TR_INFO(TR_MOD(MAIN), "CPU freq: %u", hal_sys_timer_calc_cpu_freq(5, 0));
@@ -941,7 +994,8 @@ int MAIN_ENTRY(void)
         osThreadFlagsWait(CMSIS_V1_SIGNAL_ANY, osFlagsWaitAny, osWaitForever);
 #endif
 #elif !defined(NO_TIMER)
-
+        osDelay(DELAY_PERIOD_MS);
+        TR_INFO(TR_MOD(MAIN), TIME_STR " Delay %u ms done", CUR_TIME, DELAY_PERIOD_MS);
 #endif
 #endif
     }
@@ -949,4 +1003,3 @@ int MAIN_ENTRY(void)
     SAFE_PROGRAM_STOP();
     return 0;
 }
-

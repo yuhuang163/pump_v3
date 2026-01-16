@@ -25,12 +25,17 @@ typedef enum{
 } algo_breast_pump_data_id_e;
 
 /// 算法接口.
+struct motor_manager_context;
+struct sensor_manager_context;
 typedef struct algo_manager_context {
 /// private
     struct __algo_private {
         broadcast_obj_t m_bcd;
         int algo_inited;
         uint8_t is_sampling;          /// 是否正在采集
+        algo_wear_detection_data_output_t wear_detection_algo_data;
+        struct motor_manager_context *motor;
+        struct sensor_manager_context *sensor;
     } priv;
 
 /// public
@@ -41,11 +46,17 @@ typedef struct algo_manager_context {
     #if IS_SUPPORT_ALGO_SAMPLING
         void (*algo_sampling_start)(struct algo_manager_context *ctx);
         void (*algo_sampling_stop)(struct algo_manager_context *ctx);
+        bool (*algo_sampling_is_sampling)(struct algo_manager_context *ctx);
+        bool (*algo_change_sampling_interval)(struct algo_manager_context *ctx, uint16_t interval);
     #endif
     #if IS_SUPPORT_DEVICE_IMU
         int (*add_static_calib_cmpl_cb)(void (*cb)(void));
         void (*imu_static_calib_start)(void);
         void (*imu_static_calib_stop)(void);
+    #endif
+    #if IS_SUPPORT_ADAPTIVE_DIMMING
+        void (*set_adaptive_dimming_state)(bool state); /// 开启/关闭自适应背光
+        bool (*get_adaptive_dimming_state)(void); /// 获取自适应背光状态
     #endif
     } *hook;
 

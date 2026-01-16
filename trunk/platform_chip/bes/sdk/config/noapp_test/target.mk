@@ -137,7 +137,7 @@ endif
 else # !(MBED-RTOS)
 init-y		:=
 core-y		:= platform/main/ platform/cmsis/ platform/hal/ \
-	platform/drivers/norflash/  platform/drivers/ana/
+	platform/drivers/
 
 ifeq ($(BECO),1)
 core-y += platform/beco/

@@ -42,12 +42,12 @@ static int led_dev_ioctl(struct rt_device_node *dev, uint32_t op_code, void *arg
     switch (op_code) {
         case OP_CODE_LED_STATUS_SET:
             return bsp_led_status_set(args);
-        case OP_CODE_LED_STATUS_GET:
-            return (int)bsp_led_status_get(args);
         case OP_CODE_NIGHT_LIGHT_STATUS_SET:
             return bsp_night_light_status_set(args);
-        case OP_CODE_NIGHT_LIGHT_STATUS_GET:
-            return (int)bsp_night_light_status_get(args);
+        case OP_CODE_LED_IS_READY:
+            return bsp_led_is_ready(args);
+        case OP_CODE_NIGHT_LIGHT_PWM_DUTY_SET:
+            return bsp_night_light_pwm_duty_set(args);
         default:
             LOGE("err op_code: %lx", op_code);
             return -1;

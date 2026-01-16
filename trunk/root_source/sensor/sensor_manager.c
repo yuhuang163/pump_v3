@@ -97,11 +97,12 @@ static void on_sensor_input_receiver(broadcast_mask_id_t id, void *context, int 
             {
                 int pm_state = arg1;
                 if (pm_state == ID_SYS_PM_SUSPEND) {
-                    LOGI("STOP_TIMER: sensor polling_timer");
+                    LOG_SENSOR("STOP_TIMER: sensor polling_timer");
                     STOP_TIMER(ctx->priv.polling_timer);
                     ctx->priv.do_polling = 0;
                 } else {
-                    LOGI("START_TIMER: id = 0x%lx, sensor polling_timer, delay_ms: %d", id.code, SENSOR_THREAD_POLLING_PERIOD);
+                    LOG_SENSOR("START_TIMER: id = 0x%lx, sensor polling_timer, delay_ms: %d",
+                         id.code, SENSOR_THREAD_POLLING_PERIOD);
                     STOP_TIMER(ctx->priv.polling_timer);
                     START_TIMER(ctx->priv.polling_timer, SENSOR_THREAD_POLLING_PERIOD);
                     ctx->priv.do_polling = 1;
@@ -111,13 +112,13 @@ static void on_sensor_input_receiver(broadcast_mask_id_t id, void *context, int 
         case ID_BROADCAST_OTA_UI_SCREEN_STATE_CHANGE:
             {
                 if (arg1 == 1) {
-                    LOGI("STOP_TIMER: enter ota-ui screen");
+                    LOG_SENSOR("STOP_TIMER: enter ota-ui screen");
                     STOP_TIMER(ctx->priv.polling_timer);
                     ctx->priv.do_polling = 0;
                 } else {
                     power_manager_context_t *pm = (power_manager_context_t *)find_module(ID_MODULE_POWER);
                     if (!pm->is_pm_suspend()) {
-                        LOGI("START_TIMER: exit ota-ui screen");
+                        LOG_SENSOR("START_TIMER: exit ota-ui screen");
                         STOP_TIMER(ctx->priv.polling_timer);
                         START_TIMER(ctx->priv.polling_timer, SENSOR_THREAD_POLLING_PERIOD);
                         ctx->priv.do_polling = 1;
@@ -139,7 +140,8 @@ static int is_on_running(void)
 static void sensor_manager_internal_dispatch_thread(const void *args)
 {
     uint8_t msg = 0;
-    uint32_t log_time = 0;
+    uint16_t log_time = 0;
+    uint32_t start_time = get_timestamp();
     thread_context_t *thd = (thread_context_t *)args;
     sensor_wrapper_data_t sensor_data = {0};
     sensor_manager_context_t *obj = thiz;
@@ -153,8 +155,10 @@ static void sensor_manager_internal_dispatch_thread(const void *args)
             obj->hook->sensor_thread_route(obj, &sensor_data);
         }
         log_time++;
-        if (log_time % 500 == 0) {
-            LOG_SENSOR("sensor polling: %d", log_time);
+        if (log_time >= 500) {
+            LOG_SENSOR("sensor polling: %d, time: %d", log_time, get_timestamp_ms(start_time));
+            start_time = get_timestamp();
+            log_time = 0;
         }
     }
 }

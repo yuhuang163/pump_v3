@@ -728,6 +728,25 @@ uint32_t get_tota_ota_current_recive_number(void);
  * @param CurrentReciveNumber     the total number of data received in real time
  */
 void updata_tota_ota_current_recive_number(uint32_t CurrentReciveNumber);
+
+/**
+ * @brief Register OTA event router
+ *
+ * @param func          OTA event router function
+ */
+#ifdef CFG_OTA_EVENT_CALLBACK 
+typedef enum {
+    OTA_STATE_RUNNING = 0,
+    OTA_STATE_FAIL_EXIT = 1,
+    OTA_STATE_UPDATE_IMG_TYPE = 2,
+    OTA_STATE_RESUME_TOTAL_SIZE = 3,
+    OTA_STATE_RESUME_OFFSET_SIZE = 4,
+} ota_state_type_e;
+
+typedef void (*ota_event_router_func)(ota_state_type_e state, uint8_t *otaBuf, bool isViaBle,uint16_t dataLenth);
+
+void ota_event_router_register(ota_event_router_func func);
+#endif
 #ifdef __cplusplus
 }
 #endif

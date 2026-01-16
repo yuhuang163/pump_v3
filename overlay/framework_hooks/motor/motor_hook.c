@@ -34,7 +34,7 @@ static int breast_pump_policy_register(struct motor_manager_context *thiz, add_b
 
     add_policy_cb(head, "stimulation", BREAST_PUMP_STIMULATION_MODE, NULL,
         stimulation_mode_parameter_init, stimulation_mode_policy_get);
-    add_policy_cb(head, "pump",  BREAST_PUMP_PUMP_MODE,  NULL,
+    add_policy_cb(head, "pump",  BREAST_PUMP_LACTATION_MODE,  NULL,
         pump_mode_parameter_init,  pump_mode_policy_get);
     add_policy_cb(head, "mix", BREAST_PUMP_MIX_MODE, NULL,
         mix_mode_parameter_init, mix_mode_policy_get);
@@ -99,7 +99,7 @@ static int generate_motor_para(struct motor_manager_context *ctx, int mode, void
     int ret = -1;
     /// 替换新参数前检测当前模式参数是否正在使用
     if (ctx->priv.runtime.breast_pump_mode == mode && ctx->priv.motor_state != MOTOR_POLICY_IDLE) {
-        ctx->stop_motor();
+        ctx->synchronous_stop_motor();
         stop_flag = 1;
     }
 
@@ -141,27 +141,115 @@ static void motor_debug_with_user_para(motor_manager_context_t *ctx, uint8_t id,
         LOG_MOTOR("motor debug stop, id: %d", id);
         return;
     }
-    EXCEPTION_CHECK_VOID(user_data);
     if (ctx->priv.user_debug_status) {
         ctx->stop_motor();
         REMOVE_TASK_HANDLER_DIRECTLY(MOTOR_DEBUG_TASK_NAME);
     }
     ctx->priv.user_debug_status = 1;
     if (id == MOTOR_USER_DEBUG_POLICY) {
+        EXCEPTION_CHECK_VOID(user_data);
         motor_policy_original_para_t *para = (motor_policy_original_para_t *)user_data;
-        motor_policy_manager_t *policy = &ctx->priv.user_debug_policy;
-        motor_policy_core_t *core = &policy->head.policy.core;
+        ctx->synchronous_stop_motor();
+        ctx->priv.user_debug_status = 1;
+        /// 释放旧的策略
+        if (ctx->priv.user_debug_policy != NULL) {
+            breast_pump_mode_parameter_deinit(ctx->priv.user_debug_policy);
+            ctx->priv.user_debug_policy = NULL;
+        }
+        /// 创建新的策略并赋值给 ctx->priv.user_debug_policy
+        ctx->priv.user_debug_policy = u_malloz(sizeof(motor_policy_manager_t));
+        if (ctx->priv.user_debug_policy == NULL) {
+            LOGE("Failed to allocate memory for user debug policy");
+            return;
+        }
+        motor_policy_core_t *core = &ctx->priv.user_debug_policy->head.policy.core;
         motor_policy_original_para_t *original = &core->un.original;
-        policy->timed_policy_count = 1;
-        policy->head.duration_seconds = 1200;   /// 20分钟
-        policy->head.sub_policy_count = 1;
+        ctx->priv.user_debug_policy->timed_policy_count = 1;
+        ctx->priv.user_debug_policy->head.duration_seconds = 1200;   /// 20分钟
+        ctx->priv.user_debug_policy->head.sub_policy_count = 1;
         core->type = MOTOR_PARAM_PASS_THROUGH;
         memcpy(original, para, sizeof(motor_policy_original_para_t));
         core->config.loop_num = 1;
         LOG_MOTOR("user debug policy: pump_level: %d, pumping_time: %d, valve_on_time: %d, sleep_time: %d, hold_time: %d",
             para->pump_level, para->pumping_time, para->valve_on_time, para->sleep_time, para->hold_time);
         ctx->start_motor(MOTOR_USER_DEBUG_POLICY_START);
-    } else if (id == MOTOR_USER_DEBUG_PUMP_ON) {
+    }
+    else if (id == MOTOR_USER_TASTE_STIMULATION_POLICY) {
+        EXCEPTION_CHECK_VOID(user_data);
+        LOG_MOTOR("MOTOR_USER_TASTE_STIMULATION_POLICY");
+        motor_multiple_policy_cfg_t *para = (motor_multiple_policy_cfg_t *)user_data;
+        ctx->synchronous_stop_motor();
+        ctx->priv.user_debug_status = 1;
+        /// 释放旧的策略
+        if (ctx->priv.user_debug_policy != NULL) {
+            breast_pump_mode_parameter_deinit(ctx->priv.user_debug_policy);
+            ctx->priv.user_debug_policy = NULL;
+        }
+        print_pump_custom_cfg(para->policy_cfg_list, para->policy_cfg_count);
+        /// 创建新的策略并赋值给 ctx->priv.user_debug_policy
+        ctx->priv.user_debug_policy = breast_pump_mode_parameter_init(para->policy_cfg_list, para->policy_cfg_count, "user_taste_stimulation");
+        ctx->start_motor(MOTOR_USER_DEBUG_POLICY_START);
+    }
+    else if (id == MOTOR_USER_TASTE_PUMP_POLICY) {
+        EXCEPTION_CHECK_VOID(user_data);
+        LOG_MOTOR("MOTOR_USER_TASTE_PUMP_POLICY");
+        motor_multiple_policy_cfg_t *para = (motor_multiple_policy_cfg_t *)user_data;
+        ctx->synchronous_stop_motor();
+        ctx->priv.user_debug_status = 1;
+        /// 释放旧的策略
+        if (ctx->priv.user_debug_policy != NULL) {
+            breast_pump_mode_parameter_deinit(ctx->priv.user_debug_policy);
+            ctx->priv.user_debug_policy = NULL;
+        }
+        print_pump_custom_cfg(para->policy_cfg_list, para->policy_cfg_count);
+        /// 创建新的策略并赋值给 ctx->priv.user_debug_policy
+        ctx->priv.user_debug_policy = breast_pump_mode_parameter_init(para->policy_cfg_list, para->policy_cfg_count, "user_taste_pump");
+        ctx->start_motor(MOTOR_USER_DEBUG_POLICY_START);
+    }
+    else if (id == MOTOR_USER_TASTE_MIX1_POLICY) {
+        EXCEPTION_CHECK_VOID(user_data);
+        LOG_MOTOR("MOTOR_USER_TASTE_MIX1_POLICY");
+        motor_multiple_policy_cfg_t *para = (motor_multiple_policy_cfg_t *)user_data;
+        ctx->synchronous_stop_motor();
+        ctx->priv.user_debug_status = 1;
+        /// 释放旧的策略
+        if (ctx->priv.user_debug_policy != NULL) {
+            breast_pump_mode_parameter_deinit(ctx->priv.user_debug_policy);
+            ctx->priv.user_debug_policy = NULL;
+        }
+        print_pump_custom_cfg(para->policy_cfg_list, para->policy_cfg_count);
+        /// 创建新的策略并赋值给 ctx->priv.user_debug_policy
+        ctx->priv.user_debug_policy = breast_pump_mode_parameter_init(para->policy_cfg_list, para->policy_cfg_count, "user_taste_mix1");
+        ctx->start_motor(MOTOR_USER_DEBUG_POLICY_START);
+    }
+    else if (id == MOTOR_USER_TASTE_MIX2_POLICY) {
+        EXCEPTION_CHECK_VOID(user_data);
+        LOG_MOTOR("MOTOR_USER_TASTE_MIX2_POLICY");
+        motor_multiple_policy_cfg_t *para = (motor_multiple_policy_cfg_t *)user_data;
+        ctx->synchronous_stop_motor();
+        ctx->priv.user_debug_status = 1;
+        /// 释放旧的策略
+        if (ctx->priv.user_debug_policy != NULL) {
+            breast_pump_mode_parameter_deinit(ctx->priv.user_debug_policy);
+            ctx->priv.user_debug_policy = NULL;
+        }
+        print_pump_custom_cfg(para->policy_cfg_list, para->policy_cfg_count);
+        /// 创建新的策略并赋值给 ctx->priv.user_debug_policy
+        ctx->priv.user_debug_policy = breast_pump_mode_parameter_init(para->policy_cfg_list, para->policy_cfg_count, "user_taste_mix2");
+        ctx->start_motor(MOTOR_USER_DEBUG_POLICY_START);
+    }
+    else if (id == MOTOR_USER_TASTE_POLICY_STOP || id == MOTOR_USER_TASTE_POLICY_EXIT) {
+        ctx->priv.user_debug_status = 0;
+        ctx->synchronous_stop_motor();
+        /// 清理用户调试策略
+        if (ctx->priv.user_debug_policy != NULL) {
+            breast_pump_mode_parameter_deinit(ctx->priv.user_debug_policy);
+            ctx->priv.user_debug_policy = NULL;
+        }
+        LOG_MOTOR("motor debug stop, id: %d", id);
+    }
+    else if (id == MOTOR_USER_DEBUG_PUMP_ON) {
+        EXCEPTION_CHECK_VOID(user_data);
         motor_debug_para_t *para = (motor_debug_para_t *)user_data;
         motor.un.pwm.duty = para->duty;
         motor.un.pwm.freq = BREAST_PUMP_VALVE_FREQ;
@@ -181,6 +269,7 @@ static void motor_debug_with_user_para(motor_manager_context_t *ctx, uint8_t id,
         }
         LOG_MOTOR("motor debug pump on, duty: %d, hold_time: %d", para->duty, para->hold_time);
     } else if (id == MOTOR_USER_DEBUG_VALVE_ON) {
+        EXCEPTION_CHECK_VOID(user_data);
         motor_debug_para_t *para = (motor_debug_para_t *)user_data;
         motor.un.pwm.duty = para->duty;
         motor.un.pwm.freq = BREAST_PUMP_VALVE_FREQ;
@@ -200,6 +289,15 @@ static void motor_debug_with_user_para(motor_manager_context_t *ctx, uint8_t id,
         }
         LOG_MOTOR("motor debug valve on, duty: %d, hold_time: %d", para->duty, para->hold_time);
     }
+}
+
+static void motor_debug_with_taste_setting(motor_manager_context_t *ctx, void *user_data)
+{
+    taste_setting_t *setting = (taste_setting_t *)user_data;
+    EXCEPTION_CHECK_VOID(setting);
+    memcpy(&ctx->priv.runtime.taste_setting, setting, sizeof(taste_setting_t));
+    LOG_MOTOR("motor debug taste setting: level 0: %d, level 1: %d, speed: %d", setting->level[0], setting->level[1],
+              setting->speed);
 }
 
 static int on_post_motor_init_route(struct motor_manager_context *ctx)

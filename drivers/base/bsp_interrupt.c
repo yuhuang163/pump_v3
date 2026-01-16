@@ -33,22 +33,29 @@ static void interrupt_msg_thread(const void *args)
         switch (io_num) {
             case INT_NUM_KEY_1:
             case INT_NUM_KEY_2:
-            {
-                // LOG_PBUS("key irq:%ld", io_num);
                 key_irq_event_callback(io_num);
-            }
-            break;
+                break;
             case INT_NUM_TOUCH_KEY:
-            {
-                // LOG_PBUS("touch key irq");
                 key_irq_event_callback(-1);
-            }
-            break;
+                break;
+        #if IS_SUPPORT_DEVICE_KNOB
+            case INT_NUM_KNOB_LEFT:
+                knob_button_event_handler(0, 0, NULL);
+                // PRINT_LOG("left knob %d/%d\r\n", bsp_knob_get_count(0), bsp_knob_get_count(1));
+                break;
+            case INT_NUM_KNOB_RIGHT:
+                knob_button_event_handler(1, 0, NULL);
+                // PRINT_LOG("right knob %d/%d\r\n", bsp_knob_get_count(0), bsp_knob_get_count(1));
+                break;
+        #endif
+        #if IS_SUPPORT_PD_CHARGE
+            case INT_NUM_CHARGE_PD:
+                charge_pd_event_handler();
+                break;
+        #endif
             default: 
-            {
                 LOG_PBUS("unknown int:%ld", io_num);
-            }
-            break;
+                break;
         }
     }
 }

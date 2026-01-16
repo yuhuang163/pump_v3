@@ -76,11 +76,23 @@ int pump_time_policy_empty(motor_policy_manager_t *total_policy)
 int pump_time_policy_update(struct motor_manager_context *thiz, motor_policy_runtime_t *runtime) 
 { 
     /// 检测当前时间策略是否执行完毕
-    uint32_t hold_time = get_timestamp_ms(runtime->timed_policy_start_time)  / 1000; 
+    uint32_t hold_time = (get_timestamp_ms(runtime->timed_policy_start_time) + \
+     runtime->current_time_policy_running_time) / 1000; 
     if (hold_time >= runtime->timed_policy->duration_seconds) {
         /// 执行下一个时间策略
-        runtime->timed_policy = runtime->timed_policy->next == NULL ? \
-                &runtime->manager->head : runtime->timed_policy->next;
+        if (runtime->timed_policy->next) {
+            runtime->current_timed_policy_index++;
+            runtime->timed_policy = runtime->timed_policy->next;
+            runtime->current_time_policy_running_time = 0;
+        } else {
+            runtime->current_timed_policy_index = 0;
+            runtime->timed_policy = &runtime->manager->head;
+            runtime->current_time_policy_running_time = 0;
+        }
+        /// 更新步数索引.
+        if (thiz->priv.pump_ctx && (!runtime->taste_run_flag)) {
+            thiz->priv.pump_ctx->priv.m_info.step_index = runtime->current_timed_policy_index;
+        }
         /// 释放负压
         negative_pressure_release(thiz);
         for (uint8_t i = 0; i < BREAST_PUMP_NUM; i++) {
@@ -92,6 +104,18 @@ int pump_time_policy_update(struct motor_manager_context *thiz, motor_policy_run
             runtime->timed_policy_start_time, runtime->timed_policy->policy.core.un.mapping.mode_type, 
             runtime->timed_policy->next, runtime->timed_policy->duration_seconds, 
             runtime->timed_policy->policy.core.un.mapping.level);
+
+        if (!runtime->taste_run_flag) {
+            //每一步定时策略更新后，将当前的策略的setting通知app
+            servers_manager_context_t *servers_ctx = (servers_manager_context_t *)find_module(ID_MODULE_SERVERS);
+            EXCEPTION_CHECK_INT(servers_ctx && servers_ctx->hook);
+            servers_publish_data_args_t args = {
+                .arg1 = OLD_PUBLISH_DATA_PUMP_STEP_ALL_PARAM_CHANGE,
+                .arg2 = 0,
+                .val = NULL,
+            };
+            servers_ctx->hook->app_old_protocol_server_data_publish(APP_OLD_COMM_CID_NOTIFY_STATUS, &args);
+        }
         return 0;
     }
 
@@ -109,9 +133,11 @@ int pump_time_policy_update(struct motor_manager_context *thiz, motor_policy_run
 
             if (runtime->policy[i].next) {
                 memcpy(&runtime->policy[i], runtime->policy[i].next, sizeof(motor_policy_node_t)); /// 切换到下一个子策略
+                runtime->current_policy_index++;
                 // LOG_MOTOR("dev-%d goto next policy", id);
             } else {
                 memcpy(&runtime->policy[i], &runtime->timed_policy->policy, sizeof(motor_policy_node_t)); /// 切换到第一个子策略 
+                runtime->current_policy_index = 0;
                 // LOG_MOTOR("dev-%d goto first policy", id);
             }
             pump_policy_info_reset(thiz, runtime, i);

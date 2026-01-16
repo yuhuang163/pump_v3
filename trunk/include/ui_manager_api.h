@@ -1,6 +1,7 @@
 #ifndef __UI_MANAGER_API_H__
 #define __UI_MANAGER_API_H__
 
+#include <stdint.h>
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -12,55 +13,16 @@ extern "C" {
 #include "root_common_base.h" // IWYU pragma: keep
 #include "broadcast_manager_api.h" // IWYU pragma: keep
 #include "root_message.h" // IWYU pragma: keep
+#if IS_SUPPORT_LVGL
+#include "lvgl.h" // IWYU pragma: keep
+#include "lv_hal_disp.h" // IWYU pragma: keep
+#include "lv_hal_indev.h" // IWYU pragma: keep
+#endif
 
 #ifndef LVGL_TIME_TICK_PERIOD
 #define LVGL_TIME_TICK_PERIOD (10)
 #endif
 #define LVGL_HDR_TASK_PERIOD (16)
-
-#if !CUST_LVGL_SUPPORT
-typedef uint16_t ui_color_t;
-typedef void * ui_obj_t;
-typedef struct {
-
-    uint32_t cf : 5;          /*Color format: See `lv_img_color_format_t`*/
-    uint32_t always_zero : 3; /*It the upper bits of the first byte. Always zero to look like a
-                                 non-printable character*/
-
-    uint32_t reserved : 2; /*Reserved to be used later*/
-
-    uint32_t w : 11; /*Width of the image map*/
-    uint32_t h : 11; /*Height of the image map*/
-} ui_img_header_t;
-
-typedef struct {
-    ui_img_header_t header; /**< A header describing the basics of the image*/
-    uint32_t data_size;     /**< Size of the image in bytes*/
-    const uint8_t * data;   /**< Pointer to the data of the image*/
-} ui_img_dsc_t;
-#endif
-
-/// 获取图片资源回调.
-typedef void *(*ui_get_img_res_loop_fptr)(void *user_data, int args1, int args2);
-typedef struct {
-    ui_get_img_res_loop_fptr get_img_res_cb;
-    const char *(*get_dest_text_show)(int args1, int args2);
-    void (*show_ui_text)(int *argv, int argc, const char *text);
-    void (*set_bg_img_color)(int args, ui_color_t color);
-    void *(*draw_qrcode_view)(void *user_data, int qr_size, int x, int y, const char *text);
-    int (*animation_progress_hook)(void *user_data, int index, int total);
-    uint16_t ani_loop_play;
-    int16_t x;
-    int16_t y;
-    int16_t w;
-    int16_t h;
-    void *bg_img_obj;
-#if IS_SUPPORT_OVERLAY_IMG
-    uint8_t overlay_img_num;
-    void *overlay_img_bg_img_obj[OVERLAY_IMG_NUM_MAX];
-    ui_obj_t *overlay_img_layer[OVERLAY_IMG_NUM_MAX];
-#endif
-} ui_process_cb_parms_t;
 
 typedef enum {
     ANI_TIMER_DRAW_BEFORE = 0, /// 背景合并之前
@@ -70,7 +32,10 @@ typedef enum {
 
 /// 动画绘制进度回调.
 typedef void (*progress_cb_fptr)(void *user_data, int index, ui_ani_progress_state_e state);
-
+/// 动画绘制准备回调.
+typedef void (*display_prepare_cb_fptr)(void *user_data);
+/// 动画绘制移除回调.
+typedef void (*display_remove_cb_fptr)(void *user_data);
 /// 动画绘制信息.
 typedef struct ui_play_info {
     const char *tag;
@@ -78,20 +43,10 @@ typedef struct ui_play_info {
     const uint16_t *res_array;
     uint16_t res_count;
     int fps;
-    ui_process_cb_parms_t *parms;
     progress_cb_fptr progress_cb;
+    display_prepare_cb_fptr display_prepare_cb;
+    display_remove_cb_fptr display_remove_cb;
 } ui_play_info_t;
-
-/// 图片数据包装.
-typedef struct {
-    int exit_flag;
-    int res_index;
-    int lang_index;
-    int mode_index;
-    uint16_t x;
-    uint16_t y;
-    ui_img_dsc_t img_dsc;
-} ui_img_dsc_wrapper_t;
 
 /// 动画绘制定时器.
 struct _ui_timer_t;
@@ -110,32 +65,64 @@ typedef struct ui_animation_play {
     /// private:
     char *tag;
     void *user_data;
-    uint16_t *res_array;
-    uint16_t res_count;
+    uint8_t is_play_finished;
+    uint8_t reserved[3];
     uint16_t played_count;
-    ui_img_dsc_wrapper_t img_wrap;
-    #if IS_SUPPORT_OVERLAY_IMG
-    ui_img_dsc_wrapper_t img_wrap_overlay[OVERLAY_IMG_NUM_MAX];
-    #endif
     ui_timer_t *update_timer;
     /// public:
-    void (*progress_cb)(void *user_data, int index, ui_ani_progress_state_e state);
+    progress_cb_fptr progress_cb;
+    display_prepare_cb_fptr display_prepare_cb;
+    display_remove_cb_fptr display_remove_cb;
     void (*reset_play_count_cb)(struct ui_animation_play *thiz);
 } ui_animation_play_t;
 
+/// 描述LED闪烁信息.
+typedef struct {
+    uint8_t led_index;
+    uint16_t period;
+    uint16_t continue_time;
+    uint8_t first_status;
+    uint8_t finish_status;
+} led_blink_info_t;
+
+/// 描述LED亮度信息.
+typedef struct {
+    uint8_t led_index;
+    uint8_t level;
+} led_level_info_t;
+
+/// 描述LED开关信息.
+typedef struct {
+    uint8_t led_index;
+    uint8_t onoff;
+} led_onoff_info_t;
+
 struct rt_device_node;
+struct resource_manager_context;
 typedef struct ui_manager_context {
     /// private:
     struct __ui_manager_private {
         thread_context_t ui_hdr_thd; /// UI显示调度线程
-        os_timer_id lv_tick_timer; /// LVGL定时器
+    #if IS_SUPPORT_LVGL
+            lv_timer_t *lv_timer; /// LVGL定时器
+    #else
+            os_timer_id lv_timer; /// LVGL定时器
+    #endif
         os_mutex_id ui_draw_lock; /// 显示刷新锁
         broadcast_obj_t m_bcd; /// 广播监听对象
         struct rt_device_node *panel_dev; /// 显示设备
         struct rt_device_node *led_dev; /// LED设备
         bool is_playing_ui_animation; /// 是否正在播放UI动画
-        uint8_t ui_backlight_val; /// 背光亮度
-        bool lv_tick_timer_running; /// LVGL定时器是否正在运行
+        uint8_t ui_backlight_val;    /// 背光亮度
+        bool lv_tick_timer_running;  /// LVGL定时器是否正在运行
+    #if IS_SUPPORT_LVGL
+        bool lvgl_initialized;      /// LVGL是否已初始化完成
+        uint16_t fps_count;         /// FPS计数器
+        uint32_t fps_start_time;    /// FPS开始时间戳
+    #endif
+    #if IS_SUPPORT_MODULE_RES
+        struct resource_manager_context *res; /// 资源管理上下文
+    #endif
         ui_animation_play_t play_info; /// 当前播放的动画信息
     } priv;
 
@@ -143,15 +130,21 @@ typedef struct ui_manager_context {
     void (*animation_play_status_update)(struct ui_manager_context *thiz, bool flag);
     void (*play_animation_lock)(const char *tag);
     void (*play_animation_unlock)(const char *tag);
+#if IS_SUPPORT_LVGL
+    bool (*is_lvgl_initialized)(struct ui_manager_context *thiz);
+#endif
     /// 外部hook点.
     struct __ui_manager_hook {
         int (*on_post_init_route)(struct ui_manager_context *thiz);
         int (*on_perpare_init_route)(struct ui_manager_context *thiz);
+        void (*ui_thread_init_route)(struct ui_manager_context *thiz);
         void (*lvgl_display_handler)(struct ui_manager_context *thiz);
         void (*ui_animation_play_init)(struct ui_manager_context *thiz, ui_play_info_t play_info);
+        void (*ui_animation_play_deinit)(struct ui_manager_context *thiz);
         void (*on_ui_broadcast_receiver_route)(broadcast_mask_id_t id, void *context, int arg1, int arg2, broadcast_priv_data_t *pdata);
-        void (*set_ui_backlight)(struct ui_manager_context *thiz, uint16_t val);
-        bool (*is_ui_backlight_on)(struct ui_manager_context *thiz);
+        void (*set_led_blink)(struct ui_manager_context *thiz, led_blink_info_t blink_info);
+        void (*set_led_level)(struct ui_manager_context *thiz, led_level_info_t level_info);
+        void (*set_led_onoff)(struct ui_manager_context *thiz, led_onoff_info_t onoff_info);
     } *hook;
 } ui_manager_context_t;
 

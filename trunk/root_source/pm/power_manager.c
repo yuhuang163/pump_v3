@@ -84,12 +84,13 @@ static void set_pm_state_progress(const char *tag, int state, int t0)
 
 static int get_suspend_timeout(power_manager_context_t *thiz)
 {
-    misc_manager_context_t *misc = (misc_manager_context_t *)find_module(ID_MODULE_MISC);
-    EXCEPTION_CHECK_INT(misc);
     int timeout = PM_SUSPEND_TIME_S;
-    if (misc && misc->is_empty_battery()) {
+#if IS_SUPPORT_MODULE_BATTERY
+    battery_manager_context_t *battery = (battery_manager_context_t *)find_module(ID_MODULE_BATTERY);
+    if (battery && battery->is_empty_battery() > 0) {
         timeout = PM_SUSPEND_LOW_BAT_TIME_S;
     }
+#endif
     // LOG_PM("suspend_timeout:(%d)s", timeout);
     return timeout;
 }
@@ -286,6 +287,14 @@ static void pm_goto_suspend_by_user(void)
     pm_suspend_check_handler(thiz);
 }
 
+static void pm_goto_suspend_by_factory(void)
+{
+    LOG_PM("goto suspend by factory");
+    set_suspend_counter("PM_SUSPEND_BY_FAC", 0, true);
+    clear_all_wakelock(thiz);
+    pm_suspend_check_handler(thiz);
+}
+
 static void on_pm_broadcast_receive(broadcast_mask_id_t id,
             void *context, int reason, int arg2, broadcast_priv_data_t *pdata)
 {
@@ -299,6 +308,8 @@ static void on_pm_broadcast_receive(broadcast_mask_id_t id,
     switch (id.code) {
         case ID_BROADCAST_REQ_PM_SUSPEND_BY_USER: {
             if (arg2 == SUSPEND_BY_BLE) {
+            } else if (arg2 == SUSPEND_BY_FAC) {
+                pm_goto_suspend_by_factory();
             } else {
                 pm_goto_suspend_by_user();
             }
@@ -326,7 +337,6 @@ static void pm_suspend_prepare_enter(power_manager_context_t *ctx)
 {
     int counter = 0;
     window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
-    SEND_BROADCAST_SYNC_ARGS1(ID_BROADCAST_PM_STATE_CHANGE, ctx->priv.pm_state);
     /// 当成前台跳转,确保任何界面都可以允许进入休眠.
     if (wm && wm->dispatch_new_window_args) {
         multi_func_msg_data_t msg = {0};
@@ -342,6 +352,7 @@ static void pm_suspend_prepare_enter(power_manager_context_t *ctx)
         }
         msleep(100);
     } while (++counter < 50);
+    SEND_BROADCAST_SYNC_ARGS1(ID_BROADCAST_PM_STATE_CHANGE, ctx->priv.pm_state);
 }
 
 static void pm_resume_post_enter(power_manager_context_t *ctx)
@@ -557,7 +568,7 @@ static int pm_acquire_wakelock(const char *caller, int timeout_s)
     LIST_FOR_EACH(pos, &ctx->priv.wake_lock_list) {
         pm_wake_lock_node_t *node = CONTAINER_OF(pos, pm_wake_lock_node_t, list);
         if ((strncmp(node->caller, caller, sizeof(node->caller) -1) == 0) && (node->timeout_s == timeout_s)) {
-            LOGE("LOG_PM dumplicate add, ignore(%s)", node->caller);
+            LOGW("LOG_PM dumplicate add, ignore(%s)", node->caller);
             MUTEX_UNLOCK(ctx->priv.m_wake_lock);
             return -1;
         }
@@ -630,6 +641,8 @@ static const char *wake_up_reason_name(pm_wakeup_reason_e reason)
             return "wakeup:CHARGE_PLUG_OUI";
         case PM_WAKEUP_REASON_BACKGROUND_TASK:
             return "wakeup:BACKGROUND_TASK";
+        case PM_WAKEUP_REASON_FACTORY_RESUME:
+            return "wakeup:FACTORY_RESUME";
         default:
             return "unknow reason";
     }
@@ -638,7 +651,6 @@ static const char *wake_up_reason_name(pm_wakeup_reason_e reason)
 static void pm_wakeup(pm_wakeup_reason_e reason)
 {
     const char *reason_str = wake_up_reason_name(reason);
-    misc_manager_context_t *misc_ctx = (misc_manager_context_t *)find_module(ID_MODULE_MISC);
     LOG_PM("pm_wakeup reason: %d(%s)", reason, reason_str);
     if (reason == PM_WAKEUP_REASON_ENTER_NEW_SCREEN) {
         if (thiz->priv.wakeup_reason == PM_WAKEUP_REASON_IOT) {
@@ -649,10 +661,14 @@ static void pm_wakeup(pm_wakeup_reason_e reason)
                 }
             }
             return;
-        } else if (misc_ctx->is_charge_plug_in()) {
+        }   
+#if IS_SUPPORT_MODULE_BATTERY
+        battery_manager_context_t *battery = (battery_manager_context_t *)find_module(ID_MODULE_BATTERY);
+        if (battery && battery->is_charge_plug_in() > 0) {
             LOG_PM("charging. ignore");
             return;
         }
+#endif
     }
 
     if (external_wakeup_policy(thiz, reason) < 0) {
@@ -692,8 +708,8 @@ static void pm_wakeup(pm_wakeup_reason_e reason)
         }
     } else {
         if (thiz->priv.wakeup_reason == PM_WAKEUP_REASON_IOT && reason != PM_WAKEUP_REASON_IOT) {
-            LOG_PM("IOT唤醒状态下点亮背光 reason: %s", reason_str);
-            SEND_BROADCAST_ARGS0(ID_BROADCAST_SET_BLACKLIGHT_BY_USER);
+            // LOG_PM("IOT唤醒状态下点亮背光 reason: %s", reason_str);
+            // SEND_BROADCAST_ARGS0(ID_BROADCAST_SET_BLACKLIGHT_BY_USER);
             thiz->priv.wakeup_reason = reason;
         } else {
             LOG_PM("pm_suspend: pm_state: %d, is_enter_suspend: %d", thiz->priv.pm_state, thiz->priv.is_enter_suspend);

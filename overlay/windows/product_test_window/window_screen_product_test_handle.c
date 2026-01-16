@@ -69,13 +69,11 @@ static void product_test_ui_common_cb(hdr_post_args_t *args)
     int action = args->arg1;
     switch (action) {
         case PRODUCT_TEST_START: {
-            window_manager_context_t *wm = proc->wm;
-            EXCEPTION_CHECK_VOID(wm && wm->priv.product_tst);
             LOG_WM("%s", args->name);
-            char buffer[64] = {0};
-            wm->priv.product_tst->add_product_tests_evt_lisenser(proc, TST_FACTORY_TYPE, factory_tests_event_report_cb);
-            wm->priv.product_tst->tests_manager_set_enable(true);
-            wm->priv.product_tst->get_factory_tests_event_process(FAC_TST_READ_SW_VER_EVENT, 0, 0, &buffer[0]);
+            if (proc->tests) {
+                proc->tests->add_product_tests_evt_lisenser(proc, TST_FACTORY_TYPE, factory_tests_event_report_cb);
+                proc->tests->tests_manager_set_enable(true);
+            } 
         }
         break;
         case PRODUCT_TEST_E10: {
@@ -100,11 +98,10 @@ static int product_test_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint1
     }
     ui_proc_product_test_t *proc = user_data;
     EXCEPTION_CHECK_INT(proc);
-    key_input_context_t *key_ctx = proc->wm->priv.key;
-    EXCEPTION_CHECK_INT(key_ctx);
+    EXCEPTION_CHECK_INT(proc->key);
     const char *key_name = NULL;
-    if (key_ctx && key_ctx->hook && key_ctx->hook->get_key_code_name) {
-        key_name = key_ctx->hook->get_key_code_name(keycode);
+    if (proc->key && proc->key->hook && proc->key->hook->get_key_code_name) {
+        key_name = proc->key->hook->get_key_code_name(keycode);
     } else {
         key_name = "@unknow";
     }
@@ -113,6 +110,7 @@ static int product_test_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint1
         case KEY_CODE_POWER:
             break;
         case KEY_CODE_START:
+            product_tests_start_key_event_handler(proc);
             break;
         case KEY_CODE_MODE:
             break;
@@ -166,8 +164,8 @@ static int entry_event_cb(window_lift_cycle_e new_state,
     EXCEPTION_CHECK_INT(ui);
     if (new_state == ID_SCR_STATE_ON_RESUME) {
         LOG_WM("==>%s window on resume", PAGE_NAME_STR);
-        if (wm->priv.key) {
-            wm->priv.key->add_keyevent_handler("product_test_wm", proc, PRODUCT_TEST_UI_KEY_CODE, 
+        if (proc->key) {
+            proc->key->add_keyevent_handler("product_test_wm", proc, PRODUCT_TEST_UI_KEY_CODE, 
                 PRODUCT_TEST_UI_KEY_TYPE, product_test_ui_keyevent_hdr);
         }
         POST_TASK_HANDLER_DELAYED_ARG2(product_test_ui_common_cb, 100, PRODUCT_TEST_START, proc,
@@ -192,13 +190,13 @@ static int exit_event_cb(window_lift_cycle_e new_state,
             stop_product_tests_ui_animation(proc);
             REMOVE_ALL_HANDER_TASK();
             unregister_broadcast_receiver(&proc->receiver);
-            if (wm->priv.product_tst) {
-                wm->priv.product_tst->remove_product_tests_evt_lisenser(factory_tests_event_report_cb);
+            if (proc->tests) {
+                proc->tests->remove_product_tests_evt_lisenser(factory_tests_event_report_cb);
             } else {
                 LOG_WM("product_tst not present, ignore.");
             }
-            if (wm->priv.key) {
-                wm->priv.key->remove_keyevent_handler(product_test_ui_keyevent_hdr);
+            if (proc->key) {
+                proc->key->remove_keyevent_handler(product_test_ui_keyevent_hdr);
             } else {
                 LOG_WM("key not present, ignore.");
             }
@@ -230,8 +228,14 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
     SET_WINDOW_CONTEXT(proc);
     /// 设置窗口标识.
     proc->margic = UI_WINDOW_MARGIC_CODE;
+    proc->current_ui_type = PRODUCT_TEST_UI_TYPE_NONE;
     proc->wm = wm;
     proc->ui = (ui_manager_context_t *)find_module(ID_MODULE_UI);
+    proc->key = (key_input_context_t *)find_module(ID_MODULE_KEY_INPUT);
+    proc->battery = (battery_manager_context_t *)find_module(ID_MODULE_BATTERY);
+    proc->tests = (tests_manager_context_t *)find_module(ID_MODULE_TESTS);
+    proc->ble = (ble_manager_context_t *)find_module(ID_MODULE_BLE);
+    proc->st = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
     /// 注册广播监听.
     proc->receiver.context = proc;
     proc->receiver.name = "product_test_brc";

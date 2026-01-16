@@ -58,6 +58,18 @@ struct lcd_command {
 #include "fl7703ni_cmds.h"
 #elif defined(DISPLAY_EQT400)
 #include "eqt400_cmds.h"
+#elif defined(DISPLAY_ST7102RGB)
+#include "st7102rgb_cmds.h"
+#elif defined(DISPLAY_RM690A0)
+#include "rm690a0_cmds.h"
+#elif defined(DISPLAY_RM690C0)
+#include "rm690c0_cmds.h"
+#elif defined(DISPLAY_MIPSHARP12)
+#include "mipsharp12_cmds.h"
+#elif defined(DISPLAY_MIPSHARP14)
+#include "mipsharp14_cmds.h"
+#elif defined(DISPLAY_ST77916)
+#include "st77916_cmds.h"
 #endif
 
 #endif /* __LCD_CONFIG_H__ */

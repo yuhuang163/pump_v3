@@ -29,7 +29,7 @@
 #ifndef _vg_lite_kernel_h_
 #define _vg_lite_kernel_h_
 
-#include "../VGLite/vg_lite_options.h"
+#include "vg_lite_config.h"
 /* Interrupt IDs from GPU. */
 #define EVENT_UNEXPECTED_MESH  0x80000000
 #define EVENT_CMD_BAD_WRITE    0x40000000
@@ -186,6 +186,13 @@ typedef enum vg_lite_kernel_command
 
     /* Export memory */
     VG_LITE_EXPORT_MEMORY,
+
+    /* Record GPU hardware running time */
+    VG_LITE_RECORD_RUNNING_TIME,
+
+    /* OS lock & unlock */
+    VG_LITE_LOCK,
+    VG_LITE_UNLOCK,
 }
 vg_lite_kernel_command_t;
 
@@ -243,8 +250,8 @@ vg_lite_kernel_context_t;
 
 typedef struct capabilities
 {
-    uint32_t tiled : 2;
-    uint32_t l2_cache : 1;
+    uint16_t tiled;
+    uint16_t l2_cache;
 }
 capabilities_t;
 
@@ -545,7 +552,15 @@ typedef struct vg_lite_kernel_export_memory
 }
 vg_lite_kernel_export_memory_t;
 
+typedef struct vg_lite_kernel_hardware_running_time
+{
+    unsigned long run_time;
+    int32_t hertz;
+}
+vg_lite_kernel_hardware_running_time_t;
 vg_lite_error_t vg_lite_kernel(vg_lite_kernel_command_t command, void * data);
+
+vg_lite_error_t record_running_time(void);
 
 #ifdef __cplusplus
 }

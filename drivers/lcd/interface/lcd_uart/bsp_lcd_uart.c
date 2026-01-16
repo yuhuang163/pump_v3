@@ -6,6 +6,7 @@
 #include "hal_uart.h" // IWYU pragma: keep
 #include "hal_timer.h" // IWYU pragma: keep
 #include "hal_iomux.h" // IWYU pragma: keep
+#include "bsp_internal.h" // IWYU pragma: keep
 #include "bsp_lcd_uart.h" // IWYU pragma: keep
 
 /*
@@ -148,38 +149,26 @@ static void lcd_uart_event_thread(const void *args)
     }
 }
 
-/*
-* GLOBAL FUNCTION DEFINITIONS
-*****************************************************************************************
-*/
-void bsp_lcd_uart_register_event_cb(lcd_uart_event_type_e event_type, panel_recv_event_cb_func cb)
+static int bsp_lcd_data_send(lcd_tlvs_msg_t *msg) 
 {
-    if (event_type == LCD_UART_DISPLAY_EVENT) {
-        s_lcd_display_event_cb = cb;
-    } else if (event_type == LCD_UART_KNOB_BUTTON_EVENT) {
-        s_knob_button_event_cb = cb;
-    }
-}
-
-int bsp_lcd_data_send(uint8_t srv_id, lcd_tlvs_t *tlvs, uint8_t tlvs_num) 
-{
-    EXCEPTION_CHECK_INT(tlvs);
+    EXCEPTION_CHECK_INT(msg);
+    EXCEPTION_CHECK_INT(msg->tlvs);
     uint8_t *tlvs_data = NULL;
     uint16_t tlvs_size = 0, payload_size = 0, error_code = 0, checksum = 0;
     lcd_protocol_data_t *lcd = u_malloz(sizeof(lcd_protocol_data_t));
-    for (uint8_t i = 0; i < tlvs_num; i++) {
-        tlvs_size = tlvs[i].data_size + LCD_TLVS_HEADER_SIZE;
+    for (uint8_t i = 0; i < msg->tlvs_num; i++) {
+        tlvs_size = msg->tlvs[i].data_size + LCD_TLVS_HEADER_SIZE;
         if (payload_size + tlvs_size > LCD_PROTOCOL_DATA_SIZE) {
             LOGE("lcd data size is too large");
             break;
         }
-        tlvs_data = (uint8_t *)&tlvs[i];
+        tlvs_data = (uint8_t *)&msg->tlvs[i];
         // BSP_LOG_HEX("tlvs", tlvs_data, tlvs_size);
         memcpy(lcd->payload + payload_size, tlvs_data, tlvs_size);
         payload_size += tlvs_size;
     }
     lcd->header.sof = LCD_UART_SOF;
-    lcd->header.srv_id = srv_id;
+    lcd->header.srv_id = msg->srv_id;
     uint16_t data_length = payload_size + 1;
     lcd->header.length[1] = data_length & 0xFF;
     lcd->header.length[0] = data_length >> 8;
@@ -210,7 +199,31 @@ ERROR_EXIT:
     return ret;
 }
 
-int bsp_lcd_uart_init(void)
+static void lcd_backlight_control(uint8_t level)
+{
+    lcd_tlvs_msg_t msg = {
+        .srv_id = LCD_UART_DISPLAY_EVENT,
+        .tlvs = u_malloz(sizeof(lcd_tlvs_t) * 1),
+        .tlvs_num = 1,
+    };
+    EXCEPTION_CHECK_VOID(msg.tlvs);
+    msg.tlvs[0].type = LCD_BACKLIGHT_LEVEL;
+    msg.tlvs[0].data_size = 1;
+    msg.tlvs[0].data[0] = level > 100 ? 100 : level;
+    bsp_lcd_data_send(&msg);
+    u_free(msg.tlvs);
+}
+
+static void bsp_lcd_uart_register_event_cb(lcd_uart_event_type_e event_type, panel_recv_event_cb_func cb)
+{
+    if (event_type == LCD_UART_DISPLAY_EVENT) {
+        s_lcd_display_event_cb = cb;
+    } else if (event_type == LCD_UART_KNOB_BUTTON_EVENT) {
+        s_knob_button_event_cb = cb;
+    }
+}
+
+static int bsp_lcd_uart_init(void)
 {
     int ret = 0;
     struct HAL_UART_CFG_T uart_cfg = {
@@ -235,15 +248,56 @@ int bsp_lcd_uart_init(void)
         return ret;
     }
     hal_uart_irq_set_dma_handler((enum HAL_UART_ID_T)LCD_UART_ID, lcd_uart_rx, lcd_uart_tx);
-    RUN_NEW_THREAD(&s_lcd_uart_thd, "lcd_uart", lcd_uart_event_thread, RT_PRIO_LCD_UART_THREAD, (LCD_UART_THREAD_STACKSIZE));
+    RUN_NEW_THREAD(&s_lcd_uart_thd, "lcd_uart", lcd_uart_event_thread, RT_PRIO_LCD_THREAD, (LCD_THREAD_STACKSIZE));
     LOG_PBUS("lcd uart init success");
 
     return 0;
 }
 
-void bsp_lcd_uart_close(void)
+static void bsp_lcd_uart_close(void)
 {
     uint32_t lock = int_lock();
     hal_uart_close((enum HAL_UART_ID_T)LCD_UART_ID);
     int_unlock(lock);
+}
+
+/*
+* GLOBAL FUNCTION DEFINITIONS
+*****************************************************************************************
+*/
+__WEAK void knob_button_event_handler(int arg1, int arg2, void *param)
+{
+
+}
+
+int bsp_lcd_init(void) 
+{
+    bsp_lcd_uart_register_event_cb(LCD_UART_KNOB_BUTTON_EVENT, knob_button_event_handler);
+    return bsp_lcd_uart_init();
+}
+
+int bsp_lcd_deinit(void) 
+{
+    return BSP_OK;
+}
+
+int bsp_lcd_uart_dev_ioctl(struct rt_device_node *dev, uint32_t op_code, void *args)
+{
+    uint32_t *tmp = NULL;
+    switch (op_code) {
+        case OP_CODE_PANEL_SET_BL:
+            tmp = (uint32_t *)args;
+            lcd_backlight_control(tmp[0]);
+            return 0;
+        case OP_CODE_PANEL_DATA_SEND:
+            return bsp_lcd_data_send((lcd_tlvs_msg_t *)args);
+        default:
+            // LOGE("lcd err op_code: %lx", op_code);
+            return -1;
+    }
+}
+
+int bsp_lcd_refresh(const void *buf, uint32_t n_bytes)
+{
+    return 0;
 }

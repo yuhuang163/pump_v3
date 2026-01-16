@@ -40,7 +40,8 @@ ccflags-y := \
 	-Iapps/main	\
 	-Iinclude/open-amp \
 	-Iservices/nv_section/log_section \
-	-Iplatform/drivers/cp_subsys
+	-Iplatform/drivers/cp_subsys \
+	-Ithirdparty/lvgl/bes/ports
 
 ifneq ($(DEBUG_PORT),)
 ccflags-y += -DDEBUG_PORT=$(DEBUG_PORT)
@@ -319,4 +320,8 @@ ifneq ($(filter CMSIS_TEST, $(TEST_HAL_PATTERN)),)
 KBUILD_CPPFLAGS += -DTEST_HAL_PATTERN -DCMSIS_TEST
 ccflags-y += -Iinclude/cmsis_dsp/
 ccflags-y += -Iinclude/cmsis_nn/
+endif
+
+ifeq ($(LVGL_TEST), 1)
+ccflags-y += -DLVGL_TEST
 endif

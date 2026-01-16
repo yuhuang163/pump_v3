@@ -21,8 +21,6 @@
 extern "C" {
 #endif
 
-#include "graphic_tc.h"
-
 /*
  * @brief GPU hardware initialize, clock/irq/memory.
  */
@@ -44,9 +42,34 @@ void gpu_hal_reset(void);
 void *gpu_hal_malloc(uint32_t size);
 
 /*
+ * @brief realloc memory from GPU own heap.
+ */
+void *gpu_hal_realloc(void *buf, uint32_t size);
+
+/*
  * @brief memory free.
  */
 void gpu_hal_free(void *mem);
+
+/*
+ * @brief GPU mutex lock
+ */
+int gpu_hal_os_lock(void);
+
+/*
+ * @brief GPU mutex unlock
+ */
+int gpu_hal_os_unlock(void);
+
+/*
+ * @brief Save GPU current thread task pointer.
+ */
+int gpu_hal_os_set_tls(void *task);
+
+/*
+ * @brief Get  GPU current thread task pointer.
+ */
+void *gpu_hal_os_get_tls(void);
 
 /*
  * @brief sync GPU command buffer.
@@ -77,6 +100,16 @@ void gpu_hal_enter_lpwr(void);
  * @brief GPU exit low power mode.
  */
 void gpu_hal_exit_lpwr(void);
+
+/*
+ * @brief Sync all data cache.
+ */
+void gpu_hal_cache_sync_all(void);
+
+/*
+ * @brief Convert buffer addr for GPU view.
+ */
+uint32_t gpu_hal_buf_addr(uint32_t addr);
 
 #ifdef __cplusplus
 }

@@ -27,13 +27,6 @@ static void ble_event_resume(void *context, void *data, int data_len);
 static void ble_event_periph_disconnect(void *context, void *data, int data_len);
 static void ble_event_periph_connect_suc(void *context, void *data, int data_len);
 static void ble_event_periph_disconnect_suc(void *context, void *data, int data_len);
-static void ble_event_algo_real_time(void *context, void *data, int data_len);
-static void ble_event_algo_remind_data(void *context, void *data, int data_len);
-static void ble_event_device_remind_data(void *context, void *data, int data_len);
-static void ble_event_airplane_mode_changed(void *context, void *data, int data_len);
-static void ble_event_breast_pump_state_change(void *context, void *data, int data_len);
-static void ble_event_breast_pump_mode_change(void *context, void *data, int data_len);
-static void ble_event_notify_app_settings(void *context, void *data, int data_len);
 static void ble_event_master_send_data(void *context, void *data, int data_len);
 static void ble_event_master_recive_data(void *context, void *data, int data_len);
 static void ble_event_fac_send_data(void *context, void *data, int data_len);
@@ -50,19 +43,12 @@ static ble_msg_process_handle_t s_ble_msg_process_list[] = {
     {BLE_MSG_PERIPH_DISCONN,                 ble_event_periph_disconnect},
     {BLE_MSG_PERIPH_CONNECT_SUC,             ble_event_periph_connect_suc},
     {BLE_MSG_PERIPH_DISCONN_SUC,             ble_event_periph_disconnect_suc},
-    {BLE_MSG_SEND_PUMP_REALTIME_INFO,       ble_event_algo_real_time},
-    {BLE_MSG_SEND_ALGO_REMIND_DATA,         ble_event_algo_remind_data},
-    {BLE_MSG_SEND_DEVICE_REMIND_DATA,       ble_event_device_remind_data},
-    {BLE_MSG_AIRPLANE_MODE_CHANGE,          ble_event_airplane_mode_changed},
-    {BLE_MSG_BREAST_PUMP_STATE_CHANGE,      ble_event_breast_pump_state_change},
-    {BLE_MSG_BREAST_PUMP_MODE_CHANGE,       ble_event_breast_pump_mode_change},
-    {BLE_MSG_NOTIY_APP_SETTINGS,            ble_event_notify_app_settings},
-    {BLE_MSG_MASTER_SEND_DATA,              ble_event_master_send_data},
-    {BLE_MSG_MASTER_RECIVE_DATA,            ble_event_master_recive_data},
-    {BLE_MSG_FAC_SEND_DATA,                 ble_event_fac_send_data},
-    {BLE_MSG_FAC_RECIVE_DATA,               ble_event_fac_recive_data},
-    {BLE_MSG_REMOT_SEND_DATA,               ble_event_remot_send_data},
-    {BLE_MSG_REMOT_RECIVE_DATA,             ble_event_remot_recive_data},
+    {BLE_MSG_MASTER_SEND_DATA,               ble_event_master_send_data},
+    {BLE_MSG_MASTER_RECIVE_DATA,             ble_event_master_recive_data},
+    {BLE_MSG_FAC_SEND_DATA,                  ble_event_fac_send_data},
+    {BLE_MSG_FAC_RECIVE_DATA,                ble_event_fac_recive_data},
+    {BLE_MSG_REMOT_SEND_DATA,                ble_event_remot_send_data},
+    {BLE_MSG_REMOT_RECIVE_DATA,              ble_event_remot_recive_data},
 };
 
 /*
@@ -191,41 +177,6 @@ static void ble_event_periph_disconnect_suc(void *context, void *data, int data_
     pble->on_connect_status_change(pble, pble->priv.ble_connect_state, 0);
 }
 
-static void ble_event_algo_real_time(void *context, void *data, int data_len)
-{
-
-}
-
-static void ble_event_algo_remind_data(void *context, void *data, int data_len)
-{
-
-}
-
-static void ble_event_device_remind_data(void *context, void *data, int data_len)
-{
-
-}
-
-static void ble_event_airplane_mode_changed(void *context, void *data, int data_len)
-{
-
-}
-
-static void ble_event_breast_pump_state_change(void *context, void *data, int data_len)
-{
-
-}
-
-static void ble_event_breast_pump_mode_change(void *context, void *data, int data_len)
-{
-
-}
-
-static void ble_event_notify_app_settings(void *context, void *data, int data_len)
-{
-
-}
-
 static void ble_event_master_send_data(void *context, void *data, int data_len)
 {
     EXCEPTION_CHECK_VOID(context);
@@ -248,9 +199,6 @@ static void ble_event_master_recive_data(void *context, void *data, int data_len
         .data_type = BLE_SRV_DATA_TYPE_RAW,
     };
     ble_master_srv_recv_data(pble, &srv_data);
-    CHECK_IF_VALID(pble->priv.master_cb, {
-        pble->priv.master_cb(pble, data, data_len);
-    });
 }
 
 static void ble_event_fac_send_data(void *context, void *data, int data_len)
@@ -262,7 +210,6 @@ static void ble_event_fac_send_data(void *context, void *data, int data_len)
         .p_data = data,
     };
     ble_manager_context_t *pble = context;
-    // LOG_BLE("fac send data size %d", data_len);
     pble->priv.ble_dev->write(pble->priv.ble_dev, &send_data, data_len);
 }
 
@@ -276,14 +223,18 @@ static void ble_event_fac_recive_data(void *context, void *data, int data_len)
         .data_type = BLE_SRV_DATA_TYPE_RAW,
     };
     ble_factory_srv_recv_data(pble, &srv_data);
-    CHECK_IF_VALID(pble->priv.factory_cb, {
-        pble->priv.factory_cb(pble, data, data_len);
-    });
 }
 
 static void ble_event_remot_send_data(void *context, void *data, int data_len)
 {
-
+    EXCEPTION_CHECK_VOID(context);
+    ble_service_send_data_t send_data = {
+        .srv_id = BLE_SRV_ID_REMOTE,
+        .bind_state = BLE_BIND_STATE_COMPLETE,
+        .p_data = data,
+    };
+    ble_manager_context_t *pble = context;
+    pble->priv.ble_dev->write(pble->priv.ble_dev, &send_data, data_len);
 }
 
 static void ble_event_remot_recive_data(void *context, void *data, int data_len)

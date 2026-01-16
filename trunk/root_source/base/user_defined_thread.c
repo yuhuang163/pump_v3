@@ -5,7 +5,6 @@
 #include "hal_motor.h"
 #include "bsp_lcd_internal.h" // IWYU pragma: keep
 #include "root_common.h"
-#include "uart_extension_lcd.h" // IWYU pragma: keep
 #include "peripheral_bus_api.h"
 #include "root_common_api.h" // IWYU pragma: keep
 
@@ -35,16 +34,14 @@ static int run_led_test_cb(void)
     LOG_PBUS("===> run led test!!!!! level: %d", led_level);
     peripheral_bus_context_t *pbus = (peripheral_bus_context_t *)find_module(ID_MODULE_DEVICE_BUS);
     rt_device_node_t *led_dev = pbus->find_device(ID_DEVICE_LED);
-    led_status_t led_status = {
-        .mode = LED_MODE_LEVEL,
-        .un.luminous.level = led_level,
+    led_status_msg_t msg = {
+        .led_index = PUMP_LED_ALL_ID,
+        .led_status = {
+            .mode = LED_MODE_LEVEL,
+            .un.luminous.level = led_level,
+        },
     };
-    led_level += 5;
-    if (led_level > LED_LEVEL_MAX) {
-        led_level = 0;
-    }
-    int args[] = {PUMP_LED_ALL_ID, (int)&led_status};
-    led_dev->ioctl(led_dev, OP_CODE_LED_STATUS_SET, (void *)args);
+    led_dev->ioctl(led_dev, OP_CODE_LED_STATUS_SET, (void *)&msg);
     return 1000;
 }
 
@@ -71,20 +68,23 @@ static void reboot_system_test_cb(void)
 
 static int lcd_data_send_test_cb(void)
 {
+#if (V3_HARDWARE_VERSION == V3_2710IMP_HARDWARE_V1)
     peripheral_bus_context_t *pbus = (peripheral_bus_context_t *)find_module(ID_MODULE_DEVICE_BUS);
     rt_device_node_t *lcd_dev = pbus->find_device(ID_DEVICE_DISPLAY_PANEL);
     EXCEPTION_CHECK_INT(lcd_dev);
-
     uint8_t img_id = LCD_DISPLAY_PUMPING_COMPLETED;
-
-    lcd_tlvs_t tlvs = {
-        .type = LCD_IMG_ID,
-        .data_size = 1,
-        .data[0] = img_id,
+    lcd_tlvs_msg_t msg = {
+        .srv_id = LCD_DISPLAY_EVENT_SRV,
+        .tlvs = u_malloz(sizeof(lcd_tlvs_t)),
+        .tlvs_num = 1,
     };
-    LOG_PBUS("===> lcd data send test!!!!! %p, %p", &img_id, &tlvs);
-    int args[] = {1, (int)&tlvs};
-    lcd_dev->ioctl(lcd_dev, OP_CODE_PANEL_DATA_SEND, (void *)args);
+    EXCEPTION_CHECK_INT(msg.tlvs);
+    msg.tlvs[0].type = LCD_IMG_ID;
+    msg.tlvs[0].data_size = 1;
+    msg.tlvs[0].data[0] = img_id;
+    lcd_dev->ioctl(lcd_dev, OP_CODE_PANEL_DATA_SEND, (void *)&msg);
+    u_free(msg.tlvs);
+#endif
     return 1000;
 }
 
@@ -117,6 +117,7 @@ static int motor_debug_test_cb(void)
     if(state > MOTOR_USER_DEBUG_VALVE_OFF) {
         state = MOTOR_USER_DEBUG_PUMP_ON;
     }
+    LOG_PBUS("===> motor debug test!!!!! state: %d, duty: %d, hold_time: %d", state, para.duty, para.hold_time);
     motor_ctx->hook->motor_debug_with_user_para(motor_ctx, state, &para);
     state++;
     return 1000;
@@ -132,6 +133,7 @@ static void sys_dump_wdg_test_cb(void)
     }
 }
 
+void light_sensor_test(void);
 static void hdr_run_pressure_test_cb(hdr_post_args_t *args)
 {
     // sys_dump_wdg_test_cb();
@@ -140,7 +142,9 @@ static void hdr_run_pressure_test_cb(hdr_post_args_t *args)
     // POST_TASK_HANDLER_DELAYED_ARG0(hdr_run_pressure_test_cb, lcd_data_send_test_cb(), "pressure_test:continue");
     // POST_TASK_HANDLER_DELAYED_ARG0(hdr_run_pressure_test_cb, run_led_test_cb(), "pressure_test:continue"); 
     // motor_debug_policy_test_cb();
-    // POST_TASK_HANDLER_DELAYED_ARG0(hdr_run_pressure_test_cb, motor_debug_test_cb(), "pressure_test:continue");
+    POST_TASK_HANDLER_DELAYED_ARG0(hdr_run_pressure_test_cb, motor_debug_test_cb(), "pressure_test:continue");
+    // light_sensor_test();
+    // POST_TASK_HANDLER_DELAYED_ARG0(hdr_run_pressure_test_cb, 1000, "pressure_test:continue");
 }
 #endif
 
@@ -151,7 +155,7 @@ static void hdr_run_pressure_test_cb(hdr_post_args_t *args)
 int run_user_thread_dispatch(void)
 {
 #if IS_SUPPORT_PRESSURE_TEST  
-    POST_TASK_HANDLER_DELAYED_ARG0(hdr_run_pressure_test_cb, 2000, "pressure_test");
+    // POST_TASK_HANDLER_DELAYED_ARG0(hdr_run_pressure_test_cb, 2000, "pressure_test");
 #endif
     window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
     if (wm) {

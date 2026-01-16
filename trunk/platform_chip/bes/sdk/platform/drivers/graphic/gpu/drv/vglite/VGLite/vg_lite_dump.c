@@ -46,8 +46,10 @@
 #endif
 #else
    // #define bool int
+    #ifndef true
     #define true 1
     #define false 0
+    #endif
 #endif //multi_thread
 
 #if DUMP_CAPTURE

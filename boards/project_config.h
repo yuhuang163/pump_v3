@@ -16,13 +16,21 @@ extern "C" {
 /// 马达线程深度
 #define MOTOR_PLAY_THREAD_STACKSIZE                    (TASK_SIZE_DEFAULT * 2 + 0)
 /// 蓝牙线程深度
-#define BLE_THREAD_STACKSIZE                           (TASK_SIZE_DEFAULT * 2 + 0)
+#define BLE_THREAD_STACKSIZE                           (TASK_SIZE_DEFAULT * 4 + 0)
 /// 吸奶线程深度
 #define BTH_THREAD_STACKSIZE                           (TASK_SIZE_DEFAULT * 2 + 0)
 /// lvgl线程深度
+#if CFG_LVGL_ENABLE
+#define LVGL_RENDER_THREAD_STACKSIZE                   (TASK_SIZE_DEFAULT * 16 + 0)
+#else
 #define LVGL_RENDER_THREAD_STACKSIZE                   (TASK_SIZE_DEFAULT * 2 + 0)
+#endif
 /// 窗口线程深度
+#if CFG_LVGL_ENABLE
+#define WM_THREAD_STACKSIZE                            (TASK_SIZE_DEFAULT * 4 + 0)
+#else
 #define WM_THREAD_STACKSIZE                            (TASK_SIZE_DEFAULT * 2 + 0)
+#endif
 /// ota线程深度
 #define OTA_THREAD_STACKSIZE                           (TASK_SIZE_DEFAULT * 2 + 0) 
 /// 按键线程深度
@@ -42,20 +50,19 @@ extern "C" {
 /// 冻结线程深度 
 #define PM_FREEZE_THREAD_STACKSIZE                     (TASK_SIZE_DEFAULT * 2 + 0)
 /// 中断线程深度
-#define INTERRUPT_THREAD_STACKSIZE                     (TASK_SIZE_DEFAULT * 1 + 0)
+#define INTERRUPT_THREAD_STACKSIZE                     (TASK_SIZE_DEFAULT * 2 + 0)
 /// 马达驱动线程深度
 #define MOTOR_DRIVER_THREAD_STACKSIZE                  (TASK_SIZE_DEFAULT * 2 + 0)
-/// 屏幕串口线程深度
-#define LCD_UART_THREAD_STACKSIZE                      (TASK_SIZE_DEFAULT * 2 + 0)
 /// 工厂串口线程深度
 #define FACTORY_UART_THREAD_STACKSIZE                  (TASK_SIZE_DEFAULT * 2 + 0)
 /// 按键设备线程深度
-#define KEY_DEVICE_THREAD_STACKSIZE                    (TASK_SIZE_DEFAULT * 1 + 0)
+#define KEY_DEVICE_THREAD_STACKSIZE                    (TASK_SIZE_DEFAULT * 2 + 0)
 /// 充电设备线程深度
-#define CHARGE_DEVICE_THREAD_STACKSIZE                 (TASK_SIZE_DEFAULT * 1.5 + 0)
+#define CHARGE_DEVICE_THREAD_STACKSIZE                 (TASK_SIZE_DEFAULT * 2 + 0)
 /// led设备线程深度
-#define LED_DEVICE_THREAD_STACKSIZE                    (TASK_SIZE_DEFAULT * 1 + 0)
-
+#define LED_DEVICE_THREAD_STACKSIZE                    (TASK_SIZE_DEFAULT * 2 + 0)
+/// lcd线程深度
+#define LCD_THREAD_STACKSIZE                           (TASK_SIZE_DEFAULT * 2 + 0)
 /// 中断消息队列数量定义
 #define INTERRUPT_MESQ_NUM                             (10)
 /// lcd spi 消息队列数量定义
@@ -96,6 +103,15 @@ extern "C" {
 #define LVGL_TIME_TICK_PERIOD                          (20) /// 单位ms
 /// 开机长按时间
 #define BOOT_LONG_PRESS_TIME                           (3000)
+/// 屏幕宽度
+#define PANLE_DISPLAY_W                                (360)
+/// 屏幕高度
+#define PANLE_DISPLAY_H                                (360)
+/// 资源存储类型
+#define IMG_RES_STORAGE_INTERNAL_FLASH                 0
+#define IMG_RES_STORAGE_EXTERNAL_FLASH                 1
+#define V3_IMG_RES_STORAGE_TYPE                        0
+
 #ifdef __cplusplus
 }
 #endif

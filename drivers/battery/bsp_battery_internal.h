@@ -142,15 +142,21 @@ typedef struct {
 */
 bool vbus_is_plug_in(void);
 int bsp_charge_init(void);
+int bsp_charge_resume(void);
+int bsp_charge_suspend(void);
 int get_charge_state(void);
 int get_charging_temperature(void);
+int get_charge_battery_voltage(void);
 int get_charge_full_debounce(void);
 void add_charge_irq_callback(void (*cb)(void *param));
+void add_charge_battery_poll_callback(int (*cb)(void));
 
 int battery_adc_init(void);
 int battery_adc_resume(void);
 int battery_adc_suspend(void);
 int battery_adc_single_conversion(uint16_t *batt_voltage);
+int bsp_charge_is_ready(void *args);
+int bsp_charge_pd_is_ready(void *args);
 #ifdef __cplusplus
 }
 #endif

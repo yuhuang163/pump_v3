@@ -47,6 +47,7 @@ typedef enum {
     PERSIST_KEY_UTC_TIMESTEMP = 150,             /// 系统时间戳
 
     PERSIST_KEY_BREAST_PUMP_INFO = 180,
+    PERSIST_KEY_BREAST_PUMP_BURY_INFO,
 
     PERSIST_KEY_BREAST_PUMP_DATA_HEAD = 200,          /// 泵奶数据头
     PERSIST_KEY_BREAST_PUMP_DATA_BODY_BEGIN,
@@ -85,6 +86,13 @@ typedef struct {
     uint16_t crc;
 } breast_pump_info_storage_t;
 
+/// 描述泵奶埋点信息
+typedef struct {
+    uint32_t magic;
+    sys_buried_info_list_t buried_info_list;
+    uint16_t crc;
+} breast_pump_buried_info_storage_t;
+
 /// 描述系统配置
 typedef struct {
     uint32_t magic;
@@ -118,7 +126,7 @@ typedef struct {
     uint32_t magic;
     factory_dev_info_t dev_info;
     uint16_t crc;
-} factory_dev_info_storage_t;
+} __attribute__((packed)) factory_dev_info_storage_t;
 
 /// 描述泵奶数据头
 typedef struct {

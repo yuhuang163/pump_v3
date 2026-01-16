@@ -24,6 +24,7 @@ typedef enum {
     PM_WAKEUP_REASON_CHARGE_PLUG_OUI,
     PM_WAKEUP_REASON_BACKGROUND_TASK,
     PM_WAKEUP_REASON_IOT,               /// IOT任务周期更新.
+    PM_WAKEUP_REASON_FACTORY_RESUME,
     PM_WAKEUP_REASON_MAX,
 } pm_wakeup_reason_e;
 
@@ -32,6 +33,12 @@ typedef enum {
     ID_SYS_PM_SUSPEND,
     ID_SYS_PM_MAX
 } system_pm_state_e;
+
+typedef enum {
+    SUSPEND_BY_WIN = 100,
+    SUSPEND_BY_BLE,
+    SUSPEND_BY_FAC,
+} pm_suspend_source_e;
 
 struct broadcast_obj;
 typedef struct power_manager_context {

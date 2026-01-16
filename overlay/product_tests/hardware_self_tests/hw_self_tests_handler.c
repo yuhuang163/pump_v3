@@ -38,7 +38,7 @@ static int hw_self_event_printf(self_hardware_tst_event_type_e event)
         default:
             return -1;
     }
-    LOGI("product tst event-- %s = %d", str, event);
+    LOG_TEST("product tst event-- %s = %d", str, event);
     return 0;
 }
 /*
@@ -50,6 +50,10 @@ void hw_self_tests_thread_handler(struct tests_manager_context *ctx, void *msg)
     multi_func_msg_data_t *m = (multi_func_msg_data_t *)msg;
     self_hardware_tst_event_type_e event = (self_hardware_tst_event_type_e)m->union_body.product_test_extra.event_type;
     hw_self_event_printf(event);
+    /* 如果当前模式不是自检模式，则不处理 */
+    if (ctx->priv.current_mode != TST_SELF_HARDWARE_TYPE) {
+        return;
+    }
     switch (event) {
         case SH_TST_READ_SW_VER_EVENT:
             {

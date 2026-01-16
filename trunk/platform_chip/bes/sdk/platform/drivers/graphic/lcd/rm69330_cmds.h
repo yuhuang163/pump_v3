@@ -38,15 +38,17 @@ static struct lcd_command lcd_init_cmds[] = {
 #endif
 #ifdef CONFIG_LCD_RGB565
     {0x3A, 1, {0x55}, 0},
+#elif defined(CONFIG_LCD_RGB666)
+    {0x3A, 1, {0x66}, 0},
 #else
     {0x3A, 1, {0x77}, 0},
 #endif
-    {0x36, 1, {0x08}, 0},
+    {0x36, 1, {0x00}, 0}, /* 0x00 - RGB order, 0x08 - BGR order */
     {0x51, 1, {0xCF}, 0},
     {0x2A, 4, {((LCD_HSTART >> 8) & 0xff), (LCD_HSTART & 0xff), ((LCD_HEND >> 8) & 0xff), (LCD_HEND & 0xff)}, 0},
     {0x2B, 4, {((LCD_VSTART >> 8) & 0xff), (LCD_VSTART & 0xff), ((LCD_VEND >> 8) & 0xff), (LCD_VEND & 0xff)}, 0},
-    {0x11, 0, {0x00}, 240},
-    {0x29, 0, {0x00}, 150},
+    {0x11, 0, {0x00}, 5},
+    {0x29, 0, {0x00}, 5},
 };
 
 #endif /* __RM69330_CMDS_H__ */

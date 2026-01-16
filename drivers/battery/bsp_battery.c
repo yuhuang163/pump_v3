@@ -80,7 +80,7 @@ static const capacity_data_t sc_batt_tables[] = {
     {60, 11076, 11315}, 
     {70, 11316, 11621}, 
     {80, 11622, 11930}, 
-    {90, 11931, 12480}, 
+    {90, 11931, 12200}, 
 };
 
 static const battery_para_t sc_charging_tables[] = {
@@ -111,7 +111,6 @@ static const battery_float_voltage_t sc_charging_float_tables[] = {
     {THREE_FLOAT_VOLTAGE_RATE_1, THREE_FLOAT_VOLTAGE_THRESHOLD_2}, 
     {THREE_FLOAT_VOLTAGE_RATE_2, THREE_FLOAT_VOLTAGE_THRESHOLD_3}, 
 };
-
 #endif
 
 static uint8_t log_timer = 0;
@@ -255,7 +254,7 @@ static void uncharge_voltage_handler(uint16_t voltage)
 
     /// 大偏差补偿
     for (uint8_t i = 0; i < LENGTH_OF_ARRAY(sc_charge_tables); i++) {
-        if (offset > sc_full_load_tables[i].dropout_voltage) {
+        if (offset > sc_charge_tables[i].dropout_voltage) {
             if (i == 0) {
                 vref = 0;
                 comp_count++; 
@@ -406,12 +405,15 @@ static int battery_voltage_poll(void)
     
     s_batt_poll_time = get_timestamp();
     log_timer++;
+#if IS_SUPPORT_BATTERY_DIRECT_SAMPLING
     ret = battery_adc_single_conversion(&voltage);
     if ( ret != BSP_OK) {
         // LOGE("get batt voltage failed");
         return ret;
     }
-
+#else
+    voltage = get_charge_battery_voltage();
+#endif
     battery.charge = get_charge_state();
     battery.temperature = get_charging_temperature();
     if (battery.charge == CHARGE_STATE_CHARGING) {
@@ -439,7 +441,11 @@ const battery_status_t *battery_status_get(void)
 
 static int battery_dev_open(struct rt_device_node *dev)
 {
+#if IS_SUPPORT_BATTERY_DIRECT_SAMPLING
     battery_adc_init();
+#else
+    add_charge_battery_poll_callback(battery_voltage_poll);
+#endif
     battery_health_update();
     bsp_charge_init();
     LOG_PBUS("battery init ok, health:%d%%, percent: %d%% voltage: %d",
@@ -479,7 +485,11 @@ static int battery_dev_ioctl(struct rt_device_node *dev, uint32_t op_code, void 
         case OP_CODE_BAT_GET_VOLTAGE:
             return battery_voltage_get();
         case OP_CODE_BAT_POLL_VOLTAGE:
-            return battery_voltage_poll();
+            #if IS_SUPPORT_BATTERY_DIRECT_SAMPLING
+                return battery_voltage_poll();
+            #else
+                return 0;
+            #endif
         case OP_CODE_BAT_HEALTH_SET:
             tmp = (uint32_t *)args;
             battery_health_set((uint8_t)tmp[0]);
@@ -493,6 +503,14 @@ static int battery_dev_ioctl(struct rt_device_node *dev, uint32_t op_code, void 
             return get_charge_state();
         case OP_CODE_BAT_GET_CHARGE_TEMPERATURE:
             return get_charging_temperature();
+        case OP_CODE_BAT_IS_READY:
+            return bsp_charge_is_ready(args);
+        case OP_CODE_BAT_PD_IS_READY:
+        #if (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V1 || V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V2)
+            return bsp_charge_pd_is_ready(args);
+        #else
+            return 0;
+        #endif
         default:
             LOGE("bat err op_code: %lx", op_code);
             return -1;
@@ -501,7 +519,10 @@ static int battery_dev_ioctl(struct rt_device_node *dev, uint32_t op_code, void 
 
 static int battery_dev_suspend(struct rt_device_node *dev)
 {
+#if IS_SUPPORT_BATTERY_DIRECT_SAMPLING
     battery_adc_suspend();
+#endif
+    bsp_charge_suspend();
     if (node) {
         node->status = DEVICE_BUS_SUSPEND;
     }
@@ -510,7 +531,10 @@ static int battery_dev_suspend(struct rt_device_node *dev)
 
 static int battery_dev_resume(struct rt_device_node *dev)
 {
+#if IS_SUPPORT_BATTERY_DIRECT_SAMPLING
     battery_adc_resume();
+#endif
+    bsp_charge_resume();
     battery_health_update();
     s_batt_poll_time = 0;
     if (node) {

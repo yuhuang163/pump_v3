@@ -22,6 +22,11 @@ export CHIP_PSRAM_PHY_VER := 11
 export PSRAM_CLASSIFY ?= OPI
 export PSRAM_X8_MODE ?= 1
 export CHIP_SPI_VER := 6
+ifeq ($(GRAPH_MODULE),1)
+export CHIP_HAS_GPU := 1
+export CHIP_HAS_LCDC := 1
+export CHIP_HAS_JPEG := 1
+endif
 export CHIP_CACHE_VER := 5
 export CHIP_INTERSYS_VER := 2
 export CHIP_GPIO_VER := 2

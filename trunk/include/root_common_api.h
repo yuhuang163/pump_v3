@@ -38,6 +38,8 @@ extern "C" {
 #include "ble_manager_api.h" // IWYU pragma: keep
 #include "ui_manager_api.h" // IWYU pragma: keep
 #include "protocol_manager_api.h" // IWYU pragma: keep
+#include "servers_manager_api.h" // IWYU pragma: keep
+#include "battery_manager_api.h" // IWYU pragma: keep
 
 #define ADD_MODULE(name, id, perpare_init_cb, post_init_cb, ptr, list_head, mem_usage) \
     add_new_module(name, id, perpare_init_cb, post_init_cb, ptr, list_head, mem_usage)
@@ -50,8 +52,8 @@ typedef enum {
     ID_MODULE_POWER,
     ID_MODULE_DEVICE_BUS,
     ID_MODULE_RES,
-    ID_MODULE_WM,
     ID_MODULE_UI,
+    ID_MODULE_WM,
     ID_MODULE_ALGO_HUB,
     ID_MODULE_STORAGE,
     ID_MODULE_KEY_INPUT,
@@ -61,6 +63,7 @@ typedef enum {
 
     ID_MODULE_IOT,
     ID_MODULE_MISC,
+    ID_MODULE_BATTERY,
     ID_MODULE_BREAST_PUMP,
     ID_MODULE_MOTOR,
     ID_MODULE_AUDIO,
@@ -76,6 +79,7 @@ typedef enum {
 
     ID_MODULE_TESTS,
     ID_MODULE_PROTOCOL,
+    ID_MODULE_SERVERS,
 
     ID_MODULE_MAX
 } module_desc_id_e;

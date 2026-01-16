@@ -52,5 +52,9 @@ const char *get_input_key_code_name(uint16_t keycode)
             return "@left_control";
         case KEY_CODE_RIGHT_CONTROL:
             return "@right_control";
+        case KEY_CODE_KNOB_LEFT:
+            return "@knob_left";
+        case KEY_CODE_KNOB_RIGHT:
+            return "@knob_right";
     }
 }

@@ -3203,7 +3203,7 @@ int BOOT_TEXT_FLASH_LOC pmu_open(void)
     pmu_dcdc_dig_get_volt(&val, NULL);
     pmu_dcdc_dig_set_volt(val, dig_lp_dcdc, true);
 
-    charger_charge_open();
+    // charger_charge_open();
 
 #endif // PMU_INIT || (!FPGA && !PROGRAMMER)
 

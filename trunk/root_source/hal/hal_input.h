@@ -19,6 +19,8 @@ typedef enum {
     OP_CODE_INPUT_IS_TRIGGERED = 2,
     OP_CODE_INPUT_GET_KEY_STATE = 3,
     OP_CODE_INPUT_SET_KEY_SENSITIVITY = 4,
+    OP_CODE_INPUT_IS_READY = 5,
+    OP_CODE_INPUT_TOUCH_IS_READY = 6,
 } input_dev_op_code_e;
 
 #ifdef __cplusplus

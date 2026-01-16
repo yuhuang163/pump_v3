@@ -40,7 +40,7 @@
 #include "gfps_ble.h"
 #endif
 
-#ifdef CFG_CUSTOM_BLE_SERVICE 
+#if CFG_CUSTOM_BLE_SERVICE 
 extern void ble_custom_service_init(void);
 extern void ble_custom_gap_connect_init(gap_conn_prefer_params_t *params);
 extern void ble_custom_adv_init(gap_adv_param_t *adv_param, BLE_ADV_PARAM_T *legacy_param);
@@ -1426,7 +1426,7 @@ void app_ble_stop_scan(void)
 
 static int app_ble_server_callback(uintptr_t connhdl, gap_adv_event_t event, gap_adv_callback_param_t param)
 {
-#ifdef CFG_CUSTOM_BLE_SERVICE
+#if CFG_CUSTOM_BLE_SERVICE
     ble_custom_event_callback(connhdl, event, param);
 #endif
     if (event < GAP_ADV_EVENT_CONN_OPENED)
@@ -2024,7 +2024,10 @@ bool app_ble_stub_adv_activity_prepare(ble_adv_activity_t *adv)
     }
 
     adv->user = USER_STUB;
-#ifndef CFG_CUSTOM_BLE_SERVICE
+    
+#if CFG_CUSTOM_BLE_SERVICE
+    ble_custom_adv_init(adv_param, &legacy_param);
+#else
     adv_param->connectable = true;
     adv_param->scannable = true;
     adv_param->use_legacy_pdu = true;
@@ -2035,8 +2038,6 @@ bool app_ble_stub_adv_activity_prepare(ble_adv_activity_t *adv)
     adv_param->adv_timing.max_adv_fast_interval_ms = 150;
     adv_param->adv_timing.min_adv_slow_interval_ms = 500;
     adv_param->adv_timing.max_adv_slow_interval_ms = 500;
-#else
-    ble_custom_adv_init(adv_param, &legacy_param);
 #endif
 
     app_ble_set_adv_tx_power_level(adv, BLE_ADV_TX_POWER_LEVEL_0);
@@ -4093,13 +4094,13 @@ void app_ble_init(void)
 
     app_ble_gatt_standard_service_init();
 
-#ifndef CFG_CUSTOM_BLE_SERVICE
+#if CFG_CUSTOM_BLE_SERVICE
+    ble_custom_gap_connect_init(&params);
+#else
     params.conn_interval_min_1_25ms = 200; // 250ms, connection interal = interval * 1.25ms
     params.conn_interval_max_1_25ms = 960; // 1200ms, connection interal = interval * 1.25ms
     params.max_peripheral_latency = 0x00; // 0x00 to 0x01F3, max peripheral latency in units of subrated conn intervals
     params.superv_timeout_ms = 30*1000; // 0x0A to 0x0C80 * 10ms, 100ms to 32s
-#else
-    ble_custom_gap_connect_init(&params);
 #endif
     gap_set_peripheral_prefer_conn_parameters(&params);
 
@@ -4197,9 +4198,10 @@ void app_ble_init(void)
     ble_datapath_init();
 #endif
 
-#ifdef CFG_CUSTOM_BLE_SERVICE
+#if CFG_CUSTOM_BLE_SERVICE
     ble_custom_service_init();
 #endif
+
 #ifdef TILE_DATAPATH
     ble_tile_init();
 #endif

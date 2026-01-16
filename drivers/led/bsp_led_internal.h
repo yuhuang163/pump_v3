@@ -29,6 +29,8 @@ void bsp_night_light_resume(void);
 void bsp_night_light_suspend(void);
 int bsp_night_light_status_set(void *args);
 void *bsp_night_light_status_get(void *args);
+int bsp_led_is_ready(void *args);
+int bsp_night_light_pwm_duty_set(void *args);
 
 #ifdef __cplusplus
 }

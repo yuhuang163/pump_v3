@@ -9,43 +9,17 @@ extern "C" {
  * Include files
  ******************************************************************************/
 #include "root_common_base.h" // IWYU pragma: keep
-
-struct rt_device_node;
-typedef struct product_tests_comm_context {
-    /// @brief bus设备句柄
-    struct rt_device_node *airdev;
-    struct rt_device_node * battdev;
-    struct rt_device_node *imudev;
-    struct rt_device_node *motordev;
-    struct rt_device_node *leddev;
-    struct rt_device_node *fcuartdev;
-    /// @brief 相关模块上下文句柄
-    struct resource_manager_context *res; /// 资源管理器
-    struct storage_manager_context *st; /// 存储管理器
-    struct misc_manager_context *misc; /// 杂项管理器
-    struct power_manager_context *pm; /// 电源管理器
-    struct key_input_context *key; /// 按键管理器
-    struct breast_pump_manager_context *pump; /// 泵奶管理器
-    struct ble_manager_context *ble_ctx; /// 蓝牙处理管理器
-
-} product_tests_comm_context_t;
-
-typedef struct hw_self_tests_context {
-    struct rt_device_node *dev;
-
-} hw_self_tests_context_t;
-
-typedef struct factory_tests_context {
-    struct rt_device_node *dev;
-
-} factory_tests_context_t;
+#include "product_tests.h" // IWYU pragma: keep
 
 /// 测试类型
 typedef enum {
-    TST_FACTORY_TYPE = 0,
-    TST_SELF_HARDWARE_TYPE,
-    TST_STRESS_TYPE,
-    TST_COMMON_TYPE,
+    TST_NONE_TYPE = 0x0000,           /// 无模式
+    TST_FACTORY_TYPE = 0x0001,        /// 产测模式
+    TST_AGING_TEST_TYPE = 0x0002,     /// 老化测试模式1
+    TST_SUCTION_TEST_TYPE = 0x0004,   /// 吸力测试模式  
+    TST_SELF_HARDWARE_TYPE = 0x0005, /// 自检模式
+    TST_STRESS_TYPE = 0x0006,        /// 压力测试模式
+    TST_COMMON_TYPE = 0x0007,        /// 通用测试模式
 } product_tst_report_type_e;
 
 /// 测试类型
@@ -56,6 +30,29 @@ typedef enum {
     TST_STRESS_EVENT_BEGIN        = 201,
     TST_COMM_EVENT_BEGIN          = 301,
 } product_tst_event_type_e;
+
+typedef enum {
+    FAC_TST_READ_SW_VER_EVENT    = TST_FACTORY_EVENT_BEGIN,
+    FAC_TST_READ_DEV_MAC_EVENT,
+    FAC_TST_MOTOR_CTR_EVENT,
+    FAC_TST_AGING_TEST_ENTER_EVENT,
+    FAC_TST_AGING_TEST_EXIT_EVENT,
+    FAC_TST_SUCTION_TEST_EVENT,
+    FAC_TST_ENTER_EVENT,
+    FAC_TST_EXIT_EVENT,
+} factory_tst_event_type_e;
+
+typedef enum {
+    COMM_TST_READ_SW_VER_EVENT    = TST_COMM_EVENT_BEGIN,
+    COMM_TST_READ_DEV_MAC_EVENT,
+    COMM_TST_MOTOR_CTR_EVENT,
+} comm_tst_event_type_e;
+
+typedef enum {
+    SH_TST_READ_SW_VER_EVENT    = TST_SELF_HARDWARE_EVENT_BEGIN,
+    SH_TST_READ_STORAGE_EVENT,
+    SH_TST_STORAGE_CRC_CHECK_EVENT,
+} self_hardware_tst_event_type_e;
 
 typedef struct {
     uint16_t event_type;     /// 事件类型

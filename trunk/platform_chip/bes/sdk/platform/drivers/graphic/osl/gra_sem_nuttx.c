@@ -15,6 +15,7 @@
  ****************************************************************************/
 
 #include "nuttx/semaphore.h"
+#include "nuttx/clock.h"
 
 int gra_sem_init(sem_t *sem, int pshared, unsigned int value)
 {
@@ -33,7 +34,7 @@ int gra_sem_timedwait(sem_t *sem, unsigned int ms)
 
 int gra_sem_wait_uninterruptible(sem_t *sem)
 {
-    return nxsem_wait(sem);
+    return nxsem_wait_uninterruptible(sem);
 }
 
 int gra_sem_post(sem_t *sem)

@@ -91,9 +91,14 @@ extern "C" {
 #define PUMP_MODE_LEN                                                (1)
 #endif
 
-/// 混合模式参数长度，短吸 + 长吸
+/// 混合模式参数长度，5短吸 + 长吸
 #ifndef MIX_MODE_LEN
 #define MIX_MODE_LEN                                                 (1 * 2)
+#endif
+
+/// 混合模式2参数长度，两短吸 + 长吸
+#ifndef MIX2_MODE_LEN
+#define MIX2_MODE_LEN                                                 (1 * 2)
 #endif
 
 /// 个性化模式默认参数长度，按摩 + 吸乳

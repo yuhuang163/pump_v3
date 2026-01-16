@@ -36,12 +36,14 @@ typedef enum {
     STORE_ID_BREAST_PUMP_INFO = 300,        /// 吸奶信息
     STORE_ID_BREAST_PUMP_TIME,              /// 吸奶时间
     STORE_ID_PUMP_SETTING_INFO,             /// 吸奶设置信息
+    STORE_ID_PUMP_CUSTOM_STEPS_PARAMETER_INFO,  /// 吸奶多步设置信息
     STORE_ID_PUMP_CONTROL_TYPE,             /// 吸奶控制类型
     STORE_ID_REMIND_PUMP_EXCEPTION,         /// 吸奶异常提醒
     STORE_ID_REMIND_PUMP_MODE_CHANGE,       /// 吸奶模式切换提醒
     STORE_ID_REMIND_PUMP_FINISH,            /// 吸奶完成提醒
     STORE_ID_BREAST_PUMP_DATA_HEAD,         /// 吸奶器数据头
     STORE_ID_BREAST_PUMP_DATA_BODY,         /// 吸奶器数据体
+    STORE_ID_BREAST_PUMP_BURY_INFO,         /// 吸奶器埋点信息
     STORE_ID_SYS_CONFIG_INFO = 400,         /// 系统配置信息
     STORE_ID_SYS_TIME_ZONE,                 /// 系统时区
     STORE_ID_SYS_AP_MODE_ONOFF,             /// 系统飞航模式开关
@@ -66,6 +68,7 @@ typedef enum {
     STORE_CRC_TYPE_SYS_CONFIG = 0,
     STORE_CRC_TYPE_SYS_STATE,
     STORE_CRC_TYPE_PUMP_INFO,
+    STORE_CRC_TYPE_PUMP_BURY_INFO,
     STORE_CRC_TYPE_MAX
 } store_crc_type_id_e;
 
@@ -165,6 +168,7 @@ typedef struct storage_manager_context {
         struct broadcast_obj *mbdc;
         /// 数据库.
         struct rt_device_node *db_dev;
+        struct rt_device_node *factory_flash_dev;
         /// 外挂flash
         // struct extflash_interface *extflash_if;
         os_mutex_id storage_rw_lock;

@@ -1,5 +1,15 @@
 
 #include "md5.h"
+#include <stddef.h>
+
+/*
+ * NOTE:
+ * The project provides a lightweight <stdlib.h> in
+ * `trunk/platform_chip/bes/sdk/utils/libc/inc/stdlib.h` which does not declare
+ * malloc/free. Declare them here to avoid implicit-declaration warnings.
+ */
+extern void *malloc(size_t size);
+extern void free(void *ptr);
 
 #define S11 7
 #define S12 12

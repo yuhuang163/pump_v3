@@ -36,11 +36,11 @@ static const module_register_fptr s_module_register[] = {
     #if IS_SUPPORT_MODULE_TIME_SYSTEM
     register_module_for_time_system_new,
     #endif
-    #if IS_SUPPORT_MODULE_WM
-    register_module_for_window_manager_new,
-    #endif
     #if IS_SUPPORT_MODULE_UI
     register_module_for_ui_manager_new,
+    #endif
+    #if IS_SUPPORT_MODULE_WM
+    register_module_for_window_manager_new,
     #endif
     #if IS_SUPPORT_MODULE_KEY_INPUT
     register_module_for_key_input_manager_new,
@@ -53,6 +53,9 @@ static const module_register_fptr s_module_register[] = {
     #endif
     #if IS_SUPPORT_MODULE_MISC
     register_module_for_misc_manager_new,
+    #endif
+    #if IS_SUPPORT_MODULE_BATTERY
+    register_module_for_battery_manager_new,
     #endif
     #if IS_SUPPORT_MODULE_BREAST_PUMP
     register_module_for_breast_pump_new,
@@ -74,6 +77,9 @@ static const module_register_fptr s_module_register[] = {
     #endif
     #if IS_SUPPORT_MODULE_PROTOCOL
     register_module_for_protocol_manager_new,
+    #endif
+    #if IS_SUPPORT_MODULE_SERVERS
+    register_module_for_servers_new,
     #endif
 };
 

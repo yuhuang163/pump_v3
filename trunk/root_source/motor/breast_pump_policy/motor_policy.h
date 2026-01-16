@@ -1,6 +1,7 @@
 #ifndef __MOTOR_POLICY_H__
 #define __MOTOR_POLICY_H__
 
+#include <stdint.h>
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -22,6 +23,13 @@ typedef enum {
     MOTOR_USER_DEBUG_VALVE_ON,
     MOTOR_USER_DEBUG_VALVE_OFF,
     MOTOR_USER_DEBUG_POLICY,
+    MOTOR_USER_TASTE_STIMULATION_POLICY,
+    MOTOR_USER_TASTE_PUMP_POLICY,
+    MOTOR_USER_TASTE_MIX1_POLICY,
+    MOTOR_USER_TASTE_MIX2_POLICY,
+    MOTOR_USER_TASTE_POLICY_STOP,
+    MOTOR_USER_TASTE_POLICY_START,
+    MOTOR_USER_TASTE_POLICY_EXIT,
     MOTOR_USER_DEBUG_ID_MAX,
 } motor_user_debug_id_e;
 
@@ -59,7 +67,7 @@ typedef enum {
 } suction_speed_e;
 
 /// 吸力等级
-#define SUCTION_DEFAULT_LEVEL_VALUE   6  /// 默认吸力等级，默认6KPA为初始值
+#define SUCTION_DEFAULT_LEVEL_VALUE   5  /// 默认吸力等级，默认5KPA为初始值
 typedef enum {
     SUCTION_LEVEL_0KPA = 0,
     SUCTION_LEVEL_6KPA,
@@ -96,6 +104,7 @@ typedef enum {
     SUCTION_LEVEL_37KPA,
     SUCTION_LEVEL_38KPA,
     SUCTION_LEVEL_39KPA,
+    SUCTION_LEVEL_40KPA,
     SUCTION_LEVEL_MAX
 } suction_level_e;
 
@@ -124,6 +133,12 @@ typedef struct {
     uint8_t level;             /// 吸力等级 suction_level_e
     uint8_t mode_type;         /// 吸力模式类型
 } suction_strategy_mapping_t;
+
+/// 体验模式设置
+typedef struct {
+    uint8_t level[BREAST_PUMP_NUM];
+    uint8_t speed;
+} taste_setting_t;
 
 /// 马达参数类型
 typedef enum {
@@ -203,6 +218,19 @@ typedef struct {
     motor_policy_core_t core;  /// 策略实体
 } motor_policy_cfg_t;
 
+/// 马达多策略核心参数
+typedef struct {
+    motor_policy_cfg_t *policy_cfg_list;       /// 策略核心参数列表
+    uint8_t policy_cfg_count;           /// 策略数量
+} motor_multiple_policy_cfg_t;
+
+/// 马达总策略配置
+typedef struct {  
+    uint8_t time_policy_num; /// 时间策略数量
+    uint8_t sub_policy_num; /// 子策略数量
+    motor_policy_core_t time_policy[]; 
+} motor_policy_total_cfg_t;
+
 /// 吸乳马达策略（常规模式）
 typedef struct motor_policy_node {
     motor_policy_core_t core;         /// 当前参数配置
@@ -227,12 +255,17 @@ typedef struct motor_policy_manager {
 typedef struct {
     uint8_t is_climb_policy; /// 是否启用爬升策略
     uint8_t breast_pump_mode; /// 泵奶模式
+    uint8_t current_timed_policy_index; /// 当前定时策略索引
+    uint8_t current_policy_index; /// 当前子策略索引
     motor_policy_manager_t *manager; /// 总策略管理器
     motor_timed_policy_node_t *timed_policy; /// 时间策略
     motor_policy_node_t policy[BREAST_PUMP_NUM]; /// 策略
     motor_policy_info_t info[BREAST_PUMP_NUM];    /// 当前吸力信息，由多个策略综合生成
+    uint32_t current_time_policy_running_time; /// 当前时间策略已运行时间，单位ms
     uint32_t timed_policy_start_time;  /// 时间策略开始时间，单位ms
     uint32_t manager_start_time; /// 总策略开始时间，单位ms
+    taste_setting_t taste_setting; /// 体验模式设置
+    uint8_t taste_run_flag; /// 体验模式运行标志
 } motor_policy_runtime_t;
 
 /// 吸乳策略处理

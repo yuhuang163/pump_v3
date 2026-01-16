@@ -205,8 +205,13 @@ void pump_policy_info_reset(struct motor_manager_context *thiz, motor_policy_run
         info->state.target_pressure = 0;
         return;
     }
-    /// 用户设定力度与频率(速度)策略
-    pump_user_policy_update(thiz, &map_para, pump_id); 
+    if (runtime->taste_run_flag) {
+        /// 体验模式用户策略
+        taste_mode_user_policy_update(thiz, &map_para, pump_id);
+    } else {
+        /// 用户设定力度与频率(速度)策略
+        pump_user_policy_update(thiz, &map_para, pump_id);
+    }
     /// 爬升策略
 #if IS_SUPPORT_CLIMB_POLICY
     pump_climb_policy_update(thiz, &map_para);
@@ -217,14 +222,15 @@ void pump_policy_info_reset(struct motor_manager_context *thiz, motor_policy_run
         uint8_t level = map_para.level >= BREAST_PUMP_LEVEL_MAX ? (BREAST_PUMP_LEVEL_MAX - 1) : map_para.level;
         uint8_t speed = map_para.speed >= SUCTION_SPEED_MAX ? (SUCTION_SPEED_MAX - 1) : map_para.speed;
         pump_level = short_level_table[level]; /// 获取负压等级
-        info->original.pump_level    = suction_table[pump_level].pump_level;
-        info->original.pumping_time  = suction_table[pump_level].pumping_time;
-        info->original.valve_on_time = suction_table[pump_level].valve_on_time;
+        info->original.pump_level    = short_suction_table[pump_level].pump_level;
+        info->original.pumping_time  = short_suction_table[pump_level].pumping_time;
+        info->original.valve_on_time = short_suction_table[pump_level].valve_on_time;
         info->original.hold_time     = SHORT_SUCTION_HOLD_TIME; 
         info->original.sleep_time    = short_suction_time_table[speed] - info->original.pumping_time - 
                             info->original.valve_on_time - info->original.hold_time;
         if (info->original.sleep_time < PUMP_SLEEP_TIME_MIN || info->original.sleep_time > PUMP_SLEEP_TIME_MAX) {
             info->original.sleep_time = PUMP_SLEEP_TIME_MIN;
+            LOG_MOTOR("work period error");
         }
         // LOG_MOTOR("-->short suction: s_time:%d, p_time:%d, v_time:%d, level:%d, speed:%d, d_time:%d",
         //      info->original.sleep_time, info->original.pumping_time, info->original.valve_on_time, map_para.level, map_para.speed,
@@ -235,19 +241,20 @@ void pump_policy_info_reset(struct motor_manager_context *thiz, motor_policy_run
         uint8_t speed = map_para.speed >= SUCTION_SPEED_MAX ? (SUCTION_SPEED_MAX - 1) : map_para.speed;
         uint16_t pump_freq = long_pump_freq_table[level][speed];
         if (pump_freq == 0) {
-            LOGE("invalid pump_freq=0, level=%d, speed=%d", map_para.level, map_para.speed);
+            LOGW("invalid pump_freq=0, level=%d, speed=%d", map_para.level, map_para.speed);
             pump_freq = long_pump_freq_table[0][0]; /// 使用默认频率
         }
         pump_level = long_level_table[level]; /// 获取负压等级
-        info->original.pump_level    = suction_table[pump_level].pump_level;
-        info->original.pumping_time  = suction_table[pump_level].pumping_time;
-        info->original.valve_on_time = suction_table[pump_level].valve_on_time;
+        info->original.pump_level    = long_suction_table[pump_level].pump_level;
+        info->original.pumping_time  = long_suction_table[pump_level].pumping_time;
+        info->original.valve_on_time = long_suction_table[pump_level].valve_on_time;
         info->original.hold_time     = LONG_SUCTION_HOLD_TIME; 
         pump_time = (ONE_MIN_TIME_MS / pump_freq / 10) * 10;
         info->original.sleep_time    = pump_time - info->original.pumping_time - info->original.valve_on_time - 
                 info->original.hold_time;
         if (info->original.sleep_time < PUMP_SLEEP_TIME_MIN || info->original.sleep_time > PUMP_SLEEP_TIME_MAX) {
             info->original.sleep_time = PUMP_SLEEP_TIME_MIN;
+            LOG_MOTOR("work period error");
         } 
         // LOG_MOTOR("-->long suction: s_time:%d, p_time:%d, v_time:%d, level:%d, speed:%d, d_time:%d",
         //      info->original.sleep_time, info->original.pumping_time, info->original.valve_on_time, map_para.level, map_para.speed,

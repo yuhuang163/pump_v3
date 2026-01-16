@@ -10,29 +10,20 @@ extern "C" {
 * Include files
 ******************************************************************************/
 #include "root_common_base.h" // IWYU pragma: keep
-#include "ui_manager_api.h" // IWYU pragma: keep
+#include "ui_manager_api.h" // IWYU pragma: keepin
+#include "battery_ui.h" // IWYU pragma: keepin
+#include "ble_ui.h" // IWYU pragma: keepin
+#include "breast_pump_ui.h" // IWYU pragma: keepin
+#include "airplane_mode_ui.h" // IWYU pragma: keepin
+#include "dummy_ui.h" // IWYU pragma: keepin
+#include "home_ui.h" // IWYU pragma: keepin
+#include "logo_ui.h" // IWYU pragma: keepin
+#include "product_tests_ui.h" // IWYU pragma: keepin
 
 /*
 * GLOBAL FUNCTION DECLARATION
 *****************************************************************************************
 */
-/// 填充TLV数据
-void ui_fill_ble_status(lcd_tlvs_t *tlv);
-void ui_fill_battery_status(lcd_tlvs_t *tlv);
-void ui_fill_charge_status(lcd_tlvs_t *tlv);
-void ui_fill_img_id(lcd_tlvs_t *tlv, uint16_t img_id);
-
-/// 电池页面
-int ui_display_charge_screen(ui_animation_play_t *ani, lcd_tlvs_t **tlvs);
-
-/// 泵奶页面
-int ui_display_pump_home_screen(ui_animation_play_t *ani, lcd_tlvs_t **tlvs);
-int ui_display_pump_left_level(ui_animation_play_t *ani, lcd_tlvs_t **tlvs);
-int ui_display_pump_right_level(ui_animation_play_t *ani, lcd_tlvs_t **tlvs);
-int ui_display_pump_complete_tip(ui_animation_play_t *ani, lcd_tlvs_t **tlvs);
-int ui_display_pump_mode(ui_animation_play_t *ani, lcd_tlvs_t **tlvs);
-int ui_display_chasing_milk_mode(ui_animation_play_t *ani, lcd_tlvs_t **tlvs);
-int ui_display_pump_speed(ui_animation_play_t *ani, lcd_tlvs_t **tlvs);
 #ifdef __cplusplus
 }
 #endif

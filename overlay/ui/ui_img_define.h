@@ -1,6 +1,7 @@
 #ifndef __UI_IMG_DEFINE_H__
 #define __UI_IMG_DEFINE_H__
 
+#include <stdint.h>
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -10,6 +11,11 @@ extern "C" {
 * Include files
 ******************************************************************************/
 #include "root_common_api.h" // IWYU pragma: keep
+#if IS_SUPPORT_LVGL
+#include "lv_user_font.h" // IWYU pragma: keep
+#include "resource_id_define.h" // IWYU pragma: keep
+#include "common_ui.h" // IWYU pragma: keep
+#endif
 
 /// 图片ID类型
 typedef enum {
@@ -34,6 +40,18 @@ typedef enum {
     UI_IMG_ID_PRODUCT_TESTS_RESOUCE = 0x13,    /// 产测主界面资源显示
 
 } ui_img_id_type_e;
+
+#define UI_FILL_IMG_ID(tlv, img_id) \
+do { \
+    tlv->type = LCD_IMG_ID; \
+    tlv->data_size = 1; \
+    tlv->data[0] = img_id; \
+} while (0)
+
+typedef struct {
+    const uint8_t *data;
+    uint32_t size;
+} ui_img_data_t;
 
 /*
 * GLOBAL FUNCTION DECLARATION

@@ -17,13 +17,13 @@ static tests_manager_context_t *thiz = NULL;
 */
 static uint8_t tests_manager_is_enable(void)
 {
-    LOGI("tests: tests_manager_is_enable %d", thiz->priv.enabled);
+    LOG_TEST("tests: tests_manager_is_enable %d", thiz->priv.enabled);
     return thiz->priv.enabled == 1;
 }
 
 static uint8_t tests_manager_set_enable(uint8_t enable)
 {
-    LOGI("tests: tests_manager_is_enable");
+    LOG_TEST("tests: tests_manager_is_enable");
     thiz->priv.enabled = enable;
 
     if(enable) {
@@ -39,13 +39,14 @@ static uint8_t tests_manager_set_enable(uint8_t enable)
 
 static uint8_t tests_manager_set_current_mode(uint8_t mode)
 {
-    thiz->priv.enabled = mode;
-    LOGI("tests: tests_manager_set_current_mode ");
+    thiz->priv.current_mode = mode;
+    LOG_TEST("tests: tests_manager_set_current_mode %d", mode);
+    return 0;
 }
 
 static uint8_t tests_manager_get_current_mode(void)
 {
-    LOGI("tests: tests_manager_get_current_mode %d", thiz->priv.current_mode);
+    LOG_TEST("tests: tests_manager_get_current_mode %d", thiz->priv.current_mode);
     return thiz->priv.current_mode;
 }
 
@@ -233,7 +234,7 @@ static void add_product_tests_evt_lisenser(void *user_data, product_tst_report_t
     node->report_type = report_type;
     node->user_data = user_data;
     __list_add(&node->list, head);
-    LOGI("add: user_data: %lx, cb: %lx", user_data, cb);
+    LOG_TEST("add: user_data: %lx, cb: %lx", user_data, cb);
 
     MUTEX_UNLOCK(obj->priv.m_lock);
 }
@@ -244,7 +245,7 @@ static void *list_del_condition_cb(void *data, list_head_t *pos)
     product_tst_evt_client_node_t *node = CONTAINER_OF(pos, product_tst_evt_client_node_t, list);
 
     if ((node->cb) == (cb)) {
-        LOGI("del: user_data: %lx, cb: %lx", node->user_data, node->cb);
+        LOG_TEST("del: user_data: %lx, cb: %lx", node->user_data, node->cb);
         return node;
     }
 
@@ -304,7 +305,7 @@ static void product_tests_manager_internal_dispatch_thread(const void *args)
                  product_tests_trigger_timer_handler);
     for (;;) {
         MSG_QUEUE_RECV(thd->msg_id, &msg, OS_WAIT_FOREVER);
-        //LOGI("product_tests loop recv msg.");
+        //LOG_TEST("product_tests loop recv msg.");
          /// 调用外部钩子函数处理.
         if (obj->hook && obj->hook->on_post_init_route) {
             obj->hook->product_tests_thread_route(obj, &msg);
@@ -343,6 +344,7 @@ static int on_post_tests_init(void *self)
     ctx->priv.bcd->id.code |= ID_BROADCAST_SYS_BOOT_COMPLETED;
     ctx->priv.bcd->id.code |= ID_BROADCAST_PM_STATE_CHANGE;
     ctx->priv.bcd->id.code |= ID_BROADCAST_UPDATE_BATTERY_INFO;
+    ctx->priv.bcd->id.code |= ID_BROADCAST_BREAST_PUMP_FINISH;
     ctx->priv.bcd->receiver_cb = on_product_tests_receiver;
     register_broadcast_receiver(ctx->priv.bcd);
 

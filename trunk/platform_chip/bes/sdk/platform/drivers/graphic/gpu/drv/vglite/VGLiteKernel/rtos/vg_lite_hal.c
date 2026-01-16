@@ -32,6 +32,7 @@
 #include "vg_lite_hw.h"
 #include "gpu_port.h"
 #include "hal_timer.h"
+#include "hal_trace.h"
 #include "heap_api.h"
 
 
@@ -181,13 +182,13 @@ void vg_lite_hal_barrier(void)
     gpu_hal_cache_sync();
 }
 
-static int vg_lite_init(void);
+static int vg_lite_init_hw(void);
 void vg_lite_hal_initialize(void)
 {
     /* Enable GPU clock & IRQ, prepare buffers. */
     gpu_hal_init();
 
-    vg_lite_init();
+    vg_lite_init_hw();
 }
 
 void vg_lite_hal_deinitialize(void)
@@ -298,37 +299,27 @@ void vg_lite_hal_free_contiguous(void * memory_handle)
     device->heap[pool].free += node->size;
 
     /* Check if next node is free. */
-    pos = node;
-    for (pos = (heap_node_t *)pos->list.next;
-         &pos->list != &device->heap[pool].list;
-         pos = (heap_node_t *)pos->list.next) {
-        if (pos->status == 0) {
-            /* Merge the nodes. */
-            node->size += pos->size;
-            if (node->offset > pos->offset)
-                node->offset = pos->offset;
-            /* Delete the next node from the list. */
-            delete_list(&pos->list);
-            vg_lite_hal_free(pos);
-        }
-        break;
+    pos = (heap_node_t *)node->list.next;
+    if (&pos->list != &device->heap[pool].list && pos->status == 0) {
+        /* Merge the nodes. */
+        node->size += pos->size;
+        if (node->offset > pos->offset)
+            node->offset = pos->offset;
+        /* Delete the next node from the list. */
+        delete_list(&pos->list);
+        vg_lite_hal_free(pos);
     }
 
     /* Check if the previous node is free. */
-    pos = node;
-    for (pos = (heap_node_t *)pos->list.prev;
-         &pos->list != &device->heap[pool].list;
-         pos = (heap_node_t *)pos->list.prev) {
-        if (pos->status == 0) {
-            /* Merge the nodes. */
-            pos->size += node->size;
-            if (pos->offset > node->offset)
-                pos->offset = node->offset;
-            /* Delete the current node from the list. */
-            delete_list(&node->list);
-            vg_lite_hal_free(node);
-        }
-        break;
+    pos = (heap_node_t *)node->list.prev;
+    if (&pos->list != &device->heap[pool].list && pos->status == 0) {
+        /* Merge the nodes. */
+        pos->size += node->size;
+        if (pos->offset > node->offset)
+            pos->offset = node->offset;
+        /* Delete the current node from the list. */
+        delete_list(&node->list);
+        vg_lite_hal_free(node);
     }
 
     /* when release command buffer node and ts buffer node to exit,release the linked list*/
@@ -415,6 +406,10 @@ int32_t vg_lite_hal_wait_interrupt(uint32_t timeout, uint32_t mask, uint32_t * v
     if (gpu_hal_wait_done() == -1)
         return 0;
 
+#if gcdVG_RECORD_HARDWARE_RUNNING_TIME
+    record_running_time();
+#endif
+
     if (IS_AXI_BUS_ERR(*value)) {
         vg_lite_bus_error_handler();
     }
@@ -481,7 +476,7 @@ static void vg_lite_exit(void)
     }
 }
 
-static int vg_lite_init(void)
+static int vg_lite_init_hw(void)
 {
     heap_node_t *node;
     uint32_t i;
@@ -501,7 +496,7 @@ static int vg_lite_init(void)
     for (i = 0; i < VG_SYSTEM_RESERVE_COUNT; i++) {
         device->heap_size[i] = heap_size[i];
         device->contiguous[i] = (volatile void *)contiguousMem[i];
-        _memset((void *)device->contiguous[i], 0, heap_size[i]);
+        //_memset((void *)device->contiguous[i], 0, heap_size[i]);
         /* Make 64byte aligned. */
         while ((((uint32_t)device->contiguous[i]) & 63) != 0)
         {

@@ -37,7 +37,7 @@ static int common_event_printf(comm_tst_event_type_e event)
         default:
             return -1;
     }
-    LOGI("product tst event-- %s = %d", str, event);
+    LOG_TEST("product tst event-- %s = %d", str, event);
     return 0;
 }
 
@@ -49,8 +49,12 @@ void common_tests_thread_handler(struct tests_manager_context *ctx, void *msg)
 {
     multi_func_msg_data_t *m = (multi_func_msg_data_t *)msg;
     comm_tst_event_type_e event = (comm_tst_event_type_e)m->union_body.product_test_extra.event_type;
-    //LOGI("product_tests loop recv msg. %d", event);
+    //LOG_TEST("product_tests loop recv msg. %d", event);
     common_event_printf(event);
+    /* 如果当前模式不是通用测试模式，则不处理 */
+    if (ctx->priv.current_mode != TST_COMMON_TYPE) {
+        return;
+    }
     switch (event) {
         case COMM_TST_READ_SW_VER_EVENT:
             {
@@ -114,9 +118,11 @@ void on_perpare_common_test_init(tests_manager_context_t *ctx)
 {
     peripheral_bus_context_t *pbus = (peripheral_bus_context_t *)find_module(ID_MODULE_DEVICE_BUS);
     ctx->priv.comm_ctx.airdev = pbus->find_device(ID_DEVICE_AIR_PRESSURE);
+    LOG_TEST("air pressure device: %p", ctx->priv.comm_ctx.airdev);
+#if IS_SUPPORT_DEVICE_UART
     ctx->priv.comm_ctx.fcuartdev = pbus->find_device(ID_DEVICE_UART);
-    LOGI("air pressure device: %p", ctx->priv.comm_ctx.airdev);
-    LOGI("fcuartdev device: %p", ctx->priv.comm_ctx.fcuartdev);
+    LOG_TEST("fcuartdev device: %p", ctx->priv.comm_ctx.fcuartdev);
+#endif
 
     breast_pump_manager_context_t *breast_ctx = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
     ble_manager_context_t *ble_ctx = (ble_manager_context_t *)find_module(ID_MODULE_BLE);

@@ -20,6 +20,9 @@ extern "C" {
 #if IS_SUPPORT_DEVICE_AIR_PRESSURE
 #include "air_pressure_module.h" // IWYU pragma: keep
 #endif
+#if IS_SUPPORT_DEVICE_LIGHT_SENSOR
+#include "light_sensor_module.h" // IWYU pragma: keep
+#endif
 
 /// 传感器事件类型
 typedef enum {
@@ -27,6 +30,7 @@ typedef enum {
     IMU_EVT_IRQ,
     F_SENSOR_EVT_POLLING,
     AIR_PRESSURE_EVT_POLLING,
+    LIGHT_SENSOR_EVT_POLLING,
 } sensor_report_type_e;
 
 /// 传感器事件回调函数
@@ -51,6 +55,9 @@ typedef struct sensor_manager_context {
         #endif
         #if IS_SUPPORT_DEVICE_AIR_PRESSURE
         air_pressure_module_data_t air_pressure;
+        #endif
+        #if IS_SUPPORT_DEVICE_LIGHT_SENSOR
+        light_sensor_module_data_t light_sensor;
         #endif
     } priv;
 

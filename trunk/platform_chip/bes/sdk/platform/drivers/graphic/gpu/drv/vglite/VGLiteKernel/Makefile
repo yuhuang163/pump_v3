@@ -14,6 +14,6 @@ ccflags-y = \
             -Iplatform/drivers/graphic/gpu/drv/vglite/inc/ \
             -Iplatform/drivers/graphic/gpu/drv/vglite/VGLiteKernel/ \
             -Iplatform/drivers/graphic/gpu/drv/vglite/VGLiteKernel/rtos/ \
-            -Iinclude/cmsis_dsp/ \
+            $(CMSIS_DSP_INCLUDE) \
 
 

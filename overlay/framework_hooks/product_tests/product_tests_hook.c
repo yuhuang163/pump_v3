@@ -38,12 +38,17 @@ const static set_hw_self_tests_process_handle_t set_hw_self_tests_process_list[]
 
 // 填充工厂测试的get/set接口
 const static get_factory_tests_process_handle_t get_factory_tests_process_list[] = {
-    FAC_TST_READ_SW_VER_EVENT, get_factory_tests_sw_ver,
+    {FAC_TST_READ_SW_VER_EVENT, get_factory_tests_sw_ver},
 };
 
 const static set_factory_tests_process_handle_t set_factory_tests_process_list[] = { 
-
+    {FAC_TST_SUCTION_TEST_EVENT, factory_tests_suction_test},
+    {FAC_TST_AGING_TEST_ENTER_EVENT, factory_tests_aging_test_enter},
+    {FAC_TST_AGING_TEST_EXIT_EVENT, factory_tests_aging_test_exit},
+    {FAC_TST_ENTER_EVENT, factory_tests_enter}, 
+    {FAC_TST_EXIT_EVENT, factory_tests_exit},
 };
+
 
 // 获取公共测试接口列表长度
 const static uint16_t get_common_tests_process_list_len = sizeof(get_common_tests_process_list) / sizeof(get_hw_self_tests_process_handle_t);

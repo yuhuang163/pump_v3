@@ -5,3 +5,4 @@ Makefile copy
 compile_commands copy.json
 .cache/*
 .vscode/settings.json
+trunk/platform_chip/bes/sdk/out/*

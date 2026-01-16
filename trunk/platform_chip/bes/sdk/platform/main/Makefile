@@ -89,10 +89,6 @@ endif
 
 ifeq ($(NOAPP),1)
 ccflags-y += -DNOAPP
-
-ifeq ($(CHIP_HAS_PSRAM),1)
-obj-y += ../../platform/drivers/psram/
-endif
 endif
 
 ifeq ($(CHIP_HAS_DDR),1)
@@ -144,7 +140,7 @@ ifneq ($(filter 1,$(USB_SERIAL_TEST) $(USB_SERIAL_SPEED_TEST) $(USB_SERIAL_DIREC
 					$(SDEMMC_TEST) $(MBEDTLS_TEST) $(FULLMAP_MMU_TEST) $(WIFI_TEST) $(BTHCI_ENABLE) $(PVT_TEST) $(SHANHAI_TEST) $(SINGLE_WIRE_UART_TEST) $(PCIE_TEST) \
 					$(EXT_CRYSTAL_TEST) $(RTC_TEST) $(BOOT_REASON_TEST) $(TIMER_TEST) $(POWER_PROTECT_TEST) $(CPUDUMP_TEST) $(SPI_MODEM_TEST) \
 					$(JIAYU_TEST) $(I3C_TEST) $(PMU_WDT_TEST) $(LOAD_LINUX) $(CRC_TEST) $(USB3_CDC_TEST) $(USB3_SPEED_TEST) $(CHECKSUM_TEST) $(USB_GENERAL_SPEED_TEST)\
-					$(OSC_WAKEUP_TEST) $(DDR_TEST) $(SDIO_THROUGHPUT_TEST) $(L2HC_TEST) $(CHIP_WAKEUP_TEST)),)
+					$(OSC_WAKEUP_TEST) $(DDR_TEST) $(SDIO_THROUGHPUT_TEST) $(L2HC_TEST) $(CHIP_WAKEUP_TEST) $(LVGL_TEST)),)
 
 ccflags-y += -Itests/hwtest -DHWTEST
 
@@ -928,6 +924,26 @@ endif
 ifeq ($(SPI_TEST),1)
 obj-y += ../../tests/hwtest/spi_test.c
 ccflags-y += -DSPI_TEST
+endif
+
+ifeq ($(CHIP_HAS_GRABOX), 1)
+obj-y += ../../services/grabox/
+endif
+
+ifeq ($(LVGL_TEST),1)
+ccflags-y += -DLVGL_TEST
+export GRAPH_MODULE := 1
+export DRIVER_GRAPHIC_ENABLE := 1
+export DRIVER_JPEG_ENABLE := 1
+export LVGL_GPU_VGLITE ?= 1
+export LVGL_NO_TOUCHSCREEN ?= 1
+ifeq ($(LVGL_NO_TOUCHSCREEN), 0)
+export LVGL_TP_TMA525C ?= 1
+endif
+THIRDPARTY_ENABLE := 1
+export THIRDPARTY_LVGL_ENABLE := 1
+obj-y += ../../thirdparty/lvgl/
+ccflags-y += -Ithirdparty/lvgl/bes/ports
 endif
 
 ifeq ($(PCIE_TEST),1)

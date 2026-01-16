@@ -5,6 +5,9 @@
 #include "bsp_common.h" // IWYU pragma: keep
 #include "scan_key.h" // IWYU pragma: keep
 #include "bsp_key_internal.h"
+#if IS_SUPPORT_DEVICE_KNOB
+#include "bsp_knob.h" // IWYU pragma: keep
+#endif
 
 /*
 * DEFINES
@@ -26,7 +29,7 @@ static const uint32_t key_code_value[SCAN_KEY_CODE_MAX] = {
     SCAN_KEY_CODE_5_VALUE,
     SCAN_KEY_CODE_6_VALUE,
     SCAN_KEY_CODE_7_VALUE,
-    SCAN_KEY_CODE_56_VALUE,
+    SCAN_KEY_CODE_67_VALUE,
     SCAN_KEY_CODE_23_VALUE,
 };
 
@@ -47,10 +50,14 @@ static int scan_key_module_init(void)
         LOGE("key init fail:%d", ret);
         return ret;
     }
+#if IS_SUPPORT_DEVICE_KNOB
+    bsp_knob_init();
+#endif
     ret = scan_key_input_init(node, key_code_value, KEY_CODE_SIZE);
     if (node) {
         node->status = DEVICE_BUS_INIT;
     }
+
     return ret;
 }
 
@@ -111,6 +118,10 @@ static int key_dev_ioctl(struct rt_device_node *dev, uint32_t op_code, void *arg
             return platform_read_key_value(0, tmp[0]);
         case OP_CODE_INPUT_SET_KEY_SENSITIVITY:
             return bsp_key_sensitivity_set(tmp[0], tmp[1]);
+        case OP_CODE_INPUT_IS_READY:
+            return 0;
+        case OP_CODE_INPUT_TOUCH_IS_READY:
+            return bsp_touch_is_ready(args);
         default:
             return -1;
     }
@@ -137,7 +148,7 @@ void key_irq_event_callback(int index)
 
 void knob_button_event_handler(int arg1, int arg2, void *param)
 {
-    LOGI("knob button event: arg1=%d, arg2=%d", arg1, arg2);
+    LOG_PBUS("knob button event: arg1=%d, arg2=%d", arg1, arg2);
     int keycode = arg1 == 0 ? KEY_CODE_10 : KEY_CODE_11;
     key_cb(node, keycode, KEY_EVENT_CLICK);
 }

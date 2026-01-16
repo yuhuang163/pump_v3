@@ -11,6 +11,11 @@ FIRMWARE_V3/
 ├── scripts/                         ← 根目录脚本（构建/发布/工具）
 ├── docs/                            ← 项目文档与说明
 ├── compile_commands.json            ← 编译数据库（IDE/静态分析）
+├── configs/                         ← 产品特定的Makefile配置
+│   ├── V3_2710IMC_GNUmakefile      ← V3_2710IMC产品配置
+│   └── V3_2710IMP_GNUmakefile      ← V3_2710IMP产品配置
+├── library/                         ← 算法库与通用库
+│   └── root_algo/                   ← 根算法库（融合算法/穿戴检测等）
 ├── boards/                          ← 工程级项目/产品配置入口（头文件集中）
 │   ├── product_info.h               ← 产品信息与型号定义
 │   ├── project_config.h             ← 编译/功能开关/宏定义（顶层聚合）
@@ -36,10 +41,13 @@ FIRMWARE_V3/
 │   ├── motor/                       ← 振动马达/线性马达驱动
 │   ├── adc/                         ← 模数转换（ADC）
 │   ├── air_pressure/                ← 气压传感器/气压计
+│   ├── light_sensor/                ← 光传感器驱动
 │   ├── uart/                        ← 串口/UART驱动
-│   └── wifi/                        ← WiFi驱动支持（新增）
+│   └── wifi/                        ← WiFi驱动支持
 │
 ├── overlay/                         ← 资源与钩子（工程可重写/定制）
+│   ├── adaptive_dimming/            ← 自适应调光配置
+│   ├── algo/                        ← 算法处理实现（采集/核心/后处理）
 │   ├── breast_pump/                 ← 吸奶泵业务配置（模式/参数表）
 │   │   ├── mode/                    ← 吸奶泵工作模式配置
 │   │   └── table/                   ← 吸奶泵参数表
@@ -54,7 +62,10 @@ FIRMWARE_V3/
 │   │   ├── sensor/                  ← 传感器处理钩子
 │   │   └── storage/                 ← 存储配置钩子
 │   ├── input_key/                   ← 输入按键码定义与映射
+│   ├── product_tests/               ← 产品测试（工厂测试/硬件自检/通信）
+│   ├── protocol/                    ← 协议处理（应用协议/通用协议）
 │   ├── resources/                   ← 图片/语言包/二进制资源
+│   ├── servers/                     ← 服务器实现（应用协议服务器/通用服务器/工厂服务器等）
 │   ├── sensor/                      ← 传感器配置与校准参数
 │   │   ├── air_pressure/            ← 气压传感器配置
 │   │   ├── force_sensor/            ← 力传感器配置
@@ -64,6 +75,7 @@ FIRMWARE_V3/
 │   │   ├── factory/                 ← 工厂校准数据存储
 │   │   ├── resource/                ← 资源存储配置
 │   │   └── system/                  ← 系统配置存储
+│   ├── ui/                          ← UI实现（LCD直接UI/UART UI等）
 │   └── windows/                     ← UI窗口/页面资源与布局
 │       ├── home/                    ← 主页/主屏窗口
 │       ├── battery/                 ← 电池状态/电量展示窗口
@@ -118,6 +130,7 @@ FIRMWARE_V3/
     │   ├── algorithm/               ← 算法框架/调度
     │   ├── audio/                   ← 音频子系统
     │   ├── base/                    ← 基础设施（初始化/错误码/工具）
+    │   ├── battery/                 ← 电池管理子系统
     │   ├── ble/                     ← BLE主干（Host/Profile/Manager）
     │   ├── breast_pump/             ← 吸奶泵业务模块（模式/控制/状态管理）
     │   ├── hal/                     ← 面向上层的硬件抽象
@@ -130,6 +143,7 @@ FIRMWARE_V3/
     │   ├── protocol/                ← 应用/产测/私有协议
     │   ├── resource/                ← 资源管理/解压/缓存
     │   ├── sensor/                  ← 传感器封装（IMU/FSensor/气压汇聚）
+    │   ├── servers/                 ← 服务器管理子系统
     │   ├── storage/                 ← 存储抽象（KV/FS/分区）
     │   ├── tests/                   ← 自检/产测/集成测试模块
     │   ├── ui/                      ← UI管理子系统（界面控制/交互）
@@ -344,7 +358,7 @@ FIRMWARE_V3/
 - **适用场景**: 吸乳前的预备阶段，帮助乳汁快速流出
 
 #### 2. 吸乳模式 (Pump Mode)
-- **模式ID**: `BREAST_PUMP_PUMP_MODE`
+- **模式ID**: `BREAST_PUMP_LACTATION_MODE`
 - **用途**: 标准的吸乳工作模式，模拟婴儿深度吸吮
 - **特点**: 中等频率、可调压力、长周期
 - **工作时长**: 标准时长（可配置）
@@ -452,27 +466,61 @@ int custom_mode_parameter_update(motor_policy_cfg_t *cfg, uint8_t cfg_num);
 - **目录**: `drivers/air_pressure/`
 - **功能**: 气压/海拔等相关传感器适配与读数
 
+### 22. 光传感器驱动
+- **目录**: `drivers/light_sensor/`
+- **功能**: 环境光传感器驱动，支持自适应调光
+
 ## 外部库集成
 
-### 22. LVGL图形库
+### 23. LVGL图形库
 - **目录**: `trunk/external/lvgl/`
 - **功能**: 轻量级嵌入式图形界面库
 
-### 23. LittleFS文件系统
+### 24. LittleFS文件系统
 - **目录**: `trunk/external/littlefs/`
 - **功能**: 为嵌入式系统设计的轻量级文件系统
 
-### 24. cJSON解析库
+### 25. cJSON解析库
 - **目录**: `trunk/external/cJSON/`
 - **功能**: 轻量级JSON解析与生成
 
-### 25. 加密与哈希库
+### 26. 加密与哈希库
 - **目录**: `trunk/external/crypto/`、`trunk/external/md5/`、`trunk/external/base64/`
 - **功能**: 提供加解密、哈希、编码能力
 
-### 26. QuickLZ压缩库
+### 27. QuickLZ压缩库
 - **目录**: `trunk/external/quicklz/`
 - **功能**: 快速资源压缩/解压
+
+## 算法库
+
+### 28. 根算法库（Root Algo）
+- **目录**: `library/root_algo/`
+- **功能**: 核心算法实现库
+- **特性**:
+  - 算法融合处理（`root_algo_fusion.c`）
+  - 穿戴检测（`wear_detecttion/`）
+  - 环形缓冲区（`ring_buffer/`）
+  - 算法处理钩子（`overlay/algo/`）：采集处理、核心处理、后处理
+
+## 业务管理器（Manager Layer）扩展
+
+### 29. 电池管理系统
+- **实现**: `trunk/root_source/battery/`
+- **功能**: 电池状态监控、电量管理、充电控制
+- **特性**:
+  - 电池电量检测
+  - 充电状态管理
+  - 低电量保护
+
+### 30. 服务器管理系统
+- **实现**: `trunk/root_source/servers/`
+- **配置**: `overlay/servers/`
+- **功能**: 统一管理各类服务器（应用协议服务器、通用服务器、工厂服务器等）
+- **特性**:
+  - 服务器注册与管理
+  - 消息路由与分发
+  - 协议适配层
 
 ## 体系结构（逻辑分层）
 
@@ -531,13 +579,49 @@ int custom_mode_parameter_update(motor_policy_cfg_t *cfg, uint8_t cfg_num);
 - **persist_storage.h**: 持久化存储结构定义
 - **用途**: 定义各类数据的存储结构和分区布局
 
-#### 6. `overlay/font/` - 字体资源
+#### 6. `overlay/adaptive_dimming/` - 自适应调光
+- **用途**: 根据环境光自动调整屏幕亮度，提升用户体验和节能
+
+#### 7. `overlay/algo/` - 算法处理实现
+- **root_algo_acq_proc.c/h**: 算法数据采集与预处理
+- **root_algo_core.c/h**: 算法核心处理逻辑
+- **root_algo_post_proc.c/h**: 算法后处理与结果输出
+- **用途**: 产品特定的算法处理实现，与`library/root_algo/`配合使用
+
+#### 8. `overlay/protocol/` - 协议处理
+- **app_old_commication_protocol/**: 应用层旧版通信协议
+- **common_protocl/**: 通用协议处理
+- **用途**: 产品特定的协议实现，与`overlay/servers/`配合使用
+
+#### 9. `overlay/servers/` - 服务器实现
+- **app_old_protocol_server/**: 应用层旧版协议服务器
+- **common_server/**: 通用服务器
+- **factory_server_client/**: 工厂测试服务器客户端
+- **master_server_client/**: 主服务器客户端
+- **用途**: 产品特定的服务器实现，由`trunk/root_source/servers/`统一管理
+
+#### 10. `overlay/ui/` - UI实现
+- **lcd_direct_ui/**: LCD直接UI实现
+- **lcd_direct_ui_v2/**: LCD直接UI V2版本
+- **lcd_uart_ui/**: LCD UART UI实现
+- **ui_img_define.h**: UI图片资源定义
+- **ui_page_define.h**: UI页面定义
+- **用途**: 产品特定的UI实现，支持多种显示方式
+
+#### 11. `overlay/product_tests/` - 产品测试
+- **comm/**: 通信测试
+- **factory_tests/**: 工厂测试用例
+- **hardware_self_tests/**: 硬件自检测试
+- **product_tests.h**: 产品测试接口定义
+- **用途**: 产品测试与产测功能实现
+
+#### 12. `overlay/font/` - 字体资源
 - **用途**: 存放LVGL使用的字体文件，支持多语言显示
 
-#### 7. `overlay/resources/` - 多媒体资源
+#### 13. `overlay/resources/` - 多媒体资源
 - **用途**: 存放图片、语言包、音频等二进制资源文件
 
-#### 8. `overlay/windows/` - UI窗口资源
+#### 14. `overlay/windows/` - UI窗口资源
 - **home/**: 主页窗口资源与布局
 - **battery/**: 电池显示窗口
 - **charge/**: 充电窗口
@@ -575,13 +659,17 @@ int custom_mode_parameter_update(motor_policy_cfg_t *cfg, uint8_t cfg_num);
 ## 构建说明
 
 ### 构建入口
-- 在根目录直接使用`Makefile`或`build_helper.sh`进行编译与打包
+- 在根目录直接使用`GNUmakefile`或`build_helper.sh`进行编译与打包
+- 产品特定配置位于`configs/`目录（如`V3_2710IMC_GNUmakefile`、`V3_2710IMP_GNUmakefile`）
 - 产物默认输出到`project/bin/`，中间文件位于`project/build/`
 
 ### 编译命令
 ```bash
 # 编译特定目标
 make T=best1306p -j16
+
+# 使用产品特定配置编译
+make -f configs/V3_2710IMP_GNUmakefile T=best1306p -j16
 
 # 清理构建
 make clean

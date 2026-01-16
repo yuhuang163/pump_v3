@@ -5,6 +5,7 @@
 #include "bsp_common.h"
 #include "bsp_fds.h"
 #include "norflash_api.h"
+#include "app_flash_api.h"
 #include "hal_norflash.h"
 
 /*
@@ -31,28 +32,24 @@ static void database_callback(void* param)
 {
     NORFLASH_API_OPERA_RESULT *opera_result;
     opera_result = (NORFLASH_API_OPERA_RESULT*)param;
-    LOGI("database callback: type = %d, addr = 0x%x,len = 0x%x,result = %d,suspend_num=%d.",
+    LOG_PBUS("database callback: type = %d, addr = 0x%x,len = 0x%x,result = %d,suspend_num=%d.",
                 opera_result->type, opera_result->addr, opera_result->len, opera_result->result,
                 opera_result->suspend_num);
 }
 
 static int database_section_init(void)
 {
-    enum NORFLASH_API_RET_T result;
     enum HAL_FLASH_ID_T flash_id;
-    uint32_t sector_size = 0;
-    uint32_t block_size = 0;
-    uint32_t page_size = 0;
 
     flash_id = norflash_api_get_dev_id_by_addr(FDS_START_ADDR);
-    hal_norflash_get_size(flash_id, NULL, &block_size, &sector_size, &page_size);
-    result = norflash_api_register(NORFLASH_API_MODULE_ID_LITTLEFS,
-                    flash_id, (uint32_t)FDS_START_ADDR, 
+    /// 使用app_flash_register_module简化注册，自动获取flash参数并使用默认缓存大小
+    app_flash_register_module(NORFLASH_API_MODULE_ID_LITTLEFS,
+                    flash_id, 
+                    (uint32_t)FDS_START_ADDR, 
                     (uint32_t)FDS_END_ADDR - (uint32_t)FDS_START_ADDR,
-                    block_size, sector_size, page_size, FDS_BLOCK_SIZE, 
-                    database_callback);
+                    (uint32_t)database_callback);
 
-    return result;
+    return 0;
 }
 
 static int database_dev_open(struct rt_device_node *dev)

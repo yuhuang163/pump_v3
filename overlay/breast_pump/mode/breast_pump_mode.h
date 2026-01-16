@@ -29,8 +29,10 @@ const motor_policy_manager_t *lactation_start_mode_policy_get(void *user_data);
 int lactation_start_mode_parameter_init(void);
 
 const motor_policy_manager_t *custom_mode_policy_get(void *user_data);
+motor_policy_cfg_t *custom_mode_policy_cfg_get(void);
 int custom_mode_parameter_init(void);
 int custom_mode_parameter_update(motor_policy_cfg_t *cfg, uint8_t cfg_num);
+void print_pump_custom_cfg(motor_policy_cfg_t *cfg, uint8_t cfg_num);
 
 const motor_policy_manager_t *pp_milk_track_mode_policy_get(void *user_data);
 int pp_milk_track_mode_parameter_init(void);
@@ -42,6 +44,8 @@ const motor_policy_manager_t *milk_boost_mode_policy_get(void *user_data);
 int milk_boost_mode_parameter_init(void);
 
 int breast_pump_mode_work_time_get(int mode);
+void breast_pump_setting_reset (sys_pump_info_t *pump_info, int mode);
+void breast_pump_custom_step_para_reset(sys_pump_info_t *pump_info);
 #ifdef __cplusplus
 }
 #endif

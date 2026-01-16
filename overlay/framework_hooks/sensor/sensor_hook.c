@@ -13,6 +13,9 @@
 #if IS_SUPPORT_DEVICE_AIR_PRESSURE
 #include "air_pressure_module_internal.h"
 #endif
+#if IS_SUPPORT_DEVICE_LIGHT_SENSOR
+#include "light_sensor_module_internal.h"
+#endif
 
 /*
 * DEFINES
@@ -53,6 +56,10 @@ static int dispatch_sensor_client(sensor_manager_context_t *obj, sensor_wrapper_
             #if IS_SUPPORT_DEVICE_AIR_PRESSURE
             dispatch_air_pressure_client(sensor_data, node);
             #endif
+        } else if (node->report_type == LIGHT_SENSOR_EVT_POLLING) {
+            #if IS_SUPPORT_DEVICE_LIGHT_SENSOR
+            dispatch_light_sensor_client(sensor_data, node);
+            #endif
         }
     }
     MUTEX_UNLOCK(obj->priv.m_lock);
@@ -80,6 +87,9 @@ int sensor_thread_route(struct sensor_manager_context *ctx, sensor_wrapper_data_
     #if IS_SUPPORT_DEVICE_AIR_PRESSURE
     air_pressure_polling_handler(sensor_data);
     #endif
+    #if IS_SUPPORT_DEVICE_LIGHT_SENSOR
+    light_sensor_polling_handler(sensor_data);
+    #endif
     dispatch_sensor_client(ctx, sensor_data);
     return 0;
 }
@@ -103,7 +113,9 @@ static int on_perpare_sensor_init_route(struct sensor_manager_context *ctx)
     #if IS_SUPPORT_DEVICE_AIR_PRESSURE
     on_perpare_air_pressure_init(ctx);
     #endif
-
+    #if IS_SUPPORT_DEVICE_LIGHT_SENSOR
+    on_perpare_light_sensor_init(ctx);
+    #endif
     return 0;
 }
 

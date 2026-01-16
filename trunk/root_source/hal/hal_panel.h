@@ -31,6 +31,13 @@ typedef struct {
     uint8_t data[LCD_TLVS_DATA_MAX_SIZE];
 } lcd_tlvs_t;
 
+/// 面板TLVS消息结构
+typedef struct {
+    uint8_t srv_id;
+    uint8_t tlvs_num;
+    lcd_tlvs_t *tlvs;
+} lcd_tlvs_msg_t;
+
 /// 面板数据类型
 #define LCD_TLVS_DATA_TYPE_MAX_SIZE   20
 typedef enum {

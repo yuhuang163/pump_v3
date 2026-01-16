@@ -20,6 +20,9 @@
 #ifndef CONFIG_LCD_RGB666
 #define CONFIG_LCD_RGB666
 #endif
+#ifndef CONFIG_LCD_CLK_INV
+#define CONFIG_LCD_CLK_INV
+#endif
 
 #define LCD_EQT400
 #define LCD_WIDTH               480

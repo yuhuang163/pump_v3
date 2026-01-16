@@ -9,7 +9,7 @@ obj-y := $(obj_c:.c=.o) $(obj_s:.S=.o) $(obj_cpp:.cpp=.o)
 ccflags-y  = \
             -Iplatform/drivers/graphic/gpu/drv/vglite/inc/ \
             -Iplatform/drivers/graphic/gpu/drv/vglite/VGLiteKernel/ \
-            -Iinclude/cmsis_dsp/ \
+            $(CMSIS_DSP_INCLUDE) \
             -Iplatform/drivers/graphic/gpu/drv/vglite/VGLiteKernel/rtos/ \
             -Iplatform/drivers/graphic/gpu/ \
 

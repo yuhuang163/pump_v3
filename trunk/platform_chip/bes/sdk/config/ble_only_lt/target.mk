@@ -39,7 +39,7 @@ export FAULT_DUMP := 1
 export NO_OVERLAY := 1
 
 export TRACE_BAUD_RATE := 2000000
-export TRACE_BUF_SIZE ?= 4*1024
+export TRACE_BUF_SIZE ?= 16*1024
 
 init-y      :=
 core-y      := platform/main/ platform/cmsis/ platform/drivers/ platform/hal/ utils/cqueue/

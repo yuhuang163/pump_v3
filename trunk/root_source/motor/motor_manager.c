@@ -2,6 +2,7 @@
 * INCLUDE FILES
 *****************************************************************************************
 */
+#include "bsp_fds.h"
 #include "root_common_api.h"
 #include "motor_manager.h" // IWYU pragma: keep
 
@@ -205,9 +206,36 @@ static int stop_motor(void)
     return internal_stop_motor();
 }
 
+static int synchronous_stop_motor(void)
+{
+    motor_obj->priv.is_user_stoped = 1;
+    motor_obj->priv.user_debug_status = 0;
+    internal_stop_motor();
+    uint32_t start_time = get_timestamp();
+    while (is_on_motor_task_running(motor_obj)) {
+        msleep(10);
+        if (get_timestamp_ms(start_time) > 100) {
+            LOG_MOTOR("synchronous stop motor timeout");
+            return -1;
+        }
+        start_time = get_timestamp();
+    }
+    LOG_MOTOR("synchronous stop motor success");
+    return 0;
+}
+
 static int get_motor_state(void)
 {
     return (int)motor_obj->priv.motor_state;
+}
+
+static int get_runtime_policy_index(motor_policy_type_e type)
+{
+    if (type == 0) {
+        return motor_obj->priv.runtime.current_timed_policy_index;
+    } else {
+        return motor_obj->priv.runtime.current_policy_index;
+    }
 }
 
 int motor_is_can_play_now(void)
@@ -238,6 +266,8 @@ void *register_module_for_motor_manager_new(list_head_t *list_head)
     ptr->stop_motor = stop_motor;
     ptr->is_on_motor_task_running = is_on_motor_task_running;
     ptr->is_can_play_now = motor_is_can_play_now;
+    ptr->get_runtime_policy_index = get_runtime_policy_index;
+    ptr->synchronous_stop_motor = synchronous_stop_motor;
     motor_obj = ptr;
     
     return ADD_MODULE("motor", ID_MODULE_MOTOR, 0, on_post_motor_init, 

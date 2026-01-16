@@ -79,8 +79,11 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
     ui_proc_logo_t *proc = u_malloz(sizeof(ui_proc_logo_t));
     SET_WINDOW_CONTEXT(proc);
     proc->margic = UI_WINDOW_MARGIC_CODE;
+    proc->current_ui_type = LOGO_UI_TYPE_NONE;
     proc->wm = wm;
     proc->ui = (ui_manager_context_t *)find_module(ID_MODULE_UI);
+    proc->pm = (power_manager_context_t *)find_module(ID_MODULE_POWER);
+    proc->st = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
     window_context_t *w_ctx = &proc->w_ctx;
     w_ctx->new_window_id = window_id;
     w_ctx->evt_cb_entry = entry_event_cb;

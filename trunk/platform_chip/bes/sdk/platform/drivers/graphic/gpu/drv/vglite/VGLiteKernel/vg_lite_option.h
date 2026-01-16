@@ -95,6 +95,10 @@ extern "C" {
     #define gcdVG_ENABLE_DUMP_COMMAND                    0
 #endif
 
+#ifndef gcdVG_ENABLE_DUMP_MORE_FRAMES
+    #define gcdVG_ENABLE_DUMP_MORE_FRAMES                0
+#endif
+
 /*
  * when gpu hang, set 1 to open gpu reset function
 */
@@ -114,6 +118,13 @@ extern "C" {
 */
 #ifndef gcdVG_DUMP_DEBUG_REGISTER
     #define gcdVG_DUMP_DEBUG_REGISTER                    0
+#endif
+
+/*
+ * Set 1 to record GPU hardware running time.
+*/
+#ifndef gcdVG_RECORD_HARDWARE_RUNNING_TIME
+    #define gcdVG_RECORD_HARDWARE_RUNNING_TIME           0
 #endif
 
 #ifdef __cplusplus

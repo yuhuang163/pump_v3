@@ -3,7 +3,7 @@ set -euo pipefail
 
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 OUTPUT_DIR="$PROJECT_DIR/project/bin"
-SHARE_DIR="/mnt/hgfs/ubuntu_share/v3_firmware"
+SHARE_DIR="$PROJECT_DIR/../../v3_firmware"
 MAKE_ARGS=("T=ble_only_lt" "-j16")
 
 # 若构建阶段已明确目标产物信息，则在拷贝阶段优先使用
@@ -179,6 +179,15 @@ do_build_all() {
 	echo "固件+Bootloader 编译完成，总用时: $(duration_since "$t0")"
 }
 
+do_rebuild_all() {
+	local t0=$(date +%s)
+	echo "开始重新编译 固件+Bootloader（清理 + 编译，不拷贝）..."
+	do_clean_firmware
+	do_clean_bootloader
+	do_build_all
+	echo "固件+Bootloader 重新编译完成，总用时: $(duration_since "$t0")"
+}
+
 do_bear_build() {
 	local t0=$(date +%s)
 	echo "开始使用 bear 编译（生成编译数据库）..."
@@ -249,12 +258,14 @@ do_rename_and_archive() {
 	type_char=$(grep -E "^#define[[:space:]]+ROOT_FIRMWARE_TYPE[[:space:]]+'" "$info_file" | sed -E "s/.*'(.+)'.*/\1/" | tail -n1)
 	[[ -n "${type_char:-}" ]] || type_char="P"
 
-	# 资源版本（主/次）
-	local major minor
-	major=$(grep -E '^#define[[:space:]]+ROOT_RES_MAJOR_VERSION[[:space:]]+\(' "$info_file" | sed -E 's/.*\(([0-9]+)\).*/\1/' | tail -n1)
-	minor=$(grep -E '^#define[[:space:]]+ROOT_RES_MINOR_VERSION[[:space:]]+\(' "$info_file" | sed -E 's/.*\(([0-9]+)\).*/\1/' | tail -n1)
-	major=$(printf "%02d" "${major:-0}")
-	minor=$(printf "%02d" "${minor:-0}")
+	# 固件版本（主/次）：依赖 ROOT_FIRMWARE_VERSION（如 100 -> 01 / 00）
+	local fw_version major minor
+	fw_version=$(grep -E '^#define[[:space:]]+ROOT_FIRMWARE_VERSION[[:space:]]+' "$info_file" | awk '{print $3}' | tail -n1 || true)
+	[[ -n "${fw_version:-}" ]] || fw_version="0"
+	major=$((10#$fw_version / 100))
+	minor=$((10#$fw_version % 100))
+	major=$(printf "%02d" "$major")
+	minor=$(printf "%02d" "$minor")
 
 	# 日期与 git 短哈希
 	local today
@@ -275,6 +286,33 @@ do_rename_and_archive() {
 
 	local target_dir="$SHARE_DIR/$prefix_dir"
 	mkdir -p "$target_dir" || die "无法创建版本目录: $target_dir"
+
+	# 同一版本目录下，先清理旧归档文件（全部 .bin），避免残留多份（日期/哈希不同导致文件名不同）
+	rm -f "$target_dir"/*.bin 2>/dev/null || true
+
+	# 根据 ROOT_RES_PATH/ROOT_RES_VERSION 拷贝资源（V1 -> bin/V1; V2 -> bin/V2）
+	# ROOT_RES_VERSION 定义为 major*100 + minor，例如 100 -> V01.00
+	local res_path res_version res_major res_minor res_major2 res_minor2 res_dir res_file
+	res_path=$(grep -E '^#define[[:space:]]+ROOT_RES_PATH[[:space:]]+' "$info_file" | awk '{print $3}' | tail -n1 || true)
+	res_path=${res_path//\"/}
+	[[ -n "${res_path:-}" ]] || res_path="V1"
+
+	res_version=$(grep -E '^#define[[:space:]]+ROOT_RES_VERSION[[:space:]]+' "$info_file" \
+		| sed -E 's/.*\(([0-9]+)\).*/\1/; t; s/.*[[:space:]]+([0-9]+).*/\1/' \
+		| tail -n1 || true)
+	[[ -n "${res_version:-}" ]] || res_version="0"
+
+	res_major=$((10#$res_version / 100))
+	res_minor=$((10#$res_version % 100))
+	res_major2=$(printf "%02d" "$res_major")
+	res_minor2=$(printf "%02d" "$res_minor")
+
+	res_dir="$PROJECT_DIR/overlay/resources/bin/$res_path"
+	res_file=""
+	if [[ -d "$res_dir" ]]; then
+		# 取该版本号最新的资源 bin（按 mtime）
+		res_file=$(ls -1t "$res_dir"/*_V${res_major2}.${res_minor2}_*_RES.bin 2>/dev/null | awk 'NR==1{print; exit}' || true)
+	fi
 
 	# 拷贝并重命名（存在则覆盖）
 	local copied_any=false
@@ -300,6 +338,14 @@ do_rename_and_archive() {
 		echo "未找到 OTA 产物: $ota_in"
 	fi
 
+	if [[ -n "${res_file:-}" && -s "$res_file" ]]; then
+		cp -av "$res_file" "$target_dir/"
+		echo "RES 已归档(${res_path} V${res_major2}.${res_minor2}): $target_dir/$(basename -- "$res_file")"
+		copied_any=true
+	else
+		echo "未找到 RES 资源(${res_path} V${res_major2}.${res_minor2}): $res_dir/*_V${res_major2}.${res_minor2}_*_RES.bin"
+	fi
+
 	if [[ "$copied_any" == false ]]; then
 		die "未找到可归档的产物"
 	fi
@@ -317,8 +363,8 @@ show_menu() {
 	5) 清理 Bootloader
 	6) 生成 OTA（并拷贝）
 	7) 仅拷贝产物到共享目录（固件+Bootloader+OTA）
-	8) 重命名并归档产物（APP/BOOT/OTA）
-	9) 编译 固件+Bootloader（不拷贝）
+	8) 重命名并归档产物（APP/BOOT/OTA/RES）
+	9) 重新编译 固件+Bootloader（清理 + 编译，不拷贝）
 0) 退出
 ---------------------------------------------
 目标共享目录: $SHARE_DIR
@@ -390,7 +436,7 @@ main() {
 				do_rename_and_archive
 				;;
 			9)
-				do_build_all
+				do_rebuild_all
 				;;
 			0)
 				echo "已退出"; exit 0 ;;

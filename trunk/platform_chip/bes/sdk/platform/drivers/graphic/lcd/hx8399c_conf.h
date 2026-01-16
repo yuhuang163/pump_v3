@@ -23,9 +23,6 @@
 #ifndef CONFIG_DSI_VIDEO_MODE
 #define CONFIG_DSI_VIDEO_MODE
 #endif
-#ifndef CONFIG_DSI_SWAP_RB
-#define CONFIG_DSI_SWAP_RB
-#endif
 
 #define LCD_HX8399C
 #define LCD_WIDTH               1080
@@ -44,5 +41,12 @@
 #define LCD_VBP                 16
 #define LCD_VSYNC               8
 #define LCD_NAME                "HX8399C"
+
+#ifdef DISPLAY_NR960x960
+#undef LCD_WIDTH
+#undef LCD_HEIGHT
+#define LCD_WIDTH               960
+#define LCD_HEIGHT              960
+#endif
 
 #endif /* __HX8399C_CONF_H__ */

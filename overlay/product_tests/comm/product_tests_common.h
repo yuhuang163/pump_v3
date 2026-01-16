@@ -10,12 +10,6 @@ extern "C" {
 ******************************************************************************/
 #include "root_common_api.h" // IWYU pragma: keep
 
-typedef enum {
-    COMM_TST_READ_SW_VER_EVENT    = TST_COMM_EVENT_BEGIN,
-    COMM_TST_READ_DEV_MAC_EVENT,
-    COMM_TST_MOTOR_CTR_EVENT,
-} comm_tst_event_type_e;
-
 void on_perpare_common_test_init(tests_manager_context_t *ctx);
 void on_post_common_test_init(tests_manager_context_t *ctx);
 void common_tests_thread_handler(struct tests_manager_context *ctx, void *msg);

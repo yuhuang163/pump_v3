@@ -108,8 +108,10 @@ static int entry_event_cb(window_lift_cycle_e new_state, const struct window_con
     ui_manager_context_t *ui = proc->ui;
     if (new_state == ID_SCR_STATE_ON_RESUME) {
         LOG_WM("==>%s window on resume", PAGE_NAME_STR);
-        wm->priv.key->add_keyevent_handler("charge_wm", proc, KEY_CODE_1, KEY_EVENT_CLICK,
-            on_charge_keyevent_hdr);
+        if (proc->key) {
+            proc->key->add_keyevent_handler("charge_wm", proc, KEY_CODE_1, KEY_EVENT_CLICK,
+                on_charge_keyevent_hdr);
+        }
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);
         show_charging_ui(proc);
@@ -129,8 +131,9 @@ static int exit_event_cb(window_lift_cycle_e new_state, const struct window_cont
             stop_charging_ui(proc);
             unregister_broadcast_receiver(&proc->receiver);
             REMOVE_ALL_HANDER_TASK();
-            EXCEPTION_CHECK_INT(wm->priv.key);
-            wm->priv.key->remove_keyevent_handler(on_charge_keyevent_hdr);
+            if (proc->key) {
+                proc->key->remove_keyevent_handler(on_charge_keyevent_hdr);
+            }
         }
         break;
         case ID_SCR_STATE_ON_DESTORY:
@@ -159,8 +162,13 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
     EXCEPTION_CHECK_INT(proc);
     SET_WINDOW_CONTEXT(proc);
     proc->margic = UI_WINDOW_MARGIC_CODE;
+    proc->current_ui_type = CHARGE_UI_TYPE_NONE;
     proc->wm = wm;
     proc->ui = (ui_manager_context_t *)find_module(ID_MODULE_UI);
+    proc->battery = (battery_manager_context_t *)find_module(ID_MODULE_BATTERY);
+    proc->key = (key_input_context_t *)find_module(ID_MODULE_KEY_INPUT);
+    proc->pbus = (peripheral_bus_context_t *)find_module(ID_MODULE_DEVICE_BUS);
+    proc->st = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
     /// 监听PM状态改变.
     proc->receiver.id.code = ID_BROADCAST_PM_STATE_CHANGE;
     proc->receiver.id.code |= ID_BROADCAST_CHARGE_STATE_CHANGE;

@@ -22,8 +22,16 @@ extern "C" {
 #endif
 
 #include "plat_types.h"
+#include "plat_addr_map.h"
 
-typedef void (*HAL_LCDC_QSPI_TE_GPIO_IRQ_HANDLER)(void);
+enum HAL_LCDC_QSPI_ID_E {
+    LCDC_QSPI_ID_0 = 0,
+#ifdef LCDC_HAS_QSPI1
+    LCDC_QSPI_ID_1 = 1,
+#endif
+
+    LCDC_QSPI_ID_QTY,
+};
 
 /**
  * enum HAL_LCDC_QSPI_LINE_MODE_E
@@ -32,6 +40,7 @@ enum HAL_LCDC_QSPI_LINE_MODE_E {
     LCDC_QSPI_1LINE = 1, /* 1 data line  */
     LCDC_QSPI_2LINE = 2, /* 2 data lines */
     LCDC_QSPI_4LINE = 4, /* 4 data lines */
+    LCDC_QSPI_MIP   = 5, /* QSPI 4 lines -> MIP */
 };
 
 /**
@@ -44,22 +53,39 @@ enum HAL_LCDC_QSPI_CFMT_E {
     LCDC_QSPI_RGB565,
 };
 
-/**
- * qspi hal api
- */
+struct HAL_LCDC_QSPI_CONFIG_T {
+    uint16_t pix_mhz;
+    uint16_t bus_mhz;
+
+    enum HAL_LCDC_QSPI_CFMT_E color_fmt;
+    enum HAL_LCDC_QSPI_LINE_MODE_E line_mode;
+
+    bool dtr_enable;
+    bool dual_enable;
+};
 
 /**
  * @brief hal_lcdc_qspi_init - initialize qspi sub-module, after lcdc & qspi color enable.
  *
- * @param color_fmt: LCDC_QSPI_RGB888/LCDC_QSPI_RGB666/LCDC_QSPI_RGB565
- * @param line_mode: LCDC_QSPI_4LINE/LCDC_QSPI_1LINE/LCDC_QSPI_2LINE
+ * @param id     : LCDC QSPI bus id
+ * @param config : LCDC QSPI configuration
  */
-void hal_lcdc_qspi_initialize(enum HAL_LCDC_QSPI_CFMT_E color_fmt, enum HAL_LCDC_QSPI_LINE_MODE_E line_mode);
+int hal_lcdc_qspi_init(enum HAL_LCDC_QSPI_ID_E id, struct HAL_LCDC_QSPI_CONFIG_T *config);
 
 /**
  * @brief hal_lcdc_qspi_exit - exit qspi sub-module, diable qspi clocks
  */
 void hal_lcdc_qspi_exit(void);
+
+/**
+ * @brief hal_lcdc_qspi_get_mhz - get QSPI bus freq in Mhz.
+ */
+uint32_t hal_lcdc_qspi_get_mhz(void);
+
+/**
+ * @brief hal_lcdc_qspi_get_pixmhz - get QSPI pixel clock freq in Mhz.
+ */
+uint32_t hal_lcdc_qspi_get_pixmhz(void);
 
 /**
  * @brief hal_lcdc_qspi_sleep - qspi enter low power mode
@@ -84,59 +110,46 @@ void hal_lcdc_qspi_set_command_freq(uint32_t freqmhz);
 /**
  * @brief hal_lcdc_qspi_send_command - send one command
  *
- * @param cmd
+ * @param id  : LCDC QSPI bus id
+ * @param cmd : Command data
  */
-int hal_lcdc_qspi_send_command(uint8_t cmd);
+int hal_lcdc_qspi_send_command(enum HAL_LCDC_QSPI_ID_E id, uint8_t cmd);
 
 /**
  * @brief hal_lcdc_qspi_read_command - read data from qspi
  *
- * @param cmd : cmd
- * @param read_buf : read buffer
- * @param len : read len
- * @return int
+ * @param id       : LCDC QSPI bus id
+ * @param cmd      : Command data
+ * @param read_buf : Read buffer
+ * @param len      : Read length
  */
-int hal_lcdc_qspi_read_command(uint8_t cmd, uint8_t *read_buf, uint8_t len);
+int hal_lcdc_qspi_read_command(enum HAL_LCDC_QSPI_ID_E id, uint8_t cmd, uint8_t *read_buf,
+                               uint8_t len);
 
 /**
  * @brief hal_lcdc_qspi_send_command_data - send command with 4 parameters
  *
- * @param cmd : cmd
- * @param len : send param num
- * @param p0 : param0
- * @param p1 : param1
- * @param p2 : param2
- * @param p3 : param3
+ * @param id  : LCDC QSPI bus id
+ * @param cmd : Command data
+ * @param len : Param count
+ * @param p0  : Param byte0
+ * @param p1  : Param byte1
+ * @param p2  : Param byte2
+ * @param p3  : Param byte3
  */
-int hal_lcdc_qspi_send_command_data(uint8_t cmd, uint32_t len, uint8_t p0,
-                           uint8_t p1, uint8_t p2, uint8_t p3);
+int hal_lcdc_qspi_send_command_data(enum HAL_LCDC_QSPI_ID_E id, uint8_t cmd, uint32_t len,
+                                    uint8_t p0, uint8_t p1, uint8_t p2, uint8_t p3);
 
 /**
  * @brief hal_lcdc_qspi_send_command_list - send command with parameter list
  *
- * @param cmd
- * @param param_count
- * @param param_list
+ * @param id          : LCDC QSPI bus id
+ * @param cmd         : Command data
+ * @param param_count : Param count
+ * @param param_list  : Param data arrays
  */
-int hal_lcdc_qspi_send_command_list(uint8_t cmd, uint8_t param_count,
-                           uint8_t *param_list);
-
-
-/**
- * @brief hal_lcdc_qspi_te_gpio_irq_register - register TE irq handler
- */
-void hal_lcdc_qspi_te_gpio_irq_register(HAL_LCDC_QSPI_TE_GPIO_IRQ_HANDLER hdlr);
-
-/**
- * @brief hal_lcdc_qspi_te_gpio_irq_enable - enable TE irq
- */
-void hal_lcdc_qspi_te_gpio_irq_enable(void);
-
-
-/**
- * @brief hal_lcdc_qspi_te_gpio_irq_disable - disable TE irq
- */
-void hal_lcdc_qspi_te_gpio_irq_disable(void);
+int hal_lcdc_qspi_send_command_list(enum HAL_LCDC_QSPI_ID_E id, uint8_t cmd, uint8_t param_count,
+                                    uint8_t *param_list);
 
 
 /**

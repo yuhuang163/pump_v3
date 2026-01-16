@@ -37,7 +37,7 @@ KBUILD_CPPFLAGS += -Iplatform/cmsis/inc -Iplatform/hal
 LDS_FILE	:= best1000.lds
 
 export TRACE_BUF_SIZE ?= 32*1024
-export TRACE_BAUD_RATE ?= 921600
+export TRACE_BAUD_RATE ?= 2000000
 
 ifneq ($(filter best1600 best1700,$(CHIP)),)
 export FLASH_DUAL_CHIP ?= 1

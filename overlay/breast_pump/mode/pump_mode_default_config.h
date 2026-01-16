@@ -45,6 +45,9 @@ extern "C" {
 /// 追奶模式休息时长10分钟，单位：秒
 #define MILK_TRACK_MODE_IDLE_TIME                    600  
 
+/// 自定义模式策略缓存最大32个
+#define CUSTOM_MODE_MOTOR_POLICY_NUMBER              32
+
 /// 刺激
 static const motor_policy_cfg_t stimulation_default[STIMULATION_MODE_LEN] = {
     {MOTOR_TIME_POLICY, NORMAL_MODE_DEFAULT_WORK_TIME, {
@@ -61,14 +64,26 @@ static const motor_policy_cfg_t pump_default[PUMP_MODE_LEN] = {
         },
 };
 
-/// 混合
+/// 混合1
 static const motor_policy_cfg_t mix_default[MIX_MODE_LEN] = {
     {MOTOR_TIME_POLICY, NORMAL_MODE_DEFAULT_WORK_TIME, {
         MOTOR_PARAM_TABLE, {SUCTION_SPEED_LOW, BREAST_PUMP_LEVEL_6, SUCTION_MODE_SHORT},
         {5, PUMP_MODE_DEFAULT_PERIOD}}
        },
     {MOTOR_TIME_SUB_POLICY, INVALID_WORK_TIME, {
-        MOTOR_PARAM_TABLE, {SUCTION_SPEED_LOW, BREAST_PUMP_LEVEL_9, SUCTION_MODE_LONG},
+        MOTOR_PARAM_TABLE, {SUCTION_SPEED_LOW, BREAST_PUMP_LEVEL_6, SUCTION_MODE_LONG},
+        {1, PUMP_MODE_DEFAULT_PERIOD}}
+       },
+};
+
+/// 混合2
+static const motor_policy_cfg_t mix_default2[MIX2_MODE_LEN] = {
+    {MOTOR_TIME_POLICY, NORMAL_MODE_DEFAULT_WORK_TIME, {
+        MOTOR_PARAM_TABLE, {SUCTION_SPEED_LOW, BREAST_PUMP_LEVEL_6, SUCTION_MODE_SHORT},
+        {2, PUMP_MODE_DEFAULT_PERIOD}}
+       },
+    {MOTOR_TIME_SUB_POLICY, INVALID_WORK_TIME, {
+        MOTOR_PARAM_TABLE, {SUCTION_SPEED_LOW, BREAST_PUMP_LEVEL_6, SUCTION_MODE_LONG},
         {1, PUMP_MODE_DEFAULT_PERIOD}}
        },
 };

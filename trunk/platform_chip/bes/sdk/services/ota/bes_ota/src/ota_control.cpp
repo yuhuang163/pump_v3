@@ -129,6 +129,10 @@ osTimerId ota_role_switch_req_timer_id = NULL;
 static int app_forbidden_roleswitch_handling_timer_handler(void const *param);
 osTimerDef (APP_POST_ROLESWITCH_FORRIDEN_TIMER, (void (*)(void const *))app_forbidden_roleswitch_handling_timer_handler);
 
+#if CFG_OTA_EVENT_CALLBACK 
+static ota_event_router_func ota_event_router = NULL;
+#endif
+
 static const char *typeCode2Str(uint8_t typeCode) {
     #define CASE_M(s) \
         case s: return "["#s"]";
@@ -251,6 +255,12 @@ static void _update_user(uint8_t user)
 {
     LOG_I("try to update user:%s->%s", _user2str(ota_control_env.currentUser), _user2str(user));
 
+#if CFG_OTA_EVENT_CALLBACK
+    if (ota_event_router) {
+        ota_event_router(OTA_STATE_UPDATE_IMG_TYPE, (uint8_t *)&user, false, 0);
+    }
+#endif
+
     if (BES_OTA_USER_INVALID == ota_control_env.currentUser ||
         BES_OTA_USER_INVALID == user ||
         ota_control_env.currentUser == user)
@@ -316,6 +326,12 @@ void Bes_exit_ota_state(void)
     {
         return;
     }
+
+#if CFG_OTA_EVENT_CALLBACK
+    if (ota_event_router) {
+        ota_event_router(OTA_STATE_FAIL_EXIT, NULL, false, 0);
+    }
+#endif
 
     app_sysfreq_req(APP_SYSFREQ_USER_OTA, APP_SYSFREQ_32K);
 
@@ -1791,6 +1807,9 @@ void ota_get_start_message(void)
 {
     ota_control_env.totalImageSize = otaUpgradeLog.totalImageSize;
     ota_control_env.crc32OfImage = otaUpgradeLog.crc32OfImage;
+#if CFG_OTA_EVENT_CALLBACK
+    ota_event_router(OTA_STATE_RESUME_TOTAL_SIZE, (uint8_t *)&ota_control_env.totalImageSize, false, 0);
+#endif
     LOG_D("[%s] totalImageSize = 0x%x, crc32OfImage = 0x%x",
           __func__, ota_control_env.totalImageSize, ota_control_env.crc32OfImage);
 }
@@ -2293,6 +2312,11 @@ static void _calcute_segment_crc32(uint32_t offset)
     }
 }
 
+void ota_event_router_register(ota_event_router_func func)
+{
+    ota_event_router = func;
+}
+
 static void _handle_received_data(uint8_t *otaBuf, bool isViaBle,uint16_t dataLenth)
 {
     #define MAX_SET_VERIFY_RETRY    3
@@ -2304,6 +2328,11 @@ static void _handle_received_data(uint8_t *otaBuf, bool isViaBle,uint16_t dataLe
           packet->packetType,
           typeCode2Str(packet->packetType));
 
+#if CFG_OTA_EVENT_CALLBACK
+    if (ota_event_router) {
+        ota_event_router(OTA_STATE_RUNNING, otaBuf, isViaBle, dataLenth);
+    }
+#endif
     switch (packet->packetType)
     {
         case OTA_DATA_PACKET:
@@ -2709,6 +2738,9 @@ static void _handle_received_data(uint8_t *otaBuf, bool isViaBle,uint16_t dataLe
                         ota_status_change(true);
                         ota_get_start_message();
                         LOG_D("OTA can resume. Resuming from the breakpoint at: 0x%x.", breakPoint);
+                    #if CFG_OTA_EVENT_CALLBACK
+                        ota_event_router(OTA_STATE_RESUME_OFFSET_SIZE, (uint8_t *)&breakPoint, false, 0);
+                    #endif
                     }
                     else
                     {

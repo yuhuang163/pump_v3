@@ -1,1 +1,0 @@
-void SaveRectSVG(int x,int y,int width,int height,vg_lite_buffer_t *fb);

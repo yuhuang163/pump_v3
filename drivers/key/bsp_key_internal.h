@@ -22,6 +22,7 @@ int bsp_key_deinit(void);
 int bsp_read_key_value(uint8_t key_index);
 int bsp_read_all_key_value(void);
 int bsp_key_sensitivity_set(uint8_t key_index, uint8_t sensitivity);
+int bsp_touch_is_ready(void *args);
 
 #ifdef __cplusplus
 }

@@ -17,7 +17,8 @@ typedef enum {
     I2C_MASTER_ID_0 = 0,
     I2C_MASTER_ID_1 = 1,
     I2C_MASTER_ID_2 = 2,
-    I2C_MASTER_ID_MAX = 3,
+    I2C_MASTER_ID_3 = 3,
+    I2C_MASTER_ID_MAX = 4,
 } i2c_master_id_e;
 
 typedef struct {

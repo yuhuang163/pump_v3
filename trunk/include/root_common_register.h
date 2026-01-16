@@ -24,6 +24,7 @@ DECLARE_DEVICE_REGISTER(register_device_for_input_key);
 DECLARE_DEVICE_REGISTER(register_device_for_battery);
 DECLARE_DEVICE_REGISTER(register_device_for_imu);
 DECLARE_DEVICE_REGISTER(register_device_for_force_sensor);
+DECLARE_DEVICE_REGISTER(register_device_for_light_sensor);
 DECLARE_DEVICE_REGISTER(register_device_for_air_pressure);
 DECLARE_DEVICE_REGISTER(register_device_for_motor);
 DECLARE_DEVICE_REGISTER(register_device_for_log_uart);
@@ -54,6 +55,7 @@ DECLARE_MODULE_REGISTER(register_module_for_sensor_manager_new);
 DECLARE_MODULE_REGISTER(register_module_for_ble_manager_new);
 DECLARE_MODULE_REGISTER(register_module_for_ota_manager_new);
 DECLARE_MODULE_REGISTER(register_module_for_misc_manager_new);
+DECLARE_MODULE_REGISTER(register_module_for_battery_manager_new);
 DECLARE_MODULE_REGISTER(register_module_for_breast_pump_new);
 DECLARE_MODULE_REGISTER(register_module_for_tests_manager_new);
 DECLARE_MODULE_REGISTER(register_module_for_algo_fusion_new);
@@ -65,6 +67,7 @@ DECLARE_MODULE_REGISTER(register_module_for_iot_manager_new);
 DECLARE_MODULE_REGISTER(register_module_for_video_capture_manager_new);
 DECLARE_MODULE_REGISTER(register_module_for_data_burial_new);
 DECLARE_MODULE_REGISTER(register_module_for_protocol_manager_new);
+DECLARE_MODULE_REGISTER(register_module_for_servers_new);
 
 #ifdef __cplusplus
 }

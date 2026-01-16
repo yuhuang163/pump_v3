@@ -28,6 +28,7 @@ const static put_store_process_handle_t put_store_process_list[] = {
     #if IS_SUPPORT_DEVICE_FSENSOR
     {STORE_ID_FACTORY_FSENSOR_CALI_FLAG, write_factory_fsensor_cali_flag_to_flash},
     #endif
+    {STORE_ID_FACTORY_FLAG_INFO, write_factory_flag_info_to_flash},
     {STORE_ID_SYS_CONFIG_INFO, write_sys_config_info_to_flash},
     {STORE_ID_SYS_UTC_TIMESTAMP, write_utc_timestamp_to_flash},
     {STORE_ID_SYS_STATE_INFO, write_sys_state_info_to_flash},    
@@ -40,6 +41,7 @@ const static get_store_process_handle_t get_store_process_list[] = {
     #if IS_SUPPORT_DEVICE_IMU
     {STORE_ID_FACTORY_IMU_CALI_DATA, read_imu_cali_data_from_flash},
     #endif
+    {STORE_ID_FACTORY_FLAG_INFO, read_factory_flag_info_from_flash},
     {STORE_ID_SYS_CONFIG_INFO, read_sys_config_info_from_flash},
     {STORE_ID_SYS_UTC_TIMESTAMP, read_utc_timestamp_from_flash},
     {STORE_ID_SYS_STATE_INFO, read_sys_state_info_from_flash},    
@@ -63,12 +65,14 @@ const static put_store_ram_val_handle_t put_store_ram_val_list[] = {
 
     {STORE_ID_BREAST_PUMP_TIME, write_pump_time_to_ram},
     {STORE_ID_PUMP_SETTING_INFO, write_pump_setting_info_to_ram},
+    {STORE_ID_PUMP_CUSTOM_STEPS_PARAMETER_INFO, write_pump_custom_steps_parameter_to_ram},
     {STORE_ID_REMIND_PUMP_EXCEPTION, write_pump_exception_remind_to_ram},
     {STORE_ID_REMIND_PUMP_MODE_CHANGE, write_pump_mode_change_remind_to_ram},
     {STORE_ID_REMIND_PUMP_FINISH, write_pump_finish_remind_to_ram},
     {STORE_ID_PUMP_CONTROL_TYPE, write_pump_control_type_to_ram},
     {STORE_ID_SYS_NIGHT_LIGHT_INFO, write_night_light_info_to_ram},
     {STORE_ID_SYS_AIRPLANE_MODE_STATE, write_airplane_mode_state_to_ram},
+    {STORE_ID_BREAST_PUMP_BURY_INFO, write_pump_buried_info_to_ram},
 };
 
 const static get_store_ram_val_handle_t get_store_ram_val_list[] = {
@@ -90,6 +94,7 @@ const static get_store_ram_val_handle_t get_store_ram_val_list[] = {
     {STORE_ID_USER_BIND_INFO, user_is_binded_from_ram},
     {STORE_ID_BREAST_PUMP_TIME, read_pump_time_from_ram},
     {STORE_ID_PUMP_SETTING_INFO, read_pump_setting_info_from_ram},
+    {STORE_ID_PUMP_CUSTOM_STEPS_PARAMETER_INFO, read_pump_custom_steps_parameter_from_ram},
     {STORE_ID_PUMP_CONTROL_TYPE, read_pump_control_type_from_ram},
     {STORE_ID_REMIND_PUMP_EXCEPTION, read_pump_exception_remind_from_ram},
     {STORE_ID_REMIND_PUMP_MODE_CHANGE, read_pump_mode_change_remind_from_ram},
@@ -115,11 +120,14 @@ static int init_system_ver_info(storage_manager_context_t *ctx)
     memset(info, 0, sizeof(sec_sys_ver_t));
     info->sys_local_protocol_id = ROOT_BLE_PROTOCOL_VERSION;
     info->sys_peer_app_protocol_id = 0;
-    info->sys_product_id = ROOT_PRODUCT_ID;
+    info->sys_product_id = DEFAULT_PID_CODE;
     info->ui_res_id = 101;
 
     info->sw_version = ROOT_FIRMWARE_VERSION;
     info->sw_version_type = ROOT_FIRMWARE_TYPE;
+    info->hw_version = ROOT_HARDWARE_VERSION;
+    info->soc_version = ROOT_SOC_PLAT;
+
     info->dfu_type = 0; 
     strcpy(info->device_name, ROOT_DEVICE_NAME);
     return 0;
@@ -143,10 +151,12 @@ static int init_system_persist_info(storage_manager_context_t *ctx)
     read_user_bind_info_from_flash(args);
     args.val = &sys_info->pump_info;
     read_pump_info_from_flash(args);
+    args.val = &sys_info->buried_info_list;
+    read_pump_buried_info_from_flash(args);
     ctx->priv.sys_info_crc[STORE_CRC_TYPE_SYS_CONFIG] = CRC16(&sys_info->config, sizeof(sys_config_info_t));
     ctx->priv.sys_info_crc[STORE_CRC_TYPE_SYS_STATE]  = CRC16(&sys_info->state, sizeof(sys_state_info_t));
     ctx->priv.sys_info_crc[STORE_CRC_TYPE_PUMP_INFO]  = CRC16(&sys_info->pump_info, sizeof(sys_pump_info_t));
-    
+    ctx->priv.sys_info_crc[STORE_CRC_TYPE_PUMP_BURY_INFO]  = CRC16(&sys_info->buried_info_list, sizeof(sys_buried_info_list_t));
     return 0;
 }
 
@@ -182,6 +192,13 @@ static int system_persist_info_sync_flash(storage_manager_context_t *ctx)
         write_pump_info_to_flash(args);
         LOG_STORE("-->pump info sync flash");
     }
+    ///  泵奶埋点信息
+    info_crc = CRC16(&sys_info->buried_info_list, sizeof(sys_buried_info_list_t));
+    if (info_crc != ctx->priv.sys_info_crc[STORE_CRC_TYPE_PUMP_BURY_INFO]) {
+        args.val = &sys_info->buried_info_list;
+        write_pump_buried_info_to_flash(args);
+        LOG_STORE("-->pump buried info sync flash");
+    }
     return 0;
 }
 
@@ -197,6 +214,8 @@ static int user_database_reset(void)
     reset_sys_state_info(thiz, &thiz->priv.sys_info.state);
     msleep(10);
     reset_pump_data_head(thiz, &thiz->priv.pump_data_head);
+    msleep(10);
+    reset_pump_buried_info(thiz, &thiz->priv.sys_info.buried_info_list);
     LOGE("==> user database reset !!!!!!!!!!!!!!!");
     
     return 0;
@@ -248,7 +267,9 @@ static void on_storage_broadcast_route(broadcast_mask_id_t id, void *context, in
                 LOG_STORE("-->system shutdown");
                 POST_TASK_HANDLER_DELAYED_ARG2(hdr_storage_work_cb, 0, 0, st, "persist_store_task4");
             } else if (arg1 == ID_BROADCAST_SYS_POWER_ON) {
+#if (V3_HARDWARE_VERSION == V3_2710IMP_HARDWARE_V1)
                 POST_TASK_HANDLER_DELAYED_ARG1(storage_ram_sync_flash_cb, STORAGE_RAM_SYNC_FLASH_INTERVAL_MS, st, "ram_sync_flash_task");
+#endif
             }
             break;
         default:

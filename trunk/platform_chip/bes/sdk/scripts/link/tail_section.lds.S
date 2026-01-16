@@ -56,6 +56,8 @@
 #define RESERVED_SECTION_LOC				1
 #define LITTLEFS_SECTION_LOC				1
 #define FACTORY_DATA_SECTION_LOC		    1
+#define LUTE_PICTURE_RESOURCES_SECTION_LOC	1
+#define LUTE_RESERVED_SECTION_LOC		    1
 #else
 #define COMBO_SECTION_LOC					0
 #define HOTWORD_SECTION_LOC					0
@@ -73,6 +75,8 @@
 #define RESERVED_SECTION_LOC				0
 #define LITTLEFS_SECTION_LOC				0
 #define FACTORY_DATA_SECTION_LOC		    0
+#define LUTE_PICTURE_RESOURCES_SECTION_LOC	0
+#define LUTE_RESERVED_SECTION_LOC		    0
 #endif
 
 #ifdef USE_MULTI_FLASH
@@ -90,9 +94,11 @@
 	__flash_tail_sec_start = ORIGIN(FLASH_NC) + LENGTH(FLASH_NC) -
 							SECTION_SIZE_LOC(0, FACTORY) -
 							SECTION_SIZE_LOC(0, RESERVED) -
-							SECTION_SIZE_LOC(0, AUD) -
 							SECTION_SIZE_LOC(0, USERDATA) * 2 -
 							SECTION_SIZE_LOC(0, LITTLEFS) * 2 -
+							SECTION_SIZE_LOC(0, LUTE_RESERVED) -
+							SECTION_SIZE_LOC(0, LUTE_PICTURE_RESOURCES) -
+							SECTION_SIZE_LOC(0, AUD) -
 							SECTION_SIZE_LOC(0, FACTORY_DATA) * 2 -
 							SECTION_SIZE_LOC(0, CUSTOM_PARAMETER) -
 							SECTION_SIZE_LOC(0, LHDC_LICENSE) -
@@ -121,9 +127,11 @@
 	__flash1_tail_sec_start = ORIGIN(FLASH1_NC) + LENGTH(FLASH1_NC) -
 							SECTION_SIZE_LOC(1, FACTORY) -
 							SECTION_SIZE_LOC(1, RESERVED) -
-							SECTION_SIZE_LOC(1, AUD) -
-							SECTION_SIZE_LOC(1, USERDATA) * 2 -
+						    SECTION_SIZE_LOC(1, USERDATA) * 2 -
 							SECTION_SIZE_LOC(1, LITTLEFS) * 2 -
+							SECTION_SIZE_LOC(1, LUTE_PICTURE_RESOURCES) -
+							SECTION_SIZE_LOC(1, LUTE_RESERVED) -
+							SECTION_SIZE_LOC(1, AUD) -
 							SECTION_SIZE_LOC(1, FACTORY_DATA) * 2 -
 							SECTION_SIZE_LOC(1, CUSTOM_PARAMETER) -
 							SECTION_SIZE_LOC(1, LHDC_LICENSE) -
@@ -265,6 +273,34 @@
 		__aud_end = .;
 	} > FLASH_LOC(AUD)
 
+	.lute_picture_resources (NOLOAD) :
+	{
+		__lute_picture_resources_start = .;
+		. = SECTION_SIZE(LUTE_PICTURE_RESOURCES);
+		__lute_picture_resources_end = .;
+	} > FLASH_LOC(LUTE_PICTURE_RESOURCES)
+
+	.lute_reserved (NOLOAD) :
+	{
+		__lute_reserved_start = .;
+		. = SECTION_SIZE(LUTE_RESERVED);
+		__lute_reserved_end = .;
+	} > FLASH_LOC(LUTE_RESERVED)
+
+	.littlefs (NOLOAD) :
+	{
+		__littlefs_start = .;
+		. = SECTION_SIZE(LITTLEFS) * 2;
+		__littlefs_end = .;
+	} > FLASH_LOC(LITTLEFS)
+
+	.factory_data (NOLOAD) :
+	{
+		__factory_data_start = .;
+		. = SECTION_SIZE(FACTORY_DATA) * 2;
+		__factory_data_end = .;
+	} > FLASH_LOC(FACTORY_DATA)
+
 	.reserved (NOLOAD) :
 	{
 		__reserved_start = .;
@@ -278,18 +314,4 @@
 		. = SECTION_SIZE(FACTORY);
 		__factory_end = .;
 	} > FLASH_LOC(FACTORY)
-
-	.littlefs (NOLOAD) :
-	{
-		__littlefs_start = .;
-		. = SECTION_SIZE(LITTLEFS);
-		__littlefs_end = .;
-	} > FLASH_LOC(LITTLEFS)
-
-	.factory_data (NOLOAD) :
-	{
-		__factory_data_start = .;
-		. = SECTION_SIZE(FACTORY_DATA);
-		__factory_data_end = .;
-	} > FLASH_LOC(FACTORY_DATA)
 

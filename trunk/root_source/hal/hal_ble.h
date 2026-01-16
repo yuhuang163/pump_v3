@@ -22,16 +22,20 @@ typedef enum {
  * @brief 描述BLE操作码
 */
 typedef enum {
-    // adv
+    /// adv
     OP_CODE_BLE_ADV_OPEN = 1,
     OP_CODE_BLE_ADV_CLOSE = 2,
     OP_CODE_BLE_ADV_PARAM_UPDATE = 3,
     OP_CODE_BLE_ADV_SPEED_SET = 4,
-    // gatt
+    /// gatt
     OP_CODE_BLE_DISCONNECT = 4,
     OP_CODE_BLE_MAC_ADDR_SET = 5,
     OP_CODE_BLE_ADD_EVENT_CALLBACK = 6,
     OP_CODE_BLE_ADD_DATA_CALLBACK = 7,
+    OP_CODE_BLE_MAC_ADDR_GET = 8,
+
+    /// ota
+    OP_CODE_BLE_ADD_OTA_EVENT_CALLBACK = 9,
     OP_CODE_BLE_END
 } ble_dev_op_code_e;
 
@@ -41,7 +45,7 @@ typedef enum {
 typedef enum {
     BLE_SRV_ID_MASTER = 0,  /**< 主服务 */
     BLE_SRV_ID_FACTORY,     /**< 工厂配置服务 */
-    BLE_SRV_ID_REMOT,       /**< 远程服务 */
+    BLE_SRV_ID_REMOTE,       /**< 远程服务 */
     BLE_SRV_ID_MAX,
 } ble_service_id_e;
 
@@ -76,6 +80,24 @@ typedef void (*ble_event_cb_func)(ble_event_e event, void *param);
  * @brief 描述BLE数据回调
 */
 typedef void (*ble_data_cb_func)(ble_service_id_e service_id, uint8_t *p_data, uint16_t size);
+
+/// OTA 事件类型
+typedef enum {
+    OTA_EVENT_GET_OTA_VERSION = 0, /// 获取OTA协议版本
+    OTA_EVENT_SET_USER_TYPE, /// 设置OTA类型，升级主固件、语言包、组合固件等不同类型
+    OTA_EVENT_GET_USER_VERSION, /// 获取用户版本，主固件、语言包、组合固件等不同版本
+    OTA_EVENT_START_OTA, /// 开始OTA，开始升级
+    OTA_EVENT_RESUME_OTA, /// 恢复OTA，从断点继续升级
+    OTA_EVENT_OTA_PROGRESS, /// OTA进度
+    OTA_EVENT_OTA_FAIL, /// OTA失败
+    OTA_EVENT_UPDATE_IMG_TYPE, /// 更新镜像类型
+    OTA_EVENT_OTA_SUCCESS, /// OTA成功
+} ota_event_type_e;
+
+/**
+ * @brief 描述OTA事件回调
+*/
+typedef void (*ota_event_cb_func)(ota_event_type_e event, int args);
 
 #ifdef __cplusplus
 }

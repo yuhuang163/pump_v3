@@ -27,6 +27,10 @@ extern "C" {
 #define DEVICE_UNIQUE_SN_LEN                        40
 #define DEVICE_FW_VERSION_LEN                       18
 
+#define ROOT_BREAST_PUMP_STEP_MAX                   8
+#define FACTORY_AGE_INFO_MAX                        3   /// 老化信息最大保存3条
+#define ROOT_BREAST_PUMP_BURY_DATA_NUM            10    /// 埋点数据最大保存10条
+
 typedef enum  { 
     SYS_DAY_MONDAY = 0,
     SYS_DAY_TUESDAY = 1,
@@ -57,10 +61,17 @@ typedef enum {
 
 /// 工厂部署标志位
 typedef struct {
+    uint8_t age_flag;          /// 老化标志//0-未老化 1-老化成功 2-老化失败
+    uint32_t age_cycle;        /// 老化循环次数
+    uint32_t age_time;         /// 老化时长，单位：秒
+} factory_age_info_t;
+
+/// 工厂部署标志位
+typedef struct {
     uint8_t deploy_flag;       /// 工厂模式部署标志
-    uint8_t age_flag;
-    uint8_t age_display;       /// 老化展示标志
-    uint8_t fsensor_cali_flag; /// fsensor校准标志
+    factory_age_info_t age_info[FACTORY_AGE_INFO_MAX];/// 老化信息
+    uint8_t age_display;       /// 老化展示标志//0-不展示 1-展示
+    uint8_t fsensor_cali_flag; /// fsensor校准标志//0-未校准 1-校准
 } factory_flag_info_t;
 
 typedef struct {
@@ -74,7 +85,7 @@ typedef struct {
     uint8_t sn_len;            // sn length
     uint8_t body_color;
     uint8_t region_id;   /// 区域ID, 中版，俄版，欧版，美版...
-} factory_dev_info_t;
+} __attribute__((packed)) factory_dev_info_t;
 
 /// 工厂老化标志
 typedef struct {
@@ -82,11 +93,31 @@ typedef struct {
     uint8_t display; 
 } factory_aging_flag_t;   
 
+typedef struct
+{
+    // uint8_t work; //0-pause 1-work
+    uint8_t mode;  // 0-short 1-long 2-mix1 3-mix2
+    uint8_t level; // strength level 1-15
+    uint8_t freq;  // frequency level 1-3
+    uint32_t time; // section time long //存的是单位s
+} user_define_pump_step_data_s;
+
+typedef struct
+{
+    union {
+        uint32_t dat32;
+        uint8_t dat[4];
+    } id;         // user define mode id
+    uint8_t num;  // section number 1-8
+    uint32_t custom_total_time;
+	user_define_pump_step_data_s data[ROOT_BREAST_PUMP_STEP_MAX];
+} user_def_pump_steps_data_t;
+
 /// 泵奶模式
 typedef enum {
 
     BREAST_PUMP_STIMULATION_MODE,          /// 刺激模式
-    BREAST_PUMP_PUMP_MODE,        /// 吸乳模式
+    BREAST_PUMP_LACTATION_MODE,        /// 吸乳模式
     BREAST_PUMP_MIX_MODE,               /// 混合模式
     BREAST_PUMP_CUSTOM_MODE,         /// 个性化模式
     BREAST_PUMP_PP_MILK_TRACK_MODE,                   /// PP追奶模式
@@ -166,7 +197,14 @@ typedef struct
     uint8_t is_remind_pump_finish;        /// 泵奶完成提醒
     uint8_t is_remind_exception;          /// 是否提醒泵奶异常
     uint8_t control_type;                 /// 泵奶控制类型 breast_pump_control_type_e
-    pump_setting_t setting[BREAST_PUMP_MODE_MAX];
+    pump_setting_t stimulation_setting[ROOT_BREAST_PUMP_STEP_MAX];
+    pump_setting_t pump_setting[ROOT_BREAST_PUMP_STEP_MAX];
+    pump_setting_t mix_setting[ROOT_BREAST_PUMP_STEP_MAX];
+    pump_setting_t milk_boost_setting[ROOT_BREAST_PUMP_STEP_MAX];
+    pump_setting_t lactation_start_setting[ROOT_BREAST_PUMP_STEP_MAX];
+    pump_setting_t pp_milk_track_setting[ROOT_BREAST_PUMP_STEP_MAX];
+    pump_setting_t custom_setting[ROOT_BREAST_PUMP_STEP_MAX];
+    user_def_pump_steps_data_t custom_steps_parameter;
     uint16_t pump_time[BREAST_PUMP_MODE_MAX];   /// 泵奶时长,单位s
 } sys_pump_info_t;
 
@@ -249,12 +287,35 @@ typedef struct {
     uint32_t sync_sys_time;       /// 保存第一次同步系统时间时 本地经历的最终时间点 用于计算泵奶记录的差值.
 } sys_state_info_t;
 
+/// 描述埋点数据
+typedef struct sys_buried_info {
+    union {
+        u32 dat32;
+        u8 dat[4];
+    } rtc_time; /// 系统时间
+    uint8_t sys_event;
+    uint8_t pump_state;
+    uint8_t pump_mode;
+    uint8_t pump_level;
+    uint8_t battery;
+    uint8_t milk;
+    uint8_t shock_swicth;
+    uint8_t heat_swicth;
+    uint8_t angle;
+} sys_buried_info_t;
+
+typedef struct {
+    sys_buried_info_t buried_info[ROOT_BREAST_PUMP_BURY_DATA_NUM];
+    uint16_t buried_index; /// 埋点索引
+} sys_buried_info_list_t;
+
 /// 描述系统信息
 typedef struct sys_persist_info {
     sys_config_info_t config;
     sys_state_info_t state;
     sys_pump_info_t pump_info;
     user_bind_info_t bind_info;
+    sys_buried_info_list_t buried_info_list;
 } sys_persist_info_t;
 
 /// 描述板子信息
@@ -279,6 +340,7 @@ typedef struct {
     uint16_t ui_res_id;
     uint16_t hw_version;
     uint16_t sw_version;
+    uint16_t soc_version;
     uint16_t sw_version_type;
     uint8_t dfu_type;  /// 0:dfu  1:fast dfu
 } sec_sys_ver_t;

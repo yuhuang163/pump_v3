@@ -36,11 +36,12 @@
 static bool is_prohibit_pm_suspend(struct power_manager_context *ctx)
 {
     EXCEPTION_CHECK_BOOL(ctx);
-    misc_manager_context_t *misc = (misc_manager_context_t *)find_module(ID_MODULE_MISC);
-    EXCEPTION_CHECK_BOOL(misc);
     window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
     EXCEPTION_CHECK_BOOL(wm);
-    if (misc->is_charge_plug_in() > 0) {
+#if IS_SUPPORT_MODULE_BATTERY
+    battery_manager_context_t *battery = (battery_manager_context_t *)find_module(ID_MODULE_BATTERY);
+    EXCEPTION_CHECK_BOOL(battery);
+    if (battery->is_charge_plug_in() > 0) {
         if (wm->is_current_window(wm, ID_WINDOW_CHARGE) == 0) {
             LOG_PM("charge, but not in charge window, dispatch charge window.");
             multi_func_msg_data_t msg = {0};
@@ -49,6 +50,7 @@ static bool is_prohibit_pm_suspend(struct power_manager_context *ctx)
         }
         return true; /// 充电状态下禁止进入待机状态.
     }
+#endif
     return false;
 }
 
@@ -62,16 +64,34 @@ static void system_power_event_cb(hdr_post_args_t *args)
         case HDR_ACTION_POWER_ON_DETECT: {
             LOG_PM("%s", args->name);
             key_input_context_t *key = (key_input_context_t *)find_module(ID_MODULE_KEY_INPUT);
-            misc_manager_context_t *misc = (misc_manager_context_t *)find_module(ID_MODULE_MISC);
+
             if (key && key->is_key_triggered(KEY_INDEX_POWER) == 0) {
-                if ((misc && misc->is_charge_plug_in() > 0) || 
+#if IS_SUPPORT_MODULE_BATTERY
+                battery_manager_context_t *battery = (battery_manager_context_t *)find_module(ID_MODULE_BATTERY);
+                if ((battery && (battery->is_charge_plug_in() > 0 || 
+                    battery->get_charge_status() == CHARGE_STATE_ERROR)) ||  /// 充电芯片异常允许插电开机
                     platform_is_startup_caused_by_reboot()) {
                     pm->priv.is_power_on_timeout_detect = 0;   
                     pm->system_power_control(true);
                     SEND_BROADCAST_ARGS1(ID_BROADCAST_SYS_POWER_STATE_CHANGE, ID_BROADCAST_SYS_POWER_ON);
                 } else {
-                    pm->system_power_control(false); /// 非充电状态下进行开机超时检测.
+                    #if (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V1 || V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V2)
+                        pm->priv.is_power_on_timeout_detect = 0;   
+                        pm->system_power_control(true);
+                        SEND_BROADCAST_ARGS1(ID_BROADCAST_SYS_POWER_STATE_CHANGE, ID_BROADCAST_SYS_POWER_ON);
+                    #else
+                        pm->system_power_control(false); /// 非充电状态下进行开机超时检测.
+                    #endif
                 }
+#else
+                #if (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V1 || V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V2)
+                    pm->priv.is_power_on_timeout_detect = 0;   
+                    pm->system_power_control(true);
+                    SEND_BROADCAST_ARGS1(ID_BROADCAST_SYS_POWER_STATE_CHANGE, ID_BROADCAST_SYS_POWER_ON);
+                #else
+                    pm->system_power_control(false); /// 非充电状态下进行开机超时检测.
+                #endif
+#endif
             } else {
                 pm->priv.is_power_on_timeout_detect = 0;   
                 pm->system_power_control(true);
@@ -120,11 +140,13 @@ static int on_key_event_route(struct power_manager_context *ctx, uint16_t keycod
     }
     /// 开机按键超时检测, 如果超时, 则进入关机状态.
     if (keytype == KEY_EVENT_UP && ctx->priv.is_power_on_timeout_detect == 1) {
-        misc_manager_context_t *misc = (misc_manager_context_t *)find_module(ID_MODULE_MISC);
-        if (misc && misc->is_charge_plug_in() > 0) {
-            LOG_PM("charging. ignore");
-            return 0;
+#if IS_SUPPORT_MODULE_BATTERY
+        battery_manager_context_t *battery = (battery_manager_context_t *)find_module(ID_MODULE_BATTERY);
+        if (battery && battery->is_charge_plug_in() > 0) {
+                LOG_PM("charging. ignore");
+                return 0;
         }
+#endif
         POST_TASK_HANDLER_DELAYED_ARG2(system_power_event_cb, 10, HDR_ACTION_POWER_ON_INVALID,
             ctx, POWER_ON_INVALID_TASK_NAME);
         return 0;

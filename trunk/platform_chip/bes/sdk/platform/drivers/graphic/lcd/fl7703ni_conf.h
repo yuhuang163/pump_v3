@@ -20,8 +20,8 @@
 #ifndef CONFIG_DSI_VIDEO_MODE
 #define CONFIG_DSI_VIDEO_MODE
 #endif
-#ifndef CONFIG_DSI_SWAP_RB
-#define CONFIG_DSI_SWAP_RB
+#ifndef CONFIG_LCD_SWAP_RB
+#define CONFIG_LCD_SWAP_RB
 #endif
 
 #define LCD_FL7703NI

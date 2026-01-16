@@ -131,8 +131,8 @@ static void led_blink_handle(uint8_t index)
     /// 闪烁完成
     if (get_timestamp_ms(led->start_time) >= led->continue_time && led->continue_time != 0) {
         led_status[index].mode = LED_MODE_ONOFF;
-        if (led->cb) {
-            led->cb(led->user_data, index);
+        if (led->finish_status != led->status) {
+            GPIO_PIN_CTRL(led_cfg[index].pin, led->finish_status != LED_STATUS_ON ? 0 : 1);
         }
         return;
     }
@@ -145,7 +145,7 @@ static void led_blink_handle(uint8_t index)
     }
 }
 
-static void led_thread_timer_handle(void)
+static void led_thread_timer_handle(void *arg)
 {
     uint8_t msg = 0;
     MSG_QUEUE_SEND(s_led_device_thd.msg_id, (void *)&msg, 0);
@@ -215,6 +215,9 @@ static void led_blink_set(uint8_t index, led_blink_t blink)
             led_status[i].mode = LED_MODE_BLINK; 
             memcpy(&led_status[i].un.blink, &blink, sizeof(led_blink_t));
             GPIO_PIN_CTRL(led_cfg[i].pin, blink.first_status);
+            led_status[i].un.blink.start_time = get_timestamp();
+            led_status[i].un.blink.status = led_status[i].un.blink.first_status;
+            led_status[i].un.blink.count = 0;
         }
         return;
     }
@@ -253,36 +256,28 @@ void bsp_led_suspend(void)
 
 int bsp_led_status_set(void *args)
 {
-    uint32_t *tmp = (uint32_t *)args;
-    if (tmp == NULL) {
-        LOGE("tmp is NULL");
+    led_status_msg_t *msg = (led_status_msg_t *)args;
+    if (msg == NULL) {
+        LOGE("msg is NULL");
         return BSP_ERROR;
     }
     
-    uint8_t index = tmp[0];
-    if (index >= LED_TOTAL_SIZE && index != PUMP_LED_ALL_ID) {
-        LOGE("index is out of range: %d", index);
+    if (msg->led_index >= LED_TOTAL_SIZE && msg->led_index != PUMP_LED_ALL_ID) {
+        LOGE("index is out of range: %d", msg->led_index);
         return BSP_ERROR;
     }
 
-    led_status_t *led = (led_status_t *)tmp[1];
-    if (led == NULL) {
-        LOGE("led is NULL");
-        return BSP_ERROR;
-    }
-
-
-    switch (led->mode) {
+    switch (msg->led_status.mode) {
         case LED_MODE_ONOFF:
-            led_onoff_set(index, led->un.onoff);
+            led_onoff_set(msg->led_index, msg->led_status.un.onoff);
             break;
 
         case LED_MODE_BLINK:
-            led_blink_set(index, led->un.blink);
+            led_blink_set(msg->led_index, msg->led_status.un.blink);
             break;
 
         case LED_MODE_LEVEL:
-            led_level_set(index, led->un.luminous);
+            led_level_set(msg->led_index, msg->led_status.un.luminous);
         break;
 
         case LED_MODE_BREATH:
@@ -293,17 +288,9 @@ int bsp_led_status_set(void *args)
     return BSP_OK;
 }
 
-void *bsp_led_status_get(void *args)
+int bsp_led_is_ready(void *args)
 {
-    uint32_t *tmp = (uint32_t *)args;
-    
-    if (!tmp) {
-        return NULL;
-    }
-
-    if (tmp[0] >= LED_TOTAL_SIZE) {
-        return NULL;
-    }
-    
-    return (void *)&led_status[tmp[0]];
+    uint8_t *led_is_ready_status = (uint8_t *)args;
+    *led_is_ready_status = 1;
+    return BSP_OK;
 }

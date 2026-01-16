@@ -66,7 +66,7 @@ static uint8_t conn_idx = 0;
 static void ble_remot_service_rx_data_received(uint8_t conidx, uint16_t connhdl, const uint8_t *data, uint16_t len)
 {
     // LOG_PBUS("remot service recv data length %d", len);
-    ble_service_data_recv(BLE_SRV_ID_REMOT, (uint8_t *)data, len);
+    ble_service_data_recv(BLE_SRV_ID_REMOTE, (uint8_t *)data, len);
 }
 
 static void ble_remot_service_tx_ccc_changed(uint8_t conidx, uint16_t connhdl, bool notify_enabled)
