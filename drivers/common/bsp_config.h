@@ -174,18 +174,18 @@ extern "C" {
 #define NOR_FLASH_MOSI_PIN              HAL_GPIO_PIN_P2_7
 /// 泵阀相关定义
 #define PWM_PUMP_EN_PIN                 HAL_GPIO_PIN_P1_5
-#define PWM_PUMP1_PIN                   HAL_GPIO_PIN_P3_7
-#define PWM_PUMP2_PIN                   HAL_GPIO_PIN_P4_2
-#define PWM_VALVE1_PIN                  HAL_GPIO_PIN_P4_4
-#define PWM_VALVE2_PIN                  HAL_GPIO_PIN_P4_5
-#define MOTOR_PUMP1_PWM_ID              HAL_PWM1_ID_3
-#define MOTOR_PUMP1_PWM_IMUX            hal_iomux_set_pwm7
-#define MOTOR_PUMP2_PWM_ID              HAL_PWM_ID_2
-#define MOTOR_PUMP2_PWM_IMUX            hal_iomux_set_pwm2
-#define MOTOR_VALVE1_PWM_ID             HAL_PWM1_ID_0
-#define MOTOR_VALVE1_PWM_IMUX           hal_iomux_set_pwm4
-#define MOTOR_VALVE2_PWM_ID             HAL_PWM1_ID_1
-#define MOTOR_VALVE2_PWM_IMUX           hal_iomux_set_pwm5
+#define PWM_PUMP1_PIN                   HAL_GPIO_PIN_P4_2
+#define PWM_PUMP2_PIN                   HAL_GPIO_PIN_P3_7
+#define PWM_VALVE1_PIN                  HAL_GPIO_PIN_P4_5
+#define PWM_VALVE2_PIN                  HAL_GPIO_PIN_P4_4
+#define MOTOR_PUMP1_PWM_ID              HAL_PWM_ID_2
+#define MOTOR_PUMP1_PWM_IMUX            hal_iomux_set_pwm2
+#define MOTOR_PUMP2_PWM_ID              HAL_PWM1_ID_3
+#define MOTOR_PUMP2_PWM_IMUX            hal_iomux_set_pwm7
+#define MOTOR_VALVE1_PWM_ID             HAL_PWM1_ID_1
+#define MOTOR_VALVE1_PWM_IMUX           hal_iomux_set_pwm5
+#define MOTOR_VALVE2_PWM_ID             HAL_PWM1_ID_0
+#define MOTOR_VALVE2_PWM_IMUX           hal_iomux_set_pwm4
 /// 按键相关定义
 #define POWER_KEY_PIN                   HAL_GPIO_PIN_P1_7
 #define TOUCH_INT_PIN                   HAL_GPIO_PIN_P4_6
