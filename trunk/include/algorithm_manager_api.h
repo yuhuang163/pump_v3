@@ -33,13 +33,14 @@ typedef struct algo_manager_context {
         broadcast_obj_t m_bcd;
         int algo_inited;
         uint8_t is_sampling;          /// 是否正在采集
-        algo_wear_detection_data_output_t wear_detection_algo_data;
+        algo_breast_pump_data_t algo_data; /// 算法数据
         struct motor_manager_context *motor;
         struct sensor_manager_context *sensor;
     } priv;
 
 /// public
     int (*get_algo_version)(void);
+    void (*get_algo_data)(algo_breast_pump_data_t *algo_data);
     struct __algo_manager_hook {
         int (*on_post_init_route)(struct algo_manager_context *ctx);
         int (*on_algo_receiver_route)(broadcast_mask_id_t id, void *context, int arg1, int arg2, void *user_data);

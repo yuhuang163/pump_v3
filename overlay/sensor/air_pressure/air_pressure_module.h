@@ -10,14 +10,21 @@ extern "C" {
 ******************************************************************************/
 #include "root_common_base.h" // IWYU pragma: keep
 
-#define AIR_PRESSURE_POLLING_PERIOD              (20 - 1)
+#define AIR_PRESSURE_POLLING_PERIOD              (20)
 
 struct rt_device_node;
-typedef struct _air_pressure_module_data {
-    struct rt_device_node *dev;
-    uint32_t polling_cnt;
-    uint16_t sampling_interval;
-} air_pressure_module_data_t;
+/// 气压传感器上下文
+typedef struct air_pressure_context {
+    /// private
+    struct __air_pressure_private {
+        struct rt_device_node *dev;
+        uint32_t polling_cnt;
+        uint16_t sampling_interval;
+    } priv;
+    /// public
+    uint16_t (*get_sampling_interval)(void);
+    void (*set_sampling_interval)(uint16_t interval);
+} air_pressure_context_t;
 
 #ifdef __cplusplus
 }

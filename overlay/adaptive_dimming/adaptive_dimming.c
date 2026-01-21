@@ -182,7 +182,6 @@ void adaptive_dimming_init(void)
     sensor->add_sensor_evt_lisenser(sensor, LIGHT_SENSOR_EVT_POLLING, 1, on_light_sensor_data_cb);
     st->get_store_ram_val(STORE_ID_SYS_NIGHT_LIGHT_INFO, 0, 0, &light_info);
     adaptive->is_adaptive_dimming = light_info.adaptive;
-    // adaptive->is_adaptive_dimming = 1;
     misc->add_misc_task(night_light, MISC_TASK_ID_ADAPTIVE_DIMMING, 500,
          MISC_WORK_MSG_ID_TIMER, adaptive_dimming_polling_thread);
     LOG_ALGO("adaptive_dimming_state_sync: %d", adaptive->is_adaptive_dimming);

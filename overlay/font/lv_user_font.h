@@ -10,6 +10,7 @@ extern "C" {
 #include "lv_font_roboto_17.h" // IWYU pragma: keep
 #include "lv_font_roboto_18.h" // IWYU pragma: keep
 #include "lv_font_roboto_19.h" // IWYU pragma: keep
+#include "lv_font_roboto_20.h" // IWYU pragma: keep
 #include "lv_font_roboto_21.h" // IWYU pragma: keep
 #include "lv_font_roboto_24.h" // IWYU pragma: keep
 #include "lv_font_roboto_25.h" // IWYU pragma: keep

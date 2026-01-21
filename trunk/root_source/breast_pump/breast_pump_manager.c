@@ -428,7 +428,7 @@ static void breast_pump_work_thread(const void *args)
 static void on_breast_pump_broadcast_receiver(broadcast_mask_id_t id, void *context, int arg1, 
     int arg2, broadcast_priv_data_t *pdata)
 {
-    breast_pump_manager_context_t *bth_ctx = context;
+    breast_pump_manager_context_t *bst_ctx = context;
     
     switch (id.code) {
         case ID_BROADCAST_PM_STATE_CHANGE:
@@ -458,7 +458,7 @@ static int on_post_breast_pump_init(void *ptr)
     ctx->priv.m_bdc.receiver_cb = on_breast_pump_broadcast_receiver;
     register_broadcast_receiver(&ctx->priv.m_bdc);
     RUN_NEW_THREAD(&ctx->priv.breast_pump_thd, "breast_pump_thd", breast_pump_work_thread, 
-        RT_PRIO_BREAST_PUMP_DISPATCH_THREAD, BTH_THREAD_STACKSIZE);
+        RT_PRIO_BREAST_PUMP_DISPATCH_THREAD, BST_THREAD_STACKSIZE);
 
     return 0;
 }

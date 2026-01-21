@@ -77,7 +77,8 @@ void handle_post_register_ui_thd_cb(os_message_id ui_msg_id, task_post_process_f
  * @brief 直接投递.
 */
 #define POST_TASK_HANDLER_NO_DELAY(cb, __user_data, __name) POST_TASK_HANDLER_DELAYED(cb, 0, 0, 0, __user_data, __name, 0, -1, 0)
-#define POST_TASK_HANDLER_NO_DELAY_POLICY(cb, __user_data, arg1, __name) POST_TASK_HANDLER_DELAYED(cb, 0, arg1, 0, __user_data, __name, 0, -1, 0)
+#define POST_TASK_HANDLER_NO_DELAY_ARG1(cb, __user_data, arg1, __name) POST_TASK_HANDLER_DELAYED(cb, 0, arg1, 0, __user_data, __name, 0, -1, 0)
+#define POST_TASK_HANDLER_NO_DELAY_ARG2(cb, __user_data, arg1, arg2, __name) POST_TASK_HANDLER_DELAYED(cb, 0, arg1, arg2, __user_data, __name, 0, -1, 0)
 
 /**
  * @brief 带延迟参数的任务投递

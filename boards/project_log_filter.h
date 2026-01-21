@@ -24,12 +24,15 @@ extern "C" {
 
 #define LOG_FILTER   LOG_FILTER_ALL
 
+#if IS_SUPPORT_LOG_OUT
 #define BSP_LOG_HEX_SUPPORT                             (1)  //底层串口交互日志开关，量产前关闭 
 #define BSP_LOG_SUPPORT                                 (1)
-
+#else
+#define BSP_LOG_HEX_SUPPORT                             (0)
+#define BSP_LOG_SUPPORT                                 (0)
 #endif
 
-// #define PRINT_LOG(...)
+#endif
 
 #ifdef __cplusplus
 }

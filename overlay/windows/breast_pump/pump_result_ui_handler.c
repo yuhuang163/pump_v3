@@ -102,8 +102,8 @@ static void show_pump_result_loop(ui_proc_pump_t *proc)
         .progress_cb = pump_result_animation_progress_cb,
         .user_data = proc,
     };
-    ui->hook->ui_animation_play_init(ui, play_info);
     proc->last_progress_ani_time = get_timestamp();
+    ui->hook->ui_animation_play_init(ui, play_info);
     proc->current_ui_type = PUMP_UI_TYPE_RESULT;
 }
 

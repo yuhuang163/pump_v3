@@ -477,7 +477,7 @@ int get_charge_state(void)
 
 int get_charging_temperature(void) 
 {
-    return s_charge_status.temp;
+    return s_charge_is_ready ? s_charge_status.temp : 26;
 }
 
 int get_charge_battery_voltage(void) 

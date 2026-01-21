@@ -30,22 +30,25 @@ typedef enum {
 typedef void (*on_imu_irq_callback_fptr)(void *user_data);
 
 struct rt_device_node;
-typedef struct _imu_module_data {
-    on_imu_irq_callback_fptr irq_client_cb[IMU_IRQ_EVENT_CB_MAX];
-    void *irq_client_token[IMU_IRQ_EVENT_CB_MAX];
-    struct rt_device_node *dev;
-    bool irq_finished;
-    uint32_t polling_cnt;
-} imu_module_data_t;
+/// IMU传感器上下文
+typedef struct imu_sensor_context {
+    /// private
+    struct __imu_sensor_private {
+        on_imu_irq_callback_fptr irq_client_cb[IMU_IRQ_EVENT_CB_MAX];
+        void *irq_client_token[IMU_IRQ_EVENT_CB_MAX];
+        struct rt_device_node *dev;
+        bool irq_finished;
+        uint32_t polling_cnt;
+    } priv;
 
-typedef struct imu_module_context {
+    /// public
     const imu_cali_data_t *(*get_cali_data)(void);
     int (*write_calibration)(const imu_cali_data_t *data);
     void (*add_irq_callback)(uint8_t irq_num, void *token, on_imu_irq_callback_fptr cb);
     void (*remove_irq_callback)(uint8_t irq_num, void *token);
     void (*irq_enable)(void *context);
     void (*irq_disable)(void *context);
-} imu_module_context_t;
+} imu_sensor_context_t;
 
 #ifdef __cplusplus
 }

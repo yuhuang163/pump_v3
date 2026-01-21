@@ -374,22 +374,3 @@ int platform_bt_get_rssi_value(int32_t *rssi)
     }
     return -1;
 }
-
-//产测trace RX注册接口，用于接收日志串口传输的数据
-void platform_bt_trace_rx_register(unsigned char *rx_buff, unsigned int len, PLATFORM_BT_TRACE_RX_CALLBACK_T rx_callback)
-{
-    int ret;
-    ret = hal_trace_rx_open(rx_buff, len, (HAL_TRACE_RX_CALLBACK_T)rx_callback);
-    if (ret != 0) {
-        LOGE("platform_bt_trace_rx_register failed: %d", ret);
-    }
-}
-
-void platform_bt_trace_tx(unsigned char *tx_buff, unsigned int len)
-{
-    int ret;
-    ret = hal_trace_output(tx_buff, len);
-    if (ret != 0) {
-        LOGE("platform_bt_trace_tx failed: %d", ret);
-    }
-}

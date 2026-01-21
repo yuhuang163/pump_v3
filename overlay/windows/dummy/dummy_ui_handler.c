@@ -146,8 +146,8 @@ void start_dummy_ui_animation(ui_proc_dummy_t *proc)
         .display_remove_cb = dummy_ui_display_remove,
         .user_data = proc,
     };
-    ui->hook->ui_animation_play_init(ui, play_info);
     proc->last_progress_ani_time = get_timestamp();
+    ui->hook->ui_animation_play_init(ui, play_info);
     proc->current_ui_type = DUMMY_UI_TYPE_HOME;
 }
 

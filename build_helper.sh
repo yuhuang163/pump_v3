@@ -282,7 +282,7 @@ do_rename_and_archive() {
 	local version_dot="${major}.${minor}"
 	local version_us="${major}_${minor}"
 	local prefix_file="${device_title}_${today}_${type_char}${version_dot}_${git_hash}"
-	local prefix_dir="${device_title}_${type_char}${version_us}"
+	local prefix_dir="ROOT_${device_title}_${type_char}${version_us}"
 
 	local target_dir="$SHARE_DIR/$prefix_dir"
 	mkdir -p "$target_dir" || die "无法创建版本目录: $target_dir"

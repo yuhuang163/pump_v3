@@ -10,13 +10,17 @@ extern "C" {
 ******************************************************************************/
 #include "root_common_base.h" // IWYU pragma: keep
 
-#define LIGHT_SENSOR_POLLING_PERIOD                   (100 - 1)
+#define LIGHT_SENSOR_POLLING_PERIOD                   (100)
 
 struct rt_device_node;
-typedef struct _light_sensor_module_data {
-    struct rt_device_node *dev;
-    uint32_t polling_cnt;
-} light_sensor_module_data_t;
+/// 光传感器上下文
+typedef struct light_sensor_context {
+    /// private
+    struct __light_sensor_private {
+        struct rt_device_node *dev;
+        uint32_t polling_cnt;
+    } priv;
+} light_sensor_context_t;
 
 #ifdef __cplusplus
 }

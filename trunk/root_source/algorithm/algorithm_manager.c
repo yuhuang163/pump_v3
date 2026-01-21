@@ -25,6 +25,11 @@ static algo_manager_context_t *algo_obj = NULL;
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
+static void get_algo_data(algo_breast_pump_data_t *algo_data)
+{
+    memcpy(algo_data, &algo_obj->priv.algo_data, sizeof(algo_breast_pump_data_t));
+}
+
 static void algo_on_receive_internal(broadcast_mask_id_t id, void *context, int args1, int args2, broadcast_priv_data_t *pdata)
 {
     algo_manager_context_t *ctx = context;
@@ -55,7 +60,6 @@ static int on_post_algo_init(void *ptr)
     if (ctx->hook && ctx->hook->on_post_init_route) {
         ctx->hook->on_post_init_route(ctx);
     }
-
     return 0;
 }
 
@@ -67,8 +71,8 @@ void *register_module_for_algo_fusion_new(list_head_t *list_head)
 {
     MALLOC_FOR_PTR(ptr, algo_manager_context_t);
     ptr->priv.algo_inited = 0;
+    ptr->get_algo_data = get_algo_data;
     algo_obj = ptr;
-
     return ADD_MODULE("algo", ID_MODULE_ALGO_HUB, on_perpare_algo_init, 
         on_post_algo_init, ptr, list_head, sizeof(algo_manager_context_t));
 }

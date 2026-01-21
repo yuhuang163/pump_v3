@@ -7,6 +7,112 @@
 #include "hal_timer.h" // IWYU pragma: keep
 #include "hal_iomux.h" // IWYU pragma: keep
 #include "bsp_uart_internal.h" // IWYU pragma: keep
+#include "hal_trace.h" // IWYU pragma: keep
+#include "cmsis_os_api.h" // IWYU pragma: keep
+
+//工厂测试共用日志uart接口
+#define FACTORY_UART_USE_TRACE                    1
+
+#if FACTORY_UART_USE_TRACE
+/*
+* DEFINES
+*****************************************************************************************
+*/
+#define FACTORY_UART_RX_BUF_SIZE            (128)
+
+/*
+* LOCAL VARIABLE DEFINITIONS
+*****************************************************************************************
+*/
+typedef struct factory_uart_msg_data {
+    uint32_t msg_length;
+    uint8_t  *msg_data;
+} factory_uart_msg_data_t;
+
+static uint8_t factory_uart_rx_buf[FACTORY_UART_RX_BUF_SIZE];
+static uart_recv_event_cb_func s_factory_uart_event_cb = NULL;
+static thread_context_t s_factory_uart_thd = {0};
+static rt_device_node_t *node = NULL;
+static os_message_id factory_uart_recv_msg_id = NULL;
+/*
+* LOCAL FUNCTION DEFINITIONS
+*****************************************************************************************
+*/
+static unsigned int factory_uart_recv_handler(unsigned char *rx_buff, unsigned int len)
+{
+    if (len > 0) {
+        BSP_LOG_HEX("factory uart rx", rx_buff, len);
+    }
+    if (len > FACTORY_UART_RX_BUF_SIZE) {
+        LOGE("factory uart rx buffer overflow: len=%d", len);
+        return len;
+    }
+    factory_uart_msg_data_t msg = {0};
+    msg.msg_data = u_malloz(len);
+    if (msg.msg_data == NULL) {
+        LOGE("factory uart rx buffer malloc failed: len=%d", len);
+        return len;
+    }
+    memcpy(msg.msg_data, rx_buff, len);
+    msg.msg_length = len;
+    MSG_QUEUE_SEND(factory_uart_recv_msg_id, &msg, 0);
+    return len;
+}
+
+static void factory_uart_event_thread(const void *args)
+{
+    factory_uart_msg_data_t msg = {0};
+    CREATE_MSG_TYPE_QUEUE(&factory_uart_recv_msg_id, 3, sizeof(factory_uart_msg_data_t));
+    while (1) {
+        MSG_QUEUE_RECV(factory_uart_recv_msg_id, &msg, OS_WAIT_FOREVER);
+    
+        if (s_factory_uart_event_cb) {
+            s_factory_uart_event_cb(node, msg.msg_data, msg.msg_length);
+        }
+        if (msg.msg_data) {
+            u_free(msg.msg_data);
+            msg.msg_data = NULL;
+            msg.msg_length = 0;
+        }
+    }
+}
+
+/*
+* GLOBAL FUNCTION DEFINITIONS
+*****************************************************************************************
+*/
+void bsp_factory_uart_register_event_cb(uart_recv_event_cb_func cb, rt_device_node_t *dev)
+{
+    s_factory_uart_event_cb = cb;
+    node = dev;
+}
+
+int bsp_factory_uart_send_data(uint8_t *buf, uint32_t len)
+{
+    hal_trace_output(buf, len);
+    return 0;
+}
+
+int bsp_factory_uart_init(void)
+{
+    int ret = 0;
+    ret = hal_trace_rx_open(
+        factory_uart_rx_buf, sizeof(factory_uart_rx_buf),
+        (PLATFORM_BT_TRACE_RX_CALLBACK_T)factory_uart_recv_handler);
+    if (ret != 0) {
+        LOGE("platform_bt_trace_rx_register failed: %d", ret);
+    }
+    RUN_NEW_THREAD(&s_factory_uart_thd, "factory_uart",
+                   factory_uart_event_thread, RT_PRIO_FACTORY_UART_THREAD,
+                   (FACTORY_UART_THREAD_STACKSIZE));
+    return 0;
+}
+
+void bsp_factory_uart_close(void)   
+{
+    hal_trace_rx_close();
+}
+#else
 
 /*
 * DEFINES
@@ -172,3 +278,4 @@ void bsp_factory_uart_close(void)
     hal_uart_close((enum HAL_UART_ID_T)FACTORY_UART_ID);
     int_unlock(lock);
 }
+#endif

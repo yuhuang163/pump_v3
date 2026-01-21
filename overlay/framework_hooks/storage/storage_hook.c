@@ -12,7 +12,9 @@
 * DEFINES
 *****************************************************************************************
 */
-#define STORAGE_RAM_SYNC_FLASH_INTERVAL_MS    (20 * 1000)  /// 20s
+#define STORAGE_RAM_SYNC_FLASH_INTERVAL_MS    (10 * 1000)  /// 20s
+#define STORAGE_PERSIST_TASK_POLICY1_NAME     "persist_policy1"  /// 存储策略1
+#define STORAGE_RAM_SYNC_FLASH_TASK_NAME      "ram_sync_flash_task"  /// 内存同步闪存任务
 
 /*
 * LOCAL VARIABLE DEFINITIONS
@@ -240,7 +242,8 @@ static void storage_ram_sync_flash_cb(hdr_post_args_t *args)
     }
     system_persist_info_sync_flash(st);
 EXIT_LABEL:
-    POST_TASK_HANDLER_DELAYED_ARG1(storage_ram_sync_flash_cb, STORAGE_RAM_SYNC_FLASH_INTERVAL_MS, st, "ram_sync_flash_task");
+    POST_TASK_HANDLER_DELAYED_ARG1(storage_ram_sync_flash_cb, 
+        STORAGE_RAM_SYNC_FLASH_INTERVAL_MS, st, STORAGE_RAM_SYNC_FLASH_TASK_NAME);
 }
 
 static void on_storage_broadcast_route(broadcast_mask_id_t id, void *context, int arg1, int arg2, broadcast_priv_data_t *pdata)
@@ -252,24 +255,27 @@ static void on_storage_broadcast_route(broadcast_mask_id_t id, void *context, in
     switch (id.code) {
         case ID_BROADCAST_PM_STATE_CHANGE:
             if (arg1 == ID_SYS_PM_SUSPEND) {
-                POST_TASK_HANDLER_DELAYED_ARG2(hdr_storage_work_cb, 500, 0, st, "persist_store_task1");
+                REMOVE_TASK_HANDLER_DIRECTLY(STORAGE_RAM_SYNC_FLASH_TASK_NAME);
+                POST_TASK_HANDLER_DELAYED_ARG2(hdr_storage_work_cb, 500, 0, st, STORAGE_PERSIST_TASK_POLICY1_NAME);
+            } else if (arg1 == ID_SYS_PM_RESUME) {
+                POST_TASK_HANDLER_DELAYED_ARG1(storage_ram_sync_flash_cb, 
+                    STORAGE_RAM_SYNC_FLASH_INTERVAL_MS, st, STORAGE_RAM_SYNC_FLASH_TASK_NAME);
             }
             break;
         case ID_BROADCAST_SYS_PERSIST_INFO_SAVE:
                 PRIV_DATA_TO_USER_DATA_V2(user_data, pdata, pump_result_info_t);
                 if (user_data) {
                     LOG_STORE("-->save insert_one");
-                    POST_TASK_HANDLER_DELAYED_ARG2(hdr_storage_work_cb, 0, 1, user_data, "persist_store_task3");
+                    POST_TASK_HANDLER_DELAYED_ARG2(hdr_storage_work_cb, 0, 1, user_data, STORAGE_PERSIST_TASK_POLICY1_NAME);
                 }
             break;
         case ID_BROADCAST_SYS_POWER_STATE_CHANGE:
             if (arg1 == ID_BROADCAST_SYS_POWER_OFF) {
                 LOG_STORE("-->system shutdown");
-                POST_TASK_HANDLER_DELAYED_ARG2(hdr_storage_work_cb, 0, 0, st, "persist_store_task4");
+                POST_TASK_HANDLER_DELAYED_ARG2(hdr_storage_work_cb, 0, 0, st, STORAGE_PERSIST_TASK_POLICY1_NAME);
             } else if (arg1 == ID_BROADCAST_SYS_POWER_ON) {
-#if (V3_HARDWARE_VERSION == V3_2710IMP_HARDWARE_V1)
-                POST_TASK_HANDLER_DELAYED_ARG1(storage_ram_sync_flash_cb, STORAGE_RAM_SYNC_FLASH_INTERVAL_MS, st, "ram_sync_flash_task");
-#endif
+                POST_TASK_HANDLER_DELAYED_ARG1(storage_ram_sync_flash_cb, 
+                    STORAGE_RAM_SYNC_FLASH_INTERVAL_MS, st, STORAGE_RAM_SYNC_FLASH_TASK_NAME);
             }
             break;
         default:

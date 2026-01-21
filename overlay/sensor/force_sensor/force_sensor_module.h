@@ -10,13 +10,17 @@ extern "C" {
 ******************************************************************************/
 #include "root_common_base.h" // IWYU pragma: keep
 
-#define F_SENSOR_POLLING_PERIOD              (160)
+#define F_SENSOR_POLLING_PERIOD              (160) 
 
 struct rt_device_node;
-typedef struct _force_sensor_module_data {
-    struct rt_device_node *dev;
-    uint32_t polling_cnt;
-} force_sensor_module_data_t;
+/// 压力传感器上下文
+typedef struct force_sensor_context {
+    /// private
+    struct __force_sensor_private {
+        struct rt_device_node *dev;
+        uint32_t polling_cnt;
+    } priv;
+} force_sensor_context_t;
 
 #ifdef __cplusplus
 }

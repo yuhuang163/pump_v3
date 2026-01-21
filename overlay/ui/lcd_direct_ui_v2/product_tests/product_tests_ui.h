@@ -19,6 +19,10 @@ void ui_display_product_tests_home_prepare(ui_manager_context_t *thiz);
 void ui_display_product_tests_home_remove(ui_manager_context_t *thiz);
 int ui_display_product_tests_home_process(ui_manager_context_t *thiz);
 
+void ui_display_lcd_color_test_prepare(ui_manager_context_t *thiz);
+void ui_display_lcd_color_test_remove(ui_manager_context_t *thiz);
+int ui_display_lcd_color_test_process(ui_manager_context_t *thiz);
+
 #ifdef __cplusplus
 }
 #endif

@@ -59,17 +59,17 @@ static uint8_t s_adv_data_set[] = {
 #else
 #if (ROOT_PRODUCT_ID == PRODUCT_INFO_V3PRO_VALUE)
 static uint8_t s_adv_data_set[] = {
-    0x0C,                               // length
+    0x0D,                               // length
     BES_GAP_AD_TYPE_COMPLETE_NAME,      // type
-    0x56, 0x33, 0x50, 0x52, 0x4F, // name, V3PRO
+    0x56, 0x33, 0x20, 0x50, 0x52, 0x4F, // name, V3 PRO
     0x2D,                               // '-'
     0x41, 0x41, 0x3A, 0x42, 0x42       // MAC, AA:BB
 };
 
 static uint8_t s_adv_rsp_data_set[] = {
-    0x0C,                               // length
+    0x0D,                               // length
     BES_GAP_AD_TYPE_COMPLETE_NAME,      // type
-    0x56, 0x33, 0x50, 0x52, 0x4F, // name, V3PRO
+    0x56, 0x33, 0x20, 0x50, 0x52, 0x4F, // name, V3 PRO
     0x2D,                               // '-'
     0x41, 0x41, 0x3A, 0x42, 0x42       // MAC, AA:BB
 };

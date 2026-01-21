@@ -14,11 +14,13 @@
 #define PRODUCT_TEST_UI_KEY_CODE            (KEY_CODE_POWER |KEY_CODE_START | KEY_CODE_MODE | KEY_CODE_FREQUENCY | \
                                             KEY_CODE_BREASTFEEDING | KEY_CODE_LEFT_CONTROL | KEY_CODE_RIGHT_CONTROL)
 #define PRODUCT_TEST_UI_KEY_TYPE            (KEY_EVENT_CLICK)
-#define PRODUCT_TEST_START_TASK_NAME        "product_test_start_ui"
+#define PRODUCT_TEST_HOME_TASK_NAME         "product_test_home_ui"
+#define PRODUCT_TEST_LCD_COLOR_TASK_NAME    "product_test_lcd_color_ui"
 #define REMOVE_ALL_HANDER_TASK() \
 do { \
     LOG_WM("==>REMOVE_ALL_HANDER_TASK"); \
-    REMOVE_TASK_HANDLER_DIRECTLY(PRODUCT_TEST_START_TASK_NAME); \
+    REMOVE_TASK_HANDLER_DIRECTLY(PRODUCT_TEST_HOME_TASK_NAME); \
+    REMOVE_TASK_HANDLER_DIRECTLY(PRODUCT_TEST_LCD_COLOR_TASK_NAME); \
 } while (0)
 
 /*
@@ -36,7 +38,6 @@ INIT_WINDOW_CONTEXT();
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-
 static void factory_tests_event_report_cb(void *user_data, uint16_t event_id, void *data, int data_len)
 {
     if (!GET_WINDOW_CONTEXT()) {
@@ -68,26 +69,27 @@ static void product_test_ui_common_cb(hdr_post_args_t *args)
     EXCEPTION_CHECK_VOID(proc);
     int action = args->arg1;
     switch (action) {
-        case PRODUCT_TEST_START: {
+        case PRODUCT_TEST_HOME: 
             LOG_WM("%s", args->name);
             if (proc->tests) {
                 proc->tests->add_product_tests_evt_lisenser(proc, TST_FACTORY_TYPE, factory_tests_event_report_cb);
                 proc->tests->tests_manager_set_enable(true);
             } 
-        }
-        break;
-        case PRODUCT_TEST_E10: {
-            LOG_WM("%s", args->name);
-        }
-        break;
-        case PRODUCT_TEST_E11: {
-            LOG_WM("%s", args->name);
-        }
-        break;
+            break;
+        case PRODUCT_TEST_LCD_COLOR:
+            if (args->arg2 > 0) {
+                proc->tests_mode = PRODUCT_TEST_LCD_COLOR_MODE;
+                LOG_WM("show lcd color test ui");
+                // show_lcd_color_test_ui(proc);
+            } else {
+                proc->tests_mode = PRODUCT_TEST_HOME_MODE;
+                LOG_WM("show home test ui");
+                show_product_home_test_ui(proc);
+            }
+            break;
         default:
-        break;
+            break;
     }
-
 }
 
 static int product_test_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t keytype)
@@ -99,34 +101,17 @@ static int product_test_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint1
     ui_proc_product_test_t *proc = user_data;
     EXCEPTION_CHECK_INT(proc);
     EXCEPTION_CHECK_INT(proc->key);
-    const char *key_name = NULL;
-    if (proc->key && proc->key->hook && proc->key->hook->get_key_code_name) {
-        key_name = proc->key->hook->get_key_code_name(keycode);
-    } else {
-        key_name = "@unknow";
-    }
-    LOG_WM("%s, keyevent#ENTER: %d/%d.", key_name, keycode, keytype);
-    switch (keycode) {
-        case KEY_CODE_POWER:
+    switch (proc->tests_mode) {
+        case PRODUCT_TEST_HOME_MODE:
+            product_home_test_keyevent_cb(proc, keycode, keytype);
             break;
-        case KEY_CODE_START:
-            product_tests_start_key_event_handler(proc);
-            break;
-        case KEY_CODE_MODE:
-            break;
-        case KEY_CODE_FREQUENCY:
-            break;
-        case KEY_CODE_BREASTFEEDING:
-            break;
-        case KEY_CODE_LEFT_CONTROL:
-            break;
-        case KEY_CODE_RIGHT_CONTROL:
+        case PRODUCT_TEST_LCD_COLOR_MODE:
+            lcd_color_test_keyevent_cb(proc, keycode, keytype);
             break;
         default:
-            LOG_WM("unknow keycode: %d, ignore.", keycode);
             break;
     }
-    LOG_WM("keyevent, EXIT: %d: %d", keycode, keytype);
+    LOG_WM("current_ui_type: %d, tests_mode: %d", proc->current_ui_type, proc->tests_mode);
 
     return 0;
 }
@@ -134,22 +119,25 @@ static int product_test_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint1
 static void product_test_broadcast_receive_cb(broadcast_mask_id_t id, void *context, int arg1, int arg2,
      broadcast_priv_data_t *pdata)
 {
+    ui_proc_product_test_t *proc = (ui_proc_product_test_t *)context;
+    EXCEPTION_CHECK_VOID(proc);
     if (!GET_WINDOW_CONTEXT()) {
         LOG_WM("window context not present, return.");
         return;
     }
 
     switch (id.code) {
-        case ID_BROADCAST_FACTORY_TEST_CMD: {
+        case ID_BROADCAST_FACTORY_TEST_CMD:
+            if (arg1 == TST_LCD_COLOR_TYPE) {
+                LOG_WM("lcd color test onoff:%d", arg2);
+                POST_TASK_HANDLER_NO_DELAY_ARG2(product_test_ui_common_cb, proc,
+                    PRODUCT_TEST_LCD_COLOR, arg2, PRODUCT_TEST_LCD_COLOR_TASK_NAME);
+            }
             break;
-        }
-        
-        case ID_BROADCAST_SYS_PERSIST_INFO_SAVE: {
-        }
-        break;
-
+        case ID_BROADCAST_SYS_PERSIST_INFO_SAVE: 
+            break;
         default:
-        break;
+            break;
     }
 }
 
@@ -168,12 +156,25 @@ static int entry_event_cb(window_lift_cycle_e new_state,
             proc->key->add_keyevent_handler("product_test_wm", proc, PRODUCT_TEST_UI_KEY_CODE, 
                 PRODUCT_TEST_UI_KEY_TYPE, product_test_ui_keyevent_hdr);
         }
-        POST_TASK_HANDLER_DELAYED_ARG2(product_test_ui_common_cb, 100, PRODUCT_TEST_START, proc,
-            PRODUCT_TEST_START_TASK_NAME);
+        POST_TASK_HANDLER_DELAYED_ARG2(product_test_ui_common_cb, 100, PRODUCT_TEST_HOME, proc,
+            PRODUCT_TEST_HOME_TASK_NAME);
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>PRODUCT_TEST_ON_CREATE");
         ui->animation_play_status_update(ui, false); /// 清除动画播放标志
-        show_product_tests_ui(proc);
+        /// 获取当前测试模式
+        uint8_t current_mode = TST_NONE_TYPE;
+        if (proc->tests->tests_manager_get_current_mode) {
+            current_mode = proc->tests->tests_manager_get_current_mode();
+        }
+        /// 根据当前测试模式显示UI
+        if (current_mode == TST_LCD_COLOR_TYPE) {
+            proc->tests_mode = PRODUCT_TEST_LCD_COLOR_MODE;
+            // show_lcd_color_test_ui(proc);
+            show_product_home_test_ui(proc); /// 临时首页默认home
+        } else {
+            proc->tests_mode = PRODUCT_TEST_HOME_MODE;
+            show_product_home_test_ui(proc);
+        }
     }
     return 0;
 }
@@ -187,7 +188,7 @@ static int exit_event_cb(window_lift_cycle_e new_state,
     switch (new_state) {
         case ID_SCR_STATE_ON_PAUSE: {
             LOG_WM("==>%s window on pause", PAGE_NAME_STR);
-            stop_product_tests_ui_animation(proc);
+            stop_product_test_ui(proc);
             REMOVE_ALL_HANDER_TASK();
             unregister_broadcast_receiver(&proc->receiver);
             if (proc->tests) {

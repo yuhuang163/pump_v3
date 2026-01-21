@@ -18,6 +18,7 @@
 #endif
 
 #define BATT_LOG_INTERVAL                 50
+#define BATT_FULL_VOLTAGE                 12200
 /*
 * LOCAL VARIABLE DEFINITIONS
 *****************************************************************************************
@@ -68,6 +69,7 @@ static const battery_float_voltage_t sc_charging_float_tables[] = {
 };
 
 #else
+
 static const capacity_data_t sc_batt_tables[] = {
     {0,  7200, 9449}, 
     {1,  9450, 9899}, 
@@ -80,7 +82,7 @@ static const capacity_data_t sc_batt_tables[] = {
     {60, 11076, 11315}, 
     {70, 11316, 11621}, 
     {80, 11622, 11930}, 
-    {90, 11931, 12200}, 
+    {90, 11931, BATT_FULL_VOLTAGE}, 
 };
 
 static const battery_para_t sc_charging_tables[] = {
@@ -113,7 +115,8 @@ static const battery_float_voltage_t sc_charging_float_tables[] = {
 };
 #endif
 
-static uint8_t log_timer = 0;
+static uint8_t  log_timer = 0;
+static uint8_t  s_battery_is_ready = 0;
 static uint16_t s_charing_voltage_max = 0;
 static uint16_t s_batt_voltage_max = 0;
 static uint32_t s_charing_time_out_count= 0;
@@ -143,12 +146,12 @@ static void battery_health_set(uint8_t coeff)
 
 static int battery_pencent_get(void)
 {
-    return battery.percent;
+    return s_battery_is_ready ? battery.percent : 100;
 }
 
 static int battery_voltage_get(void)
 {
-    return battery.voltage;
+    return s_battery_is_ready ? battery.voltage : BATT_FULL_VOLTAGE;
 }
 
 static void battery_percent_handler(uint16_t current_voltage)
@@ -395,6 +398,11 @@ static int battery_voltage_poll(void)
     uint16_t batt_voltage =0; 
     static uint16_t voltage = 0; 
     int ret = BSP_OK;
+    
+    if (s_battery_is_ready == false) {
+        return BSP_ERROR;
+    }
+
     uint32_t poll_interval = get_timestamp_ms(s_batt_poll_time);
     
     /// 避免过快调度
@@ -434,13 +442,15 @@ static int battery_voltage_poll(void)
     return BSP_OK;
 }
 
-const battery_status_t *battery_status_get(void)
-{
-    return &battery;
-}
-
 static int battery_dev_open(struct rt_device_node *dev)
 {
+#if IS_SUPPORT_HARDWARE_VERSION_ADAPTIVE
+    uint8_t hardware_version = get_hardware_version();
+    if (hardware_version == PRODUCT_INFO_V3) {
+        LOG_PBUS("battery init skip, hardware version is v3");
+        return BSP_OK;
+    }
+#endif
 #if IS_SUPPORT_BATTERY_DIRECT_SAMPLING
     battery_adc_init();
 #else
@@ -448,6 +458,7 @@ static int battery_dev_open(struct rt_device_node *dev)
 #endif
     battery_health_update();
     bsp_charge_init();
+    s_battery_is_ready = true;
     LOG_PBUS("battery init ok, health:%d%%, percent: %d%% voltage: %d",
         battery.health, battery.percent, battery.voltage); 
     s_batt_poll_time = 0;   
@@ -466,7 +477,6 @@ static int battery_dev_close(struct rt_device_node *dev)
 static int battery_dev_read(struct rt_device_node *dev, void *buf, uint32_t n_bytes)
 {
     int val = battery_pencent_get();
-
     if (buf) {
         memcpy(buf, &val, sizeof(int));
     }
@@ -511,6 +521,13 @@ static int battery_dev_ioctl(struct rt_device_node *dev, uint32_t op_code, void 
         #else
             return 0;
         #endif
+        case OP_CODE_BAT_IS_SUPPORT_BATTERY:
+#if IS_SUPPORT_HARDWARE_VERSION_ADAPTIVE
+            if (get_hardware_version() == PRODUCT_INFO_V3) {
+                return false;
+            }
+#endif
+            return true;
         default:
             LOGE("bat err op_code: %lx", op_code);
             return -1;
@@ -519,6 +536,14 @@ static int battery_dev_ioctl(struct rt_device_node *dev, uint32_t op_code, void 
 
 static int battery_dev_suspend(struct rt_device_node *dev)
 {
+#if IS_SUPPORT_HARDWARE_VERSION_ADAPTIVE
+    uint8_t hardware_version = get_hardware_version();
+    if (hardware_version == PRODUCT_INFO_V3) {
+        LOG_PBUS("battery suspend skip, hardware version is v3");
+        return BSP_OK;
+    }
+#endif
+
 #if IS_SUPPORT_BATTERY_DIRECT_SAMPLING
     battery_adc_suspend();
 #endif
@@ -531,6 +556,14 @@ static int battery_dev_suspend(struct rt_device_node *dev)
 
 static int battery_dev_resume(struct rt_device_node *dev)
 {
+#if IS_SUPPORT_HARDWARE_VERSION_ADAPTIVE
+    uint8_t hardware_version = get_hardware_version();
+    if (hardware_version == PRODUCT_INFO_V3) {
+        LOG_PBUS("battery resume skip, hardware version is v3");
+        return BSP_OK;
+    }
+#endif
+
 #if IS_SUPPORT_BATTERY_DIRECT_SAMPLING
     battery_adc_resume();
 #endif

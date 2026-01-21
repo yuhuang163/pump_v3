@@ -41,11 +41,11 @@ static void interrupt_msg_thread(const void *args)
         #if IS_SUPPORT_DEVICE_KNOB
             case INT_NUM_KNOB_LEFT:
                 knob_button_event_handler(0, 0, NULL);
-                // PRINT_LOG("left knob %d/%d\r\n", bsp_knob_get_count(0), bsp_knob_get_count(1));
+                // BSP_LOG_PASS("left knob %d/%d\r\n", bsp_knob_get_count(0), bsp_knob_get_count(1));
                 break;
             case INT_NUM_KNOB_RIGHT:
                 knob_button_event_handler(1, 0, NULL);
-                // PRINT_LOG("right knob %d/%d\r\n", bsp_knob_get_count(0), bsp_knob_get_count(1));
+                // BSP_LOG_PASS("right knob %d/%d\r\n", bsp_knob_get_count(0), bsp_knob_get_count(1));
                 break;
         #endif
         #if IS_SUPPORT_PD_CHARGE

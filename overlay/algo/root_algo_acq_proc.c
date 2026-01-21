@@ -74,13 +74,13 @@ void algo_sampling_data_cb(algo_manager_context_t *ctx, uint8_t *data, int data_
 
 #if 0
     for (uint8_t i = 0; i < BREAST_PUMP_NUM; i++) {
-        PRINT_LOG("%d pressure:%f raw:%d state:%d pump:%d valve:%d target:%d time:%d; ", 
+        LOG_PASS("%d pressure:%f raw:%d state:%d pump:%d valve:%d target:%d time:%d; ", 
             i, sensor_data->air_pressure_data[i].pressure, sensor_data->air_pressure_data[i].raw_data,
             info[i].state.status, 
             info[i].state.pump_duty, info[i].state.valve_duty,
             info[i].state.target_pressure, info[i].state.run_time);
     }
-    PRINT_LOG("\r\n");
+    LOG_PASS("\r\n");
 #endif
 
 }
@@ -114,7 +114,10 @@ bool algo_change_sampling_interval(algo_manager_context_t *ctx, uint16_t interva
     EXCEPTION_CHECK_BOOL(ctx);
     algo_sampling_stop(ctx);
     EXCEPTION_CHECK_BOOL(ctx->priv.sensor);
-    ctx->priv.sensor->priv.air_pressure.sampling_interval = interval - 5; //sensor线程为10ms触发，重设间隔，减去固定值，过滤线程执行时间抖动
+    air_pressure_context_t *air_pressure_ctx = (air_pressure_context_t *)ctx->priv.sensor->find_sensor(ID_SENSOR_AIR_PRESSURE);
+    if (air_pressure_ctx) {
+        air_pressure_ctx->set_sampling_interval(interval);
+    }
     algo_sampling_start(ctx);
     return true;
 }

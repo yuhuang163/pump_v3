@@ -8,7 +8,6 @@
 #include "ui_manager.h"   // IWYU pragma: keep
 #include "window_screen_pump.h" // IWYU pragma: keep
 #include "breast_pump_ui.h" // IWYU pragma: keep
-#include <stdint.h>
 
 /*
 * DEFINES

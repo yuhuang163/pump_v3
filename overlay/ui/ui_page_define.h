@@ -12,6 +12,7 @@ extern "C" {
 #include "root_common_base.h" // IWYU pragma: keep
 #include "ui_manager_api.h" // IWYU pragma: keepin
 #include "battery_ui.h" // IWYU pragma: keepin
+#include "charge_ui.h" // IWYU pragma: keepin
 #include "ble_ui.h" // IWYU pragma: keepin
 #include "breast_pump_ui.h" // IWYU pragma: keepin
 #include "airplane_mode_ui.h" // IWYU pragma: keepin

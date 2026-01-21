@@ -86,8 +86,9 @@ void show_charging_ui(ui_proc_charge_t *proc)
         .display_remove_cb = charging_ui_display_remove,
         .user_data = proc,
     };
-    ui->hook->ui_animation_play_init(ui, play_info);
     proc->last_progress_ani_time = get_timestamp();
+    ui->hook->ui_animation_play_init(ui, play_info);
+    proc->current_ui_type = CHARGE_UI_TYPE_CHARGING;
 }
 
 void stop_charging_ui(ui_proc_charge_t *proc)

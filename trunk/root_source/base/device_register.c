@@ -33,6 +33,9 @@ static const device_register_fptr s_device_register[] = {
     #if IS_SUPPORT_DEVICE_UART
     register_device_for_uart,
     #endif
+    #if IS_SUPPORT_DEVICE_MOTOR
+    register_device_for_motor,
+    #endif
     #if IS_SUPPORT_DEVICE_POWER
     register_device_for_power,
     #endif
@@ -68,9 +71,6 @@ static const device_register_fptr s_device_register[] = {
     #endif
     #if IS_SUPPORT_DEVICE_LIGHT_SENSOR
     register_device_for_light_sensor,
-    #endif
-    #if IS_SUPPORT_DEVICE_MOTOR
-    register_device_for_motor,
     #endif
     #if IS_SUPPORT_DEVICE_AUDIO
     register_device_for_audio,

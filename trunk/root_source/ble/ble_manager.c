@@ -313,7 +313,7 @@ static void ble_event_callback(ble_event_e event, void *param)
             ble_obj->dispatch_ble_event_wrapper(ble_obj, BLE_MSG_PERIPH_CONNECT_SUC, param, 1);
             break;
         case BLE_EVENT_CONN_CLOSED:
-            ble_obj->dispatch_ble_event_wrapper(ble_obj, BLE_MSG_PERIPH_DISCONN, param, 1);
+            ble_obj->dispatch_ble_event_wrapper(ble_obj, BLE_MSG_PERIPH_DISCONN_SUC, param, 1);
             break;
         case BLE_EVENT_CONN_FAILED:
             ble_obj->dispatch_ble_event_wrapper(ble_obj, BLE_MSG_PERIPH_DISCONN, param, 1);

@@ -40,7 +40,7 @@ typedef enum {
 typedef struct {
     uint8_t window_id;
     uint8_t pm_wakeup_reason;
-    uint8_t set_bth_mode_flag;
+    uint8_t set_bst_mode_flag;
     uint8_t goto_breast_pump;
     uint8_t setting_sub_menu_pos;
     uint8_t gretting_which_time;

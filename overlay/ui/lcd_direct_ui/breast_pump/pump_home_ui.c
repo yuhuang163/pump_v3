@@ -16,8 +16,10 @@
 #define IS_SUPPORT_HOME_COMP_BG                    (0)
 #define IS_SUPPORT_HOME_DEBUG_OTHER_PAGE           (0)
 #define IS_SUPPORT_HOME_PAGE_TEST                  (0)
+#define IS_SUPPORT_AIR_LEAKAGE_TEST                (0)
 #define HOME_MODE_MAX_COUNT                        (7)
 #define HOME_SPEED_MAX_COUNT                       (3)
+#define AIR_LEAKAGE_TEXT_COUNT                     (2)
 
 #define PUMP_IMG_SEL_COLOR                         0xB3686D
 #define PUMP_IMG_UNSEL_COLOR                       0xF7EFEF
@@ -28,6 +30,7 @@
 #define PUMP_ARC_UNSEL_COLOR                       0xF7EFEF
 #define PUMP_MODE_SEL_START_COLOR                  0xB3686D
 #define PUMP_MODE_SEL_END_COLOR                    0xF1D9D6
+#define AIR_LEAKAGE_BG_COLOR                       0x000000
 
 #define STIMULATE_MODE_ICON_X                      (122 + 4)
 #define STIMULATE_MODE_ICON_Y                      (283 + 15)
@@ -73,6 +76,11 @@ typedef struct {
     uint16_t label_text_y;
 } home_mode_label_info_t;
 
+typedef struct {
+    const char *name;
+    uint16_t text_y;
+} air_leakage_info_t;
+
 typedef struct {    
     lv_obj_t * root;
     lv_obj_t * backgroud;
@@ -92,6 +100,12 @@ typedef struct {
     lv_obj_t * mode_text;
     res_img_info_t mode_icon_info;
     res_img_info_t background_info;
+#if IS_SUPPORT_AIR_LEAKAGE_WARNING
+    lv_obj_t * air_leakage_label;
+    lv_obj_t * air_leakage_text[AIR_LEAKAGE_TEXT_COUNT];
+    lv_obj_t * air_leakage_icon;
+    res_img_info_t air_leakage_icon_info;
+#endif
     uint8_t force_update;
     uint8_t is_connected;
     uint8_t percent;
@@ -102,6 +116,10 @@ typedef struct {
     uint8_t right_level;
     uint16_t hold_time;
     uint16_t animation_index;
+#if IS_SUPPORT_AIR_LEAKAGE_WARNING
+    uint8_t hide_air_leakage_popup_wm;
+    algo_breast_pump_data_t algo_data;
+#endif
 } pump_home_display_info_t;
 
 /*
@@ -110,7 +128,8 @@ typedef struct {
 */
 #if IS_SUPPORT_HOME_COMP_BG
 static PSRAM_DATA_LOC uint8_t home_bg_1_data[] = {
-    #include "comparison_png2txt/home_comp_360x360.txt"
+    #include "comparison_png2txt/home_comp_air_360x360.txt"
+    // #include "comparison_png2txt/home_comp_360x360_1.txt"
 };
 #endif
 
@@ -145,6 +164,11 @@ const static home_mode_label_info_t home_mode_infos[HOME_MODE_MAX_COUNT] = {
     },
 };
 
+const static air_leakage_info_t air_leakage_infos[AIR_LEAKAGE_TEXT_COUNT] = {
+    { "Suction may not be optimal", 2},
+    { "Please check the fit, position, and tubing\nconnection.", 39},
+};
+
 static pump_home_display_info_t *pump_info;
 
 /*
@@ -173,8 +197,6 @@ static void pump_home_init(void)
 
 static void pump_home_bg_update(ui_manager_context_t *thiz)
 {
-    common_ui_img_resource_init(thiz, RESOURCE_ID_PUMP_HOME_BG, &pump_info->background_info);
-    EXCEPTION_CHECK_VOID(pump_info->background_info.data);
     static uint32_t start_time = 0;
     static uint8_t status = 0;
     if (pump_info->backgroud == NULL || !lv_obj_is_valid(pump_info->backgroud)) {
@@ -190,6 +212,8 @@ static void pump_home_bg_update(ui_manager_context_t *thiz)
         lv_fs_make_path_from_buffer(&bg_img_path, LV_FS_MEMFS_LETTER, home_bg_1_data,
             sizeof(home_bg_1_data), "png");
 #else
+        common_ui_img_resource_init(thiz, RESOURCE_ID_PUMP_HOME_BG, &pump_info->background_info);
+        EXCEPTION_CHECK_VOID(pump_info->background_info.data);
         lv_fs_make_path_from_buffer(&bg_img_path, LV_FS_MEMFS_LETTER, 
             pump_info->background_info.data, pump_info->background_info.size, "baj");
 #endif
@@ -524,6 +548,117 @@ static void pump_home_mode_label_update(ui_manager_context_t *thiz, uint8_t mode
     pump_info->mode = mode_index;
 }
 
+#if IS_SUPPORT_AIR_LEAKAGE_WARNING
+static void pump_home_air_leakage_label_update(ui_manager_context_t *thiz)
+{
+    /// 更新空气泄漏标签
+    if (pump_info->air_leakage_label == NULL || !lv_obj_is_valid(pump_info->air_leakage_label)) {
+        pump_info->air_leakage_label = lv_obj_create(pump_info->root);
+        EXCEPTION_CHECK_VOID(pump_info->air_leakage_label);
+    }
+    lv_obj_clear_flag(pump_info->air_leakage_label, LV_OBJ_FLAG_SCROLLABLE);    /// 不要滚动条
+    lv_obj_set_size(pump_info->air_leakage_label, 327, 132); /// 设置容器尺寸
+    lv_obj_set_style_border_width(pump_info->air_leakage_label, 0, 0);          /// 无边框
+    lv_obj_set_style_bg_opa(pump_info->air_leakage_label, LV_OPA_80, 0);    /// 背景透明80%
+    lv_obj_set_style_bg_color(pump_info->air_leakage_label, lv_color_hex(AIR_LEAKAGE_BG_COLOR), 0);
+    lv_obj_set_style_radius(pump_info->air_leakage_label, 66, 0);   /// 高度 44 → 圆角设 22（或更大）
+    lv_obj_align(pump_info->air_leakage_label, LV_ALIGN_TOP_LEFT, 17, 114);    /// 设置模式标签位置
+
+    /// 更新空气泄漏文本
+    for (int i = 0; i < AIR_LEAKAGE_TEXT_COUNT; i++) {
+        if (pump_info->air_leakage_text[i] == NULL || !lv_obj_is_valid(pump_info->air_leakage_text[i])) {
+            pump_info->air_leakage_text[i] = lv_label_create(pump_info->air_leakage_label);
+            EXCEPTION_CHECK_VOID(pump_info->air_leakage_text[i]);
+        }
+        lv_label_set_text(pump_info->air_leakage_text[i], air_leakage_infos[i].name);  /// 设置 label 文字内容和样式
+        lv_obj_set_style_text_color(pump_info->air_leakage_text[i], lv_color_hex(PUMP_TEXT_UNSEL_COLOR), 0);
+        lv_obj_set_style_text_font(pump_info->air_leakage_text[i], 
+            i == 0 ? &lv_font_roboto_20_medium : &lv_font_roboto_16_regular, 0);  /// 设置字体
+        lv_obj_set_style_text_align(pump_info->air_leakage_text[i], LV_TEXT_ALIGN_CENTER, 0);  /// 设置文本居中对齐
+        lv_obj_align(pump_info->air_leakage_text[i], LV_ALIGN_TOP_MID, 0, air_leakage_infos[i].text_y);    /// 设置模式标签位置
+    }
+}
+
+static void pump_home_air_leakage_icon_update(ui_manager_context_t *thiz)
+{
+    if (pump_info->air_leakage_icon == NULL || !lv_obj_is_valid(pump_info->air_leakage_icon)) {
+        pump_info->air_leakage_icon = lv_image_create(pump_info->root);
+        EXCEPTION_CHECK_VOID(pump_info->air_leakage_icon);
+    }
+    common_ui_img_resource_init(thiz, RESOURCE_ID_AIR_LEAKAGE_ICON, &pump_info->air_leakage_icon_info);
+    EXCEPTION_CHECK_VOID(pump_info->air_leakage_icon_info.data);
+    lv_fs_path_ex_t air_leakage_icon_img_path;
+    lv_fs_make_path_from_buffer(&air_leakage_icon_img_path, LV_FS_MEMFS_LETTER, pump_info->air_leakage_icon_info.data,
+        pump_info->air_leakage_icon_info.size, "baj");
+    lv_image_set_src(pump_info->air_leakage_icon, (const void *)&air_leakage_icon_img_path);
+    lv_obj_align(pump_info->air_leakage_icon, LV_ALIGN_TOP_LEFT, 98 + 5, 40);    /// 设置icon位置
+}
+
+static void pump_home_air_leakage_update(ui_manager_context_t *thiz, ui_proc_pump_t *proc)
+{
+    EXCEPTION_CHECK_VOID(proc->algo);
+    proc->algo->get_algo_data(&pump_info->algo_data);
+#if IS_SUPPORT_AIR_LEAKAGE_TEST
+    static uint16_t log_time = 0 , status = 0;
+    log_time++;
+    if (log_time > 200) {
+        log_time = 0;
+        status = (status == 0) ? 1 : 0;
+        LOG_UI("air leakage result: %d, %d; show: %d, hide: %d, hide_wm: %d", 
+            pump_info->algo_data.wear_detection.result[0], pump_info->algo_data.wear_detection.result[1],
+            proc->is_air_leakage_popup_show, proc->hide_air_leakage_popup_wm, pump_info->hide_air_leakage_popup_wm);
+    }
+
+    if (status == 1) {
+        pump_info->algo_data.wear_detection.result[0] = 1;
+        pump_info->algo_data.wear_detection.result[1] = 1;
+    } else {
+        pump_info->algo_data.wear_detection.result[0] = 0;
+        pump_info->algo_data.wear_detection.result[1] = 0;
+    }
+#endif
+    if (pump_info->algo_data.wear_detection.result[0] == 0 && pump_info->algo_data.wear_detection.result[1] == 0) {
+        if (proc->is_air_leakage_popup_show) {
+            proc->is_air_leakage_popup_show = false;
+            pump_info->hide_air_leakage_popup_wm = false;
+            proc->hide_air_leakage_popup_wm = false;
+            if (pump_info->air_leakage_label) {
+                lv_obj_add_flag(pump_info->air_leakage_label, LV_OBJ_FLAG_HIDDEN);
+            }
+            if (pump_info->air_leakage_icon) {
+                lv_obj_add_flag(pump_info->air_leakage_icon, LV_OBJ_FLAG_HIDDEN);
+            }
+            LOG_UI("release air leakage popup"); /// 解除空气泄漏弹窗提示.
+        }
+        return;
+    }
+
+    if (proc->hide_air_leakage_popup_wm == true && 
+        pump_info->hide_air_leakage_popup_wm == false) {
+        pump_info->hide_air_leakage_popup_wm = true;
+        if (pump_info->air_leakage_label) {
+            lv_obj_add_flag(pump_info->air_leakage_label, LV_OBJ_FLAG_HIDDEN);
+            LOG_UI("hide air leakage popup wm"); /// 隐藏空气泄漏弹窗提示.
+        }
+        return;
+    }
+
+    if (proc->is_air_leakage_popup_show == true) {
+        return;
+    }
+    proc->is_air_leakage_popup_show = true;
+    if (pump_info->air_leakage_label) {
+        lv_obj_clear_flag(pump_info->air_leakage_label, LV_OBJ_FLAG_HIDDEN);
+    }
+    pump_home_air_leakage_label_update(thiz);
+    if (pump_info->air_leakage_icon) {
+        lv_obj_clear_flag(pump_info->air_leakage_icon, LV_OBJ_FLAG_HIDDEN);
+    }
+    pump_home_air_leakage_icon_update(thiz);
+    LOG_UI("show air leakage popup"); /// 显示空气泄漏弹窗提示.
+}
+#endif
+
 static void pump_setting_ui_update(ui_manager_context_t *thiz, ui_proc_pump_t *proc)
 {
     EXCEPTION_CHECK_VOID(proc->pump);
@@ -549,16 +684,6 @@ static void pump_setting_ui_update(ui_manager_context_t *thiz, ui_proc_pump_t *p
 */
 void ui_display_pump_home_screen_prepare(ui_manager_context_t *thiz)
 {
-#if IS_SUPPORT_HOME_DEBUG_OTHER_PAGE
-    // ui_display_pump_left_level_prepare(thiz);
-    // ui_display_pump_mode_prepare(thiz);
-    // ui_display_breastfeeding_mode_prepare(thiz);
-    // ui_display_pump_complete_tip_prepare(thiz);
-    // ui_display_airplane_mode_prepare(thiz);
-    // ui_display_home_prepare(thiz);
-    // ui_display_product_tests_home_prepare(thiz);
-    ui_display_pump_speed_prepare(thiz);
-#else
     EXCEPTION_CHECK_VOID(thiz);
     if (pump_info == NULL) {
         pump_info = (pump_home_display_info_t *)u_malloz(sizeof(pump_home_display_info_t));
@@ -568,21 +693,10 @@ void ui_display_pump_home_screen_prepare(ui_manager_context_t *thiz)
     thiz->priv.fps_count = 0;
     thiz->priv.fps_start_time = get_timestamp();
     pump_info->force_update = true;
-#endif
 }
 
 void ui_display_pump_home_screen_remove(ui_manager_context_t *thiz)
 {
-#if IS_SUPPORT_HOME_DEBUG_OTHER_PAGE
-    // ui_display_pump_left_level_remove(thiz);
-    // ui_display_pump_mode_remove(thiz);
-    // ui_display_breastfeeding_mode_remove(thiz);
-    // ui_display_pump_complete_tip_remove(thiz);
-    // ui_display_airplane_mode_remove(thiz);
-    // ui_display_home_remove(thiz);
-    // ui_display_product_tests_home_remove(thiz);
-    ui_display_pump_speed_remove(thiz);
-#else
     EXCEPTION_CHECK_VOID(thiz);
     EXCEPTION_CHECK_VOID(pump_info);
     ble_ui_deinit(thiz);
@@ -592,21 +706,10 @@ void ui_display_pump_home_screen_remove(ui_manager_context_t *thiz)
     LVGL_OBJ_DELETE(pump_info->root);
     u_free(pump_info);
     pump_info = NULL;
-#endif
 }
 
 int ui_display_pump_home_screen(ui_manager_context_t *thiz)
 {
-#if IS_SUPPORT_HOME_DEBUG_OTHER_PAGE
-    // ui_display_pump_left_level(thiz);
-    // ui_display_pump_mode(thiz);
-    // ui_display_breastfeeding_mode(thiz);
-    // ui_display_pump_complete_tip(thiz);
-    // ui_display_airplane_mode_process(thiz);
-    // ui_display_home_process(thiz);
-    // ui_display_product_tests_home_process(thiz);
-    ui_display_pump_speed(thiz);
-#else
     EXCEPTION_CHECK_INT(thiz);
     EXCEPTION_CHECK_INT(pump_info);
     EXCEPTION_CHECK_INT(pump_info->root);
@@ -617,14 +720,16 @@ int ui_display_pump_home_screen(ui_manager_context_t *thiz)
     pump_home_battery_update(thiz, proc->battery);
     pump_home_time_update(thiz, proc->pump);
     pump_setting_ui_update(thiz, proc);
+#if IS_SUPPORT_AIR_LEAKAGE_WARNING
+    pump_home_air_leakage_update(thiz, proc);
+#endif
     thiz->priv.fps_count++;
     pump_info->force_update = false; 
     if (get_timestamp() - thiz->priv.fps_start_time >= 1000) {
         thiz->priv.fps_start_time = get_timestamp();
-        LOG_UI("===> pump 12 home fps: %d", thiz->priv.fps_count);
+        LOG_UI("===> pump home fps: %d", thiz->priv.fps_count);
         thiz->priv.fps_count = 0;
         
     }
-#endif
     return 0;
 }

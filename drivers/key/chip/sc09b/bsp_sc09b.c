@@ -172,7 +172,7 @@ POSSIBLY_UNUSED static void sc09b_touch_key_scan(void)
             }
             // LOG_PBUS("key value: %x, %x, %x, %x, %x, %x", s_touch_key[0], s_touch_key[1], 
             //     s_touch_key[2], s_touch_key[3], s_touch_key[4], s_touch_key[5]);
-            // PRINT_LOG("key value: %x, %x\r\n", key_value[0], key_value[1]);
+            // BSP_LOG_PASS("key value: %x, %x\r\n", key_value[0], key_value[1]);
             if (key_value[0] == 0) {
                 key_idle_count++;
                 if (key_idle_count > TOUCH_KEY_IDLE_COUNT) {

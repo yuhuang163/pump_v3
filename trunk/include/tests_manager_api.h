@@ -10,6 +10,7 @@ extern "C" {
  ******************************************************************************/
 #include "root_common_base.h" // IWYU pragma: keep
 #include "product_tests.h" // IWYU pragma: keep
+#include "broadcast_manager_api.h"
 
 /// 测试类型
 typedef enum {
@@ -20,6 +21,7 @@ typedef enum {
     TST_SELF_HARDWARE_TYPE = 0x0005, /// 自检模式
     TST_STRESS_TYPE = 0x0006,        /// 压力测试模式
     TST_COMMON_TYPE = 0x0007,        /// 通用测试模式
+    TST_LCD_COLOR_TYPE = 0x0008,  /// LCD颜色测试模式
 } product_tst_report_type_e;
 
 /// 测试类型

@@ -7,6 +7,19 @@
     "compressed": false,
     "config_hint": "建议按 resource_id（数值ID）升序添加/维护 resources；打包脚本会根据头文件解析出的数值ID自动排序后再打包。"
   },
+  "resource_ranges": [
+    {
+      "start_resource_id": "RESOURCE_ID_CHARGE_ANIMATION_START",
+      "end_resource_id": "RESOURCE_ID_CHARGE_ANIMATION_END",
+      "description": "充电动画帧",
+      "file_template": "animation/charge/baj/charge_ant_{file_index:05d}_360x360_a4_q99_422.baj",
+      "start_file_index": 0,
+      "id_to_file_offset": -401,
+      "x_offset": 0,
+      "y_offset": 0,
+      "note": "动画资源ID范围: 401-402，共2帧。文件编号计算：file_index = resource_id + id_to_file_offset (即 resource_id - 401)。资源ID 401→CH_00000, 402→CH_00001"
+    }
+  ],
   "resources": [
     {
       "resource_id": "RESOURCE_ID_BLE_CONNECT",
@@ -308,6 +321,20 @@
       "file": "baj/travel_unlock_tip_122x48_a4_q99_422.baj",
       "x_offset": 0,
       "y_offset": 0
-    }
+    },
+    {
+      "resource_id": "RESOURCE_ID_AIR_LEAKAGE_ICON",
+      "description": "泵奶-空气泄漏图标",
+      "file": "baj/air_leakage_sign_24x24_a4_q99_422.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "RESOURCE_ID_CHARGE_PAGE_ICON",
+      "description": "充电页充电图标",
+      "file": "baj/charge_page_icon_90x48_a4_q99_422.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    } 
   ]
 }

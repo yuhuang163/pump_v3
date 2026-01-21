@@ -100,8 +100,8 @@ extern "C" {
 #define BLE_THREAD_STACKSIZE                           (TASK_SIZE_DEFAULT * 4 + 0)
 #endif
 
-#ifndef BTH_THREAD_STACKSIZE
-#define BTH_THREAD_STACKSIZE                           (TASK_SIZE_DEFAULT * 4 + 0)
+#ifndef BST_THREAD_STACKSIZE
+#define BST_THREAD_STACKSIZE                           (TASK_SIZE_DEFAULT * 4 + 0)
 #endif
 
 #ifndef LVGL_RENDER_THREAD_STACKSIZE

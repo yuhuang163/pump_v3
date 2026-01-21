@@ -3,6 +3,7 @@
 *****************************************************************************************
 */
 #include "ble_manager_api.h"
+#include "peripheral_bus_api.h"
 #include "root_common_api.h" // IWYU pragma: keep
 #include "factory_server_client.h" // IWYU pragma: keep
 #include "common_service.h"
@@ -11,13 +12,12 @@
 * DEFINES
 *****************************************************************************************
 */
-#define RX_BUFF_LEN 256
-#define USE_PLATFORM_BT_TRACE 1
+#define USE_PLATFORM_TRACE 1
 /*
 * LOCAL VARIABLE DEFINITIONS
 *****************************************************************************************
 */
-static unsigned char rx_buff[RX_BUFF_LEN];
+
 /*
 * GLOBAL VARIABLE DEFINITIONS
 *****************************************************************************************
@@ -35,8 +35,13 @@ static void on_packet_subscribe_callback(int err_code, uint8_t *data, uint16_t l
     EXCEPTION_CHECK_VOID(ble_ctx);
     /// 发送数据主要ack应答
     ble_ctx->dispatch_ble_event_wrapper(ble_ctx, BLE_MSG_FAC_SEND_DATA, (uint8_t *)data, len);
-#if USE_PLATFORM_BT_TRACE
-    platform_bt_trace_tx(data, len);
+#if USE_PLATFORM_TRACE
+    peripheral_bus_context_t *bus_ctx =
+        (peripheral_bus_context_t *)find_module(ID_MODULE_DEVICE_BUS);
+    EXCEPTION_CHECK_VOID(bus_ctx);
+    rt_device_node_t *node = bus_ctx->find_device(ID_DEVICE_UART);
+    EXCEPTION_CHECK_VOID(node);
+    node->write(node, data, len);
 #endif
 }
 
@@ -54,12 +59,11 @@ static void on_factory_server_event_cb(void *user_data, uint8_t *data, uint16_t 
     LOGE("==> after call comm_protocol_subscribe_handler");
 }
 
-#if USE_PLATFORM_BT_TRACE
-static unsigned int on_factory_server_event_cb_callback(unsigned char *rx_buff, unsigned int len)
+#if USE_PLATFORM_TRACE
+static void on_factory_server_event_cb_callback(void *ctx, uint8_t *p_data, uint16_t ulLen)
 {
-    LOGE("==> on_factory_server_event_cb_callback: rx_buff=%p, len=%d", rx_buff, len);
-    on_factory_server_event_cb(NULL, rx_buff, len);
-    return 0;
+    LOGE("==> on_factory_server_event_cb_callback: ctx=%p, p_data=%p, ulLen=%d", ctx, p_data, ulLen);
+    on_factory_server_event_cb(ctx, p_data, ulLen);
 }
 #endif
 /*
@@ -72,8 +76,12 @@ void factory_server_client_init(void)
     EXCEPTION_CHECK_VOID(ble_ctx);
     ble_ctx->add_ble_evt_lisenser(ble_ctx, DEVICE_BLE_FAC_MSG_CHANNEL, on_factory_server_event_cb);
 
-#if USE_PLATFORM_BT_TRACE
-    platform_bt_trace_rx_register(rx_buff, RX_BUFF_LEN, on_factory_server_event_cb_callback);
+#if USE_PLATFORM_TRACE
+    peripheral_bus_context_t *bus_ctx = (peripheral_bus_context_t *)find_module(ID_MODULE_DEVICE_BUS);
+    EXCEPTION_CHECK_VOID(bus_ctx);
+    rt_device_node_t *node = bus_ctx->find_device(ID_DEVICE_UART);
+    EXCEPTION_CHECK_VOID(node);
+    node->ioctl(node, OP_CODE_UART_ADD_EVENT_CB, on_factory_server_event_cb_callback);
 #endif
 }
 

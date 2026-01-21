@@ -89,6 +89,11 @@ int tests_tlvs_factory_test_mode(comm_protocol_builder_t *builder, comm_protocol
     if (mode == 1) {
         /* 进入产测模式 */
         set_log_ouput_level(US_LOG_LEVEL_NONE);
+        //关闭自适应夜灯
+        algo_manager_context_t *algo = (algo_manager_context_t *)find_module(ID_MODULE_ALGO_HUB);
+        EXCEPTION_CHECK_INT(algo);
+        algo->hook->set_adaptive_dimming_state(false);
+
         tests_ctx->tests_manager_set_current_mode(TST_FACTORY_TYPE);
         tests_ctx->set_factory_tests_event_process(FAC_TST_ENTER_EVENT, 0, 0, NULL);
         //唤醒电源管理模块
@@ -107,6 +112,11 @@ int tests_tlvs_factory_test_mode(comm_protocol_builder_t *builder, comm_protocol
         } else {
             /* 退出产测模式 */
             set_log_ouput_level(US_LOG_LEVEL_VERBOSE);
+            //开启自适应夜灯
+            algo_manager_context_t *algo = (algo_manager_context_t *)find_module(ID_MODULE_ALGO_HUB);
+            EXCEPTION_CHECK_INT(algo);
+            algo->hook->set_adaptive_dimming_state(true);
+             
             tests_ctx->tests_manager_set_current_mode(TST_NONE_TYPE);
             tests_ctx->set_factory_tests_event_process(FAC_TST_EXIT_EVENT, 0, 0, NULL);
             /* 关闭测试窗口 */
@@ -1204,4 +1214,38 @@ int tests_encoder_status_publish(servers_publish_data_args_t *args)
 ERROR_EXIT:
     protocol_ctx->comm_protocol_builder_free(&builder);
     return ret;
+}
+
+int tests_tlvs_lcd_color_test_mode(comm_protocol_builder_t *builder, 
+    comm_protocol_service_t *service, uint8_t *data, uint16_t data_len)
+{
+    EXCEPTION_CHECK_INT(builder && service);
+    protocol_manager_context_t *protocol_ctx = get_protocol_ctx();
+    EXCEPTION_CHECK_INT(protocol_ctx);
+
+    uint8_t mode = (data && data_len >= 1) ? data[0] : 0;
+    LOG_SRV("lcd color test: %s", mode ? "ENTER" : "EXIT");
+    tests_manager_context_t *tests_ctx = (tests_manager_context_t *)find_module(ID_MODULE_TESTS);
+    EXCEPTION_CHECK_INT(tests_ctx);
+    tests_ctx->tests_manager_set_current_mode(mode == 1 ? TST_LCD_COLOR_TYPE : TST_NONE_TYPE);
+    power_manager_context_t *pm = (power_manager_context_t *)find_module(ID_MODULE_POWER);
+    if (pm && pm->is_pm_suspend()) {
+        pm->pm_wakeup(PM_WAKEUP_REASON_FACTORY_RESUME);
+    }
+
+    window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
+    if (wm && wm->is_current_window(wm, ID_WINDOW_PRODUCT_TEST_MODE) == 0) {
+        multi_func_msg_data_t msg = {0};
+        msg.union_body.extra.window_id = ID_WINDOW_PRODUCT_TEST_MODE;
+        wm->dispatch_new_window_args(wm, &msg);
+    } else {
+        SEND_BROADCAST_ARGS2(ID_BROADCAST_FACTORY_TEST_CMD, TST_LCD_COLOR_TYPE, mode);
+    }
+    uint8_t result = 0x01; // 默认成功
+    comm_protocol_tlv_node_t tlv_node = {
+        .type = TESTS_TLV_LCD_COLOR_TEST_MODE,
+        .length = 1,
+        .value = &result,
+    };
+    return protocol_ctx->comm_protocol_builder_add_tlv(builder, service, &tlv_node);
 }

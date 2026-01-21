@@ -32,6 +32,7 @@ static void home_display_completed_cb(hdr_post_args_t *args)
     LOG_UI("home play finish.\n");
     window_manager_context_t *wm = proc->wm;
     EXCEPTION_CHECK_VOID(wm);
+    wm->set_window_guidance_deployed_flag(true);
     if (wm->is_current_window(wm, ID_WINDOW_HOME) == 0) {
         return;
     }
@@ -39,11 +40,6 @@ static void home_display_completed_cb(hdr_post_args_t *args)
     msg.union_body.extra.window_id = ID_WINDOW_PUMP;
     wm->dispatch_new_window_args(wm, &msg);
     return;
-}
-
-static void home_ui_before_policy(ui_manager_context_t *ui, int index)
-{
-
 }
 
 static void home_ui_after_policy(ui_manager_context_t *ui, int index)
@@ -59,7 +55,6 @@ static void home_animation_progress_cb(void *user_data, int index, ui_ani_progre
         case ANI_TIMER_DRAW_FINISH:
             break;
         case ANI_TIMER_DRAW_BEFORE:
-            home_ui_before_policy(ui, index);
             break;
         case ANI_TIMER_DRAW_AFTER:
             home_ui_after_policy(ui, index);
@@ -108,8 +103,8 @@ void start_home_ui_animation(ui_proc_home_t *proc)
         .display_remove_cb = home_ui_display_remove,
         .user_data = proc,
     };
-    ui->hook->ui_animation_play_init(ui, play_info);
     proc->last_progress_ani_time = get_timestamp();
+    ui->hook->ui_animation_play_init(ui, play_info);
     proc->current_ui_type = HOME_UI_TYPE_HOME;
 }
 

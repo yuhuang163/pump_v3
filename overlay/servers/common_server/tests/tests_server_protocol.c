@@ -48,6 +48,8 @@ const static protocol_service_tlvs_handle_t protocol_service_tlvs_list[] = {
     {TESTS_TLV_QUERY_SENSOR_STATUS, tests_tlvs_query_sensor_status},
     /// RSSI获取
     {TESTS_TLV_GET_RSSI, tests_tlvs_get_rssi},
+    /// LCD颜色测试模式
+    {TESTS_TLV_LCD_COLOR_TEST_MODE, tests_tlvs_lcd_color_test_mode},
 };
 
 /*

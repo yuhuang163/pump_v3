@@ -25,7 +25,9 @@ extern "C" {
 
 /// 充电动画展示时间
 typedef enum {
-    CHARGE_HDR_REFRESH_CHARGE_UI = 0,
+    CHARGE_HDR_EXIT_CHARGE_POLICY = 100,
+    CHARGE_HDR_SCREEN_TIMEOUT_DETECT,
+    CHARGE_HDR_CHARGE_SCREEN_ON,
     CHARGE_HDR_ACTION_MAX
 } charge_ui_hdr_action_e;
 
@@ -52,6 +54,8 @@ typedef struct {
     uint32_t last_progress_ani_time; /// 上次进度动画时间.
     uint8_t goto_pump_window_flag; /// 是否需要跳转到泵奶窗口.
     uint16_t current_ui_type; /// 当前UI类型. charge_ui_type_e
+    uint8_t is_charge_screen_on; /// 是否充电动画展示中
+    uint32_t charge_screen_on_time; /// 充电动画关闭时间.
 } ui_proc_charge_t;
 
 /*

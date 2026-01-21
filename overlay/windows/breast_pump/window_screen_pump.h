@@ -1,7 +1,6 @@
 #ifndef __WINDOW_SCREEN_PUMP_H__
 #define __WINDOW_SCREEN_PUMP_H__
 
-#include <stdint.h>
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -103,6 +102,7 @@ typedef struct {
     storage_manager_context_t *st;
     power_manager_context_t *pm;
     key_input_context_t *key;
+    algo_manager_context_t *algo;
     broadcast_obj_t receiver;
     uint32_t margic;
     breast_pump_result_t pump_result; /// 泵奶结果.
@@ -117,6 +117,10 @@ typedef struct {
     uint32_t last_progress_ani_time; /// 上次进度动画时间.
     ui_pump_info_t info; /// 当前泵奶信息.
     pump_setting_t setting; /// 当前泵奶设置信息.
+#if IS_SUPPORT_AIR_LEAKAGE_WARNING
+    uint8_t is_air_leakage_popup_show; /// 是否显示空气泄漏弹窗提示.
+    uint8_t hide_air_leakage_popup_wm; /// 是否隐藏空气泄漏弹窗提示.
+#endif
 } ui_proc_pump_t;
 
 /*

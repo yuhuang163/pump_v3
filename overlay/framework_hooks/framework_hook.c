@@ -44,11 +44,6 @@ void framework_extra_hook(void)
     CHECK_IF_VALID(motor_ctx, {
         register_motor_hook(motor_ctx);
     });
-    /// 注册传感器钩子.
-    sensor_manager_context_t *sensor_ctx = (sensor_manager_context_t *)find_module(ID_MODULE_SENSOR);
-    CHECK_IF_VALID(sensor_ctx, {
-        register_sensor_hook(sensor_ctx);
-    });
     /// 注册泵奶钩子.
     breast_pump_manager_context_t *pump_ctx = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
     CHECK_IF_VALID(pump_ctx, {

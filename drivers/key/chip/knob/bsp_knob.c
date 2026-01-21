@@ -38,7 +38,7 @@ POSSIBLY_UNUSED static void knob_a_irq_callback(enum HAL_GPIO_PIN_T pin)
     (void)pin;
     s_knob_a_trigger_time = get_timestamp();
 #if IS_SUPPORT_KNOB_LOG
-    PRINT_LOG("a time:%d, a:%d, b:%d\r\n", s_knob_a_trigger_time, hal_gpio_pin_get_val(KNOB_A_PIN), hal_gpio_pin_get_val(KNOB_B_PIN));
+    BSP_LOG_PASS("a time:%d, a:%d, b:%d\r\n", s_knob_a_trigger_time, hal_gpio_pin_get_val(KNOB_A_PIN), hal_gpio_pin_get_val(KNOB_B_PIN));
 #endif
     if (hal_gpio_pin_get_val(KNOB_B_PIN) == 0) {
         s_knob_direction = 1; /// 顺时针
@@ -51,12 +51,12 @@ POSSIBLY_UNUSED static void knob_b_irq_callback(enum HAL_GPIO_PIN_T pin)
 {
     s_knob_b_trigger_time = get_timestamp();
 #if IS_SUPPORT_KNOB_LOG
-    PRINT_LOG("b time:%d, a:%d, b:%d\r\n", s_knob_b_trigger_time, hal_gpio_pin_get_val(KNOB_A_PIN), hal_gpio_pin_get_val(KNOB_B_PIN));
+    BSP_LOG_PASS("b time:%d, a:%d, b:%d\r\n", s_knob_b_trigger_time, hal_gpio_pin_get_val(KNOB_A_PIN), hal_gpio_pin_get_val(KNOB_B_PIN));
 #endif
     if (hal_gpio_pin_get_val(KNOB_A_PIN) == 0 && s_knob_direction == 1) {
         s_knob_offset = s_knob_b_trigger_time - s_knob_a_trigger_time;
 #if IS_SUPPORT_KNOB_LOG
-        PRINT_LOG("offset: %d\r\n", s_knob_offset);
+        BSP_LOG_PASS("offset: %d\r\n", s_knob_offset);
 #endif
         s_knob_left_count++;
         bsp_irq_msg_send(INT_NUM_KNOB_RIGHT);    /// 顺时针
@@ -64,7 +64,7 @@ POSSIBLY_UNUSED static void knob_b_irq_callback(enum HAL_GPIO_PIN_T pin)
     } else if (hal_gpio_pin_get_val(KNOB_A_PIN) == 1 && s_knob_direction == 2) {
         s_knob_offset = s_knob_b_trigger_time - s_knob_a_trigger_time;
 #if IS_SUPPORT_KNOB_LOG
-        PRINT_LOG("offset: %d\r\n", s_knob_offset);
+        BSP_LOG_PASS("offset: %d\r\n", s_knob_offset);
 #endif
         s_knob_right_count++;
         bsp_irq_msg_send(INT_NUM_KNOB_LEFT);    /// 逆时针
@@ -72,7 +72,7 @@ POSSIBLY_UNUSED static void knob_b_irq_callback(enum HAL_GPIO_PIN_T pin)
     } else {
         s_knob_offset = s_knob_b_trigger_time - s_knob_a_trigger_time;
     #if IS_SUPPORT_KNOB_LOG
-        PRINT_LOG("knob direction: %d, offset: %d\r\n", s_knob_direction, s_knob_offset);
+        BSP_LOG_PASS("knob direction: %d, offset: %d\r\n", s_knob_direction, s_knob_offset);
     #endif
         s_knob_direction = 0;
     }

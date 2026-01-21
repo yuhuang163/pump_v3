@@ -37,6 +37,7 @@ static void logo_display_completed_cb(hdr_post_args_t *args)
     }
     multi_func_msg_data_t msg = {0};
 #if IS_SUPPORT_LVGL
+// goto TEST_EXIT;
     uint8_t factory_deploy_flag = 0, guide_deploy_flag = 0, airplane_mode_state = 0;
     if(proc->st) {
         proc->st->get_store_ram_val(STORE_ID_SYS_AIRPLANE_MODE_STATE, 0, 0, &airplane_mode_state);
@@ -62,6 +63,8 @@ static void logo_display_completed_cb(hdr_post_args_t *args)
             return;
         }
     }
+
+TEST_EXIT:    
     LOG_WM("goto pump screen");
     msg.union_body.extra.window_id = ID_WINDOW_PUMP;
     wm->dispatch_new_window_args(wm, &msg);
@@ -82,11 +85,6 @@ static void logo_display_completed_cb(hdr_post_args_t *args)
 #endif
 }
 
-static void logo_ui_before_policy(ui_manager_context_t *ui, int index)
-{
-
-}
-
 static void logo_ui_after_policy(ui_manager_context_t *ui, int index)
 {
     ui_display_logo_process(ui);
@@ -105,7 +103,6 @@ static void logo_animation_progress_cb(void *user_data, int index, ui_ani_progre
         case ANI_TIMER_DRAW_FINISH:
             break;
         case ANI_TIMER_DRAW_BEFORE:
-            logo_ui_before_policy(ui, index);
             break;
         case ANI_TIMER_DRAW_AFTER:
             logo_ui_after_policy(ui, index);
@@ -145,8 +142,8 @@ static void show_logo_ui(ui_proc_logo_t *proc)
         .display_remove_cb = logo_ui_display_remove,
         .user_data = proc,
     };
-    ui->hook->ui_animation_play_init(ui, play_info);
     proc->last_progress_ani_time = get_timestamp();
+    ui->hook->ui_animation_play_init(ui, play_info);
     proc->current_ui_type = LOGO_UI_TYPE_HOME;
 }
 

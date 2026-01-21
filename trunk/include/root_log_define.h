@@ -215,6 +215,9 @@ do { \
 #define LOG_STORE(...)      do { } while(0)
 #define LOG_HG(...)         do { } while(0)
 #define LOG_LED(...)        do { } while(0)
+#define LOG_TEST(...)       do { } while(0)
+#define LOG_SRV(...)        do { } while(0)
+
 #define LOG_STEP(format, args...) do { } while(0)
 
 #define LOGE(format, args...) do { } while(0)

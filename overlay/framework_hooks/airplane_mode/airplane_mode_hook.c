@@ -45,11 +45,6 @@ static int on_post_airplane_mode_init_route(struct airplane_mode_context *ctx)
     if (input) {
         input->add_keyevent_handler("airplane_mode", ctx, KEY_CODE_TRAVEL_LOCK, KEY_EVENT_LONG_5S,  airplane_mode_key_event_handler);
     }
-
-#if IS_SUPPORT_DEVICE_IMU
-    sensor_manager_context_t *sensor = (sensor_manager_context_t *)find_module(ID_MODULE_SENSOR);
-    sensor->imu.add_irq_callback(IMU_IRQ_EVENT_CB_AIRPLANE, airplane, on_imu_irq_callback);
-#endif
     return 0;
 }
 

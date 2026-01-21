@@ -18,7 +18,7 @@ extern "C" {
 /// 蓝牙线程深度
 #define BLE_THREAD_STACKSIZE                           (TASK_SIZE_DEFAULT * 4 + 0)
 /// 吸奶线程深度
-#define BTH_THREAD_STACKSIZE                           (TASK_SIZE_DEFAULT * 2 + 0)
+#define BST_THREAD_STACKSIZE                           (TASK_SIZE_DEFAULT * 2 + 0)
 /// lvgl线程深度
 #if CFG_LVGL_ENABLE
 #define LVGL_RENDER_THREAD_STACKSIZE                   (TASK_SIZE_DEFAULT * 16 + 0)
@@ -46,7 +46,7 @@ extern "C" {
 /// 杂项线程深度
 #define MISC_THREAD_STACKSIZE                          (TASK_SIZE_DEFAULT * 2 + 0)
 /// 挂起线程深度
-#define PM_SUSPEND_THREAD_STACKSIZE                    (TASK_SIZE_DEFAULT * 2 + 0)
+#define PM_SUSPEND_THREAD_STACKSIZE                    (TASK_SIZE_DEFAULT * 4 + 0)
 /// 冻结线程深度 
 #define PM_FREEZE_THREAD_STACKSIZE                     (TASK_SIZE_DEFAULT * 2 + 0)
 /// 中断线程深度

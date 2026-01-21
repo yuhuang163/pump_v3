@@ -17,6 +17,7 @@ extern "C" {
 typedef enum {
     OP_CODE_AIR_PRESSURE_GET_STATUS = 1,
     OP_CODE_AIR_PRESSURE_IS_READY = 2,
+    OP_CODE_AIR_PRESSURE_IS_SUPPORT_AIR_PRESSURE = 3, /// 查询是否支持气压
 } air_pressure_dev_op_code_e;
 
 /// 气压传感器状态

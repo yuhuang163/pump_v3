@@ -276,6 +276,11 @@ static int on_post_battery_init(void *ptr)
     thiz->priv.low_battery = check_if_low_battery();
     misc_manager_context_t *misc = ctx->priv.misc;
     if (misc) {
+        DEVICE_IOCTL_HAS_RET(thiz->priv.battery, OP_CODE_BAT_IS_SUPPORT_BATTERY, support_battery);
+        if (support_battery <= 0) {
+            LOG_MISC("battery is not supported");
+            return 0;
+        }
         misc->add_misc_task(misc, MISC_TASK_ID_CHARGE_POLLING, 0, 
             MISC_WORK_MSG_ID_TIMER | MISC_WORK_MSG_ID_CHARGE_INTERRUPT, polling_charge_status);
         misc->add_misc_task(misc, MISC_TASK_ID_BATTERY_POLLING, 1500, 

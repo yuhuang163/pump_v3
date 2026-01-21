@@ -197,30 +197,69 @@ int sys_config_tlvs_display_test(comm_protocol_builder_t *builder, comm_protocol
     protocol_manager_context_t *protocol_ctx = get_protocol_ctx();
     EXCEPTION_CHECK_INT(protocol_ctx);
 
-    LOG_SRV("sys_config_tlvs_display_test");
+    LOG_SRV("sys_config_tlvs_display_test, data_len: %d", data_len);
 
-    uint8_t result = 0x01; // 默认成功
+    uint8_t result = 0x00; // 默认失败
 
-    // TODO: 实现显示外设全亮8s逻辑
-    // 可能需要调用显示模块接口
-    peripheral_bus_context_t *pbus = (peripheral_bus_context_t *)find_module(ID_MODULE_DEVICE_BUS);
-    EXCEPTION_CHECK_INT(pbus);
-    rt_device_node_t *led_dev = pbus->find_device(ID_DEVICE_LED);
-    EXCEPTION_CHECK_INT(led_dev);
+    // 检查请求数据长度，应该为1字节
+    if (!data || data_len != 1) {
+        LOGE("sys_config_tlvs_display_test: invalid data_len: %d", data_len);
+        result = 0x00; // 失败
+    } else {
+        uint8_t cmd = data[0];
+        LOG_SRV("sys_config_tlvs_display_test, cmd: 0x%02x", cmd);
 
-    led_status_msg_t msg = {
-        .led_index = PUMP_LED_ALL_ID,
-        .led_status = {
-            .mode = LED_MODE_ONOFF,
-            .un.onoff.status = LED_STATUS_OFF,
-        },
-    };
-    led_dev->ioctl(led_dev, OP_CODE_LED_STATUS_SET, (void *)&msg);
-    msg.led_index = NIGHT_LIGHT_LED_ID_0;
-    msg.led_status.mode = LED_MODE_LEVEL;
-    msg.led_status.un.luminous.level = 0;
-    led_dev->ioctl(led_dev, OP_CODE_NIGHT_LIGHT_STATUS_SET, (void *)&msg);
-    POST_TASK_HANDLER_DELAYED_ARG0(test_led_post_task_handler, 8000, "display_test_cb");
+        peripheral_bus_context_t *pbus = (peripheral_bus_context_t *)find_module(ID_MODULE_DEVICE_BUS);
+        if (pbus == NULL) {
+            LOGE("sys_config_tlvs_display_test: pbus is NULL");
+            result = 0x00; // 失败
+        } else {
+            rt_device_node_t *led_dev = pbus->find_device(ID_DEVICE_LED);
+            if (led_dev == NULL) {
+                LOGE("sys_config_tlvs_display_test: led_dev is NULL");
+                result = 0x00; // 失败
+            } else {
+                // 根据命令控制LED：0x00全灭，0x01全亮
+                if (cmd == 0x00) {
+                    // 全灭
+                    led_status_msg_t msg = {
+                        .led_index = PUMP_LED_ALL_ID,
+                        .led_status = {
+                            .mode = LED_MODE_ONOFF,
+                            .un.onoff.status = LED_STATUS_OFF,
+                        },
+                    };
+                    led_dev->ioctl(led_dev, OP_CODE_LED_STATUS_SET, (void *)&msg);
+                    msg.led_index = NIGHT_LIGHT_LED_ID_0;
+                    msg.led_status.mode = LED_MODE_LEVEL;
+                    msg.led_status.un.luminous.level = 0;
+                    led_dev->ioctl(led_dev, OP_CODE_NIGHT_LIGHT_STATUS_SET, (void *)&msg);
+                    result = 0x01; // 成功
+                } else if (cmd == 0x01) {
+                    // 全亮
+                    led_status_msg_t msg = {
+                        .led_index = PUMP_LED_ALL_ID,
+                        .led_status = {
+                            .mode = LED_MODE_ONOFF,
+                            .un.onoff.status = LED_STATUS_ON,
+                        },
+                    };
+                    led_dev->ioctl(led_dev, OP_CODE_LED_STATUS_SET, (void *)&msg);
+                    msg.led_index = NIGHT_LIGHT_LED_ID_0;
+                    msg.led_status.mode = LED_MODE_LEVEL;
+                    msg.led_status.un.luminous.level = LED_LEVEL_MAX;
+                    led_dev->ioctl(led_dev, OP_CODE_NIGHT_LIGHT_STATUS_SET, (void *)&msg);
+                    // 100ms秒后恢复全亮状态（如果需要）
+                    POST_TASK_HANDLER_DELAYED_ARG0(test_led_post_task_handler, 100, "display_test_cb");
+                    result = 0x01; // 成功
+                } else {
+                    LOGE("sys_config_tlvs_display_test: invalid cmd: 0x%02x", cmd);
+                    result = 0x00; // 失败：无效的命令值
+                }
+            }
+        }
+    }
+
     comm_protocol_tlv_node_t tlv_node = {
         .type = SYS_CONFIG_TLV_DISPLAY_TEST,
         .length = 1,

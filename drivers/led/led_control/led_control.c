@@ -75,14 +75,14 @@ static void led_timeout_handler(void *param)
     soft_level_status = soft_level_status > 0 ? 0 : 1;
     for (uint8_t i = 0; i < LED_TOTAL_SIZE; i++) {
         if (led_status[i].mode != LED_MODE_LEVEL) {
-            // PRINT_LOG("index: %d, mode: %d; ", i, led_status[i].mode);
+            // BSP_LOG_PASS("index: %d, mode: %d; ", i, led_status[i].mode);
             continue;
         }
-        // PRINT_LOG("index: %d, mode: %d; ", i, led_status[i].mode);
+        // BSP_LOG_PASS("index: %d, mode: %d; ", i, led_status[i].mode);
         level_refresh_flag = true;
         GPIO_PIN_CTRL(led_cfg[i].pin, soft_level_status);
     }
-    // PRINT_LOG("\r\n");
+    // BSP_LOG_PASS("\r\n");
     if (level_refresh_flag > 0) {
         led_timer_start(soft_level_status == 0 ? LED_OFF_TIME : LED_ON_TIME);
     } else {

@@ -82,8 +82,8 @@ static void show_factory_reset_ui(ui_proc_factory_reset_t *proc)
         .display_remove_cb = factory_reset_ui_display_remove,
         .user_data = proc,
     };
+    proc->last_progress_ani_time = get_timestamp();
     ui->hook->ui_animation_play_init(ui, play_info);
-    // proc->last_progress_ani_time = get_timestamp();
     proc->current_ui_type = FACTORY_RESET_UI_TYPE_HOME;
 }
 

@@ -368,7 +368,11 @@ static int8_t bsp_motor_pwm_gradual_change_start(motor_para_t *motor_para, motor
         motor_para_t *motor = (motor_para_t *)motor_para;
         struct HAL_PWM_CFG_T pwm_cfg = {
             .freq = motor->un.pwm.freq,
+#if IS_SUPPORT_PUMP_PWM_IDLE_HIGH
+            .ratio = motor->un.pwm.duty > 90 ? 100 : PUMP_PWM_GRADUAL_CHANGE_INIT_DUTY,
+#else
             .ratio = PUMP_PWM_GRADUAL_CHANGE_INIT_DUTY,
+#endif
             .inv = false,
             .sleep_on = false,
         };
@@ -635,11 +639,11 @@ int bsp_motor_stop(void *args)
             run_time[count] = get_timestamp() - start_time;
             count++;
         } else {
-            PRINT_LOG("run_time %d: ", TICKS_TO_MS(run_time[0]));
+            BSP_LOG_PASS("run_time %d: ", TICKS_TO_MS(run_time[0]));
             for (uint8_t i = 0; i < 20; i++) {
-                PRINT_LOG("%d ", run_time[i]);
+                BSP_LOG_PASS("%d ", run_time[i]);
             }
-            PRINT_LOG("\r\n");
+            BSP_LOG_PASS("\r\n");
             count = 0;
         }
     }

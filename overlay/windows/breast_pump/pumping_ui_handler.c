@@ -87,8 +87,7 @@ void show_pump_home_ui(ui_proc_pump_t *proc)
         .display_remove_cb = pumping_ui_display_remove,
         .user_data = proc,
     };
-
-    ui->hook->ui_animation_play_init(ui, play_info);
     proc->last_progress_ani_time = get_timestamp();
+    ui->hook->ui_animation_play_init(ui, play_info);
     proc->current_ui_type = PUMP_UI_TYPE_PUMPING;
 }

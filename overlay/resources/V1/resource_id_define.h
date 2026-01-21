@@ -31,6 +31,7 @@ typedef enum {
     RESOURCE_ID_CHARGE_PAGE_BATT_50,        /// 充电页电量50%
     RESOURCE_ID_CHARGE_PAGE_BATT_75,        /// 充电页电量75%
     RESOURCE_ID_CHARGE_PAGE_BATT_100,       /// 充电页电量100%
+    RESOURCE_ID_CHARGE_PAGE_ICON,           /// 充电页充电图标
 
     RESOURCE_ID_HOME_CHARGE_0,              /// 首页-充电电量0%
     RESOURCE_ID_HOME_CHARGE_25,             /// 首页-充电电量25%
@@ -75,8 +76,12 @@ typedef enum {
     RESOURCE_ID_START_LOGO_ICON,            /// 启动LOGO
     RESOURCE_ID_TRAVEL_LOCK,                /// 旅行锁图标
     RESOURCE_ID_TRAVEL_UNLOCK_TIP,          /// 旅行锁解锁提示
-    
+    RESOURCE_ID_AIR_LEAKAGE_ICON,           /// 泵奶-空气泄漏图标
     RESOURCE_ID_PUMP_HOME_BG,               /// 泵奶首页背景
+    RESOURCE_ID_CHARGE_ADAPTER_ICON,        /// 充电-适配器图标
+    
+    RESOURCE_ID_CHARGE_ANIMATION_START = 401, /// 充电动画-开始
+    RESOURCE_ID_CHARGE_ANIMATION_END = 402,   /// 充电动画-结束
 
     RESOURCE_ID_TYPE_MAX
 } resource_id_type_e;

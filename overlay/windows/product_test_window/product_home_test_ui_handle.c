@@ -9,7 +9,7 @@
 * DEFINES
 *****************************************************************************************
 */
-#define PRODUCT_TESTS_HDR_TASK_NAME                  "product_tests_display_cmp"
+#define PRODUCT_HOME_TEST_HDR_TASK_NAME                  "product_home_test"
 
 /*
 * LOCAL VARIABLE DEFINITIONS
@@ -20,7 +20,7 @@
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-static void product_tests_display_completed_cb(hdr_post_args_t *args)
+static void product_home_test_display_completed_cb(hdr_post_args_t *args)
 {
     ui_proc_product_test_t *proc = (ui_proc_product_test_t *)args->user_data;
     EXCEPTION_CHECK_VOID(proc);
@@ -44,25 +44,20 @@ static void product_tests_display_completed_cb(hdr_post_args_t *args)
     wm->dispatch_new_window_args(wm, &msg);
 }
 
-static void product_tests_ui_before_policy(ui_manager_context_t *ui, int index)
-{
-
-}
-
-static void product_tests_ui_after_policy(ui_manager_context_t *ui, int index)
+static void product_home_test_ui_after_policy(ui_manager_context_t *ui, int index)
 {
     ui_display_product_tests_home_process(ui);
 #if 0
     ui_proc_product_test_t *proc = (ui_proc_product_test_t *)ui->priv.play_info.user_data;
     EXCEPTION_CHECK_VOID(proc);
-    if (get_timestamp_ms(proc->last_progress_ani_time) >= PRODUCT_TESTS_ANIMATION_DISPLAY_TIME) {
-        POST_TASK_HANDLER_NO_DELAY(product_tests_display_completed_cb, proc,
-            PRODUCT_TESTS_HDR_TASK_NAME);
+    if (get_timestamp_ms(proc->last_progress_ani_time) >= PRODUCT_HOME_TEST_ANIMATION_DISPLAY_TIME) {
+        POST_TASK_HANDLER_NO_DELAY(product_home_test_display_completed_cb, proc,
+            PRODUCT_HOME_TEST_HDR_TASK_NAME);
     }
 #endif
 }
 
-static void product_tests_animation_progress_cb(void *user_data, int index, ui_ani_progress_state_e state)
+static void product_home_test_ui_progress_cb(void *user_data, int index, ui_ani_progress_state_e state)
 {
     static int ani_interval = 0;
     ui_manager_context_t *ui = user_data;
@@ -70,71 +65,30 @@ static void product_tests_animation_progress_cb(void *user_data, int index, ui_a
         case ANI_TIMER_DRAW_FINISH:
             break;
         case ANI_TIMER_DRAW_BEFORE:
-            product_tests_ui_before_policy(ui, index);
             break;
         case ANI_TIMER_DRAW_AFTER:
-            product_tests_ui_after_policy(ui, index);
+            product_home_test_ui_after_policy(ui, index);
             break;
         default:
             break;
     }
 }
 
-static void product_tests_ui_hdr_remove(void)
-{
-    REMOVE_TASK_HANDLER_DIRECTLY(PRODUCT_TESTS_HDR_TASK_NAME);
-}
-
-static void product_tests_ui_display_prepare(void *user_data)
+static void product_home_test_ui_display_prepare(void *user_data)
 {
     ui_manager_context_t *ui = user_data;
     EXCEPTION_CHECK_VOID(ui);
     ui_display_product_tests_home_prepare(ui);
 }
 
-static void product_tests_ui_display_remove(void *user_data)
+static void product_home_test_ui_display_remove(void *user_data)
 {
     ui_manager_context_t *ui = user_data;
     EXCEPTION_CHECK_VOID(ui);
     ui_display_product_tests_home_remove(ui);
 }
-/*
-* GLOBAL VARIABLE DEFINITIONS
-*****************************************************************************************
-*/
-void show_product_tests_ui(ui_proc_product_test_t *proc)
-{
-    ui_manager_context_t *ui = proc->ui;
-    EXCEPTION_CHECK_VOID(ui->hook && ui->hook->ui_animation_play_init);
-    if (proc->current_ui_type == PRODUCT_TEST_UI_TYPE_HOME) {
-        proc->last_progress_ani_time = get_timestamp();
-        return;
-    }
 
-    ui_play_info_t play_info = {
-        .tag = "product_tests_screen",
-        .fps = PRODUCT_TEST_ANIMATION_FREQ,
-        .progress_cb = product_tests_animation_progress_cb,
-        .display_prepare_cb = product_tests_ui_display_prepare,
-        .display_remove_cb = product_tests_ui_display_remove,
-        .user_data = proc,
-    };
-    ui->hook->ui_animation_play_init(ui, play_info);
-    proc->last_progress_ani_time = get_timestamp();
-    proc->current_ui_type = PRODUCT_TEST_UI_TYPE_HOME;
-}
-
-void stop_product_tests_ui_animation(ui_proc_product_test_t *proc)
-{
-    product_tests_ui_hdr_remove();
-    ui_manager_context_t *ui = proc->ui;
-    EXCEPTION_CHECK_VOID(ui->hook && ui->hook->ui_animation_play_deinit);
-    ui->hook->ui_animation_play_deinit(ui);
-    ui->animation_play_status_update(ui, false);
-    proc->last_progress_ani_time = get_timestamp();
-}
-
-void product_tests_start_key_event_handler(ui_proc_product_test_t *proc)
+static void product_home_test_start_key_event_handler(ui_proc_product_test_t *proc)
 {
     EXCEPTION_CHECK_VOID(proc);
     EXCEPTION_CHECK_VOID(proc->tests);
@@ -146,7 +100,56 @@ void product_tests_start_key_event_handler(ui_proc_product_test_t *proc)
     if(current_mode != TST_NONE_TYPE) {
         return;
     }
-    POST_TASK_HANDLER_NO_DELAY(product_tests_display_completed_cb, proc,
-        PRODUCT_TESTS_HDR_TASK_NAME);
+    POST_TASK_HANDLER_NO_DELAY(product_home_test_display_completed_cb, proc,
+        PRODUCT_HOME_TEST_HDR_TASK_NAME);
+}
 
+/*
+* GLOBAL VARIABLE DEFINITIONS
+*****************************************************************************************
+*/
+void product_home_test_ui_hdr_remove(void)
+{
+    REMOVE_TASK_HANDLER_DIRECTLY(PRODUCT_HOME_TEST_HDR_TASK_NAME);
+}
+
+void show_product_home_test_ui(ui_proc_product_test_t *proc)
+{
+    ui_manager_context_t *ui = proc->ui;
+    EXCEPTION_CHECK_VOID(ui->hook && ui->hook->ui_animation_play_init);
+    if (proc->current_ui_type == PRODUCT_TEST_UI_TYPE_HOME) {
+        proc->last_progress_ani_time = get_timestamp();
+        return;
+    }
+
+    ui_play_info_t play_info = {
+        .tag = "product_home_test_screen",
+        .fps = PRODUCT_TEST_ANIMATION_FREQ,
+        .progress_cb = product_home_test_ui_progress_cb,
+        .display_prepare_cb = product_home_test_ui_display_prepare,
+        .display_remove_cb = product_home_test_ui_display_remove,
+        .user_data = proc,
+    };
+    proc->last_progress_ani_time = get_timestamp();
+    ui->hook->ui_animation_play_init(ui, play_info);
+    proc->current_ui_type = PRODUCT_TEST_UI_TYPE_HOME;
+}
+
+void product_home_test_keyevent_cb(ui_proc_product_test_t *proc, uint16_t keycode, uint16_t keytype)
+{
+    switch (keycode) {
+        case KEY_CODE_POWER:
+        case KEY_CODE_MODE:
+        case KEY_CODE_FREQUENCY:
+        case KEY_CODE_BREASTFEEDING:
+        case KEY_CODE_LEFT_CONTROL:
+        case KEY_CODE_RIGHT_CONTROL:
+            break;
+        case KEY_CODE_START:
+            product_home_test_start_key_event_handler(proc);
+            break;
+        default:
+            LOG_WM("unknow keycode: %d, ignore.", keycode);
+            break;
+    }
 }

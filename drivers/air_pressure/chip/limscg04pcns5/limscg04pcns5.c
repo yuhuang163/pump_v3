@@ -228,7 +228,7 @@ static float temperature_result_get(uint8_t index)
     int16_t temp_raw_data = (int16_t)((reg_data[0] << 8) | reg_data[1]);
     float temp = temp_raw_data > 0 ? (temp_raw_data / 128.0f) : ((temp_raw_data & 0x7FFF) / 128.0f - 256.0f);
 #if LIMS_LOG_DEBUG
-    PRINT_LOG("temp: %f, raw: %d\r\n", temp, temp_raw_data);
+    BSP_LOG_PASS("temp: %f, raw: %d\r\n", temp, temp_raw_data);
 #endif
     return temp;
 }
@@ -236,12 +236,12 @@ static float temperature_result_get(uint8_t index)
 static int temperature_single_conversion(void)
 {
     if (start_air_pressure_conversion(LIMS_TEMP_DATA) != BSP_OK) {
-        LOGE("start temperature conversion failed");
+        LOGE("conversion failed");
         return BSP_ERROR;
     }
     msleep(LIMS_TEMP_CONVERSION_TIME);
     if (wait_conversion_completed() != BSP_OK) {
-        LOGE("wait temperature conversion timeout");
+        LOGE("conversion timeout");
         return BSP_ERROR;
     }
 
@@ -314,12 +314,14 @@ int bsp_read_air_pressure_status(void *args)
 #if LIMS_LOG_DEBUG
     uint32_t start_time = get_timestamp();
 #endif
-#if 1
+    if (s_dev_is_ready[0] == 0 || s_dev_is_ready[1] == 0) {
+        return BSP_NOT_READY;
+    }
+    
     memset(out_status, 0, sizeof(air_pressue_status_t) * AIR_PRESSURE_NUM);
     /// 温度转换未完成，则进行单次转换
     if (s_temp_is_ready[0] == 0 || s_temp_is_ready[1] == 0) {
         if (temperature_single_conversion() != BSP_OK) {
-            LOGE("temperature single conversion failed");
             return BSP_ERROR;
         }
         LOG_PBUS("start pressure conversion");
@@ -339,10 +341,9 @@ int bsp_read_air_pressure_status(void *args)
             return BSP_ERROR;
         }
     }
-#endif
     start_air_pressure_conversion(LIMS_PRESSURE_DATA);
 #if LIMS_LOG_DEBUG
-    PRINT_LOG("4 time: %d, pressure: %f, %f, raw: %d, %d\r\n", 
+    BSP_LOG_PASS("4 time: %d, pressure: %f, %f, raw: %d, %d\r\n", 
         get_timestamp_ms(start_time), out_status[0].pressure, 
         out_status[1].pressure, out_status[0].raw_data, out_status[1].raw_data);
 #endif

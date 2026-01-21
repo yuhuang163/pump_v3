@@ -467,6 +467,7 @@ FONT_INC_FLAGS := \
 	-I$(PROJECT_ROOT)/overlay/font/font_roboto_17 \
 	-I$(PROJECT_ROOT)/overlay/font/font_roboto_18 \
 	-I$(PROJECT_ROOT)/overlay/font/font_roboto_19 \
+	-I$(PROJECT_ROOT)/overlay/font/font_roboto_20 \
 	-I$(PROJECT_ROOT)/overlay/font/font_roboto_21 \
 	-I$(PROJECT_ROOT)/overlay/font/font_roboto_24 \
 	-I$(PROJECT_ROOT)/overlay/font/font_roboto_25 \
@@ -996,6 +997,7 @@ FONT_MODULE_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/overlay/font/font_roboto_17/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/font/font_roboto_18/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/font/font_roboto_19/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/font/font_roboto_20/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/font/font_roboto_21/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/font/font_roboto_24/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/font/font_roboto_25/*.c) \

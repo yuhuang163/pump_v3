@@ -58,10 +58,10 @@ static bool is_window_guidance_deployed(void)
     return guide_deployed ? 1 : 0;
 }
 
-static void set_window_guidance_deployed_flag(void)
+static void set_window_guidance_deployed_flag(uint8_t flag)
 {
     storage_manager_context_t *st_ctx = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
-    st_ctx->put_store_ram_val(STORE_ID_SYS_GUIDE_DEPLOYED, 1, 0, NULL);
+    st_ctx->put_store_ram_val(STORE_ID_SYS_GUIDE_DEPLOYED, flag, 0, NULL);
 }
 
 static bool is_window_system_is_ready(window_manager_context_t *wm)
@@ -146,6 +146,7 @@ void register_window_state_module(window_manager_context_t *wm)
     wm->is_the_same_window = is_the_same_window;
     wm->is_valid_window_id = is_valid_window_id;
     wm->is_window_guidance_deployed = is_window_guidance_deployed;
+    wm->set_window_guidance_deployed_flag = set_window_guidance_deployed_flag;
     wm->set_window_private_context = set_window_private_context;
     wm->get_window_private_context = get_window_private_context;
     wm->get_window_entry_extra = get_window_entry_extra;

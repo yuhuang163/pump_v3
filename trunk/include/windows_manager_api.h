@@ -118,6 +118,8 @@ typedef struct window_manager_context {
     bool (*is_valid_window_id)(uint8_t window_id);
     /// 窗口引导是否已部署
     bool (*is_window_guidance_deployed)(void); 
+    /// 设置窗口引导已部署标志
+    void (*set_window_guidance_deployed_flag)(uint8_t flag);
     /// 窗口调度相关.
     bool (*is_on_window_dispatch)(struct window_manager_context *wm);
     /// 窗口上下文相关.

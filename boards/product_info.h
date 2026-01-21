@@ -63,14 +63,14 @@ typedef enum {
 /**
  * 芯片平台从10-90
 */
-#define ROOT_SOC_PLAT                                 10
-#define ROOT_SOC_PLAT_STR                            "10"
+#define ROOT_SOC_PLAT                                  10
+#define ROOT_SOC_PLAT_STR                              "10"
 
 /**
  * 正式版本从100-900
 */
-#define ROOT_FIRMWARE_VERSION                          103
-#define ROOT_FW_VERSION_STR                            "103"
+#define ROOT_FIRMWARE_VERSION                          104
+#define ROOT_FW_VERSION_STR                            "104"
 
 /**
  * 资源版本号定义(major*100 + minor)
@@ -82,7 +82,7 @@ typedef enum {
 #else
 #define ROOT_RES_PATH                                  "V1" /// 资源路径
 #endif
-#define ROOT_RES_VERSION                               (100) 
+#define ROOT_RES_VERSION                               (101) 
 #define ROOT_RES_MAJOR_VERSION                         (ROOT_RES_VERSION / 100)
 #define ROOT_RES_MINOR_VERSION                         (ROOT_RES_VERSION % 100)
 

@@ -78,7 +78,11 @@ char *platform_log_header(void)
 void platform_log_init(void)
 {
     /// 设置日志等级
+#if IS_SUPPORT_LOG_OUT
     hal_trace_set_log_level(TR_LEVEL_ERROR);
+#else
+    hal_trace_set_log_level(TR_LEVEL_CRITICAL);
+#endif
 
     /// 打印日志头
     LOG_STEP("********Welcome to root develop platform.********");

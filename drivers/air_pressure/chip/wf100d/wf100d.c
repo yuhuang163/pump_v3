@@ -276,7 +276,7 @@ int bsp_read_air_pressure_status(void *args)
         air_pressure_result_get(i, &out_status[i]);
     }   
 #if WF100D_LOG_DEBUG
-    PRINT_LOG("time: %d, pressure: %f, %f, raw: %d, %d\r\n", 
+    BSP_LOG_PASS("time: %d, pressure: %f, %f, raw: %d, %d\r\n", 
         get_timestamp_ms(start_time), out_status[0].pressure, out_status[1].pressure, out_status[0].raw_data, out_status[1].raw_data);
 #endif
     s_log_count++;

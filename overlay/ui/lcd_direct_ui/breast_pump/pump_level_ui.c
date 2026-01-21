@@ -233,28 +233,6 @@ static int pump_right_level_lable_update(ui_manager_context_t *thiz, bool is_sel
 
 static void pump_level_ui_update(ui_manager_context_t *thiz, ui_proc_pump_t *proc)
 {
-
-    EXCEPTION_CHECK_VOID(proc->pump);
-    EXCEPTION_CHECK_VOID(proc->pump);
-    EXCEPTION_CHECK_VOID(proc->motor);
-    EXCEPTION_CHECK_VOID(proc->st);
-    uint8_t control_type = BREAST_PUMP_CONTROL_TYPE_BILATERAL;
-    proc->st->get_store_ram_val(STORE_ID_PUMP_CONTROL_TYPE, 0, 0, &control_type);
-    pump_setting_t setting;
-    uint8_t time_index = proc->motor->get_runtime_policy_index(MOTOR_TIME_POLICY);
-    proc->pump->get_breast_pump_setting(&setting, time_index >= ROOT_BREAST_PUMP_STEP_MAX ? 0 : time_index);
-    uint8_t level = control_type == BREAST_PUMP_CONTROL_TYPE_LEFT ? setting.level[0] : setting.level[1];
-    pump_level_arc_update(thiz);
-    if (level_info->force_update == true || level_info->level != level) {
-        pump_level_arc_progress_update(thiz, level);
-        pump_level_root_value_update(thiz, level);
-    }
-    pump_left_level_lable_update(thiz, control_type == BREAST_PUMP_CONTROL_TYPE_LEFT ? true : false);
-    pump_right_level_lable_update(thiz, control_type == BREAST_PUMP_CONTROL_TYPE_RIGHT ? true : false);
-}
-
-static void pump_level_text_ui_update(ui_manager_context_t *thiz, ui_proc_pump_t *proc)
-{
     EXCEPTION_CHECK_VOID(proc);
     EXCEPTION_CHECK_VOID(proc->pump);
     EXCEPTION_CHECK_VOID(proc->motor);
@@ -270,6 +248,8 @@ static void pump_level_text_ui_update(ui_manager_context_t *thiz, ui_proc_pump_t
         level_info->control_type == control_type) {
         return;
     }
+    LOG_UI("===> pump level ui update, level: %d, force_update: %d, level_info->level: %d, control_type: %d", 
+        level, level_info->force_update, level_info->level, control_type);
     pump_level_arc_update(thiz);
     pump_level_arc_progress_update(thiz, level);
     pump_level_root_value_update(thiz, level);

@@ -82,8 +82,17 @@ do { \
     PRINT_LOG(format,##__VA_ARGS__); \
     PRINT_LOG("\r\n"); \
 } while (0)
+
+#define BSP_LOG_PASS(format, args...) \
+do { \
+    if (get_log_output_level() < US_LOG_LEVEL_INFO) { \
+        break; \
+    } \
+    PRINT_LOG(format, ##args); \
+} while(0)
 #else
 #define BSP_LOG(tag, format,...)
+#define BSP_LOG_PASS(format, args...)
 #endif
 
 #ifdef __cplusplus

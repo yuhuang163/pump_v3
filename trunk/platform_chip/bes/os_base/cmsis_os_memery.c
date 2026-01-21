@@ -220,7 +220,7 @@ void u_heap_info_output(void)
     heap_get_info(u_heap_psram_nc, &nc_info);
     multi_heap_info_t psram_info;
     heap_get_info(u_heap_psram, &psram_info);
-    PRINT_LOG("sram total=(%ld/%ld)KB, free=(%ld/%ld)KB; psram total=(%ld/%ld)/(%ld/%ld)KB, free=(%ld/%ld)/(%ld/%ld)KB\r\n", 
+    LOG_PASS("sram total=(%ld/%ld)KB, free=(%ld/%ld)KB; psram total=(%ld/%ld)/(%ld/%ld)KB, free=(%ld/%ld)/(%ld/%ld)KB\r\n", 
         B2KB(info.total_bytes), B2KB(info.total_allocated_bytes), 
         B2KB(info.total_free_bytes), B2KB(info.largest_free_block),
         B2KB(nc_info.total_bytes), B2KB(nc_info.total_allocated_bytes),
@@ -231,7 +231,7 @@ void u_heap_info_output(void)
 #else
     multi_heap_info_t info;
     heap_get_info(u_heap, &info);
-    PRINT_LOG("sram total=%ldKB, free=%ldKB, free largest=%ldKB\r\n", 
+    LOG_PASS("sram total=%ldKB, free=%ldKB, free largest=%ldKB\r\n", 
         B2KB(info.total_allocated_bytes), B2KB(info.total_free_bytes), B2KB(info.largest_free_block));
 #endif
 }
