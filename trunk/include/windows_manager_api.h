@@ -30,7 +30,7 @@ typedef enum {
     ID_WINDOW_BEGIN = ID_WINDOW_INVALID,
     ID_WINDOW_DUMMY,               /// suspend
     ID_WINDOW_LOGO,                /// 开机LOGO
-    ID_WINDOW_HOME,                /// 主界面
+    ID_WINDOW_GUIDE,                /// 主界面
     ID_WINDOW_CHARGE,              /// 充电UI
     ID_WINDOW_BATTERY,             /// 低电量.
     ID_WINDOW_OTA_UPGRADE,         /// OTA
@@ -83,8 +83,6 @@ struct rt_device_node;
 typedef struct window_manager_context {
 /// private:
     struct __window_manager_private {
-        struct resource_manager_context *res; /// 资源管理器
-        struct storage_manager_context *st; /// 存储管理器
         thread_context_t window_dispatch_thd; /// 窗口调度线程
         multi_func_msg_data_t new_msg; /// 新消息
         uint16_t go_back_history_flag; /// 回退历史标志
@@ -120,6 +118,8 @@ typedef struct window_manager_context {
     bool (*is_window_guidance_deployed)(void); 
     /// 设置窗口引导已部署标志
     void (*set_window_guidance_deployed_flag)(uint8_t flag);
+    /// 窗口工厂测试是否已部署
+    bool (*is_window_factory_test_deployed)(void);
     /// 窗口调度相关.
     bool (*is_on_window_dispatch)(struct window_manager_context *wm);
     /// 窗口上下文相关.

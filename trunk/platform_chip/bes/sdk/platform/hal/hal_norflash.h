@@ -57,6 +57,8 @@ extern "C" {
 
 #define NORFLASH_XT_ID_PREFIX               0x0B
 
+#define NORFLASH_MX_ID_PREFIX               0xC2
+
 enum HAL_NORFLASH_RET_T {
     HAL_NORFLASH_OK,
     HAL_NORFLASH_SUSPENDED,

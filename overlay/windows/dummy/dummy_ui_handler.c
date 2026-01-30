@@ -102,31 +102,10 @@ static void dummy_ui_hdr_remove(void)
 */
 int switch_dummy_night_light_onoff_ui(ui_proc_dummy_t *proc)
 {
-    EXCEPTION_CHECK_INT(proc->st);
-    EXCEPTION_CHECK_INT(proc->pbus);
-    struct rt_device_node *led_dev = proc->pbus->find_device(ID_DEVICE_LED);
-    EXCEPTION_CHECK_INT(led_dev);
-    night_light_info_t night_light_info = {0};
-    proc->st->get_store_ram_val(STORE_ID_SYS_NIGHT_LIGHT_INFO, 0, 0, &night_light_info);
-    if (night_light_info.adaptive) {
-        LOG_UI("night light is adaptive, ignore.");
-        return 0;
+    EXCEPTION_CHECK_INT(proc->led && proc->led->hook);
+    if (proc->led->hook->toggle_night_light) {
+        proc->led->hook->toggle_night_light(proc->led);
     }
-    night_light_info.onoff = !night_light_info.onoff;
-    if (night_light_info.level == 0) {
-        night_light_info.level = 5;
-    } 
-    proc->st->put_store_ram_val(STORE_ID_SYS_NIGHT_LIGHT_INFO, 0, 0, &night_light_info);
-    led_status_msg_t msg = {
-        .led_index = NIGHT_LIGHT_LED_ID_0,
-        .led_status = {
-            .mode = LED_MODE_LEVEL,
-            .un.luminous.level = night_light_info.onoff ? night_light_info.level : 0,
-        },
-    };
-    led_dev->ioctl(led_dev, OP_CODE_NIGHT_LIGHT_STATUS_SET, (void *)&msg);
-    LOG_UI("switch dummy night light power: %d, level: %d", night_light_info.onoff, night_light_info.level);
-
     return 0;
 }
 

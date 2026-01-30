@@ -7,6 +7,7 @@
 #include "ota_control.h" // IWYU pragma: keep
 #include "ble_core_common.h" // IWYU pragma: keep
 #include "bsp_ble_internal.h" // IWYU pragma: keep
+#include "ble_test/ble_tests.h" // IWYU pragma: keep
 
 /*
 * DEFINES
@@ -191,7 +192,38 @@ static int ble_dev_ioctl(struct rt_device_node *dev, uint32_t op_code, void *arg
             add_ble_custom_ota_event_callback(cb);
             break;
         }
+        case OP_CODE_BLE_TEST_ENTER_SIGNALINGTEST_MODE: {
+            ble_test_enter_signalingtest_mode();
+            break;
+        }
+        case OP_CODE_BLE_TEST_ENTER_NOSIGNALINGTEST_MODE: {
+            ble_test_enter_nosignalingtest_mode();
+            break;
+        }
 
+        case OP_CODE_BLE_TEST_XTAL_CALIB_PROC_START: {
+            ble_test_xtal_calib_proc_start();
+            break;
+        }
+        case OP_CODE_BLE_TEST_XTAL_CALIB_SET: {
+            uint32_t fcap = *(uint32_t *)args;
+            ble_test_xtal_calib_set(fcap);
+            break;
+        }
+        case OP_CODE_BLE_TEST_XTAL_CALIB_GET: {
+            uint32_t *fcap = (uint32_t *)args;
+            ble_test_xtal_calib_get(fcap);
+            break;
+        }
+        case OP_CODE_BLE_TEST_XTAL_CALIB_END: {
+            ble_test_xtal_calib_end();
+            break;
+        }
+        case OP_CODE_BLE_TEST_GET_RSSI_VALUE: {
+            int32_t *rssi= (int32_t *)args;
+            ble_test_get_rssi_value(rssi);
+            break;
+        }
         default:
             LOGE("ble err op_code: %lx", op_code);
             break;

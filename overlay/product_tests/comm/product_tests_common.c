@@ -83,18 +83,13 @@ int on_common_tests_br_receiver_route(broadcast_mask_id_t id, void *context, int
 
     switch (id.code) {
         case ID_BROADCAST_PM_STATE_CHANGE:
-            {
-
-            }
             break;
-        case ID_BROADCAST_UPDATE_BATTERY_INFO:
-            {
-
-            }
+        case ID_BROADCAST_BATTERY_STATE_CHANGE:
             break;
         default:
             break;
     }
+    return 0;
 }
 
 /// 监听事件上报事

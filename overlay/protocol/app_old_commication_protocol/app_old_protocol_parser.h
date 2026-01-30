@@ -52,8 +52,8 @@ typedef enum {
     APP_OLD_COMM_CID_GET_STATUS = 0xB0,           // 获取吸奶器状态
     APP_OLD_COMM_CID_GET_BAND = 0xB1,             // 获取吸奶器绑定状态
     APP_OLD_COMM_CID_SET_PRIVATE_PARAM = 0xB2,    // 设置泵的运行参数
-    //APP_OLD_COMM_CID_GET_RECORD_NUM = 0xB3,       // 获取使用记录数量
-    //APP_OLD_COMM_CID_GET_RECORD_DATA = 0xB4,      // 获取使用记录内容
+    APP_OLD_COMM_CID_GET_RECORD_NUM = 0xB3,       // 获取使用记录数量
+    APP_OLD_COMM_CID_GET_RECORD_DATA = 0xB4,      // 获取使用记录内容
     APP_OLD_COMM_CID_GET_UD_ID = 0xB5,            // 获取自定义模式ID
     //APP_OLD_COMM_CID_GET_HEAT_STATE = 0xB6,       // 获取加热状态
     APP_OLD_COMM_CID_GET_TASTE_MODE_STATE = 0xB8, // 获取体验模式状态
@@ -65,7 +65,7 @@ typedef enum {
 
     APP_OLD_COMM_CID_CTRL_DEV = 0xC0, // 功能控制
     APP_OLD_COMM_CID_SET_BIND = 0xC1, // 设置绑定
-    //PUMP_BLE_RGB_SET_CTRL = 0xC2, // 小夜灯灯控制
+    APP_OLD_COMM_CID_PUMP_BLE_RGB_SET_CTRL = 0xC2, // 小夜灯灯控制
     APP_OLD_COMM_CID_CTRL_DEV_STATUS = 0xC3, // 设备状态控制 主要屏幕亮度，夜灯亮度
 
     APP_OLD_COMM_CID_USER_DEFINE = 0xC4,     // 自定义模式设置

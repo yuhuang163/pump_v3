@@ -2,12 +2,11 @@
 * INCLUDE FILES
 *****************************************************************************************
 */
-#include <stdint.h>
-#include <stdlib.h>
 #include "bsp_common.h"
+#if IS_SUPPORT_PD_CHARGE
+#include "bsp_charge_pd.h"
+#endif
 #include "bsp_battery_internal.h"
-#include "cmsis_os_api.h"
-#include "root_common.h"
 
 /*
 * DEFINES
@@ -445,16 +444,14 @@ static int battery_voltage_poll(void)
 static int battery_dev_open(struct rt_device_node *dev)
 {
 #if IS_SUPPORT_HARDWARE_VERSION_ADAPTIVE
-    uint8_t hardware_version = get_hardware_version();
-    if (hardware_version == PRODUCT_INFO_V3) {
+    if (is_v3_hardware_version()) {
+        charge_vbus_init();
         LOG_PBUS("battery init skip, hardware version is v3");
         return BSP_OK;
     }
 #endif
 #if IS_SUPPORT_BATTERY_DIRECT_SAMPLING
     battery_adc_init();
-#else
-    add_charge_battery_poll_callback(battery_voltage_poll);
 #endif
     battery_health_update();
     bsp_charge_init();
@@ -495,19 +492,15 @@ static int battery_dev_ioctl(struct rt_device_node *dev, uint32_t op_code, void 
         case OP_CODE_BAT_GET_VOLTAGE:
             return battery_voltage_get();
         case OP_CODE_BAT_POLL_VOLTAGE:
-            #if IS_SUPPORT_BATTERY_DIRECT_SAMPLING
-                return battery_voltage_poll();
-            #else
-                return 0;
-            #endif
+            return battery_voltage_poll();
         case OP_CODE_BAT_HEALTH_SET:
             tmp = (uint32_t *)args;
             battery_health_set((uint8_t)tmp[0]);
             return 0;
-        case OP_CODE_BAT_CHARGE_IS_PLUG_IN:
+        case OP_CODE_BAT_VBUS_IS_PLUG_IN:
             return vbus_is_plug_in();
-        case OP_CODE_BAT_CHARGE_ADD_IRQ_CALLBACK:
-            add_charge_irq_callback((void (*)(void *))args);
+        case OP_CODE_BAT_ADD_CHARGE_EVENT_CALLBACK:
+            add_charge_event_callback((charge_event_cb)args);
             return 0;
         case OP_CODE_BAT_GET_CHARGE_STATUS:
             return get_charge_state();
@@ -516,14 +509,14 @@ static int battery_dev_ioctl(struct rt_device_node *dev, uint32_t op_code, void 
         case OP_CODE_BAT_IS_READY:
             return bsp_charge_is_ready(args);
         case OP_CODE_BAT_PD_IS_READY:
-        #if (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V1 || V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V2)
-            return bsp_charge_pd_is_ready(args);
-        #else
+#if IS_SUPPORT_PD_CHARGE
+            return bsp_charge_pd_is_ready(NULL);
+#else
             return 0;
-        #endif
+#endif
         case OP_CODE_BAT_IS_SUPPORT_BATTERY:
 #if IS_SUPPORT_HARDWARE_VERSION_ADAPTIVE
-            if (get_hardware_version() == PRODUCT_INFO_V3) {
+            if (is_v3_hardware_version()) {
                 return false;
             }
 #endif
@@ -537,8 +530,7 @@ static int battery_dev_ioctl(struct rt_device_node *dev, uint32_t op_code, void 
 static int battery_dev_suspend(struct rt_device_node *dev)
 {
 #if IS_SUPPORT_HARDWARE_VERSION_ADAPTIVE
-    uint8_t hardware_version = get_hardware_version();
-    if (hardware_version == PRODUCT_INFO_V3) {
+    if (is_v3_hardware_version()) {
         LOG_PBUS("battery suspend skip, hardware version is v3");
         return BSP_OK;
     }
@@ -557,8 +549,7 @@ static int battery_dev_suspend(struct rt_device_node *dev)
 static int battery_dev_resume(struct rt_device_node *dev)
 {
 #if IS_SUPPORT_HARDWARE_VERSION_ADAPTIVE
-    uint8_t hardware_version = get_hardware_version();
-    if (hardware_version == PRODUCT_INFO_V3) {
+    if (is_v3_hardware_version()) {
         LOG_PBUS("battery resume skip, hardware version is v3");
         return BSP_OK;
     }

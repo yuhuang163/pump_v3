@@ -22,12 +22,11 @@ void imu_irq_event_callback(void);
 void bsp_irq_msg_send(uint8_t index);
 bool is_full_load_running(void);
 void knob_button_event_handler(int arg1, int arg2, void *param);
-void charge_pd_event_handler(void);
 #if IS_SUPPORT_DEVICE_KNOB
 uint16_t bsp_knob_get_count(uint8_t index);
 #endif
 #if IS_SUPPORT_HARDWARE_VERSION_ADAPTIVE
-int get_hardware_version(void);
+int is_v3_hardware_version(void);
 #endif
 #ifdef __cplusplus
 }

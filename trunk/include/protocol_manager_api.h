@@ -14,6 +14,7 @@ extern "C" {
 #include "root_message.h" // IWYU pragma: keep
 #include "comm_protocol.h" // IWYU pragma: keep
 #include "app_old_protocol_parser.h"
+
 typedef enum {
     PROTO_TYPE_INVIAL = 0,
     PROTO_TYPE_FACTORY_TEST,

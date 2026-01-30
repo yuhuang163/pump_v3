@@ -11,6 +11,13 @@ extern "C" {
  ******************************************************************************/
 #include "root_common_base.h" // IWYU pragma: keep
 
+typedef enum {
+    OTA_BROADCAST_UI_ENTER = 100,          /// ui进入.
+    OTA_BROADCAST_UI_EXIT,                 /// ui退出.
+    OTA_BROADCAST_STATE_CHANGE,            /// 状态改变.
+    OTA_BROADCAST_ID_MAX,
+} ota_broadcast_id_e;
+
 typedef enum{
     OTA_TIMER_PROGRESS = 0,
     OTA_TIMER_MAX,
@@ -23,9 +30,7 @@ typedef enum {
     OTA_UPGRADE_STATE_END,
 } ota_upgrade_state_e;
 
-/**
- * 描述ota管理上下文对象
- */
+/// 描述ota上下文对象
 struct broadcast_obj;
 struct rt_device_node;
 typedef struct ota_manager_context {

@@ -29,16 +29,22 @@ typedef enum {
 } pm_wakeup_reason_e;
 
 typedef enum {
-    ID_SYS_PM_RESUME = 110,
-    ID_SYS_PM_SUSPEND,
+    ID_SYS_PM_RESUME = 100, /// 系统恢复状态.
+    ID_SYS_PM_IDLE, /// 系统空闲状态.
+    ID_SYS_PM_SUSPEND, /// 系统休眠状态.
     ID_SYS_PM_MAX
 } system_pm_state_e;
 
 typedef enum {
-    SUSPEND_BY_WIN = 100,
-    SUSPEND_BY_BLE,
-    SUSPEND_BY_FAC,
-} pm_suspend_source_e;
+    PM_BROADCAST_SYS_RESUME = 100, /// 系统空闲进入.
+    PM_BROADCAST_SYS_IDLE, /// 系统空闲状态.
+    PM_BROADCAST_SYS_IDLE_RELEASE, /// 系统空闲释放.
+    PM_BROADCAST_SYS_SUSPEND, /// 系统休眠状态.
+    PM_BROADCAST_USER_REQUEST_SUSPEND, /// 用户请求进入休眠状态.
+    PM_BROADCAST_BLE_REQUEST_SUSPEND, /// 蓝牙请求进入休眠状态.
+    PM_BROADCAST_FACTORY_REQUEST_SUSPEND, /// 工厂请求进入休眠状态.
+    PM_BROADCAST_ID_MAX,
+} pm_broadcast_id_e;
 
 struct broadcast_obj;
 typedef struct power_manager_context {
@@ -55,7 +61,6 @@ typedef struct power_manager_context {
         os_timer_id suspend_timer;
         list_head_t wake_lock_list;
         thread_context_t pm_suspend_thd;
-        thread_context_t pmu_freeze_thd;
         int is_enter_suspend;
         bool pmu_sleep_enable;
         bool user_set_to_sleep;
@@ -80,11 +85,16 @@ typedef struct power_manager_context {
     bool (*is_on_suspend_gotoing)(void);
     bool (*is_system_power_on)(void);
     pm_wakeup_reason_e (*pm_get_wakeup_reason)(void);
+    const char *(*print_wakeup_state)(int state);
     /// 外部hook点.
     struct __power_manager_hook {
         int (*on_post_init_route)(struct power_manager_context *ctx);
         int (*on_key_event_route)(struct power_manager_context *ctx, uint16_t keycode, uint16_t keytype);
         int (*on_broadcast_receive_route)(broadcast_mask_id_t id, void *context, int arg1, int arg2, broadcast_priv_data_t *pdata);
+        int (*pm_suspend_route)(struct power_manager_context *ctx, int state);
+        int (*pm_resume_route)(struct power_manager_context *ctx, int state);
+        void (*pm_suspend_timer_cb_route)(struct power_manager_context *ctx);
+        void (*set_suspend_counter_route)(struct power_manager_context *ctx);
         /// 禁止进入待机状态的钩子.
         bool (*is_prohibit_pm_suspend)(struct power_manager_context *ctx);
     } *hook;

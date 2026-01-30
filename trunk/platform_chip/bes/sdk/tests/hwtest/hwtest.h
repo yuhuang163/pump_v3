@@ -69,7 +69,7 @@ void qspi_lcdc_test(void);
 
 void qspi_test(void);
 
-void spi_norflash_test(void);
+void spi_flash_test(void);
 
 void spi_debug_slave_test(void);
 
@@ -278,4 +278,3 @@ void osc_wakeup_test(void);
 #endif
 
 #endif
-

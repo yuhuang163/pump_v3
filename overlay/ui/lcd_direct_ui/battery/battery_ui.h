@@ -10,12 +10,14 @@ extern "C" {
 ******************************************************************************/
 #include "root_common_base.h" // IWYU pragma: keep
 #include "ui_manager_api.h" // IWYU pragma: keep
+#include "battery_manager_api.h" // IWYU pragma: keep
 
 /*
 * GLOBAL FUNCTION DECLARATION
 *****************************************************************************************
 */
-int battery_icon_update(ui_manager_context_t *thiz, lv_obj_t *root, uint8_t battery_level, uint8_t is_charging);
+void battery_icon_init(ui_manager_context_t *thiz);
+int battery_icon_update(ui_manager_context_t *thiz, lv_obj_t *root, battery_manager_context_t *battery);
 void battery_icon_deinit(ui_manager_context_t *thiz);
 
 #ifdef __cplusplus

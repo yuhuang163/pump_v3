@@ -724,17 +724,17 @@ void ui_display_pump_home_screen_remove(ui_manager_context_t *thiz)
 #endif
 }
 
-int ui_display_pump_home_screen(ui_manager_context_t *thiz)
+int ui_display_pump_home_screen_process(ui_manager_context_t *thiz)
 {
 #if IS_SUPPORT_HOME_DEBUG_OTHER_PAGE
-    // ui_display_pump_left_level(thiz);
-    // ui_display_pump_mode(thiz);
-    // ui_display_breastfeeding_mode(thiz);
-    // ui_display_pump_complete_tip(thiz);
+    // ui_display_pump_left_level_process(thiz);
+    // ui_display_pump_mode_process(thiz);
+    // ui_display_breastfeeding_mode_process(thiz);
+    // ui_display_pump_complete_tip_process(thiz);
     // ui_display_airplane_mode_process(thiz);
     // ui_display_home_process(thiz);
     // ui_display_product_tests_home_process(thiz);
-    ui_display_pump_speed(thiz);
+    ui_display_pump_speed_process(thiz);
 #else
     EXCEPTION_CHECK_INT(thiz);
     EXCEPTION_CHECK_INT(pump_info);
@@ -755,7 +755,8 @@ int ui_display_pump_home_screen(ui_manager_context_t *thiz)
     uint8_t time_index = proc->motor->get_runtime_policy_index(MOTOR_TIME_POLICY);
     proc->pump->get_breast_pump_setting(&setting, time_index >= ROOT_BREAST_PUMP_STEP_MAX ? 0 : time_index);
     uint8_t mode = proc->pump->get_breast_pump_mode();  
-    pump_home_battery_update(thiz, proc->battery->get_battery_percent(), proc->battery->is_charge_plug_in());
+    pump_home_battery_update(thiz, proc->battery->get_battery_percent(), 
+        BATTERY_IS_CHARGING(proc->battery->get_charge_status()));
     pump_home_time_update(thiz, hold_time);
     pump_home_left_level_update(thiz, setting.level[0]);
     pump_home_right_level_update(thiz, setting.level[1]);

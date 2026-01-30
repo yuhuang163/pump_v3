@@ -111,7 +111,7 @@ void ui_display_breastfeeding_mode_remove(ui_manager_context_t *thiz)
     bf_mode_info = NULL;
 }
 
-int ui_display_breastfeeding_mode(ui_manager_context_t *thiz)
+int ui_display_breastfeeding_mode_process(ui_manager_context_t *thiz)
 {
     EXCEPTION_CHECK_INT(thiz);
     ui_proc_pump_t *proc = (ui_proc_pump_t *)thiz->priv.play_info.user_data;

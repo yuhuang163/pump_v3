@@ -48,9 +48,6 @@ typedef struct {
     lv_obj_t * text;
 #endif
     uint8_t force_update;
-    uint8_t is_connected;
-    uint8_t percent;
-    uint8_t is_charging;
 } product_tests_home_display_info_t;
 
 /*
@@ -92,21 +89,9 @@ static void product_tests_ui_root_init(void)
     lv_obj_clear_flag(tests_info->root, LV_OBJ_FLAG_SCROLLABLE);          /// 禁止滚动
 }
 
-
-static void product_tests_ble_update(ui_manager_context_t *thiz, ble_manager_context_t *ble)
+static void product_tests_home_update(ui_manager_context_t *thiz, ble_manager_context_t *ble)
 {
     EXCEPTION_CHECK_VOID(ble);
-    uint8_t is_connected = ble->ble_is_connected();
-    if (tests_info->is_connected == is_connected && tests_info->force_update == false) {
-        return;
-    }
-
-    if (ble_ui_update(thiz, tests_info->root, is_connected) != 0) {
-        return;
-    }
-    tests_info->is_connected = is_connected;
-
-    /// 更新mac名称和二维码
     if (tests_info->force_update == false) {
         return;
     }
@@ -114,25 +99,6 @@ static void product_tests_ble_update(ui_manager_context_t *thiz, ble_manager_con
     ble->get_mac_addr(mac_addr);
     product_tests_mac_name_update(thiz, mac_addr);
     product_tests_qrcode_update(thiz, mac_addr);
-}
-
-static void product_tests_battery_update(ui_manager_context_t *thiz, battery_manager_context_t *battery)
-{
-    EXCEPTION_CHECK_VOID(battery);
-    uint8_t percent = battery->get_battery_percent();
-    uint8_t is_charging = battery->is_charge_plug_in();
-    if (tests_info->percent == percent && 
-        tests_info->is_charging == is_charging &&
-        tests_info->force_update == false) {
-        return;
-    }
-
-    if (battery_icon_update(thiz, tests_info->root, percent, is_charging) != 0) {
-        return;
-    }
-    
-    tests_info->percent = percent;
-    tests_info->is_charging = is_charging;
 }
 
 #if IS_SUPPORT_SCAN_QRCODE_TIP
@@ -213,15 +179,17 @@ void ui_display_product_tests_home_prepare(ui_manager_context_t *thiz)
     thiz->priv.fps_count = 0;
     thiz->priv.fps_start_time = get_timestamp();
     product_tests_ui_root_init();
+    battery_icon_init(thiz);
+    ble_ui_init(thiz);
     tests_info->force_update = true;
 }
 
 void ui_display_product_tests_home_remove(ui_manager_context_t *thiz)
 {
     EXCEPTION_CHECK_VOID(thiz);
-    if (tests_info == NULL) {
-        return;
-    }
+    EXCEPTION_CHECK_VOID(tests_info);
+    battery_icon_deinit(thiz);
+    ble_ui_deinit(thiz);
     LVGL_OBJ_DELETE(tests_info->root);
     u_free(tests_info);
     tests_info = NULL;
@@ -233,8 +201,9 @@ int ui_display_product_tests_home_process(ui_manager_context_t *thiz)
     EXCEPTION_CHECK_INT(tests_info);
     EXCEPTION_CHECK_INT(tests_info->root);
     ui_proc_product_test_t *proc = (ui_proc_product_test_t *)thiz->priv.play_info.user_data;
-    product_tests_ble_update(thiz, proc->ble);
-    product_tests_battery_update(thiz, proc->battery);
+    ble_ui_update(thiz, tests_info->root, proc->ble);
+    battery_icon_update(thiz, tests_info->root, proc->battery);
+    product_tests_home_update(thiz, proc->ble);
     thiz->priv.fps_count++;
     tests_info->force_update = false;
     if (get_timestamp() - thiz->priv.fps_start_time >= 1000) {

@@ -7,34 +7,18 @@ extern "C" {
 
 /**
  * 产品型号
- * 说明: 为了兼容预处理器条件判断，增加数值宏定义
 */
-typedef enum {
-    PRODUCT_INFO_V3 = 0,
-    PRODUCT_INFO_V3PRO = 1,
-} product_info_t;
-
-#define PRODUCT_INFO_V3_VALUE                         0
-#define PRODUCT_INFO_V3PRO_VALUE                      1
+#define ROOT_PRODUCT_V3_ID                            0x08
+#define ROOT_PRODUCT_V3PRO_ID                         0x09
 
 /**
  * 产品信息
 */
-#ifndef ROOT_PRODUCT_ID
-#define ROOT_PRODUCT_ID                               PRODUCT_INFO_V3_VALUE
-#endif
+#define ROOT_PRODUCT_ID                               ROOT_PRODUCT_V3PRO_ID
 
-#if (ROOT_PRODUCT_ID == PRODUCT_INFO_V3PRO_VALUE)
-#define DEFAULT_PID_CODE    0x09
+#if (ROOT_PRODUCT_ID == ROOT_PRODUCT_V3PRO_ID)
+#define ROOT_DEVICE_NAME                              "V3Pro"
 #else
-#define DEFAULT_PID_CODE    0x08
-#endif
-
-#if (ROOT_PRODUCT_ID == PRODUCT_INFO_V3PRO_VALUE)
-#define ROOT_FW_NAME                                  "BREAST_PUMP_V3PRO"
-#define ROOT_DEVICE_NAME                              "V3PRO"
-#else
-#define ROOT_FW_NAME                                  "BREAST_PUMP_V3"
 #define ROOT_DEVICE_NAME                              "V3"
 #endif
 
@@ -54,10 +38,10 @@ typedef enum {
 #define ROOT_OTA_UPGRADE_TYPE                          4
 
 /**
- * 硬件版本从100-900
+ * 硬件版本从1-999
 */
-#define ROOT_HARDWARE_VERSION                          100
-#define ROOT_HW_VERSION_STR                            "100"
+#define ROOT_HARDWARE_VERSION                          2
+#define ROOT_HW_VERSION_STR                            "02"
 
 
 /**
@@ -69,8 +53,8 @@ typedef enum {
 /**
  * 正式版本从100-900
 */
-#define ROOT_FIRMWARE_VERSION                          104
-#define ROOT_FW_VERSION_STR                            "104"
+#define ROOT_FIRMWARE_VERSION                          105
+#define ROOT_FW_VERSION_STR                            "105"
 
 /**
  * 资源版本号定义(major*100 + minor)

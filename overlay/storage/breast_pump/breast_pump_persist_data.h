@@ -27,6 +27,7 @@ int read_pump_data_head_from_flash(store_func_args_t args);
 int write_pump_data_body_to_flash(store_func_args_t args);
 int read_pump_data_body_from_flash(store_func_args_t args);
 int del_pump_data_body_from_flash(store_func_args_t args);
+int read_pump_data_head_from_ram(store_func_args_t args);
 
 /// 泵奶设置信息接口
 int write_pump_setting_info_to_ram(store_func_args_t args);
@@ -56,6 +57,10 @@ int read_pump_finish_remind_from_ram(store_func_args_t args);
 int write_pump_control_type_to_ram(store_func_args_t args);
 int read_pump_control_type_from_ram(store_func_args_t args);
 
+/// 泵奶模式接口
+int write_pump_mode_to_ram(store_func_args_t args);
+int read_pump_mode_from_ram(store_func_args_t args);
+
 /// 泵奶数据同步接口
 int pump_data_info_sync_flash(storage_manager_context_t *ctx, pump_result_info_t *body);
 /// 获取泵奶数据接口
@@ -70,6 +75,12 @@ void reset_pump_buried_info(storage_manager_context_t *ctx, sys_buried_info_list
 int write_pump_buried_info_to_flash(store_func_args_t args);
 int read_pump_buried_info_from_flash(store_func_args_t args);
 int write_pump_buried_info_to_ram(store_func_args_t args);
+
+/// 测试接口
+/// 完整的泵奶数据写入和读取测试函数
+/// @param write_count 要写入的记录数量（0表示使用默认值：测试未满和已满情况）
+/// @return 0: 成功, -1: 失败
+int test_pump_data_write_read_complete(int write_count);
 
 #ifdef __cplusplus
 }

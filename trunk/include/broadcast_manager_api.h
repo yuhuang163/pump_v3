@@ -12,7 +12,6 @@ extern "C" {
 #include "root_common_base.h" // IWYU pragma: keep
 #include "root_list_api.h" // IWYU pragma: keep
 #include "handler_post.h" // IWYU pragma: keep
-#include "broadcast_data_define.h" // IWYU pragma: keep
 
 #ifndef MAX_SIZE_FOR_PDATA
 #define MAX_SIZE_FOR_PDATA (64)
@@ -22,45 +21,25 @@ extern "C" {
     uint32_t __pdata[1] = { (uint32_t)(_user_data) }
 
 #define PRIV_DATA_TO_USER_DATA(_user_data, pdata, __type) \
-    __type *_user_data = NULL; \
-    do { \
-        uint32_t tmp[1]; \
-        memcpy(tmp, pdata->data, sizeof(uint32_t)); \
-        _user_data = (__type *)tmp[0]; \
-    } while (0)
-
-#define PRIV_DATA_TO_USER_DATA_V2(_user_data, pdata, __type) \
-    do { \
-        uint32_t tmp[1]; \
-        memcpy(tmp, pdata->data, sizeof(uint32_t)); \
-        _user_data = (__type *)tmp[0]; \
-    } while (0)
+do { \
+    uint32_t tmp[1]; \
+    memcpy(tmp, pdata->data, sizeof(uint32_t)); \
+    _user_data = (__type *)tmp[0]; \
+} while (0)
 
 typedef enum {
     ID_BROADCAST_BEGIN = 0,
-    ID_BROADCAST_UPDATE_BATTERY_INFO = (1 << 0),            /// 电量更新.
-    ID_BROADCAST_CHARGE_STATE_CHANGE = (1 << 1),            /// 充电状态改变.
+    ID_BROADCAST_SYS_STATE_CHANGE = (1 << 0),               /// 系统状态改变.
+    ID_BROADCAST_PERSIST_INFO_UPDATE = (1 << 1),            /// 持久化信息更新.
     ID_BROADCAST_PM_STATE_CHANGE = (1 << 2),                /// 休眠唤醒.
-    ID_BROADCAST_SYS_BOOT_COMPLETED = (1 << 3),             /// 系统启动完成.
-    ID_BROADCAST_BLE_CONNECT_STATE_CHANGE = (1 << 4),       /// 蓝牙连接状态改变.
-    ID_BROADCAST_OTA_UPGREADING_CHANGE = (1 << 5),          /// ota升级进度广播
-    ID_BROADCAST_ENTER_NEW_SCREEN = (1 << 6),               /// 进入新窗口.
-    ID_BROADCAST_PM_WAKEUP_BY_USER = (1 << 7),              /// PM被外部唤醒
-    ID_BROADCAST_SYS_PERSIST_INFO_SAVE = (1 << 8),          /// 持久化存储.
-    ID_BROADCAST_REQ_PM_SUSPEND_BY_USER = (1 << 9),         /// User请求主动睡下去.
-    ID_BROADCAST_FACTORY_TEST_CMD = (1 << 10),              /// 工厂测试指令.
-    ID_BROADCAST_BREAST_PUMP_MODE_CHANGE = (1 << 11),       /// 吸奶模式切换.
-    ID_BROADCAST_THEME_CHANGE = (1 << 12),                  /// 主题切换
-    ID_BROADCAST_DELETE_MODE_UPDATE = (1 << 13),            /// 删除模式后刷新页面.
-    ID_BROADCAST_OTA_UI_SCREEN_STATE_CHANGE = (1 << 14),    /// ota升级ui进入/退出
-    ID_BROADCAST_SYS_POWER_STATE_CHANGE = (1 << 16),        /// 系统电源状态改变.
-    ID_BROADCAST_SET_BLACKLIGHT_BY_USER = (1 << 17),        /// 设置背光状态.
-    ID_BROADCAST_BREAST_PUMP_STATE_CHANGE = (1 << 21),      /// 吸奶状态改变.
-    ID_BROADCAST_BREAST_PUMP_FINISH = (1 << 22),            /// 吸奶完成.
-    ID_BROADCAST_AIRPLANE_MODE_STATE_CHANGE = (1 << 23),    /// 飞行模式状态改变.
-    ID_BROADCAST_UPDATE_MOTOR_WORK_PARAMETER = (1 << 24),   /// 更新马达运行参数.
-    ID_BROADCAST_BREAST_APP_PUMP_INFO_CHANGE = (1 << 25),    /// 吸奶app信息改变.
+    ID_BROADCAST_REQ_PM_SUSPEND = (1 << 3),                 /// 请求进入休眠状态.
+    ID_BROADCAST_BATTERY_STATE_CHANGE = (1 << 4),           /// 电池(电量、充电状态)状态改变.
+    ID_BROADCAST_BLE_STATE_CHANGE = (1 << 5),               /// 蓝牙状态改变.
+    ID_BROADCAST_OTA_STATE_CHANGE = (1 << 6),               /// ota升级状态改变.
+    ID_BROADCAST_BREAST_PUMP_STATE_CHANGE = (1 << 7),       /// 吸奶状态改变.
+    ID_BROADCAST_AIRPLANE_MODE_STATE_CHANGE = (1 << 8),     /// 飞行模式状态改变.
     
+    ID_BROADCAST_FACTORY_TEST_CMD = (1 << 16),              /// 工厂测试指令.
     /// add new broadcast id above this.
     ID_BROADCAST_END,
 } broadcast_rcv_id_enum_t;

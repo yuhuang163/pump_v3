@@ -71,9 +71,9 @@
       "y_offset": 0
     },
     {
-      "resource_id": "RESOURCE_ID_HOME_CHARGE_0",
-      "description": "首页-充电电量0%",
-      "file": "baj/home_charge_0_37x21_a4_q99_422.baj",
+      "resource_id": "RESOURCE_ID_HOME_CHARGE_ICON",
+      "description": "首页-充电图标",
+      "file": "baj/home_charge_icon_9x13_a4_q99_422.baj",
       "x_offset": 0,
       "y_offset": 0
     },
@@ -106,7 +106,7 @@
       "y_offset": 0
     },
     {
-      "resource_id": "RESOURCE_ID_HOME_UNCHARGE_BATTERY_0",
+      "resource_id": "RESOURCE_ID_HOME_EMPTY_POWER",
       "description": "首页-未充电电量0%",
       "file": "baj/home_uncharge_battery_0_37x21_a4_q99_422.baj",
       "x_offset": 0,
@@ -141,7 +141,7 @@
       "y_offset": 0
     },
     {
-      "resource_id": "RESOURCE_ID_HOME_UNCHARGE_LOW_POWER",
+      "resource_id": "RESOURCE_ID_HOME_LOW_POWER",
       "description": "首页-低电量提示",
       "file": "baj/home_uncharge_low_power_37x21_a4_q99_422.baj",
       "x_offset": 0,
@@ -333,6 +333,13 @@
       "resource_id": "RESOURCE_ID_CHARGE_PAGE_ICON",
       "description": "充电页充电图标",
       "file": "baj/charge_page_icon_90x48_a4_q99_422.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    }, 
+    {
+      "resource_id": "RESOURCE_ID_CHARGE_ADAPTER_ICON",
+      "description": "首页-充电适配器图标",
+      "file": "baj/charge_adpater_mismatch_160x160_a4_q99_422.baj",
       "x_offset": 0,
       "y_offset": 0
     } 

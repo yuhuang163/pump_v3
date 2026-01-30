@@ -30,6 +30,19 @@ ifeq ($(OSC_26M_X4_AUD2BB),1)
 CFLAGS_nandflash_drv.o += -DOSC_26M_X4_AUD2BB
 endif
 
+ifeq ($(FLASH_RESET_PIN),1)
+CFLAGS_nandflash_drv.o += -DFLASH_RESET_PIN
+endif
+ifeq ($(FLASH_DTR),1)
+ccflags-y += -DFLASH_DTR
+endif
+ifneq ($(FLASH_DTR_CALIB_BLOCK),)
+CFLAGS_nandflash_drv.o += -DFLASH_DTR_CALIB_BLOCK=$(FLASH_DTR_CALIB_BLOCK)
+endif
+ifneq ($(FLASH_DTR_CALIB_PAGE),)
+CFLAGS_nandflash_drv.o += -DFLASH_DTR_CALIB_PAGE=$(FLASH_DTR_CALIB_PAGE)
+endif
+
 ifeq ($(FLASH_DMA),1)
 CFLAGS_nandflash_drv.o += -DFLASH_DMA
 endif

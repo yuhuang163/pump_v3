@@ -125,9 +125,9 @@ subdir-ccflags-y += -DCOMPRESS_PSRAM_CODE
 endif
 endif
 
-ifneq ($(filter 1,$(USB_SERIAL_TEST) $(USB_SERIAL_SPEED_TEST) $(USB_SERIAL_DIRECT_XFER_TEST) $(USB_AUDIO_TEST) $(USB_MTP_TEST) $(USB_MSD_TEST) $(I2C_TEST) $(I2S_TEST) \
+ifneq ($(filter 1,$(USB_SERIAL_TEST) $(USB_SERIAL_SPEED_TEST) $(USB_SERIAL_DIRECT_XFER_TEST) $(USB_AUDIO_TEST) $(USB_MTP_TEST) $(USB_MSD_TEST) $(I2C_TEST) $(SPI_FLASH_TEST) $(I2S_TEST) \
 					$(AF_TEST) $(VD_TEST) $(CP_TEST) $(CP_SUBSYS_TEST) $(CSP_SUBSYS_TEST) $(TDM_TEST) $(SEC_ENG_TEST) $(A7_DSP_TEST) $(A55_TEST) \
-					$(TRANSQ_TEST) $(FLASH_TEST) $(PSRAM_TEST) $(PSRAMUHS_TEST) $(SPI_NORFLASH_TEST) \
+					$(TRANSQ_TEST) $(FLASH_TEST) $(PSRAM_TEST) $(PSRAMUHS_TEST) \
 					$(SENSOR_HUB_TEST) $(SENSOR_TEST) $(MBW_TEST) $(BECO_TEST) $(TZ_TEST) $(FT_TEST) \
 					$(BT_CONN_TEST) $(BT_CONN_SIMU) $(MINIMA_TEST) $(LIS25BA_TEST) $(PWM_TEST) $(TRNG_TEST) $(IR_TEST) \
 					$(RSA_TEST) $(DAC_TEST) $(DAC_TEST_COMBINED) $(ADC2_TEST) $(NANDFLASH_TEST) $(SDMMC_TEST) $(SDIO_HOST_TEST) $(SDIO_HOST_SIGNAL_TEST) \
@@ -324,6 +324,10 @@ CFLAGS_i2c_test.o += -DI2C_SPEED=$(I2C_SPEED)
 endif
 endif # I2C_TEST
 
+ifeq ($(SPI_FLASH_TEST),1)
+ccflags-y += -DSPI_FLASH_TEST
+endif
+
 ifeq ($(DSI_TEST),1)
 obj-y += ../../tests/hwtest/dsi_test.c
 ccflags-y += -DDSI_TEST -Iplatform/drivers/graphic/lcd
@@ -495,11 +499,10 @@ ccflags-y += -DTDM_PLAYBACK_ONLY_TEST
 endif
 endif #TDM_TEST
 
-ifeq ($(SPI_NORFLASH_TEST),1)
-obj-y += ../../tests/hwtest/spi_norflash_test.c
-obj-y += ../../platform/drivers/spi_norflash/
-ccflags-y += -DSPI_NORFLASH_TEST
-endif #SPI_NORFLASH_TEST
+ifeq ($(SPI_FLASH_TEST),1)
+obj-y += ../../tests/hwtest/spi_flash_test.c
+ccflags-y += -DSPI_FLASH_TEST
+endif #SPI_FLASH_TEST
 
 ifeq ($(SEC_ENG_TEST),1)
 obj-y += ../../tests/hwtest/sec_eng_test.c ../../utils/hexdump/
@@ -936,10 +939,7 @@ export GRAPH_MODULE := 1
 export DRIVER_GRAPHIC_ENABLE := 1
 export DRIVER_JPEG_ENABLE := 1
 export LVGL_GPU_VGLITE ?= 1
-export LVGL_NO_TOUCHSCREEN ?= 1
-ifeq ($(LVGL_NO_TOUCHSCREEN), 0)
 export LVGL_TP_TMA525C ?= 1
-endif
 THIRDPARTY_ENABLE := 1
 export THIRDPARTY_LVGL_ENABLE := 1
 obj-y += ../../thirdparty/lvgl/
@@ -1421,7 +1421,8 @@ ccflags-y += \
 	-Itests/besair_platform/bsp_tester/wdt_tester \
 	-Itests/besair_platform/bsp_tester/common_debug_interface \
 	-Itests/besair_platform/subsys_m55_trc \
-	-Iapps/dsp_m55
+	-Iapps/dsp_m55 \
+	-Iapps/bt_calib
 
 ifeq ($(ARM_CMSE),1)
 obj-y += cmse/
@@ -1518,6 +1519,8 @@ ccflags-y += -DPSRAM_INIT_CHECK
 endif
 
 endif # !USE_OS_MAIN
+
+ccflags-y += -Iplatform/drivers/spi_flash
 
 obj-y := $(obj-y:.c=.o)
 obj-y := $(obj-y:.cpp=.o)

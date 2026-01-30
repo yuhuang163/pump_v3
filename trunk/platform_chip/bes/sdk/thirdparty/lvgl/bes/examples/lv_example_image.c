@@ -5,6 +5,7 @@
 #include "hal_cache.h"
 #include "string.h"
 
+#if 0
 LV_IMAGE_DECLARE(img_cogwheel_argb);
 LV_IMAGE_DECLARE(img_cogwheel_rgb);
 LV_IMAGE_DECLARE(img_cogwheel_indexed16);
@@ -161,12 +162,38 @@ const char *qr_str[QRSTR_COUNT] = {
     "OK, All is done!",
 };
 #endif
+#else
+struct img_data_t {
+    uint8_t *data;
+    uint32_t size;
+};
+static lv_obj_t *img_baj;
+static PSRAM_DATA_LOC ALIGNED(64) uint8_t baj_data0[] = {
+#include "baj2txt/IP_00000_200x200_a4_q99_422.txt"
+};
+static PSRAM_DATA_LOC ALIGNED(64) uint8_t baj_data1[] = {
+#include "baj2txt/IP_00149_200x200_a4_q99_422.txt"
+};
+#define BAJ_IMG_COUNT  2
+static struct img_data_t baj_images[BAJ_IMG_COUNT] = {
+    { baj_data0, sizeof(baj_data0) },
+    { baj_data1, sizeof(baj_data1) },
+};
+
+static PSRAM_DATA_LOC ALIGNED(64) uint8_t baj_data_bg[] = {
+    #include "baj2txt/home_bg_v2_360x360.txt"
+};
+static lv_obj_t *img_root; /// 背景图片
+static lv_draw_buf_t *logo_bg_snapshot = NULL;  /// 背景快照，避免重复解码
+#endif
+
+
 
 static void change_images(lv_timer_t * tmr)
 {
     static uint32_t index = 0;
     (void) tmr;
-
+#if 0
 #if LV_USE_BESJPEG
     lv_fs_path_ex_t jpg_path;
     uint8_t *jpeg_data = jpeg_images[index % JPEG_IMG_COUNT].data;
@@ -204,13 +231,25 @@ static void change_images(lv_timer_t * tmr)
 #endif
 
     lv_image_set_src(img_var, var_images[index % VAR_IMG_COUNT]);
+#else
+    if (logo_bg_snapshot != NULL) {
+        lv_image_set_src(img_root, logo_bg_snapshot);
+    } else {
+        LV_LOG_ERROR("===> img_root snapshot creation failed");
+    }
+    lv_fs_path_ex_t baj_path;
+    uint8_t *baj_data = baj_images[index % BAJ_IMG_COUNT].data;
+    uint32_t baj_size = baj_images[index % BAJ_IMG_COUNT].size;
+    lv_fs_make_path_from_buffer(&baj_path, LV_FS_MEMFS_LETTER, baj_data, baj_size, "baj");
+    lv_image_set_src(img_baj, (const void *)&baj_path);
+#endif
     index++;
 }
 
 void lv_example_image(void)
 {
     //lv_obj_set_style_bg_color(lv_screen_active(), lv_color_make(0,0,0), LV_PART_MAIN);
-
+#if 0
     /* SRC_VARIBLE */
     img_var = lv_image_create(lv_screen_active());
     lv_image_set_src(img_var, &img_cogwheel_argb);
@@ -280,8 +319,34 @@ void lv_example_image(void)
 
     lv_qrcode_update(qrcode, qr_str[0], strlen(qr_str[0]));
 #endif
+#else
+    if (img_root == NULL || !lv_obj_is_valid(img_root)) {
+        img_root = lv_image_create(lv_screen_active());
+    }
+    lv_fs_path_ex_t bg_path;
+    lv_fs_make_path_from_buffer(&bg_path, LV_FS_MEMFS_LETTER, baj_data_bg, sizeof(baj_data_bg), "png");
+    lv_image_set_src(img_root, (const void *)&bg_path);
+    lv_obj_align(img_root, LV_ALIGN_CENTER, 0, 0);
+    lv_refr_now(NULL); /// 等待渲染完成后再创建快照
+#if LV_USE_SNAPSHOT
+    logo_bg_snapshot = lv_snapshot_take(img_root, LV_COLOR_FORMAT_NATIVE_WITH_ALPHA);
+#else
+    logo_bg_snapshot = NULL;
+    LV_LOG_ERROR("===> LV_USE_SNAPSHOT is not enabled");
+#endif
+    if (logo_bg_snapshot != NULL) {
+        lv_image_set_src(img_root, logo_bg_snapshot);
+    } else {
+        LV_LOG_ERROR("===> img_root snapshot creation failed");
+    }
 
-    lv_timer_t * t = lv_timer_create(change_images, 200, NULL);
+    img_baj = lv_image_create(lv_screen_active());
+    lv_fs_path_ex_t baj_path;
+    lv_fs_make_path_from_buffer(&baj_path, LV_FS_MEMFS_LETTER, baj_data0, sizeof(baj_data0), "baj");
+    lv_image_set_src(img_baj, (const void *)&baj_path);
+    lv_obj_align(img_baj, LV_ALIGN_CENTER, 0, 0);
+#endif
+    lv_timer_t * t = lv_timer_create(change_images, 30, NULL);
     lv_timer_ready(t);
 }
 

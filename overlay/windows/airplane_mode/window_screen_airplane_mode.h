@@ -21,7 +21,7 @@ extern "C" {
 /// 飞行模式动画更新间隔
 #define AIRPLANE_MODE_ANIMATION_UPDATE_INTERVAL         (1000)
 /// 飞行模式超时时间
-#define AIRPLANE_MODE_TIMEOUT_TIME                      (20 * 1000) // (2 * 60 * 1000) /// 2分钟
+#define AIRPLANE_MODE_TIMEOUT_TIME                      (2 * 60 * 1000) /// 2分钟
 
 /// 飞行模式UI动作枚举
 typedef enum {
@@ -46,13 +46,11 @@ typedef struct ui_proc_airplane_mode {
     power_manager_context_t *pm;
     key_input_context_t *key;
     breast_pump_manager_context_t *pump;
-    peripheral_bus_context_t *pbus;
-    storage_manager_context_t *st;
+    led_manager_context_t *led;
+    airplane_mode_context_t *airplane;
     broadcast_obj_t receiver;
     uint32_t margic;
     uint32_t last_progress_ani_time; /// 上次进度动画时间.
-    // uint8_t charging_status; /// 充电状态
-    // uint8_t battery_percent; /// 电池电量百分比
     uint16_t current_ui_type; /// 当前UI类型. airplane_mode_ui_type_e
 } ui_proc_airplane_mode_t;
 

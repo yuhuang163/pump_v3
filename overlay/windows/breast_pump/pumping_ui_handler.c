@@ -31,7 +31,7 @@ static void pumping_work_ui_before_policy(ui_manager_context_t *ui, int index)
 
 static void pumping_work_ui_after_policy(ui_manager_context_t *ui, int index)
 {
-    ui_display_pump_home_screen(ui);
+    ui_display_pump_home_screen_process(ui);
     ui->priv.play_info.reset_play_count_cb(&ui->priv.play_info);
 }
 

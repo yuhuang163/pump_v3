@@ -12,7 +12,7 @@ VCODEC_VOLT ?= 1.8V
 else
 VCODEC_VOLT ?= 1.7V
 endif
-ifneq ($(filter-out 1.4V 1.45V 1.5V 1.55V 1.6V 1.65V 1.7V 1.75V 1.8V 1.9V,$(VCODEC_VOLT)),)
+ifneq ($(filter-out 1.4V 1.45V 1.5V 1.55V 1.6V 1.65V 1.7V 1.75V 1.8V 1.9V 1.95V,$(VCODEC_VOLT)),)
 $(error Invalid VCODEC_VOLT=$(VCODEC_VOLT))
 endif
 ifneq ($(VCODEC_VOLT),)

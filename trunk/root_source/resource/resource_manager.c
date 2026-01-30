@@ -88,7 +88,7 @@ static uint32_t img_res_calc_header_size(uint32_t res_count)
 
 static int img_res_flash_read(uint32_t addr, void *buf, uint32_t size)
 {
-    return platform_flash_read(PARTITION_PICTURE_DATA_INT_NAME, addr, (uint8_t *)buf, size);
+    return platform_flash_read(PARTITION_IMG_INT_DATA_NAME, addr, (uint8_t *)buf, size);
 }
 
 static int img_res_flash_read_by_partition(const char *partition, uint32_t addr, void *buf, uint32_t size)
@@ -102,9 +102,9 @@ static int img_res_flash_read_by_partition(const char *partition, uint32_t addr,
 static const char *img_res_get_partition_name(void)
 {
 #if V3_IMG_RES_STORAGE_TYPE == IMG_RES_STORAGE_INTERNAL_FLASH
-    return PARTITION_PICTURE_DATA_INT_NAME;
+    return PARTITION_IMG_INT_DATA_NAME;
 #else
-    return PARTITION_PICTURE_DATA_EXT_NAME;
+    return PARTITION_IMG_EXT_DATA_NAME;
 #endif
 }
 
@@ -112,9 +112,9 @@ static bool img_res_get_base_addr(uint32_t *base_addr)
 {
     EXCEPTION_CHECK_BOOL(base_addr);
 #if V3_IMG_RES_STORAGE_TYPE == IMG_RES_STORAGE_INTERNAL_FLASH
-    *base_addr = (uint32_t)PICTURE_DATA_INT_START_ADDR;
+    *base_addr = (uint32_t)IMG_INT_DATA_START_ADDR;
 #else
-    *base_addr = (uint32_t)PICTURE_DATA_EXT_START_ADDR;
+    *base_addr = (uint32_t)IMG_EXT_DATA_START_ADDR;
 #endif
     return true;
 }
@@ -221,7 +221,7 @@ static int res_read_img_data_from_external(uint32_t ext_flash_addr, uint32_t siz
 
     /// NOTE: ext_flash_addr 期望是外部flash的绝对地址（同 platform_flash_read 使用方式）
     MUTEX_LOCK_FS(thiz->priv.m_fs_rw_lock, "res_read_img_data_from_external");
-    int ret = platform_flash_read(PARTITION_PICTURE_DATA_EXT_NAME, ext_flash_addr, buf, size);
+    int ret = platform_flash_read(PARTITION_IMG_EXT_DATA_NAME, ext_flash_addr, buf, size);
     MUTEX_UNLOCK_FS(thiz->priv.m_fs_rw_lock, "res_read_img_data_from_external");
     if (ret != 0) {
         LOGE("res_read_img_data_from_external: read failed ret=%d addr=0x%08X size=%u", ret, (unsigned)ext_flash_addr, (unsigned)size);
@@ -237,11 +237,11 @@ static void img_res_dump_header(const img_res_head_wrapper_t *w)
         return;
     }
 
-    LOG_RES_DEBUG("IMG RES @0x%08X (partition: %s)", (uint32_t)PICTURE_DATA_INT_START_ADDR, PARTITION_PICTURE_DATA_INT_NAME);
+    LOG_RES_DEBUG("IMG RES @0x%08X (partition: %s)", (uint32_t)IMG_INT_DATA_START_ADDR, PARTITION_IMG_INT_DATA_NAME);
     LOG_RES_DEBUG("partition range: [0x%08X, 0x%08X) size=0x%08X",
-            (uint32_t)PICTURE_DATA_INT_START_ADDR,
-            (uint32_t)PICTURE_DATA_INT_END_ADDR,
-            (uint32_t)((uint32_t)PICTURE_DATA_INT_END_ADDR - (uint32_t)PICTURE_DATA_INT_START_ADDR));
+            (uint32_t)IMG_INT_DATA_START_ADDR,
+            (uint32_t)IMG_INT_DATA_END_ADDR,
+            (uint32_t)((uint32_t)IMG_INT_DATA_END_ADDR - (uint32_t)IMG_INT_DATA_START_ADDR));
     LOG_RES_DEBUG("head.magic   = 0x%08X", (unsigned)w->head.magic);
     LOG_RES_DEBUG("head.crc16   = 0x%04X", (unsigned)w->head.crc16);
     LOG_RES_DEBUG("head.flags   = 0x%04X", (unsigned)w->head.flags);
@@ -275,7 +275,7 @@ static int img_res_validate_and_dump(uint32_t base_addr)
     uint8_t *buf = NULL;
     const uint32_t buf_size = 1024;
     img_res_obj_info_t *infos = NULL;
-    const uint32_t partition_size = (uint32_t)((uint32_t)PICTURE_DATA_INT_END_ADDR - (uint32_t)PICTURE_DATA_INT_START_ADDR);
+    const uint32_t partition_size = (uint32_t)((uint32_t)IMG_INT_DATA_END_ADDR - (uint32_t)IMG_INT_DATA_START_ADDR);
 
     /// 1) magic
     const bool magic_ok = img_res_magic_valid(w.head.magic);
@@ -441,7 +441,11 @@ static int img_res_validate_and_dump(uint32_t base_addr)
     }
 
 out:
-    LOG_RES("IMG RES VALIDATION RESULT: %s", ok ? "PASS" : "FAIL");
+#if V3_IMG_RES_STORAGE_TYPE == IMG_RES_STORAGE_INTERNAL_FLASH
+    LOG_RES("internal flash img res validation result: %s", ok ? "PASS" : "FAIL");
+#else
+    LOG_RES("external flash img res validation result: %s", ok ? "PASS" : "FAIL");
+#endif
     if (infos) {
         u_free(infos);
         infos = NULL;
@@ -530,7 +534,7 @@ static void res_ui_img_data_unload_impl(res_img_info_t *img)
 static void hdr_async_init_cb(hdr_post_args_t *args)
 {
     EXCEPTION_CHECK_VOID(thiz);
-    (void)img_res_validate_and_dump((uint32_t)PICTURE_DATA_INT_START_ADDR);
+    (void)img_res_validate_and_dump((uint32_t)IMG_INT_DATA_START_ADDR);
     if (!thiz->priv.res_init_completed) {
         thiz->priv.res_init_completed = true;
     }

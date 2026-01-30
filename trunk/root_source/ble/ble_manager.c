@@ -40,11 +40,11 @@ static void ble_pm_change_handler(int arg1)
         return;
     }
 
-    if (arg1 == ID_SYS_PM_RESUME) {
+    if (arg1 == PM_BROADCAST_SYS_RESUME) {
         ble_opt_adv_id_e adv = BLE_OPT_ADV_FAST;
         LOG_BLE("ble adv fast start");
         ctx->dispatch_ble_event_wrapper(ctx, BLE_MSG_SET_ADV_START, (uint8_t *)&adv, sizeof(adv));
-    } else {
+    } else if (arg1 == PM_BROADCAST_SYS_SUSPEND) {
         LOG_BLE("ble adv stop");
         ble_opt_adv_id_e adv = BLE_OPT_ADV_STOP;
     }
@@ -58,23 +58,24 @@ static void ble_ota_upgrade_state_handler(void *user_data)
 static void on_ble_broadcast_receive(broadcast_mask_id_t id, void *context, int arg1, int arg2, 
                                         broadcast_priv_data_t *pdata)
 {
+    uint32_t *user_data = NULL;
     ble_manager_context_t *ctx = context;
     LOG_BLE("ble broadcast rcv_id: 0x%lx", id.code);
-
     switch (id.code) {
-        case ID_BROADCAST_CHARGE_STATE_CHANGE:
-            ble_charge_state_handler(arg1);
+        case ID_BROADCAST_BATTERY_STATE_CHANGE:
+            if (arg1 == BATTERY_BROADCAST_CHARGE_STATE_CHANGE) {
+                ble_charge_state_handler(arg2);
+            }
             break;
-
         case ID_BROADCAST_PM_STATE_CHANGE:
             ble_pm_change_handler(arg1);
             break;
-
-        case ID_BROADCAST_OTA_UPGREADING_CHANGE: {
-            PRIV_DATA_TO_USER_DATA(user_data, pdata, uint32_t);
-            ble_ota_upgrade_state_handler(user_data);
-        }
-        break;
+        case ID_BROADCAST_OTA_STATE_CHANGE:
+            if (arg1 == OTA_BROADCAST_STATE_CHANGE) {
+                PRIV_DATA_TO_USER_DATA(user_data, pdata, uint32_t);
+                ble_ota_upgrade_state_handler(user_data);
+            }
+            break;
        default:
            break;
     }
@@ -241,11 +242,8 @@ static void on_connect_status_change(ble_manager_context_t *ctx, int new_status,
         LOGW("system is not ready, ignore: %d", new_status);
         return;
     }
-
     LOG_BLE("new ble_connect_state: %d, show popup window.", new_status);
-    SEND_BROADCAST_ARGS1(ID_BROADCAST_BLE_CONNECT_STATE_CHANGE, new_status);
-
-    /// 如果定义了钩子函数则路由到xx处理.
+    SEND_BROADCAST_ARGS2(ID_BROADCAST_BLE_STATE_CHANGE, BLE_BROADCAST_CONNECT_STATE_CHANGE, new_status);
     if (ctx->hook && ctx->hook->on_connect_change_route) {
         ctx->hook->on_connect_change_route(ctx, new_status);
     }
@@ -426,9 +424,9 @@ static int on_post_init(void *ptr)
     ctx->priv.bcreceiver = u_malloz(sizeof(broadcast_obj_t));
     ctx->priv.bcreceiver->context = ctx;
     ctx->priv.bcreceiver->name = "ble_manager";
-    ctx->priv.bcreceiver->id.code |= ID_BROADCAST_CHARGE_STATE_CHANGE;
+    ctx->priv.bcreceiver->id.code |= ID_BROADCAST_BATTERY_STATE_CHANGE;
     ctx->priv.bcreceiver->id.code |= ID_BROADCAST_PM_STATE_CHANGE;
-    ctx->priv.bcreceiver->id.code |= ID_BROADCAST_OTA_UPGREADING_CHANGE;
+    ctx->priv.bcreceiver->id.code |= ID_BROADCAST_OTA_STATE_CHANGE;
     ctx->priv.bcreceiver->receiver_cb = on_ble_broadcast_receive;
     register_broadcast_receiver(ctx->priv.bcreceiver);
     if (ctx->hook && ctx->hook->on_post_init_route) {

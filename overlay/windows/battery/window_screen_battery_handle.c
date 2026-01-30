@@ -40,14 +40,12 @@ static void on_battery_window_receive(broadcast_mask_id_t id, void *context,
     ui_proc_battery_t *proc = (ui_proc_battery_t *)context;
     EXCEPTION_CHECK_VOID(proc);
     switch (id.code) {
-        case ID_BROADCAST_PM_STATE_CHANGE: {
-        }
-        break;
-        case ID_BROADCAST_CHARGE_STATE_CHANGE: {
+        case ID_BROADCAST_PM_STATE_CHANGE: 
             break;
-        }
+        case ID_BROADCAST_BATTERY_STATE_CHANGE: 
+            break;
         default:
-        break;
+            break;
     }
 }
 
@@ -114,7 +112,7 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
     proc->ui = (ui_manager_context_t *)find_module(ID_MODULE_UI);
     /// 监听PM状态改变.
     proc->receiver.id.code = ID_BROADCAST_PM_STATE_CHANGE;
-    proc->receiver.id.code |= ID_BROADCAST_CHARGE_STATE_CHANGE;
+    proc->receiver.id.code |= ID_BROADCAST_BATTERY_STATE_CHANGE;
     proc->receiver.context = proc;
     proc->receiver.name = "battery_screen";
     proc->receiver.receiver_cb = on_battery_window_receive;

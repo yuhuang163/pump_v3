@@ -111,7 +111,7 @@ void reset_sys_state_info(storage_manager_context_t *ctx, sys_state_info_t *sys_
     sys_state->guide_deployed          = 0;
     sys_state->sync_sys_time           = 0;
     sys_state->battery_health          = 100;
-    sys_state->night_light.adaptive    = 1;  //默认开启自适应
+    sys_state->night_light.adaptive_switch    = 1;  //默认开启自适应
     store_func_args_t args = {
         .ctx = ctx,
         .arg1 = 0,
@@ -323,13 +323,12 @@ int write_airplane_mode_state_to_ram(store_func_args_t args)
     return 0;
 }
 
-int write_night_light_info_to_ram(store_func_args_t args)
+int write_night_light_adaptive_switch_to_ram(store_func_args_t args)
 {
     EXCEPTION_CHECK_INT(args.ctx);
     sys_state_info_t *sys_state = &args.ctx->priv.sys_info.state;
-    memcpy(&sys_state->night_light, (night_light_info_t *)args.val, sizeof(night_light_info_t));
-    LOG_STORE_WRAP("write night light info: adaptive: %d, level: %d, onoff: %d", 
-        sys_state->night_light.adaptive, sys_state->night_light.level, sys_state->night_light.onoff);
+    sys_state->night_light.adaptive_switch = (uint8_t)args.arg1;
+    LOG_STORE_WRAP("write night light adaptive switch: %d", args.arg1);
     return 0;
 }   
 
@@ -441,13 +440,13 @@ int read_airplane_mode_state_from_ram(store_func_args_t args)
     return 0;
 }
 
-int read_night_light_info_from_ram(store_func_args_t args)
+int read_night_light_adaptive_switch_from_ram(store_func_args_t args)
 {
     EXCEPTION_CHECK_INT(args.ctx);
     sys_state_info_t *sys_state = &args.ctx->priv.sys_info.state;
-    night_light_info_t *tmp = (night_light_info_t *)args.val;
+    int *tmp = (int *)args.val;
     EXCEPTION_CHECK_INT(tmp);
-    memcpy(tmp, &sys_state->night_light, sizeof(night_light_info_t));
+    *tmp = sys_state->night_light.adaptive_switch;
     return 0;
 }
 

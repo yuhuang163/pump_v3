@@ -6,12 +6,10 @@
 #include "watchdog/watchdog.h"
 #include "norflash_api.h"
 #include "app_flash_api.h"
+#include "spi_flash.h"
 #include "hal_bootmode.h"
 #include "root_common_api.h" // IWYU pragma: keep
 #include "apps.h"            // IWYU pragma: keep
-#include "bt_drv_interface.h"
-#include "nvrecord_dev.h"
-#include "bt_drv_reg_op.h"
 
 /*
 * DEFINES
@@ -19,6 +17,7 @@
 */
 #define WDT_TIMEOUT_MS                   (6)
 #define WDT_REFRESH_INTERVAL_MS          (WDT_TIMEOUT_MS / 2 * 1000)
+#define EXTERNAL_FLASH_ID                0
 
 /*
 * LOCAL VARIABLE DEFINITIONS
@@ -133,6 +132,12 @@ void platform_get_build_time(char *build_time)
     sprintf(build_time, "%s %s", __DATE__, __TIME__);
 }
 
+void platform_sleep_hook(uint8_t cpu_sleep, uint8_t bus_sleep, uint8_t subsys_sleep)
+{
+    uint8_t busy = 100 - (cpu_sleep + bus_sleep + subsys_sleep);
+    LOG_PASS("busy: %d, cpu_sleep: %d, bus_sleep: %d, subsys_sleep: %d\r\n", busy, cpu_sleep, bus_sleep, subsys_sleep);
+}
+
 uint32_t platform_int_lock_global(void)
 {
     // LOGI("platform_int_lock_global");
@@ -148,43 +153,44 @@ void platform_int_unlock_global(uint32_t pri)
 
 int platform_flash_read(const char *partition, uint32_t addr, uint8_t *data, uint32_t size)
 {
-    enum NORFLASH_API_MODULE_ID_T mod_id;
+    int mod_id, ret;
     uint32_t base_addr = 0;
     uint32_t offset = 0;
-    enum NORFLASH_API_RET_T ret;
-    
+    EXCEPTION_CHECK_INT(data);
     if (strcmp(partition, PARTITION_FDS_NAME) == 0) {
         if ((addr + size) > FDS_END_ADDR) {
-            LOGE("platform_flash_read: partition = %s, addr = %x, size = %x", partition, addr, size);
+            LOGE("read failed, partition = %s, addr = %x, size = %x", partition, addr, size);
             return -1;
         }
         mod_id = NORFLASH_API_MODULE_ID_LITTLEFS;
     } else if (strcmp(partition, PARTITION_FACTORY_DATA_NAME) == 0) {
         if ((addr + size) > FACTORY_DATA_END_ADDR) {
-            LOGE("platform_flash_read: partition = %s, addr = %x, size = %x", partition, addr, size);
+            LOGE("read failed, partition = %s, addr = %x, size = %x", partition, addr, size);
             return -1;
         }
         mod_id = NORFLASH_API_MODULE_ID_FACTORY_DATA;
-    }
-    else if (strcmp(partition, PARTITION_PICTURE_DATA_INT_NAME) == 0) {
-        if ((addr + size) > PICTURE_DATA_INT_END_ADDR) {
-            LOGE("platform_flash_read: partition = %s, addr = %x, size = %x", partition, addr, size);
+    } else if (strcmp(partition, PARTITION_IMG_INT_DATA_NAME) == 0) {
+        if ((addr + size) > IMG_INT_DATA_END_ADDR) {
+            LOGE("read failed, partition = %s, addr = %x, size = %x", partition, addr, size);
             return -1;
         }
         mod_id = NORFLASH_API_MODULE_ID_LUTE_PICTURE_RESOURCES;
-    }
-    else if (strcmp(partition, PARTITION_PICTURE_DATA_EXT_NAME) == 0) {
-        LOGE("platform_flash_read: partition = %s, addr = %x, size = %x", partition, addr, size);
-        return -1;
-    }
-    else {
+    } else if (strcmp(partition, PARTITION_IMG_EXT_DATA_NAME) == 0) {
+        ret = spi_norflash_read(EXTERNAL_FLASH_ID, (EXTERNAL_FLASH_BASE_ADDR + addr), data, size);
+        if (ret != 0) {
+            LOGE("spi_norflash_read failed, ret = %d", ret);
+            return -1;
+        }
+        return 0;
+    } else {
+        LOGE("not supported partition = %s, addr = %x, size = %x", partition, addr, size);
         return -1;
     }
     
     /// 获取模块基地址，将绝对地址转换为相对偏移
     ret = norflash_api_get_base_addr(mod_id, &base_addr);
     if (ret != NORFLASH_API_OK) {
-        LOGE("platform_flash_read: get base addr failed, ret = %d", ret);
+        LOGE("read failed, get base addr failed, ret = %d", ret);
         return -1;
     }
     
@@ -199,43 +205,43 @@ int platform_flash_read(const char *partition, uint32_t addr, uint8_t *data, uin
 
 int platform_flash_write(const char *partition, uint32_t addr, uint8_t *data, uint32_t size)
 {
-    enum NORFLASH_API_MODULE_ID_T mod_id;
+    int mod_id, ret;
     uint32_t base_addr = 0;
     uint32_t offset = 0;
-    enum NORFLASH_API_RET_T ret;
-    
     if (strcmp(partition, PARTITION_FDS_NAME) == 0) {
         if ((addr + size) > FDS_END_ADDR) {
-            LOGE("platform_flash_write: partition = %s, addr = %x, size = %x", partition, addr, size);
+            LOGE("write failed, partition = %s, addr = %x, size = %x", partition, addr, size);
             return -1;
         }
         mod_id = NORFLASH_API_MODULE_ID_LITTLEFS;
     } else if (strcmp(partition, PARTITION_FACTORY_DATA_NAME) == 0) {
         if ((addr + size) > FACTORY_DATA_END_ADDR) {
-            LOGE("platform_flash_write: partition = %s, addr = %x, size = %x", partition, addr, size);
+            LOGE("write failed, partition = %s, addr = %x, size = %x", partition, addr, size);
             return -1;
         }
         mod_id = NORFLASH_API_MODULE_ID_FACTORY_DATA;
-    }
-    else if (strcmp(partition, PARTITION_PICTURE_DATA_INT_NAME) == 0) {
-        if ((addr + size) > PICTURE_DATA_INT_END_ADDR) {
-            LOGE("platform_flash_write: partition = %s, addr = %x, size = %x", partition, addr, size);
+    } else if (strcmp(partition, PARTITION_IMG_INT_DATA_NAME) == 0) {
+        if ((addr + size) > IMG_INT_DATA_END_ADDR) {
+            LOGE("write failed, partition = %s, addr = %x, size = %x", partition, addr, size);
             return -1;
         }
         mod_id = NORFLASH_API_MODULE_ID_LUTE_PICTURE_RESOURCES;
-    }
-    else if (strcmp(partition, PARTITION_PICTURE_DATA_EXT_NAME) == 0) {
-        LOGE("platform_flash_write: partition = %s, addr = %x, size = %x", partition, addr, size);
-        return -1;
-    }
-    else {
+    } else if (strcmp(partition, PARTITION_IMG_EXT_DATA_NAME) == 0) {
+        ret = spi_norflash_write(EXTERNAL_FLASH_ID, (EXTERNAL_FLASH_BASE_ADDR + addr), data, size);
+        if (ret != HAL_NORFLASH_OK) {
+            LOGE("write failed, ret = %d", ret);
+            return -1;
+        }
+        return 0;
+    } else {
+        LOGE("not supported partition = %s, addr = %x, size = %x", partition, addr, size);
         return -1;
     }
     
     /// 获取模块基地址，将绝对地址转换为相对偏移
     ret = norflash_api_get_base_addr(mod_id, &base_addr);
     if (ret != NORFLASH_API_OK) {
-        LOGE("platform_flash_write: get base addr failed, ret = %d", ret);
+        LOGE("write failed, get base addr failed, ret = %d", ret);
         return -1;
     }
     
@@ -250,43 +256,53 @@ int platform_flash_write(const char *partition, uint32_t addr, uint8_t *data, ui
 
 int platform_flash_erase(const char *partition, uint32_t addr, uint32_t size)
 {
-    enum NORFLASH_API_MODULE_ID_T mod_id;
+    int mod_id, ret;
     uint32_t base_addr = 0;
     uint32_t offset = 0;
-    enum NORFLASH_API_RET_T ret;
     
     if (strcmp(partition, PARTITION_FDS_NAME) == 0) {
+        /// 检测地址和大小是否4KB对齐
+        if (addr % 4096 != 0 || size % 4096 != 0) {
+            LOGE("erase failed, addr = %x, size = %x, not aligned to 4096", addr, size);
+            //return -1;
+        }
         if ((addr + size) > FDS_END_ADDR) {
-            LOGE("platform_flash_erase: partition = %s, addr = %x, size = %x", partition, addr, size);
+            LOGE("erase failed, partition = %s, addr = %x, size = %x", partition, addr, size);
             return -1;
         }
         mod_id = NORFLASH_API_MODULE_ID_LITTLEFS;
     } else if (strcmp(partition, PARTITION_FACTORY_DATA_NAME) == 0) {
         if ((addr + size) > FACTORY_DATA_END_ADDR) {
-            LOGE("platform_flash_erase: partition = %s, addr = %x, size = %x", partition, addr, size);
+            LOGE("erase failed, partition = %s, addr = %x, size = %x", partition, addr, size);
             return -1;
         }
         mod_id = NORFLASH_API_MODULE_ID_FACTORY_DATA;
-    }
-    else if (strcmp(partition, PARTITION_PICTURE_DATA_INT_NAME) == 0) {
-        if ((addr + size) > PICTURE_DATA_INT_END_ADDR) {
-            LOGE("platform_flash_erase: partition = %s, addr = %x, size = %x", partition, addr, size);
+    } else if (strcmp(partition, PARTITION_IMG_INT_DATA_NAME) == 0) {
+        if ((addr + size) > IMG_INT_DATA_END_ADDR) {
+            LOGE("erase failed, partition = %s, addr = %x, size = %x", partition, addr, size);
             return -1;
         }
         mod_id = NORFLASH_API_MODULE_ID_LUTE_PICTURE_RESOURCES;
-    }
-    else if (strcmp(partition, PARTITION_PICTURE_DATA_EXT_NAME) == 0) {
-        LOGE("platform_flash_erase: partition = %s, addr = %x, size = %x", partition, addr, size);
-        return -1;
-    }
-    else {
+    } else if (strcmp(partition, PARTITION_IMG_EXT_DATA_NAME) == 0) {
+        if (addr % EXTERNAL_FLASH_SECTOR_SIZE != 0 || size % EXTERNAL_FLASH_SECTOR_SIZE != 0) {
+            LOGE("erase failed, addr = %x, size = %x, not aligned to 4096", addr, size);
+            return -1;
+        }
+        ret = spi_norflash_erase(EXTERNAL_FLASH_ID, (EXTERNAL_FLASH_BASE_ADDR + addr), size);
+        if (ret != 0) {
+            LOGE("erase failed, ret = %d", ret);
+            return -1;
+        }
+        return 0;
+    } else {
+        LOGE("not supported partition = %s, addr = %x, size = %x", partition, addr, size);
         return -1;
     }
     
     /// 获取模块基地址，将绝对地址转换为相对偏移
     ret = norflash_api_get_base_addr(mod_id, &base_addr);
     if (ret != NORFLASH_API_OK) {
-        LOGE("platform_flash_erase: get base addr failed, ret = %d", ret);
+        LOGE("erase failed, get base addr failed, ret = %d", ret);
         return -1;
     }
     
@@ -299,78 +315,4 @@ int platform_flash_erase(const char *partition, uint32_t addr, uint32_t size)
     return 0;
 }
 
-/// ======================== 蓝牙测试相关函数封装 ========================
 
-/*
-* EXTERNAL FUNCTION DECLARATIONS (蓝牙测试相关)
-*****************************************************************************************
-*/
-// 前向声明，避免头文件依赖问题
-// app_enter_signalingtest_mode 和 app_enter_non_signalingtest_mode 已在 apps.h 中声明
-extern int app_factorymode_bt_xtalcalib_proc(void);
-
-void platform_bt_enter_signalingtest_mode(void)
-{
-    hal_sw_bootmode_set(HAL_SW_BOOTMODE_ENTER_HIDE_BOOT);
-    app_enter_signalingtest_mode();
-}
-
-void platform_bt_enter_nosignalingtest_mode(void)
-{
-    hal_sw_bootmode_set(HAL_SW_BOOTMODE_ENTER_HIDE_BOOT);
-    app_enter_non_signalingtest_mode();
-}
-
-int platform_bt_xtal_calib_proc_start(void)
-{
-    // 前向声明，函数在 app_factory_bt.cpp 中定义（需要 __FACTORY_MODE_SUPPORT__ 宏）
-    extern int app_factorymode_bt_xtalcalib_proc(void);
-#ifdef __FACTORY_MODE_SUPPORT__
-    //return app_factorymode_bt_xtalcalib_proc();
-#else
-    // 如果 FACTORY_MODE 未启用，返回错误
-    return 0;
-#endif
-}
-
-unsigned char platform_bt_xtal_calib_set(uint32_t fcap)
-{
-/*   btdrv_vco_test_start(0);
-    osDelay(200);
-    btdrv_rf_set_xtal_fcap(fcap, 1);//todo
-    osDelay(200);*/ 
-    nvrec_dev_set_xtal_fcap(fcap);
-    return 0;
-}
-
-unsigned char platform_bt_xtal_calib_get(uint32_t *fcap)
-{
-    nvrec_dev_get_xtal_fcap(fcap);
-    osDelay(200);
-
-    return 0;
-}
-
-unsigned char platform_bt_xtal_calib_end(void)
-{
-    /*nvrec_dev_set_xtal_fcap(btdrv_rf_get_xtal_fcap());
-    osDelay(200);
-    btdrv_vco_test_stop();
-    osDelay(200);*/
-    return 0;
-}
-
-int platform_bt_get_rssi_value(int32_t *rssi)
-{
-    rx_agc_t rx_val;
-    //bool ret = bt_drv_reg_op_read_rssi_in_dbm(0x80, &rx_val);
-    //if (ret) {
-    //    *rssi = rx_val.rssi;
-    //}
-    bool ret = bt_drv_reg_op_read_ble_rssi_in_dbm(0x00, &rx_val);
-    if (ret) {
-        *rssi = rx_val.rssi;
-        return 0;
-    }
-    return -1;
-}

@@ -174,7 +174,7 @@ int factory_tests_aging_test_enter_mode1(void)
     EXCEPTION_CHECK_INT(pump_ctx);
     motor_manager_context_t *motor_ctx = pump_ctx->priv.motor;
     EXCEPTION_CHECK_INT(motor_ctx);
-    pump_ctx->set_breast_pump_mode(BREAST_PUMP_LACTATION_MODE);
+    pump_ctx->set_breast_pump_mode(BREAST_PUMP_LACTATION_MODE, 0);
     pump_ctx->set_breast_pump_status(BREAST_PUMP_START);
     msleep(100);
     uint8_t time_index = pump_ctx->get_breast_pump_step_index();
@@ -323,7 +323,7 @@ int factory_tests_suction_test(tests_func_args_t args)
     EXCEPTION_CHECK_INT(motor_ctx);
     if (args.arg1 == 1) {
         pump_ctx->set_breast_pump_status(BREAST_PUMP_PAUSE);
-        pump_ctx->set_breast_pump_mode(BREAST_PUMP_LACTATION_MODE);
+        pump_ctx->set_breast_pump_mode(BREAST_PUMP_LACTATION_MODE, 0);
         pump_ctx->set_breast_pump_status(BREAST_PUMP_START);
         msleep(100);
         uint8_t time_index = pump_ctx->get_breast_pump_step_index();
@@ -386,18 +386,12 @@ int on_factory_tests_br_receiver_route(broadcast_mask_id_t id, void *context, in
 
     switch (id.code) {
         case ID_BROADCAST_PM_STATE_CHANGE:
-            {
-
-            }
             break;
-        case ID_BROADCAST_UPDATE_BATTERY_INFO:
-            {
-
-            }
+        case ID_BROADCAST_BATTERY_STATE_CHANGE:
             break;
-        case ID_BROADCAST_BREAST_PUMP_FINISH:
-            {
-                if(ctx->priv.current_mode == TST_AGING_TEST_TYPE) {
+        case ID_BROADCAST_BREAST_PUMP_STATE_CHANGE:
+            if (arg1 == BREAST_PUMP_BROADCAST_COMPLETED) {
+                if (ctx->priv.current_mode == TST_AGING_TEST_TYPE) {
                     factory_tests_aging_test_check_result();
                 }
             }

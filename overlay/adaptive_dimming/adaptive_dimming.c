@@ -3,7 +3,6 @@
 *****************************************************************************************
 */
 #include "root_common_api.h" // IWYU pragma: keep
-#include <stdint.h>
 #include "adaptive_dimming.h" // IWYU pragma: keep
 
 /*
@@ -41,6 +40,7 @@ static void on_light_sensor_data_cb(void *user_data, uint8_t *data, int data_len
         if (adaptive->capture_data.index >= ADAP_DIM_DATA_SIZE) {
             adaptive->capture_data.is_acquire_complete = 1;
             adaptive->capture_data.index = 0;
+            // LOG_MISC("capture data complete");
         }
     }
 #endif
@@ -99,14 +99,14 @@ static int adaptive_dimming_duty_calculate(uint16_t lux_avg, uint8_t *out_duty)
     if (last_lux_for_duty == 0) {
         last_lux_for_duty = lux_avg;
         *out_duty = new_duty;
-        LOG_ALGO("lux_avg: %d, new_duty: %d", lux_avg, new_duty);
+        LOG_MISC("lux_avg: %d, new_duty: %d", lux_avg, new_duty);
         return 1;
     } 
     uint16_t lux_diff = (lux_avg > last_lux_for_duty) ? \
             (lux_avg - last_lux_for_duty) : (last_lux_for_duty - lux_avg);
     if (lux_diff >= hysteresis_threshold) {
-        LOG_ALGO("lux_diff: %d, hysteresis_threshold: %d, new_duty: %d",
-                lux_diff, hysteresis_threshold, new_duty);     
+        LOG_MISC("lux_diff: %d, hysteresis_threshold: %d, new_duty: %d, lux_avg: %d",
+                lux_diff, hysteresis_threshold, new_duty, lux_avg);     
         last_lux_for_duty = lux_avg;
         *out_duty = new_duty;
         return 1;
@@ -116,13 +116,9 @@ static int adaptive_dimming_duty_calculate(uint16_t lux_avg, uint8_t *out_duty)
 
 static void adaptive_dimming_polling_thread(void *user_data)
 {
-    rt_device_node_t *night_light = (rt_device_node_t *)user_data;
-    EXCEPTION_CHECK_VOID(night_light);
+    led_manager_context_t *led = (led_manager_context_t *)user_data;
+    EXCEPTION_CHECK_VOID(led);
     EXCEPTION_CHECK_VOID(adaptive);
-    if (!adaptive->is_adaptive_dimming) {
-        return;
-    }
-
     if (adaptive->capture_data.is_acquire_complete == 0) {
         return;
     }
@@ -136,53 +132,26 @@ static void adaptive_dimming_polling_thread(void *user_data)
     if (adaptive_dimming_duty_calculate(lux_avg, &refresh_duty) == 0) {
         return;
     }
-    night_light_pwm_duty_set_msg_t msg = {
-        .led_index = NIGHT_LIGHT_LED_ID_0,
-        .pwm_duty = refresh_duty,
-    };
-    night_light->ioctl(night_light, OP_CODE_NIGHT_LIGHT_PWM_DUTY_SET, (void *)&msg);
+
+    if ( led->hook && led->hook->night_light_adaptive_level_update) {
+        led->hook->night_light_adaptive_level_update(led, refresh_duty);
+    }
 }
 
 /*
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-void set_adaptive_dimming_state(bool state)
-{
-    EXCEPTION_CHECK_VOID(adaptive);
-    adaptive->is_adaptive_dimming = state;
-    storage_manager_context_t *st = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
-    EXCEPTION_CHECK_VOID(st);
-    night_light_info_t light_info = {0};
-    light_info.adaptive = state;
-    st->put_store_ram_val(STORE_ID_SYS_NIGHT_LIGHT_INFO, 0, 0, &light_info);
-    last_lux_for_duty = 0;
-}
-
-bool get_adaptive_dimming_state(void)
-{
-    EXCEPTION_CHECK_BOOL(adaptive);
-    return adaptive->is_adaptive_dimming;
-}
-
 void adaptive_dimming_init(void)
 {
     adaptive = (adaptive_dimming_info_t *)u_malloz(sizeof(adaptive_dimming_info_t));
     EXCEPTION_CHECK_VOID(adaptive);
     misc_manager_context_t *misc = (misc_manager_context_t *)find_module(ID_MODULE_MISC);
     EXCEPTION_CHECK_VOID(misc);
-    storage_manager_context_t *st = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
-    EXCEPTION_CHECK_VOID(st);
-    peripheral_bus_context_t *pbus = (peripheral_bus_context_t *)find_module(ID_MODULE_DEVICE_BUS);
-    EXCEPTION_CHECK_VOID(pbus);
+    led_manager_context_t *led = (led_manager_context_t *)find_module(ID_MODULE_LED);
+    EXCEPTION_CHECK_VOID(led);
+    misc->add_misc_task(led, MISC_TASK_ID_ADAPTIVE_DIMMING, 200, MISC_WORK_MSG_ID_TIMER, adaptive_dimming_polling_thread);
     sensor_manager_context_t *sensor = (sensor_manager_context_t *)find_module(ID_MODULE_SENSOR);
     EXCEPTION_CHECK_VOID(sensor);
-    rt_device_node_t *night_light = pbus->find_device(ID_DEVICE_LED);
-    night_light_info_t light_info = {0};
     sensor->add_sensor_evt_lisenser(sensor, LIGHT_SENSOR_EVT_POLLING, 1, on_light_sensor_data_cb);
-    st->get_store_ram_val(STORE_ID_SYS_NIGHT_LIGHT_INFO, 0, 0, &light_info);
-    adaptive->is_adaptive_dimming = light_info.adaptive;
-    misc->add_misc_task(night_light, MISC_TASK_ID_ADAPTIVE_DIMMING, 500,
-         MISC_WORK_MSG_ID_TIMER, adaptive_dimming_polling_thread);
-    LOG_ALGO("adaptive_dimming_state_sync: %d", adaptive->is_adaptive_dimming);
 }

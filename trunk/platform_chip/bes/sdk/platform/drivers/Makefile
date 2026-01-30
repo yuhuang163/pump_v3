@@ -1,6 +1,4 @@
-obj-y := ana/ codec/ norflash/ sbcacc/ spi_norflash/ random/
-
-obj-y := $(filter-out codec/ sbcacc/ spi_norflash/ random/, $(obj-y))
+obj-y := ana/ codec/ norflash/ sbcacc/ spi_flash/ random/ nandflash/
 
 ifneq ($(NO_BT_DRIVER),1)
 obj-y += bt/ btpcm/

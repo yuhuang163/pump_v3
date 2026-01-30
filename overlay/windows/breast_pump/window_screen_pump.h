@@ -99,10 +99,10 @@ typedef struct {
     battery_manager_context_t *battery;
     ble_manager_context_t *ble;
     motor_manager_context_t *motor;
-    storage_manager_context_t *st;
     power_manager_context_t *pm;
     key_input_context_t *key;
     algo_manager_context_t *algo;
+    led_manager_context_t *led;
     broadcast_obj_t receiver;
     uint32_t margic;
     breast_pump_result_t pump_result; /// 泵奶结果.

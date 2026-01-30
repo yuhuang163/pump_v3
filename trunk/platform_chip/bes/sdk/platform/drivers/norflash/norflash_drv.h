@@ -35,10 +35,10 @@ extern "C" {
 #if !(defined(ROM_BUILD) || (defined(PROGRAMMER) && !defined(PROGRAMMER_INFLASH)) || \
         defined(NANDFLASH_BUILD) || defined(SUBSYS_FLASH_BOOT))
 #ifndef FLASH_CALIB_MAGIC_WORD
-#define FLASH_CALIB_MAGIC_WORD
+// #define FLASH_CALIB_MAGIC_WORD
 #endif
 #ifndef FLASH_CALIB_SEQ_PATTERN
-#define FLASH_CALIB_SEQ_PATTERN
+// #define FLASH_CALIB_SEQ_PATTERN
 #endif
 #endif
 

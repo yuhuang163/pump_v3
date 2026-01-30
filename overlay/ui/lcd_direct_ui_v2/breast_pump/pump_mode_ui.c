@@ -137,7 +137,7 @@ void ui_display_pump_mode_remove(ui_manager_context_t *thiz)
     mode_info = NULL;
 }
 
-int ui_display_pump_mode(ui_manager_context_t *thiz)
+int ui_display_pump_mode_process(ui_manager_context_t *thiz)
 {
     EXCEPTION_CHECK_INT(thiz);
     EXCEPTION_CHECK_INT(mode_info);

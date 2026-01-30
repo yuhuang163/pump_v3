@@ -106,19 +106,19 @@ extern "C" {
 #define CUSTOM_MODE_LEN                                              (1 + 1)
 #endif
 
-/// PP追奶模式参数长度 吸乳 + 停顿
+/// Power Pumping模式参数长度（9个阶段）
 #ifndef PP_MODE_LEN 
-#define PP_MODE_LEN                                                  (5 * 1)
+#define PP_MODE_LEN                                                  (9 * 1)
 #endif
 
-/// 2+8奶量提升模式参数长度 吸乳 + 停顿
+/// 2+8奶量提升模式参数长度（按摩2分钟+泌乳8分钟，重复3次，共6个阶段）
 #ifndef MILK_BOOST_MODE_LEN 
-#define MILK_BOOST_MODE_LEN                                          (2 * 1)
+#define MILK_BOOST_MODE_LEN                                          (6 * 1)
 #endif
 
-/// 开奶模式 吸乳 + 停顿
+/// 开奶模式（Lactation Kickstart）参数长度（12个阶段）
 #ifndef LACTATION_START_MODE_LEN 
-#define LACTATION_START_MODE_LEN                                     (2 * 1)
+#define LACTATION_START_MODE_LEN                                     (12 * 1)
 #endif
 
 /// 吸奶器泵数据

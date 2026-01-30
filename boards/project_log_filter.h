@@ -5,6 +5,10 @@
 extern "C" {
 #endif
 
+
+#define IS_SUPPORT_LOG_OUT                              (1)
+#define IS_SUPPORT_LOG_COLOR                            (0)
+
 #define IS_SUPPORT_ALGO_UART_SAMPLE_LOG                 (0)
 
 #if IS_SUPPORT_ALGO_UART_SAMPLE_LOG

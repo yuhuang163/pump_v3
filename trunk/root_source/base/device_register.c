@@ -85,14 +85,17 @@ static const device_register_fptr s_device_register[] = {
 
 static void on_device_register_receiver(broadcast_mask_id_t id, void *context, int arg1, int arg2, broadcast_priv_data_t *pdata)
 {
-    peripheral_bus_context_t *ctx = context;
+    if (id.code == ID_BROADCAST_SYS_STATE_CHANGE) {
+        if (arg1 == SYSTEM_BROADCAST_BOOT_COMPLETED) {
+            peripheral_bus_context_t *ctx = context;
 
-    if (ctx->hook && ctx->hook->on_receiver_route) {
-        ctx->hook->on_receiver_route(id, context, arg1, arg2, pdata);
+            if (ctx->hook && ctx->hook->on_receiver_route) {
+                ctx->hook->on_receiver_route(id, context, arg1, arg2, pdata);
+            }
+            LOG_PBUS("device: init_ready");
+            ctx->priv.is_init_ready = 1;
+        }
     }
-
-    LOG_PBUS("device: init_ready");
-    ctx->priv.is_init_ready = 1;
 }
 
 #if UART_DEBUG_RECEIVER_SUPPORT
@@ -153,7 +156,7 @@ static int on_post_pbus_init(void *ptr)
     ctx->priv.receiver = u_malloz(sizeof(broadcast_obj_t));
     ctx->priv.receiver->context = ctx;
     ctx->priv.receiver->name = "device_register";
-    ctx->priv.receiver->id.code |= ID_BROADCAST_SYS_BOOT_COMPLETED;
+    ctx->priv.receiver->id.code |= ID_BROADCAST_SYS_STATE_CHANGE;
     ctx->priv.receiver->receiver_cb = on_device_register_receiver;
     register_broadcast_receiver(ctx->priv.receiver);
 

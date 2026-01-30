@@ -36,6 +36,8 @@ const static put_store_process_handle_t put_store_process_list[] = {
     {STORE_ID_SYS_STATE_INFO, write_sys_state_info_to_flash},    
     {STORE_ID_USER_BIND_INFO, write_user_bind_info_to_flash},
     {STORE_ID_FACTORY_DEV_INFO, write_factory_dev_info_to_flash},
+    {STORE_ID_BREAST_PUMP_DATA_HEAD, write_pump_data_head_to_flash},
+    {STORE_ID_BREAST_PUMP_DATA_BODY, write_pump_data_body_to_flash},
 };
 
 const static get_store_process_handle_t get_store_process_list[] = {
@@ -48,6 +50,8 @@ const static get_store_process_handle_t get_store_process_list[] = {
     {STORE_ID_SYS_UTC_TIMESTAMP, read_utc_timestamp_from_flash},
     {STORE_ID_SYS_STATE_INFO, read_sys_state_info_from_flash},    
     {STORE_ID_USER_BIND_INFO, read_user_bind_info_from_flash},
+    {STORE_ID_BREAST_PUMP_DATA_HEAD, read_pump_data_head_from_flash},
+    {STORE_ID_BREAST_PUMP_DATA_BODY, read_pump_data_body_from_flash},   
 };
 
 const static del_store_process_handle_t del_store_process_list[] = {
@@ -72,9 +76,10 @@ const static put_store_ram_val_handle_t put_store_ram_val_list[] = {
     {STORE_ID_REMIND_PUMP_MODE_CHANGE, write_pump_mode_change_remind_to_ram},
     {STORE_ID_REMIND_PUMP_FINISH, write_pump_finish_remind_to_ram},
     {STORE_ID_PUMP_CONTROL_TYPE, write_pump_control_type_to_ram},
-    {STORE_ID_SYS_NIGHT_LIGHT_INFO, write_night_light_info_to_ram},
+    {STORE_ID_SYS_NIGHT_LIGHT_ADAPTIVE_SWITCH, write_night_light_adaptive_switch_to_ram},
     {STORE_ID_SYS_AIRPLANE_MODE_STATE, write_airplane_mode_state_to_ram},
     {STORE_ID_BREAST_PUMP_BURY_INFO, write_pump_buried_info_to_ram},
+    {STORE_ID_BREAST_PUMP_MODE, write_pump_mode_to_ram},
 };
 
 const static get_store_ram_val_handle_t get_store_ram_val_list[] = {
@@ -101,8 +106,10 @@ const static get_store_ram_val_handle_t get_store_ram_val_list[] = {
     {STORE_ID_REMIND_PUMP_EXCEPTION, read_pump_exception_remind_from_ram},
     {STORE_ID_REMIND_PUMP_MODE_CHANGE, read_pump_mode_change_remind_from_ram},
     {STORE_ID_REMIND_PUMP_FINISH, read_pump_finish_remind_from_ram},
-    {STORE_ID_SYS_NIGHT_LIGHT_INFO, read_night_light_info_from_ram},
+    {STORE_ID_SYS_NIGHT_LIGHT_ADAPTIVE_SWITCH, read_night_light_adaptive_switch_from_ram},
     {STORE_ID_SYS_AIRPLANE_MODE_STATE, read_airplane_mode_state_from_ram},
+    {STORE_ID_BREAST_PUMP_DATA_HEAD, read_pump_data_head_from_ram},
+    {STORE_ID_BREAST_PUMP_MODE, read_pump_mode_from_ram},
 };
 
 static storage_manager_context_t *thiz = NULL;
@@ -122,7 +129,7 @@ static int init_system_ver_info(storage_manager_context_t *ctx)
     memset(info, 0, sizeof(sec_sys_ver_t));
     info->sys_local_protocol_id = ROOT_BLE_PROTOCOL_VERSION;
     info->sys_peer_app_protocol_id = 0;
-    info->sys_product_id = DEFAULT_PID_CODE;
+    info->sys_product_id = ROOT_PRODUCT_ID;
     info->ui_res_id = 101;
 
     info->sw_version = ROOT_FIRMWARE_VERSION;
@@ -138,6 +145,7 @@ static int init_system_ver_info(storage_manager_context_t *ctx)
 static int init_system_persist_info(storage_manager_context_t *ctx)
 {
     sys_persist_info_t *sys_info = &ctx->priv.sys_info;
+    breast_pump_data_head_t *pump_data_head = &ctx->priv.pump_data_head;
     memset(sys_info, 0, sizeof(sys_persist_info_t));
     store_func_args_t args = {
         .ctx = ctx,
@@ -155,10 +163,13 @@ static int init_system_persist_info(storage_manager_context_t *ctx)
     read_pump_info_from_flash(args);
     args.val = &sys_info->buried_info_list;
     read_pump_buried_info_from_flash(args);
+    args.val = pump_data_head;
+    read_pump_data_head_from_flash(args);
     ctx->priv.sys_info_crc[STORE_CRC_TYPE_SYS_CONFIG] = CRC16(&sys_info->config, sizeof(sys_config_info_t));
     ctx->priv.sys_info_crc[STORE_CRC_TYPE_SYS_STATE]  = CRC16(&sys_info->state, sizeof(sys_state_info_t));
     ctx->priv.sys_info_crc[STORE_CRC_TYPE_PUMP_INFO]  = CRC16(&sys_info->pump_info, sizeof(sys_pump_info_t));
     ctx->priv.sys_info_crc[STORE_CRC_TYPE_PUMP_BURY_INFO]  = CRC16(&sys_info->buried_info_list, sizeof(sys_buried_info_list_t));
+    ctx->priv.sys_info_crc[STORE_CRC_TYPE_PUMP_USER_DATA_HEAD]  = CRC16(pump_data_head, sizeof(breast_pump_data_head_t));
     return 0;
 }
 
@@ -230,6 +241,53 @@ static void hdr_storage_work_cb(hdr_post_args_t *args)
     }
 }
 
+static void pump_user_data_sync_flash_cb(hdr_post_args_t *args)
+{
+    breast_pump_data_head_t *pump_data_head = &thiz->priv.pump_data_head;
+    /// 更新泵奶数据头 - 实现循环缓冲区逻辑
+    uint8_t write_index;
+    if (pump_data_head->num < ROOT_BREAST_PUMP_DATA_BODY_NUM) {
+        /// 未满，直接递增
+        /// head: 最旧数据索引（固定为0）
+        /// tail: 最新数据索引（等于num-1）
+        pump_data_head->num += 1;
+        write_index = pump_data_head->num - 1;  /// 索引从0开始，所以是 num - 1
+        pump_data_head->tail = write_index;
+        /// 第一次写入时，head保持为0；后续写入时head不变
+        if (pump_data_head->num == 1) {
+            pump_data_head->head = 0;
+        }
+    } else {
+        /// 已满，使用循环缓冲区，覆盖最旧的数据
+        /// head: 最旧数据索引（即将被覆盖的位置）
+        /// tail: 最新数据索引（刚写入的位置）
+        /// 写入到head位置，然后head和tail都向前移动
+        write_index = pump_data_head->head;
+        pump_data_head->head = (pump_data_head->head + 1) % ROOT_BREAST_PUMP_DATA_BODY_NUM;
+        pump_data_head->tail = (pump_data_head->tail + 1) % ROOT_BREAST_PUMP_DATA_BODY_NUM;
+        /// num 保持为最大值，表示缓冲区已满
+        pump_data_head->num = ROOT_BREAST_PUMP_DATA_BODY_NUM;
+    }
+    
+    store_func_args_t storage_args = {
+        .ctx = thiz,
+        .arg1 = 0,
+        .arg2 = 0,
+        .val = pump_data_head,
+    };
+    /// 写入泵奶数据头
+    write_pump_data_head_to_flash(storage_args);
+
+    breast_pump_manager_context_t *pump = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
+    EXCEPTION_CHECK_VOID(pump);
+    pump_result_info_t *pump_data_body = pump->get_breast_pump_result(BREAST_PUMP_RESULT_PUMPING);
+    EXCEPTION_CHECK_VOID(pump_data_body);
+    storage_args.arg1 = write_index;
+    storage_args.val = pump_data_body;
+    /// 写入泵奶数据
+    write_pump_data_body_to_flash(storage_args);
+}
+
 static void storage_ram_sync_flash_cb(hdr_post_args_t *args)
 {
     breast_pump_manager_context_t *pump = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
@@ -254,26 +312,26 @@ static void on_storage_broadcast_route(broadcast_mask_id_t id, void *context, in
     
     switch (id.code) {
         case ID_BROADCAST_PM_STATE_CHANGE:
-            if (arg1 == ID_SYS_PM_SUSPEND) {
+            if (arg1 == PM_BROADCAST_SYS_SUSPEND) {
                 REMOVE_TASK_HANDLER_DIRECTLY(STORAGE_RAM_SYNC_FLASH_TASK_NAME);
                 POST_TASK_HANDLER_DELAYED_ARG2(hdr_storage_work_cb, 500, 0, st, STORAGE_PERSIST_TASK_POLICY1_NAME);
-            } else if (arg1 == ID_SYS_PM_RESUME) {
+            } else if (arg1 == PM_BROADCAST_SYS_RESUME) {
                 POST_TASK_HANDLER_DELAYED_ARG1(storage_ram_sync_flash_cb, 
                     STORAGE_RAM_SYNC_FLASH_INTERVAL_MS, st, STORAGE_RAM_SYNC_FLASH_TASK_NAME);
             }
             break;
-        case ID_BROADCAST_SYS_PERSIST_INFO_SAVE:
-                PRIV_DATA_TO_USER_DATA_V2(user_data, pdata, pump_result_info_t);
+        case ID_BROADCAST_PERSIST_INFO_UPDATE:
+                PRIV_DATA_TO_USER_DATA(user_data, pdata, pump_result_info_t);
                 if (user_data) {
                     LOG_STORE("-->save insert_one");
-                    POST_TASK_HANDLER_DELAYED_ARG2(hdr_storage_work_cb, 0, 1, user_data, STORAGE_PERSIST_TASK_POLICY1_NAME);
+                    POST_TASK_HANDLER_DELAYED_ARG2(pump_user_data_sync_flash_cb, 0, 1, user_data, STORAGE_PERSIST_TASK_POLICY1_NAME);
                 }
             break;
-        case ID_BROADCAST_SYS_POWER_STATE_CHANGE:
-            if (arg1 == ID_BROADCAST_SYS_POWER_OFF) {
+        case ID_BROADCAST_SYS_STATE_CHANGE:
+            if (arg1 == SYSTEM_BROADCAST_POWER_OFF) {
                 LOG_STORE("-->system shutdown");
                 POST_TASK_HANDLER_DELAYED_ARG2(hdr_storage_work_cb, 0, 0, st, STORAGE_PERSIST_TASK_POLICY1_NAME);
-            } else if (arg1 == ID_BROADCAST_SYS_POWER_ON) {
+            } else if (arg1 == SYSTEM_BROADCAST_POWER_ON) {
                 POST_TASK_HANDLER_DELAYED_ARG1(storage_ram_sync_flash_cb, 
                     STORAGE_RAM_SYNC_FLASH_INTERVAL_MS, st, STORAGE_RAM_SYNC_FLASH_TASK_NAME);
             }
@@ -291,6 +349,8 @@ static int on_post_storage_init_route(storage_manager_context_t *ctx)
     init_system_persist_info(ctx);
     /// 加载系统版本信息
     init_system_ver_info(ctx);
+
+    //test_pump_data_write_read_complete(0);
     return 0;
 }
 

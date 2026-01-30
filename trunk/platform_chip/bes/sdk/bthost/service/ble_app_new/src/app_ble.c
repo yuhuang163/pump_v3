@@ -940,7 +940,8 @@ static int app_ble_conn_event_handle(uintptr_t connhdl, gap_conn_event_t event, 
             cb_event.p.connect_handled.peer_bdaddr.addr_type = (opened->peer_type & 0x01);
             memcpy(cb_event.p.connect_handled.peer_bdaddr.addr, opened->peer_addr.address, sizeof(bt_bdaddr_t));
             app_ble_global_handle(&cb_event, NULL);
-            // app_ble_update_conn_param_mode_of_specific_connection(opened->con_idx, BLE_CONN_PARAM_MODE_DEFAULT, true);
+            //lute fix ble connect param mode issue
+            //app_ble_update_conn_param_mode_of_specific_connection(opened->con_idx, BLE_CONN_PARAM_MODE_DEFAULT, true);
             break;
         }
         case GAP_CONN_EVENT_FAILED:

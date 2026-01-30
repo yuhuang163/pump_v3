@@ -15,11 +15,77 @@ die() {
 	exit 1
 }
 
+md5_fold4_hex_from_file() {
+	# 计算文件 MD5（16 字节），将整个 MD5 折叠为 4 字节校验值（8 hex）
+	# 折叠规则（按字节 XOR）：
+	#   out[i] = md5[i] ^ md5[i+4] ^ md5[i+8] ^ md5[i+12]   (i=0..3)
+	# 说明：该规则使用“整个 MD5”生成 4B，便于在 Windows 侧复算并验证。
+	local f="$1"
+	[[ -s "$f" ]] || die "文件不存在或为空，无法计算 MD5: $f"
+
+	local md5hex
+	md5hex=$(md5sum "$f" | awk '{print $1}')
+	[[ ${#md5hex} -eq 32 ]] || die "md5sum 输出异常: $md5hex (file=$f)"
+
+	local -a v=()
+	for i in {0..15}; do
+		local b="${md5hex:$((i * 2)):2}"
+		v[$i]=$((16#$b))
+	done
+
+	local o0=$((v[0] ^ v[4] ^ v[8] ^ v[12]))
+	local o1=$((v[1] ^ v[5] ^ v[9] ^ v[13]))
+	local o2=$((v[2] ^ v[6] ^ v[10] ^ v[14]))
+	local o3=$((v[3] ^ v[7] ^ v[11] ^ v[15]))
+
+	printf "%02x%02x%02x%02x\n" "$o0" "$o1" "$o2" "$o3"
+}
+
 duration_since() {
 	local start_ts=$1
 	local end_ts=$(date +%s)
 	local dt=$((end_ts - start_ts))
 	printf "%ds" "$dt"
+}
+
+resolve_root_device_name() {
+	# 从 boards/product_info.h 解析 ROOT_DEVICE_NAME（优先使用预处理器展开，适配 ROOT_PRODUCT_ID 等间接宏）
+	# 输出示例：V3 / V3Pro
+	local info_file="${1:-$PROJECT_DIR/boards/product_info.h}"
+	if [[ -f "$info_file" ]]; then
+		local compiler
+		compiler=$(command -v gcc || command -v cc || true)
+		if [[ -n "${compiler:-}" ]]; then
+			local out
+			out=$(
+				printf '#include "%s"\nROOT_DEVICE_NAME\n' "$info_file" \
+					| "$compiler" -E -P -xc -I "$PROJECT_DIR/boards" -I "$PROJECT_DIR" - 2>/dev/null \
+					| awk 'NF{print; exit}' \
+					| tr -d '\r'
+			) || true
+			# 去掉引号（ROOT_DEVICE_NAME 是字符串宏）
+			out=${out#\"}
+			out=${out%\"}
+			if [[ -n "${out:-}" && "$out" != "ROOT_DEVICE_NAME" ]]; then
+				printf "%s" "$out"
+				return 0
+			fi
+		fi
+	fi
+
+	# 回退：按 ROOT_PRODUCT_ID 简单映射（兼容旧脚本逻辑）
+	local root_id_token product_id
+	root_id_token=$(grep -E '^#define[[:space:]]+ROOT_PRODUCT_ID[[:space:]]+' "$info_file" | awk '{print $3}' | tail -n1 || true)
+	product_id="0"
+	case "$root_id_token" in
+		ROOT_PRODUCT_V3PRO_ID|1) product_id="1" ;;
+		ROOT_PRODUCT_V3_ID|0|*) product_id="0" ;;
+	esac
+	if [[ "$product_id" == "1" ]]; then
+		printf "%s" "V3Pro"
+	else
+		printf "%s" "V3"
+	fi
 }
 
 resolve_make_vars() {
@@ -234,24 +300,9 @@ do_rename_and_archive() {
 	local info_file="$PROJECT_DIR/boards/product_info.h"
 	[[ -f "$info_file" ]] || die "未找到产品信息文件: $info_file"
 
-	# 解析 ROOT_PRODUCT_ID 数值
-	local root_id_token
-	root_id_token=$(grep -E '^#define[[:space:]]+ROOT_PRODUCT_ID[[:space:]]+' "$info_file" | awk '{print $3}' | tail -n1 || true)
-	local product_id="0"
-	case "$root_id_token" in
-		PRODUCT_INFO_V3PRO_VALUE|1) product_id="1" ;;
-		PRODUCT_INFO_V3_VALUE|0|*) product_id="0" ;;
-	esac
-
-	# 设备名（未做复杂预处理，仅处理 PRO -> Pro）
-	local device_name
-	if [[ "$product_id" == "1" ]]; then
-		device_name="V3PRO"
-	else
-		device_name="V3"
-	fi
 	local device_title
-	device_title=$(echo "$device_name" | sed -E 's/PRO$/Pro/')
+	device_title=$(resolve_root_device_name "$info_file")
+	[[ -n "${device_title:-}" ]] || device_title="V3"
 
 	# 类型字母（ROOT_FIRMWARE_TYPE）
 	local type_char
@@ -267,6 +318,15 @@ do_rename_and_archive() {
 	major=$(printf "%02d" "$major")
 	minor=$(printf "%02d" "$minor")
 
+	# 硬件版本（ROOT_HARDWARE_VERSION）：10 -> H01.0（major=1, minor=0）
+	local hw_version hw_major hw_minor hw_major2 hw_tag
+	hw_version=$(grep -E '^#define[[:space:]]+ROOT_HARDWARE_VERSION[[:space:]]+' "$info_file" | awk '{print $3}' | tail -n1 || true)
+	[[ -n "${hw_version:-}" ]] || hw_version="0"
+	hw_major=$((10#$hw_version / 10))
+	hw_minor=$((10#$hw_version % 10))
+	# 显示规则：硬件主版本不补零（H01.0 -> H1.0；H00.2 -> H0.2）
+	hw_tag="H${hw_major}.${hw_minor}"
+
 	# 日期与 git 短哈希
 	local today
 	today=$(date +%Y%m%d)
@@ -281,8 +341,10 @@ do_rename_and_archive() {
 	# 目标文件名（文件用点分 01.01；目录用下划线 01_01）
 	local version_dot="${major}.${minor}"
 	local version_us="${major}_${minor}"
-	local prefix_file="${device_title}_${today}_${type_char}${version_dot}_${git_hash}"
-	local prefix_dir="ROOT_${device_title}_${type_char}${version_us}"
+	# 文件名前缀增加 Lute_；目录 ROOT_ 前缀改为 Lute_
+	# 在软件版本后追加硬件版本号（用 _ 分隔）：..._P01.04_H01.0_<git>
+	local prefix_file="Lute_${device_title}_${today}_${type_char}${version_dot}_${hw_tag}_${git_hash}"
+	local prefix_dir="Lute_${device_title}_${type_char}${version_us}"
 
 	local target_dir="$SHARE_DIR/$prefix_dir"
 	mkdir -p "$target_dir" || die "无法创建版本目录: $target_dir"
@@ -310,37 +372,68 @@ do_rename_and_archive() {
 	res_dir="$PROJECT_DIR/overlay/resources/bin/$res_path"
 	res_file=""
 	if [[ -d "$res_dir" ]]; then
-		# 取该版本号最新的资源 bin（按 mtime）
-		res_file=$(ls -1t "$res_dir"/*_V${res_major2}.${res_minor2}_*_RES.bin 2>/dev/null | awk 'NR==1{print; exit}' || true)
+		# 取该版本号、且与当前设备匹配（V3 / V3Pro）最新的资源 bin（按 mtime）
+		# 资源文件名格式（pack_resources.py）：<ROOT_DEVICE_NAME>_YYYYMMDD_Vxx.xx_<md5>_RES.bin
+		shopt -s nullglob
+		local candidates=("$res_dir"/${device_title}_*_V${res_major2}.${res_minor2}_*_RES.bin)
+		shopt -u nullglob
+		if ((${#candidates[@]})); then
+			res_file=$(ls -1t "${candidates[@]}" 2>/dev/null | awk 'NR==1{print; exit}' || true)
+		fi
 	fi
 
 	# 拷贝并重命名（存在则覆盖）
 	local copied_any=false
 	if [[ -s "$app_in" ]]; then
-		cp -av "$app_in" "$target_dir/${prefix_file}_APP.bin"
-		echo "APP 已归档: $target_dir/${prefix_file}_APP.bin"
+		local app_md5
+		app_md5=$(md5_fold4_hex_from_file "$app_in")
+		cp -av "$app_in" "$target_dir/${prefix_file}_${app_md5}_APP.bin"
+		echo "APP 已归档: $target_dir/${prefix_file}_${app_md5}_APP.bin"
 		copied_any=true
 	else
 		echo "未找到 APP 产物: $app_in"
 	fi
 	if [[ -s "$boot_in" ]]; then
-		cp -av "$boot_in" "$target_dir/${prefix_file}_BOOT.bin"
-		echo "BOOT 已归档: $target_dir/${prefix_file}_BOOT.bin"
+		local boot_md5
+		boot_md5=$(md5_fold4_hex_from_file "$boot_in")
+		cp -av "$boot_in" "$target_dir/${prefix_file}_${boot_md5}_BOOT.bin"
+		echo "BOOT 已归档: $target_dir/${prefix_file}_${boot_md5}_BOOT.bin"
 		copied_any=true
 	else
 		echo "未找到 Bootloader 产物: $boot_in"
 	fi
 	if [[ -s "$ota_in" ]]; then
-		cp -av "$ota_in" "$target_dir/${prefix_file}_OTA.bin"
-		echo "OTA 已归档: $target_dir/${prefix_file}_OTA.bin"
+		local ota_md5
+		ota_md5=$(md5_fold4_hex_from_file "$ota_in")
+		cp -av "$ota_in" "$target_dir/${prefix_file}_${ota_md5}_OTA.bin"
+		echo "OTA 已归档: $target_dir/${prefix_file}_${ota_md5}_OTA.bin"
 		copied_any=true
 	else
 		echo "未找到 OTA 产物: $ota_in"
 	fi
 
 	if [[ -n "${res_file:-}" && -s "$res_file" ]]; then
-		cp -av "$res_file" "$target_dir/"
-		echo "RES 已归档(${res_path} V${res_major2}.${res_minor2}): $target_dir/$(basename -- "$res_file")"
+		local res_md5
+		res_md5=$(md5_fold4_hex_from_file "$res_file")
+		# RES：仅追加 Lute 前缀 + 硬件版本号，不覆盖资源自身的日期/版本等字段
+		local res_base res_out
+		res_base=$(basename -- "$res_file")
+		if [[ "$res_base" == *_RES.bin ]]; then
+			# 例：V3_20260120_V01.01_8e7a2e66_RES.bin -> Lute_V3_20260120_V01.01_H01.0_8e7a2e66_<md5>_RES.bin
+			# 规则：硬件版本追加在资源版本号之后（Vxx.xx_Hxx.x）
+			local res_nores="${res_base%_RES.bin}"
+			if [[ "$res_nores" =~ ^(.*_V[0-9]{2}\.[0-9]{2})_(.*)$ ]]; then
+				res_out="Lute_${BASH_REMATCH[1]}_${hw_tag}_${BASH_REMATCH[2]}_${res_md5}_RES.bin"
+			else
+				# 若未匹配到资源版本号段，则退化为直接在末尾追加
+				res_out="Lute_${res_nores}_${hw_tag}_${res_md5}_RES.bin"
+			fi
+		else
+			# 兜底：直接在扩展名前追加
+			res_out="Lute_${res_base%.bin}_${hw_tag}_${res_md5}.bin"
+		fi
+		cp -av "$res_file" "$target_dir/$res_out"
+		echo "RES 已归档(${res_path} V${res_major2}.${res_minor2}): $target_dir/$res_out"
 		copied_any=true
 	else
 		echo "未找到 RES 资源(${res_path} V${res_major2}.${res_minor2}): $res_dir/*_V${res_major2}.${res_minor2}_*_RES.bin"
@@ -363,7 +456,7 @@ show_menu() {
 	5) 清理 Bootloader
 	6) 生成 OTA（并拷贝）
 	7) 仅拷贝产物到共享目录（固件+Bootloader+OTA）
-	8) 重命名并归档产物（APP/BOOT/OTA/RES）
+	8) 重命名并归档产物（APP/BOOT/OTA/RES，文件名追加 MD5 折叠 4B/8hex）
 	9) 重新编译 固件+Bootloader（清理 + 编译，不拷贝）
 0) 退出
 ---------------------------------------------

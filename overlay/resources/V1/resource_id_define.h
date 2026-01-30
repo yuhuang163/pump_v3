@@ -33,18 +33,18 @@ typedef enum {
     RESOURCE_ID_CHARGE_PAGE_BATT_100,       /// 充电页电量100%
     RESOURCE_ID_CHARGE_PAGE_ICON,           /// 充电页充电图标
 
-    RESOURCE_ID_HOME_CHARGE_0,              /// 首页-充电电量0%
+    RESOURCE_ID_HOME_CHARGE_ICON,           /// 首页-充电图标
     RESOURCE_ID_HOME_CHARGE_25,             /// 首页-充电电量25%
     RESOURCE_ID_HOME_CHARGE_50,             /// 首页-充电电量50%
     RESOURCE_ID_HOME_CHARGE_75,             /// 首页-充电电量75%
     RESOURCE_ID_HOME_CHARGE_100,            /// 首页-充电电量100%
 
-    RESOURCE_ID_HOME_UNCHARGE_BATTERY_0,    /// 首页-未充电电量0%
+    RESOURCE_ID_HOME_EMPTY_POWER,           /// 首页-未充电电量0%
     RESOURCE_ID_HOME_UNCHARGE_BATTERY_25,   /// 首页-未充电电量25%
     RESOURCE_ID_HOME_UNCHARGE_BATTERY_50,   /// 首页-未充电电量50%
     RESOURCE_ID_HOME_UNCHARGE_BATTERY_75,   /// 首页-未充电电量75%
     RESOURCE_ID_HOME_UNCHARGE_BATTERY_100,  /// 首页-未充电电量100%
-    RESOURCE_ID_HOME_UNCHARGE_LOW_POWER,    /// 首页-低电量提示
+    RESOURCE_ID_HOME_LOW_POWER,    /// 首页-低电量提示
 
     RESOURCE_ID_GUIDE_MILK_QUANTITY = 101, /// 引导-奶量
     RESOURCE_ID_GUIDE_ADJUST_LEVEL,        /// 引导-档位调节
@@ -81,7 +81,7 @@ typedef enum {
     RESOURCE_ID_CHARGE_ADAPTER_ICON,        /// 充电-适配器图标
     
     RESOURCE_ID_CHARGE_ANIMATION_START = 401, /// 充电动画-开始
-    RESOURCE_ID_CHARGE_ANIMATION_END = 402,   /// 充电动画-结束
+    RESOURCE_ID_CHARGE_ANIMATION_END = 550,   /// 充电动画-结束
 
     RESOURCE_ID_TYPE_MAX
 } resource_id_type_e;

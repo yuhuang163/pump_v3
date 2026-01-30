@@ -21,6 +21,10 @@
 #define LV_DEF_REFR_PERIOD                  16      /* ms, 60fps */
 #define LV_DPI_DEF                          218
 
+#define LV_USE_STDLIB_MALLOC                LV_STDLIB_CLIB
+#define LV_USE_STDLIB_STRING                LV_STDLIB_CLIB
+#define LV_USE_STDLIB_SPRINTF               LV_STDLIB_CLIB
+
 #ifdef LVGL_GPU_VGLITE
 #define LV_USE_DRAW_BES_VGLITE              1
 #define LV_USE_BES_VGLITE_DRAW_THREAD       1

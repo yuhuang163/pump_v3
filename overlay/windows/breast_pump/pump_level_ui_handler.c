@@ -49,7 +49,7 @@ static void pump_level_ui_after_policy(ui_manager_context_t *ui, int index)
 {
     ui_proc_pump_t *proc = (ui_proc_pump_t *)ui->priv.play_info.user_data;
     EXCEPTION_CHECK_VOID(proc);
-    ui_display_pump_level(ui);
+    ui_display_pump_level_process(ui);
     if (get_timestamp_ms(proc->last_progress_ani_time) >= PUMP_SUB_UI_DISPLAY_TIME) {
         POST_TASK_HANDLER_NO_DELAY(pump_level_display_completed_cb, proc, PUMP_LEVEL_DISPLAY_TASK_NAME);
     }
@@ -117,16 +117,12 @@ int switch_pump_control_type_ui(ui_proc_pump_t *proc, breast_pump_manager_contex
         LOGE("switch pump control type: %d, out of range", control_type);
         return -1;
     }
-
-    struct storage_manager_context *st = pump->priv.st;
-    EXCEPTION_CHECK_INT(st);
+    
     if (proc->info.control_type != control_type) {
         proc->info.control_type = control_type;
-        st->put_store_ram_val(STORE_ID_PUMP_CONTROL_TYPE, 0, 0, &proc->info.control_type);
+        pump->set_breast_pump_control_type(control_type);
     }
     show_pump_level_ui(proc);
-    LOG_UI("switch pump control type: %d", control_type);
-
     return 0;
 }
 
@@ -175,7 +171,10 @@ int switch_pump_level_ui(ui_proc_pump_t *proc, breast_pump_manager_context_t *pu
         }
     }
     pump->set_breast_pump_setting(&proc->setting, time_index);
-    st->put_store_ram_val(STORE_ID_PUMP_SETTING_INFO, pump_info->mode, time_index, &proc->setting);
+    store_pump_setting_value_t store_pump_setting_value = {0};
+    store_pump_setting_value.is_custom_trial_mode = pump->priv.m_info.is_custom_trial_mode;
+    store_pump_setting_value.setting = &proc->setting;
+    st->put_store_ram_val(STORE_ID_PUMP_SETTING_INFO, pump_info->mode, time_index, &store_pump_setting_value);
     show_pump_level_ui(proc);
     for (uint8_t i = 0; i < BREAST_PUMP_NUM; i++) {
         LOG_UI("switch pump %d level: %d, mode: %s", i, proc->setting.level[i],

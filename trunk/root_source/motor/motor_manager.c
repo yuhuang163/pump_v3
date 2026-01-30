@@ -128,32 +128,24 @@ static void on_motor_broadcast_receiver(broadcast_mask_id_t id, void *context, i
 
     switch (id.code) {
         case ID_BROADCAST_BREAST_PUMP_STATE_CHANGE:
-            {
-                breast_pump_state = arg2;
-                LOG_MOTOR("state change: %d", breast_pump_state);
-            }
-            break;
-        case ID_BROADCAST_BREAST_PUMP_MODE_CHANGE:
-            {
+            if (arg1 == BREAST_PUMP_BROADCAST_MODE_CHANGE) {
                 if (motor_obj->priv.pump_ctx && motor_obj->priv.pump_ctx->is_on_working() > 0) {
                     internal_start_motor(MOTOR_POLICY_CHANGE_MODE);
                 }
                 LOG_MOTOR("mode change: %d", breast_pump_mode);
+            } else if (arg1 == BREAST_PUMP_BROADCAST_STATE_CHANGE) {
+                breast_pump_state = arg2;
+                LOG_MOTOR("state change: %d", breast_pump_state);
             }
             break;
         case ID_BROADCAST_PM_STATE_CHANGE:
-            {
-                if (arg1 == ID_SYS_PM_RESUME) {
-                    LOG_MOTOR("reset history_node");
-                }
+            if (arg1 == PM_BROADCAST_SYS_RESUME) {
+                LOG_MOTOR("reset history_node");
             }
             break;
-        case ID_BROADCAST_REQ_PM_SUSPEND_BY_USER:
-            {
-                update_play_interrupt_reason("SUSPEND_BY_USER");
-            }
+        case ID_BROADCAST_REQ_PM_SUSPEND:
+            update_play_interrupt_reason("SUSPEND_BY_USER");
             break;
-        
         default:
             break;
     }
@@ -170,10 +162,8 @@ static int on_post_motor_init(void *ptr)
     thiz->priv.m_bdc.context = thiz;
     thiz->priv.m_bdc.name = "motor_manager";
     thiz->priv.m_bdc.id.code |= ID_BROADCAST_BREAST_PUMP_STATE_CHANGE;
-    thiz->priv.m_bdc.id.code |= ID_BROADCAST_BREAST_PUMP_MODE_CHANGE;
     thiz->priv.m_bdc.id.code |= ID_BROADCAST_PM_STATE_CHANGE;
-    thiz->priv.m_bdc.id.code |= ID_BROADCAST_UPDATE_MOTOR_WORK_PARAMETER;
-    thiz->priv.m_bdc.id.code |= ID_BROADCAST_REQ_PM_SUSPEND_BY_USER;
+    thiz->priv.m_bdc.id.code |= ID_BROADCAST_REQ_PM_SUSPEND;
     thiz->priv.m_bdc.receiver_cb = on_motor_broadcast_receiver;
     register_broadcast_receiver(&thiz->priv.m_bdc);
 

@@ -68,12 +68,6 @@ static int exit_airplane_mode_route(struct airplane_mode_context *ctx, int exit_
     if (st) {
         st->put_store_ram_val(STORE_ID_SYS_AIRPLANE_MODE_STATE, 0, 0, NULL);
     }
-    window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
-    EXCEPTION_CHECK_INT(wm);
-    multi_func_msg_data_t msg = {0};
-    msg.union_body.extra.window_id = ID_WINDOW_PUMP;
-    wm->dispatch_new_window_args(wm, &msg);
-    
     return 0;
 }
 

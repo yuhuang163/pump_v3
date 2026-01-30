@@ -130,7 +130,7 @@ static int led_extension_read_nbyte(i2c_master_data_t *data)
 
 static void led_extension_onoff_set(uint8_t index, uint8_t onoff)
 {
-    if(index >= LED_TOTAL_SIZE) {
+    if (index >= LED_TOTAL_SIZE) {
         LOGE("index is out of range: %d", index);
         return;
     }
@@ -151,7 +151,7 @@ static void led_extension_onoff_set(uint8_t index, uint8_t onoff)
 
 static void led_extension_level_set(uint8_t index, uint8_t level)
 {
-    if(index >= LED_TOTAL_SIZE) {
+    if (index >= LED_TOTAL_SIZE) {
         LOGE("index is out of range: %d", index);
         return;
     }
@@ -174,23 +174,24 @@ static void led_blink_handle(uint8_t index)
     if (led_status[index].mode != LED_MODE_BLINK) {
         return;
     }
+
     led_blink_t *led = &led_status[index].un.blink;
-    uint32_t off_time = get_timestamp_ms(led->start_time);
-    if (off_time >= led->continue_time && led->continue_time != 0) {
+    if (led->times_count >= led->times && led->times != 0) {
         led_status[index].mode = LED_MODE_ONOFF;
         if (led->finish_status != led->status) {
             led_extension_onoff_set(index, led->finish_status != LED_STATUS_ON ? 0 : 1);
-            // LOG_PBUS("led blink finish: %d, %d/%d", index, off_time, led->continue_time);
         }
         return;
     }
-    /// 闪烁计时
-    led->count += LED_THREAD_POLL_INTERVAL;
-    if (led->count >= led->period) {
+
+    led->period_count += LED_THREAD_POLL_INTERVAL;
+    if (led->period_count >= led->period) {
         led->status = led->status > 0 ? 0 : 1;
-        led->count = 0;
+        led->period_count = 0;
         led_extension_onoff_set(index, led->status);
-        // LOG_PBUS("led blink: %d, %d", index, led->status);
+        if (led->status == LED_STATUS_ON) {
+            led->times_count++;
+        }
     }
 }
 
@@ -233,8 +234,6 @@ static void led_onoff_set(uint8_t index, led_onoff_t onoff)
 static void led_level_set(uint8_t index, led_luminous_t luminous)
 {
     uint8_t level = luminous.level > LED_LEVEL_MAX ? LED_LEVEL_MAX : luminous.level;
-    level = level * LED_LUX_MAX / LED_LEVEL_MAX;
-    // LOG_PBUS("led level: %d, level: %d", luminous.level, level);
     if (index == PUMP_LED_ALL_ID) {
         for (uint8_t i = 0; i < LED_TOTAL_SIZE; i++) {
             led_status[i].mode = LED_MODE_LEVEL; 
@@ -254,22 +253,20 @@ static void led_blink_set(uint8_t index, led_blink_t blink)
     if (index == PUMP_LED_ALL_ID) {
         for (uint8_t i = 0; i < LED_TOTAL_SIZE; i++) {
             memcpy(&led_status[i].un.blink, &blink, sizeof(led_blink_t));
-            led_extension_onoff_set(i, blink.first_status);
-            led_status[i].un.blink.start_time = get_timestamp();
-            led_status[i].un.blink.status = led_status[i].un.blink.first_status;
-            led_status[i].un.blink.count = 0;
+            led_extension_onoff_set(i, LED_STATUS_OFF);
+            led_status[i].un.blink.period_count = 0;
+            led_status[i].un.blink.status = LED_STATUS_OFF;
+            led_status[i].un.blink.times_count = 0;
             led_status[i].mode = LED_MODE_BLINK;
         }
     } else { 
         memcpy(&led_status[index].un.blink, &blink, sizeof(led_blink_t));
-        led_extension_onoff_set(index, blink.first_status);
-        led_status[index].un.blink.start_time = get_timestamp();
-        led_status[index].un.blink.status = led_status[index].un.blink.first_status;
-        led_status[index].un.blink.count = 0;
+        led_extension_onoff_set(index, LED_STATUS_OFF);
+        led_status[index].un.blink.period_count = 0;
+        led_status[index].un.blink.status = LED_STATUS_OFF;
+        led_status[index].un.blink.times_count = 0;
         led_status[index].mode = LED_MODE_BLINK;
         MUTEX_UNLOCK(s_led_mutex_id);
-        // LOG_PBUS("led blink: %d, %d, %d/%d", 
-        //     index, blink.first_status, blink.continue_time, led_status[index].un.blink.start_time);
     }
     MUTEX_UNLOCK(s_led_mutex_id);
 }
@@ -304,7 +301,7 @@ static void led_htr3316_init(void)
         .data = wdata,
         .len = 0,
     };
-
+   
     i2c_data.reg_addr = 0x12;
     i2c_data.data[0] = 0;
     i2c_data.len = 1;
@@ -333,18 +330,41 @@ static void led_htr3316_init(void)
     }
     LOG_PBUS("led extension init done");
 }
+
+static void led_htr3316_reset(void)
+{
+    int ret = 0;
+    uint8_t reg_value = 0;
+    i2c_master_data_t i2c_data = {
+        .dev_address = HTR3316_DEV_ADDR,
+        .reg_addr = 0x7F,
+        .data = &reg_value,
+        .len = 1,
+    };
+   
+    for (uint8_t i = 0; i < HTR3316_RETRY_COUNT; i++) {
+        ret = bsp_i2c_read_byte(LED_I2C_ID, &i2c_data);
+        if (ret == BSP_OK) {
+            break;
+        }
+        msleep(10);
+    }
+    msleep(10);
+}
+
 /*
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
 int bsp_led_init(void)
 {
+    uint8_t chip_id = 0;
     if (s_led_mutex_id == NULL) {
         MUTEX_INIT(&s_led_mutex_id, led_mutex);
     }
     bsp_i2c_init(LED_I2C_ID);
-    msleep(20);
-    uint8_t chip_id = 0;
+    msleep(10);
+    led_htr3316_reset();
     led_htr3316_chip_id_get(&chip_id);
     if (chip_id != 0x23) {
         LOGE("chip id error");
@@ -361,14 +381,15 @@ int bsp_led_init(void)
 void bsp_led_resume(void)
 {
     uint8_t chip_id = 0;
+    led_htr3316_reset();
     led_htr3316_chip_id_get(&chip_id);
     if (chip_id != 0x23) {
         LOGE("chip id error");
         return;
     }
-    led_htr3316_init();
     s_led_is_ready = true;
     s_led_abnormal_count = 0;
+    led_htr3316_init();
     START_TIMER(s_led_timer_id, LED_THREAD_POLL_INTERVAL);
 }
 
@@ -377,16 +398,12 @@ void bsp_led_suspend(void)
     s_led_is_ready = false;
     s_led_abnormal_count = 0;
     STOP_TIMER(s_led_timer_id);
+    led_htr3316_reset();
 }
 
-int bsp_led_status_set(void *args)
+int bsp_led_status_set(led_status_msg_t *msg)
 {
-    led_status_msg_t *msg = (led_status_msg_t *)args;
-    if (msg == NULL) {
-        LOGE("msg is NULL");
-        return BSP_ERROR;
-    }
-    
+    EXCEPTION_CHECK_INT(msg);
     if (msg->led_index >= LED_TOTAL_SIZE && msg->led_index != PUMP_LED_ALL_ID) {
         LOGE("index is out of range: %d", msg->led_index);
         return BSP_ERROR;

@@ -48,7 +48,7 @@ static void pump_speed_ui_before_policy(ui_manager_context_t *ui, int index)
 
 static void pump_speed_ui_after_policy(ui_manager_context_t *ui, int index)
 {
-    ui_display_pump_speed(ui);
+    ui_display_pump_speed_process(ui);
     ui_proc_pump_t *proc = (ui_proc_pump_t *)ui->priv.play_info.user_data;
     EXCEPTION_CHECK_VOID(proc);
     if (get_timestamp_ms(proc->last_progress_ani_time) >= PUMP_SUB_UI_DISPLAY_TIME) {
@@ -138,7 +138,10 @@ int switch_pump_frequency_ui(ui_proc_pump_t *proc, breast_pump_manager_context_t
         proc->setting.speed = BREAST_PUMP_SPEED_LOW;
     }
     pump->set_breast_pump_setting(&proc->setting, time_index);
-    st->put_store_ram_val(STORE_ID_PUMP_SETTING_INFO, pump_info->mode, time_index, &proc->setting);
+    store_pump_setting_value_t store_pump_setting_value = {0};
+    store_pump_setting_value.is_custom_trial_mode = pump->priv.m_info.is_custom_trial_mode;
+    store_pump_setting_value.setting = &proc->setting;
+    st->put_store_ram_val(STORE_ID_PUMP_SETTING_INFO, pump_info->mode, time_index, &store_pump_setting_value);
     show_pump_speed_ui(proc);
     LOG_UI("switch pump frequency: %d, mode: %s", proc->setting.speed,
          pump->get_breast_pump_mode_name(pump_info->mode));

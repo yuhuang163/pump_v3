@@ -109,7 +109,7 @@ void ui_display_pump_speed_remove(ui_manager_context_t *thiz)
     speed_info = NULL;
 }
 
-int ui_display_pump_speed(ui_manager_context_t *thiz)
+int ui_display_pump_speed_process(ui_manager_context_t *thiz)
 {
     EXCEPTION_CHECK_UINT(thiz);
     EXCEPTION_CHECK_UINT(speed_info);

@@ -44,6 +44,7 @@ typedef enum {
     STORE_ID_BREAST_PUMP_DATA_HEAD,         /// 吸奶器数据头
     STORE_ID_BREAST_PUMP_DATA_BODY,         /// 吸奶器数据体
     STORE_ID_BREAST_PUMP_BURY_INFO,         /// 吸奶器埋点信息
+    STORE_ID_BREAST_PUMP_MODE,              /// 吸奶器模式
     STORE_ID_SYS_CONFIG_INFO = 400,         /// 系统配置信息
     STORE_ID_SYS_TIME_ZONE,                 /// 系统时区
     STORE_ID_SYS_AP_MODE_ONOFF,             /// 系统飞航模式开关
@@ -56,7 +57,7 @@ typedef enum {
     STORE_ID_SYS_GUIDE_DEPLOYED,            /// 向导部署标志
     STORE_ID_SYS_BATTERY_HEALTH,            /// 电池健康
     STORE_ID_SYS_BREAST_PUMP_HEADER_LIFE,   /// 吸嘴寿命
-    STORE_ID_SYS_NIGHT_LIGHT_INFO,          /// 夜灯信息
+    STORE_ID_SYS_NIGHT_LIGHT_ADAPTIVE_SWITCH, /// 夜灯自适应开关
     STORE_ID_SYS_AIRPLANE_MODE_STATE,       /// 飞行模式状态
     STORE_ID_SYS_SYNC_SYS_TIME,             /// 保存第一次同步系统时间时 本地经历的最终时间点 用于计算吸奶记录的差值.
     STORE_ID_SYS_LOG_FILTER,                /// 系统日志过滤
@@ -69,6 +70,7 @@ typedef enum {
     STORE_CRC_TYPE_SYS_STATE,
     STORE_CRC_TYPE_PUMP_INFO,
     STORE_CRC_TYPE_PUMP_BURY_INFO,
+    STORE_CRC_TYPE_PUMP_USER_DATA_HEAD,
     STORE_CRC_TYPE_MAX
 } store_crc_type_id_e;
 
@@ -84,6 +86,16 @@ typedef enum {
 } factory_reset_type_e;
 
 struct storage_manager_context;
+
+typedef struct {
+    uint8_t is_custom_trial_mode;
+    pump_setting_t *setting;
+} store_pump_setting_value_t;
+
+typedef struct {
+    uint8_t is_custom_trial_mode;
+    uint16_t pump_time;
+} store_pump_time_value_t;
 
 typedef struct {
     struct storage_manager_context *ctx;
@@ -149,10 +161,10 @@ typedef struct storage_manager_context {
     sec_sys_ver_t *(*get_persist_ver_info)(void);
     factory_data_store_t *(*get_factory_data)(void);
     /// 通用数据存储写读操作接口.
-    int (*put_store_val)(persist_store_id_e id, int arg1, int arg2,  void *val_in);
-    int (*get_store_val)(persist_store_id_e id, int arg1, int arg2,  void *val_out);
-    int (*del_store_val)(persist_store_id_e id, int arg1, int arg2,  void *val_in);
-    void (*put_store_ram_val)(persist_store_id_e id, int arg1, int arg2,  void *val_in);
+    int (*put_store_val)(persist_store_id_e id, int arg1, int arg2, void *val_in);
+    int (*get_store_val)(persist_store_id_e id, int arg1, int arg2, void *val_out);
+    int (*del_store_val)(persist_store_id_e id, int arg1, int arg2, void *val_in);
+    void (*put_store_ram_val)(persist_store_id_e id, int arg1, int arg2, void *val_in);
     int (*get_store_ram_val)(persist_store_id_e id, int arg1, int arg2, void *val_out);
     int (*user_database_reset)(void);
     int (*flash_protect)(int protect_enable);  /// 保护flash读写操作.

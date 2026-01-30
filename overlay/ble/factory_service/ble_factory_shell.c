@@ -201,24 +201,10 @@ static void ble_shell_night_light_adaptive(const uint8_t *param, uint16_t len)
     int adaptive = 0;
     sscanf((const char *)param, "%d", &adaptive);
     LOG_BLE("shell night light adaptive %d", adaptive);
-    algo_manager_context_t *algo = (algo_manager_context_t *)find_module(ID_MODULE_ALGO_HUB);
-    if (algo && algo->hook && algo->hook->set_adaptive_dimming_state) {
-        algo->hook->set_adaptive_dimming_state(adaptive);
-        if (adaptive > 0) {
-            return;
-        }
-        peripheral_bus_context_t *pbus = (peripheral_bus_context_t *)find_module(ID_MODULE_DEVICE_BUS);
-        EXCEPTION_CHECK_VOID(pbus);
-        rt_device_node_t *led_dev = pbus->find_device(ID_DEVICE_LED);
-        EXCEPTION_CHECK_VOID(led_dev);
-        led_status_msg_t msg = {
-            .led_index = NIGHT_LIGHT_LED_ID_0,
-            .led_status = {
-                .mode = LED_MODE_LEVEL,
-                .un.luminous.level = 0,
-            },
-        };
-        led_dev->ioctl(led_dev, OP_CODE_NIGHT_LIGHT_STATUS_SET, (void *)&msg);
+    led_manager_context_t *led = (led_manager_context_t *)find_module(ID_MODULE_LED);
+    EXCEPTION_CHECK_VOID(led && led->hook);
+    if (led->hook->set_night_light_adaptive_switch) {
+        led->hook->set_night_light_adaptive_switch(led, adaptive); /// 设置夜灯自适应开关.
     }
 }
 
@@ -238,14 +224,15 @@ static void ble_shell_led_night_light(const uint8_t *param, uint16_t len)
     int night_light = 0;
     sscanf((const char *)param, "%d", &night_light);
     LOG_BLE("shell led night light pwm duty %d", night_light);
-    peripheral_bus_context_t *pbus = (peripheral_bus_context_t *)find_module(ID_MODULE_DEVICE_BUS);
-    EXCEPTION_CHECK_VOID(pbus);
-    rt_device_node_t *led = pbus->find_device(ID_DEVICE_LED);
-    night_light_pwm_duty_set_msg_t msg = {
-        .led_index = NIGHT_LIGHT_LED_ID_0,
-        .pwm_duty = night_light,
-    };
-    led->ioctl(led, OP_CODE_NIGHT_LIGHT_PWM_DUTY_SET, (void *)&night_light);
+    led_manager_context_t *led = (led_manager_context_t *)find_module(ID_MODULE_LED);
+    EXCEPTION_CHECK_VOID(led && led->hook);
+    if (led->hook->set_night_light_adaptive_dimming) {
+        led->hook->set_night_light_adaptive_dimming(led, 0); /// 关闭夜灯自适应调光.
+    }
+
+    if (led->hook->set_night_light_level) {
+        led->hook->set_night_light_level(led, night_light); /// 设置夜灯亮度.
+    }
 }
 
 /*

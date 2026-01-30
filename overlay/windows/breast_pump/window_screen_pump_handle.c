@@ -19,6 +19,10 @@
 #define PUMP_STATE_CHANGE_TASK_NAME         "pump_state_change"
 #define PUMP_COMPLETE_TASK_NAME             "pump_complete"
 
+#define PUMP_BLINK_PERIOD                    (500)
+#define PUMP_BLINK_TIMES                     (1)
+#define PUMP_LEVEL_BLINK_TIMES               (3)
+
 #define REMOVE_ALL_HANDER_TASK() \
 do { \
     LOG_WM("==>REMOVE_ALL_HANDER_TASK"); \
@@ -142,15 +146,7 @@ static int on_pump_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
         return 0;
     }
 
-    EXCEPTION_CHECK_INT(proc->ui->hook && proc->ui->hook->set_led_blink);
-    led_blink_info_t blink_info = {
-        .led_index = PUMP_START_BL,
-        .period = 500,
-        .continue_time = 550,
-        .first_status = LED_STATUS_OFF,
-        .finish_status = LED_STATUS_ON,
-    };
-
+    EXCEPTION_CHECK_INT(proc->led);
 #if IS_SUPPORT_AIR_LEAKAGE_WARNING
     if (proc->is_air_leakage_popup_show == true) {
         proc->hide_air_leakage_popup_wm = true;     /// 隐藏空气泄漏弹窗提示.
@@ -162,65 +158,43 @@ static int on_pump_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
             switch_pump_night_light_ui(proc, proc->pump);
             break;
         case KEY_CODE_START:
-            blink_info.led_index = PUMP_START_BL;
-            proc->ui->hook->set_led_blink(proc->ui, blink_info);
+            proc->led->set_led_blink(PUMP_START_BL, PUMP_BLINK_PERIOD, 
+                PUMP_BLINK_TIMES, LED_STATUS_ON);
             switch_pump_status_ui(proc, proc->pump, pump_info.status);
             break;
         case KEY_CODE_MODE:
-            blink_info.led_index = PUMP_MODE_BL;
-            proc->ui->hook->set_led_blink(proc->ui, blink_info);
+            proc->led->set_led_blink(PUMP_MODE_BL, PUMP_BLINK_PERIOD,
+                PUMP_BLINK_TIMES, LED_STATUS_ON);
             if (BREAST_PUMP_IS_COMMON_MODE(pump_info.mode) == 0) {
-                led_onoff_info_t onoff_info = {
-                    .led_index = PUMP_FREQ_SET_BL,
-                    .onoff = LED_STATUS_ON,
-                };
-                proc->ui->hook->set_led_onoff(proc->ui, onoff_info);
+                proc->led->set_led_onoff(PUMP_FREQ_SET_BL, LED_STATUS_ON);
             }
             switch_pump_common_mode_ui(proc, proc->pump, &pump_info);
             break;
         case KEY_CODE_FREQUENCY:
-            blink_info.led_index = PUMP_FREQ_SET_BL;
-            if (BREAST_PUMP_IS_COMMON_MODE(pump_info.mode) == 0) {
-                blink_info.first_status = LED_STATUS_ON;
-                blink_info.finish_status = LED_STATUS_OFF;
+            if (BREAST_PUMP_IS_COMMON_MODE(pump_info.mode)) {
+                proc->led->set_led_blink(PUMP_FREQ_SET_BL, PUMP_BLINK_PERIOD, 
+                    PUMP_BLINK_TIMES, LED_STATUS_ON);
             }
-            proc->ui->hook->set_led_blink(proc->ui, blink_info);
             switch_pump_frequency_ui(proc, proc->pump, &pump_info);
             break;
         case KEY_CODE_BREASTFEEDING:
             if (BREAST_PUMP_IS_COMMON_MODE(pump_info.mode)) {
-                led_onoff_info_t onoff_info = {
-                    .led_index = PUMP_FREQ_SET_BL,
-                    .onoff = LED_STATUS_OFF,
-                };
-                proc->ui->hook->set_led_onoff(proc->ui, onoff_info);
+                proc->led->set_led_onoff(PUMP_FREQ_SET_BL, LED_STATUS_OFF);
             }
-            blink_info.led_index = PUMP_BREASTFEEDING_BL;
-            proc->ui->hook->set_led_blink(proc->ui, blink_info);
+            proc->led->set_led_blink(PUMP_BREASTFEEDING_BL, PUMP_BLINK_PERIOD, 
+                PUMP_BLINK_TIMES, LED_STATUS_ON);
             switch_breastfeeding_mode_ui(proc, proc->pump, &pump_info);
             break;
         case KEY_CODE_LEFT_CONTROL:
-            blink_info.led_index = PUMP_LEFT_CONTROL_BL;
-            blink_info.first_status = LED_STATUS_ON;
-            blink_info.continue_time = 3000;
-            proc->ui->hook->set_led_blink(proc->ui, blink_info);
-            led_level_info_t left_level_info = {
-                .led_index = PUMP_RIGHT_CONTROL_BL,
-                .level = LED_LEVEL_MAX / 2,
-            };
-            proc->ui->hook->set_led_level(proc->ui, left_level_info);
+            proc->led->set_led_blink(PUMP_LEFT_CONTROL_BL, PUMP_BLINK_PERIOD, 
+                PUMP_LEVEL_BLINK_TIMES, LED_STATUS_ON);
+            proc->led->set_led_level(PUMP_RIGHT_CONTROL_BL, LED_LEVEL_MAX / 2);
             switch_pump_control_type_ui(proc, proc->pump, 0);
             break;
         case KEY_CODE_RIGHT_CONTROL:
-            blink_info.led_index = PUMP_RIGHT_CONTROL_BL;
-            blink_info.first_status = LED_STATUS_ON;
-            blink_info.continue_time = 3000;
-            proc->ui->hook->set_led_blink(proc->ui, blink_info);
-            led_level_info_t right_level_info = {
-                .led_index = PUMP_LEFT_CONTROL_BL,
-                .level = LED_LEVEL_MAX / 2,
-            };
-            proc->ui->hook->set_led_level(proc->ui, right_level_info);
+            proc->led->set_led_blink(PUMP_RIGHT_CONTROL_BL, PUMP_BLINK_PERIOD, 
+                PUMP_LEVEL_BLINK_TIMES, LED_STATUS_ON);
+            proc->led->set_led_level(PUMP_LEFT_CONTROL_BL, LED_LEVEL_MAX / 2);
             switch_pump_control_type_ui(proc, proc->pump, 1);
             break;
         case KEY_CODE_KNOB_LEFT:
@@ -258,40 +232,35 @@ static void on_pump_ui_broadcast_receive_cb(broadcast_mask_id_t id, void *contex
         LOG_WM("user_pause ignore.");
         return;
     }
-    LOG_WM("receive broadcast, code: %lx, code_v2: %lx, flag: %d, status: %d, mode: %ld,\
-            working: %d, arg1: %d, arg2: %d.", id.code, id.code_v2, proc->is_mode_changed_by_device,
-            pump_status, pump_mode, pump_working, arg1, arg2);
+    LOG_WM("code: %lx, code_v2: %lx, flag: %d, status: %d, mode: %ld, working: %d, arg1: %d, arg2: %d.",
+         id.code, id.code_v2, proc->is_mode_changed_by_device, pump_status, pump_mode, pump_working, arg1, arg2);
     switch (id.code) {
-        case ID_BROADCAST_BREAST_PUMP_MODE_CHANGE: {
-            /// 监测APP端切换模式动作，同步手柄端
-            if (!proc->is_mode_changed_by_device) {
-                /// 泵奶中切换模式，4秒后进入计时界面
-                if (pump_working && PUMP_IS_GOING(pump_status)) {
-                    REMOVE_ALL_HANDER_TASK();
-                    LOG_WM("start pump state change task after %ds", PUMP_MODE_CHANGE_TIMEOUT);
-                    POST_TASK_HANDLER_DELAYED_ARG5(pump_ui_common_cb, PUMP_MODE_CHANGE_TIMEOUT,
-                            PUMP_HDR_ACTION_CHANGE_PUMP_STATUS, LOOP_SHOW_PUMPING, proc, PUMP_STATE_CHANGE_TASK_NAME);
+        case ID_BROADCAST_BREAST_PUMP_STATE_CHANGE: 
+            if (arg1 == BREAST_PUMP_BROADCAST_MODE_CHANGE) {
+                if (!proc->is_mode_changed_by_device) {
+                    if (pump_working && PUMP_IS_GOING(pump_status)) {
+                        REMOVE_ALL_HANDER_TASK();
+                        LOG_WM("start pump state change task after %ds", PUMP_MODE_CHANGE_TIMEOUT);
+                        POST_TASK_HANDLER_DELAYED_ARG5(pump_ui_common_cb, PUMP_MODE_CHANGE_TIMEOUT,
+                                PUMP_HDR_ACTION_CHANGE_PUMP_STATUS, LOOP_SHOW_PUMPING, proc, PUMP_STATE_CHANGE_TASK_NAME);
+                    }
+                    proc->ui_show_state = LOOP_SHOW_SWITCH_MODE;
+                    proc->is_mode_changed_by_app = true;  /// 监测APP端切换模式动作，同步手柄端
+                    if (proc->pm) {
+                        proc->pm->pm_wakeup(PM_WAKEUP_REASON_BLE_REQ); /// 接收到APP事件之后仅刷新进入休眠时间
+                    }
+                } else {
+                    proc->is_mode_changed_by_device = false;
+                    proc->is_mode_changed_by_app = false;
                 }
-                proc->ui_show_state = LOOP_SHOW_SWITCH_MODE;
-                proc->is_mode_changed_by_app = true;
-                if (proc->pm) {
-                    proc->pm->pm_wakeup(PM_WAKEUP_REASON_BLE_REQ); /// 接收到APP事件之后仅刷新进入休眠时间
-                }
-            } else {
-                proc->is_mode_changed_by_device = false;
-                proc->is_mode_changed_by_app = false;
+            } else if (arg1 == BREAST_PUMP_BROADCAST_COMPLETED) {
+                POST_TASK_HANDLER_DELAYED_ARG2(pump_ui_common_cb, 100, PUMP_HDR_ACTION_PUMP_COMPLETE, 
+                    proc, PUMP_COMPLETE_TASK_NAME);
+                LOG_WM("pump finish, post pump complete task.");
             }
             break;
-        }
-        case ID_BROADCAST_BREAST_PUMP_FINISH: {
-            POST_TASK_HANDLER_DELAYED_ARG2(pump_ui_common_cb, 100, PUMP_HDR_ACTION_PUMP_COMPLETE, 
-                proc, PUMP_COMPLETE_TASK_NAME);
-            LOG_WM("pump finish, post pump complete task.");
-        }
-        break;
-
         default:
-        break;
+            break;
     }
 }
 
@@ -301,10 +270,7 @@ static int entry_event_cb(window_lift_cycle_e new_state,
     ui_proc_pump_t *proc = CONTAINER_OF(thiz, ui_proc_pump_t, w_ctx);
     EXCEPTION_CHECK_INT(proc);
     /// 获取泵奶控制类型
-    if (proc->st) {
-        proc->st->get_store_ram_val(STORE_ID_PUMP_CONTROL_TYPE, 0, 0, &proc->info.control_type);
-    }
-    
+    proc->info.control_type = proc->pump->get_breast_pump_control_type();
     /// 处理窗口进入事件.
     if (new_state == ID_SCR_STATE_ON_RESUME) {
         LOG_WM("==>%s window on resume", PAGE_NAME_STR);
@@ -393,16 +359,15 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
     proc->battery = (battery_manager_context_t *)find_module(ID_MODULE_BATTERY);
     proc->ble = (ble_manager_context_t *)find_module(ID_MODULE_BLE);
     proc->motor = (motor_manager_context_t *)find_module(ID_MODULE_MOTOR);
-    proc->st = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
     proc->pm = (power_manager_context_t *)find_module(ID_MODULE_POWER);
     proc->key = (key_input_context_t *)find_module(ID_MODULE_KEY_INPUT);
     proc->algo = (algo_manager_context_t *)find_module(ID_MODULE_ALGO_HUB);
+    proc->led = (led_manager_context_t *)find_module(ID_MODULE_LED);
     /// 注册广播监听.
     proc->receiver.context = proc;
     proc->receiver.name = "pump_screen";
-    proc->receiver.id.code |= ID_BROADCAST_BREAST_PUMP_MODE_CHANGE;
-    proc->receiver.id.code |= ID_BROADCAST_SYS_PERSIST_INFO_SAVE;
-    proc->receiver.id.code |= ID_BROADCAST_BREAST_PUMP_FINISH;
+    proc->receiver.id.code |= ID_BROADCAST_BREAST_PUMP_STATE_CHANGE;
+    proc->receiver.id.code |= ID_BROADCAST_PERSIST_INFO_UPDATE;
     proc->receiver.receiver_cb = on_pump_ui_broadcast_receive_cb;
     register_broadcast_receiver(&proc->receiver);
     /// 配置泵奶管理器.

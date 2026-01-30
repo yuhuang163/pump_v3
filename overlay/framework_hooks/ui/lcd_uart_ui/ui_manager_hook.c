@@ -135,43 +135,43 @@ static void set_ui_backlight(ui_manager_context_t *thiz, uint16_t val)
     }
 }
 
-static void set_led_blink(ui_manager_context_t *thiz, led_blink_info_t blink_info)
+static void set_led_blink(ui_manager_context_t *thiz, uint8_t led_index, uint16_t period,
+    uint16_t blink_times, uint8_t finish_status)
 {
     EXCEPTION_CHECK_VOID(thiz);
     led_status_msg_t msg = {
-        .led_index = blink_info.led_index,
+        .led_index = led_index,
         .led_status = {
             .mode = LED_MODE_BLINK,
-            .un.blink.period = blink_info.period,
-            .un.blink.continue_time = blink_info.continue_time,
-            .un.blink.first_status = blink_info.first_status,
-            .un.blink.finish_status = blink_info.finish_status,
+            .un.blink.period = period,
+            .un.blink.times = blink_times,
+            .un.blink.finish_status = finish_status,
         },
     };
     thiz->priv.led_dev->ioctl(thiz->priv.led_dev, OP_CODE_LED_STATUS_SET, (void *)&msg);
 }
 
-static void set_led_level(ui_manager_context_t *thiz, led_level_info_t level_info)
+static void set_led_level(ui_manager_context_t *thiz, uint8_t led_index, uint8_t level)
 {
     EXCEPTION_CHECK_VOID(thiz);
     led_status_msg_t msg = {
-        .led_index = level_info.led_index,
+        .led_index = led_index,
         .led_status = {
             .mode = LED_MODE_LEVEL,
-            .un.luminous.level = level_info.level,
+            .un.luminous.level = level,
         },
     };
     thiz->priv.led_dev->ioctl(thiz->priv.led_dev, OP_CODE_LED_STATUS_SET, (void *)&msg);
 }
 
-static void set_led_onoff(ui_manager_context_t *thiz, led_onoff_info_t onoff_info)
+static void set_led_onoff(ui_manager_context_t *thiz, uint8_t led_index, uint8_t onoff)
 {
     EXCEPTION_CHECK_VOID(thiz);
     led_status_msg_t msg = {
-        .led_index = onoff_info.led_index,
+        .led_index = led_index,
         .led_status = {
             .mode = LED_MODE_ONOFF,
-            .un.onoff.status = onoff_info.onoff,
+            .un.onoff.status = onoff,
         },
     };
     thiz->priv.led_dev->ioctl(thiz->priv.led_dev, OP_CODE_LED_STATUS_SET, (void *)&msg);
@@ -183,29 +183,19 @@ static void on_ui_broadcast_receiver_route(broadcast_mask_id_t id, void *context
     EXCEPTION_CHECK_VOID(ui);
     LOG_UI("broadcast id: %d, arg1: %d, arg2: %d", id.code, arg1, arg2);
     switch (id.code) {
-        case ID_BROADCAST_PM_WAKEUP_BY_USER:
-            if (ui->priv.ui_backlight_val != 100) {
-                set_ui_backlight(ui, 100);
-            }
-            break;
-        case ID_BROADCAST_SET_BLACKLIGHT_BY_USER:
-            if (ui->priv.ui_backlight_val != 100) {
-                set_ui_backlight(ui, 100);
-            }
-            break;
-        case ID_BROADCAST_SYS_POWER_STATE_CHANGE:
-            if (arg1 == ID_BROADCAST_SYS_POWER_OFF) {
+        case ID_BROADCAST_SYS_STATE_CHANGE:
+            if (arg1 == SYSTEM_BROADCAST_POWER_OFF) {
                 set_ui_backlight(ui, 0);
-            } else if (arg1 == ID_BROADCAST_SYS_POWER_ON) {
+            } else if (arg1 == SYSTEM_BROADCAST_POWER_ON) {
                 set_ui_backlight(ui, 100);
             }
             break;
         case ID_BROADCAST_PM_STATE_CHANGE: 
-            if (arg1 == ID_SYS_PM_SUSPEND) {
+            if (arg1 == PM_BROADCAST_SYS_SUSPEND) {
                 ui->priv.is_playing_ui_animation = false;
                 STOP_TIMER(ui->priv.lv_timer);
                 ui->priv.lv_tick_timer_running = false;
-            } else {
+            } else if (arg1 == PM_BROADCAST_SYS_RESUME) {
                 STOP_TIMER(ui->priv.lv_timer);
                 START_TIMER(ui->priv.lv_timer, LVGL_TIME_TICK_PERIOD);
                 ui->priv.lv_tick_timer_running = true;

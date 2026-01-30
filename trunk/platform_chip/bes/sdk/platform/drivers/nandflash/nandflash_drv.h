@@ -19,7 +19,7 @@
 #include "plat_types.h"
 #include "hal_cmu.h"
 #include "nandflash_cfg.h"
-
+#include "nandflash_ecc.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -48,6 +48,7 @@ enum NANDFLASH_RET_T {
     NANDFLASH_RET_READ_ERR,
     NANDFLASH_RET_ERASE_ERR,
     NANDFLASH_RET_PROGRAM_ERR,
+    NANDFLASH_RET_BAD_CALIB_DTR,
 };
 
 enum NANDFLASH_SPEED {
@@ -95,6 +96,8 @@ enum NANDFLASH_OP_MODE {
     NANDFLASH_OP_MODE_NO_QE_BIT             = (1 << 10),
     // deep power down
     NANDFLASH_OP_MODE_DEEP_POWER_DOWN       = (1 << 11),
+    // dtr mode
+    NANDFLASH_OP_MODE_DTR                   = (1 << 12),
 
     NANDFLASH_OP_MODE_RESERVED              = 0xFFFFFFFF,
 };
@@ -146,7 +149,8 @@ struct NANDFLASH_CFG_T {
     uint8_t id[NANDFLASH_ID_LEN];
     uint8_t die_num;
     uint8_t plane_cfg;
-    uint8_t ecc_status_type;
+    enum NANDFLASH_ECC_STATUS_T rom_ecc_type;
+    struct NANDFLASH_ECC_ST_CFG_T ecc_cfg;
     uint16_t block_protect_mask;
     union NANDFLASH_SEC_REG_CFG_T sec_reg_cfg;
     union NANDFLASH_DUMMY_CYCLE_CFG_T dummy_cycle_cfg;
@@ -179,13 +183,7 @@ enum NANDFLASH_RET_T nandflash_enable_protection(enum HAL_FLASH_ID_T id);
 
 enum NANDFLASH_RET_T nandflash_disable_protection(enum HAL_FLASH_ID_T id);
 
-enum NANDFLASH_RET_T nandflash_erase(enum HAL_FLASH_ID_T id, uint32_t offset, uint32_t len);
-
-enum NANDFLASH_RET_T nandflash_write(enum HAL_FLASH_ID_T id, uint32_t offset, const uint8_t *buffer, uint32_t len);
-
-enum NANDFLASH_RET_T nandflash_read(enum HAL_FLASH_ID_T id, uint32_t offset, uint8_t *buffer, uint32_t len);
-
-enum NANDFLASH_RET_T nandflash_load_valid_data(enum HAL_FLASH_ID_T id, uint32_t start, uint32_t end, uint8_t *buffer, uint32_t len);
+enum NANDFLASH_RET_T nandflash_load_valid_data(enum HAL_FLASH_ID_T id, uint32_t start_block, uint32_t block_cnt, uint8_t *buffer, uint32_t len);
 
 int nandflash_block_is_bad(enum HAL_FLASH_ID_T id, uint32_t block);
 
@@ -228,6 +226,8 @@ enum NANDFLASH_RET_T nandflash_security_register_write(enum HAL_FLASH_ID_T id, u
 void nandflash_sleep(enum HAL_FLASH_ID_T id, enum HAL_CMU_LPU_SLEEP_MODE_T mode);
 
 void nandflash_wakeup(enum HAL_FLASH_ID_T id, enum HAL_CMU_LPU_SLEEP_MODE_T mode);
+
+void nandflash_get_flash_list(const struct NANDFLASH_CFG_T **list, uint32_t *len);
 
 
 #ifdef __cplusplus

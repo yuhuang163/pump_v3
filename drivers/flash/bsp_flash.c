@@ -50,11 +50,11 @@ static int flash_section_init(void)
                     (uint32_t)flash_callback);
 
     /// 注册Picture Data模块
-    flash_id = norflash_api_get_dev_id_by_addr(PICTURE_DATA_INT_START_ADDR);
+    flash_id = norflash_api_get_dev_id_by_addr(IMG_INT_DATA_START_ADDR);
     app_flash_register_module(NORFLASH_API_MODULE_ID_LUTE_PICTURE_RESOURCES,
                     flash_id, 
-                    (uint32_t)PICTURE_DATA_INT_START_ADDR, 
-                    (uint32_t)PICTURE_DATA_INT_END_ADDR - (uint32_t)PICTURE_DATA_INT_START_ADDR,
+                    (uint32_t)IMG_INT_DATA_START_ADDR, 
+                    (uint32_t)IMG_INT_DATA_END_ADDR - (uint32_t)IMG_INT_DATA_START_ADDR,
                     (uint32_t)flash_callback);
     return 0;
 }

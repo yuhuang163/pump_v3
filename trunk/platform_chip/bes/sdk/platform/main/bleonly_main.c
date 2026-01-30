@@ -22,6 +22,14 @@
 #include "app_custom.h"
 #include "app_ble.h"
 
+#ifdef BT_CALIB
+#include "bt_calib.h"
+#endif
+
+#ifdef SPI_FLASH1
+#include "spi_flash.h"
+#endif
+
 #if defined(BLE_ONLY_LT)
 #include "cqueue.h"
 #ifdef TEST_HAL_PATTERN
@@ -651,6 +659,22 @@ void ble_start_adv(void)
     app_ble_start_connectable_adv(500);
 }
 
+// #define FLASH1_TEST
+#ifdef FLASH1_TEST
+static uint8_t buff_r[4096];
+static uint8_t buff_w[4096];
+#endif
+
+#ifdef SPI_FLASH1
+#define SPI_FLASH1_ID 0
+#define SPI_RATE (24 * 1000000)
+static uint32_t get_spi_cs_pin(void)
+{
+    uint32_t cs_pin = HAL_IOMUX_PIN_P2_5;
+    return cs_pin;
+}
+#endif
+
 #if CFG_CUSTOM_APP
 extern void platform_log_init(void);
 extern void root_main(int argc, const char *argv[]);
@@ -682,13 +706,78 @@ int main(void)
 #endif
 
 #if CFG_CUSTOM_APP
+    hal_trace_set_log_level(TR_LEVEL_DEBUG);
     pmu_power_key_hw_reset_enable(10);
     platform_log_init();
 #else
     hal_trace_set_log_level(TR_LEVEL_DEBUG);
     TRACE(0, "-->-->no custom app log level: debug");
 #endif
+//flash1
+#ifdef ENABLE_FLASH1
+#ifdef SPI_FLASH1
+    static const struct HAL_IOMUX_PIN_FUNCTION_MAP pinmux_gpio[] = {
+        {HAL_IOMUX_PIN_P1_3, HAL_IOMUX_FUNC_AS_GPIO, HAL_IOMUX_PIN_VOLTAGE_VIO, HAL_IOMUX_PIN_NOPULL},
+   };
+    hal_iomux_init(pinmux_gpio, ARRAY_SIZE(pinmux_gpio));
+    hal_gpio_pin_set_dir(HAL_GPIO_PIN_P1_3, HAL_GPIO_DIR_OUT, 1);
+    hal_gpio_pin_set(HAL_GPIO_PIN_P1_3);
+    enum SPI_FLASH_RET_T flash1_ret;
+    uint32_t cs_pin;
 
+    TRACE(1, "SPI_FLASH1 init");
+
+    hal_sysfreq_req(HAL_SYSFREQ_USER_INIT, HAL_CMU_FREQ_208M);
+    TRACE(1, "CPU frequency changed to: %uM", hal_sys_timer_calc_cpu_freq(5, 0) / 1000000);
+
+    cs_pin = get_spi_cs_pin();
+    flash1_ret = spi_flash_open(SPI_FLASH1_ID, SPI_RATE, cs_pin);
+    if (flash1_ret) {
+        TRACE(1, "flash open failed, ret = %d", flash1_ret);
+    }
+    else {
+        TRACE(1, "flash open done");
+    }
+#else
+    hal_cmu_clock_enable(HAL_CMU_MOD_H_FLASH1);
+    hal_cmu_clock_enable(HAL_CMU_MOD_O_FLASH1);
+    hal_cmu_reset_clear(HAL_CMU_MOD_H_FLASH1);
+    hal_cmu_reset_clear(HAL_CMU_MOD_O_FLASH1);
+    hal_iomux_set_flash_qspi();
+    hal_norflash_init(HAL_FLASH_ID_1);
+    hal_norflash_show_id_state(HAL_FLASH_ID_1, true);
+#ifdef FLASH1_TEST
+    uint8_t value = 0;
+    int ret = 0;
+    int j = 0;
+    for(j = 0; j < 4096; j++)
+    {
+        buff_w[j] = value ++;
+    }
+    memset(buff_r, 0xff, 4096);
+    ret = hal_norflash_erase(HAL_FLASH_ID_1, 0x34000000, 4096);
+    if(!ret){
+        TRACE(0,"hal_norflash_erase : success");
+    }
+    ret = hal_norflash_read(HAL_FLASH_ID_1, 0x34000000, buff_r, 4096);
+    if(!ret){
+        TRACE(0,"hal_norflash_read : success");
+        DUMP8("0x%x,", buff_r, 16);
+    }
+    ret = hal_norflash_write(HAL_FLASH_ID_1, 0x34000000, buff_w, 4096);
+    if(!ret){
+        TRACE(0,"hal_norflash_write : success");
+        DUMP8("0x%x,", buff_w, 16);
+    }
+    ret = hal_norflash_read(HAL_FLASH_ID_1, 0x34000000, buff_r, 4096);
+    if(!ret){
+        TRACE(0,"hal_norflash_read : success");
+        DUMP8("0x%x,", buff_r, 16);
+    }
+#endif
+#endif
+#endif
+//flash1
     hal_norflash_show_id_state(HAL_FLASH_ID_0, true);
 
     hal_iomux_ispi_access_init();
@@ -725,6 +814,13 @@ int main(void)
 
     main_thread_tid = osThreadGetId();
     TRACE(1,"main_thread_tid=%x", (uint32_t)main_thread_tid);
+
+#ifdef BT_CALIB
+    if(hal_sw_bootmode_get() & HAL_SW_BOOTMODE_CALIB){
+        hal_sw_bootmode_clear(HAL_SW_BOOTMODE_CALIB);
+        app_factorymode_calib_only();
+    }
+#endif
 
     if (hal_sw_bootmode_get() & HAL_SW_BOOTMODE_TEST_MODE) {
         TRACE(0, "-->-->bootmode test mode!!!");

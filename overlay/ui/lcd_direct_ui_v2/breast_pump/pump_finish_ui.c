@@ -88,7 +88,7 @@ void ui_display_pump_complete_tip_remove(ui_manager_context_t *thiz)
     finish_info = NULL;
 }
 
-int ui_display_pump_complete_tip(ui_manager_context_t *thiz)
+int ui_display_pump_complete_tip_process(ui_manager_context_t *thiz)
 {
     EXCEPTION_CHECK_INT(thiz);
     EXCEPTION_CHECK_INT(finish_info);

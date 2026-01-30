@@ -33,17 +33,11 @@ INIT_WINDOW_CONTEXT();
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-static void factory_reset_led_blink_policy(ui_manager_context_t *ui)
+static void factory_reset_led_blink_policy(led_manager_context_t *led)
 {
-   led_blink_info_t blink_info = {
-    .led_index = PUMP_LED_ALL_ID,
-    .period = 500,
-    .continue_time = 3000,
-    .first_status = LED_STATUS_OFF,
-    .finish_status = LED_STATUS_OFF,
-   };
-   LOG_UI("factory reset led blink policy");
-   ui->hook->set_led_blink(ui, blink_info);
+    EXCEPTION_CHECK_VOID(led);
+    LOG_UI("factory reset led blink policy");
+    led->set_led_blink(PUMP_LED_ALL_ID, 500, 3, LED_STATUS_OFF);
 }
 
 static void factory_reset_cb(hdr_post_args_t *args)
@@ -75,7 +69,7 @@ static int entry_event_cb(window_lift_cycle_e new_state,
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);
         ui->animation_play_status_update(ui, false); /// 清除动画播放标志
-        factory_reset_led_blink_policy(ui);
+        factory_reset_led_blink_policy(proc->led);
         start_factory_reset_ui_animation(proc);
         if (pump && pump->is_on_working()) {
             LOG_WM("factory reset, stop breast pump work.");
@@ -122,6 +116,7 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
     proc->wm = wm;
     proc->ui = (ui_manager_context_t *)find_module(ID_MODULE_UI);
     proc->pm = (power_manager_context_t *)find_module(ID_MODULE_POWER);
+    proc->led = (led_manager_context_t *)find_module(ID_MODULE_LED);
     window_context_t *w_ctx = &proc->w_ctx;
     w_ctx->new_window_id = window_id;
     w_ctx->evt_cb_entry = entry_event_cb;

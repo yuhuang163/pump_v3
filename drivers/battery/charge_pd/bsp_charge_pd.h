@@ -80,12 +80,9 @@ typedef enum {
 * GLOBAL FUNCTION DECLARATION
 *****************************************************************************************
 */
-
-int bsp_charge_pd_init(void);
-int bsp_charge_pd_resume(void);
-int bsp_charge_pd_suspend(void);
-int bsp_charge_pd_power_data_get(uint8_t *data, uint8_t len);
-
+void bsp_charge_pd_init(void);
+void charge_pd_status_poll(void);
+int bsp_charge_pd_is_ready(void *args);
 #ifdef __cplusplus
 }
 #endif

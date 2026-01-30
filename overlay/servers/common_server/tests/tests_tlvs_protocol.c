@@ -86,17 +86,20 @@ int tests_tlvs_factory_test_mode(comm_protocol_builder_t *builder, comm_protocol
     tests_manager_context_t *tests_ctx = (tests_manager_context_t *)find_module(ID_MODULE_TESTS);
     EXCEPTION_CHECK_INT(tests_ctx);
     // TODO: 实现产测模式进入/退出逻辑
+    led_manager_context_t *led = (led_manager_context_t *)find_module(ID_MODULE_LED);
     if (mode == 1) {
         /* 进入产测模式 */
         set_log_ouput_level(US_LOG_LEVEL_NONE);
-        //关闭自适应夜灯
-        algo_manager_context_t *algo = (algo_manager_context_t *)find_module(ID_MODULE_ALGO_HUB);
-        EXCEPTION_CHECK_INT(algo);
-        algo->hook->set_adaptive_dimming_state(false);
-
+        /// 关闭自适应夜灯
+        if (led && led->hook && led->hook->set_night_light_adaptive_switch &&
+            led->hook->set_night_light_adaptive_dimming && led->hook->set_night_light_level) {
+            led->hook->set_night_light_adaptive_switch(led, 0);
+            led->hook->set_night_light_adaptive_dimming(led, 0);
+            led->hook->set_night_light_level(led, 0);
+        }
         tests_ctx->tests_manager_set_current_mode(TST_FACTORY_TYPE);
         tests_ctx->set_factory_tests_event_process(FAC_TST_ENTER_EVENT, 0, 0, NULL);
-        //唤醒电源管理模块
+        /// 唤醒电源管理模块
         power_manager_context_t *pm = (power_manager_context_t *)find_module(ID_MODULE_POWER);
         if (pm && pm->is_pm_suspend()) {
             pm->pm_wakeup(PM_WAKEUP_REASON_FACTORY_RESUME);
@@ -112,11 +115,11 @@ int tests_tlvs_factory_test_mode(comm_protocol_builder_t *builder, comm_protocol
         } else {
             /* 退出产测模式 */
             set_log_ouput_level(US_LOG_LEVEL_VERBOSE);
-            //开启自适应夜灯
-            algo_manager_context_t *algo = (algo_manager_context_t *)find_module(ID_MODULE_ALGO_HUB);
-            EXCEPTION_CHECK_INT(algo);
-            algo->hook->set_adaptive_dimming_state(true);
-             
+            /// 开启自适应夜灯
+            if (led && led->hook && led->hook->set_night_light_adaptive_switch) {
+                led->hook->set_night_light_adaptive_switch(led, 1);
+                led->hook->set_night_light_adaptive_dimming(led, 1);
+            }
             tests_ctx->tests_manager_set_current_mode(TST_NONE_TYPE);
             tests_ctx->set_factory_tests_event_process(FAC_TST_EXIT_EVENT, 0, 0, NULL);
             /* 关闭测试窗口 */
@@ -344,7 +347,7 @@ int tests_tlvs_aging_status_query(comm_protocol_builder_t *builder, comm_protoco
             // 单位s，小端序
             // 如果当前模式正在老化模式运行中，则加上模式正在运行的时间
             uint32_t age_time = 0;
-            if( tests_ctx->tests_manager_get_current_mode() == TST_AGING_TEST_TYPE ) {
+            if ( tests_ctx->tests_manager_get_current_mode() == TST_AGING_TEST_TYPE ) {
                 pump_result_info_t *pumping_info = pump_ctx->get_breast_pump_result(BREAST_PUMP_RESULT_PUMPING);
                 age_time = age_info->age_time + pumping_info->current_mode_work_time/1000;
             } else {
@@ -747,7 +750,10 @@ int tests_tlvs_bt_signaling_test(comm_protocol_builder_t *builder, comm_protocol
 
     if (mode == 1) {
         /* 进入蓝牙信令测试模式 */
-        platform_bt_enter_signalingtest_mode(); // 此函数会设置启动模式并重启
+        peripheral_bus_context_t *pbus = (peripheral_bus_context_t *)find_module(ID_MODULE_DEVICE_BUS);
+        rt_device_node_t *ble_dev = pbus->find_device(ID_DEVICE_BLE);
+        DEVICE_IOCTL_ARGS_NO_RET(ble_dev, OP_CODE_BLE_TEST_ENTER_SIGNALINGTEST_MODE, NULL);
+        
         result = 0x01; // 成功（实际会在重启后生效）
     } else {
         /* 退出蓝牙信令测试模式 */
@@ -779,7 +785,10 @@ int tests_tlvs_bt_nosignaling_test(comm_protocol_builder_t *builder, comm_protoc
 
     if (mode == 1) {
         /* 进入蓝牙非信令测试模式 */
-        platform_bt_enter_nosignalingtest_mode(); // 此函数会设置启动模式并重启
+        peripheral_bus_context_t *pbus = (peripheral_bus_context_t *)find_module(ID_MODULE_DEVICE_BUS);
+        rt_device_node_t *ble_dev = pbus->find_device(ID_DEVICE_BLE);
+        DEVICE_IOCTL_ARGS_NO_RET(ble_dev, OP_CODE_BLE_TEST_ENTER_NOSIGNALINGTEST_MODE, NULL);
+
         result = 0x01; // 成功（实际会在重启后生效）
     } else {
         /* 退出蓝牙非信令测试模式 */
@@ -812,13 +821,18 @@ int tests_tlvs_bt_xtal_calib_test(comm_protocol_builder_t *builder, comm_protoco
     if (mode == 1) {
         /* 进入蓝牙校频测试模式 */
         // 调用校频测试函数
-        if (platform_bt_xtal_calib_proc_start() == 0) {
-            result = 0x01; // 成功
-        }
+        peripheral_bus_context_t *pbus = (peripheral_bus_context_t *)find_module(ID_MODULE_DEVICE_BUS);
+        rt_device_node_t *ble_dev = pbus->find_device(ID_DEVICE_BLE);
+        DEVICE_IOCTL_ARGS_NO_RET(ble_dev, OP_CODE_BLE_TEST_XTAL_CALIB_PROC_START, NULL);
+        result = 0x01; // 成功
+        
     } else {
         /* 退出蓝牙校频测试模式 */
         // TODO: 实现退出逻辑
-        platform_bt_xtal_calib_end();
+        peripheral_bus_context_t *pbus = (peripheral_bus_context_t *)find_module(ID_MODULE_DEVICE_BUS);
+        rt_device_node_t *ble_dev = pbus->find_device(ID_DEVICE_BLE);
+        DEVICE_IOCTL_ARGS_NO_RET(ble_dev, OP_CODE_BLE_TEST_XTAL_CALIB_END, NULL);
+
         result = 0x01; // 默认成功
     }
 
@@ -853,7 +867,9 @@ int tests_tlvs_set_trim_value(comm_protocol_builder_t *builder, comm_protocol_se
         
         LOG_SRV("tests_tlvs_set_trim_value: trim_value=0x%08X (%u)", trim_value, trim_value);
         
-        platform_bt_xtal_calib_set(trim_value);
+        peripheral_bus_context_t *pbus = (peripheral_bus_context_t *)find_module(ID_MODULE_DEVICE_BUS);
+        rt_device_node_t *ble_dev = pbus->find_device(ID_DEVICE_BLE);
+        DEVICE_IOCTL_ARGS_NO_RET(ble_dev, OP_CODE_BLE_TEST_XTAL_CALIB_SET, &trim_value);
         result = 0x01; // 成功
     } else {
         LOGE("tests_tlvs_set_trim_value: invalid data_len=%d, expected=%d", data_len, TESTS_TRIM_VALUE_LENGTH);
@@ -881,14 +897,16 @@ int tests_tlvs_get_trim_value(comm_protocol_builder_t *builder, comm_protocol_se
     uint8_t response[TESTS_TRIM_VALUE_LENGTH] = {0};
     /// Trim值存储
     uint32_t trim_value = 0;
-    platform_bt_xtal_calib_get(&trim_value);
+    peripheral_bus_context_t *pbus = (peripheral_bus_context_t *)find_module(ID_MODULE_DEVICE_BUS);
+    rt_device_node_t *ble_dev = pbus->find_device(ID_DEVICE_BLE);
+    DEVICE_IOCTL_ARGS_NO_RET(ble_dev, OP_CODE_BLE_TEST_XTAL_CALIB_GET, &trim_value);
     // 将trim值转换为小端序字节数组
     response[0] = (uint8_t)(trim_value & 0xFF);
     response[1] = (uint8_t)((trim_value >> 8) & 0xFF);
     response[2] = (uint8_t)((trim_value >> 16) & 0xFF);
     response[3] = (uint8_t)((trim_value >> 24) & 0xFF);
 
-    LOG_SRV("tests_tlvs_get_trim_value: trim_value=0x%08X (%u)", trim_value);
+    LOG_SRV("tests_tlvs_get_trim_value: trim_value=0x%08X", trim_value);
     LOG_HEX("get_trim_value_response", response, TESTS_TRIM_VALUE_LENGTH);
 
     comm_protocol_tlv_node_t tlv_node = {
@@ -915,8 +933,7 @@ int tests_tlvs_standby_mode(comm_protocol_builder_t *builder, comm_protocol_serv
 
     if (mode == 1) {
         /* 进入待机模式 */
-        SEND_BROADCAST_ARGS2(ID_BROADCAST_REQ_PM_SUSPEND_BY_USER, 0,
-                             SUSPEND_BY_FAC);
+        SEND_BROADCAST_ARGS1(ID_BROADCAST_REQ_PM_SUSPEND, PM_BROADCAST_FACTORY_REQUEST_SUSPEND);
         result = 0x01; // 成功
     } else {
         /* 退出待机模式 */
@@ -1069,7 +1086,10 @@ int tests_tlvs_get_rssi(comm_protocol_builder_t *builder, comm_protocol_service_
 
     if (rssi_type == 0x00) {
         // 获取BLE RSSI
-        if (platform_bt_get_rssi_value(&rssi_value) == 0) {
+        peripheral_bus_context_t *pbus = (peripheral_bus_context_t *)find_module(ID_MODULE_DEVICE_BUS);
+        rt_device_node_t *ble_dev = pbus->find_device(ID_DEVICE_BLE);
+        uint8_t ret = DEVICE_IOCTL_ARGS(ble_dev, OP_CODE_BLE_TEST_GET_RSSI_VALUE, &rssi_value);
+        if (ret == 0) {
             LOG_SRV("tests_tlvs_get_rssi: BLE RSSI=%d", rssi_value);
         } else {
             LOG_SRV("tests_tlvs_get_rssi: BLE RSSI获取失败");

@@ -31,7 +31,9 @@
 #include "mpu_cfg.h"
 #include "pmu.h"
 #include "hal_evr.h"
+#ifdef LVGL_TEST
 #include "lv_main.h"
+#endif
 
 #if defined(AON_MAILBOX_SIZE) && (AON_MAILBOX_SIZE > 0)
 #include "heap_api.h"
@@ -519,8 +521,8 @@ static void run_test_cases(void)
     mbw_test();
 #endif
 
-#ifdef SPI_NORFLASH_TEST
-    spi_norflash_test();
+#ifdef SPI_FLASH_TEST
+    spi_flash_test();
 #endif
 
 #ifdef SENSOR_HUB_TEST
@@ -960,7 +962,12 @@ int MAIN_ENTRY(void)
 #elif defined(GENERAL_SPI_SLAVE)
     spi_slv_test();
 #endif
-
+    static const struct HAL_IOMUX_PIN_FUNCTION_MAP pinmux_gpio[] = {
+        {HAL_IOMUX_PIN_P1_3, HAL_IOMUX_FUNC_AS_GPIO, HAL_IOMUX_PIN_VOLTAGE_VIO, HAL_IOMUX_PIN_NOPULL},
+   };
+    hal_iomux_init(pinmux_gpio, ARRAY_SIZE(pinmux_gpio));
+    hal_gpio_pin_set_dir(HAL_GPIO_PIN_P1_3, HAL_GPIO_DIR_OUT, 1);
+    hal_gpio_pin_set(HAL_GPIO_PIN_P1_3);
     run_test_cases();
 
 #ifdef NO_TIMER

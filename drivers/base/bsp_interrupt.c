@@ -48,11 +48,6 @@ static void interrupt_msg_thread(const void *args)
                 // BSP_LOG_PASS("right knob %d/%d\r\n", bsp_knob_get_count(0), bsp_knob_get_count(1));
                 break;
         #endif
-        #if IS_SUPPORT_PD_CHARGE
-            case INT_NUM_CHARGE_PD:
-                charge_pd_event_handler();
-                break;
-        #endif
             default: 
                 LOG_PBUS("unknown int:%ld", io_num);
                 break;

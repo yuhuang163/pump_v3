@@ -40,6 +40,14 @@ extern "C" {
 #include "protocol_manager_api.h" // IWYU pragma: keep
 #include "servers_manager_api.h" // IWYU pragma: keep
 #include "battery_manager_api.h" // IWYU pragma: keep
+#include "led_manager_api.h" // IWYU pragma: keep
+
+typedef enum {
+    SYSTEM_BROADCAST_POWER_OFF = 100,
+    SYSTEM_BROADCAST_POWER_ON,
+    SYSTEM_BROADCAST_BOOT_COMPLETED,
+    SYSTEM_BROADCAST_ID_MAX,
+} system_state_broadcast_id_e;
 
 #define ADD_MODULE(name, id, perpare_init_cb, post_init_cb, ptr, list_head, mem_usage) \
     add_new_module(name, id, perpare_init_cb, post_init_cb, ptr, list_head, mem_usage)
@@ -64,6 +72,7 @@ typedef enum {
     ID_MODULE_IOT,
     ID_MODULE_MISC,
     ID_MODULE_BATTERY,
+    ID_MODULE_LED,
     ID_MODULE_BREAST_PUMP,
     ID_MODULE_MOTOR,
     ID_MODULE_AUDIO,

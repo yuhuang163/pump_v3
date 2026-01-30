@@ -95,6 +95,12 @@ CFG_LVGL_ENABLE := 1
 # LVGL snapshot开关
 CFG_LVGL_SNAPSHOT_ENABLE := 1
 
+# 外部flash开关
+CFG_EXTERNAL_FLASH_ENABLE := 1
+
+# BT 校准开关
+CFG_BT_CALIB ?= 1
+
 # 硬件版本
 V3_2710IMP_HARDWARE_V1 ?= 0
 V3_2710IMC_HARDWARE_V1 ?= 1
@@ -198,6 +204,7 @@ SDK_HAL_INC_FLAGS := \
 	-I$(PROJECT_ROOT)/trunk/platform_chip/bes/sdk/platform/hal \
 	-I$(PROJECT_ROOT)/trunk/platform_chip/bes/sdk/platform/drivers/ana \
 	-I$(PROJECT_ROOT)/trunk/platform_chip/bes/sdk/platform/drivers/bt \
+	-I$(PROJECT_ROOT)/trunk/platform_chip/bes/sdk/platform/drivers/spi_flash \
 	-I$(PROJECT_ROOT)/trunk/platform_chip/bes/sdk/platform/cmsis/inc
 
 # SDK 服务头文件
@@ -282,7 +289,8 @@ DRIVERS_BLE_INC_FLAGS := \
 	-I$(PROJECT_ROOT)/drivers/ble \
 	-I$(PROJECT_ROOT)/drivers/ble/services \
 	-I$(PROJECT_ROOT)/drivers/ble/advs \
-	-I$(PROJECT_ROOT)/drivers/ble/connect
+	-I$(PROJECT_ROOT)/drivers/ble/connect \
+	-I$(PROJECT_ROOT)/drivers/ble/ble_test
 
 # 通用驱动头文件
 DRIVERS_COMMON_INC_FLAGS := \
@@ -488,7 +496,7 @@ WINDOWS_INC_FLAGS := \
 	-I$(PROJECT_ROOT)/overlay/windows/breast_pump \
 	-I$(PROJECT_ROOT)/overlay/windows/charge \
 	-I$(PROJECT_ROOT)/overlay/windows/dummy \
-	-I$(PROJECT_ROOT)/overlay/windows/home \
+	-I$(PROJECT_ROOT)/overlay/windows/guide \
 	-I$(PROJECT_ROOT)/overlay/windows/logo \
 	-I$(PROJECT_ROOT)/overlay/windows/ota \
 	-I$(PROJECT_ROOT)/overlay/windows/popup_windows \
@@ -571,9 +579,11 @@ BATTERY_MODULE_INC_FLAGS := \
 	-I$(PROJECT_ROOT)/overlay/battery \
 	-I$(PROJECT_ROOT)/trunk/root_source/battery
 
-# 自适应背光模块头文件
-ADAPTIVE_DIMMING_MODULE_INC_FLAGS := \
-	-I$(PROJECT_ROOT)/overlay/adaptive_dimming 
+# 灯模块头文件
+LED_MODULE_INC_FLAGS := \
+	-I$(PROJECT_ROOT)/overlay/adaptive_dimming \
+	-I$(PROJECT_ROOT)/overlay/framework_hooks/led \
+	-I$(PROJECT_ROOT)/trunk/root_source/led
 
 # 汇总所有 SDK 头文件路径
 SDK_INCLUDE_PATHS := \
@@ -596,7 +606,6 @@ SDK_INCLUDE_PATHS := \
 	$(AUDIO_INC_FLAGS) \
 	$(INPUT_KEY_INC_FLAGS) \
 	$(UI_MODULE_INC_FLAGS) \
-	$(ADAPTIVE_DIMMING_MODULE_INC_FLAGS)\
 	$(BATTERY_MODULE_INC_FLAGS) \
 	$(FONT_INC_FLAGS) \
 	$(WINDOWS_INC_FLAGS) \
@@ -609,7 +618,8 @@ SDK_INCLUDE_PATHS := \
 	$(NETWORK_INC_FLAGS) \
 	$(OTA_INC_FLAGS) \
 	$(PRODUCT_TESTS_INC_FLAGS) \
-	$(RESOURCE_INC_FLAGS) 
+	$(RESOURCE_INC_FLAGS) \
+	$(LED_MODULE_INC_FLAGS) 
 
 # 添加项目根目录和 SDK 头文件路径
 CPPFLAGS ?= -I$(PROJECT_ROOT) -I$(PROJECT_ROOT)/trunk $(SDK_INCLUDE_PATHS)
@@ -627,6 +637,22 @@ endif
 # LVGL snapshot开关
 ifeq ($(CFG_LVGL_SNAPSHOT_ENABLE),1)
 CPPFLAGS += -DLVGL_SNAPSHOT
+endif
+
+# 外部flash开关
+ifeq ($(CFG_EXTERNAL_FLASH_ENABLE),1)
+SPI_FLASH1 := 1
+ENABLE_FLASH1 := 1
+SPI_IOMUX_4WIRE := 1
+CPPFLAGS += -DSPI_FLASH1=$(SPI_FLASH1)
+CPPFLAGS += -DENABLE_FLASH1=$(ENABLE_FLASH1)
+CPPFLAGS += -DSPI_IOMUX_4WIRE=$(SPI_IOMUX_4WIRE)
+endif
+
+# BT 校准开关
+ifeq ($(CFG_BT_CALIB),1)
+BT_CALIB := 1
+CPPFLAGS += -DBT_CALIB=$(BT_CALIB)
 endif
 
 # LVGL 日志级别配置
@@ -805,7 +831,8 @@ DRIVERS_BLE_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/drivers/ble/*.c) \
 	$(wildcard $(PROJECT_ROOT)/drivers/ble/advs/*.c) \
 	$(wildcard $(PROJECT_ROOT)/drivers/ble/connect/*.c) \
-	$(wildcard $(PROJECT_ROOT)/drivers/ble/services/*.c)
+	$(wildcard $(PROJECT_ROOT)/drivers/ble/services/*.c) \
+	$(wildcard $(PROJECT_ROOT)/drivers/ble/ble_test/*.c)
 
 # 通用驱动源码
 DRIVERS_COMMON_SRCS := \
@@ -1018,7 +1045,7 @@ WINDOWS_MODULE_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/overlay/windows/breast_pump/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/windows/charge/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/windows/dummy/*.c) \
-	$(wildcard $(PROJECT_ROOT)/overlay/windows/home/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/windows/guide/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/windows/logo/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/windows/ota/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/windows/popup_windows/*.c) \
@@ -1094,9 +1121,11 @@ FRAMEWORK_HOOKS_BASE_SRCS := \
 BATTERY_MODULE_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/trunk/root_source/battery/*.c)
 
-# 自适应背光模块源码
-ADAPTIVE_DIMMING_MODULE_SRCS := \
-	$(wildcard $(PROJECT_ROOT)/overlay/adaptive_dimming/*.c)
+# 灯模块源码
+LED_MODULE_SRCS := \
+	$(wildcard $(PROJECT_ROOT)/overlay/adaptive_dimming/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/framework_hooks/led/*.c) \
+	$(wildcard $(PROJECT_ROOT)/trunk/root_source/led/*.c)
 
 # 汇总所有应用源码
 EXTRA_SRCS := \
@@ -1112,7 +1141,6 @@ EXTRA_SRCS := \
 	$(AUDIO_MODULE_SRCS) \
 	$(INPUT_KEY_MODULE_SRCS) \
 	$(UI_MODULE_SRCS) \
-	$(ADAPTIVE_DIMMING_MODULE_SRCS) \
 	$(BATTERY_MODULE_SRCS) \
 	$(FONT_MODULE_SRCS) \
 	$(WINDOWS_MODULE_SRCS) \
@@ -1125,7 +1153,8 @@ EXTRA_SRCS := \
 	$(NETWORK_MODULE_SRCS) \
 	$(OTA_MODULE_SRCS) \
 	$(PRODUCT_TESTS_MODULE_SRCS) \
-	$(FRAMEWORK_HOOKS_BASE_SRCS)
+	$(FRAMEWORK_HOOKS_BASE_SRCS) \
+	$(LED_MODULE_SRCS)
 
 CC := $(if $(strip $(CROSS_COMPILE)),$(CROSS_COMPILE)gcc,gcc)
 AR := $(if $(strip $(CROSS_COMPILE)),$(CROSS_COMPILE)ar,ar)
@@ -1302,9 +1331,15 @@ firmware:
 		DISPLAY_LCD=st77916 \
 		DISPLAY_RST_PIN=$(DISPLAY_RST_PIN) \
 		DISPLAY_TE_PIN=$(DISPLAY_TE_PIN) \
+		SPI_FLASH1=$(CFG_EXTERNAL_FLASH_ENABLE) \
+		ENABLE_FLASH1=$(CFG_EXTERNAL_FLASH_ENABLE) \
+		SPI_IOMUX_4WIRE=$(CFG_EXTERNAL_FLASH_ENABLE) \
+		BT_CALIB=$(CFG_BT_CALIB) \
 		GRAPH_MODULE=1 \
 		CHIP_HAS_GRABOX=1 \
 		VUSB_ON=$(VUSB_ON) \
+		MULTI_HEAP_POISONING=0\
+		MULTI_HEAP_POISONING_SLOW=0\
 		DEBUG_PORT=1 \
 		all
 

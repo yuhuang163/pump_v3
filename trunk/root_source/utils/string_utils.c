@@ -30,7 +30,7 @@
 */
 char *sec_strncpy(char *dest, const char *src, size_t n)
 {
-    if(!dest || !src)
+    if (!dest || !src)
         return dest;
     
     if (n > 0) {

@@ -61,6 +61,23 @@ static void animation_play_status_update(ui_manager_context_t *thiz, bool flag)
     thiz->priv.is_playing_ui_animation = flag;
 }
 
+static void set_lcd_backlight(ui_manager_context_t *thiz, uint16_t val)
+{
+    EXCEPTION_CHECK_VOID(thiz);
+    power_manager_context_t *pm = (power_manager_context_t *)find_module(ID_MODULE_POWER);
+    EXCEPTION_CHECK_VOID(pm);
+
+    if (pm->is_system_power_on() == 0) {
+        LOGE("system power off, ignore set ui backlight.");
+        return;
+    }
+
+    if (thiz->priv.panel_dev) {
+        DEVICE_IOCTL_ARGS_NO_RET(thiz->priv.panel_dev, OP_CODE_PANEL_SET_BL, &val);
+        thiz->priv.ui_backlight_val = val;
+    }
+}
+
 static void ui_handler_thread(const void *args)
 {
     if (thiz->hook && thiz->hook->ui_thread_init_route) {
@@ -104,9 +121,7 @@ static int on_post_ui_init(void *self)
     ui->priv.m_bcd.context = ui;
     ui->priv.m_bcd.name = "ui_manager";
     ui->priv.m_bcd.id.code |= ID_BROADCAST_PM_STATE_CHANGE;
-    ui->priv.m_bcd.id.code |= ID_BROADCAST_PM_WAKEUP_BY_USER;
-    ui->priv.m_bcd.id.code |= ID_BROADCAST_SET_BLACKLIGHT_BY_USER;
-    ui->priv.m_bcd.id.code |= ID_BROADCAST_SYS_POWER_STATE_CHANGE;
+    ui->priv.m_bcd.id.code |= ID_BROADCAST_SYS_STATE_CHANGE;
     ui->priv.m_bcd.receiver_cb = on_ui_broadcast_receiver;
     register_broadcast_receiver(&ui->priv.m_bcd);
     RUN_NEW_THREAD(&thiz->priv.ui_hdr_thd, "ui_hdr_thd", 
@@ -141,6 +156,7 @@ void *register_module_for_ui_manager_new(list_head_t *list_head)
     ptr->animation_play_status_update = animation_play_status_update;
     ptr->play_animation_lock = ui_play_animation_lock;
     ptr->play_animation_unlock = ui_play_animation_unlock;
+    ptr->set_lcd_backlight = set_lcd_backlight;
 #if IS_SUPPORT_LVGL
     ptr->is_lvgl_initialized = is_lvgl_initialized;
 #endif

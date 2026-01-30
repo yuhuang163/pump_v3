@@ -79,4 +79,9 @@ void framework_extra_hook(void)
     CHECK_IF_VALID(servers_manager_ctx, {
         register_servers_manager_hook(servers_manager_ctx);
     });
+    /// 注册LED管理钩子.
+    led_manager_context_t *led_ctx = (led_manager_context_t *)find_module(ID_MODULE_LED);
+    CHECK_IF_VALID(led_ctx, {
+        register_led_hook(led_ctx);
+    });
 }

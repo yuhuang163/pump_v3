@@ -11,15 +11,6 @@ extern "C" {
 #include "root_common_base.h" // IWYU pragma: keep
 
 typedef enum {
-    OLD_BROADCAST_DATA_NONE,          
-    OLD_BROADCAST_DATA_PUMP_LEVEL_CHANGE = 1,      /// 泵等级变化
-    OLD_BROADCAST_DATA_PUMP_SPEED_CHANGE = 2,      /// 泵速变化
-    OLD_BROADCAST_DATA_PUMP_MODE_CHANGE = 3,       /// 泵模式变化
-    OLD_BROADCAST_DATA_PUMP_STATUS_CHANGE = 4,     /// 泵状态变化
-    OLD_BROADCAST_DATA_ID_MAX
-} app_broadcast_to_window_data_id_e;
-
-typedef enum {
     OLD_BROADCAST_LEFT_CT       = 0x00,
     OLD_BROADCAST_RIGHT_CT      = 0x01,
     OLD_BROADCAST_ALL_CT        = 0x02,

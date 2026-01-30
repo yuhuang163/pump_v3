@@ -175,9 +175,9 @@ static int on_post_storage_init(void *ptr)
     ctx->priv.mbdc = u_malloz(sizeof(broadcast_obj_t));
     ctx->priv.mbdc->context = ctx;
     ctx->priv.mbdc->name = "storage_ctx";
-    ctx->priv.mbdc->id.code |= ID_BROADCAST_SYS_PERSIST_INFO_SAVE;
+    ctx->priv.mbdc->id.code |= ID_BROADCAST_PERSIST_INFO_UPDATE;
     ctx->priv.mbdc->id.code |= ID_BROADCAST_PM_STATE_CHANGE;
-    ctx->priv.mbdc->id.code |= ID_BROADCAST_SYS_POWER_STATE_CHANGE;
+    ctx->priv.mbdc->id.code |= ID_BROADCAST_SYS_STATE_CHANGE;
     ctx->priv.mbdc->receiver_cb = on_storage_broadcast_receive;
     register_broadcast_receiver(ctx->priv.mbdc);
     /// 钩子参数初始化
@@ -267,7 +267,8 @@ int user_database_put(storage_manager_context_t *ctx, int database_id, const uin
             // LOG_HEX("rx buf", buf, buf_len);
             if (memcmp(tmp_buf, buf, buf_len) != 0) {
                 LOGE("storage database id %d fail, retry write.", database_id);
-                ret = DEVICE_WRITE(db_dev, buf_rd, sizeof(buf_rd));
+                /// 重试写入时使用原始数据，而不是读取回来的数据
+                ret = DEVICE_WRITE(db_dev, buf_wr, sizeof(buf_wr));
             }
             u_free(tmp_buf);
         }

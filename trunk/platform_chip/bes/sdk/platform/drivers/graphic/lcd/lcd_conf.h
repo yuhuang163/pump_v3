@@ -143,12 +143,7 @@
 #endif
 
 #if defined(CHIP_BEST1306P)
-#if 0
-#define LCD_RST_PIN HAL_GPIO_PIN_P4_7
-#define LCD_1V8_PIN HAL_GPIO_PIN_P1_0
-#define LCD_2V8_PIN HAL_GPIO_PIN_P1_1
-#define LCD_TE_PIN  HAL_GPIO_PIN_P2_4
-#else
+#if CFG_CUSTOM_APP
 #ifdef DISPLAY_RST_PIN
 #define LCD_RST_PIN DISPLAY_RST_PIN
 #else
@@ -159,6 +154,11 @@
 #else
 #define LCD_TE_PIN  HAL_GPIO_PIN_P3_7
 #endif
+#else
+#define LCD_RST_PIN HAL_GPIO_PIN_P4_7
+#define LCD_1V8_PIN HAL_GPIO_PIN_P1_0
+#define LCD_2V8_PIN HAL_GPIO_PIN_P1_1
+#define LCD_TE_PIN  HAL_GPIO_PIN_P2_4
 #endif
 #endif
 

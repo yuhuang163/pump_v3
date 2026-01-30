@@ -31,37 +31,37 @@ static const uint16_t short_suction_time_table[SUCTION_SPEED_MAX] = {
 /// 吸力参数表（单位kpa）//泌乳力表
 static const suction_parameters_t long_suction_table[SUCTION_LEVEL_MAX] = {
     {0,  60, 100}, /// 0KPA   
-    {20, 386, 64}, /// 6KPA     
+    {21, 390, 60}, /// 6KPA     
     {50, 80, 100}, /// 7KPA      
     {50, 80, 100}, /// 8KPA   
     {55, 90, 100}, /// 9KPA     
-    {60, 100, 100}, /// 10KPA   
+    {30, 400, 120}, /// 10KPA   
     {30, 393, 87}, /// 11KPA      
     {60, 130, 100}, /// 12KPA   
-    {60, 150, 100}, /// 13KPA   
+    {39, 420, 140}, /// 13KPA   
     {60, 160, 100}, /// 14KPA      
-    {38, 435, 109}, /// 15KPA   
+    {44, 440, 140}, /// 15KPA   
     {60, 200, 120}, /// 16KPA   
     {70, 200, 120}, /// 17KPA       
-    {46, 461, 115}, /// 18KPA   
+    {52, 460, 140}, /// 18KPA   
     {70, 240, 120}, /// 19KPA   
-    {75, 260, 120}, /// 20KPA      
+    {56, 480, 160}, /// 20KPA      
     {52, 500, 125}, /// 21KPA   
-    {75, 300, 120}, /// 22KPA   
+    {61, 500, 170}, /// 22KPA   
     {75, 320, 120}, /// 23KPA   
-    {56, 525, 131}, /// 24KPA   
+    {62, 540, 180}, /// 24KPA   
     {75, 360, 120}, /// 25KPA   
-    {60, 552, 140}, /// 26KPA      
+    {69, 560, 200}, /// 26KPA      
     {75, 410, 150}, /// 27KPA   
-    {64, 597, 151}, /// 28KPA   
+    {76, 580, 210}, /// 28KPA   
     {80, 470, 160}, /// 29KPA   
-    {68, 620, 155}, /// 30KPA  
-    {80, 530, 160}, /// 31KPA   
+    {80, 610, 220}, /// 30KPA  
+    {85, 630, 230}, /// 31KPA   
     {72, 659, 165}, /// 32KPA   
-    {85, 580, 200}, /// 33KPA   
+    {87, 660, 250}, /// 33KPA   
     {75, 686, 171}, /// 34KPA   
-    {85, 660, 200}, /// 35KPA   
-    {78, 750, 188}, /// 36KPA   
+    {89, 700, 280}, /// 35KPA   
+    {93, 720, 300}, /// 36KPA   
     {90, 720, 200}, /// 37KPA   
     {80, 783, 196}, /// 38KPA   
     {83, 818, 205}, /// 39KPA
@@ -112,21 +112,21 @@ static const suction_parameters_t short_suction_table[SUCTION_LEVEL_MAX] = {
 static const uint16_t long_pump_freq_table[BREAST_PUMP_LEVEL_MAX][SUCTION_SPEED_MAX] = {
     /// 低，中，高     
     {90, 100, 110}, /// level 0      
-    {78, 83,  80},  /// level 1      
-    {75, 80,  75 }, /// level 2  
-    {72, 77,  71 }, /// level 3
-    {69, 74,  67 }, /// level 4    
-    {66, 71,  64 }, /// level 5 
-    {63, 68,  61 }, /// level 6    
-    {60, 65,  58 }, /// level 7     
-    {57, 62,  56 }, /// level 8   
-    {54, 59,  54 }, /// level 9  
-    {51, 56,  52 }, /// level 10   
-    {48, 53,  50 }, /// level 11  
-    {45, 50,  48 }, /// level 12     
-    {40, 45,  46 }, /// level 13 
-    {35, 40,  44 }, /// level 14
-    {30, 35,  42 }, /// level 15 
+    {72, 76,  80},  /// level 1      
+    {68, 72,  76 }, /// level 2  
+    {65, 69,  73 }, /// level 3
+    {62, 66,  70 }, /// level 4    
+    {60, 64,  68 }, /// level 5 
+    {58, 62,  66 }, /// level 6    
+    {56, 60,  64 }, /// level 7     
+    {54, 58,  62 }, /// level 8   
+    {52, 56,  60 }, /// level 9  
+    {50, 54,  58 }, /// level 10   
+    {48, 52,  56 }, /// level 11  
+    {46, 50,  54 }, /// level 12     
+    {44, 48,  52 }, /// level 13 
+    {42, 46,  50 }, /// level 14
+    {40, 44,  48 }, /// level 15 
 };
 
 /// 短吸力度表 //按摩力表
@@ -153,20 +153,20 @@ static const uint16_t short_level_table[BREAST_PUMP_LEVEL_MAX] = {
 static const uint16_t long_level_table[BREAST_PUMP_LEVEL_MAX] = {
     SUCTION_LEVEL_0KPA,  /// 0KPA
     SUCTION_LEVEL_6KPA, /// 6KPA
-    SUCTION_LEVEL_11KPA, /// 10.5KPA
-    SUCTION_LEVEL_15KPA, /// 14.5KPA
-    SUCTION_LEVEL_18KPA, /// 18KPA
-    SUCTION_LEVEL_21KPA, /// 21KPA
+    SUCTION_LEVEL_10KPA, /// 9.5KPA
+    SUCTION_LEVEL_13KPA, /// 12.5KPA
+    SUCTION_LEVEL_15KPA, /// 15KPA
+    SUCTION_LEVEL_18KPA, /// 17.5KPA
+    SUCTION_LEVEL_20KPA, /// 19.5KPA
+    SUCTION_LEVEL_22KPA, /// 21.5KPA
     SUCTION_LEVEL_24KPA, /// 23.5KPA
     SUCTION_LEVEL_26KPA, /// 25.5KPA
     SUCTION_LEVEL_28KPA, /// 27.5KPA
     SUCTION_LEVEL_30KPA, /// 29.5KPA
-    SUCTION_LEVEL_32KPA, /// 31.5KPA
-    SUCTION_LEVEL_34KPA, /// 33.5KPA
-    SUCTION_LEVEL_36KPA, /// 35.5KPA
-    SUCTION_LEVEL_38KPA, /// 37.5KPA
-    SUCTION_LEVEL_39KPA, /// 39KPA
-    SUCTION_LEVEL_40KPA, /// 40KPA
+    SUCTION_LEVEL_31KPA, /// 31.3KPA
+    SUCTION_LEVEL_33KPA, /// 32.9KPA
+    SUCTION_LEVEL_35KPA, /// 34.5KPA
+    SUCTION_LEVEL_36KPA, /// 36KPA
 };
 
 #ifdef __cplusplus

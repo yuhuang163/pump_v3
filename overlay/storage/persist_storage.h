@@ -14,7 +14,7 @@ extern "C" {
 
 #define ROOT_WRITE_INFO_LEN                         64
 #define ROOT_BREAST_PUMP_TIME_VALID                 30000   /// 30s
-#define ROOT_BREAST_PUMP_DATA_BODY_NUM              60      /// 按天存储，每天最多 ROOT_BREAST_PUMP_DATA_BODY_NUM / 7
+#define ROOT_BREAST_PUMP_DATA_BODY_NUM              70      /// 按天存储，每天最多 ROOT_BREAST_PUMP_DATA_BODY_NUM / 7
 #define USER_BIND_UID_LEN                           8
 #define USER_BIND_RANDOM_LEN                        6
 #define USER_BIND_AES_KEY_LEN                       16
@@ -27,7 +27,8 @@ extern "C" {
 #define DEVICE_UNIQUE_SN_LEN                        40
 #define DEVICE_FW_VERSION_LEN                       18
 
-#define ROOT_BREAST_PUMP_STEP_MAX                   8
+#define IS_PUMP_STEPS_USE_SAME_SETTING              1 /// 是否使用相同的设置，如果使用相同的设置，则所有步骤都使用相同的设置
+#define ROOT_BREAST_PUMP_STEP_MAX                   14
 #define FACTORY_AGE_INFO_MAX                        3   /// 老化信息最大保存3条
 #define ROOT_BREAST_PUMP_BURY_DATA_NUM            10    /// 埋点数据最大保存10条
 
@@ -120,7 +121,7 @@ typedef enum {
     BREAST_PUMP_LACTATION_MODE,        /// 吸乳模式
     BREAST_PUMP_MIX_MODE,               /// 混合模式
     BREAST_PUMP_CUSTOM_MODE,         /// 个性化模式
-    BREAST_PUMP_PP_MILK_TRACK_MODE,                   /// PP追奶模式
+    BREAST_PUMP_PP_MILK_TRACK_MODE,                   /// PP追奶模式（Power Pumping模式）
     BREAST_PUMP_MILK_BOOST_MODE,              /// 2+8奶量提升模式
     BREAST_PUMP_LACTATION_START_MODE,            /// 开奶模式
     BREAST_PUMP_MODE_MAX,
@@ -197,6 +198,7 @@ typedef struct
     uint8_t is_remind_pump_finish;        /// 泵奶完成提醒
     uint8_t is_remind_exception;          /// 是否提醒泵奶异常
     uint8_t control_type;                 /// 泵奶控制类型 breast_pump_control_type_e
+    uint8_t pump_mode;                    /// 泵奶模式 breast_pump_mode_e
     pump_setting_t stimulation_setting[ROOT_BREAST_PUMP_STEP_MAX];
     pump_setting_t pump_setting[ROOT_BREAST_PUMP_STEP_MAX];
     pump_setting_t mix_setting[ROOT_BREAST_PUMP_STEP_MAX];
@@ -204,8 +206,10 @@ typedef struct
     pump_setting_t lactation_start_setting[ROOT_BREAST_PUMP_STEP_MAX];
     pump_setting_t pp_milk_track_setting[ROOT_BREAST_PUMP_STEP_MAX];
     pump_setting_t custom_setting[ROOT_BREAST_PUMP_STEP_MAX];
+    pump_setting_t custom_trial_setting[ROOT_BREAST_PUMP_STEP_MAX];/// 自定义泵奶试用设置
     user_def_pump_steps_data_t custom_steps_parameter;
     uint16_t pump_time[BREAST_PUMP_MODE_MAX];   /// 泵奶时长,单位s
+    uint16_t custom_pump_trial_time;   /// 自定义泵奶试用时长,单位s
 } sys_pump_info_t;
 
 /**
@@ -262,9 +266,7 @@ typedef struct {
 } user_bind_info_t;
 
 typedef struct {
-    uint8_t adaptive; /// 夜灯自适应开关
-    uint8_t level; /// 夜灯亮度等级
-    uint8_t onoff; /// 夜灯开关状态
+    uint8_t adaptive_switch; /// 夜灯自适应开关
 } night_light_info_t;
 
 /// 描述系统配置
@@ -308,6 +310,15 @@ typedef struct {
     sys_buried_info_t buried_info[ROOT_BREAST_PUMP_BURY_DATA_NUM];
     uint16_t buried_index; /// 埋点索引
 } sys_buried_info_list_t;
+
+/// 泵奶数据头
+typedef struct {
+    uint8_t num;        /// 存储数量.
+    uint8_t head;  
+    uint8_t tail;
+    uint8_t resv;
+    uint16_t crc[ROOT_BREAST_PUMP_DATA_BODY_NUM + 1];  
+} breast_pump_data_head_t;
 
 /// 描述系统信息
 typedef struct sys_persist_info {
@@ -353,15 +364,6 @@ typedef struct factory_data_store {
     imu_cali_data_t imu;
     #endif
 } factory_data_store_t;
-
-/// 泵奶数据头
-typedef struct {
-    uint8_t num;        /// 存储数量.
-    uint8_t head;  
-    uint8_t tail;
-    uint8_t resv;
-    uint16_t crc[ROOT_BREAST_PUMP_DATA_BODY_NUM + 1];  
-} breast_pump_data_head_t;
 
 #ifdef __cplusplus
 }

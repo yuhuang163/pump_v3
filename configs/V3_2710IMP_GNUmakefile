@@ -90,9 +90,11 @@ CFG_OTA_EVENT_CALLBACK ?= 1
 # LVGL开关
 CFG_LVGL_ENABLE := 0
 
+# BT 校准开关
+CFG_BT_CALIB ?= 1
+
 # 硬件版本
 V3_2710IMP_HARDWARE_V1 ?= 0
-V3_2710IMC_HARDWARE_V1 ?= 1
 V3_2710IMC_HARDWARE_V2 ?= 2
 V3_HARDWARE_VERSION ?= $(V3_2710IMP_HARDWARE_V1)
 
@@ -180,6 +182,7 @@ SDK_HAL_INC_FLAGS := \
 	-I$(PROJECT_ROOT)/trunk/platform_chip/bes/sdk/platform/hal \
 	-I$(PROJECT_ROOT)/trunk/platform_chip/bes/sdk/platform/drivers/ana \
 	-I$(PROJECT_ROOT)/trunk/platform_chip/bes/sdk/platform/drivers/bt \
+	-I$(PROJECT_ROOT)/trunk/platform_chip/bes/sdk/platform/drivers/spi_flash \
 	-I$(PROJECT_ROOT)/trunk/platform_chip/bes/sdk/platform/cmsis/inc
 
 # SDK 服务头文件
@@ -245,7 +248,8 @@ DRIVERS_BLE_INC_FLAGS := \
 	-I$(PROJECT_ROOT)/drivers/ble \
 	-I$(PROJECT_ROOT)/drivers/ble/services \
 	-I$(PROJECT_ROOT)/drivers/ble/advs \
-	-I$(PROJECT_ROOT)/drivers/ble/connect
+	-I$(PROJECT_ROOT)/drivers/ble/connect \
+	-I$(PROJECT_ROOT)/drivers/ble/ble_test
 
 # 通用驱动头文件
 DRIVERS_COMMON_INC_FLAGS := \
@@ -409,7 +413,7 @@ WINDOWS_INC_FLAGS := \
 	-I$(PROJECT_ROOT)/overlay/windows/breast_pump \
 	-I$(PROJECT_ROOT)/overlay/windows/charge \
 	-I$(PROJECT_ROOT)/overlay/windows/dummy \
-	-I$(PROJECT_ROOT)/overlay/windows/home \
+	-I$(PROJECT_ROOT)/overlay/windows/guide \
 	-I$(PROJECT_ROOT)/overlay/windows/logo \
 	-I$(PROJECT_ROOT)/overlay/windows/ota \
 	-I$(PROJECT_ROOT)/overlay/windows/popup_windows \
@@ -531,8 +535,13 @@ ifeq ($(CFG_LVGL_ENABLE),1)
 CPPFLAGS += -DCFG_LVGL_ENABLE
 endif
 
+# BT 校准开关
+ifeq ($(CFG_BT_CALIB),1)
+BT_CALIB := 1
+CPPFLAGS += -DBT_CALIB=$(BT_CALIB)
+endif
+
 # 硬件版本
-CPPFLAGS += -DV3_2710IMC_HARDWARE_V1=$(V3_2710IMC_HARDWARE_V1)
 CPPFLAGS += -DV3_2710IMC_HARDWARE_V2=$(V3_2710IMC_HARDWARE_V2)
 CPPFLAGS += -DV3_2710IMP_HARDWARE_V1=$(V3_2710IMP_HARDWARE_V1)
 CPPFLAGS += -DV3_HARDWARE_VERSION=$(V3_HARDWARE_VERSION)
@@ -686,7 +695,8 @@ DRIVERS_BLE_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/drivers/ble/*.c) \
 	$(wildcard $(PROJECT_ROOT)/drivers/ble/advs/*.c) \
 	$(wildcard $(PROJECT_ROOT)/drivers/ble/connect/*.c) \
-	$(wildcard $(PROJECT_ROOT)/drivers/ble/services/*.c)
+	$(wildcard $(PROJECT_ROOT)/drivers/ble/services/*.c) \
+	$(wildcard $(PROJECT_ROOT)/drivers/ble/ble_test/*.c)
 
 # 通用驱动源码
 DRIVERS_COMMON_SRCS := \
@@ -847,7 +857,7 @@ WINDOWS_MODULE_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/overlay/windows/breast_pump/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/windows/charge/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/windows/dummy/*.c) \
-	$(wildcard $(PROJECT_ROOT)/overlay/windows/home/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/windows/guide/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/windows/logo/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/windows/ota/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/windows/popup_windows/*.c) \
@@ -1114,6 +1124,7 @@ firmware:
 		LVGL_TEST=$(CFG_LVGL_ENABLE) \
 		LVGL_BES_PNG=$(CFG_LVGL_ENABLE) \
 		LVGL_NO_TOUCHSCREEN=$(CFG_LVGL_ENABLE) \
+		BT_CALIB=$(CFG_BT_CALIB) \
 		DISPLAY_LCD=st77916 \
 		CHIP_HAS_GRABOX=$(CHIP_HAS_GRABOX) \
 		VUSB_ON=$(VUSB_ON) \

@@ -44,10 +44,11 @@ static void airplane_mode_timeout_cb(hdr_post_args_t *args)
         return;
     }
     ui_proc_airplane_mode_t *proc = (ui_proc_airplane_mode_t *)args->user_data;
+    EXCEPTION_CHECK_VOID(proc);
     window_manager_context_t *wm = proc->wm;
     EXCEPTION_CHECK_VOID(wm);
     LOG_WM("airplane mode timeout, goto pump window.");
-    SEND_BROADCAST_ARGS1(ID_BROADCAST_SYS_POWER_STATE_CHANGE, ID_BROADCAST_SYS_POWER_OFF);
+    SEND_BROADCAST_ARGS1(ID_BROADCAST_SYS_STATE_CHANGE, SYSTEM_BROADCAST_POWER_OFF);
 }
 
 static void airplane_mode_exit_cb(hdr_post_args_t *args)
@@ -56,9 +57,21 @@ static void airplane_mode_exit_cb(hdr_post_args_t *args)
         LOG_WM("window context not present, ignore.");
         return;
     }
-    airplane_mode_context_t *airplane = (airplane_mode_context_t *)find_module(ID_MODULE_AIRPLANE_MODE);
-    EXCEPTION_CHECK_VOID(airplane);
-    airplane->exit(AIRPLANE_MODE_EXIT);
+
+    ui_proc_airplane_mode_t *proc = (ui_proc_airplane_mode_t *)args->user_data;
+    EXCEPTION_CHECK_VOID(proc);
+    EXCEPTION_CHECK_VOID(proc->airplane);
+    EXCEPTION_CHECK_VOID(proc->wm);
+    proc->airplane->exit(AIRPLANE_MODE_EXIT);
+    multi_func_msg_data_t msg = {0};
+    if (proc->wm->is_window_guidance_deployed() == 0) {
+        LOG_WM("goto guide screen");
+        msg.union_body.extra.window_id = ID_WINDOW_GUIDE;
+        proc->wm->dispatch_new_window_args(proc->wm, &msg);
+        return;
+    }  
+    msg.union_body.extra.window_id = ID_WINDOW_PUMP;
+    proc->wm->dispatch_new_window_args(proc->wm, &msg);
 }
 
 static void on_airplane_mode_window_receive(broadcast_mask_id_t id, void *context,
@@ -71,14 +84,12 @@ static void on_airplane_mode_window_receive(broadcast_mask_id_t id, void *contex
     ui_proc_airplane_mode_t *proc = (ui_proc_airplane_mode_t *)context;
     EXCEPTION_CHECK_VOID(proc);
     switch (id.code) {
-        case ID_BROADCAST_PM_STATE_CHANGE: {
-        }
-        break;
-        case ID_BROADCAST_CHARGE_STATE_CHANGE: {
+        case ID_BROADCAST_PM_STATE_CHANGE: 
             break;
-        }
+        case ID_BROADCAST_BATTERY_STATE_CHANGE: 
+            break;
         default:
-        break;
+            break;
     }
 }
 
@@ -172,11 +183,11 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
     proc->pm = (power_manager_context_t *)find_module(ID_MODULE_POWER);
     proc->key = (key_input_context_t *)find_module(ID_MODULE_KEY_INPUT);
     proc->pump = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
-    proc->pbus = (peripheral_bus_context_t *)find_module(ID_MODULE_DEVICE_BUS);
-    proc->st = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
+    proc->led = (led_manager_context_t *)find_module(ID_MODULE_LED);
+    proc->airplane = (airplane_mode_context_t *)find_module(ID_MODULE_AIRPLANE_MODE);
     /// 监听PM状态改变.
     proc->receiver.id.code = ID_BROADCAST_PM_STATE_CHANGE;
-    proc->receiver.id.code |= ID_BROADCAST_CHARGE_STATE_CHANGE;
+    proc->receiver.id.code |= ID_BROADCAST_BATTERY_STATE_CHANGE;
     proc->receiver.context = proc;
     proc->receiver.name = "airplane_mode_screen";
     proc->receiver.receiver_cb = on_airplane_mode_window_receive;

@@ -162,7 +162,7 @@ static int pump_level_root_value_update(ui_manager_context_t *thiz, uint8_t leve
     lv_label_set_text(level_info->root_value, level_value);  /// 设置 label 文字内容和样式
     lv_obj_set_style_text_color(level_info->root_value, lv_color_hex(PUMP_LEVEL_VALUE_COLOR), 0);
     lv_obj_set_style_text_font(level_info->root_value, &lv_font_roboto_79_semibold, 0);  /// 设置字体
-    if(level > 9) {
+    if (level > 9) {
         lv_obj_align(level_info->root_value, LV_ALIGN_TOP_LEFT, 138, 150); /// 设置文字位置
     } else {
         lv_obj_align(level_info->root_value, LV_ALIGN_TOP_LEFT, 138 + 23, 150); /// 设置文字位置
@@ -236,9 +236,7 @@ static void pump_level_ui_update(ui_manager_context_t *thiz, ui_proc_pump_t *pro
     EXCEPTION_CHECK_VOID(proc);
     EXCEPTION_CHECK_VOID(proc->pump);
     EXCEPTION_CHECK_VOID(proc->motor);
-    EXCEPTION_CHECK_VOID(proc->st);
-    uint8_t control_type = BREAST_PUMP_CONTROL_TYPE_BILATERAL;
-    proc->st->get_store_ram_val(STORE_ID_PUMP_CONTROL_TYPE, 0, 0, &control_type);
+    uint8_t control_type = proc->pump->get_breast_pump_control_type();
     pump_setting_t setting;
     uint8_t time_index = proc->motor->get_runtime_policy_index(MOTOR_TIME_POLICY);
     proc->pump->get_breast_pump_setting(&setting, time_index >= ROOT_BREAST_PUMP_STEP_MAX ? 0 : time_index);
@@ -287,7 +285,7 @@ void ui_display_pump_level_remove(ui_manager_context_t *thiz)
     level_info = NULL;
 }
 
-int ui_display_pump_level(ui_manager_context_t *thiz)
+int ui_display_pump_level_process(ui_manager_context_t *thiz)
 {
     EXCEPTION_CHECK_INT(thiz);
     EXCEPTION_CHECK_INT(level_info->root);

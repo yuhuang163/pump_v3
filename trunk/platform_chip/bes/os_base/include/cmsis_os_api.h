@@ -212,20 +212,6 @@ int platform_flash_read(const char *partition, uint32_t addr, uint8_t *data, uin
 int platform_flash_write(const char *partition, uint32_t addr, uint8_t *data, uint32_t size);
 /// 平台提供的擦除闪存接口.
 int platform_flash_erase(const char *partition, uint32_t addr, uint32_t size);
-/// 平台提供的进入蓝牙信令测试模式接口（会重启设备）.
-void platform_bt_enter_signalingtest_mode(void);
-/// 平台提供的进入蓝牙非信令测试模式接口（会重启设备）.
-void platform_bt_enter_nosignalingtest_mode(void);
-/// 平台提供的蓝牙校频测试接口.
-int platform_bt_xtal_calib_proc_start(void);
-/// 平台提供的蓝牙校频测试设置接口.
-unsigned char platform_bt_xtal_calib_set(uint32_t fcap);
-/// 平台提供的蓝牙校频测试获取接口.
-unsigned char platform_bt_xtal_calib_get(uint32_t *fcap);
-/// 平台提供的蓝牙校频测试结束接口.
-unsigned char platform_bt_xtal_calib_end(void);
-/// 平台提供的蓝牙获取RSSI值接口.
-int platform_bt_get_rssi_value(int32_t *rssi);
 
 #ifdef __cplusplus
 }

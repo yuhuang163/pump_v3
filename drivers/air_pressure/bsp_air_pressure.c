@@ -31,8 +31,7 @@ static rt_device_node_t *node = NULL;
 static int air_pressure_dev_open(struct rt_device_node *dev)
 {
 #if IS_SUPPORT_HARDWARE_VERSION_ADAPTIVE
-    uint8_t hardware_version = get_hardware_version();
-    if (hardware_version == PRODUCT_INFO_V3) {
+    if (is_v3_hardware_version()) {
         LOG_PBUS("air pressure init skip, hardware version is v3");
         return BSP_OK;
     }
@@ -54,7 +53,7 @@ static int air_pressure_dev_ioctl(struct rt_device_node *dev, uint32_t op_code, 
             return bsp_air_pressure_is_ready(args);
         case OP_CODE_AIR_PRESSURE_IS_SUPPORT_AIR_PRESSURE:
 #if IS_SUPPORT_HARDWARE_VERSION_ADAPTIVE
-            if (get_hardware_version() == PRODUCT_INFO_V3) {
+            if (is_v3_hardware_version()) {
                 return false;
             }
 #endif
@@ -67,8 +66,7 @@ static int air_pressure_dev_ioctl(struct rt_device_node *dev, uint32_t op_code, 
 static int air_pressure_dev_suspend(struct rt_device_node *dev)
 {
 #if IS_SUPPORT_HARDWARE_VERSION_ADAPTIVE
-    uint8_t hardware_version = get_hardware_version();
-    if (hardware_version == PRODUCT_INFO_V3) {
+    if (is_v3_hardware_version()) {
         LOG_PBUS("air pressure suspend skip, hardware version is v3");
         return BSP_OK;
     }
@@ -79,8 +77,7 @@ static int air_pressure_dev_suspend(struct rt_device_node *dev)
 static int air_pressure_dev_resume(struct rt_device_node *dev)
 {
 #if IS_SUPPORT_HARDWARE_VERSION_ADAPTIVE
-    uint8_t hardware_version = get_hardware_version();
-    if (hardware_version == PRODUCT_INFO_V3) {
+    if (is_v3_hardware_version()) {
         LOG_PBUS("air pressure resume skip, hardware version is v3");
         return BSP_OK;
     }

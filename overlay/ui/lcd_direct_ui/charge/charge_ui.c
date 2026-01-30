@@ -15,6 +15,7 @@
 */
 #define IS_SUPPORT_CHARGE_COMP_BG                    (0)
 #define CHARGE_TEXT_COLOR                            0xFFFFFF
+#define CHARGE_BATTERY_REFRESH_TIME                  (1000)
 
 typedef struct {  
     lv_obj_t * root;
@@ -31,6 +32,8 @@ typedef struct {
     uint8_t force_update;
     uint8_t percent;
     uint16_t animation_index; /// 动画索引.
+    uint8_t charge_index; /// 充电索引.
+    uint32_t charging_refresh_time; /// 充电刷新时间.
 } charge_display_info_t;
 
 /*
@@ -97,27 +100,72 @@ static void charge_bg_update(ui_manager_context_t *thiz)
 
 static uint8_t get_battery_img_id(uint8_t battery_percent)
 {
-    if (battery_percent > 95) {
-        return RESOURCE_ID_CHARGE_PAGE_BATT_100;
-    } else if (battery_percent > 70) {
-        return RESOURCE_ID_CHARGE_PAGE_BATT_75;
-    } else if (battery_percent > 35) {
-        return RESOURCE_ID_CHARGE_PAGE_BATT_50;
-    } else if (battery_percent > 5) {
-        return RESOURCE_ID_CHARGE_PAGE_BATT_25;
+    uint8_t result = RESOURCE_ID_CHARGE_PAGE_BATT_0;
+    uint8_t remainder = 0;
+    if (battery_percent >= 100) {
+        result = RESOURCE_ID_CHARGE_PAGE_BATT_100;
+    } else if (battery_percent >= 75) {
+        if (charge_info->charge_index == 0) {
+            result = RESOURCE_ID_CHARGE_PAGE_BATT_75;
+            charge_info->charge_index = 1;
+        } else {
+            result = RESOURCE_ID_CHARGE_PAGE_BATT_100;
+            charge_info->charge_index = 0;
+        }
+    } else if (battery_percent >= 50) {
+        if (charge_info->charge_index == 0) {
+            result = RESOURCE_ID_CHARGE_PAGE_BATT_50;
+            charge_info->charge_index = 1;
+        } else if (charge_info->charge_index == 1) {
+            result = RESOURCE_ID_CHARGE_PAGE_BATT_75;
+            charge_info->charge_index = 2;
+        } else {
+            result = RESOURCE_ID_CHARGE_PAGE_BATT_100;
+            charge_info->charge_index = 0;
+        }
+    } else if (battery_percent >= 25) {
+        if (charge_info->charge_index == 0) {
+            result = RESOURCE_ID_CHARGE_PAGE_BATT_25;
+            charge_info->charge_index = 1;
+        } else if (charge_info->charge_index == 1) {
+            result = RESOURCE_ID_CHARGE_PAGE_BATT_50;
+            charge_info->charge_index = 2;
+        } else if (charge_info->charge_index == 2) {
+            result = RESOURCE_ID_CHARGE_PAGE_BATT_75;
+            charge_info->charge_index = 3;
+        } else {
+            result = RESOURCE_ID_CHARGE_PAGE_BATT_100;
+            charge_info->charge_index = 0;
+        }
     } else {
-        return RESOURCE_ID_CHARGE_PAGE_BATT_0;
+        if (charge_info->charge_index == 0) {
+            result = RESOURCE_ID_CHARGE_PAGE_BATT_0;
+            charge_info->charge_index = 1;
+        } else if (charge_info->charge_index == 1) {
+            result = RESOURCE_ID_CHARGE_PAGE_BATT_25;
+            charge_info->charge_index = 2;
+        } else if (charge_info->charge_index == 2) {
+            result = RESOURCE_ID_CHARGE_PAGE_BATT_50;
+            charge_info->charge_index = 3;
+        } else if (charge_info->charge_index == 3) {
+            result = RESOURCE_ID_CHARGE_PAGE_BATT_75;
+            charge_info->charge_index = 4;
+        } else {
+            result = RESOURCE_ID_CHARGE_PAGE_BATT_100;
+            charge_info->charge_index = 0;
+        }
     }
+    return result;
 }
 
 static int charge_battery_update(ui_manager_context_t *thiz, ui_proc_charge_t *proc)
 {
     EXCEPTION_CHECK_INT(proc);
     uint8_t percent = proc->battery->get_battery_percent();
-    // if (charge_info->percent == percent && charge_info->force_update == false) {
-    //     return 0;
-    // }
-
+    if (get_timestamp() - charge_info->charging_refresh_time < CHARGE_BATTERY_REFRESH_TIME) {
+        return 0;
+    }
+    charge_info->charging_refresh_time = get_timestamp();
     if (charge_info->charge_battery == NULL || !lv_obj_is_valid(charge_info->root)) {
         charge_info->charge_battery = lv_image_create(charge_info->root);
         EXCEPTION_CHECK_INT(charge_info->charge_battery);
@@ -136,11 +184,7 @@ static int charge_battery_update(ui_manager_context_t *thiz, ui_proc_charge_t *p
 }
 
 static int charge_animation_update(ui_manager_context_t *thiz, uint16_t animation_index)
-{
-    if (charge_info->force_update == false) {
-        return 0;
-    }
-    
+{    
     if (charge_info->charge_animation == NULL || !lv_obj_is_valid(charge_info->root)) {
         charge_info->charge_animation = lv_image_create(charge_info->root);
         EXCEPTION_CHECK_INT(charge_info->charge_animation);
@@ -207,6 +251,9 @@ void ui_display_charge_screen_prepare(ui_manager_context_t *thiz)
     thiz->priv.fps_count = 0;
     thiz->priv.fps_start_time = get_timestamp();
     charge_info->force_update = true;
+    charge_info->animation_index = 0;
+    charge_info->charging_refresh_time = 0;
+    charge_info->charge_index = 0;
 }
 
 void ui_display_charge_screen_remove(ui_manager_context_t *thiz)
@@ -221,18 +268,22 @@ void ui_display_charge_screen_remove(ui_manager_context_t *thiz)
     charge_info = NULL;
 }
 
-int ui_display_charge_screen(ui_manager_context_t *thiz)
+int ui_display_charge_screen_process(ui_manager_context_t *thiz)
 {
     EXCEPTION_CHECK_INT(thiz);
     EXCEPTION_CHECK_INT(charge_info);
     EXCEPTION_CHECK_INT(charge_info->root);
     ui_proc_charge_t *proc = (ui_proc_charge_t *)thiz->priv.play_info.user_data;
     EXCEPTION_CHECK_INT(proc);
-    // charge_bg_update(thiz);
-    charge_animation_update(thiz, 0);
+    if (charge_info->animation_index >= 150) {
+        charge_info->animation_index = 0;
+    }
+
+    charge_animation_update(thiz, charge_info->animation_index);
     charge_battery_update(thiz, proc);
     charge_static_object_update(thiz);
     thiz->priv.fps_count++;
+    charge_info->animation_index++;
     charge_info->force_update = false; 
     if (get_timestamp() - thiz->priv.fps_start_time >= 1000) {
         thiz->priv.fps_start_time = get_timestamp();

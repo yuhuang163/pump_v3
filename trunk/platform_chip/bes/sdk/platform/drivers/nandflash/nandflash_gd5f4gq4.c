@@ -23,7 +23,12 @@
 
 const struct NANDFLASH_CFG_T gd5f1gm7_cfg = {
     .id = { 0xC8, 0x81, 0xC8, },
-    .ecc_status_type = NANDFLASH_ECC_ST_2BITS_11_RES,
+    .rom_ecc_type = NANDFLASH_ECC_ST_2BITS_11_COR,
+    .ecc_cfg = {
+        .st_bfd = NANDFLASH_ECC_ST_BFD_RESERVED,
+        .st_type = NANDFLASH_ECC_ST_TYPE_A,
+        .st_bad = NANDFLASH_ECC_ST_A_10XX_BAD,
+    },
     .block_protect_mask = 0x3C,
     .sec_reg_cfg = {
         .s = {
@@ -50,7 +55,12 @@ const struct NANDFLASH_CFG_T gd5f1gm7_cfg = {
 
 const struct NANDFLASH_CFG_T gd5f4gq4_cfg = {
     .id = { 0xC8, 0xF4, 0xC8, },
-    .ecc_status_type = NANDFLASH_ECC_ST_2BITS_11_COR,
+    .rom_ecc_type = NANDFLASH_ECC_ST_2BITS_11_COR,
+    .ecc_cfg = {
+        .st_bfd = NANDFLASH_ECC_ST_BFD_RESERVED,
+        .st_type = NANDFLASH_ECC_ST_TYPE_A,
+        .st_bad = NANDFLASH_ECC_ST_A_10XX_BAD,
+    },
     .block_protect_mask = 0x3E,
     .sec_reg_cfg = {
         .s = {
@@ -78,7 +88,12 @@ const struct NANDFLASH_CFG_T gd5f4gq4_cfg = {
 
 const struct NANDFLASH_CFG_T gd5f2gm7r_cfg = {
     .id = { 0xC8, 0x82, 0xC8, },
-    .ecc_status_type = NANDFLASH_ECC_ST_2BITS_11_COR,
+    .rom_ecc_type = NANDFLASH_ECC_ST_2BITS_11_COR,
+    .ecc_cfg = {
+        .st_bfd = NANDFLASH_ECC_ST_BFD_RESERVED,
+        .st_type = NANDFLASH_ECC_ST_TYPE_A,
+        .st_bad = NANDFLASH_ECC_ST_A_10XX_BAD,
+    },
     .block_protect_mask = 0x3C,
     .sec_reg_cfg = {
         .s = {
@@ -106,7 +121,12 @@ const struct NANDFLASH_CFG_T gd5f2gm7r_cfg = {
 const struct NANDFLASH_CFG_T gd5f4gm8r_cfg = {
     .id = { 0xC8, 0x85, 0xC8, },
     .plane_cfg = 0x2c, // plane_num:0x2, plane_offset:0xc
-    .ecc_status_type = NANDFLASH_ECC_ST_3BITS_010_BAD,
+    .rom_ecc_type = NANDFLASH_ECC_ST_2BITS_11_COR,
+    .ecc_cfg = {
+        .st_bfd = NANDFLASH_ECC_ST_BFD_RESERVED,
+        .st_type = NANDFLASH_ECC_ST_TYPE_A,
+        .st_bad = NANDFLASH_ECC_ST_A_10XX_BAD,
+    },
     .block_protect_mask = 0x3C,
     .sec_reg_cfg = {
         .s = {
@@ -133,7 +153,12 @@ const struct NANDFLASH_CFG_T gd5f4gm8r_cfg = {
 
 const struct NANDFLASH_CFG_T gd5f4gm5_cfg = {
     .id = { 0xB4, 0x68, 0xC8, },
-    .ecc_status_type = NANDFLASH_ECC_ST_3BITS_111_BAD,
+    .rom_ecc_type = NANDFLASH_ECC_ST_3BITS_111_BAD,
+    .ecc_cfg = {
+        .st_bfd = NANDFLASH_ECC_ST_BFD_RESERVED,
+        .st_type = NANDFLASH_ECC_ST_TYPE_G,
+        .st_bad = NANDFLASH_ECC_ST_G_111_BAD,
+    },
     .block_protect_mask = 0x3E,
     .sec_reg_cfg = {
         .s = {
@@ -158,13 +183,57 @@ const struct NANDFLASH_CFG_T gd5f4gm5_cfg = {
                 0),
 };
 
+const struct NANDFLASH_CFG_T gd5f1gq5_cfg = {
+    .id = { 0xC8, 0x41, 0xC8, },
+    .rom_ecc_type = NANDFLASH_ECC_ST_2BITS_11_COR,
+    .ecc_cfg = {
+        .st_bfd = NANDFLASH_ECC_ST_BFD_RESERVED,
+        .st_type = NANDFLASH_ECC_ST_TYPE_K,
+        .st_bad = NANDFLASH_ECC_ST_K_10XX_BAD,
+    },
+    .dummy_cycle_cfg = {
+        .s = {
+            .quad_io_en = true,
+            .quad_io_val = 4,
+        },
+    },
+    .block_protect_mask = 0x3C,
+    .sec_reg_cfg = {
+        .s = {
+            .enabled = true,
+            .page_start = 0x00,
+            .page_num = 0x04,
+        },
+    },
+    .page_size = GD5F1GM7_PAGE_SIZE,
+    .page_spare_size = GD5F1GM7_PAGE_SPARE_SIZE,
+    .block_size = GD5F1GM7_BLOCK_SIZE,
+    .total_size = GD5F1GM7_TOTAL_SIZE,
+    .max_speed = 133 * 1000 * 1000,
+    .mode = (NANDFLASH_OP_MODE_STAND_SPI |
+                NANDFLASH_OP_MODE_FAST_SPI |
+                NANDFLASH_OP_MODE_DUAL_OUTPUT |
+                NANDFLASH_OP_MODE_DUAL_IO |
+                NANDFLASH_OP_MODE_QUAD_OUTPUT |
+                NANDFLASH_OP_MODE_QUAD_IO |
+                NANDFLASH_OP_MODE_DTR |
+                NANDFLASH_OP_MODE_PAGE_PROGRAM |
+                NANDFLASH_OP_MODE_QUAD_PAGE_PROGRAM |
+                NANDFLASH_OP_MODE_INTERNAL_ECC |
+                0),
+};
+
 // ----------------------
 // XTS
 // ----------------------
-
 const struct NANDFLASH_CFG_T xt26g02a_cfg = {
     .id = { 0x0B, 0xE2, 0x0B, },
-    .ecc_status_type = NANDFLASH_ECC_ST_2BITS_11_COR,
+    .rom_ecc_type = NANDFLASH_ECC_ST_2BITS_11_RES, // 0b10: BFC = 8,Corrected ; 0b11: BFC > 8,not corrected
+    .ecc_cfg = {
+        .st_bfd = NANDFLASH_ECC_ST_BFD_RESERVED,
+        .st_type = NANDFLASH_ECC_ST_TYPE_B,
+        .st_bad = NANDFLASH_ECC_ST_B_11XX_BAD,
+    },
     .block_protect_mask = 0x3E,
     .sec_reg_cfg = {
         .s = {
@@ -190,9 +259,79 @@ const struct NANDFLASH_CFG_T xt26g02a_cfg = {
                 0),
 };
 
+const struct NANDFLASH_CFG_T xt26q01d_cfg = {
+    .id = { 0x0B, 0x51, 0x00, },
+    .rom_ecc_type = NANDFLASH_ECC_ST_2BITS_11_COR,
+    .ecc_cfg = {
+        .st_bfd = NANDFLASH_ECC_ST_BFD_RESERVED,
+        .st_type = NANDFLASH_ECC_ST_TYPE_C,
+        .st_bad = NANDFLASH_ECC_ST_C_XX10_BAD,
+    },
+    .block_protect_mask = 0x3E,
+    .sec_reg_cfg = {
+        .s = {
+            .enabled = true,
+            .page_start = 0x00,
+            .page_num = 0x04,
+        },
+    },
+    .page_size = XT26Q01D_PAGE_SIZE,
+    .page_spare_size = XT26Q01D_PAGE_SPARE_SIZE,
+    .block_size = XT26Q01D_BLOCK_SIZE,
+    .total_size = XT26Q01D_TOTAL_SIZE,
+    .max_speed = 108 * 1000 * 1000,
+    .mode = (NANDFLASH_OP_MODE_STAND_SPI |
+                NANDFLASH_OP_MODE_FAST_SPI |
+                NANDFLASH_OP_MODE_DUAL_OUTPUT |
+                NANDFLASH_OP_MODE_DUAL_IO |
+                NANDFLASH_OP_MODE_QUAD_OUTPUT |
+                NANDFLASH_OP_MODE_QUAD_IO |
+                NANDFLASH_OP_MODE_PAGE_PROGRAM |
+                NANDFLASH_OP_MODE_QUAD_PAGE_PROGRAM |
+                NANDFLASH_OP_MODE_INTERNAL_ECC),
+};
+
+const struct NANDFLASH_CFG_T xt26q02d_cfg = {
+    .id = { 0x0B, 0x52, 0x00, },
+    .rom_ecc_type = NANDFLASH_ECC_ST_2BITS_11_COR,
+    .ecc_cfg = {
+        .st_bfd = NANDFLASH_ECC_ST_BFD_RESERVED,
+        .st_type = NANDFLASH_ECC_ST_TYPE_C,
+        .st_bad = NANDFLASH_ECC_ST_C_XX10_BAD,
+    },
+    .block_protect_mask = 0x3E,
+    .sec_reg_cfg = {
+        .s = {
+            .enabled = true,
+            .page_start = 0x00,
+            .page_num = 0x04,
+        },
+    },
+    .page_size = XT26Q02D_PAGE_SIZE,
+    .page_spare_size = XT26Q02D_PAGE_SPARE_SIZE,
+    .block_size = XT26Q02D_BLOCK_SIZE,
+    .total_size = XT26Q02D_TOTAL_SIZE,
+    .max_speed = 108 * 1000 * 1000,
+    .mode = (NANDFLASH_OP_MODE_STAND_SPI |
+                NANDFLASH_OP_MODE_FAST_SPI |
+                NANDFLASH_OP_MODE_DUAL_OUTPUT |
+                NANDFLASH_OP_MODE_DUAL_IO |
+                NANDFLASH_OP_MODE_QUAD_OUTPUT |
+                NANDFLASH_OP_MODE_QUAD_IO |
+                NANDFLASH_OP_MODE_PAGE_PROGRAM |
+                NANDFLASH_OP_MODE_QUAD_PAGE_PROGRAM |
+                NANDFLASH_OP_MODE_INTERNAL_ECC),
+};
+
+
 const struct NANDFLASH_CFG_T xt26q04d_cfg = {
     .id = { 0x0B, 0x53, 0x00, },
-    .ecc_status_type = NANDFLASH_ECC_ST_2BITS_11_COR,
+    .rom_ecc_type = NANDFLASH_ECC_ST_2BITS_11_COR,
+    .ecc_cfg = {
+        .st_bfd = NANDFLASH_ECC_ST_BFD_RESERVED,
+        .st_type = NANDFLASH_ECC_ST_TYPE_C,
+        .st_bad = NANDFLASH_ECC_ST_C_XX10_BAD,
+    },
     .block_protect_mask = 0x3E,
     .sec_reg_cfg = {
         .s = {
@@ -223,7 +362,12 @@ const struct NANDFLASH_CFG_T xt26q04d_cfg = {
 
 const struct NANDFLASH_CFG_T mx35lf1g_cfg = {
     .id = { 0xC2, 0x12, 0xC2, },
-    .ecc_status_type = NANDFLASH_ECC_ST_2BITS_11_RES,
+    .rom_ecc_type = NANDFLASH_ECC_ST_2BITS_11_RES,
+    .ecc_cfg = {
+        .st_bfd = NANDFLASH_ECC_ST_BFD_RESERVED,
+        .st_type = NANDFLASH_ECC_ST_TYPE_E,
+        .st_bad = NANDFLASH_ECC_ST_E_10_BAD,
+    },
     .block_protect_mask = 0x3E,
     .sec_reg_cfg = {
         .s = {
@@ -249,7 +393,12 @@ const struct NANDFLASH_CFG_T mx35lf1g_cfg = {
 
 const struct NANDFLASH_CFG_T mt29f4g_cfg = {
     .id = { 0x2C, 0x35, 0x2C, },
-    .ecc_status_type = NANDFLASH_ECC_ST_3BITS_111_BAD,
+    .rom_ecc_type = NANDFLASH_ECC_ST_3BITS_010_BAD,
+    .ecc_cfg = {
+        .st_bfd = NANDFLASH_ECC_ST_BFD_RESERVED,
+        .st_type = NANDFLASH_ECC_ST_TYPE_H,
+        .st_bad = NANDFLASH_ECC_ST_H_010_BAD,
+    },
     .block_protect_mask = 0x7C,
     .sec_reg_cfg = {
         .s = {
@@ -286,10 +435,15 @@ const struct NANDFLASH_CFG_T mt29f4g_cfg = {
 // Dosilicon
 // ----------------------
 
-const struct NANDFLASH_CFG_T ds35m2g_cfg = {
+const struct NANDFLASH_CFG_T ds35m2gb_cfg = {
     .id = { 0xE5, 0xA2, 0xE5, },
     .plane_cfg = 0x2c, // plane_num:0x2, plane_offset:0xc
-    .ecc_status_type = NANDFLASH_ECC_ST_3BITS_010_BAD,
+    .rom_ecc_type = NANDFLASH_ECC_ST_3BITS_010_BAD,
+    .ecc_cfg = {
+        .st_bfd = NANDFLASH_ECC_ST_BFD_RESERVED,
+        .st_type = NANDFLASH_ECC_ST_TYPE_H,
+        .st_bad = NANDFLASH_ECC_ST_H_010_BAD,
+    },
     .block_protect_mask = 0x3C,
     .sec_reg_cfg = {
         .s = {
@@ -313,10 +467,15 @@ const struct NANDFLASH_CFG_T ds35m2g_cfg = {
                 0),
 };
 
-const struct NANDFLASH_CFG_T ds35m4g_cfg = {
+const struct NANDFLASH_CFG_T ds35m4gm_cfg = {
     .id = { 0xE5, 0xA4, 0xE5, },
     .plane_cfg = 0x2c, // plane_num:0x2, plane_offset:0xc
-    .ecc_status_type = NANDFLASH_ECC_ST_3BITS_010_BAD,
+    .rom_ecc_type = NANDFLASH_ECC_ST_3BITS_010_BAD,
+    .ecc_cfg = {
+        .st_bfd = NANDFLASH_ECC_ST_BFD_RESERVED,
+        .st_type = NANDFLASH_ECC_ST_TYPE_H,
+        .st_bad = NANDFLASH_ECC_ST_H_010_BAD,
+    },
     .block_protect_mask = 0x3C,
     .sec_reg_cfg = {
         .s = {
@@ -340,10 +499,15 @@ const struct NANDFLASH_CFG_T ds35m4g_cfg = {
                 0),
 };
 
-const struct NANDFLASH_CFG_T ds35m1g_cfg = {
+const struct NANDFLASH_CFG_T ds35m1ga_cfg = {
     .id = { 0xE5, 0x21, 0xE5, },
-    .ecc_status_type = NANDFLASH_ECC_ST_2BITS_11_RES,
-    .block_protect_mask = 0x3C,
+    .rom_ecc_type = NANDFLASH_ECC_ST_2BITS_11_RES,
+    .ecc_cfg = {
+        .st_bfd = NANDFLASH_ECC_ST_BFD_RESERVED,
+        .st_type = NANDFLASH_ECC_ST_TYPE_E,
+        .st_bad = NANDFLASH_ECC_ST_E_10_BAD,
+    },
+    .block_protect_mask = 0x3E,
     .sec_reg_cfg = {
         .s = {
             .enabled = true,
@@ -366,13 +530,49 @@ const struct NANDFLASH_CFG_T ds35m1g_cfg = {
                 0),
 };
 
+const struct NANDFLASH_CFG_T ds35m4gb_cfg = {
+    .id = { 0xE5, 0x64, 0xE5, },
+    .rom_ecc_type = NANDFLASH_ECC_ST_3BITS_010_BAD,
+    .ecc_cfg = {
+        .st_bfd = NANDFLASH_ECC_ST_BFD_RESERVED,
+        .st_type = NANDFLASH_ECC_ST_TYPE_H,
+        .st_bad = NANDFLASH_ECC_ST_H_010_BAD,
+    },
+    .block_protect_mask = 0x3C,
+    .sec_reg_cfg = {
+        .s = {
+            .enabled = true,
+            .page_start = 0x02,
+            .page_num = 0x1E,
+        },
+    },
+    .page_size = DS35X4GB_PAGE_SIZE,
+    .page_spare_size = DS35X4GB_PAGE_SPARE_SIZE,
+    .block_size = DS35X4GB_BLOCK_SIZE,
+    .total_size = DS35X4GB_TOTAL_SIZE,
+    .max_speed = 83 * 1000 * 1000,
+    .mode = (NANDFLASH_OP_MODE_STAND_SPI |
+                NANDFLASH_OP_MODE_FAST_SPI |
+                NANDFLASH_OP_MODE_DUAL_OUTPUT |
+                NANDFLASH_OP_MODE_QUAD_OUTPUT |
+                NANDFLASH_OP_MODE_PAGE_PROGRAM |
+                NANDFLASH_OP_MODE_QUAD_PAGE_PROGRAM |
+                NANDFLASH_OP_MODE_INTERNAL_ECC |
+                0),
+};
+
 // ----------------------
 // UNIM
 // ----------------------
 const struct NANDFLASH_CFG_T um19a1lisw_cfg = {
     .id = { 0xB0, 0x25, 0xB0, },
     .plane_cfg = 0x2C, // plane_num:0x2, plane_offset:0xc
-    .ecc_status_type = NANDFLASH_ECC_ST_2BITS_11_RES,
+    .rom_ecc_type = NANDFLASH_ECC_ST_3BITS_010_BAD,
+    .ecc_cfg = {
+        .st_bfd = NANDFLASH_ECC_ST_BFD_RESERVED,
+        .st_type = NANDFLASH_ECC_ST_TYPE_I,
+        .st_bad = NANDFLASH_ECC_ST_I_010_BAD,
+    },
     .block_protect_mask = 0x3C,
     .sec_reg_cfg = {
         .s = {
@@ -402,7 +602,12 @@ const struct NANDFLASH_CFG_T um19a1lisw_cfg = {
 // ----------------------
 const struct NANDFLASH_CFG_T f35uqa001g_cfg = {
     .id = { 0xCD, 0x61, 0x61, },
-    .ecc_status_type = NANDFLASH_ECC_ST_2BITS_11_RES,
+    .rom_ecc_type = NANDFLASH_ECC_ST_2BITS_11_RES,
+    .ecc_cfg = {
+        .st_bfd = NANDFLASH_ECC_ST_BFD_RESERVED,
+        .st_type = NANDFLASH_ECC_ST_TYPE_F,
+        .st_bad = NANDFLASH_ECC_ST_F_10_BAD,
+    },
     .block_protect_mask = 0x7C,
     .sec_reg_cfg = {
         .s = {

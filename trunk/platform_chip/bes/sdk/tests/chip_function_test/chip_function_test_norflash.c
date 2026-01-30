@@ -2986,6 +2986,9 @@ extern const struct NORFLASH_CFG_T w25q128jw_cfg;
 extern const struct NORFLASH_CFG_T sk25le032_cfg;
 extern const struct NORFLASH_CFG_T sk25le064_cfg;
 
+// KH
+extern const struct NORFLASH_CFG_T kh25l12833f_cfg;
+
 static TEST_FLASH_INFO_T test_flash_info[] = {
  {&gd25le255e_cfg   ,   "GD25LE255E"       },
  {&gd25le128e_cfg   ,   "GD25LE128E"       },
@@ -3034,6 +3037,7 @@ static TEST_FLASH_INFO_T test_flash_info[] = {
  {&w25q128jw_cfg    ,   "W25Q128JW"        },
  {&sk25le064_cfg    ,   "SK25LE064"        },
  {&sk25le032_cfg    ,   "SK25LE032"        },
+ {&kh25l12833f_cfg  ,   "KH25L12833F"      },
 };
 static void _print_flash_test_environment(enum HAL_FLASH_ID_T id)
 {
@@ -3393,4 +3397,3 @@ SRAM_TEXT_LOC void function_test_norflash(void)
 }
 
 #endif // CHIP_FUNCTION_TEST_NORFLASH
-

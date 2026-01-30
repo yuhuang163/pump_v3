@@ -26,6 +26,7 @@
 #include "hal_timer.h"
 #include "norflash_cfg.h"
 #include "norflash_gd25q32c.h"
+#include "norflash_mx25u6432f.h"
 #include "plat_addr_map.h"
 #include "string.h"
 #include "tool_msg.h"
@@ -132,6 +133,8 @@ extern const struct NORFLASH_CFG_T w25q128jv_cfg;
 // SiliconKaiser
 extern const struct NORFLASH_CFG_T sk25le064_cfg;
 extern const struct NORFLASH_CFG_T sk25le032_cfg;
+
+extern const struct NORFLASH_CFG_T kh25l12833f_cfg;
 
 static const struct NORFLASH_CFG_T * const flash_list[] = {
     // ----------------------
@@ -316,6 +319,12 @@ static const struct NORFLASH_CFG_T * const flash_list[] = {
     &sk25le032_cfg,
 #endif
 
+    // ----------------------
+    // KH
+    // ----------------------
+#if defined(__NORFLASH_KH25L12833F__) || defined(__NORFLASH_ALL__)
+    &kh25l12833f_cfg,
+#endif
 };
 
 #ifdef NORFLASH_CHECK_SFDP_ENABLE
@@ -633,11 +642,26 @@ static int norflash_set_burst_wrap(enum HAL_FLASH_ID_T id, uint32_t len)
 #endif
 
     if (flash_blen == 64) {
-        wrap = (1 << 6) | (1 << 5);
+	    if(flash_list[flash_idx[id]]->id[0] == NORFLASH_MX_ID_PREFIX){
+		    wrap = (1 << 1) | (1 << 0);
+        }
+        else{
+		    wrap = (1 << 6) | (1 << 5);
+        }
     } else if (flash_blen == 32) {
-        wrap = (1 << 6);
+        if(flash_list[flash_idx[id]]->id[0] == NORFLASH_MX_ID_PREFIX){
+		    wrap = (1 << 1);
+        }
+        else{
+		    wrap = (1 << 6);
+        }
     } else if (flash_blen == 16) {
-        wrap = (1 << 5);
+        if(flash_list[flash_idx[id]]->id[0] == NORFLASH_MX_ID_PREFIX){
+		    wrap = (1 << 0);
+        }
+        else{
+		    wrap = (1 << 5);
+        }
     } else if (flash_blen == 8) {
         wrap = 0;
     } else if (flash_blen == 0) {
@@ -3260,4 +3284,3 @@ void norflash_security_register_disable_read(enum HAL_FLASH_ID_T id, uint32_t mo
 }
 
 #endif
-

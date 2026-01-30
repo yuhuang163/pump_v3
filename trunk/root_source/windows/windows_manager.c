@@ -141,14 +141,12 @@ static int to_valid_window_id(window_manager_context_t *wm, uint8_t window_id)
     if (!(window_id > ID_WINDOW_BEGIN && window_id < ID_WINDOW_MAX)) {
         LOG_WM("%s(window_id:%d)[%d~%d]", to_window_name(window_id), window_id, ID_WINDOW_BEGIN, ID_WINDOW_MAX);
         do {
-#if IS_SUPPORT_MODULE_BATTERY
             battery_manager_context_t *battery = (battery_manager_context_t *)find_module(ID_MODULE_BATTERY);
-            if (battery && battery->is_charge_plug_in() > 0) {
+            if (battery && BATTERY_IS_CHARGING(battery->get_charge_status())) {
                 window_id = ID_WINDOW_CHARGE;
                 break;
             }
-#endif
-            window_id = wm->is_window_guidance_deployed() ? ID_WINDOW_PUMP : ID_WINDOW_HOME;
+            window_id = wm->is_window_guidance_deployed() ? ID_WINDOW_PUMP : ID_WINDOW_GUIDE;
         } while (0);
     }
     return window_id;
@@ -216,12 +214,12 @@ static int window_switch(window_manager_context_t *wm, multi_func_msg_data_t *ms
     bool is_bg = msg->union_body.extra.is_background == 0x01;
     uint32_t t0 = 0;
 
-    #if IS_SUPPORT_DEVICE_FS
+#if IS_SUPPORT_DEVICE_FS
     if (!pbus->fs_ready()) {
         LOG_WM("fs not ready, ignore: %d", new_window_id);
         return -1;
     }
-    #endif
+#endif
 
     if (wm->priv.window_switch_forbid) {
         LOG_WM("forbid window switch, ignore");
@@ -247,10 +245,6 @@ static int window_switch(window_manager_context_t *wm, multi_func_msg_data_t *ms
             if (pm->is_on_suspend_gotoing()) {
                 LOG_WM("pm on_suspend_gotoing, ignore: %d", new_window_id);
                 return -5;
-            }
-
-            if (wm->system_is_ready(wm)) {
-                SEND_BROADCAST_ARGS1(ID_BROADCAST_PM_WAKEUP_BY_USER, PM_WAKEUP_REASON_ENTER_NEW_SCREEN);
             }
         }
         
@@ -371,7 +365,7 @@ static void on_wm_receive_internal(broadcast_mask_id_t id, void *context, int32_
     window_manager_context_t *wm = thiz;
     switch (id.code) {
         case ID_BROADCAST_PM_STATE_CHANGE: {
-            if (arg1 == ID_SYS_PM_SUSPEND) {
+            if (arg1 == PM_BROADCAST_SYS_SUSPEND) {
                 LOG_WM("pm_state : ID_SYS_PM_SUSPEND");
                 clear_window_history();
             } 
@@ -419,9 +413,10 @@ static void window_boot_completed_cb(hdr_post_args_t *args)
     window_manager_context_t *wm = (window_manager_context_t *)args->user_data;
     EXCEPTION_CHECK_VOID(wm);
 #if IS_SUPPORT_MODULE_RES
-    if (wm->priv.res) {
+    resource_manager_context_t *res = (resource_manager_context_t *)find_module(ID_MODULE_RES);
+    if (res) {
         LOG_WM("wait res ready");
-        wm->priv.res->wait_init_completed(wm->priv.res);
+        res->wait_init_completed(res);
     }
 #endif
     wm->window_boot_completed(wm);
@@ -440,12 +435,6 @@ static void window_boot_completed_cb(hdr_post_args_t *args)
 static void window_scheduling_start(void)
 {
     window_manager_context_t *wm = thiz;
-#if IS_SUPPORT_MODULE_RES
-    if (wm->priv.res) {
-        LOG_WM("wait res ready");
-        wm->priv.res->wait_init_completed(wm->priv.res);
-    }
-#endif
     uint32_t delay_time = BOOT_LONG_PRESS_TIME - get_timestamp_ms(0);
     if (delay_time > BOOT_LONG_PRESS_TIME || delay_time == 0) {
         delay_time = 500;
@@ -641,8 +630,7 @@ static int on_post_wm_init(void *ptr)
     wm->priv.bcd->context = wm;
     wm->priv.bcd->name = "window_manager";
     wm->priv.bcd->id.code |= ID_BROADCAST_PM_STATE_CHANGE;
-    wm->priv.bcd->id.code |= ID_BROADCAST_PM_WAKEUP_BY_USER;
-    wm->priv.bcd->id.code |= ID_BROADCAST_SYS_POWER_STATE_CHANGE;
+    wm->priv.bcd->id.code |= ID_BROADCAST_SYS_STATE_CHANGE;
     wm->priv.bcd->id.code |= ID_BROADCAST_AIRPLANE_MODE_STATE_CHANGE;
     wm->priv.bcd->receiver_cb = on_wm_receive_internal;
     register_broadcast_receiver(wm->priv.bcd);
@@ -655,8 +643,6 @@ static int on_post_wm_init(void *ptr)
 static int on_perpare_wm_init(void *self)
 {
     window_manager_context_t *wm = self;
-    wm->priv.res = (resource_manager_context_t *)find_module(ID_MODULE_RES);
-    wm->priv.st = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
     return 0;
 }
 

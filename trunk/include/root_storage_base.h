@@ -20,21 +20,21 @@ extern "C" {
 #define PARTITION_FDS_NAME                                                      "littleFs"
 #define PARTITION_FACTORY_DATA_NAME                                             "factory_data"
 #define PARTITION_DEV_INFO_NAME                                                 "dev_info"
-#define PARTITION_PICTURE_DATA_INT_NAME                                         "picture_data_internal_flash"
-#define PARTITION_PICTURE_DATA_EXT_NAME                                         "picture_data_external_flash"
+#define PARTITION_IMG_INT_DATA_NAME                                         "img_int_data"
+#define PARTITION_IMG_EXT_DATA_NAME                                         "img_ext_data"
 #endif
 
 // 文件系统分区定义.
 #ifndef FS_PARTTION_USERDATA
-#define FS_PARTTION_USERDATA                                                  "userdata"
-#define FS_PATH_ROOT                                                          "/data"
-#define FS_PATH_RES                                                           FS_PATH_ROOT"/res"
-#define FS_PATH_AUDIO                                                         FS_PATH_ROOT"/audio"
-#define FS_PATH_CONFIG                                                        FS_PATH_ROOT"/config"
-#define FS_PATH_GIFT                                                          FS_PATH_ROOT"/gift"
-#define FS_PATH_THEMES                                                        FS_PATH_ROOT"/themes"
-#define FS_PATH_TMP                                                           FS_PATH_ROOT"/tmp"
-#define FS_PATH_MUSIC                                                         FS_PATH_ROOT"/music"
+#define FS_PARTTION_USERDATA                                                    "userdata"
+#define FS_PATH_ROOT                                                            "/data"
+#define FS_PATH_RES                                                             FS_PATH_ROOT"/res"
+#define FS_PATH_AUDIO                                                           FS_PATH_ROOT"/audio"
+#define FS_PATH_CONFIG                                                          FS_PATH_ROOT"/config"
+#define FS_PATH_GIFT                                                            FS_PATH_ROOT"/gift"
+#define FS_PATH_THEMES                                                          FS_PATH_ROOT"/themes"
+#define FS_PATH_TMP                                                             FS_PATH_ROOT"/tmp"
+#define FS_PATH_MUSIC                                                           FS_PATH_ROOT"/music"
 #endif
 
 // store magic

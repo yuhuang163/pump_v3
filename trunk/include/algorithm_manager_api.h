@@ -55,10 +55,6 @@ typedef struct algo_manager_context {
         void (*imu_static_calib_start)(void);
         void (*imu_static_calib_stop)(void);
     #endif
-    #if IS_SUPPORT_ADAPTIVE_DIMMING
-        void (*set_adaptive_dimming_state)(bool state); /// 开启/关闭自适应背光
-        bool (*get_adaptive_dimming_state)(void); /// 获取自适应背光状态
-    #endif
     } *hook;
 
 } algo_manager_context_t;

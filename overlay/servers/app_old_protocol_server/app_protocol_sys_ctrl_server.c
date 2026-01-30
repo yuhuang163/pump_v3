@@ -2,7 +2,8 @@
 #include "app_protocol_handler.h"
 #include "storage_manager_api.h"
 #include "app_protocol_sys_ctrl_server.h"
-#include "breast_pump_manager_api.h"
+#include "hal_led.h" // IWYU pragma: keep
+#include "ble_manager_api.h" // IWYU pragma: keep
 
 /*
 * DEFINES
@@ -23,47 +24,25 @@
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-static void app_old_comm_set_night_light(uint8_t onoff, uint8_t level)
+static void app_old_comm_set_night_light(uint8_t adaptive_dimming_switch)
 {
-    storage_manager_context_t *st = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
-    peripheral_bus_context_t *pbus = (peripheral_bus_context_t *)find_module(ID_MODULE_DEVICE_BUS);
-    algo_manager_context_t *algo = (algo_manager_context_t *)find_module(ID_MODULE_ALGO_HUB);
-    EXCEPTION_CHECK_VOID(st);
-    EXCEPTION_CHECK_VOID(pbus);
-    EXCEPTION_CHECK_VOID(algo);
-
-    struct rt_device_node *led_dev = pbus->find_device(ID_DEVICE_LED);
-    EXCEPTION_CHECK_VOID(led_dev);
-
-    night_light_info_t night_light_info = {0};
-    st->get_store_ram_val(STORE_ID_SYS_NIGHT_LIGHT_INFO, 0, 0, &night_light_info);
-
-    // Update night light info
-    if (onoff == 2) {
-        night_light_info.adaptive = 1;
-    } else {
-        night_light_info.adaptive = 0;
+    led_manager_context_t *led = (led_manager_context_t *)find_module(ID_MODULE_LED);
+    EXCEPTION_CHECK_VOID(led && led->hook);
+    if (led->hook->set_night_light_adaptive_switch) {
+        led->hook->set_night_light_adaptive_switch(led, adaptive_dimming_switch);
     }
-#if IS_SUPPORT_ADAPTIVE_DIMMING
-    if (algo->hook->set_adaptive_dimming_state) {
-        algo->hook->set_adaptive_dimming_state(night_light_info.adaptive);
-    }
-#endif
-    night_light_info.onoff = (onoff == 2) ? 0 : (onoff ? 1 : 0);
-    night_light_info.level = level;
-
-    st->put_store_ram_val(STORE_ID_SYS_NIGHT_LIGHT_INFO, 0, 0, &night_light_info);
-    led_status_msg_t msg = {
-        .led_index = NIGHT_LIGHT_LED_ID_0,
-        .led_status = {
-            .mode = LED_MODE_LEVEL,
-            .un.luminous.level = night_light_info.onoff ? night_light_info.level : 0,
-        },
-    };
-    led_dev->ioctl(led_dev, OP_CODE_NIGHT_LIGHT_STATUS_SET, (void *)&msg);
-    LOG_SRV(" Night light set: onoff=%d, level=%d, adaptive=%d\n", night_light_info.onoff, night_light_info.level, night_light_info.adaptive);
+    LOG_SRV(" Night light set: adaptive=%d\n", adaptive_dimming_switch);
 }
 
+static void app_old_comm_set_device_bind_status(uint8_t device_bind_status)
+{
+    ble_manager_context_t *ble = (ble_manager_context_t *)find_module(ID_MODULE_BLE);
+    EXCEPTION_CHECK_VOID(ble);
+    if (ble->ble_bind_state_get() != device_bind_status) {
+        ble->ble_bind_state_set(device_bind_status);
+        LOG_SRV(" Device bind status set: %d\n", device_bind_status);
+    }
+}
 /*
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
@@ -126,11 +105,11 @@ void app_old_comm_handle_sys_ctrl_req(uint8_t cal, uint8_t *cab)
             chage_state = CHARGE_STATE_CHARGING;
         }
         LOG_SRV("chage_state=%d", chage_state);
-        if (chage_state == CHARGE_STATE_CHARGING || chage_state == CHARGE_STATE_FULL) {
+        if (BATTERY_IS_CHARGING(chage_state)) {
             LOG_SRV("CMD-poweroff, but charging, not power off");
             return;
         }
-        SEND_BROADCAST_ARGS1(ID_BROADCAST_SYS_POWER_STATE_CHANGE, ID_BROADCAST_SYS_POWER_OFF);
+        SEND_BROADCAST_ARGS1(ID_BROADCAST_SYS_STATE_CHANGE, SYSTEM_BROADCAST_POWER_OFF);
     } else if (ctrl_cmd == APP_OLD_COMM_SYS_REBOOT) {
         LOG_SRV("CMD-softreset");
     } else if (ctrl_cmd == APP_OLD_COMM_SYS_OTA) {
@@ -230,26 +209,103 @@ void app_old_comm_handle_ctrl_dev_sys_status_req(uint8_t cal, uint8_t *cab)
     // Byte 3-4: Massage duration in seconds (Little Endian, range: 30s - 600s)
     sys_status.motor_Duration = (uint16_t)(cab[3] | (cab[4] << 8));
 
-    // Byte 5: Night light switch (0-off, 1-on，2-auto)
-    sys_status.night_light_switch = cab[5];
+    // Byte 5: Adaptive dimming switch (0-off, 1-on)
+    sys_status.adaptive_dimming_switch = cab[5];
 
-    // Byte 6: Night light brightness level (1-10)
-    sys_status.night_light_level = cab[6];
+    // Byte 6: Device bind status (0-unbound, 1-bound)
+    sys_status.device_bind_status = cab[6];
 
-    LOG_SRV(" Sys status: lang=%d, lock_time=%d, brightness=%d, massage_time=%d, night_sw=%d, night_lvl=%d\n",
+    LOG_SRV(" Sys status: lang=%d, lock_time=%d, brightness=%d, massage_time=%d, bind_status=%d, adaptive_dimming_sw=%d\n",
                  sys_status.sys_language_e,
                  sys_status.screem_lock_time,
                  sys_status.screem_lock_light_level,
                  sys_status.motor_Duration,
-                 sys_status.night_light_switch,
-                 sys_status.night_light_level);
+                 sys_status.device_bind_status,
+                 sys_status.adaptive_dimming_switch);
 
     // Apply night light settings
-    app_old_comm_set_night_light(sys_status.night_light_switch, sys_status.night_light_level);
-
+    app_old_comm_set_night_light(sys_status.adaptive_dimming_switch);
+    // Apply device bind status
+    app_old_comm_set_device_bind_status(sys_status.device_bind_status);
     // TODO: Apply other sys_status settings (language, screen lock, brightness, massage time)
 
     app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_ACK, APP_OLD_COMM_CID_CTRL_DEV_STATUS, cal, cab);
+}
+
+void app_old_comm_handle_pump_ble_rgb_set_ctrl_req(uint8_t cal, uint8_t *cab)
+{
+    LOG_SRV(" Handling night light control request (data len: %d)", cal);
+    EXCEPTION_CHECK_VOID(cab);
+    
+    uint8_t result = 0x00; // 默认失败
+    
+    /// 检查数据长度：需要9字节参数
+    if (cal < 9) {
+        LOGE(" Invalid data length for night light control (expected >=9, got %d)", cal);
+        app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_ACK, APP_OLD_COMM_CID_PUMP_BLE_RGB_SET_CTRL, 1, &result);
+        return;
+    }
+    
+    /// 解析参数
+    /// byte0: 自动亮灯（未使用，跳过）
+    uint8_t night_light_switch = cab[1];      /// byte1: 夜灯开关（0=关闭，1=打开）
+    uint8_t night_light_level = cab[2];      /// byte2: 夜灯亮度等级（1-10）
+    /// byte3-4: 夜灯灯光控制时间（2字节，未使用，跳过）
+    
+    LOG_SRV(" Night light control: switch=%d, level=%d", night_light_switch, night_light_level);
+    
+    /// 验证参数范围
+    if (night_light_switch > 1) {
+        LOGE(" Invalid night light switch value: %d (expected 0 or 1)", night_light_switch);
+        app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_ACK, APP_OLD_COMM_CID_PUMP_BLE_RGB_SET_CTRL, 1, &result);
+        return;
+    }
+    
+    if (night_light_level < 1 || night_light_level > 10) {
+        LOGE(" Invalid night light level: %d (expected 1-10)", night_light_level);
+        app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_ACK, APP_OLD_COMM_CID_PUMP_BLE_RGB_SET_CTRL, 1, &result);
+        return;
+    }
+    
+    /// 获取LED管理器
+    led_manager_context_t *led = (led_manager_context_t *)find_module(ID_MODULE_LED);
+    if (led == NULL || led->hook == NULL) {
+        LOGE(" LED manager not found or hook is NULL");
+        app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_ACK, APP_OLD_COMM_CID_PUMP_BLE_RGB_SET_CTRL, 1, &result);
+        return;
+    }
+    
+    /// 关闭夜灯自适应调光（如果支持）
+    //if (led->hook->set_night_light_adaptive_dimming) {
+      //led->hook->set_night_light_adaptive_dimming(led, 0);
+    //  }
+    
+    /// 计算实际亮度值：将1-10映射到LED_LEVEL_MAX（100）
+    /// 映射公式：level = (协议等级 - 1) * (LED_LEVEL_MAX - 1) / 9 + 1
+    /// 简化：level = (协议等级 - 1) * 11 + 1，或者 level = 协议等级 * 10
+    /// 使用线性映射：1->10, 2->20, ..., 10->100
+    uint8_t actual_level = night_light_level * 10;
+    if (actual_level > LED_LEVEL_MAX) {
+        actual_level = LED_LEVEL_MAX;
+    }
+    
+    /// 如果开关为关闭，则亮度设为0
+    if (night_light_switch == 0) {
+        actual_level = 0;
+    }
+    
+    /// 设置夜灯亮度
+    if (led->hook->set_night_light_level) {
+        led->hook->set_night_light_level(led, actual_level);
+        result = 0x01; // 成功
+        LOG_SRV(" Night light set successfully: switch=%d, level=%d (actual=%d)", 
+                night_light_switch, night_light_level, actual_level);
+    } else {
+        LOGE(" set_night_light_level hook not available");
+    }
+    
+    /// 发送响应（1字节状态：0x00=错误，0x01=成功）
+    app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_ACK, APP_OLD_COMM_CID_PUMP_BLE_RGB_SET_CTRL, 1, &result);
 }
 
 

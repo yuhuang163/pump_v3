@@ -40,6 +40,7 @@ typedef enum {
     MOTOR_ACTION_PUMP_OFF,
     MOTOR_ACTION_VALVE_ON,
     MOTOR_ACTION_VALVE_OFF,
+    MOTOR_ACTION_PUMP_OFF_AND_VALVE_ON,
 } motor_action_type_e;
 
 /// 吸力状态

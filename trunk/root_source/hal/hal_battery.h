@@ -31,8 +31,8 @@ typedef enum {
     OP_CODE_BAT_GET_VOLTAGE = 2,
     OP_CODE_BAT_POLL_VOLTAGE = 3,
     OP_CODE_BAT_HEALTH_SET = 4,
-    OP_CODE_BAT_CHARGE_IS_PLUG_IN = 5,
-    OP_CODE_BAT_CHARGE_ADD_IRQ_CALLBACK = 6,
+    OP_CODE_BAT_VBUS_IS_PLUG_IN = 5,
+    OP_CODE_BAT_ADD_CHARGE_EVENT_CALLBACK = 6,
     OP_CODE_BAT_GET_CHARGE_STATUS = 7,
     OP_CODE_BAT_GET_CHARGE_TEMPERATURE = 8,
     OP_CODE_BAT_IS_READY = 9,
@@ -40,6 +40,21 @@ typedef enum {
     OP_CODE_BAT_IS_SUPPORT_BATTERY = 11, /// 查询是否支持电池
     OP_CODE_BAT_END
 } batery_dev_op_code_e;
+
+/**
+ * @brief 描述电池充电事件
+*/
+typedef enum {
+    CHARGE_EVENT_PLUG_IN = 0,
+    CHARGE_EVENT_PLUG_OUT = 1,
+    CHARGE_EVENT_FULL = 2,
+    CHARGE_EVENT_UNCHARGE = 3,
+    CHARGE_EVENT_ADAPTER_MISMATCH = 4, /// 适配器不匹配
+    CHARGE_EVENT_TEMPERATURE_ERROR = 5, /// 温度异常
+    CHARGE_EVENT_MAX,
+} charge_event_e;
+
+typedef void (*charge_event_cb)(charge_event_e event);
 
 #ifdef __cplusplus
 }

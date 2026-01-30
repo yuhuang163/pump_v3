@@ -28,6 +28,16 @@
 #define W25N02KV_BLOCK_SIZE (128*1024)
 #define W25N02KV_TOTAL_SIZE (256*1024*1024)
 
+#define W25N04KV_PAGE_SIZE (2*1024)
+#define W25N04KV_PAGE_SPARE_SIZE (128)
+#define W25N04KV_BLOCK_SIZE (128*1024)
+#define W25N04KV_TOTAL_SIZE (512*1024*1024)
+
+#define W25N08LW_PAGE_SIZE (4*1024)
+#define W25N08LW_PAGE_SPARE_SIZE (256)
+#define W25N08LW_BLOCK_SIZE (256*1024)
+#define W25N08LW_TOTAL_SIZE (1024*1024*1024)
+
 /* device cmd */
 #define W25M02GV_CMD_ID 0x9F
 #define W25M02GV_CMD_WRITE_ENABLE 0x06
@@ -55,6 +65,12 @@
 #define W25M02GV_REG_PROTECTION             0xA0
 #define W25M02GV_REG_CONFIGURATION          0xB0
 #define W25M02GV_REG_STATUS                 0xC0
+
+#define W25N02KW_REG_ECC_BFD                0x10
+#define W25N02KW_REG_ECC_BFS                0x20
+#define W25N02KW_REG_ECC_MBF                0x30
+#define W25N02KW_REG_ECC_BFR1               0x40
+#define W25N02KW_REG_ECC_BFR2               0x50
 
 // W25M02GV_PRT
 #define W25M02GV_PRT_SRP1                   (1 << 0)

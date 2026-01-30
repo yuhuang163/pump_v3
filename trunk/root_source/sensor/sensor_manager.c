@@ -150,35 +150,30 @@ static void on_sensor_input_receiver(broadcast_mask_id_t id, void *context, int 
     sensor_manager_context_t *ctx = context;
     switch (id.code) {
         case ID_BROADCAST_PM_STATE_CHANGE:
-            {
-                int pm_state = arg1;
-                if (pm_state == ID_SYS_PM_SUSPEND) {
-                    LOG_SENSOR("STOP_TIMER: sensor polling_timer");
-                    STOP_TIMER(ctx->priv.polling_timer);
-                    ctx->priv.do_polling = 0;
-                } else {
-                    LOG_SENSOR("START_TIMER: id = 0x%lx, sensor polling_timer, delay_ms: %d",
-                         id.code, SENSOR_THREAD_POLLING_PERIOD);
+            if (arg1 == PM_BROADCAST_SYS_SUSPEND) {
+                LOG_SENSOR("STOP_TIMER: sensor polling_timer");
+                STOP_TIMER(ctx->priv.polling_timer);
+                ctx->priv.do_polling = 0;
+            } else if (arg1 == PM_BROADCAST_SYS_RESUME) {
+                LOG_SENSOR("START_TIMER: id = 0x%lx, sensor polling_timer, delay_ms: %d",
+                        id.code, SENSOR_THREAD_POLLING_PERIOD);
+                STOP_TIMER(ctx->priv.polling_timer);
+                START_TIMER(ctx->priv.polling_timer, SENSOR_THREAD_POLLING_PERIOD);
+                ctx->priv.do_polling = 1;
+            }
+            break;
+        case ID_BROADCAST_OTA_STATE_CHANGE:       
+            if (arg1 == OTA_BROADCAST_UI_ENTER) {
+                LOG_SENSOR("STOP_TIMER: enter ota-ui screen");
+                STOP_TIMER(ctx->priv.polling_timer);
+                ctx->priv.do_polling = 0;
+            } else if (arg1 == OTA_BROADCAST_UI_EXIT) {
+                power_manager_context_t *pm = (power_manager_context_t *)find_module(ID_MODULE_POWER);
+                if (!pm->is_pm_suspend()) {
+                    LOG_SENSOR("START_TIMER: exit ota-ui screen");
                     STOP_TIMER(ctx->priv.polling_timer);
                     START_TIMER(ctx->priv.polling_timer, SENSOR_THREAD_POLLING_PERIOD);
                     ctx->priv.do_polling = 1;
-                }
-            }
-            break;
-        case ID_BROADCAST_OTA_UI_SCREEN_STATE_CHANGE:
-            {
-                if (arg1 == 1) {
-                    LOG_SENSOR("STOP_TIMER: enter ota-ui screen");
-                    STOP_TIMER(ctx->priv.polling_timer);
-                    ctx->priv.do_polling = 0;
-                } else {
-                    power_manager_context_t *pm = (power_manager_context_t *)find_module(ID_MODULE_POWER);
-                    if (!pm->is_pm_suspend()) {
-                        LOG_SENSOR("START_TIMER: exit ota-ui screen");
-                        STOP_TIMER(ctx->priv.polling_timer);
-                        START_TIMER(ctx->priv.polling_timer, SENSOR_THREAD_POLLING_PERIOD);
-                        ctx->priv.do_polling = 1;
-                    }
                 }
             }
             break;
@@ -311,9 +306,9 @@ static int on_post_sensor_init(void *ptr)
     ctx->priv.bcd = u_malloz(sizeof(broadcast_obj_t));
     ctx->priv.bcd->context = ctx;
     ctx->priv.bcd->name = "sensor_input_thread";
-    ctx->priv.bcd->id.code |= ID_BROADCAST_SYS_BOOT_COMPLETED;
+    ctx->priv.bcd->id.code |= ID_BROADCAST_SYS_STATE_CHANGE;
     ctx->priv.bcd->id.code |= ID_BROADCAST_PM_STATE_CHANGE;
-    ctx->priv.bcd->id.code |= ID_BROADCAST_OTA_UI_SCREEN_STATE_CHANGE;
+    ctx->priv.bcd->id.code |= ID_BROADCAST_OTA_STATE_CHANGE;
     ctx->priv.bcd->receiver_cb = on_sensor_input_receiver;
     register_broadcast_receiver(ctx->priv.bcd);
     /// 启动线程.

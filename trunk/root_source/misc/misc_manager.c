@@ -105,7 +105,7 @@ static void misc_work_broadcast_receive(broadcast_mask_id_t id, void *context, i
     misc_manager_context_t *ctx = (misc_manager_context_t *)context;
     if (id.code == ID_BROADCAST_PM_STATE_CHANGE) {
         int pm_state = args0;
-        if (pm_state == ID_SYS_PM_SUSPEND) {
+        if (pm_state == PM_BROADCAST_SYS_SUSPEND) {
             LOG_MISC("STOP_TIMER: misc_timer");
             STOP_TIMER(ctx->priv.misc_timer);
         } else {

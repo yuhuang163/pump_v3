@@ -161,7 +161,7 @@
 #endif
 
 #ifndef SPI_IOMUX_INDEX
-#define SPI_IOMUX_INDEX                     0
+#define SPI_IOMUX_INDEX                     24
 #endif
 
 #ifndef SPILCD_IOMUX_INDEX
@@ -169,7 +169,7 @@
 #endif
 
 #ifndef SPI_IOMUX_DI0_INDEX
-#define SPI_IOMUX_DI0_INDEX                 0
+#define SPI_IOMUX_DI0_INDEX                 26
 #endif
 
 #ifndef SPILCD_IOMUX_DI0_INDEX

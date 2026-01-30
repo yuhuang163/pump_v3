@@ -2,10 +2,8 @@
  * INCLUDE FILES
  *****************************************************************************************
  */
-#include "hal_motor.h"
-#include "bsp_lcd_internal.h" // IWYU pragma: keep
-#include "root_common.h"
-#include "peripheral_bus_api.h"
+#include "cmsis_os_api.h"
+#include "peripheral_bus_api.h" // IWYU pragma: keep
 #include "root_common_api.h" // IWYU pragma: keep
 
 /*
@@ -32,17 +30,8 @@ static int run_led_test_cb(void)
 {
     static uint8_t led_status = LED_STATUS_OFF;
     LOG_PBUS("===> run led test!!!!! status: %d", led_status);
-    peripheral_bus_context_t *pbus = (peripheral_bus_context_t *)find_module(ID_MODULE_DEVICE_BUS);
-    rt_device_node_t *led_dev = pbus->find_device(ID_DEVICE_LED);
-    led_status_msg_t msg = {
-        .led_index = PUMP_LED_ALL_ID,
-        .led_status = {
-            .mode = LED_MODE_ONOFF,
-            .un.onoff.status = led_status,
-        },
-    };
-    led_dev->ioctl(led_dev, OP_CODE_LED_STATUS_SET, (void *)&msg);
-    led_status = led_status == LED_STATUS_OFF ? LED_STATUS_ON : LED_STATUS_OFF;
+    led_manager_context_t *led = (led_manager_context_t *)find_module(ID_MODULE_LED);
+    led_status = (led_status == LED_STATUS_OFF) ? LED_STATUS_ON : LED_STATUS_OFF;
     return 1000;
 }
 
@@ -50,7 +39,7 @@ static void run_pump_test_cb(void)
 {
     LOG_PBUS("===> run pump test!!!!!");
     breast_pump_manager_context_t *breast_ctx = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
-    // breast_ctx->set_breast_pump_mode(BREAST_PUMP_PP_MILK_TRACK_MODE);
+    // breast_ctx->set_breast_pump_mode(BREAST_PUMP_PP_MILK_TRACK_MODE, 0);
     breast_ctx->set_breast_pump_status(BREAST_PUMP_CONTINUE);
 }
 
@@ -115,7 +104,7 @@ static int motor_debug_test_cb(void)
         .duty = 75,
         .hold_time = 300,
     };
-    if(state > MOTOR_USER_DEBUG_VALVE_OFF) {
+    if (state > MOTOR_USER_DEBUG_VALVE_OFF) {
         state = MOTOR_USER_DEBUG_PUMP_ON;
     }
     LOG_PBUS("===> motor debug test!!!!! state: %d, duty: %d, hold_time: %d", state, para.duty, para.hold_time);
@@ -134,34 +123,44 @@ static void sys_dump_wdg_test_cb(void)
     }
 }
 
-void light_sensor_test(void);
+static int external_flash_test_cb(void)
+{
+    int ret = 0;
+    uint32_t addr = 0;
+    uint32_t size = 0;
+    uint32_t start_time = 0;
+    start_time = get_timestamp();
+    addr = 0x80000;
+    size = 50 * 1024;
+    uint8_t *buff = u_malloz_psram(size, 0);
+    if (buff) {
+        ret = platform_flash_read(PARTITION_IMG_EXT_DATA_NAME, addr, buff, size);
+        if (ret != 0) {
+            LOGE("===> read failed, ret: %d", ret);
+        }
+        LOGI("===>read size: %d, addr: %d, time: %dms", size, addr, get_timestamp_ms(start_time));
+        u_free_psram(buff, 0);
+    }
+    return 1000;
+}
+
 static void hdr_run_pressure_test_cb(hdr_post_args_t *args)
 {
     // sys_dump_wdg_test_cb();
     // reboot_system_test_cb();
     // run_pump_test_cb();
     // POST_TASK_HANDLER_DELAYED_ARG0(hdr_run_pressure_test_cb, lcd_data_send_test_cb(), "pressure_test:continue");
-    POST_TASK_HANDLER_DELAYED_ARG0(hdr_run_pressure_test_cb, run_led_test_cb(), "pressure_test:continue"); 
+    // POST_TASK_HANDLER_DELAYED_ARG0(hdr_run_pressure_test_cb, run_led_test_cb(), "pressure_test:continue"); 
+    POST_TASK_HANDLER_DELAYED_ARG0(hdr_run_pressure_test_cb, external_flash_test_cb(), "pressure_test:continue");
     // motor_debug_policy_test_cb();
     // POST_TASK_HANDLER_DELAYED_ARG0(hdr_run_pressure_test_cb, motor_debug_test_cb(), "pressure_test:continue");
-    // light_sensor_test();
     // POST_TASK_HANDLER_DELAYED_ARG0(hdr_run_pressure_test_cb, 1000, "pressure_test:continue");
 }
 #endif
 
 void get_night_light_info_test(void)
 {
-    storage_manager_context_t *st = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
-    EXCEPTION_CHECK_VOID(st);
-    night_light_info_t night_light_info = {0};
-    st->get_store_ram_val(STORE_ID_SYS_NIGHT_LIGHT_INFO, 0, 0, &night_light_info);
-    LOG_PBUS("===> get night light info test!!!!! night_light_info: %d, %d, %d", night_light_info.onoff, night_light_info.level, night_light_info.adaptive);
-    if (1 == night_light_info.adaptive) {
-        algo_manager_context_t *algo = (algo_manager_context_t *)find_module(ID_MODULE_ALGO_HUB);
-        EXCEPTION_CHECK_VOID(algo);
-        EXCEPTION_CHECK_VOID(algo->hook->set_adaptive_dimming_state);
-        algo->hook->set_adaptive_dimming_state(0);
-    }
+
 }
 
 

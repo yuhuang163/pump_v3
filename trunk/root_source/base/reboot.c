@@ -34,7 +34,7 @@
      const char *rstr = reason ? reason : "null";
      if (strncmp(rstr, __REBOOT_REASON_FACTORY_RESET, strlen(rstr)) != 0) {
          LOGW("==>: reason=%s\n", rstr);
-         //ND_BROADCAST_SYNC_ARGS2(ID_BROADCAST_SYS_POWER_STATE_CHANGE, ID_BROADCAST_SYS_POWER_OFF, (uint32_t)reason);
+         //SEND_BROADCAST_SYNC_ARGS2(ID_BROADCAST_SYS_STATE_CHANGE, SYSTEM_BROADCAST_POWER_OFF, (uint32_t)reason);
      } else {
         LOGW("==>reason=%s\n", rstr);
      }

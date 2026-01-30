@@ -138,7 +138,7 @@ int custom_mode_parameter_init(void)
     storage_manager_context_t *storage_ctx = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
     EXCEPTION_CHECK_UINT(storage_ctx);
     storage_ctx->get_store_ram_val(STORE_ID_PUMP_CUSTOM_STEPS_PARAMETER_INFO, 0, 0, &custom_pump_steps_data);
-    if(custom_pump_steps_data.id.dat32 != 0x00) //标识是默认custom策略定义
+    if (custom_pump_steps_data.id.dat32 != 0x00) //标识是默认custom策略定义
     {
        uint8_t cfg_number = pump_custom_step_para_to_local_motor_policy(&custom_pump_steps_data, s_custom_policy_cfg);
        s_custom_obj = breast_pump_mode_parameter_init(s_custom_policy_cfg, cfg_number, "custom");

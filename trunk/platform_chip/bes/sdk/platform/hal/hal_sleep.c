@@ -598,6 +598,9 @@ static enum HAL_SLEEP_STATUS_T SRAM_TEXT_LOC hal_sleep_lowpower_mode(void)
     return ret;
 }
 
+#if CFG_CUSTOM_APP
+extern void platform_sleep_hook(uint8_t cpu_sleep, uint8_t bus_sleep, uint8_t subsys_sleep);
+#endif
 enum HAL_SLEEP_STATUS_T SRAM_TEXT_LOC NOINLINE hal_sleep_proc(int light_sleep)
 {
     enum HAL_SLEEP_STATUS_T ret;
@@ -729,6 +732,9 @@ _exit_sleep:
                     100 - (cpu_sleep_ratio + bus_sleep_ratio + subsys_sleep_ratio),
                     cpu_sleep_ratio, bus_sleep_ratio, subsys_sleep_ratio);
                 stats_trace_time = cur_time;
+#if CFG_CUSTOM_APP
+                platform_sleep_hook(cpu_sleep_ratio, bus_sleep_ratio, subsys_sleep_ratio);
+#endif
 #ifdef DEBUG_SLEEP_USER
                 TRACE(0, "WAKE LOCK: cpu=0x%X bus=0x%X subsys=0x%X",
                     cpu_wake_lock_map, bus_wake_lock_map, subsys_wake_lock_map);

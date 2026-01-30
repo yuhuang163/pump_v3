@@ -25,9 +25,11 @@
 #include "nandflash_w25m02gv.h"
 #include "plat_addr_map.h"
 #include "norflash_cfg.h"
+#include "nandflash_ecc.h"
 #include "string.h"
 #include "tool_msg.h"
 #include "hal_sleep.h"
+// #include "system_utils.h"
 
 #ifdef PROGRAMMER
 #include "sys_api_programmer.h"
@@ -53,6 +55,7 @@
 enum NANDFLASH_CALIB_T {
     NANDFLASH_CALIB_FLASH_ID,
     NANDFLASH_CALIB_MAGIC_WORD,
+    NANDFLASH_CALIB_DTR,
 
     NANDFLASH_CALIB_QTY,
 };
@@ -74,7 +77,7 @@ static struct NANDFLASH_CTX_T nandflash_ctx[HAL_FLASH_ID_NUM];
 
 static const char * const err_not_opened = "nandflash not opened";
 
-static uint32_t nand_nc_base[HAL_FLASH_ID_NUM] = {
+POSSIBLY_UNUSED static uint32_t nand_nc_base[HAL_FLASH_ID_NUM] = {
     FLASH_NC_BASE,
 #ifdef FLASH1_CTRL_BASE
     FLASH1_NC_BASE,
@@ -113,6 +116,9 @@ static const struct NANDFLASH_CONFIG_T nandflash_cfg = {
             NANDFLASH_OP_MODE_PAGE_PROGRAM |
             NANDFLASH_OP_MODE_QUAD_PAGE_PROGRAM |
             NANDFLASH_OP_MODE_INTERNAL_ECC |
+#if (CHIP_FLASH_CTRL_VER >= 5) && defined(FLASH_DTR)
+            NANDFLASH_OP_MODE_DTR |
+#endif
             0,
     .override_config = 0,
 };
@@ -123,22 +129,28 @@ extern const struct NANDFLASH_CFG_T gd5f4gq4_cfg;
 extern const struct NANDFLASH_CFG_T gd5f4gm5_cfg;
 extern const struct NANDFLASH_CFG_T gd5f2gm7r_cfg;
 extern const struct NANDFLASH_CFG_T gd5f4gm8r_cfg;
+extern const struct NANDFLASH_CFG_T gd5f1gq5_cfg;
 
 // XTS
 extern const struct NANDFLASH_CFG_T xt26g02a_cfg;
+extern const struct NANDFLASH_CFG_T xt26q01d_cfg;
+extern const struct NANDFLASH_CFG_T xt26q02d_cfg;
 extern const struct NANDFLASH_CFG_T xt26q04d_cfg;
 // WINBOND
 extern const struct NANDFLASH_CFG_T w25m02gv_cfg;
-extern const struct NANDFLASH_CFG_T w25n02kv_cfg;
+extern const struct NANDFLASH_CFG_T w25n02kw_cfg;
+extern const struct NANDFLASH_CFG_T w25n04kw_cfg;
+extern const struct NANDFLASH_CFG_T w25n08lw_cfg;
 
 // MXIC
 extern const struct NANDFLASH_CFG_T mx35lf1g_cfg;
 extern const struct NANDFLASH_CFG_T mt29f4g_cfg;
 
 // Dosilicon
-extern const struct NANDFLASH_CFG_T ds35m4g_cfg;
-extern const struct NANDFLASH_CFG_T ds35m2g_cfg;
-extern const struct NANDFLASH_CFG_T ds35m1g_cfg;
+extern const struct NANDFLASH_CFG_T ds35m4gm_cfg;
+extern const struct NANDFLASH_CFG_T ds35m2gb_cfg;
+extern const struct NANDFLASH_CFG_T ds35m1ga_cfg;
+extern const struct NANDFLASH_CFG_T ds35m4gb_cfg;
 
 // UNIM
 extern const struct NANDFLASH_CFG_T um19a1lisw_cfg;
@@ -151,7 +163,7 @@ static const struct NANDFLASH_CFG_T * const flash_list[] = {
     // GigaDevice
     // ----------------------
 #if defined(__NANDFLASH_GD5F1GM7__) || defined(__NANDFLASH_ALL__)
-        &gd5f1gm7_cfg,
+    &gd5f1gm7_cfg,
 #endif
 #if defined(__NANDFLASH_GD5F4GQ4__) || defined(__NANDFLASH_ALL__)
     &gd5f4gq4_cfg,
@@ -165,12 +177,21 @@ static const struct NANDFLASH_CFG_T * const flash_list[] = {
 #if defined(__NANDFLASH_GD5F4GM8R__) || defined(__NANDFLASH_ALL__)
     &gd5f4gm8r_cfg,
 #endif
+#if defined(__NANDFLASH_GD5F1GQ5__) || defined(__NANDFLASH_ALL__)
+    &gd5f1gq5_cfg,
+#endif
 
     // ----------------------
     // XTS
     // ----------------------
 #if defined(__NANDFLASH_XT26G02A__)
     &xt26g02a_cfg,
+#endif
+#if defined(__NANDFLASH_XT26Q01D__) || defined(__NANDFLASH_ALL__)
+    &xt26q01d_cfg,
+#endif
+#if defined(__NANDFLASH_XT26Q02D__) || defined(__NANDFLASH_ALL__)
+    &xt26q02d_cfg,
 #endif
 #if defined(__NANDFLASH_XT26Q04D__)
     &xt26q04d_cfg,
@@ -182,7 +203,13 @@ static const struct NANDFLASH_CFG_T * const flash_list[] = {
     &w25m02gv_cfg,
 #endif
 #if defined(__NANDFLASH_W25N02KV__) || defined(__NANDFLASH_ALL__)
-    &w25n02kv_cfg,
+    &w25n02kw_cfg,
+#endif
+#if defined(__NANDFLASH_W25N04KW__) || defined(__NANDFLASH_ALL__)
+    &w25n04kw_cfg,
+#endif
+#if defined(__NANDFLASH_W25N08LW__) || defined(__NANDFLASH_ALL__)
+    &w25n08lw_cfg,
 #endif
 
     // ----------------------
@@ -199,13 +226,16 @@ static const struct NANDFLASH_CFG_T * const flash_list[] = {
     // Dosilicon
     // ----------------------
 #if defined(__NANDFLASH_DS35M4G__) || defined(__NANDFLASH_ALL__)
-    &ds35m4g_cfg,
+    &ds35m4gm_cfg,
 #endif
 #if defined(__NANDFLASH_DS35M2G__) || defined(__NANDFLASH_ALL__)
-    &ds35m2g_cfg,
+    &ds35m2gb_cfg,
 #endif
 #if defined(__NANDFLASH_DS35M1G__) || defined(__NANDFLASH_ALL__)
-    &ds35m1g_cfg,
+    &ds35m1ga_cfg,
+#endif
+#if defined(__NANDFLASH_DS35M4G__)
+    &ds35m4gb_cfg,
 #endif
 
     // ----------------------
@@ -275,7 +305,7 @@ static struct HAL_DMA_CH_CFG_T dma_cfg[HAL_FLASH_ID_NUM];
 static struct HAL_DMA_DESC_T dma_desc[HAL_FLASH_ID_NUM][2];
 #endif
 
-// #define BUFFER_READ
+//#define BUFFER_READ
 
 static void nandflash_delay(uint32_t us)
 {
@@ -298,7 +328,7 @@ static inline uint32_t nandflash_block_page_offset_to_col_addr(enum HAL_FLASH_ID
     uint8_t plane_offset = (flash_list[flash_idx[id]]->plane_cfg) & 0xF;
 
     if (plane_num > 1)
-        return ((block&(plane_num-1)) << plane_offset) | offset;
+        return ((block & (plane_num - 1)) << plane_offset) | offset;
     else
         return offset;
 }
@@ -308,7 +338,7 @@ static inline uint32_t nandflash_block_to_die(enum HAL_FLASH_ID_T id, uint32_t b
     uint8_t plane_num = (flash_list[flash_idx[id]]->plane_cfg >> 4) & 0xF;
 
     if (plane_num > 1) { //Dosilicon 2G/4G multi plane
-        return (block&(plane_num-1));
+        return (block & (plane_num - 1));
     } else if (nandflash_ctx[id].blocks_per_die) { //Winbond multi die
         return block / nandflash_ctx[id].blocks_per_die;
     } else {
@@ -316,7 +346,7 @@ static inline uint32_t nandflash_block_to_die(enum HAL_FLASH_ID_T id, uint32_t b
     }
 }
 
-#if defined(FLASH_DMA) || defined(BUFFER_READ)
+#if (defined(FLASH_DMA) && !defined(FLASH_DMA_RX_M2M)) || defined(BUFFER_READ)
 static void nandflash_read_from_cache(enum HAL_FLASH_ID_T id, uint32_t offset, uint32_t len)
 {
     // Switch to traditional command format
@@ -324,7 +354,10 @@ static void nandflash_read_from_cache(enum HAL_FLASH_ID_T id, uint32_t offset, u
 
     norflaship_blksize(id, len);
 
-    if (nandflash_op_mode[id] & NANDFLASH_OP_MODE_QUAD_IO) {
+    if (nandflash_op_mode[id] & NANDFLASH_OP_MODE_DTR) {
+        /* Quad DTR, only fast */
+        norflaship_cmd_addr(id, GD5F4GQ4_CMD_FAST_QUAD_DTR_READ, offset);
+    } else if (nandflash_op_mode[id] & NANDFLASH_OP_MODE_QUAD_IO) {
         /* Quad , only fast */
         norflaship_cmd_addr(id, GD5F4GQ4_CMD_FAST_QUAD_IO_READ, offset);
     } else if (nandflash_op_mode[id] & NANDFLASH_OP_MODE_QUAD_OUTPUT) {
@@ -347,9 +380,139 @@ static void nandflash_read_from_cache(enum HAL_FLASH_ID_T id, uint32_t offset, u
 #endif
 
 #ifdef FLASH_DMA
+#ifdef FLASH_DMA_RX_M2M
+static int nandflash_start_rx_dma_m2m(enum HAL_FLASH_ID_T id, uint32_t dst, uint32_t src, uint32_t len)
+{
+    enum HAL_DMA_PERIPH_T periph;
+    enum HAL_DMA_WIDTH_T dst_width;
+    enum HAL_DMA_WIDTH_T src_width;
+    enum HAL_DMA_BSIZE_T dst_bsize;
+    enum HAL_DMA_BSIZE_T src_bsize;
+    enum HAL_DMA_RET_T ret;
+    uint8_t ch;
+    uint8_t src_div;
+    uint32_t total_xfer;
+    uint32_t xfer;
+    uint32_t remains;
+
+    if (len < 64) {
+        memcpy((void *)dst, (void *)src, len);
+        return 0;
+    }
+
+    periph = HAL_GPDMA_MEM;
+    ch = hal_gpdma_get_chan(periph, HAL_DMA_LOW_PRIO);
+    if (ch == HAL_DMA_CHAN_NONE) {
+        memcpy((void *)dst, (void *)src, len);
+        return 0;
+    }
+
+    if ((dst & 0x3) == (src & 0x3)) {
+        while (dst & 0x3) {
+            *(uint8_t *)dst++ = *(uint8_t *)src++;
+            len--;
+        }
+    } else if ((dst & 0x1) == (src & 0x1)) {
+        if (dst & 0x1) {
+            *(uint8_t *)dst++ = *(uint8_t *)src++;
+            len--;
+        }
+    }
+
+    if (dst & 0x1) {
+        dst_width = HAL_DMA_WIDTH_BYTE;
+        dst_bsize = HAL_DMA_BSIZE_16;
+    } else if (dst & 0x3) {
+        dst_width = HAL_DMA_WIDTH_HALFWORD;
+        dst_bsize = HAL_DMA_BSIZE_8;
+    } else {
+        dst_width = HAL_DMA_WIDTH_WORD;
+        dst_bsize = HAL_DMA_BSIZE_4;
+    }
+
+    if (src & 0x1) {
+        src_width = HAL_DMA_WIDTH_BYTE;
+        src_bsize = HAL_DMA_BSIZE_16;
+        src_div = 1;
+    } else if (src & 0x3) {
+        src_width = HAL_DMA_WIDTH_HALFWORD;
+        src_bsize = HAL_DMA_BSIZE_8;
+        src_div = 2;
+    } else {
+        src_width = HAL_DMA_WIDTH_WORD;
+        src_bsize = HAL_DMA_BSIZE_4;
+        src_div = 4;
+    }
+
+    if (dst_width == HAL_DMA_WIDTH_WORD || src_width == HAL_DMA_WIDTH_WORD) {
+        remains = (len & 0x3);
+        total_xfer = (len - remains) / src_div;
+    } else if (dst_width == HAL_DMA_WIDTH_HALFWORD || src_width == HAL_DMA_WIDTH_HALFWORD) {
+        remains = (len & 0x1);
+        total_xfer = (len - remains) / src_div;
+    } else {
+        remains = 0;
+        total_xfer = len / src_div;
+    }
+
+    memset(&dma_cfg[id], 0, sizeof(dma_cfg[id]));
+    dma_cfg[id].handler = NULL;
+    dma_cfg[id].dst = dst;
+    dma_cfg[id].dst_bsize = dst_bsize;
+    dma_cfg[id].dst_periph = 0;
+    dma_cfg[id].dst_width = dst_width;
+    dma_cfg[id].src = src;
+    dma_cfg[id].src_bsize = src_bsize;
+    dma_cfg[id].src_periph = periph;
+    dma_cfg[id].src_width = src_width;
+    dma_cfg[id].type = HAL_DMA_FLOW_M2M_DMA;
+    dma_cfg[id].try_burst = 0;
+    dma_cfg[id].ch = ch;
+
+    xfer = (HAL_DMA_MAX_DESC_XFER_SIZE & ~0x3) / src_div;
+    if (xfer < total_xfer) {
+        dma_cfg[id].src_tsize = xfer;
+        ret = hal_dma_init_desc(&dma_desc[id][0], &dma_cfg[id], &dma_desc[id][1], 0);
+        if (ret != HAL_DMA_OK) {
+            ASSERT(false, "%s Failed to init dma desc: %d", __func__, ret);
+        }
+        dma_cfg[id].src += xfer * src_div;
+        dma_cfg[id].dst += xfer * src_div;
+        dma_cfg[id].src_tsize = total_xfer - xfer;
+        ret = hal_dma_init_desc(&dma_desc[id][1], &dma_cfg[id], NULL, 0);
+    } else {
+        dma_cfg[id].src_tsize = total_xfer;
+        ret = hal_dma_init_desc(&dma_desc[id][0], &dma_cfg[id], NULL, 0);
+    }
+    if (ret != HAL_DMA_OK) {
+        ASSERT(false, "%s Failed to init dma desc: %d", __func__, ret);
+    }
+
+    ret = hal_dma_sg_start(&dma_desc[id][0], &dma_cfg[id]);
+    if (ret != HAL_DMA_OK) {
+        ASSERT(false, "%s: Failed to start dma: %d", __func__, ret);
+    }
+
+    while (hal_dma_chan_busy(dma_cfg[id].ch) && TASK_SCHEDULE);
+
+    hal_dma_free_chan(dma_cfg[id].ch);
+    dma_cfg[id].ch = HAL_DMA_CHAN_NONE;
+
+    dst += (len - remains);
+    src += (len - remains);
+    while (remains) {
+        *(uint8_t *)dst++ = *(uint8_t *)src++;
+        remains--;
+    }
+
+    return 0;
+}
+#else // !FLASH_DMA_RX_M2M
 static uint32_t nandflash_start_rx_dma(enum HAL_FLASH_ID_T id, uint8_t *buf, uint32_t len)
 {
     enum HAL_DMA_PERIPH_T periph;
+    enum HAL_DMA_WIDTH_T dst_width;
+    enum HAL_DMA_BSIZE_T dst_bsize;
     enum HAL_DMA_RET_T ret;
     uint8_t ch;
     uint32_t xfer;
@@ -381,12 +544,23 @@ static uint32_t nandflash_start_rx_dma(enum HAL_FLASH_ID_T id, uint8_t *buf, uin
     norflaship_dmactrl_rx_en(id, true);
     norflaship_busy_wait(id);
 
+    if ((uint32_t)buf & 0x1) {
+        dst_width = HAL_DMA_WIDTH_BYTE;
+        dst_bsize = HAL_DMA_BSIZE_16;
+    } else if ((uint32_t)buf & 0x3) {
+        dst_width = HAL_DMA_WIDTH_HALFWORD;
+        dst_bsize = HAL_DMA_BSIZE_8;
+    } else {
+        dst_width = HAL_DMA_WIDTH_WORD;
+        dst_bsize = HAL_DMA_BSIZE_4;
+    }
+
     memset(&dma_cfg[id], 0, sizeof(dma_cfg[id]));
     dma_cfg[id].handler = NULL;
     dma_cfg[id].dst = (uint32_t)buf;
-    dma_cfg[id].dst_bsize = HAL_DMA_BSIZE_4;
+    dma_cfg[id].dst_bsize = dst_bsize;
     dma_cfg[id].dst_periph = 0;
-    dma_cfg[id].dst_width = HAL_DMA_WIDTH_BYTE;
+    dma_cfg[id].dst_width = dst_width;
     dma_cfg[id].src = 0;
     dma_cfg[id].src_bsize = HAL_DMA_BSIZE_4;
     dma_cfg[id].src_periph = periph;
@@ -405,12 +579,16 @@ static uint32_t nandflash_start_rx_dma(enum HAL_FLASH_ID_T id, uint8_t *buf, uin
 
     return len - xfer;
 }
+#endif // !FLASH_DMA_RX_M2M
 
 static uint32_t nandflash_start_tx_dma(enum HAL_FLASH_ID_T id, const uint8_t *buf, uint32_t len)
 {
     enum HAL_DMA_PERIPH_T periph;
+    enum HAL_DMA_WIDTH_T src_width;
+    enum HAL_DMA_BSIZE_T src_bsize;
     enum HAL_DMA_RET_T ret;
     uint8_t ch;
+    uint8_t src_div;
     uint32_t total_xfer;
     uint32_t xfer;
 
@@ -440,6 +618,20 @@ static uint32_t nandflash_start_tx_dma(enum HAL_FLASH_ID_T id, const uint8_t *bu
     norflaship_blksize(id, len);
     norflaship_busy_wait(id);
 
+    if ((uint32_t)buf & 0x1) {
+        src_width = HAL_DMA_WIDTH_BYTE;
+        src_bsize = HAL_DMA_BSIZE_16;
+        src_div = 1;
+    } else if ((uint32_t)buf & 0x3) {
+        src_width = HAL_DMA_WIDTH_HALFWORD;
+        src_bsize = HAL_DMA_BSIZE_8;
+        src_div = 2;
+    } else {
+        src_width = HAL_DMA_WIDTH_WORD;
+        src_bsize = HAL_DMA_BSIZE_4;
+        src_div = 4;
+    }
+
     memset(&dma_cfg[id], 0, sizeof(dma_cfg[id]));
     dma_cfg[id].handler = NULL;
     dma_cfg[id].dst = 0;
@@ -447,22 +639,22 @@ static uint32_t nandflash_start_tx_dma(enum HAL_FLASH_ID_T id, const uint8_t *bu
     dma_cfg[id].dst_periph = periph;
     dma_cfg[id].dst_width = HAL_DMA_WIDTH_WORD;
     dma_cfg[id].src = (uint32_t)buf;
-    dma_cfg[id].src_bsize = HAL_DMA_BSIZE_8;
+    dma_cfg[id].src_bsize = src_bsize;
     dma_cfg[id].src_periph = 0;
-    dma_cfg[id].src_width = HAL_DMA_WIDTH_BYTE;
+    dma_cfg[id].src_width = src_width;
     dma_cfg[id].type = HAL_DMA_FLOW_M2P_DMA;
     dma_cfg[id].try_burst = 0;
     dma_cfg[id].ch = ch;
 
-    total_xfer = (len & ~0x3);
-    xfer = (HAL_DMA_MAX_DESC_XFER_SIZE & ~0x3);
+    total_xfer = (len & ~0x3) / src_div;
+    xfer = (HAL_DMA_MAX_DESC_XFER_SIZE & ~0x3) / src_div;
     if (xfer < total_xfer) {
         dma_cfg[id].src_tsize = xfer;
         ret = hal_dma_init_desc(&dma_desc[id][0], &dma_cfg[id], &dma_desc[id][1], 0);
         if (ret != HAL_DMA_OK) {
             ASSERT(false, "%s Failed to init dma desc: %d", __func__, ret);
         }
-        dma_cfg[id].src += xfer;
+        dma_cfg[id].src += xfer * src_div;
         dma_cfg[id].src_tsize = total_xfer - xfer;
         ret = hal_dma_init_desc(&dma_desc[id][1], &dma_cfg[id], NULL, 0);
     } else {
@@ -478,7 +670,7 @@ static uint32_t nandflash_start_tx_dma(enum HAL_FLASH_ID_T id, const uint8_t *bu
         ASSERT(false, "%s: Failed to start dma: %d", __func__, ret);
     }
 
-    return len - total_xfer;
+    return len - total_xfer * src_div;
 }
 
 static void nandflash_dma_busy_wait(enum HAL_FLASH_ID_T id)
@@ -506,7 +698,7 @@ static void nandflash_dma_busy_wait(enum HAL_FLASH_ID_T id)
     }
     //norflaship_busy_wait(id);
 }
-#endif
+#endif // FLASH_DMA
 
 POSSIBLY_UNUSED
 static int nandflash_read_reg(enum HAL_FLASH_ID_T id, uint8_t cmd, uint8_t *val, uint32_t len)
@@ -554,6 +746,14 @@ static uint8_t nandflash_read_statusid(enum HAL_FLASH_ID_T id)
     return val;
 }
 
+static uint8_t nandflash_read_statusid_ext(enum HAL_FLASH_ID_T id, uint8_t param)
+{
+    uint8_t val;
+
+    nandflash_read_reg_ex(id, GD5F4GQ4_CMD_GET_FEATURE, &param, 1, &val, 1);
+    return val;
+}
+
 static int nandflash_status_WEL(enum HAL_FLASH_ID_T id)
 {
     uint32_t status;
@@ -581,10 +781,6 @@ static void nandflash_status_OIP_1_waitid(enum HAL_FLASH_ID_T id)
 
 static int nandflash_write_reg(enum HAL_FLASH_ID_T id, uint8_t cmd, const uint8_t *val, uint32_t len)
 {
-    norflaship_cmd_addr(id, GD5F4GQ4_CMD_WRITE_ENABLE, 0);
-    //nandflash_status_OIP_1_waitid();
-    //nandflash_status_WEL_0_wait();
-
     norflaship_clear_txfifo(id);
     norflaship_write_txfifo(id, val, len);
 
@@ -645,6 +841,15 @@ static void nandflash_write_configuration(enum HAL_FLASH_ID_T id, uint8_t val)
 
     param[0] = GD5F4GQ4_REG_CONFIGURATION;
     param[1] = val;
+    nandflash_write_reg(id, GD5F4GQ4_CMD_SET_FEATURE, &param[0], 2);
+}
+
+static void nandflash_write_ext_eccs_st_bfd(enum HAL_FLASH_ID_T id, uint8_t val)
+{
+    uint8_t param[2];
+
+    param[0] = W25N02KW_REG_ECC_BFD;
+    param[1] = ((val << 4) & 0xFF);
     nandflash_write_reg(id, GD5F4GQ4_CMD_SET_FEATURE, &param[0], 2);
 }
 
@@ -774,9 +979,37 @@ static uint32_t nandflash_get_block_protect_mask(enum HAL_FLASH_ID_T id)
     return flash_list[flash_idx[id]]->block_protect_mask;
 }
 
+static uint32_t nandflash_get_ext_eccs_st_bfd(enum HAL_FLASH_ID_T id)
+{
+    return flash_list[flash_idx[id]]->ecc_cfg.st_bfd;
+}
+
+static void nandflash_release_from_dp(enum HAL_FLASH_ID_T id)
+{
+    norflaship_ext_tx_cmd(id, GD5F4GQ4_CMD_RELEASE_FROM_DP, 0);
+    norflaship_busy_wait(id);
+    // Wait 20us for flash to finish
+    nandflash_delay(40);
+}
+
 static void nandflash_reset(enum HAL_FLASH_ID_T id)
 {
     norflaship_clear_fifos(id);
+
+#ifdef FLASH_RESET_PIN
+    norflaship_reset_pin(id, true);
+    // Wait at least 1us
+    nandflash_delay(20);
+    norflaship_reset_pin(id, false);
+#endif
+
+    // Release from deep power-down
+#ifdef FLASH_QPI
+    norflaship_qpi_mode(id, 1);
+    nandflash_release_from_dp(id);
+    norflaship_qpi_mode(id, 0);
+#endif
+    nandflash_release_from_dp(id);
 
     // Quit from quad/dual continuous read mode
     norflaship_quad_mode(id, 0);
@@ -825,6 +1058,23 @@ static void nandflash_select_die(enum HAL_FLASH_ID_T id, uint32_t block)
     nandflash_software_die_select(id, die);
 }
 
+#if (CHIP_FLASH_CTRL_VER >= 5) && defined(FLASH_DTR)
+static int nandflash_set_dtr_quad_mode(enum HAL_FLASH_ID_T id, uint8_t on)
+{
+    uint8_t cmd;
+    if (on) {
+        norflaship_dummy_n_rcqio_dtr(id, 8);
+        cmd = GD5F4GQ4_CMD_FAST_QUAD_DTR_READ;
+    } else {
+        cmd = GD5F4GQ4_CMD_FAST_QUAD_IO_READ;
+    }
+    norflaship_qrdcmd(id, cmd);
+    norflaship_dtr_mode(id, on);
+    norflaship_busy_wait(id);
+    return 0;
+}
+#endif
+
 static int nandflash_set_mode(enum HAL_FLASH_ID_T id, uint32_t op)
 {
     uint32_t read_mode = 0;
@@ -839,6 +1089,9 @@ static int nandflash_set_mode(enum HAL_FLASH_ID_T id, uint32_t op)
 
     if (mode & NANDFLASH_OP_MODE_QUAD_IO) {
         read_mode |= NANDFLASH_OP_MODE_QUAD_IO;
+        if (mode & NANDFLASH_OP_MODE_DTR) {
+            read_mode |= NANDFLASH_OP_MODE_DTR;
+        }
     } else if (mode & NANDFLASH_OP_MODE_QUAD_OUTPUT) {
         read_mode |= NANDFLASH_OP_MODE_QUAD_OUTPUT;
     } else if (mode & NANDFLASH_OP_MODE_DUAL_IO) {
@@ -873,6 +1126,9 @@ static int nandflash_set_mode(enum HAL_FLASH_ID_T id, uint32_t op)
     mode = (read_mode | ext_mode | program_mode);
 
     if (nandflash_op_mode[id] != mode) {
+#if (CHIP_FLASH_CTRL_VER >= 5) && defined(FLASH_DTR)
+        nandflash_set_dtr_quad_mode(id, 0);
+#endif
         norflaship_quad_mode(id, 0);
 
         norflaship_dual_mode(id, 0);
@@ -880,6 +1136,12 @@ static int nandflash_set_mode(enum HAL_FLASH_ID_T id, uint32_t op)
         if (mode & NANDFLASH_OP_MODE_QUAD_IO) {
             // Quad io mode
             nandflash_set_quad_io_mode(id, 1);
+#if (CHIP_FLASH_CTRL_VER >= 5) && defined(FLASH_DTR)
+            if (mode & NANDFLASH_OP_MODE_DTR) {
+                // Quad dtr read mode on
+                nandflash_set_dtr_quad_mode(id, 1);
+            }
+#endif
         } else if (mode & NANDFLASH_OP_MODE_QUAD_OUTPUT) {
             // Quad output mode
             nandflash_set_quad_output_mode(id, 1);
@@ -998,6 +1260,60 @@ static bool nandflash_calib_magic_word_valid(enum HAL_FLASH_ID_T id)
     return false;
 }
 
+static enum NANDFLASH_RET_T nandflash_start_page_read(enum HAL_FLASH_ID_T id, uint32_t row_addr)
+{
+    enum NANDFLASH_ECC_ST_TYPE_T st_type;
+    uint8_t ecc10_reg = 0, ecc32_reg = 0;
+    uint8_t status10 = 0, status32 = 0;
+    bool no_err;
+
+    norflaship_cmd_addr(id, GD5F4GQ4_CMD_PAGE_READ, row_addr);
+    norflaship_busy_wait(id);
+    nandflash_status_OIP_1_waitid(id);
+
+    st_type = flash_list[flash_idx[id]]->ecc_cfg.st_type;
+    ASSERT(st_type < NANDFLASH_ECC_ST_TYPE_QTY, "%s st_type error: 0x%x",
+           __func__, st_type);
+
+    nandflash_ecc_get_eccs(st_type, &ecc10_reg, &ecc32_reg);
+    status10 = nandflash_read_statusid_ext(id, ecc10_reg);
+    if (ecc10_reg != ecc32_reg && ecc32_reg != 0) {
+        status32 = nandflash_read_statusid_ext(id, ecc32_reg);
+    }
+
+    no_err = nandflash_ecc_check(st_type, status10, status32, flash_list[flash_idx[id]]->ecc_cfg.st_bad);
+    if (!no_err) {
+        return NANDFLASH_RET_READ_ERR;
+    }
+
+    return NANDFLASH_RET_OK;
+}
+
+static bool nandflash_dtr_calib_valid(enum HAL_FLASH_ID_T id)
+{
+#if defined(FLASH_DTR_CALIB_BLOCK) && defined(FLASH_DTR_CALIB_PAGE)
+    uint32_t calib_read = 0;
+    uint32_t index = 0;
+    uint32_t row_addr = 0;
+    volatile uint32_t *nand_base = (volatile uint32_t *)nand_nc_base[id];
+
+    nandflash_select_die(id, FLASH_DTR_CALIB_BLOCK);
+    row_addr = nandflash_block_page_to_row_addr(FLASH_DTR_CALIB_BLOCK, FLASH_DTR_CALIB_PAGE);
+    nandflash_start_page_read(id, row_addr);
+    norflaship_cmd_done(id);
+    for (uint32_t i = 0; i < 0x20; i++) {
+        index = (i & 0xFF) | (((~i) & 0xFF) << 8) | (((~i) & 0xFF) << 16) | ((i & 0xFF) << 24);
+        calib_read = *nand_base++;
+        if (calib_read != index) {
+            return false;
+        }
+    }
+#else
+    ASSERT(0, "Please write the DTR mode calibration data (32-bit pattern) into the corresponding area of the NAND flash under other operating modes.");
+#endif
+    return true;
+}
+
 static int nandflash_sample_delay_calib(enum HAL_FLASH_ID_T id, enum NANDFLASH_CALIB_T type)
 {
     int i;
@@ -1031,6 +1347,8 @@ static int nandflash_sample_delay_calib(enum HAL_FLASH_ID_T id, enum NANDFLASH_C
 
         if (type == NANDFLASH_CALIB_FLASH_ID) {
             valid = nandflash_calib_flash_id_valid(id);
+        } else if (type == NANDFLASH_CALIB_DTR) {
+            valid = nandflash_dtr_calib_valid(id);
         } else {
             valid = nandflash_calib_magic_word_valid(id);
         }
@@ -1383,58 +1701,7 @@ static enum NANDFLASH_RET_T nandflash_program_execute(enum HAL_FLASH_ID_T id, ui
     return NANDFLASH_RET_OK;
 }
 
-static enum NANDFLASH_RET_T nandflash_start_page_read(enum HAL_FLASH_ID_T id, uint32_t row_addr)
-{
-    uint8_t status;
-    enum NANDFLASH_ECC_STATUS_T ecc_st;
-
-    norflaship_cmd_addr(id, GD5F4GQ4_CMD_PAGE_READ, row_addr);
-    norflaship_busy_wait(id);
-    nandflash_status_OIP_1_waitid(id);
-    status = nandflash_read_statusid(id);
-
-    ecc_st = flash_list[flash_idx[id]]->ecc_status_type;
-    if (ecc_st == NANDFLASH_ECC_ST_3BITS_111_BAD) {
-        status = GET_BITFIELD(status, GD5F4GM5_ST_ECCS);
-        if (status == 0b000) {
-            return NANDFLASH_RET_OK;
-        } else if (status == 0b111) {
-            return NANDFLASH_RET_READ_ERR;
-        } else {
-            return NANDFLASH_RET_READ_CORRECTED;
-        }
-    } else if (ecc_st == NANDFLASH_ECC_ST_3BITS_010_BAD) {
-        status = GET_BITFIELD(status, GD5F4GM5_ST_ECCS);
-        if (status == 0b000) {
-            return NANDFLASH_RET_OK;
-        } else if (status == 0b001) {
-            return NANDFLASH_RET_READ_CORRECTED;
-        } else if (status == 0b010) {
-            return NANDFLASH_RET_READ_ERR;
-        } else if (status == 0b011) {
-            return NANDFLASH_RET_READ_CORRECTED;
-        } else if (status == 0b101) {
-            return NANDFLASH_RET_READ_CORRECTED;
-        }
-    } else {
-        status = GET_BITFIELD(status, GD5F4GQ4_ST_ECCS);
-        if (status == 0b00) {
-            return NANDFLASH_RET_OK;
-        } else if (status == 0b01) {
-            return NANDFLASH_RET_READ_CORRECTED;
-        } else if (status == 0b10) {
-            return NANDFLASH_RET_READ_ERR;
-        }
-
-        if (ecc_st == NANDFLASH_ECC_ST_2BITS_11_COR) {
-            return NANDFLASH_RET_READ_CORRECTED;
-        }
-    }
-
-    return NANDFLASH_RET_READ_ERR;
-}
-
-static enum NANDFLASH_RET_T nandflash_write_page_offset(enum HAL_FLASH_ID_T id, uint32_t block, uint32_t page, uint32_t offset, const uint8_t *buffer, uint32_t len)
+enum NANDFLASH_RET_T nandflash_write_page_offset(enum HAL_FLASH_ID_T id, uint32_t block, uint32_t page, uint32_t offset, const uint8_t *buffer, uint32_t len)
 {
     enum NANDFLASH_RET_T ret;
     uint8_t cmd;
@@ -1684,7 +1951,7 @@ static enum NANDFLASH_RET_T nandflash_read_raw_page(enum HAL_FLASH_ID_T id, uint
         return ret;
     }
 
-#ifdef FLASH_DMA
+#if defined(FLASH_DMA) && !defined(FLASH_DMA_RX_M2M)
     remains = nandflash_start_rx_dma(id, buffer, len);
 
     if (remains < len) {
@@ -1705,9 +1972,9 @@ static enum NANDFLASH_RET_T nandflash_read_raw_page(enum HAL_FLASH_ID_T id, uint
         // Rx byte size
         norflaship_dma_rx_size(id, 1);
     }
-#else
+#else // !(FLASH_DMA && !FLASH_DMA_RX_M2M)
     remains = len;
-#endif
+#endif // !(FLASH_DMA && !FLASH_DMA_RX_M2M)
 
     if (remains) {
 #ifdef BUFFER_READ
@@ -1729,10 +1996,14 @@ static enum NANDFLASH_RET_T nandflash_read_raw_page(enum HAL_FLASH_ID_T id, uint
                 break;
             }
         }
-#else
+#else // !BUFFER_READ
         col_addr = nandflash_block_page_offset_to_col_addr(id, block, offset);
+#if defined(FLASH_DMA) && defined(FLASH_DMA_RX_M2M)
+        nandflash_start_rx_dma_m2m(id, (uint32_t)buffer, (nand_nc_base[id] + col_addr), remains);
+#else
         memcpy(buffer, (uint8_t *)(nand_nc_base[id] + col_addr), remains);
 #endif
+#endif // !BUFFER_READ
     }
 
     return ret;
@@ -1834,7 +2105,7 @@ int nandflash_block_is_bad(enum HAL_FLASH_ID_T id, uint32_t block)
     enum NANDFLASH_RET_T ret;
 
     ret = nandflash_check_state(id);
-    ASSERT(ret == NANDFLASH_RET_OK, "%s", err_not_opened)
+    ASSERT(ret == NANDFLASH_RET_OK, "%s", err_not_opened);
 
     ret = nandflash_check_block(id, block);
     if (ret != NANDFLASH_RET_OK) {
@@ -1870,226 +2141,107 @@ enum NANDFLASH_RET_T nandflash_mark_bad_block(enum HAL_FLASH_ID_T id, uint32_t b
     return NANDFLASH_RET_OK;
 }
 
-enum NANDFLASH_RET_T nandflash_erase(enum HAL_FLASH_ID_T id, uint32_t offset, uint32_t len)
-{
-    enum NANDFLASH_RET_T ret;
-    uint32_t block_size;
-    uint32_t block;
-    uint32_t start;
-    uint32_t end;
-
-    ret = nandflash_check_state(id);
-    if (ret != NANDFLASH_RET_OK) {
-        return ret;
-    }
-
-    if (offset >= flash_list[flash_idx[id]]->total_size) {
-        return NANDFLASH_RET_BAD_OFFSET;
-    }
-    if (offset + len > flash_list[flash_idx[id]]->total_size) {
-        return NANDFLASH_RET_BAD_LEN;
-    }
-    if (len == 0) {
-        return NANDFLASH_RET_OK;
-    }
-
-    block_size = flash_list[flash_idx[id]]->block_size;
-    block = offset >> get_msb_pos(block_size);
-    start = offset & ~(block_size - 1);
-    end = offset + len;
-
-    while (start < end) {
-        ret = nandflash_erase_raw_block(id, block);
-        if (ret != NANDFLASH_RET_OK) {
-            return ret;
-        }
-        start += block_size;
-    }
-
-    return NANDFLASH_RET_OK;
-}
-
-enum NANDFLASH_RET_T nandflash_write(enum HAL_FLASH_ID_T id, uint32_t offset, const uint8_t *buffer, uint32_t len)
-{
-    enum NANDFLASH_RET_T ret;
-    uint32_t block_size;
-    uint32_t page_size;
-    uint32_t pages_per_block;
-    uint32_t block;
-    uint32_t page;
-    uint32_t page_offset;
-    const uint8_t *op_buf;
-    uint32_t op_size;
-    uint32_t remain_len;
-
-    ret = nandflash_check_state(id);
-    if (ret != NANDFLASH_RET_OK) {
-        return ret;
-    }
-
-    if (offset >= flash_list[flash_idx[id]]->total_size) {
-        return NANDFLASH_RET_BAD_OFFSET;
-    }
-    if (offset + len > flash_list[flash_idx[id]]->total_size) {
-        return NANDFLASH_RET_BAD_LEN;
-    }
-    if (len == 0) {
-        return NANDFLASH_RET_OK;
-    }
-
-    block_size = flash_list[flash_idx[id]]->block_size;
-    page_size = flash_list[flash_idx[id]]->page_size;
-    pages_per_block = block_size / page_size;
-
-    block = offset >> get_msb_pos(block_size);
-    page = (offset & (block_size - 1)) >> get_msb_pos(page_size);
-    page_offset = offset & (page_size - 1);
-
-    op_buf = buffer;
-    remain_len = len;
-
-    while (remain_len > 0) {
-        op_size = page_size - page_offset;
-        if (op_size > remain_len) {
-            op_size = remain_len;
-        }
-        ret = nandflash_write_page_offset(id, block, page, page_offset, op_buf, op_size);
-        if (ret != NANDFLASH_RET_OK) {
-            return ret;
-        }
-        if (page_offset > 0) {
-            page_offset = 0;
-        }
-        page++;
-        if (page >= pages_per_block) {
-            page = 0;
-            block++;
-        }
-        op_buf += op_size;
-        remain_len -= op_size;
-    }
-
-    return NANDFLASH_RET_OK;
-}
-
-static enum NANDFLASH_RET_T nandflash_skip_bad_block(enum HAL_FLASH_ID_T id, uint32_t *p_offset, uint32_t limit,
-                                                     uint32_t len, uint32_t *p_block, uint32_t block_size)
+static enum NANDFLASH_RET_T nandflash_skip_bad_block(enum HAL_FLASH_ID_T id, uint32_t *p_block, uint32_t block_limit)
 {
     bool bad_block;
+    uint32_t block = *p_block;
 
     while (1) {
         bad_block = nandflash_raw_block_is_bad(id, *p_block);
         if (bad_block) {
-            (*p_offset) += block_size;
-            if ((*p_offset) + len > limit) {
+            block++;
+            if (block >= block_limit) {
                 return NANDFLASH_RET_LIMIT_REACHED;
             }
-            (*p_block)++;
             continue;
         }
         break;
     }
 
+    *p_block = block;
+
     return NANDFLASH_RET_OK;
 }
 
-enum NANDFLASH_RET_T nandflash_read_raw(enum HAL_FLASH_ID_T id, uint32_t offset, uint32_t limit, uint8_t *buffer, uint32_t len, bool skip_bad)
+enum NANDFLASH_RET_T nandflash_load_valid_data(enum HAL_FLASH_ID_T id, uint32_t start_block, uint32_t block_cnt, uint8_t *buffer, uint32_t len)
 {
     enum NANDFLASH_RET_T ret;
     uint32_t block_size;
     uint32_t page_size;
     uint32_t pages_per_block;
     uint32_t block;
+    uint32_t block_limit;
     uint32_t page;
-    uint32_t page_offset;
     uint8_t *op_buf;
     uint32_t op_size;
     uint32_t remain_len;
     bool read_corrected = false;
+
+    if (len == 0) {
+        return NANDFLASH_RET_OK;
+    }
 
     ret = nandflash_check_state(id);
     if (ret != NANDFLASH_RET_OK) {
         return ret;
     }
 
-    if (limit == 0) {
-        limit = offset + len;
-    }
-    if (offset >= flash_list[flash_idx[id]]->total_size) {
-        return NANDFLASH_RET_BAD_OFFSET;
-    }
-    if (offset >= limit) {
-        return NANDFLASH_RET_BAD_OFFSET;
-    }
-    if (limit > flash_list[flash_idx[id]]->total_size) {
-        return NANDFLASH_RET_BAD_LIMIT;
-    }
-    if (offset + len > limit) {
-        return NANDFLASH_RET_BAD_LEN;
-    }
-    if (len == 0) {
-        return NANDFLASH_RET_OK;
+    ret = nandflash_check_block(id, start_block);
+    if (ret != NANDFLASH_RET_OK) {
+        return ret;
     }
 
     block_size = flash_list[flash_idx[id]]->block_size;
     page_size = flash_list[flash_idx[id]]->page_size;
     pages_per_block = block_size / page_size;
 
-    block = offset >> get_msb_pos(block_size);
-    page = (offset & (block_size - 1)) >> get_msb_pos(page_size);
-    page_offset = offset & (page_size - 1);
+    if (block_cnt) {
+        if (block_cnt * block_size < len) {
+            return NANDFLASH_RET_BAD_LEN;
+        }
+    } else {
+        block_cnt = (len + block_size - 1) / block_size;
+    }
+
+    ret = nandflash_check_block(id, start_block + block_cnt - 1);
+    if (ret != NANDFLASH_RET_OK) {
+        return ret;
+    }
 
     op_buf = buffer;
     remain_len = len;
+    block = start_block;
+    block_limit = start_block + block_cnt;
+    page = 0;
 
-    if (skip_bad) {
-        ret = nandflash_skip_bad_block(id, &offset, limit, len, &block, block_size);
+    while (remain_len > 0) {
+        ret = nandflash_skip_bad_block(id, &block, block_limit);
         if (ret != NANDFLASH_RET_OK) {
             return ret;
         }
-    }
 
-    while (remain_len > 0) {
-        op_size = page_size - page_offset;
+        op_size = page_size;
         if (op_size > remain_len) {
             op_size = remain_len;
         }
-        ret = nandflash_read_raw_page(id, block, page, offset, op_buf, op_size);
+        ret = nandflash_read_raw_page(id, block, page, 0, op_buf, op_size);
         if (ret != NANDFLASH_RET_OK && ret != NANDFLASH_RET_READ_CORRECTED) {
             return ret;
         }
         if (ret == NANDFLASH_RET_READ_CORRECTED) {
             read_corrected = true;
         }
-        if (page_offset > 0) {
-            page_offset = 0;
-        }
+
         page++;
         if (page >= pages_per_block) {
             page = 0;
             block++;
-            if (skip_bad) {
-                ret = nandflash_skip_bad_block(id, &offset, limit, len, &block, block_size);
-                if (ret != NANDFLASH_RET_OK) {
-                    return ret;
-                }
-            }
         }
         op_buf += op_size;
         remain_len -= op_size;
     }
 
     return read_corrected ? NANDFLASH_RET_READ_CORRECTED : NANDFLASH_RET_OK;
-}
-
-enum NANDFLASH_RET_T nandflash_read(enum HAL_FLASH_ID_T id, uint32_t offset, uint8_t *buffer, uint32_t len)
-{
-    return nandflash_read_raw(id, offset, 0, buffer, len, false);
-}
-
-enum NANDFLASH_RET_T nandflash_load_valid_data(enum HAL_FLASH_ID_T id, uint32_t offset, uint32_t limit, uint8_t *buffer, uint32_t len)
-{
-    return nandflash_read_raw(id, offset, limit, buffer, len, true);
 }
 
 int nandflash_busy(enum HAL_FLASH_ID_T id)
@@ -2452,8 +2604,7 @@ void nandflash_wakeup(enum HAL_FLASH_ID_T id, enum HAL_CMU_LPU_SLEEP_MODE_T mode
 #ifdef FLASH_DEEP_SLEEP
     if (flash_list[flash_idx[id]]->mode & NANDFLASH_OP_MODE_DEEP_POWER_DOWN) {
         norflaship_busy_wait(id);
-        norflaship_ext_tx_cmd(id, GD5F4GQ4_CMD_RELEASE_FROM_DP, 0);
-        nandflash_delay(40);
+        nandflash_release_from_dp(id);
         norflaship_clear_rxfifo(id);
         norflaship_busy_wait(id);
     }
@@ -2517,6 +2668,7 @@ enum NANDFLASH_RET_T nandflash_open(enum HAL_FLASH_ID_T id, const struct NANDFLA
     int result;
     uint32_t op;
     int found;
+    uint8_t eccs_st_bfd;
 
     // Place the config into ram
     if (cfg == NULL) {
@@ -2641,6 +2793,14 @@ enum NANDFLASH_RET_T nandflash_open(enum HAL_FLASH_ID_T id, const struct NANDFLA
         goto _exit;
     }
 
+    // set internal ecc st_bfd
+    if (nandflash_op_mode[id] & NANDFLASH_OP_MODE_INTERNAL_ECC) {
+        eccs_st_bfd = nandflash_get_ext_eccs_st_bfd(id);
+        if (eccs_st_bfd > NANDFLASH_ECC_ST_BFD_RESERVED && eccs_st_bfd <= NANDFLASH_ECC_ST_BFD_7) {
+            nandflash_write_ext_eccs_st_bfd(id, eccs_st_bfd);
+        }
+    }
+
 #if 0
     result = nandflash_sample_delay_calib(id, NANDFLASH_CALIB_MAGIC_WORD);
     if (result != 0) {
@@ -2668,6 +2828,15 @@ enum NANDFLASH_RET_T nandflash_open(enum HAL_FLASH_ID_T id, const struct NANDFLA
     nandflash_ctx[id].opened = true;
 
     nandflsh_pm_notiy_set(id, true);
+
+#if (CHIP_FLASH_CTRL_VER >= 5) && defined(FLASH_DTR)
+    norflaship_nand_addr_byte_num(id, 3);
+    result = nandflash_sample_delay_calib(id, NANDFLASH_CALIB_DTR);
+    if (result != 0) {
+        result = NANDFLASH_RET_BAD_CALIB_DTR;
+        goto _exit;
+    }
+#endif
 
     result = NANDFLASH_RET_OK;
 
@@ -2705,4 +2874,9 @@ enum NANDFLASH_RET_T nandflash_init(enum HAL_FLASH_ID_T id)
     return ret;
 }
 
+void nandflash_get_flash_list(const struct NANDFLASH_CFG_T **list, uint32_t *len)
+{
+    *list = (struct NANDFLASH_CFG_T *)&flash_list[0];
+    *len = ARRAY_SIZE(flash_list);
+}
 #endif

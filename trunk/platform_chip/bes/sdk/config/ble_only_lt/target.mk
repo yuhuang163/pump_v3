@@ -59,6 +59,11 @@ INTERSYS_DEBUG := 1
 core-y += services/ apps/common/ utils/intersyshci/
 endif
 
+ifeq ($(BT_CALIB),1)
+KBUILD_CPPFLAGS += -DBT_CALIB
+core-y +=  apps/bt_calib/ utils/list/ apps/pwl/
+endif
+
 export USE_NORFLASH_API ?= 1
 ifeq ($(USE_NORFLASH_API), 1)
 KBUILD_CPPFLAGS += -DUSE_NORFLASH_API
@@ -88,4 +93,23 @@ export OS_FIFOSZ ?= 24
 export BLE_ONLY_LT := 1
 ifeq ($(BLE_ONLY_LT),1)
 KBUILD_CPPFLAGS += -DBLE_ONLY_LT
+endif
+
+ifeq ($(ENABLE_FLASH1),1)
+KBUILD_CPPFLAGS += -DENABLE_FLASH1
+LDS_CFLAGS += -DENABLE_FLASH1
+export VUSB_ON := 1
+endif
+
+ifeq ($(SPI_FLASH1),1)
+export DRIVER_SPI_FLASH_ENABLE := 1
+export DRIVER_NANDFLASH_ENABLE := 1
+KBUILD_CPPFLAGS += -DSPI_FLASH1
+ccflags-y += -Iplatform/drivers/spi_flash/
+ifeq ($(FLASH_UNIQUE_ID),1)
+ccflags-y += -DFLASH_UNIQUE_ID
+endif
+ifneq ($(SPI_FLASH_CS_PIN_INDEX),)
+ccflags-y += -DSPI_FLASH_CS_PIN_INDEX=$(SPI_FLASH_CS_PIN_INDEX)
+endif
 endif

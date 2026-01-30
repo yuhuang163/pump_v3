@@ -65,8 +65,8 @@ int read_sync_sys_time_from_ram(store_func_args_t args);
 int write_log_filter_to_ram(store_func_args_t args);
 int read_log_filter_from_ram(store_func_args_t args);
 /// 夜灯亮度信息
-int write_night_light_info_to_ram(store_func_args_t args);
-int read_night_light_info_from_ram(store_func_args_t args);
+int write_night_light_adaptive_switch_to_ram(store_func_args_t args);
+int read_night_light_adaptive_switch_from_ram(store_func_args_t args);
 #ifdef __cplusplus
 }
 #endif

@@ -5,7 +5,7 @@
 #include "ble_manager_api.h"
 #include "root_common_api.h" // IWYU pragma: keep
 #include "master_server_client.h" // IWYU pragma: keep
-#include "common_service.h"
+#include "common_service.h" // IWYU pragma: keep
 #include "app_protocol_handler.h"
 /*
 * DEFINES
@@ -50,27 +50,14 @@ static void on_master_server_event_cb(void *user_data, uint8_t *data, uint16_t d
 int on_master_app_old_protocol_receiver_route(broadcast_mask_id_t id, void *context, int arg1, int arg2, void *user_data)
 {
     servers_manager_context_t *ctx = context;
-
     switch (id.code) {
-        case ID_BROADCAST_PM_STATE_CHANGE:
-            {
-
-            }
+        case ID_BROADCAST_BREAST_PUMP_STATE_CHANGE:
             break;
-            case ID_BROADCAST_BLE_CONNECT_STATE_CHANGE:
-            {
-
-            }
+        case ID_BROADCAST_BATTERY_STATE_CHANGE:
             break;
-        case ID_BROADCAST_SYS_POWER_STATE_CHANGE:
-            {
-
-            }
+        case ID_BROADCAST_SYS_STATE_CHANGE:
             break;
-        case ID_BROADCAST_SYS_BOOT_COMPLETED:
-            {
-
-            }
+        case ID_BROADCAST_BLE_STATE_CHANGE:
             break;
         default:
             break;

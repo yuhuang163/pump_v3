@@ -32,7 +32,7 @@ extern "C" {
 /// 窗口进入相关.
 window_enter_result_e enter_new_window_dummy_screen(window_manager_context_t *wm, uint8_t window_id);
 window_enter_result_e enter_new_window_logo_screen(window_manager_context_t *wm, uint8_t window_id);
-window_enter_result_e enter_new_window_home_screen(window_manager_context_t *wm, uint8_t window_id);
+window_enter_result_e enter_new_window_guide_screen(window_manager_context_t *wm, uint8_t window_id);
 window_enter_result_e enter_new_window_charge_screen(window_manager_context_t *wm, uint8_t window_id);
 window_enter_result_e enter_new_window_battery_screen(window_manager_context_t *wm, uint8_t window_id);
 window_enter_result_e enter_new_window_pump_screen(window_manager_context_t *wm, uint8_t window_id);

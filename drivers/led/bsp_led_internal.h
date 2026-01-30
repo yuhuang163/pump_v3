@@ -21,16 +21,13 @@ extern "C" {
 int bsp_led_init(void);
 void bsp_led_resume(void);
 void bsp_led_suspend(void);
-int bsp_led_status_set(void *args);
-void *bsp_led_status_get(void *args);
+int bsp_led_status_set(led_status_msg_t *msg);
 
 void bsp_night_light_init(void);
 void bsp_night_light_resume(void);
 void bsp_night_light_suspend(void);
-int bsp_night_light_status_set(void *args);
-void *bsp_night_light_status_get(void *args);
+int bsp_night_light_status_set(led_status_msg_t *msg);
 int bsp_led_is_ready(void *args);
-int bsp_night_light_pwm_duty_set(void *args);
 
 #ifdef __cplusplus
 }

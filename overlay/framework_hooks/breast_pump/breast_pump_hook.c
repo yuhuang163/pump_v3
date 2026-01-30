@@ -160,7 +160,10 @@ static int start_breast_pump_work_route(breast_pump_manager_context_t *ctx, int 
     struct sys_persist_info *persist = ctx->priv.st->get_persist_sys_info();
 
     int work_time = 0;
-    ctx->priv.st->get_store_ram_val(STORE_ID_BREAST_PUMP_TIME, ctx->priv.m_info.mode, 0, &work_time);
+    store_pump_time_value_t store_pump_time_value = {0};
+    store_pump_time_value.is_custom_trial_mode = ctx->priv.m_info.is_custom_trial_mode;
+    ctx->priv.st->get_store_ram_val(STORE_ID_BREAST_PUMP_TIME, ctx->priv.m_info.mode, 0, &store_pump_time_value);
+    work_time = store_pump_time_value.pump_time;
     if ((work_time * 1000) > SETTING_PUMP_TIME_MAX) {
         work_time = SETTING_PUMP_TIME_MAX / 1000;
     }
@@ -189,7 +192,11 @@ static int start_breast_pump_work_route(breast_pump_manager_context_t *ctx, int 
     /// 获取当前模式.
     result_info->mode = ctx->get_breast_pump_mode();
     /// 从ram中获取当前模式下的设置信息.
-    st->get_store_ram_val(STORE_ID_PUMP_SETTING_INFO, result_info->mode, ROOT_BREAST_PUMP_STEP_MAX, &result_info->setting);
+    store_pump_setting_value_t store_pump_setting_value = {0};
+    store_pump_setting_value.is_custom_trial_mode = ctx->priv.m_info.is_custom_trial_mode;
+    store_pump_setting_value.setting = result_info->setting;
+    st->get_store_ram_val(STORE_ID_PUMP_SETTING_INFO, result_info->mode, ROOT_BREAST_PUMP_STEP_MAX, &store_pump_setting_value);
+
     ctx->set_breast_pump_setting(result_info->setting, ROOT_BREAST_PUMP_STEP_MAX);    
 
     return 0;

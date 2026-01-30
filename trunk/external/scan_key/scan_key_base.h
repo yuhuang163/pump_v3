@@ -20,11 +20,11 @@ extern "C" {
 #ifndef DE_SK_INTERVEL_TICK
 #define DE_SK_INTERVEL_TICK                  (1) 
 #endif
-/**< 按键长按开始所经历的滴答次数(2500ms,5000ms) */
-#define DE_SK_LONG_START_TICK                (200)
-/**< 按键长按触发连击时所需的连击间隔滴答次数(4000ms,8000ms) */
-#define DE_SK_CONTINUE_START_TICK            (400) 
-/**< 按键长按触发连击时所需的连击间隔滴答次数(250ms,500ms) */
+/**< 按键长按开始所经历的滴答次数(*10ms) */
+#define DE_SK_LONG_START_TICK                (100)
+/**< 按键长按触发连击时所需的连击间隔滴答次数(*10ms) */
+#define DE_SK_CONTINUE_START_TICK            (200) 
+/**< 按键长按触发连击时所需的连击间隔滴答次数(*10ms) */
 #define DE_SK_CONTINUE_TICK                  (100) 
 
 #define DE_SK_STATUS_START                   (0) /**< 起始状态 */

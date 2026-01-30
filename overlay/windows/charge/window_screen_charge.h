@@ -35,7 +35,7 @@ typedef enum {
 typedef enum {
     CHARGE_UI_TYPE_NONE = 0,
     CHARGE_UI_TYPE_CHARGING = 100,
-    CHARGE_UI_TYPE_UNCHARGING,
+    CHARGE_UI_TYPE_ADAPTER,
     CHARGE_UI_TYPE_MAX
 } charge_ui_type_e;
 
@@ -47,12 +47,13 @@ typedef struct {
     ui_manager_context_t *ui;
     battery_manager_context_t *battery;
     key_input_context_t *key;
-    peripheral_bus_context_t *pbus;
-    storage_manager_context_t *st;
+    led_manager_context_t *led;
+    airplane_mode_context_t *airplane;
+    power_manager_context_t *pm;
     broadcast_obj_t receiver;
     uint32_t margic;
     uint32_t last_progress_ani_time; /// 上次进度动画时间.
-    uint8_t goto_pump_window_flag; /// 是否需要跳转到泵奶窗口.
+    uint8_t exit_charge_window_flag; /// 需要退出充电窗口标志.
     uint16_t current_ui_type; /// 当前UI类型. charge_ui_type_e
     uint8_t is_charge_screen_on; /// 是否充电动画展示中
     uint32_t charge_screen_on_time; /// 充电动画关闭时间.
@@ -63,7 +64,8 @@ typedef struct {
 *****************************************************************************************
 */
 void show_charging_ui(ui_proc_charge_t *proc);
-void stop_charging_ui(ui_proc_charge_t *proc);
+void show_charge_adapter_ui(ui_proc_charge_t *proc);
+void stop_charge_common_ui(ui_proc_charge_t *proc);
 int switch_charge_night_light_onoff_ui(ui_proc_charge_t *proc);
 #ifdef __cplusplus
 }

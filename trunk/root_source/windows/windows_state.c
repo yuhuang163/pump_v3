@@ -64,6 +64,14 @@ static void set_window_guidance_deployed_flag(uint8_t flag)
     st_ctx->put_store_ram_val(STORE_ID_SYS_GUIDE_DEPLOYED, flag, 0, NULL);
 }
 
+static bool is_window_factory_test_deployed(void)
+{
+    storage_manager_context_t *st_ctx = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
+    int factory_test_deployed = 0;
+    st_ctx->get_store_ram_val(STORE_ID_FACTORY_DEPLOY_FLAG, 0, 0, &factory_test_deployed);
+    return factory_test_deployed ? 1 : 0;
+}
+
 static bool is_window_system_is_ready(window_manager_context_t *wm)
 {
     EXCEPTION_CHECK_BOOL(wm);
@@ -75,7 +83,7 @@ static void window_boot_completed(window_manager_context_t *wm)
     EXCEPTION_CHECK_VOID(wm);
     if (!wm->priv.system_is_ready) {
         wm->priv.system_is_ready = 1;
-        SEND_BROADCAST_ARGS0(ID_BROADCAST_SYS_BOOT_COMPLETED);
+        SEND_BROADCAST_ARGS1(ID_BROADCAST_SYS_STATE_CHANGE, SYSTEM_BROADCAST_BOOT_COMPLETED);
     }
 }
 
@@ -147,6 +155,7 @@ void register_window_state_module(window_manager_context_t *wm)
     wm->is_valid_window_id = is_valid_window_id;
     wm->is_window_guidance_deployed = is_window_guidance_deployed;
     wm->set_window_guidance_deployed_flag = set_window_guidance_deployed_flag;
+    wm->is_window_factory_test_deployed = is_window_factory_test_deployed;
     wm->set_window_private_context = set_window_private_context;
     wm->get_window_private_context = get_window_private_context;
     wm->get_window_entry_extra = get_window_entry_extra;

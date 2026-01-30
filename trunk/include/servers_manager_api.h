@@ -39,6 +39,7 @@ typedef enum {
     OLD_PUBLISH_DATA_TASTE_MODE_CHANGE = 14,    /// 体验模式模式变化
     OLD_PUBLISH_DATA_TASTE_LEVEL_CHANGE = 15,    /// 体验模式等级变化
     OLD_PUBLISH_DATA_TASTE_SPEED_CHANGE = 16,    /// 体验模式速率变化
+    OLD_PUBLISH_DATA_PUMP_CONTROL_TYPE_CHANGE = 17, /// 泵控制类型变化
     OLD_PUBLISH_DATA_ID_MAX
 } servers_old_protocol_publish_data_id_e;
 

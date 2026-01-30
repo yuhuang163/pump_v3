@@ -12,6 +12,7 @@ extern "C" {
 #include <stdint.h>
 #include <stdbool.h>
 #include "bsp_internal.h" // IWYU pragma: keep
+#include "hal_battery.h" // IWYU pragma: keep
 
 /**@brief Firmware information define*/
 
@@ -140,6 +141,7 @@ typedef struct {
 * GLOBAL FUNCTION DECLARATION
 *****************************************************************************************
 */
+void charge_vbus_init(void);
 bool vbus_is_plug_in(void);
 int bsp_charge_init(void);
 int bsp_charge_resume(void);
@@ -148,15 +150,15 @@ int get_charge_state(void);
 int get_charging_temperature(void);
 int get_charge_battery_voltage(void);
 int get_charge_full_debounce(void);
-void add_charge_irq_callback(void (*cb)(void *param));
-void add_charge_battery_poll_callback(int (*cb)(void));
+void add_charge_event_callback(charge_event_cb cb);
+void charge_event_internal_cb(charge_event_e event);
 
 int battery_adc_init(void);
 int battery_adc_resume(void);
 int battery_adc_suspend(void);
 int battery_adc_single_conversion(uint16_t *batt_voltage);
 int bsp_charge_is_ready(void *args);
-int bsp_charge_pd_is_ready(void *args);
+
 #ifdef __cplusplus
 }
 #endif

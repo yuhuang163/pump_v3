@@ -15,22 +15,6 @@
 *****************************************************************************************
 */
 
-static const airplane_mode_led_status_t enter_airplane_mode_led_status[6] = {
-    {PUMP_START_BL, LED_LEVEL_MAX / 2},
-    {PUMP_MODE_BL, LED_LEVEL_MAX / 2},
-    {PUMP_FREQ_SET_BL, 0},
-    {PUMP_BREASTFEEDING_BL, 0},
-    {PUMP_LEFT_CONTROL_BL, 0},
-    {PUMP_RIGHT_CONTROL_BL, 0},
-};
-
-static const airplane_mode_led_status_t exit_airplane_mode_led_status[4] = {
-    {PUMP_START_BL, LED_LEVEL_MAX},
-    {PUMP_MODE_BL, LED_LEVEL_MAX},
-    {PUMP_FREQ_SET_BL, LED_LEVEL_MAX},
-    {PUMP_BREASTFEEDING_BL, LED_LEVEL_MAX},
-};
-
 /*
 * GLOBAL VARIABLE DEFINITIONS
 *****************************************************************************************
@@ -121,39 +105,17 @@ void airplane_mode_led_policy(ui_proc_airplane_mode_t *proc, uint8_t status)
 {
     uint8_t control_type = 0;
     EXCEPTION_CHECK_VOID(proc);
-    EXCEPTION_CHECK_VOID(proc->pbus);
-    EXCEPTION_CHECK_VOID(proc->st);
-    rt_device_node_t *led_dev = proc->pbus->find_device(ID_DEVICE_LED);
-    EXCEPTION_CHECK_VOID(led_dev);
-    led_status_msg_t msg = {
-        .led_index = PUMP_LED_ALL_ID,
-        .led_status = {
-            .mode = LED_MODE_LEVEL,
-            .un.luminous.level = 0,
-        },
-    };
-    proc->st->get_store_ram_val(STORE_ID_PUMP_CONTROL_TYPE, 0, 0, &control_type);
+    EXCEPTION_CHECK_VOID(proc->led);
     if (status) {
-        for (uint8_t i = 0; i < LENGTH_OF_ARRAY(enter_airplane_mode_led_status); i++) {
-            msg.led_index = enter_airplane_mode_led_status[i].id;
-            msg.led_status.un.luminous.level = enter_airplane_mode_led_status[i].level;
-            led_dev->ioctl(led_dev, OP_CODE_LED_STATUS_SET, (void *)&msg);
+        if (proc->led->hook && proc->led->hook->set_key_backlight ) {
+            proc->led->hook->set_key_backlight(proc->led, 0);
         }
+        proc->led->set_led_level(PUMP_START_BL, LED_LEVEL_MAX / 2);
+        proc->led->set_led_level(PUMP_MODE_BL, LED_LEVEL_MAX / 2);
     } else {
-        for (uint8_t i = 0; i < LENGTH_OF_ARRAY(exit_airplane_mode_led_status); i++) {
-            msg.led_index = exit_airplane_mode_led_status[i].id;
-            msg.led_status.un.luminous.level = exit_airplane_mode_led_status[i].level;
-            led_dev->ioctl(led_dev, OP_CODE_LED_STATUS_SET, (void *)&msg);
+        if (proc->led->hook && proc->led->hook->set_key_backlight) {
+            proc->led->hook->set_key_backlight(proc->led, 100);
         }
-        /// 设置左右控制背光灯
-        msg.led_index = PUMP_LEFT_CONTROL_BL;
-        msg.led_status.un.luminous.level = control_type == BREAST_PUMP_CONTROL_TYPE_LEFT ? \
-                    LED_LEVEL_MAX / 2 : LED_LEVEL_MAX;
-        led_dev->ioctl(led_dev, OP_CODE_LED_STATUS_SET, (void *)&msg);
-        msg.led_status.un.luminous.level = control_type == BREAST_PUMP_CONTROL_TYPE_RIGHT ? \
-                    LED_LEVEL_MAX / 2 : LED_LEVEL_MAX;
-        msg.led_index = PUMP_RIGHT_CONTROL_BL;
-        led_dev->ioctl(led_dev, OP_CODE_LED_STATUS_SET, (void *)&msg);
     }
 }
 

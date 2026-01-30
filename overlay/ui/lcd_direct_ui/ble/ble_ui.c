@@ -19,8 +19,10 @@
 */
 static lv_obj_t * ble_img;
 static res_img_info_t ble_info;
-
 static lv_obj_t * ble_line_icon;
+static uint8_t s_is_connected = 0;
+static uint8_t s_force_update = 0;
+
 /*
 * GLOBAL VARIABLE DEFINITIONS
 *****************************************************************************************
@@ -35,8 +37,22 @@ static lv_obj_t * ble_line_icon;
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-int ble_ui_update(ui_manager_context_t *thiz, lv_obj_t *root, uint8_t is_connected)
+
+void ble_ui_init(ui_manager_context_t *thiz)
 {
+    EXCEPTION_CHECK_VOID(thiz);
+    s_is_connected = 0;
+    s_force_update = true;
+}
+
+int ble_ui_update(ui_manager_context_t *thiz, lv_obj_t *root, ble_manager_context_t *ble)
+{
+    EXCEPTION_CHECK_INT(ble);
+    uint8_t is_connected = ble->ble_is_connected();
+    if (s_is_connected == is_connected && s_force_update == false) {
+        return 0;
+    }
+
     common_ui_img_resource_init(thiz, is_connected > 0 ? RESOURCE_ID_BLE_CONNECT : RESOURCE_ID_BLE_DISCONNECT, &ble_info);
     EXCEPTION_CHECK_INT(ble_info.data);
     if (ble_img == NULL || !lv_obj_is_valid(ble_img)) {

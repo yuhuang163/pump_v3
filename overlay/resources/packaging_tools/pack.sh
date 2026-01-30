@@ -9,6 +9,39 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PARENT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 BIN_DIR="$PARENT_DIR/bin"
+PROJECT_DIR="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+
+resolve_root_device_name() {
+    # 从 boards/product_info.h 解析 ROOT_DEVICE_NAME（优先使用预处理器展开，适配 ROOT_PRODUCT_ID 等间接宏）
+    local info_file="$PROJECT_DIR/boards/product_info.h"
+    if [ -f "$info_file" ]; then
+        local compiler=""
+        compiler="$(command -v gcc 2>/dev/null || command -v cc 2>/dev/null || true)"
+        if [ -n "$compiler" ]; then
+            local out=""
+            out="$(
+                printf '#include "%s"\nROOT_DEVICE_NAME\n' "$info_file" \
+                    | "$compiler" -E -P -xc -I "$PROJECT_DIR/boards" -I "$PROJECT_DIR" - 2>/dev/null \
+                    | awk 'NF{print; exit}' \
+                    | tr -d '\r'
+            )" || true
+            out="${out#\"}"
+            out="${out%\"}"
+            if [ -n "$out" ] && [ "$out" != "ROOT_DEVICE_NAME" ]; then
+                printf "%s" "$out"
+                return 0
+            fi
+        fi
+    fi
+
+    # 回退：按 ROOT_PRODUCT_ID 简单映射
+    local root_id_token=""
+    root_id_token="$(grep -E '^#define[[:space:]]+ROOT_PRODUCT_ID[[:space:]]+' "$info_file" 2>/dev/null | awk '{print $3}' | tail -n1 || true)"
+    case "$root_id_token" in
+        ROOT_PRODUCT_V3PRO_ID|1) printf "%s" "V3Pro" ;;
+        *) printf "%s" "V3" ;;
+    esac
+}
 
 ### 解析参数
 VERSION=""
@@ -153,6 +186,33 @@ if [ -n "$ORIGINAL_FINAL_OUTPUT" ]; then
     else
         OUTPUT_FILE="$ORIGINAL_FINAL_OUTPUT"
     fi
+fi
+
+### 根据 ROOT_DEVICE_NAME 补齐文件名前缀（兼容旧产物命名：未带 V3/V3Pro 前缀的情况）
+DEVICE_PREFIX="$(resolve_root_device_name)"
+if [ -n "$DEVICE_PREFIX" ] && [ -n "${OUTPUT_FILE:-}" ] && [ -f "$OUTPUT_FILE" ]; then
+    FINAL_DIR="$(dirname "$OUTPUT_FILE")"
+    FINAL_BASE="$(basename "$OUTPUT_FILE")"
+    case "$FINAL_BASE" in
+        "${DEVICE_PREFIX}"_*) : ;;
+        *)
+            # 若原文件名已包含一个前缀段（形如 XXX_YYYYMMDD_...），则替换该前缀段为 ROOT_DEVICE_NAME
+            # 否则退化为直接在文件名前追加 ROOT_DEVICE_NAME_
+            if [[ "$FINAL_BASE" == *_* ]]; then
+                FINAL_REST="${FINAL_BASE#*_}"
+                RENAMED_OUT="$FINAL_DIR/${DEVICE_PREFIX}_${FINAL_REST}"
+            else
+                RENAMED_OUT="$FINAL_DIR/${DEVICE_PREFIX}_${FINAL_BASE}"
+            fi
+            # 若目标已存在，避免覆盖；保持原名
+            if [ ! -f "$RENAMED_OUT" ]; then
+                mv "$OUTPUT_FILE" "$RENAMED_OUT" 2>/dev/null || true
+                if [ -f "$RENAMED_OUT" ]; then
+                    OUTPUT_FILE="$RENAMED_OUT"
+                fi
+            fi
+            ;;
+    esac
 fi
 
 ### 显示结果

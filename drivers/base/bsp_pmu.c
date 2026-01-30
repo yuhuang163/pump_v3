@@ -62,7 +62,6 @@ static int pmu_dev_ioctl(struct rt_device_node *dev, uint32_t op_code, void *arg
 {
     switch (op_code) {
         default:
-            LOG_PBUS("pmu ioctl op_code: %d", op_code);
             return -1;
     }
 }

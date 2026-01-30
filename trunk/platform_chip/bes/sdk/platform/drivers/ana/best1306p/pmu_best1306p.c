@@ -95,7 +95,7 @@
 // External 32.768KHz stable time(ms)
 #define PMU_EXT_32K_STABLE_TIME         300
 #define PMU_EXT_32K_CLK_OUT_STABLE_TIME 1
-#define PMU_CLK_SWITCH_STABLE_TIME      1
+#define PMU_CLK_SWITCH_STABLE_TIME_US   1000
 #define PMU_EXT_32K_CAPBIT_DEFAULT      0x141
 
 // 2mV
@@ -651,6 +651,7 @@ static uint8_t pmu_ext_crystal_clkout_usr_map;
 
 static void pmu_external_crystal_init(void);
 static void pmu_external_crystal_clkout_after_pwroff(void);
+static int pmu_main_clock_sel_ext32k(bool sel_ext32k);
 #endif
 
 #ifdef PMU_NTC_MONITOR
@@ -1262,6 +1263,11 @@ void BOOT_TEXT_FLASH_LOC pmu_boot_init(void)
     pmu_charger_save_context();
 #endif
 
+#ifdef PMU_CLK_USE_EXT_CRYSTAL
+    // PMU clock sel LPO
+    pmu_main_clock_sel_ext32k(false);
+#endif
+
 #ifndef PMU_ALREADY_INIT
     // Reset PMU (to recover from a possible insane state, e.g., ESD reset)
     pmu_write(PMU_REG_METAL_ID, 0xCAFE);
@@ -1840,13 +1846,8 @@ static void pmu_sys_ctrl(bool shutdown)
 #endif
 
 #ifdef PMU_CLK_USE_EXT_CRYSTAL
-    uint16_t val_32k_sel;
-
     // PMU clock sel LPO
-    pmu_read(PMU_REG_CLK_SEL_CFG, &val_32k_sel);
-    val_32k_sel = SET_BITFIELD(val_32k_sel, CLK_32K_SEL, 0x0);
-    pmu_write(PMU_REG_CLK_SEL_CFG, val_32k_sel);
-    hal_sys_timer_delay(MS_TO_TICKS(PMU_CLK_SWITCH_STABLE_TIME));
+    pmu_main_clock_sel_ext32k(false);
 #endif
 
     // Reset PMU
@@ -1856,9 +1857,9 @@ static void pmu_sys_ctrl(bool shutdown)
 
 #ifdef PMU_CLK_USE_EXT_CRYSTAL
     // PMU clock sel EXT32K
-    val_32k_sel = SET_BITFIELD(val_32k_sel, CLK_32K_SEL, 0x2);
-    pmu_write(PMU_REG_CLK_SEL_CFG, val_32k_sel);
-    hal_sys_timer_delay(MS_TO_TICKS(PMU_CLK_SWITCH_STABLE_TIME));
+    if (pmu_main_clock_sel_ext32k(true)) {
+        PMU_INFO_TRACE_IMM(0, "%s: Sel ext32k fail!", __func__);
+    }
 #endif
 
     pmu_read(PMU_REG_CHARGER_CFG, &val);
@@ -5128,13 +5129,10 @@ void pmu_external_crystal_enable(void)
     while (hal_sys_timer_get() - pmu_ext_crystal_init_stime < MS_TO_TICKS(PMU_EXT_32K_STABLE_TIME));
 
 #ifdef PMU_CLK_USE_EXT_CRYSTAL
-    uint16_t val;
-
-    // PMU clock slecet to external crystal.
-    pmu_read(PMU_REG_CLK_SEL_CFG, &val);
-    val = SET_BITFIELD(val, CLK_32K_SEL, 0x2);
-    pmu_write(PMU_REG_CLK_SEL_CFG, val);
-    hal_sys_timer_delay(MS_TO_TICKS(PMU_CLK_SWITCH_STABLE_TIME));
+    // PMU clock sel EXT32K
+    if (pmu_main_clock_sel_ext32k(true)) {
+        PMU_INFO_TRACE_IMM(0, "%s: Sel ext32k fail!", __func__);
+    }
 #endif
 }
 
@@ -5332,6 +5330,50 @@ _calib_start:
 
 _exit:
     TRACE(0, "%s: ret=%d next_state=%d", __func__, ret, xtal_32k_calib_state);
+    return ret;
+}
+
+// true: ext32k  false: lpo32k
+static int BOOT_TEXT_FLASH_LOC pmu_main_clock_sel_ext32k(bool sel_ext32k)
+{
+    uint16_t val;
+    int ret = 0;
+
+    if (sel_ext32k) {
+        uint32_t v1, v2;
+        uint8_t retry_count = 0;
+        const uint8_t max_retries = 20;
+
+        ret = -1;
+
+        pmu_read(PMU_REG_CLK_SEL_CFG, &val);
+        while (retry_count < max_retries) {
+            val = SET_BITFIELD(val, CLK_32K_SEL, 0x2);
+            pmu_write(PMU_REG_CLK_SEL_CFG, val);
+            hal_sys_timer_delay_us(PMU_CLK_SWITCH_STABLE_TIME_US);
+
+            v1 = hal_sys_timer_get();
+            hal_sys_timer_delay_us(200);
+            v2 = hal_sys_timer_get();
+
+            if (v1 != v2) {
+                ret = 0;
+                break;
+            }
+
+            val = SET_BITFIELD(val, CLK_32K_SEL, 0x0);
+            pmu_write(PMU_REG_CLK_SEL_CFG, val);
+            hal_sys_timer_delay_us(PMU_CLK_SWITCH_STABLE_TIME_US);
+
+            retry_count++;
+        }
+    } else {
+        pmu_read(PMU_REG_CLK_SEL_CFG, &val);
+        val = SET_BITFIELD(val, CLK_32K_SEL, 0x0);
+        pmu_write(PMU_REG_CLK_SEL_CFG, val);
+        hal_sys_timer_delay_us(PMU_CLK_SWITCH_STABLE_TIME_US);
+    }
+
     return ret;
 }
 #endif
