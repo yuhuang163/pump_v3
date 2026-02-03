@@ -152,22 +152,28 @@ static void pm_suspend_check_handler(power_manager_context_t *ctx)
     log_interval++;
     if (wm && wm->is_on_window_dispatch(wm)) {
         LOG_PM("%s window dispatch, ignore.", wm->to_window_name(wm->get_current_window_id()));
-        return;
+        goto EXIT_LABEL;
     }
 
     if (pm_check_wakelock(ctx) && !ctx->priv.user_set_to_sleep) {
         LOG_PM("pm_check_wakelock, ignore");
-        return;
+        goto EXIT_LABEL;
     }
 
-    int tmp = ctx->priv.suspend_counter;
+    uint32_t tmp = ctx->priv.suspend_counter;
     if (tmp > 0) {
         if (log_interval % 10 == 0) {
             LOG_PM("%ds after goto suspend, pm_state: %s current window: %s", 
-                tmp, print_wakeup_state((pm_wakeup_state_e)ctx->priv.pm_state_change_progress),
+                (tmp / 1000), print_wakeup_state((pm_wakeup_state_e)ctx->priv.pm_state_change_progress),
                 wm->to_window_name(wm->get_current_window_id()));
         }
-        set_suspend_counter("suspend_timer", (--tmp), false);
+        uint16_t offset = get_timestamp() - ctx->priv.pm_check_time_ms;
+        if (offset > PM_SUSPEND_WORK_PERIOD) {
+            LOGE("time offset too large, offset: %d", offset);
+            offset = PM_SUSPEND_WORK_PERIOD;
+        }
+        tmp = tmp > offset ? tmp - offset : 0;
+        set_suspend_counter("suspend_timer", tmp, false);
     } else {
         ota_manager_context_t *ota_ctx = (ota_manager_context_t *)find_module(ID_MODULE_OTA);
         if (ota_ctx && ota_ctx->is_ota_upgrading()) {
@@ -195,6 +201,8 @@ static void pm_suspend_check_handler(power_manager_context_t *ctx)
             LOG_PM("ignore.");
         }
     }
+EXIT_LABEL:    
+    ctx->priv.pm_check_time_ms = get_timestamp();
 }
 
 static void stop_pm_suspend_timer(power_manager_context_t *ctx)
@@ -210,6 +218,7 @@ static void start_suspend_timer(power_manager_context_t *ctx)
     set_suspend_counter("start_suspend_timer", get_suspend_timeout(ctx), true);
     STOP_TIMER(ctx->priv.suspend_timer);
     START_TIMER(ctx->priv.suspend_timer, PM_SUSPEND_WORK_PERIOD);
+    ctx->priv.pm_check_time_ms = get_timestamp();
 }
 
 static int pm_key_event_handler(void *user_data, uint16_t keycode, uint16_t keytype)
@@ -647,6 +656,11 @@ static int system_power_control(bool state)
     EXCEPTION_CHECK_INT(pbus);
     rt_device_node_t *power_dev = pbus->find_device(ID_DEVICE_POWER);
     EXCEPTION_CHECK_INT(power_dev);
+#if IS_SUPPORT_POWER_OFF_FORCE_SAVE
+    if (st->hook && st->hook->on_power_off_force_save_route) {
+        st->hook->on_power_off_force_save_route(st);
+    }
+#endif
     thiz->priv.is_system_power_on = false;
     LOG_PM("system_power_off");
     st->flash_protect(true); /// 禁止flash读写操作.

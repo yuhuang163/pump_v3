@@ -5,6 +5,8 @@
 #include "root_common_api.h"
 #include "ble_manager.h" // IWYU pragma: keep
 #include "ble_event_process.h" // IWYU pragma: keep
+#include "root_storage_base.h"
+#include "storage_manager_api.h"
 
 /*
 * DEFINES
@@ -147,6 +149,10 @@ static int ble_bind_state_get(void)
 static int ble_bind_state_set(uint8_t state)
 {
     ble_obj->priv.ble_bind_state = state;
+    storage_manager_context_t *storage_ctx = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
+    if (storage_ctx && storage_ctx->put_store_val) {
+        storage_ctx->put_store_val(STORE_ID_SYS_BIND_STATUS, 0, 0, &state);
+    }
     LOG_BLE("bind state: %d", state);
     return 0;
 }
@@ -419,6 +425,11 @@ static int on_post_init(void *ptr)
     /// 注册BLE数据回调
     if (ctx->priv.ble_dev && ctx->priv.ble_dev->ioctl) {
         DEVICE_IOCTL_ARGS(ctx->priv.ble_dev, OP_CODE_BLE_ADD_DATA_CALLBACK, ble_data_callback);
+    }
+    /// 获取绑定状态
+    storage_manager_context_t *storage_ctx = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
+    if (storage_ctx && storage_ctx->get_store_val) {
+        storage_ctx->get_store_val(STORE_ID_SYS_BIND_STATUS, 0, 0, &ctx->priv.ble_bind_state);
     }
 
     ctx->priv.bcreceiver = u_malloz(sizeof(broadcast_obj_t));

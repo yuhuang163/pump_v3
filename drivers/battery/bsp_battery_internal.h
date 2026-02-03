@@ -157,7 +157,7 @@ int battery_adc_init(void);
 int battery_adc_resume(void);
 int battery_adc_suspend(void);
 int battery_adc_single_conversion(uint16_t *batt_voltage);
-int bsp_charge_is_ready(void *args);
+int bsp_charge_is_ready(void);
 
 #ifdef __cplusplus
 }

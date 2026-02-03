@@ -25,9 +25,6 @@ void knob_button_event_handler(int arg1, int arg2, void *param);
 #if IS_SUPPORT_DEVICE_KNOB
 uint16_t bsp_knob_get_count(uint8_t index);
 #endif
-#if IS_SUPPORT_HARDWARE_VERSION_ADAPTIVE
-int is_v3_hardware_version(void);
-#endif
 #ifdef __cplusplus
 }
 #endif

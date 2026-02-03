@@ -43,13 +43,23 @@ static void logo_display_completed_cb(hdr_post_args_t *args)
         wm->dispatch_new_window_args(wm, &msg);
         goto EXIT_LABEL;
     }
-    
+
+#if (ROOT_PRODUCT_ID == ROOT_PRODUCT_V3PRO_ID)
     if (proc->battery && proc->battery->is_vbus_plug_in() > 0) {
         LOG_WM("vbus plug in, goto charge screen");
         msg.union_body.extra.window_id = ID_WINDOW_CHARGE;
         wm->dispatch_new_window_args(wm, &msg);
         return;
     }
+#else
+    if (proc->battery && proc->battery->is_vbus_plug_in() > 0 &&
+        proc->battery->is_adapter_mismatch() > 0) {
+        LOG_WM("vbus plug in, goto charge screen");
+        msg.union_body.extra.window_id = ID_WINDOW_CHARGE;
+        wm->dispatch_new_window_args(wm, &msg);
+        return;
+    }
+#endif
 
     if (proc->airplane && proc->airplane->is_on_airplane_mode()) {
         LOG_WM("goto airplane mode screen");

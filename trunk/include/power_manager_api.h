@@ -53,7 +53,8 @@ typedef struct power_manager_context {
         struct peripheral_bus_context *pbus;
         int pm_state;
         int pm_state_change_progress;
-        int suspend_counter;
+        uint32_t suspend_counter;
+        uint32_t pm_check_time_ms; /// 上次检查时间戳(毫秒级).
         pm_wakeup_reason_e wakeup_reason;
         struct broadcast_obj *pm_bcd;
         os_mutex_id m_wake_lock;

@@ -14,7 +14,11 @@ extern "C" {
 /**
  * 产品信息
 */
+#if 1
 #define ROOT_PRODUCT_ID                               ROOT_PRODUCT_V3PRO_ID
+#else
+#define ROOT_PRODUCT_ID                               ROOT_PRODUCT_V3_ID
+#endif
 
 #if (ROOT_PRODUCT_ID == ROOT_PRODUCT_V3PRO_ID)
 #define ROOT_DEVICE_NAME                              "V3Pro"

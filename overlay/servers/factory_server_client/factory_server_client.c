@@ -62,7 +62,18 @@ static void on_factory_server_event_cb(void *user_data, uint8_t *data, uint16_t 
 #if USE_PLATFORM_TRACE
 static void on_factory_server_event_cb_callback(void *ctx, uint8_t *p_data, uint16_t ulLen)
 {
-    LOGE("==> on_factory_server_event_cb_callback: ctx=%p, p_data=%p, ulLen=%d", ctx, p_data, ulLen);
+    // 忽略空数据或NULL指针
+    if (ulLen == 0 || p_data == NULL) {
+        return;
+    }
+    
+    // 过滤单个字节的错误数据（FF/FE可能是UART错误状态或噪声）
+    if (ulLen == 1 && (p_data[0] == 0xFF || p_data[0] == 0xFE)) {
+        LOGW("factory uart callback: filtered single byte error data: 0x%02X", p_data[0]);
+        return;
+    }
+    
+    LOG_SRV("==> on_factory_server_event_cb_callback: ctx=%p, p_data=%p, ulLen=%d", ctx, p_data, ulLen);
     on_factory_server_event_cb(ctx, p_data, ulLen);
 }
 #endif

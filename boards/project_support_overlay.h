@@ -5,6 +5,8 @@
 extern "C" {
 #endif
 
+#include "product_info.h" // IWYU pragma: keep
+
 /// 模块支持
 #define IS_SUPPORT_MODULE_PBUS                           (1)
 #define IS_SUPPORT_MODULE_PM                             (1)
@@ -51,14 +53,17 @@ extern "C" {
 #define IS_SUPPORT_DEVICE_IMU                            (0)
 #define IS_SUPPORT_DEVICE_FSENSOR                        (0)
 #define IS_SUPPORT_DEVICE_PRESSURE_KEY                   (0)
+#if (ROOT_PRODUCT_ID == ROOT_PRODUCT_V3PRO_ID)
 #define IS_SUPPORT_DEVICE_AIR_PRESSURE                   (1)
+#else
+#define IS_SUPPORT_DEVICE_AIR_PRESSURE                   (0)
+#endif
 #define IS_SUPPORT_DEVICE_MOTOR                          (1)
 #define IS_SUPPORT_DEVICE_AUDIO                          (0)
 #define IS_SUPPORT_DEVICE_LCD                            (1)
 #define IS_SUPPORT_DEVICE_BLE                            (1)
 #define IS_SUPPORT_DEVICE_FS                             (0)
 #define IS_SUPPORT_DEVICE_WIFI                           (0)
-
 /// 叠图功能
 #define IS_SUPPORT_OVERLAY_IMG                           (1)
 #define IS_SUPPORT_ASYNC_RESET_UI_PLAY_INFO              (1)
@@ -72,8 +77,6 @@ extern "C" {
 #define IS_SUPPORT_PRESSURE_TEST                         (1)
 /// 支持爬升策略
 #define IS_SUPPORT_CLIMB_POLICY                          (1)
-/// 支持算法采集
-#define IS_SUPPORT_ALGO_SAMPLING                         (1)
 /// 长按软复位
 #define IS_SUPPORT_KEY_SOFT_RESET                        (1)
 /// 支持LVGL
@@ -82,7 +85,7 @@ extern "C" {
 #else
 #define IS_SUPPORT_LVGL                                  (0)
 #endif
-#if (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V2)
+
 /// 支持PD充电
 #define IS_SUPPORT_PD_CHARGE                             (1)
 /// 支持旋钮
@@ -97,30 +100,23 @@ extern "C" {
 #define IS_SUPPORT_MODULE_RES                            (1)
 /// 支持自适应背光  
 #define IS_SUPPORT_ADAPTIVE_DIMMING                      (1)
-/// 支持硬件版本自适应
-#define IS_SUPPORT_HARDWARE_VERSION_ADAPTIVE             (1)
+
+#if (ROOT_PRODUCT_ID == ROOT_PRODUCT_V3PRO_ID)
 /// 支持漏气提醒
 #define IS_SUPPORT_AIR_LEAKAGE_WARNING                   (0)
+/// 支持算法采集
+#define IS_SUPPORT_ALGO_SAMPLING                         (1)
+/// 支持充电
+#define IS_SUPPORT_DEVICE_CHARGE                         (1)
 #else
-/// 支持PD充电
-#define IS_SUPPORT_PD_CHARGE                             (1)
-/// 支持旋钮
-#define IS_SUPPORT_DEVICE_KNOB                           (1)
-/// 支持电池直采
-#define IS_SUPPORT_BATTERY_DIRECT_SAMPLING               (0)
-/// 支持UART
-#define IS_SUPPORT_DEVICE_UART                           (1)
-/// 支持光传感器
-#define IS_SUPPORT_DEVICE_LIGHT_SENSOR                   (1)
-/// 支持资源管理
-#define IS_SUPPORT_MODULE_RES                            (1)
-/// 支持自适应背光  
-#define IS_SUPPORT_ADAPTIVE_DIMMING                      (1)
-/// 支持硬件版本自适应
-#define IS_SUPPORT_HARDWARE_VERSION_ADAPTIVE             (0)
 /// 支持漏气提醒
 #define IS_SUPPORT_AIR_LEAKAGE_WARNING                   (0)
+/// 支持算法采集
+#define IS_SUPPORT_ALGO_SAMPLING                         (0)
+/// 支持充电
+#define IS_SUPPORT_DEVICE_CHARGE                         (0)
 #endif
+
 
 #ifdef __cplusplus
 }

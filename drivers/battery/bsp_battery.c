@@ -12,6 +12,12 @@
 * DEFINES
 *****************************************************************************************
 */
+#if (ROOT_PRODUCT_ID == ROOT_PRODUCT_V3PRO_ID)
+#define IS_SUPPORT_BATTERY_POLL           (1)
+#else
+#define IS_SUPPORT_BATTERY_POLL           (0)
+#endif
+
 #ifndef RTC_DATA_ATTR
 #define RTC_DATA_ATTR
 #endif
@@ -22,6 +28,8 @@
 * LOCAL VARIABLE DEFINITIONS
 *****************************************************************************************
 */
+#if IS_SUPPORT_BATTERY_POLL
+
 #if 0
 static const capacity_data_t sc_batt_tables[] = {
     {0,  2400, 3149}, /// 2.4-3.149V
@@ -66,9 +74,7 @@ static const battery_float_voltage_t sc_charging_float_tables[] = {
     {SG_FLOAT_VOLTAGE_RATE_1, SG_FLOAT_VOLTAGE_THRESHOLD_2}, 
     {SG_FLOAT_VOLTAGE_RATE_2, SG_FLOAT_VOLTAGE_THRESHOLD_3}, 
 };
-
 #else
-
 static const capacity_data_t sc_batt_tables[] = {
     {0,  7200, 9449}, 
     {1,  9450, 9899}, 
@@ -120,8 +126,9 @@ static uint16_t s_charing_voltage_max = 0;
 static uint16_t s_batt_voltage_max = 0;
 static uint32_t s_charing_time_out_count= 0;
 static uint32_t s_batt_poll_time = 0;
-static rt_device_node_t *node = NULL;
 static RTC_DATA_ATTR battery_status_t battery;
+#endif
+static rt_device_node_t *node = NULL;
 
 /*
 * GLOBAL VARIABLE DEFINITIONS
@@ -132,6 +139,7 @@ static RTC_DATA_ATTR battery_status_t battery;
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
+#if IS_SUPPORT_BATTERY_POLL
 static void battery_health_update(void) 
 {
     battery.health = BATT_HEALTH_COEFF_MAX;
@@ -440,26 +448,22 @@ static int battery_voltage_poll(void)
    
     return BSP_OK;
 }
+#endif
 
 static int battery_dev_open(struct rt_device_node *dev)
 {
-#if IS_SUPPORT_HARDWARE_VERSION_ADAPTIVE
-    if (is_v3_hardware_version()) {
-        charge_vbus_init();
-        LOG_PBUS("battery init skip, hardware version is v3");
-        return BSP_OK;
-    }
-#endif
+    bsp_charge_init();
+#if IS_SUPPORT_BATTERY_POLL
 #if IS_SUPPORT_BATTERY_DIRECT_SAMPLING
     battery_adc_init();
 #endif
     battery_health_update();
-    bsp_charge_init();
     s_battery_is_ready = true;
     LOG_PBUS("battery init ok, health:%d%%, percent: %d%% voltage: %d",
         battery.health, battery.percent, battery.voltage); 
     s_batt_poll_time = 0;   
     battery_voltage_poll();
+#endif
     if (node) {
         node->status = DEVICE_BUS_INIT;
     }
@@ -473,7 +477,11 @@ static int battery_dev_close(struct rt_device_node *dev)
 
 static int battery_dev_read(struct rt_device_node *dev, void *buf, uint32_t n_bytes)
 {
+#if IS_SUPPORT_BATTERY_POLL
     int val = battery_pencent_get();
+#else
+    int val = 100;
+#endif
     if (buf) {
         memcpy(buf, &val, sizeof(int));
     }
@@ -489,6 +497,7 @@ static int battery_dev_ioctl(struct rt_device_node *dev, uint32_t op_code, void 
 {
     uint32_t *tmp = args;
     switch (op_code) {
+#if IS_SUPPORT_BATTERY_POLL
         case OP_CODE_BAT_GET_VOLTAGE:
             return battery_voltage_get();
         case OP_CODE_BAT_POLL_VOLTAGE:
@@ -497,6 +506,14 @@ static int battery_dev_ioctl(struct rt_device_node *dev, uint32_t op_code, void 
             tmp = (uint32_t *)args;
             battery_health_set((uint8_t)tmp[0]);
             return 0;
+#else
+        case OP_CODE_BAT_GET_VOLTAGE:
+            return BATT_FULL_VOLTAGE;
+        case OP_CODE_BAT_POLL_VOLTAGE:
+            return 0;
+        case OP_CODE_BAT_HEALTH_SET:
+            return 0;
+#endif
         case OP_CODE_BAT_VBUS_IS_PLUG_IN:
             return vbus_is_plug_in();
         case OP_CODE_BAT_ADD_CHARGE_EVENT_CALLBACK:
@@ -507,20 +524,13 @@ static int battery_dev_ioctl(struct rt_device_node *dev, uint32_t op_code, void 
         case OP_CODE_BAT_GET_CHARGE_TEMPERATURE:
             return get_charging_temperature();
         case OP_CODE_BAT_IS_READY:
-            return bsp_charge_is_ready(args);
-        case OP_CODE_BAT_PD_IS_READY:
+            return bsp_charge_is_ready();
+        case OP_CODE_BAT_PD_IS_MISMATCH:
 #if IS_SUPPORT_PD_CHARGE
-            return bsp_charge_pd_is_ready(NULL);
+            return bsp_charge_pd_is_mismatch();
 #else
             return 0;
 #endif
-        case OP_CODE_BAT_IS_SUPPORT_BATTERY:
-#if IS_SUPPORT_HARDWARE_VERSION_ADAPTIVE
-            if (is_v3_hardware_version()) {
-                return false;
-            }
-#endif
-            return true;
         default:
             LOGE("bat err op_code: %lx", op_code);
             return -1;
@@ -529,15 +539,10 @@ static int battery_dev_ioctl(struct rt_device_node *dev, uint32_t op_code, void 
 
 static int battery_dev_suspend(struct rt_device_node *dev)
 {
-#if IS_SUPPORT_HARDWARE_VERSION_ADAPTIVE
-    if (is_v3_hardware_version()) {
-        LOG_PBUS("battery suspend skip, hardware version is v3");
-        return BSP_OK;
-    }
-#endif
-
+#if IS_SUPPORT_BATTERY_POLL
 #if IS_SUPPORT_BATTERY_DIRECT_SAMPLING
     battery_adc_suspend();
+#endif
 #endif
     bsp_charge_suspend();
     if (node) {
@@ -548,19 +553,14 @@ static int battery_dev_suspend(struct rt_device_node *dev)
 
 static int battery_dev_resume(struct rt_device_node *dev)
 {
-#if IS_SUPPORT_HARDWARE_VERSION_ADAPTIVE
-    if (is_v3_hardware_version()) {
-        LOG_PBUS("battery resume skip, hardware version is v3");
-        return BSP_OK;
-    }
-#endif
-
+    bsp_charge_resume();
+#if IS_SUPPORT_BATTERY_POLL
 #if IS_SUPPORT_BATTERY_DIRECT_SAMPLING
     battery_adc_resume();
 #endif
-    bsp_charge_resume();
     battery_health_update();
     s_batt_poll_time = 0;
+#endif
     if (node) {
         node->status = DEVICE_BUS_RESUME;
     }

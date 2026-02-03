@@ -749,7 +749,7 @@ typedef struct {
 
 /// 电池输入/输出电流限制
 #define IBAT_SCALE_CFG                      IBAT_SCALE_2
-#define BATT_INPUT_CURRENT_LIMIT            1500 // 2500
+#define BATT_INPUT_CURRENT_LIMIT            2000
 #define BATT_OUTPUT_CURRENT_LIMIT           3000
 #if IBAT_SCALE_CFG == IBAT_SCALE_2
 #define BATT_CURRENT_LIMIT_SCALE            50

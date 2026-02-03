@@ -114,10 +114,12 @@ bool algo_change_sampling_interval(algo_manager_context_t *ctx, uint16_t interva
     EXCEPTION_CHECK_BOOL(ctx);
     algo_sampling_stop(ctx);
     EXCEPTION_CHECK_BOOL(ctx->priv.sensor);
+#if IS_SUPPORT_DEVICE_AIR_PRESSURE
     air_pressure_context_t *air_pressure_ctx = (air_pressure_context_t *)ctx->priv.sensor->find_sensor(ID_SENSOR_AIR_PRESSURE);
     if (air_pressure_ctx) {
         air_pressure_ctx->set_sampling_interval(interval);
     }
+#endif
     algo_sampling_start(ctx);
     return true;
 }

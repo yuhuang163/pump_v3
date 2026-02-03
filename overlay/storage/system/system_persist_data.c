@@ -479,3 +479,23 @@ int user_is_binded_from_ram(store_func_args_t args)
     }
     return 0;    
 }
+
+int write_bind_status_to_ram(store_func_args_t args)
+{
+    EXCEPTION_CHECK_INT(args.ctx);
+    user_bind_info_t *bind_info = &args.ctx->priv.sys_info.bind_info;
+    bind_info->bind_status = (uint8_t)args.arg1;
+    LOG_STORE_WRAP("write bind status: %d", args.arg1);
+    return 0;
+}
+
+int read_bind_status_from_ram(store_func_args_t args)
+{
+    EXCEPTION_CHECK_INT(args.ctx);
+    user_bind_info_t *bind_info = &args.ctx->priv.sys_info.bind_info;
+    int *tmp = (int *)args.val;
+    EXCEPTION_CHECK_INT(tmp);
+    *tmp = bind_info->bind_status;
+    LOG_STORE_WRAP("read bind status: %d", *tmp);
+    return 0;
+}

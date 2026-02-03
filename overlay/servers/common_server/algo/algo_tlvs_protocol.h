@@ -20,6 +20,8 @@ typedef enum {
     ALGO_TLV_SAMPLE_INTERVAL_GET,     /// 采测间隔(ms)
     ALGO_TLV_SAMPLE_DATA_NUM,         /// 采测数据个数
     ALGO_TLV_SAMPLE_AIR_PRESSURE_DATA,   /// 气压数据
+    ALGO_TLV_SAMPLE_LIGHT_SENSOR_DATA,  ///光感数据
+
 } algo_tlvs_id_e;
 
 /*
@@ -35,6 +37,7 @@ int algo_tlvs_sample_onoff_get(comm_protocol_builder_t *builder, comm_protocol_s
 int algo_tlvs_sample_interval_get(comm_protocol_builder_t *builder, comm_protocol_service_t *service,
                     uint8_t *data, uint16_t data_len);
 int algo_sampling_data_publish(servers_publish_data_args_t *args);
+int algo_light_sensor_data_publish(servers_publish_data_args_t *args);
 #ifdef __cplusplus
 }
 #endif

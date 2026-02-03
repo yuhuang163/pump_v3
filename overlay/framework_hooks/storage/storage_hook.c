@@ -80,6 +80,7 @@ const static put_store_ram_val_handle_t put_store_ram_val_list[] = {
     {STORE_ID_SYS_AIRPLANE_MODE_STATE, write_airplane_mode_state_to_ram},
     {STORE_ID_BREAST_PUMP_BURY_INFO, write_pump_buried_info_to_ram},
     {STORE_ID_BREAST_PUMP_MODE, write_pump_mode_to_ram},
+    {STORE_ID_SYS_BIND_STATUS, write_bind_status_to_ram},
 };
 
 const static get_store_ram_val_handle_t get_store_ram_val_list[] = {
@@ -110,6 +111,7 @@ const static get_store_ram_val_handle_t get_store_ram_val_list[] = {
     {STORE_ID_SYS_AIRPLANE_MODE_STATE, read_airplane_mode_state_from_ram},
     {STORE_ID_BREAST_PUMP_DATA_HEAD, read_pump_data_head_from_ram},
     {STORE_ID_BREAST_PUMP_MODE, read_pump_mode_from_ram},
+    {STORE_ID_SYS_BIND_STATUS, read_bind_status_from_ram},
 };
 
 static storage_manager_context_t *thiz = NULL;
@@ -241,6 +243,13 @@ static void hdr_storage_work_cb(hdr_post_args_t *args)
     }
 }
 
+static void on_power_off_force_save_route(storage_manager_context_t *ctx)
+{
+    EXCEPTION_CHECK_VOID(ctx);
+    system_persist_info_sync_flash(ctx);
+    LOG_STORE("-->power off force save success");
+}
+
 static void pump_user_data_sync_flash_cb(hdr_post_args_t *args)
 {
     breast_pump_data_head_t *pump_data_head = &thiz->priv.pump_data_head;
@@ -370,6 +379,7 @@ void register_storage_hook(storage_manager_context_t *ctx)
     ctx->hook->on_post_init_route = on_post_storage_init_route;
     ctx->hook->on_perpare_init_route = on_perpare_storage_init_route;
     ctx->hook->on_storage_broadcast_route = on_storage_broadcast_route;
+    ctx->hook->on_power_off_force_save_route = on_power_off_force_save_route;
 
     ctx->priv.put_store_process_list = put_store_process_list;
     ctx->priv.get_store_process_list = get_store_process_list;

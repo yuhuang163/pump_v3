@@ -64,27 +64,23 @@ static void system_power_event_cb(hdr_post_args_t *args)
             battery_manager_context_t *battery = (battery_manager_context_t *)find_module(ID_MODULE_BATTERY);
             if (key && key->is_key_triggered(KEY_INDEX_POWER) == 0) {
                 if (battery && battery->is_vbus_plug_in() > 0) {
-                    pm->priv.is_power_on_timeout_detect = 0;   
                     pm->system_power_control(true);
                     SEND_BROADCAST_ARGS1(ID_BROADCAST_SYS_STATE_CHANGE, SYSTEM_BROADCAST_POWER_ON);
                 } else {
                     pm->system_power_control(false); /// 非充电状态下进行开机超时检测.
                 }
             } else {
-                pm->priv.is_power_on_timeout_detect = 0;   
                 pm->system_power_control(true);
                 SEND_BROADCAST_ARGS1(ID_BROADCAST_SYS_STATE_CHANGE, SYSTEM_BROADCAST_POWER_ON);
             }
             break;
         case HDR_ACTION_POWER_ON:
             LOG_PM("%s", args->name);
-            pm->priv.is_power_on_timeout_detect = 0;   
             pm->system_power_control(true);
             SEND_BROADCAST_ARGS1(ID_BROADCAST_SYS_STATE_CHANGE, SYSTEM_BROADCAST_POWER_ON);
             break;
         case HDR_ACTION_POWER_ON_INVALID: 
             LOG_UI("%s", args->name);
-            pm->priv.is_power_on_timeout_detect = 0;
             REMOVE_TASK_HANDLER_DIRECTLY(POWER_ON_DETECT_TASK_NAME);
             pm->system_power_control(false);
             break;
@@ -118,25 +114,33 @@ static int on_key_event_route(struct power_manager_context *ctx, uint16_t keycod
 
     /// 开机按键超时检测, 如果超时, 则进入关机状态.
     if (keytype == KEY_EVENT_UP && ctx->priv.is_power_on_timeout_detect == 1) {
+        ctx->priv.is_power_on_timeout_detect = 0;
         battery_manager_context_t *battery = (battery_manager_context_t *)find_module(ID_MODULE_BATTERY);
         if (battery && battery->is_vbus_plug_in() > 0) {
-                LOG_PM("vbus plug in. ignore");  /// 插电状态下禁止禁止关机
-                return 0;
+            LOG_PM("vbus plug in. ignore");  /// 插电状态下禁止禁止关机
+            return 0;
+        }
+
+        if (ctx->is_system_power_on()) {
+            LOG_PM("sys power on. ignore");  /// 已开机无需处理释放按键后的超时问题
+            return 0;
         }
         POST_TASK_HANDLER_NO_DELAY_ARG1(system_power_event_cb, ctx, HDR_ACTION_POWER_ON_INVALID,
             POWER_ON_INVALID_TASK_NAME);
         return 0;
     }
 
-    /// 允许关机/待机标志设置.
-    if (ctx->priv.allow_shutdown_or_standby == 0 && keytype == KEY_EVENT_DOWN) {
+    /// 允许关机/待机标志设置. 
+    if (ctx->priv.allow_shutdown_or_standby == 0 && ctx->priv.is_power_on_timeout_detect == 0 &&
+        keytype == KEY_EVENT_DOWN) {
         ctx->priv.allow_shutdown_or_standby = ctx->is_system_power_on(); /// 允许关机/待机标志.
         LOG_PM("allow_shutdown_or_standby: %d", ctx->priv.allow_shutdown_or_standby);
         return 0;
     }
-    
+
     /// 进入关机状态.
     if (keytype == KEY_EVENT_LONG_3S && ctx->priv.allow_shutdown_or_standby == 1) {
+#if (ROOT_PRODUCT_ID == ROOT_PRODUCT_V3PRO_ID)  
         battery_manager_context_t *battery = (battery_manager_context_t *)find_module(ID_MODULE_BATTERY);
         if (battery && BATTERY_IS_CHARGING(battery->get_charge_status())) {
             window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
@@ -147,6 +151,8 @@ static int on_key_event_route(struct power_manager_context *ctx, uint16_t keycod
             }
             return 0;
         }
+#endif
+
 #if IS_SUPPORT_SLEEP_POWER_OFF
         POST_TASK_HANDLER_NO_DELAY_ARG1(system_power_event_cb, ctx, HDR_ACTION_POWER_OFF,
             POWER_OFF_TASK_NAME);
@@ -263,19 +269,6 @@ static int on_pm_suspend_route(struct power_manager_context *ctx, int state)
         LOG_PM("is on ota_upgrade, err state.");
         return -1;
     }
-    
-#if 0
-    battery_manager_context_t *battery = (battery_manager_context_t *)find_module(ID_MODULE_BATTERY);
-    if (battery && battery->is_vbus_plug_in() > 0) {
-        LOG_PM("is on vbus plug in, err state.");
-        window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
-        multi_func_msg_data_t msg = {0};
-        msg.union_body.extra.window_id = ID_WINDOW_CHARGE;
-        wm->dispatch_new_window_args(wm, &msg);
-        return -1;
-    }
-#endif
-
     LOG_PM("==> pm suspend");
     ctx->priv.allow_shutdown_or_standby = 0;
     ctx->system_power_control(false);
@@ -343,8 +336,6 @@ static void set_suspend_counter_route(power_manager_context_t *ctx)
         ctx->priv.pm_state = ID_SYS_PM_RESUME;
         LOG_PM("==> pm idle release");
         SEND_BROADCAST_ARGS1(ID_BROADCAST_PM_STATE_CHANGE, PM_BROADCAST_SYS_IDLE_RELEASE);
-    } else {
-        // LOG_PM("==> pm state: %d, suspend_counter: %d", ctx->priv.pm_state, ctx->priv.suspend_counter);
     }
 }
 
@@ -371,8 +362,13 @@ static int on_post_power_init_route(struct power_manager_context *ctx)
     EXCEPTION_CHECK_INT(ctx);
     ctx->priv.pbus = (peripheral_bus_context_t *)find_module(ID_MODULE_DEVICE_BUS);
     battery_manager_context_t *battery = (battery_manager_context_t *)find_module(ID_MODULE_BATTERY);
-    if ((battery && battery->is_vbus_plug_in() > 0) && platform_is_startup_caused_by_reboot()) {
-        POST_TASK_HANDLER_NO_DELAY_ARG1(system_power_event_cb, ctx, HDR_ACTION_POWER_ON_DETECT,
+    if ((battery && battery->is_vbus_plug_in() > 0) ||
+        platform_is_startup_caused_by_reboot()) {
+        key_input_context_t *key = (key_input_context_t *)find_module(ID_MODULE_KEY_INPUT);  
+        if (key && key->is_key_triggered(KEY_INDEX_POWER)) {
+            ctx->priv.is_power_on_timeout_detect = 1;
+        }
+        POST_TASK_HANDLER_NO_DELAY_ARG1(system_power_event_cb, ctx, HDR_ACTION_POWER_ON,
             POWER_ON_VBUS_PLUG_IN_TASK_NAME);
         return 0;
     }

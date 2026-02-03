@@ -54,12 +54,29 @@ static int on_post_light_sensor_init(void *ptr)
     EXCEPTION_CHECK_INT(ctx);
     peripheral_bus_context_t *pbus = (peripheral_bus_context_t *)find_module(ID_MODULE_DEVICE_BUS);
     EXCEPTION_CHECK_INT(pbus);
+    thiz->priv.sampling_interval = LIGHT_SENSOR_POLLING_PERIOD;
     thiz->priv.dev = pbus->find_device(ID_DEVICE_LIGHT_SENSOR);
     ctx->add_sensor_task(ctx, SENSOR_TASK_ID_LIGHT_SENSOR_POLLING, LIGHT_SENSOR_POLLING_PERIOD,
         LIGHT_SENSOR_EVT_POLLING, light_sensor_polling_handler, dispatch_light_sensor_client);
     return 0;
 }
 
+static uint16_t get_light_sensor_sampling_interval(void)
+{
+    return thiz->priv.sampling_interval;
+}
+
+static void set_light_sensor_sampling_interval(uint16_t interval)
+{
+    sensor_manager_context_t *ctx = (sensor_manager_context_t *)find_module(ID_MODULE_SENSOR);
+    EXCEPTION_CHECK_VOID(ctx);
+    if (thiz->priv.sampling_interval != interval) {
+        thiz->priv.sampling_interval = interval;
+        ctx->remove_sensor_task(light_sensor_polling_handler);
+        ctx->add_sensor_task(ctx, SENSOR_TASK_ID_LIGHT_SENSOR_POLLING, thiz->priv.sampling_interval,
+            LIGHT_SENSOR_EVT_POLLING, light_sensor_polling_handler, dispatch_light_sensor_client);
+    }
+}
 /*
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
@@ -68,6 +85,8 @@ void *register_module_for_light_sensor_new(list_head_t *list_head)
 {
     MALLOC_FOR_PTR(ptr, light_sensor_context_t);
     thiz = ptr;
+    ptr->get_sampling_interval = get_light_sensor_sampling_interval;
+    ptr->set_sampling_interval = set_light_sensor_sampling_interval;
     return ADD_SENSOR("light_sensor", ID_SENSOR_LIGHT_SENSOR, on_post_light_sensor_init, 
         ptr, list_head, sizeof(light_sensor_context_t));
 }

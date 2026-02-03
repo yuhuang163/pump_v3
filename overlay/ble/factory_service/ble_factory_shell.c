@@ -6,6 +6,7 @@
 #include "ble_manager.h" // IWYU pragma: keep
 #include "ble_factory_message.h" // IWYU pragma: keep
 #include "ble_factory_shell.h" // IWYU pragma: keep
+#include "adaptive_dimming.h" // IWYU pragma: keep
 
 /*
 * DEFINES
@@ -22,6 +23,8 @@
 #define BLE_NIGHT_LIGHT_ADAPTIVE_SHELL_CMD     "#LightAdaptive"
 #define BLE_LCD_BACKLIGHT_SHELL_CMD            "#lcdBk"
 #define BLE_LED_NIGHT_LIGHT_SHELL_CMD          "#ledNightLight"
+#define BLE_LIGHT_SENSOR_CTL_SHELL_CMD         "#LsSmpCtrl"
+#define BLE_LIGHT_SENSOR_SAMPLE_CTL_SHELL_CMD  "#LsSmpIntvl"
 
 /*
 * LOCAL VARIABLE DEFINITIONS
@@ -38,6 +41,8 @@ static void ble_shell_algo_sampling_interval(const uint8_t *param, uint16_t len)
 static void ble_shell_night_light_adaptive(const uint8_t *param, uint16_t len);
 static void ble_shell_lcd_backlight(const uint8_t *param, uint16_t len);
 static void ble_shell_led_night_light(const uint8_t *param, uint16_t len);
+static void ble_shell_adapte_light_sampling_control(const uint8_t *param, uint16_t len);
+static void ble_shell_adapte_light_sampling_interval(const uint8_t *param, uint16_t len);
 static const ble_factory_shell_t shell_list[] = {
     {BLE_PUMP_POLICY_SHELL_CMD,   ble_shell_pump_policy},
     {BLE_PUMP_CTRL_SHELL_CMD,     ble_shell_pump_ctrl},
@@ -50,6 +55,8 @@ static const ble_factory_shell_t shell_list[] = {
     {BLE_NIGHT_LIGHT_ADAPTIVE_SHELL_CMD, ble_shell_night_light_adaptive},
     {BLE_LCD_BACKLIGHT_SHELL_CMD, ble_shell_lcd_backlight},
    {BLE_LED_NIGHT_LIGHT_SHELL_CMD, ble_shell_led_night_light},
+   {BLE_LIGHT_SENSOR_CTL_SHELL_CMD, ble_shell_adapte_light_sampling_control},
+   {BLE_LIGHT_SENSOR_SAMPLE_CTL_SHELL_CMD, ble_shell_adapte_light_sampling_interval},
 };
 
 /*
@@ -176,6 +183,7 @@ static void ble_shell_img_test(const uint8_t *param, uint16_t len)
 
 static void ble_shell_algo_sampling_control(const uint8_t *param, uint16_t len)
 {
+#if IS_SUPPORT_ALGO_SAMPLING
     algo_manager_context_t *algo = (algo_manager_context_t *)find_module(ID_MODULE_ALGO_HUB);
     int control_type = 0;
     sscanf((const char *)param, "%d", &control_type);
@@ -185,15 +193,18 @@ static void ble_shell_algo_sampling_control(const uint8_t *param, uint16_t len)
     } else {
         algo->hook->algo_sampling_stop(algo);
     }
+#endif
 }
 
 static void ble_shell_algo_sampling_interval(const uint8_t *param, uint16_t len)
 {
+#if IS_SUPPORT_ALGO_SAMPLING
     algo_manager_context_t *algo = (algo_manager_context_t *)find_module(ID_MODULE_ALGO_HUB);
     int interval = 0;
     sscanf((const char *)param, "%d", &interval);
     LOG_BLE("shell algo sampling interval %d", interval);
     algo->hook->algo_change_sampling_interval(algo, interval);
+#endif
 }
 
 static void ble_shell_night_light_adaptive(const uint8_t *param, uint16_t len)
@@ -233,6 +244,28 @@ static void ble_shell_led_night_light(const uint8_t *param, uint16_t len)
     if (led->hook->set_night_light_level) {
         led->hook->set_night_light_level(led, night_light); /// 设置夜灯亮度.
     }
+}
+
+static void ble_shell_adapte_light_sampling_control(const uint8_t *param, uint16_t len)
+{
+#if IS_SUPPORT_ALGO_SAMPLING
+    int control_type = 0;
+    sscanf((const char *)param, "%d", &control_type);
+    LOG_BLE("shell algo sampling control");
+    if (control_type) {
+        light_sensor_sampling_start();
+    } else {
+        light_sensor_sampling_stop();
+    }
+#endif
+}
+
+static void ble_shell_adapte_light_sampling_interval(const uint8_t *param, uint16_t len)
+{
+    int interval = 0;
+    sscanf((const char *)param, "%d", &interval);
+    LOG_BLE("shell algo sampling interval %d", interval);
+    light_sensor_change_sampling_interval(interval);
 }
 
 /*

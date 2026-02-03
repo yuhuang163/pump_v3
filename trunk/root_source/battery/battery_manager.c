@@ -211,13 +211,10 @@ static int on_post_battery_init(void *ptr)
     thiz->priv.is_charging = 0;
     misc_manager_context_t *misc = ctx->priv.misc;
     if (misc) {
-        DEVICE_IOCTL_HAS_RET(thiz->priv.battery, OP_CODE_BAT_IS_SUPPORT_BATTERY, support_battery);
-        if (support_battery <= 0) {
-            LOG_MISC("battery is not supported");
-            return 0;
-        }
+#if IS_SUPPORT_DEVICE_CHARGE
         misc->add_misc_task(misc, MISC_TASK_ID_CHARGE_POLLING, 0, 
             MISC_WORK_MSG_ID_TIMER | MISC_WORK_MSG_ID_CHARGE_INTERRUPT, polling_charge_status);
+#endif
         misc->add_misc_task(misc, MISC_TASK_ID_BATTERY_POLLING, 1500, 
             MISC_WORK_MSG_ID_TIMER, polling_battery_status);
         misc->add_misc_task(misc, MISC_TASK_ID_BATTERY_VOLTAGE_POLLING, 0, 
@@ -226,7 +223,10 @@ static int on_post_battery_init(void *ptr)
 
     if (ctx->priv.battery) {
         DEVICE_IOCTL_ARGS_NO_RET(ctx->priv.battery, OP_CODE_BAT_ADD_CHARGE_EVENT_CALLBACK, charge_event_callback);
+        DEVICE_IOCTL_HAS_RET(ctx->priv.battery, OP_CODE_BAT_PD_IS_MISMATCH, ret);
+        thiz->priv.is_adapter_mismatch = ret ? 1 : 0;
     }
+
     return 0;
 }
 

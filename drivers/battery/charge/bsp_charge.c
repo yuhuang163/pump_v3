@@ -8,7 +8,6 @@
 #include "bsp_charge.h"
 #include "bsp_ntc_map.h"
 #include "bsp_battery_internal.h"
-#include "cmsis_os_api.h"
 #if IS_SUPPORT_PD_CHARGE
 #include "bsp_charge_pd.h"
 #endif
@@ -58,6 +57,7 @@ static const char *charge_status_arr[] = {
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
+#if IS_SUPPORT_DEVICE_CHARGE 
 static int charge_write_nbyte(i2c_master_data_t *data)
 {
     int ret = 0;
@@ -109,41 +109,6 @@ static int charge_read_nbyte(i2c_master_data_t *data)
 
     return BSP_ERROR;
 }
-
-#if (V3_HARDWARE_VERSION == V3_2710IMP_HARDWARE_V1)
-static void charge_irq_callback(enum HAL_GPIO_PIN_T pin)
-{
-    uint8_t msg = 0;
-    if (pin == CHARGE_INT_PIN && s_charge_device_thd.msg_id) {
-        MSG_QUEUE_SEND(s_charge_device_thd.msg_id, &msg, 0);
-    }
-}
-
-static void charge_irq_control(bool enable)
-{
-    struct HAL_GPIO_IRQ_CFG_T gpio_irq_cfg = {
-        enable, 
-        0, 
-        HAL_GPIO_IRQ_TYPE_EDGE_SENSITIVE, 
-        HAL_GPIO_IRQ_POLARITY_LOW_FALLING, 
-        charge_irq_callback
-    };
-
-    hal_gpio_setup_irq(CHARGE_INT_PIN, &gpio_irq_cfg);
-}
-
-static void charge_irq_init(void)
-{
-    struct HAL_IOMUX_PIN_FUNCTION_MAP gpio_map = {
-        (enum HAL_IOMUX_PIN_T)CHARGE_INT_PIN,  
-        HAL_IOMUX_FUNC_AS_GPIO, 
-        HAL_IOMUX_PIN_VOLTAGE_VIO, 
-        HAL_IOMUX_PIN_PULLUP_ENABLE,
-    };
-    hal_iomux_init(&gpio_map, 1);
-    hal_gpio_pin_set_dir(CHARGE_INT_PIN,  HAL_GPIO_DIR_IN,  1);
-}
-#endif
 
 static void charge_power_gpio_init(void)
 {
@@ -390,25 +355,21 @@ static void charge_chip_init(void)
         LOGE("charge vbat config failed, ret: %d", ret);
         return;
     }
-#if (V3_HARDWARE_VERSION == V3_2710IMP_HARDWARE_V1)
-    charge_irq_control(true);
-#endif
     LOG_PBUS("charge chip init success");
 }
+#endif
 
 static void charge_device_thread(void *arg)
 {
     uint8_t msg = 0;
     uint32_t log_timer = 0;
-
-    charge_chip_init();
-    charge_status_poll(&s_charge_status);
     while (1) {
         MSG_QUEUE_RECV(s_charge_device_thd.msg_id, &msg, OS_WAIT_FOREVER);
-        charge_status_poll(&s_charge_status);
 #if IS_SUPPORT_PD_CHARGE
         charge_pd_status_poll();
 #endif
+#if IS_SUPPORT_DEVICE_CHARGE
+        charge_status_poll(&s_charge_status);
         s_charge_status.charge_full = (s_charge_status.status & BAT_FULL_STATUS_POS) > 0 ? true : false;        
         s_charge_status.temp = charge_ntc_temperature_get(s_charge_status.ntc_resistance);
         if (get_timestamp_ms(log_timer) > 2000) {
@@ -417,6 +378,7 @@ static void charge_device_thread(void *arg)
                      s_charge_status.vbus, s_charge_status.ibus, s_charge_status.vbat, s_charge_status.ibat, 
                      s_charge_status.ntc_resistance, s_charge_status.temp, s_charge_status.status);
         }
+#endif
     }
 }
 
@@ -458,8 +420,7 @@ int get_charge_state(void)
         return CHARGE_STATE_ERROR;
     }
 
-    if (s_charge_status.charge_full &&
-        s_charge_status.plug_in) {
+    if (s_charge_status.charge_full && s_charge_status.plug_in) {
         return CHARGE_STATE_FULL;
     } else if (s_charge_status.plug_in) {
         return CHARGE_STATE_CHARGING;
@@ -492,16 +453,16 @@ int get_charge_full_debounce(void)
 
 int bsp_charge_init(void)
 {
-    int ret = BSP_OK;
-#if (V3_HARDWARE_VERSION == V3_2710IMP_HARDWARE_V1)
-    charge_irq_init();
-#endif
-    charge_power_gpio_init();
-    bsp_i2c_init(CHARGE_I2C_ID);
 #if IS_SUPPORT_PD_CHARGE
     bsp_charge_pd_init();
 #endif
+#if IS_SUPPORT_DEVICE_CHARGE
+    charge_power_gpio_init();
+    bsp_i2c_init(CHARGE_I2C_ID);
+    charge_chip_init();
+    charge_status_poll(&s_charge_status);
     s_charge_is_ready = true;
+#endif
     CREATE_MSG_TYPE_QUEUE(&s_charge_device_thd.msg_id, 1, 1);
     CREATE_TIMER(&s_charge_timer_id, "charge", NULL, OS_TIMER_PERIODIC, charge_thread_timer_handle);
     START_TIMER(s_charge_timer_id, CHARGE_THREAD_POLL_INTERVAL);
@@ -526,22 +487,30 @@ int bsp_charge_suspend(void)
     return BSP_OK;
 }
 
-int bsp_charge_is_ready(void *args)
+int bsp_charge_is_ready(void)
 {
-    uint8_t *charge_is_ready_status = (uint8_t *)args;
-    *charge_is_ready_status = s_charge_is_ready;
-    return BSP_OK;
+    return s_charge_is_ready;
 }
 
 void charge_event_internal_cb(charge_event_e event)
 {
+#if IS_SUPPORT_DEVICE_CHARGE  
     if (event == CHARGE_EVENT_PLUG_IN) {
-        s_charge_status.plug_in = true;
+#if IS_SUPPORT_PD_CHARGE
+        int current = charge_pd_current_get();
+        LOG_PBUS("pd charge imax:%dmA", current);
+        if (current > BATT_INPUT_CURRENT_LIMIT) {
+            current = BATT_INPUT_CURRENT_LIMIT;
+        }
+#endif 
+        charge_ibat_config(current);
+        s_charge_status.plug_in = true;      
         charge_power_control(true);
     } else if (event == CHARGE_EVENT_PLUG_OUT) {
         s_charge_status.plug_in = false;
         charge_power_control(false);
     }
+#endif
 
     if (s_charge_event_callback) {
         s_charge_event_callback(event);

@@ -1,6 +1,5 @@
 #include "root_common_api.h" // IWYU pragma: keep
 #include "app_protocol_handler.h"
-#include "storage_manager_api.h"
 #include "app_protocol_pump_ctrl_server.h"
 #include "breast_pump_manager_api.h"
 #include "pump_mode_default_config.h"
@@ -8,7 +7,6 @@
 #include "pump_mode_default_config.h"
 #include "app_protocol_broadcast_to_window.h"
 #include "breast_pump_persist_data.h"
-#include "time_utils.h"
 /*
 * DEFINES
 *****************************************************************************************
@@ -438,6 +436,10 @@ uint8_t app_old_comm_set_pump_control_type(app_old_comm_pump_ctrl *app_old_comm_
     breast_pump_manager_context_t *pump = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
     EXCEPTION_CHECK_UINT(pump);
     pump->set_breast_pump_control_type(control_type);
+    led_manager_context_t *led = (led_manager_context_t *)find_module(ID_MODULE_LED);
+    if (led && led->hook && led->hook->set_key_backlight) {
+        led->hook->set_key_backlight(led, 100);
+    }
     LOG_SRV("set pump control type %d", control_type);
     return true;
 }

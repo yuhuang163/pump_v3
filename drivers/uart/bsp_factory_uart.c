@@ -40,13 +40,31 @@ static os_message_id factory_uart_recv_msg_id = NULL;
 */
 static unsigned int factory_uart_recv_handler(unsigned char *rx_buff, unsigned int len)
 {
+    // 忽略无意义数据
+    // 协议最小帧长度：
+    // - comm_protocol (新协议): 16字节 (COMM_PROTOCOL_FRAME_SIZE_MIN)
+    // - app_old_protocol (旧协议): 6字节 (Header(2) + CT(1) + CID(1) + CAL(1) + Checksum(1))
+    // 使用 len < 6 可以过滤掉所有小于最小协议帧长度的噪声数据
+    if (len < 6) {
+        LOGW("factory uart rx: filtered short data, len=%d (min frame size: 6 bytes)", len);
+        return len;
+    }
+    
+    // 检查缓冲区指针
+    if (rx_buff == NULL) {
+        LOGE("factory uart rx: NULL buffer pointer");
+        return len;
+    }
+    
     if (len > 0) {
         BSP_LOG_HEX("factory uart rx", rx_buff, len);
     }
+
     if (len > FACTORY_UART_RX_BUF_SIZE) {
         LOGE("factory uart rx buffer overflow: len=%d", len);
         return len;
     }
+ 
     factory_uart_msg_data_t msg = {0};
     msg.msg_data = u_malloz(len);
     if (msg.msg_data == NULL) {

@@ -1,34 +1,41 @@
 /*
- * INCLUDE FILES
- *****************************************************************************************
- */
+* INCLUDE FILES
+*****************************************************************************************
+*/
 #include "bsp_common.h"
 #include "bsp_led_internal.h"
 
 /*
- * DEFINES
- *****************************************************************************************
- */
+* DEFINES
+*****************************************************************************************
+*/
+#if (ROOT_PRODUCT_ID == ROOT_PRODUCT_V3PRO_ID)
+#define IS_SUPPORT_NIGHT_LIGHT                  1
+#else
+#define IS_SUPPORT_NIGHT_LIGHT                  0
+#endif
 
 /*
- * LOCAL VARIABLE DEFINITIONS
- *****************************************************************************************
- */
+* LOCAL VARIABLE DEFINITIONS
+*****************************************************************************************
+*/
 static rt_device_node_t *node = NULL;
 
 /*
- * GLOBAL VARIABLE DEFINITIONS
- *****************************************************************************************
- */
+* GLOBAL VARIABLE DEFINITIONS
+*****************************************************************************************
+*/
 
 /*
- * LOCAL FUNCTION DEFINITIONS
- *****************************************************************************************
- */
+* LOCAL FUNCTION DEFINITIONS
+*****************************************************************************************
+*/
 static int led_dev_open(struct rt_device_node *dev)
 {
     bsp_led_init();
+#if IS_SUPPORT_NIGHT_LIGHT
     bsp_night_light_init();
+#endif
     return BSP_OK;
 }
 
@@ -44,7 +51,10 @@ static int led_dev_ioctl(struct rt_device_node *dev, uint32_t op_code, void *arg
             led_status_msg_t *msg = (led_status_msg_t *)args;
             EXCEPTION_CHECK_INT(msg);
             if (NIGHT_LIGHT_LED == msg->led_index) {
+#if IS_SUPPORT_NIGHT_LIGHT
                 return bsp_night_light_status_set(args);
+#endif
+                return 0;
             } else {
                 return bsp_led_status_set(args);
             }
@@ -60,14 +70,18 @@ static int led_dev_ioctl(struct rt_device_node *dev, uint32_t op_code, void *arg
 static int led_dev_suspend(struct rt_device_node *dev)
 {
     bsp_led_suspend();
+#if IS_SUPPORT_NIGHT_LIGHT
     bsp_night_light_suspend();
+#endif
     return 0;
 }
 
 static int led_dev_resume(struct rt_device_node *dev)
 {
     bsp_led_resume();
+#if IS_SUPPORT_NIGHT_LIGHT
     bsp_night_light_resume();
+#endif
     return 0;
 }
 

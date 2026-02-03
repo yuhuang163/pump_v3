@@ -37,7 +37,7 @@ typedef enum {
     OP_CODE_BAT_GET_CHARGE_TEMPERATURE = 8,
     OP_CODE_BAT_IS_READY = 9,
     OP_CODE_BAT_PD_IS_READY = 10,
-    OP_CODE_BAT_IS_SUPPORT_BATTERY = 11, /// 查询是否支持电池
+    OP_CODE_BAT_PD_IS_MISMATCH = 11,
     OP_CODE_BAT_END
 } batery_dev_op_code_e;
 

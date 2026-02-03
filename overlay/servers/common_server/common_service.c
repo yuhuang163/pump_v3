@@ -31,6 +31,8 @@ const static comm_protocol_publish_handle_t comm_protocol_publish_list[] = {
     {SERVERS_PUBLISH_DATA_ALGO_SAMPLING, algo_sampling_data_publish},
     {SERVERS_PUBLISH_DATA_TESTS_KEY_STATUS, tests_key_status_publish},
     {SERVERS_PUBLISH_DATA_TESTS_ENCODER_STATUS, tests_encoder_status_publish},
+    {SERVERS_PUBLISH_DATA_LIGHT_SENSOR_SAMPLING, algo_light_sensor_data_publish}
+
 };
 
 /*

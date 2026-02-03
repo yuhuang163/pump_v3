@@ -104,15 +104,20 @@ static void set_key_backlight(led_manager_context_t *thiz, uint8_t level)
 static void toggle_night_light(led_manager_context_t *thiz)
 {
     EXCEPTION_CHECK_VOID(thiz);
-    if (thiz->priv.night_light_adaptive_switch) {
-        LOG_MISC("night light is adaptive, ignore.");
+    power_manager_context_t *pm = (power_manager_context_t *)find_module(ID_MODULE_POWER);
+    EXCEPTION_CHECK_VOID(pm);
+    if (pm->is_system_power_on() == 0) {
+        LOGE("system power off, ignore adaptive level update.");
         return;
     }
 
-    thiz->priv.night_light_onoff = thiz->priv.night_light_level > 0 ? 0 : 1;
+    thiz->priv.night_light_onoff = thiz->priv.night_light_onoff > 0 ? 0 : 1;
     if (thiz->priv.night_light_adaptive_dimming > 0 && thiz->priv.night_light_onoff > 0) {
         LOG_MISC("night light is adaptive dimming, ignore.");
         return;
+    } else {
+        LOG_MISC("onoff:%d, level:%d, dimming:%d", thiz->priv.night_light_onoff, 
+            thiz->priv.night_light_level, thiz->priv.night_light_adaptive_dimming);
     }
     
     led_status_msg_t msg = {
@@ -155,19 +160,6 @@ static void night_light_adaptive_level_update(led_manager_context_t *thiz, uint8
         LOGE("system power off, ignore adaptive level update.");
         return;
     }
-    /// 自适应调光开关打开.
-    if (thiz->priv.night_light_adaptive_switch > 0) {
-       if (thiz->priv.night_light_adaptive_dimming > 0) {
-            thiz->priv.night_light_level = level; /// 进行自适应调光, 使用当前的夜灯亮度.
-            set_night_light_level(thiz, level);
-        } else {
-            if (thiz->priv.night_light_level <= 0) {
-                thiz->priv.night_light_level = LED_LEVEL_MAX / 2; /// 默认亮度为50%.
-            }
-            set_night_light_level(thiz, thiz->priv.night_light_level); /// 不进行自适应调光, 使用存储器中的夜灯亮度.
-        }
-        return;
-    } 
     /// 夜灯开关打开, 自适应调光开关打开.
     if (thiz->priv.night_light_onoff > 0 && thiz->priv.night_light_adaptive_dimming > 0) {
         thiz->priv.night_light_level = (level < 10) ? 10 : level;  /// 自适应调光开关打开, 最低亮度为10%.
@@ -259,6 +251,7 @@ static int on_post_init_route(led_manager_context_t *thiz)
         int tmp = 0;
         st->get_store_ram_val(STORE_ID_SYS_NIGHT_LIGHT_ADAPTIVE_SWITCH, 0, 0, &tmp);
         thiz->priv.night_light_adaptive_switch = tmp;
+        thiz->priv.night_light_onoff = tmp > 0 ? 1 : 0;
         LOG_MISC("night light adaptive switch: %d", thiz->priv.night_light_adaptive_switch);
     }
 #if IS_SUPPORT_ADAPTIVE_DIMMING

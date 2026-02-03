@@ -260,6 +260,7 @@ typedef struct {
 
 /// 用户绑定信息
 typedef struct {
+    uint8_t bind_status;                  /// 绑定状态 0-未绑定 1-已绑定
     uint8_t user_id[USER_BIND_UID_LEN];     /// root id, eg. TF123456;
     uint8_t random[USER_BIND_RANDOM_LEN];   /// 随机数，绑定时由App 下发，用于计算aes key;
     uint8_t aes_key[USER_BIND_AES_KEY_LEN]; /// 对称密钥，数据加解密

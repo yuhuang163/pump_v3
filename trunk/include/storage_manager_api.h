@@ -62,6 +62,7 @@ typedef enum {
     STORE_ID_SYS_SYNC_SYS_TIME,             /// 保存第一次同步系统时间时 本地经历的最终时间点 用于计算吸奶记录的差值.
     STORE_ID_SYS_LOG_FILTER,                /// 系统日志过滤
     STORE_ID_USER_BIND_INFO = 600,          /// 用户绑定信息
+    STORE_ID_SYS_BIND_STATUS,               /// 绑定状态
     STORE_ID_MAX
 } persist_store_id_e;
 
@@ -173,6 +174,7 @@ typedef struct storage_manager_context {
         int (*on_post_init_route)(struct storage_manager_context *st);
         int (*on_perpare_init_route)(struct storage_manager_context *st);
         void (*on_storage_broadcast_route)(broadcast_mask_id_t id, void *context, int arg1, int arg2, broadcast_priv_data_t *pdata);
+        void (*on_power_off_force_save_route)(struct storage_manager_context *st);
     } *hook;
 
 /// private
