@@ -35,6 +35,7 @@ typedef enum {
 /// 描述电池管理器上下文对象
 struct rt_device_node;
 struct broadcast_obj;
+struct power_manager_context;
 typedef struct led_manager_context {
 /// public:
     void (*set_led_blink)(uint8_t led_index, uint16_t period, uint16_t blink_times, uint8_t finish_status);
@@ -59,9 +60,12 @@ typedef struct led_manager_context {
     struct __led_private {
         struct rt_device_node  *led_dev;
         broadcast_obj_t m_bcd;
+        struct power_manager_context *power;
         uint8_t night_light_onoff; /// 按键背光开关.
-        uint8_t night_light_level; /// 夜灯亮度.
-        uint8_t night_light_adaptive_switch; /// 夜灯自适应开关.
+        uint8_t night_light_adaptive_level;   /// 夜灯自适应亮度.
+        uint8_t night_light_setting_level;    /// 夜灯设置亮度.
+        uint8_t night_light_level; /// 夜灯当前亮度.
+        uint8_t night_light_adaptive_switch;  /// 夜灯自适应开关.
         uint8_t night_light_adaptive_dimming; /// 夜灯自适应调光.
     } priv;
 } led_manager_context_t;

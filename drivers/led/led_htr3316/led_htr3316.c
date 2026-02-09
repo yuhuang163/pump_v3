@@ -59,12 +59,21 @@ static const uint8_t led6_address[] = {
 };
 
 static const led_address_data_t led_address_data[LED_TOTAL_SIZE] = {
-    {led1_address, sizeof(led1_address)},
-    {led2_address, sizeof(led2_address)},
-    {led3_address, sizeof(led3_address)},
-    {led4_address, sizeof(led4_address)},
-    {led5_address, sizeof(led5_address)},
-    {led6_address, sizeof(led6_address)},
+#if DV_DEVICE_ENABLE == DV1_DEVICE_ENABLE
+    {led2_address, sizeof(led2_address)},/// PUMP_START_BL
+    {led5_address, sizeof(led5_address)},/// PUMP_MODE_BL
+    {led6_address, sizeof(led6_address)},/// PUMP_FREQ_SET_BL
+    {led1_address, sizeof(led1_address)},/// PUMP_BREASTFEEDING_BL
+    {led3_address, sizeof(led3_address)},/// PUMP_LEFT_CONTROL_BL
+    {led4_address, sizeof(led4_address)},/// PUMP_RIGHT_CONTROL_BL
+#else
+    {led1_address, sizeof(led1_address)},/// PUMP_START_BL
+    {led2_address, sizeof(led2_address)},/// PUMP_MODE_BL
+    {led3_address, sizeof(led3_address)},/// PUMP_FREQ_SET_BL
+    {led4_address, sizeof(led4_address)},/// PUMP_BREASTFEEDING_BL
+    {led5_address, sizeof(led5_address)},/// PUMP_LEFT_CONTROL_BL
+    {led6_address, sizeof(led6_address)},/// PUMP_RIGHT_CONTROL_BL
+#endif
 };
 
 /*

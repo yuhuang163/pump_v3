@@ -213,7 +213,6 @@ static int factory_reset(factory_reset_type_e is_reboot)
         return 1;
     } else {
         wm->set_window_switch_forbid(wm, 1);
-        wm->set_system_is_restting_device(wm, 1);  
         thiz->flash_protect(true); /// 禁止flash读写操作.
         msleep(1000);
         __system_reboot(__REBOOT_REASON_FACTORY_RESET);

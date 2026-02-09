@@ -12,7 +12,7 @@
 *****************************************************************************************
 */
 #ifndef MISC_POLLING_PERIOD
-#define MISC_POLLING_PERIOD                               (100)  
+#define MISC_POLLING_PERIOD                               (20)  
 #endif
 
 #ifndef SYSINFO_PRINT_PERIOD

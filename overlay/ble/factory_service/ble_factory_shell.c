@@ -223,11 +223,10 @@ static void ble_shell_lcd_backlight(const uint8_t *param, uint16_t len)
 {
     int backlight = 0;
     sscanf((const char *)param, "%d", &backlight);
-    LOG_BLE("shell lcd backlight Percentage %d", backlight);
-    peripheral_bus_context_t *pbus = (peripheral_bus_context_t *)find_module(ID_MODULE_DEVICE_BUS);
-    EXCEPTION_CHECK_VOID(pbus);
-    rt_device_node_t *lcd = pbus->find_device(ID_DEVICE_DISPLAY_PANEL);
-    lcd->ioctl(lcd, OP_CODE_PANEL_SET_BL, (void *)&backlight);
+    LOG_BLE("shell lcd backlight:%d", backlight);
+    ui_manager_context_t *ui = (ui_manager_context_t *)find_module(ID_MODULE_UI);
+    EXCEPTION_CHECK_VOID(ui && ui->hook);
+    ui->hook->set_ui_backlight_level(ui, backlight);
 }
 
 static void ble_shell_led_night_light(const uint8_t *param, uint16_t len)

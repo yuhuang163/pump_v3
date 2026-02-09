@@ -44,8 +44,8 @@ extern "C" {
 /**
  * 硬件版本从1-999
 */
-#define ROOT_HARDWARE_VERSION                          2
-#define ROOT_HW_VERSION_STR                            "02"
+#define ROOT_HARDWARE_VERSION                          3
+#define ROOT_HW_VERSION_STR                            "03"
 
 
 /**
@@ -57,8 +57,8 @@ extern "C" {
 /**
  * 正式版本从100-900
 */
-#define ROOT_FIRMWARE_VERSION                          105
-#define ROOT_FW_VERSION_STR                            "105"
+#define ROOT_FIRMWARE_VERSION                          106
+#define ROOT_FW_VERSION_STR                            "106"
 
 /**
  * 资源版本号定义(major*100 + minor)

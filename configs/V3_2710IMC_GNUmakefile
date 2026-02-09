@@ -71,17 +71,39 @@ VUSB_ON ?= 1
 # PSRAM enable switch
 PSRAM_ENABLE ?= 1
 
-# littlefs section size
-LITTLEFS_SECTION_SIZE ?= 0x4000
+# DV device enable 
+DV1_DEVICE_ENABLE ?= 1
+DV_DEVICE_ENABLE ?= $(DV1_DEVICE_ENABLE)
 
-# factory data section size
+ifeq ($(DV_DEVICE_ENABLE), DV1_DEVICE_ENABLE)
+
+# littlefs section size (DV)
+LITTLEFS_SECTION_SIZE ?= 0xC0000
+
+# factory data section size (DV)
 FACTORY_DATA_SECTION_SIZE ?= 0x2000
 
-# lute picture resources section size
+# lute picture resources section size (DV)
+LUTE_PICTURE_RESOURCES_SECTION_SIZE ?= 0x80000
+
+# lute reserved section size (DV)
+LUTE_RESERVED_SECTION_SIZE ?= 0x2000	
+
+else
+
+# littlefs section size (non-DV)
+LITTLEFS_SECTION_SIZE ?= 0x4000
+
+# factory data section size (non-DV)
+FACTORY_DATA_SECTION_SIZE ?= 0x2000
+
+# lute picture resources section size (non-DV)
 LUTE_PICTURE_RESOURCES_SECTION_SIZE ?= 0x200000
 
-# lute reserved section size
+# lute reserved section size (non-DV)
 LUTE_RESERVED_SECTION_SIZE ?= 0x2000	
+
+endif
 
 # BLE 自定义服务开关
 CFG_CUSTOM_BLE_SERVICE ?= 1
@@ -670,6 +692,10 @@ CPPFLAGS += -DV3_2710IMC_HARDWARE_V1=$(V3_2710IMC_HARDWARE_V1)
 CPPFLAGS += -DV3_2710IMC_HARDWARE_V2=$(V3_2710IMC_HARDWARE_V2)
 CPPFLAGS += -DV3_2710IMP_HARDWARE_V1=$(V3_2710IMP_HARDWARE_V1)
 CPPFLAGS += -DV3_HARDWARE_VERSION=$(V3_HARDWARE_VERSION)
+
+# DV 设备宏
+CPPFLAGS += -DDV1_DEVICE_ENABLE=$(DV1_DEVICE_ENABLE)
+CPPFLAGS += -DDV_DEVICE_ENABLE=$(DV_DEVICE_ENABLE)
 
 # 调试日志相关宏定义
 ifeq ($(REL_TRACE_ENABLE),1)

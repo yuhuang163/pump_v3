@@ -43,7 +43,8 @@ static int on_post_airplane_mode_init_route(struct airplane_mode_context *ctx)
     /// 注册按键唤醒.
     key_input_context_t *input = (key_input_context_t *)find_module(ID_MODULE_KEY_INPUT);
     if (input) {
-        input->add_keyevent_handler("airplane_mode", ctx, KEY_CODE_TRAVEL_LOCK, KEY_EVENT_LONG_5S,  airplane_mode_key_event_handler);
+        input->add_keyevent_handler("airplane_mode", ctx, KEY_CODE_TRAVEL_LOCK, KEY_EVENT_LONG_5S, 
+            airplane_mode_key_event_handler, KEY_HANDLER_SHIELD_LEVEL_1);
     }
     return 0;
 }

@@ -402,7 +402,8 @@ static int on_post_pm_init(void *ptr)
      KEY_EVENT_LONG_3S | KEY_EVENT_LONG_5S | KEY_EVENT_LONG_9S;
     key_input_context_t *input = (key_input_context_t *)find_module(ID_MODULE_KEY_INPUT);
     if (input) {
-        input->add_keyevent_handler("pm", ctx, keycode, keytype, pm_key_event_handler);
+        input->add_keyevent_handler("pm", ctx, keycode, keytype, pm_key_event_handler,
+             KEY_HANDLER_SHIELD_FORBIDDEN);
     }
     RUN_NEW_THREAD(&ctx->priv.pm_suspend_thd, "pm_suspend_thd",
         pm_sleep_thread, RT_PRIO_PM_SLEEP_THREAD, PM_SUSPEND_THREAD_STACKSIZE);
@@ -659,6 +660,7 @@ static int system_power_control(bool state)
 #if IS_SUPPORT_POWER_OFF_FORCE_SAVE
     if (st->hook && st->hook->on_power_off_force_save_route) {
         st->hook->on_power_off_force_save_route(st);
+        msleep(100); /// 等待100ms，确保数据写入完成
     }
 #endif
     thiz->priv.is_system_power_on = false;

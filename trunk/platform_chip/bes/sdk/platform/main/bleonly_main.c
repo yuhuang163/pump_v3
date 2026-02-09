@@ -2,6 +2,7 @@
 #include "cmsis_os.h"
 #include "cmsis_nvic.h"
 #include "analog.h"
+#include "hfp_service.h"
 #include "pmu.h"
 #include "mpu_cfg.h"
 #include "hwtimer_list.h"
@@ -729,7 +730,7 @@ int main(void)
 
     hal_sysfreq_req(HAL_SYSFREQ_USER_INIT, HAL_CMU_FREQ_208M);
     TRACE(1, "CPU frequency changed to: %uM", hal_sys_timer_calc_cpu_freq(5, 0) / 1000000);
-
+    osDelay(100);///lute add delay to ensure the flash is ready
     cs_pin = get_spi_cs_pin();
     flash1_ret = spi_flash_open(SPI_FLASH1_ID, SPI_RATE, cs_pin);
     if (flash1_ret) {

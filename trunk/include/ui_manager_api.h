@@ -65,8 +65,6 @@ typedef struct ui_animation_play {
     /// private:
     char *tag;
     void *user_data;
-    uint8_t is_play_finished;
-    uint8_t reserved[3];
     uint16_t played_count;
     ui_timer_t *update_timer;
     /// public:
@@ -78,6 +76,7 @@ typedef struct ui_animation_play {
 
 struct rt_device_node;
 struct resource_manager_context;
+struct power_manager_context;
 typedef struct ui_manager_context {
     /// private:
     struct __ui_manager_private {
@@ -89,10 +88,13 @@ typedef struct ui_manager_context {
     #endif
         os_mutex_id ui_draw_lock; /// 显示刷新锁
         broadcast_obj_t m_bcd; /// 广播监听对象
-        struct rt_device_node *panel_dev; /// 显示设备
-        struct rt_device_node *led_dev; /// LED设备
-        bool is_playing_ui_animation; /// 是否正在播放UI动画
-        uint8_t ui_backlight_val;    /// 背光亮度
+        struct rt_device_node *panel_dev;   /// 显示设备
+        struct rt_device_node *led_dev;     /// LED设备
+        bool is_playing_ui_animation;       /// 是否正在播放UI动画
+        bool is_playing_ui_overlay;         /// 是否正在播放UI overlay（弹窗等叠加层）
+        uint8_t ui_backlight_val;           /// 背光亮度
+        bool ui_backlight_onoff;            /// 背光开关
+        uint8_t ui_backlight_adaptive_val;  /// LCD背光自适应亮度
         bool lv_tick_timer_running;  /// LVGL定时器是否正在运行
     #if IS_SUPPORT_LVGL
         bool lvgl_initialized;      /// LVGL是否已初始化完成
@@ -103,13 +105,13 @@ typedef struct ui_manager_context {
         struct resource_manager_context *res; /// 资源管理上下文
     #endif
         ui_animation_play_t play_info; /// 当前播放的动画信息
+        ui_animation_play_t overlay_play_info; /// overlay 动画信息（不会移除 base）
     } priv;
 
     /// public:
-    void (*animation_play_status_update)(struct ui_manager_context *thiz, bool flag);
     void (*play_animation_lock)(const char *tag);
     void (*play_animation_unlock)(const char *tag);
-    void (*set_lcd_backlight)(struct ui_manager_context *thiz, uint16_t val);
+
 #if IS_SUPPORT_LVGL
     bool (*is_lvgl_initialized)(struct ui_manager_context *thiz);
 #endif
@@ -117,12 +119,17 @@ typedef struct ui_manager_context {
     struct __ui_manager_hook {
         int (*on_post_init_route)(struct ui_manager_context *thiz);
         int (*on_perpare_init_route)(struct ui_manager_context *thiz);
+        void (*on_ui_broadcast_receiver_route)(broadcast_mask_id_t id, void *context, 
+            int arg1, int arg2, broadcast_priv_data_t *pdata);
         void (*ui_thread_init_route)(struct ui_manager_context *thiz);
         void (*lvgl_display_handler)(struct ui_manager_context *thiz);
         void (*ui_animation_play_init)(struct ui_manager_context *thiz, ui_play_info_t play_info);
         void (*ui_animation_play_deinit)(struct ui_manager_context *thiz);
-        void (*on_ui_broadcast_receiver_route)(broadcast_mask_id_t id, void *context, 
-            int arg1, int arg2, broadcast_priv_data_t *pdata);
+        void (*ui_animation_overlay_init)(struct ui_manager_context *thiz, ui_play_info_t play_info);
+        void (*ui_animation_overlay_deinit)(struct ui_manager_context *thiz);
+        void (*set_ui_backlight_onoff)(struct ui_manager_context *thiz, bool onoff);
+        void (*set_ui_backlight_level)(struct ui_manager_context *thiz, uint8_t level);
+        void (*set_ui_backlight_adaptive_level)(struct ui_manager_context *thiz, uint8_t level);
     } *hook;
 } ui_manager_context_t;
 

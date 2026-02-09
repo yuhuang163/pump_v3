@@ -42,12 +42,9 @@ static void factory_reset_led_blink_policy(led_manager_context_t *led)
 
 static void factory_reset_cb(hdr_post_args_t *args)
 {
-    if (!GET_WINDOW_CONTEXT()) {
-        LOG_WM("window context not present, ignore.");
-        return;
-    }
-
     ui_proc_factory_reset_t *proc = (ui_proc_factory_reset_t *)args->user_data;
+    EXCEPTION_CHECK_VOID(proc);
+    WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_FACTORY_RESET);
     stop_factory_reset_ui_animation(proc);
     power_manager_context_t *pm = (power_manager_context_t *)find_module(ID_MODULE_POWER);
     pm->acquire_wakelock("reboot", 10);
@@ -68,7 +65,6 @@ static int entry_event_cb(window_lift_cycle_e new_state,
 
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);
-        ui->animation_play_status_update(ui, false); /// 清除动画播放标志
         factory_reset_led_blink_policy(proc->led);
         start_factory_reset_ui_animation(proc);
         if (pump && pump->is_on_working()) {
@@ -122,6 +118,7 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
     w_ctx->evt_cb_entry = entry_event_cb;
     w_ctx->evt_cb_exit = exit_event_cb;
     w_ctx->not_push_history = 1;
+    w_ctx->is_popup_window = 0;
     wm->dispatch_new_window(w_ctx);
     return ID_WINDOW_DISPLAY_OK;
 }

@@ -30,53 +30,40 @@ static void logo_display_completed_cb(hdr_post_args_t *args)
     ui_proc_logo_t *proc = (ui_proc_logo_t *)args->user_data;
     EXCEPTION_CHECK_VOID(proc);
     LOG_UI("logo play finished");
-    window_manager_context_t *wm = proc->wm;
-    EXCEPTION_CHECK_VOID(wm);
-    if (wm->is_current_window(wm, ID_WINDOW_LOGO) == 0) {
-        return;
-    }
+    WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_LOGO);
     multi_func_msg_data_t msg = {0};
 #if IS_SUPPORT_LVGL
-    if (wm->is_window_factory_test_deployed() == 0) {
+    if (proc->wm->is_window_factory_test_deployed() == 0) {
         LOG_WM("goto factory test screen");
         msg.union_body.extra.window_id = ID_WINDOW_PRODUCT_TEST_MODE;
-        wm->dispatch_new_window_args(wm, &msg);
+        proc->wm->dispatch_new_window_args(proc->wm, &msg);
         goto EXIT_LABEL;
     }
 
-#if (ROOT_PRODUCT_ID == ROOT_PRODUCT_V3PRO_ID)
-    if (proc->battery && proc->battery->is_vbus_plug_in() > 0) {
-        LOG_WM("vbus plug in, goto charge screen");
-        msg.union_body.extra.window_id = ID_WINDOW_CHARGE;
-        wm->dispatch_new_window_args(wm, &msg);
-        return;
-    }
-#else
     if (proc->battery && proc->battery->is_vbus_plug_in() > 0 &&
         proc->battery->is_adapter_mismatch() > 0) {
         LOG_WM("vbus plug in, goto charge screen");
         msg.union_body.extra.window_id = ID_WINDOW_CHARGE;
-        wm->dispatch_new_window_args(wm, &msg);
+        proc->wm->dispatch_new_window_args(proc->wm, &msg);
         return;
     }
-#endif
 
     if (proc->airplane && proc->airplane->is_on_airplane_mode()) {
         LOG_WM("goto airplane mode screen");
         msg.union_body.extra.window_id = ID_WINDOW_AIRPLANE_MODE;
-        wm->dispatch_new_window_args(wm, &msg);
+        proc->wm->dispatch_new_window_args(proc->wm, &msg);
         return;
     }
 
-    if (wm->is_window_guidance_deployed() == 0) {
+    if (proc->wm->is_window_guidance_deployed() == 0) {
         LOG_WM("goto guide screen");
         msg.union_body.extra.window_id = ID_WINDOW_GUIDE;
-        wm->dispatch_new_window_args(wm, &msg);
+        proc->wm->dispatch_new_window_args(proc->wm, &msg);
         goto EXIT_LABEL;
     }    
     LOG_WM("goto pump screen");
     msg.union_body.extra.window_id = ID_WINDOW_PUMP;
-    wm->dispatch_new_window_args(wm, &msg);
+    proc->wm->dispatch_new_window_args(proc->wm, &msg);
 EXIT_LABEL:
     if (proc->led && proc->led->hook && proc->led->hook->set_key_backlight) {
         proc->led->hook->set_key_backlight(proc->led, 100);
@@ -85,12 +72,12 @@ EXIT_LABEL:
     if (proc->airplane && proc->airplane->is_on_airplane_mode()) {
         LOG_WM("goto airplane mode screen");
         msg.union_body.extra.window_id = ID_WINDOW_AIRPLANE_MODE;
-        wm->dispatch_new_window_args(wm, &msg);
+        proc->wm->dispatch_new_window_args(proc->wm, &msg);
         return;
     }
     LOG_WM("goto pump screen");
     msg.union_body.extra.window_id = ID_WINDOW_PUMP;
-    wm->dispatch_new_window_args(wm, &msg);
+    proc->wm->dispatch_new_window_args(proc->wm, &msg);
 #endif
 }
 
@@ -184,6 +171,5 @@ void stop_logo_ui_animation(ui_proc_logo_t *proc)
     ui_manager_context_t *ui = proc->ui;
     EXCEPTION_CHECK_VOID(ui->hook && ui->hook->ui_animation_play_deinit);
     ui->hook->ui_animation_play_deinit(ui);
-    ui->animation_play_status_update(ui, false);
     proc->last_progress_ani_time = get_timestamp();
 }

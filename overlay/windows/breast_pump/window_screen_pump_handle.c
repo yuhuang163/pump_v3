@@ -48,93 +48,69 @@ INIT_WINDOW_CONTEXT();
 */
 static void on_breast_pump_result_cb(void *user_data, breast_pump_result_t *result)
 {
-    if (!GET_WINDOW_CONTEXT()) {
-        LOG_WM("window context not present, ignore.");
-        return;
-    }
+    ui_proc_pump_t *proc = (ui_proc_pump_t *)user_data;
+    EXCEPTION_CHECK_VOID(proc);
+    WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_PUMP);
 }
 
 static void pump_ui_common_cb(hdr_post_args_t *args)
 {
-    if (!GET_WINDOW_CONTEXT()) {
-        LOG_WM("window context not present, ignore.");
-        return;
-    }
     ui_proc_pump_t *proc = args->user_data;
     EXCEPTION_CHECK_VOID(proc);
+    WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_PUMP);
     LOG_WM("pump_ui_common_cb, margic:%x, action:%d.", proc->margic, args->arg1);
     int action = args->arg1;
     switch (action) {
-        case PUMP_HDR_ACTION_START_PUMP: {
+        case PUMP_HDR_ACTION_START_PUMP: 
             LOG_WM("%s", args->name);
-        }
-        break;
-        
-        case PUMP_HDR_ACTION_CHANGE_PUMP_STATUS: {
-            int new_state = args->arg2;
-            LOG_WM("%s, new_state: %d", args->name, new_state);
-            if (proc->ui_show_state != new_state) {
-                proc->ui_show_state = new_state;
+            break;
+        case PUMP_HDR_ACTION_CHANGE_PUMP_STATUS: 
+            LOG_WM("%s, new_state: %d", args->name, args->arg2);
+            if (proc->ui_show_state != args->arg2) {
+                proc->ui_show_state = args->arg2;
             }
-        }
-        break;
-        
-        case PUMP_HDR_ACTION_LOOP_SHOW: {
+            break;
+        case PUMP_HDR_ACTION_LOOP_SHOW: 
             /// TODO: 轮播显示
-        }
-        break;
-        
-        case PUMP_HDR_ACTION_SHOW_ONCE: {
-            int new_state = args->arg2;
-            LOG_WM("%s, new_state: %d", args->name, new_state);
-            if (proc->ui_show_state != new_state) {
-                proc->ui_show_state = new_state;
+            break;
+        case PUMP_HDR_ACTION_SHOW_ONCE: 
+            LOG_WM("%s, new_state: %d", args->name, args->arg2);
+            if (proc->ui_show_state != args->arg2) {
+                proc->ui_show_state = args->arg2;
             }
-        }
-        break;
-
-        case PUMP_HDR_ACTION_SHOW_THEMES_ANI: {
+            break;
+        case PUMP_HDR_ACTION_SHOW_THEMES_ANI: 
             LOG_WM("%s", args->name);
             /// TODO: 播放主题动画
-        }
-        break;
-
-        case PUMP_HDR_ACTION_RECOVER_DEFAULT_ANI: {
+            break;
+        case PUMP_HDR_ACTION_RECOVER_DEFAULT_ANI: 
             LOG_WM("%s: recovery-play..", args->name);
             show_pump_home_ui(proc);
-        }
-        break;
-
-        case PUMP_HDR_ACTION_PROGRESS_STOP: {
+            break;
+        case PUMP_HDR_ACTION_PROGRESS_STOP: 
             /// TODO: 停止进度条
-        }
-        break;
-
-        case PUMP_HDR_ACTION_PUMP_COMPLETE: {
+            break;
+        case PUMP_HDR_ACTION_PUMP_COMPLETE: 
             // REMOVE_ALL_HANDER_TASK();
             LOG_WM("pump complete, show progress time policy.");
             if (proc->pump) {
                 show_pump_progress_time_policy(proc, proc->pump);
             }
-        }
-        break;
-
+            break;
         default:
-        break;
+            LOG_WM("unknow action: %d, ignore.", action);
+            break;
     }
 }
 
 static int on_pump_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t keytype)
 {
-    if (!GET_WINDOW_CONTEXT()) {
-        LOG_WM("window context not present, ignore.");
-        return 0;
-    }
     ui_proc_pump_t *proc = user_data;
     EXCEPTION_CHECK_INT(proc);
     EXCEPTION_CHECK_INT(proc->pump);
     EXCEPTION_CHECK_INT(proc->key);
     EXCEPTION_CHECK_INT(proc->ui);
+    WINDOW_CONTEXT_GUARD_INT(proc, ID_WINDOW_PUMP, 0);
     breast_pump_info_t pump_info = {
         .status = proc->pump->get_breast_pump_status(),
         .mode = proc->pump->get_breast_pump_mode(),
@@ -203,7 +179,6 @@ static int on_pump_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
         case KEY_CODE_KNOB_RIGHT:
             switch_pump_level_ui(proc, proc->pump, &pump_info, 0);
             break;
-
         default:
             LOG_WM("unknow keycode: %d, ignore.", keycode);
             break;
@@ -215,14 +190,10 @@ static int on_pump_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
 static void on_pump_ui_broadcast_receive_cb(broadcast_mask_id_t id, void *context, int arg1, int arg2,
      broadcast_priv_data_t *pdata)
 {
-    if (!GET_WINDOW_CONTEXT()) {
-        LOG_WM("window context not present, ignore.");
-        return;
-    }
-
     ui_proc_pump_t *proc = (ui_proc_pump_t *)context;
     EXCEPTION_CHECK_VOID(proc);
     EXCEPTION_CHECK_VOID(proc->pump);
+    WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_PUMP);
     /// 获取泵奶状态.
     int pump_status = proc->pump->get_breast_pump_status();
     int pump_mode = proc->pump->get_breast_pump_mode();
@@ -276,7 +247,7 @@ static int entry_event_cb(window_lift_cycle_e new_state,
         LOG_WM("==>%s window on resume", PAGE_NAME_STR);
         if (proc->key) {
             proc->key->add_keyevent_handler("pump_wm", proc, PUMP_UI_KEY_CODE, PUMP_UI_KEY_TYPE,
-                 on_pump_ui_keyevent_hdr);
+                 on_pump_ui_keyevent_hdr, KEY_HANDLER_SHIELD_LEVEL_1);
         } else {
             LOG_WM("key not present, ignore.");
         }
@@ -287,9 +258,6 @@ static int entry_event_cb(window_lift_cycle_e new_state,
         }
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);
-        if (proc->ui) {
-            proc->ui->animation_play_status_update(proc->ui, false); /// 清除动画播放标志
-        }
         show_pump_home_ui(proc);
     }
     return 0;
@@ -314,7 +282,7 @@ static int exit_event_cb(window_lift_cycle_e new_state,
     EXCEPTION_CHECK_INT(proc);
     EXCEPTION_CHECK_INT(proc->pump);
     switch (new_state) {
-        case ID_SCR_STATE_ON_PAUSE: {
+        case ID_SCR_STATE_ON_PAUSE:
             proc->user_pause = 1;
             LOG_WM("==>%s window on pause", PAGE_NAME_STR);
             stop_pump_ui_animation(proc); 
@@ -323,9 +291,7 @@ static int exit_event_cb(window_lift_cycle_e new_state,
             remove_breast_pump_result_cb(proc->pump);
             EXCEPTION_CHECK_INT(proc->key);
             proc->key->remove_keyevent_handler(on_pump_ui_keyevent_hdr);
-        }
-        break;
-
+            break;
         case ID_SCR_STATE_ON_DESTORY:
             LOG_WM("==>%s window on destory", PAGE_NAME_STR);
             SET_WINDOW_CONTEXT(NULL);
@@ -381,7 +347,10 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
     w_ctx->evt_cb_entry = entry_event_cb;
     w_ctx->evt_cb_exit = exit_event_cb;
     w_ctx->not_push_history = 1;
+    w_ctx->is_popup_window = 0;
+    w_ctx->user_data = NULL;
     wm->dispatch_new_window(w_ctx);
+    
     return ID_WINDOW_DISPLAY_OK;
 }
 

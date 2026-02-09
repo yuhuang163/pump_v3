@@ -79,7 +79,7 @@ static void ota_upgrade_state_start(ota_manager_context_t *ctx)
     if (wm && wm->dispatch_new_window_args) {
         multi_func_msg_data_t msg = {0};
         msg.union_body.extra.window_id = ID_WINDOW_OTA_UPGRADE;
-        msg.union_body.extra.is_background = 0x1;
+        msg.union_body.extra.is_bg_dispatch = 0x01;
         wm->dispatch_new_window_args(wm, &msg);
     }
 }

@@ -2,18 +2,15 @@
 * INCLUDE FILES
 *****************************************************************************************
 */
-#include "hal_light_sensor.h"
-#include "root_common.h"
 #include "root_common_api.h" // IWYU pragma: keep
-#include "sensor_manager_api.h"
-#include <stdint.h>
 #include "adaptive_dimming.h" // IWYU pragma: keep
 
 /*
 * DEFINES
 *****************************************************************************************
 */
-#define ADAP_DIM_INVALID_DUTY            255            /// 无效的LED亮度等级
+#define ADAP_DIM_INVALID_DUTY                       255            /// 无效的LED亮度等级
+#define ADAPTIVE_DIMMING_DEBUG_LOG                  (1)            /// 自适应背光调试日志 0: 不打印 1: 打印
 
 /*
 * LOCAL VARIABLE DEFINITIONS
@@ -137,13 +134,28 @@ static void adaptive_dimming_polling_thread(void *user_data)
     }
     adaptive->capture_data.is_acquire_complete = 0; /// 采集完成标志清零
     lux_avg = lux_sum / ADAP_DIM_DATA_SIZE;
+
+#if ADAPTIVE_DIMMING_DEBUG_LOG
+    static uint8_t log_count = 0;
+    log_count++;
+    if (log_count > 10) {
+        LOG_MISC("lux_avg: %d", lux_avg);
+        log_count = 0;
+    }
+#endif
+
     uint8_t refresh_duty = 0;
     if (adaptive_dimming_duty_calculate(lux_avg, &refresh_duty) == 0) {
         return;
     }
 
-    if ( led->hook && led->hook->night_light_adaptive_level_update) {
+    if (led->hook && led->hook->night_light_adaptive_level_update) {
         led->hook->night_light_adaptive_level_update(led, refresh_duty);
+    }
+    
+    ui_manager_context_t *ui = (ui_manager_context_t *)find_module(ID_MODULE_UI);
+    if (ui && ui->hook) {
+        ui->hook->set_ui_backlight_adaptive_level(ui, refresh_duty);
     }
 }
 
@@ -225,4 +237,5 @@ bool light_sensor_data_report(uint8_t *data)
             SERVERS_PUBLISH_DATA_LIGHT_SENSOR_SAMPLING, &args);
         light_sample_count = 0;
     }
+    return true;
 }

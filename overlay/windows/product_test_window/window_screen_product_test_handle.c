@@ -3,7 +3,7 @@
 *****************************************************************************************
 */
 #include "window_screen_product_test.h"
-#include "factory_tests_handler.h"
+#include "factory_tests_handler.h" // IWYU pragma: keep
 
 /*
 * DEFINES
@@ -40,12 +40,9 @@ INIT_WINDOW_CONTEXT();
 */
 static void factory_tests_event_report_cb(void *user_data, uint16_t event_id, void *data, int data_len)
 {
-    if (!GET_WINDOW_CONTEXT()) {
-        LOG_WM("window context not present, ignore.");
-        return;
-    }
     ui_proc_product_test_t *proc = (ui_proc_product_test_t *)user_data;
     EXCEPTION_CHECK_VOID(proc);
+    WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_PRODUCT_TEST_MODE);
     LOG_WM("factory_tests_event_report_cb event_id: %d", event_id);
     switch (event_id) {
         case FAC_TST_READ_SW_VER_EVENT: {
@@ -61,12 +58,9 @@ static void factory_tests_event_report_cb(void *user_data, uint16_t event_id, vo
 
 static void product_test_ui_common_cb(hdr_post_args_t *args)
 {
-    if (!GET_WINDOW_CONTEXT()) {
-        LOG_WM("window context not present, ignore.");
-        return;
-    }
     ui_proc_product_test_t *proc = args->user_data;
     EXCEPTION_CHECK_VOID(proc);
+    WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_PRODUCT_TEST_MODE);
     int action = args->arg1;
     switch (action) {
         case PRODUCT_TEST_HOME: 
@@ -94,12 +88,9 @@ static void product_test_ui_common_cb(hdr_post_args_t *args)
 
 static int product_test_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t keytype)
 {
-    if (!GET_WINDOW_CONTEXT()) {
-        LOG_WM("window context not present, ignore.");
-        return 0;
-    }
     ui_proc_product_test_t *proc = user_data;
     EXCEPTION_CHECK_INT(proc);
+    WINDOW_CONTEXT_GUARD_INT(proc, ID_WINDOW_PRODUCT_TEST_MODE, 0);
     EXCEPTION_CHECK_INT(proc->key);
     switch (proc->tests_mode) {
         case PRODUCT_TEST_HOME_MODE:
@@ -121,11 +112,7 @@ static void product_test_broadcast_receive_cb(broadcast_mask_id_t id, void *cont
 {
     ui_proc_product_test_t *proc = (ui_proc_product_test_t *)context;
     EXCEPTION_CHECK_VOID(proc);
-    if (!GET_WINDOW_CONTEXT()) {
-        LOG_WM("window context not present, return.");
-        return;
-    }
-
+    WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_PRODUCT_TEST_MODE);
     switch (id.code) {
         case ID_BROADCAST_FACTORY_TEST_CMD:
             if (arg1 == TST_LCD_COLOR_TYPE) {
@@ -154,13 +141,12 @@ static int entry_event_cb(window_lift_cycle_e new_state,
         LOG_WM("==>%s window on resume", PAGE_NAME_STR);
         if (proc->key) {
             proc->key->add_keyevent_handler("product_test_wm", proc, PRODUCT_TEST_UI_KEY_CODE, 
-                PRODUCT_TEST_UI_KEY_TYPE, product_test_ui_keyevent_hdr);
+                PRODUCT_TEST_UI_KEY_TYPE, product_test_ui_keyevent_hdr, KEY_HANDLER_SHIELD_LEVEL_1);
         }
         POST_TASK_HANDLER_DELAYED_ARG2(product_test_ui_common_cb, 100, PRODUCT_TEST_HOME, proc,
             PRODUCT_TEST_HOME_TASK_NAME);
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>PRODUCT_TEST_ON_CREATE");
-        ui->animation_play_status_update(ui, false); /// 清除动画播放标志
         /// 获取当前测试模式
         uint8_t current_mode = TST_NONE_TYPE;
         if (proc->tests->tests_manager_get_current_mode) {
@@ -186,7 +172,7 @@ static int exit_event_cb(window_lift_cycle_e new_state,
     window_manager_context_t *wm = proc->wm;
     EXCEPTION_CHECK_INT(wm);
     switch (new_state) {
-        case ID_SCR_STATE_ON_PAUSE: {
+        case ID_SCR_STATE_ON_PAUSE: 
             LOG_WM("==>%s window on pause", PAGE_NAME_STR);
             stop_product_test_ui(proc);
             REMOVE_ALL_HANDER_TASK();
@@ -201,8 +187,7 @@ static int exit_event_cb(window_lift_cycle_e new_state,
             } else {
                 LOG_WM("key not present, ignore.");
             }
-        }
-        break;
+            break;
         case ID_SCR_STATE_ON_DESTORY:
             LOG_WM("==>%s window on destory", PAGE_NAME_STR);
             SET_WINDOW_CONTEXT(NULL);
@@ -250,6 +235,7 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
     w_ctx->evt_cb_entry = entry_event_cb;
     w_ctx->evt_cb_exit = exit_event_cb;
     w_ctx->not_push_history = 1; 
+    w_ctx->is_popup_window = 0;
     wm->dispatch_new_window(w_ctx);
     return ID_WINDOW_DISPLAY_OK;
 }

@@ -75,6 +75,11 @@ extern "C" {
 #define RT_PRIO_LED_DEVICE_THREAD                      OS_PRIORITY_REALTIME
 #endif
 
+/// 电机错误检测线程优先级
+#ifndef RT_PRIO_PUMP_MOTOR_CHECK_THREAD
+#define RT_PRIO_PUMP_MOTOR_CHECK_THREAD                OS_PRIORITY_REALTIME
+#endif
+
 ///  各关键业务线程栈深度, 默认线程单位栈深1KB
 #ifndef TASK_SIZE_DEFAULT
 #define TASK_SIZE_DEFAULT                              (1024)
@@ -172,6 +177,11 @@ extern "C" {
 #define LED_DEVICE_THREAD_STACKSIZE                    (TASK_SIZE_DEFAULT * 1 + 0)
 #endif
 
+/// 电机错误检测线程栈大小
+#ifndef PUMP_MOTOR_CHECK_THREAD_STACKSIZE
+#define PUMP_MOTOR_CHECK_THREAD_STACKSIZE              (TASK_SIZE_DEFAULT * 2)
+#endif
+
 /// 各关键业务消息队列数量定义.
 #define DISP_DISPATCH_EVT_MESQ_NUM                    (10)
 #define INPUT_DISPATCH_KEY_EVT_MESQ_NUM               (2)
@@ -190,6 +200,7 @@ extern "C" {
 #define BCR_THD_MESQ_NUM                              (30)
 #define ALGO_WORK_MESQ_NUM                            (2)
 #define AUDIO_PLAY_STREAM_MESQ_NUM                    (2)
+#define PUMP_MOTOR_CHECK_MESQ_NUM                     (2)
 
 #ifdef __cplusplus
 }

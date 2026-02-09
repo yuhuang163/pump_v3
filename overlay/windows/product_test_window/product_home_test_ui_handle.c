@@ -24,45 +24,32 @@ static void product_home_test_display_completed_cb(hdr_post_args_t *args)
 {
     ui_proc_product_test_t *proc = (ui_proc_product_test_t *)args->user_data;
     EXCEPTION_CHECK_VOID(proc);
-    window_manager_context_t *wm = proc->wm;
-    EXCEPTION_CHECK_VOID(wm);
-    if (wm->is_current_window(wm, ID_WINDOW_PRODUCT_TEST_MODE) == 0) {
-        return;
-    }
+    WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_PRODUCT_TEST_MODE);
     multi_func_msg_data_t msg = {0};    
-#if (ROOT_PRODUCT_ID == ROOT_PRODUCT_V3PRO_ID)
-    if (proc->battery && proc->battery->is_vbus_plug_in() > 0) {
-        LOG_WM("vbus plug in, goto charge screen");
-        msg.union_body.extra.window_id = ID_WINDOW_CHARGE;
-        wm->dispatch_new_window_args(wm, &msg);
-        return;
-    }
-#else
     if (proc->battery && proc->battery->is_vbus_plug_in() > 0 &&
         proc->battery->is_adapter_mismatch() > 0) {
         LOG_WM("vbus plug in, goto charge screen");
         msg.union_body.extra.window_id = ID_WINDOW_CHARGE;
-        wm->dispatch_new_window_args(wm, &msg);
+        proc->wm->dispatch_new_window_args(proc->wm, &msg);
         return;
     }
-#endif
 
     if (proc->airplane && proc->airplane->is_on_airplane_mode()) {
         LOG_WM("goto airplane mode screen");
         msg.union_body.extra.window_id = ID_WINDOW_AIRPLANE_MODE;
-        wm->dispatch_new_window_args(wm, &msg);
+        proc->wm->dispatch_new_window_args(proc->wm, &msg);
         return;
     }
 
-    if (wm->is_window_guidance_deployed() == 0) {
+    if (proc->wm->is_window_guidance_deployed() == 0) {
         LOG_WM("goto guide screen");
         msg.union_body.extra.window_id = ID_WINDOW_GUIDE;
-        wm->dispatch_new_window_args(wm, &msg);
+        proc->wm->dispatch_new_window_args(proc->wm, &msg);
         return;
     }
     LOG_WM("goto pump screen");
     msg.union_body.extra.window_id = ID_WINDOW_PUMP;
-    wm->dispatch_new_window_args(wm, &msg);
+    proc->wm->dispatch_new_window_args(proc->wm, &msg);
 }
 
 static void product_home_test_ui_after_policy(ui_manager_context_t *ui, int index)

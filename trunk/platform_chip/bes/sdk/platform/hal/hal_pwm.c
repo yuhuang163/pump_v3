@@ -326,6 +326,96 @@ int hal_pwm_update_duty_only(enum HAL_PWM_ID_T id, uint8_t duty, uint32_t freq)
 
     return 0;
 }
+
+int hal_pwm_update_pulse_width(enum HAL_PWM_ID_T id, uint32_t pulse_width, uint32_t freq)
+{
+    uint32_t mod_freq;
+    uint32_t load;
+    uint32_t toggle;
+    uint32_t lock;
+    uint8_t index;
+    uint8_t offset;
+
+    if (id >= HAL_PWM_ID_QTY) {
+        return 1;
+    }
+
+    if (pulse_width > freq) {
+        return 2;
+    }
+
+    // 检查PWM是否已经启动
+    if ((pwm_map & (1 << id)) == 0) {
+        // PWM未启动，返回错误
+        return 3;
+    }
+
+#ifdef PWM1_BASE
+    if (id < HAL_PWM1_ID_0) {
+        index = 0;
+        offset = id - HAL_PWM_ID_0;
+    } else {
+        index = 1;
+        offset = id - HAL_PWM1_ID_0;
+    }
+#else
+    index = 0;
+    offset = id - HAL_PWM_ID_0;
+#endif
+
+    // 使用已保存的mod_freq，如果没有则根据freq计算
+    if (pwm_mod_freq[id] != 0) {
+        mod_freq = pwm_mod_freq[id];
+    } else {
+        // 如果没有保存的频率信息，使用默认值
+        mod_freq = PWM_FAST_CLOCK;
+    }
+
+    // 根据freq重新计算load值，确保与设置一致（不读取硬件寄存器）
+    if (pulse_width == freq) {
+        toggle = PWM_MAX_VALUE;
+    } else if (pulse_width == 0) {
+        toggle = 0;
+    } else {
+        // 使用与hal_pwm_enable相同的计算方式，确保一致性
+        // 占空比 = pulse_width/freq，高电平计数值 = load * pulse_width / freq
+        load = mod_freq / freq;
+        if (load == 0) {
+            load = 1;
+        }
+        // 四舍五入：(load * pulse_width + freq/2) / freq
+        toggle = (load * pulse_width + freq / 2) / freq;
+        if (toggle == 0) {
+            toggle = 1;
+        }
+        if (toggle > load) {
+            toggle = load;
+        }
+        toggle = PWM_MAX_VALUE - toggle;
+    }
+
+    lock = int_lock();
+
+    // 使用内存屏障确保寄存器写入顺序，减少不连续的可能性
+    __DMB();
+    
+    // 只修改TOGGLE寄存器，不修改EN位，保持PWM运行
+    if (offset == 0) {
+        pwm[index]->TOGGLE01 = SET_BITFIELD(pwm[index]->TOGGLE01, PWM_TOGGLE01_0, toggle);
+    } else if (offset == 1) {
+        pwm[index]->TOGGLE01 = SET_BITFIELD(pwm[index]->TOGGLE01, PWM_TOGGLE01_1, toggle);
+    } else if (offset == 2) {
+        pwm[index]->TOGGLE23 = SET_BITFIELD(pwm[index]->TOGGLE23, PWM_TOGGLE23_2, toggle);
+    } else {
+        pwm[index]->TOGGLE23 = SET_BITFIELD(pwm[index]->TOGGLE23, PWM_TOGGLE23_3, toggle);
+    }
+    
+    __DMB();
+
+    int_unlock(lock);
+
+    return 0;
+}
 #endif
 
 int hal_pwm_breathing_led_enable(enum HAL_PWM_ID_T id, const struct HAL_PWM_BR_CFG_T *cfg)

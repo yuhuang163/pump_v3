@@ -10,6 +10,7 @@
 #include "hal_trace.h" // IWYU pragma: keep
 #include "cmsis_os_api.h" // IWYU pragma: keep
 
+
 //工厂测试共用日志uart接口
 #define FACTORY_UART_USE_TRACE                    1
 
@@ -44,15 +45,22 @@ static unsigned int factory_uart_recv_handler(unsigned char *rx_buff, unsigned i
     // 协议最小帧长度：
     // - comm_protocol (新协议): 16字节 (COMM_PROTOCOL_FRAME_SIZE_MIN)
     // - app_old_protocol (旧协议): 6字节 (Header(2) + CT(1) + CID(1) + CAL(1) + Checksum(1))
-    // 使用 len < 6 可以过滤掉所有小于最小协议帧长度的噪声数据
+    // 使用 len < COMM_PROTOCOL_HEADER_SIZE 可以过滤掉所有小于最小协议头长度的噪声数据
     if (len < 6) {
-        LOGW("factory uart rx: filtered short data, len=%d (min frame size: 6 bytes)", len);
+        LOGW("factory uart rx: filtered short data, len=%d ", len);
         return len;
     }
     
     // 检查缓冲区指针
     if (rx_buff == NULL) {
         LOGE("factory uart rx: NULL buffer pointer");
+        return len;
+    }
+    
+    /// 只接受 comm_protocol 帧：检查 SOF 是否为 COMM_PROTOCOL_SOF (0x5CC5，小端序: 0xC5,0x5C)
+    uint16_t sof = (uint16_t)rx_buff[0] | ((uint16_t)rx_buff[1] << 8);
+    if (sof != 0x5CC5 ) {
+        LOGW("factory uart rx: non-comm_protocol header, sof=0x%04X", sof);
         return len;
     }
     
@@ -80,7 +88,7 @@ static unsigned int factory_uart_recv_handler(unsigned char *rx_buff, unsigned i
 static void factory_uart_event_thread(const void *args)
 {
     factory_uart_msg_data_t msg = {0};
-    CREATE_MSG_TYPE_QUEUE(&factory_uart_recv_msg_id, 3, sizeof(factory_uart_msg_data_t));
+    CREATE_MSG_TYPE_QUEUE(&factory_uart_recv_msg_id, 10, sizeof(factory_uart_msg_data_t));
     while (1) {
         MSG_QUEUE_RECV(factory_uart_recv_msg_id, &msg, OS_WAIT_FOREVER);
     

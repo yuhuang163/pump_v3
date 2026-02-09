@@ -12,20 +12,24 @@ extern "C" {
 #include "windows_manager_api.h" // IWYU pragma: keep
 #include "ui_manager_api.h" // IWYU pragma: keep
 
+/// 调试LV FPS.
 #define DEBUG_LV_FPS (1)
 
+/// 锁定窗口切换锁.
 #define MUTEX_LOCK_WM(tag, __lock) \
 do { \
     MUTEX_LOCK(__lock); \
     if (tag) LOG_WM("display_stack_lock=>Take:%s", (char *)tag); \
 } while (0)
 
+/// 解锁窗口切换锁.
 #define MUTEX_UNLOCK_WM(tag, __lock) \
 do { \
     if (tag) LOG_WM("display_stack_lock=>Give:%s", (char *)tag); \
     MUTEX_UNLOCK(__lock); \
 } while (0)
 
+/// 打印窗口历史记录.
 #define DUMP_HISTORY(tag, head) \
 do { \
     int j = 0; \
@@ -43,14 +47,65 @@ do { \
 #define INIT_WINDOW_CONTEXT() \
     static void *__s_window_refs = NULL
 
+/// 获取窗口上下文.
 #define GET_WINDOW_CONTEXT() (__s_window_refs)
 
+/// 窗口上下文保护宏定义.
+#define WINDOW_CONTEXT_GUARD_VOID(proc, expected_window_id) \
+    do { \
+        window_manager_context_t *__wm = (proc) ? (proc)->wm : NULL; \
+        EXCEPTION_CHECK_VOID(__wm); \
+        if ((__wm->get_current_window_id() != expected_window_id && \
+             __wm->get_overlay_window_id(__wm) != expected_window_id) || \
+            GET_WINDOW_CONTEXT() == NULL) { \
+            LOG_WM("window context not present, ignore."); \
+            return; \
+        } \
+    } while (0)
+
+#define WINDOW_CONTEXT_GUARD_INT(proc, expected_window_id, ret) \
+    do { \
+        window_manager_context_t *__wm = (proc) ? (proc)->wm : NULL; \
+        EXCEPTION_CHECK_INT(__wm); \
+        if ((__wm->get_current_window_id() != expected_window_id && \
+             __wm->get_overlay_window_id(__wm) != expected_window_id) || \
+            GET_WINDOW_CONTEXT() == NULL) { \
+            LOG_WM("window context not present, ignore."); \
+            return (ret); \
+        } \
+    } while (0)
+
+/// 窗口ID保护宏定义.
+#define WINDOW_ID_GUARD_VOID(proc, expected_window_id) \
+    do { \
+        window_manager_context_t *__wm = (proc) ? (proc)->wm : NULL; \
+        EXCEPTION_CHECK_VOID(__wm); \
+        if (__wm->get_current_window_id() != expected_window_id && \
+            __wm->get_overlay_window_id(__wm) != expected_window_id) { \
+            LOG_WM("window id not match, ignore."); \
+            return; \
+        } \
+    } while (0)
+
+#define WINDOW_ID_GUARD_INT(proc, expected_window_id, ret) \
+    do { \
+        window_manager_context_t *__wm = (proc) ? (proc)->wm : NULL; \
+        EXCEPTION_CHECK_INT(__wm); \
+        if (__wm->get_current_window_id() != expected_window_id && \
+            __wm->get_overlay_window_id(__wm) != expected_window_id) { \
+            LOG_WM("window id not match, ignore."); \
+            return (ret); \
+        } \
+    } while (0)
+
+/// 设置窗口上下文.
 #define SET_WINDOW_CONTEXT(ctx) \
     do { \
         __s_window_refs = ctx; \
         LOG_UI("set_window_context:%p", __s_window_refs); \
     } while (0)
 
+/// 判断窗口上下文是否存在.
 #define IS_WINDOW_CONTEXT_PRESENT(closure) \
     do { \
         if (__s_window_refs != NULL) { \
@@ -60,17 +115,20 @@ do { \
         } \
     } while (0)
 
+/// 窗口动作.
 typedef enum {
     ACTION_SET_BL = 1,
     ACTION_STOP_LV_TICK_TIMER,
     ACTION_BOOT_COMPLETED,
 } window_action_e;
 
+/// 窗口历史记录.
 typedef struct {
     uint8_t window_id;
     list_head_t list;
 } window_history_node_t;
 
+/// 窗口生命周期记录code.
 typedef enum {
     ID_SCR_STATE_ON_CREATE = 100,
     ID_SCR_STATE_ON_RESUME = 101,
@@ -79,6 +137,7 @@ typedef enum {
     ID_SCR_STATE_MAX
 } window_lift_cycle_e;
 
+/// 窗口显示结果.
 typedef enum {
     ID_WINDOW_DISPLAY_OK = 0,
     ID_WINDOW_DISPLAY_TRY_HISTORY = -1,
@@ -94,18 +153,20 @@ typedef enum {
 /// 窗口生命周期记录code.
 #define UI_WINDOW_MARGIC_CODE (0x44556677)
 #define UI_WINDOW_MARGIC_CODE_INVALID (0x00000000)
+
 /// UI生命周期监听
 struct window_context;
 typedef int (*window_life_cycle_enter_cb)(window_lift_cycle_e new_state, 
     const struct window_context *thiz, const struct window_context *old_scr);
 
+/// 窗口生命周期退出回调.
 typedef int (*window_life_cycle_exit_cb)(window_lift_cycle_e new_state, 
     const struct window_context *thiz, const struct window_context *new_scr);
 
+/// 窗口事件异步处理回调.
 typedef int (*window_async_evt_handler_cb)(struct window_event_data *evt_data);
 
-
-
+/// 窗口上下文.
 typedef struct window_context {
     /// 当前窗口ID
     uint8_t new_window_id;
@@ -126,9 +187,7 @@ typedef struct window_context {
     window_life_cycle_exit_cb evt_cb_exit;  
 } window_context_t;
 
-/**
- * 描述窗口切换的生命周期.
- */
+/// 描述窗口切换的生命周期.
 typedef struct {
     void (*on_create)(void *ptr);   /// 创建
     void (*on_resume)(void *ptr);   /// 恢复
@@ -141,9 +200,7 @@ typedef struct {
 
 typedef window_enter_result_e (*enter_new_window_fptr)(window_manager_context_t *context, uint8_t window_id);
 
-/**
- * 描述窗口处理结构.
- */
+/// 描述窗口处理结构.
 typedef struct {
     window_id_e window_id;                         /// 窗口id
     window_priority_e z_order;                     /// 窗口Z轴层级优先级.
@@ -151,14 +208,16 @@ typedef struct {
     const window_life_cycle_t *scr_obj;            /// 窗口UI处理.
 } window_context_handle_t;
 
-/**
- * 窗口记录.
- */
+/// 窗口记录.
 typedef struct {
-    window_context_handle_t *window_hdr;
-    window_context_t *window_context;
-    window_priority_e z_order;
+    window_context_handle_t *window_hdr;       /// 当前窗口
+    window_context_t *window_context;          /// 当前窗口上下文
+    window_priority_e z_order;                 /// 当前窗口层级优先级
+    window_context_handle_t *base_window_hdr;  /// 被覆盖的 base window
+    window_context_t *base_window_context;     /// 被覆盖的 base window 上下文
+    window_priority_e base_z_order;            /// 被覆盖的 base window 层级优先级
 } window_context_record_t;
+
 /*
 * GLOBAL FUNCTION DECLARATION
 *****************************************************************************************

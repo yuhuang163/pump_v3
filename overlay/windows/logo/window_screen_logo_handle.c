@@ -40,7 +40,6 @@ static int entry_event_cb(window_lift_cycle_e new_state,
 
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);
-        ui->animation_play_status_update(ui, false); /// 清除动画播放标志
         start_logo_ui_animation(proc);
     }
     return 0;
@@ -91,6 +90,7 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
     w_ctx->evt_cb_entry = entry_event_cb;
     w_ctx->evt_cb_exit = exit_event_cb;
     w_ctx->not_push_history = 1;
+    w_ctx->is_popup_window = 0;
     wm->dispatch_new_window(w_ctx);
     return ID_WINDOW_DISPLAY_OK;
 }

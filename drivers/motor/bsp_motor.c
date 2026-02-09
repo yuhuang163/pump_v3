@@ -4,6 +4,7 @@
 */
 #include "bsp_motor_internal.h"
 #include "bsp_config.h"
+#include "pump_motor_error_check.h"
 
 /*
 * DEFINES
@@ -27,7 +28,7 @@ static uint8_t motor_power_status = 0;
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-static void motor_power_gpio_init(void)
+static int motor_power_gpio_init(void)
 {
 #if (V3_HARDWARE_VERSION == V3_2710IMP_HARDWARE_V1)
     struct HAL_IOMUX_PIN_FUNCTION_MAP gpio_map = {
@@ -48,6 +49,7 @@ static void motor_power_gpio_init(void)
     hal_iomux_init(&gpio_map, 1);
     hal_gpio_pin_set_dir(PWM_PUMP_EN_PIN, HAL_GPIO_DIR_OUT, 1);
 #endif
+    return BSP_OK;
 }
 
 static void motor_power_control(uint8_t status)
@@ -58,9 +60,20 @@ static void motor_power_control(uint8_t status)
 }
 
 static int motor_dev_open(struct rt_device_node *dev)
-{
+{ 
+    #if DV_DEVICE_ENABLE == DV1_DEVICE_ENABLE
+#if IS_SUPPORT_MOTOR_STALL_DETECT
+    pump_motor_error_check_init();
+#endif
+    bsp_motor_init();
+    return motor_power_gpio_init();
+    #else
     motor_power_gpio_init();
+    #if IS_SUPPORT_MOTOR_STALL_DETECT
+        pump_motor_error_check_init();
+    #endif
     return bsp_motor_init();
+    #endif
 }
 
 static int motor_dev_close(struct rt_device_node *dev)
@@ -96,6 +109,9 @@ static int motor_dev_ioctl(struct rt_device_node *dev, uint32_t op_code, void *a
         case OP_CODE_MOTOR_GET_STATUS:
             return bsp_motor_is_running(args);
 
+        case OP_CODE_MOTOR_ERROR_CHECK_REGISTER_CALLBACK:
+            return pump_motor_error_check_register_callback(args);
+
         default:
             LOGE("err op_code: %lx", op_code);
             return -1;
@@ -105,11 +121,17 @@ static int motor_dev_ioctl(struct rt_device_node *dev, uint32_t op_code, void *a
 static int motor_dev_suspend(struct rt_device_node *dev)
 {
     motor_power_control(0);
+    #if IS_SUPPORT_MOTOR_STALL_DETECT
+        pump_motor_error_check_stop();
+    #endif
     return bsp_motor_deinit();
 }
 
 static int motor_dev_resume(struct rt_device_node *dev)
 {
+    #if IS_SUPPORT_MOTOR_STALL_DETECT
+        pump_motor_error_check_start();
+    #endif
     return bsp_motor_init();
 }
 

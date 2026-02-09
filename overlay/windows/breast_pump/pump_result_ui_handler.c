@@ -29,12 +29,7 @@ static void pump_result_display_completed_cb(hdr_post_args_t *args)
 {
     ui_proc_pump_t *proc = (ui_proc_pump_t *)args->user_data;
     EXCEPTION_CHECK_VOID(proc);
-    window_manager_context_t *wm = proc->wm;
-    EXCEPTION_CHECK_VOID(wm);
-    if (wm->is_current_window(wm, ID_WINDOW_PUMP) == 0) {
-        return;
-    }
-    
+    WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_PUMP);
     if (proc->current_ui_type == PUMP_UI_TYPE_RESULT) {
         show_pump_home_ui(proc);
     }

@@ -534,7 +534,11 @@ static void res_ui_img_data_unload_impl(res_img_info_t *img)
 static void hdr_async_init_cb(hdr_post_args_t *args)
 {
     EXCEPTION_CHECK_VOID(thiz);
-    (void)img_res_validate_and_dump((uint32_t)IMG_INT_DATA_START_ADDR);
+    #if V3_IMG_RES_STORAGE_TYPE == IMG_RES_STORAGE_EXTERNAL_FLASH
+    //(void)img_res_validate_and_dump((uint32_t)IMG_EXT_DATA_START_ADDR);
+    #else
+    //(void)img_res_validate_and_dump((uint32_t)IMG_INT_DATA_START_ADDR);
+    #endif
     if (!thiz->priv.res_init_completed) {
         thiz->priv.res_init_completed = true;
     }

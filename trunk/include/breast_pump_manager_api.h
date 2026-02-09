@@ -43,6 +43,7 @@ typedef enum {
     BREAST_PUMP_FINISH,
     BREAST_PUMP_FACTORY,
     BREAST_PUMP_RESET,
+    BREAST_PUMP_ERROR,
 } breast_pump_status_e;
 
 #define PUMP_IS_GOING(state) (state == BREAST_PUMP_START || state == BREAST_PUMP_CONTINUE)

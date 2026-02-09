@@ -49,12 +49,9 @@ INIT_WINDOW_CONTEXT();
 */
 static void charge_ui_common_cb(hdr_post_args_t *args)
 {
-    if (!GET_WINDOW_CONTEXT()) {
-        LOG_WM("window context not present, ignore.");
-        return;
-    }
     ui_proc_charge_t *proc = args->user_data;
     EXCEPTION_CHECK_VOID(proc);
+    WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_CHARGE);
     LOG_WM("charge_ui_common_cb, margic:%x, action:%d.", proc->margic, args->arg1);
     int action = args->arg1;
     switch (action) {
@@ -96,12 +93,9 @@ static void charge_ui_common_cb(hdr_post_args_t *args)
 static void on_charge_window_receive(broadcast_mask_id_t id, void *context, int arg1, int arg2,
                                      broadcast_priv_data_t *pdata)
 {
-    if (!GET_WINDOW_CONTEXT()) {
-        LOG_WM("window context not present, ignore.");
-        return;
-    }
     ui_proc_charge_t *proc = (ui_proc_charge_t *)context;
     EXCEPTION_CHECK_VOID(proc);
+    WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_CHARGE);
     switch (id.code) {
         case ID_BROADCAST_PM_STATE_CHANGE: 
             break;
@@ -138,12 +132,9 @@ static void on_charge_window_receive(broadcast_mask_id_t id, void *context, int 
 
 static int on_charge_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t keytype)
 {
-    if (!GET_WINDOW_CONTEXT()) {
-        LOG_WM("window context not present, ignore.");
-        return 0;
-    }
-
     ui_proc_charge_t *proc = user_data;
+    EXCEPTION_CHECK_INT(proc);
+    WINDOW_CONTEXT_GUARD_INT(proc, ID_WINDOW_CHARGE, 0);
     if (keytype == KEY_EVENT_LONG_3S) {
         if (keycode == KEY_CODE_POWER) {
             proc->exit_charge_window_flag = 1;
@@ -168,7 +159,7 @@ static int entry_event_cb(window_lift_cycle_e new_state, const struct window_con
         LOG_WM("==>%s window on resume", PAGE_NAME_STR);
         if (proc->key) {
             proc->key->add_keyevent_handler("charge_wm", proc, CHARGE_UI_KEY_CODE, CHARGE_UI_KEY_TYPE,
-                on_charge_keyevent_hdr);
+                on_charge_keyevent_hdr, KEY_HANDLER_SHIELD_LEVEL_1);
         }
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);
@@ -260,6 +251,7 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
     w_ctx->evt_cb_entry = entry_event_cb;
     w_ctx->evt_cb_exit = exit_event_cb;
     w_ctx->not_push_history = 1;
+    w_ctx->is_popup_window = 0;
     w_ctx->user_data = NULL;
     wm->dispatch_new_window(w_ctx);
 

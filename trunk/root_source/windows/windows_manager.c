@@ -30,9 +30,20 @@ static window_context_record_t s_window_record = {0};
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
+static int window_exit_state_change_cb(window_lift_cycle_e new_state,
+    const struct window_context *ctx, const struct window_context *new_window);
+static int window_enter_state_change_cb(window_lift_cycle_e new_state,
+    const struct window_context *ctx, const struct window_context *old_window);
+
 static uint8_t get_current_window_id(void)
 {
-    return s_window_record.window_hdr ? s_window_record.window_hdr->window_id : 0;
+    return s_window_record.window_hdr ? s_window_record.window_hdr->window_id : ID_WINDOW_INVALID;
+}
+
+static uint8_t get_overlay_window_id(struct window_manager_context *wm)
+{
+    (void)wm;
+    return s_window_record.base_window_hdr ? s_window_record.base_window_hdr->window_id : ID_WINDOW_INVALID;
 }
 
 static window_context_handle_t *dichotomy_find_window_obj(uint16_t window_id)
@@ -195,6 +206,53 @@ static uint8_t pop_window_history(void)
     return to_valid_window_id(wm, window_id);
 }
 
+static int close_popup_overlay_internal(window_manager_context_t *wm, window_entry_extra_t *__extra)
+{
+    (void)__extra;
+    window_context_record_t *record = &s_window_record;
+    if (record->base_window_context == NULL || record->base_window_hdr == NULL) {
+        return -1;
+    }
+    window_context_handle_t *popup_hdr = record->window_hdr;
+    window_context_t *popup_ctx = record->window_context;
+    window_context_handle_t *base_hdr = record->base_window_hdr;
+    window_context_t *base_ctx = record->base_window_context;
+    /// 校验 popup 窗口是否存在且为 popup 窗口
+    if (popup_hdr == NULL || popup_ctx == NULL || popup_ctx->is_popup_window == 0) {
+        return -2;
+    }
+    LOG_WM("close overlay popup: (%s) -> base(%s)",
+           to_window_name(popup_hdr->window_id),
+           base_hdr ? to_window_name(base_hdr->window_id) : "NULL");
+    /// 退出 popup（仅销毁 popup，不触碰 base）
+    if (popup_hdr->scr_obj && popup_hdr->scr_obj->on_pause) {
+        popup_hdr->scr_obj->on_pause(popup_ctx);
+    }
+    /// 退出 popup 窗口生命周期回调
+    window_exit_state_change_cb(ID_SCR_STATE_ON_PAUSE, popup_ctx, base_ctx);
+    /// 销毁 popup 窗口生命周期回调
+    window_exit_state_change_cb(ID_SCR_STATE_ON_DESTORY, popup_ctx, base_ctx);
+    /// 销毁 popup 窗口回调
+    if (popup_hdr->scr_obj && popup_hdr->scr_obj->on_destory) {
+        popup_hdr->scr_obj->on_destory();
+    }
+    /// 恢复 base 为当前窗口
+    record->window_hdr = base_hdr;
+    record->window_context = base_ctx;
+    record->z_order = record->base_z_order;
+#if 0
+    /// 触发 base 的 resume 回调，恢复窗口刷新/任务
+    window_enter_state_change_cb(ID_SCR_STATE_ON_RESUME, base_ctx, popup_ctx);
+    if (base_hdr && base_hdr->scr_obj && base_hdr->scr_obj->on_resume) {
+        base_hdr->scr_obj->on_resume(base_ctx);
+    }
+#endif
+    record->base_window_hdr = NULL;
+    record->base_window_context = NULL;
+    record->base_z_order = 0;
+    return 0;
+}
+
 static void clear_window_history(void)
 {
     window_manager_context_t *wm = thiz;
@@ -211,7 +269,7 @@ static int window_switch(window_manager_context_t *wm, multi_func_msg_data_t *ms
     peripheral_bus_context_t *pbus = (peripheral_bus_context_t *)find_module(ID_MODULE_DEVICE_BUS);
     int new_window_id = wm->is_valid_window_id(msg->union_body.extra.window_id);
     const char *win_name = to_window_name(new_window_id);
-    bool is_bg = msg->union_body.extra.is_background == 0x01;
+    bool is_bg_dispatch = (msg->union_body.extra.is_bg_dispatch == 0x01) ? true : false;
     uint32_t t0 = 0;
 
 #if IS_SUPPORT_DEVICE_FS
@@ -227,7 +285,7 @@ static int window_switch(window_manager_context_t *wm, multi_func_msg_data_t *ms
     }
 
     /// 前台有高优先级窗口情况下，后台拉起优先级低的窗口调度行为将不会被允许.
-    if ((is_bg) && (enter_new_window_policy(new_window_id) < 0)) {
+    if ((is_bg_dispatch) && (enter_new_window_policy(new_window_id) < 0)) {
         LOG_WM("the bg-dispatch(%s/%d) NOT allow!\n", win_name, new_window_id);
         return -3;
     }
@@ -240,7 +298,7 @@ static int window_switch(window_manager_context_t *wm, multi_func_msg_data_t *ms
     if (new_window_id > 0) {
     try_again_dispatch:
         t0 = get_timestamp();
-        LOG_WM("((bg:%d)name=%s)start", is_bg, win_name);
+        LOG_WM("((bg:%d)name=%s)start", is_bg_dispatch, win_name);
         if (new_window_id != ID_WINDOW_DUMMY) {
             if (pm->is_on_suspend_gotoing()) {
                 LOG_WM("pm on_suspend_gotoing, ignore: %d", new_window_id);
@@ -254,21 +312,21 @@ static int window_switch(window_manager_context_t *wm, multi_func_msg_data_t *ms
             if (ret == ID_WINDOW_DISPLAY_OK) {
                 LOG_WM("enter_new_screen[%s]***", win_name);
             } else if (ret == ID_WINDOW_DISPLAY_TRY_HISTORY) {
-                LOG_WM("invalid new_window_id: %d, try history.", new_window_id);
+                LOG_WM("%d window invalid, try history.", new_window_id);
                 new_window_id = pop_window_history();
                 msleep(100);
                 goto try_again_dispatch;
             } else {
-                LOG_WM("dispatch_window:ignore: %d", new_window_id);
+                LOG_WM("dispatch %d window ignore", new_window_id);
                 return -6;
             }
         } else {
-            LOG_WM("dispatch_window:invaild handle, ignore: %d", new_window_id);
+            LOG_WM("dispatch %d window invaild handle, ignore", new_window_id);
             return -7;
         }
-        LOG_WM("(dispatch_window:name=%s)finish escaped: %ld ms", win_name, get_timestamp_ms(t0));
+        LOG_WM("dispatch %s window finish escaped: %ld ms", win_name, get_timestamp_ms(t0));
     } else {
-        LOG_WM("dispatch_window:invalid new_window_id: %d", new_window_id);
+        LOG_WM("dispatch %d window is invalid", new_window_id);
         return -8;
     }
     return 0;
@@ -278,7 +336,7 @@ static int window_post_async_msg(window_manager_context_t *wm, multi_func_msg_da
 {
     int window_id = wm->is_valid_window_id(msg->union_body.window_evt_data.window_id);
     if (window_id == ID_WINDOW_INVALID) {
-        LOGE("ID_WINDOW_INVALID: %d", window_id);
+        LOGE("%d window is invalid", window_id);
         return -1;
     }
 
@@ -301,7 +359,7 @@ static void window_post_async_key_event(multi_func_msg_data_t *msg)
     key_input_context_t *input = (key_input_context_t *)find_module(ID_MODULE_KEY_INPUT);
     int keycode = msg->union_body.key_event_data.keycode;
     int keytype = msg->union_body.key_event_data.keytype;
-    if (input->dispatch_client_input_key) {
+    if (input && input->dispatch_client_input_key) {
         input->dispatch_client_input_key(keycode, keytype);
     }
 }
@@ -316,8 +374,6 @@ static void window_dispatch_thread(const void *args)
     REGISTER_TO_HANDLER_POST_POOL(thd->msg_id, &hdr_process_cb);
     task_post_process_fptr *bcr_process_cb = NULL;
     REGISTER_TO_BROCASE_THD_POOL(thd->msg_id, &bcr_process_cb);
-    LOG_WM("window_dispatch_thread start");
-
     for (;;) {
         thd->is_running = 0;
         MSG_QUEUE_RECV(thd->msg_id, msg, OS_WAIT_FOREVER);
@@ -366,7 +422,7 @@ static void on_wm_receive_internal(broadcast_mask_id_t id, void *context, int32_
     switch (id.code) {
         case ID_BROADCAST_PM_STATE_CHANGE: {
             if (arg1 == PM_BROADCAST_SYS_SUSPEND) {
-                LOG_WM("pm_state : ID_SYS_PM_SUSPEND");
+                LOG_WM("pm state is suspend, clear window history.");
                 clear_window_history();
             } 
         }
@@ -393,9 +449,9 @@ static int dispatch_new_window_args(struct window_manager_context *wm, multi_fun
         return -1;
     }
 
-    int s_bg = (msg->union_body.extra.is_background == 0x01);
-    if (!s_bg || (enter_new_window_policy(window_id) == 0)) {
-        LOG_WM("dispatch-UI(bg: %d)(scr: %s/%d) allow.\n", s_bg, to_window_name(window_id), window_id);
+    bool is_bg_dispatch = (msg->union_body.extra.is_bg_dispatch == 0x01) ? true : false;
+    if (!is_bg_dispatch || (enter_new_window_policy(window_id) == 0)) {
+        LOG_WM("dispatch-UI(bg: %d)(scr: %s/%d) allow.\n", is_bg_dispatch, to_window_name(window_id), window_id);
         if (wm->priv.window_dispatch_thd.msg_id) {
             msg->msg_type = MSG_TYPE_WIN_DISPATCH;
             // LOG_WM("send msg: %d, window_id: %d", msg->msg_type, msg->union_body.extra.window_id);
@@ -403,7 +459,7 @@ static int dispatch_new_window_args(struct window_manager_context *wm, multi_fun
             return 0;
         }
     }
-    LOG_WM("dispatch-UI(bg: %d)(scr: %s/%d) NOT allow!\n", s_bg, to_window_name(window_id), window_id);
+    LOG_WM("dispatch-UI(bg: %d)(scr: %s/%d) NOT allow!\n", is_bg_dispatch, to_window_name(window_id), window_id);
 
     return -1;
 }
@@ -515,7 +571,6 @@ static int window_exit_state_change_cb(window_lift_cycle_e new_state,
             LOGW("#window_private[%d] NOT restore!", old_window_id);
         }
     }
-
     return ret;
 }
 
@@ -525,9 +580,7 @@ static int dispatch_new_window(window_context_t *ctx)
     window_manager_context_t *wm = thiz;
     window_context_record_t *record = &s_window_record;
     static uint32_t counter = 0;
-
 #if IS_SUPPORT_LVGL
-    /// 等待LVGL初始化完成，防止在初始化未完成时创建窗口导致崩溃
     ui_manager_context_t *ui = (ui_manager_context_t *)find_module(ID_MODULE_UI);
     if (ui && ui->is_lvgl_initialized) {
         uint32_t wait_count = 0;
@@ -542,65 +595,97 @@ static int dispatch_new_window(window_context_t *ctx)
         }
     }
 #endif
-
+    /// 查找窗口对象
     next = dichotomy_find_window_obj(ctx->new_window_id);
     if (!next) {
         LOG_WM("not found window_id: %d", ctx->new_window_id);
-        return -1;
+        return -1; 
     }
-
+    /// 校验是否为同一个窗口
     if (wm->is_the_same_window(wm, ctx->new_window_id)) {
-        LOG_WM("ignore the same screen: %s", to_window_name(ctx->new_window_id));
-        return -1;
+        LOG_WM("ignore the same screen: %s", to_window_name(ctx->new_window_id)); /// 忽略同一个窗口
+        return -1; /// 忽略同一个窗口
     }
+    uint32_t t0 = get_timestamp();   /// 获取当前时间戳
+    if (record->base_window_context != NULL && ctx->is_popup_window == 0) {
+        close_popup_overlay_internal(wm, NULL);   /// 已存在 overlay popup，先关闭旧 popup，再创建新 popup（单层 overlay）
+        /// todo: 弹窗支持
+        if (wm->is_the_same_window(wm, ctx->new_window_id)) {
+            LOG_WM("ignore the same screen after closing overlay: %s", to_window_name(ctx->new_window_id));
+            return -1;
+        }
+    }
+    /// overlay popup：不销毁 base window，仅创建 popup 叠加在上层
+    if (ctx->is_popup_window) {
+        if (record->base_window_context != NULL) {
+            close_popup_overlay_internal(wm, NULL); /// 已存在 overlay popup，先关闭旧 popup，再创建新 popup（单层 overlay）
+        }
 
-    uint32_t t0 = get_timestamp();
+        if (record->window_hdr == NULL || record->window_context == NULL) {
+            LOG_WM("no base window present, fallback to normal switch for popup");
+            return -1;
+        } 
+        LOG_WM("overlay popup start: (%s) over base(%s), counter=[%lu]",
+                to_window_name(next->window_id),
+                to_window_name(record->window_hdr->window_id),
+                (++counter));
+        record->base_window_hdr = record->window_hdr;
+        record->base_window_context = record->window_context;
+        record->base_z_order = record->z_order;
+        record->z_order = (ctx->z_order > WINDOW_PRIO_LOW) ? ctx->z_order : next->z_order; /// 更新当前窗口的层级优先级（popup 在顶层）
+        window_enter_state_change_cb(ID_SCR_STATE_ON_CREATE, ctx, record->base_window_context); /// 进入 popup（不 pause/destory base）
+        if (next->scr_obj && next->scr_obj->on_create) {
+            next->scr_obj->on_create(ctx);
+        }
+        window_enter_state_change_cb(ID_SCR_STATE_ON_RESUME, ctx, record->base_window_context);/// 恢复 popup 窗口生命周期回调
+        if (next->scr_obj && next->scr_obj->on_resume) {
+            next->scr_obj->on_resume(ctx);
+        }
+        record->window_hdr = next;
+        record->window_context = ctx;
+        LOG_WM("overlay popup finish: (%s/%d/z_order:%d), escaped: %ld ms",
+                to_window_name(next->window_id), next->window_id, record->z_order, get_timestamp_ms(t0));
+        return 0;
+    }
     LOG_WM("switch_windows start: (%s), new_window_id: %d", to_window_name(ctx->new_window_id), (ctx->new_window_id));
-    /// 先停掉上一个 scr_obj
     if (record->window_hdr != NULL) {
         LOG_WM("on_pause old scr_obj: (%s)", to_window_name(record->window_hdr->window_id));        
         if (record->window_hdr->scr_obj->on_pause) {
             record->window_hdr->scr_obj->on_pause(record->window_context);
         }
-        window_exit_state_change_cb(ID_SCR_STATE_ON_PAUSE, record->window_context, ctx);
+        window_exit_state_change_cb(ID_SCR_STATE_ON_PAUSE, record->window_context, ctx);/// 退出当前窗口生命周期回调
     }
-    /// 更新当前窗口的层级优先级.
-    record->z_order = (ctx->z_order > WINDOW_PRIO_LOW) ? ctx->z_order : next->z_order;
-    /// 再进入新 scr_obj
+   
+    record->z_order = (ctx->z_order > WINDOW_PRIO_LOW) ? ctx->z_order : next->z_order;  /// 更新当前窗口的层级优先级.
     LOG_WM("create new scr_obj:(%s),counter=[%lu]", to_window_name(next->window_id), (++counter));
-    window_enter_state_change_cb(ID_SCR_STATE_ON_CREATE, ctx, record->window_context);
+    window_enter_state_change_cb(ID_SCR_STATE_ON_CREATE, ctx, record->window_context); /// 进入新窗口生命周期回调
     if (next->scr_obj->on_create) {
-        next->scr_obj->on_create(ctx);
+        next->scr_obj->on_create(ctx);   /// 创建新窗口回调
     }
-    
-    window_enter_state_change_cb(ID_SCR_STATE_ON_RESUME, ctx, record->window_context);
+    window_enter_state_change_cb(ID_SCR_STATE_ON_RESUME, ctx, record->window_context); /// 恢复当前窗口生命周期回调
     if (next->scr_obj->on_resume) {
-        next->scr_obj->on_resume(ctx);
+        next->scr_obj->on_resume(ctx);   /// 恢复当前窗口回调
     }
-    
-    /// 释放旧 scr_obj
+
     if (record->window_hdr != NULL && record->window_context != NULL) {
         if (record->window_context->not_push_history) {
-            LOG_WM("not_push_history flag: %s", to_window_name(record->window_hdr->window_id));
+            LOG_WM("not_push_history flag: %s", to_window_name(record->window_hdr->window_id)); /// 不压入历史栈
         } else if (ctx->new_window_id != ID_WINDOW_DUMMY) {
-            push_window_history(record->window_hdr->window_id);
+            push_window_history(record->window_hdr->window_id);   /// 压入历史栈
         }
-        /// 清除Flag.
-        wm->clear_window_go_back_history_flag(wm);
+        wm->clear_window_go_back_history_flag(wm);   /// 清除Flag.
         LOG_WM("destory old scr_obj: (%s)", to_window_name(record->window_hdr->window_id));
-        window_exit_state_change_cb(ID_SCR_STATE_ON_DESTORY, record->window_context, ctx);
+        window_exit_state_change_cb(ID_SCR_STATE_ON_DESTORY, record->window_context, ctx);   /// 销毁当前窗口生命周期回调
         if (record->window_hdr->scr_obj->on_destory) {
-            record->window_hdr->scr_obj->on_destory();
+            record->window_hdr->scr_obj->on_destory();   /// 销毁当前窗口回调
         }
     } else {
-        LOG_WM("Not found prev scr!");
+        LOG_WM("Not found prev scr!"); /// 未找到前一个窗口
     }
-    
-    record->window_hdr = next;
-    record->window_context = ctx;
+    record->window_hdr = next; /// 更新当前窗口记录
+    record->window_context = ctx;   /// 更新当前窗口上下文
     LOGE("switch_windows finish: (%s/%d/z_order:%d), escaped: %ld ms", 
         to_window_name(next->window_id), next->window_id, record->z_order, get_timestamp_ms(t0));
-
     return 0;
 }
 
@@ -620,6 +705,15 @@ static int go_back_to_history_wrapper(void *wm, window_entry_extra_t *__extra)
     _wm->dispatch_new_window_args(_wm, &(msg));
 
     return 0;
+}
+
+static int close_popup_overlay_wrapper(struct window_manager_context *wm, window_entry_extra_t *__extra)
+{
+    EXCEPTION_CHECK_INT(wm);
+    MUTEX_LOCK(wm->priv.window_switch_lock);
+    int ret = close_popup_overlay_internal(wm, __extra);
+    MUTEX_UNLOCK(wm->priv.window_switch_lock);
+    return ret;
 }
 
 static int on_post_wm_init(void *ptr)
@@ -660,8 +754,10 @@ void *register_module_for_window_manager_new(list_head_t *list_head)
     ptr->wait_window_ready = wait_window_ready;
     ptr->to_window_name = to_window_name;
     ptr->get_current_window_id = get_current_window_id;
+    ptr->get_overlay_window_id = get_overlay_window_id;
     ptr->dispatch_new_window_args = dispatch_new_window_args;
     ptr->go_back_to_history = go_back_to_history_wrapper;
+    ptr->close_popup_overlay = close_popup_overlay_wrapper;
     register_window_state_module(ptr);
 
     USE_INIT_LIST_HEAD(&ptr->priv.history_list);

@@ -108,10 +108,11 @@ int write_sys_state_info_to_flash(store_func_args_t args)
 
 void reset_sys_state_info(storage_manager_context_t *ctx, sys_state_info_t *sys_state)
 {
-    sys_state->guide_deployed          = 0;
-    sys_state->sync_sys_time           = 0;
-    sys_state->battery_health          = 100;
-    sys_state->night_light.adaptive_switch    = 1;  //默认开启自适应
+    sys_state->guide_deployed = 0;
+    sys_state->sync_sys_time = 0;
+    sys_state->battery_health = 100;
+    sys_state->airplane_mode_state = 0;
+    sys_state->night_light.adaptive_switch = 1; //默认开启自适应
     store_func_args_t args = {
         .ctx = ctx,
         .arg1 = 0,

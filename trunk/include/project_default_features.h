@@ -30,13 +30,6 @@ extern "C" {
 #endif
 
 /**
- * 输入按键任务投递到UI(WM)线程
- */
-#ifndef IS_INPUT_KEY_TASK_POST_UI_THREAD
-#define IS_INPUT_KEY_TASK_POST_UI_THREAD                             (1)
-#endif
-
-/**
  * 10秒长按软复位
 */
 #ifndef IS_SUPPORT_KEY_SOFT_RESET

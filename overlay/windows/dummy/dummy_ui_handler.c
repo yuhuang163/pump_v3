@@ -29,18 +29,13 @@ static void dummy_display_completed_cb(hdr_post_args_t *args)
 {
     ui_proc_dummy_t *proc = (ui_proc_dummy_t *)args->user_data;
     EXCEPTION_CHECK_VOID(proc);
-    LOG_UI("dummy play finish.\n");
-    window_manager_context_t *wm = proc->wm;
-    EXCEPTION_CHECK_VOID(wm);
+    WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_DUMMY);
+    LOG_UI("dummy play finish");
     storage_manager_context_t *st = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
     EXCEPTION_CHECK_VOID(st);
-    uint8_t airplane_mode_state = 0;
-    if (wm->is_current_window(wm, ID_WINDOW_DUMMY) == 0) {
-        return;
-    }
     multi_func_msg_data_t msg = {0};
     msg.union_body.extra.window_id = ID_WINDOW_LOGO;
-    wm->dispatch_new_window_args(wm, &msg);
+    proc->wm->dispatch_new_window_args(proc->wm, &msg);
     return;
 }
 
@@ -136,6 +131,5 @@ void stop_dummy_ui_animation(ui_proc_dummy_t *proc)
     ui_manager_context_t *ui = proc->ui;
     EXCEPTION_CHECK_VOID(ui->hook && ui->hook->ui_animation_play_deinit);
     ui->hook->ui_animation_play_deinit(ui);
-    ui->animation_play_status_update(ui, false);
     proc->last_progress_ani_time = get_timestamp();
 }

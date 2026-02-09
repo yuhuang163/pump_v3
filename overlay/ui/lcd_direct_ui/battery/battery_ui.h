@@ -20,6 +20,11 @@ void battery_icon_init(ui_manager_context_t *thiz);
 int battery_icon_update(ui_manager_context_t *thiz, lv_obj_t *root, battery_manager_context_t *battery);
 void battery_icon_deinit(ui_manager_context_t *thiz);
 
+/// 低电量提示页面
+void ui_display_battery_low_power_prepare(ui_manager_context_t *thiz);
+void ui_display_battery_low_power_remove(ui_manager_context_t *thiz);
+int ui_display_battery_low_power_process(ui_manager_context_t *thiz);
+
 #ifdef __cplusplus
 }
 #endif

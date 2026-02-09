@@ -33,35 +33,20 @@ typedef enum {
     ID_POPUP_WINDOW_BT_CONNECT,
     ID_POPUP_WINDOW_BT_DISCONNECT,
     ID_POPUP_WINDOW_AIRPLANE_MODE,
-    ID_POPUP_WINDOW_MAX
-} puoup_window_id_e;
+    ID_POPUP_WINDOW_LOW_POWER,
+    ID_POPUP_WINDOW_MAX,
+} popup_window_id_e;
 
 /// 窗口屏幕进入参数描述,记录进入新窗口屏幕需要的参数.
 typedef struct {
-    uint8_t window_id;
-    uint8_t pm_wakeup_reason;
-    uint8_t set_bst_mode_flag;
-    uint8_t goto_breast_pump;
-    uint8_t setting_sub_menu_pos;
-    uint8_t gretting_which_time;
-    uint8_t show_breast_pump_ui;
-    void *user_data;
-    /// 弹出框入参数参数描述.
-    puoup_window_id_e popup_bg_res_index;
-    uint8_t popup_bg_which;
-    uint32_t popup_exit_time;
-    int (*popup_exit_cb)(void *user_data, int args1, int args2);
-    uint8_t is_background;
-    /// 进入ota的异常类型.
-    uint32_t ota_enter_exception_type;
+    uint8_t window_id;   /// 窗口ID.
+    bool is_bg_dispatch; /// 是否后台调度. 配合窗口优先级使用
+    int arg1;            /// 参数1.
+    int arg2;            /// 参数2.
+    void *user_data;       /// 上下文指针.
+    uint32_t popup_exit_time; /// 弹出框退出时间.
+    int (*popup_exit_cb)(void *user_data, int args1, int args2); /// 弹出框退出回调.
 } window_entry_extra_t;
-
-/// 牙菌斑窗口带入参数描述
-typedef struct {
-    uint8_t window_id;
-    uint8_t dental_plaque_level;
-    uint16_t popup_exit_timeout; /// 弹出框窗口自动退出时间.
-} window_entry_plaque_extra_t;
 
 /// 描述窗口事件结构.
 typedef struct window_event_data {
@@ -78,19 +63,6 @@ typedef enum {
     ID_ENTRY_TYPE_PRELOAD = 1000,
     ID_ENTRY_TYPE_MAX
 } window_entry_type_e;
-
-/// 窗口进入类型
-typedef enum {
-    UI_MODE_ENTRY_WIZARD = 101,            /// 向导进入吸奶界面展示风险提醒
-    UI_MODE_ENTRY_APP_SWITCH_MODE,   /// APP切换模式唤醒进入模式界面
-} ui_mode_entry_e;
-
-/// 窗口进入参数描述
-typedef struct {
-    uint8_t window_id;
-    uint8_t pm_wakeup_reason;
-    ui_mode_entry_e mode_entry_type;
-} ui_mode_entry_extra_t;
 
 /// sensor事件类型
 typedef struct {
@@ -174,11 +146,11 @@ typedef enum {
 
 /// 工厂测试入口参数描述
 typedef struct {
-    uint8_t window_id;
-    int factory_test_id;    /// 工厂测试ID
-    uint32_t color_test_id;      /// 颜色测试ID
-    int aging_test_id;      /// 老化测试ID
-    int enter_from_source;  /// 进入源来自哪里:开机自动0,按键进入1
+    uint8_t window_id;            /// 窗口ID.
+    int factory_test_id;          /// 工厂测试ID
+    uint32_t color_test_id;       /// 颜色测试ID
+    int aging_test_id;            /// 老化测试ID
+    int enter_from_source;        /// 进入源来自哪里
 } factory_test_entry_extra_t;
 
 typedef struct {
@@ -203,9 +175,7 @@ typedef struct multi_func_msg_data {
         uint16_t parms_16[MULTI_FUNC_MSG_DATA_SIZE / 2];
         uint32_t parms_32[MULTI_FUNC_MSG_DATA_SIZE / 4];
         window_entry_extra_t extra;
-        window_entry_plaque_extra_t plaque_extra;
         window_event_data_t window_evt_data;
-        ui_mode_entry_extra_t ui_mode_entry_extra;
         sensor_event_type_t sensor_evt_type;
         sensor_wrapper_data_t sensor_data;
         ble_event_type_t ble_evt_type;

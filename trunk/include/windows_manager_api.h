@@ -22,9 +22,7 @@ typedef enum {
     SYS_LANGUANGE_MAX,
 } sys_language_e;
 
-/*
- * 窗口ID定义.
- */
+/// 窗口ID定义.
 typedef enum {
     ID_WINDOW_INVALID = 0,
     ID_WINDOW_BEGIN = ID_WINDOW_INVALID,
@@ -41,7 +39,6 @@ typedef enum {
     ID_WINDOW_AIRPLANE_MODE,       /// 飞行模式
     ID_WINDOW_PRODUCT_TEST_MODE,   /// 测试模式
     ID_WINDOW_FACTORY_RESET,       /// 工厂重置
-    /// add new screen id above this.
     ID_WINDOW_MAX
 } window_id_e;
 
@@ -94,7 +91,6 @@ typedef struct window_manager_context {
         bool system_is_ready; /// 系统启动完成标志
         void *window_private[ID_WINDOW_MAX]; /// 记录scr上下文指针.
         int display_ready; /// 显示设备状态
-        uint8_t is_restting_device; /// 手柄是否正在重置
         int window_switch_forbid;  /// 禁止窗口切换 特殊场景例如系统重置操作时
     } priv;
 
@@ -127,17 +123,18 @@ typedef struct window_manager_context {
     void *(*get_window_private_context)(struct window_manager_context *wm, uint8_t window_id);
     /// 窗口入口参数相关.
     const void *(*get_window_entry_extra)(struct window_manager_context *wm);
-    /// 系统是否正在重置设备标志
-    void (*set_system_is_restting_device)(struct window_manager_context *wm, bool val); 
-    bool (*get_system_is_restting_device)(struct window_manager_context *wm);
     /// 禁止窗口切换
     int (*set_window_switch_forbid)(struct window_manager_context *wm, int forbid);
     /// 窗口名称相关.
     const char *(*to_window_name)(uint8_t window_id);
     /// 获取当前窗口ID
     uint8_t (*get_current_window_id)(void);
+    /// 获取覆盖窗口ID
+    uint8_t (*get_overlay_window_id)(struct window_manager_context *wm);
     /// 调度新窗口参数
     int (*dispatch_new_window_args)(struct window_manager_context *wm, multi_func_msg_data_t *msg);
+    /// 关闭overlay弹窗
+    int (*close_popup_overlay)(struct window_manager_context *wm, window_entry_extra_t *__extra);
     /// 回退历史相关.
     int (*go_back_to_history)(void *wm, window_entry_extra_t *__extra);
     /// 清除回退历史标志

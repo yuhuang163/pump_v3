@@ -23,7 +23,7 @@
 #endif
 
 #define BATT_LOG_INTERVAL                 50
-#define BATT_FULL_VOLTAGE                 12200
+#define BATT_FULL_VOLTAGE                 12260
 /*
 * LOCAL VARIABLE DEFINITIONS
 *****************************************************************************************
@@ -76,18 +76,18 @@ static const battery_float_voltage_t sc_charging_float_tables[] = {
 };
 #else
 static const capacity_data_t sc_batt_tables[] = {
-    {0,  7200, 9449}, 
-    {1,  9450, 9899}, 
-    {2,  9900, 10199}, 
-    {10, 10200, 10475}, 
-    {20, 10476, 10601}, 
-    {30, 10602, 10712}, 
-    {40, 10713, 10844}, 
-    {50, 10845, 11075}, 
-    {60, 11076, 11315}, 
-    {70, 11316, 11621}, 
-    {80, 11622, 11930}, 
-    {90, 11931, BATT_FULL_VOLTAGE}, 
+    {0,  9587, 9693}, 
+    {1,  9694, 9791}, 
+    {2,  9792, 10152}, 
+    {10, 10153, 10468}, 
+    {20, 10469, 10680}, 
+    {30, 10681, 10937}, 
+    {40, 10938, 11339}, 
+    {50, 11340, 11558}, 
+    {60, 11559, 11819}, 
+    {70, 11820, 12064}, 
+    {80, 12065, 12127}, 
+    {90, 12128, BATT_FULL_VOLTAGE}, 
 };
 
 static const battery_para_t sc_charging_tables[] = {

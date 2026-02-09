@@ -45,13 +45,10 @@ INIT_WINDOW_CONTEXT();
 */
 static void system_power_off_cb(hdr_post_args_t *args)
 {
-    if (!GET_WINDOW_CONTEXT()) {
-        LOG_WM("window context not present, ignore.");
-        return;
-    }
     ui_proc_dummy_t *proc = (ui_proc_dummy_t *)args->user_data;
     EXCEPTION_CHECK_VOID(proc);
     EXCEPTION_CHECK_VOID(proc->pm);
+    WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_DUMMY);
     uint32_t current_time = platform_get_utc_time();
     if (current_time - proc->enter_dummy_time > DUMMY_IDLE_POWER_OFF_TIME) {
         LOG_WM("system power off");
@@ -65,11 +62,10 @@ static void system_power_off_cb(hdr_post_args_t *args)
 
 static int wakup_enter_new_window_policy(ui_proc_dummy_t *proc, int wakeup_reason)
 {
-    window_manager_context_t *wm = proc->wm;
     tests_manager_context_t *tests = proc->tests;
     EXCEPTION_CHECK_INT(tests);
-    EXCEPTION_CHECK_INT(wm);
     EXCEPTION_CHECK_INT(proc->pm);
+    WINDOW_CONTEXT_GUARD_INT(proc, ID_WINDOW_DUMMY, 0);
     multi_func_msg_data_t msg = {0};
     if (tests->tests_manager_get_current_mode() != TST_NONE_TYPE) {
         msg.union_body.extra.window_id = ID_WINDOW_PRODUCT_TEST_MODE;
@@ -78,19 +74,16 @@ static int wakup_enter_new_window_policy(ui_proc_dummy_t *proc, int wakeup_reaso
         msg.union_body.extra.window_id = ID_WINDOW_PUMP;
         LOG_WM("goto pump window.");
     }
-    wm->dispatch_new_window_args(wm, &msg);
+    proc->wm->dispatch_new_window_args(proc->wm, &msg);
     return 0;
 }
 
 static void on_dummy_window_receive(broadcast_mask_id_t id, void *context,
                                  int32_t pm_state, int32_t wakeup_reason, broadcast_priv_data_t *pdata)
 {
-    if (!GET_WINDOW_CONTEXT()) {
-        LOG_WM("window context not present, ignore.");
-        return;
-    }
     ui_proc_dummy_t *proc = (ui_proc_dummy_t *)context;
     EXCEPTION_CHECK_VOID(proc);
+    WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_DUMMY);
     switch (id.code) {
         case ID_BROADCAST_PM_STATE_CHANGE:
             LOG_WM("received PM_STATE_CHANGE.");
@@ -110,11 +103,9 @@ static void on_dummy_window_receive(broadcast_mask_id_t id, void *context,
 
 static int on_dummy_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t keytype)
 {
-    if (!GET_WINDOW_CONTEXT()) {
-        LOG_WM("window context not present, ignore.");
-        return 0;
-    }
     ui_proc_dummy_t *proc = user_data;
+    EXCEPTION_CHECK_INT(proc);
+    WINDOW_CONTEXT_GUARD_INT(proc, ID_WINDOW_DUMMY, 0);
     if (keycode == KEY_CODE_POWER && keytype == KEY_EVENT_CLICK) {
         switch_dummy_night_light_onoff_ui(proc);
     }
@@ -133,7 +124,7 @@ static int entry_event_cb(window_lift_cycle_e new_state,
         LOG_WM("==>%s window on resume", PAGE_NAME_STR);
         if (proc->key) {
             proc->key->add_keyevent_handler("dummy_wm", proc, KEY_CODE_1, KEY_EVENT_CLICK,
-                 on_dummy_keyevent_hdr);
+                 on_dummy_keyevent_hdr, KEY_HANDLER_SHIELD_LEVEL_1);
         }
         proc->enter_dummy_time = platform_get_utc_time();
         POST_TASK_HANDLER_DELAYED_ARG1(system_power_off_cb, DUMMY_TIME_INTERVAL, proc, DUMMY_SYSTEM_POWER_OFF_TASK_NAME);
@@ -158,7 +149,7 @@ static int exit_event_cb(window_lift_cycle_e new_state,
             if (proc->key) {
                 proc->key->remove_keyevent_handler(on_dummy_keyevent_hdr);
             }
-        break;
+            break;
         case ID_SCR_STATE_ON_DESTORY:
             LOG_WM("==>%s window on destory", PAGE_NAME_STR);
             SET_WINDOW_CONTEXT(NULL);
@@ -166,9 +157,9 @@ static int exit_event_cb(window_lift_cycle_e new_state,
             u_free(proc);
             proc = NULL;
             LOG_WM("%s window on destory--end", PAGE_NAME_STR);
-        break;
+            break;
         default:
-        break;
+            break;
     }
 
     return 0;
@@ -204,6 +195,7 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
     w_ctx->evt_cb_entry = entry_event_cb;
     w_ctx->evt_cb_exit = exit_event_cb;
     w_ctx->not_push_history = 1;
+    w_ctx->is_popup_window = 0;
     w_ctx->user_data = NULL;
     wm->dispatch_new_window(w_ctx);
 

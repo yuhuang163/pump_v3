@@ -113,18 +113,6 @@ static const void *get_window_entry_extra(window_manager_context_t *wm)
     return (const void *)&wm->priv.new_msg.union_body.extra;
 }
 
-static void set_system_is_restting_device(window_manager_context_t *wm, bool val)
-{
-    LOG_WM("is_restting_device: %d", val);
-    wm->priv.is_restting_device = val;
-}
-
-static bool get_system_is_restting_device(window_manager_context_t *wm)
-{
-    EXCEPTION_CHECK_BOOL(wm);
-    return wm->priv.is_restting_device > 0 ? true : false;
-}
-
 static int set_window_switch_forbid(window_manager_context_t *wm, int forbid) 
 {
     EXCEPTION_CHECK_INT(wm);
@@ -159,8 +147,6 @@ void register_window_state_module(window_manager_context_t *wm)
     wm->set_window_private_context = set_window_private_context;
     wm->get_window_private_context = get_window_private_context;
     wm->get_window_entry_extra = get_window_entry_extra;
-    wm->set_system_is_restting_device = set_system_is_restting_device;
-    wm->get_system_is_restting_device = get_system_is_restting_device;
     wm->set_window_switch_forbid = set_window_switch_forbid;
     wm->clear_window_go_back_history_flag = clear_window_go_back_history_flag;
 }

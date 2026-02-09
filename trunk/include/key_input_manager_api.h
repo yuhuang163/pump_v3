@@ -14,6 +14,16 @@ extern "C" {
 
 typedef int (*on_key_event_handler_fptr)(void *context, uint16_t keycode, uint16_t keytype);
 
+typedef enum {
+    KEY_HANDLER_SHIELD_NONE = 0, /// 不屏蔽..
+    KEY_HANDLER_SHIELD_LEVEL_1 = 100, /// 屏蔽等级1
+    KEY_HANDLER_SHIELD_LEVEL_2, /// 屏蔽等级2
+    KEY_HANDLER_SHIELD_LEVEL_3, /// 屏蔽等级3
+    KEY_HANDLER_SHIELD_LEVEL_4, /// 屏蔽等级4
+    KEY_HANDLER_SHIELD_LEVEL_5, /// 屏蔽等级5
+    KEY_HANDLER_SHIELD_FORBIDDEN, /// 禁止屏蔽所有按键事件的等级.
+} key_handler_shield_level_e;
+
 /// 按键事件类型
 typedef enum {
     KEY_EVENT_DOWN    = (1 << 0),          /// 按下
@@ -61,6 +71,7 @@ typedef struct key_input_context {
         struct rt_device_node *key_dev;
         thread_context_t key_evt_thd;
         list_head_t key_evt_list;
+        uint8_t key_evt_shield_level; /// 按键事件屏蔽等级.
     } priv;
 
 /// public
@@ -69,17 +80,16 @@ typedef struct key_input_context {
     int (*is_key_triggered)(uint16_t key_index);
     int (*dispatch_key_event_wrapper)(void *context, int keycode, int keytype);
     int (*dispatch_client_input_key)(uint16_t keycode, uint16_t keytype);
-    void (*add_keyevent_handler)(const char *caller, void *user_data, uint16_t keycode, uint16_t keytype,
-         on_key_event_handler_fptr cb);
+    void (*add_keyevent_handler)(const char *tag, void *user_data, uint16_t keycode, uint16_t keytype,
+         on_key_event_handler_fptr cb, uint8_t shield_level);
     void (*remove_keyevent_handler)(on_key_event_handler_fptr cb);
+    void (*set_keyevent_shield_level)(uint8_t level); /// 设置按键屏蔽等级.
     /// 定义外部钩子函数.
     struct __key_input_hook {
         int (*input_keyevent_route)(struct key_input_context *ctx, uint16_t keycode, uint16_t keytype, int flag);
         const char *(*get_key_code_name)(uint16_t keycode);
     } *hook;
-
 } key_input_context_t;
-
 
 #ifdef __cplusplus
 }

@@ -39,6 +39,10 @@ int bsp_lcd_init(void);
 int bsp_lcd_deinit(void);
 int bsp_lcd_uart_dev_ioctl(struct rt_device_node *dev, uint32_t op_code, void *args);
 int bsp_lcd_refresh(const void *buf, uint32_t n_bytes);
+void bsp_lcd_backlight_init(void);
+void bsp_lcd_backlight_resume(void);
+void bsp_lcd_backlight_suspend(void);
+void bsp_lcd_backlight_control(uint8_t level);
 #ifdef __cplusplus
 }
 #endif

@@ -34,12 +34,9 @@ INIT_WINDOW_CONTEXT();
 */
 static int on_guide_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t keytype)
 {
-    if (!GET_WINDOW_CONTEXT()) {
-        LOG_WM("window context not present, ignore.");
-        return 0;
-    }
     ui_proc_guide_t *proc = user_data;
     EXCEPTION_CHECK_INT(proc);
+    WINDOW_CONTEXT_GUARD_INT(proc, ID_WINDOW_GUIDE, 0);
     switch (keycode) {
         case KEY_CODE_START:
             guide_start_key_event_handler(proc);
@@ -59,13 +56,12 @@ static int entry_event_cb(window_lift_cycle_e new_state,
     if (new_state == ID_SCR_STATE_ON_RESUME) {
         if (proc->key) {
             proc->key->add_keyevent_handler("guide_wm", proc, GUIDE_UI_KEY_CODE, GUIDE_UI_KEY_TYPE,
-                on_guide_ui_keyevent_hdr);
+                on_guide_ui_keyevent_hdr, KEY_HANDLER_SHIELD_LEVEL_1);
         } else {
             LOG_WM("key not present, ignore.");
         }
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);
-        ui->animation_play_status_update(ui, false); /// 清除动画播放标志
         start_guide_ui_animation(proc);
     }
     return 0;
@@ -118,6 +114,7 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
     w_ctx->evt_cb_entry = entry_event_cb;
     w_ctx->evt_cb_exit = exit_event_cb;
     w_ctx->not_push_history = 1;
+    w_ctx->is_popup_window = 0;
     wm->dispatch_new_window(w_ctx);
     return ID_WINDOW_DISPLAY_OK;
 }

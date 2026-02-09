@@ -55,29 +55,6 @@ static int post_msg_to_flush(const char *tag, multi_func_msg_data_t *msg)
     return MSG_QUEUE_SEND(thiz->priv.ui_hdr_thd.msg_id, &msg, 0);
 }
 
-static void animation_play_status_update(ui_manager_context_t *thiz, bool flag)
-{
-    EXCEPTION_CHECK_VOID(thiz);
-    thiz->priv.is_playing_ui_animation = flag;
-}
-
-static void set_lcd_backlight(ui_manager_context_t *thiz, uint16_t val)
-{
-    EXCEPTION_CHECK_VOID(thiz);
-    power_manager_context_t *pm = (power_manager_context_t *)find_module(ID_MODULE_POWER);
-    EXCEPTION_CHECK_VOID(pm);
-
-    if (pm->is_system_power_on() == 0) {
-        LOGE("system power off, ignore set ui backlight.");
-        return;
-    }
-
-    if (thiz->priv.panel_dev) {
-        DEVICE_IOCTL_ARGS_NO_RET(thiz->priv.panel_dev, OP_CODE_PANEL_SET_BL, &val);
-        thiz->priv.ui_backlight_val = val;
-    }
-}
-
 static void ui_handler_thread(const void *args)
 {
     if (thiz->hook && thiz->hook->ui_thread_init_route) {
@@ -104,7 +81,6 @@ static void on_ui_broadcast_receiver(broadcast_mask_id_t id, void *context, int 
 static int on_post_ui_init(void *self)
 {
     ui_manager_context_t *ui = (ui_manager_context_t *)self;
-
 #if IS_SUPPORT_MODULE_RES
     thiz->priv.res = (resource_manager_context_t *)find_module(ID_MODULE_RES);
     if (!thiz->priv.res) {
@@ -112,7 +88,6 @@ static int on_post_ui_init(void *self)
         return -1;
     }
 #endif
-
     /// 调用外部钩子.
     if (thiz->hook->on_post_init_route) {
         thiz->hook->on_post_init_route(thiz);
@@ -137,7 +112,7 @@ static int on_perpare_ui_init(void *self)
         thiz->priv.panel_dev = pbus->find_device(ID_DEVICE_DISPLAY_PANEL);
         thiz->priv.led_dev = pbus->find_device(ID_DEVICE_LED);
     }
-
+    
     if (thiz->hook->on_perpare_init_route) {
         thiz->hook->on_perpare_init_route(thiz);
     }
@@ -153,10 +128,8 @@ void *register_module_for_ui_manager_new(list_head_t *list_head)
 {
     MALLOC_FOR_PTR(ptr, ui_manager_context_t);
     MUTEX_INIT(&ptr->priv.ui_draw_lock, ui_draw_lock);
-    ptr->animation_play_status_update = animation_play_status_update;
     ptr->play_animation_lock = ui_play_animation_lock;
     ptr->play_animation_unlock = ui_play_animation_unlock;
-    ptr->set_lcd_backlight = set_lcd_backlight;
 #if IS_SUPPORT_LVGL
     ptr->is_lvgl_initialized = is_lvgl_initialized;
 #endif

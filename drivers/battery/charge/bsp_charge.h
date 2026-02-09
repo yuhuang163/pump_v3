@@ -751,6 +751,7 @@ typedef struct {
 #define IBAT_SCALE_CFG                      IBAT_SCALE_2
 #define BATT_INPUT_CURRENT_LIMIT            2000
 #define BATT_OUTPUT_CURRENT_LIMIT           3000
+#define TEMP_ABNORMAL_CHARGING_CURRENT      600
 #if IBAT_SCALE_CFG == IBAT_SCALE_2
 #define BATT_CURRENT_LIMIT_SCALE            50
 #define BATT_ADC_CURRENT_LIMIT_SCALE        12.5f
@@ -771,6 +772,18 @@ typedef struct {
 #define NTC_VOLTAGE_SCALE                   2
 /// ntc电流系数
 #define NTC_CURRENT_COEFF                   30.0f
+
+#define CHARGE_NORMAL_TEMP_MIN              15
+#define CHARGE_NORMAL_TEMP_MAX              45
+#define CHARGE_DERATED_TEMP_MIN             0
+#define CHARGE_DERATED_TEMP_MAX             60
+
+typedef enum {
+    CHARGE_TEMP_UNKNOW,
+    CHARGE_TEMP_NORMAL,   /// 正常电流充电
+    CHARGE_TEMP_DERATED,  /// 降低电流充电
+    CHARGE_TEMP_DISABLE,  /// 禁止充电
+} charging_temp_status_e;
 
 /*
 * GLOBAL FUNCTION DECLARATION

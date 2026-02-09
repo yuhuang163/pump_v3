@@ -39,29 +39,19 @@ INIT_WINDOW_CONTEXT();
 */
 static void airplane_mode_timeout_cb(hdr_post_args_t *args)
 {
-    if (!GET_WINDOW_CONTEXT()) {
-        LOG_WM("window context not present, ignore.");
-        return;
-    }
     ui_proc_airplane_mode_t *proc = (ui_proc_airplane_mode_t *)args->user_data;
     EXCEPTION_CHECK_VOID(proc);
-    window_manager_context_t *wm = proc->wm;
-    EXCEPTION_CHECK_VOID(wm);
+    WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_AIRPLANE_MODE);
     LOG_WM("airplane mode timeout, goto pump window.");
     SEND_BROADCAST_ARGS1(ID_BROADCAST_SYS_STATE_CHANGE, SYSTEM_BROADCAST_POWER_OFF);
 }
 
 static void airplane_mode_exit_cb(hdr_post_args_t *args)
 {
-    if (!GET_WINDOW_CONTEXT()) {
-        LOG_WM("window context not present, ignore.");
-        return;
-    }
-
     ui_proc_airplane_mode_t *proc = (ui_proc_airplane_mode_t *)args->user_data;
     EXCEPTION_CHECK_VOID(proc);
     EXCEPTION_CHECK_VOID(proc->airplane);
-    EXCEPTION_CHECK_VOID(proc->wm);
+    WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_AIRPLANE_MODE);
     proc->airplane->exit(AIRPLANE_MODE_EXIT);
     multi_func_msg_data_t msg = {0};
     if (proc->wm->is_window_guidance_deployed() == 0) {
@@ -77,12 +67,10 @@ static void airplane_mode_exit_cb(hdr_post_args_t *args)
 static void on_airplane_mode_window_receive(broadcast_mask_id_t id, void *context,
                                  int32_t pm_state, int32_t wakeup_reason, broadcast_priv_data_t *pdata)
 {
-    if (!GET_WINDOW_CONTEXT()) {
-        LOG_WM("window context not present, return.");
-        return;
-    }
+
     ui_proc_airplane_mode_t *proc = (ui_proc_airplane_mode_t *)context;
     EXCEPTION_CHECK_VOID(proc);
+    WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_AIRPLANE_MODE);
     switch (id.code) {
         case ID_BROADCAST_PM_STATE_CHANGE: 
             break;
@@ -95,12 +83,9 @@ static void on_airplane_mode_window_receive(broadcast_mask_id_t id, void *contex
 
 static int on_airplane_mode_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t keytype)
 {
-    if (!GET_WINDOW_CONTEXT()) {
-        LOG_WM("window context not present, ignore.");
-        return 0;
-    }
     ui_proc_airplane_mode_t *proc = user_data;
     EXCEPTION_CHECK_INT(proc);
+    WINDOW_CONTEXT_GUARD_INT(proc, ID_WINDOW_AIRPLANE_MODE, 0);
     POST_TASK_HANDLER_DELAYED_ARG1(airplane_mode_exit_cb, 10, proc, AIRPLANE_MODE_EXIT_TASK_NAME);
     return 0;
 }
@@ -117,7 +102,7 @@ static int entry_event_cb(window_lift_cycle_e new_state, const struct window_con
         LOG_WM("==>%s window on resume", PAGE_NAME_STR);
         if (proc->key) {
             proc->key->add_keyevent_handler("airplane_mode_wm", proc, AIRPLANE_MODE_UI_KEY_CODE, AIRPLANE_MODE_UI_KEY_TYPE,
-                 on_airplane_mode_keyevent_hdr);
+                 on_airplane_mode_keyevent_hdr, KEY_HANDLER_SHIELD_LEVEL_1);
         } else {
             LOG_WM("key not present, ignore.");
         }
@@ -126,7 +111,6 @@ static int entry_event_cb(window_lift_cycle_e new_state, const struct window_con
         LOG_WM("==>%s window on create", PAGE_NAME_STR);
         airplane_mode_led_policy(proc, 1);
         airplane_mode_pump_policy(proc);
-        ui->animation_play_status_update(ui, false); /// 清除动画播放标志
         start_airplane_mode_ui(proc);
     }
     return 0;
@@ -139,7 +123,7 @@ static int exit_event_cb(window_lift_cycle_e new_state, const struct window_cont
     window_manager_context_t *wm = proc->wm;
     EXCEPTION_CHECK_INT(wm);
     switch (new_state) {
-        case ID_SCR_STATE_ON_PAUSE: {
+        case ID_SCR_STATE_ON_PAUSE: 
             LOG_WM("==>%s window on pause", PAGE_NAME_STR);
             stop_airplane_mode_ui(proc);
             unregister_broadcast_receiver(&proc->receiver);
@@ -148,8 +132,7 @@ static int exit_event_cb(window_lift_cycle_e new_state, const struct window_cont
                 proc->key->remove_keyevent_handler(on_airplane_mode_keyevent_hdr);
             }
             airplane_mode_led_policy(proc, 0);
-        }
-        break;
+            break;
         case ID_SCR_STATE_ON_DESTORY:
             LOG_WM("==>%s window on destory", PAGE_NAME_STR);
             SET_WINDOW_CONTEXT(NULL);
@@ -157,9 +140,9 @@ static int exit_event_cb(window_lift_cycle_e new_state, const struct window_cont
             u_free(proc);
             proc = NULL;
             LOG_WM("%s window on destory--end", PAGE_NAME_STR);
-        break;
+            break;
         default:
-        break;
+            break;
     }
 
     return 0;
@@ -198,6 +181,7 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
     w_ctx->evt_cb_entry = entry_event_cb;
     w_ctx->evt_cb_exit = exit_event_cb;
     w_ctx->not_push_history = 1;
+    w_ctx->is_popup_window = 0;
     w_ctx->user_data = NULL;
     wm->dispatch_new_window(w_ctx);
 

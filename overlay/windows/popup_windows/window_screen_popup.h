@@ -39,17 +39,19 @@ typedef struct {
     power_manager_context_t *pm;
     ui_manager_context_t *ui;
     storage_manager_context_t *st;
+    key_input_context_t *key;
     uint32_t margic; /// 窗口标识.
     uint32_t last_progress_ani_time; /// 上次进度动画时间.
-    uint16_t current_ui_type; /// 当前UI类型. logo_ui_type_e
+    popup_window_id_e popup_window_id; /// 弹出框窗口ID.
+    uint16_t current_ui_type; /// 当前UI类型. popup_ui_type_e
 } ui_proc_popup_t;
 
 /*
 * GLOBAL FUNCTION DECLARATION
 *****************************************************************************************
 */
-void start_logo_ui_animation(ui_proc_popup_t *proc);
-void stop_logo_ui_animation(ui_proc_popup_t *proc);
+void start_popup_ui_animation(ui_proc_popup_t *proc);
+void stop_popup_ui_animation(ui_proc_popup_t *proc);
 
 #ifdef __cplusplus
 }

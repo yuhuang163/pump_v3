@@ -29,17 +29,12 @@ static void guide_display_completed_cb(hdr_post_args_t *args)
 {
     ui_proc_guide_t *proc = (ui_proc_guide_t *)args->user_data;
     EXCEPTION_CHECK_VOID(proc);
-    LOG_UI("guide play finish.\n");
-    window_manager_context_t *wm = proc->wm;
-    EXCEPTION_CHECK_VOID(wm);
-    wm->set_window_guidance_deployed_flag(true);
-    if (wm->is_current_window(wm, ID_WINDOW_GUIDE) == 0) {
-        return;
-    }
+    LOG_UI("guide play finish");
+    WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_GUIDE);
+    proc->wm->set_window_guidance_deployed_flag(true);
     multi_func_msg_data_t msg = {0};
     msg.union_body.extra.window_id = ID_WINDOW_PUMP;
-    wm->dispatch_new_window_args(wm, &msg);
-    return;
+    proc->wm->dispatch_new_window_args(proc->wm, &msg);
 }
 
 static void guide_ui_after_policy(ui_manager_context_t *ui, int index)
@@ -114,7 +109,6 @@ void stop_guide_ui_animation(ui_proc_guide_t *proc)
     ui_manager_context_t *ui = proc->ui;
     EXCEPTION_CHECK_VOID(ui->hook && ui->hook->ui_animation_play_deinit);
     ui->hook->ui_animation_play_deinit(ui);
-    ui->animation_play_status_update(ui, false);
     proc->last_progress_ani_time = get_timestamp();
 }
 

@@ -12,7 +12,7 @@
 #include "hal_gpio.h"
 #include "hal_sysfreq.h"
 #include <stdint.h>
-
+#include "pump_motor_error_check.h"
 // 前向声明，确保编译器识别函数
 int hal_pwm_update_duty_only(enum HAL_PWM_ID_T id, uint8_t duty, uint32_t freq);
 /*
@@ -53,7 +53,8 @@ static const motor_pwm_cfg_t motor_pwm_cfg[] = {
     {MOTOR_VALVE2_PWM_ID,  MOTOR_VALVE2_PWM_IMUX},
 };
 
-static uint8_t motor_pwm_status[MOTOR_PWM_ID_MAX];
+static uint8_t motor_pwm_status[MOTOR_PWM_ID_MAX] = {0};
+static uint8_t motor_pwm_target_duty[MOTOR_PWM_ID_MAX] = {0};
 #if IS_SUPPORT_PUMP_RUN_TIME_TEST
 static uint8_t count = 0;
 static uint32_t start_time = 0;
@@ -376,6 +377,7 @@ static int8_t bsp_motor_pwm_gradual_change_start(motor_para_t *motor_para, motor
             .inv = false,
             .sleep_on = false,
         };
+
         int ret = hal_pwm_enable(motor_pwm_cfg[pwm_id].id, &pwm_cfg);
         if (ret != 0) {
             LOGE("Failed to enable PWM: %d", pwm_id);
@@ -486,7 +488,7 @@ static int8_t bsp_motor_pwm_gradual_gpio_irq_init(int8_t enable)
 #endif
 
 #if IS_SUPPORT_PUMP_PWM_IDLE_HIGH
- int bsp_motor_pwm_idle_high(motor_pwm_control_id_e id)
+static int bsp_motor_pwm_idle_high(motor_pwm_control_id_e id)
  {
     if (id >= MOTOR_PWM_VALVE_1) {
         LOGE("pwm_id is out of MOTOR_PWM_PUMP_2 range: %d", id);
@@ -510,6 +512,10 @@ int bsp_motor_init(void)
     for (uint8_t i = 0; i < LENGTH_OF_ARRAY(motor_pwm_cfg); i++) {
         motor_pwm_cfg[i].iomux_set();
     }
+#if IS_SUPPORT_PUMP_PWM_IDLE_HIGH
+    bsp_motor_pwm_idle_high(MOTOR_PWM_PUMP_1);
+    bsp_motor_pwm_idle_high(MOTOR_PWM_PUMP_2);
+#endif
     memset(motor_pwm_status, 0, sizeof(motor_pwm_status));
 #if IS_SUPPORT_PUMP_PWM_GRADUAL_CHANGE
     if (bsp_motor_init_timer_system() != 0) {
@@ -519,11 +525,6 @@ int bsp_motor_init(void)
     bsp_motor_pwm_gradual_gpio_irq_init(1);
     // 直接运行PWM测试函数
     // bsp_motor_pwm_test_all_step_counts();
-#endif
-
-#if IS_SUPPORT_PUMP_PWM_IDLE_HIGH
-    bsp_motor_pwm_idle_high(MOTOR_PWM_PUMP_1);
-    bsp_motor_pwm_idle_high(MOTOR_PWM_PUMP_2);
 #endif
     return BSP_OK;
 }
@@ -562,11 +563,13 @@ int bsp_motor_parameter_set(void *args)
     motor_para_t *motor_ptr = (motor_para_t *)(uintptr_t)tmp[1];
     memcpy(&motor_para, motor_ptr, sizeof(motor_para_t));
     motor_para.un.pwm.duty = motor_para.un.pwm.duty > 100 ? 100 : motor_para.un.pwm.duty;
+    motor_pwm_target_duty[pwm_id] = motor_para.un.pwm.duty; /// 保存目标占空比
 #if IS_SUPPORT_PUMP_PWM_IDLE_HIGH
     if (pwm_id == MOTOR_PWM_PUMP_1 || pwm_id == MOTOR_PWM_PUMP_2) {
         motor_para.un.pwm.duty = 100 - motor_para.un.pwm.duty;
     }
 #endif
+
 #if IS_SUPPORT_PUMP_PWM_GRADUAL_CHANGE
     hal_sysfreq_req(HAL_SYSFREQ_USER_ANC, HAL_CMU_FREQ_208M);
     ret = bsp_motor_pwm_gradual_change_start(&motor_para, pwm_id);
@@ -585,6 +588,13 @@ int bsp_motor_parameter_set(void *args)
     }
 #endif
     motor_pwm_status[pwm_id] = 1;
+
+#if IS_SUPPORT_MOTOR_STALL_DETECT
+    if (pwm_id == MOTOR_PWM_PUMP_1 || pwm_id == MOTOR_PWM_PUMP_2) {
+        pump_motor_error_check_start();
+    }
+#endif
+
 #if IS_SUPPORT_PUMP_DEBUG_LOG
     BSP_LOG("parameter", "pwm_id: %d, duty: %d, freq: %d, ret: %d", pwm_id, 
                 motor_para.un.pwm.duty, motor_para.un.pwm.freq, ret);
@@ -610,11 +620,17 @@ int bsp_motor_stop(void *args)
         ret |= bsp_motor_pwm_idle_high(MOTOR_PWM_PUMP_2);
         ret |= hal_pwm_disable(motor_pwm_cfg[MOTOR_PWM_VALVE_1].id);
         ret |= hal_pwm_disable(motor_pwm_cfg[MOTOR_PWM_VALVE_2].id);
+        for (uint8_t i = 0; i < MOTOR_PWM_ID_MAX; i++) {
+            motor_pwm_status[i] = 0;
+        }
 #else
       for (uint8_t i = 0; i < MOTOR_PWM_ID_MAX; i++) {
         ret |= hal_pwm_disable(motor_pwm_cfg[i].id);
         motor_pwm_status[i] = 0;
       }
+#endif
+#if IS_SUPPORT_MOTOR_STALL_DETECT
+        pump_motor_error_check_stop();
 #endif
         return ret;
     }
@@ -665,6 +681,16 @@ int bsp_motor_is_running(void *args)
         return -1;
     }
     return motor_pwm_status[pwm_id] > 0 ? 1 : 0;
+}
+
+/// 获取泵的target占空比
+int bsp_motor_get_pump_target_duty(motor_pwm_control_id_e id)
+{
+    if (id > MOTOR_PWM_PUMP_2) {
+        LOGE("pwm_id is out of range: %d", id);
+        return -1;
+    }
+    return motor_pwm_target_duty[id];
 }
 
 #if IS_SUPPORT_PUMP_PWM_GRADUAL_CHANGE

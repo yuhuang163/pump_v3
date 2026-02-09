@@ -27,6 +27,28 @@ static breast_pump_manager_context_t *breast_pump_obj = NULL;
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
+static void on_motor_error_check_callback(uint8_t pump_id, motor_dev_status_e status)
+{
+    if (status == MOTOR_STATUS_STALL) {
+        /// 检查对象和广播系统是否已初始化
+        if (breast_pump_obj == NULL) {
+            LOGE("breast_pump_obj is NULL, cannot handle motor stall");
+            return;
+        }
+        
+        /// 检查广播系统是否已初始化
+        if (is_broadcast_inited()) {
+            SEND_BROADCAST_ARGS2(ID_BROADCAST_BREAST_PUMP_STATE_CHANGE, BREAST_PUMP_BROADCAST_STATE_CHANGE, BREAST_PUMP_ERROR);
+        }
+        
+        breast_pump_obj->set_breast_pump_status(BREAST_PUMP_PAUSE);
+        LOG_PMP("motor error check callback, pump_id: %d, status: %d", pump_id, status);
+    }
+    else if (status == MOTOR_STATUS_OK) {
+        
+    }
+}
+
 static void on_sensor_data_pump_callback(void *user_data, uint8_t *data, int data_len)
 {
 
@@ -554,6 +576,12 @@ static int on_post_breast_pump_init(void *ptr)
     memset(&ctx->priv.m_info , 0, sizeof(breast_pump_info_t));
     ctx->priv.m_info.mode = BREAST_PUMP_MODE_INVALID;  
     ctx->priv.m_info.is_custom_trial_mode = 0; //重启默认试用模式为关闭
+    EXCEPTION_CHECK_INT(ctx->priv.motor);
+    struct rt_device_node *motor_dev;
+    motor_dev = ctx->priv.pbus->find_device(ID_DEVICE_MOTOR);
+    /// 检查 motor_dev 是否已初始化，避免空指针访问
+    EXCEPTION_CHECK_INT(motor_dev);
+    DEVICE_IOCTL_ARGS(motor_dev, OP_CODE_MOTOR_ERROR_CHECK_REGISTER_CALLBACK, on_motor_error_check_callback);
     /// 获取控制类型.
     if (ctx->priv.st) {
         uint8_t store_mode = 0;

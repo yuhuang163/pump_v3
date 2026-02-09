@@ -257,11 +257,9 @@ static void on_connect_status_change(ble_manager_context_t *ctx, int new_status,
     if (wm) {
         multi_func_msg_data_t msg = {0};
         msg.union_body.extra.window_id = ID_WINDOW_POPUP_WINDOW;
-        msg.union_body.extra.popup_bg_which = new_status;
-        msg.union_body.extra.popup_bg_res_index = \
-            (1 == new_status) ? ID_POPUP_WINDOW_BT_CONNECT : ID_POPUP_WINDOW_BT_DISCONNECT;
+        msg.union_body.extra.is_bg_dispatch = 0x01;
+        msg.union_body.extra.arg1 = (1 == new_status) ? ID_POPUP_WINDOW_BT_CONNECT : ID_POPUP_WINDOW_BT_DISCONNECT;
         msg.union_body.extra.popup_exit_time = 2000;
-        msg.union_body.extra.is_background = 0x1;
         // wm->dispatch_new_window_args(wm, &msg);
     }
 }
