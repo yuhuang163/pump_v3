@@ -7,15 +7,16 @@
 #include "tests_manager.h"  // IWYU pragma: keep
 #include "product_tests.h" // IWYU pragma: keep
 #include "input_key_code.h" // IWYU pragma: keep
+#include "pump_mode_default_config.h" // IWYU pragma: keep
 
 /*
 * DEFINES
 *****************************************************************************************
 */
 
-#define AGING1_TEST_DEFAULT_CYCLE_TIME               1800// 老化测试默认循环时间，单位秒
+#define AGING1_TEST_DEFAULT_CYCLE_TIME               NORMAL_MODE_DEFAULT_WORK_TIME// 老化测试默认循环时间，单位秒
 #define AGING1_TEST_IDLE_TIME                        10*60*1000// 老化测试空闲时间，单位毫秒
-#define AGING2_TEST_DEFAULT_CYCLE_TIME               1800// 老化测试默认循环时间，单位秒
+#define AGING2_TEST_DEFAULT_CYCLE_TIME               NORMAL_MODE_DEFAULT_WORK_TIME// 老化测试默认循环时间，单位秒
 #define AGING2_TEST_IDLE_TIME                        10*60*1000// 老化测试空闲时间，单位毫秒
 
 #define TESTS_KEY_CODE                                                                                                 \
@@ -163,7 +164,7 @@ int factory_tests_aging_test_enter_mode1(void)
     pump_ctx->get_breast_pump_setting(&setting, time_index);
     setting.level[0] = BREAST_PUMP_LEVEL_15;
     setting.level[1] = BREAST_PUMP_LEVEL_15;
-    pump_ctx->set_breast_pump_setting(&setting, time_index);
+    pump_ctx->set_breast_pump_setting(&setting, time_index, false);
 
     LOG_TEST("tests_tlvs_suction_test_mode_handler: level[0] = %d, level[1] = %d", setting.level[0],
             setting.level[1]);
@@ -193,6 +194,7 @@ void factory_tests_aging_test_check_result(void)
     if (thiz->priv.current_mode == TST_AGING_TEST_TYPE
         && thiz->priv.factory_ctx.aging_target_info.aging_type == AGING_MODE_TYPE_1) {
         flag_info.age_info[AGING_MODE_TYPE_1 - 1].age_time += AGING1_TEST_DEFAULT_CYCLE_TIME;
+        thiz->priv.factory_ctx.aging_result_info.total_runtime_time += AGING1_TEST_DEFAULT_CYCLE_TIME;
         flag_info.age_info[AGING_MODE_TYPE_1 - 1].age_cycle++;
         if (flag_info.age_info[AGING_MODE_TYPE_1 - 1].age_time
             >= thiz->priv.factory_ctx.aging_target_info.total_target_time) {
@@ -211,6 +213,7 @@ void factory_tests_aging_test_check_result(void)
     } else if (thiz->priv.current_mode == TST_AGING_TEST_TYPE
                && thiz->priv.factory_ctx.aging_target_info.aging_type == AGING_MODE_TYPE_2) {
         flag_info.age_info[AGING_MODE_TYPE_2 - 1].age_time += AGING2_TEST_DEFAULT_CYCLE_TIME;
+        thiz->priv.factory_ctx.aging_result_info.total_runtime_time += AGING2_TEST_DEFAULT_CYCLE_TIME;
         flag_info.age_info[AGING_MODE_TYPE_2 - 1].age_cycle++;
         if (flag_info.age_info[AGING_MODE_TYPE_2 - 1].age_time
             >= thiz->priv.factory_ctx.aging_target_info.total_target_time) {
@@ -231,11 +234,30 @@ void factory_tests_aging_test_check_result(void)
     }
 }
 
+//添加获取老化时间的接口
+uint32_t factory_tests_aging_test_get_current_age_time(void)
+{
+    EXCEPTION_CHECK_INT(thiz);
+    return thiz->priv.factory_ctx.aging_result_info.total_runtime_time;
+}
+
+/// 获取老化时间的包装函数（用于事件处理接口）
+int get_factory_tests_aging_test_current_age_time(tests_func_args_t args)
+{
+    int ret = 0;
+    EXCEPTION_CHECK_INT(args.val);
+    uint32_t age_time = factory_tests_aging_test_get_current_age_time();
+    *(uint32_t *)args.val = age_time;
+    LOG_TEST("factory test get current age time: %lu", (unsigned long)age_time);
+    return ret;
+}
+
 int factory_tests_aging_test_enter(tests_func_args_t args)
 {
     /* 自动循环工作N小时（按摩→吸乳→混合，1-15档循环） */
     int ret = 0;
     memset(&thiz->priv.factory_ctx.aging_target_info, 0, sizeof(aging_target_info_t));
+    memset(&thiz->priv.factory_ctx.aging_result_info, 0, sizeof(aging_result_info_t));
     thiz->priv.factory_ctx.aging_target_info.total_target_time = (uint32_t)args.arg2; /// 老化目标时长
     thiz->priv.factory_ctx.aging_target_info.aging_type = (uint16_t)args.arg1;        /// 老化模式类型
     LOG_TEST("factory test aging test: total_target_time = %d, aging_type = %d",
@@ -311,7 +333,7 @@ int factory_tests_suction_test(tests_func_args_t args)
         pump_ctx->get_breast_pump_setting(&setting, time_index);
         setting.level[0] = BREAST_PUMP_LEVEL_15;
         setting.level[1] = BREAST_PUMP_LEVEL_15;
-        pump_ctx->set_breast_pump_setting(&setting, time_index);
+        pump_ctx->set_breast_pump_setting(&setting, time_index, false);
 
         LOG_TEST("tests_tlvs_suction_test_mode_handler: level[0] = %d, level[1] = %d", setting.level[0],
                 setting.level[1]);

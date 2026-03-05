@@ -78,7 +78,7 @@ extern "C" {
 #define MOTOR_VALVE1_PWM_IMUX           hal_iomux_set_pwm6
 #define MOTOR_VALVE2_PWM_ID             HAL_PWM_ID_0
 #define MOTOR_VALVE2_PWM_IMUX           hal_iomux_set_pwm0
-#elif (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V2)
+#elif (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V2) || (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V3)
 /// ADC相关定义
 #define BATT_ADC_CHANNEL                HAL_GPADC_CHAN_4
 #define PUMP1_ADC_CHANNEL               HAL_GPADC_CHAN_2

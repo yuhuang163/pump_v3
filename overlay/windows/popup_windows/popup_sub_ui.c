@@ -38,6 +38,12 @@ void start_popup_ui_animation(ui_proc_popup_t *proc)
             LOG_UI("start low power ui animation.");
             start_low_power_ui_animation(proc);
             break;
+        case ID_POPUP_WINDOW_EXIT_AIRPLANE_MODE:
+            LOG_UI("exit airplane mode ui animation.");
+            break;
+        case ID_POPUP_WINDOW_MODE_PROMPT:
+            LOG_UI("mode prompt ui animation.");
+            break;
         default:
             LOG_UI("unknow popup window id: %d, ignore.", proc->popup_window_id);
             break;

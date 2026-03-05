@@ -43,6 +43,7 @@ typedef struct ui_proc_airplane_mode {
     window_manager_context_t *wm;
     ui_manager_context_t *ui;
     battery_manager_context_t *battery;
+    ble_manager_context_t *ble;
     power_manager_context_t *pm;
     key_input_context_t *key;
     breast_pump_manager_context_t *pump;
@@ -52,6 +53,7 @@ typedef struct ui_proc_airplane_mode {
     uint32_t margic;
     uint32_t last_progress_ani_time; /// 上次进度动画时间.
     uint16_t current_ui_type; /// 当前UI类型. airplane_mode_ui_type_e
+    uint8_t show_countdown_time; /// 显示倒数时间
 } ui_proc_airplane_mode_t;
 
 /// 飞行模式背光灯状态结构体

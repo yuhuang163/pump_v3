@@ -10,7 +10,7 @@ extern "C" {
 * Include files
 ******************************************************************************/
 #include "bsp_common.h" // IWYU pragma: keep
-#if (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V2)
+#if (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V2) || (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V3)
 #include "bsp_lcd_bes_qspi.h" // IWYU pragma: keep
 #else
 #include "bsp_lcd_uart.h" // IWYU pragma: keep

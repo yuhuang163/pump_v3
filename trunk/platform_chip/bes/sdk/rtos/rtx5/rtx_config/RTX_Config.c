@@ -49,6 +49,10 @@ extern void rtx_show_all_threads(void);
 extern void check_hung_threads(void);
 #endif
 
+#if CFG_CUSTOM_APP
+extern void watchdog_ping(void);
+#endif
+
 #ifdef CHIP_SIMULATOR
 __NO_RETURN void osRtxIdleThread (void *argument) {
   for (;;) {
@@ -78,6 +82,9 @@ __NO_RETURN void osRtxIdleThread (void *argument) {
     ASSERT(timer, "IdleTask: Failed to alloc sleep timer");
 
   for (;;) {
+#if CFG_CUSTOM_APP
+    watchdog_ping();
+#endif
 #if TASK_HUNG_CHECK_ENABLED
         check_hung_threads();
 #endif

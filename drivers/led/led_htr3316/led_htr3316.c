@@ -59,7 +59,7 @@ static const uint8_t led6_address[] = {
 };
 
 static const led_address_data_t led_address_data[LED_TOTAL_SIZE] = {
-#if DV_DEVICE_ENABLE == DV1_DEVICE_ENABLE
+#if (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V3)
     {led2_address, sizeof(led2_address)},/// PUMP_START_BL
     {led5_address, sizeof(led5_address)},/// PUMP_MODE_BL
     {led6_address, sizeof(led6_address)},/// PUMP_FREQ_SET_BL

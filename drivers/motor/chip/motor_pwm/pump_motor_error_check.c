@@ -88,10 +88,10 @@ pump_motor_stall_detect_threshold_t s_pump_pwm_threshold[10] = {
        10, 0, 250, 3, 3,
     },
     {
-       20, 11, 280, 3, 3,
+       20, 11, 330, 3, 3,
     },
     {
-       30, 21, 400, 3, 3,
+       30, 21, 440, 3, 3,
     },
     {
        40, 31, 500, 3, 3,
@@ -421,7 +421,7 @@ int pump_motor_error_check_init(void)
     RUN_NEW_THREAD(&ctx->thd, "pump_motor_check_thd", pump_motor_check_dispatch_thread,
          RT_PRIO_PUMP_MOTOR_CHECK_THREAD, PUMP_MOTOR_CHECK_THREAD_STACKSIZE);
     
-    LOG_PBUS("pump motor error check init ok");
+    LOG_PBUS("===> init ok");
     return 0;
 }
 
@@ -430,7 +430,7 @@ int pump_motor_error_check_stop(void)
     pump_motor_check_context_t *ctx = &s_pump_motor_check_ctx;
     
     if (ctx->polling_timer == NULL) {
-        LOGE("pump motor error check timer is not initialized");
+        LOGE("===> timer is not initialized");
         return -1;
     }
     if (ctx->do_polling) {
@@ -461,7 +461,7 @@ int pump_motor_error_check_stop(void)
     /// 清零堵转状态
     memset(ctx->pump_is_stall, 0, sizeof(ctx->pump_is_stall));
     
-    LOG_PBUS("pump motor error check stop ok");
+    LOG_PBUS("===> stop pump ok");
     return 0;
 }
 
@@ -469,7 +469,7 @@ int pump_motor_error_check_start(void)
 {
     pump_motor_check_context_t *ctx = &s_pump_motor_check_ctx;
     if (ctx->polling_timer == NULL) {
-        LOGE("pump motor error check timer is not initialized");
+        LOGE("===> timer is not initialized");
         return -1;
     }
     if (!ctx->do_polling) {

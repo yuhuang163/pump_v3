@@ -46,6 +46,12 @@ static int breast_pump_policy_register(struct motor_manager_context *thiz, add_b
         milk_boost_mode_parameter_init, milk_boost_mode_policy_get);
     add_policy_cb(head, "lactation_start", BREAST_PUMP_LACTATION_START_MODE, NULL,
         lactation_start_mode_parameter_init, lactation_start_mode_policy_get);
+    add_policy_cb(head, "regular_pumping", BREAST_PUMP_REGULAR_PUMPING_MODE, NULL,
+        regular_pumping_mode_parameter_init, regular_pumping_mode_policy_get);
+    add_policy_cb(head, "emptying_boost", BREAST_PUMP_EMPTYING_BOOST_MODE, NULL,
+        emptying_boost_mode_parameter_init, emptying_boost_mode_policy_get);
+    add_policy_cb(head, "relax", BREAST_PUMP_RELAX_MODE, NULL,
+        relax_mode_parameter_init, relax_mode_policy_get);
 
     return 0;
 }

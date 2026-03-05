@@ -34,16 +34,6 @@ static uint32_t s_bootmode = 0;
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-static void platform_wdt_init(void) 
-{
-    app_wdt_open(15);
-}
-
-static void platform_wdt_refresh(void) 
-{    
-    watchdog_ping();
-}
-
 static char *platform_get_reboot_reason(uint32_t bootmode)
 {
     if (bootmode & HAL_SW_BOOTMODE_REBOOT_FROM_CRASH) {
@@ -85,7 +75,7 @@ bool platform_is_startup_caused_by_reboot(void)
 
 void platform_post_init(void) 
 {
-    platform_set_utc_time(PRODUCT_BUILD_TIMESTAMP, 8);
+
 }
 
 void platform_sysinfo_print(void *user_data)

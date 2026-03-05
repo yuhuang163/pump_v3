@@ -682,9 +682,8 @@ extern void root_main(int argc, const char *argv[]);
 #endif
 int main(void)
 {
-    app_wdt_open(15);
-    app_wdt_hung_task_check_enable(true);
-
+    app_wdt_open(5);
+    // app_wdt_hung_task_check_enable(true);
     hwtimer_init();
     hal_sys_timer_open();
     hal_audma_open();

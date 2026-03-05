@@ -74,8 +74,8 @@ static void charge_ui_common_cb(hdr_post_args_t *args)
                 proc->wm->dispatch_new_window_args(proc->wm, &msg);
                 return;
             } 
-            LOG_WM("goto pump window.");
-            msg.union_body.extra.window_id = ID_WINDOW_PUMP;
+            LOG_WM("goto home window.");
+            msg.union_body.extra.window_id = ID_WINDOW_HOME;
             proc->wm->dispatch_new_window_args(proc->wm, &msg);
             proc->exit_charge_window_flag = 0;
             break;

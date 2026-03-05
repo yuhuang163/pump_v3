@@ -123,6 +123,16 @@ uint8_t pump_custom_step_para_to_local_motor_policy(user_def_pump_steps_data_t *
             memcpy(custom_mode_policy_cfg + cfg_num, &mix_default2_temp,
                    sizeof(mix_default2_temp));
             cfg_num += 2;
+        } 
+        else if (pump_steps_data->data[i].mode == APP_OLD_COMM_MODE_RELAX) {
+            motor_policy_cfg_t relax_default_temp[RELAX_MODE_LEN] = {0};
+            memcpy(relax_default_temp, &relax_default, sizeof(relax_default));
+            relax_default_temp[0].duration = pump_steps_data->data[i].time;
+            relax_default_temp[0].core.un.mapping.level = pump_steps_data->data[i].level;
+            relax_default_temp[0].core.un.mapping.speed = pump_steps_data->data[i].freq;
+            memcpy(custom_mode_policy_cfg + cfg_num, &relax_default_temp,
+                   sizeof(relax_default_temp));
+            cfg_num += 1;
         } else {
             LOG_MOTOR("unknow custom pump step mode");
         }
@@ -131,12 +141,29 @@ uint8_t pump_custom_step_para_to_local_motor_policy(user_def_pump_steps_data_t *
     return cfg_num;
 }
 
+uint8_t get_pump_custom_mode_step_max_number(void)
+{
+    user_def_pump_steps_data_t custom_pump_steps_data;
+    storage_manager_context_t *storage_ctx = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
+    EXCEPTION_CHECK_UINT(storage_ctx);
+    storage_ctx->get_store_ram_val(STORE_ID_PUMP_CUSTOM_STEPS_PARAMETER_INFO, 0, 0, &custom_pump_steps_data);
+    //app有更新自定义模式参数，则返回自定义模式参数步数
+    if (custom_pump_steps_data.id.dat32 != 0x00) //标识是默认custom策略定义
+    {
+       return custom_pump_steps_data.num;
+    }
+    //app没有更新自定义模式参数，则返回默认自定义模式步数
+    return CUSTOM_MODE_MAX_STEPS;
+}
+
 int custom_mode_parameter_init(void)
 {
     const motor_policy_cfg_t *cfg = get_breast_pump_mode_para(BREAST_PUMP_CUSTOM_MODE);
     user_def_pump_steps_data_t custom_pump_steps_data;
     storage_manager_context_t *storage_ctx = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
     EXCEPTION_CHECK_UINT(storage_ctx);
+    //保持自定义模式临时cfg和默认cfg初始化一致
+    memcpy(s_custom_policy_cfg, cfg, sizeof(motor_policy_cfg_t)*CUSTOM_MODE_LEN);
     storage_ctx->get_store_ram_val(STORE_ID_PUMP_CUSTOM_STEPS_PARAMETER_INFO, 0, 0, &custom_pump_steps_data);
     if (custom_pump_steps_data.id.dat32 != 0x00) //标识是默认custom策略定义
     {

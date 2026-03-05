@@ -14,14 +14,10 @@
 #define PUMP_UI_KEY_CODE                    (KEY_CODE_POWER |KEY_CODE_START | KEY_CODE_MODE | KEY_CODE_FREQUENCY | \
                                             KEY_CODE_BREASTFEEDING | KEY_CODE_LEFT_CONTROL | KEY_CODE_RIGHT_CONTROL | \
                                             KEY_CODE_KNOB_LEFT | KEY_CODE_KNOB_RIGHT)
-#define PUMP_UI_KEY_TYPE                    (KEY_EVENT_CLICK)
+#define PUMP_UI_KEY_TYPE                    (KEY_EVENT_CLICK | KEY_EVENT_LONG_3S)
 #define PUMP_START_TASK_NAME                "pump_start"
 #define PUMP_STATE_CHANGE_TASK_NAME         "pump_state_change"
 #define PUMP_COMPLETE_TASK_NAME             "pump_complete"
-
-#define PUMP_BLINK_PERIOD                    (500)
-#define PUMP_BLINK_TIMES                     (1)
-#define PUMP_LEVEL_BLINK_TIMES               (3)
 
 #define REMOVE_ALL_HANDER_TASK() \
 do { \
@@ -91,14 +87,82 @@ static void pump_ui_common_cb(hdr_post_args_t *args)
             /// TODO: 停止进度条
             break;
         case PUMP_HDR_ACTION_PUMP_COMPLETE: 
-            // REMOVE_ALL_HANDER_TASK();
             LOG_WM("pump complete, show progress time policy.");
             if (proc->pump) {
-                show_pump_progress_time_policy(proc, proc->pump);
+                show_pump_result_ui(proc);
             }
             break;
         default:
             LOG_WM("unknow action: %d, ignore.", action);
+            break;
+    }
+}
+
+void pump_knob_event_cb(ui_proc_pump_t *proc, uint8_t is_left)
+{
+    switch (proc->current_ui_type) {
+        case PUMP_UI_TYPE_LEVEL:
+            switch_pump_level_ui(proc, is_left);
+            break;
+        case PUMP_UI_TYPE_SPEED:
+            switch_pump_speed_ui(proc, is_left ? false : true);
+            break;
+        case PUMP_UI_TYPE_COMMON_MODE:
+            switch_pump_common_mode_ui(proc, is_left ? false : true);
+            break;
+        case PUMP_UI_TYPE_BREASTFEEDING_MODE:
+            switch_breastfeeding_mode_ui(proc, is_left ? false : true);
+            break;
+        default:
+            LOG_WM("unknow ui type: %d, ignore.", proc->current_ui_type);
+            break;
+    }
+}
+
+static void pump_long_press_event_cb(ui_proc_pump_t *proc, uint16_t keycode)
+{
+    switch (keycode) {
+        case KEY_CODE_START:
+            if (proc->current_ui_type == PUMP_UI_TYPE_HOME) {
+                proc->popup_ui_type = PUMP_POPUP_UI_PUMP_WILL_FINISH_TIP;
+            }
+            break;
+        default:
+            LOG_WM("unknow keycode: %d, ignore.", keycode);
+            break;
+    }
+}
+
+static void pump_click_event_cb(ui_proc_pump_t *proc, uint16_t keycode)
+{
+    switch (keycode) {
+        case KEY_CODE_POWER:
+            pump_power_key_handler(proc);
+            break;
+        case KEY_CODE_START:
+            switch_pump_status_ui(proc);
+            break;
+        case KEY_CODE_MODE:
+            pump_mode_key_click_handler(proc);
+            break;
+        case KEY_CODE_FREQUENCY:
+            pump_speed_key_click_handler(proc);
+            break;
+        case KEY_CODE_BREASTFEEDING:
+            breastfeeding_mode_key_click_handler(proc);
+            break;
+        case KEY_CODE_RIGHT_CONTROL:
+            switch_pump_control_type_ui(proc, BREAST_PUMP_CONTROL_TYPE_RIGHT);
+            break;
+        case KEY_CODE_LEFT_CONTROL:
+            switch_pump_control_type_ui(proc, BREAST_PUMP_CONTROL_TYPE_LEFT);
+            break;
+        case KEY_CODE_KNOB_LEFT:
+        case KEY_CODE_KNOB_RIGHT:
+            pump_knob_event_cb(proc, keycode == KEY_CODE_KNOB_LEFT);
+            break;
+        default:
+            LOG_WM("unknow keycode: %d, ignore.", keycode);
             break;
     }
 }
@@ -111,79 +175,21 @@ static int on_pump_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
     EXCEPTION_CHECK_INT(proc->key);
     EXCEPTION_CHECK_INT(proc->ui);
     WINDOW_CONTEXT_GUARD_INT(proc, ID_WINDOW_PUMP, 0);
-    breast_pump_info_t pump_info = {
-        .status = proc->pump->get_breast_pump_status(),
-        .mode = proc->pump->get_breast_pump_mode(),
-        .do_work = proc->pump->is_on_working()
-    };
-
     if (proc->goto_charge_ui_flag != 0) {
         LOG_WM("goto charge ui, ignore key event.");
         return 0;
     }
 
-    EXCEPTION_CHECK_INT(proc->led);
 #if IS_SUPPORT_AIR_LEAKAGE_WARNING
     if (proc->is_air_leakage_popup_show == true) {
         proc->hide_air_leakage_popup_wm = true;     /// 隐藏空气泄漏弹窗提示.
     }
 #endif
-
-    switch (keycode) {
-        case KEY_CODE_POWER:
-            switch_pump_night_light_ui(proc, proc->pump);
-            break;
-        case KEY_CODE_START:
-            proc->led->set_led_blink(PUMP_START_BL, PUMP_BLINK_PERIOD, 
-                PUMP_BLINK_TIMES, LED_STATUS_ON);
-            switch_pump_status_ui(proc, proc->pump, pump_info.status);
-            break;
-        case KEY_CODE_MODE:
-            proc->led->set_led_blink(PUMP_MODE_BL, PUMP_BLINK_PERIOD,
-                PUMP_BLINK_TIMES, LED_STATUS_ON);
-            if (BREAST_PUMP_IS_COMMON_MODE(pump_info.mode) == 0) {
-                proc->led->set_led_onoff(PUMP_FREQ_SET_BL, LED_STATUS_ON);
-            }
-            switch_pump_common_mode_ui(proc, proc->pump, &pump_info);
-            break;
-        case KEY_CODE_FREQUENCY:
-            if (BREAST_PUMP_IS_COMMON_MODE(pump_info.mode)) {
-                proc->led->set_led_blink(PUMP_FREQ_SET_BL, PUMP_BLINK_PERIOD, 
-                    PUMP_BLINK_TIMES, LED_STATUS_ON);
-            }
-            switch_pump_frequency_ui(proc, proc->pump, &pump_info);
-            break;
-        case KEY_CODE_BREASTFEEDING:
-            if (BREAST_PUMP_IS_COMMON_MODE(pump_info.mode)) {
-                proc->led->set_led_onoff(PUMP_FREQ_SET_BL, LED_STATUS_OFF);
-            }
-            proc->led->set_led_blink(PUMP_BREASTFEEDING_BL, PUMP_BLINK_PERIOD, 
-                PUMP_BLINK_TIMES, LED_STATUS_ON);
-            switch_breastfeeding_mode_ui(proc, proc->pump, &pump_info);
-            break;
-        case KEY_CODE_LEFT_CONTROL:
-            proc->led->set_led_blink(PUMP_LEFT_CONTROL_BL, PUMP_BLINK_PERIOD, 
-                PUMP_LEVEL_BLINK_TIMES, LED_STATUS_ON);
-            proc->led->set_led_level(PUMP_RIGHT_CONTROL_BL, LED_LEVEL_MAX / 2);
-            switch_pump_control_type_ui(proc, proc->pump, 0);
-            break;
-        case KEY_CODE_RIGHT_CONTROL:
-            proc->led->set_led_blink(PUMP_RIGHT_CONTROL_BL, PUMP_BLINK_PERIOD, 
-                PUMP_LEVEL_BLINK_TIMES, LED_STATUS_ON);
-            proc->led->set_led_level(PUMP_LEFT_CONTROL_BL, LED_LEVEL_MAX / 2);
-            switch_pump_control_type_ui(proc, proc->pump, 1);
-            break;
-        case KEY_CODE_KNOB_LEFT:
-            switch_pump_level_ui(proc, proc->pump, &pump_info, 1);
-            break;
-        case KEY_CODE_KNOB_RIGHT:
-            switch_pump_level_ui(proc, proc->pump, &pump_info, 0);
-            break;
-        default:
-            LOG_WM("unknow keycode: %d, ignore.", keycode);
-            break;
+    if (keytype == KEY_EVENT_LONG_3S) {
+        pump_long_press_event_cb(proc, keycode);
+    } else if (keytype == KEY_EVENT_CLICK) {
+        pump_click_event_cb(proc, keycode);
     }
-
     return 0;
 }
 
@@ -225,9 +231,16 @@ static void on_pump_ui_broadcast_receive_cb(broadcast_mask_id_t id, void *contex
                     proc->is_mode_changed_by_app = false;
                 }
             } else if (arg1 == BREAST_PUMP_BROADCAST_COMPLETED) {
-                POST_TASK_HANDLER_DELAYED_ARG2(pump_ui_common_cb, 100, PUMP_HDR_ACTION_PUMP_COMPLETE, 
-                    proc, PUMP_COMPLETE_TASK_NAME);
                 LOG_WM("pump finish, post pump complete task.");
+            } else if (arg1 == BREAST_PUMP_BROADCAST_PUMP_WILL_FINISH) {
+                POST_TASK_HANDLER_NO_DELAY_ARG1(pump_ui_common_cb, proc, PUMP_HDR_ACTION_PUMP_COMPLETE, 
+                    PUMP_COMPLETE_TASK_NAME);
+                LOG_WM("pump will finish, post pump will finish task.");
+            }
+            else if (arg1 == BREAST_PUMP_BROADCAST_PUMP_ERROR) {
+                LOG_WM("pump error, post pump error task.");
+                //先暂时显示暂停提示
+                proc->popup_ui_type = PUMP_POPUP_UI_PUMP_PAUSE_PROMPT;
             }
             break;
         default:
@@ -251,14 +264,18 @@ static int entry_event_cb(window_lift_cycle_e new_state,
         } else {
             LOG_WM("key not present, ignore.");
         }
-        if (proc->need_start_pump) {
-            proc->need_start_pump = 0;
-            POST_TASK_HANDLER_DELAYED_ARG2(pump_ui_common_cb, 100, PUMP_HDR_ACTION_START_PUMP, proc,
-                 PUMP_START_TASK_NAME);
-        }
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);
-        show_pump_home_ui(proc);
+        if (proc->current_ui_type == PUMP_UI_TYPE_COMMON_MODE) {
+            proc->current_ui_type = PUMP_UI_TYPE_NONE;
+            pump_mode_key_click_handler(proc);
+        } else if (proc->current_ui_type == PUMP_UI_TYPE_BREASTFEEDING_MODE) {
+            proc->current_ui_type = PUMP_UI_TYPE_NONE;
+            breastfeeding_mode_key_click_handler(proc);
+        } else if (proc->current_ui_type == PUMP_UI_TYPE_PUMPING) {
+            proc->current_ui_type = PUMP_UI_TYPE_NONE;
+            switch_pump_status_ui(proc);
+        } 
     }
     return 0;
 }
@@ -317,8 +334,16 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
     EXCEPTION_CHECK_INT(proc);
     SET_WINDOW_CONTEXT(proc);
     /// 设置窗口标识.
+    window_entry_extra_t *extra = (window_entry_extra_t *)wm->get_window_entry_extra(wm);
     proc->margic = UI_WINDOW_MARGIC_CODE;
-    proc->current_ui_type = PUMP_UI_TYPE_NONE;
+    LOG_WM("window entry extra arg1: %d.", extra->arg1);
+    if (extra->arg1 == KEY_CODE_MODE) {
+        proc->current_ui_type = PUMP_UI_TYPE_COMMON_MODE;
+    } else if (extra->arg1 == KEY_CODE_START) {
+        proc->current_ui_type = PUMP_UI_TYPE_PUMPING;
+    } else {
+        proc->current_ui_type = PUMP_UI_TYPE_BREASTFEEDING_MODE;
+    }
     proc->wm = wm;
     proc->ui = (ui_manager_context_t *)find_module(ID_MODULE_UI);
     proc->pump = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
@@ -329,6 +354,8 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
     proc->key = (key_input_context_t *)find_module(ID_MODULE_KEY_INPUT);
     proc->algo = (algo_manager_context_t *)find_module(ID_MODULE_ALGO_HUB);
     proc->led = (led_manager_context_t *)find_module(ID_MODULE_LED);
+    proc->level_change_direction = 0xff;/// 无效值
+    proc->level_change = 0;/// 档位变化值归零
     /// 注册广播监听.
     proc->receiver.context = proc;
     proc->receiver.name = "pump_screen";
@@ -354,3 +381,8 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
     return ID_WINDOW_DISPLAY_OK;
 }
 
+void pump_complete_event_handler(ui_proc_pump_t *proc)
+{
+    POST_TASK_HANDLER_NO_DELAY_ARG1(pump_ui_common_cb, proc, PUMP_HDR_ACTION_PUMP_COMPLETE,
+        PUMP_COMPLETE_TASK_NAME);
+}

@@ -2,6 +2,7 @@
 * INCLUDE FILES
 *****************************************************************************************
 */
+#include "input_key_code.h"
 #include "ui_page_define.h"  // IWYU pragma: keep
 #include "window_screen_guide.h" // IWYU pragma: keep
 
@@ -29,11 +30,11 @@ static void guide_display_completed_cb(hdr_post_args_t *args)
 {
     ui_proc_guide_t *proc = (ui_proc_guide_t *)args->user_data;
     EXCEPTION_CHECK_VOID(proc);
-    LOG_UI("guide play finish");
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_GUIDE);
     proc->wm->set_window_guidance_deployed_flag(true);
     multi_func_msg_data_t msg = {0};
-    msg.union_body.extra.window_id = ID_WINDOW_PUMP;
+    LOG_WM("goto home window.");
+    msg.union_body.extra.window_id = ID_WINDOW_HOME;    
     proc->wm->dispatch_new_window_args(proc->wm, &msg);
 }
 
@@ -112,8 +113,12 @@ void stop_guide_ui_animation(ui_proc_guide_t *proc)
     proc->last_progress_ani_time = get_timestamp();
 }
 
-void guide_start_key_event_handler(ui_proc_guide_t *proc)
+void guide_key_event_handler_v1(ui_proc_guide_t *proc, uint16_t keycode)
 {
+    if (keycode != KEY_CODE_START) {
+        return;
+    }
+
     EXCEPTION_CHECK_VOID(proc);
     if (proc->page_index >= GUIDE_PAGE_MAX - 1) {
         POST_TASK_HANDLER_NO_DELAY(guide_display_completed_cb, proc, GUIDE_DISPLAY_TASK_NAME);
@@ -121,4 +126,71 @@ void guide_start_key_event_handler(ui_proc_guide_t *proc)
     }
     LOG_WM("guide page index: %d", proc->page_index);
     proc->page_index++;
+}
+
+void guide_key_event_handler_v2(ui_proc_guide_t *proc, uint16_t keycode)
+{
+    uint8_t page_index = proc->page_index;
+    if (keycode == KEY_CODE_POWER) {
+        POST_TASK_HANDLER_NO_DELAY(guide_display_completed_cb, proc, GUIDE_DISPLAY_TASK_NAME);
+        return;
+    }
+    switch (page_index) {
+        case GUIDE_PAGE_HOME:
+            if (keycode == KEY_CODE_KNOB_RIGHT) {
+                proc->page_index = GUIDE_PAGE_START_PUMP;
+                if (proc->led) {
+                    proc->led->set_led_level(PUMP_START_BL, LED_LEVEL_MAX);
+                }
+            } 
+            break;
+        case GUIDE_PAGE_START_PUMP:
+            if (keycode == KEY_CODE_START) {
+                proc->page_index = GUIDE_PAGE_SETTING_PUMP;
+                if (proc->led) {
+                    proc->led->set_led_level(PUMP_START_BL, 0);
+                    proc->led->set_led_level(PUMP_MODE_BL, LED_LEVEL_MAX);
+                    proc->led->set_led_level(PUMP_LEFT_CONTROL_BL, LED_LEVEL_MAX);
+                    proc->led->set_led_level(PUMP_RIGHT_CONTROL_BL, LED_LEVEL_MAX);
+                }
+            } 
+            break;
+        case GUIDE_PAGE_SETTING_PUMP:
+            if (keycode == KEY_CODE_LEFT_CONTROL || keycode == KEY_CODE_RIGHT_CONTROL ||
+                keycode == KEY_CODE_MODE || keycode == KEY_CODE_FREQUENCY || keycode == KEY_CODE_BREASTFEEDING) {
+                proc->page_index = GUIDE_PAGE_STOP_PUMP;
+                if (proc->led) {
+                    proc->led->set_led_level(PUMP_MODE_BL, 0);
+                    proc->led->set_led_level(PUMP_LEFT_CONTROL_BL, 0);
+                    proc->led->set_led_level(PUMP_RIGHT_CONTROL_BL, 0);
+                    proc->led->set_led_blink(PUMP_START_BL, 200, 0, LED_STATUS_OFF);
+                }
+            } 
+            break;
+        case GUIDE_PAGE_PUMP_MODE_SELECT:
+            if (keycode == KEY_CODE_KNOB_RIGHT) {
+                proc->page_index = GUIDE_PAGE_BIND_GUIDE;
+                if (proc->led && proc->led->hook && proc->led->hook->set_key_backlight) {
+                    proc->led->hook->set_key_backlight(proc->led, LED_LEVEL_MAX);
+                }
+            } 
+            break;
+        default:
+            break;
+    }
+}
+
+void guide_key_3s_press_handler_v2(ui_proc_guide_t *proc, uint16_t keycode)
+{
+    if (keycode != KEY_CODE_START) {
+        return;
+    }
+    /// 只有在停止泵奶页面时，才允许3秒长按启动键进入泵奶模式选择页面
+    if (proc->page_index != GUIDE_PAGE_STOP_PUMP) {
+        return;
+    }
+    proc->page_index = GUIDE_PAGE_PUMP_MODE_SELECT;
+    if (proc->led) {
+        proc->led->set_led_level(PUMP_START_BL, 0);
+    }
 }

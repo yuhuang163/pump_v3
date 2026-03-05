@@ -42,6 +42,18 @@ int ui_display_breastfeeding_mode_process(ui_manager_context_t *thiz);
 void ui_display_pump_speed_prepare(ui_manager_context_t *thiz);
 void ui_display_pump_speed_remove(ui_manager_context_t *thiz);
 int ui_display_pump_speed_process(ui_manager_context_t *thiz);
+/// 泵奶模式提示界面
+void ui_prompt_mode_switch_process(ui_manager_context_t *thiz, uint8_t mode);
+void ui_prompt_mode_switch_prepare(ui_manager_context_t *thiz, lv_obj_t *parent);
+void ui_prompt_mode_switch_remove(ui_manager_context_t *thiz);
+/// 泵奶即将结束提示界面（带圆弧进度）
+void ui_prompt_pump_will_finish_prepare(ui_manager_context_t *thiz, lv_obj_t *parent);
+void ui_prompt_pump_will_finish_remove(ui_manager_context_t *thiz);
+void ui_prompt_pump_will_finish_process(ui_manager_context_t *thiz);
+/// 泵奶状态提示界面
+void ui_prompt_pump_status_prepare(ui_manager_context_t *thiz, lv_obj_t *parent);
+void ui_prompt_pump_status_process(ui_manager_context_t *thiz, uint8_t status);
+void ui_prompt_pump_status_remove(ui_manager_context_t *thiz);
 
 #ifdef __cplusplus
 }

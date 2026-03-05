@@ -2280,6 +2280,9 @@ int hal_trace_crash_dump_register(enum HAL_TRACE_CRASH_DUMP_MODULE_T module, HAL
     return 0;
 }
 
+#ifdef CFG_CUSTOM_APP
+static void NORETURN hal_trace_crash_end(void);  // Forward declaration
+#endif
 void hal_trace_crash_dump_callback(void)
 {
 #ifdef CRASH_DUMP_ENABLE
@@ -2288,6 +2291,11 @@ void hal_trace_crash_dump_callback(void)
     in_crash_dump = true;
 
     for (i = 0; i < ARRAY_SIZE(crash_dump_cb_list); i++) {
+#ifdef CFG_CUSTOM_APP
+       if (i == 1) {
+        hal_trace_crash_end(); ///lute 20260304 
+       }
+#endif
         if (crash_dump_cb_list[i]) {
             crash_dump_cb_list[i]();
         }
@@ -3524,7 +3532,9 @@ void hal_trace_fault_dump(const uint32_t *regs, const uint32_t *extra, uint32_t 
 #ifdef USE_SPI_DUMP_CRASH
     xtc_spi_slave_dump_crash(NULL, NULL, DUMP_CRASH_END);
 #endif
-    hal_trace_crash_end();
+#ifndef CFG_CUSTOM_APP  ///lute 20260304
+    hal_trace_crash_end(); 
+#endif
 }
 
 #ifndef __ARM_ARCH_ISA_ARM

@@ -71,11 +71,14 @@ VUSB_ON ?= 1
 # PSRAM enable switch
 PSRAM_ENABLE ?= 1
 
-# DV device enable 
-DV1_DEVICE_ENABLE ?= 1
-DV_DEVICE_ENABLE ?= $(DV1_DEVICE_ENABLE)
-ifeq ($(DV_DEVICE_ENABLE), 1)
+# 硬件版本
+V3_2710IMP_HARDWARE_V1 ?= 0
+V3_2710IMC_HARDWARE_V1 ?= 1
+V3_2710IMC_HARDWARE_V2 ?= 2
+V3_2710IMC_HARDWARE_V3 ?= 3 #DV1
+V3_HARDWARE_VERSION ?= $(V3_2710IMC_HARDWARE_V3)
 
+ifeq ($(V3_HARDWARE_VERSION), V3_2710IMC_HARDWARE_V3)
 # littlefs section size
 LITTLEFS_SECTION_SIZE ?= 0xC0000
 
@@ -118,16 +121,10 @@ CFG_EXTERNAL_FLASH_ENABLE := 1
 # BT 校准开关
 CFG_BT_CALIB ?= 1
 
-# 硬件版本
-V3_2710IMP_HARDWARE_V1 ?= 0
-V3_2710IMC_HARDWARE_V1 ?= 1
-V3_2710IMC_HARDWARE_V2 ?= 2
-V3_HARDWARE_VERSION ?= $(V3_2710IMC_HARDWARE_V2)
-
 # UI版本
 V3_UI_V1 ?= 1
 V3_UI_V2 ?= 2
-V3_UI_VERSION ?= $(V3_UI_V1)
+V3_UI_VERSION ?= $(V3_UI_V2)
 
 # BLE 头文件子目录
 BLE_INC_DIRS := $(shell find $(PROJECT_ROOT)/trunk/platform_chip/bes/sdk/bthost -type d)\
@@ -275,7 +272,7 @@ DRIVERS_AIR_PRESSURE_INC_FLAGS := \
 ifeq ($(V3_HARDWARE_VERSION), $(V3_2710IMC_HARDWARE_V1))
 DRIVERS_AIR_PRESSURE_INC_FLAGS += -I$(PROJECT_ROOT)/drivers/air_pressure/chip/wf100d
 else
-ifeq ($(V3_HARDWARE_VERSION), $(V3_2710IMC_HARDWARE_V2))
+ifneq ($(filter $(V3_HARDWARE_VERSION),$(V3_2710IMC_HARDWARE_V2) $(V3_2710IMC_HARDWARE_V3)),)
 DRIVERS_AIR_PRESSURE_INC_FLAGS += -I$(PROJECT_ROOT)/drivers/air_pressure/chip/limscg04pcns5
 endif
 endif	
@@ -297,7 +294,7 @@ DRIVERS_BATTERY_INC_FLAGS := \
 	-I$(PROJECT_ROOT)/drivers/battery \
 	-I$(PROJECT_ROOT)/drivers/battery/charge
 
-ifneq ($(filter $(V3_HARDWARE_VERSION),$(V3_2710IMC_HARDWARE_V1) $(V3_2710IMC_HARDWARE_V2)),)
+ifneq ($(filter $(V3_HARDWARE_VERSION),$(V3_2710IMC_HARDWARE_V1) $(V3_2710IMC_HARDWARE_V2) $(V3_2710IMC_HARDWARE_V3)),)
 DRIVERS_BATTERY_INC_FLAGS += -I$(PROJECT_ROOT)/drivers/battery/charge_pd
 endif
 
@@ -341,7 +338,7 @@ DRIVERS_IMU_INC_FLAGS := \
 DRIVERS_KEY_INC_FLAGS := \
 	-I$(PROJECT_ROOT)/drivers/key \
 	-I$(PROJECT_ROOT)/drivers/key/chip/sc09b
-ifneq ($(filter $(V3_HARDWARE_VERSION),$(V3_2710IMC_HARDWARE_V1) $(V3_2710IMC_HARDWARE_V2)),)
+ifneq ($(filter $(V3_HARDWARE_VERSION),$(V3_2710IMC_HARDWARE_V1) $(V3_2710IMC_HARDWARE_V2) $(V3_2710IMC_HARDWARE_V3)),)
 DRIVERS_KEY_INC_FLAGS += -I$(PROJECT_ROOT)/drivers/key/chip/knob
 endif
 
@@ -349,7 +346,7 @@ endif
 DRIVERS_LCD_INC_FLAGS := \
 	-I$(PROJECT_ROOT)/drivers/lcd 
 	
-ifneq ($(filter $(V3_HARDWARE_VERSION),$(V3_2710IMC_HARDWARE_V1) $(V3_2710IMC_HARDWARE_V2)),)
+ifneq ($(filter $(V3_HARDWARE_VERSION),$(V3_2710IMC_HARDWARE_V1) $(V3_2710IMC_HARDWARE_V2) $(V3_2710IMC_HARDWARE_V3)),)
 DRIVERS_LCD_INC_FLAGS += -I$(PROJECT_ROOT)/drivers/lcd/interface/lcd_bes_qspi
 else
 DRIVERS_LCD_INC_FLAGS += -I$(PROJECT_ROOT)/drivers/lcd/interface/lcd_uart
@@ -395,7 +392,7 @@ DRIVERS_INC_FLAGS := \
 	$(DRIVERS_UART_INC_FLAGS) \
 	$(DRIVERS_WIFI_INC_FLAGS)
 
-ifneq ($(filter $(V3_HARDWARE_VERSION),$(V3_2710IMC_HARDWARE_V1) $(V3_2710IMC_HARDWARE_V2)),)
+ifneq ($(filter $(V3_HARDWARE_VERSION),$(V3_2710IMC_HARDWARE_V1) $(V3_2710IMC_HARDWARE_V2) $(V3_2710IMC_HARDWARE_V3)),)
 DRIVERS_INC_FLAGS += $(DRIVERS_LIGHT_SENSOR_INC_FLAGS)
 endif	
 
@@ -452,7 +449,7 @@ SENSOR_INC_FLAGS := \
 	-I$(PROJECT_ROOT)/overlay/sensor/air_pressure \
 	-I$(PROJECT_ROOT)/overlay/framework_hooks/sensor \
 	-I$(PROJECT_ROOT)/trunk/root_source/sensor
-ifneq ($(filter $(V3_HARDWARE_VERSION),$(V3_2710IMC_HARDWARE_V1) $(V3_2710IMC_HARDWARE_V2)),)
+ifneq ($(filter $(V3_HARDWARE_VERSION),$(V3_2710IMC_HARDWARE_V1) $(V3_2710IMC_HARDWARE_V2) $(V3_2710IMC_HARDWARE_V3)),)
 SENSOR_INC_FLAGS += -I$(PROJECT_ROOT)/overlay/sensor/light_sensor
 endif	
 
@@ -485,8 +482,7 @@ UI_MODULE_INC_FLAGS += -I$(PROJECT_ROOT)/overlay/framework_hooks/ui/lcd_uart_ui
 endif
 
 # 字体模块头文件
-FONT_INC_FLAGS := \
-	-I$(PROJECT_ROOT)/overlay/font \
+FONT_V1_INC_FLAGS := \
 	-I$(PROJECT_ROOT)/overlay/font/font_roboto_14 \
 	-I$(PROJECT_ROOT)/overlay/font/font_roboto_16 \
 	-I$(PROJECT_ROOT)/overlay/font/font_roboto_17 \
@@ -501,9 +497,27 @@ FONT_INC_FLAGS := \
 	-I$(PROJECT_ROOT)/overlay/font/font_roboto_46 \
 	-I$(PROJECT_ROOT)/overlay/font/font_roboto_68 \
 	-I$(PROJECT_ROOT)/overlay/font/font_roboto_79 \
-	-I$(PROJECT_ROOT)/overlay/font/font_roboto_81 \
+	-I$(PROJECT_ROOT)/overlay/font/font_roboto_81 
+
+FONT_V2_INC_FLAGS := \
+	-I$(PROJECT_ROOT)/overlay/font/font_oppo_sans_12 \
 	-I$(PROJECT_ROOT)/overlay/font/font_oppo_sans_14 \
+	-I$(PROJECT_ROOT)/overlay/font/font_oppo_sans_16 \
+	-I$(PROJECT_ROOT)/overlay/font/font_oppo_sans_20 \
+	-I$(PROJECT_ROOT)/overlay/font/font_oppo_sans_22 \
+	-I$(PROJECT_ROOT)/overlay/font/font_oppo_sans_24 \
+	-I$(PROJECT_ROOT)/overlay/font/font_oppo_sans_32 \
+	-I$(PROJECT_ROOT)/overlay/font/font_oppo_sans_72 \
+	-I$(PROJECT_ROOT)/overlay/font/font_oppo_sans_96 \
 	-I$(PROJECT_ROOT)/overlay/font/font_quicksand_96 \
+
+FONT_INC_FLAGS := \
+	-I$(PROJECT_ROOT)/overlay/font
+ifeq ($(V3_UI_VERSION), $(V3_UI_V1))
+FONT_INC_FLAGS += $(FONT_V1_INC_FLAGS)
+else
+FONT_INC_FLAGS += $(FONT_V2_INC_FLAGS)
+endif
 
 # 窗口模块头文件
 WINDOWS_INC_FLAGS := \
@@ -514,12 +528,13 @@ WINDOWS_INC_FLAGS := \
 	-I$(PROJECT_ROOT)/overlay/windows/charge \
 	-I$(PROJECT_ROOT)/overlay/windows/dummy \
 	-I$(PROJECT_ROOT)/overlay/windows/guide \
+	-I$(PROJECT_ROOT)/overlay/windows/home \
 	-I$(PROJECT_ROOT)/overlay/windows/logo \
 	-I$(PROJECT_ROOT)/overlay/windows/ota \
 	-I$(PROJECT_ROOT)/overlay/windows/popup_windows \
 	-I$(PROJECT_ROOT)/overlay/windows/setting \
 	-I$(PROJECT_ROOT)/overlay/windows/product_test_window \
-	-I$(PROJECT_ROOT)/overlay/windows/factory_reset \
+	-I$(PROJECT_ROOT)/overlay/windows/system \
 	-I$(PROJECT_ROOT)/trunk/root_source/windows
 
 # 飞行模式模块头文件
@@ -685,11 +700,13 @@ CPPFLAGS += -DCONFIG_LV_THEME_DEFAULT_DARK=$(CONFIG_LV_THEME_DEFAULT_DARK)
 CPPFLAGS += -DV3_2710IMC_HARDWARE_V1=$(V3_2710IMC_HARDWARE_V1)
 CPPFLAGS += -DV3_2710IMC_HARDWARE_V2=$(V3_2710IMC_HARDWARE_V2)
 CPPFLAGS += -DV3_2710IMP_HARDWARE_V1=$(V3_2710IMP_HARDWARE_V1)
+CPPFLAGS += -DV3_2710IMC_HARDWARE_V3=$(V3_2710IMC_HARDWARE_V3)
 CPPFLAGS += -DV3_HARDWARE_VERSION=$(V3_HARDWARE_VERSION)
 
-# DV 设备宏
-CPPFLAGS += -DDV1_DEVICE_ENABLE=$(DV1_DEVICE_ENABLE)
-CPPFLAGS += -DDV_DEVICE_ENABLE=$(DV_DEVICE_ENABLE)
+# UI版本
+CPPFLAGS += -DV3_UI_VERSION=$(V3_UI_VERSION)
+CPPFLAGS += -DV3_UI_V1=$(V3_UI_V1)
+CPPFLAGS += -DV3_UI_V2=$(V3_UI_V2)
 
 # 调试日志相关宏定义
 ifeq ($(REL_TRACE_ENABLE),1)
@@ -723,7 +740,7 @@ endif
 # PWM IOMUX 相关宏定义
 CPPFLAGS += -DPWM2_IOMUX_INDEX=$(PWM2_IOMUX_INDEX)
 CPPFLAGS += -DPWM3_IOMUX_INDEX=$(PWM3_IOMUX_INDEX)
-ifeq ($(V3_HARDWARE_VERSION),$(V3_2710IMC_HARDWARE_V2))
+ifneq ($(filter $(V3_HARDWARE_VERSION),$(V3_2710IMC_HARDWARE_V2) $(V3_2710IMC_HARDWARE_V3)),)
 CPPFLAGS += -DPWM4_IOMUX_INDEX=$(PWM4_IOMUX_INDEX)
 CPPFLAGS += -DPWM5_IOMUX_INDEX=$(PWM5_IOMUX_INDEX)
 endif
@@ -824,7 +841,7 @@ DRIVERS_AIR_PRESSURE_SRCS := \
 ifeq ($(V3_HARDWARE_VERSION), $(V3_2710IMC_HARDWARE_V1))
 DRIVERS_AIR_PRESSURE_SRCS += $(wildcard $(PROJECT_ROOT)/drivers/air_pressure/chip/wf100d/*.c)
 else 
-ifeq ($(V3_HARDWARE_VERSION), $(V3_2710IMC_HARDWARE_V2))
+ifneq ($(filter $(V3_HARDWARE_VERSION),$(V3_2710IMC_HARDWARE_V2) $(V3_2710IMC_HARDWARE_V3)),)
 DRIVERS_AIR_PRESSURE_SRCS += $(wildcard $(PROJECT_ROOT)/drivers/air_pressure/chip/limscg04pcns5/*.c)
 endif
 endif
@@ -842,7 +859,7 @@ DRIVERS_BATTERY_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/drivers/battery/*.c) \
 	$(wildcard $(PROJECT_ROOT)/drivers/battery/charge/*.c) \
 	$(wildcard $(PROJECT_ROOT)/drivers/battery/adc/*.c)
-ifneq ($(filter $(V3_HARDWARE_VERSION),$(V3_2710IMC_HARDWARE_V1) $(V3_2710IMC_HARDWARE_V2)),)
+ifneq ($(filter $(V3_HARDWARE_VERSION),$(V3_2710IMC_HARDWARE_V1) $(V3_2710IMC_HARDWARE_V2) $(V3_2710IMC_HARDWARE_V3)),)
 DRIVERS_BATTERY_SRCS += $(wildcard $(PROJECT_ROOT)/drivers/battery/charge_pd/*.c)
 endif
 
@@ -890,7 +907,7 @@ DRIVERS_IMU_SRCS := \
 DRIVERS_KEY_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/drivers/key/*.c) \
 	$(wildcard $(PROJECT_ROOT)/drivers/key/chip/sc09b/*.c)
-ifneq ($(filter $(V3_HARDWARE_VERSION),$(V3_2710IMC_HARDWARE_V1) $(V3_2710IMC_HARDWARE_V2)),)
+ifneq ($(filter $(V3_HARDWARE_VERSION),$(V3_2710IMC_HARDWARE_V1) $(V3_2710IMC_HARDWARE_V2) $(V3_2710IMC_HARDWARE_V3)),)
 DRIVERS_KEY_SRCS += $(wildcard $(PROJECT_ROOT)/drivers/key/chip/knob/*.c)
 endif
 
@@ -898,7 +915,7 @@ endif
 DRIVERS_LCD_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/drivers/lcd/*.c) 
 	
-ifneq ($(filter $(V3_HARDWARE_VERSION),$(V3_2710IMC_HARDWARE_V1) $(V3_2710IMC_HARDWARE_V2)),)
+ifneq ($(filter $(V3_HARDWARE_VERSION),$(V3_2710IMC_HARDWARE_V1) $(V3_2710IMC_HARDWARE_V2) $(V3_2710IMC_HARDWARE_V3)),)
 DRIVERS_LCD_SRCS += $(wildcard $(PROJECT_ROOT)/drivers/lcd/interface/lcd_bes_qspi/*.c)
 else
 DRIVERS_LCD_SRCS += $(wildcard $(PROJECT_ROOT)/drivers/lcd/interface/lcd_uart/*.c)
@@ -911,7 +928,7 @@ DRIVERS_LED_SRCS := \
 
 ifeq ($(V3_HARDWARE_VERSION),$(V3_2710IMC_HARDWARE_V1))
 DRIVERS_LED_SRCS += $(wildcard $(PROJECT_ROOT)/drivers/led/led_tm1650/*.c)
-else ifeq ($(V3_HARDWARE_VERSION),$(V3_2710IMC_HARDWARE_V2))
+else ifneq ($(filter $(V3_HARDWARE_VERSION),$(V3_2710IMC_HARDWARE_V2) $(V3_2710IMC_HARDWARE_V3)),)
 DRIVERS_LED_SRCS += $(wildcard $(PROJECT_ROOT)/drivers/led/led_htr3316/*.c)
 else
 DRIVERS_LED_SRCS += $(wildcard $(PROJECT_ROOT)/drivers/led/led_control/*.c)
@@ -952,7 +969,7 @@ DRIVERS_SRCS := \
 	$(DRIVERS_UART_SRCS) \
 	$(DRIVERS_WIFI_SRCS)
 
-ifneq ($(filter $(V3_HARDWARE_VERSION),$(V3_2710IMC_HARDWARE_V1) $(V3_2710IMC_HARDWARE_V2)),)
+ifneq ($(filter $(V3_HARDWARE_VERSION),$(V3_2710IMC_HARDWARE_V1) $(V3_2710IMC_HARDWARE_V2) $(V3_2710IMC_HARDWARE_V3)),)
 DRIVERS_SRCS += $(DRIVERS_LIGHT_SENSOR_SRCS)
 endif	
 
@@ -1005,7 +1022,7 @@ SENSOR_MODULE_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/overlay/sensor/air_pressure/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/framework_hooks/sensor/*.c) \
 	$(wildcard $(PROJECT_ROOT)/trunk/root_source/sensor/*.c)
-ifneq ($(filter $(V3_HARDWARE_VERSION),$(V3_2710IMC_HARDWARE_V1) $(V3_2710IMC_HARDWARE_V2)),)
+ifneq ($(filter $(V3_HARDWARE_VERSION),$(V3_2710IMC_HARDWARE_V1) $(V3_2710IMC_HARDWARE_V2) $(V3_2710IMC_HARDWARE_V3)),)
 SENSOR_MODULE_SRCS += $(wildcard $(PROJECT_ROOT)/overlay/sensor/light_sensor/*.c)
 endif	
 
@@ -1038,7 +1055,7 @@ UI_MODULE_SRCS += $(wildcard $(PROJECT_ROOT)/overlay/framework_hooks/ui/lcd_uart
 endif
 
 # 字体模块源码
-FONT_MODULE_SRCS := \
+FONT_V1_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/overlay/font/font_roboto_14/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/font/font_roboto_16/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/font/font_roboto_17/*.c) \
@@ -1053,9 +1070,26 @@ FONT_MODULE_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/overlay/font/font_roboto_46/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/font/font_roboto_68/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/font/font_roboto_79/*.c) \
-	$(wildcard $(PROJECT_ROOT)/overlay/font/font_roboto_81/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/font/font_roboto_81/*.c) 
+
+FONT_V2_SRCS := \
+	$(wildcard $(PROJECT_ROOT)/overlay/font/font_oppo_sans_12/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/font/font_oppo_sans_14/*.c) \
-	$(wildcard $(PROJECT_ROOT)/overlay/font/font_quicksand_96/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/font/font_oppo_sans_16/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/font/font_oppo_sans_20/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/font/font_oppo_sans_22/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/font/font_oppo_sans_24/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/font/font_oppo_sans_32/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/font/font_oppo_sans_72/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/font/font_oppo_sans_96/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/font/font_quicksand_96/*.c) 
+
+FONT_MODULE_SRCS := $(wildcard $(PROJECT_ROOT)/overlay/font/*.c)
+ifeq ($(V3_UI_VERSION), $(V3_UI_V1))
+FONT_MODULE_SRCS += $(FONT_V1_SRCS)
+else
+FONT_MODULE_SRCS += $(FONT_V2_SRCS)
+endif
 
 # 窗口模块源码
 WINDOWS_MODULE_SRCS := \
@@ -1066,12 +1100,13 @@ WINDOWS_MODULE_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/overlay/windows/charge/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/windows/dummy/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/windows/guide/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/windows/home/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/windows/logo/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/windows/ota/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/windows/popup_windows/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/windows/setting/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/windows/product_test_window/*.c) \
-	$(wildcard $(PROJECT_ROOT)/overlay/windows/factory_reset/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/windows/system/*.c) \
 	$(wildcard $(PROJECT_ROOT)/trunk/root_source/windows/*.c)
 
 # 飞行模式模块源码
@@ -1186,7 +1221,7 @@ EXTRA_OBJS := $(patsubst $(PROJECT_ROOT)/%.c,$(O)/extra/%.o,$(filter %.c,$(EXTRA
 
 # PWM V2 硬件版本特定参数（仅在 V3_2710IMC_HARDWARE_V2 时传递）
 PWM_V2_PARAMS :=
-ifeq ($(V3_HARDWARE_VERSION),$(V3_2710IMC_HARDWARE_V2))
+ifneq ($(filter $(V3_HARDWARE_VERSION),$(V3_2710IMC_HARDWARE_V2) $(V3_2710IMC_HARDWARE_V3)),)
 PWM_V2_PARAMS += PWM4_IOMUX_INDEX=$(PWM4_IOMUX_INDEX)
 PWM_V2_PARAMS += PWM5_IOMUX_INDEX=$(PWM5_IOMUX_INDEX)
 endif
@@ -1340,6 +1375,7 @@ firmware:
 		PSRAM_SIZE=0x800000 \
 		PSRAM_SPEED=200 \
 		PSRAM_XCCELA_MODE=1 \
+		NO_WDT_TIMER=1 \
 		LVGL_TEST=1\
 		LVGL_BES_PNG=1 \
 		LVGL_BES_JPEG=1 \

@@ -43,9 +43,21 @@ int stimulation_mode_parameter_init(void);
 const motor_policy_manager_t *milk_boost_mode_policy_get(void *user_data);
 int milk_boost_mode_parameter_init(void);
 
+const motor_policy_manager_t *regular_pumping_mode_policy_get(void *user_data);
+int regular_pumping_mode_parameter_init(void);
+
+const motor_policy_manager_t *emptying_boost_mode_policy_get(void *user_data);
+int emptying_boost_mode_parameter_init(void);
+
+const motor_policy_manager_t *relax_mode_policy_get(void *user_data);
+int relax_mode_parameter_init(void);
+
 int breast_pump_mode_work_time_get(int mode);
+int breast_pump_mode_time_step_number_get(int mode);
+uint8_t get_pump_custom_mode_step_max_number(void);
 void breast_pump_setting_reset (sys_pump_info_t *pump_info, int mode);
 void breast_pump_custom_step_para_reset(sys_pump_info_t *pump_info);
+uint8_t get_pump_breastfeeding_sub_mode_from_cfg(const motor_policy_cfg_t *cfg, uint8_t step_index);
 #ifdef __cplusplus
 }
 #endif

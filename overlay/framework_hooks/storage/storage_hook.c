@@ -12,7 +12,7 @@
 * DEFINES
 *****************************************************************************************
 */
-#define STORAGE_RAM_SYNC_FLASH_INTERVAL_MS    (10 * 1000)  /// 20s
+#define STORAGE_RAM_SYNC_FLASH_INTERVAL_MS    (5 * 1000)  /// 20s
 #define STORAGE_PERSIST_TASK_POLICY1_NAME     "persist_policy1"  /// 存储策略1
 #define STORAGE_RAM_SYNC_FLASH_TASK_NAME      "ram_sync_flash_task"  /// 内存同步闪存任务
 

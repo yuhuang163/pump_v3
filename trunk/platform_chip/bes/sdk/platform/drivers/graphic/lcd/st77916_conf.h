@@ -19,8 +19,8 @@
 
 #define LCD_WIDTH               360
 #define LCD_HEIGHT              360
-#define LCD_HFP                 20
-#define LCD_HBP                 25
+#define LCD_HFP                 20+2
+#define LCD_HBP                 25-2
 #define LCD_VFP                 30
 #define LCD_VBP                 25
 #define LCD_HSYNC               2

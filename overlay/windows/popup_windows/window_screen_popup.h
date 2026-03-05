@@ -16,6 +16,8 @@ extern "C" {
 /// logo动画频率
 #if IS_SUPPORT_LVGL
 #define POPUP_ANIMATION_FREQ                 (25)
+#define EXIT_AIRPLANE_ANIMATION_FREQ         (25)
+#define MODE_PROMPT_ANIMATION_FREQ          (25)
 #else
 #define POPUP_ANIMATION_FREQ                 (5)
 #endif
@@ -39,6 +41,7 @@ typedef struct {
     power_manager_context_t *pm;
     ui_manager_context_t *ui;
     storage_manager_context_t *st;
+    breast_pump_manager_context_t *pump;
     key_input_context_t *key;
     uint32_t margic; /// 窗口标识.
     uint32_t last_progress_ani_time; /// 上次进度动画时间.

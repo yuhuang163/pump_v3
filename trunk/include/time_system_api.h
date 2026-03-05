@@ -14,13 +14,14 @@ extern "C" {
 typedef struct time_system_context {
 /// private
     struct __time_system_private {
-        uint32_t timestamp;
+        uint32_t last_time_sync_utc;
         broadcast_obj_t *time_bcd;
     } priv;
 
 /// public
-    void (*sync_time)(uint32_t timestamp);
-    uint32_t (*get_time)(void);
+    void (*sync_utc_time)(uint32_t timestamp);
+    uint32_t (*get_utc_time)(void);
+    uint32_t (*get_last_time_sync_utc)(void);
 } time_system_t;
 
 #define dump_human_time(u_time, timestemp) \

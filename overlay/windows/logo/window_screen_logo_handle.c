@@ -85,6 +85,7 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
     proc->airplane = (airplane_mode_context_t *)find_module(ID_MODULE_AIRPLANE_MODE);
     proc->battery = (battery_manager_context_t *)find_module(ID_MODULE_BATTERY);
     proc->led = (led_manager_context_t *)find_module(ID_MODULE_LED);
+    proc->ble = (ble_manager_context_t *)find_module(ID_MODULE_BLE);
     window_context_t *w_ctx = &proc->w_ctx;
     w_ctx->new_window_id = window_id;
     w_ctx->evt_cb_entry = entry_event_cb;

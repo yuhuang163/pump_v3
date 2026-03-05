@@ -14,8 +14,15 @@
 */
 #define PAGE_STATIC_NAME                            guide
 #define PAGE_NAME_STR                               "guide"
+#if (V3_UI_VERSION == V3_UI_V2)
+#define GUIDE_UI_KEY_CODE                           (KEY_CODE_POWER | KEY_CODE_START | KEY_CODE_MODE | KEY_CODE_FREQUENCY | \
+                                                    KEY_CODE_BREASTFEEDING | KEY_CODE_LEFT_CONTROL | KEY_CODE_RIGHT_CONTROL | \
+                                                    KEY_CODE_KNOB_LEFT | KEY_CODE_KNOB_RIGHT)
+#define GUIDE_UI_KEY_TYPE                           (KEY_EVENT_CLICK | KEY_EVENT_LONG_3S)
+#else
 #define GUIDE_UI_KEY_CODE                            KEY_CODE_START
 #define GUIDE_UI_KEY_TYPE                            KEY_EVENT_CLICK
+#endif
 
 /*
 * LOCAL VARIABLE DEFINITIONS
@@ -37,13 +44,15 @@ static int on_guide_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t 
     ui_proc_guide_t *proc = user_data;
     EXCEPTION_CHECK_INT(proc);
     WINDOW_CONTEXT_GUARD_INT(proc, ID_WINDOW_GUIDE, 0);
-    switch (keycode) {
-        case KEY_CODE_START:
-            guide_start_key_event_handler(proc);
-            break;
-        default:
-            break;
+#if (V3_UI_VERSION == V3_UI_V2)
+    if (keytype == KEY_EVENT_LONG_3S) {
+        guide_key_3s_press_handler_v2(proc, keycode);
+    } else {
+        guide_key_event_handler_v2(proc, keycode);
     }
+#else
+    guide_key_event_handler_v1(proc, keycode);
+#endif
     return 0;
 }
 
@@ -62,6 +71,9 @@ static int entry_event_cb(window_lift_cycle_e new_state,
         }
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);
+        if (proc->led && proc->led->hook && proc->led->hook->set_key_backlight) {
+            proc->led->hook->set_key_backlight(proc->led, 0);
+        }
         start_guide_ui_animation(proc);
     }
     return 0;
@@ -109,6 +121,7 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
     proc->ble = (ble_manager_context_t *)find_module(ID_MODULE_BLE);
     proc->battery = (battery_manager_context_t *)find_module(ID_MODULE_BATTERY);
     proc->key = (key_input_context_t *)find_module(ID_MODULE_KEY_INPUT);
+    proc->led = (led_manager_context_t *)find_module(ID_MODULE_LED);
     window_context_t *w_ctx = &proc->w_ctx;
     w_ctx->new_window_id = window_id;
     w_ctx->evt_cb_entry = entry_event_cb;

@@ -200,15 +200,19 @@ void bsp_lcd_backlight_init(void)
 
 void bsp_lcd_backlight_resume(void)
 {
+#if IS_SUPPORT_LCD_BACKLIGHT_CLIMB
     time_info.current_duty = 0;
     time_info.target_duty = 0;
+#endif
     bsp_lcd_backlight_init();
 }
 
 void bsp_lcd_backlight_suspend(void)
 {
+#if IS_SUPPORT_LCD_BACKLIGHT_CLIMB
     time_info.current_duty = 0;
     time_info.target_duty = 0;
+#endif
     hal_pwm_disable(LCD_LCD_BL_PWM_ID);
 }
 

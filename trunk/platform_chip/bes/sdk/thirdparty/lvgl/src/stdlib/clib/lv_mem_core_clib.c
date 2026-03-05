@@ -94,9 +94,43 @@
  
  void lv_mem_monitor_core(lv_mem_monitor_t * mon_p)
  {
-     /*Not supported*/
-     LV_UNUSED(mon_p);
-     return;
+    if(mon_p == NULL) {
+        return;
+    }
+
+    if(lv_custom_heap == NULL) {
+        return;
+    }
+
+    multi_heap_info_t info = {0};
+    heap_get_info(lv_custom_heap, &info);
+
+    mon_p->total_size = info.total_bytes;
+    mon_p->free_cnt = info.free_blocks;
+    mon_p->free_size = info.total_free_bytes;
+    mon_p->free_biggest_size = info.largest_free_block;
+    mon_p->used_cnt = info.allocated_blocks;
+
+    if(info.total_bytes >= info.minimum_free_bytes) {
+        mon_p->max_used = info.total_bytes - info.minimum_free_bytes;
+    }
+    else {
+        mon_p->max_used = info.total_allocated_bytes;
+    }
+
+    if(mon_p->total_size > 0) {
+        mon_p->used_pct = (uint8_t)((100U * (mon_p->total_size - mon_p->free_size)) / mon_p->total_size);
+    }
+    else {
+        mon_p->used_pct = 0;
+    }
+
+    if(mon_p->free_size > 0) {
+        mon_p->frag_pct = (uint8_t)(100U - ((mon_p->free_biggest_size * 100U) / mon_p->free_size));
+    }
+    else {
+        mon_p->frag_pct = 0;
+    }
  }
  
  lv_result_t lv_mem_test_core(void)

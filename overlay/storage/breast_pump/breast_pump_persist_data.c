@@ -531,6 +531,51 @@ int write_pump_setting_info_to_ram(store_func_args_t args)
                 #endif
             }
             break;
+        case BREAST_PUMP_REGULAR_PUMPING_MODE:
+            if (mode_step >= ROOT_BREAST_PUMP_STEP_MAX) {
+                memcpy(pump_info->regular_pumping_setting, setting, sizeof(pump_setting_t) * ROOT_BREAST_PUMP_STEP_MAX);
+            } else {
+                #if IS_PUMP_STEPS_USE_SAME_SETTING
+                for (int i = 0; i < ROOT_BREAST_PUMP_STEP_MAX; i++) {
+                    pump_info->regular_pumping_setting[i].level[0] = setting->level[0];
+                    pump_info->regular_pumping_setting[i].level[1] = setting->level[1];
+                }
+                pump_info->regular_pumping_setting[mode_step].speed = setting->speed;
+                #else
+                memcpy(&pump_info->regular_pumping_setting[mode_step], setting, sizeof(pump_setting_t));
+                #endif
+            }
+            break;
+        case BREAST_PUMP_EMPTYING_BOOST_MODE:
+            if (mode_step >= ROOT_BREAST_PUMP_STEP_MAX) {
+                memcpy(pump_info->emptying_boost_setting, setting, sizeof(pump_setting_t) * ROOT_BREAST_PUMP_STEP_MAX);
+            } else {
+                #if IS_PUMP_STEPS_USE_SAME_SETTING
+                for (int i = 0; i < ROOT_BREAST_PUMP_STEP_MAX; i++) {
+                    pump_info->emptying_boost_setting[i].level[0] = setting->level[0];
+                    pump_info->emptying_boost_setting[i].level[1] = setting->level[1];
+                }
+                pump_info->emptying_boost_setting[mode_step].speed = setting->speed;
+                #else
+                memcpy(&pump_info->emptying_boost_setting[mode_step], setting, sizeof(pump_setting_t));
+                #endif
+            }
+            break;
+        case BREAST_PUMP_RELAX_MODE:
+            if (mode_step >= ROOT_BREAST_PUMP_STEP_MAX) {
+                memcpy(pump_info->relax_setting, setting, sizeof(pump_setting_t) * ROOT_BREAST_PUMP_STEP_MAX);
+            } else {
+                #if IS_PUMP_STEPS_USE_SAME_SETTING
+                for (int i = 0; i < ROOT_BREAST_PUMP_STEP_MAX; i++) {
+                    pump_info->relax_setting[i].level[0] = setting->level[0];
+                    pump_info->relax_setting[i].level[1] = setting->level[1];
+                }
+                pump_info->relax_setting[mode_step].speed = setting->speed;
+                #else
+                memcpy(&pump_info->relax_setting[mode_step], setting, sizeof(pump_setting_t));
+                #endif
+            }
+            break;
         default:
             LOGE("write pump setting info: %d, out of range", args.arg1);
             return -1;
@@ -607,6 +652,27 @@ int read_pump_setting_info_from_ram(store_func_args_t args)
                 memcpy(setting, pump_info->lactation_start_setting, sizeof(pump_setting_t) * ROOT_BREAST_PUMP_STEP_MAX);
             } else {
                 memcpy(setting, &pump_info->lactation_start_setting[mode_step], sizeof(pump_setting_t));
+            }
+            break;
+        case BREAST_PUMP_REGULAR_PUMPING_MODE:
+            if (mode_step >= ROOT_BREAST_PUMP_STEP_MAX) {
+                memcpy(setting, pump_info->regular_pumping_setting, sizeof(pump_setting_t) * ROOT_BREAST_PUMP_STEP_MAX);
+            } else {
+                memcpy(setting, &pump_info->regular_pumping_setting[mode_step], sizeof(pump_setting_t));
+            }
+            break;
+        case BREAST_PUMP_EMPTYING_BOOST_MODE:
+            if (mode_step >= ROOT_BREAST_PUMP_STEP_MAX) {
+                memcpy(setting, pump_info->emptying_boost_setting, sizeof(pump_setting_t) * ROOT_BREAST_PUMP_STEP_MAX);
+            } else {
+                memcpy(setting, &pump_info->emptying_boost_setting[mode_step], sizeof(pump_setting_t));
+            }
+            break;
+        case BREAST_PUMP_RELAX_MODE:
+            if (mode_step >= ROOT_BREAST_PUMP_STEP_MAX) {
+                memcpy(setting, pump_info->relax_setting, sizeof(pump_setting_t) * ROOT_BREAST_PUMP_STEP_MAX);
+            } else {
+                memcpy(setting, &pump_info->relax_setting[mode_step], sizeof(pump_setting_t));
             }
             break;
         default:

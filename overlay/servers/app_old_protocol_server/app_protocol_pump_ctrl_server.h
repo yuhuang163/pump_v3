@@ -45,6 +45,7 @@ typedef enum {
     APP_OLD_COMM_MODE_LONG = 0x02,  // Suction
     APP_OLD_COMM_MODE_MIX1 = 0x03,  // Mix1
     APP_OLD_COMM_MODE_MIX2 = 0x04,  // Mix2
+    APP_OLD_COMM_MODE_RELAX = 0x05, // Relax
 } app_old_comm_custom_pump_step_mode;
 
 typedef enum {

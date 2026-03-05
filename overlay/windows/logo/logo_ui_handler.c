@@ -37,7 +37,7 @@ static void logo_display_completed_cb(hdr_post_args_t *args)
         LOG_WM("goto factory test screen");
         msg.union_body.extra.window_id = ID_WINDOW_PRODUCT_TEST_MODE;
         proc->wm->dispatch_new_window_args(proc->wm, &msg);
-        goto EXIT_LABEL;
+        return;
     }
 
     if (proc->battery && proc->battery->is_vbus_plug_in() > 0 &&
@@ -59,15 +59,11 @@ static void logo_display_completed_cb(hdr_post_args_t *args)
         LOG_WM("goto guide screen");
         msg.union_body.extra.window_id = ID_WINDOW_GUIDE;
         proc->wm->dispatch_new_window_args(proc->wm, &msg);
-        goto EXIT_LABEL;
+        return;
     }    
-    LOG_WM("goto pump screen");
-    msg.union_body.extra.window_id = ID_WINDOW_PUMP;
+    LOG_WM("goto home window.");
+    msg.union_body.extra.window_id = ID_WINDOW_HOME;
     proc->wm->dispatch_new_window_args(proc->wm, &msg);
-EXIT_LABEL:
-    if (proc->led && proc->led->hook && proc->led->hook->set_key_backlight) {
-        proc->led->hook->set_key_backlight(proc->led, 100);
-    }
 #else
     if (proc->airplane && proc->airplane->is_on_airplane_mode()) {
         LOG_WM("goto airplane mode screen");

@@ -14,7 +14,7 @@ extern "C" {
 /**
  * 产品信息
 */
-#if 1
+#if 0
 #define ROOT_PRODUCT_ID                               ROOT_PRODUCT_V3PRO_ID
 #else
 #define ROOT_PRODUCT_ID                               ROOT_PRODUCT_V3_ID
@@ -57,8 +57,8 @@ extern "C" {
 /**
  * 正式版本从100-900
 */
-#define ROOT_FIRMWARE_VERSION                          106
-#define ROOT_FW_VERSION_STR                            "106"
+#define ROOT_FIRMWARE_VERSION                          207
+#define ROOT_FW_VERSION_STR                            "207"
 
 /**
  * 资源版本号定义(major*100 + minor)

@@ -144,7 +144,8 @@ static void internal_keyevent_callback(void *user_data, uint16_t keycode, uint16
         window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
         EXCEPTION_CHECK_VOID(wm);
         multi_func_msg_data_t msg = {0};
-        msg.union_body.extra.window_id = ID_WINDOW_FACTORY_RESET;
+        msg.union_body.extra.window_id = ID_WINDOW_SYSTEM;
+        msg.union_body.extra.arg1 = ID_SYSTEM_WINDOW_FACTORY_RESET;
         wm->dispatch_new_window_args(wm, &msg);
         return;
     }

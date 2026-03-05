@@ -11,8 +11,6 @@ extern "C" {
 #include "root_common_api.h" // IWYU pragma: keep
 
 #define PUMP_WORK_STEP_TIME_MS   (100)
-#define BREAST_PUMP_IS_GOING(state) (state == BREAST_PUMP_START || state == BREAST_PUMP_CONTINUE)
-#define BREAST_PUMP_IS_COMMON_MODE(mode) (mode >= BREAST_PUMP_STIMULATION_MODE && mode <= BREAST_PUMP_MIX_MODE)
 
 #define PUMP_LOCK_LOG(...)
 #define PUMP_THD_WAKELOCK                     "pump_wakelock"

@@ -36,7 +36,8 @@
 
 #include "lcd_conf.h"
 
-#define LCDC_WIDTH      ((LCD_WIDTH + 15) / 16 * 16)
+// #define LCDC_WIDTH      ((LCD_WIDTH + 15) / 16 * 16)
+#define LCDC_WIDTH      LCD_WIDTH  /// gpu no need align root 20260211
 #define LCDC_HEIGHT     LCD_HEIGHT
 
 #ifdef CONFIG_LCD_RGB565

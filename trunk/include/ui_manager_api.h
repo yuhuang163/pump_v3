@@ -28,6 +28,7 @@ typedef enum {
     ANI_TIMER_DRAW_BEFORE = 0, /// 背景合并之前
     ANI_TIMER_DRAW_AFTER,      /// 背景合并之后
     ANI_TIMER_DRAW_FINISH,     /// 退出.
+    ANI_POPUP_DISPLAY_FINISH,  /// 弹窗UI显示完成
 } ui_ani_progress_state_e;
 
 /// 动画绘制进度回调.

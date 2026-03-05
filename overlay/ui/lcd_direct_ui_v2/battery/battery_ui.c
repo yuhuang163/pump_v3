@@ -45,6 +45,7 @@ static battery_display_info_t *battery_info;
 */
 static int get_battery_img_id(uint8_t battery_percent)
 {
+#if 0
     if (battery_percent >= 80) {
         return RESOURCE_ID_HOME_BATTERY_100;
     } else if (battery_percent >= 60) {
@@ -57,6 +58,9 @@ static int get_battery_img_id(uint8_t battery_percent)
         return RESOURCE_ID_HOME_BATTERY_20;
     }
     return RESOURCE_ID_HOME_BATTERY_0;
+#else
+    return 0;
+#endif
 }
 
 /*
@@ -65,6 +69,7 @@ static int get_battery_img_id(uint8_t battery_percent)
 */
 int battery_icon_update(ui_manager_context_t *thiz, lv_obj_t *root, uint8_t percent, uint8_t is_charging)
 {
+#if 0
     EXCEPTION_CHECK_INT(battery_info);
     if (battery_info->icon_img == NULL || !lv_obj_is_valid(battery_info->icon_img)) {
         battery_info->icon_img = lv_image_create(root);
@@ -119,24 +124,28 @@ int battery_icon_update(ui_manager_context_t *thiz, lv_obj_t *root, uint8_t perc
     lv_fs_make_path_from_buffer(&charge_icon_img_path, LV_FS_MEMFS_LETTER, battery_info->charge_icon_info.data,
         battery_info->charge_icon_info.size, "baj");
     lv_image_set_src(battery_info->charge_icon, (const void *)&charge_icon_img_path);
-
+#endif
     return 0;
 }
 
 void battery_icon_init(ui_manager_context_t *thiz)
 {
     EXCEPTION_CHECK_VOID(thiz);
+#if 0
     if (battery_info == NULL) {
         battery_info = (battery_display_info_t *)u_malloz(sizeof(battery_display_info_t));
         EXCEPTION_CHECK_VOID(battery_info);
     }
+#endif
 }
 
 void battery_icon_deinit(ui_manager_context_t *thiz)
 {
     EXCEPTION_CHECK_VOID(thiz);
+#if 0
     common_ui_img_resource_deinit(thiz, &battery_info->icon_info);
     common_ui_img_resource_deinit(thiz, &battery_info->charge_icon_info);
     u_free(battery_info);
     battery_info = NULL;
+#endif
 }

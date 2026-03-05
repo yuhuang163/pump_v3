@@ -53,7 +53,7 @@ static void set_key_backlight(led_manager_context_t *thiz, uint8_t level)
             .un.luminous.level = 0,
         },
     };
-
+#if 0
     if (level == 0) {
         thiz->priv.led_dev->ioctl(thiz->priv.led_dev, OP_CODE_LED_STATUS_SET, (void *)&msg);
     } else {
@@ -93,14 +93,17 @@ static void set_key_backlight(led_manager_context_t *thiz, uint8_t level)
             thiz->priv.led_dev->ioctl(thiz->priv.led_dev, OP_CODE_LED_STATUS_SET, (void *)&msg);
         }
         uint8_t mode = pump->get_breast_pump_mode();
-        LOG_MISC("mode: %d, is common mode: %d", mode, BREAST_PUMP_IS_COMMON_MODE(mode));
-        if (BREAST_PUMP_IS_COMMON_MODE(mode)) {
+        LOG_MISC("mode: %d, is common mode: %d", mode, PUMP_IS_COMMON_MODE(mode));
+        if (PUMP_IS_COMMON_MODE(mode)) {
             msg.led_index = PUMP_FREQ_SET_BL;
             msg.led_status.un.luminous.level = level;
             thiz->priv.led_dev->ioctl(thiz->priv.led_dev, OP_CODE_LED_STATUS_SET, (void *)&msg);
         }
     }
-    LOG_MISC("set ui key backlight: %d", level);
+#else
+    msg.led_status.un.luminous.level = level;
+    thiz->priv.led_dev->ioctl(thiz->priv.led_dev, OP_CODE_LED_STATUS_SET, (void *)&msg);
+#endif
 }
 
 static void set_night_light_level_internal(led_manager_context_t *thiz, uint8_t level)

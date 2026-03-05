@@ -14,12 +14,19 @@
 *****************************************************************************************
 */
 #define IS_SUPPORT_SCAN_QRCODE_TIP                                   0
+#if (ROOT_PRODUCT_ID == ROOT_PRODUCT_V3PRO_ID)
+#define IS_SUPPORT_BATTERY_PERCENT                                   1
+#else
+#define IS_SUPPORT_BATTERY_PERCENT                                   0
+#endif
 #define PRODUCT_TESTS_HOME_CONTENT_COUNT                             1
 #define PRODUCT_TESTS_HOME_CONTENT_COLOR                             0x3C3D40
 #define PRODUCT_TESTS_HOME_QRCODE_BG_COLOR                           0xFFFFFF
 #define PRODUCT_TESTS_HOME_QRCODE_FG_COLOR                           0x000000
 #define PRODUCT_TESTS_HOME_QRCODE_BORDER_COLOR                       0xA6A6A6
 #define PRODUCT_TESTS_HOME_MAC_NAME_COLOR                            0x01D65A // 0x3C3D40
+#define PRODUCT_TESTS_HOME_BATTERY_PERCENT_COLOR                      0x01D65A // 0x3C3D40
+#define PRODUCT_TESTS_HOME_AGING_INFO_COLOR                           0x01D65A // 老化信息颜色
 #if IS_SUPPORT_SCAN_QRCODE_TIP
 #define PRODUCT_TESTS_HOME_MAC_NAME_X                                (105 + 4)
 #define PRODUCT_TESTS_HOME_MAC_NAME_Y                                (80)
@@ -32,6 +39,10 @@
 #define PRODUCT_TESTS_HOME_QRCODE_X                                  (PRODUCT_TESTS_HOME_MAC_NAME_X)
 #define PRODUCT_TESTS_HOME_QRCODE_Y                                  (PRODUCT_TESTS_HOME_MAC_NAME_Y + 20 + 10)
 #define PRODUCT_TESTS_HOME_QRCODE_SIZE                               (180)
+#define PRODUCT_TESTS_HOME_BATTERY_PERCENT_X                         (PRODUCT_TESTS_HOME_MAC_NAME_X+70)
+#define PRODUCT_TESTS_HOME_BATTERY_PERCENT_Y                         (PRODUCT_TESTS_HOME_MAC_NAME_Y)
+#define PRODUCT_TESTS_HOME_AGING_INFO_X                              (PRODUCT_TESTS_HOME_MAC_NAME_X)
+#define PRODUCT_TESTS_HOME_AGING_INFO_Y                              (PRODUCT_TESTS_HOME_BATTERY_PERCENT_Y + PRODUCT_TESTS_HOME_QRCODE_SIZE+36)
 #endif
 
 typedef struct {
@@ -47,6 +58,10 @@ typedef struct {
 #if IS_SUPPORT_SCAN_QRCODE_TIP
     lv_obj_t * text;
 #endif
+#if IS_SUPPORT_BATTERY_PERCENT
+    lv_obj_t * battery_percent;
+#endif
+    lv_obj_t * aging_info;  // 老化信息显示
 } product_tests_home_display_info_t;
 
 /*
@@ -110,10 +125,11 @@ static void product_tests_mac_name_update(ui_manager_context_t *thiz, uint8_t *m
     }
     
     char mac_name[16] = {0};
-    snprintf(mac_name, sizeof(mac_name), "V3-%02X%02X", mac_addr[0], mac_addr[1]);
+    ///根据ROOT_DEVICE_NAME显示不同的name
+    snprintf(mac_name, sizeof(mac_name), "%s-%02X%02X", ROOT_DEVICE_NAME, mac_addr[0], mac_addr[1]);
     lv_label_set_text(tests_info->mac_name, mac_name);
     lv_obj_set_style_text_color(tests_info->mac_name, lv_color_hex(PRODUCT_TESTS_HOME_MAC_NAME_COLOR), 0);
-    lv_obj_set_style_text_font(tests_info->mac_name, &lv_font_roboto_25_medium, 0);  /// 设置字体
+    lv_obj_set_style_text_font(tests_info->mac_name, &lv_font_oppo_sans_14_medium, 0);  /// 设置字体
     // lv_obj_set_style_text_line_space(tests_info->mac_name, 4, 0);  /// 设置行间距（像素）
     // lv_obj_set_style_text_align(tests_info->mac_name, LV_TEXT_ALIGN_CENTER, 0);  /// 设置文本居中对齐
     lv_obj_align(tests_info->mac_name, LV_ALIGN_TOP_LEFT, 
@@ -141,6 +157,90 @@ static void product_tests_qrcode_update(ui_manager_context_t *thiz, uint8_t *mac
     lv_obj_align(tests_info->qrcode, LV_ALIGN_TOP_LEFT, PRODUCT_TESTS_HOME_QRCODE_X, PRODUCT_TESTS_HOME_QRCODE_Y);
 }
 
+#if IS_SUPPORT_BATTERY_PERCENT
+//显示电量百分比
+static void product_tests_battery_percent_update(ui_manager_context_t *thiz, uint8_t percent)
+{
+    EXCEPTION_CHECK_VOID(thiz);
+    EXCEPTION_CHECK_VOID(tests_info);
+    EXCEPTION_CHECK_VOID(tests_info->root);
+    
+    if (tests_info->battery_percent == NULL || !lv_obj_is_valid(tests_info->battery_percent)) {
+        tests_info->battery_percent = lv_label_create(tests_info->root);
+        EXCEPTION_CHECK_VOID(tests_info->battery_percent);
+    }
+    
+    char battery_percent_str[16] = {0};  // "battery:100%" = 13 chars + null terminator
+    snprintf(battery_percent_str, sizeof(battery_percent_str), "battery-%d%%", percent);
+    lv_label_set_text(tests_info->battery_percent, battery_percent_str);
+    lv_obj_set_style_text_color(tests_info->battery_percent, lv_color_hex(PRODUCT_TESTS_HOME_BATTERY_PERCENT_COLOR), 0);
+    lv_obj_set_style_text_font(tests_info->battery_percent, &lv_font_oppo_sans_14_medium, 0);  /// 设置字体
+    lv_obj_set_style_text_align(tests_info->battery_percent, LV_TEXT_ALIGN_CENTER, 0);  /// 设置文本居中对齐
+    lv_obj_set_style_bg_opa(tests_info->battery_percent, LV_OPA_TRANSP, 0);  /// 背景透明
+    lv_obj_set_style_border_opa(tests_info->battery_percent, LV_OPA_TRANSP, 0);  /// 边框透明
+    lv_obj_align(tests_info->battery_percent, LV_ALIGN_TOP_LEFT, PRODUCT_TESTS_HOME_BATTERY_PERCENT_X, PRODUCT_TESTS_HOME_BATTERY_PERCENT_Y);
+    lv_obj_clear_flag(tests_info->battery_percent, LV_OBJ_FLAG_HIDDEN);  /// 确保可见
+}
+#endif
+
+//老化显示信息更新
+static void product_tests_aging_info_update(ui_manager_context_t *thiz, ui_proc_product_test_t *proc)
+{
+    EXCEPTION_CHECK_VOID(thiz);
+    EXCEPTION_CHECK_VOID(tests_info);
+    EXCEPTION_CHECK_VOID(tests_info->root);
+    EXCEPTION_CHECK_VOID(proc);
+    EXCEPTION_CHECK_VOID(proc->tests);
+    EXCEPTION_CHECK_VOID(proc->pump);
+    
+    // 创建或获取label对象
+    if (tests_info->aging_info == NULL || !lv_obj_is_valid(tests_info->aging_info)) {
+        tests_info->aging_info = lv_label_create(tests_info->root);
+        EXCEPTION_CHECK_VOID(tests_info->aging_info);
+    }
+    
+    // 计算老化时间（单位：秒）
+    uint32_t age_time = 0;
+    int ret = proc->tests->get_factory_tests_event_process(FAC_TST_AGING_TEST_GET_CURRENT_AGE_TIME_EVENT, 0, 0, &age_time);
+    if (ret != 0) {
+        // 如果获取失败，使用默认值0
+        age_time = 0;
+    }
+    
+    //如果正处在老化测试中，则加上pump的运行时间
+    if (proc->tests->tests_manager_get_current_mode() == TST_AGING_TEST_TYPE) {
+        pump_result_info_t *pumping_info = proc->pump->get_breast_pump_result(BREAST_PUMP_RESULT_PUMPING);
+        if (pumping_info != NULL) {
+            // current_mode_work_time 单位是毫秒，需要转换为秒
+            age_time += pumping_info->current_mode_work_time / 1000;
+        }
+        //显示老化时间标识
+        lv_obj_clear_flag(tests_info->aging_info, LV_OBJ_FLAG_HIDDEN);  /// 确保可见
+    }
+    else {
+        //老化时间标识隐藏
+        lv_obj_add_flag(tests_info->aging_info, LV_OBJ_FLAG_HIDDEN);  /// 确保可见
+        return;
+    }
+    
+    //转换为时分秒格式
+    uint8_t hours = age_time / 3600;
+    uint8_t minutes = (age_time % 3600) / 60;
+    uint8_t seconds = age_time % 60;
+    char aging_info_str[64] = {0};
+    snprintf(aging_info_str, sizeof(aging_info_str), 
+        "aging-time-%02dh-%02dm-%02ds", hours, minutes, seconds);
+    lv_label_set_text(tests_info->aging_info, aging_info_str);
+    lv_obj_set_style_text_color(tests_info->aging_info, lv_color_hex(PRODUCT_TESTS_HOME_AGING_INFO_COLOR), 0);
+    lv_obj_set_style_text_font(tests_info->aging_info, &lv_font_oppo_sans_14_medium, 0);
+    lv_obj_set_style_text_align(tests_info->aging_info, LV_TEXT_ALIGN_LEFT, 0);
+    lv_obj_set_style_bg_opa(tests_info->aging_info, LV_OPA_TRANSP, 0);  /// 背景透明
+    lv_obj_set_style_border_opa(tests_info->aging_info, LV_OPA_TRANSP, 0);  /// 边框透明
+    lv_obj_align(tests_info->aging_info, LV_ALIGN_TOP_LEFT, 
+        PRODUCT_TESTS_HOME_AGING_INFO_X, PRODUCT_TESTS_HOME_AGING_INFO_Y);
+    lv_obj_clear_flag(tests_info->aging_info, LV_OBJ_FLAG_HIDDEN);  /// 确保可见
+}
+
 /*
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
@@ -155,6 +255,7 @@ void ui_display_product_tests_home_prepare(ui_manager_context_t *thiz)
     thiz->priv.fps_count = 0;
     thiz->priv.fps_start_time = get_timestamp();
     product_tests_ui_root_init();
+    ble_ui_init(thiz);
 }
 
 void ui_display_product_tests_home_remove(ui_manager_context_t *thiz)
@@ -163,6 +264,8 @@ void ui_display_product_tests_home_remove(ui_manager_context_t *thiz)
     if (tests_info == NULL) {
         return;
     }
+    ble_ui_deinit(thiz);
+    LVGL_OBJ_DELETE(tests_info->aging_info);
     LVGL_OBJ_DELETE(tests_info->root);
     u_free(tests_info);
     tests_info = NULL;
@@ -176,7 +279,7 @@ int ui_display_product_tests_home_process(ui_manager_context_t *thiz)
     ui_proc_product_test_t *proc = (ui_proc_product_test_t *)thiz->priv.play_info.user_data;
     EXCEPTION_CHECK_INT(proc->ble);
     EXCEPTION_CHECK_INT(proc->battery);
-    ble_ui_update(thiz, tests_info->root, proc->ble->ble_is_connected());
+    ble_ui_update(thiz, tests_info->root, proc->ble, 168, 22);
     battery_icon_update(thiz, tests_info->root, proc->battery->get_battery_percent(),
         BATTERY_IS_CHARGING(proc->battery->get_charge_status()));
     uint8_t mac_addr[6] = {0};
@@ -185,6 +288,10 @@ int ui_display_product_tests_home_process(ui_manager_context_t *thiz)
 #if IS_SUPPORT_SCAN_QRCODE_TIP
     product_tests_text_update(thiz);
 #endif
+#if IS_SUPPORT_BATTERY_PERCENT
+    product_tests_battery_percent_update(thiz, proc->battery->get_battery_percent());
+#endif
+    product_tests_aging_info_update(thiz, proc);
     product_tests_mac_name_update(thiz, mac_addr);
     thiz->priv.fps_count++;
     if (get_timestamp() - thiz->priv.fps_start_time >= 1000) {

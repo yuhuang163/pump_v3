@@ -51,6 +51,7 @@ void common_ui_img_resource_deinit(ui_manager_context_t *thiz, res_img_info_t *i
 void common_ui_text_place_in_circle(lv_obj_t * lab, uint16_t angle, uint16_t ring_r, uint8_t is_reverse)
 {
     EXCEPTION_CHECK_VOID(lab);
+    lv_obj_update_layout(lab);
     /// 父对象 360x360，圆心(180,180)
     lv_point_t c = { .x = PANLE_DISPLAY_W / 2, .y = PANLE_DISPLAY_H / 2 };
     /// 计算圆周点
@@ -66,4 +67,58 @@ void common_ui_text_place_in_circle(lv_obj_t * lab, uint16_t angle, uint16_t rin
     /// 切线方向：angle + 90°（单位0.1°）
     int tangent = angle + 90 + (is_reverse ? 180 : 0);
     lv_obj_set_style_transform_angle(lab, tangent * 10, 0);
+}
+
+void common_ui_place_dot_on_arc(lv_obj_t * arc, lv_obj_t * dot, uint16_t angle_deg,
+    uint16_t arc_w, uint16_t dot_d, int16_t extra_inset, bool is_reverse)
+{
+    EXCEPTION_CHECK_VOID(arc);
+    EXCEPTION_CHECK_VOID(dot);
+
+    lv_obj_update_layout(arc);
+
+    lv_area_t arc_area;
+    lv_obj_get_coords(arc, &arc_area);
+
+    int32_t left_bg = lv_obj_get_style_pad_left(arc, LV_PART_MAIN);
+    int32_t right_bg = lv_obj_get_style_pad_right(arc, LV_PART_MAIN);
+    int32_t top_bg = lv_obj_get_style_pad_top(arc, LV_PART_MAIN);
+    int32_t bottom_bg = lv_obj_get_style_pad_bottom(arc, LV_PART_MAIN);
+
+    int32_t w = lv_area_get_width(&arc_area) - left_bg - right_bg;
+    int32_t h = lv_area_get_height(&arc_area) - top_bg - bottom_bg;
+    int32_t r = (w < h ? w : h) / 2;
+
+    lv_point_t c = {
+        .x = arc_area.x1 + r + left_bg,
+        .y = arc_area.y1 + r + top_bg
+    };
+
+    // 弧线中心线半径
+    int32_t r_centerline = r - arc_w / 2;
+
+    // 让白点中心落在弧线中心线；extra_inset>0 时再向内微调
+    int32_t r_dot = r_centerline - extra_inset;
+
+    // 保持角度与 lv_arc 一致（单位：度）
+    int16_t angle = (int16_t)angle_deg;
+    if (is_reverse) {
+        angle = 360 - angle;
+    }
+    while (angle < 0) {
+        angle += 360;
+    }
+    while (angle >= 360) {
+        angle -= 360;
+    }
+
+    int32_t x = c.x + ((r_dot * lv_trigo_sin(angle + 90)) >> LV_TRIGO_SHIFT);
+    int32_t y = c.y + ((r_dot * lv_trigo_sin(angle)) >> LV_TRIGO_SHIFT);
+
+    // dot 是 arc 的子对象：转成局部坐标
+    lv_coord_t local_x = x - arc_area.x1;
+    lv_coord_t local_y = y - arc_area.y1;
+
+    lv_obj_clear_flag(dot, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_pos(dot, local_x - dot_d / 2, local_y - dot_d / 2);
 }

@@ -43,7 +43,6 @@ const static uint16_t breastfeeding_icon_ids[BREASTFEEDING_MODE_MAX_COUNT] = {
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-
 static int breastfeeding_mode_img_update(ui_manager_context_t *thiz, uint8_t mode)
 {
     if (bf_mode_info->root == NULL || !lv_obj_is_valid(bf_mode_info->root)) {
@@ -73,7 +72,7 @@ static void breastfeeding_mode_ui_update(ui_manager_context_t *thiz, ui_proc_pum
 {
     EXCEPTION_CHECK_VOID(proc);
     EXCEPTION_CHECK_VOID(proc->pump);
-    uint8_t mode = proc->pump->get_breast_pump_mode();
+    uint8_t mode = proc->ui_breastfeeding_mode_index; /// 当前UI模式索引.
     if (bf_mode_info->mode == mode && bf_mode_info->force_update == false) {
         return;
     }

@@ -48,6 +48,7 @@ typedef struct {
     key_input_context_t *key;
     tests_manager_context_t *tests;
     led_manager_context_t *led;
+    ble_manager_context_t *ble;
     broadcast_obj_t receiver;
     uint32_t margic; /// 窗口标识.
     uint32_t enter_dummy_time; /// 进入dummy时间.

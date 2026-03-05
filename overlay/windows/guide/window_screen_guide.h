@@ -36,11 +36,19 @@ typedef enum {
 } guide_ui_type_e;
 
 typedef enum {
-    GUIDE_PAGE_GUIDE_QRCODE,
-    // GUIDE_PAGE_GUIDE_PHONE,
-    GUIDE_PAGE_GUIDE_CHASING_MILK,
-    GUIDE_PAGE_GUIDE_ADJUST_LEVEL,
-    GUIDE_PAGE_GUIDE_MILK_QUANTITY,
+    /// 引导页面V1
+    GUIDE_PAGE_GUIDE_QRCODE = 0, /// 引导二维码
+    GUIDE_PAGE_GUIDE_PHONE = 1, /// 引导手机
+    GUIDE_PAGE_GUIDE_CHASING_MILK = 2,
+    GUIDE_PAGE_GUIDE_ADJUST_LEVEL = 3,
+    GUIDE_PAGE_GUIDE_MILK_QUANTITY = 4,
+    /// 引导页面V2
+    GUIDE_PAGE_HOME = 0, /// 首页
+    GUIDE_PAGE_START_PUMP = 1, /// 开始泵奶
+    GUIDE_PAGE_SETTING_PUMP = 2, /// 设置泵奶
+    GUIDE_PAGE_STOP_PUMP = 3, /// 停止泵奶
+    GUIDE_PAGE_PUMP_MODE_SELECT = 4, /// 泵奶模式选择
+    GUIDE_PAGE_BIND_GUIDE = 5, /// 绑定引导
     GUIDE_PAGE_MAX,
 } guide_page_index_t;
 
@@ -52,6 +60,7 @@ typedef struct {
     ui_manager_context_t *ui;
     ble_manager_context_t *ble;
     battery_manager_context_t *battery;
+    led_manager_context_t *led;
     key_input_context_t *key;
     uint32_t margic; /// 窗口标识.
     uint32_t last_progress_ani_time; /// 上次进度动画时间.
@@ -65,8 +74,9 @@ typedef struct {
 */
 void start_guide_ui_animation(ui_proc_guide_t *proc);
 void stop_guide_ui_animation(ui_proc_guide_t *proc);
-void guide_start_key_event_handler(ui_proc_guide_t *proc);
-
+void guide_key_event_handler_v1(ui_proc_guide_t *proc, uint16_t keycode);
+void guide_key_event_handler_v2(ui_proc_guide_t *proc, uint16_t keycode);
+void guide_key_3s_press_handler_v2(ui_proc_guide_t *proc, uint16_t keycode);
 #ifdef __cplusplus
 }
 #endif

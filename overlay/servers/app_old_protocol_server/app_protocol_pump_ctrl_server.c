@@ -388,11 +388,7 @@ uint8_t app_old_comm_set_nommal_pump_level(app_old_comm_pump_ctrl *app_old_comm_
         }
     }
 
-    pump_ctx->set_breast_pump_setting(&setting, time_index);
-    store_pump_setting_value_t store_pump_setting_value = {0};
-    store_pump_setting_value.is_custom_trial_mode = pump_ctx->priv.m_info.is_custom_trial_mode;
-    store_pump_setting_value.setting = &setting;
-    storage_ctx->put_store_ram_val(STORE_ID_PUMP_SETTING_INFO, app_old_comm_get_current_pump_mode(), time_index, &store_pump_setting_value);
+    pump_ctx->set_breast_pump_setting(&setting, time_index, true);
     return true;
 }
 
@@ -413,12 +409,7 @@ uint8_t app_old_comm_set_nommal_pump_speed(app_old_comm_pump_ctrl *app_old_comm_
     //只允许常规模式设置 speed，并且左右同步控制
     setting.speed = app_old_comm_pump_ctrl_date->normal_pump_speed;
     LOG_SRV("pump speed  %d", setting.speed);
-    pump_ctx->set_breast_pump_setting(&setting, time_index);
-    store_pump_setting_value_t store_pump_setting_value = {0};
-    store_pump_setting_value.is_custom_trial_mode = pump_ctx->priv.m_info.is_custom_trial_mode;
-    store_pump_setting_value.setting = &setting;
-    storage_ctx->put_store_ram_val(STORE_ID_PUMP_SETTING_INFO, app_old_comm_get_current_pump_mode(), time_index,
-                                   &store_pump_setting_value);
+    pump_ctx->set_breast_pump_setting(&setting, time_index, true);
     app_broadcast_pump_speed_to_window(setting.speed ,OLD_BROADCAST_ALL_CT);
     return true;
 }
@@ -492,11 +483,7 @@ uint8_t app_old_comm_set_custom_pump_level(app_old_comm_pump_ctrl *app_old_comm_
         }
     }
 
-    pump_ctx->set_breast_pump_setting(&setting, time_index);
-    store_pump_setting_value_t store_pump_setting_value = {0};
-    store_pump_setting_value.is_custom_trial_mode = pump_ctx->priv.m_info.is_custom_trial_mode;
-    store_pump_setting_value.setting = &setting;
-    storage_ctx->put_store_ram_val(STORE_ID_PUMP_SETTING_INFO, app_old_comm_get_current_pump_mode(), time_index, &store_pump_setting_value);
+    pump_ctx->set_breast_pump_setting(&setting, time_index, true);
     return true;
 }
 
@@ -519,10 +506,13 @@ uint8_t app_old_comm_pump_control_handler(app_old_comm_pump_ctrl *app_old_comm_p
         switch (app_old_comm_get_current_pump_mode()) {
             case BREAST_PUMP_LACTATION_MODE:
             case BREAST_PUMP_STIMULATION_MODE: // 传统模式
+            case BREAST_PUMP_RELAX_MODE: // 放松模式
             case BREAST_PUMP_MIX_MODE: {       /// 常规的吸乳模式允许调频率
                 LOG_SRV("app set normal pump speed");
                 app_old_comm_set_nommal_pump_speed(app_old_comm_pump_ctrl_date);
             }
+            case BREAST_PUMP_REGULAR_PUMPING_MODE:
+            case BREAST_PUMP_EMPTYING_BOOST_MODE:
             case BREAST_PUMP_PP_MILK_TRACK_MODE:
             case BREAST_PUMP_MILK_BOOST_MODE:
             case BREAST_PUMP_LACTATION_START_MODE: {
@@ -633,6 +623,16 @@ uint8_t app_old_comm_pump_custom_step_para_to_local_motor_policy(user_def_pump_s
             memcpy(custom_mode_policy_cfg + cfg_num, &mix_default2_temp,
                    sizeof(mix_default2_temp));
             cfg_num += 2;
+        } 
+        else if (pump_steps_data->data[i].mode == APP_OLD_COMM_MODE_RELAX) {
+            motor_policy_cfg_t relax_default_temp[RELAX_MODE_LEN] = {0};
+            memcpy(relax_default_temp, &relax_default, sizeof(relax_default));
+            relax_default_temp[0].duration = pump_steps_data->data[i].time;
+            relax_default_temp[0].core.un.mapping.level = pump_steps_data->data[i].level;
+            relax_default_temp[0].core.un.mapping.speed = pump_steps_data->data[i].freq;
+            memcpy(custom_mode_policy_cfg + cfg_num, &relax_default_temp,
+                   sizeof(relax_default_temp));
+            cfg_num += 1;
         } else {
             LOG_SRV("unknow custom pump step mode");
         }

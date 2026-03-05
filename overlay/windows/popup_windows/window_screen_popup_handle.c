@@ -47,6 +47,7 @@ static void popup_exit_handler_cb(hdr_post_args_t *args)
     EXCEPTION_CHECK_VOID(proc);
     EXCEPTION_CHECK_VOID(proc->pm);
     WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_POPUP_WINDOW);
+    LOG_WM("popup exit handler, time: %ld.", get_timestamp());
 #if IS_SUPPORT_POPUP_WAKE_LOCK
     proc->pm->release_wakelock(POPUP_WAKE_LOCK_NAME);
 #endif
@@ -141,6 +142,7 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
     proc->pm = (power_manager_context_t *)find_module(ID_MODULE_POWER);
     proc->st = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
     proc->key = (key_input_context_t *)find_module(ID_MODULE_KEY_INPUT);
+    proc->pump = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
     if (extra->popup_exit_time < 500 || extra->popup_exit_time > 10000) {
         extra->popup_exit_time = 2000; /// 限制最小退出时间长度
     }

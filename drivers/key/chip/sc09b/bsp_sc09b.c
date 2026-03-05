@@ -36,8 +36,8 @@ static uint16_t s_key_mask[TOUCH_KEY_NUM] = {
     0x0001, /// 左按键
     0x4000, /// 右按键
     // 0x8000, /// 双边控制键
-#elif V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V2
-#if DV_DEVICE_ENABLE == DV1_DEVICE_ENABLE
+#elif (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V2) || (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V3)
+#if (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V3)
     0x0010, /// 启动键//
     0x8000, /// 模式键
     0x0002, /// 频段键

@@ -3,7 +3,7 @@ set -euo pipefail
 
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 OUTPUT_DIR="$PROJECT_DIR/project/bin"
-SHARE_DIR="$PROJECT_DIR/../../v3_firmware"
+SHARE_DIR="/home/owen/owenshare/vmshare/v3_output"
 MAKE_ARGS=("T=ble_only_lt" "-j16")
 
 # 若构建阶段已明确目标产物信息，则在拷贝阶段优先使用
@@ -85,6 +85,42 @@ resolve_root_device_name() {
 		printf "%s" "V3Pro"
 	else
 		printf "%s" "V3"
+	fi
+}
+
+resolve_root_res_path() {
+	# 通过预处理展开 ROOT_RES_PATH（适配 V3_UI_VERSION 等条件编译）
+	# 优先使用编译器预处理，失败时退回 grep 文本解析
+	local info_file="${1:-$PROJECT_DIR/boards/product_info.h}"
+	if [[ -f "$info_file" ]]; then
+		local compiler
+		compiler=$(command -v gcc || command -v cc || true)
+		if [[ -n "${compiler:-}" ]]; then
+			local out
+			out=$(
+				printf '#include "%s"\nROOT_RES_PATH\n' "$info_file" \
+					| "$compiler" -E -P -xc -I "$PROJECT_DIR/boards" -I "$PROJECT_DIR" - 2>/dev/null \
+					| awk 'NF{print; exit}' \
+					| tr -d '\r'
+			) || true
+			# 去掉可能的引号
+			out=${out#\"}
+			out=${out%\"}
+			if [[ -n "${out:-}" && "$out" != "ROOT_RES_PATH" ]]; then
+				printf "%s" "$out"
+				return 0
+			fi
+		fi
+	fi
+
+	# 回退：直接 grep 最近一次定义
+	local token
+	token=$(grep -E '^#define[[:space:]]+ROOT_RES_PATH[[:space:]]+' "$info_file" | awk '{print $3}' | tail -n1 || true)
+	token=${token//\"/}
+	if [[ -n "${token:-}" ]]; then
+		printf "%s" "$token"
+	else
+		printf "%s" "V1"
 	fi
 }
 
@@ -355,8 +391,7 @@ do_rename_and_archive() {
 	# 根据 ROOT_RES_PATH/ROOT_RES_VERSION 拷贝资源（V1 -> bin/V1; V2 -> bin/V2）
 	# ROOT_RES_VERSION 定义为 major*100 + minor，例如 100 -> V01.00
 	local res_path res_version res_major res_minor res_major2 res_minor2 res_dir res_file
-	res_path=$(grep -E '^#define[[:space:]]+ROOT_RES_PATH[[:space:]]+' "$info_file" | awk '{print $3}' | tail -n1 || true)
-	res_path=${res_path//\"/}
+	res_path=$(resolve_root_res_path "$info_file")
 	[[ -n "${res_path:-}" ]] || res_path="V1"
 
 	res_version=$(grep -E '^#define[[:space:]]+ROOT_RES_VERSION[[:space:]]+' "$info_file" \

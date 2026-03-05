@@ -25,6 +25,8 @@ int factory_tests_aging_test_exit(tests_func_args_t args);
 int factory_tests_enter(tests_func_args_t args);
 int factory_tests_exit(tests_func_args_t args);
 int dispatch_listen_factory_event_report(tests_manager_context_t *ctx, uint16_t event_id, void *data, uint16_t data_len);
+/// 获取老化时间的包装函数（用于事件处理接口）
+int get_factory_tests_aging_test_current_age_time(tests_func_args_t args);
 
 #ifdef __cplusplus
 }

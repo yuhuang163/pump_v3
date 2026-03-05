@@ -147,6 +147,10 @@ static int entry_event_cb(window_lift_cycle_e new_state,
             PRODUCT_TEST_HOME_TASK_NAME);
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>PRODUCT_TEST_ON_CREATE");
+        if (proc->led && proc->led->hook && proc->led->hook->set_key_backlight) {
+            LOG_WM("set key backlight to 100");
+            proc->led->hook->set_key_backlight(proc->led, 100);
+        }
         /// 获取当前测试模式
         uint8_t current_mode = TST_NONE_TYPE;
         if (proc->tests->tests_manager_get_current_mode) {
@@ -222,6 +226,10 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
     proc->tests = (tests_manager_context_t *)find_module(ID_MODULE_TESTS);
     proc->ble = (ble_manager_context_t *)find_module(ID_MODULE_BLE);
     proc->airplane = (airplane_mode_context_t *)find_module(ID_MODULE_AIRPLANE_MODE);
+    proc->led = (led_manager_context_t *)find_module(ID_MODULE_LED);
+    proc->st = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
+    proc->pump = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
+
     /// 注册广播监听.
     proc->receiver.context = proc;
     proc->receiver.name = "product_test_brc";

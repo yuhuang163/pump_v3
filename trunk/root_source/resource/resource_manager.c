@@ -2,10 +2,8 @@
 * INCLUDE FILES
 *****************************************************************************************
 */
-#include "root_common.h"
 #include "root_common_api.h" // IWYU pragma: keep
 #include "resource_manager.h" // IWYU pragma: keep
-#include "resource_manager_api.h" // IWYU pragma: keep
 #include "external/md5/md5.h"
 
 /*
@@ -86,19 +84,6 @@ static uint32_t img_res_calc_header_size(uint32_t res_count)
     return (uint32_t)sizeof(img_res_head_wrapper_t) + res_count * (uint32_t)sizeof(img_res_obj_info_t);
 }
 
-static int img_res_flash_read(uint32_t addr, void *buf, uint32_t size)
-{
-    return platform_flash_read(PARTITION_IMG_INT_DATA_NAME, addr, (uint8_t *)buf, size);
-}
-
-static int img_res_flash_read_by_partition(const char *partition, uint32_t addr, void *buf, uint32_t size)
-{
-    if (!partition || !buf || size == 0) {
-        return -1;
-    }
-    return platform_flash_read(partition, addr, (uint8_t *)buf, size);
-}
-
 static const char *img_res_get_partition_name(void)
 {
 #if V3_IMG_RES_STORAGE_TYPE == IMG_RES_STORAGE_INTERNAL_FLASH
@@ -117,6 +102,23 @@ static bool img_res_get_base_addr(uint32_t *base_addr)
     *base_addr = (uint32_t)IMG_EXT_DATA_START_ADDR;
 #endif
     return true;
+}
+
+static int img_res_flash_read(uint32_t addr, void *buf, uint32_t size)
+{
+    const char *partition = img_res_get_partition_name();
+    if (!partition || !buf || size == 0) {
+        return -1;
+    }
+    return platform_flash_read(partition, addr, (uint8_t *)buf, size);
+}
+
+static int img_res_flash_read_by_partition(const char *partition, uint32_t addr, void *buf, uint32_t size)
+{
+    if (!partition || !buf || size == 0) {
+        return -1;
+    }
+    return platform_flash_read(partition, addr, (uint8_t *)buf, size);
 }
 
 static int img_res_find_obj_info(uint32_t base_addr, const char *partition, uint16_t img_id, img_res_obj_info_t *out)
@@ -534,11 +536,12 @@ static void res_ui_img_data_unload_impl(res_img_info_t *img)
 static void hdr_async_init_cb(hdr_post_args_t *args)
 {
     EXCEPTION_CHECK_VOID(thiz);
-    #if V3_IMG_RES_STORAGE_TYPE == IMG_RES_STORAGE_EXTERNAL_FLASH
-    //(void)img_res_validate_and_dump((uint32_t)IMG_EXT_DATA_START_ADDR);
-    #else
-    //(void)img_res_validate_and_dump((uint32_t)IMG_INT_DATA_START_ADDR);
-    #endif
+    uint32_t base_addr = 0;
+    if (!img_res_get_base_addr(&base_addr)) {
+        LOGE("img_res_get_base_addr failed");
+        return;
+    }
+    img_res_validate_and_dump(base_addr);
     if (!thiz->priv.res_init_completed) {
         thiz->priv.res_init_completed = true;
     }

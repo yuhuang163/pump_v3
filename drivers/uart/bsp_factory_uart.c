@@ -47,7 +47,7 @@ static unsigned int factory_uart_recv_handler(unsigned char *rx_buff, unsigned i
     // - app_old_protocol (旧协议): 6字节 (Header(2) + CT(1) + CID(1) + CAL(1) + Checksum(1))
     // 使用 len < COMM_PROTOCOL_HEADER_SIZE 可以过滤掉所有小于最小协议头长度的噪声数据
     if (len < 6) {
-        LOGW("factory uart rx: filtered short data, len=%d ", len);
+        //LOGW("factory uart rx: filtered short data, len=%d ", len);
         return len;
     }
     

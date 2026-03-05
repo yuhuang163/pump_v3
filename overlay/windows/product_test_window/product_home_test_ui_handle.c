@@ -47,8 +47,8 @@ static void product_home_test_display_completed_cb(hdr_post_args_t *args)
         proc->wm->dispatch_new_window_args(proc->wm, &msg);
         return;
     }
-    LOG_WM("goto pump screen");
-    msg.union_body.extra.window_id = ID_WINDOW_PUMP;
+    LOG_WM("goto home window.");
+    msg.union_body.extra.window_id = ID_WINDOW_HOME;
     proc->wm->dispatch_new_window_args(proc->wm, &msg);
 }
 

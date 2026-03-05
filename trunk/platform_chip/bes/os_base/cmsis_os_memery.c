@@ -13,8 +13,8 @@
 */
 #define U_HEAP_SIZE (120 * 1024)
 #if PSRAM_ENABLE
-#define U_HEAP_SIZE_PSRAM_NC (120 * 1024)
-#define U_HEAP_SIZE_PSRAM    (120 * 1024)
+#define U_HEAP_SIZE_PSRAM_NC (20 * 1024)
+#define U_HEAP_SIZE_PSRAM    (512 * 1024)
 #endif
 
 #define B2KB(x)     (x / 1024)

@@ -7,6 +7,7 @@
 #include "ui_page_define.h" // IWYU pragma: keep
 #include "ui_manager.h"   // IWYU pragma: keep
 #include "airplane_mode_ui.h" // IWYU pragma: keep
+#include "lv_font_roboto_19.h" // IWYU pragma: keep
 
 /*
 * DEFINES

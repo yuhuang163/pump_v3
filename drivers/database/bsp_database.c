@@ -32,7 +32,7 @@ static void database_callback(void* param)
 {
     NORFLASH_API_OPERA_RESULT *opera_result;
     opera_result = (NORFLASH_API_OPERA_RESULT*)param;
-    LOG_PBUS("database callback: type = %d, addr = 0x%x,len = 0x%x,result = %d,suspend_num=%d.",
+    LOG_PBUS("type=%d, addr=0x%x, len=0x%x, result=%d, suspend_num=%d.",
                 opera_result->type, opera_result->addr, opera_result->len, opera_result->result,
                 opera_result->suspend_num);
 }
