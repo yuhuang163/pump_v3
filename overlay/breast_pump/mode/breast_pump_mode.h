@@ -18,6 +18,7 @@ const motor_policy_cfg_t *get_breast_pump_mode_para(int mode);
 int breast_pump_mode_parameter_output(motor_policy_manager_t *obj, char *name);
 int breast_pump_mode_parameter_deinit(motor_policy_manager_t *obj);
 motor_policy_manager_t *breast_pump_mode_parameter_init(const motor_policy_cfg_t *cfg, uint8_t cfg_num, char *name);
+motor_policy_manager_t *pump_mode_parameter_init_by_steps_info(pump_mode_steps_info_t *steps_info, char *name);
 
 const motor_policy_manager_t *pump_mode_policy_get(void *user_data);
 int pump_mode_parameter_init(void);
@@ -29,10 +30,12 @@ const motor_policy_manager_t *lactation_start_mode_policy_get(void *user_data);
 int lactation_start_mode_parameter_init(void);
 
 const motor_policy_manager_t *custom_mode_policy_get(void *user_data);
-motor_policy_cfg_t *custom_mode_policy_cfg_get(void);
 int custom_mode_parameter_init(void);
-int custom_mode_parameter_update(motor_policy_cfg_t *cfg, uint8_t cfg_num);
-void print_pump_custom_cfg(motor_policy_cfg_t *cfg, uint8_t cfg_num);
+int custom_mode_update_by_steps_info(pump_mode_steps_info_t *steps_info);
+
+const motor_policy_manager_t *custom_trial_mode_policy_get(void *user_data);
+int custom_trial_mode_parameter_init(void);
+int custom_trial_mode_update_by_steps_info(pump_mode_steps_info_t *steps_info);
 
 const motor_policy_manager_t *pp_milk_track_mode_policy_get(void *user_data);
 int pp_milk_track_mode_parameter_init(void);
@@ -54,10 +57,9 @@ int relax_mode_parameter_init(void);
 
 int breast_pump_mode_work_time_get(int mode);
 int breast_pump_mode_time_step_number_get(int mode);
-uint8_t get_pump_custom_mode_step_max_number(void);
 void breast_pump_setting_reset (sys_pump_info_t *pump_info, int mode);
-void breast_pump_custom_step_para_reset(sys_pump_info_t *pump_info);
-uint8_t get_pump_breastfeeding_sub_mode_from_cfg(const motor_policy_cfg_t *cfg, uint8_t step_index);
+void breast_pump_mode_steps_info_reset(sys_pump_mode_info_t *mode_info, int mode);
+
 #ifdef __cplusplus
 }
 #endif

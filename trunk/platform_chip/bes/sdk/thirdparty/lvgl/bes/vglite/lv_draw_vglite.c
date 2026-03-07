@@ -161,8 +161,14 @@ static int32_t _vglite_evaluate(lv_draw_unit_t * u, lv_draw_task_t * t)
     int ret = 0;
 
     LV_UNUSED(u);
+    if(t == NULL || t->draw_dsc == NULL) {
+        return 0;
+    }
 
     const lv_draw_dsc_base_t * draw_dsc_base = (lv_draw_dsc_base_t *) t->draw_dsc;
+    if(draw_dsc_base == NULL || draw_dsc_base->layer == NULL) {
+        return 0;
+    }
 
     if (!_vglite_dest_cf_supported(draw_dsc_base->layer->color_format))
         return 0;
@@ -185,6 +191,10 @@ static int32_t _vglite_evaluate(lv_draw_unit_t * u, lv_draw_task_t * t)
 
         case LV_DRAW_TASK_TYPE_LAYER: {
             const lv_draw_image_dsc_t * draw_dsc = (lv_draw_image_dsc_t *) t->draw_dsc;
+            if(draw_dsc == NULL || draw_dsc->src == NULL) {
+                ret = 0;
+                break;
+            }
             lv_layer_t * layer_to_draw = (lv_layer_t *)draw_dsc->src;
 
             if (!_vglite_src_cf_supported(layer_to_draw->color_format))
@@ -196,7 +206,15 @@ static int32_t _vglite_evaluate(lv_draw_unit_t * u, lv_draw_task_t * t)
 
         case LV_DRAW_TASK_TYPE_IMAGE: {
             const lv_draw_image_dsc_t * draw_dsc = (lv_draw_image_dsc_t *) t->draw_dsc;
+            if(draw_dsc == NULL) {
+                ret = 0;
+                break;
+            }
             const void *src = (const void *)draw_dsc->src;
+            if(src == NULL) {
+                ret = 0;
+                break;
+            }
             lv_image_src_t src_type = lv_image_src_get_type((const void *)draw_dsc->src);
             bool need_decode = false;
             if (src_type == LV_IMAGE_SRC_VARIABLE) {

@@ -140,7 +140,8 @@ void guide_key_event_handler_v2(ui_proc_guide_t *proc, uint16_t keycode)
             if (keycode == KEY_CODE_KNOB_RIGHT) {
                 proc->page_index = GUIDE_PAGE_START_PUMP;
                 if (proc->led) {
-                    proc->led->set_led_level(PUMP_START_BL, LED_LEVEL_MAX);
+                    // proc->led->set_led_level(PUMP_START_BL, LED_LEVEL_MAX);          
+                    proc->led->set_led_blink(PUMP_START_BL, 200, 0, LED_STATUS_OFF);
                 }
             } 
             break;

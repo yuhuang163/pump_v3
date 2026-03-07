@@ -3,7 +3,7 @@ set -euo pipefail
 
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 OUTPUT_DIR="$PROJECT_DIR/project/bin"
-SHARE_DIR="/home/owen/owenshare/vmshare/v3_output"
+SHARE_DIR="$PROJECT_DIR/../../v3_firmware"
 MAKE_ARGS=("T=ble_only_lt" "-j16")
 
 # 若构建阶段已明确目标产物信息，则在拷贝阶段优先使用

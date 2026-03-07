@@ -147,6 +147,7 @@ elif [[ "$CONFIG_FILE" == *"/V1/"* ]] || [[ "$CONFIG_FILE" == *"/V2/"* ]]; then
 fi
 
 # 调用 Python 脚本
+echo "CRC策略: 打包时按单个资源计算 CRC16 并写入 obj_info"
 if [ -n "$BASE_DIR" ]; then
     # 传递 base_dir 参数
     PACK_LOG="$(python3 "$SCRIPT_DIR/pack_resources.py" \

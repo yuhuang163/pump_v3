@@ -235,7 +235,10 @@ static int pm_key_event_handler(void *user_data, uint16_t keycode, uint16_t keyt
         LOG_PM("is_goto_sys_standby, ignore");
         return 0;
     }
-    set_suspend_counter("non-wakeup-key-reset", get_suspend_timeout(ctx), false);
+    
+    if (keytype != KEY_EVENT_DOWN) {
+        set_suspend_counter("non-wakeup-key-reset", get_suspend_timeout(ctx), false);
+    }
     return 0;
 }
 

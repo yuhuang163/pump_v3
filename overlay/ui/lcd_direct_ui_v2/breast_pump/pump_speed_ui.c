@@ -75,15 +75,15 @@ typedef struct {
 static speed_display_info_t *speed_info;
 
 static const uint16_t speed_component_ids[SPEED_COUNT] = {
+    RESOURCE_ID_FREQ_PAGE_BOOST_ICON, /// 快速
     RESOURCE_ID_FREQ_PAGE_COMFORT_ICON, /// 舒适
     RESOURCE_ID_FREQ_PAGE_REGULAR_ICON, /// 常规
-    RESOURCE_ID_FREQ_PAGE_BOOST_ICON, /// 快速
 };
 
 static const char *speed_name[SPEED_COUNT] = {
+    "Fast", /// 快速
     "Slow", /// 慢速
     "Regular", /// 常规
-    "Fast", /// 快速
 };
 
 static const char *speed_desc[SPEED_COUNT] = {
@@ -479,10 +479,6 @@ static void speed_bg_update(ui_manager_context_t *thiz)
 
 static void speed_ui_update(ui_manager_context_t *thiz, uint8_t speed_idx)
 {
-    if (speed_idx >= BREAST_PUMP_SPEED_MAX) {
-        speed_idx = BREAST_PUMP_SPEED_LOW;
-    }
-
     if (speed_info->speed_obj_init_done == false) {
         circle_carousel_create(thiz, speed_info->root, speed_idx);
         dotbar_carousel_create(thiz, speed_info->root, speed_idx);
@@ -555,7 +551,7 @@ int ui_display_pump_speed_process(ui_manager_context_t *thiz)
     ui_proc_pump_t *proc = (ui_proc_pump_t *)thiz->priv.play_info.user_data;
     EXCEPTION_CHECK_INT(proc);
     speed_bg_update(thiz);
-    speed_ui_update(thiz, proc->setting.speed);
+    speed_ui_update(thiz, pump_speed_convert_to_ui_speed_idx(proc->setting.speed));
     speed_text_update(thiz);
     speed_info->force_update = false;
     thiz->priv.fps_count++;

@@ -5,7 +5,6 @@
 #include "root_common_api.h" // IWYU pragma: keep
 #include "pump_mode_default_config.h"
 #include "breast_pump_policy.h"
-#include "app_protocol_pump_ctrl_server.h"
 /*
 * DEFINES
 *****************************************************************************************
@@ -41,7 +40,6 @@ const motor_policy_cfg_t *get_breast_pump_mode_para(int mode)
         case BREAST_PUMP_MIX_MODE:   
             return mix_default;
         case BREAST_PUMP_CUSTOM_MODE:   
-            /// todo: 补全自定义模式参数
             return custom_default;
         case BREAST_PUMP_PP_MILK_TRACK_MODE:   
             return pp_milk_track_default;
@@ -55,6 +53,8 @@ const motor_policy_cfg_t *get_breast_pump_mode_para(int mode)
             return emptying_boost_default;
         case BREAST_PUMP_RELAX_MODE:
             return relax_default;
+        case BREAST_PUMP_CUSTOM_TRIAL_MODE:
+            return custom_trial_default;
         default:
             return 0;
     }
@@ -71,7 +71,6 @@ int breast_pump_mode_time_step_number_get(int mode)
         case BREAST_PUMP_MIX_MODE:
             return MIX_MODE_MAX_STEPS;
         case BREAST_PUMP_CUSTOM_MODE:
-            /// todo: 补全自定义模式步数
             return CUSTOM_MODE_MAX_STEPS;
         case BREAST_PUMP_PP_MILK_TRACK_MODE:
             return PP_MODE_MAX_STEPS;
@@ -85,6 +84,8 @@ int breast_pump_mode_time_step_number_get(int mode)
             return EMPTYING_BOOST_MODE_MAX_STEPS;
         case BREAST_PUMP_RELAX_MODE:
             return RELAX_MODE_MAX_STEPS;
+        case BREAST_PUMP_CUSTOM_TRIAL_MODE:
+            return CUSTOM_TRIAL_MODE_MAX_STEPS;
         default:
             return 0;
     }
@@ -101,209 +102,51 @@ void breast_pump_setting_reset(sys_pump_info_t *pump_info, int mode)
         LOGE("step count error, mode: %d, step count: %d", mode, step_count);
         return;
     }
-    switch (mode) {
-        case BREAST_PUMP_STIMULATION_MODE:   
-            setting = pump_info->stimulation_setting;
-            for (uint8_t i = 0; i < step_count; i++) {
-                setting[i].speed = cfg[i].core.un.mapping.speed;
-                setting[i].level[0] = cfg[i].core.un.mapping.level;
-                setting[i].level[1] = cfg[i].core.un.mapping.level;
-            }
-            break;
-        case BREAST_PUMP_LACTATION_MODE:   
-            setting = pump_info->pump_setting;
-            for (uint8_t i = 0; i < step_count; i++) {
-                setting[i].speed = cfg[i].core.un.mapping.speed;
-                setting[i].level[0] = cfg[i].core.un.mapping.level;
-                setting[i].level[1] = cfg[i].core.un.mapping.level;
-            }
-            break;
-        case BREAST_PUMP_MIX_MODE:   
-            setting = pump_info->mix_setting;
-            for (uint8_t i = 0; i < step_count; i++) {
-                setting[i].speed = cfg[i].core.un.mapping.speed;
-                setting[i].level[0] = cfg[i].core.un.mapping.level;
-                setting[i].level[1] = cfg[i].core.un.mapping.level;
-            }
-            break;
-        case BREAST_PUMP_CUSTOM_MODE:   
-            setting = pump_info->custom_setting;
-            for (uint8_t i = 0; i < step_count; i++) {
-                setting[i].speed = cfg[i].core.un.mapping.speed;
-                setting[i].level[0] = cfg[i].core.un.mapping.level;
-                setting[i].level[1] = cfg[i].core.un.mapping.level;
-            }
-            break;
-        case BREAST_PUMP_PP_MILK_TRACK_MODE:   
-            setting = pump_info->pp_milk_track_setting;
-            for (uint8_t i = 0; i < step_count; i++) {
-                setting[i].speed = cfg[i].core.un.mapping.speed;
-                setting[i].level[0] = cfg[i].core.un.mapping.level;
-                setting[i].level[1] = cfg[i].core.un.mapping.level;
-            }
-            break;
-        case BREAST_PUMP_MILK_BOOST_MODE:   
-            setting = pump_info->milk_boost_setting;
-            for (uint8_t i = 0; i < step_count; i++) {
-                setting[i].speed = cfg[i].core.un.mapping.speed;
-                setting[i].level[0] = cfg[i].core.un.mapping.level;
-                setting[i].level[1] = cfg[i].core.un.mapping.level;
-            }
-            break;
-        case BREAST_PUMP_LACTATION_START_MODE:   
-            setting = pump_info->lactation_start_setting;  
-            for (uint8_t i = 0; i < step_count; i++) {
-                setting[i].speed = cfg[i].core.un.mapping.speed;
-                setting[i].level[0] = cfg[i].core.un.mapping.level;
-                setting[i].level[1] = cfg[i].core.un.mapping.level;
-            }
-            break;
-        case BREAST_PUMP_REGULAR_PUMPING_MODE:   
-            setting = pump_info->regular_pumping_setting;  
-            for (uint8_t i = 0; i < step_count; i++) {
-                setting[i].speed = cfg[i].core.un.mapping.speed;
-                setting[i].level[0] = cfg[i].core.un.mapping.level;
-                setting[i].level[1] = cfg[i].core.un.mapping.level;
-            }
-            break;
-        case BREAST_PUMP_EMPTYING_BOOST_MODE:   
-            setting = pump_info->emptying_boost_setting;  
-            for (uint8_t i = 0; i < step_count; i++) {
-                setting[i].speed = cfg[i].core.un.mapping.speed;
-                setting[i].level[0] = cfg[i].core.un.mapping.level;
-                setting[i].level[1] = cfg[i].core.un.mapping.level;
-            }
-            break;
-        case BREAST_PUMP_RELAX_MODE:   
-            setting = pump_info->relax_setting;  
-            for (uint8_t i = 0; i < step_count; i++) {
-                setting[i].speed = cfg[i].core.un.mapping.speed;
-                setting[i].level[0] = cfg[i].core.un.mapping.level;
-                setting[i].level[1] = cfg[i].core.un.mapping.level;
-            }
-            break;
-        default:
-            LOGE("mode error, mode: %d", mode);
-            break;
+
+    if (mode >= BREAST_PUMP_MODE_MAX || mode < BREAST_PUMP_STIMULATION_MODE) {
+        LOGE("mode error, mode: %d", mode);
+        return;
+    }
+    
+    setting = pump_info->setting_wrap[mode].info;
+    for (uint8_t i = 0; i < step_count; i++) {
+        setting[i].speed = cfg[i].core.un.mapping.speed;
+        setting[i].level[0] = cfg[i].core.un.mapping.level;
+        setting[i].level[1] = cfg[i].core.un.mapping.level;
     }
 }
 
-void breast_pump_custom_step_para_reset(sys_pump_info_t *pump_info)
+void breast_pump_mode_steps_info_reset(sys_pump_mode_info_t *mode_info, int mode)
 {
-    const motor_policy_cfg_t *cfg = custom_default;
+    const motor_policy_cfg_t *cfg = get_breast_pump_mode_para(mode);
     EXCEPTION_CHECK_VOID(cfg);
-
-    user_def_pump_steps_data_t *custom_steps_parameter = &pump_info->custom_steps_parameter;
-
-    // 初始化参数
-    custom_steps_parameter->id.dat32 = (uint32_t)0; // 标识默认参数
-    custom_steps_parameter->custom_total_time = 0;  // 重置总时长
-
-    // 遍历配置，跳过子策略(MOTOR_TIME_SUB_POLICY)，只统计主策略
-    uint8_t step_idx = 0;
-    for (uint8_t i = 0; i < CUSTOM_MODE_LEN && step_idx < ROOT_BREAST_PUMP_STEP_MAX; i++) {
-        // 跳过子策略，子策略不单独计为一个step
-        if (cfg[i].policy_type == MOTOR_TIME_SUB_POLICY) {
-            continue;
-        }
-
-        custom_steps_parameter->data[step_idx].freq = cfg[i].core.un.mapping.speed;
-        custom_steps_parameter->data[step_idx].level = cfg[i].core.un.mapping.level;
-        custom_steps_parameter->data[step_idx].time = cfg[i].duration; // 单位s
-
-        // 根据 loop_num 确定模式类型
-        uint8_t loop_num = cfg[i].core.config.loop_num;
-        if (loop_num == 5) {
-            // 混合模式1: 5次短吸 + 1次长吸
-            custom_steps_parameter->data[step_idx].mode = APP_OLD_COMM_MODE_MIX1;
-        } else if (loop_num == 2) {
-            // 混合模式2: 2次短吸 + 1次长吸
-            custom_steps_parameter->data[step_idx].mode = APP_OLD_COMM_MODE_MIX2;
-        } 
-        if (cfg[i].core.un.mapping.mode_type == SUCTION_MODE_IDLE) {
-            // 空闲模式（Relax）
-            custom_steps_parameter->data[step_idx].mode = APP_OLD_COMM_MODE_RELAX;
-        } else if (cfg[i].core.un.mapping.mode_type == SUCTION_MODE_SHORT) {
-            // 按摩模式（短吸）
-            custom_steps_parameter->data[step_idx].mode = APP_OLD_COMM_MODE_SHORT;
-        } else if (cfg[i].core.un.mapping.mode_type == SUCTION_MODE_LONG) {
-            // 吸乳模式（长吸）
-            custom_steps_parameter->data[step_idx].mode = APP_OLD_COMM_MODE_LONG;
-        }
-        else {
-            // 普通模式: SUCTION_MODE_SHORT(1)->0x01, SUCTION_MODE_LONG(2)->0x02
-            // custom_steps_parameter->data[step_idx].mode = cfg[i].core.un.mapping.mode_type;
-            LOGE("unknown mode_type: %d, loop_num: %d", cfg[i].core.un.mapping.mode_type, loop_num);
-        }
-
-        custom_steps_parameter->custom_total_time += custom_steps_parameter->data[step_idx].time;
-
-        LOG_MOTOR("ud-mode[%d]=%02x", step_idx, custom_steps_parameter->data[step_idx].mode);
-        LOG_MOTOR("ud-level[%d]=%02x", step_idx, custom_steps_parameter->data[step_idx].level);
-        LOG_MOTOR("ud-time[%d]=%04x", step_idx, custom_steps_parameter->data[step_idx].time);
-
-        step_idx++;
+    uint8_t step_count = breast_pump_mode_time_step_number_get(mode);
+    uint8_t step_idx = 0, time_step_num = 0;
+    if (step_count == 0 || step_count > ROOT_BREAST_PUMP_STEP_MAX) {
+        LOGE("step count error, mode: %d, step count: %d", mode, step_count);
+        return;
     }
-
-    custom_steps_parameter->num = step_idx;
-}
-
-//重写这个函数，根据cfg和step_index获取子模式， 参考这个函数breast_pump_custom_step_para_reset的逻辑，
-uint8_t get_pump_breastfeeding_sub_mode_from_cfg(const motor_policy_cfg_t *cfg, uint8_t step_index)
-{
-    EXCEPTION_CHECK_UINT(cfg);
-    
-    // 遍历配置，跳过子策略(MOTOR_TIME_SUB_POLICY)，只统计主策略
-    uint8_t step_idx = 0;
-    uint8_t cfg_idx = 0;
-    
-    // 遍历配置数组，直到找到对应的step_index或到达数组末尾
-    // 使用较大的上限值，因为配置数组可能包含子策略，实际主策略数量会少于配置数组长度
-    while (step_idx <= step_index && cfg_idx < (ROOT_BREAST_PUMP_STEP_MAX * 2)) {
-        // 跳过子策略，子策略不单独计为一个step
-        if (cfg[cfg_idx].policy_type == MOTOR_TIME_SUB_POLICY) {
-            cfg_idx++;
-            continue;
-        }
-        
-        // 如果找到对应的step_index，返回对应的模式
-        if (step_idx == step_index) {
-            uint8_t loop_num = cfg[cfg_idx].core.config.loop_num;
-            uint8_t mode_type = cfg[cfg_idx].core.un.mapping.mode_type;
-            
-            // 首先根据 loop_num 区分混合模式
-            if (loop_num == 5) {
-                // 混合模式1: 5次短吸 + 1次长吸
-                return BREAST_PUMP_MIX_MODE;
-            } else if (loop_num == 2) {
-                // 混合模式2: 2次短吸 + 1次长吸
-                return BREAST_PUMP_MIX_MODE;
-            }
-            
-            // 如果不是混合模式，则根据 mode_type 区分按摩、吸乳、relax
-            if (mode_type == SUCTION_MODE_IDLE) {
-                // 空闲模式（Relax）
-                return BREAST_PUMP_RELAX_MODE;
-            } else if (mode_type == SUCTION_MODE_SHORT) {
-                // 按摩模式（短吸）
-                return BREAST_PUMP_STIMULATION_MODE;
-            } else if (mode_type == SUCTION_MODE_LONG) {
-                // 吸乳模式（长吸）
-                return BREAST_PUMP_LACTATION_MODE;
-            } else {
-                // 未知模式类型，返回默认值
-                LOGE("unknown mode_type: %d, loop_num: %d", mode_type, loop_num);
-                return BREAST_PUMP_STIMULATION_MODE;
-            }
-        }
-        
+    pump_mode_steps_info_t *steps_info = &mode_info->steps_info[mode];
+    steps_info->id.dat32   = 0;    /// 标识为0表示默认参数
+    steps_info->total_time = 0;  /// 重置总时长
+    for (uint8_t i = 0; i < step_count; i++) {
+        steps_info->data[step_idx].freq = cfg[i].core.un.mapping.speed;
+        steps_info->data[step_idx].level = cfg[i].core.un.mapping.level;
+        steps_info->data[step_idx].mode_type = cfg[i].core.un.mapping.mode_type;
+        steps_info->data[step_idx].loop_num = cfg[i].core.config.loop_num;
+        steps_info->data[step_idx].duration = cfg[i].duration; /// 单位s
+        steps_info->data[step_idx].policy_type = cfg[i].policy_type;
+        steps_info->total_time += steps_info->data[step_idx].duration;
+        LOG_MOTOR("steps%d policy=%d, mode=%d, level=%d, duration=%d",
+            step_idx, steps_info->data[step_idx].policy_type, steps_info->data[step_idx].mode_type,
+            steps_info->data[step_idx].level, steps_info->data[step_idx].duration);
         step_idx++;
-        cfg_idx++;
+        if (cfg[i].policy_type == MOTOR_TIME_POLICY) {
+            time_step_num++;
+        }
     }
-    
-    // 如果没找到，返回默认值
-    // LOGE("step_index %d out of range, cfg_idx: %d, step_idx: %d", step_index, cfg_idx, step_idx);
-    return BREAST_PUMP_STIMULATION_MODE;
+    steps_info->policy_num = step_idx;
+    steps_info->time_policy_num = time_step_num;
 }
 
 int breast_pump_mode_work_time_get(int mode)
@@ -419,6 +262,47 @@ motor_policy_manager_t *breast_pump_mode_parameter_init(const motor_policy_cfg_t
         } 
         /// 新增子策略实体
         next_policy = pump_policy_init(cfg[i]);
+        if (next_policy == NULL) {
+            LOGE("add %s sub policy failed !!!", name);
+            goto ERROR_EXIT;
+        }
+        time_policy->sub_policy_count++; /// 子策略个数统计
+        pump_policy_add(policy, next_policy);
+    }
+    breast_pump_mode_parameter_output(obj, name);
+    return obj;
+
+ERROR_EXIT:
+    breast_pump_mode_parameter_deinit(obj);
+    return NULL;
+}
+
+motor_policy_manager_t *pump_mode_parameter_init_by_steps_info(pump_mode_steps_info_t *steps_info, char *name)
+{
+    EXCEPTION_CHECK_POINT(steps_info);
+    motor_policy_manager_t *obj = NULL;
+    motor_policy_node_t *policy = NULL;
+    motor_policy_node_t *next_policy = NULL;
+    motor_timed_policy_node_t *time_policy = NULL;
+    motor_timed_policy_node_t *next_time_policy = NULL;
+
+    obj = pump_total_policy_init_by_steps_info(steps_info->data[0]);
+    time_policy = &obj->head;
+    policy = &obj->head.policy;
+    for (uint8_t i = 1; i < steps_info->policy_num; i++) {
+        if (steps_info->data[i].policy_type == MOTOR_TIME_POLICY) {
+            next_time_policy = pump_time_policy_init_by_steps_info(steps_info->data[i]);
+            if (next_time_policy == NULL) {
+                LOGE("add %s time policy failed !!!", name);
+                goto ERROR_EXIT;
+            }
+            pump_time_policy_add(time_policy, next_time_policy);
+            time_policy = next_time_policy;
+            policy = &time_policy->policy;
+            obj->timed_policy_count++; /// 定时策略个数统计
+            continue;
+        } 
+        next_policy = pump_policy_init_by_steps_info(steps_info->data[i]);
         if (next_policy == NULL) {
             LOGE("add %s sub policy failed !!!", name);
             goto ERROR_EXIT;

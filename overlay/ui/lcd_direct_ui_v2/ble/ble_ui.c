@@ -19,7 +19,6 @@
 */
 static lv_obj_t * ble_img;
 static res_img_info_t ble_info;
-static lv_obj_t * ble_line_icon;
 static uint8_t s_is_connected = 0;
 static uint8_t s_force_update = 0;
 
@@ -50,6 +49,15 @@ int ble_ui_update(ui_manager_context_t *thiz, lv_obj_t *root, ble_manager_contex
     EXCEPTION_CHECK_INT(thiz);
     EXCEPTION_CHECK_INT(root);
     EXCEPTION_CHECK_INT(ble);
+
+    /* Reset stale global objects when switching to another page root. */
+    if (ble_img != NULL && !lv_obj_is_valid(ble_img)) {
+        ble_img = NULL;
+        s_force_update = true;
+    } else if (ble_img != NULL && lv_obj_is_valid(ble_img) && lv_obj_get_parent(ble_img) != root) {
+        ble_img = NULL;
+        s_force_update = true;
+    }
     uint8_t is_connected = ble->ble_is_connected();
     if (s_is_connected == is_connected && s_force_update == false) {
         return 0;
@@ -67,10 +75,6 @@ int ble_ui_update(ui_manager_context_t *thiz, lv_obj_t *root, ble_manager_contex
     lv_image_set_src(ble_img, (const void *)&ble_img_path);
     // lv_obj_align(ble_img, LV_ALIGN_TOP_LEFT, 168 , 22);
     lv_obj_align(ble_img, LV_ALIGN_TOP_LEFT, x, y);
-    if (ble_line_icon == NULL || !lv_obj_is_valid(ble_line_icon)) {
-        ble_line_icon = lv_line_create(root);
-        EXCEPTION_CHECK_INT(ble_line_icon);
-    }
     s_is_connected = is_connected;
     s_force_update = false;
     return 0;
@@ -80,7 +84,6 @@ void ble_ui_deinit(ui_manager_context_t *thiz)
 {
     EXCEPTION_CHECK_VOID(thiz);
     ble_img = NULL;
-    ble_line_icon = NULL;
     s_is_connected = 0;
     s_force_update = false;
     common_ui_img_resource_deinit(thiz, &ble_info);

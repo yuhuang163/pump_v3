@@ -34,12 +34,9 @@ int pump_user_policy_update(struct motor_manager_context *thiz, suction_strategy
     pump_setting_t setting;
     uint8_t update_flag = 0;
     /// 获取当前时间策略索引.
-    int time_index = thiz->get_runtime_policy_index(MOTOR_TIME_POLICY);
-    if (time_index >= ROOT_BREAST_PUMP_STEP_MAX) {
-        time_index = 0;
-    }
+    uint8_t time_index = thiz->get_runtime_policy_index(MOTOR_TIME_POLICY);
     /// 获取当前模式下的设置信息.
-    thiz->priv.pump_ctx->get_breast_pump_setting(&setting, time_index);
+    thiz->priv.pump_ctx->get_breast_pump_setting(&setting, time_index >= ROOT_BREAST_PUMP_STEP_MAX ? 0 : time_index);
     /// 边界检查，确保参数在有效范围内
     if (setting.speed >= SUCTION_SPEED_MAX) {
         setting.speed = SUCTION_SPEED_MAX - 1;

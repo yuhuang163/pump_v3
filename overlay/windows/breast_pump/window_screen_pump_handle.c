@@ -113,6 +113,9 @@ void pump_knob_event_cb(ui_proc_pump_t *proc, uint8_t is_left)
         case PUMP_UI_TYPE_BREASTFEEDING_MODE:
             switch_breastfeeding_mode_ui(proc, is_left ? false : true);
             break;
+        case PUMP_UI_TYPE_HOME:
+            switch_pump_control_type_ui(proc, BREAST_PUMP_CONTROL_TYPE_BILATERAL);
+            break;
         default:
             LOG_WM("unknow ui type: %d, ignore.", proc->current_ui_type);
             break;
@@ -233,11 +236,13 @@ static void on_pump_ui_broadcast_receive_cb(broadcast_mask_id_t id, void *contex
             } else if (arg1 == BREAST_PUMP_BROADCAST_COMPLETED) {
                 LOG_WM("pump finish, post pump complete task.");
             } else if (arg1 == BREAST_PUMP_BROADCAST_PUMP_WILL_FINISH) {
+                proc->popup_ui_type = PUMP_POPUP_UI_PUMP_WILL_FINISH_TIP;
+                LOG_WM("pump will finish, post pump will finish task.");
+            } else if (arg1 == BREAST_PUMP_BROADCAST_APP_COMPLETED) {
                 POST_TASK_HANDLER_NO_DELAY_ARG1(pump_ui_common_cb, proc, PUMP_HDR_ACTION_PUMP_COMPLETE, 
                     PUMP_COMPLETE_TASK_NAME);
-                LOG_WM("pump will finish, post pump will finish task.");
-            }
-            else if (arg1 == BREAST_PUMP_BROADCAST_PUMP_ERROR) {
+                LOG_WM("pump app complete, post pump app complete task.");
+            } else if (arg1 == BREAST_PUMP_BROADCAST_PUMP_ERROR) {
                 LOG_WM("pump error, post pump error task.");
                 //先暂时显示暂停提示
                 proc->popup_ui_type = PUMP_POPUP_UI_PUMP_PAUSE_PROMPT;

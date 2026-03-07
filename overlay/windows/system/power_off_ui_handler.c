@@ -67,7 +67,7 @@ static void power_off_ui_display_remove(void *user_data)
 {
     ui_manager_context_t *ui = user_data;
     EXCEPTION_CHECK_VOID(ui);
-    ui_display_factory_reset_remove(ui);
+    ui_display_power_off_remove(ui);
 }
 
 static void show_power_off_ui(ui_proc_system_t *proc)

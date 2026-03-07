@@ -27,6 +27,8 @@ void common_ui_place_dot_on_arc(lv_obj_t * arc, lv_obj_t * dot, uint16_t angle_d
 void common_ui_bg_init(ui_manager_context_t *thiz);
 void common_ui_bg_update(ui_manager_context_t *thiz, lv_obj_t *parent);
 void common_ui_bg_deinit(ui_manager_context_t *thiz);
+/// 泵速度转换为UI索引
+uint8_t pump_speed_convert_to_ui_speed_idx(uint8_t speed);
 #ifdef __cplusplus
 }
 #endif

@@ -74,7 +74,7 @@ void show_charge_adapter_ui(ui_proc_charge_t *proc)
 {
     ui_manager_context_t *ui = proc->ui;
     EXCEPTION_CHECK_VOID(ui->hook && ui->hook->ui_animation_play_init);
-    if (proc->current_ui_type == CHARGE_UI_TYPE_CHARGING) {
+    if (proc->current_ui_type == CHARGE_UI_TYPE_ADAPTER) {
         proc->last_progress_ani_time = get_timestamp();
         return;
     }

@@ -100,8 +100,14 @@ extern "C" {
 
 /// 个性化模式默认参数长度，按摩 + 吸乳
 #ifndef CUSTOM_MODE_LEN 
-#define CUSTOM_MODE_LEN                                              (1 + 1)
-#define CUSTOM_MODE_MAX_STEPS                                            (2)
+#define CUSTOM_MODE_LEN                                               (1 + 1)
+#define CUSTOM_MODE_MAX_STEPS                                         (2)
+#endif
+
+/// 个性化试用模式参数长度，按摩 + 吸乳
+#ifndef CUSTOM_TRIAL_MODE_LEN 
+#define CUSTOM_TRIAL_MODE_LEN                                         (1 + 1)
+#define CUSTOM_TRIAL_MODE_MAX_STEPS                                   (2)
 #endif
 
 /// Power Pumping模式参数长度（9个阶段）

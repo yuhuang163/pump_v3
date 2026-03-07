@@ -36,9 +36,8 @@ IMG_RES_LANG_TYPE_EN = 0
 IMG_RES_LANG_TYPE_ZH = 1
 
 
-def calc_crc16(data: bytes) -> int:
-    """计算CRC16校验和 (CCITT标准)"""
-    crc = 0xFFFF
+def crc16_update(crc: int, data: bytes) -> int:
+    """按 C 侧 CRC16_UPDATE 方式增量更新 CRC16(CCITT)。"""
     for byte in data:
         crc ^= byte << 8
         for _ in range(8):
@@ -50,19 +49,47 @@ def calc_crc16(data: bytes) -> int:
     return crc
 
 
+def calc_crc16(data: bytes) -> int:
+    """计算CRC16校验和 (CCITT标准, init=0xFFFF)。"""
+    return crc16_update(0xFFFF, data)
+
+
 def calc_md5(data: bytes) -> bytes:
     """计算MD5哈希"""
     return hashlib.md5(data).digest()
 
 
 def parse_image_size_from_filename(filename: str) -> Tuple[int, int]:
-    """从文件名解析图片尺寸 (例如: xxx_360x360_xxx.baj -> (360, 360))"""
-    match = re.search(r'_(\d+)x(\d+)_', filename)
+    """从文件名解析图片尺寸 (例如: xxx_360x360_xxx.baj 或 xxx_360x360.png -> (360, 360))"""
+    # 兼容以下命名：
+    # - name_360x360_suffix.ext
+    # - name_360x360.ext
+    # - 360x360.ext
+    match = re.search(r'(?:^|_)(\d+)x(\d+)(?:_|\.|$)', filename)
     if match:
         width = int(match.group(1))
         height = int(match.group(2))
         return width, height
     return 0, 0  # 默认值
+
+
+def parse_png_size(file_path: str) -> Tuple[int, int]:
+    """从 PNG 文件头(IHDR)解析尺寸，失败返回(0, 0)。"""
+    try:
+        with open(file_path, 'rb') as f:
+            header = f.read(24)
+        if len(header) < 24:
+            return 0, 0
+        # PNG Signature(8 bytes) + IHDR length/type + width/height
+        if header[:8] != b'\x89PNG\r\n\x1a\n':
+            return 0, 0
+        if header[12:16] != b'IHDR':
+            return 0, 0
+        width = struct.unpack(">I", header[16:20])[0]
+        height = struct.unpack(">I", header[20:24])[0]
+        return int(width), int(height)
+    except Exception:
+        return 0, 0
 
 
 def _strip_c_comments(text: str) -> str:
@@ -506,6 +533,8 @@ class ResourcePacker:
                         data = f.read()
                     
                     width, height = parse_image_size_from_filename(range_res['file'])
+                    if (width == 0 or height == 0) and range_res['file'].lower().endswith('.png'):
+                        width, height = parse_png_size(file_path)
                     if width == 0 or height == 0:
                         width, height = 200, 200  # 动画帧默认尺寸
                     
@@ -527,7 +556,7 @@ class ResourcePacker:
                     
                     self.resources.append(resource_info)
                     if resource_id % 10 == 0 or resource_id == end_id:  # 每10个或最后一个打印
-                        print(f"  ✓ [{resource_id:03d}] ANIMATION_{resource_id}: {width}x{height}, {len(data)} bytes")
+                        print(f"  ✓ [{resource_id:03d}] ANIMATION_{resource_id}: {width}x{height}, {len(data)} bytes, crc16=0x{crc16:04X}")
         
         for res in self.config['resources']:
             res_id_raw = res['resource_id']
@@ -558,6 +587,8 @@ class ResourcePacker:
             
             # 从文件名解析尺寸
             width, height = parse_image_size_from_filename(res['file'])
+            if (width == 0 or height == 0) and res['file'].lower().endswith('.png'):
+                width, height = parse_png_size(file_path)
             if width == 0 or height == 0:
                 print(f"⚠️  警告: 无法从文件名解析尺寸: {res['file']}, 使用默认值")
                 width, height = 360, 360
@@ -580,7 +611,7 @@ class ResourcePacker:
             }
             
             self.resources.append(resource_info)
-            print(f"  ✓ [{res_id:02d}] {res_name}: {width}x{height}, {len(data)} bytes")
+            print(f"  ✓ [{res_id:02d}] {res_name}: {width}x{height}, {len(data)} bytes, crc16=0x{crc16:04X}")
         
         print(f"\n✅ 共加载 {len(self.resources)} 个资源")
         return True

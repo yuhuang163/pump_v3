@@ -52,7 +52,8 @@ static int breast_pump_policy_register(struct motor_manager_context *thiz, add_b
         emptying_boost_mode_parameter_init, emptying_boost_mode_policy_get);
     add_policy_cb(head, "relax", BREAST_PUMP_RELAX_MODE, NULL,
         relax_mode_parameter_init, relax_mode_policy_get);
-
+    add_policy_cb(head, "custom_trial", BREAST_PUMP_CUSTOM_TRIAL_MODE, NULL,
+        custom_trial_mode_parameter_init, custom_trial_mode_policy_get);
     return 0;
 }
 
@@ -93,10 +94,16 @@ static int on_motor_receiver_route(broadcast_mask_id_t id, void *context, int ar
 
 static int generate_motor_para_custom(void *user_data, int data_size)
 {
-    motor_policy_cfg_t *cfg = (motor_policy_cfg_t *) user_data;
-    int cfg_num = data_size / sizeof(motor_policy_cfg_t);
-    EXCEPTION_CHECK_INT(cfg);
-    return custom_mode_parameter_update(cfg, cfg_num);
+    pump_mode_steps_info_t *steps_info = (pump_mode_steps_info_t *) user_data;
+    EXCEPTION_CHECK_INT(steps_info);
+    return custom_mode_update_by_steps_info(steps_info);
+}
+
+static int generate_motor_para_custom_trial(void *user_data, int data_size)
+{
+    pump_mode_steps_info_t *steps_info = (pump_mode_steps_info_t *) user_data;
+    EXCEPTION_CHECK_INT(steps_info);
+    return custom_trial_mode_update_by_steps_info(steps_info);
 }
 
 static int generate_motor_para(struct motor_manager_context *ctx, int mode, void *user_data, int data_size)
@@ -112,6 +119,9 @@ static int generate_motor_para(struct motor_manager_context *ctx, int mode, void
     switch (mode) {
         case BREAST_PUMP_CUSTOM_MODE:
             ret = generate_motor_para_custom(user_data, data_size);
+            break;
+        case BREAST_PUMP_CUSTOM_TRIAL_MODE:
+            ret = generate_motor_para_custom_trial(user_data, data_size);
             break;
         default:
             break;
@@ -191,7 +201,6 @@ static void motor_debug_with_user_para(motor_manager_context_t *ctx, uint8_t id,
             breast_pump_mode_parameter_deinit(ctx->priv.user_debug_policy);
             ctx->priv.user_debug_policy = NULL;
         }
-        print_pump_custom_cfg(para->policy_cfg_list, para->policy_cfg_count);
         /// 创建新的策略并赋值给 ctx->priv.user_debug_policy
         ctx->priv.user_debug_policy = breast_pump_mode_parameter_init(para->policy_cfg_list, para->policy_cfg_count, "user_taste_stimulation");
         ctx->start_motor(MOTOR_USER_DEBUG_POLICY_START);
@@ -207,7 +216,6 @@ static void motor_debug_with_user_para(motor_manager_context_t *ctx, uint8_t id,
             breast_pump_mode_parameter_deinit(ctx->priv.user_debug_policy);
             ctx->priv.user_debug_policy = NULL;
         }
-        print_pump_custom_cfg(para->policy_cfg_list, para->policy_cfg_count);
         /// 创建新的策略并赋值给 ctx->priv.user_debug_policy
         ctx->priv.user_debug_policy = breast_pump_mode_parameter_init(para->policy_cfg_list, para->policy_cfg_count, "user_taste_pump");
         ctx->start_motor(MOTOR_USER_DEBUG_POLICY_START);
@@ -223,7 +231,6 @@ static void motor_debug_with_user_para(motor_manager_context_t *ctx, uint8_t id,
             breast_pump_mode_parameter_deinit(ctx->priv.user_debug_policy);
             ctx->priv.user_debug_policy = NULL;
         }
-        print_pump_custom_cfg(para->policy_cfg_list, para->policy_cfg_count);
         /// 创建新的策略并赋值给 ctx->priv.user_debug_policy
         ctx->priv.user_debug_policy = breast_pump_mode_parameter_init(para->policy_cfg_list, para->policy_cfg_count, "user_taste_mix1");
         ctx->start_motor(MOTOR_USER_DEBUG_POLICY_START);
@@ -239,7 +246,6 @@ static void motor_debug_with_user_para(motor_manager_context_t *ctx, uint8_t id,
             breast_pump_mode_parameter_deinit(ctx->priv.user_debug_policy);
             ctx->priv.user_debug_policy = NULL;
         }
-        print_pump_custom_cfg(para->policy_cfg_list, para->policy_cfg_count);
         /// 创建新的策略并赋值给 ctx->priv.user_debug_policy
         ctx->priv.user_debug_policy = breast_pump_mode_parameter_init(para->policy_cfg_list, para->policy_cfg_count, "user_taste_mix2");
         ctx->start_motor(MOTOR_USER_DEBUG_POLICY_START);

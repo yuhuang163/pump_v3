@@ -178,7 +178,11 @@ static void charge_event_callback(charge_event_e event)
     LOG_MISC("charge event: %d", event);
     if (event == CHARGE_EVENT_ADAPTER_MISMATCH) {
         LOG_MISC("charge event: adapter mismatch");
+#if IS_SUPPORT_PD_CHARGE_ADAPTER_MISMATCH
         thiz->priv.is_adapter_mismatch = 1;
+#else
+        thiz->priv.is_adapter_mismatch = 0;
+#endif
         multi_func_msg_data_t __msg = {0};
         __msg.union_body.extra.window_id = ID_WINDOW_CHARGE;
         LOG_WM("goto charge screen");
@@ -224,7 +228,11 @@ static int on_post_battery_init(void *ptr)
     if (ctx->priv.battery) {
         DEVICE_IOCTL_ARGS_NO_RET(ctx->priv.battery, OP_CODE_BAT_ADD_CHARGE_EVENT_CALLBACK, charge_event_callback);
         DEVICE_IOCTL_HAS_RET(ctx->priv.battery, OP_CODE_BAT_PD_IS_MISMATCH, ret);
+#if IS_SUPPORT_PD_CHARGE_ADAPTER_MISMATCH
         thiz->priv.is_adapter_mismatch = ret ? 1 : 0;
+#else
+        thiz->priv.is_adapter_mismatch = 0;
+#endif
     }
 
     return 0;

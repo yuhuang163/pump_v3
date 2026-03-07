@@ -13,6 +13,7 @@
 */
 #define PUMP_INFO_LOG_INTERVAL                             (10)            
 #define PUMP_WILL_FINISH_TIME_MS                           (3000)
+#define PUMP_TIME_TO_SECOND(time)                          (time / 1000)
 
 // 比较两数相等，允许一定范围的误差
 #define IS_UINT_EQUAL_IN_ERROR(num_scr, num_dest, diff)           (((num_dest) <= (num_scr)) && ((num_scr) < ((num_dest) + (diff))))
@@ -49,7 +50,7 @@ static int breast_pump_completed_route(breast_pump_manager_context_t *ctx)
     int user_bind_info = 0;
     ctx->priv.st->get_store_ram_val(STORE_ID_USER_BIND_INFO, 0, 0, &user_bind_info);
     if (!user_bind_info || result_info->report_flag) {
-        LOG_PMP("no need to save, report_flag: %d", result_info->report_flag);
+        // LOG_PMP("no need to save, report_flag: %d", result_info->report_flag);
         need_save = 0;
     }
 
@@ -62,9 +63,11 @@ static int local_breast_pump_process(breast_pump_manager_context_t *ctx, pump_re
     int ret = RESULT_PUMP_NORMAL;
 
     log_timer++;
-    if (result_info->work_total_time >= result_info->target_total_time || result_info->work_valid_time >= result_info->target_valid_time) {
+    if ((result_info->work_total_time >= result_info->target_total_time && result_info->target_total_time != 0) || 
+        (result_info->work_valid_time >= result_info->target_valid_time && result_info->target_valid_time != 0)) {
         LOG_PMP("finish, total: work_time=%d, target_time=%d; valid: work_time=%d, target_time=%d, mode_time=%d", 
-            result_info->work_total_time, result_info->target_total_time, result_info->work_valid_time, result_info->target_valid_time,
+            PUMP_TIME_TO_SECOND(result_info->work_total_time), PUMP_TIME_TO_SECOND(result_info->target_total_time),
+            PUMP_TIME_TO_SECOND(result_info->work_valid_time), PUMP_TIME_TO_SECOND(result_info->target_valid_time),
             result_info->current_mode_work_time);   
         log_timer = 0;
         return RESULT_PUMP_FINISH;
@@ -80,14 +83,18 @@ static int local_breast_pump_process(breast_pump_manager_context_t *ctx, pump_re
     result_info->current_mode_work_time += PUMP_WORK_STEP_TIME_MS;
     /// 更新模式和力度.
     result_info->mode = ctx->priv.m_info.mode;
-    ctx->get_breast_pump_setting(result_info->setting, ROOT_BREAST_PUMP_STEP_MAX);
+    for (uint8_t i = 0; i < ROOT_BREAST_PUMP_STEP_MAX; i++) {
+        ctx->get_breast_pump_setting(&result_info->setting[i], i);
+    }
     /// 有效时间累加，更新各区域有效时间.
     result_info->work_valid_time += PUMP_WORK_STEP_TIME_MS;
     if (log_timer > PUMP_INFO_LOG_INTERVAL) {
-        LOG_PMP("%s, total: work_time=%d, target_time=%d; valid: work_time=%d, target_time=%d, mode_time=%d", 
+        uint32_t time_policy_remaining_time = ctx->priv.motor->get_current_time_policy_remaining_time();
+        LOG_PMP("%s, total: work_time=%d, target_time=%d; valid: work_time=%d, target_time=%d, mode_time=%d, policy_rtime=%d", 
             ret == RESULT_PUMP_WILL_FINISH ? "will finish" : "normal",
-            result_info->work_total_time, result_info->target_total_time, result_info->work_valid_time, result_info->target_valid_time,
-            result_info->current_mode_work_time);
+            PUMP_TIME_TO_SECOND(result_info->work_total_time), PUMP_TIME_TO_SECOND(result_info->target_total_time),
+            PUMP_TIME_TO_SECOND(result_info->work_valid_time), PUMP_TIME_TO_SECOND(result_info->target_valid_time),
+            PUMP_TIME_TO_SECOND(result_info->current_mode_work_time), time_policy_remaining_time);
         log_timer = 0;
     }
     return ret;
@@ -98,8 +105,6 @@ static int make_progress_route(breast_pump_manager_context_t *ctx, pump_result_i
     int notify_id = -1;
 
     EXCEPTION_CHECK_INT(result_info);
-    result_info->mode = ctx->priv.m_info.mode;
-    ctx->get_breast_pump_setting(result_info->setting, ROOT_BREAST_PUMP_STEP_MAX);
     notify_id = local_breast_pump_process(ctx, result_info);
 
     return notify_id;
@@ -113,8 +118,10 @@ static int breast_pump_result_info_reset(breast_pump_manager_context_t *ctx, pum
     result_info->work_total_time = 0;
     result_info->timestamp = platform_get_utc_time();
     dump_timestamp(result_info->timestamp);
-    LOG_PMP("target_total_time: %lu, target_valid_time: %lu, setting_time: %lu",
-                result_info->target_total_time, result_info->target_valid_time, result_info->setting_time);
+    LOG_PMP("target_total_time: %d, target_valid_time: %d, setting_time: %d",
+            PUMP_TIME_TO_SECOND(result_info->target_total_time),
+            PUMP_TIME_TO_SECOND(result_info->target_valid_time),
+            PUMP_TIME_TO_SECOND(result_info->setting_time));
 
     return 0;
 }
@@ -125,10 +132,12 @@ static int breast_pump_result_info_app_reset(breast_pump_manager_context_t *ctx,
     result_info->target_valid_time = result_info->setting_time;
     result_info->target_total_time = 0;
     result_info->work_total_time = 0;
+    result_info->current_mode_work_time = 0;
     result_info->timestamp = platform_get_utc_time();
     dump_timestamp(result_info->timestamp);
-    LOG_PMP("target_total_time: %lu, target_valid_time: %lu, setting_time: %lu",
-                result_info->target_total_time, result_info->target_valid_time, result_info->setting_time);
+    LOG_PMP("target_total_time: %d, target_valid_time: %d, setting_time: %d, current_mode_work_time: %d",
+                result_info->target_total_time, result_info->target_valid_time, result_info->setting_time,
+                result_info->current_mode_work_time);
 
     return 0;
 }
@@ -169,10 +178,9 @@ static int start_breast_pump_work_route(breast_pump_manager_context_t *ctx, int 
     struct sys_persist_info *persist = ctx->priv.st->get_persist_sys_info();
 
     int work_time = 0;
-    store_pump_time_value_t store_pump_time_value = {0};
-    store_pump_time_value.is_custom_trial_mode = ctx->priv.m_info.is_custom_trial_mode;
-    ctx->priv.st->get_store_ram_val(STORE_ID_BREAST_PUMP_TIME, ctx->priv.m_info.mode, 0, &store_pump_time_value);
-    work_time = store_pump_time_value.pump_time;
+    uint16_t pump_time = 0;
+    ctx->priv.st->get_store_ram_val(STORE_ID_BREAST_PUMP_TIME, ctx->priv.m_info.mode, 0, &pump_time);
+    work_time = pump_time;
     if ((work_time * 1000) > SETTING_PUMP_TIME_MAX) {
         work_time = SETTING_PUMP_TIME_MAX / 1000;
     }
@@ -182,7 +190,9 @@ static int start_breast_pump_work_route(breast_pump_manager_context_t *ctx, int 
         result_info->current_mode_work_time = 0;
     }
     result_info->mode = ctx->priv.m_info.mode;
-    ctx->get_breast_pump_setting(result_info->setting, ROOT_BREAST_PUMP_STEP_MAX);
+    for (uint8_t i = 0; i < ROOT_BREAST_PUMP_STEP_MAX; i++) {
+        ctx->get_breast_pump_setting(&result_info->setting[i], i);
+    }
     LOG_PMP("start pump work, mode: %d, work_time: %d, setting_time: %d, mode_time: %d, status: %d", 
         result_info->mode, work_time, result_info->setting_time, result_info->current_mode_work_time, status);
     /// 初始化泵奶数据.
@@ -200,7 +210,9 @@ static int start_breast_pump_work_route(breast_pump_manager_context_t *ctx, int 
     }
     /// 获取当前模式.
     result_info->mode = ctx->get_breast_pump_mode();
-    ctx->set_breast_pump_setting(result_info->setting, ROOT_BREAST_PUMP_STEP_MAX, true);    
+    // for (uint8_t i = 0; i < ROOT_BREAST_PUMP_STEP_MAX; i++) {
+    //     ctx->set_breast_pump_setting(&result_info->setting[i], i, true);
+    // }
 
     return 0;
 }
@@ -219,11 +231,6 @@ static int stop_breast_pump_work_route(breast_pump_manager_context_t *ctx, int s
             LOG_PMP("breast pump timestamp calib: %lu", result_info->timestamp);
         }
     }
-
-    if (sys_info->pump_info.is_remind_pump_finish > 0) {
-        LOG_PMP("remind breast pump finish");
-    }
-
     return 0;
 }
 

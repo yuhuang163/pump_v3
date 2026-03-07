@@ -47,6 +47,7 @@ typedef enum {
     PERSIST_KEY_UTC_TIMESTEMP = 150,             /// 系统时间戳
 
     PERSIST_KEY_BREAST_PUMP_INFO = 180,
+    PERSIST_KEY_BREAST_PUMP_MODE_STEPS_INFO,
     PERSIST_KEY_BREAST_PUMP_BURY_INFO,
 
     PERSIST_KEY_BREAST_PUMP_DATA_HEAD = 200,          /// 泵奶数据头
@@ -65,13 +66,6 @@ typedef struct {
     uint16_t crc;
 } user_bind_storage_t;
 
-/// 描述语音包信息
-typedef struct {
-    uint32_t magic;
-    audio_packet_info_t audio_packet;
-    uint16_t crc;
-} audio_packet_storage_t;
-
 /// 描述主题包信息
 typedef struct {
     uint32_t magic;
@@ -85,6 +79,13 @@ typedef struct {
     sys_pump_info_t pump_info;
     uint16_t crc;
 } breast_pump_info_storage_t;
+
+/// 描述泵奶模式步骤信息
+typedef struct {
+    uint32_t magic;
+    sys_pump_mode_info_t mode_info;
+    uint16_t crc;
+} breast_pump_mode_steps_info_storage_t;
 
 /// 描述泵奶埋点信息
 typedef struct {

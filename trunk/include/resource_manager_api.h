@@ -36,6 +36,7 @@ typedef struct img_res_storage_info {
     uint16_t height;          /// 图片高度(像素)
     uint16_t x_offset;        /// X坐标偏移(用于UI布局)
     uint16_t y_offset;        /// Y坐标偏移(用于UI布局)
+    uint16_t crc16;           /// 单个资源校验和(CRC16)
     uint32_t storage_addr;    /// 记录每个图片的存储地址
     uint32_t data_size;       /// 单个资源数据大小(字节)
 } __attribute__((packed)) img_res_storage_info_t;
@@ -43,6 +44,7 @@ typedef struct img_res_storage_info {
 /// UI 图片数据缓存信息（用于 LVGL MEMFS 等场景）
 typedef struct {
     uint16_t id;
+    uint16_t crc16;
     uint8_t *data;
     uint32_t size;
 } res_img_info_t;

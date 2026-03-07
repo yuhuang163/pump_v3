@@ -178,20 +178,30 @@ void breast_pump_policy_prepare(struct motor_manager_context *thiz, uint8_t acti
     }
     body->manager = (motor_policy_manager_t *)policy_obj;
     EXCEPTION_CHECK_VOID(policy_obj);
-    negative_pressure_release(thiz);
-    body->timed_policy_start_time = get_timestamp();
-    body->manager_start_time = body->timed_policy_start_time;
 #if IS_SUPPORT_CLIMB_POLICY
     body->is_climb_policy = 1;
 #endif
     body->timed_policy = &body->manager->head;
+    body->current_mode_type = pump_policy_type_get(body->timed_policy->policy);
+    if (body->timed_policy->next) {
+        body->next_mode_type = pump_policy_type_get(body->timed_policy->next->policy);
+    } else {
+        body->next_mode_type = body->current_mode_type;
+    }
+    LOG_MOTOR("mode %d current type: %d, next type: %d", body->breast_pump_mode,
+         body->current_mode_type, body->next_mode_type);
     body->current_timed_policy_index = 0;
     body->current_policy_index = 0;
-    body->current_time_policy_running_time = 0;
+    body->time_policy_running_time = 0;
+    body->time_policy_remaining_time = body->timed_policy->duration_seconds;
+    negative_pressure_release(thiz);
+    body->timed_policy_start_time = get_timestamp();
+    body->manager_start_time = body->timed_policy_start_time;
     /// 更新pump缓存当前策略步数索引,体验模式下不更新PUMP步数索引
     if (!body->taste_run_flag) {
         thiz->priv.pump_ctx->priv.m_info.step_index = 0;
     }
+    
     for (uint8_t i = 0; i < BREAST_PUMP_NUM; i++) {
         memcpy(&body->policy[i], &body->manager->head.policy, sizeof(motor_policy_node_t));
         pump_policy_info_reset(thiz, body, i);
@@ -242,7 +252,7 @@ int breast_pump_mode_policy_handler(struct motor_manager_context *thiz, motor_ta
         }    
         // msleep(PUMP_POLICY_RUN_TIME_INTERVAL);
     }
-    runtime->current_time_policy_running_time += get_timestamp_ms(runtime->timed_policy_start_time);
+    runtime->time_policy_running_time += get_timestamp_ms(runtime->timed_policy_start_time);
     negative_pressure_release(thiz);
     STOP_TIMER(policy_work_timer);
     if (runtime->taste_run_flag) {

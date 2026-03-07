@@ -131,7 +131,6 @@ void switch_pump_status_ui(ui_proc_pump_t *proc)
             proc->pump->set_breast_pump_mode(proc->ui_common_mode_index, true);
         } else if (proc->current_ui_type == PUMP_UI_TYPE_BREASTFEEDING_MODE) {
             proc->pump->set_breast_pump_mode(proc->ui_breastfeeding_mode_index, true);
-       
         }
         uint8_t mode = proc->pump->get_breast_pump_mode();
         if (PUMP_IS_COMMON_MODE(mode)) {

@@ -28,9 +28,9 @@ extern "C" {
 #define DEVICE_FW_VERSION_LEN                       18
 
 #define IS_PUMP_STEPS_USE_SAME_SETTING              1 /// 是否使用相同的设置，如果使用相同的设置，则所有步骤都使用相同的设置
-#define ROOT_BREAST_PUMP_STEP_MAX                   16
+#define ROOT_BREAST_PUMP_STEP_MAX                   32
 #define FACTORY_AGE_INFO_MAX                        3   /// 老化信息最大保存3条
-#define ROOT_BREAST_PUMP_BURY_DATA_NUM            10    /// 埋点数据最大保存10条
+#define ROOT_BREAST_PUMP_BURY_DATA_NUM              10    /// 埋点数据最大保存10条
 
 typedef enum  { 
     SYS_DAY_MONDAY = 0,
@@ -44,21 +44,13 @@ typedef enum  {
 } sys_day_type_e;
 
 typedef enum  { 
-    SYS_MODE_STATE_NORMAL = 0,
-    SYS_MODE_STATE_NON_DELETABLE = 1,
-    SYS_MODE_STATE_NON_MOVE = 2,
-    SYS_MODE_STATE_NON_DELETABLE_MOVE = 3,
-    SYS_MODE_STATE_NON_DISPLAY = 4,
+    SYS_MODE_STATE_NORMAL = 0, /// 正常模式
+    SYS_MODE_STATE_NON_DELETABLE = 1, /// 不可删除模式
+    SYS_MODE_STATE_NON_MOVE = 2, /// 不可移动模式
+    SYS_MODE_STATE_NON_DELETABLE_MOVE = 3, /// 不可删除不可移动模式
+    SYS_MODE_STATE_NON_DISPLAY = 4, /// 不可显示模式
     SYS_MODE_STATE_MAX,
 } sys_mode_state_e;
-
-typedef enum {
-    SYS_STAT_DATA_BURIAL,
-    BREAST_PUMP_FINISH_REMIND,        /// 吸奶完成提醒
-    MODE_CHANGE_REMIND,        /// 模式切换提醒
-    BREAST_PUMP_TIMING_REMIND,       /// 泵奶定时提醒
-    SYS_STAT_MAX,
-} sys_state_bit_map_e;
 
 /// 工厂部署标志位
 typedef struct {
@@ -94,29 +86,29 @@ typedef struct {
     uint8_t display; 
 } factory_aging_flag_t;   
 
-typedef struct
-{
-    // uint8_t work; //0-pause 1-work
-    uint8_t mode;  // 0-short 1-long 2-mix1 3-mix2
-    uint8_t level; // strength level 1-15
-    uint8_t freq;  // frequency level 1-3
-    uint32_t time; // section time long //存的是单位s
-} user_define_pump_step_data_s;
+typedef struct {
+    uint8_t policy_type; /// 策略类型 motor_policy_type_e
+    uint8_t mode_type;   /// 吸力模式类型 suction_mode_type_e
+    uint8_t level;       /// 吸力等级 suction_level_e
+    uint8_t freq;        /// 吸力速度 suction_speed_e
+    uint8_t loop_num;    /// 循环次数
+    uint8_t rsv;         /// 保留
+    uint16_t duration;   /// 持续时间，单位s
+} pump_mode_step_param_t;
 
-typedef struct
-{
+typedef struct {
     union {
         uint32_t dat32;
         uint8_t dat[4];
-    } id;         // user define mode id
-    uint8_t num;  // section number 1-8
-    uint32_t custom_total_time;
-	user_define_pump_step_data_s data[ROOT_BREAST_PUMP_STEP_MAX];
-} user_def_pump_steps_data_t;
+    } id;            /// 参数ID
+    uint8_t policy_num;     /// 策略总数量(包含子策略和定时策略)
+    uint8_t time_policy_num;  /// 时间策略数量
+    uint32_t total_time; /// 总时长,单位s
+	pump_mode_step_param_t data[ROOT_BREAST_PUMP_STEP_MAX];
+} pump_mode_steps_info_t;
 
 /// 泵奶模式
 typedef enum {
-
     BREAST_PUMP_STIMULATION_MODE,      /// 刺激模式
     BREAST_PUMP_LACTATION_MODE,        /// 吸乳模式
     BREAST_PUMP_MIX_MODE,              /// 混合模式
@@ -126,15 +118,25 @@ typedef enum {
     BREAST_PUMP_PP_MILK_TRACK_MODE,           /// PP追奶模式（Power Pumping模式）
     BREAST_PUMP_LACTATION_START_MODE,         /// 开奶模式
     BREAST_PUMP_EMPTYING_BOOST_MODE,          /// 追加排空模式（Emptying Boost）
-    BREAST_PUMP_RELAX_MODE,            /// 放松模式（Relax）
+    BREAST_PUMP_CUSTOM_TRIAL_MODE,            /// 用户自定义模式(试用)
+    BREAST_PUMP_RELAX_MODE,                   /// 放松模式（Relax）
     BREAST_PUMP_MODE_MAX,
     BREAST_PUMP_NORMAL_MODE_MAX = BREAST_PUMP_MIX_MODE - BREAST_PUMP_STIMULATION_MODE + 1,
     BREAST_PUMP_UP_MODE_MAX = BREAST_PUMP_RELAX_MODE - BREAST_PUMP_MIX_MODE,
     BREAST_PUMP_NORMAL_MODE_DEFAULT = BREAST_PUMP_STIMULATION_MODE, /// 默认常规模式
     BREAST_PUMP_UP_MODE_DEFAULT = BREAST_PUMP_CUSTOM_MODE, /// 默认追奶模式
+    BREAST_PUMP_PUMP_MODE_DEFAULT = BREAST_PUMP_REGULAR_PUMPING_MODE, /// 默认泵奶模式
 
     BREAST_PUMP_MODE_INVALID = 0xFF,
 } breast_pump_mode_e;
+
+/// 泵奶模式类型
+typedef enum {
+    PUMP_MODE_STIMULATION = 0, /// 刺激模式
+    PUMP_MODE_LACTATION = 1, /// 吸乳模式
+    PUMP_MODE_MIX = 2, /// 混合模式
+    PUMP_MODE_IDLE = 3, /// 空闲模式
+} pump_mode_type_e;
 
 /// 泵奶时长
 typedef enum {
@@ -192,57 +194,31 @@ typedef enum {
 typedef struct {
     uint8_t level[BREAST_PUMP_NUM];
     uint8_t speed;
+    uint8_t rsv;               /// 保留
 } pump_setting_t;
 
+/// 描述泵奶设置
+typedef struct {
+    pump_setting_t info[ROOT_BREAST_PUMP_STEP_MAX];              /// 保留
+} pump_setting_wrap_t;
+
 /// 描述泵奶信息
-typedef struct
-{
-    uint8_t is_remind_mode_change;        /// 模式切换提醒
-    uint8_t is_remind_pump_finish;        /// 泵奶完成提醒
-    uint8_t is_remind_exception;          /// 是否提醒泵奶异常
+typedef struct {
+    uint8_t rsv[21];                      /// 保留
+    uint8_t last_expert_mode;             /// 上一次使用的专家韵律模式
+    uint8_t last_regular_mode;            /// 上一次使用的常规模式
+    uint8_t last_pump_mode;               /// 上一次使用的泵奶模式 breast_pump_mode_e
     uint8_t control_type;                 /// 泵奶控制类型 breast_pump_control_type_e
-    uint8_t pump_mode;                    /// 泵奶模式 breast_pump_mode_e
-    pump_setting_t stimulation_setting[ROOT_BREAST_PUMP_STEP_MAX];
-    pump_setting_t pump_setting[ROOT_BREAST_PUMP_STEP_MAX];
-    pump_setting_t mix_setting[ROOT_BREAST_PUMP_STEP_MAX];
-    pump_setting_t milk_boost_setting[ROOT_BREAST_PUMP_STEP_MAX];
-    pump_setting_t lactation_start_setting[ROOT_BREAST_PUMP_STEP_MAX];
-    pump_setting_t pp_milk_track_setting[ROOT_BREAST_PUMP_STEP_MAX];
-    pump_setting_t regular_pumping_setting[ROOT_BREAST_PUMP_STEP_MAX];
-    pump_setting_t emptying_boost_setting[ROOT_BREAST_PUMP_STEP_MAX];
-    pump_setting_t relax_setting[ROOT_BREAST_PUMP_STEP_MAX];
-    pump_setting_t custom_setting[ROOT_BREAST_PUMP_STEP_MAX];
-    pump_setting_t custom_trial_setting[ROOT_BREAST_PUMP_STEP_MAX];/// 自定义泵奶试用设置
-    user_def_pump_steps_data_t custom_steps_parameter;
-    uint16_t pump_time[BREAST_PUMP_MODE_MAX];   /// 泵奶时长,单位s
-    uint16_t custom_pump_trial_time;   /// 自定义泵奶试用时长,单位s
+    uint8_t mode_update_flag[BREAST_PUMP_MODE_MAX];   /// 泵奶模式更新标志 0-未更新 1-已更新, 使用后重置
+    pump_setting_wrap_t setting_wrap[BREAST_PUMP_MODE_MAX];     /// 泵奶设置
 } sys_pump_info_t;
 
-/**
- * 语音提醒主题枚举定义
-*/
-typedef enum {
-    SOUND_THEMES_0 = 0,
-    SOUND_THEMES_GIRL,
-    SOUND_THEMES_BOY,
-    SOUND_THEMES_CHILD,
-    SOUND_THEMES_OFFICIAL,  /// 官方下载
-    SOUND_THEMES_USER,       /// 用户自定义
-    SOUND_THEMES_MAX,
-    SOUND_THEMES_DEFAULT = SOUND_THEMES_0,
-} sound_themes_type_e;
-
+/// 描述泵奶模式信息
+#define PUMP_MODE_NAME_LEN                 20
 typedef struct {
-    uint8_t file_id;
-    /// char filename[ROOT_FILENAME_LEN];
-} audio_item_info_t;
-
-typedef struct {
-    /// 语音提醒开关.
-    uint8_t cur_themes_type;
-    uint8_t last_themes_type;
-    audio_item_info_t sound_info[SOUND_THEMES_MAX];
-} audio_packet_info_t;
+    pump_mode_steps_info_t steps_info[BREAST_PUMP_MODE_MAX];
+    char mode_name[BREAST_PUMP_MODE_MAX][PUMP_MODE_NAME_LEN];   /// 模式名称
+} sys_pump_mode_info_t;
 
 typedef enum {
     THEME_PAKCET_ORIGINAL, 
@@ -253,7 +229,7 @@ typedef enum {
     THEME_PACKET_MAX,
 } theme_type_e;
 
-typedef struct{
+typedef struct {
     uint8_t file_id;
     // char filename[ROOT_FILENAME_LEN];
 } theme_item_info_t;
@@ -266,15 +242,11 @@ typedef struct {
 
 /// 用户绑定信息
 typedef struct {
-    uint8_t bind_status;                  /// 绑定状态 0-未绑定 1-已绑定
+    uint8_t bind_status;                    /// 绑定状态 0-未绑定 1-已绑定
     uint8_t user_id[USER_BIND_UID_LEN];     /// root id, eg. TF123456;
     uint8_t random[USER_BIND_RANDOM_LEN];   /// 随机数，绑定时由App 下发，用于计算aes key;
     uint8_t aes_key[USER_BIND_AES_KEY_LEN]; /// 对称密钥，数据加解密
 } user_bind_info_t;
-
-typedef struct {
-    uint8_t adaptive_switch; /// 夜灯自适应开关
-} night_light_info_t;
 
 /// 描述系统配置
 typedef struct {
@@ -284,6 +256,7 @@ typedef struct {
     uint8_t sys_ui_style;          /// 系统UI风格
     uint8_t log_switch;            /// 系统UART日志开关
     uint8_t language;              /// 系统语言类型
+    uint8_t rsv[26];               /// 保留
 } sys_config_info_t;
 
 /// 描述系统配置
@@ -291,9 +264,10 @@ typedef struct {
     uint8_t guide_deployed;       /// 向导部署标志
     uint8_t battery_health;       /// 电池健康
     uint8_t airplane_mode_state;  /// 飞行模式状态
-    night_light_info_t night_light; /// 夜灯亮度信息
+    uint8_t night_light_adaptive_switch; /// 夜灯自适应开关
     uint32_t log_filter;          /// 日志过滤
     uint32_t sync_sys_time;       /// 保存第一次同步系统时间时 本地经历的最终时间点 用于计算泵奶记录的差值.
+    uint8_t rsv[32];                   /// 保留
 } sys_state_info_t;
 
 /// 描述埋点数据
@@ -332,6 +306,7 @@ typedef struct sys_persist_info {
     sys_config_info_t config;
     sys_state_info_t state;
     sys_pump_info_t pump_info;
+    sys_pump_mode_info_t mode_info;
     user_bind_info_t bind_info;
     sys_buried_info_list_t buried_info_list;
 } sys_persist_info_t;

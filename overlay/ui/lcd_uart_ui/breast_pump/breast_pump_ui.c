@@ -86,14 +86,11 @@ int ui_display_pump_home_screen_process(ui_manager_context_t *thiz)
     EXCEPTION_CHECK_UINT(pump);
     motor_manager_context_t *motor = pump->priv.motor;
     EXCEPTION_CHECK_UINT(motor);
-    int time_index = motor->get_runtime_policy_index(MOTOR_TIME_POLICY);
-    if (time_index >= ROOT_BREAST_PUMP_STEP_MAX) {
-        time_index = 0;
-    }
+    uint8_t time_index = motor->get_runtime_policy_index(MOTOR_TIME_POLICY);
     const pump_result_info_t *result = pump->get_breast_pump_result(BREAST_PUMP_RESULT_PUMPING);
     uint16_t hold_time = result->work_valid_time / 1000;
     pump_setting_t setting;
-    pump->get_breast_pump_setting(&setting, time_index);
+    pump->get_breast_pump_setting(&setting, time_index >= ROOT_BREAST_PUMP_STEP_MAX ? 0 : time_index);
     lcd_tlvs_t *tlv = &msg.tlvs[0];
     UI_FILL_IMG_ID(tlv, UI_IMG_ID_HOME_SCREEN);
     ui_fill_running_time(&msg.tlvs[1], hold_time);
@@ -132,13 +129,10 @@ int ui_display_pump_level_process(ui_manager_context_t *thiz)
     EXCEPTION_CHECK_UINT(pump); 
     motor_manager_context_t *motor = pump->priv.motor;
     EXCEPTION_CHECK_UINT(motor);
-    int time_index = motor->get_runtime_policy_index(MOTOR_TIME_POLICY);
-    if (time_index >= ROOT_BREAST_PUMP_STEP_MAX) {
-        time_index = 0;
-    }
+    uint8_t time_index = motor->get_runtime_policy_index(MOTOR_TIME_POLICY);
     const pump_result_info_t *result = pump->get_breast_pump_result(BREAST_PUMP_RESULT_PUMPING);
     pump_setting_t setting;
-    pump->get_breast_pump_setting(&setting, time_index);
+    pump->get_breast_pump_setting(&setting, time_index >= ROOT_BREAST_PUMP_STEP_MAX ? 0 : time_index);
     lcd_tlvs_t *tlv = &msg.tlvs[0];
     ui_proc_pump_t *proc = (ui_proc_pump_t *)thiz->priv.play_info.user_data;
     uint8_t control_type = proc->pump->get_breast_pump_control_type();
@@ -260,12 +254,9 @@ int ui_display_pump_speed_process(ui_manager_context_t *thiz)
     EXCEPTION_CHECK_UINT(pump);
     motor_manager_context_t *motor = pump->priv.motor;
     EXCEPTION_CHECK_UINT(motor);
-    int time_index = motor->get_runtime_policy_index(MOTOR_TIME_POLICY);
-    if (time_index >= ROOT_BREAST_PUMP_STEP_MAX) {
-        time_index = 0;
-    }
+    uint8_t time_index = motor->get_runtime_policy_index(MOTOR_TIME_POLICY);
     pump_setting_t setting;
-    pump->get_breast_pump_setting(&setting, time_index);
+    pump->get_breast_pump_setting(&setting, time_index >= ROOT_BREAST_PUMP_STEP_MAX ? 0 : time_index);
     lcd_tlvs_t *tlv = &msg.tlvs[0];
     UI_FILL_IMG_ID(tlv, UI_IMG_ID_PUMP_SPEED);
     ui_fill_pump_speed(&msg.tlvs[1], setting.speed);

@@ -8,7 +8,6 @@
 #include "ui_manager.h"   // IWYU pragma: keep
 #include "window_screen_pump.h" // IWYU pragma: keep
 #include "breast_pump_ui.h" // IWYU pragma: keep
-#include <stdint.h>
 
 /*
 * DEFINES
@@ -96,8 +95,14 @@ static PSRAM_DATA_LOC uint8_t home_bg_data[] = {
 const static char *home_mode_names[HOME_MODE_MAX_COUNT] = {
     "Stimulate",
     "Expression",
-    "Mix",
+    "Mixed",
     "Relax",
+};
+
+const static uint16_t home_speed_icon_ids[HOME_SPEED_MAX_COUNT] = {
+    RESOURCE_ID_HOME_SPEED_BOOST_ICON,
+    RESOURCE_ID_HOME_SPEED_SLOW_ICON,
+    RESOURCE_ID_HOME_SPEED_REGULAR_ICON,
 };
 
 static pump_display_info_t *pump_info;
@@ -469,17 +474,8 @@ static void pump_home_speed_label_update(ui_manager_context_t *thiz, uint8_t spe
         pump_info->speed_icon = lv_image_create(pump_info->root);
         EXCEPTION_CHECK_VOID(pump_info->speed_icon);
     } 
-
-    if (speed == 0) {
-        common_ui_img_resource_init(thiz, RESOURCE_ID_HOME_SPEED_SLOW_ICON,
-            &pump_info->speed_icon_info);
-    } else if (speed == 1) {
-        common_ui_img_resource_init(thiz, RESOURCE_ID_HOME_SPEED_REGULAR_ICON,
-            &pump_info->speed_icon_info);
-    } else {
-        common_ui_img_resource_init(thiz, RESOURCE_ID_HOME_SPEED_BOOST_ICON,
-            &pump_info->speed_icon_info);
-    }
+    uint8_t ui_speed_idx = pump_speed_convert_to_ui_speed_idx(speed);
+    common_ui_img_resource_init(thiz, home_speed_icon_ids[ui_speed_idx], &pump_info->speed_icon_info);
     EXCEPTION_CHECK_VOID(pump_info->speed_icon_info.data);
     lv_fs_make_path_from_buffer(&speed_icon_path, LV_FS_MEMFS_LETTER, 
         pump_info->speed_icon_info.data, pump_info->speed_icon_info.size, "baj");
@@ -626,6 +622,7 @@ static void pump_home_custom_mode_update(ui_manager_context_t *thiz, uint8_t mod
         lv_obj_set_style_text_font(pump_info->mode_text[i], &lv_font_oppo_sans_12_medium, 0);
         lv_obj_align(pump_info->mode_text[i], LV_ALIGN_CENTER, 0, 0); /// 设置label文字位置
     }
+    LOG_UI("mode_text: %s, next_mode_text: %s", home_mode_names[sub_mode], home_mode_names[next_sub_mode]);
     pump_info->mode = mode_index;
     pump_info->sub_mode = sub_mode;
 }
@@ -774,8 +771,14 @@ int ui_display_pump_home_screen_process(ui_manager_context_t *thiz)
         pump_home_common_mode_update(thiz, mode);  
     } else {
         pump_home_time_update(thiz, hold_time, 19);
-        uint8_t sub_mode = proc->pump->get_pump_breastfeeding_sub_mode();
-        uint8_t next_sub_mode = proc->pump->get_pump_breastfeeding_next_sub_mode();
+        uint8_t sub_mode = 0;
+        uint8_t next_sub_mode = 0;
+        if (proc->motor->get_runtime_mode_type) {
+            sub_mode = proc->motor->get_runtime_mode_type(false);
+            next_sub_mode = proc->motor->get_runtime_mode_type(true);
+        } else {
+            LOG_UI("get_runtime_mode_type is null");
+        }
         pump_home_animation_update(thiz, RESOURCE_ID_PERSONALIZED_MODE_ANIMATION_START, 
             RESOURCE_ID_PERSONALIZED_MODE_ANIMATION_END - RESOURCE_ID_PERSONALIZED_MODE_ANIMATION_START + 1,
             0, 0);

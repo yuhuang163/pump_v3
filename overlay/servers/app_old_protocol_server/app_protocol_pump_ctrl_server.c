@@ -1,3 +1,4 @@
+#include "plat_types.h"
 #include "root_common_api.h" // IWYU pragma: keep
 #include "app_protocol_handler.h"
 #include "app_protocol_pump_ctrl_server.h"
@@ -23,7 +24,6 @@
  *       2. 如果删除操作失败，旧任务可能使用新数据（概率很低）
  *       3. 这些变量在整个程序生命周期存在，但任务删除后不会使用
  */
-static user_def_pump_steps_data_t user_define_data_temp = {0};
 static app_old_comm_pump_ctrl pump_ctrl_data_temp = {0};
 
 /*
@@ -41,28 +41,28 @@ static app_old_comm_pump_ctrl pump_ctrl_data_temp = {0};
 *****************************************************************************************
 */
 
-uint8_t app_old_comm_get_adaptive_dimming_switch(void)
+static uint8_t app_old_comm_get_adaptive_dimming_switch(void)
 {
     led_manager_context_t *led = (led_manager_context_t *)find_module(ID_MODULE_LED);
     EXCEPTION_CHECK_UINT(led && led->hook && led->hook->get_night_light_adaptive_switch);
     return led->hook->get_night_light_adaptive_switch(led);
 }
 
-uint8_t app_old_comm_get_night_light_level(void)
+static uint8_t app_old_comm_get_night_light_level(void)
 {
     led_manager_context_t *led = (led_manager_context_t *)find_module(ID_MODULE_LED);
     EXCEPTION_CHECK_UINT(led && led->hook && led->hook->get_night_light_level);
     return led->hook->get_night_light_level(led);
 }
 
-uint8_t app_old_comm_get_night_light_onoff(void)
+static uint8_t app_old_comm_get_night_light_onoff(void)
 {
     led_manager_context_t *led = (led_manager_context_t *)find_module(ID_MODULE_LED);
     EXCEPTION_CHECK_UINT(led && led->hook && led->hook->get_night_light_onoff);
     return led->hook->get_night_light_onoff(led);
 }
 
-uint8_t app_old_comm_get_sys_status(void)
+static uint8_t app_old_comm_get_sys_status(void)
 {
     breast_pump_manager_context_t *pump_ctx = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
     EXCEPTION_CHECK_UINT(pump_ctx);
@@ -115,7 +115,7 @@ uint8_t app_old_comm_get_sys_status(void)
     return sys_status;
 }
 
-uint8_t app_old_comm_get_pump_running_status(void)
+POSSIBLY_UNUSED static uint8_t app_old_comm_get_pump_running_status(void)
 {
     breast_pump_manager_context_t *pump_ctx = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
     EXCEPTION_CHECK_UINT(pump_ctx);
@@ -123,7 +123,7 @@ uint8_t app_old_comm_get_pump_running_status(void)
     return pump_ctx->is_on_working();
 }
 
-uint8_t app_old_comm_get_battery_percent(void)
+static uint8_t app_old_comm_get_battery_percent(void)
 {
     peripheral_bus_context_t *pbus = (peripheral_bus_context_t *)find_module(ID_MODULE_DEVICE_BUS);
     EXCEPTION_CHECK_UINT(pbus);
@@ -138,7 +138,7 @@ uint8_t app_old_comm_get_battery_percent(void)
     return percent;
 }
 
-bool app_old_comm_check_if_low_battery(void)
+static bool app_old_comm_check_if_low_battery(void)
 {
     peripheral_bus_context_t *pbus = (peripheral_bus_context_t *)find_module(ID_MODULE_DEVICE_BUS);
     EXCEPTION_CHECK_UINT(pbus);
@@ -156,7 +156,7 @@ bool app_old_comm_check_if_low_battery(void)
     return 0;
 }
 
-uint8_t app_old_comm_get_current_pump_mode(void)
+static uint8_t app_old_comm_get_current_pump_mode(void)
 {
     breast_pump_manager_context_t *pump_ctx = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
     EXCEPTION_CHECK_UINT(pump_ctx);
@@ -165,7 +165,7 @@ uint8_t app_old_comm_get_current_pump_mode(void)
     return (uint8_t)pump_mode;
 }
 
-uint8_t app_old_comm_get_current_custom_pump_step_mode(servers_old_protocol_publish_data_id_e id)
+static uint8_t app_old_comm_get_current_custom_pump_step_mode(servers_old_protocol_publish_data_id_e id)
 {
     breast_pump_manager_context_t *pump_ctx = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
     EXCEPTION_CHECK_UINT(pump_ctx);
@@ -174,30 +174,44 @@ uint8_t app_old_comm_get_current_custom_pump_step_mode(servers_old_protocol_publ
     if (time_index >= ROOT_BREAST_PUMP_STEP_MAX) {
         time_index = 0;
     }
-    //当前不是运行的不是自定义模式步骤，默认上报第一步参数,启动自定义模式从第一步开始
+    /// 当前不是运行的不是自定义模式步骤，默认上报第一步参数,启动自定义模式从第一步开始
     if (pump_ctx->get_breast_pump_mode() != BREAST_PUMP_CUSTOM_MODE) {
         time_index = 0;
     }
-    //获取自定义模式参数
-    int pump_mode;
+    /// 获取自定义模式参数
+    uint8_t time_step_mode = APP_OLD_COMM_MODE_SHORT;
     storage_manager_context_t *storage_ctx = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
     EXCEPTION_CHECK_UINT(storage_ctx);
-    user_def_pump_steps_data_t custom_steps_parameter ={0};
-    storage_ctx->get_store_ram_val(STORE_ID_PUMP_CUSTOM_STEPS_PARAMETER_INFO, 0, 0, &custom_steps_parameter);
-    pump_mode = custom_steps_parameter.data[time_index].mode;
-    LOG_SRV("custom_steps_parameter.data[%d].mode=%d", time_index, pump_mode);
-    return (uint8_t)pump_mode;
+    pump_mode_steps_info_t steps_info ={0};
+    storage_ctx->get_store_ram_val(STORE_ID_PUMP_MODE_STEPS_INFO, BREAST_PUMP_CUSTOM_MODE, 0, &steps_info);
+    uint8_t time_step_index = 0;    
+    for (uint8_t i = 0; i < steps_info.policy_num; i++) {
+        if (steps_info.data[i].policy_type == MOTOR_TIME_POLICY) {
+            if (time_step_index == time_index) {
+                if (steps_info.data[i].mode_type == SUCTION_MODE_SHORT) {
+                    time_step_mode = APP_OLD_COMM_MODE_SHORT;
+                } else if (steps_info.data[i].mode_type == SUCTION_MODE_LONG) {
+                    time_step_mode = APP_OLD_COMM_MODE_LONG;
+                } else if (steps_info.data[i].mode_type == SUCTION_MODE_MIX_SHORT || 
+                    steps_info.data[i].mode_type == SUCTION_MODE_MIX_LONG) {
+                    time_step_mode = steps_info.data[i].loop_num == 5 ? APP_OLD_COMM_MODE_MIX1 : APP_OLD_COMM_MODE_MIX2;
+                } else {
+                    time_step_mode = APP_OLD_COMM_MODE_RELAX;
+                }
+                break;
+            }
+            time_step_index++;
+        }
+    }
+    LOG_SRV("custom_steps_parameter.data[%d].mode=%d", time_index, time_step_mode);
+    return (uint8_t)time_step_mode;
 }
 
-uint8_t app_old_comm_get_current_mode_pump_level(app_old_commd_l_r_ctrl_e lr_ct, servers_old_protocol_publish_data_id_e id)
+static uint8_t app_old_comm_get_current_mode_pump_level(app_old_commd_l_r_ctrl_e lr_ct, servers_old_protocol_publish_data_id_e id)
 {
     breast_pump_manager_context_t *pump_ctx = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
     EXCEPTION_CHECK_UINT(pump_ctx);
-
     uint8_t time_index = pump_ctx->get_breast_pump_step_index();
-    if (time_index >= ROOT_BREAST_PUMP_STEP_MAX) {
-        time_index = 0;
-    }
     ///当前系统在处于自定义模式步骤，应该上报什么，就默认上报吸乳第一步参数
     pump_setting_t setting;
     if (pump_ctx->get_breast_pump_mode() == BREAST_PUMP_CUSTOM_MODE) {
@@ -205,80 +219,61 @@ uint8_t app_old_comm_get_current_mode_pump_level(app_old_commd_l_r_ctrl_e lr_ct,
         /*
         storage_manager_context_t *storage_ctx = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
         EXCEPTION_CHECK_UINT(storage_ctx);
-        store_pump_setting_value_t store_pump_setting_value = {0};
-        store_pump_setting_value.is_custom_trial_mode = pump_ctx->priv.m_info.is_custom_trial_mode;
-        store_pump_setting_value.setting = &setting;
-        storage_ctx->get_store_ram_val(STORE_ID_PUMP_SETTING_INFO, BREAST_PUMP_LACTATION_MODE, 0, &store_pump_setting_value);*/
-        pump_ctx->get_breast_pump_setting(&setting, time_index);
+        */
+        pump_ctx->get_breast_pump_setting(&setting, time_index >= ROOT_BREAST_PUMP_STEP_MAX ? 0 : time_index);
         LOG_SRV("setting.level [%d] =%d", lr_ct, setting.level[lr_ct]);
         return (uint8_t)setting.level[lr_ct];
     } else {
         //
-        pump_ctx->get_breast_pump_setting(&setting, time_index);
+        pump_ctx->get_breast_pump_setting(&setting, time_index >= ROOT_BREAST_PUMP_STEP_MAX ? 0 : time_index);
         LOG_SRV("setting.level [%d] =%d", lr_ct, setting.level[lr_ct]);
         return (uint8_t)setting.level[lr_ct];
     }
 }
 
-uint8_t app_old_comm_get_current_custom_pump_level(app_old_commd_l_r_ctrl_e lr_ct, servers_old_protocol_publish_data_id_e id)
+static uint8_t app_old_comm_get_current_custom_pump_level(app_old_commd_l_r_ctrl_e lr_ct, servers_old_protocol_publish_data_id_e id)
 {
     breast_pump_manager_context_t *pump_ctx = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
     EXCEPTION_CHECK_UINT(pump_ctx);
-
     uint8_t time_index = pump_ctx->get_breast_pump_step_index();
-    if (time_index >= ROOT_BREAST_PUMP_STEP_MAX) {
-        time_index = 0;
-    }
-
     pump_setting_t setting;
-    //当前系统在处于自定义模式步骤
+    /// 当前系统在处于自定义模式步骤
     if (pump_ctx->get_breast_pump_mode() == BREAST_PUMP_CUSTOM_MODE) {
-        pump_ctx->get_breast_pump_setting(&setting, time_index);
+        pump_ctx->get_breast_pump_setting(&setting, time_index >= ROOT_BREAST_PUMP_STEP_MAX ? 0 : time_index);
         LOG_SRV("setting.level [%d] =%d", lr_ct, setting.level[lr_ct]);
         return (uint8_t)setting.level[lr_ct];
-    } else { //默认上报flash中自定义模式第一步参数,启动自定义模式从第一步开始
+    } else { 
+        /// 默认上报flash中自定义模式第一步参数,启动自定义模式从第一步开始
         storage_manager_context_t *storage_ctx = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
         EXCEPTION_CHECK_UINT(storage_ctx);
-        store_pump_setting_value_t store_pump_setting_value = {0};
-        store_pump_setting_value.is_custom_trial_mode = pump_ctx->priv.m_info.is_custom_trial_mode;
-        store_pump_setting_value.setting = &setting;
-        storage_ctx->get_store_ram_val(STORE_ID_PUMP_SETTING_INFO, BREAST_PUMP_CUSTOM_MODE, 0, &store_pump_setting_value);
+        storage_ctx->get_store_ram_val(STORE_ID_PUMP_SETTING_INFO, BREAST_PUMP_CUSTOM_MODE, 0, &setting);
         LOG_SRV("setting.level [%d] =%d", lr_ct, setting.level[lr_ct]);
         return (uint8_t)setting.level[lr_ct];
     }
 }
 
-//左右需要一致，不区分
-uint8_t app_old_comm_get_current_mode_pump_speed(servers_old_protocol_publish_data_id_e id)
+/// 左右需要一致，不区分
+static uint8_t app_old_comm_get_current_mode_pump_speed(servers_old_protocol_publish_data_id_e id)
 {
     breast_pump_manager_context_t *pump_ctx = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
     EXCEPTION_CHECK_UINT(pump_ctx);
-
     uint8_t time_index = pump_ctx->get_breast_pump_step_index();
-    if (time_index >= ROOT_BREAST_PUMP_STEP_MAX) {
-        time_index = 0;
-    }
-
-    ///当前系统在处于自定义模式步骤，应该上报什么，就默认上报吸乳第一步参数
+    /// 当前系统在处于自定义模式步骤，应该上报什么，就默认上报吸乳第一步参数
     pump_setting_t setting;
-    
     if (pump_ctx->get_breast_pump_mode() == BREAST_PUMP_CUSTOM_MODE) {
         storage_manager_context_t *storage_ctx = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
         EXCEPTION_CHECK_UINT(storage_ctx);
-        store_pump_setting_value_t store_pump_setting_value = {0};
-        store_pump_setting_value.is_custom_trial_mode = pump_ctx->priv.m_info.is_custom_trial_mode;
-        store_pump_setting_value.setting = &setting;
-        storage_ctx->get_store_ram_val(STORE_ID_PUMP_SETTING_INFO, BREAST_PUMP_LACTATION_MODE, 0, &store_pump_setting_value);
+        storage_ctx->get_store_ram_val(STORE_ID_PUMP_SETTING_INFO, BREAST_PUMP_LACTATION_MODE, 0, &setting);
         LOG_SRV("setting.speed =%d", setting.speed);
         return (uint8_t)setting.speed;
     } else {
-        pump_ctx->get_breast_pump_setting(&setting, time_index);
+        pump_ctx->get_breast_pump_setting(&setting, time_index >= ROOT_BREAST_PUMP_STEP_MAX ? 0 : time_index);
         LOG_SRV("setting.speed =%d", setting.speed);
         return (uint8_t)setting.speed;
     }
 }
 
-uint8_t app_old_comm_get_current_custom_pump_speed(servers_old_protocol_publish_data_id_e id)
+static uint8_t app_old_comm_get_current_custom_pump_speed(servers_old_protocol_publish_data_id_e id)
 {
     breast_pump_manager_context_t *pump_ctx = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
     EXCEPTION_CHECK_UINT(pump_ctx);
@@ -286,51 +281,51 @@ uint8_t app_old_comm_get_current_custom_pump_speed(servers_old_protocol_publish_
     if (time_index >= ROOT_BREAST_PUMP_STEP_MAX) {
         time_index = 0;
     }
-    //当前不是运行的不是自定义模式步骤，默认上报第一步参数,启动自定义模式从第一步开始
+    /// 当前不是运行的不是自定义模式步骤，默认上报第一步参数,启动自定义模式从第一步开始
     if (pump_ctx->get_breast_pump_mode() != BREAST_PUMP_CUSTOM_MODE) {
         time_index = 0;
     }
-    //不允许修改自定义模式频率，只能修改等级，所以从app设置缓存中获取
-    int pump_speed;
+    /// 不允许修改自定义模式频率，只能修改等级，所以从app设置缓存中获取
+    uint8_t pump_speed = 0;
     storage_manager_context_t *storage_ctx = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
     EXCEPTION_CHECK_UINT(storage_ctx);
-    user_def_pump_steps_data_t custom_steps_parameter = {0};
-    storage_ctx->get_store_ram_val(STORE_ID_PUMP_CUSTOM_STEPS_PARAMETER_INFO, 0, 0, &custom_steps_parameter);
-    pump_speed = custom_steps_parameter.data[time_index].freq;
-    LOG_SRV("custom_steps_parameter.data[%d].pump_speed=%d", time_index, pump_speed);
+    pump_setting_t setting;
+    storage_ctx->get_store_ram_val(STORE_ID_PUMP_SETTING_INFO, BREAST_PUMP_CUSTOM_MODE, 0, &setting);
+    pump_speed = setting.speed;
+    LOG_SRV("setting.speed=%d", pump_speed);
     return (uint8_t)pump_speed;
 }
 
-uint32_t app_old_comm_get_current_pump_mode_run_time(void)
+static uint32_t app_old_comm_get_current_pump_mode_run_time(void)
 {
     breast_pump_manager_context_t *pump_ctx = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
     EXCEPTION_CHECK_UINT(pump_ctx);
     pump_result_info_t *pumping_info = pump_ctx->get_breast_pump_result(BREAST_PUMP_RESULT_PUMPING);
-    LOG_SRV("pumping_info->current_mode_work_time = %d", pumping_info->current_mode_work_time);
+    LOG_SRV("run time = %d", pumping_info->current_mode_work_time);
     return (uint32_t)pumping_info->current_mode_work_time/1000;
 }
 
-uint32_t app_old_comm_get_pump_mode_run_total_time(void)
+static uint32_t app_old_comm_get_pump_mode_run_total_time(void)
 {
     breast_pump_manager_context_t *pump_ctx = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
     EXCEPTION_CHECK_UINT(pump_ctx);
     pump_result_info_t *pumping_info = pump_ctx->get_breast_pump_result(BREAST_PUMP_RESULT_PUMPING);
-    LOG_SRV("pumping_info->work_total_time = %d", pumping_info->work_total_time);
+    LOG_SRV("total time = %d", pumping_info->work_total_time);
     return (uint32_t)pumping_info->work_total_time/1000;
 }
 
-uint32_t app_old_comm_get_current_custom_pump_mode_total_time(void)
+static uint32_t app_old_comm_get_current_custom_pump_mode_total_time(void)
 {
     storage_manager_context_t *storage_ctx = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
     EXCEPTION_CHECK_UINT(storage_ctx);
-    user_def_pump_steps_data_t custom_steps_parameter = {0};
-    storage_ctx->get_store_ram_val(STORE_ID_PUMP_CUSTOM_STEPS_PARAMETER_INFO, 0, 0, &custom_steps_parameter);
-    uint32_t custom_total_time = custom_steps_parameter.custom_total_time;
-    LOG_SRV("custom_steps_parameter.custom_total_time= %d", custom_total_time);
+    uint32_t pump_time = 0;
+    storage_ctx->get_store_ram_val(STORE_ID_BREAST_PUMP_TIME, BREAST_PUMP_CUSTOM_MODE, 0, &pump_time);
+    uint32_t custom_total_time = pump_time;
+    LOG_SRV("custom total time= %d", custom_total_time);
     return (uint32_t)custom_total_time;
 }
 
-uint8_t app_old_comm_get_system_is_airplane_mode(void)
+static uint8_t app_old_comm_get_system_is_airplane_mode(void)
 {
     airplane_mode_context_t *ap = (airplane_mode_context_t *)find_module(ID_MODULE_AIRPLANE_MODE);
     EXCEPTION_CHECK_UINT(ap);
@@ -338,83 +333,104 @@ uint8_t app_old_comm_get_system_is_airplane_mode(void)
     return (uint8_t)air_play_mode;
 }
 
-uint8_t app_old_comm_set_custom_pump_step_parameter_infor(user_def_pump_steps_data_t *pump_steps_data)
+static void pump_copy_trial_mode_to_custom_mode(void)
 {
     storage_manager_context_t *storage_ctx = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
+    EXCEPTION_CHECK_VOID(storage_ctx);
+    // 复制BREAST_PUMP_CUSTOM_TRIAL_MODE的数据到BREAST_PUMP_CUSTOM_MODE
+    pump_mode_steps_info_t trial_steps_info;
+    storage_ctx->get_store_ram_val(STORE_ID_PUMP_MODE_STEPS_INFO, BREAST_PUMP_CUSTOM_TRIAL_MODE, 0, &trial_steps_info);
+    storage_ctx->put_store_ram_val(STORE_ID_PUMP_MODE_STEPS_INFO, BREAST_PUMP_CUSTOM_MODE, 0, &trial_steps_info);
+    LOG_SRV("copy custom trial steps info to custom mode");
+    pump_setting_t trial_setting;
+    for (uint8_t i = 0; i < ROOT_BREAST_PUMP_STEP_MAX; i++) {
+        if (i >= trial_steps_info.policy_num) {
+            break; // 如果步数大于最大步数，则跳出
+        }
+        storage_ctx->get_store_ram_val(STORE_ID_PUMP_SETTING_INFO, BREAST_PUMP_CUSTOM_TRIAL_MODE, i, &trial_setting);
+        storage_ctx->put_store_ram_val(STORE_ID_PUMP_SETTING_INFO, BREAST_PUMP_CUSTOM_MODE, i, &trial_setting);
+    }
+    LOG_SRV("copy custom trial setting info to custom mode");
+}
+
+static uint8_t pump_custom_trial_mode_update_by_app(pump_mode_steps_info_t pump_steps_info)
+{
+    storage_manager_context_t *storage_ctx = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
+    motor_manager_context_t *motor_ctx = (motor_manager_context_t *)find_module(ID_MODULE_MOTOR);
     EXCEPTION_CHECK_UINT(storage_ctx);
-    storage_ctx->put_store_ram_val(STORE_ID_PUMP_CUSTOM_STEPS_PARAMETER_INFO, 0, 0, pump_steps_data);
-    LOG_SRV("put custom_steps_parameter to ram");
+    ///是否需要区分设备是否在用户自定义模式下运行，如果运行，是否直接替换用户自定义模式参数
+    storage_ctx->put_store_ram_val(STORE_ID_PUMP_MODE_STEPS_INFO, BREAST_PUMP_CUSTOM_TRIAL_MODE, 0, &pump_steps_info);
+    LOG_SRV("put custom trial steps info to ram");
+    motor_ctx->hook->generate_motor_para(motor_ctx, BREAST_PUMP_CUSTOM_TRIAL_MODE, &pump_steps_info, sizeof(pump_steps_info));
+    //custom_trial_mode_update_by_steps_info(&pump_steps_info);
+    pump_setting_t setting;
+    for (uint8_t i = 0; i < ROOT_BREAST_PUMP_STEP_MAX; i++) {
+        if (i >= pump_steps_info.policy_num) {
+            break; // 如果步数大于最大步数，则跳出
+        }
+        setting.speed = pump_steps_info.data[i].freq;
+        for (uint8_t j = 0; j < BREAST_PUMP_NUM; j++) {
+            setting.level[j] = pump_steps_info.data[i].level;
+        }
+        storage_ctx->put_store_ram_val(STORE_ID_PUMP_SETTING_INFO, BREAST_PUMP_CUSTOM_TRIAL_MODE, i, &setting);
+    }
     return true;
 }
 
-uint8_t app_old_comm_set_nommal_pump_level(app_old_comm_pump_ctrl *app_old_comm_pump_ctrl_date)
+static uint8_t app_old_comm_set_nommal_pump_level(app_old_comm_pump_ctrl *app_old_comm_pump_ctrl_date)
 {
     breast_pump_manager_context_t *pump_ctx = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
     EXCEPTION_CHECK_UINT(pump_ctx);
-
     uint8_t time_index = pump_ctx->get_breast_pump_step_index();
-    if (time_index >= ROOT_BREAST_PUMP_STEP_MAX) {
-        time_index = 0;
-    }
-
     storage_manager_context_t *storage_ctx = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
     EXCEPTION_CHECK_UINT(storage_ctx);
-
     pump_setting_t setting; /// 当前泵奶设置信息.
-
-    pump_ctx->get_breast_pump_setting(&setting, time_index);
-
+    pump_ctx->get_breast_pump_setting(&setting, time_index >= ROOT_BREAST_PUMP_STEP_MAX ? 0 : time_index);
     if (app_old_comm_pump_ctrl_date->pump_mode_lr_or_all == APP_OLD_COMM_LEFT_CT) {
         if (app_old_comm_pump_ctrl_date->normal_pump_level >= 0) {
             setting.level[0] = app_old_comm_pump_ctrl_date->normal_pump_level;
-            LOG_SRV("APP_OLD_COMM_LEFT_CT pump level %d",setting.level[0]);
-            app_broadcast_pump_level_to_window(setting.level[0] ,OLD_BROADCAST_LEFT_CT);
+            LOG_SRV("left pump level %d",setting.level[0]);
+            app_broadcast_pump_level_to_window(setting.level[0], OLD_BROADCAST_LEFT_CT);
         }
     } else if (app_old_comm_pump_ctrl_date->pump_mode_lr_or_all == APP_OLD_COMM_RIGHT_CT) {
         if (app_old_comm_pump_ctrl_date->normal_pump_level <= BREAST_PUMP_LEVEL_15) {
             setting.level[1] = app_old_comm_pump_ctrl_date->normal_pump_level;
-            LOG_SRV("APP_OLD_COMM_RIGHT_CT pump level %d",setting.level[1]);
-            app_broadcast_pump_level_to_window(setting.level[1] ,OLD_BROADCAST_RIGHT_CT);
+            LOG_SRV("right pump level %d",setting.level[1]);
+            app_broadcast_pump_level_to_window(setting.level[1], OLD_BROADCAST_RIGHT_CT);
         }
     } else {
         if (app_old_comm_pump_ctrl_date->normal_pump_level >= 0
             && app_old_comm_pump_ctrl_date->normal_pump_level <= BREAST_PUMP_LEVEL_15) {
             setting.level[1] = app_old_comm_pump_ctrl_date->normal_pump_level;
             setting.level[0] = app_old_comm_pump_ctrl_date->normal_pump_level;
-            LOG_SRV("APP_OLD_COMM_ALL_CT pump level %d",setting.level[0]);
-            LOG_SRV("APP_OLD_COMM_ALL_CT pump level %d",setting.level[1]);
-            app_broadcast_pump_level_to_window(setting.level[0] ,OLD_BROADCAST_LEFT_CT);
-            app_broadcast_pump_level_to_window(setting.level[1] ,OLD_BROADCAST_RIGHT_CT);
+            LOG_SRV("all pump level %d, %d", setting.level[0], setting.level[1]);
+            app_broadcast_pump_level_to_window(setting.level[0], OLD_BROADCAST_LEFT_CT);
+            app_broadcast_pump_level_to_window(setting.level[1], OLD_BROADCAST_RIGHT_CT);
         }
     }
-
-    pump_ctx->set_breast_pump_setting(&setting, time_index, true);
+    pump_ctx->set_breast_pump_setting(&setting, time_index >= ROOT_BREAST_PUMP_STEP_MAX ? 0 : time_index, true);
     return true;
 }
 
-uint8_t app_old_comm_set_nommal_pump_speed(app_old_comm_pump_ctrl *app_old_comm_pump_ctrl_date)
+static uint8_t app_old_comm_set_nommal_pump_speed(app_old_comm_pump_ctrl *app_old_comm_pump_ctrl_date)
 {
     breast_pump_manager_context_t *pump_ctx = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
     EXCEPTION_CHECK_UINT(pump_ctx);
     uint8_t time_index = pump_ctx->get_breast_pump_step_index();
-    if (time_index >= ROOT_BREAST_PUMP_STEP_MAX) {
-        time_index = 0;
-    }
     storage_manager_context_t *storage_ctx = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
     EXCEPTION_CHECK_UINT(storage_ctx);
-
     pump_setting_t setting; /// 当前泵奶设置信息.
-
-    pump_ctx->get_breast_pump_setting(&setting, time_index);
+    pump_ctx->get_breast_pump_setting(&setting, time_index >= ROOT_BREAST_PUMP_STEP_MAX ? 0 : time_index);
     //只允许常规模式设置 speed，并且左右同步控制
     setting.speed = app_old_comm_pump_ctrl_date->normal_pump_speed;
     LOG_SRV("pump speed  %d", setting.speed);
-    pump_ctx->set_breast_pump_setting(&setting, time_index, true);
+    pump_ctx->set_breast_pump_setting(&setting, time_index >= ROOT_BREAST_PUMP_STEP_MAX ? 0 : time_index, true);
     app_broadcast_pump_speed_to_window(setting.speed ,OLD_BROADCAST_ALL_CT);
+
     return true;
 }
 
-uint8_t app_old_comm_set_pump_control_type(app_old_comm_pump_ctrl *app_old_comm_pump_ctrl_date)
+static uint8_t app_old_comm_set_pump_control_type(app_old_comm_pump_ctrl *app_old_comm_pump_ctrl_date)
 {
     uint8_t control_type = BREAST_PUMP_CONTROL_TYPE_BILATERAL;
     if (app_old_comm_pump_ctrl_date->pump_mode_lr_or_all == APP_OLD_COMM_LEFT_CT) {
@@ -435,7 +451,7 @@ uint8_t app_old_comm_set_pump_control_type(app_old_comm_pump_ctrl *app_old_comm_
     return true;
 }
 
-uint8_t app_old_comm_get_pump_control_type(void)
+static uint8_t app_old_comm_get_pump_control_type(void)
 {
     breast_pump_manager_context_t *pump = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
     EXCEPTION_CHECK_UINT(pump);
@@ -444,31 +460,25 @@ uint8_t app_old_comm_get_pump_control_type(void)
     return control_type;
 }
 
-uint8_t app_old_comm_set_custom_pump_level(app_old_comm_pump_ctrl *app_old_comm_pump_ctrl_date)
+static uint8_t app_old_comm_set_custom_pump_level(app_old_comm_pump_ctrl *app_old_comm_pump_ctrl_date)
 {
     breast_pump_manager_context_t *pump_ctx = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
     EXCEPTION_CHECK_UINT(pump_ctx);
     uint8_t time_index = pump_ctx->get_breast_pump_step_index();
-    if (time_index >= ROOT_BREAST_PUMP_STEP_MAX) {
-        time_index = 0;
-    }
     storage_manager_context_t *storage_ctx = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
     EXCEPTION_CHECK_UINT(storage_ctx);
-
     pump_setting_t setting; /// 当前泵奶设置信息.
-
-    pump_ctx->get_breast_pump_setting(&setting, time_index);
-
+    pump_ctx->get_breast_pump_setting(&setting, time_index >= ROOT_BREAST_PUMP_STEP_MAX ? 0 : time_index);
     if (app_old_comm_pump_ctrl_date->pump_mode_lr_or_all == APP_OLD_COMM_LEFT_CT) {
         if (app_old_comm_pump_ctrl_date->user_define_pump_level >= 0) {
             setting.level[0] = app_old_comm_pump_ctrl_date->user_define_pump_level;
-            LOG_SRV("APP_OLD_COMM_LEFT_CT pump level %d",setting.level[0]);
+            LOG_SRV("left pump level %d",setting.level[0]);
             app_broadcast_pump_level_to_window(setting.level[0] ,OLD_BROADCAST_LEFT_CT);
         }
     } else if (app_old_comm_pump_ctrl_date->pump_mode_lr_or_all == APP_OLD_COMM_RIGHT_CT) {
         if (app_old_comm_pump_ctrl_date->user_define_pump_level <= BREAST_PUMP_LEVEL_15) {
             setting.level[1] = app_old_comm_pump_ctrl_date->user_define_pump_level;
-            LOG_SRV("APP_OLD_COMM_RIGHT_CT pump level %d",setting.level[1]);
+            LOG_SRV("right pump level %d",setting.level[1]);
             app_broadcast_pump_level_to_window(setting.level[1] ,OLD_BROADCAST_RIGHT_CT);
         }
     } else {
@@ -476,18 +486,17 @@ uint8_t app_old_comm_set_custom_pump_level(app_old_comm_pump_ctrl *app_old_comm_
             && app_old_comm_pump_ctrl_date->user_define_pump_level <= BREAST_PUMP_LEVEL_15) {
             setting.level[1] = app_old_comm_pump_ctrl_date->user_define_pump_level;
             setting.level[0] = app_old_comm_pump_ctrl_date->user_define_pump_level;
-            LOG_SRV("APP_OLD_COMM_ALL_CT pump level %d",setting.level[0]);
-            LOG_SRV("APP_OLD_COMM_ALL_CT pump level %d",setting.level[1]);
+            LOG_SRV("all pump level %d, %d", setting.level[0], setting.level[1]);
             app_broadcast_pump_level_to_window(setting.level[0] ,OLD_BROADCAST_LEFT_CT);
             app_broadcast_pump_level_to_window(setting.level[1] ,OLD_BROADCAST_RIGHT_CT);
         }
     }
 
-    pump_ctx->set_breast_pump_setting(&setting, time_index, true);
+    pump_ctx->set_breast_pump_setting(&setting, time_index >= ROOT_BREAST_PUMP_STEP_MAX ? 0 : time_index, true);
     return true;
 }
 
-uint8_t app_old_comm_pump_control_handler(app_old_comm_pump_ctrl *app_old_comm_pump_ctrl_date)
+static uint8_t app_old_comm_pump_control_handler(app_old_comm_pump_ctrl *app_old_comm_pump_ctrl_date)
 {
     breast_pump_manager_context_t *pump_ctx = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
     EXCEPTION_CHECK_UINT(pump_ctx);
@@ -508,7 +517,6 @@ uint8_t app_old_comm_pump_control_handler(app_old_comm_pump_ctrl *app_old_comm_p
             case BREAST_PUMP_STIMULATION_MODE: // 传统模式
             case BREAST_PUMP_RELAX_MODE: // 放松模式
             case BREAST_PUMP_MIX_MODE: {       /// 常规的吸乳模式允许调频率
-                LOG_SRV("app set normal pump speed");
                 app_old_comm_set_nommal_pump_speed(app_old_comm_pump_ctrl_date);
             }
             case BREAST_PUMP_REGULAR_PUMPING_MODE:
@@ -527,43 +535,34 @@ uint8_t app_old_comm_pump_control_handler(app_old_comm_pump_ctrl *app_old_comm_p
             default:
                 break;
         }
-    } else //如果模式改变，则改变模式,忽略参数
-    {
+    } else {
+        /// 如果模式改变，则改变模式,忽略参数
         pump_ctx->set_breast_pump_mode(app_old_comm_pump_ctrl_date->pump_mode, 1);
         app_broadcast_pump_mode_to_window(app_old_comm_pump_ctrl_date->pump_mode,OLD_BROADCAST_ALL_CT);
-        //prd 模式记忆
+        /// prd 模式记忆
         LOG_SRV("app change pump_mode %d",app_old_comm_pump_ctrl_date->pump_mode);
     }
     return true;
 }
 
-uint8_t app_old_comm_pump_run_status_ctrl(uint8_t status)
+static uint8_t app_old_comm_pump_run_status_ctrl(uint8_t status)
 {
     breast_pump_manager_context_t *pump_ctx = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
     EXCEPTION_CHECK_UINT(pump_ctx);
-    LOG_SRV("run_status_ctrl %d", status);
+    LOG_SRV("status: %d", status);
     int pump_status = pump_ctx->get_breast_pump_status();
-
-    if (pump_status == BREAST_PUMP_FINISH || pump_status == BREAST_PUMP_IDLE)
-    {
-        if (status == APP_OLD_COMM_SYS_RUN)
-        {
+    if (pump_status == BREAST_PUMP_FINISH || pump_status == BREAST_PUMP_IDLE) {
+        if (status == APP_OLD_COMM_SYS_RUN) {
             pump_ctx->set_breast_pump_status(BREAST_PUMP_START);
-            app_broadcast_pump_status_to_window(BREAST_PUMP_START,OLD_BROADCAST_ALL_CT);
+            app_broadcast_pump_status_to_window(BREAST_PUMP_START, OLD_BROADCAST_ALL_CT);
         }
-    }
-    else if (pump_status == BREAST_PUMP_START || pump_status == BREAST_PUMP_CONTINUE)
-    {
-        if (status == APP_OLD_COMM_SYS_STOP)
-        {
+    } else if (pump_status == BREAST_PUMP_START || pump_status == BREAST_PUMP_CONTINUE) {
+        if (status == APP_OLD_COMM_SYS_STOP) {
             pump_ctx->set_breast_pump_status(BREAST_PUMP_PAUSE);
             app_broadcast_pump_status_to_window(BREAST_PUMP_PAUSE,OLD_BROADCAST_ALL_CT);
         }
-    }
-    else if (pump_status == BREAST_PUMP_PAUSE)
-    {
-        if (status == APP_OLD_COMM_SYS_RUN)
-        {
+    } else if (pump_status == BREAST_PUMP_PAUSE) {
+        if (status == APP_OLD_COMM_SYS_RUN) {
             pump_ctx->set_breast_pump_status(BREAST_PUMP_CONTINUE);
             app_broadcast_pump_status_to_window(BREAST_PUMP_CONTINUE,OLD_BROADCAST_ALL_CT);
         }
@@ -571,164 +570,37 @@ uint8_t app_old_comm_pump_run_status_ctrl(uint8_t status)
     return true;
 }
 
-uint8_t app_old_comm_pump_custom_step_para_to_local_motor_policy(user_def_pump_steps_data_t *pump_steps_data)
-{
-    motor_policy_cfg_t *custom_mode_policy_cfg = custom_mode_policy_cfg_get();
-    //memset(&custom_mode_policy_cfg, 0, sizeof(motor_policy_cfg_t)*CUSTOM_MODE_MOTOR_POLICY_NUMBER);
-    uint8_t cfg_num = 0;
-    for (uint8_t i = 0; i < pump_steps_data->num; i++)
-    {
-        if (cfg_num >= CUSTOM_MODE_MOTOR_POLICY_NUMBER) {
-            LOG_SRV("custom pump step will over max");
-            return false;
-        }
-        LOG_SRV("custom pump step mode %d", pump_steps_data->data[i].mode);
-        if (pump_steps_data->data[i].mode == APP_OLD_COMM_MODE_SHORT) {
-            motor_policy_cfg_t stimulation_default_temp[STIMULATION_MODE_LEN] = {0};
-            memcpy(stimulation_default_temp, &stimulation_default, sizeof(stimulation_default));
-            stimulation_default_temp[0].duration = pump_steps_data->data[i].time;
-            stimulation_default_temp[0].core.un.mapping.level = pump_steps_data->data[i].level;
-            stimulation_default_temp[0].core.un.mapping.speed = pump_steps_data->data[i].freq;
-            memcpy(custom_mode_policy_cfg + cfg_num, &stimulation_default_temp,
-                   sizeof(stimulation_default_temp));
-            cfg_num += 1;
-        } else if (pump_steps_data->data[i].mode == APP_OLD_COMM_MODE_LONG) {
-            motor_policy_cfg_t pump_default_temp[PUMP_MODE_LEN] = {0};
-            memcpy(pump_default_temp, &pump_default, sizeof(pump_default));
-            pump_default_temp[0].duration = pump_steps_data->data[i].time;
-            pump_default_temp[0].core.un.mapping.level = pump_steps_data->data[i].level;
-            pump_default_temp[0].core.un.mapping.speed = pump_steps_data->data[i].freq;
-            memcpy(custom_mode_policy_cfg + cfg_num, &pump_default_temp,
-                   sizeof(pump_default_temp));
-            cfg_num += 1;
-        } else if (pump_steps_data->data[i].mode == APP_OLD_COMM_MODE_MIX1) {
-            motor_policy_cfg_t mix_default_temp[MIX_MODE_LEN] = {0};
-            memcpy(mix_default_temp, &mix_default, sizeof(mix_default));
-            for (uint8_t j = 0; j < MIX_MODE_LEN; j++) {
-                mix_default_temp[j].duration = pump_steps_data->data[i].time;
-                mix_default_temp[j].core.un.mapping.level = pump_steps_data->data[i].level;
-                mix_default_temp[j].core.un.mapping.speed = pump_steps_data->data[i].freq;
-            }
-            memcpy(custom_mode_policy_cfg + cfg_num, &mix_default_temp,
-                   sizeof(mix_default_temp));
-            cfg_num += 2;
-        } else if (pump_steps_data->data[i].mode == APP_OLD_COMM_MODE_MIX2) {
-            motor_policy_cfg_t mix_default2_temp[MIX2_MODE_LEN] = {0};
-            memcpy(mix_default2_temp, &mix_default2, sizeof(mix_default2));
-            for (uint8_t j = 0; j < MIX2_MODE_LEN; j++) {
-                mix_default2_temp[j].duration = pump_steps_data->data[i].time;
-                mix_default2_temp[j].core.un.mapping.level = pump_steps_data->data[i].level;
-                mix_default2_temp[j].core.un.mapping.speed = pump_steps_data->data[i].freq;
-            }
-            memcpy(custom_mode_policy_cfg + cfg_num, &mix_default2_temp,
-                   sizeof(mix_default2_temp));
-            cfg_num += 2;
-        } 
-        else if (pump_steps_data->data[i].mode == APP_OLD_COMM_MODE_RELAX) {
-            motor_policy_cfg_t relax_default_temp[RELAX_MODE_LEN] = {0};
-            memcpy(relax_default_temp, &relax_default, sizeof(relax_default));
-            relax_default_temp[0].duration = pump_steps_data->data[i].time;
-            relax_default_temp[0].core.un.mapping.level = pump_steps_data->data[i].level;
-            relax_default_temp[0].core.un.mapping.speed = pump_steps_data->data[i].freq;
-            memcpy(custom_mode_policy_cfg + cfg_num, &relax_default_temp,
-                   sizeof(relax_default_temp));
-            cfg_num += 1;
-        } else {
-            LOG_SRV("unknow custom pump step mode");
-        }
-    }
-    print_pump_custom_cfg(custom_mode_policy_cfg, cfg_num);
-    motor_manager_context_t *motor_ctx = (motor_manager_context_t *)find_module(ID_MODULE_MOTOR);
-    EXCEPTION_CHECK_UINT(motor_ctx);
-    EXCEPTION_CHECK_UINT(motor_ctx->hook);
-    EXCEPTION_CHECK_UINT(motor_ctx->hook->motor_debug_with_user_para);
-    motor_ctx->hook->generate_motor_para(motor_ctx, BREAST_PUMP_CUSTOM_MODE, custom_mode_policy_cfg, cfg_num*sizeof(motor_policy_cfg_t));
-    //创建自定义模式策略后，如果当前是自定义模式，需要暂停pump，再启动pump   
-    breast_pump_manager_context_t *pump_ctx = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
-    EXCEPTION_CHECK_UINT(pump_ctx);
-    ///如果当前是自定义模式，并且pump正在工作，则暂停pump，再启动pump,将参数更新到最新
-    if (app_old_comm_get_current_pump_mode() == BREAST_PUMP_CUSTOM_MODE && pump_ctx->is_on_working()) {
-        pump_ctx->set_breast_pump_status(BREAST_PUMP_PAUSE);
-        app_broadcast_pump_status_to_window(BREAST_PUMP_PAUSE,OLD_BROADCAST_ALL_CT);
-        pump_ctx->set_breast_pump_status(BREAST_PUMP_START);
-        app_broadcast_pump_status_to_window(BREAST_PUMP_START,OLD_BROADCAST_ALL_CT);
-    }
-    //custom_mode_parameter_update(custom_mode_policy_cfg, cfg_num);
-    return true;
-}
-
-uint8_t app_old_comm_update_storage_custom_setting(user_def_pump_steps_data_t *pump_user_defined_step_data_temp)
-{
-    storage_manager_context_t *storage_ctx = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
-    EXCEPTION_CHECK_UINT(storage_ctx);
-    breast_pump_manager_context_t *pump_ctx = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
-    EXCEPTION_CHECK_UINT(pump_ctx);
-    if (pump_user_defined_step_data_temp->num > ROOT_BREAST_PUMP_STEP_MAX)
-    {
-       LOG_SRV(" over max step");
-       return false;
-    }
-    for (uint8_t i = 0; i < pump_user_defined_step_data_temp->num; i++) {
-        pump_setting_t setting;
-        setting.speed = pump_user_defined_step_data_temp->data->freq;
-        for (uint8_t j = 0; j < BREAST_PUMP_NUM; j++) {
-            setting.level[j] = pump_user_defined_step_data_temp->data->level;
-        }
-        store_pump_setting_value_t store_pump_setting_value = {0};
-        store_pump_setting_value.is_custom_trial_mode = pump_ctx->priv.m_info.is_custom_trial_mode;
-        store_pump_setting_value.setting = &setting;
-        storage_ctx->put_store_ram_val(STORE_ID_PUMP_SETTING_INFO, BREAST_PUMP_CUSTOM_MODE, i, &store_pump_setting_value);
-    }
-    return true;
-}
-
-void app_pump_ctrl_delay_task_handler(hdr_post_args_t *args)
+static void app_pump_ctrl_delay_task_handler(hdr_post_args_t *args)
 {
     int status = (int)args->arg1;
     app_old_comm_pump_ctrl *app_old_comm_pump_ctrl_date = (app_old_comm_pump_ctrl *)args->user_data;
     EXCEPTION_CHECK_VOID(app_old_comm_pump_ctrl_date);
     app_old_comm_pump_control_handler(app_old_comm_pump_ctrl_date);
     app_old_comm_pump_run_status_ctrl(status);
-    LOG_SRV("app_pump_ctrl_delay_task_handler, status: %d", status);
+    LOG_SRV("status: %d", status);
 }
 
-void app_old_comm_set_user_define_handler(user_def_pump_steps_data_t *pump_steps_data)
+static void app_pump_custom_trial_mode_start_handler(void)
 {
-    ///将自定义模式参数存入flash
-    app_old_comm_set_custom_pump_step_parameter_infor(pump_steps_data);
-    //先暂停pump
-    //breast_pump_manager_context_t *pump_ctx = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
-    //EXCEPTION_CHECK_VOID(pump_ctx);
-    //if (app_old_comm_get_current_pump_mode() == BREAST_PUMP_CUSTOM_MODE)
-    //    pump_ctx->set_breast_pump_status(BREAST_PUMP_PAUSE);
-    //将storage的custom 目标pump time更新
-    storage_manager_context_t *storage_ctx = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
-    EXCEPTION_CHECK_VOID(storage_ctx);
-    store_pump_time_value_t store_pump_time_value = {0};
-    store_pump_time_value.is_custom_trial_mode = 0;
-    store_pump_time_value.pump_time = pump_steps_data->custom_total_time;
-    storage_ctx->put_store_ram_val(STORE_ID_BREAST_PUMP_TIME, BREAST_PUMP_CUSTOM_MODE,
-        0, &store_pump_time_value);
-    LOG_SRV("pump_user_defined_step_data_temp.custom_total_time= 0x%x",
-        pump_steps_data->custom_total_time);
-    //将storage的custom 的setting更新
-    app_old_comm_update_storage_custom_setting(pump_steps_data);
-    //将默认的custom 策略更新
-    //int custom_mode_parameter_update(motor_policy_cfg_t *cfg, uint8_t cfg_num)
-    app_old_comm_pump_custom_step_para_to_local_motor_policy(pump_steps_data);
-    //重新启动pump
-    //if (app_old_comm_get_current_pump_mode() == BREAST_PUMP_CUSTOM_MODE)
-    //    pump_ctx->set_breast_pump_status(BREAST_PUMP_START);
+    breast_pump_manager_context_t *pump_ctx = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
+    EXCEPTION_CHECK_VOID(pump_ctx);
+    if (app_old_comm_get_current_pump_mode() == BREAST_PUMP_CUSTOM_TRIAL_MODE && pump_ctx->is_on_working()) {
+        pump_ctx->set_breast_pump_status(BREAST_PUMP_PAUSE);
+        app_broadcast_pump_status_to_window(BREAST_PUMP_PAUSE, OLD_BROADCAST_ALL_CT);
+        pump_ctx->set_breast_pump_status(BREAST_PUMP_START);
+        app_broadcast_pump_status_to_window(BREAST_PUMP_START, OLD_BROADCAST_ALL_CT);
+    }
 }
 
-void app_pump_user_define_delay_task_handler(hdr_post_args_t *args)
+static void app_pump_user_define_delay_task_handler(hdr_post_args_t *args)
 {
-    int status = (int)args->arg1;
-    user_def_pump_steps_data_t *pump_steps_data = (user_def_pump_steps_data_t *)args->user_data;
-    EXCEPTION_CHECK_VOID(pump_steps_data);
-    app_old_comm_set_user_define_handler(pump_steps_data);
-    LOG_SRV("enter");
+    app_pump_custom_trial_mode_start_handler();
 }
+
+/*
+* GLOBAL FUNCTION DEFINITIONS
+*****************************************************************************************
+*/
 
 //0xd0
 void app_old_comm_report_device_status(app_old_commd_l_r_ctrl_e lr_ct, servers_old_protocol_publish_data_id_e id, void *val)
@@ -814,7 +686,7 @@ void app_old_comm_handle_ctrl_dev_req(uint8_t cal, uint8_t *cab)
     app_old_comm_pump_ctrl_date.user_define_pump_step_mode = cab[3];
     app_old_comm_pump_ctrl_date.user_define_pump_level = cab[4];
     app_old_comm_pump_ctrl_date.user_define_pump_speed = cab[5] - 1; //频次（1-低 2-中 3-高）（1字节）
-    app_old_comm_pump_ctrl_date.pump_mode_lr_or_all = cab[6];
+    app_old_comm_pump_ctrl_date.pump_mode_lr_or_all = cab[6];//0:左 1:右 2:双
     app_old_comm_pump_ctrl_date.normal_pump_speed = cab[7]; //频次（0-低 1-中 2-高）（1字节）
     ///查看窗口，是否需要唤醒pump窗口
     window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
@@ -823,7 +695,8 @@ void app_old_comm_handle_ctrl_dev_req(uint8_t cal, uint8_t *cab)
         app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_ACK, APP_OLD_COMM_CID_CTRL_DEV, 1, &cab[6]);
         app_old_comm_pump_control_handler(&app_old_comm_pump_ctrl_date);
         app_old_comm_pump_run_status_ctrl(cab[0]);
-    } else if (wm->is_current_window(wm, ID_WINDOW_CHARGE) || wm->is_current_window(wm, ID_WINDOW_DUMMY)) {
+    } else if (wm->is_current_window(wm, ID_WINDOW_CHARGE) || wm->is_current_window(wm, ID_WINDOW_DUMMY)
+        || wm->is_current_window(wm, ID_WINDOW_HOME)) {
         LOG_SRV("charge or dummy, dispatch pump window.");
         multi_func_msg_data_t msg = {0};
         msg.union_body.extra.window_id = ID_WINDOW_PUMP;
@@ -845,84 +718,102 @@ void app_old_comm_handle_ctrl_dev_req(uint8_t cal, uint8_t *cab)
 //0xc4
 void app_old_comm_handle_set_user_define_req(uint8_t cal, uint8_t *cab)
 {
-	user_def_pump_steps_data_t pump_user_defined_step_data_temp = {0};
-
-    uint8_t section_num = 0;
-    uint8_t i = 0, n = 0;
-
+    uint8_t section_num = 0, speed = 0, mode_type = 0, level = 0;
+    uint16_t time_policy_duration = 0;
+	pump_mode_steps_info_t pump_steps_info = {0};
     EXCEPTION_CHECK_VOID(cab);
-    memset(&pump_user_defined_step_data_temp, 0, sizeof(pump_user_defined_step_data_temp));// 清除掉临时变量
-
-	pump_user_defined_step_data_temp.id.dat[0] = cab[0]; // data[3];
-	pump_user_defined_step_data_temp.id.dat[1] = cab[1]; // data[2];
-	pump_user_defined_step_data_temp.id.dat[2] = cab[2]; // data[1];
-	pump_user_defined_step_data_temp.id.dat[3] = cab[3]; // data[0];
-	LOG_SRV("cmd ud-mode id = 0X%x", pump_user_defined_step_data_temp.id.dat32);
-
-	if (cab[4] <= ROOT_BREAST_PUMP_STEP_MAX)
-	{
+    memcpy(pump_steps_info.id.dat, cab, 4);
+	LOG_SRV("cmd ud-mode id = %d", pump_steps_info.id.dat32);
+	if (cab[4] <= ROOT_BREAST_PUMP_STEP_MAX) {
 		section_num = cab[4];
-		pump_user_defined_step_data_temp.num = section_num;
-        LOG_SRV("pump_user_defined_step_data_temp.num = %d", pump_user_defined_step_data_temp.num);
+		pump_steps_info.time_policy_num = section_num;
+        LOG_SRV("time_policy_num = %d", pump_steps_info.time_policy_num);
 	}
-
-	pump_user_defined_step_data_temp.custom_total_time = 0;
-
-	for (i = 0; i < section_num; i++)
-	{
+	else { //超出范围，发送NACK
+		LOG_SRV("section_num: %d, out of range", section_num);
+		app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_NACK, APP_OLD_COMM_CID_USER_DEFINE, 0, NULL);
+		return;
+	}
+	pump_steps_info.total_time = 0;
+    uint8_t step_index = 0, n = 0;
+	for (uint8_t i = 0; i < section_num; i++) {
 		n = 5 + 10 * i;
-		if (cab[n] <= ROOT_BREAST_PUMP_STEP_MAX)
-		{
-			pump_user_defined_step_data_temp.data[i].mode = cab[n + 1];
-			pump_user_defined_step_data_temp.data[i].level = cab[n + 2];
-			if (pump_user_defined_step_data_temp.data[i].mode >= (BREAST_PUMP_MODE_MAX + 1))
-			{
-                pump_user_defined_step_data_temp.data[i].mode = BREAST_PUMP_NORMAL_MODE_DEFAULT + 1;
+		if (cab[n] <= ROOT_BREAST_PUMP_STEP_MAX) {
+            mode_type = cab[n + 1];
+            level = cab[n + 2] >= BREAST_PUMP_LEVEL_MAX ? BREAST_PUMP_LEVEL_15 : cab[n + 2];
+            speed = (cab[n + 3] - 1) >= BREAST_PUMP_SPEED_MAX ? BREAST_PUMP_SPEED_HIGH : (cab[n + 3] - 1);
+            time_policy_duration = cab[n + 4] << 8 | cab[n + 5];
+		    if (mode_type == APP_OLD_COMM_MODE_SHORT) {
+                pump_steps_info.data[step_index].mode_type = SUCTION_MODE_SHORT;
+                pump_steps_info.data[step_index].level = level;
+                pump_steps_info.data[step_index].freq = speed;
+                pump_steps_info.data[step_index].loop_num = 1;
+                pump_steps_info.data[step_index].duration = time_policy_duration;
+                step_index++;
+            } else if (mode_type == APP_OLD_COMM_MODE_LONG) {
+                pump_steps_info.data[step_index].mode_type = SUCTION_MODE_LONG;
+                pump_steps_info.data[step_index].level = level;
+                pump_steps_info.data[step_index].freq = speed;
+                pump_steps_info.data[step_index].loop_num = 1;
+                pump_steps_info.data[step_index].duration = time_policy_duration;
+                step_index++;
+            } else if (mode_type == APP_OLD_COMM_MODE_MIX1) {
+                /// 混合1短吸
+                pump_steps_info.data[step_index].mode_type = SUCTION_MODE_MIX_SHORT;
+                pump_steps_info.data[step_index].level = level;
+                pump_steps_info.data[step_index].freq = speed;
+                pump_steps_info.data[step_index].loop_num = 5; 
+                pump_steps_info.data[step_index].duration = time_policy_duration;
+                /// 混合1长吸
+                pump_steps_info.data[step_index + 1].mode_type = SUCTION_MODE_MIX_LONG;
+                pump_steps_info.data[step_index + 1].level = level;
+                pump_steps_info.data[step_index + 1].freq = speed;
+                pump_steps_info.data[step_index + 1].loop_num = 1;
+                pump_steps_info.data[step_index + 1].duration = 0;
+                step_index += 2;
+            } else if (mode_type == APP_OLD_COMM_MODE_MIX2) {
+                /// 混合2短吸
+                pump_steps_info.data[step_index].mode_type = SUCTION_MODE_MIX_SHORT;
+                pump_steps_info.data[step_index].level = level;
+                pump_steps_info.data[step_index].freq = speed;
+                pump_steps_info.data[step_index].loop_num = 2; 
+                pump_steps_info.data[step_index].duration = time_policy_duration;
+                /// 混合2长吸
+                pump_steps_info.data[step_index + 1].mode_type = SUCTION_MODE_MIX_LONG;
+                pump_steps_info.data[step_index + 1].level = level;
+                pump_steps_info.data[step_index + 1].freq = speed;
+                pump_steps_info.data[step_index + 1].loop_num = 1;
+                pump_steps_info.data[step_index + 1].duration = 0;
+                step_index += 2;
+            } else {
+                pump_steps_info.data[step_index].mode_type = SUCTION_MODE_IDLE;
+                pump_steps_info.data[step_index].level = 0;
+                pump_steps_info.data[step_index].freq = 0;
+                pump_steps_info.data[step_index].loop_num = 1;
+                pump_steps_info.data[step_index].duration = time_policy_duration;
+                step_index++;
             }
-			if (pump_user_defined_step_data_temp.data[i].level >= BREAST_PUMP_LEVEL_MAX)
-			{
-				pump_user_defined_step_data_temp.data[i].level = BREAST_PUMP_LEVEL_15;
-			}
-
-			pump_user_defined_step_data_temp.data[i].freq = cab[n + 3] - 1;
-			pump_user_defined_step_data_temp.data[i].time = cab[n + 4] << 8 | cab[n + 5];
-			if (pump_user_defined_step_data_temp.data[i].freq >= SUCTION_SPEED_MAX)
-			{
-				pump_user_defined_step_data_temp.data[i].freq = SUCTION_SPEED_HIGH;
-			}
-			//PumpUserUdTemp[i].heat_switch = data[n + 6];
-			//PumpUserUdTemp[i].heat_level = data[n + 7];
-			//PumpUserUdTemp[i].shake_switch = data[n + 8];
-			//PumpUserUdTemp[i].shake_level = data[n + 9];
-			pump_user_defined_step_data_temp.custom_total_time += pump_user_defined_step_data_temp.data[i].time;
+			pump_steps_info.total_time += time_policy_duration;
 		}
-
-		LOG_SRV("ud-mode[%d]=0x%02x", i, pump_user_defined_step_data_temp.data[i].mode);
-		LOG_SRV("ud-level[%d]=0x%02x", i, pump_user_defined_step_data_temp.data[i].level);
-		LOG_SRV("ud-time[%d]=0x%04x", i, pump_user_defined_step_data_temp.data[i].time);
-        LOG_SRV("ud-freq[%d]=0x%02x", i, pump_user_defined_step_data_temp.data[i].freq);
+		LOG_SRV("step %d mode=%d, level=%d, freq=%d, duration=%d", i, mode_type, level, speed, time_policy_duration);
 	}
-    //pump_user_defined_step_data_temp.custom_total_time = 1000*pump_user_defined_step_data_temp.custom_total_time; //转换为ms
-    n = 5 + 10 * i;
+    LOG_SRV("total_time=%d", pump_steps_info.total_time);
+    n += 10;
     LOG_SRV("data n = [%d] data len = [%d]", n, cal);
-    ///查看窗口，是否需要唤醒pump窗口
+    pump_custom_trial_mode_update_by_app(pump_steps_info); /// 将自定义模式参数存入
     window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
     EXCEPTION_CHECK_VOID(wm);
     if (wm->is_current_window(wm, ID_WINDOW_PUMP)) {
+        app_pump_custom_trial_mode_start_handler();
         app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_ACK, APP_OLD_COMM_CID_USER_DEFINE, 0, NULL);
-        app_old_comm_set_user_define_handler(&pump_user_defined_step_data_temp);
-    } else if (wm->is_current_window(wm, ID_WINDOW_CHARGE) || wm->is_current_window(wm, ID_WINDOW_DUMMY)) {
-        LOG_SRV("charge or dummy, dispatch pump window.");
+    } else if (wm->is_current_window(wm, ID_WINDOW_CHARGE) || wm->is_current_window(wm, ID_WINDOW_DUMMY)
+        ||wm->is_current_window(wm, ID_WINDOW_HOME)) {
+        LOG_SRV("charge or dummy or home mode, dispatch pump window.");
         multi_func_msg_data_t msg = {0};
         msg.union_body.extra.window_id = ID_WINDOW_PUMP;
         wm->dispatch_new_window_args(wm, &msg);
-
-        ///等待窗口弹出延时投递处理
-        // 注意：POST_TASK_HANDLER_DELAYED_ARG2 会先删除同名旧任务，然后投递新任务
-        // 使用静态变量避免内存泄漏，但如果删除失败，旧任务可能使用新数据
-        memcpy(&user_define_data_temp, &pump_user_defined_step_data_temp, sizeof(user_def_pump_steps_data_t));
-        POST_TASK_HANDLER_DELAYED_ARG2(app_pump_user_define_delay_task_handler, PUMP_CTRL_TASK_DELAY_TIME, 0, &user_define_data_temp,
-                                       "app_pump_user_define_delay_task");
+        POST_TASK_HANDLER_DELAYED_ARG1(app_pump_user_define_delay_task_handler, PUMP_CTRL_TASK_DELAY_TIME, NULL,
+             "app_pump_user_define_delay_task");
         app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_ACK, APP_OLD_COMM_CID_USER_DEFINE, 0, NULL);
     } else {
         LOG_SRV("not in pump window");
@@ -932,7 +823,13 @@ void app_old_comm_handle_set_user_define_req(uint8_t cal, uint8_t *cab)
 //0xc5
 void app_old_comm_handle_set_user_define_wr_flash_req(uint8_t cal, uint8_t *cab)
 {
-    //不需要做啥c4 已经写入
+    // 复制BREAST_PUMP_CUSTOM_TRIAL_MODE的数据到BREAST_PUMP_CUSTOM_MODE
+    pump_copy_trial_mode_to_custom_mode();
+
+    storage_manager_context_t *storage_ctx = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
+    EXCEPTION_CHECK_VOID(storage_ctx);
+
+    storage_ctx->put_store_ram_val(STORE_ID_MODE_UPDATE_FLAG, BREAST_PUMP_CUSTOM_MODE, 0, 0);
     app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_ACK, APP_OLD_COMM_CID_PARA_DOWNLOAD, 0, NULL);
 }
 
@@ -957,10 +854,10 @@ void app_old_comm_handle_get_dev_info_req(uint8_t cal, uint8_t *cab)
     ack_data[data_len++] = ctx->priv.ver_info.soc_version;
     ack_data[data_len++] = ctx->priv.ver_info.hw_version;
     ack_data[data_len++] = ctx->priv.ver_info.sw_version / 100;
-    ack_data[data_len++] = ctx->priv.sys_info.pump_info.custom_steps_parameter.id.dat[0];//custom_mode_id;
-    ack_data[data_len++] = ctx->priv.sys_info.pump_info.custom_steps_parameter.id.dat[1];//custom_mode_id;
-    ack_data[data_len++] = ctx->priv.sys_info.pump_info.custom_steps_parameter.id.dat[2];//custom_mode_id;
-    ack_data[data_len++] = ctx->priv.sys_info.pump_info.custom_steps_parameter.id.dat[3];//custom_mode_id;
+    ack_data[data_len++] = ctx->priv.sys_info.mode_info.steps_info[BREAST_PUMP_CUSTOM_MODE].id.dat[0];//custom_mode_id;
+    ack_data[data_len++] = ctx->priv.sys_info.mode_info.steps_info[BREAST_PUMP_CUSTOM_MODE].id.dat[1];//custom_mode_id;
+    ack_data[data_len++] = ctx->priv.sys_info.mode_info.steps_info[BREAST_PUMP_CUSTOM_MODE].id.dat[2];//custom_mode_id;
+    ack_data[data_len++] = ctx->priv.sys_info.mode_info.steps_info[BREAST_PUMP_CUSTOM_MODE].id.dat[3];//custom_mode_id;
     ack_data[data_len++] = 0x00;//milk_full_ver;
     ack_data[data_len++] = 0x00;//milk_full_switch;
     ctx->get_store_val(STORE_ID_FACTORY_DEV_INFO, 0, 0, &factory_dev_info);
@@ -988,6 +885,8 @@ void app_old_comm_handle_ctrl_reset_dev_req(uint8_t cal, uint8_t *cab)
     app_broadcast_pump_status_to_window(BREAST_PUMP_RESET,OLD_BROADCAST_ALL_CT);
     pump_ctx->set_breast_pump_status(BREAST_PUMP_IDLE);
     app_broadcast_pump_status_to_window(BREAST_PUMP_IDLE,OLD_BROADCAST_ALL_CT);
+    /// 发送APP强制完成广播
+    SEND_BROADCAST_ARGS1(ID_BROADCAST_BREAST_PUMP_STATE_CHANGE, BREAST_PUMP_BROADCAST_APP_COMPLETED);
 }
  
 void app_old_comm_handle_get_record_num_req(uint8_t cal, uint8_t *cab)

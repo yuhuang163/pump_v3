@@ -48,6 +48,8 @@ int write_sys_config_info_to_flash(store_func_args_t args)
 
 void reset_sys_config_info(storage_manager_context_t *ctx, sys_config_info_t *sys_config)
 {
+    EXCEPTION_CHECK_VOID(sys_config);
+    memset(sys_config, 0, sizeof(sys_config_info_t));
     sys_config->time_zone              = 0;
     sys_config->ap_mode_onoff          = 1;
     sys_config->slient_upgrade_onoff   = 0;
@@ -108,11 +110,13 @@ int write_sys_state_info_to_flash(store_func_args_t args)
 
 void reset_sys_state_info(storage_manager_context_t *ctx, sys_state_info_t *sys_state)
 {
+    EXCEPTION_CHECK_VOID(sys_state);
+    memset(sys_state, 0, sizeof(sys_state_info_t));
     sys_state->guide_deployed = 0;
     sys_state->sync_sys_time = 0;
     sys_state->battery_health = 100;
     sys_state->airplane_mode_state = 0;
-    sys_state->night_light.adaptive_switch = 1; //默认开启自适应
+    sys_state->night_light_adaptive_switch = 1; //默认开启自适应
     store_func_args_t args = {
         .ctx = ctx,
         .arg1 = 0,
@@ -328,7 +332,7 @@ int write_night_light_adaptive_switch_to_ram(store_func_args_t args)
 {
     EXCEPTION_CHECK_INT(args.ctx);
     sys_state_info_t *sys_state = &args.ctx->priv.sys_info.state;
-    sys_state->night_light.adaptive_switch = (uint8_t)args.arg1;
+    sys_state->night_light_adaptive_switch = (uint8_t)args.arg1;
     LOG_STORE_WRAP("write night light adaptive switch: %d", args.arg1);
     return 0;
 }   
@@ -346,7 +350,7 @@ int write_log_filter_to_ram(store_func_args_t args)
 {
     EXCEPTION_CHECK_INT(args.ctx);
     sys_state_info_t *sys_state = &args.ctx->priv.sys_info.state;
-    sys_state->log_filter = (uint8_t)args.arg1;
+    sys_state->log_filter = (uint32_t)args.arg1;
     LOG_STORE_WRAP("write sys log filter: %d", args.arg1);
     return 0;
 }
@@ -447,7 +451,7 @@ int read_night_light_adaptive_switch_from_ram(store_func_args_t args)
     sys_state_info_t *sys_state = &args.ctx->priv.sys_info.state;
     int *tmp = (int *)args.val;
     EXCEPTION_CHECK_INT(tmp);
-    *tmp = sys_state->night_light.adaptive_switch;
+    *tmp = sys_state->night_light_adaptive_switch;
     return 0;
 }
 

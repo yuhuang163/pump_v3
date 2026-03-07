@@ -16,9 +16,14 @@ extern "C" {
 *****************************************************************************************
 */
 /// 泵奶配置接口
-void reset_pump_info(storage_manager_context_t *ctx, sys_pump_info_t *pump_info);
 int write_pump_info_to_flash(store_func_args_t args);
 int read_pump_info_from_flash(store_func_args_t args);
+void reset_pump_info(storage_manager_context_t *ctx, sys_pump_info_t *pump_info);
+
+/// 泵奶模式步骤信息接口
+int write_pump_mode_steps_info_to_flash(store_func_args_t args);
+int read_pump_mode_steps_info_from_flash(store_func_args_t args);
+void reset_pump_mode_steps_info(storage_manager_context_t *ctx, sys_pump_mode_info_t *mode_info);
 
 /// 泵奶数据子项接口
 void reset_pump_data_head(storage_manager_context_t *ctx, breast_pump_data_head_t *pump_data_head);
@@ -33,25 +38,13 @@ int read_pump_data_head_from_ram(store_func_args_t args);
 int write_pump_setting_info_to_ram(store_func_args_t args);
 int read_pump_setting_info_from_ram(store_func_args_t args);
 
-/// 泵奶自定义步骤参数接口
-int write_pump_custom_steps_parameter_to_ram(store_func_args_t args);
-int read_pump_custom_steps_parameter_from_ram(store_func_args_t args);
+/// 泵奶模式多步设置信息接口
+int write_pump_mode_steps_info_to_ram(store_func_args_t args);
+int read_pump_mode_steps_info_from_ram(store_func_args_t args);
 
 /// 泵奶时间信息接口
 int write_pump_time_to_ram(store_func_args_t args);
 int read_pump_time_from_ram(store_func_args_t args);
-
-/// 泵奶异常提醒信息接口
-int write_pump_exception_remind_to_ram(store_func_args_t args);
-int read_pump_exception_remind_from_ram(store_func_args_t args);
-
-/// 泵奶模式切换提醒信息接口
-int write_pump_mode_change_remind_to_ram(store_func_args_t args);
-int read_pump_mode_change_remind_from_ram(store_func_args_t args);
-
-/// 泵奶完成提醒信息接口
-int write_pump_finish_remind_to_ram(store_func_args_t args);
-int read_pump_finish_remind_from_ram(store_func_args_t args);
 
 /// 泵奶控制类型接口
 int write_pump_control_type_to_ram(store_func_args_t args);
@@ -60,6 +53,10 @@ int read_pump_control_type_from_ram(store_func_args_t args);
 /// 泵奶模式接口
 int write_pump_mode_to_ram(store_func_args_t args);
 int read_pump_mode_from_ram(store_func_args_t args);
+int write_pump_mode_with_type_to_ram(store_func_args_t args);
+int read_pump_mode_with_type_from_ram(store_func_args_t args);
+int write_mode_update_flag_to_ram(store_func_args_t args);
+int read_mode_update_flag_from_ram(store_func_args_t args);
 
 /// 泵奶数据同步接口
 int pump_data_info_sync_flash(storage_manager_context_t *ctx, pump_result_info_t *body);

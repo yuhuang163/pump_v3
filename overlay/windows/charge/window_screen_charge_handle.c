@@ -28,6 +28,7 @@
 do { \
     LOG_WM("==>REMOVE_ALL_HANDER_TASK"); \
     REMOVE_TASK_HANDLER_DIRECTLY(EXIT_CHARGE_POLICY_TASK_NAME); \
+    REMOVE_TASK_HANDLER_DIRECTLY(EXIT_CHARGE_ADAPTER_MISMATCH_TASK_NAME); \
     REMOVE_TASK_HANDLER_DIRECTLY(CHARGE_SCREEN_TIMEOUT_DETECT_TASK_NAME); \
     REMOVE_TASK_HANDLER_DIRECTLY(CHARGE_SCREEN_ON_TASK_NAME); \
 } while (0)
@@ -120,6 +121,7 @@ static void on_charge_window_receive(broadcast_mask_id_t id, void *context, int 
                     proc->exit_charge_window_flag = 0;
                     LOG_WM("remove exit charge policy task");
                     REMOVE_TASK_HANDLER_DIRECTLY(EXIT_CHARGE_POLICY_TASK_NAME);
+                    REMOVE_TASK_HANDLER_DIRECTLY(EXIT_CHARGE_ADAPTER_MISMATCH_TASK_NAME);
                 }
             } else {
                 LOG_WM("charge window receive broadcast: %d, %d", arg1, arg2);

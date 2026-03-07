@@ -94,6 +94,7 @@
  
  void lv_mem_monitor_core(lv_mem_monitor_t * mon_p)
  {
+#if 0
     if(mon_p == NULL) {
         return;
     }
@@ -131,6 +132,7 @@
     else {
         mon_p->frag_pct = 0;
     }
+#endif
  }
  
  lv_result_t lv_mem_test_core(void)

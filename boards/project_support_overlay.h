@@ -85,9 +85,10 @@ extern "C" {
 #else
 #define IS_SUPPORT_LVGL                                  (0)
 #endif
-
 /// 支持PD充电
 #define IS_SUPPORT_PD_CHARGE                             (1)
+/// 支持PD充电适配器不匹配
+#define IS_SUPPORT_PD_CHARGE_ADAPTER_MISMATCH            (1)
 /// 支持旋钮
 #define IS_SUPPORT_DEVICE_KNOB                           (1)
 /// 支持电池直采

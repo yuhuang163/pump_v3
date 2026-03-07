@@ -142,7 +142,7 @@ void app_old_comm_handle_request_cmd(app_old_comm_cmd_id_e cid, uint8_t cal, uin
 // Handle report commands (device->APP)
 void app_old_comm_handle_response_cmd(app_old_comm_cmd_id_e cid, uint8_t cal, void *cab)
 {
-    LOG_SRV(" Handling %s (data len: %d)", app_old_comm_get_cmd_id_str(cid), cal);
+    // LOG_SRV(" Handling %s (data len: %d)", app_old_comm_get_cmd_id_str(cid), cal);
     servers_publish_data_args_t *args_temp = (servers_publish_data_args_t *)cab;
     switch (cid) {
         case APP_OLD_COMM_CID_NOTIFY_STATUS: {

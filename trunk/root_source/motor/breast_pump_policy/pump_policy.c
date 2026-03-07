@@ -41,7 +41,23 @@ motor_policy_node_t *pump_policy_init(motor_policy_cfg_t cfg)
 
     motor_policy_core_t *m_para = &policy_obj->core;
     memcpy(m_para, &cfg.core, sizeof(motor_policy_core_t));
+    return policy_obj;
+}
 
+motor_policy_node_t *pump_policy_init_by_steps_info(pump_mode_step_param_t cfg) 
+{
+    motor_policy_node_t *policy_obj = u_malloz(sizeof(motor_policy_node_t));
+    if (policy_obj == NULL) {
+        LOGE("policy malloc fail");
+        return NULL;
+    }
+
+    motor_policy_core_t *m_para = &policy_obj->core;
+    m_para->type = MOTOR_PARAM_TABLE;
+    m_para->un.mapping.speed = cfg.freq;
+    m_para->un.mapping.level = cfg.level;
+    m_para->un.mapping.mode_type = cfg.mode_type;
+    m_para->config.loop_num = cfg.loop_num;
     return policy_obj;
 }
 
@@ -257,7 +273,7 @@ void pump_policy_info_reset(struct motor_manager_context *thiz, motor_policy_run
     pump_climb_policy_update(thiz, &map_para);
 #endif
     /// 通过map参数获取吸力参数
-    if (map_para.mode_type == SUCTION_MODE_SHORT) {
+    if (map_para.mode_type == SUCTION_MODE_SHORT || map_para.mode_type == SUCTION_MODE_MIX_SHORT) {
         /// 边界检查，防止数组越界
         uint8_t level = map_para.level >= BREAST_PUMP_LEVEL_MAX ? (BREAST_PUMP_LEVEL_MAX - 1) : map_para.level;
         uint8_t speed = map_para.speed >= SUCTION_SPEED_MAX ? (SUCTION_SPEED_MAX - 1) : map_para.speed;

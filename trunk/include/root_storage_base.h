@@ -20,8 +20,8 @@ extern "C" {
 #define PARTITION_FDS_NAME                                                      "littleFs"
 #define PARTITION_FACTORY_DATA_NAME                                             "factory_data"
 #define PARTITION_DEV_INFO_NAME                                                 "dev_info"
-#define PARTITION_IMG_INT_DATA_NAME                                         "img_int_data"
-#define PARTITION_IMG_EXT_DATA_NAME                                         "img_ext_data"
+#define PARTITION_IMG_INT_DATA_NAME                                             "img_int_data"
+#define PARTITION_IMG_EXT_DATA_NAME                                             "img_ext_data"
 #endif
 
 // 文件系统分区定义.
@@ -76,6 +76,10 @@ extern "C" {
 
 #ifndef STORAGE_BREAST_PUMP_INFO_MAGIC_NUM
 #define STORAGE_BREAST_PUMP_INFO_MAGIC_NUM                                     (0xAFFA5884)
+#endif
+
+#ifndef STORAGE_PUMP_MODE_STEPS_INFO_MAGIC_NUM
+#define STORAGE_PUMP_MODE_STEPS_INFO_MAGIC_NUM                                 (0xAFFA5885)
 #endif
 
 #ifndef STORAGE_USER_BIND_MAGIC_NUM

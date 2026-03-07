@@ -96,7 +96,7 @@ static int charge_adapter_object_update(ui_manager_context_t *thiz)
     }
     
     /// 更新文本.
-    if (adapter_info->text == NULL || !lv_obj_is_valid(adapter_info->root)) {
+    if (adapter_info->text == NULL || !lv_obj_is_valid(adapter_info->text)) {
         adapter_info->text = lv_label_create(adapter_info->root);
         EXCEPTION_CHECK_INT(adapter_info->text);
     }
@@ -110,7 +110,7 @@ static int charge_adapter_object_update(ui_manager_context_t *thiz)
     lv_obj_align(adapter_info->text, LV_ALIGN_TOP_LEFT, 62 + 10 + 4, 274);
 
     /// 更新充电图标.
-    if (adapter_info->charge_adapter_icon == NULL || !lv_obj_is_valid(adapter_info->root)) {
+    if (adapter_info->charge_adapter_icon == NULL || !lv_obj_is_valid(adapter_info->charge_adapter_icon)) {
         adapter_info->charge_adapter_icon = lv_image_create(adapter_info->root);
         EXCEPTION_CHECK_INT(adapter_info->charge_adapter_icon);
     }

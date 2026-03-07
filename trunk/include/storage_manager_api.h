@@ -36,15 +36,14 @@ typedef enum {
     STORE_ID_BREAST_PUMP_INFO = 300,        /// 吸奶信息
     STORE_ID_BREAST_PUMP_TIME,              /// 吸奶时间
     STORE_ID_PUMP_SETTING_INFO,             /// 吸奶设置信息
-    STORE_ID_PUMP_CUSTOM_STEPS_PARAMETER_INFO,  /// 吸奶多步设置信息
+    STORE_ID_PUMP_MODE_STEPS_INFO,          /// 吸奶模式多步设置信息
     STORE_ID_PUMP_CONTROL_TYPE,             /// 吸奶控制类型
-    STORE_ID_REMIND_PUMP_EXCEPTION,         /// 吸奶异常提醒
-    STORE_ID_REMIND_PUMP_MODE_CHANGE,       /// 吸奶模式切换提醒
-    STORE_ID_REMIND_PUMP_FINISH,            /// 吸奶完成提醒
     STORE_ID_BREAST_PUMP_DATA_HEAD,         /// 吸奶器数据头
     STORE_ID_BREAST_PUMP_DATA_BODY,         /// 吸奶器数据体
     STORE_ID_BREAST_PUMP_BURY_INFO,         /// 吸奶器埋点信息
     STORE_ID_BREAST_PUMP_MODE,              /// 吸奶器模式
+    STORE_ID_BREAST_PUMP_MODE_WITH_TYPE,    /// 吸奶器模式(追奶模式/常规模式)
+    STORE_ID_MODE_UPDATE_FLAG,              /// 模式更新标志
     STORE_ID_SYS_CONFIG_INFO = 400,         /// 系统配置信息
     STORE_ID_SYS_TIME_ZONE,                 /// 系统时区
     STORE_ID_SYS_AP_MODE_ONOFF,             /// 系统飞航模式开关
@@ -70,6 +69,7 @@ typedef enum {
     STORE_CRC_TYPE_SYS_CONFIG = 0,
     STORE_CRC_TYPE_SYS_STATE,
     STORE_CRC_TYPE_PUMP_INFO,
+    STORE_CRC_TYPE_PUMP_MODE_STEPS_INFO,
     STORE_CRC_TYPE_PUMP_BURY_INFO,
     STORE_CRC_TYPE_PUMP_USER_DATA_HEAD,
     STORE_CRC_TYPE_MAX
@@ -87,16 +87,6 @@ typedef enum {
 } factory_reset_type_e;
 
 struct storage_manager_context;
-
-typedef struct {
-    uint8_t is_custom_trial_mode;
-    pump_setting_t *setting;
-} store_pump_setting_value_t;
-
-typedef struct {
-    uint8_t is_custom_trial_mode;
-    uint16_t pump_time;
-} store_pump_time_value_t;
 
 typedef struct {
     struct storage_manager_context *ctx;

@@ -252,15 +252,15 @@ static int on_broadcast_receiver_route(broadcast_mask_id_t id, void *context, in
             if (arg1 == PM_BROADCAST_SYS_SUSPEND) {
                 set_key_backlight(thiz, 0);
             } else if (arg1 == PM_BROADCAST_SYS_RESUME) {
-                if (wm && wm->is_current_window(wm, ID_WINDOW_CHARGE) == 0) {
+                if (wm && wm->is_current_window(wm, ID_WINDOW_CHARGE) == 0 && wm->is_current_window(wm, ID_WINDOW_GUIDE) == 0) {
                     set_key_backlight(thiz, 100); /// 充电窗口退出, 恢复背光灯.
                 }
             } else if (arg1 == PM_BROADCAST_SYS_IDLE) {
-                if (wm && wm->is_current_window(wm, ID_WINDOW_CHARGE) == 0) {
+                if (wm && wm->is_current_window(wm, ID_WINDOW_CHARGE) == 0 && wm->is_current_window(wm, ID_WINDOW_GUIDE) == 0) {
                     set_key_backlight(thiz, 50); /// 充电窗口退出, 恢复背光灯.
                 }
             } else if (arg1 == PM_BROADCAST_SYS_IDLE_RELEASE) {
-                if (wm && wm->is_current_window(wm, ID_WINDOW_CHARGE) == 0) {
+                if (wm && wm->is_current_window(wm, ID_WINDOW_CHARGE) == 0 && wm->is_current_window(wm, ID_WINDOW_GUIDE) == 0) {
                     set_key_backlight(thiz, 100); /// 充电窗口退出, 恢复背光灯.
                 }
             }

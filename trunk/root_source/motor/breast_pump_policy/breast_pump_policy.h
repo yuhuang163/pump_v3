@@ -10,20 +10,24 @@ extern "C" {
  * Include files
  ******************************************************************************/
 #include "motor_policy.h"
+#include "persist_storage.h"
 
 struct motor_manager_context;
 struct motor_task_para;
 
 /// 策略集合
 motor_policy_manager_t *pump_total_policy_init(motor_policy_cfg_t cfg);
+motor_policy_manager_t *pump_total_policy_init_by_steps_info(pump_mode_step_param_t step_info);
 int pump_total_policy_deint(motor_policy_manager_t *total_policy);
 /// 定时策略
 motor_timed_policy_node_t *pump_time_policy_init(motor_policy_cfg_t cfg);
+motor_timed_policy_node_t *pump_time_policy_init_by_steps_info(pump_mode_step_param_t step_info);
 int pump_time_policy_add(motor_timed_policy_node_t *time_policy, motor_timed_policy_node_t *next_time_policy);
 int pump_time_policy_empty(motor_policy_manager_t *total_policy);
 int pump_time_policy_update(struct motor_manager_context *thiz, motor_policy_runtime_t *runtime);
 /// 策略实体
 motor_policy_node_t *pump_policy_init(motor_policy_cfg_t cfg);
+motor_policy_node_t *pump_policy_init_by_steps_info(pump_mode_step_param_t cfg);
 int pump_policy_del(motor_timed_policy_node_t *time_policy);
 int pump_policy_add(motor_policy_node_t *policy, motor_policy_node_t *next_policy);
 int pump_policy_update(motor_policy_info_t *info, uint8_t pump_id);
@@ -42,7 +46,8 @@ void negative_pressure_release(struct motor_manager_context *thiz);
 int pump_climb_policy_update(struct motor_manager_context *thiz, suction_strategy_mapping_t *map);
 /// 体验模式用户策略
 int taste_mode_user_policy_update(struct motor_manager_context *thiz, suction_strategy_mapping_t *map, uint8_t pump_id);
-
+/// 获取模式类型
+uint8_t pump_policy_type_get(motor_policy_node_t policy);
 #ifdef __cplusplus
 }
 #endif

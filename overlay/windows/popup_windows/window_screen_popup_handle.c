@@ -143,13 +143,13 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
     proc->st = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
     proc->key = (key_input_context_t *)find_module(ID_MODULE_KEY_INPUT);
     proc->pump = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
-    if (extra->popup_exit_time < 500 || extra->popup_exit_time > 10000) {
-        extra->popup_exit_time = 2000; /// 限制最小退出时间长度
+    if (proc->extra.popup_exit_time < 500 || proc->extra.popup_exit_time > 10000) {
+        proc->extra.popup_exit_time = 2000; /// 限制最小退出时间长度
     }
 
 #if IS_SUPPORT_POPUP_WAKE_LOCK
     if (proc->pm) {
-        proc->pm->acquire_wakelock(POPUP_WAKE_LOCK_NAME, extra->popup_exit_time / 1000 + 3); /// 锁住popup这段时间内不休眠.
+        proc->pm->acquire_wakelock(POPUP_WAKE_LOCK_NAME, proc->extra.popup_exit_time / 1000 + 3); /// 锁住popup这段时间内不休眠.
     }
 #endif
     window_context_t *w_ctx = &proc->w_ctx;

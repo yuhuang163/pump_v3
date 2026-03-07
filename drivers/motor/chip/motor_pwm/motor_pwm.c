@@ -279,7 +279,9 @@ static void bsp_motor_start_periodic_task(motor_pwm_control_id_e pwm_id)
         LOGE("Failed to start periodic task");
         return;
     }
+#if IS_SUPPORT_PUMP_PWM_DEBUG_LOG
     LOG_PBUS("Start periodic task: %d", pwm_id);
+#endif
     // 将毫秒转换为tick
     uint32_t ticks = MS_TO_HWTICKS(timer_info[pwm_id].time_period);
     
@@ -444,12 +446,13 @@ static int8_t bsp_motor_pwm_gradual_change_start(motor_para_t *motor_para, motor
             actual_steps_needed = (duty_diff + timer_info[pwm_id].duty_step - 1) / timer_info[pwm_id].duty_step;
         }
         uint16_t total_time_estimated = actual_steps_needed * time_period;
-        
+#if IS_SUPPORT_PUMP_DEBUG_LOG        
         LOG_PBUS("PWM gradual change: init=%d, target=%d, diff=%d, change_time=%dms, step_count=%d, step=%d, period=%dms",
              timer_info[pwm_id].init_duty, timer_info[pwm_id].target_duty, duty_diff,
              change_time, step_count, timer_info[pwm_id].duty_step, timer_info[pwm_id].time_period);
         LOG_PBUS("  Time estimate: max=%dms, estimated=%dms (actual_steps_needed=%d)",
              total_time_max, total_time_estimated, actual_steps_needed);
+#endif
         
         bsp_motor_start_periodic_task(pwm_id);
         return 0; // 成功

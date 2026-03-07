@@ -129,7 +129,9 @@ static void on_motor_broadcast_receiver(broadcast_mask_id_t id, void *context, i
     switch (id.code) {
         case ID_BROADCAST_BREAST_PUMP_STATE_CHANGE:
             if (arg1 == BREAST_PUMP_BROADCAST_MODE_CHANGE) {
-                if (motor_obj->priv.pump_ctx && motor_obj->priv.pump_ctx->is_on_working() > 0) {
+                breast_pump_mode = arg2;
+                if (motor_obj->priv.pump_ctx && motor_obj->priv.pump_ctx->is_on_working() > 0 &&
+                    motor_obj->priv.runtime.breast_pump_mode != breast_pump_mode) {
                     internal_start_motor(MOTOR_POLICY_CHANGE_MODE);
                 }
                 LOG_MOTOR("mode change: %d", breast_pump_mode);
@@ -244,6 +246,20 @@ int motor_is_can_play_now(void)
     return 1;
 }
 
+static uint8_t get_runtime_mode_type(uint8_t is_next_mode)
+{
+    if (is_next_mode) {
+        return motor_obj->priv.runtime.next_mode_type;
+    } else {
+        return motor_obj->priv.runtime.current_mode_type;
+    }
+}
+
+static uint32_t get_current_time_policy_remaining_time(void)
+{
+    return motor_obj->priv.runtime.time_policy_remaining_time;
+}
+
 /*
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
@@ -257,6 +273,8 @@ void *register_module_for_motor_manager_new(list_head_t *list_head)
     ptr->is_on_motor_task_running = is_on_motor_task_running;
     ptr->is_can_play_now = motor_is_can_play_now;
     ptr->get_runtime_policy_index = get_runtime_policy_index;
+    ptr->get_runtime_mode_type = get_runtime_mode_type;
+    ptr->get_current_time_policy_remaining_time = get_current_time_policy_remaining_time;
     ptr->synchronous_stop_motor = synchronous_stop_motor;
     motor_obj = ptr;
     

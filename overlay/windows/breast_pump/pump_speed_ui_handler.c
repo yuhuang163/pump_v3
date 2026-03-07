@@ -44,11 +44,9 @@ static void pump_ui_speed_status_syn(hdr_post_args_t *args)
     EXCEPTION_CHECK_VOID(proc->pump);
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_PUMP);
     if (proc->current_ui_type == PUMP_UI_TYPE_SPEED) {
-        int time_index = proc->pump->get_breast_pump_step_index();
-        if (time_index >= ROOT_BREAST_PUMP_STEP_MAX) {
-            time_index = 0;
-        }
-        proc->pump->set_breast_pump_setting(&proc->setting, time_index, true);
+        uint8_t time_index = proc->pump->get_breast_pump_step_index();
+        proc->pump->set_breast_pump_setting(&proc->setting, 
+            time_index >= ROOT_BREAST_PUMP_STEP_MAX ? 0 : time_index, true);
     }
 }
 
@@ -136,7 +134,7 @@ void switch_pump_speed_ui(ui_proc_pump_t *proc, bool is_increase)
 {
     EXCEPTION_CHECK_VOID(proc);
     EXCEPTION_CHECK_VOID(proc->pump);  
-    if (is_increase) {
+    if (is_increase == false) {
         if (proc->setting.speed < BREAST_PUMP_SPEED_HIGH) {
             proc->setting.speed++;
         } else {
@@ -166,7 +164,7 @@ void pump_speed_key_click_handler(ui_proc_pump_t *proc)
     EXCEPTION_CHECK_VOID(proc);
     EXCEPTION_CHECK_VOID(proc->pump);
     EXCEPTION_CHECK_VOID(proc->led);
-    proc->led->set_led_blink(PUMP_FREQ_SET_BL, PUMP_BLINK_PERIOD, PUMP_BLINK_TIMES, LED_STATUS_ON);
+
     if (proc->pump->is_on_working() == 0) {
         LOG_UI("pump is not working, ignore.");
         return;
@@ -176,11 +174,9 @@ void pump_speed_key_click_handler(ui_proc_pump_t *proc)
         LOG_UI("pump is breastfeeding mode, ignore.");
         return;
     }
+    proc->led->set_led_blink(PUMP_FREQ_SET_BL, PUMP_BLINK_PERIOD, PUMP_BLINK_TIMES, LED_STATUS_ON);
     show_pump_speed_ui(proc);
     EXCEPTION_CHECK_VOID(proc->motor);
-    int time_index = proc->pump->get_breast_pump_step_index();
-    if (time_index >= ROOT_BREAST_PUMP_STEP_MAX) {
-        time_index = 0;
-    }
-    proc->pump->get_breast_pump_setting(&proc->setting, time_index);
+    uint8_t time_index = proc->pump->get_breast_pump_step_index();
+    proc->pump->get_breast_pump_setting(&proc->setting, time_index >= ROOT_BREAST_PUMP_STEP_MAX ? 0 : time_index);
 }

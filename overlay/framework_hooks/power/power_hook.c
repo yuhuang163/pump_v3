@@ -368,7 +368,7 @@ static int on_post_power_init_route(struct power_manager_context *ctx)
         if (key && key->is_key_triggered(KEY_INDEX_POWER)) {
             ctx->priv.is_power_on_timeout_detect = 1;
         }
-        POST_TASK_HANDLER_NO_DELAY_ARG1(system_power_event_cb, ctx, HDR_ACTION_POWER_ON,
+        POST_TASK_HANDLER_DELAYED_ARG2(system_power_event_cb, 500, HDR_ACTION_POWER_ON, ctx,
             POWER_ON_VBUS_PLUG_IN_TASK_NAME);
         return 0;
     }

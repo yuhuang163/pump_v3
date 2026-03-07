@@ -3,7 +3,6 @@
 *****************************************************************************************
 */
 #include "root_common_api.h" // IWYU pragma: keep
-#include "src/misc/lv_color.h"
 #include "ui_img_define.h" // IWYU pragma: keep
 #include "ui_page_define.h" // IWYU pragma: keep
 #include "ui_manager.h" // IWYU pragma: keep
@@ -92,7 +91,7 @@ static const uint16_t bf_mode_component_ids[BF_MODE_COUNT] = {
 
 static const char *bf_mode_name[BF_MODE_COUNT] = {
     "Custom", /// 已使用过的个性化模式
-    "Regular Pumping", /// 常规韵律模式
+    "Ragular Pumping", /// 常规韵律模式
     "Milk Boost", /// 2+8奶量提升模式
     "Power Pumping", /// PP追奶模式
     "Lactation Kickstart", /// 开奶模式
@@ -105,7 +104,7 @@ static const char *bf_mode_desc[BF_MODE_COUNT] = {
     "Smooth, gradual suction\nto help improve low milk\nsupply.",
     "Gentle, frequent\nstimulation to trigger\nmultiple let-downs.",
     "Initiates, builds, and\nmaintains a healthy milk\nsupply.",
-    "Effectively empties\nhindmilk\nto move on with ease.",
+    "Effectively empties\nhindmilk to move on with\nease.",
 };
 
 #if IS_SUPPORT_MODE_COMP_BG
@@ -223,12 +222,16 @@ static void update_slot_content(ui_manager_context_t *thiz, bf_circle_slot_e slo
         return;
     }
 
+    breast_pump_manager_context_t *pump_ctx = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
+    EXCEPTION_CHECK_VOID(pump_ctx);
+
     uint16_t res_id = bf_mode_component_ids[mode_idx];
     if (bf_mode_info->slot_res_id[slot] != res_id) {
         if (bf_mode_info->slot_res_id[slot] != 0) {
             common_ui_img_resource_deinit(thiz, &bf_mode_info->mode_component_info[slot]);
             memset(&bf_mode_info->mode_component_info[slot], 0, sizeof(bf_mode_info->mode_component_info[slot]));
         }
+
         common_ui_img_resource_init(thiz, res_id, &bf_mode_info->mode_component_info[slot]);
         if (bf_mode_info->mode_component_info[slot].data != NULL) {
             lv_fs_make_path_from_buffer(&bf_mode_info->mode_component_path[slot],
@@ -240,7 +243,14 @@ static void update_slot_content(ui_manager_context_t *thiz, bf_circle_slot_e slo
             bf_mode_info->slot_res_id[slot] = res_id;
         }
     }
-
+    uint8_t last_mode_idx = pump_ctx->get_breast_pump_mode_by_type(BREAST_PUMP_MODE_TYPE_BREASTFEEDING, 1);
+    last_mode_idx = last_mode_idx - BREAST_PUMP_CUSTOM_MODE;
+    LOG_UI("last_mode_idx: %d, mode_idx: %d, name: %s", last_mode_idx, mode_idx, bf_mode_name[mode_idx]);
+    if (last_mode_idx == mode_idx) {
+        lv_obj_clear_flag(bf_mode_info->last_usage_icon[slot], LV_OBJ_FLAG_HIDDEN);
+    } else {
+        lv_obj_add_flag(bf_mode_info->last_usage_icon[slot], LV_OBJ_FLAG_HIDDEN);
+    }
     lv_label_set_text(title, bf_mode_name[mode_idx]);
     lv_label_set_text(desc, bf_mode_desc[mode_idx]);
     /* Keep multi-line description top visually stable across modes */

@@ -47,6 +47,14 @@ void common_ui_bg_update(ui_manager_context_t *thiz, lv_obj_t *parent)
         return;
     }
 
+    /* Avoid reusing a global static image object across different parent roots. */
+    if (backgroud != NULL && lv_obj_is_valid(backgroud)) {
+        lv_obj_t *bg_parent = lv_obj_get_parent(backgroud);
+        if (bg_parent != parent) {
+            backgroud = NULL;
+        }
+    }
+
     if (backgroud == NULL || !lv_obj_is_valid(backgroud)) {
         backgroud = lv_image_create(parent);
         EXCEPTION_CHECK_VOID(backgroud);

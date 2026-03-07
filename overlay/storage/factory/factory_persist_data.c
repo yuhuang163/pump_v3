@@ -103,6 +103,11 @@ int write_factory_age_flag_to_flash(store_func_args_t args)
 {
     int ret = 0;
     EXCEPTION_CHECK_INT(args.ctx);
+    EXCEPTION_CHECK_INT(args.val);
+    if (args.arg1 < 0 || args.arg1 >= FACTORY_AGE_INFO_MAX) {
+        LOGE("age index: %d, out of range", args.arg1);
+        return -1;
+    }
     factory_flag_info_t *flag_info = &args.ctx->priv.factory_data.flag_info;
     factory_age_info_t *age_info = &flag_info->age_info[args.arg1];
     EXCEPTION_CHECK_INT(age_info);
@@ -277,6 +282,10 @@ int read_factory_deploy_flag_from_ram(store_func_args_t args)
 int read_factory_age_flag_from_ram(store_func_args_t args)
 {
     EXCEPTION_CHECK_INT(args.ctx);
+    if (args.arg1 < 0 || args.arg1 >= FACTORY_AGE_INFO_MAX) {
+        LOGE("age index: %d, out of range", args.arg1);
+        return -1;
+    }
     factory_flag_info_t *flag_info = &args.ctx->priv.factory_data.flag_info;
     int *tmp = (int *)args.val;
     EXCEPTION_CHECK_INT(tmp);
@@ -287,6 +296,10 @@ int read_factory_age_flag_from_ram(store_func_args_t args)
 int read_factory_age_time_from_ram(store_func_args_t args)
 {
     EXCEPTION_CHECK_INT(args.ctx);
+    if (args.arg1 < 0 || args.arg1 >= FACTORY_AGE_INFO_MAX) {
+        LOGE("age index: %d, out of range", args.arg1);
+        return -1;
+    }
     factory_flag_info_t *flag_info = &args.ctx->priv.factory_data.flag_info;
     EXCEPTION_CHECK_INT(flag_info);
     uint32_t *tmp = (uint32_t *)args.val;
@@ -298,6 +311,10 @@ int read_factory_age_time_from_ram(store_func_args_t args)
 int read_factory_age_cycle_from_ram(store_func_args_t args)
 {
     EXCEPTION_CHECK_INT(args.ctx);
+    if (args.arg1 < 0 || args.arg1 >= FACTORY_AGE_INFO_MAX) {
+        LOGE("age index: %d, out of range", args.arg1);
+        return -1;
+    }
     factory_flag_info_t *flag_info = &args.ctx->priv.factory_data.flag_info;
     EXCEPTION_CHECK_INT(flag_info);
     uint32_t *tmp = (uint32_t *)args.val;

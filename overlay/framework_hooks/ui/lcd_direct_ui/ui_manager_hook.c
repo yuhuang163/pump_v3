@@ -11,7 +11,7 @@
 *****************************************************************************************
 */
 #define UI_ANIMATION_STOP_TIMEOUT               (1000)
-#define IS_PRINT_LVGL_MEM_MONITOR               1
+#define IS_PRINT_LVGL_MEM_MONITOR               0
 #define UI_LVGL_MSG_QUEUE_NUM                   4
 #define UI_BL_ON_LEVEL_MIN                      (20) /// 开灯最低亮度
 #define UI_BL_ON_LEVEL_RANGE                    (50) /// 开灯调节范围大小 20 - 50
@@ -78,7 +78,7 @@ static void set_backlight_onoff(ui_manager_context_t *thiz, bool onoff)
     thiz->priv.ui_backlight_onoff = onoff;
     LOG_UI("lcd backlight:%d", onoff);
 #if (IS_UI_BACKLIGHT_ADAPTIVE == 0)
-    set_lcd_backlight_level_internal(thiz, onoff ? 100 : 0);
+    set_backlight_level_internal(thiz, onoff ? 100 : 0);
 #endif
 }
 
