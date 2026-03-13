@@ -53,57 +53,8 @@ static void set_key_backlight(led_manager_context_t *thiz, uint8_t level)
             .un.luminous.level = 0,
         },
     };
-#if 0
-    if (level == 0) {
-        thiz->priv.led_dev->ioctl(thiz->priv.led_dev, OP_CODE_LED_STATUS_SET, (void *)&msg);
-    } else {
-        if (level > LED_LEVEL_MAX) {
-            level = LED_LEVEL_MAX;
-        }
-        breast_pump_manager_context_t *pump = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
-        EXCEPTION_CHECK_VOID(pump);
-        uint8_t control_type = pump->get_breast_pump_control_type();
-        for (int i = 0; i < LENGTH_OF_ARRAY(key_led_index); i++) {
-            msg.led_index = key_led_index[i];
-            msg.led_status.un.luminous.level = level;
-            thiz->priv.led_dev->ioctl(thiz->priv.led_dev, OP_CODE_LED_STATUS_SET, (void *)&msg);
-        }
-
-        if (control_type == BREAST_PUMP_CONTROL_TYPE_LEFT) {
-            msg.led_index = PUMP_RIGHT_CONTROL_BL;
-            msg.led_status.un.luminous.level = level / 2;
-            thiz->priv.led_dev->ioctl(thiz->priv.led_dev, OP_CODE_LED_STATUS_SET, (void *)&msg);
-            msg.led_index = PUMP_LEFT_CONTROL_BL;
-            msg.led_status.un.luminous.level = level;
-            thiz->priv.led_dev->ioctl(thiz->priv.led_dev, OP_CODE_LED_STATUS_SET, (void *)&msg);
-
-        } else if (control_type == BREAST_PUMP_CONTROL_TYPE_RIGHT) {
-            msg.led_index = PUMP_LEFT_CONTROL_BL;
-            msg.led_status.un.luminous.level = level / 2;
-            thiz->priv.led_dev->ioctl(thiz->priv.led_dev, OP_CODE_LED_STATUS_SET, (void *)&msg);
-            msg.led_index = PUMP_RIGHT_CONTROL_BL;
-            msg.led_status.un.luminous.level = level;
-            thiz->priv.led_dev->ioctl(thiz->priv.led_dev, OP_CODE_LED_STATUS_SET, (void *)&msg);
-        } else {
-            msg.led_index = PUMP_LEFT_CONTROL_BL;
-            msg.led_status.un.luminous.level = level;
-            thiz->priv.led_dev->ioctl(thiz->priv.led_dev, OP_CODE_LED_STATUS_SET, (void *)&msg);
-            msg.led_index = PUMP_RIGHT_CONTROL_BL;
-            msg.led_status.un.luminous.level = level;
-            thiz->priv.led_dev->ioctl(thiz->priv.led_dev, OP_CODE_LED_STATUS_SET, (void *)&msg);
-        }
-        uint8_t mode = pump->get_breast_pump_mode();
-        LOG_MISC("mode: %d, is common mode: %d", mode, PUMP_IS_COMMON_MODE(mode));
-        if (PUMP_IS_COMMON_MODE(mode)) {
-            msg.led_index = PUMP_FREQ_SET_BL;
-            msg.led_status.un.luminous.level = level;
-            thiz->priv.led_dev->ioctl(thiz->priv.led_dev, OP_CODE_LED_STATUS_SET, (void *)&msg);
-        }
-    }
-#else
     msg.led_status.un.luminous.level = level;
     thiz->priv.led_dev->ioctl(thiz->priv.led_dev, OP_CODE_LED_STATUS_SET, (void *)&msg);
-#endif
 }
 
 static void set_night_light_level_internal(led_manager_context_t *thiz, uint8_t level)

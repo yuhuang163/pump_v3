@@ -24,12 +24,21 @@ extern "C" {
 #endif
 #define LVGL_HDR_TASK_PERIOD (16)
 
+#define LVGL_SNAP_SHORT_SIZE      3   /// 会占用lvgl静态内存
+
 typedef enum {
     ANI_TIMER_DRAW_BEFORE = 0, /// 背景合并之前
     ANI_TIMER_DRAW_AFTER,      /// 背景合并之后
     ANI_TIMER_DRAW_FINISH,     /// 退出.
     ANI_POPUP_DISPLAY_FINISH,  /// 弹窗UI显示完成
 } ui_ani_progress_state_e;
+
+typedef enum {
+    UI_SNAP_SHOT_COMMON_BG = 0, /// 通用PNG背景
+    UI_SNAP_SHOT_PUMP_LEVEL_BG,  /// 力度调节页面背景
+    UI_SNAP_SHOT_PUMP_MODE_BG,  /// 力度调节页面背景
+    UI_SNAP_SHOT_ID_MAX
+} ui_snap_shot_id_e;
 
 /// 动画绘制进度回调.
 typedef void (*progress_cb_fptr)(void *user_data, int index, ui_ani_progress_state_e state);
@@ -84,6 +93,7 @@ typedef struct ui_manager_context {
         thread_context_t ui_hdr_thd; /// UI显示调度线程
     #if IS_SUPPORT_LVGL
             lv_timer_t *lv_timer; /// LVGL定时器
+            lv_draw_buf_t *lv_snap_shot[LVGL_SNAP_SHORT_SIZE];  /// 背景快照，避免重复解码
     #else
             os_timer_id lv_timer; /// LVGL定时器
     #endif
@@ -115,6 +125,7 @@ typedef struct ui_manager_context {
 
 #if IS_SUPPORT_LVGL
     bool (*is_lvgl_initialized)(struct ui_manager_context *thiz);
+    lv_draw_buf_t *(*get_lvgl_snap_shot)(ui_snap_shot_id_e snapshot_id);
 #endif
     /// 外部hook点.
     struct __ui_manager_hook {

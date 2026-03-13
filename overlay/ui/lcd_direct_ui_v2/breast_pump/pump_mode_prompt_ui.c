@@ -80,7 +80,7 @@ const static mode_prompt_icon_info_t mode_prompt_icon_infos[MODE_PROMPT_ICON_MAX
 const static mode_prompt_text_info_t mode_prompt_text_infos[MODE_PROMPT_TEXT_COUNT] = {
     { "Switching to Stimulation Mode", (72), (210), &lv_font_oppo_sans_16_medium ,0},
     { "Switching to Expression Mode", (78), (210), &lv_font_oppo_sans_16_medium ,0},
-    { "Switching to Mix Mode", (106), (210), &lv_font_oppo_sans_16_medium ,0},
+    { "Switching to Mixed Mode", (106), (210), &lv_font_oppo_sans_16_medium ,0},
     { "Switching to Relax Mode", (98), (210), &lv_font_oppo_sans_16_medium ,0},
 };
 /*

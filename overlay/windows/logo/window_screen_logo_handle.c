@@ -14,6 +14,8 @@
 */
 #define PAGE_STATIC_NAME                            logo
 #define PAGE_NAME_STR                               "logo"
+#define LOGO_UI_KEY_CODE                            (KEY_CODE_KNOB_RIGHT | KEY_CODE_KNOB_LEFT)
+#define LOGO_UI_KEY_TYPE                            KEY_EVENT_CLICK
 
 /*
 * LOCAL VARIABLE DEFINITIONS
@@ -30,6 +32,21 @@ INIT_WINDOW_CONTEXT();
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
+#if IS_SUPPORT_LOGO_BG_COLOR_TEST
+static int on_logo_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t keytype)
+{
+    ui_proc_logo_t *proc = user_data;
+    EXCEPTION_CHECK_INT(proc);
+    WINDOW_CONTEXT_GUARD_INT(proc, ID_WINDOW_LOGO, 0);
+    if (keycode == KEY_CODE_KNOB_LEFT) {
+        proc->test_page_count--;
+    } else if (keycode == KEY_CODE_KNOB_RIGHT) {
+        proc->test_page_count++;
+    }
+    return 0;
+}
+#endif
+
 static int entry_event_cb(window_lift_cycle_e new_state,
     const struct window_context *thiz, const struct window_context *old_scr)
 {
@@ -37,7 +54,12 @@ static int entry_event_cb(window_lift_cycle_e new_state,
     window_manager_context_t *wm = proc->wm;
     ui_manager_context_t *ui = proc->ui;
     if (new_state == ID_SCR_STATE_ON_RESUME) {
-
+#if IS_SUPPORT_LOGO_BG_COLOR_TEST
+        if (proc->key) {
+            proc->key->add_keyevent_handler("home_wm", proc, LOGO_UI_KEY_CODE, LOGO_UI_KEY_TYPE,
+                on_logo_ui_keyevent_hdr, KEY_HANDLER_SHIELD_LEVEL_1);
+        }
+#endif
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);
         start_logo_ui_animation(proc);
@@ -53,6 +75,11 @@ static int exit_event_cb(window_lift_cycle_e new_state,
         case ID_SCR_STATE_ON_PAUSE:
             LOG_WM("==>%s window on pause", PAGE_NAME_STR);
             stop_logo_ui_animation(proc);
+#if IS_SUPPORT_LOGO_BG_COLOR_TEST
+            if (proc->key) {
+                proc->key->remove_keyevent_handler(on_logo_ui_keyevent_hdr);
+            }
+#endif
             break;
         case ID_SCR_STATE_ON_DESTORY:
             LOG_WM("%s window exit: u_free: %p", PAGE_NAME_STR, proc);
@@ -86,6 +113,7 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
     proc->battery = (battery_manager_context_t *)find_module(ID_MODULE_BATTERY);
     proc->led = (led_manager_context_t *)find_module(ID_MODULE_LED);
     proc->ble = (ble_manager_context_t *)find_module(ID_MODULE_BLE);
+    proc->key = (key_input_context_t *)find_module(ID_MODULE_KEY_INPUT);
     window_context_t *w_ctx = &proc->w_ctx;
     w_ctx->new_window_id = window_id;
     w_ctx->evt_cb_entry = entry_event_cb;

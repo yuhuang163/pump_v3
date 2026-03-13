@@ -557,7 +557,7 @@ static int res_ui_img_data_load_impl(uint16_t img_id, res_img_info_t *out)
     }
 #endif
     out->id = info.img_id;
-    out->crc16 = info.crc16;
+    out->crc16 = data_crc16;
     out->size = info.data_size;
     return 0;
 

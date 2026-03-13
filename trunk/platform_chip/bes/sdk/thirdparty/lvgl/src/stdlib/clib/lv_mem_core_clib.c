@@ -34,7 +34,8 @@
  /**********************
   *   GLOBAL FUNCTIONS
   **********************/
- static PSRAM_BSS_LOC uint8_t lv_heap_mem[LV_MEM_SIZE] ALIGNED(64);
+  /// 20260310 root lvgl heap crash
+ static PSRAM_NC_BSS_LOC uint8_t lv_heap_mem[LV_MEM_SIZE] ALIGNED(64);
  static heap_handle_t lv_custom_heap = NULL;
  void lv_mem_init(void)
  {

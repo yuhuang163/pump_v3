@@ -12,13 +12,15 @@ extern "C" {
 #include "app_old_protocol_parser.h"
 
 typedef enum {
-    APP_OLD_COMM_SYS_STOP      = 0x00,
+    APP_OLD_COMM_SYS_FINISH      = 0x00,
     APP_OLD_COMM_SYS_RUN       = 0x01,
     APP_OLD_COMM_SYS_CHANRGE   = 0x02,
     APP_OLD_COMM_SYS_OFF       = 0x03,
     APP_OLD_COMM_SYS_RESET     = 0x05,
-    APP_OLD_COMM_PUMP_STOP_IN_CHARGE = 0x06,
-    APP_OLD_COMM_PUMP_RUN_IN_CHARGE = 0x07,
+    APP_OLD_COMM_SYS_PAUSE     =  0x06,
+    APP_OLD_COMM_PUMP_FINISH_IN_CHARGE = 0x07,
+    APP_OLD_COMM_PUMP_RUN_IN_CHARGE = 0x08,
+    APP_OLD_COMM_PUMP_PAUSE_IN_CHARGE = 0x09,
 } app_old_commd_sys_status_e;
 
 typedef enum {
@@ -60,6 +62,11 @@ typedef enum {
     APP_OLD_COMM_TASTE_STATUS_RUN       = 0x01,
     APP_OLD_COMM_TASTE_STATUS_EXIT      = 0x02,
 } app_old_comm_taste_status_ctrl_e;
+
+typedef enum {
+    APP_OLD_COMM_PUMP_CTRL_STOP      = 0x00,
+    APP_OLD_COMM_PUMP_CTRL_RUN       = 0x01,
+} app_old_comm_pump_ctrl_e;
 
 typedef struct {
     uint8_t pump_mode;
@@ -109,13 +116,14 @@ void app_old_comm_handle_get_status_req(app_old_commd_l_r_ctrl_e lr_ct);
 void app_old_comm_handle_ctrl_dev_req(uint8_t cal, uint8_t *cab);
 void app_old_comm_handle_set_user_define_req(uint8_t cal, uint8_t *cab);
 void app_old_comm_handle_get_dev_info_req(uint8_t cal, uint8_t *cab);
-void app_old_comm_handle_set_user_define_wr_flash_req(uint8_t cal, uint8_t *cab);
+void app_old_comm_handle_set_trail_user_define_req(uint8_t cal, uint8_t *cab);
 void app_old_comm_handle_ctrl_taste_dev_req(uint8_t cal, uint8_t *cab);
 void app_old_comm_handle_ctrl_reset_dev_req(uint8_t cal, uint8_t *cab);
 void app_old_comm_handle_get_taste_dev_status_req(uint8_t cal, uint8_t *cab);
 void app_old_comm_handle_report_taste_dev_status(servers_old_protocol_publish_data_id_e id, void *val);
 void app_old_comm_handle_get_record_num_req(uint8_t cal, uint8_t *cab);
 void app_old_comm_handle_get_record_data_req(uint8_t cal, uint8_t *cab);
+void app_old_comm_handle_clear_trail_custom_mode_req(uint8_t cal, uint8_t *cab);
 #ifdef __cplusplus
 }
 #endif

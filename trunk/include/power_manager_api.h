@@ -31,6 +31,7 @@ typedef enum {
 typedef enum {
     ID_SYS_PM_RESUME = 100, /// 系统恢复状态.
     ID_SYS_PM_IDLE, /// 系统空闲状态.
+    ID_SYS_PM_WILL_SUSPEND, /// 系统即将进入休眠状态.
     ID_SYS_PM_SUSPEND, /// 系统休眠状态.
     ID_SYS_PM_MAX
 } system_pm_state_e;
@@ -39,6 +40,7 @@ typedef enum {
     PM_BROADCAST_SYS_RESUME = 100, /// 系统空闲进入.
     PM_BROADCAST_SYS_IDLE, /// 系统空闲状态.
     PM_BROADCAST_SYS_IDLE_RELEASE, /// 系统空闲释放.
+    PM_BROADCAST_SYS_WILL_SUSPEND, /// 系统即将进入休眠状态.
     PM_BROADCAST_SYS_SUSPEND, /// 系统休眠状态.
     PM_BROADCAST_USER_REQUEST_SUSPEND, /// 用户请求进入休眠状态.
     PM_BROADCAST_BLE_REQUEST_SUSPEND, /// 蓝牙请求进入休眠状态.

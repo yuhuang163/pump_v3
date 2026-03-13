@@ -127,5 +127,13 @@ void system_power_off_handle(ui_proc_system_t *proc)
 {
     EXCEPTION_CHECK_VOID(proc);
     start_power_off_ui_animation(proc);
+    int is_pump_working = 0; 
+    if (proc->pump) {
+        READ_PUMP_IS_WORKING(proc->pump, is_pump_working);
+        if (is_pump_working) {
+            LOG_WM("power off, stop breast pump work.");
+            WRITE_PUMP_WORK_STATUS(proc->pump, BREAST_PUMP_PAUSE);
+        }
+    }
     POST_TASK_HANDLER_DELAYED_ARG1(power_off_cb, POWER_OFF_DELAY_TIME, proc, POWER_OFF_TASK_NAME);
 }

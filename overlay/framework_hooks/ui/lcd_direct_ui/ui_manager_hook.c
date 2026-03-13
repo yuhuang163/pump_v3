@@ -3,8 +3,11 @@
 *****************************************************************************************
 */
 #include "root_common_api.h" // IWYU pragma: keep
+#include "src/misc/lv_color.h"
 #include "ui_img_define.h" // IWYU pragma: keep
 #include "ui_manager_api.h"
+#include "ui_manager.h"
+#include <stdint.h>
 
 /*
 * DEFINES
@@ -22,12 +25,6 @@
 #define IS_UI_BACKLIGHT_ADAPTIVE                (0)
 #endif
 
-/*
-* LOCAL VARIABLE DEFINITIONS
-*****************************************************************************************
-*/
-static ui_manager_context_t *ui_ctx = NULL;
-
 typedef enum {
     UI_LVGL_MSG_CMD_ANIM_INIT = 1,
     UI_LVGL_MSG_CMD_ANIM_DEINIT,
@@ -43,9 +40,24 @@ typedef struct {
     ui_play_info_t play_info;
 } ui_lvgl_msg_t;
 
-static void change_images_cb(lv_timer_t *t);
-static void reset_play_count_cb(ui_animation_play_t *play);
-static void ui_pm_suspend_on_ui_thread(struct ui_manager_context *thiz);
+typedef struct {
+    uint16_t img_id;
+    uint8_t is_need_alpha;
+} ui_snap_shot_info_t;
+
+
+/*
+* LOCAL VARIABLE DEFINITIONS
+*****************************************************************************************
+*/
+static ui_manager_context_t *ui_ctx = NULL;
+static lv_obj_t *snap_shot_obj = NULL;
+static res_img_info_t snap_shot_info = {0};
+const static ui_snap_shot_info_t snap_shot_infos[LVGL_SNAP_SHORT_SIZE] = {
+    {RESOURCE_ID_PUMP_HOME_BG, false},
+    {RESOURCE_ID_PUMP_LEVEL_BACKGROUND_ICON, false},
+    {RESOURCE_ID_MODE_BG_ICON, true},
+};
 
 /*
 * GLOBAL VARIABLE DEFINITIONS
@@ -56,6 +68,10 @@ static void ui_pm_suspend_on_ui_thread(struct ui_manager_context *thiz);
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
+static void change_images_cb(lv_timer_t *t);
+static void reset_play_count_cb(ui_animation_play_t *play);
+// static void ui_pm_suspend_on_ui_thread(struct ui_manager_context *thiz);
+
 static void set_backlight_level_internal(ui_manager_context_t *thiz, uint8_t level)
 {
     EXCEPTION_CHECK_VOID(thiz && thiz->priv.panel_dev);
@@ -244,7 +260,6 @@ static void ui_animation_overlay_init_on_ui_thread(struct ui_manager_context *th
     ani->display_prepare_cb = play_info->display_prepare_cb;
     ani->display_remove_cb = play_info->display_remove_cb;
     thiz->play_animation_unlock(play_info->tag);
-
     if (ani->display_prepare_cb) {
         lv_lock();
         ani->display_prepare_cb(thiz);
@@ -289,6 +304,7 @@ static void lvgl_display_handler(struct ui_manager_context *thiz)
                 LOGE("time error!!!!!!!: %lu", (unsigned long)ms_till_next);
                 ms_till_next = 200;
             }
+
             if (ms_till_next == 0) {
                 ms_till_next = 1;
             }
@@ -321,7 +337,7 @@ static void lvgl_display_handler(struct ui_manager_context *thiz)
                 ui_animation_overlay_deinit_on_ui_thread(thiz);
                 break;
             case UI_LVGL_MSG_CMD_PM_SUSPEND:
-                ui_pm_suspend_on_ui_thread(thiz);
+                // ui_pm_suspend_on_ui_thread(thiz);
                 break;
             default:
                 break;
@@ -405,24 +421,38 @@ static void ui_animation_overlay_deinit(struct ui_manager_context *thiz)
     MSG_QUEUE_SEND(thiz->priv.ui_hdr_thd.msg_id, &msg, 0);
 }
 
-static void ui_pm_suspend_on_ui_thread(struct ui_manager_context *thiz)
+static void ui_snap_shot_perpare(struct ui_manager_context *thiz)
 {
     EXCEPTION_CHECK_VOID(thiz);
-    thiz->priv.is_playing_ui_animation = false;
-    thiz->priv.is_playing_ui_overlay = false;
-    if (thiz->priv.lv_timer != NULL) {
-        lv_timer_t *timer_to_delete = thiz->priv.lv_timer;
-        thiz->priv.lv_timer = NULL;
-        lv_timer_pause(timer_to_delete);
-        lv_timer_delete(timer_to_delete);
-        LOG_UI("==>pm suspend: lv_timer deleted:%p", timer_to_delete);
+
+    if (snap_shot_obj == NULL || !lv_obj_is_valid(snap_shot_obj)) {
+        snap_shot_obj = lv_image_create(lv_screen_active());
+        EXCEPTION_CHECK_VOID(snap_shot_obj);
+        lv_obj_align(snap_shot_obj, LV_ALIGN_CENTER, 0, 0);
+        lv_obj_set_style_image_opa(snap_shot_obj, LV_OPA_COVER, 0);
+        lv_obj_add_flag(snap_shot_obj, LV_OBJ_FLAG_HIDDEN); /// 隐藏
     }
+    
+    for(uint8_t i = 0; i < LVGL_SNAP_SHORT_SIZE; i++) {
+        common_ui_img_resource_init(thiz, snap_shot_infos[i].img_id, &snap_shot_info);
+        EXCEPTION_CHECK_VOID(snap_shot_info.data);
+        lv_fs_path_ex_t background_path;
+        lv_fs_make_path_from_buffer(&background_path, LV_FS_MEMFS_LETTER, snap_shot_info.data,
+                snap_shot_info.size, "png");
+        lv_image_set_src(snap_shot_obj, (const void *)&background_path);
+        lv_refr_now(NULL); /// 等待渲染完成后再创建快照
+        thiz->priv.lv_snap_shot[i] = lv_snapshot_take(snap_shot_obj, 
+            snap_shot_infos[i].is_need_alpha ? LV_COLOR_FORMAT_NATIVE_WITH_ALPHA : LV_COLOR_FORMAT_NATIVE);
+    }
+    common_ui_img_resource_deinit(thiz, &snap_shot_info);
+    LVGL_OBJ_DELETE(snap_shot_obj);
 }
 
 static void ui_thread_init_route(struct ui_manager_context *thiz)
 {
     CREATE_MSG_TYPE_QUEUE(&thiz->priv.ui_hdr_thd.msg_id, UI_LVGL_MSG_QUEUE_NUM, sizeof(ui_lvgl_msg_t));
     thiz->priv.lvgl_initialized = true;
+    ui_snap_shot_perpare(thiz);
     LOG_UI("==>lvgl init done");
 }
 
@@ -434,7 +464,8 @@ static void lcd_ready_callback(int type, int status)
     }
 }
 
-static void on_ui_broadcast_receiver_route(broadcast_mask_id_t id, void *context, int arg1, int arg2, broadcast_priv_data_t *pdata)
+static void on_ui_broadcast_receiver_route(broadcast_mask_id_t id, void *context, int arg1,
+    int arg2, broadcast_priv_data_t *pdata)
 {
     ui_manager_context_t *ui = context;
     EXCEPTION_CHECK_VOID(ui);

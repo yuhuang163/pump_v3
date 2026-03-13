@@ -61,8 +61,9 @@ void pump_ui_change_hdr_remove(ui_proc_pump_t *proc)
 void pump_power_key_handler(ui_proc_pump_t *proc)
 {
     EXCEPTION_CHECK_VOID(proc);
-    int status = proc->pump->get_breast_pump_status();
-    if (PUMP_NO_FINISH(status)) {
+    int pump_status = 0;
+    READ_PUMP_WORK_STATUS(proc->pump, pump_status);
+    if (PUMP_NO_FINISH(pump_status)) {
         pump_ui_change_hdr_remove(proc);
         show_pump_home_ui(proc);
     } else {

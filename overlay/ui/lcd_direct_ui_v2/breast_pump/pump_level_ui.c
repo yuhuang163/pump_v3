@@ -6,11 +6,8 @@
 #include "ui_img_define.h"
 #include "ui_page_define.h"
 #include "ui_manager.h"
-#include "window_screen_logo.h"
 #include "window_screen_pump.h"
 #include "breast_pump_ui.h"
-#include <stdint.h>
-#include <stdlib.h>
 
 /*
 * DEFINES
@@ -51,10 +48,6 @@
 typedef struct {
     lv_obj_t * root;
     lv_obj_t * background;
-    res_img_info_t background_info;
-    #if LV_USE_SNAPSHOT
-    lv_draw_buf_t *background_snapshot;
-    #endif
     lv_obj_t * level_image;                // 等级图片（1-15级）
     res_img_info_t level_image_info;        // 等级图片资源信息
     lv_obj_t * title_text;                        // 档位文字
@@ -67,7 +60,6 @@ typedef struct {
     lv_obj_t * text_level_digit2;                    // 等级数字标签（个位）
     lv_obj_t * add_label;                    // 加号文字标签    
     res_img_info_t add_label_info;            // 加号文字标签资源信息
-
     uint8_t force_update;
     uint8_t left_level;
     uint8_t right_level;
@@ -149,41 +141,22 @@ static void pump_level_root_bg_update(ui_manager_context_t *thiz)
         return;
     }
 
+#if LV_USE_SNAPSHOT
+    lv_draw_buf_t *background_snapshot = thiz->get_lvgl_snap_shot(UI_SNAP_SHOT_PUMP_LEVEL_BG);
+    EXCEPTION_CHECK_VOID(background_snapshot);
+#endif
+
     lv_fs_path_ex_t bg_img_path;
     if (level_info->background == NULL || !lv_obj_is_valid(level_info->background)) {
         level_info->background = lv_image_create(level_info->root);
         EXCEPTION_CHECK_VOID(level_info->background);
-        
-#if LV_USE_SNAPSHOT
-        if (level_info->background_snapshot != NULL) {
-            lv_draw_buf_destroy(level_info->background_snapshot);
-            level_info->background_snapshot = NULL;
-        }
-#endif
-        //先隐藏背景图片
-        lv_obj_add_flag(level_info->background, LV_OBJ_FLAG_HIDDEN);
-        common_ui_img_resource_init(thiz, RESOURCE_ID_PUMP_LEVEL_BACKGROUND_ICON, &level_info->background_info);
-        EXCEPTION_CHECK_VOID(level_info->background_info.data);
-        
-        lv_fs_make_path_from_buffer(&bg_img_path, LV_FS_MEMFS_LETTER, 
-            level_info->background_info.data, level_info->background_info.size, "png");
-        lv_image_set_src(level_info->background, (const void *)&bg_img_path);
         lv_obj_align(level_info->background, LV_ALIGN_CENTER, 0, 0);
-        
 #if LV_USE_SNAPSHOT
-        lv_refr_now(NULL);
-        level_info->background_snapshot = lv_snapshot_take(level_info->background, LV_COLOR_FORMAT_NATIVE_WITH_ALPHA);
-        if (level_info->background_snapshot == NULL) {
-            LOGE("Failed to create background snapshot");
-        }
+        lv_image_set_src(level_info->background, background_snapshot);
+#else
+        lv_obj_add_flag(level_info->background, LV_OBJ_FLAG_HIDDEN); /// 隐藏
 #endif
     }
-
-#if LV_USE_SNAPSHOT
-    if (level_info->background_snapshot != NULL && level_info->background != NULL) {
-        lv_image_set_src(level_info->background, level_info->background_snapshot);
-    }
-#endif
 }
 #endif
 
@@ -520,7 +493,7 @@ static void pump_level_text_level_lable_update(ui_manager_context_t *thiz)
         
         lv_fs_path_ex_t add_img_path;
         lv_fs_make_path_from_buffer(&add_img_path, LV_FS_MEMFS_LETTER, 
-            level_info->add_label_info.data, level_info->add_label_info.size, "png");
+            level_info->add_label_info.data, level_info->add_label_info.size, "baj");
         lv_image_set_src(level_info->add_label, (const void *)&add_img_path);
         lv_obj_align(level_info->add_label, LV_ALIGN_TOP_LEFT, 110, 162);
         lv_obj_clear_flag(level_info->add_label, LV_OBJ_FLAG_HIDDEN);
@@ -593,26 +566,15 @@ void ui_display_pump_level_remove(ui_manager_context_t *thiz)
     if (level_info == NULL) {
         return;
     }
-    
-    #if LV_USE_SNAPSHOT
-    if (level_info->background_snapshot != NULL) {
-        lv_draw_buf_destroy(level_info->background_snapshot);
-        level_info->background_snapshot = NULL;
-    }
-    #endif
-    
-    common_ui_img_resource_deinit(thiz, &level_info->background_info);
     common_ui_img_resource_deinit(thiz, &level_info->level_image_info);
     common_ui_img_resource_deinit(thiz, &level_info->add_label_info);
-    
-    // 安全删除所有LVGL对象
+    /// 安全删除所有LVGL对象
     LVGL_OBJ_DELETE(level_info->background);
     LVGL_OBJ_DELETE(level_info->level_image);
     LVGL_OBJ_DELETE(level_info->add_label);
     LVGL_OBJ_DELETE(level_info->text_level_digit1);
     LVGL_OBJ_DELETE(level_info->text_level_digit2);
     LVGL_OBJ_DELETE(level_info->root);
-    
     u_free(level_info);
     level_info = NULL;
 }

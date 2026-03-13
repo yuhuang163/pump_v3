@@ -72,6 +72,7 @@ const static put_store_ram_val_handle_t put_store_ram_val_list[] = {
     {STORE_ID_BREAST_PUMP_TIME, write_pump_time_to_ram},
     {STORE_ID_PUMP_SETTING_INFO, write_pump_setting_info_to_ram},
     {STORE_ID_PUMP_MODE_STEPS_INFO, write_pump_mode_steps_info_to_ram},
+    {STORE_ID_PUMP_MODE_NAME_INFO, write_pump_mode_name_to_ram},
     {STORE_ID_PUMP_CONTROL_TYPE, write_pump_control_type_to_ram},
     {STORE_ID_SYS_NIGHT_LIGHT_ADAPTIVE_SWITCH, write_night_light_adaptive_switch_to_ram},
     {STORE_ID_SYS_AIRPLANE_MODE_STATE, write_airplane_mode_state_to_ram},
@@ -80,6 +81,7 @@ const static put_store_ram_val_handle_t put_store_ram_val_list[] = {
     {STORE_ID_BREAST_PUMP_MODE_WITH_TYPE, write_pump_mode_with_type_to_ram},
     {STORE_ID_MODE_UPDATE_FLAG, write_mode_update_flag_to_ram},
     {STORE_ID_SYS_BIND_STATUS, write_bind_status_to_ram},
+    {STORE_ID_PUMP_MODE_ACTIVATE_STATUS, write_pump_mode_activate_to_ram},
 };
 
 const static get_store_ram_val_handle_t get_store_ram_val_list[] = {
@@ -102,6 +104,7 @@ const static get_store_ram_val_handle_t get_store_ram_val_list[] = {
     {STORE_ID_BREAST_PUMP_TIME, read_pump_time_from_ram},
     {STORE_ID_PUMP_SETTING_INFO, read_pump_setting_info_from_ram},
     {STORE_ID_PUMP_MODE_STEPS_INFO, read_pump_mode_steps_info_from_ram},
+    {STORE_ID_PUMP_MODE_NAME_INFO, read_pump_mode_name_from_ram},
     {STORE_ID_PUMP_CONTROL_TYPE, read_pump_control_type_from_ram},
     {STORE_ID_SYS_NIGHT_LIGHT_ADAPTIVE_SWITCH, read_night_light_adaptive_switch_from_ram},
     {STORE_ID_SYS_AIRPLANE_MODE_STATE, read_airplane_mode_state_from_ram},
@@ -110,6 +113,7 @@ const static get_store_ram_val_handle_t get_store_ram_val_list[] = {
     {STORE_ID_BREAST_PUMP_MODE_WITH_TYPE, read_pump_mode_with_type_from_ram},
     {STORE_ID_MODE_UPDATE_FLAG, read_mode_update_flag_from_ram},
     {STORE_ID_SYS_BIND_STATUS, read_bind_status_from_ram},
+    {STORE_ID_PUMP_MODE_ACTIVATE_STATUS, read_pump_mode_activate_from_ram},
 };
 
 static storage_manager_context_t *thiz = NULL;
@@ -276,19 +280,19 @@ static void pump_user_data_sync_flash_cb(hdr_post_args_t *args)
         write_index = pump_data_head->head;
     }
 
-    pump_result_info_t *pump_data_body = (pump_result_info_t *)args->user_data;
-    if (pump_data_body == NULL) {
+    const pump_result_info_t *result_info = (pump_result_info_t *)args->user_data;
+    if (result_info == NULL) {
         breast_pump_manager_context_t *pump = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
         EXCEPTION_CHECK_VOID(pump);
-        pump_data_body = pump->get_breast_pump_result(BREAST_PUMP_RESULT_PUMPING);
+        READ_PUMP_RESULT_INFO(pump, BREAST_PUMP_RESULT_PUMPING, &result_info);
     }
-    EXCEPTION_CHECK_VOID(pump_data_body);
+    EXCEPTION_CHECK_VOID(result_info);
 
     store_func_args_t storage_args = {
         .ctx = thiz,
         .arg1 = write_index,
         .arg2 = 0,
-        .val = pump_data_body,
+        .val = (void *)result_info,
     };
     /// 先写入body，成功后再更新head，避免半更新状态
     int ret = write_pump_data_body_to_flash(storage_args);
@@ -347,7 +351,9 @@ static void storage_ram_sync_flash_cb(hdr_post_args_t *args)
     EXCEPTION_CHECK_VOID(pump);
     storage_manager_context_t *st = args->user_data;
     EXCEPTION_CHECK_VOID(st);
-    if (pump->is_on_working()) {
+    int is_pump_working = 0; 
+    READ_PUMP_IS_WORKING(pump, is_pump_working);
+    if (is_pump_working) {
         LOG_STORE("-->pump working, ignore ram sync flash");
         goto EXIT_LABEL;
     }

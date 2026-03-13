@@ -145,17 +145,19 @@ void negative_pressure_release(struct motor_manager_context *thiz)
 void breast_pump_policy_prepare(struct motor_manager_context *thiz, uint8_t action)
 {
     motor_policy_runtime_t *body = &thiz->priv.runtime;
-
     const motor_policy_manager_t *policy_obj = NULL;
+    int pump_mode = 0;
+    READ_PUMP_WORK_MODE(thiz->priv.pump_ctx, pump_mode);
+    char *mode_name = "unknow";
+    READ_PUMP_WORK_MODE_NAME(thiz->priv.pump_ctx, &mode_name);
     body->taste_run_flag = 0;//常规模式下，体验模式标志位清零
     if (action == MOTOR_USER_DEBUG_POLICY_START) {
         body->taste_run_flag = 1;
         policy_obj = thiz->priv.user_debug_policy;
         LOG_MOTOR("user debug policy");
     } else if (action == MOTOR_POLICY_CONTINUE) {
-        /// 判断泵奶模式是否发生变化，如果发生变化，则需要重新获取策略
-        if (body->breast_pump_mode == thiz->priv.pump_ctx->get_breast_pump_mode()) {
-            LOG_MOTOR("continue policy, step_index: %d", body->current_timed_policy_index);
+        if (body->breast_pump_mode == pump_mode) {
+            LOG_MOTOR("continue %s policy, step_index: %d", mode_name, body->current_timed_policy_index);
             body->current_policy_index = 0;
             negative_pressure_release(thiz);
             for (uint8_t i = 0; i < BREAST_PUMP_NUM; i++) {
@@ -163,18 +165,16 @@ void breast_pump_policy_prepare(struct motor_manager_context *thiz, uint8_t acti
                 pump_policy_info_reset(thiz, body, i);
             }
             return;
-        }
-        /// 泵奶模式发生变化，则需要重新获取策略
-        else {
+        } else {
             LOG_MOTOR("breast pump mode changed, need to restart policy");
-            body->breast_pump_mode = thiz->priv.pump_ctx->get_breast_pump_mode();
+            body->breast_pump_mode = pump_mode;
             policy_obj = breast_pump_mode_policy_get(thiz, body->breast_pump_mode);
-            LOG_MOTOR("%s mode policy", thiz->priv.pump_ctx->get_breast_pump_mode_name(body->breast_pump_mode));
+            LOG_MOTOR("%s mode policy", mode_name);
         }
     } else {
-        body->breast_pump_mode = thiz->priv.pump_ctx->get_breast_pump_mode();
+        body->breast_pump_mode = pump_mode;
         policy_obj = breast_pump_mode_policy_get(thiz, body->breast_pump_mode);
-        LOG_MOTOR("%s mode policy", thiz->priv.pump_ctx->get_breast_pump_mode_name(body->breast_pump_mode));
+        LOG_MOTOR("%s mode policy", mode_name);
     }
     body->manager = (motor_policy_manager_t *)policy_obj;
     EXCEPTION_CHECK_VOID(policy_obj);
@@ -206,8 +206,7 @@ void breast_pump_policy_prepare(struct motor_manager_context *thiz, uint8_t acti
         memcpy(&body->policy[i], &body->manager->head.policy, sizeof(motor_policy_node_t));
         pump_policy_info_reset(thiz, body, i);
     }
-
-    //策略重启通知app
+    /// 策略重启通知app
     servers_manager_context_t *servers_ctx = (servers_manager_context_t *)find_module(ID_MODULE_SERVERS);
     EXCEPTION_CHECK_VOID(servers_ctx && servers_ctx->hook);
     servers_publish_data_args_t args = {

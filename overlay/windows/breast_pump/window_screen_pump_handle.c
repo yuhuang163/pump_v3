@@ -114,7 +114,7 @@ void pump_knob_event_cb(ui_proc_pump_t *proc, uint8_t is_left)
             switch_breastfeeding_mode_ui(proc, is_left ? false : true);
             break;
         case PUMP_UI_TYPE_HOME:
-            switch_pump_control_type_ui(proc, BREAST_PUMP_CONTROL_TYPE_BILATERAL);
+            switch_pump_bilateral_control_type_ui_by_knob(proc, is_left);
             break;
         default:
             LOG_WM("unknow ui type: %d, ignore.", proc->current_ui_type);
@@ -204,21 +204,24 @@ static void on_pump_ui_broadcast_receive_cb(broadcast_mask_id_t id, void *contex
     EXCEPTION_CHECK_VOID(proc->pump);
     WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_PUMP);
     /// 获取泵奶状态.
-    int pump_status = proc->pump->get_breast_pump_status();
-    int pump_mode = proc->pump->get_breast_pump_mode();
-    int pump_working = proc->pump->is_on_working();
+    int pump_status = 0;
+    READ_PUMP_WORK_STATUS(proc->pump, pump_status);
+    int pump_mode = 0;
+    READ_PUMP_WORK_MODE(proc->pump, pump_mode);
+    int is_pump_working = 0; 
+    READ_PUMP_IS_WORKING(proc->pump, is_pump_working);
     /// 如果用户暂停，忽略.
     if (proc->user_pause != 0) {
         LOG_WM("user_pause ignore.");
         return;
     }
     LOG_WM("code: %lx, code_v2: %lx, flag: %d, status: %d, mode: %ld, working: %d, arg1: %d, arg2: %d.",
-         id.code, id.code_v2, proc->is_mode_changed_by_device, pump_status, pump_mode, pump_working, arg1, arg2);
+         id.code, id.code_v2, proc->is_mode_changed_by_device, pump_status, pump_mode, is_pump_working, arg1, arg2);
     switch (id.code) {
         case ID_BROADCAST_BREAST_PUMP_STATE_CHANGE: 
             if (arg1 == BREAST_PUMP_BROADCAST_MODE_CHANGE) {
                 if (!proc->is_mode_changed_by_device) {
-                    if (pump_working && PUMP_IS_GOING(pump_status)) {
+                    if (is_pump_working && PUMP_IS_GOING(pump_status)) {
                         REMOVE_ALL_HANDER_TASK();
                         LOG_WM("start pump state change task after %ds", PUMP_MODE_CHANGE_TIMEOUT);
                         POST_TASK_HANDLER_DELAYED_ARG5(pump_ui_common_cb, PUMP_MODE_CHANGE_TIMEOUT,
@@ -259,7 +262,9 @@ static int entry_event_cb(window_lift_cycle_e new_state,
     ui_proc_pump_t *proc = CONTAINER_OF(thiz, ui_proc_pump_t, w_ctx);
     EXCEPTION_CHECK_INT(proc);
     /// 获取泵奶控制类型
-    proc->info.control_type = proc->pump->get_breast_pump_control_type();
+    int control_type = 0;
+    READ_PUMP_LEVEL_CONTROL_TYPE(proc->pump, control_type);
+    proc->info.control_type = control_type;
     /// 处理窗口进入事件.
     if (new_state == ID_SCR_STATE_ON_RESUME) {
         LOG_WM("==>%s window on resume", PAGE_NAME_STR);
@@ -271,13 +276,13 @@ static int entry_event_cb(window_lift_cycle_e new_state,
         }
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);
-        if (proc->current_ui_type == PUMP_UI_TYPE_COMMON_MODE) {
+        if (proc->start_ui_type == PUMP_UI_TYPE_COMMON_MODE) {
             proc->current_ui_type = PUMP_UI_TYPE_NONE;
             pump_mode_key_click_handler(proc);
-        } else if (proc->current_ui_type == PUMP_UI_TYPE_BREASTFEEDING_MODE) {
+        } else if (proc->start_ui_type == PUMP_UI_TYPE_BREASTFEEDING_MODE) {
             proc->current_ui_type = PUMP_UI_TYPE_NONE;
             breastfeeding_mode_key_click_handler(proc);
-        } else if (proc->current_ui_type == PUMP_UI_TYPE_PUMPING) {
+        } else if (proc->start_ui_type == PUMP_UI_TYPE_PUMPING) {
             proc->current_ui_type = PUMP_UI_TYPE_NONE;
             switch_pump_status_ui(proc);
         } 
@@ -288,10 +293,11 @@ static int entry_event_cb(window_lift_cycle_e new_state,
 static void remove_breast_pump_result_cb(breast_pump_manager_context_t *pump)
 {
     EXCEPTION_CHECK_VOID(pump);
-    int status = pump->get_breast_pump_status();
-    if (status > BREAST_PUMP_IDLE && status < BREAST_PUMP_FINISH) {
-        LOG_WM("pump status: %d => set_breast_pump_status:FINISH", status);
-        pump->set_breast_pump_status(BREAST_PUMP_FINISH);
+    int pump_status = 0;
+    READ_PUMP_WORK_STATUS(pump, pump_status);
+    if (pump_status > BREAST_PUMP_IDLE && pump_status < BREAST_PUMP_FINISH) {
+        LOG_WM("pump status: %d => goto finish", pump_status);
+        WRITE_PUMP_WORK_STATUS(pump, BREAST_PUMP_FINISH);
     }
     LOG_WM("==>remove breast_pump_result_listener");
     pump->remove_breast_pump_result_listener(on_breast_pump_result_cb);
@@ -343,11 +349,11 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
     proc->margic = UI_WINDOW_MARGIC_CODE;
     LOG_WM("window entry extra arg1: %d.", extra->arg1);
     if (extra->arg1 == KEY_CODE_MODE) {
-        proc->current_ui_type = PUMP_UI_TYPE_COMMON_MODE;
+        proc->start_ui_type = PUMP_UI_TYPE_COMMON_MODE;
     } else if (extra->arg1 == KEY_CODE_START) {
-        proc->current_ui_type = PUMP_UI_TYPE_PUMPING;
+        proc->start_ui_type = PUMP_UI_TYPE_PUMPING;
     } else {
-        proc->current_ui_type = PUMP_UI_TYPE_BREASTFEEDING_MODE;
+        proc->start_ui_type = PUMP_UI_TYPE_BREASTFEEDING_MODE;
     }
     proc->wm = wm;
     proc->ui = (ui_manager_context_t *)find_module(ID_MODULE_UI);
@@ -370,7 +376,7 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
     register_broadcast_receiver(&proc->receiver);
     /// 配置泵奶管理器.
     if (proc->pump) {
-        proc->pump->set_breast_pump_status(BREAST_PUMP_IDLE);
+        WRITE_PUMP_WORK_STATUS(proc->pump, BREAST_PUMP_IDLE);
         proc->pump->add_breast_pump_result_listener(proc, on_breast_pump_result_cb);
     }
     /// 设置窗口上下文.

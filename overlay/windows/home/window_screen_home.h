@@ -23,6 +23,9 @@ extern "C" {
 /// 主界面动画展示时间
 #define HOME_ANIMATION_DISPLAY_TIME         (2000) /// 2s
 
+/// 主界面绑定二维码展示时长
+#define HOME_BIND_QRCODE_DISPLAY_TIMEOUT    (3000) /// 3s
+
 /// 主界面UI动作枚举
 typedef enum {
     HOME_HDR_ACTION_PUMP_MODE_SELECT,
@@ -34,6 +37,8 @@ typedef enum {
     HOME_UI_TYPE_NONE = 0,
     HOME_UI_TYPE_HOME,
     HOME_UI_TYPE_HOME_IDLE,
+    HOME_UI_TYPE_HOME_WILL_POWER_OFF,
+    HOME_UI_TYPE_BIND_QRCODE,
     HOME_UI_TYPE_MAX
 } home_ui_type_e;
 
@@ -51,6 +56,7 @@ typedef struct {
     uint32_t margic; /// 窗口标识.
     uint32_t last_progress_ani_time; /// 上次进度动画时间.
     uint16_t current_ui_type; /// 当前UI类型. home_ui_type_e
+    uint8_t popup_ui_type; /// 当前弹窗类型.
 } ui_proc_home_t;
 
 /*
@@ -62,6 +68,9 @@ void start_home_idle_ui_animation(ui_proc_home_t *proc);
 void stop_home_common_ui(ui_proc_home_t *proc);
 void home_start_key_event_handler(ui_proc_home_t *proc);
 
+/// 绑定二维码展示
+void start_home_qrcode_ui_animation(ui_proc_home_t *proc);
+void home_qrcode_ui_hdr_remove(void);
 #ifdef __cplusplus
 }
 #endif

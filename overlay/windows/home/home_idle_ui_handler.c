@@ -25,6 +25,21 @@
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
+static void home_idle_popup_ui_update(ui_manager_context_t *ui, uint8_t popup_ui_index)
+{
+    LOG_WM("===> popup %d ui display complete.", popup_ui_index);
+    ui_proc_home_t *proc = (ui_proc_home_t *)ui->priv.play_info.user_data;
+    EXCEPTION_CHECK_VOID(proc);
+    switch (popup_ui_index) {
+        case HOME_UI_TYPE_HOME_WILL_POWER_OFF:
+            //已经显示了倒计时UI，触发关机事件
+            SEND_BROADCAST_ARGS1(ID_BROADCAST_SYS_STATE_CHANGE, SYSTEM_BROADCAST_POWER_OFF);
+            break;
+        default:
+            break;
+    }
+    proc->popup_ui_type = HOME_UI_TYPE_NONE;
+}
 static void home_ui_after_policy(ui_manager_context_t *ui, int index)
 {
     ui_display_home_screen_saver_process(ui);
@@ -41,6 +56,9 @@ static void home_idle_animation_progress_cb(void *user_data, int index, ui_ani_p
             break;
         case ANI_TIMER_DRAW_AFTER:
             home_ui_after_policy(ui, index);
+            break;
+        case ANI_POPUP_DISPLAY_FINISH:
+            home_idle_popup_ui_update(ui, index);
             break;
         default:
             break;

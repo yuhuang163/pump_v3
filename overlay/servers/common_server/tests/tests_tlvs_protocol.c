@@ -348,8 +348,10 @@ int tests_tlvs_aging_status_query(comm_protocol_builder_t *builder, comm_protoco
             // 如果当前模式正在老化模式运行中，则加上模式正在运行的时间
             uint32_t age_time = 0;
             if ( tests_ctx->tests_manager_get_current_mode() == TST_AGING_TEST_TYPE ) {
-                pump_result_info_t *pumping_info = pump_ctx->get_breast_pump_result(BREAST_PUMP_RESULT_PUMPING);
-                age_time = age_info->age_time + pumping_info->current_mode_work_time/1000;
+                const pump_result_info_t *result_info = NULL;
+                READ_PUMP_RESULT_INFO(pump_ctx, BREAST_PUMP_RESULT_PUMPING, &result_info);
+                EXCEPTION_CHECK_INT(result_info);
+                age_time = age_info->age_time + result_info->current_mode_work_time/1000;
             } else {
                 age_time =  age_info->age_time;
             }            

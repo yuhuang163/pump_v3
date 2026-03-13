@@ -4,7 +4,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
+#include "project_config.h" // IWYU pragma: keep
 
 /*******************************************************************************
  * Include files

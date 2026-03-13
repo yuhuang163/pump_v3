@@ -31,11 +31,14 @@ static void pumping_work_ui_popup_ui_update(ui_manager_context_t *ui, uint8_t po
     ui_proc_pump_t *proc = (ui_proc_pump_t *)ui->priv.play_info.user_data;
     EXCEPTION_CHECK_VOID(proc);
     switch (popup_ui_index) {
-        case PUMP_POPUP_UI_MODE_PROMPT:
-            if (proc->pump->is_on_working()) {
-                proc->pump->set_breast_pump_mode(proc->ui_common_mode_index, true); /// 更改泵奶模块模式
+        case PUMP_POPUP_UI_MODE_PROMPT: {
+            int is_pump_working = 0; 
+            READ_PUMP_IS_WORKING(proc->pump, is_pump_working);
+            if (is_pump_working) {
+                WRITE_PUMP_WORK_MODE(proc->pump, proc->ui_common_mode_index, true);
             }
             break;
+        }
         case PUMP_POPUP_UI_PUMP_WILL_FINISH_TIP:
             pump_complete_event_handler(proc);
             break;
@@ -123,31 +126,32 @@ void switch_pump_status_ui(ui_proc_pump_t *proc)
     EXCEPTION_CHECK_VOID(proc);
     EXCEPTION_CHECK_VOID(proc->pump);
     EXCEPTION_CHECK_VOID(proc->led);
-    proc->led->set_led_blink(PUMP_START_BL, PUMP_BLINK_PERIOD, 
-        PUMP_BLINK_TIMES, LED_STATUS_ON); /// 按键灯闪烁
-    int status = proc->pump->get_breast_pump_status();
-    if (status == BREAST_PUMP_PAUSE || status == BREAST_PUMP_IDLE || status == BREAST_PUMP_FINISH) {
+    proc->led->set_led_blink(PUMP_START_BL, PUMP_BLINK_PERIOD, PUMP_BLINK_TIMES, LED_STATUS_ON); /// 按键灯闪烁
+    int pump_status = 0;
+    READ_PUMP_WORK_STATUS(proc->pump, pump_status);
+    if (pump_status == BREAST_PUMP_PAUSE || pump_status == BREAST_PUMP_IDLE || pump_status == BREAST_PUMP_FINISH) {
         if (proc->current_ui_type == PUMP_UI_TYPE_COMMON_MODE) {
-            proc->pump->set_breast_pump_mode(proc->ui_common_mode_index, true);
+            WRITE_PUMP_WORK_MODE(proc->pump, proc->ui_common_mode_index, true);
         } else if (proc->current_ui_type == PUMP_UI_TYPE_BREASTFEEDING_MODE) {
-            proc->pump->set_breast_pump_mode(proc->ui_breastfeeding_mode_index, true);
+            WRITE_PUMP_WORK_MODE(proc->pump, proc->ui_breastfeeding_mode_index, true);
         }
-        uint8_t mode = proc->pump->get_breast_pump_mode();
-        if (PUMP_IS_COMMON_MODE(mode)) {
+        int pump_mode = 0;
+        READ_PUMP_WORK_MODE(proc->pump, pump_mode);
+        if (PUMP_IS_COMMON_MODE(pump_mode)) {
             proc->led->set_led_level(PUMP_FREQ_SET_BL, 100);
         } else {
             // proc->led->set_led_level(PUMP_FREQ_SET_BL, 0);
         }
-        proc->pump->set_breast_pump_status(status == BREAST_PUMP_PAUSE ? \
-            BREAST_PUMP_CONTINUE : BREAST_PUMP_START);
+        int next_status = (pump_status == BREAST_PUMP_PAUSE) ? BREAST_PUMP_CONTINUE : BREAST_PUMP_START;    
+        WRITE_PUMP_WORK_STATUS(proc->pump, next_status);
         proc->popup_ui_type = PUMP_POPUP_UI_NONE;
         show_pump_home_ui(proc);
-        LOG_UI("pump start ui create: %d", status);
+        LOG_UI("pump start ui create: %d", pump_status);
     } else {
-        proc->pump->set_breast_pump_status(BREAST_PUMP_PAUSE);
+        WRITE_PUMP_WORK_STATUS(proc->pump, BREAST_PUMP_PAUSE);
         show_pump_home_ui(proc);
         proc->led->set_led_level(PUMP_FREQ_SET_BL, 100);
         proc->popup_ui_type = PUMP_POPUP_UI_PUMP_PAUSE_PROMPT;
-        LOG_UI("pump stop ui create: %d", status);
+        LOG_UI("pump stop ui create: %d", pump_status);
     }
 }

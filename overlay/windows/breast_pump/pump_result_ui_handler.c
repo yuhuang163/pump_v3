@@ -118,13 +118,16 @@ void show_pump_result_ui(ui_proc_pump_t *proc)
     EXCEPTION_CHECK_VOID(proc);
     EXCEPTION_CHECK_VOID(proc->pump);
     EXCEPTION_CHECK_VOID(proc->led);
-    int pump_status = proc->pump->get_breast_pump_status_async();
+    int pump_status = 0;
+    READ_PUMP_WORK_STATUS(proc->pump, pump_status);
     if (PUMP_NO_FINISH(pump_status)) {
         LOG_UI("=>set pump finish%d", pump_status);
         proc->led->set_led_level(PUMP_FREQ_SET_BL, 100);
-        proc->pump->set_breast_pump_status(BREAST_PUMP_FINISH);
+        WRITE_PUMP_WORK_STATUS(proc->pump, BREAST_PUMP_FINISH);
     } else {
-        LOG_UI("pump status: %s", proc->pump->get_breast_pump_status_name(pump_status));
+        char *state_name = "unknow";
+        READ_PUMP_STATE_NAME(proc->pump, &state_name);
+        LOG_UI("pump status: %s", state_name);
     }
     show_pump_result_loop(proc);
 }

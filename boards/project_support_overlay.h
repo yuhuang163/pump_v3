@@ -120,8 +120,8 @@ extern "C" {
 /// 支持充电
 #define IS_SUPPORT_DEVICE_CHARGE                         (0)
 #endif
-
-
+/// 支持LOGO界面背景颜色测试
+#define IS_SUPPORT_LOGO_BG_COLOR_TEST                    (0)
 #ifdef __cplusplus
 }
 #endif

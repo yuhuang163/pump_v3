@@ -260,7 +260,7 @@
     {
       "resource_id": "RESOURCE_ID_MODE_BG_ICON",
       "description": "模式背景图标",
-      "file": "baj/icon_mode_bg_220x220_a4_q99_422.baj",
+      "file": "png/icon_mode_bg.png",
       "x_offset": 0,
       "y_offset": 0
     },
@@ -337,14 +337,14 @@
     {
       "resource_id": "RESOURCE_ID_PUMP_LEVEL_ADD_LABEL_ICON",
       "description": "泵奶档位文本加号图标",
-      "file": "png/icon_level_add.png",
+      "file": "baj/icon_level_add_24x24_a4_q99_422.baj",
       "x_offset": 0,
       "y_offset": 0
     },
     {
       "resource_id": "RESOURCE_ID_PUMP_LEVEL_SUB_LABEL_ICON",
       "description": "泵奶档位文本减号图标",
-      "file": "png/icon_level_sub.png",
+      "file": "baj/icon_level_sub_24x24_a4_q99_422.baj",
       "x_offset": 0,
       "y_offset": 0
     }

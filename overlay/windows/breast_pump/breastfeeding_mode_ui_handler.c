@@ -33,8 +33,9 @@ static void breastfeeding_mode_display_completed_cb(hdr_post_args_t *args)
     EXCEPTION_CHECK_VOID(proc->wm);
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_PUMP);
     if (proc->current_ui_type == PUMP_UI_TYPE_BREASTFEEDING_MODE) {
-        uint8_t do_work = proc->pump->is_on_working();
-        if (do_work == 0) {
+        int is_pump_working = 0; 
+        READ_PUMP_IS_WORKING(proc->pump, is_pump_working);
+        if (is_pump_working == 0) {
             multi_func_msg_data_t msg = {0};
             LOG_WM("goto home window.");
             msg.union_body.extra.window_id = ID_WINDOW_HOME;
@@ -124,28 +125,34 @@ void switch_breastfeeding_mode_ui(ui_proc_pump_t *proc, bool is_increase)
 {
     EXCEPTION_CHECK_VOID(proc);
     EXCEPTION_CHECK_VOID(proc->pump);
-    int status = proc->pump->get_breast_pump_status();
-    if (PUMP_NO_FINISH(status)) {
-        LOG_UI("pump is going %d, ignore switch mode.", status); /// 泵奶进行中不支持切换追奶模式(产品需求)
+    int pump_status = 0;
+    READ_PUMP_WORK_STATUS(proc->pump, pump_status);
+    if (PUMP_NO_FINISH(pump_status)) {
+        LOG_UI("pump is going %d, ignore switch mode.", pump_status); /// 泵奶进行中不支持切换追奶模式(产品需求)
         return;
     }
 
     uint8_t mode = proc->ui_breastfeeding_mode_index;
+    int activate_status = 0;
+    READ_PUMP_MODE_ACTIVATE(proc->pump, BREAST_PUMP_CUSTOM_MODE, activate_status);
+    uint8_t mode_upper_boundary = activate_status > 0 ? BREAST_PUMP_CUSTOM_MODE : BREAST_PUMP_EMPTYING_BOOST_MODE;
     if (is_increase) {
-        if (mode < BREAST_PUMP_EMPTYING_BOOST_MODE) {
+        if (mode < mode_upper_boundary) {
             mode++;
         } else {
-            mode = BREAST_PUMP_CUSTOM_MODE;
+            mode = BREAST_PUMP_REGULAR_PUMPING_MODE;
         }
     } else {
-        if (mode > BREAST_PUMP_CUSTOM_MODE) {
+        if (mode > BREAST_PUMP_REGULAR_PUMPING_MODE) {
             mode--;
         } else {
-            mode = BREAST_PUMP_EMPTYING_BOOST_MODE;
+            mode = mode_upper_boundary;
         }
     }
     proc->ui_breastfeeding_mode_index = mode;
-    LOG_UI("switch %s mode: %d", proc->pump->get_breast_pump_mode_name(mode), mode);
+    char *mode_name = "unknow";
+    READ_PUMP_MODE_NAME(proc->pump, mode, &mode_name);
+    LOG_UI("switch %s mode: %d", mode_name, mode);
     show_breastfeeding_mode_ui(proc);
 }
 
@@ -159,10 +166,13 @@ void breastfeeding_mode_key_click_handler(ui_proc_pump_t *proc)
     EXCEPTION_CHECK_VOID(proc);
     EXCEPTION_CHECK_VOID(proc->pump);
     EXCEPTION_CHECK_VOID(proc->led);
-    int status = proc->pump->get_breast_pump_status();
-    if (proc->current_ui_type != PUMP_UI_TYPE_BREASTFEEDING_MODE && PUMP_NO_FINISH(status) == 0) {
+    int pump_status = 0;
+    READ_PUMP_WORK_STATUS(proc->pump, pump_status);
+    int mode_index = 0;
+    READ_PUMP_EXPERT_MODE(proc->pump, false, mode_index);
+    proc->ui_breastfeeding_mode_index = mode_index;
+    if (proc->current_ui_type != PUMP_UI_TYPE_BREASTFEEDING_MODE && PUMP_NO_FINISH(pump_status) == 0) {
         proc->led->set_led_blink(PUMP_BREASTFEEDING_BL, PUMP_BLINK_PERIOD, PUMP_BLINK_TIMES, LED_STATUS_ON);
-        proc->ui_breastfeeding_mode_index = proc->pump->get_breast_pump_mode_by_type(BREAST_PUMP_MODE_TYPE_BREASTFEEDING, false);
         show_breastfeeding_mode_ui(proc);   
     }
 }

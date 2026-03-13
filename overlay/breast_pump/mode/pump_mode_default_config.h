@@ -49,8 +49,8 @@ extern "C" {
 #define EMPTYING_BOOST_MODE_STIMULATION_TIME         120
 /// 追加排空模式吸乳时长15分钟，单位：秒
 #define EMPTYING_BOOST_MODE_PUMP_TIME                900
-/// 追加排空模式混合时长15分钟，单位：秒
-#define EMPTYING_BOOST_MODE_MIX_TIME                 900 
+/// 追加排空模式混合时长5分钟，单位：秒
+#define EMPTYING_BOOST_MODE_MIX_TIME                 300 
 
 /// 开奶模式（Lactation Kickstart）持续工作15分钟，单位：秒
 #define LACTATION_START_MODE_WORK_TIME               900 
@@ -292,7 +292,7 @@ static const motor_policy_cfg_t regular_pumping_default[REGULAR_PUMPING_MODE_LEN
 };
 
 /// Emptying Boost 追加排空：有效将后乳（Hindmilk）排空，更安心投入后续生活
-/// 22 min：刺激 2min+吸乳 15min+混合 15min；Level 3
+/// 22 min：刺激 2min+吸乳 5min+混合 15min；Level 3
 static const motor_policy_cfg_t emptying_boost_default[EMPTYING_BOOST_MODE_LEN] = {
     {MOTOR_TIME_POLICY, EMPTYING_BOOST_MODE_STIMULATION_TIME, {
         MOTOR_PARAM_TABLE, {SUCTION_SPEED_MID, BREAST_PUMP_LEVEL_3, SUCTION_MODE_SHORT},
@@ -303,11 +303,11 @@ static const motor_policy_cfg_t emptying_boost_default[EMPTYING_BOOST_MODE_LEN] 
         {1, PUMP_MODE_DEFAULT_PERIOD}}
         },
     {MOTOR_TIME_POLICY, EMPTYING_BOOST_MODE_MIX_TIME, {
-        MOTOR_PARAM_TABLE, {SUCTION_SPEED_MID, BREAST_PUMP_LEVEL_3, SUCTION_MODE_SHORT},
+        MOTOR_PARAM_TABLE, {SUCTION_SPEED_MID, BREAST_PUMP_LEVEL_3, SUCTION_MODE_MIX_SHORT},
         {5, PUMP_MODE_DEFAULT_PERIOD}}
         },
     {MOTOR_TIME_SUB_POLICY, INVALID_WORK_TIME, {
-        MOTOR_PARAM_TABLE, {SUCTION_SPEED_MID, BREAST_PUMP_LEVEL_1, SUCTION_MODE_LONG},
+        MOTOR_PARAM_TABLE, {SUCTION_SPEED_MID, BREAST_PUMP_LEVEL_1, SUCTION_MODE_MIX_LONG},
         {1, PUMP_MODE_DEFAULT_PERIOD}}
         },   
 };

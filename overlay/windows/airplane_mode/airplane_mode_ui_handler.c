@@ -122,7 +122,9 @@ void airplane_mode_pump_policy(ui_proc_airplane_mode_t *proc)
 {
     EXCEPTION_CHECK_VOID(proc);
     EXCEPTION_CHECK_VOID(proc->pump);
-    if (proc->pump->is_on_working() > 0) {
-        proc->pump->set_breast_pump_status(BREAST_PUMP_FINISH);
+    int is_pump_working = 0; 
+    READ_PUMP_IS_WORKING(proc->pump, is_pump_working);
+    if (is_pump_working > 0) {
+        WRITE_PUMP_WORK_STATUS(proc->pump, BREAST_PUMP_FINISH);
     }
 }

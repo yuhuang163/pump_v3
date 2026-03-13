@@ -78,6 +78,16 @@ static void on_ui_broadcast_receiver(broadcast_mask_id_t id, void *context, int 
     }
 }
 
+#if IS_SUPPORT_LVGL
+static lv_draw_buf_t *get_lvgl_snap_shot(ui_snap_shot_id_e snapshot_id)
+{
+    if(snapshot_id >= UI_SNAP_SHOT_ID_MAX) {
+        return NULL;
+    }
+    return thiz->priv.lv_snap_shot[snapshot_id];
+}
+#endif
+
 static int on_post_ui_init(void *self)
 {
     ui_manager_context_t *ui = (ui_manager_context_t *)self;
@@ -131,6 +141,7 @@ void *register_module_for_ui_manager_new(list_head_t *list_head)
     ptr->play_animation_lock = ui_play_animation_lock;
     ptr->play_animation_unlock = ui_play_animation_unlock;
 #if IS_SUPPORT_LVGL
+    ptr->get_lvgl_snap_shot = get_lvgl_snap_shot;
     ptr->is_lvgl_initialized = is_lvgl_initialized;
 #endif
     thiz = ptr;

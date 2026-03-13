@@ -850,6 +850,9 @@ static int hal_jpeg_start_decode(enum HAL_JPEG_ID_T id, struct HAL_JPEG_CONFIG_T
     hal_jpeg_write_hmin(id, cfg->hmin, cfg->hmin_size);
     hal_jpeg_write_hsymb(id, cfg->hsymb, cfg->hsymb_size);
 
+    codec->cfg = cfg;
+    codec->working = true; /// 20260312. root，修复小图解码概率失败问题
+
     hal_jpeg_irq_enable(id, cfg->mode);
 
     jpeg->REG_1000 = JPEG_CODEC_START;
@@ -862,8 +865,6 @@ static int hal_jpeg_start_decode(enum HAL_JPEG_ID_T id, struct HAL_JPEG_CONFIG_T
     if (hal_jpeg_ecs_tx(id, cfg->ecs, cfg->ecs_size))
         return HAL_JPEG_ECS_DMA_ERR;
 
-    codec->cfg = cfg;
-    codec->working = true;
     return HAL_JPEG_OK;
 }
 

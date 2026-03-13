@@ -270,9 +270,13 @@ static int on_pm_suspend_route(struct power_manager_context *ctx, int state)
         return -1;
     }
     LOG_PM("==> pm suspend");
-    ctx->priv.allow_shutdown_or_standby = 0;
-    ctx->system_power_control(false);
-    return 0;
+    #if !IS_SUPPORT_SLEEP_POWER_OFF_COUNTDOWN
+        ctx->priv.allow_shutdown_or_standby = 0;
+        ctx->system_power_control(false);
+        return 0;
+    #else
+        return 0;
+    #endif
 #else
     uint32_t t0 = 0;
     ota_manager_context_t *ota_ctx = (ota_manager_context_t *)find_module(ID_MODULE_OTA);
@@ -336,6 +340,19 @@ static void set_suspend_counter_route(power_manager_context_t *ctx)
         ctx->priv.pm_state = ID_SYS_PM_RESUME;
         LOG_PM("==> pm idle release");
         SEND_BROADCAST_ARGS1(ID_BROADCAST_PM_STATE_CHANGE, PM_BROADCAST_SYS_IDLE_RELEASE);
+    }else if (ctx->priv.pm_state == ID_SYS_PM_IDLE && ctx->priv.suspend_counter <= PM_SUSPEND_WILL_ENTER_TIME_S) {
+        #if IS_SUPPORT_SLEEP_POWER_OFF_COUNTDOWN
+        ota_manager_context_t *ota_ctx = (ota_manager_context_t *)find_module(ID_MODULE_OTA);
+        if ((ota_ctx && ota_ctx->is_ota_upgrading())) {
+            LOG_PM("is on ota_upgrade, err state.");
+            return;
+        }
+        ctx->priv.pm_state = ID_SYS_PM_WILL_SUSPEND;
+        LOG_PM("==> after 3s, pm suspend will enter", PM_SUSPEND_WILL_ENTER_TIME_S);
+        SEND_BROADCAST_ARGS1(ID_BROADCAST_PM_STATE_CHANGE, PM_BROADCAST_SYS_WILL_SUSPEND);
+        #else
+        return;
+        #endif
     }
 }
 

@@ -24,7 +24,7 @@ extern "C" {
 #endif
 
 #define BATTERY_IS_CHARGING(status)       ((status) == CHARGE_STATE_CHARGING || (status) == CHARGE_STATE_FULL)
-
+#define USB_IS_PLUGIN(status)             ((status) == 1)
 typedef enum {
     BATTERY_BROADCAST_CHARGE_PLUG_IN = 100, /// 充电插头插入.
     BATTERY_BROADCAST_CHARGE_PLUG_OUT,      /// 充电插头拔出.

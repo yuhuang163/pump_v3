@@ -55,8 +55,6 @@ typedef struct ui_display_mode_info {
     lv_obj_t *mode_component_img[MODE_CIRCLE_SLOT_COUNT]; /// 模式组件图片
     lv_obj_t *mode_title_label[MODE_CIRCLE_SLOT_COUNT]; /// 模式标题标签
     lv_obj_t *mode_desc_label[MODE_CIRCLE_SLOT_COUNT]; /// 模式描述标签
-    res_img_info_t circle_bg_info;
-    lv_fs_path_ex_t circle_bg_path;
     res_img_info_t mode_component_info[MODE_CIRCLE_SLOT_COUNT];
     lv_fs_path_ex_t mode_component_path[MODE_CIRCLE_SLOT_COUNT];
     uint16_t slot_res_id[MODE_CIRCLE_SLOT_COUNT];
@@ -337,20 +335,19 @@ static void circle_carousel_set_mode(ui_manager_context_t *thiz, uint8_t idx, bo
 
 static void create_mode_item(ui_manager_context_t *thiz, lv_obj_t *parent, mode_circle_slot_e slot)
 {
-    if (mode_info->circle_bg_info.data == NULL) {
-        common_ui_img_resource_init(thiz, RESOURCE_ID_MODE_BG_ICON, &mode_info->circle_bg_info);
-        EXCEPTION_CHECK_VOID(mode_info->circle_bg_info.data);
-        lv_fs_make_path_from_buffer(&mode_info->circle_bg_path,
-                                    LV_FS_MEMFS_LETTER,
-                                    mode_info->circle_bg_info.data,
-                                    mode_info->circle_bg_info.size,
-                                    MODE_CIRCLE_BG_EXT);
-    }
+#if LV_USE_SNAPSHOT
+    lv_draw_buf_t *background_snapshot = thiz->get_lvgl_snap_shot(UI_SNAP_SHOT_PUMP_MODE_BG);
+    EXCEPTION_CHECK_VOID(background_snapshot);
+#endif
 
     if (mode_info->circle_obj[slot] == NULL || !lv_obj_is_valid(mode_info->circle_obj[slot])) {
         mode_info->circle_obj[slot] = lv_image_create(parent);
         EXCEPTION_CHECK_VOID(mode_info->circle_obj[slot]);
-        lv_image_set_src(mode_info->circle_obj[slot], (const void *)&mode_info->circle_bg_path);
+#if LV_USE_SNAPSHOT
+        lv_image_set_src(mode_info->circle_obj[slot], background_snapshot);
+#else
+        lv_obj_add_flag(mode_info->circle_obj[slot], LV_OBJ_FLAG_HIDDEN); /// 隐藏
+#endif
         lv_obj_set_pos(mode_info->circle_obj[slot], (lv_coord_t)slot_target_x(slot), (lv_coord_t)slot_target_y(slot));
         lv_obj_set_style_image_opa(mode_info->circle_obj[slot], slot == MODE_SLOT_CENTER ? LV_OPA_COVER : LV_OPA_20, 0);
     }
@@ -528,7 +525,6 @@ void ui_display_pump_mode_remove(ui_manager_context_t *thiz)
 {
     EXCEPTION_CHECK_VOID(thiz);
     EXCEPTION_CHECK_VOID(mode_info);
-    common_ui_img_resource_deinit(thiz, &mode_info->circle_bg_info);
     for (uint8_t i = 0; i < MODE_CIRCLE_SLOT_COUNT; i++) {
         common_ui_img_resource_deinit(thiz, &mode_info->mode_component_info[i]);
     }

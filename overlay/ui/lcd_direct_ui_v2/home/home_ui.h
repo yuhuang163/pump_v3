@@ -25,6 +25,16 @@ void ui_display_home_screen_saver_prepare(ui_manager_context_t *thiz);
 void ui_display_home_screen_saver_remove(ui_manager_context_t *thiz);
 int ui_display_home_screen_saver_process(ui_manager_context_t *thiz);
 
+/// 主页二维码
+void ui_display_home_qrcode_prepare(ui_manager_context_t *thiz);
+void ui_display_home_qrcode_remove(ui_manager_context_t *thiz);
+int ui_display_home_qrcode_process(ui_manager_context_t *thiz);
+
+/// 关机倒计时页面
+void ui_prompt_home_will_power_off_prepare(ui_manager_context_t *thiz, lv_obj_t *parent);
+void ui_prompt_home_will_power_off_remove(ui_manager_context_t *thiz);
+void ui_prompt_home_will_power_off_process(ui_manager_context_t *thiz);
+
 #ifdef __cplusplus
 }
 #endif

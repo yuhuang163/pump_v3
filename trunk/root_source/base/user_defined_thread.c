@@ -36,9 +36,6 @@ static int run_led_test_cb(void)
 static void run_pump_test_cb(void)
 {
     LOG_PBUS("===> run pump test!!!!!");
-    breast_pump_manager_context_t *breast_ctx = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
-    // breast_ctx->set_breast_pump_mode(BREAST_PUMP_PP_MILK_TRACK_MODE, 0);
-    breast_ctx->set_breast_pump_status(BREAST_PUMP_CONTINUE);
 }
 
 static void reboot_system_test_cb(void)
@@ -113,16 +110,6 @@ static int motor_debug_test_cb(void)
 
 static int pumping_test_cb(void)
 {
-    breast_pump_manager_context_t *breast_ctx = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
-    EXCEPTION_CHECK_INT(breast_ctx);
-    static uint8_t mode = BREAST_PUMP_STIMULATION_MODE;
-    breast_ctx->set_breast_pump_mode(mode, 0);
-    breast_ctx->set_breast_pump_status(BREAST_PUMP_START);
-    mode++;
-    if (mode >= BREAST_PUMP_MODE_MAX) {
-        mode = BREAST_PUMP_STIMULATION_MODE;
-    }
-    LOG_PBUS("===> pumping test!!!!! mode: %d", mode);
     return 1000*30;
 }
 

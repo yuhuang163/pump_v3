@@ -518,14 +518,14 @@ static void pump_home_common_mode_update(ui_manager_context_t *thiz, uint8_t mod
         lv_obj_set_style_bg_grad_dir(pump_info->mode_label[0], LV_GRAD_DIR_NONE, 0); /// 关闭渐变
         lv_obj_set_style_radius(pump_info->mode_label[0], 14, 0);  /// 高度 24 → 圆角设 12（或更大）
     } else {
-        lv_obj_clear_flag(pump_info->mode_label[0], LV_OBJ_FLAG_HIDDEN); /// 隐藏
+        lv_obj_clear_flag(pump_info->mode_label[0], LV_OBJ_FLAG_HIDDEN); /// 显示
     }
 
     if (pump_info->mode_text[0] == NULL || !lv_obj_is_valid(pump_info->mode_text[0])) {
         pump_info->mode_text[0] = lv_label_create(pump_info->mode_label[0]);
         EXCEPTION_CHECK_VOID(pump_info->mode_text[0]);
     } else {
-        lv_obj_clear_flag(pump_info->mode_text[0], LV_OBJ_FLAG_HIDDEN); /// 隐藏
+        lv_obj_clear_flag(pump_info->mode_text[0], LV_OBJ_FLAG_HIDDEN); /// 显示
     }
     lv_obj_align(pump_info->mode_label[0], LV_ALIGN_TOP_LEFT, 141 + 1, 71);    /// 设置label位置
     lv_obj_set_style_text_color(pump_info->mode_text[0], lv_color_hex(MODE_TEXT_SEL_COLOR), 0);
@@ -589,7 +589,7 @@ static void pump_home_custom_mode_update(ui_manager_context_t *thiz, uint8_t mod
             lv_obj_set_style_bg_grad_dir(pump_info->mode_label[i], LV_GRAD_DIR_NONE, 0); /// 关闭渐变
             lv_obj_set_style_radius(pump_info->mode_label[i], 14, 0);  /// 高度 24 → 圆角设 12（或更大）
         } else {
-            lv_obj_clear_flag(pump_info->mode_label[i], LV_OBJ_FLAG_HIDDEN); /// 隐藏
+            lv_obj_clear_flag(pump_info->mode_label[i], LV_OBJ_FLAG_HIDDEN); /// 显示
         }
         if (i == 0) {
             lv_obj_align(pump_info->mode_label[i], LV_ALIGN_TOP_LEFT, 95, 91);    /// 设置label位置
@@ -601,7 +601,7 @@ static void pump_home_custom_mode_update(ui_manager_context_t *thiz, uint8_t mod
             pump_info->mode_text[i] = lv_label_create(pump_info->mode_label[i]);
             EXCEPTION_CHECK_VOID(pump_info->mode_text[i]);
         } else {
-            lv_obj_clear_flag(pump_info->mode_text[i], LV_OBJ_FLAG_HIDDEN); /// 隐藏
+            lv_obj_clear_flag(pump_info->mode_text[i], LV_OBJ_FLAG_HIDDEN); /// 显示
         }
 
         if (i == 0) {
@@ -752,23 +752,26 @@ int ui_display_pump_home_screen_process(ui_manager_context_t *thiz)
     EXCEPTION_CHECK_INT(proc->pump);
     EXCEPTION_CHECK_INT(proc->motor);
     EXCEPTION_CHECK_INT(proc->ble);
-    const pump_result_info_t *result = proc->pump->get_breast_pump_result(BREAST_PUMP_RESULT_PUMPING);
+    const pump_result_info_t *result_info = NULL;
+    READ_PUMP_RESULT_INFO(proc->pump, BREAST_PUMP_RESULT_PUMPING, &result_info);
+    EXCEPTION_CHECK_INT(result_info);
     uint16_t hold_time = 0;
-    if (result != NULL) {
-        hold_time = result->work_valid_time / 1000;
+    if (result_info != NULL) {
+        hold_time = result_info->work_valid_time / 1000;
     }
     pump_home_bg_update(thiz);
     ble_ui_update(thiz, pump_info->root, proc->ble, 150, 24);
     pump_setting_t setting;
     uint8_t time_index = proc->motor->get_runtime_policy_index(MOTOR_TIME_POLICY);
-    proc->pump->get_breast_pump_setting(&setting, time_index >= ROOT_BREAST_PUMP_STEP_MAX ? 0 : time_index);
-    uint8_t mode = proc->pump->get_breast_pump_mode();  
-    if (PUMP_IS_COMMON_MODE(mode)) {
+    READ_PUMP_SETTING_INFO(proc->pump, time_index, setting);
+    int pump_mode = 0;
+    READ_PUMP_WORK_MODE(proc->pump, pump_mode);
+    if (PUMP_IS_COMMON_MODE(pump_mode)) {
         pump_home_time_update(thiz, hold_time, 0);
         pump_home_animation_update(thiz, RESOURCE_ID_COMMON_MODE_ANIMATION_START, 
             RESOURCE_ID_COMMON_MODE_ANIMATION_END - RESOURCE_ID_COMMON_MODE_ANIMATION_START + 1,
             85, 168);
-        pump_home_common_mode_update(thiz, mode);  
+        pump_home_common_mode_update(thiz, pump_mode);  
     } else {
         pump_home_time_update(thiz, hold_time, 19);
         uint8_t sub_mode = 0;
@@ -782,7 +785,7 @@ int ui_display_pump_home_screen_process(ui_manager_context_t *thiz)
         pump_home_animation_update(thiz, RESOURCE_ID_PERSONALIZED_MODE_ANIMATION_START, 
             RESOURCE_ID_PERSONALIZED_MODE_ANIMATION_END - RESOURCE_ID_PERSONALIZED_MODE_ANIMATION_START + 1,
             0, 0);
-        pump_home_custom_mode_update(thiz, mode, sub_mode, next_sub_mode);
+        pump_home_custom_mode_update(thiz, pump_mode, sub_mode, next_sub_mode);
     }
     pump_home_left_level_update(thiz, setting.level[0]);
     pump_home_right_level_update(thiz, setting.level[1]);
@@ -792,7 +795,7 @@ int ui_display_pump_home_screen_process(ui_manager_context_t *thiz)
     thiz->priv.fps_count++;
     if (get_timestamp() - thiz->priv.fps_start_time >= 1000) {
         thiz->priv.fps_start_time = get_timestamp();
-        LOG_UI("===> pump home fps: %d", thiz->priv.fps_count);
+        LOG_UI("===> pump home fps: %d, mode:%d", thiz->priv.fps_count, pump_mode);
         thiz->priv.fps_count = 0;
     }
     return 0;

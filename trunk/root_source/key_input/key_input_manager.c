@@ -140,13 +140,17 @@ static void internal_keyevent_callback(void *user_data, uint16_t keycode, uint16
     key_input_context_t *input = thiz;
 #if IS_SUPPORT_KEY_SOFT_RESET      
     if (keycode == SYS_SOFT_RESET_CODE && keytype == KEY_EVENT_LONG_10S) {
-        LOG_KEY("sys soft reset");
         window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
         EXCEPTION_CHECK_VOID(wm);
+        if (wm->is_current_window(wm, ID_WINDOW_AIRPLANE_MODE)) {
+            LOG_KEY("in airplane mode, ignore");
+            return;
+        }
         multi_func_msg_data_t msg = {0};
         msg.union_body.extra.window_id = ID_WINDOW_SYSTEM;
         msg.union_body.extra.arg1 = ID_SYSTEM_WINDOW_FACTORY_RESET;
         wm->dispatch_new_window_args(wm, &msg);
+        LOG_KEY("goto factory reset");
         return;
     }
 #endif 

@@ -98,7 +98,7 @@ void app_old_comm_handle_request_cmd(app_old_comm_cmd_id_e cid, uint8_t cal, uin
             app_old_comm_handle_set_user_define_req(cal, cab);
             break;
         case APP_OLD_COMM_CID_PARA_DOWNLOAD:
-            app_old_comm_handle_set_user_define_wr_flash_req(cal, cab);
+            app_old_comm_handle_set_trail_user_define_req(cal, cab);
             break;
         case APP_OLD_COMM_CID_SET_TRAVEL_LOCK:
             app_old_comm_handle_set_travel_lock_req(cal, cab);
@@ -132,6 +132,9 @@ void app_old_comm_handle_request_cmd(app_old_comm_cmd_id_e cid, uint8_t cal, uin
             break;
         case APP_OLD_COMM_CID_PUMP_BLE_RGB_SET_CTRL:
             app_old_comm_handle_pump_ble_rgb_set_ctrl_req(cal, cab);
+            break;
+        case APP_OLD_COMM_CID_CLEAR_CUSTOM_MODE:
+            app_old_comm_handle_clear_trail_custom_mode_req(cal, cab);
             break;
         default:
             LOG_SRV(" Unknown request command 0x%02X", cid);

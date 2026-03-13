@@ -21,7 +21,7 @@ extern "C" {
 /// 飞行模式动画更新间隔
 #define AIRPLANE_MODE_ANIMATION_UPDATE_INTERVAL         (1000)
 /// 飞行模式超时时间
-#define AIRPLANE_MODE_TIMEOUT_TIME                      (2 * 60 * 1000) /// 2分钟
+#define AIRPLANE_MODE_TIMEOUT_TIME                      (3 * 60 * 1000) /// 2分钟
 
 /// 飞行模式UI动作枚举
 typedef enum {

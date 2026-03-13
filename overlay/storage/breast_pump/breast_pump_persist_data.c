@@ -58,6 +58,7 @@ int write_pump_info_to_flash(store_func_args_t args)
 void reset_pump_info(storage_manager_context_t *ctx, sys_pump_info_t *pump_info)
 {
     const motor_policy_cfg_t *cfg = NULL;
+    pump_info->custom_activate               = 0;
     pump_info->last_expert_mode              = 255;
     pump_info->last_regular_mode             = 255;
     pump_info->last_pump_mode                = BREAST_PUMP_PUMP_MODE_DEFAULT;
@@ -429,6 +430,34 @@ int read_pump_mode_steps_info_from_ram(store_func_args_t args)
     }
     memcpy(steps_info, &mode_info->steps_info[args.arg1], sizeof(pump_mode_steps_info_t));
     
+    return 0;
+}
+
+int write_pump_mode_activate_to_ram(store_func_args_t args)
+{
+    struct storage_manager_context *st = args.ctx;
+    EXCEPTION_CHECK_INT(st);
+    sys_pump_info_t *pump_info = &st->priv.sys_info.pump_info;
+    EXCEPTION_CHECK_INT(pump_info);
+    uint8_t mode = args.arg1;
+    if (mode == BREAST_PUMP_CUSTOM_MODE) {
+        pump_info->custom_activate = args.arg2 > 0 ? true : false; 
+    }   
+    return 0;
+}
+
+int read_pump_mode_activate_from_ram(store_func_args_t args)
+{
+    struct storage_manager_context *st = args.ctx;
+    EXCEPTION_CHECK_INT(st);
+    sys_pump_info_t *pump_info = &st->priv.sys_info.pump_info;
+    uint8_t mode = args.arg1;
+    uint32_t *custom_activate = (uint32_t *)args.val;
+    if (mode != BREAST_PUMP_CUSTOM_MODE) {
+        *custom_activate = true;
+    } else {
+        *custom_activate = pump_info->custom_activate;
+    }
     return 0;
 }
 

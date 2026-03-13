@@ -82,6 +82,7 @@ extern "C" {
 #define PM_SUSPEND_TIME_S                              (15 * 60 * 1000) /// 15分钟
 #define PM_IDLE_TIME_S                                 ((12 * 60) * 1000) /// 12分钟
 #define PM_SUSPEND_LOW_BAT_TIME_S                      (1 * 15 * 1000) /// 10秒
+#define PM_SUSPEND_WILL_ENTER_TIME_S                   (3000) /// 3秒
 #else
 #define PM_SUSPEND_TIME_S                              (2 * 30 * 1000) /// 1分
 #define PM_IDLE_TIME_S                                 (1 * 30 * 1000) /// 30秒
@@ -120,6 +121,8 @@ extern "C" {
 #define V3_IMG_RES_STORAGE_TYPE                        1
 /// 支持睡眠关机
 #define IS_SUPPORT_SLEEP_POWER_OFF                     (1)
+/// 支持睡眠关机倒计时
+#define IS_SUPPORT_SLEEP_POWER_OFF_COUNTDOWN           (1)
 /// 支持关机强制保存
 #define IS_SUPPORT_POWER_OFF_FORCE_SAVE                (1)
 

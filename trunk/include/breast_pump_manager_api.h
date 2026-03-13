@@ -48,7 +48,7 @@ typedef enum {
     BREAST_PUMP_FACTORY,
     BREAST_PUMP_RESET,
     BREAST_PUMP_ERROR,
-} breast_pump_status_e;
+} breast_pump_work_status_e;
 
 #define PUMP_NO_FINISH(state) (state == BREAST_PUMP_START || state == BREAST_PUMP_CONTINUE || state == BREAST_PUMP_PAUSE)
 #define PUMP_IS_GOING(state) (state == BREAST_PUMP_START || state == BREAST_PUMP_CONTINUE)
@@ -57,6 +57,56 @@ typedef enum {
  #define PUMP_IS_BREASTFEEDING_MODE(mode) (mode == BREAST_PUMP_CUSTOM_MODE || mode == BREAST_PUMP_PP_MILK_TRACK_MODE ||\
      mode == BREAST_PUMP_MILK_BOOST_MODE || mode == BREAST_PUMP_LACTATION_START_MODE || mode == BREAST_PUMP_REGULAR_PUMPING_MODE ||\
      mode == BREAST_PUMP_EMPTYING_BOOST_MODE)
+     
+/// 泵奶状态
+#define READ_PUMP_IS_WORKING(ctx, is_working) \
+    ctx->get_pump_composite_state(BREAST_PUMP_IS_WORKING, 0, 0, &is_working)
+#define READ_PUMP_WORK_STATUS(ctx, status) \
+    ctx->get_pump_composite_state(BREAST_PUMP_WORK_STATE, 0, 0, &status)    
+#define WRITE_PUMP_WORK_STATUS(ctx, status) \
+    ctx->set_pump_composite_state(BREAST_PUMP_WORK_STATE, status, 0, NULL)  
+
+/// 泵奶模式
+#define READ_PUMP_WORK_MODE(ctx, mode) \
+    ctx->get_pump_composite_state(BREAST_PUMP_WORK_MODE, 0, 0, &mode)
+#define WRITE_PUMP_WORK_MODE(ctx, mode, is_store) \
+    ctx->set_pump_composite_state(BREAST_PUMP_WORK_MODE, mode, is_store, NULL)
+/// 常规模式
+#define READ_PUMP_COMMON_MODE(ctx, is_last, mode) \
+    ctx->get_pump_composite_state(BREAST_PUMP_COMMON_MODE, is_last, 0, &mode)
+/// 专家模式
+#define READ_PUMP_EXPERT_MODE(ctx, is_last, mode) \
+    ctx->get_pump_composite_state(BREAST_PUMP_EXPERT_MODE, is_last, 0, &mode)
+/// 模式激活
+#define READ_PUMP_MODE_ACTIVATE(ctx, mode, status) \
+    ctx->get_pump_composite_state(BREAST_PUMP_MODE_ACTIVATE_STATE, mode, 0, &status)    
+#define WRITE_PUMP_MODE_ACTIVATE(ctx, mode, status) \
+    ctx->set_pump_composite_state(BREAST_PUMP_MODE_ACTIVATE_STATE, mode, status, NULL)
+/// 模式步骤索引
+#define READ_PUMP_MODE_STEP_INDEX(ctx, step_index) \
+    ctx->get_pump_composite_state(BREAST_PUMP_STEP_INDEX, 0, 0, &step_index)    
+/// 泵奶配置 
+#define READ_PUMP_SETTING_INFO(ctx, index, setting) \
+    ctx->get_pump_composite_state(BREAST_PUMP_MODE_SETTING_INFO, 0, 0, &setting)    
+#define WRITE_PUMP_SETTING_INFO(ctx, index, is_store, setting) \
+    ctx->set_pump_composite_state(BREAST_PUMP_MODE_SETTING_INFO, index, is_store, &setting)  
+/// 泵奶力度控制类型
+#define READ_PUMP_LEVEL_CONTROL_TYPE(ctx, type) \
+    ctx->get_pump_composite_state(BREAST_PUMP_LEVEL_CONTROL_TYPE, 0, 0, &type)    
+#define WRITE_PUMP_LEVEL_CONTROL_TYPE(ctx, type) \
+    ctx->set_pump_composite_state(BREAST_PUMP_LEVEL_CONTROL_TYPE, type, 0, NULL)
+/// 泵奶结果信息
+#define READ_PUMP_RESULT_INFO(ctx, id, info) \
+    ctx->get_pump_composite_state(BREAST_PUMP_RESULT_INFO, id, 0,  info)  
+/// 泵奶模式名称
+#define READ_PUMP_WORK_MODE_NAME(ctx, name_str) \
+    ctx->get_pump_composite_state(BREAST_PUMP_WORK_MODE_NAME, 0, 0, name_str) 
+/// 泵奶模式名称
+#define READ_PUMP_MODE_NAME(ctx, id, name_str) \
+    ctx->get_pump_composite_state(BREAST_PUMP_MODE_NAME, id, 0, name_str) 
+/// 泵奶状态名称
+#define READ_PUMP_STATE_NAME(ctx, name_str) \
+    ctx->get_pump_composite_state(BREAST_PUMP_WORK_STATE_NAME, 0, 0, name_str)        
 
 typedef struct {
     uint8_t breast_pump_state;
@@ -95,6 +145,7 @@ typedef struct breast_pump_info_t {
     uint8_t last_breastfeeding_mode;      /// 上次追奶模式
     uint8_t common_mode;      /// 常规模式
     uint8_t last_common_mode;      /// 上次常规模式
+    uint8_t custom_activate;   /// 个性化韵律激活
 } breast_pump_info_t;
 
 /// 吸奶结果ID
@@ -106,10 +157,29 @@ typedef enum{
 
 /// 吸奶模式类型
 typedef enum{
+    BREAST_PUMP_MODE_TYPE_NONE,    
     BREAST_PUMP_MODE_TYPE_COMMON,    /// 常规模式
     BREAST_PUMP_MODE_TYPE_BREASTFEEDING,    /// 追奶模式
     BREAST_PUMP_MODE_TYPE_MAX,
 } breast_pump_mode_type_e;
+
+/// 吸奶状态类型
+typedef enum{
+    BREAST_PUMP_WORK_STATE,    /// 泵奶工作状态
+    BREAST_PUMP_WORK_STATE_NAME,    /// 泵奶工作状态
+    BREAST_PUMP_MODE_ACTIVATE_STATE,    /// 模式激活状态
+    BREAST_PUMP_MODE_STEPS_UPDATE_STATE, /// 参数更新状态
+    BREAST_PUMP_LEVEL_CONTROL_TYPE,    /// 泵奶力度控制类型
+    BREAST_PUMP_STEP_INDEX,    /// 泵奶策略步骤索引
+    BREAST_PUMP_IS_WORKING,    /// 泵奶运行中
+    BREAST_PUMP_WORK_MODE,    /// 泵奶当前模式
+    BREAST_PUMP_COMMON_MODE,    /// 常规模式 
+    BREAST_PUMP_EXPERT_MODE,    /// 专家模式
+    BREAST_PUMP_WORK_MODE_NAME,    /// 泵奶当前模式
+    BREAST_PUMP_MODE_NAME,    /// 泵奶当前模式
+    BREAST_PUMP_RESULT_INFO,    /// 泵奶结果信息
+    BREAST_PUMP_MODE_SETTING_INFO,    /// 
+} pump_state_type_e;
 
 struct peripheral_bus_context;
 struct motor_manager_context;
@@ -134,27 +204,11 @@ typedef struct breast_pump_manager_context {
         pump_result_info_t result_info[BREAST_PUMP_RESULT_MAX];  
     } priv;
 
-///  public
-    int (*is_on_working)(void);
-    void (*reset_breast_pump_result)(void);
+    ///  public
     int (*add_breast_pump_result_listener)(void *user_data, on_breast_pump_result_cb_ptr cb);
     void (*remove_breast_pump_result_listener)(on_breast_pump_result_cb_ptr cb);
-    int (*get_breast_pump_mode_by_type)(breast_pump_mode_type_e type, uint8_t is_last);
-    int (*get_breast_pump_mode)(void);
-    void (*set_breast_pump_mode)(uint32_t mode, uint8_t is_store_mode);
-    int (*get_breast_pump_control_type)(void);
-    void (*set_breast_pump_control_type)(uint8_t control_type);
-    void (*get_breast_pump_setting)(pump_setting_t *setting, uint8_t step_index);
-    void (*set_breast_pump_setting)(pump_setting_t *setting, uint8_t step_index, bool is_need_store);
-    void (*set_breast_pump_status)(int status);
-    int (*get_breast_pump_status)(void);
-    int (*get_breast_pump_status_async)(void);
-    uint8_t (*get_breast_pump_step_index)(void);
-    int (*get_last_breast_pump_result)(breast_pump_result_t *result, uint8_t breast_pump_data_id);
-    const breast_pump_result_t *(*get_curr_breast_pump_result)(void);
-    pump_result_info_t *(*get_breast_pump_result)(breast_pump_result_id_e result_id);
-    const char *(*get_breast_pump_status_name)(uint8_t status);
-    const char *(*get_breast_pump_mode_name)(uint8_t mode);
+    void (*get_pump_composite_state)(pump_state_type_e type, int arg1, int arg2, void *out_data);
+    void (*set_pump_composite_state)(pump_state_type_e type, int arg1, int arg2, void *in_data);
     ///  外部挂接点.
     struct __breast_pump_hook {
         int (*make_progress_route)(struct breast_pump_manager_context *ctx, pump_result_info_t *result_info);

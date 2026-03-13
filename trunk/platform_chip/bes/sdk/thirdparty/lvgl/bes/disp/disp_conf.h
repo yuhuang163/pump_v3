@@ -25,7 +25,7 @@
 #endif
 //#define CONFIG_LCDC_ALIGN_MIDDLE
 //#define CONFIG_LCD_RGB565
-//#define CONFIG_LCD_RGB888
+#define CONFIG_LCD_RGB888
 #define CONFIG_LCD_SWAP_RB
 
 /* Enable framebuffer compress.

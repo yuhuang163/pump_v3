@@ -35,7 +35,7 @@ extern "C" {
 /// 循环显示超时时间
 #define LOOP_SHOW_TIMEOUT                      (5000) /// 5s
 /// 泵奶子UI显示时间
-#define PUMP_SUB_UI_DISPLAY_TIME               (2000) /// 4s
+#define PUMP_SUB_UI_DISPLAY_TIME               (5000) /// 5s
 /// 泵奶运行时长更新间隔
 #define PUMP_RUNNING_TIME_UPDATE_INTERVAL      (1000) /// 1s
 /// 泵奶模式切换超时时间
@@ -137,6 +137,7 @@ typedef struct {
     uint8_t ui_common_mode_index; /// UI普通模式索引.
     uint8_t ui_breastfeeding_mode_index; /// UI追奶模式索引.
     uint16_t current_ui_type; /// 当前UI类型
+    uint16_t start_ui_type;   
     uint32_t last_progress_ani_time; /// 上次进度动画时间.
     ui_pump_info_t info; /// 当前泵奶信息.
     pump_setting_t setting; /// 当前泵奶设置信息.
@@ -169,6 +170,7 @@ void switch_pump_speed_ui(ui_proc_pump_t *proc, bool is_increase);
 /// 档位UI相关
 void switch_pump_level_ui(ui_proc_pump_t *proc, bool is_increase);
 void switch_pump_control_type_ui(ui_proc_pump_t *proc, uint8_t control_type);
+void switch_pump_bilateral_control_type_ui_by_knob(ui_proc_pump_t *proc, bool is_increase);
 /// 泵奶状态UI相关
 void switch_pump_status_ui(ui_proc_pump_t *proc);
 void show_pump_result_ui(ui_proc_pump_t *proc);

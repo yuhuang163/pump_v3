@@ -2,7 +2,6 @@
 * INCLUDE FILES
 *****************************************************************************************
 */
-#include "root_common_api.h" // IWYU pragma: keep
 #include "ui_img_define.h"   // IWYU pragma: keep
 #include "ui_page_define.h" // IWYU pragma: keep
 #include "ui_manager.h" // IWYU pragma: keep
@@ -71,16 +70,18 @@ const static home_icon_info_t home_icon_infos[HOME_ICON_MAX_COUNT] = {
       IDLE_BUTTON_ICON_X,              IDLE_BUTTON_ICON_Y, 
     },
 };
-/*
-* GLOBAL VARIABLE DEFINITIONS
-*****************************************************************************************
-*/
+
 #if IS_SUPPORT_ROOT_HOME_COMP_BG
 static PSRAM_DATA_LOC uint8_t home_bg_data[] = {
     // #include "comparison_png2txt/bg_360x360.txt"
     #include "png2txt/home_com_bg_360x360.txt"
 };
 #endif
+/*
+* GLOBAL VARIABLE DEFINITIONS
+*****************************************************************************************
+*/
+
 /*
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************

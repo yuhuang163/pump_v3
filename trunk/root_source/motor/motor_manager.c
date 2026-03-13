@@ -2,7 +2,6 @@
 * INCLUDE FILES
 *****************************************************************************************
 */
-#include "bsp_fds.h"
 #include "root_common_api.h"
 #include "motor_manager.h" // IWYU pragma: keep
 
@@ -130,9 +129,12 @@ static void on_motor_broadcast_receiver(broadcast_mask_id_t id, void *context, i
         case ID_BROADCAST_BREAST_PUMP_STATE_CHANGE:
             if (arg1 == BREAST_PUMP_BROADCAST_MODE_CHANGE) {
                 breast_pump_mode = arg2;
-                if (motor_obj->priv.pump_ctx && motor_obj->priv.pump_ctx->is_on_working() > 0 &&
-                    motor_obj->priv.runtime.breast_pump_mode != breast_pump_mode) {
-                    internal_start_motor(MOTOR_POLICY_CHANGE_MODE);
+                if (motor_obj->priv.pump_ctx && motor_obj->priv.runtime.breast_pump_mode != breast_pump_mode) { 
+                    int is_pump_working = 0; 
+                    READ_PUMP_IS_WORKING(motor_obj->priv.pump_ctx, is_pump_working);
+                    if (is_pump_working) {
+                        internal_start_motor(MOTOR_POLICY_CHANGE_MODE);
+                    }       
                 }
                 LOG_MOTOR("mode change: %d", breast_pump_mode);
             } else if (arg1 == BREAST_PUMP_BROADCAST_STATE_CHANGE) {
@@ -236,13 +238,16 @@ int motor_is_can_play_now(void)
         LOG_MOTOR("exit reason: %s", motor_obj->priv.interrupt_play_reason);
         return 0;
     }
-
-    if (motor_obj->priv.pump_ctx->is_on_working() == 0 && motor_obj->priv.user_debug_status == 0) {
-        LOG_MOTOR("exit reason: not on pumping");
-        update_play_interrupt_reason("pumping_state:err");
-        return 0;
+    
+    if (motor_obj->priv.pump_ctx && motor_obj->priv.user_debug_status == 0) {
+        int is_pump_working = 0; 
+        READ_PUMP_IS_WORKING(motor_obj->priv.pump_ctx, is_pump_working);
+        if (is_pump_working == 0) {
+            LOG_MOTOR("exit reason: not on pumping");
+            update_play_interrupt_reason("pumping_state:err");
+            return 0;
+        }   
     }
-
     return 1;
 }
 

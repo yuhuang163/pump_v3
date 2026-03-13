@@ -2,17 +2,16 @@
 * INCLUDE FILES
 *****************************************************************************************
 */
-#include "root_common_api.h" // IWYU pragma: keep
 #include "ui_img_define.h"   // IWYU pragma: keep
 #include "ui_page_define.h" // IWYU pragma: keep
 #include "ui_manager.h" // IWYU pragma: keep
+#include "window_screen_logo.h" // IWYU pragma: keep
 
 /*
 * DEFINES
 *****************************************************************************************
 */
 #define IS_SUPPORT_LOGO_COMP_BG                                (0)
-#define IS_SUPPORT_WHITE_BG_TEST                               (0)
 
 typedef struct {
     lv_obj_t * root;
@@ -124,7 +123,7 @@ void ui_display_logo_prepare(ui_manager_context_t *thiz)
     thiz->priv.fps_count = 0;
     thiz->priv.fps_start_time = get_timestamp();
     ui_logo_root_init(); /// 初始化 root 容器
-#if (IS_SUPPORT_WHITE_BG_TEST == 0)
+#if (IS_SUPPORT_LOGO_BG_COLOR_TEST == 0)
     common_ui_bg_init(thiz);
 #endif
     logo_info->force_update = true;
@@ -135,7 +134,7 @@ void ui_display_logo_remove(ui_manager_context_t *thiz)
     EXCEPTION_CHECK_VOID(thiz);
     EXCEPTION_CHECK_VOID(logo_info);
     EXCEPTION_CHECK_VOID(logo_info->root);
-#if (IS_SUPPORT_WHITE_BG_TEST == 0)
+#if (IS_SUPPORT_LOGO_BG_COLOR_TEST == 0)
     common_ui_img_resource_deinit(thiz, &logo_info->img_info);
     common_ui_bg_deinit(thiz);
 #endif
@@ -149,9 +148,17 @@ int ui_display_logo_process(ui_manager_context_t *thiz)
     EXCEPTION_CHECK_INT(thiz);
     EXCEPTION_CHECK_INT(logo_info);
     EXCEPTION_CHECK_INT(logo_info->root);
-#if (IS_SUPPORT_WHITE_BG_TEST == 0)
+#if (IS_SUPPORT_LOGO_BG_COLOR_TEST == 0)
     ui_logo_bg_update(thiz);
-    sys_logo_label_update(thiz);
+    sys_logo_label_update(thiz);   
+#else
+    ui_proc_logo_t *proc = (ui_proc_logo_t *)thiz->priv.play_info.user_data;
+    uint8_t is_white_color = (proc->test_page_count % 2) ? false : true;
+    if (is_white_color) {
+        lv_obj_set_style_bg_color(logo_info->root, lv_color_white(), 0);    
+    } else {
+        lv_obj_set_style_bg_color(logo_info->root, lv_color_black(), 0);    
+    }
 #endif
     logo_info->force_update = false;
     thiz->priv.fps_count++;

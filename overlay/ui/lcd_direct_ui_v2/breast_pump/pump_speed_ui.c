@@ -57,8 +57,6 @@ typedef struct {
     lv_obj_t *speed_component_img[SPEED_CIRCLE_SLOT_COUNT]; /// 模式组件图片
     lv_obj_t *speed_title_label[SPEED_CIRCLE_SLOT_COUNT]; /// 模式标题标签
     lv_obj_t *speed_desc_label[SPEED_CIRCLE_SLOT_COUNT]; /// 模式描述标签
-    res_img_info_t circle_bg_info;
-    lv_fs_path_ex_t circle_bg_path;
     res_img_info_t speed_component_info[SPEED_CIRCLE_SLOT_COUNT];
     lv_fs_path_ex_t speed_component_path[SPEED_CIRCLE_SLOT_COUNT];
     uint16_t slot_res_id[SPEED_CIRCLE_SLOT_COUNT];
@@ -347,20 +345,18 @@ static void circle_carousel_set_speed(ui_manager_context_t *thiz, uint8_t idx, b
 
 static void create_speed_item(ui_manager_context_t *thiz, lv_obj_t *parent, speed_circle_slot_e slot)
 {
-    if (speed_info->circle_bg_info.data == NULL) {
-        common_ui_img_resource_init(thiz, RESOURCE_ID_MODE_BG_ICON, &speed_info->circle_bg_info);
-        EXCEPTION_CHECK_VOID(speed_info->circle_bg_info.data);
-        lv_fs_make_path_from_buffer(&speed_info->circle_bg_path,
-                                    LV_FS_MEMFS_LETTER,
-                                    speed_info->circle_bg_info.data,
-                                    speed_info->circle_bg_info.size,
-                                    SPEED_CIRCLE_BG_EXT);
-    }
-
+#if LV_USE_SNAPSHOT
+    lv_draw_buf_t *background_snapshot = thiz->get_lvgl_snap_shot(UI_SNAP_SHOT_PUMP_MODE_BG);
+    EXCEPTION_CHECK_VOID(background_snapshot);
+#endif
     if (speed_info->circle_obj[slot] == NULL || !lv_obj_is_valid(speed_info->circle_obj[slot])) {
         speed_info->circle_obj[slot] = lv_image_create(parent);
         EXCEPTION_CHECK_VOID(speed_info->circle_obj[slot]);
-        lv_image_set_src(speed_info->circle_obj[slot], (const void *)&speed_info->circle_bg_path);
+#if LV_USE_SNAPSHOT
+        lv_image_set_src(speed_info->circle_obj[slot], background_snapshot);
+#else
+        lv_obj_add_flag(speed_info->circle_obj[slot], LV_OBJ_FLAG_HIDDEN); /// 隐藏
+#endif
         lv_obj_set_pos(speed_info->circle_obj[slot], (lv_coord_t)slot_target_x(slot), (lv_coord_t)slot_target_y(slot));
     }
 
@@ -533,7 +529,6 @@ void ui_display_pump_speed_remove(ui_manager_context_t *thiz)
 {
     EXCEPTION_CHECK_VOID(thiz);
     EXCEPTION_CHECK_VOID(speed_info);
-    common_ui_img_resource_deinit(thiz, &speed_info->circle_bg_info);
     for (uint8_t i = 0; i < SPEED_CIRCLE_SLOT_COUNT; i++) {
         common_ui_img_resource_deinit(thiz, &speed_info->speed_component_info[i]);
     }

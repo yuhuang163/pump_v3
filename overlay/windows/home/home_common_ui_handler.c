@@ -30,6 +30,7 @@
 */
 void stop_home_common_ui(ui_proc_home_t *proc)
 {
+    home_qrcode_ui_hdr_remove();
     ui_manager_context_t *ui = proc->ui;
     EXCEPTION_CHECK_VOID(ui->hook && ui->hook->ui_animation_play_deinit);
     ui->hook->ui_animation_play_deinit(ui);

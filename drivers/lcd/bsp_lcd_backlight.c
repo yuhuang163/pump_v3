@@ -13,7 +13,12 @@
 * DEFINES
 *****************************************************************************************
 */
+#if IS_SUPPORT_ADAPTIVE_DIMMING
 #define IS_SUPPORT_LCD_BACKLIGHT_CLIMB            (1)  /// 支持爬升
+#else
+#define IS_SUPPORT_LCD_BACKLIGHT_CLIMB            (0)  /// 支持爬升
+#endif
+
 #define LCD_BACKLIGHT_PERIOD                      1000
 #define LCD_BACKLIGHT_TIME_PERIOD                 25
 #define LCD_BACKLIGHT_LOG_DEBUG                   (1)

@@ -42,6 +42,9 @@ int read_pump_setting_info_from_ram(store_func_args_t args);
 int write_pump_mode_steps_info_to_ram(store_func_args_t args);
 int read_pump_mode_steps_info_from_ram(store_func_args_t args);
 
+int write_pump_mode_name_to_ram(store_func_args_t args);
+int read_pump_mode_name_from_ram(store_func_args_t args);
+
 /// 泵奶时间信息接口
 int write_pump_time_to_ram(store_func_args_t args);
 int read_pump_time_from_ram(store_func_args_t args);
@@ -57,6 +60,10 @@ int write_pump_mode_with_type_to_ram(store_func_args_t args);
 int read_pump_mode_with_type_from_ram(store_func_args_t args);
 int write_mode_update_flag_to_ram(store_func_args_t args);
 int read_mode_update_flag_from_ram(store_func_args_t args);
+
+/// 激活泵奶模式接口
+int write_pump_mode_activate_to_ram(store_func_args_t args);
+int read_pump_mode_activate_from_ram(store_func_args_t args);
 
 /// 泵奶数据同步接口
 int pump_data_info_sync_flash(storage_manager_context_t *ctx, pump_result_info_t *body);

@@ -112,19 +112,17 @@ typedef enum {
     BREAST_PUMP_STIMULATION_MODE,      /// 刺激模式
     BREAST_PUMP_LACTATION_MODE,        /// 吸乳模式
     BREAST_PUMP_MIX_MODE,              /// 混合模式
-    BREAST_PUMP_CUSTOM_MODE,                  /// 个性化模式
     BREAST_PUMP_REGULAR_PUMPING_MODE,         /// 常规韵律模式（Regular Pumping）
     BREAST_PUMP_MILK_BOOST_MODE,              /// 2+8奶量提升模式
     BREAST_PUMP_PP_MILK_TRACK_MODE,           /// PP追奶模式（Power Pumping模式）
     BREAST_PUMP_LACTATION_START_MODE,         /// 开奶模式
     BREAST_PUMP_EMPTYING_BOOST_MODE,          /// 追加排空模式（Emptying Boost）
+    BREAST_PUMP_CUSTOM_MODE,                  /// 个性化模式
     BREAST_PUMP_CUSTOM_TRIAL_MODE,            /// 用户自定义模式(试用)
     BREAST_PUMP_RELAX_MODE,                   /// 放松模式（Relax）
     BREAST_PUMP_MODE_MAX,
     BREAST_PUMP_NORMAL_MODE_MAX = BREAST_PUMP_MIX_MODE - BREAST_PUMP_STIMULATION_MODE + 1,
-    BREAST_PUMP_UP_MODE_MAX = BREAST_PUMP_RELAX_MODE - BREAST_PUMP_MIX_MODE,
     BREAST_PUMP_NORMAL_MODE_DEFAULT = BREAST_PUMP_STIMULATION_MODE, /// 默认常规模式
-    BREAST_PUMP_UP_MODE_DEFAULT = BREAST_PUMP_CUSTOM_MODE, /// 默认追奶模式
     BREAST_PUMP_PUMP_MODE_DEFAULT = BREAST_PUMP_REGULAR_PUMPING_MODE, /// 默认泵奶模式
 
     BREAST_PUMP_MODE_INVALID = 0xFF,
@@ -204,7 +202,8 @@ typedef struct {
 
 /// 描述泵奶信息
 typedef struct {
-    uint8_t rsv[21];                      /// 保留
+    uint8_t rsv[20];                      /// 保留
+    uint8_t custom_activate;       /// 激活个性化韵律a
     uint8_t last_expert_mode;             /// 上一次使用的专家韵律模式
     uint8_t last_regular_mode;            /// 上一次使用的常规模式
     uint8_t last_pump_mode;               /// 上一次使用的泵奶模式 breast_pump_mode_e

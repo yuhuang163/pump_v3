@@ -87,10 +87,12 @@ int ui_display_pump_home_screen_process(ui_manager_context_t *thiz)
     motor_manager_context_t *motor = pump->priv.motor;
     EXCEPTION_CHECK_UINT(motor);
     uint8_t time_index = motor->get_runtime_policy_index(MOTOR_TIME_POLICY);
-    const pump_result_info_t *result = pump->get_breast_pump_result(BREAST_PUMP_RESULT_PUMPING);
-    uint16_t hold_time = result->work_valid_time / 1000;
+    const pump_result_info_t *result_info = NULL;
+    READ_PUMP_RESULT_INFO(pump, BREAST_PUMP_RESULT_PUMPING, &result_info);
+    EXCEPTION_CHECK_INT(result_info);
+    uint16_t hold_time = result_info->work_valid_time / 1000;
     pump_setting_t setting;
-    pump->get_breast_pump_setting(&setting, time_index >= ROOT_BREAST_PUMP_STEP_MAX ? 0 : time_index);
+    READ_PUMP_SETTING_INFO(pump, time_index, setting); 
     lcd_tlvs_t *tlv = &msg.tlvs[0];
     UI_FILL_IMG_ID(tlv, UI_IMG_ID_HOME_SCREEN);
     ui_fill_running_time(&msg.tlvs[1], hold_time);
@@ -99,7 +101,9 @@ int ui_display_pump_home_screen_process(ui_manager_context_t *thiz)
     ui_fill_ble_status(&msg.tlvs[4]);
     ui_fill_charge_status(&msg.tlvs[5]);
     ui_fill_battery_status(&msg.tlvs[6]);
-    ui_fill_pump_mode(&msg.tlvs[7], pump->get_breast_pump_mode());
+    int pump_mode = 0;
+    READ_PUMP_WORK_MODE(pump, pump_mode);
+    ui_fill_pump_mode(&msg.tlvs[7], pump_mode);
     thiz->priv.panel_dev->ioctl(thiz->priv.panel_dev, OP_CODE_PANEL_DATA_SEND, (void *)&msg);
     u_free(msg.tlvs);
     return 0;
@@ -130,12 +134,15 @@ int ui_display_pump_level_process(ui_manager_context_t *thiz)
     motor_manager_context_t *motor = pump->priv.motor;
     EXCEPTION_CHECK_UINT(motor);
     uint8_t time_index = motor->get_runtime_policy_index(MOTOR_TIME_POLICY);
-    const pump_result_info_t *result = pump->get_breast_pump_result(BREAST_PUMP_RESULT_PUMPING);
+    const pump_result_info_t *result_info = NULL;
+    READ_PUMP_RESULT_INFO(pump, BREAST_PUMP_RESULT_PUMPING, &result_info);
+    EXCEPTION_CHECK_INT(result_info);
     pump_setting_t setting;
-    pump->get_breast_pump_setting(&setting, time_index >= ROOT_BREAST_PUMP_STEP_MAX ? 0 : time_index);
+    READ_PUMP_SETTING_INFO(pump, time_index, setting); 
     lcd_tlvs_t *tlv = &msg.tlvs[0];
     ui_proc_pump_t *proc = (ui_proc_pump_t *)thiz->priv.play_info.user_data;
-    uint8_t control_type = proc->pump->get_breast_pump_control_type();
+    int control_type = 0;
+    READ_PUMP_LEVEL_CONTROL_TYPE(pump, control_type);
     if (control_type == BREAST_PUMP_CONTROL_TYPE_LEFT) {
         UI_FILL_IMG_ID(tlv, UI_IMG_ID_LEFT_LEVEL_ADJUST_DISPLAY);
     } else {
@@ -195,10 +202,11 @@ int ui_display_pump_mode_process(ui_manager_context_t *thiz)
     };
     EXCEPTION_CHECK_UINT(msg.tlvs);
     breast_pump_manager_context_t *pump = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
-    uint8_t mode = pump->get_breast_pump_mode();
+    int pump_mode = 0;
+    READ_PUMP_WORK_MODE(pump, pump_mode);
     lcd_tlvs_t *tlv = &msg.tlvs[0];
     UI_FILL_IMG_ID(tlv, UI_ID_PUMP_MODE_TIP);
-    ui_fill_pump_mode(&msg.tlvs[1], mode);
+    ui_fill_pump_mode(&msg.tlvs[1], pump_mode);
     thiz->priv.panel_dev->ioctl(thiz->priv.panel_dev, OP_CODE_PANEL_DATA_SEND, (void *)&msg);
     u_free(msg.tlvs);
     return 0;
@@ -223,10 +231,11 @@ int ui_display_breastfeeding_mode_process(ui_manager_context_t *thiz)
     };
     EXCEPTION_CHECK_UINT(msg.tlvs);
     breast_pump_manager_context_t *pump = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
-    uint8_t mode = pump->get_breast_pump_mode();
+    int pump_mode = 0;
+    READ_PUMP_WORK_MODE(pump, pump_mode);
     lcd_tlvs_t *tlv = &msg.tlvs[0];
     UI_FILL_IMG_ID(tlv, UI_IMG_ID_SETTINGS_SUBMENU);
-    ui_fill_pump_mode(&msg.tlvs[1], mode);
+    ui_fill_pump_mode(&msg.tlvs[1], pump_mode);
     thiz->priv.panel_dev->ioctl(thiz->priv.panel_dev, OP_CODE_PANEL_DATA_SEND, (void *)&msg);
     u_free(msg.tlvs);
     return 0;
@@ -256,7 +265,7 @@ int ui_display_pump_speed_process(ui_manager_context_t *thiz)
     EXCEPTION_CHECK_UINT(motor);
     uint8_t time_index = motor->get_runtime_policy_index(MOTOR_TIME_POLICY);
     pump_setting_t setting;
-    pump->get_breast_pump_setting(&setting, time_index >= ROOT_BREAST_PUMP_STEP_MAX ? 0 : time_index);
+    READ_PUMP_SETTING_INFO(pump, time_index, setting); 
     lcd_tlvs_t *tlv = &msg.tlvs[0];
     UI_FILL_IMG_ID(tlv, UI_IMG_ID_PUMP_SPEED);
     ui_fill_pump_speed(&msg.tlvs[1], setting.speed);
