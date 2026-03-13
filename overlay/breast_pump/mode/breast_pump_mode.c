@@ -91,6 +91,36 @@ int breast_pump_mode_time_step_number_get(int mode)
     }
 }
 
+int breast_pump_mode_time_all_step_number_get(int mode)
+{
+    switch (mode) {
+        case BREAST_PUMP_STIMULATION_MODE:
+            return STIMULATION_MODE_LEN;
+        case BREAST_PUMP_LACTATION_MODE:
+            return PUMP_MODE_LEN;
+        case BREAST_PUMP_MIX_MODE:
+            return MIX_MODE_LEN;
+        case BREAST_PUMP_CUSTOM_MODE:
+            return CUSTOM_MODE_LEN;
+        case BREAST_PUMP_PP_MILK_TRACK_MODE:
+            return PP_MODE_LEN;
+        case BREAST_PUMP_MILK_BOOST_MODE:
+            return MILK_BOOST_MODE_LEN;
+        case BREAST_PUMP_LACTATION_START_MODE:
+            return LACTATION_START_MODE_LEN;
+        case BREAST_PUMP_REGULAR_PUMPING_MODE:
+            return REGULAR_PUMPING_MODE_LEN;
+        case BREAST_PUMP_EMPTYING_BOOST_MODE:
+            return EMPTYING_BOOST_MODE_LEN;
+        case BREAST_PUMP_RELAX_MODE:
+            return RELAX_MODE_LEN;
+        case BREAST_PUMP_CUSTOM_TRIAL_MODE:
+            return CUSTOM_TRIAL_MODE_LEN;
+        default:
+            return 0;
+    }
+}
+
 void breast_pump_setting_reset(sys_pump_info_t *pump_info, int mode)
 {
     EXCEPTION_CHECK_VOID(pump_info);
@@ -120,7 +150,7 @@ void breast_pump_mode_steps_info_reset(sys_pump_mode_info_t *mode_info, int mode
 {
     const motor_policy_cfg_t *cfg = get_breast_pump_mode_para(mode);
     EXCEPTION_CHECK_VOID(cfg);
-    uint8_t step_count = breast_pump_mode_time_step_number_get(mode);
+    uint8_t step_count = breast_pump_mode_time_all_step_number_get(mode);
     uint8_t step_idx = 0, time_step_num = 0;
     if (step_count == 0 || step_count > ROOT_BREAST_PUMP_STEP_MAX) {
         LOGE("step count error, mode: %d, step count: %d", mode, step_count);
