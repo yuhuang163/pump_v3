@@ -371,6 +371,8 @@ do_rename_and_archive() {
 
 	# 原始产物路径
 	local app_in="$PROJECT_DIR/project/bin/firmware/ble_only_lt.bin"
+	local app_elf="$PROJECT_DIR/project/bin/firmware/ble_only_lt.elf"
+	local app_map="$PROJECT_DIR/project/bin/firmware/ble_only_lt.map"
 	local boot_in="$PROJECT_DIR/project/bin/bootloader/ota_boot_v2.bin"
 	local ota_in="$PROJECT_DIR/project/bin/firmware/ble_only_lt_ota.bin"
 
@@ -425,6 +427,21 @@ do_rename_and_archive() {
 		cp -av "$app_in" "$target_dir/${prefix_file}_${app_md5}_APP.bin"
 		echo "APP 已归档: $target_dir/${prefix_file}_${app_md5}_APP.bin"
 		copied_any=true
+		# 同时拷贝 ELF 和 MAP 文件到 debug_file 子目录
+		local debug_dir="$target_dir/debug_file"
+		mkdir -p "$debug_dir" || die "无法创建调试文件目录: $debug_dir"
+		if [[ -s "$app_elf" ]]; then
+			cp -av "$app_elf" "$debug_dir/${prefix_file}_${app_md5}_APP.elf"
+			echo "APP ELF 已归档: $debug_dir/${prefix_file}_${app_md5}_APP.elf"
+		else
+			echo "未找到 APP ELF 产物: $app_elf"
+		fi
+		if [[ -s "$app_map" ]]; then
+			cp -av "$app_map" "$debug_dir/${prefix_file}_${app_md5}_APP.map"
+			echo "APP MAP 已归档: $debug_dir/${prefix_file}_${app_md5}_APP.map"
+		else
+			echo "未找到 APP MAP 产物: $app_map"
+		fi
 	else
 		echo "未找到 APP 产物: $app_in"
 	fi

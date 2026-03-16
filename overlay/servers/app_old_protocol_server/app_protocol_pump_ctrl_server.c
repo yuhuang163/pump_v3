@@ -62,7 +62,7 @@ static uint8_t app_old_comm_get_night_light_onoff(void)
     return led->hook->get_night_light_onoff(led);
 }
 
-static uint8_t app_old_comm_get_sys_status(void)
+static uint8_t app_old_comm_get_sys_status(servers_old_protocol_publish_data_id_e id, void *user_data)
 {
     breast_pump_manager_context_t *pump_ctx = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
     EXCEPTION_CHECK_UINT(pump_ctx);
@@ -81,6 +81,18 @@ static uint8_t app_old_comm_get_sys_status(void)
     int pump_mode = 0;
     READ_PUMP_WORK_MODE(pump_ctx, pump_mode);
     uint8_t sys_status = APP_OLD_COMM_SYS_FINISH;
+
+    /// 强制上报系统状态复位
+    if (id == OLD_PUBLISH_DATA_SYSTEM_STATUS_RESET) {
+        return APP_OLD_COMM_SYS_RESET;
+    }
+
+    /// 强制上报泵状态结束
+    if (id == OLD_PUBLISH_DATA_PUMP_STATUS_FINISH) {
+        USB_IS_PLUGIN(chage_state) ? sys_status = APP_OLD_COMM_PUMP_FINISH_IN_CHARGE : APP_OLD_COMM_SYS_FINISH;
+        return sys_status;
+    }
+
     if (USB_IS_PLUGIN(chage_state)) {
         LOG_SRV("APP_OLD_COMM_SYS_CHANRGE");
         sys_status = APP_OLD_COMM_SYS_CHANRGE;
@@ -97,8 +109,8 @@ static uint8_t app_old_comm_get_sys_status(void)
         sys_status = APP_OLD_COMM_PUMP_RUN_IN_CHARGE;
     }
 
-    if (BREAST_PUMP_IDLE == pump_status) {
-        LOG_SRV("APP_OLD_COMM_SYS_STOP");
+    if (BREAST_PUMP_IDLE == pump_status || BREAST_PUMP_FINISH == pump_status) {
+        LOG_SRV("APP_OLD_COMM_SYS_FINISH");
         sys_status = APP_OLD_COMM_SYS_FINISH;
     }
 
@@ -107,7 +119,7 @@ static uint8_t app_old_comm_get_sys_status(void)
         sys_status = APP_OLD_COMM_SYS_PAUSE;
     }
 
-    if ((BREAST_PUMP_IDLE == pump_status )
+    if ((BREAST_PUMP_IDLE == pump_status || BREAST_PUMP_FINISH == pump_status)
         && USB_IS_PLUGIN(chage_state)) {
         LOG_SRV("APP_OLD_COMM_PUMP_FINISH_IN_CHARGE");
         sys_status = APP_OLD_COMM_PUMP_FINISH_IN_CHARGE;
@@ -119,7 +131,7 @@ static uint8_t app_old_comm_get_sys_status(void)
         sys_status = APP_OLD_COMM_PUMP_PAUSE_IN_CHARGE;
     }
 
-    if (BREAST_PUMP_RESET == pump_status || BREAST_PUMP_FINISH == pump_status) {
+    if (BREAST_PUMP_RESET == pump_status ) {
         LOG_SRV("APP_OLD_COMM_SYS_RESET");
         sys_status = APP_OLD_COMM_SYS_RESET;
     }
@@ -731,7 +743,7 @@ void app_old_comm_report_device_status(app_old_commd_l_r_ctrl_e lr_ct, servers_o
     uint16_t data_len = 0;
 
     report_data[data_len++] = app_old_comm_get_battery_percent();
-    report_data[data_len++] = app_old_comm_get_sys_status();
+    report_data[data_len++] = app_old_comm_get_sys_status(id, val);
     report_data[data_len++] = lr_ct;
     report_data[data_len++] = app_old_comm_get_current_pump_mode() + 1; //0x01~0x05（按摩-吸乳-混合-自定义-智能吸乳）
     report_data[data_len++] = app_old_comm_get_current_mode_pump_level(lr_ct, id); //0x01~0x0F（1档~15档）
@@ -767,7 +779,7 @@ void app_old_comm_handle_get_status_req(app_old_commd_l_r_ctrl_e lr_ct)
     uint16_t data_len = 0;
 
     ack_data[data_len++] = app_old_comm_get_battery_percent();
-    ack_data[data_len++] = app_old_comm_get_sys_status();
+    ack_data[data_len++] = app_old_comm_get_sys_status(OLD_PUBLISH_DATA_POLL_REPORT, NULL);
     ack_data[data_len++] = lr_ct;
     ack_data[data_len++] = app_old_comm_get_current_pump_mode() + 1;
     ack_data[data_len++] = app_old_comm_get_current_mode_pump_level(lr_ct, OLD_PUBLISH_DATA_POLL_REPORT);
