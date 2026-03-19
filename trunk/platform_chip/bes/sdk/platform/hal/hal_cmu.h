@@ -329,7 +329,7 @@ int hal_cmu_flash1_set_freq(enum HAL_CMU_FREQ_T freq);
 
 int hal_cmu_flash2_set_freq(enum HAL_CMU_FREQ_T freq);
 
-int hal_cmu_mem_set_freq(enum HAL_CMU_FREQ_T freq);
+int hal_cmu_mem_set_freq(uint32_t freq);
 
 int hal_cmu_sys_set_freq(enum HAL_CMU_FREQ_T freq);
 

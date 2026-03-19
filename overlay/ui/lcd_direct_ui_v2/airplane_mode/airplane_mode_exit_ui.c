@@ -12,218 +12,193 @@
 * DEFINES
 *****************************************************************************************
 */
-// 新增：圆弧进度条配置
-#define COUNTDOWN_ARC_SIZE            360    // 圆弧尺寸（匹配图片视觉）
-#define COUNTDOWN_ARC_WIDTH           12      // 圆弧粗细
-#define COUNTDOWN_ARC_COLOR           0xB25962 // 圆弧颜色（匹配吸奶器粉色）
-#define COUNTDOWN_MAX_VALUE           5      // 倒计时最大值
+#define AIRPLANE_MODE_EXIT_ARC_SIZE                       (360)   
+#define AIRPLANE_MODE_EXIT_ARC_WIDTH                      (12)  
+#define AIRPLANE_MODE_EXIT_ARC_COLOR                      (0xB25962) 
+#define AIRPLANE_MODE_EXIT_MAX_VALUE                      (5)     
+#define AIRPLANE_MODE_EXIT_ARC_START_ANGLE                (270)    
+#define AIRPLANE_MODE_EXIT_ARC_FULL_SWEEP                 (360)    
 
+typedef struct {
+    lv_obj_t * root;
+    lv_obj_t * number_text;
+    lv_obj_t * arc;
+    lv_obj_t * mask_layer; /// 遮罩层
+    uint8_t force_update;
+    uint8_t countdown_value; /// 倒计时值
+    uint8_t display_number; /// 显示倒计时数字
+    uint32_t start_time; /// 开始显示时间
+} airplane_mode_exit_display_info_t;
 /*
 * TYPEDEFS
 *****************************************************************************************
 */
-static lv_obj_t * sub_root;
-static lv_obj_t * countdown_num;
-static lv_obj_t * countdown_arc;            // 新增：环形进度条对象
-static lv_obj_t * backgroud;
-static uint16_t countdown_value;
-static uint8_t force_update;
-static uint32_t start_time;
+static airplane_mode_exit_display_info_t *display_info;
 
 /*
 * LOCAL VARIABLE DEFINITIONS
 *****************************************************************************************
 */
-#if IS_SUPPORT_AIRPLANE_MODE_COMP_BG
-static PSRAM_DATA_LOC uint8_t complete_tip_bg_data[] = {
-    #include "png2txt/airplay_exit_com_bg_360x360.txt"
-};
-#endif
 
 /*
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-static void airplane_mode_exit_sub_root_init(lv_obj_t *root)
+static void airplane_mode_exit_root_init(lv_obj_t *parent)
 {
-
-    if (sub_root == NULL || 
-        !lv_obj_is_valid(sub_root)) {
-        sub_root = lv_obj_create(root);
-        EXCEPTION_CHECK_VOID(sub_root);
-        lv_obj_set_size(sub_root, LV_PCT(100), LV_PCT(100));          /// 设置容器尺寸为屏幕的100%
-        lv_obj_set_style_bg_color(sub_root, lv_color_black(), 0);     /// 黑色背景
-        lv_obj_set_style_bg_opa(sub_root, LV_OPA_50, 0);           /// 背景透明度50%
-        lv_obj_set_style_border_width(sub_root, 0, 0);                /// 无边框
-        lv_obj_set_style_pad_all(sub_root, 0, 0);                     /// 无内边距
-        lv_obj_align(sub_root, LV_ALIGN_CENTER, 0, 0);
-        lv_obj_clear_flag(sub_root, LV_OBJ_FLAG_CLICKABLE);           /// 不拦截点击事件
-        lv_obj_clear_flag(sub_root, LV_OBJ_FLAG_SCROLLABLE);          /// 禁止滚动
+    if (display_info->root == NULL || !lv_obj_is_valid(display_info->root)) {
+        display_info->root = lv_obj_create(parent);
+        EXCEPTION_CHECK_VOID(display_info->root);
+        lv_obj_set_size(display_info->root, LV_PCT(100), LV_PCT(100));          /// 设置容器尺寸为屏幕的100%
+        lv_obj_set_style_bg_color(display_info->root, lv_color_black(), 0);     /// 黑色背景
+        lv_obj_set_style_bg_opa(display_info->root, LV_OPA_TRANSP, 0);          /// 背景填充透明（不画背景色，避免遮挡底图）
+        lv_obj_set_style_border_width(display_info->root, 0, 0);                /// 无边框
+        lv_obj_set_style_pad_all(display_info->root, 0, 0);                     /// 无内边距
+        lv_obj_align(display_info->root, LV_ALIGN_CENTER, 0, 0);
+        lv_obj_clear_flag(display_info->root, LV_OBJ_FLAG_CLICKABLE);           /// 不拦截点击事件
+        lv_obj_clear_flag(display_info->root, LV_OBJ_FLAG_SCROLLABLE);          /// 禁止滚动
     }
-
 }
 
-// 环形进度条更新函数（参照 pump_level_arc_progress_update）
-static void airplane_mode_exit_arc_update(ui_manager_context_t *thiz)
+static void airplane_mode_exit_progress_arc_update(ui_manager_context_t *thiz)
 {
     EXCEPTION_CHECK_VOID(thiz);
-    EXCEPTION_CHECK_VOID(sub_root);
-
-    /* 1. 创建 / 校验圆弧对象 */
-    if (countdown_arc == NULL ||
-        !lv_obj_is_valid(countdown_arc)) {
-
-        lv_obj_t *arc = lv_arc_create(sub_root);
-        EXCEPTION_CHECK_VOID(arc);
-        countdown_arc = arc;
-
-        /* 基础配置：范围、背景角度、尺寸和位置 */
-        lv_arc_set_range(arc, 0, COUNTDOWN_MAX_VALUE);      // 0 ~ 5
-        lv_arc_set_bg_angles(arc, 0, 360);                  // 背景整圆
-
-        lv_obj_set_size(arc, COUNTDOWN_ARC_SIZE, COUNTDOWN_ARC_SIZE);
-        lv_obj_align(arc, LV_ALIGN_CENTER, 0, 0);
-
-        /* 样式：隐藏背景弧和 knob，只显示指示弧 */
-        lv_obj_set_style_arc_opa(arc, LV_OPA_TRANSP, LV_PART_MAIN);          // 背景弧透明
-        lv_obj_set_style_opa(arc, LV_OPA_TRANSP, LV_PART_KNOB);              // knob 透明
-
-        lv_obj_set_style_arc_color(arc, lv_color_hex(COUNTDOWN_ARC_COLOR),
-                                   LV_PART_INDICATOR);                       // 指示弧颜色
-        lv_obj_set_style_arc_width(arc, COUNTDOWN_ARC_WIDTH,
-                                   LV_PART_INDICATOR);                       // 指示弧宽度
+    if (display_info->force_update == false &&
+        display_info->display_number == display_info->countdown_value) {
+        return;
     }
 
-    // progress: 0..COUNTDOWN_MAX_VALUE
-    int16_t progress = (int16_t)COUNTDOWN_MAX_VALUE -
-                       (int16_t)countdown_value;
-    if (progress < 0)
-      progress = 0;
-    if (progress > (int16_t)COUNTDOWN_MAX_VALUE)
-      progress = (int16_t)COUNTDOWN_MAX_VALUE;
-
-    // 0~5 的值同步给 arc
-    lv_arc_set_value(countdown_arc, progress);
-
-    int16_t start, end;
-    if (progress >= COUNTDOWN_MAX_VALUE) {
-      // 倒计时=0 → 满圆
-      start = 0;
-      end = 359; // 用 359° 而不是 360°，避免 wrap
-    } else {
-      // 按比例从 270° 开始画
-      start = 270;
-      int16_t sweep =
-          (int16_t)((360 * progress) / COUNTDOWN_MAX_VALUE); // 0..288
-      end = start + sweep;
+    if (display_info->arc == NULL || !lv_obj_is_valid(display_info->arc)) {
+        display_info->arc = lv_arc_create(display_info->root);
+        EXCEPTION_CHECK_VOID(display_info->arc);
+        lv_obj_set_size(display_info->arc, AIRPLANE_MODE_EXIT_ARC_SIZE, AIRPLANE_MODE_EXIT_ARC_SIZE); /// 设置弧线大小
+        lv_obj_center(display_info->arc); /// 设置弧线居中
+        lv_arc_set_bg_angles(display_info->arc, 0, AIRPLANE_MODE_EXIT_ARC_FULL_SWEEP);  /// 背景弧为完整闭环
+        lv_arc_set_angles(display_info->arc, 0, 0);  /// 前景弧初始角度
+        lv_arc_set_rotation(display_info->arc, AIRPLANE_MODE_EXIT_ARC_START_ANGLE);  /// 从 270 度开始绘制
+        lv_obj_set_style_arc_color(display_info->arc, lv_color_hex(AIRPLANE_MODE_EXIT_ARC_COLOR), LV_PART_MAIN);  /// 背景弧颜色
+        lv_obj_set_style_arc_width(display_info->arc, AIRPLANE_MODE_EXIT_ARC_WIDTH, LV_PART_MAIN);
+        lv_obj_set_style_arc_opa(display_info->arc, LV_OPA_TRANSP, LV_PART_MAIN);  /// 背景弧透明
+        lv_obj_set_style_arc_color(display_info->arc, lv_color_hex(AIRPLANE_MODE_EXIT_ARC_COLOR), LV_PART_INDICATOR);  /// 前景弧颜色
+        lv_obj_set_style_arc_width(display_info->arc, AIRPLANE_MODE_EXIT_ARC_WIDTH, LV_PART_INDICATOR);
+        lv_obj_set_style_arc_opa(display_info->arc, LV_OPA_COVER, LV_PART_INDICATOR);  /// 前景弧不透明
+        lv_obj_remove_style(display_info->arc, NULL, LV_PART_KNOB); /// 去掉旋钮
     }
 
-    lv_arc_set_angles(countdown_arc, start, end);
+    int16_t step = (int16_t)AIRPLANE_MODE_EXIT_MAX_VALUE - (int16_t)display_info->countdown_value + 1;
+    if (step < 0) {
+        step = 0;
+    } else if (step > AIRPLANE_MODE_EXIT_MAX_VALUE) {
+        step = AIRPLANE_MODE_EXIT_MAX_VALUE;
+    }
+
+    if (step >= AIRPLANE_MODE_EXIT_MAX_VALUE) {
+        lv_obj_set_style_arc_opa(display_info->arc, LV_OPA_COVER, LV_PART_MAIN);      /// 最后一帧直接显示完整闭环
+        lv_obj_set_style_arc_opa(display_info->arc, LV_OPA_TRANSP, LV_PART_INDICATOR);
+        lv_arc_set_angles(display_info->arc, 0, 0);
+        return;
+    }
+
+    lv_obj_set_style_arc_opa(display_info->arc, LV_OPA_TRANSP, LV_PART_MAIN);
+    lv_obj_set_style_arc_opa(display_info->arc, LV_OPA_COVER, LV_PART_INDICATOR);
+
+    int16_t end_angle = 0;
+    if (step > 0) {
+        end_angle = (AIRPLANE_MODE_EXIT_ARC_FULL_SWEEP * step) / AIRPLANE_MODE_EXIT_MAX_VALUE;
+    }
+    lv_arc_set_angles(display_info->arc, 0, end_angle);
 }
 
-#if IS_SUPPORT_AIRPLANE_MODE_COMP_BG
-static void airplane_mode_exit_bg_update(ui_manager_context_t *thiz)
+static void airplane_mode_exit_countdown_num_update(ui_manager_context_t *thiz)
 {
-    if (backgroud == NULL || !lv_obj_is_valid(backgroud)) {
-        backgroud = lv_image_create(sub_root);
-        EXCEPTION_CHECK_VOID(backgroud);
-    }
-    lv_fs_path_ex_t bg_img_path;
-    if (status == 0) {
-        lv_obj_add_flag(backgroud, LV_OBJ_FLAG_HIDDEN);
-    } else {
-        lv_obj_clear_flag(backgroud, LV_OBJ_FLAG_HIDDEN);
-        lv_fs_make_path_from_buffer(&bg_img_path, LV_FS_MEMFS_LETTER, complete_tip_bg_data,
-            sizeof(complete_tip_bg_data), "png");
-        lv_image_set_src(backgroud, (const void *)&bg_img_path);
-        lv_obj_align(backgroud, LV_ALIGN_CENTER, 0, 0);
+    if (display_info->force_update == false &&
+        display_info->display_number == display_info->countdown_value) {
+        return;
     }
 
-    if (get_timestamp() - start_time > 1000) {
-        start_time = get_timestamp();
-        status = (status == 0) ? 1 : 0;
+    if (display_info->number_text == NULL || !lv_obj_is_valid(display_info->number_text)) {
+        display_info->number_text = lv_label_create(display_info->root);
+        EXCEPTION_CHECK_VOID(display_info->number_text);
     }
+    char num_buf[8] = {0};
+    snprintf(num_buf, sizeof(num_buf), "%d", display_info->countdown_value);
+    lv_label_set_text(display_info->number_text, num_buf);
+    lv_obj_set_style_text_color(display_info->number_text, lv_color_white(), 0);
+    lv_obj_set_style_text_font(display_info->number_text, &lv_font_oppo_sans_96_bold, 0);
+    lv_obj_set_style_text_align(display_info->number_text, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_align(display_info->number_text, LV_ALIGN_CENTER, 0, 0);
 }
-#endif
 
-static int airplane_mode_exit_countdown_num_update(ui_manager_context_t *thiz, lv_obj_t *root, uint8_t show_countdown_num)
+static void airplane_mode_exit_mask_layer_update(ui_manager_context_t *thiz)
 {
-    EXCEPTION_CHECK_INT(thiz);
-    EXCEPTION_CHECK_INT(root);
-    /* 1. 创建 / 校验子根对象 */
-    if (show_countdown_num == 1) {
-        airplane_mode_exit_sub_root_init(root);
+    EXCEPTION_CHECK_VOID(thiz);
+    if (display_info->mask_layer == NULL || !lv_obj_is_valid(display_info->mask_layer)) {
+        display_info->mask_layer = lv_obj_create(display_info->root);
+        EXCEPTION_CHECK_VOID(display_info->mask_layer);
+        lv_obj_set_size(display_info->mask_layer, LV_PCT(100), LV_PCT(100));
+        lv_obj_center(display_info->mask_layer);
+        lv_obj_set_style_bg_color(display_info->mask_layer, lv_color_black(), 0);
+        lv_obj_set_style_bg_opa(display_info->mask_layer, 190, 0); /// 黑色背景透明度190
+        lv_obj_set_style_border_width(display_info->mask_layer, 0, 0);
+        lv_obj_set_style_pad_all(display_info->mask_layer, 0, 0);
+        lv_obj_clear_flag(display_info->mask_layer, LV_OBJ_FLAG_CLICKABLE);
     }
-
-    if (get_timestamp() - start_time < 700) {
-        return 0;
-    }
-    // 如果不需要显示倒计时数字，则直接返回
-    if (show_countdown_num == 0) {
-        if (sub_root) {
-            lv_obj_add_flag(sub_root, LV_OBJ_FLAG_HIDDEN);
-        }
-        countdown_value = COUNTDOWN_MAX_VALUE;
-        return 0;
-    }
-    lv_obj_clear_flag(sub_root, LV_OBJ_FLAG_HIDDEN);
-    if (countdown_num == NULL ||
-        !lv_obj_is_valid(countdown_num)) {
-        countdown_num = lv_label_create(sub_root);
-    }
-
-    // 把数字转成字符串
-    char num_buf[8];
-    snprintf(num_buf, sizeof(num_buf), "%d", countdown_value);
-
-    lv_label_set_text(countdown_num, num_buf);
-    // 大号白色字体，居中
-    lv_obj_set_style_text_color(countdown_num, lv_color_white(), 0);
-    lv_obj_set_style_text_font(countdown_num, &lv_font_quicksand_96_bold, 0);
-    lv_obj_set_style_text_align(countdown_num, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_align(countdown_num, LV_ALIGN_CENTER, 0, 0);
-
-    // 新增：更新圆弧进度条
-    airplane_mode_exit_arc_update(thiz);
-
-    if (countdown_value > 0) {
-        countdown_value--;
-    }
-    start_time = get_timestamp();
-    return 0;
 }
 
 /*
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-void ui_display_airplane_mode_exit_init(ui_manager_context_t *thiz, lv_obj_t *root)
+void ui_display_airplane_mode_exit_prepare(ui_manager_context_t *thiz, lv_obj_t *parent)
 {
     EXCEPTION_CHECK_VOID(thiz);
-    force_update = true;
-    countdown_value = 5;
-    start_time = get_timestamp(); // 初始化倒计时起始时间
+    EXCEPTION_CHECK_VOID(parent);
+    if (display_info == NULL) {
+        display_info = (airplane_mode_exit_display_info_t *)u_malloz(sizeof(airplane_mode_exit_display_info_t));
+        EXCEPTION_CHECK_VOID(display_info);
+    }
+    display_info->force_update = true;
+    display_info->countdown_value = AIRPLANE_MODE_EXIT_MAX_VALUE;
+    display_info->display_number = 0;
+    display_info->start_time = get_timestamp();
+    airplane_mode_exit_root_init(parent);
 }
 
-void ui_display_airplane_mode_exit_deinit(ui_manager_context_t *thiz, lv_obj_t *root)
+void ui_display_airplane_mode_exit_remove(ui_manager_context_t *thiz)
 {
     EXCEPTION_CHECK_VOID(thiz);
-    countdown_num = NULL;
-    countdown_arc = NULL;
-    backgroud = NULL;
-    sub_root = NULL;
-    force_update = false;
-    countdown_value = 0;
-    start_time = 0;
+    if (display_info == NULL) {
+        return;
+    }
+    LVGL_OBJ_DELETE(display_info->root);
+    u_free(display_info);
+    display_info = NULL;
 }
 
-void ui_display_airplane_mode_exit_process(ui_manager_context_t *thiz, lv_obj_t *root, uint8_t need_show_countdown_time)
+void ui_display_airplane_mode_exit_process(ui_manager_context_t *thiz)
 {
     EXCEPTION_CHECK_VOID(thiz);
+    if (display_info == NULL || display_info->root == NULL) {
+        return;
+    }
 
-    //是否显示倒计时数字
-    uint8_t show_countdown_num = need_show_countdown_time;
-    // 数字更新时自动同步圆弧进度
-    airplane_mode_exit_countdown_num_update(thiz, root, show_countdown_num);
-    force_update = false;
+    if (display_info->countdown_value <= 1 && (get_timestamp() - display_info->start_time >= 100)) {
+        ui_animation_play_t *ani = &thiz->priv.play_info;
+        EXCEPTION_CHECK_VOID(ani);
+        LOG_UI("display completed");
+        ani->progress_cb(thiz, AIRPLANE_MODE_POPUP_UI_EXIT, ANI_POPUP_DISPLAY_FINISH);
+        return;
+    }
+    airplane_mode_exit_mask_layer_update(thiz);
+    airplane_mode_exit_progress_arc_update(thiz);
+    airplane_mode_exit_countdown_num_update(thiz);
+    display_info->display_number = display_info->countdown_value;
+    display_info->force_update = false;
+    if (get_timestamp() - display_info->start_time >= 1000) {
+        if (display_info->countdown_value) {
+            display_info->countdown_value--;
+        }
+        LOG_UI("countdown value: %d", display_info->countdown_value);
+        display_info->start_time = get_timestamp();
+    }
 }

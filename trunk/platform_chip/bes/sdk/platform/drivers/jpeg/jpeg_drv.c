@@ -1374,7 +1374,7 @@ int jpeg_decode(struct jpeg_handle_t *handle)
 
     start = hal_fast_sys_timer_get();
 
-    hal_cache_invalidate(HAL_CACHE_ID_D_CACHE, (uint32_t)handle->pix_data, handle->pix_size);
+    hal_cache_sync_invalidate(HAL_CACHE_ID_D_CACHE, (uint32_t)handle->pix_data, handle->pix_size);
     hal_cache_sync(HAL_CACHE_ID_D_CACHE, (uint32_t)cfg.ecs, cfg.ecs_size);
 
     if (hal_jpeg_start(task->codec_id, &cfg)) {

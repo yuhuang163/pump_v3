@@ -94,6 +94,9 @@ static void led_timer_init(void)
 {
     if (hwt == NULL) {
         hwt = hwtimer_alloc(led_timeout_handler, 0);
+        if (hwt == NULL) {
+            LOGE("Oops! hwtimer_alloc(led): fail");
+        }
     }
 }
 

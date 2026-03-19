@@ -124,6 +124,7 @@ void app_old_comm_handle_report_taste_dev_status(servers_old_protocol_publish_da
 void app_old_comm_handle_get_record_num_req(uint8_t cal, uint8_t *cab);
 void app_old_comm_handle_get_record_data_req(uint8_t cal, uint8_t *cab);
 void app_old_comm_handle_clear_trail_custom_mode_req(uint8_t cal, uint8_t *cab);
+void app_old_comm_handle_set_bilateral_pump_param_req(uint8_t cal, uint8_t *cab);
 #ifdef __cplusplus
 }
 #endif

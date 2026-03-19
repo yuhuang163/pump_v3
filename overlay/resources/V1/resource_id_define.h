@@ -77,8 +77,8 @@ typedef enum {
     RESOURCE_ID_TRAVEL_LOCK,                /// 旅行锁图标
     RESOURCE_ID_TRAVEL_UNLOCK_TIP,          /// 旅行锁解锁提示
     RESOURCE_ID_AIR_LEAKAGE_ICON,           /// 泵奶-空气泄漏图标
-    RESOURCE_ID_PUMP_HOME_BG,               /// 泵奶首页背景
-    RESOURCE_ID_CHARGE_ADAPTER_ICON,        /// 充电-适配器图标
+    RESOURCE_ID_COMMON_BG,               /// 泵奶首页背景
+    RESOURCE_ID_CHARGE_ADAPTER_IMG,        /// 充电-适配器图标
     
     RESOURCE_ID_CHARGE_ANIMATION_START = 401, /// 充电动画-开始
     RESOURCE_ID_CHARGE_ANIMATION_END = 550,   /// 充电动画-结束

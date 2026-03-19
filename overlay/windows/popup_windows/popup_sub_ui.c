@@ -44,6 +44,10 @@ void start_popup_ui_animation(ui_proc_popup_t *proc)
         case ID_POPUP_WINDOW_MODE_PROMPT:
             LOG_UI("mode prompt ui animation.");
             break;
+        case ID_POPUP_WINDOW_WILL_POWER_OFF:
+            LOG_UI("system will power off ui animation.");
+            start_system_will_power_off_ui_animation(proc);
+            break;
         default:
             LOG_UI("unknow popup window id: %d, ignore.", proc->popup_window_id);
             break;

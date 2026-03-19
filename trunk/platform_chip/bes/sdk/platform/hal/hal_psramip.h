@@ -151,6 +151,7 @@ struct PSRAM_CFG_T {
     uint16_t run_freq_mhz;
     uint16_t cfg_freq_mhz;
     uint8_t  psram_type;
+    uint8_t  psram_die_name;
     uint8_t  psram_data_bus;
     enum PSRAM_PHY_BYPASS_CFG_T phy_bypass;
     struct PSRAM_PHY_CFG_T *phy_cfg;
@@ -228,6 +229,8 @@ void hal_psram_mc_set_cmd_nop(enum HAL_PSRAM_ID_T id);
 
 void hal_psram_mc_set_cmd_pd(enum HAL_PSRAM_ID_T id);
 
+void hal_psram_mc_set_cmd_halt(enum HAL_PSRAM_ID_T id);
+
 void hal_psram_mc_set_cmd_start_clock(enum HAL_PSRAM_ID_T id);
 
 void hal_psram_mc_set_cmd_stop_clock(enum HAL_PSRAM_ID_T id);
@@ -276,7 +279,7 @@ void hal_psram_mc_wl_set(enum HAL_PSRAM_ID_T id, uint32_t val);
 
 void hal_psram_mc_var_lat_en(enum HAL_PSRAM_ID_T id, bool v);
 
-void hal_psram_phy_dll_dly_init(enum HAL_PSRAM_ID_T id, struct PSRAM_CFG_T *psram_cfg);
+void hal_psram_phy_dll_dly_init(enum HAL_PSRAM_ID_T id, const struct PSRAM_CFG_T *psram_cfg);
 
 void hal_psram_phy_rx_timeout_enable(enum HAL_PSRAM_ID_T id);
 
@@ -297,4 +300,3 @@ void hal_psram_phy_param_save(enum HAL_PSRAM_ID_T id);
 void hal_psram_phy_param_recover(enum HAL_PSRAM_ID_T id);
 
 #endif /*__HAL_PSRAMIP_H_*/
-

@@ -2,9 +2,8 @@
 * INCLUDE FILES
 *****************************************************************************************
 */
-#include "root_common_api.h"
-#include "ui_img_define.h"
-#include "ui_page_define.h"
+#include "ui_img_define.h"   // IWYU pragma: keep
+#include "ui_page_define.h" // IWYU pragma: keep
 #include "ui_manager.h"
 #include "window_screen_pump.h"
 #include "breast_pump_ui.h"
@@ -13,36 +12,33 @@
 * DEFINES
 *****************************************************************************************
 */
-#define IS_SUPPORT_LEVEL_COMP_BG                        (0)
-#define IS_SUPPORT_PUMP_LEVEL_COMP_BG                   (0)
+#define IS_SUPPORT_PUMP_LEVEL_COMP_BG                         (0)
 
 //颜色定义
 #define PUMP_LEVEL_CONTROL_TYPE_LABEL_COLOR                   0xB25962
 #define PUMP_LEVEL_ROOT_BG_COLOR                              0xFFE0E5
 #define PUMP_LEVEL_TITLE_TEXT_COLOR                           0x533129
-#define PUMP_LEVEL_CONTROL_TYPE_TEXT_COLOR                     0xB25962
-#define PUMP_LEVEL_TEXT_LEVEL_LABLE_COLOR                      0x533129
+#define PUMP_LEVEL_CONTROL_TYPE_TEXT_COLOR                    0xB25962
+#define PUMP_LEVEL_TEXT_LEVEL_LABLE_COLOR                     0x533129
 
 
-#define PUMP_LEVEL_TITLE_TEXT_X                           117  + 36
-#define PUMP_LEVEL_TITLE_TEXT_Y                           96
+#define PUMP_LEVEL_TITLE_TEXT_X                               (117  + 34)
+#define PUMP_LEVEL_TITLE_TEXT_Y                               (96 + 4)
 
-#define PUMP_LEVEL_CONTROL_TYPE_LABLE1_X_L_R                         150
-#define PUMP_LEVEL_CONTROL_TYPE_LABLE1_Y_L_R                         224
-#define PUMP_LEVEL_CONTROL_TYPE_LABLE2_X_B                           186
-#define PUMP_LEVEL_CONTROL_TYPE_LABLE2_Y_B                           224
-#define PUMP_LEVEL_CONTROL_TYPE_LABLE1_X_B                           96
-#define PUMP_LEVEL_CONTROL_TYPE_LABLE1_Y_B                           224
-#define PUMP_LEVEL_TEXT_LEVEL_LABLE_X                                130+8
-#define PUMP_LEVEL_TEXT_LEVEL_LABLE_Y                                136+8
-#define PUMP_LEVEL_DIGIT_WIDTH                                       43      // 单个数字字符固定宽度
-#define PUMP_LEVEL_DIGIT_SPACING                                      0       // 两个数字之间的间距
+#define PUMP_LEVEL_CONTROL_TYPE_LABLE1_X_L_R                  (150)
+#define PUMP_LEVEL_CONTROL_TYPE_LABLE1_Y_L_R                  (224)
+#define PUMP_LEVEL_CONTROL_TYPE_LABLE2_X_B                           (186)
+#define PUMP_LEVEL_CONTROL_TYPE_LABLE2_Y_B                           (224)
+#define PUMP_LEVEL_CONTROL_TYPE_LABLE1_X_B                           (96)
+#define PUMP_LEVEL_CONTROL_TYPE_LABLE1_Y_B                           (224)
+#define PUMP_LEVEL_TEXT_LEVEL_LABLE_X                                (130 + 1)
+#define PUMP_LEVEL_TEXT_LEVEL_LABLE_Y                                (136 + 8)
+#define PUMP_LEVEL_DIGIT_WIDTH                                       (43)      // 单个数字字符固定宽度
+#define PUMP_LEVEL_DIGIT_SPACING                                     (5)       // 两个数字之间的间距
 
-
-
-// 等级指示器配置
-#define INDICATOR_SIZE                                  308
-#define TOTAL_LEVEL                                     15      // 总等级
+/// 等级指示器配置
+#define INDICATOR_SIZE                                    (308)
+#define TOTAL_LEVEL                                       (15)      // 总等级
 
 
 typedef struct {
@@ -53,8 +49,10 @@ typedef struct {
     lv_obj_t * title_text;                        // 档位文字
     lv_obj_t * control_type_lable1;                // 控制类型标签
     lv_obj_t * control_type_lable_text1;            // 控制类型标签文字
+    lv_obj_t * control_type_lable_text3;            // 控制类型标签文字3
     lv_obj_t * control_type_lable2;                // 控制类型标签
     lv_obj_t * control_type_lable_text2;            // 控制类型标签文字
+    lv_obj_t * control_type_lable_text4;            // 控制类型标签文字4
     lv_obj_t * text_level_lable2;                    // 等级文字标签
     lv_obj_t * text_level_digit1;                    // 等级数字标签（十位）
     lv_obj_t * text_level_digit2;                    // 等级数字标签（个位）
@@ -72,9 +70,10 @@ typedef struct {
 * LOCAL VARIABLE DEFINITIONS
 *****************************************************************************************
 */
-#if IS_SUPPORT_LEVEL_COMP_BG
+#if IS_SUPPORT_PUMP_LEVEL_COMP_BG
 static PSRAM_DATA_LOC uint8_t setting_bg_data[] = {
-    #include "png2txt/pump_level_bg_300x300.txt"
+    // #include "comparison_png2txt/left_level_360x360.txt"
+    #include "comparison_png2txt/Right_360x360.txt"
 };
 #endif
 
@@ -267,6 +266,7 @@ static void pump_level_title_text_update(ui_manager_context_t *thiz)
     lv_label_set_text(level_info->title_text, "Level");
     lv_obj_set_style_text_color(level_info->title_text, lv_color_hex(PUMP_LEVEL_TITLE_TEXT_COLOR), 0);
     lv_obj_set_style_text_font(level_info->title_text, &lv_font_oppo_sans_24_medium, 0);
+    lv_obj_set_style_text_opa(level_info->title_text, LV_OPA_60, 0);
     lv_obj_align(level_info->title_text, LV_ALIGN_TOP_LEFT, PUMP_LEVEL_TITLE_TEXT_X, PUMP_LEVEL_TITLE_TEXT_Y);
 }
 
@@ -280,100 +280,108 @@ static void pump_level_control_type_lable_update(ui_manager_context_t *thiz)
     if (level_info->control_type_lable1 == NULL || !lv_obj_is_valid(level_info->control_type_lable1)) {
         level_info->control_type_lable1 = lv_obj_create(level_info->root);
         EXCEPTION_CHECK_VOID(level_info->control_type_lable1);
+        lv_obj_add_flag(level_info->control_type_lable1, LV_OBJ_FLAG_HIDDEN);
     }
 
     if (level_info->control_type_lable_text1 == NULL || !lv_obj_is_valid(level_info->control_type_lable_text1)) {
         level_info->control_type_lable_text1 = lv_label_create(level_info->control_type_lable1);
         EXCEPTION_CHECK_VOID(level_info->control_type_lable_text1);
+        lv_obj_add_flag(level_info->control_type_lable_text1, LV_OBJ_FLAG_HIDDEN);
+    }
+    if (level_info->control_type_lable_text3 == NULL || !lv_obj_is_valid(level_info->control_type_lable_text3)) {
+        level_info->control_type_lable_text3 = lv_label_create(level_info->control_type_lable1);
+        EXCEPTION_CHECK_VOID(level_info->control_type_lable_text3);
+        lv_obj_add_flag(level_info->control_type_lable_text3, LV_OBJ_FLAG_HIDDEN);
     }
 
     if (level_info->control_type_lable2 == NULL || !lv_obj_is_valid(level_info->control_type_lable2)) {
         level_info->control_type_lable2 = lv_obj_create(level_info->root);
         EXCEPTION_CHECK_VOID(level_info->control_type_lable2);
-        
+        lv_obj_add_flag(level_info->control_type_lable2, LV_OBJ_FLAG_HIDDEN);
     }
 
     if (level_info->control_type_lable_text2 == NULL || !lv_obj_is_valid(level_info->control_type_lable_text2)) {
         level_info->control_type_lable_text2 = lv_label_create(level_info->control_type_lable2);
         EXCEPTION_CHECK_VOID(level_info->control_type_lable_text2);
+        lv_obj_add_flag(level_info->control_type_lable_text2, LV_OBJ_FLAG_HIDDEN);
     }
 
+    if (level_info->control_type_lable_text4 == NULL || !lv_obj_is_valid(level_info->control_type_lable_text4)) {
+        level_info->control_type_lable_text4 = lv_label_create(level_info->control_type_lable2);
+        EXCEPTION_CHECK_VOID(level_info->control_type_lable_text4);
+        lv_obj_add_flag(level_info->control_type_lable_text4, LV_OBJ_FLAG_HIDDEN);
+    }
+    
     if (level_info->control_type == BREAST_PUMP_CONTROL_TYPE_BILATERAL) {
         /// 双侧模式下，两个标签都显示
-        // 胶囊状：宽度大于高度，圆角半径为高度的一半
-        uint16_t capsule_width = 78;   // 胶囊宽度
-        uint16_t capsule_height = 40; // 胶囊高度
-        uint16_t capsule_radius = capsule_height / 2;  // 圆角半径 = 高度的一半
-        
-        // 设置标签1（左侧，显示"L"）
+        uint16_t capsule_width = 78;   /// 胶囊宽度
+        uint16_t capsule_height = 40; /// 胶囊高度
+        uint16_t capsule_radius = capsule_height / 2;  /// 圆角半径 = 高度的一半
+        /// 设置标签1（左侧，显示"L"）
         lv_obj_set_size(level_info->control_type_lable1, capsule_width, capsule_height);
         lv_obj_align(level_info->control_type_lable1, LV_ALIGN_TOP_LEFT, 
             PUMP_LEVEL_CONTROL_TYPE_LABLE1_X_B, PUMP_LEVEL_CONTROL_TYPE_LABLE1_Y_B);
         lv_obj_clear_flag(level_info->control_type_lable1, LV_OBJ_FLAG_SCROLLABLE);
         lv_obj_set_style_bg_color(level_info->control_type_lable1, lv_color_hex(PUMP_LEVEL_CONTROL_TYPE_LABEL_COLOR), 0);
-        lv_obj_set_style_bg_opa(level_info->control_type_lable1, LV_OPA_20, 0);//透明20%
+        lv_obj_set_style_bg_opa(level_info->control_type_lable1, LV_OPA_20, 0); /// 透明20%
         lv_obj_set_style_radius(level_info->control_type_lable1, capsule_radius, 0);
         lv_obj_set_style_border_opa(level_info->control_type_lable1, LV_OPA_TRANSP, 0);
         lv_obj_clear_flag(level_info->control_type_lable1, LV_OBJ_FLAG_HIDDEN);
         
-        // 设置标签1文本：L + 左侧等级（格式化为两位数）
-        char label1_text[8];
-        char level_str[4];
-        if (level_info->left_level < 10) {  
-            snprintf(level_str, sizeof(level_str), "0%d", level_info->left_level);
-        } else {
-            snprintf(level_str, sizeof(level_str), "%d", level_info->left_level);
-        }
-        snprintf(label1_text, sizeof(label1_text), "L %s", level_str);
-        lv_label_set_text(level_info->control_type_lable_text1, label1_text);
-        // 设置固定宽度，避免等级变化时位置跳动
-        lv_obj_set_width(level_info->control_type_lable_text1, 78);  // 固定宽度，确保"L 00"到"L 15"都能完整显示
-        lv_label_set_long_mode(level_info->control_type_lable_text1, LV_LABEL_LONG_CLIP);
-        lv_obj_set_style_text_align(level_info->control_type_lable_text1, LV_TEXT_ALIGN_CENTER, 0);  // 文本居中对齐
-        lv_obj_set_style_bg_opa(level_info->control_type_lable_text1, LV_OPA_TRANSP, 0);
-        lv_obj_set_style_border_opa(level_info->control_type_lable_text1, LV_OPA_TRANSP, 0);
-        lv_obj_set_style_shadow_opa(level_info->control_type_lable_text1, LV_OPA_TRANSP, 0);
-        lv_obj_set_style_pad_all(level_info->control_type_lable_text1, 0, 0);
-        lv_obj_center(level_info->control_type_lable_text1);
-        lv_obj_set_style_text_color(level_info->control_type_lable_text1, lv_color_hex(PUMP_LEVEL_CONTROL_TYPE_TEXT_COLOR), 0);
-        lv_obj_set_style_text_font(level_info->control_type_lable_text1, &lv_font_oppo_sans_24_medium, 0);
-        lv_obj_align(level_info->control_type_lable_text1, LV_ALIGN_CENTER, 0, 3);
-        lv_obj_clear_flag(level_info->control_type_lable_text1, LV_OBJ_FLAG_HIDDEN);
+        /// 显示文本1：L
+        char level_str[4] = {0};
+        snprintf(level_str, sizeof(level_str), "%s", "L");
+        lv_label_set_text(level_info->control_type_lable_text1, level_str);
+        lv_obj_set_width(level_info->control_type_lable_text1, 78);  /// 设置文本宽度
+        lv_obj_set_style_text_align(level_info->control_type_lable_text1, LV_TEXT_ALIGN_CENTER, 0);  /// 文本居中对齐
+        lv_obj_set_style_text_color(level_info->control_type_lable_text1, lv_color_hex(PUMP_LEVEL_CONTROL_TYPE_TEXT_COLOR), 0); /// 设置文本颜色
+        lv_obj_set_style_text_font(level_info->control_type_lable_text1, &lv_font_oppo_sans_24_semibold, 0); /// 设置文本字体
+        lv_obj_align(level_info->control_type_lable_text1, LV_ALIGN_CENTER, -16, 3); /// 设置文本位置
+        lv_obj_clear_flag(level_info->control_type_lable_text1, LV_OBJ_FLAG_HIDDEN); /// 显示文本
         
-        // 设置标签2（右侧，显示"R"）
+        /// 显示文本3：左侧等级（格式化为两位数）
+        memset(level_str, 0, sizeof(level_str));
+        snprintf(level_str, sizeof(level_str), "%02d", level_info->left_level);
+        lv_label_set_text(level_info->control_type_lable_text3, level_str);
+        lv_obj_set_width(level_info->control_type_lable_text3, 78);  /// 设置文本宽度
+        lv_obj_set_style_text_align(level_info->control_type_lable_text3, LV_TEXT_ALIGN_CENTER, 0);  /// 文本居中对齐
+        lv_obj_set_style_text_color(level_info->control_type_lable_text3, lv_color_hex(PUMP_LEVEL_CONTROL_TYPE_TEXT_COLOR), 0); /// 设置文本颜色
+        lv_obj_set_style_text_font(level_info->control_type_lable_text3, &lv_font_oppo_sans_24_semibold, 0); /// 设置文本字体
+        lv_obj_align(level_info->control_type_lable_text3, LV_ALIGN_CENTER, 8, 3); /// 设置文本位置
+        lv_obj_clear_flag(level_info->control_type_lable_text3, LV_OBJ_FLAG_HIDDEN); /// 显示文本
+
+        /// 设置标签2（右侧，显示"R"）
         lv_obj_set_size(level_info->control_type_lable2, capsule_width, capsule_height);
         lv_obj_align(level_info->control_type_lable2, LV_ALIGN_TOP_LEFT, 
             PUMP_LEVEL_CONTROL_TYPE_LABLE2_X_B, PUMP_LEVEL_CONTROL_TYPE_LABLE2_Y_B);
         lv_obj_clear_flag(level_info->control_type_lable2, LV_OBJ_FLAG_SCROLLABLE);
         lv_obj_set_style_bg_color(level_info->control_type_lable2, lv_color_hex(PUMP_LEVEL_CONTROL_TYPE_LABEL_COLOR), 0);
-        lv_obj_set_style_bg_opa(level_info->control_type_lable2, LV_OPA_20, 0);//透明20%
+        lv_obj_set_style_bg_opa(level_info->control_type_lable2, LV_OPA_20, 0); /// 透明20%
         lv_obj_set_style_radius(level_info->control_type_lable2, capsule_radius, 0);
         lv_obj_set_style_border_opa(level_info->control_type_lable2, LV_OPA_TRANSP, 0);
         lv_obj_clear_flag(level_info->control_type_lable2, LV_OBJ_FLAG_HIDDEN);
         
-        // 设置标签2文本：R + 右侧等级（格式化为两位数）
-        char label2_text[8];
-        char level_str2[4];
-        if (level_info->right_level < 10) {
-            snprintf(level_str2, sizeof(level_str2), "0%d", level_info->right_level);
-        } else {
-            snprintf(level_str2, sizeof(level_str2), "%d", level_info->right_level);
-        }
-        snprintf(label2_text, sizeof(label2_text), "R %s", level_str2);
-        lv_label_set_text(level_info->control_type_lable_text2, label2_text);
-        // 设置固定宽度，避免等级变化时位置跳动
-        lv_obj_set_width(level_info->control_type_lable_text2, 78);  // 固定宽度，确保"R 00"到"R 15"都能完整显示
-        lv_label_set_long_mode(level_info->control_type_lable_text2, LV_LABEL_LONG_CLIP);
-        lv_obj_set_style_text_align(level_info->control_type_lable_text2, LV_TEXT_ALIGN_CENTER, 0);  // 文本居中对齐
-        lv_obj_set_style_bg_opa(level_info->control_type_lable_text2, LV_OPA_TRANSP, 0);
-        lv_obj_set_style_border_opa(level_info->control_type_lable_text2, LV_OPA_TRANSP, 0);
-        lv_obj_set_style_shadow_opa(level_info->control_type_lable_text2, LV_OPA_TRANSP, 0);
-        lv_obj_set_style_pad_all(level_info->control_type_lable_text2, 0, 0);
-        lv_obj_center(level_info->control_type_lable_text2);
+        /// 设置标签2文本：R
+        memset(level_str, 0, sizeof(level_str));
+        snprintf(level_str, sizeof(level_str), "%s", "R");
+        lv_label_set_text(level_info->control_type_lable_text2, level_str);
+        lv_obj_set_width(level_info->control_type_lable_text2, 78);  /// 设置文本宽度
+        lv_obj_set_style_text_align(level_info->control_type_lable_text2, LV_TEXT_ALIGN_CENTER, 0);  /// 文本居中对齐
         lv_obj_set_style_text_color(level_info->control_type_lable_text2, lv_color_hex(PUMP_LEVEL_CONTROL_TYPE_TEXT_COLOR), 0);
-        lv_obj_set_style_text_font(level_info->control_type_lable_text2, &lv_font_oppo_sans_24_medium, 0);
-        lv_obj_align(level_info->control_type_lable_text2, LV_ALIGN_CENTER, 0, 3);
-        lv_obj_clear_flag(level_info->control_type_lable_text2, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_style_text_font(level_info->control_type_lable_text2, &lv_font_oppo_sans_24_medium, 0); /// 设置文本字体
+        lv_obj_align(level_info->control_type_lable_text2, LV_ALIGN_CENTER, -18, 3); /// 设置文本位置
+        lv_obj_clear_flag(level_info->control_type_lable_text2, LV_OBJ_FLAG_HIDDEN); /// 显示文本
+        
+        /// 显示文本4：右侧等级（格式化为两位数）
+        memset(level_str, 0, sizeof(level_str));
+        snprintf(level_str, sizeof(level_str), "%02d", level_info->right_level);
+        lv_label_set_text(level_info->control_type_lable_text4, level_str);
+        lv_obj_set_width(level_info->control_type_lable_text4, 78);  /// 设置文本宽度
+        lv_obj_set_style_text_align(level_info->control_type_lable_text4, LV_TEXT_ALIGN_CENTER, 0);  /// 文本居中对齐
+        lv_obj_set_style_text_color(level_info->control_type_lable_text4, lv_color_hex(PUMP_LEVEL_CONTROL_TYPE_TEXT_COLOR), 0); /// 设置文本颜色
+        lv_obj_set_style_text_font(level_info->control_type_lable_text4, &lv_font_oppo_sans_24_medium, 0); /// 设置文本字体
+        lv_obj_align(level_info->control_type_lable_text4, LV_ALIGN_CENTER, 8, 3); /// 设置文本位置
+        lv_obj_clear_flag(level_info->control_type_lable_text4, LV_OBJ_FLAG_HIDDEN); /// 显示文本
         
     } else {
         /// 单侧模式下，只显示一个标签
@@ -381,20 +389,15 @@ static void pump_level_control_type_lable_update(ui_manager_context_t *thiz)
         uint16_t capsule_width = 60;   // 胶囊宽度
         uint16_t capsule_height = 40; // 胶囊高度
         uint16_t capsule_radius = capsule_height / 2;  // 圆角半径 = 高度的一半
-        
         lv_obj_set_size(level_info->control_type_lable1, capsule_width, capsule_height);
-        /// 设置坐标
-        lv_obj_align(level_info->control_type_lable1, LV_ALIGN_TOP_LEFT, PUMP_LEVEL_CONTROL_TYPE_LABLE1_X_L_R, PUMP_LEVEL_CONTROL_TYPE_LABLE1_Y_L_R);
-        
+        lv_obj_align(level_info->control_type_lable1, LV_ALIGN_TOP_LEFT, 
+            PUMP_LEVEL_CONTROL_TYPE_LABLE1_X_L_R, PUMP_LEVEL_CONTROL_TYPE_LABLE1_Y_L_R);
         lv_obj_clear_flag(level_info->control_type_lable1, LV_OBJ_FLAG_SCROLLABLE);   /// 不要滚动条
-        // 设置浅粉色背景 (RGB: 255, 224, 229 精准匹配浅粉)
+        /// 设置浅粉色背景 (RGB: 255, 224, 229 精准匹配浅粉)
         lv_obj_set_style_bg_color(level_info->control_type_lable1, lv_color_hex(PUMP_LEVEL_CONTROL_TYPE_LABEL_COLOR), 0);
-        lv_obj_set_style_bg_opa(level_info->control_type_lable1, LV_OPA_20, 0);//透明20%
-        // 设置圆角半径为高度的一半，形成胶囊/椭圆效果
+        lv_obj_set_style_bg_opa(level_info->control_type_lable1, LV_OPA_20, 0); /// 透明20%
         lv_obj_set_style_radius(level_info->control_type_lable1, capsule_radius, 0);
-        lv_obj_set_style_border_opa(level_info->control_type_lable1, LV_OPA_TRANSP, 0);  // 无边框
-
-        // 设置标签文本：L/R 文本
+        lv_obj_set_style_border_opa(level_info->control_type_lable1, LV_OPA_TRANSP, 0);  /// 无边框
         if (level_info->control_type == BREAST_PUMP_CONTROL_TYPE_LEFT) {
             lv_label_set_text(level_info->control_type_lable_text1, "L");
         } else if (level_info->control_type == BREAST_PUMP_CONTROL_TYPE_RIGHT) {
@@ -402,22 +405,16 @@ static void pump_level_control_type_lable_update(ui_manager_context_t *thiz)
         } else {
             LOGE("invalid control type: %d", level_info->control_type);
         }
-        
-        // 设置文本标签样式：背景透明，无边框，无阴影
-        lv_obj_set_style_bg_opa(level_info->control_type_lable_text1, LV_OPA_TRANSP, 0);  // 背景透明
-        lv_obj_set_style_border_opa(level_info->control_type_lable_text1, LV_OPA_TRANSP, 0);  // 无边框
-        lv_obj_set_style_shadow_opa(level_info->control_type_lable_text1, LV_OPA_TRANSP, 0);  // 无阴影
-        lv_obj_set_style_pad_all(level_info->control_type_lable_text1, 0, 0);  // 无内边距
-        
-        lv_obj_center(level_info->control_type_lable_text1);           // 居中显示
-        lv_obj_set_style_text_color(level_info->control_type_lable_text1, lv_color_hex(PUMP_LEVEL_CONTROL_TYPE_TEXT_COLOR), 0);
-        lv_obj_set_style_text_font(level_info->control_type_lable_text1, &lv_font_oppo_sans_24_medium, 0);
-        lv_obj_align(level_info->control_type_lable_text1, LV_ALIGN_CENTER, 0, 3);
-        //关闭第二个标签 隐藏
+        lv_obj_set_style_text_color(level_info->control_type_lable_text1,
+            lv_color_hex(PUMP_LEVEL_CONTROL_TYPE_TEXT_COLOR), 0); /// 设置文本颜色
+        lv_obj_set_style_text_font(level_info->control_type_lable_text1, &lv_font_oppo_sans_24_semibold, 0); /// 设置文本字体
+        lv_obj_align(level_info->control_type_lable_text1, LV_ALIGN_CENTER, 0, 3); /// 设置文本位置
+        lv_obj_clear_flag(level_info->control_type_lable_text1, LV_OBJ_FLAG_HIDDEN); /// 显示文本
         lv_obj_add_flag(level_info->control_type_lable2, LV_OBJ_FLAG_HIDDEN);
         lv_obj_add_flag(level_info->control_type_lable_text2, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(level_info->control_type_lable_text3, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(level_info->control_type_lable_text4, LV_OBJ_FLAG_HIDDEN);
     }
-
 }
 
 /**
@@ -442,19 +439,23 @@ static void pump_level_text_level_lable_update(ui_manager_context_t *thiz)
     if (level_info->text_level_lable2 == NULL || !lv_obj_is_valid(level_info->text_level_lable2)) {
         level_info->text_level_lable2 = lv_label_create(level_info->root);
         EXCEPTION_CHECK_VOID(level_info->text_level_lable2);
+        lv_obj_add_flag(level_info->text_level_lable2, LV_OBJ_FLAG_HIDDEN);
     }
     // 创建两个独立的数字标签（十位和个位）
     if (level_info->text_level_digit1 == NULL || !lv_obj_is_valid(level_info->text_level_digit1)) {
         level_info->text_level_digit1 = lv_label_create(level_info->root);
         EXCEPTION_CHECK_VOID(level_info->text_level_digit1);
+        lv_obj_add_flag(level_info->text_level_digit1, LV_OBJ_FLAG_HIDDEN);
     }
     if (level_info->text_level_digit2 == NULL || !lv_obj_is_valid(level_info->text_level_digit2)) {
         level_info->text_level_digit2 = lv_label_create(level_info->root);
         EXCEPTION_CHECK_VOID(level_info->text_level_digit2);
+        lv_obj_add_flag(level_info->text_level_digit2, LV_OBJ_FLAG_HIDDEN);
     }
     if (level_info->add_label == NULL || !lv_obj_is_valid(level_info->add_label)) {
         level_info->add_label = lv_image_create(level_info->root);
         EXCEPTION_CHECK_VOID(level_info->add_label);
+        lv_obj_add_flag(level_info->add_label, LV_OBJ_FLAG_HIDDEN);
     }
 
     if (level_info->control_type == BREAST_PUMP_CONTROL_TYPE_BILATERAL) {
@@ -495,14 +496,9 @@ static void pump_level_text_level_lable_update(ui_manager_context_t *thiz)
         lv_fs_make_path_from_buffer(&add_img_path, LV_FS_MEMFS_LETTER, 
             level_info->add_label_info.data, level_info->add_label_info.size, "baj");
         lv_image_set_src(level_info->add_label, (const void *)&add_img_path);
-        lv_obj_align(level_info->add_label, LV_ALIGN_TOP_LEFT, 110, 162);
+        lv_obj_align(level_info->add_label, LV_ALIGN_TOP_LEFT, 110 - 5, 162 - 2);
         lv_obj_clear_flag(level_info->add_label, LV_OBJ_FLAG_HIDDEN);
-
-
     } else {
-
-        ///add_label图片标签   隐藏
-        lv_obj_add_flag(level_info->add_label, LV_OBJ_FLAG_HIDDEN);
         // 单侧模式：使用两个独立标签显示等级值（十位和个位）
         uint8_t display_level = (level_info->control_type == BREAST_PUMP_CONTROL_TYPE_LEFT) ? 
                                 level_info->left_level : level_info->right_level;
@@ -512,6 +508,9 @@ static void pump_level_text_level_lable_update(ui_manager_context_t *thiz)
         // 显示十位数字（固定宽度）
         char tens_char[2] = { '0' + tens_digit, '\0' };
         lv_label_set_text(level_info->text_level_digit1, tens_char);
+        lv_obj_set_style_text_color(level_info->text_level_digit1, 
+            lv_color_hex(PUMP_LEVEL_TEXT_LEVEL_LABLE_COLOR), 0);
+        lv_obj_set_style_text_opa(level_info->text_level_digit1, LV_OPA_100, LV_PART_MAIN);
         pump_level_digit_label_setup(level_info->text_level_digit1, 
             PUMP_LEVEL_TEXT_LEVEL_LABLE_X, PUMP_LEVEL_TEXT_LEVEL_LABLE_Y);
         lv_obj_clear_flag(level_info->text_level_digit1, LV_OBJ_FLAG_HIDDEN);
@@ -519,21 +518,21 @@ static void pump_level_text_level_lable_update(ui_manager_context_t *thiz)
         // 显示个位数字（固定宽度）
         char ones_char[2] = { '0' + ones_digit, '\0' };
         lv_label_set_text(level_info->text_level_digit2, ones_char);
+        lv_obj_set_style_text_color(level_info->text_level_digit2, 
+            lv_color_hex(PUMP_LEVEL_TEXT_LEVEL_LABLE_COLOR), 0);
+        lv_obj_set_style_text_opa(level_info->text_level_digit2, LV_OPA_100, LV_PART_MAIN);
         pump_level_digit_label_setup(level_info->text_level_digit2, 
             PUMP_LEVEL_TEXT_LEVEL_LABLE_X + PUMP_LEVEL_DIGIT_WIDTH + PUMP_LEVEL_DIGIT_SPACING, 
             PUMP_LEVEL_TEXT_LEVEL_LABLE_Y);
         lv_obj_clear_flag(level_info->text_level_digit2, LV_OBJ_FLAG_HIDDEN);
              
-        // 第二个标签显示/15 文本
+     
         lv_label_set_text(level_info->text_level_lable2, "/15");
         lv_obj_set_style_text_color(level_info->text_level_lable2, lv_color_hex(PUMP_LEVEL_TEXT_LEVEL_LABLE_COLOR), 0);
         lv_obj_set_style_text_font(level_info->text_level_lable2, &lv_font_oppo_sans_20_medium, 0);
-        lv_obj_align(level_info->text_level_lable2, LV_ALIGN_TOP_LEFT, PUMP_LEVEL_TEXT_LEVEL_LABLE_X + 86, PUMP_LEVEL_TEXT_LEVEL_LABLE_Y + 38);
-         //修改字体透明度为50%
-        lv_obj_set_style_text_opa(level_info->text_level_lable2, LV_OPA_50, LV_PART_MAIN);
-        ///text_level_lable2 显示lable
+        lv_obj_align(level_info->text_level_lable2, LV_ALIGN_TOP_LEFT, PUMP_LEVEL_TEXT_LEVEL_LABLE_X + 95, PUMP_LEVEL_TEXT_LEVEL_LABLE_Y + 36);
+        lv_obj_set_style_text_opa(level_info->text_level_lable2, LV_OPA_40, LV_PART_MAIN);
         lv_obj_clear_flag(level_info->text_level_lable2, LV_OBJ_FLAG_HIDDEN);
-
     }
 
 }
@@ -548,10 +547,7 @@ void ui_display_pump_level_prepare(ui_manager_context_t *thiz)
     if (level_info == NULL) {
         level_info = (level_display_info_t *)u_malloz(sizeof(level_display_info_t));
         EXCEPTION_CHECK_VOID(level_info);
-        // 初始化所有指针为NULL
-        memset(level_info, 0, sizeof(level_display_info_t));
         level_info->last_display_level = 0xff; //初始化为无效值
-        level_info->level_change = 0; //初始化为0
     }
     
     thiz->priv.fps_count = 0;

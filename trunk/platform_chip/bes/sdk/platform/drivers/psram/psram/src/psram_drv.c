@@ -34,16 +34,19 @@
 struct psram_package_info {
     enum PSRAM_DATA_BUS_T bus;
     enum PSRAM_TYPE_T type;
+    enum PSRAM_DIE_NAME_T die_name;
     // int die_code;
 };
 
 #ifdef PSRAM_POLLING
-#if (defined(CHIP_BEST1502P) || defined(CHIP_BEST1306P) || defined(CHIP_BEST2007H))
+#if (defined(CHIP_BEST1502P) || defined(CHIP_BEST1306P) || defined(CHIP_BEST2007H) || \
+    defined(CHIP_BEST2007HS) || defined(CHIP_BEST1503P))
 static struct psram_package_info psram_polling_list[] = {
-    {PSRAM_DATA_BUS_X8, PSRAM_TYPE_XOPI},
-    {PSRAM_DATA_BUS_X8, PSRAM_TYPE_OPI},
-    {PSRAM_DATA_BUS_X8, PSRAM_TYPE_HYPERRAM}
-    };
+    {PSRAM_DATA_BUS_X8, PSRAM_TYPE_XOPI, PSRAM_DIE_NAME_NULL},
+    {PSRAM_DATA_BUS_X8, PSRAM_TYPE_OPI, PSRAM_APS6408L},
+    {PSRAM_DATA_BUS_X8, PSRAM_TYPE_OPI, PSRAM_APS6408L_INITED},
+    {PSRAM_DATA_BUS_X8, PSRAM_TYPE_HYPERRAM, PSRAM_DIE_NAME_NULL},
+};
 #elif 0
     // add another chip's polling here
 #else
@@ -111,11 +114,12 @@ void psram_struct_init(struct PSRAM_CFG_T *psram_cfg)
 
 int psram_type_bus_init(struct PSRAM_T *psram)
 {
-    uint32_t type, bus, phy_type;
+    uint32_t type, bus, phy_type, die_name;
 
     type = PSRAM_TYPE_XOPI;
     bus = PSRAM_DATA_BUS_X16;
     phy_type = PHY_P2S_BYPASS;
+    die_name = PSRAM_DIE_NAME_NULL;
 
 #ifdef PSRAM_POLLING
     static int index = 0;
@@ -123,6 +127,7 @@ int psram_type_bus_init(struct PSRAM_T *psram)
     if (index < ARRAY_SIZE(psram_polling_list)) {
         type = psram_polling_list[index].type;
         bus = psram_polling_list[index].bus;
+        die_name = psram_polling_list[index].die_name;
         index++;
     } else {
         return 1;
@@ -134,6 +139,7 @@ int psram_type_bus_init(struct PSRAM_T *psram)
     type = PSRAM_TYPE_HYPERRAM;
 #elif defined(PSRAM_CLASSIFY_OPI)
     type = PSRAM_TYPE_OPI;
+    die_name = PSRAM_APS6408L;
 #endif
 
 #if defined(PSRAM_X8_MODE)
@@ -154,9 +160,10 @@ int psram_type_bus_init(struct PSRAM_T *psram)
 #endif
 
     psram->psram_type[HAL_PSRAM_ID_0] = type;
+    psram->psram_die_name[HAL_PSRAM_ID_0] = die_name;
     psram->psram_data_bus[HAL_PSRAM_ID_0] = bus;
     psram->phy_bypass_cfg[HAL_PSRAM_ID_0] = phy_type;
-    PSRAM_TRACE(1, "psram cfg type = %d, data bus = %d, phy type = %d", type, bus, phy_type);
+    PSRAM_TRACE(1, "psram cfg type = %d, die_name = %d, data bus = %d, phy type = %d", type, die_name, bus, phy_type);
 
     return 0;
 }
@@ -427,7 +434,9 @@ POSSIBLY_UNUSED static void psram_calib_on_1d(enum HAL_PSRAM_ID_T id, enum HAL_P
         if (byte_pos == 0) {
             hal_psram_anaphy_set_rxdqs_dly(rx_dqs);
         } else {
+#if (defined(PSRAMPHY_DUAL_8BIT) && defined(PSRAM_X16_MODE)) || defined(PSRAM_DUAL_8BIT)
             hal_psram_anaphy1_set_rxdqs_dly(rx_dqs);
+#endif
         }
     }
 }

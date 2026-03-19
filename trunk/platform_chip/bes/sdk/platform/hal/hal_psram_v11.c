@@ -23,6 +23,8 @@
 #include "hal_psramip.h"
 #include "hal_timer.h"
 #include "hal_trace.h"
+#include "pmu.h"
+#include "psram_debug.h"
 
 #define TX_FIFO_DEPTH                       8
 #define RX_FIFO_DEPTH                       8
@@ -50,6 +52,7 @@ enum MEMIF_CMD_T {
     MEMIF_START_CLOCK   = 0x40,
     MEMIF_STOP_CLOCK    = 0x80,
     MEMIF_NEW_CMD       = 0x7F,
+    MEMIF_BUS_HALT      = 0xF0,
 };
 
 enum CP_FSM_STATE_T {
@@ -62,25 +65,7 @@ POSSIBLY_UNUSED static const uint32_t psram_run_clk = PSRAM_SPEED;
 
 void hal_psram_mc_set_freq(enum HAL_PSRAM_ID_T id, uint32_t clk)
 {
-    enum HAL_CMU_FREQ_T freq;
-
-    if (clk <= 13000000) {
-        freq = HAL_CMU_FREQ_26M;
-    } else if (clk <= 26000000) {
-        freq = HAL_CMU_FREQ_52M;
-    } else if (clk <= 52000000) {
-        freq = HAL_CMU_FREQ_104M;
-    } else if (clk <= 104000000) {
-        freq = HAL_CMU_FREQ_208M;
-    } else {
-#ifdef HAL_CMU_FREQ_390M
-        freq = HAL_CMU_FREQ_390M;
-#else
-        freq = HAL_CMU_FREQ_208M;
-#endif
-    }
-
-    hal_cmu_mem_set_freq(freq);
+    hal_cmu_mem_set_freq(2 * clk);
 }
 
 void hal_psram_mc_init_complete(enum HAL_PSRAM_ID_T id)
@@ -287,6 +272,11 @@ void hal_psram_mc_set_cmd_pd(enum HAL_PSRAM_ID_T id)
     hal_psram_mc_set_cmd(id, MEMIF_PD);
 }
 
+void hal_psram_mc_set_cmd_halt(enum HAL_PSRAM_ID_T id)
+{
+    hal_psram_mc_set_cmd(id, MEMIF_BUS_HALT);
+}
+
 void hal_psram_mc_wl_get(enum HAL_PSRAM_ID_T id, uint32_t *val)
 {
     *val = psram_mc[id]->REG_028;
@@ -356,7 +346,7 @@ void hal_psram_mc_set_timing(enum HAL_PSRAM_ID_T id, struct PSRAM_CFG_T *psram_c
     psram_mc[id]->REG_068 = PSRAM_ULP_MC_T_MRR(psram_cfg->device_timing->ac_timing[item].t_mrr);
 
     psram_mc[id]->REG_060 = PSRAM_ULP_MC_T_CPHW(psram_cfg->device_timing->ac_timing[item].t_cphw);
-    psram_mc[id]->REG_06C = PSRAM_ULP_MC_T_MRS(psram_cfg->device_timing->ac_timing[item].t_mrs);
+    psram_mc[id]->REG_06C = 20;
 
     psram_mc[id]->REG_050 = PSRAM_ULP_MC_T_RC(psram_cfg->device_timing->ac_timing[item].t_rc);
     psram_mc[id]->REG_070 = PSRAM_ULP_MC_T_CEM(psram_cfg->device_timing->ac_timing[item].t_cem);
@@ -492,6 +482,33 @@ void hal_psram_mc_set_cmd_stop_clock(enum HAL_PSRAM_ID_T id)
 
 void hal_psram_mc_enable_dyn_freq(enum HAL_PSRAM_ID_T id, struct PSRAM_CFG_T *psram_cfg)
 {
+}
+
+static void hal_psram_change_speed(enum HAL_PSRAM_ID_T id, uint32_t psram_speed)
+{
+    uint32_t lock;
+
+    lock = int_lock();
+
+    hal_psram_mc_set_cmd_halt(id);
+    __DSB();
+    hal_psram_mc_busy_wait(id);
+
+    pmu_psram_freq_config(psram_speed);
+    hal_psram_mc_set_freq(id, psram_speed);
+
+    hal_psram_mc_set_cmd_nop(id);
+
+    int_unlock(lock);
+}
+
+void hal_psram_dyn_freq_select(enum HAL_PSRAM_ID_T id, enum HAL_PSRAM_DYN_FREQ_ID_T freq_id, uint32_t sleep)
+{
+    if (freq_id == HAL_PSRAM_DYN_FREQ_ID_0) {
+        hal_psram_change_speed(id, 200 * 1000000);
+    } else {
+        hal_psram_change_speed(id, 96 * 1000000);
+    }
 }
 
 void hal_psram_mc_priority_config(enum HAL_PSRAM_ID_T id)

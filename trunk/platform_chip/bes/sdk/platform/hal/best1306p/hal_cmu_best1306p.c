@@ -975,7 +975,7 @@ int hal_cmu_sys_set_freq(enum HAL_CMU_FREQ_T freq)
 }
 #endif // !CHIP_ROLE_CP
 
-int hal_cmu_mem_set_freq(enum HAL_CMU_FREQ_T freq)
+int hal_cmu_mem_set_freq(uint32_t freq)
 {
     uint32_t enable;
     uint32_t disable;
@@ -984,25 +984,25 @@ int hal_cmu_mem_set_freq(enum HAL_CMU_FREQ_T freq)
     int div;
     uint32_t lock;
 
-    if (freq >= HAL_CMU_FREQ_QTY) {
+    if (freq > 416000000) {
         return 1;
     }
     div = -1;
-    if (freq <= HAL_CMU_FREQ_26M) {
+    if (freq <= 26000000) {
         enable = 0;
         disable = CMU_SEL_OSCX2_PSRAM_DISABLE | CMU_SEL_OSCX4_PSRAM_DISABLE |
             CMU_SEL_PLL_PSRAM_DISABLE;
-    } else if (freq <= HAL_CMU_FREQ_52M) {
+    } else if (freq <= 52000000) {
         enable = CMU_SEL_OSCX2_PSRAM_ENABLE;
         disable = CMU_SEL_OSCX4_PSRAM_DISABLE | CMU_SEL_PLL_PSRAM_DISABLE;
-    } else if (freq <= HAL_CMU_FREQ_104M) {
+    } else if (freq <= 104000000) {
 #ifdef OSC_26M_X4_AUD2BB
         enable = CMU_SEL_OSCX4_PSRAM_ENABLE;
         disable = CMU_SEL_PLL_PSRAM_DISABLE;
 #else
         enable = CMU_SEL_PLL_PSRAM_ENABLE | CMU_RSTN_DIV_PSRAM_ENABLE;
         disable = CMU_BYPASS_DIV_PSRAM_DISABLE;
-        if (freq <= HAL_CMU_FREQ_78M) {
+        if (freq <= 78000000) {
             div = 1;
         } else {
             div = 0;

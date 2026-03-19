@@ -43,6 +43,8 @@ const extern struct PSRAM_DEVICE_CFG_T opi_device_cfg;
 const extern struct PSRAM_DEVICE_CMD_TABLE_T opi_cmd_table;
 const extern struct PSRAM_DEVICE_FUNC_CFG_T opi_device_func_cfg;
 
+const extern struct PSRAM_DEVICE_TIMING_T opi_inited_device_timing;
+const extern struct PSRAM_DEVICE_FUNC_CFG_T opi_inited_device_func_cfg;
 
 /// TODO: Use macro to define MR value
 void psram_opi_mr_set(enum HAL_PSRAM_ID_T id, struct PSRAM_CFG_T *psram_cfg)
@@ -71,6 +73,11 @@ void SRAM_TEXT_LOC psram_opi_struct_init(struct PSRAM_CFG_T *psram_cfg)
     psram_cfg->cmd = &opi_cmd_table;
     psram_cfg->device_func_cfg = &opi_device_func_cfg;
     psram_cfg->device_cfg = &opi_device_cfg;
+
+    if (psram_cfg->psram_die_name == PSRAM_APS6408L_INITED) {
+        psram_cfg->device_timing = &opi_inited_device_timing;
+        psram_cfg->device_func_cfg = &opi_inited_device_func_cfg;
+    }
 }
 
 #endif

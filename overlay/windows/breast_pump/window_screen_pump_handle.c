@@ -350,10 +350,10 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
     LOG_WM("window entry extra arg1: %d.", extra->arg1);
     if (extra->arg1 == KEY_CODE_MODE) {
         proc->start_ui_type = PUMP_UI_TYPE_COMMON_MODE;
-    } else if (extra->arg1 == KEY_CODE_START) {
-        proc->start_ui_type = PUMP_UI_TYPE_PUMPING;
-    } else {
+    } else if (extra->arg1 == KEY_CODE_BREASTFEEDING) {
         proc->start_ui_type = PUMP_UI_TYPE_BREASTFEEDING_MODE;
+    } else {
+        proc->start_ui_type = PUMP_UI_TYPE_PUMPING;
     }
     proc->wm = wm;
     proc->ui = (ui_manager_context_t *)find_module(ID_MODULE_UI);

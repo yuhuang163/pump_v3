@@ -20,15 +20,18 @@
 #define HOME_MOM_PICTURE_ICON_INDEX                 (3)
 
 #define IDLE_TEXT_AREA_ICON_X                       (44)
-#define IDLE_TEXT_AREA_ICON_Y                       (82)
+#define IDLE_TEXT_AREA_ICON_Y                       (82 + 2)
 #define IDLE_BUTTON_ICON_X                          (80)
-#define IDLE_BUTTON_ICON_Y                          (112+7)
+#define IDLE_BUTTON_ICON_Y                          (112 + 7)
 #define MOM_PICTURE_ICON_X                          (56)
 #define MOM_PICTURE_ICON_Y                          (160)
 
-#define IDLE_TEXT_LABEL_TEXT_X                      (80 + 28)
-#define IDLE_TEXT_LABEL_TEXT_Y                      (118 - 4)
+#define IDLE_TEXT_LABEL_TEXT_X                      (108 + 4)
+#define IDLE_TEXT_LABEL_TEXT_Y                      (118 - 6)
 #define IDLE_TEXT_COLOR                             (0xB25962)
+
+#define HOME_IDLE_ANIMATION_X                       (86 + 8)
+#define HOME_IDLE_ANIMATION_Y                       (162)
 
 
 typedef struct {
@@ -63,18 +66,17 @@ const static home_icon_info_t home_icon_infos[HOME_ICON_MAX_COUNT] = {
     { "idle_text_label", 0, 
         IDLE_TEXT_LABEL_TEXT_X,       IDLE_TEXT_LABEL_TEXT_Y, 
       },
-    { "idle_text_area_icon", RESOURCE_ID_IDLE_TEXT_AREA_ICON, 
+    { "idle_text_area_icon", RESOURCE_ID_HOME_IDLE_LABLE_ICON, 
       IDLE_TEXT_AREA_ICON_X,       IDLE_TEXT_AREA_ICON_Y, 
     },
-    { "idle_button_icon", RESOURCE_ID_IDLE_BUTTOM_ICON,     
+    { "idle_button_icon", RESOURCE_ID_HOME_IDLE_BUTTOM_ICON,     
       IDLE_BUTTON_ICON_X,              IDLE_BUTTON_ICON_Y, 
     },
 };
 
 #if IS_SUPPORT_ROOT_HOME_COMP_BG
-static PSRAM_DATA_LOC uint8_t home_bg_data[] = {
-    // #include "comparison_png2txt/bg_360x360.txt"
-    #include "png2txt/home_com_bg_360x360.txt"
+static PSRAM_NC_DATA_LOC uint8_t home_bg_data[] = {
+    #include "comparison_png2txt/home_idle_360x360.txt"
 };
 #endif
 /*
@@ -141,6 +143,7 @@ static void home_root_text_update(ui_manager_context_t *thiz)
     if (home_info->idle_text_area_icon == NULL || !lv_obj_is_valid(home_info->idle_text_area_icon)) {
         home_info->idle_text_area_icon = lv_image_create(home_info->root);
         EXCEPTION_CHECK_VOID(home_info->idle_text_area_icon);
+        // lv_obj_add_flag(home_info->idle_text_area_icon, LV_OBJ_FLAG_HIDDEN);
     }
     
     common_ui_img_resource_init(thiz, home_icon_infos[HOME_TEXT_AREA_ICON_INDEX].img_id, &home_info->idle_text_area_info);
@@ -176,9 +179,10 @@ static void home_root_text_update(ui_manager_context_t *thiz)
     }
     lv_label_set_text(home_info->text, "Select a mode to start\npumping.");  /// 设置 label 文字内容和样式
     lv_obj_set_style_text_color(home_info->text, lv_color_hex(IDLE_TEXT_COLOR), 0);
-    lv_obj_set_style_text_font(home_info->text, &lv_font_oppo_sans_14_medium, 0);  /// 设置字体
+    lv_obj_set_style_text_font(home_info->text, &lv_font_oppo_sans_16_medium, 0);  /// 设置字体
     lv_obj_align(home_info->text, LV_ALIGN_TOP_LEFT, home_icon_infos[HOME_TEXT_LABEL_INDEX].icon_x, home_icon_infos[HOME_TEXT_LABEL_INDEX].icon_y); /// 设置文字位置
     lv_obj_set_style_text_line_space(home_info->text, 3, 0); /// 设置行间距
+    // lv_obj_set_style_text_letter_space(home_info->text, 1, 0); /// 设置字间距
 }
 
 static void home_root_animation_update(ui_manager_context_t *thiz)
@@ -195,7 +199,7 @@ static void home_root_animation_update(ui_manager_context_t *thiz)
         home_info->animation_index = 0;
     }
 
-    lv_obj_align(home_info->animation, LV_ALIGN_TOP_LEFT, 86, 162); 
+    lv_obj_align(home_info->animation, LV_ALIGN_TOP_LEFT, HOME_IDLE_ANIMATION_X, HOME_IDLE_ANIMATION_Y); 
     if (home_info->animation_info.data != NULL) {
         common_ui_img_resource_deinit(thiz, &home_info->animation_info);
         memset(&home_info->animation_info, 0, sizeof(home_info->animation_info));

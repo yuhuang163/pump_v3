@@ -87,6 +87,7 @@ extern "C" {
 #define PM_SUSPEND_TIME_S                              (2 * 30 * 1000) /// 1分
 #define PM_IDLE_TIME_S                                 (1 * 30 * 1000) /// 30秒
 #define PM_SUSPEND_LOW_BAT_TIME_S                      (2 * 30 * 1000) /// 1分
+#define PM_SUSPEND_WILL_ENTER_TIME_S                   (3000) /// 3秒
 #endif
 /// 屏幕串口消息队列数量定义
 #define LCD_UART_MESQ_NUM                              (1)

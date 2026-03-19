@@ -12,6 +12,7 @@ extern "C" {
 #include <stdint.h>
 #include <stdbool.h>
 #include "cmsis_os.h"
+#include "hwtimer_list.h"
 
 #define OS_WAIT_FOREVER  osWaitForever     ///< wait forever timeout value
 
@@ -20,9 +21,25 @@ typedef enum {
   OS_TIMER_PERIODIC           = 1         ///< Repeating timer.
 } os_timer_type_e;
 
+#define IS_SUPPORT_CMSIS_HW_TIMER            (1)
+
+typedef struct {
+    HWTIMER_ID hw_timer_id;
+    uint32_t period;
+    int is_running;
+    os_timer_type_e type;
+    os_ptimer callback;
+    void *user_data;
+    char name[16];
+} hw_timer_def_t;
+
 typedef osThreadId_t os_thread_id;
 typedef osMessageQId os_message_id;
+#if IS_SUPPORT_CMSIS_HW_TIMER
+typedef hw_timer_def_t *os_timer_id;
+#else
 typedef osTimerId_t os_timer_id;
+#endif
 typedef osMutexId_t os_mutex_id;
 typedef osSemaphoreId_t os_semaphore_id;
 typedef osThreadDef_t os_thread_def_t;

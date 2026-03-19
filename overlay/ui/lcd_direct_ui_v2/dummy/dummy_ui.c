@@ -43,7 +43,7 @@ typedef struct {
 */
 static dummy_display_info_t *dummy_info;
 const static dummy_icon_info_t dummy_icon_infos[DUMMY_ICON_MAX_COUNT] = {
-    { "dummy_icon", RESOURCE_ID_DUMMY_ICON, DUMMY_ICON_X, DUMMY_ICON_Y },
+    { "dummy_icon", RESOURCE_ID_HOME_DUMMY_ICON, DUMMY_ICON_X, DUMMY_ICON_Y },
 };
 /*
 * GLOBAL VARIABLE DEFINITIONS

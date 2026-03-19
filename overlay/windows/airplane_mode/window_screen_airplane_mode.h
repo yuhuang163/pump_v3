@@ -36,6 +36,11 @@ typedef enum {
     AIRPLANE_MODE_UI_TYPE_MAX
 } airplane_mode_ui_type_e;
 
+typedef enum {
+    AIRPLANE_MODE_POPUP_UI_NONE = 0,
+    AIRPLANE_MODE_POPUP_UI_EXIT = 1, /// 退出飞行模式提示
+} airplane_mode_popup_ui_type_e;
+
 /// 飞行模式UI结构体
 typedef struct ui_proc_airplane_mode {    
     uint32_t ani_timer_cnt;
@@ -54,6 +59,7 @@ typedef struct ui_proc_airplane_mode {
     uint32_t last_progress_ani_time; /// 上次进度动画时间.
     uint16_t current_ui_type; /// 当前UI类型. airplane_mode_ui_type_e
     uint8_t show_countdown_time; /// 显示倒数时间
+    uint8_t popup_ui_type; /// 当前弹窗类型. airplane_mode_popup_ui_type_e
 } ui_proc_airplane_mode_t;
 
 /// 飞行模式背光灯状态结构体
@@ -70,6 +76,8 @@ void start_airplane_mode_ui(ui_proc_airplane_mode_t *proc);
 void stop_airplane_mode_ui(ui_proc_airplane_mode_t *proc);
 void airplane_mode_led_policy(ui_proc_airplane_mode_t *proc, uint8_t status);
 void airplane_mode_pump_policy(ui_proc_airplane_mode_t *proc);
+
+void airplane_mode_ui_hdr_remove(void);
 #ifdef __cplusplus
 }
 #endif

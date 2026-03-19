@@ -227,7 +227,7 @@ void hal_psram_phy_dly_init(enum HAL_PSRAM_ID_T id, uint32_t quat_t)
     #endif
 }
 
-void hal_psram_phy_dll_dly_init(enum HAL_PSRAM_ID_T id, struct PSRAM_CFG_T *psram_cfg)
+void hal_psram_phy_dll_dly_init(enum HAL_PSRAM_ID_T id, const struct PSRAM_CFG_T *psram_cfg)
 {
     uint32_t quat_t;
     quat_t = hal_psram_phy_get_quat_t(id);

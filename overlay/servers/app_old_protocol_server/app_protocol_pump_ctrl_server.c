@@ -730,6 +730,17 @@ static void app_pump_trial_user_define_delay_task_handler(hdr_post_args_t *args)
     app_pump_custom_trial_mode_start_handler();
 }
 
+static void app_pump_broadcast_app_completed_delay_task_handler(hdr_post_args_t *args)
+{
+    /// 发送APP强制完成广播
+    if (is_broadcast_inited()) {
+        SEND_BROADCAST_ARGS1(ID_BROADCAST_BREAST_PUMP_STATE_CHANGE, BREAST_PUMP_BROADCAST_APP_COMPLETED);
+        LOG_SRV("APP_COMPLETED broadcast sent");
+    } else {
+        LOG_SRV("Broadcast system not initialized, skip sending APP_COMPLETED broadcast");
+    }
+}
+
 /*
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
@@ -759,11 +770,12 @@ void app_old_comm_report_device_status(app_old_commd_l_r_ctrl_e lr_ct, servers_o
     report_data[data_len++] = (app_old_comm_get_current_custom_pump_mode_total_time() >> 0) & 0xFF;
     report_data[data_len++] = (app_old_comm_get_current_custom_pump_mode_total_time() >> 8) & 0xFF;
     report_data[data_len++] = app_old_comm_get_system_is_airplane_mode();
-    report_data[data_len++] = app_old_comm_get_current_mode_pump_speed(id); //normal speed //频次（0-低 1-中 2-高）（1字节）
+    report_data[data_len++] = app_old_comm_get_current_mode_pump_speed(id) + 1; //normal speed //频次（1-低 2-中 3-高）（1字节）
     report_data[data_len++] = 0x00; //预留
     report_data[data_len++] = 0x00; //预留
     report_data[data_len++] = app_old_comm_get_current_running_mode_step();
-    report_data[data_len++] = app_old_comm_get_current_running_mode_step_time();
+    report_data[data_len++] = (app_old_comm_get_current_running_mode_step_time()>> 0) & 0xFF;
+    report_data[data_len++] = (app_old_comm_get_current_running_mode_step_time()>> 8) & 0xFF;
     report_data[data_len++] = app_old_comm_get_night_light_onoff();
     report_data[data_len++] = app_old_comm_get_night_light_level();
     report_data[data_len++] = app_old_comm_get_adaptive_dimming_switch();
@@ -795,11 +807,12 @@ void app_old_comm_handle_get_status_req(app_old_commd_l_r_ctrl_e lr_ct)
     ack_data[data_len++] = (app_old_comm_get_current_custom_pump_mode_total_time() >> 0) & 0xFF;
     ack_data[data_len++] = (app_old_comm_get_current_custom_pump_mode_total_time() >> 8) & 0xFF;
     ack_data[data_len++] = app_old_comm_get_system_is_airplane_mode();
-    ack_data[data_len++] = app_old_comm_get_current_mode_pump_speed(OLD_PUBLISH_DATA_POLL_REPORT); //normal speed
+    ack_data[data_len++] = app_old_comm_get_current_mode_pump_speed(OLD_PUBLISH_DATA_POLL_REPORT) + 1; //normal speed
     ack_data[data_len++] = 0x00; //预留
     ack_data[data_len++] = 0x00; //预留
     ack_data[data_len++] = app_old_comm_get_current_running_mode_step();
-    ack_data[data_len++] = app_old_comm_get_current_running_mode_step_time();
+    ack_data[data_len++] = (app_old_comm_get_current_running_mode_step_time()>> 0) & 0xFF;
+    ack_data[data_len++] = (app_old_comm_get_current_running_mode_step_time()>> 8) & 0xFF;
     ack_data[data_len++] = app_old_comm_get_night_light_onoff();
     ack_data[data_len++] = app_old_comm_get_night_light_level();
     ack_data[data_len++] = app_old_comm_get_adaptive_dimming_switch();
@@ -824,7 +837,7 @@ void app_old_comm_handle_ctrl_dev_req(uint8_t cal, uint8_t *cab)
     app_old_comm_pump_ctrl_date.user_define_pump_level = cab[4];
     app_old_comm_pump_ctrl_date.user_define_pump_speed = cab[5] - 1; //频次（1-低 2-中 3-高）（1字节）
     app_old_comm_pump_ctrl_date.pump_mode_lr_or_all = cab[6];//0:左 1:右 2:双
-    app_old_comm_pump_ctrl_date.normal_pump_speed = cab[7]; //频次（0-低 1-中 2-高）（1字节）
+    app_old_comm_pump_ctrl_date.normal_pump_speed = cab[7] - 1; //频次（1-低 2-中 3-高）（1字节）
     ///查看窗口，是否需要唤醒pump窗口
     window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
     EXCEPTION_CHECK_VOID(wm);
@@ -900,6 +913,7 @@ void app_old_comm_handle_set_user_define_req(uint8_t cal, uint8_t *cab)
                 pump_steps_info.data[step_index].freq = speed;
                 pump_steps_info.data[step_index].loop_num = 1;
                 pump_steps_info.data[step_index].duration = time_policy_duration;
+                pump_steps_info.data[step_index].policy_type = MOTOR_TIME_POLICY;
                 step_index++;
             } else if (mode_type == APP_OLD_COMM_MODE_LONG) {
                 pump_steps_info.data[step_index].mode_type = SUCTION_MODE_LONG;
@@ -907,6 +921,7 @@ void app_old_comm_handle_set_user_define_req(uint8_t cal, uint8_t *cab)
                 pump_steps_info.data[step_index].freq = speed;
                 pump_steps_info.data[step_index].loop_num = 1;
                 pump_steps_info.data[step_index].duration = time_policy_duration;
+                pump_steps_info.data[step_index].policy_type = MOTOR_TIME_POLICY;
                 step_index++;
             } else if (mode_type == APP_OLD_COMM_MODE_MIX1) {
                 /// 混合1短吸
@@ -915,12 +930,14 @@ void app_old_comm_handle_set_user_define_req(uint8_t cal, uint8_t *cab)
                 pump_steps_info.data[step_index].freq = speed;
                 pump_steps_info.data[step_index].loop_num = 5; 
                 pump_steps_info.data[step_index].duration = time_policy_duration;
+                pump_steps_info.data[step_index].policy_type = MOTOR_TIME_POLICY;
                 /// 混合1长吸
                 pump_steps_info.data[step_index + 1].mode_type = SUCTION_MODE_MIX_LONG;
                 pump_steps_info.data[step_index + 1].level = level;
                 pump_steps_info.data[step_index + 1].freq = speed;
                 pump_steps_info.data[step_index + 1].loop_num = 1;
                 pump_steps_info.data[step_index + 1].duration = 0;
+                pump_steps_info.data[step_index + 1].policy_type = MOTOR_TIME_SUB_POLICY;
                 step_index += 2;
             } else if (mode_type == APP_OLD_COMM_MODE_MIX2) {
                 /// 混合2短吸
@@ -929,12 +946,14 @@ void app_old_comm_handle_set_user_define_req(uint8_t cal, uint8_t *cab)
                 pump_steps_info.data[step_index].freq = speed;
                 pump_steps_info.data[step_index].loop_num = 2; 
                 pump_steps_info.data[step_index].duration = time_policy_duration;
+                pump_steps_info.data[step_index].policy_type = MOTOR_TIME_POLICY;
                 /// 混合2长吸
                 pump_steps_info.data[step_index + 1].mode_type = SUCTION_MODE_MIX_LONG;
                 pump_steps_info.data[step_index + 1].level = level;
                 pump_steps_info.data[step_index + 1].freq = speed;
                 pump_steps_info.data[step_index + 1].loop_num = 1;
                 pump_steps_info.data[step_index + 1].duration = 0;
+                pump_steps_info.data[step_index + 1].policy_type = MOTOR_TIME_SUB_POLICY;
                 step_index += 2;
             } else {
                 pump_steps_info.data[step_index].mode_type = SUCTION_MODE_IDLE;
@@ -942,13 +961,16 @@ void app_old_comm_handle_set_user_define_req(uint8_t cal, uint8_t *cab)
                 pump_steps_info.data[step_index].freq = 0;
                 pump_steps_info.data[step_index].loop_num = 1;
                 pump_steps_info.data[step_index].duration = time_policy_duration;
+                pump_steps_info.data[step_index].policy_type = MOTOR_TIME_POLICY;
                 step_index++;
             }
 			pump_steps_info.total_time += time_policy_duration;
 		}
 		LOG_SRV("step %d mode=%d, level=%d, freq=%d, duration=%d", i, mode_type, level, speed, time_policy_duration);
 	}
+    pump_steps_info.policy_num = step_index;
     LOG_SRV("total_time=%d", pump_steps_info.total_time);
+    LOG_SRV("policy_num=%d", pump_steps_info.policy_num);
     n += 10;
     LOG_SRV("data n = [%d] data len = [%d]", n, cal);
 
@@ -1020,6 +1042,7 @@ void app_old_comm_handle_set_trail_user_define_req(uint8_t cal, uint8_t *cab)
                 pump_steps_info.data[step_index].freq = speed;
                 pump_steps_info.data[step_index].loop_num = 1;
                 pump_steps_info.data[step_index].duration = time_policy_duration;
+                pump_steps_info.data[step_index].policy_type = MOTOR_TIME_POLICY;
                 step_index++;
             } else if (mode_type == APP_OLD_COMM_MODE_LONG) {
                 pump_steps_info.data[step_index].mode_type = SUCTION_MODE_LONG;
@@ -1027,6 +1050,7 @@ void app_old_comm_handle_set_trail_user_define_req(uint8_t cal, uint8_t *cab)
                 pump_steps_info.data[step_index].freq = speed;
                 pump_steps_info.data[step_index].loop_num = 1;
                 pump_steps_info.data[step_index].duration = time_policy_duration;
+                pump_steps_info.data[step_index].policy_type = MOTOR_TIME_POLICY;
                 step_index++;
             } else if (mode_type == APP_OLD_COMM_MODE_MIX1) {
                 /// 混合1短吸
@@ -1035,12 +1059,14 @@ void app_old_comm_handle_set_trail_user_define_req(uint8_t cal, uint8_t *cab)
                 pump_steps_info.data[step_index].freq = speed;
                 pump_steps_info.data[step_index].loop_num = 5; 
                 pump_steps_info.data[step_index].duration = time_policy_duration;
+                pump_steps_info.data[step_index].policy_type = MOTOR_TIME_POLICY;
                 /// 混合1长吸
                 pump_steps_info.data[step_index + 1].mode_type = SUCTION_MODE_MIX_LONG;
                 pump_steps_info.data[step_index + 1].level = level;
                 pump_steps_info.data[step_index + 1].freq = speed;
                 pump_steps_info.data[step_index + 1].loop_num = 1;
                 pump_steps_info.data[step_index + 1].duration = 0;
+                pump_steps_info.data[step_index + 1].policy_type = MOTOR_TIME_SUB_POLICY;
                 step_index += 2;
             } else if (mode_type == APP_OLD_COMM_MODE_MIX2) {
                 /// 混合2短吸
@@ -1049,12 +1075,14 @@ void app_old_comm_handle_set_trail_user_define_req(uint8_t cal, uint8_t *cab)
                 pump_steps_info.data[step_index].freq = speed;
                 pump_steps_info.data[step_index].loop_num = 2; 
                 pump_steps_info.data[step_index].duration = time_policy_duration;
+                pump_steps_info.data[step_index].policy_type = MOTOR_TIME_POLICY;
                 /// 混合2长吸
                 pump_steps_info.data[step_index + 1].mode_type = SUCTION_MODE_MIX_LONG;
                 pump_steps_info.data[step_index + 1].level = level;
                 pump_steps_info.data[step_index + 1].freq = speed;
                 pump_steps_info.data[step_index + 1].loop_num = 1;
                 pump_steps_info.data[step_index + 1].duration = 0;
+                pump_steps_info.data[step_index + 1].policy_type = MOTOR_TIME_SUB_POLICY;
                 step_index += 2;
             } else {
                 pump_steps_info.data[step_index].mode_type = SUCTION_MODE_IDLE;
@@ -1062,13 +1090,16 @@ void app_old_comm_handle_set_trail_user_define_req(uint8_t cal, uint8_t *cab)
                 pump_steps_info.data[step_index].freq = 0;
                 pump_steps_info.data[step_index].loop_num = 1;
                 pump_steps_info.data[step_index].duration = time_policy_duration;
+                pump_steps_info.data[step_index].policy_type = MOTOR_TIME_POLICY;
                 step_index++;
             }
 			pump_steps_info.total_time += time_policy_duration;
 		}
 		LOG_SRV("step %d mode=%d, level=%d, freq=%d, duration=%d", i, mode_type, level, speed, time_policy_duration);
 	}
+    pump_steps_info.policy_num = step_index;
     LOG_SRV("total_time=%d", pump_steps_info.total_time);
+    LOG_SRV("policy_num=%d", pump_steps_info.policy_num);
     n += 10;
     LOG_SRV("data n = [%d] data len = [%d]", n, cal);
     pump_custom_trial_mode_update_by_app(pump_steps_info,  mode_name); /// 将自定义模式参数存入
@@ -1151,8 +1182,9 @@ void app_old_comm_handle_ctrl_reset_dev_req(uint8_t cal, uint8_t *cab)
     app_broadcast_pump_status_to_window(BREAST_PUMP_RESET,OLD_BROADCAST_ALL_CT);
     WRITE_PUMP_WORK_STATUS(pump_ctx, BREAST_PUMP_IDLE);
     app_broadcast_pump_status_to_window(BREAST_PUMP_IDLE,OLD_BROADCAST_ALL_CT);
-    /// 发送APP强制完成广播
-    SEND_BROADCAST_ARGS1(ID_BROADCAST_BREAST_PUMP_STATE_CHANGE, BREAST_PUMP_BROADCAST_APP_COMPLETED);
+    /// 延时发送APP强制完成广播
+    POST_TASK_HANDLER_DELAYED_ARG0(app_pump_broadcast_app_completed_delay_task_handler, PUMP_CTRL_TASK_DELAY_TIME,
+                                    "app_pump_broadcast_app_completed_delay_task");
 }
  
 void app_old_comm_handle_get_record_num_req(uint8_t cal, uint8_t *cab)
@@ -1342,4 +1374,84 @@ void app_old_comm_handle_clear_trail_custom_mode_req(uint8_t cal, uint8_t *cab)
     ack_data[2] = cab[2];
     ack_data[3] = cab[3];
     app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_ACK, APP_OLD_COMM_CID_CLEAR_CUSTOM_MODE, 4, ack_data);
+}
+
+//0xEA
+void app_old_comm_handle_set_bilateral_pump_param_req(uint8_t cal, uint8_t *cab)
+{
+    LOG_SRV("Handling set bilateral pump param request");
+    EXCEPTION_CHECK_VOID(cab);
+    
+    // 检查参数长度
+    if (cal != 0x04) {
+        LOG_SRV("Invalid data length for SET_BILATERAL_PUMP_PARAM (expected 0x04, got 0x%02X)", cal);
+        uint8_t nack_data = 0x00; // 错误状态
+        app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_NACK, APP_OLD_COMM_CID_SET_BILATERAL_PUMP_PARAM, 1, &nack_data);
+        return;
+    }
+    
+    // 解析参数
+    uint8_t left_level = cab[0];   // 左边档位 0x00~0x0F
+    uint8_t left_speed = cab[1];   // 左边频次 1-低, 2-中, 3-高
+    uint8_t right_level = cab[2];  // 右边档位 0x00~0x0F
+    uint8_t right_speed = cab[3];  // 右边频次 1-低, 2-中, 3-高
+    
+    // 参数有效性检查
+    if (left_level > BREAST_PUMP_LEVEL_15 || right_level > BREAST_PUMP_LEVEL_15) {
+        LOG_SRV("Invalid pump level: left=%d, right=%d (max=%d)", left_level, right_level, BREAST_PUMP_LEVEL_15);
+        uint8_t nack_data = 0x00; // 错误状态
+        app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_NACK, APP_OLD_COMM_CID_SET_BILATERAL_PUMP_PARAM, 1, &nack_data);
+        return;
+    }
+    
+    if (left_speed < 1 || left_speed > 3 || right_speed < 1 || right_speed > 3) {
+        LOG_SRV("Invalid pump speed: left=%d, right=%d (valid: 1-3)", left_speed, right_speed);
+        uint8_t nack_data = 0x00; // 错误状态
+        app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_NACK, APP_OLD_COMM_CID_SET_BILATERAL_PUMP_PARAM, 1, &nack_data);
+        return;
+    }
+    
+    // 转换频次：协议中 1-低, 2-中, 3-高 -> 内部 0-低, 1-中, 2-高
+    uint8_t left_speed_internal = left_speed - 1;
+    uint8_t right_speed_internal = right_speed - 1;
+    
+    // 获取泵奶管理器
+    breast_pump_manager_context_t *pump_ctx = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
+    EXCEPTION_CHECK_VOID(pump_ctx);
+    
+    // 读取当前设置
+    int time_index = 0;
+    READ_PUMP_MODE_STEP_INDEX(pump_ctx, time_index);
+    pump_setting_t setting;
+    READ_PUMP_SETTING_INFO(pump_ctx, time_index, setting);
+    
+    // 设置左右两边的档位和频次
+    setting.level[0] = left_level;
+    setting.level[1] = right_level;
+    // 注意：setting.speed 是全局的，但根据协议，这里应该分别设置左右两边的频次
+    // 由于当前结构体只有一个speed字段，我们使用左边频次作为全局speed
+    // 如果需要分别控制，可能需要修改数据结构或使用其他方式
+    setting.speed = left_speed_internal;
+    
+    LOG_SRV("Set bilateral pump param: left_level=%d, left_speed=%d(%d), right_level=%d, right_speed=%d(%d)", 
+            left_level, left_speed, left_speed_internal, right_level, right_speed, right_speed_internal);
+
+    int control_type = BREAST_PUMP_CONTROL_TYPE_BILATERAL;
+
+    WRITE_PUMP_LEVEL_CONTROL_TYPE(pump_ctx, control_type);
+    led_manager_context_t *led = (led_manager_context_t *)find_module(ID_MODULE_LED);
+    if (led && led->hook && led->hook->set_key_backlight) {
+        led->hook->set_key_backlight(led, 100);
+    }
+    // 写入设置
+    WRITE_PUMP_SETTING_INFO(pump_ctx, time_index, true, setting);
+    
+    // 广播更新
+    app_broadcast_pump_level_to_window(left_level, OLD_BROADCAST_LEFT_CT);
+    app_broadcast_pump_level_to_window(right_level, OLD_BROADCAST_RIGHT_CT);
+    app_broadcast_pump_speed_to_window(left_speed_internal, OLD_BROADCAST_ALL_CT);
+    
+    // 发送ACK响应，返回设置状态 0x01（成功）
+    uint8_t ack_data = 0x01; // 设置成功
+    app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_ACK, APP_OLD_COMM_CID_SET_BILATERAL_PUMP_PARAM, 1, &ack_data);
 }

@@ -78,7 +78,7 @@ void common_ui_text_place_in_circle(lv_obj_t * lab, uint16_t angle, uint16_t rin
 }
 
 void common_ui_place_dot_on_arc(lv_obj_t * arc, lv_obj_t * dot, uint16_t angle_deg,
-    uint16_t arc_w, uint16_t dot_d, int16_t extra_inset, bool is_reverse)
+    uint16_t arc_w, uint16_t dot_d, float extra_inset, bool is_reverse)
 {
     EXCEPTION_CHECK_VOID(arc);
     EXCEPTION_CHECK_VOID(dot);
@@ -103,10 +103,10 @@ void common_ui_place_dot_on_arc(lv_obj_t * arc, lv_obj_t * dot, uint16_t angle_d
     };
 
     // 弧线中心线半径
-    int32_t r_centerline = r - arc_w / 2;
+    float r_centerline = (float)r - (float)arc_w / 2.0f;
 
     // 让白点中心落在弧线中心线；extra_inset>0 时再向内微调
-    int32_t r_dot = r_centerline - extra_inset;
+    float r_dot = r_centerline - extra_inset;
 
     // 保持角度与 lv_arc 一致（单位：度）
     int16_t angle = (int16_t)angle_deg;
@@ -120,8 +120,8 @@ void common_ui_place_dot_on_arc(lv_obj_t * arc, lv_obj_t * dot, uint16_t angle_d
         angle -= 360;
     }
 
-    int32_t x = c.x + ((r_dot * lv_trigo_sin(angle + 90)) >> LV_TRIGO_SHIFT);
-    int32_t y = c.y + ((r_dot * lv_trigo_sin(angle)) >> LV_TRIGO_SHIFT);
+    int32_t x = c.x + (int32_t)((r_dot * lv_trigo_sin(angle + 90)) / (float)(1 << LV_TRIGO_SHIFT));
+    int32_t y = c.y + (int32_t)((r_dot * lv_trigo_sin(angle)) / (float)(1 << LV_TRIGO_SHIFT));
 
     // dot 是 arc 的子对象：转成局部坐标
     lv_coord_t local_x = x - arc_area.x1;

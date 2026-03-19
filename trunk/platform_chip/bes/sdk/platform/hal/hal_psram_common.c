@@ -13,7 +13,7 @@
  * trademark and other intellectual property rights.
  *
  ****************************************************************************/
-#if defined(CHIP_HAS_PSRAM) && (CHIP_PSRAM_CTRL_VER >= 10)
+#if defined(CHIP_HAS_PSRAM) && defined(PSRAM_ENABLE) && (CHIP_PSRAM_CTRL_VER >= 10)
 
 #include "plat_types.h"
 #include "plat_addr_map.h"
@@ -89,19 +89,18 @@ void hal_psram_wakeup(enum HAL_CMU_LPU_SLEEP_MODE_T mode)
 int hal_psram_open(enum HAL_PSRAM_ID_T id, const struct PSRAM_T *psram)
 {
     memset(&psram_cfg_param, 0, sizeof(psram_cfg_param));
-
     psram_cfg_param.psram_type = psram->psram_type[id];
+    psram_cfg_param.psram_die_name = psram->psram_die_name[id];
     psram_cfg_param.psram_data_bus = psram->psram_data_bus[id];
     psram_cfg_param.phy_bypass =  psram->phy_bypass_cfg[id];
     psram_cfg_param.cfg_freq_mhz = psram->cfg_freq_mhz;
     psram_cfg_param.run_freq_mhz = psram->run_freq_mhz[id];
 
+    hal_psram_mc_set_freq(id, psram->cfg_freq_mhz * 1000000);
+
     hal_psram_mc_clock_gate_disable(id);
     hal_psram_mc_auto_lowpower_disable(id);
     hal_psram_mc_snoop_disable(id);
-    //
-    // cfg_clK
-    hal_psram_mc_set_freq(id, psram->cfg_freq_mhz * 1000000);
 
     psram_struct_init(&psram_cfg_param);
 

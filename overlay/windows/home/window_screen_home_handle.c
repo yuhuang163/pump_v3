@@ -115,7 +115,7 @@ static void on_home_ui_broadcast_receive_cb(broadcast_mask_id_t id, void *contex
                     proc, HOME_IDLE_UI_START_TASK_NAME);
             } else if (arg1 == PM_BROADCAST_SYS_WILL_SUSPEND) {
                 if (proc->current_ui_type == HOME_UI_TYPE_HOME_IDLE) {
-                    proc->popup_ui_type = HOME_UI_TYPE_HOME_WILL_POWER_OFF;
+                    //proc->popup_ui_type = HOME_UI_TYPE_HOME_WILL_POWER_OFF; //暂时不显示倒计时UI 用popup_window显示
                     LOG_WM("PM_STATE_CHANGE: will power off");
                 }
             } 

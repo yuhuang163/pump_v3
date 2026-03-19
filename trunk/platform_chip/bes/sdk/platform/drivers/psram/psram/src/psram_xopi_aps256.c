@@ -96,17 +96,17 @@
 #define MR8_FIXED_00                        (1 << 7)
 
 #ifdef PSRAM_1V2_ENABLE
-#define READ_LATENCY_33MHz                  2
-#define READ_LATENCY_66MHz                  3
-#define READ_LATENCY_109MHz                 4
-#define READ_LATENCY_133MHz                 5
-#define READ_LATENCY_200MHz                 7
+#define READ_LATENCY_33MHz                  0
+#define READ_LATENCY_66MHz                  1
+#define READ_LATENCY_109MHz                 2
+#define READ_LATENCY_133MHz                 3
+#define READ_LATENCY_200MHz                 5
 
-#define WRITE_LATENCY_33MHz                 1
-#define WRITE_LATENCY_66MHz                 5
-#define WRITE_LATENCY_109MHz                3
-#define WRITE_LATENCY_133MHz                7
-#define WRITE_LATENCY_200MHz                4
+#define WRITE_LATENCY_33MHz                 2
+#define WRITE_LATENCY_66MHz                 6
+#define WRITE_LATENCY_109MHz                1
+#define WRITE_LATENCY_133MHz                5
+#define WRITE_LATENCY_200MHz                7
 #else
 #define READ_LATENCY_33MHz                  0
 #define READ_LATENCY_66MHz                  0
@@ -159,7 +159,7 @@ static void psram_xopi_aps256_mr_set(enum HAL_PSRAM_ID_T id, struct PSRAM_CFG_T 
     } else if (psram_cfg->run_freq_mhz <=66) {
         hal_psram_device_mr_write(id, 0, PSRAM_66MHz_MR0);
         hal_psram_device_mr_write(id, 4, PSRAM_66MHz_MR4);
-    } else if (psram_cfg->run_freq_mhz <=100) {
+    } else if (psram_cfg->run_freq_mhz <=104) {
         hal_psram_device_mr_write(id, 0, PSRAM_100MHz_MR0);
         hal_psram_device_mr_write(id, 4, PSRAM_100MHz_MR4);
     } else if  (psram_cfg->run_freq_mhz <=133){
@@ -194,7 +194,7 @@ static int psram_xopi_aps256_check(enum HAL_PSRAM_ID_T id)
     int ret = 0;
 
     md = hal_psram_device_mr_read(id, 0);
-    PSRAM_TRACE(0, "****MR8 = 0x%x", md);
+    PSRAM_TRACE(0, "****MR0 = 0x%x", md);
 
     if ((md & 0xff) == 0x8) {
         ret = 0;
@@ -252,9 +252,9 @@ static void psram_xopi_aps256_mr_get(struct PSRAM_CFG_T *psram_cfg, uint8_t *reg
 /// APS256XXN_1V2:
 const BOOT_RODATA_FLASH_LOC struct PSRAM_AC_TIMING_T xopi_ac_timing[] ={
     {.freq_mhz = 24,
-    .wl = 7,
-    .rl_min = 6,
-    .rl_max = 11,
+    .wl = 5,
+    .rl_min = 4,
+    .rl_max = 7,
     .t_rc = T_NS_TO_NCK(PSRAM_CLK_24MHZ, 60),
     .t_cphr = T_NS_TO_NCK(PSRAM_CLK_24MHZ, 19.5),
     .t_cphw = T_NS_TO_NCK(PSRAM_CLK_24MHZ, 19.5),
@@ -270,9 +270,9 @@ const BOOT_RODATA_FLASH_LOC struct PSRAM_AC_TIMING_T xopi_ac_timing[] ={
     .t_xsr = T_NS_TO_NCK(PSRAM_CLK_24MHZ, 60),
     }, {
     .freq_mhz = 48,
-    .wl = 8,
-    .rl_min = 7,
-    .rl_max = 13,
+    .wl = 6,
+    .rl_min = 5,
+    .rl_max = 9,
     .t_rc = T_NS_TO_NCK(PSRAM_CLK_48MHZ, 60),
     .t_cphr = T_NS_TO_NCK(PSRAM_CLK_48MHZ, 19.5),
     .t_cphw = T_NS_TO_NCK(PSRAM_CLK_48MHZ, 19.5),
@@ -288,9 +288,9 @@ const BOOT_RODATA_FLASH_LOC struct PSRAM_AC_TIMING_T xopi_ac_timing[] ={
     .t_xsr = T_NS_TO_NCK(PSRAM_CLK_48MHZ, 60),
     }, {
     .freq_mhz = 100,
-    .wl = 9,
-    .rl_min = 8,
-    .rl_max = 15 ,
+    .wl = 7,
+    .rl_min = 6,
+    .rl_max = 11,
     .t_rc = T_NS_TO_NCK(PSRAM_CLK_100MHZ, 60),
     .t_cphr = T_NS_TO_NCK(PSRAM_CLK_100MHZ, 19.5),
     .t_cphw = T_NS_TO_NCK(PSRAM_CLK_100MHZ, 19.5),
@@ -306,9 +306,9 @@ const BOOT_RODATA_FLASH_LOC struct PSRAM_AC_TIMING_T xopi_ac_timing[] ={
     .t_xsr = T_NS_TO_NCK(PSRAM_CLK_100MHZ, 60),
     }, {
     .freq_mhz = 133,
-    .wl = 10,
-    .rl_min = 9,
-    .rl_max = 17,
+    .wl = 8,
+    .rl_min = 7,
+    .rl_max = 13,
     .t_rc = T_NS_TO_NCK(PSRAM_CLK_133MHZ, 60),
     .t_cphr = T_NS_TO_NCK(PSRAM_CLK_133MHZ, 19.5),
     .t_cphw = T_NS_TO_NCK(PSRAM_CLK_133MHZ, 19.5),
@@ -324,9 +324,9 @@ const BOOT_RODATA_FLASH_LOC struct PSRAM_AC_TIMING_T xopi_ac_timing[] ={
     .t_xsr = T_NS_TO_NCK(PSRAM_CLK_133MHZ, 60),
     }, {
     .freq_mhz = 200,
-    .wl = 12,
-    .rl_min = 11,
-    .rl_max = 21,
+    .wl = 10,
+    .rl_min = 9,
+    .rl_max = 17,
     .t_rc = T_NS_TO_NCK(PSRAM_CLK_200MHZ, 60),
     .t_cphr = T_NS_TO_NCK(PSRAM_CLK_200MHZ, 26),
     .t_cphw = T_NS_TO_NCK(PSRAM_CLK_200MHZ, 26),

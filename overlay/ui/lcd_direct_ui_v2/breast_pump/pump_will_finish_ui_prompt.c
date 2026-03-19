@@ -28,6 +28,7 @@ typedef struct {
 #endif
     lv_obj_t * text;
     lv_obj_t * countdown_arc;            /// 圆弧进度条对象
+    lv_obj_t * mask_layer;               /// 遮罩层对象
     uint16_t countdown_value;            /// 倒计时值
     uint32_t start_time;                 /// 倒计时起始时间
     uint8_t force_update;
@@ -55,7 +56,7 @@ static will_finish_tip_display_info_t *will_finish_tip_info;
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-static void will_finish_tip_sub_root_init(lv_obj_t *parent)
+static void will_finish_tip_root_init(lv_obj_t *parent)
 {
     if (will_finish_tip_info->root == NULL || !lv_obj_is_valid(will_finish_tip_info->root)) {
         will_finish_tip_info->root = lv_obj_create(parent);
@@ -63,7 +64,7 @@ static void will_finish_tip_sub_root_init(lv_obj_t *parent)
     }
     lv_obj_set_size(will_finish_tip_info->root, LV_PCT(100), LV_PCT(100));          /// 设置容器尺寸为屏幕的100%（自动适配屏幕分辨率）
     lv_obj_set_style_bg_color(will_finish_tip_info->root, lv_color_black(), 0);     /// 设置背景颜色为黑色
-    lv_obj_set_style_bg_opa(will_finish_tip_info->root, LV_OPA_50, 0);           /// 设置背景不透明度为完全不透明（覆盖下层）
+    lv_obj_set_style_bg_opa(will_finish_tip_info->root, LV_OPA_TRANSP, 0);           /// 设置背景不透明度为完全不透明（覆盖下层）
     lv_obj_set_style_border_width(will_finish_tip_info->root, 0, 0);                /// 设置边框宽度为0（无边框）
     lv_obj_set_style_pad_all(will_finish_tip_info->root, 0, 0);                     /// 设置所有内边距为0（子对象紧贴边缘）
     lv_obj_align(will_finish_tip_info->root, LV_ALIGN_CENTER, 0, 0);
@@ -147,6 +148,22 @@ static void will_finish_tip_animation_update(ui_manager_context_t *thiz)
     }
 }
 
+static void will_finish_tip_mask_layer_update(ui_manager_context_t *thiz)
+{
+    EXCEPTION_CHECK_VOID(thiz);
+    if (will_finish_tip_info->mask_layer == NULL || !lv_obj_is_valid(will_finish_tip_info->mask_layer)) {
+        will_finish_tip_info->mask_layer = lv_obj_create(will_finish_tip_info->root);
+        EXCEPTION_CHECK_VOID(will_finish_tip_info->mask_layer);
+        lv_obj_set_size(will_finish_tip_info->mask_layer, LV_PCT(100), LV_PCT(100));
+        lv_obj_center(will_finish_tip_info->mask_layer);
+        lv_obj_set_style_bg_color(will_finish_tip_info->mask_layer, lv_color_black(), 0);
+        lv_obj_set_style_bg_opa(will_finish_tip_info->mask_layer, 190, 0); /// 黑色背景透明度190
+        lv_obj_set_style_border_width(will_finish_tip_info->mask_layer, 0, 0);
+        lv_obj_set_style_pad_all(will_finish_tip_info->mask_layer, 0, 0);
+        lv_obj_clear_flag(will_finish_tip_info->mask_layer, LV_OBJ_FLAG_CLICKABLE);
+    }
+}
+
 /*
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
@@ -161,7 +178,7 @@ void ui_prompt_pump_will_finish_prepare(ui_manager_context_t *thiz, lv_obj_t *pa
     }
     will_finish_tip_info->force_update = true;
     will_finish_tip_info->countdown_value = WILL_FINISH_COUNTDOWN_MAX_VALUE;
-    will_finish_tip_sub_root_init(parent);
+    will_finish_tip_root_init(parent);
 }
 
 void ui_prompt_pump_will_finish_remove(ui_manager_context_t *thiz)
@@ -181,6 +198,7 @@ void ui_prompt_pump_will_finish_process(ui_manager_context_t *thiz)
     if (will_finish_tip_info == NULL || will_finish_tip_info->root == NULL) {
         return;
     }
+    will_finish_tip_mask_layer_update(thiz);
     will_finish_tip_animation_update(thiz);
     will_finish_tip_info->force_update = false;
     if (will_finish_tip_info->countdown_value == 0) {

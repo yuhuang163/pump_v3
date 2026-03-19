@@ -67,6 +67,9 @@ static int on_popup_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t key
     WINDOW_CONTEXT_GUARD_INT(proc, ID_WINDOW_POPUP_WINDOW, 0);
     EXCEPTION_CHECK_INT(proc->pm);
     window_entry_extra_t extra = {0};
+    if (proc->popup_window_id == ID_POPUP_WINDOW_WILL_POWER_OFF) {
+        return 0;
+    }
 #if IS_SUPPORT_POPUP_WAKE_LOCK
     proc->pm->release_wakelock(POPUP_WAKE_LOCK_NAME);
 #endif

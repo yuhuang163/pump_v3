@@ -15,7 +15,8 @@
 #define IS_SUPPORT_HOME_QRCODE_COMP_BG                         (0)
 #define HOME_QRCODE_BG_COLOR                                   0xFFFFFF
 #define HOME_QRCODE_FG_COLOR                                   0x000000
-#define HOME_QRCODE_BORDER_COLOR                               (0xFFF2F3)  // 0xA6A6A6
+#define HOME_QRCODE_BORDER_COLOR                               (0xFFEAE6)  // 0xA6A6A6
+#define HOME_QRCODE_BORDER_RADIUS                              (4)
 #define HOME_BIND_TEXT_COLOR                                   (0x6A5A5B)
 #define HOME_QRCODE_X_OFFSET                                   (111)
 #define HOME_QRCODE_Y_OFFSET                                   (71 + 12)
@@ -120,6 +121,7 @@ static void home_qrcode_update(ui_manager_context_t *thiz)
         ///  设置容器边框样式（灰色边框，宽度2像素）
         lv_obj_set_style_border_color(home_qrcode_info->qrcode_container, lv_color_hex(HOME_QRCODE_BORDER_COLOR), 0);
         lv_obj_set_style_border_width(home_qrcode_info->qrcode_container, 2, 0);
+        lv_obj_set_style_radius(home_qrcode_info->qrcode_container, HOME_QRCODE_BORDER_RADIUS, 0);
         ///  设置内边距为4像素，让边框和二维码内容之间有白色间距
         lv_obj_set_style_pad_all(home_qrcode_info->qrcode_container, 10, 0);
         ///  禁用容器的滚动功能

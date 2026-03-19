@@ -53,10 +53,11 @@ typedef struct {
 static ui_manager_context_t *ui_ctx = NULL;
 static lv_obj_t *snap_shot_obj = NULL;
 static res_img_info_t snap_shot_info = {0};
-const static ui_snap_shot_info_t snap_shot_infos[LVGL_SNAP_SHORT_SIZE] = {
-    {RESOURCE_ID_PUMP_HOME_BG, false},
-    {RESOURCE_ID_PUMP_LEVEL_BACKGROUND_ICON, false},
-    {RESOURCE_ID_MODE_BG_ICON, true},
+const static ui_snap_shot_info_t snap_shot_infos[UI_SNAP_SHOT_ID_MAX] = {
+    {RESOURCE_ID_COMMON_BG, false},
+    {RESOURCE_ID_PUMP_LEVEL_BG, false},
+    {RESOURCE_ID_REGULAR_PUMPING_BG, false},
+    {RESOURCE_ID_EXPERT_PUMPING_BG, false},
 };
 
 /*
@@ -433,7 +434,7 @@ static void ui_snap_shot_perpare(struct ui_manager_context *thiz)
         lv_obj_add_flag(snap_shot_obj, LV_OBJ_FLAG_HIDDEN); /// 隐藏
     }
     
-    for(uint8_t i = 0; i < LVGL_SNAP_SHORT_SIZE; i++) {
+    for(uint8_t i = 0; i < UI_SNAP_SHOT_ID_MAX; i++) {
         common_ui_img_resource_init(thiz, snap_shot_infos[i].img_id, &snap_shot_info);
         EXCEPTION_CHECK_VOID(snap_shot_info.data);
         lv_fs_path_ex_t background_path;

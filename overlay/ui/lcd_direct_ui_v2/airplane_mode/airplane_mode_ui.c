@@ -16,15 +16,14 @@
 #define AIRPLANE_MODE_TEXT_COUNT                                  (2)
 #define AIRPLANE_MODE_ICON_COUNT                                  (1)
 #define AIRPLANE_MODE_UNLOCK_BUTTON_ICON_INDEX                    (0)
-#define AIRPLANE_MODE_TITLE_COLOR                                 0x1C1C20
-#define AIRPLANE_MODE_CONTENT_COLOR                               0xB25962
+#define AIRPLANE_MODE_TITLE_COLOR                                 0xB25962
+#define AIRPLANE_MODE_TEXT_COLOR                                  0xC5787E
 
 typedef struct {
     const char *name;
     uint16_t text_x;
     uint16_t text_y;
     const lv_font_t *font;
-    uint16_t line_space; /// 行间距（像素），用于换行
 } airplane_mode_text_info_t;
 
 typedef struct {
@@ -36,6 +35,7 @@ typedef struct {
     lv_obj_t * texts[AIRPLANE_MODE_TEXT_COUNT];
     res_img_info_t unlock_button_icon_info;
     uint8_t force_update;
+    uint8_t popup_ui_index; /// 当前弹窗索引.
 } airplane_mode_display_info_t;
 
 typedef struct {
@@ -50,19 +50,19 @@ typedef struct {
 */
 #if IS_SUPPORT_AIRPLANE_MODE_COMP_BG
 static PSRAM_DATA_LOC uint8_t complete_tip_bg_data[] = {
-    #include "png2txt/airplay_com_bg_360x360.txt"
+    #include "comparison_png2txt/airplane_mode_360x360.txt"
 };
 #endif
 
 static airplane_mode_display_info_t *airplane_mode_info;
 
 const static airplane_mode_text_info_t airplane_mode_text_infos[AIRPLANE_MODE_TEXT_COUNT] = {
-    { "Device locked", (116), (118), &lv_font_oppo_sans_20_medium ,0},
-    { "Press and hold Start/Pause + Mode\nfor 5 seconds to unlock.", (48), (146), &lv_font_oppo_sans_16_medium ,0},
+    { "Device  locked", (116), (118 - 2), &lv_font_oppo_sans_20_medium},
+    { "Press and hold Start/Pause  +  Mode\nfor 5 seconds to unlock.", (48), (146 + 4), &lv_font_oppo_sans_16_medium},
 };
 
-airplane_mode_icon_info_t airplane_mode_icon_infos[AIRPLANE_MODE_ICON_COUNT] = {
-    { "unlock_button_icon", RESOURCE_ID_AIRPLANE_UNLOCK_BUTTON_ICON, 106, 188 },
+const static airplane_mode_icon_info_t airplane_mode_icon_infos[AIRPLANE_MODE_ICON_COUNT] = {
+    { "unlock_button_icon", RESOURCE_ID_AIRPLANE_UNLOCK_BUTTON_ICON, (106), (188 + 16)},
 };
 /*
 * GLOBAL VARIABLE DEFINITIONS
@@ -151,13 +151,41 @@ static void airplane_mode_texts_update(ui_manager_context_t *thiz, uint8_t index
     }
     lv_label_set_text(airplane_mode_info->texts[index], airplane_mode_text_infos[index].name);
     lv_obj_set_style_text_color(airplane_mode_info->texts[index], 
-        lv_color_hex(AIRPLANE_MODE_CONTENT_COLOR), 0);
+        index == 0 ? lv_color_hex(AIRPLANE_MODE_TITLE_COLOR) : lv_color_hex(AIRPLANE_MODE_TEXT_COLOR), 0);
     lv_obj_set_style_text_font(airplane_mode_info->texts[index], airplane_mode_text_infos[index].font, 0);  /// 设置字体
-    lv_obj_set_style_text_line_space(airplane_mode_info->texts[index], airplane_mode_text_infos[index].line_space, 0);  /// 设置行间距（像素）
+    if (index == 1) {
+        lv_obj_set_style_text_line_space(airplane_mode_info->texts[index], 4, 0);  /// 设置行间距（像素）
+    }
     lv_obj_set_style_text_align(airplane_mode_info->texts[index], LV_TEXT_ALIGN_CENTER, 0);  /// 设置文本居中对齐
     lv_obj_align(airplane_mode_info->texts[index], LV_ALIGN_TOP_LEFT,
         airplane_mode_text_infos[index].text_x, airplane_mode_text_infos[index].text_y);
 }
+
+static void airplane_mode_popup_ui_remove(ui_manager_context_t *thiz)
+{
+    EXCEPTION_CHECK_VOID(thiz);
+    EXCEPTION_CHECK_VOID(airplane_mode_info);
+    ui_display_airplane_mode_exit_remove(thiz);
+}
+
+static void airplane_mode_popup_ui_update(ui_manager_context_t *thiz, ui_proc_airplane_mode_t *proc)
+{
+    switch (proc->popup_ui_type) {
+        case AIRPLANE_MODE_POPUP_UI_NONE:
+            airplane_mode_popup_ui_remove(thiz);
+            break;
+        case AIRPLANE_MODE_POPUP_UI_EXIT:
+            if (airplane_mode_info->popup_ui_index != AIRPLANE_MODE_POPUP_UI_EXIT) {
+                airplane_mode_popup_ui_remove(thiz);
+                ui_display_airplane_mode_exit_prepare(thiz, airplane_mode_info->root);
+                airplane_mode_info->popup_ui_index = AIRPLANE_MODE_POPUP_UI_EXIT;
+            } else {
+                ui_display_airplane_mode_exit_process(thiz);
+            }
+            break;
+    }
+}
+
 /*
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
@@ -172,7 +200,6 @@ void ui_display_airplane_mode_prepare(ui_manager_context_t *thiz)
     airplane_mode_info->force_update = true;
     ble_ui_init(thiz);
     airplane_mode_root_init();
-    ui_display_airplane_mode_exit_init(thiz, airplane_mode_info->root);
     common_ui_bg_init(thiz);
     thiz->priv.fps_count = 0;
     thiz->priv.fps_start_time = get_timestamp();
@@ -186,7 +213,7 @@ void ui_display_airplane_mode_remove(ui_manager_context_t *thiz)
     ble_ui_deinit(thiz);
     common_ui_bg_deinit(thiz);
     common_ui_img_resource_deinit(thiz, &airplane_mode_info->unlock_button_icon_info);
-    ui_display_airplane_mode_exit_deinit(thiz, airplane_mode_info->root);
+    ui_display_airplane_mode_exit_remove(thiz);
     LVGL_OBJ_DELETE(airplane_mode_info->root); 
     u_free(airplane_mode_info);
     airplane_mode_info = NULL;
@@ -206,7 +233,7 @@ int ui_display_airplane_mode_process(ui_manager_context_t *thiz)
     for (uint8_t i = 0; i < AIRPLANE_MODE_TEXT_COUNT; i++) {
         airplane_mode_texts_update(thiz, i);
     }
-    ui_display_airplane_mode_exit_process(thiz, airplane_mode_info->root, proc->show_countdown_time);
+    airplane_mode_popup_ui_update(thiz, proc);
     airplane_mode_info->force_update = false;
     thiz->priv.fps_count++;
     if (get_timestamp() - thiz->priv.fps_start_time >= 1000) {

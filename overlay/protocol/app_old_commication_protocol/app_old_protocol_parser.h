@@ -71,6 +71,7 @@ typedef enum {
     APP_OLD_COMM_CID_USER_DEFINE = 0xC4,     // 自定义模式设置
     APP_OLD_COMM_CID_PARA_DOWNLOAD = 0xC5,   // 自定义参数下载写入flash
     APP_OLD_COMM_CID_CLEAR_CUSTOM_MODE = 0xE9, // 清除自定义模式设置参数
+    APP_OLD_COMM_CID_SET_BILATERAL_PUMP_PARAM = 0xEA, // 开启双边控制泵奶参数
     //APP_OLD_COMM_CID_SET_TK_PARA = 0xC6,     // 满奶检测参数设置
     //APP_OLD_COMM_CID_TK_FUN_CTRL = 0xC7,     // 满奶检测功能控制
     APP_OLD_COMM_CID_TASTE_CTRL = 0xC8,      // 体验模式控制

@@ -15,10 +15,10 @@
 #define IS_SUPPORT_ROOT_HOME_SCREEN_SAVER_COMP_BG                (0)
 
 #define HOME_SCREEN_SAVER_ICON_MAX_COUNT                         (1)
-#define HOME_SCREEN_SAVER_ICON_INDEX                       (0)
+#define HOME_SCREEN_SAVER_ICON_INDEX                             (0)
 
-#define HOME_SCREEN_SAVER_ICON_X                          (60)
-#define HOME_SCREEN_SAVER_ICON_Y                          (130 + 2)
+#define HOME_SCREEN_SAVER_ICON_X                                 (60)
+#define HOME_SCREEN_SAVER_ICON_Y                                 (130 + 2)
 
 typedef struct {
     lv_obj_t * root;
@@ -44,7 +44,7 @@ typedef struct {
 */
 static home_screen_saver_display_info_t *saver_info;
 const static saver_img_info_t saver_img_infos[HOME_SCREEN_SAVER_ICON_MAX_COUNT] = {
-    { "saver_icon", RESOURCE_ID_DUMMY_ICON, HOME_SCREEN_SAVER_ICON_X, HOME_SCREEN_SAVER_ICON_Y },
+    { "saver_icon", RESOURCE_ID_HOME_DUMMY_ICON, HOME_SCREEN_SAVER_ICON_X, HOME_SCREEN_SAVER_ICON_Y },
 };  
 /*
 * GLOBAL VARIABLE DEFINITIONS
@@ -131,26 +131,6 @@ static void home_screen_saver_root_icon_update(ui_manager_context_t *thiz)
         saver_img_infos[HOME_SCREEN_SAVER_ICON_INDEX].icon_x, saver_img_infos[HOME_SCREEN_SAVER_ICON_INDEX].icon_y); /// 设置icon位置
 }
 
-static void home_screen_saver_popup_ui_update(ui_manager_context_t *thiz, ui_proc_home_t *proc)
-{
-    switch (proc->popup_ui_type) {
-        case HOME_UI_TYPE_NONE:
-            saver_info->popup_ui_index = HOME_UI_TYPE_NONE;
-            //ui_prompt_home_will_power_off_remove(thiz);
-            break;
-        case HOME_UI_TYPE_HOME_WILL_POWER_OFF:
-        if (saver_info->popup_ui_index != HOME_UI_TYPE_HOME_WILL_POWER_OFF) {
-            ui_prompt_home_will_power_off_remove(thiz);
-            ui_prompt_home_will_power_off_prepare(thiz, saver_info->root);
-            saver_info->popup_ui_index = HOME_UI_TYPE_HOME_WILL_POWER_OFF;
-        } else {
-            ui_prompt_home_will_power_off_process(thiz);
-        }
-        break;
-        default:
-            break;
-    }
-}
 /*  
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
@@ -195,7 +175,6 @@ int ui_display_home_screen_saver_process(ui_manager_context_t *thiz)
     home_screen_saver_root_bg_update(thiz);
     home_screen_saver_root_icon_update(thiz);
     ble_ui_update(thiz, saver_info->root, proc->ble, 168, 22);
-    home_screen_saver_popup_ui_update(thiz, proc);
     saver_info->force_update = false;
     thiz->priv.fps_count++;
     if (get_timestamp() - thiz->priv.fps_start_time >= 1000) {

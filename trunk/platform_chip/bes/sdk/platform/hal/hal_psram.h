@@ -67,6 +67,25 @@ enum PSRAM_TYPE_T {
     PSRAM_TYPE_QUITY,
 };
 
+enum PSRAM_DIE_NAME_T {
+    //opi
+    PSRAM_APS3208K,
+    PSRAM_APS6408L,
+    PSRAM_APS6408L_INITED,
+    //xopi
+    PSRAM_APS128XXN,
+    PSRAM_APS256XXN,
+    PSRAM_APS256XXB, //1.2V
+    //hyperbus
+    PSRAM_W955D8MKY,
+    PSRAM_W956D8NKY,
+    PSRAM_W956D8NKR,
+    PSRAM_W958D8NKY,
+
+    PSRAM_DIE_NAME_QUITY,
+    PSRAM_DIE_NAME_NULL = PSRAM_DIE_NAME_QUITY,
+};
+
 enum HAL_PSRAM_CALIB_ITEM_T {
     PSRAM_CALIB_RX_DQS,
     PSRAM_CALIB_TX_DQS,
@@ -168,10 +187,12 @@ void hal_psram_window_1d_cb_register(enum HAL_PSRAM_ID_T id, HAL_PSRAM_WINDOW_1D
 void hal_psram_window_2d_cb_register(enum HAL_PSRAM_ID_T id, HAL_PSRAM_WINDOW_2D_CB_T func);
 uint32_t hal_psram_phy_get_dly_in_val(enum HAL_PSRAM_ID_T id);
 uint32_t hal_psram_phy_get_range_val(enum HAL_PSRAM_ID_T id);
-void hal_psram_change_speed(enum HAL_PSRAM_ID_T id, uint32_t psram_speed);
 void hal_psram_dyn_freq_select(enum HAL_PSRAM_ID_T id, enum HAL_PSRAM_DYN_FREQ_ID_T freq_id, uint32_t sleep);
 void hal_psram_lowpower_enable(enum HAL_PSRAM_ID_T id);
 void hal_psram_lowpower_disable(enum HAL_PSRAM_ID_T id);
+void hal_psram_pmu_monitor_start(void);
+void hal_psram_pmu_monitor_end(void);
+void hal_psram_pmu_monitor_info(void);
 
 #ifdef __cplusplus
 }

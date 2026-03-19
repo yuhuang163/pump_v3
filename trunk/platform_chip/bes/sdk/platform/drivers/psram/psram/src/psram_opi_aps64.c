@@ -139,7 +139,7 @@ static int psram_opi_aps64_check(enum HAL_PSRAM_ID_T id)
     int ret = 0;
 
     md = hal_psram_device_mr_read(id, 0);
-    PSRAM_TRACE(0, "****MR8 = 0x%x", md);
+    PSRAM_TRACE(0, "****MR0 = 0x%x", md);
 
     if ((md & 0xff) == 0x13) {
         ret = 0;
@@ -161,7 +161,7 @@ const BOOT_RODATA_FLASH_LOC struct PSRAM_AC_TIMING_T opi_ac_timing[] ={
     .t_cphr = 2,
     .t_cphw = 6,
     .t_cem = T_NS_TO_NCK(PSRAM_CLK_24MHZ, 2500),
-    .t_rst = T_NS_TO_NCK(PSRAM_CLK_24MHZ, 2000),
+    .t_rst = T_NS_TO_NCK(PSRAM_CLK_24MHZ, 10000),
     .t_hs = T_NS_TO_NCK(PSRAM_CLK_24MHZ, 150000),
     .t_xphs = T_NS_TO_NCK(PSRAM_CLK_24MHZ, 100),
     .t_xhs = T_NS_TO_NCK(PSRAM_CLK_24MHZ, 150000),
@@ -177,7 +177,7 @@ const BOOT_RODATA_FLASH_LOC struct PSRAM_AC_TIMING_T opi_ac_timing[] ={
     .t_cphr = 2,
     .t_cphw = 6,
     .t_cem = T_NS_TO_NCK(PSRAM_CLK_48MHZ, 2500),
-    .t_rst = T_NS_TO_NCK(PSRAM_CLK_48MHZ, 2000),
+    .t_rst = T_NS_TO_NCK(PSRAM_CLK_48MHZ, 10000),
     .t_hs = T_NS_TO_NCK(PSRAM_CLK_48MHZ, 150000),
     .t_xphs = T_NS_TO_NCK(PSRAM_CLK_48MHZ, 100),
     .t_xhs = T_NS_TO_NCK(PSRAM_CLK_48MHZ, 150000),
@@ -193,7 +193,7 @@ const BOOT_RODATA_FLASH_LOC struct PSRAM_AC_TIMING_T opi_ac_timing[] ={
     .t_cphr = 2,
     .t_cphw = 6,
     .t_cem = T_NS_TO_NCK(PSRAM_CLK_100MHZ, 2500),
-    .t_rst = T_NS_TO_NCK(PSRAM_CLK_100MHZ, 2000),
+    .t_rst = T_NS_TO_NCK(PSRAM_CLK_100MHZ, 10000),
     .t_hs = T_NS_TO_NCK(PSRAM_CLK_100MHZ, 150000),
     .t_xphs = T_NS_TO_NCK(PSRAM_CLK_100MHZ, 100),
     .t_xhs = T_NS_TO_NCK(PSRAM_CLK_100MHZ, 150000),
@@ -209,7 +209,7 @@ const BOOT_RODATA_FLASH_LOC struct PSRAM_AC_TIMING_T opi_ac_timing[] ={
     .t_cphr = 2,
     .t_cphw = 6,
     .t_cem = T_NS_TO_NCK(PSRAM_CLK_133MHZ, 2500),
-    .t_rst = T_NS_TO_NCK(PSRAM_CLK_133MHZ, 2000),
+    .t_rst = T_NS_TO_NCK(PSRAM_CLK_133MHZ, 10000),
     .t_hs = T_NS_TO_NCK(PSRAM_CLK_133MHZ, 150000),
     .t_xphs = T_NS_TO_NCK(PSRAM_CLK_133MHZ, 100),
     .t_xhs = T_NS_TO_NCK(PSRAM_CLK_133MHZ, 150000),
@@ -225,7 +225,7 @@ const BOOT_RODATA_FLASH_LOC struct PSRAM_AC_TIMING_T opi_ac_timing[] ={
     .t_cphr = 2,
     .t_cphw = 6,
     .t_cem = T_NS_TO_NCK(PSRAM_CLK_200MHZ, 2500),
-    .t_rst = T_NS_TO_NCK(PSRAM_CLK_200MHZ, 2000),
+    .t_rst = T_NS_TO_NCK(PSRAM_CLK_200MHZ, 10000),
     .t_hs = T_NS_TO_NCK(PSRAM_CLK_200MHZ, 150000),
     .t_xphs = T_NS_TO_NCK(PSRAM_CLK_200MHZ, 100),
     .t_xhs = T_NS_TO_NCK(PSRAM_CLK_200MHZ, 150000),
@@ -275,6 +275,46 @@ const BOOT_RODATA_FLASH_LOC struct PSRAM_DEVICE_FUNC_CFG_T opi_device_func_cfg =
     .psram_get_mr = NULL,
     .psram_show_mr = psram_opi_aps64_mr_show,
     .psram_check_die = psram_opi_aps64_check,
+};
+
+static int psram_opi_aps64_inited_check(enum HAL_PSRAM_ID_T id)
+{
+    uint32_t md;
+    int ret = 0;
+
+    md = hal_psram_device_mr_read(id, 0);
+    PSRAM_TRACE(0, "****MR0 = 0x%x", md);
+
+    if ((md & 0xff) == (PSRAM_200MHz_MR0)) {
+        ret = 0;
+    } else if ((md & 0xffff) == 0xfa11) {
+        ret = 0xfa11;
+    } else {
+        ret = 1;
+    }
+
+    return ret;
+}
+
+const SRAM_RODATA_LOC struct PSRAM_DEVICE_TIMING_T opi_inited_device_timing = {
+    //default freq: 200MHz
+    .wl_def = 2,
+    .rl_min_def = 6,
+    .rl_max_def = 12,
+    .t_xphs_min_ns = 60,
+    .is_mrs_wl_fixed = 0,
+    .mrs_as_pd_en = 1,
+    .mrs_as_pd_mr = 6,
+    .mrs_as_pd_md = 0xf0,
+    .ac_timing = opi_ac_timing,
+    .ac_timing_count = ARRAY_SIZE(opi_ac_timing)
+};
+
+const BOOT_RODATA_FLASH_LOC struct PSRAM_DEVICE_FUNC_CFG_T opi_inited_device_func_cfg = {
+    .psram_set_mr = psram_opi_aps64_mr_set,
+    .psram_get_mr = NULL,
+    .psram_show_mr = psram_opi_aps64_mr_show,
+    .psram_check_die = psram_opi_aps64_inited_check,
 };
 
 #endif

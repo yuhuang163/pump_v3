@@ -14,6 +14,7 @@
 *****************************************************************************************
 */
 #define IS_SUPPORT_MODE_COMP_BG              (0)
+#define IS_SUPPORT_MODE_BG_IMG               (0)
 #define BF_MODE_COUNT                        (6)
 #define BF_CIRCLE_SLOT_COUNT                 (3)   /// 仅保留左/中/右 3 个圆槽位
 #define BF_VIEW_W                            (360)
@@ -26,10 +27,15 @@
 #define BF_CHILD_SIDE_OPA                    (LV_OPA_20)
 #define BF_DOT_COLOR                         (0xB25962)
 #define BF_TEXT_COLOR                        (0xB25962)
+#define BF_CENTER_CIRCLE_GRAD_TOP_COLOR      (0xEB7581)
+#define BF_CENTER_CIRCLE_GRAD_BOTTOM_COLOR   (0xF0868A)
+#define BF_SIDE_CIRCLE_GRAD_TOP_COLOR        (0xF7A1A8)
+#define BF_SIDE_CIRCLE_GRAD_BOTTOM_COLOR     (0xF7A1A8)
 #define BF_TEXT_CENTER_COLOR                 (0xFFFFFF)
 #define BF_TITLE_TEXT_COLOR                  (0xFFFFFF)
-#define BF_DESC_TEXT_COLOR                   (0xFFFFFF)
 #define BF_TEXT_SIDE_COLOR                   (0xE7D4D9)
+#define BF_DESC_TEXT_COLOR                   (0xFFDDDF)
+#define BF_CENTER_DESC_TEXT_COLOR            (0xFFEAEA)
 #define BF_TEXT_CENTER_OPA                   (LV_OPA_COVER)
 #define BF_TEXT_SIDE_OPA                     (100)
 #define BF_SWITCH_ANIM_TIME_MS               (260)
@@ -80,12 +86,12 @@ typedef struct {
 static bf_mode_display_info_t *bf_mode_info;
 
 static const uint16_t bf_mode_component_ids[BF_MODE_COUNT] = {
-    RESOURCE_ID_MODE_CUSTOM_URD_ICON,  
-    RESOURCE_ID_MODE_CUSTOM_URD_ICON,  
-    RESOURCE_ID_MODE_CUSTOM_URD_ICON,  
-    RESOURCE_ID_MODE_CUSTOM_URD_ICON, 
-    RESOURCE_ID_MODE_CUSTOM_URD_ICON,  
-    RESOURCE_ID_MODE_CUSTOM_RDE_ICON,
+    RESOURCE_ID_MODE_EXPERT_ICON,  
+    RESOURCE_ID_MODE_EXPERT_ICON,  
+    RESOURCE_ID_MODE_EXPERT_ICON,  
+    RESOURCE_ID_MODE_EXPERT_ICON, 
+    RESOURCE_ID_MODE_EXPERT_ICON,  
+    RESOURCE_ID_MODE_CUSTOM_ICON, 
 };
 
 static const char *bf_mode_name[BF_MODE_COUNT] = {
@@ -135,6 +141,7 @@ static int32_t slot_target_y(bf_circle_slot_e slot)
 
 static void apply_slot_children_opa(uint8_t slot)
 {
+#if 0
     lv_obj_t *circle = bf_mode_info->circle_obj[slot];
     if (circle == NULL || !lv_obj_is_valid(circle)) {
         return;
@@ -144,32 +151,39 @@ static void apply_slot_children_opa(uint8_t slot)
         lv_obj_set_style_image_opa(circle, LV_OPA_TRANSP, 0);
     #else
         lv_obj_set_style_image_opa(circle, opa, 0);
+        // LOG_UI("circle, slot:%d, opa:%d", slot, opa);
     #endif
     // lv_obj_invalidate(circle); /// 刷新
 
     if (bf_mode_info->mode_component_img[slot] != NULL && lv_obj_is_valid(bf_mode_info->mode_component_img[slot])) {
-        opa =(slot == BF_SLOT_CENTER) ? LV_OPA_COVER : LV_OPA_80;
+        opa = (slot == BF_SLOT_CENTER) ? LV_OPA_COVER : LV_OPA_80;
         lv_obj_set_style_image_opa(bf_mode_info->mode_component_img[slot], opa, 0);;
+        // LOG_UI("mode img, slot:%d, opa:%d", slot, opa);
         // lv_obj_invalidate(bf_mode_info->mode_component_img[slot]);
     }
 
     if (bf_mode_info->mode_title_label[slot] != NULL && lv_obj_is_valid(bf_mode_info->mode_title_label[slot])) {
-        opa =(slot == BF_SLOT_CENTER) ? LV_OPA_COVER : LV_OPA_80;
+        opa = (slot == BF_SLOT_CENTER) ? LV_OPA_COVER : LV_OPA_80;
         lv_obj_set_style_text_opa(bf_mode_info->mode_title_label[slot], opa, 0);
+        // LOG_UI("mode title, slot:%d, opa:%d", slot, opa);
     }
     
     if (bf_mode_info->mode_desc_label[slot] != NULL && lv_obj_is_valid(bf_mode_info->mode_desc_label[slot])) {
-        opa =(slot == BF_SLOT_CENTER) ? 240 : 210;
+        opa = (slot == BF_SLOT_CENTER) ? 230 : 210;
         lv_obj_set_style_text_opa(bf_mode_info->mode_desc_label[slot], opa, 0);
+        // LOG_UI("mode desc, slot:%d, opa:%d", slot, opa);
         // lv_obj_invalidate(bf_mode_info->mode_desc_label[slot]);
     }
+#endif
 }
 
 static void apply_all_children_opa(void)
 {
+#if 0
     for (uint8_t i = 0; i < BF_CIRCLE_SLOT_COUNT; i++) {
         apply_slot_children_opa(i);
     }
+#endif
 }
 
 static void update_dots(uint8_t cur)
@@ -377,24 +391,61 @@ static void circle_carousel_set_mode(ui_manager_context_t *thiz, uint8_t idx, bo
     update_dots(slot_mode_for_center(idx, BF_SLOT_CENTER));
 }
 
-static void create_mode_item(ui_manager_context_t *thiz, lv_obj_t *parent, bf_circle_slot_e slot)
+#if IS_SUPPORT_MODE_BG_IMG
+static void create_mode_bg_by_lvgl_snapshot(ui_manager_context_t *thiz, lv_obj_t *parent, bf_circle_slot_e slot)
 {
 #if LV_USE_SNAPSHOT
-    lv_draw_buf_t *background_snapshot = thiz->get_lvgl_snap_shot(UI_SNAP_SHOT_PUMP_MODE_BG);
+    lv_draw_buf_t *background_snapshot = thiz->get_lvgl_snap_shot(slot == BF_SLOT_CENTER ? \
+         UI_SNAP_SHOT_PUMP_MODE_CENTER_BG : UI_SNAP_SHOT_PUMP_MODE_SIDE_BG);
     EXCEPTION_CHECK_VOID(background_snapshot);
 #endif
-
-    /// 模式背景图标对象
     if (bf_mode_info->circle_obj[slot] == NULL || !lv_obj_is_valid(bf_mode_info->circle_obj[slot])) {
         bf_mode_info->circle_obj[slot] = lv_image_create(parent);
         EXCEPTION_CHECK_VOID(bf_mode_info->circle_obj[slot]);
-#if LV_USE_SNAPSHOT
-        lv_image_set_src(bf_mode_info->circle_obj[slot], background_snapshot);
-#else
-        lv_obj_add_flag(bf_mode_info->circle_obj[slot], LV_OBJ_FLAG_HIDDEN); /// 隐藏
-#endif
-        lv_obj_set_pos(bf_mode_info->circle_obj[slot], (lv_coord_t)slot_target_x(slot), (lv_coord_t)slot_target_y(slot));
     }
+#if LV_USE_SNAPSHOT
+    lv_image_set_src(bf_mode_info->circle_obj[slot], background_snapshot);
+#else
+    lv_obj_add_flag(bf_mode_info->circle_obj[slot], LV_OBJ_FLAG_HIDDEN); /// 隐藏
+#endif
+    lv_obj_set_pos(bf_mode_info->circle_obj[slot], (lv_coord_t)slot_target_x(slot), (lv_coord_t)slot_target_y(slot));
+    lv_obj_set_style_image_opa(bf_mode_info->circle_obj[slot], LV_OPA_COVER, 0);
+}
+#else
+static void create_mode_bg_by_lvgl_draw(ui_manager_context_t *thiz, lv_obj_t *parent, bf_circle_slot_e slot)
+{
+    if (bf_mode_info->circle_obj[slot] == NULL || !lv_obj_is_valid(bf_mode_info->circle_obj[slot])) {
+        bf_mode_info->circle_obj[slot] = lv_obj_create(parent);
+        EXCEPTION_CHECK_VOID(bf_mode_info->circle_obj[slot]);
+    }
+    lv_obj_remove_style_all(bf_mode_info->circle_obj[slot]);
+    lv_obj_set_size(bf_mode_info->circle_obj[slot], BF_CIRCLE_W, BF_CIRCLE_H); /// 设置白点大小
+    lv_obj_set_style_radius(bf_mode_info->circle_obj[slot], LV_RADIUS_CIRCLE, 0); /// 圆角
+    lv_obj_set_style_bg_color(bf_mode_info->circle_obj[slot], 
+        lv_color_hex(slot == BF_SLOT_CENTER ? BF_CENTER_CIRCLE_GRAD_TOP_COLOR : BF_SIDE_CIRCLE_GRAD_TOP_COLOR), 0);
+    lv_obj_set_style_bg_grad_color(bf_mode_info->circle_obj[slot], 
+        lv_color_hex(slot == BF_SLOT_CENTER ? BF_CENTER_CIRCLE_GRAD_BOTTOM_COLOR : BF_SIDE_CIRCLE_GRAD_BOTTOM_COLOR), 0);
+    lv_obj_set_style_bg_grad_dir(bf_mode_info->circle_obj[slot], LV_GRAD_DIR_VER, 0);
+    lv_obj_set_style_bg_main_stop(bf_mode_info->circle_obj[slot], 0, 0); /// 主颜色停止位置
+    lv_obj_set_style_bg_grad_stop(bf_mode_info->circle_obj[slot], 255, 0); /// 渐变颜色停止位置
+    lv_obj_set_style_bg_opa(bf_mode_info->circle_obj[slot], LV_OPA_COVER, 0);
+}
+#endif
+
+static void create_mode_item(ui_manager_context_t *thiz, lv_obj_t *parent, bf_circle_slot_e slot)
+{
+#if IS_SUPPORT_MODE_BG_IMG
+    create_mode_bg_by_lvgl_snapshot(thiz, parent, slot);
+#else
+    create_mode_bg_by_lvgl_draw(thiz, parent, slot);
+#endif
+    /// 模式组件图片对象
+    if (bf_mode_info->mode_component_img[slot] == NULL || !lv_obj_is_valid(bf_mode_info->mode_component_img[slot])) {
+        bf_mode_info->mode_component_img[slot] = lv_image_create(bf_mode_info->circle_obj[slot]);
+        EXCEPTION_CHECK_VOID(bf_mode_info->mode_component_img[slot]);
+        lv_obj_align(bf_mode_info->mode_component_img[slot], LV_ALIGN_CENTER, 0, -58);
+    }
+
     /// 上一次使用模式图标资源  
     if (bf_mode_info->last_usage_icon_info.data == NULL) {
         common_ui_img_resource_init(thiz, RESOURCE_ID_LAST_USED_MODE_ICON, &bf_mode_info->last_usage_icon_info);
@@ -405,6 +456,7 @@ static void create_mode_item(ui_manager_context_t *thiz, lv_obj_t *parent, bf_ci
                                     bf_mode_info->last_usage_icon_info.size,
                                     "baj");
     }
+
     /// 上一次使用模式图标对象
     if (bf_mode_info->last_usage_icon[slot] == NULL || !lv_obj_is_valid(bf_mode_info->last_usage_icon[slot])) {
         bf_mode_info->last_usage_icon[slot] = lv_image_create(bf_mode_info->circle_obj[slot]);
@@ -417,7 +469,7 @@ static void create_mode_item(ui_manager_context_t *thiz, lv_obj_t *parent, bf_ci
 
     /// 新模式未确认图标资源
     if (bf_mode_info->unconfirmed_icon_info.data == NULL) {
-        common_ui_img_resource_init(thiz, RESOURCE_ID_NEW_MODE_UNCONFIRMED_ICON, &bf_mode_info->unconfirmed_icon_info);
+        common_ui_img_resource_init(thiz, RESOURCE_ID_NEW_MODE_STEPS_PROMPT_ICON, &bf_mode_info->unconfirmed_icon_info);
         EXCEPTION_CHECK_VOID(bf_mode_info->unconfirmed_icon_info.data);
         lv_fs_make_path_from_buffer(&bf_mode_info->unconfirmed_icon_path,
                                     LV_FS_MEMFS_LETTER,
@@ -425,6 +477,7 @@ static void create_mode_item(ui_manager_context_t *thiz, lv_obj_t *parent, bf_ci
                                     bf_mode_info->unconfirmed_icon_info.size,
                                     "baj");
     }
+    
     /// 新模式未确认图标
     if (bf_mode_info->unconfirmed_icon[slot] == NULL || !lv_obj_is_valid(bf_mode_info->unconfirmed_icon[slot])) {
         bf_mode_info->unconfirmed_icon[slot] = lv_image_create(bf_mode_info->circle_obj[slot]);
@@ -434,12 +487,7 @@ static void create_mode_item(ui_manager_context_t *thiz, lv_obj_t *parent, bf_ci
         lv_obj_set_style_image_opa(bf_mode_info->unconfirmed_icon[slot], LV_OPA_COVER, 0);
         lv_obj_add_flag(bf_mode_info->unconfirmed_icon[slot], LV_OBJ_FLAG_HIDDEN);
     }
-    /// 模式组件图片对象
-    if (bf_mode_info->mode_component_img[slot] == NULL || !lv_obj_is_valid(bf_mode_info->mode_component_img[slot])) {
-        bf_mode_info->mode_component_img[slot] = lv_image_create(bf_mode_info->circle_obj[slot]);
-        EXCEPTION_CHECK_VOID(bf_mode_info->mode_component_img[slot]);
-        lv_obj_align(bf_mode_info->mode_component_img[slot], LV_ALIGN_CENTER, 0, -58);
-    }
+
     /// 模式标题标签
     if (bf_mode_info->mode_title_label[slot] == NULL || !lv_obj_is_valid(bf_mode_info->mode_title_label[slot])) {
         bf_mode_info->mode_title_label[slot] = lv_label_create(bf_mode_info->circle_obj[slot]);
@@ -448,16 +496,19 @@ static void create_mode_item(ui_manager_context_t *thiz, lv_obj_t *parent, bf_ci
         lv_obj_set_style_text_font(bf_mode_info->mode_title_label[slot], &lv_font_oppo_sans_16_medium, 0);
         lv_obj_set_style_text_align(bf_mode_info->mode_title_label[slot], LV_TEXT_ALIGN_CENTER, 0);  /// 居中对齐
         lv_obj_align(bf_mode_info->mode_title_label[slot], LV_ALIGN_CENTER, 0, -15);
+        lv_obj_set_style_text_opa(bf_mode_info->mode_title_label[slot], LV_OPA_COVER, 0);
     }
+
     /// 模式描述标签
     if (bf_mode_info->mode_desc_label[slot] == NULL || !lv_obj_is_valid(bf_mode_info->mode_desc_label[slot])) {
         bf_mode_info->mode_desc_label[slot] = lv_label_create(bf_mode_info->circle_obj[slot]);
         EXCEPTION_CHECK_VOID(bf_mode_info->mode_desc_label[slot]);
-        lv_obj_set_style_text_color(bf_mode_info->mode_desc_label[slot], lv_color_hex(BF_DESC_TEXT_COLOR), 0);
+        lv_obj_set_style_text_color(bf_mode_info->mode_desc_label[slot], 
+            lv_color_hex(slot == BF_SLOT_CENTER ? BF_CENTER_DESC_TEXT_COLOR : BF_DESC_TEXT_COLOR), 0);
         lv_obj_set_style_text_font(bf_mode_info->mode_desc_label[slot], &lv_font_oppo_sans_14_medium, 0);
         lv_obj_set_style_text_align(bf_mode_info->mode_desc_label[slot], LV_TEXT_ALIGN_CENTER, 0);  /// 居中对齐
         lv_obj_set_style_text_line_space(bf_mode_info->mode_desc_label[slot], 4, 0); /// 设置行间距（像素）
-        lv_obj_set_style_text_opa(bf_mode_info->mode_desc_label[slot], 240, 0); /// 94% 透明度
+        lv_obj_set_style_text_opa(bf_mode_info->mode_desc_label[slot], LV_OPA_COVER, 0);
         lv_obj_align(bf_mode_info->mode_desc_label[slot], LV_ALIGN_CENTER, 0, BF_DESC_BASE_Y_OFFSET);
     }
 }

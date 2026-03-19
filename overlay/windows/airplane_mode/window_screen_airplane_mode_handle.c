@@ -15,12 +15,10 @@
 #define AIRPLANE_MODE_UI_KEY_TYPE               (KEY_EVENT_LONG_5S)
 #define AIRPLANE_MODE_UI_KEY_DOWN_TYPE          (KEY_EVENT_DOWN)
 #define AIRPLANE_MODE_UI_KEY_UP_TYPE            (KEY_EVENT_UP)
-#define AIRPLANE_MODE_EXIT_TASK_NAME            "airplane_mode_exit_task"
 #define AIRPLANE_MODE_TIMEOUT_TASK_NAME         "airplane_mode_timeout_task"
 #define REMOVE_ALL_HANDER_TASK() \
 do { \
     LOG_WM("==>REMOVE_ALL_HANDER_TASK"); \
-    REMOVE_TASK_HANDLER_DIRECTLY(AIRPLANE_MODE_EXIT_TASK_NAME); \
     REMOVE_TASK_HANDLER_DIRECTLY(AIRPLANE_MODE_TIMEOUT_TASK_NAME); \
 } while (0)
 
@@ -48,25 +46,6 @@ static void airplane_mode_timeout_cb(hdr_post_args_t *args)
     SEND_BROADCAST_ARGS1(ID_BROADCAST_SYS_STATE_CHANGE, SYSTEM_BROADCAST_POWER_OFF);
 }
 
-static void airplane_mode_exit_cb(hdr_post_args_t *args)
-{
-    ui_proc_airplane_mode_t *proc = (ui_proc_airplane_mode_t *)args->user_data;
-    EXCEPTION_CHECK_VOID(proc);
-    EXCEPTION_CHECK_VOID(proc->airplane);
-    WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_AIRPLANE_MODE);
-    proc->airplane->exit(AIRPLANE_MODE_EXIT);
-    multi_func_msg_data_t msg = {0};
-    if (proc->wm->is_window_guidance_deployed() == 0) {
-        LOG_WM("goto guide screen");
-        msg.union_body.extra.window_id = ID_WINDOW_GUIDE;
-        proc->wm->dispatch_new_window_args(proc->wm, &msg);
-        return;
-    }
-    LOG_WM("goto home window.");
-    msg.union_body.extra.window_id = ID_WINDOW_HOME;
-    proc->wm->dispatch_new_window_args(proc->wm, &msg);
-}
-
 static void on_airplane_mode_window_receive(broadcast_mask_id_t id, void *context,
                                  int32_t pm_state, int32_t wakeup_reason, broadcast_priv_data_t *pdata)
 {
@@ -89,15 +68,12 @@ static int on_airplane_mode_keyevent_hdr(void *user_data, uint16_t keycode, uint
     EXCEPTION_CHECK_INT(proc);
     WINDOW_CONTEXT_GUARD_INT(proc, ID_WINDOW_AIRPLANE_MODE, 0);
     if (keytype == AIRPLANE_MODE_UI_KEY_DOWN_TYPE) {
-        proc->show_countdown_time = 1;
-    }
-    else if (keytype == AIRPLANE_MODE_UI_KEY_UP_TYPE) {
-        proc->show_countdown_time = 0;
-    }
-    else if (keytype == AIRPLANE_MODE_UI_KEY_TYPE) {
-         POST_TASK_HANDLER_DELAYED_ARG1(airplane_mode_exit_cb, 10, proc, AIRPLANE_MODE_EXIT_TASK_NAME);
-    }
-    else {
+        proc->popup_ui_type = AIRPLANE_MODE_POPUP_UI_EXIT;
+    } else if (keytype == AIRPLANE_MODE_UI_KEY_UP_TYPE) {
+        if (proc->popup_ui_type != AIRPLANE_MODE_POPUP_UI_NONE) {
+            proc->popup_ui_type = AIRPLANE_MODE_POPUP_UI_NONE;
+        }
+    } else {
         LOG_WM("airplane mode key event type not supported: %d", keytype);
     }
     return 0;
@@ -121,7 +97,8 @@ static int entry_event_cb(window_lift_cycle_e new_state, const struct window_con
         } else {
             LOG_WM("key not present, ignore.");
         }
-        POST_TASK_HANDLER_DELAYED_ARG1(airplane_mode_timeout_cb, AIRPLANE_MODE_TIMEOUT_TIME, proc, AIRPLANE_MODE_TIMEOUT_TASK_NAME);
+        POST_TASK_HANDLER_DELAYED_ARG1(airplane_mode_timeout_cb, AIRPLANE_MODE_TIMEOUT_TIME, 
+            proc, AIRPLANE_MODE_TIMEOUT_TASK_NAME);
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);
         airplane_mode_led_policy(proc, 1);
@@ -142,6 +119,7 @@ static int exit_event_cb(window_lift_cycle_e new_state, const struct window_cont
             LOG_WM("==>%s window on pause", PAGE_NAME_STR);
             stop_airplane_mode_ui(proc);
             unregister_broadcast_receiver(&proc->receiver);
+            airplane_mode_ui_hdr_remove();
             REMOVE_ALL_HANDER_TASK();
             if (proc->key) {
                 proc->key->remove_keyevent_handler(on_airplane_mode_keyevent_hdr);

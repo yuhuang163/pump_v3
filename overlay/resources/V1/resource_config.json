@@ -337,7 +337,7 @@
       "y_offset": 0
     }, 
     {
-      "resource_id": "RESOURCE_ID_CHARGE_ADAPTER_ICON",
+      "resource_id": "RESOURCE_ID_CHARGE_ADAPTER_IMG",
       "description": "首页-充电适配器图标",
       "file": "baj/charge_adpater_mismatch_160x160_a4_q99_422.baj",
       "x_offset": 0,

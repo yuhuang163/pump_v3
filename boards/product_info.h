@@ -57,8 +57,8 @@ extern "C" {
 /**
  * 正式版本从100-900
 */
-#define ROOT_FIRMWARE_VERSION                          210
-#define ROOT_FW_VERSION_STR                            "210"
+#define ROOT_FIRMWARE_VERSION                          211
+#define ROOT_FW_VERSION_STR                            "211"
 
 /**
  * 资源版本号定义(major*100 + minor)
@@ -70,7 +70,7 @@ extern "C" {
 #else
 #define ROOT_RES_PATH                                  "V1" /// 资源路径
 #endif
-#define ROOT_RES_VERSION                               (101) 
+#define ROOT_RES_VERSION                               (102) 
 #define ROOT_RES_MAJOR_VERSION                         (ROOT_RES_VERSION / 100)
 #define ROOT_RES_MINOR_VERSION                         (ROOT_RES_VERSION % 100)
 

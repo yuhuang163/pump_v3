@@ -30,7 +30,7 @@ static uint8_t u_heap_sram_buff[U_HEAP_SIZE];
 static multi_heap_handle_t u_heap_psram_nc = NULL;
 static multi_heap_handle_t u_heap_psram = NULL;
 static uint8_t u_heap_psram_nc_buff[U_HEAP_SIZE_PSRAM_NC] PSRAM_NC_BSS_LOC;
-static uint8_t u_heap_psram_buff[U_HEAP_SIZE_PSRAM] PSRAM_BSS_LOC;
+static uint8_t u_heap_psram_buff[U_HEAP_SIZE_PSRAM] PSRAM_NC_BSS_LOC;
 #endif
 
 /*

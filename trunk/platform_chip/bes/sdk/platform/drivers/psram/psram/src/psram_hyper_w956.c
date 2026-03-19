@@ -104,7 +104,7 @@ const SRAM_RODATA_LOC struct PSRAM_DEVICE_TIMING_T hyper_device_timing = {
 
     .mrs_as_pd_en = 1,
     .mrs_as_pd_mr = 2,
-    .mrs_as_pd_md = 0xe1ff,
+    .mrs_as_pd_md = 0x61ff,
 
     .ac_timing = hyper_ac_timing,
     .ac_timing_count = ARRAY_SIZE(hyper_ac_timing)
@@ -154,8 +154,7 @@ static int psram_xopi_w956_check(enum HAL_PSRAM_ID_T id)
     return ret;
 }
 
-const BOOT_RODATA_FLASH_LOC struct PSRAM_DEVICE_CMD_TABLE_T hyper_cmd_table = {
-};
+const BOOT_RODATA_FLASH_LOC struct PSRAM_DEVICE_CMD_TABLE_T hyper_cmd_table;
 
 const BOOT_RODATA_FLASH_LOC struct PSRAM_DEVICE_CFG_T hyper_device_cfg = {
     .device_cmd_4bit = 1,

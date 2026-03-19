@@ -203,7 +203,7 @@ typedef struct {
 /// 描述泵奶信息
 typedef struct {
     uint8_t rsv[20];                      /// 保留
-    uint8_t custom_activate;       /// 激活个性化韵律a
+    uint8_t custom_activate;              /// 激活个性化韵律a
     uint8_t last_expert_mode;             /// 上一次使用的专家韵律模式
     uint8_t last_regular_mode;            /// 上一次使用的常规模式
     uint8_t last_pump_mode;               /// 上一次使用的泵奶模式 breast_pump_mode_e

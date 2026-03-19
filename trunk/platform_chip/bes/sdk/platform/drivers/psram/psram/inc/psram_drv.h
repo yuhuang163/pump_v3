@@ -27,6 +27,7 @@ struct PSRAM_T {
     uint32_t run_freq_mhz[HAL_PSRAM_ID_NUM];
     uint8_t  psram_type[HAL_PSRAM_ID_NUM];
     uint8_t  psram_data_bus[HAL_PSRAM_ID_NUM];
+    uint8_t  psram_die_name[HAL_PSRAM_ID_NUM];
     enum PSRAM_PHY_BYPASS_CFG_T phy_bypass_cfg[HAL_PSRAM_ID_NUM];
     // char*    info[];
 };

@@ -47,7 +47,7 @@ typedef struct {
     uint16_t text_x;
     uint16_t text_y;
     const lv_font_t *font;
-    uint16_t line_space; /// 行间距（像素），用于换行
+    uint16_t text_opa; /// 文本不透明度
 } pump_status_text_info_t;
 
 /*
@@ -63,8 +63,8 @@ static PSRAM_DATA_LOC uint8_t pump_status_prompt_bg_data[] = {
 static pump_status_display_info_t *pump_status_info;
 
 const static pump_status_text_info_t pump_status_text_infos[PUMP_STATUS_TEXT_COUNT] = {
-    { "Pumping paused", 126, 198, &lv_font_oppo_sans_16_medium, 2},
-    { "Auto shutoff after 15 minutes of inactivity", 60, 222, &lv_font_oppo_sans_14_medium, 2 },
+    { "Pumping paused", 126, 198, &lv_font_oppo_sans_16_medium, LV_OPA_100},
+    { "Auto shutoff after 15 minutes of inactivity", 60, 222, &lv_font_oppo_sans_14_medium, LV_OPA_70},
 };
 /*
 * GLOBAL VARIABLE DEFINITIONS
@@ -83,7 +83,7 @@ static void pump_status_prompt_init(lv_obj_t *parent)
     }
     lv_obj_set_size(pump_status_info->root, LV_PCT(100), LV_PCT(100));          /// 设置容器尺寸为屏幕的100%（自动适配屏幕分辨率）
     lv_obj_set_style_bg_color(pump_status_info->root, lv_color_black(), 0);     /// 设置背景颜色为黑色
-    lv_obj_set_style_bg_opa(pump_status_info->root, LV_OPA_50, 0);           /// 设置背景不透明度为完全不透明（覆盖下层）
+    lv_obj_set_style_bg_opa(pump_status_info->root, LV_OPA_70, 0);           /// 设置背景不透明度为完全不透明（覆盖下层）
     lv_obj_set_style_border_width(pump_status_info->root, 0, 0);                /// 设置边框宽度为0（无边框）
     lv_obj_set_style_pad_all(pump_status_info->root, 0, 0);                     /// 设置所有内边距为0（子对象紧贴边缘）
     lv_obj_align(pump_status_info->root, LV_ALIGN_CENTER, 0, 0);
@@ -121,7 +121,7 @@ static void pump_status_prompt_root_text_update(ui_manager_context_t *thiz)
         lv_label_set_text(pump_status_info->status_text[i], pump_status_text_infos[i].name);  /// 设置 label 文字内容和样式
         lv_obj_set_style_text_color(pump_status_info->status_text[i], lv_color_hex(PROMPT_TEXT_COLOR), 0);
         lv_obj_set_style_text_font(pump_status_info->status_text[i], pump_status_text_infos[i].font, 0);  /// 设置字体
-        lv_obj_set_style_text_line_space(pump_status_info->status_text[i], pump_status_text_infos[i].line_space, 0);  /// 设置行间距（像素）
+        lv_obj_set_style_text_opa(pump_status_info->status_text[i], pump_status_text_infos[i].text_opa, 0);  /// 设置文本不透明度
         lv_obj_set_style_text_align(pump_status_info->status_text[i], LV_TEXT_ALIGN_CENTER, 0);  /// 设置文本居中对齐
         lv_obj_align(pump_status_info->status_text[i], LV_ALIGN_TOP_LEFT, pump_status_text_infos[i].text_x, pump_status_text_infos[i].text_y); /// 设置文字位置
     }
