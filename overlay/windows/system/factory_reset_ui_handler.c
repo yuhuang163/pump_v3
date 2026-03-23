@@ -138,7 +138,7 @@ void system_factory_reset_handle(ui_proc_system_t *proc)
         READ_PUMP_IS_WORKING(proc->pump, is_pump_working);
         if (is_pump_working) {
             LOG_WM("factory reset, stop breast pump work.");
-            WRITE_PUMP_WORK_STATUS(proc->pump, BREAST_PUMP_IDLE);
+            WRITE_PUMP_WORK_STATUS(proc->pump, BREAST_PUMP_IDLE, 1);
         }
     }
     POST_TASK_HANDLER_DELAYED_ARG1(factory_reset_cb, FACTORY_RESET_DELAY_TIME, proc, FACTORY_RESET_TASK_NAME);

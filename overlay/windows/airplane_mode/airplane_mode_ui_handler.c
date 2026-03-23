@@ -150,7 +150,7 @@ void airplane_mode_pump_policy(ui_proc_airplane_mode_t *proc)
     int is_pump_working = 0; 
     READ_PUMP_IS_WORKING(proc->pump, is_pump_working);
     if (is_pump_working > 0) {
-        WRITE_PUMP_WORK_STATUS(proc->pump, BREAST_PUMP_FINISH);
+        WRITE_PUMP_WORK_STATUS(proc->pump, BREAST_PUMP_FINISH, 1);
     }
 }
 

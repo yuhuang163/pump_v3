@@ -62,6 +62,7 @@ void reset_pump_info(storage_manager_context_t *ctx, sys_pump_info_t *pump_info)
     pump_info->last_expert_mode              = 255;
     pump_info->last_regular_mode             = 255;
     pump_info->last_pump_mode                = BREAST_PUMP_PUMP_MODE_DEFAULT;
+    pump_info->control_type                  = BREAST_PUMP_CONTROL_TYPE_BILATERAL;
     for (int i = 0; i < BREAST_PUMP_MODE_MAX; i++) {
         pump_info->mode_update_flag[i] = 0;
         breast_pump_setting_reset(pump_info, i);

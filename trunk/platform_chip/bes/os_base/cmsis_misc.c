@@ -45,7 +45,39 @@ static char *platform_get_reboot_reason(uint32_t bootmode)
     }  else if (bootmode == HAL_SW_BOOTMODE_DLD_TRANS_UART) {
         return "power on/hw reset";
     } else {
-        return "unknown";
+        return "null";
+    }
+}
+
+static char *platform_get_boot_cause(enum PMU_BOOT_CAUSE_T cause)
+{
+    switch (cause) {
+        case PMU_BOOT_CAUSE_POWER_KEY:
+            return "power key";
+        case PMU_BOOT_CAUSE_DIG_WDT:
+            return "dig wdt";
+        case PMU_BOOT_CAUSE_DIG_REBOOT:
+            return "dig reboot";
+        case PMU_BOOT_CAUSE_AC_IN:
+            return "ac in";
+        case PMU_BOOT_CAUSE_AC_OUT:
+            return "ac out";
+        case PMU_BOOT_CAUSE_RTC:
+            return "rtc";
+        case PMU_BOOT_CAUSE_PMU_WDT:
+            return "pmu wdt";
+        case PMU_BOOT_CAUSE_RESET_KEY:
+            return "reset key";
+        case PMU_BOOT_CAUSE_LONG_PRESS:
+            return "long press";
+        case PMU_BOOT_CAUSE_VCHG_COMMAND:
+            return "vchg command";
+        case PMU_BOOT_CAUSE_VCORE_LOW:
+            return "vcore low";
+        case PMU_BOOT_CAUSE_VBAT_OVP:
+            return "vbat ovp";
+        default:
+            return "unknown";
     }
 }
 
@@ -58,7 +90,9 @@ void platform_prepare_init(void)
     u_heap_init();
     os_mutex_module_init();
     s_bootmode = hal_sw_bootmode_get();
-    LOGI("bootmode: %x, reason: %s", s_bootmode, platform_get_reboot_reason(s_bootmode));
+    enum PMU_BOOT_CAUSE_T boot_cause = pmu_boot_cause_get();
+    LOGI("bootmode: %x-%s, boot cause: %x-%s", s_bootmode, platform_get_reboot_reason(s_bootmode),
+        boot_cause, platform_get_boot_cause(boot_cause));
 }
 
 bool platform_is_startup_caused_by_reboot(void)

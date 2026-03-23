@@ -152,8 +152,8 @@ int factory_tests_aging_test_enter_mode1(void)
     EXCEPTION_CHECK_INT(pump_ctx);
     motor_manager_context_t *motor_ctx = pump_ctx->priv.motor;
     EXCEPTION_CHECK_INT(motor_ctx);
-    WRITE_PUMP_WORK_MODE(pump_ctx, BREAST_PUMP_LACTATION_MODE, false);
-    WRITE_PUMP_WORK_STATUS(pump_ctx, BREAST_PUMP_START);
+    WRITE_PUMP_WORK_MODE(pump_ctx, BREAST_PUMP_LACTATION_MODE, false, 1);
+    WRITE_PUMP_WORK_STATUS(pump_ctx, BREAST_PUMP_START, 1);
     msleep(100);
     int time_index = 0;
     READ_PUMP_MODE_STEP_INDEX(pump_ctx, time_index);
@@ -184,7 +184,7 @@ void factory_tests_aging_test_check_result(void)
     EXCEPTION_CHECK_VOID(thiz);
     breast_pump_manager_context_t *pump_ctx = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
     EXCEPTION_CHECK_VOID(pump_ctx);
-    WRITE_PUMP_WORK_STATUS(pump_ctx, BREAST_PUMP_PAUSE);
+    WRITE_PUMP_WORK_STATUS(pump_ctx, BREAST_PUMP_PAUSE, 1);
     st->get_store_val(STORE_ID_FACTORY_FLAG_INFO, 0, 0, &flag_info);
     if (thiz->priv.current_mode == TST_AGING_TEST_TYPE
         && thiz->priv.factory_ctx.aging_target_info.aging_type == AGING_MODE_TYPE_1) {
@@ -304,7 +304,7 @@ int factory_tests_aging_test_exit(tests_func_args_t args)
     }
     st->put_store_val(STORE_ID_FACTORY_FLAG_INFO, 0, 0, &flag_info);
     LOG_TEST("factory test aging test exit: age_flag = %d, age_time = %d", flag_info.age_info[thiz->priv.factory_ctx.aging_target_info.aging_type - 1].age_flag, flag_info.age_info[thiz->priv.factory_ctx.aging_target_info.aging_type - 1].age_time);
-    WRITE_PUMP_WORK_STATUS(pump_ctx, BREAST_PUMP_PAUSE);
+    WRITE_PUMP_WORK_STATUS(pump_ctx, BREAST_PUMP_PAUSE, 1);
 
     return 0;
 }
@@ -318,9 +318,9 @@ int factory_tests_suction_test(tests_func_args_t args)
     motor_manager_context_t *motor_ctx = pump_ctx->priv.motor;
     EXCEPTION_CHECK_INT(motor_ctx);
     if (args.arg1 == 1) {
-        WRITE_PUMP_WORK_STATUS(pump_ctx, BREAST_PUMP_PAUSE);
-        WRITE_PUMP_WORK_MODE(pump_ctx, BREAST_PUMP_LACTATION_MODE, false);
-        WRITE_PUMP_WORK_STATUS(pump_ctx, BREAST_PUMP_START);
+        WRITE_PUMP_WORK_STATUS(pump_ctx, BREAST_PUMP_PAUSE, 1);
+        WRITE_PUMP_WORK_MODE(pump_ctx, BREAST_PUMP_LACTATION_MODE, false, 1);
+        WRITE_PUMP_WORK_STATUS(pump_ctx, BREAST_PUMP_START, 1);
         msleep(100);
         int time_index = 0;
         READ_PUMP_MODE_STEP_INDEX(pump_ctx, time_index);
@@ -332,7 +332,7 @@ int factory_tests_suction_test(tests_func_args_t args)
         LOG_TEST("tests_tlvs_suction_test_mode_handler: level[0] = %d, level[1] = %d", setting.level[0],
                 setting.level[1]);
     } else {
-        WRITE_PUMP_WORK_STATUS(pump_ctx, BREAST_PUMP_PAUSE);
+        WRITE_PUMP_WORK_STATUS(pump_ctx, BREAST_PUMP_PAUSE, 1);
     }
     return 0;
 }

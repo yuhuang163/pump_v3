@@ -123,7 +123,7 @@ void show_pump_result_ui(ui_proc_pump_t *proc)
     if (PUMP_NO_FINISH(pump_status)) {
         LOG_UI("=>set pump finish%d", pump_status);
         proc->led->set_led_level(PUMP_FREQ_SET_BL, 100);
-        WRITE_PUMP_WORK_STATUS(proc->pump, BREAST_PUMP_FINISH);
+        WRITE_PUMP_WORK_STATUS(proc->pump, BREAST_PUMP_FINISH, 1);
     } else {
         char *state_name = "unknow";
         READ_PUMP_STATE_NAME(proc->pump, &state_name);

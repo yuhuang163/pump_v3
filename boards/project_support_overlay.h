@@ -100,7 +100,7 @@ extern "C" {
 /// 支持资源管理
 #define IS_SUPPORT_MODULE_RES                            (1)
 /// 支持自适应背光  
-#define IS_SUPPORT_ADAPTIVE_DIMMING                      (1)
+#define IS_SUPPORT_ADAPTIVE_DIMMING                      (0)
 /// 支持堵转检测
 #define IS_SUPPORT_MOTOR_STALL_DETECT                    (1)
 

@@ -122,6 +122,7 @@ int pump_time_policy_update(struct motor_manager_context *thiz, motor_policy_run
             runtime->current_timed_policy_index = 0;
             runtime->timed_policy = &runtime->manager->head;
             runtime->time_policy_running_time = 0;
+            runtime->all_timed_policy_finish_flag = 1;
         }
         runtime->time_policy_remaining_time = runtime->timed_policy->duration_seconds;
         /// 更新模式类型

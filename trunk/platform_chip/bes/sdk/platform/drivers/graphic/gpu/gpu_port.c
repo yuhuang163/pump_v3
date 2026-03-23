@@ -61,7 +61,7 @@ static uint8_t gpu_contiguous_mem[VG_SYSTEM_RESERVE_COUNT][GPU_CONTIGUOUS_SIZE] 
 #if (GPU_HEAP_SIZE > 0x10000)
 static uint8_t gpu_heap_mem[GPU_HEAP_SIZE] GPU_MEM_LOC;
 #else
-static uint8_t gpu_heap_mem[GPU_HEAP_SIZE];
+static uint8_t gpu_heap_mem[GPU_HEAP_SIZE] PSRAM_NC_BSS_LOC;
 #endif
 static heap_handle_t gpu_heap = NULL;
 

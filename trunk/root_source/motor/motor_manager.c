@@ -265,6 +265,11 @@ static uint32_t get_current_time_policy_remaining_time(void)
     return motor_obj->priv.runtime.time_policy_remaining_time;
 }
 
+static uint8_t get_timed_policy_finish_flag(void)
+{
+    return motor_obj->priv.runtime.all_timed_policy_finish_flag;
+}
+
 /*
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
@@ -280,6 +285,7 @@ void *register_module_for_motor_manager_new(list_head_t *list_head)
     ptr->get_runtime_policy_index = get_runtime_policy_index;
     ptr->get_runtime_mode_type = get_runtime_mode_type;
     ptr->get_current_time_policy_remaining_time = get_current_time_policy_remaining_time;
+    ptr->get_timed_policy_finish_flag = get_timed_policy_finish_flag;
     ptr->synchronous_stop_motor = synchronous_stop_motor;
     motor_obj = ptr;
     

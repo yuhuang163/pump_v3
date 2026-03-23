@@ -32,7 +32,7 @@ export POWER_MODE           ?= DIG_DCDC
 
 DEBUG_PORT  ?= 1
 
-export FLASH_SIZE ?= 0x800000
+export FLASH_SIZE ?= 0x400000
 export FLASH_SUSPEND ?= 1
 export FAULT_DUMP := 1
 

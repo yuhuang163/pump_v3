@@ -132,7 +132,16 @@ void system_power_off_handle(ui_proc_system_t *proc)
         READ_PUMP_IS_WORKING(proc->pump, is_pump_working);
         if (is_pump_working) {
             LOG_WM("power off, stop breast pump work.");
-            WRITE_PUMP_WORK_STATUS(proc->pump, BREAST_PUMP_PAUSE);
+            WRITE_PUMP_WORK_STATUS(proc->pump, BREAST_PUMP_PAUSE, 1);
+            /// 通知app强制上报系统状态复位 app要弹窗
+            servers_manager_context_t *servers_ctx = (servers_manager_context_t *)find_module(ID_MODULE_SERVERS);
+            EXCEPTION_CHECK_VOID(servers_ctx && servers_ctx->hook);
+            servers_publish_data_args_t args = {
+                .arg1 = OLD_PUBLISH_DATA_SYSTEM_STATUS_RESET,
+                .arg2 = 0,
+                .val = NULL,
+            };
+            servers_ctx->hook->app_old_protocol_server_data_publish(APP_OLD_COMM_CID_NOTIFY_STATUS, &args);
         }
     }
     POST_TASK_HANDLER_DELAYED_ARG1(power_off_cb, POWER_OFF_DELAY_TIME, proc, POWER_OFF_TASK_NAME);

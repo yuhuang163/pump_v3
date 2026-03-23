@@ -50,7 +50,7 @@ static PSRAM_BSS_LOC uint8_t lvgl_buffer1[LCDC_SIZE/2] ALIGNED(64);
 #endif
 #define DISP_RENDER_MODE    LV_DISPLAY_RENDER_MODE_FULL
 #else
-static PSRAM_BSS_LOC uint8_t lvgl_buffer0[LCDC_SIZE] ALIGNED(64);
+static uint8_t lvgl_buffer0[LCDC_SIZE] ALIGNED(64);
 static PSRAM_BSS_LOC uint8_t lvgl_buffer1[LCDC_SIZE] ALIGNED(64);
 #define DISP_RENDER_MODE    LV_DISPLAY_RENDER_MODE_DIRECT
 #endif

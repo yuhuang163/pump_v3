@@ -173,6 +173,7 @@ static void airplane_mode_popup_ui_update(ui_manager_context_t *thiz, ui_proc_ai
     switch (proc->popup_ui_type) {
         case AIRPLANE_MODE_POPUP_UI_NONE:
             airplane_mode_popup_ui_remove(thiz);
+            airplane_mode_info->popup_ui_index = AIRPLANE_MODE_POPUP_UI_NONE;
             break;
         case AIRPLANE_MODE_POPUP_UI_EXIT:
             if (airplane_mode_info->popup_ui_index != AIRPLANE_MODE_POPUP_UI_EXIT) {
@@ -237,7 +238,8 @@ int ui_display_airplane_mode_process(ui_manager_context_t *thiz)
     airplane_mode_info->force_update = false;
     thiz->priv.fps_count++;
     if (get_timestamp() - thiz->priv.fps_start_time >= 1000) {
-        LOG_UI("===> airplane mode fps=%d", thiz->priv.fps_count);
+        LOG_UI("===> airplane mode fps=%d, %d, %d", 
+            thiz->priv.fps_count, proc->popup_ui_type, airplane_mode_info->popup_ui_index);
         thiz->priv.fps_start_time = get_timestamp();
         thiz->priv.fps_count = 0;
     }

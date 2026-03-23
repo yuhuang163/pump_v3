@@ -58,6 +58,10 @@ int ble_master_srv_recv_data(void *context, ble_service_data_t *srv_data)
         LOGE("recv data is NULL or size is 0");
         return -1;
     }
+    power_manager_context_t *pm = (power_manager_context_t *)find_module(ID_MODULE_POWER);
+    if (pm && pm->is_pm_suspend()) {
+        pm->pm_wakeup(PM_WAKEUP_REASON_BLE_REQ);
+    }
     LOG_BLE("ble_master_recv_data[%d]", srv_data->size);
     LOG_HEX("recv_data hex", srv_data->p_data, srv_data->size);
     ctx->dispatch_ble_client(ctx, DEVICE_BLE_MASTER_MSG_CHANNEL, srv_data->p_data, srv_data->size);

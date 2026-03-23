@@ -528,6 +528,7 @@ static void pump_home_popup_ui_update(ui_manager_context_t *thiz, ui_proc_pump_t
     switch (proc->popup_ui_type) {
         case PUMP_POPUP_UI_NONE:
             pump_home_popup_ui_remove(thiz);
+            pump_info->popup_ui_index = PUMP_POPUP_UI_NONE;
             break;
         case PUMP_POPUP_UI_MODE_PROMPT:
             if (PUMP_IS_COMMON_MODE(pump_info->mode) == 0) {
@@ -634,7 +635,7 @@ int ui_display_pump_home_screen_process(ui_manager_context_t *thiz)
         }
         pump_home_animation_update(thiz, RESOURCE_ID_PERSONALIZED_MODE_ANIMATION_START, 
             RESOURCE_ID_PERSONALIZED_MODE_ANIMATION_END - RESOURCE_ID_PERSONALIZED_MODE_ANIMATION_START + 1,
-            0, 0);
+            0, 108);
         pump_home_custom_mode_update(thiz, pump_mode, sub_mode, next_sub_mode);
     }
     pump_home_left_level_update(thiz, setting.level[0]);

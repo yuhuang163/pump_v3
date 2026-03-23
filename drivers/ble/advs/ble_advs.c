@@ -219,7 +219,12 @@ void ble_custom_gap_advs_stop(void)
 int ble_custom_gap_mac_addr_set(uint8_t *mac_addr)
 {
     memcpy(s_mac_addr, mac_addr, 6);
-    return factory_section_set_ble_address(mac_addr);
+    int ret = factory_section_set_ble_address(mac_addr);
+    if (ret != 0) {
+        LOG_PBUS("set ble address failed");
+        return -1;
+    }
+    return ret;
 }
 
 int ble_custom_gap_mac_addr_get(uint8_t *mac_addr)

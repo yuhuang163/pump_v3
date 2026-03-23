@@ -46,7 +46,7 @@ uint8_t app_old_comm_handle_ctrl_taste_dev_ctrl(app_old_comm_pump_taste_ctrl *ta
                 (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
             EXCEPTION_CHECK_UINT(pump_ctx);
             /// 退出体验模式后，继续运行正常pump  //CONTINUE 存在问题 timestep和 time都被体验策略改了
-            WRITE_PUMP_WORK_STATUS(pump_ctx, BREAST_PUMP_START);
+            WRITE_PUMP_WORK_STATUS(pump_ctx, BREAST_PUMP_START, 1);
             //操作暂停退出体验模式 不用设置参数直接返回
             return true;
         } else if (taste_ctrl_date->taste_status_ctrl == APP_OLD_COMM_TASTE_STATUS_STOP) {
@@ -59,7 +59,7 @@ uint8_t app_old_comm_handle_ctrl_taste_dev_ctrl(app_old_comm_pump_taste_ctrl *ta
             breast_pump_manager_context_t *pump_ctx =
                 (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
             EXCEPTION_CHECK_UINT(pump_ctx);
-            WRITE_PUMP_WORK_STATUS(pump_ctx, BREAST_PUMP_PAUSE);
+            WRITE_PUMP_WORK_STATUS(pump_ctx, BREAST_PUMP_PAUSE, 1);
         }
     }
     //暂停后在控制启动，或在启动状态模式变化，才需要暂停motor后，重新加载策略启动

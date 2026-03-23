@@ -153,25 +153,29 @@ void breast_pump_policy_prepare(struct motor_manager_context *thiz, uint8_t acti
     body->taste_run_flag = 0;//常规模式下，体验模式标志位清零
     if (action == MOTOR_USER_DEBUG_POLICY_START) {
         body->taste_run_flag = 1;
+        body->all_timed_policy_finish_flag = 0;
         policy_obj = thiz->priv.user_debug_policy;
         LOG_MOTOR("user debug policy");
     } else if (action == MOTOR_POLICY_CONTINUE) {
         if (body->breast_pump_mode == pump_mode) {
             LOG_MOTOR("continue %s policy, step_index: %d", mode_name, body->current_timed_policy_index);
-            body->current_policy_index = 0;
+            //body->current_policy_index = 0;
+            body->timed_policy_start_time = get_timestamp();
             negative_pressure_release(thiz);
             for (uint8_t i = 0; i < BREAST_PUMP_NUM; i++) {
-                memcpy(&body->policy[i], &body->manager->head.policy, sizeof(motor_policy_node_t));
+                //memcpy(&body->policy[i], &body->manager->head.policy, sizeof(motor_policy_node_t));
                 pump_policy_info_reset(thiz, body, i);
-            }
+            } 
             return;
         } else {
+            body->all_timed_policy_finish_flag = 0;
             LOG_MOTOR("breast pump mode changed, need to restart policy");
             body->breast_pump_mode = pump_mode;
             policy_obj = breast_pump_mode_policy_get(thiz, body->breast_pump_mode);
             LOG_MOTOR("%s mode policy", mode_name);
         }
     } else {
+        body->all_timed_policy_finish_flag = 0;
         body->breast_pump_mode = pump_mode;
         policy_obj = breast_pump_mode_policy_get(thiz, body->breast_pump_mode);
         LOG_MOTOR("%s mode policy", mode_name);
@@ -210,17 +214,14 @@ void breast_pump_policy_prepare(struct motor_manager_context *thiz, uint8_t acti
     servers_manager_context_t *servers_ctx = (servers_manager_context_t *)find_module(ID_MODULE_SERVERS);
     EXCEPTION_CHECK_VOID(servers_ctx && servers_ctx->hook);
     servers_publish_data_args_t args = {
-        .arg1 =
-            (body->taste_run_flag ? OLD_PUBLISH_DATA_TASTE_START_REPORT : OLD_PUBLISH_DATA_PUMP_STEP_ALL_PARAM_CHANGE),
+        .arg1 = OLD_PUBLISH_DATA_TASTE_START_REPORT,
         .arg2 = 0,
         .val = NULL,
     };
     if (body->taste_run_flag) {
         servers_ctx->hook->app_old_protocol_server_data_publish(APP_OLD_COMM_CID_TASTE_REPORT, &args);
     }
-    else {
-        servers_ctx->hook->app_old_protocol_server_data_publish(APP_OLD_COMM_CID_NOTIFY_STATUS, &args);
-    }
+    
 }
 
 int breast_pump_mode_policy_handler(struct motor_manager_context *thiz, motor_task_para_t *play_para)

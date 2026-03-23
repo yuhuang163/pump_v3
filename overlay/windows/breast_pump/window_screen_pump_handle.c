@@ -297,7 +297,7 @@ static void remove_breast_pump_result_cb(breast_pump_manager_context_t *pump)
     READ_PUMP_WORK_STATUS(pump, pump_status);
     if (pump_status > BREAST_PUMP_IDLE && pump_status < BREAST_PUMP_FINISH) {
         LOG_WM("pump status: %d => goto finish", pump_status);
-        WRITE_PUMP_WORK_STATUS(pump, BREAST_PUMP_FINISH);
+        WRITE_PUMP_WORK_STATUS(pump, BREAST_PUMP_FINISH, 1);
     }
     LOG_WM("==>remove breast_pump_result_listener");
     pump->remove_breast_pump_result_listener(on_breast_pump_result_cb);
@@ -376,7 +376,7 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
     register_broadcast_receiver(&proc->receiver);
     /// 配置泵奶管理器.
     if (proc->pump) {
-        WRITE_PUMP_WORK_STATUS(proc->pump, BREAST_PUMP_IDLE);
+        WRITE_PUMP_WORK_STATUS(proc->pump, BREAST_PUMP_IDLE, 1);
         proc->pump->add_breast_pump_result_listener(proc, on_breast_pump_result_cb);
     }
     /// 设置窗口上下文.

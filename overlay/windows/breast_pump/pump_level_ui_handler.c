@@ -167,7 +167,7 @@ void switch_pump_control_type_ui(ui_proc_pump_t *proc,uint8_t control_type)
 
     if (proc->info.control_type != control_type) {
         proc->info.control_type = control_type;
-        WRITE_PUMP_LEVEL_CONTROL_TYPE(proc->pump, control_type);
+        WRITE_PUMP_LEVEL_CONTROL_TYPE(proc->pump, control_type, 1);
     }
     
     show_pump_level_ui(proc);
@@ -196,7 +196,7 @@ void switch_pump_bilateral_control_type_ui_by_knob(ui_proc_pump_t *proc, bool is
 
     /// 设置控制类型为双边模式
     proc->info.control_type = BREAST_PUMP_CONTROL_TYPE_BILATERAL;
-    WRITE_PUMP_LEVEL_CONTROL_TYPE(proc->pump, BREAST_PUMP_CONTROL_TYPE_BILATERAL);
+    WRITE_PUMP_LEVEL_CONTROL_TYPE(proc->pump, BREAST_PUMP_CONTROL_TYPE_BILATERAL, 1);
     if (proc->info.control_type == BREAST_PUMP_CONTROL_TYPE_BILATERAL) {
         /// 双侧模式：level_change 表示档位变化值，范围 -15 到 15
         /// is_increase=true: 增加强度（level_change++, level[i]++）

@@ -109,6 +109,8 @@ typedef struct motor_manager_context {
     uint8_t (*get_runtime_mode_type)(uint8_t is_next_mode);
     /// 获取当前时间策略剩余时间，单位s
     uint32_t (*get_current_time_policy_remaining_time)(void);
+    /// 获取所有定时策略执行完毕标志
+    uint8_t (*get_timed_policy_finish_flag)(void);
     /// 外部钩子函数.
     struct __motor_manager_hook {
         int (*on_post_init_route)(struct motor_manager_context *ctx);
