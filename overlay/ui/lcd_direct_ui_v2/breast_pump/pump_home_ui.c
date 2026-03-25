@@ -60,6 +60,7 @@ typedef struct {
     uint8_t is_charging;
     uint8_t mode;
     uint8_t sub_mode;
+    uint8_t next_sub_mode;
     uint8_t speed;
     uint8_t left_level;
     uint8_t right_level;
@@ -437,7 +438,7 @@ static void pump_home_custom_mode_update(ui_manager_context_t *thiz, uint8_t mod
 {    
     uint8_t mode_name_index = 0;
     if (pump_info->mode == mode_index && pump_info->sub_mode == sub_mode &&
-        pump_info->force_update == false) {
+        pump_info->next_sub_mode == next_sub_mode && pump_info->force_update == false) {
         return;
     }
 
@@ -477,6 +478,7 @@ static void pump_home_custom_mode_update(ui_manager_context_t *thiz, uint8_t mod
     LOG_UI("mode_text: %s, next_mode_text: %s", home_mode_names[sub_mode], home_mode_names[next_sub_mode]);
     pump_info->mode = mode_index;
     pump_info->sub_mode = sub_mode;
+    pump_info->next_sub_mode = next_sub_mode;
 }
 
 static void pump_home_animation_update(ui_manager_context_t *thiz, uint16_t start_resource_id, uint16_t animation_size,
@@ -611,9 +613,10 @@ int ui_display_pump_home_screen_process(ui_manager_context_t *thiz)
     const pump_result_info_t *result_info = NULL;
     READ_PUMP_RESULT_INFO(proc->pump, BREAST_PUMP_RESULT_PUMPING, &result_info);
     EXCEPTION_CHECK_INT(result_info);
-    uint16_t hold_time = result_info->work_valid_time / 1000;
+    uint16_t hold_time = result_info->work_total_time / 1000;
     pump_setting_t setting;
-    uint8_t time_index = proc->motor->get_runtime_policy_index(MOTOR_TIME_POLICY);
+    int time_index = 0;
+    READ_PUMP_MODE_STEP_INDEX(proc->pump, time_index);
     READ_PUMP_SETTING_INFO(proc->pump, time_index, setting);
     int pump_mode = 0;
     READ_PUMP_WORK_MODE(proc->pump, pump_mode);

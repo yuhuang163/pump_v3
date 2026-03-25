@@ -57,8 +57,8 @@ extern "C" {
 /**
  * 正式版本从100-900
 */
-#define ROOT_FIRMWARE_VERSION                          212
-#define ROOT_FW_VERSION_STR                            "212"
+#define ROOT_FIRMWARE_VERSION                          213
+#define ROOT_FW_VERSION_STR                            "213"
 
 /**
  * 资源版本号定义(major*100 + minor)

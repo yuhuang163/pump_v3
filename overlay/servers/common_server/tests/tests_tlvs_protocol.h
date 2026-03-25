@@ -19,8 +19,8 @@ typedef enum {
     TESTS_TLV_SUCTION_TEST_MODE = 0x0003,      /// 吸力测试模式进入/退出 (0x01:进入, 0x00:退出)
     TESTS_TLV_AGING_STATUS_QUERY = 0x0004,     /// 老化状态查询
     TESTS_TLV_AGING_TEST_MODE_EXIT = 0x0010,   /// 老化模式退出 (Length=0)
-    TESTS_TLV_KEY_STATUS_REPORT = 0x0005,      /// 按键状态上报 (0x01:短按, 0x02:长按) NOTIFY
-    TESTS_TLV_ENCODER_STATUS_REPORT = 0x0006, /// 编码器状态上报 (0x01:左旋, 0x02:右旋) NOTIFY
+    TESTS_TLV_KEY_STATUS_REPORT = 0x0005,      /// 按键状态上报 NOTIFY (Length=2: byte0=0x01短按/0x02长按, byte1=按键编号0-255)
+    TESTS_TLV_ENCODER_STATUS_REPORT = 0x0006, /// 编码器状态上报 NOTIFY (Length=2: byte0=0x01左旋/0x02右旋, byte1=按键编号0-255)
     TESTS_TLV_WRITE_SN = 0x0007,               /// 写入整机序列号SN (35字节)
     TESTS_TLV_WRITE_PRODUCT_ID = 0x0008,       /// 写入整机产品ID (6字节)
     TESTS_TLV_WRITE_DEVICE_ID = 0x0009,        /// 写入整机设备ID (16字节)
@@ -39,6 +39,7 @@ typedef enum {
     TESTS_TLV_QUERY_SENSOR_STATUS = 0x0017,    /// 查询外设sensor状态 (Length=0)
     TESTS_TLV_READ_FACTORY_COMPLETE_FLAG = 0x0018, /// 产测完成标识读取 (Length=0)
     TESTS_TLV_GET_RSSI = 0x0019,               /// 获取蓝牙RSSI (Length=1: byte0=0x00获取BLE RSSI, 0x01获取BT RSSI)
+    TESTS_TLV_READ_BATTERY_LEVEL = 0x001A,     /// 读取设备电池电量 (REQUEST Length=0, RESPONSE Length=1: byte0=0-100)
     TESTS_TLV_LCD_COLOR_TEST_MODE = 0x0020, /// LCD颜色测试模式 (0x01:进入, 0x00:退出)
     TESTS_TLV_ID_MAX,
 } tests_tlvs_id_e;
@@ -140,6 +141,8 @@ int tests_tlvs_query_sensor_status(comm_protocol_builder_t *builder, comm_protoc
 
 /// RSSI获取
 int tests_tlvs_get_rssi(comm_protocol_builder_t *builder, comm_protocol_service_t *service,
+                    uint8_t *data, uint16_t data_len);
+int tests_tlvs_read_battery_level(comm_protocol_builder_t *builder, comm_protocol_service_t *service,
                     uint8_t *data, uint16_t data_len);
 
 /// NOTIFY上报 (设备主动上报)

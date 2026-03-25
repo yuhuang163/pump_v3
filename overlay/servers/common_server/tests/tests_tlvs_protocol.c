@@ -1121,6 +1121,34 @@ int tests_tlvs_get_rssi(comm_protocol_builder_t *builder, comm_protocol_service_
     return protocol_ctx->comm_protocol_builder_add_tlv(builder, service, &tlv_node);
 }
 
+int tests_tlvs_read_battery_level(comm_protocol_builder_t *builder, comm_protocol_service_t *service, uint8_t *data,
+                                  uint16_t data_len)
+{
+    EXCEPTION_CHECK_INT(builder && service);
+    protocol_manager_context_t *protocol_ctx = get_protocol_ctx();
+    EXCEPTION_CHECK_INT(protocol_ctx);
+
+    if (data_len != 0) {
+        LOG_SRV("tests_tlvs_read_battery_level: invalid data_len=%d, expected 0", data_len);
+    }
+
+    uint8_t battery_level = 0;
+    battery_manager_context_t *battery_ctx = (battery_manager_context_t *)find_module(ID_MODULE_BATTERY);
+    if (battery_ctx && battery_ctx->get_battery_percent) {
+        battery_level = battery_ctx->get_battery_percent();
+    } else {
+        LOGW("tests_tlvs_read_battery_level: battery context invalid, return 0");
+    }
+    LOG_SRV("tests_tlvs_read_battery_level: battery_level=%u", battery_level);
+
+    comm_protocol_tlv_node_t tlv_node = {
+        .type = TESTS_TLV_READ_BATTERY_LEVEL,
+        .length = 1,
+        .value = &battery_level,
+    };
+    return protocol_ctx->comm_protocol_builder_add_tlv(builder, service, &tlv_node);
+}
+
 /// ======================== NOTIFY上报 ========================
 
 int tests_key_status_publish(servers_publish_data_args_t *args)
@@ -1133,7 +1161,9 @@ int tests_key_status_publish(servers_publish_data_args_t *args)
     EXCEPTION_CHECK_INT(ble_ctx);
 
     uint8_t key_status = (uint8_t)args->arg1; // 0x01=短按, 0x02=长按
-    LOG_SRV("tests_key_status_publish: %s", key_status == TESTS_KEY_STATUS_SHORT_PRESS ? "SHORT" : "LONG");
+    uint8_t key_id = (uint8_t)args->arg2;     // 按键编号 0-255
+    LOG_SRV("tests_key_status_publish: %s, key_id=%u",
+        key_status == TESTS_KEY_STATUS_SHORT_PRESS ? "SHORT" : "LONG", key_id);
 
     comm_protocol_builder_t builder = {0};
     /// 初始化构建器
@@ -1152,11 +1182,12 @@ int tests_key_status_publish(servers_publish_data_args_t *args)
         goto ERROR_EXIT;
     }
 
-    /// 添加按键状态TLV
+    /// 添加按键状态TLV (Length=2: status, keyId)
+    uint8_t payload[2] = { key_status, key_id };
     comm_protocol_tlv_node_t tlv_node = {
         .type = TESTS_TLV_KEY_STATUS_REPORT,
-        .length = 1,
-        .value = &key_status,
+        .length = sizeof(payload),
+        .value = payload,
     };
     ret = protocol_ctx->comm_protocol_builder_add_tlv(&builder, service, &tlv_node);
     if (ret != 0) {
@@ -1190,7 +1221,9 @@ int tests_encoder_status_publish(servers_publish_data_args_t *args)
     EXCEPTION_CHECK_INT(ble_ctx);
 
     uint8_t encoder_status = (uint8_t)args->arg1; // 0x01=左旋, 0x02=右旋
-    LOG_SRV("tests_encoder_status_publish: %s", encoder_status == TESTS_ENCODER_STATUS_LEFT ? "LEFT" : "RIGHT");
+    uint8_t key_id = (uint8_t)args->arg2;        // 编码器按键编号 0-255
+    LOG_SRV("tests_encoder_status_publish: %s, key_id=%u",
+        encoder_status == TESTS_ENCODER_STATUS_LEFT ? "LEFT" : "RIGHT", key_id);
 
     comm_protocol_builder_t builder = {0};
     /// 初始化构建器
@@ -1209,11 +1242,12 @@ int tests_encoder_status_publish(servers_publish_data_args_t *args)
         goto ERROR_EXIT;
     }
 
-    /// 添加编码器状态TLV
+    /// 添加编码器状态TLV (Length=2: status, keyId)
+    uint8_t payload[2] = { encoder_status, key_id };
     comm_protocol_tlv_node_t tlv_node = {
         .type = TESTS_TLV_ENCODER_STATUS_REPORT,
-        .length = 1,
-        .value = &encoder_status,
+        .length = sizeof(payload),
+        .value = payload,
     };
     ret = protocol_ctx->comm_protocol_builder_add_tlv(&builder, service, &tlv_node);
     if (ret != 0) {

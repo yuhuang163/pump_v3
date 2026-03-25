@@ -223,15 +223,6 @@ static int get_motor_state(void)
     return (int)motor_obj->priv.motor_state;
 }
 
-static int get_runtime_policy_index(motor_policy_type_e type)
-{
-    if (type == 0) {
-        return motor_obj->priv.runtime.current_timed_policy_index;
-    } else {
-        return motor_obj->priv.runtime.current_policy_index;
-    }
-}
-
 int motor_is_can_play_now(void)
 {
     if (motor_obj->priv.interrupt_play_reason) {
@@ -251,6 +242,15 @@ int motor_is_can_play_now(void)
     return 1;
 }
 
+static int get_runtime_policy_index(motor_policy_type_e type)
+{
+    if (type == MOTOR_TIME_POLICY) {
+        return motor_obj->priv.runtime.current_timed_policy_index;
+    } else {
+        return 0;
+    }
+}
+
 static uint8_t get_runtime_mode_type(uint8_t is_next_mode)
 {
     if (is_next_mode) {
@@ -260,11 +260,17 @@ static uint8_t get_runtime_mode_type(uint8_t is_next_mode)
     }
 }
 
-static uint32_t get_current_time_policy_remaining_time(void)
+static uint32_t get_time_policy_remaining_time(void)
 {
     return motor_obj->priv.runtime.time_policy_remaining_time;
 }
 
+#if MOTOR_DRIVER_VERSION == MOTOR_DRIVER_V2
+static uint32_t get_policy_running_time(void)
+{
+    return motor_obj->priv.runtime.policy_running_time_ms;
+}
+#endif
 static uint8_t get_timed_policy_finish_flag(void)
 {
     return motor_obj->priv.runtime.all_timed_policy_finish_flag;
@@ -284,7 +290,10 @@ void *register_module_for_motor_manager_new(list_head_t *list_head)
     ptr->is_can_play_now = motor_is_can_play_now;
     ptr->get_runtime_policy_index = get_runtime_policy_index;
     ptr->get_runtime_mode_type = get_runtime_mode_type;
-    ptr->get_current_time_policy_remaining_time = get_current_time_policy_remaining_time;
+    ptr->get_time_policy_remaining_time = get_time_policy_remaining_time;
+#if MOTOR_DRIVER_VERSION == MOTOR_DRIVER_V2
+    ptr->get_policy_running_time = get_policy_running_time; 
+#endif
     ptr->get_timed_policy_finish_flag = get_timed_policy_finish_flag;
     ptr->synchronous_stop_motor = synchronous_stop_motor;
     motor_obj = ptr;

@@ -76,7 +76,7 @@ static void notify_breast_pump_completed(void)
         USER_DATA_TO_PRIV_DATA(pumping_info, pdata);
         SEND_BROADCAST_ARGS4_EXTRA(ID_BROADCAST_PERSIST_INFO_UPDATE, 1, pdata, sizeof(pdata));
         memset(pumping_info, 0, sizeof(pump_result_info_t));
-        LOG_PMP("save success, work valid time: %lu", pumping_info->work_valid_time);
+        LOG_PMP("save success, work total time: %lu", pumping_info->work_total_time);
     }
 }
 
@@ -93,10 +93,10 @@ static int get_breast_pump_status_async(void)
 
 static void start_breast_pump_work(uint8_t is_continue_work)
 {
-    int status = get_breast_pump_status_async();
     breast_pump_manager_context_t *ctx = breast_pump_obj;
     if (ctx->hook && ctx->hook->start_breast_pump_work_route) {
-        if (ctx->hook->start_breast_pump_work_route(ctx, status) < 0) {
+        if (ctx->hook->start_breast_pump_work_route(ctx, 
+            is_continue_work ? BREAST_PUMP_CONTINUE : BREAST_PUMP_START) < 0) {
             return;
         }
     }
@@ -109,7 +109,7 @@ static void start_breast_pump_work(uint8_t is_continue_work)
     /// 启动计时器
     STOP_TIMER(ctx->priv.breast_pump_work_timer);
     START_TIMER(ctx->priv.breast_pump_work_timer, PUMP_WORK_STEP_TIME_MS);
-    LOG_PMP("start breast pump work, is_continue_work: %d", is_continue_work);
+    LOG_PMP("is_continue_work: %d", is_continue_work);
 }
 
 static void stop_breast_pump_work(int breast_pump_state)
@@ -229,14 +229,14 @@ static void set_breast_pump_mode(uint32_t mode, uint8_t is_store_mode, uint8_t i
     }
     SEND_BROADCAST_ARGS2(ID_BROADCAST_BREAST_PUMP_STATE_CHANGE, BREAST_PUMP_BROADCAST_MODE_CHANGE, m_info->mode);
     /// 通知app
-    servers_manager_context_t *servers_ctx = (servers_manager_context_t *)find_module(ID_MODULE_SERVERS);
-    EXCEPTION_CHECK_VOID(servers_ctx && servers_ctx->hook);
-    servers_publish_data_args_t args = {
-        .arg1 = OLD_PUBLISH_DATA_PUMP_MODE_CHANGE,
-        .arg2 = 0,
-        .val = NULL,
-    };
     if (is_report) {
+        servers_manager_context_t *servers_ctx = (servers_manager_context_t *)find_module(ID_MODULE_SERVERS);
+        EXCEPTION_CHECK_VOID(servers_ctx && servers_ctx->hook);
+        servers_publish_data_args_t args = {
+            .arg1 = OLD_PUBLISH_DATA_PUMP_MODE_CHANGE,
+            .arg2 = 0,
+            .val = NULL,
+        };
         servers_ctx->hook->app_old_protocol_server_data_publish(APP_OLD_COMM_CID_NOTIFY_STATUS, &args);
     }
 
@@ -352,7 +352,6 @@ static void set_breast_pump_status(int status, int is_report)
                         CHECK_IF_VALID(pm_ctx, {
                             pm_ctx->release_wakelock(PUMP_THD_WAKELOCK);
                         });
-                        breast_pump_obj->hook->breast_pump_result_info_app_reset(breast_pump_obj, &breast_pump_obj->priv.result_info[BREAST_PUMP_RESULT_PUMPING]);
                     }
                     m_info->step_index = 0;
                     break;
@@ -360,20 +359,21 @@ static void set_breast_pump_status(int status, int is_report)
             SEND_BROADCAST_ARGS2(ID_BROADCAST_BREAST_PUMP_STATE_CHANGE, BREAST_PUMP_BROADCAST_STATE_CHANGE, status);
         }
     }
+    
     /// 通知app
-    servers_manager_context_t *servers_ctx = (servers_manager_context_t *)find_module(ID_MODULE_SERVERS);
-    EXCEPTION_CHECK_VOID(servers_ctx && servers_ctx->hook);
-    servers_publish_data_args_t args = {
-        .arg1 = OLD_PUBLISH_DATA_SYSTEM_STATUS_CHANGE,
-        .arg2 = 0,
-        .val = NULL,
-    };
-    /// APP请求强制上报系统状态复位
-    if (status == BREAST_PUMP_FINISH) {
-        args.arg1 = OLD_PUBLISH_DATA_SYSTEM_STATUS_RESET;
-        servers_ctx->hook->app_old_protocol_server_data_publish(APP_OLD_COMM_CID_NOTIFY_STATUS, &args);
-    }
     if (is_report) {
+        servers_manager_context_t *servers_ctx = (servers_manager_context_t *)find_module(ID_MODULE_SERVERS);
+        EXCEPTION_CHECK_VOID(servers_ctx && servers_ctx->hook);
+        servers_publish_data_args_t args = {
+            .arg1 = OLD_PUBLISH_DATA_SYSTEM_STATUS_CHANGE,
+            .arg2 = 0,
+            .val = NULL,
+        };
+        /// APP请求强制上报系统状态复位
+        if (status == BREAST_PUMP_FINISH) {
+            args.arg1 = OLD_PUBLISH_DATA_SYSTEM_STATUS_RESET;
+            servers_ctx->hook->app_old_protocol_server_data_publish(APP_OLD_COMM_CID_NOTIFY_STATUS, &args);
+        }
         args.arg1 = OLD_PUBLISH_DATA_SYSTEM_STATUS_CHANGE;
         servers_ctx->hook->app_old_protocol_server_data_publish(APP_OLD_COMM_CID_NOTIFY_STATUS, &args);
     }
@@ -506,6 +506,10 @@ static const char *get_breast_pump_mode_name(uint8_t mode)
 static uint8_t get_breast_pump_step_index(void)
 {
     breast_pump_info_t *m_info = &breast_pump_obj->priv.m_info;
+    motor_manager_context_t *motor = breast_pump_obj->priv.motor;
+    if (motor) {
+        m_info->step_index = motor->get_runtime_policy_index(MOTOR_TIME_POLICY);
+    }
     return m_info->step_index;
 }
 
@@ -523,15 +527,15 @@ static void set_breast_pump_control_type(uint8_t control_type, uint8_t is_report
         breast_pump_obj->priv.st->put_store_ram_val(STORE_ID_PUMP_CONTROL_TYPE, control_type, 0, NULL);
     }
     SEND_BROADCAST_ARGS2(ID_BROADCAST_BREAST_PUMP_STATE_CHANGE, BREAST_PUMP_BROADCAST_CONTROL_TYPE_CHANGE, control_type);
-    servers_manager_context_t *servers_ctx =
-        (servers_manager_context_t *)find_module(ID_MODULE_SERVERS);
-    EXCEPTION_CHECK_VOID(servers_ctx && servers_ctx->hook);
-    servers_publish_data_args_t args = {
-        .arg1 = OLD_PUBLISH_DATA_PUMP_CONTROL_TYPE_CHANGE,
-        .arg2 = 0,
-        .val = NULL,
-    };
     if (is_report) {
+        servers_manager_context_t *servers_ctx =
+        (servers_manager_context_t *)find_module(ID_MODULE_SERVERS);
+        EXCEPTION_CHECK_VOID(servers_ctx && servers_ctx->hook);
+        servers_publish_data_args_t args = {
+            .arg1 = OLD_PUBLISH_DATA_PUMP_CONTROL_TYPE_CHANGE,
+            .arg2 = 0,
+            .val = NULL,
+        };
         servers_ctx->hook->app_old_protocol_server_data_publish(
             APP_OLD_COMM_CID_NOTIFY_STATUS, &args);
     }
@@ -760,7 +764,7 @@ static int on_post_breast_pump_init(void *ptr)
     motor_dev = ctx->priv.pbus->find_device(ID_DEVICE_MOTOR);
     /// 检查 motor_dev 是否已初始化，避免空指针访问
     EXCEPTION_CHECK_INT(motor_dev);
-    DEVICE_IOCTL_ARGS(motor_dev, OP_CODE_MOTOR_ERROR_CHECK_REGISTER_CALLBACK, on_motor_error_check_callback);
+    DEVICE_IOCTL_ARGS(motor_dev, OP_CODE_MOTOR_ADD_STALLED_CALLBACK, on_motor_error_check_callback);
     if (ctx->priv.st) {
         int store_value = BREAST_PUMP_PUMP_MODE_DEFAULT;
         ctx->priv.st->get_store_ram_val(STORE_ID_BREAST_PUMP_MODE, 0, 0, &store_value);

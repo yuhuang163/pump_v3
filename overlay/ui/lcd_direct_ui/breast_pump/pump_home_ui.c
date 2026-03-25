@@ -228,7 +228,7 @@ static void pump_home_time_update(ui_manager_context_t *thiz, breast_pump_manage
 {
     EXCEPTION_CHECK_VOID(pump);
     const pump_result_info_t *result = pump->get_breast_pump_result(BREAST_PUMP_RESULT_PUMPING);
-    uint16_t hold_time = (result == NULL) ? 0 : (result->work_valid_time / 1000);
+    uint16_t hold_time = (result == NULL) ? 0 : (result->work_total_time / 1000);
     if (pump_info->hold_time == hold_time && pump_info->force_update == false) {
         return;
     }
@@ -628,9 +628,11 @@ static void pump_setting_ui_update(ui_manager_context_t *thiz, ui_proc_pump_t *p
     EXCEPTION_CHECK_VOID(proc->motor);
     uint8_t control_type = proc->pump->get_breast_pump_control_type();
     pump_setting_t setting;
-    uint8_t time_index = proc->motor->get_runtime_policy_index(MOTOR_TIME_POLICY);
-    proc->pump->get_breast_pump_setting(&setting, time_index >= ROOT_BREAST_PUMP_STEP_MAX ? 0 : time_index);
-    uint8_t mode = proc->pump->get_breast_pump_mode();
+    int time_index = 0;
+    READ_PUMP_MODE_STEP_INDEX(proc->pump, time_index);
+    READ_PUMP_SETTING_INFO(proc->pump, time_index, setting);
+    uint8_t mode = 0;
+    READ_PUMP_WORK_MODE(proc->pump, mode);
     uint8_t is_selected = control_type == BREAST_PUMP_CONTROL_TYPE_LEFT ? true : false;
     pump_home_left_level_update(thiz, setting.level[0], is_selected); /// 更新左档位
     is_selected = control_type == BREAST_PUMP_CONTROL_TYPE_RIGHT ? true : false;

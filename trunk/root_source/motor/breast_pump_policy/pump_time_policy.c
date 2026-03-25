@@ -180,11 +180,9 @@ int pump_time_policy_update(struct motor_manager_context *thiz, motor_policy_run
 
             if (runtime->policy[i].next) {
                 memcpy(&runtime->policy[i], runtime->policy[i].next, sizeof(motor_policy_node_t)); /// 切换到下一个子策略
-                runtime->current_policy_index++;
                 // LOG_MOTOR("dev-%d goto next policy", id);
             } else {
                 memcpy(&runtime->policy[i], &runtime->timed_policy->policy, sizeof(motor_policy_node_t)); /// 切换到第一个子策略 
-                runtime->current_policy_index = 0;
                 // LOG_MOTOR("dev-%d goto first policy", id);
             }
             pump_policy_info_reset(thiz, runtime, i);

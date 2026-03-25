@@ -748,10 +748,8 @@ int test_pump_data_write_read_complete(int write_count)
         test_data.mode = (i % 3) + 1; /// 模式：1, 2, 3循环
         test_data.timestamp = base_timestamp + i * 3600; /// 每条记录间隔1小时
         test_data.setting_time = 1800000; /// 30分钟（毫秒）
-        test_data.target_valid_time = 1800000;
         test_data.target_total_time = 1800000;
         test_data.work_total_time = 1800000 - (i * 1000); /// 递减的工作时间
-        test_data.work_valid_time = 1800000 - (i * 1000);
         test_data.current_mode_work_time = 1800000 - (i * 1000);
         test_data.report_flag = (i % 2); /// 0或1
         /// 设置一些测试参数

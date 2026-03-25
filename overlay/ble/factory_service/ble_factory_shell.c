@@ -101,7 +101,7 @@ static void ble_shell_pump_policy(const uint8_t *param, uint16_t len)
         &pump_level, &pumping_time, &valve_on_time, &sleep_time, &hold_time);
     LOG_BLE("shell pump policy pump_level %d, pumping_time %d, valve_on_time %d, sleep_time %d, hold_time %d", \
         pump_level, pumping_time, valve_on_time, sleep_time, hold_time);
-    para.pump_level = pump_level;
+    para.pump_level = pump_level * PUMP_DUTY_SCALE_FACTOR;
     para.pumping_time = pumping_time;
     para.valve_on_time = valve_on_time;
     para.sleep_time = sleep_time;

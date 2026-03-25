@@ -60,6 +60,21 @@ typedef enum {
     EXIT_REASON_GOTO_BREAST_PUMP_POLICY,
 } motor_run_exit_reason_e;
 
+/*
+* 马达定时回调消息
+*/ 
+typedef enum {
+    MOTOR_TASK_HEARTBEAT_TIMER_MSG = 100, /// 任务心跳定时器消息
+    MOTOR_DRIVER_TIMER_EVENT_MSG, /// 驱动定时器事件消息
+    MOTOR_TIMER_MSG_TYPE_MAX,
+} motor_timer_msg_type_e;
+
+typedef struct motor_timer_event_msg {
+    motor_timer_msg_type_e msg_type;
+    motor_pump_status_e action;
+    uint8_t pump_id;
+} motor_timer_event_msg_t;
+
 /// 马达播放请求参数.
 typedef struct motor_task_para {
     uint32_t timestamp;
@@ -108,6 +123,11 @@ typedef struct motor_manager_context {
     /// 获取模式类型
     uint8_t (*get_runtime_mode_type)(uint8_t is_next_mode);
     /// 获取当前时间策略剩余时间，单位s
+    uint32_t (*get_time_policy_remaining_time)(void);
+#if MOTOR_DRIVER_VERSION == MOTOR_DRIVER_V2
+    /// 获取策略运行时间，单位ms
+    uint32_t (*get_policy_running_time)(void);
+#endif
     uint32_t (*get_current_time_policy_remaining_time)(void);
     /// 获取所有定时策略执行完毕标志
     uint8_t (*get_timed_policy_finish_flag)(void);

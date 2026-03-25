@@ -21,7 +21,7 @@ typedef enum {
   OS_TIMER_PERIODIC           = 1         ///< Repeating timer.
 } os_timer_type_e;
 
-#define IS_SUPPORT_CMSIS_HW_TIMER            (1)
+#define IS_SUPPORT_CMSIS_HW_TIMER            (0)
 
 typedef struct {
     HWTIMER_ID hw_timer_id;

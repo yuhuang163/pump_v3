@@ -20,6 +20,7 @@ extern "C" {
 #include "guide_ui.h" // IWYU pragma: keepin
 #include "home_ui.h" // IWYU pragma: keepin
 #include "logo_ui.h" // IWYU pragma: keepin
+#include "ota_ui.h" // IWYU pragma: keepin
 #include "product_tests_ui.h" // IWYU pragma: keepin
 #include "system_ui.h" // IWYU pragma: keepin
 

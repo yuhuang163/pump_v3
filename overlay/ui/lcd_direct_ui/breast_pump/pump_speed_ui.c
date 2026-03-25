@@ -193,8 +193,9 @@ static void pump_speed_ui_update(ui_manager_context_t *thiz, ui_proc_pump_t *pro
     EXCEPTION_CHECK_VOID(proc->pump);
     EXCEPTION_CHECK_VOID(proc->motor);
     pump_setting_t setting;
-    uint8_t time_index = proc->motor->get_runtime_policy_index(MOTOR_TIME_POLICY);
-    proc->pump->get_breast_pump_setting(&setting, time_index >= ROOT_BREAST_PUMP_STEP_MAX ? 0 : time_index);
+    int time_index = 0;
+    READ_PUMP_MODE_STEP_INDEX(proc->pump, time_index);
+    READ_PUMP_SETTING_INFO(proc->pump, time_index, setting);
     if (speed_info->speed == setting.speed && speed_info->force_update == false) {
         return;
     }

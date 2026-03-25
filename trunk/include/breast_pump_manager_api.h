@@ -87,7 +87,7 @@ typedef enum {
     ctx->get_pump_composite_state(BREAST_PUMP_STEP_INDEX, 0, 0, &step_index)    
 /// 泵奶配置 
 #define READ_PUMP_SETTING_INFO(ctx, index, setting) \
-    ctx->get_pump_composite_state(BREAST_PUMP_MODE_SETTING_INFO, 0, 0, &setting)    
+    ctx->get_pump_composite_state(BREAST_PUMP_MODE_SETTING_INFO, index, 0, &setting)    
 #define WRITE_PUMP_SETTING_INFO(ctx, index, is_store, setting) \
     ctx->set_pump_composite_state(BREAST_PUMP_MODE_SETTING_INFO, index, is_store, 0, &setting)  
 /// 泵奶力度控制类型
@@ -110,10 +110,6 @@ typedef enum {
 
 typedef struct {
     uint8_t breast_pump_state;
-    uint32_t real_valid_time_sec;        ///  实际有效泵奶时间 (s)
-    uint32_t expected_valid_time_sec;    ///  目标有效泵奶时间(max time) (s)
-    uint32_t elapse_time_sec;            ///  自然流逝时间.
-    uint32_t expected_elapse_time_sec;   ///  目标自然流逝时间
     uint32_t work_total_time;
 } breast_pump_result_t;
 
@@ -124,11 +120,10 @@ typedef struct pump_result_info {
     uint8_t  report_flag;               /// 泵奶报告是否实时上传
     uint32_t timestamp;                 /// 开始泵奶时间
     uint32_t timestamp_finish;          /// 结束泵奶时间
+    uint32_t start_time;                /// 开始泵奶时间
     uint32_t setting_time;              /// app设置的单次泵奶时间
-    uint32_t target_valid_time;         /// 目标有效泵奶时间
-    uint32_t target_total_time;         /// 目标最大工作时长 电子压感存在时使用
+    uint32_t target_total_time;         /// 目标最大工作时长
     uint32_t work_total_time;           /// 泵奶总时长
-    uint32_t work_valid_time;           /// 有效泵奶时长, 预留后续扩展使用
     uint32_t current_mode_work_time;    /// 当前模式运行时间
 } pump_result_info_t;
 

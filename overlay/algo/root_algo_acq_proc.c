@@ -54,7 +54,7 @@ void algo_sampling_data_cb(algo_manager_context_t *ctx, uint8_t *data, int data_
         sampling_data->pump_state[i].valve_duty = info[i].state.valve_duty;
         sampling_data->pump_state[i].target_pressure = info[i].state.target_pressure;
         #if IS_SUPPORT_RELATIVE_RUN_TIME
-            sampling_data->pump_state[i].run_time = info[i].state.run_time;
+            sampling_data->pump_state[i].run_time = 0;
         #else
             sampling_data->pump_state[i].run_time = get_timestamp_ms(info[i].state.start_time);
         #endif

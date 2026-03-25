@@ -59,7 +59,7 @@ int ble_master_srv_recv_data(void *context, ble_service_data_t *srv_data)
         return -1;
     }
     power_manager_context_t *pm = (power_manager_context_t *)find_module(ID_MODULE_POWER);
-    if (pm && pm->is_pm_suspend()) {
+    if (pm && (pm->is_pm_suspend() || pm->is_pm_idle())) {
         pm->pm_wakeup(PM_WAKEUP_REASON_BLE_REQ);
     }
     LOG_BLE("ble_master_recv_data[%d]", srv_data->size);

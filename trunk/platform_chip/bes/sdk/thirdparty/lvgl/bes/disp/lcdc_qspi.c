@@ -99,6 +99,19 @@ static bool frame_xfer = false;
 static uint8_t *new_framebuf = NULL;
 
 static void (*disp_flush_done)(int err) = NULL;
+typedef enum {
+    BUFFER_IDLE = 0,
+    BUFFER_READY,
+    BUFFER_RUNNING
+} buffer_state;
+    
+typedef struct {
+    buffer_state bs;
+    void* buffer_address;
+} display_buffer_t;
+    
+static display_buffer_t display_buffer[2] = {0};
+void disp_update_buffer_state(const void *address, buffer_state bs);
 
 /******************************** LCD Init ****************************************/
 
@@ -221,6 +234,7 @@ static void lcd_power_on(void)
 }
 
 /*********************************** LCDC control **************************************/
+extern uint32_t hal_lcdc_getcuraddr(int lid);
 
 static void lcdc_framedone_cb(void)
 {
@@ -242,6 +256,7 @@ static void lcdc_vsync_cb(void)
     if (!new_framebuf)
         return;
 
+    disp_update_buffer_state(new_framebuf, BUFFER_RUNNING);
     lcdc_xfer_frame();
     frame_start = hal_fast_sys_timer_get();
 
@@ -327,6 +342,35 @@ void disp_lcdc_exit(void)
     lcdc_exit();
 }
 
+void disp_set_buffer_address(void* buffer1, void* buffer2)
+{
+    display_buffer[0].buffer_address = buffer1;
+    display_buffer[1].buffer_address = buffer2;
+}
+
+void* disp_get_buffer_address()
+{
+    for(uint8_t i = 0; i < 2; i++)
+    {
+        if(display_buffer[i].bs == BUFFER_IDLE)
+        {
+            return display_buffer[i].buffer_address;
+        }
+    }
+    return NULL;
+}
+
+void disp_update_buffer_state(const void *address, buffer_state bs)
+{
+    for(uint8_t i = 0; i < 2; i++)
+    {
+        if(display_buffer[i].buffer_address == address)
+        {
+            display_buffer[i].bs = bs;
+        }
+    }
+}   
+
 void disp_lcdc_send_frame(const void *buf)
 {
     uint32_t lock;
@@ -342,7 +386,9 @@ void disp_lcdc_send_frame(const void *buf)
     lcdc_wakeup();
 
     lock = int_lock();
+    disp_update_buffer_state((const void *)(uintptr_t)hal_lcdc_getcuraddr(LAYER1_ID), BUFFER_IDLE);
     new_framebuf = (uint8_t *)buf;
+    disp_update_buffer_state(new_framebuf, BUFFER_READY);
     lcdc_layer_set_buffer(LAYER1_ID, new_framebuf, LCDC_STRIDE);
     int_unlock(lock);
 

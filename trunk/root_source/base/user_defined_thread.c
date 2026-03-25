@@ -80,7 +80,7 @@ static void motor_debug_policy_test_cb(void)
     EXCEPTION_CHECK_VOID(motor_ctx->hook);
     EXCEPTION_CHECK_VOID(motor_ctx->hook->motor_debug_with_user_para);
     motor_policy_original_para_t para = {
-        .pump_level = 75,
+        .pump_level = 75 * PUMP_DUTY_SCALE_FACTOR,
         .pumping_time = 1000,
         .valve_on_time = 500,
         .sleep_time = 200,

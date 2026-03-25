@@ -42,7 +42,7 @@
 // #define BUF_LOC            PSRAM_BSS_LOC
 #define BUF_LOC            PSRAM_NC_BSS_LOC
 #else
-#define BUF_LOC
+#define BUF_LOC            PSRAM_NC_BSS_LOC
 #endif
 
 #define MAX_THREAD_COUNT    10

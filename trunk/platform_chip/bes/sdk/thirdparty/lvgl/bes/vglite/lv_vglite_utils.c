@@ -298,6 +298,42 @@ bool vglite_buf_aligned(const void * buf, uint32_t width, uint32_t stride, lv_co
     return true;
 }
 
+POSSIBLY_UNUSED
+int buffer_copy(int src_w, int src_h, void *src, void *dst)
+{
+    vg_lite_error_t error = VG_LITE_SUCCESS;
+    vg_lite_matrix_t matrix;
+    vg_lite_buffer_t src_buf;
+    vg_lite_buffer_t dst_buf;
+    int dst_w = src_w;
+    int dst_h = src_h;
+
+    vg_lite_identity(&matrix);
+
+    lv_memset(&src_buf, 0, sizeof(vg_lite_buffer_t));
+    src_buf.format = VG_LITE_RGB888;
+    src_buf.width = src_w;
+    src_buf.height = src_h;
+    src_buf.stride = src_w * 3;
+    src_buf.memory = src;
+    src_buf.address = ADDR_CPU_TO_DEV((uint32_t)src);
+
+    lv_memset(&dst_buf, 0, sizeof(vg_lite_buffer_t));
+
+    dst_buf.format = VG_LITE_RGB888;
+    dst_buf.width = dst_w;
+    dst_buf.height = dst_h;
+    dst_buf.stride = dst_w * 3;
+    dst_buf.memory = dst;
+    dst_buf.address = ADDR_CPU_TO_DEV((uint32_t)dst);
+
+    error = vg_lite_blit(&dst_buf, &src_buf, &matrix, VG_LITE_BLEND_NONE, 0, VG_LITE_FILTER_POINT);
+    if (error == VG_LITE_SUCCESS)
+        error = vg_lite_finish();
+
+    return error;
+}
+
 /**********************
  *   STATIC FUNCTIONS
  **********************/

@@ -69,6 +69,7 @@ typedef enum {
 } app_old_comm_pump_ctrl_e;
 
 typedef struct {
+    uint8_t pump_ctrl_status;
     uint8_t pump_mode;
     uint8_t normal_pump_level;
     uint8_t user_define_pump_step_mode;

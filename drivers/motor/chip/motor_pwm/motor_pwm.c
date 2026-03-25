@@ -512,6 +512,9 @@ static int bsp_motor_pwm_idle_high(motor_pwm_control_id_e id)
 */
 int bsp_motor_init(void)
 {
+#if IS_SUPPORT_MOTOR_STALL_DETECT
+    pump_motor_error_check_init();
+#endif
     for (uint8_t i = 0; i < LENGTH_OF_ARRAY(motor_pwm_cfg); i++) {
         motor_pwm_cfg[i].iomux_set();
     }
@@ -534,6 +537,9 @@ int bsp_motor_init(void)
 
 int bsp_motor_deinit(void)
 {
+#if IS_SUPPORT_MOTOR_STALL_DETECT
+    pump_motor_error_check_stop();
+#endif
 #if IS_SUPPORT_PUMP_PWM_IDLE_HIGH
     bsp_motor_pwm_idle_high(MOTOR_PWM_PUMP_1);
     bsp_motor_pwm_idle_high(MOTOR_PWM_PUMP_2);

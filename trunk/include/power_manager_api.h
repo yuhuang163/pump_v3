@@ -87,6 +87,7 @@ typedef struct power_manager_context {
     bool (*is_background_wakeup)(void);
     bool (*is_on_suspend_gotoing)(void);
     bool (*is_system_power_on)(void);
+    bool (*is_pm_idle)(void);
     pm_wakeup_reason_e (*pm_get_wakeup_reason)(void);
     const char *(*print_wakeup_state)(int state);
     /// 外部hook点.

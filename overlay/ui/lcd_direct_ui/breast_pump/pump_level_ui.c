@@ -238,8 +238,9 @@ static void pump_level_ui_update(ui_manager_context_t *thiz, ui_proc_pump_t *pro
     EXCEPTION_CHECK_VOID(proc->motor);
     uint8_t control_type = proc->pump->get_breast_pump_control_type();
     pump_setting_t setting;
-    uint8_t time_index = proc->motor->get_runtime_policy_index(MOTOR_TIME_POLICY);
-    proc->pump->get_breast_pump_setting(&setting, time_index >= ROOT_BREAST_PUMP_STEP_MAX ? 0 : time_index);
+    int time_index = 0;
+    READ_PUMP_MODE_STEP_INDEX(proc->pump, time_index);
+    READ_PUMP_SETTING_INFO(proc->pump, time_index, setting);
     uint8_t level = control_type == BREAST_PUMP_CONTROL_TYPE_LEFT ? setting.level[0] : setting.level[1];
     if (level_info->force_update == false &&
         level_info->level == level &&

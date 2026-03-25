@@ -260,7 +260,6 @@ typedef struct {
     uint8_t breast_pump_mode; /// 泵奶模式
     uint8_t current_timed_policy_index; /// 当前定时策略索引
     uint8_t all_timed_policy_finish_flag; /// 所有定时策略执行完毕标志
-    uint8_t current_policy_index; /// 当前子策略索引
     motor_policy_manager_t *manager; /// 总策略管理器
     motor_timed_policy_node_t *timed_policy; /// 时间策略
     motor_policy_node_t policy[BREAST_PUMP_NUM]; /// 策略

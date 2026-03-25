@@ -54,7 +54,7 @@ void algo_fusion_data_cb(algo_manager_context_t *ctx, uint8_t *data, int data_le
         algo_data.pump_state[i].valve_duty = info[i].state.valve_duty;
         algo_data.pump_state[i].target_pressure = info[i].state.target_pressure;
         #if IS_SUPPORT_RELATIVE_RUN_TIME
-            algo_data.pump_state[i].run_time = info[i].state.run_time;
+            algo_data.pump_state[i].run_time = 0;
         #else
             algo_data.pump_state[i].run_time = get_timestamp_ms(info[i].state.start_time);
         #endif

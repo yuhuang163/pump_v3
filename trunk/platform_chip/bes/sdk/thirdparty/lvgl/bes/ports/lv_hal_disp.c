@@ -28,6 +28,7 @@
 #include "disp_conf.h"
 
 #define FLUSH_TIME_OUT      60 /* ms */
+#define USE_THREE_BUFFER    0 /// 使用三个缓冲区，0：使用两个缓冲区，1：使用三个缓冲区
 
 #ifdef RTOS
 static osSemaphoreId_t flush_sem = NULL;
@@ -50,7 +51,10 @@ static PSRAM_BSS_LOC uint8_t lvgl_buffer1[LCDC_SIZE/2] ALIGNED(64);
 #endif
 #define DISP_RENDER_MODE    LV_DISPLAY_RENDER_MODE_FULL
 #else
-static uint8_t lvgl_buffer0[LCDC_SIZE] ALIGNED(64);
+#if USE_THREE_BUFFER
+static uint8_t lvgl_render_buffer[LCDC_SIZE] ALIGNED(64);
+#endif
+static PSRAM_BSS_LOC uint8_t lvgl_buffer0[LCDC_SIZE] ALIGNED(64);
 static PSRAM_BSS_LOC uint8_t lvgl_buffer1[LCDC_SIZE] ALIGNED(64);
 #define DISP_RENDER_MODE    LV_DISPLAY_RENDER_MODE_DIRECT
 #endif
@@ -80,6 +84,7 @@ extern int disp_lcdc_init(void *buf, void (*flush_cb)(int));
 extern int disp_lcdc_exit(void);
 extern void disp_lcdc_send_frame(const void *buf);
 extern void lv_besjpeg_init(void);
+extern void disp_set_buffer_address(void* buffer1, void* buffer2);
 
 int lv_hal_disp_init(void)
 {
@@ -96,14 +101,18 @@ int lv_hal_disp_init(void)
     lv_display_add_event_cb(disp_drv, disp_release_cb, LV_EVENT_DELETE, disp_drv);
     lv_display_set_flush_cb(disp_drv, disp_flush_cb);
     lv_display_set_flush_wait_cb(disp_drv, disp_flush_wait_cb);
+#if USE_THREE_BUFFER
+    lv_display_set_buffers(disp_drv, lvgl_render_buffer, NULL, LCDC_SIZE, DISP_RENDER_MODE);
+    disp_set_buffer_address(lvgl_buffer0, lvgl_buffer1);
+#else
     lv_display_set_buffers(disp_drv, lvgl_buffer0, lvgl_buffer1, LCDC_SIZE, DISP_RENDER_MODE);
-
+#endif
 #ifdef RTOS
     flush_sem = osSemaphoreNew(1, 0, NULL);
 #endif
 
     /* Initialize LCDC/DSI/QSPI and LCD panel */
-    if(disp_lcdc_init((void *)lcdc_addr(lvgl_buffer1), lcdc_flush_done) != 0)
+    if(disp_lcdc_init((void *)lcdc_addr(lvgl_buffer0), lcdc_flush_done) != 0)
         ASSERT(0, "Failed to initialize LCDC.");
     return 0;
 }
@@ -117,6 +126,8 @@ void lv_hal_disp_exit(void)
 #endif
 }
 
+extern int buffer_copy(int w, int h, void *src, void *dst);
+extern void* disp_get_buffer_address(void);
 static void disp_release_cb(lv_event_t *event)
 {
     lv_hal_disp_exit();
@@ -130,7 +141,19 @@ static void disp_flush_cb(lv_display_t *disp, const lv_area_t *area, uint8_t *co
     }
 
     hal_cache_sync_invalidate_all(HAL_CACHE_ID_D_CACHE);
+#if USE_THREE_BUFFER
+    void* disp_buffer_address = NULL;
+    while(!(disp_buffer_address = disp_get_buffer_address()));
+    uint8_t status = buffer_copy(LCDC_WIDTH, LCDC_HEIGHT, color_p, disp_buffer_address);
+    if(!status)
+    {
+       disp_lcdc_send_frame(disp_buffer_address);
+    } else {
+        LV_LOG_ERROR("buffer copy fauiler");
+    }
+#else
     disp_lcdc_send_frame(lcdc_addr(color_p));
+#endif
 
 #ifdef RTOS
     /* reset semaphore */

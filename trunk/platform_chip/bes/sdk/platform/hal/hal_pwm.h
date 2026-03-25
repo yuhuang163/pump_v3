@@ -50,6 +50,13 @@ int hal_pwm_disable(enum HAL_PWM_ID_T id);
  * @note 此函数只修改占空比，不停止PWM，可以实现平滑的步进变化
  */
 int hal_pwm_update_duty_only(enum HAL_PWM_ID_T id, uint8_t duty, uint32_t freq);
+/**
+ * @brief 更新PWM占空比（不停止PWM）
+ * @param id PWM ID
+ * @param pulse_width 占空比万分比，范围0-10000
+ * @param freq PWM频率 (Hz)
+ * @return 0: 成功, 1: ID无效, 2: 参数无效, 3: PWM未启动
+ */
 int hal_pwm_update_pulse_width(enum HAL_PWM_ID_T id, uint32_t pulse_width, uint32_t freq);
 #endif
 int hal_pwm_breathing_led_enable(enum HAL_PWM_ID_T id, const struct HAL_PWM_BR_CFG_T *cfg);

@@ -645,6 +645,11 @@ static bool is_on_suspend_gotoing(void)
     return (thiz->priv.pm_state_change_progress == PM_SUSPEND_GOING);
 }
 
+static bool is_pm_idle(void)
+{
+    return (thiz->priv.pm_state == ID_SYS_PM_IDLE);
+}
+
 static int system_power_control(bool state)
 {
     if (state) {
@@ -707,6 +712,7 @@ void *register_module_for_pm_new(list_head_t *list_head)
     ptr->is_on_suspend_gotoing = is_on_suspend_gotoing;
     ptr->is_background_wakeup = is_background_wakeup;
     ptr->is_system_power_on = is_system_power_on;
+    ptr->is_pm_idle = is_pm_idle;
     MUTEX_INIT(&ptr->priv.m_wake_lock, mutex_caller_wakelock);
     MUTEX_INIT(&ptr->priv.m_suspend_lock, mutex_suspend_lock);
     USE_INIT_LIST_HEAD(&ptr->priv.wake_lock_list);

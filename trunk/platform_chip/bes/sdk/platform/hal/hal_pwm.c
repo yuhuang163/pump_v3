@@ -329,6 +329,7 @@ int hal_pwm_update_duty_only(enum HAL_PWM_ID_T id, uint8_t duty, uint32_t freq)
 
 int hal_pwm_update_pulse_width(enum HAL_PWM_ID_T id, uint32_t pulse_width, uint32_t freq)
 {
+    const uint32_t pulse_width_scale = 10000;
     uint32_t mod_freq;
     uint32_t load;
     uint32_t toggle;
@@ -340,7 +341,7 @@ int hal_pwm_update_pulse_width(enum HAL_PWM_ID_T id, uint32_t pulse_width, uint3
         return 1;
     }
 
-    if (pulse_width > freq) {
+    if (freq == 0 || pulse_width > pulse_width_scale) {
         return 2;
     }
 
@@ -371,20 +372,18 @@ int hal_pwm_update_pulse_width(enum HAL_PWM_ID_T id, uint32_t pulse_width, uint3
         mod_freq = PWM_FAST_CLOCK;
     }
 
-    // 根据freq重新计算load值，确保与设置一致（不读取硬件寄存器）
-    if (pulse_width == freq) {
+    // pulse_width使用0-10000的万分比表示占空比，freq仅用于计算PWM周期对应的load。
+    if (pulse_width == pulse_width_scale) {
         toggle = PWM_MAX_VALUE;
     } else if (pulse_width == 0) {
         toggle = 0;
     } else {
-        // 使用与hal_pwm_enable相同的计算方式，确保一致性
-        // 占空比 = pulse_width/freq，高电平计数值 = load * pulse_width / freq
         load = mod_freq / freq;
         if (load == 0) {
             load = 1;
         }
-        // 四舍五入：(load * pulse_width + freq/2) / freq
-        toggle = (load * pulse_width + freq / 2) / freq;
+        // 四舍五入：(load * pulse_width + scale/2) / scale
+        toggle = (load * pulse_width + pulse_width_scale / 2) / pulse_width_scale;
         if (toggle == 0) {
             toggle = 1;
         }

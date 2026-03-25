@@ -159,7 +159,6 @@ void breast_pump_policy_prepare(struct motor_manager_context *thiz, uint8_t acti
     } else if (action == MOTOR_POLICY_CONTINUE) {
         if (body->breast_pump_mode == pump_mode) {
             LOG_MOTOR("continue %s policy, step_index: %d", mode_name, body->current_timed_policy_index);
-            //body->current_policy_index = 0;
             body->timed_policy_start_time = get_timestamp();
             negative_pressure_release(thiz);
             for (uint8_t i = 0; i < BREAST_PUMP_NUM; i++) {
@@ -195,7 +194,6 @@ void breast_pump_policy_prepare(struct motor_manager_context *thiz, uint8_t acti
     LOG_MOTOR("mode %d current type: %d, next type: %d", body->breast_pump_mode,
          body->current_mode_type, body->next_mode_type);
     body->current_timed_policy_index = 0;
-    body->current_policy_index = 0;
     body->time_policy_running_time = 0;
     body->time_policy_remaining_time = body->timed_policy->duration_seconds;
     negative_pressure_release(thiz);

@@ -189,10 +189,16 @@ typedef enum {
     BREAST_PUMP_CONTROL_TYPE_MAX,
 } breast_pump_control_type_e;
 
+/// 泵奶策略类型 对应motor_policy_type_e
+typedef enum {
+    BREAST_PUMP_TIME_POLICY = 0, /// 时间策略
+    BREAST_PUMP_TIME_SUB_POLICY = 1, /// 时间子策略
+} breast_pump_policy_type_e;
+
 typedef struct {
     uint8_t level[BREAST_PUMP_NUM];
     uint8_t speed;
-    uint8_t rsv;               /// 保留
+    uint8_t policy_type;               /// 策略类型 breast_pump_policy_type_e
 } pump_setting_t;
 
 /// 描述泵奶设置

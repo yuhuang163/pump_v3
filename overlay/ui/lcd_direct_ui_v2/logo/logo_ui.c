@@ -37,22 +37,29 @@ static PSRAM_DATA_LOC uint8_t logo_bg_data[] = {
 #endif
 #if IS_SUPPORT_LOGO_IMG_TEST
 static PSRAM_DATA_LOC uint8_t logo_img_data1[] = {
-    #include "comparison_png2txt/guide_001_360x360.txt"
+    #include "comparison_png2txt/Custom11_360x360.txt"
 };
 static PSRAM_DATA_LOC uint8_t logo_img_data2[] = {
-    #include "comparison_png2txt/guide_002_360x360.txt"
+    #include "comparison_png2txt/Custom12_360x360.txt"
 };
 static PSRAM_DATA_LOC uint8_t logo_img_data3[] = {
-    #include "comparison_png2txt/guide_003_360x360.txt"
+    #include "comparison_png2txt/Custom13_360x360.txt"
+};
+static PSRAM_DATA_LOC uint8_t logo_img_data4[] = {
+    #include "comparison_png2txt/Right21_360x360.txt"
+};
+static PSRAM_DATA_LOC uint8_t logo_img_data5[] = {
+    #include "comparison_png2txt/Right22_360x360.txt"
 };
     
-#define LOGO_IMG_COUNT 3
+#define LOGO_IMG_COUNT 5
 static ui_img_data_t logo_img[LOGO_IMG_COUNT] = {
     {logo_img_data1, sizeof(logo_img_data1)},
     {logo_img_data2, sizeof(logo_img_data2)},
     {logo_img_data3, sizeof(logo_img_data3)},
+    {logo_img_data4, sizeof(logo_img_data4)},
+    {logo_img_data5, sizeof(logo_img_data5)},
 };
-
 #endif
 
 
@@ -118,7 +125,7 @@ static void sys_logo_label_update(ui_manager_context_t *thiz)
 {
     static uint8_t index = 0;
     static uint32_t start_time = 0;
-    if (get_timestamp() - start_time > 1000) {
+    if (get_timestamp() - start_time > 5000) {
         start_time = get_timestamp();
         index++;
         // logo_info->force_update = true;

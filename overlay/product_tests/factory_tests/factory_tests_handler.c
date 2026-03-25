@@ -62,9 +62,21 @@ static int on_tests_event_handler(void *context, uint16_t keycode, uint16_t keyt
     LOG_TEST("keycode = %d, keytype = %d", keycode, keytype);
     servers_manager_context_t *servers_ctx = (servers_manager_context_t *)find_module(ID_MODULE_SERVERS);
     EXCEPTION_CHECK_INT(servers_ctx);
+    /* 计算按键编号: 将按键bit位索引转为 1-based 的按键编号 */
+    uint8_t key_id = 0;
+    if (keycode) {
+        uint16_t temp = keycode;
+        uint8_t index = 0;
+        while ((temp & 0x1) == 0 && index < 16) {
+            temp >>= 1;
+            index++;
+        }
+        /* key_index_e 从0开始定义，协议按键编号为1起始 */
+        key_id = (uint8_t)(index + 1);
+    }
     servers_publish_data_args_t args = {
         .arg1 = 0x01, /// 短按
-        .arg2 = 0x00, 
+        .arg2 = key_id, 
         .val = NULL,
     };
     uint16_t server_id = SERVERS_PUBLISH_DATA_TESTS_KEY_STATUS;
@@ -90,7 +102,7 @@ static int on_tests_event_handler(void *context, uint16_t keycode, uint16_t keyt
         default:
             return 0;
     }
-    servers_ctx->hook->factory_server_data_publish(SERVERS_PUBLISH_DATA_TESTS_KEY_STATUS, &args);
+    servers_ctx->hook->factory_server_data_publish(server_id, &args);
     return 0;
 }
 
