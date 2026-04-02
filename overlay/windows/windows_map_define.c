@@ -64,7 +64,7 @@ static const window_context_handle_t g_process_handle_list[] = {
     {ID_WINDOW_GUIDE,               WINDOW_PRIO_GUIDE,      PAGE_HANDLE_NAME(guide),    REFS_T(m_window_guide)},
     {ID_WINDOW_HOME, WINDOW_PRIO_HOME, PAGE_HANDLE_NAME(home), REFS_T(m_window_home)},
     {ID_WINDOW_CHARGE, WINDOW_PRIO_CHARGE, PAGE_HANDLE_NAME(charge), REFS_T(m_window_charge)},
-    // {ID_WINDOW_BATTERY,             WINDOW_PRIO_BATTERY,    PAGE_HANDLE_NAME(battery ), REFS_T(m_window_battery)},
+    {ID_WINDOW_BATTERY,             WINDOW_PRIO_BATTERY,    PAGE_HANDLE_NAME(battery ), REFS_T(m_window_battery)},
     {ID_WINDOW_OTA_UPGRADE,         WINDOW_PRIO_OTA,        PAGE_HANDLE_NAME(ota),      REFS_T(m_window_ota)},
     {ID_WINDOW_POPUP_WINDOW,        WINDOW_PRIO_POPUP,      PAGE_HANDLE_NAME(popup_window),    REFS_T(m_window_popup)},
     {ID_WINDOW_PUMP, WINDOW_PRIO_PUMP, PAGE_HANDLE_NAME(pump), REFS_T(m_window_pump)},

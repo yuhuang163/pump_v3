@@ -93,7 +93,10 @@ static void ui_power_off_update(ui_manager_context_t *thiz)
     lv_obj_invalidate(ui_info->progress_arc); /// 使圆弧/图片区域重绘
 }
 
-//*********************************************************************************************************************** */
+/*
+* GLOBAL FUNCTION DEFINITIONS
+*****************************************************************************************
+*/
 void ui_display_power_off_prepare(ui_manager_context_t *thiz)
 {
     EXCEPTION_CHECK_VOID(thiz);

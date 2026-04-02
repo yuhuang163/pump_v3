@@ -49,7 +49,7 @@ static void ui_ota_root_init(void)
 
 static void ui_ota_bg_update(ui_manager_context_t *thiz)
 {
-    common_ui_bg_update(thiz, ota_info->root);
+    // common_ui_bg_update(thiz, ota_info->root);
 }
 
 
@@ -67,7 +67,7 @@ void ui_display_ota_prepare(ui_manager_context_t *thiz)
     thiz->priv.fps_count = 0;
     thiz->priv.fps_start_time = get_timestamp();
     ui_ota_root_init(); /// 初始化 root 容器
-    common_ui_bg_init(thiz);
+    // common_ui_bg_init(thiz);
     ota_info->force_update = true;
 }
 

@@ -48,6 +48,10 @@ int pump_climb_policy_update(struct motor_manager_context *thiz, suction_strateg
         climb->start_time = get_timestamp();
     }
 
+    if (map->level == 0) {
+        return 0;    /// 如果力度为0，则不进行爬升
+    }
+
     if (climb->count == 1) {
         map->level = map->level > BREAST_PUMP_LEVEL_4 ? (map->level - 3) : BREAST_PUMP_LEVEL_1;
     } else if (climb->count == 2) {

@@ -209,7 +209,7 @@ static void pump_home_bg_update(ui_manager_context_t *thiz)
         lv_fs_make_path_from_buffer(&bg_img_path, LV_FS_MEMFS_LETTER, home_bg_1_data,
             sizeof(home_bg_1_data), "png");
 #else
-        common_ui_img_resource_init(thiz, RESOURCE_ID_PUMP_HOME_BG, &pump_info->background_info);
+        common_ui_img_resource_init(thiz, RESOURCE_ID_COMMON_BG, &pump_info->background_info);
         EXCEPTION_CHECK_VOID(pump_info->background_info.data);
         lv_fs_make_path_from_buffer(&bg_img_path, LV_FS_MEMFS_LETTER, 
             pump_info->background_info.data, pump_info->background_info.size, "baj");
@@ -227,8 +227,9 @@ static void pump_home_bg_update(ui_manager_context_t *thiz)
 static void pump_home_time_update(ui_manager_context_t *thiz, breast_pump_manager_context_t *pump)
 {
     EXCEPTION_CHECK_VOID(pump);
-    const pump_result_info_t *result = pump->get_breast_pump_result(BREAST_PUMP_RESULT_PUMPING);
-    uint16_t hold_time = (result == NULL) ? 0 : (result->work_total_time / 1000);
+    const pump_result_info_t *result_info = NULL;
+    READ_PUMP_RESULT_INFO(pump, BREAST_PUMP_RESULT_PUMPING, &result_info);
+    uint16_t hold_time = (result_info == NULL) ? 0 : (result_info->work_total_time / 1000);
     if (pump_info->hold_time == hold_time && pump_info->force_update == false) {
         return;
     }
@@ -419,7 +420,6 @@ static void pump_home_right_level_update(ui_manager_context_t *thiz, uint8_t lev
     }
     pump_info->right_level = level;
 }
-
 
 static void pump_home_speed_label_update(ui_manager_context_t *thiz, uint8_t speed)
 {
@@ -626,7 +626,8 @@ static void pump_setting_ui_update(ui_manager_context_t *thiz, ui_proc_pump_t *p
 {
     EXCEPTION_CHECK_VOID(proc->pump);
     EXCEPTION_CHECK_VOID(proc->motor);
-    uint8_t control_type = proc->pump->get_breast_pump_control_type();
+    int control_type = 0;
+    READ_PUMP_LEVEL_CONTROL_TYPE(proc->pump, control_type);
     pump_setting_t setting;
     int time_index = 0;
     READ_PUMP_MODE_STEP_INDEX(proc->pump, time_index);

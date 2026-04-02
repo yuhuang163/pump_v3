@@ -5,6 +5,7 @@
 #include "persist_storage.h"
 #include "root_common_api.h"
 #include "breast_pump_manager.h" // IWYU pragma: keep
+#include "breast_pump_mode.h"
 
 /*
 * DEFINES
@@ -205,6 +206,7 @@ static void set_breast_pump_mode(uint32_t mode, uint8_t is_store_mode, uint8_t i
 {
     breast_pump_info_t *m_info = &breast_pump_obj->priv.m_info;
     struct storage_manager_context *st = breast_pump_obj->priv.st;
+    motor_manager_context_t *motor_ctx = breast_pump_obj->priv.motor;
     if (mode >= BREAST_PUMP_MODE_MAX) {
         m_info->mode = BREAST_PUMP_PUMP_MODE_DEFAULT;
     } else {
@@ -222,6 +224,7 @@ static void set_breast_pump_mode(uint32_t mode, uint8_t is_store_mode, uint8_t i
         st->put_store_ram_val(STORE_ID_BREAST_PUMP_MODE_WITH_TYPE, mode, BREAST_PUMP_MODE_TYPE_BREASTFEEDING, NULL);
     }
     m_info->step_index = 0;
+    motor_ctx->set_runtime_policy_index(MOTOR_TIME_POLICY, 0);
     LOG_PMP("new mode is: %d, name: %s", m_info->mode, get_breast_pump_mode_name(m_info->mode));
     /// 读取存储器中的泵奶设置
     for (uint8_t i = 0; i < ROOT_BREAST_PUMP_STEP_MAX; i++) {
@@ -278,6 +281,8 @@ static int get_breast_pump_status(void)
 static void set_breast_pump_status(int status, int is_report)
 {
     power_manager_context_t *pm_ctx = (power_manager_context_t *)find_module(ID_MODULE_POWER);
+    motor_manager_context_t *motor_ctx = (motor_manager_context_t *)find_module(ID_MODULE_MOTOR);
+    EXCEPTION_CHECK_VOID(motor_ctx);
     breast_pump_info_t *m_info = &breast_pump_obj->priv.m_info;
 
     // LOG_PMP("enter work: %d", m_info->do_work);
@@ -299,6 +304,10 @@ static void set_breast_pump_status(int status, int is_report)
                 case BREAST_PUMP_START:
                     reset_breast_pump_result();
                     m_info->step_index = 0;
+                    motor_ctx->set_runtime_policy_index(MOTOR_TIME_POLICY, 0);
+                    /// 初始步长剩余时间为当前模式第一步步长时间
+                    m_info->step_remaining_time = breast_pump_mode_step_target_time_get(m_info->mode, 0);
+                    motor_ctx->set_time_policy_remaining_time(m_info->step_remaining_time);
                     if (!m_info->do_work) {
                         m_info->do_work = 1;
                         CHECK_IF_VALID(pm_ctx, {
@@ -334,6 +343,7 @@ static void set_breast_pump_status(int status, int is_report)
                         });
                     }
                     m_info->step_index = 0;
+                    motor_ctx->set_runtime_policy_index(MOTOR_TIME_POLICY, 0);
                     // LOG_PMP("brush finish, =>save brush result.");
                     notify_breast_pump_completed();
                     break;
@@ -354,6 +364,7 @@ static void set_breast_pump_status(int status, int is_report)
                         });
                     }
                     m_info->step_index = 0;
+                    motor_ctx->set_runtime_policy_index(MOTOR_TIME_POLICY, 0);
                     break;
             }
             SEND_BROADCAST_ARGS2(ID_BROADCAST_BREAST_PUMP_STATE_CHANGE, BREAST_PUMP_BROADCAST_STATE_CHANGE, status);
@@ -511,6 +522,16 @@ static uint8_t get_breast_pump_step_index(void)
         m_info->step_index = motor->get_runtime_policy_index(MOTOR_TIME_POLICY);
     }
     return m_info->step_index;
+}
+
+static uint32_t get_breast_pump_step_remaining_time(void)
+{
+    breast_pump_info_t *m_info = &breast_pump_obj->priv.m_info;
+    motor_manager_context_t *motor = breast_pump_obj->priv.motor;
+    if (motor) {
+        m_info->step_remaining_time = motor->get_time_policy_remaining_time();
+    }
+    return m_info->step_remaining_time;
 }
 
 static int get_breast_pump_control_type(void)

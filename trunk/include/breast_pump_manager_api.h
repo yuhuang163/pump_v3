@@ -135,6 +135,7 @@ typedef struct breast_pump_info_t {
     uint8_t do_work;       /// 是否正在工作
     uint8_t mode;          /// 吸奶器模式
     uint8_t step_index;    /// 吸奶器档位索引
+    uint8_t step_remaining_time;    /// 吸奶器当前步长剩余时间
     uint8_t control_type;  /// 吸奶器控制类型
     uint8_t breastfeeding_mode;      /// 追奶模式
     uint8_t last_breastfeeding_mode;      /// 上次追奶模式

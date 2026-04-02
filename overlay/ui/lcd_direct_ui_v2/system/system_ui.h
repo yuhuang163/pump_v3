@@ -23,10 +23,6 @@ void ui_display_power_off_prepare(ui_manager_context_t *thiz);
 void ui_display_power_off_remove(ui_manager_context_t *thiz);
 int ui_display_power_off_process(ui_manager_context_t *thiz);
 
-void ui_display_will_power_off_prepare(ui_manager_context_t *thiz);
-void ui_display_will_power_off_remove(ui_manager_context_t *thiz);
-int ui_display_will_power_off_process(ui_manager_context_t *thiz);
-
 #ifdef __cplusplus
 }
 #endif

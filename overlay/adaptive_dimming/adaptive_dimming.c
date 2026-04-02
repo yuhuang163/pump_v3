@@ -155,7 +155,7 @@ static void adaptive_dimming_polling_thread(void *user_data)
     
     ui_manager_context_t *ui = (ui_manager_context_t *)find_module(ID_MODULE_UI);
     if (ui && ui->hook) {
-        ui->hook->set_ui_backlight_adaptive_level(ui, refresh_duty);
+        ui->hook->set_ui_backlight_adaptive_level(ui, refresh_duty * 100);
     }
 }
 

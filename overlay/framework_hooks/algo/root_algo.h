@@ -15,6 +15,8 @@ extern "C" {
 typedef struct {
     uint32_t timestamp;
     uint8_t result[AIR_PRESSURE_NUM]; //佩戴检测结果 0:未佩戴 1:佩戴    
+    uint8_t compensation_status[AIR_PRESSURE_NUM]; //气压补偿状态 0:不补偿, 1:减小气压, 2:加大气压
+    int compensation_delta_pwm[AIR_PRESSURE_NUM]; //气压补偿delta_pwm -10000~-1:PWM减小, 1~10000: PWM增加
 } algo_wear_detection_data_output_t;
 
 /// 泵奶数据

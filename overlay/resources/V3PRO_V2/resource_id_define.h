@@ -1,0 +1,115 @@
+#ifndef __RESOURCE_ID_DEFINE_H__
+#define __RESOURCE_ID_DEFINE_H__
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+
+/*******************************************************************************
+* Include files
+******************************************************************************/
+#include <stdint.h> // IWYU pragma: keep
+
+typedef enum {
+    RESOURCE_ID_NONE = 0x00, /// 无资源
+
+    /* 通用组 [1..100] */
+    RESOURCE_ID_BLE_CONNECT = 0x01,            /// 蓝牙连接图标
+    RESOURCE_ID_BLE_DISCONNECT,                /// 蓝牙断开图标
+    RESOURCE_ID_BATT_CAP_0_ICON,               /// 电池电量0%
+    RESOURCE_ID_BATT_CAP_20_ICON,              /// 电池电量20%
+    RESOURCE_ID_BATT_CAP_40_ICON,              /// 电池电量40%
+    RESOURCE_ID_BATT_CAP_60_ICON,              /// 电池电量60%
+    RESOURCE_ID_BATT_CAP_80_ICON,              /// 电池电量80%
+    RESOURCE_ID_BATT_CAP_100_ICON,             /// 电池电量100%
+    RESOURCE_ID_CHARGE_ICON,                   /// 电池充电图标
+    RESOURCE_ID_LOW_POWER_ICON,                /// 电池低电量图标
+    RESOURCE_ID_LOW_POWER_PEOPLE_ICON,         /// 低电量页面人物图标
+    RESOURCE_ID_CLOCK_COLON_ICON,              /// 时钟冒号图标
+    RESOURCE_ID_CHARGE_PAGE_BG,                /// 充电页背景
+
+
+    /* 主界面组 [100..150] */
+    RESOURCE_ID_COMMON_BG = 100,               /// 通用背景
+    RESOURCE_ID_START_LOGO_ICON,               /// 启动LOGO
+    RESOURCE_ID_HOME_IDLE_LABLE_ICON,          /// 空闲界面文本区域图标
+    RESOURCE_ID_HOME_IDLE_BUTTOM_ICON,         /// 空闲界面按钮指示图标
+    RESOURCE_ID_AIRPLANE_UNLOCK_BUTTON_ICON,   /// 飞行模式解锁按钮图标
+    RESOURCE_ID_HOME_DUMMY_ICON,               /// dummy图标
+    RESOURCE_ID_CHARGE_ADAPTER_IMG,            /// 首页充电适配器图标
+    RESOURCE_ID_HOME_IDLE_PAGE_IMG,            /// 首页屏幕保护图片
+    RESOURCE_ID_HOME_LIGHT_LABLE_ICON,         /// 首页光线图标
+
+    /* 引导组 [150..200] */
+    RESOURCE_ID_GUIDE_PAGE1_IMG = 150,        /// 引导-页1图片
+    RESOURCE_ID_GUIDE_PAGE2_IMG,              /// 引导-页2图片
+    RESOURCE_ID_GUIDE_PAGE3_IMG,              /// 引导-页3图片
+    RESOURCE_ID_GUIDE_PAGE4_IMG,              /// 引导-页4图片
+    RESOURCE_ID_GUIDE_PAGE5_IMG,              /// 引导-页5图片
+    RESOURCE_ID_GUIDE_PAGE6_IMG,              /// 引导-页6图片
+
+    /* 模式相关组 [301..400]（大图 + 小图标） */
+    RESOURCE_ID_PUMP_SPEED_SLOW_ICON = 200,    /// 泵奶首页-慢速图标
+    RESOURCE_ID_PUMP_SPEED_REGULAR_ICON,       /// 泵奶首页-常规图标
+    RESOURCE_ID_PUMP_SPEED_BOOST_ICON,         /// 泵奶首页-快速图标
+    RESOURCE_ID_REGULAR_PUMPING_BG,            /// 泵奶首页-常规泵奶背景
+    RESOURCE_ID_EXPERT_PUMPING_BG,             /// 泵奶首页-专家泵奶背景
+
+    RESOURCE_ID_FREQ_PAGE_BOOST_ICON,          /// 频率页-频率增强图标
+    RESOURCE_ID_FREQ_PAGE_REGULAR_ICON,        /// 频率页-频率常规图标
+    RESOURCE_ID_FREQ_PAGE_COMFORT_ICON,        /// 频率页-频率舒适图标
+
+    RESOURCE_ID_MODE_STIMULATION_PROMPT_ICON,  /// 模式-刺激确认提示图标
+    RESOURCE_ID_MODE_EXPRESSION_PROMPT_ICON,   /// 模式-泌乳确认提示图标
+    RESOURCE_ID_MODE_MIX_PROMPT_ICON,          /// 模式-混合确认提示图标
+    RESOURCE_ID_MODE_RELAX_PROMPT_ICON,        /// 模式-放松确认提示图标
+
+    RESOURCE_ID_LAST_USED_MODE_ICON,           /// 上一次使用模式图标
+    RESOURCE_ID_NEW_MODE_STEPS_PROMPT_ICON,    /// 新模式未确认图标
+    RESOURCE_ID_MODE_LACTATION_ICON,           /// 模式-泌乳图标
+    RESOURCE_ID_MODE_MIX_ICON,                 /// 模式-混合图标
+    RESOURCE_ID_MODE_STIMULATE_ICON,           /// 模式-刺激图标
+
+    RESOURCE_ID_MODE_CUSTOM_ICON,              /// 韵律-专家模式图标
+    RESOURCE_ID_MODE_EXPERT_ICON,              /// 韵律-个性化模式图标
+
+    RESOURCE_ID_PUMP_FINISH_ICON,              /// 泵奶完成图标
+    RESOURCE_ID_PUMP_PAUSE_PROMPT_ICON,        /// 泵奶暂停提示图标
+    RESOURCE_ID_PUMP_LEVEL_BG,                 /// 泵奶档位背景
+    RESOURCE_ID_PUMP_LEVEL_ADD_LABEL_ICON,     /// 泵奶档位文本加号图标
+    RESOURCE_ID_PUMP_LEVEL_SUB_LABEL_ICON,     /// 泵奶档位文本减号图标
+    RESOURCE_ID_PUMP_LEVEL_ABNORMAL_ICON,      /// 泵奶档位异常图标
+
+    /* 动画组 [300...] */
+    RESOURCE_ID_COMMON_MODE_ANIMATION_START = 300,   /// 泵奶模式动画-开始
+    RESOURCE_ID_COMMON_MODE_ANIMATION_END = 414,     /// 泵奶模式动画-结束
+
+    RESOURCE_ID_PERSONALIZED_MODE_ANIMATION_START = 500,   /// 个性化模式动画-开始
+    RESOURCE_ID_PERSONALIZED_MODE_ANIMATION_END = 619,     /// 泵奶模式动画-结束
+
+    RESOURCE_ID_HOME_DEFAULT_ANIMATION_START = 700,   /// 首页默认动画-开始
+    RESOURCE_ID_HOME_DEFAULT_ANIMATION_END = 819,     /// 首页默认动画-结束
+
+    RESOURCE_ID_PUMP_LEVEL_START = 900,   /// 泵奶档位图片-开始
+    RESOURCE_ID_PUMP_LEVEL_END = 914,     /// 泵奶档位图片-结束
+
+    RESOURCE_ID_HOME_LIGHT_ANIMATION_START = 1000,   /// 首页夜灯动画-开始
+    RESOURCE_ID_HOME_LIGHT_ANIMATION_END = 1119,     /// 首页夜灯动画-结束
+
+    RESOURCE_ID_TYPE_MAX
+} resource_id_type_e;
+
+
+/*
+* GLOBAL FUNCTION DECLARATION
+*****************************************************************************************
+*/
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif 
+
+

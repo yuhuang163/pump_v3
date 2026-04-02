@@ -106,11 +106,28 @@ static void update_para_to_motor_device(struct motor_manager_context *thiz, uint
     info->state.action = MOTOR_ACTION_IDLE;
 }
 
+#if IS_SUPPORT_PUMP_DUTY_ADJUST
+static void pump_duty_adjust_to_motor_device(struct motor_manager_context *thiz, uint8_t id, int16_t pulse_width)
+{
+    if (abs(pulse_width) > 2000) {
+        LOGE("pulse_width is out of range: %d", pulse_width);
+        return;
+    }
+    motor_para_t motor = {0};
+    motor.un.pump.pulse_width = pulse_width;
+    motor.un.pump.freq = BREAST_PUMP_PUMP_FREQ;
+    motor.un.pump.pump_id = id;
+    motor.un.pump.action = MOTOR_PUMP_DUTY_ADJUST;
+    motor.un.pump.duration_ms = 0;
+    DEVICE_IOCTL_ARGS(thiz->priv.motor_dev, OP_CODE_MOTOR_SET_PARAMETER, &motor);
+}
+#endif
+
 static void policy_work_timer_cb(os_timer_id *timer)
 {
     motor_timer_event_msg_t msg = {
         .msg_type = MOTOR_TASK_HEARTBEAT_TIMER_MSG,
-        .action = 0,
+        .un.action = 0,
         .pump_id = 0,
     };
     MSG_QUEUE_SEND(policy_work_msg_id, &msg, 0);
@@ -120,7 +137,7 @@ static void on_motor_timer_event_cb(uint8_t pump_id, motor_pump_status_e action)
 {
     motor_timer_event_msg_t msg = {
         .msg_type = MOTOR_DRIVER_TIMER_EVENT_MSG,
-        .action = action,
+        .un.action = action,
         .pump_id = pump_id,
     };
     MSG_QUEUE_SEND(policy_work_msg_id, &msg, 0);
@@ -287,7 +304,17 @@ int breast_pump_mode_policy_handler(struct motor_manager_context *thiz, motor_ta
             } 
             pump_policy_update(&runtime->info[i], i, msg);    
             update_para_to_motor_device(thiz, i, &runtime->info[i]);   
-        }    
+        }
+#if IS_SUPPORT_PUMP_DUTY_ADJUST
+        if (msg.msg_type == MOTOR_PUMP_LEVEL_ADJUST_MSG) {
+            for (uint8_t i = 0; i < BREAST_PUMP_NUM; i++) {
+                if (runtime->compensation_delta_pwm[i] != msg.un.pulse_width[i]) {
+                    runtime->compensation_delta_pwm[i] = msg.un.pulse_width[i];
+                    pump_duty_adjust_to_motor_device(thiz, i, runtime->compensation_delta_pwm[i]);
+                }
+            }
+        }
+#endif
     }
     uint16_t wait_time_ms = 0;
     for (uint8_t i = 0; i < BREAST_PUMP_NUM; i++) {
@@ -301,15 +328,50 @@ int breast_pump_mode_policy_handler(struct motor_manager_context *thiz, motor_ta
         notify_app_motor_status_change(OLD_PUBLISH_DATA_TASTE_STOP_REPORT);
         runtime->taste_run_flag = 0;
     }
+#if IS_SUPPORT_PUMP_DUTY_ADJUST
+    for (uint8_t i = 0; i < BREAST_PUMP_NUM; i++) {
+        runtime->compensation_delta_pwm[i] = 0;
+    }
+#endif
     LOG_MOTOR("exit:%d", exit_code);
     return exit_code;
 }
  
+#if IS_SUPPORT_PUMP_DUTY_ADJUST
+static void pump_algo_compensation_callback(void *user_data, algo_breast_pump_data_t *result)
+{
+    /// 气压补偿回调打印
+    motor_manager_context_t *thiz = (motor_manager_context_t *)user_data;
+    EXCEPTION_CHECK_VOID(thiz);
+    motor_policy_runtime_t *runtime = &thiz->priv.runtime;
+    if (runtime->compensation_delta_pwm[0] == result->wear_detection.compensation_delta_pwm[0] &&
+        runtime->compensation_delta_pwm[1] == result->wear_detection.compensation_delta_pwm[1]) {
+        return;
+    }
+    LOG_MOTOR("compensation status %d/%d; %d/%d", 
+        result->wear_detection.compensation_status[0], result->wear_detection.compensation_status[1], 
+        result->wear_detection.compensation_delta_pwm[0], result->wear_detection.compensation_delta_pwm[1]);
+    motor_timer_event_msg_t msg = {
+        .msg_type = MOTOR_PUMP_LEVEL_ADJUST_MSG,
+        .un.pulse_width[0] = result->wear_detection.compensation_delta_pwm[0],
+        .un.pulse_width[1] = result->wear_detection.compensation_delta_pwm[1],
+        .pump_id = 0,
+    };
+    MSG_QUEUE_SEND(policy_work_msg_id, &msg, 0);
+}
+#endif
+
 void motor_policy_init(struct motor_manager_context *thiz)
 {
     // negative_pressure_release(thiz, 200);
     CREATE_TIMER(&policy_work_timer, "policy_work", thiz, OS_TIMER_PERIODIC, policy_work_timer_cb);
     CREATE_MSG_TYPE_QUEUE(&policy_work_msg_id, POLICY_WORK_MSG_NUM, sizeof(motor_timer_event_msg_t));
     DEVICE_IOCTL_ARGS(thiz->priv.motor_dev, OP_CODE_MOTOR_ADD_TIMER_EVENT_CALLBACK, &on_motor_timer_event_cb);
+    /// 注册算法气压补偿回调
+#if IS_SUPPORT_PUMP_DUTY_ADJUST
+    algo_manager_context_t *algo_ctx = (algo_manager_context_t *)find_module(ID_MODULE_ALGO_HUB);
+    EXCEPTION_CHECK_VOID(algo_ctx && algo_ctx->hook);
+    algo_ctx->add_algo_result_listener(thiz, (on_algo_result_cb_ptr)pump_algo_compensation_callback);
+#endif
 }
 

@@ -18,7 +18,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
+#if defined(ALGO_TYPE_V3_WEAR_DETECTION)
 // define modes
 #define MODE_STIMULATION	(0)
 #define MODE_EXPRESSION		(1)
@@ -129,7 +129,7 @@ void V3WearDetectionModeReset(unsigned char uLevel, unsigned char uMode, unsigne
 void V3WearDetectionMain(float* fPressureData, unsigned char uLevelLeft, unsigned char ulevelRight, unsigned char uModeLeft, unsigned char uModeRight);
 void GetWearDetectionResult(unsigned char* uWearStatus);
 
-
+#endif
 #ifdef __cplusplus
 }
 #endif

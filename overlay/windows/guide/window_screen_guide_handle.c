@@ -14,7 +14,7 @@
 */
 #define PAGE_STATIC_NAME                            guide
 #define PAGE_NAME_STR                               "guide"
-#if (V3_UI_VERSION == V3_UI_V2)
+#if (V3_UI_VERSION == V3_UI_V2 || V3_UI_VERSION == V3PRO_UI_V2)
 #define GUIDE_UI_KEY_CODE                           (KEY_CODE_POWER | KEY_CODE_START | KEY_CODE_MODE | KEY_CODE_FREQUENCY | \
                                                     KEY_CODE_BREASTFEEDING | KEY_CODE_LEFT_CONTROL | KEY_CODE_RIGHT_CONTROL | \
                                                     KEY_CODE_KNOB_LEFT | KEY_CODE_KNOB_RIGHT)
@@ -44,7 +44,7 @@ static int on_guide_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t 
     ui_proc_guide_t *proc = user_data;
     EXCEPTION_CHECK_INT(proc);
     WINDOW_CONTEXT_GUARD_INT(proc, ID_WINDOW_GUIDE, 0);
-#if (V3_UI_VERSION == V3_UI_V2)
+#if (V3_UI_VERSION == V3_UI_V2 || V3_UI_VERSION == V3PRO_UI_V2)
     if (keytype == KEY_EVENT_LONG_3S) {
         guide_key_3s_press_handler_v2(proc, keycode);
     } else {

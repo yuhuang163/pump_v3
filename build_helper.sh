@@ -89,7 +89,57 @@ resolve_root_device_name() {
 }
 
 resolve_root_res_path() {
-	# 通过预处理展开 ROOT_RES_PATH（适配 V3_UI_VERSION 等条件编译）
+	# 优先根据 GNUmakefile 中的产品/UI 默认配置推导 ROOT_RES_PATH。
+	# 之所以不直接单独预处理 product_info.h，是因为缺少 make 侧宏定义时，
+	# 条件表达式里的未定义宏会被当成 0，可能把 V1 误判成 V2。
+	local makefile="$PROJECT_DIR/GNUmakefile"
+	if [[ -f "$makefile" ]]; then
+		local product_family ui_v1_token ui_v2_token ui_v3pro_v2_token ui_version_token
+		local ui_v1_value ui_v2_value ui_v3pro_v2_value
+		product_family=$(resolve_root_product_family_from_makefile "$makefile")
+
+		ui_v1_token='$(V3_UI_V1)'
+		ui_v2_token='$(V3_UI_V2)'
+		ui_v3pro_v2_token='$(V3PRO_UI_V2)'
+		ui_v1_value=$(awk '/^V3_UI_V1[[:space:]]*\?=/{print $3; exit}' "$makefile")
+		ui_v2_value=$(awk '/^V3_UI_V2[[:space:]]*\?=/{print $3; exit}' "$makefile")
+		ui_v3pro_v2_value=$(awk '/^V3PRO_UI_V2[[:space:]]*\?=/{print $3; exit}' "$makefile")
+
+		if [[ "$product_family" == "V3Pro" ]]; then
+			ui_version_token=$(awk '
+				/^ifeq[[:space:]]*\(\$\(ROOT_PRODUCT_ID\),[[:space:]]*\$\(ROOT_PRODUCT_V3PRO_ID\)\)/ { in_v3pro=1; next }
+				in_v3pro && /^else$/ { exit }
+				in_v3pro && /^V3_UI_VERSION[[:space:]]*\?=/ { print $3; exit }
+			' "$makefile")
+		else
+			ui_version_token=$(awk '
+				/^ifeq[[:space:]]*\(\$\(ROOT_PRODUCT_ID\),[[:space:]]*\$\(ROOT_PRODUCT_V3PRO_ID\)\)/ { in_block=1; next }
+				in_block && /^else$/ { in_else=1; next }
+				in_else && /^endif$/ { exit }
+				in_else && /^V3_UI_VERSION[[:space:]]*\?=/ { print $3; exit }
+			' "$makefile")
+		fi
+
+		case "$ui_version_token" in
+			'$(V3_UI_V1)') printf "%s" "V1"; return 0 ;;
+			'$(V3_UI_V2)'|'$(V3PRO_UI_V2)') printf "%s" "V2"; return 0 ;;
+			"$ui_v1_value") [[ -n "${ui_v1_value:-}" ]] && { printf "%s" "V1"; return 0; } ;;
+			"$ui_v2_value"|"$ui_v3pro_v2_value")
+				if [[ -n "${ui_version_token:-}" ]]; then
+					printf "%s" "V2"
+					return 0
+				fi
+				;;
+		esac
+		if [[ -n "${ui_version_token:-}" ]]; then
+			case "$ui_version_token" in
+				*V1*) printf "%s" "V1"; return 0 ;;
+				*V2*) printf "%s" "V2"; return 0 ;;
+			esac
+		fi
+	fi
+
+	# 回退：通过预处理展开 ROOT_RES_PATH（适配 V3_UI_VERSION 等条件编译）
 	# 优先使用编译器预处理，失败时退回 grep 文本解析
 	local info_file="${1:-$PROJECT_DIR/boards/product_info.h}"
 	if [[ -f "$info_file" ]]; then
@@ -122,6 +172,62 @@ resolve_root_res_path() {
 	else
 		printf "%s" "V1"
 	fi
+}
+
+resolve_root_product_family_from_makefile() {
+	# 根据 GNUmakefile 中的 ROOT_PRODUCT_ID 默认配置判断当前产品族
+	# 输出示例：V3 / V3Pro
+	local makefile="${1:-$PROJECT_DIR/GNUmakefile}"
+	[[ -f "$makefile" ]] || { printf "%s" "V3"; return 0; }
+
+	local v3_id v3pro_id product_id_token
+	v3_id=$(awk '/^ROOT_PRODUCT_V3_ID[[:space:]]*\?=/{print $3; exit}' "$makefile")
+	v3pro_id=$(awk '/^ROOT_PRODUCT_V3PRO_ID[[:space:]]*\?=/{print $3; exit}' "$makefile")
+	product_id_token=$(awk '/^ROOT_PRODUCT_ID[[:space:]]*\?=/{print $3; exit}' "$makefile")
+
+	case "$product_id_token" in
+		'$(ROOT_PRODUCT_V3PRO_ID)') product_id_token="$v3pro_id" ;;
+		'$(ROOT_PRODUCT_V3_ID)') product_id_token="$v3_id" ;;
+	esac
+
+	if [[ -n "${v3pro_id:-}" && "$product_id_token" == "$v3pro_id" ]]; then
+		printf "%s" "V3Pro"
+	else
+		printf "%s" "V3"
+	fi
+}
+
+build_resource_bin_dirs() {
+	# 根据资源路径与 GNUmakefile 中的产品配置，生成资源包搜索目录候选列表
+	# V1 保持不变；V2 在 V3Pro 项目中优先查 bin/V3PRO_V2，再回退 bin/V2
+	local res_path="$1"
+	local product_family="$2"
+
+	RESOURCE_BIN_DIRS=()
+	case "$res_path" in
+		V1)
+			RESOURCE_BIN_DIRS+=("$PROJECT_DIR/overlay/resources/bin/V1")
+			;;
+		V2)
+			if [[ "$product_family" == "V3Pro" ]]; then
+				RESOURCE_BIN_DIRS+=(
+					"$PROJECT_DIR/overlay/resources/bin/V3PRO_V2"
+					"$PROJECT_DIR/overlay/resources/bin/V2"
+				)
+			else
+				RESOURCE_BIN_DIRS+=("$PROJECT_DIR/overlay/resources/bin/V2")
+			fi
+			;;
+		V3PRO_V2)
+			RESOURCE_BIN_DIRS+=(
+				"$PROJECT_DIR/overlay/resources/bin/V3PRO_V2"
+				"$PROJECT_DIR/overlay/resources/bin/V2"
+			)
+			;;
+		*)
+			RESOURCE_BIN_DIRS+=("$PROJECT_DIR/overlay/resources/bin/$res_path")
+			;;
+	esac
 }
 
 resolve_make_vars() {
@@ -336,8 +442,12 @@ do_rename_and_archive() {
 	local info_file="$PROJECT_DIR/boards/product_info.h"
 	[[ -f "$info_file" ]] || die "未找到产品信息文件: $info_file"
 
-	local device_title
-	device_title=$(resolve_root_device_name "$info_file")
+	local product_family device_title
+	product_family=$(resolve_root_product_family_from_makefile "$PROJECT_DIR/GNUmakefile")
+	device_title="${product_family:-}"
+	if [[ -z "${device_title:-}" ]]; then
+		device_title=$(resolve_root_device_name "$info_file")
+	fi
 	[[ -n "${device_title:-}" ]] || device_title="V3"
 
 	# 类型字母（ROOT_FIRMWARE_TYPE）
@@ -390,9 +500,11 @@ do_rename_and_archive() {
 	# 同一版本目录下，先清理旧归档文件（全部 .bin），避免残留多份（日期/哈希不同导致文件名不同）
 	rm -f "$target_dir"/*.bin 2>/dev/null || true
 
-	# 根据 ROOT_RES_PATH/ROOT_RES_VERSION 拷贝资源（V1 -> bin/V1; V2 -> bin/V2）
+	# 根据 ROOT_RES_PATH/ROOT_RES_VERSION 拷贝资源
+	# V1 保持 bin/V1；V2 保持 bin/V2，且在 GNUmakefile 指定为 V3Pro 产品时优先查 bin/V3PRO_V2
 	# ROOT_RES_VERSION 定义为 major*100 + minor，例如 100 -> V01.00
-	local res_path res_version res_major res_minor res_major2 res_minor2 res_dir res_file
+	local res_path res_version res_major res_minor res_major2 res_minor2 res_dir res_file res_source_dir
+	local searched_res_dirs
 	res_path=$(resolve_root_res_path "$info_file")
 	[[ -n "${res_path:-}" ]] || res_path="V1"
 
@@ -406,18 +518,28 @@ do_rename_and_archive() {
 	res_major2=$(printf "%02d" "$res_major")
 	res_minor2=$(printf "%02d" "$res_minor")
 
-	res_dir="$PROJECT_DIR/overlay/resources/bin/$res_path"
+	build_resource_bin_dirs "$res_path" "$product_family"
+	res_dir="${RESOURCE_BIN_DIRS[0]}"
 	res_file=""
-	if [[ -d "$res_dir" ]]; then
-		# 取该版本号、且与当前设备匹配（V3 / V3Pro）最新的资源 bin（按 mtime）
-		# 资源文件名格式（pack_resources.py）：<ROOT_DEVICE_NAME>_YYYYMMDD_Vxx.xx_<md5>_RES.bin
-		shopt -s nullglob
-		local candidates=("$res_dir"/${device_title}_*_V${res_major2}.${res_minor2}_*_RES.bin)
-		shopt -u nullglob
-		if ((${#candidates[@]})); then
-			res_file=$(ls -1t "${candidates[@]}" 2>/dev/null | awk 'NR==1{print; exit}' || true)
+	res_source_dir=""
+	searched_res_dirs=$(printf "%s " "${RESOURCE_BIN_DIRS[@]}")
+	searched_res_dirs=${searched_res_dirs% }
+	for res_dir in "${RESOURCE_BIN_DIRS[@]}"; do
+		if [[ -d "$res_dir" ]]; then
+			# 取该版本号、且与当前设备匹配（V3 / V3Pro）最新的资源 bin（按 mtime）
+			# 资源文件名格式（pack_resources.py）：<ROOT_DEVICE_NAME>_YYYYMMDD_Vxx.xx_<md5>_RES.bin
+			shopt -s nullglob
+			local candidates=("$res_dir"/${device_title}_*_V${res_major2}.${res_minor2}_*_RES.bin)
+			shopt -u nullglob
+			if ((${#candidates[@]})); then
+				res_file=$(ls -1t "${candidates[@]}" 2>/dev/null | awk 'NR==1{print; exit}' || true)
+				if [[ -n "${res_file:-}" ]]; then
+					res_source_dir="$res_dir"
+					break
+				fi
+			fi
 		fi
-	fi
+	done
 
 	# 拷贝并重命名（存在则覆盖）
 	local copied_any=false
@@ -485,10 +607,11 @@ do_rename_and_archive() {
 			res_out="Lute_${res_base%.bin}_${hw_tag}_${res_md5}.bin"
 		fi
 		cp -av "$res_file" "$target_dir/$res_out"
-		echo "RES 已归档(${res_path} V${res_major2}.${res_minor2}): $target_dir/$res_out"
+		echo "RES 来源文件: $res_file"
+		echo "RES 已归档(${res_path} V${res_major2}.${res_minor2}, source=${res_source_dir}): $target_dir/$res_out"
 		copied_any=true
 	else
-		echo "未找到 RES 资源(${res_path} V${res_major2}.${res_minor2}): $res_dir/*_V${res_major2}.${res_minor2}_*_RES.bin"
+		echo "未找到 RES 资源(${res_path} V${res_major2}.${res_minor2}, product=${product_family}): ${searched_res_dirs}/${device_title}_*_V${res_major2}.${res_minor2}_*_RES.bin"
 	fi
 
 	if [[ "$copied_any" == false ]]; then

@@ -63,7 +63,7 @@ static void sys_power_gpio_control(bool enable)
 #if (V3_HARDWARE_VERSION == V3_2710IMP_HARDWARE_V1)
     GPIO_PIN_CTRL(SYS_POWER_PIN, enable ? 1 : 0);
     LOG_PBUS("sys_power_gpio_control: %d", enable);
-#elif (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V2) || (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V3)   
+#elif (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V2) || (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V3) || (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V4)   
     if (enable == false) {
         LOG_PBUS("shutdown system");
         msleep(50);
@@ -75,7 +75,7 @@ static void sys_power_gpio_control(bool enable)
 
 static void peripheral_power_control(bool enable)
 {
-#if (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V2) || (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V3)
+#if (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V2) || (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V3) || (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V4)
     GPIO_PIN_CTRL(PERIPHERAL_POWER_PIN, enable ? 1 : 0);
     LOG_PBUS("peripheral_power_control: %d", enable);
 #endif
@@ -111,7 +111,7 @@ static int sys_power_dev_ioctl(struct rt_device_node *dev, uint32_t op_code, voi
 #if (V3_HARDWARE_VERSION == V3_2710IMP_HARDWARE_V1)
             EXCEPTION_CHECK_INT(temp);
             sys_power_gpio_control(temp[0] > 0 ? true : false);
-#elif (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V2) || (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V3)   
+#elif (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V2) || (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V3) || (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V4)   
             sys_power_gpio_control(temp[0] > 0 ? true : false);
 #else
             return -1;

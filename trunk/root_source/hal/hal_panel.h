@@ -38,6 +38,9 @@ typedef struct {
     lcd_tlvs_t *tlvs;
 } lcd_tlvs_msg_t;
 
+/// 面板背光亮度最大值
+#define LCD_BACKLIGHT_LEVEL_MAX   10000  /// 10000 表示 100%
+
 /// 面板数据类型
 #define LCD_TLVS_DATA_TYPE_MAX_SIZE   20
 typedef enum {

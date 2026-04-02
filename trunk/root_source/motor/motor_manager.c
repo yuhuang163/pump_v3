@@ -101,16 +101,14 @@ static int internal_start_motor(uint8_t action)
     return 0;
 }
  
-static int internal_stop_motor(void)
+static int internal_stop_motor(const char *reason)
 {
-    int ret = -1;
-    uint32_t args[1] = {MOTOR_PWM_ALL_ID};
-    if (motor_obj->priv.motor_dev && motor_obj->priv.motor_dev->ioctl) {
-        ret = DEVICE_IOCTL_ARGS(motor_obj->priv.motor_dev, OP_CODE_MOTOR_STOP_PLAY, args);
+    if (reason) {
+        update_play_interrupt_reason(reason);
+    } else {
+        update_play_interrupt_reason("unknown-reason");
     }
-    memset(motor_obj->priv.runtime.info, 0, sizeof(motor_policy_info_t) * BREAST_PUMP_NUM);
-    LOG_MOTOR("ret: %d", ret);
-    return ret;
+    return 0;
 }
  
 static void on_motor_broadcast_receiver(broadcast_mask_id_t id, void *context, int arg1, int arg2, broadcast_priv_data_t *pdata)
@@ -197,24 +195,24 @@ static int stop_motor(void)
 {
     motor_obj->priv.is_user_stoped = 1;
     motor_obj->priv.user_debug_status = 0;
-    return internal_stop_motor();
+    return internal_stop_motor("user-stop");
 }
 
 static int synchronous_stop_motor(void)
 {
     motor_obj->priv.is_user_stoped = 1;
     motor_obj->priv.user_debug_status = 0;
-    internal_stop_motor();
+    internal_stop_motor("synchronous-stop");
     uint32_t start_time = get_timestamp();
     while (is_on_motor_task_running(motor_obj)) {
         msleep(10);
         if (get_timestamp_ms(start_time) > 100) {
-            LOG_MOTOR("synchronous stop motor timeout");
+            LOGE("==> stop timeout");
             return -1;
         }
         start_time = get_timestamp();
     }
-    LOG_MOTOR("synchronous stop motor success");
+    LOG_MOTOR("==> stop success");
     return 0;
 }
 
@@ -250,6 +248,16 @@ static int get_runtime_policy_index(motor_policy_type_e type)
         return 0;
     }
 }
+static int set_runtime_policy_index(motor_policy_type_e type, int index)
+{
+    if (type == MOTOR_TIME_POLICY) {
+        motor_obj->priv.runtime.current_timed_policy_index = index;
+    } else {
+        LOG_MOTOR("set runtime policy index error, type: %d", type);
+    }
+    return 0;
+}
+
 
 static uint8_t get_runtime_mode_type(uint8_t is_next_mode)
 {
@@ -263,6 +271,12 @@ static uint8_t get_runtime_mode_type(uint8_t is_next_mode)
 static uint32_t get_time_policy_remaining_time(void)
 {
     return motor_obj->priv.runtime.time_policy_remaining_time;
+}
+
+static int set_time_policy_remaining_time(uint32_t remaining_time)
+{
+    motor_obj->priv.runtime.time_policy_remaining_time = remaining_time;
+    return 0;
 }
 
 #if MOTOR_DRIVER_VERSION == MOTOR_DRIVER_V2
@@ -289,8 +303,10 @@ void *register_module_for_motor_manager_new(list_head_t *list_head)
     ptr->is_on_motor_task_running = is_on_motor_task_running;
     ptr->is_can_play_now = motor_is_can_play_now;
     ptr->get_runtime_policy_index = get_runtime_policy_index;
+    ptr->set_runtime_policy_index = set_runtime_policy_index;
     ptr->get_runtime_mode_type = get_runtime_mode_type;
     ptr->get_time_policy_remaining_time = get_time_policy_remaining_time;
+    ptr->set_time_policy_remaining_time = set_time_policy_remaining_time;
 #if MOTOR_DRIVER_VERSION == MOTOR_DRIVER_V2
     ptr->get_policy_running_time = get_policy_running_time; 
 #endif

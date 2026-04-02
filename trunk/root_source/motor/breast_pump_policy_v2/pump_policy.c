@@ -103,7 +103,7 @@ int pump_policy_update(motor_policy_info_t *info, uint8_t pump_id, motor_timer_e
 
         case SUCTION_STATUS_GENERATE:
             if (msg.msg_type == MOTOR_DRIVER_TIMER_EVENT_MSG &&
-                msg.pump_id == pump_id && msg.action == MOTOR_PUMP_ON) {
+                msg.pump_id == pump_id && msg.un.action == MOTOR_PUMP_ON) {
                 if (info->original.hold_time > 0) {
                     info->state.status = SUCTION_STATUS_HOLD;
                     info->state.action = MOTOR_ACTION_PUMP_OFF;
@@ -116,7 +116,7 @@ int pump_policy_update(motor_policy_info_t *info, uint8_t pump_id, motor_timer_e
 
         case SUCTION_STATUS_HOLD:
             if (msg.msg_type == MOTOR_DRIVER_TIMER_EVENT_MSG &&
-                msg.pump_id == pump_id && msg.action == MOTOR_PUMP_OFF) {
+                msg.pump_id == pump_id && msg.un.action == MOTOR_PUMP_OFF) {
                 info->state.status = SUCTION_STATUS_RELEASE;
                 info->state.action = MOTOR_ACTION_VALVE_ON;
             }
@@ -124,7 +124,7 @@ int pump_policy_update(motor_policy_info_t *info, uint8_t pump_id, motor_timer_e
 
         case SUCTION_STATUS_RELEASE:
             if (msg.msg_type == MOTOR_DRIVER_TIMER_EVENT_MSG && msg.pump_id == pump_id && 
-                (msg.action == MOTOR_VALVE_ON || msg.action == MOTOR_PUMP_OFF_AND_VALVE_ON)) {
+                (msg.un.action == MOTOR_VALVE_ON || msg.un.action == MOTOR_PUMP_OFF_AND_VALVE_ON)) {
                 info->state.status = SUCTION_STATUS_SLEEP;
                 info->state.action = MOTOR_ACTION_VALVE_OFF;
             }
@@ -132,7 +132,7 @@ int pump_policy_update(motor_policy_info_t *info, uint8_t pump_id, motor_timer_e
 
         case SUCTION_STATUS_SLEEP:
             if (msg.msg_type == MOTOR_DRIVER_TIMER_EVENT_MSG && 
-                msg.pump_id == pump_id && msg.action == MOTOR_VALVE_OFF) {
+                msg.pump_id == pump_id && msg.un.action == MOTOR_VALVE_OFF) {
                 info->state.status = SUCTION_STATUS_UPDATE_POLICY;
                 info->state.action = MOTOR_ACTION_IDLE;
                 info->state.cycles_count++;
@@ -141,7 +141,8 @@ int pump_policy_update(motor_policy_info_t *info, uint8_t pump_id, motor_timer_e
             break;
             
         default:
-            LOG_MOTOR("unknown status: %d", info->state.status);
+            LOG_MOTOR("unknown status: %d, action: %d, lock: %d", 
+                info->state.status, info->state.action, info->state.policy_update_lock);
             break;
     }
 

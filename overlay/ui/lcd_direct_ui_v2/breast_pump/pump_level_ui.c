@@ -398,6 +398,7 @@ static void pump_level_control_type_lable_update(ui_manager_context_t *thiz)
         lv_obj_set_style_bg_opa(level_info->control_type_lable1, LV_OPA_20, 0); /// 透明20%
         lv_obj_set_style_radius(level_info->control_type_lable1, capsule_radius, 0);
         lv_obj_set_style_border_opa(level_info->control_type_lable1, LV_OPA_TRANSP, 0);  /// 无边框
+        lv_obj_clear_flag(level_info->control_type_lable1, LV_OBJ_FLAG_HIDDEN); /// 显示单侧标签容器
         if (level_info->control_type == BREAST_PUMP_CONTROL_TYPE_LEFT) {
             lv_label_set_text(level_info->control_type_lable_text1, "L");
         } else if (level_info->control_type == BREAST_PUMP_CONTROL_TYPE_RIGHT) {
@@ -499,6 +500,9 @@ static void pump_level_text_level_lable_update(ui_manager_context_t *thiz)
         lv_obj_align(level_info->add_label, LV_ALIGN_TOP_LEFT, 110 - 5, 162 - 2);
         lv_obj_clear_flag(level_info->add_label, LV_OBJ_FLAG_HIDDEN);
     } else {
+        //将add_label隐藏
+        lv_obj_add_flag(level_info->add_label, LV_OBJ_FLAG_HIDDEN);
+
         // 单侧模式：使用两个独立标签显示等级值（十位和个位）
         uint8_t display_level = (level_info->control_type == BREAST_PUMP_CONTROL_TYPE_LEFT) ? 
                                 level_info->left_level : level_info->right_level;

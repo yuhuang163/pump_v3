@@ -1058,9 +1058,9 @@ void app_old_comm_handle_set_user_define_req(uint8_t cal, uint8_t *cab)
     } else if (wm->is_current_window(wm, ID_WINDOW_CHARGE) || wm->is_current_window(wm, ID_WINDOW_DUMMY)
         ||wm->is_current_window(wm, ID_WINDOW_HOME)) {
         LOG_SRV("charge or dummy or home mode, dispatch pump window.");
-        multi_func_msg_data_t msg = {0};
-        msg.union_body.extra.window_id = ID_WINDOW_PUMP;
-        wm->dispatch_new_window_args(wm, &msg);
+        //multi_func_msg_data_t msg = {0};
+        //msg.union_body.extra.window_id = ID_WINDOW_PUMP;
+        //wm->dispatch_new_window_args(wm, &msg);
         POST_TASK_HANDLER_DELAYED_ARG1(app_pump_user_define_delay_task_handler, PUMP_CTRL_TASK_DELAY_TIME, NULL,
              "app_pump_user_define_delay_task");
         app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_ACK, APP_OLD_COMM_CID_USER_DEFINE, 4, cab);

@@ -1,0 +1,422 @@
+{
+  "meta": {
+    "version": "2.0",
+    "description": "资源包配置文件 - 映射资源ID到实际图片文件",
+    "resource_type": "IMG_RES_TYPE_UI",
+    "language": "IMG_RES_LANG_TYPE_ZH",
+    "compressed": false,
+    "config_hint": "建议按 resource_id（数值ID）升序添加/维护 resources；打包脚本会根据头文件解析出的数值ID自动排序后再打包。动画资源可使用 resource_ranges 配置范围。"
+  },
+  "resource_ranges": [
+    {
+      "start_resource_id": "RESOURCE_ID_COMMON_MODE_ANIMATION_START",
+      "end_resource_id": "RESOURCE_ID_COMMON_MODE_ANIMATION_END",
+      "description": "通用模式动画帧",
+      "file_template": "animation/common_mode/baj/M_{file_index:05d}_194x194_a8_q99_444.baj",
+      "start_file_index": 0,
+      "id_to_file_offset": -300,
+      "x_offset": 0,
+      "y_offset": 0,
+      "note": "动画资源ID范围: 300-414，共115帧。文件编号计算：file_index = resource_id + id_to_file_offset (即 resource_id - 300)。资源ID 300→M_00000, 301→M_00001...414→M_00114"
+    },
+    {
+      "start_resource_id": "RESOURCE_ID_PERSONALIZED_MODE_ANIMATION_START",
+      "end_resource_id": "RESOURCE_ID_PERSONALIZED_MODE_ANIMATION_END",
+      "description": "个性化模式动画帧",
+      "file_template": "animation/personalized_mode/baj/ZH_{file_index:05d}_360x252_a8_q99_422.baj",
+      "start_file_index": 0,
+      "id_to_file_offset": -500,
+      "x_offset": 0,
+      "y_offset": 0,
+      "note": "动画资源ID范围: 500-619，共120帧。文件编号计算：file_index = resource_id + id_to_file_offset (即 resource_id - 500)。资源ID 500→ZH_00000, 501→ZH_00001...619→ZH_00119"
+    },
+    {
+      "start_resource_id": "RESOURCE_ID_HOME_DEFAULT_ANIMATION_START",
+      "end_resource_id": "RESOURCE_ID_HOME_DEFAULT_ANIMATION_END",
+      "description": "首页默认动画帧",
+      "file_template": "animation/home_default/baj/s_{file_index:05d}_188x198_a8_q99_444.baj",
+      "start_file_index": 0,
+      "id_to_file_offset": -700,
+      "x_offset": 0,
+      "y_offset": 0,
+      "note": "动画资源ID范围: 700-819，共120帧。文件编号计算：file_index = resource_id + id_to_file_offset (即 resource_id - 700)。资源ID 700→s_00000, 701→s_00001...819→s_00119"
+    },
+    {
+      "start_resource_id": "RESOURCE_ID_PUMP_LEVEL_START",
+      "end_resource_id": "RESOURCE_ID_PUMP_LEVEL_END",
+      "description": "泵奶档位图片",
+      "file_template": "animation/pump_level/baj/BG_{file_index:05d}_360x360_a8_q99_422.baj",
+      "start_file_index": 0,
+      "id_to_file_offset": -900,
+      "x_offset": 0,
+      "y_offset": 0,
+      "note": "泵奶档位图片资源ID范围: 900-914，共15帧。文件编号计算：file_index = resource_id + id_to_file_offset (即 resource_id - 900)。资源ID 900→BG_00000, 901→BG_00001...914→BG_00114"
+    }
+  ],
+  "resources": [
+    {
+      "resource_id": "RESOURCE_ID_BLE_CONNECT",
+      "description": "蓝牙连接图标",
+      "file": "baj/icon_ble_connect_16x16_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "RESOURCE_ID_BLE_DISCONNECT",
+      "description": "蓝牙断开图标",
+      "file": "baj/icon_ble_disconnect_16x16_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "RESOURCE_ID_BATT_CAP_0_ICON",
+      "description": "电池电量0%",
+      "file": "baj/icon_battery_cap_0_49x16_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "RESOURCE_ID_BATT_CAP_20_ICON",
+      "description": "电池电量20%",
+      "file": "baj/icon_battery_cap_20_49x16_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "RESOURCE_ID_BATT_CAP_40_ICON",
+      "description": "电池电量40%",
+      "file": "baj/icon_battery_cap_40_49x16_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "RESOURCE_ID_BATT_CAP_60_ICON",
+      "description": "电池电量60%",
+      "file": "baj/icon_battery_cap_60_49x16_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "RESOURCE_ID_BATT_CAP_80_ICON",
+      "description": "电池电量80%",
+      "file": "baj/icon_battery_cap_80_49x16_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "RESOURCE_ID_BATT_CAP_100_ICON",
+      "description": "电池电量100%",
+      "file": "baj/icon_battery_cap_100_49x16_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "RESOURCE_ID_CHARGE_ICON",
+      "description": "电池充电图标",
+      "file": "baj/icon_charge_16x16_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "RESOURCE_ID_LOW_POWER_ICON",
+      "description": "电池低电量图标",
+      "file": "baj/icon_low_battery_16x16_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "RESOURCE_ID_LOW_POWER_PEOPLE_ICON",
+      "description": "低电量页面人物图标",
+      "file": "baj/icon_battery_low_power_340x247_a8_q99_422.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "RESOURCE_ID_CLOCK_COLON_ICON",
+      "description": "时钟冒号图标",
+      "file": "baj/icon_time_colon_12x42_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "RESOURCE_ID_CHARGE_PAGE_BG",
+      "description": "充电页背景",
+      "file": "baj/bg_charge_page_360x360_a8_q99_422.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "RESOURCE_ID_COMMON_BG",
+      "description": "通用背景",
+      "file": "png/bg_common_ui.png",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "RESOURCE_ID_START_LOGO_ICON",
+      "description": "启动LOGO",
+      "file": "baj/icon_logo_start_232x31_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "RESOURCE_ID_HOME_IDLE_LABLE_ICON",
+      "description": "空闲界面文本区域图标",
+      "file": "baj/icon_home_idle_lable_280x106_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "RESOURCE_ID_HOME_IDLE_BUTTOM_ICON",
+      "description": "空闲界面按钮指示图标",
+      "file": "baj/icon_home_idle_button_24x24_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "RESOURCE_ID_HOME_LIGHT_LABLE_ICON",
+      "description": "首页光线图标",
+      "file": "baj/icon_home_light_lable_280x86_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "RESOURCE_ID_AIRPLANE_UNLOCK_BUTTON_ICON",
+      "description": "飞行界面解锁按钮图标",
+      "file": "baj/icon_travel_unlock_148x56_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "RESOURCE_ID_HOME_DUMMY_ICON",
+      "description": "dummy图标",
+      "file": "baj/icon_home_dummy_226x134_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "RESOURCE_ID_CHARGE_ADAPTER_IMG",
+      "description": "充电适配器错误背景",
+      "file": "png/img_charge_adapter_error.png",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "RESOURCE_ID_GUIDE_PAGE1_IMG",
+      "description": "引导-页1图片",
+      "file": "png/img_guide_page_1.png",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "RESOURCE_ID_GUIDE_PAGE2_IMG",
+      "description": "引导-页2图片",
+      "file": "png/img_guide_page_2.png",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "RESOURCE_ID_GUIDE_PAGE3_IMG",
+      "description": "引导-页3图片",
+      "file": "png/img_guide_page_3.png",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "RESOURCE_ID_GUIDE_PAGE4_IMG",
+      "description": "引导-页4图片",
+      "file": "png/img_guide_page_4.png",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "RESOURCE_ID_GUIDE_PAGE5_IMG",
+      "description": "引导-页5图片",
+      "file": "png/img_guide_page_5.png",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "RESOURCE_ID_GUIDE_PAGE6_IMG",
+      "description": "引导-页6图片",
+      "file": "png/img_guide_page_6.png",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "RESOURCE_ID_PUMP_SPEED_SLOW_ICON",
+      "description": "泵奶首页-慢速图标",
+      "file": "baj/icon_pump_speed_slow_16x16_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "RESOURCE_ID_PUMP_SPEED_REGULAR_ICON",
+      "description": "泵奶首页-常规图标",
+      "file": "baj/icon_pump_speed_regular_16x16_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "RESOURCE_ID_PUMP_SPEED_BOOST_ICON",
+      "description": "泵奶首页-快速图标",
+      "file": "baj/icon_pump_speed_fast_16x16_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "RESOURCE_ID_REGULAR_PUMPING_BG",
+      "description": "泵奶首页-常规泵奶背景",
+      "file": "png/bg_regular_pumping.png",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "RESOURCE_ID_EXPERT_PUMPING_BG",
+      "description": "泵奶首页-专家泵奶背景",
+      "file": "png/bg_expert_pumping.png",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "RESOURCE_ID_FREQ_PAGE_BOOST_ICON",
+      "description": "频率页-频率增强图标",
+      "file": "baj/icon_speed_page_fast_48x48_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "RESOURCE_ID_FREQ_PAGE_REGULAR_ICON",
+      "description": "频率页-频率常规图标",
+      "file": "baj/icon_speed_page_regular_48x48_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "RESOURCE_ID_FREQ_PAGE_COMFORT_ICON",
+      "description": "频率页-频率舒适图标",
+      "file": "baj/icon_speed_page_slow_48x48_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "RESOURCE_ID_MODE_STIMULATION_PROMPT_ICON",
+      "description": "刺激模式确认提示图标",
+      "file": "baj/icon_stimulation_mode_prompt_64x64_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "RESOURCE_ID_MODE_EXPRESSION_PROMPT_ICON",
+      "description": "泌乳模式确认提示图标",
+      "file": "baj/icon_expression_mode_prompt_64x64_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "RESOURCE_ID_MODE_MIX_PROMPT_ICON",
+      "description": "混合模式确认提示图标",
+      "file": "baj/icon_mix_mode_prompt_64x64_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "RESOURCE_ID_MODE_RELAX_PROMPT_ICON",
+      "description": "放松模式确认提示图标",
+      "file": "baj/icon_relax_mode_prompt_64x64_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "RESOURCE_ID_LAST_USED_MODE_ICON",
+      "description": "上一次使用模式图标",
+      "file": "baj/icon_last_usage_mode_20x20_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "RESOURCE_ID_NEW_MODE_STEPS_PROMPT_ICON",
+      "description": "新模式步骤提示图标",
+      "file": "baj/icon_new_mode_steps_prompt_8x8_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "RESOURCE_ID_MODE_LACTATION_ICON",
+      "description": "模式-泌乳图标",
+      "file": "baj/icon_mode_page_expression_48x48_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "RESOURCE_ID_MODE_MIX_ICON",
+      "description": "模式-混合图标",
+      "file": "baj/icon_mode_page_mix_48x48_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "RESOURCE_ID_MODE_STIMULATE_ICON",
+      "description": "模式-刺激图标",
+      "file": "baj/icon_mode_page_stimulation_48x48_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "RESOURCE_ID_MODE_EXPERT_ICON",
+      "description": "韵律-专家模式图标",
+      "file": "baj/icon_mode_expert_rhythm_48x48_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "RESOURCE_ID_MODE_CUSTOM_ICON",
+      "description": "韵律-个性化模式图标",
+      "file": "baj/icon_mode_custom_rhythm_48x48_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "RESOURCE_ID_PUMP_FINISH_ICON",
+      "description": "泵奶完成图标",
+      "file": "baj/icon_pump_finish_160x160_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "RESOURCE_ID_PUMP_PAUSE_PROMPT_ICON",
+      "description": "泵奶暂停提示图标",
+      "file": "baj/icon_pump_pause_64x64_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "RESOURCE_ID_PUMP_LEVEL_BG",
+      "description": "泵奶档位背景",
+      "file": "png/bg_pump_level_page.png",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "RESOURCE_ID_PUMP_LEVEL_ADD_LABEL_ICON",
+      "description": "泵奶档位文本加号图标",
+      "file": "baj/icon_level_add_24x24_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "RESOURCE_ID_PUMP_LEVEL_SUB_LABEL_ICON",
+      "description": "泵奶档位文本减号图标",
+      "file": "baj/icon_level_sub_24x24_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "RESOURCE_ID_PUMP_LEVEL_ABNORMAL_ICON",
+      "description": "泵奶档位异常图标",
+      "file": "baj/icon_level_abnomal_64x64_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    }
+  ]
+}

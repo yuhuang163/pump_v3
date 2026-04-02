@@ -146,6 +146,7 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
     proc->st = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
     proc->key = (key_input_context_t *)find_module(ID_MODULE_KEY_INPUT);
     proc->pump = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
+    proc->battery = (battery_manager_context_t *)find_module(ID_MODULE_BATTERY);
     if (proc->extra.popup_exit_time < 500 || proc->extra.popup_exit_time > 10000) {
         proc->extra.popup_exit_time = 2000; /// 限制最小退出时间长度
     }

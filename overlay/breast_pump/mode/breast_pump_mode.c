@@ -217,6 +217,19 @@ int breast_pump_mode_work_time_get(int mode)
     return NORMAL_MODE_DEFAULT_WORK_TIME;
 }
 
+int breast_pump_mode_step_target_time_get(int mode, int step)
+{
+    if (step > ROOT_BREAST_PUMP_STEP_MAX || mode >= BREAST_PUMP_MODE_MAX) {
+        LOGE("step error, mode: %d, step: %d", mode, step);
+        return 0;
+    }
+    pump_mode_steps_info_t steps_info;
+    storage_manager_context_t *storage_ctx = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
+    EXCEPTION_CHECK_UINT(storage_ctx);
+    storage_ctx->get_store_ram_val(STORE_ID_PUMP_MODE_STEPS_INFO, mode, 0, &steps_info);
+    return steps_info.data[step].duration;
+}
+
 int breast_pump_mode_parameter_output(motor_policy_manager_t *obj, char *name)
 {
 #if IS_SUPPORT_PUMP_MODE_DEBUG_LOG

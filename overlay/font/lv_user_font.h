@@ -20,7 +20,7 @@ extern "C" {
 #include "lv_font_roboto_68.h" // IWYU pragma: keep
 #include "lv_font_roboto_79.h" // IWYU pragma: keep
 #include "lv_font_roboto_81.h" // IWYU pragma: keep
-#elif (V3_UI_VERSION == V3_UI_V2)
+#elif (V3_UI_VERSION == V3_UI_V2 || V3_UI_VERSION == V3PRO_UI_V2)
 #include "lv_font_oppo_sans_12.h" // IWYU pragma: keep
 #include "lv_font_oppo_sans_14.h" // IWYU pragma: keep
 #include "lv_font_oppo_sans_16.h" // IWYU pragma: keep

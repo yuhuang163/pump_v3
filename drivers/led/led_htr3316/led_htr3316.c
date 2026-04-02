@@ -18,6 +18,11 @@
 #define LED_ABNORMAL_MAX_COUNT              (10)
 #define LED_LUX_MAX                         (100)
 
+#define HTR3316_REG_OUTPUT_P1               (0x03)
+#define HTR3316_REG_INOUT_P1                (0x05)
+#define HTR3316_REG_P1_MODE                 (0x13)
+#define HTR3316_P1_6_BIT                    (1U << 6)
+
 typedef struct {
     const uint8_t *data;
     uint8_t size;
@@ -65,6 +70,13 @@ static const led_address_data_t led_address_data[LED_TOTAL_SIZE] = {
     {led6_address, sizeof(led6_address)},/// PUMP_FREQ_SET_BL
     {led1_address, sizeof(led1_address)},/// PUMP_BREASTFEEDING_BL
     {led3_address, sizeof(led3_address)},/// PUMP_LEFT_CONTROL_BL
+    {led4_address, sizeof(led4_address)},/// PUMP_RIGHT_CONTROL_BL
+#elif (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V4)
+    {led3_address, sizeof(led3_address)},/// PUMP_START_BL
+    {led5_address, sizeof(led5_address)},/// PUMP_MODE_BL
+    {led6_address, sizeof(led6_address)},/// PUMP_FREQ_SET_BL
+    {led1_address, sizeof(led1_address)},/// PUMP_BREASTFEEDING_BL
+    {led2_address, sizeof(led2_address)},/// PUMP_LEFT_CONTROL_BL
     {led4_address, sizeof(led4_address)},/// PUMP_RIGHT_CONTROL_BL
 #else
     {led1_address, sizeof(led1_address)},/// PUMP_START_BL
@@ -361,6 +373,58 @@ static void led_htr3316_reset(void)
     msleep(10);
 }
 
+#if (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V4)
+//此接口用于touch ic复位
+static int led_htr3316_p16_output_set(bool high_level)
+{
+    uint8_t reg_val = 0;
+    i2c_master_data_t i2c_data = {
+        .dev_address = HTR3316_DEV_ADDR,
+        .reg_addr = HTR3316_REG_P1_MODE,
+        .data = &reg_val,
+        .len = 1,
+    };
+
+    /* Step0: force P1.6 into GPIO mode via P1_Mode (bit6 = 1). */
+    if (led_extension_read_nbyte(&i2c_data) != BSP_OK) {
+        return BSP_ERROR;
+    }
+    reg_val |= HTR3316_P1_6_BIT;
+    //LOG_PBUS("led_htr3316_p16_mode_set: %x", reg_val);
+    if (led_extension_write_nbyte(&i2c_data) != BSP_OK) {
+        return BSP_ERROR;
+    }
+
+    /* Step1: force P1.6 into output direction via In/Out_P1 (bit6 = 0). */
+    i2c_data.reg_addr = HTR3316_REG_INOUT_P1;
+    if (led_extension_read_nbyte(&i2c_data) != BSP_OK) {
+        return BSP_ERROR;
+    }
+    reg_val &= (uint8_t)(~HTR3316_P1_6_BIT);
+    //LOG_PBUS("led_htr3316_p16_inout_set: %x", reg_val);
+    if (led_extension_write_nbyte(&i2c_data) != BSP_OK) {
+        return BSP_ERROR;
+    }
+
+    /* Step2: set P1.6 output level via Output_P1 register (0x03). */
+    i2c_data.reg_addr = HTR3316_REG_OUTPUT_P1;
+    if (led_extension_read_nbyte(&i2c_data) != BSP_OK) {
+        return BSP_ERROR;
+    }
+    if (high_level) {
+        reg_val |= HTR3316_P1_6_BIT;
+    } else {
+        reg_val &= (uint8_t)(~HTR3316_P1_6_BIT);
+    }
+    //LOG_PBUS("led_htr3316_p16_output_set: %x", reg_val);
+    if (led_extension_write_nbyte(&i2c_data) != BSP_OK) {
+        return BSP_ERROR;
+    }
+
+    return BSP_OK;
+}
+#endif
+
 /*
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
@@ -382,6 +446,11 @@ int bsp_led_init(void)
     s_led_is_ready = true;
     s_led_abnormal_count = 0;
     led_htr3316_init();
+    #if (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V4)
+        led_htr3316_p16_output_set(false);
+        msleep(10);
+        led_htr3316_p16_output_set(true);
+    #endif
     RUN_NEW_THREAD(&s_led_device_thd, "led", led_device_thread,
          RT_PRIO_LED_DEVICE_THREAD, (LED_DEVICE_THREAD_STACKSIZE));
     return BSP_OK;
@@ -399,6 +468,11 @@ void bsp_led_resume(void)
     s_led_is_ready = true;
     s_led_abnormal_count = 0;
     led_htr3316_init();
+    #if (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V4)
+        led_htr3316_p16_output_set(false);
+        msleep(10);
+        led_htr3316_p16_output_set(true);
+    #endif
     START_TIMER(s_led_timer_id, LED_THREAD_POLL_INTERVAL);
 }
 

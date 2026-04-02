@@ -15,7 +15,7 @@
  */
 #define I2C_MASTER_TIMEOUT_MS(x)                    ((x > 20) ? ((x / 20) * 50) : 50)
 
-#if (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V2) || (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V3)
+#if (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V2) || (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V3) || (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V4)
 #define I2C_MASTER_COUNT                            4
 #define I2C0_MASTER_SPEED                           400000
 #define I2C1_MASTER_SPEED                           200000
@@ -53,7 +53,7 @@ static uint8_t s_i2c_init_count[I2C_MASTER_COUNT] = {0};
 static os_mutex_id s_i2c_mux[I2C_MASTER_COUNT] = {NULL};
 
 static const i2c_master_config_t s_i2c_config[I2C_MASTER_COUNT] = {
-#if (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V2) || (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V3)    
+#if (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V2) || (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V3) || (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V4)    
     {
         .id = HAL_I2C_ID_0, 
         .iomux_set = hal_iomux_set_i2c0,

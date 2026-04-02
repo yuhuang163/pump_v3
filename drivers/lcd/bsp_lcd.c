@@ -10,7 +10,7 @@
 * DEFINES
 *****************************************************************************************
 */
-#if (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V2) || (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V3)
+#if (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V2) || (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V3) || (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V4)
 #define LCD_POWER_ON               1
 #define LCD_POWER_OFF              0
 #define IS_SUPPORT_LCD_BL          1
@@ -107,7 +107,7 @@ static int lcd_dev_ioctl(struct rt_device_node *dev, uint32_t op_code, void *arg
     if (op_code == OP_CODE_PANEL_SET_BL) {
         uint32_t *tmp = (uint32_t *)args;
         if (tmp) {
-            bsp_lcd_backlight_control((uint8_t)(tmp[0]));
+            bsp_lcd_backlight_control((uint16_t)(tmp[0]));
         }
         return 0;
     }
@@ -118,7 +118,7 @@ static int lcd_dev_ioctl(struct rt_device_node *dev, uint32_t op_code, void *arg
 static int lcd_dev_suspend(struct rt_device_node *dev)
 {
     lcd_device_is_ready = false;
-#if (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V2) || (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V3)
+#if (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V2) || (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V3) || (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V4)
     bsp_lcd_backlight_suspend();
     lcd_power_control(false);
     bsp_lcd_deinit();
@@ -131,7 +131,7 @@ static int lcd_dev_suspend(struct rt_device_node *dev)
 
 static int lcd_dev_resume(struct rt_device_node *dev)
 {
-#if (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V2) || (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V3)
+#if (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V2) || (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V3) || (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V4)
     lcd_power_control(true);
     bsp_lcd_backlight_resume();
     msleep(10);

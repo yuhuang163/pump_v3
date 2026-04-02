@@ -5,12 +5,14 @@
 #include "hal_timer.h"
 #include "bsp_common.h"  // IWYU pragma: keep
 #include "bsp_config.h"  // IWYU pragma: keep
+#include <string.h>
 
 /*
 * DEFINES
 *****************************************************************************************
 */
 #define IS_SUPPORT_STALL_DETECTION_LOG      (1)
+#define IS_SUPPORT_STALL_DETECTION_ADC_VALUE_DEBUG (0)
 #define STALL_DETECTION_INTERVAL_MS         (5)  /// 堵转检测间隔时间，单位ms
 #define ADC_SAMPLING_DELAY_MS               (5)  /// 采样延迟时间，单位ms
 #define MAX_STALL_DETECTION_TARGET_TIMES    (200)
@@ -36,6 +38,13 @@ typedef struct {
     uint16_t threshold_min;         /// 阈值最小值
 } stall_detection_threshold_t;
 
+typedef struct {
+    uint16_t adc_value_max;           /// ADC值最大值
+    uint16_t adc_value_min;           /// ADC值最小值
+    uint16_t adc_value_avg;           /// ADC值平均值
+    uint16_t adc_value_count;         /// ADC值采集计数
+    uint16_t *adc_value_all;          /// ADC值数组指针
+} stall_detection_adc_value_t;
 /*
 * LOCAL VARIABLE DEFINITIONS
 *****************************************************************************************
@@ -43,6 +52,7 @@ typedef struct {
 static motor_pump_stall_detection_t s_pump_stall_status[MOTOR_PWM_ID_MAX] = {0};
 static motor_pump_stall_detection_timer_t s_pump_stall_timer[MOTOR_PWM_ID_MAX] = {0};
 const static stall_detection_threshold_t s_pump_stall_threshold[100] = {0};
+static stall_detection_adc_value_t s_pump_stall_adc_value[MOTOR_PWM_ID_MAX] = {0};
 
 /*
 * GLOBAL VARIABLE DEFINITIONS
@@ -105,6 +115,16 @@ static void motor1_adc_irq_cb(uint16_t irq_val, HAL_GPADC_MV_T volt)
     s_pump_stall_status[0].work_times++;
     s_pump_stall_status[0].sum_voltage += volt;
     s_pump_stall_status[0].is_running = false;
+#if IS_SUPPORT_STALL_DETECTION_ADC_VALUE_DEBUG
+    s_pump_stall_adc_value[0].adc_value_all[s_pump_stall_adc_value[0].adc_value_count] = volt;
+    s_pump_stall_adc_value[0].adc_value_count++;
+    if (volt > s_pump_stall_adc_value[0].adc_value_max) {
+        s_pump_stall_adc_value[0].adc_value_max = volt;
+    }
+    if (volt < s_pump_stall_adc_value[0].adc_value_min) {
+        s_pump_stall_adc_value[0].adc_value_min = volt;
+    }
+#endif
     if (s_pump_stall_status[0].work_times >= s_pump_stall_status[0].target_times) {
         s_pump_stall_status[0].last_voltage = s_pump_stall_status[0].work_times > 0 ? \
             s_pump_stall_status[0].sum_voltage / s_pump_stall_status[0].work_times : 0;
@@ -118,6 +138,16 @@ static void motor2_adc_irq_cb(uint16_t irq_val, HAL_GPADC_MV_T volt)
     s_pump_stall_status[1].work_times++;
     s_pump_stall_status[1].sum_voltage += volt;
     s_pump_stall_status[1].is_running = false;
+#if IS_SUPPORT_STALL_DETECTION_ADC_VALUE_DEBUG
+    s_pump_stall_adc_value[1].adc_value_all[s_pump_stall_adc_value[1].adc_value_count] = volt;
+    s_pump_stall_adc_value[1].adc_value_count++;
+    if (volt > s_pump_stall_adc_value[1].adc_value_max) {
+        s_pump_stall_adc_value[1].adc_value_max = volt;
+    }
+    if (volt < s_pump_stall_adc_value[1].adc_value_min) {
+        s_pump_stall_adc_value[1].adc_value_min = volt;
+    }
+#endif
     if (s_pump_stall_status[1].work_times >= s_pump_stall_status[1].target_times) {
         s_pump_stall_status[1].last_voltage = s_pump_stall_status[1].work_times > 0 ? \
             s_pump_stall_status[1].sum_voltage / s_pump_stall_status[1].work_times : 0;
@@ -231,6 +261,19 @@ int pump_motor_stall_detection_start(uint8_t pump_id, uint16_t duration_ms, uint
     if (target_times > MAX_STALL_DETECTION_TARGET_TIMES) {
         target_times = MAX_STALL_DETECTION_TARGET_TIMES;
     }
+
+#if IS_SUPPORT_STALL_DETECTION_ADC_VALUE_DEBUG
+    s_pump_stall_adc_value[pump_id].adc_value_all = (uint16_t *)u_malloz(sizeof(uint16_t) * target_times);
+    if (s_pump_stall_adc_value[pump_id].adc_value_all == NULL) {
+        LOGE("malloc adc_value_all failed");
+        return BSP_ERROR;
+    }
+    s_pump_stall_adc_value[pump_id].adc_value_count = 0;
+    s_pump_stall_adc_value[pump_id].adc_value_max = 0;
+    s_pump_stall_adc_value[pump_id].adc_value_min = 0XFFFF;
+    s_pump_stall_adc_value[pump_id].adc_value_avg = 0;
+#endif
+
     s_pump_stall_status[pump_id].pulse_width = pulse_width;
     bsp_pump_stall_detection_timer_init(pump_id);
     return motor_pump_stall_detection_start(pump_id, target_times);
@@ -243,6 +286,31 @@ int pump_motor_stall_detection_stop(uint8_t pump_id)
         return BSP_ERROR;
     }
     bsp_pump_stall_detection_timer_stop(pump_id);
+
+#if IS_SUPPORT_STALL_DETECTION_ADC_VALUE_DEBUG
+    if (s_pump_stall_adc_value[pump_id].adc_value_all) {
+        LOG_PASS("pump %d adc_value_all: ", pump_id);
+        for (int i = 0; i < s_pump_stall_adc_value[pump_id].adc_value_count; i++) {
+            LOG_PASS("%d ", s_pump_stall_adc_value[pump_id].adc_value_all[i]);
+        }
+        LOG_PASS("\r\n");
+        ///计算平均值 去掉最大值和最小值
+        uint16_t sum = 0;
+        for (int i = 0; i < s_pump_stall_adc_value[pump_id].adc_value_count; i++) {
+            if (s_pump_stall_adc_value[pump_id].adc_value_all[i] != s_pump_stall_adc_value[pump_id].adc_value_max && \
+                s_pump_stall_adc_value[pump_id].adc_value_all[i] != s_pump_stall_adc_value[pump_id].adc_value_min) {
+                sum += s_pump_stall_adc_value[pump_id].adc_value_all[i];
+            }
+        }
+        s_pump_stall_adc_value[pump_id].adc_value_avg = sum / (s_pump_stall_adc_value[pump_id].adc_value_count - 2);
+        //打印最大值、最小值、平均值
+        LOG_PASS("pump %d adc_value_max: %d, adc_value_min: %d, adc_value_avg: %d\r\n", pump_id, s_pump_stall_adc_value[pump_id].adc_value_max, \
+            s_pump_stall_adc_value[pump_id].adc_value_min, s_pump_stall_adc_value[pump_id].adc_value_avg);
+        u_free(s_pump_stall_adc_value[pump_id].adc_value_all);
+        s_pump_stall_adc_value[pump_id].adc_value_all = NULL;
+    }
+#endif
+
     return motor_pump_stall_detection_stop(pump_id);
 }
 

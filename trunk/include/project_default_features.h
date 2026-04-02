@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 #include "project_config.h" // IWYU pragma: keep
-
+#include "project_support_overlay.h" // IWYU pragma: keep
 /*******************************************************************************
  * Include files
  ******************************************************************************/

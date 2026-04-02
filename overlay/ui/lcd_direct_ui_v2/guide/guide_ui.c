@@ -155,9 +155,6 @@ void ui_display_guide_prepare(ui_manager_context_t *thiz)
     thiz->priv.fps_count = 0;
     thiz->priv.fps_start_time = get_timestamp();
     ui_guide_root_init(); /// 初始化 root 容器
-#if (IS_SUPPORT_GUIDE_PAGE_IMG == 0)
-    common_ui_bg_init(thiz);
-#endif
     guide_info->force_update = true;
 }
 

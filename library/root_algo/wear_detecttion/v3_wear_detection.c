@@ -12,16 +12,9 @@
 修 改 者：
 修改内容：
 ******************************************************************************************************************/
+#if defined(ALGO_TYPE_V3_WEAR_DETECTION)
 #include "v3_wear_detection.h"
-//#include <math.h>
 
-// global data
-SDATA_BUFFER		tDataBuffer[2];
-SPV_INFO			tPVInfo[2];
-SWAVE_INFO			tWaveInfo[2];
-SFEATURE_INFO		tFeatureInfo[2];
-SDEVICE_INFO		tDeviceInfo[2];
-SFILTER_INFO		tFilterInfo[2];
 
 // Thresholds for each mode and level
 float EXPRESSION_THRESHOLD[] = {-12.06, -12.465, -13.655, -15.77, -16.815, -18.39, -22.165, -26.885, -32.46, -36.585, -39.84, -42.305, -44.645, -46.74, -48.83};
@@ -586,3 +579,4 @@ void GetWearDetectionResult(unsigned char *uWearStatus)
 	uWearStatus[0] = tFeatureInfo[0].uWearStatus;
 	uWearStatus[1] = tFeatureInfo[1].uWearStatus;
 }
+#endif

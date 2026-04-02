@@ -34,8 +34,12 @@ static bool check_if_low_battery(void)
 {
     EXCEPTION_CHECK_BOOL(thiz);
     EXCEPTION_CHECK_BOOL(thiz->priv.battery);
-    int percent = 0;
-    DEVICE_READ_ARGS(thiz->priv.battery, &percent, sizeof(percent));
+    int percent = DEVICE_READ(thiz->priv.battery);
+    DEVICE_IOCTL_HAS_RET(thiz->priv.battery, OP_CODE_BAT_GET_CHARGE_STATUS, ret);
+    LOG_MISC("percent: %d, ret: %d", percent, ret);
+    if (ret == CHARGE_STATE_CHARGING || ret == CHARGE_STATE_FULL) {
+        return 0;
+    }
     return percent <= LOW_BAT_PERCENTAGE ? 1 : 0;
 }
 
@@ -125,10 +129,21 @@ static void polling_battery_status(void *user_data)
     uint8_t bat_tmp = check_if_low_battery();
     if (thiz->priv.low_battery != bat_tmp) {
         thiz->priv.low_battery = bat_tmp;
+        if (thiz->priv.low_battery) {
+            multi_func_msg_data_t msg = {0};
+            msg.union_body.extra.window_id = ID_WINDOW_POPUP_WINDOW;
+            msg.union_body.extra.is_bg_dispatch = 0x01;
+            msg.union_body.extra.arg1 = ID_POPUP_WINDOW_LOW_POWER;
+            msg.union_body.extra.popup_exit_time = 8000;
+            window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
+            if (wm) {
+                wm->dispatch_new_window_args(wm, &msg);
+            }
+        }
     }
     int bat_per = DEVICE_READ(thiz->priv.battery);
-    LOG_MISC("#now bat percent: %d, is_low_battery: %d, is_plug: %d, is_charging: %d", 
-        bat_per, thiz->priv.low_battery, thiz->priv.is_vbus_plug_in, thiz->priv.is_charging);
+    LOG_MISC("#now bat percent: %d, is_low_battery: %d/%d, is_plug: %d, is_charging: %d", 
+        bat_per, thiz->priv.low_battery, bat_tmp, thiz->priv.is_vbus_plug_in, thiz->priv.is_charging);
     SEND_BROADCAST_ARGS2(ID_BROADCAST_BATTERY_STATE_CHANGE, 
         thiz->priv.low_battery ? BATTERY_BROADCAST_LOW_BATTERY : BATTERY_BROADCAST_CAPACITY_CHANGE, bat_per);   /// 发送电池状态广播.
 }
@@ -157,6 +172,11 @@ static void polling_charge_status(void *user_data)
         } else {
             LOG_MISC("charge_plug_in");
             pm->acquire_wakelock("charge_plug_in", -1);
+        }
+        if (BATTERY_IS_CHARGING(local_get_charge_status())) {
+            thiz->priv.is_charging = 1;
+        } else {
+            thiz->priv.is_charging = 0;
         }
     } else {
         if (pm->is_pm_suspend()) {

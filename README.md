@@ -53,14 +53,19 @@ FIRMWARE_V3/
 │   │   └── table/                   ← 吸奶泵参数表
 │   ├── font/                        ← 字体资源
 │   ├── framework_hooks/             ← 框架钩子（任务/事件/日志等）
+│   │   ├── airplane_mode/           ← 飞行模式钩子
 │   │   ├── algo/                    ← 算法模块钩子
 │   │   ├── ble/                     ← 蓝牙模块钩子
 │   │   ├── breast_pump/             ← 吸奶泵业务钩子
 │   │   ├── input_key/               ← 输入按键钩子
+│   │   ├── led/                     ← 指示灯/背光钩子
 │   │   ├── motor/                   ← 马达控制钩子
-│   │   ├── protocol/                ← 协议处理钩子（产品差异点）
+│   │   ├── power/                   ← 电源管理钩子
+│   │   ├── product_tests/           ← 产测与自检钩子
 │   │   ├── sensor/                  ← 传感器处理钩子
-│   │   └── storage/                 ← 存储配置钩子
+│   │   ├── servers/                 ← 服务器框架钩子
+│   │   ├── storage/                 ← 存储配置钩子
+│   │   └── ui/                      ← UI初始化与事件钩子
 │   ├── input_key/                   ← 输入按键码定义与映射
 │   ├── product_tests/               ← 产品测试（工厂测试/硬件自检/通信）
 │   ├── protocol/                    ← 协议处理（应用协议/通用协议）
@@ -69,7 +74,8 @@ FIRMWARE_V3/
 │   ├── sensor/                      ← 传感器配置与校准参数
 │   │   ├── air_pressure/            ← 气压传感器配置
 │   │   ├── force_sensor/            ← 力传感器配置
-│   │   └── imu/                     ← IMU传感器配置
+│   │   ├── imu/                     ← IMU传感器配置
+│   │   └── light_sensor/            ← 环境光传感器配置
 │   ├── storage/                     ← 存储分区配置与持久化定义
 │   │   ├── breast_pump/             ← 吸奶泵业务存储配置
 │   │   ├── factory/                 ← 工厂校准数据存储
@@ -77,14 +83,18 @@ FIRMWARE_V3/
 │   │   └── system/                  ← 系统配置存储
 │   ├── ui/                          ← UI实现（LCD直接UI/UART UI等）
 │   └── windows/                     ← UI窗口/页面资源与布局
-│       ├── home/                    ← 主页/主屏窗口
+│       ├── airplane_mode/           ← 飞行模式窗口
 │       ├── battery/                 ← 电池状态/电量展示窗口
-│       ├── charge/                  ← 充电过程/满电提示窗口
-│       ├── ota/                     ← OTA升级流程窗口
-│       ├── setting/                 ← 设置/选项类窗口
 │       ├── breast_pump/             ← 吸奶泵业务相关窗口
+│       ├── charge/                  ← 充电过程/满电提示窗口
+│       ├── guide/                   ← 引导/教学流程窗口
+│       ├── home/                    ← 主页/主屏窗口
 │       ├── logo/                    ← 开机Logo/品牌展示
-│       ├── pop_windows/             ← 通用弹窗集合（提示/确认/错误等）
+│       ├── ota/                     ← OTA升级流程窗口
+│       ├── popup_windows/           ← 通用弹窗集合（提示/确认/错误等）
+│       ├── product_test_window/     ← 产测窗口
+│       ├── setting/                 ← 设置/选项类窗口
+│       ├── system/                  ← 系统状态与系统级页面
 │       └── dummy/                   ← 占位/示例窗口（可根据产品裁剪）
 │
 ├── project/                         ← 构建产物与构建系统文件
@@ -94,12 +104,14 @@ FIRMWARE_V3/
     │   ├── airplane_mode_api.h      ← 飞行模式管理接口
     │   ├── algorithm_manager_api.h  ← 算法框架管理接口
     │   ├── audio_manager_api.h      ← 音频管理接口
+    │   ├── battery_manager_api.h    ← 电池管理接口
     │   ├── ble_manager_api.h        ← BLE管理接口
     │   ├── breast_pump_manager_api.h ← 吸奶泵管理接口
     │   ├── broadcast_manager_api.h  ← 广播管理接口
     │   ├── handler_post.h           ← 任务/消息派发接口
     │   ├── hang_detect.h            ← 卡死检测/线程看门狗
     │   ├── key_input_manager_api.h  ← 输入系统管理接口
+    │   ├── led_manager_api.h        ← LED管理接口
     │   ├── misc_manager_api.h       ← 杂项能力管理接口
     │   ├── motor_manager_api.h      ← 马达管理接口
     │   ├── ota_manager_api.h        ← OTA升级管理接口
@@ -107,6 +119,7 @@ FIRMWARE_V3/
     │   ├── power_manager_api.h      ← 电源管理接口
     │   ├── project_default_features.h ← 默认功能开关
     │   ├── project_default_parameter.h ← 默认参数定义
+    │   ├── protocol_manager_api.h   ← 协议管理接口
     │   ├── resource_manager_api.h   ← 资源管理接口
     │   ├── root_common.h            ← 通用接口集合
     │   ├── root_common_api.h        ← 通用接口集合（已统一命名）
@@ -118,6 +131,7 @@ FIRMWARE_V3/
     │   ├── root_message.h           ← 异步消息实体/统一消息封装
     │   ├── root_storage_base.h      ← 存储分区/魔数基础定义
     │   ├── sensor_manager_api.h     ← 传感器管理接口
+    │   ├── servers_manager_api.h    ← 服务器管理接口
     │   ├── storage_manager_api.h    ← 存储管理接口
     │   ├── tests_manager_api.h      ← 测试模块接口
     │   ├── thread_api.h             ← 线程接口抽象
@@ -135,6 +149,7 @@ FIRMWARE_V3/
     │   ├── breast_pump/             ← 吸奶泵业务模块（模式/控制/状态管理）
     │   ├── hal/                     ← 面向上层的硬件抽象
     │   ├── key_input/               ← 输入系统（按键/触摸）
+    │   ├── led/                     ← LED/背光控制子系统
     │   ├── misc/                    ← 杂项能力（时间/随机数/配置）
     │   ├── motor/                   ← 马达子系统
     │   ├── network/                 ← 网络与协议
@@ -506,6 +521,7 @@ int custom_mode_parameter_update(motor_policy_cfg_t *cfg, uint8_t cfg_num);
 ## 业务管理器（Manager Layer）扩展
 
 ### 29. 电池管理系统
+- **文件**: `trunk/include/battery_manager_api.h`
 - **实现**: `trunk/root_source/battery/`
 - **功能**: 电池状态监控、电量管理、充电控制
 - **特性**:
@@ -514,6 +530,7 @@ int custom_mode_parameter_update(motor_policy_cfg_t *cfg, uint8_t cfg_num);
   - 低电量保护
 
 ### 30. 服务器管理系统
+- **文件**: `trunk/include/servers_manager_api.h`
 - **实现**: `trunk/root_source/servers/`
 - **配置**: `overlay/servers/`
 - **功能**: 统一管理各类服务器（应用协议服务器、通用服务器、工厂服务器等）
@@ -521,6 +538,30 @@ int custom_mode_parameter_update(motor_policy_cfg_t *cfg, uint8_t cfg_num);
   - 服务器注册与管理
   - 消息路由与分发
   - 协议适配层
+
+### 31. 资源管理系统
+- **文件**: `trunk/include/resource_manager_api.h`
+- **实现**: `trunk/root_source/resource/`
+- **配置**: `overlay/resources/`
+- **功能**: 统一管理图片、字体、语言包等资源的加载、解压与缓存
+
+### 32. 协议管理系统
+- **文件**: `trunk/include/protocol_manager_api.h`
+- **实现**: `trunk/root_source/protocol/`
+- **配置**: `overlay/protocol/`
+- **功能**: 统一封装应用协议、通用协议与产品协议入口
+
+### 33. 电源管理系统
+- **文件**: `trunk/include/power_manager_api.h`
+- **实现**: `trunk/root_source/pm/`
+- **配置**: `overlay/framework_hooks/power/`
+- **功能**: 负责电源状态切换、低功耗控制与系统级电源事件处理
+
+### 34. LED管理系统
+- **文件**: `trunk/include/led_manager_api.h`
+- **实现**: `trunk/root_source/led/`
+- **配置**: `overlay/framework_hooks/led/`
+- **功能**: 统一管理指示灯、背光与灯效相关控制逻辑
 
 ## 体系结构（逻辑分层）
 
@@ -551,14 +592,19 @@ int custom_mode_parameter_update(motor_policy_cfg_t *cfg, uint8_t cfg_num);
   - 支持模式级的工作时长配置（如开奶模式20分钟，奶量提升模式10分钟等）
 
 #### 2. `overlay/framework_hooks/` - 框架钩子
+- **airplane_mode/**: 飞行模式状态切换钩子
 - **algo/**: 算法模块初始化与回调钩子
 - **ble/**: 蓝牙模块初始化与事件钩子
 - **breast_pump/**: 吸奶泵业务钩子（模式切换、状态回调等）
 - **input_key/**: 按键事件处理钩子
+- **led/**: 指示灯与背光控制钩子
 - **motor/**: 马达控制钩子（PWM调整、反馈处理等）
-- **protocol/**: 协议处理钩子（产品差异化协议处理）
+- **power/**: 电源状态迁移与低功耗策略钩子
+- **product_tests/**: 产测与自检流程钩子
 - **sensor/**: 传感器数据处理钩子
+- **servers/**: 服务器生命周期与路由钩子
 - **storage/**: 存储初始化与配置钩子
+- **ui/**: UI初始化、事件转发与页面联动钩子
 - **用途**: 在不修改框架核心代码的前提下，注入产品特定逻辑
 
 #### 3. `overlay/input_key/` - 输入按键配置
@@ -569,6 +615,7 @@ int custom_mode_parameter_update(motor_policy_cfg_t *cfg, uint8_t cfg_num);
 - **air_pressure/**: 气压传感器校准参数与配置
 - **force_sensor/**: 力传感器校准参数与配置
 - **imu/**: IMU传感器配置（采样率、量程、滤波参数等）
+- **light_sensor/**: 环境光传感器阈值与校准配置
 - **用途**: 不同批次或型号的传感器可能需要不同的校准参数
 
 #### 5. `overlay/storage/` - 存储分区配置
@@ -604,6 +651,7 @@ int custom_mode_parameter_update(motor_policy_cfg_t *cfg, uint8_t cfg_num);
 - **lcd_direct_ui/**: LCD直接UI实现
 - **lcd_direct_ui_v2/**: LCD直接UI V2版本
 - **lcd_uart_ui/**: LCD UART UI实现
+- **v3pro_lcd_direct_ui_v2/**: V3 Pro产品专用 LCD Direct UI V2实现
 - **ui_img_define.h**: UI图片资源定义
 - **ui_page_define.h**: UI页面定义
 - **用途**: 产品特定的UI实现，支持多种显示方式
@@ -622,14 +670,18 @@ int custom_mode_parameter_update(motor_policy_cfg_t *cfg, uint8_t cfg_num);
 - **用途**: 存放图片、语言包、音频等二进制资源文件
 
 #### 14. `overlay/windows/` - UI窗口资源
-- **home/**: 主页窗口资源与布局
+- **airplane_mode/**: 飞行模式窗口
 - **battery/**: 电池显示窗口
+- **breast_pump/**: 吸奶泵工作与参数窗口
 - **charge/**: 充电窗口
+- **guide/**: 引导/教学窗口
+- **home/**: 主页窗口资源与布局
 - **ota/**: OTA升级窗口
-- **setting/**: 设置窗口
-- **breast_pump/**: 吸奶泵业务窗口（工作界面、参数调整等）
 - **logo/**: 开机Logo
-- **pop_windows/**: 弹窗集合（提示、确认、错误等）
+- **popup_windows/**: 弹窗集合（提示、确认、错误等）
+- **product_test_window/**: 产测窗口
+- **setting/**: 设置窗口
+- **system/**: 系统状态与系统级窗口
 - **dummy/**: 示例/占位窗口
 - **windows_map_define.c/h**: 窗口映射表与注册
 - **用途**: UI页面的资源文件、布局定义与窗口管理
@@ -648,7 +700,7 @@ int custom_mode_parameter_update(motor_policy_cfg_t *cfg, uint8_t cfg_num);
 - API面向`trunk/include/`对外暴露，内部实现放入`trunk/root_source/`
 - 芯片相关改动位于`trunk/platform_chip/`，避免渗透到上层逻辑
 - 资源与产品差异通过`overlay/`覆盖，引入统一初始化钩子
-- 构建仅修改根目录`Makefile`与`boards/*.h`聚合配置
+- 构建仅修改根目录`GNUmakefile`与`boards/*.h`聚合配置
 
 ### 依赖约束
 - `trunk/include` 被上层直接引用；实现仅在`root_source/`
@@ -657,6 +709,28 @@ int custom_mode_parameter_update(motor_policy_cfg_t *cfg, uint8_t cfg_num);
 - `overlay` 可覆盖资源与钩子，但不应直接依赖底层私有实现细节
 
 ## 构建说明
+
+### 仓库初始化与 SDK 子仓库更新
+- 本工程依赖 Git 子仓库 `trunk/platform_chip/bes`，首次克隆后请先初始化同步，再开始编译。
+
+```bash
+# 首次克隆（推荐）
+git clone --recurse-submodules <repo-url>
+
+# 已克隆但未初始化子仓库
+git submodule update --init --recursive
+
+# 当主仓更新了 SDK 指针后，同步到主仓锁定版本
+git submodule sync --recursive
+git submodule update --init --recursive trunk/platform_chip/bes
+
+# 主动拉取 SDK 子仓库远端最新 master
+git submodule update --remote trunk/platform_chip/bes
+git add trunk/platform_chip/bes
+```
+
+- `git submodule update --init --recursive trunk/platform_chip/bes` 适用于跟随当前主仓记录的 SDK 版本。
+- `git submodule update --remote trunk/platform_chip/bes` 适用于需要主动升级 SDK 子仓库版本的场景；执行后请检查差异并提交主仓中的子仓库指针变更。
 
 ### 构建入口
 - 在根目录直接使用`GNUmakefile`或`build_helper.sh`进行编译与打包

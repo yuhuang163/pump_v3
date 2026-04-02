@@ -34,9 +34,11 @@ typedef struct {
 typedef struct {
     uint8_t  pump_is_running;         /// 运行状态，0：停止，1：运行
     uint8_t  valve_is_running;        /// 运行状态，0：停止，1：运行
-    uint16_t target_pulse_width;         /// 目标脉冲宽度
-    uint16_t current_pulse_width;        /// 当前脉冲宽度
-    uint8_t  valve_duty;       /// 阀门占空比
+    uint8_t  pump_irq_is_running;     /// 泵PWM中断运行状态，0：停止，1：运行
+    uint8_t  valve_duty;              /// 阀门占空比
+    uint16_t target_pulse_width;      /// 目标脉冲宽度
+    uint16_t setting_pulse_width;     /// 设置脉冲宽度
+    uint16_t current_pulse_width;     /// 当前脉冲宽度
 } motor_pump_status_t;
 
 typedef struct {
@@ -88,6 +90,8 @@ static char *bsp_motor_pump_action_to_string(motor_pump_status_e action)
             return "valve off";
         case MOTOR_PUMP_OFF_AND_VALVE_OFF:
             return "pump off and valve off";
+        case MOTOR_PUMP_DUTY_ADJUST:
+            return "pump duty adjust";
         default:
             return "unknown";
     }
@@ -141,6 +145,7 @@ POSSIBLY_UNUSED static void bsp_motor_pump_timer_handler(void *param)
     motor_pump_timer_status_t *timer_status = (motor_pump_timer_status_t *)param;
     timer_status->is_running = false;
     if(timer_status->action == MOTOR_PUMP_ON) {
+        pump_status[timer_status->pump_id].pump_is_running = false;
         bsp_motor_pwm_duty_set(motor_pump_cfg[timer_status->pump_id].pump_pwm_id, MOTOR_PUMP_IDLE_PWM_DUTY);
     }
 #if IS_SUPPORT_PUMP_DEBUG_LOG
@@ -181,6 +186,39 @@ POSSIBLY_UNUSED static int bsp_motor_pump_timer_init(void)
     return 0;
 }
 
+#if IS_SUPPORT_PUMP_DUTY_ADJUST
+POSSIBLY_UNUSED static void bsp_motor_pump_irq_callback(enum HAL_GPIO_PIN_T pin)
+{
+    int ret = 0;
+    if (pin == PWM_PUMP1_PIN) {
+        if (pump_status[MOTOR_PUMP_1].current_pulse_width == pump_status[MOTOR_PUMP_1].target_pulse_width) {
+            pump_status[MOTOR_PUMP_1].pump_irq_is_running = false;
+            bsp_motor_pwm_irq_control(PWM_PUMP1_PIN, false);
+        } else if (pump_status[MOTOR_PUMP_1].current_pulse_width > pump_status[MOTOR_PUMP_1].target_pulse_width) {
+            pump_status[MOTOR_PUMP_1].current_pulse_width -= (1 * PUMP_DUTY_SCALE_FACTOR);
+            hal_pwm_update_pulse_width(MOTOR_PUMP1_PWM_ID, 
+                pump_status[MOTOR_PUMP_1].current_pulse_width, BREAST_PUMP_PUMP_FREQ);
+        } else {
+            pump_status[MOTOR_PUMP_1].current_pulse_width += (1 * PUMP_DUTY_SCALE_FACTOR);
+            hal_pwm_update_pulse_width(MOTOR_PUMP1_PWM_ID, 
+                pump_status[MOTOR_PUMP_1].current_pulse_width, BREAST_PUMP_PUMP_FREQ);
+        }
+    } else if (pin == PWM_PUMP2_PIN) {
+        if (pump_status[MOTOR_PUMP_2].current_pulse_width == pump_status[MOTOR_PUMP_2].target_pulse_width) {
+            pump_status[MOTOR_PUMP_2].pump_irq_is_running = false;
+            bsp_motor_pwm_irq_control(PWM_PUMP2_PIN, false);
+        } else if (pump_status[MOTOR_PUMP_2].current_pulse_width > pump_status[MOTOR_PUMP_2].target_pulse_width) {
+            pump_status[MOTOR_PUMP_2].current_pulse_width -= (1 * PUMP_DUTY_SCALE_FACTOR);
+            hal_pwm_update_pulse_width(MOTOR_PUMP2_PWM_ID, 
+                pump_status[MOTOR_PUMP_2].current_pulse_width, BREAST_PUMP_PUMP_FREQ);
+        } else {
+            pump_status[MOTOR_PUMP_2].current_pulse_width += (1 * PUMP_DUTY_SCALE_FACTOR);
+            hal_pwm_update_pulse_width(MOTOR_PUMP2_PWM_ID, 
+                pump_status[MOTOR_PUMP_2].current_pulse_width, BREAST_PUMP_PUMP_FREQ);
+        }
+    }
+}
+#else
 POSSIBLY_UNUSED static void bsp_motor_pump_irq_callback(enum HAL_GPIO_PIN_T pin)
 {
     int ret = 0;
@@ -206,6 +244,7 @@ POSSIBLY_UNUSED static void bsp_motor_pump_irq_callback(enum HAL_GPIO_PIN_T pin)
         pump_status[MOTOR_PUMP_2].current_pulse_width -= (1 * PUMP_DUTY_SCALE_FACTOR);
     }
 }
+#endif
 
 POSSIBLY_UNUSED static void bsp_motor_pwm_irq_control(enum HAL_GPIO_PIN_T pin, bool enable)
 {
@@ -281,12 +320,12 @@ int bsp_motor_pump_parameter_set(void *args)
             pump_motor_stall_detection_start(pump_id, pump_para->duration_ms, pump_para->pulse_width);
             uint16_t start_pulse_width = MOTOR_PUMP_START_PWM_DUTY * PUMP_DUTY_SCALE_FACTOR;
             pump_status[pump_id].pump_is_running = true;
-            uint16_t target_pulse_width = MOTOR_PUMP_PULSE_WIDTH_MAX - pump_para->pulse_width;
-            if (target_pulse_width > start_pulse_width && pump_para->pulse_width != 0) {
+            pump_status[pump_id].setting_pulse_width = MOTOR_PUMP_PULSE_WIDTH_MAX - pump_para->pulse_width;
+            if (pump_status[pump_id].setting_pulse_width > start_pulse_width && pump_para->pulse_width != 0) {
                 pump_status[pump_id].target_pulse_width = start_pulse_width;
                 LOGE("pump %d error, pump_para->pulse_width:%d", pump_id, pump_para->pulse_width);
             } else {
-                pump_status[pump_id].target_pulse_width = target_pulse_width;
+                pump_status[pump_id].target_pulse_width = pump_status[pump_id].setting_pulse_width;
             }  
 
             if (pump_para->pulse_width != 0) {
@@ -296,6 +335,7 @@ int bsp_motor_pump_parameter_set(void *args)
                     LOGE("set pump duty failed, ret=%d", ret);
                 }
                 bsp_motor_pwm_irq_control(pump_id == MOTOR_PUMP_1 ? PWM_PUMP1_PIN : PWM_PUMP2_PIN, true);
+                pump_status[pump_id].pump_irq_is_running = true;
             } else {
                 pump_status[pump_id].current_pulse_width = MOTOR_PUMP_PULSE_WIDTH_MAX;
             }
@@ -325,6 +365,7 @@ int bsp_motor_pump_parameter_set(void *args)
                 LOGW("pump %d pump off duration_ms is 0", pump_id);
             }
             bsp_motor_pwm_irq_control(pump_id == MOTOR_PUMP_1 ? PWM_PUMP1_PIN : PWM_PUMP2_PIN, false);
+            pump_status[pump_id].pump_irq_is_running = false;
             break;
         case MOTOR_PUMP_OFF_AND_VALVE_ON:
             pump_motor_stall_detection_stop(pump_id);
@@ -395,13 +436,36 @@ int bsp_motor_pump_parameter_set(void *args)
                 LOGE("set valve off failed, ret=%d", ret);
             }
             break;
+        case MOTOR_PUMP_DUTY_ADJUST:
+#if IS_SUPPORT_PUMP_DUTY_ADJUST
+            if (pump_status[pump_id].pump_is_running) {
+                uint16_t target_pulse_width = pump_status[pump_id].setting_pulse_width - pump_para->pulse_width;
+                if (target_pulse_width > 10000) {
+                    target_pulse_width = 10000;
+                    LOGE("pump %d level adjust error, pulse_width:%d", pump_id, pump_para->pulse_width);
+                } 
+                if (pump_status[pump_id].target_pulse_width != target_pulse_width) {
+#if IS_SUPPORT_PUMP_DEBUG_LOG
+                    LOG_PBUS("pump %d level adjust:%d/%d", pump_id, pump_para->pulse_width, target_pulse_width);
+#endif
+                    pump_status[pump_id].target_pulse_width = target_pulse_width;
+                    if (!pump_status[pump_id].pump_irq_is_running) {
+                        bsp_motor_pwm_irq_control(pump_id == MOTOR_PUMP_1 ? PWM_PUMP1_PIN : PWM_PUMP2_PIN, true);
+                        pump_status[pump_id].pump_irq_is_running = true;
+                    }
+                } else {
+                    return 0;
+                }
+            }
+#endif
+            break;
         default:
             LOGE("unknown pump action: %d", pump_para->action);
             ret = -1;
             break;
     }
 #if IS_SUPPORT_PUMP_DEBUG_LOG
-    LOG_PBUS("pump_id:%d, action:%s, pw:%d, d_ms:%d; pump: %d/%d/%d; valve: %d/%d", 
+    LOG_PBUS("pump:%d, action:%s, pw:%d, d_ms:%d; pump: %d/%d/%d; valve: %d/%d", 
         pump_id, bsp_motor_pump_action_to_string(pump_para->action), pump_para->pulse_width, pump_para->duration_ms,
         pump_status[pump_id].pump_is_running, pump_status[pump_id].target_pulse_width, pump_status[pump_id].current_pulse_width, 
         pump_status[pump_id].valve_is_running, pump_status[pump_id].valve_duty);

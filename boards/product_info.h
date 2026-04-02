@@ -5,21 +5,6 @@
 extern "C" {
 #endif
 
-/**
- * 产品型号
-*/
-#define ROOT_PRODUCT_V3_ID                            0x08
-#define ROOT_PRODUCT_V3PRO_ID                         0x09
-
-/**
- * 产品信息
-*/
-#if 0
-#define ROOT_PRODUCT_ID                               ROOT_PRODUCT_V3PRO_ID
-#else
-#define ROOT_PRODUCT_ID                               ROOT_PRODUCT_V3_ID
-#endif
-
 #if (ROOT_PRODUCT_ID == ROOT_PRODUCT_V3PRO_ID)
 #define ROOT_DEVICE_NAME                              "V3Pro"
 #else
@@ -44,8 +29,8 @@ extern "C" {
 /**
  * 硬件版本从1-999
 */
-#define ROOT_HARDWARE_VERSION                          3
-#define ROOT_HW_VERSION_STR                            "03"
+#define ROOT_HARDWARE_VERSION                          4
+#define ROOT_HW_VERSION_STR                            "04"
 
 
 /**
@@ -57,15 +42,20 @@ extern "C" {
 /**
  * 正式版本从100-900
 */
-#define ROOT_FIRMWARE_VERSION                          213
-#define ROOT_FW_VERSION_STR                            "213"
+#if (ROOT_PRODUCT_ID == ROOT_PRODUCT_V3PRO_ID)
+#define ROOT_FIRMWARE_VERSION                          207
+#define ROOT_FW_VERSION_STR                            "207"
+#else
+#define ROOT_FIRMWARE_VERSION                          214
+#define ROOT_FW_VERSION_STR                            "214"
+#endif
 
 /**
  * 资源版本号定义(major*100 + minor)
  * major版本表示固件支持的资源版本. 
  * minor表示资源差异化的版本.
 */
-#if V3_UI_VERSION == V3_UI_V2
+#if (V3_UI_VERSION == V3_UI_V2 || V3_UI_VERSION == V3PRO_UI_V2)
 #define ROOT_RES_PATH                                  "V2" /// 资源路径
 #else
 #define ROOT_RES_PATH                                  "V1" /// 资源路径

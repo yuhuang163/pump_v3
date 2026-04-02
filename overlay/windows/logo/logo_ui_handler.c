@@ -33,6 +33,13 @@ static void logo_display_completed_cb(hdr_post_args_t *args)
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_LOGO);
     multi_func_msg_data_t msg = {0};
 #if IS_SUPPORT_LVGL
+    if (proc->battery && proc->battery->is_low_battery()) {
+        LOG_WM("battery is low power, goto battery screen");
+        msg.union_body.extra.window_id = ID_WINDOW_BATTERY;
+        proc->wm->dispatch_new_window_args(proc->wm, &msg);
+        return;
+    }
+
     if (proc->wm->is_window_factory_test_deployed() == 0) {
         LOG_WM("goto factory test screen");
         msg.union_body.extra.window_id = ID_WINDOW_PRODUCT_TEST_MODE;

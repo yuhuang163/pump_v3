@@ -23,6 +23,7 @@ extern "C" {
 #include "ota_ui.h" // IWYU pragma: keepin
 #include "product_tests_ui.h" // IWYU pragma: keepin
 #include "system_ui.h" // IWYU pragma: keepin
+#include "popup_ui.h" // IWYU pragma: keepin
 
 /*
 * GLOBAL FUNCTION DECLARATION

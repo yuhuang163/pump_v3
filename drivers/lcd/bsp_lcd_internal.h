@@ -10,7 +10,7 @@ extern "C" {
 * Include files
 ******************************************************************************/
 #include "bsp_common.h" // IWYU pragma: keep
-#if (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V2) || (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V3)
+#if (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V2) || (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V3) || (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V4)
 #include "bsp_lcd_bes_qspi.h" // IWYU pragma: keep
 #else
 #include "bsp_lcd_uart.h" // IWYU pragma: keep
@@ -42,7 +42,7 @@ int bsp_lcd_refresh(const void *buf, uint32_t n_bytes);
 void bsp_lcd_backlight_init(void);
 void bsp_lcd_backlight_resume(void);
 void bsp_lcd_backlight_suspend(void);
-void bsp_lcd_backlight_control(uint8_t level);
+void bsp_lcd_backlight_control(uint16_t level);
 #ifdef __cplusplus
 }
 #endif

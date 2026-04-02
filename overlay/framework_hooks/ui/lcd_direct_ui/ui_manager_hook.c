@@ -7,7 +7,6 @@
 #include "ui_img_define.h" // IWYU pragma: keep
 #include "ui_manager_api.h"
 #include "ui_manager.h"
-#include <stdint.h>
 
 /*
 * DEFINES
@@ -16,8 +15,8 @@
 #define UI_ANIMATION_STOP_TIMEOUT               (1000)
 #define IS_PRINT_LVGL_MEM_MONITOR               0
 #define UI_LVGL_MSG_QUEUE_NUM                   4
-#define UI_BL_ON_LEVEL_MIN                      (20) /// 开灯最低亮度
-#define UI_BL_ON_LEVEL_RANGE                    (50) /// 开灯调节范围大小 20 - 50
+#define UI_BL_ON_LEVEL_MIN                      (20 * 100) /// 开灯最低亮度
+#define UI_BL_ON_LEVEL_RANGE                    (50 * 100) /// 开灯调节范围大小 20 - 50
 
 #if IS_SUPPORT_ADAPTIVE_DIMMING
 #define IS_UI_BACKLIGHT_ADAPTIVE                (1)
@@ -73,7 +72,7 @@ static void change_images_cb(lv_timer_t *t);
 static void reset_play_count_cb(ui_animation_play_t *play);
 // static void ui_pm_suspend_on_ui_thread(struct ui_manager_context *thiz);
 
-static void set_backlight_level_internal(ui_manager_context_t *thiz, uint8_t level)
+static void set_backlight_level_internal(ui_manager_context_t *thiz, uint16_t level)
 {
     EXCEPTION_CHECK_VOID(thiz && thiz->priv.panel_dev);
     uint32_t tmp[1] = {level};
@@ -82,7 +81,7 @@ static void set_backlight_level_internal(ui_manager_context_t *thiz, uint8_t lev
     // LOG_UI("set lcd backlight:%d", level);
 }
 
-static void set_backlight_level(ui_manager_context_t *thiz, uint8_t level)
+static void set_backlight_level(ui_manager_context_t *thiz, uint16_t level)
 {
     EXCEPTION_CHECK_VOID(thiz);
     thiz->priv.ui_backlight_onoff = level > 0 ? true : false;
@@ -95,7 +94,7 @@ static void set_backlight_onoff(ui_manager_context_t *thiz, bool onoff)
     thiz->priv.ui_backlight_onoff = onoff;
     LOG_UI("lcd backlight:%d", onoff);
 #if (IS_UI_BACKLIGHT_ADAPTIVE == 0)
-    set_backlight_level_internal(thiz, onoff ? 100 : 0);
+    set_backlight_level_internal(thiz, onoff ? LCD_BACKLIGHT_LEVEL_MAX : 0);
 #endif
 }
 
@@ -111,16 +110,16 @@ static void ui_backlight_adaptive_thread(void *user_data)
 }
 #endif
 
-static void set_backlight_adaptive_level(ui_manager_context_t *thiz, uint8_t level)
+static void set_backlight_adaptive_level(ui_manager_context_t *thiz, uint16_t level)
 {
     EXCEPTION_CHECK_VOID(thiz);
     if (level == 0) {
         thiz->priv.ui_backlight_adaptive_val = UI_BL_ON_LEVEL_MIN;
     } else {
-        if (level > 100) {
-            level = 100;
+        if (level > LCD_BACKLIGHT_LEVEL_MAX) {
+            level = LCD_BACKLIGHT_LEVEL_MAX;
         }
-        thiz->priv.ui_backlight_adaptive_val = ((level * UI_BL_ON_LEVEL_RANGE) / 100) + UI_BL_ON_LEVEL_MIN;
+        thiz->priv.ui_backlight_adaptive_val = ((level * UI_BL_ON_LEVEL_RANGE) / LCD_BACKLIGHT_LEVEL_MAX) + UI_BL_ON_LEVEL_MIN;
     }
 }
 

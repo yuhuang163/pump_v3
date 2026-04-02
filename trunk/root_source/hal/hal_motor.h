@@ -81,6 +81,7 @@ typedef enum {
     MOTOR_VALVE_ON, /// 电磁阀门打开
     MOTOR_VALVE_OFF, /// 电磁阀门关闭
     MOTOR_PUMP_OFF_AND_VALVE_OFF, /// 泵停止并电磁阀门打开
+    MOTOR_PUMP_DUTY_ADJUST,  /// 泵占空比动态调整
 } motor_pump_status_e;
 
 #if (MOTOR_DRIVER_VERSION == MOTOR_DRIVER_V1)
@@ -93,7 +94,7 @@ typedef enum {
  * @brief 描述马达参数
 */
 typedef struct {
-    uint16_t pulse_width;
+    int16_t pulse_width;
     uint16_t freq;
     uint16_t duration_ms;
     motor_pump_status_e action;

@@ -146,6 +146,16 @@ static void internal_keyevent_callback(void *user_data, uint16_t keycode, uint16
             LOG_KEY("in airplane mode, ignore");
             return;
         }
+        //如果正在吸奶，则不进入工厂模式
+        breast_pump_manager_context_t *pump = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
+        if (pump) {
+            uint8_t is_working = 0;
+            READ_PUMP_IS_WORKING(pump, is_working);
+            if (is_working) {
+            LOG_KEY("in pump, ignore");
+            return;
+            }
+        }
         multi_func_msg_data_t msg = {0};
         msg.union_body.extra.window_id = ID_WINDOW_SYSTEM;
         msg.union_body.extra.arg1 = ID_SYSTEM_WINDOW_FACTORY_RESET;

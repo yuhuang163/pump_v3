@@ -198,35 +198,45 @@ static int system_persist_info_sync_flash(storage_manager_context_t *ctx)
     info_crc = CRC16(&sys_info->config, sizeof(sys_config_info_t));
     if (info_crc != ctx->priv.sys_info_crc[STORE_CRC_TYPE_SYS_CONFIG]) {
         args.val = &sys_info->config;
-        write_sys_config_info_to_flash(args);
+        if (write_sys_config_info_to_flash(args) == 0) {
+            ctx->priv.sys_info_crc[STORE_CRC_TYPE_SYS_CONFIG] = info_crc;
+        }
         LOG_STORE("-->system config info sync flash");
     }
     ///  系统状态
     info_crc = CRC16(&sys_info->state, sizeof(sys_state_info_t));
     if (info_crc != ctx->priv.sys_info_crc[STORE_CRC_TYPE_SYS_STATE]) {
         args.val = &sys_info->state;
-        write_sys_state_info_to_flash(args);
+        if (write_sys_state_info_to_flash(args) == 0) {
+            ctx->priv.sys_info_crc[STORE_CRC_TYPE_SYS_STATE] = info_crc;
+        }
         LOG_STORE("-->system state info sync flash");
     }
     ///  泵奶信息
     info_crc = CRC16(&sys_info->pump_info, sizeof(sys_pump_info_t));
     if (info_crc != ctx->priv.sys_info_crc[STORE_CRC_TYPE_PUMP_INFO]) {
         args.val = &sys_info->pump_info;
-        write_pump_info_to_flash(args);
+        if (write_pump_info_to_flash(args) == 0) {
+            ctx->priv.sys_info_crc[STORE_CRC_TYPE_PUMP_INFO] = info_crc;
+        }
         LOG_STORE("-->pump info sync flash");
     }
     ///  泵奶模式步骤信息
     info_crc = CRC16(&sys_info->mode_info, sizeof(sys_pump_mode_info_t));
     if (info_crc != ctx->priv.sys_info_crc[STORE_CRC_TYPE_PUMP_MODE_STEPS_INFO]) {
         args.val = &sys_info->mode_info;
-        write_pump_mode_steps_info_to_flash(args);
+        if (write_pump_mode_steps_info_to_flash(args) == 0) {
+            ctx->priv.sys_info_crc[STORE_CRC_TYPE_PUMP_MODE_STEPS_INFO] = info_crc;
+        }
         LOG_STORE("-->pump mode steps info sync flash");
     }
     ///  泵奶埋点信息
     info_crc = CRC16(&sys_info->buried_info_list, sizeof(sys_buried_info_list_t));
     if (info_crc != ctx->priv.sys_info_crc[STORE_CRC_TYPE_PUMP_BURY_INFO]) {
         args.val = &sys_info->buried_info_list;
-        write_pump_buried_info_to_flash(args);
+        if (write_pump_buried_info_to_flash(args) == 0) {
+            ctx->priv.sys_info_crc[STORE_CRC_TYPE_PUMP_BURY_INFO] = info_crc;
+        }
         LOG_STORE("-->pump buried info sync flash");
     }
     return 0;

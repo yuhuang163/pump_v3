@@ -17,6 +17,8 @@ struct breast_pump_context;
 struct input_dispatcher_context;
 struct storage_manager_context;
 
+typedef void (*on_algo_result_cb_ptr)(void *user_data, algo_breast_pump_data_t *result);
+
 /// 吸奶数据ID
 typedef enum{
     ALGO_BREAST_PUMP_DATA_PUMPING,  /// 吸奶中的信息 
@@ -31,16 +33,22 @@ typedef struct algo_manager_context {
 /// private
     struct __algo_private {
         broadcast_obj_t m_bcd;
+        os_mutex_id m_lock;
+        list_head_t client_list;
         int algo_inited;
         uint8_t is_sampling;          /// 是否正在采集
         algo_breast_pump_data_t algo_data; /// 算法数据
+        algo_breast_pump_data_t m_result;  /// 最近一次分发的算法结果快照
         struct motor_manager_context *motor;
         struct sensor_manager_context *sensor;
+        struct breast_pump_manager_context *pump;
     } priv;
 
 /// public
     int (*get_algo_version)(void);
     void (*get_algo_data)(algo_breast_pump_data_t *algo_data);
+    int (*add_algo_result_listener)(void *user_data, on_algo_result_cb_ptr cb);
+    void (*remove_algo_result_listener)(on_algo_result_cb_ptr cb);
     struct __algo_manager_hook {
         int (*on_post_init_route)(struct algo_manager_context *ctx);
         int (*on_algo_receiver_route)(broadcast_mask_id_t id, void *context, int arg1, int arg2, void *user_data);

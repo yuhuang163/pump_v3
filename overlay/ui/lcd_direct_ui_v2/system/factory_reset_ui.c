@@ -136,7 +136,10 @@ static void factory_reset_root_bg_update(ui_manager_context_t *thiz)
     }
 }
 #endif
-//*********************************************************************************************************************** */
+/*
+* GLOBAL FUNCTION DEFINITIONS
+*****************************************************************************************
+*/
 void ui_display_factory_reset_prepare(ui_manager_context_t *thiz)
 {
     EXCEPTION_CHECK_VOID(thiz);

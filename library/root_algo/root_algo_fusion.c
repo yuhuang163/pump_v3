@@ -4,7 +4,7 @@
 */
 #include "include/algo_fusion_lib.h" // IWYU pragma: keep
 #include "wear_detecttion/v3_wear_detection.h" // IWYU pragma: keep
-
+#include "wear_detecttion/v3_pressure_compensation_algo.h" // IWYU pragma: keep
 /*
 * DEFINES
 *****************************************************************************************
@@ -43,6 +43,7 @@ static void wear_detection_process_data(void)
 {
     if (s_task_flag & (1 << WEAR_DETECTION_TASK)) {
         /// TODO: 实现佩戴检测算法
+        /*
         V3WearDetectionMain(s_air_pressure_data.air_pressure, s_air_pressure_data.pump_state[0].level, 
             s_air_pressure_data.pump_state[1].level,
             s_air_pressure_data.pump_state[0].mode, 
@@ -50,8 +51,19 @@ static void wear_detection_process_data(void)
         //ALGO_LOG_INFO("wear_detection_process_data: %f, %f", s_air_pressure_data.air_pressure[0], s_air_pressure_data.air_pressure[1]);
         /// TODO: 修改算法结果s_result
         GetWearDetectionResult(s_result.wear_status);
+        */
+
+        // TODO: 实现气压补偿算法
+        V3ProAlgoMain(s_air_pressure_data);
+        GetCompensationResult(s_result.compensation_status, s_result.compensation_delta_pwm);
+        #if IS_SUPPORT_ALGO_LIB_LOG_OUTPUT
+        ALGO_LOG_INFO("time_stamp: %d, air pressure: p1: %f, p2: %f", s_air_pressure_data.timestamp, s_air_pressure_data.air_pressure[0], s_air_pressure_data.air_pressure[1]);
+        ALGO_LOG_INFO("pump state: %d, %d", s_air_pressure_data.pump_state[0].state, s_air_pressure_data.pump_state[1].state);
+        ALGO_LOG_INFO("status: %d/%d, delta_pwm: %d, %d", s_result.compensation_status[0], s_result.compensation_status[1], s_result.compensation_delta_pwm[0], s_result.compensation_delta_pwm[1]);
+        #endif
     }
 }
+
 
 static void algo_fusion_work_thread(void *args)
 { 
@@ -59,7 +71,9 @@ static void algo_fusion_work_thread(void *args)
     ALGO_QUEUE_CREATE(&algo_msg_queue_id, "algo_fusion_queue", ALGO_FUSION_QUEUE_SIZE, ALGO_FUSION_QUEUE_ITEM_SIZE);
     for (;;) {
         ALGO_QUEUE_RECV(algo_msg_queue_id, &data_type, ALGO_OS_WAIT_FOREVER);
-        // ALGO_LOG_INFO("algo_fusion_work_thread: %d", data_type);
+        #if IS_SUPPORT_ALGO_LIB_LOG_OUTPUT
+        ALGO_LOG_INFO("algo_fusion_work_thread: %d", data_type);
+        #endif
         switch (data_type) {
             case ALGO_SENSOR_ATTR_AIR_PRESSURE: {
                 wear_detection_process_data();
@@ -100,17 +114,28 @@ void algo_fusion_lib_input(algo_fusion_input_data_t *input)
     /// TODO: 是否需要缓存数据，比如未泵奶的情况
     /// TODO: 缓存数据到本地，避免阻塞
     /// TODO: 监听缓存是否满，满了发消息给算法线程
-    
+    #if IS_SUPPORT_ALGO_LIB_LOG_OUTPUT
+    ALGO_LOG_INFO("algo_fusion_lib_input: %d", data_type);
+    #endif
     // data type
     switch (data_type){
         case ALGO_SENSOR_ATTR_AIR_PRESSURE:
         {
-            s_air_pressure_data.air_pressure[0] = ((aglo_air_pressure_data_t*)input->sensor_data)->air_pressure[0];
-            s_air_pressure_data.air_pressure[1] = ((aglo_air_pressure_data_t*)input->sensor_data)->air_pressure[1];
+            s_air_pressure_data.air_pressure[0] = ((aglo_air_pressure_data_t*)input->sensor_data)->air_pressure[1];     // 气压数据反了
+            s_air_pressure_data.air_pressure[1] = ((aglo_air_pressure_data_t*)input->sensor_data)->air_pressure[0];     // 气压数据反了
             s_air_pressure_data.pump_state[0].level = ((aglo_air_pressure_data_t*)input->sensor_data)->pump_state[0].level;
             s_air_pressure_data.pump_state[1].level = ((aglo_air_pressure_data_t*)input->sensor_data)->pump_state[1].level;
             s_air_pressure_data.pump_state[0].mode = ((aglo_air_pressure_data_t*)input->sensor_data)->pump_state[0].mode;
             s_air_pressure_data.pump_state[1].mode = ((aglo_air_pressure_data_t*)input->sensor_data)->pump_state[1].mode;
+            s_air_pressure_data.pump_state[0].state = ((aglo_air_pressure_data_t*)input->sensor_data)->pump_state[0].state;
+            s_air_pressure_data.pump_state[1].state = ((aglo_air_pressure_data_t*)input->sensor_data)->pump_state[1].state;
+            s_air_pressure_data.pump_state[0].pump_duty = ((aglo_air_pressure_data_t*)input->sensor_data)->pump_state[0].pump_duty;
+            s_air_pressure_data.pump_state[1].pump_duty = ((aglo_air_pressure_data_t*)input->sensor_data)->pump_state[1].pump_duty;
+            s_air_pressure_data.pump_state[0].valve_duty = ((aglo_air_pressure_data_t*)input->sensor_data)->pump_state[0].valve_duty;
+            s_air_pressure_data.pump_state[1].valve_duty = ((aglo_air_pressure_data_t*)input->sensor_data)->pump_state[1].valve_duty;
+            s_air_pressure_data.pump_state[0].target_pressure = ((aglo_air_pressure_data_t*)input->sensor_data)->pump_state[0].target_pressure;
+            s_air_pressure_data.pump_state[1].target_pressure = ((aglo_air_pressure_data_t*)input->sensor_data)->pump_state[1].target_pressure;
+            s_air_pressure_data.timestamp = ((aglo_air_pressure_data_t*)input->sensor_data)->timestamp;
             break;
         }
         default:
@@ -129,7 +154,8 @@ int algo_fusion_lib_init(algo_fusion_sensor_attr_type_e sensor_flag, algo_fusion
             return ALGO_FUSION_INIT_RUN_OUT_OF_MEMORY;
         }
         // just for initialization - not the final parameters
-        V3WearDetectionInit(0, 0, 0, 0);
+        // V3WearDetectionInit(0, 0, 0, 0);
+        V3ProAlgoInit(s_air_pressure_data);
     }
     return ALGO_FUSION_INIT_SUCCESS;
 }

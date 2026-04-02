@@ -133,6 +133,7 @@ static int generate_motor_para(struct motor_manager_context *ctx, int mode, void
     return ret;
 }
 
+#if MOTOR_DRIVER_VERSION == MOTOR_DRIVER_V1
 static void motor_debug_finish_cb(hdr_post_args_t *args)
 {
     motor_manager_context_t *ctx = (motor_manager_context_t *)args->user_data;
@@ -140,6 +141,7 @@ static void motor_debug_finish_cb(hdr_post_args_t *args)
     ctx->stop_motor();
     ctx->priv.user_debug_status = 0;
 }
+#endif
 
 static void motor_debug_with_user_para(motor_manager_context_t *ctx, uint8_t id, void *user_data)
 {
@@ -263,8 +265,10 @@ static void motor_debug_with_user_para(motor_manager_context_t *ctx, uint8_t id,
     else if (id == MOTOR_USER_DEBUG_PUMP_ON) {
         EXCEPTION_CHECK_VOID(user_data);
         motor_debug_para_t *para = (motor_debug_para_t *)user_data;
+#if MOTOR_DRIVER_VERSION == MOTOR_DRIVER_V1
         motor.un.pwm.duty = para->duty;
         motor.un.pwm.freq = BREAST_PUMP_VALVE_FREQ;
+
         args[1] = (uint32_t)&motor;
         for (uint8_t i = 0; i < BREAST_PUMP_NUM; i++) {
             args[0] = MOTOR_PWM_PUMP_1 + i;
@@ -279,10 +283,21 @@ static void motor_debug_with_user_para(motor_manager_context_t *ctx, uint8_t id,
             POST_TASK_HANDLER_DELAYED_ARG1(motor_debug_finish_cb, para->hold_time, ctx,
                     MOTOR_DEBUG_TASK_NAME);
         }
+#else
+        motor.un.pump.pulse_width = para->duty * PUMP_DUTY_SCALE_FACTOR;
+        motor.un.pump.freq = BREAST_PUMP_VALVE_FREQ;
+        motor.un.pump.action = MOTOR_PUMP_ON;
+        motor.un.pump.duration_ms = para->hold_time;
+        for (uint8_t i = 0; i < BREAST_PUMP_NUM; i++) {
+            motor.un.pump.pump_id = i;
+            DEVICE_IOCTL_ARGS(ctx->priv.motor_dev, OP_CODE_MOTOR_START_PLAY, &motor);
+        }
+#endif
         LOG_MOTOR("motor debug pump on, duty: %d, hold_time: %d", para->duty, para->hold_time);
     } else if (id == MOTOR_USER_DEBUG_VALVE_ON) {
         EXCEPTION_CHECK_VOID(user_data);
         motor_debug_para_t *para = (motor_debug_para_t *)user_data;
+#if MOTOR_DRIVER_VERSION == MOTOR_DRIVER_V1
         motor.un.pwm.duty = para->duty;
         motor.un.pwm.freq = BREAST_PUMP_VALVE_FREQ;
         args[1] = (uint32_t)&motor;
@@ -299,6 +314,16 @@ static void motor_debug_with_user_para(motor_manager_context_t *ctx, uint8_t id,
             POST_TASK_HANDLER_DELAYED_ARG1(motor_debug_finish_cb, para->hold_time, ctx,
                     MOTOR_DEBUG_TASK_NAME);
         }
+#else
+        motor.un.pump.pulse_width = para->duty * PUMP_DUTY_SCALE_FACTOR;
+        motor.un.pump.freq = BREAST_PUMP_VALVE_FREQ;
+        motor.un.pump.action = MOTOR_VALVE_ON;
+        motor.un.pump.duration_ms = para->hold_time;
+        for (uint8_t i = 0; i < BREAST_PUMP_NUM; i++) {
+            motor.un.pump.pump_id = i;
+            DEVICE_IOCTL_ARGS(ctx->priv.motor_dev, OP_CODE_MOTOR_START_PLAY, &motor);
+        }
+#endif
         LOG_MOTOR("motor debug valve on, duty: %d, hold_time: %d", para->duty, para->hold_time);
     }
 }

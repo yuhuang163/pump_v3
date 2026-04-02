@@ -76,9 +76,10 @@ V3_2710IMP_HARDWARE_V1 ?= 0
 V3_2710IMC_HARDWARE_V1 ?= 1
 V3_2710IMC_HARDWARE_V2 ?= 2
 V3_2710IMC_HARDWARE_V3 ?= 3 #DV1
-V3_HARDWARE_VERSION ?= $(V3_2710IMC_HARDWARE_V3)
+V3_2710IMC_HARDWARE_V4 ?= 4 #DV4
+V3_HARDWARE_VERSION ?= $(V3_2710IMC_HARDWARE_V4)
 
-ifeq ($(V3_HARDWARE_VERSION), V3_2710IMC_HARDWARE_V3)
+ifneq ($(filter $(V3_HARDWARE_VERSION),$(V3_2710IMC_HARDWARE_V3) $(V3_2710IMC_HARDWARE_V4)),)
 # littlefs section size
 LITTLEFS_SECTION_SIZE ?= 0xC0000
 
@@ -121,10 +122,20 @@ CFG_EXTERNAL_FLASH_ENABLE := 1
 # BT 校准开关
 CFG_BT_CALIB ?= 1
 
+# 产品型号
+ROOT_PRODUCT_V3_ID ?= 0x08
+ROOT_PRODUCT_V3PRO_ID ?= 0x09
+ROOT_PRODUCT_ID ?= $(ROOT_PRODUCT_V3PRO_ID)
+
 # UI版本
 V3_UI_V1 ?= 1
 V3_UI_V2 ?= 2
+V3PRO_UI_V2 ?= 3
+ifeq ($(ROOT_PRODUCT_ID), $(ROOT_PRODUCT_V3PRO_ID))
+V3_UI_VERSION ?= $(V3PRO_UI_V2)
+else
 V3_UI_VERSION ?= $(V3_UI_V2)
+endif
 
 # 泵驱动版本(1:旧版本, 2:新版本)
 MOTOR_DRIVER_V1 ?= 1
@@ -148,6 +159,10 @@ UI_INC_DIRECT_FLAGS := $(patsubst %,-I%,$(UI_INC_DIRECT_DIRS))
 UI_INC_DIRECT_V2_DIRS := $(shell find $(PROJECT_ROOT)/overlay/ui/lcd_direct_ui_v2 -type d)
 # UI Direct V2 头文件
 UI_INC_DIRECT_V2_FLAGS := $(patsubst %,-I%,$(UI_INC_DIRECT_V2_DIRS))
+# UI Direct v3 pro V2 头文件子目录
+UI_INC_DIRECT_V3PRO_V2_DIRS := $(shell find $(PROJECT_ROOT)/overlay/ui/v3pro_lcd_direct_ui_v2 -type d)
+# UI Direct v3 pro V2 头文件
+UI_INC_DIRECT_V3PRO_V2_FLAGS := $(patsubst %,-I%,$(UI_INC_DIRECT_V3PRO_V2_DIRS))
 # UI UART 源码目录
 UI_LCD_UART_DIR := $(PROJECT_ROOT)/overlay/ui/lcd_uart_ui
 # UI LCD UART 源码文件
@@ -160,6 +175,10 @@ UI_LCD_DIRECT_SRCS := $(call rwildcard,$(UI_LCD_DIRECT_DIR))
 UI_LCD_DIRECT_V2_DIR := $(PROJECT_ROOT)/overlay/ui/lcd_direct_ui_v2
 # UI LCD Direct V2 源码文件
 UI_LCD_DIRECT_V2_SRCS := $(call rwildcard,$(UI_LCD_DIRECT_V2_DIR))
+# UI LCD Direct V3 Pro V2 源码目录
+UI_LCD_DIRECT_V3PRO_V2_DIR := $(PROJECT_ROOT)/overlay/ui/v3pro_lcd_direct_ui_v2
+# UI LCD Direct V3 Pro V2 源码文件
+UI_LCD_DIRECT_V3PRO_V2_SRCS := $(call rwildcard,$(UI_LCD_DIRECT_V3PRO_V2_DIR))
 
 # Protocol 头文件子目录
 PROTOCOL_INC_DIRS := $(shell find $(PROJECT_ROOT)/overlay/protocol -type d)
@@ -277,7 +296,7 @@ DRIVERS_AIR_PRESSURE_INC_FLAGS := \
 ifeq ($(V3_HARDWARE_VERSION), $(V3_2710IMC_HARDWARE_V1))
 DRIVERS_AIR_PRESSURE_INC_FLAGS += -I$(PROJECT_ROOT)/drivers/air_pressure/chip/wf100d
 else
-ifneq ($(filter $(V3_HARDWARE_VERSION),$(V3_2710IMC_HARDWARE_V2) $(V3_2710IMC_HARDWARE_V3)),)
+ifneq ($(filter $(V3_HARDWARE_VERSION),$(V3_2710IMC_HARDWARE_V2) $(V3_2710IMC_HARDWARE_V3) $(V3_2710IMC_HARDWARE_V4)),)
 DRIVERS_AIR_PRESSURE_INC_FLAGS += -I$(PROJECT_ROOT)/drivers/air_pressure/chip/limscg04pcns5
 endif
 endif	
@@ -299,7 +318,7 @@ DRIVERS_BATTERY_INC_FLAGS := \
 	-I$(PROJECT_ROOT)/drivers/battery \
 	-I$(PROJECT_ROOT)/drivers/battery/charge
 
-ifneq ($(filter $(V3_HARDWARE_VERSION),$(V3_2710IMC_HARDWARE_V1) $(V3_2710IMC_HARDWARE_V2) $(V3_2710IMC_HARDWARE_V3)),)
+ifneq ($(filter $(V3_HARDWARE_VERSION),$(V3_2710IMC_HARDWARE_V1) $(V3_2710IMC_HARDWARE_V2) $(V3_2710IMC_HARDWARE_V3) $(V3_2710IMC_HARDWARE_V4)),)
 DRIVERS_BATTERY_INC_FLAGS += -I$(PROJECT_ROOT)/drivers/battery/charge_pd
 endif
 
@@ -339,11 +358,13 @@ DRIVERS_I2C_INC_FLAGS := \
 DRIVERS_IMU_INC_FLAGS := \
 	-I$(PROJECT_ROOT)/drivers/imu
 
-# 按键驱动头文件
-DRIVERS_KEY_INC_FLAGS := \
-	-I$(PROJECT_ROOT)/drivers/key \
-	-I$(PROJECT_ROOT)/drivers/key/chip/sc09b
-ifneq ($(filter $(V3_HARDWARE_VERSION),$(V3_2710IMC_HARDWARE_V1) $(V3_2710IMC_HARDWARE_V2) $(V3_2710IMC_HARDWARE_V3)),)
+DRIVERS_KEY_INC_FLAGS := -I$(PROJECT_ROOT)/drivers/key
+ifneq ($(filter $(V3_HARDWARE_VERSION),$(V3_2710IMC_HARDWARE_V4)),)
+DRIVERS_KEY_INC_FLAGS += -I$(PROJECT_ROOT)/drivers/key/chip/hyn
+else
+DRIVERS_KEY_INC_FLAGS += -I$(PROJECT_ROOT)/drivers/key/chip/sc09b
+endif
+ifneq ($(filter $(V3_HARDWARE_VERSION),$(V3_2710IMC_HARDWARE_V1) $(V3_2710IMC_HARDWARE_V2) $(V3_2710IMC_HARDWARE_V3) $(V3_2710IMC_HARDWARE_V4)),)
 DRIVERS_KEY_INC_FLAGS += -I$(PROJECT_ROOT)/drivers/key/chip/knob
 endif
 
@@ -351,7 +372,7 @@ endif
 DRIVERS_LCD_INC_FLAGS := \
 	-I$(PROJECT_ROOT)/drivers/lcd 
 	
-ifneq ($(filter $(V3_HARDWARE_VERSION),$(V3_2710IMC_HARDWARE_V1) $(V3_2710IMC_HARDWARE_V2) $(V3_2710IMC_HARDWARE_V3)),)
+ifneq ($(filter $(V3_HARDWARE_VERSION),$(V3_2710IMC_HARDWARE_V1) $(V3_2710IMC_HARDWARE_V2) $(V3_2710IMC_HARDWARE_V3) $(V3_2710IMC_HARDWARE_V4)),)
 DRIVERS_LCD_INC_FLAGS += -I$(PROJECT_ROOT)/drivers/lcd/interface/lcd_bes_qspi
 else
 DRIVERS_LCD_INC_FLAGS += -I$(PROJECT_ROOT)/drivers/lcd/interface/lcd_uart
@@ -402,7 +423,7 @@ DRIVERS_INC_FLAGS := \
 	$(DRIVERS_UART_INC_FLAGS) \
 	$(DRIVERS_WIFI_INC_FLAGS)
 
-ifneq ($(filter $(V3_HARDWARE_VERSION),$(V3_2710IMC_HARDWARE_V1) $(V3_2710IMC_HARDWARE_V2) $(V3_2710IMC_HARDWARE_V3)),)
+ifneq ($(filter $(V3_HARDWARE_VERSION),$(V3_2710IMC_HARDWARE_V1) $(V3_2710IMC_HARDWARE_V2) $(V3_2710IMC_HARDWARE_V3) $(V3_2710IMC_HARDWARE_V4)),)
 DRIVERS_INC_FLAGS += $(DRIVERS_LIGHT_SENSOR_INC_FLAGS)
 endif	
 
@@ -464,7 +485,7 @@ SENSOR_INC_FLAGS := \
 	-I$(PROJECT_ROOT)/overlay/sensor/air_pressure \
 	-I$(PROJECT_ROOT)/overlay/framework_hooks/sensor \
 	-I$(PROJECT_ROOT)/trunk/root_source/sensor
-ifneq ($(filter $(V3_HARDWARE_VERSION),$(V3_2710IMC_HARDWARE_V1) $(V3_2710IMC_HARDWARE_V2) $(V3_2710IMC_HARDWARE_V3)),)
+ifneq ($(filter $(V3_HARDWARE_VERSION),$(V3_2710IMC_HARDWARE_V1) $(V3_2710IMC_HARDWARE_V2) $(V3_2710IMC_HARDWARE_V3) $(V3_2710IMC_HARDWARE_V4)),)
 SENSOR_INC_FLAGS += -I$(PROJECT_ROOT)/overlay/sensor/light_sensor
 endif	
 
@@ -484,12 +505,13 @@ UI_MODULE_INC_FLAGS := \
 	-I$(PROJECT_ROOT)/trunk/root_source/ui
 
 ifeq ($(CFG_LVGL_ENABLE),1)
+UI_MODULE_INC_FLAGS += -I$(PROJECT_ROOT)/overlay/framework_hooks/ui/lcd_direct_ui
 ifeq ($(V3_UI_VERSION), $(V3_UI_V1))
 UI_MODULE_INC_FLAGS += $(UI_INC_DIRECT_FLAGS)
-UI_MODULE_INC_FLAGS += -I$(PROJECT_ROOT)/overlay/framework_hooks/ui/lcd_direct_ui
+else ifeq ($(V3_UI_VERSION), $(V3PRO_UI_V2))
+UI_MODULE_INC_FLAGS += $(UI_INC_DIRECT_V3PRO_V2_FLAGS)
 else
 UI_MODULE_INC_FLAGS += $(UI_INC_DIRECT_V2_FLAGS)
-UI_MODULE_INC_FLAGS += -I$(PROJECT_ROOT)/overlay/framework_hooks/ui/lcd_direct_ui
 endif
 else
 UI_MODULE_INC_FLAGS += $(UI_INC_UART_FLAGS)
@@ -611,14 +633,15 @@ PRODUCT_TESTS_INC_FLAGS := \
 # 资源模块头文件
 RESOURCE_INC_FLAGS := \
 	-I$(PROJECT_ROOT)/trunk/root_source/resource \
-	-I$(PROJECT_ROOT)/overlay/resources
+	-I$(PROJECT_ROOT)/overlay/resources\
+	-I$(PROJECT_ROOT)/overlay/resources/reference
 
 ifeq ($(V3_UI_VERSION), $(V3_UI_V1))
 RESOURCE_INC_FLAGS += -I$(PROJECT_ROOT)/overlay/resources/V1
-RESOURCE_INC_FLAGS += -I$(PROJECT_ROOT)/overlay/resources/reference
+else ifeq ($(V3_UI_VERSION), $(V3PRO_UI_V2))
+RESOURCE_INC_FLAGS += -I$(PROJECT_ROOT)/overlay/resources/V3PRO_V2
 else
 RESOURCE_INC_FLAGS += -I$(PROJECT_ROOT)/overlay/resources/V2
-RESOURCE_INC_FLAGS += -I$(PROJECT_ROOT)/overlay/resources/reference
 endif
 
 # 电池模块头文件
@@ -716,12 +739,19 @@ CPPFLAGS += -DV3_2710IMC_HARDWARE_V1=$(V3_2710IMC_HARDWARE_V1)
 CPPFLAGS += -DV3_2710IMC_HARDWARE_V2=$(V3_2710IMC_HARDWARE_V2)
 CPPFLAGS += -DV3_2710IMP_HARDWARE_V1=$(V3_2710IMP_HARDWARE_V1)
 CPPFLAGS += -DV3_2710IMC_HARDWARE_V3=$(V3_2710IMC_HARDWARE_V3)
+CPPFLAGS += -DV3_2710IMC_HARDWARE_V4=$(V3_2710IMC_HARDWARE_V4)
 CPPFLAGS += -DV3_HARDWARE_VERSION=$(V3_HARDWARE_VERSION)
+
+# 产品型号
+CPPFLAGS += -DROOT_PRODUCT_ID=$(ROOT_PRODUCT_ID)
+CPPFLAGS += -DROOT_PRODUCT_V3_ID=$(ROOT_PRODUCT_V3_ID)
+CPPFLAGS += -DROOT_PRODUCT_V3PRO_ID=$(ROOT_PRODUCT_V3PRO_ID)
 
 # UI版本
 CPPFLAGS += -DV3_UI_VERSION=$(V3_UI_VERSION)
 CPPFLAGS += -DV3_UI_V1=$(V3_UI_V1)
 CPPFLAGS += -DV3_UI_V2=$(V3_UI_V2)
+CPPFLAGS += -DV3PRO_UI_V2=$(V3PRO_UI_V2)
 
 # 泵驱动版本
 CPPFLAGS += -DMOTOR_DRIVER_VERSION=$(MOTOR_DRIVER_VERSION)
@@ -760,7 +790,7 @@ endif
 # PWM IOMUX 相关宏定义
 CPPFLAGS += -DPWM2_IOMUX_INDEX=$(PWM2_IOMUX_INDEX)
 CPPFLAGS += -DPWM3_IOMUX_INDEX=$(PWM3_IOMUX_INDEX)
-ifneq ($(filter $(V3_HARDWARE_VERSION),$(V3_2710IMC_HARDWARE_V2) $(V3_2710IMC_HARDWARE_V3)),)
+ifneq ($(filter $(V3_HARDWARE_VERSION),$(V3_2710IMC_HARDWARE_V2) $(V3_2710IMC_HARDWARE_V3) $(V3_2710IMC_HARDWARE_V4)),)
 CPPFLAGS += -DPWM4_IOMUX_INDEX=$(PWM4_IOMUX_INDEX)
 CPPFLAGS += -DPWM5_IOMUX_INDEX=$(PWM5_IOMUX_INDEX)
 endif
@@ -861,7 +891,7 @@ DRIVERS_AIR_PRESSURE_SRCS := \
 ifeq ($(V3_HARDWARE_VERSION), $(V3_2710IMC_HARDWARE_V1))
 DRIVERS_AIR_PRESSURE_SRCS += $(wildcard $(PROJECT_ROOT)/drivers/air_pressure/chip/wf100d/*.c)
 else 
-ifneq ($(filter $(V3_HARDWARE_VERSION),$(V3_2710IMC_HARDWARE_V2) $(V3_2710IMC_HARDWARE_V3)),)
+ifneq ($(filter $(V3_HARDWARE_VERSION),$(V3_2710IMC_HARDWARE_V2) $(V3_2710IMC_HARDWARE_V3) $(V3_2710IMC_HARDWARE_V4)),)
 DRIVERS_AIR_PRESSURE_SRCS += $(wildcard $(PROJECT_ROOT)/drivers/air_pressure/chip/limscg04pcns5/*.c)
 endif
 endif
@@ -879,7 +909,7 @@ DRIVERS_BATTERY_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/drivers/battery/*.c) \
 	$(wildcard $(PROJECT_ROOT)/drivers/battery/charge/*.c) \
 	$(wildcard $(PROJECT_ROOT)/drivers/battery/adc/*.c)
-ifneq ($(filter $(V3_HARDWARE_VERSION),$(V3_2710IMC_HARDWARE_V1) $(V3_2710IMC_HARDWARE_V2) $(V3_2710IMC_HARDWARE_V3)),)
+ifneq ($(filter $(V3_HARDWARE_VERSION),$(V3_2710IMC_HARDWARE_V1) $(V3_2710IMC_HARDWARE_V2) $(V3_2710IMC_HARDWARE_V3) $(V3_2710IMC_HARDWARE_V4)),)
 DRIVERS_BATTERY_SRCS += $(wildcard $(PROJECT_ROOT)/drivers/battery/charge_pd/*.c)
 endif
 
@@ -923,11 +953,16 @@ DRIVERS_I2C_SRCS := \
 DRIVERS_IMU_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/drivers/imu/*.c)
 
-# 按键驱动源码
-DRIVERS_KEY_SRCS := \
-	$(wildcard $(PROJECT_ROOT)/drivers/key/*.c) \
-	$(wildcard $(PROJECT_ROOT)/drivers/key/chip/sc09b/*.c)
-ifneq ($(filter $(V3_HARDWARE_VERSION),$(V3_2710IMC_HARDWARE_V1) $(V3_2710IMC_HARDWARE_V2) $(V3_2710IMC_HARDWARE_V3)),)
+# 按键驱动源码（触摸芯片二选一）
+DRIVERS_KEY_SRCS := $(wildcard $(PROJECT_ROOT)/drivers/key/*.c)
+ifneq ($(filter $(V3_HARDWARE_VERSION),$(V3_2710IMC_HARDWARE_V4)),)
+DRIVERS_KEY_SRCS += $(wildcard $(PROJECT_ROOT)/drivers/key/chip/hyn/*.c)
+$(info [KEY] TOUCH_KEY_CHIP=hyn -> building HYN driver)
+else
+DRIVERS_KEY_SRCS += $(wildcard $(PROJECT_ROOT)/drivers/key/chip/sc09b/*.c)
+$(info [KEY] TOUCH_KEY_CHIP=$(TOUCH_KEY_CHIP) -> building SC09B driver)
+endif
+ifneq ($(filter $(V3_HARDWARE_VERSION),$(V3_2710IMC_HARDWARE_V1) $(V3_2710IMC_HARDWARE_V2) $(V3_2710IMC_HARDWARE_V3) $(V3_2710IMC_HARDWARE_V4)),)
 DRIVERS_KEY_SRCS += $(wildcard $(PROJECT_ROOT)/drivers/key/chip/knob/*.c)
 endif
 
@@ -935,7 +970,7 @@ endif
 DRIVERS_LCD_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/drivers/lcd/*.c) 
 	
-ifneq ($(filter $(V3_HARDWARE_VERSION),$(V3_2710IMC_HARDWARE_V1) $(V3_2710IMC_HARDWARE_V2) $(V3_2710IMC_HARDWARE_V3)),)
+ifneq ($(filter $(V3_HARDWARE_VERSION),$(V3_2710IMC_HARDWARE_V1) $(V3_2710IMC_HARDWARE_V2) $(V3_2710IMC_HARDWARE_V3) $(V3_2710IMC_HARDWARE_V4)),)
 DRIVERS_LCD_SRCS += $(wildcard $(PROJECT_ROOT)/drivers/lcd/interface/lcd_bes_qspi/*.c)
 else
 DRIVERS_LCD_SRCS += $(wildcard $(PROJECT_ROOT)/drivers/lcd/interface/lcd_uart/*.c)
@@ -948,7 +983,7 @@ DRIVERS_LED_SRCS := \
 
 ifeq ($(V3_HARDWARE_VERSION),$(V3_2710IMC_HARDWARE_V1))
 DRIVERS_LED_SRCS += $(wildcard $(PROJECT_ROOT)/drivers/led/led_tm1650/*.c)
-else ifneq ($(filter $(V3_HARDWARE_VERSION),$(V3_2710IMC_HARDWARE_V2) $(V3_2710IMC_HARDWARE_V3)),)
+else ifneq ($(filter $(V3_HARDWARE_VERSION),$(V3_2710IMC_HARDWARE_V2) $(V3_2710IMC_HARDWARE_V3) $(V3_2710IMC_HARDWARE_V4)),)
 DRIVERS_LED_SRCS += $(wildcard $(PROJECT_ROOT)/drivers/led/led_htr3316/*.c)
 else
 DRIVERS_LED_SRCS += $(wildcard $(PROJECT_ROOT)/drivers/led/led_control/*.c)
@@ -993,7 +1028,7 @@ DRIVERS_SRCS := \
 	$(DRIVERS_UART_SRCS) \
 	$(DRIVERS_WIFI_SRCS)
 
-ifneq ($(filter $(V3_HARDWARE_VERSION),$(V3_2710IMC_HARDWARE_V1) $(V3_2710IMC_HARDWARE_V2) $(V3_2710IMC_HARDWARE_V3)),)
+ifneq ($(filter $(V3_HARDWARE_VERSION),$(V3_2710IMC_HARDWARE_V1) $(V3_2710IMC_HARDWARE_V2) $(V3_2710IMC_HARDWARE_V3) $(V3_2710IMC_HARDWARE_V4)),)
 DRIVERS_SRCS += $(DRIVERS_LIGHT_SENSOR_SRCS)
 endif	
 
@@ -1050,7 +1085,7 @@ SENSOR_MODULE_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/overlay/sensor/air_pressure/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/framework_hooks/sensor/*.c) \
 	$(wildcard $(PROJECT_ROOT)/trunk/root_source/sensor/*.c)
-ifneq ($(filter $(V3_HARDWARE_VERSION),$(V3_2710IMC_HARDWARE_V1) $(V3_2710IMC_HARDWARE_V2) $(V3_2710IMC_HARDWARE_V3)),)
+ifneq ($(filter $(V3_HARDWARE_VERSION),$(V3_2710IMC_HARDWARE_V1) $(V3_2710IMC_HARDWARE_V2) $(V3_2710IMC_HARDWARE_V3) $(V3_2710IMC_HARDWARE_V4)),)
 SENSOR_MODULE_SRCS += $(wildcard $(PROJECT_ROOT)/overlay/sensor/light_sensor/*.c)
 endif	
 
@@ -1066,20 +1101,21 @@ INPUT_KEY_MODULE_SRCS := \
 
 # UI 模块源码
 UI_MODULE_SRCS := \
-	$(wildcard $(PROJECT_ROOT)/trunk/root_source/ui/*.c) \
-	$(wildcard $(PROJECT_ROOT)/overlay/ui/*.c) 
-	
-ifeq ($(CFG_LVGL_ENABLE), 1)
+	$(wildcard $(PROJECT_ROOT)/trunk/root_source/ui/*.c) 
+ifeq ($(CFG_LVGL_ENABLE),1)
+UI_MODULE_SRCS += $(wildcard $(PROJECT_ROOT)/overlay/framework_hooks/ui/lcd_direct_ui/*.c) 
+
 ifeq ($(V3_UI_VERSION), $(V3_UI_V1))
 UI_MODULE_SRCS += $(UI_LCD_DIRECT_SRCS)
-UI_MODULE_SRCS += $(wildcard $(PROJECT_ROOT)/overlay/framework_hooks/ui/lcd_direct_ui/*.c) 
+else ifeq ($(V3_UI_VERSION), $(V3PRO_UI_V2))
+UI_MODULE_SRCS += $(UI_LCD_DIRECT_V3PRO_V2_SRCS)
 else
 UI_MODULE_SRCS += $(UI_LCD_DIRECT_V2_SRCS)
-UI_MODULE_SRCS += $(wildcard $(PROJECT_ROOT)/overlay/framework_hooks/ui/lcd_direct_ui/*.c) 
 endif
+
 else
-UI_MODULE_SRCS += $(UI_LCD_UART_SRCS)
 UI_MODULE_SRCS += $(wildcard $(PROJECT_ROOT)/overlay/framework_hooks/ui/lcd_uart_ui/*.c) 
+UI_MODULE_SRCS += $(UI_LCD_UART_SRCS)
 endif
 
 # 字体模块源码
@@ -1249,7 +1285,7 @@ EXTRA_OBJS := $(patsubst $(PROJECT_ROOT)/%.c,$(O)/extra/%.o,$(filter %.c,$(EXTRA
 
 # PWM V2 硬件版本特定参数（仅在 V3_2710IMC_HARDWARE_V2 时传递）
 PWM_V2_PARAMS :=
-ifneq ($(filter $(V3_HARDWARE_VERSION),$(V3_2710IMC_HARDWARE_V2) $(V3_2710IMC_HARDWARE_V3)),)
+ifneq ($(filter $(V3_HARDWARE_VERSION),$(V3_2710IMC_HARDWARE_V2) $(V3_2710IMC_HARDWARE_V3) $(V3_2710IMC_HARDWARE_V4)),)
 PWM_V2_PARAMS += PWM4_IOMUX_INDEX=$(PWM4_IOMUX_INDEX)
 PWM_V2_PARAMS += PWM5_IOMUX_INDEX=$(PWM5_IOMUX_INDEX)
 endif

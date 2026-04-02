@@ -15,12 +15,12 @@ extern "C" {
 
 /// 定义空电量百分比
 #ifndef EMPTY_BAT_PERCENTAGE
-#define EMPTY_BAT_PERCENTAGE              5
+#define EMPTY_BAT_PERCENTAGE              1
 #endif
 
 /// 定义低电量百分比
 #ifndef LOW_BAT_PERCENTAGE
-#define LOW_BAT_PERCENTAGE                20
+#define LOW_BAT_PERCENTAGE                5
 #endif
 
 #define BATTERY_IS_CHARGING(status)       ((status) == CHARGE_STATE_CHARGING || (status) == CHARGE_STATE_FULL)

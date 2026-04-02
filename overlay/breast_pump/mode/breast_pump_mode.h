@@ -59,6 +59,7 @@ int breast_pump_mode_work_time_get(int mode);
 int breast_pump_mode_time_step_number_get(int mode);
 void breast_pump_setting_reset (sys_pump_info_t *pump_info, int mode);
 void breast_pump_mode_steps_info_reset(sys_pump_mode_info_t *mode_info, int mode);
+int breast_pump_mode_step_target_time_get(int mode, int step);
 
 #ifdef __cplusplus
 }

@@ -236,7 +236,8 @@ static void pump_level_ui_update(ui_manager_context_t *thiz, ui_proc_pump_t *pro
     EXCEPTION_CHECK_VOID(proc);
     EXCEPTION_CHECK_VOID(proc->pump);
     EXCEPTION_CHECK_VOID(proc->motor);
-    uint8_t control_type = proc->pump->get_breast_pump_control_type();
+    int control_type = 0;
+    READ_PUMP_LEVEL_CONTROL_TYPE(proc->pump, control_type);
     pump_setting_t setting;
     int time_index = 0;
     READ_PUMP_MODE_STEP_INDEX(proc->pump, time_index);

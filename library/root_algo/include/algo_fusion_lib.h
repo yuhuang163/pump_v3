@@ -1,6 +1,7 @@
 #ifndef __ALGO_FUSION_LIB_H__
 #define __ALGO_FUSION_LIB_H__
 
+#include <stdint.h>
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -15,8 +16,12 @@ extern "C" {
 #define ALGO_AIR_PRESSURE_NUM 2
 #endif
 
+#define IS_SUPPORT_ALGO_LIB_LOG_OUTPUT     0
+
 typedef struct {
     uint8_t wear_status[2];   /// 0: 未佩戴 1: 正常佩戴
+    uint8_t compensation_status[2];     // 0: 不补偿, 1: 减小气压; 2:加大气压
+    int compensation_delta_pwm[2];               // 0: 不补偿, -10000~-1:PWM减小, 1~10000: PWM增加
 } algo_fusion_result_t;
 
 typedef enum {
