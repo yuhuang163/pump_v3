@@ -532,6 +532,7 @@ int bsp_charge_init(void)
     START_TIMER(s_charge_timer_id, CHARGE_THREAD_POLL_INTERVAL);
     RUN_NEW_THREAD(&s_charge_device_thd, "charge", charge_device_thread, RT_PRIO_CHARGE_DEVICE_THREAD, 
         (CHARGE_DEVICE_THREAD_STACKSIZE));
+
     return BSP_OK;
 }
 
@@ -585,4 +586,17 @@ void charge_event_internal_cb(charge_event_e event)
     if (s_charge_event_callback) {
         s_charge_event_callback(event);
     } 
+}
+
+void charge_current_adjust(uint16_t current)
+{
+    if (current > 5000) {
+        LOGE("charge current adjust out of range, current: %dmA", current);
+        return;
+    } else {
+        LOG_PBUS("charge current adjust %dmA", current);
+    }
+#if IS_SUPPORT_DEVICE_CHARGE 
+    charge_ibat_config(current);
+#endif
 }

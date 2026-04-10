@@ -5,6 +5,7 @@
 #include "root_common_api.h" // IWYU pragma: keep
 #include "app_protocol_handler.h"
 #include "protocol_manager_api.h"
+#include "servers_manager_api.h"
 #include "storage_manager_api.h"
 
 /*
@@ -166,7 +167,14 @@ void app_old_comm_handle_response_cmd(app_old_comm_cmd_id_e cid, uint8_t cal, vo
                 app_old_comm_handle_report_taste_dev_status(args_temp->arg1, args_temp->val);
             }
         } break;
-        case APP_OLD_COMM_CID_NOTIFY_BIND:
+        case APP_OLD_COMM_CID_NOTIFY_V3_DEV_ABNORMAL: {
+            ble_manager_context_t *ble_ctx = (ble_manager_context_t *)find_module(ID_MODULE_BLE);
+            EXCEPTION_CHECK_VOID(ble_ctx);
+            if (ble_ctx->ble_is_connected() == true) {
+                app_old_comm_handle_dev_abnormal_report(args_temp);
+            }
+        } break;
+        case APP_OLD_COMM_CID_NOTIFY_BIND: //没用到
             app_old_comm_report_bind_status(1, 0);
             break;
         case APP_OLD_COMM_CID_NOTIFY_DISCON: {

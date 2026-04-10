@@ -15,35 +15,29 @@
 *****************************************************************************************
 */
 #define IS_SUPPORT_SPEED_COMP_BG                (0)
-#define IS_SUPPORT_SPEED_BG_IMG                 (0)
 #define SPEED_COUNT                             (3)
 #define SPEED_CIRCLE_SLOT_COUNT                 (3)   /// 仅保留左/中/右 3 个圆槽位
 #define SPEED_VIEW_W                            (360)
 #define SPEED_VIEW_H                            (360)
-#define SPEED_CIRCLE_W                          (220)
-#define SPEED_CIRCLE_H                          (220)
-#define SPEED_CIRCLE_CENTER_X_GAP               (SPEED_CIRCLE_W + 20)  /// 220 + 20
-#define SPEED_SIDE_CIRCLE_Y_OFFSET              (24 + 5)
-#define SPEED_CHILD_CENTER_OPA                  (LV_OPA_30)
-#define SPEED_CHILD_SIDE_OPA                    (LV_OPA_20)
+#define SPEED_CIRCLE_W                          (250)
+#define SPEED_CIRCLE_H                          (250)
+#define SPEED_CIRCLE_CENTER_X_GAP               (SPEED_CIRCLE_W + 20)  /// 圆圈中心间距
+#define SPEED_SIDE_CIRCLE_Y_OFFSET              (24)  /// 左右两个圆都比中间圆高 24
 #define SPEED_DOT_COLOR                         (0xB25962)
 #define SPEED_TEXT_COLOR                        (0xB25962)
 #define SPEED_CENTER_CIRCLE_GRAD_TOP_COLOR      (0xEB7581)
 #define SPEED_CENTER_CIRCLE_GRAD_BOTTOM_COLOR   (0xF0868A)
 #define SPEED_SIDE_CIRCLE_GRAD_TOP_COLOR        (0xF7A1A8)
 #define SPEED_SIDE_CIRCLE_GRAD_BOTTOM_COLOR     (0xF7A1A8)
-#define SPEED_TEXT_CENTER_COLOR                 (0xFFFFFF)
 #define SPEED_TITLE_TEXT_COLOR                  (0xFFFFFF)
-#define SPEED_TEXT_SIDE_COLOR                   (0xE7D4D9)
 #define SPEED_DESC_TEXT_COLOR                   (0xFFDDDF)
 #define SPEED_CENTER_DESC_TEXT_COLOR            (0xFFEAEA)
-#define SPEED_TEXT_CENTER_OPA                   (LV_OPA_COVER)
-#define SPEED_TEXT_SIDE_OPA                     (100)
-#define SPEED_SWITCH_ANIM_TIME_MS               (260)
-#define SPEED_DESC_BASE_Y_OFFSET                (33)
-#define SPEED_DESC_BASE_LINE_COUNT              (3)
-#define SPEED_CIRCLE_BG_EXT                     ("baj")
-#define SPEED_COMPONENT_EXT                     ("baj")
+
+#define SPEED_PAGE_TITLE_Y_OFFSET               (34)
+#define SPEED_COMPONENT_CENTER_Y_OFFSET         (-70)
+#define SPEED_TITLE_BASE_Y_OFFSET               (-26)
+#define SPEED_DESC_BASE_Y_OFFSET                (6)
+#define SPEED_SWITCH_ANIM_TIME_MS               (260)  /// 切换动画时间，单位：毫秒
 
 typedef enum {
     SPEED_SLOT_LEFT = 0,
@@ -59,17 +53,19 @@ typedef struct {
 #endif
     lv_obj_t *speed_type_text;
     lv_obj_t *circle_obj[SPEED_CIRCLE_SLOT_COUNT]; /// 圆圈对象
-    lv_obj_t *dots[SPEED_COUNT]; /// 模式序号点
+    lv_obj_t *dots_img; /// 模式序号点
     lv_obj_t *speed_component_img[SPEED_CIRCLE_SLOT_COUNT]; /// 模式组件图片
     lv_obj_t *speed_title_label[SPEED_CIRCLE_SLOT_COUNT]; /// 模式标题标签
     lv_obj_t *speed_desc_label[SPEED_CIRCLE_SLOT_COUNT]; /// 模式描述标签
     res_img_info_t speed_component_info[SPEED_CIRCLE_SLOT_COUNT];
-    lv_fs_path_ex_t speed_component_path[SPEED_CIRCLE_SLOT_COUNT];
+    res_img_info_t dots_img_info;
     uint16_t slot_res_id[SPEED_CIRCLE_SLOT_COUNT];
     int16_t slot_speed_idx[SPEED_CIRCLE_SLOT_COUNT];
     uint8_t cur_speed;
     uint8_t force_update;
     uint8_t speed_obj_init_done;
+    uint8_t popup_ui_index;
+    uint8_t rsv[8];
 } speed_display_info_t;
 
 /*
@@ -84,6 +80,12 @@ static const uint16_t speed_component_ids[SPEED_COUNT] = {
     RESOURCE_ID_FREQ_PAGE_REGULAR_ICON, /// 常规
 };
 
+static const uint16_t dots_img_ids[SPEED_COUNT] = {
+    RESOURCE_ID_SELECTED_LOCATE_3_START,
+    RESOURCE_ID_SELECTED_LOCATE_3_START + 1,
+    RESOURCE_ID_SELECTED_LOCATE_3_END,
+};
+
 static const char *speed_name[SPEED_COUNT] = {
     "Fast", /// 快速
     "Slow", /// 慢速
@@ -91,14 +93,14 @@ static const char *speed_name[SPEED_COUNT] = {
 };
 
 static const char *speed_desc[SPEED_COUNT] = {
-    "Stronger yet safe for\nfaster pumping.",
+    "Stronger yet safe for faster\npumping.",
     "Efficient yet gentle.",
     "Suitable for most moms.",
 };
 
 #if IS_SUPPORT_SPEED_COMP_BG
 static PSRAM_DATA_LOC uint8_t speed_bg_data[] = {
-    #include "comparison_png2txt/pump_speed_1_360x360.txt"
+    #include "comparison_png2txt/Regular_360x360.txt"
 };
 #endif
 
@@ -128,61 +130,23 @@ static int32_t slot_target_y(speed_circle_slot_e slot)
     return center_y - SPEED_SIDE_CIRCLE_Y_OFFSET;
 }
 
-static void apply_slot_children_opa(uint8_t slot)
+static void update_dots(ui_manager_context_t *thiz, uint8_t cur_speed)
 {
-#if 0
-    lv_obj_t *circle = speed_info->circle_obj[slot];
-    if (circle == NULL || !lv_obj_is_valid(circle)) {
+    if (speed_info->dots_img == NULL || !lv_obj_is_valid(speed_info->dots_img)) {
         return;
     }
-    lv_opa_t opa = (slot == SPEED_SLOT_CENTER) ? LV_OPA_COVER : 5;
-    lv_obj_set_style_image_opa(circle, opa, 0);
-    lv_obj_invalidate(circle); /// 刷新
-
-    if (speed_info->speed_component_img[slot] != NULL && lv_obj_is_valid(speed_info->speed_component_img[slot])) {
-        opa =(slot == SPEED_SLOT_CENTER) ? LV_OPA_COVER : LV_OPA_80;
-        lv_obj_set_style_image_opa(speed_info->speed_component_img[slot], opa, 0);;
-        lv_obj_invalidate(speed_info->speed_component_img[slot]); /// 刷新
-    }
-
-    if (speed_info->speed_title_label[slot] != NULL && lv_obj_is_valid(speed_info->speed_title_label[slot])) {
-        opa =(slot == SPEED_SLOT_CENTER) ? LV_OPA_COVER : LV_OPA_80;
-        lv_obj_set_style_text_opa(speed_info->speed_title_label[slot], opa, 0);
-        lv_obj_invalidate(speed_info->speed_title_label[slot]); /// 刷新
-    }
-    
-    if (speed_info->speed_desc_label[slot] != NULL && lv_obj_is_valid(speed_info->speed_desc_label[slot])) {
-        opa =(slot == SPEED_SLOT_CENTER) ? 240 : 210;
-        lv_obj_set_style_text_opa(speed_info->speed_desc_label[slot], opa, 0);
-        lv_obj_invalidate(speed_info->speed_desc_label[slot]); /// 刷新
-    }
-#endif
-}
-
-static void apply_all_children_opa(void)
-{
-#if 0
-    for (uint8_t i = 0; i < SPEED_CIRCLE_SLOT_COUNT; i++) {
-        apply_slot_children_opa(i);
-    }
-#endif
-}
-
-static void update_dots(uint8_t cur)
-{
-    for (uint8_t i = 0; i < SPEED_COUNT; i++) {
-        if (speed_info->dots[i] == NULL || !lv_obj_is_valid(speed_info->dots[i])) {
-            continue;
-        }
-        lv_obj_set_style_bg_opa(speed_info->dots[i], (i == cur) ? LV_OPA_COVER : LV_OPA_30, 0);
-    }
+    common_ui_img_resource_init(thiz, dots_img_ids[cur_speed], &speed_info->dots_img_info);
+    EXCEPTION_CHECK_VOID(speed_info->dots_img_info.data);
+    lv_fs_path_ex_t dots_img_path;
+    lv_fs_make_path_from_buffer(&dots_img_path, LV_FS_MEMFS_LETTER, speed_info->dots_img_info.data,
+        speed_info->dots_img_info.size, "baj");
+    lv_image_set_src(speed_info->dots_img, (const void *)&dots_img_path);
 }
 
 static void item_anim_exec_x(void *var, int32_t v)
 {
     lv_obj_t *obj = (lv_obj_t *)var;
     lv_obj_set_x(obj, (lv_coord_t)v);
-    apply_all_children_opa();
     lv_obj_invalidate(speed_info->root);
 }
 
@@ -225,12 +189,13 @@ static void update_slot_content(ui_manager_context_t *thiz, speed_circle_slot_e 
         }
         common_ui_img_resource_init(thiz, res_id, &speed_info->speed_component_info[slot]);
         if (speed_info->speed_component_info[slot].data != NULL) {
-            lv_fs_make_path_from_buffer(&speed_info->speed_component_path[slot],
+            lv_fs_path_ex_t speed_component_path;
+            lv_fs_make_path_from_buffer(&speed_component_path,
                                         LV_FS_MEMFS_LETTER,
                                         speed_info->speed_component_info[slot].data,
                                         speed_info->speed_component_info[slot].size,
-                                        SPEED_COMPONENT_EXT);
-            lv_image_set_src(img, (const void *)&speed_info->speed_component_path[slot]);
+                                        "baj");
+            lv_image_set_src(img, (const void *)&speed_component_path);
             speed_info->slot_res_id[slot] = res_id;
         }
     }
@@ -238,6 +203,7 @@ static void update_slot_content(ui_manager_context_t *thiz, speed_circle_slot_e 
     lv_label_set_text(title, speed_name[speed_idx]);
     lv_label_set_text(desc, speed_desc[speed_idx]);
 
+    lv_coord_t desc_y = SPEED_DESC_BASE_Y_OFFSET;
     uint8_t line_cnt = 1;
     const char *desc_text = speed_desc[speed_idx];
     for (const char *p = desc_text; *p != '\0'; p++) {
@@ -245,13 +211,14 @@ static void update_slot_content(ui_manager_context_t *thiz, speed_circle_slot_e 
             line_cnt++;
         }
     }
-    lv_coord_t desc_y = SPEED_DESC_BASE_Y_OFFSET;
-    if (line_cnt > SPEED_DESC_BASE_LINE_COUNT) {
+
+    if (line_cnt > 1) {
         const lv_font_t *font = lv_obj_get_style_text_font(desc, 0);
         lv_coord_t line_h = font != NULL ? lv_font_get_line_height(font) : 14;
         lv_coord_t line_space = lv_obj_get_style_text_line_space(desc, 0);
-        lv_coord_t extra_h = (lv_coord_t)((line_h + line_space) * (line_cnt - SPEED_DESC_BASE_LINE_COUNT));
+        lv_coord_t extra_h = (lv_coord_t)((line_h + line_space) * (line_cnt - 1));
         desc_y = (lv_coord_t)(desc_y + (extra_h / 2));
+        // LOG_UI("extra_h: %d, desc_y: %d", extra_h, desc_y);
     }
     lv_obj_align(desc, LV_ALIGN_CENTER, 0, desc_y);
     speed_info->slot_speed_idx[slot] = speed_idx;
@@ -298,7 +265,6 @@ static void circle_layout_apply(int8_t direction, bool anim)
 
         if (!anim || direction == 0) {
             lv_obj_set_pos(item, (lv_coord_t)to_x, (lv_coord_t)to_y);
-            apply_slot_children_opa(i);
             continue;
         }
 
@@ -320,7 +286,6 @@ static void circle_layout_apply(int8_t direction, bool anim)
         lv_anim_set_values(&a, from_y, to_y);
         lv_anim_start(&a);
     }
-    apply_all_children_opa();
 }
 
 static void circle_carousel_set_speed(ui_manager_context_t *thiz, uint8_t idx, bool anim)
@@ -350,30 +315,9 @@ static void circle_carousel_set_speed(ui_manager_context_t *thiz, uint8_t idx, b
     circle_layout_apply(direction, anim);
 
     speed_info->cur_speed = idx;
-    update_dots(idx);
+    update_dots(thiz, idx);
 }
 
-#if IS_SUPPORT_SPEED_BG_IMG
-static void create_speed_bg_by_lvgl_snapshot(ui_manager_context_t *thiz, lv_obj_t *parent, speed_circle_slot_e slot)
-{
-#if LV_USE_SNAPSHOT
-    lv_draw_buf_t *background_snapshot = thiz->get_lvgl_snap_shot(slot == SPEED_SLOT_CENTER ? \
-         UI_SNAP_SHOT_PUMP_MODE_CENTER_BG : UI_SNAP_SHOT_PUMP_MODE_SIDE_BG);
-    EXCEPTION_CHECK_VOID(background_snapshot);
-#endif
-    if (speed_info->circle_obj[slot] == NULL || !lv_obj_is_valid(speed_info->circle_obj[slot])) {
-        speed_info->circle_obj[slot] = lv_image_create(parent);
-        EXCEPTION_CHECK_VOID(speed_info->circle_obj[slot]);
-    }
-#if LV_USE_SNAPSHOT
-    lv_image_set_src(speed_info->circle_obj[slot], background_snapshot);
-#else
-    lv_obj_add_flag(speed_info->circle_obj[slot], LV_OBJ_FLAG_HIDDEN); /// 隐藏
-#endif
-    lv_obj_set_pos(speed_info->circle_obj[slot], (lv_coord_t)slot_target_x(slot), (lv_coord_t)slot_target_y(slot));
-    lv_obj_set_style_image_opa(speed_info->circle_obj[slot], LV_OPA_COVER, 0);
-}
-#else
 static void create_speed_bg_by_lvgl_draw(ui_manager_context_t *thiz, lv_obj_t *parent, speed_circle_slot_e slot)
 {
     if (speed_info->circle_obj[slot] == NULL || !lv_obj_is_valid(speed_info->circle_obj[slot])) {
@@ -384,28 +328,26 @@ static void create_speed_bg_by_lvgl_draw(ui_manager_context_t *thiz, lv_obj_t *p
     lv_obj_set_size(speed_info->circle_obj[slot], SPEED_CIRCLE_W, SPEED_CIRCLE_H); /// 设置白点大小
     lv_obj_set_style_radius(speed_info->circle_obj[slot], LV_RADIUS_CIRCLE, 0); /// 圆角
     lv_obj_set_style_bg_color(speed_info->circle_obj[slot], 
-        lv_color_hex(slot == SPEED_SLOT_CENTER ? SPEED_CENTER_CIRCLE_GRAD_TOP_COLOR : SPEED_SIDE_CIRCLE_GRAD_TOP_COLOR), 0);
+        lv_color_hex(slot == SPEED_SLOT_CENTER ? \
+            SPEED_CENTER_CIRCLE_GRAD_TOP_COLOR : SPEED_SIDE_CIRCLE_GRAD_TOP_COLOR), 0);
     lv_obj_set_style_bg_grad_color(speed_info->circle_obj[slot], 
-        lv_color_hex(slot == SPEED_SLOT_CENTER ? SPEED_CENTER_CIRCLE_GRAD_BOTTOM_COLOR : SPEED_SIDE_CIRCLE_GRAD_BOTTOM_COLOR), 0);
+        lv_color_hex(slot == SPEED_SLOT_CENTER ? \
+            SPEED_CENTER_CIRCLE_GRAD_BOTTOM_COLOR : SPEED_SIDE_CIRCLE_GRAD_BOTTOM_COLOR), 0);
     lv_obj_set_style_bg_grad_dir(speed_info->circle_obj[slot], LV_GRAD_DIR_VER, 0);
     lv_obj_set_style_bg_main_stop(speed_info->circle_obj[slot], 0, 0); /// 主颜色停止位置
     lv_obj_set_style_bg_grad_stop(speed_info->circle_obj[slot], 255, 0); /// 渐变颜色停止位置
     lv_obj_set_style_bg_opa(speed_info->circle_obj[slot], LV_OPA_COVER, 0);
+    // lv_obj_set_style_bg_opa(speed_info->circle_obj[slot], LV_OPA_TRANSP, 0);
 }
-#endif
+
 
 static void create_speed_item(ui_manager_context_t *thiz, lv_obj_t *parent, speed_circle_slot_e slot)
 {
-#if IS_SUPPORT_SPEED_BG_IMG
-    create_speed_bg_by_lvgl_snapshot(thiz, parent, slot);
-#else
     create_speed_bg_by_lvgl_draw(thiz, parent, slot);
-#endif
-
     if (speed_info->speed_component_img[slot] == NULL || !lv_obj_is_valid(speed_info->speed_component_img[slot])) {
         speed_info->speed_component_img[slot] = lv_image_create(speed_info->circle_obj[slot]);
         EXCEPTION_CHECK_VOID(speed_info->speed_component_img[slot]);
-        lv_obj_align(speed_info->speed_component_img[slot], LV_ALIGN_CENTER, 0, -58);
+        lv_obj_align(speed_info->speed_component_img[slot], LV_ALIGN_CENTER, 0, SPEED_COMPONENT_CENTER_Y_OFFSET);
     }
 
     if (speed_info->speed_title_label[slot] == NULL || !lv_obj_is_valid(speed_info->speed_title_label[slot])) {
@@ -414,7 +356,7 @@ static void create_speed_item(ui_manager_context_t *thiz, lv_obj_t *parent, spee
         lv_obj_set_style_text_color(speed_info->speed_title_label[slot], lv_color_hex(SPEED_TITLE_TEXT_COLOR), 0);
         lv_obj_set_style_text_font(speed_info->speed_title_label[slot], &lv_font_oppo_sans_16_medium, 0);
         lv_obj_set_style_text_align(speed_info->speed_title_label[slot], LV_TEXT_ALIGN_CENTER, 0);  /// 居中对齐
-        lv_obj_align(speed_info->speed_title_label[slot], LV_ALIGN_CENTER, 0, -15);
+        lv_obj_align(speed_info->speed_title_label[slot], LV_ALIGN_CENTER, 0, SPEED_TITLE_BASE_Y_OFFSET);
         lv_obj_set_style_text_opa(speed_info->speed_title_label[slot], LV_OPA_COVER, 0);
     }
 
@@ -423,7 +365,7 @@ static void create_speed_item(ui_manager_context_t *thiz, lv_obj_t *parent, spee
         EXCEPTION_CHECK_VOID(speed_info->speed_desc_label[slot]);
         lv_obj_set_style_text_color(speed_info->speed_desc_label[slot], 
             lv_color_hex(slot == SPEED_SLOT_CENTER ? SPEED_CENTER_DESC_TEXT_COLOR : SPEED_DESC_TEXT_COLOR), 0);
-        lv_obj_set_style_text_font(speed_info->speed_desc_label[slot], &lv_font_oppo_sans_14_medium, 0);
+        lv_obj_set_style_text_font(speed_info->speed_desc_label[slot], &lv_font_oppo_sans_16_medium, 0);
         lv_obj_set_style_text_align(speed_info->speed_desc_label[slot], LV_TEXT_ALIGN_CENTER, 0);  /// 居中对齐
         lv_obj_set_style_text_line_space(speed_info->speed_desc_label[slot], 4, 0); /// 设置行间距（像素）
         lv_obj_set_style_text_opa(speed_info->speed_desc_label[slot], LV_OPA_COVER, 0);
@@ -446,25 +388,13 @@ static void circle_carousel_create(ui_manager_context_t *thiz, lv_obj_t *parent,
 
 static void dotbar_carousel_create(ui_manager_context_t *thiz, lv_obj_t *parent, uint8_t speed_idx)
 {
-    lv_obj_t *dotbar = lv_obj_create(parent);
-    EXCEPTION_CHECK_VOID(dotbar);
-    lv_obj_set_size(dotbar, 128, 16); /// 92x16
-    lv_obj_align_to(dotbar, speed_info->root, LV_ALIGN_OUT_BOTTOM_MID, 0, -36); /// 底部居中对齐
-    lv_obj_clear_flag(dotbar, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_set_style_bg_opa(dotbar, LV_OPA_TRANSP, 0); /// 透明
-    lv_obj_set_style_border_opa(dotbar, LV_OPA_TRANSP, 0); /// 透明
-    lv_obj_set_style_pad_all(dotbar, 0, 0); /// 内边距为0
-    lv_obj_set_style_pad_gap(dotbar, 8, 0); /// 8px 间距
-    lv_obj_set_flex_flow(dotbar, LV_FLEX_FLOW_ROW); /// 行布局
-    lv_obj_set_flex_align(dotbar, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER); /// 居中对齐
-    for (uint8_t i = 0; i < SPEED_COUNT; i++) {
-        speed_info->dots[i] = lv_obj_create(dotbar);
-        lv_obj_set_size(speed_info->dots[i], 8, 8);
-        lv_obj_set_style_radius(speed_info->dots[i], LV_RADIUS_CIRCLE, 0); /// 圆形
-        lv_obj_set_style_bg_color(speed_info->dots[i], lv_color_hex(SPEED_DOT_COLOR), 0);
-        lv_obj_set_style_border_opa(speed_info->dots[i], LV_OPA_TRANSP, 0); /// 透明
+    if (speed_info->dots_img == NULL || !lv_obj_is_valid(speed_info->dots_img)) {
+        speed_info->dots_img = lv_image_create(parent);
+        EXCEPTION_CHECK_VOID(speed_info->dots_img);
+        lv_obj_set_style_image_opa(speed_info->dots_img, LV_OPA_COVER, 0);
+        lv_obj_align(speed_info->dots_img, LV_ALIGN_BOTTOM_MID, 0, -18);
     }
-    update_dots(speed_idx);
+    update_dots(thiz, speed_idx);
 }
 
 static void speed_root_init(ui_manager_context_t *thiz)
@@ -473,7 +403,7 @@ static void speed_root_init(ui_manager_context_t *thiz)
         speed_info->root = lv_obj_create(lv_screen_active());
         EXCEPTION_CHECK_VOID(speed_info->root);
         lv_obj_set_size(speed_info->root, LV_PCT(100), LV_PCT(100));
-        lv_obj_set_style_bg_color(speed_info->root, lv_color_white(), 0);
+        lv_obj_set_style_bg_color(speed_info->root, lv_color_black(), 0);
         lv_obj_set_style_bg_opa(speed_info->root, LV_OPA_COVER, 0);
         // lv_obj_set_style_radius(speed_info->root, LV_RADIUS_CIRCLE, 0); /// 圆角
         // lv_obj_set_style_clip_corner(speed_info->root, true, 0); /// 启用圆角裁剪
@@ -490,19 +420,19 @@ static void speed_bg_update(ui_manager_context_t *thiz)
 {
     static uint32_t start_time = 0;
     static uint8_t status = 0;
-    if (speed_info->backgroud == NULL || !lv_obj_is_valid(speed_info->backgroud)) {
-        speed_info->backgroud = lv_image_create(speed_info->root);
-        EXCEPTION_CHECK_VOID(speed_info->backgroud);
+    if (speed_info->background == NULL || !lv_obj_is_valid(speed_info->background)) {
+        speed_info->background = lv_image_create(speed_info->root);
+        EXCEPTION_CHECK_VOID(speed_info->background);
     }
     lv_fs_path_ex_t bg_img_path;
     if (status == 0) {
-        lv_obj_add_flag(speed_info->backgroud, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(speed_info->background, LV_OBJ_FLAG_HIDDEN);
     } else {
-        lv_obj_clear_flag(speed_info->backgroud, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_clear_flag(speed_info->background, LV_OBJ_FLAG_HIDDEN);
         lv_fs_make_path_from_buffer(&bg_img_path, LV_FS_MEMFS_LETTER, speed_bg_data,
             sizeof(speed_bg_data), "png");
-        lv_image_set_src(speed_info->backgroud, (const void *)&bg_img_path);
-        lv_obj_align(speed_info->backgroud, LV_ALIGN_CENTER, 0, 0);
+        lv_image_set_src(speed_info->background, (const void *)&bg_img_path);
+        lv_obj_align(speed_info->background, LV_ALIGN_CENTER, 0, 0);
     }
 
     if (get_timestamp() - start_time > 1000) {
@@ -519,6 +449,10 @@ static void speed_bg_update(ui_manager_context_t *thiz)
 
 static void speed_ui_update(ui_manager_context_t *thiz, uint8_t speed_idx)
 {
+    if (speed_idx > BREAST_PUMP_SPEED_MAX) {
+        speed_idx = BREAST_PUMP_SPEED_LOW;
+    }
+
     if (speed_info->speed_obj_init_done == false) {
         circle_carousel_create(thiz, speed_info->root, speed_idx);
         dotbar_carousel_create(thiz, speed_info->root, speed_idx);
@@ -547,7 +481,7 @@ static void speed_text_update(ui_manager_context_t *thiz)
     lv_obj_set_style_text_font(speed_info->speed_type_text, &lv_font_oppo_sans_20_semibold, 0);
     lv_obj_set_style_text_align(speed_info->speed_type_text, LV_TEXT_ALIGN_CENTER, 0);  /// 设置文本居中对齐
     lv_obj_set_style_text_opa(speed_info->speed_type_text, LV_OPA_COVER, 0);
-    lv_obj_align(speed_info->speed_type_text, LV_ALIGN_TOP_MID, 0, 40); /// 顶部居中对齐，偏移34px
+    lv_obj_align(speed_info->speed_type_text, LV_ALIGN_TOP_MID, 0, SPEED_PAGE_TITLE_Y_OFFSET); /// 顶部居中对齐，偏移34px
 }
 
 /*
@@ -567,6 +501,7 @@ void ui_display_pump_speed_prepare(ui_manager_context_t *thiz)
     common_ui_bg_init(thiz);
     speed_info->force_update = true;
     speed_info->speed_obj_init_done = false;
+    speed_info->popup_ui_index = PUMP_POPUP_UI_NONE;
 }
 
 void ui_display_pump_speed_remove(ui_manager_context_t *thiz)
@@ -576,7 +511,9 @@ void ui_display_pump_speed_remove(ui_manager_context_t *thiz)
     for (uint8_t i = 0; i < SPEED_CIRCLE_SLOT_COUNT; i++) {
         common_ui_img_resource_deinit(thiz, &speed_info->speed_component_info[i]);
     }
+    common_ui_img_resource_deinit(thiz, &speed_info->dots_img_info);
     common_ui_bg_deinit(thiz);
+    pump_tip_popup_ui_remove(thiz);
     LVGL_OBJ_DELETE(speed_info->root);
     u_free(speed_info);
     speed_info = NULL;
@@ -592,6 +529,7 @@ int ui_display_pump_speed_process(ui_manager_context_t *thiz)
     speed_bg_update(thiz);
     speed_ui_update(thiz, pump_speed_convert_to_ui_speed_idx(proc->setting.speed));
     speed_text_update(thiz);
+    pump_tip_popup_ui_update(thiz, proc, speed_info->root, &speed_info->popup_ui_index);
     speed_info->force_update = false;
     thiz->priv.fps_count++;
     if (get_timestamp() - thiz->priv.fps_start_time >= 1000) {

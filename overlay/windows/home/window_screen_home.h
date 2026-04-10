@@ -37,10 +37,15 @@ typedef enum {
     HOME_UI_TYPE_NONE = 0,
     HOME_UI_TYPE_HOME,
     HOME_UI_TYPE_HOME_IDLE,
-    HOME_UI_TYPE_HOME_WILL_POWER_OFF,
     HOME_UI_TYPE_BIND_QRCODE,
     HOME_UI_TYPE_MAX
 } home_ui_type_e;
+
+typedef enum {
+    HOME_POPUP_UI_NONE = 0,
+    HOME_POPUP_UI_OPERATION_SUCCESS = 1, /// 操作成功提示
+    HOME_POPUP_UI_OPERATION_FAILED = 2, /// 操作失败提示
+} home_popup_ui_type_e;
 
 /// 主界面UI结构体
 typedef struct {
@@ -56,7 +61,8 @@ typedef struct {
     uint32_t margic; /// 窗口标识.
     uint32_t last_progress_ani_time; /// 上次进度动画时间.
     uint16_t current_ui_type; /// 当前UI类型. home_ui_type_e
-    uint8_t popup_ui_type; /// 当前弹窗类型.
+    uint16_t popup_ui_type; /// 当前弹窗类型. home_popup_ui_type_e
+    uint32_t popup_ui_start_time; /// 当前弹窗开始时间.
 } ui_proc_home_t;
 
 /*
@@ -69,8 +75,11 @@ void stop_home_common_ui(ui_proc_home_t *proc);
 void home_start_key_event_handler(ui_proc_home_t *proc);
 
 /// 绑定二维码展示
-void start_home_qrcode_ui_animation(ui_proc_home_t *proc);
-void home_qrcode_ui_hdr_remove(void);
+void start_home_bind_ui_animation(ui_proc_home_t *proc);
+void home_bind_ui_hdr_remove(void);
+
+/// 弹窗类型更新
+void home_popup_ui_type_update(ui_proc_home_t *proc, home_popup_ui_type_e type);
 #ifdef __cplusplus
 }
 #endif

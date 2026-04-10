@@ -28,13 +28,14 @@
 */
 typedef struct {
     lv_obj_t * root;
+#if IS_SUPPORT_FACTORY_RESET_COMP_BG
+    lv_obj_t * background;
+#endif
     lv_obj_t * progress_arc;
     lv_obj_t * label_text;
     uint32_t start_time;
     uint8_t force_update;
-#if IS_SUPPORT_FACTORY_RESET_COMP_BG
-    lv_obj_t * background;
-#endif
+    uint8_t rsv[15];
 } ui_factory_reset_info_t;
 
 /*

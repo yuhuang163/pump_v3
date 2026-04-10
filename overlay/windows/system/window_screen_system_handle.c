@@ -15,6 +15,8 @@
 */
 #define PAGE_STATIC_NAME                            system
 #define PAGE_NAME_STR                               "system"
+#define SYSTEM_UI_KEY_CODE                          (KEY_CODE_POWER)
+#define SYSTEM_UI_KEY_TYPE                          (KEY_EVENT_CLICK | KEY_EVENT_LONG_2S | KEY_EVENT_UP)
 #define FACTORY_RESET_DELAY_TIME                    (1000 * 3)
 #define FACTORY_RESET_TASK_NAME                     "factory_reset_task"
 
@@ -33,6 +35,19 @@ INIT_WINDOW_CONTEXT();
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
+
+static int on_system_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t keytype)
+{
+    ui_proc_system_t *proc = user_data;
+    EXCEPTION_CHECK_INT(proc);
+    WINDOW_CONTEXT_GUARD_INT(proc, ID_WINDOW_SYSTEM, 0);
+    if (proc->extra.arg1 == ID_SYSTEM_WINDOW_FACTORY_RESET_CONFIRM ||
+        proc->current_ui_type == SYSTEM_UI_TYPE_FACTORY_RESET_CONFIRM) {
+        system_factory_reset_confirm_keyevent_handler(proc, keycode, keytype);
+    }
+    return 0;
+}
+
 static int entry_event_cb(window_lift_cycle_e new_state,
     const struct window_context *thiz, const struct window_context *old_scr)
 {
@@ -45,9 +60,15 @@ static int entry_event_cb(window_lift_cycle_e new_state,
         LOG_WM("==>%s window on create", PAGE_NAME_STR);
         if (proc->extra.arg1 == ID_SYSTEM_WINDOW_FACTORY_RESET) {
             system_factory_reset_handle(proc);
-        } else if (proc->extra.arg1 == ID_SYSTEM_WINDOW_POWER_OFF) {
+        } else if (proc->extra.arg1 == ID_SYSTEM_WINDOW_FACTORY_RESET_CONFIRM) {
+            system_factory_reset_confirm_handle(proc);
+            if (proc->key) {
+                proc->key->add_keyevent_handler("system_wm", proc, SYSTEM_UI_KEY_CODE, SYSTEM_UI_KEY_TYPE,
+                    on_system_keyevent_hdr, KEY_HANDLER_SHIELD_LEVEL_1);
+            }
+        }  else if (proc->extra.arg1 == ID_SYSTEM_WINDOW_POWER_OFF) {
             system_power_off_handle(proc);
-        }
+        } 
     }
     return 0;
 }
@@ -92,6 +113,7 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
     proc->pm = (power_manager_context_t *)find_module(ID_MODULE_POWER);
     proc->led = (led_manager_context_t *)find_module(ID_MODULE_LED);
     proc->pump = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
+    proc->key = (key_input_context_t *)find_module(ID_MODULE_KEY_INPUT);
     window_context_t *w_ctx = &proc->w_ctx;
     w_ctx->new_window_id = window_id;
     w_ctx->evt_cb_entry = entry_event_cb;
@@ -99,6 +121,7 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
     w_ctx->not_push_history = 1;
     w_ctx->is_popup_window = 0;
     wm->dispatch_new_window(w_ctx);
+
     return ID_WINDOW_DISPLAY_OK;
 }
 

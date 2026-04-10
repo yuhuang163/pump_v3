@@ -36,6 +36,12 @@ typedef enum {
 } guide_ui_type_e;
 
 typedef enum {
+    GUIDE_POPUP_UI_NONE = 0,
+    GUIDE_POPUP_UI_OPERATION_SUCCESS = 1, /// 操作成功提示
+    GUIDE_POPUP_UI_OPERATION_FAILED = 2, /// 操作失败提示
+} guide_popup_ui_type_e;
+
+typedef enum {
     /// 引导页面V1
     GUIDE_PAGE_GUIDE_QRCODE = 0, /// 引导二维码
     GUIDE_PAGE_GUIDE_PHONE = 1, /// 引导手机
@@ -66,6 +72,8 @@ typedef struct {
     uint32_t last_progress_ani_time; /// 上次进度动画时间.
     uint16_t current_ui_type; /// 当前UI类型. guide_ui_type_e
     uint16_t page_index; /// 当前页面索引.
+    uint16_t popup_ui_type; /// 当前弹窗类型. guide_operation_type_e
+    uint32_t popup_ui_start_time; /// 当前弹窗开始时间.
 } ui_proc_guide_t;
 
 /*
@@ -77,6 +85,7 @@ void stop_guide_ui_animation(ui_proc_guide_t *proc);
 void guide_key_event_handler_v1(ui_proc_guide_t *proc, uint16_t keycode);
 void guide_key_event_handler_v2(ui_proc_guide_t *proc, uint16_t keycode);
 void guide_key_3s_press_handler_v2(ui_proc_guide_t *proc, uint16_t keycode);
+void guide_knob_left_event_handler(ui_proc_guide_t *proc);
 #ifdef __cplusplus
 }
 #endif

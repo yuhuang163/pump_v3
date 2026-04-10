@@ -2,15 +2,11 @@
 * INCLUDE FILES
 *****************************************************************************************
 */
-#include "resource_id_define.h"
-#include "src/misc/lv_color.h"
 #include "ui_img_define.h"   // IWYU pragma: keep
 #include "ui_page_define.h" // IWYU pragma: keep
 #include "ui_manager.h" // IWYU pragma: keep
 #include "window_screen_home.h" // IWYU pragma: keep
 #include "ble_ui.h" // IWYU pragma: keep
-#include <stdint.h>
-
 /*
 * DEFINES
 *****************************************************************************************
@@ -64,9 +60,13 @@ typedef struct {
     home_ui_display_type_e home_ui_type;
     uint32_t timestamp_offset;
     uint16_t animation_index;
+    uint32_t record_hour;
+    uint8_t record_minute;
+    uint8_t clock_hour_value;
+    uint8_t clock_minute_value;
     uint8_t force_update;
-    uint32_t hour;
-    uint8_t minute;
+    uint8_t popup_ui_index;
+    uint8_t rsv[9];
 } home_display_info_t;
 
 
@@ -77,10 +77,9 @@ typedef struct {
 static home_display_info_t *home_info;
 #if IS_SUPPORT_ROOT_HOME_COMP_BG
 static PSRAM_NC_DATA_LOC uint8_t home_bg_data[] = {
-    #include "comparison_png2txt/Custom5_360x360.txt"
+    #include "comparison_png2txt/home_idle_360x360.txt"
 };
 #endif
-
 /*
 * GLOBAL VARIABLE DEFINITIONS
 *****************************************************************************************
@@ -96,7 +95,7 @@ static void home_root_init(void)
         home_info->root = lv_obj_create(lv_screen_active());
     }
     lv_obj_set_size(home_info->root, LV_PCT(100), LV_PCT(100));          /// 设置容器尺寸为屏幕的100%（自动适配屏幕分辨率）
-    lv_obj_set_style_bg_color(home_info->root, lv_color_white(), 0);     /// 设置背景颜色为黑色
+    lv_obj_set_style_bg_color(home_info->root, lv_color_black(), 0);     /// 设置背景颜色为黑色
     lv_obj_set_style_bg_opa(home_info->root, LV_OPA_COVER, 0);           /// 设置背景不透明度为完全不透明（覆盖下层）
     lv_obj_set_style_border_width(home_info->root, 0, 0);                /// 设置边框宽度为0（无边框）
     lv_obj_set_style_pad_all(home_info->root, 0, 0);                     /// 设置所有内边距为0（子对象紧贴边缘）
@@ -206,11 +205,13 @@ static void home_record_time_ui_update(ui_manager_context_t *thiz, uint32_t time
         uint32_t total_minutes = timestamp_offset / 1000 / 60;
         uint32_t hour = total_minutes / 60;
         uint32_t minute = total_minutes % 60;
-        if (home_info->force_update == false && home_info->hour == hour && home_info->minute == minute) {
+        if (home_info->force_update == false &&
+            home_info->record_hour == hour &&
+            home_info->record_minute == minute) {
             return;
         }
         char time_text[32] = {0};
-        sprintf(time_text, "%d%s%d%s", hour, " hr ", minute, " min");
+        snprintf(time_text, sizeof(time_text), "%d%s%d%s", hour, " hr ", minute, " min");
         lv_obj_clear_flag(home_info->time_text, LV_OBJ_FLAG_HIDDEN);
         lv_label_set_text(home_info->time_text, time_text);  /// 设置 label 文字内容和样式
         lv_obj_set_style_text_color(home_info->time_text, lv_color_hex(IDLE_TEXT_COLOR), 0);
@@ -218,8 +219,8 @@ static void home_record_time_ui_update(ui_manager_context_t *thiz, uint32_t time
         lv_obj_update_layout(home_info->time_text);
         lv_coord_t text_width = lv_obj_get_width(home_info->time_text);
         lv_obj_align(home_info->time_text, LV_ALIGN_TOP_LEFT, x_offset - (text_width / 2), y_offset); /// 设置文字位置
-        home_info->hour = hour;
-        home_info->minute = minute;
+        home_info->record_hour = hour;
+        home_info->record_minute = minute;
     } else {
         lv_obj_add_flag(home_info->time_text, LV_OBJ_FLAG_HIDDEN);
     }
@@ -321,26 +322,27 @@ static void home_clock_ui_update(ui_manager_context_t *thiz, int16_t y_offset, b
         utc_time_t utc_time = {0};
         uint32_t timestamp = platform_get_utc_time();
         timestamp_to_utc_time(timestamp, &utc_time);
-        if (home_info->hour == utc_time.hour && home_info->minute == utc_time.minute
+        if (home_info->clock_hour_value == utc_time.hour &&
+            home_info->clock_minute_value == utc_time.minute
             && home_info->force_update == false) {
             return;
         }
         char time_text[16] = {0};
         lv_obj_clear_flag(home_info->clock_hour, LV_OBJ_FLAG_HIDDEN);
-        sprintf(time_text, "%02d", utc_time.hour);
+        snprintf(time_text, sizeof(time_text), "%02d", utc_time.hour);
         lv_label_set_text(home_info->clock_hour, time_text);
         lv_obj_align(home_info->clock_hour, LV_ALIGN_TOP_LEFT, 
             HOME_CLOCK_HOUR_X, HOME_CLOCK_TIME_Y + y_offset);
         lv_obj_clear_flag(home_info->clock_minute, LV_OBJ_FLAG_HIDDEN);
-        sprintf(time_text, "%02d", utc_time.minute);
+        snprintf(time_text, sizeof(time_text), "%02d", utc_time.minute);
         lv_label_set_text(home_info->clock_minute, time_text);
         lv_obj_align(home_info->clock_minute, LV_ALIGN_TOP_LEFT, 
             HOME_CLOCK_MINUTE_X, HOME_CLOCK_TIME_Y + y_offset);
         lv_obj_clear_flag(home_info->clock_colon, LV_OBJ_FLAG_HIDDEN);
         lv_obj_align(home_info->clock_colon, LV_ALIGN_TOP_LEFT, 
             HOME_CLOCK_COLON_X, HOME_CLOCK_COLON_Y + y_offset);
-        home_info->hour = utc_time.hour;
-        home_info->minute = utc_time.minute;
+        home_info->clock_hour_value = utc_time.hour;
+        home_info->clock_minute_value = utc_time.minute;
     } else {
         lv_obj_add_flag(home_info->clock_hour, LV_OBJ_FLAG_HIDDEN);
         lv_obj_add_flag(home_info->clock_minute, LV_OBJ_FLAG_HIDDEN);
@@ -374,8 +376,10 @@ static void home_ui_update(ui_manager_context_t *thiz, ui_proc_home_t *proc)
     if (home_ui_type != home_info->home_ui_type) {
         home_info->home_ui_type = home_ui_type;
         home_info->force_update = true;
-        home_info->hour = 0;
-        home_info->minute = 0;
+        home_info->record_hour = 0;
+        home_info->record_minute = 0;
+        home_info->clock_hour_value = 0;
+        home_info->clock_minute_value = 0;
     }
     switch (home_ui_type) {
         default:
@@ -471,9 +475,6 @@ static void home_ui_update(ui_manager_context_t *thiz, ui_proc_home_t *proc)
 */
 void ui_display_home_prepare(ui_manager_context_t *thiz)
 {
-#if 0
-    ui_display_home_screen_saver_prepare(thiz);
-#else
     EXCEPTION_CHECK_VOID(thiz);
     if (home_info == NULL) {
         home_info = (home_display_info_t *)u_malloz(sizeof(home_display_info_t));
@@ -487,14 +488,11 @@ void ui_display_home_prepare(ui_manager_context_t *thiz)
     common_ui_bg_init(thiz);
     home_info->force_update = true;
     home_info->animation_index = 0;
-#endif
+    home_info->popup_ui_index = HOME_POPUP_UI_NONE;
 }
 
 void ui_display_home_remove(ui_manager_context_t *thiz)
 {
-#if 0
-    ui_display_home_screen_saver_remove(thiz);
-#else
     EXCEPTION_CHECK_VOID(thiz);
     EXCEPTION_CHECK_VOID(home_info);
     common_ui_img_resource_deinit(thiz, &home_info->label_info);
@@ -504,27 +502,22 @@ void ui_display_home_remove(ui_manager_context_t *thiz)
     battery_ui_deinit(thiz);
     ble_ui_deinit(thiz);
     common_ui_bg_deinit(thiz);
+    home_tip_popup_ui_remove(thiz);
     LVGL_OBJ_DELETE(home_info->root);
     u_free(home_info);
     home_info = NULL;
-#endif
 }
 
 int ui_display_home_process(ui_manager_context_t *thiz)
 {
-#if 0
-    ui_display_home_screen_saver_process(thiz);
-#else
-    EXCEPTION_CHECK_INT(thiz);
-    EXCEPTION_CHECK_INT(home_info);
-    EXCEPTION_CHECK_INT(home_info->root);
+    EXCEPTION_CHECK_INT(thiz && home_info && home_info->root);
     ui_proc_home_t *proc = (ui_proc_home_t *)thiz->priv.play_info.user_data;
-    EXCEPTION_CHECK_INT(proc);
-    EXCEPTION_CHECK_INT(proc->ble);
+    EXCEPTION_CHECK_INT(proc && proc->ble);
     home_root_bg_update(thiz);
     battery_ui_update(thiz, home_info->root, proc->battery, true);
     ble_ui_update(thiz, home_info->root, proc->ble, COMMON_BLE_UI_X, COMMON_BLE_UI_Y);
     home_ui_update(thiz, proc);
+    home_tip_popup_ui_update(thiz, proc, home_info->root, &home_info->popup_ui_index);
     home_info->force_update = false;
     thiz->priv.fps_count++;
     if (get_timestamp() - thiz->priv.fps_start_time >= 1000) {
@@ -532,6 +525,5 @@ int ui_display_home_process(ui_manager_context_t *thiz)
         LOG_UI("===> home fps: %d, home_ui_type: %d", thiz->priv.fps_count, home_info->home_ui_type);
         thiz->priv.fps_count = 0;
     }
-#endif
     return 0;
 }

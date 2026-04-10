@@ -24,6 +24,11 @@ void stop_low_power_ui_animation(ui_proc_popup_t *proc);
 void start_system_will_power_off_ui_animation(ui_proc_popup_t *proc);
 void stop_system_will_power_off_ui_animation(ui_proc_popup_t *proc);
 
+void start_count_down_ui_animation(ui_proc_popup_t *proc);
+void stop_count_down_ui_animation(ui_proc_popup_t *proc);
+
+void popup_window_exit_handler_cb(ui_proc_popup_t *proc);
+
 #ifdef __cplusplus
 }
 #endif

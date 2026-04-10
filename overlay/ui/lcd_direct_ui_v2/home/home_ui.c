@@ -48,6 +48,8 @@ typedef struct {
     res_img_info_t animation_info;
     uint16_t animation_index;
     uint8_t force_update;
+    uint8_t popup_ui_index;
+    uint8_t rsv[12];
 } home_display_info_t;
 
 typedef struct {
@@ -94,7 +96,7 @@ static void home_root_init(void)
         home_info->root = lv_obj_create(lv_screen_active());
     }
     lv_obj_set_size(home_info->root, LV_PCT(100), LV_PCT(100));          /// 设置容器尺寸为屏幕的100%（自动适配屏幕分辨率）
-    lv_obj_set_style_bg_color(home_info->root, lv_color_white(), 0);     /// 设置背景颜色为黑色
+    lv_obj_set_style_bg_color(home_info->root, lv_color_black(), 0);     /// 设置背景颜色为黑色
     lv_obj_set_style_bg_opa(home_info->root, LV_OPA_COVER, 0);           /// 设置背景不透明度为完全不透明（覆盖下层）
     lv_obj_set_style_border_width(home_info->root, 0, 0);                /// 设置边框宽度为0（无边框）
     lv_obj_set_style_pad_all(home_info->root, 0, 0);                     /// 设置所有内边距为0（子对象紧贴边缘）
@@ -213,6 +215,13 @@ static void home_root_animation_update(ui_manager_context_t *thiz)
     lv_image_set_src(home_info->animation, (const void *)&animation_img_path);
     home_info->animation_index++;
 }
+
+static void home_ui_update(ui_manager_context_t *thiz, ui_proc_home_t *proc)
+{
+    home_root_text_update(thiz);
+    home_root_animation_update(thiz);
+}
+
 /*
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
@@ -231,6 +240,7 @@ void ui_display_home_prepare(ui_manager_context_t *thiz)
     common_ui_bg_init(thiz);
     home_info->force_update = true;
     home_info->animation_index = 0;
+    home_info->popup_ui_index = HOME_POPUP_UI_NONE;
 }
 
 void ui_display_home_remove(ui_manager_context_t *thiz)
@@ -242,6 +252,7 @@ void ui_display_home_remove(ui_manager_context_t *thiz)
     common_ui_img_resource_deinit(thiz, &home_info->animation_info);
     ble_ui_deinit(thiz);
     common_ui_bg_deinit(thiz);
+    home_tip_popup_ui_remove(thiz);
     LVGL_OBJ_DELETE(home_info->root);
     u_free(home_info);
     home_info = NULL;
@@ -249,16 +260,13 @@ void ui_display_home_remove(ui_manager_context_t *thiz)
 
 int ui_display_home_process(ui_manager_context_t *thiz)
 {
-    EXCEPTION_CHECK_INT(thiz);
-    EXCEPTION_CHECK_INT(home_info);
-    EXCEPTION_CHECK_INT(home_info->root);
+    EXCEPTION_CHECK_INT(thiz && home_info && home_info->root);
     ui_proc_home_t *proc = (ui_proc_home_t *)thiz->priv.play_info.user_data;
-    EXCEPTION_CHECK_INT(proc);
-    EXCEPTION_CHECK_INT(proc->ble);
+    EXCEPTION_CHECK_INT(proc && proc->ble);
     home_root_bg_update(thiz);
-    home_root_text_update(thiz);
-    home_root_animation_update(thiz);
-    ble_ui_update(thiz, home_info->root, proc->ble, 168, 22);
+    ble_ui_update(thiz, home_info->root, proc->ble, COMMON_BLE_UI_X, COMMON_BLE_UI_Y);
+    home_ui_update(thiz, proc);
+    home_tip_popup_ui_update(thiz, proc, home_info->root, &home_info->popup_ui_index);
     home_info->force_update = false;
     thiz->priv.fps_count++;
     if (get_timestamp() - thiz->priv.fps_start_time >= 1000) {

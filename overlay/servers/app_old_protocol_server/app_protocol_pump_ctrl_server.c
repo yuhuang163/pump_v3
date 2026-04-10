@@ -733,6 +733,7 @@ static uint8_t app_old_comm_pump_run_status_ctrl(uint8_t status)
             //WRITE_PUMP_WORK_STATUS(pump_ctx, BREAST_PUMP_START, 1);
             app_broadcast_pump_status_to_window(BREAST_PUMP_START, OLD_BROADCAST_ALL_CT);
             app_pump_safe_start_key_sim_task();
+            WRITE_PUMP_IS_START_FROM_APP(pump_ctx, true);
         }
     } else if (pump_status == BREAST_PUMP_START || pump_status == BREAST_PUMP_CONTINUE) {
         if (status == APP_OLD_COMM_PUMP_CTRL_STOP) {
@@ -807,6 +808,29 @@ static void app_pump_broadcast_app_completed_delay_task_handler(hdr_post_args_t 
     } else {
         LOG_SRV("Broadcast system not initialized, skip sending APP_COMPLETED broadcast");
     }
+}
+
+///低电不足运行一次不允许启动
+static bool app_old_comm_check_if_low_battery_no_run(uint8_t ctrl_status)
+{
+    int pump_status = 0;
+    breast_pump_manager_context_t *pump_ctx = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
+    EXCEPTION_CHECK_UINT(pump_ctx);
+    READ_PUMP_WORK_STATUS(pump_ctx, pump_status);
+    if (app_old_comm_get_battery_percent() <= LOW_BAT_PERCENTAGE_RUN_ONCE_NOT_ALLOWED) {
+        if (pump_status == BREAST_PUMP_FINISH || pump_status == BREAST_PUMP_IDLE) {
+            if (ctrl_status == APP_OLD_COMM_PUMP_CTRL_RUN) {
+                servers_publish_data_args_t args_temp = {
+                    .arg1 = OLD_PUBLISH_ABNORMAL_LOW_BAT_CANNOT_START,
+                    .arg2 = OLD_PUBLISH_ABNORMAL_STATE_ACTIVE,
+                    .val = NULL,
+                };
+                app_old_comm_handle_dev_abnormal_report(&args_temp);
+                return 1;
+            }
+        }
+    }
+    return 0;
 }
 
 /*
@@ -909,6 +933,12 @@ void app_old_comm_handle_ctrl_dev_req(uint8_t cal, uint8_t *cab)
     app_old_comm_pump_ctrl_date.user_define_pump_speed = cab[5] - 1; //频次（1-低 2-中 3-高）（1字节）
     app_old_comm_pump_ctrl_date.pump_mode_lr_or_all = cab[6];//0:左 1:右 2:双
     app_old_comm_pump_ctrl_date.normal_pump_speed = cab[7] - 1; //频次（1-低 2-中 3-高）（1字节）
+
+    ///低电不足运行一次不允许启动
+    if (app_old_comm_check_if_low_battery_no_run(cab[0])) {
+        app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_NACK, APP_OLD_COMM_CID_CTRL_DEV, 1, cab);
+        return;
+    }
     ///查看窗口，是否需要唤醒pump窗口
     window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
     EXCEPTION_CHECK_VOID(wm);

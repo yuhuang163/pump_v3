@@ -19,6 +19,22 @@
 static uint16_t last_lux_for_duty = 0;           /// 上一次计算duty时的lux值
 static adaptive_dimming_info_t *adaptive = NULL;
 static uint16_t light_sensor_data[10] = {0};
+static uint16_t s_lux_filtered = 0;
+static uint8_t s_lux_filt_inited = 0;
+#if IS_SUPPORT_ADAPTIVE_DIMMING
+/*
+ * 旋钮屏蔽：s_encoder_suppress_ticks > 0 时每次进入 polling 先自减并 return，不跑光感与调光。
+ * 光感「明显变化」稳定确认：与 duty_calculate 内 last_lux 独立，只约束是否允许本次下发。
+ */
+static uint8_t s_encoder_suppress_ticks = 0;       ///< 旋钮屏蔽剩余 MISC 次数，由 notify 置为 ADAP_DIM_ENCODER_SUPPRESS_TICKS
+static uint16_t s_last_applied_lux = 0;          ///< 最近一次夜灯+UI 自适应亮度已成功下发时对应的滤波后 lux；0 表示尚未有过生效输出
+static uint8_t s_lux_settling = 0;               ///< 1：当前处于「相对 s_last_applied_lux 明显变化」后的待确认阶段
+static uint16_t s_lux_settle_candidate = 0;      ///< 明显变化后锁定的候选 lux，与每批新值在 ±EPS 内比较
+static uint16_t s_lux_stable_misc_ticks = 0;     ///< 在 settling 且与候选一致前提下，adaptive_dimming_lux_stable_misc_tick 已累加的 MISC 次数
+static uint8_t s_lux_misc_stable_gate_ready = 0; ///< 1：misc 周期已达 ADAP_DIM_LUX_STABLE_MISC_TICKS，本批可在 gate 内判通过
+static uint16_t s_lux_last_batch_lux = 0;        ///< 上一批已算出的 lux_for_duty，供 misc_tick 在无新批次时仍按 200ms 推进稳定计数
+static uint8_t s_lux_last_batch_valid = 0;       ///< 是否已有至少一批有效 lux 写入 s_lux_last_batch_lux
+#endif
 /*
 * GLOBAL VARIABLE DEFINITIONS
 *****************************************************************************************
@@ -66,39 +82,42 @@ static int adaptive_dimming_duty_calculate(uint16_t lux_avg, uint8_t *out_duty)
                                          ADAP_DIM_HYST_THR_MIN;
     
     /// 根据 lux 值分段计算 duty（环境越亮，LED 越暗）
-    if (lux_avg < ADAP_DIM_LUX_THR_VDARK) {
-        new_duty = ADAP_DIM_LED_LVL_VDARK;
-    } else if (lux_avg < ADAP_DIM_LUX_THR_DARK) {
-        /// 线性映射: lux 10->100, lux 50->80
-        new_duty = ADAP_DIM_LED_LVL_VDARK - 
-                   (lux_avg - ADAP_DIM_LUX_THR_VDARK) * 
-                   (ADAP_DIM_LED_LVL_VDARK - ADAP_DIM_LED_LVL_DARK_MIN) / 
-                   (ADAP_DIM_LUX_THR_DARK - ADAP_DIM_LUX_THR_VDARK);
-        if (new_duty < ADAP_DIM_LED_LVL_DARK_MIN) {
-            new_duty = ADAP_DIM_LED_LVL_DARK_MIN;
-        }
+    // if (lux_avg < ADAP_DIM_LUX_THR_VDARK) {
+    //     new_duty = ADAP_DIM_LED_LVL_VDARK;
+    // } else if (lux_avg < ADAP_DIM_LUX_THR_DARK) {
+    //     /// 线性映射: lux 10->100, lux 50->80
+    //     new_duty = ADAP_DIM_LED_LVL_VDARK + 
+    //                (lux_avg - ADAP_DIM_LUX_THR_VDARK) * 
+    //                (ADAP_DIM_LED_LVL_DARK_MIN - ADAP_DIM_LED_LVL_VDARK) / 
+    //                (ADAP_DIM_LUX_THR_DARK - ADAP_DIM_LUX_THR_VDARK);
+    //     if (new_duty > ADAP_DIM_LED_LVL_DARK_MIN) {
+    //         new_duty = ADAP_DIM_LED_LVL_DARK_MIN;
+    //     }
+
+    if (lux_avg < ADAP_DIM_LUX_THR_DARK) {
+        new_duty = ADAP_DIM_LED_LVL_DARK_MIN;    
     } else if (lux_avg < ADAP_DIM_LUX_THR_MEDIUM) {
         /// 线性映射: lux 50->80, lux 200->50
-        new_duty = ADAP_DIM_LED_LVL_DARK_MIN - 
+        new_duty = ADAP_DIM_LED_LVL_DARK_MIN + 
                    (lux_avg - ADAP_DIM_LUX_THR_DARK) * 
-                   (ADAP_DIM_LED_LVL_DARK_MIN - ADAP_DIM_LED_LVL_MEDIUM_MIN) / 
+                   (ADAP_DIM_LED_LVL_MEDIUM_MIN - ADAP_DIM_LED_LVL_DARK_MIN) / 
                    (ADAP_DIM_LUX_THR_MEDIUM - ADAP_DIM_LUX_THR_DARK);
-        if (new_duty < ADAP_DIM_LED_LVL_MEDIUM_MIN) {
+        if (new_duty > ADAP_DIM_LED_LVL_MEDIUM_MIN) {
             new_duty = ADAP_DIM_LED_LVL_MEDIUM_MIN;
         }
     } else if (lux_avg < ADAP_DIM_LUX_THR_BRIGHT) {
         /// 线性映射: lux 200->50, lux 500->20
-        new_duty = ADAP_DIM_LED_LVL_MEDIUM_MIN - 
+        new_duty = ADAP_DIM_LED_LVL_MEDIUM_MIN + 
                    (lux_avg - ADAP_DIM_LUX_THR_MEDIUM) * 
-                   (ADAP_DIM_LED_LVL_MEDIUM_MIN - ADAP_DIM_LED_LVL_BRIGHT_MIN) / 
+                   (ADAP_DIM_LED_LVL_BRIGHT_MIN - ADAP_DIM_LED_LVL_MEDIUM_MIN) / 
                    (ADAP_DIM_LUX_THR_BRIGHT - ADAP_DIM_LUX_THR_MEDIUM);
         if (new_duty < ADAP_DIM_LED_LVL_BRIGHT_MIN) {
             new_duty = ADAP_DIM_LED_LVL_BRIGHT_MIN;
         }
-    } else if (lux_avg < ADAP_DIM_LUX_THR_VBRIGHT) {
-        new_duty = ADAP_DIM_LED_LVL_VBRIGHT;
+    // } else if (lux_avg < ADAP_DIM_LUX_THR_VBRIGHT) {
+    //     new_duty = ADAP_DIM_LED_LVL_VBRIGHT;
     } else {
-        new_duty = ADAP_DIM_LED_LVL_OFF;
+        new_duty = ADAP_DIM_LED_LVL_ON;
     }
     
     /// 滞后机制：只有当 lux 值变化超过阈值时才改变亮度，避免闪烁
@@ -120,11 +139,120 @@ static int adaptive_dimming_duty_calculate(uint16_t lux_avg, uint8_t *out_duty)
     return 0;
 }
 
+/// 对多采样平均后的 lux 做 EMA；环境突变时快速跟踪，避免关灯/开灯后长时间渐变
+static uint16_t adaptive_dimming_lux_filter(uint16_t raw_avg)
+{
+    if (!s_lux_filt_inited) {
+        s_lux_filtered = raw_avg;
+        s_lux_filt_inited = 1;
+        return s_lux_filtered;
+    }
+    uint16_t diff = (raw_avg > s_lux_filtered) ? (raw_avg - s_lux_filtered)
+                                               : (s_lux_filtered - raw_avg);
+    if (diff >= ADAP_DIM_LUX_FAST_TRACK_DIFF) {
+        s_lux_filtered = raw_avg;
+    } else {
+        s_lux_filtered = (uint16_t)(((uint32_t)s_lux_filtered * (uint32_t)ADAP_DIM_LUX_EMA_NUM +
+                                      (uint32_t)raw_avg) /
+                                     (uint32_t)ADAP_DIM_LUX_EMA_DEN);
+    }
+    return s_lux_filtered;
+}
+
+#if IS_SUPPORT_ADAPTIVE_DIMMING
+/**
+ * @brief 光感稳定 MISC 节拍（与 MISC 任务同周期，默认每 200ms 一次）。
+ *
+ * 在 settling 状态下，用「上一批」滤波 lux（s_lux_last_batch_lux）与候选（s_lux_settle_candidate）比较：
+ * - 落在 ±ADAP_DIM_LUX_SETTLE_MATCH_EPS 内：s_lux_stable_misc_ticks 加一，达到 ADAP_DIM_LUX_STABLE_MISC_TICKS 后置 ready。
+ * - 超出：候选对齐到上一批 lux，周期清零。
+ * 每次调用先清 s_lux_misc_stable_gate_ready，再根据上面逻辑可能重新置 1。
+ */
+static void adaptive_dimming_lux_stable_misc_tick(void)
+{
+    s_lux_misc_stable_gate_ready = 0;
+    if (!s_lux_settling || s_last_applied_lux == 0 || !s_lux_last_batch_valid) {
+        return;
+    }
+    uint16_t dc = s_lux_last_batch_lux > s_lux_settle_candidate
+                      ? (s_lux_last_batch_lux - s_lux_settle_candidate)
+                      : (s_lux_settle_candidate - s_lux_last_batch_lux);
+    if (dc <= ADAP_DIM_LUX_SETTLE_MATCH_EPS) {
+        if (s_lux_stable_misc_ticks < 0xFFFFu) {
+            s_lux_stable_misc_ticks++;
+        }
+        if (s_lux_stable_misc_ticks >= ADAP_DIM_LUX_STABLE_MISC_TICKS) {
+            s_lux_misc_stable_gate_ready = 1u;
+        }
+    } else {
+        s_lux_settle_candidate = s_lux_last_batch_lux;
+        s_lux_stable_misc_ticks = 0;
+    }
+}
+
+/**
+ * @brief 光感「明显变化」门控：通过后才允许继续 duty_calculate 与下发。
+ *
+ * @param lux_now 本批滤波后的 lux_for_duty。
+ * @return 1 可继续调光；0 本批直接放弃下发。
+ *
+ * - s_last_applied_lux==0：首次生效前不拦。
+ * - 与 s_last_applied_lux 差值 < ADAP_DIM_LUX_SIGNIFICANT_DELTA：小变化，清 settling，直接通过。
+ * - 否则进入/维持 settling：本批与候选偏差 >EPS 时更新候选并清 misc 计数；偏差 ≤EPS 时仅当 s_lux_misc_stable_gate_ready 为 1 才通过。
+ */
+static int adaptive_dimming_lux_stable_gate_pass(uint16_t lux_now)
+{
+    if (s_last_applied_lux == 0) {
+        return 1;
+    }
+    uint16_t diff_from_applied = lux_now > s_last_applied_lux ? (lux_now - s_last_applied_lux)
+                                                              : (s_last_applied_lux - lux_now);
+    if (diff_from_applied < ADAP_DIM_LUX_SIGNIFICANT_DELTA) {
+        s_lux_settling = 0;
+        s_lux_stable_misc_ticks = 0;
+        s_lux_misc_stable_gate_ready = 0;
+        return 1;
+    }
+    if (!s_lux_settling) {
+        s_lux_settling = 1;
+        s_lux_settle_candidate = lux_now;
+        s_lux_stable_misc_ticks = 0;
+        s_lux_misc_stable_gate_ready = 0;
+        return 0;
+    }
+    uint16_t diff_cand = lux_now > s_lux_settle_candidate ? (lux_now - s_lux_settle_candidate)
+                                                          : (s_lux_settle_candidate - lux_now);
+    if (diff_cand > ADAP_DIM_LUX_SETTLE_MATCH_EPS) {
+        s_lux_settle_candidate = lux_now;
+        s_lux_stable_misc_ticks = 0;
+        s_lux_misc_stable_gate_ready = 0;
+        return 0;
+    }
+    return s_lux_misc_stable_gate_ready ? 1 : 0;
+}
+
+void adaptive_dimming_notify_encoder_activity(void)
+{
+    s_encoder_suppress_ticks = ADAP_DIM_ENCODER_SUPPRESS_TICKS;
+    s_lux_settling = 0;
+    s_lux_stable_misc_ticks = 0;
+    s_lux_misc_stable_gate_ready = 0;
+}
+#endif /* IS_SUPPORT_ADAPTIVE_DIMMING */
+
 static void adaptive_dimming_polling_thread(void *user_data)
 {
     led_manager_context_t *led = (led_manager_context_t *)user_data;
     EXCEPTION_CHECK_VOID(led);
     EXCEPTION_CHECK_VOID(adaptive);
+#if IS_SUPPORT_ADAPTIVE_DIMMING
+    /* 1) 旋钮屏蔽窗口内整段不调光；2) 无新批次时仍推进光感稳定 misc 节拍（见 lux_stable_misc_tick） */
+    if (s_encoder_suppress_ticks > 0) {
+        s_encoder_suppress_ticks--;
+        return;
+    }
+    adaptive_dimming_lux_stable_misc_tick();
+#endif
     if (adaptive->capture_data.is_acquire_complete == 0) {
         return;
     }
@@ -135,28 +263,46 @@ static void adaptive_dimming_polling_thread(void *user_data)
     adaptive->capture_data.is_acquire_complete = 0; /// 采集完成标志清零
     lux_avg = lux_sum / ADAP_DIM_DATA_SIZE;
 
+    uint16_t lux_for_duty = adaptive_dimming_lux_filter((uint16_t)lux_avg);
+
+#if IS_SUPPORT_ADAPTIVE_DIMMING
+    /* 更新「上一批」供 misc_tick 使用，再判明显变化门控；通过后才进入 duty_calculate */
+    s_lux_last_batch_lux = lux_for_duty;
+    s_lux_last_batch_valid = 1;
+    if (!adaptive_dimming_lux_stable_gate_pass(lux_for_duty)) {
+        return;
+    }
+#endif
+
 #if ADAPTIVE_DIMMING_DEBUG_LOG
     static uint8_t log_count = 0;
     log_count++;
     if (log_count > 10) {
-        LOG_MISC("lux_avg: %d", lux_avg);
+        LOG_MISC("lux raw_avg: %lu, filt: %u", (unsigned long)lux_avg, (unsigned)lux_for_duty);
         log_count = 0;
     }
 #endif
 
     uint8_t refresh_duty = 0;
-    if (adaptive_dimming_duty_calculate(lux_avg, &refresh_duty) == 0) {
+    if (adaptive_dimming_duty_calculate(lux_for_duty, &refresh_duty) == 0) {
         return;
     }
 
     if (led->hook && led->hook->night_light_adaptive_level_update) {
         led->hook->night_light_adaptive_level_update(led, refresh_duty);
     }
-    
+
     ui_manager_context_t *ui = (ui_manager_context_t *)find_module(ID_MODULE_UI);
     if (ui && ui->hook) {
         ui->hook->set_ui_backlight_adaptive_level(ui, refresh_duty * 100);
     }
+#if IS_SUPPORT_ADAPTIVE_DIMMING
+    /* 下发成功：记录用于「明显变化」比较的基准 lux，并清稳定状态机，便于下一轮从小变化或重新 settling 开始 */
+    s_last_applied_lux = lux_for_duty;
+    s_lux_settling = 0;
+    s_lux_stable_misc_ticks = 0;
+    s_lux_misc_stable_gate_ready = 0;
+#endif
 }
 
 /*
@@ -165,6 +311,17 @@ static void adaptive_dimming_polling_thread(void *user_data)
 */
 void adaptive_dimming_init(void)
 {
+#if IS_SUPPORT_ADAPTIVE_DIMMING
+    /* 旋钮屏蔽与光感稳定相关静态量复位（与 last_lux_for_duty 等独立） */
+    s_encoder_suppress_ticks = 0;
+    s_last_applied_lux = 0;
+    s_lux_settling = 0;
+    s_lux_settle_candidate = 0;
+    s_lux_stable_misc_ticks = 0;
+    s_lux_misc_stable_gate_ready = 0;
+    s_lux_last_batch_lux = 0;
+    s_lux_last_batch_valid = 0;
+#endif
     adaptive = (adaptive_dimming_info_t *)u_malloz(sizeof(adaptive_dimming_info_t));
     EXCEPTION_CHECK_VOID(adaptive);
     adaptive->is_sampling = 0;

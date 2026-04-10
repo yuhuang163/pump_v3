@@ -346,12 +346,15 @@ static void set_breast_pump_status(int status, int is_report)
                     motor_ctx->set_runtime_policy_index(MOTOR_TIME_POLICY, 0);
                     // LOG_PMP("brush finish, =>save brush result.");
                     notify_breast_pump_completed();
+                    WRITE_PUMP_IS_START_FROM_APP(breast_pump_obj, false);
                     break;
                 case BREAST_PUMP_FACTORY:
-                    notify_breast_pump_completed();
-                    if (m_info->do_work) {
-                        m_info->do_work = 0;
-                        stop_breast_pump_work(status);
+                    if (!m_info->do_work) {
+                        m_info->do_work = 1;
+                        CHECK_IF_VALID(pm_ctx, {
+                            pm_ctx->acquire_wakelock(PUMP_THD_WAKELOCK, -1);
+                        });
+                        start_breast_pump_work(false);
                     }
                     break;
                 case BREAST_PUMP_RESET: /// 用户app请求重置pump RESET后请将pump状态在设置为IDLE
@@ -584,6 +587,18 @@ static void set_pump_mode_activate_state(uint8_t mode, uint8_t status)
         st->put_store_ram_val(STORE_ID_PUMP_MODE_ACTIVATE_STATUS, mode, m_info->custom_activate, NULL);
     }
 }
+//标识由APP启动pump控制
+static void set_pump_status_start_from_app(uint8_t status)
+{
+    breast_pump_info_t *m_info = &breast_pump_obj->priv.m_info;
+    m_info->is_start_from_app = status > 0 ? true : false;
+}
+
+static uint8_t get_pump_status_start_from_app(void)
+{
+    breast_pump_info_t *m_info = &breast_pump_obj->priv.m_info;
+    return m_info->is_start_from_app;
+}
 
 static int get_pump_mode_steps_update_state(uint8_t mode)
 {
@@ -682,6 +697,12 @@ static void get_pump_composite_state(pump_state_type_e type, int arg1, int arg2,
             *result_info = get_breast_pump_result(arg1);
             break;
         }
+        case BREAST_PUMP_IS_START_FROM_APP: {
+            EXCEPTION_CHECK_VOID(out_data);
+            int *is_start_from_app = (int *)out_data;
+            *is_start_from_app = get_pump_status_start_from_app();
+            break;
+        }
         default:
             LOG_PMP("unknow type!!!!");
             break;
@@ -709,6 +730,9 @@ static void set_pump_composite_state(pump_state_type_e type, int arg1, int arg2,
         case BREAST_PUMP_WORK_MODE: 
             set_breast_pump_mode(arg1, arg2, arg3);
             break;
+        case BREAST_PUMP_IS_START_FROM_APP:
+            set_pump_status_start_from_app(arg1);
+            break;
         default:
             LOG_PMP("unknow type!!!!");
             break;
@@ -732,6 +756,9 @@ static void make_progress(void)
                 notify_time = get_timestamp();
                 SEND_BROADCAST_ARGS1(ID_BROADCAST_BREAST_PUMP_STATE_CHANGE, BREAST_PUMP_BROADCAST_PUMP_WILL_FINISH);
             }
+        } else if (notify_id == RESULT_PUMP_AUTO_PAUSE) {
+            WRITE_PUMP_WORK_STATUS(breast_pump_obj, BREAST_PUMP_PAUSE, 1);
+            SEND_BROADCAST_ARGS1(ID_BROADCAST_BREAST_PUMP_STATE_CHANGE, BREAST_PUMP_BROADCAST_AUTO_PAUSE_REQUEST);
         }
     }
 }

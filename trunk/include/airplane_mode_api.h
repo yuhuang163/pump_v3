@@ -30,9 +30,10 @@ typedef struct airplane_mode_context {
     struct __airplane_private {
         bool is_on;
         bool is_backgroud_check;
-        struct broadcast_obj *bcd;
+        bool is_count_down_popup_show;
         uint8_t is_breast_pump_working;
         uint8_t enter_state;
+        struct broadcast_obj *bcd;
         struct window_manager_context *wm;
         struct power_manager_context *pm;
         struct peripheral_bus_context *pbus;

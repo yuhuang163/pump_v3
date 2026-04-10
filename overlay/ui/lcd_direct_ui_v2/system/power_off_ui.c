@@ -29,6 +29,7 @@ typedef struct {
     lv_obj_t * label_text;
     uint32_t start_time;
     uint8_t force_update;
+    uint8_t rsv[15];
 } ui_power_off_info_t;
 
 /*

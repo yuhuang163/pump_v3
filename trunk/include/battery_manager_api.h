@@ -23,6 +23,11 @@ extern "C" {
 #define LOW_BAT_PERCENTAGE                5
 #endif
 
+/// 定义低电不足运行一次不允许启动
+#ifndef LOW_BAT_PERCENTAGE_RUN_ONCE_NOT_ALLOWED
+#define LOW_BAT_PERCENTAGE_RUN_ONCE_NOT_ALLOWED             10
+#endif
+
 #define BATTERY_IS_CHARGING(status)       ((status) == CHARGE_STATE_CHARGING || (status) == CHARGE_STATE_FULL)
 #define USB_IS_PLUGIN(status)             ((status) == 1)
 typedef enum {

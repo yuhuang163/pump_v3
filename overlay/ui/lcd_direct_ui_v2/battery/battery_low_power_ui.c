@@ -11,20 +11,12 @@
 * DEFINES
 *****************************************************************************************
 */
-typedef struct {    
-    lv_obj_t * root;
-    lv_obj_t * text;
-    lv_obj_t * countdown;
-    uint8_t countdown_value;
-    uint8_t force_update;
-    uint32_t start_time;
-} battery_low_power_display_info_t;
 
 /*
 * LOCAL VARIABLE DEFINITIONS
 *****************************************************************************************
 */
-static battery_low_power_display_info_t *low_power_info;
+
 
 /*
 * GLOBAL VARIABLE DEFINITIONS
@@ -35,23 +27,6 @@ static battery_low_power_display_info_t *low_power_info;
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-static void battery_low_power_root_init(void)
-{
-   
-}
-
-static int battery_low_power_text_update(ui_manager_context_t *thiz)
-{    
-   
-    return 0;
-}
-
-static int battery_low_power_countdown_update(ui_manager_context_t *thiz)
-{
-   
-    
-    return 0;
-}
 
 /*
 * GLOBAL FUNCTION DEFINITIONS

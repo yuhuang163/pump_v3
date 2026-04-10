@@ -43,6 +43,18 @@ static void app_old_comm_set_device_bind_status(uint8_t device_bind_status)
         LOG_SRV(" Device bind status set: %d\n", device_bind_status);
     }
 }
+
+// Get parse result string for logging
+static const char* app_old_comm_get_abnormal_type_str(old_publish_abnormal_type_e abnormal_type)
+{
+    switch (abnormal_type) {
+        case OLD_PUBLISH_ABNORMAL_LOW_BAT_CANNOT_START: return "LOW_BAT_CANNOT_START";
+        case OLD_PUBLISH_ABNORMAL_LOW_BATTERY: return "LOW_BATTERY";
+        case OLD_PUBLISH_ABNORMAL_LOW_BAT_SHUTDOWN_SOON: return "LOW_BAT_SHUTDOWN_SOON";
+        case OLD_PUBLISH_ABNORMAL_AIR_LEAK: return "AIR_LEAK";
+        default: return "UNKNOWN_ERROR";
+    }
+}
 /*
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
@@ -309,4 +321,15 @@ void app_old_comm_handle_pump_ble_rgb_set_ctrl_req(uint8_t cal, uint8_t *cab)
     app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_ACK, APP_OLD_COMM_CID_PUMP_BLE_RGB_SET_CTRL, 1, &result);
 }
 
+void app_old_comm_handle_dev_abnormal_report(void *cab)
+{
+    uint8_t report_data[2] = {0};
+    LOG_SRV(" Handling dev abnormal report\n");
+    EXCEPTION_CHECK_VOID(cab);
+    servers_publish_data_args_t *args_temp = (servers_publish_data_args_t *)cab;
+    report_data[0] = args_temp->arg1;
+    report_data[1] = args_temp->arg2;
+    LOG_SRV(" Abnormal type: %s\n", app_old_comm_get_abnormal_type_str(report_data[0]));
+    app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_NOTIFY, APP_OLD_COMM_CID_NOTIFY_V3_DEV_ABNORMAL, 2, report_data);
+}
 

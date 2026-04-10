@@ -161,7 +161,11 @@ static void pm_suspend_check_handler(power_manager_context_t *ctx)
     }
 
     uint32_t tmp = ctx->priv.suspend_counter;
+#if IS_SUPPORT_POWER_OFF_REMINDER
+    if (tmp > POWER_OFF_REMINDER_TIME) {
+#else
     if (tmp > 0) {
+#endif
         if (log_interval % 10 == 0) {
             LOG_PM("%ds after goto suspend, pm_state: %s current window: %s", 
                 (tmp / 1000), print_wakeup_state((pm_wakeup_state_e)ctx->priv.pm_state_change_progress),
@@ -190,6 +194,9 @@ static void pm_suspend_check_handler(power_manager_context_t *ctx)
         }
         /// 正常进入待机状态.
         LOG_PM("Now goto suspend!");
+#if IS_SUPPORT_POWER_OFF_REMINDER
+        set_suspend_counter("power_off_reminder", 0, true);
+#endif
         if (!is_pm_suspend_internal()) {
             if (ctx->priv.pm_state_change_progress == PM_RESUME_FINISH) {
                 dispatch_pm_event(ctx, ID_SYS_PM_SUSPEND);
@@ -667,12 +674,10 @@ static int system_power_control(bool state)
         msg.union_body.extra.window_id = ID_WINDOW_SYSTEM;
         msg.union_body.extra.arg1 = ID_SYSTEM_WINDOW_POWER_OFF;
         wm->dispatch_new_window_args(wm, &msg);
-#if IS_SUPPORT_POWER_OFF_FORCE_SAVE
         if (st->hook && st->hook->on_power_off_force_save_route) {
             st->hook->on_power_off_force_save_route(st);
             msleep(100); /// 等待100ms，确保数据写入完成
         }
-#endif
         st->flash_protect(true); /// 禁止flash读写操作.
     } else {
         LOG_PM("system_power_off");

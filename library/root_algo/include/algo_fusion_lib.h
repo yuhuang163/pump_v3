@@ -18,10 +18,41 @@ extern "C" {
 
 #define IS_SUPPORT_ALGO_LIB_LOG_OUTPUT     0
 
+/*
+typedef struct {
+    float fLeftAmp[100];
+    float fRightAmp[100];
+    float fValue[100];
+    unsigned int uPos[100];
+    unsigned int uType[100];   /// 0: valley, 1: peak
+    unsigned int uwidth[100];
+    float fLeftValue[100];
+    float fRightValue[100];
+    unsigned int uLeftWidth[100];
+    unsigned int uRightWidth[100];
+
+    unsigned int	uPVIndex;
+	unsigned int	uWaveSpikes;
+	float			fMinData;
+	float			fMinDataBuff[6];
+	float			fMinDataBuffMin;
+	unsigned int	uNoiseLevel;
+	unsigned int	uDataIdx;		// data index
+	unsigned short	uUpdateFlag;
+	float			fThreshold;
+	float			fLoadedThreshold;
+	unsigned char	uWearStatus;	// result
+	unsigned char	uCompsStatus;
+	int 			iDelta_pwm;			// 返回delta_pwm	-10000~10000
+	unsigned char	uPrevWearStatus;
+	unsigned int	uNormalWaveform;
+} SRESULT_INFO;*/
+
 typedef struct {
     uint8_t wear_status[2];   /// 0: 未佩戴 1: 正常佩戴
     uint8_t compensation_status[2];     // 0: 不补偿, 1: 减小气压; 2:加大气压
     int compensation_delta_pwm[2];               // 0: 不补偿, -10000~-1:PWM减小, 1~10000: PWM增加
+    /*SRESULT_INFO debug_info[2];                    /// 调试信息，包含特征值等*/
 } algo_fusion_result_t;
 
 typedef enum {
@@ -83,7 +114,8 @@ typedef struct {
     uint8_t pump_duty;        /// 泵奶力度
     uint8_t valve_duty;       /// 吸乳器电磁阀门力度
     uint8_t target_pressure;  /// 目标压力
-    uint16_t run_time;        /// 运行时间，单位ms
+    uint32_t target_pump_time;       /// 泵工作目标时间，单位ms
+    uint32_t run_time;        /// 运行时间，单位ms
 } algo_pump_state_t;
 
 /// 气压数据
@@ -92,7 +124,7 @@ typedef struct {
     uint32_t timestamp;
     float air_pressure[ALGO_AIR_PRESSURE_NUM];
     algo_pump_state_t pump_state[ALGO_AIR_PRESSURE_NUM];
-} aglo_air_pressure_data_t;
+} algo_air_pressure_data_t;
 
 typedef struct {
     algo_fusion_sensor_attr_type_e data_type;        /// 数据类型

@@ -278,3 +278,34 @@ int bsp_i2c_deinit(i2c_master_id_e device_id)
     LOG_PBUS("i2c_driver_delete:%d, ret:%d", device_id, ret);
     return ret;
 }
+
+int bsp_i2c_read_bytes(i2c_master_id_e device_id, i2c_master_data_t *data, uint16_t reg_addr)
+{
+    int ret = 0;
+    I2C_MASTER_ID_IS_INVALID(device_id);
+    EXCEPTION_CHECK_INT(data);
+    MUTEX_LOCK(s_i2c_mux[device_id]);
+    if (s_i2c_is_ready[device_id]) {
+        uint8_t reg_buf[2] = {0};
+        reg_buf[0] = (uint8_t)(reg_addr >> 8);
+        reg_buf[1] = (uint8_t)(reg_addr & 0xFF);
+        // ret = (int)hal_i2c_simple_recv(s_i2c_config[device_id].id, data->dev_address, reg_buf,
+        //     2, data->data, data->len);
+
+        #if IS_SUPPORT_I2C_MASTER_TASK
+        ret = (int)hal_i2c_task_recv(s_i2c_config[device_id].id, data->dev_address, reg_buf,
+            2, data->data, data->len, 0, NULL);
+        #else
+        ret = (int)hal_i2c_simple_recv(s_i2c_config[device_id].id, data->dev_address, reg_buf,
+            2, data->data, data->len);
+        #endif
+        if (ret != 0) {
+            LOGE("read i2c-%d timeout:%x ret:%d", device_id, data->dev_address, ret);
+        }
+    } else {
+        LOGE("i2c is no ready");  
+    }
+    MUTEX_UNLOCK(s_i2c_mux[device_id]);
+  
+    return ret;
+}

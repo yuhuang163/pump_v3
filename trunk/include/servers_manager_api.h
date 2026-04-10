@@ -46,6 +46,20 @@ typedef enum {
     OLD_PUBLISH_DATA_ID_MAX
 } servers_old_protocol_publish_data_id_e;
 
+/** V3 设备异常类型（配合 APP_OLD_COMM_CID_NOTIFY_V3_DEV_ABNORMAL 首字节） */
+typedef enum {
+    OLD_PUBLISH_ABNORMAL_LOW_BAT_CANNOT_START = 0x01, ///< 电量不足无法启动
+    OLD_PUBLISH_ABNORMAL_LOW_BATTERY = 0x02,           ///< 设备低电
+    OLD_PUBLISH_ABNORMAL_LOW_BAT_SHUTDOWN_SOON = 0x03, ///< 低电即将关机
+    OLD_PUBLISH_ABNORMAL_AIR_LEAK = 0x04,              ///< 设备漏气提醒
+} old_publish_abnormal_type_e;
+
+/** V3 设备异常状态（配合 APP_OLD_COMM_CID_NOTIFY_V3_DEV_ABNORMAL 次字节） */
+typedef enum {
+    OLD_PUBLISH_ABNORMAL_STATE_CLEARED = 0x00, ///< 异常解除
+    OLD_PUBLISH_ABNORMAL_STATE_ACTIVE = 0x01,  ///< 异常产生
+} app_old_comm_v3_abnormal_state_e;
+
 typedef struct {
     int arg1;
     int arg2;

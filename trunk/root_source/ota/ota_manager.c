@@ -69,40 +69,6 @@ static void on_ota_broadcast_receive(broadcast_mask_id_t id,
     }
 }
 
-static void ota_upgrade_state_start(ota_manager_context_t *ctx)
-{
-    window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
-
-    set_ota_upgrading(true);
-    set_ota_upgrade_progress(0);
-
-    if (wm && wm->dispatch_new_window_args) {
-        multi_func_msg_data_t msg = {0};
-        msg.union_body.extra.window_id = ID_WINDOW_OTA_UPGRADE;
-        msg.union_body.extra.is_bg_dispatch = 0x01;
-        wm->dispatch_new_window_args(wm, &msg);
-    }
-}
-
-static void ota_upgrade_state_progress(ota_manager_context_t *ctx, uint8_t progress)
-{
-    uint8_t val = progress > 100 ? 100 : progress;
-    set_ota_upgrade_progress(val);
-}
-
-static void ota_upgrade_state_end(ota_manager_context_t *ctx, uint8_t state)
-{
-    ota_obj->priv.is_working = false;
-    /// @todo OTA 页面如果需要结果，可发广播
-    if (0x01 == state) {
-        LOG_OTA("ota result sucess");
-        set_ota_upgrade_progress(100);
-    } else {
-        LOG_OTA("ota result faile, reson 0x%02X", state);
-        set_ota_upgrade_progress(0);
-    }
-}
-
 static ota_upgrade_state_e get_ota_upgrade_state(void)
 {
     return ota_obj->priv.ota_state;
@@ -114,42 +80,68 @@ static void set_ota_upgrade_state(ota_upgrade_state_e state)
     ota_obj->priv.ota_state = state;
 }
 
+static void ota_upgrade_state_progress(ota_manager_context_t *ctx, uint8_t progress)
+{
+    uint8_t val = progress > 100 ? 100 : progress;
+    set_ota_upgrade_progress(val);
+}
+
+static void ota_upgrade_state_start(ota_manager_context_t *ctx)
+{
+    window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
+    set_ota_upgrading(true);
+    set_ota_upgrade_progress(0);
+    set_ota_upgrade_state(OTA_UPGRADE_STATE_START);
+    if (wm && wm->dispatch_new_window_args) {
+        multi_func_msg_data_t msg = {0};
+        msg.union_body.extra.window_id = ID_WINDOW_OTA_UPGRADE;
+        msg.union_body.extra.is_bg_dispatch = 0x01;
+        wm->dispatch_new_window_args(wm, &msg);
+    }
+    SEND_BROADCAST_ARGS1(ID_BROADCAST_OTA_STATE_CHANGE, OTA_UPGRADE_STATE_START);
+}
+
+static void ota_upgrade_state_end(ota_manager_context_t *ctx, uint8_t state)
+{
+    set_ota_upgrading(false);
+    if (0x01 == state) {
+        LOG_OTA("ota result sucess");
+        set_ota_upgrade_progress(100);
+        set_ota_upgrade_state(OTA_UPGRADE_STATE_SUCCESS);
+        SEND_BROADCAST_ARGS1(ID_BROADCAST_OTA_STATE_CHANGE, OTA_UPGRADE_STATE_SUCCESS);
+    } else {
+        LOG_OTA("ota result faile, reson 0x%02X", state);
+        set_ota_upgrade_progress(0);
+        set_ota_upgrade_state(OTA_UPGRADE_STATE_FAIL);
+        SEND_BROADCAST_ARGS1(ID_BROADCAST_OTA_STATE_CHANGE, OTA_UPGRADE_STATE_FAIL);
+    }
+}
+
 static void ota_upgrade_thread(void *args)
 {
     ota_manager_context_t *ctx = ota_obj;
     thread_context_t *thd = args;
     multi_func_msg_data_t msg = {0};
     ota_event_type_e event;
-
     CREATE_MSG_QUEUE(&thd->msg_id, OTA_WORK_DISPATCH_MESQ_NUM);
     while (1) {
         MSG_QUEUE_RECV(thd->msg_id, &msg, OS_WAIT_FOREVER);
-
         event = msg.union_body.ota_evt_type.event;
-        // LOG_OTA("ota event:%d", event);
         switch (event) {
             case OTA_EVENT_RESUME_OTA:
             case OTA_EVENT_START_OTA:
                 ota_upgrade_state_start(ctx);
                 break;
-
-            case OTA_EVENT_OTA_PROGRESS: {
-                uint8_t progress = msg.union_body.ota_evt_type.sub_code;
-                LOG_OTA("ota progress %d", progress);
-                ota_upgrade_state_progress(ctx, progress);
+            case OTA_EVENT_OTA_PROGRESS:
+                LOG_OTA("ota progress %d", msg.union_body.ota_evt_type.sub_code);
+                ota_upgrade_state_progress(ctx, msg.union_body.ota_evt_type.sub_code);
                 break;
-            }
-
-            case OTA_EVENT_OTA_FAIL: {
-                ota_upgrade_state_end(ctx, 0);
+            case OTA_EVENT_OTA_FAIL: 
+                ota_upgrade_state_end(ctx, false);
                 break;
-            }
-
-            case OTA_EVENT_OTA_SUCCESS: {
-                ota_upgrade_state_end(ctx, 0);
+            case OTA_EVENT_OTA_SUCCESS:
+                ota_upgrade_state_end(ctx, true);
                 break;
-            }
-
             default:
                 break;
         }

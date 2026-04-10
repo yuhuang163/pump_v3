@@ -2,7 +2,8 @@
 * INCLUDE FILES
 *****************************************************************************************
 */
-#include "breast_pump_manager.h"
+#include "breast_pump_manager.h" // IWYU pragma: keep
+#include "input_key_code.h"
 #include "window_screen_pump.h"// IWYU pragma: keep
 
 /*
@@ -11,10 +12,8 @@
 */
 #define PAGE_STATIC_NAME                    pump
 #define PAGE_NAME_STR                       "pump"
-#define PUMP_UI_KEY_CODE                    (KEY_CODE_POWER |KEY_CODE_START | KEY_CODE_MODE | KEY_CODE_FREQUENCY | \
-                                            KEY_CODE_BREASTFEEDING | KEY_CODE_LEFT_CONTROL | KEY_CODE_RIGHT_CONTROL | \
-                                            KEY_CODE_KNOB_LEFT | KEY_CODE_KNOB_RIGHT)
-#define PUMP_UI_KEY_TYPE                    (KEY_EVENT_CLICK | KEY_EVENT_LONG_3S)
+#define PUMP_UI_KEY_CODE                    (ALL_KEY_CODE_NO_COMBINE)
+#define PUMP_UI_KEY_TYPE                    (KEY_EVENT_CLICK | KEY_EVENT_LONG_2S | KEY_EVENT_UP)
 #define PUMP_START_TASK_NAME                "pump_start"
 #define PUMP_STATE_CHANGE_TASK_NAME         "pump_state_change"
 #define PUMP_COMPLETE_TASK_NAME             "pump_complete"
@@ -98,11 +97,14 @@ static void pump_ui_common_cb(hdr_post_args_t *args)
     }
 }
 
-void pump_knob_event_cb(ui_proc_pump_t *proc, uint8_t is_left)
+static void pump_knob_event_cb(ui_proc_pump_t *proc, uint8_t is_left)
 {
     switch (proc->current_ui_type) {
         case PUMP_UI_TYPE_LEVEL:
-            switch_pump_level_ui(proc, is_left);
+            switch_pump_level_ui(proc, is_left ? false : true);
+            break;
+        case PUMP_UI_TYPE_BOTH_LEVEL:
+            switch_pump_both_level_ui(proc, is_left ? false : true);
             break;
         case PUMP_UI_TYPE_SPEED:
             switch_pump_speed_ui(proc, is_left ? false : true);
@@ -114,9 +116,10 @@ void pump_knob_event_cb(ui_proc_pump_t *proc, uint8_t is_left)
             switch_breastfeeding_mode_ui(proc, is_left ? false : true);
             break;
         case PUMP_UI_TYPE_HOME:
-            switch_pump_bilateral_control_type_ui_by_knob(proc, is_left);
+            switch_pump_both_control_type_ui(proc);
             break;
         default:
+            pump_popup_ui_type_update(proc, PUMP_POPUP_UI_OPERATION_FAILED);
             LOG_WM("unknow ui type: %d, ignore.", proc->current_ui_type);
             break;
     }
@@ -127,7 +130,7 @@ static void pump_long_press_event_cb(ui_proc_pump_t *proc, uint16_t keycode)
     switch (keycode) {
         case KEY_CODE_START:
             if (proc->current_ui_type == PUMP_UI_TYPE_HOME) {
-                proc->popup_ui_type = PUMP_POPUP_UI_PUMP_WILL_FINISH_TIP;
+                pump_popup_ui_type_update(proc, PUMP_POPUP_UI_PUMP_FINISH_MANUAL);
             }
             break;
         default:
@@ -188,10 +191,16 @@ static int on_pump_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
         proc->hide_air_leakage_popup_wm = true;     /// 隐藏空气泄漏弹窗提示.
     }
 #endif
-    if (keytype == KEY_EVENT_LONG_3S) {
+    if (keytype == KEY_EVENT_LONG_2S) {
         pump_long_press_event_cb(proc, keycode);
-    } else if (keytype == KEY_EVENT_CLICK) {
-        pump_click_event_cb(proc, keycode);
+    } else {
+        if (proc->popup_ui_type == PUMP_POPUP_UI_PUMP_FINISH_MANUAL) {
+            pump_popup_ui_type_update(proc, PUMP_POPUP_UI_NONE);
+        }
+
+        if (keytype == KEY_EVENT_CLICK) {
+            pump_click_event_cb(proc, keycode);
+        }
     }
     return 0;
 }
@@ -239,16 +248,18 @@ static void on_pump_ui_broadcast_receive_cb(broadcast_mask_id_t id, void *contex
             } else if (arg1 == BREAST_PUMP_BROADCAST_COMPLETED) {
                 LOG_WM("pump finish, post pump complete task.");
             } else if (arg1 == BREAST_PUMP_BROADCAST_PUMP_WILL_FINISH) {
-                proc->popup_ui_type = PUMP_POPUP_UI_PUMP_WILL_FINISH_TIP;
+                pump_popup_ui_type_update(proc, PUMP_POPUP_UI_PUMP_FINISH_TIMEOUT);
                 LOG_WM("pump will finish, post pump will finish task.");
             } else if (arg1 == BREAST_PUMP_BROADCAST_APP_COMPLETED) {
                 POST_TASK_HANDLER_NO_DELAY_ARG1(pump_ui_common_cb, proc, PUMP_HDR_ACTION_PUMP_COMPLETE, 
                     PUMP_COMPLETE_TASK_NAME);
                 LOG_WM("pump app complete, post pump app complete task.");
             } else if (arg1 == BREAST_PUMP_BROADCAST_PUMP_ERROR) {
+                pump_popup_ui_type_update(proc, PUMP_POPUP_UI_PUMP_ERROR_TIP);
                 LOG_WM("pump error, post pump error task.");
-                //先暂时显示暂停提示
-                proc->popup_ui_type = PUMP_POPUP_UI_PUMP_PAUSE_PROMPT;
+            } else if (arg1 == BREAST_PUMP_BROADCAST_AUTO_PAUSE_REQUEST) {
+                pump_popup_ui_type_update(proc, PUMP_POPUP_UI_PUMP_PAUSE_TIMEOUT);
+                LOG_WM("pump auto pause, post pump auto pause task.");
             }
             break;
         default:
@@ -279,11 +290,18 @@ static int entry_event_cb(window_lift_cycle_e new_state,
         if (proc->start_ui_type == PUMP_UI_TYPE_COMMON_MODE) {
             proc->current_ui_type = PUMP_UI_TYPE_NONE;
             pump_mode_key_click_handler(proc);
+            if (proc->led) {
+                proc->led->set_led_blink(PUMP_START_BL, LED_SLOW_BLINK_TIME, 0, LED_STATUS_OFF);
+            }
         } else if (proc->start_ui_type == PUMP_UI_TYPE_BREASTFEEDING_MODE) {
             proc->current_ui_type = PUMP_UI_TYPE_NONE;
             breastfeeding_mode_key_click_handler(proc);
+            if (proc->led) {
+                proc->led->set_led_blink(PUMP_START_BL, LED_SLOW_BLINK_TIME, 0, LED_STATUS_OFF);
+            }
         } else if (proc->start_ui_type == PUMP_UI_TYPE_PUMPING) {
             proc->current_ui_type = PUMP_UI_TYPE_NONE;
+            proc->home_popup_ui_type = PUMP_POPUP_UI_OPERATION_SUCCESS;
             switch_pump_status_ui(proc);
         } 
     }
@@ -365,8 +383,6 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
     proc->key = (key_input_context_t *)find_module(ID_MODULE_KEY_INPUT);
     proc->algo = (algo_manager_context_t *)find_module(ID_MODULE_ALGO_HUB);
     proc->led = (led_manager_context_t *)find_module(ID_MODULE_LED);
-    proc->level_change_direction = 0xff;/// 无效值
-    proc->level_change = 0;/// 档位变化值归零
     /// 注册广播监听.
     proc->receiver.context = proc;
     proc->receiver.name = "pump_screen";

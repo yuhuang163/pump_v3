@@ -286,9 +286,11 @@ int pump_motor_stall_detection_stop(uint8_t pump_id)
         return BSP_ERROR;
     }
     bsp_pump_stall_detection_timer_stop(pump_id);
+    /// 必须先关闭 GPADC，再 u_free(adc_value_all)；否则 motor1/2_adc_irq_cb 仍可能写已释放内存
+    int ret = motor_pump_stall_detection_stop(pump_id);
 
 #if IS_SUPPORT_STALL_DETECTION_ADC_VALUE_DEBUG
-    if (s_pump_stall_adc_value[pump_id].adc_value_all) {
+    if (ret == BSP_OK && s_pump_stall_adc_value[pump_id].adc_value_all) {
         LOG_PASS("pump %d adc_value_all: ", pump_id);
         for (int i = 0; i < s_pump_stall_adc_value[pump_id].adc_value_count; i++) {
             LOG_PASS("%d ", s_pump_stall_adc_value[pump_id].adc_value_all[i]);
@@ -296,13 +298,22 @@ int pump_motor_stall_detection_stop(uint8_t pump_id)
         LOG_PASS("\r\n");
         ///计算平均值 去掉最大值和最小值
         uint16_t sum = 0;
-        for (int i = 0; i < s_pump_stall_adc_value[pump_id].adc_value_count; i++) {
+        uint16_t n = s_pump_stall_adc_value[pump_id].adc_value_count;
+        for (int i = 0; i < n; i++) {
             if (s_pump_stall_adc_value[pump_id].adc_value_all[i] != s_pump_stall_adc_value[pump_id].adc_value_max && \
                 s_pump_stall_adc_value[pump_id].adc_value_all[i] != s_pump_stall_adc_value[pump_id].adc_value_min) {
                 sum += s_pump_stall_adc_value[pump_id].adc_value_all[i];
             }
         }
-        s_pump_stall_adc_value[pump_id].adc_value_avg = sum / (s_pump_stall_adc_value[pump_id].adc_value_count - 2);
+        if (n > 2) {
+            s_pump_stall_adc_value[pump_id].adc_value_avg = sum / (n - 2);
+        } else if (n > 0) {
+            uint32_t total = 0;
+            for (int i = 0; i < n; i++) {
+                total += s_pump_stall_adc_value[pump_id].adc_value_all[i];
+            }
+            s_pump_stall_adc_value[pump_id].adc_value_avg = (uint16_t)(total / n);
+        }
         //打印最大值、最小值、平均值
         LOG_PASS("pump %d adc_value_max: %d, adc_value_min: %d, adc_value_avg: %d\r\n", pump_id, s_pump_stall_adc_value[pump_id].adc_value_max, \
             s_pump_stall_adc_value[pump_id].adc_value_min, s_pump_stall_adc_value[pump_id].adc_value_avg);
@@ -311,7 +322,7 @@ int pump_motor_stall_detection_stop(uint8_t pump_id)
     }
 #endif
 
-    return motor_pump_stall_detection_stop(pump_id);
+    return ret;
 }
 
 bool pump_motor_is_stalled(uint8_t pump_id)

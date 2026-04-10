@@ -14,8 +14,8 @@ extern "C" {
 
 #define COMMON_BLE_UI_X                                      (137)
 #define COMMON_BLE_UI_Y                                      (26)
-#define CUSTOM_BLE_UI_X                                      (168)
-#define CUSTOM_BLE_UI_Y                                      (22)
+#define PUMP_HOME_BLE_UI_X                                   (137)
+#define PUMP_HOME_BLE_UI_Y                                   (26)
 
 /*
 * GLOBAL FUNCTION DECLARATION

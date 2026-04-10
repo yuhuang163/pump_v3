@@ -30,10 +30,11 @@ typedef struct {
     lv_obj_t * arc;                   /// 圆弧进度条对象
     lv_obj_t * number_text;           /// 数字文本对象
     lv_obj_t * mask_layer;            /// 遮罩层对象
+    uint32_t start_time;              /// 倒计时起始时间
+    uint16_t ring_progress;           /// 圆弧进度
     uint8_t force_update;
     uint8_t display_number;           /// 显示倒计时数字
-    uint16_t ring_progress;           /// 圆弧进度
-    uint32_t start_time;              /// 倒计时起始时间
+    uint8_t rsv[12];
 } power_off_tip_display_info_t;
 
 /*
@@ -72,7 +73,7 @@ static void will_power_off_tip_text_update(ui_manager_context_t *thiz)
 {
     uint8_t num = get_timestamp_ms(power_off_info->start_time) / 1000;
     uint8_t show_num = (num > 3 ? 0 : 3 - num);
-    if (power_off_info->force_update == false && power_off_info->display_number == power_off_info->ring_progress) {
+    if (power_off_info->force_update == false && power_off_info->display_number == show_num) {
         return;
     }
 
@@ -83,8 +84,7 @@ static void will_power_off_tip_text_update(ui_manager_context_t *thiz)
         lv_label_set_text(power_off_info->text, "Shut down soon");
         lv_obj_set_style_text_color(power_off_info->text, lv_color_hex(WILL_POWER_OFF_TEXT_COLOR), 0);
         lv_obj_set_style_text_font(power_off_info->text, &lv_font_oppo_sans_16_medium, 0);
-        lv_coord_t w = lv_obj_get_width(power_off_info->text);
-        lv_obj_align(power_off_info->text, LV_ALIGN_TOP_MID, -(w / 2), 111);
+        lv_obj_align(power_off_info->text, LV_ALIGN_TOP_MID, 0, 111);
     }
 
     if (power_off_info->number_text == NULL || !lv_obj_is_valid(power_off_info->number_text)) {
@@ -121,10 +121,6 @@ static void will_power_off_tip_arc_update(ui_manager_context_t *thiz)
         lv_obj_set_style_arc_width(power_off_info->arc, WILL_POWER_OFF_ARC_WIDTH, LV_PART_INDICATOR);
         lv_obj_set_style_arc_opa(power_off_info->arc, LV_OPA_COVER, LV_PART_INDICATOR);  /// 前景弧不透明
         lv_obj_remove_style(power_off_info->arc, NULL, LV_PART_KNOB); /// 去掉旋钮
-    }
-
-    if (ring_progress > WILL_POWER_OFF_DISPLAY_MAX_VALUE) {
-        ring_progress = WILL_POWER_OFF_DISPLAY_MAX_VALUE;
     }
 
     if (ring_progress >= WILL_POWER_OFF_DISPLAY_MAX_VALUE) {
@@ -184,10 +180,7 @@ void ui_display_power_off_popup_prepare(ui_manager_context_t *thiz)
 
 void ui_display_power_off_popup_remove(ui_manager_context_t *thiz)
 {
-    EXCEPTION_CHECK_VOID(thiz);
-    if (power_off_info == NULL) {
-        return;
-    }
+    EXCEPTION_CHECK_VOID(thiz && power_off_info);
     LVGL_OBJ_DELETE(power_off_info->root);
     u_free(power_off_info);
     power_off_info = NULL;
@@ -196,9 +189,7 @@ void ui_display_power_off_popup_remove(ui_manager_context_t *thiz)
 int ui_display_power_off_popup_process(ui_manager_context_t *thiz)
 {
     EXCEPTION_CHECK_INT(thiz);
-    if (power_off_info == NULL || power_off_info->root == NULL) {
-        return 0;
-    }   
+    EXCEPTION_CHECK_INT(power_off_info && power_off_info->root);
     will_power_off_tip_mask_layer_update(thiz);
     will_power_off_tip_arc_update(thiz);
     will_power_off_tip_text_update(thiz);

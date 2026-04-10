@@ -13,7 +13,7 @@
 
 // hardware parameters
 #define SAMPLE_RATE			(50)
-#define WIN_SIZE			(50)  //(1 second)
+#define WIN_SIZE			(50*3)  //(1 second)
 #define CHANNEL_NUM			(2)		// 2 channels - left and right
 #define CHANNEL_0			(0)		// 0: left
 #define CHANNEL_1			(1)		// 1: right
@@ -40,6 +40,8 @@
 #define LEVEL_14			(14)
 #define LEVEL_15			(15)
 
+#define INVALID_TARGET_PRESSURE_REF    (-255.0f) /* 无效的目标压力参考值 */
+
 // target pressure for each level - v2.13
 static float EXPRESSION_THRESHOLD[] = { -6, -9.5, -12.5, -15, -17.5,
 											-19.5, -21.5, -23.5, -25.5, -27.5,
@@ -47,6 +49,8 @@ static float EXPRESSION_THRESHOLD[] = { -6, -9.5, -12.5, -15, -17.5,
 static float STIMULATION_THRESHOLD[] = { -6, -7.4,	-8.8, -10.2, -11.5,
 											-12.8, -14.1, -15.3, -16.5, -17.7,
 											-18.8, -19.9, -21, -22, -23 };
+static float MIXED_THRESHOLD[] = { -4, -5, -6, -7.5, -11, -11, -16, -20,
+									   -25, -30, -35, -35, -40, -40, -40 };
 
 static float EXPRESSION_WORK_TIME[] = { 370, 404, 425, 440, 468,
 										  475, 490, 540, 548, 560,
@@ -56,9 +60,13 @@ static float STIMULATION_WORK_TIME[] = { 270, 245, 270, 270, 260,
 										  303, 290, 302, 285, 305,
 										  285, 305, 313, 340, 322 };
 
-static float MIXED_THRESHOLD[] = { -4, -5, -6, -7.5, -11, -11, -16, -20,
-									   -25, -30, -35, -35, -40, -40, -40 };
-
+// unloaded threshold for wear detection 
+static float UNLOADED_EXPRESSION_THRESHOLD[] = { -4, -5, -6, -7.5, -11, -11, -16, -18,
+									   -18, -12, -35, -35, -40, -40, -40 };
+static float UNLOADED_STIMULATION_THRESHOLD[] = { -3, -3, -4, -5, -5.5, -5.5, -7, -8,
+									   -8, -9, -11, -12, -14, -15, -19 };
+static float UNLOADED_MIXED_THRESHOLD[] = { -4, -5, -6, -7.5, -11, -11, -16, -18,
+									   -18, -12, -35, -35, -40, -40, -40 };
 
 static float expression_K_slope[] = { 0.9614, 0.3633, 0.5492, 0.6025, 0.0771,
 									0.0463, 0.1959, 0.2455, 0.0770, -0.0935,
@@ -98,14 +106,50 @@ typedef struct _DEVICE_INFO
 	unsigned short	uLevel;
 	unsigned short	run_time;			// 运行时间，单位ms
 	unsigned char	uTargetPressure;	// 正值
+	unsigned short  uTargetPumpTime;	/* 吸力保持时间，单位ms */
 }SDEVICE_INFO;
 
+/* 目标压力曲线项 */
+typedef struct _TARGET_CURVE_ITEM
+{
+    unsigned char target_pressure;
+    unsigned short target_pump_time;
+    unsigned short curve_len;
+    const float *p1_curve;
+} STARGET_CURVE_ITEM;
 
 typedef struct _DATA_BUFF_
 {
 	float			fDataBuff[WIN_SIZE];
 	unsigned int	uCurrPos;		// current pos
 }SDATA_BUFF;
+
+/* pid control info */
+typedef struct _PID_CTRL_INFO
+{
+    unsigned char uPrevPumpState;   /* 上一次泵状态 */
+    unsigned char uCurveValid;      /* 当前是否找到目标曲线 */
+	unsigned char uCycleSynced;   /* 是否已经同步到完整周期边界 */
+
+    float fTargetPressureRef;       /* 当前时刻目标压力 */
+    float fCurrError;               /* 当前误差 */
+    float fPrevError;               /* 上一次误差 */
+    float fIntegral;                /* 积分项 */
+    float fPidOutput;               /* PID原始输出 */
+} SPID_CTRL_INFO;
+
+/* pid debug info */
+typedef struct _PID_DEBUG_INFO
+{
+    unsigned short pumping_time;
+    unsigned char curve_valid;
+    float target_ref;
+    float error;
+    float integral;
+    float pid_output;
+    int delta_pwm;
+    unsigned char comps_status;
+} SPID_DEBUG_INFO;
 
 typedef struct _PUMP_FEATURE_INFO
 {
@@ -116,8 +160,8 @@ typedef struct _PUMP_FEATURE_INFO
 	float			fSlope;
 	float			fIntercept;
 	int				iDelta_pwm;			// 返回delta_pwm	-10000~10000
+	SPID_CTRL_INFO tPidCtrl;			/* pid控制信息 */
 }SPUMPFEATURE_INFO;
-
 
 
 // tightness_detection
@@ -154,8 +198,12 @@ typedef struct _FEATURE_INFO_
 	unsigned int	uDataIdx;		// data index
 	unsigned short	uUpdateFlag;
 	float			fThreshold;
+	float			fLoadedThreshold;
+	unsigned char	uPumpFlag;
+	unsigned char	pumping_time;
 	unsigned char	uWearStatus;	// result
 	unsigned char	uCompsStatus;
+	int 			iDelta_pwm;			// 返回delta_pwm	-10000~10000
 	unsigned char	uPrevWearStatus;
 	unsigned int	uNormalWaveform;
 }SFEATURE_INFO;

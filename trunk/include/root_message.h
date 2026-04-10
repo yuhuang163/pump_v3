@@ -32,10 +32,8 @@ typedef enum {
 typedef enum {
     ID_POPUP_WINDOW_BT_CONNECT,
     ID_POPUP_WINDOW_BT_DISCONNECT,
-    ID_POPUP_WINDOW_AIRPLANE_MODE,
+    ID_POPUP_WINDOW_COUNT_DOWN,
     ID_POPUP_WINDOW_LOW_POWER,
-    ID_POPUP_WINDOW_EXIT_AIRPLANE_MODE,
-    ID_POPUP_WINDOW_MODE_PROMPT,
     ID_POPUP_WINDOW_WILL_POWER_OFF,
     ID_POPUP_WINDOW_MAX,
 } popup_window_id_e;
@@ -44,6 +42,7 @@ typedef enum {
 typedef enum {
     ID_SYSTEM_WINDOW_POWER_OFF,
     ID_SYSTEM_WINDOW_FACTORY_RESET,
+    ID_SYSTEM_WINDOW_FACTORY_RESET_CONFIRM, /// 工厂重置确认界面
     ID_SYSTEM_WINDOW_ID_MAX,
 } system_window_id_e;
 
@@ -51,10 +50,12 @@ typedef enum {
 typedef struct {
     uint8_t window_id;   /// 窗口ID.
     bool is_bg_dispatch; /// 是否后台调度. 配合窗口优先级使用
+    bool forbid_short_press_exit_popup; /// 禁止短按退出弹窗. 默认允许短按退出弹窗.
     int arg1;            /// 参数1.
     int arg2;            /// 参数2.
-    void *user_data;       /// 上下文指针.
+    void *user_data;     /// 上下文指针.
     uint32_t popup_exit_time; /// 弹出框退出时间.
+    int popup_priority;   /// 弹出框优先级.
     int (*popup_exit_cb)(void *user_data, int args1, int args2); /// 弹出框退出回调.
 } window_entry_extra_t;
 

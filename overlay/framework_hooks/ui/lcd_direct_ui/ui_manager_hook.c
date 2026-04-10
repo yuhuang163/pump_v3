@@ -57,6 +57,7 @@ const static ui_snap_shot_info_t snap_shot_infos[UI_SNAP_SHOT_ID_MAX] = {
     {RESOURCE_ID_PUMP_LEVEL_BG, false},
     {RESOURCE_ID_REGULAR_PUMPING_BG, false},
     {RESOURCE_ID_EXPERT_PUMPING_BG, false},
+    {RESOURCE_ID_PUMP_LEVEL_BOTH_SIDES_BG, false},
 };
 
 /*
@@ -265,7 +266,6 @@ static void ui_animation_overlay_init_on_ui_thread(struct ui_manager_context *th
         ani->display_prepare_cb(thiz);
         lv_unlock();
     }
-
     thiz->priv.is_playing_ui_overlay = true;
 }
 
@@ -355,8 +355,9 @@ static void change_images_cb(lv_timer_t *t)
         
     /// base 动画先绘制
     ui_ctx->play_animation_lock(NULL);
-    if (ui_ctx->priv.is_playing_ui_animation) {
-        ui_ctx->play_animation_unlock(NULL);
+    bool is_playing_ui_animation = ui_ctx->priv.is_playing_ui_animation;
+    ui_ctx->play_animation_unlock(NULL);
+    if (is_playing_ui_animation) {
         ui_animation_play_t *ani = &ui_ctx->priv.play_info;
         if (ani->tag) {
             if (ani->progress_cb) {
@@ -369,8 +370,9 @@ static void change_images_cb(lv_timer_t *t)
 
     /// overlay 后绘制（保证叠加层在上面）
     ui_ctx->play_animation_lock(NULL);
-    if (ui_ctx->priv.is_playing_ui_overlay) {
-        ui_ctx->play_animation_unlock(NULL);
+    bool is_playing_ui_overlay = ui_ctx->priv.is_playing_ui_overlay;
+    ui_ctx->play_animation_unlock(NULL);
+    if (is_playing_ui_overlay) {
         ui_animation_play_t *ani = &ui_ctx->priv.overlay_play_info;
         if (ani->tag) {
             if (ani->progress_cb) {

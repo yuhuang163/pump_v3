@@ -108,7 +108,7 @@ static void factory_reset_led_blink_policy(led_manager_context_t *led)
 {
     EXCEPTION_CHECK_VOID(led);
     LOG_UI("factory reset led blink policy");
-    led->set_led_blink(PUMP_LED_ALL_ID, 500, 0, LED_STATUS_OFF);
+    led->set_led_blink(PUMP_LED_ALL_ID, LED_MEDIUM_BLINK_TIME, 0, LED_STATUS_OFF);
 }
 
 static void factory_reset_cb(hdr_post_args_t *args)

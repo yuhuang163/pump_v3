@@ -115,8 +115,45 @@ detect_version_from_path() {
     esac
 }
 
+resolve_root_product_family_from_makefile() {
+    # 优先按 GNUmakefile 中 ROOT_PRODUCT_ID 的默认配置判断产品族，避免单独预处理
+    # product_info.h 时未定义宏被当成 0，导致 V3/V3Pro 误判。
+    local makefile="$PROJECT_DIR/GNUmakefile"
+    if [ ! -f "$makefile" ]; then
+        printf "%s" "V3"
+        return 0
+    fi
+
+    local v3_id=""
+    local v3pro_id=""
+    local product_id_token=""
+    v3_id="$(awk '/^ROOT_PRODUCT_V3_ID[[:space:]]*\?=/{print $3; exit}' "$makefile")"
+    v3pro_id="$(awk '/^ROOT_PRODUCT_V3PRO_ID[[:space:]]*\?=/{print $3; exit}' "$makefile")"
+    product_id_token="$(awk '/^ROOT_PRODUCT_ID[[:space:]]*\?=/{print $3; exit}' "$makefile")"
+
+    case "$product_id_token" in
+        '$(ROOT_PRODUCT_V3PRO_ID)') product_id_token="$v3pro_id" ;;
+        '$(ROOT_PRODUCT_V3_ID)') product_id_token="$v3_id" ;;
+    esac
+
+    if [ -n "$v3pro_id" ] && [ "$product_id_token" = "$v3pro_id" ]; then
+        printf "%s" "V3Pro"
+    else
+        printf "%s" "V3"
+    fi
+}
+
 resolve_root_device_name() {
-    # 从 boards/product_info.h 解析 ROOT_DEVICE_NAME（优先使用预处理器展开，适配 ROOT_PRODUCT_ID 等间接宏）
+    # 优先按 GNUmakefile 中 ROOT_PRODUCT_ID 默认值判断，避免直接预处理 product_info.h
+    # 时把未定义条件宏当成 0，误判为 V3Pro。
+    local device_name=""
+    device_name="$(resolve_root_product_family_from_makefile)"
+    if [ -n "$device_name" ]; then
+        printf "%s" "$device_name"
+        return 0
+    fi
+
+    # 回退：从 boards/product_info.h 解析 ROOT_DEVICE_NAME（适配显式传入的编译宏场景）
     local info_file="$PROJECT_DIR/boards/product_info.h"
     if [ -f "$info_file" ]; then
         local compiler=""

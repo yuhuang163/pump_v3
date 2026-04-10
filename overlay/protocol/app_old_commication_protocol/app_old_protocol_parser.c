@@ -82,6 +82,7 @@ const char* app_old_comm_get_cmd_id_str(app_old_comm_cmd_id_e cid)
         case APP_OLD_COMM_CID_TASTE_CTRL: return "TASTE_CTRL";
         case APP_OLD_COMM_CID_SET_TRAVEL_LOCK: return "SET_TRAVEL_LOCK";
         case APP_OLD_COMM_CID_NOTIFY_STATUS: return "NOTIFY_STATUS";
+        case APP_OLD_COMM_CID_NOTIFY_V3_DEV_ABNORMAL: return "NOTIFY_V3_DEV_ABNORMAL";
         case APP_OLD_COMM_CID_NOTIFY_BIND: return "NOTIFY_BIND";
         case APP_OLD_COMM_CID_NOTIFY_DISCON: return "NOTIFY_DISCON";
         case APP_OLD_COMM_CID_TASTE_REPORT: return "TASTE_REPORT";

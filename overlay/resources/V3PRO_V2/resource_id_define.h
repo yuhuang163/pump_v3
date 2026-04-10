@@ -12,12 +12,17 @@ extern "C" {
 #include <stdint.h> // IWYU pragma: keep
 
 typedef enum {
-    RESOURCE_ID_NONE = 0x00, /// 无资源
+    RESOURCE_ID_NONE = 0, /// 无资源
 
     /* 通用组 [1..100] */
-    RESOURCE_ID_BLE_CONNECT = 0x01,            /// 蓝牙连接图标
-    RESOURCE_ID_BLE_DISCONNECT,                /// 蓝牙断开图标
-    RESOURCE_ID_BATT_CAP_0_ICON,               /// 电池电量0%
+    RESOURCE_ID_BLE_CONNECT_ICON = 1,        /// 蓝牙连接图标
+    RESOURCE_ID_BLE_DISCONNECT_ICON,            /// 蓝牙断开图标
+    RESOURCE_ID_BLE_DISCONNECT_POPUP_ICON,      /// 蓝牙断开弹窗图标
+    RESOURCE_ID_ALLOW_ICON,                     /// 允许图标
+    RESOURCE_ID_BAN_ICON,                       /// 禁止图标
+    RESOURCE_ID_WARNING_ICON,                   /// 警告图标
+
+    RESOURCE_ID_BATT_CAP_0_ICON = 50,          /// 电池电量0%
     RESOURCE_ID_BATT_CAP_20_ICON,              /// 电池电量20%
     RESOURCE_ID_BATT_CAP_40_ICON,              /// 电池电量40%
     RESOURCE_ID_BATT_CAP_60_ICON,              /// 电池电量60%
@@ -29,7 +34,6 @@ typedef enum {
     RESOURCE_ID_CLOCK_COLON_ICON,              /// 时钟冒号图标
     RESOURCE_ID_CHARGE_PAGE_BG,                /// 充电页背景
 
-
     /* 主界面组 [100..150] */
     RESOURCE_ID_COMMON_BG = 100,               /// 通用背景
     RESOURCE_ID_START_LOGO_ICON,               /// 启动LOGO
@@ -38,8 +42,9 @@ typedef enum {
     RESOURCE_ID_AIRPLANE_UNLOCK_BUTTON_ICON,   /// 飞行模式解锁按钮图标
     RESOURCE_ID_HOME_DUMMY_ICON,               /// dummy图标
     RESOURCE_ID_CHARGE_ADAPTER_IMG,            /// 首页充电适配器图标
-    RESOURCE_ID_HOME_IDLE_PAGE_IMG,            /// 首页屏幕保护图片
     RESOURCE_ID_HOME_LIGHT_LABLE_ICON,         /// 首页光线图标
+    RESOURCE_ID_HOME_BLE_LABEL_ICON,           /// 首页蓝牙标签图标
+    RESOURCE_ID_HOME_BLE_IP_ICON,              /// 首页蓝牙IP图标
 
     /* 引导组 [150..200] */
     RESOURCE_ID_GUIDE_PAGE1_IMG = 150,        /// 引导-页1图片
@@ -60,11 +65,6 @@ typedef enum {
     RESOURCE_ID_FREQ_PAGE_REGULAR_ICON,        /// 频率页-频率常规图标
     RESOURCE_ID_FREQ_PAGE_COMFORT_ICON,        /// 频率页-频率舒适图标
 
-    RESOURCE_ID_MODE_STIMULATION_PROMPT_ICON,  /// 模式-刺激确认提示图标
-    RESOURCE_ID_MODE_EXPRESSION_PROMPT_ICON,   /// 模式-泌乳确认提示图标
-    RESOURCE_ID_MODE_MIX_PROMPT_ICON,          /// 模式-混合确认提示图标
-    RESOURCE_ID_MODE_RELAX_PROMPT_ICON,        /// 模式-放松确认提示图标
-
     RESOURCE_ID_LAST_USED_MODE_ICON,           /// 上一次使用模式图标
     RESOURCE_ID_NEW_MODE_STEPS_PROMPT_ICON,    /// 新模式未确认图标
     RESOURCE_ID_MODE_LACTATION_ICON,           /// 模式-泌乳图标
@@ -77,9 +77,9 @@ typedef enum {
     RESOURCE_ID_PUMP_FINISH_ICON,              /// 泵奶完成图标
     RESOURCE_ID_PUMP_PAUSE_PROMPT_ICON,        /// 泵奶暂停提示图标
     RESOURCE_ID_PUMP_LEVEL_BG,                 /// 泵奶档位背景
+    RESOURCE_ID_PUMP_LEVEL_BOTH_SIDES_BG,      /// 泵奶档位双侧模式背景
     RESOURCE_ID_PUMP_LEVEL_ADD_LABEL_ICON,     /// 泵奶档位文本加号图标
     RESOURCE_ID_PUMP_LEVEL_SUB_LABEL_ICON,     /// 泵奶档位文本减号图标
-    RESOURCE_ID_PUMP_LEVEL_ABNORMAL_ICON,      /// 泵奶档位异常图标
 
     /* 动画组 [300...] */
     RESOURCE_ID_COMMON_MODE_ANIMATION_START = 300,   /// 泵奶模式动画-开始
@@ -93,6 +93,15 @@ typedef enum {
 
     RESOURCE_ID_PUMP_LEVEL_START = 900,   /// 泵奶档位图片-开始
     RESOURCE_ID_PUMP_LEVEL_END = 914,     /// 泵奶档位图片-结束
+
+    RESOURCE_ID_SELECTED_LOCATE_3_START = 920,     /// 选中定位-3-图标 
+    RESOURCE_ID_SELECTED_LOCATE_3_END = 922,       /// 选中定位-3-图标
+
+    RESOURCE_ID_SELECTED_LOCATE_5_START = 930,     /// 选中定位-5-图标 
+    RESOURCE_ID_SELECTED_LOCATE_5_END = 934,       /// 选中定位-5-图标
+
+    RESOURCE_ID_SELECTED_LOCATE_6_START = 940,     /// 选中定位-6-图标 
+    RESOURCE_ID_SELECTED_LOCATE_6_END = 945,       /// 选中定位-6-图标
 
     RESOURCE_ID_HOME_LIGHT_ANIMATION_START = 1000,   /// 首页夜灯动画-开始
     RESOURCE_ID_HOME_LIGHT_ANIMATION_END = 1119,     /// 首页夜灯动画-结束

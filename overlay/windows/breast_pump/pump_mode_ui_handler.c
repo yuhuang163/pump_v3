@@ -25,6 +25,13 @@
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
+static void pump_mode_popup_ui_finish_policy(ui_manager_context_t *ui, uint8_t popup_ui_index)
+{
+    LOG_WM("===> popup %d ui display complete.", popup_ui_index);
+    ui_proc_pump_t *proc = (ui_proc_pump_t *)ui->priv.play_info.user_data;
+    pump_popup_ui_type_update(proc, PUMP_POPUP_UI_NONE);
+}
+
 static void pump_mode_display_completed_cb(hdr_post_args_t *args)
 {
     ui_proc_pump_t *proc = (ui_proc_pump_t *)args->user_data;
@@ -41,19 +48,14 @@ static void pump_mode_display_completed_cb(hdr_post_args_t *args)
             msg.union_body.extra.window_id = ID_WINDOW_HOME;
             proc->wm->dispatch_new_window_args(proc->wm, &msg);
         } else {
-            int pump_mode = 0;
-            READ_PUMP_WORK_MODE(proc->pump, pump_mode);
-            if (proc->ui_common_mode_index != pump_mode) {
-                proc->popup_ui_type = PUMP_POPUP_UI_MODE_PROMPT;
+            if (proc->mode_sync_flag) {
+                proc->mode_sync_flag = false;
+                WRITE_PUMP_WORK_MODE(proc->pump, proc->ui_common_mode_index, true, 1);
+                proc->home_popup_ui_type = PUMP_POPUP_UI_OPERATION_SUCCESS;
             }
             show_pump_home_ui(proc);
         }
     }
-}
-
-static void pump_mode_ui_before_policy(ui_manager_context_t *ui, int index)
-{
-
 }
 
 static void pump_mode_ui_after_policy(ui_manager_context_t *ui, int index)
@@ -61,16 +63,13 @@ static void pump_mode_ui_after_policy(ui_manager_context_t *ui, int index)
     ui_display_pump_mode_process(ui);
     ui_proc_pump_t *proc = (ui_proc_pump_t *)ui->priv.play_info.user_data;
     EXCEPTION_CHECK_VOID(proc);
-    int is_pump_working = 0; 
-    READ_PUMP_IS_WORKING(proc->pump, is_pump_working);
-    if (is_pump_working == 0) {
-        if (get_timestamp_ms(proc->last_progress_ani_time) >= PUMP_MODE_DISPLAY_TIMEOUT) {
-            LOG_UI("pump mode ui timeout: %d", proc->last_progress_ani_time);
-            POST_TASK_HANDLER_NO_DELAY(pump_mode_display_completed_cb, proc, PUMP_MODE_DISPLAY_TASK_NAME);
-        }
+    if (get_timestamp_ms(proc->last_progress_ani_time) >= PUMP_MODE_DISPLAY_TIMEOUT) {
+        proc->last_progress_ani_time = get_timestamp();
+        LOG_UI("pump mode ui timeout: %d", proc->last_progress_ani_time);
+        POST_TASK_HANDLER_NO_DELAY(pump_mode_display_completed_cb, proc, PUMP_MODE_DISPLAY_TASK_NAME);
     } else {
-        if (get_timestamp_ms(proc->last_progress_ani_time) >= PUMPING_MODE_DISPLAY_TIMEOUT) {
-            LOG_UI("pumping mode ui timeout: %d", proc->last_progress_ani_time);
+        if (proc->goto_pump_home_ui) {
+            proc->goto_pump_home_ui = false;
             POST_TASK_HANDLER_NO_DELAY(pump_mode_display_completed_cb, proc, PUMP_MODE_DISPLAY_TASK_NAME);
         }
     }
@@ -85,10 +84,12 @@ static void pump_mode_animation_progress_cb(void *user_data, int index, ui_ani_p
         case ANI_TIMER_DRAW_FINISH:
             break;
         case ANI_TIMER_DRAW_BEFORE:
-            pump_mode_ui_before_policy(ui, index);
             break;
         case ANI_TIMER_DRAW_AFTER:
             pump_mode_ui_after_policy(ui, index);
+            break;
+        case ANI_POPUP_DISPLAY_FINISH:
+            pump_mode_popup_ui_finish_policy(ui, index);
             break;
         default:
             break;
@@ -113,6 +114,11 @@ static void show_pump_mode_ui(ui_proc_pump_t *proc)
 {
     ui_manager_context_t *ui = proc->ui;
     EXCEPTION_CHECK_VOID(ui->hook && ui->hook->ui_animation_play_init);
+    if (proc->popup_ui_type == PUMP_POPUP_UI_OPERATION_FAILED ||
+        proc->popup_ui_type == PUMP_POPUP_UI_OPERATION_SUCCESS ||
+        proc->popup_ui_type == PUMP_POPUP_UI_LEVEL_ADJUST_TOO_LARGE) {
+        pump_popup_ui_type_update(proc, PUMP_POPUP_UI_NONE);
+    }
     proc->last_progress_ani_time = get_timestamp();
     if (proc->current_ui_type == PUMP_UI_TYPE_COMMON_MODE) {
         return;
@@ -153,6 +159,7 @@ void switch_pump_common_mode_ui(ui_proc_pump_t *proc, bool is_increase)
             mode = BREAST_PUMP_MIX_MODE;
         }
     }
+    proc->mode_sync_flag = true;
     proc->ui_common_mode_index = mode;
     char *mode_name = "unknow";
     READ_PUMP_MODE_NAME(proc->pump, mode, &mode_name);
@@ -177,25 +184,18 @@ void pump_mode_key_click_handler(ui_proc_pump_t *proc)
     READ_PUMP_WORK_MODE(proc->pump, pump_mode);
     if (PUMP_NO_FINISH(pump_status) && PUMP_IS_BREASTFEEDING_MODE(pump_mode)) {
         LOG_UI("pump is breastfeeding mode, ignore.");
+        pump_popup_ui_type_update(proc, PUMP_POPUP_UI_OPERATION_FAILED);
         return;
     }
     
     if (PUMP_IS_COMMON_MODE(pump_mode) && pump_status == BREAST_PUMP_PAUSE) {
         LOG_UI("pump is common mode and pause, ignore.");
+        pump_popup_ui_type_update(proc, PUMP_POPUP_UI_OPERATION_FAILED);
         return;
     }
 
-    proc->led->set_led_blink(PUMP_MODE_BL, PUMP_BLINK_PERIOD, PUMP_BLINK_TIMES, LED_STATUS_ON);
     int mode_index = 0;
     READ_PUMP_COMMON_MODE(proc->pump, false, mode_index);
     proc->ui_common_mode_index = mode_index;
-    if (proc->current_ui_type != PUMP_UI_TYPE_COMMON_MODE) {
-        show_pump_mode_ui(proc);
-    } else {
-        int is_pump_working = 0; 
-        READ_PUMP_IS_WORKING(proc->pump, is_pump_working);
-        if (is_pump_working > 0) {
-            POST_TASK_HANDLER_NO_DELAY(pump_mode_display_completed_cb, proc, PUMP_MODE_DISPLAY_TASK_NAME);
-        }
-    }
+    show_pump_mode_ui(proc);
 }

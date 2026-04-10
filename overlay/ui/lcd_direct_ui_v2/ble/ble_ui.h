@@ -12,6 +12,11 @@ extern "C" {
 #include "ui_manager_api.h" // IWYU pragma: keep
 #include "ble_manager_api.h" // IWYU pragma: keep
 
+#define COMMON_BLE_UI_X                                      (168)
+#define COMMON_BLE_UI_Y                                      (22)
+#define PUMP_HOME_BLE_UI_X                                   (150)
+#define PUMP_HOME_BLE_UI_Y                                   (24)
+
 /*
 * GLOBAL FUNCTION DECLARATION
 *****************************************************************************************

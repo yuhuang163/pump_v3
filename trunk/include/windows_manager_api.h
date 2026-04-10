@@ -135,7 +135,7 @@ typedef struct window_manager_context {
     /// 调度新窗口参数
     int (*dispatch_new_window_args)(struct window_manager_context *wm, multi_func_msg_data_t *msg);
     /// 关闭overlay弹窗
-    int (*close_popup_overlay)(struct window_manager_context *wm, window_entry_extra_t *__extra);
+    int (*close_popup_overlay)(struct window_manager_context *wm);
     /// 回退历史相关.
     int (*go_back_to_history)(void *wm, window_entry_extra_t *__extra);
     /// 清除回退历史标志

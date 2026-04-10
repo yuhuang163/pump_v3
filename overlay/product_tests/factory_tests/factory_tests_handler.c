@@ -165,7 +165,7 @@ int factory_tests_aging_test_enter_mode1(void)
     motor_manager_context_t *motor_ctx = pump_ctx->priv.motor;
     EXCEPTION_CHECK_INT(motor_ctx);
     WRITE_PUMP_WORK_MODE(pump_ctx, BREAST_PUMP_LACTATION_MODE, false, 1);
-    WRITE_PUMP_WORK_STATUS(pump_ctx, BREAST_PUMP_START, 1);
+    WRITE_PUMP_WORK_STATUS(pump_ctx, BREAST_PUMP_FACTORY, 1);
     msleep(100);
     int time_index = 0;
     READ_PUMP_MODE_STEP_INDEX(pump_ctx, time_index);

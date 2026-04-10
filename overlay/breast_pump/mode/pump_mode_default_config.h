@@ -18,7 +18,7 @@ extern "C" {
 #endif
 
 /// 常规模式默认工作时长30分钟，单位：秒
-#define NORMAL_MODE_DEFAULT_WORK_TIME                1800
+#define NORMAL_MODE_DEFAULT_WORK_TIME                ((59 * 60) + 59)
 /// 无效工作时长，子模式不需要指定工作时长
 #define INVALID_WORK_TIME                            0  
 /// 吸乳模式默认周期 单位：毫秒

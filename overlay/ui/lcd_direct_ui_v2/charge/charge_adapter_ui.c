@@ -26,6 +26,7 @@ typedef struct {
     res_img_info_t charge_adapter_icon_info;
     uint8_t force_update;
     uint8_t animation_index;
+    uint8_t rsv[14];
 } charge_adapter_display_info_t;
 
 /*

@@ -9,11 +9,6 @@
 * DEFINES
 *****************************************************************************************
 */
-#if (ROOT_PRODUCT_ID == ROOT_PRODUCT_V3PRO_ID)
-#define IS_SUPPORT_NIGHT_LIGHT                  1
-#else
-#define IS_SUPPORT_NIGHT_LIGHT                  0
-#endif
 
 /*
 * LOCAL VARIABLE DEFINITIONS

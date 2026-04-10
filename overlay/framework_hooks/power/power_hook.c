@@ -274,13 +274,22 @@ static int on_pm_suspend_route(struct power_manager_context *ctx, int state)
         return -1;
     }
     LOG_PM("==> pm suspend");
-    #if !IS_SUPPORT_SLEEP_POWER_OFF_COUNTDOWN
-        ctx->priv.allow_shutdown_or_standby = 0;
-        ctx->system_power_control(false);
-        return 0;
-    #else
-        return 0;
-    #endif
+#if IS_SUPPORT_POWER_OFF_REMINDER
+    window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
+    EXCEPTION_CHECK_INT(wm);
+    multi_func_msg_data_t msg = {0};
+    msg.union_body.extra.window_id = ID_WINDOW_POPUP_WINDOW;
+    msg.union_body.extra.is_bg_dispatch = 0x01;
+    msg.union_body.extra.arg1 = ID_POPUP_WINDOW_WILL_POWER_OFF;
+    msg.union_body.extra.popup_exit_time = 3000;
+    msg.union_body.extra.user_data = ctx;
+    msg.union_body.extra.forbid_short_press_exit_popup = true;
+    wm->dispatch_new_window_args(wm, &msg); 
+#else
+    ctx->priv.allow_shutdown_or_standby = 0;
+    ctx->system_power_control(false);
+#endif
+    return 0;
 #else
     uint32_t t0 = 0;
     ota_manager_context_t *ota_ctx = (ota_manager_context_t *)find_module(ID_MODULE_OTA);
@@ -333,19 +342,6 @@ static int on_pm_resume_route(struct power_manager_context *ctx, int state)
 #endif
 }
 
-static int on_power_popup_window_exit_cb(void *user_data, int args1, int args2)
-{
-    LOG_WM("popup exit handler, time: %ld.", get_timestamp());
-    power_manager_context_t *ctx = user_data;
-    EXCEPTION_CHECK_INT(ctx);
-    //先切窗口到关机界面
-    POST_TASK_HANDLER_NO_DELAY_ARG1(system_power_event_cb, ctx, HDR_ACTION_POWER_OFF,
-        POWER_OFF_TASK_NAME);
-    ///广播关机事件
-    ///SEND_BROADCAST_ARGS1(ID_BROADCAST_SYS_STATE_CHANGE, SYSTEM_BROADCAST_POWER_OFF);
-    return 0;
-}
-
 static void set_suspend_counter_route(power_manager_context_t *ctx)
 {
     EXCEPTION_CHECK_VOID(ctx);
@@ -357,29 +353,6 @@ static void set_suspend_counter_route(power_manager_context_t *ctx)
         ctx->priv.pm_state = ID_SYS_PM_RESUME;
         LOG_PM("==> pm idle release");
         SEND_BROADCAST_ARGS1(ID_BROADCAST_PM_STATE_CHANGE, PM_BROADCAST_SYS_IDLE_RELEASE);
-    } else if (ctx->priv.pm_state == ID_SYS_PM_IDLE && ctx->priv.suspend_counter <= PM_SUSPEND_WILL_ENTER_TIME_S) {
-#if IS_SUPPORT_SLEEP_POWER_OFF_COUNTDOWN
-        ota_manager_context_t *ota_ctx = (ota_manager_context_t *)find_module(ID_MODULE_OTA);
-        if ((ota_ctx && ota_ctx->is_ota_upgrading())) {
-            LOG_PM("is on ota_upgrade, err state.");
-            return;
-        }
-        ctx->priv.pm_state = ID_SYS_PM_WILL_SUSPEND;
-        LOG_PM("==> after 3s, pm suspend will enter", PM_SUSPEND_WILL_ENTER_TIME_S);
-        SEND_BROADCAST_ARGS1(ID_BROADCAST_PM_STATE_CHANGE, PM_BROADCAST_SYS_WILL_SUSPEND);
-        window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
-        EXCEPTION_CHECK_VOID(wm);
-        multi_func_msg_data_t msg = {0};
-        msg.union_body.extra.window_id = ID_WINDOW_POPUP_WINDOW;
-        msg.union_body.extra.is_bg_dispatch = 0x01;
-        msg.union_body.extra.arg1 = ID_POPUP_WINDOW_WILL_POWER_OFF;
-        msg.union_body.extra.popup_exit_time = 3000;
-        msg.union_body.extra.user_data = ctx;
-        msg.union_body.extra.popup_exit_cb = on_power_popup_window_exit_cb;
-        wm->dispatch_new_window_args(wm, &msg); 
-#else
-        return;
-#endif
     }
 }
 
@@ -410,6 +383,16 @@ static int on_post_power_init_route(struct power_manager_context *ctx)
     if ((battery && battery->is_vbus_plug_in() > 0) ||
         platform_is_startup_caused_by_reboot()) {
         key_input_context_t *key = (key_input_context_t *)find_module(ID_MODULE_KEY_INPUT);  
+        if (key && key->is_key_triggered(KEY_INDEX_POWER)) {
+            ctx->priv.is_power_on_timeout_detect = 1;
+        }
+        POST_TASK_HANDLER_DELAYED_ARG2(system_power_event_cb, 500, HDR_ACTION_POWER_ON, ctx,
+            POWER_ON_VBUS_PLUG_IN_TASK_NAME);
+        return 0;
+    }
+#else
+    if (platform_is_startup_caused_by_reboot()) {
+        key_input_context_t *key = (key_input_context_t *)find_module(ID_MODULE_KEY_INPUT);
         if (key && key->is_key_triggered(KEY_INDEX_POWER)) {
             ctx->priv.is_power_on_timeout_detect = 1;
         }

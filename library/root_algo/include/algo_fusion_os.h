@@ -101,7 +101,7 @@ static thread_context_t *thd[ALGO_THREAD_MAX_NUM] = {NULL};
 #define ALGO_QUEUE_DELETE(queue) \
     os_message_delete_wrapper((queue))
 
-#define RT_PRIO_ALGO_DISPATCH_THREAD  OS_PRIORITY_REALTIME4
+#define RT_PRIO_ALGO_DISPATCH_THREAD  OS_PRIORITY_REALTIME8
 
 #else
 

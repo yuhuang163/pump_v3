@@ -72,7 +72,7 @@ static void update_para_to_motor_device(struct motor_manager_context *thiz, uint
             break;
 
         case MOTOR_ACTION_PUMP_OFF_AND_VALVE_ON:
-            motor.un.pump.pulse_width = BREAST_PUMP_VALVE_DUTY * PUMP_DUTY_SCALE_FACTOR;
+            motor.un.pump.pulse_width = info->original.pump_level > 0 ? BREAST_PUMP_VALVE_DUTY * PUMP_DUTY_SCALE_FACTOR : 0;
             motor.un.pump.freq = BREAST_PUMP_VALVE_FREQ;
             motor.un.pump.pump_id = id;
             motor.un.pump.action = MOTOR_PUMP_OFF_AND_VALVE_ON;
@@ -81,7 +81,7 @@ static void update_para_to_motor_device(struct motor_manager_context *thiz, uint
             break;
 
         case MOTOR_ACTION_VALVE_ON:
-            motor.un.pump.pulse_width = BREAST_PUMP_VALVE_DUTY * PUMP_DUTY_SCALE_FACTOR;
+            motor.un.pump.pulse_width =  info->original.pump_level > 0 ? BREAST_PUMP_VALVE_DUTY * PUMP_DUTY_SCALE_FACTOR : 0;
             motor.un.pump.freq = BREAST_PUMP_VALVE_FREQ;
             motor.un.pump.pump_id = id;
             motor.un.pump.action = MOTOR_VALVE_ON;
@@ -110,8 +110,8 @@ static void update_para_to_motor_device(struct motor_manager_context *thiz, uint
 static void pump_duty_adjust_to_motor_device(struct motor_manager_context *thiz, uint8_t id, int16_t pulse_width)
 {
     if (abs(pulse_width) > 2000) {
-        LOGE("pulse_width is out of range: %d", pulse_width);
-        return;
+        //LOGE("pulse_width is out of range: %d", pulse_width);
+        //return;
     }
     motor_para_t motor = {0};
     motor.un.pump.pulse_width = pulse_width;
@@ -173,6 +173,7 @@ static void breast_pump_start_prepare(struct motor_manager_context *thiz, const 
     body->manager = (motor_policy_manager_t *)policy_obj;
     body->timed_policy = &body->manager->head;
     body->current_mode_type = pump_policy_type_get(body->timed_policy->policy);
+    body->current_policy_mode_type = pump_policy_mode_type_get(body->timed_policy->policy);
     if (body->timed_policy->next) {
         body->next_mode_type = pump_policy_type_get(body->timed_policy->next->policy);
     } else {
@@ -194,9 +195,9 @@ static void breast_pump_start_prepare(struct motor_manager_context *thiz, const 
     if (!body->taste_run_flag) {
         thiz->priv.pump_ctx->priv.m_info.step_index = 0;
     }
-    LOG_MOTOR("mode:%d, index:%d, type:%d/%d, time:%d/%d", 
+    LOG_MOTOR("mode:%d, index:%d, type:%d/%d/%d, time:%d/%d", 
         body->breast_pump_mode, body->current_timed_policy_index,
-        body->current_mode_type, body->next_mode_type,
+        body->current_mode_type, body->next_mode_type, body->current_policy_mode_type,
         body->time_policy_remaining_time, body->timed_policy->duration_seconds);
 } 
 
@@ -255,6 +256,7 @@ void breast_pump_policy_prepare(struct motor_manager_context *thiz, uint8_t acti
     if (action == MOTOR_USER_DEBUG_POLICY_START) {
         body->taste_run_flag = 1;
         policy_obj = thiz->priv.user_debug_policy;
+        body->all_timed_policy_finish_flag = 0; 
         LOG_MOTOR("user debug policy");
     } else if (action == MOTOR_POLICY_CONTINUE) {
         if (body->breast_pump_mode == pump_mode) {
@@ -265,11 +267,13 @@ void breast_pump_policy_prepare(struct motor_manager_context *thiz, uint8_t acti
             LOG_MOTOR("breast pump mode changed, need to restart policy");
             body->breast_pump_mode = pump_mode;
             policy_obj = breast_pump_mode_policy_get(thiz, body->breast_pump_mode);
+            body->all_timed_policy_finish_flag = 0;
             LOG_MOTOR("%s mode policy", mode_name);
         }
     } else {
         body->breast_pump_mode = pump_mode;
         policy_obj = breast_pump_mode_policy_get(thiz, body->breast_pump_mode);
+        body->all_timed_policy_finish_flag = 0;
         LOG_MOTOR("%s mode policy", mode_name);
     }
     breast_pump_start_prepare(thiz, policy_obj);

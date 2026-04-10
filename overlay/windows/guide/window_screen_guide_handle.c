@@ -15,9 +15,7 @@
 #define PAGE_STATIC_NAME                            guide
 #define PAGE_NAME_STR                               "guide"
 #if (V3_UI_VERSION == V3_UI_V2 || V3_UI_VERSION == V3PRO_UI_V2)
-#define GUIDE_UI_KEY_CODE                           (KEY_CODE_POWER | KEY_CODE_START | KEY_CODE_MODE | KEY_CODE_FREQUENCY | \
-                                                    KEY_CODE_BREASTFEEDING | KEY_CODE_LEFT_CONTROL | KEY_CODE_RIGHT_CONTROL | \
-                                                    KEY_CODE_KNOB_LEFT | KEY_CODE_KNOB_RIGHT)
+#define GUIDE_UI_KEY_CODE                           ALL_KEY_CODE_NO_COMBINE
 #define GUIDE_UI_KEY_TYPE                           (KEY_EVENT_CLICK | KEY_EVENT_LONG_3S)
 #else
 #define GUIDE_UI_KEY_CODE                            KEY_CODE_START
@@ -45,10 +43,14 @@ static int on_guide_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t 
     EXCEPTION_CHECK_INT(proc);
     WINDOW_CONTEXT_GUARD_INT(proc, ID_WINDOW_GUIDE, 0);
 #if (V3_UI_VERSION == V3_UI_V2 || V3_UI_VERSION == V3PRO_UI_V2)
-    if (keytype == KEY_EVENT_LONG_3S) {
-        guide_key_3s_press_handler_v2(proc, keycode);
+    if (keycode == KEY_CODE_KNOB_LEFT) {
+        guide_knob_left_event_handler(proc);
     } else {
-        guide_key_event_handler_v2(proc, keycode);
+        if (keytype == KEY_EVENT_LONG_3S) {
+            guide_key_3s_press_handler_v2(proc, keycode);
+        } else {
+            guide_key_event_handler_v2(proc, keycode);
+        }
     }
 #else
     guide_key_event_handler_v1(proc, keycode);
@@ -72,7 +74,7 @@ static int entry_event_cb(window_lift_cycle_e new_state,
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);
         if (proc->led && proc->led->hook && proc->led->hook->set_key_backlight) {
-            proc->led->hook->set_key_backlight(proc->led, 0);
+            proc->led->hook->set_key_backlight(proc->led, LED_LEVEL_MAX);
         }
         start_guide_ui_animation(proc);
     }
@@ -129,6 +131,7 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
     w_ctx->not_push_history = 1;
     w_ctx->is_popup_window = 0;
     wm->dispatch_new_window(w_ctx);
+    
     return ID_WINDOW_DISPLAY_OK;
 }
 

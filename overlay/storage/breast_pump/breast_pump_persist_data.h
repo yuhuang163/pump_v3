@@ -61,6 +61,9 @@ int read_pump_mode_with_type_from_ram(store_func_args_t args);
 int write_mode_update_flag_to_ram(store_func_args_t args);
 int read_mode_update_flag_from_ram(store_func_args_t args);
 
+/// 泵奶模式步骤信息ID接口
+int read_pump_mode_steps_info_id_from_ram(store_func_args_t args);
+
 /// 激活泵奶模式接口
 int write_pump_mode_activate_to_ram(store_func_args_t args);
 int read_pump_mode_activate_from_ram(store_func_args_t args);

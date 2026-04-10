@@ -31,7 +31,7 @@ void algo_fusion_data_cb(algo_manager_context_t *ctx, uint8_t *data, int data_le
     int ret = 0;
     EXCEPTION_CHECK_VOID(ctx && data && ctx->priv.motor);
     sensor_wrapper_data_t *sensor_data = (sensor_wrapper_data_t *)data;
-    aglo_air_pressure_data_t algo_data = {0};
+    algo_air_pressure_data_t algo_data = {0};
     motor_policy_info_t *info = ctx->priv.motor->priv.runtime.info;
     pump_setting_t current_setting = {0};
     READ_PUMP_SETTING_INFO(ctx->priv.pump, 0, current_setting);
@@ -59,6 +59,7 @@ void algo_fusion_data_cb(algo_manager_context_t *ctx, uint8_t *data, int data_le
         algo_data.pump_state[i].pump_duty = info[i].state.pump_duty;
         algo_data.pump_state[i].valve_duty = info[i].state.valve_duty;
         algo_data.pump_state[i].target_pressure = info[i].state.target_pressure;
+        algo_data.pump_state[i].target_pump_time = info[i].original.pumping_time;
         #if IS_SUPPORT_RELATIVE_RUN_TIME
             algo_data.pump_state[i].run_time = 0;
         #else

@@ -31,6 +31,7 @@ typedef struct {
     uint8_t display_number; /// 显示倒计时数字
     uint16_t ring_progress; /// 圆弧进度
     uint32_t start_time; /// 开始显示时间
+    uint8_t rsv[8];
 } airplane_mode_exit_display_info_t;
 /*
 * TYPEDEFS
@@ -85,10 +86,6 @@ static void airplane_mode_exit_progress_arc_update(ui_manager_context_t *thiz)
         lv_obj_set_style_arc_width(display_info->arc, AIRPLANE_MODE_EXIT_ARC_WIDTH, LV_PART_INDICATOR);
         lv_obj_set_style_arc_opa(display_info->arc, LV_OPA_COVER, LV_PART_INDICATOR);  /// 前景弧不透明
         lv_obj_remove_style(display_info->arc, NULL, LV_PART_KNOB); /// 去掉旋钮
-    }
-
-    if (ring_progress > AIRPLANE_MODE_EXIT_DISPLAY_MAX_VALUE) {
-        ring_progress = AIRPLANE_MODE_EXIT_DISPLAY_MAX_VALUE;
     }
 
     if (ring_progress >= AIRPLANE_MODE_EXIT_DISPLAY_MAX_VALUE) {

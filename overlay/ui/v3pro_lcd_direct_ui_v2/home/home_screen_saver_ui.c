@@ -37,11 +37,12 @@ typedef struct {
     lv_obj_t * clock_minute;
     lv_obj_t * clock_colon;
     res_img_info_t clock_colon_info;
+    home_screen_saver_display_type_e home_screen_saver_display_type;
     uint8_t force_update;
     uint8_t popup_ui_index;
     uint8_t hour;
     uint8_t minute;
-    home_screen_saver_display_type_e home_screen_saver_display_type;
+    uint8_t rsv[12];
 } home_screen_saver_display_info_t;
 
 /*
@@ -69,7 +70,7 @@ static void home_screen_saver_root_init(void)
         saver_info->root = lv_obj_create(lv_screen_active());
     }
     lv_obj_set_size(saver_info->root, LV_PCT(100), LV_PCT(100));          /// 设置容器尺寸为屏幕的100%（自动适配屏幕分辨率）
-    lv_obj_set_style_bg_color(saver_info->root, lv_color_white(), 0);     /// 设置背景颜色为白色
+    lv_obj_set_style_bg_color(saver_info->root, lv_color_black(), 0);     /// 设置背景颜色为黑色
     lv_obj_set_style_bg_opa(saver_info->root, LV_OPA_COVER, 0);           /// 设置背景不透明度为完全不透明（覆盖下层）
     lv_obj_set_style_border_width(saver_info->root, 0, 0);                /// 设置边框宽度为0（无边框）
     lv_obj_set_style_pad_all(saver_info->root, 0, 0);                     /// 设置所有内边距为0（子对象紧贴边缘）
@@ -181,12 +182,12 @@ static void home_screen_saver_clock_ui_update(ui_manager_context_t *thiz, bool i
         }
         char time_text[16] = {0};
         lv_obj_clear_flag(saver_info->clock_hour, LV_OBJ_FLAG_HIDDEN);
-        sprintf(time_text, "%02d", utc_time.hour);
+        snprintf(time_text, sizeof(time_text), "%02d", utc_time.hour);
         lv_label_set_text(saver_info->clock_hour, time_text);
         lv_obj_align(saver_info->clock_hour, LV_ALIGN_TOP_LEFT, 
             HOME_CLOCK_HOUR_X, HOME_CLOCK_TIME_Y);
         lv_obj_clear_flag(saver_info->clock_minute, LV_OBJ_FLAG_HIDDEN);
-        sprintf(time_text, "%02d", utc_time.minute);
+        snprintf(time_text, sizeof(time_text), "%02d", utc_time.minute);
         lv_label_set_text(saver_info->clock_minute, time_text);
         lv_obj_align(saver_info->clock_minute, LV_ALIGN_TOP_LEFT, 
             HOME_CLOCK_MINUTE_X, HOME_CLOCK_TIME_Y);
@@ -258,6 +259,7 @@ void ui_display_home_screen_saver_prepare(ui_manager_context_t *thiz)
     ble_ui_init(thiz);
     battery_ui_init(thiz);
     saver_info->force_update = true;
+    saver_info->popup_ui_index = HOME_POPUP_UI_NONE;
 }
 
 void ui_display_home_screen_saver_remove(ui_manager_context_t *thiz)
@@ -270,6 +272,7 @@ void ui_display_home_screen_saver_remove(ui_manager_context_t *thiz)
     ble_ui_deinit(thiz);
     battery_ui_deinit(thiz);
     common_ui_bg_deinit(thiz);
+    home_tip_popup_ui_remove(thiz);
     LVGL_OBJ_DELETE(saver_info->root);
     u_free(saver_info);
     saver_info = NULL;
@@ -287,6 +290,7 @@ int ui_display_home_screen_saver_process(ui_manager_context_t *thiz)
     battery_ui_update(thiz, saver_info->root, proc->battery, true);
     ble_ui_update(thiz, saver_info->root, proc->ble, COMMON_BLE_UI_X, COMMON_BLE_UI_Y);
     home_screen_saver_ui_update(thiz, proc);
+    home_tip_popup_ui_update(thiz, proc, saver_info->root, &saver_info->popup_ui_index);
     saver_info->force_update = false;
     thiz->priv.fps_count++;
     if (get_timestamp() - thiz->priv.fps_start_time >= 1000) {

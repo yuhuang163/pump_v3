@@ -36,6 +36,7 @@ typedef struct {
     res_img_info_t unlock_button_icon_info;
     uint8_t force_update;
     uint8_t popup_ui_index; /// 当前弹窗索引.
+    uint8_t rsv[14];
 } airplane_mode_display_info_t;
 
 typedef struct {
@@ -80,7 +81,7 @@ static void airplane_mode_root_init(void)
         airplane_mode_info->root = lv_obj_create(lv_screen_active());
     }
     lv_obj_set_size(airplane_mode_info->root, LV_PCT(100), LV_PCT(100));          /// 设置容器尺寸为屏幕的100%（自动适配屏幕分辨率）
-    lv_obj_set_style_bg_color(airplane_mode_info->root, lv_color_white(), 0);     /// 设置背景颜色为白色
+    lv_obj_set_style_bg_color(airplane_mode_info->root, lv_color_black(), 0);     /// 设置背景颜色
     lv_obj_set_style_bg_opa(airplane_mode_info->root, LV_OPA_COVER, 0);           /// 设置背景不透明度为完全不透明（覆盖下层）
     lv_obj_set_style_border_width(airplane_mode_info->root, 0, 0);                /// 设置边框宽度为0（无边框）
     lv_obj_set_style_pad_all(airplane_mode_info->root, 0, 0);                     /// 设置所有内边距为0（子对象紧贴边缘）
@@ -230,7 +231,7 @@ int ui_display_airplane_mode_process(ui_manager_context_t *thiz)
     EXCEPTION_CHECK_INT(proc->ble);
     airplane_mode_bg_update(thiz);
     airplane_mode_button_icon_update(thiz);
-    ble_ui_update(thiz, airplane_mode_info->root, proc->ble, 168, 22);
+    ble_ui_update(thiz, airplane_mode_info->root, proc->ble, COMMON_BLE_UI_X, COMMON_BLE_UI_Y);
     for (uint8_t i = 0; i < AIRPLANE_MODE_TEXT_COUNT; i++) {
         airplane_mode_texts_update(thiz, i);
     }

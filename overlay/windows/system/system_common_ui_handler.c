@@ -31,6 +31,7 @@
 void stop_system_ui_animation(ui_proc_system_t *proc)
 {
     factory_reset_ui_hdr_remove();
+    factory_reset_confirm_ui_hdr_remove();
     power_off_ui_hdr_remove();
     ui_manager_context_t *ui = proc->ui;
     EXCEPTION_CHECK_VOID(ui->hook && ui->hook->ui_animation_play_deinit);

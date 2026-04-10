@@ -38,6 +38,7 @@ typedef enum {
     OP_CODE_BAT_IS_READY = 9,
     OP_CODE_BAT_PD_IS_READY = 10,
     OP_CODE_BAT_PD_IS_MISMATCH = 11,
+    OP_CODE_BAT_CHARGE_CURRENT_ADJUST = 12, /// 充电电流调节
     OP_CODE_BAT_END
 } batery_dev_op_code_e;
 

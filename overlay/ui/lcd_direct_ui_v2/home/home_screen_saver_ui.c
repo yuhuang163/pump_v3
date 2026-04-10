@@ -29,6 +29,7 @@ typedef struct {
     res_img_info_t saver_img_info;
     uint8_t force_update;
     uint8_t popup_ui_index;
+    uint8_t rsv[14];
 } home_screen_saver_display_info_t;
 
 typedef struct {
@@ -69,7 +70,7 @@ static void home_screen_saver_root_init(void)
         saver_info->root = lv_obj_create(lv_screen_active());
     }
     lv_obj_set_size(saver_info->root, LV_PCT(100), LV_PCT(100));          /// 设置容器尺寸为屏幕的100%（自动适配屏幕分辨率）
-    lv_obj_set_style_bg_color(saver_info->root, lv_color_white(), 0);     /// 设置背景颜色为白色
+    lv_obj_set_style_bg_color(saver_info->root, lv_color_black(), 0);     /// 设置背景颜色为黑色
     lv_obj_set_style_bg_opa(saver_info->root, LV_OPA_COVER, 0);           /// 设置背景不透明度为完全不透明（覆盖下层）
     lv_obj_set_style_border_width(saver_info->root, 0, 0);                /// 设置边框宽度为0（无边框）
     lv_obj_set_style_pad_all(saver_info->root, 0, 0);                     /// 设置所有内边距为0（子对象紧贴边缘）
@@ -131,6 +132,11 @@ static void home_screen_saver_root_icon_update(ui_manager_context_t *thiz)
         saver_img_infos[HOME_SCREEN_SAVER_ICON_INDEX].icon_x, saver_img_infos[HOME_SCREEN_SAVER_ICON_INDEX].icon_y); /// 设置icon位置
 }
 
+static void home_screen_saver_ui_update(ui_manager_context_t *thiz, ui_proc_home_t *proc)
+{
+    home_screen_saver_root_icon_update(thiz);
+}
+
 /*  
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
@@ -148,6 +154,7 @@ void ui_display_home_screen_saver_prepare(ui_manager_context_t *thiz)
     common_ui_bg_init(thiz);
     ble_ui_init(thiz);
     saver_info->force_update = true;
+    saver_info->popup_ui_index = HOME_POPUP_UI_NONE;
 }
 
 void ui_display_home_screen_saver_remove(ui_manager_context_t *thiz)
@@ -159,6 +166,7 @@ void ui_display_home_screen_saver_remove(ui_manager_context_t *thiz)
     common_ui_img_resource_deinit(thiz, &saver_info->saver_img_info);
     ble_ui_deinit(thiz);
     common_ui_bg_deinit(thiz);
+    home_tip_popup_ui_remove(thiz);
     LVGL_OBJ_DELETE(saver_info->root);
     u_free(saver_info);
     saver_info = NULL;
@@ -173,8 +181,9 @@ int ui_display_home_screen_saver_process(ui_manager_context_t *thiz)
     EXCEPTION_CHECK_INT(proc);
     EXCEPTION_CHECK_INT(proc->ble);
     home_screen_saver_root_bg_update(thiz);
-    home_screen_saver_root_icon_update(thiz);
-    ble_ui_update(thiz, saver_info->root, proc->ble, 168, 22);
+    ble_ui_update(thiz, saver_info->root, proc->ble, COMMON_BLE_UI_X, COMMON_BLE_UI_Y);
+    home_screen_saver_ui_update(thiz, proc);
+    home_tip_popup_ui_update(thiz, proc, saver_info->root, &saver_info->popup_ui_index);
     saver_info->force_update = false;
     thiz->priv.fps_count++;
     if (get_timestamp() - thiz->priv.fps_start_time >= 1000) {

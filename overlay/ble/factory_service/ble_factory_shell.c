@@ -25,6 +25,7 @@
 #define BLE_LED_NIGHT_LIGHT_SHELL_CMD          "#ledNightLight"
 #define BLE_LIGHT_SENSOR_CTL_SHELL_CMD         "#LsSmpCtrl"
 #define BLE_LIGHT_SENSOR_SAMPLE_CTL_SHELL_CMD  "#LsSmpIntvl"
+#define BLE_CHARGE_CURRENT_ADJUST_SHELL_CMD    "#chargeCurAdj"
 
 /*
 * LOCAL VARIABLE DEFINITIONS
@@ -43,6 +44,7 @@ static void ble_shell_lcd_backlight(const uint8_t *param, uint16_t len);
 static void ble_shell_led_night_light(const uint8_t *param, uint16_t len);
 static void ble_shell_adapte_light_sampling_control(const uint8_t *param, uint16_t len);
 static void ble_shell_adapte_light_sampling_interval(const uint8_t *param, uint16_t len);
+static void ble_shell_charge_current_adjust(const uint8_t *param, uint16_t len);
 static const ble_factory_shell_t shell_list[] = {
     {BLE_PUMP_POLICY_SHELL_CMD,   ble_shell_pump_policy},
     {BLE_PUMP_CTRL_SHELL_CMD,     ble_shell_pump_ctrl},
@@ -54,9 +56,10 @@ static const ble_factory_shell_t shell_list[] = {
     {BLE_ALGO_SAMPLING_INTERVAL_SHELL_CMD, ble_shell_algo_sampling_interval},
     {BLE_NIGHT_LIGHT_ADAPTIVE_SHELL_CMD, ble_shell_night_light_adaptive},
     {BLE_LCD_BACKLIGHT_SHELL_CMD, ble_shell_lcd_backlight},
-   {BLE_LED_NIGHT_LIGHT_SHELL_CMD, ble_shell_led_night_light},
-   {BLE_LIGHT_SENSOR_CTL_SHELL_CMD, ble_shell_adapte_light_sampling_control},
-   {BLE_LIGHT_SENSOR_SAMPLE_CTL_SHELL_CMD, ble_shell_adapte_light_sampling_interval},
+    {BLE_LED_NIGHT_LIGHT_SHELL_CMD, ble_shell_led_night_light},
+    {BLE_LIGHT_SENSOR_CTL_SHELL_CMD, ble_shell_adapte_light_sampling_control},
+    {BLE_LIGHT_SENSOR_SAMPLE_CTL_SHELL_CMD, ble_shell_adapte_light_sampling_interval},
+    {BLE_CHARGE_CURRENT_ADJUST_SHELL_CMD, ble_shell_charge_current_adjust},
 };
 
 /*
@@ -265,6 +268,18 @@ static void ble_shell_adapte_light_sampling_interval(const uint8_t *param, uint1
     sscanf((const char *)param, "%d", &interval);
     LOG_BLE("shell algo sampling interval %d", interval);
     light_sensor_change_sampling_interval(interval);
+}
+
+static void ble_shell_charge_current_adjust(const uint8_t *param, uint16_t len)
+{
+    uint32_t current = 0;
+    sscanf((const char *)param, "%d", &current);
+    LOG_BLE("shell charge current adjust %d", current);
+    peripheral_bus_context_t *pbus = (peripheral_bus_context_t *)find_module(ID_MODULE_DEVICE_BUS);
+    EXCEPTION_CHECK_VOID(pbus);
+    rt_device_node_t *battery = pbus->find_device(ID_DEVICE_BATTERY);
+    EXCEPTION_CHECK_VOID(battery);
+    battery->ioctl(battery, OP_CODE_BAT_CHARGE_CURRENT_ADJUST, &current);
 }
 
 /*

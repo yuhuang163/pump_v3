@@ -120,12 +120,18 @@ extern "C" {
 #define IMG_RES_STORAGE_INTERNAL_FLASH                 0
 #define IMG_RES_STORAGE_EXTERNAL_FLASH                 1
 #define V3_IMG_RES_STORAGE_TYPE                        1
-/// 支持睡眠关机
-#define IS_SUPPORT_SLEEP_POWER_OFF                     (1)
-/// 支持睡眠关机倒计时
-#define IS_SUPPORT_SLEEP_POWER_OFF_COUNTDOWN           (1)
-/// 支持关机强制保存
-#define IS_SUPPORT_POWER_OFF_FORCE_SAVE                (1)
+/// 操作失败弹窗展示时间
+#define OPERATION_FAILURE_DISPLAY_TIMEOUT              (1000) /// 1s
+/// 操作成功弹窗展示时间
+#define OPERATION_SUCCESS_DISPLAY_TIMEOUT              (1000) /// 1s
+/// LED快闪时间
+#define LED_FAST_BLINK_TIME                            (100)  /// 100ms
+/// LED中速闪时间
+#define LED_MEDIUM_BLINK_TIME                          (200)  /// 200ms
+/// LED慢闪时间
+#define LED_SLOW_BLINK_TIME                            (1000) /// 1000ms
+/// 关机提醒时间
+#define POWER_OFF_REMINDER_TIME                        (3000) /// 3秒
 
 #ifdef __cplusplus
 }

@@ -122,6 +122,8 @@ static int key_dev_ioctl(struct rt_device_node *dev, uint32_t op_code, void *arg
             return 0;
         case OP_CODE_INPUT_TOUCH_IS_READY:
             return bsp_touch_is_ready(args);
+        case OP_CODE_INPUT_TOUCH_SIGNAL_READ:
+            return bsp_touch_signal_read(args);
         default:
             return -1;
     }

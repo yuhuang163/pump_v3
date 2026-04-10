@@ -114,6 +114,7 @@ const static get_store_ram_val_handle_t get_store_ram_val_list[] = {
     {STORE_ID_MODE_UPDATE_FLAG, read_mode_update_flag_from_ram},
     {STORE_ID_SYS_BIND_STATUS, read_bind_status_from_ram},
     {STORE_ID_PUMP_MODE_ACTIVATE_STATUS, read_pump_mode_activate_from_ram},
+    {STORE_ID_PUMP_MODE_STEPS_INFO_ID, read_pump_mode_steps_info_id_from_ram},
 };
 
 static storage_manager_context_t *thiz = NULL;

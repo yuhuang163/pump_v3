@@ -34,18 +34,13 @@ void start_popup_ui_animation(ui_proc_popup_t *proc)
 {
     EXCEPTION_CHECK_VOID(proc->ui);
     switch (proc->popup_window_id) {
+        case ID_POPUP_WINDOW_COUNT_DOWN:
+            start_count_down_ui_animation(proc);
+            break;
         case ID_POPUP_WINDOW_LOW_POWER:
-            LOG_UI("start low power ui animation.");
             start_low_power_ui_animation(proc);
             break;
-        case ID_POPUP_WINDOW_EXIT_AIRPLANE_MODE:
-            LOG_UI("exit airplane mode ui animation.");
-            break;
-        case ID_POPUP_WINDOW_MODE_PROMPT:
-            LOG_UI("mode prompt ui animation.");
-            break;
         case ID_POPUP_WINDOW_WILL_POWER_OFF:
-            LOG_UI("system will power off ui animation.");
             start_system_will_power_off_ui_animation(proc);
             break;
         default:
@@ -60,4 +55,17 @@ void stop_popup_ui_animation(ui_proc_popup_t *proc)
     EXCEPTION_CHECK_VOID(ui->hook && ui->hook->ui_animation_overlay_deinit);
     ui->hook->ui_animation_overlay_deinit(ui);
     proc->last_progress_ani_time = get_timestamp();
+}
+
+void popup_window_exit_handler_cb(ui_proc_popup_t *proc)
+{
+    EXCEPTION_CHECK_VOID(proc);
+    EXCEPTION_CHECK_VOID(proc->pm);
+    if (proc->extra.popup_exit_cb) {
+        proc->extra.popup_exit_cb(proc->extra.user_data, 0, 0);
+    } 
+
+    if (proc->wm->close_popup_overlay) {
+        proc->wm->close_popup_overlay(proc->wm);
+    }
 }

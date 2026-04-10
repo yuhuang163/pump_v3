@@ -16,7 +16,6 @@ extern "C" {
 #include "ble_ui.h" // IWYU pragma: keepin
 #include "breast_pump_ui.h" // IWYU pragma: keepin
 #include "airplane_mode_ui.h" // IWYU pragma: keepin
-#include "dummy_ui.h" // IWYU pragma: keepin
 #include "guide_ui.h" // IWYU pragma: keepin
 #include "home_ui.h" // IWYU pragma: keepin
 #include "logo_ui.h" // IWYU pragma: keepin

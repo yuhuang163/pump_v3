@@ -27,12 +27,31 @@
 */
 static void ota_display_completed_cb(hdr_post_args_t *args)
 {
-   
+    ui_proc_ota_t *proc = (ui_proc_ota_t *)args->user_data;
+    EXCEPTION_CHECK_VOID(proc);
+    WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_OTA_UPGRADE);
+    EXCEPTION_CHECK_VOID(proc->wm);
+    multi_func_msg_data_t msg = {0};
+    LOG_WM("goto home window.");
+    msg.union_body.extra.window_id = ID_WINDOW_HOME;
+    proc->wm->dispatch_new_window_args(proc->wm, &msg);
+}
+
+static void ota_display_completed_policy(ui_manager_context_t *ui)
+{
+    EXCEPTION_CHECK_VOID(ui);
+    ui_proc_ota_t *proc = (ui_proc_ota_t *)ui->priv.play_info.user_data;
+    EXCEPTION_CHECK_VOID(proc);
+    if (proc->current_ui_type != OTA_UI_TYPE_UPDATE) {
+        return;
+    }
+    proc->current_ui_type = OTA_UI_TYPE_NONE;
+    POST_TASK_HANDLER_NO_DELAY(ota_display_completed_cb, proc, OTA_DISPLAY_TASK_NAME);
 }
 
 static void ota_ui_after_policy(ui_manager_context_t *ui, int index)
 {
-
+    ui_display_ota_process(ui);
 }
 
 static void ota_animation_progress_cb(void *user_data, int index, ui_ani_progress_state_e state)
@@ -41,6 +60,7 @@ static void ota_animation_progress_cb(void *user_data, int index, ui_ani_progres
     ui_manager_context_t *ui = user_data;
     switch (state) {
         case ANI_TIMER_DRAW_FINISH:
+            ota_display_completed_policy(ui);
             break;
         case ANI_TIMER_DRAW_BEFORE:
             break;

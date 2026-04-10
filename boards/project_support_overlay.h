@@ -103,7 +103,14 @@ extern "C" {
 #define IS_SUPPORT_ADAPTIVE_DIMMING                      (0)
 /// 支持堵转检测
 #define IS_SUPPORT_MOTOR_STALL_DETECT                    (1)
-
+/// 支持睡眠关机
+#define IS_SUPPORT_SLEEP_POWER_OFF                       (1)
+/// 支持关机提醒
+#if IS_SUPPORT_SLEEP_POWER_OFF
+#define IS_SUPPORT_POWER_OFF_REMINDER                    (1)
+#else
+#define IS_SUPPORT_POWER_OFF_REMINDER                    (0)
+#endif
 
 #if (ROOT_PRODUCT_ID == ROOT_PRODUCT_V3PRO_ID)
 /// 支持漏气提醒
@@ -116,6 +123,8 @@ extern "C" {
 #define IS_SUPPORT_PUMP_DUTY_ADJUST                      (0)
 /// 支持插电自动开机
 #define IS_SUPPORT_PWR_ON_WHEN_PLUG_IN                   (1)
+/// 支持夜灯
+#define IS_SUPPORT_NIGHT_LIGHT                           (1)
 #else
 /// 支持漏气提醒
 #define IS_SUPPORT_AIR_LEAKAGE_WARNING                   (0)
@@ -127,9 +136,14 @@ extern "C" {
 #define IS_SUPPORT_PUMP_DUTY_ADJUST                      (0)
 /// 支持插电自动开机
 #define IS_SUPPORT_PWR_ON_WHEN_PLUG_IN                   (0)
+/// 支持夜灯
+#define IS_SUPPORT_NIGHT_LIGHT                           (0)
 #endif
 /// 支持LOGO界面背景颜色测试
 #define IS_SUPPORT_LOGO_BG_COLOR_TEST                    (0)
+/// 支持触摸芯片固件升级
+#define IS_SUPPORT_TOUCH_IC_OTA                          (0)
+
 #ifdef __cplusplus
 }
 #endif

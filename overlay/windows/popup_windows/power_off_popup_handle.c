@@ -4,6 +4,7 @@
 */
 #include "ui_page_define.h" // IWYU pragma: keep
 #include "window_screen_popup.h"
+#include "popup_sub_ui.h" // IWYU pragma: keep
 
 /*
 * DEFINES
@@ -24,9 +25,14 @@
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-static void system_will_power_off_ui_before_policy(ui_manager_context_t *ui, int index)
+static void system_will_power_off_popup_display_complete(ui_manager_context_t *ui, int index)
 {
-
+    EXCEPTION_CHECK_VOID(ui);
+    ui_proc_popup_t *proc = (ui_proc_popup_t *)ui->priv.overlay_play_info.user_data;
+    EXCEPTION_CHECK_VOID(proc);
+    power_manager_context_t *pm = (power_manager_context_t *)find_module(ID_MODULE_POWER);
+    EXCEPTION_CHECK_VOID(pm);
+    pm->system_power_control(false);
 }
 
 static void system_will_power_off_ui_after_policy(ui_manager_context_t *ui, int index)
@@ -41,10 +47,12 @@ static void system_will_power_off_ui_animation_progress_cb(void *user_data, int 
         case ANI_TIMER_DRAW_FINISH:
             break;
         case ANI_TIMER_DRAW_BEFORE:
-            system_will_power_off_ui_before_policy(ui, index);
             break;
         case ANI_TIMER_DRAW_AFTER:
             system_will_power_off_ui_after_policy(ui, index);
+            break;
+        case ANI_POPUP_DISPLAY_FINISH:
+            system_will_power_off_popup_display_complete(ui, index);
             break;
         default:
             break;
@@ -71,7 +79,7 @@ static void show_system_will_power_off_ui(ui_proc_popup_t *proc)
     EXCEPTION_CHECK_VOID(ui);
     EXCEPTION_CHECK_VOID(ui->hook && ui->hook->ui_animation_overlay_init);
     ui_play_info_t play_info = {
-        .tag = "low_power_screen",
+        .tag = "power_off_screen",
         .fps = POPUP_ANIMATION_FREQ,
         .progress_cb = system_will_power_off_ui_animation_progress_cb,
         .display_prepare_cb = system_will_power_off_ui_display_prepare,
@@ -88,6 +96,5 @@ static void show_system_will_power_off_ui(ui_proc_popup_t *proc)
 void start_system_will_power_off_ui_animation(ui_proc_popup_t *proc)
 {
     EXCEPTION_CHECK_VOID(proc);
-    LOG_UI("start system will power off ui animation.");
     show_system_will_power_off_ui(proc);
 }

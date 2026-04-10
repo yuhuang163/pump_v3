@@ -41,25 +41,6 @@ INIT_WINDOW_CONTEXT();
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-static void popup_exit_handler_cb(hdr_post_args_t *args)
-{
-    ui_proc_popup_t *proc = args->user_data;
-    EXCEPTION_CHECK_VOID(proc);
-    EXCEPTION_CHECK_VOID(proc->pm);
-    WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_POPUP_WINDOW);
-    LOG_WM("popup exit handler, time: %ld.", get_timestamp());
-#if IS_SUPPORT_POPUP_WAKE_LOCK
-    proc->pm->release_wakelock(POPUP_WAKE_LOCK_NAME);
-#endif
-    if (proc->extra.popup_exit_cb) {
-        proc->extra.popup_exit_cb(proc->extra.user_data, 0, 0);
-    } else {
-        if (proc->wm->close_popup_overlay) {
-            proc->wm->close_popup_overlay(proc->wm, &proc->extra);
-        }
-    }
-}
-
 static int on_popup_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t keytype)
 {
     ui_proc_popup_t *proc = user_data;
@@ -73,8 +54,12 @@ static int on_popup_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t key
 #if IS_SUPPORT_POPUP_WAKE_LOCK
     proc->pm->release_wakelock(POPUP_WAKE_LOCK_NAME);
 #endif
+    if (proc->extra.forbid_short_press_exit_popup) {
+        return 0;
+    }
+
     if (proc->wm->close_popup_overlay) {
-        proc->wm->close_popup_overlay(proc->wm, &proc->extra);
+        proc->wm->close_popup_overlay(proc->wm);
     }
     return 0;
 }
@@ -92,7 +77,6 @@ static int entry_event_cb(window_lift_cycle_e new_state,
         } else {
             LOG_WM("key not present, ignore.");
         }
-        POST_TASK_HANDLER_DELAYED_ARG1(popup_exit_handler_cb, proc->extra.popup_exit_time, proc, POPUP_EXIT_TASK_NAME);
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);
         start_popup_ui_animation(proc);
@@ -108,7 +92,6 @@ static int exit_event_cb(window_lift_cycle_e new_state,
         case ID_SCR_STATE_ON_PAUSE:
             LOG_WM("==>%s window on pause", PAGE_NAME_STR);
             stop_popup_ui_animation(proc);
-            REMOVE_ALL_HANDER_TASK();
             if (proc->key) {
                 proc->key->remove_keyevent_handler(on_popup_keyevent_hdr);
             }

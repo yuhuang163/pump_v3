@@ -60,9 +60,7 @@ typedef struct {
 * GLOBAL FUNCTION DECLARATION
 *****************************************************************************************
 */
-int switch_dummy_night_light_onoff_ui(ui_proc_dummy_t *proc);
-void start_dummy_ui_animation(ui_proc_dummy_t *proc);
-void stop_dummy_ui_animation(ui_proc_dummy_t *proc);
+
 #ifdef __cplusplus
 }
 #endif

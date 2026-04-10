@@ -49,6 +49,21 @@ static void algo_out_result_cb(algo_fusion_result_t *algo_result)
     EXCEPTION_CHECK_VOID(algo_result);
     algo_manager_context_t *ctx = s_algo_ctx;
     EXCEPTION_CHECK_VOID(ctx);
+    /*
+    if (algo_result->wear_status[0] != ctx->priv.algo_data.wear_detection.result[0] || \
+         algo_result->wear_status[1] != ctx->priv.algo_data.wear_detection.result[1]) {
+        if(0 == algo_result->wear_status[0] || 0 == algo_result->wear_status[1]) {
+            /// 未佩戴，通知app未佩戴
+            servers_publish_data_args_t args_temp = {
+                .arg1 = OLD_PUBLISH_ABNORMAL_AIR_LEAK,
+                .arg2 = OLD_PUBLISH_ABNORMAL_STATE_ACTIVE,
+                .val = NULL,
+            };
+            servers_manager_context_t *servers_ctx = (servers_manager_context_t *)find_module(ID_MODULE_SERVERS);
+            EXCEPTION_CHECK_VOID(servers_ctx);
+            servers_ctx->hook->app_old_protocol_server_data_publish(APP_OLD_COMM_CID_NOTIFY_V3_DEV_ABNORMAL, &args_temp);
+        }
+    }*/
     ctx->priv.algo_data.wear_detection.result[0] = algo_result->wear_status[0];
     ctx->priv.algo_data.wear_detection.result[1] = algo_result->wear_status[1];
     ctx->priv.algo_data.wear_detection.compensation_status[0] = algo_result->compensation_status[0];

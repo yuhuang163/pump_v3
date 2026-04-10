@@ -25,6 +25,13 @@
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
+static void breastfeeding_mode_popup_ui_finish_policy(ui_manager_context_t *ui, uint8_t popup_ui_index)
+{
+    LOG_WM("===> popup %d ui display complete.", popup_ui_index);
+    ui_proc_pump_t *proc = (ui_proc_pump_t *)ui->priv.play_info.user_data;
+    pump_popup_ui_type_update(proc, PUMP_POPUP_UI_NONE);
+}
+
 static void breastfeeding_mode_display_completed_cb(hdr_post_args_t *args)
 {
     ui_proc_pump_t *proc = (ui_proc_pump_t *)args->user_data;
@@ -41,14 +48,14 @@ static void breastfeeding_mode_display_completed_cb(hdr_post_args_t *args)
             msg.union_body.extra.window_id = ID_WINDOW_HOME;
             proc->wm->dispatch_new_window_args(proc->wm, &msg);
         } else {
+            if (proc->mode_sync_flag) {
+                proc->mode_sync_flag = false;
+                WRITE_PUMP_WORK_MODE(proc->pump, proc->ui_breastfeeding_mode_index, true, 1);
+                proc->home_popup_ui_type = PUMP_POPUP_UI_OPERATION_SUCCESS;
+            }
             show_pump_home_ui(proc);
         }
     }
-}
-
-static void breastfeeding_mode_ui_before_policy(ui_manager_context_t *ui, int index)
-{
-
 }
 
 static void breastfeeding_mode_ui_after_policy(ui_manager_context_t *ui, int index)
@@ -57,7 +64,13 @@ static void breastfeeding_mode_ui_after_policy(ui_manager_context_t *ui, int ind
     ui_proc_pump_t *proc = (ui_proc_pump_t *)ui->priv.play_info.user_data;
     EXCEPTION_CHECK_VOID(proc);
     if (get_timestamp_ms(proc->last_progress_ani_time) >= PUMP_MODE_DISPLAY_TIMEOUT) {
+        proc->last_progress_ani_time = get_timestamp();
         POST_TASK_HANDLER_NO_DELAY(breastfeeding_mode_display_completed_cb, proc, BREASTFEEDING_MODE_DISPLAY_TASK_NAME);
+    } else {
+        if (proc->goto_pump_home_ui) {
+            proc->goto_pump_home_ui = false;
+            POST_TASK_HANDLER_NO_DELAY(breastfeeding_mode_display_completed_cb, proc, BREASTFEEDING_MODE_DISPLAY_TASK_NAME);
+        }
     }
 }
 
@@ -70,10 +83,12 @@ static void breastfeeding_mode_animation_progress_cb(void *user_data, int index,
         case ANI_TIMER_DRAW_FINISH:
             break;
         case ANI_TIMER_DRAW_BEFORE:
-            breastfeeding_mode_ui_before_policy(ui, index);
             break;
         case ANI_TIMER_DRAW_AFTER:
             breastfeeding_mode_ui_after_policy(ui, index);
+            break;
+        case ANI_POPUP_DISPLAY_FINISH:
+            breastfeeding_mode_popup_ui_finish_policy(ui, index);
             break;
         default:
             break;
@@ -99,6 +114,11 @@ static void show_breastfeeding_mode_ui(ui_proc_pump_t *proc)
     ui_manager_context_t *ui = proc->ui;
     EXCEPTION_CHECK_VOID(ui->hook && ui->hook->ui_animation_play_init);
     proc->last_progress_ani_time = get_timestamp();
+    if (proc->popup_ui_type == PUMP_POPUP_UI_OPERATION_SUCCESS ||
+        proc->popup_ui_type == PUMP_POPUP_UI_OPERATION_FAILED ||
+        proc->popup_ui_type == PUMP_POPUP_UI_LEVEL_ADJUST_TOO_LARGE) {
+        pump_popup_ui_type_update(proc, PUMP_POPUP_UI_NONE);
+    }
     if (proc->current_ui_type == PUMP_UI_TYPE_BREASTFEEDING_MODE) {
         return;
     } else {
@@ -127,8 +147,10 @@ void switch_breastfeeding_mode_ui(ui_proc_pump_t *proc, bool is_increase)
     EXCEPTION_CHECK_VOID(proc->pump);
     int pump_status = 0;
     READ_PUMP_WORK_STATUS(proc->pump, pump_status);
-    if (PUMP_NO_FINISH(pump_status)) {
-        LOG_UI("pump is going %d, ignore switch mode.", pump_status); /// 泵奶进行中不支持切换追奶模式(产品需求)
+    int pump_mode = 0;
+    READ_PUMP_WORK_MODE(proc->pump, pump_mode);
+    if (PUMP_NO_FINISH(pump_status) && PUMP_IS_BREASTFEEDING_MODE(pump_mode)) {
+        LOG_UI("pump is going %d, ignore switch mode.", pump_status, pump_mode); /// 泵奶进行中不支持切换追奶模式(产品需求)
         return;
     }
 
@@ -149,6 +171,7 @@ void switch_breastfeeding_mode_ui(ui_proc_pump_t *proc, bool is_increase)
             mode = mode_upper_boundary;
         }
     }
+    proc->mode_sync_flag = true;
     proc->ui_breastfeeding_mode_index = mode;
     char *mode_name = "unknow";
     READ_PUMP_MODE_NAME(proc->pump, mode, &mode_name);
@@ -166,13 +189,24 @@ void breastfeeding_mode_key_click_handler(ui_proc_pump_t *proc)
     EXCEPTION_CHECK_VOID(proc);
     EXCEPTION_CHECK_VOID(proc->pump);
     EXCEPTION_CHECK_VOID(proc->led);
-    int pump_status = 0;
-    READ_PUMP_WORK_STATUS(proc->pump, pump_status);
     int mode_index = 0;
     READ_PUMP_EXPERT_MODE(proc->pump, false, mode_index);
     proc->ui_breastfeeding_mode_index = mode_index;
-    if (proc->current_ui_type != PUMP_UI_TYPE_BREASTFEEDING_MODE && PUMP_NO_FINISH(pump_status) == 0) {
-        proc->led->set_led_blink(PUMP_BREASTFEEDING_BL, PUMP_BLINK_PERIOD, PUMP_BLINK_TIMES, LED_STATUS_ON);
-        show_breastfeeding_mode_ui(proc);   
+    int pump_mode = 0;
+    READ_PUMP_WORK_MODE(proc->pump, pump_mode);
+    int pump_status = 0;
+    READ_PUMP_WORK_STATUS(proc->pump, pump_status);
+    if (pump_status == BREAST_PUMP_PAUSE) {
+        pump_popup_ui_type_update(proc, PUMP_POPUP_UI_OPERATION_FAILED);
+        LOG_WM("pump is pause, ignore.");
+        return;
     }
+
+    if (PUMP_IS_BREASTFEEDING_MODE(pump_mode) && (pump_status == BREAST_PUMP_START || pump_status == BREAST_PUMP_CONTINUE)) {
+        pump_popup_ui_type_update(proc, PUMP_POPUP_UI_OPERATION_FAILED);
+        LOG_WM("mode %d/%d/%d is working, ignore.", pump_mode, mode_index, pump_status);
+        return;
+    }
+    proc->mode_sync_flag = true;
+    show_breastfeeding_mode_ui(proc);   
 }

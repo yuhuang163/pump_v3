@@ -82,6 +82,7 @@ typedef enum {
     APP_OLD_COMM_CID_NOTIFY_STATUS = 0xD0,     // 设备主动上报状态变化
     APP_OLD_COMM_CID_NOTIFY_BIND = 0xD1,       // 设备主动上报绑定
     APP_OLD_COMM_CID_NOTIFY_DISCON = 0xD2,     // 设备强制断开BLE上报
+    APP_OLD_COMM_CID_NOTIFY_V3_DEV_ABNORMAL = 0xEB, // V3设备异常状态上报(CAL=2)
     APP_OLD_COMM_CID_TASTE_REPORT = 0xD8,      // 设备主动上报体验模式状态变化
     APP_OLD_COMM_CID_BURY_POINT_REPORT = 0xDB, // 设备主动上报埋点数据
 

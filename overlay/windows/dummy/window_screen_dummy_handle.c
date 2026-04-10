@@ -106,9 +106,6 @@ static int on_dummy_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t key
     ui_proc_dummy_t *proc = user_data;
     EXCEPTION_CHECK_INT(proc);
     WINDOW_CONTEXT_GUARD_INT(proc, ID_WINDOW_DUMMY, 0);
-    if (keycode == KEY_CODE_POWER && keytype == KEY_EVENT_CLICK) {
-        switch_dummy_night_light_onoff_ui(proc);
-    }
     return 0;
 }
 

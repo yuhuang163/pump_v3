@@ -99,6 +99,90 @@ def _strip_c_comments(text: str) -> str:
     return text
 
 
+def _extract_make_assignment(make_text: str, name: str) -> Optional[str]:
+    m = re.search(rf'^\s*{re.escape(name)}\s*\?=\s*(.+?)\s*$', make_text, flags=re.MULTILINE)
+    if not m:
+        return None
+    return m.group(1).strip()
+
+
+def _resolve_make_var_ref(value: Optional[str], mapping: Dict[str, str]) -> Optional[str]:
+    if not value:
+        return value
+    m = re.fullmatch(r'\$\(([^)]+)\)', value.strip())
+    if not m:
+        return value.strip()
+    return mapping.get(m.group(1), value.strip())
+
+
+def _derive_cpp_defines_from_makefile(makefile_path: str) -> Dict[str, str]:
+    """从 GNUmakefile 推导 pack 需要的默认宏，避免单独预处理头文件时误判条件编译。"""
+    try:
+        raw = Path(makefile_path).read_text(encoding="utf-8", errors="ignore")
+    except Exception:
+        return {}
+
+    defs: Dict[str, str] = {}
+
+    for key in [
+        "ROOT_PRODUCT_V3_ID",
+        "ROOT_PRODUCT_V3PRO_ID",
+        "V3_UI_V1",
+        "V3_UI_V2",
+        "V3PRO_UI_V2",
+    ]:
+        value = _extract_make_assignment(raw, key)
+        if value:
+            defs[key] = value
+
+    product_id_token = _extract_make_assignment(raw, "ROOT_PRODUCT_ID")
+    product_id_value = _resolve_make_var_ref(product_id_token, defs)
+    if product_id_value:
+        defs["ROOT_PRODUCT_ID"] = product_id_value
+
+    v3pro_ui_value = None
+    v3_ui_value = None
+    in_product_select = False
+    in_v3pro_branch = False
+    in_else_branch = False
+    cond_re = re.compile(r'^\s*ifeq\s*\(\s*\$\(ROOT_PRODUCT_ID\)\s*,\s*\$\(ROOT_PRODUCT_V3PRO_ID\)\s*\)\s*$')
+    ui_assign_re = re.compile(r'^\s*V3_UI_VERSION\s*\?=\s*(.+?)\s*$')
+    for line in raw.splitlines():
+        if cond_re.match(line):
+            in_product_select = True
+            in_v3pro_branch = True
+            in_else_branch = False
+            continue
+        if not in_product_select:
+            continue
+        stripped = line.strip()
+        if stripped == "else":
+            in_v3pro_branch = False
+            in_else_branch = True
+            continue
+        if stripped == "endif":
+            break
+        m = ui_assign_re.match(line)
+        if not m:
+            continue
+        value = _resolve_make_var_ref(m.group(1).strip(), defs)
+        if in_v3pro_branch:
+            v3pro_ui_value = value
+        elif in_else_branch:
+            v3_ui_value = value
+
+    current_product_is_v3pro = (
+        defs.get("ROOT_PRODUCT_ID") is not None
+        and defs.get("ROOT_PRODUCT_V3PRO_ID") is not None
+        and defs["ROOT_PRODUCT_ID"] == defs["ROOT_PRODUCT_V3PRO_ID"]
+    )
+    resolved_ui_value = v3pro_ui_value if current_product_is_v3pro else v3_ui_value
+    if resolved_ui_value:
+        defs["V3_UI_VERSION"] = resolved_ui_value
+
+    return defs
+
+
 def _safe_eval_int(expr: str) -> int:
     """
     安全计算简单整型表达式（用于解析 #define IMG_RES_HEADER_FIXED_SIZE）。
@@ -254,6 +338,11 @@ def parse_img_res_define_header(header_file: str) -> Tuple[Optional[int], Option
             raise RuntimeError("no C preprocessor found (gcc/cc)")
 
         cmd = [compiler, "-E", "-P", "-xc", "-"]
+        makefile = find_file_upwards(str(Path(src_header).resolve().parent), "GNUmakefile")
+        if makefile:
+            cpp_defs = _derive_cpp_defines_from_makefile(makefile)
+            for name, value in cpp_defs.items():
+                cmd.append(f"-D{name}={value}")
         for inc in include_dirs:
             cmd.extend(["-I", inc])
 

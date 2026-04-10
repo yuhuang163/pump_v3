@@ -4,6 +4,7 @@
 */
 #include "ui_page_define.h" // IWYU pragma: keep
 #include "window_screen_popup.h"
+#include "popup_sub_ui.h" // IWYU pragma: keep
 
 /*
 * DEFINES
@@ -25,16 +26,6 @@
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-static void low_power_pop_display_complete_cb(hdr_post_args_t *args)
-{
-    ui_proc_popup_t *proc = (ui_proc_popup_t *)args->user_data;
-    EXCEPTION_CHECK_VOID(proc);
-    WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_POPUP_WINDOW);
-    power_manager_context_t *pm = (power_manager_context_t *)find_module(ID_MODULE_POWER);
-    EXCEPTION_CHECK_VOID(pm);
-    pm->system_power_control(false);
-}
-
 static void low_power_pop_display_complete(ui_manager_context_t *ui, int index)
 {
     EXCEPTION_CHECK_VOID(ui);
@@ -44,17 +35,12 @@ static void low_power_pop_display_complete(ui_manager_context_t *ui, int index)
     EXCEPTION_CHECK_VOID(battery);
     if (battery->is_low_battery() == 0) {
         LOGW("low power pop display complete, but not low battery, ignore.");
-        if (proc->wm->close_popup_overlay) {
-            proc->wm->close_popup_overlay(proc->wm, &proc->extra);
-        }
+        popup_window_exit_handler_cb(proc);
         return;
     }
-    POST_TASK_HANDLER_NO_DELAY(low_power_pop_display_complete_cb, proc, LOW_POWER_POP_DISPLAY_COMPLETE_TASK_NAME);
-}
-
-static void low_power_ui_before_policy(ui_manager_context_t *ui, int index)
-{
-
+    power_manager_context_t *pm = (power_manager_context_t *)find_module(ID_MODULE_POWER);
+    EXCEPTION_CHECK_VOID(pm);
+    pm->system_power_control(false);
 }
 
 static void low_power_ui_after_policy(ui_manager_context_t *ui, int index)
@@ -69,7 +55,6 @@ static void low_power_animation_progress_cb(void *user_data, int index, ui_ani_p
         case ANI_TIMER_DRAW_FINISH:
             break;
         case ANI_TIMER_DRAW_BEFORE:
-            low_power_ui_before_policy(ui, index);
             break;
         case ANI_TIMER_DRAW_AFTER:
             low_power_ui_after_policy(ui, index);
@@ -119,6 +104,5 @@ static void show_low_power_ui(ui_proc_popup_t *proc)
 void start_low_power_ui_animation(ui_proc_popup_t *proc)
 {
     EXCEPTION_CHECK_VOID(proc);
-    LOG_UI("start low power pop ui animation.");
     show_low_power_ui(proc);
 }

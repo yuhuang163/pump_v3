@@ -21,6 +21,7 @@ typedef enum {
     OP_CODE_INPUT_SET_KEY_SENSITIVITY = 4,
     OP_CODE_INPUT_IS_READY = 5,
     OP_CODE_INPUT_TOUCH_IS_READY = 6,
+    OP_CODE_INPUT_TOUCH_SIGNAL_READ = 7,
 } input_dev_op_code_e;
 
 #ifdef __cplusplus

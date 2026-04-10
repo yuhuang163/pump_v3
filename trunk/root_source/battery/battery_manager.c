@@ -135,10 +135,20 @@ static void polling_battery_status(void *user_data)
             msg.union_body.extra.is_bg_dispatch = 0x01;
             msg.union_body.extra.arg1 = ID_POPUP_WINDOW_LOW_POWER;
             msg.union_body.extra.popup_exit_time = 8000;
+            msg.union_body.extra.forbid_short_press_exit_popup = true;
             window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
             if (wm) {
                 wm->dispatch_new_window_args(wm, &msg);
             }
+            ///低电通知app低电不足
+            servers_publish_data_args_t args_temp = {
+                .arg1 = OLD_PUBLISH_ABNORMAL_LOW_BAT_SHUTDOWN_SOON,
+                .arg2 = OLD_PUBLISH_ABNORMAL_STATE_ACTIVE,
+                .val = NULL,
+            };
+            servers_manager_context_t *servers_ctx = (servers_manager_context_t *)find_module(ID_MODULE_SERVERS);
+            EXCEPTION_CHECK_VOID(servers_ctx);
+            servers_ctx->hook->app_old_protocol_server_data_publish(APP_OLD_COMM_CID_NOTIFY_V3_DEV_ABNORMAL, &args_temp);
         }
     }
     int bat_per = DEVICE_READ(thiz->priv.battery);

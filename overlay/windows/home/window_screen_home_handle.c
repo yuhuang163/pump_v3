@@ -15,8 +15,7 @@
 */
 #define PAGE_STATIC_NAME                            home
 #define PAGE_NAME_STR                               "home"
-#define HOME_UI_KEY_CODE                            (KEY_CODE_MODE | KEY_CODE_BREASTFEEDING | KEY_CODE_START | \
-                                                    KEY_CODE_KNOB_RIGHT | KEY_CODE_POWER)
+#define HOME_UI_KEY_CODE                            ALL_KEY_CODE_NO_COMBINE
 #define HOME_UI_KEY_TYPE                            KEY_EVENT_CLICK
 #define HOME_IDLE_UI_START_TASK_NAME                "home_idle_ui_start_task"
 #define REMOVE_ALL_HANDER_TASK() \
@@ -50,7 +49,7 @@ static void home_ui_switch_cb(hdr_post_args_t *args)
     } else if (args->arg1 == HOME_UI_TYPE_HOME) {
         start_home_ui_animation(proc);
     } else if (args->arg1 == HOME_UI_TYPE_BIND_QRCODE) {
-        start_home_qrcode_ui_animation(proc);
+        start_home_bind_ui_animation(proc);
     }
 }
 
@@ -76,11 +75,13 @@ static int on_home_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
     }
 
     switch (keycode) {
+#if IS_SUPPORT_NIGHT_LIGHT
         case KEY_CODE_POWER:
             if (proc->led && proc->led->hook && proc->led->hook->toggle_night_light) {
                 proc->led->hook->toggle_night_light(proc->led);
             }
             break;
+#endif
         case KEY_CODE_MODE:
         case KEY_CODE_BREASTFEEDING:
         case KEY_CODE_START:
@@ -93,6 +94,7 @@ static int on_home_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
             }
             break;
         default:
+            home_popup_ui_type_update(proc, HOME_POPUP_UI_OPERATION_FAILED);
             break;
     }
     return 0;
@@ -113,11 +115,6 @@ static void on_home_ui_broadcast_receive_cb(broadcast_mask_id_t id, void *contex
             } else if (arg1 == PM_BROADCAST_SYS_IDLE_RELEASE) {
                 POST_TASK_HANDLER_DELAYED_ARG2(home_ui_switch_cb, 100, HOME_UI_TYPE_HOME,
                     proc, HOME_IDLE_UI_START_TASK_NAME);
-            } else if (arg1 == PM_BROADCAST_SYS_WILL_SUSPEND) {
-                if (proc->current_ui_type == HOME_UI_TYPE_HOME_IDLE) {
-                    //proc->popup_ui_type = HOME_UI_TYPE_HOME_WILL_POWER_OFF; //暂时不显示倒计时UI 用popup_window显示
-                    LOG_WM("PM_STATE_CHANGE: will power off");
-                }
             } 
             break;
         default:
@@ -188,8 +185,6 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
     ui_proc_home_t *proc = u_malloz(sizeof(ui_proc_home_t));
     SET_WINDOW_CONTEXT(proc);
     proc->margic = UI_WINDOW_MARGIC_CODE;
-    proc->current_ui_type = HOME_UI_TYPE_NONE;
-    proc->popup_ui_type = HOME_UI_TYPE_NONE;
     proc->wm = wm;
     proc->ui = (ui_manager_context_t *)find_module(ID_MODULE_UI);
     proc->ble = (ble_manager_context_t *)find_module(ID_MODULE_BLE);

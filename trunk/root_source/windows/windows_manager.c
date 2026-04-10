@@ -206,9 +206,8 @@ static uint8_t pop_window_history(void)
     return to_valid_window_id(wm, window_id);
 }
 
-static int close_popup_overlay_internal(window_manager_context_t *wm, window_entry_extra_t *__extra)
+static int close_popup_overlay_internal(window_manager_context_t *wm)
 {
-    (void)__extra;
     window_context_record_t *record = &s_window_record;
     if (record->base_window_context == NULL || record->base_window_hdr == NULL) {
         return -1;
@@ -608,7 +607,7 @@ static int dispatch_new_window(window_context_t *ctx)
     }
     uint32_t t0 = get_timestamp();   /// 获取当前时间戳
     if (record->base_window_context != NULL && ctx->is_popup_window == 0) {
-        close_popup_overlay_internal(wm, NULL);   /// 已存在 overlay popup，先关闭旧 popup，再创建新 popup（单层 overlay）
+        close_popup_overlay_internal(wm);   /// 已存在 overlay popup，先关闭旧 popup，再创建新 popup（单层 overlay）
         /// todo: 弹窗支持
         if (wm->is_the_same_window(wm, ctx->new_window_id)) {
             LOG_WM("ignore the same screen after closing overlay: %s", to_window_name(ctx->new_window_id));
@@ -618,7 +617,7 @@ static int dispatch_new_window(window_context_t *ctx)
     /// overlay popup：不销毁 base window，仅创建 popup 叠加在上层
     if (ctx->is_popup_window) {
         if (record->base_window_context != NULL) {
-            close_popup_overlay_internal(wm, NULL); /// 已存在 overlay popup，先关闭旧 popup，再创建新 popup（单层 overlay）
+            close_popup_overlay_internal(wm); /// 已存在 overlay popup，先关闭旧 popup，再创建新 popup（单层 overlay）
         }
 
         if (record->window_hdr == NULL || record->window_context == NULL) {
@@ -707,11 +706,11 @@ static int go_back_to_history_wrapper(void *wm, window_entry_extra_t *__extra)
     return 0;
 }
 
-static int close_popup_overlay_wrapper(struct window_manager_context *wm, window_entry_extra_t *__extra)
+static int close_popup_overlay_wrapper(struct window_manager_context *wm)
 {
     EXCEPTION_CHECK_INT(wm);
     MUTEX_LOCK(wm->priv.window_switch_lock);
-    int ret = close_popup_overlay_internal(wm, __extra);
+    int ret = close_popup_overlay_internal(wm);
     MUTEX_UNLOCK(wm->priv.window_switch_lock);
     return ret;
 }

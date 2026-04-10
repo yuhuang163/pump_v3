@@ -38,17 +38,13 @@ static void pump_result_display_completed_cb(hdr_post_args_t *args)
     }
 }
 
-static void pump_result_ui_before_policy(ui_manager_context_t *ui, int index)
-{
-
-}
-
 static void pump_result_ui_after_policy(ui_manager_context_t *ui, int index)
 {
     ui_display_pump_complete_tip_process(ui);
     ui_proc_pump_t *proc = (ui_proc_pump_t *)ui->priv.play_info.user_data;
     EXCEPTION_CHECK_VOID(proc);
     if (get_timestamp_ms(proc->last_progress_ani_time) >= PUMP_RESULT_DISPLAY_TIMEOUT) {
+        proc->last_progress_ani_time = get_timestamp();
         POST_TASK_HANDLER_NO_DELAY(pump_result_display_completed_cb, proc, PUMP_COMPLETE_DISPLAY_TASK_NAME);
     }
 }
@@ -62,7 +58,6 @@ static void pump_result_animation_progress_cb(void *user_data, int index, ui_ani
         case ANI_TIMER_DRAW_FINISH:
             break;
         case ANI_TIMER_DRAW_BEFORE:
-            pump_result_ui_before_policy(ui, index);
             break;
         case ANI_TIMER_DRAW_AFTER:
             pump_result_ui_after_policy(ui, index);
@@ -90,6 +85,11 @@ static void show_pump_result_loop(ui_proc_pump_t *proc)
 {
     ui_manager_context_t *ui = proc->ui;
     EXCEPTION_CHECK_VOID(ui->hook && ui->hook->ui_animation_play_init);
+    if (proc->popup_ui_type == PUMP_POPUP_UI_OPERATION_SUCCESS ||
+        proc->popup_ui_type == PUMP_POPUP_UI_OPERATION_FAILED ||
+        proc->popup_ui_type == PUMP_POPUP_UI_LEVEL_ADJUST_TOO_LARGE) {
+        pump_popup_ui_type_update(proc, PUMP_POPUP_UI_NONE);
+    }
     if (proc->current_ui_type == PUMP_UI_TYPE_RESULT) {
         proc->last_progress_ani_time = get_timestamp();
         return;
@@ -122,7 +122,6 @@ void show_pump_result_ui(ui_proc_pump_t *proc)
     READ_PUMP_WORK_STATUS(proc->pump, pump_status);
     if (PUMP_NO_FINISH(pump_status)) {
         LOG_UI("=>set pump finish%d", pump_status);
-        proc->led->set_led_level(PUMP_FREQ_SET_BL, 100);
         WRITE_PUMP_WORK_STATUS(proc->pump, BREAST_PUMP_FINISH, 1);
     } else {
         char *state_name = "unknow";

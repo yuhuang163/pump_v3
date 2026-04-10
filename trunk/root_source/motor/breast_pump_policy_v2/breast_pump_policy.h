@@ -49,6 +49,8 @@ int pump_climb_policy_update(struct motor_manager_context *thiz, suction_strateg
 int taste_mode_user_policy_update(struct motor_manager_context *thiz, suction_strategy_mapping_t *map, uint8_t pump_id);
 /// 获取模式类型
 uint8_t pump_policy_type_get(motor_policy_node_t policy);
+/// 获取每个子策略对应模式类型
+uint8_t pump_policy_mode_type_get(motor_policy_node_t policy);
 #ifdef __cplusplus
 }
 #endif

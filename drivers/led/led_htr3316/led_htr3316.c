@@ -423,6 +423,11 @@ static int led_htr3316_p16_output_set(bool high_level)
 
     return BSP_OK;
 }
+void bsp_touch_rst_pin_output_set(uint8_t high_level)
+{
+    led_htr3316_p16_output_set(high_level > 0 ? true : false);
+}
+
 #endif
 
 /*

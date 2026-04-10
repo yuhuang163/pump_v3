@@ -43,7 +43,6 @@ window_enter_result_e enter_new_window_settings_screen(window_manager_context_t 
 window_enter_result_e enter_new_window_settings_submenu_screen(window_manager_context_t *wm, uint8_t window_id);
 window_enter_result_e enter_new_window_ota_screen(window_manager_context_t *wm, uint8_t window_id);
 window_enter_result_e enter_new_window_greeting_screen(window_manager_context_t *wm, uint8_t window_id);
-window_enter_result_e enter_new_window_factory_mode_screen(window_manager_context_t *wm, uint8_t window_id);
 window_enter_result_e enter_new_window_popup_window_screen(window_manager_context_t *wm, uint8_t window_id);
 window_enter_result_e enter_new_window_special_mode_screen(window_manager_context_t *wm, uint8_t window_id);
 window_enter_result_e enter_new_window_themes_screen(window_manager_context_t *wm, uint8_t window_id);

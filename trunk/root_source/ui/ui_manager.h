@@ -16,7 +16,7 @@ extern "C" {
 /// 删除LVGL对象
 #define LVGL_OBJ_DELETE(obj) \
 do { \
-    if (obj) { \
+    if (obj && lv_obj_is_valid(obj)) { \
         lv_obj_del(obj); \
         obj = NULL; \
     } \
@@ -24,7 +24,7 @@ do { \
 
 #define LVGL_OBJ_DELETE_ASYNC(obj) \
 do { \
-    if (obj) { \
+    if (obj && lv_obj_is_valid(obj)) { \
         lv_obj_del_async(obj); \
         obj = NULL; \
     } \

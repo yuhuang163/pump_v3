@@ -17,9 +17,8 @@
 #define WINDOW_PRIO_POPUP             WINDOW_PRIO_HIGH
 #define WINDOW_PRIO_GUIDE             WINDOW_PRIO_LEVEL8
 #define WINDOW_PRIO_HOME              WINDOW_PRIO_LEVEL8
-#define WINDOW_PRIO_OTA               WINDOW_PRIO_LEVEL9
+#define WINDOW_PRIO_OTA               WINDOW_PRIO_HIGH
 #define WINDOW_PRIO_CHARGE            WINDOW_PRIO_LEVEL9
-#define WINDOW_PRIO_FAC               WINDOW_PRIO_HIGH
 #define WINDOW_PRIO_LOGO              WINDOW_PRIO_HIGH
 #define WINDOW_PRIO_BATTERY           WINDOW_PRIO_TOP
 #define WINDOW_PRIO_PRODUCT_TS        WINDOW_PRIO_HIGH
@@ -38,7 +37,6 @@ DECLARE_WM_HANDLE_OBJ(m_window_apmode);
 DECLARE_WM_HANDLE_OBJ(m_window_battery);
 DECLARE_WM_HANDLE_OBJ(m_window_pump);
 DECLARE_WM_HANDLE_OBJ(m_window_popup);
-DECLARE_WM_HANDLE_OBJ(m_window_fac);
 DECLARE_WM_HANDLE_OBJ(m_window_product_test);
 DECLARE_WM_HANDLE_OBJ(m_window_airplane_mode);
 DECLARE_WM_HANDLE_OBJ(m_window_system);
@@ -68,7 +66,6 @@ static const window_context_handle_t g_process_handle_list[] = {
     {ID_WINDOW_OTA_UPGRADE,         WINDOW_PRIO_OTA,        PAGE_HANDLE_NAME(ota),      REFS_T(m_window_ota)},
     {ID_WINDOW_POPUP_WINDOW,        WINDOW_PRIO_POPUP,      PAGE_HANDLE_NAME(popup_window),    REFS_T(m_window_popup)},
     {ID_WINDOW_PUMP, WINDOW_PRIO_PUMP, PAGE_HANDLE_NAME(pump), REFS_T(m_window_pump)},
-    // {ID_WINDOW_FACTORY_MODE,        WINDOW_PRIO_FAC,        PAGE_HANDLE_NAME(fac),      REFS_T(m_window_fac)},
     // {ID_WINDOW_SETTINGS,            WINDOW_PRIO_SETTING,    PAGE_HANDLE_NAME(setting),  REFS_T(m_window_setting)},
     {ID_WINDOW_AIRPLANE_MODE, WINDOW_PRIO_AIRPLANE_MODE, PAGE_HANDLE_NAME(airplane_mode), REFS_T(m_window_airplane_mode)},
     {ID_WINDOW_PRODUCT_TEST_MODE,  WINDOW_PRIO_PRODUCT_TS, PAGE_HANDLE_NAME(product_test), REFS_T(m_window_product_test)},

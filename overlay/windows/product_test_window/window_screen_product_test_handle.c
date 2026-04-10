@@ -11,8 +11,7 @@
 */
 #define PAGE_STATIC_NAME                    product_test
 #define PAGE_NAME_STR                       "product_test"
-#define PRODUCT_TEST_UI_KEY_CODE            (KEY_CODE_POWER |KEY_CODE_START | KEY_CODE_MODE | KEY_CODE_FREQUENCY | \
-                                            KEY_CODE_BREASTFEEDING | KEY_CODE_LEFT_CONTROL | KEY_CODE_RIGHT_CONTROL)
+#define PRODUCT_TEST_UI_KEY_CODE            (ALL_KEY_CODE_NO_COMBINE)
 #define PRODUCT_TEST_UI_KEY_TYPE            (KEY_EVENT_CLICK)
 #define PRODUCT_TEST_HOME_TASK_NAME         "product_test_home_ui"
 #define PRODUCT_TEST_LCD_COLOR_TASK_NAME    "product_test_lcd_color_ui"
@@ -100,6 +99,7 @@ static int product_test_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint1
             lcd_color_test_keyevent_cb(proc, keycode, keytype);
             break;
         default:
+            product_common_popup_ui_type_update(proc, PRODUCT_TEST_POPUP_UI_OPERATION_FAILED);
             break;
     }
     LOG_WM("current_ui_type: %d, tests_mode: %d", proc->current_ui_type, proc->tests_mode);

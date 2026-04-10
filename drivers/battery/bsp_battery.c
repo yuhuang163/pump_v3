@@ -531,6 +531,10 @@ static int battery_dev_ioctl(struct rt_device_node *dev, uint32_t op_code, void 
 #else
             return 0;
 #endif
+        case OP_CODE_BAT_CHARGE_CURRENT_ADJUST:
+            tmp = (uint32_t *)args;
+            charge_current_adjust((uint16_t)tmp[0]);
+            return 0;
         default:
             LOGE("bat err op_code: %lx", op_code);
             return -1;

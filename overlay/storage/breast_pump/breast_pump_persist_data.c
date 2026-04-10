@@ -644,6 +644,21 @@ int read_pump_mode_with_type_from_ram(store_func_args_t args)
     return 0;
 }
 
+int read_pump_mode_steps_info_id_from_ram(store_func_args_t args)
+{
+    EXCEPTION_CHECK_INT(args.ctx);
+    sys_pump_mode_info_t *mode_info = &args.ctx->priv.sys_info.mode_info;
+    uint8_t mode_idx = args.arg1;
+    uint32_t *info_id = (uint32_t *)args.val;
+    EXCEPTION_CHECK_INT(info_id);
+    if (mode_idx >= BREAST_PUMP_MODE_MAX) {
+        LOGE("mode_idx: %d, out of range", mode_idx);
+        return -1;
+    }
+    *info_id = mode_info->steps_info[mode_idx].id.dat32;
+    return 0;
+}
+
 int write_mode_update_flag_to_ram(store_func_args_t args)
 {
     EXCEPTION_CHECK_INT(args.ctx);

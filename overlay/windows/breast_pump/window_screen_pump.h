@@ -1,6 +1,7 @@
 #ifndef __WINDOW_SCREEN_PUMP_H__
 #define __WINDOW_SCREEN_PUMP_H__
 
+#include <stdint.h>
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -45,8 +46,10 @@ extern "C" {
 #define PUMPING_MODE_DISPLAY_TIMEOUT           (5000) /// 5s
 /// 泵奶速度显示超时时间
 #define PUMP_SPEED_DISPLAY_TIMEOUT             (3000) /// 3s
-#define PUMP_SPEED_SYNC_TIMEOUT                 (1000) /// 3s 
-#define PUMP_LEVEL_SYNC_TIMEOUT                 (1000) /// 3s 
+#define PUMP_SPEED_SYNC_TIMEOUT                (1000) /// 3s 
+/// 泵奶档位显示超时时间
+#define PUMP_LEVEL_DISPLAY_TIMEOUT             (3000) /// 3s 
+#define PUMP_LEVEL_SYNC_TIMEOUT                (1000) /// 3s 
 /// 泵奶结果显示超时时间
 #define PUMP_RESULT_DISPLAY_TIMEOUT            (3000) /// 3s
 /// 泵奶背光灯周期
@@ -90,6 +93,7 @@ typedef enum {
     PUMP_UI_TYPE_PUMPING,
     PUMP_UI_TYPE_RESULT,
     PUMP_UI_TYPE_LEVEL,
+    PUMP_UI_TYPE_BOTH_LEVEL,
     PUMP_UI_TYPE_SPEED,
     PUMP_UI_TYPE_BREASTFEEDING_MODE,
     PUMP_UI_TYPE_COMMON_MODE,
@@ -98,11 +102,17 @@ typedef enum {
 
 typedef enum {
     PUMP_POPUP_UI_NONE = 0,
-    PUMP_POPUP_UI_MODE_PROMPT = 1, /// 模式切换提示
-    PUMP_POPUP_UI_PUMP_WILL_FINISH_TIP = 2, /// 泵奶结束提示
-    PUMP_POPUP_UI_PUMP_PAUSE_PROMPT = 3, /// 泵奶暂停提示
-    PUMP_POPUP_UI_PUMP_ERROR_TIP = 4, /// 泵奶异常提示
-} pump_popup_ui_type_e;
+    PUMP_POPUP_UI_OPERATION_SUCCESS = 1, /// 操作成功提示
+    PUMP_POPUP_UI_OPERATION_FAILED = 2, /// 操作失败提示
+    PUMP_POPUP_UI_LEVEL_ADJUST_TOO_LARGE = 3, /// 档位范围调整过大提示
+    PUMP_POPUP_UI_PUMP_PAUSE_MANUAL = 4, /// 手动暂停提示
+    PUMP_POPUP_UI_PUMP_PAUSE_TIMEOUT = 5, /// 泵奶暂停超时提示
+    PUMP_POPUP_UI_PUMP_FINISH_MANUAL = 6, /// 手动结束提示
+    PUMP_POPUP_UI_PUMP_FINISH_TIMEOUT = 7, /// 泵奶结束超时提示
+    
+    PUMP_POPUP_UI_PUMP_ERROR_TIP = 20, /// 泵奶异常提示
+    PUMP_POPUP_UI_LEVEL_ERROR_TIP = 21, /// 档位变化错误提示
+} pump_popup_ui_action_e;
 
 /// 泵奶信息结构体
 typedef struct {    
@@ -142,14 +152,18 @@ typedef struct {
     ui_pump_info_t info; /// 当前泵奶信息.
     pump_setting_t setting; /// 当前泵奶设置信息.
     int8_t level_change; /// 当前档位变化值.
-    uint8_t level_change_direction; /// 当前档位变化方向. 0: 增加, 1: 减少.
+    int8_t level_adjust_too_large; /// 档位范围调整过大值.
     uint8_t level_sync_flag; /// 档位同步标志.
     uint8_t speed_sync_flag; /// 速度同步标志.
+    uint8_t mode_sync_flag; /// 追奶模式同步标志.
 #if IS_SUPPORT_AIR_LEAKAGE_WARNING
     uint8_t is_air_leakage_popup_show; /// 是否显示空气泄漏弹窗提示.
     uint8_t hide_air_leakage_popup_wm; /// 是否隐藏空气泄漏弹窗提示.
 #endif
-    uint8_t popup_ui_type; /// 当前弹窗类型.
+    uint8_t goto_pump_home_ui; /// 跳转到泵奶主界面标志.
+    uint16_t home_popup_ui_type; /// 主界面弹窗类型.
+    uint16_t popup_ui_type; /// 当前弹窗类型. pump_popup_ui_action_e
+    uint32_t popup_ui_start_time; /// 当前弹窗开始时间.
 } ui_proc_pump_t;
 
 /*
@@ -170,7 +184,8 @@ void switch_pump_speed_ui(ui_proc_pump_t *proc, bool is_increase);
 /// 档位UI相关
 void switch_pump_level_ui(ui_proc_pump_t *proc, bool is_increase);
 void switch_pump_control_type_ui(ui_proc_pump_t *proc, uint8_t control_type);
-void switch_pump_bilateral_control_type_ui_by_knob(ui_proc_pump_t *proc, bool is_increase);
+void switch_pump_both_control_type_ui(ui_proc_pump_t *proc);
+void switch_pump_both_level_ui(ui_proc_pump_t *proc, bool is_increase);
 /// 泵奶状态UI相关
 void switch_pump_status_ui(ui_proc_pump_t *proc);
 void show_pump_result_ui(ui_proc_pump_t *proc);
@@ -178,6 +193,7 @@ void pump_result_go_to_home_window(ui_proc_pump_t *proc);
 /// 移除UI相关
 void pump_result_ui_hdr_remove(void);
 void pump_level_ui_hdr_remove(void);
+void pump_both_level_ui_hdr_remove(void);
 void pump_speed_ui_hdr_remove(void);
 void pump_mode_ui_hdr_remove(void);
 void breastfeeding_mode_ui_hdr_remove(void);
@@ -187,6 +203,8 @@ void stop_pump_ui_animation(ui_proc_pump_t *proc);
 void pump_power_key_handler(ui_proc_pump_t *proc);
 /// 泵奶完成事件处理
 void pump_complete_event_handler(ui_proc_pump_t *proc);
+/// 弹窗类型更新
+void pump_popup_ui_type_update(ui_proc_pump_t *proc, pump_popup_ui_action_e type);
 #ifdef __cplusplus
 }
 #endif

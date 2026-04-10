@@ -27,8 +27,17 @@ typedef enum {
     OTA_UPGRADE_STATE_NONE = 0,
     OTA_UPGRADE_STATE_START,
     OTA_UPGRADE_STATE_DOWNLOAD,
+    OTA_UPGRADE_STATE_SUCCESS,
+    OTA_UPGRADE_STATE_FAIL,
     OTA_UPGRADE_STATE_END,
 } ota_upgrade_state_e;
+
+typedef enum {
+    OTA_OBJECT_TYPE_NONE = 0,
+    OTA_OBJECT_MAIN_FIRMWARE = 100, /// 主固件
+    OTA_OBJECT_IMAGE_RESOURCE, /// 图片资源
+    OTA_OBJECT_TOUCH_KEY_FIRMWARE, /// 触摸按键固件
+} ota_object_type_e;
 
 /// 描述ota上下文对象
 struct broadcast_obj;

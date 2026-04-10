@@ -22,8 +22,8 @@ typedef enum {
      */
 
     /* 蓝牙组 [1..100] */
-    RESOURCE_ID_BLE_CONNECT = 0x01, /// 蓝牙连接图标
-    RESOURCE_ID_BLE_DISCONNECT,     /// 蓝牙断开图标
+    RESOURCE_ID_BLE_CONNECT_ICON = 0x01, /// 蓝牙连接图标
+    RESOURCE_ID_BLE_DISCONNECT_ICON,     /// 蓝牙断开图标
 
     /* 充电/电池组 [101..200]（充电页 + 首页电池） */
     RESOURCE_ID_CHARGE_PAGE_BATT_0 = 10,   /// 充电页电量0%
