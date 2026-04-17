@@ -1,7 +1,6 @@
 #ifndef __BREAST_PUMP_UI_H__
 #define __BREAST_PUMP_UI_H__
 
-#include <stdint.h>
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -14,11 +13,6 @@ extern "C" {
 #include "ble_ui.h" // IWYU pragma: keep
 #include "battery_ui.h" // IWYU pragma: keep
 #include "window_screen_pump.h" // IWYU pragma: keep
-
-typedef enum {
-    PUMP_OPERATION_SUCCESS = 0,
-    PUMP_OPERATION_FAILED = 1,
-} pump_operation_type_e;
 
 /*
 * GLOBAL FUNCTION DECLARATION
@@ -52,15 +46,6 @@ int ui_display_breastfeeding_mode_process(ui_manager_context_t *thiz);
 void ui_display_pump_speed_prepare(ui_manager_context_t *thiz);
 void ui_display_pump_speed_remove(ui_manager_context_t *thiz);
 int ui_display_pump_speed_process(ui_manager_context_t *thiz);
-/// 泵奶操作成功提示界面
-void pump_tip_popup_ui_update(ui_manager_context_t *thiz, ui_proc_pump_t *proc, 
-    lv_obj_t *parent, uint8_t *ui_index);
-void pump_tip_popup_ui_remove(ui_manager_context_t *thiz);
-/// 泵奶状态提示界面
-void ui_pump_status_popup_prepare(ui_manager_context_t *thiz, lv_obj_t *parent,
-    uint16_t popup_type);
-void ui_pump_status_popup_process(ui_manager_context_t *thiz);
-void ui_pump_status_popup_remove(ui_manager_context_t *thiz);
 
 #ifdef __cplusplus
 }

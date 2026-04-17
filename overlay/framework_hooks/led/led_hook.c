@@ -57,6 +57,17 @@ static void set_key_backlight(led_manager_context_t *thiz, uint8_t level)
     thiz->priv.led_dev->ioctl(thiz->priv.led_dev, OP_CODE_LED_STATUS_SET, (void *)&msg);
 }
 
+static void set_key_backlight_rate(led_manager_context_t *thiz, uint8_t rate)
+{
+    EXCEPTION_CHECK_VOID(thiz);
+    EXCEPTION_CHECK_VOID(thiz->priv.led_dev);
+    led_level_rate_msg_t msg = {
+        .led_index = PUMP_LED_ALL_ID,
+        .rate = rate,
+    };
+    thiz->priv.led_dev->ioctl(thiz->priv.led_dev, OP_CODE_LED_LEVEL_RATE_SET, (void *)&msg);
+}
+
 static void set_night_light_level_internal(led_manager_context_t *thiz, uint8_t level)
 {
     thiz->priv.night_light_level = level;
@@ -204,15 +215,15 @@ static int on_broadcast_receiver_route(broadcast_mask_id_t id, void *context, in
                 set_key_backlight(thiz, 0);
             } else if (arg1 == PM_BROADCAST_SYS_RESUME) {
                 if (wm && wm->is_current_window(wm, ID_WINDOW_CHARGE) == 0 && wm->is_current_window(wm, ID_WINDOW_GUIDE) == 0) {
-                    set_key_backlight(thiz, 100); /// 充电窗口退出, 恢复背光灯.
+                    set_key_backlight(thiz, 100);
                 }
             } else if (arg1 == PM_BROADCAST_SYS_IDLE) {
                 if (wm && wm->is_current_window(wm, ID_WINDOW_CHARGE) == 0 && wm->is_current_window(wm, ID_WINDOW_GUIDE) == 0) {
-                    set_key_backlight(thiz, 50); /// 充电窗口退出, 恢复背光灯.
+                    set_key_backlight_rate(thiz, 50);
                 }
             } else if (arg1 == PM_BROADCAST_SYS_IDLE_RELEASE) {
                 if (wm && wm->is_current_window(wm, ID_WINDOW_CHARGE) == 0 && wm->is_current_window(wm, ID_WINDOW_GUIDE) == 0) {
-                    set_key_backlight(thiz, 100); /// 充电窗口退出, 恢复背光灯.
+                    set_key_backlight_rate(thiz, 100);
                 }
             }
             break;

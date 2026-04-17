@@ -20,13 +20,6 @@
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-
-static void product_home_test_popup_ui_finish_policy(ui_manager_context_t *ui, int index)
-{
-    ui_proc_product_test_t *proc = (ui_proc_product_test_t *)ui->priv.play_info.user_data;
-    product_common_popup_ui_type_update(proc, PRODUCT_TEST_POPUP_UI_NONE);
-}
-
 static void product_home_test_display_completed_cb(hdr_post_args_t *args)
 {
     ui_proc_product_test_t *proc = (ui_proc_product_test_t *)args->user_data;
@@ -86,7 +79,6 @@ static void product_home_test_ui_progress_cb(void *user_data, int index, ui_ani_
             product_home_test_ui_after_policy(ui, index);
             break;
         case ANI_POPUP_DISPLAY_FINISH:
-            product_common_popup_ui_type_update(proc, PRODUCT_TEST_POPUP_UI_NONE);
             break;
         default:
             break;
@@ -163,7 +155,6 @@ void product_home_test_keyevent_cb(ui_proc_product_test_t *proc, uint16_t keycod
         case KEY_CODE_BREASTFEEDING:
         case KEY_CODE_LEFT_CONTROL:
         case KEY_CODE_RIGHT_CONTROL:
-            product_common_popup_ui_type_update(proc, PRODUCT_TEST_POPUP_UI_OPERATION_FAILED);
             break;
         case KEY_CODE_START:
             product_home_test_start_key_event_handler(proc);

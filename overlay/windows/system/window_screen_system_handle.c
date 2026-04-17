@@ -2,9 +2,8 @@
 * INCLUDE FILES
 *****************************************************************************************
 */
-#include "breast_pump_manager_api.h"
-#include "input_key_code.h" // IWYU pragma: keep
 #include "root_common_api.h" // IWYU pragma: keep
+#include "input_key_code.h" // IWYU pragma: keep
 #include "windows_manager.h" 
 #include "windows_map_define.h" // IWYU pragma: keep
 #include "window_screen_system.h" // IWYU pragma: keep
@@ -65,6 +64,8 @@ static int entry_event_cb(window_lift_cycle_e new_state,
             if (proc->key) {
                 proc->key->add_keyevent_handler("system_wm", proc, SYSTEM_UI_KEY_CODE, SYSTEM_UI_KEY_TYPE,
                     on_system_keyevent_hdr, KEY_HANDLER_SHIELD_LEVEL_1);
+            } else {
+                LOG_WM("key not present, ignore.");
             }
         }  else if (proc->extra.arg1 == ID_SYSTEM_WINDOW_POWER_OFF) {
             system_power_off_handle(proc);
@@ -84,9 +85,15 @@ static int exit_event_cb(window_lift_cycle_e new_state,
             break;
         case ID_SCR_STATE_ON_DESTORY:
             LOG_WM("%s window exit: u_free: %p", PAGE_NAME_STR, proc);
+            if (proc->key) {
+                proc->key->remove_keyevent_handler(on_system_keyevent_hdr);
+            } else {
+                LOG_WM("key not present, ignore.");
+            }
+            SET_WINDOW_CONTEXT(NULL);
+            proc->margic = UI_WINDOW_MARGIC_CODE_INVALID;
             u_free(proc);
             proc = NULL;
-            SET_WINDOW_CONTEXT(NULL);
             LOG_WM("%s window exit--end", PAGE_NAME_STR);
             break;
         default:

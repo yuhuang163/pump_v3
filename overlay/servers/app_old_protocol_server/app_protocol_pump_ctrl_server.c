@@ -949,10 +949,7 @@ void app_old_comm_handle_ctrl_dev_req(uint8_t cal, uint8_t *cab)
     } else if (wm->is_current_window(wm, ID_WINDOW_CHARGE) || wm->is_current_window(wm, ID_WINDOW_DUMMY)
         || wm->is_current_window(wm, ID_WINDOW_HOME)) {
         LOG_SRV("charge or dummy, dispatch pump window.");
-        multi_func_msg_data_t msg = {0};
-        /// 根据目标模式和运行状态，确定进入子界面的按键参数
-        msg.union_body.extra.arg1 = KEY_CODE_START;
-        
+        multi_func_msg_data_t msg = {0};       
         ///先把参数和模式发给pump组件，再dispatch窗口
         app_old_comm_pump_control_handler(&app_old_comm_pump_ctrl_date);
         msg.union_body.extra.window_id = ID_WINDOW_PUMP;

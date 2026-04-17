@@ -59,8 +59,8 @@ void reset_pump_info(storage_manager_context_t *ctx, sys_pump_info_t *pump_info)
 {
     const motor_policy_cfg_t *cfg = NULL;
     pump_info->custom_activate               = 0;
-    pump_info->last_expert_mode              = 255;
-    pump_info->last_regular_mode             = 255;
+    pump_info->last_expert_mode              = BREAST_PUMP_MODE_INVALID;
+    pump_info->last_regular_mode             = BREAST_PUMP_MODE_INVALID;
     pump_info->last_pump_mode                = BREAST_PUMP_PUMP_MODE_DEFAULT;
     pump_info->control_type                  = BREAST_PUMP_CONTROL_TYPE_BILATERAL;
     for (int i = 0; i < BREAST_PUMP_MODE_MAX; i++) {

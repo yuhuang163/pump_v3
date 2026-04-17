@@ -254,7 +254,7 @@ static void pump_mode_ui_update(ui_manager_context_t *thiz, ui_proc_pump_t *proc
 {
     EXCEPTION_CHECK_VOID(proc);
     EXCEPTION_CHECK_VOID(proc->pump);
-    uint8_t mode = proc->ui_common_mode_index; /// 当前UI模式索引.
+    uint8_t mode = proc->ui_normal_mode_index; /// 当前UI模式索引.
     if (mode_info->mode == mode && mode_info->force_update == false) {
         return;
     }

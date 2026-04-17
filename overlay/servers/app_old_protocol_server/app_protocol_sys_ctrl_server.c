@@ -1,5 +1,7 @@
+#include "root_common.h"
 #include "root_common_api.h" // IWYU pragma: keep
 #include "app_protocol_handler.h"
+#include "servers_manager_api.h"
 #include "storage_manager_api.h"
 #include "app_protocol_sys_ctrl_server.h"
 #include "hal_led.h" // IWYU pragma: keep
@@ -31,16 +33,20 @@ static void app_old_comm_set_night_light(uint8_t adaptive_dimming_switch)
     if (led->hook->set_night_light_adaptive_switch) {
         led->hook->set_night_light_adaptive_switch(led, adaptive_dimming_switch);
     }
-    LOG_SRV(" Night light set: adaptive=%d\n", adaptive_dimming_switch);
+    LOG_SRV(" Night light set: adaptive=%d", adaptive_dimming_switch);
 }
 
 static void app_old_comm_set_device_bind_status(uint8_t device_bind_status)
 {
     ble_manager_context_t *ble = (ble_manager_context_t *)find_module(ID_MODULE_BLE);
     EXCEPTION_CHECK_VOID(ble);
+    ///底层有三个状态 1需要加1对齐到绑定状态
+    if (device_bind_status == 1) {
+        device_bind_status += 1;
+    }
     if (ble->ble_bind_state_get() != device_bind_status) {
         ble->ble_bind_state_set(device_bind_status);
-        LOG_SRV(" Device bind status set: %d\n", device_bind_status);
+        LOG_SRV(" Device bind status set: %d", device_bind_status);
     }
 }
 
@@ -52,6 +58,8 @@ static const char* app_old_comm_get_abnormal_type_str(old_publish_abnormal_type_
         case OLD_PUBLISH_ABNORMAL_LOW_BATTERY: return "LOW_BATTERY";
         case OLD_PUBLISH_ABNORMAL_LOW_BAT_SHUTDOWN_SOON: return "LOW_BAT_SHUTDOWN_SOON";
         case OLD_PUBLISH_ABNORMAL_AIR_LEAK: return "AIR_LEAK";
+        case OLD_PUBLISH_ABNORMAL_TRAVEL_LOCK: return "TRAVEL_LOCK";
+        case OLD_PUBLISH_ABNORMAL_ADAPTER_ERROR: return "ADAPTER_ERROR";
         default: return "UNKNOWN_ERROR";
     }
 }
@@ -61,14 +69,14 @@ static const char* app_old_comm_get_abnormal_type_str(old_publish_abnormal_type_
 */
 void app_old_comm_handle_set_bind_req(uint8_t cal, uint8_t *cab)
 {
-    LOG_SRV(" Handling set bind status request\n");
+    LOG_SRV(" Handling set bind status request");
     if (cal != 0x02) {
-        LOG_SRV(" Invalid data length for SET_BIND (expected 2, got %d)\n", cal);
+        LOG_SRV(" Invalid data length for SET_BIND (expected 2, got %d)", cal);
         return;
     }
     uint8_t bind_status = cab[0];
     uint8_t left_right = cab[1];
-    LOG_SRV(" Setting bind status - Status: %d, Side: %d\n", bind_status, left_right);
+    LOG_SRV(" Setting bind status - Status: %d, Side: %d", bind_status, left_right);
     // TODO: Update binding status
     app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_ACK, APP_OLD_COMM_CID_SET_BIND, 2, cab);
     app_old_comm_report_bind_status(bind_status, left_right);
@@ -77,7 +85,7 @@ void app_old_comm_handle_set_bind_req(uint8_t cal, uint8_t *cab)
 // -------------------------- Request command handling implementations --------------------------
 void app_old_comm_handle_heartbeat_req(void)
 {
-    LOG_SRV(" Sending heartbeat ACK\n");
+    LOG_SRV(" Sending heartbeat ACK");
     app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_ACK, APP_OLD_COMM_CID_HEARTBEAT, 0, NULL);
 }
 
@@ -85,11 +93,11 @@ void app_old_comm_handle_set_rtc_req(uint8_t cal, uint8_t *cab)
 {
     LOG_SRV(" Handling set RTC request\n");
     if (cal != 0x04) {
-        LOG_SRV(" Invalid data length for SET_RTC (expected 4, got %d)\n", cal);
+        LOG_SRV(" Invalid data length for SET_RTC (expected 4, got %d)", cal);
         return;
     }
     uint32_t utc_time = (cab[3] << 24) | (cab[2] << 16) | (cab[1] << 8) | cab[0];
-    LOG_SRV(" Setting RTC time to 0x%08X\n", utc_time);
+    LOG_SRV(" Setting RTC time to 0x%08X", utc_time);
     // TODO: Call RTC setting interface
     platform_set_utc_time(utc_time, 0);
     app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_ACK, APP_OLD_COMM_CID_SET_RTC, 0, NULL);
@@ -97,13 +105,13 @@ void app_old_comm_handle_set_rtc_req(uint8_t cal, uint8_t *cab)
 
 void app_old_comm_handle_sys_ctrl_req(uint8_t cal, uint8_t *cab)
 {
-    LOG_SRV(" Handling system control request\n");
+    LOG_SRV(" Handling system control request");
     if (cal != 0x01) {
-        LOG_SRV(" Invalid data length for SYS_CTRL (expected 1, got %d)\n", cal);
+        LOG_SRV(" Invalid data length for SYS_CTRL (expected 1, got %d)", cal);
         return;
     }
     uint8_t ctrl_cmd = cab[0];
-    LOG_SRV(" Executing system control command 0x%02X\n", ctrl_cmd);
+    LOG_SRV(" Executing system control command 0x%02X", ctrl_cmd);
     if (ctrl_cmd == APP_OLD_COMM_SYS_POWER_OFF) {
         LOG_SRV("CMD-poweroff");
         peripheral_bus_context_t *pbus = (peripheral_bus_context_t *)find_module(ID_MODULE_DEVICE_BUS);
@@ -158,20 +166,20 @@ void app_old_comm_handle_get_encrypt_req()
     app_old_protocol_handler_context_t *handler_ctx = app_old_protocol_handler_ctx_get();
     ack_data[0] = handler_ctx->encrypt_status;
     ack_data[1] = handler_ctx->encrypt_key;
-    LOG_SRV(" Sending encryption info ACK (status: 0x%02X, key: 0x%02X)\n",
+    LOG_SRV(" Sending encryption info ACK (status: 0x%02X, key: 0x%02X)",
            ack_data[0], ack_data[1]);
     app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_ACK, APP_OLD_COMM_CID_GET_ENCRYPT, 2, ack_data);
 }
 
 void app_old_comm_handle_set_travel_lock_req(uint8_t cal, uint8_t *cab)
 {
-    LOG_SRV(" Handling set travel lock request\n");
+    LOG_SRV(" Handling set travel lock request");
     if (cal != 0x01) {
-        LOG_SRV(" Invalid data length for SET_TRAVEL_LOCK (expected 1, got %d)\n", cal);
+        LOG_SRV(" Invalid data length for SET_TRAVEL_LOCK (expected 1, got %d)", cal);
         return;
     }
     uint8_t travel_lock = cab[0];
-    LOG_SRV(" Setting travel lock status to %d\n", travel_lock);
+    LOG_SRV(" Setting travel lock status to %d", travel_lock);
     // TODO: Execute travel lock control logic
     airplane_mode_context_t *ap = (airplane_mode_context_t *)find_module(ID_MODULE_AIRPLANE_MODE);
     EXCEPTION_CHECK_VOID(ap);
@@ -185,25 +193,25 @@ void app_old_comm_handle_set_travel_lock_req(uint8_t cal, uint8_t *cab)
 
 void app_old_comm_report_discon_status(void)
 {
-    LOG_SRV(" Parsing disconnection notification\n");
+    LOG_SRV(" Parsing disconnection notification");
     // TODO: Handle BLE disconnection logic
-    app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_NOTIFY, APP_OLD_COMM_CID_NOTIFY_DISCON, 0, NULL);
+    //app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_NOTIFY, APP_OLD_COMM_CID_NOTIFY_DISCON, 0, NULL);
 }
 
 void app_old_comm_report_bind_status(uint8_t bind_status, uint8_t left_right)
 {
-    LOG_SRV(" Reporting bind status - Status: %d, Side: %d\n", bind_status, left_right);
+    LOG_SRV(" Reporting bind status - Status: %d, Side: %d", bind_status, left_right);
     uint8_t report_data[2] = {bind_status, left_right};
     app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_NOTIFY, APP_OLD_COMM_CID_NOTIFY_BIND, 2, report_data);
 }
 
 void app_old_comm_handle_ctrl_dev_sys_status_req(uint8_t cal, uint8_t *cab)
 {
-    LOG_SRV(" Handling ctrl_dev_sys_status request\n");
+    LOG_SRV(" Handling ctrl_dev_sys_status request");
     EXCEPTION_CHECK_VOID(cab);
 
     if (cal != 0x07) {
-        LOG_SRV(" Invalid data length for CTRL_DEV_STATUS (expected 7, got %d)\n", cal);
+        LOG_SRV(" Invalid data length for CTRL_DEV_STATUS (expected 7, got %d)", cal);
         return;
     }
 
@@ -324,12 +332,56 @@ void app_old_comm_handle_pump_ble_rgb_set_ctrl_req(uint8_t cal, uint8_t *cab)
 void app_old_comm_handle_dev_abnormal_report(void *cab)
 {
     uint8_t report_data[2] = {0};
-    LOG_SRV(" Handling dev abnormal report\n");
+    LOG_SRV(" Handling dev abnormal report");
     EXCEPTION_CHECK_VOID(cab);
     servers_publish_data_args_t *args_temp = (servers_publish_data_args_t *)cab;
     report_data[0] = args_temp->arg1;
     report_data[1] = args_temp->arg2;
-    LOG_SRV(" Abnormal type: %s\n", app_old_comm_get_abnormal_type_str(report_data[0]));
+    LOG_SRV(" Abnormal type: %s %d", app_old_comm_get_abnormal_type_str(report_data[0]), report_data[1]);
     app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_NOTIFY, APP_OLD_COMM_CID_NOTIFY_V3_DEV_ABNORMAL, 2, report_data);
+}
+
+/// APP检查异常
+void app_old_comm_handle_dev_abnormal_app_req(uint8_t cal, uint8_t *cab)
+{
+    peripheral_bus_context_t *pbus = (peripheral_bus_context_t *)find_module(ID_MODULE_DEVICE_BUS);
+    EXCEPTION_CHECK_VOID(pbus);
+    struct rt_device_node *battery = pbus->find_device(ID_DEVICE_BATTERY);
+    airplane_mode_context_t *air_ctx = (airplane_mode_context_t *)find_module(ID_MODULE_AIRPLANE_MODE);
+    EXCEPTION_CHECK_VOID(air_ctx);
+
+    battery_manager_context_t *batt_ctx = (battery_manager_context_t *)find_module(ID_MODULE_BATTERY);
+    EXCEPTION_CHECK_VOID(batt_ctx);
+ 
+    uint8_t percent = 0;
+    if (battery) {
+        DEVICE_READ_ARGS(battery, &percent, sizeof(percent));
+    } else {
+        percent = 100;
+    }
+    uint8_t report_data[10] = {0};
+    uint8_t data_len = 0;
+    ///电量不足无法开始
+    if (percent <= LOW_BAT_PERCENTAGE_RUN_ONCE_NOT_ALLOWED) {
+        report_data[data_len++] = OLD_PUBLISH_ABNORMAL_STATE_ACTIVE;
+    }
+    ///设备低电
+    report_data[data_len++] = 0;
+    ///设备低电即将关键
+    if (percent <= LOW_BAT_PERCENTAGE) {
+        report_data[data_len++] = OLD_PUBLISH_ABNORMAL_STATE_ACTIVE;
+    }
+    ///设备漏气提醒
+    report_data[data_len++] = 0;
+    ///旅行锁
+    if (air_ctx->is_on_airplane_mode()) {
+        report_data[data_len++] = OLD_PUBLISH_ABNORMAL_STATE_ACTIVE;
+    }
+    ///适配器
+    if (batt_ctx->is_adapter_mismatch()) {
+        report_data[data_len++] = OLD_PUBLISH_ABNORMAL_STATE_ACTIVE;
+    }
+    app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_ACK, APP_OLD_COMM_CID_GET_ABNORMAL_INFOR, \
+        data_len, report_data);
 }
 

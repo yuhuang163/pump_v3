@@ -46,12 +46,6 @@ typedef enum {
     PRODUCT_TEST_MODE_MAX
 } product_test_mode_e;
 
-typedef enum {
-    PRODUCT_TEST_POPUP_UI_NONE = 0,
-    PRODUCT_TEST_POPUP_UI_OPERATION_SUCCESS = 1, /// 操作成功提示
-    PRODUCT_TEST_POPUP_UI_OPERATION_FAILED = 2, /// 操作失败提示
-} product_test_popup_ui_type_e;
-
 /// 产品测试UI结构体
 typedef struct {    
     uint32_t ani_timer_cnt;
@@ -73,7 +67,6 @@ typedef struct {
     uint32_t lcd_color; /// 当前LCD颜色.
     product_test_mode_e tests_mode; /// 产品测试模式.
     uint16_t popup_ui_type; /// 当前弹窗类型. product_test_popup_ui_type_e
-    uint32_t popup_ui_start_time; /// 当前弹窗开始时间.
 } ui_proc_product_test_t;
 
 /*
@@ -87,9 +80,6 @@ void product_home_test_keyevent_cb(ui_proc_product_test_t *proc, uint16_t keycod
 void show_lcd_color_test_ui(ui_proc_product_test_t *proc);
 void lcd_color_test_ui_hdr_remove(void);
 void lcd_color_test_keyevent_cb(ui_proc_product_test_t *proc, uint16_t keycode, uint16_t keytype);
-
-/// 弹窗类型更新
-void product_common_popup_ui_type_update(ui_proc_product_test_t *proc, product_test_popup_ui_type_e type);
 
 #ifdef __cplusplus
 }

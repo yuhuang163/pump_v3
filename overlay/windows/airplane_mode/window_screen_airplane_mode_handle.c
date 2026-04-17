@@ -68,10 +68,10 @@ static int on_airplane_mode_keyevent_hdr(void *user_data, uint16_t keycode, uint
     EXCEPTION_CHECK_INT(proc);
     WINDOW_CONTEXT_GUARD_INT(proc, ID_WINDOW_AIRPLANE_MODE, 0);
     if (keytype == AIRPLANE_MODE_UI_KEY_DOWN_TYPE) {
-        proc->popup_ui_type = AIRPLANE_MODE_POPUP_UI_EXIT;
+        proc->popup_ui_type = ID_POPUP_UI_AIRPLANE_MODE_EXIT;
     } else if (keytype == AIRPLANE_MODE_UI_KEY_UP_TYPE) {
-        if (proc->popup_ui_type != AIRPLANE_MODE_POPUP_UI_NONE) {
-            proc->popup_ui_type = AIRPLANE_MODE_POPUP_UI_NONE;
+        if (proc->popup_ui_type != ID_POPUP_UI_NONE) {
+            proc->popup_ui_type = ID_POPUP_UI_NONE;
         }
     } else {
         LOG_WM("airplane mode key event type not supported: %d", keytype);
@@ -118,15 +118,17 @@ static int exit_event_cb(window_lift_cycle_e new_state, const struct window_cont
         case ID_SCR_STATE_ON_PAUSE: 
             LOG_WM("==>%s window on pause", PAGE_NAME_STR);
             stop_airplane_mode_ui(proc);
-            unregister_broadcast_receiver(&proc->receiver);
-            airplane_mode_ui_hdr_remove();
-            REMOVE_ALL_HANDER_TASK();
-            if (proc->key) {
-                proc->key->remove_keyevent_handler(on_airplane_mode_keyevent_hdr);
-            }
             break;
         case ID_SCR_STATE_ON_DESTORY:
             LOG_WM("==>%s window on destory", PAGE_NAME_STR);
+            REMOVE_ALL_HANDER_TASK();
+            airplane_mode_ui_hdr_remove();
+            unregister_broadcast_receiver(&proc->receiver);
+            if (proc->key) {
+                proc->key->remove_keyevent_handler(on_airplane_mode_keyevent_hdr);
+            } else {
+                LOG_WM("key not present, ignore.");
+            }
             SET_WINDOW_CONTEXT(NULL);
             proc->margic = UI_WINDOW_MARGIC_CODE_INVALID;
             u_free(proc);

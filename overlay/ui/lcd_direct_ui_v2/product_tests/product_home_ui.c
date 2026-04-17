@@ -63,7 +63,6 @@ typedef struct {
     lv_obj_t * aging_info;  // 老化信息显示
     uint8_t force_update;
     uint8_t mac_addr[6];
-    uint8_t popup_ui_index;
     uint8_t rsv[16];
 } product_tests_home_display_info_t;
 
@@ -228,7 +227,6 @@ void ui_display_product_tests_home_prepare(ui_manager_context_t *thiz)
     product_tests_ui_root_init();
     ble_ui_init(thiz);
     tests_info->force_update = true;
-    tests_info->popup_ui_index = PRODUCT_TEST_POPUP_UI_NONE;
 }
 
 void ui_display_product_tests_home_remove(ui_manager_context_t *thiz)
@@ -236,7 +234,6 @@ void ui_display_product_tests_home_remove(ui_manager_context_t *thiz)
     EXCEPTION_CHECK_VOID(thiz);
     EXCEPTION_CHECK_VOID(tests_info);
     ble_ui_deinit(thiz);
-    product_tip_popup_ui_remove(thiz);
     LVGL_OBJ_DELETE(tests_info->root);
     u_free(tests_info);
     tests_info = NULL;
@@ -256,7 +253,6 @@ int ui_display_product_tests_home_process(ui_manager_context_t *thiz)
     product_tests_qrcode_update(thiz, mac_addr);
     product_tests_aging_info_update(thiz, proc);
     product_tests_mac_name_update(thiz, mac_addr);
-    product_tip_popup_ui_update(thiz, proc, tests_info->root, &tests_info->popup_ui_index);
     tests_info->force_update = false;
     thiz->priv.fps_count++;
     if (get_timestamp() - thiz->priv.fps_start_time >= 1000) {

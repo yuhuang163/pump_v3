@@ -8,6 +8,8 @@
 #include "protocol_manager_api.h" // IWYU pragma: keep
 #include "ble_manager_api.h"      // IWYU pragma: keep
 #include "persist_storage.h"      // IWYU pragma: keep
+#include "adaptive_dimming.h"     // IWYU pragma: keep
+#include "ui_manager_api.h"       // IWYU pragma: keep
 #include "cmsis_os_api.h"         // IWYU pragma: keep
 #include "root_log_define.h"      // IWYU pragma: keep
 /*
@@ -20,6 +22,7 @@
 #define TESTS_SECRET_KEY_LENGTH 16  /// 密钥长度
 #define TESTS_TRIPLE_DATA_LENGTH 38 /// 三元组数据长度 (6+16+16)
 #define TESTS_TRIM_VALUE_LENGTH 4   /// Trim值长度 (4字节)
+#define TESTS_KEY_CAP_SIG_BUF_BYTES 32 /// 触摸通道原始数据缓冲(每通道2字节)，大于单芯片最大通道数即可
 
 /*
 * LOCAL VARIABLE DEFINITIONS
@@ -1145,6 +1148,145 @@ int tests_tlvs_read_battery_level(comm_protocol_builder_t *builder, comm_protoco
         .type = TESTS_TLV_READ_BATTERY_LEVEL,
         .length = 1,
         .value = &battery_level,
+    };
+    return protocol_ctx->comm_protocol_builder_add_tlv(builder, service, &tlv_node);
+}
+
+int tests_tlvs_read_key_cap_signal(comm_protocol_builder_t *builder, comm_protocol_service_t *service, uint8_t *data,
+                                   uint16_t data_len)
+{
+    EXCEPTION_CHECK_INT(builder && service);
+    protocol_manager_context_t *protocol_ctx = get_protocol_ctx();
+    EXCEPTION_CHECK_INT(protocol_ctx);
+
+    if (data_len != 1 || data == NULL) {
+        LOGE("tests_tlvs_read_key_cap_signal: invalid request len=%u (need 1)", (unsigned)data_len);
+        return -1;
+    }
+
+    uint8_t key_id = data[0];
+    uint32_t signal_u32 = 0;
+
+#if IS_SUPPORT_DEVICE_TOUCH_KEY
+    /* 与 bsp_read_key_value 一致：0 为电源键(无触摸IC通道)，1..N 为电容键 */
+    if (key_id >= 1) {
+        peripheral_bus_context_t *pbus = (peripheral_bus_context_t *)find_module(ID_MODULE_DEVICE_BUS);
+        rt_device_node_t *input_key_dev = pbus ? pbus->find_device(ID_DEVICE_INPUT_KEY) : NULL;
+        if (input_key_dev && input_key_dev->ioctl) {
+            uint8_t sig_buff[TESTS_KEY_CAP_SIG_BUF_BYTES] = {0};
+            int ioctl_ret = input_key_dev->ioctl(input_key_dev, OP_CODE_INPUT_TOUCH_SIGNAL_READ, sig_buff);
+            if (ioctl_ret == 0) {
+                unsigned ch = (unsigned)(key_id - 1U);
+                if ((ch + 1U) * 2U <= sizeof(sig_buff)) {
+                    signal_u32 = (uint32_t)sig_buff[ch * 2U] | ((uint32_t)sig_buff[ch * 2U + 1U] << 8);
+                }
+            } else {
+                LOGW("tests_tlvs_read_key_cap_signal: touch signal read failed, key_id=%u ret=%d", key_id, ioctl_ret);
+            }
+        } else {
+            LOGW("tests_tlvs_read_key_cap_signal: input key device missing");
+        }
+    }
+#else
+    (void)key_id;
+#endif
+
+    uint8_t response[4] = {
+        (uint8_t)(signal_u32 & 0xFFU),
+        (uint8_t)((signal_u32 >> 8) & 0xFFU),
+        (uint8_t)((signal_u32 >> 16) & 0xFFU),
+        (uint8_t)((signal_u32 >> 24) & 0xFFU),
+    };
+    LOG_SRV("tests_tlvs_read_key_cap_signal: key_id=%u signal=%lu", key_id, (unsigned long)signal_u32);
+
+    comm_protocol_tlv_node_t tlv_node = {
+        .type = TESTS_TLV_READ_KEY_CAP_SIGNAL,
+        .length = sizeof(response),
+        .value = response,
+    };
+    return protocol_ctx->comm_protocol_builder_add_tlv(builder, service, &tlv_node);
+}
+
+int tests_tlvs_lcd_backlight_control(comm_protocol_builder_t *builder, comm_protocol_service_t *service,
+                                     uint8_t *data, uint16_t data_len)
+{
+    EXCEPTION_CHECK_INT(builder && service);
+    protocol_manager_context_t *protocol_ctx = get_protocol_ctx();
+    EXCEPTION_CHECK_INT(protocol_ctx);
+
+    uint8_t result = 0x00;
+    if (data_len == 1 && data != NULL) {
+        ui_manager_context_t *ui = (ui_manager_context_t *)find_module(ID_MODULE_UI);
+        if (ui && ui->hook && ui->hook->set_ui_backlight_onoff) {
+            ui->hook->set_ui_backlight_onoff(ui, data[0] ? true : false);
+            result = 0x01;
+            LOG_SRV("tests_tlvs_lcd_backlight_control: %s", data[0] ? "ON" : "OFF");
+        } else {
+            LOGW("tests_tlvs_lcd_backlight_control: ui manager or hook unavailable");
+        }
+    } else {
+        LOGE("tests_tlvs_lcd_backlight_control: invalid data_len=%u, expected 1", (unsigned)data_len);
+    }
+
+    comm_protocol_tlv_node_t tlv_node = {
+        .type = TESTS_TLV_LCD_BACKLIGHT_CONTROL,
+        .length = 1,
+        .value = &result,
+    };
+    return protocol_ctx->comm_protocol_builder_add_tlv(builder, service, &tlv_node);
+}
+
+int tests_tlvs_light_sensor_report_ctrl(comm_protocol_builder_t *builder, comm_protocol_service_t *service,
+                                        uint8_t *data, uint16_t data_len)
+{
+    EXCEPTION_CHECK_INT(builder && service);
+    protocol_manager_context_t *protocol_ctx = get_protocol_ctx();
+    EXCEPTION_CHECK_INT(protocol_ctx);
+
+    uint8_t result = 0x00;
+    if (data_len == 1 && data != NULL) {
+        if (data[0]) {
+            light_sensor_sampling_start();
+            LOG_SRV("tests_tlvs_light_sensor_report_ctrl: START");
+        } else {
+            light_sensor_sampling_stop();
+            LOG_SRV("tests_tlvs_light_sensor_report_ctrl: STOP");
+        }
+        result = 0x01;
+    } else {
+        LOGE("tests_tlvs_light_sensor_report_ctrl: invalid data_len=%u, expected 1", (unsigned)data_len);
+    }
+
+    comm_protocol_tlv_node_t tlv_node = {
+        .type = TESTS_TLV_LIGHT_SENSOR_REPORT_CTRL,
+        .length = 1,
+        .value = &result,
+    };
+    return protocol_ctx->comm_protocol_builder_add_tlv(builder, service, &tlv_node);
+}
+
+int tests_tlvs_light_sensor_calib_data_set(comm_protocol_builder_t *builder, comm_protocol_service_t *service,
+                                          uint8_t *data, uint16_t data_len)
+{
+    EXCEPTION_CHECK_INT(builder && service);
+    protocol_manager_context_t *protocol_ctx = get_protocol_ctx();
+    EXCEPTION_CHECK_INT(protocol_ctx);
+
+    uint8_t result = 0x00;
+    if (data_len == 4 && data != NULL) {
+        uint16_t calib_lo = (uint16_t)data[0] | ((uint16_t)data[1] << 8);
+        uint16_t calib_hi = (uint16_t)data[2] | ((uint16_t)data[3] << 8);
+        LOG_SRV("tests_tlvs_light_sensor_calib_data_set: calib_lo=%u calib_hi=%u", calib_lo, calib_hi);
+        /* TODO: 这里打桩实际光感校准写入逻辑 */
+        result = 0x01;
+    } else {
+        LOGE("tests_tlvs_light_sensor_calib_data_set: invalid data_len=%u, expected 4", (unsigned)data_len);
+    }
+
+    comm_protocol_tlv_node_t tlv_node = {
+        .type = TESTS_TLV_LIGHT_SENSOR_CALIB_DATA_SET,
+        .length = 1,
+        .value = &result,
     };
     return protocol_ctx->comm_protocol_builder_add_tlv(builder, service, &tlv_node);
 }

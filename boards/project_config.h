@@ -129,7 +129,7 @@ extern "C" {
 /// LED中速闪时间
 #define LED_MEDIUM_BLINK_TIME                          (200)  /// 200ms
 /// LED慢闪时间
-#define LED_SLOW_BLINK_TIME                            (1000) /// 1000ms
+#define LED_SLOW_BLINK_TIME                            (500) /// 1000ms
 /// 关机提醒时间
 #define POWER_OFF_REMINDER_TIME                        (3000) /// 3秒
 

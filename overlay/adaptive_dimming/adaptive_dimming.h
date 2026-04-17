@@ -37,38 +37,54 @@ extern "C" {
 #endif
 
 /// 自适应亮度等级定义
-#define ADAP_DIM_LED_LVL_VDARK            2     /// 非常暗环境时的LED亮度 (最高)
-#define ADAP_DIM_LED_LVL_DARK_MIN         6      /// 较暗环境时的最小LED亮度
-#define ADAP_DIM_LED_LVL_MEDIUM_MIN       21      /// 中等亮度环境时的最小LED亮度
-#define ADAP_DIM_LED_LVL_BRIGHT_MIN       60      /// 较亮环境时的最小LED亮度
-#define ADAP_DIM_LED_LVL_ON               100       /// 极亮环境时关闭LED (lux >= 1000)
-// #define ADAP_DIM_LED_LVL_VBRIGHT          2      /// 很亮环境时的LED亮度 (最低)
-#define ADAP_DIM_LED_LVL_OFF              100       /// 极亮环境时关闭LED (lux >= 1000)
+#define ADAP_DIM_LED_LVL_VDARK            17    /// 非常暗环境时的LED亮度
+#define ADAP_DIM_LED_LVL_DARK_MIN         29    /// 较暗环境时的最小LED亮度
+#define ADAP_DIM_LED_LVL_MEDIUM_MIN       49    /// 中等亮度环境时的最小LED亮度
+#define ADAP_DIM_LED_LVL_BRIGHT_MIN       79    /// 较亮环境时的最小LED亮度
+#define ADAP_DIM_LED_LVL_ON               100   /// 极亮环境时LED亮度
 
 /// 滞后阈值定义
 #define ADAP_DIM_HYST_THR_MIN             10       /// 滞后阈值最小值 (lux)
 #define ADAP_DIM_HYST_THR_RATIO           10       /// 滞后阈值比例 (lux值的百分比，即10%)
 #define ADAP_DIM_HYST_THR_BASE            100      /// 滞后阈值计算的基准值 (lux)
 
-/// 与 adaptive_dimming_init 里 add_misc_task(..., interval, ...) 的周期一致
-#define ADAP_DIM_MISC_POLL_MS                 200u
+/// 与 adaptive_dimming_init 里 add_misc_task(..., interval, ...) 的周期一致（仅 MISC 节拍，不用系统时间）
+#define ADAP_DIM_MISC_POLL_MS             200u    /// MISC 节拍周期 (ms)
 
 #if IS_SUPPORT_ADAPTIVE_DIMMING
-/*
- * 以下为「旋钮屏蔽」与「光感明显变化后延时确认」两套独立策略的参数，均按 MISC 任务周期计数，
- * 与 get_timestamp 无关；ADAP_DIM_MISC_POLL_MS 须与 adaptive_dimming_init 中 add_misc_task 的 interval 一致。
+/**
+ * 左旋/右旋时短时屏蔽自动调光（独立开关，默认关）。
+ * 与 IS_SUPPORT_ADAPTIVE_DIMMING 解耦：仅控制旋钮屏蔽与 add_keyevent_handler 注册，不改变分段调光/滞环等原有逻辑。
  */
-/// 旋钮操作后：剩余多少次 MISC 回调内不执行自动调光（约 2000ms）。由 key_input 在 dispatch_key_event_client() 中调用 adaptive_dimming_notify_encoder_activity() 置满。
+#ifndef ADAP_DIM_USE_ENCODER_KNOB_SHIELD
+#define ADAP_DIM_USE_ENCODER_KNOB_SHIELD              (1)
+#endif
+
+#if ADAP_DIM_USE_ENCODER_KNOB_SHIELD
+/// 旋钮操作后：剩余多少次 MISC 回调内不执行自动调光（约 2000ms）。ADAP_DIM_MISC_POLL_MS 须与 add_misc_task 的 interval 一致。
 #define ADAP_DIM_ENCODER_SUPPRESS_TICKS \
     ((2000u + ADAP_DIM_MISC_POLL_MS - 1u) / ADAP_DIM_MISC_POLL_MS)
-/// 光感相对上次已生效亮度变化超过 ADAP_DIM_LUX_SIGNIFICANT_DELTA 后：需在候选附近稳定累计多少次 MISC 周期才允许调光（约 3000ms）。
+#endif
+/**
+ * 光感「相对上次已下发亮度」出现变化后的延时确认
+ * 默认开启；置 0 可关闭，仅保留滞环/EMA 等，不经 settling 门控。
+ */
+#ifndef ADAP_DIM_USE_LUX_SIGNIFICANT_SETTLE_GATE
+#define ADAP_DIM_USE_LUX_SIGNIFICANT_SETTLE_GATE      (1)
+#endif
+
+#if ADAP_DIM_USE_LUX_SIGNIFICANT_SETTLE_GATE
+/// 出现变化后：需在候选 lux 附近连续通过多少次 MISC 周期才允许下发（由 polling 内 lux_stable_misc_tick 累加）
 #define ADAP_DIM_LUX_STABLE_MISC_TICKS \
     ((1000u + ADAP_DIM_MISC_POLL_MS - 1u) / ADAP_DIM_MISC_POLL_MS)
-/// 与 s_last_applied_lux 相差超过该值视为「明显变化」，须先经 misc 周期累计与候选一致判稳，再走 duty 计算。
-#define ADAP_DIM_LUX_SIGNIFICANT_DELTA        30u
-/// 明显变化场景下，当前滤波 lux 与候选 lux 相差不超过该值时认为仍在「同一段稳定区」，用于 misc_tick 累加或 gate 判通过。
-#define ADAP_DIM_LUX_SETTLE_MATCH_EPS         30u
+/// 与 s_last_applied_lux 相差超过该值视为「明显变化」，进入 settling；否则直接放行
+#define ADAP_DIM_LUX_SIGNIFICANT_DELTA        150u
+/// settling 内当前 lux 与候选相差不超过该值时认为同一段，用于 misc 节拍累加
+#define ADAP_DIM_LUX_SETTLE_MATCH_EPS         40u
 #endif
+#endif
+
+
 
 typedef struct {
     uint8_t is_acquire_complete; /// 采集完成标志
@@ -86,8 +102,8 @@ typedef struct {
 *****************************************************************************************
 */
 void adaptive_dimming_init(void);
-#if IS_SUPPORT_ADAPTIVE_DIMMING
-/// 用户旋转编码器时调用：屏蔽自动调光 ADAP_DIM_ENCODER_SUPPRESS_TICKS 个 MISC 周期，并复位光感稳定状态机。（由按键输入模块在分发至各窗口前统一调用，勿在业务窗口重复调用。）
+#if ADAP_DIM_USE_ENCODER_KNOB_SHIELD
+/// 旋钮活动时调用：置屏蔽计数；若开启光感延时确认策略则同时复位其状态机。（由本模块注册的左旋/右旋回调触发。）
 void adaptive_dimming_notify_encoder_activity(void);
 #endif
 void light_sensor_sampling_start(void);

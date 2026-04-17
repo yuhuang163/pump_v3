@@ -40,6 +40,10 @@ typedef enum {
     TESTS_TLV_READ_FACTORY_COMPLETE_FLAG = 0x0018, /// 产测完成标识读取 (Length=0)
     TESTS_TLV_GET_RSSI = 0x0019,               /// 获取蓝牙RSSI (Length=1: byte0=0x00获取BLE RSSI, 0x01获取BT RSSI)
     TESTS_TLV_READ_BATTERY_LEVEL = 0x001A,     /// 读取设备电池电量 (REQUEST Length=0, RESPONSE Length=1: byte0=0-100)
+    TESTS_TLV_READ_KEY_CAP_SIGNAL = 0x001B,    /// 读取指定按键电容信号 (REQUEST Length=1: byte0=按键编号0-255, RESPONSE Length=4: 信号值小端uint32，通常为16位差分值)
+    TESTS_TLV_LCD_BACKLIGHT_CONTROL = 0x001C,   /// LCD背光控制 (REQUEST Length=1: 0x01开启, 0x00关闭)
+    TESTS_TLV_LIGHT_SENSOR_REPORT_CTRL = 0x001D, /// 光感采样上报控制 (REQUEST Length=1: 0x01开启, 0x00关闭)
+    TESTS_TLV_LIGHT_SENSOR_CALIB_DATA_SET = 0x001E, /// 光感校准数据设置 (REQUEST Length=4: 2个uint16, 小端序)
     TESTS_TLV_LCD_COLOR_TEST_MODE = 0x0020, /// LCD颜色测试模式 (0x01:进入, 0x00:退出)
     TESTS_TLV_ID_MAX,
 } tests_tlvs_id_e;
@@ -143,6 +147,18 @@ int tests_tlvs_query_sensor_status(comm_protocol_builder_t *builder, comm_protoc
 int tests_tlvs_get_rssi(comm_protocol_builder_t *builder, comm_protocol_service_t *service,
                     uint8_t *data, uint16_t data_len);
 int tests_tlvs_read_battery_level(comm_protocol_builder_t *builder, comm_protocol_service_t *service,
+                    uint8_t *data, uint16_t data_len);
+int tests_tlvs_read_key_cap_signal(comm_protocol_builder_t *builder, comm_protocol_service_t *service,
+                    uint8_t *data, uint16_t data_len);
+
+/// LCD背光控制
+int tests_tlvs_lcd_backlight_control(comm_protocol_builder_t *builder, comm_protocol_service_t *service,
+                    uint8_t *data, uint16_t data_len);
+/// 光感上报控制
+int tests_tlvs_light_sensor_report_ctrl(comm_protocol_builder_t *builder, comm_protocol_service_t *service,
+                    uint8_t *data, uint16_t data_len);
+/// 光感校准数据设置
+int tests_tlvs_light_sensor_calib_data_set(comm_protocol_builder_t *builder, comm_protocol_service_t *service,
                     uint8_t *data, uint16_t data_len);
 
 /// NOTIFY上报 (设备主动上报)

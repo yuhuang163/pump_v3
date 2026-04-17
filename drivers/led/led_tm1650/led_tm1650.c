@@ -2,7 +2,6 @@
 * INCLUDE FILES
 *****************************************************************************************
 */
-#include "hal_led.h"
 #include "bsp_common.h" 
 #include "bsp_config.h"
 #include "bsp_i2c.h"
@@ -84,7 +83,7 @@ static const uint8_t led_level_code[TM1650_LEVEL_MAX] = {
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-static int led_extension_write_nbyte(i2c_master_data_t *data)
+static int led_extension_write_nbyte(uint8_t dev_address, uint8_t reg_addr)
 {
     int ret = 0;
 
@@ -93,8 +92,16 @@ static int led_extension_write_nbyte(i2c_master_data_t *data)
         return BSP_NOT_READY;
     }
 
+    i2c_master_data_t i2c_data = {
+        .dev_address = dev_address,
+        .reg_addr = &reg_addr,
+        .reg_addr_len = 1,
+        .data = NULL,
+        .len = 0,
+    };
+
     for (uint8_t i = 0; i < TM1650_RETRY_COUNT; i++) {
-        ret = bsp_i2c_write_byte(LED_I2C_ID, data);
+        ret = bsp_i2c_write_byte(LED_I2C_ID, &i2c_data);
         if (ret == BSP_OK) {
             s_led_abnormal_count = 0;
             return BSP_OK;
@@ -120,11 +127,8 @@ static uint8_t led_extension_level_convert_code(uint8_t level)
 
 static void led_extension_display(void)
 {
-    i2c_master_data_t i2c_data = {0};
     for (uint8_t i = 0; i < TM1650_ADDR_DIG_MAX; i++) {
-        i2c_data.dev_address = (led_dig_addr[i] >> 1);
-        i2c_data.reg_addr = led_dig_data[i];
-        led_extension_write_nbyte(&i2c_data);
+        led_extension_write_nbyte(led_dig_addr[i] >> 1, led_dig_data[i]);
     }
 }
 
@@ -225,15 +229,10 @@ static void led_thread_timer_handle(void *arg)
 static void led_device_thread(void *arg)
 {
     uint8_t msg = 0;
-    i2c_master_data_t i2c_data = {
-        .dev_address = (TM1650_COMMAND_ADDRESS >> 1),
-        .reg_addr = led_extension_level_convert_code(0),
-        .data = NULL,
-        .len = 0,
-    };
+    uint8_t reg_addr = led_extension_level_convert_code(0);
     msleep(20);
-    LOG_PBUS("led extension init, reg_addr: %d", i2c_data.reg_addr);
-    if (led_extension_write_nbyte(&i2c_data) != BSP_OK) {
+    LOG_PBUS("led extension init, reg_addr: %d", reg_addr);
+    if (led_extension_write_nbyte(TM1650_COMMAND_ADDRESS >> 1, reg_addr) != BSP_OK) {
         LOGE("led extension init failed");
     }
     CREATE_MSG_TYPE_QUEUE(&s_led_device_thd.msg_id, 1, 1);

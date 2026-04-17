@@ -2,8 +2,6 @@
 * INCLUDE FILES
 *****************************************************************************************
 */
-#include "resource_id_define.h"
-#include "root_common_api.h" // IWYU pragma: keep
 #include "ui_img_define.h"   // IWYU pragma: keep
 #include "ui_page_define.h" // IWYU pragma: keep
 #include "ui_manager.h"   // IWYU pragma: keep

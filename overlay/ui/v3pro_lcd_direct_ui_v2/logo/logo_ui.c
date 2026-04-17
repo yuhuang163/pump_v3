@@ -11,8 +11,13 @@
 * DEFINES
 *****************************************************************************************
 */
+#if IS_SUPPORT_LOGO_BG_COLOR_TEST
+#define IS_SUPPORT_LOGO_COMP_BG                                (0)
+#define IS_SUPPORT_LOGO_IMG_TEST                               (1)
+#else
 #define IS_SUPPORT_LOGO_COMP_BG                                (0)
 #define IS_SUPPORT_LOGO_IMG_TEST                               (0)
+#endif
 
 typedef struct {
     lv_obj_t * root;
@@ -38,28 +43,15 @@ static PSRAM_DATA_LOC uint8_t logo_bg_data[] = {
 #endif
 #if IS_SUPPORT_LOGO_IMG_TEST
 static PSRAM_DATA_LOC uint8_t logo_img_data1[] = {
-    #include "comparison_png2txt/Custom11_360x360.txt"
-};
-static PSRAM_DATA_LOC uint8_t logo_img_data2[] = {
-    #include "comparison_png2txt/Custom12_360x360.txt"
-};
-static PSRAM_DATA_LOC uint8_t logo_img_data3[] = {
-    #include "comparison_png2txt/Custom13_360x360.txt"
-};
-static PSRAM_DATA_LOC uint8_t logo_img_data4[] = {
-    #include "comparison_png2txt/Right21_360x360.txt"
-};
-static PSRAM_DATA_LOC uint8_t logo_img_data5[] = {
-    #include "comparison_png2txt/Right22_360x360.txt"
-};
-    
-#define LOGO_IMG_COUNT 5
+    #include "comparison_png2txt/pump_home_360x360.txt"
+};    
+#define LOGO_IMG_COUNT 1
 static ui_img_data_t logo_img[LOGO_IMG_COUNT] = {
     {logo_img_data1, sizeof(logo_img_data1)},
-    {logo_img_data2, sizeof(logo_img_data2)},
-    {logo_img_data3, sizeof(logo_img_data3)},
-    {logo_img_data4, sizeof(logo_img_data4)},
-    {logo_img_data5, sizeof(logo_img_data5)},
+    // {logo_img_data2, sizeof(logo_img_data2)},
+    // {logo_img_data3, sizeof(logo_img_data3)},
+    // {logo_img_data4, sizeof(logo_img_data4)},
+    // {logo_img_data5, sizeof(logo_img_data5)},
 };
 #endif
 

@@ -1,7 +1,7 @@
 #!/bin/bash
 ###
 ### 资源打包脚本
-### 使用方法: ./pack.sh [V1|V2] [config.json] [output.bin]
+### 使用方法: ./pack.sh [-t base|custom|multi|all] [V1|V2] [config.json] [output.bin]
 ###
 
 PACK_SH_SOURCED=0
@@ -13,26 +13,38 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PARENT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 BIN_DIR="$PARENT_DIR/bin"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+CONFIG_NAME_LEGACY="resource_config.json"
+CONFIG_NAME_BASE="resource_base_config.json"
+CONFIG_NAME_CUSTOM="resource_custom_config.json"
 
 show_usage() {
     echo "使用方法:"
-    echo "  ./pack.sh [-m] [-d resource_dir] [V1|V2|V3PRO_V2] [config.json] [output.bin]"
+    echo "  ./pack.sh [-m] [-d resource_dir] [-t base|custom|multi|all|auto] [V1|V2|V3PRO_V2] [config.json] [output.bin]"
     echo ""
     echo "选项:"
     echo "  -m, --menu               通过数字菜单选择资源目录"
     echo "  -d, --dir DIR            显式指定资源目录，可使用目录名、相对路径或绝对路径"
+    echo "  -t, --type TYPE          打包类型: auto|base|custom|multi|all，默认 auto"
     echo "  -h, --help               显示帮助信息"
     echo ""
     echo "示例:"
-    echo "  ./pack.sh                                       # 无参数时通过编号交互选择资源目录"
-    echo "  ./pack.sh V1                                    # 打包 V1 版本（使用默认配置）"
-    echo "  ./pack.sh V2                                    # 打包 V2 版本（V3/V3Pro 项目自动选择资源目录）"
-    echo "  ./pack.sh V3PRO_V2                             # 显式打包 V3PRO_V2 目录"
-    echo "  ./pack.sh --menu                               # 通过编号交互选择资源目录"
-    echo "  ./pack.sh -d V3PRO_V2                          # 通过目录选项切换资源目录"
-    echo "  ./pack.sh --dir /abs/path/to/V2                # 使用绝对路径指定资源目录"
-    echo "  ./pack.sh V1 ../V1/resource_config.json        # 指定配置文件"
-    echo "  ./pack.sh ../V1/resource_config.json           # 兼容旧方式（自动检测版本）"
+    echo "  ./pack.sh                                       # 无参数时通过编号交互选择资源目录，默认 auto"
+    echo "  ./pack.sh V1                                    # 打包 V1 版本（auto 模式）"
+    echo "  ./pack.sh -t multi V2                           # 打包 multi 资源包"
+    echo "  ./pack.sh -t base V2                            # 只打包 base 资源包"
+    echo "  ./pack.sh -t custom V2                          # 只打包 custom 资源包"
+    echo "  ./pack.sh -t all V2                             # 同时生成 base/custom/multi"
+    echo "  ./pack.sh V3PRO_V2                              # 显式打包 V3PRO_V2 目录"
+    echo "  ./pack.sh --menu                                # 通过编号交互选择资源目录"
+    echo "  ./pack.sh -d V3PRO_V2                           # 通过目录选项切换资源目录"
+    echo "  ./pack.sh --dir /abs/path/to/V2 -t multi        # 使用绝对路径指定资源目录"
+    echo "  ./pack.sh V1 ../V1/resource_config.json         # 兼容旧单配置文件方式"
+    echo "  ./pack.sh ../V1/resource_base_config.json       # 显式指定 base 配置文件"
+}
+
+has_resource_config() {
+    local dir="$1"
+    [ -f "$dir/$CONFIG_NAME_LEGACY" ] || [ -f "$dir/$CONFIG_NAME_BASE" ] || [ -f "$dir/$CONFIG_NAME_CUSTOM" ]
 }
 
 list_packable_resource_dirs() {
@@ -40,7 +52,7 @@ list_packable_resource_dirs() {
     local count=0
     PACKABLE_RESOURCE_DIRS=()
     for dir in "$PARENT_DIR"/*; do
-        if [ -d "$dir" ] && [ -f "$dir/resource_config.json" ]; then
+        if [ -d "$dir" ] && has_resource_config "$dir"; then
             PACKABLE_RESOURCE_DIRS+=("$dir")
             count=$((count + 1))
         fi
@@ -71,6 +83,64 @@ select_resource_dir_from_menu() {
         fi
         if [[ "$choice" =~ ^[0-9]+$ ]] && [ "$choice" -ge 1 ] && [ "$choice" -le "${#PACKABLE_RESOURCE_DIRS[@]}" ]; then
             printf "%s" "${PACKABLE_RESOURCE_DIRS[$((choice - 1))]}"
+            return 0
+        fi
+        echo "无效选择，请重新输入。" >&2
+    done
+}
+
+select_pack_type_from_menu() {
+    local resource_root="$1"
+    local choice=""
+    local default_mode=""
+    local available_modes=()
+    local idx=0
+
+    if [ -f "$resource_root/$CONFIG_NAME_LEGACY" ]; then
+        available_modes+=("legacy")
+    fi
+    if [ -f "$resource_root/$CONFIG_NAME_BASE" ]; then
+        available_modes+=("base")
+    fi
+    if [ -f "$resource_root/$CONFIG_NAME_CUSTOM" ]; then
+        available_modes+=("custom")
+    fi
+    if [ -f "$resource_root/$CONFIG_NAME_BASE" ] && [ -f "$resource_root/$CONFIG_NAME_CUSTOM" ]; then
+        available_modes+=("multi" "all")
+    fi
+
+    if [ ${#available_modes[@]} -eq 0 ]; then
+        echo "❌ 错误: 当前资源目录没有可用配置文件" >&2
+        return 1
+    fi
+
+    default_mode="$(resolve_default_pack_mode "$resource_root")"
+
+    echo "================ 打包类型选择 ================" >&2
+    for idx in "${!available_modes[@]}"; do
+        case "${available_modes[$idx]}" in
+            legacy) printf "%d) legacy  (resource_config.json)\n" "$((idx + 1))" >&2 ;;
+            base) printf "%d) base    (resource_base_config.json)\n" "$((idx + 1))" >&2 ;;
+            custom) printf "%d) custom  (resource_custom_config.json)\n" "$((idx + 1))" >&2 ;;
+            multi) printf "%d) multi   (base + custom，按偏移拼接)\n" "$((idx + 1))" >&2 ;;
+            all) printf "%d) all     (同时生成 base/custom/multi)\n" "$((idx + 1))" >&2 ;;
+        esac
+    done
+    echo "0) 使用默认: ${default_mode:-auto}" >&2
+    echo "q) 取消" >&2
+    echo "---------------------------------------------" >&2
+
+    while true; do
+        read -rp "请选择打包类型编号: " choice >&2
+        if [ "$choice" = "0" ]; then
+            printf "%s" "$default_mode"
+            return 0
+        fi
+        if [ "$choice" = "q" ] || [ "$choice" = "Q" ]; then
+            return 1
+        fi
+        if [[ "$choice" =~ ^[0-9]+$ ]] && [ "$choice" -ge 1 ] && [ "$choice" -le "${#available_modes[@]}" ]; then
+            printf "%s" "${available_modes[$((choice - 1))]}"
             return 0
         fi
         echo "无效选择，请重新输入。" >&2
@@ -113,6 +183,330 @@ detect_version_from_path() {
         */V2/*|*/v3pro_V2/*|*/V3PRO_V2/*) printf "%s" "V2" ;;
         *) printf "%s" "" ;;
     esac
+}
+
+detect_pack_mode_from_config_path() {
+    local config_path="$1"
+    case "$(basename "$config_path")" in
+        "$CONFIG_NAME_BASE") printf "%s" "base" ;;
+        "$CONFIG_NAME_CUSTOM") printf "%s" "custom" ;;
+        "$CONFIG_NAME_LEGACY") printf "%s" "legacy" ;;
+        *) printf "%s" "legacy" ;;
+    esac
+}
+
+resolve_default_pack_mode() {
+    local resource_root="$1"
+    if [ -f "$resource_root/$CONFIG_NAME_BASE" ] && [ -f "$resource_root/$CONFIG_NAME_CUSTOM" ]; then
+        printf "%s" "multi"
+    elif [ -f "$resource_root/$CONFIG_NAME_BASE" ]; then
+        printf "%s" "base"
+    elif [ -f "$resource_root/$CONFIG_NAME_CUSTOM" ]; then
+        printf "%s" "custom"
+    elif [ -f "$resource_root/$CONFIG_NAME_LEGACY" ]; then
+        printf "%s" "legacy"
+    else
+        printf "%s" ""
+    fi
+}
+
+resolve_config_for_mode() {
+    local resource_root="$1"
+    local pack_mode="$2"
+    case "$pack_mode" in
+        legacy) printf "%s" "$resource_root/$CONFIG_NAME_LEGACY" ;;
+        base) printf "%s" "$resource_root/$CONFIG_NAME_BASE" ;;
+        custom) printf "%s" "$resource_root/$CONFIG_NAME_CUSTOM" ;;
+        *) printf "%s" "" ;;
+    esac
+}
+
+append_output_suffix() {
+    local file_path="$1"
+    local suffix="$2"
+    local dir_name
+    local base_name
+    if [ -z "$suffix" ]; then
+        printf "%s" "$file_path"
+        return 0
+    fi
+
+    dir_name="$(dirname "$file_path")"
+    base_name="$(basename "$file_path")"
+    case "$base_name" in
+        *"_${suffix}.bin") printf "%s" "$file_path" ;;
+        *.bin) printf "%s/%s_%s.bin" "$dir_name" "${base_name%.bin}" "$suffix" ;;
+        *) printf "%s/%s_%s" "$dir_name" "$base_name" "$suffix" ;;
+    esac
+}
+
+normalize_output_dir_mode() {
+    local pack_mode="$1"
+    case "$pack_mode" in
+        multi|all) printf "%s" "all" ;;
+        base|custom|legacy) printf "%s" "$pack_mode" ;;
+        *) printf "%s" "$pack_mode" ;;
+    esac
+}
+
+append_output_subdir() {
+    local file_path="$1"
+    local subdir_name="$2"
+    local dir_name
+    local base_name
+
+    if [ -z "$subdir_name" ]; then
+        printf "%s" "$file_path"
+        return 0
+    fi
+
+    dir_name="$(dirname "$file_path")"
+    base_name="$(basename "$file_path")"
+    printf "%s/%s/%s" "$dir_name" "$subdir_name" "$base_name"
+}
+
+normalize_output_location() {
+    local pack_log="$1"
+    local output_template="$2"
+    local final_output="$output_template"
+    local target_bin_dir
+    local original_final_output
+
+    target_bin_dir="$(dirname "$output_template")"
+    original_final_output="$(echo "$pack_log" | grep -E '^OUTPUT_FILE_FINAL=' | tail -n 1 | cut -d= -f2-)"
+
+    if [ -n "$original_final_output" ]; then
+        if [[ "$original_final_output" != "$target_bin_dir"/* ]]; then
+            local final_filename
+            final_filename="$(basename "$original_final_output")"
+            final_output="$target_bin_dir/$final_filename"
+            if [ -f "$original_final_output" ]; then
+                mkdir -p "$target_bin_dir"
+                mv "$original_final_output" "$final_output" 2>/dev/null || true
+            else
+                final_output="$original_final_output"
+            fi
+        else
+            final_output="$original_final_output"
+        fi
+    fi
+
+    printf "%s" "$final_output"
+}
+
+apply_device_prefix_if_needed() {
+    local file_path="$1"
+    local device_prefix
+    local final_dir
+    local final_base
+    local renamed_out
+    local final_rest
+
+    device_prefix="$(resolve_root_device_name)"
+    if [ -z "$device_prefix" ] || [ -z "$file_path" ] || [ ! -f "$file_path" ]; then
+        printf "%s" "$file_path"
+        return 0
+    fi
+
+    final_dir="$(dirname "$file_path")"
+    final_base="$(basename "$file_path")"
+    case "$final_base" in
+        "${device_prefix}"_*) printf "%s" "$file_path" ;;
+        *)
+            if [[ "$final_base" == *_* ]]; then
+                final_rest="${final_base#*_}"
+                renamed_out="$final_dir/${device_prefix}_${final_rest}"
+            else
+                renamed_out="$final_dir/${device_prefix}_${final_base}"
+            fi
+            if [ ! -f "$renamed_out" ]; then
+                mv "$file_path" "$renamed_out" 2>/dev/null || true
+                if [ -f "$renamed_out" ]; then
+                    file_path="$renamed_out"
+                fi
+            fi
+            printf "%s" "$file_path"
+            ;;
+    esac
+}
+
+apply_pack_suffix_if_needed() {
+    local file_path="$1"
+    local suffix="$2"
+    local suffixed_path
+    if [ -z "$suffix" ] || [ -z "$file_path" ] || [ ! -f "$file_path" ]; then
+        printf "%s" "$file_path"
+        return 0
+    fi
+
+    suffixed_path="$(append_output_suffix "$file_path" "$suffix")"
+    if [ "$suffixed_path" != "$file_path" ]; then
+        mv -f "$file_path" "$suffixed_path" 2>/dev/null || true
+        if [ -f "$suffixed_path" ]; then
+            file_path="$suffixed_path"
+        fi
+    fi
+    printf "%s" "$file_path"
+}
+
+run_pack_resources_for_mode() {
+    local pack_mode="$1"
+    local config_file="$2"
+    local output_template="$3"
+    local header_file="$4"
+    local base_dir="$5"
+    local suffix=""
+    local pack_log
+    local pack_exit_code=0
+    local final_output=""
+
+    case "$pack_mode" in
+        base|custom) suffix="$pack_mode" ;;
+        *) suffix="" ;;
+    esac
+
+    mkdir -p "$(dirname "$output_template")"
+
+    echo "--------------------------------------------------"
+    echo "📦 开始打包: $pack_mode"
+    echo "配置文件: $config_file"
+    echo "输出目录: $(dirname "$output_template")"
+
+    set +e
+    pack_log="$(python3 "$SCRIPT_DIR/pack_resources.py" \
+        "$config_file" \
+        "$output_template" \
+        "$header_file" \
+        "$base_dir" 2>&1)"
+    pack_exit_code=$?
+    set -e
+
+    echo "$pack_log"
+
+    if [ $pack_exit_code -ne 0 ]; then
+        return $pack_exit_code
+    fi
+
+    final_output="$(normalize_output_location "$pack_log" "$output_template")"
+    final_output="$(apply_device_prefix_if_needed "$final_output")"
+    final_output="$(apply_pack_suffix_if_needed "$final_output" "$suffix")"
+
+    PACK_RESULT_OUTPUT="$final_output"
+    return 0
+}
+
+resolve_theme_img_res_package_offset() {
+    local partitions_file="$PROJECT_DIR/boards/project_partitions.h"
+    local compiler=""
+    local out=""
+
+    if [ ! -f "$partitions_file" ]; then
+        printf "%s" ""
+        return 0
+    fi
+
+    compiler="$(command -v gcc 2>/dev/null || command -v cc 2>/dev/null || true)"
+    if [ -n "$compiler" ]; then
+        out="$(
+            printf '#include "%s"\nTHEME_IMG_RES_PAKAGE_OFFSET\n' "$partitions_file" \
+                | "$compiler" -E -P -xc -I "$PROJECT_DIR/boards" -I "$PROJECT_DIR" - 2>/dev/null \
+                | awk 'NF{line=$0} END{print line}' \
+                | tr -d '\r'
+        )" || true
+        out="$(printf "%s" "$out" | tr -d '[:space:]')"
+        while [[ "$out" =~ ^\((.*)\)$ ]]; do
+            out="${BASH_REMATCH[1]}"
+        done
+        if [ -n "$out" ] && [ "$out" != "THEME_IMG_RES_PAKAGE_OFFSET" ]; then
+            printf "%s" "$out"
+            return 0
+        fi
+    fi
+
+    printf "%s" ""
+}
+
+build_multi_output_path() {
+    local base_file="$1"
+    local output_template="$2"
+    local multi_path=""
+    if [ -n "$output_template" ]; then
+        multi_path="$(append_output_suffix "$output_template" "all")"
+        printf "%s" "$multi_path"
+        return 0
+    fi
+
+    if [ -n "$base_file" ]; then
+        case "$base_file" in
+            *_base.bin) printf "%s" "${base_file%_base.bin}_all.bin" ;;
+            *.bin) printf "%s" "${base_file%.bin}_all.bin" ;;
+            *) printf "%s" "${base_file}_all" ;;
+        esac
+        return 0
+    fi
+
+    printf "%s" ""
+}
+
+create_multi_package() {
+    local base_file="$1"
+    local custom_file="$2"
+    local output_file="$3"
+    local offset_value="$4"
+
+    mkdir -p "$(dirname "$output_file")"
+
+    python3 - "$base_file" "$custom_file" "$output_file" "$offset_value" <<'PY'
+import hashlib
+import os
+import re
+import sys
+
+base_file, custom_file, output_file, offset_value = sys.argv[1:5]
+offset = int(offset_value, 0)
+
+with open(base_file, "rb") as f:
+    base_data = f.read()
+with open(custom_file, "rb") as f:
+    custom_data = f.read()
+
+base_size = len(base_data)
+if base_size > offset:
+    raise SystemExit(
+        f"base 资源包大小 {base_size} bytes 超过 THEME_IMG_RES_PAKAGE_OFFSET={offset}，无法生成 multi 包"
+    )
+
+padding = b"\xFF" * (offset - base_size)
+merged_data = base_data + padding + custom_data
+merged_md5 = hashlib.md5(merged_data).hexdigest()
+
+base_name = os.path.basename(base_file)
+output_dir = os.path.dirname(output_file)
+match = re.match(
+    r"(?P<prefix>.+)_(?P<date>\d{8})_(?P<ver>V\d{2}\.\d{2})_[0-9a-fA-F]{8}_RES(?:_[A-Za-z0-9]+)?\.bin$",
+    base_name,
+)
+if match:
+    final_name = (
+        f"{match.group('prefix')}_{match.group('date')}_{match.group('ver')}_"
+        f"{merged_md5[:8]}_RES_all.bin"
+    )
+    final_output_file = os.path.join(output_dir, final_name)
+else:
+    final_output_file = output_file
+
+with open(final_output_file, "wb") as f:
+    f.write(base_data)
+    f.write(padding)
+    f.write(custom_data)
+
+print(f"MULTI_OUTPUT_FILE={final_output_file}")
+print(f"MULTI_BASE_SIZE={base_size}")
+print(f"MULTI_PADDING_SIZE={len(padding)}")
+print(f"MULTI_CUSTOM_SIZE={len(custom_data)}")
+print(f"MULTI_MD5={merged_md5}")
+print(f"MULTI_TOTAL_SIZE={os.path.getsize(final_output_file)}")
+PY
 }
 
 resolve_root_product_family_from_makefile() {
@@ -214,11 +608,19 @@ set -e
 
 ### 解析参数
 VERSION=""
-CONFIG_FILE=""
 OUTPUT_FILE=""
 RESOURCE_DIR=""
 RESOURCE_DIR_ARG=""
 USE_MENU=0
+PACK_TYPE="auto"
+EXPLICIT_CONFIG_FILE=""
+EXPLICIT_OUTPUT_FILE=""
+RESOURCE_ROOT=""
+HEADER_FILE=""
+OUTPUT_TEMPLATE=""
+PACK_RESULT_OUTPUT=""
+GENERATED_OUTPUTS=()
+PACK_TYPE_SELECTED_FROM_MENU=0
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -234,6 +636,16 @@ while [ $# -gt 0 ]; do
                 return 1
             fi
             RESOURCE_DIR_ARG="$2"
+            shift 2
+            ;;
+        -t|--type)
+            if [ $# -lt 2 ]; then
+                echo "❌ 错误: $1 需要指定打包类型"
+                echo ""
+                show_usage
+                return 1
+            fi
+            PACK_TYPE="$2"
             shift 2
             ;;
         -h|--help)
@@ -252,6 +664,14 @@ if [ "$USE_MENU" -eq 1 ]; then
         echo "已取消资源打包。"
         return 1
     fi
+    if [ "$PACK_TYPE" = "auto" ]; then
+        PACK_TYPE="$(select_pack_type_from_menu "$RESOURCE_DIR")"
+        if [ -z "$PACK_TYPE" ]; then
+            echo "已取消资源打包。"
+            return 1
+        fi
+        PACK_TYPE_SELECTED_FROM_MENU=1
+    fi
 fi
 
 if [ -n "$RESOURCE_DIR_ARG" ]; then
@@ -263,6 +683,16 @@ if [ -n "$RESOURCE_DIR_ARG" ]; then
         return 1
     fi
 fi
+
+case "$PACK_TYPE" in
+    auto|base|custom|multi|all) ;;
+    *)
+        echo "❌ 错误: 不支持的打包类型: $PACK_TYPE"
+        echo ""
+        show_usage
+        return 1
+        ;;
+esac
 
 # 检查第一个参数是否是版本号（V1 / V2 / V3PRO_V2）
 if [ $# -gt 0 ] && [[ "$1" =~ ^(V1|V2|v3pro_V2|V3PRO_V2)$ ]]; then
@@ -277,59 +707,135 @@ if [ -z "$RESOURCE_DIR" ] && [ -z "$VERSION" ] && [ $# -eq 0 ]; then
         echo "已取消资源打包。"
         return 0
     fi
+    if [ "$PACK_TYPE" = "auto" ]; then
+        PACK_TYPE="$(select_pack_type_from_menu "$RESOURCE_DIR")"
+        if [ -z "$PACK_TYPE" ]; then
+            echo "已取消资源打包。"
+            return 0
+        fi
+        PACK_TYPE_SELECTED_FROM_MENU=1
+    fi
 fi
 
-# 如果显式指定了资源目录，优先使用该目录
-if [ -n "$RESOURCE_DIR" ]; then
-    CONFIG_FILE="${1:-$RESOURCE_DIR/resource_config.json}"
-    HEADER_FILE="$RESOURCE_DIR/resource_id_define.h"
+if [ $# -gt 0 ]; then
+    case "$1" in
+        *.json)
+            EXPLICIT_CONFIG_FILE="$1"
+            shift
+            ;;
+        *.bin)
+            EXPLICIT_OUTPUT_FILE="$1"
+            shift
+            ;;
+        *)
+            EXPLICIT_CONFIG_FILE="$1"
+            shift
+            ;;
+    esac
+fi
 
-    if [ $# -gt 1 ]; then
-        OUTPUT_FILE="$2"
-    else
-        mkdir -p "$BIN_DIR/$(basename "$RESOURCE_DIR")"
-        OUTPUT_FILE="$BIN_DIR/$(basename "$RESOURCE_DIR")/resource_pack.bin"
-    fi
-# 如果指定了版本，使用版本目录下的配置文件
+if [ $# -gt 0 ]; then
+    EXPLICIT_OUTPUT_FILE="$1"
+    shift
+fi
+
+if [ $# -gt 0 ]; then
+    echo "❌ 错误: 参数过多"
+    echo ""
+    show_usage
+    return 1
+fi
+
+if [ -n "$RESOURCE_DIR" ]; then
+    RESOURCE_ROOT="$RESOURCE_DIR"
 elif [ -n "$VERSION" ]; then
-    VERSION_DIR="$(resolve_version_dir "$VERSION")"
-    CONFIG_FILE="${1:-$VERSION_DIR/resource_config.json}"
-    HEADER_FILE="$VERSION_DIR/resource_id_define.h"
-    
-    # 生成默认输出文件名（基于版本）
-    if [ $# -gt 1 ]; then
-        OUTPUT_FILE="$2"
-    else
-        # 输出到 bin/<V1|V2> 目录
+    RESOURCE_ROOT="$(resolve_version_dir "$VERSION")"
+elif [ -n "$EXPLICIT_CONFIG_FILE" ]; then
+    RESOURCE_ROOT="$(dirname "$EXPLICIT_CONFIG_FILE")"
+else
+    RESOURCE_ROOT="$PARENT_DIR"
+fi
+
+if [ ! -d "$RESOURCE_ROOT" ]; then
+    echo "❌ 错误: 资源目录不存在: $RESOURCE_ROOT"
+    return 1
+fi
+
+HEADER_FILE="$RESOURCE_ROOT/resource_id_define.h"
+
+if [ -n "$EXPLICIT_OUTPUT_FILE" ]; then
+    OUTPUT_TEMPLATE="$EXPLICIT_OUTPUT_FILE"
+else
+    if [ -n "$RESOURCE_DIR" ]; then
+        mkdir -p "$BIN_DIR/$(basename "$RESOURCE_DIR")"
+        OUTPUT_TEMPLATE="$BIN_DIR/$(basename "$RESOURCE_DIR")/resource_pack.bin"
+    elif [ -n "$VERSION" ]; then
         mkdir -p "$BIN_DIR/$VERSION"
-        OUTPUT_FILE="$BIN_DIR/$VERSION/resource_pack.bin"
+        OUTPUT_TEMPLATE="$BIN_DIR/$VERSION/resource_pack.bin"
+    elif [ -n "$EXPLICIT_CONFIG_FILE" ] && [ -n "$(detect_version_from_path "$EXPLICIT_CONFIG_FILE")" ]; then
+        VERSION="$(detect_version_from_path "$EXPLICIT_CONFIG_FILE")"
+        mkdir -p "$BIN_DIR/$VERSION"
+        OUTPUT_TEMPLATE="$BIN_DIR/$VERSION/resource_pack.bin"
+    else
+        OUTPUT_TEMPLATE="$PARENT_DIR/resource_pack.bin"
+    fi
+fi
+
+if [ -n "$EXPLICIT_CONFIG_FILE" ]; then
+    CONFIG_DIR="$(dirname "$EXPLICIT_CONFIG_FILE")"
+    if [ ! -d "$CONFIG_DIR" ]; then
+        echo "❌ 错误: 配置文件目录不存在: $CONFIG_DIR"
+        return 1
+    fi
+    EXPLICIT_CONFIG_FILE="$(cd "$CONFIG_DIR" && pwd)/$(basename "$EXPLICIT_CONFIG_FILE")"
+    if [ ! -f "$EXPLICIT_CONFIG_FILE" ]; then
+        echo "❌ 错误: 配置文件不存在: $EXPLICIT_CONFIG_FILE"
+        return 1
+    fi
+    RESOURCE_ROOT="$(cd "$(dirname "$EXPLICIT_CONFIG_FILE")" && pwd)"
+fi
+
+if [ -n "$EXPLICIT_CONFIG_FILE" ]; then
+    AUTO_PACK_MODE="$(detect_pack_mode_from_config_path "$EXPLICIT_CONFIG_FILE")"
+    if [ "$PACK_TYPE" = "auto" ]; then
+        RESOLVED_PACK_MODE="$AUTO_PACK_MODE"
+    else
+        RESOLVED_PACK_MODE="$PACK_TYPE"
     fi
 else
-    # 兼容旧的使用方式：直接指定配置文件
-    CONFIG_FILE="${1:-$PARENT_DIR/resource_config.json}"
-    HEADER_FILE="${CONFIG_FILE%/*}/resource_id_define.h"
-    
-    # 如果配置文件在 V1 或 V2 目录下，自动检测版本
-    VERSION="$(detect_version_from_path "$CONFIG_FILE")"
-    if [ -n "$VERSION" ]; then
-        HEADER_FILE="${CONFIG_FILE%/*}/resource_id_define.h"
-    fi
-    
-    if [ $# -gt 1 ]; then
-        OUTPUT_FILE="$2"
+    AUTO_PACK_MODE="$(resolve_default_pack_mode "$RESOURCE_ROOT")"
+    if [ "$PACK_TYPE" = "auto" ]; then
+        RESOLVED_PACK_MODE="$AUTO_PACK_MODE"
     else
-        # 如果检测到版本，输出到 bin/<V1|V2> 目录
-        if [ -n "$VERSION" ]; then
-            mkdir -p "$BIN_DIR/$VERSION"
-            OUTPUT_FILE="$BIN_DIR/$VERSION/resource_pack.bin"
-        else
-            OUTPUT_FILE="${2:-$PARENT_DIR/resource_pack.bin}"
-        fi
+        RESOLVED_PACK_MODE="$PACK_TYPE"
     fi
+fi
+
+if [ -z "$RESOLVED_PACK_MODE" ]; then
+    echo "❌ 错误: 未找到可用的资源配置文件"
+    echo "资源目录: $RESOURCE_ROOT"
+    return 1
+fi
+
+if [ -n "$EXPLICIT_CONFIG_FILE" ] && [[ "$RESOLVED_PACK_MODE" =~ ^(multi|all)$ ]]; then
+    echo "❌ 错误: 指定单个配置文件时，不支持 $RESOLVED_PACK_MODE 模式"
+    echo "   请改为指定资源目录或版本目录"
+    return 1
+fi
+
+if [ -n "$EXPLICIT_CONFIG_FILE" ] && [ "$PACK_TYPE" != "auto" ]; then
+    if [ "$AUTO_PACK_MODE" != "$RESOLVED_PACK_MODE" ]; then
+        echo "❌ 错误: 配置文件 $EXPLICIT_CONFIG_FILE 与打包类型 $PACK_TYPE 不匹配"
+        return 1
+    fi
+fi
+
+if [ -z "$EXPLICIT_OUTPUT_FILE" ]; then
+    OUTPUT_TEMPLATE="$(append_output_subdir "$OUTPUT_TEMPLATE" "$(normalize_output_dir_mode "$RESOLVED_PACK_MODE")")"
 fi
 
 # 确保输出目录存在
-OUTPUT_DIR="$(dirname "$OUTPUT_FILE")"
+OUTPUT_DIR="$(dirname "$OUTPUT_TEMPLATE")"
 if [ ! -d "$OUTPUT_DIR" ]; then
     mkdir -p "$OUTPUT_DIR"
 fi
@@ -344,18 +850,13 @@ fi
 if [ -n "$RESOURCE_DIR" ]; then
     echo "资源目录: $RESOURCE_DIR"
 fi
-echo "配置文件: $CONFIG_FILE"
-echo "输出文件: $OUTPUT_FILE"
+echo "打包类型: $RESOLVED_PACK_MODE"
+if [ -n "$EXPLICIT_CONFIG_FILE" ]; then
+    echo "显式配置: $EXPLICIT_CONFIG_FILE"
+fi
+echo "输出目录: $OUTPUT_DIR"
 echo "头文件:   $HEADER_FILE"
 echo ""
-
-### 检查配置文件
-if [ ! -f "$CONFIG_FILE" ]; then
-    echo "❌ 错误: 配置文件不存在: $CONFIG_FILE"
-    echo ""
-    show_usage
-    return 1
-fi
 
 ### 检查头文件
 if [ ! -f "$HEADER_FILE" ]; then
@@ -365,90 +866,106 @@ if [ ! -f "$HEADER_FILE" ]; then
 fi
 
 ### 执行打包
-# 确定 base_dir：如果指定了版本或检测到版本，使用版本目录
-BASE_DIR=""
-if [ -n "$RESOURCE_DIR" ]; then
-    BASE_DIR="$RESOURCE_DIR"
-elif [ -n "$VERSION" ]; then
-    BASE_DIR="$(resolve_version_dir "$VERSION")"
-elif [ -n "$(detect_version_from_path "$CONFIG_FILE")" ]; then
-    # 从配置文件路径提取版本目录
-    BASE_DIR="$(dirname "$CONFIG_FILE")"
-fi
-
-# 调用 Python 脚本
 echo "CRC策略: 打包时按单个资源计算 CRC16 并写入 obj_info"
 PACK_EXIT_CODE=0
-if [ -n "$BASE_DIR" ]; then
-    # 传递 base_dir 参数
-    set +e
-    PACK_LOG="$(python3 "$SCRIPT_DIR/pack_resources.py" \
-        "$CONFIG_FILE" \
-        "$OUTPUT_FILE" \
-        "$HEADER_FILE" \
-        "$BASE_DIR" 2>&1)"
-    PACK_EXIT_CODE=$?
-    set -e
-else
-    set +e
-    PACK_LOG="$(python3 "$SCRIPT_DIR/pack_resources.py" \
-        "$CONFIG_FILE" \
-        "$OUTPUT_FILE" \
-        "$HEADER_FILE" 2>&1)"
-    PACK_EXIT_CODE=$?
-    set -e
-fi
+OUTPUT_FILE=""
+PACK_STEP_CODE=0
 
-echo "$PACK_LOG"
-
-# 提取最终输出文件名（如果脚本输出了）
-ORIGINAL_FINAL_OUTPUT="$(echo "$PACK_LOG" | grep -E '^OUTPUT_FILE_FINAL=' | tail -n 1 | cut -d= -f2-)"
-if [ -n "$ORIGINAL_FINAL_OUTPUT" ]; then
-    # 如果最终输出文件不在目标 bin 目录，需要移动
-    TARGET_BIN_DIR="$OUTPUT_DIR"
-    if [[ "$ORIGINAL_FINAL_OUTPUT" != "$TARGET_BIN_DIR"/* ]]; then
-        FINAL_FILENAME="$(basename "$ORIGINAL_FINAL_OUTPUT")"
-        FINAL_OUTPUT_FILE="$TARGET_BIN_DIR/$FINAL_FILENAME"
-        
-        # 如果原文件存在，移动到新位置
-        if [ -f "$ORIGINAL_FINAL_OUTPUT" ]; then
-            mkdir -p "$TARGET_BIN_DIR"
-            mv "$ORIGINAL_FINAL_OUTPUT" "$FINAL_OUTPUT_FILE" 2>/dev/null || true
-            OUTPUT_FILE="$FINAL_OUTPUT_FILE"
+case "$RESOLVED_PACK_MODE" in
+    legacy|base|custom)
+        if [ -n "$EXPLICIT_CONFIG_FILE" ]; then
+            CONFIG_FILE="$EXPLICIT_CONFIG_FILE"
         else
-            OUTPUT_FILE="$ORIGINAL_FINAL_OUTPUT"
+            CONFIG_FILE="$(resolve_config_for_mode "$RESOURCE_ROOT" "$RESOLVED_PACK_MODE")"
         fi
-    else
-        OUTPUT_FILE="$ORIGINAL_FINAL_OUTPUT"
-    fi
-fi
+        if [ ! -f "$CONFIG_FILE" ]; then
+            echo "❌ 错误: 配置文件不存在: $CONFIG_FILE"
+            return 1
+        fi
+        if run_pack_resources_for_mode "$RESOLVED_PACK_MODE" "$CONFIG_FILE" "$OUTPUT_TEMPLATE" "$HEADER_FILE" "$RESOURCE_ROOT"; then
+            OUTPUT_FILE="$PACK_RESULT_OUTPUT"
+            GENERATED_OUTPUTS+=("$OUTPUT_FILE")
+        else
+            PACK_STEP_CODE=$?
+            PACK_EXIT_CODE=$PACK_STEP_CODE
+        fi
+        ;;
+    multi|all)
+        BASE_CONFIG_FILE="$(resolve_config_for_mode "$RESOURCE_ROOT" "base")"
+        CUSTOM_CONFIG_FILE="$(resolve_config_for_mode "$RESOURCE_ROOT" "custom")"
+        if [ ! -f "$BASE_CONFIG_FILE" ] || [ ! -f "$CUSTOM_CONFIG_FILE" ]; then
+            echo "❌ 错误: multi/all 模式需要同时存在以下配置文件:"
+            echo "   - $BASE_CONFIG_FILE"
+            echo "   - $CUSTOM_CONFIG_FILE"
+            return 1
+        fi
 
-### 根据 ROOT_DEVICE_NAME 补齐文件名前缀（兼容旧产物命名：未带 V3/V3Pro 前缀的情况）
-DEVICE_PREFIX="$(resolve_root_device_name)"
-if [ -n "$DEVICE_PREFIX" ] && [ -n "${OUTPUT_FILE:-}" ] && [ -f "$OUTPUT_FILE" ]; then
-    FINAL_DIR="$(dirname "$OUTPUT_FILE")"
-    FINAL_BASE="$(basename "$OUTPUT_FILE")"
-    case "$FINAL_BASE" in
-        "${DEVICE_PREFIX}"_*) : ;;
-        *)
-            # 若原文件名已包含一个前缀段（形如 XXX_YYYYMMDD_...），则替换该前缀段为 ROOT_DEVICE_NAME
-            # 否则退化为直接在文件名前追加 ROOT_DEVICE_NAME_
-            if [[ "$FINAL_BASE" == *_* ]]; then
-                FINAL_REST="${FINAL_BASE#*_}"
-                RENAMED_OUT="$FINAL_DIR/${DEVICE_PREFIX}_${FINAL_REST}"
-            else
-                RENAMED_OUT="$FINAL_DIR/${DEVICE_PREFIX}_${FINAL_BASE}"
+        OFFSET_VALUE="$(resolve_theme_img_res_package_offset)"
+        if [ -z "$OFFSET_VALUE" ]; then
+            echo "❌ 错误: 无法解析 THEME_IMG_RES_PAKAGE_OFFSET"
+            return 1
+        fi
+        echo "主题资源偏移: THEME_IMG_RES_PAKAGE_OFFSET=$OFFSET_VALUE"
+
+        TEMP_PACK_DIR=""
+        BASE_OUTPUT_TEMPLATE="$OUTPUT_TEMPLATE"
+        CUSTOM_OUTPUT_TEMPLATE="$OUTPUT_TEMPLATE"
+        if [ "$RESOLVED_PACK_MODE" = "multi" ]; then
+            TEMP_PACK_DIR="$(mktemp -d)"
+            BASE_OUTPUT_TEMPLATE="$TEMP_PACK_DIR/resource_pack.bin"
+            CUSTOM_OUTPUT_TEMPLATE="$TEMP_PACK_DIR/resource_pack.bin"
+        elif [ -z "$EXPLICIT_OUTPUT_FILE" ]; then
+            BASE_OUTPUT_TEMPLATE="$(append_output_subdir "${OUTPUT_TEMPLATE%/*/*}/resource_pack.bin" "base")"
+            CUSTOM_OUTPUT_TEMPLATE="$(append_output_subdir "${OUTPUT_TEMPLATE%/*/*}/resource_pack.bin" "custom")"
+        fi
+
+        if run_pack_resources_for_mode "base" "$BASE_CONFIG_FILE" "$BASE_OUTPUT_TEMPLATE" "$HEADER_FILE" "$RESOURCE_ROOT"; then
+            BASE_PACK_OUTPUT="$PACK_RESULT_OUTPUT"
+            if [ "$RESOLVED_PACK_MODE" = "all" ]; then
+                GENERATED_OUTPUTS+=("$BASE_PACK_OUTPUT")
             fi
-            # 若目标已存在，避免覆盖；保持原名
-            if [ ! -f "$RENAMED_OUT" ]; then
-                mv "$OUTPUT_FILE" "$RENAMED_OUT" 2>/dev/null || true
-                if [ -f "$RENAMED_OUT" ]; then
-                    OUTPUT_FILE="$RENAMED_OUT"
+        else
+            PACK_STEP_CODE=$?
+            PACK_EXIT_CODE=$PACK_STEP_CODE
+        fi
+
+        if [ $PACK_EXIT_CODE -eq 0 ]; then
+            if run_pack_resources_for_mode "custom" "$CUSTOM_CONFIG_FILE" "$CUSTOM_OUTPUT_TEMPLATE" "$HEADER_FILE" "$RESOURCE_ROOT"; then
+                CUSTOM_PACK_OUTPUT="$PACK_RESULT_OUTPUT"
+                if [ "$RESOLVED_PACK_MODE" = "all" ]; then
+                    GENERATED_OUTPUTS+=("$CUSTOM_PACK_OUTPUT")
                 fi
+            else
+                PACK_STEP_CODE=$?
+                PACK_EXIT_CODE=$PACK_STEP_CODE
             fi
-            ;;
-    esac
-fi
+        fi
+
+        if [ $PACK_EXIT_CODE -eq 0 ]; then
+            MULTI_OUTPUT_FILE="$(build_multi_output_path "$BASE_PACK_OUTPUT" "$OUTPUT_TEMPLATE")"
+            echo "--------------------------------------------------"
+            echo "📦 开始拼接 multi 资源包"
+            echo "base资源包:   $BASE_PACK_OUTPUT"
+            echo "custom资源包: $CUSTOM_PACK_OUTPUT"
+            echo "multi输出:    $MULTI_OUTPUT_FILE"
+            if MULTI_PACK_LOG="$(create_multi_package "$BASE_PACK_OUTPUT" "$CUSTOM_PACK_OUTPUT" "$MULTI_OUTPUT_FILE" "$OFFSET_VALUE" 2>&1)"; then
+                echo "$MULTI_PACK_LOG"
+                OUTPUT_FILE="$(echo "$MULTI_PACK_LOG" | grep -E '^MULTI_OUTPUT_FILE=' | tail -n 1 | cut -d= -f2-)"
+                if [ -z "$OUTPUT_FILE" ]; then
+                    OUTPUT_FILE="$MULTI_OUTPUT_FILE"
+                fi
+                GENERATED_OUTPUTS+=("$OUTPUT_FILE")
+            else
+                echo "$MULTI_PACK_LOG"
+                PACK_EXIT_CODE=$?
+            fi
+        fi
+
+        if [ -n "$TEMP_PACK_DIR" ] && [ -d "$TEMP_PACK_DIR" ]; then
+            rm -rf "$TEMP_PACK_DIR"
+        fi
+        ;;
+esac
 
 ### 显示结果
 if [ $PACK_EXIT_CODE -eq 0 ]; then
@@ -456,7 +973,14 @@ if [ $PACK_EXIT_CODE -eq 0 ]; then
     echo "=================================================="
     echo "✅ 打包成功！"
     echo "=================================================="
-    echo "资源包位置: $OUTPUT_FILE"
+    if [ ${#GENERATED_OUTPUTS[@]} -gt 1 ]; then
+        echo "生成文件:"
+        for output_item in "${GENERATED_OUTPUTS[@]}"; do
+            echo "  - $output_item"
+        done
+    else
+        echo "资源包位置: $OUTPUT_FILE"
+    fi
     if [ -f "$OUTPUT_FILE" ]; then
         SIZE=$(ls -lh "$OUTPUT_FILE" | awk '{print $5}')
         echo "文件大小: $SIZE"
@@ -465,19 +989,17 @@ if [ $PACK_EXIT_CODE -eq 0 ]; then
     if [ -n "$RESOURCE_DIR" ]; then
         echo "💡 提示:"
         echo "  - 资源目录: $(basename "$RESOURCE_DIR")"
-        echo "  - 查看配置: cat $CONFIG_FILE"
-        echo "  - 修改资源: vim $CONFIG_FILE"
+        echo "  - 打包模式: $RESOLVED_PACK_MODE"
         echo "  - 输出目录: $OUTPUT_DIR"
     elif [ -n "$VERSION" ]; then
         echo "💡 提示:"
         echo "  - 版本: $VERSION"
-        echo "  - 查看配置: cat $CONFIG_FILE"
-        echo "  - 修改资源: vim $CONFIG_FILE"
+        echo "  - 打包模式: $RESOLVED_PACK_MODE"
         echo "  - 输出目录: $BIN_DIR/$VERSION"
     else
         echo "💡 提示:"
-        echo "  - 查看配置: cat $CONFIG_FILE"
-        echo "  - 修改资源: vim $CONFIG_FILE"
+        echo "  - 资源目录: $RESOURCE_ROOT"
+        echo "  - 打包模式: $RESOLVED_PACK_MODE"
     fi
 else
     echo ""

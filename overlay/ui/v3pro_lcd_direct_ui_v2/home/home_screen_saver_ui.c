@@ -2,12 +2,11 @@
 * INCLUDE FILES
 *****************************************************************************************
 */
-#include "root_common_api.h" // IWYU pragma: keep
 #include "ui_img_define.h"   // IWYU pragma: keep
 #include "ui_page_define.h" // IWYU pragma: keep
 #include "ui_manager.h" // IWYU pragma: keep
 #include "window_screen_home.h" // IWYU pragma: keep
-#include "ble_ui.h" // IWYU pragma: keep
+
 /*
 * DEFINES
 *****************************************************************************************
@@ -28,21 +27,25 @@
 
 typedef struct {
     lv_obj_t * root;
-    #if IS_SUPPORT_ROOT_HOME_SCREEN_SAVER_COMP_BG
+#if IS_SUPPORT_ROOT_HOME_SCREEN_SAVER_COMP_BG
     lv_obj_t * backgroud;
-    #endif
+#endif
     lv_obj_t * saver_icon;
     res_img_info_t saver_img_info;
+#if (ROOT_PRODUCT_ID == ROOT_PRODUCT_ID_V3PRO)
     lv_obj_t * clock_hour;
     lv_obj_t * clock_minute;
     lv_obj_t * clock_colon;
     res_img_info_t clock_colon_info;
-    home_screen_saver_display_type_e home_screen_saver_display_type;
-    uint8_t force_update;
-    uint8_t popup_ui_index;
+    uint8_t home_screen_saver_display_type;
     uint8_t hour;
     uint8_t minute;
-    uint8_t rsv[12];
+    uint8_t force_update;
+    uint8_t rsv[13];
+#else
+    uint8_t force_update;
+    uint8_t rsv[15];
+#endif
 } home_screen_saver_display_info_t;
 
 /*
@@ -122,7 +125,7 @@ static void home_screen_saver_dummy_icon_update(ui_manager_context_t *thiz, int1
         EXCEPTION_CHECK_VOID(saver_info->saver_icon);
     }
     
-    common_ui_img_resource_init(thiz, RESOURCE_ID_HOME_DUMMY_ICON, &saver_info->saver_img_info);
+    common_ui_img_resource_init_with_theme(thiz, RESOURCE_ID_HOME_IDLE_IP, &saver_info->saver_img_info);
     EXCEPTION_CHECK_VOID(saver_info->saver_img_info.data);
     lv_fs_path_ex_t saver_icon_img_path;
     lv_fs_make_path_from_buffer(&saver_icon_img_path, LV_FS_MEMFS_LETTER, 
@@ -132,6 +135,7 @@ static void home_screen_saver_dummy_icon_update(ui_manager_context_t *thiz, int1
         HOME_SCREEN_SAVER_ICON_X, HOME_SCREEN_SAVER_ICON_Y + y_offset); /// 设置icon位置
 }
 
+#if (ROOT_PRODUCT_ID == ROOT_PRODUCT_ID_V3PRO)
 static void home_screen_saver_clock_ui_update(ui_manager_context_t *thiz, bool is_show)
 {
     /// 更新时钟小时
@@ -201,8 +205,8 @@ static void home_screen_saver_clock_ui_update(ui_manager_context_t *thiz, bool i
         lv_obj_add_flag(saver_info->clock_minute, LV_OBJ_FLAG_HIDDEN);
         lv_obj_add_flag(saver_info->clock_colon, LV_OBJ_FLAG_HIDDEN);
     }
-}
 
+}
 static home_screen_saver_display_type_e home_screen_saver_display_type_update(ui_manager_context_t *thiz, ui_proc_home_t *proc)
 {
 #if 0
@@ -240,7 +244,12 @@ static void home_screen_saver_ui_update(ui_manager_context_t *thiz, ui_proc_home
         home_screen_saver_dummy_icon_update(thiz, 0);
     }
 }
-
+#else
+static void home_screen_saver_ui_update(ui_manager_context_t *thiz, ui_proc_home_t *proc)
+{
+    home_screen_saver_dummy_icon_update(thiz, 0);   
+}
+#endif
 /*  
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
@@ -259,20 +268,18 @@ void ui_display_home_screen_saver_prepare(ui_manager_context_t *thiz)
     ble_ui_init(thiz);
     battery_ui_init(thiz);
     saver_info->force_update = true;
-    saver_info->popup_ui_index = HOME_POPUP_UI_NONE;
 }
 
 void ui_display_home_screen_saver_remove(ui_manager_context_t *thiz)
 {
-    EXCEPTION_CHECK_VOID(thiz);
-    if (saver_info == NULL) {
-        return;
-    }
+    EXCEPTION_CHECK_VOID(thiz && saver_info);
     common_ui_img_resource_deinit(thiz, &saver_info->saver_img_info);
+#if (ROOT_PRODUCT_ID == ROOT_PRODUCT_ID_V3PRO)
+    common_ui_img_resource_deinit(thiz, &saver_info->clock_colon_info);
+#endif
     ble_ui_deinit(thiz);
     battery_ui_deinit(thiz);
     common_ui_bg_deinit(thiz);
-    home_tip_popup_ui_remove(thiz);
     LVGL_OBJ_DELETE(saver_info->root);
     u_free(saver_info);
     saver_info = NULL;
@@ -280,17 +287,13 @@ void ui_display_home_screen_saver_remove(ui_manager_context_t *thiz)
 
 int ui_display_home_screen_saver_process(ui_manager_context_t *thiz)
 {
-    EXCEPTION_CHECK_INT(thiz);
-    EXCEPTION_CHECK_INT(saver_info);
-    EXCEPTION_CHECK_INT(saver_info->root);
+    EXCEPTION_CHECK_INT(thiz && saver_info && saver_info->root);
     ui_proc_home_t *proc = (ui_proc_home_t *)thiz->priv.play_info.user_data;
-    EXCEPTION_CHECK_INT(proc);
-    EXCEPTION_CHECK_INT(proc->ble);
+    EXCEPTION_CHECK_INT(proc && proc->ble);
     home_screen_saver_root_bg_update(thiz);
     battery_ui_update(thiz, saver_info->root, proc->battery, true);
     ble_ui_update(thiz, saver_info->root, proc->ble, COMMON_BLE_UI_X, COMMON_BLE_UI_Y);
     home_screen_saver_ui_update(thiz, proc);
-    home_tip_popup_ui_update(thiz, proc, saver_info->root, &saver_info->popup_ui_index);
     saver_info->force_update = false;
     thiz->priv.fps_count++;
     if (get_timestamp() - thiz->priv.fps_start_time >= 1000) {

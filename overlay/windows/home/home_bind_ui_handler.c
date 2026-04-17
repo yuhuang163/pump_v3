@@ -30,7 +30,7 @@ static void home_bind_popup_ui_finish_policy(ui_manager_context_t *ui, int index
 {
     LOG_WM("===> popup %d ui display complete.", index);
     ui_proc_home_t *proc = (ui_proc_home_t *)ui->priv.play_info.user_data;
-    home_popup_ui_type_update(proc, HOME_POPUP_UI_NONE);
+    home_popup_ui_type_update(proc, ID_POPUP_UI_NONE);
 }
 
 static void home_bind_display_completed_cb(hdr_post_args_t *args)
@@ -96,6 +96,8 @@ void start_home_bind_ui_animation(ui_proc_home_t *proc)
 {    
     ui_manager_context_t *ui = proc->ui;
     EXCEPTION_CHECK_VOID(ui->hook && ui->hook->ui_animation_play_init);
+    
+    home_popup_ui_type_update(proc, ID_POPUP_UI_NONE);
     if (proc->current_ui_type == HOME_UI_TYPE_BIND_QRCODE) {
         proc->last_progress_ani_time = get_timestamp();
         return;

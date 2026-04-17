@@ -295,7 +295,7 @@
       "y_offset": 0
     },
     {
-      "resource_id": "RESOURCE_ID_PUMP_FINISH_ICON",
+      "resource_id": "RESOURCE_ID_PUMP_FINISH_IP",
       "description": "泵奶完成图标",
       "file": "baj/pump_finish_icon_64x64_a4_q99_422.baj",
       "x_offset": 0,
@@ -337,7 +337,7 @@
       "y_offset": 0
     }, 
     {
-      "resource_id": "RESOURCE_ID_CHARGE_ADAPTER_IMG",
+      "resource_id": "RESOURCE_ID_CHARGE_ADAPTER_IP",
       "description": "首页-充电适配器图标",
       "file": "baj/charge_adpater_mismatch_160x160_a4_q99_422.baj",
       "x_offset": 0,

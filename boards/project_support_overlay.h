@@ -142,7 +142,11 @@ extern "C" {
 /// 支持LOGO界面背景颜色测试
 #define IS_SUPPORT_LOGO_BG_COLOR_TEST                    (0)
 /// 支持触摸芯片固件升级
+#if (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V3 || V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V2)
 #define IS_SUPPORT_TOUCH_IC_OTA                          (0)
+#else
+#define IS_SUPPORT_TOUCH_IC_OTA                          (1)
+#endif
 
 #ifdef __cplusplus
 }

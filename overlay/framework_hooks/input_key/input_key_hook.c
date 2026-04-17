@@ -4,6 +4,7 @@
 */
 #include "root_common_api.h" // IWYU pragma: keep
 #include "input_key_code.h"  // IWYU pragma: keep
+#include "key_input_manager.h" // IWYU pragma: keep
 
 /*
 * DEFINES
@@ -26,7 +27,31 @@
 */
 static int input_keyevent_route(struct key_input_context *ctx, uint16_t keycode, uint16_t keytype, int flag)
 {
-    /// 处理按键事件
+#if IS_SUPPORT_KEY_SOFT_RESET      
+    if (keycode == SYS_SOFT_RESET_CODE && keytype == KEY_EVENT_LONG_5S) {
+        window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
+        EXCEPTION_CHECK_INT(wm);
+        if (wm->is_current_window(wm, ID_WINDOW_AIRPLANE_MODE) || wm->is_current_window(wm, ID_WINDOW_SYSTEM)) {
+            LOG_KEY("in airplane mode or system window, ignore");
+            return 0;
+        }
+
+        breast_pump_manager_context_t *pump = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
+        if (pump) {
+            uint8_t is_working = 0;
+            READ_PUMP_IS_WORKING(pump, is_working);
+            if (is_working) {
+                LOG_KEY("in pump, ignore");
+                return 0;
+            }
+        }
+        multi_func_msg_data_t msg = {0};
+        msg.union_body.extra.window_id = ID_WINDOW_SYSTEM;
+        msg.union_body.extra.arg1 = ID_SYSTEM_WINDOW_FACTORY_RESET_CONFIRM;
+        wm->dispatch_new_window_args(wm, &msg);
+        LOG_KEY("goto factory reset");
+    }
+#endif 
     return 0;
 }
 

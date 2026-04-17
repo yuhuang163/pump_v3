@@ -36,11 +36,6 @@ typedef enum {
     AIRPLANE_MODE_UI_TYPE_MAX
 } airplane_mode_ui_type_e;
 
-typedef enum {
-    AIRPLANE_MODE_POPUP_UI_NONE = 0,
-    AIRPLANE_MODE_POPUP_UI_EXIT = 1, /// 退出飞行模式提示
-} airplane_mode_popup_ui_type_e;
-
 /// 飞行模式UI结构体
 typedef struct ui_proc_airplane_mode {    
     uint32_t ani_timer_cnt;

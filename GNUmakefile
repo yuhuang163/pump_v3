@@ -1221,7 +1221,8 @@ NETWORK_MODULE_SRCS := \
 
 # OTA 模块源码
 OTA_MODULE_SRCS := \
-	$(wildcard $(PROJECT_ROOT)/trunk/root_source/ota/*.c)
+	$(wildcard $(PROJECT_ROOT)/trunk/root_source/ota/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/framework_hooks/ota/*.c)
 
 # 产品测试模块源码
 PRODUCT_TESTS_MODULE_SRCS := \

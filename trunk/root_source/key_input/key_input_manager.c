@@ -10,7 +10,6 @@
 *****************************************************************************************
 */
 #define KEY_LOCK_LOG                     LOG_KEY
-#define SYS_SOFT_RESET_CODE              KEY_CODE_8
 
 #if 0
 #define MUTEX_LOCK_KEY(__lock)           do { KEY_LOCK_LOG("=>LOCK_KEY"); MUTEX_LOCK(__lock); } while (0)
@@ -138,33 +137,6 @@ static int dispatch_key_event_wrapper(void *context, int keycode, int keytype)
 static void internal_keyevent_callback(void *user_data, uint16_t keycode, uint16_t keytype)
 {
     key_input_context_t *input = thiz;
-#if IS_SUPPORT_KEY_SOFT_RESET      
-    if (keycode == SYS_SOFT_RESET_CODE && keytype == KEY_EVENT_LONG_5S) {
-        window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
-        EXCEPTION_CHECK_VOID(wm);
-        if (wm->is_current_window(wm, ID_WINDOW_AIRPLANE_MODE) || wm->is_current_window(wm, ID_WINDOW_SYSTEM)) {
-            LOG_KEY("in airplane mode or system window, ignore");
-            return;
-        }
-
-        breast_pump_manager_context_t *pump = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
-        if (pump) {
-            uint8_t is_working = 0;
-            READ_PUMP_IS_WORKING(pump, is_working);
-            if (is_working) {
-                LOG_KEY("in pump, ignore");
-                return;
-            }
-        }
-
-        multi_func_msg_data_t msg = {0};
-        msg.union_body.extra.window_id = ID_WINDOW_SYSTEM;
-        msg.union_body.extra.arg1 = ID_SYSTEM_WINDOW_FACTORY_RESET_CONFIRM;
-        wm->dispatch_new_window_args(wm, &msg);
-        LOG_KEY("goto factory reset");
-        return;
-    }
-#endif 
     /// 提供外部钩子接管的能力.
     struct __key_input_hook *hook = input->hook;
     if (hook && hook->input_keyevent_route) {

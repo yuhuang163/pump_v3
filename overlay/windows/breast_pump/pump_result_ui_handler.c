@@ -43,9 +43,13 @@ static void pump_result_ui_after_policy(ui_manager_context_t *ui, int index)
     ui_display_pump_complete_tip_process(ui);
     ui_proc_pump_t *proc = (ui_proc_pump_t *)ui->priv.play_info.user_data;
     EXCEPTION_CHECK_VOID(proc);
-    if (get_timestamp_ms(proc->last_progress_ani_time) >= PUMP_RESULT_DISPLAY_TIMEOUT) {
+    uint32_t time_diff = get_timestamp_ms(proc->last_progress_ani_time);
+    if (time_diff >= PUMP_RESULT_DISPLAY_TIMEOUT) {
         proc->last_progress_ani_time = get_timestamp();
+        LOG_UI("result ui timeout: %d", proc->last_progress_ani_time);
         POST_TASK_HANDLER_NO_DELAY(pump_result_display_completed_cb, proc, PUMP_COMPLETE_DISPLAY_TASK_NAME);
+    } else if (time_diff >= 1000) {
+        proc->forbid_start_pump = false;
     }
 }
 
@@ -85,10 +89,10 @@ static void show_pump_result_loop(ui_proc_pump_t *proc)
 {
     ui_manager_context_t *ui = proc->ui;
     EXCEPTION_CHECK_VOID(ui->hook && ui->hook->ui_animation_play_init);
-    if (proc->popup_ui_type == PUMP_POPUP_UI_OPERATION_SUCCESS ||
-        proc->popup_ui_type == PUMP_POPUP_UI_OPERATION_FAILED ||
-        proc->popup_ui_type == PUMP_POPUP_UI_LEVEL_ADJUST_TOO_LARGE) {
-        pump_popup_ui_type_update(proc, PUMP_POPUP_UI_NONE);
+    if (proc->popup_ui_type == ID_POPUP_UI_OP_SUCCESS ||
+        proc->popup_ui_type == ID_POPUP_UI_OP_FAILED ||
+        proc->popup_ui_type == ID_POPUP_UI_LEVEL_ADJUST_WARNING) {
+        pump_popup_ui_type_update(proc, ID_POPUP_UI_NONE);
     }
     if (proc->current_ui_type == PUMP_UI_TYPE_RESULT) {
         proc->last_progress_ani_time = get_timestamp();

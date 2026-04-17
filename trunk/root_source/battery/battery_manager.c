@@ -133,7 +133,7 @@ static void polling_battery_status(void *user_data)
             multi_func_msg_data_t msg = {0};
             msg.union_body.extra.window_id = ID_WINDOW_POPUP_WINDOW;
             msg.union_body.extra.is_bg_dispatch = 0x01;
-            msg.union_body.extra.arg1 = ID_POPUP_WINDOW_LOW_POWER;
+            msg.union_body.extra.arg1 = ID_POPUP_UI_LOW_POWER;
             msg.union_body.extra.popup_exit_time = 8000;
             msg.union_body.extra.forbid_short_press_exit_popup = true;
             window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
@@ -206,24 +206,36 @@ static void charge_event_callback(charge_event_e event)
     EXCEPTION_CHECK_VOID(wm);
     EXCEPTION_CHECK_VOID(thiz);
     LOG_MISC("charge event: %d", event);
+
+    /// 上报适配器是否匹配
+    servers_publish_data_args_t args_temp = {
+        .arg1 = OLD_PUBLISH_ABNORMAL_ADAPTER_ERROR,
+        .arg2 = event == CHARGE_EVENT_ADAPTER_MISMATCH ? OLD_PUBLISH_ABNORMAL_STATE_ACTIVE : OLD_PUBLISH_ABNORMAL_STATE_CLEARED,
+        .val = NULL,
+    };
+    servers_manager_context_t *servers_ctx = (servers_manager_context_t *)find_module(ID_MODULE_SERVERS);
+    EXCEPTION_CHECK_VOID(servers_ctx);
+    servers_ctx->hook->app_old_protocol_server_data_publish(APP_OLD_COMM_CID_NOTIFY_V3_DEV_ABNORMAL, &args_temp);
+    
     if (event == CHARGE_EVENT_ADAPTER_MISMATCH) {
-        LOG_MISC("charge event: adapter mismatch");
 #if IS_SUPPORT_PD_CHARGE_ADAPTER_MISMATCH
         thiz->priv.is_adapter_mismatch = 1;
-#else
-        thiz->priv.is_adapter_mismatch = 0;
-#endif
         multi_func_msg_data_t __msg = {0};
         __msg.union_body.extra.window_id = ID_WINDOW_CHARGE;
-        LOG_WM("goto charge screen");
+        LOG_WM("charge adapter mismatch goto charge screen");
         wm->dispatch_new_window_args(wm, &__msg);
+#else
+        LOG_MISC("charge adapter mismatch ignore");
+        thiz->priv.is_adapter_mismatch = 0;
+#endif
         return;
     }
     
     if (thiz->priv.is_adapter_mismatch) {
         thiz->priv.is_adapter_mismatch = 0;
         LOG_MISC("charge event: adapter mismatch recover");
-        SEND_BROADCAST_ARGS1(ID_BROADCAST_BATTERY_STATE_CHANGE, BATTERY_BROADCAST_CHARGE_ADAPTER_MISMATCH_RECOVER);
+        SEND_BROADCAST_ARGS1(ID_BROADCAST_BATTERY_STATE_CHANGE, 
+            BATTERY_BROADCAST_CHARGE_ADAPTER_MISMATCH_RECOVER);
     }
 
     int misc_msg = 0;

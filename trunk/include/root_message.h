@@ -30,13 +30,26 @@ typedef enum {
 
 /// 弹出框ID枚举.
 typedef enum {
-    ID_POPUP_WINDOW_BT_CONNECT,
-    ID_POPUP_WINDOW_BT_DISCONNECT,
-    ID_POPUP_WINDOW_COUNT_DOWN,
-    ID_POPUP_WINDOW_LOW_POWER,
-    ID_POPUP_WINDOW_WILL_POWER_OFF,
-    ID_POPUP_WINDOW_MAX,
-} popup_window_id_e;
+    ID_POPUP_UI_NONE = 0,
+    ID_POPUP_UI_OP_SUCCESS = 100,
+    ID_POPUP_UI_OP_SUCCESS_PRESET,
+    ID_POPUP_UI_OP_FAILED ,
+    ID_POPUP_UI_LEVEL_ADJUST_WARNING , /// 档位范围调整警告
+    ID_POPUP_UI_ONLY_AVAILABLE_IN_PUMPING,  /// 仅在泵奶中可以用
+    ID_POPUP_UI_AIRPLANE_MODE_EXIT,  /// 飞行模式退出
+    ID_POPUP_UI_PUMP_FINISH_TIMEOUT, ///
+    ID_POPUP_UI_PUMP_FINISH_MANUAL,
+    ID_POPUP_UI_PUMP_PAUSE_MANUAL,
+    ID_POPUP_UI_PUMP_PAUSE_TIMEOUT,
+    ID_POPUP_UI_BT_CONNECT,
+    ID_POPUP_UI_BT_DISCONNECT,
+    ID_POPUP_UI_BT_CONNECTING,
+    ID_POPUP_UI_DEVICE_BIND,
+    ID_POPUP_UI_DEVICE_UNBIND,
+    ID_POPUP_UI_COUNT_DOWN,
+    ID_POPUP_UI_LOW_POWER,
+    ID_POPUP_UI_WILL_POWER_OFF,
+} popup_ui_id_e;
 
 /// 系统窗口ID枚举.
 typedef enum {
@@ -166,10 +179,9 @@ typedef struct {
 
 typedef struct {
     ota_event_type_e event;
-    bool result;         ///事件结果
-    int state;
-    uint32_t sub_code;
-} ota_event_type_t;
+    int args1;
+    int args2;
+} ota_event_info_t;
 
 /// 描述按键事件结构.
 typedef struct input_key_event_data {
@@ -192,7 +204,7 @@ typedef struct multi_func_msg_data {
         ble_event_type_t ble_evt_type;
         factory_test_entry_extra_t factory_extra;
         hdr_post_args_t hdr_post;
-        ota_event_type_t ota_evt_type;
+        ota_event_info_t ota_info;
         input_key_event_data_t key_event_data;
         bcr_pkg_struct_t bcr_pkg;
         product_test_entry_extra_t product_test_extra;

@@ -144,5 +144,25 @@ void system_power_off_handle(ui_proc_system_t *proc)
             servers_ctx->hook->app_old_protocol_server_data_publish(APP_OLD_COMM_CID_NOTIFY_STATUS, &args);
         }
     }
+
+    /// 慢慢关夜灯
+    peripheral_bus_context_t *pbus = (peripheral_bus_context_t *)find_module(ID_MODULE_DEVICE_BUS);
+    EXCEPTION_CHECK_VOID(pbus);
+    rt_device_node_t *led_dev = pbus->find_device(ID_DEVICE_LED);
+    if (led_dev) {
+        led_status_msg_t msg = {
+            .led_index = PUMP_LED_ALL_ID,
+            .led_status = {
+                .mode = LED_MODE_LEVEL,
+                .un.luminous.level = 0,
+            },
+        };
+        led_dev->ioctl(led_dev, OP_CODE_LED_STATUS_SET, (void *)&msg);
+        msleep(10);
+        msg.led_index = NIGHT_LIGHT_LED;
+        led_dev->ioctl(led_dev, OP_CODE_LED_STATUS_SET, (void *)&msg);
+        msleep(10);
+    }
+    
     POST_TASK_HANDLER_DELAYED_ARG1(power_off_cb, POWER_OFF_DELAY_TIME, proc, POWER_OFF_TASK_NAME);
 }

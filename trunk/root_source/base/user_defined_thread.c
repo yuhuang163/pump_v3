@@ -3,6 +3,7 @@
  *****************************************************************************************
  */
 #include "root_common_api.h" // IWYU pragma: keep
+#include "input_key_code.h" // IWYU pragma: keep
 
 /*
  * DEFINES
@@ -113,6 +114,31 @@ static int pumping_test_cb(void)
     return 1000*30;
 }
 
+///模拟用户操作按键切换
+static int bottom_key_switch_test_cb(void)
+{   
+    static uint8_t key_code = KEY_CODE_START;
+    key_input_context_t *key_input = (key_input_context_t *)find_module(ID_MODULE_KEY_INPUT);
+    EXCEPTION_CHECK_INT(key_input);
+    /// 启动按键模拟
+    key_input->dispatch_client_input_key(key_code, KEY_EVENT_CLICK);
+    if (key_code == KEY_CODE_START) {
+        key_code = KEY_CODE_MODE;
+    } else if (key_code == KEY_CODE_MODE) {
+        key_code = KEY_CODE_FREQUENCY;
+    } else if (key_code == KEY_CODE_FREQUENCY) {
+        key_code = KEY_CODE_BREASTFEEDING;
+    } else if (key_code == KEY_CODE_BREASTFEEDING) {
+        key_code = KEY_CODE_LEFT_CONTROL;
+    } else if (key_code == KEY_CODE_LEFT_CONTROL) {
+        key_code = KEY_CODE_RIGHT_CONTROL;
+    } else if (key_code == KEY_CODE_RIGHT_CONTROL) {
+        key_code = KEY_CODE_START;
+    }
+    LOG_PBUS("===> bottom key switch test!!!!! key_code: %d", key_code);
+    return 15000;
+}
+
 static void sys_dump_wdg_test_cb(void)
 {
     window_manager_context_t *wm = NULL;
@@ -155,7 +181,7 @@ static int popup_window_test_cb(void)
     multi_func_msg_data_t msg = {0};
     msg.union_body.extra.window_id = ID_WINDOW_POPUP_WINDOW;
     msg.union_body.extra.is_bg_dispatch = 0x01;
-    msg.union_body.extra.arg1 = ID_POPUP_WINDOW_LOW_POWER;
+    msg.union_body.extra.arg1 = ID_POPUP_UI_LOW_POWER;
     msg.union_body.extra.popup_exit_time = 8000;
     wm->dispatch_new_window_args(wm, &msg);
     LOG_PBUS("===> popup window test!!!!!");
@@ -174,7 +200,8 @@ static void hdr_run_pressure_test_cb(hdr_post_args_t *args)
     // motor_debug_policy_test_cb();
     // POST_TASK_HANDLER_DELAYED_ARG0(hdr_run_pressure_test_cb, motor_debug_test_cb(), "pressure_test:continue");
     // POST_TASK_HANDLER_DELAYED_ARG0(hdr_run_pressure_test_cb, 1000, "pressure_test:continue");
-    POST_TASK_HANDLER_DELAYED_ARG0(hdr_run_pressure_test_cb, pumping_test_cb(), "pressure_test:continue");
+    //POST_TASK_HANDLER_DELAYED_ARG0(hdr_run_pressure_test_cb, pumping_test_cb(), "pressure_test:continue");
+    POST_TASK_HANDLER_DELAYED_ARG0(hdr_run_pressure_test_cb, bottom_key_switch_test_cb(), "pressure_test:continue");
 }
 #endif
 

@@ -46,7 +46,7 @@ typedef struct {
     battery_manager_context_t *battery;
     uint32_t margic; /// 窗口标识.
     uint32_t last_progress_ani_time; /// 上次进度动画时间.
-    popup_window_id_e popup_window_id; /// 弹出框窗口ID.
+    uint16_t popup_window_id; /// 弹出框窗口ID.
     uint16_t current_ui_type; /// 当前UI类型. popup_ui_type_e
 } ui_proc_popup_t;
 

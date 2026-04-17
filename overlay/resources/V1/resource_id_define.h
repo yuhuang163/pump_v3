@@ -72,13 +72,13 @@ typedef enum {
     RESOURCE_ID_HOME_PP_ICON,               /// 首页-PP图标
     RESOURCE_ID_HOME_STIMULATE_ICON,        /// 首页-刺激图标
 
-    RESOURCE_ID_PUMP_FINISH_ICON,           /// 泵奶完成图标
+    RESOURCE_ID_PUMP_FINISH_IP,           /// 泵奶完成图标
     RESOURCE_ID_START_LOGO_ICON,            /// 启动LOGO
     RESOURCE_ID_TRAVEL_LOCK,                /// 旅行锁图标
     RESOURCE_ID_TRAVEL_UNLOCK_TIP,          /// 旅行锁解锁提示
     RESOURCE_ID_AIR_LEAKAGE_ICON,           /// 泵奶-空气泄漏图标
     RESOURCE_ID_COMMON_BG,               /// 泵奶首页背景
-    RESOURCE_ID_CHARGE_ADAPTER_IMG,        /// 充电-适配器图标
+    RESOURCE_ID_CHARGE_ADAPTER_IP,        /// 充电-适配器图标
     
     RESOURCE_ID_CHARGE_ANIMATION_START = 401, /// 充电动画-开始
     RESOURCE_ID_CHARGE_ANIMATION_END = 550,   /// 充电动画-结束

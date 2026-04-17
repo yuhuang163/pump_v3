@@ -140,6 +140,9 @@ void app_old_comm_handle_request_cmd(app_old_comm_cmd_id_e cid, uint8_t cal, uin
         case APP_OLD_COMM_CID_SET_BILATERAL_PUMP_PARAM:
             app_old_comm_handle_set_bilateral_pump_param_req(cal, cab);
             break;
+        case APP_OLD_COMM_CID_GET_ABNORMAL_INFOR:
+            app_old_comm_handle_dev_abnormal_app_req(cal, cab);
+            break;
         default:
             LOG_SRV(" Unknown request command 0x%02X", cid);
             break;

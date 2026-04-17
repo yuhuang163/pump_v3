@@ -2,7 +2,6 @@
 * INCLUDE FILES
 *****************************************************************************************
 */
-#include "handler_post.h"
 #include "input_key_code.h" // IWYU pragma: keep
 #include "root_common_api.h" // IWYU pragma: keep
 #include "windows_manager.h" 
@@ -17,11 +16,13 @@
 #define PAGE_NAME_STR                               "home"
 #define HOME_UI_KEY_CODE                            ALL_KEY_CODE_NO_COMBINE
 #define HOME_UI_KEY_TYPE                            KEY_EVENT_CLICK
-#define HOME_IDLE_UI_START_TASK_NAME                "home_idle_ui_start_task"
+#define HOME_PM_STATE_CHANGE_UI_TASK_NAME           "home_pm_state_change_ui_task"
+#define HOME_START_KEY_EVENT_TASK_NAME              "home_start_key_event_task"
 #define REMOVE_ALL_HANDER_TASK() \
 do { \
     LOG_WM("==>REMOVE_ALL_HANDER_TASK"); \
-    REMOVE_TASK_HANDLER_DIRECTLY(HOME_IDLE_UI_START_TASK_NAME); \
+    REMOVE_TASK_HANDLER_DIRECTLY(HOME_PM_STATE_CHANGE_UI_TASK_NAME); \
+    REMOVE_TASK_HANDLER_DIRECTLY(HOME_START_KEY_EVENT_TASK_NAME); \
 } while (0)
 
 /*
@@ -39,7 +40,7 @@ INIT_WINDOW_CONTEXT();
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-static void home_ui_switch_cb(hdr_post_args_t *args)
+static void home_pm_state_change_ui_cb(hdr_post_args_t *args)
 {
     ui_proc_home_t *proc = args->user_data;
     EXCEPTION_CHECK_VOID(proc);
@@ -53,6 +54,73 @@ static void home_ui_switch_cb(hdr_post_args_t *args)
     }
 }
 
+static void home_start_key_event_ui_cb(hdr_post_args_t *args)
+{
+    ui_proc_home_t *proc = args->user_data;
+    EXCEPTION_CHECK_VOID(proc);
+    WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_HOME);
+    if (proc->current_ui_type == HOME_UI_TYPE_NORMAL_MODE_SELECT) {
+        WRITE_PUMP_WORK_MODE(proc->pump, proc->ui_normal_mode_index, true, 1);
+    } else if (proc->current_ui_type == HOME_UI_TYPE_BF_MODE_SELECT) {
+        WRITE_PUMP_WORK_MODE(proc->pump, proc->ui_bf_mode_index, true, 1);
+    } 
+    if (proc->wm) {
+        multi_func_msg_data_t msg = {0};
+        LOG_WM("goto pump window.");
+        msg.union_body.extra.window_id = ID_WINDOW_PUMP;
+        msg.union_body.extra.arg1 = KEY_CODE_START;
+        proc->wm->dispatch_new_window_args(proc->wm, &msg);
+    }
+}
+
+static void home_knob_left_event_cb(ui_proc_home_t *proc)
+{
+    // LOG_WM("home knob left event cb: %d", proc->current_ui_type);
+    if (proc->current_ui_type == HOME_UI_TYPE_BIND_QRCODE) {
+        start_home_ui_animation(proc);
+    } else if (proc->current_ui_type == HOME_UI_TYPE_NORMAL_MODE_SELECT) {
+        switch_home_pump_normal_mode(proc, false);
+    } else if (proc->current_ui_type == HOME_UI_TYPE_BF_MODE_SELECT) {
+        switch_home_pump_bf_mode(proc, false);
+    } else if (proc->current_ui_type == HOME_UI_TYPE_LEVEL_ADJUST) {
+        switch_home_pump_level(proc, false);
+    } else if (proc->current_ui_type == HOME_UI_TYPE_SPEED_ADJUST) {
+        switch_home_pump_speed(proc, false);
+    }
+}
+
+static void home_knob_right_event_cb(ui_proc_home_t *proc)
+{
+    // LOG_WM("home knob right event cb: %d", proc->current_ui_type);
+    if (proc->current_ui_type == HOME_UI_TYPE_HOME) {
+        start_home_bind_ui_animation(proc);
+    } else if (proc->current_ui_type == HOME_UI_TYPE_NORMAL_MODE_SELECT) {
+        switch_home_pump_normal_mode(proc, true);
+    } else if (proc->current_ui_type == HOME_UI_TYPE_BF_MODE_SELECT) {
+        switch_home_pump_bf_mode(proc, true);
+    } else if (proc->current_ui_type == HOME_UI_TYPE_LEVEL_ADJUST) {
+        switch_home_pump_level(proc, true);
+    } else if (proc->current_ui_type == HOME_UI_TYPE_SPEED_ADJUST) {
+        switch_home_pump_speed(proc, true);
+    }
+}
+
+static void home_power_key_event_cb(ui_proc_home_t *proc)
+{
+    if (proc->current_ui_type == HOME_UI_TYPE_NORMAL_MODE_SELECT || 
+        proc->current_ui_type == HOME_UI_TYPE_BF_MODE_SELECT) {
+        POST_TASK_HANDLER_NO_DELAY(home_start_key_event_ui_cb, proc, HOME_START_KEY_EVENT_TASK_NAME);
+    } else if (proc->current_ui_type == HOME_UI_TYPE_HOME) {
+#if IS_SUPPORT_NIGHT_LIGHT
+        if (proc->led && proc->led->hook && proc->led->hook->toggle_night_light) {
+            proc->led->hook->toggle_night_light(proc->led);
+        }
+#endif
+    } else {
+        LOG_WM("ignore key event.");
+    }
+}
+
 static int on_home_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t keytype)
 {
     ui_proc_home_t *proc = user_data;
@@ -63,38 +131,35 @@ static int on_home_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
         return 0;
     }
 
-    if (keycode == KEY_CODE_KNOB_RIGHT) {
-        POST_TASK_HANDLER_NO_DELAY_ARG1(home_ui_switch_cb, proc, HOME_UI_TYPE_BIND_QRCODE,
-            HOME_IDLE_UI_START_TASK_NAME);
-        return 0;
-    }
-
-    if (proc->current_ui_type == HOME_UI_TYPE_BIND_QRCODE) {
-        LOG_WM("bind qrcode, ignore key event.");
-        return 0;
-    }
-
     switch (keycode) {
-#if IS_SUPPORT_NIGHT_LIGHT
         case KEY_CODE_POWER:
-            if (proc->led && proc->led->hook && proc->led->hook->toggle_night_light) {
-                proc->led->hook->toggle_night_light(proc->led);
-            }
+            home_power_key_event_cb(proc);
+        break;
+        case KEY_CODE_KNOB_LEFT:
+            home_knob_left_event_cb(proc);
             break;
-#endif
+        case KEY_CODE_KNOB_RIGHT:
+            home_knob_right_event_cb(proc);
+            break;
         case KEY_CODE_MODE:
+            home_pump_normal_mode_key_click_handler(proc);
+            break;
         case KEY_CODE_BREASTFEEDING:
+            home_pump_bf_mode_key_click_handler(proc);
+            break;
+        case KEY_CODE_RIGHT_CONTROL:
+            switch_home_pump_level_control_type(proc, BREAST_PUMP_CONTROL_TYPE_RIGHT);
+            break;
+        case KEY_CODE_LEFT_CONTROL:
+            switch_home_pump_level_control_type(proc, BREAST_PUMP_CONTROL_TYPE_LEFT);
+            break;
+        case KEY_CODE_FREQUENCY:
+            home_pump_speed_key_click_handler(proc);
+            break;
         case KEY_CODE_START:
-            if (proc->wm) {
-                multi_func_msg_data_t msg = {0};
-                LOG_WM("goto pump window.");
-                msg.union_body.extra.window_id = ID_WINDOW_PUMP;
-                msg.union_body.extra.arg1 = keycode;
-                proc->wm->dispatch_new_window_args(proc->wm, &msg);
-            }
+            POST_TASK_HANDLER_NO_DELAY(home_start_key_event_ui_cb, proc, HOME_START_KEY_EVENT_TASK_NAME);
             break;
         default:
-            home_popup_ui_type_update(proc, HOME_POPUP_UI_OPERATION_FAILED);
             break;
     }
     return 0;
@@ -110,11 +175,11 @@ static void on_home_ui_broadcast_receive_cb(broadcast_mask_id_t id, void *contex
         case ID_BROADCAST_PM_STATE_CHANGE: 
             LOG_WM("PM_STATE_CHANGE: %d", arg1);
             if (arg1 == PM_BROADCAST_SYS_IDLE) {
-                POST_TASK_HANDLER_NO_DELAY_ARG1(home_ui_switch_cb, proc, HOME_UI_TYPE_HOME_IDLE,
-                    HOME_IDLE_UI_START_TASK_NAME);
+                POST_TASK_HANDLER_NO_DELAY_ARG1(home_pm_state_change_ui_cb, proc, HOME_UI_TYPE_HOME_IDLE,
+                    HOME_PM_STATE_CHANGE_UI_TASK_NAME);
             } else if (arg1 == PM_BROADCAST_SYS_IDLE_RELEASE) {
-                POST_TASK_HANDLER_DELAYED_ARG2(home_ui_switch_cb, 100, HOME_UI_TYPE_HOME,
-                    proc, HOME_IDLE_UI_START_TASK_NAME);
+                POST_TASK_HANDLER_DELAYED_ARG2(home_pm_state_change_ui_cb, 100, HOME_UI_TYPE_HOME,
+                    proc, HOME_PM_STATE_CHANGE_UI_TASK_NAME);
             } 
             break;
         default:
@@ -138,7 +203,7 @@ static int entry_event_cb(window_lift_cycle_e new_state,
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);
         if (proc->led && proc->led->hook && proc->led->hook->set_key_backlight) {
-            proc->led->hook->set_key_backlight(proc->led, 100);
+            proc->led->hook->set_key_backlight(proc->led, LED_LEVEL_MAX);
         }
         start_home_ui_animation(proc);
     }
@@ -153,20 +218,20 @@ static int exit_event_cb(window_lift_cycle_e new_state,
         case ID_SCR_STATE_ON_PAUSE:
             LOG_WM("==>%s window on pause", PAGE_NAME_STR);
             stop_home_common_ui(proc);
-            REMOVE_ALL_HANDER_TASK();
-            if (proc->key) {
-                proc->key->remove_keyevent_handler(on_home_ui_keyevent_hdr);
-            }
             break;
         case ID_SCR_STATE_ON_DESTORY:
             LOG_WM("%s window exit: u_free: %p", PAGE_NAME_STR, proc);
+            REMOVE_ALL_HANDER_TASK();
             unregister_broadcast_receiver(&proc->receiver);
-            proc->receiver.context = NULL;
-            proc->receiver.receiver_cb = NULL;
+            if (proc->key) {
+                proc->key->remove_keyevent_handler(on_home_ui_keyevent_hdr);
+            } else {
+                LOG_WM("key not present, ignore.");
+            }
+            SET_WINDOW_CONTEXT(NULL);
             proc->margic = UI_WINDOW_MARGIC_CODE_INVALID;
             u_free(proc);
             proc = NULL;
-            SET_WINDOW_CONTEXT(NULL);
             LOG_WM("%s window exit--end", PAGE_NAME_STR);
             break;
         default:

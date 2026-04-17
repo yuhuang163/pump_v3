@@ -48,7 +48,7 @@ static uint16_t s_log_count = 0;
 * GLOBAL VARIABLE DEFINITIONS
 *****************************************************************************************
 */
-static int wf100d_write_nbyte(uint8_t index, i2c_master_data_t *data)
+static int wf100d_write_nbyte(uint8_t index, uint8_t reg_addr, uint8_t *data, uint16_t len)
 {
     int ret = 0;
 
@@ -64,8 +64,16 @@ static int wf100d_write_nbyte(uint8_t index, i2c_master_data_t *data)
         return BSP_NOT_READY;
     }
 
+    i2c_master_data_t i2c_data = {
+        .dev_address = W100DP_I2C_ADDR,
+        .reg_addr = &reg_addr,
+        .reg_addr_len = 1,
+        .data = data,
+        .len = len,
+    };
+
     for (uint8_t i = 0; i < 3; i++) {
-        ret = bsp_i2c_write_byte(index == 0 ? AIR_PRESSURE_I2C_ID1 : AIR_PRESSURE_I2C_ID2, data);
+        ret = bsp_i2c_write_byte(index == 0 ? AIR_PRESSURE_I2C_ID1 : AIR_PRESSURE_I2C_ID2, &i2c_data);
         if (ret == BSP_OK) {
             s_dev_abnormal_count[index] = 0;
             return BSP_OK;
@@ -83,7 +91,7 @@ static int wf100d_write_nbyte(uint8_t index, i2c_master_data_t *data)
     return BSP_ERROR;
 }
 
-static int wf100d_read_nbyte(uint8_t index, i2c_master_data_t *data)
+static int wf100d_read_nbyte(uint8_t index, uint8_t reg_addr, uint8_t *data, uint16_t len)
 {
     int ret = 0;
     
@@ -99,8 +107,16 @@ static int wf100d_read_nbyte(uint8_t index, i2c_master_data_t *data)
         return BSP_NOT_READY;
     }
 
+    i2c_master_data_t i2c_data = {
+        .dev_address = W100DP_I2C_ADDR,
+        .reg_addr = &reg_addr,
+        .reg_addr_len = 1,
+        .data = data,
+        .len = len,
+    };
+
     for (uint8_t i = 0; i < 3; i++) {
-        ret = bsp_i2c_read_byte(index == 0 ? AIR_PRESSURE_I2C_ID1 : AIR_PRESSURE_I2C_ID2, data);
+        ret = bsp_i2c_read_byte(index == 0 ? AIR_PRESSURE_I2C_ID1 : AIR_PRESSURE_I2C_ID2, &i2c_data);
         if (ret == BSP_OK) {
             s_dev_abnormal_count[index] = 0;
             return BSP_OK;
@@ -118,7 +134,7 @@ static int wf100d_read_nbyte(uint8_t index, i2c_master_data_t *data)
     return BSP_ERROR;
 }
 
-static int wf100d_read_nbyte_no_retry(uint8_t index, i2c_master_data_t *data)
+static int wf100d_read_nbyte_no_retry(uint8_t index, uint8_t reg_addr, uint8_t *data, uint16_t len)
 {
     int ret = 0;
     if (index >= AIR_PRESSURE_NUM) {
@@ -126,14 +142,15 @@ static int wf100d_read_nbyte_no_retry(uint8_t index, i2c_master_data_t *data)
         return BSP_INVALID_PARAMETER;
     }
     
-    if (s_dev_is_ready[index] == 0) {
-        if (s_log_count % WF100D_LOG_COUNT_INTERVAL == 0) {
-            LOGE("air pressure is not ready: %d", index);
-        }
-        return BSP_NOT_READY;
-    }
+    i2c_master_data_t i2c_data = {
+        .dev_address = W100DP_I2C_ADDR,
+        .reg_addr = &reg_addr,
+        .reg_addr_len = 1,
+        .data = data,
+        .len = len,
+    };
 
-    ret = bsp_i2c_read_byte(index == 0 ? AIR_PRESSURE_I2C_ID1 : AIR_PRESSURE_I2C_ID2, data);
+    ret = bsp_i2c_read_byte(index == 0 ? AIR_PRESSURE_I2C_ID1 : AIR_PRESSURE_I2C_ID2, &i2c_data);
     if (ret == BSP_OK) {
         s_dev_abnormal_count[index] = 0;
         return BSP_OK;
@@ -152,28 +169,14 @@ static int wf100d_read_nbyte_no_retry(uint8_t index, i2c_master_data_t *data)
 static int air_pressure_start_conversion(uint8_t index)
 {
     uint8_t reg_val = WF100D_SINGLE_CONVERSION;
-    i2c_master_data_t air_pressure = {
-        .dev_address = W100DP_I2C_ADDR,
-        .data = &reg_val,
-        .len  = 1,
-        .reg_addr = WF100D_CONVERSION_MODE_REG
-    };
-
-    return wf100d_write_nbyte(index, &air_pressure); 
+    return wf100d_write_nbyte(index, WF100D_CONVERSION_MODE_REG, &reg_val, 1); 
 }
 
 static int wait_air_pressure_conversion_completed(uint8_t index)
 {
     uint8_t reg_val = 0,  wait_timeout = 10;
-    i2c_master_data_t air_pressure = {
-        .dev_address = W100DP_I2C_ADDR,
-        .data = &reg_val,
-        .len  = 1,
-        .reg_addr = WF100D_STATUS_REG
-    };
-
     while(wait_timeout --) {
-        if (wf100d_read_nbyte_no_retry(index, &air_pressure) != BSP_OK) {
+        if (wf100d_read_nbyte_no_retry(index, WF100D_STATUS_REG, &reg_val, 1) != BSP_OK) {
             return BSP_ERROR;
         }
 
@@ -189,14 +192,7 @@ static int air_pressure_result_get(uint8_t index, air_pressue_status_t *out_stat
 {
     uint8_t reg_data[5];
     int32_t raw_data = 0;
-    i2c_master_data_t air_pressure = {
-        .dev_address = W100DP_I2C_ADDR,
-        .data = reg_data,
-        .len  = 5,
-        .reg_addr = WF100D_PRESSURE_MSB_REG
-    };
-
-    int ret = wf100d_read_nbyte(index, &air_pressure);
+    int ret = wf100d_read_nbyte(index, WF100D_PRESSURE_MSB_REG, reg_data, 5);
     if (ret != BSP_OK) {
         return ret;
     }
@@ -211,15 +207,8 @@ static int air_pressure_is_ready(uint8_t index)
 {
     uint8_t reg_val = 0;
     int ret = BSP_NOT_READY;
-    i2c_master_data_t air_pressure = {
-        .dev_address = W100DP_I2C_ADDR,
-        .data = &reg_val,
-        .len  = 1,
-        .reg_addr = WF100D_STATUS_REG
-    };
-
     for (uint8_t i = 0; i < 3; i++) {
-        ret = bsp_i2c_read_byte(index == 0 ? AIR_PRESSURE_I2C_ID1 : AIR_PRESSURE_I2C_ID2, &air_pressure);
+        ret = wf100d_read_nbyte_no_retry(index, WF100D_STATUS_REG, &reg_val, 1);
         if (ret == BSP_OK) {
             break;
         }

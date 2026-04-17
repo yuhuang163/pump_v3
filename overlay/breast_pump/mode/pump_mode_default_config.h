@@ -127,7 +127,7 @@ static const motor_policy_cfg_t mix_default2[MIX2_MODE_LEN] = {
        },
 };
 
-/// 个性化默认
+/// 8 个性化默认
 static const motor_policy_cfg_t custom_default[CUSTOM_MODE_LEN] = {
     {MOTOR_TIME_POLICY, CUSTOM_MODE_DEFAULT_MASSAGE_TIME, {
         MOTOR_PARAM_TABLE, {SUCTION_SPEED_MID, BREAST_PUMP_LEVEL_1, SUCTION_MODE_SHORT},
@@ -139,7 +139,7 @@ static const motor_policy_cfg_t custom_default[CUSTOM_MODE_LEN] = {
         },
 };
 
-/// 个性化试用模式
+/// 9 个性化试用模式
 static const motor_policy_cfg_t custom_trial_default[CUSTOM_TRIAL_MODE_LEN] = {
     {MOTOR_TIME_POLICY, CUSTOM_MODE_DEFAULT_MASSAGE_TIME, {
         MOTOR_PARAM_TABLE, {SUCTION_SPEED_MID, BREAST_PUMP_LEVEL_1, SUCTION_MODE_SHORT},
@@ -151,7 +151,7 @@ static const motor_policy_cfg_t custom_trial_default[CUSTOM_TRIAL_MODE_LEN] = {
         },
 };
 
-/// Power Pumping 密集追奶：轻柔频繁激活神经，触发多次喷乳反射
+/// 5 Power Pumping 密集追奶：轻柔频繁激活神经，触发多次喷乳反射
 /// 60 min：刺激 3min（高频）+吸乳12min（中频）+ 刺激5min（高频） + 10min休息（0档）+ 刺激3min（高频）+吸乳7min（中频） +10min休息（0档）+刺激3min（高频）+吸乳7min
 static const motor_policy_cfg_t pp_milk_track_default[PP_MODE_LEN] = {
     {MOTOR_TIME_POLICY, POWER_PUMPING_MODE_MASSAGE_TIME_3MIN, {
@@ -192,7 +192,7 @@ static const motor_policy_cfg_t pp_milk_track_default[PP_MODE_LEN] = {
         },
 };
 
-/// Milk Boost 增加泌乳：丝滑渐进式的吸力分布，解决乳汁分泌不足问题
+/// 4 Milk Boost 增加泌乳：丝滑渐进式的吸力分布，解决乳汁分泌不足问题
 /// 20 min：刺激 2min + 吸乳 8min+ 刺激 2min + 吸乳 8min
 static const motor_policy_cfg_t milk_boost_default[MILK_BOOST_MODE_LEN] = {
     {MOTOR_TIME_POLICY, MILK_BOOST_MODE_DEFAULT_MASSAGE_TIME, {
@@ -213,7 +213,7 @@ static const motor_policy_cfg_t milk_boost_default[MILK_BOOST_MODE_LEN] = {
         },
 };
 
-/// Lactation Kickstart 启动泌乳：启动、建立和维持充足的乳汁分泌
+/// 6 Lactation Kickstart 启动泌乳：启动、建立和维持充足的乳汁分泌
 /// 15 min：刺激 3min（高频）+ 刺激2min（低频）+吸乳1min（中频） +混合10s（低频）+刺激1min（低频）+刺激2min（高频） +混合10s（低频）+刺激2min（高频）+刺激1min（低频） +吸乳1min（中频）+混合10s（低频）+刺激1min30s
 static const motor_policy_cfg_t lactation_start_default[LACTATION_START_MODE_LEN] = {
     {MOTOR_TIME_POLICY, LACTATION_START_MODE_MASSAGE_TIME_3MIN, {
@@ -278,7 +278,7 @@ static const motor_policy_cfg_t lactation_start_default[LACTATION_START_MODE_LEN
         },
 };
 
-/// Regular Pumping 常规韵律（默认）：由高频轻吸变为低频深吸，模仿婴儿自然的吸吮动作
+/// 3 Regular Pumping 常规韵律（默认）：由高频轻吸变为低频深吸，模仿婴儿自然的吸吮动作
 /// 21.5 min：刺激 1.5min + 吸乳 20min
 static const motor_policy_cfg_t regular_pumping_default[REGULAR_PUMPING_MODE_LEN] = {
     {MOTOR_TIME_POLICY, REGULAR_PUMPING_MODE_STIMULATION_TIME, {
@@ -291,7 +291,7 @@ static const motor_policy_cfg_t regular_pumping_default[REGULAR_PUMPING_MODE_LEN
         },
 };
 
-/// Emptying Boost 追加排空：有效将后乳（Hindmilk）排空，更安心投入后续生活
+/// 7 Emptying Boost 追加排空：有效将后乳（Hindmilk）排空，更安心投入后续生活
 /// 22 min：刺激 2min+吸乳 5min+混合 15min；Level 3
 static const motor_policy_cfg_t emptying_boost_default[EMPTYING_BOOST_MODE_LEN] = {
     {MOTOR_TIME_POLICY, EMPTYING_BOOST_MODE_STIMULATION_TIME, {

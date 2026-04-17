@@ -10,9 +10,7 @@ extern "C" {
  ******************************************************************************/
 #include "root_common_api.h" // IWYU pragma: keep
 
-#ifndef CUST_KEY_EVENT_FORCE_RESET
-#define CUST_KEY_EVENT_FORCE_RESET                   KEY_EVENT_LONG_10S
-#endif
+#define SYS_SOFT_RESET_CODE                          KEY_CODE_8
 
 typedef struct {
     const char *tag;

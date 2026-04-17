@@ -37,6 +37,7 @@ void app_old_comm_report_bind_status(uint8_t bind_status, uint8_t left_right);
 void app_old_comm_handle_ctrl_dev_sys_status_req(uint8_t cal, uint8_t *cab);
 void app_old_comm_handle_pump_ble_rgb_set_ctrl_req(uint8_t cal, uint8_t *cab);
 void app_old_comm_handle_dev_abnormal_report(void *cab);
+void app_old_comm_handle_dev_abnormal_app_req(uint8_t cal, uint8_t *cab);
 
 #ifdef __cplusplus
 }

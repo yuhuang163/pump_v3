@@ -179,12 +179,6 @@ static void pm_suspend_check_handler(power_manager_context_t *ctx)
         tmp = tmp > offset ? tmp - offset : 0;
         set_suspend_counter("suspend_timer", tmp, false);
     } else {
-        ota_manager_context_t *ota_ctx = (ota_manager_context_t *)find_module(ID_MODULE_OTA);
-        if (ota_ctx && ota_ctx->is_ota_upgrading()) {
-                set_suspend_counter("ota_is_running", get_suspend_timeout(ctx), true);
-                return;
-            }
-        /// 禁止进入待机状态的钩子.
         if (thiz->hook && thiz->hook->is_prohibit_pm_suspend) {
             if (thiz->hook->is_prohibit_pm_suspend(thiz) == true) {
                 set_suspend_counter("now goto suspend, but not allow, ignore", 
@@ -192,8 +186,7 @@ static void pm_suspend_check_handler(power_manager_context_t *ctx)
                 return;
             }
         }
-        /// 正常进入待机状态.
-        LOG_PM("Now goto suspend!");
+        LOG_PM("Now goto suspend!"); /// 正常进入待机状态.
 #if IS_SUPPORT_POWER_OFF_REMINDER
         set_suspend_counter("power_off_reminder", 0, true);
 #endif
@@ -201,7 +194,7 @@ static void pm_suspend_check_handler(power_manager_context_t *ctx)
             if (ctx->priv.pm_state_change_progress == PM_RESUME_FINISH) {
                 dispatch_pm_event(ctx, ID_SYS_PM_SUSPEND);
             } else {
-                LOG_PM("#ignore:pm_state_change_progress: %s",
+                LOG_PM("#ignore, pm progress: %s",
                     print_wakeup_state((pm_wakeup_state_e)ctx->priv.pm_state_change_progress));
             }
         } else {
@@ -285,6 +278,11 @@ static void on_pm_broadcast_receive(broadcast_mask_id_t id,
                 ctx->enable_pmu_sleep("SYS_POWER_STATE_CHANGE", false);
             } else if (reason == SYSTEM_BROADCAST_BOOT_COMPLETED) {
                 start_suspend_timer(ctx);
+            }
+            return;
+        case ID_BROADCAST_OTA_STATE_CHANGE: 
+            if (reason == OTA_UPGRADE_STATE_START) {
+                set_suspend_counter("ota start", get_suspend_timeout(ctx), true);
             }
             return;
         default:
@@ -401,6 +399,7 @@ static int on_post_pm_init(void *ptr)
     ctx->priv.pm_bcd->name = "power_ctx";
     ctx->priv.pm_bcd->id.code |= ID_BROADCAST_REQ_PM_SUSPEND;
     ctx->priv.pm_bcd->id.code |= ID_BROADCAST_SYS_STATE_CHANGE;
+    ctx->priv.pm_bcd->id.code |= ID_BROADCAST_OTA_STATE_CHANGE;
     ctx->priv.pm_bcd->receiver_cb = on_pm_broadcast_receive;
     register_broadcast_receiver(ctx->priv.pm_bcd);
     /// 注册按键唤醒.

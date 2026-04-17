@@ -23,7 +23,8 @@ typedef enum {
 
 typedef struct {
     uint8_t dev_address;
-    uint8_t reg_addr;
+    uint8_t *reg_addr;
+    uint8_t reg_addr_len;
     uint8_t *data;
     uint16_t len;
 } i2c_master_data_t;
@@ -36,8 +37,6 @@ int bsp_i2c_write_byte(i2c_master_id_e device_id, i2c_master_data_t *data);
 int bsp_i2c_read_byte(i2c_master_id_e device_id, i2c_master_data_t *data);
 int bsp_i2c_init(i2c_master_id_e device_id);
 int bsp_i2c_deinit(i2c_master_id_e device_id);
-int bsp_i2c_read_bytes(i2c_master_id_e device_id, i2c_master_data_t *data, uint16_t reg_addr);
-
 #ifdef __cplusplus
 }
 #endif

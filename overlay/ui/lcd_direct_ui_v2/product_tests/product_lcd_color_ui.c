@@ -16,8 +16,7 @@ typedef struct {
     lv_obj_t *root;
     lv_color_t s_color;
     uint8_t force_update;
-    uint8_t popup_ui_index;
-    uint8_t rsv[14];
+    uint8_t rsv[15];
 } product_lcd_color_display_info_t;
 
 /*
@@ -82,14 +81,12 @@ void ui_display_lcd_color_test_prepare(ui_manager_context_t *thiz)
     thiz->priv.fps_start_time = get_timestamp();
     lcd_color_test_ui_init();
     product_info->force_update = true;
-    product_info->popup_ui_index = PRODUCT_TEST_POPUP_UI_NONE;
 }
 
 void ui_display_lcd_color_test_remove(ui_manager_context_t *thiz)
 {
     EXCEPTION_CHECK_VOID(thiz);
     EXCEPTION_CHECK_VOID(product_info);
-    product_tip_popup_ui_remove(thiz);
     LVGL_OBJ_DELETE(product_info->root);
     product_info->root = NULL;
     u_free(product_info);
@@ -99,12 +96,11 @@ void ui_display_lcd_color_test_remove(ui_manager_context_t *thiz)
 int ui_display_lcd_color_test_process(ui_manager_context_t *thiz)
 {
     EXCEPTION_CHECK_INT(thiz);
+    ui_proc_product_test_t *proc = (ui_proc_product_test_t *)thiz->priv.play_info.user_data;
+    EXCEPTION_CHECK_INT(proc);
     thiz->priv.fps_count++;
     product_info->force_update = true;
     lcd_color_test_update(thiz);
-    ui_proc_product_test_t *proc = (ui_proc_product_test_t *)thiz->priv.play_info.user_data;
-    EXCEPTION_CHECK_INT(proc);
-    product_tip_popup_ui_update(thiz, proc, product_info->root, &product_info->popup_ui_index);
     if (get_timestamp() - thiz->priv.fps_start_time >= 1000) {
         thiz->priv.fps_start_time = get_timestamp();
         LOG_UI("===> lcd_color fps: %d", thiz->priv.fps_count);

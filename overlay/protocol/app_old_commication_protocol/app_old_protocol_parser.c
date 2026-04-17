@@ -96,6 +96,7 @@ const char* app_old_comm_get_cmd_id_str(app_old_comm_cmd_id_e cid)
         case APP_OLD_COMM_CID_SET_ENCRYPTIONKEY: return "SET_ENCRYPTIONKEY";
         case APP_OLD_COMM_CID_SYS_CTRL: return "SYS_CTRL";
         case APP_OLD_COMM_CID_GET_ENCRYPT: return "GET_ENCRYPT";
+        case APP_OLD_COMM_CID_GET_ABNORMAL_INFOR: return "GET_ABNORMAL_INFOR";
         default: return "UNKNOWN";
     }
 }

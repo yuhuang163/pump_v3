@@ -99,7 +99,6 @@ static int product_test_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint1
             lcd_color_test_keyevent_cb(proc, keycode, keytype);
             break;
         default:
-            product_common_popup_ui_type_update(proc, PRODUCT_TEST_POPUP_UI_OPERATION_FAILED);
             break;
     }
     LOG_WM("current_ui_type: %d, tests_mode: %d", proc->current_ui_type, proc->tests_mode);
@@ -179,6 +178,9 @@ static int exit_event_cb(window_lift_cycle_e new_state,
         case ID_SCR_STATE_ON_PAUSE: 
             LOG_WM("==>%s window on pause", PAGE_NAME_STR);
             stop_product_test_ui(proc);
+            break;
+        case ID_SCR_STATE_ON_DESTORY:
+            LOG_WM("==>%s window on destory", PAGE_NAME_STR);
             REMOVE_ALL_HANDER_TASK();
             unregister_broadcast_receiver(&proc->receiver);
             if (proc->tests) {
@@ -191,9 +193,6 @@ static int exit_event_cb(window_lift_cycle_e new_state,
             } else {
                 LOG_WM("key not present, ignore.");
             }
-            break;
-        case ID_SCR_STATE_ON_DESTORY:
-            LOG_WM("==>%s window on destory", PAGE_NAME_STR);
             SET_WINDOW_CONTEXT(NULL);
             proc->margic = UI_WINDOW_MARGIC_CODE_INVALID;
             u_free(proc);

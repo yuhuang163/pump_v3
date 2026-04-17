@@ -143,14 +143,11 @@ typedef struct breast_pump_info_t {
     uint8_t do_work;       /// 是否正在工作
     uint8_t mode;          /// 吸奶器模式
     uint8_t step_index;    /// 吸奶器档位索引
-    uint8_t step_remaining_time;    /// 吸奶器当前步长剩余时间
-    uint8_t control_type;  /// 吸奶器控制类型
-    uint8_t breastfeeding_mode;      /// 追奶模式
-    uint8_t last_breastfeeding_mode;      /// 上次追奶模式
+    uint8_t step_remaining_time;   /// 吸奶器当前步长剩余时间
+    uint8_t control_type;          /// 吸奶器控制类型
+    uint8_t breastfeeding_mode;    /// 追奶模式
     uint8_t common_mode;           /// 常规模式
     uint8_t auto_pause_onoff;      /// 自动暂停开关
-    uint32_t auto_pause_time;      /// 自动暂停时间(单位：秒)
-    uint8_t last_common_mode;      /// 上次常规模式
     uint8_t custom_activate;       /// 个性化韵律激活
     uint8_t is_start_from_app;     /// 当前是否由APP启动pump控制
 } breast_pump_info_t;

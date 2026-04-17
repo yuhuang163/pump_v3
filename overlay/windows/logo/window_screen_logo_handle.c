@@ -16,6 +16,12 @@
 #define PAGE_NAME_STR                               "logo"
 #define LOGO_UI_KEY_CODE                            (KEY_CODE_KNOB_RIGHT | KEY_CODE_KNOB_LEFT)
 #define LOGO_UI_KEY_TYPE                            KEY_EVENT_CLICK
+#define TOUCH_KEY_FW_VERSION_CHECK_TASK_NAME       "touch_key_fw_version_check"
+#define REMOVE_ALL_HANDER_TASK() \
+do { \
+    LOG_WM("==>REMOVE_ALL_HANDER_TASK"); \
+    REMOVE_TASK_HANDLER_DIRECTLY(TOUCH_KEY_FW_VERSION_CHECK_TASK_NAME); \
+} while (0)
 
 /*
 * LOCAL VARIABLE DEFINITIONS
@@ -32,6 +38,18 @@ INIT_WINDOW_CONTEXT();
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
+
+static void touch_key_fw_version_check_cb(hdr_post_args_t *args)
+{
+    ui_proc_logo_t *proc = args->user_data;
+    EXCEPTION_CHECK_VOID(proc);
+    WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_LOGO);
+    peripheral_bus_context_t *pbus = (peripheral_bus_context_t *)find_module(ID_MODULE_DEVICE_BUS);
+    rt_device_node_t *key_dev = pbus->find_device(ID_DEVICE_INPUT_KEY);
+    DEVICE_IOCTL_ARGS(key_dev , OP_CODE_INPUT_KEY_FW_VERSION_CHECK, NULL);
+    LOG_WM("touch key fw version check");
+}
+
 #if IS_SUPPORT_LOGO_BG_COLOR_TEST
 static int on_logo_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t keytype)
 {
@@ -58,11 +76,15 @@ static int entry_event_cb(window_lift_cycle_e new_state,
         if (proc->key) {
             proc->key->add_keyevent_handler("home_wm", proc, LOGO_UI_KEY_CODE, LOGO_UI_KEY_TYPE,
                 on_logo_ui_keyevent_hdr, KEY_HANDLER_SHIELD_LEVEL_1);
+        } else {
+            LOG_WM("key not present, ignore.");
         }
 #endif
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);
         start_logo_ui_animation(proc);
+        POST_TASK_HANDLER_DELAYED_ARG1(touch_key_fw_version_check_cb, 500, 
+            proc, TOUCH_KEY_FW_VERSION_CHECK_TASK_NAME);
     }
     return 0;
 }
@@ -75,17 +97,21 @@ static int exit_event_cb(window_lift_cycle_e new_state,
         case ID_SCR_STATE_ON_PAUSE:
             LOG_WM("==>%s window on pause", PAGE_NAME_STR);
             stop_logo_ui_animation(proc);
-#if IS_SUPPORT_LOGO_BG_COLOR_TEST
-            if (proc->key) {
-                proc->key->remove_keyevent_handler(on_logo_ui_keyevent_hdr);
-            }
-#endif
             break;
         case ID_SCR_STATE_ON_DESTORY:
             LOG_WM("%s window exit: u_free: %p", PAGE_NAME_STR, proc);
+            REMOVE_ALL_HANDER_TASK();
+#if IS_SUPPORT_LOGO_BG_COLOR_TEST
+            if (proc->key) {
+                proc->key->remove_keyevent_handler(on_logo_ui_keyevent_hdr);
+            } else {
+                LOG_WM("key not present, ignore.");
+            }
+#endif
+            SET_WINDOW_CONTEXT(NULL);
+            proc->margic = UI_WINDOW_MARGIC_CODE_INVALID;
             u_free(proc);
             proc = NULL;
-            SET_WINDOW_CONTEXT(NULL);
             LOG_WM("%s window exit--end", PAGE_NAME_STR);
             break;
         default:
@@ -121,6 +147,7 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
     w_ctx->not_push_history = 1;
     w_ctx->is_popup_window = 0;
     wm->dispatch_new_window(w_ctx);
+
     return ID_WINDOW_DISPLAY_OK;
 }
 

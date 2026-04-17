@@ -280,7 +280,7 @@ static int on_pm_suspend_route(struct power_manager_context *ctx, int state)
     multi_func_msg_data_t msg = {0};
     msg.union_body.extra.window_id = ID_WINDOW_POPUP_WINDOW;
     msg.union_body.extra.is_bg_dispatch = 0x01;
-    msg.union_body.extra.arg1 = ID_POPUP_WINDOW_WILL_POWER_OFF;
+    msg.union_body.extra.arg1 = ID_POPUP_UI_WILL_POWER_OFF;
     msg.union_body.extra.popup_exit_time = 3000;
     msg.union_body.extra.user_data = ctx;
     msg.union_body.extra.forbid_short_press_exit_popup = true;

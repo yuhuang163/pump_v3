@@ -2,11 +2,9 @@
 * INCLUDE FILES
 *****************************************************************************************
 */
-#include "root_common_api.h" // IWYU pragma: keep
 #include "ui_img_define.h"   // IWYU pragma: keep
 #include "ui_page_define.h" // IWYU pragma: keep
 #include "ui_manager.h"   // IWYU pragma: keep
-#include "airplane_mode_ui.h" // IWYU pragma: keep
 #include "window_screen_airplane_mode.h" // IWYU pragma: keep
 /*
 * DEFINES
@@ -58,13 +56,14 @@ static PSRAM_DATA_LOC uint8_t complete_tip_bg_data[] = {
 static airplane_mode_display_info_t *airplane_mode_info;
 
 const static airplane_mode_text_info_t airplane_mode_text_infos[AIRPLANE_MODE_TEXT_COUNT] = {
-    { "Device  locked", (116), (118 - 2), &lv_font_oppo_sans_20_medium},
-    { "Press and hold Start/Pause  +  Mode\nfor 5 seconds to unlock.", (48), (146 + 4), &lv_font_oppo_sans_16_medium},
+    { "Device  locked", 0, (118 - 2), &lv_font_oppo_sans_20_medium},
+    { "Press and hold for 5 seconds to\nunlock.", 0, (146 + 4), &lv_font_oppo_sans_16_medium},
 };
 
 const static airplane_mode_icon_info_t airplane_mode_icon_infos[AIRPLANE_MODE_ICON_COUNT] = {
     { "unlock_button_icon", RESOURCE_ID_AIRPLANE_UNLOCK_BUTTON_ICON, (106), (188 + 16)},
 };
+
 /*
 * GLOBAL VARIABLE DEFINITIONS
 *****************************************************************************************
@@ -158,36 +157,8 @@ static void airplane_mode_texts_update(ui_manager_context_t *thiz, uint8_t index
         lv_obj_set_style_text_line_space(airplane_mode_info->texts[index], 4, 0);  /// 设置行间距（像素）
     }
     lv_obj_set_style_text_align(airplane_mode_info->texts[index], LV_TEXT_ALIGN_CENTER, 0);  /// 设置文本居中对齐
-    lv_obj_align(airplane_mode_info->texts[index], LV_ALIGN_TOP_LEFT,
-        airplane_mode_text_infos[index].text_x, airplane_mode_text_infos[index].text_y);
+    lv_obj_align(airplane_mode_info->texts[index], LV_ALIGN_TOP_MID, 0, airplane_mode_text_infos[index].text_y);
 }
-
-static void airplane_mode_popup_ui_remove(ui_manager_context_t *thiz)
-{
-    EXCEPTION_CHECK_VOID(thiz);
-    EXCEPTION_CHECK_VOID(airplane_mode_info);
-    ui_display_airplane_mode_exit_remove(thiz);
-}
-
-static void airplane_mode_popup_ui_update(ui_manager_context_t *thiz, ui_proc_airplane_mode_t *proc)
-{
-    switch (proc->popup_ui_type) {
-        case AIRPLANE_MODE_POPUP_UI_NONE:
-            airplane_mode_popup_ui_remove(thiz);
-            airplane_mode_info->popup_ui_index = AIRPLANE_MODE_POPUP_UI_NONE;
-            break;
-        case AIRPLANE_MODE_POPUP_UI_EXIT:
-            if (airplane_mode_info->popup_ui_index != AIRPLANE_MODE_POPUP_UI_EXIT) {
-                airplane_mode_popup_ui_remove(thiz);
-                ui_display_airplane_mode_exit_prepare(thiz, airplane_mode_info->root);
-                airplane_mode_info->popup_ui_index = AIRPLANE_MODE_POPUP_UI_EXIT;
-            } else {
-                ui_display_airplane_mode_exit_process(thiz);
-            }
-            break;
-    }
-}
-
 /*
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
@@ -215,7 +186,7 @@ void ui_display_airplane_mode_remove(ui_manager_context_t *thiz)
     ble_ui_deinit(thiz);
     common_ui_bg_deinit(thiz);
     common_ui_img_resource_deinit(thiz, &airplane_mode_info->unlock_button_icon_info);
-    ui_display_airplane_mode_exit_remove(thiz);
+    ui_common_operation_tip_remove(thiz);
     LVGL_OBJ_DELETE(airplane_mode_info->root); 
     u_free(airplane_mode_info);
     airplane_mode_info = NULL;
@@ -235,7 +206,8 @@ int ui_display_airplane_mode_process(ui_manager_context_t *thiz)
     for (uint8_t i = 0; i < AIRPLANE_MODE_TEXT_COUNT; i++) {
         airplane_mode_texts_update(thiz, i);
     }
-    airplane_mode_popup_ui_update(thiz, proc);
+    ui_common_operation_tip_update(thiz, proc->popup_ui_type, airplane_mode_info->root,
+        &airplane_mode_info->popup_ui_index);
     airplane_mode_info->force_update = false;
     thiz->priv.fps_count++;
     if (get_timestamp() - thiz->priv.fps_start_time >= 1000) {

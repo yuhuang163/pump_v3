@@ -18,7 +18,8 @@ extern "C" {
 #define BLE_TASK_MSG_NUM               4
 
 typedef enum {
-    BLE_BROADCAST_CONNECT_STATE_CHANGE = 100, /// 连接状态改变.
+    BLE_BROADCAST_CONNECTED = 100, /// 连接成功
+    BLE_BROADCAST_DISCONNECT, /// 断开连接 
     BLE_BROADCAST_ID_MAX,
 } ble_broadcast_id_e;
 

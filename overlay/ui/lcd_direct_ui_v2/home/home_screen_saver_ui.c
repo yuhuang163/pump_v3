@@ -2,12 +2,11 @@
 * INCLUDE FILES
 *****************************************************************************************
 */
-#include "root_common_api.h" // IWYU pragma: keep
 #include "ui_img_define.h"   // IWYU pragma: keep
 #include "ui_page_define.h" // IWYU pragma: keep
 #include "ui_manager.h" // IWYU pragma: keep
 #include "window_screen_home.h" // IWYU pragma: keep
-#include "ble_ui.h" // IWYU pragma: keep
+
 /*
 * DEFINES
 *****************************************************************************************
@@ -19,45 +18,49 @@
 
 #define HOME_SCREEN_SAVER_ICON_X                                 (60)
 #define HOME_SCREEN_SAVER_ICON_Y                                 (130 + 2)
+#define IDLE_TEXT_COLOR                                          (0xB25962)
+#define HOME_CLOCK_HOUR_X                                        (44 + 2)
+#define HOME_CLOCK_MINUTE_X                                      (192 + 2)
+#define HOME_CLOCK_TIME_Y                                        (141 - 26)
+#define HOME_CLOCK_COLON_X                                       (174 )
+#define HOME_CLOCK_COLON_Y                                       (141 - 14)
 
 typedef struct {
     lv_obj_t * root;
-    #if IS_SUPPORT_ROOT_HOME_SCREEN_SAVER_COMP_BG
+#if IS_SUPPORT_ROOT_HOME_SCREEN_SAVER_COMP_BG
     lv_obj_t * backgroud;
-    #endif
+#endif
     lv_obj_t * saver_icon;
     res_img_info_t saver_img_info;
+#if (ROOT_PRODUCT_ID == ROOT_PRODUCT_ID_V3PRO)
+    lv_obj_t * clock_hour;
+    lv_obj_t * clock_minute;
+    lv_obj_t * clock_colon;
+    res_img_info_t clock_colon_info;
+    uint8_t home_screen_saver_display_type;
+    uint8_t hour;
+    uint8_t minute;
     uint8_t force_update;
-    uint8_t popup_ui_index;
-    uint8_t rsv[14];
+    uint8_t rsv[13];
+#else
+    uint8_t force_update;
+    uint8_t rsv[15];
+#endif
 } home_screen_saver_display_info_t;
-
-typedef struct {
-    const char *name;
-    uint16_t img_id;
-    uint16_t icon_x;
-    uint16_t icon_y;
-} saver_img_info_t;
 
 /*
 * LOCAL VARIABLE DEFINITIONS
 *****************************************************************************************
 */
 static home_screen_saver_display_info_t *saver_info;
-const static saver_img_info_t saver_img_infos[HOME_SCREEN_SAVER_ICON_MAX_COUNT] = {
-    { "saver_icon", RESOURCE_ID_HOME_DUMMY_ICON, HOME_SCREEN_SAVER_ICON_X, HOME_SCREEN_SAVER_ICON_Y },
-};  
+
 /*
 * GLOBAL VARIABLE DEFINITIONS
 *****************************************************************************************
 */
-#if IS_SUPPORT_ROOT_DUMMY_COMP_BG
+#if IS_SUPPORT_ROOT_HOME_SCREEN_SAVER_COMP_BG
 static PSRAM_DATA_LOC uint8_t home_screen_saver_bg_data[] = {
-    // #include "comparison_png2txt/bg_360x360.txt"
-    #include "png2txt/dummy_com_bg_360x360.txt"
-    // #include "comparison_png2txt/home_comp_1_v2_360x360.txt"
-    // #include "comparison_png2txt/home_comp_80_v2_360x360.txt"
-    // #include "comparison_png2txt/home_comp_100_v2_360x360.txt"
+    #include "comparison_png2txt/Custom6_360x360.txt"
 };
 #endif
 /*
@@ -79,7 +82,7 @@ static void home_screen_saver_root_init(void)
     lv_obj_clear_flag(saver_info->root, LV_OBJ_FLAG_SCROLLABLE); /// 禁止滚动
 }
 
-#if IS_SUPPORT_ROOT_DUMMY_COMP_BG
+#if IS_SUPPORT_ROOT_HOME_SCREEN_SAVER_COMP_BG
 static void home_screen_saver_root_bg_update(ui_manager_context_t *thiz)
 {
     static uint32_t start_time = 0;
@@ -111,8 +114,8 @@ static void home_screen_saver_root_bg_update(ui_manager_context_t *thiz)
 }
 #endif
 
-static void home_screen_saver_root_icon_update(ui_manager_context_t *thiz)
-{   /// 设置dummy icon
+static void home_screen_saver_dummy_icon_update(ui_manager_context_t *thiz, int16_t y_offset)
+{
     if (saver_info->force_update == false) {
         return;
     }
@@ -122,21 +125,131 @@ static void home_screen_saver_root_icon_update(ui_manager_context_t *thiz)
         EXCEPTION_CHECK_VOID(saver_info->saver_icon);
     }
     
-    common_ui_img_resource_init(thiz, saver_img_infos[HOME_SCREEN_SAVER_ICON_INDEX].img_id, &saver_info->saver_img_info);
+    common_ui_img_resource_init_with_theme(thiz, RESOURCE_ID_HOME_IDLE_IP, &saver_info->saver_img_info);
     EXCEPTION_CHECK_VOID(saver_info->saver_img_info.data);
     lv_fs_path_ex_t saver_icon_img_path;
     lv_fs_make_path_from_buffer(&saver_icon_img_path, LV_FS_MEMFS_LETTER, 
         saver_info->saver_img_info.data, saver_info->saver_img_info.size, "baj");
     lv_image_set_src(saver_info->saver_icon, (const void *)&saver_icon_img_path);
     lv_obj_align(saver_info->saver_icon, LV_ALIGN_TOP_LEFT, 
-        saver_img_infos[HOME_SCREEN_SAVER_ICON_INDEX].icon_x, saver_img_infos[HOME_SCREEN_SAVER_ICON_INDEX].icon_y); /// 设置icon位置
+        HOME_SCREEN_SAVER_ICON_X, HOME_SCREEN_SAVER_ICON_Y + y_offset); /// 设置icon位置
+}
+
+#if (ROOT_PRODUCT_ID == ROOT_PRODUCT_ID_V3PRO)
+static void home_screen_saver_clock_ui_update(ui_manager_context_t *thiz, bool is_show)
+{
+    /// 更新时钟小时
+    if (saver_info->clock_hour == NULL || !lv_obj_is_valid(saver_info->clock_hour)) {
+        saver_info->clock_hour = lv_label_create(saver_info->root);
+        EXCEPTION_CHECK_VOID(saver_info->clock_hour);
+        lv_obj_set_width(saver_info->clock_hour, 120);
+        lv_label_set_long_mode(saver_info->clock_hour, LV_LABEL_LONG_CLIP);
+        lv_obj_set_style_text_align(saver_info->clock_hour, LV_TEXT_ALIGN_RIGHT, 0);
+        lv_obj_set_style_text_color(saver_info->clock_hour, lv_color_hex(IDLE_TEXT_COLOR), 0);
+        lv_obj_set_style_text_font(saver_info->clock_hour, &lv_font_quicksand_96_bold, 0);
+        lv_obj_add_flag(saver_info->clock_hour, LV_OBJ_FLAG_HIDDEN);
+    }
+    
+    /// 更新时钟分钟
+    if (saver_info->clock_minute == NULL || !lv_obj_is_valid(saver_info->clock_minute)) {
+        saver_info->clock_minute = lv_label_create(saver_info->root);
+        EXCEPTION_CHECK_VOID(saver_info->clock_minute);
+        lv_obj_set_width(saver_info->clock_minute, 120); 
+        lv_label_set_long_mode(saver_info->clock_minute, LV_LABEL_LONG_CLIP);
+        lv_obj_set_style_text_align(saver_info->clock_minute, LV_TEXT_ALIGN_LEFT, 0);
+        lv_obj_set_style_text_color(saver_info->clock_minute, lv_color_hex(IDLE_TEXT_COLOR), 0);
+        lv_obj_set_style_text_font(saver_info->clock_minute, &lv_font_quicksand_96_bold, 0);
+        lv_obj_add_flag(saver_info->clock_minute, LV_OBJ_FLAG_HIDDEN);
+    }
+
+    /// 更新时钟冒号
+    if (saver_info->clock_colon == NULL || !lv_obj_is_valid(saver_info->clock_colon)) {
+        saver_info->clock_colon = lv_image_create(saver_info->root);
+        EXCEPTION_CHECK_VOID(saver_info->clock_colon);
+        common_ui_img_resource_init(thiz, RESOURCE_ID_CLOCK_COLON_ICON, &saver_info->clock_colon_info);
+        EXCEPTION_CHECK_VOID(saver_info->clock_colon_info.data);
+        lv_fs_path_ex_t clock_colon_img_path;
+        lv_fs_make_path_from_buffer(&clock_colon_img_path, LV_FS_MEMFS_LETTER, 
+            saver_info->clock_colon_info.data, saver_info->clock_colon_info.size, "baj");
+        LOG_UI("clock_colon_img_path: %s", clock_colon_img_path.path);
+        lv_image_set_src(saver_info->clock_colon, (const void *)&clock_colon_img_path);
+        lv_obj_add_flag(saver_info->clock_colon, LV_OBJ_FLAG_HIDDEN);
+    }
+
+    if (is_show) {
+        utc_time_t utc_time = {0};
+        uint32_t timestamp = platform_get_utc_time();
+        timestamp_to_utc_time(timestamp, &utc_time);
+        if (saver_info->hour == utc_time.hour && saver_info->minute == utc_time.minute
+            && saver_info->force_update == false) {
+            return;
+        }
+        char time_text[16] = {0};
+        lv_obj_clear_flag(saver_info->clock_hour, LV_OBJ_FLAG_HIDDEN);
+        snprintf(time_text, sizeof(time_text), "%02d", utc_time.hour);
+        lv_label_set_text(saver_info->clock_hour, time_text);
+        lv_obj_align(saver_info->clock_hour, LV_ALIGN_TOP_LEFT, 
+            HOME_CLOCK_HOUR_X, HOME_CLOCK_TIME_Y);
+        lv_obj_clear_flag(saver_info->clock_minute, LV_OBJ_FLAG_HIDDEN);
+        snprintf(time_text, sizeof(time_text), "%02d", utc_time.minute);
+        lv_label_set_text(saver_info->clock_minute, time_text);
+        lv_obj_align(saver_info->clock_minute, LV_ALIGN_TOP_LEFT, 
+            HOME_CLOCK_MINUTE_X, HOME_CLOCK_TIME_Y);
+        lv_obj_clear_flag(saver_info->clock_colon, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_align(saver_info->clock_colon, LV_ALIGN_TOP_LEFT, 
+            HOME_CLOCK_COLON_X, HOME_CLOCK_COLON_Y);
+        saver_info->hour = utc_time.hour;
+        saver_info->minute = utc_time.minute;
+    } else {
+        lv_obj_add_flag(saver_info->clock_hour, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(saver_info->clock_minute, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(saver_info->clock_colon, LV_OBJ_FLAG_HIDDEN);
+    }
+
+}
+static home_screen_saver_display_type_e home_screen_saver_display_type_update(ui_manager_context_t *thiz, ui_proc_home_t *proc)
+{
+#if 0
+    static home_screen_saver_display_type_e home_screen_saver_display_type_test = HOME_SCREEN_SAVER_DISPLAY_CLOCK; /// TODO: 测试用，后续删除
+    static uint32_t count = 0; /// TODO: 测试用，后续删除
+    count++;
+    if (count % 100 == 0) {
+        count = 0;
+        home_screen_saver_display_type_test++;
+        if (home_screen_saver_display_type_test >= HOME_SCREEN_SAVER_DISPLAY_MAX) {
+            home_screen_saver_display_type_test = HOME_SCREEN_SAVER_DISPLAY_DEFAULT;
+        }
+    }
+    return home_screen_saver_display_type_test;
+#else
+    return HOME_SCREEN_SAVER_DISPLAY_DEFAULT;
+#endif
 }
 
 static void home_screen_saver_ui_update(ui_manager_context_t *thiz, ui_proc_home_t *proc)
 {
-    home_screen_saver_root_icon_update(thiz);
-}
+    home_screen_saver_display_type_e home_ui_type = home_screen_saver_display_type_update(thiz, proc);
+    if (home_ui_type != saver_info->home_screen_saver_display_type) {
+        saver_info->home_screen_saver_display_type = home_ui_type;
+        saver_info->force_update = true;
+        saver_info->hour = 0;
+        saver_info->minute = 0;
+    }
 
+    if (home_ui_type == HOME_SCREEN_SAVER_DISPLAY_CLOCK) {
+        home_screen_saver_clock_ui_update(thiz, true);
+        home_screen_saver_dummy_icon_update(thiz, 29);
+    } else {
+        home_screen_saver_clock_ui_update(thiz, false);
+        home_screen_saver_dummy_icon_update(thiz, 0);
+    }
+}
+#else
+static void home_screen_saver_ui_update(ui_manager_context_t *thiz, ui_proc_home_t *proc)
+{
+    home_screen_saver_dummy_icon_update(thiz, 0);   
+}
+#endif
 /*  
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
@@ -154,19 +267,17 @@ void ui_display_home_screen_saver_prepare(ui_manager_context_t *thiz)
     common_ui_bg_init(thiz);
     ble_ui_init(thiz);
     saver_info->force_update = true;
-    saver_info->popup_ui_index = HOME_POPUP_UI_NONE;
 }
 
 void ui_display_home_screen_saver_remove(ui_manager_context_t *thiz)
 {
-    EXCEPTION_CHECK_VOID(thiz);
-    if (saver_info == NULL) {
-        return;
-    }
+    EXCEPTION_CHECK_VOID(thiz && saver_info);
     common_ui_img_resource_deinit(thiz, &saver_info->saver_img_info);
+#if (ROOT_PRODUCT_ID == ROOT_PRODUCT_ID_V3PRO)
+    common_ui_img_resource_deinit(thiz, &saver_info->clock_colon_info);
+#endif
     ble_ui_deinit(thiz);
     common_ui_bg_deinit(thiz);
-    home_tip_popup_ui_remove(thiz);
     LVGL_OBJ_DELETE(saver_info->root);
     u_free(saver_info);
     saver_info = NULL;
@@ -174,16 +285,12 @@ void ui_display_home_screen_saver_remove(ui_manager_context_t *thiz)
 
 int ui_display_home_screen_saver_process(ui_manager_context_t *thiz)
 {
-    EXCEPTION_CHECK_INT(thiz);
-    EXCEPTION_CHECK_INT(saver_info);
-    EXCEPTION_CHECK_INT(saver_info->root);
+    EXCEPTION_CHECK_INT(thiz && saver_info && saver_info->root);
     ui_proc_home_t *proc = (ui_proc_home_t *)thiz->priv.play_info.user_data;
-    EXCEPTION_CHECK_INT(proc);
-    EXCEPTION_CHECK_INT(proc->ble);
+    EXCEPTION_CHECK_INT(proc && proc->ble);
     home_screen_saver_root_bg_update(thiz);
     ble_ui_update(thiz, saver_info->root, proc->ble, COMMON_BLE_UI_X, COMMON_BLE_UI_Y);
     home_screen_saver_ui_update(thiz, proc);
-    home_tip_popup_ui_update(thiz, proc, saver_info->root, &saver_info->popup_ui_index);
     saver_info->force_update = false;
     thiz->priv.fps_count++;
     if (get_timestamp() - thiz->priv.fps_start_time >= 1000) {

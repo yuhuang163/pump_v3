@@ -22,13 +22,15 @@ int bsp_led_init(void);
 void bsp_led_resume(void);
 void bsp_led_suspend(void);
 int bsp_led_status_set(led_status_msg_t *msg);
+int bsp_led_level_rate_update(led_level_rate_msg_t *msg);
 
 void bsp_night_light_init(void);
 void bsp_night_light_resume(void);
 void bsp_night_light_suspend(void);
 int bsp_night_light_status_set(led_status_msg_t *msg);
+int bsp_night_light_rate_update(led_level_rate_msg_t *msg);
+
 int bsp_led_is_ready(void *args);
-void bsp_touch_rst_pin_output_set(uint8_t high_level);
 
 #ifdef __cplusplus
 }

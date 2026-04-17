@@ -100,20 +100,6 @@ typedef enum {
     PUMP_UI_TYPE_MAX
 } pump_ui_type_e;
 
-typedef enum {
-    PUMP_POPUP_UI_NONE = 0,
-    PUMP_POPUP_UI_OPERATION_SUCCESS = 1, /// 操作成功提示
-    PUMP_POPUP_UI_OPERATION_FAILED = 2, /// 操作失败提示
-    PUMP_POPUP_UI_LEVEL_ADJUST_TOO_LARGE = 3, /// 档位范围调整过大提示
-    PUMP_POPUP_UI_PUMP_PAUSE_MANUAL = 4, /// 手动暂停提示
-    PUMP_POPUP_UI_PUMP_PAUSE_TIMEOUT = 5, /// 泵奶暂停超时提示
-    PUMP_POPUP_UI_PUMP_FINISH_MANUAL = 6, /// 手动结束提示
-    PUMP_POPUP_UI_PUMP_FINISH_TIMEOUT = 7, /// 泵奶结束超时提示
-    
-    PUMP_POPUP_UI_PUMP_ERROR_TIP = 20, /// 泵奶异常提示
-    PUMP_POPUP_UI_LEVEL_ERROR_TIP = 21, /// 档位变化错误提示
-} pump_popup_ui_action_e;
-
 /// 泵奶信息结构体
 typedef struct {    
     uint8_t common_mode; /// 普通泵奶模式.
@@ -144,15 +130,15 @@ typedef struct {
     uint8_t goto_charge_ui_flag; /// 是否需要跳转到充电界面.
     uint8_t is_mode_changed_by_app; /// 是否是从app中切换模式.
     uint8_t is_mode_changed_by_device; /// 是否是从设备中切换模式.
-    uint8_t ui_common_mode_index; /// UI普通模式索引.
-    uint8_t ui_breastfeeding_mode_index; /// UI追奶模式索引.
+    uint8_t ui_normal_mode_index; /// UI普通模式索引.
+    uint8_t ui_bf_mode_index; /// UI追奶模式索引.
     uint16_t current_ui_type; /// 当前UI类型
     uint16_t start_ui_type;   
     uint32_t last_progress_ani_time; /// 上次进度动画时间.
     ui_pump_info_t info; /// 当前泵奶信息.
     pump_setting_t setting; /// 当前泵奶设置信息.
     int8_t level_change; /// 当前档位变化值.
-    int8_t level_adjust_too_large; /// 档位范围调整过大值.
+    // int8_t level_adjust_too_large; /// 档位范围调整过大值.
     uint8_t level_sync_flag; /// 档位同步标志.
     uint8_t speed_sync_flag; /// 速度同步标志.
     uint8_t mode_sync_flag; /// 追奶模式同步标志.
@@ -160,10 +146,9 @@ typedef struct {
     uint8_t is_air_leakage_popup_show; /// 是否显示空气泄漏弹窗提示.
     uint8_t hide_air_leakage_popup_wm; /// 是否隐藏空气泄漏弹窗提示.
 #endif
+    uint8_t forbid_start_pump; /// 是否禁止开始泵奶.
     uint8_t goto_pump_home_ui; /// 跳转到泵奶主界面标志.
-    uint16_t home_popup_ui_type; /// 主界面弹窗类型.
-    uint16_t popup_ui_type; /// 当前弹窗类型. pump_popup_ui_action_e
-    uint32_t popup_ui_start_time; /// 当前弹窗开始时间.
+    uint16_t popup_ui_type; /// 当前弹窗类型. popup_ui_id_e
 } ui_proc_pump_t;
 
 /*
@@ -204,7 +189,7 @@ void pump_power_key_handler(ui_proc_pump_t *proc);
 /// 泵奶完成事件处理
 void pump_complete_event_handler(ui_proc_pump_t *proc);
 /// 弹窗类型更新
-void pump_popup_ui_type_update(ui_proc_pump_t *proc, pump_popup_ui_action_e type);
+void pump_popup_ui_type_update(ui_proc_pump_t *proc, popup_ui_id_e type);
 #ifdef __cplusplus
 }
 #endif

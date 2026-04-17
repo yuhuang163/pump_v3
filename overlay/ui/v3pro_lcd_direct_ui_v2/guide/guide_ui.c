@@ -34,8 +34,7 @@ typedef struct {
     res_img_info_t img_info;
     uint8_t force_update;
     uint8_t page_index;
-    uint8_t popup_ui_index;
-    uint8_t rsv[13];
+    char qr_str[120];
 } guide_display_info_t;
 
 typedef struct {
@@ -53,7 +52,7 @@ typedef struct {
 static guide_display_info_t *guide_info;
 
 const static char *bind_qr_str[] = {
-    "https://lvgl.io",
+    "https://qr.momcozy.com/apps/?v=1&type=device&model=V3Pro&sn=",
 };
 
 const static uint16_t guide_page_img_ids[GUIDE_PAGE_IMG_NUM] = {
@@ -67,7 +66,7 @@ const static uint16_t guide_page_img_ids[GUIDE_PAGE_IMG_NUM] = {
 
 /// 首页
 const static guide_text_info_t home_text_infos[GUIDE_TEXT_NUM] = {
-    {"Pumping  Trip", &lv_font_oppo_sans_20_medium, 0, 51, LV_OPA_COVER},
+    {"Pumping Experience", &lv_font_oppo_sans_20_medium, 0, 51, LV_OPA_COVER},
     {"Turn right to start", &lv_font_oppo_sans_14_medium, 0, 84, LV_OPA_70},
     {"", &lv_font_oppo_sans_14_medium, 0, 0, LV_OPA_70},
     {"Press down to exit", &lv_font_oppo_sans_14_medium, 0, GUIDE_ARROW_TEXT_Y_OFFSET, LV_OPA_70}
@@ -75,8 +74,8 @@ const static guide_text_info_t home_text_infos[GUIDE_TEXT_NUM] = {
 
 /// 开始泵奶
 const static guide_text_info_t start_pump_text_infos[GUIDE_TEXT_NUM] = {
-    {"Regular  Pumping", &lv_font_oppo_sans_20_medium, 0, 51, LV_OPA_COVER},
-    {"2 min Stimulation  +  20 min Expression for\n most moms.                               ", 
+    {"Cozy Flow", &lv_font_oppo_sans_20_medium, 0, 51, LV_OPA_COVER},
+    {"1.5 min Stimulation  +  18 min Expression for\n most moms.                               ", 
     &lv_font_oppo_sans_14_medium, 0, 84, LV_OPA_70},
     {"Press to start", &lv_font_oppo_sans_14_bold, 176, 103, LV_OPA_70},
     {"Press down to exit", &lv_font_oppo_sans_14_medium, 0, GUIDE_ARROW_TEXT_Y_OFFSET, LV_OPA_70}
@@ -102,20 +101,20 @@ const static guide_text_info_t stop_pump_text_infos[GUIDE_TEXT_NUM] = {
 
 /// 泵奶模式选择
 const static guide_text_info_t pump_mode_select_text_infos[GUIDE_TEXT_NUM] = {
-    {"More pumping options:3 modes, 6\nprograms.                                             ", 
+    {"3 modes, 6 programs for more pumping\noptions.                                             ", 
     &lv_font_oppo_sans_14_medium, 0, 208, LV_OPA_70},
-    {"Turn right to switch", &lv_font_oppo_sans_14_bold, 148, 226, LV_OPA_70},
+    {"Turn right to switch", &lv_font_oppo_sans_14_bold, 138, 226, LV_OPA_70},
     {"", &lv_font_oppo_sans_14_medium, 0, 0, LV_OPA_COVER},
     {"Press down to exit", &lv_font_oppo_sans_14_medium, 0, GUIDE_ARROW_TEXT_Y_OFFSET, LV_OPA_70}
 };
 
 /// 绑定引导
 const static guide_text_info_t bind_guide_text_infos[GUIDE_TEXT_NUM] = {
-    {"Scan to connect for tracking,  remote\ncontrol, custom modes... ",
+    {"Scan to connect for tracking, remote\ncontrol, custom modes... ",
     &lv_font_oppo_sans_14_medium, 0, 228, LV_OPA_COVER},
     {"", &lv_font_oppo_sans_14_medium, 0, 0, LV_OPA_COVER},
     {"", &lv_font_oppo_sans_14_medium, 0, 0, LV_OPA_COVER},
-    {"End  Trip", &lv_font_oppo_sans_14_medium, 0, GUIDE_ARROW_TEXT_Y_OFFSET, LV_OPA_COVER}
+    {"End Experience", &lv_font_oppo_sans_14_medium, 0, GUIDE_ARROW_TEXT_Y_OFFSET, LV_OPA_COVER}
 };
 
 #if IS_SUPPORT_GUIDE_COMP_BG
@@ -164,8 +163,7 @@ static void guide_qrcode_update(ui_manager_context_t *thiz, uint8_t page_index)
     lv_qrcode_set_size(guide_info->qrcode, 124);
     lv_qrcode_set_dark_color(guide_info->qrcode, lv_color_hex(GUIDE_QRCODE_FG_COLOR));
     lv_qrcode_set_light_color(guide_info->qrcode, lv_color_hex(GUIDE_QRCODE_BG_COLOR));
-    lv_qrcode_update(guide_info->qrcode, bind_qr_str[0], strlen(bind_qr_str[0]));
-    lv_obj_center(guide_info->qrcode);
+    lv_qrcode_update(guide_info->qrcode, guide_info->qr_str, strlen(guide_info->qr_str));
     lv_obj_align(guide_info->qrcode, LV_ALIGN_TOP_LEFT, 111 + 7, 71 + 7);
 }
 
@@ -220,7 +218,7 @@ static void guide_ui_text_update(ui_manager_context_t *thiz, uint8_t page_index)
         guide_text_infos = pump_mode_select_text_infos;
     } else {
         guide_text_infos = bind_guide_text_infos;
-        text_color = lv_color_hex(GUIDE_BIND_TEXT_COLOR);
+        // text_color = lv_color_hex(GUIDE_BIND_TEXT_COLOR);
     }
 
     for (int i = 0; i < GUIDE_TEXT_NUM; i++) {
@@ -277,7 +275,21 @@ void ui_display_guide_prepare(ui_manager_context_t *thiz)
     thiz->priv.fps_start_time = get_timestamp();
     ui_guide_root_init(); /// 初始化 root 容器
     guide_info->force_update = true;
-    guide_info->popup_ui_index = GUIDE_POPUP_UI_NONE;
+    storage_manager_context_t *storage = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
+    if (storage) {
+        factory_data_store_t *factory_data = storage->get_factory_data();
+        factory_dev_info_t *dev_info = &factory_data->dev_info;
+        unsigned int sn_n = dev_info->sn_len;
+        if (sn_n > DEVICE_UNIQUE_SN_LEN) {
+            sn_n = DEVICE_UNIQUE_SN_LEN;
+        }
+        snprintf(guide_info->qr_str, sizeof(guide_info->qr_str), "%s%.*s", bind_qr_str[0],
+                 (int)sn_n, (const char *)dev_info->sn);
+        LOG_UI("%s", guide_info->qr_str);
+    } else {
+        snprintf(guide_info->qr_str, sizeof(guide_info->qr_str), "%s", bind_qr_str[0]);
+        LOG_UI("%s", guide_info->qr_str);
+    }
 }
 
 void ui_display_guide_remove(ui_manager_context_t *thiz)
@@ -286,7 +298,6 @@ void ui_display_guide_remove(ui_manager_context_t *thiz)
     EXCEPTION_CHECK_VOID(guide_info);
     EXCEPTION_CHECK_VOID(guide_info->root);
     common_ui_img_resource_deinit(thiz, &guide_info->img_info);
-    guide_tip_popup_ui_remove(thiz);
     LVGL_OBJ_DELETE(guide_info->root);
     u_free(guide_info);
     guide_info = NULL;
@@ -300,7 +311,6 @@ int ui_display_guide_process(ui_manager_context_t *thiz)
     ui_proc_guide_t *proc = (ui_proc_guide_t *)thiz->priv.play_info.user_data;
     EXCEPTION_CHECK_INT(proc);
     guide_ui_update(thiz, proc->page_index);
-    guide_tip_popup_ui_update(thiz, proc, guide_info->root, &guide_info->popup_ui_index);
     guide_info->force_update = false;
     thiz->priv.fps_count++;
     if (get_timestamp() - thiz->priv.fps_start_time >= 1000) {

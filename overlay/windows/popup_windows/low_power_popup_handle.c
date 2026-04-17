@@ -29,15 +29,6 @@
 static void low_power_pop_display_complete(ui_manager_context_t *ui, int index)
 {
     EXCEPTION_CHECK_VOID(ui);
-    ui_proc_popup_t *proc = (ui_proc_popup_t *)ui->priv.overlay_play_info.user_data;
-    EXCEPTION_CHECK_VOID(proc);
-    battery_manager_context_t *battery = (battery_manager_context_t *)find_module(ID_MODULE_BATTERY);
-    EXCEPTION_CHECK_VOID(battery);
-    if (battery->is_low_battery() == 0) {
-        LOGW("low power pop display complete, but not low battery, ignore.");
-        popup_window_exit_handler_cb(proc);
-        return;
-    }
     power_manager_context_t *pm = (power_manager_context_t *)find_module(ID_MODULE_POWER);
     EXCEPTION_CHECK_VOID(pm);
     pm->system_power_control(false);
@@ -45,12 +36,19 @@ static void low_power_pop_display_complete(ui_manager_context_t *ui, int index)
 
 static void low_power_ui_after_policy(ui_manager_context_t *ui, int index)
 {
-    ui_display_low_power_popup_process(ui);
+    ui_proc_popup_t *proc = (ui_proc_popup_t *)ui->priv.overlay_play_info.user_data;
+    bool is_low_battery = proc->battery->is_low_battery();
+    if (is_low_battery) {
+        popup_window_ui_process(ui, ID_POPUP_UI_LOW_POWER);
+    } else {
+        popup_window_exit_handler_cb(proc);
+    }
 }
 
 static void low_power_animation_progress_cb(void *user_data, int index, ui_ani_progress_state_e state)
 {
     ui_manager_context_t *ui = user_data;
+
     switch (state) {
         case ANI_TIMER_DRAW_FINISH:
             break;
@@ -71,14 +69,16 @@ static void low_power_ui_display_prepare(void *user_data)
 {
     ui_manager_context_t *ui = user_data;
     EXCEPTION_CHECK_VOID(ui);
-    ui_display_low_power_popup_prepare(ui);
+    ui_proc_popup_t *proc = (ui_proc_popup_t *)ui->priv.overlay_play_info.user_data;
+    EXCEPTION_CHECK_VOID(proc);
+    popup_window_ui_prepare(ui, ID_POPUP_UI_LOW_POWER, proc->extra.popup_exit_time);
 }
 
 static void low_power_ui_display_remove(void *user_data)
 {
     ui_manager_context_t *ui = user_data;
     EXCEPTION_CHECK_VOID(ui);
-    ui_display_low_power_popup_remove(ui);
+    popup_window_ui_remove(ui);
 }
 
 static void show_low_power_ui(ui_proc_popup_t *proc)

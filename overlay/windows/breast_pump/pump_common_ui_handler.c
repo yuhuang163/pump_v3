@@ -60,45 +60,17 @@ void pump_ui_change_hdr_remove(ui_proc_pump_t *proc)
     } 
 }
 
-/// 其他状态下，编码器的作用是回到 home 页和返回
 void pump_power_key_handler(ui_proc_pump_t *proc)
 {
-#if 0
-    EXCEPTION_CHECK_VOID(proc);
-    int pump_status = 0;
-    READ_PUMP_WORK_STATUS(proc->pump, pump_status);
-    if (PUMP_NO_FINISH(pump_status)) {
-        pump_ui_change_hdr_remove(proc);
-        if (proc->current_ui_type == PUMP_UI_TYPE_COMMON_MODE) {
-            WRITE_PUMP_WORK_MODE(proc->pump, proc->ui_common_mode_index, true, 1);
-            pump_popup_ui_type_update(proc, PUMP_POPUP_UI_OPERATION_SUCCESS);
-        } else if (proc->current_ui_type == PUMP_UI_TYPE_BREASTFEEDING_MODE) {
-            WRITE_PUMP_WORK_MODE(proc->pump, proc->ui_breastfeeding_mode_index, true, 1);
-            pump_popup_ui_type_update(proc, PUMP_POPUP_UI_OPERATION_SUCCESS);
-        }
-        show_pump_home_ui(proc);
-    } else {
-        pump_ui_change_hdr_remove(proc);
-        multi_func_msg_data_t msg = {0};
-        LOG_WM("goto home window.");
-        msg.union_body.extra.window_id = ID_WINDOW_HOME;
-        if (proc->wm) {
-            proc->wm->dispatch_new_window_args(proc->wm, &msg);
-        }
-    }
-#else
     if (proc->current_ui_type == PUMP_UI_TYPE_COMMON_MODE ||
-        proc->current_ui_type == PUMP_UI_TYPE_BREASTFEEDING_MODE) {
+        proc->current_ui_type == PUMP_UI_TYPE_BREASTFEEDING_MODE ||
+        proc->current_ui_type == PUMP_UI_TYPE_SPEED ) {
         proc->goto_pump_home_ui = true;
-    } else {
-        pump_popup_ui_type_update(proc, PUMP_POPUP_UI_OPERATION_FAILED);
-    }
-#endif
+    } 
 }
 
-void pump_popup_ui_type_update(ui_proc_pump_t *proc, pump_popup_ui_action_e type)
+void pump_popup_ui_type_update(ui_proc_pump_t *proc, popup_ui_id_e type)
 {
     EXCEPTION_CHECK_VOID(proc);
-    proc->popup_ui_start_time = get_timestamp();
     proc->popup_ui_type = type;
 }

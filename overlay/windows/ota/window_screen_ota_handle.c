@@ -119,14 +119,17 @@ static int exit_event_cb(window_lift_cycle_e new_state,
             break;
         case ID_SCR_STATE_ON_DESTORY:
             LOG_WM("%s window exit: u_free: %p", PAGE_NAME_STR, proc);
+            REMOVE_ALL_HANDER_TASK();
             unregister_broadcast_receiver(&proc->receiver);
             if (proc->key) {
                 proc->key->remove_keyevent_handler(on_ota_ui_keyevent_hdr);
+            } else {
+                LOG_WM("key not present, ignore.");
             }
-            REMOVE_ALL_HANDER_TASK();
+            SET_WINDOW_CONTEXT(NULL);
+            proc->margic = UI_WINDOW_MARGIC_CODE_INVALID;
             u_free(proc);
             proc = NULL;
-            SET_WINDOW_CONTEXT(NULL);
             LOG_WM("%s window exit--end", PAGE_NAME_STR);
             break;
         default:
@@ -154,6 +157,8 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
     proc->ble = (ble_manager_context_t *)find_module(ID_MODULE_BLE);
     proc->ota = (ota_manager_context_t *)find_module(ID_MODULE_OTA);
     proc->key = (key_input_context_t *)find_module(ID_MODULE_KEY_INPUT);
+    proc->battery = (battery_manager_context_t *)find_module(ID_MODULE_BATTERY);
+    proc->airplane = (airplane_mode_context_t *)find_module(ID_MODULE_AIRPLANE_MODE);
     /// 注册广播监听.
     proc->receiver.context = proc;
     proc->receiver.name = "ota_screen";

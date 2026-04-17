@@ -72,7 +72,7 @@ static void breastfeeding_mode_ui_update(ui_manager_context_t *thiz, ui_proc_pum
 {
     EXCEPTION_CHECK_VOID(proc);
     EXCEPTION_CHECK_VOID(proc->pump);
-    uint8_t mode = proc->ui_breastfeeding_mode_index; /// 当前UI模式索引.
+    uint8_t mode = proc->ui_bf_mode_index; /// 当前UI模式索引.
     if (bf_mode_info->mode == mode && bf_mode_info->force_update == false) {
         return;
     }

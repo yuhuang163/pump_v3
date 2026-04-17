@@ -26,20 +26,6 @@
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-static void guide_popup_ui_type_update(ui_proc_guide_t *proc, guide_popup_ui_type_e type)
-{
-    EXCEPTION_CHECK_VOID(proc);
-    proc->popup_ui_start_time = get_timestamp();
-    proc->popup_ui_type = type;
-}
-
-static void guide_popup_ui_finish_policy(ui_manager_context_t *ui, int index)
-{
-    LOG_WM("===> popup %d ui display complete.", index);
-    ui_proc_guide_t *proc = (ui_proc_guide_t *)ui->priv.play_info.user_data;
-    guide_popup_ui_type_update(proc, GUIDE_POPUP_UI_NONE);
-}
-
 static void guide_display_completed_cb(hdr_post_args_t *args)
 {
     ui_proc_guide_t *proc = (ui_proc_guide_t *)args->user_data;
@@ -70,7 +56,6 @@ static void guide_animation_progress_cb(void *user_data, int index, ui_ani_progr
             guide_ui_after_policy(ui, index);
             break;
         case ANI_POPUP_DISPLAY_FINISH:
-            guide_popup_ui_finish_policy(ui, index);
             break;
         default:
             break;
@@ -160,7 +145,7 @@ void guide_key_event_handler_v2(ui_proc_guide_t *proc, uint16_t keycode)
                     proc->led->set_led_blink(PUMP_START_BL, LED_SLOW_BLINK_TIME, 0, LED_STATUS_OFF);
                 }
             } else {
-                guide_popup_ui_type_update(proc, GUIDE_POPUP_UI_OPERATION_FAILED);
+                // guide_popup_ui_type_update(proc, GUIDE_POPUP_UI_OPERATION_FAILED);
             }
             break;
         case GUIDE_PAGE_START_PUMP:
@@ -175,7 +160,7 @@ void guide_key_event_handler_v2(ui_proc_guide_t *proc, uint16_t keycode)
                     proc->led->set_led_blink(PUMP_RIGHT_CONTROL_BL, LED_SLOW_BLINK_TIME, 0, LED_STATUS_OFF);
                 }
             } else {
-                guide_popup_ui_type_update(proc, GUIDE_POPUP_UI_OPERATION_FAILED);
+                // guide_popup_ui_type_update(proc, GUIDE_POPUP_UI_OPERATION_FAILED);
             }
             break;
         case GUIDE_PAGE_SETTING_PUMP:
@@ -189,7 +174,7 @@ void guide_key_event_handler_v2(ui_proc_guide_t *proc, uint16_t keycode)
                     proc->led->set_led_blink(PUMP_START_BL, LED_SLOW_BLINK_TIME, 0, LED_STATUS_OFF);
                 }
             } else {
-                guide_popup_ui_type_update(proc, GUIDE_POPUP_UI_OPERATION_FAILED);
+                // guide_popup_ui_type_update(proc, GUIDE_POPUP_UI_OPERATION_FAILED);
             }
             break;
         case GUIDE_PAGE_PUMP_MODE_SELECT:
@@ -199,7 +184,7 @@ void guide_key_event_handler_v2(ui_proc_guide_t *proc, uint16_t keycode)
                     proc->led->hook->set_key_backlight(proc->led, LED_LEVEL_MAX);
                 }
             } else {
-                guide_popup_ui_type_update(proc, GUIDE_POPUP_UI_OPERATION_FAILED);
+                // guide_popup_ui_type_update(proc, GUIDE_POPUP_UI_OPERATION_FAILED);
             }
             break;
         default:
@@ -269,7 +254,7 @@ void guide_knob_left_event_handler(ui_proc_guide_t *proc)
             }
             break;
         default:
-            guide_popup_ui_type_update(proc, GUIDE_POPUP_UI_OPERATION_FAILED);
+            // guide_popup_ui_type_update(proc, GUIDE_POPUP_UI_OPERATION_FAILED);
             break;
    }
 }

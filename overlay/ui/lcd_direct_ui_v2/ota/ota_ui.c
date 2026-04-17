@@ -37,7 +37,9 @@ typedef struct {
     uint8_t force_update;
     uint8_t ota_status;
     uint8_t progress;
-    uint8_t rsv[13];
+    uint8_t ota_object;
+    uint8_t rsv[12];
+    char text[64];
 } ota_display_info_t;
 
 /*
@@ -109,6 +111,18 @@ static void ui_ota_progress_arc_update(ui_manager_context_t *thiz, uint8_t ota_s
     lv_obj_invalidate(ota_info->progress_arc); /// 使圆弧/图片区域重绘
 }
 
+static const char *get_ota_object_name(ota_object_e ota_object)
+{
+    if (ota_object == OTA_OBJECT_MAIN_FIRMWARE) {
+        return "main firmware";
+    } else if (ota_object == OTA_OBJECT_TOUCH_KEY_FIRMWARE) {
+        return "touch firmware";
+    } else if (ota_object == OTA_OBJECT_IMAGE_RESOURCE) {
+        return "image resource";
+    }
+    return "unknown";
+}
+
 static void ui_ota_text_update(ui_manager_context_t *thiz, uint8_t ota_status, uint8_t progress)
 {
     if (ota_info->force_update == false && ota_info->ota_status == ota_status && 
@@ -122,16 +136,26 @@ static void ui_ota_text_update(ui_manager_context_t *thiz, uint8_t ota_status, u
         lv_obj_set_style_text_font(ota_info->status_text, &lv_font_oppo_sans_20_medium, 0);
         lv_obj_set_style_text_color(ota_info->status_text, lv_color_hex(OTA_PROGRESS_ARC_TEXT_COLOR), 0);
         lv_obj_align(ota_info->status_text, LV_ALIGN_TOP_MID, 0, 210); /// 设置文本位置
+        lv_obj_set_style_text_line_space(ota_info->status_text, 4, 0);  /// 设置行间距（像素）
+        lv_obj_set_style_text_align(ota_info->status_text, LV_TEXT_ALIGN_CENTER, 0);  /// 设置文本居中对齐
     }
-
+    const char *ota_object_name = get_ota_object_name(ota_info->ota_object);
+    memset(ota_info->text, 0, sizeof(ota_info->text));
     if (ota_status == OTA_UI_STATUS_DOWNLOADING) {
-        char text[32] = {0};
-        snprintf(text, sizeof(text), "ota progress:%d%%", progress);
-        lv_label_set_text(ota_info->status_text, text);
+        if (ota_info->ota_object == OTA_OBJECT_MAIN_FIRMWARE) {
+            snprintf(ota_info->text, sizeof(ota_info->text), "%s\nupgrade progress:%d%%", ota_object_name, progress);
+        } else if (ota_info->ota_object == OTA_OBJECT_TOUCH_KEY_FIRMWARE) {
+            snprintf(ota_info->text, sizeof(ota_info->text), "%s\nupgrade progress:%d%%", ota_object_name, progress);
+        } else if (ota_info->ota_object == OTA_OBJECT_IMAGE_RESOURCE) {
+            snprintf(ota_info->text, sizeof(ota_info->text), "%s\nupgrade progress:%d%%", ota_object_name, progress);
+        }
+        lv_label_set_text(ota_info->status_text, ota_info->text);
     } else if (ota_status == OTA_UI_STATUS_ERROR) {
-        lv_label_set_text(ota_info->status_text, "ota upgrade failed");
+        snprintf(ota_info->text, sizeof(ota_info->text), "%s\nupgrade failed", ota_object_name);
+        lv_label_set_text(ota_info->status_text, ota_info->text);
     } else if (ota_status == OTA_UI_STATUS_COMPLETE) {
-        lv_label_set_text(ota_info->status_text, "ota upgrade complete");
+        snprintf(ota_info->text, sizeof(ota_info->text), "%s\nupgrade complete", ota_object_name);
+        lv_label_set_text(ota_info->status_text, ota_info->text);
     }
 }
 
@@ -202,12 +226,14 @@ void ui_display_ota_prepare(ui_manager_context_t *thiz)
     ui_ota_root_init(); /// 初始化 root 容器
     ota_info->force_update = true;
     ota_info->progress = 0;
-    LOG_UI("ota_info->progress: %d", ota_info->progress);
+    ui_proc_ota_t *proc = (ui_proc_ota_t *)thiz->priv.play_info.user_data;
+    if (proc && proc->ota) {
+        ota_info->ota_object = proc->ota->get_ota_object();
+    }
 }
 
 void ui_display_ota_remove(ui_manager_context_t *thiz)
 {
-    LOG_UI("ui_display_ota_remove");
     EXCEPTION_CHECK_VOID(thiz && ota_info && ota_info->root); 
     common_ui_img_resource_deinit(thiz, &ota_info->icon_info);
     LVGL_OBJ_DELETE(ota_info->root);

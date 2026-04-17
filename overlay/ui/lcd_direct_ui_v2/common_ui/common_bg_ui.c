@@ -2,7 +2,6 @@
 * INCLUDE FILES
 *****************************************************************************************
 */
-#include "root_common.h"
 #include "root_common_api.h" // IWYU pragma: keep
 #include "ui_img_define.h" // IWYU pragma: keep
 

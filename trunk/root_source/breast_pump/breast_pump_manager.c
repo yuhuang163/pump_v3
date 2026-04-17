@@ -2,10 +2,10 @@
 * INCLUDE FILES
 *****************************************************************************************
 */
-#include "persist_storage.h"
 #include "root_common_api.h"
-#include "breast_pump_manager.h" // IWYU pragma: keep
 #include "breast_pump_mode.h"
+#include "breast_pump_manager.h" // IWYU pragma: keep
+
 
 /*
 * DEFINES
@@ -214,18 +214,9 @@ static void set_breast_pump_mode(uint32_t mode, uint8_t is_store_mode, uint8_t i
     }
     EXCEPTION_CHECK_VOID(st);
     st->put_store_ram_val(STORE_ID_BREAST_PUMP_MODE, mode, 0, NULL);
-    if (PUMP_IS_COMMON_MODE(mode)) {
-        m_info->common_mode = mode;
-        m_info->last_common_mode = mode;
-        st->put_store_ram_val(STORE_ID_BREAST_PUMP_MODE_WITH_TYPE, mode, BREAST_PUMP_MODE_TYPE_COMMON, NULL);
-    } else if (PUMP_IS_BREASTFEEDING_MODE(mode)) {
-        m_info->breastfeeding_mode = mode;
-        m_info->last_breastfeeding_mode = mode;
-        st->put_store_ram_val(STORE_ID_BREAST_PUMP_MODE_WITH_TYPE, mode, BREAST_PUMP_MODE_TYPE_BREASTFEEDING, NULL);
-    }
     m_info->step_index = 0;
     motor_ctx->set_runtime_policy_index(MOTOR_TIME_POLICY, 0);
-    LOG_PMP("new mode is: %d, name: %s", m_info->mode, get_breast_pump_mode_name(m_info->mode));
+    LOG_PMP("new mode is: %d, name: %s, store:%d, report:%d", m_info->mode, get_breast_pump_mode_name(m_info->mode), is_store_mode, is_report);
     /// 读取存储器中的泵奶设置
     for (uint8_t i = 0; i < ROOT_BREAST_PUMP_STEP_MAX; i++) {
         st->get_store_ram_val(STORE_ID_PUMP_SETTING_INFO, m_info->mode, i, &breast_pump_obj->priv.setting[i]);
@@ -250,7 +241,7 @@ static int get_breast_pump_mode(void)
     breast_pump_info_t *m_info = &breast_pump_obj->priv.m_info;
     if (m_info->mode >= BREAST_PUMP_MODE_MAX) {
         LOG_PMP("invalid, set default mode");
-        set_breast_pump_mode(BREAST_PUMP_PUMP_MODE_DEFAULT, 1, 1);
+        set_breast_pump_mode(BREAST_PUMP_PUMP_MODE_DEFAULT, 0, 0);
     }
     return m_info->mode;
 }
@@ -259,13 +250,9 @@ static int get_breast_pump_mode_by_type(breast_pump_mode_type_e type, uint8_t is
 {
     breast_pump_info_t *m_info = &breast_pump_obj->priv.m_info;
     if (type == BREAST_PUMP_MODE_TYPE_BREASTFEEDING) {
-        LOG_PMP("get breastfeeding mode, is_last: %d, last_breastfeeding_mode: %d, breastfeeding_mode: %d", 
-        is_last, m_info->last_breastfeeding_mode, m_info->breastfeeding_mode);
-        return is_last ? m_info->last_breastfeeding_mode : m_info->breastfeeding_mode;
+            return m_info->breastfeeding_mode; 
     }
-    LOG_PMP("get common mode, is_last: %d, last_common_mode: %d, common_mode: %d", 
-        is_last, m_info->last_common_mode, m_info->common_mode);
-    return is_last ? m_info->last_common_mode : m_info->common_mode;
+    return m_info->common_mode;
 }
 
 static int get_breast_pump_status(void)
@@ -804,53 +791,59 @@ static void on_breast_pump_broadcast_receiver(broadcast_mask_id_t id, void *cont
 static int on_post_breast_pump_init(void *ptr)
 {
     breast_pump_manager_context_t *ctx = ptr;
+    EXCEPTION_CHECK_INT(ctx);
     memset(&ctx->priv.m_info , 0, sizeof(breast_pump_info_t));
-    ctx->priv.m_info.breastfeeding_mode = BREAST_PUMP_CUSTOM_MODE;
-    ctx->priv.m_info.common_mode = BREAST_PUMP_STIMULATION_MODE;
-    EXCEPTION_CHECK_INT(ctx->priv.motor);
-    struct rt_device_node *motor_dev;
-    motor_dev = ctx->priv.pbus->find_device(ID_DEVICE_MOTOR);
-    /// 检查 motor_dev 是否已初始化，避免空指针访问
-    EXCEPTION_CHECK_INT(motor_dev);
-    DEVICE_IOCTL_ARGS(motor_dev, OP_CODE_MOTOR_ADD_STALLED_CALLBACK, on_motor_error_check_callback);
+    struct rt_device_node *motor_dev = ctx->priv.pbus->find_device(ID_DEVICE_MOTOR);
+    if (motor_dev) {
+        DEVICE_IOCTL_ARGS(motor_dev, OP_CODE_MOTOR_ADD_STALLED_CALLBACK, on_motor_error_check_callback);
+    }
+    breast_pump_info_t *m_info = &ctx->priv.m_info;
     if (ctx->priv.st) {
         int store_value = BREAST_PUMP_PUMP_MODE_DEFAULT;
+        /// 读取模式/韵律
         ctx->priv.st->get_store_ram_val(STORE_ID_BREAST_PUMP_MODE, 0, 0, &store_value);
         if (store_value >= BREAST_PUMP_MODE_MAX) {
-            store_value = BREAST_PUMP_PUMP_MODE_DEFAULT;      
+            store_value = BREAST_PUMP_PUMP_MODE_DEFAULT;   
+        } 
+        m_info->mode = store_value;
+        /// 读取存储器中的泵奶设置
+        for (uint8_t i = 0; i < ROOT_BREAST_PUMP_STEP_MAX; i++) {
+            ctx->priv.st->get_store_ram_val(STORE_ID_PUMP_SETTING_INFO, m_info->mode, i, &breast_pump_obj->priv.setting[i]);
         }
-        set_breast_pump_mode(store_value, 0, 1); /// 设置泵奶模式
         /// 读取存储器中的常规模式
         ctx->priv.st->get_store_ram_val(STORE_ID_BREAST_PUMP_MODE_WITH_TYPE, BREAST_PUMP_MODE_TYPE_COMMON, 0, &store_value);
         if (store_value >= BREAST_PUMP_MODE_MAX) {
-            store_value = BREAST_PUMP_MODE_INVALID;
+            m_info->common_mode = BREAST_PUMP_MODE_INVALID;
         } else {
-            ctx->priv.m_info.common_mode = store_value;
+            m_info->common_mode = store_value;
         }
         /// 读取存储器中的追奶模式
         ctx->priv.st->get_store_ram_val(STORE_ID_BREAST_PUMP_MODE_WITH_TYPE, BREAST_PUMP_MODE_TYPE_BREASTFEEDING, 0, &store_value);
         if (store_value >= BREAST_PUMP_MODE_MAX) {
-            store_value = BREAST_PUMP_MODE_INVALID;
+            m_info->breastfeeding_mode = BREAST_PUMP_MODE_INVALID;
         } else {
-            ctx->priv.m_info.breastfeeding_mode = store_value;
+            m_info->breastfeeding_mode = store_value;
         }
         /// 读取存储器中的控制类型
         ctx->priv.st->get_store_ram_val(STORE_ID_PUMP_CONTROL_TYPE, 0, 0, &store_value);
         if (store_value >= BREAST_PUMP_CONTROL_TYPE_MAX) {
             store_value = BREAST_PUMP_CONTROL_TYPE_LEFT;
         }
-        set_breast_pump_control_type(store_value,1);
+        m_info->control_type = store_value;
         /// 读取存储器中个性化韵律激活状态
         ctx->priv.st->get_store_ram_val(STORE_ID_PUMP_MODE_ACTIVATE_STATUS, BREAST_PUMP_CUSTOM_MODE, 0, &store_value);
-        ctx->priv.m_info.custom_activate = store_value > 0 ? true : false;
-        LOG_PMP("custom_activate: %d", ctx->priv.m_info.custom_activate);
-        if (ctx->priv.m_info.custom_activate == false && ctx->priv.m_info.breastfeeding_mode == BREAST_PUMP_CUSTOM_MODE) {
-            ctx->priv.m_info.breastfeeding_mode = BREAST_PUMP_REGULAR_PUMPING_MODE;
-            ctx->priv.st->put_store_ram_val(STORE_ID_BREAST_PUMP_MODE_WITH_TYPE, BREAST_PUMP_REGULAR_PUMPING_MODE,
-                 BREAST_PUMP_MODE_TYPE_BREASTFEEDING, NULL);
+        m_info->custom_activate = store_value > 0 ? true : false;
+        LOG_PMP("custom_activate: %d, mode:%d, common:%d, expert:%d", m_info->custom_activate, m_info->mode,
+            m_info->common_mode, m_info->breastfeeding_mode);
+        if (m_info->custom_activate == false && m_info->breastfeeding_mode == BREAST_PUMP_CUSTOM_MODE) {
+            m_info->breastfeeding_mode = BREAST_PUMP_MODE_INVALID;
+            ctx->priv.st->put_store_ram_val(STORE_ID_BREAST_PUMP_MODE_WITH_TYPE, BREAST_PUMP_MODE_TYPE_BREASTFEEDING, 
+                BREAST_PUMP_REGULAR_PUMPING_MODE, NULL);
         }
+    } else {
+        ctx->priv.m_info.breastfeeding_mode = BREAST_PUMP_MODE_INVALID;
+        ctx->priv.m_info.common_mode = BREAST_PUMP_MODE_INVALID;
     }
-
     /// 注册广播监听.
     ctx->priv.m_bdc.context = ctx;
     ctx->priv.m_bdc.name = "breast_pump_manager";

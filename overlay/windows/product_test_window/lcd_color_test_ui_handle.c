@@ -20,13 +20,6 @@
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-
-static void lcd_color_test_popup_ui_finish_policy(ui_manager_context_t *ui, int index)
-{
-    ui_proc_product_test_t *proc = (ui_proc_product_test_t *)ui->priv.play_info.user_data;
-    product_common_popup_ui_type_update(proc, PRODUCT_TEST_POPUP_UI_NONE);
-}
-
 static void lcd_color_test_ui_after_policy(ui_manager_context_t *ui, int index)
 {
     ui_display_lcd_color_test_process(ui);
@@ -46,7 +39,6 @@ static void lcd_color_test_animation_progress_cb(void *user_data, int index, ui_
             lcd_color_test_ui_after_policy(ui, index);
             break;
         case ANI_POPUP_DISPLAY_FINISH:
-            product_common_popup_ui_type_update(proc, PRODUCT_TEST_POPUP_UI_OPERATION_SUCCESS);
             break;
         default:
             break;
@@ -114,7 +106,6 @@ void lcd_color_test_keyevent_cb(ui_proc_product_test_t *proc, uint16_t keycode, 
         case KEY_CODE_MODE:
         case KEY_CODE_FREQUENCY:
         case KEY_CODE_BREASTFEEDING:
-            product_common_popup_ui_type_update(proc, PRODUCT_TEST_POPUP_UI_OPERATION_FAILED);
             return;
         case KEY_CODE_START:
             proc->lcd_color = 0x00FF00;

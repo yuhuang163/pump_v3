@@ -84,4 +84,9 @@ void framework_extra_hook(void)
     CHECK_IF_VALID(led_ctx, {
         register_led_hook(led_ctx);
     });
+    /// 注册OTA管理钩子.
+    ota_manager_context_t *ota_ctx = (ota_manager_context_t *)find_module(ID_MODULE_OTA);
+    CHECK_IF_VALID(ota_ctx, {
+        register_ota_hook(ota_ctx);
+    });
 }

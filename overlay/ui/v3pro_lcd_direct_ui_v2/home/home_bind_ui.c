@@ -2,8 +2,6 @@
 * INCLUDE FILES
 *****************************************************************************************
 */
-#include "root_common.h"
-#include "root_log_define.h"
 #include "ui_img_define.h"   // IWYU pragma: keep
 #include "ui_page_define.h" // IWYU pragma: keep
 #include "ui_manager.h"   // IWYU pragma: keep
@@ -44,6 +42,7 @@ typedef struct {
     uint8_t popup_ui_index;
     uint8_t bind_state;
     uint8_t rsv[13];
+    char qr_str[120];
 } home_bind_display_info_t;
 
 typedef struct {
@@ -68,7 +67,7 @@ typedef enum {
 */
 static home_bind_display_info_t *home_bind_info;
 const static char *bind_qr_str[] = {
-    "https://lvgl.io",
+    "https://qr.momcozy.com/apps/?v=1&type=device&model=V3Pro&sn=",
 };
 
 #if IS_SUPPORT_HOME_BIND_COMP_BG
@@ -196,7 +195,7 @@ static void home_bind_qrcode_update(ui_manager_context_t *thiz, uint8_t is_show)
     lv_qrcode_set_size(home_bind_info->qrcode, 124);
     lv_qrcode_set_dark_color(home_bind_info->qrcode, lv_color_hex(HOME_BIND_FG_COLOR));
     lv_qrcode_set_light_color(home_bind_info->qrcode, lv_color_hex(HOME_BIND_BG_COLOR));
-    lv_qrcode_update(home_bind_info->qrcode, bind_qr_str[0], strlen(bind_qr_str[0]));
+    lv_qrcode_update(home_bind_info->qrcode, home_bind_info->qr_str, strlen(home_bind_info->qr_str));
     lv_obj_center(home_bind_info->qrcode);
     lv_obj_align(home_bind_info->qrcode_container, LV_ALIGN_TOP_LEFT, 
         HOME_BIND_X_OFFSET, HOME_BIND_Y_OFFSET);
@@ -247,7 +246,7 @@ static void home_bind_img_update(ui_manager_context_t *thiz, uint8_t is_show)
         return;
     }
 
-    common_ui_img_resource_init(thiz, RESOURCE_ID_HOME_BLE_IP_ICON, &home_bind_info->ip_info);
+    common_ui_img_resource_init_with_theme(thiz, RESOURCE_ID_HOME_BLE_IP, &home_bind_info->ip_info);
     EXCEPTION_CHECK_VOID(home_bind_info->ip_info.data);
     lv_fs_path_ex_t ip_img_path;
     lv_fs_make_path_from_buffer(&ip_img_path, LV_FS_MEMFS_LETTER, home_bind_info->ip_info.data,
@@ -308,18 +307,31 @@ void ui_display_home_bind_prepare(ui_manager_context_t *thiz)
     ui_home_bind_root_init(); /// 初始化 root 容器
     common_ui_bg_init(thiz);
     home_bind_info->force_update = true;
-    home_bind_info->popup_ui_index = HOME_POPUP_UI_NONE;
+    home_bind_info->popup_ui_index = ID_POPUP_UI_NONE;
+    storage_manager_context_t *storage = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
+    if (storage) {
+        factory_data_store_t *factory_data = storage->get_factory_data();
+        factory_dev_info_t *dev_info = &factory_data->dev_info;
+        unsigned int sn_n = dev_info->sn_len;
+        if (sn_n > DEVICE_UNIQUE_SN_LEN) {
+            sn_n = DEVICE_UNIQUE_SN_LEN;
+        }
+        snprintf(home_bind_info->qr_str, sizeof(home_bind_info->qr_str), "%s%.*s", bind_qr_str[0],
+                 (int)sn_n, (const char *)dev_info->sn);
+        LOG_UI("%s", home_bind_info->qr_str);
+    } else {
+        snprintf(home_bind_info->qr_str, sizeof(home_bind_info->qr_str), "%s", bind_qr_str[0]);
+        LOG_UI("%s", home_bind_info->qr_str);
+    }
 }
 
 void ui_display_home_bind_remove(ui_manager_context_t *thiz)
 {
-    EXCEPTION_CHECK_VOID(thiz);
-    EXCEPTION_CHECK_VOID(home_bind_info);
-    EXCEPTION_CHECK_VOID(home_bind_info->root);
+    EXCEPTION_CHECK_VOID(thiz && home_bind_info && home_bind_info->root);
     common_ui_bg_deinit(thiz);
-    home_tip_popup_ui_remove(thiz);
     common_ui_img_resource_deinit(thiz, &home_bind_info->label_info);
     common_ui_img_resource_deinit(thiz, &home_bind_info->ip_info);
+    ui_common_operation_tip_remove(thiz);
     LVGL_OBJ_DELETE(home_bind_info->root);
     u_free(home_bind_info);
     home_bind_info = NULL;
@@ -327,14 +339,13 @@ void ui_display_home_bind_remove(ui_manager_context_t *thiz)
 
 int ui_display_home_bind_process(ui_manager_context_t *thiz)
 {
-    EXCEPTION_CHECK_INT(thiz);
-    EXCEPTION_CHECK_INT(home_bind_info);
-    EXCEPTION_CHECK_INT(home_bind_info->root);
+    EXCEPTION_CHECK_INT(thiz && home_bind_info && home_bind_info->root);
     ui_proc_home_t *proc = (ui_proc_home_t *)thiz->priv.play_info.user_data;
     EXCEPTION_CHECK_INT(proc);
     ui_home_bind_bg_update(thiz);
     home_bind_status_ui_update(thiz, proc);
-    home_tip_popup_ui_update(thiz, proc, home_bind_info->root, &home_bind_info->popup_ui_index);
+    ui_common_operation_tip_update(thiz, proc->popup_ui_type, home_bind_info->root,
+        &home_bind_info->popup_ui_index);
     home_bind_info->force_update = false;
     thiz->priv.fps_count++;
     if (get_timestamp() - thiz->priv.fps_start_time >= 1000) {

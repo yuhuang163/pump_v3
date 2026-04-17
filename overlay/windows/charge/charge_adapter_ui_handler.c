@@ -24,14 +24,17 @@
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-static void charge_adapter_ui_before_policy(ui_manager_context_t *ui, int index)
-{
-
-}
-
 static void charge_adapter_ui_after_policy(ui_manager_context_t *ui, int index)
 {
     ui_display_charge_adapter_process(ui);
+    ui_proc_charge_t *proc = (ui_proc_charge_t *)ui->priv.play_info.user_data;
+    if (proc && proc->battery && proc->battery->is_adapter_mismatch() == 0) {
+        multi_func_msg_data_t __msg = {0};
+        __msg.union_body.extra.window_id = ID_WINDOW_HOME;
+        EXCEPTION_CHECK_VOID(proc->wm);
+        LOG_WM("goto home screen");
+        proc->wm->dispatch_new_window_args(proc->wm, &__msg);
+    }
 }
 
 static void charge_adapter_progress_cb(void *user_data, int index, ui_ani_progress_state_e state)
@@ -42,7 +45,6 @@ static void charge_adapter_progress_cb(void *user_data, int index, ui_ani_progre
         case ANI_TIMER_DRAW_FINISH:
             break;
         case ANI_TIMER_DRAW_BEFORE:
-            charge_adapter_ui_before_policy(ui, index);
             break;
         case ANI_TIMER_DRAW_AFTER:
             charge_adapter_ui_after_policy(ui, index);

@@ -17,6 +17,7 @@ extern "C" {
 typedef enum {
     OP_CODE_LED_STATUS_SET  = 1,
     OP_CODE_LED_STATUS_GET = 2,
+    OP_CODE_LED_LEVEL_RATE_SET = 3,  /// 设置亮度系数
     OP_CODE_LED_IS_READY = 5,
 } led_dev_op_code_e;
 
@@ -91,6 +92,7 @@ typedef struct {
 
 typedef struct {
     uint8_t  mode;          /// led模式详见led_mode_e
+    uint8_t  rate;          /// 亮度系数 0-100
     union {
         led_blink_t blink;
         led_breath_t breath;
@@ -103,6 +105,11 @@ typedef struct {
     uint8_t led_index;
     led_status_t led_status;
 } led_status_msg_t;
+
+typedef struct {
+    uint8_t led_index;
+    uint8_t rate;
+} led_level_rate_msg_t;
 
 #ifdef __cplusplus
 }

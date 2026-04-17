@@ -154,13 +154,29 @@ static void night_light_level_set(uint8_t level)
         hal_pwm_enable(NIGHT_LIGHT_PWM_ID, &pwm_cfg);
         bsp_night_light_irq_control(true);
         LOG_PBUS("night light on");
-    } 
-    
-    if (time_info.target_duty != level) {
-        time_info.target_duty = level > 100 ? 100 : level;
-        bsp_night_light_climb_start();
-        LOG_PBUS("duty: %d, level: %d", time_info.target_duty, time_info.current_duty);
     }
+
+    uint8_t duty = level;
+    if (duty > 98)   // 防止target_duty超过98，因无法触发中断而无法更新PWM占空比
+    {
+        duty = 98;
+    }
+    if (duty < 2)   // 防止target_duty小于2，因无法触发中断而无法更新PWM占空比
+    {
+        duty = 2;
+    }
+
+    // if ((time_info.target_duty > (target_duty + 5)) || (time_info.target_duty < (target_duty - 5))) {
+    if (time_info.current_duty != duty) {
+        time_info.duty_update_flag = 1;
+        time_info.target_duty = duty;
+        bsp_night_light_climb_start();
+    }
+    else {
+        time_info.duty_update_flag = 0;
+        time_info.target_duty = time_info.current_duty;
+    }
+    LOG_PBUS("nightlight target_duty: %d, current_duty: %d", time_info.target_duty, time_info.current_duty);
 }
 #else
 static void night_light_level_set(uint8_t level)
@@ -225,5 +241,10 @@ int bsp_night_light_status_set(led_status_msg_t *msg)
     } else if (msg->led_status.mode == LED_MODE_ONOFF) {
         night_light_level_set(msg->led_status.un.onoff.status > 0 ? LED_LEVEL_MAX / 2 : 0);
     }
+    return 0;
+}
+
+int bsp_night_light_rate_update(led_level_rate_msg_t *msg)
+{
     return 0;
 }

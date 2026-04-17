@@ -2,7 +2,6 @@
 * INCLUDE FILES
 *****************************************************************************************
 */
-#include "root_common_api.h" // IWYU pragma: keep
 #include "ui_img_define.h"   // IWYU pragma: keep
 #include "ui_page_define.h" // IWYU pragma: keep
 #include "ui_manager.h"   // IWYU pragma: keep
@@ -54,7 +53,7 @@ static void charge_bg_ui_update(ui_manager_context_t *thiz)
     if (charge_info->charge_icon == NULL || !lv_obj_is_valid(charge_info->charge_icon)) {
         charge_info->charge_icon = lv_image_create(charge_info->root);
     }
-    common_ui_img_resource_init(thiz, RESOURCE_ID_CHARGE_PAGE_BG, &charge_info->charge_icon_info);
+    common_ui_img_resource_init_with_theme(thiz, RESOURCE_ID_CHARGE_PAGE_IP, &charge_info->charge_icon_info);
     EXCEPTION_CHECK_VOID(charge_info->charge_icon_info.data);
     lv_fs_path_ex_t charge_icon_img_path;
     lv_fs_make_path_from_buffer(&charge_icon_img_path, LV_FS_MEMFS_LETTER,

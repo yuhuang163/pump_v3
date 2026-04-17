@@ -5,8 +5,7 @@
 #include "root_common_api.h"
 #include "ble_manager.h" // IWYU pragma: keep
 #include "ble_event_process.h" // IWYU pragma: keep
-#include "root_storage_base.h"
-#include "storage_manager_api.h"
+
 
 /*
 * DEFINES
@@ -148,6 +147,16 @@ static int ble_bind_state_get(void)
 
 static int ble_bind_state_set(uint8_t state)
 {
+    if (state != ble_obj->priv.ble_bind_state) {
+        window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
+        EXCEPTION_CHECK_INT(wm);
+        multi_func_msg_data_t msg = {0};
+        msg.union_body.extra.window_id = ID_WINDOW_POPUP_WINDOW;
+        msg.union_body.extra.is_bg_dispatch = 0x01;
+        msg.union_body.extra.arg1 = (BLE_BIND_STATE_COMPLETE == state) ? ID_POPUP_UI_DEVICE_BIND : ID_POPUP_UI_DEVICE_UNBIND;
+        msg.union_body.extra.popup_exit_time = 1000;
+        wm->dispatch_new_window_args(wm, &msg);
+    }
     ble_obj->priv.ble_bind_state = state;
     storage_manager_context_t *storage_ctx = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
     if (storage_ctx && storage_ctx->put_store_val) {
@@ -249,7 +258,8 @@ static void on_connect_status_change(ble_manager_context_t *ctx, int new_status,
         return;
     }
     LOG_BLE("new ble_connect_state: %d, show popup window.", new_status);
-    SEND_BROADCAST_ARGS2(ID_BROADCAST_BLE_STATE_CHANGE, BLE_BROADCAST_CONNECT_STATE_CHANGE, new_status);
+    SEND_BROADCAST_ARGS1(ID_BROADCAST_BLE_STATE_CHANGE, 
+        new_status > 0 ? BLE_BROADCAST_CONNECTED : BLE_BROADCAST_DISCONNECT);
     if (ctx->hook && ctx->hook->on_connect_change_route) {
         ctx->hook->on_connect_change_route(ctx, new_status);
     }
@@ -258,9 +268,9 @@ static void on_connect_status_change(ble_manager_context_t *ctx, int new_status,
         multi_func_msg_data_t msg = {0};
         msg.union_body.extra.window_id = ID_WINDOW_POPUP_WINDOW;
         msg.union_body.extra.is_bg_dispatch = 0x01;
-        msg.union_body.extra.arg1 = (1 == new_status) ? ID_POPUP_WINDOW_BT_CONNECT : ID_POPUP_WINDOW_BT_DISCONNECT;
-        msg.union_body.extra.popup_exit_time = 2000;
-        // wm->dispatch_new_window_args(wm, &msg);
+        msg.union_body.extra.arg1 = (1 == new_status) ? ID_POPUP_UI_BT_CONNECT : ID_POPUP_UI_BT_DISCONNECT;
+        msg.union_body.extra.popup_exit_time = 1000;
+        wm->dispatch_new_window_args(wm, &msg);
     }
 }
 

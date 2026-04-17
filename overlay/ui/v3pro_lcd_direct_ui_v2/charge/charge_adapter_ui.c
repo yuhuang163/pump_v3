@@ -2,8 +2,6 @@
 * INCLUDE FILES
 *****************************************************************************************
 */
-#include "resource_id_define.h"
-#include "root_common_api.h" // IWYU pragma: keep
 #include "ui_img_define.h"   // IWYU pragma: keep
 #include "ui_page_define.h" // IWYU pragma: keep
 #include "ui_manager.h"   // IWYU pragma: keep
@@ -102,7 +100,7 @@ static int charge_adapter_object_update(ui_manager_context_t *thiz)
         EXCEPTION_CHECK_INT(adapter_info->text);
     }
     lv_label_set_text(adapter_info->text, 
-        "The adapter is incompatible.\nPlease confirm the adapter.");
+        "Incompatible adapter. Unable to\ncharge.");
     lv_obj_set_style_text_color(adapter_info->text, lv_color_hex(CHARGE_ADAPTER_TEXT_COLOR), 0);
     // lv_obj_set_style_text_opa(adapter_info->text, LV_OPA_70, 0);  /// 设置文本不透明度为60%
     lv_obj_set_style_text_font(adapter_info->text, &lv_font_oppo_sans_16_medium, 0);  /// 设置字体
@@ -115,7 +113,7 @@ static int charge_adapter_object_update(ui_manager_context_t *thiz)
         adapter_info->charge_adapter_icon = lv_image_create(adapter_info->root);
         EXCEPTION_CHECK_INT(adapter_info->charge_adapter_icon);
     }
-    common_ui_img_resource_init(thiz, RESOURCE_ID_CHARGE_ADAPTER_IMG, &adapter_info->charge_adapter_icon_info);
+    common_ui_img_resource_init_with_theme(thiz, RESOURCE_ID_CHARGE_ADAPTER_IP, &adapter_info->charge_adapter_icon_info);
     EXCEPTION_CHECK_INT(adapter_info->charge_adapter_icon_info.data);
     lv_fs_path_ex_t charge_adapter_icon_img_path;
     lv_fs_make_path_from_buffer(&charge_adapter_icon_img_path, LV_FS_MEMFS_LETTER,

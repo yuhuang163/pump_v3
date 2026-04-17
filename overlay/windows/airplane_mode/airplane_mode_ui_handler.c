@@ -28,17 +28,24 @@
 static void airplane_mode_exit_cb(hdr_post_args_t *args)
 {
     ui_proc_airplane_mode_t *proc = (ui_proc_airplane_mode_t *)args->user_data;
-    EXCEPTION_CHECK_VOID(proc);
-    EXCEPTION_CHECK_VOID(proc->airplane);
+    EXCEPTION_CHECK_VOID(proc && proc->wm && proc->airplane);
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_AIRPLANE_MODE);
     proc->airplane->exit(AIRPLANE_MODE_EXIT);
     multi_func_msg_data_t msg = {0};
+    if (proc->battery && proc->battery->is_adapter_mismatch() > 0) {
+        msg.union_body.extra.window_id = ID_WINDOW_CHARGE;
+        LOG_WM("goto charge screen");
+        proc->wm->dispatch_new_window_args(proc->wm, &msg);
+        return;
+    }
+
     if (proc->wm->is_window_guidance_deployed() == 0) {
         LOG_WM("goto guide screen");
         msg.union_body.extra.window_id = ID_WINDOW_GUIDE;
         proc->wm->dispatch_new_window_args(proc->wm, &msg);
         return;
     }
+
     LOG_WM("goto home window.");
     msg.union_body.extra.window_id = ID_WINDOW_HOME;
     proc->wm->dispatch_new_window_args(proc->wm, &msg);
@@ -69,7 +76,7 @@ static void airplane_mode_animation_progress_cb(void *user_data, int index, ui_a
             airplane_mode_ui_after_policy(ui, index);
             break;
         case ANI_POPUP_DISPLAY_FINISH:
-            if (proc->popup_ui_type == AIRPLANE_MODE_POPUP_UI_EXIT) {
+            if (proc->popup_ui_type == ID_POPUP_UI_AIRPLANE_MODE_EXIT) {
                 POST_TASK_HANDLER_NO_DELAY(airplane_mode_exit_cb, proc, AIRPLANE_MODE_EXIT_TASK_NAME);
             }
             break;
@@ -134,8 +141,12 @@ void airplane_mode_led_policy(ui_proc_airplane_mode_t *proc, uint8_t status)
         if (proc->led->hook && proc->led->hook->set_key_backlight ) {
             proc->led->hook->set_key_backlight(proc->led, 0);
         }
-        proc->led->set_led_level(PUMP_START_BL, LED_LEVEL_MAX);
         proc->led->set_led_level(PUMP_MODE_BL, LED_LEVEL_MAX);
+#if V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V4
+        proc->led->set_led_level(PUMP_LEFT_CONTROL_BL, LED_LEVEL_MAX);
+#else
+        proc->led->set_led_level(PUMP_START_BL, LED_LEVEL_MAX);
+#endif
     } else {
         if (proc->led->hook && proc->led->hook->set_key_backlight) {
             proc->led->hook->set_key_backlight(proc->led, 100);

@@ -63,7 +63,6 @@ typedef struct {
     lv_obj_t * aging_info;  // 老化信息显示
     uint8_t force_update;
     uint8_t mac_addr[6];
-    uint8_t popup_ui_index;
     uint8_t rsv[16];
 } product_tests_home_display_info_t;
 
@@ -174,17 +173,21 @@ static void product_tests_aging_info_update(ui_manager_context_t *thiz, ui_proc_
     }
     
     //如果正处在老化测试中，则加上pump的运行时间
-    if (proc->tests->tests_manager_get_current_mode() == TST_AGING_TEST_TYPE) {
-        const pump_result_info_t *result_info = NULL;
-        READ_PUMP_RESULT_INFO(proc->pump, BREAST_PUMP_RESULT_PUMPING, &result_info);
-        if (result_info != NULL) {
-            // current_mode_work_time 单位是毫秒，需要转换为秒
-            age_time += result_info->current_mode_work_time / 1000;
+	if (proc->tests->tests_manager_get_current_mode() == TST_AGING_TEST_TYPE) {
+		int is_working = 0;
+		READ_PUMP_IS_WORKING(proc->pump, is_working);
+		if (is_working) {
+            const pump_result_info_t *result_info = NULL;
+            READ_PUMP_RESULT_INFO(proc->pump, BREAST_PUMP_RESULT_PUMPING, &result_info);
+            if (result_info != NULL) {
+                // current_mode_work_time 单位是毫秒，需要转换为秒
+                age_time += result_info->current_mode_work_time / 1000;
+           }
         }
         //显示老化时间标识
         lv_obj_clear_flag(tests_info->aging_info, LV_OBJ_FLAG_HIDDEN);  /// 确保可见
-    }
-    else {
+	}
+	else {
         //老化时间标识隐藏
         lv_obj_add_flag(tests_info->aging_info, LV_OBJ_FLAG_HIDDEN);  /// 确保可见
         return;
@@ -225,7 +228,6 @@ void ui_display_product_tests_home_prepare(ui_manager_context_t *thiz)
     ble_ui_init(thiz);
     battery_ui_init(thiz);
     tests_info->force_update = true;
-    tests_info->popup_ui_index = PRODUCT_TEST_POPUP_UI_NONE;
 }
 
 void ui_display_product_tests_home_remove(ui_manager_context_t *thiz)
@@ -234,7 +236,6 @@ void ui_display_product_tests_home_remove(ui_manager_context_t *thiz)
     EXCEPTION_CHECK_VOID(tests_info);
     ble_ui_deinit(thiz);
     battery_ui_deinit(thiz);
-    product_tip_popup_ui_remove(thiz);
     LVGL_OBJ_DELETE(tests_info->root);
     u_free(tests_info);
     tests_info = NULL;
@@ -255,7 +256,6 @@ int ui_display_product_tests_home_process(ui_manager_context_t *thiz)
     product_tests_qrcode_update(thiz, mac_addr);
     product_tests_aging_info_update(thiz, proc);
     product_tests_mac_name_update(thiz, mac_addr);
-    product_tip_popup_ui_update(thiz, proc, tests_info->root, &tests_info->popup_ui_index);
     tests_info->force_update = false;
     thiz->priv.fps_count++;
     if (get_timestamp() - thiz->priv.fps_start_time >= 1000) {

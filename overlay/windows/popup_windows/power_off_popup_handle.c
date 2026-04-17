@@ -37,7 +37,7 @@ static void system_will_power_off_popup_display_complete(ui_manager_context_t *u
 
 static void system_will_power_off_ui_after_policy(ui_manager_context_t *ui, int index)
 {
-    ui_display_power_off_popup_process(ui);
+    popup_window_ui_process(ui, ID_POPUP_UI_WILL_POWER_OFF);
 }
 
 static void system_will_power_off_ui_animation_progress_cb(void *user_data, int index, ui_ani_progress_state_e state)
@@ -63,14 +63,16 @@ static void system_will_power_off_ui_display_prepare(void *user_data)
 {
     ui_manager_context_t *ui = user_data;
     EXCEPTION_CHECK_VOID(ui);
-    ui_display_power_off_popup_prepare(ui);
+    ui_proc_popup_t *proc = (ui_proc_popup_t *)ui->priv.overlay_play_info.user_data;
+    EXCEPTION_CHECK_VOID(proc);
+    popup_window_ui_prepare(ui, ID_POPUP_UI_WILL_POWER_OFF, proc->extra.popup_exit_time);
 }
 
 static void system_will_power_off_ui_display_remove(void *user_data)
 {
     ui_manager_context_t *ui = user_data;
     EXCEPTION_CHECK_VOID(ui);
-    ui_display_power_off_popup_remove(ui);
+    popup_window_ui_remove(ui);
 }
 
 static void show_system_will_power_off_ui(ui_proc_popup_t *proc)

@@ -49,23 +49,19 @@ static void set_ota_upgrade_progress(uint8_t progress)
     ota_obj->priv.ota_progress = progress;
 }
 
+static ota_object_e get_ota_object(void)
+{
+    return ota_obj->priv.ota_object;
+}
+
 static void on_ota_broadcast_receive(broadcast_mask_id_t id, 
                                         void *context, 
                                         int arg1, 
                                         int arg2,
                                         broadcast_priv_data_t *pdata)
 {
-    ota_manager_context_t *ctx = context;
-
-    LOG_OTA("ota_broadcast rcv_id: 0x%lx", id.code);
-
-    switch (id.code) {
-        case ID_BROADCAST_BLE_STATE_CHANGE:
-            break;
-
-        default:
-            LOGE("not support broadcast id");
-            break;
+    if (ota_obj->hook && ota_obj->hook->on_ota_receiver_route) {
+        ota_obj->hook->on_ota_receiver_route(id, ota_obj, arg1, arg2, pdata);
     }
 }
 
@@ -83,12 +79,14 @@ static void set_ota_upgrade_state(ota_upgrade_state_e state)
 static void ota_upgrade_state_progress(ota_manager_context_t *ctx, uint8_t progress)
 {
     uint8_t val = progress > 100 ? 100 : progress;
+    // LOG_OTA("ota progress %d", progress);
     set_ota_upgrade_progress(val);
 }
 
-static void ota_upgrade_state_start(ota_manager_context_t *ctx)
+static void ota_upgrade_state_start(ota_manager_context_t *ctx, int ota_object)
 {
     window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
+    ctx->priv.ota_object = ota_object;
     set_ota_upgrading(true);
     set_ota_upgrade_progress(0);
     set_ota_upgrade_state(OTA_UPGRADE_STATE_START);
@@ -123,18 +121,18 @@ static void ota_upgrade_thread(void *args)
     thread_context_t *thd = args;
     multi_func_msg_data_t msg = {0};
     ota_event_type_e event;
+    ota_event_info_t *ota_info;
     CREATE_MSG_QUEUE(&thd->msg_id, OTA_WORK_DISPATCH_MESQ_NUM);
     while (1) {
         MSG_QUEUE_RECV(thd->msg_id, &msg, OS_WAIT_FOREVER);
-        event = msg.union_body.ota_evt_type.event;
-        switch (event) {
+        ota_info = &msg.union_body.ota_info;
+        switch (ota_info->event) {
             case OTA_EVENT_RESUME_OTA:
             case OTA_EVENT_START_OTA:
-                ota_upgrade_state_start(ctx);
+                ota_upgrade_state_start(ctx, ota_info->args1);
                 break;
-            case OTA_EVENT_OTA_PROGRESS:
-                LOG_OTA("ota progress %d", msg.union_body.ota_evt_type.sub_code);
-                ota_upgrade_state_progress(ctx, msg.union_body.ota_evt_type.sub_code);
+            case OTA_EVENT_OTA_PROGRESS: 
+                ota_upgrade_state_progress(ctx, ota_info->args1);
                 break;
             case OTA_EVENT_OTA_FAIL: 
                 ota_upgrade_state_end(ctx, false);
@@ -148,38 +146,30 @@ static void ota_upgrade_thread(void *args)
     }
 }
 
-static int dispatch_ota_event_wrapper(void *context, int event, uint32_t sub_code)
+static int dispatch_ota_event_wrapper(int event, int arg1, int arg2)
 {
-    ota_manager_context_t *ota_ctx = context;
     multi_func_msg_data_t msg = {0};
-    msg.union_body.ota_evt_type.event = (ota_event_type_e)event;
-    msg.union_body.ota_evt_type.sub_code = sub_code;
-
-    return MSG_QUEUE_SEND(ota_ctx->priv.ota_work_thd.msg_id, &msg, 0);
-}
-
-static void ota_event_callback(ota_event_type_e event, int args)
-{
-    LOG_OTA("ota event router: %d, %d", event, args);
-    dispatch_ota_event_wrapper(ota_obj, event, args);
+    msg.union_body.ota_info.event = (ota_event_type_e)event;
+    msg.union_body.ota_info.args1 = arg1;
+    msg.union_body.ota_info.args2 = arg2;
+    return MSG_QUEUE_SEND(ota_obj->priv.ota_work_thd.msg_id, &msg, 0);
 }
 
 static int on_post_ota_init(void *ptr)
 {
     ota_manager_context_t *ctx = ptr;
-    peripheral_bus_context_t *pbus = (peripheral_bus_context_t *)find_module(ID_MODULE_DEVICE_BUS);
-    ctx->priv.ble_dev = pbus->find_device(ID_DEVICE_BLE);
-    if (ctx->priv.ble_dev && ctx->priv.ble_dev->ioctl) {
-        DEVICE_IOCTL_ARGS(ctx->priv.ble_dev, OP_CODE_BLE_ADD_OTA_EVENT_CALLBACK, ota_event_callback);
-    }
     ctx->priv.ota_bcd = u_malloz(sizeof(broadcast_obj_t));
     ctx->priv.ota_bcd->context = ctx;
     ctx->priv.ota_bcd->name = "ota_manager";
     ctx->priv.ota_bcd->id.code |= ID_BROADCAST_BLE_STATE_CHANGE;
+    ctx->priv.ota_bcd->id.code |= ID_BROADCAST_SYS_STATE_CHANGE;
     ctx->priv.ota_bcd->receiver_cb = on_ota_broadcast_receive;
     register_broadcast_receiver(ctx->priv.ota_bcd);
     RUN_NEW_THREAD(&ctx->priv.ota_work_thd, "ota_work_thd", 
         ota_upgrade_thread, RT_PRIO_OTA_DISPATCH_THREAD, OTA_THREAD_STACKSIZE);
+    if (ctx->hook && ctx->hook->on_post_init_route) {
+        ctx->hook->on_post_init_route(ctx);
+    } 
     return 0;
 }
 
@@ -197,6 +187,9 @@ void *register_module_for_ota_manager_new(list_head_t *list_head)
     ptr->set_ota_upgrade_progress = set_ota_upgrade_progress;
     ptr->get_ota_upgrade_state = get_ota_upgrade_state;
     ptr->set_ota_upgrade_state = set_ota_upgrade_state;
+    ptr->get_ota_object = get_ota_object;
+    ptr->dispatch_ota_event_wrapper = dispatch_ota_event_wrapper;
 
-    return ADD_MODULE("ota_manager", ID_MODULE_OTA, 0, on_post_ota_init, ptr, list_head, sizeof(ota_manager_context_t));
+    return ADD_MODULE("ota_manager", ID_MODULE_OTA, 0, on_post_ota_init, ptr,
+        list_head, sizeof(ota_manager_context_t));
 }

@@ -5,13 +5,12 @@
 #include "hal_timer.h"
 #include "bsp_common.h"  // IWYU pragma: keep
 #include "bsp_config.h"  // IWYU pragma: keep
-#include <string.h>
 
 /*
 * DEFINES
 *****************************************************************************************
 */
-#define IS_SUPPORT_STALL_DETECTION_LOG      (1)
+#define IS_SUPPORT_STALL_DETECTION_LOG      (0)
 #define IS_SUPPORT_STALL_DETECTION_ADC_VALUE_DEBUG (0)
 #define STALL_DETECTION_INTERVAL_MS         (5)  /// 堵转检测间隔时间，单位ms
 #define ADC_SAMPLING_DELAY_MS               (5)  /// 采样延迟时间，单位ms

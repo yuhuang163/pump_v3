@@ -501,9 +501,12 @@ do_rename_and_archive() {
 	rm -f "$target_dir"/*.bin 2>/dev/null || true
 
 	# 根据 ROOT_RES_PATH/ROOT_RES_VERSION 拷贝资源
+	# pack.sh 更新后，multi/all 产物默认落在 bin/<版本>/all/ 目录；
+	# 这里优先匹配 all 目录下的 *_RES_all.bin，并兼容旧目录里的 *_RES.bin。
 	# V1 保持 bin/V1；V2 保持 bin/V2，且在 GNUmakefile 指定为 V3Pro 产品时优先查 bin/V3PRO_V2
 	# ROOT_RES_VERSION 定义为 major*100 + minor，例如 100 -> V01.00
 	local res_path res_version res_major res_minor res_major2 res_minor2 res_dir res_file res_source_dir
+	local res_lookup_dir
 	local searched_res_dirs
 	res_path=$(resolve_root_res_path "$info_file")
 	[[ -n "${res_path:-}" ]] || res_path="V1"
@@ -526,18 +529,23 @@ do_rename_and_archive() {
 	searched_res_dirs=${searched_res_dirs% }
 	for res_dir in "${RESOURCE_BIN_DIRS[@]}"; do
 		if [[ -d "$res_dir" ]]; then
-			# 取该版本号、且与当前设备匹配（V3 / V3Pro）最新的资源 bin（按 mtime）
-			# 资源文件名格式（pack_resources.py）：<ROOT_DEVICE_NAME>_YYYYMMDD_Vxx.xx_<md5>_RES.bin
-			shopt -s nullglob
-			local candidates=("$res_dir"/${device_title}_*_V${res_major2}.${res_minor2}_*_RES.bin)
-			shopt -u nullglob
-			if ((${#candidates[@]})); then
-				res_file=$(ls -1t "${candidates[@]}" 2>/dev/null | awk 'NR==1{print; exit}' || true)
-				if [[ -n "${res_file:-}" ]]; then
-					res_source_dir="$res_dir"
-					break
+			for res_lookup_dir in "$res_dir/all" "$res_dir"; do
+				[[ -d "$res_lookup_dir" ]] || continue
+				# 优先取 all 目录下新的 *_RES_all.bin，找不到时再回退旧的 *_RES.bin。
+				shopt -s nullglob
+				local candidates=(
+					"$res_lookup_dir"/${device_title}_*_V${res_major2}.${res_minor2}_*_RES_all.bin
+					"$res_lookup_dir"/${device_title}_*_V${res_major2}.${res_minor2}_*_RES.bin
+				)
+				shopt -u nullglob
+				if ((${#candidates[@]})); then
+					res_file=$(ls -1t "${candidates[@]}" 2>/dev/null | awk 'NR==1{print; exit}' || true)
+					if [[ -n "${res_file:-}" ]]; then
+						res_source_dir="$res_lookup_dir"
+						break 2
+					fi
 				fi
-			fi
+			done
 		fi
 	done
 
@@ -611,7 +619,7 @@ do_rename_and_archive() {
 		echo "RES 已归档(${res_path} V${res_major2}.${res_minor2}, source=${res_source_dir}): $target_dir/$res_out"
 		copied_any=true
 	else
-		echo "未找到 RES 资源(${res_path} V${res_major2}.${res_minor2}, product=${product_family}): ${searched_res_dirs}/${device_title}_*_V${res_major2}.${res_minor2}_*_RES.bin"
+		echo "未找到 RES 资源(${res_path} V${res_major2}.${res_minor2}, product=${product_family})，已搜索: ${searched_res_dirs} (优先 all/*_RES_all.bin，回退 *_RES.bin)"
 	fi
 
 	if [[ "$copied_any" == false ]]; then

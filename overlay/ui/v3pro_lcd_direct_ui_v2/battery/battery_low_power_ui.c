@@ -2,7 +2,6 @@
 * INCLUDE FILES
 *****************************************************************************************
 */
-#include "root_common_api.h" // IWYU pragma: keep
 #include "ui_img_define.h"   // IWYU pragma: keep
 #include "ui_page_define.h" // IWYU pragma: keep
 #include "ui_manager.h"   // IWYU pragma: keep
@@ -65,7 +64,7 @@ static void battery_low_power_ui_bg_ui_update(ui_manager_context_t *thiz)
     if (low_power_info->low_power_icon == NULL || !lv_obj_is_valid(low_power_info->low_power_icon)) {
         low_power_info->low_power_icon = lv_image_create(low_power_info->root);
     }
-    common_ui_img_resource_init(thiz, RESOURCE_ID_LOW_POWER_PEOPLE_ICON, &low_power_info->low_power_icon_info);
+    common_ui_img_resource_init_with_theme(thiz, RESOURCE_ID_LOW_POWER_IP, &low_power_info->low_power_icon_info);
     EXCEPTION_CHECK_VOID(low_power_info->low_power_icon_info.data);
     lv_fs_path_ex_t low_power_icon_img_path;
     lv_fs_make_path_from_buffer(&low_power_icon_img_path, LV_FS_MEMFS_LETTER,

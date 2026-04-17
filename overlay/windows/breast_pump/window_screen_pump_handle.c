@@ -119,7 +119,6 @@ static void pump_knob_event_cb(ui_proc_pump_t *proc, uint8_t is_left)
             switch_pump_both_control_type_ui(proc);
             break;
         default:
-            pump_popup_ui_type_update(proc, PUMP_POPUP_UI_OPERATION_FAILED);
             LOG_WM("unknow ui type: %d, ignore.", proc->current_ui_type);
             break;
     }
@@ -130,7 +129,7 @@ static void pump_long_press_event_cb(ui_proc_pump_t *proc, uint16_t keycode)
     switch (keycode) {
         case KEY_CODE_START:
             if (proc->current_ui_type == PUMP_UI_TYPE_HOME) {
-                pump_popup_ui_type_update(proc, PUMP_POPUP_UI_PUMP_FINISH_MANUAL);
+                pump_popup_ui_type_update(proc, ID_POPUP_UI_PUMP_FINISH_MANUAL);
             }
             break;
         default:
@@ -194,8 +193,14 @@ static int on_pump_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
     if (keytype == KEY_EVENT_LONG_2S) {
         pump_long_press_event_cb(proc, keycode);
     } else {
-        if (proc->popup_ui_type == PUMP_POPUP_UI_PUMP_FINISH_MANUAL) {
-            pump_popup_ui_type_update(proc, PUMP_POPUP_UI_NONE);
+        if (proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_MANUAL) {
+            int pump_status = 0;
+            READ_PUMP_WORK_STATUS(proc->pump, pump_status);
+            if (pump_status == BREAST_PUMP_PAUSE) {
+                pump_popup_ui_type_update(proc, ID_POPUP_UI_PUMP_PAUSE_MANUAL);
+            } else {
+                pump_popup_ui_type_update(proc, ID_POPUP_UI_NONE);
+            }
         }
 
         if (keytype == KEY_EVENT_CLICK) {
@@ -248,17 +253,17 @@ static void on_pump_ui_broadcast_receive_cb(broadcast_mask_id_t id, void *contex
             } else if (arg1 == BREAST_PUMP_BROADCAST_COMPLETED) {
                 LOG_WM("pump finish, post pump complete task.");
             } else if (arg1 == BREAST_PUMP_BROADCAST_PUMP_WILL_FINISH) {
-                pump_popup_ui_type_update(proc, PUMP_POPUP_UI_PUMP_FINISH_TIMEOUT);
+                pump_popup_ui_type_update(proc, ID_POPUP_UI_PUMP_FINISH_TIMEOUT);
                 LOG_WM("pump will finish, post pump will finish task.");
             } else if (arg1 == BREAST_PUMP_BROADCAST_APP_COMPLETED) {
                 POST_TASK_HANDLER_NO_DELAY_ARG1(pump_ui_common_cb, proc, PUMP_HDR_ACTION_PUMP_COMPLETE, 
                     PUMP_COMPLETE_TASK_NAME);
                 LOG_WM("pump app complete, post pump app complete task.");
             } else if (arg1 == BREAST_PUMP_BROADCAST_PUMP_ERROR) {
-                pump_popup_ui_type_update(proc, PUMP_POPUP_UI_PUMP_ERROR_TIP);
+                // pump_popup_ui_type_update(proc, PUMP_POPUP_UI_PUMP_ERROR_TIP);
                 LOG_WM("pump error, post pump error task.");
             } else if (arg1 == BREAST_PUMP_BROADCAST_AUTO_PAUSE_REQUEST) {
-                pump_popup_ui_type_update(proc, PUMP_POPUP_UI_PUMP_PAUSE_TIMEOUT);
+                pump_popup_ui_type_update(proc, ID_POPUP_UI_PUMP_PAUSE_TIMEOUT);
                 LOG_WM("pump auto pause, post pump auto pause task.");
             }
             break;
@@ -287,23 +292,14 @@ static int entry_event_cb(window_lift_cycle_e new_state,
         }
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);
-        if (proc->start_ui_type == PUMP_UI_TYPE_COMMON_MODE) {
-            proc->current_ui_type = PUMP_UI_TYPE_NONE;
-            pump_mode_key_click_handler(proc);
-            if (proc->led) {
-                proc->led->set_led_blink(PUMP_START_BL, LED_SLOW_BLINK_TIME, 0, LED_STATUS_OFF);
-            }
-        } else if (proc->start_ui_type == PUMP_UI_TYPE_BREASTFEEDING_MODE) {
-            proc->current_ui_type = PUMP_UI_TYPE_NONE;
-            breastfeeding_mode_key_click_handler(proc);
-            if (proc->led) {
-                proc->led->set_led_blink(PUMP_START_BL, LED_SLOW_BLINK_TIME, 0, LED_STATUS_OFF);
-            }
-        } else if (proc->start_ui_type == PUMP_UI_TYPE_PUMPING) {
-            proc->current_ui_type = PUMP_UI_TYPE_NONE;
-            proc->home_popup_ui_type = PUMP_POPUP_UI_OPERATION_SUCCESS;
-            switch_pump_status_ui(proc);
-        } 
+        proc->current_ui_type = PUMP_UI_TYPE_NONE;
+        int mode_index = 0;
+        READ_PUMP_WORK_MODE(proc->pump, mode_index);
+        if (proc->led && proc->led->hook && proc->led->hook->set_key_backlight) {
+            proc->led->hook->set_key_backlight(proc->led, 100);
+            proc->led->set_led_level(PUMP_FREQ_SET_BL, PUMP_IS_COMMON_MODE(mode_index) ? LED_LEVEL_MAX : 0);
+        }
+        switch_pump_status_ui(proc);
     }
     return 0;
 }
@@ -332,14 +328,18 @@ static int exit_event_cb(window_lift_cycle_e new_state,
             proc->user_pause = 1;
             LOG_WM("==>%s window on pause", PAGE_NAME_STR);
             stop_pump_ui_animation(proc); 
-            unregister_broadcast_receiver(&proc->receiver);  // 注销广播接收器，防止use-after-free
-            REMOVE_ALL_HANDER_TASK();
-            remove_breast_pump_result_cb(proc->pump);
-            EXCEPTION_CHECK_INT(proc->key);
-            proc->key->remove_keyevent_handler(on_pump_ui_keyevent_hdr);
             break;
+            
         case ID_SCR_STATE_ON_DESTORY:
             LOG_WM("==>%s window on destory", PAGE_NAME_STR);
+            REMOVE_ALL_HANDER_TASK();
+            unregister_broadcast_receiver(&proc->receiver);  // 注销广播接收器，防止use-after-free
+            remove_breast_pump_result_cb(proc->pump);
+            if (proc->key) {
+                proc->key->remove_keyevent_handler(on_pump_ui_keyevent_hdr);
+            } else {
+                LOG_WM("key not present, ignore.");
+            }
             SET_WINDOW_CONTEXT(NULL);
             proc->margic = UI_WINDOW_MARGIC_CODE_INVALID;
             u_free(proc);
@@ -366,13 +366,6 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
     window_entry_extra_t *extra = (window_entry_extra_t *)wm->get_window_entry_extra(wm);
     proc->margic = UI_WINDOW_MARGIC_CODE;
     LOG_WM("window entry extra arg1: %d.", extra->arg1);
-    if (extra->arg1 == KEY_CODE_MODE) {
-        proc->start_ui_type = PUMP_UI_TYPE_COMMON_MODE;
-    } else if (extra->arg1 == KEY_CODE_BREASTFEEDING) {
-        proc->start_ui_type = PUMP_UI_TYPE_BREASTFEEDING_MODE;
-    } else {
-        proc->start_ui_type = PUMP_UI_TYPE_PUMPING;
-    }
     proc->wm = wm;
     proc->ui = (ui_manager_context_t *)find_module(ID_MODULE_UI);
     proc->pump = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);

@@ -2,7 +2,6 @@
 * INCLUDE FILES
 *****************************************************************************************
 */
-#include "root_common_api.h" // IWYU pragma: keep
 #include "ui_img_define.h"   // IWYU pragma: keep
 #include "ui_page_define.h" // IWYU pragma: keep
 #include "ui_manager.h"   // IWYU pragma: keep
@@ -82,7 +81,7 @@ static void pump_complete_tip_label_update(ui_manager_context_t *thiz)
     if (finish_info->icon == NULL || !lv_obj_is_valid(finish_info->icon)) {
         finish_info->icon = lv_image_create(finish_info->root);
     }
-    common_ui_img_resource_init(thiz, RESOURCE_ID_PUMP_FINISH_ICON, &finish_info->icon_info);
+    common_ui_img_resource_init_with_theme(thiz, RESOURCE_ID_PUMP_FINISH_IP, &finish_info->icon_info);
     EXCEPTION_CHECK_VOID(finish_info->icon_info.data);
     lv_fs_path_ex_t complete_tip_img_path;
     lv_fs_make_path_from_buffer(&complete_tip_img_path, LV_FS_MEMFS_LETTER,

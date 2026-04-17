@@ -37,11 +37,20 @@ static uint8_t s_charge_pd_wait_ready = 0;
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-static int charge_pd_write_nbyte(i2c_master_data_t *data)
+static int charge_pd_write_nbyte(uint8_t reg_addr, uint8_t *data, uint16_t len)
 {
     int ret = 0;
+
+    i2c_master_data_t i2c_data = {
+        .dev_address = CHARGE_PD_I2C_ADDR,
+        .reg_addr = &reg_addr,
+        .reg_addr_len = 1,
+        .data = data,
+        .len = len,
+    };
+    
     for (uint8_t i = 0; i < CHARGE_PD_RETRY_COUNT; i++) {
-        ret = bsp_i2c_write_byte(CHARGE_PD_I2C_ID, data);
+        ret = bsp_i2c_write_byte(CHARGE_PD_I2C_ID, &i2c_data);
         if (ret == BSP_OK) {
             return BSP_OK;
         }
@@ -50,12 +59,20 @@ static int charge_pd_write_nbyte(i2c_master_data_t *data)
     return BSP_ERROR;
 }
 
-static int charge_pd_read_nbyte(i2c_master_data_t *data)
+static int charge_pd_read_nbyte(uint8_t reg_addr, uint8_t *data, uint16_t len)
 {
     int ret = 0;
 
+    i2c_master_data_t i2c_data = {
+        .dev_address = CHARGE_PD_I2C_ADDR,
+        .reg_addr = &reg_addr,
+        .reg_addr_len = 1,
+        .data = data,
+        .len = len,
+    };
+
     for (uint8_t i = 0; i < CHARGE_PD_RETRY_COUNT; i++) {
-        ret = bsp_i2c_read_byte(CHARGE_PD_I2C_ID, data);
+        ret = bsp_i2c_read_byte(CHARGE_PD_I2C_ID, &i2c_data);
         if (ret == BSP_OK) {
             return BSP_OK;
         }
@@ -67,14 +84,7 @@ static int charge_pd_read_nbyte(i2c_master_data_t *data)
 static int charge_pd_device_is_ready(void)
 {
     uint8_t status = 0;
-    i2c_master_data_t read_data = {
-        .dev_address = CHARGE_PD_I2C_ADDR,
-        .reg_addr = CHARGE_PD_STATUS_REG,
-        .data = &status,
-        .len = 1,
-    };
-
-    if (charge_pd_read_nbyte(&read_data) != BSP_OK) {
+    if (charge_pd_read_nbyte(CHARGE_PD_STATUS_REG, &status, 1) != BSP_OK) {
         return BSP_ERROR;
     }
 
@@ -89,28 +99,15 @@ static int charge_pd_device_is_ready(void)
 static int charge_pd_voltage_config(charge_pd_voltage_e voltage)
 {
     uint8_t reg_data = (uint8_t)voltage;
-    i2c_master_data_t data = {
-        .dev_address = CHARGE_PD_I2C_ADDR,
-        .reg_addr = CHARGE_PD_VOLTAGE_REG,
-        .data = &reg_data,
-        .len = 1,
-    };
     reg_data = voltage;
-    return charge_pd_write_nbyte(&data);
+    return charge_pd_write_nbyte(CHARGE_PD_VOLTAGE_REG, &reg_data, 1);
 }
 
 static int charge_pd_version_get(void)
 {
     uint8_t pd_header = 0;
     uint8_t version = 0;
-    i2c_master_data_t data = {
-        .dev_address = CHARGE_PD_I2C_ADDR,
-        .reg_addr = CHARGE_PD_POWER_DATA_REG,
-        .data = &pd_header,
-        .len = 1,
-    };
-
-    if (charge_pd_read_nbyte(&data) != BSP_OK) {
+    if (charge_pd_read_nbyte(CHARGE_PD_POWER_DATA_REG, &pd_header, 1) != BSP_OK) {
         return -1;
     }
     version = (pd_header >> 6) & 0x03;
@@ -173,13 +170,7 @@ void bsp_charge_pd_init(void)
 int charge_pd_current_get(void)
 {
     uint8_t current = 0;
-    i2c_master_data_t data = {
-        .dev_address = CHARGE_PD_I2C_ADDR,
-        .reg_addr = CHARGE_PD_OUTPUT_CURRENT_REG,
-        .data = &current,
-        .len = 1,
-    };
-    if (charge_pd_read_nbyte(&data) != BSP_OK) {
+    if (charge_pd_read_nbyte(CHARGE_PD_OUTPUT_CURRENT_REG, &current, 1) != BSP_OK) {
         return 0;
     }
     return current * 50; /// 50mA

@@ -4,11 +4,10 @@
 */
 #include "bsp_common.h" // IWYU pragma: keep
 #include "bsp_config.h"
-#include "bsp_i2c.h"
+#include "bsp_i2c.h" // IWYU pragma: keep
 #include "bsp_charge.h"
-#include "bsp_ntc_map.h"
+#include "bsp_ntc_map.h" // IWYU pragma: keep
 #include "bsp_battery_internal.h"
-#include <stdint.h>
 #if IS_SUPPORT_PD_CHARGE
 #include "bsp_charge_pd.h"
 #endif
@@ -18,6 +17,7 @@
 * DEFINES
 *****************************************************************************************
 */
+#define IS_SUPPORT_CHARGE_CURRENT_ADJUST    1
 #define CHARGING_STATUS_VALUE               0x02
 #define CHARHE_FULL_STATUS_VALUE            0x01
 #define UNCHARGE_STATUS_VALUE               0x00 
@@ -65,7 +65,7 @@ static const char *charge_status_arr[] = {
 *****************************************************************************************
 */
 #if IS_SUPPORT_DEVICE_CHARGE 
-static int charge_write_nbyte(i2c_master_data_t *data)
+static int charge_write_nbyte(uint8_t reg_addr, uint8_t *data, uint16_t len)
 {
     int ret = 0;
 
@@ -74,8 +74,22 @@ static int charge_write_nbyte(i2c_master_data_t *data)
         return BSP_NOT_READY;
     }
 
+#if CHARGE_I2C_ID == TOUCH_KEY_I2C_ID
+    if (touch_key_is_upgrading()) {
+        return BSP_OK;
+    }
+#endif
+
+    i2c_master_data_t i2c_data = {
+        .dev_address = CHARGE_I2C_ADDR,
+        .reg_addr = &reg_addr,
+        .reg_addr_len = 1,
+        .data = data,
+        .len = len,
+    };
+
     for (uint8_t i = 0; i < CHARGE_RETRY_COUNT; i++) {
-        ret = bsp_i2c_write_byte(CHARGE_I2C_ID, data);
+        ret = bsp_i2c_write_byte(CHARGE_I2C_ID, &i2c_data);
         if (ret == BSP_OK) {
             s_charge_abnormal_count = 0;
             return BSP_OK;
@@ -91,7 +105,7 @@ static int charge_write_nbyte(i2c_master_data_t *data)
     return BSP_ERROR;
 }
 
-static int charge_read_nbyte(i2c_master_data_t *data)
+static int charge_read_nbyte(uint8_t reg_addr, uint8_t *data, uint16_t len)
 {
     int ret = 0;
     
@@ -100,13 +114,59 @@ static int charge_read_nbyte(i2c_master_data_t *data)
         // return BSP_NOT_READY;
     }
 
+#if CHARGE_I2C_ID == TOUCH_KEY_I2C_ID
+    if (touch_key_is_upgrading()) {
+        return BSP_OK;
+    }
+#endif
+
+    i2c_master_data_t i2c_data = {
+        .dev_address = CHARGE_I2C_ADDR,
+        .reg_addr = &reg_addr,
+        .reg_addr_len = 1,
+        .data = data,
+        .len = len,
+    };
+
     for (uint8_t i = 0; i < CHARGE_RETRY_COUNT; i++) {
-        ret = bsp_i2c_read_byte(CHARGE_I2C_ID, data);
+        ret = bsp_i2c_read_byte(CHARGE_I2C_ID, &i2c_data);
         if (ret == BSP_OK) {
             s_charge_abnormal_count = 0;
             return BSP_OK;
         }
         msleep(10);
+    }
+
+    s_charge_abnormal_count++;
+    if (s_charge_abnormal_count > CHARGE_ABNORMAL_MAX_COUNT) {
+        s_charge_is_ready = 0;
+    }
+
+    return BSP_ERROR;
+}
+
+static int charge_read_nbyte_no_retry(uint8_t reg_addr, uint8_t *data, uint16_t len)
+{
+    int ret = 0;
+
+#if CHARGE_I2C_ID == TOUCH_KEY_I2C_ID
+    if (touch_key_is_upgrading()) {
+        return BSP_OK;
+    }
+#endif
+
+    i2c_master_data_t i2c_data = {
+        .dev_address = CHARGE_I2C_ADDR,
+        .reg_addr = &reg_addr,
+        .reg_addr_len = 1,
+        .data = data,
+        .len = len,
+    };
+
+    ret = bsp_i2c_read_byte(CHARGE_I2C_ID, &i2c_data);
+    if (ret == BSP_OK) {
+        s_charge_abnormal_count = 0;
+        return BSP_OK;
     }
 
     s_charge_abnormal_count++;
@@ -161,15 +221,8 @@ static int charge_device_is_ready(void)
 {
     int ret = 0;
     uint8_t value = 0;
-    i2c_master_data_t read_data = {
-        .dev_address = CHARGE_I2C_ADDR,
-        .reg_addr = CHARGE_ID_REG,
-        .data = &value,
-        .len = 1,
-    };
-
     for (uint8_t i = 0; i < 5; i++) {
-        ret = bsp_i2c_read_byte(CHARGE_I2C_ID, &read_data);
+        ret = charge_read_nbyte_no_retry(CHARGE_ID_REG, &value, 1);
         if (value == CHARGE_ID_VALUE) {            
             s_charge_is_ready = true;
             s_charge_abnormal_count = 0;
@@ -183,27 +236,26 @@ static int charge_device_is_ready(void)
 static int charge_vbat_config(void)
 {
     uint8_t reg_data = 0;
-    i2c_master_data_t data = {
-        .dev_address = CHARGE_I2C_ADDR,
-        .reg_addr = CHARGE_VBAT_SET_REG,
-        .data = &reg_data,
-        .len = 1,
-    };
+    uint8_t reg_addr = CHARGE_VBAT_SET_REG;
     reg_data = VCELL_4_2V | CSEL_3_CELL | IRCOMP_0MOHM;
-    if (charge_write_nbyte(&data) != BSP_OK) {
+    if (charge_write_nbyte(CHARGE_VBAT_SET_REG, &reg_data, 1) != BSP_OK) {
         return BSP_ERROR;
     }
     /// 设置充电电流限制
-    data.reg_addr = CHARGE_IBAT_CHG_REG;
-    reg_data = BATT_INPUT_CURRENT_LIMIT / BATT_CURRENT_LIMIT_SCALE; /// 1000mA
+#if IS_SUPPORT_CHARGE_CURRENT_ADJUST
     s_charging_current = BATT_INPUT_CURRENT_LIMIT;
-    if (charge_write_nbyte(&data) != BSP_OK) {
+#else
+    s_charging_current = 1500;
+
+#endif
+    reg_data = s_charging_current / BATT_CURRENT_LIMIT_SCALE; /// 1000mA
+    if (charge_write_nbyte(CHARGE_IBAT_CHG_REG, &reg_data, 1) != BSP_OK) {
         return BSP_ERROR;
     }
+    LOG_PBUS("charge_vbat_config: %dmA", s_charging_current);
     /// 设置放电电流限制
-    data.reg_addr = CHARGE_IBAT_DCHG_REG;
     reg_data = BATT_OUTPUT_CURRENT_LIMIT / BATT_CURRENT_LIMIT_SCALE; /// 3000mA
-    if (charge_write_nbyte(&data) != BSP_OK) {
+    if (charge_write_nbyte(CHARGE_IBAT_DCHG_REG, &reg_data, 1) != BSP_OK) {
         return BSP_ERROR;
     }
     return BSP_OK;
@@ -212,94 +264,57 @@ static int charge_vbat_config(void)
 static int charge_ibat_config(uint16_t current)
 {
     uint8_t reg_data = current / BATT_CURRENT_LIMIT_SCALE;
-    i2c_master_data_t data = {
-        .dev_address = CHARGE_I2C_ADDR,
-        .reg_addr = CHARGE_IBAT_CHG_REG,
-        .data = &reg_data,
-        .len = 1,
-    };
     s_charging_current = current;
-    return charge_write_nbyte(&data);
+    int ret = charge_write_nbyte(CHARGE_IBAT_CHG_REG, &reg_data, 1);    
+    LOG_PBUS("charge_ibat_config: %dmA, ret: %d", current, ret);
+    return ret;
 }
 
 static int charge_vin_config(void)
 {
     uint8_t reg_data[2] = {0};
-    i2c_master_data_t data = {
-        .dev_address = CHARGE_I2C_ADDR,
-        .reg_addr = CHARGE_VINDPM_H_REG,
-        .data = reg_data,
-        .len = 2,
-    };
     /// 输入电压限制
     reg_data[0] = 0; 
     reg_data[1] = CHARGE_INPUT_VOLTAGE_LIMIT / CHARGE_INPUT_VOLTAGE_LIMIT_SCALE; /// 低于4.2V，启用限流
-    if (charge_write_nbyte(&data) != BSP_OK) {
+    if (charge_write_nbyte(CHARGE_VINDPM_H_REG, reg_data, 2) != BSP_OK) {
         return BSP_ERROR;
     }   
     /// 输入电流限制
-    data.reg_addr = CHARGE_IIN_LIMIT_REG;
-    data.len = 1;
     reg_data[0] = CHARGE_INPUT_CURRENT_LIMIT / CHARGE_INPUT_CURRENT_LIMIT_SCALE; /// 3000mA
-    return charge_write_nbyte(&data);
+    return charge_write_nbyte(CHARGE_IIN_LIMIT_REG, reg_data, 1);
 }
 
 static int charge_adc_config(uint8_t adc_en)
 {
     uint8_t adc_set = 0;
-    i2c_master_data_t data = {
-        .dev_address = CHARGE_I2C_ADDR,
-        .reg_addr = CHARGE_ADC_SET_REG,
-        .data = &adc_set,
-        .len = 1,
-    };
-
     if (adc_en) {
         adc_set = AD_START_ENABLE | ADC_VBUS_ENABLE | ADC_IBUS_ENABLE |\
          ADC_VBAT_ENABLE | ADC_IBAT_ENABLE | ADC_NTC_ENABLE;
     }
-    return charge_write_nbyte(&data);
+    return charge_write_nbyte(CHARGE_ADC_SET_REG, &adc_set, 1);
 }
 
 static int charge_scale_config(void)
 {
     uint8_t scale = 0;
-    i2c_master_data_t data = {
-        .dev_address = CHARGE_I2C_ADDR,
-        .reg_addr = CHARGE_ADC_SCALE_REG,
-        .data = &scale,
-        .len = 1,
-    };
     scale = VBUS_SCALE_CFG | IBUS_SCALE_CFG | VBAT_SCALE_CFG | IBAT_SCALE_CFG;
-    return charge_write_nbyte(&data);
+    return charge_write_nbyte(CHARGE_ADC_SCALE_REG, &scale, 1);
 }
 
 static int charge_interrupt_config(void)
 {
     uint8_t reg_data[2] = {0};
-    i2c_master_data_t data = {
-        .dev_address = CHARGE_I2C_ADDR,
-        .reg_addr = CHARGE_ADC_SCALE_REG,
-        .data = reg_data,
-        .len = 2,
-    };
     reg_data[0] = CHARGE_AC_PRESENT_INT_ENABLE | CHARGE_INDET_INT_ENABLE | CHARGE_BUSUVP_CHG_INT_ENABLE | 
         CHARGE_BATOVP_INT_ENABLE | CHARGE_BAT_FULL_INT_ENABLE | CHARGE_RE_CHG_INT_ENABLE;
     reg_data[1] = CHARGE_CHG_TIMEOUT_INT_ENABLE | CHARGE_TSHUT_INT_ENABLE | CHARGE_BAT_EMPTY_INT_ENABLE | 
         CHARGE_NTC_FAULT_INT_ENABLE;
-    return charge_write_nbyte(&data);
+    return charge_write_nbyte(CHARGE_ADC_SCALE_REG, reg_data, 2);
 }
 
 static int charge_status_poll(charge_chip_status_t *status)
 {
     uint8_t reg_data[12] = {0};
-    i2c_master_data_t data = {
-        .dev_address = CHARGE_I2C_ADDR,
-        .reg_addr = CHARGE_ADC_VBUS_L_REG,
-        .data = (uint8_t *)&reg_data,
-        .len = 12,
-    };
-    int ret = charge_read_nbyte(&data);
+    int ret = charge_read_nbyte(CHARGE_ADC_VBUS_L_REG, reg_data, 12);
     if (ret != BSP_OK) {
         LOGE("charge adc poll failed, ret: %d", ret);
         return ret;
@@ -375,7 +390,7 @@ static void charge_chip_init(void)
     LOG_PBUS("charge chip init success");
 }
 
-static void charging_temp_policy_handler(int8_t temp)
+POSSIBLY_UNUSED static void charging_temp_policy_handler(int8_t temp)
 {
     if (temp >= CHARGE_NORMAL_TEMP_MIN && temp <= CHARGE_NORMAL_TEMP_MAX) {
         if (s_charge_temp_status != CHARGE_TEMP_NORMAL) {
@@ -435,7 +450,9 @@ static void charge_device_thread(void *arg)
         charge_status_poll(&s_charge_status);
         s_charge_status.charge_full = (s_charge_status.status & BAT_FULL_STATUS_POS) > 0 ? true : false;        
         s_charge_status.temp = charge_ntc_temperature_get(s_charge_status.ntc_resistance);
+#if IS_SUPPORT_CHARGE_CURRENT_ADJUST
         charging_temp_policy_handler(s_charge_status.temp);
+#endif
         if (get_timestamp_ms(log_timer) > 2000) {
             log_timer = get_timestamp();
             BSP_LOG("charge status", "vbus:%d mV, ibus:%d mA, vbat:%d mV, ibat:%d mA, ntc:%.2f KOhm, temp:%d C, status:0x%04X", 
@@ -572,7 +589,9 @@ void charge_event_internal_cb(charge_event_e event)
             current = BATT_INPUT_CURRENT_LIMIT;
         }
         s_charging_current_max = current;
+#if IS_SUPPORT_CHARGE_CURRENT_ADJUST
         charge_ibat_config(current);
+#endif
 #endif 
         s_charge_status.plug_in = true;      
         charge_power_control(true);
@@ -593,8 +612,6 @@ void charge_current_adjust(uint16_t current)
     if (current > 5000) {
         LOGE("charge current adjust out of range, current: %dmA", current);
         return;
-    } else {
-        LOG_PBUS("charge current adjust %dmA", current);
     }
 #if IS_SUPPORT_DEVICE_CHARGE 
     charge_ibat_config(current);

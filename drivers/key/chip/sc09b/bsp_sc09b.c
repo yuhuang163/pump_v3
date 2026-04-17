@@ -71,7 +71,7 @@ static uint16_t s_key_mask[TOUCH_KEY_NUM] = {
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-POSSIBLY_UNUSED static int sc09b_write_nbyte(i2c_master_data_t *data)
+POSSIBLY_UNUSED static int sc09b_write_nbyte(uint8_t reg_addr, uint8_t *data, uint16_t len)
 {
     int ret = 0;
 
@@ -80,8 +80,16 @@ POSSIBLY_UNUSED static int sc09b_write_nbyte(i2c_master_data_t *data)
         return BSP_NOT_READY;
     }
 
+    i2c_master_data_t i2c_data = {
+        .dev_address = TOUCH_I2C_ADDR,
+        .reg_addr = &reg_addr,
+        .reg_addr_len = 1,
+        .data = data,
+        .len = len,
+    };
+
     for (uint8_t i = 0; i < TOUCH_KEY_RETRY_COUNT; i++) {
-        ret = bsp_i2c_write_byte(TOUCH_KEY_I2C_ID, data);
+        ret = bsp_i2c_write_byte(TOUCH_KEY_I2C_ID, &i2c_data);
         if (ret == BSP_OK) {
             s_touch_abnormal_count = 0;
             return BSP_OK;
@@ -97,7 +105,7 @@ POSSIBLY_UNUSED static int sc09b_write_nbyte(i2c_master_data_t *data)
     return BSP_ERROR;
 }
 
-POSSIBLY_UNUSED static int sc09b_read_nbyte(i2c_master_data_t *data)
+POSSIBLY_UNUSED static int sc09b_read_nbyte(uint8_t reg_addr, uint8_t *data, uint16_t len)
 {
     int ret = 0;
 
@@ -106,13 +114,47 @@ POSSIBLY_UNUSED static int sc09b_read_nbyte(i2c_master_data_t *data)
         return BSP_NOT_READY;
     }
 
+    i2c_master_data_t i2c_data = {
+        .dev_address = TOUCH_I2C_ADDR,
+        .reg_addr = &reg_addr,
+        .reg_addr_len = 1,
+        .data = data,
+        .len = len,
+    };
+
     for (uint8_t i = 0; i < TOUCH_KEY_RETRY_COUNT; i++) {
-        ret = bsp_i2c_read_byte(TOUCH_KEY_I2C_ID, data);
+        ret = bsp_i2c_read_byte(TOUCH_KEY_I2C_ID, &i2c_data);
         if (ret == BSP_OK) {
             s_touch_abnormal_count = 0;
             return BSP_OK;
         }
         msleep(10);
+    }
+
+    s_touch_abnormal_count++;
+    if (s_touch_abnormal_count > TOUCH_ABNORMAL_MAX_COUNT) {
+        s_touch_is_ready = 0;
+    }
+
+    return BSP_ERROR;
+}
+
+POSSIBLY_UNUSED static int sc09b_read_nbyte_no_retry(uint8_t reg_addr, uint8_t *data, uint16_t len)
+{
+    int ret = 0;
+
+    i2c_master_data_t i2c_data = {
+        .dev_address = TOUCH_I2C_ADDR,
+        .reg_addr = &reg_addr,
+        .reg_addr_len = 1,
+        .data = data,
+        .len = len,
+    };
+
+    ret = bsp_i2c_read_byte(TOUCH_KEY_I2C_ID, &i2c_data);
+    if (ret == BSP_OK) {
+        s_touch_abnormal_count = 0;
+        return BSP_OK;
     }
 
     s_touch_abnormal_count++;
@@ -160,15 +202,8 @@ POSSIBLY_UNUSED static void sc09b_irq_init(void)
 POSSIBLY_UNUSED static void sc09b_touch_key_scan(void)
 {
     uint16_t key_value[2] = {0}, key_idle_count = 0, error_count = 0;
-    i2c_master_data_t key_data = {
-        .dev_address = TOUCH_I2C_ADDR,
-        .data = (uint8_t *)&key_value,
-        .len  = 2,
-        .reg_addr = SC09B_OUTPUT1_REG
-    };
-
     while(1) {
-        if (sc09b_read_nbyte(&key_data) == BSP_OK) {
+        if (sc09b_read_nbyte(SC09B_OUTPUT1_REG, (uint8_t *)key_value, 2) == BSP_OK) {
             for (uint8_t i = 0; i < TOUCH_KEY_NUM; i++) {
                 s_touch_key[i] = (key_value[0] & s_key_mask[i]) ? 1 : 0;
             }
@@ -210,28 +245,15 @@ POSSIBLY_UNUSED static void key_device_thread(void *arg)
 POSSIBLY_UNUSED static void sc09b_reference_cap_config(void)
 {
     uint8_t reg_val = SC09B_CAP_DEFALUT;
-    i2c_master_data_t key_data = {
-        .dev_address = TOUCH_I2C_ADDR,
-        .data = &reg_val,
-        .len  = 1,
-        .reg_addr = SC09B_OUTPUT1_REG 
-    };
-    sc09b_write_nbyte(&key_data);
+    sc09b_write_nbyte(SC09B_OUTPUT1_REG, &reg_val, 1);
 }
 
 POSSIBLY_UNUSED static int sc09b_is_ready(void)
 {
     int ret = BSP_NOT_READY;
     uint16_t reg_val = 0;
-    i2c_master_data_t key_data = {
-        .dev_address = TOUCH_I2C_ADDR,
-        .data = (uint8_t *)&reg_val,
-        .len  = 2,
-        .reg_addr = SC09B_OUTPUT1_REG 
-    };
-
     for (uint8_t i = 0; i < 5; i++) {
-        ret = bsp_i2c_read_byte(TOUCH_KEY_I2C_ID, &key_data);
+        ret = sc09b_read_nbyte_no_retry(SC09B_OUTPUT1_REG, (uint8_t *)&reg_val, 2);
         if (ret != BSP_OK) {
             continue;
         }
@@ -350,14 +372,7 @@ int bsp_key_sensitivity_set(uint8_t key_index, uint8_t sensitivity)
 {
 #if IS_SUPPORT_DEVICE_TOUCH_KEY
     uint8_t reg_val = sensitivity;
-    i2c_master_data_t key_data = {
-        .dev_address = TOUCH_I2C_ADDR,
-        .data = &reg_val,
-        .len  = 2,
-        .reg_addr = key_index == 0 ? SC09B_SEN_REG0 : SC09B_SEN_REG_COM 
-    };
-
-    return sc09b_write_nbyte(&key_data);
+    return sc09b_write_nbyte(key_index == 0 ? SC09B_SEN_REG0 : SC09B_SEN_REG_COM, &reg_val, 1);
 #else
     return BSP_OK;
 #endif
@@ -367,5 +382,10 @@ int bsp_touch_is_ready(void *args)
 {
     uint8_t *touch_is_ready_status = (uint8_t *)args;
     *touch_is_ready_status = s_touch_is_ready;
+    return BSP_OK;
+}
+
+int bsp_touch_signal_read(void *args)
+{
     return BSP_OK;
 }

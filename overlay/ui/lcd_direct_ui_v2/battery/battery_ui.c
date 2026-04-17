@@ -2,8 +2,6 @@
 * INCLUDE FILES
 *****************************************************************************************
 */
-#include "resource_id_define.h"
-#include "root_common_api.h" // IWYU pragma: keep
 #include "ui_img_define.h"   // IWYU pragma: keep
 #include "ui_page_define.h" // IWYU pragma: keep
 #include "ui_manager.h"   // IWYU pragma: keep
@@ -18,6 +16,7 @@
 *****************************************************************************************
 */
 
+
 /*
 * GLOBAL VARIABLE DEFINITIONS
 *****************************************************************************************
@@ -28,22 +27,21 @@
 *****************************************************************************************
 */
 
-
 /*
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-int battery_icon_update(ui_manager_context_t *thiz, lv_obj_t *root, uint8_t percent, uint8_t is_charging)
+int battery_ui_update(ui_manager_context_t *thiz, lv_obj_t *root, battery_manager_context_t *battery, uint8_t is_display_state)
 {
     return 0;
 }
 
-void battery_icon_init(ui_manager_context_t *thiz)
+void battery_ui_init(ui_manager_context_t *thiz)
 {
 
 }
 
-void battery_icon_deinit(ui_manager_context_t *thiz)
+void battery_ui_deinit(ui_manager_context_t *thiz)
 {
 
 }
