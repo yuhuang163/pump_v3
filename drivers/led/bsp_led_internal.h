@@ -23,6 +23,12 @@ void bsp_led_resume(void);
 void bsp_led_suspend(void);
 int bsp_led_status_set(led_status_msg_t *msg);
 int bsp_led_level_rate_update(led_level_rate_msg_t *msg);
+#if IS_SUPPORT_KEY_LIGHT_ADAPTIVE
+/** 仅更新光感目标占空比，由 LED 线程渐变逼近，避免亮度跳变 */
+void bsp_led_key_adaptive_duty_set(uint8_t duty);
+/** 当前/目标立即设为 duty 并刷新硬件（关闭自适应、手动档位等） */
+void bsp_led_key_adaptive_duty_snap(uint8_t duty);
+#endif
 
 void bsp_night_light_init(void);
 void bsp_night_light_resume(void);

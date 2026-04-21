@@ -55,18 +55,35 @@ typedef struct led_manager_context {
         void (*set_key_backlight)(struct led_manager_context *ctx, uint8_t level);
         int (*get_night_light_level)(struct led_manager_context *ctx);
         int (*get_night_light_onoff)(struct led_manager_context *ctx);
+#if IS_SUPPORT_KEY_LIGHT_ADAPTIVE
+        void (*set_key_light_level)(struct led_manager_context *ctx, uint8_t level); /// 设置按键背光亮度会自动关闭自适应调光.
+        void (*key_light_adaptive_level_update)(struct led_manager_context *ctx, uint8_t level);
+        void (*set_key_light_adaptive_switch)(struct led_manager_context *ctx, uint8_t onoff);
+        int (*get_key_light_adaptive_switch)(struct led_manager_context *ctx);
+        void (*set_key_light_adaptive_dimming)(struct led_manager_context *ctx, uint8_t onoff);
+        int (*get_key_light_adaptive_dimming)(struct led_manager_context *ctx);
+        int (*get_key_light_level)(struct led_manager_context *ctx);
+        int (*get_key_light_onoff)(struct led_manager_context *ctx);
+#endif
     } *hook;
 /// private:
     struct __led_private {
         struct rt_device_node  *led_dev;
         broadcast_obj_t m_bcd;
         struct power_manager_context *power;
-        uint8_t night_light_onoff; /// 按键背光开关.
+        uint8_t night_light_onoff; /// 夜灯背光开关.
         uint8_t night_light_adaptive_level;   /// 夜灯自适应亮度.
         uint8_t night_light_setting_level;    /// 夜灯设置亮度.
         uint8_t night_light_level; /// 夜灯当前亮度.
         uint8_t night_light_adaptive_switch;  /// 夜灯自适应开关.
         uint8_t night_light_adaptive_dimming; /// 夜灯自适应调光.
+#if IS_SUPPORT_KEY_LIGHT_ADAPTIVE
+        uint8_t key_light_onoff; /// 按键背光开关.
+        uint8_t key_light_adaptive_level;   /// 按键背光自适应亮度.
+        uint8_t key_light_level; /// 按键背光当前亮度.
+        uint8_t key_light_adaptive_switch;  /// 按键背光自适应开关.
+        uint8_t key_light_adaptive_dimming; /// 按键背光自适应调光
+#endif
     } priv;
 } led_manager_context_t;
 

@@ -97,10 +97,12 @@ extern "C" {
 #define IS_SUPPORT_DEVICE_UART                           (1)
 /// 支持光传感器
 #define IS_SUPPORT_DEVICE_LIGHT_SENSOR                   (1)
+/// 支持光传感器校准
+#define IS_SUPPORT_DEVICE_LIGHT_SENSOR_CALIB             (0)
 /// 支持资源管理
 #define IS_SUPPORT_MODULE_RES                            (1)
 /// 支持自适应背光  
-#define IS_SUPPORT_ADAPTIVE_DIMMING                      (0)
+#define IS_SUPPORT_ADAPTIVE_DIMMING                      (1)
 /// 支持堵转检测
 #define IS_SUPPORT_MOTOR_STALL_DETECT                    (1)
 /// 支持睡眠关机
@@ -111,6 +113,8 @@ extern "C" {
 #else
 #define IS_SUPPORT_POWER_OFF_REMINDER                    (0)
 #endif
+/// 支持UI主题资源
+#define IS_SUPPORT_UI_THEME_RES                          (0)
 
 #if (ROOT_PRODUCT_ID == ROOT_PRODUCT_V3PRO_ID)
 /// 支持漏气提醒
@@ -147,7 +151,10 @@ extern "C" {
 #else
 #define IS_SUPPORT_TOUCH_IC_OTA                          (1)
 #endif
-
+#if IS_SUPPORT_ADAPTIVE_DIMMING
+/// 支持触摸按键背光灯自适应亮度调节
+#define IS_SUPPORT_KEY_LIGHT_ADAPTIVE                    (1)
+#endif
 #ifdef __cplusplus
 }
 #endif

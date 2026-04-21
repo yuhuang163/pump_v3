@@ -68,7 +68,7 @@ static int on_airplane_mode_keyevent_hdr(void *user_data, uint16_t keycode, uint
     EXCEPTION_CHECK_INT(proc);
     WINDOW_CONTEXT_GUARD_INT(proc, ID_WINDOW_AIRPLANE_MODE, 0);
     if (keytype == AIRPLANE_MODE_UI_KEY_DOWN_TYPE) {
-        proc->popup_ui_type = ID_POPUP_UI_AIRPLANE_MODE_EXIT;
+        proc->popup_ui_type = ID_POPUP_UI_AIRPLANE_MODE_PROMPT;
     } else if (keytype == AIRPLANE_MODE_UI_KEY_UP_TYPE) {
         if (proc->popup_ui_type != ID_POPUP_UI_NONE) {
             proc->popup_ui_type = ID_POPUP_UI_NONE;

@@ -28,6 +28,7 @@ extern "C" {
 typedef enum {
     PRODUCT_TEST_HOME = 100,
     PRODUCT_TEST_LCD_COLOR,
+    PRODUCT_TEST_AGING_TEST,
 } product_test_ui_action_e;
 
 /// 产品测试UI类型枚举
@@ -35,6 +36,7 @@ typedef enum {
     PRODUCT_TEST_UI_TYPE_NONE = 0,
     PRODUCT_TEST_UI_TYPE_HOME,
     PRODUCT_TEST_UI_TYPE_LCD_COLOR,
+    PRODUCT_TEST_UI_TYPE_AGING,
     PRODUCT_TEST_UI_TYPE_MAX
 } product_test_ui_type_e;
 
@@ -43,6 +45,7 @@ typedef enum {
     PRODUCT_TEST_MODE_NONE = 0,
     PRODUCT_TEST_HOME_MODE,
     PRODUCT_TEST_LCD_COLOR_MODE,
+    PRODUCT_TEST_AGING_TEST_MODE,
     PRODUCT_TEST_MODE_MAX
 } product_test_mode_e;
 
@@ -80,6 +83,8 @@ void product_home_test_keyevent_cb(ui_proc_product_test_t *proc, uint16_t keycod
 void show_lcd_color_test_ui(ui_proc_product_test_t *proc);
 void lcd_color_test_ui_hdr_remove(void);
 void lcd_color_test_keyevent_cb(ui_proc_product_test_t *proc, uint16_t keycode, uint16_t keytype);
+void show_aging_test_ui(ui_proc_product_test_t *proc);
+void aging_test_keyevent_cb(ui_proc_product_test_t *proc, uint16_t keycode, uint16_t keytype);
 
 #ifdef __cplusplus
 }

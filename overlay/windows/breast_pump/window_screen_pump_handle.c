@@ -4,6 +4,7 @@
 */
 #include "breast_pump_manager.h" // IWYU pragma: keep
 #include "input_key_code.h"
+#include "root_log_define.h"
 #include "window_screen_pump.h"// IWYU pragma: keep
 
 /*
@@ -99,6 +100,10 @@ static void pump_ui_common_cb(hdr_post_args_t *args)
 
 static void pump_knob_event_cb(ui_proc_pump_t *proc, uint8_t is_left)
 {
+    if (proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_TIMEOUT) {
+        LOG_WM("pump finish timeout, ignore knob event.");
+        return;
+    }
     switch (proc->current_ui_type) {
         case PUMP_UI_TYPE_LEVEL:
             switch_pump_level_ui(proc, is_left ? false : true);
@@ -140,6 +145,11 @@ static void pump_long_press_event_cb(ui_proc_pump_t *proc, uint16_t keycode)
 
 static void pump_click_event_cb(ui_proc_pump_t *proc, uint16_t keycode)
 {
+    if (proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_TIMEOUT) {
+        LOG_WM("pump finish timeout, ignore key event.");
+        return;
+    }
+
     switch (keycode) {
         case KEY_CODE_POWER:
             pump_power_key_handler(proc);
@@ -175,10 +185,7 @@ static void pump_click_event_cb(ui_proc_pump_t *proc, uint16_t keycode)
 static int on_pump_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t keytype)
 {
     ui_proc_pump_t *proc = user_data;
-    EXCEPTION_CHECK_INT(proc);
-    EXCEPTION_CHECK_INT(proc->pump);
-    EXCEPTION_CHECK_INT(proc->key);
-    EXCEPTION_CHECK_INT(proc->ui);
+    EXCEPTION_CHECK_INT(proc && proc->pump && proc->key && proc->ui);
     WINDOW_CONTEXT_GUARD_INT(proc, ID_WINDOW_PUMP, 0);
     if (proc->goto_charge_ui_flag != 0) {
         LOG_WM("goto charge ui, ignore key event.");
@@ -251,8 +258,16 @@ static void on_pump_ui_broadcast_receive_cb(broadcast_mask_id_t id, void *contex
                     proc->is_mode_changed_by_app = false;
                 }
             } else if (arg1 == BREAST_PUMP_BROADCAST_COMPLETED) {
-                LOG_WM("pump finish, post pump complete task.");
+                if (proc->popup_ui_type != ID_POPUP_UI_PUMP_FINISH_TIMEOUT && 
+                    proc->pump_will_finish && PUMP_NO_FINISH(pump_status)) {
+                    POST_TASK_HANDLER_NO_DELAY_ARG1(pump_ui_common_cb, proc, PUMP_HDR_ACTION_PUMP_COMPLETE,
+                        PUMP_COMPLETE_TASK_NAME);
+                    LOG_WM("pump finish, post pump complete task.");
+                } else {
+                    LOG_WM("pump finish, ignore.");
+                }
             } else if (arg1 == BREAST_PUMP_BROADCAST_PUMP_WILL_FINISH) {
+                proc->pump_will_finish = true;
                 pump_popup_ui_type_update(proc, ID_POPUP_UI_PUMP_FINISH_TIMEOUT);
                 LOG_WM("pump will finish, post pump will finish task.");
             } else if (arg1 == BREAST_PUMP_BROADCAST_APP_COMPLETED) {
@@ -264,7 +279,7 @@ static void on_pump_ui_broadcast_receive_cb(broadcast_mask_id_t id, void *contex
                 LOG_WM("pump error, post pump error task.");
             } else if (arg1 == BREAST_PUMP_BROADCAST_AUTO_PAUSE_REQUEST) {
                 pump_popup_ui_type_update(proc, ID_POPUP_UI_PUMP_PAUSE_TIMEOUT);
-                LOG_WM("pump auto pause, post pump auto pause task.");
+                LOG_WM("pump pause timeout, post pump pause timeout task.");
             }
             break;
         default:
@@ -403,6 +418,7 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
 
 void pump_complete_event_handler(ui_proc_pump_t *proc)
 {
+    proc->pump_will_finish = false;
     POST_TASK_HANDLER_NO_DELAY_ARG1(pump_ui_common_cb, proc, PUMP_HDR_ACTION_PUMP_COMPLETE,
         PUMP_COMPLETE_TASK_NAME);
 }

@@ -23,6 +23,7 @@
 static uint16_t last_lux_for_duty = 0;           /// 上一次计算duty时的lux值
 static adaptive_dimming_info_t *adaptive = NULL;
 static uint16_t light_sensor_data[10] = {0};
+static uint8_t s_light_report_batch_count = 0;
 static uint16_t s_lux_filtered = 0;
 static uint8_t s_lux_filt_inited = 0;
 #if ADAP_DIM_USE_ENCODER_KNOB_SHIELD
@@ -50,6 +51,12 @@ static uint8_t s_lux_last_batch_valid = 0;       ///< 是否已有至少一批�
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
+static void light_sensor_report_accumulator_reset(void)
+{
+    s_light_report_batch_count = 0;
+    memset(light_sensor_data, 0, sizeof(light_sensor_data));
+}
+
 static void on_light_sensor_data_cb(void *user_data, uint8_t *data, int data_len)
 {
     EXCEPTION_CHECK_VOID(adaptive);
@@ -300,6 +307,12 @@ static void adaptive_dimming_polling_thread(void *user_data)
         return;
     }
 
+#if IS_SUPPORT_KEY_LIGHT_ADAPTIVE
+    if (led->hook && led->hook->key_light_adaptive_level_update) {
+        led->hook->key_light_adaptive_level_update(led, refresh_duty);
+    }
+#endif
+
     if (led->hook && led->hook->night_light_adaptive_level_update) {
         led->hook->night_light_adaptive_level_update(led, refresh_duty);
     }
@@ -360,6 +373,7 @@ void adaptive_dimming_init(void)
 void light_sensor_sampling_start(void)
 {
     EXCEPTION_CHECK_VOID(adaptive);
+    light_sensor_report_accumulator_reset();
     adaptive->is_sampling = 1;
     LOG_MISC("light sensor sampling start");
 }
@@ -368,6 +382,7 @@ void light_sensor_sampling_stop(void)
 {
     EXCEPTION_CHECK_VOID(adaptive);
     adaptive->is_sampling = 0;
+    light_sensor_report_accumulator_reset();
     LOG_MISC("light sensor sampling stop");
 }
 
@@ -397,24 +412,37 @@ bool light_sensor_change_sampling_interval(uint16_t interval)
 
 bool light_sensor_data_report(uint8_t *data)
 {
+    if (!data) {
+        return false;
+    }
     sensor_wrapper_data_t *sensor_data = (sensor_wrapper_data_t *)data;
-    static uint8_t light_sample_count = 0;
-    if (light_sample_count < 10) {
-        light_sensor_data[light_sample_count] = sensor_data->light_sensor_data.lux_level;
+
+    if (s_light_report_batch_count >= 10) {
+        s_light_report_batch_count = 0;
     }
-    light_sample_count++;
-    if (light_sample_count >= 10) {
-        servers_manager_context_t *servers_ctx =
-            (servers_manager_context_t *)find_module(ID_MODULE_SERVERS);
-        EXCEPTION_CHECK_BOOL(servers_ctx && servers_ctx->hook);
-        servers_publish_data_args_t args = {
-            .arg1 = 10,
-            .arg2 = 0,
-            .val = light_sensor_data,
-        };
-        servers_ctx->hook->factory_server_data_publish(
-            SERVERS_PUBLISH_DATA_LIGHT_SENSOR_SAMPLING, &args);
-        light_sample_count = 0;
+
+    light_sensor_data[s_light_report_batch_count] = sensor_data->light_sensor_data.lux_level;
+    s_light_report_batch_count++;
+
+    if (s_light_report_batch_count < 10) {
+        return true;
     }
-    return true;
+
+    servers_manager_context_t *servers_ctx =
+        (servers_manager_context_t *)find_module(ID_MODULE_SERVERS);
+    if (!servers_ctx || !servers_ctx->hook) {
+        LOG_EXCP("light_sensor_data_report: servers_ctx or hook null");
+        s_light_report_batch_count = 0;
+        return false;
+    }
+
+    servers_publish_data_args_t args = {
+        .arg1 = 10,
+        .arg2 = 0,
+        .val = light_sensor_data,
+    };
+    int ret = servers_ctx->hook->factory_server_data_publish(
+        SERVERS_PUBLISH_DATA_LIGHT_SENSOR_SAMPLING, &args);
+    s_light_report_batch_count = 0;
+    return ret == 0;
 }

@@ -15,11 +15,13 @@
 #define PRODUCT_TEST_UI_KEY_TYPE            (KEY_EVENT_CLICK)
 #define PRODUCT_TEST_HOME_TASK_NAME         "product_test_home_ui"
 #define PRODUCT_TEST_LCD_COLOR_TASK_NAME    "product_test_lcd_color_ui"
+#define PRODUCT_TEST_AGING_TEST_TASK_NAME   "product_test_aging_test_ui"
 #define REMOVE_ALL_HANDER_TASK() \
 do { \
     LOG_WM("==>REMOVE_ALL_HANDER_TASK"); \
     REMOVE_TASK_HANDLER_DIRECTLY(PRODUCT_TEST_HOME_TASK_NAME); \
     REMOVE_TASK_HANDLER_DIRECTLY(PRODUCT_TEST_LCD_COLOR_TASK_NAME); \
+    REMOVE_TASK_HANDLER_DIRECTLY(PRODUCT_TEST_AGING_TEST_TASK_NAME); \
 } while (0)
 
 /*
@@ -80,6 +82,17 @@ static void product_test_ui_common_cb(hdr_post_args_t *args)
                 show_product_home_test_ui(proc);
             }
             break;
+        case PRODUCT_TEST_AGING_TEST:
+            if (args->arg2 > 0) {
+                proc->tests_mode = PRODUCT_TEST_AGING_TEST_MODE;
+                LOG_WM("show aging test ui");
+                show_aging_test_ui(proc);
+            }else {
+                proc->tests_mode = PRODUCT_TEST_HOME_MODE;
+                LOG_WM("show home test ui");
+                show_product_home_test_ui(proc);
+            }
+            break;
         default:
             break;
     }
@@ -97,6 +110,9 @@ static int product_test_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint1
             break;
         case PRODUCT_TEST_LCD_COLOR_MODE:
             lcd_color_test_keyevent_cb(proc, keycode, keytype);
+            break;
+        case PRODUCT_TEST_AGING_TEST_MODE:
+            aging_test_keyevent_cb(proc, keycode, keytype);
             break;
         default:
             break;
@@ -118,6 +134,11 @@ static void product_test_broadcast_receive_cb(broadcast_mask_id_t id, void *cont
                 LOG_WM("lcd color test onoff:%d", arg2);
                 POST_TASK_HANDLER_NO_DELAY_ARG2(product_test_ui_common_cb, proc,
                     PRODUCT_TEST_LCD_COLOR, arg2, PRODUCT_TEST_LCD_COLOR_TASK_NAME);
+            }
+            if (arg1 == TST_AGING_TEST_TYPE) {
+                LOG_WM("aging test onoff:%d", arg2);
+                POST_TASK_HANDLER_NO_DELAY_ARG2(product_test_ui_common_cb, proc,
+                    PRODUCT_TEST_AGING_TEST, arg2, PRODUCT_TEST_AGING_TEST_TASK_NAME);
             }
             break;
         case ID_BROADCAST_PERSIST_INFO_UPDATE: 

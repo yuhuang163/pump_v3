@@ -30,6 +30,7 @@ static void pumping_popup_ui_finish_policy(ui_manager_context_t *ui, uint8_t pop
     LOG_WM("===> popup %d ui display complete.", popup_ui_index);
     ui_proc_pump_t *proc = (ui_proc_pump_t *)ui->priv.play_info.user_data;
     EXCEPTION_CHECK_VOID(proc);
+    pump_popup_ui_type_update(proc, ID_POPUP_UI_NONE);
     switch (popup_ui_index) {
         case ID_POPUP_UI_PUMP_FINISH_TIMEOUT:
             pump_complete_event_handler(proc);
@@ -41,7 +42,6 @@ static void pumping_popup_ui_finish_policy(ui_manager_context_t *ui, uint8_t pop
         default:
             break;
     }
-    pump_popup_ui_type_update(proc, ID_POPUP_UI_NONE);
 }
 
 static void pumping_work_ui_after_policy(ui_manager_context_t *ui, int index)
@@ -93,9 +93,8 @@ void show_pump_home_ui(ui_proc_pump_t *proc)
 {
     ui_manager_context_t *ui = proc->ui;
     EXCEPTION_CHECK_VOID(ui->hook && ui->hook->ui_animation_play_init);
-
+    proc->last_progress_ani_time = get_timestamp();
     if (proc->current_ui_type == PUMP_UI_TYPE_HOME) {
-        proc->last_progress_ani_time = get_timestamp();
         return;
     } else {
         proc->goto_pump_home_ui= false;    
@@ -116,7 +115,6 @@ void show_pump_home_ui(ui_proc_pump_t *proc)
         .display_remove_cb = pumping_ui_display_remove,
         .user_data = proc,
     };
-    proc->last_progress_ani_time = get_timestamp();
     ui->hook->ui_animation_play_init(ui, play_info);
     proc->current_ui_type = PUMP_UI_TYPE_HOME;
 }

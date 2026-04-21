@@ -127,9 +127,10 @@ def _derive_cpp_defines_from_makefile(makefile_path: str) -> Dict[str, str]:
     for key in [
         "ROOT_PRODUCT_V3_ID",
         "ROOT_PRODUCT_V3PRO_ID",
-        "V3_UI_V1",
         "V3_UI_V2",
         "V3PRO_UI_V2",
+        "V3_UI_V3",
+        "V3PRO_UI_V3",
     ]:
         value = _extract_make_assignment(raw, key)
         if value:

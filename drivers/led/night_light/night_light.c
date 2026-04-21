@@ -15,7 +15,7 @@
 */
 #define IS_SUPPORT_NIGHT_LIGHT_CLIMB              (1)  /// 支持爬升
 #define NIGHT_LIGHT_PERIOD                        1000
-#define NIGHT_LIGHT_TIME_PERIOD                   25
+#define NIGHT_LIGHT_TIME_PERIOD                   35
 #define NIGHT_LIGHT_LOG_DEBUG                     (1)
 
 typedef struct {
@@ -157,9 +157,9 @@ static void night_light_level_set(uint8_t level)
     }
 
     uint8_t duty = level;
-    if (duty > 98)   // 防止target_duty超过98，因无法触发中断而无法更新PWM占空比
+    if (duty > 58)   // 最大PWM限定在30%
     {
-        duty = 98;
+        duty = 58;
     }
     if (duty < 2)   // 防止target_duty小于2，因无法触发中断而无法更新PWM占空比
     {

@@ -94,16 +94,14 @@ resolve_root_res_path() {
 	# 条件表达式里的未定义宏会被当成 0，可能把 V1 误判成 V2。
 	local makefile="$PROJECT_DIR/GNUmakefile"
 	if [[ -f "$makefile" ]]; then
-		local product_family ui_v1_token ui_v2_token ui_v3pro_v2_token ui_version_token
-		local ui_v1_value ui_v2_value ui_v3pro_v2_value
+		local product_family ui_version_token
+		local ui_v2_value ui_v3pro_v2_value ui_v3_value ui_v3pro_v3_value
 		product_family=$(resolve_root_product_family_from_makefile "$makefile")
 
-		ui_v1_token='$(V3_UI_V1)'
-		ui_v2_token='$(V3_UI_V2)'
-		ui_v3pro_v2_token='$(V3PRO_UI_V2)'
-		ui_v1_value=$(awk '/^V3_UI_V1[[:space:]]*\?=/{print $3; exit}' "$makefile")
 		ui_v2_value=$(awk '/^V3_UI_V2[[:space:]]*\?=/{print $3; exit}' "$makefile")
 		ui_v3pro_v2_value=$(awk '/^V3PRO_UI_V2[[:space:]]*\?=/{print $3; exit}' "$makefile")
+		ui_v3_value=$(awk '/^V3_UI_V3[[:space:]]*\?=/{print $3; exit}' "$makefile")
+		ui_v3pro_v3_value=$(awk '/^V3PRO_UI_V3[[:space:]]*\?=/{print $3; exit}' "$makefile")
 
 		if [[ "$product_family" == "V3Pro" ]]; then
 			ui_version_token=$(awk '
@@ -121,12 +119,17 @@ resolve_root_res_path() {
 		fi
 
 		case "$ui_version_token" in
-			'$(V3_UI_V1)') printf "%s" "V1"; return 0 ;;
 			'$(V3_UI_V2)'|'$(V3PRO_UI_V2)') printf "%s" "V2"; return 0 ;;
-			"$ui_v1_value") [[ -n "${ui_v1_value:-}" ]] && { printf "%s" "V1"; return 0; } ;;
+			'$(V3_UI_V3)'|'$(V3PRO_UI_V3)') printf "%s" "V3"; return 0 ;;
 			"$ui_v2_value"|"$ui_v3pro_v2_value")
 				if [[ -n "${ui_version_token:-}" ]]; then
 					printf "%s" "V2"
+					return 0
+				fi
+				;;
+			"$ui_v3_value"|"$ui_v3pro_v3_value")
+				if [[ -n "${ui_version_token:-}" ]]; then
+					printf "%s" "V3"
 					return 0
 				fi
 				;;
@@ -135,6 +138,7 @@ resolve_root_res_path() {
 			case "$ui_version_token" in
 				*V1*) printf "%s" "V1"; return 0 ;;
 				*V2*) printf "%s" "V2"; return 0 ;;
+				*V3PRO_UI_V3*|*V3_UI_V3*) printf "%s" "V3"; return 0 ;;
 			esac
 		fi
 	fi
@@ -170,7 +174,7 @@ resolve_root_res_path() {
 	if [[ -n "${token:-}" ]]; then
 		printf "%s" "$token"
 	else
-		printf "%s" "V1"
+		printf "%s" "V2"
 	fi
 }
 
@@ -199,29 +203,56 @@ resolve_root_product_family_from_makefile() {
 
 build_resource_bin_dirs() {
 	# 根据资源路径与 GNUmakefile 中的产品配置，生成资源包搜索目录候选列表
-	# V1 保持不变；V2 在 V3Pro 项目中优先查 bin/V3PRO_V2，再回退 bin/V2
+	# 兼容旧 ROOT_RES_PATH=V1：目录已移除，统一回退到 bin/v3_res_v2
+	# V2 在 V3Pro 项目中优先查 bin/v3pro_res_v2，再回退 bin/v3_res_v2
+	# V3 同理：V3Pro 优先 bin/v3pro_res_v3，否则 bin/v3_res_v3，并回退 v2 资源包
 	local res_path="$1"
 	local product_family="$2"
 
 	RESOURCE_BIN_DIRS=()
 	case "$res_path" in
 		V1)
-			RESOURCE_BIN_DIRS+=("$PROJECT_DIR/overlay/resources/bin/V1")
+			RESOURCE_BIN_DIRS+=("$PROJECT_DIR/overlay/resources/bin/v3_res_v2")
 			;;
 		V2)
 			if [[ "$product_family" == "V3Pro" ]]; then
 				RESOURCE_BIN_DIRS+=(
-					"$PROJECT_DIR/overlay/resources/bin/V3PRO_V2"
-					"$PROJECT_DIR/overlay/resources/bin/V2"
+					"$PROJECT_DIR/overlay/resources/bin/v3pro_res_v2"
+					"$PROJECT_DIR/overlay/resources/bin/v3_res_v2"
 				)
 			else
-				RESOURCE_BIN_DIRS+=("$PROJECT_DIR/overlay/resources/bin/V2")
+				RESOURCE_BIN_DIRS+=("$PROJECT_DIR/overlay/resources/bin/v3_res_v2")
+			fi
+			;;
+		V3)
+			if [[ "$product_family" == "V3Pro" ]]; then
+				RESOURCE_BIN_DIRS+=(
+					"$PROJECT_DIR/overlay/resources/bin/v3pro_res_v3"
+					"$PROJECT_DIR/overlay/resources/bin/v3_res_v2"
+				)
+			else
+				RESOURCE_BIN_DIRS+=(
+					"$PROJECT_DIR/overlay/resources/bin/v3_res_v3"
+					"$PROJECT_DIR/overlay/resources/bin/v3_res_v2"
+				)
 			fi
 			;;
 		V3PRO_V2)
 			RESOURCE_BIN_DIRS+=(
-				"$PROJECT_DIR/overlay/resources/bin/V3PRO_V2"
-				"$PROJECT_DIR/overlay/resources/bin/V2"
+				"$PROJECT_DIR/overlay/resources/bin/v3pro_res_v2"
+				"$PROJECT_DIR/overlay/resources/bin/v3_res_v2"
+			)
+			;;
+		V3_V3)
+			RESOURCE_BIN_DIRS+=(
+				"$PROJECT_DIR/overlay/resources/bin/v3_res_v3"
+				"$PROJECT_DIR/overlay/resources/bin/v3_res_v2"
+			)
+			;;
+		V3PRO_V3)
+			RESOURCE_BIN_DIRS+=(
+				"$PROJECT_DIR/overlay/resources/bin/v3pro_res_v3"
+				"$PROJECT_DIR/overlay/resources/bin/v3_res_v2"
 			)
 			;;
 		*)
@@ -503,13 +534,14 @@ do_rename_and_archive() {
 	# 根据 ROOT_RES_PATH/ROOT_RES_VERSION 拷贝资源
 	# pack.sh 更新后，multi/all 产物默认落在 bin/<版本>/all/ 目录；
 	# 这里优先匹配 all 目录下的 *_RES_all.bin，并兼容旧目录里的 *_RES.bin。
-	# V1 保持 bin/V1；V2 保持 bin/V2，且在 GNUmakefile 指定为 V3Pro 产品时优先查 bin/V3PRO_V2
+	# V2 资源：bin/v3_res_v2，且在 GNUmakefile 指定为 V3Pro 产品时优先查 bin/v3pro_res_v2
+	# V3 资源：bin/v3_res_v3 或 bin/v3pro_res_v3（由 ROOT_RES_PATH / 产品族决定，见 build_resource_bin_dirs）
 	# ROOT_RES_VERSION 定义为 major*100 + minor，例如 100 -> V01.00
 	local res_path res_version res_major res_minor res_major2 res_minor2 res_dir res_file res_source_dir
 	local res_lookup_dir
 	local searched_res_dirs
 	res_path=$(resolve_root_res_path "$info_file")
-	[[ -n "${res_path:-}" ]] || res_path="V1"
+	[[ -n "${res_path:-}" ]] || res_path="V2"
 
 	res_version=$(grep -E '^#define[[:space:]]+ROOT_RES_VERSION[[:space:]]+' "$info_file" \
 		| sed -E 's/.*\(([0-9]+)\).*/\1/; t; s/.*[[:space:]]+([0-9]+).*/\1/' \
@@ -532,11 +564,20 @@ do_rename_and_archive() {
 			for res_lookup_dir in "$res_dir/all" "$res_dir"; do
 				[[ -d "$res_lookup_dir" ]] || continue
 				# 优先取 all 目录下新的 *_RES_all.bin，找不到时再回退旧的 *_RES.bin。
+				# 兼容 pack.sh 新旧前缀：V3Pro_* 与 V3PRO_*。
 				shopt -s nullglob
-				local candidates=(
-					"$res_lookup_dir"/${device_title}_*_V${res_major2}.${res_minor2}_*_RES_all.bin
-					"$res_lookup_dir"/${device_title}_*_V${res_major2}.${res_minor2}_*_RES.bin
-				)
+				local prefix_candidates=("$device_title")
+				if [[ "$device_title" == "V3Pro" ]]; then
+					prefix_candidates+=("V3PRO")
+				fi
+				local candidates=()
+				local prefix_item
+				for prefix_item in "${prefix_candidates[@]}"; do
+					candidates+=(
+						"$res_lookup_dir"/${prefix_item}_*_V${res_major2}.${res_minor2}_*_RES_all.bin
+						"$res_lookup_dir"/${prefix_item}_*_V${res_major2}.${res_minor2}_*_RES.bin
+					)
+				done
 				shopt -u nullglob
 				if ((${#candidates[@]})); then
 					res_file=$(ls -1t "${candidates[@]}" 2>/dev/null | awk 'NR==1{print; exit}' || true)

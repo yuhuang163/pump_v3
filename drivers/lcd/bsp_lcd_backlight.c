@@ -272,7 +272,7 @@ static void lcd_backlight_level_set(uint16_t level)
         backlight_info.duty_update_flag = 0;
         backlight_info.target_duty = backlight_info.current_duty;
     }
-    LOG_PBUS("backlight target_duty: %d, current_duty: %d", backlight_info.target_duty, backlight_info.current_duty);
+    // LOG_PBUS("backlight target_duty: %d, current_duty: %d", backlight_info.target_duty, backlight_info.current_duty);
 }
 #else
 static void lcd_backlight_level_set(uint16_t level)

@@ -1,7 +1,7 @@
 #!/bin/bash
 ###
 ### 资源打包脚本
-### 使用方法: ./pack.sh [-t base|custom|multi|all] [V1|V2] [config.json] [output.bin]
+### 使用方法: ./pack.sh [选项] [版本或目录] [config.json] [output.bin]  # 详见 ./pack.sh --help
 ###
 
 PACK_SH_SOURCED=0
@@ -19,7 +19,7 @@ CONFIG_NAME_CUSTOM="resource_custom_config.json"
 
 show_usage() {
     echo "使用方法:"
-    echo "  ./pack.sh [-m] [-d resource_dir] [-t base|custom|multi|all|auto] [V1|V2|V3PRO_V2] [config.json] [output.bin]"
+    echo "  ./pack.sh [-m] [-d resource_dir] [-t base|custom|multi|all|auto] [V2|V3|v3_res_v2|v3pro_res_v2|v3_res_v3|v3pro_res_v3] [config.json] [output.bin]"
     echo ""
     echo "选项:"
     echo "  -m, --menu               通过数字菜单选择资源目录"
@@ -29,17 +29,19 @@ show_usage() {
     echo ""
     echo "示例:"
     echo "  ./pack.sh                                       # 无参数时通过编号交互选择资源目录，默认 auto"
-    echo "  ./pack.sh V1                                    # 打包 V1 版本（auto 模式）"
     echo "  ./pack.sh -t multi V2                           # 打包 multi 资源包"
     echo "  ./pack.sh -t base V2                            # 只打包 base 资源包"
     echo "  ./pack.sh -t custom V2                          # 只打包 custom 资源包"
     echo "  ./pack.sh -t all V2                             # 同时生成 base/custom/multi"
-    echo "  ./pack.sh V3PRO_V2                              # 显式打包 V3PRO_V2 目录"
+    echo "  ./pack.sh v3pro_res_v2                          # 显式打包 v3pro_res_v2 目录"
+    echo "  ./pack.sh V3                                    # 按 GNUmakefile 产品族选择 v3_res_v3 / v3pro_res_v3"
+    echo "  ./pack.sh v3_res_v3                             # 显式打包 v3_res_v3 目录"
+    echo "  ./pack.sh v3pro_res_v3                          # 显式打包 v3pro_res_v3 目录"
     echo "  ./pack.sh --menu                                # 通过编号交互选择资源目录"
-    echo "  ./pack.sh -d V3PRO_V2                           # 通过目录选项切换资源目录"
-    echo "  ./pack.sh --dir /abs/path/to/V2 -t multi        # 使用绝对路径指定资源目录"
-    echo "  ./pack.sh V1 ../V1/resource_config.json         # 兼容旧单配置文件方式"
-    echo "  ./pack.sh ../V1/resource_base_config.json       # 显式指定 base 配置文件"
+    echo "  ./pack.sh -d v3pro_res_v2                       # 通过目录选项切换资源目录"
+    echo "  ./pack.sh --dir /abs/path/to/v3_res_v2 -t multi # 使用绝对路径指定资源目录"
+    echo "  ./pack.sh v3_res_v2 ../v3_res_v2/resource_config.json    # 兼容旧单配置文件方式"
+    echo "  ./pack.sh ../v3_res_v2/resource_base_config.json         # 显式指定 base 配置文件"
 }
 
 has_resource_config() {
@@ -162,16 +164,26 @@ resolve_version_dir() {
     local version="$1"
     local device_name=""
     case "$version" in
-        V1) printf "%s" "$PARENT_DIR/V1" ;;
         V2)
             device_name="$(resolve_root_device_name)"
-            if [ "$device_name" = "V3Pro" ] && [ -d "$PARENT_DIR/V3PRO_V2" ]; then
-                printf "%s" "$PARENT_DIR/V3PRO_V2"
+            if [ "$device_name" = "V3Pro" ] && [ -d "$PARENT_DIR/v3pro_res_v2" ]; then
+                printf "%s" "$PARENT_DIR/v3pro_res_v2"
             else
-                printf "%s" "$PARENT_DIR/V2"
+                printf "%s" "$PARENT_DIR/v3_res_v2"
             fi
             ;;
-        v3pro_V2|V3PRO_V2) printf "%s" "$PARENT_DIR/V3PRO_V2" ;;
+        V3)
+            device_name="$(resolve_root_device_name)"
+            if [ "$device_name" = "V3Pro" ] && [ -d "$PARENT_DIR/v3pro_res_v3" ]; then
+                printf "%s" "$PARENT_DIR/v3pro_res_v3"
+            else
+                printf "%s" "$PARENT_DIR/v3_res_v3"
+            fi
+            ;;
+        v3_res_v2) printf "%s" "$PARENT_DIR/v3_res_v2" ;;
+        v3pro_res_v2|v3pro_V2|V3PRO_V2) printf "%s" "$PARENT_DIR/v3pro_res_v2" ;;
+        v3_res_v3|V3_V3) printf "%s" "$PARENT_DIR/v3_res_v3" ;;
+        v3pro_res_v3|v3pro_V3|V3PRO_V3) printf "%s" "$PARENT_DIR/v3pro_res_v3" ;;
         *) printf "%s" "$PARENT_DIR/$version" ;;
     esac
 }
@@ -179,8 +191,10 @@ resolve_version_dir() {
 detect_version_from_path() {
     local path="$1"
     case "$path" in
-        */V1/*) printf "%s" "V1" ;;
-        */V2/*|*/v3pro_V2/*|*/V3PRO_V2/*) printf "%s" "V2" ;;
+        */v3_res_v2/*|*/V2/*) printf "%s" "v3_res_v2" ;;
+        */v3pro_res_v2/*|*/v3pro_V2/*|*/V3PRO_V2/*) printf "%s" "v3pro_res_v2" ;;
+        */v3_res_v3/*|*/V3_V3/*) printf "%s" "v3_res_v3" ;;
+        */v3pro_res_v3/*|*/v3pro_V3/*|*/V3PRO_V3/*) printf "%s" "v3pro_res_v3" ;;
         *) printf "%s" "" ;;
     esac
 }
@@ -297,12 +311,27 @@ normalize_output_location() {
 apply_device_prefix_if_needed() {
     local file_path="$1"
     local device_prefix
+    local root_name
+    local fallback_prefix
     local final_dir
     local final_base
     local renamed_out
     local final_rest
 
-    device_prefix="$(resolve_root_device_name)"
+    root_name="$(basename "${RESOURCE_ROOT:-}")"
+    case "$root_name" in
+        v3pro_res_v2|v3pro_res_v3|V3PRO_V2|V3PRO_V3) device_prefix="V3PRO" ;;
+        v3_res_v2|v3_res_v3|V2|V3_V3) device_prefix="V3" ;;
+        *)
+            fallback_prefix="$(resolve_root_device_name)"
+            case "$fallback_prefix" in
+                V3Pro|V3PRO|v3pro) device_prefix="V3PRO" ;;
+                V3|v3) device_prefix="V3" ;;
+                *) device_prefix="$fallback_prefix" ;;
+            esac
+            ;;
+    esac
+
     if [ -z "$device_prefix" ] || [ -z "$file_path" ] || [ ! -f "$file_path" ]; then
         printf "%s" "$file_path"
         return 0
@@ -593,14 +622,14 @@ resolve_default_resource_version() {
             )" || true
             out="${out#\"}"
             out="${out%\"}"
-            if [[ "$out" =~ ^V[12]$ ]]; then
+            if [[ "$out" =~ ^V[23]$ ]] || [[ "$out" == "V3_V3" || "$out" == "V3PRO_V3" ]] || [[ "$out" == "v3_res_v2" || "$out" == "v3pro_res_v2" || "$out" == "v3_res_v3" || "$out" == "v3pro_res_v3" ]]; then
                 printf "%s" "$out"
                 return 0
             fi
         fi
     fi
 
-    printf "%s" "V1"
+    printf "%s" "V2"
 }
 
 pack_main() {
@@ -694,8 +723,8 @@ case "$PACK_TYPE" in
         ;;
 esac
 
-# 检查第一个参数是否是版本号（V1 / V2 / V3PRO_V2）
-if [ $# -gt 0 ] && [[ "$1" =~ ^(V1|V2|v3pro_V2|V3PRO_V2)$ ]]; then
+# 检查第一个参数是否是版本号或资源目录别名（V2 / V3 / v3_res_v2 / v3pro_res_v2 / v3_res_v3 / v3pro_res_v3）
+if [ $# -gt 0 ] && [[ "$1" =~ ^(V2|V3|v3_res_v2|v3pro_res_v2|v3_res_v3|v3pro_res_v3|v3pro_V2|V3PRO_V2|v3pro_V3|V3PRO_V3|V3_V3)$ ]]; then
     VERSION="$1"
     shift
 fi

@@ -59,7 +59,11 @@ static void breast_pump_mode_update(breast_pump_manager_context_t *ctx, pump_res
     int pump_time = 0;
     breast_pump_info_t *m_info = &ctx->priv.m_info;
     ctx->priv.st->get_store_ram_val(STORE_ID_BREAST_PUMP_TIME, m_info->mode, 0, &pump_time);
+#if 0
+    result_info->setting_time = 20 * 1000; /// 60s 测试
+#else
     result_info->setting_time = pump_time * 1000;
+#endif
     if (result_info->setting_time > SETTING_PUMP_TIME_MAX) {
         result_info->setting_time = SETTING_PUMP_TIME_MAX;
     }
@@ -154,17 +158,6 @@ static int make_progress_route(breast_pump_manager_context_t *ctx, pump_result_i
     notify_id = local_breast_pump_process(ctx, result_info);
 
     return notify_id;
-}
-
-static int breast_pump_result_info_reset(breast_pump_manager_context_t *ctx, pump_result_info_t *result_info)
-{
-    result_info->current_mode_work_time = 0;
-    result_info->target_total_time = result_info->setting_time;
-    result_info->work_total_time = 0;
-    result_info->timestamp = platform_get_utc_time();
-    dump_timestamp(result_info->timestamp);
-    LOG_PMP("target_total_time: %d", PUMP_TIME_TO_SECOND(result_info->target_total_time));
-    return 0;
 }
 
 static int start_breast_pump_work_route(breast_pump_manager_context_t *ctx, int status)

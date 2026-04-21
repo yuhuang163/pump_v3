@@ -85,8 +85,11 @@ static int base_res_data_load_impl(uint16_t img_id, res_img_info_t *out)
 
 static int theme_res_data_load_impl(uint16_t img_id, res_img_info_t *out)
 {
-    thiz->priv.theme_type = RES_THEME_TYPE_CUSTOM_IMG;
+#if IS_SUPPORT_UI_THEME_RES
     return res_data_load_with_theme(thiz, thiz->priv.theme_type, img_id, out);
+#else
+    return res_data_load_with_theme(thiz, RES_THEME_TYPE_BASE_IMG, img_id, out);
+#endif 
 }
 
 static int on_post_res_init(void *ptr) 

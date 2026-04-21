@@ -17,7 +17,11 @@ extern "C" {
 
 /// 泵奶动画频率
 #if IS_SUPPORT_LVGL
-#define PUMP_ANIMATION_FREQ                    (25)
+#if (ROOT_UI_VERSION == ROOT_UI_V2)
+#define PUMP_ANIMATION_FREQ                    (24)
+#else
+#define PUMP_ANIMATION_FREQ                    (16)
+#endif
 #define PUMP_SPEED_ANIMATION_FREQ              (20) 
 #define PUMP_RESULT_ANIMATION_FREQ             (20) 
 #define PUMP_MODE_ANIMATION_FREQ               (20) 
@@ -148,6 +152,7 @@ typedef struct {
 #endif
     uint8_t forbid_start_pump; /// 是否禁止开始泵奶.
     uint8_t goto_pump_home_ui; /// 跳转到泵奶主界面标志.
+    uint8_t pump_will_finish; /// 泵奶即将完成标志.
     uint16_t popup_ui_type; /// 当前弹窗类型. popup_ui_id_e
 } ui_proc_pump_t;
 

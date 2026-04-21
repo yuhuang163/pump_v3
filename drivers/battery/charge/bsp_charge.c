@@ -617,3 +617,12 @@ void charge_current_adjust(uint16_t current)
     charge_ibat_config(current);
 #endif
 }
+
+int bsp_charge_get_ibat_ma(uint16_t *ibat_ma)
+{
+    if (ibat_ma == NULL) {
+        return BSP_ERROR;
+    }
+    *ibat_ma = s_charge_status.ibat;
+    return BSP_OK;
+}

@@ -14,13 +14,8 @@
 */
 #define PAGE_STATIC_NAME                            guide
 #define PAGE_NAME_STR                               "guide"
-#if (V3_UI_VERSION == V3_UI_V2 || V3_UI_VERSION == V3PRO_UI_V2)
 #define GUIDE_UI_KEY_CODE                           ALL_KEY_CODE_NO_COMBINE
 #define GUIDE_UI_KEY_TYPE                           (KEY_EVENT_CLICK | KEY_EVENT_LONG_3S)
-#else
-#define GUIDE_UI_KEY_CODE                            KEY_CODE_START
-#define GUIDE_UI_KEY_TYPE                            KEY_EVENT_CLICK
-#endif
 
 /*
 * LOCAL VARIABLE DEFINITIONS
@@ -42,7 +37,6 @@ static int on_guide_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t 
     ui_proc_guide_t *proc = user_data;
     EXCEPTION_CHECK_INT(proc);
     WINDOW_CONTEXT_GUARD_INT(proc, ID_WINDOW_GUIDE, 0);
-#if (V3_UI_VERSION == V3_UI_V2 || V3_UI_VERSION == V3PRO_UI_V2)
     if (keycode == KEY_CODE_KNOB_LEFT) {
         guide_knob_left_event_handler(proc);
     } else {
@@ -52,9 +46,6 @@ static int on_guide_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t 
             guide_key_event_handler_v2(proc, keycode);
         }
     }
-#else
-    guide_key_event_handler_v1(proc, keycode);
-#endif
     return 0;
 }
 

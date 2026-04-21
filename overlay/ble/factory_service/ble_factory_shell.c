@@ -250,10 +250,10 @@ static void ble_shell_led_night_light(const uint8_t *param, uint16_t len)
 
 static void ble_shell_adapte_light_sampling_control(const uint8_t *param, uint16_t len)
 {
-#if IS_SUPPORT_ALGO_SAMPLING
+#if IS_SUPPORT_ADAPTIVE_DIMMING
     int control_type = 0;
     sscanf((const char *)param, "%d", &control_type);
-    LOG_BLE("shell algo sampling control");
+    LOG_BLE("shell light sensor sampling control: %d", control_type);
     if (control_type) {
         light_sensor_sampling_start();
     } else {

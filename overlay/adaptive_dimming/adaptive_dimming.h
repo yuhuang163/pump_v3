@@ -108,6 +108,7 @@ void adaptive_dimming_notify_encoder_activity(void);
 #endif
 void light_sensor_sampling_start(void);
 void light_sensor_sampling_stop(void);
+bool light_sensor_sampling_is_sampling(void);
 bool light_sensor_change_sampling_interval(uint16_t interval);
 bool light_sensor_data_report(uint8_t *data);
 #ifdef __cplusplus

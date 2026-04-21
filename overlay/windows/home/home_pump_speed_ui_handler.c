@@ -107,9 +107,9 @@ static void show_home_pump_speed_ui(ui_proc_home_t *proc)
 {
     ui_manager_context_t *ui = proc->ui;
     EXCEPTION_CHECK_VOID(ui->hook && ui->hook->ui_animation_play_init);
+    proc->last_progress_ani_time = get_timestamp();
     home_popup_ui_type_update(proc, ID_POPUP_UI_NONE);
     if (proc->current_ui_type == HOME_UI_TYPE_SPEED_ADJUST) {
-        proc->last_progress_ani_time = get_timestamp();
         return;
     } else {
         home_ui_change_hdr_remove(proc);
@@ -124,7 +124,6 @@ static void show_home_pump_speed_ui(ui_proc_home_t *proc)
         .user_data = proc,
 
     };
-    proc->last_progress_ani_time = get_timestamp();
     proc->current_ui_type = HOME_UI_TYPE_SPEED_ADJUST;
     ui->hook->ui_animation_play_init(ui, play_info);
 }

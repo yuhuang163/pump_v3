@@ -8,6 +8,9 @@
 #if IS_SUPPORT_ADAPTIVE_DIMMING
 #include "adaptive_dimming.h" // IWYU pragma: keep
 #endif
+#if IS_SUPPORT_KEY_LIGHT_ADAPTIVE
+#include "bsp_led_internal.h" // IWYU pragma: keep
+#endif
 
 /*
 * DEFINES
@@ -16,15 +19,11 @@
 #define NIGHT_LIGHT_DEFAULT_LEVEL                     5
 #define NIGHT_LIGHT_ADAPTIVE_SWITCH_LEVEL             5
 
+#define KEY_LIGHT_DEFAULT_LEVEL                       5
 /*
 * LOCAL VARIABLE DEFINITIONS
 *****************************************************************************************
 */
-static const uint8_t key_led_index[] = {
-    PUMP_START_BL,            /// 启动背光灯
-    PUMP_MODE_BL,             /// 模式背光灯
-    PUMP_BREASTFEEDING_BL,    /// 追奶背光灯
-};
 
 /*
 * GLOBAL VARIABLE DEFINITIONS
@@ -71,6 +70,7 @@ static void set_key_backlight_rate(led_manager_context_t *thiz, uint8_t rate)
 static void set_night_light_level_internal(led_manager_context_t *thiz, uint8_t level)
 {
     thiz->priv.night_light_level = level;
+    thiz->priv.night_light_onoff = (level > 0) ? 1 : 0;
     led_status_msg_t msg = {
         .led_index = NIGHT_LIGHT_LED,
         .led_status = {
@@ -133,6 +133,9 @@ static void night_light_adaptive_thread(void *user_data)
 
         if (thiz->priv.night_light_adaptive_dimming) {
             level = thiz->priv.night_light_adaptive_level;
+            if (level == 0) {
+                level = NIGHT_LIGHT_DEFAULT_LEVEL;
+            }
         } else {
             if (thiz->priv.night_light_setting_level == 0) {
                 thiz->priv.night_light_setting_level = NIGHT_LIGHT_ADAPTIVE_SWITCH_LEVEL;
@@ -147,6 +150,39 @@ static void night_light_adaptive_thread(void *user_data)
         level = thiz->priv.night_light_adaptive_level;
         if (level == 0) {
             level = NIGHT_LIGHT_DEFAULT_LEVEL; /// 如果夜灯亮度为0, 则设置为默认亮度.
+        }
+        set_night_light_level_internal(thiz, level);
+    }
+}
+
+static void night_light_resume_after_power_on(led_manager_context_t *thiz)
+{
+    uint8_t level = 0;
+    EXCEPTION_CHECK_VOID(thiz);
+    if (thiz->priv.night_light_adaptive_switch) {
+        if (thiz->priv.night_light_adaptive_dimming) {
+            level = thiz->priv.night_light_adaptive_level;
+            if (level == 0) {
+                level = NIGHT_LIGHT_DEFAULT_LEVEL;
+            }
+        } else {
+            level = thiz->priv.night_light_setting_level;
+            if (level == 0) {
+                level = NIGHT_LIGHT_ADAPTIVE_SWITCH_LEVEL;
+            }
+        }
+        set_night_light_level_internal(thiz, level);
+        return;
+    }
+
+    if (thiz->priv.night_light_onoff > 0) {
+        if (thiz->priv.night_light_adaptive_dimming > 0) {
+            level = thiz->priv.night_light_adaptive_level;
+        } else {
+            level = thiz->priv.night_light_setting_level;
+        }
+        if (level == 0) {
+            level = NIGHT_LIGHT_DEFAULT_LEVEL;
         }
         set_night_light_level_internal(thiz, level);
     }
@@ -199,6 +235,105 @@ static int get_night_light_onoff(led_manager_context_t *thiz)
     return thiz->priv.night_light_onoff;
 }
 
+#if IS_SUPPORT_KEY_LIGHT_ADAPTIVE
+
+static void key_light_adaptive_thread(void *user_data)
+{
+    led_manager_context_t *thiz = (led_manager_context_t *)user_data;
+    EXCEPTION_CHECK_VOID(thiz);
+    if (thiz->priv.power && thiz->priv.power->is_system_power_on() == 0) {
+        return;
+    }
+    if (!thiz->priv.key_light_adaptive_dimming) {
+        return;
+    }
+    window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
+    if (wm && (wm->is_current_window(wm, ID_WINDOW_CHARGE) ||
+        wm->is_current_window(wm, ID_WINDOW_LOGO))) {
+        return;
+    }
+    uint8_t level = thiz->priv.key_light_adaptive_level;
+    if (level == 0) {
+        level = KEY_LIGHT_DEFAULT_LEVEL;
+    }
+    bsp_led_key_adaptive_duty_set(level);
+}
+
+static void set_key_light_level(led_manager_context_t *thiz, uint8_t level)
+{
+    EXCEPTION_CHECK_VOID(thiz);
+    LOG_MISC("set key light level: %d", level);
+    thiz->priv.key_light_level = level;
+    thiz->priv.key_light_adaptive_dimming = 0;
+    bsp_led_key_adaptive_duty_snap(LED_LEVEL_MAX);
+}
+
+static void key_light_adaptive_level_update(led_manager_context_t *thiz, uint8_t level)
+{
+    EXCEPTION_CHECK_VOID(thiz);
+    LOG_MISC("key light adaptive level update: %d", level);
+    thiz->priv.key_light_adaptive_level = level;
+    if (!thiz->priv.key_light_adaptive_dimming) {
+        return;
+    }
+    window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
+    if (wm && (wm->is_current_window(wm, ID_WINDOW_CHARGE) ||
+        wm->is_current_window(wm, ID_WINDOW_LOGO))) {
+        return;
+    }
+    bsp_led_key_adaptive_duty_set(level);
+}
+
+static void set_key_light_adaptive_switch(led_manager_context_t *thiz, uint8_t switch_onoff)
+{
+    EXCEPTION_CHECK_VOID(thiz);
+    thiz->priv.key_light_adaptive_switch = switch_onoff;
+    // storage_manager_context_t *st = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
+    // if (st) {
+    //     st->put_store_ram_val(STORE_ID_SYS_KEY_LIGHT_ADAPTIVE_SWITCH, thiz->priv.key_light_adaptive_switch, 0, NULL);
+    // }
+}
+
+static int get_key_light_adaptive_switch(led_manager_context_t *thiz)
+{
+    EXCEPTION_CHECK_INT(thiz);
+    return thiz->priv.key_light_adaptive_switch;
+}
+
+static void set_key_light_adaptive_dimming(led_manager_context_t *thiz, uint8_t onoff)
+{
+    EXCEPTION_CHECK_VOID(thiz);
+    thiz->priv.key_light_adaptive_dimming = onoff;
+    if (onoff) {
+        uint8_t lv = thiz->priv.key_light_adaptive_level;
+        if (lv == 0) {
+            lv = KEY_LIGHT_DEFAULT_LEVEL;
+        }
+        bsp_led_key_adaptive_duty_set(lv);
+    } else {
+        bsp_led_key_adaptive_duty_snap(LED_LEVEL_MAX);
+    }
+}
+
+static int get_key_light_adaptive_dimming(led_manager_context_t *thiz)
+{
+    EXCEPTION_CHECK_INT(thiz);
+    return thiz->priv.key_light_adaptive_dimming;
+}
+
+static int get_key_light_level(led_manager_context_t *thiz)
+{
+    EXCEPTION_CHECK_INT(thiz);
+    return thiz->priv.key_light_level;
+}
+
+static int get_key_light_onoff(led_manager_context_t *thiz)
+{
+    EXCEPTION_CHECK_INT(thiz);
+    return thiz->priv.key_light_onoff;
+}
+#endif
+
 static int on_broadcast_receiver_route(broadcast_mask_id_t id, void *context, int arg1, int arg2, broadcast_priv_data_t *pdata)
 {
     led_manager_context_t *thiz = context;
@@ -208,6 +343,8 @@ static int on_broadcast_receiver_route(broadcast_mask_id_t id, void *context, in
         case ID_BROADCAST_SYS_STATE_CHANGE:
             if (arg1 == SYSTEM_BROADCAST_POWER_OFF) {
                 set_key_backlight(thiz, 0);
+            } else if (arg1 == SYSTEM_BROADCAST_POWER_ON) {
+                night_light_resume_after_power_on(thiz);
             }
             break;
         case ID_BROADCAST_PM_STATE_CHANGE: 
@@ -247,12 +384,22 @@ static int on_post_init_route(led_manager_context_t *thiz)
         thiz->priv.night_light_adaptive_switch = tmp;
         LOG_MISC("night light adaptive switch: %d", thiz->priv.night_light_adaptive_switch);
     }
+#if IS_SUPPORT_KEY_LIGHT_ADAPTIVE
+    thiz->priv.key_light_adaptive_dimming = true;
+    thiz->priv.key_light_level = 0;
+    thiz->priv.key_light_adaptive_switch = 0;
+    thiz->priv.key_light_onoff = 0;
+#endif
 #if IS_SUPPORT_ADAPTIVE_DIMMING
     adaptive_dimming_init();
     misc_manager_context_t *misc = (misc_manager_context_t *)find_module(ID_MODULE_MISC);
     EXCEPTION_CHECK_INT(misc);
     misc->add_misc_task(thiz, MISC_TASK_ID_NIGHT_LIGHT_ADAPTIVE, 100, MISC_WORK_MSG_ID_TIMER,
         night_light_adaptive_thread);
+#if IS_SUPPORT_KEY_LIGHT_ADAPTIVE
+    misc->add_misc_task(thiz, MISC_TASK_ID_KEY_LIGHT_ADAPTIVE, 100, MISC_WORK_MSG_ID_TIMER,
+        key_light_adaptive_thread);
+#endif
 #endif
     return 0;
 }
@@ -276,5 +423,15 @@ void register_led_hook(led_manager_context_t *ctx)
     ctx->hook->set_key_backlight = set_key_backlight;
     ctx->hook->get_night_light_level = get_night_light_level;
     ctx->hook->get_night_light_onoff = get_night_light_onoff;
+#if IS_SUPPORT_KEY_LIGHT_ADAPTIVE
+    ctx->hook->set_key_light_level = set_key_light_level;
+    ctx->hook->key_light_adaptive_level_update = key_light_adaptive_level_update;
+    ctx->hook->set_key_light_adaptive_switch = set_key_light_adaptive_switch;
+    ctx->hook->get_key_light_adaptive_switch = get_key_light_adaptive_switch;
+    ctx->hook->set_key_light_adaptive_dimming = set_key_light_adaptive_dimming;
+    ctx->hook->get_key_light_adaptive_dimming = get_key_light_adaptive_dimming;
+    ctx->hook->get_key_light_level = get_key_light_level;
+    ctx->hook->get_key_light_onoff = get_key_light_onoff;
+#endif
 }
 

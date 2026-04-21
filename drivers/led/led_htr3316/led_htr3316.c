@@ -41,6 +41,12 @@ static led_status_t led_status[LED_TOTAL_SIZE];
 static thread_context_t s_led_device_thd;
 static os_timer_id s_led_timer_id;
 static os_mutex_id s_led_mutex_id = NULL;
+#if IS_SUPPORT_KEY_LIGHT_ADAPTIVE
+/** 当前已下发的自适应占空比（渐变中）；与 rate 相乘前用于 level */
+static uint8_t s_key_adaptive_duty = LED_LEVEL_MAX;
+/** 光感算法目标占空比，由 LED 线程每周期向 s_key_adaptive_duty 步进 */
+static uint8_t s_key_adaptive_duty_target = LED_LEVEL_MAX;
+#endif
 static const uint8_t led1_address[] = {
     0x26, 0x27, 0x28   /// PUMP_START_BL
 };
@@ -214,14 +220,100 @@ static int led_extension_read_nbyte_no_retry(uint8_t reg_addr, uint8_t *data, ui
     return ret;
 }
 
+#if IS_SUPPORT_KEY_LIGHT_ADAPTIVE
+static void led_extension_level_set(uint8_t index, uint8_t level);
+
+static uint8_t key_light_apply_adaptive_level(uint8_t level)
+{
+    return (uint8_t)(((uint16_t)level * (uint16_t)s_key_adaptive_duty) / 100u);
+}
+
+static void led_htr3316_refresh_output(uint8_t index)
+{
+    if (index >= LED_TOTAL_SIZE) {
+        return;
+    }
+    switch (led_status[index].mode) {
+    case LED_MODE_LEVEL:
+        led_extension_level_set(index, led_status[index].un.luminous.level);
+        break;
+    case LED_MODE_ONOFF:
+        led_extension_level_set(index,
+            led_status[index].un.onoff.status == LED_STATUS_ON ? LED_LUX_MAX : 0);
+        break;
+    case LED_MODE_BLINK: {
+        led_blink_t *led = &led_status[index].un.blink;
+        uint8_t lv = (led->status == LED_STATUS_ON) ? LED_LUX_MAX : 0;
+        led_extension_level_set(index, lv);
+        break;
+    }
+    default:
+        break;
+    }
+}
+
+void bsp_led_key_adaptive_duty_set(uint8_t duty)
+{
+    if (duty > LED_LEVEL_MAX) {
+        duty = LED_LEVEL_MAX;
+    }
+    if (s_led_mutex_id) {
+        MUTEX_LOCK(s_led_mutex_id);
+        s_key_adaptive_duty_target = duty;
+        MUTEX_UNLOCK(s_led_mutex_id);
+    } else {
+        s_key_adaptive_duty_target = duty;
+        s_key_adaptive_duty = duty;
+    }
+}
+
+void bsp_led_key_adaptive_duty_snap(uint8_t duty)
+{
+    if (duty > LED_LEVEL_MAX) {
+        duty = LED_LEVEL_MAX;
+    }
+    if (s_led_mutex_id == NULL) {
+        s_key_adaptive_duty_target = duty;
+        s_key_adaptive_duty = duty;
+        return;
+    }
+    MUTEX_LOCK(s_led_mutex_id);
+    s_key_adaptive_duty_target = duty;
+    s_key_adaptive_duty = duty;
+    for (uint8_t i = 0; i < LED_TOTAL_SIZE; i++) {
+        led_htr3316_refresh_output(i);
+    }
+    MUTEX_UNLOCK(s_led_mutex_id);
+}
+
+static void key_adaptive_ramp_step_locked(void)
+{
+    if (s_key_adaptive_duty == s_key_adaptive_duty_target) {
+        return;
+    }
+    if (s_key_adaptive_duty < s_key_adaptive_duty_target) {
+        s_key_adaptive_duty++;
+    } else {
+        s_key_adaptive_duty--;
+    }
+    for (uint8_t i = 0; i < LED_TOTAL_SIZE; i++) {
+        led_htr3316_refresh_output(i);
+    }
+}
+#endif /* IS_SUPPORT_KEY_LIGHT_ADAPTIVE */
+
 static void led_extension_level_set(uint8_t index, uint8_t level)
 {
     if (index >= LED_TOTAL_SIZE) {
         LOGE("index is out of range: %d", index);
         return;
     }
-    
-    uint8_t new_level = (level * led_status[index].rate / 100);
+
+    uint8_t scaled = level;
+#if IS_SUPPORT_KEY_LIGHT_ADAPTIVE
+    scaled = key_light_apply_adaptive_level(level);
+#endif
+    uint8_t new_level = (uint16_t)scaled * led_status[index].rate / 100;
     if (new_level > LED_LEVEL_MAX) {
         new_level = LED_LEVEL_MAX;
     }
@@ -277,6 +369,9 @@ static void led_device_thread(void *arg)
         for (uint8_t i = 0; i < LED_TOTAL_SIZE; i++) {
             led_blink_handle(i);
         }
+#if IS_SUPPORT_KEY_LIGHT_ADAPTIVE
+        key_adaptive_ramp_step_locked();
+#endif
         MUTEX_UNLOCK(s_led_mutex_id);
     }
 }
@@ -285,7 +380,8 @@ static void led_onoff_set(uint8_t index, led_onoff_t onoff)
 {
     if (index == PUMP_LED_ALL_ID) {
         for (uint8_t i = 0; i < LED_TOTAL_SIZE; i++) {
-            led_status[i].mode = LED_MODE_ONOFF; 
+            led_status[i].mode = LED_MODE_ONOFF;
+            led_status[i].un.onoff.status = onoff.status;
             led_extension_level_set(i, onoff.status == LED_STATUS_ON ? LED_LUX_MAX : 0);
         }
         return;
@@ -300,7 +396,11 @@ static void led_level_set(uint8_t index, led_luminous_t luminous)
     uint8_t level = luminous.level > LED_LEVEL_MAX ? LED_LEVEL_MAX : luminous.level;
     if (index == PUMP_LED_ALL_ID) {
         for (uint8_t i = 0; i < LED_TOTAL_SIZE; i++) {
-            led_status[i].mode = LED_MODE_LEVEL; 
+            /* 全键统一亮度（如 set_key_backlight）不得把闪烁中的灯改成 LEVEL，否则状态机被清掉 */
+            if (level > 0 && led_status[i].mode == LED_MODE_BLINK) {
+                continue;
+            }
+            led_status[i].mode = LED_MODE_LEVEL;
             led_status[i].un.luminous.level = level;
             led_extension_level_set(i, level);
         }
@@ -330,7 +430,6 @@ static void led_blink_set(uint8_t index, led_blink_t blink)
         led_status[index].un.blink.status = LED_STATUS_OFF;
         led_status[index].un.blink.times_count = 0;
         led_status[index].mode = LED_MODE_BLINK;
-        MUTEX_UNLOCK(s_led_mutex_id);
     }
     MUTEX_UNLOCK(s_led_mutex_id);
 }
@@ -431,7 +530,11 @@ static int led_htr3316_p16_output_set(bool high_level)
 
 static void led_htr3316_level_rate_update(uint8_t index, uint8_t rate)
 {
-    if (led_status[index].mode == LED_MODE_BLINK || led_status[index].mode == LED_MODE_BLINK) {
+    (void)rate;
+#if IS_SUPPORT_KEY_LIGHT_ADAPTIVE
+    led_htr3316_refresh_output(index);
+#else
+    if (led_status[index].mode == LED_MODE_BLINK) {
         return;
     }
     if (led_status[index].mode == LED_MODE_LEVEL) {
@@ -439,6 +542,7 @@ static void led_htr3316_level_rate_update(uint8_t index, uint8_t rate)
     } else if (led_status[index].mode == LED_MODE_ONOFF) {
         led_extension_level_set(index, led_status[index].un.onoff.status == LED_STATUS_ON ? LED_LUX_MAX : 0);
     }
+#endif
 }
 
 /*
@@ -522,7 +626,7 @@ int bsp_led_status_set(led_status_msg_t *msg)
 
         case LED_MODE_LEVEL:
             led_level_set(msg->led_index, msg->led_status.un.luminous);
-        break;
+            break;
 
         case LED_MODE_BREATH:
             LOGE("LED breathing is not supported");

@@ -1,11 +1,9 @@
 #ifndef __UI_IMG_DEFINE_H__
 #define __UI_IMG_DEFINE_H__
 
-#include <stdint.h>
 #ifdef __cplusplus
 extern "C" {
 #endif
-
 
 /*******************************************************************************
 * Include files

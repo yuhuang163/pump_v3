@@ -89,8 +89,8 @@ void start_guide_ui_animation(ui_proc_guide_t *proc)
 {    
     ui_manager_context_t *ui = proc->ui;
     EXCEPTION_CHECK_VOID(ui->hook && ui->hook->ui_animation_play_init);
+    proc->last_progress_ani_time = get_timestamp();
     if (proc->current_ui_type == GUIDE_UI_TYPE_HOME) {
-        proc->last_progress_ani_time = get_timestamp();
         return;
     }
     ui_play_info_t play_info = {
@@ -101,7 +101,6 @@ void start_guide_ui_animation(ui_proc_guide_t *proc)
         .display_remove_cb = guide_ui_display_remove,
         .user_data = proc,
     };
-    proc->last_progress_ani_time = get_timestamp();
     ui->hook->ui_animation_play_init(ui, play_info);
     proc->current_ui_type = GUIDE_UI_TYPE_HOME;
 }
@@ -113,21 +112,6 @@ void stop_guide_ui_animation(ui_proc_guide_t *proc)
     EXCEPTION_CHECK_VOID(ui->hook && ui->hook->ui_animation_play_deinit);
     ui->hook->ui_animation_play_deinit(ui);
     proc->last_progress_ani_time = get_timestamp();
-}
-
-void guide_key_event_handler_v1(ui_proc_guide_t *proc, uint16_t keycode)
-{
-    if (keycode != KEY_CODE_START) {
-        return;
-    }
-
-    EXCEPTION_CHECK_VOID(proc);
-    if (proc->page_index >= GUIDE_PAGE_MAX - 1) {
-        POST_TASK_HANDLER_NO_DELAY(guide_display_completed_cb, proc, GUIDE_DISPLAY_TASK_NAME);
-        return;
-    }
-    LOG_WM("guide page index: %d", proc->page_index);
-    proc->page_index++;
 }
 
 void guide_key_event_handler_v2(ui_proc_guide_t *proc, uint16_t keycode)

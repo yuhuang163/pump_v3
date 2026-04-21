@@ -79,8 +79,8 @@ static void show_factory_reset_confirm_ui(ui_proc_system_t *proc)
 {
     ui_manager_context_t *ui = proc->ui;
     EXCEPTION_CHECK_VOID(ui->hook && ui->hook->ui_animation_play_init);
+    proc->last_progress_ani_time = get_timestamp();
     if (proc->current_ui_type == SYSTEM_UI_TYPE_FACTORY_RESET_CONFIRM) {
-        proc->last_progress_ani_time = get_timestamp();
         return;
     }
     ui_play_info_t play_info = {
@@ -91,7 +91,6 @@ static void show_factory_reset_confirm_ui(ui_proc_system_t *proc)
         .display_remove_cb = factory_reset_confirm_ui_display_remove,
         .user_data = proc,
     };
-    proc->last_progress_ani_time = get_timestamp();
     ui->hook->ui_animation_play_init(ui, play_info);
     proc->current_ui_type = SYSTEM_UI_TYPE_FACTORY_RESET_CONFIRM;
 }

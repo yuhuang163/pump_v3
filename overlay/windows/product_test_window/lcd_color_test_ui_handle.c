@@ -74,8 +74,8 @@ void show_lcd_color_test_ui(ui_proc_product_test_t *proc)
 {
     ui_manager_context_t *ui = proc->ui;
     EXCEPTION_CHECK_VOID(ui->hook && ui->hook->ui_animation_play_init);
+    proc->last_progress_ani_time = get_timestamp();
     if (proc->current_ui_type == PRODUCT_TEST_UI_TYPE_LCD_COLOR) {
-        proc->last_progress_ani_time = get_timestamp();
         return;
     }
 
@@ -88,7 +88,6 @@ void show_lcd_color_test_ui(ui_proc_product_test_t *proc)
         .user_data = proc,
     };
     // proc->lcd_color = 0xFFFFFF;
-    proc->last_progress_ani_time = get_timestamp();
     ui->hook->ui_animation_play_init(ui, play_info);
     proc->current_ui_type = PRODUCT_TEST_UI_TYPE_LCD_COLOR;
 }

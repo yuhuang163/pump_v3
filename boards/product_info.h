@@ -46,8 +46,8 @@ extern "C" {
 #define ROOT_FIRMWARE_VERSION                          207
 #define ROOT_FW_VERSION_STR                            "207"
 #else
-#define ROOT_FIRMWARE_VERSION                          216
-#define ROOT_FW_VERSION_STR                            "216"
+#define ROOT_FIRMWARE_VERSION                          217
+#define ROOT_FW_VERSION_STR                            "217"
 #endif
 
 /**
@@ -55,10 +55,12 @@ extern "C" {
  * major版本表示固件支持的资源版本. 
  * minor表示资源差异化的版本.
 */
-#if (V3_UI_VERSION == V3_UI_V2 || V3_UI_VERSION == V3PRO_UI_V2)
+#if (ROOT_UI_VERSION == ROOT_UI_V2)
 #define ROOT_RES_PATH                                  "V2" /// 资源路径
+#elif (ROOT_UI_VERSION == ROOT_UI_V3)   
+#define ROOT_RES_PATH                                  "V3" /// 资源路径
 #else
-#define ROOT_RES_PATH                                  "V1" /// 资源路径
+#define ROOT_RES_PATH                                  "V2" /// 资源路径
 #endif
 #define ROOT_RES_VERSION                               (102) 
 #define ROOT_RES_MAJOR_VERSION                         (ROOT_RES_VERSION / 100)

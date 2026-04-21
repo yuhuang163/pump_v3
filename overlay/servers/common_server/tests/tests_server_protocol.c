@@ -58,6 +58,10 @@ const static protocol_service_tlvs_handle_t protocol_service_tlvs_list[] = {
     {TESTS_TLV_LIGHT_SENSOR_REPORT_CTRL, tests_tlvs_light_sensor_report_ctrl},
     ///设置光感校准数据
     {TESTS_TLV_LIGHT_SENSOR_CALIB_DATA_SET, tests_tlvs_light_sensor_calib_data_set},
+    ///读取光感校准数据
+    {TESTS_TLV_LIGHT_SENSOR_CALIB_DATA_READ, tests_tlvs_light_sensor_calib_data_read},
+    ///读取电池充电电流
+    {TESTS_TLV_READ_BATTERY_CHARGE_CURRENT, tests_tlvs_read_battery_charge_current},
     /// LCD颜色测试模式
     {TESTS_TLV_LCD_COLOR_TEST_MODE, tests_tlvs_lcd_color_test_mode},
 };

@@ -138,7 +138,7 @@ static int on_charge_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t ke
     EXCEPTION_CHECK_INT(proc);
     WINDOW_CONTEXT_GUARD_INT(proc, ID_WINDOW_CHARGE, 0);
     if (keytype == KEY_EVENT_LONG_3S) {
-        if (keycode == KEY_CODE_POWER) {
+        if (keycode == KEY_CODE_POWER && proc->battery->is_adapter_mismatch() == 0) {
             proc->exit_charge_window_flag = 1;
             POST_TASK_HANDLER_NO_DELAY_ARG1(charge_ui_common_cb, proc, 
                 CHARGE_HDR_EXIT_CHARGE_POLICY, EXIT_CHARGE_POLICY_TASK_NAME);

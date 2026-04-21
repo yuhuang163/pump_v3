@@ -77,7 +77,7 @@ V3_2710IMC_HARDWARE_V1 ?= 1
 V3_2710IMC_HARDWARE_V2 ?= 2
 V3_2710IMC_HARDWARE_V3 ?= 3 #DV1
 V3_2710IMC_HARDWARE_V4 ?= 4 #DV4
-V3_HARDWARE_VERSION ?= $(V3_2710IMC_HARDWARE_V3)
+V3_HARDWARE_VERSION ?= $(V3_2710IMC_HARDWARE_V4)
 
 ifneq ($(filter $(V3_HARDWARE_VERSION),$(V3_2710IMC_HARDWARE_V3) $(V3_2710IMC_HARDWARE_V4)),)
 # littlefs section size
@@ -127,14 +127,29 @@ ROOT_PRODUCT_V3_ID ?= 0x08
 ROOT_PRODUCT_V3PRO_ID ?= 0x09
 ROOT_PRODUCT_ID ?= $(ROOT_PRODUCT_V3_ID)
 
-# UI版本
-V3_UI_V1 ?= 1
-V3_UI_V2 ?= 2
-V3PRO_UI_V2 ?= 3
+# 产品UI版本
+ROOT_UI_V2 ?= 0x02
+ROOT_UI_V3 ?= 0x03
+ROOT_UI_VERSION ?= $(ROOT_UI_V3)
+# V3 UI版本
+V3_UI_V2 ?= 0x02
+V3_UI_V3 ?= 0x03
+# V3PRO UI版本
+V3PRO_UI_V2 ?= 0x12
+V3PRO_UI_V3 ?= 0x13
+# 根据产品型号和UI版本确定V3/V3PRO UI版本
+ifeq ($(ROOT_UI_VERSION), $(ROOT_UI_V2))
 ifeq ($(ROOT_PRODUCT_ID), $(ROOT_PRODUCT_V3PRO_ID))
 V3_UI_VERSION ?= $(V3PRO_UI_V2)
 else
 V3_UI_VERSION ?= $(V3_UI_V2)
+endif
+else
+ifeq ($(ROOT_PRODUCT_ID), $(ROOT_PRODUCT_V3PRO_ID))
+V3_UI_VERSION ?= $(V3PRO_UI_V3)
+else
+V3_UI_VERSION ?= $(V3_UI_V3)
+endif
 endif
 
 # 泵驱动版本(1:旧版本, 2:新版本)
@@ -147,38 +162,39 @@ BLE_INC_DIRS := $(shell find $(PROJECT_ROOT)/trunk/platform_chip/bes/sdk/bthost 
 # BLE 头文件
 BLE_INC_FLAGS := $(patsubst %,-I%,$(BLE_INC_DIRS))
 
-# UI UART 头文件子目录
-UI_INC_UART_DIRS := $(shell find $(PROJECT_ROOT)/overlay/ui/lcd_uart_ui -type d)
-# UI UART 头文件
-UI_INC_UART_FLAGS := $(patsubst %,-I%,$(UI_INC_UART_DIRS))
-# UI Direct 头文件子目录
-UI_INC_DIRECT_DIRS := $(shell find $(PROJECT_ROOT)/overlay/ui/lcd_direct_ui -type d)
-# UI Direct 头文件
-UI_INC_DIRECT_FLAGS := $(patsubst %,-I%,$(UI_INC_DIRECT_DIRS))
-# UI Direct V2 头文件子目录
-UI_INC_DIRECT_V2_DIRS := $(shell find $(PROJECT_ROOT)/overlay/ui/lcd_direct_ui_v2 -type d)
-# UI Direct V2 头文件
-UI_INC_DIRECT_V2_FLAGS := $(patsubst %,-I%,$(UI_INC_DIRECT_V2_DIRS))
-# UI Direct v3 pro V2 头文件子目录
-UI_INC_DIRECT_V3PRO_V2_DIRS := $(shell find $(PROJECT_ROOT)/overlay/ui/v3pro_lcd_direct_ui_v2 -type d)
-# UI Direct v3 pro V2 头文件
+# UI Direct v3 V2 头文件子目录
+UI_INC_DIRECT_V3_V2_DIRS := $(shell find $(PROJECT_ROOT)/overlay/ui/v3_ui_v2 -type d)
+# UI Direct v3 V2 头文件
+UI_INC_DIRECT_V3_V2_FLAGS := $(patsubst %,-I%,$(UI_INC_DIRECT_V3_V2_DIRS))
+# UI Direct v3pro V2 头文件子目录
+UI_INC_DIRECT_V3PRO_V2_DIRS := $(shell find $(PROJECT_ROOT)/overlay/ui/v3pro_ui_v2 -type d)
+# UI Direct v3pro V2 头文件
 UI_INC_DIRECT_V3PRO_V2_FLAGS := $(patsubst %,-I%,$(UI_INC_DIRECT_V3PRO_V2_DIRS))
-# UI UART 源码目录
-UI_LCD_UART_DIR := $(PROJECT_ROOT)/overlay/ui/lcd_uart_ui
-# UI LCD UART 源码文件
-UI_LCD_UART_SRCS := $(call rwildcard,$(UI_LCD_UART_DIR))
-# UI LCD Direct 源码目录
-UI_LCD_DIRECT_DIR := $(PROJECT_ROOT)/overlay/ui/lcd_direct_ui
-# UI LCD Direct 源码文件
-UI_LCD_DIRECT_SRCS := $(call rwildcard,$(UI_LCD_DIRECT_DIR))
-# UI LCD Direct V2 源码目录
-UI_LCD_DIRECT_V2_DIR := $(PROJECT_ROOT)/overlay/ui/lcd_direct_ui_v2
-# UI LCD Direct V2 源码文件
-UI_LCD_DIRECT_V2_SRCS := $(call rwildcard,$(UI_LCD_DIRECT_V2_DIR))
-# UI LCD Direct V3 Pro V2 源码目录
-UI_LCD_DIRECT_V3PRO_V2_DIR := $(PROJECT_ROOT)/overlay/ui/v3pro_lcd_direct_ui_v2
-# UI LCD Direct V3 Pro V2 源码文件
+# UI LCD Direct v3 V2 源码目录
+UI_LCD_DIRECT_V3_V2_DIR := $(PROJECT_ROOT)/overlay/ui/v3_ui_v2
+# UI LCD Direct v3 V2 源码文件
+UI_LCD_DIRECT_V3_V2_SRCS := $(call rwildcard,$(UI_LCD_DIRECT_V3_V2_DIR))
+# UI LCD Direct v3pro V2 源码目录
+UI_LCD_DIRECT_V3PRO_V2_DIR := $(PROJECT_ROOT)/overlay/ui/v3pro_ui_v2
+# UI LCD Direct v3pro V2 源码文件
 UI_LCD_DIRECT_V3PRO_V2_SRCS := $(call rwildcard,$(UI_LCD_DIRECT_V3PRO_V2_DIR))
+
+# UI Direct v3 V3 头文件子目录
+UI_INC_DIRECT_V3_V3_DIRS := $(shell find $(PROJECT_ROOT)/overlay/ui/v3_ui_v3 -type d)
+# UI Direct v3 V3 头文件
+UI_INC_DIRECT_V3_V3_FLAGS := $(patsubst %,-I%,$(UI_INC_DIRECT_V3_V3_DIRS))
+# UI Direct v3pro V3 头文件子目录
+UI_INC_DIRECT_V3PRO_V3_DIRS := $(shell find $(PROJECT_ROOT)/overlay/ui/v3pro_ui_v3 -type d)
+# UI Direct v3pro V3 头文件
+UI_INC_DIRECT_V3PRO_V3_FLAGS := $(patsubst %,-I%,$(UI_INC_DIRECT_V3PRO_V3_DIRS))
+# UI LCD Direct v3 V3 源码目录
+UI_LCD_DIRECT_V3_V3_DIR := $(PROJECT_ROOT)/overlay/ui/v3_ui_v3
+# UI LCD Direct v3 V3 源码文件
+UI_LCD_DIRECT_V3_V3_SRCS := $(call rwildcard,$(UI_LCD_DIRECT_V3_V3_DIR))
+# UI LCD Direct v3pro V3 源码目录
+UI_LCD_DIRECT_V3PRO_V3_DIR := $(PROJECT_ROOT)/overlay/ui/v3pro_ui_v3
+# UI LCD Direct v3pro V3 源码文件
+UI_LCD_DIRECT_V3PRO_V3_SRCS := $(call rwildcard,$(UI_LCD_DIRECT_V3PRO_V3_DIR))
 
 # Protocol 头文件子目录
 PROTOCOL_INC_DIRS := $(shell find $(PROJECT_ROOT)/overlay/protocol -type d)
@@ -304,7 +320,7 @@ endif
 # 光传感器驱动头文件
 DRIVERS_LIGHT_SENSOR_INC_FLAGS := \
 	-I$(PROJECT_ROOT)/drivers/light_sensor
-	
+
 # 音频驱动头文件
 DRIVERS_AUDIO_INC_FLAGS := \
 	-I$(PROJECT_ROOT)/drivers/audio
@@ -371,7 +387,7 @@ endif
 # LCD 驱动头文件
 DRIVERS_LCD_INC_FLAGS := \
 	-I$(PROJECT_ROOT)/drivers/lcd 
-	
+
 ifneq ($(filter $(V3_HARDWARE_VERSION),$(V3_2710IMC_HARDWARE_V1) $(V3_2710IMC_HARDWARE_V2) $(V3_2710IMC_HARDWARE_V3) $(V3_2710IMC_HARDWARE_V4)),)
 DRIVERS_LCD_INC_FLAGS += -I$(PROJECT_ROOT)/drivers/lcd/interface/lcd_bes_qspi
 else
@@ -502,42 +518,21 @@ INPUT_KEY_INC_FLAGS := \
 # UI 模块头文件
 UI_MODULE_INC_FLAGS := \
 	-I$(PROJECT_ROOT)/overlay/ui \
-	-I$(PROJECT_ROOT)/trunk/root_source/ui
-
-ifeq ($(CFG_LVGL_ENABLE),1)
-UI_MODULE_INC_FLAGS += -I$(PROJECT_ROOT)/overlay/framework_hooks/ui/lcd_direct_ui
-
-ifeq ($(V3_UI_VERSION), $(V3_UI_V1))
-UI_MODULE_INC_FLAGS += $(UI_INC_DIRECT_FLAGS)
-else ifeq ($(ROOT_PRODUCT_ID), $(ROOT_PRODUCT_V3PRO_ID))
+	-I$(PROJECT_ROOT)/trunk/root_source/ui \
+	-I$(PROJECT_ROOT)/overlay/framework_hooks/ui/
+ifeq ($(V3_UI_VERSION), $(V3_UI_V2))
+UI_MODULE_INC_FLAGS += $(UI_INC_DIRECT_V3_V2_FLAGS)
+else ifeq ($(V3_UI_VERSION), $(V3PRO_UI_V2))
 UI_MODULE_INC_FLAGS += $(UI_INC_DIRECT_V3PRO_V2_FLAGS)
+else ifeq ($(V3_UI_VERSION), $(V3_UI_V3))
+UI_MODULE_INC_FLAGS += $(UI_INC_DIRECT_V3_V3_FLAGS)
+else ifeq ($(V3_UI_VERSION), $(V3PRO_UI_V3))
+UI_MODULE_INC_FLAGS += $(UI_INC_DIRECT_V3PRO_V3_FLAGS)
 else
-UI_MODULE_INC_FLAGS += $(UI_INC_DIRECT_V2_FLAGS)
-endif
-
-else
-UI_MODULE_INC_FLAGS += $(UI_INC_UART_FLAGS)
-UI_MODULE_INC_FLAGS += -I$(PROJECT_ROOT)/overlay/framework_hooks/ui/lcd_uart_ui
+warn "Invalid UI version"
 endif
 
 # 字体模块头文件
-FONT_V1_INC_FLAGS := \
-	-I$(PROJECT_ROOT)/overlay/font/font_roboto_14 \
-	-I$(PROJECT_ROOT)/overlay/font/font_roboto_16 \
-	-I$(PROJECT_ROOT)/overlay/font/font_roboto_17 \
-	-I$(PROJECT_ROOT)/overlay/font/font_roboto_18 \
-	-I$(PROJECT_ROOT)/overlay/font/font_roboto_19 \
-	-I$(PROJECT_ROOT)/overlay/font/font_roboto_20 \
-	-I$(PROJECT_ROOT)/overlay/font/font_roboto_21 \
-	-I$(PROJECT_ROOT)/overlay/font/font_roboto_24 \
-	-I$(PROJECT_ROOT)/overlay/font/font_roboto_25 \
-	-I$(PROJECT_ROOT)/overlay/font/font_roboto_27 \
-	-I$(PROJECT_ROOT)/overlay/font/font_roboto_32 \
-	-I$(PROJECT_ROOT)/overlay/font/font_roboto_46 \
-	-I$(PROJECT_ROOT)/overlay/font/font_roboto_68 \
-	-I$(PROJECT_ROOT)/overlay/font/font_roboto_79 \
-	-I$(PROJECT_ROOT)/overlay/font/font_roboto_81 
-
 FONT_V2_INC_FLAGS := \
 	-I$(PROJECT_ROOT)/overlay/font/font_oppo_sans_12 \
 	-I$(PROJECT_ROOT)/overlay/font/font_oppo_sans_14 \
@@ -548,15 +543,13 @@ FONT_V2_INC_FLAGS := \
 	-I$(PROJECT_ROOT)/overlay/font/font_oppo_sans_32 \
 	-I$(PROJECT_ROOT)/overlay/font/font_oppo_sans_72 \
 	-I$(PROJECT_ROOT)/overlay/font/font_oppo_sans_96 \
-	-I$(PROJECT_ROOT)/overlay/font/font_quicksand_96 \
+	-I$(PROJECT_ROOT)/overlay/font/font_quicksand_64 \
+	-I$(PROJECT_ROOT)/overlay/font/font_quicksand_80 \
+	-I$(PROJECT_ROOT)/overlay/font/font_quicksand_96 
 
 FONT_INC_FLAGS := \
 	-I$(PROJECT_ROOT)/overlay/font
-ifeq ($(V3_UI_VERSION), $(V3_UI_V1))
-FONT_INC_FLAGS += $(FONT_V1_INC_FLAGS)
-else
 FONT_INC_FLAGS += $(FONT_V2_INC_FLAGS)
-endif
 
 # 窗口模块头文件
 WINDOWS_INC_FLAGS := \
@@ -635,14 +628,19 @@ PRODUCT_TESTS_INC_FLAGS := \
 # 资源模块头文件
 RESOURCE_INC_FLAGS := \
 	-I$(PROJECT_ROOT)/trunk/root_source/resource \
-	-I$(PROJECT_ROOT)/overlay/resources
+	-I$(PROJECT_ROOT)/overlay/resources\
+	-I$(PROJECT_ROOT)/overlay/resources/reference
 
-ifeq ($(V3_UI_VERSION), $(V3_UI_V1))
-RESOURCE_INC_FLAGS += -I$(PROJECT_ROOT)/overlay/resources/V1
-RESOURCE_INC_FLAGS += -I$(PROJECT_ROOT)/overlay/resources/reference
+ifeq ($(V3_UI_VERSION), $(V3_UI_V2))
+RESOURCE_INC_FLAGS += -I$(PROJECT_ROOT)/overlay/resources/v3_res_v2
+else ifeq ($(V3_UI_VERSION), $(V3PRO_UI_V2))
+RESOURCE_INC_FLAGS += -I$(PROJECT_ROOT)/overlay/resources/v3pro_res_v2
+else ifeq ($(V3_UI_VERSION), $(V3_UI_V3))
+RESOURCE_INC_FLAGS += -I$(PROJECT_ROOT)/overlay/resources/v3_res_v3
+else ifeq ($(V3_UI_VERSION), $(V3PRO_UI_V3))
+RESOURCE_INC_FLAGS += -I$(PROJECT_ROOT)/overlay/resources/v3pro_res_v3
 else
-RESOURCE_INC_FLAGS += -I$(PROJECT_ROOT)/overlay/resources/V2
-RESOURCE_INC_FLAGS += -I$(PROJECT_ROOT)/overlay/resources/reference
+warn "Invalid UI version"
 endif
 
 # 电池模块头文件
@@ -750,9 +748,15 @@ CPPFLAGS += -DROOT_PRODUCT_V3PRO_ID=$(ROOT_PRODUCT_V3PRO_ID)
 
 # UI版本
 CPPFLAGS += -DV3_UI_VERSION=$(V3_UI_VERSION)
-CPPFLAGS += -DV3_UI_V1=$(V3_UI_V1)
 CPPFLAGS += -DV3_UI_V2=$(V3_UI_V2)
 CPPFLAGS += -DV3PRO_UI_V2=$(V3PRO_UI_V2)
+CPPFLAGS += -DV3_UI_V3=$(V3_UI_V3)
+CPPFLAGS += -DV3PRO_UI_V3=$(V3PRO_UI_V3)
+
+CPPFLAGS += -DROOT_UI_VERSION=$(ROOT_UI_VERSION)
+CPPFLAGS += -DROOT_UI_V2=$(ROOT_UI_V2)
+CPPFLAGS += -DROOT_UI_V3=$(ROOT_UI_V3)
+
 
 # 泵驱动版本
 CPPFLAGS += -DMOTOR_DRIVER_VERSION=$(MOTOR_DRIVER_VERSION)
@@ -970,7 +974,7 @@ endif
 # LCD 驱动源码
 DRIVERS_LCD_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/drivers/lcd/*.c) 
-	
+
 ifneq ($(filter $(V3_HARDWARE_VERSION),$(V3_2710IMC_HARDWARE_V1) $(V3_2710IMC_HARDWARE_V2) $(V3_2710IMC_HARDWARE_V3) $(V3_2710IMC_HARDWARE_V4)),)
 DRIVERS_LCD_SRCS += $(wildcard $(PROJECT_ROOT)/drivers/lcd/interface/lcd_bes_qspi/*.c)
 else
@@ -1102,41 +1106,21 @@ INPUT_KEY_MODULE_SRCS := \
 
 # UI 模块源码
 UI_MODULE_SRCS := \
-	$(wildcard $(PROJECT_ROOT)/trunk/root_source/ui/*.c) 
-ifeq ($(CFG_LVGL_ENABLE),1)
-UI_MODULE_SRCS += $(wildcard $(PROJECT_ROOT)/overlay/framework_hooks/ui/lcd_direct_ui/*.c) 
-
-ifeq ($(V3_UI_VERSION), $(V3_UI_V1))
-UI_MODULE_SRCS += $(UI_LCD_DIRECT_SRCS)
-else ifeq ($(ROOT_PRODUCT_ID), $(ROOT_PRODUCT_V3PRO_ID))
+	$(wildcard $(PROJECT_ROOT)/trunk/root_source/ui/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/framework_hooks/ui/*.c) 
+ifeq ($(V3_UI_VERSION), $(V3_UI_V2))
+UI_MODULE_SRCS += $(UI_LCD_DIRECT_V3_V2_SRCS)
+else ifeq ($(V3_UI_VERSION), $(V3PRO_UI_V2))
 UI_MODULE_SRCS += $(UI_LCD_DIRECT_V3PRO_V2_SRCS)
+else ifeq ($(V3_UI_VERSION), $(V3_UI_V3))
+UI_MODULE_SRCS += $(UI_LCD_DIRECT_V3_V3_SRCS)
+else ifeq ($(V3_UI_VERSION), $(V3PRO_UI_V3))
+UI_MODULE_SRCS += $(UI_LCD_DIRECT_V3PRO_V3_SRCS)
 else
-UI_MODULE_SRCS += $(UI_LCD_DIRECT_V2_SRCS)
-endif
-
-else
-UI_MODULE_SRCS += $(wildcard $(PROJECT_ROOT)/overlay/framework_hooks/ui/lcd_uart_ui/*.c) 
-UI_MODULE_SRCS += $(UI_LCD_UART_SRCS)
+warn "Invalid UI version"
 endif
 
 # 字体模块源码
-FONT_V1_SRCS := \
-	$(wildcard $(PROJECT_ROOT)/overlay/font/font_roboto_14/*.c) \
-	$(wildcard $(PROJECT_ROOT)/overlay/font/font_roboto_16/*.c) \
-	$(wildcard $(PROJECT_ROOT)/overlay/font/font_roboto_17/*.c) \
-	$(wildcard $(PROJECT_ROOT)/overlay/font/font_roboto_18/*.c) \
-	$(wildcard $(PROJECT_ROOT)/overlay/font/font_roboto_19/*.c) \
-	$(wildcard $(PROJECT_ROOT)/overlay/font/font_roboto_20/*.c) \
-	$(wildcard $(PROJECT_ROOT)/overlay/font/font_roboto_21/*.c) \
-	$(wildcard $(PROJECT_ROOT)/overlay/font/font_roboto_24/*.c) \
-	$(wildcard $(PROJECT_ROOT)/overlay/font/font_roboto_25/*.c) \
-	$(wildcard $(PROJECT_ROOT)/overlay/font/font_roboto_27/*.c) \
-	$(wildcard $(PROJECT_ROOT)/overlay/font/font_roboto_32/*.c) \
-	$(wildcard $(PROJECT_ROOT)/overlay/font/font_roboto_46/*.c) \
-	$(wildcard $(PROJECT_ROOT)/overlay/font/font_roboto_68/*.c) \
-	$(wildcard $(PROJECT_ROOT)/overlay/font/font_roboto_79/*.c) \
-	$(wildcard $(PROJECT_ROOT)/overlay/font/font_roboto_81/*.c) 
-
 FONT_V2_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/overlay/font/font_oppo_sans_12/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/font/font_oppo_sans_14/*.c) \
@@ -1147,14 +1131,13 @@ FONT_V2_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/overlay/font/font_oppo_sans_32/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/font/font_oppo_sans_72/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/font/font_oppo_sans_96/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/font/font_quicksand_64/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/font/font_quicksand_80/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/font/font_quicksand_96/*.c) 
 
-FONT_MODULE_SRCS := $(wildcard $(PROJECT_ROOT)/overlay/font/*.c)
-ifeq ($(V3_UI_VERSION), $(V3_UI_V1))
-FONT_MODULE_SRCS += $(FONT_V1_SRCS)
-else
+FONT_MODULE_SRCS := \
+   $(wildcard $(PROJECT_ROOT)/overlay/font/*.c)
 FONT_MODULE_SRCS += $(FONT_V2_SRCS)
-endif
 
 # 窗口模块源码
 WINDOWS_MODULE_SRCS := \
@@ -1222,7 +1205,8 @@ NETWORK_MODULE_SRCS := \
 
 # OTA 模块源码
 OTA_MODULE_SRCS := \
-	$(wildcard $(PROJECT_ROOT)/trunk/root_source/ota/*.c)
+	$(wildcard $(PROJECT_ROOT)/trunk/root_source/ota/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/framework_hooks/ota/*.c)
 
 # 产品测试模块源码
 PRODUCT_TESTS_MODULE_SRCS := \

@@ -74,8 +74,8 @@ static void show_power_off_ui(ui_proc_system_t *proc)
 {
     ui_manager_context_t *ui = proc->ui;
     EXCEPTION_CHECK_VOID(ui->hook && ui->hook->ui_animation_play_init);
+    proc->last_progress_ani_time = get_timestamp();
     if (proc->current_ui_type == SYSTEM_UI_TYPE_POWER_OFF) {
-        proc->last_progress_ani_time = get_timestamp();
         return;
     }
     ui_play_info_t play_info = {
@@ -86,7 +86,6 @@ static void show_power_off_ui(ui_proc_system_t *proc)
         .display_remove_cb = power_off_ui_display_remove,
         .user_data = proc,
     };
-    proc->last_progress_ani_time = get_timestamp();
     ui->hook->ui_animation_play_init(ui, play_info);
     proc->current_ui_type = SYSTEM_UI_TYPE_POWER_OFF;
 }
@@ -158,11 +157,11 @@ void system_power_off_handle(ui_proc_system_t *proc)
             },
         };
         led_dev->ioctl(led_dev, OP_CODE_LED_STATUS_SET, (void *)&msg);
-        msleep(10);
+#if IS_SUPPORT_NIGHT_LIGHT
         msg.led_index = NIGHT_LIGHT_LED;
         led_dev->ioctl(led_dev, OP_CODE_LED_STATUS_SET, (void *)&msg);
-        msleep(10);
+#endif
     }
-    
+   
     POST_TASK_HANDLER_DELAYED_ARG1(power_off_cb, POWER_OFF_DELAY_TIME, proc, POWER_OFF_TASK_NAME);
 }

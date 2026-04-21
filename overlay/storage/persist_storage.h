@@ -32,6 +32,8 @@ extern "C" {
 #define FACTORY_AGE_INFO_MAX                        3   /// 老化信息最大保存3条
 #define ROOT_BREAST_PUMP_BURY_DATA_NUM              10    /// 埋点数据最大保存10条
 
+#define LIGHT_SENSOR_CALIB_POINT_NUM                20
+
 typedef enum  { 
     SYS_DAY_MONDAY = 0,
     SYS_DAY_TUESDAY = 1,
@@ -78,6 +80,10 @@ typedef struct {
     uint8_t sn_len;            // sn length
     uint8_t body_color;
     uint8_t region_id;   /// 区域ID, 中版，俄版，欧版，美版...
+#if IS_SUPPORT_DEVICE_LIGHT_SENSOR_CALIB
+    int32_t light_sensor_calib_tbl[LIGHT_SENSOR_CALIB_POINT_NUM]; /// 光感校准数据
+    uint8_t rsv[32]; /// 保留
+#endif
 } __attribute__((packed)) factory_dev_info_t;
 
 /// 工厂老化标志
