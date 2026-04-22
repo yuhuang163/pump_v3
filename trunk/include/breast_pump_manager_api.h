@@ -11,10 +11,13 @@ extern "C" {
 #include "root_common_base.h" // IWYU pragma: keep
 #include "broadcast_manager_api.h"
 #include "persist_storage.h" // IWYU pragma: keep
-
-#define PUMP_WORK_TIME_INC                           (60000)      
-#define SINGLE_PUMP_TIME_MAX                         (600000 * 120)   /// 单次泵奶(包含续刷)最多120分钟
-#define SETTING_PUMP_TIME_MAX                        (3600000)  /// app设置的单次泵奶时间最大值 1小时
+   
+#define SINGLE_PUMP_TIME_MAX                         (90 * 60 * 1000)   /// 单次泵奶(包含续刷)最多90分钟
+#if IS_SUPPORT_MODE_WORK_TIME_ACCUMULATE
+#define SETTING_PUMP_TIME_MAX                        (24 * 60 * 60 * 1000) /// app设置的单次泵奶时间最大值 24小时
+#else
+#define SETTING_PUMP_TIME_MAX                        (60 * 60 * 1000)  /// app设置的单次泵奶时间最大值 1小时
+#endif
 
 typedef enum {
     BREAST_PUMP_BROADCAST_MODE_CHANGE = 100,  /// 模式切换.

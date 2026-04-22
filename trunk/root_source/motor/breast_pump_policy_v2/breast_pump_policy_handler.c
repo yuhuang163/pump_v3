@@ -365,6 +365,15 @@ static void pump_algo_compensation_callback(void *user_data, algo_breast_pump_da
 }
 #endif
 
+void motor_mode_change_handler(struct motor_manager_context *thiz, int breast_pump_mode)
+{
+    motor_policy_runtime_t *body = &thiz->priv.runtime;
+    const motor_policy_manager_t *policy_obj = breast_pump_mode_policy_get(thiz, breast_pump_mode);
+    EXCEPTION_CHECK_VOID(policy_obj);
+    body->current_mode_type = pump_policy_type_get(policy_obj->head.policy);
+    LOG_MOTOR("mode change: %d, type: %d", breast_pump_mode, body->current_mode_type);
+}
+
 void motor_policy_init(struct motor_manager_context *thiz)
 {
     // negative_pressure_release(thiz, 200);

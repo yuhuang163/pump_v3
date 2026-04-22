@@ -26,9 +26,13 @@
 
 typedef enum {
     TOUCH_KEY_THREAD_MSG_INTERRUPT = 0,  /// 中断消息
-    TOUCH_KEY_THREAD_MSG_UPDATE_START = 1,  /// 更新开始消息
     TOUCH_KEY_THREAD_MSG_MAX,
 } touch_key_thread_msg_e;
+
+typedef enum {
+    TOUCH_OTA_THREAD_MSG_UPDATE_START = 0,   /// 启动升级
+    TOUCH_OTA_THREAD_MSG_MAX,
+} touch_ota_thread_msg_e;
 
 /*
 * LOCAL VARIABLE DEFINITIONS
@@ -45,6 +49,7 @@ static os_timer_id s_diff_signal_timer_id = NULL;
 static bool s_touch_is_ready = false;
 static uint8_t s_touch_fw_version = 0;
 static thread_context_t s_key_device_thd = {0};
+static thread_context_t s_touch_ota_thd = {0};
 static uint8_t s_touch_key[HYN_TOUCH_KEY_NUM] = {0};
 static uint16_t s_key_state = 0;
 static uint16_t s_key_last_state = 0;
@@ -264,6 +269,10 @@ static void hyn_poll_timer_cb(const void *arg)
     uint8_t read_buff[2] = {0};
     (void)arg;
 
+    if (s_is_upgrading) {
+        return;
+    }
+
     if (hyn_i2c_read(0x22, read_buff, 2) != BSP_OK) {
         return;
     }
@@ -300,7 +309,7 @@ static void hyn_diff_signal_dump_once(void)
 static void hyn_diff_signal_timer_cb(const void *arg)
 {
     (void)arg;
-    if (!s_touch_is_ready) {
+    if (!s_touch_is_ready || s_is_upgrading) {
         return;
     }
     hyn_diff_signal_dump_once();
@@ -380,36 +389,97 @@ static void key_device_thread(void *arg)
     (void)arg;
     while (1) {
         MSG_QUEUE_RECV(s_key_device_thd.msg_id, &msg, OS_WAIT_FOREVER);
-        if (msg == TOUCH_KEY_THREAD_MSG_UPDATE_START && s_is_upgrading == true) {
-            bsp_touch_key_ota_event_cb(KEY_OTA_EVENT_UPDATE_START, 0);
-            uint8_t ret = touch_fw_update_handler();
-            if (ret != 0) {
-                msleep(1000);
-                bsp_touch_key_ota_event_cb(KEY_OTA_EVENT_UPDATE_FAIL, 0);
-            } else {
-                bsp_touch_key_ota_event_cb(KEY_OTA_EVENT_UPDATE_SUCCESS, 100);
-            }
-            s_is_upgrading = false;
+        if (s_is_upgrading == true) {
+            continue;
+        }
+        if (msg == TOUCH_KEY_THREAD_MSG_INTERRUPT) {
+            hyn_touch_key_scan();
+        }
+    }
+}
+
+#if IS_SUPPORT_TOUCH_IC_OTA
+static bool hyn_should_start_upgrade(void)
+{
+    hyn_read_fw_version();
 #if (BSP_TOUCH_IC_FW_OTA_AUTO == 1)
-            /* 一轮 OTA 结束后再次投递唤醒消息，实现循环升级，无需等待下一次触摸 IRQ */
-            {
-                uint8_t msg = TOUCH_KEY_THREAD_MSG_INTERRUPT;
-                MSG_QUEUE_SEND(s_key_device_thd.msg_id, &msg, 0);
-            }
+    {
+        return true;
+    }
+#else
+    return touch_firmware_is_lower_than_image(s_touch_fw_version);
+#endif
+}
+
+static void touch_ota_thread(void *arg)
+{
+    uint8_t msg = 0;
+    (void)arg;
+    while (1) {
+        MSG_QUEUE_RECV(s_touch_ota_thd.msg_id, &msg, OS_WAIT_FOREVER);
+        if (msg != TOUCH_OTA_THREAD_MSG_UPDATE_START || s_is_upgrading == true) {
             continue;
         }
 
-        if (s_is_upgrading == false) {
-            msleep(4000);
-            bsp_start_touch_key_update_fw();
-        }
-#else
+        if (!hyn_should_start_upgrade()) {
+            LOG_PBUS("HYN skip OTA: ic=0x%02x target=0x%02x",
+                (unsigned)s_touch_fw_version, (unsigned)touch_firmware_target_version());
+#if (BSP_TOUCH_IC_FW_OTA_AUTO == 1)
+            msleep(HYN_TOUCH_OTA_STRESS_INTERVAL_MS);
+            msg = TOUCH_OTA_THREAD_MSG_UPDATE_START;
+            MSG_QUEUE_SEND(s_touch_ota_thd.msg_id, &msg, 0);
+#endif
             continue;
         }
+
+        s_is_upgrading = true;
+#if HYN_TOUCH_USE_POLL
+        if (s_poll_timer_id) {
+            STOP_TIMER(s_poll_timer_id);
+        }
 #endif
-        hyn_touch_key_scan();
+#if HYN_ENABLE_DIFF_SIGNAL_DUMP
+        if (s_diff_signal_timer_id) {
+            STOP_TIMER(s_diff_signal_timer_id);
+        }
+#endif
+        hyn_irq_control(false);
+        bsp_touch_key_ota_event_cb(KEY_OTA_EVENT_UPDATE_START, 0);
+#if (BSP_TOUCH_IC_FW_OTA_AUTO == 1)
+        uint8_t ret = touch_fw_update_handler_force(true);
+#else
+        uint8_t ret = touch_fw_update_handler_force(false);
+#endif
+        if (ret != 0) {
+            msleep(1000);
+            bsp_touch_key_ota_event_cb(KEY_OTA_EVENT_UPDATE_FAIL, 0);
+        } else {
+            bsp_touch_key_ota_event_cb(KEY_OTA_EVENT_UPDATE_SUCCESS, 100);
+        }
+        msleep(60);
+        hyn_read_fw_version();
+        s_is_upgrading = false;
+        hyn_irq_control(true);
+#if HYN_TOUCH_USE_POLL
+        if (s_poll_timer_id) {
+            s_last_poll_key_state = 0;
+            START_TIMER(s_poll_timer_id, HYN_POLL_PERIOD_MS);
+        }
+#endif
+#if HYN_ENABLE_DIFF_SIGNAL_DUMP
+        if (s_diff_signal_timer_id) {
+            START_TIMER(s_diff_signal_timer_id, HYN_DIFF_SIGNAL_PERIOD_MS);
+        }
+#endif
+#if (BSP_TOUCH_IC_FW_OTA_AUTO == 1)
+        /* 自动化压测模式：每轮按真实流程检查后升级，固定间隔循环 */
+        msleep(HYN_TOUCH_OTA_STRESS_INTERVAL_MS);
+        msg = TOUCH_OTA_THREAD_MSG_UPDATE_START;
+        MSG_QUEUE_SEND(s_touch_ota_thd.msg_id, &msg, 0);
+#endif
     }
 }
+#endif
 
 static int hyn_is_ready(void)
 {
@@ -510,12 +580,10 @@ int bsp_key_init(void)
     CREATE_MSG_TYPE_QUEUE(&s_key_device_thd.msg_id, 1, 1);
     RUN_NEW_THREAD(&s_key_device_thd, "key", key_device_thread,
                 RT_PRIO_KEY_DEVICE_THREAD, (KEY_DEVICE_THREAD_STACKSIZE));
-#if (BSP_TOUCH_IC_FW_OTA_AUTO == 1)
-    /* key_device_thread 仅在收到队列消息时运行；无触摸 IRQ 时永远阻塞，上电投递一次以触发首轮回升级流程 */
-    {
-        uint8_t msg = TOUCH_KEY_THREAD_MSG_INTERRUPT;
-        MSG_QUEUE_SEND(s_key_device_thd.msg_id, &msg, 0);
-    }
+#if IS_SUPPORT_TOUCH_IC_OTA
+    CREATE_MSG_TYPE_QUEUE(&s_touch_ota_thd.msg_id, 2, 1);
+    RUN_NEW_THREAD(&s_touch_ota_thd, "hyn_ota", touch_ota_thread,
+                RT_PRIO_KEY_DEVICE_THREAD, (KEY_DEVICE_THREAD_STACKSIZE));
 #endif
     hyn_irq_control(true);
 #if HYN_TOUCH_USE_POLL
@@ -635,13 +703,15 @@ int bsp_start_touch_key_update_fw(void)
 {
 #if IS_SUPPORT_TOUCH_IC_OTA
 #if (BSP_TOUCH_IC_FW_OTA_AUTO == 0)
-    if (touch_firmware_is_lower_than_image(s_touch_fw_version) == 0) {
+    if (touch_firmware_is_lower_than_image(s_touch_fw_version) == false) {
         return 0;
     }
 #endif
-    uint8_t msg = TOUCH_KEY_THREAD_MSG_UPDATE_START;
-    s_is_upgrading = true;
-    MSG_QUEUE_SEND(s_key_device_thd.msg_id, &msg, 0);
+    if (s_is_upgrading == true || s_touch_ota_thd.msg_id == NULL) {
+        return 0;
+    }
+    uint8_t msg = TOUCH_OTA_THREAD_MSG_UPDATE_START;
+    MSG_QUEUE_SEND(s_touch_ota_thd.msg_id, &msg, 0);
 #endif
     return 0;
 }
@@ -661,6 +731,9 @@ int bsp_touch_signal_read(void *args)
    if (args == NULL) {
        return BSP_ERROR;
    }
+    if (s_is_upgrading) {
+        return BSP_NOT_READY;
+    }
     uint8_t sig_buff[HYN_TOUCH_KEY_NUM * 2];
 
     if (hyn_i2c_read(0xC8, sig_buff, (uint16_t)(HYN_TOUCH_KEY_NUM * 2)) != BSP_OK) {

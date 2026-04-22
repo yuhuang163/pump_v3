@@ -2,7 +2,6 @@
 #define V3_TARGET_CURVE_TABLE_H
 
 #include "v3_Defined.h"
-#include "v3_target_curve_table.h"
 
 /* 目标曲线总表，后续由你手动补充真实曲线项 */
 extern const STARGET_CURVE_ITEM g_target_curve_table[];
@@ -19,5 +18,6 @@ const STARGET_CURVE_ITEM* FindTargetCurve(unsigned char target_pressure,
 float GetTargetPressureFromCurve(const STARGET_CURVE_ITEM* curve,
                                  unsigned short pumping_time,
                                  unsigned char* is_valid);
+const STARGET_CURVE_ITEM* GetCurrentTargetCurveItem(const SDEVICE_INFO* ptDeviceInfo);
 
 #endif

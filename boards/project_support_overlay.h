@@ -98,7 +98,7 @@ extern "C" {
 /// 支持光传感器
 #define IS_SUPPORT_DEVICE_LIGHT_SENSOR                   (1)
 /// 支持光传感器校准
-#define IS_SUPPORT_DEVICE_LIGHT_SENSOR_CALIB             (0)
+#define IS_SUPPORT_DEVICE_LIGHT_SENSOR_CALIB             (1)
 /// 支持资源管理
 #define IS_SUPPORT_MODULE_RES                            (1)
 /// 支持自适应背光  
@@ -115,6 +115,8 @@ extern "C" {
 #endif
 /// 支持UI主题资源
 #define IS_SUPPORT_UI_THEME_RES                          (0)
+/// 支持泵奶时间累计
+#define IS_SUPPORT_MODE_WORK_TIME_ACCUMULATE             (0)
 
 #if (ROOT_PRODUCT_ID == ROOT_PRODUCT_V3PRO_ID)
 /// 支持漏气提醒
@@ -145,6 +147,12 @@ extern "C" {
 #endif
 /// 支持LOGO界面背景颜色测试
 #define IS_SUPPORT_LOGO_BG_COLOR_TEST                    (0)
+#if (IS_SUPPORT_LOGO_BG_COLOR_TEST == 1 && IS_SUPPORT_ADAPTIVE_DIMMING == 1)
+/// 支持LOGO界面按键背光自适应调节测试（仅测试使用，默认关闭）
+#define IS_SUPPORT_LOGO_KEY_LIGHT_ADAPTIVE_TEST          (1)
+#else
+#define IS_SUPPORT_LOGO_KEY_LIGHT_ADAPTIVE_TEST          (0)    
+#endif
 /// 支持触摸芯片固件升级
 #if (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V3 || V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V2)
 #define IS_SUPPORT_TOUCH_IC_OTA                          (0)
@@ -154,6 +162,8 @@ extern "C" {
 #if IS_SUPPORT_ADAPTIVE_DIMMING
 /// 支持触摸按键背光灯自适应亮度调节
 #define IS_SUPPORT_KEY_LIGHT_ADAPTIVE                    (1)
+#else
+#define IS_SUPPORT_KEY_LIGHT_ADAPTIVE                    (0)
 #endif
 #ifdef __cplusplus
 }

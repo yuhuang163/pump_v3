@@ -27,7 +27,7 @@ extern "C" {
 #define HOME_BIND_QRCODE_DISPLAY_TIMEOUT    (3000) /// 3s
 
 /// 模式选择界面动画展示时间
-#define HOME_MODE_SELECT_DISPLAY_TIME       (5000) /// 5s
+#define HOME_MODE_SELECT_DISPLAY_TIME       (10000) /// 10s
 
 /// 档位调节界面动画展示时间
 #define HOME_PUMP_LEVEL_DISPLAY_TIMEOUT     (3000) /// 3s

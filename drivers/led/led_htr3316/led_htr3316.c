@@ -41,6 +41,10 @@ static led_status_t led_status[LED_TOTAL_SIZE];
 static thread_context_t s_led_device_thd;
 static os_timer_id s_led_timer_id;
 static os_mutex_id s_led_mutex_id = NULL;
+/* 记录各路上次已下发亮度，避免重复写同值导致的额外 I2C 负载 */
+static uint8_t s_led_hw_level_cache[LED_TOTAL_SIZE];
+/* 定时器tick累计，避免队列满导致的节拍丢失 */
+static volatile uint16_t s_led_tick_pending = 0;
 #if IS_SUPPORT_KEY_LIGHT_ADAPTIVE
 /** 当前已下发的自适应占空比（渐变中）；与 rate 相乘前用于 level */
 static uint8_t s_key_adaptive_duty = LED_LEVEL_MAX;
@@ -297,6 +301,24 @@ static void key_adaptive_ramp_step_locked(void)
         s_key_adaptive_duty--;
     }
     for (uint8_t i = 0; i < LED_TOTAL_SIZE; i++) {
+        /* BLINK 由 led_blink_handle 驱动节拍，adaptive 渐变阶段不主动刷新 */
+        if (led_status[i].mode == LED_MODE_BLINK) {
+            continue;
+        }
+        /*
+         * 仅对“亮态”灯做自适应刷新：
+         * - ONOFF: 仅 ON 刷新
+         * - LEVEL: 仅 level>0 刷新
+         * OFF 态不需要随 duty 变化反复写 0，避免无效 I2C 写干扰闪烁节拍。
+         */
+        if (led_status[i].mode == LED_MODE_ONOFF &&
+            led_status[i].un.onoff.status == LED_STATUS_OFF) {
+            continue;
+        }
+        if (led_status[i].mode == LED_MODE_LEVEL &&
+            led_status[i].un.luminous.level == 0) {
+            continue;
+        }
         led_htr3316_refresh_output(i);
     }
 }
@@ -317,13 +339,17 @@ static void led_extension_level_set(uint8_t index, uint8_t level)
     if (new_level > LED_LEVEL_MAX) {
         new_level = LED_LEVEL_MAX;
     }
+    if (s_led_hw_level_cache[index] == new_level) {
+        return;
+    }
 
     for (uint8_t i = 0; i < led_address_data[index].size; i++) {
         led_extension_write_nbyte(led_address_data[index].data[i], &new_level, 1);
     }
+    s_led_hw_level_cache[index] = new_level;
 }
 
-static void led_blink_handle(uint8_t index)
+static void led_blink_handle(uint8_t index, uint16_t delta_ms)
 {
     if (led_status[index].mode != LED_MODE_BLINK) {
         return;
@@ -332,6 +358,7 @@ static void led_blink_handle(uint8_t index)
     led_blink_t *led = &led_status[index].un.blink;
     if (led->times_count >= led->times && led->times != 0) {
         led_status[index].mode = LED_MODE_ONOFF;
+        led_status[index].un.onoff.status = led->finish_status;
         if (led->finish_status != led->status) {
             led_extension_level_set(index, 
                 led->finish_status == LED_STATUS_ON ? LED_LUX_MAX : 0);
@@ -339,35 +366,63 @@ static void led_blink_handle(uint8_t index)
         return;
     }
 
-    led->period_count += LED_THREAD_POLL_INTERVAL;
-    if (led->period_count >= led->period) {
-        led->status = led->status > 0 ? 0 : 1;
-        led->period_count = 0;
-        led_extension_level_set(index, 
-            led->status == LED_STATUS_ON ? LED_LUX_MAX : 0);
-        if (led->status == LED_STATUS_ON) {
-            led->times_count++;
+    if (led->period == 0) {
+        return;
+    }
+    uint32_t acc = (uint32_t)led->period_count + (uint32_t)delta_ms;
+    uint32_t toggles = acc / led->period;
+    led->period_count = (uint16_t)(acc % led->period);
+    if (toggles > 0) {
+        uint8_t old_status = led->status;
+        uint32_t on_increase = 0;
+        if (old_status == LED_STATUS_OFF) {
+            on_increase = (toggles + 1u) / 2u;
+        } else {
+            on_increase = toggles / 2u;
         }
+        if (on_increase > 0) {
+            uint16_t new_times = (uint16_t)led->times_count + (uint16_t)on_increase;
+            led->times_count = (new_times > 0xFFu) ? 0xFFu : (uint8_t)new_times;
+        }
+        if ((toggles & 0x1u) != 0u) {
+            led->status = old_status > 0 ? 0 : 1;
+        }
+        led_extension_level_set(index,
+            led->status == LED_STATUS_ON ? LED_LUX_MAX : 0);
     }
 }
 
 static void led_thread_timer_handle(void *arg)
 {
     uint8_t msg = 0;
+    if (s_led_tick_pending < 0xFFFFu) {
+        s_led_tick_pending++;
+    }
     MSG_QUEUE_SEND(s_led_device_thd.msg_id, (void *)&msg, 0);
 }
 
 static void led_device_thread(void *arg)
 {
     uint8_t msg = 0;
+    uint16_t ticks = 0;
     CREATE_MSG_TYPE_QUEUE(&s_led_device_thd.msg_id, 1, 1);
     CREATE_TIMER(&s_led_timer_id, "led", NULL, OS_TIMER_PERIODIC, led_thread_timer_handle);
     START_TIMER(s_led_timer_id, LED_THREAD_POLL_INTERVAL);
     while (1) {
+        uint16_t delta_ms = 0;
         MSG_QUEUE_RECV(s_led_device_thd.msg_id, (void *)&msg, OS_WAIT_FOREVER);
+        ticks = s_led_tick_pending;
+        s_led_tick_pending = 0;
+        if (ticks == 0) {
+            continue;
+        }
+        if (ticks > (0xFFFFu / LED_THREAD_POLL_INTERVAL)) {
+            ticks = (uint16_t)(0xFFFFu / LED_THREAD_POLL_INTERVAL);
+        }
+        delta_ms = (uint16_t)(ticks * LED_THREAD_POLL_INTERVAL);
         MUTEX_LOCK(s_led_mutex_id);
         for (uint8_t i = 0; i < LED_TOTAL_SIZE; i++) {
-            led_blink_handle(i);
+            led_blink_handle(i, delta_ms);
         }
 #if IS_SUPPORT_KEY_LIGHT_ADAPTIVE
         key_adaptive_ramp_step_locked();
@@ -396,10 +451,6 @@ static void led_level_set(uint8_t index, led_luminous_t luminous)
     uint8_t level = luminous.level > LED_LEVEL_MAX ? LED_LEVEL_MAX : luminous.level;
     if (index == PUMP_LED_ALL_ID) {
         for (uint8_t i = 0; i < LED_TOTAL_SIZE; i++) {
-            /* 全键统一亮度（如 set_key_backlight）不得把闪烁中的灯改成 LEVEL，否则状态机被清掉 */
-            if (level > 0 && led_status[i].mode == LED_MODE_BLINK) {
-                continue;
-            }
             led_status[i].mode = LED_MODE_LEVEL;
             led_status[i].un.luminous.level = level;
             led_extension_level_set(i, level);
@@ -409,6 +460,33 @@ static void led_level_set(uint8_t index, led_luminous_t luminous)
     led_status[index].mode = LED_MODE_LEVEL; 
     led_status[index].un.luminous.level = level;
     led_extension_level_set(index, level);
+}
+
+void bsp_led_key_backlight_uniform_level(uint8_t level)
+{
+    uint8_t lv = level > LED_LEVEL_MAX ? LED_LEVEL_MAX : level;
+
+    if (s_led_mutex_id == NULL) {
+        return;
+    }
+    MUTEX_LOCK(s_led_mutex_id);
+    for (uint8_t i = 0; i < LED_TOTAL_SIZE; i++) {
+        /*
+         * set_key_backlight 是“统一按键背光”入口：
+         * - BLINK: 不覆盖模式，按当前相位立即刷新输出
+         * - 非 BLINK: 统一切到 LEVEL 并更新亮度
+         */
+        if (led_status[i].mode == LED_MODE_BLINK) {
+            led_blink_t *blink = &led_status[i].un.blink;
+            uint8_t blink_level = (blink->status == LED_STATUS_ON) ? lv : 0;
+            led_extension_level_set(i, blink_level);
+            continue;
+        }
+        led_status[i].mode = LED_MODE_LEVEL;
+        led_status[i].un.luminous.level = lv;
+        led_extension_level_set(i, lv);
+    }
+    MUTEX_UNLOCK(s_led_mutex_id);
 }
 
 static void led_blink_set(uint8_t index, led_blink_t blink)
@@ -573,6 +651,7 @@ int bsp_led_init(void)
     #endif
     for (uint8_t i = 0; i < LED_TOTAL_SIZE; i++) {
         led_status[i].rate = 100;
+        s_led_hw_level_cache[i] = 0xFF;
     }
     RUN_NEW_THREAD(&s_led_device_thd, "led", led_device_thread,
          RT_PRIO_LED_DEVICE_THREAD, (LED_DEVICE_THREAD_STACKSIZE));
@@ -596,6 +675,9 @@ void bsp_led_resume(void)
         msleep(10);
         led_htr3316_p16_output_set(true);
     #endif
+    for (uint8_t i = 0; i < LED_TOTAL_SIZE; i++) {
+        s_led_hw_level_cache[i] = 0xFF;
+    }
     START_TIMER(s_led_timer_id, LED_THREAD_POLL_INTERVAL);
 }
 

@@ -2,9 +2,9 @@
 * INCLUDE FILES
 *****************************************************************************************
 */
-#include "ui_img_define.h"   // IWYU pragma: keep
+#include "ui_img_define.h" // IWYU pragma: keep
 #include "ui_page_define.h" // IWYU pragma: keep
-#include "ui_manager.h"   // IWYU pragma: keep
+#include "ui_manager.h" // IWYU pragma: keep
 
 /*
 * DEFINES
@@ -71,7 +71,8 @@ typedef struct {
     uint8_t mode_obj_init_done;
     uint8_t mode_num;
     uint8_t popup_ui_index;
-    uint8_t rsv[3];
+    uint8_t new_step_info_flag; /// 新模式新步数信息标志 true-有新步数信息 false-无新步数信息, 使用后重置
+    uint8_t rsv[2];
 } bf_mode_display_info_t;
 
 
@@ -206,7 +207,7 @@ static uint8_t slot_mode_for_center(uint8_t center_mode, bf_circle_slot_e slot)
 }
 
 static void update_slot_content(ui_manager_context_t *thiz, bf_circle_slot_e slot, 
-    uint8_t mode_idx, uint8_t last_mode_idx)
+    uint8_t mode_idx, uint8_t last_mode_idx, bool new_step_info_flag)
 {
     lv_obj_t *item = bf_mode_info->circle_obj[slot];
     lv_obj_t *img = bf_mode_info->mode_component_img[slot];
@@ -239,11 +240,18 @@ static void update_slot_content(ui_manager_context_t *thiz, bf_circle_slot_e slo
     }
     LOG_UI("slot:%d, last_mode_idx:%d, mode_idx:%d, name:%s", slot, last_mode_idx, 
         mode_idx, bf_mode_name[mode_idx]);
-    if (last_mode_idx == mode_idx) {
-        lv_obj_clear_flag(bf_mode_info->last_usage_icon[slot], LV_OBJ_FLAG_HIDDEN);
+
+    if (mode_idx == BF_MODE_COUNT - 1 && bf_mode_info->new_step_info_flag) {
+        lv_obj_clear_flag(bf_mode_info->unconfirmed_icon[slot], LV_OBJ_FLAG_HIDDEN); /// 显示新模式未确认图标
     } else {
-        lv_obj_add_flag(bf_mode_info->last_usage_icon[slot], LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(bf_mode_info->unconfirmed_icon[slot], LV_OBJ_FLAG_HIDDEN); /// 隐藏新模式未确认图标
+        if (last_mode_idx == mode_idx) {
+            lv_obj_clear_flag(bf_mode_info->last_usage_icon[slot], LV_OBJ_FLAG_HIDDEN); /// 显示上一次使用模式图标
+        } else {
+            lv_obj_add_flag(bf_mode_info->last_usage_icon[slot], LV_OBJ_FLAG_HIDDEN); /// 隐藏上一次使用模式图标
+        }
     }
+
     if (mode_idx == BF_MODE_COUNT - 1) {
         char title_text[16] = {0};
         snprintf(title_text, sizeof(title_text), "Customize %d", bf_mode_info->custom_mode_id);
@@ -358,14 +366,15 @@ static void circle_carousel_set_mode(ui_manager_context_t *thiz, uint8_t idx, bo
         direction = 0;
         anim = false;
     }
-
+     
+    bool new_step_info_flag = (idx == BF_MODE_COUNT - 1) ? bf_mode_info->new_step_info_flag : false;
     EXCEPTION_CHECK_VOID(bf_mode_info->pump_ctx);
     int last_mode_idx = 0;
     READ_PUMP_EXPERT_MODE(bf_mode_info->pump_ctx, true, last_mode_idx);
     last_mode_idx = last_mode_idx - BREAST_PUMP_REGULAR_PUMPING_MODE;
-    update_slot_content(thiz, BF_SLOT_LEFT, slot_mode_for_center(idx, BF_SLOT_LEFT) , last_mode_idx);
-    update_slot_content(thiz, BF_SLOT_CENTER, slot_mode_for_center(idx, BF_SLOT_CENTER) , last_mode_idx);
-    update_slot_content(thiz, BF_SLOT_RIGHT, slot_mode_for_center(idx, BF_SLOT_RIGHT) , last_mode_idx);
+    update_slot_content(thiz, BF_SLOT_LEFT, slot_mode_for_center(idx, BF_SLOT_LEFT) , last_mode_idx, false);
+    update_slot_content(thiz, BF_SLOT_CENTER, slot_mode_for_center(idx, BF_SLOT_CENTER) , last_mode_idx, new_step_info_flag);
+    update_slot_content(thiz, BF_SLOT_RIGHT, slot_mode_for_center(idx, BF_SLOT_RIGHT) , last_mode_idx, false);
     circle_layout_apply(direction, anim);
     bf_mode_info->cur_mode = idx;
     update_dots(thiz, slot_mode_for_center(idx, BF_SLOT_CENTER));
@@ -601,15 +610,18 @@ void common_pump_bf_mode_ui_prepare(ui_manager_context_t *thiz)
     bf_mode_info->custom_mode_id = 0;
     int activate_status = 0;
     READ_PUMP_MODE_ACTIVATE(bf_mode_info->pump_ctx, BREAST_PUMP_CUSTOM_MODE, activate_status);
-    if (activate_status) {
-        bf_mode_info->mode_num = BF_MODE_COUNT;
-        storage_manager_context_t *st = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
-        if (st) {
-            uint32_t custom_mode_id = 0;
-            st->get_store_ram_val(STORE_ID_PUMP_MODE_STEPS_INFO_ID, BREAST_PUMP_CUSTOM_MODE, 0, &custom_mode_id);
-            bf_mode_info->custom_mode_id = custom_mode_id;
-        }
-        LOG_UI("customization activated, custom_mode_id: %d", bf_mode_info->custom_mode_id);
+    storage_manager_context_t *st = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
+    if (st && activate_status) {
+        bf_mode_info->mode_num = BF_MODE_COUNT;    
+        uint32_t custom_mode_id = 0;
+        st->get_store_ram_val(STORE_ID_PUMP_MODE_STEPS_INFO_ID, BREAST_PUMP_CUSTOM_MODE, 0, &custom_mode_id);
+        bf_mode_info->custom_mode_id = custom_mode_id;
+        int new_step_info_flag = false; 
+        st->get_store_ram_val(STORE_ID_MODE_NEW_STEP_INFO_FLAG, BREAST_PUMP_CUSTOM_MODE, 0, &new_step_info_flag);
+        bf_mode_info->new_step_info_flag = new_step_info_flag > 0 ? true : false;
+        LOG_UI("customization activated, id: %d, flag: %d", bf_mode_info->custom_mode_id, bf_mode_info->new_step_info_flag);
+    } else {
+        bf_mode_info->new_step_info_flag = false;
     }
 }
 

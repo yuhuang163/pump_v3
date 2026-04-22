@@ -18,6 +18,7 @@ typedef enum {
     OP_CODE_LED_STATUS_SET  = 1,
     OP_CODE_LED_STATUS_GET = 2,
     OP_CODE_LED_LEVEL_RATE_SET = 3,  /// 设置亮度系数
+    OP_CODE_LED_KEY_BACKLIGHT_UNIFORM_SET = 4, /// 统一按键背光（BLINK 保留模式）
     OP_CODE_LED_IS_READY = 5,
 } led_dev_op_code_e;
 
@@ -110,6 +111,10 @@ typedef struct {
     uint8_t led_index;
     uint8_t rate;
 } led_level_rate_msg_t;
+
+typedef struct {
+    uint8_t level;
+} led_key_backlight_uniform_msg_t;
 
 #ifdef __cplusplus
 }

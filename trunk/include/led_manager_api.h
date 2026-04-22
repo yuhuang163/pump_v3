@@ -83,6 +83,7 @@ typedef struct led_manager_context {
         uint8_t key_light_level; /// 按键背光当前亮度.
         uint8_t key_light_adaptive_switch;  /// 按键背光自适应开关.
         uint8_t key_light_adaptive_dimming; /// 按键背光自适应调光
+        uint8_t key_light_adaptive_cap_level; /// 按键自适应占空比上限（idle 时封顶 50）
 #endif
     } priv;
 } led_manager_context_t;

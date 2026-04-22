@@ -16,10 +16,20 @@
 #define GUIDE_QRCODE_BG_COLOR                                   0xFFFFFF
 #define GUIDE_QRCODE_FG_COLOR                                   0x000000
 #define GUIDE_QRCODE_BORDER_COLOR                               (0xFFEAE6)  // 0xA6A6A6
+#if 0
+#define GUIDE_QRCODE_SIZE                                       (124 - 4)
+#define GUIDE_QRCODE_ALIGN_Y                                    (68)
+#else
+#define GUIDE_QRCODE_SIZE                                       (124)
+#define GUIDE_QRCODE_ALIGN_Y                                    (68)
+#endif
 #define GUIDE_TEXT_NUM                                          (4)
 #define GUIDE_ARROW_TEXT_X_OFFSET                               (0)
-#define GUIDE_ARROW_TEXT_Y_OFFSET                               (328)
+#define GUIDE_ARROW_TEXT_Y_OFFSET                               (316)
 #define GUIDE_TEXT_COLOR                                        (0xB25962)
+#define GUIDE_TITLE_TEXT_COLOR                                  (0xB25962)
+#define GUIDE_DESC_TEXT_COLOR                                   (0xC5757C)
+#define GUIDE_EXIT_TEXT_COLOR                                   (0xDCA7A5)
 #define GUIDE_BIND_TEXT_COLOR                                   (0x6A5A5B)
 
 /*
@@ -43,7 +53,8 @@ typedef struct {
     const lv_font_t *font;
     uint16_t text_x;
     uint16_t text_y;
-    lv_opa_t text_opa;
+    uint8_t line_space; /// 行间距
+    uint32_t color;
 } guide_text_info_t;
 
 /*
@@ -67,55 +78,62 @@ const static uint16_t guide_page_img_ids[GUIDE_PAGE_IMG_NUM] = {
 
 /// 首页
 const static guide_text_info_t home_text_infos[GUIDE_TEXT_NUM] = {
-    {"Pumping Experience", &lv_font_oppo_sans_20_medium, 0, 51, LV_OPA_COVER},
-    {"Turn right to start", &lv_font_oppo_sans_14_medium, 0, 84, LV_OPA_70},
-    {"", &lv_font_oppo_sans_14_medium, 0, 0, LV_OPA_70},
-    {"Press down to exit", &lv_font_oppo_sans_14_medium, 0, GUIDE_ARROW_TEXT_Y_OFFSET, LV_OPA_70}
+    {"Operation Guide", 
+        &lv_font_oppo_sans_20_medium, 0, 51, 4, GUIDE_TITLE_TEXT_COLOR},
+    {"Turn right to next page", 
+        &lv_font_oppo_sans_16_medium, 0, 81, 4, GUIDE_DESC_TEXT_COLOR},
+    {"", &lv_font_oppo_sans_14_medium, 0, 0, 4, GUIDE_TEXT_COLOR},
+    {"Press down to exit", &lv_font_oppo_sans_14_medium, 0, 
+        GUIDE_ARROW_TEXT_Y_OFFSET, 4, GUIDE_EXIT_TEXT_COLOR}
 };
 
 /// 开始泵奶
 const static guide_text_info_t start_pump_text_infos[GUIDE_TEXT_NUM] = {
-    {"Cozy Flow", &lv_font_oppo_sans_20_medium, 0, 51, LV_OPA_COVER},
-    {"1.5 min Stimulation  +  18 min Expression for\n most moms.                               ", 
-    &lv_font_oppo_sans_14_medium, 0, 84, LV_OPA_70},
-    {"Press to start", &lv_font_oppo_sans_14_bold, 176, 103, LV_OPA_70},
-    {"Press down to exit", &lv_font_oppo_sans_14_medium, 0, GUIDE_ARROW_TEXT_Y_OFFSET, LV_OPA_70}
+    {"Press to enter/exit\nthe function", 
+        &lv_font_oppo_sans_20_medium, 0, 51, 4, GUIDE_TITLE_TEXT_COLOR},
+    {"", &lv_font_oppo_sans_14_medium, 0, 0, 4, GUIDE_DESC_TEXT_COLOR},
+    {"", &lv_font_oppo_sans_14_bold, 0, 0, 4, GUIDE_TEXT_COLOR},
+    {"Press down to exit", &lv_font_oppo_sans_14_medium, 0, 
+        GUIDE_ARROW_TEXT_Y_OFFSET, 4, GUIDE_EXIT_TEXT_COLOR}
 };
 
 /// 设置泵奶
 const static guide_text_info_t setting_pump_text_infos[GUIDE_TEXT_NUM] = {
-    {"Adjust suction and speed per side by\n pressing buttons or knobs, or switch modes",
-    &lv_font_oppo_sans_14_medium, 0, 208, LV_OPA_70},
-    {"", &lv_font_oppo_sans_14_medium, 0, 0, LV_OPA_COVER},
-    {"", &lv_font_oppo_sans_14_medium, 0, 0, LV_OPA_COVER},
-    {"Press down to exit", &lv_font_oppo_sans_14_medium, 0, GUIDE_ARROW_TEXT_Y_OFFSET, LV_OPA_70}
+    {"Turn to adjust the options\nPress down to confirm", 
+        &lv_font_oppo_sans_20_medium, 0, 51, 4, GUIDE_TITLE_TEXT_COLOR},
+    {"", &lv_font_oppo_sans_14_medium, 0, 0, 4, GUIDE_DESC_TEXT_COLOR},
+    {"", &lv_font_oppo_sans_14_bold, 0, 0, 4, GUIDE_TEXT_COLOR},
+    {"Press down to exit", &lv_font_oppo_sans_14_medium, 0,
+        GUIDE_ARROW_TEXT_Y_OFFSET, 4, GUIDE_EXIT_TEXT_COLOR}
 };
 
 /// 停止泵奶
 const static guide_text_info_t stop_pump_text_infos[GUIDE_TEXT_NUM] = {
-    {"Press and hold for 3  seconds to stop\n pumping", 
-    &lv_font_oppo_sans_14_medium, 0, 208, LV_OPA_70},
-    {"", &lv_font_oppo_sans_14_medium, 0, 0, LV_OPA_COVER},
-    {"", &lv_font_oppo_sans_14_medium, 0, 0, LV_OPA_COVER},
-    {"Press down to exit", &lv_font_oppo_sans_14_medium, 0, GUIDE_ARROW_TEXT_Y_OFFSET, LV_OPA_70}
+    {"Press", &lv_font_oppo_sans_20_medium, 78, 51, 4, GUIDE_TITLE_TEXT_COLOR},
+    {"quick start", &lv_font_oppo_sans_20_medium, 180, 51, 4, GUIDE_TITLE_TEXT_COLOR},
+    {"default program", &lv_font_oppo_sans_20_medium, 0, 75, 4, GUIDE_TITLE_TEXT_COLOR},
+    {"Press down to exit", &lv_font_oppo_sans_14_medium, 0, 
+        GUIDE_ARROW_TEXT_Y_OFFSET, 4, GUIDE_EXIT_TEXT_COLOR}
 };
 
 /// 泵奶模式选择
 const static guide_text_info_t pump_mode_select_text_infos[GUIDE_TEXT_NUM] = {
-    {"3 modes, 6 programs for more pumping\noptions.                                             ", 
-    &lv_font_oppo_sans_14_medium, 0, 208, LV_OPA_70},
-    {"Turn right to switch", &lv_font_oppo_sans_14_bold, 138, 226, LV_OPA_70},
-    {"", &lv_font_oppo_sans_14_medium, 0, 0, LV_OPA_COVER},
-    {"Press down to exit", &lv_font_oppo_sans_14_medium, 0, GUIDE_ARROW_TEXT_Y_OFFSET, LV_OPA_70}
+    {"Press and hold for 3 seconds\nto stop pumping", 
+        &lv_font_oppo_sans_20_medium, 0, 125, 4, 0xFFFFFF},
+    {"", &lv_font_oppo_sans_14_medium, 0, 0, 4, GUIDE_DESC_TEXT_COLOR},
+    {"", &lv_font_oppo_sans_14_bold, 0, 0, 4, GUIDE_TEXT_COLOR},
+    {"Press down to exit", &lv_font_oppo_sans_14_medium, 0, 
+        GUIDE_ARROW_TEXT_Y_OFFSET, 4, 0x938383}
 };
 
 /// 绑定引导
 const static guide_text_info_t bind_guide_text_infos[GUIDE_TEXT_NUM] = {
-    {"Scan to connect for tracking, remote\ncontrol, custom modes... ",
-    &lv_font_oppo_sans_14_medium, 0, 228, LV_OPA_COVER},
-    {"", &lv_font_oppo_sans_14_medium, 0, 0, LV_OPA_COVER},
-    {"", &lv_font_oppo_sans_14_medium, 0, 0, LV_OPA_COVER},
-    {"End Experience", &lv_font_oppo_sans_14_medium, 0, GUIDE_ARROW_TEXT_Y_OFFSET, LV_OPA_COVER}
+    {"Scan to connect for tracking, remote\ncontrol, and custom modes",
+    &lv_font_oppo_sans_16_medium, 0, 212, 4, GUIDE_BIND_TEXT_COLOR},
+    {"", &lv_font_oppo_sans_14_medium, 0, 0, 4, GUIDE_BIND_TEXT_COLOR},
+    {"", &lv_font_oppo_sans_14_medium, 0, 0, 4, GUIDE_BIND_TEXT_COLOR},
+    {"Press down to exit", &lv_font_oppo_sans_14_medium, 0, 
+        GUIDE_ARROW_TEXT_Y_OFFSET, 4, GUIDE_TITLE_TEXT_COLOR}
 };
 
 #if IS_SUPPORT_GUIDE_COMP_BG
@@ -124,8 +142,8 @@ static PSRAM_DATA_LOC uint8_t guide_bg_data[] = {
     // #include "comparison_png2txt/guide_start_pump_360x360.txt"
     // #include "comparison_png2txt/guide_setting_page_360x360.txt"
     // #include "comparison_png2txt/guide_stop_pump_360x360.txt"
-    // #include "comparison_png2txt/guide_mode_select_360x360.txt"
-    #include "comparison_png2txt/guide_bind_360x360.txt"
+    #include "comparison_png2txt/guide_mode_select_360x360.txt"
+    // #include "comparison_png2txt/guide_bind_360x360.txt"
 };
 #endif
 
@@ -186,11 +204,11 @@ static void guide_qrcode_update(ui_manager_context_t *thiz, uint8_t page_index)
     }
 
     lv_obj_clear_flag(guide_info->qrcode, LV_OBJ_FLAG_HIDDEN);
-    lv_qrcode_set_size(guide_info->qrcode, 124);
+    lv_qrcode_set_size(guide_info->qrcode, GUIDE_QRCODE_SIZE);
     lv_qrcode_set_dark_color(guide_info->qrcode, lv_color_hex(GUIDE_QRCODE_FG_COLOR));
     lv_qrcode_set_light_color(guide_info->qrcode, lv_color_hex(GUIDE_QRCODE_BG_COLOR));
     lv_qrcode_update(guide_info->qrcode, guide_info->qr_str, strlen(guide_info->qr_str));
-    lv_obj_align(guide_info->qrcode, LV_ALIGN_TOP_LEFT, 111 + 7, 71 + 7);
+    lv_obj_align(guide_info->qrcode, LV_ALIGN_TOP_MID, 0, GUIDE_QRCODE_ALIGN_Y);
 }
 
 static void guide_ui_page_img_update(ui_manager_context_t *thiz, uint8_t page_index)
@@ -233,7 +251,6 @@ static void guide_ui_page_img_update(ui_manager_context_t *thiz, uint8_t page_in
 static void guide_ui_text_update(ui_manager_context_t *thiz, uint8_t page_index)
 {
     const guide_text_info_t *guide_text_infos = NULL;
-    lv_color_t text_color = lv_color_hex(GUIDE_TEXT_COLOR);
     if (page_index == GUIDE_PAGE_HOME) {
         guide_text_infos = home_text_infos;
     } else if (page_index == GUIDE_PAGE_START_PUMP) {
@@ -246,7 +263,6 @@ static void guide_ui_text_update(ui_manager_context_t *thiz, uint8_t page_index)
         guide_text_infos = pump_mode_select_text_infos;
     } else {
         guide_text_infos = bind_guide_text_infos;
-        // text_color = lv_color_hex(GUIDE_BIND_TEXT_COLOR);
     }
 
     for (int i = 0; i < GUIDE_TEXT_NUM; i++) {
@@ -255,11 +271,11 @@ static void guide_ui_text_update(ui_manager_context_t *thiz, uint8_t page_index)
             EXCEPTION_CHECK_VOID(guide_info->text[i]);
         }
         lv_label_set_text(guide_info->text[i], guide_text_infos[i].text);
-        lv_obj_set_style_text_color(guide_info->text[i], text_color, 0);
+        lv_obj_set_style_text_color(guide_info->text[i], lv_color_hex(guide_text_infos[i].color), 0);
         lv_obj_set_style_text_font(guide_info->text[i], guide_text_infos[i].font, 0);  /// 设置字体
         lv_obj_set_style_text_line_space(guide_info->text[i], 4, 0);  /// 设置行间距（像素）
         lv_obj_set_style_text_align(guide_info->text[i], LV_TEXT_ALIGN_CENTER, 0);  /// 设置文本居中对齐
-        lv_obj_set_style_text_opa(guide_info->text[i], guide_text_infos[i].text_opa, 0);  /// 设置文本透明度
+        lv_obj_set_style_text_opa(guide_info->text[i], LV_OPA_COVER, 0);  /// 设置文本透明度
         if (guide_text_infos[i].text_x == 0) {
             lv_obj_align(guide_info->text[i], LV_ALIGN_TOP_MID, 0, guide_text_infos[i].text_y);
         } else {
@@ -270,6 +286,7 @@ static void guide_ui_text_update(ui_manager_context_t *thiz, uint8_t page_index)
 
 static void guide_ui_update(ui_manager_context_t *thiz, uint8_t page_index)
 {
+    // page_index =  3; /// 测试用
     if (page_index >= GUIDE_PAGE_IMG_NUM) {
         LOG_UI("===> guide page index out of range: %d", page_index);
         return;

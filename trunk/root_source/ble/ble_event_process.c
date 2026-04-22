@@ -153,6 +153,10 @@ static void ble_event_periph_connect_suc(void *context, void *data, int data_len
     ble_manager_context_t *pble = context;
     uint16_t conn_id = *(uint16_t *)data;
     LOG_BLE("ble connect succ, conn_id: %d", conn_id);
+    if (pble->priv.ble_connect_state == 1) {
+        LOG_BLE("ble already connect");
+        return;
+    }
     pble->priv.connect_idx = conn_id;
     pble->priv.ble_connect_state = 1;
     pble->set_adv_state(0);

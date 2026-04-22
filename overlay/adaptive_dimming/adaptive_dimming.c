@@ -313,9 +313,11 @@ static void adaptive_dimming_polling_thread(void *user_data)
     }
 #endif
 
+#if IS_SUPPORT_NIGHT_LIGHT
     if (led->hook && led->hook->night_light_adaptive_level_update) {
         led->hook->night_light_adaptive_level_update(led, refresh_duty);
     }
+#endif
 
     ui_manager_context_t *ui = (ui_manager_context_t *)find_module(ID_MODULE_UI);
     if (ui && ui->hook) {

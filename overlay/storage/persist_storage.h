@@ -141,6 +141,7 @@ typedef enum {
     PUMP_MODE_LACTATION = 1, /// 吸乳模式
     PUMP_MODE_MIX = 2, /// 混合模式
     PUMP_MODE_IDLE = 3, /// 空闲模式
+    PUMP_MODE_UNKNOWN = 0xFF, /// 未知模式
 } pump_mode_type_e;
 
 /// 泵奶时长
@@ -221,7 +222,7 @@ typedef struct {
     uint8_t last_regular_mode;            /// 上一次使用的常规模式
     uint8_t last_pump_mode;               /// 上一次使用的泵奶模式 breast_pump_mode_e
     uint8_t control_type;                 /// 泵奶控制类型 breast_pump_control_type_e
-    uint8_t mode_update_flag[BREAST_PUMP_MODE_MAX];   /// 泵奶模式更新标志 0-未更新 1-已更新, 使用后重置
+    bool new_step_info_flag[BREAST_PUMP_MODE_MAX];   /// 泵奶模式新步数信息标志 true-有新步数信息 false-无新步数信息, 使用后重置
     pump_setting_wrap_t setting_wrap[BREAST_PUMP_MODE_MAX];     /// 泵奶设置
 } sys_pump_info_t;
 

@@ -64,7 +64,7 @@ void reset_pump_info(storage_manager_context_t *ctx, sys_pump_info_t *pump_info)
     pump_info->last_pump_mode                = BREAST_PUMP_PUMP_MODE_DEFAULT;
     pump_info->control_type                  = BREAST_PUMP_CONTROL_TYPE_BILATERAL;
     for (int i = 0; i < BREAST_PUMP_MODE_MAX; i++) {
-        pump_info->mode_update_flag[i] = 0;
+        pump_info->new_step_info_flag[i] = false;
         breast_pump_setting_reset(pump_info, i);
     }
     EXCEPTION_CHECK_VOID(ctx);
@@ -519,17 +519,7 @@ int write_pump_setting_info_to_ram(store_func_args_t args)
         LOGE("mode_step: %d, out of range", mode_step);
         return -1;
     }
-
-#if IS_PUMP_STEPS_USE_SAME_SETTING
-    for (uint8_t i = 0; i < ROOT_BREAST_PUMP_STEP_MAX; i++) {
-        pump_info->setting_wrap[mode].info[i].level[0] = setting->level[0];
-        pump_info->setting_wrap[mode].info[i].level[1] = setting->level[1];
-        pump_info->setting_wrap[mode].info[i].speed = setting->speed;
-    }
-#else
     memcpy(&pump_info->setting_wrap[mode].info[mode_step], setting, sizeof(pump_setting_t));
-#endif 
-
     return 0;
 }
 
@@ -659,7 +649,7 @@ int read_pump_mode_steps_info_id_from_ram(store_func_args_t args)
     return 0;
 }
 
-int write_mode_update_flag_to_ram(store_func_args_t args)
+int write_mode_new_step_info_flag_to_ram(store_func_args_t args)
 {
     EXCEPTION_CHECK_INT(args.ctx);
     sys_pump_info_t *pump_info = &args.ctx->priv.sys_info.pump_info;
@@ -667,12 +657,12 @@ int write_mode_update_flag_to_ram(store_func_args_t args)
         LOGE("mode: %d, out of range", args.arg1);
         return -1;
     }
-    pump_info->mode_update_flag[args.arg1] = 1;
-    LOG_STORE_WRAP("write mode update flag: %d", pump_info->mode_update_flag[args.arg1]);
+    pump_info->new_step_info_flag[args.arg1] = args.arg2;
+    LOG_STORE_WRAP("write new step info flag: %d", pump_info->new_step_info_flag[args.arg1]);
     return 0;
 }
 
-int read_mode_update_flag_from_ram(store_func_args_t args)
+int read_mode_new_step_info_flag_to_ram(store_func_args_t args)
 {
     EXCEPTION_CHECK_INT(args.ctx);
     sys_pump_info_t *pump_info = &args.ctx->priv.sys_info.pump_info;
@@ -682,7 +672,7 @@ int read_mode_update_flag_from_ram(store_func_args_t args)
         LOGE("mode: %d, out of range", args.arg1);
         return -1;
     }
-    *tmp = pump_info->mode_update_flag[args.arg1];
+    *tmp = pump_info->new_step_info_flag[args.arg1];
     return 0;
 }
 

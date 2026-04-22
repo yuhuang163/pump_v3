@@ -17,7 +17,7 @@
       "id_to_file_offset": -300,
       "x_offset": 0,
       "y_offset": 0,
-      "note": "泵奶档位图片资源ID范围: 300-314，共15帧。文件编号计算：file_index = resource_id + id_to_file_offset (即 resource_id - 300)。资源ID 300→BG_00000, 301→BG_00001...314→BG_00114"
+      "note": "泵奶档位图片资源ID范围: 300-314，共15帧。文件编号计算：file_index = resource_id + id_to_file_offset (即 resource_id - 300)"
     },
     {
       "start_resource_id": "RESOURCE_ID_SELECTED_LOCATE_3_START",
@@ -28,7 +28,7 @@
       "id_to_file_offset": -320,
       "x_offset": 0,
       "y_offset": 0,
-      "note": "选中定位-3-图标资源ID范围: 320-322，共3帧。文件编号计算：file_index = resource_id + id_to_file_offset (即 resource_id - 320)。资源ID 320→locate_3_00000, 321→locate_3_00001...322→locate_3_00002"
+      "note": "选中定位-3-图标资源ID范围: 320-322，共3帧。文件编号计算：file_index = resource_id + id_to_file_offset (即 resource_id - 320)"
     },
     {
       "start_resource_id": "RESOURCE_ID_SELECTED_LOCATE_5_START",
@@ -39,7 +39,7 @@
       "id_to_file_offset": -330,
       "x_offset": 0,
       "y_offset": 0,
-      "note": "选中定位-5-图标资源ID范围: 330-334，共5帧。文件编号计算：file_index = resource_id + id_to_file_offset (即 resource_id - 330)。资源ID 330→locate_5_00000, 331→locate_5_00001...334→locate_5_00004"
+      "note": "选中定位-5-图标资源ID范围: 330-334，共5帧。文件编号计算：file_index = resource_id + id_to_file_offset (即 resource_id - 330)"
     },
     {
       "start_resource_id": "RESOURCE_ID_SELECTED_LOCATE_6_START",
@@ -50,29 +50,40 @@
       "id_to_file_offset": -340,
       "x_offset": 0,
       "y_offset": 0,
-      "note": "选中定位-6-图标资源ID范围: 340-345，共6帧。文件编号计算：file_index = resource_id + id_to_file_offset (即 resource_id - 340)。资源ID 340→locate_6_00000, 341→locate_6_00001...345→locate_6_00005"
+      "note": "选中定位-6-图标资源ID范围: 340-345，共6帧。文件编号计算：file_index = resource_id + id_to_file_offset (即 resource_id - 340)"
     },
     {
-      "start_resource_id": "RESOURCE_ID_NM_ANIM_IP_START",
-      "end_resource_id": "RESOURCE_ID_NM_ANIM_IP_END",
-      "description": "刺激模式动画",
-      "file_template": "base/animation/stimulation/baj/Cbg_{file_index:05d}_210x196_a4_q99_422.baj",
+      "start_resource_id": "RESOURCE_ID_YAWN_ANIM_IP_START",
+      "end_resource_id": "RESOURCE_ID_YAWN_ANIM_IP_END",
+      "description": "打哈欠动画",
+      "file_template": "base/animation/yawn/baj/X_{file_index:05d}_210x196_a4_q99_422.baj",
       "start_file_index": 0,
       "id_to_file_offset": -1100,
       "x_offset": 0,
       "y_offset": 0,
-      "note": "动画资源ID范围: 1100-1265，共166帧。文件编号计算：file_index = resource_id + id_to_file_offset (即 resource_id - 1100)。资源ID 1100→Cbg_00000, 1101→Cbg_00001...1265→Cbg_00165"
+      "note": "动画资源ID范围: 1100-1180，共81帧。文件编号计算：file_index = resource_id + id_to_file_offset (即 resource_id - 1100)"
     },
     {
-      "start_resource_id": "RESOURCE_ID_PM_ANIM_IP_START",
-      "end_resource_id": "RESOURCE_ID_PM_ANIM_IP_END",
-      "description": "泌乳模式动画",
-      "file_template": "base/animation/expression/baj/Xbg_{file_index:05d}_210x196_a4_q99_422.baj",
+      "start_resource_id": "RESOURCE_ID_SHAKE_BOTTLE_ANIM_IP_START",
+      "end_resource_id": "RESOURCE_ID_SHAKE_BOTTLE_ANIM_IP_END",
+      "description": "摇奶瓶动画",
+      "file_template": "base/animation/shake_bottle/baj/C_{file_index:05d}_210x196_a4_q99_422.baj",
+      "start_file_index": 0,
+      "id_to_file_offset": -1200,
+      "x_offset": 0,
+      "y_offset": 0,
+      "note": "动画资源ID范围: 1200-1280，共81帧。文件编号计算：file_index = resource_id + id_to_file_offset (即 resource_id - 1200)"
+    },
+    {
+      "start_resource_id": "RESOURCE_ID_SUCTION_ANIM_IP_START",
+      "end_resource_id": "RESOURCE_ID_SUCTION_ANIM_IP_END",
+      "description": "吸奶动画",
+      "file_template": "base/animation/suction/baj/S_{file_index:05d}_210x196_a4_q99_422.baj",
       "start_file_index": 0,
       "id_to_file_offset": -1300,
       "x_offset": 0,
       "y_offset": 0,
-      "note": "动画资源ID范围: 1300-1465，共166帧。文件编号计算：file_index = resource_id + id_to_file_offset (即 resource_id - 1300)。资源ID 1300→Xbg_00000, 1301→Xbg_00001...1465→Xbg_00165"
+      "note": "动画资源ID范围: 1300-1326，共27帧。文件编号计算：file_index = resource_id + id_to_file_offset (即 resource_id - 1300)"
     },
     {
       "start_resource_id": "RESOURCE_ID_HD_ANIM_IP_START",
@@ -83,7 +94,7 @@
       "id_to_file_offset": -1500,
       "x_offset": 0,
       "y_offset": 0,
-      "note": "动画资源ID范围: 1500-1619，共120帧。文件编号计算：file_index = resource_id + id_to_file_offset (即 resource_id - 1500)。资源ID 1500→s_00000, 1501→s_00001...1619→s_00119"
+      "note": "动画资源ID范围: 1500-1619，共120帧。文件编号计算：file_index = resource_id + id_to_file_offset (即 resource_id - 1500)"
     }
   ],
   "resources": [
@@ -167,7 +178,7 @@
     {
       "resource_id": "RESOURCE_ID_HOME_IDLE_LABLE_ICON",
       "description": "空闲界面文本区域图标",
-      "file": "base/baj/icon_home_idle_lable_280x106_a8_q99_444.baj",
+      "file": "base/baj/icon_home_idle_lable_300x106_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
@@ -182,6 +193,13 @@
       "resource_id": "RESOURCE_ID_AIRPLANE_UNLOCK_BUTTON_ICON",
       "description": "飞行界面解锁按钮图标",
       "file": "base/baj/icon_travel_unlock_148x56_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "RESOURCE_ID_HOME_LIGHT_LABLE_ICON",
+      "description": "首页光线图标",
+      "file": "base/baj/icon_home_light_lable_300x86_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },

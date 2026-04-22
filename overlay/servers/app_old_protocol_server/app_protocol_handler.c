@@ -30,6 +30,13 @@ static app_old_protocol_handler_context_t ctx_app_old_protocol_handler = {0};
 */
 static void app_old_comm_poll_post_task_handler(hdr_post_args_t *args)
 {
+    //ota升级时，不上报设备状态
+    ota_manager_context_t *ota_mod = (ota_manager_context_t *)find_module(ID_MODULE_OTA);
+    EXCEPTION_CHECK_VOID(ota_mod);
+    if (ota_mod->is_ota_upgrading() == true) {
+        LOG_SRV(" OTA upgrading, skip reporting device status");
+        return;
+    }
     LOG_SRV(" Poll timer triggered - reporting device status");
     app_old_comm_report_device_status(APP_OLD_COMM_LEFT_CT, OLD_PUBLISH_DATA_POLL_REPORT, NULL);
     app_old_comm_report_device_status(APP_OLD_COMM_RIGHT_CT, OLD_PUBLISH_DATA_POLL_REPORT, NULL);

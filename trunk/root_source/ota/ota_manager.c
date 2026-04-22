@@ -90,7 +90,11 @@ static void ota_upgrade_state_start(ota_manager_context_t *ctx, int ota_object)
     set_ota_upgrading(true);
     set_ota_upgrade_progress(0);
     set_ota_upgrade_state(OTA_UPGRADE_STATE_START);
-    if (wm && wm->dispatch_new_window_args) {
+    /*
+     * 避免自动化循环触摸 OTA 时反复重复派发同一 OTA 页面，长期运行会给 UI 线程造成额外压力。
+     */
+    if (wm && wm->dispatch_new_window_args &&
+        (!wm->is_current_window || wm->is_current_window(wm, ID_WINDOW_OTA_UPGRADE) == 0)) {
         multi_func_msg_data_t msg = {0};
         msg.union_body.extra.window_id = ID_WINDOW_OTA_UPGRADE;
         msg.union_body.extra.is_bg_dispatch = 0x01;
@@ -149,10 +153,23 @@ static void ota_upgrade_thread(void *args)
 static int dispatch_ota_event_wrapper(int event, int arg1, int arg2)
 {
     multi_func_msg_data_t msg = {0};
+    int ret;
     msg.union_body.ota_info.event = (ota_event_type_e)event;
     msg.union_body.ota_info.args1 = arg1;
     msg.union_body.ota_info.args2 = arg2;
-    return MSG_QUEUE_SEND(ota_obj->priv.ota_work_thd.msg_id, &msg, 0);
+    if (event == OTA_EVENT_OTA_PROGRESS) {
+        return MSG_QUEUE_SEND(ota_obj->priv.ota_work_thd.msg_id, &msg, 0);
+    }
+
+    for (uint8_t i = 0; i < 5; i++) {
+        ret = MSG_QUEUE_SEND(ota_obj->priv.ota_work_thd.msg_id, &msg, 0);
+        if (ret == 0) {
+            return 0;
+        }
+        msleep(2);
+    }
+    // LOGE("drop critical ota event=%d, arg1=%d", event, arg1);
+    return ret;
 }
 
 static int on_post_ota_init(void *ptr)

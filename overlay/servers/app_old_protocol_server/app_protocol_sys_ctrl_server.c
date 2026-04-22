@@ -151,8 +151,8 @@ void app_old_comm_handle_sys_ctrl_req(uint8_t cal, uint8_t *cab)
         window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
         EXCEPTION_CHECK_VOID(wm);
         multi_func_msg_data_t msg = {0};
-        msg.union_body.extra.window_id = ID_WINDOW_SYSTEM;
-        msg.union_body.extra.arg1 = ID_SYSTEM_WINDOW_FACTORY_RESET;
+        msg.union_body.extra.window_id = ID_WINDOW_FACTORY_RESET;
+        msg.union_body.extra.arg1 = 0;
         wm->dispatch_new_window_args(wm, &msg);
     }
     // TODO: Execute system control logic

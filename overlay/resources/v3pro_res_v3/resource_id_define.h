@@ -101,11 +101,14 @@ typedef enum {
     RESOURCE_ID_LOW_POWER_IP,             /// 低电量页面人物图标
     RESOURCE_ID_CHARGE_PAGE_IP,           /// 充电页背景
 
-    RESOURCE_ID_NM_ANIM_IP_START = 1100,   /// 泵奶模式动画-开始
-    RESOURCE_ID_NM_ANIM_IP_END = 1265,     /// 泵奶模式动画-结束
+    RESOURCE_ID_YAWN_ANIM_IP_START = 1100,   /// 打哈欠动画-开始
+    RESOURCE_ID_YAWN_ANIM_IP_END = 1180,     /// 打哈欠动画-结束
 
-    RESOURCE_ID_PM_ANIM_IP_START = 1300,   /// 个性化模式动画-开始
-    RESOURCE_ID_PM_ANIM_IP_END = 1465,     /// 个性化模式动画-结束
+    RESOURCE_ID_SHAKE_BOTTLE_ANIM_IP_START = 1200,   /// 摇奶瓶动画-开始
+    RESOURCE_ID_SHAKE_BOTTLE_ANIM_IP_END = 1280,     /// 摇奶瓶动画-结束
+
+    RESOURCE_ID_SUCTION_ANIM_IP_START = 1300,   /// 吸奶动画-开始
+    RESOURCE_ID_SUCTION_ANIM_IP_END = 1326,     /// 吸奶动画-结束
 
     RESOURCE_ID_HD_ANIM_IP_START = 1500,   /// 首页默认动画-开始
     RESOURCE_ID_HD_ANIM_IP_END = 1619,     /// 首页默认动画-结束

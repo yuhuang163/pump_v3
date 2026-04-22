@@ -4,7 +4,7 @@
 */
 #include "ui_img_define.h"   // IWYU pragma: keep
 #include "ui_page_define.h" // IWYU pragma: keep
-#include "ui_manager.h"   // IWYU pragma: keep
+#include "ui_manager.h"
 
 /*
 * DEFINES
@@ -12,26 +12,30 @@
 */
 #define IS_SUPPORT_PUMP_LEVEL_COMP_BG                         (0)
 
-//颜色定义
 #define PUMP_ARC_COLOR                                        (0xBF646E)
 #define PUMP_LEVEL_CIRCLE_COLOR                               (0xFFFFFF) /// (0xFFEDEF)
 #define PUMP_TITLE_TEXT_COLOR                                 (0xFFFFFF)
-#define PUMP_LEVEL_TEXT_COLOR                                 (0xBF646E)
+#define PUMP_LEVEL_TEXT_COLOR                                 (0xC06670)
 #define PUMP_LEVEL_OFFSET_TEXT_COLOR                          (0x533129)
 #define PUMP_LEVEL_RING_SIZE                                  (314)
 #define PUMP_LEVEL_RING_R                                     (PUMP_LEVEL_RING_SIZE / 2)
 #define PUMP_LEFT_ARC_START_ANGLE                             (120)
-#define PUMP_LEFT_ARC_END_ANGLE                               (236 + 5)
-#define PUMP_RIGHT_ARC_START_ANGLE                            (304 - 5)
+#define PUMP_LEFT_ARC_END_ANGLE                               (241 - 10)
+#define PUMP_RIGHT_ARC_START_ANGLE                            (299 + 10)
 #define PUMP_RIGHT_ARC_END_ANGLE                              (420)
-#define PUMP_LEVEL_ARC_WIDTH                                  (16)
-#define PUMP_LEVEL_CIRCLE_SIZE                                (18)
+#define PUMP_LEVEL_ARC_WIDTH                                  (20)
+#define PUMP_LEVEL_CIRCLE_SIZE                                (40)
 #define PUMP_LEVEL_MAX                                        (15)
 
-#define PUMP_LEVEL_TITLE_TEXT_X                               (156)
-#define PUMP_LEVEL_TITLE_TEXT_Y                               (28 + 6)
+#define PUMP_LEVEL_LEFT_CIRCLE_X                              (80 - 23)
+#define PUMP_LEVEL_LEFT_CIRCLE_Y                              (13)
+#define PUMP_LEVEL_RIGHT_CIRCLE_X                             (240 - 23)
+#define PUMP_LEVEL_RIGHT_CIRCLE_Y                             PUMP_LEVEL_LEFT_CIRCLE_Y
 
-#define PUMP_LEVEL_SYMBOL_X                                   (81)
+#define PUMP_LEVEL_TITLE_TEXT_X                               (156)
+#define PUMP_LEVEL_TITLE_TEXT_Y                               (28 + 4)
+
+#define PUMP_LEVEL_SYMBOL_X                                   (99)
 #define PUMP_LEVEL_SYMBOL_Y                                   (167)
 
 /// 符号状态
@@ -208,19 +212,35 @@ static void pump_both_level_symbol_update(ui_manager_context_t *thiz, int8_t lev
     level_info->symbol_status = symbol_status;
 }
 
+static int pump_left_level_circle_update(ui_manager_context_t *thiz, uint16_t end_angle)
+{
+    if (level_info->level_circle[0] == NULL || !lv_obj_is_valid(level_info->level_circle[0])) {
+        level_info->level_circle[0] = lv_obj_create(level_info->level_arc[0]);
+        lv_obj_remove_style_all(level_info->level_circle[0]);
+        lv_obj_set_size(level_info->level_circle[0], PUMP_LEVEL_CIRCLE_SIZE, PUMP_LEVEL_CIRCLE_SIZE); /// 设置白点大小
+        lv_obj_set_style_radius(level_info->level_circle[0], LV_RADIUS_CIRCLE, 0);
+        lv_obj_set_style_bg_color(level_info->level_circle[0], lv_color_hex(PUMP_LEVEL_CIRCLE_COLOR), 0);
+        lv_obj_set_style_bg_opa(level_info->level_circle[0], LV_OPA_COVER, 0);
+        lv_obj_align(level_info->level_circle[0], LV_ALIGN_TOP_LEFT, PUMP_LEVEL_LEFT_CIRCLE_X, PUMP_LEVEL_LEFT_CIRCLE_Y);
+    }
+
+    return 0;
+}
+
 static int pump_left_level_text_update(ui_manager_context_t *thiz, uint8_t level, uint16_t end_angle)
 {
     char level_text[4] = {0};
     if (level_info->level_text[0] == NULL || !lv_obj_is_valid(level_info->level_text[0])) {
-        level_info->level_text[0] = lv_label_create(level_info->root);
+        EXCEPTION_CHECK_INT(level_info->level_circle[0]);
+        level_info->level_text[0] = lv_label_create(level_info->level_circle[0]);
         EXCEPTION_CHECK_INT(level_info->level_text[0]);
         lv_obj_set_style_text_color(level_info->level_text[0], lv_color_hex(PUMP_LEVEL_TEXT_COLOR), 0);
-        lv_obj_set_style_text_font(level_info->level_text[0], &lv_font_oppo_sans_16_medium, 0);
+        lv_obj_set_style_text_font(level_info->level_text[0], &lv_font_oppo_sans_24_medium, 0);
+        lv_obj_align(level_info->level_text[0], LV_ALIGN_CENTER, 0, 0);
     }
     snprintf(level_text, sizeof(level_text), "%d", level);
     lv_label_set_text(level_info->level_text[0], level_text);
-    common_ui_text_place_in_circle(level_info->level_text[0], 
-        end_angle, PUMP_LEVEL_RING_R + 15, false); /// 设置文字位置
+
     return 0;
 }
 
@@ -249,24 +269,6 @@ static int pump_left_level_arc_update(ui_manager_context_t *thiz, uint16_t end_a
     return 0;
 }
 
-static int pump_left_level_circle_update(ui_manager_context_t *thiz, uint16_t end_angle)
-{
-    if (level_info->level_circle[0] == NULL || !lv_obj_is_valid(level_info->level_circle[0])) {
-        level_info->level_circle[0] = lv_obj_create(level_info->level_arc[0]);
-        lv_obj_remove_style_all(level_info->level_circle[0]);
-        lv_obj_set_size(level_info->level_circle[0], PUMP_LEVEL_CIRCLE_SIZE, PUMP_LEVEL_CIRCLE_SIZE); /// 设置白点大小
-        lv_obj_set_style_radius(level_info->level_circle[0], LV_RADIUS_CIRCLE, 0);
-        lv_obj_set_style_bg_color(level_info->level_circle[0], lv_color_hex(PUMP_LEVEL_CIRCLE_COLOR), 0);
-        lv_obj_set_style_bg_opa(level_info->level_circle[0], LV_OPA_COVER, 0);
-    }
-    common_ui_place_dot_on_arc(level_info->level_arc[0], level_info->level_circle[0], end_angle,
-                               PUMP_LEVEL_ARC_WIDTH,   /// 弧线宽度
-                               PUMP_LEVEL_CIRCLE_SIZE,   /// 白点直径
-                               0,   /// 额外内边距: 需要更靠里就填 1~2
-                               false);  /// 左侧弧线做镜像方向修正
-    return 0;
-}
-
 static void pump_left_level_update(ui_manager_context_t *thiz, uint8_t level, int8_t level_change)
 {
     if (level_info->left_level_change == level_change && level_info->force_update == false) {
@@ -291,32 +293,50 @@ static void pump_left_level_update(ui_manager_context_t *thiz, uint8_t level, in
         end_angle = ((PUMP_LEFT_ARC_END_ANGLE - PUMP_LEFT_ARC_START_ANGLE) * level / PUMP_LEVEL_MAX) +
                 PUMP_LEFT_ARC_START_ANGLE;
     }
-    
-    if (pump_left_level_text_update(thiz, level, end_angle) != 0) {
-        return;
-    }
+
     if (pump_left_level_arc_update(thiz, end_angle) != 0) {
         return;
     }
+
     if (pump_left_level_circle_update(thiz, end_angle) != 0) {
         return;
     }
+
+    if (pump_left_level_text_update(thiz, level, end_angle) != 0) {
+        return;
+    }
     level_info->left_level_change = level_change;
+}
+
+static int pump_right_level_circle_update(ui_manager_context_t *thiz, uint16_t end_angle)
+{
+    if (level_info->level_circle[1] == NULL || !lv_obj_is_valid(level_info->level_circle[1])) {
+        level_info->level_circle[1] = lv_obj_create(level_info->level_arc[1]); // 关键：挂到 arc 下
+        lv_obj_remove_style_all(level_info->level_circle[1]);
+        lv_obj_set_size(level_info->level_circle[1], PUMP_LEVEL_CIRCLE_SIZE, PUMP_LEVEL_CIRCLE_SIZE); /// 设置白点大小
+        lv_obj_set_style_radius(level_info->level_circle[1], LV_RADIUS_CIRCLE, 0);
+        lv_obj_set_style_bg_color(level_info->level_circle[1], lv_color_hex(PUMP_LEVEL_CIRCLE_COLOR), 0);
+        lv_obj_set_style_bg_opa(level_info->level_circle[1], LV_OPA_COVER, 0);
+        lv_obj_align(level_info->level_circle[1], LV_ALIGN_TOP_LEFT, PUMP_LEVEL_RIGHT_CIRCLE_X, PUMP_LEVEL_RIGHT_CIRCLE_Y);
+    }
+
+    return 0;
 }
 
 static int pump_right_level_text_update(ui_manager_context_t *thiz, uint8_t level, uint16_t end_angle)
 {
     char level_text[4] = {0};
     if (level_info->level_text[1] == NULL || !lv_obj_is_valid(level_info->level_text[1])) {
-        level_info->level_text[1] = lv_label_create(level_info->root);
+        EXCEPTION_CHECK_INT(level_info->level_circle[1]);
+        level_info->level_text[1] = lv_label_create(level_info->level_circle[1]);
         EXCEPTION_CHECK_INT(level_info->level_text[1]);
         lv_obj_set_style_text_color(level_info->level_text[1], lv_color_hex(PUMP_LEVEL_TEXT_COLOR), 0);
-        lv_obj_set_style_text_font(level_info->level_text[1], &lv_font_oppo_sans_16_medium, 0);
+        lv_obj_set_style_text_font(level_info->level_text[1], &lv_font_oppo_sans_24_medium, 0);
+        lv_obj_align(level_info->level_text[1], LV_ALIGN_CENTER, 0, 0);
     }
     snprintf(level_text, sizeof(level_text), "%d", level);
     lv_label_set_text(level_info->level_text[1], level_text);
-    common_ui_text_place_in_circle(level_info->level_text[1], 
-        end_angle, PUMP_LEVEL_RING_R + 15, false); /// 设置文字位置
+
     return 0;
 }
 
@@ -342,24 +362,6 @@ static int pump_right_level_arc_update(ui_manager_context_t *thiz, uint16_t end_
     } else {
         lv_arc_set_angles(level_info->level_arc[1], end_angle, PUMP_RIGHT_ARC_END_ANGLE);  /// 设置前景弧角度
     }
-    return 0;
-}
-
-static int pump_right_level_circle_update(ui_manager_context_t *thiz, uint16_t end_angle)
-{
-    if (level_info->level_circle[1] == NULL || !lv_obj_is_valid(level_info->level_circle[1])) {
-        level_info->level_circle[1] = lv_obj_create(level_info->level_arc[1]); // 关键：挂到 arc 下
-        lv_obj_remove_style_all(level_info->level_circle[1]);
-        lv_obj_set_size(level_info->level_circle[1], PUMP_LEVEL_CIRCLE_SIZE, PUMP_LEVEL_CIRCLE_SIZE); /// 设置白点大小
-        lv_obj_set_style_radius(level_info->level_circle[1], LV_RADIUS_CIRCLE, 0);
-        lv_obj_set_style_bg_color(level_info->level_circle[1], lv_color_hex(PUMP_LEVEL_CIRCLE_COLOR), 0);
-        lv_obj_set_style_bg_opa(level_info->level_circle[1], LV_OPA_COVER, 0);
-    }
-    common_ui_place_dot_on_arc(level_info->level_arc[1], level_info->level_circle[1], end_angle,
-                               PUMP_LEVEL_ARC_WIDTH,   /// 弧线宽度
-                               PUMP_LEVEL_CIRCLE_SIZE,   /// 白点直径
-                               0,   /// 额外内边距: 需要更靠里就填 1~2
-                               false);  /// 左侧弧线做镜像方向修正
     return 0;
 }
 
@@ -389,10 +391,6 @@ static void pump_right_level_update(ui_manager_context_t *thiz, uint8_t level, i
             (PUMP_LEVEL_MAX - level) / PUMP_LEVEL_MAX) + PUMP_RIGHT_ARC_START_ANGLE;
     }
 
-    if (pump_right_level_text_update(thiz, level, end_angle) != 0) {
-        return;
-    }
-
     if (pump_right_level_arc_update(thiz, end_angle) != 0) {
         return;
     }
@@ -400,6 +398,11 @@ static void pump_right_level_update(ui_manager_context_t *thiz, uint8_t level, i
     if (pump_right_level_circle_update(thiz, end_angle) != 0) {
         return;
     }
+
+    if (pump_right_level_text_update(thiz, level, end_angle) != 0) {
+        return;
+    }
+
     level_info->right_level_change = level_change;
 }
 
@@ -413,7 +416,7 @@ static void pump_both_level_offset_text_update(ui_manager_context_t *thiz, int8_
         level_info->level_offset_text = lv_label_create(level_info->root);
         EXCEPTION_CHECK_VOID(level_info->level_offset_text);
         lv_obj_set_style_text_color(level_info->level_offset_text, lv_color_hex(PUMP_LEVEL_OFFSET_TEXT_COLOR), 0);
-        lv_obj_set_style_text_font(level_info->level_offset_text, &lv_font_oppo_sans_96_bold, 0);
+        lv_obj_set_style_text_font(level_info->level_offset_text, &lv_font_oppo_sans_72_bold, 0);
         lv_obj_set_width(level_info->level_offset_text, 120);
         lv_label_set_long_mode(level_info->level_offset_text, LV_LABEL_LONG_CLIP); /// 截断过长文本
         lv_obj_set_style_text_align(level_info->level_offset_text, LV_TEXT_ALIGN_CENTER, 0); /// 居中对齐

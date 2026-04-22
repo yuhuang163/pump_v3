@@ -13,17 +13,27 @@
 修改内容：
 ******************************************************************************************************************/
 //#if defined(ALGO_TYPE_V3_WEAR_DETECTION)
+// pch.cpp: 与预编译标头对应的源文件
+
+// #include "pch.h"
+
+// 当使用预编译的头时，需要使用此源文件，编译才能成功。
 #include "v3_wear_detection.h"
 #define DEBUG		0
 
 // global data
-//SGLOBAL_INFO		tGlobalInfo;
 SDATA_BUFFER		tDataBuffer[2];
 SPV_INFO			tPVInfo[2];
 SWAVE_INFO			tWaveInfo[2];
 SFEATURE_INFO		tFeatureInfo[2];
 SDEVICE_INFO		tDeviceInfo[2];
 SFILTER_INFO		tFilterInfo[2];
+
+/* get pressure algorithm version */
+const char* v3_pressure_algo_get_version(void)
+{
+    return V3_PRESSURE_ALGO_VERSION_STR;
+}
 
 /*************************************************************************************************************************************************
 * 函数名称：V3WearDetectionInit
@@ -69,8 +79,9 @@ void V3WearDetectionInit(unsigned char uLevelLeft, unsigned char ulevelRight, un
 		for (int i = 0; i < WIN_SIZE; i++)
 		{
 			tDataBuffer[j].fDataBuff[i] = 0;
-			tDataBuffer[j].uCurrPos = 0;
+			tDataBuffer[j].fLoadedThresholdData[i] = 0;
 		}
+		tDataBuffer[j].uCurrPos = 0;
 		tDataBuffer[j].fDataMax = -1;
 		tDataBuffer[j].fDataMin = 0;
 		tDataBuffer[j].uFirstTime = 1;
@@ -81,16 +92,23 @@ void V3WearDetectionInit(unsigned char uLevelLeft, unsigned char ulevelRight, un
 		tFeatureInfo[j].uNoiseLevel = 0;
 		tFeatureInfo[j].uWaveSpikes = 0;
 		tFeatureInfo[j].uPVIndex = 0;
-		tFeatureInfo[j].uPumpFlag = 0;
 		tFeatureInfo[j].uWearStatus = 0;
 		tFeatureInfo[j].uNormalWaveform = 0;
+		tFeatureInfo[j].pumping_time = 0;
 		tFeatureInfo[j].fMinDataBuffMin = 0;
 		tFeatureInfo[j].uCompsStatus = 0;
+		tFeatureInfo[j].uWearOnCount = 0;
+		tFeatureInfo[j].uWearOffCount = 0;
 		tFeatureInfo[j].iDelta_pwm = 0;
+		tFeatureInfo[j].iPwmOffset = 0;
+		tFeatureInfo[j].fCompErrSum = 0;
+		tFeatureInfo[j].fCompPrevErr = 0;
 		tFeatureInfo[j].uPrevWearStatus = 0;
-		for (int i = 0; i < 5; i++)
+		tFeatureInfo[j].uPumpState = SUCTION_STATUS_IDLE;
+		for (int i = 0; i < 6; i++)
 		{
 			tFeatureInfo[j].fMinDataBuff[i] = 0;
+			tFeatureInfo[j].fLoadedThresholdBuff[i] = 0;
 		}
 
 		switch (tDeviceInfo[j].uMode)
@@ -111,7 +129,7 @@ void V3WearDetectionInit(unsigned char uLevelLeft, unsigned char ulevelRight, un
 			break;
 		}
 		/* filter info */
-		tFilterInfo[j].fFc = 3.0;
+		tFilterInfo[j].fFc = 7.0;
 		tFilterInfo[j].fDT = 1.0 / SAMPLE_RATE;
 		tFilterInfo[j].fRC = 1.0 / (2.0 * 3.1415926 * tFilterInfo[j].fFc);
 		tFilterInfo[j].fAlpha = tFilterInfo[j].fDT / (tFilterInfo[j].fRC + tFilterInfo[j].fDT);
@@ -156,6 +174,7 @@ void V3WearDetectionModeReset(unsigned char uLevel, unsigned char uMode, unsigne
 	for (int i = 0; i < WIN_SIZE; i++)
 	{
 		tDataBuffer[uChannelIdx].fDataBuff[i] = 0;
+		tDataBuffer[uChannelIdx].fLoadedThresholdData[i] = 0;
 	}
 	tDataBuffer[uChannelIdx].uCurrPos = 0;
 	tDataBuffer[uChannelIdx].fDataMax = -1;
@@ -173,9 +192,17 @@ void V3WearDetectionModeReset(unsigned char uLevel, unsigned char uMode, unsigne
 	tFeatureInfo[uChannelIdx].fMinDataBuffMin = 0;
 	tFeatureInfo[uChannelIdx].uCompsStatus = 0;
 	tFeatureInfo[uChannelIdx].iDelta_pwm = 0;
+	tFeatureInfo[uChannelIdx].iPwmOffset = 0;
+	tFeatureInfo[uChannelIdx].fCompErrSum = 0;
+	tFeatureInfo[uChannelIdx].fCompPrevErr = 0;
+	tFeatureInfo[uChannelIdx].uWearOnCount = 0;
+	tFeatureInfo[uChannelIdx].uWearOffCount = 0;
+	tFeatureInfo[uChannelIdx].uPumpState = SUCTION_STATUS_IDLE;
+
 	for (int i = 0; i < 6; i++)
 	{
 		tFeatureInfo[uChannelIdx].fMinDataBuff[i] = 0;
+		tFeatureInfo[uChannelIdx].fLoadedThresholdBuff[i] = 0;
 	}
 	/* Device info */
 	tDeviceInfo[uChannelIdx].uMode = uMode;
@@ -268,7 +295,7 @@ unsigned int BufferCircleRelativeIndex(unsigned int uPos, unsigned int uIdx, uns
 * 返 回 值：无
 *************************************************************************************************************************************************
 */
-float FilterPreprocess(float fInputData, SFILTER_INFO *tFilterInfoTemp)
+float FilterPreprocess(float fInputData, SFILTER_INFO* tFilterInfoTemp)
 {
 	// low pass filter
 	float filtered_data = 0.0;
@@ -294,14 +321,15 @@ float FilterPreprocess(float fInputData, SFILTER_INFO *tFilterInfoTemp)
 * 返 回 值：无
 *************************************************************************************************************************************************
 */
-void PressureDataPreprocess(float fPumpData, SFILTER_INFO *tFilterInfoTemp, SDATA_BUFFER *tDataBufferTemp, SFEATURE_INFO *tFeatureInfoTemp)
+float PressureDataPreprocess(float fPumpData, SFILTER_INFO* tFilterInfoTemp, SDATA_BUFFER* tDataBufferTemp, SFEATURE_INFO* tFeatureInfoTemp)
 {
 	float filtered_data = 0.0;
 	if (fPumpData < -100)
 		fPumpData = 0;
 	filtered_data = FilterPreprocess(fPumpData, tFilterInfoTemp);
-	
+
 	tDataBufferTemp->fDataBuff[tDataBufferTemp->uCurrPos] = filtered_data;
+	tDataBufferTemp->fLoadedThresholdData[tDataBufferTemp->uCurrPos] = tFeatureInfoTemp->fLoadedThreshold;
 	if (tFeatureInfoTemp->uDataIdx == SAMPLE_RATE - 1)
 	{
 		float fminDataBuffMin = 0, fminDataBuffMax = -100;
@@ -311,7 +339,8 @@ void PressureDataPreprocess(float fPumpData, SFILTER_INFO *tFilterInfoTemp, SDAT
 				fminDataBuffMin = tFeatureInfoTemp->fMinDataBuff[i];
 			if (tFeatureInfoTemp->fMinDataBuff[i] > fminDataBuffMax)
 				fminDataBuffMax = tFeatureInfoTemp->fMinDataBuff[i];
-			tFeatureInfoTemp->fMinDataBuff[i] = 0;
+			// tFeatureInfoTemp->fMinDataBuff[i] = 0;
+			// tFeatureInfoTemp->fLoadedThresholdBuff[i] = 0;
 		}
 		if (tFeatureInfoTemp->fMinDataBuff[5] < fminDataBuffMin)
 			fminDataBuffMin = tFeatureInfoTemp->fMinDataBuff[5];
@@ -337,7 +366,7 @@ void PressureDataPreprocess(float fPumpData, SFILTER_INFO *tFilterInfoTemp, SDAT
 		tFeatureInfoTemp->uDataIdx++;
 		tFeatureInfoTemp->uUpdateFlag = 0;
 	}
-
+	return filtered_data;
 }
 
 
@@ -352,7 +381,7 @@ void PressureDataPreprocess(float fPumpData, SFILTER_INFO *tFilterInfoTemp, SDAT
 *************************************************************************************************************************************************
 */
 void PeakValleyAnalysis(SPV_INFO* tPVInfoTemp, SWAVE_INFO* tWaveInfoTemp, SDATA_BUFFER* tDataBufferTemp, SFEATURE_INFO* tFeatureInfoTemp)
-{ 
+{
 	if (tFeatureInfoTemp->uUpdateFlag == 1)
 	{
 		for (int j = 0; j < 100; j++)
@@ -444,7 +473,7 @@ void PeakValleyAnalysis(SPV_INFO* tPVInfoTemp, SWAVE_INFO* tWaveInfoTemp, SDATA_
 		/* update the max and min data */
 		if ((tDataBufferTemp->fDataMax - tDataBufferTemp->fDataMin) < 5)
 			tFeatureInfoTemp->uNoiseLevel += 1;
-		
+
 	}
 }
 
@@ -459,7 +488,7 @@ void PeakValleyAnalysis(SPV_INFO* tPVInfoTemp, SWAVE_INFO* tWaveInfoTemp, SDATA_
 * 返 回 值：无
 *************************************************************************************************************************************************
 */
-void PressureDataFeature(SPV_INFO *tPVInfoTemp, SWAVE_INFO * tWaveInfoTemp, SDATA_BUFFER* tDataBufferTemp, SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO *tDeviceInfoTemp)
+void PressureDataFeature(SPV_INFO* tPVInfoTemp, SWAVE_INFO* tWaveInfoTemp, SDATA_BUFFER* tDataBufferTemp, SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* tDeviceInfoTemp)
 {
 	/* peak and valley */
 	PeakValleyAnalysis(tPVInfoTemp, tWaveInfoTemp, tDataBufferTemp, tFeatureInfoTemp);
@@ -567,28 +596,59 @@ void PressureDataFeature(SPV_INFO *tPVInfoTemp, SWAVE_INFO * tWaveInfoTemp, SDAT
 				}
 			}
 		}
+		/*printf("\n%f %f %f %f %f \n", (float)tFeatureInfoTemp->fMinDataBuff[0],
+			tFeatureInfoTemp->fMinDataBuff[1],
+			tFeatureInfoTemp->fMinDataBuff[2],
+			tFeatureInfoTemp->fMinDataBuff[3], tFeatureInfoTemp->fMinData);*/
+		unsigned char uHasBestValley = 0;
+		float fBestValleyValue = 0;
+		float fBestValleyThreshold = 0;
 		/* check wave spikes */
 		for (unsigned int i = 0; i < uWaveIndex; i++)
 		{
-			if (tWaveInfoTemp->uType[i] == 0 && tWaveInfoTemp->fValue[i] < -1 && tWaveInfoTemp->uwidth[i] > 10)
+			// if (tWaveInfoTemp->uType[i] == 0 && tWaveInfoTemp->fValue[i] < -1 && tWaveInfoTemp->uwidth[i] > 10)
+			// {
+			// 	float fBuffMinTemp = 0;
+
+			// 	for (unsigned int k = 0; k < 4; k++)
+			// 	{
+			// 		/* 历史最小负压缓存左移 */
+			// 		tFeatureInfoTemp->fMinDataBuff[k] = tFeatureInfoTemp->fMinDataBuff[k + 1];
+
+			// 		/* 和最小负压一一对应的 loaded 阈值缓存也同步左移 */
+			// 		tFeatureInfoTemp->fLoadedThresholdBuff[k] = tFeatureInfoTemp->fLoadedThresholdBuff[k + 1];
+
+			// 		if (tFeatureInfoTemp->fMinDataBuff[k] > fBuffMinTemp)
+			// 			fBuffMinTemp = tFeatureInfoTemp->fMinDataBuff[k];
+
+			// 		tFeatureInfoTemp->fMinDataBuffMin = fBuffMinTemp;
+			// 	}
+
+			// 	/* 写入当前周期的谷值 */
+			// 	tFeatureInfoTemp->fMinDataBuff[4] = tWaveInfoTemp->fValue[i];
+
+			// 	/* 同时写入“这个谷值对应当时的 loaded threshold” */
+			// 	tFeatureInfoTemp->fLoadedThresholdBuff[4] =tDataBufferTemp->fLoadedThresholdData[tWaveInfoTemp->uPos[i]];
+
+			// 	if (tFeatureInfoTemp->fMinDataBuff[4] > fBuffMinTemp)
+			// 		fBuffMinTemp = tFeatureInfoTemp->fMinDataBuff[4];
+
+			// 	tFeatureInfoTemp->fMinDataBuffMin = fBuffMinTemp;
+			// }
+			if (tWaveInfoTemp->uType[i] == 0 &&
+				tWaveInfoTemp->fValue[i] < -1 &&
+				tWaveInfoTemp->uwidth[i] > 10 &&
+				tWaveInfoTemp->fLeftAmp[i] > 1 &&
+				tWaveInfoTemp->fRightAmp[i] > 1)
 			{
-				float fBuffMinTemp = 0;
-				for (unsigned int k = 0; k < 4; k++)
+				if (uHasBestValley == 0 || tWaveInfoTemp->fValue[i] < fBestValleyValue)
 				{
-					tFeatureInfoTemp->fMinDataBuff[k] = tFeatureInfoTemp->fMinDataBuff[k + 1];
-					if (tFeatureInfoTemp->fMinDataBuff[k] > fBuffMinTemp)
-						fBuffMinTemp = tFeatureInfoTemp->fMinDataBuff[k];
-					tFeatureInfoTemp->fMinDataBuffMin = fBuffMinTemp;
+					uHasBestValley = 1;
+					fBestValleyValue = tWaveInfoTemp->fValue[i];
+					fBestValleyThreshold = tDataBufferTemp->fLoadedThresholdData[tWaveInfoTemp->uPos[i]];
 				}
-				tFeatureInfoTemp->fMinDataBuff[4] = tWaveInfoTemp->fValue[i];
-				if (tFeatureInfoTemp->fMinDataBuff[4] > fBuffMinTemp)
-					fBuffMinTemp = tFeatureInfoTemp->fMinDataBuff[4];
-				tFeatureInfoTemp->fMinDataBuffMin = fBuffMinTemp;
 			}
-			/*printf("\n%f %f %f %f %f \n", (float)tFeatureInfoTemp->fMinDataBuff[0],
-				tFeatureInfoTemp->fMinDataBuff[1],
-				tFeatureInfoTemp->fMinDataBuff[2],
-				tFeatureInfoTemp->fMinDataBuff[3], tFeatureInfoTemp->fMinDataBuff[4]);*/
+
 			if (tWaveInfoTemp->uType[i] == 0 &&
 
 				(tWaveInfoTemp->fValue[i] < tFeatureInfoTemp->fThreshold &&
@@ -606,8 +666,30 @@ void PressureDataFeature(SPV_INFO *tPVInfoTemp, SWAVE_INFO * tWaveInfoTemp, SDAT
 			{
 				tFeatureInfoTemp->uNormalWaveform++;
 			}
-
 		}
+			if (uHasBestValley == 1)
+			{
+				float fBuffMinTemp = 0;
+
+				for (unsigned int k = 0; k < 4; k++)
+				{
+					tFeatureInfoTemp->fMinDataBuff[k] = tFeatureInfoTemp->fMinDataBuff[k + 1];
+					tFeatureInfoTemp->fLoadedThresholdBuff[k] = tFeatureInfoTemp->fLoadedThresholdBuff[k + 1];
+
+					if (tFeatureInfoTemp->fMinDataBuff[k] > fBuffMinTemp)
+						fBuffMinTemp = tFeatureInfoTemp->fMinDataBuff[k];
+
+					tFeatureInfoTemp->fMinDataBuffMin = fBuffMinTemp;
+				}
+
+				tFeatureInfoTemp->fMinDataBuff[4] = fBestValleyValue;
+				tFeatureInfoTemp->fLoadedThresholdBuff[4] = fBestValleyThreshold;
+
+				if (tFeatureInfoTemp->fMinDataBuff[4] > fBuffMinTemp)
+					fBuffMinTemp = tFeatureInfoTemp->fMinDataBuff[4];
+
+				tFeatureInfoTemp->fMinDataBuffMin = fBuffMinTemp;
+			}
 	}
 	/* update current index */
 	tDataBufferTemp->uCurrPos = BufferCircleNextIndex(tDataBufferTemp->uCurrPos, 1, WIN_SIZE);
@@ -624,96 +706,679 @@ void PressureDataFeature(SPV_INFO *tPVInfoTemp, SWAVE_INFO * tWaveInfoTemp, SDAT
 * 返 回 值：无
 *************************************************************************************************************************************************
 */
+// void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* tDeviceInfoTemp)
+// {
+// 	//tFeatureInfoTemp->iDelta_pwm = 0;
+
+// 	/* 本轮先计算一个“候选穿戴状态”，
+// 	 * 不直接修改 uWearStatus，最后再结合抗抖计数决定是否切换
+// 	 */
+// 	unsigned char uCandidateWearStatus = tFeatureInfoTemp->uWearStatus;
+
+// 	/* 当前处于“未佩戴”状态时，判断是否进入“已佩戴”状态 */
+// 	if (tFeatureInfoTemp->uWearStatus == 0)
+// 	{
+// 		/* 条件1：
+// 		 * 毛刺少、无明显噪声、存在正常波形，
+// 		 * 且模式/档位满足条件时，认为进入佩戴状态
+// 		 */
+// 		if ((tFeatureInfoTemp->uWaveSpikes <= 1 && tFeatureInfoTemp->uNoiseLevel == 0 && tFeatureInfoTemp->uNormalWaveform >= 1) &&
+// 			((tDeviceInfoTemp->uLevel <= 14 && tFeatureInfoTemp->uNormalWaveform <= 10  &&(tDeviceInfoTemp->uMode == MODE_EXPRESSION || tDeviceInfoTemp->uMode == MODE_MIXED))
+// 				|| (tDeviceInfoTemp->uMode == MODE_STIMULATION && tDeviceInfoTemp->uLevel < 15)))
+// 			uCandidateWearStatus = 1;
+
+// 		/* 条件2：
+// 		 * 当前最小负压满足阈值要求，
+// 		 * 在高档位吸乳 / 高档位刺激下可判定进入佩戴状态
+// 		 */
+// 		else if ((tFeatureInfoTemp->fThreshold < tFeatureInfoTemp->fMinData && tFeatureInfoTemp->fMinData < -1) &&
+// 			((tFeatureInfoTemp->uWaveSpikes <= 1 && tDeviceInfoTemp->uLevel >= 15 && (tDeviceInfoTemp->uMode == MODE_EXPRESSION)) ||
+// 				(tFeatureInfoTemp->uWaveSpikes < 5 && tDeviceInfoTemp->uMode == MODE_STIMULATION && tDeviceInfoTemp->uLevel >= 12)))
+// 			uCandidateWearStatus = 1;
+
+// 		/* 条件3：
+// 		 * mixed 模式高档位下，利用缓存的历史最小值辅助判断进入佩戴
+// 		 */
+// 		else if ((tFeatureInfoTemp->fThreshold < tFeatureInfoTemp->fMinDataBuff[5] && tFeatureInfoTemp->fMinDataBuff[5] < -1) &&
+// 			(tDeviceInfoTemp->uLevel >= 9 && tDeviceInfoTemp->uMode == MODE_MIXED) && tFeatureInfoTemp->uWaveSpikes < 5)
+// 			uCandidateWearStatus = 1;
+// 	}
+
+// 	/* 当前处于“已佩戴”状态时，判断是否退出为“未佩戴”状态 */
+// 	else if (tFeatureInfoTemp->uWearStatus == 1)
+// 	{
+// 		/* 条件1：
+// 		 * 当前最小负压已经不够深，直接判定退出佩戴
+// 		 */
+// 		if (tFeatureInfoTemp->fMinData > -1)
+// 		{
+// 			uCandidateWearStatus = 0;
+// 		}
+
+// 		/* 条件2：
+// 		 * 根据不同模式/档位下的阈值关系，判断是否退出佩戴
+// 		 */
+// 		if ((tFeatureInfoTemp->fThreshold < tFeatureInfoTemp->fMinData && tFeatureInfoTemp->fMinData < -.1 && tDeviceInfoTemp->uLevel <= 12 && (tDeviceInfoTemp->uMode == MODE_EXPRESSION))
+// 			|| (tDeviceInfoTemp->uLevel >= 12 && (tDeviceInfoTemp->uMode == MODE_EXPRESSION) && tFeatureInfoTemp->uNormalWaveform > 10) 
+// 			|| (tFeatureInfoTemp->fThreshold < tFeatureInfoTemp->fMinData && tFeatureInfoTemp->fMinData < -.1 && tDeviceInfoTemp->uMode == MODE_STIMULATION && tDeviceInfoTemp->uLevel <= 13)
+// 			|| (tFeatureInfoTemp->uWaveSpikes >= 5 && tDeviceInfoTemp->uMode == MODE_STIMULATION && 14 >= tDeviceInfoTemp->uLevel && tDeviceInfoTemp->uLevel >= 10)
+// 			|| (STIMULATION_THRESHOLD[tDeviceInfoTemp->uLevel] < tFeatureInfoTemp->fMinData && tFeatureInfoTemp->fMinData < -.1 && tDeviceInfoTemp->uLevel <= 3 && tDeviceInfoTemp->uMode == MODE_MIXED))
+// 			uCandidateWearStatus = 0;
+
+// 		/* 条件3：
+// 		 * 吸乳 / mixed 高档位下毛刺过多，认为波形异常，退出佩戴
+// 		 */
+// 		else if (tFeatureInfoTemp->uWaveSpikes > 2 && (12 <= tDeviceInfoTemp->uLevel && (tDeviceInfoTemp->uMode == MODE_EXPRESSION || tDeviceInfoTemp->uMode == MODE_MIXED)))
+// 			uCandidateWearStatus = 0;
+
+// 		/* 条件4：
+// 		 * mixed 中档位下，历史最小值异常且毛刺很多，退出佩戴
+// 		 */
+// 		else if ((STIMULATION_THRESHOLD[tDeviceInfoTemp->uLevel] < tFeatureInfoTemp->fMinDataBuffMin) && tFeatureInfoTemp->uWaveSpikes >= 15 &&
+// 			(4 <= tDeviceInfoTemp->uLevel && tDeviceInfoTemp->uLevel <= 6 && tDeviceInfoTemp->uMode == MODE_MIXED))
+// 			uCandidateWearStatus = 0;
+
+// 		/* 条件5：
+// 		 * mixed 高档位下，当前最小值与阈值关系不满足要求，退出佩戴
+// 		 */
+// 		else if ((tFeatureInfoTemp->fThreshold > tFeatureInfoTemp->fMinData) && (8 <= tDeviceInfoTemp->uLevel && tDeviceInfoTemp->uMode == MODE_MIXED))
+// 			uCandidateWearStatus = 0;
+
+// 		/* 条件6：
+// 		 * 刺激 14 档下毛刺特别多，退出佩戴
+// 		 */
+// 		else if (tFeatureInfoTemp->uWaveSpikes > 10 && (tDeviceInfoTemp->uLevel == 14 && tDeviceInfoTemp->uMode == MODE_STIMULATION))
+// 			uCandidateWearStatus = 0;
+
+// 		/* 条件7：
+// 		 * 疑似噪声或边界场景时，不直接翻转，保持上一拍状态
+// 		 */
+// 		else if (tFeatureInfoTemp->fMinData > -.1
+// 			|| (tFeatureInfoTemp->fThreshold > tFeatureInfoTemp->fMinData && tDeviceInfoTemp->uLevel >= 6 && (tDeviceInfoTemp->uMode == MODE_EXPRESSION || tDeviceInfoTemp->uMode == MODE_MIXED)))
+// 			/* noise detection*/
+// 			uCandidateWearStatus = tFeatureInfoTemp->uPrevWearStatus;
+// 	}
+
+// 	/* 根据候选状态和当前状态的差异，做抗抖切换 */
+// 	if (uCandidateWearStatus != tFeatureInfoTemp->uWearStatus)
+// 	{
+// 		/* 目标是从 0 -> 1 */
+// 		if (uCandidateWearStatus == 1)
+// 		{
+// 			/* 进入佩戴计数加一，退出计数清零 */
+// 			tFeatureInfoTemp->uWearOnCount++;
+// 			tFeatureInfoTemp->uWearOffCount = 0;
+
+// 			/* 连续 n 次满足进入条件，才真正切换为佩戴 */
+// 			if (tFeatureInfoTemp->uWearOnCount >= 25)
+// 			{
+// 				tFeatureInfoTemp->uWearStatus = 1;
+// 				tFeatureInfoTemp->uWearOnCount = 0;
+// 			}
+// 		}
+// 		else
+// 		{
+// 			/* 目标是从 1 -> 0
+// 			 * 退出佩戴计数加一，进入计数清零
+// 			 */
+// 			tFeatureInfoTemp->uWearOffCount++;
+// 			tFeatureInfoTemp->uWearOnCount = 0;
+
+// 			/* 连续 n 次满足退出条件，才真正切换为未佩戴 */
+// 			if (tFeatureInfoTemp->uWearOffCount >= 1)
+// 			{
+// 				tFeatureInfoTemp->uWearStatus = 0;
+// 				tFeatureInfoTemp->uWearOffCount = 0;
+// 			}
+// 		}
+// 	}
+// 	else
+// 	{
+// 		/* 候选状态和当前状态一致，说明本轮没有切换趋势，清空抗抖计数 */
+// 		tFeatureInfoTemp->uWearOnCount = 0;
+// 		tFeatureInfoTemp->uWearOffCount = 0;
+// 	}
+
+// 	/* 保存最终状态，供下一轮“保持上一状态”逻辑使用 */
+// 	tFeatureInfoTemp->uPrevWearStatus = tFeatureInfoTemp->uWearStatus;
+
+// 	/* 只有在“已佩戴”且 pumping_time == 1 时，才进行补偿状态计算 */
+// 	if (tFeatureInfoTemp->uWearStatus == 1 && tFeatureInfoTemp->pumping_time == 1)
+// 	{
+// 		unsigned int uCount_Min = 0;
+// 		unsigned int uCount_Max = 0;
+
+// 		/* 遍历最近缓存的 6 个最小负压点，判断当前是否偏离 loaded 阈值 */
+// 		for (unsigned int i = 0; i < 6; i++)
+// 		{
+// 			/* fMinDataBuff 是滤波后的数据，会比实际负压偏小，
+// 			 * 所以这里用 fMinDataBuff[i] - 2 来做近似补偿
+// 			 * （后续如果能缓存原始负压数据会更准确）
+// 			 */
+// 			if ((tFeatureInfoTemp->fMinDataBuff[i] - 2) > tFeatureInfoTemp->fLoadedThreshold + 2 && (tFeatureInfoTemp->fMinDataBuff[i] - 2) < -5)
+// 			{
+// 				/* 负压偏小，记录一次“需要增强补偿”的计数 */
+// 				uCount_Min += 1;
+// 			}
+// 			else if ((tFeatureInfoTemp->fMinDataBuff[i] - 2) < tFeatureInfoTemp->fLoadedThreshold - 2 && (tFeatureInfoTemp->fMinDataBuff[i] - 2) < -5)
+// 			{
+// 				/* 负压偏大，记录一次“需要减弱补偿”的计数 */
+// 				uCount_Max += 1;
+// 			}
+// 		}
+
+// 		/*printf("\n%f %f %f %f %f %f %f\n", tFeatureInfoTemp->fLoadedThreshold, (float)tFeatureInfoTemp->fMinDataBuff[0],
+// 				tFeatureInfoTemp->fMinDataBuff[1],
+// 				tFeatureInfoTemp->fMinDataBuff[2],
+// 				tFeatureInfoTemp->fMinDataBuff[3], tFeatureInfoTemp->fMinDataBuff[4], tFeatureInfoTemp->fMinData);*/
+
+// 		/* 至少有 2 个点提示负压偏小，进入补偿状态 1 */
+// 		if (uCount_Min >= 2)
+// 		{
+// 			tFeatureInfoTemp->uCompsStatus = 1;
+
+// 			/* 如果偏差过大，则不输出 PWM 补偿 */
+// 			if (fabs((float)(tFeatureInfoTemp->fLoadedThreshold - (tFeatureInfoTemp->fMinData - 2))) > 10)
+// 				tFeatureInfoTemp->iDelta_pwm = 0;
+// 			else
+// 				/* 2% delta_pwm 对应 1kPa 变化 */
+// 				tFeatureInfoTemp->iDelta_pwm = 200 * fabs((float)(tFeatureInfoTemp->fLoadedThreshold - (tFeatureInfoTemp->fMinData - 2)));
+// 		}
+
+// 		/* 至少有 2 个点提示负压偏大，进入补偿状态 2 */
+// 		else if (uCount_Max >= 2)
+// 		{
+// 			tFeatureInfoTemp->uCompsStatus = 2;
+
+// 			/* 如果偏差过大，则不输出 PWM 补偿 */
+// 			if (fabs((float)(tFeatureInfoTemp->fLoadedThreshold - tFeatureInfoTemp->fMinData)) > 10)
+// 				tFeatureInfoTemp->iDelta_pwm = 0;
+// 			else
+// 				tFeatureInfoTemp->iDelta_pwm = -200 * fabs((float)(tFeatureInfoTemp->fLoadedThreshold - (tFeatureInfoTemp->fMinData - 2)));
+// 		}
+// 		else
+// 		{
+// 			/* 当前不需要补偿，后续可继续补充更完整的泵侧补偿逻辑 */
+// 			tFeatureInfoTemp->uCompsStatus = 0;
+// 			tFeatureInfoTemp->iDelta_pwm = 0;
+// 		}
+// 	}
+// }
 void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* tDeviceInfoTemp)
 {
 	//tFeatureInfoTemp->iDelta_pwm = 0;
+
+	/* 本轮先计算一个“候选穿戴状态”，
+	 * 不直接修改 uWearStatus，最后再结合抗抖计数决定是否切换
+	 */
+	unsigned char uCandidateWearStatus = tFeatureInfoTemp->uWearStatus;
+	unsigned int uMode = tDeviceInfoTemp->uMode;
+	unsigned int uLevel = tDeviceInfoTemp->uLevel;
+
+	/* =========================================================
+	 * 1. 当前处于“未佩戴”状态时，判断是否进入“已佩戴”状态
+	 * ========================================================= */
 	if (tFeatureInfoTemp->uWearStatus == 0)
 	{
-		if ((tFeatureInfoTemp->uWaveSpikes <= 1 && tFeatureInfoTemp->uNoiseLevel == 0 && tFeatureInfoTemp->uNormalWaveform >= 1) &&
-			((tDeviceInfoTemp->uLevel <= 12 && (tDeviceInfoTemp->uMode == MODE_EXPRESSION || tDeviceInfoTemp->uMode == MODE_MIXED))
-				|| (tDeviceInfoTemp->uMode == MODE_STIMULATION && tDeviceInfoTemp->uLevel < 15)))
-			tFeatureInfoTemp->uWearStatus = 1;
-		else if ((tFeatureInfoTemp->fThreshold < tFeatureInfoTemp->fMinData && tFeatureInfoTemp->fMinData < -1) &&
-			((tFeatureInfoTemp->uWaveSpikes <= 1 && tDeviceInfoTemp->uLevel >= 12 && (tDeviceInfoTemp->uMode == MODE_EXPRESSION)) ||
-				(tFeatureInfoTemp->uWaveSpikes < 5 && tDeviceInfoTemp->uMode == MODE_STIMULATION && tDeviceInfoTemp->uLevel >= 12)))
-			tFeatureInfoTemp->uWearStatus = 1;
-		else if ((tFeatureInfoTemp->fThreshold < tFeatureInfoTemp->fMinDataBuff[5] && tFeatureInfoTemp->fMinDataBuff[5] < -1) &&
-			(tDeviceInfoTemp->uLevel >= 9 && tDeviceInfoTemp->uMode == MODE_MIXED) && tFeatureInfoTemp->uWaveSpikes < 5)
-			tFeatureInfoTemp->uWearStatus = 1;
+		/* -------------------------
+		 * 1.1 吸乳模式
+		 * ------------------------- */
+		if (uMode == MODE_EXPRESSION)
+		{
+			/* L1 ~ L15 的基础进入条件 */
+			if (uLevel <= 14)
+			{
+				if (tFeatureInfoTemp->uWaveSpikes <= 1 &&
+					tFeatureInfoTemp->uNoiseLevel == 0 &&
+					tFeatureInfoTemp->uNormalWaveform >= 1 &&
+					tFeatureInfoTemp->uNormalWaveform <= 10)
+				{
+					uCandidateWearStatus = 1;
+				}
+			}
+		}
+
+		/* -------------------------
+		 * 1.2 刺激模式
+		 * ------------------------- */
+		else if (uMode == MODE_STIMULATION)
+		{
+			/* L1 ~ L15 的基础进入条件 */
+			if (uLevel <= 14)
+			{
+				if ((tFeatureInfoTemp->uWaveSpikes <= 1 &&
+					 tFeatureInfoTemp->uNoiseLevel == 0 &&
+					 tFeatureInfoTemp->uNormalWaveform >= 1))
+				{
+					uCandidateWearStatus = 1;
+				}
+			}
+
+			/* 刺激高档位的额外进入条件 */
+			if (uCandidateWearStatus == 0)
+			{
+				if ((tFeatureInfoTemp->fThreshold < tFeatureInfoTemp->fMinData &&
+					 tFeatureInfoTemp->fMinData < -1) &&
+					(tFeatureInfoTemp->uWaveSpikes < 5 &&
+					 uLevel >= 12))
+				{
+					uCandidateWearStatus = 1;
+				}
+			}
+		}
+
+		/* -------------------------
+		 * 1.3 mixed 模式
+		 * ------------------------- */
+		else if (uMode == MODE_MIXED)
+		{
+			/* mixed 模式基础进入条件 */
+			if (uLevel <= 14)
+			{
+				if ((tFeatureInfoTemp->uWaveSpikes <= 1 &&
+					 tFeatureInfoTemp->uNoiseLevel == 0 &&
+					 tFeatureInfoTemp->uNormalWaveform >= 1) &&
+					(tFeatureInfoTemp->uNormalWaveform <= 10))
+				{
+					uCandidateWearStatus = 1;
+				}
+			}
+
+			/* mixed 高档位下，利用缓存历史最小值辅助进入 */
+			if (uCandidateWearStatus == 0)
+			{
+				if ((tFeatureInfoTemp->fThreshold < tFeatureInfoTemp->fMinDataBuff[5] &&
+					 tFeatureInfoTemp->fMinDataBuff[5] < -1) &&
+					(uLevel >= 9) &&
+					tFeatureInfoTemp->uWaveSpikes < 5)
+				{
+					uCandidateWearStatus = 1;
+				}
+			}
+
+			/* mixed 1档位下，利用当前最小值辅助进入 */
+			if(uCandidateWearStatus == 0)
+			{
+				if (tFeatureInfoTemp->fThreshold > tFeatureInfoTemp->fMinData &&
+					(uLevel == 0))
+				{
+					uCandidateWearStatus = 1;
+				}
+			}
+		}
 	}
+
+	/* =========================================================
+	 * 2. 当前处于“已佩戴”状态时，判断是否退出为“未佩戴”状态
+	 * ========================================================= */
 	else if (tFeatureInfoTemp->uWearStatus == 1)
 	{
+		/* 条件1：
+		 * 当前最小负压已经不够深，直接判定退出佩戴
+		 */
 		if (tFeatureInfoTemp->fMinData > -1)
 		{
-			tFeatureInfoTemp->uWearStatus = 0;
+			uCandidateWearStatus = 0;
 		}
-		
-		if ((tFeatureInfoTemp->fThreshold < tFeatureInfoTemp->fMinData && tFeatureInfoTemp->fMinData < -.1 && tDeviceInfoTemp->uLevel <= 6 && (tDeviceInfoTemp->uMode == MODE_EXPRESSION))
-			|| (tFeatureInfoTemp->fThreshold > tFeatureInfoTemp->fMinData && tDeviceInfoTemp->uLevel >= 7 && (tDeviceInfoTemp->uMode == MODE_EXPRESSION))
-			|| (tFeatureInfoTemp->fThreshold < tFeatureInfoTemp->fMinData && tFeatureInfoTemp->fMinData < -.1 && tDeviceInfoTemp->uMode == MODE_STIMULATION && tDeviceInfoTemp->uLevel <= 13)
-			/* || (wave_spikes >= 3 && tDeviceInfoTemp->uMode == 'stimulation' && 14 > level >= 10)*/
-			|| (STIMULATION_THRESHOLD[tDeviceInfoTemp->uLevel] < tFeatureInfoTemp->fMinData && tFeatureInfoTemp->fMinData < -.1 && tDeviceInfoTemp->uLevel <= 3 && tDeviceInfoTemp->uMode == MODE_MIXED))
-			tFeatureInfoTemp->uWearStatus = 0;
-		else if (tFeatureInfoTemp->uWaveSpikes > 2 && (7 <= tDeviceInfoTemp->uLevel && (tDeviceInfoTemp->uMode == MODE_EXPRESSION || tDeviceInfoTemp->uMode == MODE_MIXED)))
-			tFeatureInfoTemp->uWearStatus = 0;
-		else if ((STIMULATION_THRESHOLD[tDeviceInfoTemp->uLevel] < tFeatureInfoTemp->fMinDataBuffMin) && tFeatureInfoTemp->uWaveSpikes >= 15 &&
-			(4 <= tDeviceInfoTemp->uLevel && tDeviceInfoTemp->uLevel <= 6 && tDeviceInfoTemp->uMode == MODE_MIXED))
-			tFeatureInfoTemp->uWearStatus = 0;
-		else if ((tFeatureInfoTemp->fThreshold > tFeatureInfoTemp->fMinData) && (8 <= tDeviceInfoTemp->uLevel && tDeviceInfoTemp->uMode == MODE_MIXED))
-			tFeatureInfoTemp->uWearStatus = 0;
-		else if (tFeatureInfoTemp->uWaveSpikes > 10 && (tDeviceInfoTemp->uLevel == 14 && tDeviceInfoTemp->uMode == MODE_STIMULATION))
-			tFeatureInfoTemp->uWearStatus = 0;
-		else if (tFeatureInfoTemp->fMinData > -.1
-			|| (tFeatureInfoTemp->fThreshold > tFeatureInfoTemp->fMinData && tDeviceInfoTemp->uLevel >= 6 && (tDeviceInfoTemp->uMode == MODE_EXPRESSION || tDeviceInfoTemp->uMode == MODE_MIXED)))
-			/* noise detection*/
-			tFeatureInfoTemp->uWearStatus = tFeatureInfoTemp->uPrevWearStatus;
+
+		/* 只有在前面没有已经直接判成 0 的情况下，再继续按模式和档位判定 */
+		if (uCandidateWearStatus == 1)
+		{
+			/* -------------------------
+			 * 2.1 吸乳模式
+			 * ------------------------- */
+			if (uMode == MODE_EXPRESSION)
+			{
+				/* L1 ~ L12 */
+				if (uLevel <= 11)
+				{
+					if (tFeatureInfoTemp->fThreshold < tFeatureInfoTemp->fMinData &&
+						tFeatureInfoTemp->fMinData < -.1)
+					{
+						uCandidateWearStatus = 0;
+					}
+				}
+				/* L13 ~ L15 */
+				else
+				{
+					if (tFeatureInfoTemp->uNormalWaveform > 10)
+					{
+						uCandidateWearStatus = 0;
+					}
+					else if (tFeatureInfoTemp->uWaveSpikes > 2)
+					{
+						uCandidateWearStatus = 0;
+					}
+					else if (tFeatureInfoTemp->fMinData > -.1
+						|| (tFeatureInfoTemp->fThreshold > tFeatureInfoTemp->fMinData && uLevel >= 6))
+					{
+						uCandidateWearStatus = tFeatureInfoTemp->uPrevWearStatus;
+					}
+				}
+			}
+
+			/* -------------------------
+			 * 2.2 刺激模式
+			 * ------------------------- */
+			else if (uMode == MODE_STIMULATION)
+			{
+				/* L1 ~ L14 基础退出条件 */
+				if (uLevel <= 14)
+				{
+					if (tFeatureInfoTemp->fThreshold < tFeatureInfoTemp->fMinData &&
+						tFeatureInfoTemp->fMinData < -.1)
+					{
+						uCandidateWearStatus = 0;
+					}
+					/* L10 ~ L14 */
+					else if (tFeatureInfoTemp->uWaveSpikes >= 5 &&
+							 uLevel >= 5 &&
+							 uLevel <= 14)
+					{
+						uCandidateWearStatus = 0;
+					}
+				}
+			}
+
+			/* -------------------------
+			 * 2.3 mixed 模式
+			 * ------------------------- */
+			else if (uMode == MODE_MIXED)
+			{
+				/* L1 ~ L2 */
+				if (uLevel <= 1)
+				{
+					if (tFeatureInfoTemp->fThreshold < tFeatureInfoTemp->fMinData &&
+						tFeatureInfoTemp->fMinData < -.1)
+					{
+						uCandidateWearStatus = 0;
+					}
+				}
+
+				/* L4 ~ L6 */
+				if (uCandidateWearStatus == 1)
+				{
+					if ((tFeatureInfoTemp->fThreshold < tFeatureInfoTemp->fMinDataBuffMin) &&
+						tFeatureInfoTemp->uWaveSpikes >= 5 &&
+						(uLevel >= 2 && uLevel <= 6))
+					{
+						uCandidateWearStatus = 0;
+					}
+				}
+
+				/* L7 及以上 */
+				if (uCandidateWearStatus == 1)
+				{
+					if (tFeatureInfoTemp->uWaveSpikes > 5 &&
+						(uLevel >= 7))
+					{
+						uCandidateWearStatus = 0;
+					}
+				}
+
+				/* 噪声/边界保持逻辑 */
+				if (uCandidateWearStatus == 1)
+				{
+					if (tFeatureInfoTemp->fMinData > -.1
+						|| (tFeatureInfoTemp->fThreshold > tFeatureInfoTemp->fMinData && uLevel >= 6))
+					{
+						uCandidateWearStatus = tFeatureInfoTemp->uPrevWearStatus;
+					}
+				}
+			}
+		}
 	}
+
+	/* =========================================================
+	 * 3. 根据候选状态和当前状态的差异，做抗抖切换
+	 * ========================================================= */
+	if (uCandidateWearStatus != tFeatureInfoTemp->uWearStatus)
+	{
+		/* 目标是从 0 -> 1 */
+		if (uCandidateWearStatus == 1)
+		{
+			/* 进入佩戴计数加一，退出计数清零 */
+			tFeatureInfoTemp->uWearOnCount++;
+			tFeatureInfoTemp->uWearOffCount = 0;
+
+			/* 连续 n 次满足进入条件，才真正切换为佩戴 */
+			if (tFeatureInfoTemp->uWearOnCount >= 25)
+			{
+				tFeatureInfoTemp->uWearStatus = 1;
+				tFeatureInfoTemp->uWearOnCount = 0;
+			}
+		}
+		else
+		{
+			/* 目标是从 1 -> 0
+			 * 退出佩戴计数加一，进入计数清零
+			 */
+			tFeatureInfoTemp->uWearOffCount++;
+			tFeatureInfoTemp->uWearOnCount = 0;
+
+			/* 连续 n 次满足退出条件，才真正切换为未佩戴 */
+			if (tFeatureInfoTemp->uWearOffCount >= 1)
+			{
+				tFeatureInfoTemp->uWearStatus = 0;
+				tFeatureInfoTemp->uWearOffCount = 0;
+			}
+		}
+	}
+	else
+	{
+		/* 候选状态和当前状态一致，说明本轮没有切换趋势，清空抗抖计数 */
+		tFeatureInfoTemp->uWearOnCount = 0;
+		tFeatureInfoTemp->uWearOffCount = 0;
+	}
+
+	/* 保存最终状态，供下一轮“保持上一状态”逻辑使用 */
 	tFeatureInfoTemp->uPrevWearStatus = tFeatureInfoTemp->uWearStatus;
-	/* compensation status */
+
+	/* =========================================================
+	 * 4. 只有在“已佩戴”且 pumping_time == 1 时，才进行补偿状态计算
+	 * ========================================================= */
 	if (tFeatureInfoTemp->uWearStatus == 1 && tFeatureInfoTemp->pumping_time == 1)
 	{
 		unsigned int uCount_Min = 0;
 		unsigned int uCount_Max = 0;
 
-		for (unsigned int i = 0; i < 6; i++)
+		/* 遍历最近缓存的 6 个最小负压点，判断当前是否偏离 loaded 阈值 */
+		for (unsigned int i = 0; i < 5; i++)
 		{
-			// fMinDataBuff是滤波后的数据，会比实际负压偏小，所以这里用fMinDataBuff[i] - 2 来做比较（实际需要缓存原始负压数据）
-			if ((tFeatureInfoTemp->fMinDataBuff[i] - 2) > tFeatureInfoTemp->fLoadedThreshold + 2 && (tFeatureInfoTemp->fMinDataBuff[i]-2) < -5)
+			/* fMinDataBuff 是滤波后的数据，会比实际负压偏小，
+			 * 所以这里用 fMinDataBuff[i] - 2 来做近似补偿
+			 * （后续如果能缓存原始负压数据会更准确）
+			 */
+			if ((tFeatureInfoTemp->fMinDataBuff[i]) > tFeatureInfoTemp->fLoadedThresholdBuff[i] + 0.5f &&
+				(tFeatureInfoTemp->fMinDataBuff[i]) < -5)
 			{
-				/* flag */
+				/* 负压偏小，记录一次“需要增强补偿”的计数 */
 				uCount_Min += 1;
 			}
-			else if ((tFeatureInfoTemp->fMinDataBuff[i] - 2) < tFeatureInfoTemp->fLoadedThreshold - 2 && (tFeatureInfoTemp->fMinDataBuff[i]-2) < -5)
+			else if ((tFeatureInfoTemp->fMinDataBuff[i]) < tFeatureInfoTemp->fLoadedThresholdBuff[i] - 0.5f &&
+					 (tFeatureInfoTemp->fMinDataBuff[i]) < -5)
 			{
-				/* flag */
+				/* 负压偏大，记录一次“需要减弱补偿”的计数 */
 				uCount_Max += 1;
 			}
 		}
-		if (uCount_Min >= 2)
+
+		float error = 0.0f;
+		float err_sum_candidate = 0.0f;
+		int newPwmOffset = 0;
+
+		float kp = 18.0f;
+		float ki = 3.0f;
+		float deadband = 0.1f;
+		float i_limit = 30.0f;
+		int step_limit = 100;
+
+		/* 先用最近3次 valley 计算一个统一误差，注意方向要和旧逻辑一致：
+		* 偏浅 -> error > 0 -> 输出正补偿
+		* 偏深 -> error < 0 -> 输出负补偿
+		*/
+		float err0 = tFeatureInfoTemp->fMinDataBuff[0] - tFeatureInfoTemp->fLoadedThresholdBuff[0];
+		float err1 = tFeatureInfoTemp->fMinDataBuff[1] - tFeatureInfoTemp->fLoadedThresholdBuff[1];
+		float err2 = tFeatureInfoTemp->fMinDataBuff[2] - tFeatureInfoTemp->fLoadedThresholdBuff[2];
+		float err3 = tFeatureInfoTemp->fMinDataBuff[3] - tFeatureInfoTemp->fLoadedThresholdBuff[3];
+		float err4 = tFeatureInfoTemp->fMinDataBuff[4] - tFeatureInfoTemp->fLoadedThresholdBuff[4];
+		error = 0.2f * err2 + 0.3f * err3 + 0.5f * err4;
+
+		/* 至少有 4 个点提示负压偏小，进入补偿状态 1 */
+		if (uCount_Min >= 4)
 		{
 			tFeatureInfoTemp->uCompsStatus = 1;
-			if (fabs((float)(tFeatureInfoTemp->fLoadedThreshold - (tFeatureInfoTemp->fMinData-2)) > 10))
-				tFeatureInfoTemp->iDelta_pwm = 0;
-			else
-				/*2% delta_pwm 对应1kPa变化*/
-				tFeatureInfoTemp->iDelta_pwm = 200 * fabs((float)(tFeatureInfoTemp->fLoadedThreshold - (tFeatureInfoTemp->fMinData-2)));
-		}
 
-		else if (uCount_Max >= 2)
+			if (error < 0.0f)
+			{
+				tFeatureInfoTemp->uCompsStatus = 0;
+				error = 0.0f;
+			}			
+
+			/* 如果偏差过大，则不输出 PWM 补偿 */
+			if (fabs(error) > 10.0f)
+			{
+				tFeatureInfoTemp->iDelta_pwm = 0;
+				tFeatureInfoTemp->fCompErrSum = 0.0f;
+				tFeatureInfoTemp->fCompPrevErr = 0.0f;
+			}
+			else
+			{
+				if (fabs(error) < deadband)
+				{
+					error = 0.0f;
+				}
+
+				/* PI 控制：偏浅时 error 应为正，输出正补偿 */
+				err_sum_candidate = tFeatureInfoTemp->fCompErrSum + error;
+				err_sum_candidate = CLAMP(err_sum_candidate, -i_limit, i_limit);
+
+				tFeatureInfoTemp->iDelta_pwm =
+					(int)(kp * error + ki * err_sum_candidate);
+				tFeatureInfoTemp->iDelta_pwm = CLAMP(tFeatureInfoTemp->iDelta_pwm, 0, step_limit);
+
+				newPwmOffset = tFeatureInfoTemp->iPwmOffset + tFeatureInfoTemp->iDelta_pwm;
+
+				/* 输出正向饱和时冻结积分 */
+				if (!(newPwmOffset >= 3000 && error > 0.0f))
+				{
+					tFeatureInfoTemp->fCompErrSum = err_sum_candidate;
+				}
+
+				tFeatureInfoTemp->iPwmOffset = CLAMP(newPwmOffset, -3000, 3000);
+				tFeatureInfoTemp->fCompPrevErr = error;
+			}
+		}
+		/* 至少有 4 个点提示负压偏大，进入补偿状态 2 */
+		else if (uCount_Max >= 4)
 		{
 			tFeatureInfoTemp->uCompsStatus = 2;
-			if (fabs((float)(tFeatureInfoTemp->fLoadedThreshold - (tFeatureInfoTemp->fMinData-2)) > 10))
+
+			if (error > 0.0f)
+			{
+				error = 0.0f;
+				tFeatureInfoTemp->uCompsStatus = 0;
+			}		
+
+			/* 如果偏差过大，则不输出 PWM 补偿 */
+			if (fabs(error) > 10.0f)
+			{
 				tFeatureInfoTemp->iDelta_pwm = 0;
+				tFeatureInfoTemp->fCompErrSum = 0.0f;
+				tFeatureInfoTemp->fCompPrevErr = 0.0f;
+			}
 			else
-				tFeatureInfoTemp->iDelta_pwm = -200 * fabs((float)(tFeatureInfoTemp->fLoadedThreshold - (tFeatureInfoTemp->fMinData-2)));
+			{
+				if (fabs(error) < deadband)
+				{
+					error = 0.0f;
+				}
+
+				/* PI 控制：偏深时 error 应为负，输出负补偿 */
+				err_sum_candidate = tFeatureInfoTemp->fCompErrSum + error;
+				err_sum_candidate = CLAMP(err_sum_candidate, -i_limit, i_limit);
+
+				tFeatureInfoTemp->iDelta_pwm =
+					(int)(kp * error + ki * err_sum_candidate);
+				tFeatureInfoTemp->iDelta_pwm = CLAMP(tFeatureInfoTemp->iDelta_pwm, -step_limit, 0);
+
+				newPwmOffset = tFeatureInfoTemp->iPwmOffset + tFeatureInfoTemp->iDelta_pwm;
+
+				/* 输出负向饱和时冻结积分 */
+				if (!(newPwmOffset <= -3000 && error < 0.0f))
+				{
+					tFeatureInfoTemp->fCompErrSum = err_sum_candidate;
+				}
+
+				tFeatureInfoTemp->iPwmOffset = CLAMP(newPwmOffset, -3000, 3000);
+				tFeatureInfoTemp->fCompPrevErr = error;
+			}
 		}
 		else
 		{
+			/* 当前不需要补偿，后续可继续补充更完整的泵侧补偿逻辑 */
 			tFeatureInfoTemp->uCompsStatus = 0;
 			tFeatureInfoTemp->iDelta_pwm = 0;
+
+			/* 没触发补偿时，缓慢释放积分，避免积分残留过大 */
+			tFeatureInfoTemp->fCompErrSum *= 0.5f;
+			tFeatureInfoTemp->fCompPrevErr = 0.0f;
 		}
+		/*
+		ALGO_LOG_INFO("DEBUG ALGO INFO err raw: e0=%f,e1=%f,e2=%f, e3=%f, e4=%f",
+		err0,
+		err1,
+		err2,
+		err3,
+		err4);
+		ALGO_LOG_INFO("DEBUG ALGO INFO err final: err=%f, err_sum_candidate=%f, deadband=%f",
+		error,
+		err_sum_candidate,
+		deadband);
+		ALGO_LOG_INFO("DEBUG ALGO INFO comp: wear=%d, pump_time=%d, count_min=%d, count_max=%d, delta=%d, offset=%d",
+		tFeatureInfoTemp->uWearStatus,
+		tFeatureInfoTemp->pumping_time,
+		uCount_Min,
+		uCount_Max,
+		tFeatureInfoTemp->iDelta_pwm,
+		tFeatureInfoTemp->iPwmOffset);*/
 	}
+	// 	/* 至少有 2 个点提示负压偏小，进入补偿状态 1 */
+	// 	if (uCount_Min >= 2)
+	// 	{
+	// 		tFeatureInfoTemp->uCompsStatus = 1;
+
+	// 		/* 如果偏差过大，则不输出 PWM 补偿 */
+	// 		if (fabs((float)(tFeatureInfoTemp->fLoadedThreshold - (tFeatureInfoTemp->fMinData))) > 10)
+	// 			tFeatureInfoTemp->iDelta_pwm = 0;
+	// 		else
+	// 			/* 2% delta_pwm 对应 1kPa 变化 */
+	// 			tFeatureInfoTemp->iDelta_pwm = 10 * fabs((float)(tFeatureInfoTemp->fLoadedThreshold - (tFeatureInfoTemp->fMinData)));
+	// 	}
+
+	// 	/* 至少有 2 个点提示负压偏大，进入补偿状态 2 */
+	// 	else if (uCount_Max >= 2)
+	// 	{
+	// 		tFeatureInfoTemp->uCompsStatus = 2;
+
+	// 		/* 如果偏差过大，则不输出 PWM 补偿 */
+	// 		if (fabs((float)(tFeatureInfoTemp->fLoadedThreshold - tFeatureInfoTemp->fMinData)) > 10)
+	// 			tFeatureInfoTemp->iDelta_pwm = 0;
+	// 		else
+	// 			tFeatureInfoTemp->iDelta_pwm = -10 * fabs((float)(tFeatureInfoTemp->fLoadedThreshold - (tFeatureInfoTemp->fMinData)));
+	// 	}
+	// 	else
+	// 	{
+	// 		/* 当前不需要补偿，后续可继续补充更完整的泵侧补偿逻辑 */
+	// 		tFeatureInfoTemp->uCompsStatus = 0;
+	// 		tFeatureInfoTemp->iDelta_pwm = 0;
+	// 	}
+	// 	/* 不在这里清累计值，只更新累计补偿 */
+	// 	tFeatureInfoTemp->iPwmOffset += tFeatureInfoTemp->iDelta_pwm;
+	// 	tFeatureInfoTemp->iPwmOffset = CLAMP(tFeatureInfoTemp->iPwmOffset, -3000, 3000);
+	// }
 }
+
 
 
 /*************************************************************************************************************************************************
@@ -726,45 +1391,109 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 * 返 回 值：无
 *************************************************************************************************************************************************
 */
-void V3WearDetectionMain(float *fPressureData, algo_air_pressure_data_t sPressureData, unsigned char uLevelLeft, unsigned char ulevelRight, unsigned char uModeLeft, unsigned char uModeRight)
+void V3WearDetectionMain(wear_input_t sPressureData)
 {
+	unsigned char uLevelLeft = sPressureData.pump_state[CHANNEL_0].level;
+	unsigned char uLevelRight = sPressureData.pump_state[CHANNEL_1].level;
+	unsigned char uModeLeft = sPressureData.pump_state[CHANNEL_0].mode;
+	unsigned char uModeRight = sPressureData.pump_state[CHANNEL_1].mode;
+
 	/* reset if mode or level changed */
-	if (uLevelLeft - 1 != tDeviceInfo[CHANNEL_0].uLevel || uModeLeft != tDeviceInfo[CHANNEL_0].uMode)
+	if ((uLevelLeft - 1 != tDeviceInfo[CHANNEL_0].uLevel) ||
+		(uModeLeft != tDeviceInfo[CHANNEL_0].uMode))
 	{
 		V3WearDetectionModeReset(uLevelLeft, uModeLeft, CHANNEL_0);
 	}
-	if (ulevelRight - 1 != tDeviceInfo[CHANNEL_1].uLevel || uModeRight != tDeviceInfo[CHANNEL_1].uMode)
-	{
-		V3WearDetectionModeReset(ulevelRight, uModeRight, CHANNEL_1);
-	}
-#if DEBUG == 1
-	/* processing left and right data */
-	/* for debug, process one channel */
-	unsigned int i = 0;
-	PressureDataPreprocess(fPressureData[i], &tFilterInfo[i], &tDataBuffer[i], &tFeatureInfo[i]);
-	PressureDataFeature(&tPVInfo[i], &tWaveInfo[i], &tDataBuffer[i], &tFeatureInfo[i], &tDeviceInfo[i]);
-	WearDetectionDetermination(&tFeatureInfo[i], &tDeviceInfo[i]);
-#else
 
+	if ((uLevelRight - 1 != tDeviceInfo[CHANNEL_1].uLevel) ||
+		(uModeRight != tDeviceInfo[CHANNEL_1].uMode))
+	{
+		V3WearDetectionModeReset(uLevelRight, uModeRight, CHANNEL_1);
+	}
+
+	/* update device target parameters every cycle */
 	for (unsigned int i = 0; i < CHANNEL_NUM; i++)
 	{
-		if (((sPressureData.pump_state[i].state == SUCTION_STATUS_GENERATE) || (sPressureData.pump_state[i].state == SUCTION_STATUS_HOLD)))
+		tDeviceInfo[i].uTargetPressure = sPressureData.pump_state[i].target_pressure;
+		tDeviceInfo[i].uTargetPumpTime = sPressureData.pump_state[i].target_pump_time;
+	}
+
+#if DEBUG == 1
+	{
+		unsigned int i = 0;
+		const STARGET_CURVE_ITEM* ptTargetCurve = NULL;
+
+		if ((sPressureData.pump_state[i].state == SUCTION_STATUS_GENERATE) ||
+			(sPressureData.pump_state[i].state == SUCTION_STATUS_HOLD))
 		{
 			tFeatureInfo[i].pumping_time += 1;
 		}
-		else /* if (sPressureData.pump_state[i].state != SUCTION_STATUS_IDLE)*/
+		else
 		{
-			// 如果不在泵奶期间，则不进行算法处理
 			tFeatureInfo[i].uCompsStatus = 0;
 			tFeatureInfo[i].iDelta_pwm = 0;
 			tFeatureInfo[i].pumping_time = 0;
 		}
-		/* processing left and right data */
-		PressureDataPreprocess(fPressureData[i], &tFilterInfo[i], &tDataBuffer[i], &tFeatureInfo[i]);
-		PressureDataFeature(&tPVInfo[i], &tWaveInfo[i], &tDataBuffer[i], &tFeatureInfo[i], &tDeviceInfo[i]);
+
+		ptTargetCurve = GetCurrentTargetCurveItem(&tDeviceInfo[i]);
+		if (ptTargetCurve != NULL)
+		{
+			tFeatureInfo[i].fThreshold = ptTargetCurve->target_pump_pressure;
+			tFeatureInfo[i].fLoadedThreshold = ptTargetCurve->target_load_pressure;
+		}
+
+		PressureDataPreprocess(sPressureData.air_pressure[i],
+			&tFilterInfo[i],
+			&tDataBuffer[i],
+			&tFeatureInfo[i]);
+		PressureDataFeature(&tPVInfo[i],
+			&tWaveInfo[i],
+			&tDataBuffer[i],
+			&tFeatureInfo[i],
+			&tDeviceInfo[i]);
 		WearDetectionDetermination(&tFeatureInfo[i], &tDeviceInfo[i]);
-		/* update current index */
-		/*tDataBuffer[i].uCurrPos = BufferCircleNextIndex(tDataBuffer[i].uCurrPos, 1, WIN_SIZE);*/
+	}
+#else
+	for (unsigned int i = 0; i < CHANNEL_NUM; i++)
+	{
+		const STARGET_CURVE_ITEM* ptTargetCurve = NULL;
+
+		tFeatureInfo[i].uPumpState = sPressureData.pump_state[i].state;
+
+		if ((sPressureData.pump_state[i].state == SUCTION_STATUS_GENERATE) ||
+			(sPressureData.pump_state[i].state == SUCTION_STATUS_HOLD))
+		{
+			tFeatureInfo[i].pumping_time += 1;
+		}
+		else
+		{
+			/* 如果不在泵奶期间，则不进行算法处理 */
+			tFeatureInfo[i].uCompsStatus = 0;
+			tFeatureInfo[i].iDelta_pwm = 0;
+			tFeatureInfo[i].pumping_time = 0;
+			tFeatureInfo[i].fCompErrSum = 0;
+			tFeatureInfo[i].fCompPrevErr = 0;
+		}
+
+		/* update current pump loop parameters in case of mixed mode or level change */
+		ptTargetCurve = GetCurrentTargetCurveItem(&tDeviceInfo[i]);
+		if (ptTargetCurve != NULL)
+		{
+			tFeatureInfo[i].fThreshold = ptTargetCurve->target_pump_pressure;
+			tFeatureInfo[i].fLoadedThreshold = ptTargetCurve->target_load_pressure;
+		}
+		/* processing left and right data */
+		float filtered_data = PressureDataPreprocess(sPressureData.air_pressure[i],
+			&tFilterInfo[i],
+			&tDataBuffer[i],
+			&tFeatureInfo[i]);
+		/*ALGO_LOG_INFO("air pressure p%d_filtered: %f", (i + 1), filtered_data);*/
+		PressureDataFeature(&tPVInfo[i],
+			&tWaveInfo[i],
+			&tDataBuffer[i],
+			&tFeatureInfo[i],
+			&tDeviceInfo[i]);
+		WearDetectionDetermination(&tFeatureInfo[i], &tDeviceInfo[i]);
 	}
 #endif /* DEBUG */
 }
@@ -780,7 +1509,7 @@ void V3WearDetectionMain(float *fPressureData, algo_air_pressure_data_t sPressur
 * 返 回 值：无
 *************************************************************************************************************************************************
 */
-void GetWearDetectionResult(unsigned char *uWearStatus)
+void GetWearDetectionResult(unsigned char* uWearStatus)
 {
 	uWearStatus[0] = tFeatureInfo[0].uWearStatus;
 	uWearStatus[1] = tFeatureInfo[1].uWearStatus;
@@ -801,30 +1530,18 @@ void GetCompensationStatus(unsigned char* uCompsStatus, int* iDelta_pwm)
 {
 	uCompsStatus[0] = tFeatureInfo[0].uCompsStatus;
 	uCompsStatus[1] = tFeatureInfo[1].uCompsStatus;
-	iDelta_pwm[0] = tFeatureInfo[0].iDelta_pwm;
-	iDelta_pwm[1] = tFeatureInfo[1].iDelta_pwm;
+
+	if ((tFeatureInfo[0].uPumpState == SUCTION_STATUS_GENERATE) ||
+		(tFeatureInfo[0].uPumpState == SUCTION_STATUS_HOLD))
+		iDelta_pwm[0] = tFeatureInfo[0].iPwmOffset;
+	else
+		iDelta_pwm[0] = 0;
+
+	if ((tFeatureInfo[1].uPumpState == SUCTION_STATUS_GENERATE) ||
+		(tFeatureInfo[1].uPumpState == SUCTION_STATUS_HOLD))
+		iDelta_pwm[1] = tFeatureInfo[1].iPwmOffset;
+	else
+		iDelta_pwm[1] = 0;
 }
+
 //#endif
-/*
-void GetDebugInfo(SRESULT_INFO *result_info)
-{
-	for (unsigned i = 0; i < CHANNEL_NUM; i++)
-	{
-		result_info[i].uWearStatus = tFeatureInfo[i].uWearStatus;
-		result_info[i].uCompsStatus = tFeatureInfo[i].uCompsStatus;
-		result_info[i].iDelta_pwm = tFeatureInfo[i].iDelta_pwm;
-		result_info[i].fMinData = tFeatureInfo[i].fMinData;
-		result_info[i].fThreshold = tFeatureInfo[i].fThreshold;
-		result_info[i].fLoadedThreshold = tFeatureInfo[i].fLoadedThreshold;
-		result_info[i].fMinDataBuffMin = tFeatureInfo[i].fMinDataBuffMin;
-		result_info[i].uNoiseLevel = tFeatureInfo[i].uNoiseLevel;
-		result_info[i].uWaveSpikes = tFeatureInfo[i].uWaveSpikes;
-		result_info[i].uNormalWaveform = tFeatureInfo[i].uNormalWaveform;
-		result_info[i].fMinDataBuff[0] = tFeatureInfo[i].fMinDataBuff[0];
-		result_info[i].fMinDataBuff[1] = tFeatureInfo[i].fMinDataBuff[1];
-		result_info[i].fMinDataBuff[2] = tFeatureInfo[i].fMinDataBuff[2];
-		result_info[i].fMinDataBuff[3] = tFeatureInfo[i].fMinDataBuff[3];
-		result_info[i].fMinDataBuff[4] = tFeatureInfo[i].fMinDataBuff[4];
-		result_info[i].fMinDataBuff[5] = tFeatureInfo[i].fMinDataBuff[5];
-	}
-}*/

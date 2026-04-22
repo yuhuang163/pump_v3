@@ -6,7 +6,6 @@
 #include "breast_pump_mode.h"
 #include "breast_pump_manager.h" // IWYU pragma: keep
 
-
 /*
 * DEFINES
 *****************************************************************************************
@@ -155,13 +154,8 @@ static void get_breast_pump_setting(pump_setting_t *setting, uint8_t step_index)
         LOGE("step_index out of range");
         return;
     }
-#if IS_PUMP_STEPS_USE_SAME_SETTING
-    setting->level[0] = breast_pump_obj->priv.setting[0].level[0];
-    setting->level[1] = breast_pump_obj->priv.setting[0].level[1];
-    setting->speed = breast_pump_obj->priv.setting[0].speed;
-#else
     memcpy(setting, &breast_pump_obj->priv.setting[step_index], sizeof(pump_setting_t));
-#endif
+
 }
 
 static void set_breast_pump_setting(pump_setting_t *setting, uint8_t step_index, bool is_need_store)
@@ -175,20 +169,23 @@ static void set_breast_pump_setting(pump_setting_t *setting, uint8_t step_index,
     for (int i = 0; i < ROOT_BREAST_PUMP_STEP_MAX; i++) {
         breast_pump_obj->priv.setting[i].level[0] = setting->level[0];
         breast_pump_obj->priv.setting[i].level[1] = setting->level[1];
-        breast_pump_obj->priv.setting[i].speed = setting->speed;
-    }
-#else
-    memcpy(&breast_pump_obj->priv.setting[step_index], setting, sizeof(pump_setting_t));
-#endif
-    
-    if (is_need_store) {
-        struct storage_manager_context *st = breast_pump_obj->priv.st;
-        if (st) {
-            st->put_store_ram_val(STORE_ID_PUMP_SETTING_INFO, breast_pump_obj->priv.m_info.mode, 
+        if (PUMP_IS_COMMON_MODE(breast_pump_obj->priv.m_info.mode)) {
+            breast_pump_obj->priv.setting[i].speed = setting->speed;
+        }
+
+        if (is_need_store && breast_pump_obj->priv.st) {
+            breast_pump_obj->priv.st->put_store_ram_val(STORE_ID_PUMP_SETTING_INFO, breast_pump_obj->priv.m_info.mode, 
                 step_index, setting);
         }
     }
-
+#else
+    memcpy(&breast_pump_obj->priv.setting[step_index], setting, sizeof(pump_setting_t));
+    if (is_need_store && breast_pump_obj->priv.st) {
+        breast_pump_obj->priv.st->put_store_ram_val(STORE_ID_PUMP_SETTING_INFO, breast_pump_obj->priv.m_info.mode, 
+            step_index, setting);
+    }
+#endif
+    
     /// 通知app
     servers_manager_context_t *servers_ctx = (servers_manager_context_t *)find_module(ID_MODULE_SERVERS);
     EXCEPTION_CHECK_VOID(servers_ctx);
@@ -233,7 +230,6 @@ static void set_breast_pump_mode(uint32_t mode, uint8_t is_store_mode, uint8_t i
         };
         servers_ctx->hook->app_old_protocol_server_data_publish(APP_OLD_COMM_CID_NOTIFY_STATUS, &args);
     }
-
 }
 
 static int get_breast_pump_mode(void)

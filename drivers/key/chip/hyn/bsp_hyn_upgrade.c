@@ -16,6 +16,9 @@
 *****************************************************************************************
 */
 #define HYN_KEY_RETRY_COUNT             (3)
+#ifndef HYN_OTA_VERBOSE_LOG
+#define HYN_OTA_VERBOSE_LOG             (0)
+#endif
 
 /*
 * GLOBAL VARIABLE DEFINITIONS
@@ -28,7 +31,9 @@
 */
 static uint8_t tp_hrs_write_bytes(uint16_t reg_addr, uint8_t *buf, uint16_t len)
 {
+#if HYN_OTA_VERBOSE_LOG
 	LOG_PBUS("tp_hrs_write_bytes: reg_addr: 0x%04x, len: %d", reg_addr, len);
+#endif
     uint8_t addr_buf[2] = {(uint8_t)(reg_addr >> 8), (uint8_t)(reg_addr & 0xFF)};
     i2c_master_data_t data = {
         .dev_address = HYN_TOUCH_BOOT_I2C_ADDR,
@@ -42,7 +47,9 @@ static uint8_t tp_hrs_write_bytes(uint16_t reg_addr, uint8_t *buf, uint16_t len)
 
 static int tp_hrs_read_bytes(uint16_t reg_addr, uint8_t *buf, uint16_t len)
 {
+#if HYN_OTA_VERBOSE_LOG
     LOG_PBUS("tp_hrs_read_bytes: reg_addr: 0x%04x, len: %d", reg_addr, len);
+#endif
     uint8_t addr_buf[2] = {(uint8_t)(reg_addr >> 8), (uint8_t)(reg_addr & 0xFF)};
     i2c_master_data_t data = {
         .dev_address = HYN_TOUCH_BOOT_I2C_ADDR,
@@ -147,6 +154,7 @@ static uint16_t  hyn_read_checksum(void)//读取IC里面的校验和
 static uint8_t hyn_ic_update(uint16_t start_addr, uint16_t len, uint8_t *src_data, uint8_t retry)//升级固件
 {
 	uint16_t written_len;
+    uint8_t last_reported_progress = 0;
 	uint8_t cmd[4];
 	uint8_t read_buf[2];
 	uint8_t retry_cnt = 50;
@@ -214,7 +222,11 @@ static uint8_t hyn_ic_update(uint16_t start_addr, uint16_t len, uint8_t *src_dat
 		written_len += PER_LEN;
 		/// 上报升级进度
 		uint32_t progress = (written_len * 100) / len;
-		bsp_touch_key_ota_event_cb(KEY_OTA_EVENT_UPDATE_PROGRESS, progress > 100 ? 100 : progress);
+        uint8_t progress_u8 = (uint8_t)(progress > 100 ? 100 : progress);
+        if ((progress_u8 >= 100) || (progress_u8 >= (uint8_t)(last_reported_progress + 5))) {
+            last_reported_progress = progress_u8;
+            bsp_touch_key_ota_event_cb(KEY_OTA_EVENT_UPDATE_PROGRESS, progress_u8);
+        }
     } while(len);
 
 	cmd[0] = 0x00;
@@ -226,7 +238,7 @@ static uint8_t hyn_ic_update(uint16_t start_addr, uint16_t len, uint8_t *src_dat
  * @param bin  固件镜像（含 6 字节头：addr_lo,addr_hi,len_lo,len_hi,cs_lo,cs_hi + payload）
  * @param bin_size 镜像总长度
  */
-static uint8_t touch_fw_update_with_bin(const uint8_t *bin, uint32_t bin_size)
+static uint8_t touch_fw_update_with_bin(const uint8_t *bin, uint32_t bin_size, bool force_update)
 {
 	uint16_t ic_checksum = 0;
 
@@ -253,11 +265,8 @@ static uint8_t touch_fw_update_with_bin(const uint8_t *bin, uint32_t bin_size)
         ic_checksum = hyn_read_checksum();
         LOG_PBUS("IC_checksum: 0x%02x \r\n", ic_checksum);
 		
-#if (BSP_TOUCH_IC_FW_OTA_AUTO > 0)
-		if ((start_addr | length) == 0x3C00) {	
-#else
-		if ((ic_checksum != checksum) && ((start_addr | length) == 0x3C00)) {	
-#endif
+		if ((start_addr | length) == 0x3C00 &&
+            (force_update || (ic_checksum != checksum))) {
             for (retry = 1; retry < 4; retry++) {
                 if (hyn_ic_update(start_addr, length, (uint8_t *)(uintptr_t)(bin + 6), retry) == HYN_FAULT) {
                     continue;
@@ -288,11 +297,21 @@ static uint8_t touch_fw_update_with_bin(const uint8_t *bin, uint32_t bin_size)
 
 uint8_t touch_fw_update_handler(void)
 {
-    return touch_fw_update_with_bin(app_bin, (uint32_t)sizeof(app_bin));
+    return touch_fw_update_with_bin(app_bin, (uint32_t)sizeof(app_bin), false);
+}
+
+uint8_t touch_fw_update_handler_force(bool force_update)
+{
+    return touch_fw_update_with_bin(app_bin, (uint32_t)sizeof(app_bin), force_update);
 }
 
 bool touch_firmware_is_lower_than_image(int current_version)
 {
     return current_version < TOUCH_IC_FW_VERSION;
+}
+
+int touch_firmware_target_version(void)
+{
+    return TOUCH_IC_FW_VERSION;
 }
 #endif

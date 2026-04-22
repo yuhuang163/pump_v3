@@ -30,9 +30,8 @@ typedef enum {
     RESOURCE_ID_HOME_IDLE_LABLE_ICON,          /// 空闲界面文本区域图标
     RESOURCE_ID_HOME_IDLE_BUTTOM_ICON,         /// 空闲界面按钮指示图标
     RESOURCE_ID_AIRPLANE_UNLOCK_BUTTON_ICON,   /// 飞行模式解锁按钮图标
-
+    RESOURCE_ID_HOME_LIGHT_LABLE_ICON,         /// 首页光线图标
     RESOURCE_ID_HOME_BLE_LABEL_ICON,           /// 首页蓝牙标签图标
-
 
     /* 引导组 [150..200] */
     RESOURCE_ID_GUIDE_PAGE1_IMG = 150,        /// 引导-页1图片
@@ -89,11 +88,14 @@ typedef enum {
     RESOURCE_ID_PUMP_FINISH_IP,           /// 泵奶完成图标
     RESOURCE_ID_CHARGE_ADAPTER_IP,        /// 首页充电适配器图标
    
-    RESOURCE_ID_NM_ANIM_IP_START = 1100,   /// 泵奶模式动画-开始
-    RESOURCE_ID_NM_ANIM_IP_END = 1265,     /// 泵奶模式动画-结束
+    RESOURCE_ID_YAWN_ANIM_IP_START = 1100,   /// 打哈欠动画-开始
+    RESOURCE_ID_YAWN_ANIM_IP_END = 1180,     /// 打哈欠动画-结束
 
-    RESOURCE_ID_PM_ANIM_IP_START = 1300,   /// 个性化模式动画-开始
-    RESOURCE_ID_PM_ANIM_IP_END = 1465,     /// 个性化模式动画-结束
+    RESOURCE_ID_SHAKE_BOTTLE_ANIM_IP_START = 1200,   /// 摇奶瓶动画-开始
+    RESOURCE_ID_SHAKE_BOTTLE_ANIM_IP_END = 1280,     /// 摇奶瓶动画-结束
+
+    RESOURCE_ID_SUCTION_ANIM_IP_START = 1300,   /// 吸奶动画-开始
+    RESOURCE_ID_SUCTION_ANIM_IP_END = 1326,     /// 吸奶动画-结束
 
     RESOURCE_ID_HD_ANIM_IP_START = 1500,   /// 首页默认动画-开始
     RESOURCE_ID_HD_ANIM_IP_END = 1619,     /// 首页默认动画-结束

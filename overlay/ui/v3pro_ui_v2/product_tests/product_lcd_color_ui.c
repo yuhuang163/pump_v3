@@ -96,11 +96,11 @@ void ui_display_lcd_color_test_remove(ui_manager_context_t *thiz)
 int ui_display_lcd_color_test_process(ui_manager_context_t *thiz)
 {
     EXCEPTION_CHECK_INT(thiz);
+    ui_proc_product_test_t *proc = (ui_proc_product_test_t *)thiz->priv.play_info.user_data;
+    EXCEPTION_CHECK_INT(proc);
     thiz->priv.fps_count++;
     product_info->force_update = true;
     lcd_color_test_update(thiz);
-    ui_proc_product_test_t *proc = (ui_proc_product_test_t *)thiz->priv.play_info.user_data;
-    EXCEPTION_CHECK_INT(proc);
     if (get_timestamp() - thiz->priv.fps_start_time >= 1000) {
         thiz->priv.fps_start_time = get_timestamp();
         LOG_UI("===> lcd_color fps: %d", thiz->priv.fps_count);

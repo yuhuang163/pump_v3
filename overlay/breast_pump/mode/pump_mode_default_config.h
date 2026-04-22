@@ -12,13 +12,18 @@ extern "C" {
 #include "project_default_features.h"
 #include "motor_policy.h"
 #include "persist_storage.h"
+#include "breast_pump_manager_api.h" // IWYU pragma: keep
 
 #ifndef REGULAR_PUMPING_MODE_LEN
 #error "REGULAR_PUMPING_MODE_LEN not defined. Check project_default_features.h include."
 #endif
 
-/// 常规模式默认工作时长30分钟，单位：秒
+/// 常规模式默认工作时长
+#if IS_SUPPORT_MODE_WORK_TIME_ACCUMULATE
+#define NORMAL_MODE_DEFAULT_WORK_TIME                (SETTING_PUMP_TIME_MAX / 1000)
+#else
 #define NORMAL_MODE_DEFAULT_WORK_TIME                ((59 * 60) + 59)
+#endif
 /// 无效工作时长，子模式不需要指定工作时长
 #define INVALID_WORK_TIME                            0  
 /// 吸乳模式默认周期 单位：毫秒
@@ -282,7 +287,7 @@ static const motor_policy_cfg_t lactation_start_default[LACTATION_START_MODE_LEN
 /// 21.5 min：刺激 1.5min + 吸乳 20min
 static const motor_policy_cfg_t regular_pumping_default[REGULAR_PUMPING_MODE_LEN] = {
     {MOTOR_TIME_POLICY, REGULAR_PUMPING_MODE_STIMULATION_TIME, {
-        MOTOR_PARAM_TABLE, {SUCTION_SPEED_HIGH, BREAST_PUMP_LEVEL_1, SUCTION_MODE_SHORT},
+        MOTOR_PARAM_TABLE, {SUCTION_SPEED_MID, BREAST_PUMP_LEVEL_1, SUCTION_MODE_SHORT},
         {1, PUMP_MODE_DEFAULT_PERIOD}}
         },
     {MOTOR_TIME_POLICY, REGULAR_PUMPING_MODE_PUMP_TIME, {
@@ -295,15 +300,15 @@ static const motor_policy_cfg_t regular_pumping_default[REGULAR_PUMPING_MODE_LEN
 /// 22 min：刺激 2min+吸乳 5min+混合 15min；Level 3
 static const motor_policy_cfg_t emptying_boost_default[EMPTYING_BOOST_MODE_LEN] = {
     {MOTOR_TIME_POLICY, EMPTYING_BOOST_MODE_STIMULATION_TIME, {
-        MOTOR_PARAM_TABLE, {SUCTION_SPEED_MID, BREAST_PUMP_LEVEL_3, SUCTION_MODE_SHORT},
+        MOTOR_PARAM_TABLE, {SUCTION_SPEED_MID, BREAST_PUMP_LEVEL_1, SUCTION_MODE_SHORT},
         {1, PUMP_MODE_DEFAULT_PERIOD}}
         },
     {MOTOR_TIME_POLICY, EMPTYING_BOOST_MODE_PUMP_TIME, {
-        MOTOR_PARAM_TABLE, {SUCTION_SPEED_MID, BREAST_PUMP_LEVEL_3, SUCTION_MODE_LONG},
+        MOTOR_PARAM_TABLE, {SUCTION_SPEED_MID, BREAST_PUMP_LEVEL_1, SUCTION_MODE_LONG},
         {1, PUMP_MODE_DEFAULT_PERIOD}}
         },
     {MOTOR_TIME_POLICY, EMPTYING_BOOST_MODE_MIX_TIME, {
-        MOTOR_PARAM_TABLE, {SUCTION_SPEED_MID, BREAST_PUMP_LEVEL_3, SUCTION_MODE_MIX_SHORT},
+        MOTOR_PARAM_TABLE, {SUCTION_SPEED_MID, BREAST_PUMP_LEVEL_1, SUCTION_MODE_MIX_SHORT},
         {5, PUMP_MODE_DEFAULT_PERIOD}}
         },
     {MOTOR_TIME_SUB_POLICY, INVALID_WORK_TIME, {

@@ -43,14 +43,19 @@ static void wear_detection_process_data(void)
 {
     if (s_task_flag & (1 << WEAR_DETECTION_TASK)) {
         /// TODO: 实现佩戴检测算法
-        /*
-        V3WearDetectionMain(s_air_pressure_data.air_pressure, s_air_pressure_data.pump_state[0].level, 
-            s_air_pressure_data.pump_state[1].level,
-            s_air_pressure_data.pump_state[0].mode, 
-            s_air_pressure_data.pump_state[1].mode);
+
+        wear_input_t wear_input = {
+            .do_work = s_air_pressure_data.do_work,
+            .timestamp = s_air_pressure_data.timestamp,
+        };
+        for (uint8_t i = 0; i < ALGO_AIR_PRESSURE_NUM; i++) {
+            wear_input.air_pressure[i] = s_air_pressure_data.air_pressure[i];
+            wear_input.pump_state[i] = s_air_pressure_data.pump_state[i];
+        }
+        V3WearDetectionMain(wear_input);
         /// TODO: 修改算法结果s_result
         GetWearDetectionResult(s_result.wear_status);
-        GetCompensationStatus(s_result.compensation_status, s_result.compensation_delta_pwm);*/
+        GetCompensationStatus(s_result.compensation_status, s_result.compensation_delta_pwm);
         // TODO: 实现气压补偿算法
         V3ProAlgoMain(s_air_pressure_data);          // 不做气压补偿，采集数据
         GetCompensationResult(s_result.compensation_status, s_result.compensation_delta_pwm);
@@ -156,7 +161,8 @@ int algo_fusion_lib_init(algo_fusion_sensor_attr_type_e sensor_flag, algo_fusion
             return ALGO_FUSION_INIT_RUN_OUT_OF_MEMORY;
         }
         // just for initialization - not the final parameters
-        //V3WearDetectionInit(1, 1, 0, 0);
+        V3WearDetectionInit(1, 1, 0, 0);
+        ALGO_LOG_INFO("wear detection algo version: %s", v3_pressure_algo_get_version());
         V3ProAlgoInit(s_air_pressure_data);
     }
     return ALGO_FUSION_INIT_SUCCESS;

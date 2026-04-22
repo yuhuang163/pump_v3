@@ -234,7 +234,7 @@ int ui_display_aging_test_process(ui_manager_context_t *thiz)
     aging_test_ui_mac_name_update(thiz, mac_addr, tests_info->all_color_change);
     aging_test_ui_background_color_update(thiz, tests_info->all_color_change);
 #if IS_SUPPORT_BATTERY_PERCENT
-    aging_test_ui_battery_percent_update(thiz, battery_percent, tests_info->all_color_change);
+    aging_test_ui_battery_percent_update(thiz, proc->battery->get_battery_percent(), tests_info->all_color_change);
 #endif
     tests_info->force_update = false;
     thiz->priv.fps_count++;

@@ -80,17 +80,17 @@ V3_2710IMC_HARDWARE_V4 ?= 4 #DV4
 V3_HARDWARE_VERSION ?= $(V3_2710IMC_HARDWARE_V4)
 
 ifneq ($(filter $(V3_HARDWARE_VERSION),$(V3_2710IMC_HARDWARE_V3) $(V3_2710IMC_HARDWARE_V4)),)
-# littlefs section size
-LITTLEFS_SECTION_SIZE ?= 0xC0000
+# littlefs section size 256k
+LITTLEFS_SECTION_SIZE ?= 0x40000
 
 # factory data section size
 FACTORY_DATA_SECTION_SIZE ?= 0x2000
 
 # lute picture resources section size
-LUTE_PICTURE_RESOURCES_SECTION_SIZE ?= 0x80000
+LUTE_PICTURE_RESOURCES_SECTION_SIZE ?= 0x00000
 
 # lute reserved section size
-LUTE_RESERVED_SECTION_SIZE ?= 0x2000	
+LUTE_RESERVED_SECTION_SIZE ?= 0x0000	
 else
 # littlefs section size
 LITTLEFS_SECTION_SIZE ?= 0x4000
@@ -130,7 +130,7 @@ ROOT_PRODUCT_ID ?= $(ROOT_PRODUCT_V3_ID)
 # 产品UI版本
 ROOT_UI_V2 ?= 0x02
 ROOT_UI_V3 ?= 0x03
-ROOT_UI_VERSION ?= $(ROOT_UI_V2)
+ROOT_UI_VERSION ?= $(ROOT_UI_V3)
 # V3 UI版本
 V3_UI_V2 ?= 0x02
 V3_UI_V3 ?= 0x03
@@ -138,18 +138,25 @@ V3_UI_V3 ?= 0x03
 V3PRO_UI_V2 ?= 0x12
 V3PRO_UI_V3 ?= 0x13
 # 根据产品型号和UI版本确定V3/V3PRO UI版本
-ifeq ($(ROOT_UI_VERSION), $(ROOT_UI_V2))
+
 ifeq ($(ROOT_PRODUCT_ID), $(ROOT_PRODUCT_V3PRO_ID))
+# UI版本为V2时，使用V3PRO_UI_V2
+ifeq ($(ROOT_UI_VERSION), $(ROOT_UI_V2))
 V3_UI_VERSION ?= $(V3PRO_UI_V2)
 else
-V3_UI_VERSION ?= $(V3_UI_V2)
-endif
-else
-ifeq ($(ROOT_PRODUCT_ID), $(ROOT_PRODUCT_V3PRO_ID))
 V3_UI_VERSION ?= $(V3PRO_UI_V3)
+endif
+# 长按硬件重启
+CFG_POWER_KEY_HW_RESET_ENABLE ?= 1
+else
+# UI版本为V2时，使用V3_UI_V2
+ifeq ($(ROOT_UI_VERSION), $(ROOT_UI_V2))
+V3_UI_VERSION ?= $(V3_UI_V2)
 else
 V3_UI_VERSION ?= $(V3_UI_V3)
 endif
+# 长按硬件重启
+CFG_POWER_KEY_HW_RESET_ENABLE ?= 0
 endif
 
 # 泵驱动版本(1:旧版本, 2:新版本)
@@ -554,19 +561,20 @@ FONT_INC_FLAGS += $(FONT_V2_INC_FLAGS)
 # 窗口模块头文件
 WINDOWS_INC_FLAGS := \
 	-I$(PROJECT_ROOT)/overlay/windows \
-	-I$(PROJECT_ROOT)/overlay/windows/battery \
-	-I$(PROJECT_ROOT)/overlay/windows/airplane_mode \
-	-I$(PROJECT_ROOT)/overlay/windows/breast_pump \
-	-I$(PROJECT_ROOT)/overlay/windows/charge \
 	-I$(PROJECT_ROOT)/overlay/windows/dummy \
+	-I$(PROJECT_ROOT)/overlay/windows/setting \
+	-I$(PROJECT_ROOT)/overlay/windows/breast_pump \
 	-I$(PROJECT_ROOT)/overlay/windows/guide \
 	-I$(PROJECT_ROOT)/overlay/windows/home \
-	-I$(PROJECT_ROOT)/overlay/windows/logo \
+	-I$(PROJECT_ROOT)/overlay/windows/charge \
 	-I$(PROJECT_ROOT)/overlay/windows/ota \
+	-I$(PROJECT_ROOT)/overlay/windows/logo \
+	-I$(PROJECT_ROOT)/overlay/windows/battery \
 	-I$(PROJECT_ROOT)/overlay/windows/popup_windows \
-	-I$(PROJECT_ROOT)/overlay/windows/setting \
+	-I$(PROJECT_ROOT)/overlay/windows/airplane_mode \
 	-I$(PROJECT_ROOT)/overlay/windows/product_test_window \
-	-I$(PROJECT_ROOT)/overlay/windows/system \
+	-I$(PROJECT_ROOT)/overlay/windows/factory_reset \
+	-I$(PROJECT_ROOT)/overlay/windows/power_off \
 	-I$(PROJECT_ROOT)/trunk/root_source/windows
 
 # 飞行模式模块头文件
@@ -1142,19 +1150,20 @@ FONT_MODULE_SRCS += $(FONT_V2_SRCS)
 # 窗口模块源码
 WINDOWS_MODULE_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/overlay/windows/*.c) \
-	$(wildcard $(PROJECT_ROOT)/overlay/windows/airplane_mode/*.c) \
-	$(wildcard $(PROJECT_ROOT)/overlay/windows/battery/*.c) \
-	$(wildcard $(PROJECT_ROOT)/overlay/windows/breast_pump/*.c) \
-	$(wildcard $(PROJECT_ROOT)/overlay/windows/charge/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/windows/dummy/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/windows/setting/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/windows/breast_pump/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/windows/guide/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/windows/home/*.c) \
-	$(wildcard $(PROJECT_ROOT)/overlay/windows/logo/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/windows/charge/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/windows/ota/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/windows/logo/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/windows/battery/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/windows/popup_windows/*.c) \
-	$(wildcard $(PROJECT_ROOT)/overlay/windows/setting/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/windows/airplane_mode/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/windows/product_test_window/*.c) \
-	$(wildcard $(PROJECT_ROOT)/overlay/windows/system/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/windows/factory_reset/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/windows/power_off/*.c) \
 	$(wildcard $(PROJECT_ROOT)/trunk/root_source/windows/*.c)
 
 # 飞行模式模块源码
@@ -1296,6 +1305,7 @@ sdk: $(EXTRA_LIB) | $(BIN_DIR)
 		CFG_CUSTOM_BLE_SERVICE=$(CFG_CUSTOM_BLE_SERVICE) \
 		CFG_OTA_EVENT_CALLBACK=$(CFG_OTA_EVENT_CALLBACK) \
 		CFG_CUSTOM_APP=$(CFG_CUSTOM_APP) \
+		CFG_POWER_KEY_HW_RESET_ENABLE=$(CFG_POWER_KEY_HW_RESET_ENABLE) \
 		LUTE_PICTURE_RESOURCES_SECTION_SIZE=$(LUTE_PICTURE_RESOURCES_SECTION_SIZE) \
 		LUTE_RESERVED_SECTION_SIZE=$(LUTE_RESERVED_SECTION_SIZE) \
 		FACTORY_MODE=$(FACTORY_MODE)

@@ -70,6 +70,12 @@ static int led_dev_ioctl(struct rt_device_node *dev, uint32_t op_code, void *arg
         }
         case OP_CODE_LED_IS_READY:
             return bsp_led_is_ready(args);
+        case OP_CODE_LED_KEY_BACKLIGHT_UNIFORM_SET: {
+            led_key_backlight_uniform_msg_t *msg = (led_key_backlight_uniform_msg_t *)args;
+            EXCEPTION_CHECK_INT(msg);
+            bsp_led_key_backlight_uniform_level(msg->level);
+            return BSP_OK;
+        }
         default:
             LOGE("err op_code: %lx", op_code);
             return -1;

@@ -24,11 +24,6 @@
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-static void charging_ui_before_policy(ui_manager_context_t *ui, int index)
-{
-
-}
-
 static void charging_ui_after_policy(ui_manager_context_t *ui, int index)
 {
     ui_display_charge_screen_process(ui);
@@ -42,7 +37,6 @@ static void charging_animation_progress_cb(void *user_data, int index, ui_ani_pr
         case ANI_TIMER_DRAW_FINISH:
             break;
         case ANI_TIMER_DRAW_BEFORE:
-            charging_ui_before_policy(ui, index);
             break;
         case ANI_TIMER_DRAW_AFTER:
             charging_ui_after_policy(ui, index);

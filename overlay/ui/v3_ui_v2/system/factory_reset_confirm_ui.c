@@ -5,7 +5,7 @@
 #include "ui_img_define.h"   // IWYU pragma: keep
 #include "ui_page_define.h" // IWYU pragma: keep
 #include "ui_manager.h"   // IWYU pragma: keep
-#include "window_screen_system.h" // IWYU pragma: keep
+#include "window_screen_factory_reset.h" // IWYU pragma: keep
 
 /*
 * DEFINES
@@ -223,7 +223,7 @@ int ui_display_factory_reset_confirm_process(ui_manager_context_t *thiz)
     EXCEPTION_CHECK_INT(thiz);
     EXCEPTION_CHECK_INT(ui_info);
     EXCEPTION_CHECK_INT(ui_info->root);
-    ui_proc_system_t *proc = (ui_proc_system_t *)thiz->priv.play_info.user_data;
+    ui_proc_factory_reset_t *proc = (ui_proc_factory_reset_t *)thiz->priv.play_info.user_data;
 #if IS_SUPPORT_FACTORY_RESET_COMP_BG
     ui_factory_reset_confirm_background_update(thiz);
 #endif

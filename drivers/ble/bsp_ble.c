@@ -284,7 +284,7 @@ int ble_custom_event_callback(uintptr_t connhdl, gap_adv_event_t event, gap_adv_
             s_ble_event_callback(BLE_EVENT_CONN_UPDATE_REQ, NULL);
             break;
         case GAP_ADV_EVENT_CONN_PARAMS_UPDATE:
-            s_ble_event_callback(BLE_EVENT_CONN_PARAMS_UPDATE, NULL);
+            s_ble_event_callback(BLE_EVENT_CONN_PARAMS_UPDATE, &connhdl);
             break;
         default:
             break;

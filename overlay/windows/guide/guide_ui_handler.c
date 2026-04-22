@@ -242,3 +242,25 @@ void guide_knob_left_event_handler(ui_proc_guide_t *proc)
             break;
    }
 }
+
+void guide_key_event_handler_v3(ui_proc_guide_t *proc, uint16_t keycode)
+{
+    if (keycode == KEY_CODE_POWER) {
+        POST_TASK_HANDLER_NO_DELAY(guide_display_completed_cb, proc, GUIDE_DISPLAY_TASK_NAME);
+        return;
+    }
+}
+
+void guide_knob_event_handler(ui_proc_guide_t *proc, bool is_left)
+{
+    if (is_left) {
+        if (proc->page_index > GUIDE_PAGE_HOME) {
+            proc->page_index--;
+        }
+    } else {
+        if (proc->page_index < GUIDE_PAGE_BIND_GUIDE) {
+            proc->page_index++;
+        }
+    }
+}
+

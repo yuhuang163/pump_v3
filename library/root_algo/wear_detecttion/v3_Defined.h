@@ -11,6 +11,13 @@
 #define fabs(x)			((x) < 0.0f ? -(x) : (x))
 #endif // !abs
 
+#ifndef CLAMP
+#define CLAMP(x, lo, hi) ((x) < (lo) ? (lo) : ((x) > (hi) ? (hi) : (x)))
+#endif
+
+/* define pressure algorithm version */
+#define V3_PRESSURE_ALGO_VERSION_STR    "1.0.0.0"
+
 // hardware parameters
 #define SAMPLE_RATE			(50)
 #define WIN_SIZE			(50*3)  //(1 second)
@@ -77,7 +84,57 @@ static float expression_intercep[] = { 0.8553, -4.6521, -4.7871, -5.0214, -17.60
 										-35.4251, -35.3878, -34.7144, -41.3431, -42.9398 };
 
 
-///////////////////////////////////////////////////////from software
+///////////////////////////////////////////////////////from software (input types)
+
+// /// 泵状态数据
+// typedef struct {
+// 	unsigned char level;       /// 0-15
+// 	unsigned char mode;        /// 0:刺激模式 1:吸乳模式 2:混合模式 3:个性化模式 4:PP追奶模式 5:2+8奶量提升模式 6:开奶模式
+// 	unsigned char state;       /// 吸力状态 suction_status_e
+// 	unsigned char pump_duty;        /// 泵奶力度
+// 	unsigned char valve_duty;       /// 吸乳器电磁阀门力度
+// 	unsigned char target_pressure;  /// 目标压力
+// 	unsigned int target_pump_time;       /// 泵工作目标时间，单位ms
+// 	unsigned int run_time;        /// 运行时间，单位ms
+// } algo_pump_state_t;
+
+// /// 气压数据
+// typedef struct {
+// 	unsigned char do_work;     /// 是否正在泵奶
+// 	unsigned int timestamp;
+// 	float air_pressure[2];
+// 	algo_pump_state_t pump_state[2];
+// } algo_air_pressure_data_t;
+
+/* ===========================
+ * Public, decoupled API types
+ * =========================== */
+
+/* 模式定义：与当前算法内部 MODE_* 对应（0/1/2） */
+typedef enum {
+	WEAR_MODE_STIMULATION = 0,
+	WEAR_MODE_EXPRESSION = 1,
+	WEAR_MODE_MIXED = 2,
+} wear_mode_e;
+
+/* 泵状态：与 suction_status_e 值一致（避免对定义顺序的依赖） */
+typedef enum {
+	WEAR_PUMP_STATUS_IDLE = 0,
+	WEAR_PUMP_STATUS_GENERATE,
+	WEAR_PUMP_STATUS_HOLD,
+	WEAR_PUMP_STATUS_RELEASE,
+	WEAR_PUMP_STATUS_SLEEP,
+} wear_pump_state_e;
+
+/* 对外输入结构：默认与 algo_* 类型同布局，方便嵌软侧直接复用 */
+typedef algo_pump_state_t wear_pump_state_t;
+typedef algo_air_pressure_data_t wear_input_t;
+
+/* 日志宏（如果上层未提供，则降级为空） */
+#ifndef ALGO_LOG_INFO
+#define ALGO_LOG_INFO(...) ((void)0)
+#endif
+
 /// 吸力状态
 typedef enum {
 	SUCTION_STATUS_IDLE = 0,
@@ -114,6 +171,8 @@ typedef struct _TARGET_CURVE_ITEM
 {
     unsigned char target_pressure;
     unsigned short target_pump_time;
+	float target_pump_pressure;
+	float target_load_pressure;
     unsigned short curve_len;
     const float *p1_curve;
 } STARGET_CURVE_ITEM;
@@ -193,6 +252,7 @@ typedef struct _FEATURE_INFO_
 	unsigned int	uWaveSpikes;
 	float			fMinData;
 	float			fMinDataBuff[6];
+	float			fLoadedThresholdBuff[6];
 	float			fMinDataBuffMin;
 	unsigned int	uNoiseLevel;
 	unsigned int	uDataIdx;		// data index
@@ -201,9 +261,15 @@ typedef struct _FEATURE_INFO_
 	float			fLoadedThreshold;
 	unsigned char	uPumpFlag;
 	unsigned char	pumping_time;
+	unsigned char	uPumpState;
 	unsigned char	uWearStatus;	// result
 	unsigned char	uCompsStatus;
 	int 			iDelta_pwm;			// 返回delta_pwm	-10000~10000
+	int 			iPwmOffset;   	/* 累计补偿量 */
+	float 			fCompErrSum;      /* PI积分项 */
+	float 			fCompPrevErr;     /* 上一周期误差，后续需要D时可直接用 */
+	unsigned char	uWearOnCount;
+	unsigned char	uWearOffCount;
 	unsigned char	uPrevWearStatus;
 	unsigned int	uNormalWaveform;
 }SFEATURE_INFO;
@@ -211,6 +277,7 @@ typedef struct _FEATURE_INFO_
 typedef struct _DATA_BUFFER_
 {
 	float			fDataBuff[WIN_SIZE];
+	float fLoadedThresholdData[WIN_SIZE];
 	float			fDataMax;
 	float			fDataMin;
 	unsigned int	uCurrPos;		// current pos

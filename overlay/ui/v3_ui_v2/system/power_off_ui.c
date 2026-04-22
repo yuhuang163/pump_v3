@@ -17,6 +17,7 @@
 #define PROGRESS_ARC_COLOR                      (0xB25962)    /* 圆弧颜色：粉色 */
 #define PROGRESS_ARC_LOOP_MS_PER_DEG            (3)    /* ms per degree，越小转得越快（原15约5.4s/圈，现约2.2s/圈） */
 #define PROGRESS_ARC_ANGLE_SPAN                 (90)   /* 25% of 360 */
+#define PROGRESS_ARC_TEXT_COLOR                 (0x767676)    /* 圆弧颜色：粉色 */
 
 /*
 * LOCAL VARIABLE DEFINITIONS
@@ -82,10 +83,11 @@ static void ui_power_off_update(ui_manager_context_t *thiz)
         EXCEPTION_CHECK_VOID(ui_info->label_text);
     }
     
-    lv_label_set_text(ui_info->label_text, "Power off");
-    lv_obj_set_style_text_font(ui_info->label_text, &lv_font_oppo_sans_14_medium, 0);
+    lv_label_set_text(ui_info->label_text, "Powering off...");
+    lv_obj_set_style_text_font(ui_info->label_text, &lv_font_oppo_sans_20_medium, 0);
+    lv_obj_set_style_text_color(ui_info->label_text, lv_color_hex(PROGRESS_ARC_TEXT_COLOR), 0);
     lv_obj_set_style_text_line_space(ui_info->label_text, 9, 0);  /* line height 24px (font ~13 + 11) */
-    lv_obj_align_to(ui_info->label_text, ui_info->progress_arc, LV_ALIGN_OUT_BOTTOM_MID, 0, 16);
+    lv_obj_align_to(ui_info->label_text, ui_info->progress_arc, LV_ALIGN_OUT_BOTTOM_MID, 0, 20);
     uint32_t elapsed = get_timestamp() - ui_info->start_time;
     uint16_t start_angle = (uint16_t)((elapsed / PROGRESS_ARC_LOOP_MS_PER_DEG) % 360);
     uint16_t end_angle = start_angle + PROGRESS_ARC_ANGLE_SPAN;

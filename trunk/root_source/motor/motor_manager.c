@@ -110,7 +110,7 @@ static int internal_stop_motor(const char *reason)
     }
     return 0;
 }
- 
+
 static void on_motor_broadcast_receiver(broadcast_mask_id_t id, void *context, int arg1, int arg2, broadcast_priv_data_t *pdata)
 {
     motor_manager_context_t *thiz = context;
@@ -131,6 +131,7 @@ static void on_motor_broadcast_receiver(broadcast_mask_id_t id, void *context, i
                     int is_pump_working = 0; 
                     READ_PUMP_IS_WORKING(motor_obj->priv.pump_ctx, is_pump_working);
                     if (is_pump_working) {
+                        motor_mode_change_handler(thiz, breast_pump_mode);
                         internal_start_motor(MOTOR_POLICY_CHANGE_MODE);
                     }       
                 }
@@ -295,6 +296,7 @@ static uint32_t get_policy_running_time(void)
     return motor_obj->priv.runtime.policy_running_time_ms;
 }
 #endif
+
 static uint8_t get_timed_policy_finish_flag(void)
 {
     return motor_obj->priv.runtime.all_timed_policy_finish_flag;

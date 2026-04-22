@@ -59,13 +59,13 @@ typedef struct {
 static common_op_tip_disp_info_t *operation_info;
 
 const static operation_text_info_t pump_pause_manual_infos[OPERATION_TIP_TEXT_COUNT] = {
-    { "Pumping paused", 199, &lv_font_oppo_sans_16_medium, LV_OPA_100, OPERATION_STATUS_TEXT_COLOR},
-    { "Auto shutoff after 15 minutes of inactivity", 226, &lv_font_oppo_sans_14_medium, LV_OPA_70, OPERATION_STATUS_TEXT_COLOR},
+    { "Pumping paused", 196, &lv_font_oppo_sans_20_medium, LV_OPA_100, OPERATION_STATUS_TEXT_COLOR},
+    { "Auto shutoff after 15 minutes of inactivity", 224, &lv_font_oppo_sans_16_medium, LV_OPA_70, OPERATION_STATUS_TEXT_COLOR},
 };
 
 const static operation_text_info_t pump_pause_timeout_infos[OPERATION_TIP_TEXT_COUNT] = {
-    { "Pumping over 30 min", 199, &lv_font_oppo_sans_16_medium, LV_OPA_100, OPERATION_STATUS_TEXT_COLOR},
-    { "Take a short break", 226, &lv_font_oppo_sans_14_medium, LV_OPA_70, OPERATION_STATUS_TEXT_COLOR},
+    { "Pumping over 30 min", 196, &lv_font_oppo_sans_20_medium, LV_OPA_100, OPERATION_STATUS_TEXT_COLOR},
+    { "Take a short break", 224, &lv_font_oppo_sans_16_medium, LV_OPA_70, OPERATION_STATUS_TEXT_COLOR},
 };
 
 const static operation_text_info_t pump_finish_manual_infos[OPERATION_TIP_TEXT_COUNT] = {
@@ -94,12 +94,12 @@ const static operation_text_info_t operation_failed_infos[OPERATION_TIP_TEXT_COU
 };
 
 const static operation_text_info_t level_adjust_waring_infos[OPERATION_TIP_TEXT_COUNT] = {
-    { "Adjustment range too large", 212, &lv_font_oppo_sans_16_medium, LV_OPA_100, OPERATION_TIP_TEXT_COLOR},
+    { "Adjustment range too large", 212, &lv_font_oppo_sans_20_medium, LV_OPA_100, OPERATION_TIP_TEXT_COLOR},
     { "", 0, &lv_font_oppo_sans_16_medium, LV_OPA_70, OPERATION_TIP_TEXT_COLOR},
 };
 
 const static operation_text_info_t pumping_only_infos[OPERATION_TIP_TEXT_COUNT] = {
-    { "Adjust only during pumping", 212, &lv_font_oppo_sans_16_medium, LV_OPA_100, OPERATION_TIP_TEXT_COLOR},
+    { "Adjust only during pumping", 212, &lv_font_oppo_sans_20_medium, LV_OPA_100, OPERATION_TIP_TEXT_COLOR},
     { "", 0, &lv_font_oppo_sans_16_medium, LV_OPA_70, OPERATION_TIP_TEXT_COLOR},
 };
 

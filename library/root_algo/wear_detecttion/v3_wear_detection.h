@@ -15,6 +15,8 @@
 #ifndef V3_WEAR_DETECTION_H
 #define V3_WEAR_DETECTION_H
 #include "v3_Defined.h"
+#include "v3_target_curve_table.h"
+#include <stdio.h> 
 
 #ifdef __cplusplus
 extern "C" {
@@ -24,7 +26,7 @@ extern "C" {
 /*functions*/
 unsigned int BufferCircleNextIndex(unsigned int uCurrPos, unsigned int uIndent, unsigned int uBufferLen);
 unsigned int BufferCircleRelativeIndex(unsigned int uPos, unsigned int uIdx, unsigned int uBufferLen, unsigned int uFirstTime);
-void PressureDataPreprocess(float fPumpData, SFILTER_INFO* tFilterInfoTemp, SDATA_BUFFER* tDataBufferTemp, SFEATURE_INFO* tFeatureInfoTemp);
+float PressureDataPreprocess(float fPumpData, SFILTER_INFO* tFilterInfoTemp, SDATA_BUFFER* tDataBufferTemp, SFEATURE_INFO* tFeatureInfoTemp);
 void PeakValleyAnalysis(SPV_INFO* tPVInfoTemp, SWAVE_INFO* tWaveInfoTemp, SDATA_BUFFER* tDataBufferTemp, SFEATURE_INFO* tFeatureInfoTemp);
 void PressureDataFeature(SPV_INFO* tPVInfoTemp, SWAVE_INFO* tWaveInfoTemp, SDATA_BUFFER* tDataBufferTemp, SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* tDeviceInfoTemp);
 void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* tDeviceInfoTemp);
@@ -32,9 +34,10 @@ void V3WearDetectionModeReset(unsigned char uLevel, unsigned char uMode, unsigne
 
 /*interface*/
 void V3WearDetectionInit(unsigned char uLevelLeft, unsigned char ulevelRight, unsigned char uModeLeft, unsigned char uModeRight);
-void V3WearDetectionMain(float* fPressureData, algo_air_pressure_data_t sPressureData, unsigned char uLevelLeft, unsigned char ulevelRight, unsigned char uModeLeft, unsigned char uModeRight);
+void V3WearDetectionMain(wear_input_t sPressureData);
 void GetWearDetectionResult(unsigned char* uWearStatus);
 void GetCompensationStatus(unsigned char* uCompsStatus, int* iDelta_pwm);
+const char* v3_pressure_algo_get_version(void);
 
 /*void GetDebugInfo(SRESULT_INFO *result_info);*/
 #endif

@@ -15,6 +15,7 @@ extern "C" {
 *****************************************************************************************
 */
 void motor_policy_init(struct motor_manager_context *thiz);
+void motor_mode_change_handler(struct motor_manager_context *thiz, int breast_pump_mode);
 #ifdef __cplusplus
 }
 #endif

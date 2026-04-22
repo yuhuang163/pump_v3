@@ -404,6 +404,9 @@ static void app_commication_send_data_via_ble(uint8_t *data, uint16_t data_len)
             LOG_PROTOCOL("ble dispatch wrapper missing");
         }
     }
+    else {
+        LOG_PROTOCOL("ble is not connected");
+    }
 
 }
 

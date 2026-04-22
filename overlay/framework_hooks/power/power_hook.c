@@ -11,14 +11,11 @@
 * DEFINES
 *****************************************************************************************
 */
-#define POWER_ON_BOOT_RUN_TIME_MS                   200     /// boot 启动补偿, 冷启动和热启动时间不一致
+#define POWER_ON_BOOT_RUN_TIME_MS                   1000     /// boot 启动补偿, 冷启动和热启动时间不一致
 #define POWER_ON_TIMEOUT_MS_DEFAULT                 (3000 - POWER_ON_BOOT_RUN_TIME_MS)     /// 电源按键超时时间，单位ms
 #define POWER_ON_TIMEOUT_MS                         (POWER_ON_TIMEOUT_MS_DEFAULT - get_timestamp_ms(0))
-#define POWER_ON_DETECT_TASK_NAME                   "power_on_detect"
-#define POWER_ON_VBUS_PLUG_IN_TASK_NAME             "power_on_vbus_plug_in"
-#define POWER_ON_INVALID_TASK_NAME                  "power_on_invalid"
-#define POWER_OFF_TASK_NAME                         "power_off"
-#define SYS_STANDBY_TASK_NAME                       "sys_standby"
+#define POWER_ONOFF_AND_STANDBY_TASK_NAME           "power_onoff_and_standby"
+
 
 /*
 * LOCAL VARIABLE DEFINITIONS
@@ -53,15 +50,15 @@ static bool is_prohibit_pm_suspend(struct power_manager_context *ctx)
 
 static void system_power_event_cb(hdr_post_args_t *args)
 {
-    LOG_PM("power event, action:%d.", args->arg1);
     int action = args->arg1;
     power_manager_context_t *pm = args->user_data;
     EXCEPTION_CHECK_VOID(pm);
     switch (action) {
         case HDR_ACTION_POWER_ON_DETECT:
-            LOG_PM("%s", args->name);
+            LOG_PM("%s action:%d", args->name, action);
             key_input_context_t *key = (key_input_context_t *)find_module(ID_MODULE_KEY_INPUT);
             battery_manager_context_t *battery = (battery_manager_context_t *)find_module(ID_MODULE_BATTERY);
+            pm->priv.is_power_on_timeout_detect = 0;
             if (key && key->is_key_triggered(KEY_INDEX_POWER) == 0) {
 #if IS_SUPPORT_PWR_ON_WHEN_PLUG_IN
                 if (battery && battery->is_vbus_plug_in() > 0) {
@@ -79,26 +76,29 @@ static void system_power_event_cb(hdr_post_args_t *args)
             }
             break;
         case HDR_ACTION_POWER_ON:
-            LOG_PM("%s", args->name);
+            LOG_PM("%s action:%d", args->name, action);
+            pm->priv.is_power_on_timeout_detect = 0;
             pm->system_power_control(true);
             SEND_BROADCAST_ARGS1(ID_BROADCAST_SYS_STATE_CHANGE, SYSTEM_BROADCAST_POWER_ON);
             break;
         case HDR_ACTION_POWER_ON_INVALID: 
-            LOG_UI("%s", args->name);
-            REMOVE_TASK_HANDLER_DIRECTLY(POWER_ON_DETECT_TASK_NAME);
+            LOG_PM("%s action:%d", args->name, action);
+            pm->priv.is_power_on_timeout_detect = 0;
             pm->system_power_control(false);
             break;
         case HDR_ACTION_POWER_OFF: 
-            LOG_PM("%s", args->name);
+            LOG_PM("%s action:%d", args->name, action);
+            pm->priv.is_power_on_timeout_detect = 0;
             pm->priv.allow_shutdown_or_standby = 0;
             pm->system_power_control(false);
             break;
         case HDR_ACTION_SYS_STANDBY: 
-            LOG_PM("%s", args->name);
+            LOG_PM("%s action:%d", args->name, action);
             pm->priv.is_goto_sys_standby = true;
             SEND_BROADCAST_ARGS1(ID_BROADCAST_REQ_PM_SUSPEND, PM_BROADCAST_USER_REQUEST_SUSPEND);
             break;
         default:
+            LOG_PM("%s action:%d, ignore", args->name, action);
             break;
     }
 }
@@ -113,41 +113,47 @@ static int on_key_event_route(struct power_manager_context *ctx, uint16_t keycod
     /// 待机状态下长按3s退出待机状态.
     if (ctx->priv.is_enter_suspend == true  && keytype == KEY_EVENT_LONG_3S) {
         ctx->pm_wakeup(PM_WAKEUP_REASON_KEY_POWER); /// 唤醒电源管理器.
+        LOG_PM("wakeup by key power");
         return 0;
     }
 
     /// 开机按键超时检测, 如果超时, 则进入关机状态.
     if (keytype == KEY_EVENT_UP && ctx->priv.is_power_on_timeout_detect == 1) {
-        ctx->priv.is_power_on_timeout_detect = 0;
+#if (ROOT_PRODUCT_ID == ROOT_PRODUCT_V3PRO_ID)  
         battery_manager_context_t *battery = (battery_manager_context_t *)find_module(ID_MODULE_BATTERY);
         if (battery && battery->is_vbus_plug_in() > 0) {
             LOG_PM("vbus plug in. ignore");  /// 插电状态下禁止禁止关机
             return 0;
         }
-
-        if (ctx->is_system_power_on()) {
-            LOG_PM("sys power on. ignore");  /// 已开机无需处理释放按键后的超时问题
-            return 0;
-        }
+#endif
         POST_TASK_HANDLER_NO_DELAY_ARG1(system_power_event_cb, ctx, HDR_ACTION_POWER_ON_INVALID,
-            POWER_ON_INVALID_TASK_NAME);
+            POWER_ONOFF_AND_STANDBY_TASK_NAME);
+        return 0;
+    }
+
+    /// 开机检测窗口内收到3s长按, 立即确认开机成功, 避免后续抬键触发invalid关机.
+    if (keytype == KEY_EVENT_LONG_3S && ctx->priv.is_power_on_timeout_detect == 1) {
+        ctx->priv.is_power_on_timeout_detect = 0;
+        if (!ctx->is_system_power_on()) {
+            POST_TASK_HANDLER_NO_DELAY_ARG1(system_power_event_cb, ctx, HDR_ACTION_POWER_ON,
+                POWER_ONOFF_AND_STANDBY_TASK_NAME);
+        }
         return 0;
     }
 
     /// 允许关机/待机标志设置. 
-    if (ctx->priv.allow_shutdown_or_standby == 0 && ctx->priv.is_power_on_timeout_detect == 0 &&
-        keytype == KEY_EVENT_DOWN) {
-        ctx->priv.allow_shutdown_or_standby = ctx->is_system_power_on(); /// 允许关机/待机标志.
-        LOG_PM("allow_shutdown_or_standby: %d", ctx->priv.allow_shutdown_or_standby);
+    if (keytype == KEY_EVENT_DOWN && ctx->priv.allow_shutdown_or_standby == 0 && ctx->is_system_power_on() > 0) {
+        ctx->priv.allow_shutdown_or_standby = 1; /// 允许关机/待机标志.
+        LOG_PM("key down on power-on state, allow shutdown or standby: %d", ctx->priv.allow_shutdown_or_standby);
         return 0;
     }
 
-    /// 进入关机状态.
+    /// 进入关机状态. 不在工厂重置界面时才允许进入关机状态.(按键冲突)
     if (keytype == KEY_EVENT_LONG_3S && ctx->priv.allow_shutdown_or_standby == 1) {
+        window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
 #if (ROOT_PRODUCT_ID == ROOT_PRODUCT_V3PRO_ID)  
         battery_manager_context_t *battery = (battery_manager_context_t *)find_module(ID_MODULE_BATTERY);
         if (battery && BATTERY_IS_CHARGING(battery->get_charge_status())) {
-            window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
             if (wm && wm->is_current_window(wm, ID_WINDOW_CHARGE) == 0) {
                 multi_func_msg_data_t msg = {0};
                 msg.union_body.extra.window_id = ID_WINDOW_CHARGE;
@@ -156,16 +162,20 @@ static int on_key_event_route(struct power_manager_context *ctx, uint16_t keycod
             return 0;
         }
 #endif
-
+        /// 不在工厂重置界面时才允许进入关机状态.(按键冲突)
+        if (wm && wm->is_current_window(wm, ID_WINDOW_FACTORY_RESET) == 0) {
 #if IS_SUPPORT_SLEEP_POWER_OFF
-        POST_TASK_HANDLER_NO_DELAY_ARG1(system_power_event_cb, ctx, HDR_ACTION_POWER_OFF,
-            POWER_OFF_TASK_NAME);
+            POST_TASK_HANDLER_NO_DELAY_ARG1(system_power_event_cb, ctx, HDR_ACTION_POWER_OFF,
+                POWER_ONOFF_AND_STANDBY_TASK_NAME);
 #else
-        if (ctx->priv.allow_shutdown_or_standby == 1) {
             POST_TASK_HANDLER_NO_DELAY_ARG1(system_power_event_cb, ctx, HDR_ACTION_SYS_STANDBY,
-                SYS_STANDBY_TASK_NAME);
-        }
+                POWER_ONOFF_AND_STANDBY_TASK_NAME);
 #endif
+        } else {
+            LOG_PM("in factory reset window, ignore");
+        }
+    } else {
+        LOG_PM("key:%d, ignore", keytype);
     }
     return 0;
 }
@@ -365,7 +375,7 @@ static int on_power_broadcast_receive_route(broadcast_mask_id_t id, void *contex
             if (arg1 == SYSTEM_BROADCAST_POWER_OFF) {
                 LOG_PM("--> system power off"); /// 1000ms 后关机.
                 POST_TASK_HANDLER_DELAYED_ARG2(system_power_event_cb, 1000, HDR_ACTION_POWER_OFF,
-                    ctx, POWER_OFF_TASK_NAME);
+                    ctx, POWER_ONOFF_AND_STANDBY_TASK_NAME);
             }
             break;
         default:
@@ -386,8 +396,9 @@ static int on_post_power_init_route(struct power_manager_context *ctx)
         if (key && key->is_key_triggered(KEY_INDEX_POWER)) {
             ctx->priv.is_power_on_timeout_detect = 1;
         }
+        /// Keep dedicated task name for delayed power-on path to preserve existing scheduling behavior.
         POST_TASK_HANDLER_DELAYED_ARG2(system_power_event_cb, 500, HDR_ACTION_POWER_ON, ctx,
-            POWER_ON_VBUS_PLUG_IN_TASK_NAME);
+            POWER_ONOFF_AND_STANDBY_TASK_NAME);
         return 0;
     }
 #else
@@ -396,18 +407,20 @@ static int on_post_power_init_route(struct power_manager_context *ctx)
         if (key && key->is_key_triggered(KEY_INDEX_POWER)) {
             ctx->priv.is_power_on_timeout_detect = 1;
         }
+        LOG_PM("power on by reboot");
         POST_TASK_HANDLER_DELAYED_ARG2(system_power_event_cb, 500, HDR_ACTION_POWER_ON, ctx,
-            POWER_ON_VBUS_PLUG_IN_TASK_NAME);
+            POWER_ONOFF_AND_STANDBY_TASK_NAME);
         return 0;
     }
 #endif
     uint32_t timeout_ms = POWER_ON_TIMEOUT_MS;
+    LOG_PM("power on time: %d", timeout_ms);
     if (timeout_ms > POWER_ON_TIMEOUT_MS_DEFAULT) {
-        timeout_ms = 100;
+        timeout_ms = POWER_ON_TIMEOUT_MS_DEFAULT;
     }
     ctx->priv.is_power_on_timeout_detect = 1;
-    POST_TASK_HANDLER_DELAYED_ARG2(system_power_event_cb, POWER_ON_TIMEOUT_MS, HDR_ACTION_POWER_ON_DETECT,
-        ctx, POWER_ON_DETECT_TASK_NAME);
+    POST_TASK_HANDLER_DELAYED_ARG2(system_power_event_cb, timeout_ms, HDR_ACTION_POWER_ON_DETECT,
+        ctx, POWER_ONOFF_AND_STANDBY_TASK_NAME);
     return 0;
 }
 

@@ -465,7 +465,7 @@ static uint8_t pump_custom_trial_mode_update_by_app(pump_mode_steps_info_t pump_
     ///同步参数到custom
     pump_copy_trial_mode_to_custom_mode();
     ///更新同步标志
-    storage_ctx->put_store_ram_val(STORE_ID_MODE_UPDATE_FLAG, BREAST_PUMP_CUSTOM_MODE, 0, 0);
+    storage_ctx->put_store_ram_val(STORE_ID_MODE_NEW_STEP_INFO_FLAG, BREAST_PUMP_CUSTOM_MODE, true, 0);
     ///更新激活标识 自定义模式激活
     WRITE_PUMP_MODE_ACTIVATE(pump_ctx, BREAST_PUMP_CUSTOM_MODE, 1);
     LOG_SRV("update custom trial mode activate state");
@@ -1465,7 +1465,7 @@ void app_old_comm_handle_clear_trail_custom_mode_req(uint8_t cal, uint8_t *cab)
         WRITE_PUMP_MODE_ACTIVATE(pump_ctx, BREAST_PUMP_CUSTOM_MODE, 0);
         
         // 清除更新标志
-        storage_ctx->put_store_ram_val(STORE_ID_MODE_UPDATE_FLAG, BREAST_PUMP_CUSTOM_TRIAL_MODE, 0, 0);
+        storage_ctx->put_store_ram_val(STORE_ID_MODE_NEW_STEP_INFO_FLAG, BREAST_PUMP_CUSTOM_TRIAL_MODE, false, 0);
         
         LOG_SRV("Custom mode parameters cleared successfully");
     }

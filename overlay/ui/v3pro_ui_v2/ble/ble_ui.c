@@ -27,6 +27,7 @@ typedef struct {
 *****************************************************************************************
 */
 static ble_display_info_t *ble_info;
+static bool connect_prompt_flag = true;  /// 连接提示标志 true-显示 false-隐藏
 
 /*
 * GLOBAL VARIABLE DEFINITIONS
@@ -57,14 +58,13 @@ void ble_ui_init(ui_manager_context_t *thiz)
 
 int ble_ui_update(ui_manager_context_t *thiz, lv_obj_t *root, ble_manager_context_t *ble, uint16_t x, uint16_t y)
 {
-    EXCEPTION_CHECK_INT(thiz);
-    EXCEPTION_CHECK_INT(root);
-    EXCEPTION_CHECK_INT(ble);
+    EXCEPTION_CHECK_INT(thiz && root && ble);
     uint8_t is_connected = ble->ble_is_connected();
     uint32_t time_ms = get_timestamp();
     if (ble_info->is_connected == is_connected && ble_info->force_update == false) {        
         EXCEPTION_CHECK_INT(ble_info->ble_img);
-        if (time_ms >= 30000 || is_connected > 0) {
+        if (time_ms >= 30000 || is_connected > 0 || connect_prompt_flag == false) {
+            connect_prompt_flag = false; 
             lv_obj_clear_flag(ble_info->ble_img, LV_OBJ_FLAG_HIDDEN); /// 显示
             return 0;
         }

@@ -37,6 +37,7 @@ static int on_guide_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t 
     ui_proc_guide_t *proc = user_data;
     EXCEPTION_CHECK_INT(proc);
     WINDOW_CONTEXT_GUARD_INT(proc, ID_WINDOW_GUIDE, 0);
+#if 0
     if (keycode == KEY_CODE_KNOB_LEFT) {
         guide_knob_left_event_handler(proc);
     } else {
@@ -46,6 +47,15 @@ static int on_guide_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t 
             guide_key_event_handler_v2(proc, keycode);
         }
     }
+#else
+    if (keycode == KEY_CODE_KNOB_LEFT) {
+        guide_knob_event_handler(proc, true);
+    } else if (keycode == KEY_CODE_KNOB_RIGHT) {
+        guide_knob_event_handler(proc, false);
+    } else {
+        guide_key_event_handler_v3(proc, keycode);
+    }
+#endif
     return 0;
 }
 

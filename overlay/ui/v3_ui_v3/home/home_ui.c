@@ -14,12 +14,12 @@
 #define IS_SUPPORT_ROOT_HOME_COMP_BG                (0)
 
 #define IDLE_LABEL_Y_OFFSET                         (18)
-#define IDLE_LABEL_AREA_ICON_X                      (44)
+#define IDLE_LABEL_AREA_ICON_X                      (0)
 #define IDLE_LABEL_AREA_ICON_Y                      (84 + IDLE_LABEL_Y_OFFSET)
-#define IDLE_BUTTON_ICON_X                          (80)
+#define IDLE_BUTTON_ICON_X                          (70)
 #define IDLE_BUTTON_ICON_Y                          (119 + IDLE_LABEL_Y_OFFSET)
 
-#define IDLE_LABEL_TEXT_X                           (108 + 2)
+#define IDLE_LABEL_TEXT_X                           (98)
 #define IDLE_LABEL_TEXT_Y                           (114 + IDLE_LABEL_Y_OFFSET)
 #define IDLE_TEXT_COLOR                             (0xB25962)
 
@@ -221,7 +221,11 @@ static void home_label_ui_update(ui_manager_context_t *thiz, uint16_t img_id, ui
         lv_fs_make_path_from_buffer(&label_img_path, LV_FS_MEMFS_LETTER, 
             home_info->label_info.data, home_info->label_info.size, "baj");
         lv_image_set_src(home_info->label_icon, (const void *)&label_img_path);
-        lv_obj_align(home_info->label_icon, LV_ALIGN_TOP_LEFT, x_offset, y_offset); /// 设置icon位置
+        if (x_offset == 0) {
+            lv_obj_align(home_info->label_icon, LV_ALIGN_TOP_MID, 0, y_offset); /// 设置icon位置
+        } else {
+            lv_obj_align(home_info->label_icon, LV_ALIGN_TOP_LEFT, x_offset, y_offset); /// 设置icon位置
+        }
     } else {
         lv_obj_add_flag(home_info->label_icon, LV_OBJ_FLAG_HIDDEN);
     }
@@ -398,7 +402,7 @@ static void home_ui_update(ui_manager_context_t *thiz, ui_proc_home_t *proc)
                 IDLE_LABEL_AREA_ICON_X, IDLE_LABEL_AREA_ICON_Y, true);
             home_button_ui_update(thiz, IDLE_BUTTON_ICON_X, IDLE_BUTTON_ICON_Y, true);
             home_label_text_ui_update(thiz, "Select a program or mode\nto start pumping",
-                IDLE_LABEL_TEXT_X, IDLE_LABEL_TEXT_Y, true, false, &lv_font_oppo_sans_14_medium);
+                IDLE_LABEL_TEXT_X, IDLE_LABEL_TEXT_Y, true, false, &lv_font_oppo_sans_16_medium);
             home_record_time_ui_update(thiz, 
                 home_info->timestamp_offset, IDLE_LABEL_TEXT_X, IDLE_LABEL_TEXT_Y, false);
             home_clock_ui_update(thiz, 0, false);
@@ -413,7 +417,7 @@ static void home_ui_update(ui_manager_context_t *thiz, ui_proc_home_t *proc)
             home_label_text_ui_update(thiz, "since last pumping session",
                 IDLE_LABEL_TEXT_X - HOME_RECORD_TEXT_X_OFFSET, 
                 (IDLE_LABEL_TEXT_Y - HOME_WITH_CLOCK_LABLE_Y_OFFSET) + HOME_RECORD_TEXT_Y_OFFSET, 
-                true, false, &lv_font_oppo_sans_14_medium);
+                true, false, &lv_font_oppo_sans_16_medium);
             home_record_time_ui_update(thiz, home_info->timestamp_offset, 
                     180, IDLE_LABEL_TEXT_Y - HOME_WITH_CLOCK_LABLE_Y_OFFSET, true);
             home_clock_ui_update(thiz, 0, true);
@@ -426,7 +430,7 @@ static void home_ui_update(ui_manager_context_t *thiz, ui_proc_home_t *proc)
                 IDLE_LABEL_AREA_ICON_X, IDLE_LABEL_AREA_ICON_Y - HOME_WITH_CLOCK_LABLE_Y_OFFSET, true);
             home_button_ui_update(thiz, IDLE_BUTTON_ICON_X, IDLE_BUTTON_ICON_Y - HOME_WITH_CLOCK_LABLE_Y_OFFSET, true);
             home_label_text_ui_update(thiz, "Select a program or mode\nto start pumping",
-                IDLE_LABEL_TEXT_X, IDLE_LABEL_TEXT_Y - HOME_WITH_CLOCK_LABLE_Y_OFFSET, true, false, &lv_font_oppo_sans_14_medium);
+                IDLE_LABEL_TEXT_X, IDLE_LABEL_TEXT_Y - HOME_WITH_CLOCK_LABLE_Y_OFFSET, true, false, &lv_font_oppo_sans_16_medium);
             home_record_time_ui_update(thiz, home_info->timestamp_offset, 
                 IDLE_LABEL_TEXT_X, IDLE_LABEL_TEXT_Y - HOME_WITH_CLOCK_LABLE_Y_OFFSET, false);
             home_clock_ui_update(thiz, 0, true);
@@ -440,7 +444,7 @@ static void home_ui_update(ui_manager_context_t *thiz, ui_proc_home_t *proc)
             home_button_ui_update(thiz, IDLE_BUTTON_ICON_X, IDLE_BUTTON_ICON_Y, false);
             home_label_text_ui_update(thiz, "since last pumping session",
                 IDLE_LABEL_TEXT_X - HOME_RECORD_TEXT_X_OFFSET, 
-                IDLE_LABEL_TEXT_Y + HOME_RECORD_TEXT_Y_OFFSET, true, false, &lv_font_oppo_sans_14_medium);
+                IDLE_LABEL_TEXT_Y + HOME_RECORD_TEXT_Y_OFFSET, true, false, &lv_font_oppo_sans_16_medium);
             home_record_time_ui_update(thiz, home_info->timestamp_offset,
                 180, IDLE_LABEL_TEXT_Y, true);
             home_clock_ui_update(thiz, 0, false);
@@ -453,7 +457,7 @@ static void home_ui_update(ui_manager_context_t *thiz, ui_proc_home_t *proc)
                 IDLE_LABEL_AREA_ICON_X, IDLE_LABEL_AREA_ICON_Y - HOME_CLOCK_TIP_LABLE_Y_OFFSET, true);
             home_button_ui_update(thiz, IDLE_BUTTON_ICON_X, IDLE_BUTTON_ICON_Y, false);
             home_label_text_ui_update(thiz, "Time not updated. Connect\nthe device to sync",
-                IDLE_LABEL_TEXT_X - 12, IDLE_LABEL_TEXT_Y - HOME_CLOCK_TIP_LABLE_Y_OFFSET, true, true, &lv_font_oppo_sans_14_medium);
+                IDLE_LABEL_TEXT_X - 12, IDLE_LABEL_TEXT_Y - HOME_CLOCK_TIP_LABLE_Y_OFFSET, true, true, &lv_font_oppo_sans_16_medium);
             home_record_time_ui_update(thiz, home_info->timestamp_offset,
                  IDLE_LABEL_TEXT_X, IDLE_LABEL_TEXT_Y - HOME_CLOCK_TIP_LABLE_Y_OFFSET, false);
             home_clock_ui_update(thiz, 0, false);
@@ -479,14 +483,13 @@ static void home_ui_update(ui_manager_context_t *thiz, ui_proc_home_t *proc)
     }
 }
 #else
-
 static void home_ui_update(ui_manager_context_t *thiz, ui_proc_home_t *proc)
 {
     home_label_ui_update(thiz, RESOURCE_ID_HOME_IDLE_LABLE_ICON,
         IDLE_LABEL_AREA_ICON_X, IDLE_LABEL_AREA_ICON_Y, true);
     home_button_ui_update(thiz, IDLE_BUTTON_ICON_X, IDLE_BUTTON_ICON_Y, true);
     home_label_text_ui_update(thiz, "Select a program or mode\nto start pumping",
-        IDLE_LABEL_TEXT_X, IDLE_LABEL_TEXT_Y, true, false, &lv_font_oppo_sans_14_medium);
+        IDLE_LABEL_TEXT_X, IDLE_LABEL_TEXT_Y, true, false, &lv_font_oppo_sans_16_medium);
     home_root_animation_update(thiz, RESOURCE_ID_HD_ANIM_IP_START,
         RESOURCE_ID_HD_ANIM_IP_END - RESOURCE_ID_HD_ANIM_IP_START + 1,
         HOME_IDLE_ANIMATION_X, HOME_IDLE_ANIMATION_Y);   

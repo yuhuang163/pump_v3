@@ -53,7 +53,7 @@ static void charge_ui_common_cb(hdr_post_args_t *args)
     ui_proc_charge_t *proc = args->user_data;
     EXCEPTION_CHECK_VOID(proc);
     WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_CHARGE);
-    LOG_WM("charge_ui_common_cb, margic:%x, action:%d.", proc->margic, args->arg1);
+    LOG_WM("margic:%x, action:%d.", proc->margic, args->arg1);
     int action = args->arg1;
     switch (action) {
         case CHARGE_HDR_EXIT_CHARGE_POLICY:
@@ -139,6 +139,7 @@ static int on_charge_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t ke
     WINDOW_CONTEXT_GUARD_INT(proc, ID_WINDOW_CHARGE, 0);
     if (keytype == KEY_EVENT_LONG_3S) {
         if (keycode == KEY_CODE_POWER && proc->battery->is_adapter_mismatch() == 0) {
+            LOG_WM("key post exit charge policy task");
             proc->exit_charge_window_flag = 1;
             POST_TASK_HANDLER_NO_DELAY_ARG1(charge_ui_common_cb, proc, 
                 CHARGE_HDR_EXIT_CHARGE_POLICY, EXIT_CHARGE_POLICY_TASK_NAME);
@@ -168,7 +169,13 @@ static int entry_event_cb(window_lift_cycle_e new_state, const struct window_con
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);
         if (proc->led && proc->led->hook) {
-            if (proc->led->hook->set_key_backlight) {
+            /*
+             * 插 USB 的“伪关机/充电界面”必须强制灭灯并清 BLINK 状态机，
+             * 不能仅依赖亮度置零。
+             */
+            if (proc->led->set_led_onoff) {
+                proc->led->set_led_onoff(PUMP_LED_ALL_ID, LED_STATUS_OFF);
+            } else if (proc->led->hook->set_key_backlight) {
                 proc->led->hook->set_key_backlight(proc->led, 0);
             }
             

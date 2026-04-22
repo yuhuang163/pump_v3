@@ -54,8 +54,6 @@ typedef enum {
 /// 系统窗口ID枚举.
 typedef enum {
     ID_SYSTEM_WINDOW_POWER_OFF,
-    ID_SYSTEM_WINDOW_FACTORY_RESET,
-    ID_SYSTEM_WINDOW_FACTORY_RESET_CONFIRM, /// 工厂重置确认界面
     ID_SYSTEM_WINDOW_ID_MAX,
 } system_window_id_e;
 

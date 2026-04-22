@@ -27,7 +27,14 @@ extern "C" {
 #if IS_SUPPORT_TOUCH_IC_OTA
 /// 按键开机后触摸芯片固件自动化升级开关
 #ifndef BSP_TOUCH_IC_FW_OTA_AUTO
-#define BSP_TOUCH_IC_FW_OTA_AUTO        (0)    /// 0: 默认关闭，1: 自动化升级模式，开机后循环进行固件升级 2: 手动升级模式，每次开机后只进行一次固件升级
+#define BSP_TOUCH_IC_FW_OTA_AUTO        (0)    /// 0: 非压测版本，按正常升级流程 1: 压测版本，忽略版本差异并循环强制升级
+#endif
+
+#if (BSP_TOUCH_IC_FW_OTA_AUTO == 1)
+/// 自动化压测模式下每轮升级间隔
+#ifndef HYN_TOUCH_OTA_STRESS_INTERVAL_MS
+#define HYN_TOUCH_OTA_STRESS_INTERVAL_MS (4000)
+#endif
 #endif
 
 #if (BSP_TOUCH_IC_FW_OTA_AUTO == 0)
@@ -53,7 +60,9 @@ extern "C" {
 */
 void bsp_touch_key_reset(void);
 uint8_t touch_fw_update_handler(void);
+uint8_t touch_fw_update_handler_force(bool force_update);
 bool touch_firmware_is_lower_than_image(int current_version);
+int touch_firmware_target_version(void);
 void bsp_touch_rst_pin_output_set(uint8_t high_level);
 void bsp_touch_key_ota_event_cb(key_ota_event_e event, uint8_t progress);
 #ifdef __cplusplus

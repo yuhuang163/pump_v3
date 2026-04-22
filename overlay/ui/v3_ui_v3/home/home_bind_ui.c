@@ -91,17 +91,17 @@ const static home_bind_text_info_t bind_text_infos[2] = {
 };
 
 const static home_bind_text_info_t bind_disconnect_infos[2] = {
-    {"Disconnect", &lv_font_oppo_sans_16_medium, HOME_BIND_STATUS_TEXT_X_OFFSET, HOME_BIND_STATUS_TEXT_Y_OFFSET, 0xB25962},
+    {"Disconnect", &lv_font_oppo_sans_20_medium, HOME_BIND_STATUS_TEXT_X_OFFSET, HOME_BIND_STATUS_TEXT_Y_OFFSET, 0xB25962},
     {"", &lv_font_oppo_sans_14_medium, 0, 0, HOME_BIND_TEXT_COLOR}
 };
 
 const static home_bind_text_info_t bind_connecting_infos[2] = {
-    {"Connecting", &lv_font_oppo_sans_16_medium, HOME_BIND_STATUS_TEXT_X_OFFSET, HOME_BIND_STATUS_TEXT_Y_OFFSET, 0xB25962},
+    {"Connecting", &lv_font_oppo_sans_20_medium, HOME_BIND_STATUS_TEXT_X_OFFSET, HOME_BIND_STATUS_TEXT_Y_OFFSET, 0xB25962},
     {"", &lv_font_oppo_sans_14_medium, 0, 0, HOME_BIND_TEXT_COLOR}
 };
 
 const static home_bind_text_info_t bind_connected_infos[2] = {
-    {"Device connected", &lv_font_oppo_sans_16_medium, HOME_BIND_STATUS_TEXT_X_OFFSET, HOME_BIND_STATUS_TEXT_Y_OFFSET, 0xB25962},
+    {"Device connected", &lv_font_oppo_sans_20_medium, HOME_BIND_STATUS_TEXT_X_OFFSET, HOME_BIND_STATUS_TEXT_Y_OFFSET, 0xB25962},
     {"", &lv_font_oppo_sans_14_medium, 0, 0, HOME_BIND_TEXT_COLOR}
 };
 

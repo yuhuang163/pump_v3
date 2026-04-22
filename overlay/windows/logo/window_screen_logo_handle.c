@@ -51,8 +51,28 @@ static void touch_key_fw_version_check_cb(hdr_post_args_t *args)
 }
 
 #if IS_SUPPORT_LOGO_BG_COLOR_TEST
+#if IS_SUPPORT_LOGO_KEY_LIGHT_ADAPTIVE_TEST
+static void logo_test_key_backlight_on(ui_proc_logo_t *proc)
+{
+    EXCEPTION_CHECK_VOID(proc);
+    if (proc->led && proc->led->hook && proc->led->hook->set_key_backlight) {
+        /*
+         * 先设置按键背光基准 level，最终出光亮度由自适应 duty 再次缩放：
+         * final = base_level(100) * adaptive_duty(17~100) / 100
+         */
+        proc->led->hook->set_key_backlight(proc->led, 100);
+    }
+#if IS_SUPPORT_KEY_LIGHT_ADAPTIVE
+    if (proc->led && proc->led->hook && proc->led->hook->set_key_light_adaptive_dimming) {
+        proc->led->hook->set_key_light_adaptive_dimming(proc->led, 1);
+    }
+#endif
+}
+#endif
+
 static int on_logo_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t keytype)
 {
+    (void)keytype;
     ui_proc_logo_t *proc = user_data;
     EXCEPTION_CHECK_INT(proc);
     WINDOW_CONTEXT_GUARD_INT(proc, ID_WINDOW_LOGO, 0);
@@ -61,6 +81,9 @@ static int on_logo_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
     } else if (keycode == KEY_CODE_KNOB_RIGHT) {
         proc->test_page_count++;
     }
+#if IS_SUPPORT_LOGO_KEY_LIGHT_ADAPTIVE_TEST
+    logo_test_key_backlight_on(proc);
+#endif
     return 0;
 }
 #endif
@@ -79,6 +102,9 @@ static int entry_event_cb(window_lift_cycle_e new_state,
         } else {
             LOG_WM("key not present, ignore.");
         }
+#if IS_SUPPORT_LOGO_KEY_LIGHT_ADAPTIVE_TEST
+        logo_test_key_backlight_on(proc);
+#endif
 #endif
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);

@@ -213,7 +213,7 @@ typedef enum {
 /// 马达策略配置
 typedef struct {  
     uint8_t policy_type;       /// 策略类型 motor_policy_type_e
-    uint16_t duration;         /// 持续时间，单位s
+    uint32_t duration;         /// 持续时间，单位s
     motor_policy_core_t core;  /// 策略实体
 } motor_policy_cfg_t;
 

@@ -10,7 +10,7 @@ extern "C" {
 ******************************************************************************/
 #include "root_common_api.h" // IWYU pragma: keep
 
-#define PUMP_WORK_STEP_TIME_MS   (100)
+#define PUMP_WORK_STEP_TIME_MS   (20)
 
 #define PUMP_LOCK_LOG(...)
 #define PUMP_THD_WAKELOCK                     "pump_wakelock"

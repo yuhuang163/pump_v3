@@ -322,6 +322,8 @@ static void ble_event_callback(ble_event_e event, void *param)
             ble_obj->priv.ble_adv_state = 0;
             break;
         case BLE_EVENT_CONN_OPENED:
+        case BLE_EVENT_CONN_MTU_EXCHANGED:
+        case BLE_EVENT_CONN_PARAMS_UPDATE:
             ble_obj->dispatch_ble_event_wrapper(ble_obj, BLE_MSG_PERIPH_CONNECT_SUC, param, 1);
             break;
         case BLE_EVENT_CONN_CLOSED:
