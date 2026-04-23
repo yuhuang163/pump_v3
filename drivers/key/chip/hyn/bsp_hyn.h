@@ -33,7 +33,7 @@ extern "C" {
 #if (BSP_TOUCH_IC_FW_OTA_AUTO == 1)
 /// 自动化压测模式下每轮升级间隔
 #ifndef HYN_TOUCH_OTA_STRESS_INTERVAL_MS
-#define HYN_TOUCH_OTA_STRESS_INTERVAL_MS (4000)
+#define HYN_TOUCH_OTA_STRESS_INTERVAL_MS (6000)
 #endif
 #endif
 
