@@ -165,6 +165,13 @@ extern "C" {
 #define IS_SUPPORT_IMU_FIFO                                         (0)
 #endif
 
+/**
+ * 仅支持power key开机
+*/
+#ifndef IS_SUPPORT_POWER_KEY_ON_BOOT
+#define IS_SUPPORT_POWER_KEY_ON_BOOT                              (0)
+#endif
+
 #ifdef __cplusplus
 }
 #endif

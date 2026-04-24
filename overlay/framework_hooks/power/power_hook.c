@@ -60,15 +60,15 @@ static void system_power_event_cb(hdr_post_args_t *args)
             battery_manager_context_t *battery = (battery_manager_context_t *)find_module(ID_MODULE_BATTERY);
             pm->priv.is_power_on_timeout_detect = 0;
             if (key && key->is_key_triggered(KEY_INDEX_POWER) == 0) {
-#if IS_SUPPORT_PWR_ON_WHEN_PLUG_IN
+#if IS_SUPPORT_POWER_KEY_ON_BOOT
+                pm->system_power_control(false); 
+#else
                 if (battery && battery->is_vbus_plug_in() > 0) {
                     pm->system_power_control(true);
                     SEND_BROADCAST_ARGS1(ID_BROADCAST_SYS_STATE_CHANGE, SYSTEM_BROADCAST_POWER_ON);
                 } else {
                     pm->system_power_control(false); /// 非充电状态下进行开机超时检测.
                 }
-#else
-                pm->system_power_control(false); 
 #endif
             } else {
                 pm->system_power_control(true);
@@ -390,19 +390,7 @@ static int on_post_power_init_route(struct power_manager_context *ctx)
     EXCEPTION_CHECK_INT(ctx);
     ctx->priv.pbus = (peripheral_bus_context_t *)find_module(ID_MODULE_DEVICE_BUS);
     battery_manager_context_t *battery = (battery_manager_context_t *)find_module(ID_MODULE_BATTERY);
-#if IS_SUPPORT_PWR_ON_WHEN_PLUG_IN
-    if ((battery && battery->is_vbus_plug_in() > 0) ||
-        platform_is_startup_caused_by_reboot()) {
-        key_input_context_t *key = (key_input_context_t *)find_module(ID_MODULE_KEY_INPUT);  
-        if (key && key->is_key_triggered(KEY_INDEX_POWER)) {
-            ctx->priv.is_power_on_timeout_detect = 1;
-        }
-        /// Keep dedicated task name for delayed power-on path to preserve existing scheduling behavior.
-        POST_TASK_HANDLER_DELAYED_ARG2(system_power_event_cb, 500, HDR_ACTION_POWER_ON, ctx,
-            POWER_ONOFF_AND_STANDBY_TASK_NAME);
-        return 0;
-    }
-#else
+#if IS_SUPPORT_POWER_KEY_ON_BOOT
     if (platform_is_startup_caused_by_reboot()) {
         key_input_context_t *key = (key_input_context_t *)find_module(ID_MODULE_KEY_INPUT);
         if (key && key->is_key_triggered(KEY_INDEX_POWER)) {
@@ -413,7 +401,24 @@ static int on_post_power_init_route(struct power_manager_context *ctx)
             POWER_ONOFF_AND_STANDBY_TASK_NAME);
         return 0;
     }
+#else
+    if ((battery && battery->is_vbus_plug_in() > 0) ||
+        platform_is_startup_caused_by_reboot()) {
+        key_input_context_t *key = (key_input_context_t *)find_module(ID_MODULE_KEY_INPUT);  
+        if (key && key->is_key_triggered(KEY_INDEX_POWER)) {
+            ctx->priv.is_power_on_timeout_detect = 1;
+        }
+        POST_TASK_HANDLER_DELAYED_ARG2(system_power_event_cb, 500, HDR_ACTION_POWER_ON, ctx,
+            POWER_ONOFF_AND_STANDBY_TASK_NAME);
+        return 0;
+    }
 #endif
+    key_input_context_t *key = (key_input_context_t *)find_module(ID_MODULE_KEY_INPUT);
+    if (key && key->is_key_triggered(KEY_INDEX_POWER) == 0) {
+        ctx->priv.is_power_on_timeout_detect = 0;
+        ctx->system_power_control(false);
+        return 0;
+    }
     uint32_t timeout_ms = POWER_ON_TIMEOUT_MS;
     LOG_PM("power on time: %d", timeout_ms);
     if (timeout_ms > POWER_ON_TIMEOUT_MS_DEFAULT) {
