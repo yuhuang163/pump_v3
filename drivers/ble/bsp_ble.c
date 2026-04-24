@@ -292,6 +292,12 @@ int ble_custom_event_callback(uintptr_t connhdl, gap_adv_event_t event, gap_adv_
     return 0;
 }
 
+void ble_custom_tx_ccc_changed(uint8_t conidx, uint16_t connhdl, bool notify_enabled)
+{
+    LOG_PBUS("ble tx ccc changed %d", notify_enabled);
+    s_ble_event_callback(BLE_EVENT_TX_CCC_CHANGED, &connhdl);
+}
+
 uint16_t ble_custom_mtu_size_get(void)
 {
     return s_ble_mtu_size;
