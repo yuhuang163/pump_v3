@@ -1,7 +1,6 @@
 #ifndef __V3_DEFINED_H__
 #define __V3_DEFINED_H__
-
-#include "algo_fusion_lib.h"
+#include "include/algo_fusion_lib.h"
 
 #ifndef abs
 #define abs(x)			((x) < 0 ? -(x) : (x))
@@ -48,6 +47,7 @@
 #define LEVEL_15			(15)
 
 #define INVALID_TARGET_PRESSURE_REF    (-255.0f) /* 无效的目标压力参考值 */
+#define RAW_PUMP_SEG_MAX   128 /* 原始泵压力段最大缓存长度 */
 
 // target pressure for each level - v2.13
 static float EXPRESSION_THRESHOLD[] = { -6, -9.5, -12.5, -15, -17.5,
@@ -83,58 +83,7 @@ static float expression_intercep[] = { 0.8553, -4.6521, -4.7871, -5.0214, -17.60
 										-20.6986, -18.9113, -18.6675, -26.4728, -35.2280,
 										-35.4251, -35.3878, -34.7144, -41.3431, -42.9398 };
 
-
-///////////////////////////////////////////////////////from software (input types)
-
-// /// 泵状态数据
-// typedef struct {
-// 	unsigned char level;       /// 0-15
-// 	unsigned char mode;        /// 0:刺激模式 1:吸乳模式 2:混合模式 3:个性化模式 4:PP追奶模式 5:2+8奶量提升模式 6:开奶模式
-// 	unsigned char state;       /// 吸力状态 suction_status_e
-// 	unsigned char pump_duty;        /// 泵奶力度
-// 	unsigned char valve_duty;       /// 吸乳器电磁阀门力度
-// 	unsigned char target_pressure;  /// 目标压力
-// 	unsigned int target_pump_time;       /// 泵工作目标时间，单位ms
-// 	unsigned int run_time;        /// 运行时间，单位ms
-// } algo_pump_state_t;
-
-// /// 气压数据
-// typedef struct {
-// 	unsigned char do_work;     /// 是否正在泵奶
-// 	unsigned int timestamp;
-// 	float air_pressure[2];
-// 	algo_pump_state_t pump_state[2];
-// } algo_air_pressure_data_t;
-
-/* ===========================
- * Public, decoupled API types
- * =========================== */
-
-/* 模式定义：与当前算法内部 MODE_* 对应（0/1/2） */
-typedef enum {
-	WEAR_MODE_STIMULATION = 0,
-	WEAR_MODE_EXPRESSION = 1,
-	WEAR_MODE_MIXED = 2,
-} wear_mode_e;
-
-/* 泵状态：与 suction_status_e 值一致（避免对定义顺序的依赖） */
-typedef enum {
-	WEAR_PUMP_STATUS_IDLE = 0,
-	WEAR_PUMP_STATUS_GENERATE,
-	WEAR_PUMP_STATUS_HOLD,
-	WEAR_PUMP_STATUS_RELEASE,
-	WEAR_PUMP_STATUS_SLEEP,
-} wear_pump_state_e;
-
-/* 对外输入结构：默认与 algo_* 类型同布局，方便嵌软侧直接复用 */
-typedef algo_pump_state_t wear_pump_state_t;
-typedef algo_air_pressure_data_t wear_input_t;
-
-/* 日志宏（如果上层未提供，则降级为空） */
-#ifndef ALGO_LOG_INFO
-#define ALGO_LOG_INFO(...) ((void)0)
-#endif
-
+///////////////////////////////////////////////////////from software
 /// 吸力状态
 typedef enum {
 	SUCTION_STATUS_IDLE = 0,
@@ -272,6 +221,14 @@ typedef struct _FEATURE_INFO_
 	unsigned char	uWearOffCount;
 	unsigned char	uPrevWearStatus;
 	unsigned int	uNormalWaveform;
+
+	float			fRawSegMinPressure;
+	float			fRawSegThresholdAtMinPressure;
+	unsigned char	uPrevPumpState;
+	unsigned char	uPrevActive;
+	unsigned char	uCurrActive;
+	unsigned short	uRawSegLen;
+	float			fRawPumpSeg[RAW_PUMP_SEG_MAX];
 }SFEATURE_INFO;
 
 typedef struct _DATA_BUFFER_

@@ -1,6 +1,6 @@
 /*****************************************************************************************************************
 版权所有：Shenzhen Root Inonvation
-项目名称：Air2
+项目名称：V3
 项目编号：
 文 件 名：
 生成日期：2025.12.19
@@ -34,7 +34,7 @@ void V3WearDetectionModeReset(unsigned char uLevel, unsigned char uMode, unsigne
 
 /*interface*/
 void V3WearDetectionInit(unsigned char uLevelLeft, unsigned char ulevelRight, unsigned char uModeLeft, unsigned char uModeRight);
-void V3WearDetectionMain(wear_input_t sPressureData);
+void V3WearDetectionMain(algo_air_pressure_data_t sPressureData);
 void GetWearDetectionResult(unsigned char* uWearStatus);
 void GetCompensationStatus(unsigned char* uCompsStatus, int* iDelta_pwm);
 const char* v3_pressure_algo_get_version(void);
