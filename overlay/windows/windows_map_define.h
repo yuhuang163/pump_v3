@@ -1,7 +1,7 @@
 #ifndef __WINDOWS_MAP_DEFINE_H__
 #define __WINDOWS_MAP_DEFINE_H__
 
-#include "window_screen_home.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif

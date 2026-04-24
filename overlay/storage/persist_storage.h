@@ -133,6 +133,7 @@ typedef enum {
     BREAST_PUMP_PUMP_MODE_DEFAULT = BREAST_PUMP_REGULAR_PUMPING_MODE, /// 
  
     BREAST_PUMP_MODE_INVALID = 0xFF,
+    BREAST_PUMP_ALL_MODE_AND_PROGRAM = 0xFFFF, /// 所有模式和韵律
 } breast_pump_mode_e;
 
 /// 泵奶模式类型

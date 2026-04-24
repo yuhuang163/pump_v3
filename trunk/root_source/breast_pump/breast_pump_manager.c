@@ -164,6 +164,11 @@ static void set_breast_pump_setting(pump_setting_t *setting, uint8_t step_index,
         LOGE("step_index out of range");
         return;
     } 
+#if IS_SUPPORT_PUMP_GLOBAL_PARAM_SETTING
+    int mode = BREAST_PUMP_ALL_MODE_AND_PROGRAM;
+#else
+    int mode = breast_pump_obj->priv.m_info.mode;
+#endif
 
 #if IS_PUMP_STEPS_USE_SAME_SETTING
     for (int i = 0; i < ROOT_BREAST_PUMP_STEP_MAX; i++) {
@@ -172,14 +177,14 @@ static void set_breast_pump_setting(pump_setting_t *setting, uint8_t step_index,
         breast_pump_obj->priv.setting[i].speed = setting->speed;
         if (is_need_store && breast_pump_obj->priv.st) {
             breast_pump_obj->priv.st->put_store_ram_val(STORE_ID_PUMP_SETTING_INFO,
-                 breast_pump_obj->priv.m_info.mode, i, &breast_pump_obj->priv.setting[i]);
+                mode, i, &breast_pump_obj->priv.setting[i]);
         }
     }
 #else
     memcpy(&breast_pump_obj->priv.setting[step_index], setting, sizeof(pump_setting_t));
     if (is_need_store && breast_pump_obj->priv.st) {
-        breast_pump_obj->priv.st->put_store_ram_val(STORE_ID_PUMP_SETTING_INFO, breast_pump_obj->priv.m_info.mode, 
-            step_index, setting);
+        breast_pump_obj->priv.st->put_store_ram_val(STORE_ID_PUMP_SETTING_INFO,
+            mode, step_index, setting);
     }
 #endif
     
