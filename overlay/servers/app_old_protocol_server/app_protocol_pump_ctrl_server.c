@@ -674,6 +674,30 @@ static uint8_t app_old_comm_set_custom_pump_level(app_old_comm_pump_ctrl *app_ol
     return true;
 }
 
+static uint8_t app_old_comm_set_custom_pump_speed(app_old_comm_pump_ctrl *app_old_comm_pump_ctrl_date)
+{
+    breast_pump_manager_context_t *pump_ctx = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
+    EXCEPTION_CHECK_UINT(pump_ctx);
+    int time_index = 0;
+    READ_PUMP_MODE_STEP_INDEX(pump_ctx, time_index);
+    storage_manager_context_t *storage_ctx = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
+    EXCEPTION_CHECK_UINT(storage_ctx);
+    pump_setting_t setting; /// 当前泵奶设置信息.
+    READ_PUMP_SETTING_INFO(pump_ctx, time_index, setting); 
+    //是否变动speed
+    if (setting.speed == app_old_comm_pump_ctrl_date->user_define_pump_speed) {
+        LOG_SRV("pump speed no change %d", setting.speed);
+        return false;
+    }
+    //左右同步控制
+    setting.speed = app_old_comm_pump_ctrl_date->user_define_pump_speed;
+    LOG_SRV("pump speed  %d", setting.speed);
+    WRITE_PUMP_SETTING_INFO(pump_ctx, time_index, true, setting);
+    app_broadcast_pump_speed_to_window(setting.speed ,OLD_BROADCAST_ALL_CT);
+
+    return true;
+}
+
 static uint8_t app_old_comm_pump_control_handler(app_old_comm_pump_ctrl *app_old_comm_pump_ctrl_date)
 {
     breast_pump_manager_context_t *pump_ctx = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
@@ -692,18 +716,18 @@ static uint8_t app_old_comm_pump_control_handler(app_old_comm_pump_ctrl *app_old
             case BREAST_PUMP_LACTATION_MODE:
             case BREAST_PUMP_STIMULATION_MODE: // 传统模式
             case BREAST_PUMP_RELAX_MODE: // 放松模式
-            case BREAST_PUMP_MIX_MODE: {       /// 常规的吸乳模式允许调频率
-                app_old_comm_set_nommal_pump_speed(app_old_comm_pump_ctrl_date);
-            }
+            case BREAST_PUMP_MIX_MODE: 
             case BREAST_PUMP_REGULAR_PUMPING_MODE:
             case BREAST_PUMP_EMPTYING_BOOST_MODE:
             case BREAST_PUMP_PP_MILK_TRACK_MODE:
             case BREAST_PUMP_MILK_BOOST_MODE:
             case BREAST_PUMP_LACTATION_START_MODE: {
+                app_old_comm_set_nommal_pump_speed(app_old_comm_pump_ctrl_date);
                 app_old_comm_set_nommal_pump_level(app_old_comm_pump_ctrl_date);
                 break;
             }
             case BREAST_PUMP_CUSTOM_MODE: {
+                app_old_comm_set_custom_pump_speed(app_old_comm_pump_ctrl_date);
                 app_old_comm_set_custom_pump_level(app_old_comm_pump_ctrl_date); //设置运行中的参数
                 //todo                                                          //将缓存的cust para也更新下
                 break;
