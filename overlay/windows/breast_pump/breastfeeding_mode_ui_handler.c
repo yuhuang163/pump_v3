@@ -38,9 +38,6 @@ static void breastfeeding_mode_display_completed_cb(hdr_post_args_t *args)
     if (proc->mode_sync_flag) {
         proc->mode_sync_flag = false;
         WRITE_PUMP_WORK_MODE(proc->pump, proc->ui_bf_mode_index, true, 1);
-        if (proc->led) {
-            proc->led->set_led_level(PUMP_FREQ_SET_BL, 0);
-        }
     }
     pump_sub_ui_exit_handler(proc);
 }

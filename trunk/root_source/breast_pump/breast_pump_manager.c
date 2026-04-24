@@ -169,10 +169,7 @@ static void set_breast_pump_setting(pump_setting_t *setting, uint8_t step_index,
     for (int i = 0; i < ROOT_BREAST_PUMP_STEP_MAX; i++) {
         breast_pump_obj->priv.setting[i].level[0] = setting->level[0];
         breast_pump_obj->priv.setting[i].level[1] = setting->level[1];
-        if (PUMP_IS_COMMON_MODE(breast_pump_obj->priv.m_info.mode)) {
-            breast_pump_obj->priv.setting[i].speed = setting->speed;
-        }
-
+        breast_pump_obj->priv.setting[i].speed = setting->speed;
         if (is_need_store && breast_pump_obj->priv.st) {
             breast_pump_obj->priv.st->put_store_ram_val(STORE_ID_PUMP_SETTING_INFO,
                  breast_pump_obj->priv.m_info.mode, i, &breast_pump_obj->priv.setting[i]);
