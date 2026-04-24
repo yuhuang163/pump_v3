@@ -332,7 +332,6 @@ static int entry_event_cb(window_lift_cycle_e new_state,
         READ_PUMP_WORK_MODE(proc->pump, mode_index);
         if (proc->led && proc->led->hook && proc->led->hook->set_key_backlight) {
             proc->led->hook->set_key_backlight(proc->led, 100);
-            proc->led->set_led_level(PUMP_FREQ_SET_BL, PUMP_IS_COMMON_MODE(mode_index) ? LED_LEVEL_MAX : 0);
         }
         switch_pump_status_ui(proc);
     }

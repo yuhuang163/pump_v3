@@ -187,13 +187,6 @@ void pump_speed_key_click_handler(ui_proc_pump_t *proc)
         pump_sub_ui_exit_handler(proc);
         return;
     } 
-
-    int pump_mode = 0;
-    READ_PUMP_WORK_MODE(proc->pump, pump_mode);
-    if (PUMP_IS_BREASTFEEDING_MODE(pump_mode)) {
-        LOG_UI("pump is breastfeeding mode, ignore.");
-        return;
-    }
     int time_index = 0;
     READ_PUMP_MODE_STEP_INDEX(proc->pump, time_index);
     READ_PUMP_SETTING_INFO(proc->pump, time_index, proc->setting); 
