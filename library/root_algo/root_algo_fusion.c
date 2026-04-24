@@ -45,8 +45,8 @@ static void wear_detection_process_data(void)
         /// TODO: 实现佩戴检测算法
         V3WearDetectionMain(s_air_pressure_data);
         /// TODO: 修改算法结果s_result
-        //GetWearDetectionResult(s_result.wear_status);
-        //GetCompensationStatus(s_result.compensation_status, s_result.compensation_delta_pwm);
+        GetWearDetectionResult(s_result.wear_status);
+        GetCompensationStatus(s_result.compensation_status, s_result.compensation_delta_pwm);
         // // TODO: 实现气压补偿算法
         // V3ProAlgoMain(s_air_pressure_data);          // 不做气压补偿，采集数据
         // GetCompensationResult(s_result.compensation_status, s_result.compensation_delta_pwm);
