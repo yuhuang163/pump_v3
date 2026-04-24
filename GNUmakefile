@@ -1062,12 +1062,8 @@ WEAR_DETECTION_LIB := $(PROJECT_ROOT)/library/root_algo/wear_detecttion/libwear_
 ALGORITHM_MODULE_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/overlay/algo/*.c) \
 	$(wildcard $(PROJECT_ROOT)/library/root_algo/*.c) \
-<<<<<<< HEAD
-	$(wildcard $(PROJECT_ROOT)/library/root_algo/wear_detecttion/*.c) \
-=======
 	$(wildcard $(PROJECT_ROOT)/library/root_algo/include/*.c) \
 	$(wildcard $(PROJECT_ROOT)/library/root_algo/wear_detection/*.c) \
->>>>>>> ba4e11f0 (add algo lib v1.0.0.1)
 	$(wildcard $(PROJECT_ROOT)/overlay/framework_hooks/algo/*.c) \
 	$(wildcard $(PROJECT_ROOT)/trunk/root_source/algorithm/*.c)
 
