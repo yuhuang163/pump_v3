@@ -834,27 +834,52 @@ static void app_pump_broadcast_app_completed_delay_task_handler(hdr_post_args_t 
     }
 }
 
+static bool app_old_comm_report_start_block_abnormal(uint8_t abnormal_id)
+{
+    servers_publish_data_args_t args_temp = {
+        .arg1 = abnormal_id,
+        .arg2 = OLD_PUBLISH_ABNORMAL_STATE_ACTIVE,
+        .val = NULL,
+    };
+    app_old_comm_handle_dev_abnormal_report(&args_temp);
+    return true;
+}
+
 ///低电不足运行一次不允许启动
-static bool app_old_comm_check_if_low_battery_no_run(uint8_t ctrl_status)
+static bool app_old_comm_check_if_start_block_abnormal(uint8_t ctrl_status)
 {
     int pump_status = 0;
     breast_pump_manager_context_t *pump_ctx = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
+    battery_manager_context_t *batt_ctx = (battery_manager_context_t *)find_module(ID_MODULE_BATTERY);
+    airplane_mode_context_t *air_ctx = (airplane_mode_context_t *)find_module(ID_MODULE_AIRPLANE_MODE);
     EXCEPTION_CHECK_UINT(pump_ctx);
+    EXCEPTION_CHECK_UINT(batt_ctx);
+    EXCEPTION_CHECK_UINT(air_ctx);
     READ_PUMP_WORK_STATUS(pump_ctx, pump_status);
-    if (app_old_comm_get_battery_percent() <= LOW_BAT_PERCENTAGE_RUN_ONCE_NOT_ALLOWED) {
-        if (pump_status == BREAST_PUMP_FINISH || pump_status == BREAST_PUMP_IDLE) {
-            if (ctrl_status == APP_OLD_COMM_PUMP_CTRL_RUN) {
-                servers_publish_data_args_t args_temp = {
-                    .arg1 = OLD_PUBLISH_ABNORMAL_LOW_BAT_CANNOT_START,
-                    .arg2 = OLD_PUBLISH_ABNORMAL_STATE_ACTIVE,
-                    .val = NULL,
-                };
-                app_old_comm_handle_dev_abnormal_report(&args_temp);
-                return 1;
-            }
-        }
+
+    if (ctrl_status != APP_OLD_COMM_PUMP_CTRL_RUN) {
+        return false;
     }
-    return 0;
+
+    if (pump_status != BREAST_PUMP_FINISH && pump_status != BREAST_PUMP_IDLE) {
+        return false;
+    }
+
+    if (app_old_comm_get_battery_percent() <= LOW_BAT_PERCENTAGE_RUN_ONCE_NOT_ALLOWED) {
+        return app_old_comm_report_start_block_abnormal(OLD_PUBLISH_ABNORMAL_LOW_BAT_CANNOT_START);
+    }
+
+    ///适配器不适配，运行一次不允许启动
+    if (batt_ctx->is_adapter_mismatch()) {
+        return app_old_comm_report_start_block_abnormal(OLD_PUBLISH_ABNORMAL_ADAPTER_ERROR);
+    }
+
+    ///旅行锁
+    if (air_ctx->is_on_airplane_mode()) {
+        return app_old_comm_report_start_block_abnormal(OLD_PUBLISH_ABNORMAL_TRAVEL_LOCK);
+    }
+
+    return false;
 }
 
 /*
@@ -959,7 +984,7 @@ void app_old_comm_handle_ctrl_dev_req(uint8_t cal, uint8_t *cab)
     app_old_comm_pump_ctrl_date.normal_pump_speed = cab[7] - 1; //频次（1-低 2-中 3-高）（1字节）
 
     ///低电不足运行一次不允许启动
-    if (app_old_comm_check_if_low_battery_no_run(cab[0])) {
+    if (app_old_comm_check_if_start_block_abnormal(cab[0])) {
         app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_NACK, APP_OLD_COMM_CID_CTRL_DEV, 1, cab);
         return;
     }
@@ -1276,9 +1301,16 @@ void app_old_comm_handle_get_dev_info_req(uint8_t cal, uint8_t *cab)
     ack_data[data_len++] = ctx->priv.sys_info.mode_info.steps_info[BREAST_PUMP_CUSTOM_MODE].id.dat[3];//custom_mode_id;
     ack_data[data_len++] = 0x00;//milk_full_ver;
     ack_data[data_len++] = 0x00;//milk_full_switch;
+    
     ctx->get_store_val(STORE_ID_FACTORY_DEV_INFO, 0, 0, &factory_dev_info);
-    memcpy(ack_data + data_len, factory_dev_info.sn, factory_dev_info.sn_len);
-    data_len += factory_dev_info.sn_len;
+    ///如果为空 填充0x00
+    if (factory_dev_info.sn_len > 0) {
+        memcpy(ack_data + data_len, factory_dev_info.sn, factory_dev_info.sn_len);
+        data_len += factory_dev_info.sn_len;
+    } else {
+        memset(ack_data + data_len, 0x00, 35);
+        data_len += 35;
+    }
 #if 1
     ack_data[data_len++] = handler_ctx->encrypt_status;//encrypt_status;
     ack_data[data_len++] = handler_ctx->encrypt_key;//encrypt_key;
