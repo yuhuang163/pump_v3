@@ -206,6 +206,12 @@ static void set_breast_pump_mode(uint32_t mode, uint8_t is_store_mode, uint8_t i
     breast_pump_info_t *m_info = &breast_pump_obj->priv.m_info;
     struct storage_manager_context *st = breast_pump_obj->priv.st;
     motor_manager_context_t *motor_ctx = breast_pump_obj->priv.motor;
+
+    //如果在运行中，模式切换，不在此处上报app，依赖progress_hook内部上报
+    if (m_info->do_work && mode != m_info->mode) {
+        is_report = 0;
+    }
+    
     if (mode >= BREAST_PUMP_MODE_MAX) {
         m_info->mode = BREAST_PUMP_PUMP_MODE_DEFAULT;
     } else {
