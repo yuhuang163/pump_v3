@@ -148,6 +148,17 @@ static void product_test_broadcast_receive_cb(broadcast_mask_id_t id, void *cont
     }
 }
 
+static void remove_product_test_pump_result_cb(breast_pump_manager_context_t *pump)
+{
+    EXCEPTION_CHECK_VOID(pump);
+    int pump_status = 0;
+    READ_PUMP_WORK_STATUS(pump, pump_status);
+    if (pump_status > BREAST_PUMP_IDLE && pump_status < BREAST_PUMP_FINISH) {
+        LOG_WM("pump status: %d => goto finish", pump_status);
+        WRITE_PUMP_WORK_STATUS(pump, BREAST_PUMP_FINISH, 1);
+    }
+}
+
 static int entry_event_cb(window_lift_cycle_e new_state,
     const struct window_context *thiz, const struct window_context *old_scr)
 {
@@ -203,6 +214,7 @@ static int exit_event_cb(window_lift_cycle_e new_state,
         case ID_SCR_STATE_ON_DESTORY:
             LOG_WM("==>%s window on destory", PAGE_NAME_STR);
             REMOVE_ALL_HANDER_TASK();
+            remove_product_test_pump_result_cb(proc->pump);
             unregister_broadcast_receiver(&proc->receiver);
             if (proc->tests) {
                 proc->tests->remove_product_tests_evt_lisenser(factory_tests_event_report_cb);

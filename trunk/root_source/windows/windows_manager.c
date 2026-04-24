@@ -40,6 +40,11 @@ static uint8_t get_current_window_id(void)
     return s_window_record.window_hdr ? s_window_record.window_hdr->window_id : ID_WINDOW_INVALID;
 }
 
+static uint8_t get_next_window_id(void)
+{
+    return s_window_record.next_window_id;
+}
+
 static uint8_t get_overlay_window_id(struct window_manager_context *wm)
 {
     (void)wm;
@@ -655,6 +660,7 @@ static int dispatch_new_window(window_context_t *ctx)
         window_exit_state_change_cb(ID_SCR_STATE_ON_PAUSE, record->window_context, ctx);/// 退出当前窗口生命周期回调
     }
    
+    record->next_window_id = next->window_id; /// 更新即将进入的新窗口id
     record->z_order = (ctx->z_order > WINDOW_PRIO_LOW) ? ctx->z_order : next->z_order;  /// 更新当前窗口的层级优先级.
     LOG_WM("create new scr_obj:(%s),counter=[%lu]", to_window_name(next->window_id), (++counter));
     window_enter_state_change_cb(ID_SCR_STATE_ON_CREATE, ctx, record->window_context); /// 进入新窗口生命周期回调
@@ -753,6 +759,7 @@ void *register_module_for_window_manager_new(list_head_t *list_head)
     ptr->wait_window_ready = wait_window_ready;
     ptr->to_window_name = to_window_name;
     ptr->get_current_window_id = get_current_window_id;
+    ptr->get_next_window_id = get_next_window_id;
     ptr->get_overlay_window_id = get_overlay_window_id;
     ptr->dispatch_new_window_args = dispatch_new_window_args;
     ptr->go_back_to_history = go_back_to_history_wrapper;

@@ -11,7 +11,7 @@
 * DEFINES
 *****************************************************************************************
 */
-#define POWER_ON_BOOT_RUN_TIME_MS                   1000     /// boot 启动补偿, 冷启动和热启动时间不一致
+#define POWER_ON_BOOT_RUN_TIME_MS                   600    /// boot 启动补偿, 冷启动和热启动时间不一致
 #define POWER_ON_TIMEOUT_MS_DEFAULT                 (3000 - POWER_ON_BOOT_RUN_TIME_MS)     /// 电源按键超时时间，单位ms
 #define POWER_ON_TIMEOUT_MS                         (POWER_ON_TIMEOUT_MS_DEFAULT - get_timestamp_ms(0))
 #define POWER_ONOFF_AND_STANDBY_TASK_NAME           "power_onoff_and_standby"
@@ -142,7 +142,8 @@ static int on_key_event_route(struct power_manager_context *ctx, uint16_t keycod
     }
 
     /// 允许关机/待机标志设置. 
-    if (keytype == KEY_EVENT_DOWN && ctx->priv.allow_shutdown_or_standby == 0 && ctx->is_system_power_on() > 0) {
+    if (keytype == KEY_EVENT_DOWN && ctx->priv.allow_shutdown_or_standby == 0 && 
+        ctx->is_system_power_on() > 0 && get_timestamp() > 4000) {
         ctx->priv.allow_shutdown_or_standby = 1; /// 允许关机/待机标志.
         LOG_PM("key down on power-on state, allow shutdown or standby: %d", ctx->priv.allow_shutdown_or_standby);
         return 0;

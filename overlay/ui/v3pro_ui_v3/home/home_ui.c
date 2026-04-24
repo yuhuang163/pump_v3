@@ -366,7 +366,7 @@ static void home_clock_ui_update(ui_manager_context_t *thiz, int16_t y_offset, b
 
 static home_ui_display_type_e home_ui_display_type_update(ui_manager_context_t *thiz, ui_proc_home_t *proc)
 {
-#if 0
+#if 1
     static home_ui_display_type_e home_ui_type_test = HOME_UI_DISPLAY_RECORD; /// TODO: 测试用，后续删除
     static uint32_t count = 0; /// TODO: 测试用，后续删除
     count++;
@@ -376,6 +376,7 @@ static home_ui_display_type_e home_ui_display_type_update(ui_manager_context_t *
         if (home_ui_type_test >= HOME_UI_DISPLAY_MAX) {
             home_ui_type_test = HOME_UI_DISPLAY_DEFAULT;
         }
+        LOG_UI("home_ui_type_test: %d", home_ui_type_test);
     }
     home_info->timestamp_offset = ((120 * 60 * 60 * 1000) + (9 * 60 * 1000)); /// TODO: 测试用，后续删除
     return home_ui_type_test;
@@ -401,7 +402,7 @@ static void home_ui_update(ui_manager_context_t *thiz, ui_proc_home_t *proc)
             home_label_ui_update(thiz, RESOURCE_ID_HOME_IDLE_LABLE_ICON,
                 IDLE_LABEL_AREA_ICON_X, IDLE_LABEL_AREA_ICON_Y, true);
             home_button_ui_update(thiz, IDLE_BUTTON_ICON_X, IDLE_BUTTON_ICON_Y, true);
-            home_label_text_ui_update(thiz, "Select a program or mode\nto start pumping",
+            home_label_text_ui_update(thiz, "Select a program or mode\nto start pumping.",
                 IDLE_LABEL_TEXT_X, IDLE_LABEL_TEXT_Y, true, false, &lv_font_oppo_sans_16_medium);
             home_record_time_ui_update(thiz, 
                 home_info->timestamp_offset, IDLE_LABEL_TEXT_X, IDLE_LABEL_TEXT_Y, false);
@@ -429,7 +430,7 @@ static void home_ui_update(ui_manager_context_t *thiz, ui_proc_home_t *proc)
             home_label_ui_update(thiz, RESOURCE_ID_HOME_IDLE_LABLE_ICON,
                 IDLE_LABEL_AREA_ICON_X, IDLE_LABEL_AREA_ICON_Y - HOME_WITH_CLOCK_LABLE_Y_OFFSET, true);
             home_button_ui_update(thiz, IDLE_BUTTON_ICON_X, IDLE_BUTTON_ICON_Y - HOME_WITH_CLOCK_LABLE_Y_OFFSET, true);
-            home_label_text_ui_update(thiz, "Select a program or mode\nto start pumping",
+            home_label_text_ui_update(thiz, "Select a program or mode\nto start pumping.",
                 IDLE_LABEL_TEXT_X, IDLE_LABEL_TEXT_Y - HOME_WITH_CLOCK_LABLE_Y_OFFSET, true, false, &lv_font_oppo_sans_16_medium);
             home_record_time_ui_update(thiz, home_info->timestamp_offset, 
                 IDLE_LABEL_TEXT_X, IDLE_LABEL_TEXT_Y - HOME_WITH_CLOCK_LABLE_Y_OFFSET, false);
@@ -456,7 +457,7 @@ static void home_ui_update(ui_manager_context_t *thiz, ui_proc_home_t *proc)
             home_label_ui_update(thiz, RESOURCE_ID_HOME_IDLE_LABLE_ICON,
                 IDLE_LABEL_AREA_ICON_X, IDLE_LABEL_AREA_ICON_Y - HOME_CLOCK_TIP_LABLE_Y_OFFSET, true);
             home_button_ui_update(thiz, IDLE_BUTTON_ICON_X, IDLE_BUTTON_ICON_Y, false);
-            home_label_text_ui_update(thiz, "Time not updated. Connect\nthe device to sync",
+            home_label_text_ui_update(thiz, "Time not updated. Connect\nthe device to sync.",
                 IDLE_LABEL_TEXT_X - 12, IDLE_LABEL_TEXT_Y - HOME_CLOCK_TIP_LABLE_Y_OFFSET, true, true, &lv_font_oppo_sans_16_medium);
             home_record_time_ui_update(thiz, home_info->timestamp_offset,
                  IDLE_LABEL_TEXT_X, IDLE_LABEL_TEXT_Y - HOME_CLOCK_TIP_LABLE_Y_OFFSET, false);
@@ -488,7 +489,7 @@ static void home_ui_update(ui_manager_context_t *thiz, ui_proc_home_t *proc)
     home_label_ui_update(thiz, RESOURCE_ID_HOME_IDLE_LABLE_ICON,
         IDLE_LABEL_AREA_ICON_X, IDLE_LABEL_AREA_ICON_Y, true);
     home_button_ui_update(thiz, IDLE_BUTTON_ICON_X, IDLE_BUTTON_ICON_Y, true);
-    home_label_text_ui_update(thiz, "Select a program or mode\nto start pumping",
+    home_label_text_ui_update(thiz, "Select a program or mode\nto start pumping.",
         IDLE_LABEL_TEXT_X, IDLE_LABEL_TEXT_Y, true, false, &lv_font_oppo_sans_16_medium);
     home_root_animation_update(thiz, RESOURCE_ID_HD_ANIM_IP_START,
         RESOURCE_ID_HD_ANIM_IP_END - RESOURCE_ID_HD_ANIM_IP_START + 1,
@@ -511,6 +512,7 @@ void ui_display_home_prepare(ui_manager_context_t *thiz)
     thiz->priv.fps_start_time = get_timestamp();
     home_root_init();
     ble_ui_init(thiz);
+    battery_ui_init(thiz);
     common_ui_bg_init(thiz);
     home_info->force_update = true;
     home_info->animation_index = 0;
@@ -528,6 +530,7 @@ void ui_display_home_remove(ui_manager_context_t *thiz)
     common_ui_img_resource_deinit(thiz, &home_info->clock_colon_info);
 #endif
     ble_ui_deinit(thiz);
+    battery_ui_deinit(thiz);
     common_ui_bg_deinit(thiz);
     ui_common_operation_tip_remove(thiz);
     LVGL_OBJ_DELETE(home_info->root);
@@ -542,6 +545,7 @@ int ui_display_home_process(ui_manager_context_t *thiz)
     EXCEPTION_CHECK_INT(proc && proc->ble);
     home_root_bg_update(thiz);
     ble_ui_update(thiz, home_info->root, proc->ble, COMMON_BLE_UI_X, COMMON_BLE_UI_Y);
+    battery_ui_update(thiz, home_info->root, proc->battery, true);
     home_ui_update(thiz, proc);
     ui_common_operation_tip_update(thiz, proc->popup_ui_type, home_info->root,
         &home_info->popup_ui_index);

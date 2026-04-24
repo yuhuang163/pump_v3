@@ -92,7 +92,7 @@ const static guide_text_info_t start_pump_text_infos[GUIDE_TEXT_NUM] = {
     {"Press to enter/exit\nthe function", 
         &lv_font_oppo_sans_20_medium, 0, 51, 4, GUIDE_TITLE_TEXT_COLOR},
     {"", &lv_font_oppo_sans_14_medium, 0, 0, 4, GUIDE_DESC_TEXT_COLOR},
-    {"", &lv_font_oppo_sans_14_bold, 0, 0, 4, GUIDE_TEXT_COLOR},
+    {"", &lv_font_oppo_sans_14_medium, 0, 0, 4, GUIDE_TEXT_COLOR},
     {"Press down to exit", &lv_font_oppo_sans_14_medium, 0, 
         GUIDE_ARROW_TEXT_Y_OFFSET, 4, GUIDE_EXIT_TEXT_COLOR}
 };
@@ -102,7 +102,7 @@ const static guide_text_info_t setting_pump_text_infos[GUIDE_TEXT_NUM] = {
     {"Turn to adjust the options\nPress down to confirm", 
         &lv_font_oppo_sans_20_medium, 0, 51, 4, GUIDE_TITLE_TEXT_COLOR},
     {"", &lv_font_oppo_sans_14_medium, 0, 0, 4, GUIDE_DESC_TEXT_COLOR},
-    {"", &lv_font_oppo_sans_14_bold, 0, 0, 4, GUIDE_TEXT_COLOR},
+    {"", &lv_font_oppo_sans_14_medium, 0, 0, 4, GUIDE_TEXT_COLOR},
     {"Press down to exit", &lv_font_oppo_sans_14_medium, 0,
         GUIDE_ARROW_TEXT_Y_OFFSET, 4, GUIDE_EXIT_TEXT_COLOR}
 };
@@ -121,7 +121,7 @@ const static guide_text_info_t pump_mode_select_text_infos[GUIDE_TEXT_NUM] = {
     {"Press and hold for 3 seconds\nto stop pumping", 
         &lv_font_oppo_sans_20_medium, 0, 125, 4, 0xFFFFFF},
     {"", &lv_font_oppo_sans_14_medium, 0, 0, 4, GUIDE_DESC_TEXT_COLOR},
-    {"", &lv_font_oppo_sans_14_bold, 0, 0, 4, GUIDE_TEXT_COLOR},
+    {"", &lv_font_oppo_sans_14_medium, 0, 0, 4, GUIDE_TEXT_COLOR},
     {"Press down to exit", &lv_font_oppo_sans_14_medium, 0, 
         GUIDE_ARROW_TEXT_Y_OFFSET, 4, 0x938383}
 };

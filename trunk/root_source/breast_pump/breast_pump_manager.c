@@ -174,8 +174,8 @@ static void set_breast_pump_setting(pump_setting_t *setting, uint8_t step_index,
         }
 
         if (is_need_store && breast_pump_obj->priv.st) {
-            breast_pump_obj->priv.st->put_store_ram_val(STORE_ID_PUMP_SETTING_INFO, breast_pump_obj->priv.m_info.mode, 
-                step_index, setting);
+            breast_pump_obj->priv.st->put_store_ram_val(STORE_ID_PUMP_SETTING_INFO,
+                 breast_pump_obj->priv.m_info.mode, i, &breast_pump_obj->priv.setting[i]);
         }
     }
 #else
@@ -230,6 +230,7 @@ static void set_breast_pump_mode(uint32_t mode, uint8_t is_store_mode, uint8_t i
         };
         servers_ctx->hook->app_old_protocol_server_data_publish(APP_OLD_COMM_CID_NOTIFY_STATUS, &args);
     }
+
 }
 
 static int get_breast_pump_mode(void)

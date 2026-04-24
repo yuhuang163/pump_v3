@@ -42,17 +42,7 @@ static void breastfeeding_mode_display_completed_cb(hdr_post_args_t *args)
             proc->led->set_led_level(PUMP_FREQ_SET_BL, 0);
         }
     }
-    
-    int pump_status = 0;
-    READ_PUMP_WORK_STATUS(proc->pump, pump_status);
-    if (pump_status == BREAST_PUMP_FINISH || pump_status == BREAST_PUMP_IDLE) {
-        LOG_WM("goto home window.");
-        multi_func_msg_data_t msg = {0};
-        msg.union_body.extra.window_id = ID_WINDOW_HOME;
-        proc->wm->dispatch_new_window_args(proc->wm, &msg);
-    } else {
-        show_pump_home_ui(proc);
-    }
+    pump_sub_ui_exit_handler(proc);
 }
 
 static void breastfeeding_mode_popup_ui_finish_policy(ui_manager_context_t *ui, uint8_t popup_ui_index)
@@ -196,7 +186,7 @@ void breastfeeding_mode_key_click_handler(ui_proc_pump_t *proc)
 {
     EXCEPTION_CHECK_VOID(proc && proc->pump);
     if (proc->current_ui_type == PUMP_UI_TYPE_BREASTFEEDING_MODE) {
-        show_pump_home_ui(proc);
+        pump_sub_ui_exit_handler(proc);
         return;
     } 
     int mode_index = 0;

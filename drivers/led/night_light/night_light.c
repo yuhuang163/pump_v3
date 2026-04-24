@@ -176,7 +176,7 @@ static void night_light_level_set(uint8_t level)
         time_info.duty_update_flag = 0;
         time_info.target_duty = time_info.current_duty;
     }
-    LOG_PBUS("nightlight target_duty: %d, current_duty: %d", time_info.target_duty, time_info.current_duty);
+    // LOG_PBUS("nightlight target_duty: %d, current_duty: %d", time_info.target_duty, time_info.current_duty);
 }
 #else
 static void night_light_level_set(uint8_t level)

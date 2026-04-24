@@ -130,6 +130,8 @@ typedef struct window_manager_context {
     const char *(*to_window_name)(uint8_t window_id);
     /// 获取当前窗口ID
     uint8_t (*get_current_window_id)(void);
+    /// 获取即将进入的新窗口ID
+    uint8_t (*get_next_window_id)(void);
     /// 获取覆盖窗口ID
     uint8_t (*get_overlay_window_id)(struct window_manager_context *wm);
     /// 调度新窗口参数

@@ -210,6 +210,7 @@ typedef struct {
 
 /// 窗口记录.
 typedef struct {
+    window_id_e next_window_id;                /// 即将进入的新窗口id
     window_context_handle_t *window_hdr;       /// 当前窗口
     window_context_t *window_context;          /// 当前窗口上下文
     window_priority_e z_order;                 /// 当前窗口层级优先级

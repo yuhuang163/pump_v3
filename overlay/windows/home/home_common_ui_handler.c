@@ -32,6 +32,11 @@
 void stop_home_common_ui(ui_proc_home_t *proc)
 {
     home_bind_ui_hdr_remove();
+    home_pump_bf_mode_ui_hdr_remove();
+    home_pump_normal_mode_ui_hdr_remove();
+    home_pump_level_ui_hdr_remove();
+    home_pump_speed_ui_hdr_remove();
+    home_pump_result_ui_hdr_remove();
     ui_manager_context_t *ui = proc->ui;
     EXCEPTION_CHECK_VOID(ui->hook && ui->hook->ui_animation_play_deinit);
     ui->hook->ui_animation_play_deinit(ui);
@@ -62,6 +67,9 @@ void home_ui_change_hdr_remove(ui_proc_home_t *proc)
             break;
         case HOME_UI_TYPE_SPEED_ADJUST:
             home_pump_speed_ui_hdr_remove();
+            break;
+        case HOME_UI_TYPE_PUMP_RESULT:
+            home_pump_result_ui_hdr_remove();
             break;
         default:
             break;

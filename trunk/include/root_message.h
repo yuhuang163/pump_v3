@@ -18,13 +18,13 @@ extern "C" {
 /// 描述异步消息类型
 typedef enum {
     MSG_TYPE_DEFAULT = 0,
-    MSG_TYPE_WIN_DISPATCH,
-    MSG_TYPE_WIN_PRELOAD,
-    MSG_TYPE_WIN_EVENT,
-    MSG_TYPE_WIN_FLUSH,
-    MSG_TYPE_INPUT_KEY_EVENT,
-    MSG_TYPE_HANDLER_POST_EVENT,
-    MSG_TYPE_BROADCAST_EVENT,
+    MSG_TYPE_WIN_DISPATCH, /// 窗口调度.
+    MSG_TYPE_WIN_PRELOAD, /// 窗口预加载.
+    MSG_TYPE_WIN_EVENT, /// 窗口事件.
+    MSG_TYPE_WIN_FLUSH, /// 窗口刷新.
+    MSG_TYPE_INPUT_KEY_EVENT, /// 按键事件.
+    MSG_TYPE_HANDLER_POST_EVENT, /// 处理事件.
+    MSG_TYPE_BROADCAST_EVENT, /// 广播事件.
     MSG_TYPE_MAX
 } aync_msg_type_e;
 

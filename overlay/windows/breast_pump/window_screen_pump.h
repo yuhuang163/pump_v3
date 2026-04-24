@@ -1,7 +1,6 @@
 #ifndef __WINDOW_SCREEN_PUMP_H__
 #define __WINDOW_SCREEN_PUMP_H__
 
-#include <stdint.h>
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -62,6 +61,8 @@ extern "C" {
 #define PUMP_BLINK_TIMES                       (1)
 /// 泵奶控制背光灯闪烁次数
 #define PUMP_LEVEL_BLINK_TIMES                 (3)
+/// 泵奶完成页面允许被打断
+#define IS_ALLLOW_PUMP_COMPLETE_BREAK          (0)
 
 /// 泵奶UI动作枚举
 typedef enum {
@@ -195,6 +196,8 @@ void pump_power_key_handler(ui_proc_pump_t *proc);
 void pump_complete_event_handler(ui_proc_pump_t *proc);
 /// 弹窗类型更新
 void pump_popup_ui_type_update(ui_proc_pump_t *proc, popup_ui_id_e type);
+/// 子UI退出处理
+void pump_sub_ui_exit_handler(ui_proc_pump_t *proc);
 #ifdef __cplusplus
 }
 #endif

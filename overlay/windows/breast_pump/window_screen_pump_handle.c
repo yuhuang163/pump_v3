@@ -4,7 +4,6 @@
 */
 #include "breast_pump_manager.h" // IWYU pragma: keep
 #include "input_key_code.h"
-#include "root_log_define.h"
 #include "window_screen_pump.h"// IWYU pragma: keep
 
 /*
@@ -86,11 +85,17 @@ static void pump_ui_common_cb(hdr_post_args_t *args)
         case PUMP_HDR_ACTION_PROGRESS_STOP: 
             /// TODO: 停止进度条
             break;
-        case PUMP_HDR_ACTION_PUMP_COMPLETE: 
+        case PUMP_HDR_ACTION_PUMP_COMPLETE:        
+#if 1
+            LOG_WM("pump complete, goto home window.");
+            multi_func_msg_data_t msg = {0};
+            msg.union_body.extra.window_id = ID_WINDOW_HOME;
+            msg.union_body.extra.arg1 = HOME_SUB_UI_TYPE_PUMP_RESULT;
+            proc->wm->dispatch_new_window_args(proc->wm, &msg);
+#else
             LOG_WM("pump complete, show progress time policy.");
-            if (proc->pump) {
-                show_pump_result_ui(proc);
-            }
+            show_pump_result_ui(proc);
+#endif
             break;
         default:
             LOG_WM("unknow action: %d, ignore.", action);
@@ -104,7 +109,15 @@ static void pump_knob_event_cb(ui_proc_pump_t *proc, uint8_t is_left)
         LOG_WM("pump finish timeout, ignore knob event.");
         return;
     }
-    switch (proc->current_ui_type) {
+
+#if (IS_ALLLOW_PUMP_COMPLETE_BREAK == 0)
+    if (proc->current_ui_type == PUMP_UI_TYPE_RESULT) {
+        LOG_WM("pump will finish, ignore knob event.");
+        return;
+    }
+#endif
+    
+switch (proc->current_ui_type) {
         case PUMP_UI_TYPE_LEVEL:
             switch_pump_level_ui(proc, is_left ? false : true);
             break;
@@ -149,6 +162,13 @@ static void pump_click_event_cb(ui_proc_pump_t *proc, uint16_t keycode)
         LOG_WM("pump finish timeout, ignore key event.");
         return;
     }
+
+#if (IS_ALLLOW_PUMP_COMPLETE_BREAK == 0)
+    if (proc->current_ui_type == PUMP_UI_TYPE_RESULT) {
+        LOG_WM("pump result ui, ignore key event.");
+        return;
+    }
+#endif
 
     switch (keycode) {
         case KEY_CODE_POWER:
@@ -319,17 +339,17 @@ static int entry_event_cb(window_lift_cycle_e new_state,
     return 0;
 }
 
-static void remove_breast_pump_result_cb(breast_pump_manager_context_t *pump)
+static void remove_breast_pump_result_cb(ui_proc_pump_t *proc)
 {
-    EXCEPTION_CHECK_VOID(pump);
+    EXCEPTION_CHECK_VOID(proc && proc->pump);
     int pump_status = 0;
-    READ_PUMP_WORK_STATUS(pump, pump_status);
+    READ_PUMP_WORK_STATUS(proc->pump, pump_status);
     if (pump_status > BREAST_PUMP_IDLE && pump_status < BREAST_PUMP_FINISH) {
-        LOG_WM("pump status: %d => goto finish", pump_status);
-        WRITE_PUMP_WORK_STATUS(pump, BREAST_PUMP_FINISH, 1);
-    }
+        LOG_WM("next wm:%d pump status:%d => goto finish", proc->wm->get_next_window_id(), pump_status);
+        WRITE_PUMP_WORK_STATUS(proc->pump, BREAST_PUMP_FINISH, 1);
+    } 
     LOG_WM("==>remove breast_pump_result_listener");
-    pump->remove_breast_pump_result_listener(on_breast_pump_result_cb);
+    proc->pump->remove_breast_pump_result_listener(on_breast_pump_result_cb);
 }
 
 static int exit_event_cb(window_lift_cycle_e new_state,
@@ -348,8 +368,8 @@ static int exit_event_cb(window_lift_cycle_e new_state,
         case ID_SCR_STATE_ON_DESTORY:
             LOG_WM("==>%s window on destory", PAGE_NAME_STR);
             REMOVE_ALL_HANDER_TASK();
+            remove_breast_pump_result_cb(proc);
             unregister_broadcast_receiver(&proc->receiver);  // 注销广播接收器，防止use-after-free
-            remove_breast_pump_result_cb(proc->pump);
             if (proc->key) {
                 proc->key->remove_keyevent_handler(on_pump_ui_keyevent_hdr);
             } else {

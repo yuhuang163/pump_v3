@@ -74,3 +74,17 @@ void pump_popup_ui_type_update(ui_proc_pump_t *proc, popup_ui_id_e type)
     EXCEPTION_CHECK_VOID(proc);
     proc->popup_ui_type = type;
 }
+
+void pump_sub_ui_exit_handler(ui_proc_pump_t *proc)
+{
+    int pump_status = 0;
+    READ_PUMP_WORK_STATUS(proc->pump, pump_status);
+    if (pump_status == BREAST_PUMP_FINISH || pump_status == BREAST_PUMP_IDLE) {
+        LOG_WM("goto home window.");
+        multi_func_msg_data_t msg = {0};
+        msg.union_body.extra.window_id = ID_WINDOW_HOME;
+        proc->wm->dispatch_new_window_args(proc->wm, &msg);
+    } else {
+        show_pump_home_ui(proc);
+    }
+}

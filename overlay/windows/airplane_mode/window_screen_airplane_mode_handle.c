@@ -37,15 +37,6 @@ INIT_WINDOW_CONTEXT();
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-static void airplane_mode_timeout_cb(hdr_post_args_t *args)
-{
-    ui_proc_airplane_mode_t *proc = (ui_proc_airplane_mode_t *)args->user_data;
-    EXCEPTION_CHECK_VOID(proc);
-    WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_AIRPLANE_MODE);
-    LOG_WM("airplane mode timeout, goto pump window.");
-    SEND_BROADCAST_ARGS1(ID_BROADCAST_SYS_STATE_CHANGE, SYSTEM_BROADCAST_POWER_OFF);
-}
-
 static void on_airplane_mode_window_receive(broadcast_mask_id_t id, void *context,
                                  int32_t pm_state, int32_t wakeup_reason, broadcast_priv_data_t *pdata)
 {
@@ -93,18 +84,16 @@ static int entry_event_cb(window_lift_cycle_e new_state, const struct window_con
             proc->key->add_keyevent_handler("airplane_mode_wm", proc, AIRPLANE_MODE_UI_KEY_CODE, \
             AIRPLANE_MODE_UI_KEY_TYPE | AIRPLANE_MODE_UI_KEY_DOWN_TYPE | AIRPLANE_MODE_UI_KEY_UP_TYPE,
                  on_airplane_mode_keyevent_hdr, KEY_HANDLER_SHIELD_LEVEL_1);
-
         } else {
             LOG_WM("key not present, ignore.");
         }
-        POST_TASK_HANDLER_DELAYED_ARG1(airplane_mode_timeout_cb, AIRPLANE_MODE_TIMEOUT_TIME, 
-            proc, AIRPLANE_MODE_TIMEOUT_TASK_NAME);
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);
         airplane_mode_led_policy(proc, 1);
         airplane_mode_pump_policy(proc);
         start_airplane_mode_ui(proc);
     }
+    
     return 0;
 }
 

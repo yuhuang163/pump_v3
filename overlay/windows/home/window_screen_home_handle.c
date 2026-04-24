@@ -130,7 +130,7 @@ static int on_home_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
         LOG_WM("system idle, ignore key event.");
         return 0;
     }
-
+    
     switch (keycode) {
         case KEY_CODE_POWER:
             home_power_key_event_cb(proc);
@@ -205,7 +205,11 @@ static int entry_event_cb(window_lift_cycle_e new_state,
         if (proc->led && proc->led->hook && proc->led->hook->set_key_backlight) {
             proc->led->hook->set_key_backlight(proc->led, LED_LEVEL_MAX);
         }
-        start_home_ui_animation(proc);
+        if (proc->extra.arg1 == HOME_SUB_UI_TYPE_PUMP_RESULT) {
+            show_home_pump_result_ui(proc);
+        } else {
+            start_home_ui_animation(proc);
+        }
     }
     return 0;
 }
@@ -249,6 +253,8 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
     LOG_WM("%s window enter, time: %ld.", PAGE_NAME_STR, get_timestamp());
     ui_proc_home_t *proc = u_malloz(sizeof(ui_proc_home_t));
     SET_WINDOW_CONTEXT(proc);
+    window_entry_extra_t *extra = (window_entry_extra_t *)wm->get_window_entry_extra(wm);
+    memcpy(&proc->extra, extra, sizeof(window_entry_extra_t));
     proc->margic = UI_WINDOW_MARGIC_CODE;
     proc->wm = wm;
     proc->ui = (ui_manager_context_t *)find_module(ID_MODULE_UI);

@@ -1,6 +1,7 @@
 #ifndef __WINDOWS_MAP_DEFINE_H__
 #define __WINDOWS_MAP_DEFINE_H__
 
+#include "window_screen_home.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -23,6 +24,12 @@ extern "C" {
 #define PAGE_HANDLE_NAME(name) CONCAT_MACRO_3(enter_new_window_, name, _screen)
 
 #define PAGE_CONTEXT_NAME_STR(name) UI_STRING_IFY(name)
+
+typedef enum {
+    HOME_SUB_UI_TYPE_NONE = 0,
+    HOME_SUB_UI_TYPE_PUMP_RESULT = 1,
+    HOME_SUB_UI_TYPE_MAX
+} home_sub_ui_type_e;
 
 /*
 * GLOBAL FUNCTION DECLARATION

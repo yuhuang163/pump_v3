@@ -131,6 +131,10 @@ void show_pump_result_ui(ui_proc_pump_t *proc)
         READ_PUMP_STATE_NAME(proc->pump, &state_name);
         LOG_UI("pump status: %s", state_name);
     }
+    if (proc->led) {
+        proc->led->set_led_level(PUMP_FREQ_SET_BL, LED_LEVEL_MAX);
+        proc->led->set_led_level(PUMP_START_BL, LED_LEVEL_MAX);
+    }
     show_pump_result_loop(proc);
 }
 

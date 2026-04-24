@@ -76,16 +76,7 @@ static void pump_both_level_display_completed_cb(hdr_post_args_t *args)
         WRITE_PUMP_SETTING_INFO(proc->pump, time_index, true, proc->setting);
     }
     proc->level_change = 0;
-    int pump_status = 0;
-    READ_PUMP_WORK_STATUS(proc->pump, pump_status);
-    if (pump_status == BREAST_PUMP_FINISH || pump_status == BREAST_PUMP_IDLE) {
-        LOG_WM("goto home window.");
-        multi_func_msg_data_t msg = {0};
-        msg.union_body.extra.window_id = ID_WINDOW_HOME;
-        proc->wm->dispatch_new_window_args(proc->wm, &msg);
-    } else {
-        show_pump_home_ui(proc);
-    }
+    pump_sub_ui_exit_handler(proc);
 }
 
 static void pump_both_level_ui_after_policy(ui_manager_context_t *ui, int index)
@@ -100,8 +91,6 @@ static void pump_both_level_ui_after_policy(ui_manager_context_t *ui, int index)
         POST_TASK_HANDLER_NO_DELAY(pump_both_level_display_completed_cb, proc,
             PUMP_BOTH_LEVEL_DISPLAY_TASK_NAME);
     }
-
-
 }
 
 static void pump_both_level_animation_progress_cb(void *user_data, int index, ui_ani_progress_state_e state)

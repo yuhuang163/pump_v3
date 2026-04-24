@@ -11,7 +11,6 @@ extern "C" {
 /// LVGL 字体声明 - Oppo Sans 24px
 /// 包含字符: 0-9, A-Z, a-z, ' ' ',' '.' '!'
 extern const lv_font_t lv_font_oppo_sans_24_medium;
-extern const lv_font_t lv_font_oppo_sans_24_semibold;
 
 #ifdef __cplusplus
 }

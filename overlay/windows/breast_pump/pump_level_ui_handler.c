@@ -69,16 +69,7 @@ static void pump_level_display_completed_cb(hdr_post_args_t *args)
         WRITE_PUMP_SETTING_INFO(proc->pump, time_index, true, proc->setting);
     }
     proc->level_change = 0;
-    int pump_status = 0;
-    READ_PUMP_WORK_STATUS(proc->pump, pump_status);
-    if (pump_status == BREAST_PUMP_FINISH || pump_status == BREAST_PUMP_IDLE) {
-        LOG_WM("goto home window.");
-        multi_func_msg_data_t msg = {0};
-        msg.union_body.extra.window_id = ID_WINDOW_HOME;
-        proc->wm->dispatch_new_window_args(proc->wm, &msg);
-    } else {
-        show_pump_home_ui(proc);
-    }
+    pump_sub_ui_exit_handler(proc);
 }
 
 static void pump_level_ui_after_policy(ui_manager_context_t *ui, int index)
@@ -160,15 +151,16 @@ void switch_pump_control_type_ui(ui_proc_pump_t *proc, uint8_t control_type)
 {
     EXCEPTION_CHECK_VOID(proc && proc->pump);
     if (proc->current_ui_type == PUMP_UI_TYPE_LEVEL && proc->info.control_type == control_type) {
-        show_pump_home_ui(proc);
+        pump_sub_ui_exit_handler(proc);
         return;
     }
+    
     proc->level_change = 0;
     if (proc->current_ui_type != PUMP_UI_TYPE_LEVEL) {
-    int time_index = 0;
-    READ_PUMP_MODE_STEP_INDEX(proc->pump, time_index);
-    READ_PUMP_SETTING_INFO(proc->pump, time_index, proc->setting);
-    } 
+        int time_index = 0;
+        READ_PUMP_MODE_STEP_INDEX(proc->pump, time_index);
+        READ_PUMP_SETTING_INFO(proc->pump, time_index, proc->setting);
+    }
     
     if (proc->info.control_type != control_type) {
         proc->info.control_type = control_type;

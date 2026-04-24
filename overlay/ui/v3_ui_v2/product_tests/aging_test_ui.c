@@ -27,7 +27,7 @@
 #define AGING_TEST_AGING_INFO_X                              (AGING_TEST_MAC_NAME_X)
 #define AGING_TEST_AGING_INFO_Y                              (AGING_TEST_MAC_NAME_Y + 36)
 #define AGING_TEST_BATTERY_PERCENT_X                         (AGING_TEST_MAC_NAME_X )
-#define AGING_TEST_BATTERY_PERCENT_Y                         (AGING_TEST_MAC_NAME_Y + 36)
+#define AGING_TEST_BATTERY_PERCENT_Y                         (AGING_TEST_MAC_NAME_Y + 36*2)
 
 typedef struct {
     const char *name;
@@ -88,7 +88,7 @@ static void aging_test_ui_battery_percent_update(ui_manager_context_t *thiz,  ui
     }
     ////
     char battery_percent_str[16] = {0};
-    snprintf(battery_percent_str, sizeof(battery_percent_str), "%d%%", battery_percent);
+    snprintf(battery_percent_str, sizeof(battery_percent_str), "battery-%d%%", battery_percent);
     lv_label_set_text(tests_info->battery_percent, battery_percent_str);
     lv_obj_set_style_text_color(tests_info->battery_percent, lv_color_hex(is_red ? AGING_TEST_TEXT_RED_COLOR : AGING_TEST_TEXT_BLUE_COLOR), 0);
     lv_obj_set_style_text_font(tests_info->battery_percent, &lv_font_oppo_sans_20_medium, 0);  /// 设置字体

@@ -124,14 +124,14 @@ void factory_reset_cb(hdr_post_args_t *args)
 void factory_reset_handle(ui_proc_factory_reset_t *proc)
 {
     EXCEPTION_CHECK_VOID(proc);
-    int is_pump_working = 0; 
-    if (proc->pump) {
-        READ_PUMP_IS_WORKING(proc->pump, is_pump_working);
-        if (is_pump_working) {
-            LOG_WM("factory reset, stop breast pump work.");
-            WRITE_PUMP_WORK_STATUS(proc->pump, BREAST_PUMP_IDLE, 1);
-        }
-    }
+    // int is_pump_working = 0; 
+    // if (proc->pump) {
+    //     READ_PUMP_IS_WORKING(proc->pump, is_pump_working);
+    //     if (is_pump_working) {
+    //         LOG_WM("factory reset, stop breast pump work.");
+    //         WRITE_PUMP_WORK_STATUS(proc->pump, BREAST_PUMP_IDLE, 1);
+    //     }
+    // }
     factory_reset_led_blink_policy(proc);
     start_factory_reset_ui_animation(proc);
     POST_TASK_HANDLER_DELAYED_ARG1(factory_reset_cb, FACTORY_RESET_DELAY_TIME, proc, FACTORY_RESET_TASK_NAME);
