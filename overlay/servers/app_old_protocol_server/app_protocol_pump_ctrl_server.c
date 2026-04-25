@@ -1407,13 +1407,7 @@ void app_old_comm_handle_get_record_data_req(uint8_t cal, uint8_t *cab)
     
     /// 读取泵奶数据体
     pump_result_info_t pump_data_body = {0};
-    store_func_args_t args = {
-        .ctx = ctx,
-        .arg1 = body_index,
-        .arg2 = 0,
-        .val = &pump_data_body,
-    };
-    ret = read_pump_data_body_from_flash(args);
+    ret = ctx->get_store_ram_val(STORE_ID_BREAST_PUMP_DATA_BODY, 0, body_index, &pump_data_body);
     if (ret != 0) {
         LOGE("Failed to read pump data body, ret: %d, index: %d", ret, body_index);
         app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_ACK, APP_OLD_COMM_CID_GET_RECORD_DATA, 0, NULL);
