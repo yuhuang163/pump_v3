@@ -1,11 +1,6 @@
-#include "root_common.h"
 #include "root_common_api.h" // IWYU pragma: keep
 #include "app_protocol_handler.h"
-#include "servers_manager_api.h"
-#include "storage_manager_api.h"
 #include "app_protocol_sys_ctrl_server.h"
-#include "hal_led.h" // IWYU pragma: keep
-#include "ble_manager_api.h" // IWYU pragma: keep
 
 /*
 * DEFINES
