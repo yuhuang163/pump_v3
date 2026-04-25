@@ -95,6 +95,7 @@ typedef struct {
     uint8_t seconds;
     uint8_t seconds_size; /// 隐藏秒数标志
     uint8_t hour_colon_hidden; /// 隐藏时间冒号标志
+    uint8_t is_regular_mode;
     uint16_t animation_id;
     uint16_t animation_end_id;
 } pump_display_info_t;
@@ -186,19 +187,25 @@ static void pump_home_bg_update(ui_manager_context_t *thiz, uint8_t is_regular_m
 #else
 static void pump_home_bg_update(ui_manager_context_t *thiz, uint8_t is_regular_mode)
 {
+    if (pump_info->is_regular_mode == is_regular_mode && pump_info->force_update == false) {
+        return;
+    }
+
     if (pump_info->background == NULL || !lv_obj_is_valid(pump_info->background)) {
         pump_info->background = lv_image_create(pump_info->root);
         EXCEPTION_CHECK_VOID(pump_info->background);
-#if LV_USE_SNAPSHOT
-        lv_draw_buf_t *background_snapshot = thiz->get_lvgl_snap_shot(is_regular_mode ? \
-             UI_SNAP_SHOT_REGULAR_PUMPING_BG : UI_SNAP_SHOT_EXPERT_PUMPING_BG);
-        EXCEPTION_CHECK_VOID(background_snapshot);
-        lv_image_set_src(pump_info->background, background_snapshot);
-#else
-        lv_obj_add_flag(pump_info->background, LV_OBJ_FLAG_HIDDEN); /// 隐藏
-#endif
         lv_obj_align(pump_info->background, LV_ALIGN_CENTER, 0, 0);
     }
+
+#if LV_USE_SNAPSHOT
+    lv_draw_buf_t *background_snapshot = thiz->get_lvgl_snap_shot(is_regular_mode ? \
+         UI_SNAP_SHOT_REGULAR_PUMPING_BG : UI_SNAP_SHOT_EXPERT_PUMPING_BG);
+    EXCEPTION_CHECK_VOID(background_snapshot);
+    lv_image_set_src(pump_info->background, background_snapshot);
+#else
+    lv_obj_add_flag(pump_info->background, LV_OBJ_FLAG_HIDDEN); /// 隐藏
+#endif
+    pump_info->is_regular_mode = is_regular_mode;
 }
 #endif
 
