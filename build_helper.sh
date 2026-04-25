@@ -89,58 +89,31 @@ resolve_root_device_name() {
 }
 
 resolve_root_res_path() {
-	# 优先根据 GNUmakefile 中的产品/UI 默认配置推导 ROOT_RES_PATH。
-	# 之所以不直接单独预处理 product_info.h，是因为缺少 make 侧宏定义时，
-	# 条件表达式里的未定义宏会被当成 0，可能把 V1 误判成 V2。
+	# 优先根据 GNUmakefile 的 ROOT_UI_VERSION 推导 ROOT_RES_PATH（与 product_info.h 中 ROOT_RES_PATH 的判断一致）
+	# product_info.h 当前依据 ROOT_UI_VERSION 在 V2/V3 间切换 ROOT_RES_PATH。
 	local makefile="$PROJECT_DIR/GNUmakefile"
 	if [[ -f "$makefile" ]]; then
-		local product_family ui_version_token
-		local ui_v2_value ui_v3pro_v2_value ui_v3_value ui_v3pro_v3_value
-		product_family=$(resolve_root_product_family_from_makefile "$makefile")
+		local root_ui_token root_ui_v2_value root_ui_v3_value
+		root_ui_token=$(awk '/^ROOT_UI_VERSION[[:space:]]*\?=/{print $3; exit}' "$makefile")
+		root_ui_v2_value=$(awk '/^ROOT_UI_V2[[:space:]]*\?=/{print $3; exit}' "$makefile")
+		root_ui_v3_value=$(awk '/^ROOT_UI_V3[[:space:]]*\?=/{print $3; exit}' "$makefile")
 
-		ui_v2_value=$(awk '/^V3_UI_V2[[:space:]]*\?=/{print $3; exit}' "$makefile")
-		ui_v3pro_v2_value=$(awk '/^V3PRO_UI_V2[[:space:]]*\?=/{print $3; exit}' "$makefile")
-		ui_v3_value=$(awk '/^V3_UI_V3[[:space:]]*\?=/{print $3; exit}' "$makefile")
-		ui_v3pro_v3_value=$(awk '/^V3PRO_UI_V3[[:space:]]*\?=/{print $3; exit}' "$makefile")
-
-		if [[ "$product_family" == "V3Pro" ]]; then
-			ui_version_token=$(awk '
-				/^ifeq[[:space:]]*\(\$\(ROOT_PRODUCT_ID\),[[:space:]]*\$\(ROOT_PRODUCT_V3PRO_ID\)\)/ { in_v3pro=1; next }
-				in_v3pro && /^else$/ { exit }
-				in_v3pro && /^V3_UI_VERSION[[:space:]]*\?=/ { print $3; exit }
-			' "$makefile")
-		else
-			ui_version_token=$(awk '
-				/^ifeq[[:space:]]*\(\$\(ROOT_PRODUCT_ID\),[[:space:]]*\$\(ROOT_PRODUCT_V3PRO_ID\)\)/ { in_block=1; next }
-				in_block && /^else$/ { in_else=1; next }
-				in_else && /^endif$/ { exit }
-				in_else && /^V3_UI_VERSION[[:space:]]*\?=/ { print $3; exit }
-			' "$makefile")
-		fi
-
-		case "$ui_version_token" in
-			'$(V3_UI_V2)'|'$(V3PRO_UI_V2)') printf "%s" "V2"; return 0 ;;
-			'$(V3_UI_V3)'|'$(V3PRO_UI_V3)') printf "%s" "V3"; return 0 ;;
-			"$ui_v2_value"|"$ui_v3pro_v2_value")
-				if [[ -n "${ui_version_token:-}" ]]; then
+		case "$root_ui_token" in
+			'$(ROOT_UI_V2)') printf "%s" "V2"; return 0 ;;
+			'$(ROOT_UI_V3)') printf "%s" "V3"; return 0 ;;
+			"$root_ui_v2_value")
+				if [[ -n "${root_ui_token:-}" ]]; then
 					printf "%s" "V2"
 					return 0
 				fi
 				;;
-			"$ui_v3_value"|"$ui_v3pro_v3_value")
-				if [[ -n "${ui_version_token:-}" ]]; then
+			"$root_ui_v3_value")
+				if [[ -n "${root_ui_token:-}" ]]; then
 					printf "%s" "V3"
 					return 0
 				fi
 				;;
 		esac
-		if [[ -n "${ui_version_token:-}" ]]; then
-			case "$ui_version_token" in
-				*V1*) printf "%s" "V1"; return 0 ;;
-				*V2*) printf "%s" "V2"; return 0 ;;
-				*V3PRO_UI_V3*|*V3_UI_V3*) printf "%s" "V3"; return 0 ;;
-			esac
-		fi
 	fi
 
 	# 回退：通过预处理展开 ROOT_RES_PATH（适配 V3_UI_VERSION 等条件编译）
@@ -199,6 +172,59 @@ resolve_root_product_family_from_makefile() {
 	else
 		printf "%s" "V3"
 	fi
+}
+
+resolve_root_firmware_version() {
+	# 解析 ROOT_FIRMWARE_VERSION，优先按 V3/V3Pro 条件分支取值，避免直接 grep 命中 #else 分支
+	local info_file="${1:-$PROJECT_DIR/boards/product_info.h}"
+	local product_family="${2:-V3}"
+	[[ -f "$info_file" ]] || { printf "%s" "0"; return 0; }
+
+	local v3pro_fw v3_fw
+	read -r v3pro_fw v3_fw < <(awk -v fam="$product_family" '
+		BEGIN {
+			in_block=0; in_else=0;
+			blk_v3pro=""; blk_v3="";
+		}
+		/^#if[[:space:]]*\(ROOT_PRODUCT_ID[[:space:]]*==[[:space:]]*ROOT_PRODUCT_V3PRO_ID\)/ {
+			in_block=1; in_else=0;
+			blk_v3pro=""; blk_v3="";
+			next
+		}
+		in_block && /^#else/ { in_else=1; next }
+		in_block && /^#define[[:space:]]+ROOT_FIRMWARE_VERSION[[:space:]]+/ {
+			if (in_else) {
+				blk_v3=$3
+			} else {
+				blk_v3pro=$3
+			}
+			next
+		}
+		in_block && /^#endif/ {
+			# 仅在当前条件块确实包含 ROOT_FIRMWARE_VERSION 时输出；否则继续找下一个块
+			if (blk_v3pro != "" || blk_v3 != "") {
+				print blk_v3pro, blk_v3
+				exit
+			}
+			in_block=0; in_else=0;
+			blk_v3pro=""; blk_v3="";
+			next
+		}
+	' "$info_file")
+
+	if [[ "$product_family" == "V3Pro" && -n "${v3pro_fw:-}" ]]; then
+		printf "%s" "$v3pro_fw"
+		return 0
+	fi
+	if [[ "$product_family" == "V3" && -n "${v3_fw:-}" ]]; then
+		printf "%s" "$v3_fw"
+		return 0
+	fi
+
+	# 回退：老文件无条件分支时，取最后一个定义
+	local fw
+	fw=$(grep -E '^#define[[:space:]]+ROOT_FIRMWARE_VERSION[[:space:]]+' "$info_file" | awk '{print $3}' | tail -n1 || true)
+	printf "%s" "${fw:-0}"
 }
 
 build_resource_bin_dirs() {
@@ -488,7 +514,7 @@ do_rename_and_archive() {
 
 	# 固件版本（主/次）：依赖 ROOT_FIRMWARE_VERSION（如 100 -> 01 / 00）
 	local fw_version major minor
-	fw_version=$(grep -E '^#define[[:space:]]+ROOT_FIRMWARE_VERSION[[:space:]]+' "$info_file" | awk '{print $3}' | tail -n1 || true)
+	fw_version=$(resolve_root_firmware_version "$info_file" "$product_family")
 	[[ -n "${fw_version:-}" ]] || fw_version="0"
 	major=$((10#$fw_version / 100))
 	minor=$((10#$fw_version % 100))
