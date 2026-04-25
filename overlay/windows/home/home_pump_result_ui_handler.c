@@ -111,7 +111,7 @@ static void show_home_pump_result_loop(ui_proc_home_t *proc)
 */
 void show_home_pump_result_ui(ui_proc_home_t *proc)
 {
-    EXCEPTION_CHECK_VOID(proc && proc->pump && proc->led);
+    EXCEPTION_CHECK_VOID(proc && proc->pump);
     int pump_status = 0;
     READ_PUMP_WORK_STATUS(proc->pump, pump_status);
     if (PUMP_NO_FINISH(pump_status)) {
@@ -122,9 +122,9 @@ void show_home_pump_result_ui(ui_proc_home_t *proc)
         READ_PUMP_STATE_NAME(proc->pump, &state_name);
         LOG_UI("pump status: %s", state_name);
     }
-    if (proc->led) {
-        proc->led->set_led_level(PUMP_FREQ_SET_BL, LED_LEVEL_MAX);
-        proc->led->set_led_level(PUMP_START_BL, LED_LEVEL_MAX);
+
+    if (proc->led && proc->led->hook && proc->led->hook->set_key_backlight) {
+        proc->led->hook->set_key_backlight(proc->led, LED_LEVEL_MAX);
     }
     show_home_pump_result_loop(proc);
 }

@@ -64,6 +64,7 @@ typedef struct {
     res_img_info_t mode_component_info[BF_CIRCLE_SLOT_COUNT];
     breast_pump_manager_context_t *pump_ctx;
     uint32_t custom_mode_id; /// 个性化模式ID
+    char custom_name[20]; /// 个性化模式名称
     uint16_t slot_res_id[BF_CIRCLE_SLOT_COUNT];
     int16_t slot_mode_idx[BF_CIRCLE_SLOT_COUNT];
     uint8_t cur_mode;
@@ -253,8 +254,8 @@ static void update_slot_content(ui_manager_context_t *thiz, bf_circle_slot_e slo
     }
 
     if (mode_idx == BF_MODE_COUNT - 1) {
-        char title_text[16] = {0};
-        snprintf(title_text, sizeof(title_text), "Customize %d", bf_mode_info->custom_mode_id);
+        char title_text[32] = {0};
+        snprintf(title_text, sizeof(title_text), "Customize %s", bf_mode_info->custom_name);
         lv_label_set_text(title, title_text);
     } else {
         lv_label_set_text(title, bf_mode_name[mode_idx]);
@@ -608,12 +609,17 @@ void common_pump_bf_mode_ui_prepare(ui_manager_context_t *thiz)
     bf_mode_info->mode_num = BF_MODE_COUNT - 1;
     bf_mode_info->popup_ui_index = ID_POPUP_UI_NONE;
     bf_mode_info->custom_mode_id = 0;
+    memset(bf_mode_info->custom_name, 0, sizeof(bf_mode_info->custom_name));
     int activate_status = 0;
     READ_PUMP_MODE_ACTIVATE(bf_mode_info->pump_ctx, BREAST_PUMP_CUSTOM_MODE, activate_status);
     storage_manager_context_t *st = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
     if (st && activate_status) {
         bf_mode_info->mode_num = BF_MODE_COUNT;    
         uint32_t custom_mode_id = 0;
+        st->get_store_ram_val(STORE_ID_PUMP_MODE_NAME_INFO, BREAST_PUMP_CUSTOM_MODE,
+            sizeof(bf_mode_info->custom_name), bf_mode_info->custom_name);
+        LOG_UI("custom_name: %s", bf_mode_info->custom_name);
+
         st->get_store_ram_val(STORE_ID_PUMP_MODE_STEPS_INFO_ID, BREAST_PUMP_CUSTOM_MODE, 0, &custom_mode_id);
         bf_mode_info->custom_mode_id = custom_mode_id;
         int new_step_info_flag = false; 

@@ -73,6 +73,7 @@ typedef enum {
     BLE_EVENT_CONN_ENCRYPTED,
     BLE_EVENT_CONN_UPDATE_REQ,
     BLE_EVENT_CONN_PARAMS_UPDATE,
+    BLE_EVENT_TX_CCC_ENABLED,
 } ble_event_e;
 
 typedef struct {

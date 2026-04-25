@@ -117,6 +117,8 @@ extern "C" {
 #define IS_SUPPORT_UI_THEME_RES                          (0)
 /// 支持泵奶时间累计
 #define IS_SUPPORT_MODE_WORK_TIME_ACCUMULATE             (0)
+/// 支持泵奶全局参数设置
+#define IS_SUPPORT_PUMP_GLOBAL_PARAM_SETTING             (0)
 
 #if (ROOT_PRODUCT_ID == ROOT_PRODUCT_V3PRO_ID)
 /// 支持漏气提醒
@@ -126,11 +128,13 @@ extern "C" {
 /// 支持充电
 #define IS_SUPPORT_DEVICE_CHARGE                         (1)
 /// 支持泵占空比动态调整
-#define IS_SUPPORT_PUMP_DUTY_ADJUST                      (0)
+#define IS_SUPPORT_PUMP_DUTY_ADJUST                      (1)
 /// 支持插电自动开机
 #define IS_SUPPORT_PWR_ON_WHEN_PLUG_IN                   (1)
 /// 支持夜灯
 #define IS_SUPPORT_NIGHT_LIGHT                           (1)
+/// 仅支持power key开机
+#define IS_SUPPORT_POWER_KEY_ON_BOOT                   (0)
 #else
 /// 支持漏气提醒
 #define IS_SUPPORT_AIR_LEAKAGE_WARNING                   (0)
@@ -140,10 +144,10 @@ extern "C" {
 #define IS_SUPPORT_DEVICE_CHARGE                         (0)
 /// 支持泵占空比动态调整
 #define IS_SUPPORT_PUMP_DUTY_ADJUST                      (0)
-/// 支持插电自动开机
-#define IS_SUPPORT_PWR_ON_WHEN_PLUG_IN                   (0)
 /// 支持夜灯
 #define IS_SUPPORT_NIGHT_LIGHT                           (0)
+/// 仅支持power键按下开机
+#define IS_SUPPORT_POWER_KEY_ON_BOOT                     (1)
 #endif
 /// 支持LOGO界面背景颜色测试
 #define IS_SUPPORT_LOGO_BG_COLOR_TEST                    (0)

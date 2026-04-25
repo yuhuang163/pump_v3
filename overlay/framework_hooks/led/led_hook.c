@@ -370,9 +370,6 @@ static int on_broadcast_receiver_route(broadcast_mask_id_t id, void *context, in
     switch (id.code) {
         case ID_BROADCAST_SYS_STATE_CHANGE:
             if (arg1 == SYSTEM_BROADCAST_POWER_OFF) {
-                /*
-                 * 关机必须强制全灭并清 BLINK 状态机，不能只靠亮度置零。
-                 */
                 thiz->set_led_onoff(PUMP_LED_ALL_ID, LED_STATUS_OFF);
             } else if (arg1 == SYSTEM_BROADCAST_POWER_ON) {
                 night_light_resume_after_power_on(thiz);
@@ -457,6 +454,7 @@ void register_led_hook(led_manager_context_t *ctx)
     ctx->hook->get_night_light_adaptive_dimming = get_night_light_adaptive_dimming;
     ctx->hook->set_key_backlight = set_key_backlight;
     ctx->hook->get_night_light_onoff = get_night_light_onoff;
+    ctx->hook->get_night_light_level = get_night_light_level;
 #if IS_SUPPORT_KEY_LIGHT_ADAPTIVE
     ctx->hook->set_key_light_level = set_key_light_level;
     ctx->hook->key_light_adaptive_level_update = key_light_adaptive_level_update;

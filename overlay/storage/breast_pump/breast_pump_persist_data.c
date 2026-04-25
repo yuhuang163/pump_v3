@@ -507,10 +507,9 @@ int write_pump_setting_info_to_ram(store_func_args_t args)
     pump_setting_t *setting = (pump_setting_t *)args.val;
     EXCEPTION_CHECK_INT(setting);
     sys_pump_info_t *pump_info = &st->priv.sys_info.pump_info;
-    uint8_t mode = args.arg1;
+    int mode = args.arg1;
     uint8_t mode_step = args.arg2;
-    // LOG_STORE("mode: %d, step: %d", mode, mode_step);
-    if (mode >= BREAST_PUMP_MODE_MAX) {
+    if (mode >= BREAST_PUMP_MODE_MAX && mode != BREAST_PUMP_ALL_MODE_AND_PROGRAM) {
         LOGE("mode: %d, out of range", mode);
         return -1;
     }
@@ -519,7 +518,19 @@ int write_pump_setting_info_to_ram(store_func_args_t args)
         LOGE("mode_step: %d, out of range", mode_step);
         return -1;
     }
+#if IS_SUPPORT_PUMP_GLOBAL_PARAM_SETTING
+    if (mode == BREAST_PUMP_ALL_MODE_AND_PROGRAM) {
+        for (int i = 0; i <= BREAST_PUMP_CUSTOM_MODE; i++) {
+            memcpy(&pump_info->setting_wrap[i].info[mode_step], setting, sizeof(pump_setting_t));
+        }
+        return 0;
+    }
     memcpy(&pump_info->setting_wrap[mode].info[mode_step], setting, sizeof(pump_setting_t));
+#else
+    memcpy(&pump_info->setting_wrap[mode].info[mode_step], setting, sizeof(pump_setting_t));
+#endif
+    // LOG_STORE_WRAP("mode: %d, step: %d, setting: %d(%d/%d)",
+    //      mode, mode_step, setting->speed, setting->level[0], setting->level[1]);
     return 0;
 }
 
@@ -532,7 +543,6 @@ int read_pump_setting_info_from_ram(store_func_args_t args)
     EXCEPTION_CHECK_INT(setting);
     uint8_t mode = args.arg1;
     uint8_t mode_step = args.arg2;
-    // LOG_STORE("mode: %d, step: %d", args.arg1, args.arg2);
     if (mode >= BREAST_PUMP_MODE_MAX) {
         LOGE("mode: %d, out of range", mode);
         return -1;
@@ -543,7 +553,8 @@ int read_pump_setting_info_from_ram(store_func_args_t args)
         return -1;
     }
     memcpy(setting, &pump_info->setting_wrap[mode].info[mode_step], sizeof(pump_setting_t));
-
+    // LOG_STORE_WRAP("mode: %d, step: %d, setting: %d(%d/%d)",
+    //      mode, mode_step, setting->speed, setting->level[0], setting->level[1]);
     return 0;
 }
 

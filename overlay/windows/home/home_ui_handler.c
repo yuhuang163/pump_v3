@@ -87,11 +87,12 @@ void start_home_ui_animation(ui_proc_home_t *proc)
     
     if (proc->pump_priming) {
         proc->pump_priming = false;
-        if (proc->led)  {
-            proc->led->set_led_level(PUMP_START_BL, LED_LEVEL_MAX);
-        }
     }
 
+    if (proc->led && proc->led->hook && proc->led->hook->set_key_backlight) {
+        proc->led->hook->set_key_backlight(proc->led, LED_LEVEL_MAX);
+    }
+    
     ui_play_info_t play_info = {
         .tag = "home_default_screen",
         .fps = HOME_ANIMATION_FREQ,

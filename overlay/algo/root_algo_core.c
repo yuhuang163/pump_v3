@@ -72,9 +72,9 @@ static void algo_out_result_cb(algo_fusion_result_t *algo_result)
     ctx->priv.algo_data.wear_detection.compensation_delta_pwm[1] = algo_result->compensation_delta_pwm[1];
     algo_manager_dispatch_to_clients(ctx);
     log_count++;
-    if (log_count > 200) {
+    if (log_count > 100) {
         log_count = 0;
-        //LOG_ALGO("wear status %d/%d", algo_result->wear_status[0], algo_result->wear_status[1]);
+        LOG_ALGO("wear status %d/%d", algo_result->wear_status[0], algo_result->wear_status[1]);
         LOG_ALGO("compensation status %d/%d %d/%d", algo_result->compensation_status[0], algo_result->compensation_status[1], algo_result->compensation_delta_pwm[0], \
                  algo_result->compensation_delta_pwm[1]);
     }

@@ -90,11 +90,8 @@ static void ota_upgrade_state_start(ota_manager_context_t *ctx, int ota_object)
     set_ota_upgrading(true);
     set_ota_upgrade_progress(0);
     set_ota_upgrade_state(OTA_UPGRADE_STATE_START);
-    /*
-     * 避免自动化循环触摸 OTA 时反复重复派发同一 OTA 页面，长期运行会给 UI 线程造成额外压力。
-     */
-    if (wm && wm->dispatch_new_window_args &&
-        (!wm->is_current_window || wm->is_current_window(wm, ID_WINDOW_OTA_UPGRADE) == 0)) {
+    if (wm && wm->dispatch_new_window_args && 
+        wm->is_current_window && wm->is_current_window(wm, ID_WINDOW_OTA_UPGRADE) == 0) {
         multi_func_msg_data_t msg = {0};
         msg.union_body.extra.window_id = ID_WINDOW_OTA_UPGRADE;
         msg.union_body.extra.is_bg_dispatch = 0x01;

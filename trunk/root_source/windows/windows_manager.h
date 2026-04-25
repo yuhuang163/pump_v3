@@ -102,7 +102,7 @@ do { \
 #define SET_WINDOW_CONTEXT(ctx) \
     do { \
         __s_window_refs = ctx; \
-        LOG_UI("set_window_context:%p", __s_window_refs); \
+        LOG_WM("set_window_context:%p", __s_window_refs); \
     } while (0)
 
 /// 判断窗口上下文是否存在.

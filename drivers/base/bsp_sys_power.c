@@ -2,7 +2,6 @@
 * INCLUDE FILES
 *****************************************************************************************
 */
-#include "hal_bootmode.h"
 #include "pmu.h"
 #include "bsp_config.h"
 #include "bsp_common.h" // IWYU pragma: keep
@@ -30,18 +29,7 @@ static rt_device_node_t *node = NULL;
 */
 static void sys_power_gpio_init(void)
 {
-#if (V3_HARDWARE_VERSION == V3_2710IMP_HARDWARE_V1)
-    struct HAL_IOMUX_PIN_FUNCTION_MAP gpio_map = {
-        (enum HAL_IOMUX_PIN_T)SYS_POWER_PIN,  
-        HAL_IOMUX_FUNC_AS_GPIO, 
-        HAL_IOMUX_PIN_VOLTAGE_VIO, 
-        HAL_IOMUX_PIN_NOPULL,
-    };
-    hal_iomux_init(&gpio_map, 1);
-    hal_gpio_pin_set_dir((enum HAL_GPIO_PIN_T)SYS_POWER_PIN, HAL_GPIO_DIR_OUT, 1);
-    msleep(20);
-    LOG_PBUS("peripheral_power_gpio_init");
-#endif
+
 }
 
 static void peripheral_power_gpio_init(void)
@@ -59,26 +47,16 @@ static void peripheral_power_gpio_init(void)
 }
 
 static void sys_power_gpio_control(bool enable)
-{
-#if (V3_HARDWARE_VERSION == V3_2710IMP_HARDWARE_V1)
-    GPIO_PIN_CTRL(SYS_POWER_PIN, enable ? 1 : 0);
-    LOG_PBUS("sys_power_gpio_control: %d", enable);
-#elif (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V2) || (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V3) || (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V4)   
+{ 
     if (enable == false) {
-        LOG_PBUS("shutdown system");
-        msleep(50);
-        hal_sw_bootmode_clear(HAL_SW_BOOTMODE_REBOOT);
         pmu_shutdown();
     }
-#endif
 }
 
 static void peripheral_power_control(bool enable)
 {
-#if (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V2) || (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V3) || (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V4)
     GPIO_PIN_CTRL(PERIPHERAL_POWER_PIN, enable ? 1 : 0);
     LOG_PBUS("peripheral_power_control: %d", enable);
-#endif
 }
 
 static int sys_power_dev_open(struct rt_device_node *dev)
@@ -108,14 +86,9 @@ static int sys_power_dev_ioctl(struct rt_device_node *dev, uint32_t op_code, voi
     uint32_t *temp = (uint32_t *)args;
     switch (op_code) {
         case OP_CODE_POWER_CONTROL: 
-#if (V3_HARDWARE_VERSION == V3_2710IMP_HARDWARE_V1)
-            EXCEPTION_CHECK_INT(temp);
-            sys_power_gpio_control(temp[0] > 0 ? true : false);
-#elif (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V2) || (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V3) || (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V4)   
-            sys_power_gpio_control(temp[0] > 0 ? true : false);
-#else
-            return -1;
-#endif
+            if (temp) {
+                sys_power_gpio_control(temp[0] > 0 ? true : false);
+            }
             break;
         default:
             break;

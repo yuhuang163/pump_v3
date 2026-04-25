@@ -1,9 +1,5 @@
 #include "v3_target_curve_table.h"
-// pch.cpp: 与预编译标头对应的源文件
 
-// #include "pch.h"
-
-// 当使用预编译的头时，需要使用此源文件，编译才能成功。
 /*
  * 目标曲线占位表：
  * 1. 先保留一个无效项，这样即使曲线还没补全，工程也能先编译。
@@ -430,7 +426,7 @@ const STARGET_CURVE_ITEM g_target_curve_table[] =
     {
         19u,
         285u,
-        -11.0f,
+        -18.0f,
         -20.2f,
         (unsigned short)(sizeof(g_stim_190_285_p1) / sizeof(g_stim_190_285_p1[0])),
         g_stim_190_285_p1
@@ -439,26 +435,26 @@ const STARGET_CURVE_ITEM g_target_curve_table[] =
     {
         20u,
         305u,
-        -12.0f,
+        -19.1f,
         -21.1f,
         (unsigned short)(sizeof(g_stim_200_305_p1) / sizeof(g_stim_200_305_p1[0])),
         g_stim_200_305_p1
     },
-    //刺激13(最小值是最后一个点-25.3，之前的最小值是-24.3)
+    //刺激13
     {
         21u,
         313u,
-        -14.0f,
-        -24.3f,
+        -21.0f,
+        -22.1f,
         (unsigned short)(sizeof(g_stim_210_313_p1) / sizeof(g_stim_210_313_p1[0])),
         g_stim_210_313_p1
     },
-    //刺激14(最小值是最后一个点-26.1，之前的最小值是-23.4)
+    //刺激14
     {
         22u,
         340u,
-        -15.0f,
-        -23.4f,
+        -23.5f,
+        -23.1f,
         (unsigned short)(sizeof(g_stim_220_340_p1) / sizeof(g_stim_220_340_p1[0])),
         g_stim_220_340_p1
     },
@@ -466,8 +462,8 @@ const STARGET_CURVE_ITEM g_target_curve_table[] =
     {
         23u,
         322u,
-        -19.0f,
-        -24.62f,
+        -25.0f,
+        -24.5f,
         (unsigned short)(sizeof(g_stim_230_322_p1) / sizeof(g_stim_230_322_p1[0])),
         g_stim_230_322_p1
     },
@@ -577,7 +573,7 @@ const STARGET_CURVE_ITEM g_target_curve_table[] =
     {
         30u,
         600u,
-        -26.0f,
+        -29.0f,
         //-35.0f,
         -32.5f,
         (unsigned short)(sizeof(g_expr_300_600_p1) / sizeof(g_expr_300_600_p1[0])),
@@ -597,7 +593,7 @@ const STARGET_CURVE_ITEM g_target_curve_table[] =
     {
         33u,
         650u,
-        -30.0f,
+        -30.5f,
         //-40.0f,
         -36.0f,
         (unsigned short)(sizeof(g_expr_330_650_p1) / sizeof(g_expr_330_650_p1[0])),
@@ -607,7 +603,7 @@ const STARGET_CURVE_ITEM g_target_curve_table[] =
     {
         35u,
         685u,
-        -34.5f,
+        -32.7f,
         //-40.0f,
         -37.8f,
         (unsigned short)(sizeof(g_expr_350_685_p1) / sizeof(g_expr_350_685_p1[0])),
@@ -617,9 +613,9 @@ const STARGET_CURVE_ITEM g_target_curve_table[] =
     {
         36u,
         710u,
-        -37.5f,
+        -35.5f,
         //-40.0f,
-        -39.4f,
+        -39.0f,
         (unsigned short)(sizeof(g_expr_360_710_p1) / sizeof(g_expr_360_710_p1[0])),
         g_expr_360_710_p1
     },

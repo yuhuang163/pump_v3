@@ -164,25 +164,27 @@ static void set_breast_pump_setting(pump_setting_t *setting, uint8_t step_index,
         LOGE("step_index out of range");
         return;
     } 
+#if IS_SUPPORT_PUMP_GLOBAL_PARAM_SETTING
+    int mode = BREAST_PUMP_ALL_MODE_AND_PROGRAM;
+#else
+    int mode = breast_pump_obj->priv.m_info.mode;
+#endif
 
 #if IS_PUMP_STEPS_USE_SAME_SETTING
     for (int i = 0; i < ROOT_BREAST_PUMP_STEP_MAX; i++) {
         breast_pump_obj->priv.setting[i].level[0] = setting->level[0];
         breast_pump_obj->priv.setting[i].level[1] = setting->level[1];
-        if (PUMP_IS_COMMON_MODE(breast_pump_obj->priv.m_info.mode)) {
-            breast_pump_obj->priv.setting[i].speed = setting->speed;
-        }
-
+        breast_pump_obj->priv.setting[i].speed = setting->speed;
         if (is_need_store && breast_pump_obj->priv.st) {
             breast_pump_obj->priv.st->put_store_ram_val(STORE_ID_PUMP_SETTING_INFO,
-                 breast_pump_obj->priv.m_info.mode, i, &breast_pump_obj->priv.setting[i]);
+                mode, i, &breast_pump_obj->priv.setting[i]);
         }
     }
 #else
     memcpy(&breast_pump_obj->priv.setting[step_index], setting, sizeof(pump_setting_t));
     if (is_need_store && breast_pump_obj->priv.st) {
-        breast_pump_obj->priv.st->put_store_ram_val(STORE_ID_PUMP_SETTING_INFO, breast_pump_obj->priv.m_info.mode, 
-            step_index, setting);
+        breast_pump_obj->priv.st->put_store_ram_val(STORE_ID_PUMP_SETTING_INFO,
+            mode, step_index, setting);
     }
 #endif
     
@@ -204,6 +206,12 @@ static void set_breast_pump_mode(uint32_t mode, uint8_t is_store_mode, uint8_t i
     breast_pump_info_t *m_info = &breast_pump_obj->priv.m_info;
     struct storage_manager_context *st = breast_pump_obj->priv.st;
     motor_manager_context_t *motor_ctx = breast_pump_obj->priv.motor;
+
+    //如果在运行中，模式切换，不在此处上报app，依赖progress_hook内部上报
+    if (m_info->do_work && mode != m_info->mode) {
+        is_report = 0;
+    }
+    
     if (mode >= BREAST_PUMP_MODE_MAX) {
         m_info->mode = BREAST_PUMP_PUMP_MODE_DEFAULT;
     } else {

@@ -9,7 +9,7 @@
 * DEFINES
 *****************************************************************************************
 */
-#define PUMP_INFO_LOG_INTERVAL                             (10)            
+#define PUMP_INFO_LOG_INTERVAL                             (2000 / PUMP_WORK_STEP_TIME_MS)            
 #define PUMP_WILL_FINISH_TIME_MS                           (3000)
 #define PUMP_TIME_TO_SECOND(time)                          (time / 1000)
 #if 1
@@ -159,6 +159,15 @@ static int local_breast_pump_process(breast_pump_manager_context_t *ctx, pump_re
     /// 更新模式和力度.
     if (result_info->mode != ctx->priv.m_info.mode) {
         breast_pump_mode_update(ctx, result_info);
+        /// pumping运行时，模式切换，运行时间重置或更新后，上报app
+        servers_manager_context_t *servers_ctx = (servers_manager_context_t *)find_module(ID_MODULE_SERVERS);
+        EXCEPTION_CHECK_INT(servers_ctx && servers_ctx->hook);
+        servers_publish_data_args_t args = {
+            .arg1 = OLD_PUBLISH_DATA_SYSTEM_STATUS_CHANGE,
+            .arg2 = 0,
+            .val = NULL,
+        };
+        servers_ctx->hook->app_old_protocol_server_data_publish(APP_OLD_COMM_CID_NOTIFY_STATUS, &args);
         return RESULT_PUMP_NORMAL;
     }
     memcpy(result_info->setting, ctx->priv.setting, sizeof(pump_setting_t) * ROOT_BREAST_PUMP_STEP_MAX);

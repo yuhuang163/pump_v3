@@ -157,7 +157,11 @@ static int on_home_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
             home_pump_speed_key_click_handler(proc);
             break;
         case KEY_CODE_START:
-            POST_TASK_HANDLER_NO_DELAY(home_start_key_event_ui_cb, proc, HOME_START_KEY_EVENT_TASK_NAME);
+            if (proc->current_ui_type == HOME_UI_TYPE_PUMP_RESULT) {
+                LOG_WM("pump result, ignore key event.");
+            } else {
+                POST_TASK_HANDLER_NO_DELAY(home_start_key_event_ui_cb, proc, HOME_START_KEY_EVENT_TASK_NAME);
+            }
             break;
         default:
             break;
@@ -202,9 +206,6 @@ static int entry_event_cb(window_lift_cycle_e new_state,
         }
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);
-        if (proc->led && proc->led->hook && proc->led->hook->set_key_backlight) {
-            proc->led->hook->set_key_backlight(proc->led, LED_LEVEL_MAX);
-        }
         if (proc->extra.arg1 == HOME_SUB_UI_TYPE_PUMP_RESULT) {
             show_home_pump_result_ui(proc);
         } else {

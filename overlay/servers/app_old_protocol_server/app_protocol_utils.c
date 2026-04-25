@@ -1,5 +1,5 @@
 #include "root_common_api.h" // IWYU pragma: keep
-#include <stdlib.h>
+
 /*
 * DEFINES
 *****************************************************************************************

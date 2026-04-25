@@ -32,8 +32,8 @@
 #define PUMP_RIGHT_ARC_END_ANGLE                   (404 - 8)
 #define PUMP_LEVEL_ARC_WIDTH                       (6)
 #define PUMP_LEVEL_CIRCLE_SIZE                     (9)
-#define PUMP_SPEED_ICON_X                          (186)
-#define PUMP_SPEED_ICON_Y                          (24)
+#define PUMP_SPEED_ICON_X                          (206)
+#define PUMP_SPEED_ICON_Y                          (26)
 #define HOME_CUSTOM_MODE_TEXT_Y                    (91 + 9)
 #define HOME_CUSTOM_LEFT_TEXT_CENTER_X             (136 - 4)
 #define HOME_CUSTOM_RIGHT_TEXT_CENTER_X            (224 + 2)
@@ -95,6 +95,8 @@ typedef struct {
     uint8_t seconds;
     uint8_t seconds_size; /// 隐藏秒数标志
     uint8_t hour_colon_hidden; /// 隐藏时间冒号标志
+    uint8_t is_regular_mode; /// 是否是常规模式
+    uint16_t time_offset; /// 时间偏移量
     uint16_t animation_id;
     uint16_t animation_end_id;
 } pump_display_info_t;
@@ -186,43 +188,32 @@ static void pump_home_bg_update(ui_manager_context_t *thiz, uint8_t is_regular_m
 #else
 static void pump_home_bg_update(ui_manager_context_t *thiz, uint8_t is_regular_mode)
 {
+    if (pump_info->is_regular_mode == is_regular_mode && pump_info->force_update == false) {
+        return;
+    }
+
     if (pump_info->background == NULL || !lv_obj_is_valid(pump_info->background)) {
         pump_info->background = lv_image_create(pump_info->root);
         EXCEPTION_CHECK_VOID(pump_info->background);
-#if LV_USE_SNAPSHOT
-        lv_draw_buf_t *background_snapshot = thiz->get_lvgl_snap_shot(is_regular_mode ? \
-             UI_SNAP_SHOT_REGULAR_PUMPING_BG : UI_SNAP_SHOT_EXPERT_PUMPING_BG);
-        EXCEPTION_CHECK_VOID(background_snapshot);
-        lv_image_set_src(pump_info->background, background_snapshot);
-#else
-        lv_obj_add_flag(pump_info->background, LV_OBJ_FLAG_HIDDEN); /// 隐藏
-#endif
         lv_obj_align(pump_info->background, LV_ALIGN_CENTER, 0, 0);
     }
+
+#if LV_USE_SNAPSHOT
+    lv_draw_buf_t *background_snapshot = thiz->get_lvgl_snap_shot(is_regular_mode ? \
+         UI_SNAP_SHOT_REGULAR_PUMPING_BG : UI_SNAP_SHOT_EXPERT_PUMPING_BG);
+    EXCEPTION_CHECK_VOID(background_snapshot);
+    lv_image_set_src(pump_info->background, background_snapshot);
+#else
+    lv_obj_add_flag(pump_info->background, LV_OBJ_FLAG_HIDDEN); /// 隐藏
+#endif
+    pump_info->is_regular_mode = is_regular_mode;
 }
 #endif
-
-/** 透明固定槽：子 label 用 LV_PCT 铺满，配合 text_align 固定相对冒号的一侧 */
-static void pump_home_time_slot_ensure(lv_obj_t **slot, lv_obj_t *root,
-    lv_coord_t w, lv_coord_t h, lv_coord_t align_x, lv_coord_t align_y)
-{
-    if (*slot == NULL || !lv_obj_is_valid(*slot)) {
-        *slot = lv_obj_create(root);
-        EXCEPTION_CHECK_VOID(*slot);
-        lv_obj_remove_style_all(*slot);
-        lv_obj_set_style_bg_opa(*slot, LV_OPA_TRANSP, 0);
-        lv_obj_set_style_border_width(*slot, 0, 0);
-        lv_obj_set_style_pad_all(*slot, 0, 0);
-        lv_obj_clear_flag(*slot, LV_OBJ_FLAG_CLICKABLE);
-        lv_obj_clear_flag(*slot, LV_OBJ_FLAG_SCROLLABLE);
-    }
-    lv_obj_set_size(*slot, w, h);
-    lv_obj_align(*slot, LV_ALIGN_TOP_LEFT, align_x, align_y);
-}
 
 static void pump_home_time_colon_update(uint16_t hold_time, uint16_t y_offset, bool is_hour_colon_hidden)
 {
-    if (pump_info->hour_colon_hidden == is_hour_colon_hidden && pump_info->force_update == false) {
+    if (pump_info->hour_colon_hidden == is_hour_colon_hidden && pump_info->force_update == false &&
+        pump_info->time_offset == y_offset) {
         return;
     }
 
@@ -257,9 +248,6 @@ static void pump_home_time_colon_update(uint16_t hold_time, uint16_t y_offset, b
                         HOME_MINUTES_COLON_64_X, HOME_MINUTES_COLON_64_Y + y_offset);
             }
         }
-        if (pump_info->time_colon[i] != NULL && lv_obj_is_valid(pump_info->time_colon[i])) {
-            lv_obj_move_foreground(pump_info->time_colon[i]);
-        }
     }
     pump_info->hour_colon_hidden = is_hour_colon_hidden;
 }
@@ -267,7 +255,7 @@ static void pump_home_time_colon_update(uint16_t hold_time, uint16_t y_offset, b
 static void pump_home_time_h_update(uint8_t hours, uint16_t y_offset, bool is_hour_hidden)
 {
     if (pump_info->hours == hours && pump_info->force_update == false &&
-        pump_info->hours_hidden == is_hour_hidden) {
+        pump_info->hours_hidden == is_hour_hidden && pump_info->time_offset == y_offset) {
         return;
     }
 
@@ -299,7 +287,7 @@ static void pump_home_time_h_update(uint8_t hours, uint16_t y_offset, bool is_ho
 static void pump_home_time_m_update(uint8_t minutes, uint16_t y_offset, uint8_t minutes_size)
 {
     if (pump_info->minutes == minutes && pump_info->force_update == false &&
-        pump_info->minutes_size == minutes_size) {
+        pump_info->minutes_size == minutes_size && pump_info->time_offset == y_offset) {
         return;
     }
     
@@ -331,7 +319,7 @@ static void pump_home_time_m_update(uint8_t minutes, uint16_t y_offset, uint8_t 
 static void pump_home_time_s_update(uint8_t seconds, uint16_t y_offset, uint8_t seconds_size)
 {
     if (pump_info->seconds == seconds && pump_info->force_update == false &&
-        pump_info->seconds_size == seconds_size) {
+        pump_info->seconds_size == seconds_size && pump_info->time_offset == y_offset) {
         return;
     }
 
@@ -372,12 +360,14 @@ static void pump_home_time_update(ui_manager_context_t *thiz, uint16_t hold_time
         pump_home_time_m_update(minutes, y_offset, 96);
         pump_home_time_s_update(seconds, y_offset, 96);
         pump_home_time_colon_update(hold_time, y_offset, true);
+        pump_info->time_offset = y_offset;
     } else {
         uint16_t y_offset = is_regular_mode ? 0 : 10;
         pump_home_time_h_update(hours, y_offset, false);
         pump_home_time_m_update(minutes, y_offset, 64);
         pump_home_time_s_update(seconds, y_offset, 64);
         pump_home_time_colon_update(hold_time, y_offset, false);
+        pump_info->time_offset = y_offset;
     }
 }
 
@@ -609,13 +599,14 @@ static void pump_home_common_mode_update(ui_manager_context_t *thiz, uint8_t mod
 
         if (i != 0) {
             lv_obj_add_flag(pump_info->mode_text[i], LV_OBJ_FLAG_HIDDEN); /// 隐藏
-            return;
+            continue;
         }
         lv_obj_clear_flag(pump_info->mode_text[i], LV_OBJ_FLAG_HIDDEN); /// 显示
         lv_label_set_text(pump_info->mode_text[i], home_mode_names[mode_index]);  /// 设置 label 文字内容和样式
         lv_obj_align(pump_info->mode_text[i], LV_ALIGN_TOP_MID, 0, 81); /// 设置label文字位置
-        pump_info->mode = mode_index;
     }
+    pump_info->mode = mode_index;
+    LOG_UI("===> %s mode", home_mode_names[mode_index]);
 }
 
 static void pump_home_custom_mode_update(ui_manager_context_t *thiz, uint8_t mode_index, 
