@@ -1,32 +1,6 @@
 #include "root_common_api.h" // IWYU pragma: keep
 #include "app_protocol_key_simulation.h"
-#include "input_key_code.h"
-#include "key_input_manager_api.h"
-/*
-* DEFINES
-*****************************************************************************************
-*/
-
-/*
-* LOCAL VARIABLE DEFINITIONS
-*****************************************************************************************
-*/
-
-/*
-* GLOBAL VARIABLE DEFINITIONS
-*****************************************************************************************
-*/
-
-/*
-* LOCAL FUNCTION DEFINITIONS
-*****************************************************************************************
-*/
-
-/*
-* GLOBAL FUNCTION DEFINITIONS
-*****************************************************************************************
-*/
-#include "root_common_api.h" // IWYU pragma: keep
+#include "input_key_code.h" // IWYU pragma: keep
 
 /*
 * DEFINES

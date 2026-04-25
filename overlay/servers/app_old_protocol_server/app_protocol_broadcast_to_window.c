@@ -1,6 +1,6 @@
 #include "root_common_api.h" // IWYU pragma: keep
 #include "app_protocol_broadcast_to_window.h"
-#include "broadcast_manager_api.h"
+
 /*
 * DEFINES
 *****************************************************************************************

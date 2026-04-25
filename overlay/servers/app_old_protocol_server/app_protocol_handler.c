@@ -4,9 +4,6 @@
 */
 #include "root_common_api.h" // IWYU pragma: keep
 #include "app_protocol_handler.h"
-#include "protocol_manager_api.h"
-#include "servers_manager_api.h"
-#include "storage_manager_api.h"
 
 /*
 * DEFINES
@@ -77,6 +74,7 @@ void app_old_comm_handle_request_cmd(app_old_comm_cmd_id_e cid, uint8_t cal, uin
         case APP_OLD_COMM_CID_GET_DEV_SN:
         case APP_OLD_COMM_CID_GET_SN:
             app_old_comm_handle_get_sn_req();
+            break;
         case APP_OLD_COMM_CID_SET_SN:
             app_old_comm_handle_set_sn_req(cal, cab);
             break;

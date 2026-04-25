@@ -1,6 +1,5 @@
 #include "root_common_api.h" // IWYU pragma: keep
 #include "app_protocol_handler.h"
-#include "storage_manager_api.h"
 
 /*
 * DEFINES

@@ -1,15 +1,8 @@
-#include "plat_types.h"
 #include "root_common_api.h" // IWYU pragma: keep
 #include "app_protocol_handler.h"
 #include "app_protocol_pump_ctrl_server.h"
-#include "breast_pump_manager_api.h"
-#include "pump_mode_default_config.h"
-#include "breast_pump_mode.h"
-#include "pump_mode_default_config.h"
 #include "app_protocol_broadcast_to_window.h"
 #include "app_protocol_key_simulation.h"
-#include "breast_pump_persist_data.h"
-#include "input_key_code.h"
 
 /*
 * DEFINES
