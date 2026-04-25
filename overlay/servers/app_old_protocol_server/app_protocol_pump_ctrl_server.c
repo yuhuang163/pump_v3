@@ -359,8 +359,16 @@ static uint32_t app_old_comm_get_pump_mode_run_total_time(void)
     EXCEPTION_CHECK_UINT(pump_ctx);
     const pump_result_info_t *result_info = NULL;
     READ_PUMP_RESULT_INFO(pump_ctx, BREAST_PUMP_RESULT_PUMPING, &result_info);
-    LOG_SRV("total time = %d", result_info->work_total_time);
-    return (uint32_t)result_info->work_total_time/1000;
+    ///如果pump已经运行完成，则返回0
+    int work_status = 0;
+    READ_PUMP_WORK_STATUS(pump_ctx, work_status);
+    if (work_status == BREAST_PUMP_FINISH || work_status == BREAST_PUMP_IDLE ) {
+        LOG_SRV("pump already finished or idle, total time = 0");
+        return 0;
+    } else {
+        LOG_SRV("total time = %d", result_info->work_total_time);
+        return (uint32_t)result_info->work_total_time/1000;
+    }
 }
 
 static uint32_t app_old_comm_get_current_custom_pump_mode_total_time(void)
