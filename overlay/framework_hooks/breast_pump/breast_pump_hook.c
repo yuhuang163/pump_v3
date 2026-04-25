@@ -9,7 +9,7 @@
 * DEFINES
 *****************************************************************************************
 */
-#define PUMP_INFO_LOG_INTERVAL                             (10)            
+#define PUMP_INFO_LOG_INTERVAL                             (2000 / PUMP_WORK_STEP_TIME_MS)            
 #define PUMP_WILL_FINISH_TIME_MS                           (3000)
 #define PUMP_TIME_TO_SECOND(time)                          (time / 1000)
 #if 1

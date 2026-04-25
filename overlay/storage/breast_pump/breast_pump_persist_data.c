@@ -529,8 +529,8 @@ int write_pump_setting_info_to_ram(store_func_args_t args)
 #else
     memcpy(&pump_info->setting_wrap[mode].info[mode_step], setting, sizeof(pump_setting_t));
 #endif
-    LOG_STORE_WRAP("mode: %d, step: %d, setting: %d(%d/%d)",
-         mode, mode_step, setting->speed, setting->level[0], setting->level[1]);
+    // LOG_STORE_WRAP("mode: %d, step: %d, setting: %d(%d/%d)",
+    //      mode, mode_step, setting->speed, setting->level[0], setting->level[1]);
     return 0;
 }
 
@@ -553,8 +553,8 @@ int read_pump_setting_info_from_ram(store_func_args_t args)
         return -1;
     }
     memcpy(setting, &pump_info->setting_wrap[mode].info[mode_step], sizeof(pump_setting_t));
-    LOG_STORE_WRAP("mode: %d, step: %d, setting: %d(%d/%d)",
-         mode, mode_step, setting->speed, setting->level[0], setting->level[1]);
+    // LOG_STORE_WRAP("mode: %d, step: %d, setting: %d(%d/%d)",
+    //      mode, mode_step, setting->speed, setting->level[0], setting->level[1]);
     return 0;
 }
 
