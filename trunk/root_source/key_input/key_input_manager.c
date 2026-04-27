@@ -55,6 +55,8 @@ static int dispatch_key_event_client(uint16_t keycode, uint16_t keytype)
     LIST_FOR_EACH(pos, (head)) { 
         key_evt_client_node_t *node = CONTAINER_OF(pos, key_evt_client_node_t, list);
         if (is_key_event_shielded(node->handler.shield_level)) {
+            LOGW("%s shielded: %d, current: %d", node->handler.tag, 
+                node->handler.shield_level, thiz->priv.key_evt_shield_level);
             continue;
         }
 
