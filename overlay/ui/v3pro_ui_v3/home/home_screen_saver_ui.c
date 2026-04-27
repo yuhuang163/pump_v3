@@ -32,7 +32,7 @@ typedef struct {
 #endif
     lv_obj_t * saver_icon;
     res_img_info_t saver_img_info;
-#if (ROOT_PRODUCT_ID == ROOT_PRODUCT_ID_V3PRO)
+#if (ROOT_PRODUCT_ID == ROOT_PRODUCT_V3PRO_ID)
     lv_obj_t * clock_hour;
     lv_obj_t * clock_minute;
     lv_obj_t * clock_colon;
@@ -135,7 +135,7 @@ static void home_screen_saver_dummy_icon_update(ui_manager_context_t *thiz, int1
         HOME_SCREEN_SAVER_ICON_X, HOME_SCREEN_SAVER_ICON_Y + y_offset); /// 设置icon位置
 }
 
-#if (ROOT_PRODUCT_ID == ROOT_PRODUCT_ID_V3PRO)
+#if (ROOT_PRODUCT_ID == ROOT_PRODUCT_V3PRO_ID)
 static void home_screen_saver_clock_ui_update(ui_manager_context_t *thiz, bool is_show)
 {
     /// 更新时钟小时
@@ -209,7 +209,7 @@ static void home_screen_saver_clock_ui_update(ui_manager_context_t *thiz, bool i
 }
 static home_screen_saver_display_type_e home_screen_saver_display_type_update(ui_manager_context_t *thiz, ui_proc_home_t *proc)
 {
-#if 0
+#if 1
     static home_screen_saver_display_type_e home_screen_saver_display_type_test = HOME_SCREEN_SAVER_DISPLAY_CLOCK; /// TODO: 测试用，后续删除
     static uint32_t count = 0; /// TODO: 测试用，后续删除
     count++;
@@ -274,7 +274,7 @@ void ui_display_home_screen_saver_remove(ui_manager_context_t *thiz)
 {
     EXCEPTION_CHECK_VOID(thiz && saver_info);
     common_ui_img_resource_deinit(thiz, &saver_info->saver_img_info);
-#if (ROOT_PRODUCT_ID == ROOT_PRODUCT_ID_V3PRO)
+#if (ROOT_PRODUCT_ID == ROOT_PRODUCT_V3PRO_ID)
     common_ui_img_resource_deinit(thiz, &saver_info->clock_colon_info);
 #endif
     ble_ui_deinit(thiz);

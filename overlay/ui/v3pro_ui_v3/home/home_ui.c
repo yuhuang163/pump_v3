@@ -13,33 +13,48 @@
 */
 #define IS_SUPPORT_ROOT_HOME_COMP_BG                (0)
 
-#define IDLE_LABEL_Y_OFFSET                         (18)
 #define IDLE_LABEL_AREA_ICON_X                      (0)
-#define IDLE_LABEL_AREA_ICON_Y                      (84 + IDLE_LABEL_Y_OFFSET)
+#define IDLE_LABEL_AREA_ICON_Y                      (102)
 #define IDLE_BUTTON_ICON_X                          (70)
-#define IDLE_BUTTON_ICON_Y                          (119 + IDLE_LABEL_Y_OFFSET)
+#define IDLE_BUTTON_ICON_Y                          (137)
 
 #define IDLE_LABEL_TEXT_X                           (98)
-#define IDLE_LABEL_TEXT_Y                           (114 + IDLE_LABEL_Y_OFFSET)
+#define IDLE_LABEL_TEXT_Y                           (132)
 #define IDLE_TEXT_COLOR                             (0xB25962)
 
 #define HOME_IDLE_ANIMATION_X                       (0)
-#define HOME_IDLE_ANIMATION_Y                       (162 + 4)
+#define HOME_IDLE_ANIMATION_Y                       (166)
 
 #define HOME_LIGHT_ANIMATION_X                      (0)
-#define HOME_LIGHT_ANIMATION_Y                      (162 + 4)
+#define HOME_LIGHT_ANIMATION_Y                      (166)
 
-#define HOME_CLOCK_HOUR_X                           (44 - 1)
-#define HOME_CLOCK_MINUTE_X                         (192 - 1)
-#define HOME_CLOCK_TIME_Y                           (141 + 7)
-#define HOME_CLOCK_COLON_X                          (174 - 4)
-#define HOME_CLOCK_COLON_Y                          (141 + 20)
+#define HOME_CLOCK_HOUR_X                           (43)
+#define HOME_CLOCK_MINUTE_X                         (191)
+#define HOME_CLOCK_TIME_Y                           (148)
+#define HOME_CLOCK_COLON_X                          (170)
+#define HOME_CLOCK_COLON_Y                          (161)
 
-#define HOME_WITH_CLOCK_LABLE_Y_OFFSET              (29)
-#define HOME_CLOCK_TIP_LABLE_Y_OFFSET               (7)
-#define HOME_RECORD_TEXT_X_OFFSET                   (14)
-#define HOME_RECORD_TEXT_Y_OFFSET                   (20)
-#define HOME_LIGHT_TIP_LABLE_Y_OFFSET               (28)
+#define IDLE_WITH_CLOCK_LABLE_ICON_X                (0)
+#define IDLE_WITH_CLOCK_LABLE_ICON_Y                (55)
+#define IDLE_WITH_CLOCK_BUTTON_ICON_X               (70)
+#define IDLE_WITH_CLOCK_BUTTON_ICON_Y               (IDLE_WITH_CLOCK_LABLE_ICON_Y + 35)
+#define IDLE_WITH_CLOCK_LABEL_TEXT_X                (98)
+#define IDLE_WITH_CLOCK_LABEL_TEXT_Y                (IDLE_WITH_CLOCK_LABLE_ICON_Y + 30)
+
+#define IDLE_CLOCK_AND_RECORD_TIME_TEXT_X           (0)
+#define IDLE_CLOCK_AND_RECORD_TIME_TEXT_Y           (IDLE_WITH_CLOCK_LABLE_ICON_Y + 33)
+#define IDLE_CLOCK_AND_RECORD_LABEL_TEXT_X          (0)
+#define IDLE_CLOCK_AND_RECORD_LABEL_TEXT_Y          (IDLE_WITH_CLOCK_LABLE_ICON_Y + 47)
+
+#define IDLE_RECORD_TIME_TEXT_X                     (0)
+#define IDLE_RECORD_TIME_TEXT_Y                     (IDLE_LABEL_AREA_ICON_Y + 33)
+#define IDLE_RECORD_LABEL_TEXT_X                    (0)
+#define IDLE_RECORD_LABEL_TEXT_Y                    (IDLE_LABEL_AREA_ICON_Y + 47)
+
+#define IDLE_LIGHT_TIP_LABEL_ICON_X                 (0)
+#define IDLE_LIGHT_TIP_LABEL_ICON_Y                 (55)
+#define IDLE_LIGHT_TIP_LABEL_TEXT_X                 (0)
+#define IDLE_LIGHT_TIP_LABEL_TEXT_Y                 (IDLE_LIGHT_TIP_LABEL_ICON_Y + 27)
 
 typedef struct {
     lv_obj_t * root;
@@ -53,7 +68,7 @@ typedef struct {
     res_img_info_t button_info;
     lv_obj_t * animation;
     res_img_info_t animation_info;
-#if (ROOT_PRODUCT_ID == ROOT_PRODUCT_ID_V3PRO)
+#if (ROOT_PRODUCT_ID == ROOT_PRODUCT_V3PRO_ID)
     lv_obj_t * time_text;
     lv_obj_t * clock_hour;
     lv_obj_t * clock_minute;
@@ -85,7 +100,12 @@ typedef struct {
 static home_display_info_t *home_info;
 #if IS_SUPPORT_ROOT_HOME_COMP_BG
 static PSRAM_NC_DATA_LOC uint8_t home_bg_data[] = {
-    #include "comparison_png2txt/home_ip1_360x360.txt"
+    // #include "comparison_png2txt/home_ip1_360x360.txt"
+    // #include "comparison_png2txt/home_ip2_360x360.txt"
+    // #include "comparison_png2txt/home_ip3_360x360.txt"
+    #include "comparison_png2txt/home_ip4_360x360.txt"
+    // #include "comparison_png2txt/home_ip5_360x360.txt"
+    // #include "comparison_png2txt/home_ip6_360x360.txt"
 };
 #endif
 
@@ -190,7 +210,11 @@ static void home_label_text_ui_update(ui_manager_context_t *thiz, char *content,
         lv_label_set_text(home_info->text, content);  /// 设置 label 文字内容和样式
         lv_obj_set_style_text_color(home_info->text, lv_color_hex(IDLE_TEXT_COLOR), 0);
         lv_obj_set_style_text_font(home_info->text, font, 0);  /// 设置字体
-        lv_obj_align(home_info->text, LV_ALIGN_TOP_LEFT, x_offset, y_offset); /// 设置文字位置
+        if (x_offset == 0) {
+            lv_obj_align(home_info->text, LV_ALIGN_TOP_MID, 0, y_offset); /// 设置文字位置
+        } else {
+            lv_obj_align(home_info->text, LV_ALIGN_TOP_LEFT, x_offset, y_offset); /// 设置文字位置
+        }
         lv_obj_set_style_text_line_space(home_info->text, 3, 0); /// 设置行间距
         if (align_center) {
             lv_obj_set_style_text_align(home_info->text, LV_TEXT_ALIGN_CENTER, 0);  /// 设置文本居中对齐
@@ -258,7 +282,7 @@ static void home_root_animation_update(ui_manager_context_t *thiz,
     home_info->animation_index++;
 }
 
-#if (ROOT_PRODUCT_ID == ROOT_PRODUCT_ID_V3PRO)
+#if (ROOT_PRODUCT_ID == ROOT_PRODUCT_V3PRO_ID)
 static void home_record_time_ui_update(ui_manager_context_t *thiz, uint32_t timestamp_offset,
     uint16_t x_offset, uint16_t y_offset, bool is_show) {
     if (home_info->time_text == NULL || !lv_obj_is_valid(home_info->time_text)) {
@@ -283,8 +307,11 @@ static void home_record_time_ui_update(ui_manager_context_t *thiz, uint32_t time
         lv_obj_set_style_text_color(home_info->time_text, lv_color_hex(IDLE_TEXT_COLOR), 0);
         lv_obj_set_style_text_font(home_info->time_text, &lv_font_oppo_sans_14_bold, 0);  /// 设置字体
         lv_obj_update_layout(home_info->time_text);
-        lv_coord_t text_width = lv_obj_get_width(home_info->time_text);
-        lv_obj_align(home_info->time_text, LV_ALIGN_TOP_LEFT, x_offset - (text_width / 2), y_offset); /// 设置文字位置
+        if (x_offset == 0) {
+            lv_obj_align(home_info->time_text, LV_ALIGN_TOP_MID, 0, y_offset); /// 设置文字位置
+        } else {
+            lv_obj_align(home_info->time_text, LV_ALIGN_TOP_LEFT, x_offset, y_offset); /// 设置文字位置
+        }
         home_info->record_hour = hour;
         home_info->record_minute = minute;
     } else {
@@ -381,7 +408,8 @@ static home_ui_display_type_e home_ui_display_type_update(ui_manager_context_t *
     home_info->timestamp_offset = ((120 * 60 * 60 * 1000) + (9 * 60 * 1000)); /// TODO: 测试用，后续删除
     return home_ui_type_test;
 #else
-    return HOME_UI_DISPLAY_DEFAULT;
+    // return HOME_UI_DISPLAY_DEFAULT;
+    return HOME_UI_DISPLAY_CLOCK_LIGHT_TIP;
 #endif
 }
 
@@ -404,8 +432,8 @@ static void home_ui_update(ui_manager_context_t *thiz, ui_proc_home_t *proc)
             home_button_ui_update(thiz, IDLE_BUTTON_ICON_X, IDLE_BUTTON_ICON_Y, true);
             home_label_text_ui_update(thiz, "Select a program or mode\nto start pumping.",
                 IDLE_LABEL_TEXT_X, IDLE_LABEL_TEXT_Y, true, false, &lv_font_oppo_sans_16_medium);
-            home_record_time_ui_update(thiz, 
-                home_info->timestamp_offset, IDLE_LABEL_TEXT_X, IDLE_LABEL_TEXT_Y, false);
+            home_record_time_ui_update(thiz, home_info->timestamp_offset,
+                0, IDLE_LABEL_TEXT_Y, false);
             home_clock_ui_update(thiz, 0, false);
             home_root_animation_update(thiz, RESOURCE_ID_HD_ANIM_IP_START,
                  RESOURCE_ID_HD_ANIM_IP_END - RESOURCE_ID_HD_ANIM_IP_START + 1,
@@ -413,14 +441,13 @@ static void home_ui_update(ui_manager_context_t *thiz, ui_proc_home_t *proc)
             break;
         case HOME_UI_DISPLAY_CLOCK_AND_RECORD:
             home_label_ui_update(thiz, RESOURCE_ID_HOME_IDLE_LABLE_ICON,
-                IDLE_LABEL_AREA_ICON_X, IDLE_LABEL_AREA_ICON_Y - HOME_WITH_CLOCK_LABLE_Y_OFFSET, true);
-            home_button_ui_update(thiz, IDLE_BUTTON_ICON_X, IDLE_BUTTON_ICON_Y, false);
+                IDLE_WITH_CLOCK_LABLE_ICON_X, IDLE_WITH_CLOCK_LABLE_ICON_Y, true);
+            home_button_ui_update(thiz, IDLE_WITH_CLOCK_BUTTON_ICON_X, IDLE_WITH_CLOCK_BUTTON_ICON_Y, false);
             home_label_text_ui_update(thiz, "since last pumping session",
-                IDLE_LABEL_TEXT_X - HOME_RECORD_TEXT_X_OFFSET, 
-                (IDLE_LABEL_TEXT_Y - HOME_WITH_CLOCK_LABLE_Y_OFFSET) + HOME_RECORD_TEXT_Y_OFFSET, 
+                0, IDLE_CLOCK_AND_RECORD_LABEL_TEXT_Y, 
                 true, false, &lv_font_oppo_sans_16_medium);
             home_record_time_ui_update(thiz, home_info->timestamp_offset, 
-                    180, IDLE_LABEL_TEXT_Y - HOME_WITH_CLOCK_LABLE_Y_OFFSET, true);
+                0, IDLE_CLOCK_AND_RECORD_TIME_TEXT_Y, true);
             home_clock_ui_update(thiz, 0, true);
             home_root_animation_update(thiz, RESOURCE_ID_HD_ANIM_IP_START,
                 RESOURCE_ID_HD_ANIM_IP_END - RESOURCE_ID_HD_ANIM_IP_START + 1,
@@ -428,12 +455,13 @@ static void home_ui_update(ui_manager_context_t *thiz, ui_proc_home_t *proc)
             break;
         case HOME_UI_DISPLAY_CLOCK:
             home_label_ui_update(thiz, RESOURCE_ID_HOME_IDLE_LABLE_ICON,
-                IDLE_LABEL_AREA_ICON_X, IDLE_LABEL_AREA_ICON_Y - HOME_WITH_CLOCK_LABLE_Y_OFFSET, true);
-            home_button_ui_update(thiz, IDLE_BUTTON_ICON_X, IDLE_BUTTON_ICON_Y - HOME_WITH_CLOCK_LABLE_Y_OFFSET, true);
+                IDLE_WITH_CLOCK_LABLE_ICON_X, IDLE_WITH_CLOCK_LABLE_ICON_Y, true);
+            home_button_ui_update(thiz, IDLE_WITH_CLOCK_BUTTON_ICON_X, IDLE_WITH_CLOCK_BUTTON_ICON_Y, true);
             home_label_text_ui_update(thiz, "Select a program or mode\nto start pumping.",
-                IDLE_LABEL_TEXT_X, IDLE_LABEL_TEXT_Y - HOME_WITH_CLOCK_LABLE_Y_OFFSET, true, false, &lv_font_oppo_sans_16_medium);
+                IDLE_WITH_CLOCK_LABEL_TEXT_X, IDLE_WITH_CLOCK_LABEL_TEXT_Y,
+                true, false, &lv_font_oppo_sans_16_medium);
             home_record_time_ui_update(thiz, home_info->timestamp_offset, 
-                IDLE_LABEL_TEXT_X, IDLE_LABEL_TEXT_Y - HOME_WITH_CLOCK_LABLE_Y_OFFSET, false);
+                0, IDLE_LABEL_TEXT_Y, false);
             home_clock_ui_update(thiz, 0, true);
             home_root_animation_update(thiz, RESOURCE_ID_HD_ANIM_IP_START,
                  RESOURCE_ID_HD_ANIM_IP_END - RESOURCE_ID_HD_ANIM_IP_START + 1,
@@ -444,10 +472,9 @@ static void home_ui_update(ui_manager_context_t *thiz, ui_proc_home_t *proc)
                 IDLE_LABEL_AREA_ICON_X, IDLE_LABEL_AREA_ICON_Y, true);
             home_button_ui_update(thiz, IDLE_BUTTON_ICON_X, IDLE_BUTTON_ICON_Y, false);
             home_label_text_ui_update(thiz, "since last pumping session",
-                IDLE_LABEL_TEXT_X - HOME_RECORD_TEXT_X_OFFSET, 
-                IDLE_LABEL_TEXT_Y + HOME_RECORD_TEXT_Y_OFFSET, true, false, &lv_font_oppo_sans_16_medium);
+                0, IDLE_RECORD_LABEL_TEXT_Y, true, false, &lv_font_oppo_sans_16_medium);
             home_record_time_ui_update(thiz, home_info->timestamp_offset,
-                180, IDLE_LABEL_TEXT_Y, true);
+                0, IDLE_RECORD_TIME_TEXT_Y, true);
             home_clock_ui_update(thiz, 0, false);
             home_root_animation_update(thiz, RESOURCE_ID_HD_ANIM_IP_START,
                 RESOURCE_ID_HD_ANIM_IP_END - RESOURCE_ID_HD_ANIM_IP_START + 1,
@@ -455,12 +482,12 @@ static void home_ui_update(ui_manager_context_t *thiz, ui_proc_home_t *proc)
             break;
         case HOME_UI_DISPLAY_CLOCK_ADJUST_TIP:
             home_label_ui_update(thiz, RESOURCE_ID_HOME_IDLE_LABLE_ICON,
-                IDLE_LABEL_AREA_ICON_X, IDLE_LABEL_AREA_ICON_Y - HOME_CLOCK_TIP_LABLE_Y_OFFSET, true);
+                IDLE_LABEL_AREA_ICON_X, IDLE_LABEL_AREA_ICON_Y, true);
             home_button_ui_update(thiz, IDLE_BUTTON_ICON_X, IDLE_BUTTON_ICON_Y, false);
             home_label_text_ui_update(thiz, "Time not updated. Connect\nthe device to sync.",
-                IDLE_LABEL_TEXT_X - 12, IDLE_LABEL_TEXT_Y - HOME_CLOCK_TIP_LABLE_Y_OFFSET, true, true, &lv_font_oppo_sans_16_medium);
+                0, IDLE_LABEL_TEXT_Y, true, true, &lv_font_oppo_sans_16_medium);
             home_record_time_ui_update(thiz, home_info->timestamp_offset,
-                 IDLE_LABEL_TEXT_X, IDLE_LABEL_TEXT_Y - HOME_CLOCK_TIP_LABLE_Y_OFFSET, false);
+                0, IDLE_LABEL_TEXT_Y, false);
             home_clock_ui_update(thiz, 0, false);
             home_root_animation_update(thiz, RESOURCE_ID_HD_ANIM_IP_START,
                 RESOURCE_ID_HD_ANIM_IP_END - RESOURCE_ID_HD_ANIM_IP_START + 1,
@@ -468,18 +495,17 @@ static void home_ui_update(ui_manager_context_t *thiz, ui_proc_home_t *proc)
             break;
         case HOME_UI_DISPLAY_CLOCK_LIGHT_TIP:
             home_label_ui_update(thiz, RESOURCE_ID_HOME_LIGHT_LABLE_ICON,
-                IDLE_LABEL_AREA_ICON_X, IDLE_LABEL_AREA_ICON_Y - HOME_LIGHT_TIP_LABLE_Y_OFFSET, true);
+                IDLE_LIGHT_TIP_LABEL_ICON_X, IDLE_LIGHT_TIP_LABEL_ICON_Y, true);
             home_button_ui_update(thiz, IDLE_BUTTON_ICON_X, IDLE_BUTTON_ICON_Y, false);
             home_label_text_ui_update(thiz, "Press to turn on the light",
-                IDLE_LABEL_TEXT_X - 18, 
-                (IDLE_LABEL_TEXT_Y - 2) - HOME_LIGHT_TIP_LABLE_Y_OFFSET,
+                0, IDLE_LIGHT_TIP_LABEL_TEXT_Y,
                 true, false, &lv_font_oppo_sans_16_medium);
             home_record_time_ui_update(thiz, home_info->timestamp_offset,
-                 IDLE_LABEL_TEXT_X, IDLE_LABEL_TEXT_Y - HOME_LIGHT_TIP_LABLE_Y_OFFSET, false);
-            home_clock_ui_update(thiz, -18, true);
-            // home_root_animation_update(thiz, RESOURCE_ID_HL_ANIM_IP_START,
-            //     RESOURCE_ID_HL_ANIM_IP_END - RESOURCE_ID_HL_ANIM_IP_START + 1,
-            //     HOME_IDLE_ANIMATION_X, HOME_IDLE_ANIMATION_Y);
+                0, IDLE_LABEL_TEXT_Y, false);
+            home_clock_ui_update(thiz, 0, true);
+            home_root_animation_update(thiz, RESOURCE_ID_HD_ANIM_IP_START,
+                RESOURCE_ID_HD_ANIM_IP_END - RESOURCE_ID_HD_ANIM_IP_START + 1,
+                HOME_IDLE_ANIMATION_X, HOME_IDLE_ANIMATION_Y);
             break;
     }
 }
@@ -526,7 +552,7 @@ void ui_display_home_remove(ui_manager_context_t *thiz)
     common_ui_img_resource_deinit(thiz, &home_info->label_info);
     common_ui_img_resource_deinit(thiz, &home_info->button_info);
     common_ui_img_resource_deinit(thiz, &home_info->animation_info);
-#if (ROOT_PRODUCT_ID == ROOT_PRODUCT_ID_V3PRO)
+#if (ROOT_PRODUCT_ID == ROOT_PRODUCT_V3PRO_ID)
     common_ui_img_resource_deinit(thiz, &home_info->clock_colon_info);
 #endif
     ble_ui_deinit(thiz);
