@@ -342,6 +342,9 @@ static void hyn_touch_key_scan(void)
 {
     uint8_t read_buff[5] = {0};
     uint8_t clear_irq;
+    uint8_t bit_set_count = 0;
+    uint8_t is_combine_key = 0;  /// 是否是组合按键
+    uint8_t combine_key_count = 0;
     uint16_t key_idle_count = 0;
     while (1) {
         memset(read_buff, 0, sizeof(read_buff));
@@ -355,7 +358,22 @@ static void hyn_touch_key_scan(void)
         s_key_state = (uint16_t)(read_buff[4] << 8) | read_buff[3];
         hyn_i2c_write_with_retry(0x1F, &clear_irq, 1, 3);
         for (uint8_t i = 0; i < HYN_TOUCH_KEY_NUM; i++) {
-            s_touch_key[i] = (s_key_state & s_key_mask[i]) ? 1 : 0;
+            if (s_key_state & s_key_mask[i]) {
+                s_touch_key[i] = 1;
+                bit_set_count++;
+            } else {
+                s_touch_key[i] = 0;
+            }
+        }
+
+        if (bit_set_count > 1) {
+            combine_key_count++;
+            if (combine_key_count > 3) {
+                is_combine_key = true;
+            }
+            bit_set_count = 0;
+        } else {
+            combine_key_count = 0;
         }
 
         if (s_key_state != s_key_last_state) {
@@ -364,6 +382,12 @@ static void hyn_touch_key_scan(void)
             BSP_LOG_PASS("%lu:%04x->%04x\n", get_timestamp(), 
                 (unsigned)s_key_last_state, (unsigned)s_key_state);
 #endif
+            if (is_combine_key) {              
+                is_combine_key = false;  /// 如果组合按键，则退出扫描
+                memset(s_touch_key, 0, sizeof(s_touch_key));
+                s_key_last_state = 0;
+                break;
+            }
         }
 
         if (s_key_state == 0) {
@@ -374,6 +398,7 @@ static void hyn_touch_key_scan(void)
         } else {
             key_idle_count = 0;
         }
+
         msleep(10);
     }
 }
@@ -465,7 +490,9 @@ static void key_device_thread(void *arg)
             if (s_is_upgrading == true) {
                 continue;
             }
+            hyn_irq_control(false);
             hyn_touch_key_scan();
+            hyn_irq_control(true);
         }
     }
 }
@@ -566,7 +593,7 @@ int bsp_key_init(void)
     s_touch_is_ready = true;
     s_touch_abnormal_count = 0;
 
-    CREATE_MSG_TYPE_QUEUE(&s_key_device_thd.msg_id, 2, 1);
+    CREATE_MSG_TYPE_QUEUE(&s_key_device_thd.msg_id, 1, 1);
     RUN_NEW_THREAD(&s_key_device_thd, "key", key_device_thread,
                 RT_PRIO_KEY_DEVICE_THREAD, (KEY_DEVICE_THREAD_STACKSIZE));
     hyn_irq_control(true);
@@ -695,7 +722,7 @@ int bsp_start_touch_key_update_fw(void)
         return 0;
     }
     uint8_t msg = TOUCH_KEY_THREAD_MSG_OTA_START;
-    MSG_QUEUE_SEND(s_key_device_thd.msg_id, &msg, 0);
+    MSG_QUEUE_SEND(s_key_device_thd.msg_id, &msg, 1000);
 #endif
     return 0;
 }
