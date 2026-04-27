@@ -33,6 +33,8 @@ typedef enum {
     PM_SUSPEND_FINISH,      // 挂起完成
     PM_RESUME_GOING = 0x10,   // 恢复过程中
     PM_RESUME_FINISH,       // 恢复完成
+    PM_WILL_POWER_OFF = 0x20,        // 即将关机
+    PM_POWER_OFF,        // 关机
 } pm_wakeup_state_e;
 
 typedef struct {

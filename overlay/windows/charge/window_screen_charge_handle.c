@@ -59,9 +59,6 @@ static void charge_ui_common_cb(hdr_post_args_t *args)
         case CHARGE_HDR_EXIT_CHARGE_POLICY:
             LOG_WM("%s", args->name);
             EXCEPTION_CHECK_VOID(proc->wm);
-            if (proc->led && proc->led->hook && proc->led->hook->set_key_backlight) {
-                proc->led->hook->set_key_backlight(proc->led, 100);
-            }
             multi_func_msg_data_t msg = {0};
             if (proc->airplane && proc->airplane->is_on_airplane_mode()) {
                 LOG_WM("goto airplane mode screen");

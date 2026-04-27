@@ -48,9 +48,6 @@ static int on_popup_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t key
     WINDOW_CONTEXT_GUARD_INT(proc, ID_WINDOW_POPUP_WINDOW, 0);
     EXCEPTION_CHECK_INT(proc->pm);
     window_entry_extra_t extra = {0};
-    if (proc->popup_window_id == ID_POPUP_UI_WILL_POWER_OFF) {
-        return 0;
-    }
 #if IS_SUPPORT_POPUP_WAKE_LOCK
     proc->pm->release_wakelock(POPUP_WAKE_LOCK_NAME);
 #endif
@@ -73,7 +70,7 @@ static int entry_event_cb(window_lift_cycle_e new_state,
     if (new_state == ID_SCR_STATE_ON_RESUME) {
         if (proc->key) {
             proc->key->add_keyevent_handler("popup_wm", proc, POPUP_UI_KEY_CODE, POPUP_UI_KEY_TYPE,
-                on_popup_keyevent_hdr, KEY_HANDLER_SHIELD_FORBIDDEN);
+                on_popup_keyevent_hdr, KEY_HANDLER_SHIELD_LEVEL_1);
         } else {
             LOG_WM("key not present, ignore.");
         }

@@ -66,6 +66,10 @@ static const char *print_wakeup_state(int state)
             return "RESUME_GOING";
         case PM_RESUME_FINISH:
             return "RESUME_FINISH";
+        case PM_WILL_POWER_OFF:
+            return "WILL_POWER_OFF";
+        case PM_POWER_OFF:
+            return "POWER_OFF";
         default:
             return "error state";
     }
@@ -234,10 +238,14 @@ static int pm_key_event_handler(void *user_data, uint16_t keycode, uint16_t keyt
         }
         LOG_PM("is_goto_sys_standby, ignore");
         return 0;
-    }
-    
+    } 
+
     if (keytype != KEY_EVENT_DOWN) {
-        set_suspend_counter("non-wakeup-key-reset", get_suspend_timeout(ctx), false);
+        if (ctx->priv.pm_state_change_progress == PM_WILL_POWER_OFF) {
+            dispatch_pm_event(ctx, ID_SYS_PM_RESUME);
+        } else {
+            set_suspend_counter("non-wakeup-key-reset", get_suspend_timeout(ctx), false);
+        }
     }
     return 0;
 }
