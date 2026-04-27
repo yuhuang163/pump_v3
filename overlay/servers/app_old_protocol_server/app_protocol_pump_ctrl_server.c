@@ -880,6 +880,13 @@ static bool app_old_comm_check_if_start_block_abnormal(uint8_t ctrl_status)
         return app_old_comm_report_start_block_abnormal(OLD_PUBLISH_ABNORMAL_TRAVEL_LOCK);
     }
 
+    //如果在引导窗口，则不允许启动
+    window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
+    EXCEPTION_CHECK_UINT(wm);
+    if (wm->is_current_window(wm, ID_WINDOW_GUIDE)) {
+        return app_old_comm_report_start_block_abnormal(OLD_PUBLISH_ABNORMAL_GUIDE_WINDOW);
+    }
+
     return false;
 }
 

@@ -55,6 +55,7 @@ static const char* app_old_comm_get_abnormal_type_str(old_publish_abnormal_type_
         case OLD_PUBLISH_ABNORMAL_AIR_LEAK: return "AIR_LEAK";
         case OLD_PUBLISH_ABNORMAL_TRAVEL_LOCK: return "TRAVEL_LOCK";
         case OLD_PUBLISH_ABNORMAL_ADAPTER_ERROR: return "ADAPTER_ERROR";
+        case OLD_PUBLISH_ABNORMAL_GUIDE_WINDOW: return "GUIDE_WINDOW";
         default: return "UNKNOWN_ERROR";
     }
 }
