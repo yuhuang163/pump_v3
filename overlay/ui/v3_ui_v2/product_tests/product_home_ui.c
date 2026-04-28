@@ -242,7 +242,6 @@ void ui_display_product_tests_home_prepare(ui_manager_context_t *thiz)
     thiz->priv.fps_start_time = get_timestamp();
     product_tests_ui_root_init();
     ble_ui_init(thiz);
-    battery_ui_init(thiz);
     tests_info->force_update = true;
 }
 
@@ -251,7 +250,6 @@ void ui_display_product_tests_home_remove(ui_manager_context_t *thiz)
     EXCEPTION_CHECK_VOID(thiz);
     EXCEPTION_CHECK_VOID(tests_info);
     ble_ui_deinit(thiz);
-    battery_ui_deinit(thiz);
     LVGL_OBJ_DELETE(tests_info->root);
     u_free(tests_info);
     tests_info = NULL;
@@ -265,7 +263,6 @@ int ui_display_product_tests_home_process(ui_manager_context_t *thiz)
     ui_proc_product_test_t *proc = (ui_proc_product_test_t *)thiz->priv.play_info.user_data;
     EXCEPTION_CHECK_INT(proc->ble);
     EXCEPTION_CHECK_INT(proc->battery);
-    battery_ui_update(thiz, tests_info->root, proc->battery, true);
     ble_ui_update(thiz, tests_info->root, proc->ble, COMMON_BLE_UI_X, COMMON_BLE_UI_Y);
     uint8_t mac_addr[6] = {0};
     proc->ble->get_mac_addr(mac_addr);

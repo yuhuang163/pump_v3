@@ -5,6 +5,7 @@
 #include "bsp_common.h" // IWYU pragma: keep
 #include "bsp_config.h" // IWYU pragma: keep
 #include "bsp_lcd_internal.h" // IWYU pragma: keep
+#include "hal_iomux.h" // IWYU pragma: keep
 
 /*
 * DEFINES
@@ -46,6 +47,11 @@ int bsp_lcd_init(void)
     lv_tick_set_cb(get_timestamp);
     lv_delay_set_cb(msleep);
     lv_hal_disp_init();
+#if 0
+    hal_iomux_set_analog_i2c(); /// 调试接口
+    // while (1) {
+    // }
+#endif
     return BSP_OK;
 }
 

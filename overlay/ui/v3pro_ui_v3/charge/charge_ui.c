@@ -83,9 +83,10 @@ void ui_display_charge_screen_prepare(ui_manager_context_t *thiz)
 
 void ui_display_charge_screen_remove(ui_manager_context_t *thiz)
 {
-    EXCEPTION_CHECK_VOID(thiz);
-    EXCEPTION_CHECK_VOID(charge_info);
+    EXCEPTION_CHECK_VOID(thiz && charge_info);
     common_ui_img_resource_deinit(thiz, &charge_info->charge_icon_info);
+    battery_ui_deinit(thiz);
+    ble_ui_deinit(thiz);
     LVGL_OBJ_DELETE(charge_info->root);
     u_free(charge_info);
     charge_info = NULL;
@@ -93,12 +94,9 @@ void ui_display_charge_screen_remove(ui_manager_context_t *thiz)
 
 int ui_display_charge_screen_process(ui_manager_context_t *thiz)
 {
-    EXCEPTION_CHECK_INT(thiz);
-    EXCEPTION_CHECK_INT(charge_info);
-    EXCEPTION_CHECK_INT(charge_info->root);
+    EXCEPTION_CHECK_INT(thiz && charge_info && charge_info->root);
     ui_proc_charge_t *proc = (ui_proc_charge_t *)thiz->priv.play_info.user_data;
-    EXCEPTION_CHECK_INT(proc);
-    EXCEPTION_CHECK_INT(proc->battery);
+    EXCEPTION_CHECK_INT(proc && proc->battery && proc->ble);
     charge_bg_ui_update(thiz);
     battery_ui_update(thiz, charge_info->root, proc->battery, true);
     ble_ui_update(thiz, charge_info->root, proc->ble, COMMON_BLE_UI_X, COMMON_BLE_UI_Y);

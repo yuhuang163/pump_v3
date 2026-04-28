@@ -246,7 +246,6 @@ static int charge_vbat_config(void)
     s_charging_current = BATT_INPUT_CURRENT_LIMIT;
 #else
     s_charging_current = 1500;
-
 #endif
     reg_data = s_charging_current / BATT_CURRENT_LIMIT_SCALE; /// 1000mA
     if (charge_write_nbyte(CHARGE_IBAT_CHG_REG, &reg_data, 1) != BSP_OK) {
@@ -309,6 +308,13 @@ static int charge_interrupt_config(void)
     reg_data[1] = CHARGE_CHG_TIMEOUT_INT_ENABLE | CHARGE_TSHUT_INT_ENABLE | CHARGE_BAT_EMPTY_INT_ENABLE | 
         CHARGE_NTC_FAULT_INT_ENABLE;
     return charge_write_nbyte(CHARGE_ADC_SCALE_REG, reg_data, 2);
+}
+
+POSSIBLY_UNUSED static int charge_ctrl0_config(void)
+{
+    uint8_t reg_data = 0;
+    reg_data = PWM_FREQ_DEFAULT | EN_DITHER_ENABLE;
+    return charge_write_nbyte(CHARGE_CTRL0_REG, &reg_data, 1);
 }
 
 static int charge_status_poll(charge_chip_status_t *status)
@@ -387,6 +393,14 @@ static void charge_chip_init(void)
         LOGE("charge vbat config failed, ret: %d", ret);
         return;
     }
+
+#if 0 /// for test     
+    ret = charge_ctrl0_config();
+    if (ret != BSP_OK) {
+        LOGE("charge ctrl0 config failed, ret: %d", ret);
+        return;
+    }
+#endif
     LOG_PBUS("charge chip init success");
 }
 

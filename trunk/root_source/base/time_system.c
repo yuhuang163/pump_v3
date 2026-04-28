@@ -59,6 +59,7 @@ static void sync_utc_time(uint32_t t)
     if (ctx && ctx->put_store_val) {
         ctx->put_store_val(STORE_ID_SYS_UTC_TIMESTAMP, t, 0, NULL);
     }
+    SEND_BROADCAST_ARGS1(ID_BROADCAST_SYS_STATE_CHANGE, SYSTEM_BROADCAST_UTC_TIME_CHANGE);
 }
 
 static uint32_t get_last_time_sync_utc(void)
