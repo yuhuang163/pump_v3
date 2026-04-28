@@ -11,7 +11,7 @@
 *****************************************************************************************
 */
 #define PUMP_SPEED_DISPLAY_TASK_NAME       "pump_speed_display_cmp"
-#define PUMP_SPEED_SYNC_TASK_NAME          "pump_speed_sync_cmp"
+#define PUMP_SPEED_SYNC_TASK_NAME          "pump_speed_sync"
 
 /*
 * LOCAL VARIABLE DEFINITIONS
@@ -44,6 +44,24 @@ static void pump_speed_display_completed_cb(hdr_post_args_t *args)
         WRITE_PUMP_SETTING_INFO(proc->pump, time_index, true, proc->setting);
     }
     pump_sub_ui_exit_handler(proc);
+}
+
+static void pump_speed_sync(hdr_post_args_t *args)
+{
+    ui_proc_pump_t *proc = (ui_proc_pump_t *)args->user_data;
+    EXCEPTION_CHECK_VOID(proc && proc->wm && proc->pump);
+    WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_PUMP);
+    if (proc->current_ui_type != PUMP_UI_TYPE_SPEED) {
+        LOG_UI("ui type error, ignore.");
+        return;
+    }
+
+    if (proc->speed_sync_flag) {
+        proc->speed_sync_flag = false;
+        int time_index = 0;
+        READ_PUMP_MODE_STEP_INDEX(proc->pump, time_index);
+        WRITE_PUMP_SETTING_INFO(proc->pump, time_index, true, proc->setting);
+    }
 }
 
 static void pump_speed_popup_ui_finish_policy(ui_manager_context_t *ui, uint8_t popup_ui_index)
@@ -83,6 +101,7 @@ static void pump_speed_ui_after_policy(ui_manager_context_t *ui, int index)
         if (proc->goto_pump_home_ui) {
             proc->goto_pump_home_ui = false;
             proc->popup_ui_type = ID_POPUP_UI_OP_SUCCESS;
+            POST_TASK_HANDLER_NO_DELAY(pump_speed_sync, proc, PUMP_SPEED_SYNC_TASK_NAME);
             LOG_UI("goto pump speed upate: %d", get_timestamp());
         }
     }

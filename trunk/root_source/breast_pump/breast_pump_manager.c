@@ -207,7 +207,7 @@ static void set_breast_pump_mode(uint32_t mode, uint8_t is_store_mode, uint8_t i
     struct storage_manager_context *st = breast_pump_obj->priv.st;
     motor_manager_context_t *motor_ctx = breast_pump_obj->priv.motor;
 
-    //如果在运行中，模式切换，不在此处上报app，依赖progress_hook内部上报
+    /// 如果在运行中，模式切换，不在此处上报app，依赖progress_hook内部上报
     if (m_info->do_work && mode != m_info->mode) {
         is_report = 0;
     }
@@ -217,16 +217,17 @@ static void set_breast_pump_mode(uint32_t mode, uint8_t is_store_mode, uint8_t i
     } else {
         m_info->mode = mode;
     }
+    SEND_BROADCAST_ARGS2(ID_BROADCAST_BREAST_PUMP_STATE_CHANGE, BREAST_PUMP_BROADCAST_MODE_CHANGE, m_info->mode);
     EXCEPTION_CHECK_VOID(st);
     st->put_store_ram_val(STORE_ID_BREAST_PUMP_MODE, mode, 0, NULL);
     m_info->step_index = 0;
     motor_ctx->set_runtime_policy_index(MOTOR_TIME_POLICY, 0);
-    LOG_PMP("new mode is: %d, name: %s, store:%d, report:%d", m_info->mode, get_breast_pump_mode_name(m_info->mode), is_store_mode, is_report);
+    LOG_PMP("new mode is: %d, name: %s, store:%d, report:%d", m_info->mode, 
+            get_breast_pump_mode_name(m_info->mode), is_store_mode, is_report);
     /// 读取存储器中的泵奶设置
     for (uint8_t i = 0; i < ROOT_BREAST_PUMP_STEP_MAX; i++) {
         st->get_store_ram_val(STORE_ID_PUMP_SETTING_INFO, m_info->mode, i, &breast_pump_obj->priv.setting[i]);
     }
-    SEND_BROADCAST_ARGS2(ID_BROADCAST_BREAST_PUMP_STATE_CHANGE, BREAST_PUMP_BROADCAST_MODE_CHANGE, m_info->mode);
     /// 通知app
     if (is_report) {
         servers_manager_context_t *servers_ctx = (servers_manager_context_t *)find_module(ID_MODULE_SERVERS);
@@ -238,7 +239,6 @@ static void set_breast_pump_mode(uint32_t mode, uint8_t is_store_mode, uint8_t i
         };
         servers_ctx->hook->app_old_protocol_server_data_publish(APP_OLD_COMM_CID_NOTIFY_STATUS, &args);
     }
-
 }
 
 static int get_breast_pump_mode(void)
