@@ -71,6 +71,13 @@ static void on_ble_broadcast_receive(broadcast_mask_id_t id, void *context, int 
         case ID_BROADCAST_PM_STATE_CHANGE:
             ble_pm_change_handler(arg1);
             break;
+        case ID_BROADCAST_SYS_STATE_CHANGE:
+            if (arg1 == SYSTEM_BROADCAST_BOOT_COMPLETED) {
+                ble_opt_adv_id_e adv = BLE_OPT_ADV_FAST;
+                LOG_BLE("ble adv fast start");
+                ctx->dispatch_ble_event_wrapper(ctx, BLE_MSG_SET_ADV_START, (uint8_t *)&adv, sizeof(adv));
+            }
+            break;
         case ID_BROADCAST_OTA_STATE_CHANGE:
             if (arg1 == OTA_BROADCAST_STATE_CHANGE) {
                 PRIV_DATA_TO_USER_DATA(user_data, pdata, uint32_t);
@@ -449,6 +456,7 @@ static int on_post_init(void *ptr)
     ctx->priv.bcreceiver->id.code |= ID_BROADCAST_BATTERY_STATE_CHANGE;
     ctx->priv.bcreceiver->id.code |= ID_BROADCAST_PM_STATE_CHANGE;
     ctx->priv.bcreceiver->id.code |= ID_BROADCAST_OTA_STATE_CHANGE;
+    ctx->priv.bcreceiver->id.code |= ID_BROADCAST_SYS_STATE_CHANGE;
     ctx->priv.bcreceiver->receiver_cb = on_ble_broadcast_receive;
     register_broadcast_receiver(ctx->priv.bcreceiver);
     if (ctx->hook && ctx->hook->on_post_init_route) {
