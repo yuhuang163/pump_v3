@@ -10,6 +10,7 @@
 *****************************************************************************************
 */
 #define BREASTFEEDING_MODE_DISPLAY_TASK_NAME       "bf_mode_display_cmp"
+#define BREASTFEEDING_MODE_SYNC_TASK_NAME          "bf_mode_page_sync"
 
 /*
 * LOCAL VARIABLE DEFINITIONS
@@ -40,6 +41,22 @@ static void breastfeeding_mode_display_completed_cb(hdr_post_args_t *args)
         WRITE_PUMP_WORK_MODE(proc->pump, proc->ui_bf_mode_index, true, 1);
     }
     pump_sub_ui_exit_handler(proc);
+}
+
+static void breastfeeding_mode_sync(hdr_post_args_t *args)
+{
+    ui_proc_pump_t *proc = (ui_proc_pump_t *)args->user_data;
+    EXCEPTION_CHECK_VOID(proc && proc->wm && proc->pump);
+    WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_PUMP);
+    if (proc->current_ui_type != PUMP_UI_TYPE_BREASTFEEDING_MODE) {
+        LOG_UI("ui type error, ignore.");
+        return;
+    }
+
+    if (proc->mode_sync_flag) {
+        proc->mode_sync_flag = false;
+        WRITE_PUMP_WORK_MODE(proc->pump, proc->ui_bf_mode_index, true, 1);
+    }
 }
 
 static void breastfeeding_mode_popup_ui_finish_policy(ui_manager_context_t *ui, uint8_t popup_ui_index)
@@ -78,6 +95,7 @@ static void breastfeeding_mode_ui_after_policy(ui_manager_context_t *ui, int ind
         if (proc->goto_pump_home_ui) {
             proc->goto_pump_home_ui = false;
             proc->popup_ui_type = ID_POPUP_UI_OP_SUCCESS;
+            POST_TASK_HANDLER_NO_DELAY(breastfeeding_mode_sync, proc, BREASTFEEDING_MODE_SYNC_TASK_NAME);
             LOG_UI("goto progress mode upate: %d", get_timestamp());
         }
     }
@@ -177,6 +195,7 @@ void switch_breastfeeding_mode_ui(ui_proc_pump_t *proc, bool is_increase)
 void breastfeeding_mode_ui_hdr_remove(void)
 {
     REMOVE_TASK_HANDLER_DIRECTLY(BREASTFEEDING_MODE_DISPLAY_TASK_NAME);
+    REMOVE_TASK_HANDLER_DIRECTLY(BREASTFEEDING_MODE_SYNC_TASK_NAME);
 }
 
 void breastfeeding_mode_key_click_handler(ui_proc_pump_t *proc)
