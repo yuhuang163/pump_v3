@@ -92,9 +92,7 @@ static void set_backlight_onoff(ui_manager_context_t *thiz, bool onoff)
     EXCEPTION_CHECK_VOID(thiz);
     thiz->priv.ui_backlight_onoff = onoff;
     LOG_UI("lcd backlight:%d", onoff);
-#if (IS_UI_BACKLIGHT_ADAPTIVE == 0)
     set_backlight_level_internal(thiz, onoff ? LCD_BACKLIGHT_LEVEL_MAX : 0);
-#endif
 }
 
 #if IS_UI_BACKLIGHT_ADAPTIVE
