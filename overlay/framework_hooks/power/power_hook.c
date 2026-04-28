@@ -40,7 +40,7 @@ static bool is_prohibit_pm_suspend(struct power_manager_context *ctx)
     if (battery && BATTERY_IS_CHARGING(battery->get_charge_status())) {
         if (wm->is_current_window(wm, ID_WINDOW_CHARGE) == 0) {
             multi_func_msg_data_t msg = {0};
-            msg.union_body.extra.is_bg_dispatch = 0x01;
+            msg.union_body.extra.is_bg_dispatch = 0;
             msg.union_body.extra.window_id = ID_WINDOW_CHARGE;
             wm->dispatch_new_window_args(wm, &msg);
         }
