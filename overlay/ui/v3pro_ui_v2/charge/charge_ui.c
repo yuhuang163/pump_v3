@@ -83,9 +83,10 @@ void ui_display_charge_screen_prepare(ui_manager_context_t *thiz)
 
 void ui_display_charge_screen_remove(ui_manager_context_t *thiz)
 {
-    EXCEPTION_CHECK_VOID(thiz);
-    EXCEPTION_CHECK_VOID(charge_info);
+    EXCEPTION_CHECK_VOID(thiz && charge_info && charge_info->root);
     common_ui_img_resource_deinit(thiz, &charge_info->charge_icon_info);
+    battery_ui_deinit(thiz);
+    ble_ui_deinit(thiz);
     LVGL_OBJ_DELETE(charge_info->root);
     u_free(charge_info);
     charge_info = NULL;
