@@ -75,7 +75,6 @@ typedef struct {
     lv_obj_t * clock_colon;
     res_img_info_t clock_colon_info;
     uint8_t home_ui_type;
-    uint32_t timestamp_offset;
     uint32_t record_hour;
     uint8_t record_minute;
     uint8_t clock_hour_value;
@@ -292,7 +291,7 @@ static void home_record_time_ui_update(ui_manager_context_t *thiz, uint32_t time
     }
 
     if (is_show) {
-        uint32_t total_minutes = timestamp_offset / 1000 / 60;
+        uint32_t total_minutes = timestamp_offset / 60;
         uint32_t hour = total_minutes / 60;
         uint32_t minute = total_minutes % 60;
         if (home_info->force_update == false &&
@@ -354,7 +353,6 @@ static void home_clock_ui_update(ui_manager_context_t *thiz, int16_t y_offset, b
         lv_fs_path_ex_t clock_colon_img_path;
         lv_fs_make_path_from_buffer(&clock_colon_img_path, LV_FS_MEMFS_LETTER, 
             home_info->clock_colon_info.data, home_info->clock_colon_info.size, "baj");
-        LOG_UI("clock_colon_img_path: %s", clock_colon_img_path.path);
         lv_image_set_src(home_info->clock_colon, (const void *)&clock_colon_img_path);
         lv_obj_add_flag(home_info->clock_colon, LV_OBJ_FLAG_HIDDEN);
     }
@@ -391,38 +389,13 @@ static void home_clock_ui_update(ui_manager_context_t *thiz, int16_t y_offset, b
     }
 }
 
-static home_ui_display_type_e home_ui_display_type_update(ui_manager_context_t *thiz, ui_proc_home_t *proc)
-{
-#if 1
-    static home_ui_display_type_e home_ui_type_test = HOME_UI_DISPLAY_RECORD; /// TODO: 测试用，后续删除
-    static uint32_t count = 0; /// TODO: 测试用，后续删除
-    count++;
-    if (count % 100 == 0) {
-        count = 0;
-        home_ui_type_test++;
-        if (home_ui_type_test >= HOME_UI_DISPLAY_MAX) {
-            home_ui_type_test = HOME_UI_DISPLAY_DEFAULT;
-        }
-        LOG_UI("home_ui_type_test: %d", home_ui_type_test);
-    }
-    home_info->timestamp_offset = ((120 * 60 * 60 * 1000) + (9 * 60 * 1000)); /// TODO: 测试用，后续删除
-    return home_ui_type_test;
-#else
-    // return HOME_UI_DISPLAY_DEFAULT;
-    return HOME_UI_DISPLAY_CLOCK_LIGHT_TIP;
-#endif
-}
-
 static void home_ui_update(ui_manager_context_t *thiz, ui_proc_home_t *proc)
 {
-    home_ui_display_type_e home_ui_type = home_ui_display_type_update(thiz, proc);
+    uint32_t rtc_timestamp = platform_get_utc_time();
+    home_page_display_type_e home_ui_type = proc->home_display_type;
     if (home_ui_type != home_info->home_ui_type) {
         home_info->home_ui_type = home_ui_type;
         home_info->force_update = true;
-        home_info->record_hour = 0;
-        home_info->record_minute = 0;
-        home_info->clock_hour_value = 0;
-        home_info->clock_minute_value = 0;
     }
     switch (home_ui_type) {
         default:
@@ -432,7 +405,7 @@ static void home_ui_update(ui_manager_context_t *thiz, ui_proc_home_t *proc)
             home_button_ui_update(thiz, IDLE_BUTTON_ICON_X, IDLE_BUTTON_ICON_Y, true);
             home_label_text_ui_update(thiz, "Select a program or mode\nto start pumping.",
                 IDLE_LABEL_TEXT_X, IDLE_LABEL_TEXT_Y, true, false, &lv_font_oppo_sans_16_medium);
-            home_record_time_ui_update(thiz, home_info->timestamp_offset,
+            home_record_time_ui_update(thiz, 0,
                 0, IDLE_LABEL_TEXT_Y, false);
             home_clock_ui_update(thiz, 0, false);
             home_root_animation_update(thiz, RESOURCE_ID_HD_ANIM_IP_START,
@@ -446,7 +419,7 @@ static void home_ui_update(ui_manager_context_t *thiz, ui_proc_home_t *proc)
             home_label_text_ui_update(thiz, "since last pumping session",
                 0, IDLE_CLOCK_AND_RECORD_LABEL_TEXT_Y, 
                 true, false, &lv_font_oppo_sans_16_medium);
-            home_record_time_ui_update(thiz, home_info->timestamp_offset, 
+            home_record_time_ui_update(thiz, rtc_timestamp - proc->pump_record_time, 
                 0, IDLE_CLOCK_AND_RECORD_TIME_TEXT_Y, true);
             home_clock_ui_update(thiz, 0, true);
             home_root_animation_update(thiz, RESOURCE_ID_HD_ANIM_IP_START,
@@ -460,7 +433,7 @@ static void home_ui_update(ui_manager_context_t *thiz, ui_proc_home_t *proc)
             home_label_text_ui_update(thiz, "Select a program or mode\nto start pumping.",
                 IDLE_WITH_CLOCK_LABEL_TEXT_X, IDLE_WITH_CLOCK_LABEL_TEXT_Y,
                 true, false, &lv_font_oppo_sans_16_medium);
-            home_record_time_ui_update(thiz, home_info->timestamp_offset, 
+            home_record_time_ui_update(thiz, 0, 
                 0, IDLE_LABEL_TEXT_Y, false);
             home_clock_ui_update(thiz, 0, true);
             home_root_animation_update(thiz, RESOURCE_ID_HD_ANIM_IP_START,
@@ -473,7 +446,7 @@ static void home_ui_update(ui_manager_context_t *thiz, ui_proc_home_t *proc)
             home_button_ui_update(thiz, IDLE_BUTTON_ICON_X, IDLE_BUTTON_ICON_Y, false);
             home_label_text_ui_update(thiz, "since last pumping session",
                 0, IDLE_RECORD_LABEL_TEXT_Y, true, false, &lv_font_oppo_sans_16_medium);
-            home_record_time_ui_update(thiz, home_info->timestamp_offset,
+            home_record_time_ui_update(thiz, rtc_timestamp - proc->pump_record_time,
                 0, IDLE_RECORD_TIME_TEXT_Y, true);
             home_clock_ui_update(thiz, 0, false);
             home_root_animation_update(thiz, RESOURCE_ID_HD_ANIM_IP_START,
@@ -486,7 +459,7 @@ static void home_ui_update(ui_manager_context_t *thiz, ui_proc_home_t *proc)
             home_button_ui_update(thiz, IDLE_BUTTON_ICON_X, IDLE_BUTTON_ICON_Y, false);
             home_label_text_ui_update(thiz, "Time not updated. Connect\nthe device to sync.",
                 0, IDLE_LABEL_TEXT_Y, true, true, &lv_font_oppo_sans_16_medium);
-            home_record_time_ui_update(thiz, home_info->timestamp_offset,
+            home_record_time_ui_update(thiz, 0,
                 0, IDLE_LABEL_TEXT_Y, false);
             home_clock_ui_update(thiz, 0, false);
             home_root_animation_update(thiz, RESOURCE_ID_HD_ANIM_IP_START,
@@ -500,7 +473,7 @@ static void home_ui_update(ui_manager_context_t *thiz, ui_proc_home_t *proc)
             home_label_text_ui_update(thiz, "Press to turn on the light",
                 0, IDLE_LIGHT_TIP_LABEL_TEXT_Y,
                 true, false, &lv_font_oppo_sans_16_medium);
-            home_record_time_ui_update(thiz, home_info->timestamp_offset,
+            home_record_time_ui_update(thiz, 0,
                 0, IDLE_LABEL_TEXT_Y, false);
             home_clock_ui_update(thiz, 0, true);
             home_root_animation_update(thiz, RESOURCE_ID_HD_ANIM_IP_START,

@@ -181,7 +181,7 @@ static void polling_charge_status(void *user_data)
             pm->pm_wakeup(PM_WAKEUP_REASON_CHARGE_PLUG_IN);
         } else {
             LOG_MISC("charge_plug_in");
-            pm->acquire_wakelock("charge_plug_in", -1);
+            // pm->acquire_wakelock("charge_plug_in", -1);
         }
         if (BATTERY_IS_CHARGING(local_get_charge_status())) {
             thiz->priv.is_charging = 1;
@@ -193,7 +193,7 @@ static void polling_charge_status(void *user_data)
             pm->pm_wakeup(PM_WAKEUP_REASON_CHARGE_PLUG_OUI);
         } else {
             LOG_MISC("charge_plug_out");
-            pm->release_wakelock("charge_plug_in");
+            // pm->release_wakelock("charge_plug_in");
         }
     }
     SEND_BROADCAST_ARGS2(ID_BROADCAST_BATTERY_STATE_CHANGE, BATTERY_BROADCAST_CHARGE_STATE_CHANGE,

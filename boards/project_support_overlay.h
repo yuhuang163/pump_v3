@@ -134,7 +134,7 @@ extern "C" {
 /// 支持夜灯
 #define IS_SUPPORT_NIGHT_LIGHT                           (1)
 /// 仅支持power key开机
-#define IS_SUPPORT_POWER_KEY_ON_BOOT                   (0)
+#define IS_SUPPORT_POWER_KEY_ON_BOOT                     (0)
 #else
 /// 支持漏气提醒
 #define IS_SUPPORT_AIR_LEAKAGE_WARNING                   (0)
