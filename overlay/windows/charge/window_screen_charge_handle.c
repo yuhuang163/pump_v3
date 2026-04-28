@@ -13,12 +13,8 @@
 *****************************************************************************************
 */
 #define PAGE_STATIC_NAME                        charge
-#define PAGE_NAME_STR                           "charge"
-#define EXIT_CHARGE_POLICY_TASK_NAME            "exit_charge_policy"
-#define EXIT_CHARGE_ADAPTER_MISMATCH_TASK_NAME  "exit_charge_adapter_mismatch"
-#define CHARGE_SCREEN_TIMEOUT_DETECT_TASK_NAME  "charge_screen_timeout_detect"
-#define CHARGE_SCREEN_ON_TASK_NAME              "charge_screen_on"
-
+#define PAGE_NAME_STR                            "charge"
+#define CHARGE_PAGE_POLICY_TASK_NAME             "charge_page_policy"
 #define CHARGE_UI_KEY_CODE                       (KEY_CODE_POWER |KEY_CODE_START | KEY_CODE_MODE | KEY_CODE_FREQUENCY | \
                                                   KEY_CODE_BREASTFEEDING | KEY_CODE_LEFT_CONTROL | KEY_CODE_RIGHT_CONTROL | \
                                                   KEY_CODE_KNOB_LEFT | KEY_CODE_KNOB_RIGHT)
@@ -27,10 +23,7 @@
 #define REMOVE_ALL_HANDER_TASK() \
 do { \
     LOG_WM("==>REMOVE_ALL_HANDER_TASK"); \
-    REMOVE_TASK_HANDLER_DIRECTLY(EXIT_CHARGE_POLICY_TASK_NAME); \
-    REMOVE_TASK_HANDLER_DIRECTLY(EXIT_CHARGE_ADAPTER_MISMATCH_TASK_NAME); \
-    REMOVE_TASK_HANDLER_DIRECTLY(CHARGE_SCREEN_TIMEOUT_DETECT_TASK_NAME); \
-    REMOVE_TASK_HANDLER_DIRECTLY(CHARGE_SCREEN_ON_TASK_NAME); \
+    REMOVE_TASK_HANDLER_DIRECTLY(CHARGE_PAGE_POLICY_TASK_NAME);\
 } while (0)
 
 /*
@@ -59,6 +52,10 @@ static void charge_ui_common_cb(hdr_post_args_t *args)
         case CHARGE_HDR_EXIT_CHARGE_POLICY:
             LOG_WM("%s", args->name);
             EXCEPTION_CHECK_VOID(proc->wm);
+            if (proc->ui && proc->ui->hook &&
+                proc->ui->hook->set_ui_backlight_onoff) {
+                proc->ui->hook->set_ui_backlight_onoff(proc->ui, true);
+            }
             multi_func_msg_data_t msg = {0};
             if (proc->airplane && proc->airplane->is_on_airplane_mode()) {
                 LOG_WM("goto airplane mode screen");
@@ -79,6 +76,10 @@ static void charge_ui_common_cb(hdr_post_args_t *args)
             break;
         case CHARGE_HDR_SCREEN_TIMEOUT_DETECT:
             LOG_WM("%s", args->name);
+            if (proc->ui && proc->ui->hook &&
+                proc->ui->hook->set_ui_backlight_onoff) {
+                proc->ui->hook->set_ui_backlight_onoff(proc->ui, false);
+            }
             break;
         case CHARGE_HDR_CHARGE_SCREEN_ON:
             LOG_WM("%s", args->name);
@@ -103,7 +104,7 @@ static void on_charge_window_receive(broadcast_mask_id_t id, void *context, int 
                     proc->exit_charge_window_flag = 1;
                     LOG_WM("post exit charge policy task");
                     POST_TASK_HANDLER_NO_DELAY_ARG1(charge_ui_common_cb, proc, 
-                        CHARGE_HDR_EXIT_CHARGE_POLICY, EXIT_CHARGE_POLICY_TASK_NAME);
+                        CHARGE_HDR_EXIT_CHARGE_POLICY, CHARGE_PAGE_POLICY_TASK_NAME);
                 }
             }  else if (arg1 == BATTERY_BROADCAST_CHARGE_ADAPTER_MISMATCH) {
                 LOG_WM("show charge adapter ui");
@@ -112,13 +113,12 @@ static void on_charge_window_receive(broadcast_mask_id_t id, void *context, int 
                 proc->exit_charge_window_flag = 1;
                 LOG_WM("post exit charge adapter mismatch task");
                 POST_TASK_HANDLER_NO_DELAY_ARG1(charge_ui_common_cb, proc, 
-                    CHARGE_HDR_EXIT_CHARGE_POLICY, EXIT_CHARGE_ADAPTER_MISMATCH_TASK_NAME);
+                    CHARGE_HDR_EXIT_CHARGE_POLICY, CHARGE_PAGE_POLICY_TASK_NAME);
             } else if (arg1 == BATTERY_BROADCAST_CHARGE_PLUG_IN) {
                 if (proc->exit_charge_window_flag == 1) {
                     proc->exit_charge_window_flag = 0;
-                    LOG_WM("remove exit charge policy task");
-                    REMOVE_TASK_HANDLER_DIRECTLY(EXIT_CHARGE_POLICY_TASK_NAME);
-                    REMOVE_TASK_HANDLER_DIRECTLY(EXIT_CHARGE_ADAPTER_MISMATCH_TASK_NAME);
+                    POST_TASK_HANDLER_DELAYED_ARG2(charge_ui_common_cb, 10000,
+                        CHARGE_HDR_SCREEN_TIMEOUT_DETECT, proc, CHARGE_PAGE_POLICY_TASK_NAME);
                 }
             } else {
                 LOG_WM("charge window receive broadcast: %d, %d", arg1, arg2);
@@ -139,13 +139,8 @@ static int on_charge_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t ke
             LOG_WM("key post exit charge policy task");
             proc->exit_charge_window_flag = 1;
             POST_TASK_HANDLER_NO_DELAY_ARG1(charge_ui_common_cb, proc, 
-                CHARGE_HDR_EXIT_CHARGE_POLICY, EXIT_CHARGE_POLICY_TASK_NAME);
+                CHARGE_HDR_EXIT_CHARGE_POLICY, CHARGE_PAGE_POLICY_TASK_NAME);
         }
-    } else if (keytype == KEY_EVENT_CLICK) {
-        if (keycode == KEY_CODE_POWER) {
-            switch_charge_night_light_onoff_ui(proc);
-        }
-        proc->charge_screen_on_time = get_timestamp();
     }
     return 0;
 }
@@ -166,10 +161,6 @@ static int entry_event_cb(window_lift_cycle_e new_state, const struct window_con
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);
         if (proc->led && proc->led->hook) {
-            /*
-             * 插 USB 的“伪关机/充电界面”必须强制灭灯并清 BLINK 状态机，
-             * 不能仅依赖亮度置零。
-             */
             if (proc->led->set_led_onoff) {
                 proc->led->set_led_onoff(PUMP_LED_ALL_ID, LED_STATUS_OFF);
             } else if (proc->led->hook->set_key_backlight) {
@@ -185,8 +176,9 @@ static int entry_event_cb(window_lift_cycle_e new_state, const struct window_con
             show_charge_adapter_ui(proc);
         } else {
             show_charging_ui(proc);
+            POST_TASK_HANDLER_DELAYED_ARG2(charge_ui_common_cb, 10000,
+                CHARGE_HDR_SCREEN_TIMEOUT_DETECT, proc, CHARGE_PAGE_POLICY_TASK_NAME);
         }
-        
         proc->charge_screen_on_time = get_timestamp();
         if (proc->pm) {
             proc->pm->acquire_wakelock("charge_screen", -1); /// 永久持有锁.
