@@ -890,6 +890,13 @@ static bool app_old_comm_check_if_start_block_abnormal(uint8_t ctrl_status)
     return false;
 }
 
+static void app_old_comm_append_u16_le(uint8_t *buf, uint16_t *len, uint32_t value)
+{
+    EXCEPTION_CHECK_VOID(buf && len);
+    buf[(*len)++] = (uint8_t)((value >> 0) & 0xFF);
+    buf[(*len)++] = (uint8_t)((value >> 8) & 0xFF);
+}
+
 /*
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
@@ -901,6 +908,10 @@ void app_old_comm_report_device_status(app_old_commd_l_r_ctrl_e lr_ct, servers_o
     LOG_SRV(" Reporting device status id %d", id);
     uint8_t report_data[45] = {0};
     uint16_t data_len = 0;
+    uint32_t mode_total_time = app_old_comm_get_pump_mode_run_total_time();
+    uint32_t mode_run_time = app_old_comm_get_current_pump_mode_run_time();
+    uint32_t custom_mode_total_time = app_old_comm_get_current_custom_pump_mode_total_time();
+    uint32_t mode_step_time = app_old_comm_get_current_running_mode_step_time();
 
     report_data[data_len++] = app_old_comm_get_battery_percent();
     report_data[data_len++] = app_old_comm_get_sys_status(id, val);
@@ -910,21 +921,17 @@ void app_old_comm_report_device_status(app_old_commd_l_r_ctrl_e lr_ct, servers_o
     report_data[data_len++] = app_old_comm_get_current_custom_pump_step_mode(id);
     report_data[data_len++] = app_old_comm_get_current_custom_pump_level(lr_ct, id); //0x01~0x0F（1档~15档）
     report_data[data_len++] = app_old_comm_get_current_custom_pump_speed(id) + 1;     //频次（1-低 2-中 3-高）（1字节）
-    report_data[data_len++] = (app_old_comm_get_pump_mode_run_total_time() >> 0) & 0xFF; //单位s
-    report_data[data_len++] = (app_old_comm_get_pump_mode_run_total_time() >> 8) & 0xFF; //单位s
-    report_data[data_len++] = (app_old_comm_get_current_pump_mode_run_time() >> 0) & 0xFF;//单位s
-    report_data[data_len++] = (app_old_comm_get_current_pump_mode_run_time() >> 8) & 0xFF;//单位s
+    app_old_comm_append_u16_le(report_data, &data_len, mode_total_time); //单位s
+    app_old_comm_append_u16_le(report_data, &data_len, mode_run_time); //单位s
     report_data[data_len++] = 0; //v3无储奶检测
     report_data[data_len++] = app_old_comm_check_if_low_battery();
-    report_data[data_len++] = (app_old_comm_get_current_custom_pump_mode_total_time() >> 0) & 0xFF;
-    report_data[data_len++] = (app_old_comm_get_current_custom_pump_mode_total_time() >> 8) & 0xFF;
+    app_old_comm_append_u16_le(report_data, &data_len, custom_mode_total_time);
     report_data[data_len++] = app_old_comm_get_system_is_airplane_mode();
     report_data[data_len++] = app_old_comm_get_current_mode_pump_speed(id) + 1; //normal speed //频次（1-低 2-中 3-高）（1字节）
     report_data[data_len++] = 0x00; //预留
     report_data[data_len++] = 0x00; //预留
     report_data[data_len++] = app_old_comm_get_current_running_mode_step();
-    report_data[data_len++] = (app_old_comm_get_current_running_mode_step_time()>> 0) & 0xFF;
-    report_data[data_len++] = (app_old_comm_get_current_running_mode_step_time()>> 8) & 0xFF;
+    app_old_comm_append_u16_le(report_data, &data_len, mode_step_time);
     report_data[data_len++] = app_old_comm_get_night_light_onoff();
     report_data[data_len++] = app_old_comm_get_night_light_level();
     report_data[data_len++] = app_old_comm_get_adaptive_dimming_switch();
@@ -938,6 +945,10 @@ void app_old_comm_handle_get_status_req(app_old_commd_l_r_ctrl_e lr_ct)
     LOG_SRV(" Handling get device status request");
     uint8_t ack_data[45] = {0};
     uint16_t data_len = 0;
+    uint32_t mode_total_time = app_old_comm_get_pump_mode_run_total_time();
+    uint32_t mode_run_time = app_old_comm_get_current_pump_mode_run_time();
+    uint32_t custom_mode_total_time = app_old_comm_get_current_custom_pump_mode_total_time();
+    uint32_t mode_step_time = app_old_comm_get_current_running_mode_step_time();
 
     ack_data[data_len++] = app_old_comm_get_battery_percent();
     ack_data[data_len++] = app_old_comm_get_sys_status(OLD_PUBLISH_DATA_POLL_REPORT, NULL);
@@ -947,21 +958,17 @@ void app_old_comm_handle_get_status_req(app_old_commd_l_r_ctrl_e lr_ct)
     ack_data[data_len++] = app_old_comm_get_current_custom_pump_step_mode(OLD_PUBLISH_DATA_POLL_REPORT);
     ack_data[data_len++] = app_old_comm_get_current_custom_pump_level(lr_ct, OLD_PUBLISH_DATA_POLL_REPORT);
     ack_data[data_len++] = app_old_comm_get_current_custom_pump_speed(OLD_PUBLISH_DATA_POLL_REPORT) + 1;
-    ack_data[data_len++] = (app_old_comm_get_pump_mode_run_total_time() >> 0) & 0xFF;
-    ack_data[data_len++] = (app_old_comm_get_pump_mode_run_total_time() >> 8) & 0xFF;
-    ack_data[data_len++] = (app_old_comm_get_current_pump_mode_run_time() >> 0) & 0xFF;
-    ack_data[data_len++] = (app_old_comm_get_current_pump_mode_run_time() >> 8) & 0xFF;
+    app_old_comm_append_u16_le(ack_data, &data_len, mode_total_time);
+    app_old_comm_append_u16_le(ack_data, &data_len, mode_run_time);
     ack_data[data_len++] = 0; //v3无储奶检测
     ack_data[data_len++] = app_old_comm_check_if_low_battery();
-    ack_data[data_len++] = (app_old_comm_get_current_custom_pump_mode_total_time() >> 0) & 0xFF;
-    ack_data[data_len++] = (app_old_comm_get_current_custom_pump_mode_total_time() >> 8) & 0xFF;
+    app_old_comm_append_u16_le(ack_data, &data_len, custom_mode_total_time);
     ack_data[data_len++] = app_old_comm_get_system_is_airplane_mode();
     ack_data[data_len++] = app_old_comm_get_current_mode_pump_speed(OLD_PUBLISH_DATA_POLL_REPORT) + 1; //normal speed
     ack_data[data_len++] = 0x00; //预留
     ack_data[data_len++] = 0x00; //预留
     ack_data[data_len++] = app_old_comm_get_current_running_mode_step();
-    ack_data[data_len++] = (app_old_comm_get_current_running_mode_step_time()>> 0) & 0xFF;
-    ack_data[data_len++] = (app_old_comm_get_current_running_mode_step_time()>> 8) & 0xFF;
+    app_old_comm_append_u16_le(ack_data, &data_len, mode_step_time);
     ack_data[data_len++] = app_old_comm_get_night_light_onoff();
     ack_data[data_len++] = app_old_comm_get_night_light_level();
     ack_data[data_len++] = app_old_comm_get_adaptive_dimming_switch();
