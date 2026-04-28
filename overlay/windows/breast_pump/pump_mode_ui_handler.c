@@ -35,11 +35,6 @@ static void pump_mode_display_completed_cb(hdr_post_args_t *args)
         LOG_UI("ui type error, ignore.");
         return;
     }
-
-    if (proc->mode_sync_flag) {
-        proc->mode_sync_flag = false;
-        WRITE_PUMP_WORK_MODE(proc->pump, proc->ui_normal_mode_index, true, 1);
-    }
     pump_sub_ui_exit_handler(proc);
 }
 
@@ -58,8 +53,6 @@ static void pump_mode_sync(hdr_post_args_t *args)
         WRITE_PUMP_WORK_MODE(proc->pump, proc->ui_normal_mode_index, true, 1);
     }
 }
-
-
 
 static void pump_mode_popup_ui_finish_policy(ui_manager_context_t *ui, uint8_t popup_ui_index)
 {
