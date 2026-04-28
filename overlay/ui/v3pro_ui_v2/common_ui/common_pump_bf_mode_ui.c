@@ -244,6 +244,7 @@ static void update_slot_content(ui_manager_context_t *thiz, bf_circle_slot_e slo
 
     if (mode_idx == BF_MODE_COUNT - 1 && bf_mode_info->new_step_info_flag) {
         lv_obj_clear_flag(bf_mode_info->unconfirmed_icon[slot], LV_OBJ_FLAG_HIDDEN); /// 显示新模式未确认图标
+        lv_obj_add_flag(bf_mode_info->last_usage_icon[slot], LV_OBJ_FLAG_HIDDEN); /// 隐藏上一次使用模式图标
     } else {
         lv_obj_add_flag(bf_mode_info->unconfirmed_icon[slot], LV_OBJ_FLAG_HIDDEN); /// 隐藏新模式未确认图标
         if (last_mode_idx == mode_idx) {
