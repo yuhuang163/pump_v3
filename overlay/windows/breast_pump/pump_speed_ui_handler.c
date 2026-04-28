@@ -36,13 +36,6 @@ static void pump_speed_display_completed_cb(hdr_post_args_t *args)
         LOG_UI("ui type error, ignore.");
         return;
     }
-
-    if (proc->speed_sync_flag) {
-        proc->speed_sync_flag = false;
-        int time_index = 0;
-        READ_PUMP_MODE_STEP_INDEX(proc->pump, time_index);
-        WRITE_PUMP_SETTING_INFO(proc->pump, time_index, true, proc->setting);
-    }
     pump_sub_ui_exit_handler(proc);
 }
 

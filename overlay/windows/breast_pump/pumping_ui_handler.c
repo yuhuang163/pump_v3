@@ -130,11 +130,15 @@ void switch_pump_status_ui(ui_proc_pump_t *proc)
             LOG_UI("forbid start pump, ignore.");
             return;
         }
-        if (proc->current_ui_type == PUMP_UI_TYPE_COMMON_MODE) {
-            WRITE_PUMP_WORK_MODE(proc->pump, proc->ui_normal_mode_index, true, 1);
-        } else if (proc->current_ui_type == PUMP_UI_TYPE_BREASTFEEDING_MODE) {
-            WRITE_PUMP_WORK_MODE(proc->pump, proc->ui_bf_mode_index, true, 1);
+        
+        if (pump_status != BREAST_PUMP_PAUSE) {
+            if (proc->current_ui_type == PUMP_UI_TYPE_COMMON_MODE) {
+                WRITE_PUMP_WORK_MODE(proc->pump, proc->ui_normal_mode_index, true, 1);
+            } else if (proc->current_ui_type == PUMP_UI_TYPE_BREASTFEEDING_MODE) {
+                WRITE_PUMP_WORK_MODE(proc->pump, proc->ui_bf_mode_index, true, 1);
+            }
         }
+        
         int next_status = (pump_status == BREAST_PUMP_PAUSE) ? BREAST_PUMP_CONTINUE : BREAST_PUMP_START;    
         WRITE_PUMP_WORK_STATUS(proc->pump, next_status, 1);
         if (proc->led)  {
