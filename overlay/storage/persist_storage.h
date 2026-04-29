@@ -309,8 +309,8 @@ typedef struct {
 /// 泵奶数据头
 typedef struct {
     uint8_t num;        /// 存储数量.
-    uint8_t head;  
-    uint8_t tail;
+    uint8_t head;       /// 头索引
+    uint8_t tail;       /// 尾索引
     uint8_t resv;
     uint16_t crc[ROOT_BREAST_PUMP_DATA_BODY_NUM + 1];  
 } breast_pump_data_head_t;

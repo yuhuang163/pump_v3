@@ -290,12 +290,21 @@ static void ble_shell_charge_current_adjust(const uint8_t *param, uint16_t len)
 static void ble_shell_utc_time(const uint8_t *param, uint16_t len)
 {
     uint32_t utc_time = 0;
-    sscanf((const char *)param, "%d", &utc_time);
-    LOG_BLE("shell utc time %d", utc_time);
+    int time_zone = 0;
+    sscanf((const char *)param, "%u %d", &utc_time, &time_zone);
+    LOG_BLE("shell utc time %u, time_zone %d", utc_time, time_zone);
     time_system_t *time = (time_system_t *)find_module(ID_MODULE_TIME);
     EXCEPTION_CHECK_VOID(time);
+    if (abs(time_zone) <= 12) {
+        int64_t adjusted_time = (int64_t)utc_time + (int64_t)time_zone * 3600;
+        if (adjusted_time >= 0 && adjusted_time <= UINT32_MAX) {
+            utc_time = (uint32_t)adjusted_time;
+        } else {
+            LOGE("shell utc time overflow, utc %u, tz %d", utc_time, time_zone);
+            return;
+        }
+    }
     time->sync_utc_time(utc_time);
-    platform_set_utc_time(utc_time, 0);
 }
 
 /*

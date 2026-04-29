@@ -56,6 +56,9 @@
 #define IDLE_LIGHT_TIP_LABEL_TEXT_X                 (0)
 #define IDLE_LIGHT_TIP_LABEL_TEXT_Y                 (IDLE_LIGHT_TIP_LABEL_ICON_Y + 27)
 
+#define IDLE_SUB_UI_TIME_1                          (60 * 1000)
+#define IDLE_SUB_UI_TIME_2                          (5 * 1000)
+
 typedef struct {
     lv_obj_t * root;
 #if IS_SUPPORT_ROOT_HOME_COMP_BG
@@ -74,29 +77,49 @@ typedef struct {
     lv_obj_t * clock_minute;
     lv_obj_t * clock_colon;
     res_img_info_t clock_colon_info;
-    uint8_t home_ui_type;
     uint32_t record_hour;
+    uint8_t home_ui_type;
     uint8_t record_minute;
     uint8_t clock_hour_value;
     uint8_t clock_minute_value;
-    uint16_t animation_index;
     uint8_t popup_ui_index;
     uint8_t force_update;
+    uint8_t sub_ui_status;
+    uint16_t animation_index;
+    uint32_t start_time;
     uint8_t rsv[9];
 #else
-    uint16_t animation_index;
     uint8_t popup_ui_index;
     uint8_t force_update;
-    uint8_t rsv[10];
+    uint8_t sub_ui_status;
+    uint16_t animation_index;
+    uint32_t start_time;
+    uint8_t rsv[13];
 #endif
 } home_display_info_t;
 
+typedef struct {
+    const char *name;
+    uint16_t x_offset; 
+    uint16_t y_offset; 
+    bool align_center; 
+    const lv_font_t *font;
+} home_text_info_t;
+
+typedef enum {
+    HOME_TEXT_IDLE = 0,          /// 默认文本
+    HOME_TEXT_RECORD,            /// 显示记录文本
+    HOME_TEXT_CLOCK,             /// 显示时钟文本
+    HOME_TEXT_CLOCK_AND_RECORD,  /// 显示时钟和记录文本
+    HOME_TEXT_CLOCK_ADJUST_TIP,  /// 显示时钟对时提示文本
+    HOME_TEXT_CLOCK_LIGHT_TIP,   /// 显示时钟夜灯提示文本
+    HOME_TEXT_ID_MAX
+} home_text_id_e;
 
 /*
 * LOCAL VARIABLE DEFINITIONS
 *****************************************************************************************
 */
-static home_display_info_t *home_info;
 #if IS_SUPPORT_ROOT_HOME_COMP_BG
 static PSRAM_NC_DATA_LOC uint8_t home_bg_data[] = {
     // #include "comparison_png2txt/home_ip1_360x360.txt"
@@ -107,6 +130,23 @@ static PSRAM_NC_DATA_LOC uint8_t home_bg_data[] = {
     // #include "comparison_png2txt/home_ip6_360x360.txt"
 };
 #endif
+
+static home_display_info_t *home_info;
+
+const static home_text_info_t home_text_infos[HOME_TEXT_ID_MAX] = {
+    {"Select a program or mode\nto start pumping.", 
+        IDLE_LABEL_TEXT_X, IDLE_LABEL_TEXT_Y, false, &lv_font_oppo_sans_16_medium},
+    {"since last pumping session", 
+        0, IDLE_RECORD_LABEL_TEXT_Y, false, &lv_font_oppo_sans_16_medium},
+    {"Select a program or mode\nto start pumping.", 
+        IDLE_WITH_CLOCK_LABEL_TEXT_X, IDLE_WITH_CLOCK_LABEL_TEXT_Y, false, &lv_font_oppo_sans_16_medium},
+    {"since last pumping session", 
+        0, IDLE_CLOCK_AND_RECORD_LABEL_TEXT_Y, false, &lv_font_oppo_sans_16_medium},
+    {"Time not updated. Connect\nthe device to sync.", 
+        0, IDLE_LABEL_TEXT_Y, true, &lv_font_oppo_sans_16_medium},
+    {"Press to turn on the light",
+        0, IDLE_LIGHT_TIP_LABEL_TEXT_Y, false, &lv_font_oppo_sans_16_medium}    
+};
 
 /*
 * GLOBAL VARIABLE DEFINITIONS
@@ -191,10 +231,8 @@ static void home_button_ui_update(ui_manager_context_t *thiz, uint16_t x_offset,
     }
 }
 
-static void home_label_text_ui_update(ui_manager_context_t *thiz, char *content, 
-        uint16_t x_offset, uint16_t y_offset, bool is_show, bool align_center, const lv_font_t *font)
+static void home_label_text_ui_update(ui_manager_context_t *thiz, bool is_show, home_text_id_e text_id)
 {
-
     if (home_info->text == NULL || !lv_obj_is_valid(home_info->text)) {
         home_info->text = lv_label_create(home_info->root);
         EXCEPTION_CHECK_VOID(home_info->text);
@@ -202,20 +240,22 @@ static void home_label_text_ui_update(ui_manager_context_t *thiz, char *content,
     }
     
     if (is_show) {
-        if (home_info->force_update == false) {
+        if (home_info->force_update == false || text_id >= HOME_TEXT_ID_MAX) {
             return;
         }
         lv_obj_clear_flag(home_info->text, LV_OBJ_FLAG_HIDDEN);
-        lv_label_set_text(home_info->text, content);  /// 设置 label 文字内容和样式
+        lv_label_set_text(home_info->text, home_text_infos[text_id].name);  /// 设置 label 文字内容和样式
         lv_obj_set_style_text_color(home_info->text, lv_color_hex(IDLE_TEXT_COLOR), 0);
-        lv_obj_set_style_text_font(home_info->text, font, 0);  /// 设置字体
-        if (x_offset == 0) {
-            lv_obj_align(home_info->text, LV_ALIGN_TOP_MID, 0, y_offset); /// 设置文字位置
+        lv_obj_set_style_text_font(home_info->text, home_text_infos[text_id].font, 0);  /// 设置字体
+        if (home_text_infos[text_id].x_offset == 0) {
+            lv_obj_align(home_info->text, LV_ALIGN_TOP_MID,
+                0, home_text_infos[text_id].y_offset); /// 设置文字位置
         } else {
-            lv_obj_align(home_info->text, LV_ALIGN_TOP_LEFT, x_offset, y_offset); /// 设置文字位置
+            lv_obj_align(home_info->text, LV_ALIGN_TOP_LEFT, 
+                home_text_infos[text_id].x_offset, home_text_infos[text_id].y_offset); /// 设置文字位置
         }
         lv_obj_set_style_text_line_space(home_info->text, 3, 0); /// 设置行间距
-        if (align_center) {
+        if (home_text_infos[text_id].align_center) {
             lv_obj_set_style_text_align(home_info->text, LV_TEXT_ALIGN_CENTER, 0);  /// 设置文本居中对齐
         } else {
             lv_obj_set_style_text_align(home_info->text, LV_TEXT_ALIGN_LEFT, 0);  /// 设置文本左对齐
@@ -396,32 +436,72 @@ static void home_ui_update(ui_manager_context_t *thiz, ui_proc_home_t *proc)
     if (home_ui_type != home_info->home_ui_type) {
         home_info->home_ui_type = home_ui_type;
         home_info->force_update = true;
+        home_info->start_time = 0;
     }
     switch (home_ui_type) {
         default:
         case HOME_UI_DISPLAY_DEFAULT:
             home_label_ui_update(thiz, RESOURCE_ID_HOME_IDLE_LABLE_ICON,
                 IDLE_LABEL_AREA_ICON_X, IDLE_LABEL_AREA_ICON_Y, true);
-            home_button_ui_update(thiz, IDLE_BUTTON_ICON_X, IDLE_BUTTON_ICON_Y, true);
-            home_label_text_ui_update(thiz, "Select a program or mode\nto start pumping.",
-                IDLE_LABEL_TEXT_X, IDLE_LABEL_TEXT_Y, true, false, &lv_font_oppo_sans_16_medium);
-            home_record_time_ui_update(thiz, 0,
-                0, IDLE_LABEL_TEXT_Y, false);
+            if (home_info->sub_ui_status == 0) {
+                if (get_timestamp_ms(home_info->start_time) > IDLE_SUB_UI_TIME_1) {
+                    home_info->sub_ui_status = 1;
+                    home_info->force_update = true;
+                    home_info->start_time = get_timestamp();
+                    home_button_ui_update(thiz, IDLE_BUTTON_ICON_X, IDLE_BUTTON_ICON_Y, false);
+                    home_label_text_ui_update(thiz, true, HOME_TEXT_CLOCK_ADJUST_TIP);
+                } else {
+                    home_button_ui_update(thiz, IDLE_BUTTON_ICON_X, IDLE_BUTTON_ICON_Y, true);
+                    home_label_text_ui_update(thiz, true, HOME_TEXT_IDLE);
+                }
+            } else {
+                if (get_timestamp_ms(home_info->start_time) > IDLE_SUB_UI_TIME_2) {
+                    home_info->sub_ui_status = 0;
+                    home_info->force_update = true;
+                    home_info->start_time = get_timestamp();
+                    home_button_ui_update(thiz, IDLE_BUTTON_ICON_X, IDLE_BUTTON_ICON_Y, true);
+                    home_label_text_ui_update(thiz, true, HOME_TEXT_IDLE);
+                } else {
+                    home_button_ui_update(thiz, IDLE_BUTTON_ICON_X, IDLE_BUTTON_ICON_Y, false);
+                    home_label_text_ui_update(thiz, true, HOME_TEXT_CLOCK_ADJUST_TIP);
+                }
+            }
+            home_record_time_ui_update(thiz, 0, 0, IDLE_LABEL_TEXT_Y, false);
             home_clock_ui_update(thiz, 0, false);
-            home_root_animation_update(thiz, RESOURCE_ID_HD_ANIM_IP_START,
-                 RESOURCE_ID_HD_ANIM_IP_END - RESOURCE_ID_HD_ANIM_IP_START + 1,
+            home_root_animation_update(thiz, RESOURCE_ID_HD_ANIM_IP_START, 
+                RESOURCE_ID_HD_ANIM_IP_END - RESOURCE_ID_HD_ANIM_IP_START + 1,
                 HOME_IDLE_ANIMATION_X, HOME_IDLE_ANIMATION_Y);
             break;
-        case HOME_UI_DISPLAY_CLOCK_AND_RECORD:
+        case HOME_UI_DISPLAY_RECORD:
             home_label_ui_update(thiz, RESOURCE_ID_HOME_IDLE_LABLE_ICON,
-                IDLE_WITH_CLOCK_LABLE_ICON_X, IDLE_WITH_CLOCK_LABLE_ICON_Y, true);
-            home_button_ui_update(thiz, IDLE_WITH_CLOCK_BUTTON_ICON_X, IDLE_WITH_CLOCK_BUTTON_ICON_Y, false);
-            home_label_text_ui_update(thiz, "since last pumping session",
-                0, IDLE_CLOCK_AND_RECORD_LABEL_TEXT_Y, 
-                true, false, &lv_font_oppo_sans_16_medium);
-            home_record_time_ui_update(thiz, rtc_timestamp - proc->pump_record_time, 
-                0, IDLE_CLOCK_AND_RECORD_TIME_TEXT_Y, true);
-            home_clock_ui_update(thiz, 0, true);
+                IDLE_LABEL_AREA_ICON_X, IDLE_LABEL_AREA_ICON_Y, true);
+            home_button_ui_update(thiz, IDLE_BUTTON_ICON_X, IDLE_BUTTON_ICON_Y, false);
+            if (home_info->sub_ui_status == 0) {
+                if (get_timestamp_ms(home_info->start_time) > IDLE_SUB_UI_TIME_1) {
+                    home_info->sub_ui_status = 1;
+                    home_info->force_update = true;
+                    home_info->start_time = get_timestamp();
+                    home_label_text_ui_update(thiz, true, HOME_TEXT_CLOCK_ADJUST_TIP);
+                    home_record_time_ui_update(thiz, 0, 0, IDLE_LABEL_TEXT_Y, false);
+                } else {
+                    home_label_text_ui_update(thiz, true, HOME_TEXT_RECORD);
+                    home_record_time_ui_update(thiz, rtc_timestamp - proc->pump_record_time,
+                        0, IDLE_RECORD_TIME_TEXT_Y, true);
+                } 
+            } else {
+                if (get_timestamp_ms(home_info->start_time) > IDLE_SUB_UI_TIME_2) {
+                    home_info->sub_ui_status = 0;
+                    home_info->force_update = true;
+                    home_info->start_time = get_timestamp();
+                    home_label_text_ui_update(thiz, true, HOME_TEXT_RECORD);
+                    home_record_time_ui_update(thiz, rtc_timestamp - proc->pump_record_time,
+                        0, IDLE_RECORD_TIME_TEXT_Y, true);
+                } else {
+                    home_label_text_ui_update(thiz, true, HOME_TEXT_CLOCK_ADJUST_TIP);
+                    home_record_time_ui_update(thiz, 0, 0, IDLE_LABEL_TEXT_Y, false);
+                }   
+            }
+            home_clock_ui_update(thiz, 0, false);
             home_root_animation_update(thiz, RESOURCE_ID_HD_ANIM_IP_START,
                 RESOURCE_ID_HD_ANIM_IP_END - RESOURCE_ID_HD_ANIM_IP_START + 1,
                 HOME_IDLE_ANIMATION_X, HOME_IDLE_ANIMATION_Y);
@@ -430,9 +510,7 @@ static void home_ui_update(ui_manager_context_t *thiz, ui_proc_home_t *proc)
             home_label_ui_update(thiz, RESOURCE_ID_HOME_IDLE_LABLE_ICON,
                 IDLE_WITH_CLOCK_LABLE_ICON_X, IDLE_WITH_CLOCK_LABLE_ICON_Y, true);
             home_button_ui_update(thiz, IDLE_WITH_CLOCK_BUTTON_ICON_X, IDLE_WITH_CLOCK_BUTTON_ICON_Y, true);
-            home_label_text_ui_update(thiz, "Select a program or mode\nto start pumping.",
-                IDLE_WITH_CLOCK_LABEL_TEXT_X, IDLE_WITH_CLOCK_LABEL_TEXT_Y,
-                true, false, &lv_font_oppo_sans_16_medium);
+            home_label_text_ui_update(thiz, true, HOME_TEXT_CLOCK);
             home_record_time_ui_update(thiz, 0, 
                 0, IDLE_LABEL_TEXT_Y, false);
             home_clock_ui_update(thiz, 0, true);
@@ -440,28 +518,14 @@ static void home_ui_update(ui_manager_context_t *thiz, ui_proc_home_t *proc)
                  RESOURCE_ID_HD_ANIM_IP_END - RESOURCE_ID_HD_ANIM_IP_START + 1,
                 HOME_IDLE_ANIMATION_X, HOME_IDLE_ANIMATION_Y);
             break;
-        case HOME_UI_DISPLAY_RECORD:
+        case HOME_UI_DISPLAY_CLOCK_AND_RECORD:
             home_label_ui_update(thiz, RESOURCE_ID_HOME_IDLE_LABLE_ICON,
-                IDLE_LABEL_AREA_ICON_X, IDLE_LABEL_AREA_ICON_Y, true);
-            home_button_ui_update(thiz, IDLE_BUTTON_ICON_X, IDLE_BUTTON_ICON_Y, false);
-            home_label_text_ui_update(thiz, "since last pumping session",
-                0, IDLE_RECORD_LABEL_TEXT_Y, true, false, &lv_font_oppo_sans_16_medium);
-            home_record_time_ui_update(thiz, rtc_timestamp - proc->pump_record_time,
-                0, IDLE_RECORD_TIME_TEXT_Y, true);
-            home_clock_ui_update(thiz, 0, false);
-            home_root_animation_update(thiz, RESOURCE_ID_HD_ANIM_IP_START,
-                RESOURCE_ID_HD_ANIM_IP_END - RESOURCE_ID_HD_ANIM_IP_START + 1,
-                HOME_IDLE_ANIMATION_X, HOME_IDLE_ANIMATION_Y);
-            break;
-        case HOME_UI_DISPLAY_CLOCK_ADJUST_TIP:
-            home_label_ui_update(thiz, RESOURCE_ID_HOME_IDLE_LABLE_ICON,
-                IDLE_LABEL_AREA_ICON_X, IDLE_LABEL_AREA_ICON_Y, true);
-            home_button_ui_update(thiz, IDLE_BUTTON_ICON_X, IDLE_BUTTON_ICON_Y, false);
-            home_label_text_ui_update(thiz, "Time not updated. Connect\nthe device to sync.",
-                0, IDLE_LABEL_TEXT_Y, true, true, &lv_font_oppo_sans_16_medium);
-            home_record_time_ui_update(thiz, 0,
-                0, IDLE_LABEL_TEXT_Y, false);
-            home_clock_ui_update(thiz, 0, false);
+                IDLE_WITH_CLOCK_LABLE_ICON_X, IDLE_WITH_CLOCK_LABLE_ICON_Y, true);
+            home_button_ui_update(thiz, IDLE_WITH_CLOCK_BUTTON_ICON_X, IDLE_WITH_CLOCK_BUTTON_ICON_Y, false);
+            home_label_text_ui_update(thiz, true, HOME_TEXT_CLOCK_AND_RECORD);
+            home_record_time_ui_update(thiz, rtc_timestamp - proc->pump_record_time, 
+                0, IDLE_CLOCK_AND_RECORD_TIME_TEXT_Y, true);
+            home_clock_ui_update(thiz, 0, true);
             home_root_animation_update(thiz, RESOURCE_ID_HD_ANIM_IP_START,
                 RESOURCE_ID_HD_ANIM_IP_END - RESOURCE_ID_HD_ANIM_IP_START + 1,
                 HOME_IDLE_ANIMATION_X, HOME_IDLE_ANIMATION_Y);
@@ -470,11 +534,8 @@ static void home_ui_update(ui_manager_context_t *thiz, ui_proc_home_t *proc)
             home_label_ui_update(thiz, RESOURCE_ID_HOME_LIGHT_LABLE_ICON,
                 IDLE_LIGHT_TIP_LABEL_ICON_X, IDLE_LIGHT_TIP_LABEL_ICON_Y, true);
             home_button_ui_update(thiz, IDLE_BUTTON_ICON_X, IDLE_BUTTON_ICON_Y, false);
-            home_label_text_ui_update(thiz, "Press to turn on the light",
-                0, IDLE_LIGHT_TIP_LABEL_TEXT_Y,
-                true, false, &lv_font_oppo_sans_16_medium);
-            home_record_time_ui_update(thiz, 0,
-                0, IDLE_LABEL_TEXT_Y, false);
+            home_label_text_ui_update(thiz, true, HOME_TEXT_CLOCK_LIGHT_TIP);
+            home_record_time_ui_update(thiz, 0, 0, IDLE_LABEL_TEXT_Y, false);
             home_clock_ui_update(thiz, 0, true);
             home_root_animation_update(thiz, RESOURCE_ID_HD_ANIM_IP_START,
                 RESOURCE_ID_HD_ANIM_IP_END - RESOURCE_ID_HD_ANIM_IP_START + 1,
@@ -488,8 +549,7 @@ static void home_ui_update(ui_manager_context_t *thiz, ui_proc_home_t *proc)
     home_label_ui_update(thiz, RESOURCE_ID_HOME_IDLE_LABLE_ICON,
         IDLE_LABEL_AREA_ICON_X, IDLE_LABEL_AREA_ICON_Y, true);
     home_button_ui_update(thiz, IDLE_BUTTON_ICON_X, IDLE_BUTTON_ICON_Y, true);
-    home_label_text_ui_update(thiz, "Select a program or mode\nto start pumping.",
-        IDLE_LABEL_TEXT_X, IDLE_LABEL_TEXT_Y, true, false, &lv_font_oppo_sans_16_medium);
+    home_label_text_ui_update(thiz, true, HOME_TEXT_IDLE);
     home_root_animation_update(thiz, RESOURCE_ID_HD_ANIM_IP_START,
         RESOURCE_ID_HD_ANIM_IP_END - RESOURCE_ID_HD_ANIM_IP_START + 1,
         HOME_IDLE_ANIMATION_X, HOME_IDLE_ANIMATION_Y);   
@@ -516,6 +576,8 @@ void ui_display_home_prepare(ui_manager_context_t *thiz)
     home_info->force_update = true;
     home_info->animation_index = 0;
     home_info->popup_ui_index = ID_POPUP_UI_NONE;
+    home_info->sub_ui_status = 1;
+    home_info->start_time = 0;
 }
 
 void ui_display_home_remove(ui_manager_context_t *thiz)

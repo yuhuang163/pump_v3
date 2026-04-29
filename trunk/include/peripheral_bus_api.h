@@ -61,7 +61,7 @@ typedef struct rt_device_node {
     list_head_t list;
     int (*open)(struct rt_device_node *dev);
     int (*close)(struct rt_device_node *dev);
-    int (*read)(struct rt_device_node *dev,void *buf, uint32_t n_bytes);
+    int (*read)(struct rt_device_node *dev, void *buf, uint32_t n_bytes);
     int (*write)(struct rt_device_node *dev, const void *buf, uint32_t n_bytes);
     int (*ioctl)(struct rt_device_node *dev, uint32_t op_code, void *args);
     int (*suspend)(struct rt_device_node *dev);

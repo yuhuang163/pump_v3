@@ -377,9 +377,7 @@ EXIT_LABEL:
 static void on_storage_broadcast_route(broadcast_mask_id_t id, void *context, int arg1, int arg2, broadcast_priv_data_t *pdata)
 {
     storage_manager_context_t *st = context;
-    window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
-    pump_result_info_t *user_data = NULL;
-    
+
     switch (id.code) {
         case ID_BROADCAST_PM_STATE_CHANGE:
             if (arg1 == PM_BROADCAST_SYS_SUSPEND) {
@@ -390,13 +388,15 @@ static void on_storage_broadcast_route(broadcast_mask_id_t id, void *context, in
                     STORAGE_RAM_SYNC_FLASH_INTERVAL_MS, st, STORAGE_RAM_SYNC_FLASH_TASK_NAME);
             }
             break;
-        case ID_BROADCAST_PERSIST_INFO_UPDATE:
-                PRIV_DATA_TO_USER_DATA(user_data, pdata, pump_result_info_t);
-                if (user_data) {
-                    LOG_STORE("-->save insert_one");
-                    POST_TASK_HANDLER_DELAYED_ARG2(pump_user_data_sync_flash_cb, 0, 1, user_data, STORAGE_PERSIST_TASK_POLICY1_NAME);
-                }
+        case ID_BROADCAST_PERSIST_INFO_UPDATE: {
+            pump_result_info_t *user_data = NULL;    
+            PRIV_DATA_TO_USER_DATA(user_data, pdata, pump_result_info_t);
+            if (user_data) {
+                LOG_STORE("-->save insert_one");
+                POST_TASK_HANDLER_DELAYED_ARG2(pump_user_data_sync_flash_cb, 0, 1, user_data, STORAGE_PERSIST_TASK_POLICY1_NAME);
+            }
             break;
+        }
         case ID_BROADCAST_SYS_STATE_CHANGE:
             if (arg1 == SYSTEM_BROADCAST_POWER_OFF) {
                 LOG_STORE("-->system shutdown");
@@ -407,8 +407,8 @@ static void on_storage_broadcast_route(broadcast_mask_id_t id, void *context, in
             }
             break;
         default:
-                break;
-        }
+            break;
+    }
 }
 
 static int on_post_storage_init_route(storage_manager_context_t *ctx)
@@ -419,8 +419,6 @@ static int on_post_storage_init_route(storage_manager_context_t *ctx)
     init_system_persist_info(ctx);
     /// 加载系统版本信息
     init_system_ver_info(ctx);
-    /// 测试泵奶数据写入和读取
-    // test_pump_data_write_read_complete(0);
     return 0;
 }
 

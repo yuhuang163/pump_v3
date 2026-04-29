@@ -141,8 +141,6 @@ static void product_test_broadcast_receive_cb(broadcast_mask_id_t id, void *cont
                     PRODUCT_TEST_AGING_TEST, arg2, PRODUCT_TEST_AGING_TEST_TASK_NAME);
             }
             break;
-        case ID_BROADCAST_PERSIST_INFO_UPDATE: 
-            break;
         default:
             break;
     }
@@ -266,7 +264,6 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
     proc->receiver.context = proc;
     proc->receiver.name = "product_test_brc";
     proc->receiver.id.code |= ID_BROADCAST_FACTORY_TEST_CMD;
-    proc->receiver.id.code |= ID_BROADCAST_PERSIST_INFO_UPDATE;
     proc->receiver.receiver_cb = product_test_broadcast_receive_cb;
     register_broadcast_receiver(&proc->receiver);
     /// 设置窗口上下文.

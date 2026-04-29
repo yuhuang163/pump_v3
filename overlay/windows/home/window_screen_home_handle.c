@@ -64,12 +64,12 @@ static void home_page_display_type_update(ui_proc_home_t *proc)
     const pump_result_info_t *result_info = NULL;
     READ_PUMP_RESULT_INFO(proc->pump, BREAST_PUMP_RESULT_HISTORY, &result_info);
     proc->pump_record_time = result_info->finish_timestamp;
-    if (proc->pump_record_time > PRODUCT_BUILD_TIMESTAMP) {
+    if (proc->pump_record_time > PRODUCT_BUILD_TIMESTAMP &&
+        rtc_timestamp >= proc->pump_record_time) {
         pump_record_flag = 1;
     } else {
         pump_record_flag = 0;
     }
-
     if (is_utc_time_calibrated && pump_record_flag) {
         proc->home_display_type = HOME_UI_DISPLAY_CLOCK_AND_RECORD;
     } else if (is_utc_time_calibrated && !pump_record_flag) {
@@ -79,8 +79,8 @@ static void home_page_display_type_update(ui_proc_home_t *proc)
     } else {
         proc->home_display_type = HOME_UI_DISPLAY_DEFAULT;
     }
-    LOG_WM("type: %d, timestamp: %d, diff_time: %d, pump_record:%d/%d", 
-        proc->home_display_type, timestamp, diff_time, proc->pump_record_time, pump_record_flag);
+    LOG_WM("type: %d, timestamp: %d, diff_time: %d, pump_record:%d", 
+        proc->home_display_type, timestamp, diff_time, proc->pump_record_time);
 }
 
 static void home_pm_state_change_ui_cb(hdr_post_args_t *args)
@@ -231,7 +231,7 @@ static void on_home_ui_broadcast_receive_cb(broadcast_mask_id_t id, void *contex
             } 
             break;
         case ID_BROADCAST_SYS_STATE_CHANGE:
-            LOG_WM("SYS_STATE_CHANGE: %d", arg1);
+            LOG_WM("SYS_STATE_CHANGE: %d, %d", arg1, arg2);
             if (arg1 == SYSTEM_BROADCAST_UTC_TIME_CHANGE) {
                 home_page_display_type_update(proc);
             }
