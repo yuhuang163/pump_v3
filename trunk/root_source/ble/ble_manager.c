@@ -142,7 +142,7 @@ static int ble_disconnect_by_user(void)
     ble_manager_context_t *ctx = ble_obj;
     if (ctx->ble_is_connected()) {
         LOG_BLE("user ble disconnect");
-        ctx->dispatch_ble_event_wrapper(ctx, BLE_MSG_PERIPH_DISCONN, (uint8_t *)ctx, 0);
+        ctx->dispatch_ble_event_wrapper(ctx, BLE_MSG_PERIPH_DISCONN, NULL, 0);
     }
     return 0;
 }
@@ -230,6 +230,8 @@ static void on_connect_status_change(ble_manager_context_t *ctx, int new_status,
 {
     window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
     airplane_mode_context_t *ap = (airplane_mode_context_t *)find_module(ID_MODULE_AIRPLANE_MODE);
+    EXCEPTION_CHECK_VOID(wm);
+    EXCEPTION_CHECK_VOID(ap);
 
     //通知app server
     servers_manager_context_t *servers_ctx = (servers_manager_context_t *)find_module(ID_MODULE_SERVERS);
@@ -264,14 +266,22 @@ static void on_connect_status_change(ble_manager_context_t *ctx, int new_status,
         LOGW("system is not ready, ignore: %d", new_status);
         return;
     }
-    LOG_BLE("new ble_connect_state: %d, show popup window.", new_status);
+
+    /// 如果系统处于休眠或空闲状态，唤醒系统 
+    power_manager_context_t *pm = (power_manager_context_t *)find_module(ID_MODULE_POWER);
+    EXCEPTION_CHECK_VOID(pm);
+    if (pm->is_pm_suspend() || pm->is_pm_idle()) {
+        pm->pm_wakeup(PM_WAKEUP_REASON_BLE_REQ);
+    }
+    
     SEND_BROADCAST_ARGS1(ID_BROADCAST_BLE_STATE_CHANGE, 
         new_status > 0 ? BLE_BROADCAST_CONNECTED : BLE_BROADCAST_DISCONNECT);
     if (ctx->hook && ctx->hook->on_connect_change_route) {
         ctx->hook->on_connect_change_route(ctx, new_status);
     }
-
-    if (wm) {
+    //当前窗口不是关机界面
+    if (wm && wm->get_current_window_id() != ID_WINDOW_POWER_OFF) {
+        LOG_BLE("new ble_connect_state: %d, show popup window.", new_status);
         multi_func_msg_data_t msg = {0};
         msg.union_body.extra.window_id = ID_WINDOW_POPUP_WINDOW;
         msg.union_body.extra.is_bg_dispatch = 0x01;
@@ -284,23 +294,25 @@ static void on_connect_status_change(ble_manager_context_t *ctx, int new_status,
 static int dispatch_ble_event_wrapper(ble_manager_context_t *ctx, uint8_t _msg_id, uint8_t *_data, int _data_len)
 {
     multi_func_msg_data_t msg = { .union_body.ble_evt_type.msg_id = _msg_id, };
-    if (_data_len) {
+    msg.union_body.ble_evt_type.data_len = _data_len;
+
+    if (_data_len > 0) {
+        EXCEPTION_CHECK_INT(_data);
         msg.union_body.ble_evt_type.ble_data = u_malloz(_data_len > BLE_MSG_MALLOC_MIN_SIZE ? _data_len : BLE_MSG_MALLOC_MIN_SIZE);
         EXCEPTION_CHECK_INT(msg.union_body.ble_evt_type.ble_data);
-        if (msg.union_body.ble_evt_type.ble_data) {
-            msg.union_body.ble_evt_type.data_len = _data_len;
-            memcpy(msg.union_body.ble_evt_type.ble_data, _data, _data_len);
-        }
-        
-        if (MSG_QUEUE_SEND(ctx->priv.ble_work_thd.msg_id, &msg, 0) != 0) {
-            LOGE("dispatch ble event fail. msg_id: %d", _msg_id);
-            u_free(msg.union_body.ble_evt_type.ble_data);
-            return -1;
-        }
-        return 0;
+        memcpy(msg.union_body.ble_evt_type.ble_data, _data, _data_len);
+    } else {
+        msg.union_body.ble_evt_type.ble_data = NULL;
     }
-    LOGE("dispatch ble event fail. msg_id: %d", _msg_id);
-    return -1;
+
+    if (MSG_QUEUE_SEND(ctx->priv.ble_work_thd.msg_id, &msg, 0) != 0) {
+        LOGE("dispatch ble event fail. msg_id: %d", _msg_id);
+        if (msg.union_body.ble_evt_type.ble_data) {
+            u_free(msg.union_body.ble_evt_type.ble_data);
+        }
+        return -1;
+    }
+    return 0;
 }
 
 static void ble_manager_dispatch_thread(void *args)
