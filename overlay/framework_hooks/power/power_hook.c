@@ -154,8 +154,10 @@ static int on_key_event_route(struct power_manager_context *ctx, uint16_t keycod
     if (keytype == KEY_EVENT_LONG_3S && ctx->priv.allow_shutdown_or_standby == 1) {
         window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
 #if (ROOT_PRODUCT_ID == ROOT_PRODUCT_V3PRO_ID)  
-        if (is_prohibit_pm_suspend(ctx)) {
-            return 0;
+        if (wm && wm->is_current_window(wm, ID_WINDOW_FACTORY_RESET) == 0) {
+            if (is_prohibit_pm_suspend(ctx)) {
+                return 0;
+            }
         }
 #endif
         /// 不在工厂重置界面时才允许进入关机状态.(按键冲突)
@@ -398,8 +400,7 @@ static int on_post_power_init_route(struct power_manager_context *ctx)
         return 0;
     }
 #else
-    if ((battery && battery->is_vbus_plug_in() > 0) ||
-        platform_is_startup_caused_by_reboot()) {
+    if ((battery && battery->is_vbus_plug_in() > 0) || platform_is_startup_caused_by_reboot()) {
         key_input_context_t *key = (key_input_context_t *)find_module(ID_MODULE_KEY_INPUT);  
         if (key && key->is_key_triggered(KEY_INDEX_POWER)) {
             ctx->priv.is_power_on_timeout_detect = 1;

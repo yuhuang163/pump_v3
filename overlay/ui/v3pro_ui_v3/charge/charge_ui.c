@@ -52,14 +52,15 @@ static void charge_bg_ui_update(ui_manager_context_t *thiz)
 {
     if (charge_info->charge_icon == NULL || !lv_obj_is_valid(charge_info->charge_icon)) {
         charge_info->charge_icon = lv_image_create(charge_info->root);
+        EXCEPTION_CHECK_VOID(charge_info->charge_icon);
+        common_ui_img_resource_init_with_theme(thiz, RESOURCE_ID_CHARGE_PAGE_IP, &charge_info->charge_icon_info);
+        EXCEPTION_CHECK_VOID(charge_info->charge_icon_info.data);
+        lv_fs_path_ex_t charge_icon_img_path;
+        lv_fs_make_path_from_buffer(&charge_icon_img_path, LV_FS_MEMFS_LETTER,
+            charge_info->charge_icon_info.data, charge_info->charge_icon_info.size, "baj");
+        lv_image_set_src(charge_info->charge_icon, charge_icon_img_path.path);
+        lv_obj_align(charge_info->charge_icon, LV_ALIGN_CENTER, 0, 0);
     }
-    common_ui_img_resource_init_with_theme(thiz, RESOURCE_ID_CHARGE_PAGE_IP, &charge_info->charge_icon_info);
-    EXCEPTION_CHECK_VOID(charge_info->charge_icon_info.data);
-    lv_fs_path_ex_t charge_icon_img_path;
-    lv_fs_make_path_from_buffer(&charge_icon_img_path, LV_FS_MEMFS_LETTER,
-        charge_info->charge_icon_info.data, charge_info->charge_icon_info.size, "baj");
-    lv_image_set_src(charge_info->charge_icon, charge_icon_img_path.path);
-    lv_obj_align(charge_info->charge_icon, LV_ALIGN_CENTER, 0, 0);
 }
 
 /*

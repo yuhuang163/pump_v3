@@ -762,10 +762,10 @@ int test_pump_data_write_read_complete(int write_count)
         /// 准备测试数据
         pump_result_info_t test_data = {0};
         test_data.mode = (i % 3) + 1; /// 模式：1, 2, 3循环
-        test_data.timestamp = base_timestamp + i * 3600; /// 每条记录间隔1小时
+        test_data.finish_timestamp = base_timestamp + i * 3600; /// 每条记录间隔1小时
         test_data.setting_time = 1800000; /// 30分钟（毫秒）
-        test_data.target_total_time = 1800000;
-        test_data.work_total_time = 1800000 - (i * 1000); /// 递减的工作时间
+        test_data.target_valid_time = 1800000;
+        test_data.work_valid_time = 1800000 - (i * 1000); /// 递减的工作时间
         test_data.current_mode_work_time = 1800000 - (i * 1000);
         test_data.report_flag = (i % 2); /// 0或1
         /// 设置一些测试参数
@@ -901,7 +901,7 @@ int test_pump_data_write_read_complete(int write_count)
         /// 如果num > actual_write_count，说明这条记录位置可能没有有效数据（写入失败）
         if (num > actual_write_count) {
             /// 检查数据是否为空，如果为空则跳过验证
-            if (read_data.timestamp == 0 && read_data.mode == 0 && read_data.work_total_time == 0) {
+            if (read_data.finish_timestamp == 0 && read_data.mode == 0 && read_data.work_valid_time == 0) {
                 LOGW("Skip verification [num=%d, index=%d]: num > actual_write_count (%d) and data is empty", 
                      num, body_index, actual_write_count);
                 continue;
@@ -924,7 +924,7 @@ int test_pump_data_write_read_complete(int write_count)
         }
         
         /// 检查数据是否为空（可能是写入失败留下的空数据）
-        if (read_data.timestamp == 0 && read_data.mode == 0 && read_data.work_total_time == 0) {
+        if (read_data.finish_timestamp == 0 && read_data.mode == 0 && read_data.work_valid_time == 0) {
             LOGW("Skip verification [num=%d, index=%d]: data is empty (may be failed write)", 
                  num, body_index);
             continue;
@@ -936,9 +936,9 @@ int test_pump_data_write_read_complete(int write_count)
         uint32_t expected_work_time = 1800000 - (expected_i * 1000);
 
         bool verify_ok = true;
-        if (read_data.timestamp != expected_timestamp) {
+        if (read_data.finish_timestamp != expected_timestamp) {
             LOGW("Timestamp mismatch [num=%d]: expected=%lu, actual=%lu", 
-                 num, expected_timestamp, read_data.timestamp);
+                 num, expected_timestamp, read_data.finish_timestamp);
             verify_ok = false;
         }
         if (read_data.mode != expected_mode) {
@@ -946,9 +946,9 @@ int test_pump_data_write_read_complete(int write_count)
                  num, expected_mode, read_data.mode);
             verify_ok = false;
         }
-        if (read_data.work_total_time != expected_work_time) {
+        if (read_data.work_valid_time != expected_work_time) {
             LOGW("Work time mismatch [num=%d]: expected=%lu, actual=%lu", 
-                 num, expected_work_time, read_data.work_total_time);
+                 num, expected_work_time, read_data.work_valid_time);
             verify_ok = false;
         }
 
@@ -956,14 +956,14 @@ int test_pump_data_write_read_complete(int write_count)
             read_success_count++;
             if (num <= 5 || num > read_head.num - 5 || num % 20 == 0) {
                 LOGI("Verification passed [num=%d, index=%d]: mode=%d, timestamp=%lu, work_time=%lu", 
-                     num, body_index, read_data.mode, read_data.timestamp, read_data.work_total_time);
+                     num, body_index, read_data.mode, read_data.finish_timestamp, read_data.work_valid_time);
             }
         } else {
             verify_fail_count++;
             LOGE("Verification failed [num=%d, index=%d]: mode=%d/%d, timestamp=%lu/%lu, work_time=%lu/%lu",
                  num, body_index, read_data.mode, expected_mode,
-                 read_data.timestamp, expected_timestamp,
-                 read_data.work_total_time, expected_work_time);
+                 read_data.finish_timestamp, expected_timestamp,
+                 read_data.work_valid_time, expected_work_time);
         }
     }
 
