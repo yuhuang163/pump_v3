@@ -762,7 +762,7 @@ int ui_display_pump_home_screen_process(ui_manager_context_t *thiz)
     const pump_result_info_t *result_info = NULL;
     READ_PUMP_RESULT_INFO(proc->pump, BREAST_PUMP_RESULT_PUMPING, &result_info);
     EXCEPTION_CHECK_INT(result_info);
-    uint16_t hold_time = result_info->work_total_time / 1000;
+    uint16_t hold_time = result_info->work_valid_time / 1000;
     pump_setting_t setting;
     int time_index = 0;
     READ_PUMP_MODE_STEP_INDEX(proc->pump, time_index);

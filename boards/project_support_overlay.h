@@ -64,6 +64,7 @@ extern "C" {
 #define IS_SUPPORT_DEVICE_BLE                            (1)
 #define IS_SUPPORT_DEVICE_FS                             (0)
 #define IS_SUPPORT_DEVICE_WIFI                           (0)
+
 /// 叠图功能
 #define IS_SUPPORT_OVERLAY_IMG                           (1)
 #define IS_SUPPORT_ASYNC_RESET_UI_PLAY_INFO              (1)
@@ -79,12 +80,14 @@ extern "C" {
 #define IS_SUPPORT_CLIMB_POLICY                          (1)
 /// 支持长按软复位
 #define IS_SUPPORT_KEY_SOFT_RESET                        (1)
+
 /// 支持LVGL
 #if CFG_LVGL_ENABLE
 #define IS_SUPPORT_LVGL                                  (1)
 #else
 #define IS_SUPPORT_LVGL                                  (0)
 #endif
+
 /// 支持PD充电
 #define IS_SUPPORT_PD_CHARGE                             (1)
 /// 支持PD充电适配器不匹配
@@ -107,12 +110,14 @@ extern "C" {
 #define IS_SUPPORT_MOTOR_STALL_DETECT                    (1)
 /// 支持睡眠关机
 #define IS_SUPPORT_SLEEP_POWER_OFF                       (1)
+
 /// 支持关机提醒
 #if IS_SUPPORT_SLEEP_POWER_OFF
 #define IS_SUPPORT_POWER_OFF_REMINDER                    (1)
 #else
 #define IS_SUPPORT_POWER_OFF_REMINDER                    (0)
 #endif
+
 /// 支持UI主题资源
 #define IS_SUPPORT_UI_THEME_RES                          (0)
 /// 支持泵奶时间累计
@@ -120,6 +125,7 @@ extern "C" {
 /// 支持泵奶全局参数设置
 #define IS_SUPPORT_PUMP_GLOBAL_PARAM_SETTING             (0)
 
+/// 硬件差异配置
 #if (ROOT_PRODUCT_ID == ROOT_PRODUCT_V3PRO_ID)
 /// 支持漏气提醒
 #define IS_SUPPORT_AIR_LEAKAGE_WARNING                   (0)
@@ -135,6 +141,8 @@ extern "C" {
 #define IS_SUPPORT_NIGHT_LIGHT                           (1)
 /// 仅支持power key开机
 #define IS_SUPPORT_POWER_KEY_ON_BOOT                     (0)
+/// 支持低电量自动结束泵奶
+#define IS_SUPPORT_LOW_POWER_AUTO_STOP_PUMP              (0)
 #else
 /// 支持漏气提醒
 #define IS_SUPPORT_AIR_LEAKAGE_WARNING                   (0)
@@ -148,7 +156,10 @@ extern "C" {
 #define IS_SUPPORT_NIGHT_LIGHT                           (0)
 /// 仅支持power键按下开机
 #define IS_SUPPORT_POWER_KEY_ON_BOOT                     (1)
+/// 支持低电量自动结束泵奶
+#define IS_SUPPORT_LOW_POWER_AUTO_STOP_PUMP              (0)
 #endif
+
 /// 支持LOGO界面背景颜色测试
 #define IS_SUPPORT_LOGO_BG_COLOR_TEST                    (0)
 #if (IS_SUPPORT_LOGO_BG_COLOR_TEST == 1 && IS_SUPPORT_ADAPTIVE_DIMMING == 1)
@@ -157,18 +168,21 @@ extern "C" {
 #else
 #define IS_SUPPORT_LOGO_KEY_LIGHT_ADAPTIVE_TEST          (0)    
 #endif
+
 /// 支持触摸芯片固件升级
 #if (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V3 || V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V2)
 #define IS_SUPPORT_TOUCH_IC_OTA                          (0)
 #else
 #define IS_SUPPORT_TOUCH_IC_OTA                          (1)
 #endif
-#if IS_SUPPORT_ADAPTIVE_DIMMING
+
 /// 支持触摸按键背光灯自适应亮度调节
+#if IS_SUPPORT_ADAPTIVE_DIMMING
 #define IS_SUPPORT_KEY_LIGHT_ADAPTIVE                    (1)
 #else
 #define IS_SUPPORT_KEY_LIGHT_ADAPTIVE                    (0)
 #endif
+
 #ifdef __cplusplus
 }
 #endif

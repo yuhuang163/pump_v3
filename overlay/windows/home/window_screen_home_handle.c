@@ -63,7 +63,7 @@ static void home_page_display_type_update(ui_proc_home_t *proc)
     
     const pump_result_info_t *result_info = NULL;
     READ_PUMP_RESULT_INFO(proc->pump, BREAST_PUMP_RESULT_HISTORY, &result_info);
-    proc->pump_record_time = result_info->timestamp_finish;
+    proc->pump_record_time = result_info->finish_timestamp;
     if (proc->pump_record_time > PRODUCT_BUILD_TIMESTAMP) {
         pump_record_flag = 1;
     } else {

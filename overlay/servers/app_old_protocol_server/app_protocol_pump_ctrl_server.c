@@ -366,8 +366,8 @@ static uint32_t app_old_comm_get_pump_mode_run_total_time(void)
         LOG_SRV("pump already finished or idle, total time = 0");
         return 0;
     } else {
-        LOG_SRV("total time = %d", result_info->work_total_time);
-        return (uint32_t)result_info->work_total_time/1000;
+        LOG_SRV("total time = %d", result_info->work_valid_time);
+        return (uint32_t)result_info->work_valid_time/1000;
     }
 }
 
@@ -1439,7 +1439,7 @@ void app_old_comm_handle_get_record_data_req(uint8_t cal, uint8_t *cab)
     /// 转换为BLE记录格式
     app_old_comm_pump_ble_record_t record = {0};
     utc_time_t utc_time = {0};
-    timestamp_to_utc_time(pump_data_body.timestamp, &utc_time);
+    timestamp_to_utc_time(pump_data_body.finish_timestamp, &utc_time);
     
     /// 填充日期信息
     record.date.year = utc_time.year % 100;
@@ -1454,7 +1454,7 @@ void app_old_comm_handle_get_record_data_req(uint8_t cal, uint8_t *cab)
     /// 填充工作记录信息
     record.work.mod = pump_data_body.mode;
     record.work.lvl = 0;  /// TODO: 需要从pump_data_body中获取级别信息
-    record.work.time = (uint16_t)(pump_data_body.work_total_time / 1000);  /// 转换为秒
+    record.work.time = (uint16_t)(pump_data_body.work_valid_time / 1000);  /// 转换为秒
     record.work.left = 0;   /// TODO: 需要从pump_data_body中获取左侧奶量
     record.work.right = 0;  /// TODO: 需要从pump_data_body中获取右侧奶量
     
