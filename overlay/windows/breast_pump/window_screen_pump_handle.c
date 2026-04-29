@@ -414,7 +414,6 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
     proc->receiver.context = proc;
     proc->receiver.name = "pump_screen";
     proc->receiver.id.code |= ID_BROADCAST_BREAST_PUMP_STATE_CHANGE;
-    proc->receiver.id.code |= ID_BROADCAST_PERSIST_INFO_UPDATE;
     proc->receiver.receiver_cb = on_pump_ui_broadcast_receive_cb;
     register_broadcast_receiver(&proc->receiver);
     /// 配置泵奶管理器.

@@ -45,7 +45,7 @@ static int time_system_init(void *ptr)
     }  
     ts->priv.last_time_sync_utc = 0;
     timestamp =  PRODUCT_BUILD_TIMESTAMP; 
-    platform_set_utc_time(timestamp, 0);
+    platform_set_utc_time(timestamp);
     LOGW("timestamp reset");
     return 0;
 }
@@ -54,12 +54,14 @@ static void sync_utc_time(uint32_t t)
 {
     time_system_t *ts = s_time_system;
     ts->priv.last_time_sync_utc = t;
-    platform_set_utc_time(t, 0);
+    uint32_t rtc_timestamp = platform_get_utc_time();
+    platform_set_utc_time(t);
     storage_manager_context_t *ctx = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
     if (ctx && ctx->put_store_val) {
         ctx->put_store_val(STORE_ID_SYS_UTC_TIMESTAMP, t, 0, NULL);
     }
-    SEND_BROADCAST_ARGS1(ID_BROADCAST_SYS_STATE_CHANGE, SYSTEM_BROADCAST_UTC_TIME_CHANGE);
+    SEND_BROADCAST_ARGS2(ID_BROADCAST_SYS_STATE_CHANGE, 
+        SYSTEM_BROADCAST_UTC_TIME_CHANGE, ts->priv.last_time_sync_utc - rtc_timestamp);
 }
 
 static uint32_t get_last_time_sync_utc(void)

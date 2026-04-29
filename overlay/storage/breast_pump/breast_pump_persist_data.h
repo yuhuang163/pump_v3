@@ -74,20 +74,12 @@ int pump_data_info_sync_flash(storage_manager_context_t *ctx, pump_result_info_t
 int get_pump_data_info_from_flash(int num, void *body);
 /// 删除泵奶数据接口
 int delete_pump_data_info_from_flash(int num);
-/// 填充泵奶数据接口
-int fill_in_pump_data_info(int num);
 
 /// 埋点数据接口
 void reset_pump_buried_info(storage_manager_context_t *ctx, sys_buried_info_list_t *buried_info_list);
 int write_pump_buried_info_to_flash(store_func_args_t args);
 int read_pump_buried_info_from_flash(store_func_args_t args);
 int write_pump_buried_info_to_ram(store_func_args_t args);
-
-/// 测试接口
-/// 完整的泵奶数据写入和读取测试函数
-/// @param write_count 要写入的记录数量（0表示使用默认值：测试未满和已满情况）
-/// @return 0: 成功, -1: 失败
-int test_pump_data_write_read_complete(int write_count);
 
 #ifdef __cplusplus
 }
