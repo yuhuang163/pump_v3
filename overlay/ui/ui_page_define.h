@@ -11,6 +11,7 @@ extern "C" {
 ******************************************************************************/
 #include "root_common_base.h" // IWYU pragma: keep
 #include "ui_manager_api.h" // IWYU pragma: keepin
+#if IS_SUPPORT_LVGL
 #include "battery_ui.h" // IWYU pragma: keepin
 #include "charge_ui.h" // IWYU pragma: keepin
 #include "ble_ui.h" // IWYU pragma: keepin
@@ -23,6 +24,7 @@ extern "C" {
 #include "product_tests_ui.h" // IWYU pragma: keepin
 #include "system_ui.h" // IWYU pragma: keepin
 #include "popup_ui.h" // IWYU pragma: keepin
+#endif
 
 /*
 * GLOBAL FUNCTION DECLARATION

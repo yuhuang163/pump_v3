@@ -52,10 +52,6 @@ static void charge_ui_common_cb(hdr_post_args_t *args)
         case CHARGE_HDR_EXIT_CHARGE_POLICY:
             LOG_WM("%s", args->name);
             EXCEPTION_CHECK_VOID(proc->wm);
-            if (proc->ui && proc->ui->hook &&
-                proc->ui->hook->set_ui_backlight_onoff) {
-                proc->ui->hook->set_ui_backlight_onoff(proc->ui, true);
-            }
             multi_func_msg_data_t msg = {0};
             if (proc->airplane && proc->airplane->is_on_airplane_mode()) {
                 LOG_WM("goto airplane mode screen");
@@ -63,6 +59,7 @@ static void charge_ui_common_cb(hdr_post_args_t *args)
                 proc->wm->dispatch_new_window_args(proc->wm, &msg);
                 return;
             }
+            
             if (proc->wm->is_window_guidance_deployed() == 0) {
                 LOG_WM("goto guide screen");
                 msg.union_body.extra.window_id = ID_WINDOW_GUIDE;
@@ -76,10 +73,7 @@ static void charge_ui_common_cb(hdr_post_args_t *args)
             break;
         case CHARGE_HDR_SCREEN_TIMEOUT_DETECT:
             LOG_WM("%s", args->name);
-            if (proc->ui && proc->ui->hook &&
-                proc->ui->hook->set_ui_backlight_onoff) {
-                proc->ui->hook->set_ui_backlight_onoff(proc->ui, false);
-            }
+            show_power_off_charging_ui(proc);
             break;
         case CHARGE_HDR_CHARGE_SCREEN_ON:
             LOG_WM("%s", args->name);

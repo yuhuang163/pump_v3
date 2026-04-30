@@ -150,8 +150,7 @@ void ui_display_charge_adapter_screen_prepare(ui_manager_context_t *thiz)
 
 void ui_display_charge_adapter_screen_remove(ui_manager_context_t *thiz)
 {
-    EXCEPTION_CHECK_VOID(thiz);
-    EXCEPTION_CHECK_VOID(adapter_info);
+    EXCEPTION_CHECK_VOID(thiz && adapter_info);
     common_ui_img_resource_deinit(thiz, &adapter_info->charge_adapter_icon_info);
     common_ui_bg_deinit(thiz);
     LVGL_OBJ_DELETE(adapter_info->root);
@@ -161,9 +160,7 @@ void ui_display_charge_adapter_screen_remove(ui_manager_context_t *thiz)
 
 int ui_display_charge_adapter_process(ui_manager_context_t *thiz)
 {
-    EXCEPTION_CHECK_INT(thiz);
-    EXCEPTION_CHECK_INT(adapter_info);
-    EXCEPTION_CHECK_INT(adapter_info->root);
+    EXCEPTION_CHECK_INT(thiz && adapter_info && adapter_info->root);
     ui_proc_charge_t *proc = (ui_proc_charge_t *)thiz->priv.play_info.user_data;
     EXCEPTION_CHECK_INT(proc);
     charge_adapter_bg_update(thiz);
@@ -174,7 +171,6 @@ int ui_display_charge_adapter_process(ui_manager_context_t *thiz)
         thiz->priv.fps_start_time = get_timestamp();
         LOG_UI("===> charge adapter fps: %d", thiz->priv.fps_count);
         thiz->priv.fps_count = 0;
-        
     }
     return 0;
 }

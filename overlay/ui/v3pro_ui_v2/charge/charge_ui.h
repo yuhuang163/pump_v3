@@ -24,6 +24,12 @@ int ui_display_charge_screen_process(ui_manager_context_t *thiz);
 void ui_display_charge_adapter_screen_prepare(ui_manager_context_t *thiz);
 void ui_display_charge_adapter_screen_remove(ui_manager_context_t *thiz);
 int ui_display_charge_adapter_process(ui_manager_context_t *thiz);
+
+/// 关机充电页面
+void ui_display_power_off_charge_screen_prepare(ui_manager_context_t *thiz);
+void ui_display_power_off_charge_screen_remove(ui_manager_context_t *thiz);
+int ui_display_power_off_charge_screen_process(ui_manager_context_t *thiz);
+
 #ifdef __cplusplus
 }
 #endif
