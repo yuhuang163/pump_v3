@@ -36,6 +36,7 @@ typedef enum {
     CHARGE_UI_TYPE_NONE = 0,
     CHARGE_UI_TYPE_CHARGING = 100,
     CHARGE_UI_TYPE_ADAPTER,
+    CHARGE_UI_TYPE_POWER_OFF_CHARGING,
     CHARGE_UI_TYPE_MAX
 } charge_ui_type_e;
 
@@ -66,8 +67,10 @@ typedef struct {
 */
 void show_charging_ui(ui_proc_charge_t *proc);
 void show_charge_adapter_ui(ui_proc_charge_t *proc);
+void show_power_off_charging_ui(ui_proc_charge_t *proc);
 void stop_charge_common_ui(ui_proc_charge_t *proc);
 int switch_charge_night_light_onoff_ui(ui_proc_charge_t *proc);
+
 #ifdef __cplusplus
 }
 #endif

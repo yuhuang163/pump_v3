@@ -18,6 +18,7 @@
 #define HOME_UI_KEY_TYPE                            KEY_EVENT_CLICK
 #define HOME_PM_STATE_CHANGE_UI_TASK_NAME           "home_pm_state_change_ui_task"
 #define HOME_START_KEY_EVENT_TASK_NAME              "home_start_key_event_task"
+#define HOME_UTC_CALIB_EXPIRE_INTERVAL_SEC          (20 * 24 * 3600)  /// UTC 校准失效时间
 #define REMOVE_ALL_HANDER_TASK() \
 do { \
     LOG_WM("==>REMOVE_ALL_HANDER_TASK"); \
@@ -40,6 +41,48 @@ INIT_WINDOW_CONTEXT();
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
+static void home_page_display_type_update(ui_proc_home_t *proc)
+{
+    EXCEPTION_CHECK_VOID(proc);
+    proc->home_display_type = HOME_UI_DISPLAY_DEFAULT;
+    storage_manager_context_t *st = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
+    uint8_t is_utc_time_calibrated = 0, pump_record_flag = 0;
+    uint32_t timestamp = 0;
+    uint32_t rtc_timestamp = platform_get_utc_time();
+    if (st && st->get_store_val) {
+        st->get_store_val(STORE_ID_SYS_UTC_TIMESTAMP, 0, 0, &timestamp);
+    }
+
+    int diff_time = rtc_timestamp - timestamp;
+    if (diff_time < 0 || diff_time > HOME_UTC_CALIB_EXPIRE_INTERVAL_SEC ||
+        timestamp == PRODUCT_BUILD_TIMESTAMP) {
+        is_utc_time_calibrated = 0;
+    } else {
+        is_utc_time_calibrated = 1;
+    }
+    
+    const pump_result_info_t *result_info = NULL;
+    READ_PUMP_RESULT_INFO(proc->pump, BREAST_PUMP_RESULT_HISTORY, &result_info);
+    proc->pump_record_time = result_info->finish_timestamp;
+    if (proc->pump_record_time > PRODUCT_BUILD_TIMESTAMP &&
+        rtc_timestamp >= proc->pump_record_time) {
+        pump_record_flag = 1;
+    } else {
+        pump_record_flag = 0;
+    }
+    if (is_utc_time_calibrated && pump_record_flag) {
+        proc->home_display_type = HOME_UI_DISPLAY_CLOCK_AND_RECORD;
+    } else if (is_utc_time_calibrated && !pump_record_flag) {
+        proc->home_display_type = HOME_UI_DISPLAY_CLOCK;
+    } else if (!is_utc_time_calibrated && pump_record_flag) {
+        proc->home_display_type = HOME_UI_DISPLAY_RECORD;
+    } else {
+        proc->home_display_type = HOME_UI_DISPLAY_DEFAULT;
+    }
+    LOG_WM("type: %d, timestamp: %d, diff_time: %d, pump_record:%d", 
+        proc->home_display_type, timestamp, diff_time, proc->pump_record_time);
+}
+
 static void home_pm_state_change_ui_cb(hdr_post_args_t *args)
 {
     ui_proc_home_t *proc = args->user_data;
@@ -64,6 +107,7 @@ static void home_start_key_event_ui_cb(hdr_post_args_t *args)
     } else if (proc->current_ui_type == HOME_UI_TYPE_BF_MODE_SELECT) {
         WRITE_PUMP_WORK_MODE(proc->pump, proc->ui_bf_mode_index, true, 1);
     } 
+
     if (proc->wm) {
         multi_func_msg_data_t msg = {0};
         LOG_WM("goto pump window.");
@@ -186,6 +230,12 @@ static void on_home_ui_broadcast_receive_cb(broadcast_mask_id_t id, void *contex
                     proc, HOME_PM_STATE_CHANGE_UI_TASK_NAME);
             } 
             break;
+        case ID_BROADCAST_SYS_STATE_CHANGE:
+            LOG_WM("SYS_STATE_CHANGE: %d, %d", arg1, arg2);
+            if (arg1 == SYSTEM_BROADCAST_UTC_TIME_CHANGE) {
+                home_page_display_type_update(proc);
+            }
+            break;
         default:
             break;
    }
@@ -204,6 +254,7 @@ static int entry_event_cb(window_lift_cycle_e new_state,
         } else {
             LOG_WM("key not present, ignore.");
         }
+        home_page_display_type_update(proc);
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);
         if (proc->extra.arg1 == HOME_SUB_UI_TYPE_PUMP_RESULT) {
@@ -268,6 +319,7 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
     proc->receiver.context = proc;
     proc->receiver.name = "home_screen";
     proc->receiver.id.code |= ID_BROADCAST_PM_STATE_CHANGE;
+    proc->receiver.id.code |= ID_BROADCAST_SYS_STATE_CHANGE;
     proc->receiver.receiver_cb = on_home_ui_broadcast_receive_cb;
     register_broadcast_receiver(&proc->receiver);
     window_context_t *w_ctx = &proc->w_ctx;

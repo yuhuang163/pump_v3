@@ -1,6 +1,7 @@
 #ifndef __WINDOW_SCREEN_HOME_H__
 #define __WINDOW_SCREEN_HOME_H__
 
+#include <stdint.h>
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -55,6 +56,15 @@ typedef enum {
     HOME_UI_TYPE_MAX
 } home_ui_type_e;
 
+typedef enum {
+    HOME_UI_DISPLAY_DEFAULT = 0,       /// 默认 UI
+    HOME_UI_DISPLAY_RECORD,            /// 显示记录 UI
+    HOME_UI_DISPLAY_CLOCK,             /// 显示时钟 UI
+    HOME_UI_DISPLAY_CLOCK_AND_RECORD,  /// 显示时钟和记录 UI
+    HOME_UI_DISPLAY_CLOCK_LIGHT_TIP,   /// 显示时钟夜灯提示
+    HOME_UI_DISPLAY_MAX
+} home_page_display_type_e;
+
 /// 主界面UI结构体
 typedef struct {
     window_context_t w_ctx;
@@ -79,6 +89,8 @@ typedef struct {
     uint8_t level_sync_flag; /// 档位同步标志.
     uint8_t speed_sync_flag; /// 速度同步标志.
     uint8_t pump_priming;
+    home_page_display_type_e home_display_type;
+    uint32_t pump_record_time;
 } ui_proc_home_t;
 
 /*

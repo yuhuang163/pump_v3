@@ -150,15 +150,14 @@ int battery_ui_update(ui_manager_context_t *thiz, lv_obj_t *root, battery_manage
     if (battery_info->state_icon ==  NULL || !lv_obj_is_valid(battery_info->state_icon)) {
         battery_info->state_icon = lv_image_create(root);
         EXCEPTION_CHECK_INT(battery_info->state_icon);
+        lv_obj_align(battery_info->state_icon, LV_ALIGN_TOP_LEFT, 206, 26);
     }
 
     if (battery_status == UI_BATTERY_STATE_CHARGING) {
         lv_obj_clear_flag(battery_info->state_icon, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_align(battery_info->state_icon, LV_ALIGN_TOP_LEFT, 206, 26);
         common_ui_img_resource_init(thiz, RESOURCE_ID_CHARGE_ICON, &battery_info->stat_icon_info);
     } else if (battery_status == UI_BATTERY_STATE_LOW_POWER) {
         lv_obj_clear_flag(battery_info->state_icon, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_align(battery_info->state_icon, LV_ALIGN_TOP_LEFT, 206, 26);
         common_ui_img_resource_init(thiz, RESOURCE_ID_LOW_POWER_ICON, &battery_info->stat_icon_info);
     } else {
         lv_obj_add_flag(battery_info->state_icon, LV_OBJ_FLAG_HIDDEN);

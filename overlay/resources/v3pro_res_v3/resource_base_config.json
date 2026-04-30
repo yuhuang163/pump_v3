@@ -225,6 +225,13 @@
       "y_offset": 0
     },
     {
+      "resource_id": "RESOURCE_ID_CHARGE_PAGE_ICON",
+      "description": "充电页面图标",
+      "file": "base/baj/icon_charge_page_25x30_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
       "resource_id": "RESOURCE_ID_COMMON_BG",
       "description": "通用背景",
       "file": "base/png/bg_common_ui.png",

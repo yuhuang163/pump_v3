@@ -76,6 +76,7 @@ static void ble_event_opt_adv_start(void *context, void *data, int data_len)
     }
 
     if (pble->priv.ble_dev->ioctl) {
+        /*
         if (pble->get_adv_state()) {
             LOGW("ble adv opened, stop it");
             DEVICE_IOCTL(pble->priv.ble_dev, OP_CODE_BLE_ADV_CLOSE);
@@ -83,7 +84,10 @@ static void ble_event_opt_adv_start(void *context, void *data, int data_len)
 
         uint32_t args[] = {(BLE_OPT_ADV_SLOW == opt_id) ? 0 : 1};
         DEVICE_IOCTL_ARGS(pble->priv.ble_dev, OP_CODE_BLE_ADV_SPEED_SET, args);
-        pble->set_adv_speed(opt_id);
+        pble->set_adv_speed(opt_id);*/
+        //V3没有适配调广播速率改变接口，直接打开500ms广播
+        DEVICE_IOCTL(pble->priv.ble_dev, OP_CODE_BLE_ADV_OPEN);
+        LOG_BLE("ble adv open");
     }
 }
 

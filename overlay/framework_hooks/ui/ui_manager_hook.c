@@ -12,7 +12,11 @@
 *****************************************************************************************
 */
 #define UI_ANIMATION_STOP_TIMEOUT               (1000)
+#if IS_SUPPORT_LVGL
 #define IS_PRINT_LVGL_MEM_MONITOR               1
+#else
+#define IS_PRINT_LVGL_MEM_MONITOR               0
+#endif
 #define UI_LVGL_MSG_QUEUE_NUM                   4
 #define UI_BL_ON_LEVEL_MIN                      (20 * 100) /// 开灯最低亮度
 #define UI_BL_ON_LEVEL_RANGE                    (50 * 100) /// 开灯调节范围大小 20 - 50
@@ -43,12 +47,12 @@ typedef struct {
     uint8_t is_need_alpha;
 } ui_snap_shot_info_t;
 
-
 /*
 * LOCAL VARIABLE DEFINITIONS
 *****************************************************************************************
 */
 static ui_manager_context_t *ui_ctx = NULL;
+#if IS_SUPPORT_LVGL
 static lv_obj_t *snap_shot_obj = NULL;
 static res_img_info_t snap_shot_info = {0};
 const static ui_snap_shot_info_t snap_shot_infos[UI_SNAP_SHOT_ID_MAX] = {
@@ -58,7 +62,7 @@ const static ui_snap_shot_info_t snap_shot_infos[UI_SNAP_SHOT_ID_MAX] = {
     {RESOURCE_ID_EXPERT_PUMPING_BG, false},
     {RESOURCE_ID_PUMP_LEVEL_BOTH_SIDES_BG, false},
 };
-
+#endif
 /*
 * GLOBAL VARIABLE DEFINITIONS
 *****************************************************************************************
@@ -68,60 +72,8 @@ const static ui_snap_shot_info_t snap_shot_infos[UI_SNAP_SHOT_ID_MAX] = {
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-static void change_images_cb(lv_timer_t *t);
 static void reset_play_count_cb(ui_animation_play_t *play);
-
-static void set_backlight_level_internal(ui_manager_context_t *thiz, uint16_t level)
-{
-    EXCEPTION_CHECK_VOID(thiz && thiz->priv.panel_dev);
-    uint32_t tmp[1] = {level};
-    DEVICE_IOCTL_ARGS_NO_RET(thiz->priv.panel_dev, OP_CODE_PANEL_SET_BL, &tmp);
-    thiz->priv.ui_backlight_val = level;
-    // LOG_UI("set lcd backlight:%d", level);
-}
-
-static void set_backlight_level(ui_manager_context_t *thiz, uint16_t level)
-{
-    EXCEPTION_CHECK_VOID(thiz);
-    thiz->priv.ui_backlight_onoff = level > 0 ? true : false;
-    set_backlight_level_internal(thiz, level);
-}
-
-static void set_backlight_onoff(ui_manager_context_t *thiz, bool onoff)
-{
-    EXCEPTION_CHECK_VOID(thiz);
-    thiz->priv.ui_backlight_onoff = onoff;
-    LOG_UI("lcd backlight:%d", onoff);
-#if (IS_UI_BACKLIGHT_ADAPTIVE == 0)
-    set_backlight_level_internal(thiz, onoff ? LCD_BACKLIGHT_LEVEL_MAX : 0);
-#endif
-}
-
-#if IS_UI_BACKLIGHT_ADAPTIVE
-static void ui_backlight_adaptive_thread(void *user_data)
-{
-    ui_manager_context_t *thiz = (ui_manager_context_t *)user_data;
-    EXCEPTION_CHECK_VOID(thiz);
-    if (thiz->priv.ui_backlight_onoff == false) {
-        return;
-    }
-    set_backlight_level_internal(thiz, thiz->priv.ui_backlight_adaptive_val);
-}
-#endif
-
-static void set_backlight_adaptive_level(ui_manager_context_t *thiz, uint16_t level)
-{
-    EXCEPTION_CHECK_VOID(thiz);
-    if (level == 0) {
-        thiz->priv.ui_backlight_adaptive_val = UI_BL_ON_LEVEL_MIN;
-    } else {
-        if (level > LCD_BACKLIGHT_LEVEL_MAX) {
-            level = LCD_BACKLIGHT_LEVEL_MAX;
-        }
-        // thiz->priv.ui_backlight_adaptive_val = ((level * UI_BL_ON_LEVEL_RANGE) / LCD_BACKLIGHT_LEVEL_MAX) + UI_BL_ON_LEVEL_MIN;
-        thiz->priv.ui_backlight_adaptive_val = level;
-    }
-}
+#if IS_SUPPORT_LVGL
 
 #if IS_PRINT_LVGL_MEM_MONITOR
 static void lvgl_mem_monitor_cb(void)
@@ -142,6 +94,45 @@ static void lvgl_mem_monitor_cb(void)
            (unsigned long)max_used_kb);
 }
 #endif
+
+static void change_images_cb(lv_timer_t *t)
+{    
+    EXCEPTION_CHECK_VOID(ui_ctx);
+    if (ui_ctx->priv.lv_timer == NULL || ui_ctx->priv.lv_timer != t) {
+        LOG_UI("==>lv_timer is %s:%p", ui_ctx->priv.lv_timer == NULL ? "NULL" : "changed", t);
+        return;
+    }
+        
+    /// base 动画先绘制
+    ui_ctx->play_animation_lock(NULL);
+    bool is_playing_ui_animation = ui_ctx->priv.is_playing_ui_animation;
+    ui_ctx->play_animation_unlock(NULL);
+    if (is_playing_ui_animation) {
+        ui_animation_play_t *ani = &ui_ctx->priv.play_info;
+        if (ani->tag) {
+            if (ani->progress_cb) {
+                ani->progress_cb(ui_ctx, ani->played_count, ANI_TIMER_DRAW_BEFORE);
+                ani->progress_cb(ui_ctx, ani->played_count, ANI_TIMER_DRAW_AFTER);
+            }
+            ani->played_count++;
+        }
+    }
+
+    /// overlay 后绘制（保证叠加层在上面）
+    ui_ctx->play_animation_lock(NULL);
+    bool is_playing_ui_overlay = ui_ctx->priv.is_playing_ui_overlay;
+    ui_ctx->play_animation_unlock(NULL);
+    if (is_playing_ui_overlay) {
+        ui_animation_play_t *ani = &ui_ctx->priv.overlay_play_info;
+        if (ani->tag) {
+            if (ani->progress_cb) {
+                ani->progress_cb(ui_ctx, ani->played_count, ANI_TIMER_DRAW_BEFORE);
+                ani->progress_cb(ui_ctx, ani->played_count, ANI_TIMER_DRAW_AFTER);
+            }
+            ani->played_count++;
+        }
+    }
+}
 
 static void ui_animation_play_init_on_ui_thread(struct ui_manager_context *thiz, 
     const ui_play_info_t *play_info)
@@ -343,42 +334,81 @@ static void lvgl_display_handler(struct ui_manager_context *thiz)
     }
 }
 
-static void change_images_cb(lv_timer_t *t)
-{    
-    EXCEPTION_CHECK_VOID(ui_ctx);
-    if (ui_ctx->priv.lv_timer == NULL || ui_ctx->priv.lv_timer != t) {
-        LOG_UI("==>lv_timer is %s:%p", ui_ctx->priv.lv_timer == NULL ? "NULL" : "changed", t);
+static void ui_snap_shot_perpare(struct ui_manager_context *thiz)
+{
+
+    EXCEPTION_CHECK_VOID(thiz);
+    if (snap_shot_obj == NULL || !lv_obj_is_valid(snap_shot_obj)) {
+        snap_shot_obj = lv_image_create(lv_screen_active());
+        EXCEPTION_CHECK_VOID(snap_shot_obj);
+        lv_obj_align(snap_shot_obj, LV_ALIGN_CENTER, 0, 0);
+        lv_obj_set_style_image_opa(snap_shot_obj, LV_OPA_COVER, 0);
+        lv_obj_add_flag(snap_shot_obj, LV_OBJ_FLAG_HIDDEN); /// 隐藏
+    }
+    
+    for(uint8_t i = 0; i < UI_SNAP_SHOT_ID_MAX; i++) {
+        common_ui_img_resource_init(thiz, snap_shot_infos[i].img_id, &snap_shot_info);
+        EXCEPTION_CHECK_VOID(snap_shot_info.data);
+        lv_fs_path_ex_t background_path;
+        lv_fs_make_path_from_buffer(&background_path, LV_FS_MEMFS_LETTER, snap_shot_info.data,
+                snap_shot_info.size, "png");
+        lv_image_set_src(snap_shot_obj, (const void *)&background_path);
+        lv_refr_now(NULL); /// 等待渲染完成后再创建快照
+        thiz->priv.lv_snap_shot[i] = lv_snapshot_take(snap_shot_obj, 
+            snap_shot_infos[i].is_need_alpha ? LV_COLOR_FORMAT_NATIVE_WITH_ALPHA : LV_COLOR_FORMAT_NATIVE);
+    }
+    common_ui_img_resource_deinit(thiz, &snap_shot_info);
+    LVGL_OBJ_DELETE(snap_shot_obj);
+}
+#endif
+
+static void set_backlight_level_internal(ui_manager_context_t *thiz, uint16_t level)
+{
+    EXCEPTION_CHECK_VOID(thiz && thiz->priv.panel_dev);
+    uint32_t tmp[1] = {level};
+    DEVICE_IOCTL_ARGS_NO_RET(thiz->priv.panel_dev, OP_CODE_PANEL_SET_BL, &tmp);
+    thiz->priv.ui_backlight_val = level;
+    // LOG_UI("set lcd backlight:%d", level);
+}
+
+static void set_backlight_level(ui_manager_context_t *thiz, uint16_t level)
+{
+    EXCEPTION_CHECK_VOID(thiz);
+    thiz->priv.ui_backlight_onoff = level > 0 ? true : false;
+    set_backlight_level_internal(thiz, level);
+}
+
+static void set_backlight_onoff(ui_manager_context_t *thiz, bool onoff)
+{
+    EXCEPTION_CHECK_VOID(thiz);
+    thiz->priv.ui_backlight_onoff = onoff;
+    LOG_UI("lcd backlight:%d", onoff);
+    set_backlight_level_internal(thiz, onoff ? LCD_BACKLIGHT_LEVEL_MAX : 0);
+}
+
+#if IS_UI_BACKLIGHT_ADAPTIVE
+static void ui_backlight_adaptive_thread(void *user_data)
+{
+    ui_manager_context_t *thiz = (ui_manager_context_t *)user_data;
+    EXCEPTION_CHECK_VOID(thiz);
+    if (thiz->priv.ui_backlight_onoff == false) {
         return;
     }
-        
-    /// base 动画先绘制
-    ui_ctx->play_animation_lock(NULL);
-    bool is_playing_ui_animation = ui_ctx->priv.is_playing_ui_animation;
-    ui_ctx->play_animation_unlock(NULL);
-    if (is_playing_ui_animation) {
-        ui_animation_play_t *ani = &ui_ctx->priv.play_info;
-        if (ani->tag) {
-            if (ani->progress_cb) {
-                ani->progress_cb(ui_ctx, ani->played_count, ANI_TIMER_DRAW_BEFORE);
-                ani->progress_cb(ui_ctx, ani->played_count, ANI_TIMER_DRAW_AFTER);
-            }
-            ani->played_count++;
-        }
-    }
+    set_backlight_level_internal(thiz, thiz->priv.ui_backlight_adaptive_val);
+}
+#endif
 
-    /// overlay 后绘制（保证叠加层在上面）
-    ui_ctx->play_animation_lock(NULL);
-    bool is_playing_ui_overlay = ui_ctx->priv.is_playing_ui_overlay;
-    ui_ctx->play_animation_unlock(NULL);
-    if (is_playing_ui_overlay) {
-        ui_animation_play_t *ani = &ui_ctx->priv.overlay_play_info;
-        if (ani->tag) {
-            if (ani->progress_cb) {
-                ani->progress_cb(ui_ctx, ani->played_count, ANI_TIMER_DRAW_BEFORE);
-                ani->progress_cb(ui_ctx, ani->played_count, ANI_TIMER_DRAW_AFTER);
-            }
-            ani->played_count++;
+static void set_backlight_adaptive_level(ui_manager_context_t *thiz, uint16_t level)
+{
+    EXCEPTION_CHECK_VOID(thiz);
+    if (level == 0) {
+        thiz->priv.ui_backlight_adaptive_val = UI_BL_ON_LEVEL_MIN;
+    } else {
+        if (level > LCD_BACKLIGHT_LEVEL_MAX) {
+            level = LCD_BACKLIGHT_LEVEL_MAX;
         }
+        // thiz->priv.ui_backlight_adaptive_val = ((level * UI_BL_ON_LEVEL_RANGE) / LCD_BACKLIGHT_LEVEL_MAX) + UI_BL_ON_LEVEL_MIN;
+        thiz->priv.ui_backlight_adaptive_val = level;
     }
 }
 
@@ -421,38 +451,13 @@ static void ui_animation_overlay_deinit(struct ui_manager_context *thiz)
     MSG_QUEUE_SEND(thiz->priv.ui_hdr_thd.msg_id, &msg, 0);
 }
 
-static void ui_snap_shot_perpare(struct ui_manager_context *thiz)
-{
-    EXCEPTION_CHECK_VOID(thiz);
-
-    if (snap_shot_obj == NULL || !lv_obj_is_valid(snap_shot_obj)) {
-        snap_shot_obj = lv_image_create(lv_screen_active());
-        EXCEPTION_CHECK_VOID(snap_shot_obj);
-        lv_obj_align(snap_shot_obj, LV_ALIGN_CENTER, 0, 0);
-        lv_obj_set_style_image_opa(snap_shot_obj, LV_OPA_COVER, 0);
-        lv_obj_add_flag(snap_shot_obj, LV_OBJ_FLAG_HIDDEN); /// 隐藏
-    }
-    
-    for(uint8_t i = 0; i < UI_SNAP_SHOT_ID_MAX; i++) {
-        common_ui_img_resource_init(thiz, snap_shot_infos[i].img_id, &snap_shot_info);
-        EXCEPTION_CHECK_VOID(snap_shot_info.data);
-        lv_fs_path_ex_t background_path;
-        lv_fs_make_path_from_buffer(&background_path, LV_FS_MEMFS_LETTER, snap_shot_info.data,
-                snap_shot_info.size, "png");
-        lv_image_set_src(snap_shot_obj, (const void *)&background_path);
-        lv_refr_now(NULL); /// 等待渲染完成后再创建快照
-        thiz->priv.lv_snap_shot[i] = lv_snapshot_take(snap_shot_obj, 
-            snap_shot_infos[i].is_need_alpha ? LV_COLOR_FORMAT_NATIVE_WITH_ALPHA : LV_COLOR_FORMAT_NATIVE);
-    }
-    common_ui_img_resource_deinit(thiz, &snap_shot_info);
-    LVGL_OBJ_DELETE(snap_shot_obj);
-}
-
 static void ui_thread_init_route(struct ui_manager_context *thiz)
 {
     CREATE_MSG_TYPE_QUEUE(&thiz->priv.ui_hdr_thd.msg_id, UI_LVGL_MSG_QUEUE_NUM, sizeof(ui_lvgl_msg_t));
     thiz->priv.lvgl_initialized = true;
+#if IS_SUPPORT_LVGL
     ui_snap_shot_perpare(thiz);
+#endif
     LOG_UI("==>lvgl init done");
 }
 
@@ -460,7 +465,9 @@ static void lcd_ready_callback(int type, int status)
 {
     EXCEPTION_CHECK_VOID(ui_ctx);
     if (status) { 
+#if IS_SUPPORT_LVGL
         lv_refr_now(NULL);
+#endif
     }
 }
 
@@ -532,7 +539,9 @@ void register_ui_manager_hook(ui_manager_context_t *ctx)
     ctx->hook->ui_animation_overlay_deinit = ui_animation_overlay_deinit;
     ctx->hook->on_ui_broadcast_receiver_route = on_ui_broadcast_receiver_route;
     ctx->hook->ui_thread_init_route = ui_thread_init_route;
+#if IS_SUPPORT_LVGL
     ctx->hook->lvgl_display_handler = lvgl_display_handler;
+#endif
     ctx->hook->set_ui_backlight_onoff = set_backlight_onoff;
     ctx->hook->set_ui_backlight_level = set_backlight_level;
     ctx->hook->set_ui_backlight_adaptive_level = set_backlight_adaptive_level;

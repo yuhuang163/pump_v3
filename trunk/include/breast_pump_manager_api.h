@@ -35,6 +35,7 @@ typedef enum {
 } breast_pump_broadcast_id_e;
 
 typedef enum {
+    RESULT_PUMP_LOW_POWER = -6, /// 低电量自动结束泵奶.
     RESULT_PUMP_AUTO_PAUSE = -5,
     RESULT_PUMP_TIMEOUT = -4,
     RESULT_PUMP_FINISH = -3,
@@ -127,15 +128,16 @@ typedef struct {
 /// 泵奶数据
 typedef struct pump_result_info {
     uint8_t  mode;
-    pump_setting_t setting[ROOT_BREAST_PUMP_STEP_MAX];
     uint8_t  report_flag;               /// 泵奶报告是否实时上传
-    uint32_t timestamp;                 /// 开始泵奶时间
-    uint32_t timestamp_finish;          /// 结束泵奶时间
+    uint32_t finish_timestamp;          /// 结束泵奶时间戳
     uint32_t start_time;                /// 开始泵奶时间
     uint32_t setting_time;              /// app设置的单次泵奶时间
-    uint32_t target_total_time;         /// 目标最大工作时长
-    uint32_t work_total_time;           /// 泵奶总时长
-    uint32_t current_mode_work_time;    /// 当前模式运行时间
+    uint32_t target_valid_time;         /// 目标有效泵奶时间（不含暂停）
+    uint32_t work_valid_time;           /// 有效泵奶时长（不含暂停）
+    uint32_t target_total_time;         /// 目标最大工作时长（含暂停）
+    uint32_t work_total_time;           /// 泵奶总时长(含暂停)
+    uint32_t current_mode_work_time;    /// 当前模式运行时间（不含暂停）
+    pump_setting_t setting[ROOT_BREAST_PUMP_STEP_MAX];
 } pump_result_info_t;
 
 typedef void (*on_breast_pump_result_cb_ptr)(void *user_data, breast_pump_result_t *result);
@@ -209,6 +211,7 @@ typedef struct breast_pump_manager_context {
         struct storage_manager_context *st;
         struct peripheral_bus_context *pbus;
         struct motor_manager_context *motor;
+        struct battery_manager_context *battery;
         pump_result_info_t result_info[BREAST_PUMP_RESULT_MAX];  
     } priv;
 

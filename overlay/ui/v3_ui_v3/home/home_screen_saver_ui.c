@@ -32,7 +32,7 @@ typedef struct {
 #endif
     lv_obj_t * saver_icon;
     res_img_info_t saver_img_info;
-#if (ROOT_PRODUCT_ID == ROOT_PRODUCT_ID_V3PRO)
+#if (ROOT_PRODUCT_ID == ROOT_PRODUCT_V3PRO_ID)
     lv_obj_t * clock_hour;
     lv_obj_t * clock_minute;
     lv_obj_t * clock_colon;
@@ -135,7 +135,7 @@ static void home_screen_saver_dummy_icon_update(ui_manager_context_t *thiz, int1
         HOME_SCREEN_SAVER_ICON_X, HOME_SCREEN_SAVER_ICON_Y + y_offset); /// 设置icon位置
 }
 
-#if (ROOT_PRODUCT_ID == ROOT_PRODUCT_ID_V3PRO)
+#if (ROOT_PRODUCT_ID == ROOT_PRODUCT_V3PRO_ID)
 static void home_screen_saver_clock_ui_update(ui_manager_context_t *thiz, bool is_show)
 {
     /// 更新时钟小时
@@ -207,38 +207,18 @@ static void home_screen_saver_clock_ui_update(ui_manager_context_t *thiz, bool i
     }
 
 }
-static home_screen_saver_display_type_e home_screen_saver_display_type_update(ui_manager_context_t *thiz, ui_proc_home_t *proc)
-{
-#if 0
-    static home_screen_saver_display_type_e home_screen_saver_display_type_test = HOME_SCREEN_SAVER_DISPLAY_CLOCK; /// TODO: 测试用，后续删除
-    static uint32_t count = 0; /// TODO: 测试用，后续删除
-    count++;
-    if (count % 100 == 0) {
-        count = 0;
-        home_screen_saver_display_type_test++;
-        if (home_screen_saver_display_type_test >= HOME_SCREEN_SAVER_DISPLAY_MAX) {
-            home_screen_saver_display_type_test = HOME_SCREEN_SAVER_DISPLAY_DEFAULT;
-        }
-    }
-    return home_screen_saver_display_type_test;
-#else
-    return HOME_SCREEN_SAVER_DISPLAY_DEFAULT;
-#endif
-}
 
 static void home_screen_saver_ui_update(ui_manager_context_t *thiz, ui_proc_home_t *proc)
 {
-    home_screen_saver_display_type_e home_ui_type = home_screen_saver_display_type_update(thiz, proc);
+    home_page_display_type_e home_ui_type = proc->home_display_type;
     if (home_ui_type != saver_info->home_screen_saver_display_type) {
         saver_info->home_screen_saver_display_type = home_ui_type;
         saver_info->force_update = true;
-        saver_info->hour = 0;
-        saver_info->minute = 0;
     }
 
-    if (home_ui_type == HOME_SCREEN_SAVER_DISPLAY_CLOCK) {
+    if (home_ui_type == HOME_UI_DISPLAY_CLOCK || home_ui_type == HOME_UI_DISPLAY_CLOCK_AND_RECORD) {
         home_screen_saver_clock_ui_update(thiz, true);
-        home_screen_saver_dummy_icon_update(thiz, 29);
+        home_screen_saver_dummy_icon_update(thiz, 43);
     } else {
         home_screen_saver_clock_ui_update(thiz, false);
         home_screen_saver_dummy_icon_update(thiz, 0);
@@ -250,6 +230,7 @@ static void home_screen_saver_ui_update(ui_manager_context_t *thiz, ui_proc_home
     home_screen_saver_dummy_icon_update(thiz, 0);   
 }
 #endif
+
 /*  
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
@@ -273,7 +254,7 @@ void ui_display_home_screen_saver_remove(ui_manager_context_t *thiz)
 {
     EXCEPTION_CHECK_VOID(thiz && saver_info);
     common_ui_img_resource_deinit(thiz, &saver_info->saver_img_info);
-#if (ROOT_PRODUCT_ID == ROOT_PRODUCT_ID_V3PRO)
+#if (ROOT_PRODUCT_ID == ROOT_PRODUCT_V3PRO_ID)
     common_ui_img_resource_deinit(thiz, &saver_info->clock_colon_info);
 #endif
     ble_ui_deinit(thiz);

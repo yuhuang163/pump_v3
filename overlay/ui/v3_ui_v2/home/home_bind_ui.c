@@ -263,6 +263,7 @@ static void home_bind_img_update(ui_manager_context_t *thiz, uint8_t is_show)
 static void home_bind_status_ui_update(ui_manager_context_t *thiz, ui_proc_home_t *proc)
 {
     EXCEPTION_CHECK_VOID(thiz && proc && proc->ble);
+#if 0
     int bind_state = proc->ble->ble_bind_state_get();
     int ble_state = proc->ble->ble_is_connected();
     uint8_t device_bind_state = HOME_UNBIND_STATE;
@@ -273,8 +274,16 @@ static void home_bind_status_ui_update(ui_manager_context_t *thiz, ui_proc_home_
     } else {
         device_bind_state = HOME_UNBIND_STATE;
     }
-
-    if (home_bind_info->bind_state == device_bind_state && home_bind_info->force_update == false) {
+#else
+    uint8_t device_bind_state = HOME_UNBIND_STATE;
+    if (proc->ble->ble_is_connected()) {
+        device_bind_state = HOME_BIND_AND_CONNECTED;
+    } else {
+        device_bind_state = HOME_UNBIND_STATE;
+    }
+#endif
+    if (home_bind_info->bind_state == device_bind_state &&
+        home_bind_info->force_update == false) {
         return;
     }
     home_bind_img_update(thiz, device_bind_state != HOME_UNBIND_STATE ? true : false);

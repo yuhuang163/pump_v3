@@ -65,18 +65,16 @@ static void notify_breast_pump_completed(void)
     int need_save = 1;
     breast_pump_manager_context_t *ctx = breast_pump_obj;
     algo_manager_context_t *algo = (algo_manager_context_t *)find_module(ID_MODULE_ALGO_HUB);
-    /// 外部挂接点.
     struct __breast_pump_hook *hook = breast_pump_obj->hook;
     if (hook && hook->breast_pump_completed_route) {
         need_save = hook->breast_pump_completed_route(breast_pump_obj);
     }
 
     if (need_save) {
-        pump_result_info_t *pumping_info = get_breast_pump_result(BREAST_PUMP_RESULT_PUMPING);
+        pump_result_info_t *pumping_info = get_breast_pump_result(BREAST_PUMP_RESULT_HISTORY);
         USER_DATA_TO_PRIV_DATA(pumping_info, pdata);
         SEND_BROADCAST_ARGS4_EXTRA(ID_BROADCAST_PERSIST_INFO_UPDATE, 1, pdata, sizeof(pdata));
-        memset(pumping_info, 0, sizeof(pump_result_info_t));
-        LOG_PMP("save success, work total time: %lu", pumping_info->work_total_time);
+        LOG_PMP("save success, work total time: %lu", pumping_info->work_valid_time);
     }
 }
 
@@ -132,13 +130,13 @@ static void stop_breast_pump_work(int breast_pump_state)
 static void breast_pump_work_timer_cb(os_timer_id *timer)
 {
     uint8_t msg = 0;
-
     MSG_QUEUE_SEND(breast_pump_obj->priv.breast_pump_thd.msg_id, &msg, 0);
 }
 
 static void reset_breast_pump_result(void)
 {
     memset(&breast_pump_obj->priv.m_result, 0, sizeof(breast_pump_result_t));
+    memset(&breast_pump_obj->priv.result_info[BREAST_PUMP_RESULT_PUMPING], 0, sizeof(pump_result_info_t));
     LOG_PMP("reset result.");
 }
 
@@ -207,7 +205,7 @@ static void set_breast_pump_mode(uint32_t mode, uint8_t is_store_mode, uint8_t i
     struct storage_manager_context *st = breast_pump_obj->priv.st;
     motor_manager_context_t *motor_ctx = breast_pump_obj->priv.motor;
 
-    //如果在运行中，模式切换，不在此处上报app，依赖progress_hook内部上报
+    /// 如果在运行中，模式切换，不在此处上报app，依赖progress_hook内部上报
     if (m_info->do_work && mode != m_info->mode) {
         is_report = 0;
     }
@@ -217,16 +215,17 @@ static void set_breast_pump_mode(uint32_t mode, uint8_t is_store_mode, uint8_t i
     } else {
         m_info->mode = mode;
     }
+    SEND_BROADCAST_ARGS2(ID_BROADCAST_BREAST_PUMP_STATE_CHANGE, BREAST_PUMP_BROADCAST_MODE_CHANGE, m_info->mode);
     EXCEPTION_CHECK_VOID(st);
     st->put_store_ram_val(STORE_ID_BREAST_PUMP_MODE, mode, 0, NULL);
     m_info->step_index = 0;
     motor_ctx->set_runtime_policy_index(MOTOR_TIME_POLICY, 0);
-    LOG_PMP("new mode is: %d, name: %s, store:%d, report:%d", m_info->mode, get_breast_pump_mode_name(m_info->mode), is_store_mode, is_report);
+    LOG_PMP("new mode is: %d, name: %s, store:%d, report:%d", m_info->mode, 
+            get_breast_pump_mode_name(m_info->mode), is_store_mode, is_report);
     /// 读取存储器中的泵奶设置
     for (uint8_t i = 0; i < ROOT_BREAST_PUMP_STEP_MAX; i++) {
         st->get_store_ram_val(STORE_ID_PUMP_SETTING_INFO, m_info->mode, i, &breast_pump_obj->priv.setting[i]);
     }
-    SEND_BROADCAST_ARGS2(ID_BROADCAST_BREAST_PUMP_STATE_CHANGE, BREAST_PUMP_BROADCAST_MODE_CHANGE, m_info->mode);
     /// 通知app
     if (is_report) {
         servers_manager_context_t *servers_ctx = (servers_manager_context_t *)find_module(ID_MODULE_SERVERS);
@@ -238,7 +237,6 @@ static void set_breast_pump_mode(uint32_t mode, uint8_t is_store_mode, uint8_t i
         };
         servers_ctx->hook->app_old_protocol_server_data_publish(APP_OLD_COMM_CID_NOTIFY_STATUS, &args);
     }
-
 }
 
 static int get_breast_pump_mode(void)
@@ -738,13 +736,13 @@ static void make_progress(void)
     struct __breast_pump_hook *hook = breast_pump_obj->hook;
     if (hook && hook->make_progress_route) {
         notify_id = hook->make_progress_route(breast_pump_obj, &breast_pump_obj->priv.result_info[BREAST_PUMP_RESULT_PUMPING]);
-        if (notify_id == RESULT_PUMP_FINISH) {
-            if (get_timestamp_ms(notify_time) > 10000) {
+        if (notify_id == RESULT_PUMP_FINISH || notify_id == RESULT_PUMP_LOW_POWER) {
+            if (get_timestamp_ms(notify_time) > 5000) {
                 notify_time = get_timestamp();
                 SEND_BROADCAST_ARGS1(ID_BROADCAST_BREAST_PUMP_STATE_CHANGE, BREAST_PUMP_BROADCAST_COMPLETED);
             }
         } else if (notify_id == RESULT_PUMP_WILL_FINISH) {
-            if (get_timestamp_ms(notify_time) > 10000) {
+            if (get_timestamp_ms(notify_time) > 5000) {
                 notify_time = get_timestamp();
                 SEND_BROADCAST_ARGS1(ID_BROADCAST_BREAST_PUMP_STATE_CHANGE, BREAST_PUMP_BROADCAST_PUMP_WILL_FINISH);
             }
@@ -777,7 +775,6 @@ static void on_breast_pump_broadcast_receiver(broadcast_mask_id_t id, void *cont
     int arg2, broadcast_priv_data_t *pdata)
 {
     breast_pump_manager_context_t *bst_ctx = context;
-    
     switch (id.code) {
         case ID_BROADCAST_PM_STATE_CHANGE:
             if (arg1 == PM_BROADCAST_SYS_SUSPEND) {
@@ -785,6 +782,17 @@ static void on_breast_pump_broadcast_receiver(broadcast_mask_id_t id, void *cont
                 pump_result_info_t *pumping_info = get_breast_pump_result(BREAST_PUMP_RESULT_PUMPING);
                 if (pumping_info) {
                     memset(pumping_info, 0, sizeof(pump_result_info_t));
+                }
+            }
+            break;
+        case ID_BROADCAST_SYS_STATE_CHANGE:    
+            if (arg1 == SYSTEM_BROADCAST_UTC_TIME_CHANGE) {
+                if (abs(arg2) > 60) {
+                    LOG_PMP("reset pump history result finish timestamp");
+                    pump_result_info_t *history_info = get_breast_pump_result(BREAST_PUMP_RESULT_HISTORY);
+                    if (history_info) {
+                        history_info->finish_timestamp = 0;
+                    }
                 }
             }
             break;
@@ -845,6 +853,24 @@ static int on_post_breast_pump_init(void *ptr)
             ctx->priv.st->put_store_ram_val(STORE_ID_BREAST_PUMP_MODE_WITH_TYPE, BREAST_PUMP_MODE_TYPE_BREASTFEEDING, 
                 BREAST_PUMP_REGULAR_PUMPING_MODE, NULL);
         }
+        /// 同步上一次的泵奶记录
+        time_system_t *time_sys = (time_system_t *)find_module(ID_MODULE_TIME);
+        if (time_sys) {
+            if (time_sys->get_last_time_sync_utc() > 0) {
+                breast_pump_data_head_t pump_data_head = {0};
+                ctx->priv.st->get_store_ram_val(STORE_ID_BREAST_PUMP_DATA_HEAD, 0, 0, &pump_data_head);
+                pump_result_info_t *result_info = &ctx->priv.result_info[BREAST_PUMP_RESULT_HISTORY];
+                if (pump_data_head.num > 0) {
+                    ctx->priv.st->get_store_val(STORE_ID_BREAST_PUMP_DATA_BODY, 
+                        pump_data_head.tail, 0, result_info);
+                    LOG_PMP("sync last pump record: num:%d, head:%d, tail:%d, timestamp:%d, mode:%d, work time:%d", 
+                        pump_data_head.num, pump_data_head.head, pump_data_head.tail,
+                        result_info->finish_timestamp, result_info->mode, result_info->work_valid_time);
+                } else {
+                    LOGE("num:%d, head:%d, tail:%d", pump_data_head.num, pump_data_head.head, pump_data_head.tail);
+                }
+            } 
+        } 
     } else {
         ctx->priv.m_info.breastfeeding_mode = BREAST_PUMP_MODE_INVALID;
         ctx->priv.m_info.common_mode = BREAST_PUMP_MODE_INVALID;
@@ -853,6 +879,7 @@ static int on_post_breast_pump_init(void *ptr)
     ctx->priv.m_bdc.context = ctx;
     ctx->priv.m_bdc.name = "breast_pump_manager";
     ctx->priv.m_bdc.id.code |= ID_BROADCAST_PM_STATE_CHANGE;
+    ctx->priv.m_bdc.id.code |= ID_BROADCAST_SYS_STATE_CHANGE;
     ctx->priv.m_bdc.receiver_cb = on_breast_pump_broadcast_receiver;
     register_broadcast_receiver(&ctx->priv.m_bdc);
     RUN_NEW_THREAD(&ctx->priv.breast_pump_thd, "breast_pump_thd", breast_pump_work_thread, 
@@ -866,7 +893,7 @@ static int on_perpare_breast_pump_init(void *self)
     ctx->priv.st = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
     ctx->priv.motor = (motor_manager_context_t *)find_module(ID_MODULE_MOTOR);
     ctx->priv.pbus = (peripheral_bus_context_t *)find_module(ID_MODULE_DEVICE_BUS);
-
+    ctx->priv.battery = (battery_manager_context_t *)find_module(ID_MODULE_BATTERY);
     return 0;
 }
 
