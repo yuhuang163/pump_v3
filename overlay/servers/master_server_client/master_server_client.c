@@ -31,7 +31,7 @@ static ble_manager_context_t *ble_ctx = NULL;
 static void app_old_protocol_frame_callback(uint8_t *frame_data, uint16_t frame_len)
 {
     LOG_PROTOCOL("app_old_protocol_frame_callback");
-    LOG_HEX("data", frame_data, frame_len);
+    //LOG_HEX("data", frame_data, frame_len);
     old_protocol_frame_node_t frame_full = {0};
     protocol_ctx->app_old_protocol_frame_deserialize(frame_data, frame_len, &frame_full);
     app_old_comm_handle_request_cmd(frame_full.cid, frame_full.cal, frame_full.cab);
