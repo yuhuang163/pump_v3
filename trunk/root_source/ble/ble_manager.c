@@ -154,7 +154,7 @@ static int ble_bind_state_get(void)
 
 static int ble_bind_state_set(uint8_t state)
 {
-    if (state != ble_obj->priv.ble_bind_state) {
+    //if (state != ble_obj->priv.ble_bind_state) {
         window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
         EXCEPTION_CHECK_INT(wm);
         multi_func_msg_data_t msg = {0};
@@ -163,7 +163,7 @@ static int ble_bind_state_set(uint8_t state)
         msg.union_body.extra.arg1 = (BLE_BIND_STATE_COMPLETE == state) ? ID_POPUP_UI_DEVICE_BIND : ID_POPUP_UI_DEVICE_UNBIND;
         msg.union_body.extra.popup_exit_time = 1000;
         wm->dispatch_new_window_args(wm, &msg);
-    }
+    //}
     ble_obj->priv.ble_bind_state = state;
     storage_manager_context_t *storage_ctx = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
     if (storage_ctx && storage_ctx->put_store_val) {

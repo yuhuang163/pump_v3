@@ -279,7 +279,7 @@ static void home_bind_status_ui_update(ui_manager_context_t *thiz, ui_proc_home_
     if (proc->ble->ble_is_connected()) {
         device_bind_state = HOME_BIND_AND_CONNECTED;
     } else {
-        device_bind_state = HOME_BIND_AND_DISCONNECT;
+        device_bind_state = HOME_UNBIND_STATE;
     }
 #endif
     if (home_bind_info->bind_state == device_bind_state &&

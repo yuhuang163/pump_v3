@@ -36,13 +36,13 @@ static void app_old_comm_set_device_bind_status(uint8_t device_bind_status)
     ble_manager_context_t *ble = (ble_manager_context_t *)find_module(ID_MODULE_BLE);
     EXCEPTION_CHECK_VOID(ble);
     ///底层有三个状态 1需要加1对齐到绑定状态
-    if (device_bind_status == 1) {
-        device_bind_status += 1;
+    if (device_bind_status == true) {
+        device_bind_status = BLE_BIND_STATE_COMPLETE;
     }
-    if (ble->ble_bind_state_get() != device_bind_status) {
+    //if (ble->ble_bind_state_get() != BLE_BIND_STATE_COMPLETE) {
         ble->ble_bind_state_set(device_bind_status);
         LOG_SRV(" Device bind status set: %d", device_bind_status);
-    }
+    //}
 }
 
 // Get parse result string for logging
