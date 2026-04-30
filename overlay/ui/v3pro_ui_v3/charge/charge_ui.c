@@ -6,6 +6,7 @@
 #include "ui_page_define.h" // IWYU pragma: keep
 #include "ui_manager.h"   // IWYU pragma: keep
 #include "window_screen_charge.h" // IWYU pragma: keep
+#include <stdint.h>
 
 /*
 * DEFINES
@@ -16,6 +17,7 @@ typedef struct {
     lv_obj_t * charge_icon; 
     res_img_info_t charge_icon_info;
     uint8_t force_update;
+    uint8_t rsv[15];
 } charge_display_info_t;
 
 /*

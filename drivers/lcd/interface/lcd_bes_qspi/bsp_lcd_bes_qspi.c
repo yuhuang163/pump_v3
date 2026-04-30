@@ -38,6 +38,7 @@ static void print_cb(lv_log_level_t level, const char *buf)
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
+#if IS_SUPPORT_LVGL
 int bsp_lcd_init(void) 
 {
     lv_init();
@@ -60,6 +61,17 @@ int bsp_lcd_deinit(void)
     lv_deinit();
     return BSP_OK;
 }
+#else
+int bsp_lcd_init(void) 
+{
+    return BSP_OK;
+}
+
+int bsp_lcd_deinit(void) 
+{
+    return BSP_OK;
+}
+#endif
 
 int bsp_lcd_uart_dev_ioctl(struct rt_device_node *dev, uint32_t op_code, void *args)
 {

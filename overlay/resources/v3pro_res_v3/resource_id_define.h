@@ -33,6 +33,7 @@ typedef enum {
     RESOURCE_ID_CHARGE_ICON,                   /// 电池充电图标
     RESOURCE_ID_LOW_POWER_ICON,                /// 电池低电量图标
     RESOURCE_ID_CLOCK_COLON_ICON,              /// 时钟冒号图标
+    RESOURCE_ID_CHARGE_PAGE_ICON,              /// 充电页面图标
  
     /* 主界面组 [100..150] */
     RESOURCE_ID_COMMON_BG = 100,               /// 通用背景
@@ -42,7 +43,6 @@ typedef enum {
     RESOURCE_ID_AIRPLANE_UNLOCK_BUTTON_ICON,   /// 飞行模式解锁按钮图标
     RESOURCE_ID_HOME_LIGHT_LABLE_ICON,         /// 首页光线图标
     RESOURCE_ID_HOME_BLE_LABEL_ICON,           /// 首页蓝牙标签图标
-
 
     /* 引导组 [150..200] */
     RESOURCE_ID_GUIDE_PAGE1_IMG = 150,        /// 引导-页1图片
