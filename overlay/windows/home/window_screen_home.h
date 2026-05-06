@@ -34,7 +34,8 @@ extern "C" {
 #define HOME_PUMP_LEVEL_DISPLAY_TIMEOUT     (3000) /// 3s
 
 /// 速度调节界面动画展示时间
-#define HOME_PUMP_SPEED_DISPLAY_TIMEOUT     (3000) /// 3s
+#define HOME_PUMP_SPEED_DISPLAY_TIMEOUT     (10000) /// 10s
+#define HOME_PUMP_SPEED_SYNC_TIMEOUT        (3000) /// 3s
 
 /// 主界面UI动作枚举
 typedef enum {
