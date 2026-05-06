@@ -384,15 +384,11 @@ static int on_broadcast_receiver_route(broadcast_mask_id_t id, void *context, in
                     set_key_backlight(thiz, 100);
                 }
             } else if (arg1 == PM_BROADCAST_SYS_IDLE) {
-                if (wm && wm->is_current_window(wm, ID_WINDOW_CHARGE) == 0 && wm->is_current_window(wm, ID_WINDOW_GUIDE) == 0) {
-                    thiz->priv.key_light_adaptive_cap_level = 50;
-                    set_key_backlight_rate(thiz, 50);
-                }
+                thiz->priv.key_light_adaptive_cap_level = 50;
+                set_key_backlight_rate(thiz, 50);
             } else if (arg1 == PM_BROADCAST_SYS_IDLE_RELEASE) {
                 thiz->priv.key_light_adaptive_cap_level = LED_LEVEL_MAX;
-                if (wm && wm->is_current_window(wm, ID_WINDOW_CHARGE) == 0 && wm->is_current_window(wm, ID_WINDOW_GUIDE) == 0) {
-                    set_key_backlight_rate(thiz, 100);
-                }
+                set_key_backlight_rate(thiz, 100);
             }
             break;
         default:
