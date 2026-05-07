@@ -454,7 +454,6 @@ static void breast_pump_remove_result_listener(on_breast_pump_result_cb_ptr cb)
     MUTEX_UNLOCK(breast_pump_obj->priv.m_lock);
 }
 
-
 static const char *get_breast_pump_status_name(uint8_t status)
 {
     switch (status) {

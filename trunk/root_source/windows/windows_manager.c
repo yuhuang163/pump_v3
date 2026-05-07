@@ -729,7 +729,6 @@ static int on_post_wm_init(void *ptr)
     wm->priv.bcd->context = wm;
     wm->priv.bcd->name = "window_manager";
     wm->priv.bcd->id.code |= ID_BROADCAST_PM_STATE_CHANGE;
-    wm->priv.bcd->id.code |= ID_BROADCAST_SYS_STATE_CHANGE;
     wm->priv.bcd->id.code |= ID_BROADCAST_AIRPLANE_MODE_STATE_CHANGE;
     wm->priv.bcd->receiver_cb = on_wm_receive_internal;
     register_broadcast_receiver(wm->priv.bcd);

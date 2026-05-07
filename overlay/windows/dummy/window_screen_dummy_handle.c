@@ -94,8 +94,6 @@ static void on_dummy_window_receive(broadcast_mask_id_t id, void *context,
             LOG_WM("PM_RESUME, wakeup_reason: %d.", wakeup_reason);
             wakup_enter_new_window_policy(proc, wakeup_reason);
             break;
-        case ID_BROADCAST_BATTERY_STATE_CHANGE:
-            break;
         default:
             break;
     }
@@ -186,7 +184,6 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
     proc->ble = (ble_manager_context_t *)find_module(ID_MODULE_BLE);
     /// 监听PM状态改变.
     proc->receiver.id.code = ID_BROADCAST_PM_STATE_CHANGE;
-    proc->receiver.id.code |= ID_BROADCAST_BATTERY_STATE_CHANGE;
     proc->receiver.context = proc;
     proc->receiver.name = "dummy_screen";
     proc->receiver.receiver_cb = on_dummy_window_receive;

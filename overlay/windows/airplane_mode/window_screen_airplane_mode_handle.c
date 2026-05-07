@@ -37,22 +37,6 @@ INIT_WINDOW_CONTEXT();
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-static void on_airplane_mode_window_receive(broadcast_mask_id_t id, void *context,
-                                 int32_t pm_state, int32_t wakeup_reason, broadcast_priv_data_t *pdata)
-{
-    ui_proc_airplane_mode_t *proc = (ui_proc_airplane_mode_t *)context;
-    EXCEPTION_CHECK_VOID(proc);
-    WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_AIRPLANE_MODE);
-    switch (id.code) {
-        case ID_BROADCAST_PM_STATE_CHANGE: 
-            break;
-        case ID_BROADCAST_BATTERY_STATE_CHANGE: 
-            break;
-        default:
-            break;
-    }
-}
-
 static int on_airplane_mode_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t keytype)
 {
     ui_proc_airplane_mode_t *proc = user_data;
@@ -153,13 +137,6 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
     proc->airplane = (airplane_mode_context_t *)find_module(ID_MODULE_AIRPLANE_MODE);
     proc->ble = (ble_manager_context_t *)find_module(ID_MODULE_BLE);
     proc->show_countdown_time = 0;
-    /// 监听PM状态改变.
-    proc->receiver.id.code = ID_BROADCAST_PM_STATE_CHANGE;
-    proc->receiver.id.code |= ID_BROADCAST_BATTERY_STATE_CHANGE;
-    proc->receiver.context = proc;
-    proc->receiver.name = "airplane_mode_screen";
-    proc->receiver.receiver_cb = on_airplane_mode_window_receive;
-    register_broadcast_receiver(&proc->receiver);
     /// 配置窗口上下文.
     window_context_t *w_ctx = &proc->w_ctx;
     w_ctx->new_window_id = window_id;

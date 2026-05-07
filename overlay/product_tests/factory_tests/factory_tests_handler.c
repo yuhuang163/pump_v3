@@ -390,10 +390,6 @@ int on_factory_tests_br_receiver_route(broadcast_mask_id_t id, void *context, in
     tests_manager_context_t *ctx = context;
 
     switch (id.code) {
-        case ID_BROADCAST_PM_STATE_CHANGE:
-            break;
-        case ID_BROADCAST_BATTERY_STATE_CHANGE:
-            break;
         case ID_BROADCAST_BREAST_PUMP_STATE_CHANGE:
             if (arg1 == BREAST_PUMP_BROADCAST_COMPLETED) {
                 if (ctx->priv.current_mode == TST_AGING_TEST_TYPE) {
