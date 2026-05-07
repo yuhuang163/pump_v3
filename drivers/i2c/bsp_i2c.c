@@ -172,12 +172,18 @@ int bsp_i2c_write_byte(i2c_master_id_e device_id, i2c_master_data_t *data)
         LOGE("data_len is too long: %d", data_len);
         return BSP_ERROR;
     }
-    uint8_t * data_buf = (uint8_t *)u_malloz(data_len);
+    uint8_t * data_buf = (uint8_t *)u_malloz(data_len < 128 ? 128 : data_len);
     if (!data_buf) {
         return BSP_ERROR;
     }
-    memcpy(data_buf, data->reg_addr, data->reg_addr_len);
-    memcpy(&data_buf[data->reg_addr_len], data->data, data->len);
+
+    if (data->reg_addr_len > 0) {
+        memcpy(data_buf, data->reg_addr, data->reg_addr_len);
+    }
+
+    if (data->len > 0) {
+        memcpy(&data_buf[data->reg_addr_len], data->data, data->len);
+    }
     MUTEX_LOCK(s_i2c_mux[device_id]);
     if (s_i2c_is_ready[device_id]) {
         #if IS_SUPPORT_I2C_MASTER_TASK
