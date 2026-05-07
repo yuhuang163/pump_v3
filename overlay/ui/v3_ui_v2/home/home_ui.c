@@ -113,6 +113,8 @@ typedef enum {
     HOME_TEXT_CLOCK_AND_RECORD,  /// 显示时钟和记录文本
     HOME_TEXT_CLOCK_ADJUST_TIP,  /// 显示时钟对时提示文本
     HOME_TEXT_CLOCK_LIGHT_TIP,   /// 显示时钟夜灯提示文本
+    HOME_TEXT_LOW_POWER_TIP, /// 显示低电量提示文本
+    HOME_TEXT_CLOCK_LOW_POWER_TIP, /// 显示时钟低电量提示文本
     HOME_TEXT_ID_MAX
 } home_text_id_e;
 
@@ -145,7 +147,11 @@ const static home_text_info_t home_text_infos[HOME_TEXT_ID_MAX] = {
     {"Time not updated. Connect\nthe device to sync.", 
         0, IDLE_LABEL_TEXT_Y, true, &lv_font_oppo_sans_16_medium},
     {"Press to turn on the light",
-        0, IDLE_LIGHT_TIP_LABEL_TEXT_Y, false, &lv_font_oppo_sans_16_medium}    
+        0, IDLE_LIGHT_TIP_LABEL_TEXT_Y, false, &lv_font_oppo_sans_16_medium},  
+    {"Battery too low. Connect to a\ncharger.",
+        0, IDLE_LABEL_TEXT_Y, true, &lv_font_oppo_sans_16_medium},
+    {"Battery too low. Connect to a\ncharger",
+        0, IDLE_WITH_CLOCK_LABEL_TEXT_Y, true, &lv_font_oppo_sans_16_medium}
 };
 
 /*
@@ -535,6 +541,28 @@ static void home_ui_update(ui_manager_context_t *thiz, ui_proc_home_t *proc)
                 IDLE_LIGHT_TIP_LABEL_ICON_X, IDLE_LIGHT_TIP_LABEL_ICON_Y, true);
             home_button_ui_update(thiz, IDLE_BUTTON_ICON_X, IDLE_BUTTON_ICON_Y, false);
             home_label_text_ui_update(thiz, true, HOME_TEXT_CLOCK_LIGHT_TIP);
+            home_record_time_ui_update(thiz, 0, 0, IDLE_LABEL_TEXT_Y, false);
+            home_clock_ui_update(thiz, 0, true);
+            home_root_animation_update(thiz, RESOURCE_ID_HD_ANIM_IP_START,
+                RESOURCE_ID_HD_ANIM_IP_END - RESOURCE_ID_HD_ANIM_IP_START + 1,
+                HOME_IDLE_ANIMATION_X, HOME_IDLE_ANIMATION_Y);
+            break;
+        case HOME_UI_DISPLAY_LOW_POWER:
+            home_label_ui_update(thiz, RESOURCE_ID_HOME_IDLE_LABLE_ICON,
+                IDLE_LABEL_AREA_ICON_X, IDLE_LABEL_AREA_ICON_Y, true);
+            home_button_ui_update(thiz, IDLE_BUTTON_ICON_X, IDLE_BUTTON_ICON_Y, false);
+            home_label_text_ui_update(thiz, true, HOME_TEXT_LOW_POWER_TIP);
+            home_record_time_ui_update(thiz, 0, 0, IDLE_LABEL_TEXT_Y, false);
+            home_clock_ui_update(thiz, 0, false);
+            home_root_animation_update(thiz, RESOURCE_ID_HD_ANIM_IP_START,
+                RESOURCE_ID_HD_ANIM_IP_END - RESOURCE_ID_HD_ANIM_IP_START + 1,
+                HOME_IDLE_ANIMATION_X, HOME_IDLE_ANIMATION_Y);
+            break;
+        case HOME_UI_DISPLAY_CLOCK_LOW_POWER:
+            home_label_ui_update(thiz, RESOURCE_ID_HOME_IDLE_LABLE_ICON,
+                IDLE_WITH_CLOCK_LABLE_ICON_X, IDLE_WITH_CLOCK_LABLE_ICON_Y, true);
+            home_button_ui_update(thiz, IDLE_BUTTON_ICON_X, IDLE_BUTTON_ICON_Y, false);
+            home_label_text_ui_update(thiz, true, HOME_TEXT_CLOCK_LOW_POWER_TIP);
             home_record_time_ui_update(thiz, 0, 0, IDLE_LABEL_TEXT_Y, false);
             home_clock_ui_update(thiz, 0, true);
             home_root_animation_update(thiz, RESOURCE_ID_HD_ANIM_IP_START,

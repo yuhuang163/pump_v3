@@ -216,7 +216,10 @@ static void home_screen_saver_ui_update(ui_manager_context_t *thiz, ui_proc_home
         saver_info->force_update = true;
     }
 
-    if (home_ui_type == HOME_UI_DISPLAY_CLOCK || home_ui_type == HOME_UI_DISPLAY_CLOCK_AND_RECORD) {
+    if (home_ui_type == HOME_UI_DISPLAY_CLOCK || 
+        home_ui_type == HOME_UI_DISPLAY_CLOCK_AND_RECORD ||
+        home_ui_type == HOME_UI_DISPLAY_CLOCK_LOW_POWER ||
+        home_ui_type == HOME_UI_DISPLAY_CLOCK_LIGHT_TIP) {
         home_screen_saver_clock_ui_update(thiz, true);
         home_screen_saver_dummy_icon_update(thiz, 43);
     } else {
