@@ -23,21 +23,21 @@ extern "C" {
 #define LOW_BAT_PERCENTAGE                       5
 #endif
 
-/// 低电禁止启动阈值
-#ifndef LOW_BAT_PERCENTAGE_START_NOT_ALLOWED
-#define LOW_BAT_PERCENTAGE_START_NOT_ALLOWED     10
+/// 禁止启动电量阈值
+#ifndef FORBID_START_BAT_PERCENTAGE
+#define FORBID_START_BAT_PERCENTAGE              10
 #endif
 
-/// 低电低功耗运行阈值
-#ifndef LOW_BAT_PERCENTAGE_LOW_POWER_RUN
-#define LOW_BAT_PERCENTAGE_LOW_POWER_RUN         20
+/// 低功耗运行阈值
+#ifndef LOW_POWER_RUN_PERCENTAGE
+#define LOW_POWER_RUN_PERCENTAGE                 20
 #endif
 
 typedef enum {
     BATTERY_STATE_NONE = 0, /// 正常.
     BATTERY_STATE_EMPTY = 1, /// 空电量.
     BATTERY_STATE_LOW_POWER_SHUTDOWN = 2, /// 低电量关机.
-    BATTERY_STATE_LOW_POWER_START_NOT_ALLOWED = 3, /// 低电禁止启动.
+    BATTERY_STATE_FORBID_START = 3, /// 禁止启动.
     BATTERY_STATE_LOW_POWER_RUN = 4, /// 低功耗运行.
     BATTERY_STATE_MAX,
 } battery_state_e;

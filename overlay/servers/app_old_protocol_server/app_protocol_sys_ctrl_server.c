@@ -361,7 +361,7 @@ void app_old_comm_handle_dev_abnormal_app_req(uint8_t cal, uint8_t *cab)
     uint8_t report_data[10] = {0};
     uint8_t data_len = 0;
     ///电量不足无法开始
-    if (percent <= LOW_BAT_PERCENTAGE_START_NOT_ALLOWED) {
+    if (percent <= FORBID_START_BAT_PERCENTAGE) {
         report_data[data_len++] = OLD_PUBLISH_ABNORMAL_STATE_ACTIVE;
     }else {
         report_data[data_len++] = OLD_PUBLISH_ABNORMAL_STATE_CLEARED;

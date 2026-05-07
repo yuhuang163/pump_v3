@@ -42,11 +42,11 @@ static battery_state_e get_battery_state(int percent, int charge_status)
         return BATTERY_STATE_LOW_POWER_SHUTDOWN;
     } 
     
-    if (percent <= LOW_BAT_PERCENTAGE_START_NOT_ALLOWED) {
-        return BATTERY_STATE_LOW_POWER_START_NOT_ALLOWED;
+    if (percent <= FORBID_START_BAT_PERCENTAGE) {
+        return BATTERY_STATE_FORBID_START;
     } 
     
-    if (percent <= LOW_BAT_PERCENTAGE_LOW_POWER_RUN) {
+    if (percent <= LOW_POWER_RUN_PERCENTAGE) {
         return BATTERY_STATE_LOW_POWER_RUN;
     } 
 
@@ -149,7 +149,7 @@ static void polling_battery_status(void *user_data)
         thiz->priv.battery_state == BATTERY_STATE_LOW_POWER_SHUTDOWN) {
         SEND_BROADCAST_ARGS2(ID_BROADCAST_BATTERY_STATE_CHANGE, BATTERY_BROADCAST_LOW_POWER_SHUTDOWN, bat_per);   /// 发送电池状态广播.
     } else if (thiz->priv.battery_state == BATTERY_STATE_LOW_POWER_RUN ||
-        thiz->priv.battery_state == BATTERY_STATE_LOW_POWER_START_NOT_ALLOWED) {
+        thiz->priv.battery_state == BATTERY_STATE_FORBID_START) {
         SEND_BROADCAST_ARGS2(ID_BROADCAST_BATTERY_STATE_CHANGE, BATTERY_BROADCAST_LOW_POWER_RUN, bat_per);   /// 发送电池状态广播.
     } else {
         SEND_BROADCAST_ARGS2(ID_BROADCAST_BATTERY_STATE_CHANGE, BATTERY_BROADCAST_CAPACITY_CHANGE, bat_per);   /// 发送电池状态广播.

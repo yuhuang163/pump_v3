@@ -120,7 +120,7 @@ int battery_ui_update(ui_manager_context_t *thiz, lv_obj_t *root, battery_manage
         battery_img_id = get_charge_battery_img_id(percent);
         battery_status = is_display_state > 0 ? UI_BATTERY_STATE_CHARGING : UI_BATTERY_STATE_NONE;
     } else {
-        if (is_display_state > 0 && percent < 10) {
+        if (is_display_state > 0 && percent < LOW_POWER_RUN_PERCENTAGE) {
             battery_status = UI_BATTERY_STATE_LOW_POWER;
         }
         battery_img_id = get_battery_img_id(percent);
