@@ -123,17 +123,19 @@ static void polling_battery_status(void *user_data)
         thiz->priv.battery_state = battery_state;
         if (thiz->priv.battery_state == BATTERY_STATE_LOW_POWER_SHUTDOWN ||
             thiz->priv.battery_state == BATTERY_STATE_EMPTY) {
-            multi_func_msg_data_t msg = {0};
-            msg.union_body.extra.window_id = ID_WINDOW_POPUP_WINDOW;
-            msg.union_body.extra.is_bg_dispatch = 0x01;
-            msg.union_body.extra.arg1 = ID_POPUP_UI_LOW_POWER;
-            msg.union_body.extra.popup_exit_time = 3000;
-            msg.union_body.extra.forbid_short_press_exit_popup = true;
             window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
-            if (wm) {
+            if (wm && wm->is_current_window(wm, ID_WINDOW_CHARGE) == 0 &&
+                wm->is_current_window(wm, ID_WINDOW_LOGO) == 0) {
+                multi_func_msg_data_t msg = {0};
+                msg.union_body.extra.window_id = ID_WINDOW_POPUP_WINDOW;
+                msg.union_body.extra.is_bg_dispatch = 0x01;
+                msg.union_body.extra.arg1 = ID_POPUP_UI_LOW_POWER;
+                msg.union_body.extra.popup_exit_time = 3000;
+                msg.union_body.extra.forbid_short_press_exit_popup = true;
                 wm->dispatch_new_window_args(wm, &msg);
+            } else {
+                LOG_MISC("in charge or logo window, ignore popup window.");
             }
-
             servers_publish_data_args_t args_temp = {
                 .arg1 = OLD_PUBLISH_ABNORMAL_LOW_BAT_SHUTDOWN_SOON,
                 .arg2 = OLD_PUBLISH_ABNORMAL_STATE_ACTIVE,
