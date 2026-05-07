@@ -56,9 +56,9 @@ extern "C" {
 #define SG_FLOAT_VOLTAGE_RATE_2              100     /// 单节电池充电浮压调整阈值 偏差 
 
 /// 三节电池充电曲线参数
-#define THREE_CHARGING_FORCE_UPDATE_THRESHOLD   300     ///单位mV  偏差超阈值强制更新
-#define THREE_CHARGING_UPDATE_THRESHOLD_1       240     ///单位mV  偏差阈值1
-#define THREE_CHARGING_UPDATE_THRESHOLD_2       80      ///单位mV  偏差阈值2
+#define THREE_CHARGING_FORCE_UPDATE_THRESHOLD   420     ///单位mV  偏差超阈值强制更新
+#define THREE_CHARGING_UPDATE_THRESHOLD_1       340     ///单位mV  偏差阈值1
+#define THREE_CHARGING_UPDATE_THRESHOLD_2       110     ///单位mV  偏差阈值2
 #define THREE_CHARGING_UPDATE_THRESHOLD_3       0       ///单位mV  偏差阈值2
 #define THREE_CHARGING_DEBOUNCE_RATE_1          1000.0  ///去抖率  
 #define THREE_CHARGING_DEBOUNCE_RATE_2          0.004   ///去抖率  
