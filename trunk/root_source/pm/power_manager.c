@@ -77,13 +77,7 @@ static const char *print_wakeup_state(int state)
 
 static int get_suspend_timeout(power_manager_context_t *thiz)
 {
-    int timeout = PM_SUSPEND_TIME_S;
-    battery_manager_context_t *battery = (battery_manager_context_t *)find_module(ID_MODULE_BATTERY);
-    if (battery && battery->is_empty_battery() > 0) {
-        timeout = PM_SUSPEND_LOW_BAT_TIME_S;
-    }
-    // LOG_PM("suspend_timeout:(%d)s", timeout);
-    return timeout;
+    return PM_SUSPEND_TIME_S;
 }
 
 static void dispatch_pm_event(power_manager_context_t *ctx, int args)

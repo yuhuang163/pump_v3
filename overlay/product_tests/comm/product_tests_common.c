@@ -80,15 +80,6 @@ void common_tests_thread_handler(struct tests_manager_context *ctx, void *msg)
 int on_common_tests_br_receiver_route(broadcast_mask_id_t id, void *context, int arg1, int arg2, void *user_data)
 {
     tests_manager_context_t *ctx = context;
-
-    switch (id.code) {
-        case ID_BROADCAST_PM_STATE_CHANGE:
-            break;
-        case ID_BROADCAST_BATTERY_STATE_CHANGE:
-            break;
-        default:
-            break;
-    }
     return 0;
 }
 

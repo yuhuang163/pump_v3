@@ -63,6 +63,8 @@ typedef enum {
     HOME_UI_DISPLAY_CLOCK,             /// 显示时钟 UI
     HOME_UI_DISPLAY_CLOCK_AND_RECORD,  /// 显示时钟和记录 UI
     HOME_UI_DISPLAY_CLOCK_LIGHT_TIP,   /// 显示时钟夜灯提示
+    HOME_UI_DISPLAY_LOW_POWER,         /// 显示低电量 UI
+    HOME_UI_DISPLAY_CLOCK_LOW_POWER,   /// 显示带时钟低电量 UI
     HOME_UI_DISPLAY_MAX
 } home_page_display_type_e;
 

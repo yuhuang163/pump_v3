@@ -866,7 +866,7 @@ static bool app_old_comm_check_if_start_block_abnormal(uint8_t ctrl_status)
         return false;
     }
 
-    if (app_old_comm_get_battery_percent() <= LOW_BAT_PERCENTAGE_RUN_ONCE_NOT_ALLOWED) {
+    if (app_old_comm_get_battery_percent() <= FORBID_START_BAT_PERCENTAGE) {
         return app_old_comm_report_start_block_abnormal(OLD_PUBLISH_ABNORMAL_LOW_BAT_CANNOT_START);
     }
 

@@ -90,8 +90,6 @@ static void on_charge_window_receive(broadcast_mask_id_t id, void *context, int 
     EXCEPTION_CHECK_VOID(proc);
     WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_CHARGE);
     switch (id.code) {
-        case ID_BROADCAST_PM_STATE_CHANGE: 
-            break;
         case ID_BROADCAST_BATTERY_STATE_CHANGE:
             if (arg1 == BATTERY_BROADCAST_CHARGE_STATE_CHANGE) {
                 if (BATTERY_IS_CHARGING(arg2) == 0) {
@@ -240,7 +238,6 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
     proc->pm = (power_manager_context_t *)find_module(ID_MODULE_POWER);
     proc->ble = (ble_manager_context_t *)find_module(ID_MODULE_BLE);
     /// 监听PM状态改变.
-    proc->receiver.id.code = ID_BROADCAST_PM_STATE_CHANGE;
     proc->receiver.id.code |= ID_BROADCAST_BATTERY_STATE_CHANGE;
     proc->receiver.context = proc;
     proc->receiver.name = "charge_screen";
