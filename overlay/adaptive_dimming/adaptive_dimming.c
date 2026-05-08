@@ -14,7 +14,7 @@
 *****************************************************************************************
 */
 #define ADAP_DIM_INVALID_DUTY                       255            /// 无效的LED亮度等级
-#define ADAPTIVE_DIMMING_DEBUG_LOG                  (1)            /// 自适应背光调试日志 0: 不打印 1: 打印
+#define ADAPTIVE_DIMMING_DEBUG_LOG                  (0)            /// 自适应背光调试日志 0: 不打印 1: 打印
 
 /*
 * LOCAL VARIABLE DEFINITIONS
