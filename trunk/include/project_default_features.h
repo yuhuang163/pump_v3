@@ -168,8 +168,8 @@ extern "C" {
 /**
  * 仅支持power key开机
 */
-#ifndef IS_SUPPORT_POWER_KEY_ON_BOOT
-#define IS_SUPPORT_POWER_KEY_ON_BOOT                              (0)
+#ifndef IS_SUPPORT_POWER_OFF_WHEN_CHARGING
+#define IS_SUPPORT_POWER_OFF_WHEN_CHARGING                              (0)
 #endif
 
 #ifdef __cplusplus

@@ -139,8 +139,8 @@ extern "C" {
 #define IS_SUPPORT_PWR_ON_WHEN_PLUG_IN                   (1)
 /// 支持夜灯
 #define IS_SUPPORT_NIGHT_LIGHT                           (1)
-/// 仅支持power key开机
-#define IS_SUPPORT_POWER_KEY_ON_BOOT                     (0)
+/// 支持关机充电
+#define IS_SUPPORT_POWER_OFF_WHEN_CHARGING               (1)
 /// 支持低电量自动结束泵奶
 #define IS_SUPPORT_LOW_POWER_AUTO_STOP_PUMP              (0)
 #else
@@ -154,8 +154,8 @@ extern "C" {
 #define IS_SUPPORT_PUMP_DUTY_ADJUST                      (0)
 /// 支持夜灯
 #define IS_SUPPORT_NIGHT_LIGHT                           (0)
-/// 仅支持power键按下开机
-#define IS_SUPPORT_POWER_KEY_ON_BOOT                     (1)
+/// 支持关机充电
+#define IS_SUPPORT_POWER_OFF_WHEN_CHARGING               (0)
 /// 支持低电量自动结束泵奶
 #define IS_SUPPORT_LOW_POWER_AUTO_STOP_PUMP              (0)
 #endif

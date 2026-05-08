@@ -38,7 +38,6 @@ INIT_WINDOW_CONTEXT();
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-
 static void touch_key_fw_version_check_cb(hdr_post_args_t *args)
 {
     ui_proc_logo_t *proc = args->user_data;

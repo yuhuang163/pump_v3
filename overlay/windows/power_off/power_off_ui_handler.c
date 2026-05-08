@@ -108,7 +108,12 @@ static void power_off_cb(hdr_post_args_t *args)
     rt_device_node_t *power_dev = pbus->find_device(ID_DEVICE_POWER);
     EXCEPTION_CHECK_VOID(power_dev);
     int arg1[] = {0};
-    power_dev->ioctl(power_dev, OP_CODE_POWER_CONTROL, (void *)arg1);
+    for (uint8_t i = 0; i < 3; i++) {
+        power_dev->ioctl(power_dev, OP_CODE_POWER_CONTROL, (void *)arg1);
+        msleep(200);
+        LOG_PM("power off try: %d", i);
+    }
+    platform_system_reboot();
 }
 
 /*
