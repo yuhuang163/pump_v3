@@ -37,13 +37,9 @@ static int breast_pump_completed_route(breast_pump_manager_context_t *ctx)
     int need_save = 1;
     pump_result_info_t *result_info   = &ctx->priv.result_info[BREAST_PUMP_RESULT_PUMPING];
     pump_result_info_t *history_info  = &ctx->priv.result_info[BREAST_PUMP_RESULT_HISTORY];
-    if (result_info->work_valid_time < ROOT_BREAST_PUMP_TIME_VALID) {
-        LOG_PMP("no need to save, work_valid_time: %lu", result_info->work_valid_time);
-        need_save = 0;
-    } else {
-        memcpy(history_info, result_info, sizeof(pump_result_info_t)); /// 保存上次有效泵奶记录
-        history_info->finish_timestamp = platform_get_utc_time();
-    }
+    
+    memcpy(history_info, result_info, sizeof(pump_result_info_t)); /// 保存上次有效泵奶记录
+    history_info->finish_timestamp = platform_get_utc_time();
 #if 0
     int user_bind_info = 0;
     ctx->priv.st->get_store_ram_val(STORE_ID_USER_BIND_INFO, 0, 0, &user_bind_info);
