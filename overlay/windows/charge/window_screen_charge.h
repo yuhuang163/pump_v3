@@ -25,8 +25,9 @@ extern "C" {
 
 /// 充电动画展示时间
 typedef enum {
-    CHARGE_HDR_EXIT_CHARGE_POLICY = 100,
-    CHARGE_HDR_SCREEN_TIMEOUT_DETECT,
+    CHARGE_HDR_EXIT_CHARGE_POLICY = 100, /// 退出充电策略
+    CHARGE_HDR_SCREEN_TIMEOUT_DETECT, /// 充电界面超时检测
+    CHARGE_HDR_DISCHARGE_POWER_OFF, /// 拔除充电关机
     CHARGE_HDR_CHARGE_SCREEN_ON,
     CHARGE_HDR_ACTION_MAX
 } charge_ui_hdr_action_e;

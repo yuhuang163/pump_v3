@@ -44,15 +44,14 @@ INIT_WINDOW_CONTEXT();
 static void charge_ui_common_cb(hdr_post_args_t *args)
 {
     ui_proc_charge_t *proc = args->user_data;
-    EXCEPTION_CHECK_VOID(proc);
+    EXCEPTION_CHECK_VOID(proc && proc->wm);
     WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_CHARGE);
     LOG_WM("margic:%x, action:%d.", proc->margic, args->arg1);
     int action = args->arg1;
+    multi_func_msg_data_t msg = {0};
     switch (action) {
         case CHARGE_HDR_EXIT_CHARGE_POLICY:
             LOG_WM("%s", args->name);
-            EXCEPTION_CHECK_VOID(proc->wm);
-            multi_func_msg_data_t msg = {0};
             if (proc->airplane && proc->airplane->is_on_airplane_mode()) {
                 LOG_WM("goto airplane mode screen");
                 msg.union_body.extra.window_id = ID_WINDOW_AIRPLANE_MODE;
@@ -75,6 +74,12 @@ static void charge_ui_common_cb(hdr_post_args_t *args)
             LOG_WM("%s", args->name);
             show_power_off_charging_ui(proc);
             break;
+        case CHARGE_HDR_DISCHARGE_POWER_OFF:
+            LOG_WM("%s", args->name);
+            if (proc->pm) {
+                proc->pm->system_power_control(false);
+            }
+            break;
         case CHARGE_HDR_CHARGE_SCREEN_ON:
             LOG_WM("%s", args->name);
             break;
@@ -96,7 +101,7 @@ static void on_charge_window_receive(broadcast_mask_id_t id, void *context, int 
                     proc->exit_charge_window_flag = 1;
                     LOG_WM("post exit charge policy task");
                     POST_TASK_HANDLER_NO_DELAY_ARG1(charge_ui_common_cb, proc, 
-                        CHARGE_HDR_EXIT_CHARGE_POLICY, CHARGE_PAGE_POLICY_TASK_NAME);
+                        CHARGE_HDR_DISCHARGE_POWER_OFF, CHARGE_PAGE_POLICY_TASK_NAME);
                 }
             }  else if (arg1 == BATTERY_BROADCAST_CHARGE_ADAPTER_MISMATCH) {
                 LOG_WM("show charge adapter ui");
