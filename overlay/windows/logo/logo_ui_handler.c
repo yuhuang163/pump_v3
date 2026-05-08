@@ -158,13 +158,13 @@ static void logo_ui_hdr_remove(void)
 */
 void start_logo_ui_animation(ui_proc_logo_t *proc)
 {
-    EXCEPTION_CHECK_VOID(proc->pm);
-    while (get_timestamp_ms(0) < BOOT_LONG_PRESS_TIME) {
-        if (proc->pm->is_system_power_on()) {
-            break;
-        }
-        msleep(10);
+#if IS_SUPPORT_MODULE_RES
+    resource_manager_context_t *res = (resource_manager_context_t *)find_module(ID_MODULE_RES);
+    if (res) {
+        LOG_WM("wait res ready");
+        res->wait_init_completed(res);
     }
+#endif
     LOG_UI("start logo ui animation.");
     show_logo_ui(proc);
 }

@@ -687,7 +687,12 @@ static int system_power_control(bool state)
         EXCEPTION_CHECK_INT(power_dev);
         st->flash_protect(true); /// 禁止flash读写操作.
         int args[] = {0};
-        power_dev->ioctl(power_dev, OP_CODE_POWER_CONTROL, (void *)args);
+        for (uint8_t i = 0; i < 3; i++) {
+            power_dev->ioctl(power_dev, OP_CODE_POWER_CONTROL, (void *)args);
+            msleep(200);
+            LOG_PM("power off try: %d", i);
+        }
+        platform_system_reboot();
     }
     return 0;
 }

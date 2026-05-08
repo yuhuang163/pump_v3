@@ -468,39 +468,13 @@ static int dispatch_new_window_args(struct window_manager_context *wm, multi_fun
     return -1;
 }
 
-static void window_boot_completed_cb(hdr_post_args_t *args)
-{
-    window_manager_context_t *wm = (window_manager_context_t *)args->user_data;
-    EXCEPTION_CHECK_VOID(wm);
-#if IS_SUPPORT_MODULE_RES
-    resource_manager_context_t *res = (resource_manager_context_t *)find_module(ID_MODULE_RES);
-    if (res) {
-        LOG_WM("wait res ready");
-        res->wait_init_completed(res);
-    }
-#endif
-    wm->window_boot_completed(wm);
-    power_manager_context_t *pm = (power_manager_context_t *)find_module(ID_MODULE_POWER);
-    multi_func_msg_data_t __msg = {0};
-    if (pm->is_system_power_on()) {
-        __msg.union_body.extra.window_id = ID_WINDOW_LOGO;
-        LOG_WM("goto logo screen");
-    } else {
-        __msg.union_body.extra.window_id = ID_WINDOW_DUMMY;
-        LOG_WM("goto dummy screen");
-    }
-    dispatch_new_window_args(wm, &__msg);
-}
-
 static void window_scheduling_start(void)
 {
     window_manager_context_t *wm = thiz;
-    uint32_t delay_time = BOOT_LONG_PRESS_TIME - get_timestamp_ms(0);
-    if (delay_time > BOOT_LONG_PRESS_TIME || delay_time == 0) {
-        delay_time = 500;
-    }
-    LOG_WM("delay_time: %d", delay_time);
-    POST_TASK_HANDLER_DELAYED_ARG1(window_boot_completed_cb, delay_time, wm, "boot_completed_cb");
+    multi_func_msg_data_t __msg = {0};
+    __msg.union_body.extra.window_id = ID_WINDOW_DUMMY;
+    LOG_WM("goto dummy screen");
+    dispatch_new_window_args(wm, &__msg);
 }
 
 static int post_async_msg_to_window(const char *tag, multi_func_msg_data_t *msg)
