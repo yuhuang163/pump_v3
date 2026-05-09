@@ -50,9 +50,6 @@ typedef enum {
     BATTERY_BROADCAST_CHARGE_PLUG_IN = 100, /// 充电插头插入.
     BATTERY_BROADCAST_CHARGE_PLUG_OUT,      /// 充电插头拔出.
     BATTERY_BROADCAST_CHARGE_STATE_CHANGE,  /// 充电状态改变. 
-    BATTERY_BROADCAST_LOW_POWER_SHUTDOWN,   /// 低电量关机.
-    BATTERY_BROADCAST_LOW_POWER_RUN,        /// 低电量运行.
-    BATTERY_BROADCAST_CAPACITY_CHANGE,      /// 电量容量改变.
     BATTERY_BROADCAST_CHARGE_ADAPTER_MISMATCH, /// 充电适配器不匹配.
     BATTERY_BROADCAST_CHARGE_ADAPTER_MISMATCH_RECOVER, /// 充电适配器不匹配恢复.
     BATTERY_BROADCAST_ID_MAX,
@@ -82,6 +79,8 @@ typedef struct battery_manager_context {
         uint8_t is_adapter_mismatch;   /// 0 正常；1 适配器不匹配；
         struct rt_device_node *battery;
         struct misc_manager_context *misc;
+        list_head_t client_list;
+        os_mutex_id m_lock;
     } priv;
 /// public:
     uint8_t (*is_vbus_plug_in)(void);
@@ -90,6 +89,8 @@ typedef struct battery_manager_context {
     uint8_t (*get_battery_state)(void);
     uint8_t (*get_battery_percent)(void);
     uint8_t (*is_adapter_mismatch)(void); 
+    void (*add_battery_state_cb)(void *user_data, on_battery_state_cb_ptr cb);
+    void (*remove_battery_state_cb)(on_battery_state_cb_ptr cb);
 } battery_manager_context_t;
 
 #ifdef __cplusplus

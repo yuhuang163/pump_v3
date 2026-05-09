@@ -1084,7 +1084,8 @@ BLE_MODULE_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/overlay/ble/factory_service/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/ble/master_service/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/ble/remot_service/*.c) \
-	$(wildcard $(PROJECT_ROOT)/trunk/root_source/ble/*.c)
+	$(wildcard $(PROJECT_ROOT)/trunk/root_source/ble/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/framework_hooks/ble/*.c)
 
 # 吸奶泵模块源码
 BREAST_PUMP_MODULE_SRCS := \

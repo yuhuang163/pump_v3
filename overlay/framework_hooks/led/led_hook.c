@@ -386,39 +386,45 @@ static int on_broadcast_receiver_route(broadcast_mask_id_t id, void *context, in
                 }
             }
             break;
-        case ID_BROADCAST_BATTERY_STATE_CHANGE:
-            if (arg1 == BATTERY_BROADCAST_LOW_POWER_SHUTDOWN ||
-                arg1 == BATTERY_BROADCAST_LOW_POWER_RUN) {
-                if (get_night_light_onoff(thiz) > 0) {
-                    toggle_night_light(thiz);
-                }
-
-                if (get_key_backlight_rate(thiz) > 50) {
-                    set_key_backlight_rate(thiz, 50);
-                }
-            
-                if (get_key_light_adaptive_dimming(thiz) > 0) {
-                    set_key_light_adaptive_dimming(thiz, 0);
-                }
-            } else if (arg1 == BATTERY_BROADCAST_CAPACITY_CHANGE) {
-                if (get_key_backlight_rate(thiz) < 50) {
-                    power_manager_context_t *pm = (power_manager_context_t *)find_module(ID_MODULE_POWER);
-                    if (pm && pm->is_pm_idle() == 0) {
-                        set_key_backlight_rate(thiz, 100);
-                    } else {
-                        LOG_MISC("pm idle, ignore key backlight rate update.");
-                    }
-                }
-
-                if (get_key_light_adaptive_dimming(thiz) == 0) {
-                    set_key_light_adaptive_dimming(thiz, true);
-                }
-            }
-            break;
         default:
             break;
     }
     return 0;
+}
+
+static void on_led_battery_state_change_cb(void *user_data, battery_state_info_t *info)
+{
+    led_manager_context_t *thiz = (led_manager_context_t *)user_data;
+    EXCEPTION_CHECK_VOID(thiz);
+    if (info->battery_state == BATTERY_STATE_EMPTY || 
+        info->battery_state == BATTERY_STATE_LOW_POWER_SHUTDOWN ||
+        info->battery_state == BATTERY_STATE_FORBID_START ||
+        info->battery_state == BATTERY_STATE_LOW_POWER_RUN) {
+        if (get_night_light_onoff(thiz) > 0) {
+            toggle_night_light(thiz);
+        }
+
+        if (get_key_backlight_rate(thiz) > 50) {
+            set_key_backlight_rate(thiz, 50);
+        }
+    
+        if (get_key_light_adaptive_dimming(thiz) > 0) {
+            set_key_light_adaptive_dimming(thiz, 0);
+        }
+    } else {
+        if (get_key_backlight_rate(thiz) < 50) {
+            power_manager_context_t *pm = (power_manager_context_t *)find_module(ID_MODULE_POWER);
+            if (pm && pm->is_pm_idle() == 0) {
+                set_key_backlight_rate(thiz, 100);
+            } else {
+                LOG_MISC("pm idle, ignore key backlight rate update.");
+            }
+        }
+
+        if (get_key_light_adaptive_dimming(thiz) == 0) {
+            set_key_light_adaptive_dimming(thiz, true);
+        }
+    }
 }
 
 static int on_post_init_route(led_manager_context_t *thiz)
@@ -452,6 +458,10 @@ static int on_post_init_route(led_manager_context_t *thiz)
         key_light_adaptive_thread);
 #endif
 #endif
+    battery_manager_context_t *battery = (battery_manager_context_t *)find_module(ID_MODULE_BATTERY);
+    if (battery) {
+        battery->add_battery_state_cb(thiz, on_led_battery_state_change_cb);
+    }
     return 0;
 }
 

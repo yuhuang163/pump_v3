@@ -267,24 +267,28 @@ static void on_home_ui_broadcast_receive_cb(broadcast_mask_id_t id, void *contex
                 home_page_display_type_update(proc);
             }
             break;
-        case ID_BROADCAST_BATTERY_STATE_CHANGE:
-            LOG_WM("battery state: %d, percent: %d", arg1, arg2);
-            if (arg1 == BATTERY_BROADCAST_CAPACITY_CHANGE) {
-                if (proc->home_display_type == HOME_UI_DISPLAY_CLOCK_LOW_POWER ||
-                    proc->home_display_type == HOME_UI_DISPLAY_LOW_POWER) {
-                    home_page_display_type_update(proc);
-                }
-            } else if (arg1 == BATTERY_BROADCAST_LOW_POWER_SHUTDOWN ||
-                arg1 == BATTERY_BROADCAST_LOW_POWER_RUN) {
-                if (proc->home_display_type != HOME_UI_DISPLAY_CLOCK_LOW_POWER &&
-                    proc->home_display_type != HOME_UI_DISPLAY_LOW_POWER) {
-                    home_page_display_type_update(proc);
-                }
-            }
-            break;
         default:
             break;
    }
+}
+
+static void on_home_window_battery_state_change_cb(void *user_data, battery_state_info_t *info)
+{
+    ui_proc_home_t *proc = (ui_proc_home_t *)user_data;
+    EXCEPTION_CHECK_VOID(proc);
+    if (info->battery_state == BATTERY_STATE_EMPTY || 
+        info->battery_state == BATTERY_STATE_LOW_POWER_SHUTDOWN || 
+        info->battery_state == BATTERY_STATE_FORBID_START) {
+        if (proc->home_display_type != HOME_UI_DISPLAY_CLOCK_LOW_POWER &&
+            proc->home_display_type != HOME_UI_DISPLAY_LOW_POWER) {
+            home_page_display_type_update(proc);
+        }
+    } else {
+        if (proc->home_display_type == HOME_UI_DISPLAY_CLOCK_LOW_POWER ||
+            proc->home_display_type == HOME_UI_DISPLAY_LOW_POWER) {
+            home_page_display_type_update(proc);
+        }
+    }
 }
 
 static int entry_event_cb(window_lift_cycle_e new_state,
@@ -299,6 +303,10 @@ static int entry_event_cb(window_lift_cycle_e new_state,
                 on_home_ui_keyevent_hdr, KEY_HANDLER_SHIELD_LEVEL_1);
         } else {
             LOG_WM("key not present, ignore.");
+        }
+
+        if (proc->battery) {
+            proc->battery->add_battery_state_cb(proc, on_home_window_battery_state_change_cb);
         }
         home_page_display_type_update(proc);
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
@@ -330,6 +338,13 @@ static int exit_event_cb(window_lift_cycle_e new_state,
             } else {
                 LOG_WM("key not present, ignore.");
             }
+            
+            if (proc->battery) {
+                proc->battery->remove_battery_state_cb(on_home_window_battery_state_change_cb);
+            } else {
+                LOG_WM("battery not present, ignore.");
+            }
+
             SET_WINDOW_CONTEXT(NULL);
             proc->margic = UI_WINDOW_MARGIC_CODE_INVALID;
             u_free(proc);
@@ -366,7 +381,6 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
     proc->receiver.name = "home_screen";
     proc->receiver.id.code |= ID_BROADCAST_PM_STATE_CHANGE;
     proc->receiver.id.code |= ID_BROADCAST_SYS_STATE_CHANGE;
-    proc->receiver.id.code |= ID_BROADCAST_BATTERY_STATE_CHANGE;
     proc->receiver.receiver_cb = on_home_ui_broadcast_receive_cb;
     register_broadcast_receiver(&proc->receiver);
     window_context_t *w_ctx = &proc->w_ctx;
