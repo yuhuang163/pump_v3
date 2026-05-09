@@ -175,11 +175,16 @@ static void ble_event_periph_disconnect_suc(void *context, void *data, int data_
     if (BLE_BIND_STATE_COMPLETE != pble->priv.ble_bind_state) {
         pble->priv.ble_bind_state = BLE_BIND_STATE_INIT;
     }
-    LOG_BLE("adv_speed_flag: %d", pble->priv.adv_speed_flag);
-    if (pble->get_adv_speed() != BLE_OPT_ADV_STOP) {
+    int adv_speed = pble->get_adv_speed();
+    LOG_BLE("adv_speed_flag: %d", adv_speed);
+    if (adv_speed != BLE_OPT_ADV_STOP) {
         if (pble->priv.ble_dev->ioctl) {
-            uint32_t args[] = {(BLE_OPT_ADV_SLOW == pble->get_adv_speed()) ? 0 : 1};
+            uint32_t args[] = {(BLE_OPT_ADV_SLOW == adv_speed) ? 0 : 1};
             DEVICE_IOCTL_ARGS(pble->priv.ble_dev, OP_CODE_BLE_ADV_SPEED_SET, args);
+        }
+    } else {
+        if (pble->priv.ble_dev->ioctl) {
+            DEVICE_IOCTL(pble->priv.ble_dev, OP_CODE_BLE_ADV_CLOSE);
         }
     }
     pble->on_connect_status_change(pble, pble->priv.ble_connect_state, 0);
