@@ -32,6 +32,9 @@ static void logo_display_completed_cb(hdr_post_args_t *args)
     LOG_UI("logo play finished");
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_LOGO);
     multi_func_msg_data_t msg = {0};
+    if (proc->ble) {
+        proc->ble->bt_adv_start_by_user();
+    }
 #if IS_SUPPORT_LVGL
     if (proc->battery && proc->battery->is_low_battery()) {
         LOG_WM("battery is low power, goto battery screen");

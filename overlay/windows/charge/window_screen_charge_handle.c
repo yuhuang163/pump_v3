@@ -52,6 +52,10 @@ static void charge_ui_common_cb(hdr_post_args_t *args)
     switch (action) {
         case CHARGE_HDR_EXIT_CHARGE_POLICY:
             LOG_WM("%s", args->name);
+            if (proc->ble) {
+                proc->ble->bt_adv_start_by_user();
+            }
+
             if (proc->airplane && proc->airplane->is_on_airplane_mode()) {
                 LOG_WM("goto airplane mode screen");
                 msg.union_body.extra.window_id = ID_WINDOW_AIRPLANE_MODE;
@@ -114,8 +118,7 @@ static void on_charge_window_receive(broadcast_mask_id_t id, void *context, int 
             } else if (arg1 == BATTERY_BROADCAST_CHARGE_PLUG_IN) {
                 if (proc->exit_charge_window_flag == 1) {
                     proc->exit_charge_window_flag = 0;
-                    POST_TASK_HANDLER_DELAYED_ARG2(charge_ui_common_cb, 10000,
-                        CHARGE_HDR_SCREEN_TIMEOUT_DETECT, proc, CHARGE_PAGE_POLICY_TASK_NAME);
+                    show_power_off_charging_ui(proc);
                 }
             } else {
                 LOG_WM("charge window receive broadcast: %d, %d", arg1, arg2);
@@ -157,6 +160,13 @@ static int entry_event_cb(window_lift_cycle_e new_state, const struct window_con
         }
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);
+        if (proc->ble) {
+            proc->ble->bt_adv_stop_by_user();
+            if (proc->ble->ble_is_connected() > 0) {
+                proc->ble->disconnect_bt_by_user();
+            }
+        }
+        
         if (proc->led && proc->led->hook) {
             if (proc->led->set_led_onoff) {
                 proc->led->set_led_onoff(PUMP_LED_ALL_ID, LED_STATUS_OFF);
@@ -172,9 +182,7 @@ static int entry_event_cb(window_lift_cycle_e new_state, const struct window_con
         if (proc->battery->is_adapter_mismatch()) {
             show_charge_adapter_ui(proc);
         } else {
-            show_charging_ui(proc);
-            POST_TASK_HANDLER_DELAYED_ARG2(charge_ui_common_cb, 10000,
-                CHARGE_HDR_SCREEN_TIMEOUT_DETECT, proc, CHARGE_PAGE_POLICY_TASK_NAME);
+            show_power_off_charging_ui(proc);   
         }
         proc->charge_screen_on_time = get_timestamp();
         if (proc->pm) {
