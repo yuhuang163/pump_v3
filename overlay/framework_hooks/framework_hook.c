@@ -89,4 +89,9 @@ void framework_extra_hook(void)
     CHECK_IF_VALID(ota_ctx, {
         register_ota_hook(ota_ctx);
     });
+    /// 注册BLE管理钩子.   
+    ble_manager_context_t *ble_ctx = (ble_manager_context_t *)find_module(ID_MODULE_BLE);
+    CHECK_IF_VALID(ble_ctx, {
+        register_ble_hook(ble_ctx);
+    });
 }
