@@ -108,6 +108,65 @@ static uint8_t local_get_battery_state(void)
     return thiz->priv.battery_state;
 }
 
+static void dispatch_battery_state_client(battery_manager_context_t *obj)
+{
+    list_head_t *head = &obj->priv.client_list;
+    MUTEX_LOCK(obj->priv.m_lock);
+    battery_state_info_t info = {0};
+    info.battery_state = obj->priv.battery_state;
+    info.battery_percent = obj->priv.battery_percent;
+    info.charge_status = obj->priv.is_charging;
+    info.adapter_mismatch = obj->priv.is_adapter_mismatch;
+    LIST_FOR_EACH(pos, (head)) { 
+        battery_evt_client_node_t *node = CONTAINER_OF(pos, battery_evt_client_node_t, list);
+        if (node->cb) {
+            node->cb(node->user_data, &info);
+        }
+    }
+    MUTEX_UNLOCK(obj->priv.m_lock);
+}
+
+static void add_battery_state_cb(void *user_data, on_battery_state_cb_ptr cb)
+{
+    battery_manager_context_t *obj = thiz;
+    list_head_t *head = &obj->priv.client_list;
+    MUTEX_LOCK(obj->priv.m_lock);
+    LIST_FOR_EACH(pos, (head)) { 
+        battery_evt_client_node_t *node = CONTAINER_OF(pos, battery_evt_client_node_t, list);
+        if (node->cb == cb && node->user_data == user_data) {
+            LOGW("ignore dumplicate add.");
+            MUTEX_UNLOCK(obj->priv.m_lock);
+            return;
+        }
+    }
+    battery_evt_client_node_t *node = u_malloz(sizeof(battery_evt_client_node_t));
+    node->cb = cb;
+    node->user_data = user_data;
+    __list_add(&node->list, head);
+    LOG_MISC("add: user_data: %lx, cb: %lx", user_data, cb);
+    MUTEX_UNLOCK(obj->priv.m_lock);
+}
+
+static void *list_del_battery_state_condition_cb(void *data, list_head_t *pos)
+{
+    on_battery_state_cb_ptr cb = (on_battery_state_cb_ptr)data;
+    battery_evt_client_node_t *node = CONTAINER_OF(pos, battery_evt_client_node_t, list);
+    if ((node->cb) == (cb)) {
+        LOG_MISC("del: user_data: %lx, cb: %lx", node->user_data, node->cb);
+        return node;
+    }
+    return NULL;
+}
+
+static void remove_battery_state_cb(on_battery_state_cb_ptr cb)
+{
+    battery_manager_context_t *obj = thiz;
+    list_head_t *head = &obj->priv.client_list;
+    MUTEX_LOCK(obj->priv.m_lock);
+    __list_del(head, cb, list_del_battery_state_condition_cb);
+    MUTEX_UNLOCK(obj->priv.m_lock);
+}
+
 static void polling_battery_status(void *user_data)
 {
     EXCEPTION_CHECK_VOID(thiz);
@@ -296,7 +355,8 @@ static int on_perpare_battery_init(void *self)
 void *register_module_for_battery_manager_new(list_head_t *list_head)
 {
     MALLOC_FOR_PTR(ptr, battery_manager_context_t);
-
+    MUTEX_INIT(&ptr->priv.m_lock, battery_state_mutex);
+    USE_INIT_LIST_HEAD(&ptr->priv.client_list);
     ptr->priv.battery_percent = 5;
     ptr->is_vbus_plug_in = local_is_vbus_plug_in;
     ptr->get_charge_status = local_get_charge_status;
@@ -304,6 +364,8 @@ void *register_module_for_battery_manager_new(list_head_t *list_head)
     ptr->get_battery_state = local_get_battery_state;
     ptr->get_battery_percent = local_get_battery_percent;
     ptr->is_adapter_mismatch = local_is_adapter_mismatch;
+    ptr->add_battery_state_cb = add_battery_state_cb;
+    ptr->remove_battery_state_cb = remove_battery_state_cb;
     thiz = ptr;
     return ADD_MODULE("battery", ID_MODULE_BATTERY, on_perpare_battery_init, on_post_battery_init, 
         ptr, list_head, sizeof(battery_manager_context_t));
