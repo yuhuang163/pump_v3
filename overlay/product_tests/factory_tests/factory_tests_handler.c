@@ -169,7 +169,8 @@ static void factory_tests_aging_test_check_result(void)
         if (thiz->priv.factory_ctx.aging_result_info.aging_status == AGING_TEST_STATUS_SUCCESS) {
             return;
         }
-        if (thiz->priv.factory_ctx.aging_result_info.aging_run_status == AGING_RUN_STATUS_IDLE) {
+        if (thiz->priv.factory_ctx.aging_result_info.aging_run_status == AGING_RUN_STATUS_IDLE ||
+             thiz->priv.factory_ctx.aging_result_info.aging_run_status == AGING_RUN_STATUS_END) {
             return;
         }
         /// 先补齐本次检查前的工作时长，避免周期边界漏记
@@ -211,7 +212,8 @@ static void factory_tests_aging_test_check_result(void)
         if (thiz->priv.factory_ctx.aging_result_info.aging_status == AGING_TEST_STATUS_SUCCESS) {
             return;
         }
-        if (thiz->priv.factory_ctx.aging_result_info.aging_run_status == AGING_RUN_STATUS_IDLE) {
+        if (thiz->priv.factory_ctx.aging_result_info.aging_run_status == AGING_RUN_STATUS_IDLE ||
+             thiz->priv.factory_ctx.aging_result_info.aging_run_status == AGING_RUN_STATUS_END) {
             return;
         }
         /// 先补齐本次检查前的工作时长，避免周期边界漏记

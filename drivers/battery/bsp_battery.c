@@ -543,6 +543,11 @@ static int battery_dev_ioctl(struct rt_device_node *dev, uint32_t op_code, void 
             int r = bsp_charge_get_ibat_ma(out_ma);
             return (r == BSP_OK) ? 0 : -1;
         }
+        case OP_CODE_BAT_SET_CHARGE_CURRENT:
+            tmp = (uint32_t *)args;
+            /// 强制充电
+            charge_event_internal_cb(CHARGE_EVENT_PLUG_IN);
+            return 0;
         default:
             LOGE("bat err op_code: %lx", op_code);
             return -1;
