@@ -19,14 +19,18 @@
 #define CHARGE_PD_VERSION_2                    1    /// PD2.0
 #define CHARGE_PD_VERSION_3                    2    /// PD3.0
 
+typedef enum {
+    CHARGE_PD_ADAPTER_PLUG_OUT = 0, /// 适配器拔出
+    CHARGE_PD_ADAPTER_READY = 1, /// 适配器准备就绪
+    CHARGE_PD_ADAPTER_MISMATCH = 2, /// 适配器不匹配
+} charge_pd_adapter_status_e;
+
 /*
 * LOCAL VARIABLE DEFINITIONS)
 *****************************************************************************************
 */
 static bool s_charge_pd_onoff = false;
-static bool s_charge_pd_is_ready = false;
-static bool s_charge_pd_adapter_mismatch = false;
-static uint8_t s_charge_pd_wait_ready = 0;
+static uint8_t s_charge_pd_adapter_state = CHARGE_PD_ADAPTER_PLUG_OUT;
 
 /*
 * GLOBAL VARIABLE DEFINITIONS
@@ -88,7 +92,6 @@ static int charge_pd_device_is_ready(void)
         return BSP_ERROR;
     }
 
-    LOG_PBUS("charge_pd_device_is_ready: 0x%02X", status);
     if (status != 0) {
         return BSP_OK;
     }
@@ -111,24 +114,22 @@ static int charge_pd_version_get(void)
         return -1;
     }
     version = (pd_header >> 6) & 0x03;
-    LOG_PBUS("version: %d", version);
+    // LOG_PBUS("version: %d", version);
     return version;
 }
 
 static bool charge_pd_power_is_ready(void)
 {
     if (charge_pd_device_is_ready() != BSP_OK) {
-        LOG_PBUS("charge pd device not ready");
+        // LOG_PBUS("charge pd device not ready");
         return false;
     }
 
     int version = charge_pd_version_get();
     if (version < CHARGE_PD_VERSION_2) {
-        LOG_PBUS("charge pd version too low, version: %d", version);
+        // LOG_PBUS("charge pd version too low, version: %d", version);
         return false;
     }
-
-    s_charge_pd_is_ready = true;
     return true;
 }
 
@@ -153,18 +154,56 @@ static void charge_pd_gpio_init(void)
  */
 int bsp_charge_pd_is_ready(void)
 {
-    return s_charge_pd_is_ready;
+    return s_charge_pd_adapter_state == CHARGE_PD_ADAPTER_READY ? true : false;
 }
 
 int bsp_charge_pd_is_mismatch(void)
 {
-    return s_charge_pd_adapter_mismatch;
+    return s_charge_pd_adapter_state == CHARGE_PD_ADAPTER_MISMATCH ? true : false;
+}
+
+void charge_pd_status_poll(void)
+{
+    if (hal_gpio_pin_get_val(CHARGE_PD_INT_PIN) == 0) {
+        if (s_charge_pd_onoff == false) {
+            s_charge_pd_onoff = true;
+            bsp_i2c_init(CHARGE_PD_I2C_ID);
+            LOG_PBUS("charge pd power on");
+        }
+
+        if (charge_pd_power_is_ready()) {
+            if (s_charge_pd_adapter_state != CHARGE_PD_ADAPTER_READY) {
+                s_charge_pd_adapter_state = CHARGE_PD_ADAPTER_READY;
+                charge_event_internal_cb(CHARGE_EVENT_PLUG_IN);
+                LOG_PBUS( "CHARGE_EVENT_PLUG_IN");
+            }
+        } else {
+            if (s_charge_pd_adapter_state != CHARGE_PD_ADAPTER_MISMATCH) {
+                s_charge_pd_adapter_state = CHARGE_PD_ADAPTER_MISMATCH;
+                charge_event_internal_cb(CHARGE_EVENT_ADAPTER_MISMATCH);
+                LOG_PBUS( "CHARGE_EVENT_ADAPTER_MISMATCH" );
+            }
+        }
+    } else {
+        if (s_charge_pd_onoff == true) {
+            s_charge_pd_onoff = false;
+            s_charge_pd_adapter_state = CHARGE_PD_ADAPTER_PLUG_OUT;
+            bsp_i2c_deinit(CHARGE_PD_I2C_ID);
+            LOG_PBUS("%s", "CHARGE_EVENT_PLUG_OUT");
+            charge_event_internal_cb(CHARGE_EVENT_PLUG_OUT);
+            charge_pd_gpio_init();
+        }
+    }
 }
 
 void bsp_charge_pd_init(void)
 {
     charge_pd_gpio_init();
     msleep(10);
+    for (uint8_t i = 0; i < 3; i++) {
+        charge_pd_status_poll();
+        msleep(10);
+    }
 }
 
 int charge_pd_current_get(void)
@@ -174,43 +213,4 @@ int charge_pd_current_get(void)
         return 0;
     }
     return current * 50; /// 50mA
-}
-
-void charge_pd_status_poll(void)
-{
-    if (hal_gpio_pin_get_val(CHARGE_PD_INT_PIN) == 0) {
-        if (s_charge_pd_onoff == false) {
-            s_charge_pd_onoff = true;
-            s_charge_pd_wait_ready = 5;
-            LOG_PBUS("charge pd power on");
-            bsp_i2c_init(CHARGE_PD_I2C_ID);
-        }
-
-        if (s_charge_pd_wait_ready > 0) {
-            s_charge_pd_wait_ready --;
-            if (s_charge_pd_wait_ready == 0) {
-                s_charge_pd_is_ready = charge_pd_power_is_ready();
-                if (s_charge_pd_is_ready) {
-                    s_charge_pd_adapter_mismatch = false;
-                    LOG_PBUS( "CHARGE_EVENT_PLUG_IN");
-                    charge_event_internal_cb(CHARGE_EVENT_PLUG_IN);
-                } else {
-                    s_charge_pd_adapter_mismatch = true;
-                    LOG_PBUS( "CHARGE_EVENT_ADAPTER_MISMATCH" );
-                    charge_event_internal_cb(CHARGE_EVENT_ADAPTER_MISMATCH);
-                }
-            }
-        }
-    } else {
-        if (s_charge_pd_onoff == true) {
-            s_charge_pd_onoff = false;
-            s_charge_pd_is_ready = false;
-            s_charge_pd_adapter_mismatch = false;
-            bsp_i2c_deinit(CHARGE_PD_I2C_ID);
-            LOG_PBUS("%s", "CHARGE_EVENT_PLUG_OUT");
-            charge_event_internal_cb(CHARGE_EVENT_PLUG_OUT);
-            charge_pd_gpio_init();
-        }
-        // LOG_PBUS("%s", "CHARGE_EVENT_PLUG_OUT");
-    }
 }

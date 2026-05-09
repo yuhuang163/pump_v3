@@ -67,6 +67,8 @@ static void system_power_event_cb(hdr_post_args_t *args)
     EXCEPTION_CHECK_VOID(pm);
     window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
     EXCEPTION_CHECK_VOID(wm);
+    battery_manager_context_t *battery = (battery_manager_context_t *)find_module(ID_MODULE_BATTERY);
+    EXCEPTION_CHECK_VOID(battery);
     multi_func_msg_data_t msg = {0};
     switch (action) {
         case HDR_ACTION_POWER_ON_DETECT:
@@ -91,8 +93,13 @@ static void system_power_event_cb(hdr_post_args_t *args)
             } else {
                 pm->system_power_control(true);
                 SEND_BROADCAST_ARGS1(ID_BROADCAST_SYS_STATE_CHANGE, SYSTEM_BROADCAST_POWER_ON);
-                msg.union_body.extra.window_id = ID_WINDOW_LOGO;
-                LOG_PM("goto logo screen");
+                if (battery->is_adapter_mismatch() > 0) {
+                    msg.union_body.extra.window_id = ID_WINDOW_CHARGE;
+                    LOG_PM("goto charge screen");
+                } else {
+                    msg.union_body.extra.window_id = ID_WINDOW_LOGO;
+                    LOG_PM("goto logo screen");
+                }
                 wm->dispatch_new_window_args(wm, &msg); 
             }
             break;
@@ -100,8 +107,13 @@ static void system_power_event_cb(hdr_post_args_t *args)
             LOG_PM("%s action:%d", args->name, action);
             pm->system_power_control(true);
             SEND_BROADCAST_ARGS1(ID_BROADCAST_SYS_STATE_CHANGE, SYSTEM_BROADCAST_POWER_ON);
-            msg.union_body.extra.window_id = ID_WINDOW_LOGO;
-            LOG_PM("goto logo screen");
+            if (battery->is_adapter_mismatch() > 0) {
+                msg.union_body.extra.window_id = ID_WINDOW_CHARGE;
+                LOG_PM("goto charge screen");
+            } else {
+                msg.union_body.extra.window_id = ID_WINDOW_LOGO;
+                LOG_PM("goto logo screen");
+            }
             wm->dispatch_new_window_args(wm, &msg); 
             break;
         case HDR_ACTION_POWER_ON_BY_CHARGING:    
