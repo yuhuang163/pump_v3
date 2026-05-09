@@ -182,23 +182,23 @@ static uint16_t adaptive_dimming_lux_filter(uint16_t raw_avg)
  */
 static void adaptive_dimming_lux_stable_misc_tick(void)
 {
-    s_lux_misc_stable_gate_ready = 0;
-    if (!s_lux_settling || s_last_applied_lux == 0 || !s_lux_last_batch_valid) {
-        return;
+    s_lux_misc_stable_gate_ready = 0; /// 每次 tick 先清“可放行”标记；仅当本轮满足稳定条件时再重新置位
+    if (!s_lux_settling || s_last_applied_lux == 0 || !s_lux_last_batch_valid) { /// 非 settling / 尚无已应用基准 / 尚无上一批 lux 时，不推进稳定计数
+        return; /// 直接退出，等待状态满足再参与稳定判定
     }
-    uint16_t dc = s_lux_last_batch_lux > s_lux_settle_candidate
-                      ? (s_lux_last_batch_lux - s_lux_settle_candidate)
-                      : (s_lux_settle_candidate - s_lux_last_batch_lux);
-    if (dc <= ADAP_DIM_LUX_SETTLE_MATCH_EPS) {
-        if (s_lux_stable_misc_ticks < 0xFFFFu) {
-            s_lux_stable_misc_ticks++;
+    uint16_t dc = s_lux_last_batch_lux > s_lux_settle_candidate /// 计算“上一批 lux”与“候选 lux”的绝对差
+                      ? (s_lux_last_batch_lux - s_lux_settle_candidate) /// 上一批更大时差值 = 前者减后者
+                      : (s_lux_settle_candidate - s_lux_last_batch_lux); /// 否则差值 = 后者减前者
+    if (dc <= ADAP_DIM_LUX_SETTLE_MATCH_EPS) { /// 若差值在匹配容差内，认为本 tick 仍处于稳定区间
+        if (s_lux_stable_misc_ticks < 0xFFFFu) { /// 防溢出保护：计数未达 uint16 上限才自增
+            s_lux_stable_misc_ticks++; /// 稳定计数 +1（单位为 misc tick 次数）
         }
-        if (s_lux_stable_misc_ticks >= ADAP_DIM_LUX_STABLE_MISC_TICKS) {
-            s_lux_misc_stable_gate_ready = 1u;
+        if (s_lux_stable_misc_ticks >= ADAP_DIM_LUX_STABLE_MISC_TICKS) { /// 稳定时长达到门限
+            s_lux_misc_stable_gate_ready = 1u; /// 置“门控可通过”标记，允许 gate_pass 放行
         }
-    } else {
-        s_lux_settle_candidate = s_lux_last_batch_lux;
-        s_lux_stable_misc_ticks = 0;
+    } else { /// 若超出容差，说明当前环境仍在变化，尚未稳定
+        s_lux_settle_candidate = s_lux_last_batch_lux; /// 把候选值重置为最新批次，重新开始围绕新候选收敛
+        s_lux_stable_misc_ticks = 0; /// 稳定计数清零，重新累计稳定时长
     }
 }
 
@@ -214,33 +214,33 @@ static void adaptive_dimming_lux_stable_misc_tick(void)
  */
 static int adaptive_dimming_lux_stable_gate_pass(uint16_t lux_now)
 {
-    if (s_last_applied_lux == 0) {
-        return 1;
+    if (s_last_applied_lux == 0) { /// 尚未有任何一次“已下发亮度”的基准 lux（首次运行）
+        return 1; /// 首次不拦截，直接允许通过
     }
-    uint16_t diff_from_applied = lux_now > s_last_applied_lux ? (lux_now - s_last_applied_lux)
-                                                              : (s_last_applied_lux - lux_now);
-    if (diff_from_applied < ADAP_DIM_LUX_SIGNIFICANT_DELTA) {
-        s_lux_settling = 0;
-        s_lux_stable_misc_ticks = 0;
-        s_lux_misc_stable_gate_ready = 0;
-        return 1;
+    uint16_t diff_from_applied = lux_now > s_last_applied_lux ? (lux_now - s_last_applied_lux) /// 计算当前 lux 与“上次已应用 lux”的绝对差
+                                                              : (s_last_applied_lux - lux_now); /// 使用三元表达式避免有符号/负值处理
+    if (diff_from_applied < ADAP_DIM_LUX_SIGNIFICANT_DELTA) { /// 小于“明显变化阈值”，视为小波动
+        s_lux_settling = 0; /// 小波动不需要 settling，关闭 settling 状态
+        s_lux_stable_misc_ticks = 0; /// 清空稳定计数，避免旧状态影响后续明显变化判定
+        s_lux_misc_stable_gate_ready = 0; /// 清空 ready 标记，保持状态机一致性
+        return 1; /// 小变化直接放行，允许继续调光计算
     }
-    if (!s_lux_settling) {
-        s_lux_settling = 1;
-        s_lux_settle_candidate = lux_now;
-        s_lux_stable_misc_ticks = 0;
-        s_lux_misc_stable_gate_ready = 0;
-        return 0;
+    if (!s_lux_settling) { /// 出现明显变化且当前未处于 settling：进入 settling 首次建状态
+        s_lux_settling = 1; /// 置 settling 标志，后续需要稳定计时后才能通过
+        s_lux_settle_candidate = lux_now; /// 记录首次候选 lux，作为稳定比较基准
+        s_lux_stable_misc_ticks = 0; /// 新一轮 settling 从 0 开始计时
+        s_lux_misc_stable_gate_ready = 0; /// 初始不放行，等待 tick 累积达到阈值
+        return 0; /// 本批拦截，不下发亮度
     }
-    uint16_t diff_cand = lux_now > s_lux_settle_candidate ? (lux_now - s_lux_settle_candidate)
-                                                          : (s_lux_settle_candidate - lux_now);
-    if (diff_cand > ADAP_DIM_LUX_SETTLE_MATCH_EPS) {
-        s_lux_settle_candidate = lux_now;
-        s_lux_stable_misc_ticks = 0;
-        s_lux_misc_stable_gate_ready = 0;
-        return 0;
+    uint16_t diff_cand = lux_now > s_lux_settle_candidate ? (lux_now - s_lux_settle_candidate) /// 计算当前 lux 与候选 lux 的绝对差
+                                                          : (s_lux_settle_candidate - lux_now); /// 用于判断是否仍围绕同一候选稳定
+    if (diff_cand > ADAP_DIM_LUX_SETTLE_MATCH_EPS) { /// 若偏离候选超过容差，说明还在抖动/漂移
+        s_lux_settle_candidate = lux_now; /// 更新候选为当前值，重新围绕新候选等待稳定
+        s_lux_stable_misc_ticks = 0; /// 清零稳定计数，重新累计稳定时长
+        s_lux_misc_stable_gate_ready = 0; /// 清掉 ready，本批不可放行
+        return 0; /// 继续拦截，避免频繁闪变
     }
-    return s_lux_misc_stable_gate_ready ? 1 : 0;
+    return s_lux_misc_stable_gate_ready ? 1 : 0; /// 在候选容差内时，仅当 misc_tick 已累计到位才放行
 }
 #endif /* ADAP_DIM_USE_LUX_SIGNIFICANT_SETTLE_GATE */
 

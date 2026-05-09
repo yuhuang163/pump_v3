@@ -12,7 +12,7 @@ extern "C" {
 #include "tests_manager_api.h" // IWYU pragma: keep
 
 
-#define PRODUCT_TESTS_THREAD_POLLING_PERIOD         (1000)
+#define PRODUCT_TESTS_THREAD_POLLING_PERIOD         (200)
 
 typedef struct {
     void *user_data;  ///填充调用者上下文结构体指针
