@@ -36,7 +36,14 @@ static const motor_policy_manager_t *breast_pump_mode_policy_get(struct motor_ma
             breast_pump_policy_node_t *node = CONTAINER_OF(pos, breast_pump_policy_node_t, list);
             if (node->breast_pump_mode == breast_pump_mode) {
                 LOG_MOTOR("==> find name: %s, breast_pump_mode: %d", node->name, breast_pump_mode);
-                return node->get_policy_cb(node->user_data);
+                if (node->get_policy_cb == NULL) {
+                    LOGE("policy get cb null, name: %s, breast_pump_mode: %d", node->name, breast_pump_mode);
+                    return NULL;
+                }
+                const motor_policy_manager_t *policy_obj = node->get_policy_cb(node->user_data);
+                LOG_MOTOR("==> policy obj: %p, name: %s, breast_pump_mode: %d", 
+                    policy_obj, node->name, breast_pump_mode);
+                return policy_obj;
             }
         }
     }
@@ -367,9 +374,14 @@ static void pump_algo_compensation_callback(void *user_data, algo_breast_pump_da
 
 void motor_mode_change_handler(struct motor_manager_context *thiz, int breast_pump_mode)
 {
+    EXCEPTION_CHECK_VOID(thiz);
     motor_policy_runtime_t *body = &thiz->priv.runtime;
     const motor_policy_manager_t *policy_obj = breast_pump_mode_policy_get(thiz, breast_pump_mode);
     EXCEPTION_CHECK_VOID(policy_obj);
+    if ((uintptr_t)policy_obj < 0x1000U) {
+        LOGE("invalid policy obj: %p, breast_pump_mode: %d", policy_obj, breast_pump_mode);
+        return;
+    }
     body->current_mode_type = pump_policy_type_get(policy_obj->head.policy);
     LOG_MOTOR("mode change: %d, type: %d", breast_pump_mode, body->current_mode_type);
 }
