@@ -205,16 +205,7 @@ static void polling_battery_status(void *user_data)
             servers_ctx->hook->app_old_protocol_server_data_publish(APP_OLD_COMM_CID_NOTIFY_V3_DEV_ABNORMAL, &args_temp);
         }
     }
-    
-    if (thiz->priv.battery_state == BATTERY_STATE_EMPTY ||
-        thiz->priv.battery_state == BATTERY_STATE_LOW_POWER_SHUTDOWN) {
-        SEND_BROADCAST_ARGS2(ID_BROADCAST_BATTERY_STATE_CHANGE, BATTERY_BROADCAST_LOW_POWER_SHUTDOWN, bat_per);   /// 发送电池状态广播.
-    } else if (thiz->priv.battery_state == BATTERY_STATE_LOW_POWER_RUN ||
-        thiz->priv.battery_state == BATTERY_STATE_FORBID_START) {
-        SEND_BROADCAST_ARGS2(ID_BROADCAST_BATTERY_STATE_CHANGE, BATTERY_BROADCAST_LOW_POWER_RUN, bat_per);   /// 发送电池状态广播.
-    } else {
-        SEND_BROADCAST_ARGS2(ID_BROADCAST_BATTERY_STATE_CHANGE, BATTERY_BROADCAST_CAPACITY_CHANGE, bat_per);   /// 发送电池状态广播.
-    }
+    dispatch_battery_state_client(thiz);
 }
 
 static void polling_battery_voltage_status(void *user_data)
@@ -293,8 +284,7 @@ static void charge_event_callback(charge_event_e event)
     if (thiz->priv.is_adapter_mismatch) {
         thiz->priv.is_adapter_mismatch = 0;
         LOG_MISC("charge event: adapter mismatch recover");
-        SEND_BROADCAST_ARGS1(ID_BROADCAST_BATTERY_STATE_CHANGE, 
-            BATTERY_BROADCAST_CHARGE_ADAPTER_MISMATCH_RECOVER);
+        SEND_BROADCAST_ARGS1(ID_BROADCAST_BATTERY_STATE_CHANGE, BATTERY_BROADCAST_CHARGE_ADAPTER_MISMATCH_RECOVER);
     }
 
     int misc_msg = 0;
