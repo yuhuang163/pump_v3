@@ -68,7 +68,7 @@ extern "C" {
 #endif
 
 #ifndef RT_PRIO_CHARGE_DEVICE_THREAD
-#define RT_PRIO_CHARGE_DEVICE_THREAD                   OS_PRIORITY_REALTIME
+#define RT_PRIO_CHARGE_DEVICE_THREAD                   OS_PRIORITY_REALTIME4
 #endif
 
 #ifndef RT_PRIO_LED_DEVICE_THREAD

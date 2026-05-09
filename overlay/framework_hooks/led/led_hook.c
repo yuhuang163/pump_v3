@@ -66,7 +66,14 @@ static void set_key_backlight_rate(led_manager_context_t *thiz, uint8_t rate)
         .led_index = PUMP_LED_ALL_ID,
         .rate = rate,
     };
+    thiz->priv.key_light_adaptive_cap_level = rate;
     thiz->priv.led_dev->ioctl(thiz->priv.led_dev, OP_CODE_LED_LEVEL_RATE_SET, (void *)&msg);
+}
+
+static uint8_t get_key_backlight_rate(led_manager_context_t *thiz)
+{
+    EXCEPTION_CHECK_INT(thiz);
+    return thiz->priv.key_light_adaptive_cap_level;
 }
 
 static void set_night_light_level_internal(led_manager_context_t *thiz, uint8_t level)
@@ -100,7 +107,7 @@ static void toggle_night_light(led_manager_context_t *thiz)
         LOGE("system power off, ignore toggle night light.");
         return;
     }
-    thiz->priv.night_light_adaptive_switch = 0;   /// 手动开关后，临时关闭夜灯自适应开关，重启恢复
+    thiz->hook->set_night_light_adaptive_switch(thiz, 0);
     thiz->priv.night_light_onoff = thiz->priv.night_light_level > 0 ? 0 : 1;    
     if (thiz->priv.night_light_onoff > 0) {
         if (thiz->priv.night_light_adaptive_dimming > 0) {
@@ -311,22 +318,6 @@ static void key_light_adaptive_level_update(led_manager_context_t *thiz, uint8_t
     bsp_led_key_adaptive_duty_set(level);
 }
 
-static void set_key_light_adaptive_switch(led_manager_context_t *thiz, uint8_t switch_onoff)
-{
-    EXCEPTION_CHECK_VOID(thiz);
-    thiz->priv.key_light_adaptive_switch = switch_onoff;
-    // storage_manager_context_t *st = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
-    // if (st) {
-    //     st->put_store_ram_val(STORE_ID_SYS_KEY_LIGHT_ADAPTIVE_SWITCH, thiz->priv.key_light_adaptive_switch, 0, NULL);
-    // }
-}
-
-static int get_key_light_adaptive_switch(led_manager_context_t *thiz)
-{
-    EXCEPTION_CHECK_INT(thiz);
-    return thiz->priv.key_light_adaptive_switch;
-}
-
 static void set_key_light_adaptive_dimming(led_manager_context_t *thiz, uint8_t onoff)
 {
     EXCEPTION_CHECK_VOID(thiz);
@@ -379,16 +370,49 @@ static int on_broadcast_receiver_route(broadcast_mask_id_t id, void *context, in
             if (arg1 == PM_BROADCAST_SYS_SUSPEND) {
                 thiz->set_led_onoff(PUMP_LED_ALL_ID, LED_STATUS_OFF);
             } else if (arg1 == PM_BROADCAST_SYS_RESUME) {
-                thiz->priv.key_light_adaptive_cap_level = LED_LEVEL_MAX;
-                if (wm && wm->is_current_window(wm, ID_WINDOW_CHARGE) == 0 && wm->is_current_window(wm, ID_WINDOW_GUIDE) == 0) {
+                set_key_backlight_rate(thiz, 100);
+                if (wm && wm->is_current_window(wm, ID_WINDOW_CHARGE) == 0 &&
+                    wm->is_current_window(wm, ID_WINDOW_GUIDE) == 0) {
                     set_key_backlight(thiz, 100);
                 }
             } else if (arg1 == PM_BROADCAST_SYS_IDLE) {
-                thiz->priv.key_light_adaptive_cap_level = 50;
                 set_key_backlight_rate(thiz, 50);
             } else if (arg1 == PM_BROADCAST_SYS_IDLE_RELEASE) {
-                thiz->priv.key_light_adaptive_cap_level = LED_LEVEL_MAX;
-                set_key_backlight_rate(thiz, 100);
+                battery_manager_context_t *batt = (battery_manager_context_t *)find_module(ID_MODULE_BATTERY);
+                if (batt && batt->priv.battery_state == BATTERY_STATE_NONE) {
+                    set_key_backlight_rate(thiz, 100);
+                } else {
+                    LOG_MISC("low power, ignore key backlight rate update.");
+                }
+            }
+            break;
+        case ID_BROADCAST_BATTERY_STATE_CHANGE:
+            if (arg1 == BATTERY_BROADCAST_LOW_POWER_SHUTDOWN ||
+                arg1 == BATTERY_BROADCAST_LOW_POWER_RUN) {
+                if (get_night_light_onoff(thiz) > 0) {
+                    toggle_night_light(thiz);
+                }
+
+                if (get_key_backlight_rate(thiz) > 50) {
+                    set_key_backlight_rate(thiz, 50);
+                }
+            
+                if (get_key_light_adaptive_dimming(thiz) > 0) {
+                    set_key_light_adaptive_dimming(thiz, 0);
+                }
+            } else if (arg1 == BATTERY_BROADCAST_CAPACITY_CHANGE) {
+                if (get_key_backlight_rate(thiz) < 50) {
+                    power_manager_context_t *pm = (power_manager_context_t *)find_module(ID_MODULE_POWER);
+                    if (pm && pm->is_pm_idle() == 0) {
+                        set_key_backlight_rate(thiz, 100);
+                    } else {
+                        LOG_MISC("pm idle, ignore key backlight rate update.");
+                    }
+                }
+
+                if (get_key_light_adaptive_dimming(thiz) == 0) {
+                    set_key_light_adaptive_dimming(thiz, true);
+                }
             }
             break;
         default:
@@ -414,7 +438,6 @@ static int on_post_init_route(led_manager_context_t *thiz)
 #if IS_SUPPORT_KEY_LIGHT_ADAPTIVE
     thiz->priv.key_light_adaptive_dimming = true;
     thiz->priv.key_light_level = 0;
-    thiz->priv.key_light_adaptive_switch = 0;
     thiz->priv.key_light_onoff = 0;
     thiz->priv.key_light_adaptive_cap_level = LED_LEVEL_MAX;
 #endif
@@ -454,8 +477,6 @@ void register_led_hook(led_manager_context_t *ctx)
 #if IS_SUPPORT_KEY_LIGHT_ADAPTIVE
     ctx->hook->set_key_light_level = set_key_light_level;
     ctx->hook->key_light_adaptive_level_update = key_light_adaptive_level_update;
-    ctx->hook->set_key_light_adaptive_switch = set_key_light_adaptive_switch;
-    ctx->hook->get_key_light_adaptive_switch = get_key_light_adaptive_switch;
     ctx->hook->set_key_light_adaptive_dimming = set_key_light_adaptive_dimming;
     ctx->hook->get_key_light_adaptive_dimming = get_key_light_adaptive_dimming;
     ctx->hook->get_key_light_level = get_key_light_level;
