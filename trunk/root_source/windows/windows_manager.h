@@ -78,6 +78,11 @@ do { \
 /// 窗口ID保护宏定义.
 #define WINDOW_ID_GUARD_VOID(proc, expected_window_id) \
     do { \
+        EXCEPTION_CHECK_VOID(proc); \
+        if (proc->margic == UI_WINDOW_MARGIC_CODE_INVALID) { \
+            LOG_WM("margic invalid, ignore."); \
+            return; \
+        } \
         window_manager_context_t *__wm = (proc) ? (proc)->wm : NULL; \
         EXCEPTION_CHECK_VOID(__wm); \
         if (__wm->get_current_window_id() != expected_window_id && \
@@ -89,6 +94,11 @@ do { \
 
 #define WINDOW_ID_GUARD_INT(proc, expected_window_id, ret) \
     do { \
+        EXCEPTION_CHECK_INT(proc); \
+        if (proc->margic == UI_WINDOW_MARGIC_CODE_INVALID) { \
+            LOG_WM("margic invalid, ignore."); \
+            return (ret); \
+        } \
         window_manager_context_t *__wm = (proc) ? (proc)->wm : NULL; \
         EXCEPTION_CHECK_INT(__wm); \
         if (__wm->get_current_window_id() != expected_window_id && \

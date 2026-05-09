@@ -471,10 +471,14 @@ static int dispatch_new_window_args(struct window_manager_context *wm, multi_fun
 static void window_scheduling_start(void)
 {
     window_manager_context_t *wm = thiz;
-    multi_func_msg_data_t __msg = {0};
-    __msg.union_body.extra.window_id = ID_WINDOW_DUMMY;
-    LOG_WM("goto dummy screen");
-    dispatch_new_window_args(wm, &__msg);
+#if IS_SUPPORT_MODULE_RES
+    resource_manager_context_t *res = (resource_manager_context_t *)find_module(ID_MODULE_RES);
+    if (res) {
+        LOG_WM("wait res ready");
+        res->wait_init_completed(res);
+    }
+#endif
+    wm->window_boot_completed(wm);
 }
 
 static int post_async_msg_to_window(const char *tag, multi_func_msg_data_t *msg)
