@@ -88,6 +88,7 @@ static int on_post_led_manager_init(void *ptr)
     led->priv.m_bcd.name = "led_manager";
     led->priv.m_bcd.id.code |= ID_BROADCAST_PM_STATE_CHANGE;
     led->priv.m_bcd.id.code |= ID_BROADCAST_SYS_STATE_CHANGE;
+    led->priv.m_bcd.id.code |= ID_BROADCAST_BATTERY_STATE_CHANGE;
     led->priv.m_bcd.receiver_cb = on_led_broadcast_receiver;
     register_broadcast_receiver(&led->priv.m_bcd);
         

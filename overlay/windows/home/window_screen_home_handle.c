@@ -179,6 +179,14 @@ static void home_power_key_event_cb(ui_proc_home_t *proc)
         POST_TASK_HANDLER_NO_DELAY(home_start_key_event_ui_cb, proc, HOME_START_KEY_EVENT_TASK_NAME);
     } else if (proc->current_ui_type == HOME_UI_TYPE_HOME) {
 #if IS_SUPPORT_NIGHT_LIGHT
+        uint8_t battery_state = proc->battery->get_battery_state();
+        if (battery_state == BATTERY_STATE_LOW_POWER_SHUTDOWN ||
+            battery_state == BATTERY_STATE_EMPTY ||
+            battery_state == BATTERY_STATE_FORBID_START) {
+            LOG_WM("battery state is low, ignore power key event.");
+            return;
+        }
+        
         if (proc->led && proc->led->hook && proc->led->hook->toggle_night_light) {
             proc->led->hook->toggle_night_light(proc->led);
         }
