@@ -16,20 +16,30 @@ typedef enum {
 } aging_mode_type_e;
 
 typedef enum {
+    AGING_RUN_STATUS_IDLE = 0x00,
+    AGING_RUN_STATUS_WORK = 0x01,
+    AGING_RUN_STATUS_END = 0x02,
+} aging_run_status_e;
+
+typedef enum {
     AGING_TEST_STATUS_NOT_AGE = 0x00,
     AGING_TEST_STATUS_SUCCESS = 0x01,
     AGING_TEST_STATUS_FAILED = 0x02,
 } aging_test_status_e;
 
 typedef struct aging_result_info {
-    uint32_t total_runtime_time;
-    uint16_t aging_status;
-    uint16_t aging_cycle;
+    uint32_t start_time;//老化测试开始时间，单位毫秒
+    uint32_t time_offset;//老化计时对时时间，单位毫秒
+    uint32_t current_cycle_work_time;//老化测试当前循环工作时间，单位毫秒
+    uint16_t aging_status;//老化测试状态
+    uint16_t aging_run_status;//老化测试运行状态，0：休息，1：工作 2:结束
+    uint16_t aging_cycle;//老化测试循环次数
 } aging_result_info_t;
 
 typedef struct aging_target_info {
-    uint32_t total_target_time;
+    uint32_t total_target_time;//老化测试目标时间，单位秒
     uint16_t aging_type;
+
 } aging_target_info_t;
 
 

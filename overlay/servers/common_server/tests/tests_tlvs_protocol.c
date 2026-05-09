@@ -165,6 +165,17 @@ int tests_tlvs_aging_test_mode(comm_protocol_builder_t *builder, comm_protocol_s
         tests_manager_context_t *tests_ctx = (tests_manager_context_t *)find_module(ID_MODULE_TESTS);
         EXCEPTION_CHECK_INT(tests_ctx);
 
+        ///如果老化测试模式正在运行，则不进入
+        if (tests_ctx->tests_manager_get_current_mode() == TST_AGING_TEST_TYPE) {
+            LOG_SRV("aging test is running, return");
+            result = 0x00; // 失败
+            comm_protocol_tlv_node_t tlv_node = {
+                .type = TESTS_TLV_AGING_TEST_MODE,
+                .length = 1,
+                .value = &result,
+            };
+            return protocol_ctx->comm_protocol_builder_add_tlv(builder, service, &tlv_node);
+        }
         // TODO: 实现老化模式进入逻辑，设置模式类型和目标时长
         tests_ctx->tests_manager_set_current_mode(TST_AGING_TEST_TYPE);
         //启动产测模块 老化测试，传入模式类型和目标时长
@@ -355,16 +366,10 @@ int tests_tlvs_aging_status_query(comm_protocol_builder_t *builder, comm_protoco
             response[2] = (uint8_t)((cycle_count >> 8) & 0xFF);  // 小端序高字节
             
             // 单位s，小端序
-            // 如果当前模式正在老化模式运行中，则加上模式正在运行的时间
+            // 按查询请求透传 mode_type，避免查询模式与当前运行模式混用
             uint32_t age_time = 0;
-            if ( tests_ctx->tests_manager_get_current_mode() == TST_AGING_TEST_TYPE ) {
-                const pump_result_info_t *result_info = NULL;
-                READ_PUMP_RESULT_INFO(pump_ctx, BREAST_PUMP_RESULT_PUMPING, &result_info);
-                EXCEPTION_CHECK_INT(result_info);
-                age_time = age_info->age_time + result_info->current_mode_work_time/1000;
-            } else {
-                age_time =  age_info->age_time;
-            }            
+            tests_ctx->get_factory_tests_event_process(FAC_TST_AGING_TEST_GET_CURRENT_AGE_TIME_EVENT,
+                                                       aging_mode_type, 0, &age_time);
             response[3] = (uint8_t)(age_time & 0xFF);        // 小端序低字节
             response[4] = (uint8_t)((age_time >> 8) & 0xFF);  // 小端序高字节
             response[5] = (uint8_t)((age_time >> 16) & 0xFF); // 小端序高字节
