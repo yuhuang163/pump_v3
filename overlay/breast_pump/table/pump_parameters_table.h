@@ -20,7 +20,7 @@ extern "C" {
 #define SHORT_SUCTION_TIME_2               ((ONE_MIN_TIME_MS / 110 / 10)  * 10)  /// 1次吸奶时间，单位ms
 #define PUMP_SLEEP_TIME_MAX                2000  /// 最大休眠时间，单位ms
 #define PUMP_SLEEP_TIME_MIN                20  /// 最小休眠时间，单位ms
-#define IS_USE_NEW_SUCTION                 0 /// 是否使用新的吸力参数表 //时光的吸力参数表
+#define IS_USE_NEW_SUCTION                 1 /// 是否使用新的吸力参数表 //时光的吸力参数表
 
 /// 短吸吸奶时间表
 static const uint16_t short_suction_time_table[SUCTION_SPEED_MAX] = {
