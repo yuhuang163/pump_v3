@@ -939,6 +939,24 @@ void app_old_comm_report_device_status(app_old_commd_l_r_ctrl_e lr_ct, servers_o
     app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_NOTIFY, APP_OLD_COMM_CID_NOTIFY_STATUS, data_len, report_data);
 }
 
+//0xed
+void app_old_comm_report_custom_mode_id(app_old_commd_l_r_ctrl_e lr_ct)
+{
+    pump_mode_steps_info_t trial_steps_info;
+    storage_manager_context_t *storage_ctx = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
+    EXCEPTION_CHECK_VOID(storage_ctx);
+    storage_ctx->get_store_ram_val(STORE_ID_PUMP_MODE_STEPS_INFO, BREAST_PUMP_CUSTOM_TRIAL_MODE, 0, &trial_steps_info);
+    uint8_t report_data[4] = {
+        (uint8_t)((trial_steps_info.id.dat32 >> 0) & 0xFFU),
+        (uint8_t)((trial_steps_info.id.dat32 >> 8) & 0xFFU),
+        (uint8_t)((trial_steps_info.id.dat32 >> 16) & 0xFFU),
+        (uint8_t)((trial_steps_info.id.dat32 >> 24) & 0xFFU),
+    };
+    LOG_SRV("Reporting custom mode id notify: 0x%08lX", (unsigned long)trial_steps_info.id.dat32);
+    app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_NOTIFY, APP_OLD_COMM_CID_NOTIFY_CUSTOM_MODE_ID,
+                                               sizeof(report_data), report_data);
+}
+
 //0xb0
 void app_old_comm_handle_get_status_req(app_old_commd_l_r_ctrl_e lr_ct)
 {

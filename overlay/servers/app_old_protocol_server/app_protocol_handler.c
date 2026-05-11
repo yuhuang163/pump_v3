@@ -185,6 +185,13 @@ void app_old_comm_handle_response_cmd(app_old_comm_cmd_id_e cid, uint8_t cal, vo
         case APP_OLD_COMM_CID_NOTIFY_BIND: //没用到
             app_old_comm_report_bind_status(1, 0);
             break;
+        case APP_OLD_COMM_CID_NOTIFY_CUSTOM_MODE_ID: {
+            ble_manager_context_t *ble_ctx = (ble_manager_context_t *)find_module(ID_MODULE_BLE);
+            EXCEPTION_CHECK_VOID(ble_ctx);
+            if (ble_ctx->ble_is_connected() == true) {
+                app_old_comm_report_custom_mode_id(args_temp->arg1);
+            }
+        } break;
         case APP_OLD_COMM_CID_NOTIFY_DISCON: {
             if (args_temp->arg1 == true) //连接
             {
