@@ -121,9 +121,14 @@ const static guide_text_info_t stop_pump_text_infos[GUIDE_TEXT_NUM] = {
     {"default program", &lv_font_oppo_sans_20_medium, 0, 75, 4, GUIDE_TITLE_TEXT_COLOR, LV_OPA_COVER},
     {"Press down to exit", &lv_font_oppo_sans_14_medium, 0, 
         GUIDE_ARROW_TEXT_Y_OFFSET, 4, GUIDE_EXIT_TEXT_COLOR, LV_OPA_COVER},
+#if (ROOT_RES_VERSION == 102)        
+    {"", &lv_font_oppo_sans_14_medium, 0, 0, 4, GUIDE_TEXT_COLOR, LV_OPA_COVER},
+    {"", &lv_font_oppo_sans_14_medium, 0, 0, 4, GUIDE_TEXT_COLOR, LV_OPA_COVER},
+#else
     {"Cozy Flow", &lv_font_oppo_sans_12_medium, 0, 166, 4, 0xFFFFFF, LV_OPA_COVER},
     {"1.5 min Stimulation + 20\nmin Expression follow a\nbaby's natural nursing\nrhythm.",
         &lv_font_oppo_sans_12_medium, 0, 187, 2, 0xFFFFFF, 230},
+#endif
 };
 
 /// 泵奶模式选择
