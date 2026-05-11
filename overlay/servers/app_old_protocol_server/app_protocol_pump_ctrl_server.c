@@ -1324,7 +1324,7 @@ void app_old_comm_handle_get_dev_info_req(uint8_t cal, uint8_t *cab)
     uint16_t data_len = 0;
     app_old_protocol_handler_context_t *handler_ctx = app_old_protocol_handler_ctx_get();
 
-    ack_data[data_len++] = ctx->priv.ver_info.sys_local_protocol_id;
+    ack_data[data_len++] = ctx->priv.ver_info.sys_product_id;
     ack_data[data_len++] = ctx->priv.ver_info.soc_version;
     ack_data[data_len++] = ctx->priv.ver_info.hw_version;
     ack_data[data_len++] = ctx->priv.ver_info.sw_version / 100;
