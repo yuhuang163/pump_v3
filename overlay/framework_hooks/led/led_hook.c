@@ -14,8 +14,8 @@
 */
 #define NIGHT_LIGHT_DEFAULT_LEVEL                     5
 #define NIGHT_LIGHT_ADAPTIVE_SWITCH_LEVEL             5
-
 #define KEY_LIGHT_DEFAULT_LEVEL                       5
+
 /*
 * LOCAL VARIABLE DEFINITIONS
 *****************************************************************************************
@@ -55,7 +55,7 @@ static void set_key_backlight(led_manager_context_t *thiz, uint8_t level)
 
 static void set_key_backlight_level_rate(led_manager_context_t *thiz, uint8_t rate)
 {
-    if (rate < 10) {
+    if (rate < 20 || rate > 100) {
         LOGE("set key backlight rate error");
         return;
     }
@@ -100,11 +100,15 @@ static void key_light_adaptive_thread(void *user_data)
 
 static void key_light_adaptive_level_update(led_manager_context_t *thiz, uint8_t level)
 {
+    if (level > LED_LEVEL_MAX) {
+        level = LED_LEVEL_MAX;
+    }
+
     if (thiz->priv.key_light_adaptive_level == level) {
         return;
     }
     thiz->priv.key_light_adaptive_level = level;
-    LOG_MISC("adaptive_level:%d", thiz->priv.key_light_adaptive_level);
+    LOG_MISC("level update: %d", thiz->priv.key_light_adaptive_level);
 }
 #endif
 
@@ -234,7 +238,7 @@ static void night_light_adaptive_level_update(led_manager_context_t *thiz, uint8
     if (thiz->priv.night_light_adaptive_level == level) {
         return;
     }
-    LOG_MISC("adaptive level update: %d", level);
+    LOG_MISC("level update: %d", level);
     thiz->priv.night_light_adaptive_level = level;
 }
 

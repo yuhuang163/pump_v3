@@ -545,11 +545,11 @@ void bsp_led_resume(void)
     s_led_is_ready = true;
     s_led_abnormal_count = 0;
     led_htr3316_init();
-    #if (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V4)
-        led_htr3316_p16_output_set(false);
-        msleep(10);
-        led_htr3316_p16_output_set(true);
-    #endif
+#if (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V4)
+    led_htr3316_p16_output_set(false);
+    msleep(10);
+    led_htr3316_p16_output_set(true);
+#endif
     led_onoff_t onoff = {.status = LED_STATUS_OFF, .level = 0};
     for (uint8_t i = 0; i < LED_TOTAL_SIZE; i++) {
         led_status[i].level_max = LED_LEVEL_MAX;

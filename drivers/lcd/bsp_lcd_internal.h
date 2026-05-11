@@ -42,7 +42,7 @@ int bsp_lcd_refresh(const void *buf, uint32_t n_bytes);
 void bsp_lcd_backlight_init(void);
 void bsp_lcd_backlight_resume(void);
 void bsp_lcd_backlight_suspend(void);
-void bsp_lcd_backlight_control(uint16_t level);
+void bsp_lcd_backlight_control(uint8_t level);
 #ifdef __cplusplus
 }
 #endif

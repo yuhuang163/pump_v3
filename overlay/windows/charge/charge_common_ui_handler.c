@@ -35,4 +35,7 @@ void stop_charge_common_ui(ui_proc_charge_t *proc)
     EXCEPTION_CHECK_VOID(ui->hook && ui->hook->ui_animation_play_deinit);
     ui->hook->ui_animation_play_deinit(ui);
     proc->last_progress_ani_time = get_timestamp();
+    if (ui->hook && ui->hook->set_ui_backlight_level_rate) {
+        ui->hook->set_ui_backlight_level_rate(ui, 100);
+    }
 }

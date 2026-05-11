@@ -18,14 +18,6 @@
 #define IS_PRINT_LVGL_MEM_MONITOR               0
 #endif
 #define UI_LVGL_MSG_QUEUE_NUM                   4
-#define UI_BL_ON_LEVEL_MIN                      (20 * 100) /// 开灯最低亮度
-#define UI_BL_ON_LEVEL_RANGE                    (50 * 100) /// 开灯调节范围大小 20 - 50
-
-#if IS_SUPPORT_ADAPTIVE_DIMMING
-#define IS_UI_BACKLIGHT_ADAPTIVE                (1)
-#else
-#define IS_UI_BACKLIGHT_ADAPTIVE                (0)
-#endif
 
 typedef enum {
     UI_LVGL_MSG_CMD_ANIM_INIT = 1,
@@ -336,7 +328,6 @@ static void lvgl_display_handler(struct ui_manager_context *thiz)
 
 static void ui_snap_shot_perpare(struct ui_manager_context *thiz)
 {
-
     EXCEPTION_CHECK_VOID(thiz);
     if (snap_shot_obj == NULL || !lv_obj_is_valid(snap_shot_obj)) {
         snap_shot_obj = lv_image_create(lv_screen_active());
@@ -364,26 +355,40 @@ static void ui_snap_shot_perpare(struct ui_manager_context *thiz)
 
 static void set_backlight_level_internal(ui_manager_context_t *thiz, uint16_t level)
 {
-    EXCEPTION_CHECK_VOID(thiz && thiz->priv.panel_dev);
-    uint32_t tmp[1] = {level};
-    DEVICE_IOCTL_ARGS_NO_RET(thiz->priv.panel_dev, OP_CODE_PANEL_SET_BL, &tmp);
-    thiz->priv.ui_backlight_val = level;
-    // LOG_UI("set lcd backlight:%d", level);
+    if (thiz->priv.panel_dev) {
+        uint32_t tmp[1] = {level};
+        DEVICE_IOCTL_ARGS_NO_RET(thiz->priv.panel_dev, OP_CODE_PANEL_SET_BL, &tmp);
+    }
+    thiz->priv.ui_backlight_level = level;
 }
 
-static void set_backlight_level(ui_manager_context_t *thiz, uint16_t level)
+static void set_backlight_level(ui_manager_context_t *thiz, uint8_t level)
 {
     EXCEPTION_CHECK_VOID(thiz);
-    thiz->priv.ui_backlight_onoff = level > 0 ? true : false;
-    set_backlight_level_internal(thiz, level);
+    uint8_t level_with_rate = level * thiz->priv.ui_backlight_level_rate / 100;
+    if (level_with_rate > LCD_BACKLIGHT_LEVEL_MAX) {
+        level_with_rate = LCD_BACKLIGHT_LEVEL_MAX;
+    }
+    set_backlight_level_internal(thiz, level_with_rate);
 }
 
-static void set_backlight_onoff(ui_manager_context_t *thiz, bool onoff)
+static void set_backlight_level_rate(ui_manager_context_t *thiz, uint8_t rate)
 {
-    EXCEPTION_CHECK_VOID(thiz);
-    thiz->priv.ui_backlight_onoff = onoff;
-    LOG_UI("lcd backlight:%d", onoff);
-    set_backlight_level_internal(thiz, onoff ? LCD_BACKLIGHT_LEVEL_MAX : 0);
+    if (rate < 20 || rate > 100) {
+        LOGE("set ui backlight rate error");
+        return;
+    }
+
+    if (thiz->priv.ui_backlight_level_rate == rate) {
+        return;
+    }
+    
+    thiz->priv.ui_backlight_level_rate = rate;
+}
+
+static uint8_t get_backlight_level_rate(ui_manager_context_t *thiz)
+{
+    return thiz->priv.ui_backlight_level_rate;
 }
 
 #if IS_UI_BACKLIGHT_ADAPTIVE
@@ -391,26 +396,39 @@ static void ui_backlight_adaptive_thread(void *user_data)
 {
     ui_manager_context_t *thiz = (ui_manager_context_t *)user_data;
     EXCEPTION_CHECK_VOID(thiz);
-    if (thiz->priv.ui_backlight_onoff == false) {
+    if (thiz->priv.ui_backlight_level == 0) {
         return;
     }
-    set_backlight_level_internal(thiz, thiz->priv.ui_backlight_adaptive_val);
+
+    uint8_t level_with_rate = thiz->priv.ui_backlight_adaptive_val * thiz->priv.ui_backlight_level_rate / 100;
+    if (level_with_rate > LCD_BACKLIGHT_LEVEL_MAX) {
+        level_with_rate = LCD_BACKLIGHT_LEVEL_MAX;
+    } else if (level_with_rate < LCD_BACKLIGHT_LEVEL_MIN) {
+        level_with_rate = LCD_BACKLIGHT_LEVEL_MIN;
+    }
+
+    if (thiz->priv.ui_backlight_level == level_with_rate) {
+        return;
+    }
+    LOG_UI("level:%d/%d, rate: %d", level_with_rate, thiz->priv.ui_backlight_adaptive_val,
+        thiz->priv.ui_backlight_level_rate);
+    set_backlight_level_internal(thiz, level_with_rate);
+}
+
+static void ui_backlight_adaptive_level_update(ui_manager_context_t *thiz, uint8_t level)
+{
+    if (level > LCD_BACKLIGHT_LEVEL_MAX) {
+        level = LCD_BACKLIGHT_LEVEL_MAX;
+    }
+    
+    if (thiz->priv.ui_backlight_adaptive_val == level) {
+        return;
+    }
+
+    thiz->priv.ui_backlight_adaptive_val = level;
+    LOG_UI("level update: %d", level);
 }
 #endif
-
-static void set_backlight_adaptive_level(ui_manager_context_t *thiz, uint16_t level)
-{
-    EXCEPTION_CHECK_VOID(thiz);
-    if (level == 0) {
-        thiz->priv.ui_backlight_adaptive_val = UI_BL_ON_LEVEL_MIN;
-    } else {
-        if (level > LCD_BACKLIGHT_LEVEL_MAX) {
-            level = LCD_BACKLIGHT_LEVEL_MAX;
-        }
-        // thiz->priv.ui_backlight_adaptive_val = ((level * UI_BL_ON_LEVEL_RANGE) / LCD_BACKLIGHT_LEVEL_MAX) + UI_BL_ON_LEVEL_MIN;
-        thiz->priv.ui_backlight_adaptive_val = level;
-    }
-}
 
 static void reset_play_count_cb(ui_animation_play_t *play)
 {
@@ -480,19 +498,19 @@ static void on_ui_broadcast_receiver_route(broadcast_mask_id_t id, void *context
     switch (id.code) {
         case ID_BROADCAST_SYS_STATE_CHANGE:
             if (arg1 == SYSTEM_BROADCAST_POWER_OFF) {
-                set_backlight_onoff(ui, false);
+                set_backlight_level(ui, 0);
             } else if (arg1 == SYSTEM_BROADCAST_POWER_ON) {
-                set_backlight_onoff(ui, true);
+                set_backlight_level(ui, LCD_BACKLIGHT_LEVEL_MAX);
             }
             break;
         case ID_BROADCAST_PM_STATE_CHANGE: 
             if (arg1 == PM_BROADCAST_SYS_SUSPEND) {
-                set_backlight_onoff(ui, false);
+                set_backlight_level(ui, 0);
                 ui_lvgl_msg_t msg = {0};
                 msg.cmd = UI_LVGL_MSG_CMD_PM_SUSPEND;
                 MSG_QUEUE_SEND(ui->priv.ui_hdr_thd.msg_id, &msg, 0);
             } else if (arg1 == PM_BROADCAST_SYS_RESUME) {
-                set_backlight_onoff(ui, true);
+                set_backlight_level(ui, LCD_BACKLIGHT_LEVEL_MAX);
             }
             break;
         default:
@@ -500,16 +518,46 @@ static void on_ui_broadcast_receiver_route(broadcast_mask_id_t id, void *context
     }
 }
 
+static void on_ui_battery_state_change_cb(void *user_data, battery_state_info_t *info)
+{
+    ui_manager_context_t *ui = (ui_manager_context_t *)user_data;
+    EXCEPTION_CHECK_VOID(ui);
+    if (info->battery_state == BATTERY_STATE_EMPTY || 
+        info->battery_state == BATTERY_STATE_LOW_POWER_SHUTDOWN ||
+        info->battery_state == BATTERY_STATE_FORBID_START ||
+        info->battery_state == BATTERY_STATE_LOW_POWER_RUN) {
+        if (get_backlight_level_rate(ui) > 50) {
+            set_backlight_level_rate(ui, 50);
+        }
+    } else {
+        window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
+        if (wm && wm->get_current_window_id() == ID_WINDOW_CHARGE) {
+            if (get_backlight_level_rate(ui) > 50) {
+                set_backlight_level_rate(ui, 50);
+            }
+        } else {
+            if (get_backlight_level_rate(ui) < 50) {
+                set_backlight_level_rate(ui, 50);
+            }
+        }
+    }
+}
+
 static int on_post_ui_init_route(struct ui_manager_context *ctx)
 {
     EXCEPTION_CHECK_INT(ctx);
+    ctx->priv.ui_backlight_level_rate = 100;
 #if IS_UI_BACKLIGHT_ADAPTIVE
-    ctx->priv.ui_backlight_adaptive_val = UI_BL_ON_LEVEL_MIN;
+    ctx->priv.ui_backlight_adaptive_val = LCD_BACKLIGHT_LEVEL_MIN;
     misc_manager_context_t *misc = (misc_manager_context_t *)find_module(ID_MODULE_MISC);
     EXCEPTION_CHECK_INT(misc);
     misc->add_misc_task(ctx, MISC_TASK_ID_UI_BACKLIGHT_ADAPTIVE, 100, MISC_WORK_MSG_ID_TIMER,
         ui_backlight_adaptive_thread);
 #endif
+    battery_manager_context_t *battery = (battery_manager_context_t *)find_module(ID_MODULE_BATTERY);
+    if (battery) {
+        battery->add_battery_state_cb(ctx, on_ui_battery_state_change_cb);
+    }
     return 0;
 }
 
@@ -542,7 +590,9 @@ void register_ui_manager_hook(ui_manager_context_t *ctx)
 #if IS_SUPPORT_LVGL
     ctx->hook->lvgl_display_handler = lvgl_display_handler;
 #endif
-    ctx->hook->set_ui_backlight_onoff = set_backlight_onoff;
     ctx->hook->set_ui_backlight_level = set_backlight_level;
-    ctx->hook->set_ui_backlight_adaptive_level = set_backlight_adaptive_level;
+    ctx->hook->set_ui_backlight_level_rate = set_backlight_level_rate;
+#if IS_UI_BACKLIGHT_ADAPTIVE
+    ctx->hook->ui_backlight_adaptive_level_update = ui_backlight_adaptive_level_update;
+#endif
 }
