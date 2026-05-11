@@ -96,23 +96,23 @@ static int lcd_dev_write(struct rt_device_node *dev, const void *buf, uint32_t n
 }
 
 static int lcd_dev_ioctl(struct rt_device_node *dev, uint32_t op_code, void *args)
-{
-    if (op_code == OP_CODE_PANEL_ADD_READY_CB) {
-        bsp_add_lcd_ready_callback((void (*)(int, int))args);
-        return 0;
-    }
-#if (V3_HARDWARE_VERSION == V3_2710IMP_HARDWARE_V1)   
-    return bsp_lcd_uart_dev_ioctl(dev, op_code, args);
-#else
-    if (op_code == OP_CODE_PANEL_SET_BL) {
-        uint32_t *tmp = (uint32_t *)args;
-        if (tmp) {
-            bsp_lcd_backlight_control((uint16_t)(tmp[0]));
+{    
+    switch (op_code) {
+        case OP_CODE_PANEL_ADD_READY_CB:
+            bsp_add_lcd_ready_callback((void (*)(int, int))args);
+            return 0;
+        case OP_CODE_PANEL_SET_BL: {
+            uint32_t *tmp = (uint32_t *)args;
+            if (tmp) {
+                bsp_lcd_backlight_control((uint8_t)(tmp[0]));
+            }
+            return 0;
         }
-        return 0;
+        default:
+            return -1;
     }
+
     return BSP_OK;
-#endif
 }
 
 static int lcd_dev_suspend(struct rt_device_node *dev)

@@ -1271,9 +1271,7 @@ int tests_tlvs_lcd_backlight_control(comm_protocol_builder_t *builder, comm_prot
     uint8_t result = 0x00;
     if (data_len == 1 && data != NULL) {
         ui_manager_context_t *ui = (ui_manager_context_t *)find_module(ID_MODULE_UI);
-        if (ui && ui->hook && ui->hook->set_ui_backlight_onoff) {
-            /// 设置LCD背光开关
-            ui->hook->set_ui_backlight_onoff(ui, data[0] ? true : false);
+        if (ui && ui->hook && ui->hook->set_ui_backlight_level) {
             /// 设置夜灯LCD背光
             ui->hook->set_ui_backlight_level(ui, data[0] ? LCD_BACKLIGHT_LEVEL_MAX : 0);
             result = 0x01;

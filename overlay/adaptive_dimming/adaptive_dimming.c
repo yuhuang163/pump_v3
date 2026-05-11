@@ -321,7 +321,7 @@ static void adaptive_dimming_polling_thread(void *user_data)
 
     ui_manager_context_t *ui = (ui_manager_context_t *)find_module(ID_MODULE_UI);
     if (ui && ui->hook) {
-        ui->hook->set_ui_backlight_adaptive_level(ui, refresh_duty * 100);
+        ui->hook->ui_backlight_adaptive_level_update(ui, refresh_duty);
     }
 #if ADAP_DIM_USE_LUX_SIGNIFICANT_SETTLE_GATE
     /* 下发成功：记录用于「明显变化」比较的基准 lux，并清稳定状态机，便于下一轮从小变化或重新 settling 开始 */
