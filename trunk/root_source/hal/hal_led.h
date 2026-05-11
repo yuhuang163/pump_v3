@@ -17,8 +17,7 @@ extern "C" {
 typedef enum {
     OP_CODE_LED_STATUS_SET  = 1,
     OP_CODE_LED_STATUS_GET = 2,
-    OP_CODE_LED_LEVEL_RATE_SET = 3,  /// 设置亮度系数
-    OP_CODE_LED_KEY_BACKLIGHT_UNIFORM_SET = 4, /// 统一按键背光（BLINK 保留模式）
+    OP_CODE_LED_LEVEL_MAX_SET = 3,  /// 设置亮度系数上限
     OP_CODE_LED_IS_READY = 5,
 } led_dev_op_code_e;
 
@@ -59,13 +58,14 @@ typedef enum {
 
 typedef void (*led_blink_finish_cb)(void *user_data, uint32_t args);
 typedef struct {
-    uint8_t  finish_status; /// 闪烁完成状态
     uint16_t period;        /// 周期，单位ms
     uint16_t times;         /// 闪烁次数，0：一直闪烁，单位次
+    uint8_t  finish_status; /// 闪烁完成状态
     /// 模块内部使用
     uint8_t  status;        /// 灯状态 1亮，0灭
-    uint16_t period_count;  /// 周期计数
+    uint8_t  level;         /// 亮度 0-100
     uint8_t  times_count;   /// 闪烁次数计数
+    uint32_t start_time;    /// 开始时间
 } led_blink_t;
 
 typedef void (*led_breath_finish_cb)(void);
@@ -80,24 +80,26 @@ typedef struct {
     led_breath_finish_cb cb;      /// 呼吸回调
 } led_breath_t;
 
-typedef struct {
-    uint32_t status;    /// 状态 1亮，0灭
-} led_onoff_t;
-
 /// 最大亮度值
 #define LED_LEVEL_MAX      (100)
 
 typedef struct {
+    uint8_t status;    /// 状态 1亮，0灭
+    uint8_t  level;    /// 亮度 0-100
+} led_onoff_t;
+
+typedef struct {
+    uint8_t status;    /// 状态 1亮，0灭
     uint8_t  level;    /// 亮度 0-100
 } led_luminous_t;
 
 typedef struct {
     uint8_t  mode;          /// led模式详见led_mode_e
-    uint8_t  rate;          /// 亮度系数 0-100
+    uint8_t  level_max;     /// 亮度系数上限 0-100
     union {
-        led_blink_t blink;
-        led_breath_t breath;
-        led_onoff_t onoff;
+        led_blink_t    blink;
+        led_breath_t   breath;
+        led_onoff_t    onoff;
         led_luminous_t luminous;
     } un;
 } led_status_t;
@@ -109,12 +111,8 @@ typedef struct {
 
 typedef struct {
     uint8_t led_index;
-    uint8_t rate;
-} led_level_rate_msg_t;
-
-typedef struct {
-    uint8_t level;
-} led_key_backlight_uniform_msg_t;
+    uint8_t level_max;
+} led_level_msg_t;
 
 #ifdef __cplusplus
 }

@@ -244,7 +244,7 @@ int bsp_night_light_status_set(led_status_msg_t *msg)
     return 0;
 }
 
-int bsp_night_light_rate_update(led_level_rate_msg_t *msg)
+int bsp_night_light_level_max_update(led_level_msg_t *msg)
 {
     return 0;
 }
