@@ -271,6 +271,7 @@ static void charge_event_callback(charge_event_e event)
 #if IS_SUPPORT_PD_CHARGE_ADAPTER_MISMATCH
         thiz->priv.is_adapter_mismatch = 1;
         multi_func_msg_data_t __msg = {0};
+        __msg.union_body.extra.is_bg_dispatch = 0x01;
         __msg.union_body.extra.window_id = ID_WINDOW_CHARGE;
         LOG_WM("charge adapter mismatch goto charge screen");
         wm->dispatch_new_window_args(wm, &__msg);
