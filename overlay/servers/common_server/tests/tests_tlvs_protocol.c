@@ -1266,6 +1266,46 @@ int tests_tlvs_read_battery_charge_current(comm_protocol_builder_t *builder, com
     return protocol_ctx->comm_protocol_builder_add_tlv(builder, service, &tlv_node);
 }
 
+int tests_tlvs_set_battery_charge_current(comm_protocol_builder_t *builder, comm_protocol_service_t *service,
+                                          uint8_t *data, uint16_t data_len)
+{
+    EXCEPTION_CHECK_INT(builder && service);
+    protocol_manager_context_t *protocol_ctx = get_protocol_ctx();
+    EXCEPTION_CHECK_INT(protocol_ctx);
+
+    uint8_t result = 0x00;
+    if (data_len == 2U && data != NULL) {
+        uint16_t target_ma = (uint16_t)data[0] | ((uint16_t)data[1] << 8);
+        uint32_t ioctl_arg[1] = { target_ma };
+        peripheral_bus_context_t *pbus = (peripheral_bus_context_t *)find_module(ID_MODULE_DEVICE_BUS);
+        if (pbus && pbus->find_device) {
+            rt_device_node_t *battery_dev = pbus->find_device(ID_DEVICE_BATTERY);
+            if (battery_dev && battery_dev->ioctl) {
+                DEVICE_IOCTL_ARGS_HAS_RET(battery_dev, OP_CODE_BAT_SET_CHARGE_CURRENT, ioctl_arg, ioctl_ret);
+                if (ioctl_ret == 0) {
+                    result = 0x01;
+                    LOG_SRV("tests_tlvs_set_battery_charge_current: %u mA ok", (unsigned)target_ma);
+                } else {
+                    LOGW("tests_tlvs_set_battery_charge_current: %u mA failed ret=%d", (unsigned)target_ma, ioctl_ret);
+                }
+            } else {
+                LOGW("tests_tlvs_set_battery_charge_current: battery device missing");
+            }
+        } else {
+            LOGW("tests_tlvs_set_battery_charge_current: device bus missing");
+        }
+    } else {
+        LOGE("tests_tlvs_set_battery_charge_current: invalid data_len=%u, expected 2", (unsigned)data_len);
+    }
+
+    comm_protocol_tlv_node_t tlv_node = {
+        .type = TESTS_TLV_SET_BATTERY_CHARGE_CURRENT,
+        .length = 1,
+        .value = &result,
+    };
+    return protocol_ctx->comm_protocol_builder_add_tlv(builder, service, &tlv_node);
+}
+
 int tests_tlvs_lcd_backlight_control(comm_protocol_builder_t *builder, comm_protocol_service_t *service,
                                      uint8_t *data, uint16_t data_len)
 {
