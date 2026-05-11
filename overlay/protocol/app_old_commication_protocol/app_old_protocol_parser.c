@@ -78,6 +78,7 @@ const char* app_old_comm_get_cmd_id_str(app_old_comm_cmd_id_e cid)
         case APP_OLD_COMM_CID_USER_DEFINE: return "USER_DEFINE";
         case APP_OLD_COMM_CID_PARA_DOWNLOAD: return "PARA_DOWNLOAD";
         case APP_OLD_COMM_CID_CLEAR_CUSTOM_MODE: return "CLEAR_CUSTOM_MODE";
+        case APP_OLD_COMM_CID_NOTIFY_CUSTOM_MODE_ID: return "NOTIFY_CUSTOM_MODE_ID";
         case APP_OLD_COMM_CID_SET_BILATERAL_PUMP_PARAM: return "SET_BILATERAL_PUMP_PARAM";
         case APP_OLD_COMM_CID_TASTE_CTRL: return "TASTE_CTRL";
         case APP_OLD_COMM_CID_SET_TRAVEL_LOCK: return "SET_TRAVEL_LOCK";
