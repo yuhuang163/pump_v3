@@ -154,10 +154,10 @@ static void show_pump_both_level_ui(ui_proc_pump_t *proc)
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-void switch_pump_both_control_type_ui(ui_proc_pump_t *proc)
+void switch_pump_both_control_type_ui(ui_proc_pump_t *proc, bool is_increase)
 {
     EXCEPTION_CHECK_VOID(proc && proc->pump);
-    proc->level_change = 0;
+    proc->level_change = is_increase ? 1 : -1;
     if (proc->current_ui_type != PUMP_UI_TYPE_BOTH_LEVEL) {
         int time_index = 0;
         READ_PUMP_MODE_STEP_INDEX(proc->pump, time_index);

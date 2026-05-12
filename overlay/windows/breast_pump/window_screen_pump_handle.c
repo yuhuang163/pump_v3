@@ -134,7 +134,7 @@ switch (proc->current_ui_type) {
             switch_breastfeeding_mode_ui(proc, is_left ? false : true);
             break;
         case PUMP_UI_TYPE_HOME:
-            switch_pump_both_control_type_ui(proc);
+            switch_pump_both_control_type_ui(proc, is_left ? false : true);
             break;
         default:
             LOG_WM("unknow ui type: %d, ignore.", proc->current_ui_type);
