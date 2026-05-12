@@ -50,16 +50,77 @@ static void wear_detection_process_data(void)
         // // TODO: 实现气压补偿算法
         // V3ProAlgoMain(s_air_pressure_data);          // 不做气压补偿，采集数据
         // GetCompensationResult(s_result.compensation_status, s_result.compensation_delta_pwm);
-        // s_result.compensation_delta_pwm[0] = 0;
-        // s_result.compensation_delta_pwm[1] = 0; /// 不做补偿
-        ALGO_LOG_INFO("time_stamp: %d, air pressure: p1: %f, p2: %f", s_air_pressure_data.timestamp, s_air_pressure_data.air_pressure[0], s_air_pressure_data.air_pressure[1]);
-        ALGO_LOG_INFO("pump state: %d, %d", s_air_pressure_data.pump_state[0].state, s_air_pressure_data.pump_state[1].state);
-        ALGO_LOG_INFO("status: %d/%d, delta_pwm: %d, %d", s_result.compensation_status[0], s_result.compensation_status[1], s_result.compensation_delta_pwm[0], s_result.compensation_delta_pwm[1]);
-        ALGO_LOG_INFO("wear state: %d, %d", s_result.wear_status[0], s_result.wear_status[1]);
-        ALGO_LOG_INFO("target pressure: %d, %d", s_air_pressure_data.pump_state[0].target_pressure, s_air_pressure_data.pump_state[1].target_pressure);
-        ALGO_LOG_INFO("target pump time: %d, %d", s_air_pressure_data.pump_state[0].target_pump_time, s_air_pressure_data.pump_state[1].target_pump_time);
-        /*GetDebugInfo(&s_result.debug_info); /// 获取调试信息
-        ALGO_LOG_INFO("DEBUG ALGO INFO min data: %d, %d", s_result.debug_info[0].iDelta_pwm, s_result.debug_info[0].uWearStatus);*/
+        // Debug here
+        unsigned int uWaveSpikes[2] = { 0 };
+        unsigned int uNormalWaveform[2] = { 0 };
+        float raw_pressure_max[2] = { 0 };
+        float threshold_at_min_pressure[2] = { 0 };
+        unsigned int uNoiseLevel[2] = { 0 };
+        float fMinData[2] = { 0.0f };
+        float fThreshold[2] = { 0.0f };
+        float fFilteredData[2] = { 0.0f };
+        // GetFilteredPressureData(fFilteredData);
+        GetWearDetectionDebugInfo(uWaveSpikes, fMinData, uNormalWaveform, uNoiseLevel, fThreshold, fFilteredData, raw_pressure_max, threshold_at_min_pressure);
+        //s_result.compensation_delta_pwm[0] = 0;
+        //s_result.compensation_delta_pwm[1] = 0; /// 不做补偿
+        ALGO_LOG_INFO(
+            "time_stamp: %d, air pressure: p1: %f, p2: %f, "
+            "pump state: %d, %d, "
+            "status: %d/%d, delta_pwm: %d, %d, "
+            "wear state: %d, %d, "
+            "target pressure: %d, %d, "
+            "target pump time: %d, %d, "
+            "p1_filtered: %f, p2_filtered: %f, "
+            "wave_spikes: %d, %d, "
+            "normal_waveform: %d, %d, "
+            "fmin_data: %f, %f, "
+            "fthreshold: %f, %f, "
+            "raw_pressure_max: %f, %f, "
+            "threshold_at_min_pressure: %f, %f",
+            s_air_pressure_data.timestamp,
+            s_air_pressure_data.air_pressure[0],
+            s_air_pressure_data.air_pressure[1],
+            s_air_pressure_data.pump_state[0].state,
+            s_air_pressure_data.pump_state[1].state,
+            s_result.compensation_status[0],
+            s_result.compensation_status[1],
+            s_result.compensation_delta_pwm[0],
+            s_result.compensation_delta_pwm[1],
+            s_result.wear_status[0],
+            s_result.wear_status[1],
+            s_air_pressure_data.pump_state[0].target_pressure,
+            s_air_pressure_data.pump_state[1].target_pressure,
+            s_air_pressure_data.pump_state[0].target_pump_time,
+            s_air_pressure_data.pump_state[1].target_pump_time,
+            fFilteredData[0],
+            fFilteredData[1],
+            uWaveSpikes[0],
+            uWaveSpikes[1],
+            uNormalWaveform[0],
+            uNormalWaveform[1],
+            fMinData[0],
+            fMinData[1],
+            fThreshold[0],
+            fThreshold[1],
+            raw_pressure_max[0],
+            raw_pressure_max[1],
+            threshold_at_min_pressure[0],
+            threshold_at_min_pressure[1]
+        );
+        // ALGO_LOG_INFO("time_stamp: %d, air pressure: p1: %f, p2: %f", s_air_pressure_data.timestamp, s_air_pressure_data.air_pressure[0], s_air_pressure_data.air_pressure[1]);
+        // ALGO_LOG_INFO("pump state: %d, %d", s_air_pressure_data.pump_state[0].state, s_air_pressure_data.pump_state[1].state);
+        // ALGO_LOG_INFO("status: %d/%d, delta_pwm: %d, %d", s_result.compensation_status[0], s_result.compensation_status[1], s_result.compensation_delta_pwm[0], s_result.compensation_delta_pwm[1]);
+        // ALGO_LOG_INFO("wear state: %d, %d", s_result.wear_status[0], s_result.wear_status[1]);
+        // ALGO_LOG_INFO("target pressure: %d, %d", s_air_pressure_data.pump_state[0].target_pressure, s_air_pressure_data.pump_state[1].target_pressure);
+        // ALGO_LOG_INFO("target pump time: %d, %d", s_air_pressure_data.pump_state[0].target_pump_time, s_air_pressure_data.pump_state[1].target_pump_time);
+        // ALGO_LOG_INFO("p1_filtered: %f, p2_filtered: %f", fFilteredData[0], fFilteredData[1]);
+        // ALGO_LOG_INFO("wave_spikes1: %d, wave_spikes2: %d", uWaveSpikes[0], uWaveSpikes[1]);
+        // ALGO_LOG_INFO("normal_waveform1: %d, normal_waveform2: %d", uNormalWaveform[0], uNormalWaveform[1]);
+        // ALGO_LOG_INFO("fmin_data1: %f, fmin_data2: %f", fMinData[0], fMinData[1]);
+        // ALGO_LOG_INFO("fthreshold1: %f, fthreshold2: %f", fThreshold[0], fThreshold[1]);
+        // ALGO_LOG_INFO("raw_pressure_max1: %f, raw_pressure_max2: %f", raw_pressure_max[0], raw_pressure_max[1]);
+        // ALGO_LOG_INFO("threshold_at_min_pressure1: %f, threshold_at_min_pressure2: %f", threshold_at_min_pressure[0], threshold_at_min_pressure[1]);
+        // ALGO_LOG_INFO("DEBUG ALGO INFO min data: %d, %d", s_result.debug_info[0].iDelta_pwm, s_result.debug_info[0].uWearStatus);*/
     }
 }
 
