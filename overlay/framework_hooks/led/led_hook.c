@@ -108,7 +108,7 @@ static void key_light_adaptive_level_update(led_manager_context_t *thiz, uint8_t
         return;
     }
     thiz->priv.key_light_adaptive_level = level;
-    LOG_MISC("level update: %d", thiz->priv.key_light_adaptive_level);
+    // LOG_MISC("level update: %d", thiz->priv.key_light_adaptive_level);
 }
 #endif
 

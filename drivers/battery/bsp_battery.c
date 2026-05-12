@@ -422,7 +422,7 @@ static void charging_voltage_handler(uint16_t voltage, uint32_t polling_interval
                 vref = charge_voltage - battery.voltage; 
             } 
         }
-        BSP_LOG("charging", "%f/%f/%f, %d ,%d", vref, s_charging_curve_percent, charge_voltage, battery.voltage, offset);
+        // BSP_LOG("charging", "%f/%f/%f, %d ,%d", vref, s_charging_curve_percent, charge_voltage, battery.voltage, offset);
         goto CALC_EXIT;
     }
 

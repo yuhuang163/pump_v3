@@ -426,7 +426,7 @@ static void ui_backlight_adaptive_level_update(ui_manager_context_t *thiz, uint8
     }
 
     thiz->priv.ui_backlight_adaptive_val = level;
-    LOG_UI("level update: %d", level);
+    // LOG_UI("level update: %d", level);
 }
 #endif
 
