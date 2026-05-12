@@ -106,6 +106,7 @@ void V3WearDetectionInit(unsigned char uLevelLeft, unsigned char ulevelRight, un
 		tFeatureInfo[j].uPrevPumpState = SUCTION_STATUS_IDLE;
 		tFeatureInfo[j].uPrevActive = 0;
 		tFeatureInfo[j].uCurrActive = 0;
+		tFeatureInfo[j].uRawTailRemain = 0;
 		tFeatureInfo[j].uRawSegLen = 0;
 		for (int i = 0; i < RAW_PUMP_SEG_MAX; i++)
 		{
@@ -210,6 +211,8 @@ void V3WearDetectionModeReset(unsigned char uLevel, unsigned char uMode, unsigne
 	tFeatureInfo[uChannelIdx].uPrevPumpState = SUCTION_STATUS_IDLE;
 	tFeatureInfo[uChannelIdx].uPrevActive = 0;
 	tFeatureInfo[uChannelIdx].uCurrActive = 0;
+	tFeatureInfo[uChannelIdx].uRawTailRemain = 0;
+	tFeatureInfo[uChannelIdx].uRawSegLen = 0;
 	for (int i = 0; i < RAW_PUMP_SEG_MAX; i++)
 	{
 		tFeatureInfo[uChannelIdx].fRawPumpSeg[i] = 0;
@@ -386,30 +389,69 @@ static void UpdateRawPumpSegment(float raw_pressure,
 	/* inactive -> active：开启新段，并把当前点作为首点写入 */
 	if ((!tFeatureInfoTemp->uPrevActive) && tFeatureInfoTemp->uCurrActive)
 	{
+		if ((tFeatureInfoTemp->uRawSegLen > 0) && (tFeatureInfoTemp->uRawTailRemain > 0))
+		{
+			tFeatureInfoTemp->fRawSegMinPressure = GetRawMinPressureOnFallingEdge(
+				tFeatureInfoTemp->fRawPumpSeg, tFeatureInfoTemp->uRawSegLen);
+		}
 		tFeatureInfoTemp->uRawSegLen = 0;
+		tFeatureInfoTemp->uRawTailRemain = (unsigned char)RAW_PUMP_POST_TAIL_POINTS;
 
-		if (tFeatureInfoTemp->uRawSegLen < RAW_PUMP_SEG_MAX)
+		if (tFeatureInfoTemp->uRawSegLen < RAW_PUMP_ACTIVE_CAP)
 		{
 			tFeatureInfoTemp->fRawPumpSeg[tFeatureInfoTemp->uRawSegLen] = raw_pressure;
 			tFeatureInfoTemp->uRawSegLen++;
 		}
 		tFeatureInfoTemp->fRawSegThresholdAtMinPressure = fThreshold;
 	}
-	/* active -> active：持续缓存原始数据 */
+	/* active -> active：持续缓存原始数据（尾点计数不在此递减，否则活动期会提前减到 0） */
 	else if (tFeatureInfoTemp->uPrevActive && tFeatureInfoTemp->uCurrActive)
+	{
+		if (tFeatureInfoTemp->uRawSegLen < RAW_PUMP_ACTIVE_CAP)
+		{
+			tFeatureInfoTemp->fRawPumpSeg[tFeatureInfoTemp->uRawSegLen] = raw_pressure;
+			tFeatureInfoTemp->uRawSegLen++;
+		}
+	}
+	/* active -> inactive：写入结束边沿点，并开始尾点倒计时 */
+	else if (tFeatureInfoTemp->uPrevActive && (!tFeatureInfoTemp->uCurrActive))
 	{
 		if (tFeatureInfoTemp->uRawSegLen < RAW_PUMP_SEG_MAX)
 		{
 			tFeatureInfoTemp->fRawPumpSeg[tFeatureInfoTemp->uRawSegLen] = raw_pressure;
 			tFeatureInfoTemp->uRawSegLen++;
 		}
+		if (tFeatureInfoTemp->uRawTailRemain > 0)
+		{
+			tFeatureInfoTemp->uRawTailRemain--;
+		}
+		if ((tFeatureInfoTemp->uRawTailRemain == 0) ||
+			(tFeatureInfoTemp->uRawSegLen >= RAW_PUMP_SEG_MAX))
+		{
+			tFeatureInfoTemp->fRawSegMinPressure = GetRawMinPressureOnFallingEdge(
+				tFeatureInfoTemp->fRawPumpSeg, tFeatureInfoTemp->uRawSegLen);
+			tFeatureInfoTemp->uRawSegLen = 0;
+			tFeatureInfoTemp->uRawTailRemain = 0;
+		}
 	}
-	/* active -> inactive：说明这一整段刚结束 */
-	else if (tFeatureInfoTemp->uPrevActive && (!tFeatureInfoTemp->uCurrActive))
+	/* inactive -> inactive：继续写尾随点，每写一点 uRawTailRemain 减 1，到 0 表示本段采集结束 */
+	else if ((!tFeatureInfoTemp->uPrevActive) && (!tFeatureInfoTemp->uCurrActive) &&
+		(tFeatureInfoTemp->uRawTailRemain > 0))
 	{
-		tFeatureInfoTemp->fRawSegMinPressure = GetRawMinPressureOnFallingEdge(tFeatureInfoTemp->fRawPumpSeg, tFeatureInfoTemp->uRawSegLen);
-
-		tFeatureInfoTemp->uRawSegLen = 0;
+		if (tFeatureInfoTemp->uRawSegLen < RAW_PUMP_SEG_MAX)
+		{
+			tFeatureInfoTemp->fRawPumpSeg[tFeatureInfoTemp->uRawSegLen] = raw_pressure;
+			tFeatureInfoTemp->uRawSegLen++;
+		}
+		tFeatureInfoTemp->uRawTailRemain--;
+		if ((tFeatureInfoTemp->uRawTailRemain == 0) ||
+			(tFeatureInfoTemp->uRawSegLen >= RAW_PUMP_SEG_MAX))
+		{
+			tFeatureInfoTemp->fRawSegMinPressure = GetRawMinPressureOnFallingEdge(
+				tFeatureInfoTemp->fRawPumpSeg, tFeatureInfoTemp->uRawSegLen);
+			tFeatureInfoTemp->uRawSegLen = 0;
+			tFeatureInfoTemp->uRawTailRemain = 0;
+		}
 	}
 
 	tFeatureInfoTemp->uPrevPumpState = uCurrStateFixed;
@@ -1112,15 +1154,34 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 			/* L1 ~ L15 的基础进入条件 */
 			if(uLevel >= 10)
 			{
-				if ((tFeatureInfoTemp->fThreshold - 0.25) > tFeatureInfoTemp->fRawSegMinPressure)
+				if(uLevel == 14) // L15 需要特殊处理，因为 L15 的阈值漏气后负压变化不明显，通过WaveSpikes作为权重加入来判断是否佩戴
 				{
-					uCandidateWearStatus = 1;
+					if(tFeatureInfoTemp->uWaveSpikes > 0)
+					{
+						if((tFeatureInfoTemp->fThreshold - 0.25) > (tFeatureInfoTemp->fRawSegMinPressure * 2 / (float)tFeatureInfoTemp->uWaveSpikes))
+						{
+							uCandidateWearStatus = 1;
+						}
+					}
+					else
+					{
+						if(((tFeatureInfoTemp->fThreshold - 0.25) > tFeatureInfoTemp->fRawSegMinPressure))
+						{
+							uCandidateWearStatus = 1;
+						}
+					}
+				}
+				else 
+				{
+					if(((tFeatureInfoTemp->fThreshold - 0.25) > tFeatureInfoTemp->fRawSegMinPressure))
+					{
+						uCandidateWearStatus = 1;
+					}
 				}
 			}
 			else if(uLevel == 0)
 			{
-				if(tFeatureInfoTemp->uNormalWaveform >= 5 &&
-				(tFeatureInfoTemp->fThreshold - 0.25) > tFeatureInfoTemp->fRawSegMinPressure)
+				if((tFeatureInfoTemp->fThreshold - 0.25) > tFeatureInfoTemp->fRawSegMinPressure)
 				{
 					uCandidateWearStatus = 1;
 				}
@@ -1142,27 +1203,28 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 		 * ------------------------- */
 		else if (uMode == MODE_STIMULATION)
 		{
-			/* L1 ~ L15 的基础进入条件 */
-			if (uLevel <= 14)
-			{
-				if ((tFeatureInfoTemp->uWaveSpikes <= 1 &&
-					 tFeatureInfoTemp->uNoiseLevel == 0 &&
-					 tFeatureInfoTemp->uNormalWaveform >= 1))
-				{
-					uCandidateWearStatus = 1;
-				}
-			}
+			// /* L1 ~ L15 的基础进入条件 */
+			// if (uLevel <= 14)
+			// {
+			// 	if ((tFeatureInfoTemp->uWaveSpikes <= 1 &&
+			// 		 tFeatureInfoTemp->uNoiseLevel == 0 &&
+			// 		 tFeatureInfoTemp->uNormalWaveform >= 1))
+			// 	{
+			// 		uCandidateWearStatus = 1;
+			// 	}
+			// }
 
-			/* 刺激高档位的额外进入条件 */
-			if (uCandidateWearStatus == 0)
+			// /* 刺激高档位的额外进入条件 */
+			// if (uLevel >= 10)
+			// {
+			// 	if ((tFeatureInfoTemp->fThreshold - 0.25) > tFeatureInfoTemp->fRawSegMinPressure)
+			// 	{
+			// 		uCandidateWearStatus = 1;
+			// 	}
+			// }
+			if ((tFeatureInfoTemp->fThreshold - 0.25) > tFeatureInfoTemp->fRawSegMinPressure)
 			{
-				if ((tFeatureInfoTemp->fThreshold < tFeatureInfoTemp->fMinData &&
-					 tFeatureInfoTemp->fMinData < -1) &&
-					(tFeatureInfoTemp->uWaveSpikes < 5 &&
-					 uLevel >= 12))
-				{
-					uCandidateWearStatus = 1;
-				}
+				uCandidateWearStatus = 1;
 			}
 		}
 
@@ -1171,15 +1233,12 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 		 * ------------------------- */
 		else if (uMode == MODE_MIXED)
 		{
-			if(uLevel >= 10)
+			if((uLevel >= 10) || (uLevel <= 6))
 			{
-				// if((tFeatureInfoTemp->uPumpState == SUCTION_STATUS_GENERATE) || (tFeatureInfoTemp->uPumpState == SUCTION_STATUS_HOLD))
-				// {
 				if((tFeatureInfoTemp->fRawSegThresholdAtMinPressure + 0.25) > tFeatureInfoTemp->fRawSegMinPressure)
 				{
 					uCandidateWearStatus = 1;
 				}
-				// }
 			}
 			else
 			{
@@ -1202,16 +1261,6 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 						tFeatureInfoTemp->fMinDataBuff[5] < -1) &&
 						(uLevel >= 9) &&
 						tFeatureInfoTemp->uWaveSpikes < 5)
-					{
-						uCandidateWearStatus = 1;
-					}
-				}
-
-				/* mixed 1档位下，利用当前最小值辅助进入 */
-				if(uCandidateWearStatus == 0)
-				{
-					if (tFeatureInfoTemp->fThreshold > tFeatureInfoTemp->fMinData &&
-						(uLevel == 0))
 					{
 						uCandidateWearStatus = 1;
 					}
@@ -1243,18 +1292,37 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 			{
 				if(uLevel >= 10)
 				{
-					if ((tFeatureInfoTemp->fThreshold + 0.25) < tFeatureInfoTemp->fRawSegMinPressure &&
-						tFeatureInfoTemp->fMinData < -.1)
+					if(uLevel == 14) // L15 需要特殊处理，因为 L15 的阈值漏气后负压变化不明显，通过WaveSpikes作为权重加入来判断是否佩戴
 					{
-						uCandidateWearStatus = 0;
+						if(tFeatureInfoTemp->uWaveSpikes > 0)
+						{
+							if((tFeatureInfoTemp->fThreshold + 0.25) < (tFeatureInfoTemp->fRawSegMinPressure * 2 / (float)tFeatureInfoTemp->uWaveSpikes))
+							{
+								uCandidateWearStatus = 0;
+							}
+						}
+						else
+						{
+							if(((tFeatureInfoTemp->fThreshold + 0.25) < tFeatureInfoTemp->fRawSegMinPressure))
+							{
+								uCandidateWearStatus = 0;
+							}
+						}
+					}
+					else
+					{
+						if ((tFeatureInfoTemp->fThreshold + 0.25) < tFeatureInfoTemp->fRawSegMinPressure)
+						{
+							uCandidateWearStatus = 0;
+						}
 					}
 				}
-				else if(uLevel == 0)
+				else if(uLevel == 0 || uLevel == 1)
 				{
-					if(tFeatureInfoTemp->uNormalWaveform < 5 &&
-					(tFeatureInfoTemp->fThreshold - 0.25) > tFeatureInfoTemp->fRawSegMinPressure)
+					if(tFeatureInfoTemp->uNormalWaveform < 4 &&
+					(tFeatureInfoTemp->fThreshold + 0.25) < tFeatureInfoTemp->fRawSegMinPressure)
 					{
-						uCandidateWearStatus = 1;
+						uCandidateWearStatus = 0;
 					}
 				}
 				/* L13 ~ L15 */
@@ -1281,21 +1349,25 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 			 * ------------------------- */
 			else if (uMode == MODE_STIMULATION)
 			{
-				/* L1 ~ L14 基础退出条件 */
-				if (uLevel <= 14)
+				// /* L1 ~ L14 基础退出条件 */
+				// if (uLevel <= 14)
+				// {
+				// 	if (tFeatureInfoTemp->fThreshold < tFeatureInfoTemp->fMinData &&
+				// 		tFeatureInfoTemp->fMinData < -.1)
+				// 	{
+				// 		uCandidateWearStatus = 0;
+				// 	}
+				// 	/* L10 ~ L14 */
+				// 	else if (tFeatureInfoTemp->uWaveSpikes >= 5 &&
+				// 			 uLevel >= 5 &&
+				// 			 uLevel <= 14)
+				// 	{
+				// 		uCandidateWearStatus = 0;
+				// 	}
+				// }
+				if ((tFeatureInfoTemp->fThreshold + 0.25) < tFeatureInfoTemp->fRawSegMinPressure)
 				{
-					if (tFeatureInfoTemp->fThreshold < tFeatureInfoTemp->fMinData &&
-						tFeatureInfoTemp->fMinData < -.1)
-					{
-						uCandidateWearStatus = 0;
-					}
-					/* L10 ~ L14 */
-					else if (tFeatureInfoTemp->uWaveSpikes >= 5 &&
-							 uLevel >= 5 &&
-							 uLevel <= 14)
-					{
-						uCandidateWearStatus = 0;
-					}
+					uCandidateWearStatus = 0;
 				}
 			}
 
@@ -1304,44 +1376,28 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 			 * ------------------------- */
 			else if (uMode == MODE_MIXED)
 			{
-				if(uLevel >= 10)
+				if((uLevel >= 10) || (uLevel <= 6))
 				{
-					// if((tFeatureInfoTemp->uPumpState == SUCTION_STATUS_GENERATE) || (tFeatureInfoTemp->uPumpState == SUCTION_STATUS_HOLD))
-					// {
 					if((tFeatureInfoTemp->fRawSegThresholdAtMinPressure + 0.25) < tFeatureInfoTemp->fRawSegMinPressure)
 					{
 						uCandidateWearStatus = 0;
 					}
-					// }
 				}
 				else
-				{
-					/* L1 ~ L2 */
-					if (uLevel <= 1)
-					{
-						if (tFeatureInfoTemp->fThreshold < tFeatureInfoTemp->fMinData &&
-							tFeatureInfoTemp->fMinData < -.1)
-						{
-							uCandidateWearStatus = 0;
-						}
-					}
-
+				{				
 					/* L4 ~ L6 */
-					if (uCandidateWearStatus == 1)
+					if (uLevel > 3 && uLevel <= 6)
 					{
 						if ((tFeatureInfoTemp->fThreshold < tFeatureInfoTemp->fMinDataBuffMin) &&
-							tFeatureInfoTemp->uWaveSpikes >= 5 &&
-							(uLevel >= 2 && uLevel <= 6))
+							tFeatureInfoTemp->uWaveSpikes >= 5)
 						{
 							uCandidateWearStatus = 0;
 						}
 					}
-
 					/* L7 及以上 */
-					if (uCandidateWearStatus == 1)
+					 else if (uLevel >= 7)
 					{
-						if (tFeatureInfoTemp->uWaveSpikes > 5 &&
-							(uLevel >= 7))
+						if (tFeatureInfoTemp->uWaveSpikes > 5)
 						{
 							uCandidateWearStatus = 0;
 						}
