@@ -431,6 +431,11 @@ static void pump_copy_trial_mode_to_custom_mode(void)
     }
     LOG_SRV("copy custom trial setting info to custom mode");
 
+    motor_manager_context_t *motor_ctx = (motor_manager_context_t *)find_module(ID_MODULE_MOTOR);
+    EXCEPTION_CHECK_VOID(motor_ctx);
+    LOG_SRV("copy custom trial steps info to custom mode ram");
+    motor_ctx->hook->generate_motor_para(motor_ctx, BREAST_PUMP_CUSTOM_MODE, &trial_steps_info, sizeof(trial_steps_info));
+    
     char mode_name[PUMP_MODE_NAME_LEN];   /// 模式名称
     storage_ctx->get_store_ram_val(STORE_ID_PUMP_MODE_NAME_INFO, BREAST_PUMP_CUSTOM_TRIAL_MODE, 0, mode_name);
     storage_ctx->put_store_ram_val(STORE_ID_PUMP_MODE_NAME_INFO, BREAST_PUMP_CUSTOM_MODE, 0, mode_name);
