@@ -59,6 +59,9 @@ motor_timed_policy_node_t *pump_time_policy_init_by_steps_info(pump_mode_step_pa
     m_para->un.mapping.level = cfg.level;
     m_para->un.mapping.mode_type = cfg.mode_type;
     m_para->config.loop_num = cfg.loop_num;
+    /// 打印定时策略参数
+    //LOG_MOTOR("time policy: duration:%d, freq:%d, level:%d, mode_type:%d, loop_num:%d", 
+    //    policy_obj->duration_seconds, cfg.freq, cfg.level, cfg.mode_type, cfg.loop_num);
 
     return policy_obj;
 }
@@ -102,6 +105,7 @@ uint8_t pump_policy_type_get(motor_policy_node_t policy)
     } else if (mode_type == SUCTION_MODE_MIX_LONG || mode_type == SUCTION_MODE_MIX_SHORT) {
         return PUMP_MODE_MIX;
     }
+    //LOG_MOTOR("mode_type:%d", mode_type);
     return PUMP_MODE_IDLE;
 }
 
@@ -113,6 +117,7 @@ uint8_t pump_policy_mode_type_get(motor_policy_node_t policy)
     } else if (mode_type == SUCTION_MODE_LONG || mode_type == SUCTION_MODE_MIX_LONG) {
         return PUMP_MODE_LACTATION;
     }
+    //LOG_MOTOR("mode_type:%d", mode_type);
     return PUMP_MODE_IDLE;
 }
 

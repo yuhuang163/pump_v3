@@ -47,6 +47,7 @@ typedef enum {
     TESTS_TLV_LIGHT_SENSOR_CALIB_DATA_READ = 0x001F, /// 光感校准数据读取 (REQUEST Length=1: byte0=校准点位0~29; RESPONSE Length=4: byte0-3=校准值int32小端有符号)
     TESTS_TLV_READ_BATTERY_CHARGE_CURRENT = 0x0020, /// 读取电池充电电流 (REQUEST Length=0; RESPONSE Length=4: byte0-3=电流uint32小端，单位mA)
     TESTS_TLV_LCD_COLOR_TEST_MODE = 0x0021, /// LCD颜色测试模式 (REQUEST Length=1: 0x01进入, 0x00退出; RESPONSE Length=1)
+    TESTS_TLV_SET_BATTERY_CHARGE_CURRENT = 0x0022, /// 设置电池充电电流 (REQUEST Length=2: byte0-1=目标电流uint16小端，单位mA; RESPONSE Length=1: 0x00失败/0x01成功)
     TESTS_TLV_ID_MAX,
 } tests_tlvs_id_e;
 
@@ -167,6 +168,9 @@ int tests_tlvs_light_sensor_calib_data_read(comm_protocol_builder_t *builder, co
                     uint8_t *data, uint16_t data_len);
 /// 读取电池充电电流（充电芯片采样 ibat）
 int tests_tlvs_read_battery_charge_current(comm_protocol_builder_t *builder, comm_protocol_service_t *service,
+                    uint8_t *data, uint16_t data_len);
+/// 设置电池充电电流（产测）
+int tests_tlvs_set_battery_charge_current(comm_protocol_builder_t *builder, comm_protocol_service_t *service,
                     uint8_t *data, uint16_t data_len);
 
 /// NOTIFY上报 (设备主动上报)

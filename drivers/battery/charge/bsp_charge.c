@@ -594,7 +594,7 @@ void charge_event_internal_cb(charge_event_e event)
 #if IS_SUPPORT_PD_CHARGE
         int current = charge_pd_current_get();
         LOG_PBUS("pd charge imax:%dmA", current);
-        if (current > BATT_INPUT_CURRENT_LIMIT) {
+        if (current > BATT_INPUT_CURRENT_LIMIT || 0 == current) {
             current = BATT_INPUT_CURRENT_LIMIT;
         }
         s_charging_current_max = current;

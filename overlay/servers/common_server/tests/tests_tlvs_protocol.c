@@ -165,6 +165,17 @@ int tests_tlvs_aging_test_mode(comm_protocol_builder_t *builder, comm_protocol_s
         tests_manager_context_t *tests_ctx = (tests_manager_context_t *)find_module(ID_MODULE_TESTS);
         EXCEPTION_CHECK_INT(tests_ctx);
 
+        ///如果老化测试模式正在运行，则不进入
+        if (tests_ctx->tests_manager_get_current_mode() == TST_AGING_TEST_TYPE) {
+            LOG_SRV("aging test is running, return");
+            result = 0x00; // 失败
+            comm_protocol_tlv_node_t tlv_node = {
+                .type = TESTS_TLV_AGING_TEST_MODE,
+                .length = 1,
+                .value = &result,
+            };
+            return protocol_ctx->comm_protocol_builder_add_tlv(builder, service, &tlv_node);
+        }
         // TODO: 实现老化模式进入逻辑，设置模式类型和目标时长
         tests_ctx->tests_manager_set_current_mode(TST_AGING_TEST_TYPE);
         //启动产测模块 老化测试，传入模式类型和目标时长
@@ -355,16 +366,10 @@ int tests_tlvs_aging_status_query(comm_protocol_builder_t *builder, comm_protoco
             response[2] = (uint8_t)((cycle_count >> 8) & 0xFF);  // 小端序高字节
             
             // 单位s，小端序
-            // 如果当前模式正在老化模式运行中，则加上模式正在运行的时间
+            // 按查询请求透传 mode_type，避免查询模式与当前运行模式混用
             uint32_t age_time = 0;
-            if ( tests_ctx->tests_manager_get_current_mode() == TST_AGING_TEST_TYPE ) {
-                const pump_result_info_t *result_info = NULL;
-                READ_PUMP_RESULT_INFO(pump_ctx, BREAST_PUMP_RESULT_PUMPING, &result_info);
-                EXCEPTION_CHECK_INT(result_info);
-                age_time = age_info->age_time + result_info->current_mode_work_time/1000;
-            } else {
-                age_time =  age_info->age_time;
-            }            
+            tests_ctx->get_factory_tests_event_process(FAC_TST_AGING_TEST_GET_CURRENT_AGE_TIME_EVENT,
+                                                       aging_mode_type, 0, &age_time);
             response[3] = (uint8_t)(age_time & 0xFF);        // 小端序低字节
             response[4] = (uint8_t)((age_time >> 8) & 0xFF);  // 小端序高字节
             response[5] = (uint8_t)((age_time >> 16) & 0xFF); // 小端序高字节
@@ -1257,6 +1262,46 @@ int tests_tlvs_read_battery_charge_current(comm_protocol_builder_t *builder, com
         .type = TESTS_TLV_READ_BATTERY_CHARGE_CURRENT,
         .length = sizeof(response),
         .value = response,
+    };
+    return protocol_ctx->comm_protocol_builder_add_tlv(builder, service, &tlv_node);
+}
+
+int tests_tlvs_set_battery_charge_current(comm_protocol_builder_t *builder, comm_protocol_service_t *service,
+                                          uint8_t *data, uint16_t data_len)
+{
+    EXCEPTION_CHECK_INT(builder && service);
+    protocol_manager_context_t *protocol_ctx = get_protocol_ctx();
+    EXCEPTION_CHECK_INT(protocol_ctx);
+
+    uint8_t result = 0x00;
+    if (data_len == 2U && data != NULL) {
+        uint16_t target_ma = (uint16_t)data[0] | ((uint16_t)data[1] << 8);
+        uint32_t ioctl_arg[1] = { target_ma };
+        peripheral_bus_context_t *pbus = (peripheral_bus_context_t *)find_module(ID_MODULE_DEVICE_BUS);
+        if (pbus && pbus->find_device) {
+            rt_device_node_t *battery_dev = pbus->find_device(ID_DEVICE_BATTERY);
+            if (battery_dev && battery_dev->ioctl) {
+                DEVICE_IOCTL_ARGS_HAS_RET(battery_dev, OP_CODE_BAT_SET_CHARGE_CURRENT, ioctl_arg, ioctl_ret);
+                if (ioctl_ret == 0) {
+                    result = 0x01;
+                    LOG_SRV("tests_tlvs_set_battery_charge_current: %u mA ok", (unsigned)target_ma);
+                } else {
+                    LOGW("tests_tlvs_set_battery_charge_current: %u mA failed ret=%d", (unsigned)target_ma, ioctl_ret);
+                }
+            } else {
+                LOGW("tests_tlvs_set_battery_charge_current: battery device missing");
+            }
+        } else {
+            LOGW("tests_tlvs_set_battery_charge_current: device bus missing");
+        }
+    } else {
+        LOGE("tests_tlvs_set_battery_charge_current: invalid data_len=%u, expected 2", (unsigned)data_len);
+    }
+
+    comm_protocol_tlv_node_t tlv_node = {
+        .type = TESTS_TLV_SET_BATTERY_CHARGE_CURRENT,
+        .length = 1,
+        .value = &result,
     };
     return protocol_ctx->comm_protocol_builder_add_tlv(builder, service, &tlv_node);
 }

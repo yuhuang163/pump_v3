@@ -431,6 +431,11 @@ static void pump_copy_trial_mode_to_custom_mode(void)
     }
     LOG_SRV("copy custom trial setting info to custom mode");
 
+    motor_manager_context_t *motor_ctx = (motor_manager_context_t *)find_module(ID_MODULE_MOTOR);
+    EXCEPTION_CHECK_VOID(motor_ctx);
+    LOG_SRV("copy custom trial steps info to custom mode ram");
+    motor_ctx->hook->generate_motor_para(motor_ctx, BREAST_PUMP_CUSTOM_MODE, &trial_steps_info, sizeof(trial_steps_info));
+    
     char mode_name[PUMP_MODE_NAME_LEN];   /// 模式名称
     storage_ctx->get_store_ram_val(STORE_ID_PUMP_MODE_NAME_INFO, BREAST_PUMP_CUSTOM_TRIAL_MODE, 0, mode_name);
     storage_ctx->put_store_ram_val(STORE_ID_PUMP_MODE_NAME_INFO, BREAST_PUMP_CUSTOM_MODE, 0, mode_name);
@@ -939,6 +944,24 @@ void app_old_comm_report_device_status(app_old_commd_l_r_ctrl_e lr_ct, servers_o
     app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_NOTIFY, APP_OLD_COMM_CID_NOTIFY_STATUS, data_len, report_data);
 }
 
+//0xed
+void app_old_comm_report_custom_mode_id(app_old_commd_l_r_ctrl_e lr_ct)
+{
+    pump_mode_steps_info_t trial_steps_info;
+    storage_manager_context_t *storage_ctx = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
+    EXCEPTION_CHECK_VOID(storage_ctx);
+    storage_ctx->get_store_ram_val(STORE_ID_PUMP_MODE_STEPS_INFO, BREAST_PUMP_CUSTOM_TRIAL_MODE, 0, &trial_steps_info);
+    uint8_t report_data[4] = {
+        (uint8_t)((trial_steps_info.id.dat32 >> 0) & 0xFFU),
+        (uint8_t)((trial_steps_info.id.dat32 >> 8) & 0xFFU),
+        (uint8_t)((trial_steps_info.id.dat32 >> 16) & 0xFFU),
+        (uint8_t)((trial_steps_info.id.dat32 >> 24) & 0xFFU),
+    };
+    LOG_SRV("Reporting custom mode id notify: 0x%08lX", (unsigned long)trial_steps_info.id.dat32);
+    app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_NOTIFY, APP_OLD_COMM_CID_NOTIFY_CUSTOM_MODE_ID,
+                                               sizeof(report_data), report_data);
+}
+
 //0xb0
 void app_old_comm_handle_get_status_req(app_old_commd_l_r_ctrl_e lr_ct)
 {
@@ -1306,7 +1329,7 @@ void app_old_comm_handle_get_dev_info_req(uint8_t cal, uint8_t *cab)
     uint16_t data_len = 0;
     app_old_protocol_handler_context_t *handler_ctx = app_old_protocol_handler_ctx_get();
 
-    ack_data[data_len++] = ctx->priv.ver_info.sys_local_protocol_id;
+    ack_data[data_len++] = ctx->priv.ver_info.sys_product_id;
     ack_data[data_len++] = ctx->priv.ver_info.soc_version;
     ack_data[data_len++] = ctx->priv.ver_info.hw_version;
     ack_data[data_len++] = ctx->priv.ver_info.sw_version / 100;
@@ -1596,6 +1619,13 @@ void app_old_comm_handle_set_bilateral_pump_param_req(uint8_t cal, uint8_t *cab)
     READ_PUMP_MODE_STEP_INDEX(pump_ctx, time_index);
     pump_setting_t setting;
     READ_PUMP_SETTING_INFO(pump_ctx, time_index, setting);
+
+    int control_type = BREAST_PUMP_CONTROL_TYPE_BILATERAL;
+    WRITE_PUMP_LEVEL_CONTROL_TYPE(pump_ctx, control_type, 0);
+    led_manager_context_t *led = (led_manager_context_t *)find_module(ID_MODULE_LED);
+    if (led && led->hook && led->hook->set_key_backlight) {
+        led->hook->set_key_backlight(led, 100);
+    }
     
     ///设置不变的参数 直接return
     if (setting.level[0] == left_level && setting.level[1] == right_level && setting.speed == left_speed_internal) {
@@ -1613,13 +1643,6 @@ void app_old_comm_handle_set_bilateral_pump_param_req(uint8_t cal, uint8_t *cab)
     LOG_SRV("Set bilateral pump param: left_level=%d, left_speed=%d(%d), right_level=%d, right_speed=%d(%d)", 
             left_level, left_speed, left_speed_internal, right_level, right_speed, right_speed_internal);
 
-    int control_type = BREAST_PUMP_CONTROL_TYPE_BILATERAL;
-
-    WRITE_PUMP_LEVEL_CONTROL_TYPE(pump_ctx, control_type, 0);
-    led_manager_context_t *led = (led_manager_context_t *)find_module(ID_MODULE_LED);
-    if (led && led->hook && led->hook->set_key_backlight) {
-        led->hook->set_key_backlight(led, 100);
-    }
     // 写入设置
     WRITE_PUMP_SETTING_INFO(pump_ctx, time_index, true, setting);
     

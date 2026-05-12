@@ -183,7 +183,7 @@ static void motor_debug_with_user_para(motor_manager_context_t *ctx, uint8_t id,
         motor_policy_core_t *core = &ctx->priv.user_debug_policy->head.policy.core;
         motor_policy_original_para_t *original = &core->un.original;
         ctx->priv.user_debug_policy->timed_policy_count = 1;
-        ctx->priv.user_debug_policy->head.duration_seconds = 1200;   /// 20分钟
+        ctx->priv.user_debug_policy->head.duration_seconds = 1800;   /// 30分钟
         ctx->priv.user_debug_policy->head.sub_policy_count = 1;
         core->type = MOTOR_PARAM_PASS_THROUGH;
         memcpy(original, para, sizeof(motor_policy_original_para_t));
