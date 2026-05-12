@@ -1614,6 +1614,13 @@ void app_old_comm_handle_set_bilateral_pump_param_req(uint8_t cal, uint8_t *cab)
     READ_PUMP_MODE_STEP_INDEX(pump_ctx, time_index);
     pump_setting_t setting;
     READ_PUMP_SETTING_INFO(pump_ctx, time_index, setting);
+
+    int control_type = BREAST_PUMP_CONTROL_TYPE_BILATERAL;
+    WRITE_PUMP_LEVEL_CONTROL_TYPE(pump_ctx, control_type, 0);
+    led_manager_context_t *led = (led_manager_context_t *)find_module(ID_MODULE_LED);
+    if (led && led->hook && led->hook->set_key_backlight) {
+        led->hook->set_key_backlight(led, 100);
+    }
     
     ///设置不变的参数 直接return
     if (setting.level[0] == left_level && setting.level[1] == right_level && setting.speed == left_speed_internal) {
@@ -1631,13 +1638,6 @@ void app_old_comm_handle_set_bilateral_pump_param_req(uint8_t cal, uint8_t *cab)
     LOG_SRV("Set bilateral pump param: left_level=%d, left_speed=%d(%d), right_level=%d, right_speed=%d(%d)", 
             left_level, left_speed, left_speed_internal, right_level, right_speed, right_speed_internal);
 
-    int control_type = BREAST_PUMP_CONTROL_TYPE_BILATERAL;
-
-    WRITE_PUMP_LEVEL_CONTROL_TYPE(pump_ctx, control_type, 0);
-    led_manager_context_t *led = (led_manager_context_t *)find_module(ID_MODULE_LED);
-    if (led && led->hook && led->hook->set_key_backlight) {
-        led->hook->set_key_backlight(led, 100);
-    }
     // 写入设置
     WRITE_PUMP_SETTING_INFO(pump_ctx, time_index, true, setting);
     
