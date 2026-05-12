@@ -23,7 +23,7 @@
 #endif
 
 #define BATT_LOG_INTERVAL                 50
-#define BATT_FULL_VOLTAGE                 12260
+
 /*
 * LOCAL VARIABLE DEFINITIONS
 *****************************************************************************************
@@ -76,18 +76,18 @@ static const battery_float_voltage_t sc_charging_float_tables[] = {
 };
 #else
 static const capacity_data_t sc_batt_tables[] = {
-    {0,  9587, 9693}, 
-    {1,  9694, 9791}, 
-    {2,  9792, 10152}, 
-    {10, 10153, 10468}, 
-    {20, 10469, 10680}, 
-    {30, 10681, 10937}, 
-    {40, 10938, 11339}, 
-    {50, 11340, 11558}, 
-    {60, 11559, 11819}, 
-    {70, 11820, 12064}, 
-    {80, 12065, 12127}, 
-    {90, 12128, BATT_FULL_VOLTAGE}, 
+    {0,  8500, 8999}, 
+    {1,  9000, 9499}, 
+    {5,  9500, 10088}, 
+    {10, 10089, 10378}, 
+    {20, 10379, 10609}, 
+    {30, 10610, 10843}, 
+    {40, 10844, 11141}, 
+    {50, 11142, 11379}, 
+    {60, 11380, 11617}, 
+    {70, 11618, 11937}, 
+    {80, 11938, 12019}, 
+    {90, 12020, BATT_FULL_VOLTAGE}, 
 };
 
 static const battery_para_t sc_charging_tables[] = {
@@ -111,6 +111,7 @@ static const battery_para_t sc_full_load_tables[] = {
     {THREE_UNCHARGE_DEBOUNCE_RATE_6, THREE_UNCHARGE_UPDATE_THRESHOLD_6}, 
     {THREE_UNCHARGE_DEBOUNCE_RATE_7, THREE_UNCHARGE_UPDATE_THRESHOLD_7}, 
     {THREE_UNCHARGE_DEBOUNCE_RATE_8, THREE_UNCHARGE_UPDATE_THRESHOLD_8}, 
+    {THREE_UNCHARGE_DEBOUNCE_RATE_9, THREE_UNCHARGE_UPDATE_THRESHOLD_9}, 
 };
 
 static const battery_float_voltage_t sc_charging_float_tables[] = {
@@ -126,6 +127,7 @@ static uint16_t s_charing_voltage_max = 0;
 static uint16_t s_batt_voltage_max = 0;
 static uint32_t s_charing_time_out_count= 0;
 static uint32_t s_batt_poll_time = 0;
+static RTC_DATA_ATTR double s_charging_curve_percent = 0;
 static RTC_DATA_ATTR battery_status_t battery;
 #endif
 static rt_device_node_t *node = NULL;
@@ -217,6 +219,44 @@ static void battery_percent_handler(uint16_t current_voltage)
     }
 }
 
+static double battery_voltage_by_percent_get(double percent)
+{
+    uint8_t table_size = LENGTH_OF_ARRAY(sc_batt_tables);
+    uint8_t health = BATT_HEALTH_COEFF_MAX;
+    if (battery.health > BATT_HEALTH_COEFF_MIN && battery.health < BATT_HEALTH_COEFF_MAX) {
+        health = battery.health;
+    } else {
+        health = BATT_HEALTH_COEFF_MAX;
+    }
+
+    if (percent <= sc_batt_tables[0].percent) {
+        return ((double)sc_batt_tables[0].vol_min * health) / BATT_HEALTH_COEFF_MAX;
+    }
+
+    if (percent >= 100) {
+        return ((double)sc_batt_tables[table_size - 1].vol_max * health) / BATT_HEALTH_COEFF_MAX;
+    }
+
+    for (uint8_t i = 0; i < table_size; i++) {
+        double percent_min = ((double)sc_batt_tables[i].percent * health) / BATT_HEALTH_COEFF_MAX;
+        double percent_max = ((i + 1) < table_size) ? ((double)sc_batt_tables[i + 1].percent * health) / BATT_HEALTH_COEFF_MAX : 100;
+
+        if (percent >= percent_min && percent <= percent_max) {
+            uint16_t vol_min = ((double)sc_batt_tables[i].vol_min * health) / BATT_HEALTH_COEFF_MAX;
+            uint16_t vol_max = ((double)sc_batt_tables[i].vol_max * health) / BATT_HEALTH_COEFF_MAX;
+            double percent_range = percent_max - percent_min;
+            double voltage = vol_min;
+            if (percent_range > 0) {
+                voltage += ((percent - percent_min) * (vol_max - vol_min)) / percent_range;
+            }
+            return voltage;
+        }
+    }
+
+    LOGE("percent table lookup error");
+    return battery.voltage;
+}
+
 static uint16_t battery_charging_compensation(uint16_t voltage)
 {
     for (uint8_t i = 0; i < LENGTH_OF_ARRAY(sc_charging_float_tables); i++) {
@@ -225,6 +265,27 @@ static uint16_t battery_charging_compensation(uint16_t voltage)
         }
     }
     return voltage;
+}
+
+static double charging_current_curve_voltage_get(uint16_t ibat_ma, uint32_t polling_interval, int16_t offset)
+{
+    double charge_percent = ((double)ibat_ma * polling_interval * 100) / (BATT_MAX_CAPACITY_MAH * battery.health / BATT_HEALTH_COEFF_MAX);
+    if (s_charging_curve_percent < battery.percent || s_charging_curve_percent > 100) {
+        s_charging_curve_percent = battery.percent;
+    }
+
+    uint16_t force_update_threshold = (ibat_ma * BATT_CHARGE_MAX_RESISTANCE) + CHARGE_FORCE_UPDATE_THRESHOLD_OFFSET; 
+    if (offset > force_update_threshold) {
+        charge_percent = charge_percent * 20;
+        s_charging_curve_percent += charge_percent > 0.025 ? 0.025 : charge_percent; 
+    } else {
+        s_charging_curve_percent += charge_percent;
+    }
+
+    if (s_charging_curve_percent >= 100) {
+        s_charging_curve_percent = 100;
+    }
+    return battery_voltage_by_percent_get(s_charging_curve_percent);
 }
 
 static void uncharge_voltage_handler(uint16_t voltage)
@@ -266,12 +327,13 @@ static void uncharge_voltage_handler(uint16_t voltage)
     for (uint8_t i = 0; i < LENGTH_OF_ARRAY(sc_charge_tables); i++) { // 依次遍历放电补偿分段表，寻找当前偏差命中的第一段
         if (offset > sc_charge_tables[i].dropout_voltage) { // 当“估算值-采样值”超过该段门限时，触发该段补偿策略
             if (i == 0) { // 第一段：偏差极大，先走防抖强制校正，不叠加 vref 渐进补偿
-                vref = 0; // 清掉渐进补偿残差，避免与强制校正叠加导致跳变
                 comp_count++; // 连续大偏差计数 +1，用于去抖判定（防止瞬态尖峰误触发）
                 if (comp_count > BATT_FORCE_UPDATE_DEBOUNCE) { // 大偏差持续到达去抖阈值后，执行一次强制回拉
-                    battery.voltage = battery.voltage + (offset / 10); // 直接按偏差的 1/10 修正内部估算值（快速拉近）
+                    vref = offset / 10.f;
                     comp_count = 0; // 触发后清计数，重新开始下一轮去抖
-                    LOG_PBUS("charge compensation offset:%d", offset); // 记录强制补偿触发时的偏差值，便于参数调优
+                    LOG_PBUS("uncharge compensation offset:%d", offset); // 记录强制补偿触发时的偏差值，便于参数调优
+                } else {
+                    vref = 0; // 清掉渐进补偿残差，避免与强制校正叠加导致跳变
                 }
             } else{ // 非第一段：偏差较温和，采用 vref 累积 + step 离散更新的平滑策略
                 comp_count = 0; // 进入平滑段时清除强制补偿计数，避免跨段误触发
@@ -300,9 +362,10 @@ CALC_EXIT:
                 voltage, offset, step, vref);
     }
     battery_percent_handler(battery.voltage);
+    s_charging_curve_percent = battery.percent;
 }
 
-static void charging_voltage_handler(uint16_t voltage)
+static void charging_voltage_handler(uint16_t voltage, uint32_t polling_interval)
 {
     static double vref = 0;
     uint8_t vref_flag = 0;
@@ -344,14 +407,30 @@ static void charging_voltage_handler(uint16_t voltage)
     debounce = get_charge_full_debounce(); // 获取“充满”状态去抖计数，计数越大说明越接近稳定充满
     if (debounce > 20 && debounce < BATT_CHARGE_FULL_DEBOUNCE) { // 仅在快速拉升窗口内生效，避免刚充电和完全充满时突变
         vref = (offset * debounce) / 1.0 / (BATT_CHARGE_FULL_DEBOUNCE -  20); // 依据去抖进度计算本轮浮点补偿量（除 1.0 保持浮点计算）
+        BSP_LOG("charge full", "%f, %d", vref, offset);
         goto CALC_EXIT; // 快速拉升优先级最高，直接进入统一结算逻辑
     }
     
+    uint16_t ibat_ma = 0;
+    bsp_charge_get_ibat_ma(&ibat_ma);
+    if (ibat_ma > 200 && offset > 0) {
+        double charge_voltage = charging_current_curve_voltage_get(ibat_ma, polling_interval, offset);
+        if (s_charging_curve_percent >= 100) {
+            vref += offset / 1000.f;
+        } else {
+            if (charge_voltage > battery.voltage) {
+                vref = charge_voltage - battery.voltage; 
+            } 
+        }
+        BSP_LOG("charging", "%f/%f/%f, %d ,%d", vref, s_charging_curve_percent, charge_voltage, battery.voltage, offset);
+        goto CALC_EXIT;
+    }
+
     /// 充电偏差计算：按分段表逐级叠加补偿，让电压变化更平滑（避免一次性跳变）
     for (uint8_t i = 0; i < LENGTH_OF_ARRAY(sc_charging_tables); i++) { // 依次遍历每个补偿分段阈值
         if (offset > sc_charging_tables[i].dropout_voltage) { // 当前偏差超过该段门限，说明该段补偿应生效
             if (i == 0) { // 第一段：主补偿段，按偏差一半快速跟随
-                vref = offset / 2.0; // 先给一个较大基准补偿，快速收敛
+                vref = offset / 100.f; // 先给一个较大基准补偿，快速收敛
                 LOG_PBUS("charging compensation offset:%d", offset); // 记录进入补偿的偏差值，便于调参
             } else { // 后续段：继续叠加细调，控制收敛速度和稳定性
                 vref += (i == 1) ? (offset / sc_charging_tables[i].rate) : sc_charging_tables[i].rate; // 第二段按比例补偿，其它段按固定步进补偿
@@ -377,7 +456,6 @@ CALC_EXIT:
                 battery.type, battery.health, battery.percent, battery.voltage,
                 voltage, offset, step, vref, s_charing_voltage_max, s_batt_voltage_max, s_charing_time_out_count);
     }
-
     battery_percent_handler(battery.voltage);
 }
 
@@ -398,6 +476,7 @@ static void charge_full_voltage_handler(uint16_t voltage)
                 battery.type, battery.health, battery.percent, battery.voltage, voltage);
     }
     battery_percent_handler(battery.voltage);
+    s_charging_curve_percent = 100;
 }
 
 static int battery_voltage_poll(void)
@@ -433,7 +512,7 @@ static int battery_voltage_poll(void)
     battery.temperature = get_charging_temperature();
     if (battery.charge == CHARGE_STATE_CHARGING) {
         batt_voltage = voltage;
-        charging_voltage_handler(batt_voltage);
+        charging_voltage_handler(batt_voltage, poll_interval);
     } else if (battery.charge == CHARGE_STATE_FULL) {
         batt_voltage = voltage;
         charge_full_voltage_handler(batt_voltage);
@@ -479,6 +558,19 @@ static int battery_dev_read(struct rt_device_node *dev, void *buf, uint32_t n_by
 {
 #if IS_SUPPORT_BATTERY_POLL
     int val = battery_pencent_get();
+    // static uint8_t last_val = 0;
+    // static uint32_t last_time = 0;
+    // if (get_timestamp_ms(last_time) > 1000 && last_val < 100) {
+    //     last_time = get_timestamp();
+    //     last_val++;
+    // }
+
+    // if (val > (last_val + 6)) {
+    //     val = val - last_val;
+    // } else {
+    //     val = 6;
+    // }
+    // val = 4;
 #else
     int val = 100;
 #endif
