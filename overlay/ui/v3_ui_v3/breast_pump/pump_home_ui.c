@@ -14,7 +14,7 @@
 */
 #define IS_SUPPORT_HOME_COMP_BG                    (0)
 #define HOME_MODE_MAX_COUNT                        (4)
-#define HOME_BF_MODE_COUNT                         (6)
+#define HOME_BF_MODE_COUNT                         (7)
 #define HOME_SPEED_MAX_COUNT                       (3)
 #define HOME_TEXT_COUNT                            (3)
 #define HOME_TIME_COLON_COUNT                      (2)
@@ -127,6 +127,7 @@ static const char *bf_mode_name[HOME_BF_MODE_COUNT] = {
     "Lactation Starter", /// 开奶模式
     "Deep Emptying", /// 追加排空模式
     "Customize", /// 已使用过的个性化模式
+    "Customize", /// 试用个性化模式
 };
 
 const static uint16_t home_speed_icon_ids[HOME_SPEED_MAX_COUNT] = {
@@ -619,7 +620,7 @@ static void pump_home_custom_mode_update(ui_manager_context_t *thiz, uint8_t mod
         return;
     }
     uint8_t index = mode_index - BREAST_PUMP_REGULAR_PUMPING_MODE;
-    if (index > HOME_BF_MODE_COUNT) {
+    if (index >= HOME_BF_MODE_COUNT) {
         index = 0;
     }
     for (uint8_t i = 0; i < HOME_TEXT_COUNT; i++) {
