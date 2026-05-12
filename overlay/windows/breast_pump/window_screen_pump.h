@@ -175,7 +175,7 @@ void switch_pump_speed_ui(ui_proc_pump_t *proc, bool is_increase);
 /// 档位UI相关
 void switch_pump_level_ui(ui_proc_pump_t *proc, bool is_increase);
 void switch_pump_control_type_ui(ui_proc_pump_t *proc, uint8_t control_type);
-void switch_pump_both_control_type_ui(ui_proc_pump_t *proc);
+void switch_pump_both_control_type_ui(ui_proc_pump_t *proc, bool is_increase);
 void switch_pump_both_level_ui(ui_proc_pump_t *proc, bool is_increase);
 /// 泵奶状态UI相关
 void switch_pump_status_ui(ui_proc_pump_t *proc);
