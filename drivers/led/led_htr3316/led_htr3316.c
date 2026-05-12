@@ -526,7 +526,7 @@ int bsp_led_init(void)
     for (uint8_t i = 0; i < LED_TOTAL_SIZE; i++) {
         led_status[i].level_max = LED_LEVEL_MAX;
         led_onoff_set(i, onoff);
-        LOG_PBUS("led resume: index: %d, level_max: %d", i, led_status[i].level_max);
+        // LOG_PBUS("led resume: index: %d, level_max: %d", i, led_status[i].level_max);
     }
     RUN_NEW_THREAD(&s_led_device_thd, "led", led_device_thread,
          RT_PRIO_LED_DEVICE_THREAD, (LED_DEVICE_THREAD_STACKSIZE));
