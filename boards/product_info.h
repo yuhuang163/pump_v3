@@ -62,7 +62,7 @@ extern "C" {
 #else
 #define ROOT_RES_PATH                                  "V2" /// 资源路径
 #endif
-#define ROOT_RES_VERSION                               (103) 
+#define ROOT_RES_VERSION                               (102)
 #define ROOT_RES_MAJOR_VERSION                         (ROOT_RES_VERSION / 100)
 #define ROOT_RES_MINOR_VERSION                         (ROOT_RES_VERSION % 100)
 
