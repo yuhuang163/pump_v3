@@ -453,7 +453,7 @@ static void charge_device_thread(void *arg)
     uint16_t test_count = 0;
     while (1) {
 #if IS_SUPPORT_PD_CHARGE
-        charge_pd_status_poll();
+        charge_pd_status_poll(true);
 #endif
         MSG_QUEUE_RECV(s_charge_device_thd.msg_id, &msg, OS_WAIT_FOREVER);
 #if IS_SUPPORT_DEVICE_CHARGE
