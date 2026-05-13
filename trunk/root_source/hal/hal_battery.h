@@ -40,7 +40,7 @@ typedef enum {
     OP_CODE_BAT_PD_IS_MISMATCH = 11,
     OP_CODE_BAT_CHARGE_CURRENT_ADJUST = 12, /// 充电电流调节
     OP_CODE_BAT_GET_CHARGE_IBAT_MA = 13,    /// 读取充电芯片采样的电池端充电电流
-    OP_CODE_BAT_SET_CHARGE_CURRENT = 14,    /// 设置充电电流
+    OP_CODE_BAT_CHARGE_FORCE_OPEN = 14,     /// 强制开启充电
     OP_CODE_BAT_END
 } batery_dev_op_code_e;
 

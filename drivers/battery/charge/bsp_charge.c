@@ -302,7 +302,7 @@ static int charge_interrupt_config(void)
         CHARGE_BATOVP_INT_ENABLE | CHARGE_BAT_FULL_INT_ENABLE | CHARGE_RE_CHG_INT_ENABLE;
     reg_data[1] = CHARGE_CHG_TIMEOUT_INT_ENABLE | CHARGE_TSHUT_INT_ENABLE | CHARGE_BAT_EMPTY_INT_ENABLE | 
         CHARGE_NTC_FAULT_INT_ENABLE;
-    return charge_write_nbyte(CHARGE_ADC_SCALE_REG, reg_data, 2);
+    return charge_write_nbyte(CHARGE_INT_EN0_REG, reg_data, 2);
 }
 
 POSSIBLY_UNUSED static int charge_ctrl0_config(void)
@@ -356,7 +356,7 @@ static int charge_ntc_temperature_get(float resistance)
     return ntc_temp_table[0].temp - 1;
 }
 
-static void charge_chip_init(void)
+static int charge_chip_init(void)
 {
     int ret = BSP_OK;
     msleep(20);
@@ -365,38 +365,39 @@ static void charge_chip_init(void)
     ret = charge_device_is_ready();
     if (ret != BSP_OK) {
         LOGE("charge device is not ready, ret: %d", ret);
-        return;
+        return ret;
     }
 
     ret = charge_scale_config();
     if (ret != BSP_OK) {
         LOGE("charge scale config failed, ret: %d", ret);
-        return;
+        return ret;
     }
     ret = charge_adc_config(true); 
     if (ret != BSP_OK) {
         LOGE("charge adc enable failed, ret: %d", ret);
-        return;
+        return ret;
     }
     ret = charge_vin_config();
     if (ret != BSP_OK) {
         LOGE("charge vin config failed, ret: %d", ret);
-        return;
+        return ret;
     }
     ret = charge_vbat_config();
     if (ret != BSP_OK) {
         LOGE("charge vbat config failed, ret: %d", ret);
-        return;
+        return ret;
     }
 
 #if 0 /// for test     
     ret = charge_ctrl0_config();
     if (ret != BSP_OK) {
         LOGE("charge ctrl0 config failed, ret: %d", ret);
-        return;
+        return ret;
     }
 #endif
     LOG_PBUS("charge chip init success");
+    return BSP_OK;
 }
 
 POSSIBLY_UNUSED static void charging_temp_policy_handler(int8_t temp)
@@ -544,11 +545,14 @@ int get_charge_full_debounce(void)
 int bsp_charge_init(void)
 {
 #if IS_SUPPORT_DEVICE_CHARGE
+    int ret = BSP_OK;
     charge_power_gpio_init();
     bsp_i2c_init(CHARGE_I2C_ID);
-    charge_chip_init();
-    charge_status_poll(&s_charge_status);
-    s_charge_is_ready = true;
+    ret = charge_chip_init();
+    if (ret == BSP_OK) {
+        ret = charge_status_poll(&s_charge_status);
+    }
+    s_charge_is_ready = (ret == BSP_OK);
 #endif
 #if IS_SUPPORT_PD_CHARGE
     bsp_charge_pd_init();
@@ -606,6 +610,13 @@ void charge_event_internal_cb(charge_event_e event)
         charge_power_control(true);
     } else if (event == CHARGE_EVENT_PLUG_OUT) {
         s_charge_status.plug_in = false;
+        s_charge_status.charge_full = false;
+        s_charge_full_debounce = 0;
+        charge_power_control(false);
+    } else if (event == CHARGE_EVENT_ADAPTER_MISMATCH) {
+        s_charge_status.plug_in = false;
+        s_charge_status.charge_full = false;
+        s_charge_full_debounce = 0;
         charge_power_control(false);
     }
 #endif

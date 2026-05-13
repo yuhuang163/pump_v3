@@ -1281,7 +1281,7 @@ int tests_tlvs_set_battery_charge_current(comm_protocol_builder_t *builder, comm
         if (pbus && pbus->find_device) {
             rt_device_node_t *battery_dev = pbus->find_device(ID_DEVICE_BATTERY);
             if (battery_dev && battery_dev->ioctl) {
-                DEVICE_IOCTL_ARGS_HAS_RET(battery_dev, OP_CODE_BAT_SET_CHARGE_CURRENT, ioctl_arg, ioctl_ret);
+                DEVICE_IOCTL_ARGS_HAS_RET(battery_dev, OP_CODE_BAT_CHARGE_FORCE_OPEN, ioctl_arg, ioctl_ret);
                 if (ioctl_ret == 0) {
                     result = 0x01;
                     LOG_SRV("tests_tlvs_set_battery_charge_current: %u mA ok", (unsigned)target_ma);
