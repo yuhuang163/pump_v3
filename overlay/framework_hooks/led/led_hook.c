@@ -59,6 +59,11 @@ static void set_key_backlight_level_rate(led_manager_context_t *thiz, uint8_t ra
         LOGE("set key backlight rate error");
         return;
     }
+
+    if (thiz->priv.key_light_level_rate == rate) {
+        return;
+    }
+    LOG_MISC("set key backlight level rate: %d", rate);
     thiz->priv.key_light_level_rate = rate;
 }
 
@@ -326,18 +331,13 @@ static void on_led_battery_state_change_cb(void *user_data, battery_state_info_t
         if (get_night_light_onoff(thiz) > 0) {
             toggle_night_light(thiz);
         }
-
-        if (get_key_backlight_level_rate(thiz) > 50) {
-            set_key_backlight_level_rate(thiz, 50);
-        }
+        set_key_backlight_level_rate(thiz, 50);
     } else {
-        if (get_key_backlight_level_rate(thiz) < 50) {
-            power_manager_context_t *pm = (power_manager_context_t *)find_module(ID_MODULE_POWER);
-            if (pm && pm->is_pm_idle() == 0) {
-                set_key_backlight_level_rate(thiz, 100);
-            } else {
-                set_key_backlight_level_rate(thiz, 50);
-            }
+        power_manager_context_t *pm = (power_manager_context_t *)find_module(ID_MODULE_POWER);
+        if (pm && pm->is_pm_idle()) {
+            set_key_backlight_level_rate(thiz, 50);
+        } else {
+            set_key_backlight_level_rate(thiz, 100);
         }
     }
 }
@@ -371,9 +371,7 @@ static int on_post_init_route(led_manager_context_t *thiz)
 #endif
 #endif
     battery_manager_context_t *battery = (battery_manager_context_t *)find_module(ID_MODULE_BATTERY);
-    if (battery) {
-        battery->add_battery_state_cb(thiz, on_led_battery_state_change_cb);
-    }
+    ADD_BATTERY_STATE_CB(battery, thiz, on_led_battery_state_change_cb);
     return 0;
 }
 

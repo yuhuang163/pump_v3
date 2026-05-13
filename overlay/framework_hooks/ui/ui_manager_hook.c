@@ -382,7 +382,7 @@ static void set_backlight_level_rate(ui_manager_context_t *thiz, uint8_t rate)
     if (thiz->priv.ui_backlight_level_rate == rate) {
         return;
     }
-    
+    LOG_UI("set ui backlight level rate: %d", rate);
     thiz->priv.ui_backlight_level_rate = rate;
 }
 
@@ -526,19 +526,13 @@ static void on_ui_battery_state_change_cb(void *user_data, battery_state_info_t 
         info->battery_state == BATTERY_STATE_LOW_POWER_SHUTDOWN ||
         info->battery_state == BATTERY_STATE_FORBID_START ||
         info->battery_state == BATTERY_STATE_LOW_POWER_RUN) {
-        if (get_backlight_level_rate(ui) > 50) {
-            set_backlight_level_rate(ui, 50);
-        }
+        set_backlight_level_rate(ui, 50);
     } else {
         window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
         if (wm && wm->get_current_window_id() == ID_WINDOW_CHARGE) {
-            if (get_backlight_level_rate(ui) > 50) {
-                set_backlight_level_rate(ui, 50);
-            }
+            set_backlight_level_rate(ui, 50);
         } else {
-            if (get_backlight_level_rate(ui) < 50) {
-                set_backlight_level_rate(ui, 50);
-            }
+            set_backlight_level_rate(ui, 100);
         }
     }
 }
@@ -555,9 +549,7 @@ static int on_post_ui_init_route(struct ui_manager_context *ctx)
         ui_backlight_adaptive_thread);
 #endif
     battery_manager_context_t *battery = (battery_manager_context_t *)find_module(ID_MODULE_BATTERY);
-    if (battery) {
-        battery->add_battery_state_cb(ctx, on_ui_battery_state_change_cb);
-    }
+    ADD_BATTERY_STATE_CB(battery, ctx, on_ui_battery_state_change_cb);
     return 0;
 }
 
