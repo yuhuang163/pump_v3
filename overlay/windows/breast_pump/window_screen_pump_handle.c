@@ -367,8 +367,8 @@ static int exit_event_cb(window_lift_cycle_e new_state,
         case ID_SCR_STATE_ON_DESTORY:
             LOG_WM("==>%s window on destory", PAGE_NAME_STR);
             REMOVE_ALL_HANDER_TASK();
-            /// 必须先注销广播：remove_breast_pump_result_cb 内会 WRITE 状态并可能立即发泵状态广播，
-            /// 若仍注册 receiver，bcr 队列会携带本窗口 context(proc)，随后 u_free 将导致 bcr 线程 use-after-free。
+            SET_WINDOW_CONTEXT(NULL);
+            proc->margic = UI_WINDOW_MARGIC_CODE_INVALID;
             unregister_broadcast_receiver(&proc->receiver);
             remove_breast_pump_result_cb(proc);
             if (proc->key) {
@@ -376,8 +376,6 @@ static int exit_event_cb(window_lift_cycle_e new_state,
             } else {
                 LOG_WM("key not present, ignore.");
             }
-            SET_WINDOW_CONTEXT(NULL);
-            proc->margic = UI_WINDOW_MARGIC_CODE_INVALID;
             u_free(proc);
             proc = NULL;
             LOG_WM("%s window on destory--end", PAGE_NAME_STR);

@@ -331,6 +331,8 @@ static int exit_event_cb(window_lift_cycle_e new_state,
             break;
         case ID_SCR_STATE_ON_DESTORY:
             LOG_WM("%s window exit: u_free: %p", PAGE_NAME_STR, proc);
+            SET_WINDOW_CONTEXT(NULL);
+            proc->margic = UI_WINDOW_MARGIC_CODE_INVALID;
             REMOVE_ALL_HANDER_TASK();
             unregister_broadcast_receiver(&proc->receiver);
             if (proc->key) {
@@ -338,15 +340,11 @@ static int exit_event_cb(window_lift_cycle_e new_state,
             } else {
                 LOG_WM("key not present, ignore.");
             }
-            
             if (proc->battery) {
                 proc->battery->remove_battery_state_cb(on_home_window_battery_state_change_cb);
             } else {
                 LOG_WM("battery not present, ignore.");
             }
-
-            SET_WINDOW_CONTEXT(NULL);
-            proc->margic = UI_WINDOW_MARGIC_CODE_INVALID;
             u_free(proc);
             proc = NULL;
             LOG_WM("%s window exit--end", PAGE_NAME_STR);

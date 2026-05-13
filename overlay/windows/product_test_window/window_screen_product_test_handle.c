@@ -224,9 +224,11 @@ static int exit_event_cb(window_lift_cycle_e new_state,
             break;
         case ID_SCR_STATE_ON_DESTORY:
             LOG_WM("==>%s window on destory", PAGE_NAME_STR);
+            SET_WINDOW_CONTEXT(NULL);
+            proc->margic = UI_WINDOW_MARGIC_CODE_INVALID;
             REMOVE_ALL_HANDER_TASK();
-            remove_product_test_pump_result_cb(proc->pump);
             unregister_broadcast_receiver(&proc->receiver);
+            remove_product_test_pump_result_cb(proc->pump);
             if (proc->tests) {
                 proc->tests->remove_product_tests_evt_lisenser(factory_tests_event_report_cb);
             } else {
@@ -237,8 +239,6 @@ static int exit_event_cb(window_lift_cycle_e new_state,
             } else {
                 LOG_WM("key not present, ignore.");
             }
-            SET_WINDOW_CONTEXT(NULL);
-            proc->margic = UI_WINDOW_MARGIC_CODE_INVALID;
             u_free(proc);
             proc = NULL;
             LOG_WM("==>ON_DESTORY end");
