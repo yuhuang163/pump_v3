@@ -98,14 +98,16 @@ extern "C" {
 #define BATT_CHARGE_FULL_DEBOUNCE               100     /// 充满去抖
 #define BATT_CHARGE_FULL_DEBOUNCE_IGNORE        20      /// 充满去抖忽略阈值
 /// 健康状态配置
-#define BATT_CHARGING_TIME_OUT                  (162000)   ///(4.5 * 60 * 60 * 1000 / 100)
+#define BATT_CHARGING_TIME_OUT                  (216000)   ///(6 * 60 * 60 * 1000 / 100)
 #define BATT_HEALTH_COEFF_MIN                   (90)
 #define BATT_HEALTH_COEFF_MAX                   (100)
 
 #define BATT_FULL_VOLTAGE                       12400
-
+#define BATT_VOLTAGE_MAX                        12680
+/// 100ms 充电满率偏差系数 (240mV / 30mAh)  * (100ms / 3600s)
+#define CHARGE_FULL_100MS_RATE                  (0.000222)  
 /// 电池容量
-#define BATT_MAX_CAPACITY                       (3200)  /// 12260:28mAH   9587:2890mAH  9237:3000mAh
+#define BATT_MAX_CAPACITY                       (3200)  /// 12260:28mAH   9587:2890mAH  9237:3000mAh 
 #define BATT_MS_PER_HOUR                        (3600000.0)  /// 毫秒每小时
 #define BATT_MAX_CAPACITY_MAH                   ((double)BATT_MAX_CAPACITY * BATT_MS_PER_HOUR)
 #define BATT_CHARGE_MAX_RESISTANCE              (0.18)  /// 充电电池最大内阻值

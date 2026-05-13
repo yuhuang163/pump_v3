@@ -148,9 +148,16 @@ static void battery_health_update(void)
     LOG_PBUS("battery health:%d", battery.health);
 }
 
-static void battery_health_set(uint8_t coeff)
+static void battery_health_set(uint16_t coeff)
 {
-    
+    if (coeff < BATT_HEALTH_COEFF_MIN) {
+        coeff = BATT_HEALTH_COEFF_MIN;
+    } else if (coeff > BATT_HEALTH_COEFF_MAX) {
+        coeff = BATT_HEALTH_COEFF_MAX;
+    }
+
+    // battery.health = (uint8_t)coeff; /// 暂时不启用电池健康状态
+    LOG_PBUS("battery health set:%d/%d", battery.health, coeff);
 }
 
 static int battery_pencent_get(void)
@@ -169,7 +176,7 @@ static void battery_percent_handler(uint16_t current_voltage)
     uint16_t percent_offset = 0, curr_offset = 0, cmp_val[2] = {0};
     table_size = LENGTH_OF_ARRAY(sc_batt_tables);
 
-    if (battery.health > BATT_HEALTH_COEFF_MIN && battery.health < BATT_HEALTH_COEFF_MAX) {
+    if (battery.health >= BATT_HEALTH_COEFF_MIN && battery.health <= BATT_HEALTH_COEFF_MAX) {
         health = battery.health;
     } else {
         health = BATT_HEALTH_COEFF_MAX;
@@ -202,7 +209,7 @@ static void battery_percent_handler(uint16_t current_voltage)
                 percent_offset = 100 - sc_batt_tables[i].percent; // 末段可细化跨度 = 100% 到当前段起点
             }
             /// 取细化百分比值，（当前电压-最小值）/（最大值-最小值） * 范围百分比
-            if (percent_offset > 1) { // 仅当该段电量跨度大于 1% 时才做线性插值，避免无意义抖动
+            if (percent_offset > 1 && cmp_val[1] > cmp_val[0]) { // 仅当该段电量跨度大于 1% 时才做线性插值，避免无意义抖动
                 curr_offset = (current_voltage - cmp_val[0]) * percent_offset / (cmp_val[1] - cmp_val[0]); // 在区间内按电压占比换算细分电量偏移
                 if (curr_offset <= percent_offset) {             // 防御性保护：确保插值偏移不超过该段允许的最大电量跨度
                     battery.percent = battery_percent + curr_offset; // 粗值 + 细化偏移，得到最终百分比
@@ -223,7 +230,7 @@ static double battery_voltage_by_percent_get(double percent)
 {
     uint8_t table_size = LENGTH_OF_ARRAY(sc_batt_tables);
     uint8_t health = BATT_HEALTH_COEFF_MAX;
-    if (battery.health > BATT_HEALTH_COEFF_MIN && battery.health < BATT_HEALTH_COEFF_MAX) {
+    if (battery.health >= BATT_HEALTH_COEFF_MIN && battery.health <= BATT_HEALTH_COEFF_MAX) {
         health = battery.health;
     } else {
         health = BATT_HEALTH_COEFF_MAX;
@@ -269,7 +276,9 @@ static uint16_t battery_charging_compensation(uint16_t voltage)
 
 static double charging_current_curve_voltage_get(uint16_t ibat_ma, uint32_t polling_interval, int16_t offset)
 {
-    double charge_percent = ((double)ibat_ma * polling_interval * 100) / (BATT_MAX_CAPACITY_MAH * battery.health / BATT_HEALTH_COEFF_MAX);
+    uint8_t health = (battery.health >= BATT_HEALTH_COEFF_MIN && battery.health <= BATT_HEALTH_COEFF_MAX) ?
+        battery.health : BATT_HEALTH_COEFF_MAX;
+    double charge_percent = ((double)ibat_ma * polling_interval * 100) / (BATT_MAX_CAPACITY_MAH * health / BATT_HEALTH_COEFF_MAX);
     if (s_charging_curve_percent < battery.percent || s_charging_curve_percent > 100) {
         s_charging_curve_percent = battery.percent;
     }
@@ -371,7 +380,8 @@ static void charging_voltage_handler(uint16_t voltage, uint32_t polling_interval
     uint8_t vref_flag = 0;
     int16_t step = 0;
     int16_t offset = 0;
-    uint8_t health_coeff = 0, table_size = 0, debounce = 0;
+    uint16_t health_coeff = 0;
+    uint8_t table_size = 0, debounce = 0;
 
     /// 充电状态下重启电量补偿
     if (battery.voltage == 0) {
@@ -393,7 +403,10 @@ static void charging_voltage_handler(uint16_t voltage, uint32_t polling_interval
     if (s_charing_time_out_count > BATT_CHARGING_TIME_OUT) {
         s_charing_time_out_count = 0;
         table_size = LENGTH_OF_ARRAY(sc_batt_tables);
-        health_coeff = ((s_batt_voltage_max * 100) / sc_batt_tables[table_size - 1].vol_max) - 1;
+        health_coeff = ((s_batt_voltage_max * 100) / sc_batt_tables[table_size - 1].vol_max);
+        if (health_coeff > 0) {
+            health_coeff--;
+        }
         if ((battery.percent < 100) || (health_coeff > (battery.health + 1))) {
             battery_health_set(health_coeff);
         }
@@ -413,10 +426,13 @@ static void charging_voltage_handler(uint16_t voltage, uint32_t polling_interval
     
     uint16_t ibat_ma = 0;
     bsp_charge_get_ibat_ma(&ibat_ma);
-    if (ibat_ma > 200 && offset > 0) {
+    if (ibat_ma > 100 && offset > 0) {
         double charge_voltage = charging_current_curve_voltage_get(ibat_ma, polling_interval, offset);
         if (s_charging_curve_percent >= 100) {
-            vref += offset / 1000.f;
+            vref += (CHARGE_FULL_100MS_RATE * ibat_ma * polling_interval) / 100.0;
+            if (vref > offset) {
+                vref = offset;
+            }
         } else {
             if (charge_voltage > battery.voltage) {
                 vref = charge_voltage - battery.voltage; 
@@ -461,11 +477,15 @@ CALC_EXIT:
 
 static void charge_full_voltage_handler(uint16_t voltage)
 {
-    uint8_t health_coeff = 0, table_size = 0;
+    uint16_t health_coeff = 0;
+    uint8_t table_size = 0;
     if (battery.voltage < voltage) {
         battery.voltage = voltage;
         table_size = LENGTH_OF_ARRAY(sc_batt_tables);
-        health_coeff = ((voltage * 100) / sc_batt_tables[table_size - 1].vol_max) - 1;
+        health_coeff = ((voltage * 100) / sc_batt_tables[table_size - 1].vol_max);
+        if (health_coeff > 0) {
+            health_coeff--;
+        }
         if ((health_coeff != battery.health)) {
             battery_health_set(health_coeff);
         }
@@ -490,13 +510,16 @@ static int battery_voltage_poll(void)
     }
 
     uint32_t poll_interval = get_timestamp_ms(s_batt_poll_time);
-    
     /// 避免过快调度
-    if (poll_interval < 80) {
-        /// LOGE("battery poll error:%ld", poll_interval);
+    if (poll_interval < 95) {
+        return BSP_OK;
+    }
+
+    if (poll_interval > 1000) {
+        LOGE("battery poll error:%ld", poll_interval);
+        s_batt_poll_time = get_timestamp();
         return BSP_ERROR;
     }
-    
     s_batt_poll_time = get_timestamp();
     log_timer++;
 #if IS_SUPPORT_BATTERY_DIRECT_SAMPLING
@@ -574,7 +597,7 @@ static int battery_dev_read(struct rt_device_node *dev, void *buf, uint32_t n_by
 #else
     int val = 100;
 #endif
-    if (buf) {
+    if (buf && n_bytes >= sizeof(val)) {
         memcpy(buf, &val, sizeof(int));
     }
     return val;
@@ -596,7 +619,10 @@ static int battery_dev_ioctl(struct rt_device_node *dev, uint32_t op_code, void 
             return battery_voltage_poll();
         case OP_CODE_BAT_HEALTH_SET:
             tmp = (uint32_t *)args;
-            battery_health_set((uint8_t)tmp[0]);
+            if (tmp == NULL) {
+                return -1;
+            }
+            battery_health_set((uint16_t)tmp[0]);
             return 0;
 #else
         case OP_CODE_BAT_GET_VOLTAGE:
@@ -625,6 +651,9 @@ static int battery_dev_ioctl(struct rt_device_node *dev, uint32_t op_code, void 
 #endif
         case OP_CODE_BAT_CHARGE_CURRENT_ADJUST:
             tmp = (uint32_t *)args;
+            if (tmp == NULL) {
+                return -1;
+            }
             charge_current_adjust((uint16_t)tmp[0]);
             return 0;
         case OP_CODE_BAT_GET_CHARGE_IBAT_MA: {
@@ -635,8 +664,7 @@ static int battery_dev_ioctl(struct rt_device_node *dev, uint32_t op_code, void 
             int r = bsp_charge_get_ibat_ma(out_ma);
             return (r == BSP_OK) ? 0 : -1;
         }
-        case OP_CODE_BAT_SET_CHARGE_CURRENT:
-            tmp = (uint32_t *)args;
+        case OP_CODE_BAT_CHARGE_FORCE_OPEN:
             /// 强制充电
             charge_event_internal_cb(CHARGE_EVENT_PLUG_IN);
             return 0;
