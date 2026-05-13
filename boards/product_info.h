@@ -46,8 +46,8 @@ extern "C" {
 #define ROOT_FIRMWARE_VERSION                          210
 #define ROOT_FW_VERSION_STR                            "210"
 #else
-#define ROOT_FIRMWARE_VERSION                          321
-#define ROOT_FW_VERSION_STR                            "321"
+#define ROOT_FIRMWARE_VERSION                          322
+#define ROOT_FW_VERSION_STR                            "322"
 #endif
 
 /**
@@ -62,7 +62,7 @@ extern "C" {
 #else
 #define ROOT_RES_PATH                                  "V2" /// 资源路径
 #endif
-#define ROOT_RES_VERSION                               (102)
+#define ROOT_RES_VERSION                               (103)
 #define ROOT_RES_MAJOR_VERSION                         (ROOT_RES_VERSION / 100)
 #define ROOT_RES_MINOR_VERSION                         (ROOT_RES_VERSION % 100)
 
