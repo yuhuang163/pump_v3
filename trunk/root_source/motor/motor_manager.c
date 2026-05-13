@@ -97,7 +97,10 @@ static int internal_start_motor(uint8_t action)
         LOG_MOTOR("timestamp: %ld, id: %d", task_para.timestamp, task_para.play_mask_id);
         MSG_QUEUE_SEND(msg_id, &task_para, 0);
     }
-
+    
+    if (motor_obj) {
+        motor_obj->priv.motor_state = 1;
+    }
     return 0;
 }
  
@@ -107,6 +110,10 @@ static int internal_stop_motor(const char *reason)
         update_play_interrupt_reason(reason);
     } else {
         update_play_interrupt_reason("unknown-reason");
+    }
+
+    if (motor_obj) {
+        motor_obj->priv.motor_state = 0;
     }
     return 0;
 }
