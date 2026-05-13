@@ -31,18 +31,29 @@
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
+static bool is_power_off_by_charging(void)
+{
+    battery_manager_context_t *battery = (battery_manager_context_t *)find_module(ID_MODULE_BATTERY);
+    EXCEPTION_CHECK_BOOL(battery);
+    if (battery->is_vbus_plug_in() > 0) {
+        return true; /// 充电状态下禁止进入待机状态.
+    }
+    return false;
+}
+
 static bool is_prohibit_pm_suspend(struct power_manager_context *ctx)
 {
     EXCEPTION_CHECK_BOOL(ctx);
     window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
     EXCEPTION_CHECK_BOOL(wm);
     battery_manager_context_t *battery = (battery_manager_context_t *)find_module(ID_MODULE_BATTERY);
-    if (battery && BATTERY_IS_CHARGING(battery->get_charge_status())) {
+    EXCEPTION_CHECK_BOOL(battery);
+    if (BATTERY_IS_CHARGING(battery->get_charge_status())) {
         if (wm->is_current_window(wm, ID_WINDOW_CHARGE) == 0) {
             multi_func_msg_data_t msg = {0};
-            msg.union_body.extra.is_bg_dispatch = 0;
             msg.union_body.extra.window_id = ID_WINDOW_CHARGE;
             wm->dispatch_new_window_args(wm, &msg);
+            LOG_PM("goto charge window");
         }
         return true; /// 充电状态下禁止进入待机状态.
     }
@@ -54,42 +65,71 @@ static void system_power_event_cb(hdr_post_args_t *args)
     int action = args->arg1;
     power_manager_context_t *pm = args->user_data;
     EXCEPTION_CHECK_VOID(pm);
+    window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
+    EXCEPTION_CHECK_VOID(wm);
+    battery_manager_context_t *battery = (battery_manager_context_t *)find_module(ID_MODULE_BATTERY);
+    EXCEPTION_CHECK_VOID(battery);
+    multi_func_msg_data_t msg = {0};
     switch (action) {
         case HDR_ACTION_POWER_ON_DETECT:
-            LOG_PM("%s action:%d", args->name, action);
-            key_input_context_t *key = (key_input_context_t *)find_module(ID_MODULE_KEY_INPUT);
-            battery_manager_context_t *battery = (battery_manager_context_t *)find_module(ID_MODULE_BATTERY);
+            LOG_PM("%s action:%d", args->name, action, pm->priv.is_power_on_timeout_detect);
+            if (pm->priv.is_power_on_timeout_detect == 0) {
+                return;
+            }
             pm->priv.is_power_on_timeout_detect = 0;
+            key_input_context_t *key = (key_input_context_t *)find_module(ID_MODULE_KEY_INPUT);
             if (key && key->is_key_triggered(KEY_INDEX_POWER) == 0) {
-#if IS_SUPPORT_POWER_KEY_ON_BOOT
-                pm->system_power_control(false); 
-#else
-                if (battery && battery->is_vbus_plug_in() > 0) {
+                #if IS_SUPPORT_POWER_OFF_WHEN_CHARGING
+                if (is_power_off_by_charging()) {
                     pm->system_power_control(true);
                     SEND_BROADCAST_ARGS1(ID_BROADCAST_SYS_STATE_CHANGE, SYSTEM_BROADCAST_POWER_ON);
-                } else {
-                    pm->system_power_control(false); /// 非充电状态下进行开机超时检测.
+                    msg.union_body.extra.window_id = ID_WINDOW_CHARGE;
+                    LOG_PM("goto charge screen");
+                    wm->dispatch_new_window_args(wm, &msg); 
+                    return;
                 }
-#endif
+                #endif      
+                pm->system_power_control(false); 
             } else {
                 pm->system_power_control(true);
                 SEND_BROADCAST_ARGS1(ID_BROADCAST_SYS_STATE_CHANGE, SYSTEM_BROADCAST_POWER_ON);
+                if (battery->is_adapter_mismatch() > 0) {
+                    msg.union_body.extra.window_id = ID_WINDOW_CHARGE;
+                    LOG_PM("goto charge screen");
+                } else {
+                    msg.union_body.extra.window_id = ID_WINDOW_LOGO;
+                    LOG_PM("goto logo screen");
+                }
+                wm->dispatch_new_window_args(wm, &msg); 
             }
             break;
         case HDR_ACTION_POWER_ON:
             LOG_PM("%s action:%d", args->name, action);
-            pm->priv.is_power_on_timeout_detect = 0;
             pm->system_power_control(true);
             SEND_BROADCAST_ARGS1(ID_BROADCAST_SYS_STATE_CHANGE, SYSTEM_BROADCAST_POWER_ON);
+            if (battery->is_adapter_mismatch() > 0) {
+                msg.union_body.extra.window_id = ID_WINDOW_CHARGE;
+                LOG_PM("goto charge screen");
+            } else {
+                msg.union_body.extra.window_id = ID_WINDOW_LOGO;
+                LOG_PM("goto logo screen");
+            }
+            wm->dispatch_new_window_args(wm, &msg); 
+            break;
+        case HDR_ACTION_POWER_ON_BY_CHARGING:    
+            LOG_PM("%s action:%d", args->name, action);
+            pm->system_power_control(true);
+            SEND_BROADCAST_ARGS1(ID_BROADCAST_SYS_STATE_CHANGE, SYSTEM_BROADCAST_POWER_ON);
+            msg.union_body.extra.window_id = ID_WINDOW_CHARGE;
+            LOG_PM("goto charge screen");
+            wm->dispatch_new_window_args(wm, &msg); 
             break;
         case HDR_ACTION_POWER_ON_INVALID: 
             LOG_PM("%s action:%d", args->name, action);
-            pm->priv.is_power_on_timeout_detect = 0;
             pm->system_power_control(false);
             break;
         case HDR_ACTION_POWER_OFF: 
             LOG_PM("%s action:%d", args->name, action);
-            pm->priv.is_power_on_timeout_detect = 0;
             pm->priv.allow_shutdown_or_standby = 0;
             pm->system_power_control(false);
             break;
@@ -120,10 +160,16 @@ static int on_key_event_route(struct power_manager_context *ctx, uint16_t keycod
 
     /// 开机按键超时检测, 如果超时, 则进入关机状态.
     if (keytype == KEY_EVENT_UP && ctx->priv.is_power_on_timeout_detect == 1) {
-#if (ROOT_PRODUCT_ID == ROOT_PRODUCT_V3PRO_ID)  
-        battery_manager_context_t *battery = (battery_manager_context_t *)find_module(ID_MODULE_BATTERY);
-        if (battery && battery->is_vbus_plug_in() > 0) {
-            LOG_PM("vbus plug in. ignore");  /// 插电状态下禁止禁止关机
+        ctx->priv.is_power_on_timeout_detect = 0;
+#if IS_SUPPORT_POWER_OFF_WHEN_CHARGING
+        if (is_power_off_by_charging()) {
+            uint32_t timeout_ms = POWER_ON_TIMEOUT_MS;
+            LOG_PM("power on time: %d", timeout_ms);
+            if (timeout_ms > POWER_ON_TIMEOUT_MS_DEFAULT) {
+                timeout_ms = 100;
+            }
+            POST_TASK_HANDLER_DELAYED_ARG2(system_power_event_cb, timeout_ms, HDR_ACTION_POWER_ON_BY_CHARGING, ctx,
+                POWER_ONOFF_AND_STANDBY_TASK_NAME);
             return 0;
         }
 #endif
@@ -153,7 +199,7 @@ static int on_key_event_route(struct power_manager_context *ctx, uint16_t keycod
     /// 进入关机状态. 不在工厂重置界面时才允许进入关机状态.(按键冲突)
     if (keytype == KEY_EVENT_LONG_3S && ctx->priv.allow_shutdown_or_standby == 1) {
         window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
-#if (ROOT_PRODUCT_ID == ROOT_PRODUCT_V3PRO_ID)  
+#if IS_SUPPORT_POWER_OFF_WHEN_CHARGING
         if (wm && wm->is_current_window(wm, ID_WINDOW_FACTORY_RESET) == 0) {
             if (is_prohibit_pm_suspend(ctx)) {
                 return 0;
@@ -386,44 +432,38 @@ static int on_power_broadcast_receive_route(broadcast_mask_id_t id, void *contex
 static int on_post_power_init_route(struct power_manager_context *ctx)
 {
     EXCEPTION_CHECK_INT(ctx);
-    ctx->priv.pbus = (peripheral_bus_context_t *)find_module(ID_MODULE_DEVICE_BUS);
-    battery_manager_context_t *battery = (battery_manager_context_t *)find_module(ID_MODULE_BATTERY);
-#if IS_SUPPORT_POWER_KEY_ON_BOOT
+    uint32_t timeout_ms = POWER_ON_TIMEOUT_MS;
+    if (timeout_ms > POWER_ON_TIMEOUT_MS_DEFAULT) {
+        timeout_ms = 100;
+    }
+
     if (platform_is_startup_caused_by_reboot()) {
-        key_input_context_t *key = (key_input_context_t *)find_module(ID_MODULE_KEY_INPUT);
-        if (key && key->is_key_triggered(KEY_INDEX_POWER)) {
-            ctx->priv.is_power_on_timeout_detect = 1;
-        }
         LOG_PM("power on by reboot");
-        POST_TASK_HANDLER_DELAYED_ARG2(system_power_event_cb, 500, HDR_ACTION_POWER_ON, ctx,
+        ctx->priv.is_power_on_timeout_detect = 0;
+        POST_TASK_HANDLER_DELAYED_ARG2(system_power_event_cb, timeout_ms, HDR_ACTION_POWER_ON, ctx,
             POWER_ONOFF_AND_STANDBY_TASK_NAME);
         return 0;
     }
-#else
-    if ((battery && battery->is_vbus_plug_in() > 0) || platform_is_startup_caused_by_reboot()) {
-        key_input_context_t *key = (key_input_context_t *)find_module(ID_MODULE_KEY_INPUT);  
-        if (key && key->is_key_triggered(KEY_INDEX_POWER)) {
-            ctx->priv.is_power_on_timeout_detect = 1;
-        }
-        POST_TASK_HANDLER_DELAYED_ARG2(system_power_event_cb, 500, HDR_ACTION_POWER_ON, ctx,
-            POWER_ONOFF_AND_STANDBY_TASK_NAME);
-        return 0;
-    }
-#endif
+
     key_input_context_t *key = (key_input_context_t *)find_module(ID_MODULE_KEY_INPUT);
     if (key && key->is_key_triggered(KEY_INDEX_POWER) == 0) {
         ctx->priv.is_power_on_timeout_detect = 0;
+#if IS_SUPPORT_POWER_OFF_WHEN_CHARGING
+        if (is_power_off_by_charging()) {
+            LOG_PM("power on by charging, timeout: %d", timeout_ms);
+            POST_TASK_HANDLER_DELAYED_ARG2(system_power_event_cb, timeout_ms, HDR_ACTION_POWER_ON_BY_CHARGING, ctx,
+                POWER_ONOFF_AND_STANDBY_TASK_NAME);
+            return 0;
+        }
+#endif
         ctx->system_power_control(false);
         return 0;
     }
-    uint32_t timeout_ms = POWER_ON_TIMEOUT_MS;
-    LOG_PM("power on time: %d", timeout_ms);
-    if (timeout_ms > POWER_ON_TIMEOUT_MS_DEFAULT) {
-        timeout_ms = POWER_ON_TIMEOUT_MS_DEFAULT;
-    }
+    LOG_PM("key down, power on timeout: %d", timeout_ms);
     ctx->priv.is_power_on_timeout_detect = 1;
     POST_TASK_HANDLER_DELAYED_ARG2(system_power_event_cb, timeout_ms, HDR_ACTION_POWER_ON_DETECT,
         ctx, POWER_ONOFF_AND_STANDBY_TASK_NAME);
+
     return 0;
 }
 

@@ -336,7 +336,7 @@ const STARGET_CURVE_ITEM g_target_curve_table[] =
     {
         6u,
         270u,
-        -3.0f,
+        -3.5f,
         -7.2f,
         (unsigned short)(sizeof(g_stim_60_270_p1) / sizeof(g_stim_60_270_p1[0])),
         g_stim_60_270_p1
@@ -345,7 +345,7 @@ const STARGET_CURVE_ITEM g_target_curve_table[] =
     {
         7u,
         245u,
-        -3.0f,
+        -4.0f,
         -8.6f,
         (unsigned short)(sizeof(g_stim_70_245_p1) / sizeof(g_stim_70_245_p1[0])),
         g_stim_70_245_p1
@@ -354,7 +354,7 @@ const STARGET_CURVE_ITEM g_target_curve_table[] =
     {
         9u,
         270u,
-        -4.0f,
+        -4.5f,
         -9.8f,
         (unsigned short)(sizeof(g_stim_90_270_p1) / sizeof(g_stim_90_270_p1[0])),
         g_stim_90_270_p1
@@ -381,7 +381,7 @@ const STARGET_CURVE_ITEM g_target_curve_table[] =
     {
         13u,
         303u,
-        -5.5f,
+        -6.0f,
         -13.7f,
         (unsigned short)(sizeof(g_stim_130_303_p1) / sizeof(g_stim_130_303_p1[0])),
         g_stim_130_303_p1
@@ -408,7 +408,7 @@ const STARGET_CURVE_ITEM g_target_curve_table[] =
     {
         17u,
         285u,
-        -8.0f,
+        -9.0f,
         -18.0f,
         (unsigned short)(sizeof(g_stim_170_285_p1) / sizeof(g_stim_170_285_p1[0])),
         g_stim_170_285_p1
@@ -417,7 +417,7 @@ const STARGET_CURVE_ITEM g_target_curve_table[] =
     {
         18u,
         305u,
-        -9.0f,
+        -10.0f,
         -19.1f,
         (unsigned short)(sizeof(g_stim_180_305_p1) / sizeof(g_stim_180_305_p1[0])),
         g_stim_180_305_p1
@@ -453,7 +453,7 @@ const STARGET_CURVE_ITEM g_target_curve_table[] =
     {
         22u,
         340u,
-        -23.5f,
+        -22.0f,
         -23.1f,
         (unsigned short)(sizeof(g_stim_220_340_p1) / sizeof(g_stim_220_340_p1[0])),
         g_stim_220_340_p1
@@ -462,7 +462,7 @@ const STARGET_CURVE_ITEM g_target_curve_table[] =
     {
         23u,
         322u,
-        -25.0f,
+        -23.0f,
         -24.5f,
         (unsigned short)(sizeof(g_stim_230_322_p1) / sizeof(g_stim_230_322_p1[0])),
         g_stim_230_322_p1
@@ -480,7 +480,7 @@ const STARGET_CURVE_ITEM g_target_curve_table[] =
     {
         6u,
         370u,
-        -4.0f,
+        -4.5f,
         -7.4f,
         (unsigned short)(sizeof(g_expr_60_370_p1) / sizeof(g_expr_60_370_p1[0])),
         g_expr_60_370_p1
@@ -593,7 +593,7 @@ const STARGET_CURVE_ITEM g_target_curve_table[] =
     {
         33u,
         650u,
-        -30.5f,
+        -32.5f,
         //-40.0f,
         -36.0f,
         (unsigned short)(sizeof(g_expr_330_650_p1) / sizeof(g_expr_330_650_p1[0])),
@@ -603,7 +603,7 @@ const STARGET_CURVE_ITEM g_target_curve_table[] =
     {
         35u,
         685u,
-        -32.7f,
+        -34.7f,
         //-40.0f,
         -37.8f,
         (unsigned short)(sizeof(g_expr_350_685_p1) / sizeof(g_expr_350_685_p1[0])),

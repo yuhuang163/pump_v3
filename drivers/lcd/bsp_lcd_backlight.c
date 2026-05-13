@@ -43,10 +43,6 @@ typedef struct {
     uint8_t onoff;   /// 开关状态，0：关，1：开
     uint8_t duty_update_flag;    /// 占空比更新标志，0：不更新，1：更新    
     uint32_t pulse_width;   /// 当前脉冲宽度
-#if IS_SUPPORT_LCD_BACKLIGHT_CLIMB && IS_SUPPORT_LCD_BACKLIGHT_CLIMB_VARIABLE_PERIOD
-    uint8_t climb_total_steps;   /// 本次从 current 追到 target 需要的步数 N
-    uint8_t climb_moves_done;    /// 已完成的单步调节次数（用于 T(k) 下标）
-#endif
 } backlight_timer_cfg_t;
 
 /*
@@ -82,7 +78,7 @@ static void lcd_backlight_gpio_irq_callback(enum HAL_GPIO_PIN_T pin)
 {
     if (backlight_info.duty_update_flag == 1) {
         backlight_info.duty_update_flag = 0;
-        if (backlight_info.pulse_width == 0) {
+        if (backlight_info.pulse_width == 0 && backlight_info.onoff > 0) {
             backlight_info.onoff = 0;
 #if LCD_BACKLIGHT_LOG_DEBUG
             LOG_PBUS("lcd backlight off...");
@@ -104,42 +100,8 @@ static void bsp_lcd_backlight_irq_control(bool enable)
     hal_gpio_setup_irq(LCD_LCD_BL_PIN, &gpio_irq_cfg);
 }
 
-/**
- * 可变步进间隔：第 k 次等待（k=0..N-1）的间隔 T(k)=T_start-(T_start-T_end)*k/(N-1)，前慢后快。
- * 关闭 IS_SUPPORT_LCD_BACKLIGHT_CLIMB_VARIABLE_PERIOD 时固定为 LCD_BACKLIGHT_TIME_PERIOD。
- */
-static uint16_t lcd_backlight_climb_next_delay_ms(uint8_t k_index)
-{
-#if IS_SUPPORT_LCD_BACKLIGHT_CLIMB_VARIABLE_PERIOD
-    uint8_t N = backlight_info.climb_total_steps;
-    if (N <= 1) {
-        return LCD_BACKLIGHT_CLIMB_PERIOD_END_MS;
-    }
-    if (k_index >= N) {
-        return LCD_BACKLIGHT_CLIMB_PERIOD_END_MS;
-    }
-    {
-        uint32_t T0 = (uint32_t)LCD_BACKLIGHT_CLIMB_PERIOD_START_MS;
-        uint32_t T1 = (uint32_t)LCD_BACKLIGHT_CLIMB_PERIOD_END_MS;
-        return (uint16_t)(T0 - (T0 - T1) * (uint32_t)k_index / (uint32_t)(N - 1u));
-    }
-#else
-    (void)k_index;
-    return LCD_BACKLIGHT_TIME_PERIOD;
-#endif
-}
-
 static void bsp_lcd_backlight_climb_start(void)
 {
-#if IS_SUPPORT_LCD_BACKLIGHT_CLIMB_VARIABLE_PERIOD
-    uint16_t ms = lcd_backlight_climb_next_delay_ms(0);
-    (void)hwtimer_stop(backlight_info.time_id);
-    int ret = hwtimer_start(backlight_info.time_id, MS_TO_HWTICKS(ms));
-    if (ret != E_HWTIMER_OK) {
-        LOGE("lcd backlight time start fail ret=%d", ret);
-        return;
-    }
-#else
     int ret = 0;
     if (hwtimer_active(backlight_info.time_id) == 0) {
         ret = hwtimer_start(backlight_info.time_id, MS_TO_HWTICKS(LCD_BACKLIGHT_TIME_PERIOD));
@@ -148,7 +110,6 @@ static void bsp_lcd_backlight_climb_start(void)
             return;
         }
     }
-#endif
     backlight_info.is_running = true;
 }
 
@@ -164,45 +125,24 @@ static void bsp_lcd_backlight_climb_stop(void)
 
 static void bsp_lcd_backlight_timer_handler(void *param)
 {
-    uint16_t next_ms;
     (void)param;
 
     if (backlight_info.current_duty > backlight_info.target_duty && backlight_info.current_duty > 0) {
         backlight_info.current_duty--;
         backlight_info.pulse_width = lcd_backlight_pwm_table[backlight_info.current_duty];
         backlight_info.duty_update_flag = 1;
-#if IS_SUPPORT_LCD_BACKLIGHT_CLIMB_VARIABLE_PERIOD
-        backlight_info.climb_moves_done++;
-#endif
         if (backlight_info.current_duty == backlight_info.target_duty) {
             return;
         }
-        next_ms = lcd_backlight_climb_next_delay_ms(
-#if IS_SUPPORT_LCD_BACKLIGHT_CLIMB_VARIABLE_PERIOD
-            backlight_info.climb_moves_done
-#else
-            0
-#endif
-        );
-        hwtimer_start(backlight_info.time_id, MS_TO_HWTICKS(next_ms));
+        hwtimer_start(backlight_info.time_id, MS_TO_HWTICKS(LCD_BACKLIGHT_TIME_PERIOD));
     } else if (backlight_info.current_duty < backlight_info.target_duty && backlight_info.current_duty < 100) {
         backlight_info.current_duty++;
         backlight_info.pulse_width = lcd_backlight_pwm_table[backlight_info.current_duty];
         backlight_info.duty_update_flag = 1;
-#if IS_SUPPORT_LCD_BACKLIGHT_CLIMB_VARIABLE_PERIOD
-        backlight_info.climb_moves_done++;
-#endif
         if (backlight_info.current_duty == backlight_info.target_duty) {
             return;
         }
-        next_ms = lcd_backlight_climb_next_delay_ms(
-#if IS_SUPPORT_LCD_BACKLIGHT_CLIMB_VARIABLE_PERIOD
-            backlight_info.climb_moves_done
-#else
-            0
-#endif
-        );
-        hwtimer_start(backlight_info.time_id, MS_TO_HWTICKS(next_ms));
+        hwtimer_start(backlight_info.time_id, MS_TO_HWTICKS(LCD_BACKLIGHT_TIME_PERIOD));
     } else {
 #if LCD_BACKLIGHT_LOG_DEBUG
         LOG_PBUS("time is over, current_duty: %d, target_duty: %d",
@@ -222,7 +162,7 @@ static int8_t bsp_lcd_backlight_timer_register(void)
     return 0;
 }
 
-static void lcd_backlight_level_set(uint16_t level)
+static void lcd_backlight_level_set(uint8_t level)
 {    
     if (backlight_info.onoff == 0 && level > 0) {
         struct HAL_PWM_CFG_T pwm_cfg = {
@@ -239,40 +179,20 @@ static void lcd_backlight_level_set(uint16_t level)
         LOG_PBUS("lcd backlight on");
     } 
     
-    uint8_t duty = 0;
-    if (level > LCD_BACKLIGHT_LEVEL_MAX) {
-        duty = 100;
-    } else {
-        duty = ((level * 100) / LCD_BACKLIGHT_LEVEL_MAX);
+    if (level > 98) {
+        level = 98; // 防止target_duty超过98，因无法触发中断而无法更新PWM占空比
+    } else if (level < 2) {
+        level = 2; // 防止target_duty小于2，因无法触发中断而无法更新PWM占空比
     }
 
-    if (duty > 98)   // 防止target_duty超过98，因无法触发中断而无法更新PWM占空比
-    {
-        duty = 98;
-    }
-    if (duty < 2)   // 防止target_duty小于2，因无法触发中断而无法更新PWM占空比
-    {
-        duty = 2;
-    }
-    // if ((backlight_info.target_duty > (target_duty + 2)) || (backlight_info.target_duty < (target_duty - 2))) {
-    if (backlight_info.current_duty != duty) {
-#if IS_SUPPORT_LCD_BACKLIGHT_CLIMB_VARIABLE_PERIOD
-        {
-            uint8_t cur = backlight_info.current_duty;
-            uint8_t n = (cur > duty) ? (uint8_t)(cur - duty) : (uint8_t)(duty - cur);
-            backlight_info.climb_total_steps = n;
-            backlight_info.climb_moves_done = 0;
-        }
-#endif
-        backlight_info.target_duty = duty;
+    if (backlight_info.current_duty != level) {
+        backlight_info.target_duty = level;
         backlight_info.duty_update_flag = 1;
         bsp_lcd_backlight_climb_start();
-    }
-    else {
+    } else {
         backlight_info.duty_update_flag = 0;
         backlight_info.target_duty = backlight_info.current_duty;
     }
-    // LOG_PBUS("backlight target_duty: %d, current_duty: %d", backlight_info.target_duty, backlight_info.current_duty);
 }
 #else
 static void lcd_backlight_level_set(uint16_t level)
@@ -341,7 +261,8 @@ void bsp_lcd_backlight_suspend(void)
     hal_pwm_disable(LCD_LCD_BL_PWM_ID);
 }
 
-void bsp_lcd_backlight_control(uint16_t level)
+void bsp_lcd_backlight_control(uint8_t level)
 {
     lcd_backlight_level_set(level);
 }
+

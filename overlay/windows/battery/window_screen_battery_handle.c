@@ -138,10 +138,10 @@ static int exit_event_cb(window_lift_cycle_e new_state, const struct window_cont
     switch (new_state) {
         case ID_SCR_STATE_ON_PAUSE: 
             LOG_WM("==>%s window on pause", PAGE_NAME_STR);
+            stop_battery_low_power_ui(proc);
             break;
         case ID_SCR_STATE_ON_DESTORY:
             LOG_WM("==>%s window on destory", PAGE_NAME_STR);
-            stop_battery_low_power_ui(proc);
             unregister_broadcast_receiver(&proc->receiver);
             proc->receiver.context = NULL;
             proc->receiver.receiver_cb = NULL;

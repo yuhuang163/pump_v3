@@ -77,13 +77,7 @@ static const char *print_wakeup_state(int state)
 
 static int get_suspend_timeout(power_manager_context_t *thiz)
 {
-    int timeout = PM_SUSPEND_TIME_S;
-    battery_manager_context_t *battery = (battery_manager_context_t *)find_module(ID_MODULE_BATTERY);
-    if (battery && battery->is_empty_battery() > 0) {
-        timeout = PM_SUSPEND_LOW_BAT_TIME_S;
-    }
-    // LOG_PM("suspend_timeout:(%d)s", timeout);
-    return timeout;
+    return PM_SUSPEND_TIME_S;
 }
 
 static void dispatch_pm_event(power_manager_context_t *ctx, int args)
@@ -693,7 +687,12 @@ static int system_power_control(bool state)
         EXCEPTION_CHECK_INT(power_dev);
         st->flash_protect(true); /// 禁止flash读写操作.
         int args[] = {0};
-        power_dev->ioctl(power_dev, OP_CODE_POWER_CONTROL, (void *)args);
+        for (uint8_t i = 0; i < 3; i++) {
+            power_dev->ioctl(power_dev, OP_CODE_POWER_CONTROL, (void *)args);
+            msleep(200);
+            LOG_PM("power off try: %d", i);
+        }
+        platform_system_reboot();
     }
     return 0;
 }

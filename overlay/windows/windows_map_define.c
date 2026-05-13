@@ -15,29 +15,29 @@
 #define WINDOW_PRIO_DUMMY             WINDOW_PRIO_LOW
 #define WINDOW_PRIO_SETTING           WINDOW_PRIO_LOW
 #define WINDOW_PRIO_PUMP              WINDOW_PRIO_LEVEL2
-#define WINDOW_PRIO_GUIDE             WINDOW_PRIO_LEVEL8
 #define WINDOW_PRIO_HOME              WINDOW_PRIO_LEVEL8
-#define WINDOW_PRIO_CHARGE            WINDOW_PRIO_LEVEL9
-#define WINDOW_PRIO_OTA               WINDOW_PRIO_HIGH
+#define WINDOW_PRIO_GUIDE             WINDOW_PRIO_LEVEL9
 #define WINDOW_PRIO_LOGO              WINDOW_PRIO_HIGH
 #define WINDOW_PRIO_BATTERY           WINDOW_PRIO_HIGH
 #define WINDOW_PRIO_POPUP             WINDOW_PRIO_HIGH
 #define WINDOW_PRIO_AIRPLANE_MODE     WINDOW_PRIO_HIGH
-#define WINDOW_PRIO_PRODUCT_TS        WINDOW_PRIO_HIGH
+#define WINDOW_PRIO_CHARGE            WINDOW_PRIO_HIGH
+#define WINDOW_PRIO_OTA               WINDOW_PRIO_HIGH
+#define WINDOW_PRIO_PRODUCT_TS        WINDOW_PRIO_TOP
 #define WINDOW_PRIO_FACTORY_RESET     WINDOW_PRIO_TOP
 #define WINDOW_PRIO_POWER_OFF         WINDOW_PRIO_TOP
 
 DECLARE_WM_HANDLE_OBJ(m_window_dummy);
 DECLARE_WM_HANDLE_OBJ(m_window_setting);
 DECLARE_WM_HANDLE_OBJ(m_window_pump);
-DECLARE_WM_HANDLE_OBJ(m_window_guide);
 DECLARE_WM_HANDLE_OBJ(m_window_home);
-DECLARE_WM_HANDLE_OBJ(m_window_charge);
-DECLARE_WM_HANDLE_OBJ(m_window_ota);
+DECLARE_WM_HANDLE_OBJ(m_window_guide);
 DECLARE_WM_HANDLE_OBJ(m_window_logo);
 DECLARE_WM_HANDLE_OBJ(m_window_battery);
 DECLARE_WM_HANDLE_OBJ(m_window_popup);
 DECLARE_WM_HANDLE_OBJ(m_window_airplane_mode);
+DECLARE_WM_HANDLE_OBJ(m_window_charge);
+DECLARE_WM_HANDLE_OBJ(m_window_ota);
 DECLARE_WM_HANDLE_OBJ(m_window_product_test);
 DECLARE_WM_HANDLE_OBJ(m_window_factory_reset);
 DECLARE_WM_HANDLE_OBJ(m_window_power_off);
@@ -60,14 +60,14 @@ static const window_context_handle_t g_process_handle_list[] = {
     {ID_WINDOW_DUMMY, WINDOW_PRIO_DUMMY, PAGE_HANDLE_NAME(dummy), REFS_T(m_window_dummy)},
     // {ID_WINDOW_SETTINGS,            WINDOW_PRIO_SETTING,    PAGE_HANDLE_NAME(setting),  REFS_T(m_window_setting)},
     {ID_WINDOW_PUMP, WINDOW_PRIO_PUMP, PAGE_HANDLE_NAME(pump), REFS_T(m_window_pump)},
-    {ID_WINDOW_GUIDE,               WINDOW_PRIO_GUIDE,      PAGE_HANDLE_NAME(guide),    REFS_T(m_window_guide)},
     {ID_WINDOW_HOME, WINDOW_PRIO_HOME, PAGE_HANDLE_NAME(home), REFS_T(m_window_home)},
-    {ID_WINDOW_CHARGE, WINDOW_PRIO_CHARGE, PAGE_HANDLE_NAME(charge), REFS_T(m_window_charge)},
-    {ID_WINDOW_OTA_UPGRADE,         WINDOW_PRIO_OTA,        PAGE_HANDLE_NAME(ota),      REFS_T(m_window_ota)},
+    {ID_WINDOW_GUIDE,               WINDOW_PRIO_GUIDE,      PAGE_HANDLE_NAME(guide),    REFS_T(m_window_guide)},
     {ID_WINDOW_LOGO, WINDOW_PRIO_LOGO, PAGE_HANDLE_NAME(logo), REFS_T(m_window_logo)},
     {ID_WINDOW_BATTERY,             WINDOW_PRIO_BATTERY,    PAGE_HANDLE_NAME(battery ), REFS_T(m_window_battery)},
     {ID_WINDOW_POPUP_WINDOW,        WINDOW_PRIO_POPUP,      PAGE_HANDLE_NAME(popup_window),    REFS_T(m_window_popup)},
     {ID_WINDOW_AIRPLANE_MODE, WINDOW_PRIO_AIRPLANE_MODE, PAGE_HANDLE_NAME(airplane_mode), REFS_T(m_window_airplane_mode)},
+    {ID_WINDOW_CHARGE, WINDOW_PRIO_CHARGE, PAGE_HANDLE_NAME(charge), REFS_T(m_window_charge)},
+    {ID_WINDOW_OTA_UPGRADE,         WINDOW_PRIO_OTA,        PAGE_HANDLE_NAME(ota),      REFS_T(m_window_ota)},
     {ID_WINDOW_PRODUCT_TEST_MODE,  WINDOW_PRIO_PRODUCT_TS, PAGE_HANDLE_NAME(product_test), REFS_T(m_window_product_test)},
     {ID_WINDOW_FACTORY_RESET, WINDOW_PRIO_FACTORY_RESET, PAGE_HANDLE_NAME(factory_reset), REFS_T(m_window_factory_reset)},
     {ID_WINDOW_POWER_OFF, WINDOW_PRIO_POWER_OFF, PAGE_HANDLE_NAME(power_off), REFS_T(m_window_power_off)},
@@ -90,10 +90,6 @@ const char *to_window_name(uint8_t window_id)
             return "guide";
         case ID_WINDOW_HOME:
             return "home";
-        case ID_WINDOW_CHARGE:
-            return "charging";
-        case ID_WINDOW_OTA_UPGRADE:
-            return "ota_upgrade";
         case ID_WINDOW_LOGO:
             return "logo";
         case ID_WINDOW_BATTERY:
@@ -102,6 +98,10 @@ const char *to_window_name(uint8_t window_id)
             return "popup_window";
         case ID_WINDOW_AIRPLANE_MODE:
             return "airplane_mode";
+        case ID_WINDOW_CHARGE:
+            return "charging";
+        case ID_WINDOW_OTA_UPGRADE:
+            return "ota_upgrade";
         case ID_WINDOW_PRODUCT_TEST_MODE:
             return "product_test";
         case ID_WINDOW_FACTORY_RESET:

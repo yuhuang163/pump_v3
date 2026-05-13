@@ -50,6 +50,7 @@ static void home_pump_level_ui_display_completed_cb(hdr_post_args_t *args)
         WRITE_PUMP_SETTING_INFO(proc->pump, time_index, true, proc->setting);
     }
     proc->level_change = 0;
+    proc->level_sync_flag = false;
     start_home_ui_animation(proc);
 }
 
@@ -59,7 +60,8 @@ static void home_pump_level_popup_ui_finish_policy(ui_manager_context_t *ui, uin
     ui_proc_home_t *proc = (ui_proc_home_t *)ui->priv.play_info.user_data;
     home_popup_ui_type_update(proc, ID_POPUP_UI_NONE);
     if (popup_ui_index == ID_POPUP_UI_OP_SUCCESS_PRESET) {
-        POST_TASK_HANDLER_NO_DELAY(home_pump_level_ui_display_completed_cb, proc, HOME_PUMP_LEVEL_ADJUST_DISPLAY_TASK_NAME);
+        POST_TASK_HANDLER_NO_DELAY(home_pump_level_ui_display_completed_cb,
+            proc, HOME_PUMP_LEVEL_ADJUST_DISPLAY_TASK_NAME);
     }
 }
 
@@ -70,9 +72,15 @@ static void home_pump_level_ui_after_policy(ui_manager_context_t *ui, int index)
     EXCEPTION_CHECK_VOID(proc);
     uint32_t time_diff = get_timestamp_ms(proc->last_progress_ani_time);
     if (time_diff >= HOME_PUMP_LEVEL_DISPLAY_TIMEOUT) {
-        proc->popup_ui_type = ID_POPUP_UI_OP_SUCCESS_PRESET;
+        proc->level_change = 0;
         proc->last_progress_ani_time = get_timestamp();
         LOG_UI("level ui timeout: %d", proc->last_progress_ani_time);
+        POST_TASK_HANDLER_NO_DELAY(home_pump_level_ui_display_completed_cb,
+            proc, HOME_PUMP_LEVEL_ADJUST_DISPLAY_TASK_NAME);
+    } else if (time_diff >= HOME_PUMP_LEVEL_SYNC_TIMEOUT && proc->level_change) {
+        proc->popup_ui_type = ID_POPUP_UI_OP_SUCCESS_PRESET;
+        proc->last_progress_ani_time = get_timestamp();
+        LOG_UI("level ui sync timeout: %d", proc->last_progress_ani_time);
     }
 }
 
@@ -186,6 +194,7 @@ void switch_home_pump_level(ui_proc_home_t *proc, bool is_increase)
             proc->level_change--;
         }
     }
+    proc->level_sync_flag = true;
     LOG_WM("switch home pump level: %d, level_change: %d", is_increase, proc->level_change);
     show_home_pump_level_ui(proc);
 }

@@ -226,16 +226,21 @@ static void set_breast_pump_mode(uint32_t mode, uint8_t is_store_mode, uint8_t i
     for (uint8_t i = 0; i < ROOT_BREAST_PUMP_STEP_MAX; i++) {
         st->get_store_ram_val(STORE_ID_PUMP_SETTING_INFO, m_info->mode, i, &breast_pump_obj->priv.setting[i]);
     }
-    /// 通知app
-    if (is_report) {
+    if (m_info->mode == BREAST_PUMP_CUSTOM_MODE || is_report) {
         servers_manager_context_t *servers_ctx = (servers_manager_context_t *)find_module(ID_MODULE_SERVERS);
         EXCEPTION_CHECK_VOID(servers_ctx && servers_ctx->hook);
-        servers_publish_data_args_t args = {
-            .arg1 = OLD_PUBLISH_DATA_PUMP_MODE_CHANGE,
-            .arg2 = 0,
-            .val = NULL,
-        };
-        servers_ctx->hook->app_old_protocol_server_data_publish(APP_OLD_COMM_CID_NOTIFY_STATUS, &args);
+        if (m_info->mode == BREAST_PUMP_CUSTOM_MODE) {
+            servers_publish_data_args_t args_id = { .arg1 = 0, .arg2 = 0, .val = NULL };
+            servers_ctx->hook->app_old_protocol_server_data_publish(APP_OLD_COMM_CID_NOTIFY_CUSTOM_MODE_ID, &args_id);
+        }
+        if (is_report) {
+            servers_publish_data_args_t args = {
+                .arg1 = OLD_PUBLISH_DATA_PUMP_MODE_CHANGE,
+                .arg2 = 0,
+                .val = NULL,
+            };
+            servers_ctx->hook->app_old_protocol_server_data_publish(APP_OLD_COMM_CID_NOTIFY_STATUS, &args);
+        }
     }
 }
 
@@ -453,7 +458,6 @@ static void breast_pump_remove_result_listener(on_breast_pump_result_cb_ptr cb)
     __list_del(head, cb, list_del_condition_cb);
     MUTEX_UNLOCK(breast_pump_obj->priv.m_lock);
 }
-
 
 static const char *get_breast_pump_status_name(uint8_t status)
 {

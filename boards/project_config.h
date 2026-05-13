@@ -80,7 +80,7 @@ extern "C" {
 /// 挂起超时
 #if 1
 #define PM_SUSPEND_TIME_S                              (15 * 60 * 1000) /// 15分钟
-#define PM_IDLE_TIME_S                                 ((12 * 60) * 1000) /// 12分钟
+#define PM_IDLE_TIME_S                                 (12 * 60 * 1000) /// 12分钟
 #define PM_SUSPEND_LOW_BAT_TIME_S                      (1 * 15 * 1000) /// 10秒
 #define PM_SUSPEND_WILL_ENTER_TIME_S                   (3000) /// 3秒
 #else

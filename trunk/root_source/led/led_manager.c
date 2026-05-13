@@ -90,7 +90,6 @@ static int on_post_led_manager_init(void *ptr)
     led->priv.m_bcd.id.code |= ID_BROADCAST_SYS_STATE_CHANGE;
     led->priv.m_bcd.receiver_cb = on_led_broadcast_receiver;
     register_broadcast_receiver(&led->priv.m_bcd);
-        
     peripheral_bus_context_t *pbus = (peripheral_bus_context_t *)find_module(ID_MODULE_DEVICE_BUS);
     EXCEPTION_CHECK_INT(pbus);
     led->priv.led_dev = pbus->find_device(ID_DEVICE_LED);

@@ -46,8 +46,10 @@
 #define LEVEL_14			(14)
 #define LEVEL_15			(15)
 
-#define INVALID_TARGET_PRESSURE_REF    (-255.0f) /* 无效的目标压力参考值 */
-#define RAW_PUMP_SEG_MAX   128 /* 原始泵压力段最大缓存长度 */
+#define INVALID_TARGET_PRESSURE_REF	(-255.0f) /* 无效的目标压力参考值 */
+#define RAW_PUMP_POST_TAIL_POINTS	3 /* 每段结束后多采的原始压力点数（含 active->inactive 当前点） */
+#define RAW_PUMP_ACTIVE_CAP			128 /* 原始泵压力段最大缓存长度 */
+#define RAW_PUMP_SEG_MAX			(RAW_PUMP_ACTIVE_CAP + RAW_PUMP_POST_TAIL_POINTS)
 
 // target pressure for each level - v2.13
 static float EXPRESSION_THRESHOLD[] = { -6, -9.5, -12.5, -15, -17.5,
@@ -227,6 +229,7 @@ typedef struct _FEATURE_INFO_
 	unsigned char	uPrevPumpState;
 	unsigned char	uPrevActive;
 	unsigned char	uCurrActive;
+	unsigned char	uRawTailRemain; /* 新段时置 POST_TAIL；段末起每写入一个尾随点减 1，到 0 表示本段采集结束 */
 	unsigned short	uRawSegLen;
 	float			fRawPumpSeg[RAW_PUMP_SEG_MAX];
 }SFEATURE_INFO;

@@ -123,7 +123,7 @@ static const char *bf_mode_name[HOME_BF_MODE_COUNT] = {
     "Cozy Flow", /// 自然韵律模式
     "Milk Boost", /// 2+8奶量提升模式
     "Power Pumping", /// PP追奶模式
-    "Milk Start", /// 开奶模式
+    "Lactation Starter", /// 开奶模式
     "Deep Emptying", /// 追加排空模式
     "Customize", /// 已使用过的个性化模式
 };

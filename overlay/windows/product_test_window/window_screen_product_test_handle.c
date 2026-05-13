@@ -155,6 +155,19 @@ static void remove_product_test_pump_result_cb(breast_pump_manager_context_t *pu
         LOG_WM("pump status: %d => goto finish", pump_status);
         WRITE_PUMP_WORK_STATUS(pump, BREAST_PUMP_FINISH, 1);
     }
+    tests_manager_context_t *tests_ctx = (tests_manager_context_t *)find_module(ID_MODULE_TESTS);
+    EXCEPTION_CHECK_VOID(tests_ctx);
+    ///如果当前是老化测试模式，则退出老化产测模式 并退出产测模式
+    if (tests_ctx->tests_manager_get_current_mode() == TST_AGING_TEST_TYPE) {
+        tests_ctx->set_factory_tests_event_process(FAC_TST_AGING_TEST_EXIT_EVENT, 0, 0, NULL);
+        tests_ctx->set_factory_tests_event_process(FAC_TST_EXIT_EVENT, 0, 0, NULL);
+        tests_ctx->tests_manager_set_enable(false);
+        tests_ctx->tests_manager_set_current_mode(TST_NONE_TYPE);
+    } else {
+        tests_ctx->set_factory_tests_event_process(FAC_TST_EXIT_EVENT, 0, 0, NULL);
+        tests_ctx->tests_manager_set_enable(false);
+        tests_ctx->tests_manager_set_current_mode(TST_NONE_TYPE);
+    }
 }
 
 static int entry_event_cb(window_lift_cycle_e new_state,

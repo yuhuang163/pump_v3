@@ -31,10 +31,12 @@ extern "C" {
 #define HOME_MODE_SELECT_DISPLAY_TIME       (10000) /// 10s
 
 /// 档位调节界面动画展示时间
-#define HOME_PUMP_LEVEL_DISPLAY_TIMEOUT     (3000) /// 3s
+#define HOME_PUMP_LEVEL_DISPLAY_TIMEOUT     (10000) /// 10s
+#define HOME_PUMP_LEVEL_SYNC_TIMEOUT        (3000) /// 3s
 
 /// 速度调节界面动画展示时间
-#define HOME_PUMP_SPEED_DISPLAY_TIMEOUT     (3000) /// 3s
+#define HOME_PUMP_SPEED_DISPLAY_TIMEOUT     (10000) /// 10s
+#define HOME_PUMP_SPEED_SYNC_TIMEOUT        (3000) /// 3s
 
 /// 主界面UI动作枚举
 typedef enum {
@@ -62,6 +64,8 @@ typedef enum {
     HOME_UI_DISPLAY_CLOCK,             /// 显示时钟 UI
     HOME_UI_DISPLAY_CLOCK_AND_RECORD,  /// 显示时钟和记录 UI
     HOME_UI_DISPLAY_CLOCK_LIGHT_TIP,   /// 显示时钟夜灯提示
+    HOME_UI_DISPLAY_LOW_POWER,         /// 显示低电量 UI
+    HOME_UI_DISPLAY_CLOCK_LOW_POWER,   /// 显示带时钟低电量 UI
     HOME_UI_DISPLAY_MAX
 } home_page_display_type_e;
 

@@ -29,14 +29,14 @@ typedef enum {
     ID_WINDOW_DUMMY,               /// suspend
     ID_WINDOW_SETTINGS,            /// 系统设置
     ID_WINDOW_PUMP,                /// 泵奶主流程
-    ID_WINDOW_GUIDE,               /// 引导界面
     ID_WINDOW_HOME,                /// 主界面
-    ID_WINDOW_CHARGE,              /// 充电UI
-    ID_WINDOW_OTA_UPGRADE,         /// OTA
+    ID_WINDOW_GUIDE,               /// 引导界面
     ID_WINDOW_LOGO,                /// 开机LOGO
     ID_WINDOW_BATTERY,             /// 低电量.
     ID_WINDOW_POPUP_WINDOW,        /// 通用弹出框
     ID_WINDOW_AIRPLANE_MODE,       /// 飞行模式
+    ID_WINDOW_CHARGE,              /// 充电UI
+    ID_WINDOW_OTA_UPGRADE,         /// OTA
     ID_WINDOW_PRODUCT_TEST_MODE,   /// 测试模式
     ID_WINDOW_FACTORY_RESET,       /// 工厂重置界面
     ID_WINDOW_POWER_OFF,           /// 关机界面

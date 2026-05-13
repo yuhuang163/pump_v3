@@ -56,14 +56,7 @@ typedef struct led_manager_context {
         int (*get_night_light_level)(struct led_manager_context *ctx);
         int (*get_night_light_onoff)(struct led_manager_context *ctx);
 #if IS_SUPPORT_KEY_LIGHT_ADAPTIVE
-        void (*set_key_light_level)(struct led_manager_context *ctx, uint8_t level); /// 设置按键背光亮度会自动关闭自适应调光.
         void (*key_light_adaptive_level_update)(struct led_manager_context *ctx, uint8_t level);
-        void (*set_key_light_adaptive_switch)(struct led_manager_context *ctx, uint8_t onoff);
-        int (*get_key_light_adaptive_switch)(struct led_manager_context *ctx);
-        void (*set_key_light_adaptive_dimming)(struct led_manager_context *ctx, uint8_t onoff);
-        int (*get_key_light_adaptive_dimming)(struct led_manager_context *ctx);
-        int (*get_key_light_level)(struct led_manager_context *ctx);
-        int (*get_key_light_onoff)(struct led_manager_context *ctx);
 #endif
     } *hook;
 /// private:
@@ -77,13 +70,11 @@ typedef struct led_manager_context {
         uint8_t night_light_level; /// 夜灯当前亮度.
         uint8_t night_light_adaptive_switch;  /// 夜灯自适应开关.
         uint8_t night_light_adaptive_dimming; /// 夜灯自适应调光.
+        
+        uint8_t key_light_level_max; /// 按键背光亮度上限.
+        uint8_t key_light_level_rate; /// 按键背光调光系数，配合低电状态用
 #if IS_SUPPORT_KEY_LIGHT_ADAPTIVE
-        uint8_t key_light_onoff; /// 按键背光开关.
-        uint8_t key_light_adaptive_level;   /// 按键背光自适应亮度.
-        uint8_t key_light_level; /// 按键背光当前亮度.
-        uint8_t key_light_adaptive_switch;  /// 按键背光自适应开关.
-        uint8_t key_light_adaptive_dimming; /// 按键背光自适应调光
-        uint8_t key_light_adaptive_cap_level; /// 按键自适应占空比上限（idle 时封顶 50）
+        uint8_t key_light_adaptive_level; /// 按键背光自适应亮度.
 #endif
     } priv;
 } led_manager_context_t;

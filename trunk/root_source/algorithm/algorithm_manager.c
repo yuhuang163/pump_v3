@@ -79,7 +79,6 @@ static int on_post_algo_init(void *ptr)
     broadcast_obj_t *bdc = &ctx->priv.m_bcd;
     bdc->id.code |= ID_BROADCAST_PM_STATE_CHANGE;
     bdc->id.code |= ID_BROADCAST_SYS_STATE_CHANGE;
-    bdc->id.code |= ID_BROADCAST_BREAST_PUMP_STATE_CHANGE;
     bdc->context = ctx;
     bdc->name = "algo_fusion";
     bdc->receiver_cb = algo_on_receive_internal;

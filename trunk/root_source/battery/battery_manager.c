@@ -30,17 +30,27 @@ static battery_manager_context_t *thiz = NULL;
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-static bool check_if_low_battery(void)
+static battery_state_e get_battery_state(int percent, int charge_status)
 {
-    EXCEPTION_CHECK_BOOL(thiz);
-    EXCEPTION_CHECK_BOOL(thiz->priv.battery);
-    int percent = DEVICE_READ(thiz->priv.battery);
-    DEVICE_IOCTL_HAS_RET(thiz->priv.battery, OP_CODE_BAT_GET_CHARGE_STATUS, ret);
-    LOG_MISC("percent: %d, ret: %d", percent, ret);
-    if (ret == CHARGE_STATE_CHARGING || ret == CHARGE_STATE_FULL) {
-        return 0;
+    LOG_MISC("percent: %d, charge_status: %d", percent, charge_status);
+
+    if (percent <= EMPTY_BAT_PERCENTAGE && charge_status != CHARGE_STATE_CHARGING) {
+        return BATTERY_STATE_EMPTY;
     }
-    return percent <= LOW_BAT_PERCENTAGE ? 1 : 0;
+
+    if (percent <= LOW_BAT_PERCENTAGE && charge_status != CHARGE_STATE_CHARGING) {
+        return BATTERY_STATE_LOW_POWER_SHUTDOWN;
+    } 
+    
+    if (percent <= FORBID_START_BAT_PERCENTAGE && charge_status != CHARGE_STATE_CHARGING) {
+        return BATTERY_STATE_FORBID_START;
+    } 
+    
+    if (percent <= LOW_POWER_RUN_PERCENTAGE && charge_status != CHARGE_STATE_CHARGING) {
+        return BATTERY_STATE_LOW_POWER_RUN;
+    } 
+
+    return BATTERY_STATE_NONE;
 }
 
 static uint8_t local_is_vbus_plug_in(void)
@@ -68,37 +78,11 @@ static uint8_t local_get_battery_percent(void)
     return (val > 100) ? 100 : val;
 }
 
-static void local_state_change_listener(on_charge_state_change_fptr cb)
-{
-    EXCEPTION_CHECK_VOID(thiz);
-    thiz->priv.m_charge_listener_cb = cb;
-    LOG_MISC("thiz->charge.callback: %lx", TO_PRINT(cb));
-}
-
-static void local_state_battery_listener(on_battery_state_change_fptr cb)
-{
-    EXCEPTION_CHECK_VOID(thiz);
-    thiz->priv.m_battery_listener_cb = cb;
-    LOG_MISC("battery.m_listener_cb: %lx", TO_PRINT(cb));
-}
-
 static uint8_t local_is_low_battery(void)
 {
     EXCEPTION_CHECK_UINT(thiz);
-    return thiz->priv.low_battery;
-}
-
-static uint8_t is_empty_battery(void)
-{
-    EXCEPTION_CHECK_UINT(thiz);
-    int percent = 0;
-    if (thiz->priv.battery) {
-        DEVICE_READ_ARGS(thiz->priv.battery, &percent, sizeof(percent));
-    } else {
-        percent = 100;
-    }
-    
-    if (percent <= EMPTY_BAT_PERCENTAGE) {
+    if (thiz->priv.battery_state == BATTERY_STATE_EMPTY ||
+        thiz->priv.battery_state == BATTERY_STATE_LOW_POWER_SHUTDOWN) {
         return 1;
     }
     return 0;
@@ -118,29 +102,99 @@ static uint8_t local_is_adapter_mismatch(void)
     return thiz->priv.is_adapter_mismatch;
 }
 
+static uint8_t local_get_battery_state(void)
+{
+    EXCEPTION_CHECK_UINT(thiz);
+    return thiz->priv.battery_state;
+}
+
+static void dispatch_battery_state_client(battery_manager_context_t *obj)
+{
+    list_head_t *head = &obj->priv.client_list;
+    MUTEX_LOCK(obj->priv.m_lock);
+    battery_state_info_t info = {0};
+    info.battery_state = obj->priv.battery_state;
+    info.battery_percent = obj->priv.battery_percent;
+    info.charge_status = obj->priv.is_charging;
+    info.adapter_mismatch = obj->priv.is_adapter_mismatch;
+    LIST_FOR_EACH(pos, (head)) { 
+        battery_evt_client_node_t *node = CONTAINER_OF(pos, battery_evt_client_node_t, list);
+        if (node->cb) {
+            node->cb(node->user_data, &info);
+        }
+    }
+    MUTEX_UNLOCK(obj->priv.m_lock);
+}
+
+static void add_battery_state_cb(void *user_data, on_battery_state_cb_ptr cb)
+{
+    battery_manager_context_t *obj = thiz;
+    list_head_t *head = &obj->priv.client_list;
+    MUTEX_LOCK(obj->priv.m_lock);
+    LIST_FOR_EACH(pos, (head)) { 
+        battery_evt_client_node_t *node = CONTAINER_OF(pos, battery_evt_client_node_t, list);
+        if (node->cb == cb && node->user_data == user_data) {
+            LOGW("ignore dumplicate add.");
+            MUTEX_UNLOCK(obj->priv.m_lock);
+            return;
+        }
+    }
+    battery_evt_client_node_t *node = u_malloz(sizeof(battery_evt_client_node_t));
+    node->cb = cb;
+    node->user_data = user_data;
+    __list_add(&node->list, head);
+    LOG_MISC("add: user_data: %lx, cb: %lx", user_data, cb);
+    MUTEX_UNLOCK(obj->priv.m_lock);
+}
+
+static void *list_del_battery_state_condition_cb(void *data, list_head_t *pos)
+{
+    on_battery_state_cb_ptr cb = (on_battery_state_cb_ptr)data;
+    battery_evt_client_node_t *node = CONTAINER_OF(pos, battery_evt_client_node_t, list);
+    if ((node->cb) == (cb)) {
+        LOG_MISC("del: user_data: %lx, cb: %lx", node->user_data, node->cb);
+        return node;
+    }
+    return NULL;
+}
+
+static void remove_battery_state_cb(on_battery_state_cb_ptr cb)
+{
+    battery_manager_context_t *obj = thiz;
+    list_head_t *head = &obj->priv.client_list;
+    MUTEX_LOCK(obj->priv.m_lock);
+    __list_del(head, cb, list_del_battery_state_condition_cb);
+    MUTEX_UNLOCK(obj->priv.m_lock);
+}
+
 static void polling_battery_status(void *user_data)
 {
     EXCEPTION_CHECK_VOID(thiz);
     if (thiz->priv.battery == NULL) {
         return;
     }
-    power_manager_context_t *pm = (power_manager_context_t *)find_module(ID_MODULE_POWER);
-    EXCEPTION_CHECK_VOID(pm);
-    uint8_t bat_tmp = check_if_low_battery();
-    if (thiz->priv.low_battery != bat_tmp) {
-        thiz->priv.low_battery = bat_tmp;
-        if (thiz->priv.low_battery) {
-            multi_func_msg_data_t msg = {0};
-            msg.union_body.extra.window_id = ID_WINDOW_POPUP_WINDOW;
-            msg.union_body.extra.is_bg_dispatch = 0x01;
-            msg.union_body.extra.arg1 = ID_POPUP_UI_LOW_POWER;
-            msg.union_body.extra.popup_exit_time = 8000;
-            msg.union_body.extra.forbid_short_press_exit_popup = true;
+    int bat_per = local_get_battery_percent();
+    int charge_status = local_get_charge_status();
+    battery_state_e battery_state = get_battery_state(bat_per, charge_status);
+    LOG_MISC("#now bat percent:%d, state:%d/%d, charging:%d/%d", bat_per, thiz->priv.battery_state,
+        battery_state, thiz->priv.is_vbus_plug_in, thiz->priv.is_charging);
+    if (thiz->priv.battery_state != battery_state) {
+        thiz->priv.battery_state = battery_state;
+        if (thiz->priv.battery_state == BATTERY_STATE_LOW_POWER_SHUTDOWN ||
+            thiz->priv.battery_state == BATTERY_STATE_EMPTY) {
             window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
-            if (wm) {
+            if (wm && wm->is_current_window(wm, ID_WINDOW_CHARGE) == 0 &&
+                wm->is_current_window(wm, ID_WINDOW_LOGO) == 0) {
+                multi_func_msg_data_t msg = {0};
+                msg.union_body.extra.window_id = ID_WINDOW_POPUP_WINDOW;
+                msg.union_body.extra.is_bg_dispatch = 0x01;
+                msg.union_body.extra.arg1 = ID_POPUP_UI_LOW_POWER;
+                msg.union_body.extra.popup_exit_time = 3000;
+                msg.union_body.extra.forbid_short_press_exit_popup = true;
                 wm->dispatch_new_window_args(wm, &msg);
+            } else {
+                LOG_MISC("in charge or logo window, ignore popup window.");
             }
-            ///低电通知app低电不足
             servers_publish_data_args_t args_temp = {
                 .arg1 = OLD_PUBLISH_ABNORMAL_LOW_BAT_SHUTDOWN_SOON,
                 .arg2 = OLD_PUBLISH_ABNORMAL_STATE_ACTIVE,
@@ -151,11 +205,7 @@ static void polling_battery_status(void *user_data)
             servers_ctx->hook->app_old_protocol_server_data_publish(APP_OLD_COMM_CID_NOTIFY_V3_DEV_ABNORMAL, &args_temp);
         }
     }
-    int bat_per = DEVICE_READ(thiz->priv.battery);
-    LOG_MISC("#now bat percent: %d, is_low_battery: %d/%d, is_plug: %d, is_charging: %d", 
-        bat_per, thiz->priv.low_battery, bat_tmp, thiz->priv.is_vbus_plug_in, thiz->priv.is_charging);
-    SEND_BROADCAST_ARGS2(ID_BROADCAST_BATTERY_STATE_CHANGE, 
-        thiz->priv.low_battery ? BATTERY_BROADCAST_LOW_BATTERY : BATTERY_BROADCAST_CAPACITY_CHANGE, bat_per);   /// 发送电池状态广播.
+    dispatch_battery_state_client(thiz);
 }
 
 static void polling_battery_voltage_status(void *user_data)
@@ -221,6 +271,7 @@ static void charge_event_callback(charge_event_e event)
 #if IS_SUPPORT_PD_CHARGE_ADAPTER_MISMATCH
         thiz->priv.is_adapter_mismatch = 1;
         multi_func_msg_data_t __msg = {0};
+        __msg.union_body.extra.is_bg_dispatch = 0x01;
         __msg.union_body.extra.window_id = ID_WINDOW_CHARGE;
         LOG_WM("charge adapter mismatch goto charge screen");
         wm->dispatch_new_window_args(wm, &__msg);
@@ -234,8 +285,7 @@ static void charge_event_callback(charge_event_e event)
     if (thiz->priv.is_adapter_mismatch) {
         thiz->priv.is_adapter_mismatch = 0;
         LOG_MISC("charge event: adapter mismatch recover");
-        SEND_BROADCAST_ARGS1(ID_BROADCAST_BATTERY_STATE_CHANGE, 
-            BATTERY_BROADCAST_CHARGE_ADAPTER_MISMATCH_RECOVER);
+        SEND_BROADCAST_ARGS1(ID_BROADCAST_BATTERY_STATE_CHANGE, BATTERY_BROADCAST_CHARGE_ADAPTER_MISMATCH_RECOVER);
     }
 
     int misc_msg = 0;
@@ -252,7 +302,7 @@ static int on_post_battery_init(void *ptr)
     if (ctx->priv.battery) {
         DEVICE_IOCTL_NO_RET(thiz->priv.battery, OP_CODE_BAT_POLL_VOLTAGE);
     }
-    thiz->priv.low_battery = check_if_low_battery();
+    thiz->priv.battery_state = BATTERY_STATE_NONE;
     thiz->priv.is_vbus_plug_in = 0;
     thiz->priv.is_charging = 0;
     misc_manager_context_t *misc = ctx->priv.misc;
@@ -286,8 +336,6 @@ static int on_perpare_battery_init(void *self)
     peripheral_bus_context_t *pbus = (peripheral_bus_context_t *)find_module(ID_MODULE_DEVICE_BUS);
     ptr->priv.misc = (misc_manager_context_t *)find_module(ID_MODULE_MISC);
     ptr->priv.battery = pbus->find_device(ID_DEVICE_BATTERY);
-    ptr->priv.led_dev = pbus->find_device(ID_DEVICE_LED);
-
     return 0;
 }
 
@@ -298,17 +346,17 @@ static int on_perpare_battery_init(void *self)
 void *register_module_for_battery_manager_new(list_head_t *list_head)
 {
     MALLOC_FOR_PTR(ptr, battery_manager_context_t);
-
+    MUTEX_INIT(&ptr->priv.m_lock, battery_state_mutex);
+    USE_INIT_LIST_HEAD(&ptr->priv.client_list);
     ptr->priv.battery_percent = 5;
     ptr->is_vbus_plug_in = local_is_vbus_plug_in;
     ptr->get_charge_status = local_get_charge_status;
-    ptr->set_state_change_listener = local_state_change_listener;
-
     ptr->is_low_battery = local_is_low_battery;
-    ptr->is_empty_battery = is_empty_battery;
+    ptr->get_battery_state = local_get_battery_state;
     ptr->get_battery_percent = local_get_battery_percent;
     ptr->is_adapter_mismatch = local_is_adapter_mismatch;
-    ptr->set_state_battery_listener = local_state_battery_listener;
+    ptr->add_battery_state_cb = add_battery_state_cb;
+    ptr->remove_battery_state_cb = remove_battery_state_cb;
     thiz = ptr;
     return ADD_MODULE("battery", ID_MODULE_BATTERY, on_perpare_battery_init, on_post_battery_init, 
         ptr, list_head, sizeof(battery_manager_context_t));

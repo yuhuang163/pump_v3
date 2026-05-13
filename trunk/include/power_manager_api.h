@@ -51,7 +51,6 @@ struct broadcast_obj;
 typedef struct power_manager_context {
 /// private:
     struct __pm_private {
-        struct peripheral_bus_context *pbus;
         int pm_state;
         int pm_state_change_progress;
         uint32_t suspend_counter;

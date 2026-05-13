@@ -82,4 +82,7 @@ void show_power_off_charging_ui(ui_proc_charge_t *proc)
     };
     ui->hook->ui_animation_play_init(ui, play_info);
     proc->current_ui_type = CHARGE_UI_TYPE_POWER_OFF_CHARGING;
+    if (ui->hook && ui->hook->set_ui_backlight_level_rate) {
+        ui->hook->set_ui_backlight_level_rate(ui, 50);
+    }
 }

@@ -60,17 +60,31 @@ static void home_page_display_type_update(ui_proc_home_t *proc)
     } else {
         is_utc_time_calibrated = 1;
     }
-    
+
     const pump_result_info_t *result_info = NULL;
     READ_PUMP_RESULT_INFO(proc->pump, BREAST_PUMP_RESULT_HISTORY, &result_info);
     proc->pump_record_time = result_info->finish_timestamp;
-    if (proc->pump_record_time > PRODUCT_BUILD_TIMESTAMP &&
+    if (proc->pump_record_time > timestamp &&
         rtc_timestamp >= proc->pump_record_time) {
         pump_record_flag = 1;
     } else {
         pump_record_flag = 0;
     }
-    if (is_utc_time_calibrated && pump_record_flag) {
+    
+    uint8_t battery_state = BATTERY_STATE_NONE;
+    if (proc->battery) {
+        battery_state = proc->battery->get_battery_state();
+    }
+
+    if (battery_state == BATTERY_STATE_EMPTY ||
+        battery_state == BATTERY_STATE_LOW_POWER_SHUTDOWN ||
+        battery_state == BATTERY_STATE_FORBID_START) {
+        if (is_utc_time_calibrated) {
+            proc->home_display_type = HOME_UI_DISPLAY_CLOCK_LOW_POWER;
+        } else {
+            proc->home_display_type = HOME_UI_DISPLAY_LOW_POWER;
+        }
+    } else if (is_utc_time_calibrated && pump_record_flag) {
         proc->home_display_type = HOME_UI_DISPLAY_CLOCK_AND_RECORD;
     } else if (is_utc_time_calibrated && !pump_record_flag) {
         proc->home_display_type = HOME_UI_DISPLAY_CLOCK;
@@ -79,8 +93,9 @@ static void home_page_display_type_update(ui_proc_home_t *proc)
     } else {
         proc->home_display_type = HOME_UI_DISPLAY_DEFAULT;
     }
-    LOG_WM("type: %d, timestamp: %d, diff_time: %d, pump_record:%d", 
-        proc->home_display_type, timestamp, diff_time, proc->pump_record_time);
+    LOG_WM("type: %d, timestamp: %d, diff_time: %d, pump_record:%d, battery_state:%d", 
+        proc->home_display_type, timestamp, diff_time, proc->pump_record_time,
+        battery_state);
 }
 
 static void home_pm_state_change_ui_cb(hdr_post_args_t *args)
@@ -100,8 +115,16 @@ static void home_pm_state_change_ui_cb(hdr_post_args_t *args)
 static void home_start_key_event_ui_cb(hdr_post_args_t *args)
 {
     ui_proc_home_t *proc = args->user_data;
-    EXCEPTION_CHECK_VOID(proc);
+    EXCEPTION_CHECK_VOID(proc && proc->battery);
     WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_HOME);
+    uint8_t battery_state = proc->battery->get_battery_state();
+    if (battery_state == BATTERY_STATE_LOW_POWER_SHUTDOWN ||
+        battery_state == BATTERY_STATE_EMPTY ||
+        battery_state == BATTERY_STATE_FORBID_START) {
+        LOG_WM("battery state is low, ignore key event.");
+        return;
+    }
+
     if (proc->current_ui_type == HOME_UI_TYPE_NORMAL_MODE_SELECT) {
         WRITE_PUMP_WORK_MODE(proc->pump, proc->ui_normal_mode_index, true, 1);
     } else if (proc->current_ui_type == HOME_UI_TYPE_BF_MODE_SELECT) {
@@ -156,6 +179,14 @@ static void home_power_key_event_cb(ui_proc_home_t *proc)
         POST_TASK_HANDLER_NO_DELAY(home_start_key_event_ui_cb, proc, HOME_START_KEY_EVENT_TASK_NAME);
     } else if (proc->current_ui_type == HOME_UI_TYPE_HOME) {
 #if IS_SUPPORT_NIGHT_LIGHT
+        uint8_t battery_state = proc->battery->get_battery_state();
+        if (battery_state == BATTERY_STATE_LOW_POWER_SHUTDOWN ||
+            battery_state == BATTERY_STATE_EMPTY ||
+            battery_state == BATTERY_STATE_FORBID_START) {
+            LOG_WM("battery state is low, ignore power key event.");
+            return;
+        }
+        
         if (proc->led && proc->led->hook && proc->led->hook->toggle_night_light) {
             proc->led->hook->toggle_night_light(proc->led);
         }
@@ -221,7 +252,7 @@ static void on_home_ui_broadcast_receive_cb(broadcast_mask_id_t id, void *contex
    WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_HOME);
    switch (id.code) {
         case ID_BROADCAST_PM_STATE_CHANGE: 
-            LOG_WM("PM_STATE_CHANGE: %d", arg1);
+            LOG_WM("pm state: %d", arg1);
             if (arg1 == PM_BROADCAST_SYS_IDLE) {
                 POST_TASK_HANDLER_NO_DELAY_ARG1(home_pm_state_change_ui_cb, proc, HOME_UI_TYPE_HOME_IDLE,
                     HOME_PM_STATE_CHANGE_UI_TASK_NAME);
@@ -231,7 +262,7 @@ static void on_home_ui_broadcast_receive_cb(broadcast_mask_id_t id, void *contex
             } 
             break;
         case ID_BROADCAST_SYS_STATE_CHANGE:
-            LOG_WM("SYS_STATE_CHANGE: %d, %d", arg1, arg2);
+            LOG_WM("system state: %d, %d", arg1, arg2);
             if (arg1 == SYSTEM_BROADCAST_UTC_TIME_CHANGE) {
                 home_page_display_type_update(proc);
             }
@@ -239,6 +270,25 @@ static void on_home_ui_broadcast_receive_cb(broadcast_mask_id_t id, void *contex
         default:
             break;
    }
+}
+
+static void on_home_window_battery_state_change_cb(void *user_data, battery_state_info_t *info)
+{
+    ui_proc_home_t *proc = (ui_proc_home_t *)user_data;
+    EXCEPTION_CHECK_VOID(proc);
+    if (info->battery_state == BATTERY_STATE_EMPTY || 
+        info->battery_state == BATTERY_STATE_LOW_POWER_SHUTDOWN || 
+        info->battery_state == BATTERY_STATE_FORBID_START) {
+        if (proc->home_display_type != HOME_UI_DISPLAY_CLOCK_LOW_POWER &&
+            proc->home_display_type != HOME_UI_DISPLAY_LOW_POWER) {
+            home_page_display_type_update(proc);
+        }
+    } else {
+        if (proc->home_display_type == HOME_UI_DISPLAY_CLOCK_LOW_POWER ||
+            proc->home_display_type == HOME_UI_DISPLAY_LOW_POWER) {
+            home_page_display_type_update(proc);
+        }
+    }
 }
 
 static int entry_event_cb(window_lift_cycle_e new_state,
@@ -253,6 +303,10 @@ static int entry_event_cb(window_lift_cycle_e new_state,
                 on_home_ui_keyevent_hdr, KEY_HANDLER_SHIELD_LEVEL_1);
         } else {
             LOG_WM("key not present, ignore.");
+        }
+
+        if (proc->battery) {
+            proc->battery->add_battery_state_cb(proc, on_home_window_battery_state_change_cb);
         }
         home_page_display_type_update(proc);
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
@@ -284,6 +338,13 @@ static int exit_event_cb(window_lift_cycle_e new_state,
             } else {
                 LOG_WM("key not present, ignore.");
             }
+            
+            if (proc->battery) {
+                proc->battery->remove_battery_state_cb(on_home_window_battery_state_change_cb);
+            } else {
+                LOG_WM("battery not present, ignore.");
+            }
+
             SET_WINDOW_CONTEXT(NULL);
             proc->margic = UI_WINDOW_MARGIC_CODE_INVALID;
             u_free(proc);

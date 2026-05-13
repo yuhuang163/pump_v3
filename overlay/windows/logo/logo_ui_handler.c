@@ -32,6 +32,9 @@ static void logo_display_completed_cb(hdr_post_args_t *args)
     LOG_UI("logo play finished");
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_LOGO);
     multi_func_msg_data_t msg = {0};
+    if (proc->ble) {
+        proc->ble->bt_adv_start_by_user();
+    }
 #if IS_SUPPORT_LVGL
     if (proc->battery && proc->battery->is_low_battery()) {
         LOG_WM("battery is low power, goto battery screen");
@@ -158,13 +161,13 @@ static void logo_ui_hdr_remove(void)
 */
 void start_logo_ui_animation(ui_proc_logo_t *proc)
 {
-    EXCEPTION_CHECK_VOID(proc->pm);
-    while (get_timestamp_ms(0) < BOOT_LONG_PRESS_TIME) {
-        if (proc->pm->is_system_power_on()) {
-            break;
-        }
-        msleep(10);
+#if IS_SUPPORT_MODULE_RES
+    resource_manager_context_t *res = (resource_manager_context_t *)find_module(ID_MODULE_RES);
+    if (res) {
+        LOG_WM("wait res ready");
+        res->wait_init_completed(res);
     }
+#endif
     LOG_UI("start logo ui animation.");
     show_logo_ui(proc);
 }

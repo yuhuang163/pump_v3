@@ -134,7 +134,7 @@ switch (proc->current_ui_type) {
             switch_breastfeeding_mode_ui(proc, is_left ? false : true);
             break;
         case PUMP_UI_TYPE_HOME:
-            switch_pump_both_control_type_ui(proc);
+            switch_pump_both_control_type_ui(proc, is_left ? false : true);
             break;
         default:
             LOG_WM("unknow ui type: %d, ignore.", proc->current_ui_type);
@@ -367,8 +367,10 @@ static int exit_event_cb(window_lift_cycle_e new_state,
         case ID_SCR_STATE_ON_DESTORY:
             LOG_WM("==>%s window on destory", PAGE_NAME_STR);
             REMOVE_ALL_HANDER_TASK();
+            /// 必须先注销广播：remove_breast_pump_result_cb 内会 WRITE 状态并可能立即发泵状态广播，
+            /// 若仍注册 receiver，bcr 队列会携带本窗口 context(proc)，随后 u_free 将导致 bcr 线程 use-after-free。
+            unregister_broadcast_receiver(&proc->receiver);
             remove_breast_pump_result_cb(proc);
-            unregister_broadcast_receiver(&proc->receiver);  // 注销广播接收器，防止use-after-free
             if (proc->key) {
                 proc->key->remove_keyevent_handler(on_pump_ui_keyevent_hdr);
             } else {

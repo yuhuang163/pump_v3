@@ -72,11 +72,7 @@ static void on_ble_broadcast_receive(broadcast_mask_id_t id, void *context, int 
             ble_pm_change_handler(arg1);
             break;
         case ID_BROADCAST_SYS_STATE_CHANGE:
-            if (arg1 == SYSTEM_BROADCAST_BOOT_COMPLETED) {
-                ble_opt_adv_id_e adv = BLE_OPT_ADV_FAST;
-                LOG_BLE("ble adv fast start");
-                ctx->dispatch_ble_event_wrapper(ctx, BLE_MSG_SET_ADV_START, (uint8_t *)&adv, sizeof(adv));
-            }
+
             break;
         case ID_BROADCAST_OTA_STATE_CHANGE:
             if (arg1 == OTA_BROADCAST_STATE_CHANGE) {

@@ -187,14 +187,12 @@ static void charge_power_gpio_init(void)
     };
     hal_iomux_init(&pinmux, 1);
     hal_gpio_pin_set_dir(CHARGE_POWER_PIN, HAL_GPIO_DIR_OUT, 1);
-#if (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V2) || (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V3) || (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V4)
     pinmux.pin = (enum HAL_IOMUX_PIN_T)CHARGE_SLEEP_PIN;
     hal_iomux_init(&pinmux, 1);
 #if (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V3) || (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V4)
     hal_gpio_pin_set_dir(CHARGE_SLEEP_PIN, HAL_GPIO_DIR_OUT, 0);
-    #else
+#else
     hal_gpio_pin_set_dir(CHARGE_SLEEP_PIN, HAL_GPIO_DIR_OUT, 1);
-#endif
 #endif
 }
 
@@ -207,13 +205,10 @@ static void charge_power_control(bool enable)
 
 static void charge_sleep_control(bool enable)
 {
-#if (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V2) || (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V3) || (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V4)
 #if (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V3) || (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V4)   
     GPIO_PIN_CTRL(CHARGE_SLEEP_PIN, enable ? 1 : 0);
 #else
     GPIO_PIN_CTRL(CHARGE_SLEEP_PIN, enable ? 0 : 1);
-#endif
-    LOG_PBUS("charge_sleep_control: %d", enable);
 #endif
 }
 
@@ -456,10 +451,10 @@ static void charge_device_thread(void *arg)
     uint32_t log_timer = 0;
     uint16_t test_count = 0;
     while (1) {
-        MSG_QUEUE_RECV(s_charge_device_thd.msg_id, &msg, OS_WAIT_FOREVER);
 #if IS_SUPPORT_PD_CHARGE
         charge_pd_status_poll();
 #endif
+        MSG_QUEUE_RECV(s_charge_device_thd.msg_id, &msg, OS_WAIT_FOREVER);
 #if IS_SUPPORT_DEVICE_CHARGE
         charge_status_poll(&s_charge_status);
         s_charge_status.charge_full = (s_charge_status.status & BAT_FULL_STATUS_POS) > 0 ? true : false;        
@@ -548,15 +543,15 @@ int get_charge_full_debounce(void)
 
 int bsp_charge_init(void)
 {
-#if IS_SUPPORT_PD_CHARGE
-    bsp_charge_pd_init();
-#endif
 #if IS_SUPPORT_DEVICE_CHARGE
     charge_power_gpio_init();
     bsp_i2c_init(CHARGE_I2C_ID);
     charge_chip_init();
     charge_status_poll(&s_charge_status);
     s_charge_is_ready = true;
+#endif
+#if IS_SUPPORT_PD_CHARGE
+    bsp_charge_pd_init();
 #endif
     CREATE_MSG_TYPE_QUEUE(&s_charge_device_thd.msg_id, 1, 1);
     CREATE_TIMER(&s_charge_timer_id, "charge", NULL, OS_TIMER_PERIODIC, charge_thread_timer_handle);
@@ -599,7 +594,7 @@ void charge_event_internal_cb(charge_event_e event)
 #if IS_SUPPORT_PD_CHARGE
         int current = charge_pd_current_get();
         LOG_PBUS("pd charge imax:%dmA", current);
-        if (current > BATT_INPUT_CURRENT_LIMIT) {
+        if (current > BATT_INPUT_CURRENT_LIMIT || 0 == current) {
             current = BATT_INPUT_CURRENT_LIMIT;
         }
         s_charging_current_max = current;
@@ -612,7 +607,6 @@ void charge_event_internal_cb(charge_event_e event)
     } else if (event == CHARGE_EVENT_PLUG_OUT) {
         s_charge_status.plug_in = false;
         charge_power_control(false);
-
     }
 #endif
 

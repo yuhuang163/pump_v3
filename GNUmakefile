@@ -125,7 +125,7 @@ CFG_BT_CALIB ?= 1
 # 产品型号
 ROOT_PRODUCT_V3_ID ?= 0x08
 ROOT_PRODUCT_V3PRO_ID ?= 0x09
-ROOT_PRODUCT_ID ?= $(ROOT_PRODUCT_V3PRO_ID)
+ROOT_PRODUCT_ID ?= $(ROOT_PRODUCT_V3_ID)
 
 # 产品UI版本
 ROOT_UI_V2 ?= 0x02
@@ -1084,7 +1084,8 @@ BLE_MODULE_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/overlay/ble/factory_service/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/ble/master_service/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/ble/remot_service/*.c) \
-	$(wildcard $(PROJECT_ROOT)/trunk/root_source/ble/*.c)
+	$(wildcard $(PROJECT_ROOT)/trunk/root_source/ble/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/framework_hooks/ble/*.c)
 
 # 吸奶泵模块源码
 BREAST_PUMP_MODULE_SRCS := \

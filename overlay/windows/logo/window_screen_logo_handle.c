@@ -38,7 +38,6 @@ INIT_WINDOW_CONTEXT();
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-
 static void touch_key_fw_version_check_cb(hdr_post_args_t *args)
 {
     ui_proc_logo_t *proc = args->user_data;
@@ -56,17 +55,8 @@ static void logo_test_key_backlight_on(ui_proc_logo_t *proc)
 {
     EXCEPTION_CHECK_VOID(proc);
     if (proc->led && proc->led->hook && proc->led->hook->set_key_backlight) {
-        /*
-         * 先设置按键背光基准 level，最终出光亮度由自适应 duty 再次缩放：
-         * final = base_level(100) * adaptive_duty(17~100) / 100
-         */
         proc->led->hook->set_key_backlight(proc->led, 100);
     }
-#if IS_SUPPORT_KEY_LIGHT_ADAPTIVE
-    if (proc->led && proc->led->hook && proc->led->hook->set_key_light_adaptive_dimming) {
-        proc->led->hook->set_key_light_adaptive_dimming(proc->led, 1);
-    }
-#endif
 }
 #endif
 

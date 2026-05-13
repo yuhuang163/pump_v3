@@ -174,16 +174,6 @@ static void product_tests_aging_info_update(ui_manager_context_t *thiz, ui_proc_
     
     //如果正处在老化测试中，则加上pump的运行时间
 	if (proc->tests->tests_manager_get_current_mode() == TST_AGING_TEST_TYPE) {
-		int is_working = 0;
-		READ_PUMP_IS_WORKING(proc->pump, is_working);
-		if (is_working) {
-            const pump_result_info_t *result_info = NULL;
-            READ_PUMP_RESULT_INFO(proc->pump, BREAST_PUMP_RESULT_PUMPING, &result_info);
-            if (result_info != NULL) {
-                // current_mode_work_time 单位是毫秒，需要转换为秒
-                age_time += result_info->current_mode_work_time / 1000;
-           }
-        }
         //显示老化时间标识
         lv_obj_clear_flag(tests_info->aging_info, LV_OBJ_FLAG_HIDDEN);  /// 确保可见
 	}
