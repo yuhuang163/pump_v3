@@ -501,6 +501,14 @@ out:
         u_free(buf);
         buf = NULL;
     }
+
+    if (ok) {
+        if (theme_type == RES_THEME_TYPE_BASE_IMG) {
+            thiz->priv.img_base_res_version = w.head.version;
+        } else if (theme_type == RES_THEME_TYPE_CUSTOM_IMG) {
+            thiz->priv.img_custom_res_version = w.head.version;
+        }
+    }
     return ok ? 0 : -1;
 }
 

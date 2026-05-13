@@ -92,6 +92,16 @@ static int theme_res_data_load_impl(uint16_t img_id, res_img_info_t *out)
 #endif 
 }
 
+static int get_img_res_version(res_theme_type_e theme_type)
+{
+    if (theme_type == RES_THEME_TYPE_BASE_IMG) {
+        return thiz->priv.img_base_res_version;
+    } else if (theme_type == RES_THEME_TYPE_CUSTOM_IMG) {
+        return thiz->priv.img_custom_res_version;
+    }
+    return 0;
+}
+
 static int on_post_res_init(void *ptr) 
 {
     resource_manager_context_t *ctx = ptr;
@@ -114,6 +124,7 @@ void *register_module_for_res_manager_new(list_head_t *list_head)
     ptr->base_res_data_load = base_res_data_load_impl;
     ptr->theme_res_data_load = theme_res_data_load_impl;
     ptr->res_data_unload = res_data_unload;
+    ptr->get_img_res_version = get_img_res_version;
     MUTEX_INIT(&ptr->priv.m_fs_rw_lock, fs_rw_lock);
     thiz = ptr;
 

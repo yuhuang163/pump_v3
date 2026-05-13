@@ -66,12 +66,15 @@ typedef struct resource_manager_context {
     int (*base_res_data_load)(uint16_t img_id, res_img_info_t *out); /// 基础资源加载
     int (*theme_res_data_load)(uint16_t img_id, res_img_info_t *out); /// 主题资源加载
     void (*res_data_unload)(res_img_info_t *img); /// 释放资源
+    int (*get_img_res_version)(res_theme_type_e theme_type); /// 获取基础资源版本
 /// private:
     struct __resource_manager_private {
         int install_result;
         int install_status;
         int boot_index;
         void *install_user_data;
+        uint16_t img_base_res_version;
+        uint16_t img_custom_res_version;
         os_mutex_id m_fs_rw_lock;
         bool res_init_completed;
         bool theme_res_init_completed;
