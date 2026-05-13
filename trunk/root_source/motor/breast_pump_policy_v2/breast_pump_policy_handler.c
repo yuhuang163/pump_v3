@@ -355,6 +355,10 @@ static void pump_algo_compensation_callback(void *user_data, algo_breast_pump_da
     motor_manager_context_t *thiz = (motor_manager_context_t *)user_data;
     EXCEPTION_CHECK_VOID(thiz);
     motor_policy_runtime_t *runtime = &thiz->priv.runtime;
+    if (thiz->get_motor_state() == 0) {
+        return;
+    }
+    
     if (runtime->compensation_delta_pwm[0] == result->wear_detection.compensation_delta_pwm[0] &&
         runtime->compensation_delta_pwm[1] == result->wear_detection.compensation_delta_pwm[1]) {
         return;
