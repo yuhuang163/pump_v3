@@ -33,6 +33,24 @@ extern "C" {
 #define LOW_POWER_RUN_PERCENTAGE                 20
 #endif
 
+#define ADD_BATTERY_STATE_CB(ctx, user_data, cb) \
+do { \
+    if (ctx) { \
+        ctx->add_battery_state_cb(user_data, cb); \
+    } else { \
+        LOG_MISC("param error, ignore."); \
+    } \
+} while (0)
+
+#define REMOVE_BATTERY_STATE_CB(ctx, cb) \
+do { \
+    if (ctx) { \
+        ctx->remove_battery_state_cb(cb); \
+    } else { \
+        LOG_MISC("param error, ignore."); \
+    } \
+} while (0)
+
 typedef enum {
     BATTERY_STATE_NONE = 0, /// 正常.
     BATTERY_STATE_EMPTY = 1, /// 空电量.

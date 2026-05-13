@@ -28,11 +28,6 @@ static ble_manager_context_t *ble_obj = NULL;
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-static int ble_charge_state_handler(int state)
-{
-    return 0;
-}
-
 static void ble_pm_change_handler(int arg1)
 {
     ble_manager_context_t *ctx = ble_obj;
@@ -63,11 +58,6 @@ static void on_ble_broadcast_receive(broadcast_mask_id_t id, void *context, int 
     ble_manager_context_t *ctx = context;
     LOG_BLE("ble broadcast rcv_id: 0x%lx", id.code);
     switch (id.code) {
-        case ID_BROADCAST_BATTERY_STATE_CHANGE:
-            if (arg1 == BATTERY_BROADCAST_CHARGE_STATE_CHANGE) {
-                ble_charge_state_handler(arg2);
-            }
-            break;
         case ID_BROADCAST_PM_STATE_CHANGE:
             ble_pm_change_handler(arg1);
             break;
@@ -461,7 +451,6 @@ static int on_post_init(void *ptr)
     ctx->priv.bcreceiver = u_malloz(sizeof(broadcast_obj_t));
     ctx->priv.bcreceiver->context = ctx;
     ctx->priv.bcreceiver->name = "ble_manager";
-    ctx->priv.bcreceiver->id.code |= ID_BROADCAST_BATTERY_STATE_CHANGE;
     ctx->priv.bcreceiver->id.code |= ID_BROADCAST_PM_STATE_CHANGE;
     ctx->priv.bcreceiver->id.code |= ID_BROADCAST_OTA_STATE_CHANGE;
     ctx->priv.bcreceiver->id.code |= ID_BROADCAST_SYS_STATE_CHANGE;

@@ -38,15 +38,15 @@ static battery_state_e get_battery_state(int percent, int charge_status)
         return BATTERY_STATE_EMPTY;
     }
 
-    if (percent <= LOW_BAT_PERCENTAGE && charge_status != CHARGE_STATE_CHARGING) {
+    if (percent < LOW_BAT_PERCENTAGE && charge_status != CHARGE_STATE_CHARGING) {
         return BATTERY_STATE_LOW_POWER_SHUTDOWN;
     } 
     
-    if (percent <= FORBID_START_BAT_PERCENTAGE && charge_status != CHARGE_STATE_CHARGING) {
+    if (percent < FORBID_START_BAT_PERCENTAGE && charge_status != CHARGE_STATE_CHARGING) {
         return BATTERY_STATE_FORBID_START;
     } 
     
-    if (percent <= LOW_POWER_RUN_PERCENTAGE && charge_status != CHARGE_STATE_CHARGING) {
+    if (percent < LOW_POWER_RUN_PERCENTAGE && charge_status != CHARGE_STATE_CHARGING) {
         return BATTERY_STATE_LOW_POWER_RUN;
     } 
 
