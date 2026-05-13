@@ -4,7 +4,9 @@
 */
 #include "include/algo_fusion_lib.h" // IWYU pragma: keep
 #include "wear_detection/v3_wear_detection.h" // IWYU pragma: keep
+#include "wear_detection/v3_pressure_algo_debug.h" // IWYU pragma: keep
 //#include "wear_detection/v3_pressure_compensation_algo.h" // IWYU pragma: keep
+
 /*
 * DEFINES
 *****************************************************************************************
