@@ -950,7 +950,7 @@ void app_old_comm_report_custom_mode_id(app_old_commd_l_r_ctrl_e lr_ct)
     pump_mode_steps_info_t trial_steps_info;
     storage_manager_context_t *storage_ctx = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
     EXCEPTION_CHECK_VOID(storage_ctx);
-    storage_ctx->get_store_ram_val(STORE_ID_PUMP_MODE_STEPS_INFO, BREAST_PUMP_CUSTOM_TRIAL_MODE, 0, &trial_steps_info);
+    storage_ctx->get_store_ram_val(STORE_ID_PUMP_MODE_STEPS_INFO, BREAST_PUMP_CUSTOM_MODE, 0, &trial_steps_info);
     uint8_t report_data[4] = {
         (uint8_t)((trial_steps_info.id.dat32 >> 0) & 0xFFU),
         (uint8_t)((trial_steps_info.id.dat32 >> 8) & 0xFFU),
@@ -1357,10 +1357,10 @@ void app_old_comm_handle_get_dev_info_req(uint8_t cal, uint8_t *cab)
     ack_data[data_len++] = 0x00;//预留
     ack_data[data_len++] = 0x00;//预留
     ack_data[data_len++] = 0x00;//预留
-    ack_data[data_len++] = ctx->priv.sys_info.mode_info.steps_info[BREAST_PUMP_CUSTOM_TRIAL_MODE].id.dat[0];
-    ack_data[data_len++] = ctx->priv.sys_info.mode_info.steps_info[BREAST_PUMP_CUSTOM_TRIAL_MODE].id.dat[1];
-    ack_data[data_len++] = ctx->priv.sys_info.mode_info.steps_info[BREAST_PUMP_CUSTOM_TRIAL_MODE].id.dat[2];
-    ack_data[data_len++] = ctx->priv.sys_info.mode_info.steps_info[BREAST_PUMP_CUSTOM_TRIAL_MODE].id.dat[3];
+    ack_data[data_len++] = ctx->priv.sys_info.mode_info.steps_info[BREAST_PUMP_CUSTOM_MODE].id.dat[0];
+    ack_data[data_len++] = ctx->priv.sys_info.mode_info.steps_info[BREAST_PUMP_CUSTOM_MODE].id.dat[1];
+    ack_data[data_len++] = ctx->priv.sys_info.mode_info.steps_info[BREAST_PUMP_CUSTOM_MODE].id.dat[2];
+    ack_data[data_len++] = ctx->priv.sys_info.mode_info.steps_info[BREAST_PUMP_CUSTOM_MODE].id.dat[3];
 
     LOG_SRV(" Sending device info ACK (data len: %d)", data_len);
    app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_ACK, APP_OLD_COMM_CID_GET_DEV_INFO, data_len, ack_data);
