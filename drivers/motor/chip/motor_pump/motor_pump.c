@@ -496,8 +496,8 @@ int bsp_motor_pump_parameter_set(void *args)
 #if IS_SUPPORT_PUMP_DUTY_ADJUST
             if (pump_status[pump_id].pump_is_running) {
                 uint16_t target_pulse_width = pump_status[pump_id].setting_pulse_width - pump_para->pulse_width;
-                if (target_pulse_width > 10000) {
-                    target_pulse_width = 10000;
+                if (target_pulse_width > 9500) {
+                    target_pulse_width = 9500;
                     LOGE("pump %d level adjust error, pulse_width:%d", pump_id, pump_para->pulse_width);
                 } 
                 if (pump_status[pump_id].target_pulse_width != target_pulse_width) {
