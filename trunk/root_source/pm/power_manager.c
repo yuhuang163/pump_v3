@@ -535,7 +535,7 @@ static const char *wake_up_reason_name(pm_wakeup_reason_e reason)
             return "wakeup:OTA-task";
         case PM_WAKEUP_REASON_CHARGE_PLUG_IN:
             return "wakeup:CHARGE_PLUG_IN";
-        case PM_WAKEUP_REASON_CHARGE_PLUG_OUI:
+        case PM_WAKEUP_REASON_CHARGE_PLUG_OUT:
             return "wakeup:CHARGE_PLUG_OUI";
         case PM_WAKEUP_REASON_BACKGROUND_TASK:
             return "wakeup:BACKGROUND_TASK";
@@ -578,7 +578,7 @@ static void pm_wakeup(pm_wakeup_reason_e reason)
     }
 
     set_suspend_counter("pm_wakeup", get_suspend_timeout(thiz), true);
-    if (reason == PM_WAKEUP_REASON_CHARGE_PLUG_OUI) {
+    if (reason == PM_WAKEUP_REASON_CHARGE_PLUG_OUT) {
         LOG_PM("CHARGE_PLUG_OUI blocked");
         return;
     }

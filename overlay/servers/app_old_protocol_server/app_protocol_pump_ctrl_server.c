@@ -876,7 +876,7 @@ static bool app_old_comm_check_if_start_block_abnormal(uint8_t ctrl_status)
     }
 
     ///适配器不适配，运行一次不允许启动
-    if (batt_ctx->is_adapter_mismatch()) {
+    if (batt_ctx->get_charge_status() == CHARGE_STATE_ERROR) {
         return app_old_comm_report_start_block_abnormal(OLD_PUBLISH_ABNORMAL_ADAPTER_ERROR);
     }
 

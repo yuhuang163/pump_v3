@@ -32,7 +32,7 @@ static void airplane_mode_exit_cb(hdr_post_args_t *args)
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_AIRPLANE_MODE);
     proc->airplane->exit(AIRPLANE_MODE_EXIT);
     multi_func_msg_data_t msg = {0};
-    if (proc->battery && proc->battery->is_adapter_mismatch() > 0) {
+    if (proc->battery && proc->battery->get_charge_status() == CHARGE_STATE_ERROR) {
         msg.union_body.extra.window_id = ID_WINDOW_CHARGE;
         LOG_WM("goto charge screen");
         proc->wm->dispatch_new_window_args(proc->wm, &msg);

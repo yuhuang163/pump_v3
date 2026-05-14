@@ -63,22 +63,11 @@ typedef enum {
 #define BATTERY_IS_CHARGING(status)       ((status) == CHARGE_STATE_CHARGING || (status) == CHARGE_STATE_FULL)
 #define USB_IS_PLUGIN(status)             ((status) == 1)
 
-/// 电池状态广播ID
-typedef enum {
-    BATTERY_BROADCAST_CHARGE_PLUG_IN = 100, /// 充电插头插入.
-    BATTERY_BROADCAST_CHARGE_PLUG_OUT,      /// 充电插头拔出.
-    BATTERY_BROADCAST_CHARGE_STATE_CHANGE,  /// 充电状态改变. 
-    BATTERY_BROADCAST_CHARGE_ADAPTER_MISMATCH, /// 充电适配器不匹配.
-    BATTERY_BROADCAST_CHARGE_ADAPTER_MISMATCH_RECOVER, /// 充电适配器不匹配恢复.
-    BATTERY_BROADCAST_ID_MAX,
-} battery_broadcast_id_e;
-
 /// 电池信息
 typedef struct {
     uint8_t battery_state;     /// 电池状态.
     uint8_t battery_percent;   /// 电池电量.
     uint8_t charge_status;     /// 充电状态.
-    uint8_t adapter_mismatch;  /// 适配器不匹配.
 } battery_state_info_t;
 
 /// 电池状态改变回调函数类型
@@ -91,10 +80,9 @@ typedef struct battery_manager_context {
 /// private:
     struct __battery_private {
         uint8_t is_vbus_plug_in;
-        uint8_t is_charging;
+        uint8_t charge_status;
         uint8_t battery_percent;
         uint8_t battery_state;
-        uint8_t is_adapter_mismatch;   /// 0 正常；1 适配器不匹配；
         struct rt_device_node *battery;
         struct misc_manager_context *misc;
         list_head_t client_list;
@@ -102,11 +90,10 @@ typedef struct battery_manager_context {
     } priv;
 /// public:
     uint8_t (*is_vbus_plug_in)(void);
-    uint8_t (*get_charge_status)(void);
     uint8_t (*is_low_battery)(void);
+    uint8_t (*get_charge_status)(void);
     uint8_t (*get_battery_state)(void);
     uint8_t (*get_battery_percent)(void);
-    uint8_t (*is_adapter_mismatch)(void); 
     void (*add_battery_state_cb)(void *user_data, on_battery_state_cb_ptr cb);
     void (*remove_battery_state_cb)(on_battery_state_cb_ptr cb);
 } battery_manager_context_t;

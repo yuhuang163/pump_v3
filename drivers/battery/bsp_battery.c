@@ -643,12 +643,6 @@ static int battery_dev_ioctl(struct rt_device_node *dev, uint32_t op_code, void 
             return get_charging_temperature();
         case OP_CODE_BAT_IS_READY:
             return bsp_charge_is_ready();
-        case OP_CODE_BAT_PD_IS_MISMATCH:
-#if IS_SUPPORT_PD_CHARGE
-            return bsp_charge_pd_is_mismatch();
-#else
-            return 0;
-#endif
         case OP_CODE_BAT_CHARGE_CURRENT_ADJUST:
             tmp = (uint32_t *)args;
             if (tmp == NULL) {
@@ -668,6 +662,10 @@ static int battery_dev_ioctl(struct rt_device_node *dev, uint32_t op_code, void 
             /// 强制充电
             charge_event_internal_cb(CHARGE_EVENT_PLUG_IN);
             return 0;
+#if IS_SUPPORT_PD_CHARGE
+        case OP_CODE_BAT_PD_IS_READY:
+            return bsp_charge_pd_is_ready();
+#endif
         default:
             LOGE("bat err op_code: %lx", op_code);
             return -1;
