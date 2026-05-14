@@ -98,12 +98,8 @@ static int entry_event_cb(window_lift_cycle_e new_state,
     EXCEPTION_CHECK_INT(ui);
     if (new_state == ID_SCR_STATE_ON_RESUME) {
         LOG_WM("==>%s window on resume", PAGE_NAME_STR);
-        if (proc->key) {
-            proc->key->add_keyevent_handler("dummy_wm", proc, KEY_CODE_1, KEY_EVENT_CLICK | KEY_EVENT_LONG_10S,
-                 on_dummy_keyevent_hdr, KEY_HANDLER_SHIELD_LEVEL_1);
-        } else {
-            LOG_WM("key not present, ignore.");
-        }
+        ADD_KEYEVENT_CB(proc->key, "dummy_wm", proc, (KEY_CODE_POWER), KEY_EVENT_LONG_10S,
+            on_dummy_keyevent_hdr);
         proc->enter_dummy_time = platform_get_utc_time();
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);
@@ -128,11 +124,7 @@ static int exit_event_cb(window_lift_cycle_e new_state,
             proc->margic = UI_WINDOW_MARGIC_CODE_INVALID;
             REMOVE_ALL_HANDER_TASK();
             unregister_broadcast_receiver(&proc->receiver);
-            if (proc->key) {
-                proc->key->remove_keyevent_handler(on_dummy_keyevent_hdr);
-            } else {
-                LOG_WM("key not present, ignore.");
-            }
+            REMOVE_KEYEVENT_CB(proc->key, on_dummy_keyevent_hdr);
             u_free(proc);
             proc = NULL;
             LOG_WM("%s window on destory--end", PAGE_NAME_STR);

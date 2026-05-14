@@ -87,11 +87,8 @@ static int entry_event_cb(window_lift_cycle_e new_state,
     if (new_state == ID_SCR_STATE_ON_RESUME) {
 #if IS_SUPPORT_LOGO_BG_COLOR_TEST
         if (proc->key) {
-            proc->key->add_keyevent_handler("home_wm", proc, LOGO_UI_KEY_CODE, LOGO_UI_KEY_TYPE,
-                on_logo_ui_keyevent_hdr, KEY_HANDLER_SHIELD_LEVEL_1);
-        } else {
-            LOG_WM("key not present, ignore.");
-        }
+            ADD_KEYEVENT_CB(proc->key, "home_wm", proc, LOGO_UI_KEY_CODE, LOGO_UI_KEY_TYPE,
+                on_logo_ui_keyevent_hdr);
 #if IS_SUPPORT_LOGO_KEY_LIGHT_ADAPTIVE_TEST
         logo_test_key_backlight_on(proc);
 #endif
@@ -120,11 +117,7 @@ static int exit_event_cb(window_lift_cycle_e new_state,
             proc->margic = UI_WINDOW_MARGIC_CODE_INVALID;
             REMOVE_ALL_HANDER_TASK();
 #if IS_SUPPORT_LOGO_BG_COLOR_TEST
-            if (proc->key) {
-                proc->key->remove_keyevent_handler(on_logo_ui_keyevent_hdr);
-            } else {
-                LOG_WM("key not present, ignore.");
-            }
+            REMOVE_KEYEVENT_CB(proc->key, on_logo_ui_keyevent_hdr);
 #endif
             u_free(proc);
             proc = NULL;

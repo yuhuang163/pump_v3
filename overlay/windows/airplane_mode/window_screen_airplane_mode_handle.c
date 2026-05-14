@@ -12,9 +12,8 @@
 #define PAGE_STATIC_NAME                        airplane_mode
 #define PAGE_NAME_STR                           "airplane_mode"
 #define AIRPLANE_MODE_UI_KEY_CODE               (KEY_CODE_TRAVEL_LOCK)
-#define AIRPLANE_MODE_UI_KEY_TYPE               (KEY_EVENT_LONG_5S)
-#define AIRPLANE_MODE_UI_KEY_DOWN_TYPE          (KEY_EVENT_DOWN)
-#define AIRPLANE_MODE_UI_KEY_UP_TYPE            (KEY_EVENT_UP)
+#define AIRPLANE_MODE_UI_KEY_TYPE               (KEY_EVENT_DOWN | KEY_EVENT_UP)
+
 #define AIRPLANE_MODE_TIMEOUT_TASK_NAME         "airplane_mode_timeout_task"
 #define REMOVE_ALL_HANDER_TASK() \
 do { \
@@ -42,9 +41,9 @@ static int on_airplane_mode_keyevent_hdr(void *user_data, uint16_t keycode, uint
     ui_proc_airplane_mode_t *proc = user_data;
     EXCEPTION_CHECK_INT(proc);
     WINDOW_CONTEXT_GUARD_INT(proc, ID_WINDOW_AIRPLANE_MODE, 0);
-    if (keytype == AIRPLANE_MODE_UI_KEY_DOWN_TYPE) {
+    if (keytype == KEY_EVENT_DOWN) {
         proc->popup_ui_type = ID_POPUP_UI_AIRPLANE_MODE_PROMPT;
-    } else if (keytype == AIRPLANE_MODE_UI_KEY_UP_TYPE) {
+    } else if (keytype == KEY_EVENT_UP) {
         if (proc->popup_ui_type != ID_POPUP_UI_NONE) {
             proc->popup_ui_type = ID_POPUP_UI_NONE;
         }
@@ -64,13 +63,8 @@ static int entry_event_cb(window_lift_cycle_e new_state, const struct window_con
     EXCEPTION_CHECK_INT(ui);
     if (new_state == ID_SCR_STATE_ON_RESUME) {
         LOG_WM("==>%s window on resume", PAGE_NAME_STR);
-        if (proc->key) {
-            proc->key->add_keyevent_handler("airplane_mode_wm", proc, AIRPLANE_MODE_UI_KEY_CODE, \
-            AIRPLANE_MODE_UI_KEY_TYPE | AIRPLANE_MODE_UI_KEY_DOWN_TYPE | AIRPLANE_MODE_UI_KEY_UP_TYPE,
-                 on_airplane_mode_keyevent_hdr, KEY_HANDLER_SHIELD_LEVEL_1);
-        } else {
-            LOG_WM("key not present, ignore.");
-        }
+        ADD_KEYEVENT_CB(proc->key, "airplane_mode_wm", proc, AIRPLANE_MODE_UI_KEY_CODE,
+            AIRPLANE_MODE_UI_KEY_TYPE, on_airplane_mode_keyevent_hdr);
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);
         airplane_mode_led_policy(proc, 1);
@@ -99,11 +93,7 @@ static int exit_event_cb(window_lift_cycle_e new_state, const struct window_cont
             REMOVE_ALL_HANDER_TASK();
             airplane_mode_ui_hdr_remove();
             unregister_broadcast_receiver(&proc->receiver);
-            if (proc->key) {
-                proc->key->remove_keyevent_handler(on_airplane_mode_keyevent_hdr);
-            } else {
-                LOG_WM("key not present, ignore.");
-            }
+            REMOVE_KEYEVENT_CB(proc->key, on_airplane_mode_keyevent_hdr);
             u_free(proc);
             proc = NULL;
             LOG_WM("%s window on destory--end", PAGE_NAME_STR);

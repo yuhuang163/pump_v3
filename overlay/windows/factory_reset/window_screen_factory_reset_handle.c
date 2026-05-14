@@ -84,12 +84,8 @@ static int entry_event_cb(window_lift_cycle_e new_state,
             factory_reset_handle(proc);
         } else {
             show_factory_reset_confirm_ui(proc);
-            if (proc->key) {
-                proc->key->add_keyevent_handler("factory_reset_wm", proc, FACTORY_RESET_UI_KEY_CODE, FACTORY_RESET_UI_KEY_TYPE,
-                    on_factory_reset_keyevent_hdr, KEY_HANDLER_SHIELD_LEVEL_1);
-            } else {
-                LOG_WM("key not present, ignore.");
-            }
+            ADD_KEYEVENT_CB(proc->key, "factory_reset_wm", proc, FACTORY_RESET_UI_KEY_CODE, FACTORY_RESET_UI_KEY_TYPE,
+                on_factory_reset_keyevent_hdr);
         } 
     }
     return 0;
@@ -108,11 +104,7 @@ static int exit_event_cb(window_lift_cycle_e new_state,
             LOG_WM("%s window exit: u_free: %p", PAGE_NAME_STR, proc);
             SET_WINDOW_CONTEXT(NULL);
             proc->margic = UI_WINDOW_MARGIC_CODE_INVALID;
-            if (proc->key) {
-                proc->key->remove_keyevent_handler(on_factory_reset_keyevent_hdr);
-            } else {
-                LOG_WM("key not present, ignore.");
-            }
+            REMOVE_KEYEVENT_CB(proc->key, on_factory_reset_keyevent_hdr);
             u_free(proc);
             proc = NULL;
             LOG_WM("%s window exit--end", PAGE_NAME_STR);
