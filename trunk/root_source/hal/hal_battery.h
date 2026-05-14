@@ -15,10 +15,10 @@ extern "C" {
  * @brief 描述充电状态.
 */
 typedef enum {
-    CHARGE_STATE_ERROR = 0,
+    CHARGE_STATE_UNCHARGE,
     CHARGE_STATE_FULL,
     CHARGE_STATE_CHARGING,
-    CHARGE_STATE_UNCHARGE,
+    CHARGE_STATE_ERROR,
     CHARGE_STATE_NO_BATT,
     CHARGE_STATE_MAX,
 } charge_state_e;
@@ -36,11 +36,10 @@ typedef enum {
     OP_CODE_BAT_GET_CHARGE_STATUS = 7,
     OP_CODE_BAT_GET_CHARGE_TEMPERATURE = 8,
     OP_CODE_BAT_IS_READY = 9,
-    OP_CODE_BAT_PD_IS_READY = 10,
-    OP_CODE_BAT_PD_IS_MISMATCH = 11,
-    OP_CODE_BAT_CHARGE_CURRENT_ADJUST = 12, /// 充电电流调节
-    OP_CODE_BAT_GET_CHARGE_IBAT_MA = 13,    /// 读取充电芯片采样的电池端充电电流
-    OP_CODE_BAT_CHARGE_FORCE_OPEN = 14,     /// 强制开启充电
+    OP_CODE_BAT_CHARGE_CURRENT_ADJUST = 10, /// 充电电流调节
+    OP_CODE_BAT_GET_CHARGE_IBAT_MA = 11,    /// 读取充电芯片采样的电池端充电电流
+    OP_CODE_BAT_CHARGE_FORCE_OPEN = 12,     /// 强制开启充电
+    OP_CODE_BAT_PD_IS_READY = 13,           /// 查询PD充电状态
     OP_CODE_BAT_END
 } batery_dev_op_code_e;
 

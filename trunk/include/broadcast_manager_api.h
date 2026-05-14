@@ -33,7 +33,6 @@ typedef enum {
     ID_BROADCAST_PERSIST_INFO_UPDATE = (1 << 1),            /// 持久化信息更新.
     ID_BROADCAST_PM_STATE_CHANGE = (1 << 2),                /// 休眠唤醒.
     ID_BROADCAST_REQ_PM_SUSPEND = (1 << 3),                 /// 请求进入休眠状态.
-    ID_BROADCAST_BATTERY_STATE_CHANGE = (1 << 4),           /// 电池(电量、充电状态)状态改变.
     ID_BROADCAST_BLE_STATE_CHANGE = (1 << 5),               /// 蓝牙状态改变.
     ID_BROADCAST_OTA_STATE_CHANGE = (1 << 6),               /// ota升级状态改变.
     ID_BROADCAST_BREAST_PUMP_STATE_CHANGE = (1 << 7),       /// 吸奶状态改变.

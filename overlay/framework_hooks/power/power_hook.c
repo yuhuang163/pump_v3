@@ -93,7 +93,7 @@ static void system_power_event_cb(hdr_post_args_t *args)
             } else {
                 pm->system_power_control(true);
                 SEND_BROADCAST_ARGS1(ID_BROADCAST_SYS_STATE_CHANGE, SYSTEM_BROADCAST_POWER_ON);
-                if (battery->is_adapter_mismatch() > 0) {
+                if (battery->get_charge_status() == CHARGE_STATE_ERROR) {
                     msg.union_body.extra.window_id = ID_WINDOW_CHARGE;
                     LOG_PM("goto charge screen");
                 } else {
@@ -107,7 +107,7 @@ static void system_power_event_cb(hdr_post_args_t *args)
             LOG_PM("%s action:%d", args->name, action);
             pm->system_power_control(true);
             SEND_BROADCAST_ARGS1(ID_BROADCAST_SYS_STATE_CHANGE, SYSTEM_BROADCAST_POWER_ON);
-            if (battery->is_adapter_mismatch() > 0) {
+            if (battery->get_charge_status() == CHARGE_STATE_ERROR) {
                 msg.union_body.extra.window_id = ID_WINDOW_CHARGE;
                 LOG_PM("goto charge screen");
             } else {
