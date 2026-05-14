@@ -57,6 +57,7 @@ typedef struct led_manager_context {
         int (*get_night_light_onoff)(struct led_manager_context *ctx);
 #if IS_SUPPORT_KEY_LIGHT_ADAPTIVE
         void (*key_light_adaptive_level_update)(struct led_manager_context *ctx, uint8_t level);
+        void (*set_key_light_adaptive_dimming)(struct led_manager_context *ctx, uint8_t onoff);
 #endif
     } *hook;
 /// private:
@@ -75,6 +76,7 @@ typedef struct led_manager_context {
         uint8_t key_light_level_rate; /// 按键背光调光系数，配合低电状态用
 #if IS_SUPPORT_KEY_LIGHT_ADAPTIVE
         uint8_t key_light_adaptive_level; /// 按键背光自适应亮度.
+        uint8_t key_light_adaptive_dimming; /// 按键背光自适应调光.
 #endif
     } priv;
 } led_manager_context_t;

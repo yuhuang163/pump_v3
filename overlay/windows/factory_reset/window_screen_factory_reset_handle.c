@@ -80,7 +80,6 @@ static int entry_event_cb(window_lift_cycle_e new_state,
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);
         if (proc->extra.arg1 == 0) {
-            //proc->current_ui_type = FACTORY_RESET_UI_TYPE_FACTORY_RESET;
             factory_reset_handle(proc);
         } else {
             show_factory_reset_confirm_ui(proc);

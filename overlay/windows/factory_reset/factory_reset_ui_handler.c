@@ -87,12 +87,6 @@ static void show_factory_reset_ui(ui_proc_factory_reset_t *proc)
 static void start_factory_reset_ui_animation(ui_proc_factory_reset_t *proc)
 {
     EXCEPTION_CHECK_VOID(proc->pm);
-    // while (get_timestamp_ms(0) < BOOT_LONG_PRESS_TIME) {
-    //     if (proc->pm->is_system_power_on()) {
-    //         break;
-    //     }
-    //     msleep(10);
-    // }
     LOG_UI("start factory reset ui animation.");
     show_factory_reset_ui(proc);
 }
@@ -104,16 +98,16 @@ static void factory_reset_led_blink_policy(ui_proc_factory_reset_t *proc)
     proc->led->set_led_blink(PUMP_LED_ALL_ID, LED_MEDIUM_BLINK_TIME, 0, LED_STATUS_OFF);
 }
 
-/*
-* GLOBAL FUNCTION DEFINITIONS
-*****************************************************************************************
-*/
-void factory_reset_cb(hdr_post_args_t *args)
+static void factory_reset_cb(hdr_post_args_t *args)
 {
     ui_proc_factory_reset_t *proc = (ui_proc_factory_reset_t *)args->user_data;
     EXCEPTION_CHECK_VOID(proc);
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_FACTORY_RESET);
-    proc->current_ui_type = FACTORY_RESET_UI_TYPE_FACTORY_RESET;
+    if (proc->led && proc->led->hook && proc->led->hook->set_key_light_adaptive_dimming) {
+        proc->led->hook->set_key_light_adaptive_dimming(proc->led, 0);
+    }
+    factory_reset_led_blink_policy(proc);
+    start_factory_reset_ui_animation(proc);
     power_manager_context_t *pm = (power_manager_context_t *)find_module(ID_MODULE_POWER);
     pm->acquire_wakelock("reboot", 10);
     storage_manager_context_t *st = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
@@ -121,20 +115,13 @@ void factory_reset_cb(hdr_post_args_t *args)
     st->factory_reset(RESET_AND_REBOOT);
 }
 
+/*
+* GLOBAL FUNCTION DEFINITIONS
+*****************************************************************************************
+*/
 void factory_reset_handle(ui_proc_factory_reset_t *proc)
 {
-    EXCEPTION_CHECK_VOID(proc);
-    // int is_pump_working = 0; 
-    // if (proc->pump) {
-    //     READ_PUMP_IS_WORKING(proc->pump, is_pump_working);
-    //     if (is_pump_working) {
-    //         LOG_WM("factory reset, stop breast pump work.");
-    //         WRITE_PUMP_WORK_STATUS(proc->pump, BREAST_PUMP_IDLE, 1);
-    //     }
-    // }
-    factory_reset_led_blink_policy(proc);
-    start_factory_reset_ui_animation(proc);
-    POST_TASK_HANDLER_DELAYED_ARG1(factory_reset_cb, FACTORY_RESET_DELAY_TIME, proc, FACTORY_RESET_TASK_NAME);
+    POST_TASK_HANDLER_NO_DELAY(factory_reset_cb, proc, FACTORY_RESET_TASK_NAME);
 }
 
 void factory_reset_ui_hdr_remove(void)
