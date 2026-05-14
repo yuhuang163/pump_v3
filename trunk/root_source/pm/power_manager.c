@@ -410,10 +410,8 @@ static int on_post_pm_init(void *ptr)
     uint16_t keytype = KEY_EVENT_CLICK | KEY_EVENT_DOWN | KEY_EVENT_UP | KEY_EVENT_LONG_2S |
      KEY_EVENT_LONG_3S | KEY_EVENT_LONG_5S | KEY_EVENT_LONG_9S;
     key_input_context_t *input = (key_input_context_t *)find_module(ID_MODULE_KEY_INPUT);
-    if (input) {
-        input->add_keyevent_handler("pm", ctx, keycode, keytype, pm_key_event_handler,
-             KEY_HANDLER_SHIELD_FORBIDDEN);
-    }
+    ADD_KEYEVENT_CB_WITH_SHIELD_LEVEL(input, "pm", ctx, keycode, keytype, pm_key_event_handler,
+        KEY_HANDLER_SHIELD_FORBIDDEN);
     RUN_NEW_THREAD(&ctx->priv.pm_suspend_thd, "pm_suspend_thd",
         pm_sleep_thread, RT_PRIO_PM_SLEEP_THREAD, PM_SUSPEND_THREAD_STACKSIZE);
     return 0;

@@ -319,12 +319,8 @@ static int entry_event_cb(window_lift_cycle_e new_state,
     /// 处理窗口进入事件.
     if (new_state == ID_SCR_STATE_ON_RESUME) {
         LOG_WM("==>%s window on resume", PAGE_NAME_STR);
-        if (proc->key) {
-            proc->key->add_keyevent_handler("pump_wm", proc, PUMP_UI_KEY_CODE, PUMP_UI_KEY_TYPE,
-                 on_pump_ui_keyevent_hdr, KEY_HANDLER_SHIELD_LEVEL_1);
-        } else {
-            LOG_WM("key not present, ignore.");
-        }
+        ADD_KEYEVENT_CB(proc->key, "pump_wm", proc, PUMP_UI_KEY_CODE, PUMP_UI_KEY_TYPE,
+            on_pump_ui_keyevent_hdr);
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);
         proc->current_ui_type = PUMP_UI_TYPE_NONE;
@@ -371,11 +367,7 @@ static int exit_event_cb(window_lift_cycle_e new_state,
             proc->margic = UI_WINDOW_MARGIC_CODE_INVALID;
             unregister_broadcast_receiver(&proc->receiver);
             remove_breast_pump_result_cb(proc);
-            if (proc->key) {
-                proc->key->remove_keyevent_handler(on_pump_ui_keyevent_hdr);
-            } else {
-                LOG_WM("key not present, ignore.");
-            }
+            REMOVE_KEYEVENT_CB(proc->key, on_pump_ui_keyevent_hdr);
             u_free(proc);
             proc = NULL;
             LOG_WM("%s window on destory--end", PAGE_NAME_STR);

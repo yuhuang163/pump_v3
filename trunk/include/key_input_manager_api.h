@@ -12,6 +12,33 @@ extern "C" {
 #include "root_common_base.h" // IWYU pragma: keep
 #include "root_message.h" 
 
+#define ADD_KEYEVENT_CB_WITH_SHIELD_LEVEL(ctx, tag, user_data, keycode, keytype, cb, shield_level) \
+do { \
+    if (ctx) { \
+        ctx->add_keyevent_handler(tag, user_data, keycode, keytype, cb, shield_level); \
+    } else { \
+        LOG_KEY("param error, ignore."); \
+    } \
+} while (0)
+
+#define ADD_KEYEVENT_CB(ctx, tag, user_data, keycode, keytype, cb) \
+do { \
+    if (ctx) { \
+        ctx->add_keyevent_handler(tag, user_data, keycode, keytype, cb, KEY_HANDLER_SHIELD_LEVEL_1); \
+    } else { \
+        LOG_KEY("param error, ignore."); \
+    } \
+} while (0)
+
+#define REMOVE_KEYEVENT_CB(ctx, cb) \
+do { \
+    if (ctx) { \
+        ctx->remove_keyevent_handler(cb); \
+    } else { \
+        LOG_KEY("param error, ignore."); \
+    } \
+} while (0)
+
 typedef int (*on_key_event_handler_fptr)(void *context, uint16_t keycode, uint16_t keytype);
 
 typedef enum {
