@@ -105,6 +105,10 @@ static void key_light_adaptive_thread(void *user_data)
 
 static void key_light_adaptive_level_update(led_manager_context_t *thiz, uint8_t level)
 {
+    if (thiz->priv.key_light_adaptive_dimming == 0) {
+        return;
+    }
+
     if (level > LED_LEVEL_MAX) {
         level = LED_LEVEL_MAX;
     }
@@ -114,6 +118,15 @@ static void key_light_adaptive_level_update(led_manager_context_t *thiz, uint8_t
     }
     thiz->priv.key_light_adaptive_level = level;
     // LOG_MISC("level update: %d", thiz->priv.key_light_adaptive_level);
+}
+
+static void set_key_light_adaptive_dimming(led_manager_context_t *thiz, uint8_t onoff)
+{
+    thiz->priv.key_light_adaptive_dimming = onoff;
+    if (onoff == 0) {
+        set_key_backlight_level_rate(thiz, 100);
+    }
+    LOG_MISC("key light adaptive dimming: %d", onoff);
 }
 #endif
 
@@ -366,6 +379,7 @@ static int on_post_init_route(led_manager_context_t *thiz)
     misc->add_misc_task(thiz, MISC_TASK_ID_NIGHT_LIGHT_ADAPTIVE, 100, MISC_WORK_MSG_ID_TIMER,
         night_light_adaptive_thread);
 #if IS_SUPPORT_KEY_LIGHT_ADAPTIVE
+    thiz->priv.key_light_adaptive_dimming = true;
     misc->add_misc_task(thiz, MISC_TASK_ID_KEY_LIGHT_ADAPTIVE, 100, MISC_WORK_MSG_ID_TIMER,
         key_light_adaptive_thread);
 #endif
@@ -396,6 +410,7 @@ void register_led_hook(led_manager_context_t *ctx)
     ctx->hook->get_night_light_level = get_night_light_level;
 #if IS_SUPPORT_KEY_LIGHT_ADAPTIVE
     ctx->hook->key_light_adaptive_level_update = key_light_adaptive_level_update;
+    ctx->hook->set_key_light_adaptive_dimming = set_key_light_adaptive_dimming;
 #endif
 }
 

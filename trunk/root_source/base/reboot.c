@@ -47,7 +47,11 @@ void __system_reboot(const char *reason)
         }
         msleep(1000);
     }
-
+    led_manager_context_t *led = (led_manager_context_t *)find_module(ID_MODULE_LED);
+    if (led && led->hook && led->hook->set_key_backlight) {
+        led->hook->set_key_backlight(led, 0);
+    }
+    msleep(100);
     LOGW("-->goto reboot: %s", rstr);
     platform_system_reboot();
 }
