@@ -360,6 +360,8 @@ void ui_display_guide_prepare(ui_manager_context_t *thiz)
         LOG_UI("===> guide img res version: %u", (unsigned)img_res_version);
         if (img_res_version == 102) {
             guide_info->text_num = 4;
+        } else {
+            guide_info->text_num = GUIDE_TEXT_NUM;
         }
     }
 }
