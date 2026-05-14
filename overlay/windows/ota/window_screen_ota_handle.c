@@ -97,6 +97,9 @@ static int entry_event_cb(window_lift_cycle_e new_state,
     if (new_state == ID_SCR_STATE_ON_RESUME) {
         ADD_KEYEVENT_CB(proc->key, "ota_wm", proc, OTA_UI_KEY_CODE, OTA_UI_KEY_TYPE,
             on_ota_ui_keyevent_hdr);
+        if (proc->led && proc->led->hook && proc->led->hook->set_key_backlight) {
+            proc->led->hook->set_key_backlight(proc->led, 100);
+        }
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);
         start_ota_ui_animation(proc);
