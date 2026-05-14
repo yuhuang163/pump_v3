@@ -41,6 +41,7 @@ static led_status_t led_status[LED_TOTAL_SIZE];
 static thread_context_t s_led_device_thd;
 static os_timer_id s_led_timer_id;
 static os_mutex_id s_led_mutex_id = NULL;
+static uint32_t s_blink_tick_count = 0;
 
 static const uint8_t led1_address[] = {
     0x26, 0x27, 0x28   /// PUMP_START_BL
@@ -234,6 +235,20 @@ static void led_extension_level_set_no_retry(uint8_t index, uint8_t level)
     }
 }
 
+
+static uint32_t get_blink_tick(void)
+{
+    return s_blink_tick_count;
+}
+
+static uint32_t get_blink_tick_elapsed_ms(uint32_t start_time)
+{
+    if (s_blink_tick_count < start_time) {
+        return (s_blink_tick_count + (0xFFFFFFFF - start_time)) * LED_THREAD_POLL_INTERVAL;
+    }
+    return (s_blink_tick_count - start_time) * LED_THREAD_POLL_INTERVAL;
+}
+
 static void led_blink_handle(uint8_t index)
 {
     led_blink_t *led = &led_status[index].un.blink;
@@ -248,13 +263,14 @@ static void led_blink_handle(uint8_t index)
         return;
     }
 
-    if (get_timestamp_ms(led->start_time) >= led->period) {
-        led->start_time = get_timestamp();
+    if (get_blink_tick_elapsed_ms(led->start_time) >= led->period) {
+        led->start_time = get_blink_tick();
         if (led->status == LED_STATUS_ON) {
             led->status = LED_STATUS_OFF;
             led_extension_level_set(index, 0);  
         } else {
             led->status = LED_STATUS_ON;
+            // led->level = led_status[index].level_max;
             led_extension_level_set(index, led->level);  
             led->times_count++;
         }
@@ -303,6 +319,7 @@ static void led_onoff_handle(uint8_t index)
 static void led_thread_timer_handle(void *arg)
 {
     uint8_t msg = 0;
+    s_blink_tick_count++;
     MSG_QUEUE_SEND(s_led_device_thd.msg_id, (void *)&msg, 0);
 }
 
@@ -313,6 +330,7 @@ static void led_device_thread(void *arg)
     CREATE_MSG_TYPE_QUEUE(&s_led_device_thd.msg_id, 1, 1);
     CREATE_TIMER(&s_led_timer_id, "led", NULL, OS_TIMER_PERIODIC, led_thread_timer_handle);
     START_TIMER(s_led_timer_id, LED_THREAD_POLL_INTERVAL);
+    s_blink_tick_count = 0;
     while (1) {
         MSG_QUEUE_RECV(s_led_device_thd.msg_id, (void *)&msg, OS_WAIT_FOREVER);
         MUTEX_LOCK(s_led_mutex_id);
@@ -386,18 +404,20 @@ static void led_blink_set(uint8_t index, led_blink_t blink)
         for (uint8_t i = 0; i < LED_TOTAL_SIZE; i++) {
             memcpy(&led_status[i].un.blink, &blink, sizeof(led_blink_t));
             led_extension_level_set(i, 0);
-            led_status[i].un.blink.start_time = get_timestamp();
+            led_status[i].un.blink.start_time = get_blink_tick();
             led_status[i].un.blink.status = LED_STATUS_OFF;
             led_status[i].un.blink.times_count = 0;
             led_status[i].mode = LED_MODE_BLINK;
+            led_status[i].un.blink.level = led_status[i].level_max;
         }
     } else { 
         memcpy(&led_status[index].un.blink, &blink, sizeof(led_blink_t));
         led_extension_level_set(index, 0);
-        led_status[index].un.blink.start_time = get_timestamp();
+        led_status[index].un.blink.start_time = get_blink_tick();
         led_status[index].un.blink.status = LED_STATUS_OFF;
         led_status[index].un.blink.times_count = 0;
         led_status[index].mode = LED_MODE_BLINK;
+        led_status[index].un.blink.level = led_status[index].level_max;
     }
     MUTEX_UNLOCK(s_led_mutex_id);
 }
@@ -557,12 +577,14 @@ void bsp_led_resume(void)
         LOG_PBUS("led resume: index: %d, level_max: %d", i, led_status[i].level_max);
     }
     START_TIMER(s_led_timer_id, LED_THREAD_POLL_INTERVAL);
+    s_blink_tick_count = 0;
 }
 
 void bsp_led_suspend(void)
 {
     s_led_is_ready = false;
     s_led_abnormal_count = 0;
+    s_blink_tick_count = 0;
     STOP_TIMER(s_led_timer_id);
     led_htr3316_reset();
 }
