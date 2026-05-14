@@ -1521,18 +1521,9 @@ void app_old_comm_handle_clear_trail_custom_mode_req(uint8_t cal, uint8_t *cab)
     storage_ctx->get_store_ram_val(STORE_ID_PUMP_MODE_STEPS_INFO, BREAST_PUMP_CUSTOM_TRIAL_MODE, 0, &current_steps_info);
     uint32_t current_mode_id = current_steps_info.id.dat32;
 
-    // 如果ID为0x00000000，清除所有自定义模式参数
-    // 如果ID不为0，需要匹配当前ID才清除
-    bool should_clear = false;
-    if (clear_mode_id == 0x00000000) {
-        should_clear = true;
-        LOG_SRV("Clear all custom mode parameters (ID=0x00000000)");
-    } else if (clear_mode_id == current_mode_id) {
-        should_clear = true;
-        LOG_SRV("Clear custom mode parameters with ID=0x%08X", clear_mode_id);
-    } else {
-        LOG_SRV("Mode ID mismatch: request=0x%08X, current=0x%08X, skip clear", clear_mode_id, current_mode_id);
-    }
+    // 不做限制，直接清除
+    bool should_clear = true;
+    LOG_SRV("Mode ID : request=0x%08X, current=0x%08X", clear_mode_id, current_mode_id);
 
     if (should_clear) {
         // 清除自定义模式步骤信息
