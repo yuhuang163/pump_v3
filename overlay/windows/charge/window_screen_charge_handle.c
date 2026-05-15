@@ -143,9 +143,11 @@ static int entry_event_cb(window_lift_cycle_e new_state, const struct window_con
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);
         if (proc->ble) {
-            proc->ble->bt_adv_stop_by_user();
             if (proc->ble->ble_is_connected() > 0) {
+                proc->ble->set_adv_speed(BLE_OPT_ADV_STOP);
                 proc->ble->disconnect_bt_by_user();
+            } else {
+                proc->ble->bt_adv_stop_by_user();
             }
         }
         

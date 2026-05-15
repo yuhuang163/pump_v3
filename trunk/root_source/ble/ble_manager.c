@@ -180,6 +180,7 @@ static int ble_adv_start_by_user(void)
     ble_manager_context_t *ctx = ble_obj;
     ble_opt_adv_id_e opt = BLE_OPT_ADV_FAST;
     LOG_BLE("ble adv fast start");
+    ctx->set_adv_speed(BLE_OPT_ADV_FAST);
     ctx->dispatch_ble_event_wrapper(ctx, BLE_MSG_SET_ADV_START, (uint8_t *)&opt, sizeof(opt));
     return 0;
 }
