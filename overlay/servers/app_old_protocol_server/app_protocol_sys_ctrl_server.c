@@ -384,7 +384,7 @@ void app_old_comm_handle_dev_abnormal_app_req(uint8_t cal, uint8_t *cab)
         report_data[data_len++] = OLD_PUBLISH_ABNORMAL_STATE_CLEARED;
     }
     ///适配器
-    if (batt_ctx->is_adapter_mismatch()) {
+    if (batt_ctx->get_charge_status() == CHARGE_STATE_ERROR) {
         report_data[data_len++] = OLD_PUBLISH_ABNORMAL_STATE_ACTIVE;
     }
     else {

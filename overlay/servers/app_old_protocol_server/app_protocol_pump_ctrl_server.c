@@ -162,14 +162,14 @@ static uint8_t app_old_comm_get_battery_percent(void)
     peripheral_bus_context_t *pbus = (peripheral_bus_context_t *)find_module(ID_MODULE_DEVICE_BUS);
     EXCEPTION_CHECK_UINT(pbus);
     struct rt_device_node *battery = pbus->find_device(ID_DEVICE_BATTERY);
-    uint8_t percent = 0;
+    uint32_t percent = 0;
     if (battery) {
         DEVICE_READ_ARGS(battery, &percent, sizeof(percent));
     } else {
         percent = 100;
     }
     LOG_SRV("percent=%d", percent);
-    return percent;
+    return (uint8_t)percent;
 }
 
 static bool app_old_comm_check_if_low_battery(void)
@@ -876,7 +876,7 @@ static bool app_old_comm_check_if_start_block_abnormal(uint8_t ctrl_status)
     }
 
     ///适配器不适配，运行一次不允许启动
-    if (batt_ctx->is_adapter_mismatch()) {
+    if (batt_ctx->get_charge_status() == CHARGE_STATE_ERROR) {
         return app_old_comm_report_start_block_abnormal(OLD_PUBLISH_ABNORMAL_ADAPTER_ERROR);
     }
 
@@ -1521,18 +1521,9 @@ void app_old_comm_handle_clear_trail_custom_mode_req(uint8_t cal, uint8_t *cab)
     storage_ctx->get_store_ram_val(STORE_ID_PUMP_MODE_STEPS_INFO, BREAST_PUMP_CUSTOM_TRIAL_MODE, 0, &current_steps_info);
     uint32_t current_mode_id = current_steps_info.id.dat32;
 
-    // 如果ID为0x00000000，清除所有自定义模式参数
-    // 如果ID不为0，需要匹配当前ID才清除
-    bool should_clear = false;
-    if (clear_mode_id == 0x00000000) {
-        should_clear = true;
-        LOG_SRV("Clear all custom mode parameters (ID=0x00000000)");
-    } else if (clear_mode_id == current_mode_id) {
-        should_clear = true;
-        LOG_SRV("Clear custom mode parameters with ID=0x%08X", clear_mode_id);
-    } else {
-        LOG_SRV("Mode ID mismatch: request=0x%08X, current=0x%08X, skip clear", clear_mode_id, current_mode_id);
-    }
+    // 不做限制，直接清除
+    bool should_clear = true;
+    LOG_SRV("Mode ID : request=0x%08X, current=0x%08X", clear_mode_id, current_mode_id);
 
     if (should_clear) {
         // 清除自定义模式步骤信息

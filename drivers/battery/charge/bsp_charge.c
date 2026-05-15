@@ -38,6 +38,7 @@
 static uint16_t s_charge_abnormal_count = 0;
 static bool s_charge_is_ready = false;
 static bool is_charging = false;
+static bool s_charge_adapter_mismatch = false;
 static charge_chip_status_t s_charge_status = {0};
 static uint8_t s_charge_full_debounce = 0;
 static uint8_t s_charge_temp_status = 0;
@@ -198,8 +199,11 @@ static void charge_power_gpio_init(void)
 
 static void charge_power_control(bool enable)
 {
+    if (is_charging == enable) {
+        return;
+    }
     GPIO_PIN_CTRL(CHARGE_POWER_PIN, enable ? 0 : 1);
-    is_charging = enable ? true:false;
+    is_charging = enable;
     LOG_PBUS("charge_power_control: %d", enable);
 }
 
@@ -258,7 +262,9 @@ static int charge_vbat_config(void)
 static int charge_ibat_config(uint16_t current)
 {
     uint8_t reg_data = current / BATT_CURRENT_LIMIT_SCALE;
-    s_charging_current = current;
+    if (s_charging_current == current) {
+        return BSP_OK;
+    }
     int ret = charge_write_nbyte(CHARGE_IBAT_CHG_REG, &reg_data, 1);    
     LOG_PBUS("charge_ibat_config: %dmA, ret: %d", current, ret);
     return ret;
@@ -302,7 +308,7 @@ static int charge_interrupt_config(void)
         CHARGE_BATOVP_INT_ENABLE | CHARGE_BAT_FULL_INT_ENABLE | CHARGE_RE_CHG_INT_ENABLE;
     reg_data[1] = CHARGE_CHG_TIMEOUT_INT_ENABLE | CHARGE_TSHUT_INT_ENABLE | CHARGE_BAT_EMPTY_INT_ENABLE | 
         CHARGE_NTC_FAULT_INT_ENABLE;
-    return charge_write_nbyte(CHARGE_ADC_SCALE_REG, reg_data, 2);
+    return charge_write_nbyte(CHARGE_INT_EN0_REG, reg_data, 2);
 }
 
 POSSIBLY_UNUSED static int charge_ctrl0_config(void)
@@ -356,7 +362,7 @@ static int charge_ntc_temperature_get(float resistance)
     return ntc_temp_table[0].temp - 1;
 }
 
-static void charge_chip_init(void)
+static int charge_chip_init(void)
 {
     int ret = BSP_OK;
     msleep(20);
@@ -365,38 +371,39 @@ static void charge_chip_init(void)
     ret = charge_device_is_ready();
     if (ret != BSP_OK) {
         LOGE("charge device is not ready, ret: %d", ret);
-        return;
+        return ret;
     }
 
     ret = charge_scale_config();
     if (ret != BSP_OK) {
         LOGE("charge scale config failed, ret: %d", ret);
-        return;
+        return ret;
     }
     ret = charge_adc_config(true); 
     if (ret != BSP_OK) {
         LOGE("charge adc enable failed, ret: %d", ret);
-        return;
+        return ret;
     }
     ret = charge_vin_config();
     if (ret != BSP_OK) {
         LOGE("charge vin config failed, ret: %d", ret);
-        return;
+        return ret;
     }
     ret = charge_vbat_config();
     if (ret != BSP_OK) {
         LOGE("charge vbat config failed, ret: %d", ret);
-        return;
+        return ret;
     }
 
 #if 0 /// for test     
     ret = charge_ctrl0_config();
     if (ret != BSP_OK) {
         LOGE("charge ctrl0 config failed, ret: %d", ret);
-        return;
+        return ret;
     }
 #endif
     LOG_PBUS("charge chip init success");
+    return BSP_OK;
 }
 
 POSSIBLY_UNUSED static void charging_temp_policy_handler(int8_t temp)
@@ -452,7 +459,7 @@ static void charge_device_thread(void *arg)
     uint16_t test_count = 0;
     while (1) {
 #if IS_SUPPORT_PD_CHARGE
-        charge_pd_status_poll();
+        charge_pd_status_poll(true);
 #endif
         MSG_QUEUE_RECV(s_charge_device_thd.msg_id, &msg, OS_WAIT_FOREVER);
 #if IS_SUPPORT_DEVICE_CHARGE
@@ -506,17 +513,19 @@ void add_charge_event_callback(charge_event_cb cb)
 
 int get_charge_state(void) 
 {
-    if (s_charge_is_ready == false) {
+    if (s_charge_adapter_mismatch && s_charge_status.plug_in) {
         return CHARGE_STATE_ERROR;
     }
 
-    if (s_charge_status.charge_full && s_charge_status.plug_in) {
+    if (s_charge_status.charge_full && s_charge_status.plug_in && s_charge_is_ready) {
         return CHARGE_STATE_FULL;
-    } else if (s_charge_status.plug_in) {
+    }  
+
+    if (s_charge_status.plug_in && s_charge_is_ready) {
         return CHARGE_STATE_CHARGING;
-    } else {
-        return CHARGE_STATE_UNCHARGE;
     }
+    
+    return CHARGE_STATE_UNCHARGE;
 }
 
 int get_charging_temperature(void) 
@@ -544,11 +553,14 @@ int get_charge_full_debounce(void)
 int bsp_charge_init(void)
 {
 #if IS_SUPPORT_DEVICE_CHARGE
+    int ret = BSP_OK;
     charge_power_gpio_init();
     bsp_i2c_init(CHARGE_I2C_ID);
-    charge_chip_init();
-    charge_status_poll(&s_charge_status);
-    s_charge_is_ready = true;
+    ret = charge_chip_init();
+    if (ret == BSP_OK) {
+        ret = charge_status_poll(&s_charge_status);
+    }
+    s_charge_is_ready = (ret == BSP_OK);
 #endif
 #if IS_SUPPORT_PD_CHARGE
     bsp_charge_pd_init();
@@ -591,25 +603,58 @@ void charge_event_internal_cb(charge_event_e event)
 {
 #if IS_SUPPORT_DEVICE_CHARGE  
     if (event == CHARGE_EVENT_PLUG_IN) {
-#if IS_SUPPORT_PD_CHARGE
+        if (s_charge_status.plug_in) {
+            return;
+        }
+    #if IS_SUPPORT_PD_CHARGE
         int current = charge_pd_current_get();
         LOG_PBUS("pd charge imax:%dmA", current);
         if (current > BATT_INPUT_CURRENT_LIMIT || 0 == current) {
             current = BATT_INPUT_CURRENT_LIMIT;
         }
         s_charging_current_max = current;
-#if IS_SUPPORT_CHARGE_CURRENT_ADJUST
+        #if IS_SUPPORT_CHARGE_CURRENT_ADJUST
         charge_ibat_config(current);
-#endif
-#endif 
+        #endif
+    #endif 
         s_charge_status.plug_in = true;      
+        s_charge_adapter_mismatch = false;
+        s_charge_status.charge_full = false;
         charge_power_control(true);
     } else if (event == CHARGE_EVENT_PLUG_OUT) {
+        if (s_charge_status.plug_in == false) {
+            return;
+        }
         s_charge_status.plug_in = false;
+        s_charge_adapter_mismatch = false;
+        s_charge_status.charge_full = false;
+        s_charge_full_debounce = 0;
+        charge_power_control(false);
+    } else if (event == CHARGE_EVENT_ADAPTER_MISMATCH) {
+        if (s_charge_adapter_mismatch) {
+            return;
+        }
+        s_charge_status.plug_in = true;
+        s_charge_adapter_mismatch = true;
+        s_charge_status.charge_full = false;
+        s_charge_full_debounce = 0;
         charge_power_control(false);
     }
+#else
+    if (event == CHARGE_EVENT_PLUG_IN || event == CHARGE_EVENT_PLUG_OUT) {   
+        if (s_charge_adapter_mismatch == false) {
+            return;
+        }
+        s_charge_adapter_mismatch = false;
+        s_charge_status.plug_in = false;
+    } else if (event == CHARGE_EVENT_ADAPTER_MISMATCH) {
+        if (s_charge_adapter_mismatch) {
+            return;
+        }
+        s_charge_adapter_mismatch = true;
+        s_charge_status.plug_in = true;
+    }
 #endif
-
     if (s_charge_event_callback) {
         s_charge_event_callback(event);
     } 

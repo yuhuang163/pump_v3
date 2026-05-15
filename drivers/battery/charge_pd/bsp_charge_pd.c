@@ -30,7 +30,6 @@ typedef enum {
 *****************************************************************************************
 */
 static bool s_charge_pd_onoff = false;
-static uint8_t s_charge_pd_adapter_state = CHARGE_PD_ADAPTER_PLUG_OUT;
 
 /*
 * GLOBAL VARIABLE DEFINITIONS
@@ -154,44 +153,40 @@ static void charge_pd_gpio_init(void)
  */
 int bsp_charge_pd_is_ready(void)
 {
-    return s_charge_pd_adapter_state == CHARGE_PD_ADAPTER_READY ? true : false;
+    if (s_charge_pd_onoff == false) {
+        return false;
+    }
+    return charge_pd_device_is_ready();
 }
 
-int bsp_charge_pd_is_mismatch(void)
+void charge_pd_status_poll(bool plug_in_debounce)
 {
-    return s_charge_pd_adapter_state == CHARGE_PD_ADAPTER_MISMATCH ? true : false;
-}
-
-void charge_pd_status_poll(void)
-{
+    static uint8_t debounce_count = 0;
     if (hal_gpio_pin_get_val(CHARGE_PD_INT_PIN) == 0) {
         if (s_charge_pd_onoff == false) {
-            s_charge_pd_onoff = true;
             bsp_i2c_init(CHARGE_PD_I2C_ID);
-            LOG_PBUS("charge pd power on");
+            s_charge_pd_onoff = true;
+            debounce_count = 0;
+            LOG_PBUS("%s", "charge pd plug in");
+            return;
         }
 
         if (charge_pd_power_is_ready()) {
-            if (s_charge_pd_adapter_state != CHARGE_PD_ADAPTER_READY) {
-                s_charge_pd_adapter_state = CHARGE_PD_ADAPTER_READY;
-                charge_event_internal_cb(CHARGE_EVENT_PLUG_IN);
-                LOG_PBUS( "CHARGE_EVENT_PLUG_IN");
-            }
+            charge_event_internal_cb(CHARGE_EVENT_PLUG_IN);
         } else {
-            if (s_charge_pd_adapter_state != CHARGE_PD_ADAPTER_MISMATCH) {
-                s_charge_pd_adapter_state = CHARGE_PD_ADAPTER_MISMATCH;
+            if (debounce_count < CHARGE_PD_ABNORMAL_MAX_COUNT && plug_in_debounce) {
+                debounce_count++;
+            } else{
                 charge_event_internal_cb(CHARGE_EVENT_ADAPTER_MISMATCH);
-                LOG_PBUS( "CHARGE_EVENT_ADAPTER_MISMATCH" );
             }
         }
     } else {
         if (s_charge_pd_onoff == true) {
-            s_charge_pd_onoff = false;
-            s_charge_pd_adapter_state = CHARGE_PD_ADAPTER_PLUG_OUT;
             bsp_i2c_deinit(CHARGE_PD_I2C_ID);
-            LOG_PBUS("%s", "CHARGE_EVENT_PLUG_OUT");
             charge_event_internal_cb(CHARGE_EVENT_PLUG_OUT);
             charge_pd_gpio_init();
+            s_charge_pd_onoff = false;
+            LOG_PBUS("%s", "charge pd plug out");
         }
     }
 }
@@ -201,7 +196,7 @@ void bsp_charge_pd_init(void)
     charge_pd_gpio_init();
     msleep(10);
     for (uint8_t i = 0; i < 3; i++) {
-        charge_pd_status_poll();
+        charge_pd_status_poll(false); /// 插入开机无需去抖
         msleep(10);
     }
 }

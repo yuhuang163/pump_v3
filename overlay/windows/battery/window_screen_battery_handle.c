@@ -46,7 +46,7 @@ static void battery_low_power_exit_cb(ui_proc_battery_t *proc)
     }
 
     if (proc->battery && proc->battery->is_vbus_plug_in() > 0 &&
-        proc->battery->is_adapter_mismatch() > 0) {
+        proc->battery->get_charge_status() == CHARGE_STATE_ERROR) {
         LOG_WM("vbus plug in, goto charge screen");
         msg.union_body.extra.window_id = ID_WINDOW_CHARGE;
         proc->wm->dispatch_new_window_args(proc->wm, &msg);
@@ -95,24 +95,16 @@ static void battery_ui_common_cb(hdr_post_args_t *args)
     }
 }
 
-static void on_battery_window_receive(broadcast_mask_id_t id, void *context,
-                                 int32_t arg1, int32_t arg2, broadcast_priv_data_t *pdata)
+static void on_battery_window_battery_state_change_cb(void *user_data, battery_state_info_t *info)
 {
-    ui_proc_battery_t *proc = (ui_proc_battery_t *)context;
+    ui_proc_battery_t *proc = (ui_proc_battery_t *)user_data;
     EXCEPTION_CHECK_VOID(proc);
     WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_BATTERY);
-    switch (id.code) {
-        case ID_BROADCAST_BATTERY_STATE_CHANGE: 
-            if (arg1 == BATTERY_BROADCAST_CHARGE_STATE_CHANGE) {
-                int is_charging = arg2;
-                if (is_charging && proc->current_ui_type == BATTERY_UI_TYPE_LOW_POWER) {
-                    POST_TASK_HANDLER_NO_DELAY_ARG1(battery_ui_common_cb, proc,
-                        BATTERY_HDR_ACTION_LOW_POWER_EXIT, BATTERY_LOW_POWER_TASK_NAME);
-                }
-            }
-            break;
-        default:
-            break;
+    if (BATTERY_IS_CHARGING(info->charge_status)) {
+        if (proc->current_ui_type == BATTERY_UI_TYPE_LOW_POWER) {
+            POST_TASK_HANDLER_NO_DELAY_ARG1(battery_ui_common_cb, proc,
+                BATTERY_HDR_ACTION_LOW_POWER_EXIT, BATTERY_LOW_POWER_TASK_NAME);
+        }
     }
 }
 
@@ -121,7 +113,7 @@ static int entry_event_cb(window_lift_cycle_e new_state, const struct window_con
     ui_proc_battery_t *proc = CONTAINER_OF(thiz, ui_proc_battery_t, w_ctx);
     EXCEPTION_CHECK_INT(proc);
     if (new_state == ID_SCR_STATE_ON_RESUME) {
-
+        ADD_BATTERY_STATE_CB(proc->battery, proc, on_battery_window_battery_state_change_cb);
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);
         show_battery_low_power_ui(proc);
@@ -142,11 +134,9 @@ static int exit_event_cb(window_lift_cycle_e new_state, const struct window_cont
             break;
         case ID_SCR_STATE_ON_DESTORY:
             LOG_WM("==>%s window on destory", PAGE_NAME_STR);
-            unregister_broadcast_receiver(&proc->receiver);
-            proc->receiver.context = NULL;
-            proc->receiver.receiver_cb = NULL;
             SET_WINDOW_CONTEXT(NULL);
             proc->margic = UI_WINDOW_MARGIC_CODE_INVALID;
+            REMOVE_BATTERY_STATE_CB(proc->battery, on_battery_window_battery_state_change_cb);
             u_free(proc);
             proc = NULL;
             LOG_WM("%s window on destory--end", PAGE_NAME_STR);
@@ -174,12 +164,6 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
     proc->pm = (power_manager_context_t *)find_module(ID_MODULE_POWER);
     proc->battery = (battery_manager_context_t *)find_module(ID_MODULE_BATTERY);
     proc->airplane = (airplane_mode_context_t *)find_module(ID_MODULE_AIRPLANE_MODE);
-    /// 监听PM状态改变.
-    proc->receiver.id.code = ID_BROADCAST_BATTERY_STATE_CHANGE;
-    proc->receiver.context = proc;
-    proc->receiver.name = "battery_screen";
-    proc->receiver.receiver_cb = on_battery_window_receive;
-    register_broadcast_receiver(&proc->receiver);
     /// 配置窗口上下文.
     window_context_t *w_ctx = &proc->w_ctx;
     w_ctx->new_window_id = window_id;

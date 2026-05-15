@@ -74,10 +74,8 @@ static int airplane_mode_key_event_handler(void *user_data, uint16_t keycode, ui
 static int on_post_airplane_mode_init_route(struct airplane_mode_context *ctx)
 {
     key_input_context_t *input = (key_input_context_t *)find_module(ID_MODULE_KEY_INPUT);
-    if (input) {
-        input->add_keyevent_handler("airplane_mode", ctx, KEY_CODE_TRAVEL_LOCK, KEY_EVENT_DOWN | KEY_EVENT_UP, 
-            airplane_mode_key_event_handler, KEY_HANDLER_SHIELD_LEVEL_1);
-    }
+    ADD_KEYEVENT_CB(input, "airplane_mode", ctx, KEY_CODE_TRAVEL_LOCK, KEY_EVENT_DOWN | KEY_EVENT_UP,
+                    airplane_mode_key_event_handler);
     return 0;
 }
 

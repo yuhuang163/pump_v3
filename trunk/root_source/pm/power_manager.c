@@ -410,10 +410,8 @@ static int on_post_pm_init(void *ptr)
     uint16_t keytype = KEY_EVENT_CLICK | KEY_EVENT_DOWN | KEY_EVENT_UP | KEY_EVENT_LONG_2S |
      KEY_EVENT_LONG_3S | KEY_EVENT_LONG_5S | KEY_EVENT_LONG_9S;
     key_input_context_t *input = (key_input_context_t *)find_module(ID_MODULE_KEY_INPUT);
-    if (input) {
-        input->add_keyevent_handler("pm", ctx, keycode, keytype, pm_key_event_handler,
-             KEY_HANDLER_SHIELD_FORBIDDEN);
-    }
+    ADD_KEYEVENT_CB_WITH_SHIELD_LEVEL(input, "pm", ctx, keycode, keytype, pm_key_event_handler,
+        KEY_HANDLER_SHIELD_FORBIDDEN);
     RUN_NEW_THREAD(&ctx->priv.pm_suspend_thd, "pm_suspend_thd",
         pm_sleep_thread, RT_PRIO_PM_SLEEP_THREAD, PM_SUSPEND_THREAD_STACKSIZE);
     return 0;
@@ -537,7 +535,7 @@ static const char *wake_up_reason_name(pm_wakeup_reason_e reason)
             return "wakeup:OTA-task";
         case PM_WAKEUP_REASON_CHARGE_PLUG_IN:
             return "wakeup:CHARGE_PLUG_IN";
-        case PM_WAKEUP_REASON_CHARGE_PLUG_OUI:
+        case PM_WAKEUP_REASON_CHARGE_PLUG_OUT:
             return "wakeup:CHARGE_PLUG_OUI";
         case PM_WAKEUP_REASON_BACKGROUND_TASK:
             return "wakeup:BACKGROUND_TASK";
@@ -580,7 +578,7 @@ static void pm_wakeup(pm_wakeup_reason_e reason)
     }
 
     set_suspend_counter("pm_wakeup", get_suspend_timeout(thiz), true);
-    if (reason == PM_WAKEUP_REASON_CHARGE_PLUG_OUI) {
+    if (reason == PM_WAKEUP_REASON_CHARGE_PLUG_OUT) {
         LOG_PM("CHARGE_PLUG_OUI blocked");
         return;
     }

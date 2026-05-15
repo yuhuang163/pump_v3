@@ -81,10 +81,9 @@ typedef enum {
 *****************************************************************************************
 */
 void bsp_charge_pd_init(void);
-void charge_pd_status_poll(void);
-int bsp_charge_pd_is_ready(void);
+void charge_pd_status_poll(bool plug_in_debounce);
 int charge_pd_current_get(void);
-int bsp_charge_pd_is_mismatch(void);
+int bsp_charge_pd_is_ready(void);
 #ifdef __cplusplus
 }
 #endif

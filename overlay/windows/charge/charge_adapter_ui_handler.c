@@ -28,7 +28,7 @@ static void charge_adapter_ui_after_policy(ui_manager_context_t *ui, int index)
 {
     ui_display_charge_adapter_process(ui);
     ui_proc_charge_t *proc = (ui_proc_charge_t *)ui->priv.play_info.user_data;
-    if (proc && proc->battery && proc->battery->is_adapter_mismatch() == 0) {
+    if (proc && proc->battery && proc->battery->get_charge_status() != CHARGE_STATE_ERROR) {
         multi_func_msg_data_t __msg = {0};
         __msg.union_body.extra.window_id = ID_WINDOW_HOME;
         EXCEPTION_CHECK_VOID(proc->wm);

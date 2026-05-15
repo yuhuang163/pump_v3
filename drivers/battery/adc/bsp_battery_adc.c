@@ -70,8 +70,16 @@ int battery_adc_suspend(void)
 
 int battery_adc_single_conversion(uint16_t *batt_voltage)
 {
+    if (batt_voltage == NULL) {
+        return BSP_ERROR;
+    }
+
     uint16_t voltage = 0;
-    bsp_adc_single_conversion(BATT_ADC_CHANNEL, 10, &voltage);
+    int ret = bsp_adc_single_conversion(BATT_ADC_CHANNEL, 10, &voltage);
+    if (ret != BSP_OK) {
+        return ret;
+    }
+
     *batt_voltage = voltage * sg_batt_adc.coeff;
     // LOG_PBUS("voltage:%d, %d", *batt_voltage, voltage);
     if (*batt_voltage < sg_batt_adc.voltage_min || *batt_voltage > sg_batt_adc.voltage_max) {

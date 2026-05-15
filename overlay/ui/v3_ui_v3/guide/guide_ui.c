@@ -21,7 +21,7 @@
 #define GUIDE_QRCODE_ALIGN_Y                                    (68)
 #else
 #define GUIDE_QRCODE_SIZE                                       (124)
-#define GUIDE_QRCODE_ALIGN_Y                                    (68)
+#define GUIDE_QRCODE_ALIGN_Y                                    (66)
 #endif
 #define GUIDE_TEXT_NUM                                          (4 + 2)
 #define GUIDE_ARROW_TEXT_X_OFFSET                               (0)
@@ -361,6 +361,8 @@ void ui_display_guide_prepare(ui_manager_context_t *thiz)
         LOG_UI("===> guide img res version: %u", (unsigned)img_res_version);
         if (img_res_version == 102) {
             guide_info->text_num = 4;
+        } else {
+            guide_info->text_num = GUIDE_TEXT_NUM;
         }
     }
 }

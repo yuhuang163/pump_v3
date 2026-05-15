@@ -289,7 +289,7 @@ int factory_tests_enter(tests_func_args_t args)
     CHECK_IF_VALID(power_ctx, {
         power_ctx->acquire_wakelock("factory_tests", -1);
     });
-    key_ctx->add_keyevent_handler("factory_key_tests", thiz, (TESTS_KEY_CODE | TESTS_KEY_KNOB_CODE),
+    ADD_KEYEVENT_CB_WITH_SHIELD_LEVEL(key_ctx, "factory_tests", thiz, (TESTS_KEY_CODE | TESTS_KEY_KNOB_CODE),
         (TESTS_KEY_CLICK_EVENT | TESTS_KEY_LONG_PRESS_EVENT), on_tests_event_handler, KEY_HANDLER_SHIELD_FORBIDDEN);
     return 0;
 }
@@ -304,7 +304,7 @@ int factory_tests_exit(tests_func_args_t args)
     CHECK_IF_VALID(power_ctx, {
         power_ctx->release_wakelock("factory_tests");
     });
-    key_ctx->remove_keyevent_handler(on_tests_event_handler);
+    REMOVE_KEYEVENT_CB(key_ctx, on_tests_event_handler);
     return 0;
 }
 

@@ -27,7 +27,7 @@ static void product_home_test_display_completed_cb(hdr_post_args_t *args)
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_PRODUCT_TEST_MODE);
     multi_func_msg_data_t msg = {0};    
     if (proc->battery && proc->battery->is_vbus_plug_in() > 0 &&
-        proc->battery->is_adapter_mismatch() > 0) {
+        proc->battery->get_charge_status() == CHARGE_STATE_ERROR) {
         LOG_WM("vbus plug in, goto charge screen");
         msg.union_body.extra.window_id = ID_WINDOW_CHARGE;
         proc->wm->dispatch_new_window_args(proc->wm, &msg);

@@ -364,11 +364,8 @@ void adaptive_dimming_init(void)
     sensor->add_sensor_evt_lisenser(sensor, LIGHT_SENSOR_EVT_POLLING, 1, on_light_sensor_data_cb);
 #if ADAP_DIM_USE_ENCODER_KNOB_SHIELD
     key_input_context_t *input_key_ctx = (key_input_context_t *)find_module(ID_MODULE_KEY_INPUT);
-    EXCEPTION_CHECK_VOID(input_key_ctx);
-    input_key_ctx->add_keyevent_handler("adaptive_dimming", input_key_ctx,
-                                        KEY_CODE_KNOB_LEFT | KEY_CODE_KNOB_RIGHT,
-                                        0xff,
-                                        on_key_input_event_cb, KEY_HANDLER_SHIELD_LEVEL_1);
+    ADD_KEYEVENT_CB(input_key_ctx, "adaptive_dimming", input_key_ctx, KEY_CODE_KNOB_LEFT | KEY_CODE_KNOB_RIGHT,
+                    KEY_EVENT_CLICK, on_key_input_event_cb);
 #endif
 }
 

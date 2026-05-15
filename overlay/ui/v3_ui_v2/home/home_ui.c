@@ -144,7 +144,7 @@ const static home_text_info_t home_text_infos[HOME_TEXT_ID_MAX] = {
         IDLE_WITH_CLOCK_LABEL_TEXT_X, IDLE_WITH_CLOCK_LABEL_TEXT_Y, false, &lv_font_oppo_sans_16_medium},
     {"since last pumping session", 
         0, IDLE_CLOCK_AND_RECORD_LABEL_TEXT_Y, false, &lv_font_oppo_sans_16_medium},
-    {"Time not updated. Connect\nthe device to sync.", 
+    {"Time not updated. Connect\ndevice to sync.", 
         0, IDLE_LABEL_TEXT_Y, true, &lv_font_oppo_sans_16_medium},
     {"Press to turn on the light",
         0, IDLE_LIGHT_TIP_LABEL_TEXT_Y, false, &lv_font_oppo_sans_16_medium},  
