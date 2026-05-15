@@ -46,8 +46,8 @@ extern "C" {
 #define ROOT_FIRMWARE_VERSION                          210
 #define ROOT_FW_VERSION_STR                            "210"
 #else
-#define ROOT_FIRMWARE_VERSION                          322
-#define ROOT_FW_VERSION_STR                            "322"
+#define ROOT_FIRMWARE_VERSION                          323
+#define ROOT_FW_VERSION_STR                            "323"
 #endif
 
 /**
