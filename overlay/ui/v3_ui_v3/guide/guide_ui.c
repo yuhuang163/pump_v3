@@ -21,7 +21,7 @@
 #define GUIDE_QRCODE_ALIGN_Y                                    (68)
 #else
 #define GUIDE_QRCODE_SIZE                                       (124)
-#define GUIDE_QRCODE_ALIGN_Y                                    (68)
+#define GUIDE_QRCODE_ALIGN_Y                                    (66)
 #endif
 #define GUIDE_TEXT_NUM                                          (4 + 2)
 #define GUIDE_ARROW_TEXT_X_OFFSET                               (0)
