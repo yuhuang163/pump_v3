@@ -162,14 +162,14 @@ static uint8_t app_old_comm_get_battery_percent(void)
     peripheral_bus_context_t *pbus = (peripheral_bus_context_t *)find_module(ID_MODULE_DEVICE_BUS);
     EXCEPTION_CHECK_UINT(pbus);
     struct rt_device_node *battery = pbus->find_device(ID_DEVICE_BATTERY);
-    uint8_t percent = 0;
+    uint32_t percent = 0;
     if (battery) {
         DEVICE_READ_ARGS(battery, &percent, sizeof(percent));
     } else {
         percent = 100;
     }
     LOG_SRV("percent=%d", percent);
-    return percent;
+    return (uint8_t)percent;
 }
 
 static bool app_old_comm_check_if_low_battery(void)
