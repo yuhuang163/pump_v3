@@ -226,12 +226,16 @@ typedef struct _FEATURE_INFO_
 
 	float			fRawSegMinPressure;
 	float			fRawSegThresholdAtMinPressure;
+	float			fRawSegRunningMin; /* 当前段内 raw 最小（仅用于求 fRawSegMinPressure） */
+	float			fFilteredSegMinPressure; /* 与 fRawSegMinPressure 同泵段、同拍滤波的段内最小 */
+	float			fFilteredSegRunningMin; /* 段内滤波最小（内部） */
 	unsigned char	uPrevPumpState;
 	unsigned char	uPrevActive;
 	unsigned char	uCurrActive;
 	unsigned char	uRawTailRemain; /* 新段时置 POST_TAIL；段末起每写入一个尾随点减 1，到 0 表示本段采集结束 */
 	unsigned short	uRawSegLen;
-	float			fRawPumpSeg[RAW_PUMP_SEG_MAX];
+	unsigned char	uWearDetSegMinCommitted;    /* RawSegCommitMinIfAny 提交段 min 后置 1，PressureDataFeature 后消费 */
+	// float			fRawPumpSeg[RAW_PUMP_SEG_MAX];
 }SFEATURE_INFO;
 
 typedef struct _DATA_BUFFER_

@@ -16,7 +16,7 @@ extern "C" {
 #define ALGO_AIR_PRESSURE_NUM 2
 #endif
 
-#define IS_SUPPORT_ALGO_LIB_LOG_OUTPUT     0
+#define IS_SUPPORT_ALGO_LIB_LOG_OUTPUT     1
 
 /*
 typedef struct {
