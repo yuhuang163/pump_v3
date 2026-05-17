@@ -724,7 +724,7 @@ typedef struct {
     float ntc_resistance; /// ntc电阻值 KΩ
     uint8_t charge_full; /// 满电状态
     uint8_t plug_in; /// 插拔状态
-    int8_t temp; /// 温度℃
+    float temp; /// 温度℃
 } charge_chip_status_t;
 
 /// 输入电流限制
