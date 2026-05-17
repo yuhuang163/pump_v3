@@ -31,7 +31,7 @@ static void factory_reset_confirm_ui_finish_policy(ui_manager_context_t *ui, int
 {
     EXCEPTION_CHECK_VOID(ui);
     ui_proc_factory_reset_t *proc = (ui_proc_factory_reset_t *)ui->priv.play_info.user_data;
-    factory_reset_handle(proc);
+    factory_reset_handle(proc, 10);
 }
 
 static void factory_reset_confirm_ui_after_policy(ui_manager_context_t *ui, int index)

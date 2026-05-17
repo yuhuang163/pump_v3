@@ -53,7 +53,7 @@ typedef struct {
 * GLOBAL FUNCTION DECLARATION
 *****************************************************************************************
 */
-void factory_reset_handle(ui_proc_factory_reset_t *proc);
+void factory_reset_handle(ui_proc_factory_reset_t *proc, uint16_t delay_ms);
 void factory_reset_ui_hdr_remove(void);
 void show_factory_reset_confirm_ui(ui_proc_factory_reset_t *proc);
 void factory_reset_confirm_ui_hdr_remove(void);
