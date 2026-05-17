@@ -119,9 +119,9 @@ static void factory_reset_cb(hdr_post_args_t *args)
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-void factory_reset_handle(ui_proc_factory_reset_t *proc)
+void factory_reset_handle(ui_proc_factory_reset_t *proc, uint16_t delay_ms)
 {
-    POST_TASK_HANDLER_NO_DELAY(factory_reset_cb, proc, FACTORY_RESET_TASK_NAME);
+    POST_TASK_HANDLER_DELAYED_ARG1(factory_reset_cb, delay_ms, proc, FACTORY_RESET_TASK_NAME);
 }
 
 void factory_reset_ui_hdr_remove(void)
