@@ -25,7 +25,7 @@ static uint16_t s_ble_mtu_size = BLE_MTU_SIZE_DEFAULT;
 static ota_event_cb_func s_ota_event_callback = NULL;
 static uint32_t img_total_size = 0;
 static uint32_t img_received_size = 0;
-static uint16_t img_progress = 0;
+
 /*
 * GLOBAL VARIABLE DEFINITIONS
 *****************************************************************************************
@@ -53,37 +53,37 @@ static void add_ble_custom_ota_event_callback(ota_event_cb_func cb)
 
 
 #if CFG_OTA_EVENT_CALLBACK
-static void ota_event_router(ota_state_type_e state, uint8_t *otaBuf, bool isViaBle,uint16_t dataLenth)
+static void ota_event_router(ota_state_type_e state, void *ota_info, int arg1, int arg2)
 {
     if (s_ota_event_callback == NULL) {
         LOG_PBUS("ota event callback is NULL");
-        return;
     }
 
     if (state == OTA_STATE_FAIL_EXIT) {
-        LOG_PBUS("ota fail, progress:%d%%", img_progress);
-        s_ota_event_callback(OTA_EVENT_OTA_FAIL, img_progress);
-        return;
+        LOG_PBUS("ota fail");
+        s_ota_event_callback(OTA_EVENT_OTA_FAIL, img_total_size, img_received_size);
     }
     
     if (state == OTA_STATE_UPDATE_IMG_TYPE) {
-        LOG_PBUS("ota update img type: %d", *otaBuf);
-        s_ota_event_callback(OTA_EVENT_UPDATE_IMG_TYPE, 0);
-        return;
+        LOG_PBUS("ota update img type: %d", arg1);
+        s_ota_event_callback(OTA_EVENT_UPDATE_IMG_TYPE, img_total_size, img_received_size);
     }
 
     if (state == OTA_STATE_RESUME_TOTAL_SIZE) {
-        img_total_size = *(uint32_t *)otaBuf;
+        img_total_size = arg1;
         LOG_PBUS("ota resume total size: %d", img_total_size);
     }
 
     if (state == OTA_STATE_RESUME_OFFSET_SIZE) {
-        img_received_size = *(uint32_t *)otaBuf;
+        img_received_size = arg1;
         LOG_PBUS("ota resume offset size: %d", img_received_size);
     }   
 
-    OTA_LEGACY_PACKET_T *packet = (OTA_LEGACY_PACKET_T *)otaBuf;
+    if (ota_info == NULL) {
+        return;
+    }
 
+    OTA_LEGACY_PACKET_T *packet = (OTA_LEGACY_PACKET_T *)ota_info;
     switch (packet->packetType) {
         case OTA_CMD_SET_USER:
             // s_ota_event_callback(OTA_EVENT_SET_USER_TYPE, 0);
@@ -92,21 +92,19 @@ static void ota_event_router(ota_state_type_e state, uint8_t *otaBuf, bool isVia
             img_total_size = packet->payload.cmdOtaStart.imageSize;
             img_received_size = 0;
             LOG_PBUS("img total size:%d", img_total_size);
-            s_ota_event_callback(OTA_EVENT_START_OTA, 0);
+            s_ota_event_callback(OTA_EVENT_START_OTA, img_total_size, img_received_size);
             break;
-
         case OTA_COMMAND_RESUME_VERIFY:
-            s_ota_event_callback(OTA_EVENT_RESUME_OTA, 0);
+            s_ota_event_callback(OTA_EVENT_RESUME_OTA, img_total_size, img_received_size);
             break;
         case OTA_DATA_PACKET:
-            img_received_size += (dataLenth - 1);
-            img_progress = (img_received_size * 100) / img_total_size;
-            LOG_PBUS("img received size:%d, progress:%d%%", img_received_size, img_progress);
-            s_ota_event_callback(OTA_EVENT_OTA_PROGRESS, img_progress);
+            img_received_size += (arg2 - 1);
+            LOG_PBUS("img size:%d/%d", img_received_size, img_total_size);
+            s_ota_event_callback(OTA_EVENT_OTA_PROGRESS, img_total_size, img_received_size);
             break;
         case OTA_COMMAND_IMAGE_APPLY:
-            LOG_PBUS("ota success, progress:%d%%", img_progress);
-            s_ota_event_callback(OTA_EVENT_OTA_SUCCESS, 0);
+            LOG_PBUS("ota success");
+            s_ota_event_callback(OTA_EVENT_OTA_SUCCESS, img_total_size, img_received_size);
             break;
     }
 }

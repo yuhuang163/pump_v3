@@ -225,7 +225,7 @@ static uint8_t hyn_ic_update(uint16_t start_addr, uint16_t len, uint8_t *src_dat
         uint8_t progress_u8 = (uint8_t)(progress > 100 ? 100 : progress);
         if ((progress_u8 >= 100) || (progress_u8 >= (uint8_t)(last_reported_progress + 5))) {
             last_reported_progress = progress_u8;
-            bsp_touch_key_ota_event_cb(KEY_OTA_EVENT_UPDATE_PROGRESS, progress_u8);
+            bsp_touch_key_ota_event_cb(KEY_OTA_EVENT_UPDATE_PROGRESS, len, written_len);
         }
     } while(len);
 
@@ -302,7 +302,15 @@ uint8_t touch_fw_update_handler(void)
 
 uint8_t touch_fw_update_handler_force(bool force_update)
 {
-    return touch_fw_update_with_bin(app_bin, (uint32_t)sizeof(app_bin), force_update);
+	bsp_touch_key_ota_event_cb(KEY_OTA_EVENT_UPDATE_START, sizeof(app_bin), 0);
+	uint8_t ret = touch_fw_update_with_bin(app_bin, (uint32_t)sizeof(app_bin), force_update);
+    if (ret != 0) {
+        msleep(1000);
+        bsp_touch_key_ota_event_cb(KEY_OTA_EVENT_UPDATE_FAIL, sizeof(app_bin), 0);
+    } else {
+        bsp_touch_key_ota_event_cb(KEY_OTA_EVENT_UPDATE_SUCCESS, sizeof(app_bin), sizeof(app_bin));
+    }
+    return ret;
 }
 
 bool touch_firmware_is_lower_than_image(int current_version)

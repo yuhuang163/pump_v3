@@ -171,6 +171,7 @@ typedef struct {
 
 typedef struct {
     ota_event_type_e event;
+    int object;
     int args1;
     int args2;
 } ota_event_info_t;
