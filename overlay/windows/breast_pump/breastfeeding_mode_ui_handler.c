@@ -187,7 +187,7 @@ void switch_breastfeeding_mode_ui(ui_proc_pump_t *proc, bool is_increase)
     show_breastfeeding_mode_ui(proc);
 }
 
-void breastfeeding_mode_ui_hdr_remove(void)
+void breastfeeding_mode_ui_exit(ui_proc_pump_t *proc)
 {
     REMOVE_TASK_HANDLER_DIRECTLY(BREASTFEEDING_MODE_DISPLAY_TASK_NAME);
     REMOVE_TASK_HANDLER_DIRECTLY(BREASTFEEDING_MODE_SYNC_TASK_NAME);

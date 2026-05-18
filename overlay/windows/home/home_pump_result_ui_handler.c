@@ -129,7 +129,7 @@ void show_home_pump_result_ui(ui_proc_home_t *proc)
     show_home_pump_result_loop(proc);
 }
 
-void home_pump_result_ui_hdr_remove(void)
+void home_pump_result_ui_exit(ui_proc_home_t *proc)
 {
     REMOVE_TASK_HANDLER_DIRECTLY(HOME_PUMP_RESULT_DISPLAY_TASK_NAME);
 }

@@ -185,7 +185,7 @@ void switch_pump_common_mode_ui(ui_proc_pump_t *proc, bool is_increase)
     show_pump_mode_ui(proc);
 }
 
-void pump_mode_ui_hdr_remove(void)
+void pump_mode_ui_exit(ui_proc_pump_t *proc)
 {
     REMOVE_TASK_HANDLER_DIRECTLY(PUMP_MODE_DISPLAY_TASK_NAME);
     REMOVE_TASK_HANDLER_DIRECTLY(PUMP_MODE_SYNC_TASK_NAME);
