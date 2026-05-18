@@ -33,7 +33,8 @@ static int input_keyevent_route(struct key_input_context *ctx, uint16_t keycode,
         EXCEPTION_CHECK_INT(wm);
         if (wm->is_current_window(wm, ID_WINDOW_AIRPLANE_MODE) ||
             wm->is_current_window(wm, ID_WINDOW_FACTORY_RESET) || 
-            wm->is_current_window(wm, ID_WINDOW_CHARGE)) {
+            wm->is_current_window(wm, ID_WINDOW_CHARGE) ||
+            wm->is_current_window(wm, ID_WINDOW_POWER_OFF)) {
             LOG_KEY("in airplane mode or factory reset or charge window, ignore");
             return 0;
         }

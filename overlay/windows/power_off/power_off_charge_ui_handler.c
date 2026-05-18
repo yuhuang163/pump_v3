@@ -3,7 +3,7 @@
 *****************************************************************************************
 */
 #include "ui_page_define.h"  // IWYU pragma: keep
-#include "window_screen_charge.h" // IWYU pragma: keep
+#include "window_screen_power_off.h" // IWYU pragma: keep
 
 /*
 * DEFINES
@@ -64,24 +64,24 @@ static void power_off_charging_ui_display_remove(void *user_data)
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-void show_power_off_charging_ui(ui_proc_charge_t *proc)
+void show_power_off_charging_ui(ui_proc_power_off_t *proc)
 {
     ui_manager_context_t *ui = proc->ui;
     EXCEPTION_CHECK_VOID(ui->hook && ui->hook->ui_animation_play_init);
     proc->last_progress_ani_time = get_timestamp();
-    if (proc->current_ui_type == CHARGE_UI_TYPE_POWER_OFF_CHARGING) {
+    if (proc->current_ui_type == POWER_OFF_UI_TYPE_CHARGING) {
         return;
     }
     ui_play_info_t play_info = {
         .tag = "power_off_charge_screen",
-        .fps = CHARGE_ANIMATION_FREQ,
+        .fps = POWER_OFF_ANIMATION_FREQ,
         .progress_cb = power_off_charging_animation_progress_cb,
         .display_prepare_cb = power_off_charging_ui_display_prepare,
         .display_remove_cb = power_off_charging_ui_display_remove,
         .user_data = proc,
     };
     ui->hook->ui_animation_play_init(ui, play_info);
-    proc->current_ui_type = CHARGE_UI_TYPE_POWER_OFF_CHARGING;
+    proc->current_ui_type = POWER_OFF_UI_TYPE_CHARGING;
     if (ui->hook && ui->hook->set_ui_backlight_level_rate) {
         ui->hook->set_ui_backlight_level_rate(ui, 50);
     }

@@ -35,7 +35,7 @@ static bool is_power_off_by_charging(void)
 {
     battery_manager_context_t *battery = (battery_manager_context_t *)find_module(ID_MODULE_BATTERY);
     EXCEPTION_CHECK_BOOL(battery);
-    if (battery->is_vbus_plug_in() > 0) {
+    if (BATTERY_IS_CHARGING(battery->get_charge_status())) {
         return true; /// 充电状态下禁止进入待机状态.
     }
     return false;
@@ -49,11 +49,12 @@ static bool is_prohibit_pm_suspend(struct power_manager_context *ctx)
     battery_manager_context_t *battery = (battery_manager_context_t *)find_module(ID_MODULE_BATTERY);
     EXCEPTION_CHECK_BOOL(battery);
     if (BATTERY_IS_CHARGING(battery->get_charge_status())) {
-        if (wm->is_current_window(wm, ID_WINDOW_CHARGE) == 0) {
+        if (wm->is_current_window(wm, ID_WINDOW_POWER_OFF) == 0) {
             multi_func_msg_data_t msg = {0};
-            msg.union_body.extra.window_id = ID_WINDOW_CHARGE;
+            msg.union_body.extra.window_id = ID_WINDOW_POWER_OFF;
+            msg.union_body.extra.arg1 = 1;
             wm->dispatch_new_window_args(wm, &msg);
-            LOG_PM("goto charge window");
+            LOG_PM("goto power off charge window");
         }
         return true; /// 充电状态下禁止进入待机状态.
     }
@@ -83,8 +84,9 @@ static void system_power_event_cb(hdr_post_args_t *args)
                 if (is_power_off_by_charging()) {
                     pm->system_power_control(true);
                     SEND_BROADCAST_ARGS1(ID_BROADCAST_SYS_STATE_CHANGE, SYSTEM_BROADCAST_POWER_ON);
-                    msg.union_body.extra.window_id = ID_WINDOW_CHARGE;
-                    LOG_PM("goto charge screen");
+                    msg.union_body.extra.window_id = ID_WINDOW_POWER_OFF;
+                    msg.union_body.extra.arg1 = 0;
+                    LOG_PM("goto power off charge screen");
                     wm->dispatch_new_window_args(wm, &msg); 
                     return;
                 }
@@ -93,13 +95,8 @@ static void system_power_event_cb(hdr_post_args_t *args)
             } else {
                 pm->system_power_control(true);
                 SEND_BROADCAST_ARGS1(ID_BROADCAST_SYS_STATE_CHANGE, SYSTEM_BROADCAST_POWER_ON);
-                if (battery->get_charge_status() == CHARGE_STATE_ERROR) {
-                    msg.union_body.extra.window_id = ID_WINDOW_CHARGE;
-                    LOG_PM("goto charge screen");
-                } else {
-                    msg.union_body.extra.window_id = ID_WINDOW_LOGO;
-                    LOG_PM("goto logo screen");
-                }
+                msg.union_body.extra.window_id = ID_WINDOW_LOGO;
+                LOG_PM("goto logo screen");
                 wm->dispatch_new_window_args(wm, &msg); 
             }
             break;
@@ -107,21 +104,17 @@ static void system_power_event_cb(hdr_post_args_t *args)
             LOG_PM("%s action:%d", args->name, action);
             pm->system_power_control(true);
             SEND_BROADCAST_ARGS1(ID_BROADCAST_SYS_STATE_CHANGE, SYSTEM_BROADCAST_POWER_ON);
-            if (battery->get_charge_status() == CHARGE_STATE_ERROR) {
-                msg.union_body.extra.window_id = ID_WINDOW_CHARGE;
-                LOG_PM("goto charge screen");
-            } else {
-                msg.union_body.extra.window_id = ID_WINDOW_LOGO;
-                LOG_PM("goto logo screen");
-            }
+            msg.union_body.extra.window_id = ID_WINDOW_LOGO;
+            LOG_PM("goto logo screen");
             wm->dispatch_new_window_args(wm, &msg); 
             break;
         case HDR_ACTION_POWER_ON_BY_CHARGING:    
             LOG_PM("%s action:%d", args->name, action);
             pm->system_power_control(true);
             SEND_BROADCAST_ARGS1(ID_BROADCAST_SYS_STATE_CHANGE, SYSTEM_BROADCAST_POWER_ON);
-            msg.union_body.extra.window_id = ID_WINDOW_CHARGE;
-            LOG_PM("goto charge screen");
+            msg.union_body.extra.window_id = ID_WINDOW_POWER_OFF;
+            msg.union_body.extra.arg1 = 0;
+            LOG_PM("goto power off charge screen");
             wm->dispatch_new_window_args(wm, &msg); 
             break;
         case HDR_ACTION_POWER_ON_INVALID: 
@@ -197,26 +190,31 @@ static int on_key_event_route(struct power_manager_context *ctx, uint16_t keycod
     }
 
     /// 进入关机状态. 不在工厂重置界面时才允许进入关机状态.(按键冲突)
-    if (keytype == KEY_EVENT_LONG_3S && ctx->priv.allow_shutdown_or_standby == 1) {
-        window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
-#if IS_SUPPORT_POWER_OFF_WHEN_CHARGING
-        if (wm && wm->is_current_window(wm, ID_WINDOW_FACTORY_RESET) == 0) {
+    if (keytype == KEY_EVENT_LONG_3S) {
+        if (ctx->priv.allow_shutdown_or_standby) {
+            window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
+            /// 不在工厂重置界面时才允许进入关机状态.(按键冲突)
+            if (wm && wm->is_current_window(wm, ID_WINDOW_FACTORY_RESET)) {
+                LOG_PM("in factory reset window, ignore");
+                return 0;
+                
+            }
+
+        #if IS_SUPPORT_POWER_OFF_WHEN_CHARGING
             if (is_prohibit_pm_suspend(ctx)) {
                 return 0;
             }
-        }
-#endif
-        /// 不在工厂重置界面时才允许进入关机状态.(按键冲突)
-        if (wm && wm->is_current_window(wm, ID_WINDOW_FACTORY_RESET) == 0) {
-#if IS_SUPPORT_SLEEP_POWER_OFF
+        #endif
+   
+        #if IS_SUPPORT_SLEEP_POWER_OFF
             POST_TASK_HANDLER_NO_DELAY_ARG1(system_power_event_cb, ctx, HDR_ACTION_POWER_OFF,
                 POWER_ONOFF_AND_STANDBY_TASK_NAME);
-#else
+        #else
             POST_TASK_HANDLER_NO_DELAY_ARG1(system_power_event_cb, ctx, HDR_ACTION_SYS_STANDBY,
                 POWER_ONOFF_AND_STANDBY_TASK_NAME);
-#endif
+        #endif
         } else {
-            LOG_PM("in factory reset window, ignore");
+            LOG_PM("forbid shutdown or standby");
         }
     } else {
         LOG_PM("key:%d, ignore", keytype);
