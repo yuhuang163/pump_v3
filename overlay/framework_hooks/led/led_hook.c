@@ -190,7 +190,8 @@ static void night_light_adaptive_thread(void *user_data)
     if (thiz->priv.night_light_adaptive_switch) {
         window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
         if (wm && (wm->is_current_window(wm, ID_WINDOW_CHARGE) ||
-            wm->is_current_window(wm, ID_WINDOW_LOGO))) {
+            wm->is_current_window(wm, ID_WINDOW_LOGO) ||
+            wm->is_current_window(wm, ID_WINDOW_POWER_OFF))) {
             return;
         }
 
@@ -313,7 +314,8 @@ static int on_broadcast_receiver_route(broadcast_mask_id_t id, void *context, in
             } else if (arg1 == PM_BROADCAST_SYS_RESUME) {
                 window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
                 if (wm && wm->is_current_window(wm, ID_WINDOW_CHARGE) == 0 &&
-                    wm->is_current_window(wm, ID_WINDOW_GUIDE) == 0) {
+                    wm->is_current_window(wm, ID_WINDOW_GUIDE) == 0 &&
+                    wm->is_current_window(wm, ID_WINDOW_POWER_OFF) == 0) {
                     set_key_backlight(thiz, LED_LEVEL_MAX);
                 }
             } else if (arg1 == PM_BROADCAST_SYS_IDLE) {

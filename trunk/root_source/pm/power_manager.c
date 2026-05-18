@@ -671,6 +671,7 @@ static int system_power_control(bool state)
         EXCEPTION_CHECK_INT(wm);
         multi_func_msg_data_t msg = {0};
         msg.union_body.extra.window_id = ID_WINDOW_POWER_OFF;
+        msg.union_body.extra.arg1 = 1;
         wm->dispatch_new_window_args(wm, &msg);
         if (st->hook && st->hook->on_power_off_force_save_route) {
             st->hook->on_power_off_force_save_route(st);

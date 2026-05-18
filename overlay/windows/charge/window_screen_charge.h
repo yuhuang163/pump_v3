@@ -23,11 +23,8 @@ extern "C" {
 /// 充电动画更新间隔
 #define CHARGE_ANIMATION_UPDATE_INTERVAL         (1000)
 
-/// 充电动画展示时间
 typedef enum {
     CHARGE_HDR_EXIT_CHARGE_POLICY = 100, /// 退出充电策略
-    CHARGE_HDR_SCREEN_TIMEOUT_DETECT, /// 充电界面超时检测
-    CHARGE_HDR_DISCHARGE_POWER_OFF, /// 拔除充电关机
     CHARGE_HDR_CHARGE_SCREEN_ON,
     CHARGE_HDR_ACTION_MAX
 } charge_ui_hdr_action_e;
@@ -37,7 +34,6 @@ typedef enum {
     CHARGE_UI_TYPE_NONE = 0,
     CHARGE_UI_TYPE_CHARGING = 100,
     CHARGE_UI_TYPE_ADAPTER,
-    CHARGE_UI_TYPE_POWER_OFF_CHARGING,
     CHARGE_UI_TYPE_MAX
 } charge_ui_type_e;
 
@@ -57,8 +53,6 @@ typedef struct {
     uint32_t margic;
     uint32_t last_progress_ani_time; /// 上次进度动画时间.
     uint16_t current_ui_type; /// 当前UI类型. charge_ui_type_e
-    uint8_t is_charge_screen_on; /// 是否充电动画展示中
-    uint32_t charge_screen_on_time; /// 充电动画关闭时间.
 } ui_proc_charge_t;
 
 /*
@@ -67,7 +61,6 @@ typedef struct {
 */
 void show_charging_ui(ui_proc_charge_t *proc);
 void show_charge_adapter_ui(ui_proc_charge_t *proc);
-void show_power_off_charging_ui(ui_proc_charge_t *proc);
 void stop_charge_common_ui(ui_proc_charge_t *proc);
 int switch_charge_night_light_onoff_ui(ui_proc_charge_t *proc);
 
