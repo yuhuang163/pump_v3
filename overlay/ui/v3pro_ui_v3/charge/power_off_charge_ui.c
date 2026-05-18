@@ -5,7 +5,7 @@
 #include "ui_img_define.h"   // IWYU pragma: keep
 #include "ui_page_define.h" // IWYU pragma: keep
 #include "ui_manager.h"   // IWYU pragma: keep
-#include "window_screen_charge.h" // IWYU pragma: keep
+#include "window_screen_power_off.h" // IWYU pragma: keep
 
 /*
 * DEFINES
@@ -240,7 +240,7 @@ void ui_display_power_off_charge_screen_remove(ui_manager_context_t *thiz)
 int ui_display_power_off_charge_screen_process(ui_manager_context_t *thiz)
 {
     EXCEPTION_CHECK_INT(thiz && charge_info && charge_info->root);
-    ui_proc_charge_t *proc = (ui_proc_charge_t *)thiz->priv.play_info.user_data;
+    ui_proc_power_off_t *proc = (ui_proc_power_off_t *)thiz->priv.play_info.user_data;
     EXCEPTION_CHECK_INT(proc && proc->battery);
     uint8_t percent = proc->battery->get_battery_percent();
     power_off_charge_anim_create(thiz, percent);
