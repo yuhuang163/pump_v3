@@ -114,6 +114,11 @@ static int factory_tests_aging_test_enter_mode1(void)
     LOG_TEST("factory test aging test enter mode1");
     motor_manager_context_t *motor = (motor_manager_context_t *)find_module(ID_MODULE_MOTOR);
     motor_policy_original_para_t para = {0};
+    factory_suction_para_t *suction_para = NULL;
+    if (!motor->get_local_suction_table(&suction_para)) {
+        LOG_TEST("suction_table is null ");
+        return -1;
+    }
     /// 初始化当前循环工作时间
     thiz->priv.factory_ctx.aging_result_info.time_offset = get_timestamp();
     thiz->priv.factory_ctx.aging_result_info.aging_run_status = AGING_RUN_STATUS_WORK;
@@ -121,11 +126,11 @@ static int factory_tests_aging_test_enter_mode1(void)
 
     //吸乳模式15档，速度中，参数
     int pump_level = 0, pumping_time = 0, valve_on_time = 0, sleep_time = 0, hold_time = 0;
-    pump_level = long_suction_table[long_level_table[BREAST_PUMP_LEVEL_15]].pump_level;
-    pumping_time = long_suction_table[long_level_table[BREAST_PUMP_LEVEL_15]].pumping_time;
-    valve_on_time = long_suction_table[long_level_table[BREAST_PUMP_LEVEL_15]].valve_on_time;
+    pump_level = suction_para->long_suction_table[long_level_table[BREAST_PUMP_LEVEL_15]].pump_level;
+    pumping_time = suction_para->long_suction_table[long_level_table[BREAST_PUMP_LEVEL_15]].pumping_time;
+    valve_on_time = suction_para->long_suction_table[long_level_table[BREAST_PUMP_LEVEL_15]].valve_on_time;
     hold_time = LONG_SUCTION_HOLD_TIME;
-    uint16_t total_time = ONE_MIN_TIME_MS / long_pump_freq_table[BREAST_PUMP_LEVEL_15][SUCTION_SPEED_MID];
+    uint16_t total_time = ONE_MIN_TIME_MS / suction_para->long_pump_freq_table[BREAST_PUMP_LEVEL_15][SUCTION_SPEED_MID];
     sleep_time = total_time - pumping_time - valve_on_time - hold_time;
     if (sleep_time < PUMP_SLEEP_TIME_MIN || sleep_time > PUMP_SLEEP_TIME_MAX) {
         sleep_time = PUMP_SLEEP_TIME_MIN;

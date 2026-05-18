@@ -2,12 +2,13 @@
  * INCLUDE FILES
  *****************************************************************************************
  */
+#include "persist_storage.h"
 #include "root_common_api.h" // IWYU pragma: keep
 #include "storage_manager.h" // IWYU pragma: keep
 #include "storage_manager_api.h"
 #include "storage_manager_internal.h" // IWYU pragma: keep
 #include "factory_persist_data.h" // IWYU pragma: keep
-
+#include "pump_parameters_table.h" // IWYU pragma: keep
 /*
  * DEFINES
  *****************************************************************************************
@@ -269,6 +270,48 @@ int read_factory_dev_info_from_flash(store_func_args_t args)
     return ret;
 }
 
+static void copy_preset_suction_table(factory_suction_para_t *dst,
+                                      const suction_parameters_t *long_tbl,
+                                      const suction_parameters_t *short_tbl,
+                                      const uint16_t (*freq_tbl)[SUCTION_SPEED_MAX])
+{
+    memcpy(dst->long_suction_table, long_tbl, sizeof(pump1_long_suction_table));
+    memcpy(dst->short_suction_table, short_tbl, sizeof(pump1_short_suction_table));
+    memcpy(dst->long_pump_freq_table, freq_tbl, sizeof(pump1_long_pump_freq_table));
+}
+
+int read_factory_suction_table_from_flash(store_func_args_t args)
+{
+    EXCEPTION_CHECK_INT(args.ctx);
+    factory_suction_para_t *suction_table = (factory_suction_para_t *)args.val;
+    EXCEPTION_CHECK_INT(suction_table);
+
+#if IS_SUPPORT_DEVICE_LIGHT_SENSOR_CALIB
+    uint8_t motor_type = args.ctx->priv.factory_data.dev_info.motor_type;
+#else
+    uint8_t motor_type = FACTORY_MOTOR_TYPE_DEFAULT;
+#endif
+
+    switch (motor_type) {
+    case FACTORY_MOTOR_TYPE_SHIGUANG:
+        copy_preset_suction_table(suction_table, pump1_long_suction_table, pump1_short_suction_table,
+                                  pump1_long_pump_freq_table);
+        LOG_STORE("suction table: shiguang (motor_type=%u)", motor_type);
+        break;
+    case FACTORY_MOTOR_TYPE_LONGYI:
+        copy_preset_suction_table(suction_table, pump2_long_suction_table, pump2_short_suction_table,
+                                  pump2_long_pump_freq_table);
+        LOG_STORE("suction table: longyi (motor_type=%u)", motor_type);
+        break;
+    default:///use default 龙一泵参数
+        copy_preset_suction_table(suction_table, pump2_long_suction_table, pump2_short_suction_table,
+                                  pump2_long_pump_freq_table);
+        LOG_STORE("suction table: default shiguang (motor_type=%u)", motor_type);
+        break;
+    }
+    return 0;
+}
+
 int read_factory_deploy_flag_from_ram(store_func_args_t args)
 {
     EXCEPTION_CHECK_INT(args.ctx);
@@ -333,6 +376,34 @@ int read_factory_age_display_flag_from_ram(store_func_args_t args)
     return 0;
 }
 
+int read_factory_suction_table_from_ram(store_func_args_t args)
+{
+    EXCEPTION_CHECK_INT(args.ctx);
+    factory_suction_para_t **suction_table = (factory_suction_para_t **)args.val;
+    *suction_table = &args.ctx->priv.factory_data.factory_suction_para;
+    return 0;
+}
+
+int read_factory_motor_type_from_ram(store_func_args_t args)
+{
+    EXCEPTION_CHECK_INT(args.ctx);
+    factory_dev_info_t *device_info = &args.ctx->priv.factory_data.dev_info;
+    int *tmp = (int *)args.val;
+    EXCEPTION_CHECK_INT(tmp);
+    *tmp = device_info->motor_type;
+    return 0;
+}
+
+int read_factory_battery_type_from_ram(store_func_args_t args)
+{
+    EXCEPTION_CHECK_INT(args.ctx);
+    factory_dev_info_t *device_info = &args.ctx->priv.factory_data.dev_info;
+    int *tmp = (int *)args.val;
+    EXCEPTION_CHECK_INT(tmp);
+    *tmp = device_info->battery_type;
+    return 0;
+}
+
 #if IS_SUPPORT_DEVICE_FSENSOR
 int read_factory_fsensor_cali_flag_from_ram(store_func_args_t args)
 {
@@ -365,5 +436,8 @@ int init_factory_persist_info(storage_manager_context_t *ctx)
     args.val = &factory_data->imu;
     read_imu_cali_data_from_flash(args);
 #endif
+    /// 初始吸力参数表信息
+    args.val = &factory_data->factory_suction_para;
+    read_factory_suction_table_from_flash(args);
     return 0;
 }
