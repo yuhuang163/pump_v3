@@ -29,29 +29,33 @@ static ota_manager_context_t *ota_obj = NULL;
 */
 static bool is_ota_upgrading(void)
 {
-    return ota_obj->priv.is_working;
+    return ota_obj->priv.ota_info.is_working;
 }
 
 static void set_ota_upgrading(bool yes)
 {
     LOG_OTA("ota_is_working: %d", yes);
-    ota_obj->priv.is_working = yes;
+    ota_obj->priv.ota_info.is_working = yes;
 }
 
-static uint8_t get_ota_upgrade_progress(void)
+static const char *get_ota_object_name(ota_object_e object)
 {
-    return ota_obj->priv.ota_progress;
+    switch (object) {
+        default:
+            return "unknow";
+        case OTA_OBJECT_MAIN_FIRMWARE:
+            return "app";
+        case OTA_OBJECT_IMAGE_RESOURCE:
+            return "img";
+        case OTA_OBJECT_TOUCH_KEY_FIRMWARE:
+            return "touch-key";
+    }
 }
 
 static void set_ota_upgrade_progress(uint8_t progress)
 {
-    LOG_OTA("ota_progress: %d", progress);
-    ota_obj->priv.ota_progress = progress;
-}
-
-static ota_object_e get_ota_object(void)
-{
-    return ota_obj->priv.ota_object;
+    LOG_OTA("ota %s progress: %d", get_ota_object_name(ota_obj->priv.ota_info.object), progress);
+    ota_obj->priv.ota_info.progress = progress;
 }
 
 static void on_ota_broadcast_receive(broadcast_mask_id_t id, 
@@ -65,30 +69,37 @@ static void on_ota_broadcast_receive(broadcast_mask_id_t id,
     }
 }
 
-static ota_upgrade_state_e get_ota_upgrade_state(void)
-{
-    return ota_obj->priv.ota_state;
-}
-
 static void set_ota_upgrade_state(ota_upgrade_state_e state)
 {
     LOG_OTA("ota_state: %d", state);
-    ota_obj->priv.ota_state = state;
+    ota_obj->priv.ota_info.state = state;
 }
 
-static void ota_upgrade_state_progress(ota_manager_context_t *ctx, uint8_t progress)
+static void get_ota_info(ota_info_t *info)
 {
-    uint8_t val = progress > 100 ? 100 : progress;
-    // LOG_OTA("ota progress %d", progress);
+    memcpy(info, &ota_obj->priv.ota_info, sizeof(ota_info_t));
+}
+
+static void ota_upgrade_state_progress(ota_manager_context_t *ctx, ota_event_info_t *info)
+{
+    if (info == NULL) {
+        return;
+    }
+    ctx->priv.ota_info.recv_size = (info->args2 > info->args1) ? info->args1 : info->args2;
+    ctx->priv.ota_info.total_size = info->args1;
+    uint8_t val = (ctx->priv.ota_info.recv_size * 100) / ctx->priv.ota_info.total_size;
     set_ota_upgrade_progress(val);
 }
 
-static void ota_upgrade_state_start(ota_manager_context_t *ctx, int ota_object)
+static void ota_upgrade_state_start(ota_manager_context_t *ctx, ota_event_info_t *info)
 {
     window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
-    ctx->priv.ota_object = ota_object;
+    ctx->priv.ota_info.object = info->object;
+    ctx->priv.ota_info.recv_size = (info->args2 > info->args1) ? info->args1 : info->args2;
+    ctx->priv.ota_info.total_size = info->args1;
     set_ota_upgrading(true);
-    set_ota_upgrade_progress(0);
+    uint8_t val = (ctx->priv.ota_info.recv_size * 100) / ctx->priv.ota_info.total_size;
+    set_ota_upgrade_progress(val);
     set_ota_upgrade_state(OTA_UPGRADE_STATE_START);
     if (wm && wm->dispatch_new_window_args && 
         wm->is_current_window && wm->is_current_window(wm, ID_WINDOW_OTA_UPGRADE) == 0) {
@@ -130,10 +141,10 @@ static void ota_upgrade_thread(void *args)
         switch (ota_info->event) {
             case OTA_EVENT_RESUME_OTA:
             case OTA_EVENT_START_OTA:
-                ota_upgrade_state_start(ctx, ota_info->args1);
+                ota_upgrade_state_start(ctx, ota_info);
                 break;
             case OTA_EVENT_OTA_PROGRESS: 
-                ota_upgrade_state_progress(ctx, ota_info->args1);
+                ota_upgrade_state_progress(ctx, ota_info);
                 break;
             case OTA_EVENT_OTA_FAIL: 
                 ota_upgrade_state_end(ctx, false);
@@ -147,11 +158,12 @@ static void ota_upgrade_thread(void *args)
     }
 }
 
-static int dispatch_ota_event_wrapper(int event, int arg1, int arg2)
+static int dispatch_ota_event_wrapper(int event, ota_object_e object, int arg1, int arg2)
 {
     multi_func_msg_data_t msg = {0};
     int ret;
     msg.union_body.ota_info.event = (ota_event_type_e)event;
+    msg.union_body.ota_info.object = object;
     msg.union_body.ota_info.args1 = arg1;
     msg.union_body.ota_info.args2 = arg2;
     if (event == OTA_EVENT_OTA_PROGRESS) {
@@ -196,14 +208,8 @@ void *register_module_for_ota_manager_new(list_head_t *list_head)
     MALLOC_FOR_PTR(ptr, ota_manager_context_t);
     ota_obj = ptr;
     ptr->is_ota_upgrading = is_ota_upgrading;
-    ptr->set_ota_upgrading = set_ota_upgrading;
-    ptr->get_ota_upgrade_progress = get_ota_upgrade_progress;
-    ptr->set_ota_upgrade_progress = set_ota_upgrade_progress;
-    ptr->get_ota_upgrade_state = get_ota_upgrade_state;
-    ptr->set_ota_upgrade_state = set_ota_upgrade_state;
-    ptr->get_ota_object = get_ota_object;
     ptr->dispatch_ota_event_wrapper = dispatch_ota_event_wrapper;
-
+    ptr->get_ota_info = get_ota_info;
     return ADD_MODULE("ota_manager", ID_MODULE_OTA, 0, on_post_ota_init, ptr,
         list_head, sizeof(ota_manager_context_t));
 }

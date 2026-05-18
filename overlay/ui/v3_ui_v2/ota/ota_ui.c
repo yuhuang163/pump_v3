@@ -228,7 +228,9 @@ void ui_display_ota_prepare(ui_manager_context_t *thiz)
     ota_info->progress = 0;
     ui_proc_ota_t *proc = (ui_proc_ota_t *)thiz->priv.play_info.user_data;
     if (proc && proc->ota) {
-        ota_info->ota_object = proc->ota->get_ota_object();
+        ota_info_t ota_dev_info = {0};
+        proc->ota->get_ota_info(&ota_dev_info); 
+        ota_info->ota_object = ota_dev_info.object;
     }
 }
 
@@ -245,17 +247,18 @@ int ui_display_ota_process(ui_manager_context_t *thiz)
 {
     EXCEPTION_CHECK_INT(thiz && ota_info && ota_info->root);
     ui_proc_ota_t *proc = (ui_proc_ota_t *)thiz->priv.play_info.user_data;
-    EXCEPTION_CHECK_INT(proc);
+    EXCEPTION_CHECK_INT(proc && proc->ota);
     uint8_t ota_status = proc->ota_status;
-    uint8_t progress = proc->ota->get_ota_upgrade_progress();
+    ota_info_t ota_dev_info = {0};
+    proc->ota->get_ota_info(&ota_dev_info); 
 #if IS_SUPPORT_OTA_COMP_BG
     ui_ota_background_update(thiz);
 #endif
     ui_ota_progress_arc_update(thiz, ota_status);
-    ui_ota_text_update(thiz, ota_status, progress);
+    ui_ota_text_update(thiz, ota_status, ota_dev_info.progress);
     ui_ota_icon_update(thiz, ota_status);
     ota_info->ota_status = ota_status;
-    ota_info->progress = progress;
+    ota_info->progress = ota_dev_info.progress;
     ota_info->force_update = false;
     thiz->priv.fps_count++;
     if (ota_status == OTA_UI_STATUS_DOWNLOADING) {

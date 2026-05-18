@@ -440,19 +440,11 @@ static void hyn_touch_ota_process(void)
     }
 #endif
     hyn_irq_control(false);
-    bsp_touch_key_ota_event_cb(KEY_OTA_EVENT_UPDATE_START, 0);
 #if (BSP_TOUCH_IC_FW_OTA_AUTO == 1)
     uint8_t ret = touch_fw_update_handler_force(true);
 #else
     uint8_t ret = touch_fw_update_handler_force(false);
 #endif
-    if (ret != 0) {
-        msleep(1000);
-        bsp_touch_key_ota_event_cb(KEY_OTA_EVENT_UPDATE_FAIL, 0);
-    } else {
-        bsp_touch_key_ota_event_cb(KEY_OTA_EVENT_UPDATE_SUCCESS, 100);
-    }
-
     s_is_upgrading = false;
     hyn_irq_control(true);
 #if HYN_TOUCH_USE_POLL
@@ -702,12 +694,12 @@ int bsp_add_touch_key_ota_event_cb(void *args)
     return BSP_OK;
 }
 
-void bsp_touch_key_ota_event_cb(key_ota_event_e event, uint8_t progress)
+void bsp_touch_key_ota_event_cb(key_ota_event_e event, int total_size, int recv_size)
 {
     if (s_key_ota_event_cb == NULL) {
         return;
     }
-    s_key_ota_event_cb(event, progress);
+    s_key_ota_event_cb(event, total_size, recv_size);
 }
 
 int bsp_start_touch_key_update_fw(void)

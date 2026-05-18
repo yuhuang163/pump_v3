@@ -64,7 +64,7 @@ uint8_t touch_fw_update_handler_force(bool force_update);
 bool touch_firmware_is_lower_than_image(int current_version);
 int touch_firmware_target_version(void);
 void bsp_touch_rst_pin_output_set(uint8_t high_level);
-void bsp_touch_key_ota_event_cb(key_ota_event_e event, uint8_t progress);
+void bsp_touch_key_ota_event_cb(key_ota_event_e event, int total_size, int recv_size);
 #ifdef __cplusplus
 }
 #endif
