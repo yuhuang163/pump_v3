@@ -125,7 +125,8 @@ static int factory_tests_aging_test_enter_mode1(void)
     pumping_time = long_suction_table[long_level_table[BREAST_PUMP_LEVEL_15]].pumping_time;
     valve_on_time = long_suction_table[long_level_table[BREAST_PUMP_LEVEL_15]].valve_on_time;
     hold_time = LONG_SUCTION_HOLD_TIME;
-    sleep_time = short_suction_time_table[SUCTION_SPEED_MID] - pumping_time - valve_on_time - hold_time;
+    uint16_t total_time = ONE_MIN_TIME_MS / long_pump_freq_table[BREAST_PUMP_LEVEL_15][SUCTION_SPEED_MID];
+    sleep_time = total_time - pumping_time - valve_on_time - hold_time;
     if (sleep_time < PUMP_SLEEP_TIME_MIN || sleep_time > PUMP_SLEEP_TIME_MAX) {
         sleep_time = PUMP_SLEEP_TIME_MIN;
         LOG_TEST("work period error");

@@ -15,18 +15,15 @@ extern "C" {
 #define ONE_MIN_TIME_MS                    60000  /// 1分钟时间，单位ms
 #define SHORT_SUCTION_HOLD_TIME            0  /// 短吸保持时间，单位ms
 #define LONG_SUCTION_HOLD_TIME             0 /// 长吸保持时间，单位ms
-#define SHORT_SUCTION_TIME_0               ((ONE_MIN_TIME_MS / 90 / 10)   * 10)  /// 1次吸奶时间，单位ms
-#define SHORT_SUCTION_TIME_1               ((ONE_MIN_TIME_MS / 100 / 10)  * 10)  /// 1次吸奶时间，单位ms
-#define SHORT_SUCTION_TIME_2               ((ONE_MIN_TIME_MS / 110 / 10)  * 10)  /// 1次吸奶时间，单位ms
 #define PUMP_SLEEP_TIME_MAX                2000  /// 最大休眠时间，单位ms
 #define PUMP_SLEEP_TIME_MIN                20  /// 最小休眠时间，单位ms
 #define IS_USE_NEW_SUCTION                 0 /// 是否使用新的吸力参数表 //时光的吸力参数表
+#define SHORT_SUCTION_DEFAULT_FREQ         90
+#define LONG_SUCTION_DEFAULT_FREQ          40
 
 /// 短吸吸奶时间表
-static const uint16_t short_suction_time_table[SUCTION_SPEED_MAX] = {
-    SHORT_SUCTION_TIME_0, 
-    SHORT_SUCTION_TIME_1, 
-    SHORT_SUCTION_TIME_2, 
+static const uint16_t short_suction_freq_table[SUCTION_SPEED_MAX] = {
+    90, 100, 110, 
 };
 
 #if IS_USE_NEW_SUCTION
