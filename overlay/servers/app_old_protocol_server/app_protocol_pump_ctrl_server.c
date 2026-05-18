@@ -871,7 +871,7 @@ static bool app_old_comm_check_if_start_block_abnormal(uint8_t ctrl_status)
         return false;
     }
 
-    if (app_old_comm_get_battery_percent() <= FORBID_START_BAT_PERCENTAGE) {
+    if ((app_old_comm_get_battery_percent() <= FORBID_START_BAT_PERCENTAGE) && !batt_ctx->is_vbus_plug_in) {
         return app_old_comm_report_start_block_abnormal(OLD_PUBLISH_ABNORMAL_LOW_BAT_CANNOT_START);
     }
 
@@ -888,7 +888,8 @@ static bool app_old_comm_check_if_start_block_abnormal(uint8_t ctrl_status)
     //如果在引导窗口，则不允许启动
     window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
     EXCEPTION_CHECK_UINT(wm);
-    if (wm->is_current_window(wm, ID_WINDOW_GUIDE) || wm->is_current_window(wm, ID_WINDOW_POWER_OFF)) {
+    if (wm->is_current_window(wm, ID_WINDOW_GUIDE) || wm->is_current_window(wm, ID_WINDOW_POWER_OFF)
+        || wm->is_current_window(wm, ID_WINDOW_CHARGE)) {
         return app_old_comm_report_start_block_abnormal(OLD_PUBLISH_ABNORMAL_GUIDE_WINDOW);
     }
 
@@ -1169,8 +1170,7 @@ void app_old_comm_handle_set_user_define_req(uint8_t cal, uint8_t *cab)
     if (wm->is_current_window(wm, ID_WINDOW_PUMP)) {
         app_pump_custom_mode_start_handler();
         app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_ACK, APP_OLD_COMM_CID_USER_DEFINE, 4, cab);
-    } else if (wm->is_current_window(wm, ID_WINDOW_CHARGE) || wm->is_current_window(wm, ID_WINDOW_DUMMY)
-        ||wm->is_current_window(wm, ID_WINDOW_HOME)) {
+    } else if (wm->is_current_window(wm, ID_WINDOW_DUMMY) || wm->is_current_window(wm, ID_WINDOW_HOME)) {
         LOG_SRV("charge or dummy or home mode, dispatch pump window.");
         //multi_func_msg_data_t msg = {0};
         //msg.union_body.extra.window_id = ID_WINDOW_PUMP;
