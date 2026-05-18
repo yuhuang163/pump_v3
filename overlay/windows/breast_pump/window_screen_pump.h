@@ -143,7 +143,6 @@ typedef struct {
     ui_pump_info_t info; /// 当前泵奶信息.
     pump_setting_t setting; /// 当前泵奶设置信息.
     int8_t level_change; /// 当前档位变化值.
-    // int8_t level_adjust_too_large; /// 档位范围调整过大值.
     uint8_t level_sync_flag; /// 档位同步标志.
     uint8_t speed_sync_flag; /// 速度同步标志.
     uint8_t mode_sync_flag; /// 追奶模式同步标志.
@@ -182,12 +181,12 @@ void switch_pump_status_ui(ui_proc_pump_t *proc);
 void show_pump_result_ui(ui_proc_pump_t *proc);
 void pump_result_go_to_home_window(ui_proc_pump_t *proc);
 /// 移除UI相关
-void pump_result_ui_hdr_remove(void);
-void pump_level_ui_hdr_remove(void);
-void pump_both_level_ui_hdr_remove(void);
-void pump_speed_ui_hdr_remove(void);
-void pump_mode_ui_hdr_remove(void);
-void breastfeeding_mode_ui_hdr_remove(void);
+void pump_result_ui_exit(ui_proc_pump_t *proc);
+void pump_level_ui_exit(ui_proc_pump_t *proc);
+void pump_both_level_ui_exit(ui_proc_pump_t *proc);
+void pump_speed_ui_exit(ui_proc_pump_t *proc);
+void pump_mode_ui_exit(ui_proc_pump_t *proc);
+void breastfeeding_mode_ui_exit(ui_proc_pump_t *proc);
 void pump_ui_change_hdr_remove(ui_proc_pump_t *proc);
 void stop_pump_ui_animation(ui_proc_pump_t *proc);
 /// 按键处理相关

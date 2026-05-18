@@ -186,7 +186,7 @@ void switch_pump_speed_ui(ui_proc_pump_t *proc, bool is_increase)
     show_pump_speed_ui(proc);
 }
 
-void pump_speed_ui_hdr_remove(void)
+void pump_speed_ui_exit(ui_proc_pump_t *proc)
 {
     REMOVE_TASK_HANDLER_DIRECTLY(PUMP_SPEED_DISPLAY_TASK_NAME);
     REMOVE_TASK_HANDLER_DIRECTLY(PUMP_SPEED_SYNC_TASK_NAME);

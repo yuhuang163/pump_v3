@@ -137,7 +137,7 @@ void show_pump_result_ui(ui_proc_pump_t *proc)
     show_pump_result_loop(proc);
 }
 
-void pump_result_ui_hdr_remove(void)
+void pump_result_ui_exit(ui_proc_pump_t *proc)
 {
     REMOVE_TASK_HANDLER_DIRECTLY(PUMP_COMPLETE_DISPLAY_TASK_NAME);
 }

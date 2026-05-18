@@ -30,12 +30,12 @@
 */
 void stop_pump_ui_animation(ui_proc_pump_t *proc)
 {
-    pump_result_ui_hdr_remove();
-    pump_level_ui_hdr_remove();
-    pump_both_level_ui_hdr_remove();
-    pump_speed_ui_hdr_remove();
-    pump_mode_ui_hdr_remove();
-    breastfeeding_mode_ui_hdr_remove();
+    pump_result_ui_exit(proc);
+    pump_level_ui_exit(proc);
+    pump_both_level_ui_exit(proc);
+    pump_speed_ui_exit(proc);
+    pump_mode_ui_exit(proc);
+    breastfeeding_mode_ui_exit(proc);
     ui_manager_context_t *ui = proc->ui;
     EXCEPTION_CHECK_VOID(ui->hook && ui->hook->ui_animation_play_deinit);
     ui->hook->ui_animation_play_deinit(ui);
@@ -46,17 +46,17 @@ void pump_ui_change_hdr_remove(ui_proc_pump_t *proc)
 {
     EXCEPTION_CHECK_VOID(proc);
     if (proc->current_ui_type == PUMP_UI_TYPE_COMMON_MODE) {
-        pump_mode_ui_hdr_remove();
+        pump_mode_ui_exit(proc);
     } else if (proc->current_ui_type == PUMP_UI_TYPE_BREASTFEEDING_MODE) {
-        breastfeeding_mode_ui_hdr_remove();
+        breastfeeding_mode_ui_exit(proc);
     } else if (proc->current_ui_type == PUMP_UI_TYPE_LEVEL) {
-        pump_level_ui_hdr_remove();
+        pump_level_ui_exit(proc);
     } else if (proc->current_ui_type == PUMP_UI_TYPE_BOTH_LEVEL) {
-        pump_both_level_ui_hdr_remove();
+        pump_both_level_ui_exit(proc);
     } else if (proc->current_ui_type == PUMP_UI_TYPE_SPEED) {
-        pump_speed_ui_hdr_remove();
+        pump_speed_ui_exit(proc);
     } else if (proc->current_ui_type == PUMP_UI_TYPE_RESULT) {
-        pump_result_ui_hdr_remove();
+        pump_result_ui_exit(proc);
     } 
 }
 

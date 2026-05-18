@@ -131,7 +131,7 @@ void switch_home_pump_normal_mode(ui_proc_home_t *proc, bool is_increase)
     show_home_pump_normal_mode_ui(proc);
 }
 
-void home_pump_normal_mode_ui_hdr_remove(void)
+void home_pump_normal_mode_ui_exit(ui_proc_home_t *proc)
 {
     REMOVE_TASK_HANDLER_DIRECTLY(HOME_NORMAL_MODE_DISPLAY_TASK_NAME);
 }
