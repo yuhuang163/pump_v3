@@ -35,7 +35,7 @@ static bool is_power_off_by_charging(void)
 {
     battery_manager_context_t *battery = (battery_manager_context_t *)find_module(ID_MODULE_BATTERY);
     EXCEPTION_CHECK_BOOL(battery);
-    if (BATTERY_IS_CHARGING(battery->get_charge_status())) {
+    if (battery->is_vbus_plug_in() > 0) {
         return true; /// 充电状态下禁止进入待机状态.
     }
     return false;
