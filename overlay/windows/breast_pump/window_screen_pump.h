@@ -144,6 +144,8 @@ typedef struct {
     pump_setting_t setting; /// 当前泵奶设置信息.
     int8_t level_change; /// 当前档位变化值.
     uint8_t level_sync_flag; /// 档位同步标志.
+    int8_t both_level_change; /// 当前档位变化值.
+    uint8_t both_level_sync_flag; /// 档位同步标志.
     uint8_t speed_sync_flag; /// 速度同步标志.
     uint8_t mode_sync_flag; /// 追奶模式同步标志.
 #if IS_SUPPORT_AIR_LEAKAGE_WARNING
