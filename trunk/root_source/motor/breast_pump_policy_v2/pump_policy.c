@@ -196,9 +196,9 @@ void pump_policy_info_reset(struct motor_manager_context *thiz, motor_policy_run
     /// 通过map参数获取吸力参数
     if (map_para.mode_type == SUCTION_MODE_SHORT || map_para.mode_type == SUCTION_MODE_MIX_SHORT) {
         pump_level = short_level_table[runtime->pump_level[pump_id]]; /// 获取负压等级
-        info->original.pump_level    = short_suction_table[pump_level].pump_level * PUMP_DUTY_SCALE_FACTOR;
-        info->original.pumping_time  = short_suction_table[pump_level].pumping_time;
-        info->original.valve_on_time = short_suction_table[pump_level].valve_on_time;
+        info->original.pump_level    = thiz->priv.suction_para->short_suction_table[pump_level].pump_level * PUMP_DUTY_SCALE_FACTOR;
+        info->original.pumping_time  = thiz->priv.suction_para->short_suction_table[pump_level].pumping_time;
+        info->original.valve_on_time = thiz->priv.suction_para->short_suction_table[pump_level].valve_on_time;
         info->original.hold_time     = SHORT_SUCTION_HOLD_TIME; 
         runtime->pump_freq[pump_id] = short_suction_freq_table[runtime->pump_speed[pump_id]];
         if (runtime->pump_freq[pump_id] == 0) {
@@ -217,15 +217,16 @@ void pump_policy_info_reset(struct motor_manager_context *thiz, motor_policy_run
             runtime->pump_level[pump_id], info->original.pump_level, runtime->pump_speed[pump_id],
             total_time, runtime->pump_freq[pump_id], runtime->freq_sync_flag);
     } else {
-        runtime->pump_freq[pump_id] = long_pump_freq_table[runtime->pump_level[pump_id]][runtime->pump_speed[pump_id]];
+        runtime->pump_freq[pump_id] = thiz->priv.suction_para->long_pump_freq_table[runtime->pump_level[pump_id]][runtime->pump_speed[pump_id]];
         if (runtime->pump_freq[pump_id] == 0) {
             LOGW("invalid long suction freq:%d/%d", map_para.level, map_para.speed);
             runtime->pump_freq[pump_id] = LONG_SUCTION_DEFAULT_FREQ; /// 使用默认频率
         }
         pump_level = long_level_table[runtime->pump_level[pump_id]]; /// 获取负压等级
-        info->original.pump_level    = long_suction_table[pump_level].pump_level * PUMP_DUTY_SCALE_FACTOR;
-        info->original.pumping_time  = long_suction_table[pump_level].pumping_time;
-        info->original.valve_on_time = long_suction_table[pump_level].valve_on_time;
+        info->original.pump_level    = thiz->priv.suction_para->long_suction_table[pump_level].pump_level * PUMP_DUTY_SCALE_FACTOR;
+        info->original.pumping_time  = thiz->priv.suction_para->long_suction_table[pump_level].pumping_time;
+        info->original.valve_on_time = thiz->priv.suction_para->long_suction_table[pump_level].valve_on_time;
+
         info->original.hold_time     = LONG_SUCTION_HOLD_TIME; 
         total_time = ONE_MIN_TIME_MS / runtime->pump_freq[pump_id];
         info->original.sleep_time    = total_time - info->original.pumping_time - info->original.valve_on_time - 

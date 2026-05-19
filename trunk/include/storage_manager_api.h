@@ -31,6 +31,9 @@ typedef enum {
     STORE_ID_FACTORY_AGE_DISPLAY_FLAG,      /// 工厂老化展示标志
     STORE_ID_FACTORY_FSENSOR_CALI_FLAG,     /// 工厂fsensor校准标志
     STORE_ID_FACTORY_IMU_CALI_DATA,         /// 工厂陀螺仪校准数据
+    STORE_ID_FACTORY_SUCTION_TABLE,         /// 工厂预设泵奶参数
+    STORE_ID_FACTORY_MOTOR_TYPE,            /// 工厂预设泵类型
+    STORE_ID_FACTORY_BATTERY_TYPE,          /// 工厂预设电池类型
     STORE_ID_AUDIO_PACKET_INFO = 200,       /// 语音包信息
     STORE_ID_THEME_PACKET_INFO,             /// 主题包信息
     STORE_ID_BREAST_PUMP_INFO = 300,        /// 吸奶信息

@@ -13,6 +13,7 @@ extern "C" {
 #include "root_common_base.h" // IWYU pragma: keep
 #include "broadcast_manager_api.h"
 #include "motor_policy.h" // IWYU pragma: keep
+#include "persist_storage.h" // IWYU pragma: keep
 
 /*
 * 马达策略执行动作
@@ -101,6 +102,7 @@ typedef struct motor_manager_context {
     struct __motor_private {
         struct breast_pump_manager_context *pump_ctx;
         struct rt_device_node *motor_dev;
+        struct storage_manager_context *st;
         broadcast_obj_t m_bdc;
         thread_context_t motor_play_thd;  /// 播放线程.
         list_head_t policy_list; /// 马达各种策略链表头指针.
@@ -111,6 +113,7 @@ typedef struct motor_manager_context {
         uint8_t motor_state;          /// 马达状态
         uint8_t is_user_stoped;       /// 用户停止
         uint8_t user_debug_status;    /// 用户调试状态
+        factory_suction_para_t *suction_para;
     } priv;
 
 /// public
@@ -136,6 +139,8 @@ typedef struct motor_manager_context {
     int (*set_time_policy_remaining_time)(uint32_t remaining_time);
     /// 获取当前策略泵档位对应的pump目标时间，单位ms
     uint32_t (*get_current_policy_pump_time)(uint8_t pump_id);
+    /// 获取当前泵奶参数表
+    uint8_t (*get_local_suction_table)(factory_suction_para_t **suction_para);
 #if MOTOR_DRIVER_VERSION == MOTOR_DRIVER_V2
     /// 获取策略运行时间，单位ms
     uint32_t (*get_policy_running_time)(void);

@@ -69,6 +69,16 @@ typedef struct {
     uint8_t fsensor_cali_flag; /// fsensor校准标志//0-未校准 1-校准
 } factory_flag_info_t;
 
+/// 工厂烧录泵电机类型
+#define FACTORY_MOTOR_TYPE_DEFAULT    0  /// 未烧录
+#define FACTORY_MOTOR_TYPE_LONGYI    1  /// 龙一泵
+#define FACTORY_MOTOR_TYPE_SHIGUANG  2  /// 时光泵
+
+/// 工厂烧录电池厂商类型
+#define FACTORY_BATTERY_TYPE_DEFAULT  0  /// 未烧录
+#define FACTORY_BATTERY_TYPE_VENDOR1  1  /// 电池厂商1
+#define FACTORY_BATTERY_TYPE_VENDOR2  2  /// 电池厂商2
+
 typedef struct {
     uint8_t product_id[DEVICE_PRODUCT_ID_LEN];
     uint8_t device_id[DEVICE_DEVICE_ID_LEN];
@@ -82,7 +92,9 @@ typedef struct {
     uint8_t region_id;   /// 区域ID, 中版，俄版，欧版，美版...
 #if IS_SUPPORT_DEVICE_LIGHT_SENSOR_CALIB
     int32_t light_sensor_calib_tbl[LIGHT_SENSOR_CALIB_POINT_NUM]; /// 光感校准数据
-    uint8_t rsv[32]; /// 保留
+    uint8_t motor_type;//设备泵电机类型
+    uint8_t battery_type; //电池类型
+    uint8_t rsv[30]; /// 保留
 #endif
 } __attribute__((packed)) factory_dev_info_t;
 
@@ -352,6 +364,12 @@ typedef struct {
     uint8_t dfu_type;  /// 0:dfu  1:fast dfu
 } sec_sys_ver_t;
 
+typedef struct {
+    suction_parameters_t short_suction_table[SUCTION_LEVEL_MAX];
+    suction_parameters_t long_suction_table[SUCTION_LEVEL_MAX];
+    uint16_t long_pump_freq_table[BREAST_PUMP_LEVEL_MAX][SUCTION_SPEED_MAX];
+} factory_suction_para_t;  
+
 /// 工厂校准数据结构, 恢复出厂不擦除.
 typedef struct factory_data_store {
     factory_flag_info_t flag_info;
@@ -359,6 +377,7 @@ typedef struct factory_data_store {
     #if IS_SUPPORT_DEVICE_IMU
     imu_cali_data_t imu;
     #endif
+    factory_suction_para_t factory_suction_para;
 } factory_data_store_t;
 
 #ifdef __cplusplus
