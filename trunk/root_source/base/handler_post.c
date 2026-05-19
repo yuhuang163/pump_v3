@@ -18,6 +18,10 @@
 #define DEBUG_HDR_TASK (1)
 #endif
 
+#ifndef HDR_WM_QUEUE_SEND_RETRY_TIMEOUT_MS
+#define HDR_WM_QUEUE_SEND_RETRY_TIMEOUT_MS (30)
+#endif
+
 #define HDR_OBJ_MARGIC_CODE (0xaabbccdd)
 
 #if DEBUG_HDR_TASK
@@ -38,7 +42,7 @@ typedef struct {
     uint32_t elapsed_time;
     list_head_t hdr_post_list;
     thread_context_t hdr_post_thd[HDR_WORK_THREAD_NUM];
-    os_message_id ui_msg_id;
+    os_message_id wm_msg_id;
 } hdr_post_context_t;
 
 typedef struct {
@@ -78,15 +82,15 @@ static void hdr_dispatch_task(hdr_post_context_t *ctx, hdr_post_args_t *post)
     int j = 0;
     memcpy(hdr_post, post, sizeof(hdr_post_args_t));
 
-    /// 是否来自UI任务.
-    if (hdr_post->run_on_ui_thd == 0x1) {
-        if (ctx->ui_msg_id) {
+    /// 是否来自wm任务.
+    if (hdr_post->run_on_wm_thd == 0x1) {
+        if (ctx->wm_msg_id) {
             hdr_post->timestamp = get_timestamp();
             #if DEBUG_HDR_TASK
-            LOG_HDR("post(UI):%d(%p/time:%ld) -> %s", i, ctx->ui_msg_id, hdr_post->timestamp, post->name);
+            LOG_HDR("post(wm):%p(time:%ld) -> %s", ctx->wm_msg_id, hdr_post->timestamp, post->name);
             #endif
             msg.msg_type = MSG_TYPE_HANDLER_POST_EVENT;
-            MSG_QUEUE_SEND(ctx->ui_msg_id, (void *)&msg, 0);
+            MSG_QUEUE_SEND(ctx->wm_msg_id, (void *)&msg, 0);
             return;
         }
     }
@@ -152,6 +156,11 @@ static int hdr_post_process_cb(multi_func_msg_data_t *msg, thread_context_t *thd
     LOG_HDR("(%s)EXEC_POST_TASK(from:%lu->%lu#name: %s/time=%ld), arg1: %ld, arg2: %ld******", THREAD_NAME_GET(thd),
         target->from_tid, (uint32_t)(thd->tid) % 1000, target->name, target->timestamp, target->arg1, target->arg2);
     #endif
+    if (target->cb == NULL) {
+        LOGE("null cb, name: %s", target->name ? target->name : "null");
+        return -1;
+    }
+
     exec_time = get_timestamp();
     thd->task_name = (char *)target->name;
     target->cb(target);
@@ -323,13 +332,13 @@ int is_handler_post_queue_busy(void)
 }
 
 /**
-* @brief 将UI线程消息句柄加入到投递线程池中.
+* @brief 将wm线程消息句柄加入到投递线程池中.
 */
-void handle_post_register_ui_thd_cb(os_message_id ui_msg_id, task_post_process_fptr **cb)
+void handle_post_register_wm_thd_cb(os_message_id wm_msg_id, task_post_process_fptr *cb)
 {
     hdr_post_context_t *ctx = thiz;
-    ctx->ui_msg_id = ui_msg_id;
-    *cb = (task_post_process_fptr *)hdr_post_process_cb;
+    ctx->wm_msg_id = wm_msg_id;
+    *cb = hdr_post_process_cb;
 }
 
 /**

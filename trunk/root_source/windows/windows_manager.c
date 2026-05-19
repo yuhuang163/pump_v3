@@ -374,9 +374,9 @@ static void window_dispatch_thread(const void *args)
     window_manager_context_t *wm = CONTAINER_OF(thd, window_manager_context_t, priv.window_dispatch_thd);
     multi_func_msg_data_t *msg = &wm->priv.new_msg;
     CREATE_MSG_QUEUE(&thd->msg_id, DISP_DISPATCH_EVT_MESQ_NUM);
-    task_post_process_fptr *hdr_process_cb = NULL;
+    task_post_process_fptr hdr_process_cb = NULL;
     REGISTER_TO_HANDLER_POST_POOL(thd->msg_id, &hdr_process_cb);
-    task_post_process_fptr *bcr_process_cb = NULL;
+    task_post_process_fptr bcr_process_cb = NULL;
     REGISTER_TO_BROCASE_THD_POOL(thd->msg_id, &bcr_process_cb);
     for (;;) {
         thd->is_running = 0;
@@ -400,18 +400,15 @@ static void window_dispatch_thread(const void *args)
                 WM_UNLOCK("--input");
                 break;
             case MSG_TYPE_HANDLER_POST_EVENT:
-                WM_LOCK("--hdr");
+                /// 已在 WM 线程，勿再抢 window_switch_lock，避免与窗口切换/回调嵌套死锁
                 if (hdr_process_cb) {
-                    (*hdr_process_cb)(msg, thd);
+                    hdr_process_cb(msg, thd);
                 }
-                WM_UNLOCK("--hdr");
                 break;
             case MSG_TYPE_BROADCAST_EVENT:
-                WM_LOCK("--bcr");
                 if (bcr_process_cb) {
-                    (*bcr_process_cb)(msg, thd);
+                    bcr_process_cb(msg, thd);
                 }
-                WM_UNLOCK("--bcr");
                 break;
             default:
                 break;

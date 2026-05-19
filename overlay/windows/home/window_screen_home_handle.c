@@ -176,7 +176,7 @@ static void home_power_key_event_cb(ui_proc_home_t *proc)
 {
     if (proc->current_ui_type == HOME_UI_TYPE_NORMAL_MODE_SELECT || 
         proc->current_ui_type == HOME_UI_TYPE_BF_MODE_SELECT) {
-        POST_TASK_HANDLER_NO_DELAY(home_start_key_event_ui_cb, proc, HOME_START_KEY_EVENT_TASK_NAME);
+        POST_WM_TASK_HANDLER_NO_DELAY(home_start_key_event_ui_cb, proc, HOME_START_KEY_EVENT_TASK_NAME);
     } else if (proc->current_ui_type == HOME_UI_TYPE_HOME) {
 #if IS_SUPPORT_NIGHT_LIGHT
         uint8_t battery_state = proc->battery->get_battery_state();
@@ -235,7 +235,7 @@ static int on_home_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
             if (proc->current_ui_type == HOME_UI_TYPE_PUMP_RESULT) {
                 LOG_WM("pump result, ignore key event.");
             } else {
-                POST_TASK_HANDLER_NO_DELAY(home_start_key_event_ui_cb, proc, HOME_START_KEY_EVENT_TASK_NAME);
+                POST_WM_TASK_HANDLER_NO_DELAY(home_start_key_event_ui_cb, proc, HOME_START_KEY_EVENT_TASK_NAME);
             }
             break;
         default:
@@ -254,11 +254,11 @@ static void on_home_ui_broadcast_receive_cb(broadcast_mask_id_t id, void *contex
         case ID_BROADCAST_PM_STATE_CHANGE: 
             LOG_WM("pm state: %d", arg1);
             if (arg1 == PM_BROADCAST_SYS_IDLE) {
-                POST_TASK_HANDLER_NO_DELAY_ARG1(home_pm_state_change_ui_cb, proc, HOME_UI_TYPE_HOME_IDLE,
+                POST_WM_TASK_HANDLER_NO_DELAY_ARG1(home_pm_state_change_ui_cb, proc, HOME_UI_TYPE_HOME_IDLE,
                     HOME_PM_STATE_CHANGE_UI_TASK_NAME);
             } else if (arg1 == PM_BROADCAST_SYS_IDLE_RELEASE) {
-                POST_TASK_HANDLER_DELAYED_ARG2(home_pm_state_change_ui_cb, 100, HOME_UI_TYPE_HOME,
-                    proc, HOME_PM_STATE_CHANGE_UI_TASK_NAME);
+                POST_WM_TASK_HANDLER_NO_DELAY_ARG1(home_pm_state_change_ui_cb, proc, HOME_UI_TYPE_HOME,
+                     HOME_PM_STATE_CHANGE_UI_TASK_NAME);
             } 
             break;
         case ID_BROADCAST_SYS_STATE_CHANGE:

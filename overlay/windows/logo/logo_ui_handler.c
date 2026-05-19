@@ -94,7 +94,7 @@ static void logo_ui_after_policy(ui_manager_context_t *ui, int index)
     ui_proc_logo_t *proc = (ui_proc_logo_t *)ui->priv.play_info.user_data;
     EXCEPTION_CHECK_VOID(proc);
     if (get_timestamp_ms(proc->last_progress_ani_time) >= LOGO_ANIMATION_DISPLAY_TIME) {
-        POST_TASK_HANDLER_NO_DELAY(logo_display_completed_cb, proc, LOGO_DISPLAY_TASK_NAME);
+        POST_WM_TASK_HANDLER_NO_DELAY(logo_display_completed_cb, proc, LOGO_DISPLAY_TASK_NAME);
     } 
 #endif
 }

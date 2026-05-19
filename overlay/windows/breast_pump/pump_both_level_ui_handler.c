@@ -85,7 +85,7 @@ static void pump_both_level_ui_after_policy(ui_manager_context_t *ui, int index)
     if (time_diff >= PUMP_LEVEL_DISPLAY_TIMEOUT) {
         proc->last_progress_ani_time = get_timestamp();
         LOG_UI("both level ui timeout: %d", proc->last_progress_ani_time);
-        POST_TASK_HANDLER_NO_DELAY(pump_both_level_display_completed_cb, proc,
+        POST_WM_TASK_HANDLER_NO_DELAY(pump_both_level_display_completed_cb, proc,
             PUMP_BOTH_LEVEL_DISPLAY_TASK_NAME);
     }
 }

@@ -96,7 +96,8 @@ static int entry_event_cb(window_lift_cycle_e new_state,
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);
         start_logo_ui_animation(proc);
-        POST_TASK_HANDLER_DELAYED_ARG1(touch_key_fw_version_check_cb, 500, 
+        /// 触控固件检查走 hdr 工作线程（含 I2C/IOCTL，非纯 UI，不宜占用 WM 线程）
+        POST_TASK_HANDLER_DELAYED_ARG1(touch_key_fw_version_check_cb, 500,
             proc, TOUCH_KEY_FW_VERSION_CHECK_TASK_NAME);
     }
     return 0;

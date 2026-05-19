@@ -47,7 +47,7 @@ static void pump_result_ui_after_policy(ui_manager_context_t *ui, int index)
     if (time_diff >= PUMP_RESULT_DISPLAY_TIMEOUT) {
         proc->last_progress_ani_time = get_timestamp();
         LOG_UI("result ui timeout: %d", proc->last_progress_ani_time);
-        POST_TASK_HANDLER_NO_DELAY(pump_result_display_completed_cb, proc, PUMP_COMPLETE_DISPLAY_TASK_NAME);
+        POST_WM_TASK_HANDLER_NO_DELAY(pump_result_display_completed_cb, proc, PUMP_COMPLETE_DISPLAY_TASK_NAME);
     } else if (time_diff >= 1000) {
         proc->forbid_start_pump = false;
     }

@@ -81,7 +81,7 @@ static void ota_display_completed_policy(ui_manager_context_t *ui)
         return;
     }
     proc->current_ui_type = OTA_UI_TYPE_NONE;
-    POST_TASK_HANDLER_NO_DELAY(ota_display_completed_cb, proc, OTA_DISPLAY_TASK_NAME);
+    POST_WM_TASK_HANDLER_NO_DELAY(ota_display_completed_cb, proc, OTA_DISPLAY_TASK_NAME);
 }
 
 static void ota_ui_after_policy(ui_manager_context_t *ui, int index)

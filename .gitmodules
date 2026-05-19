@@ -1,4 +1,4 @@
 [submodule "trunk/platform_chip/bes"]
 	path = trunk/platform_chip/bes
 	url = ssh://git@gitlab.luteos.site:2222/momcozy/momcozy_pump/momcozy_platform/bes_2710imc.git
-	branch = master
+	branch = develop

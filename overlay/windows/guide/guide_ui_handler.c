@@ -118,7 +118,7 @@ void guide_key_event_handler_v2(ui_proc_guide_t *proc, uint16_t keycode)
 {
     uint8_t page_index = proc->page_index;
     if (keycode == KEY_CODE_POWER) {
-        POST_TASK_HANDLER_NO_DELAY(guide_display_completed_cb, proc, GUIDE_DISPLAY_TASK_NAME);
+        POST_WM_TASK_HANDLER_NO_DELAY(guide_display_completed_cb, proc, GUIDE_DISPLAY_TASK_NAME);
         return;
     }
     switch (page_index) {
@@ -246,7 +246,7 @@ void guide_knob_left_event_handler(ui_proc_guide_t *proc)
 void guide_key_event_handler_v3(ui_proc_guide_t *proc, uint16_t keycode)
 {
     if (keycode == KEY_CODE_POWER) {
-        POST_TASK_HANDLER_NO_DELAY(guide_display_completed_cb, proc, GUIDE_DISPLAY_TASK_NAME);
+        POST_WM_TASK_HANDLER_NO_DELAY(guide_display_completed_cb, proc, GUIDE_DISPLAY_TASK_NAME);
         return;
     }
 }

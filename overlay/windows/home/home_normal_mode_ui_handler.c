@@ -43,7 +43,7 @@ static void home_pump_normal_mode_ui_after_policy(ui_manager_context_t *ui, int 
     if (get_timestamp_ms(proc->last_progress_ani_time) >= HOME_MODE_SELECT_DISPLAY_TIME) {
         proc->last_progress_ani_time = get_timestamp();
         LOG_UI("normal mode ui timeout: %d", proc->last_progress_ani_time);
-        POST_TASK_HANDLER_NO_DELAY(home_pump_normal_mode_ui_display_completed_cb, proc, HOME_NORMAL_MODE_DISPLAY_TASK_NAME);
+        POST_WM_TASK_HANDLER_NO_DELAY(home_pump_normal_mode_ui_display_completed_cb, proc, HOME_NORMAL_MODE_DISPLAY_TASK_NAME);
     }
 }
 

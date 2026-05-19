@@ -92,7 +92,7 @@ typedef struct {
     os_mutex_id m_lock;
     list_head_t list;
     thread_context_t bcr_work_thd[BCR_WORK_THREAD_NUM];
-    os_message_id ui_msg_id;
+    os_message_id wm_msg_id;
 } bcr_context_t;
 
 /*
@@ -153,19 +153,19 @@ static void post_bcr_task(bcr_context_t *ctx, broadcast_send_wrapper_t *send, br
 
     pkg->buf_crc = CRC16(&pkg->priv_data, sizeof(broadcast_priv_data_t));
 
-    /// 是否需要推到UI线程.
-    if (obj->run_on_ui_thd == 0x01) {
-        if (ctx->ui_msg_id) {
+    /// 是否需要推到WM线程.
+    if (obj->run_on_wm_thd == 0x01) {
+        if (ctx->wm_msg_id) {
             pkg->timestamp = get_timestamp();
             #if DEBUG_BCR_DISPATCH
-            LOG_BCR("=>now(%d):0x%lx(%s/time=%ld) -> UI", index, (is_v2 ? send->id.code_v2 : send->id.code), obj->name, pkg->timestamp);
+            LOG_BCR("=>now(%d):0x%lx(%s/time=%ld) -> wm", index, (is_v2 ? send->id.code_v2 : send->id.code), obj->name, pkg->timestamp);
             #endif
             msg.msg_type = MSG_TYPE_BROADCAST_EVENT;
-            ret = MSG_QUEUE_SEND(ctx->ui_msg_id, (void *)&msg, BCR_QUEUE_SEND_RETRY_TIMEOUT_MS);
+            ret = MSG_QUEUE_SEND(ctx->wm_msg_id, (void *)&msg, BCR_QUEUE_SEND_RETRY_TIMEOUT_MS);
             if (ret == 0) {
                 return;
             }
-            LOGE("broadcast send failed: 0x%lx(%s) -> UI, ret: %d",
+            LOGE("broadcast send failed: 0x%lx(%s) -> wm, ret: %d",
                 (is_v2 ? send->id.code_v2 : send->id.code), obj->name, ret);
         }
     }
@@ -260,12 +260,12 @@ static void bcr_work_thd(const void *args)
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-void broadcast_register_ui_thd_cb(os_message_id ui_msg_id, task_post_process_fptr **cb)
+void broadcast_register_wm_thd_cb(os_message_id wm_msg_id, task_post_process_fptr *cb)
 {
     bcr_context_t *ctx = thiz;
 
-    ctx->ui_msg_id = ui_msg_id;
-    *cb = (task_post_process_fptr *) bcr_process_pkg_cb;
+    ctx->wm_msg_id = wm_msg_id;
+    *cb = bcr_process_pkg_cb;
 }
 
 void init_broadcast_context(void)

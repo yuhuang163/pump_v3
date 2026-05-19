@@ -70,7 +70,7 @@ static void on_charge_window_battery_state_cb(void *user_data, battery_state_inf
     if (info->charge_status == CHARGE_STATE_ERROR) {
         show_charge_adapter_ui(proc);
     } else {
-        POST_TASK_HANDLER_NO_DELAY_ARG1(charge_ui_common_cb, proc, 
+        POST_WM_TASK_HANDLER_NO_DELAY_ARG1(charge_ui_common_cb, proc, 
                 CHARGE_HDR_EXIT_CHARGE_POLICY, CHARGE_PAGE_POLICY_TASK_NAME);
     } 
 }
@@ -87,7 +87,7 @@ static int on_charge_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t ke
     if (keytype == KEY_EVENT_LONG_3S) {
         if (proc->battery->get_charge_status() != CHARGE_STATE_ERROR) {
             LOG_WM("key post exit charge policy task");
-            POST_TASK_HANDLER_NO_DELAY_ARG1(charge_ui_common_cb, proc, 
+            POST_WM_TASK_HANDLER_NO_DELAY_ARG1(charge_ui_common_cb, proc, 
                 CHARGE_HDR_EXIT_CHARGE_POLICY, CHARGE_PAGE_POLICY_TASK_NAME);
         }
     } else if (keytype == KEY_EVENT_LONG_10S) { 
@@ -123,7 +123,7 @@ static int entry_event_cb(window_lift_cycle_e new_state, const struct window_con
         if (proc->battery->get_charge_status() == CHARGE_STATE_ERROR) {
             show_charge_adapter_ui(proc);
         } else {
-            POST_TASK_HANDLER_NO_DELAY_ARG1(charge_ui_common_cb, proc, 
+            POST_WM_TASK_HANDLER_NO_DELAY_ARG1(charge_ui_common_cb, proc, 
                 CHARGE_HDR_EXIT_CHARGE_POLICY, CHARGE_PAGE_POLICY_TASK_NAME);
         }
 

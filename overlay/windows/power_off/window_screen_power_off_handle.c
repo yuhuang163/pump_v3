@@ -81,8 +81,9 @@ static void on_power_off_window_battery_state_cb(void *user_data, battery_state_
     } else if(info->charge_status == CHARGE_STATE_ERROR) {
         show_power_off_charge_error_ui(proc);
     } else {
-        power_off_handle(proc);
-    } 
+        POST_TASK_HANDLER_NO_DELAY_ARG1(power_off_ui_common_cb, proc,
+            POWER_OFF_HDR_DISCHARGE_POWER_OFF, POWER_OFF_PAGE_POLICY_TASK_NAME);
+    }
 }
 
 static int on_power_off_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t keytype)
@@ -101,10 +102,11 @@ static int on_power_off_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t
     if (keytype == KEY_EVENT_LONG_3S) {
         if (proc->battery->get_charge_status() != CHARGE_STATE_ERROR) {
             LOG_WM("key post exit charge policy task");
-            POST_TASK_HANDLER_NO_DELAY_ARG1(power_off_ui_common_cb, proc, 
+            POST_WM_TASK_HANDLER_NO_DELAY_ARG1(power_off_ui_common_cb, proc, 
                 POWER_OFF_HDR_EXIT_CHARGE_POLICY, POWER_OFF_PAGE_POLICY_TASK_NAME);
         } else {
-            power_off_handle(proc);
+            POST_TASK_HANDLER_NO_DELAY_ARG1(power_off_ui_common_cb, proc,
+                POWER_OFF_HDR_DISCHARGE_POWER_OFF, POWER_OFF_PAGE_POLICY_TASK_NAME);
         }
     } else if (keytype == KEY_EVENT_LONG_10S) {
         LOG_WM("power off reboot");

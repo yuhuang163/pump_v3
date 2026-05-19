@@ -65,7 +65,7 @@ typedef struct broadcast_obj {
     void *context;
     void (*receiver_cb)(broadcast_mask_id_t id, void *context, int32_t arg1, int32_t arg2, broadcast_priv_data_t *pdata);
     broadcast_mask_id_t id;
-    uint8_t run_on_ui_thd;
+    uint8_t run_on_wm_thd;
 } broadcast_obj_t;
 
 /*
@@ -111,7 +111,7 @@ void unregister_broadcast_receiver(broadcast_obj_t *obj);
 void send_broadcast(broadcast_send_wrapper_t *send);
 int is_broadcast_queue_busy(void);
 bool is_broadcast_inited(void);
-void broadcast_register_ui_thd_cb(os_message_id ui_msg_id, task_post_process_fptr **cb);
+void broadcast_register_wm_thd_cb(os_message_id wm_msg_id, task_post_process_fptr *cb);
 
 /// 全局广播封装
 /**
@@ -184,7 +184,7 @@ do {  \
 /*
 * 注册到广播上下文.
 */
-#define REGISTER_TO_BROCASE_THD_POOL(ui_msg_id, process_cb_p) broadcast_register_ui_thd_cb(ui_msg_id, process_cb_p)
+#define REGISTER_TO_BROCASE_THD_POOL(wm_msg_id, process_cb_p) broadcast_register_wm_thd_cb(wm_msg_id, process_cb_p)
 
 #ifdef __cplusplus
 }

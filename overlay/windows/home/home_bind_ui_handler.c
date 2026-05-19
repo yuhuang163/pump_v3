@@ -50,7 +50,7 @@ static void home_bind_ui_after_policy(ui_manager_context_t *ui, int index)
     ui_display_home_bind_process(ui);
     uint32_t time_diff = get_timestamp_ms(proc->last_progress_ani_time);
     if (time_diff >= HOME_BIND_QRCODE_DISPLAY_TIMEOUT) {
-        POST_TASK_HANDLER_NO_DELAY(home_bind_display_completed_cb, proc, HOME_BIND_DISPLAY_TASK_NAME);
+        POST_WM_TASK_HANDLER_NO_DELAY(home_bind_display_completed_cb, proc, HOME_BIND_DISPLAY_TASK_NAME);
     }
 }
 
