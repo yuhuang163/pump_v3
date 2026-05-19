@@ -78,6 +78,8 @@ static void on_power_off_window_battery_state_cb(void *user_data, battery_state_
 
     if (BATTERY_IS_CHARGING(info->charge_status)) {
         show_power_off_charging_ui(proc);
+    } else if(info->charge_status == CHARGE_STATE_ERROR) {
+        show_power_off_charge_error_ui(proc);
     } else {
         power_off_handle(proc);
     } 
@@ -153,7 +155,10 @@ static int entry_event_cb(window_lift_cycle_e new_state,
                 if (BATTERY_IS_CHARGING(chage_state)) {
                     show_power_off_charging_ui(proc);
                     return 0;
-                } 
+                } else if(chage_state == CHARGE_STATE_ERROR) {
+                    show_power_off_charge_error_ui(proc);
+                    return 0;
+                }
             }
         }
 #endif

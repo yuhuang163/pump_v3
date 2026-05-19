@@ -59,9 +59,9 @@ static void pump_both_level_display_completed_cb(hdr_post_args_t *args)
 
     int time_index = 0;
     READ_PUMP_MODE_STEP_INDEX(proc->pump, time_index);
-    if (proc->level_sync_flag && proc->level_change != 0) {
+    if (proc->both_level_sync_flag && proc->both_level_change != 0) {
         for (uint8_t i = 0; i < BREAST_PUMP_NUM; i++) {
-            int8_t level = proc->setting.level[i] + proc->level_change ;
+            int8_t level = proc->setting.level[i] + proc->both_level_change ;
             if (level > BREAST_PUMP_LEVEL_15) {
                 level = BREAST_PUMP_LEVEL_15;
             } else if (level < 0) {
@@ -71,8 +71,8 @@ static void pump_both_level_display_completed_cb(hdr_post_args_t *args)
         }
         WRITE_PUMP_SETTING_INFO(proc->pump, time_index, true, proc->setting);
     }
-    proc->level_change = 0;
-    proc->level_sync_flag = false;
+    proc->both_level_change = 0;
+    proc->both_level_sync_flag = false;
     pump_sub_ui_exit_handler(proc);
 }
 
@@ -158,20 +158,20 @@ void switch_pump_both_control_type_ui(ui_proc_pump_t *proc, bool is_increase)
         int time_index = 0;
         READ_PUMP_MODE_STEP_INDEX(proc->pump, time_index);
         READ_PUMP_SETTING_INFO(proc->pump, time_index, proc->setting);
-        proc->level_change = 0;
+        proc->both_level_change = 0;
         if (is_increase) {
             for (uint8_t i = 0; i < BREAST_PUMP_NUM; i++) {
                 if (proc->setting.level[i] < BREAST_PUMP_LEVEL_15) {
-                    proc->level_change = 1;
-                    proc->level_sync_flag = true;
+                    proc->both_level_change = 1;
+                    proc->both_level_sync_flag = true;
                     break;
                 }
             }
         } else {
             for (uint8_t i = 0; i < BREAST_PUMP_NUM; i++) {
                 if (proc->setting.level[i] > BREAST_PUMP_LEVEL_0) {
-                    proc->level_change = -1;
-                    proc->level_sync_flag = true;
+                    proc->both_level_change = -1;
+                    proc->both_level_sync_flag = true;
                     break;
                 }
             }
@@ -186,18 +186,18 @@ void switch_pump_both_control_type_ui(ui_proc_pump_t *proc, bool is_increase)
 void switch_pump_both_level_ui(ui_proc_pump_t *proc, bool is_increase)
 {
     EXCEPTION_CHECK_VOID(proc && proc->pump);
-    int16_t left_level = proc->setting.level[0] + proc->level_change;
-    int16_t right_level = proc->setting.level[1] + proc->level_change;
+    int16_t left_level = proc->setting.level[0] + proc->both_level_change;
+    int16_t right_level = proc->setting.level[1] + proc->both_level_change;
     if (is_increase) {
         if (left_level < BREAST_PUMP_LEVEL_15 || right_level < BREAST_PUMP_LEVEL_15) {
-            proc->level_change++;
+            proc->both_level_change++;
         }
     } else {
         if (left_level > BREAST_PUMP_LEVEL_0 || right_level > BREAST_PUMP_LEVEL_0) {
-            proc->level_change--;
+            proc->both_level_change--;
         }
     }
-    proc->level_sync_flag = true;
+    proc->both_level_sync_flag = true;
     show_pump_both_level_ui(proc);
 }   
 
@@ -206,9 +206,9 @@ void pump_both_level_ui_exit(ui_proc_pump_t *proc)
     int time_index = 0;
     READ_PUMP_MODE_STEP_INDEX(proc->pump, time_index);
     REMOVE_TASK_HANDLER_DIRECTLY(PUMP_BOTH_LEVEL_DISPLAY_TASK_NAME);
-    if (proc->level_sync_flag && proc->level_change != 0) {
+    if (proc->both_level_sync_flag && proc->both_level_change != 0) {
         for (uint8_t i = 0; i < BREAST_PUMP_NUM; i++) {
-            int8_t level = proc->setting.level[i] + proc->level_change ;
+            int8_t level = proc->setting.level[i] + proc->both_level_change ;
             if (level > BREAST_PUMP_LEVEL_15) {
                 level = BREAST_PUMP_LEVEL_15;
             } else if (level < 0) {
@@ -218,6 +218,6 @@ void pump_both_level_ui_exit(ui_proc_pump_t *proc)
         }
         WRITE_PUMP_SETTING_INFO(proc->pump, time_index, true, proc->setting);
     }
-    proc->level_change = 0;
-    proc->level_sync_flag = false;
+    proc->both_level_change = 0;
+    proc->both_level_sync_flag = false;
 }
