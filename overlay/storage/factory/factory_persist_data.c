@@ -79,6 +79,29 @@ int read_imu_cali_data_from_flash(store_func_args_t args)
 }
 #endif
 
+void reset_factory_flag_info(storage_manager_context_t *ctx, factory_flag_info_t *flag_info)
+{
+    EXCEPTION_CHECK_VOID(ctx);
+    EXCEPTION_CHECK_VOID(flag_info);
+    memset(flag_info, 0, sizeof(factory_flag_info_t));
+    flag_info->deploy_flag = 0;
+    flag_info->age_display = 0;
+    flag_info->fsensor_cali_flag = 0;
+    for (int i = 0; i < FACTORY_AGE_INFO_MAX; i++) {
+        flag_info->age_info[i].age_flag = 0;
+        flag_info->age_info[i].age_cycle = 0; 
+        flag_info->age_info[i].age_time = 0;
+    }
+    store_func_args_t args = {
+        .ctx = ctx,
+        .arg1 = 0,
+        .arg2 = 0,
+        .val = flag_info,
+    };
+    LOG_STORE("reset factory flag info");
+    write_factory_flag_info_to_flash(args);
+}
+
 int write_factory_deploy_flag_to_flash(store_func_args_t args)
 {
     int ret = 0;
@@ -215,7 +238,7 @@ int read_factory_flag_info_from_flash(store_func_args_t args)
     if (ret == 0 && store_flag->magic == STORAGE_FAC_FLAG_MAGIC_NUM && store_flag->crc == crc) {
         memcpy(flag_info, &store_flag->flag_info, sizeof(factory_flag_info_t));
     } else {
-        memset(flag_info, 0, sizeof(factory_flag_info_t));
+        reset_factory_flag_info(args.ctx, flag_info);
         LOGE("read factory flag failure! ret: %d, magic: 0x%x,crc: 0x%x, expect_crc: 0x%x", ret, store_flag->magic, store_flag->crc, crc);
     }
     u_free(store_flag);
@@ -234,7 +257,9 @@ int write_factory_dev_info_to_flash(store_func_args_t args)
     memcpy(&store_flag->dev_info, device_info, sizeof(factory_dev_info_t));
     store_flag->crc = CRC16(&store_flag->dev_info, sizeof(factory_dev_info_t));
     ret = factory_flash_put(args.ctx, (uint8_t *)store_flag, sizeof(factory_dev_info_storage_t));
-    if (ret != 0) {
+    if (ret == 0) {
+        memcpy(&args.ctx->priv.factory_data.dev_info, device_info, sizeof(factory_dev_info_t));
+    } else {
         LOGE("write factory device_info failure! ret: %d", ret);
     }
     u_free(store_flag);
@@ -303,10 +328,10 @@ int read_factory_suction_table_from_flash(store_func_args_t args)
                                   pump2_long_pump_freq_table);
         LOG_STORE("suction table: longyi (motor_type=%u)", motor_type);
         break;
-    default:///use default 龙一泵参数
+    default:
         copy_preset_suction_table(suction_table, pump2_long_suction_table, pump2_short_suction_table,
                                   pump2_long_pump_freq_table);
-        LOG_STORE("suction table: default shiguang (motor_type=%u)", motor_type);
+        LOG_STORE("suction table: default longyi (motor_type=%u)", motor_type);
         break;
     }
     return 0;

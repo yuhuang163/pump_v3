@@ -48,6 +48,10 @@ typedef enum {
     TESTS_TLV_READ_BATTERY_CHARGE_CURRENT = 0x0020, /// 读取电池充电电流 (REQUEST Length=0; RESPONSE Length=4: byte0-3=电流uint32小端，单位mA)
     TESTS_TLV_LCD_COLOR_TEST_MODE = 0x0021, /// LCD颜色测试模式 (REQUEST Length=1: 0x01进入, 0x00退出; RESPONSE Length=1)
     TESTS_TLV_SET_BATTERY_CHARGE_CURRENT = 0x0022, /// 设置电池充电电流 (REQUEST Length=2: byte0-1=目标电流uint16小端，单位mA; RESPONSE Length=1: 0x00失败/0x01成功)
+    TESTS_TLV_WRITE_MOTOR_TYPE = 0x0023,         /// motor类型写入 (REQUEST Length=1: byte0=0x01龙一/0x02时光; RESPONSE Length=1: 0x00失败/0x01成功)
+    TESTS_TLV_READ_MOTOR_TYPE = 0x0024,          /// motor类型读取 (REQUEST Length=0; RESPONSE Length=1: byte0=0x01龙一/0x02时光)
+    TESTS_TLV_WRITE_BATTERY_VENDOR_TYPE = 0x0025, /// 电池厂商类型写入 (REQUEST Length=1: byte0=0x00厂商1/0x01厂商2; RESPONSE Length=1: 0x00失败/0x01成功)
+    TESTS_TLV_READ_BATTERY_VENDOR_TYPE = 0x0026,  /// 电池厂商类型读取 (REQUEST Length=0; RESPONSE Length=1: byte0=0x00厂商1/0x01厂商2)
     TESTS_TLV_ID_MAX,
 } tests_tlvs_id_e;
 
@@ -171,6 +175,14 @@ int tests_tlvs_read_battery_charge_current(comm_protocol_builder_t *builder, com
                     uint8_t *data, uint16_t data_len);
 /// 设置电池充电电流（产测）
 int tests_tlvs_set_battery_charge_current(comm_protocol_builder_t *builder, comm_protocol_service_t *service,
+                    uint8_t *data, uint16_t data_len);
+int tests_tlvs_write_motor_type(comm_protocol_builder_t *builder, comm_protocol_service_t *service,
+                    uint8_t *data, uint16_t data_len);
+int tests_tlvs_read_motor_type(comm_protocol_builder_t *builder, comm_protocol_service_t *service,
+                    uint8_t *data, uint16_t data_len);
+int tests_tlvs_write_battery_vendor_type(comm_protocol_builder_t *builder, comm_protocol_service_t *service,
+                    uint8_t *data, uint16_t data_len);
+int tests_tlvs_read_battery_vendor_type(comm_protocol_builder_t *builder, comm_protocol_service_t *service,
                     uint8_t *data, uint16_t data_len);
 
 /// NOTIFY上报 (设备主动上报)

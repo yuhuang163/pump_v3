@@ -71,8 +71,13 @@ typedef struct {
 
 /// 工厂烧录泵电机类型
 #define FACTORY_MOTOR_TYPE_DEFAULT    0  /// 未烧录
-#define FACTORY_MOTOR_TYPE_SHIGUANG  2  /// 时光泵
 #define FACTORY_MOTOR_TYPE_LONGYI    1  /// 龙一泵
+#define FACTORY_MOTOR_TYPE_SHIGUANG  2  /// 时光泵
+
+/// 工厂烧录电池厂商类型
+#define FACTORY_BATTERY_TYPE_DEFAULT  0  /// 未烧录
+#define FACTORY_BATTERY_TYPE_VENDOR1  1  /// 电池厂商1
+#define FACTORY_BATTERY_TYPE_VENDOR2  2  /// 电池厂商2
 
 typedef struct {
     uint8_t product_id[DEVICE_PRODUCT_ID_LEN];

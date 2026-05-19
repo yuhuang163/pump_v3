@@ -66,6 +66,11 @@ const static protocol_service_tlvs_handle_t protocol_service_tlvs_list[] = {
     {TESTS_TLV_SET_BATTERY_CHARGE_CURRENT, tests_tlvs_set_battery_charge_current},
     /// LCD颜色测试模式
     {TESTS_TLV_LCD_COLOR_TEST_MODE, tests_tlvs_lcd_color_test_mode},
+    /// 泵电机/电池厂商类型
+    {TESTS_TLV_WRITE_MOTOR_TYPE, tests_tlvs_write_motor_type},
+    {TESTS_TLV_READ_MOTOR_TYPE, tests_tlvs_read_motor_type},
+    {TESTS_TLV_WRITE_BATTERY_VENDOR_TYPE, tests_tlvs_write_battery_vendor_type},
+    {TESTS_TLV_READ_BATTERY_VENDOR_TYPE, tests_tlvs_read_battery_vendor_type},
 };
 
 /*
