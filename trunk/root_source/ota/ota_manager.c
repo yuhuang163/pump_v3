@@ -87,7 +87,12 @@ static void ota_upgrade_state_progress(ota_manager_context_t *ctx, ota_event_inf
     }
     ctx->priv.ota_info.recv_size = (info->args2 > info->args1) ? info->args1 : info->args2;
     ctx->priv.ota_info.total_size = info->args1;
-    uint8_t val = (ctx->priv.ota_info.recv_size * 100) / ctx->priv.ota_info.total_size;
+    uint8_t val = 0;
+    if (ctx->priv.ota_info.total_size > 0) {
+        val = (ctx->priv.ota_info.recv_size * 100) / ctx->priv.ota_info.total_size;
+    } else {
+        LOGE("ota size error:%d/%d", ctx->priv.ota_info.recv_size, ctx->priv.ota_info.total_size);
+    }
     set_ota_upgrade_progress(val);
 }
 
@@ -98,7 +103,12 @@ static void ota_upgrade_state_start(ota_manager_context_t *ctx, ota_event_info_t
     ctx->priv.ota_info.recv_size = (info->args2 > info->args1) ? info->args1 : info->args2;
     ctx->priv.ota_info.total_size = info->args1;
     set_ota_upgrading(true);
-    uint8_t val = (ctx->priv.ota_info.recv_size * 100) / ctx->priv.ota_info.total_size;
+    uint8_t val = 0;
+    if (ctx->priv.ota_info.total_size > 0) {
+        val = (ctx->priv.ota_info.recv_size * 100) / ctx->priv.ota_info.total_size;
+    } else {
+        LOGE("ota size error:%d/%d", ctx->priv.ota_info.recv_size, ctx->priv.ota_info.total_size);
+    }
     set_ota_upgrade_progress(val);
     set_ota_upgrade_state(OTA_UPGRADE_STATE_START);
     if (wm && wm->dispatch_new_window_args && 
