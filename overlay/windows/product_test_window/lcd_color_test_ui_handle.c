@@ -118,6 +118,6 @@ void lcd_color_test_keyevent_cb(ui_proc_product_test_t *proc, uint16_t keycode, 
     }
 
     if (proc->current_ui_type != PRODUCT_TEST_UI_TYPE_LCD_COLOR) {
-        POST_TASK_HANDLER_NO_DELAY(goto_lcd_color_test_policy, proc, GOTO_LCD_COLOR_TEST_TASK_NAME);
+        POST_WM_TASK_HANDLER_NO_DELAY(goto_lcd_color_test_policy, proc, GOTO_LCD_COLOR_TEST_TASK_NAME);
     }
 }

@@ -60,7 +60,7 @@ static int on_factory_reset_keyevent_hdr(void *user_data, uint16_t keycode, uint
     if (keytype == KEY_EVENT_LONG_2S) {
         proc->display_fac_rst_confirm_progress = true;
     } else if (keytype == KEY_EVENT_CLICK) {
-        POST_TASK_HANDLER_NO_DELAY(factory_reset_exit_task_cb, proc,FACTORY_RESET_EXIT_TASK_NAME);
+        POST_WM_TASK_HANDLER_NO_DELAY(factory_reset_exit_task_cb, proc,FACTORY_RESET_EXIT_TASK_NAME);
         proc->display_fac_rst_confirm_progress = false;
     } else if (keytype == KEY_EVENT_UP) {
         proc->display_fac_rst_confirm_progress = false;

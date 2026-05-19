@@ -51,7 +51,7 @@ static void home_pump_speed_popup_ui_finish_policy(ui_manager_context_t *ui, uin
     ui_proc_home_t *proc = (ui_proc_home_t *)ui->priv.play_info.user_data;
     home_popup_ui_type_update(proc, ID_POPUP_UI_NONE);
     if (popup_ui_index == ID_POPUP_UI_OP_SUCCESS_PRESET) {
-        POST_TASK_HANDLER_NO_DELAY(home_pump_speed_ui_display_completed_cb, proc, HOME_PUMP_SPEED_DISPLAY_TASK_NAME);
+        POST_WM_TASK_HANDLER_NO_DELAY(home_pump_speed_ui_display_completed_cb, proc, HOME_PUMP_SPEED_DISPLAY_TASK_NAME);
     }
 }
 
@@ -65,7 +65,7 @@ static void home_pump_speed_ui_after_policy(ui_manager_context_t *ui, int index)
         proc->speed_sync_flag = false;
         proc->last_progress_ani_time = get_timestamp();
         LOG_UI("speed ui timeout: %d", proc->last_progress_ani_time);
-        POST_TASK_HANDLER_NO_DELAY(home_pump_speed_ui_display_completed_cb, proc, HOME_PUMP_SPEED_DISPLAY_TASK_NAME);
+        POST_WM_TASK_HANDLER_NO_DELAY(home_pump_speed_ui_display_completed_cb, proc, HOME_PUMP_SPEED_DISPLAY_TASK_NAME);
     } else if (time_diff >= HOME_PUMP_SPEED_SYNC_TIMEOUT && proc->speed_sync_flag) {
         proc->popup_ui_type = ID_POPUP_UI_OP_SUCCESS_PRESET;
         proc->last_progress_ani_time = get_timestamp();

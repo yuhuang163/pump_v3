@@ -68,7 +68,7 @@ static void breastfeeding_mode_popup_ui_finish_policy(ui_manager_context_t *ui, 
             pump_complete_event_handler(proc);
             break;
         case ID_POPUP_UI_OP_SUCCESS:
-            POST_TASK_HANDLER_NO_DELAY(breastfeeding_mode_display_completed_cb, 
+            POST_WM_TASK_HANDLER_NO_DELAY(breastfeeding_mode_display_completed_cb, 
                 proc, BREASTFEEDING_MODE_DISPLAY_TASK_NAME);
             break;
         default:
@@ -85,12 +85,12 @@ static void breastfeeding_mode_ui_after_policy(ui_manager_context_t *ui, int ind
         proc->mode_sync_flag = false;
         proc->last_progress_ani_time = get_timestamp();
         LOG_UI("progress mode ui timeout: %d", proc->last_progress_ani_time);
-        POST_TASK_HANDLER_NO_DELAY(breastfeeding_mode_display_completed_cb, proc, BREASTFEEDING_MODE_DISPLAY_TASK_NAME);
+        POST_WM_TASK_HANDLER_NO_DELAY(breastfeeding_mode_display_completed_cb, proc, BREASTFEEDING_MODE_DISPLAY_TASK_NAME);
     } else {
         if (proc->goto_pump_home_ui) {
             proc->goto_pump_home_ui = false;
             proc->popup_ui_type = ID_POPUP_UI_OP_SUCCESS;
-            POST_TASK_HANDLER_NO_DELAY(breastfeeding_mode_sync, proc, BREASTFEEDING_MODE_SYNC_TASK_NAME);
+            POST_WM_TASK_HANDLER_NO_DELAY(breastfeeding_mode_sync, proc, BREASTFEEDING_MODE_SYNC_TASK_NAME);
             LOG_UI("goto progress mode upate: %d", get_timestamp());
         }
     }

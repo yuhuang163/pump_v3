@@ -132,12 +132,12 @@ static void product_test_broadcast_receive_cb(broadcast_mask_id_t id, void *cont
         case ID_BROADCAST_FACTORY_TEST_CMD:
             if (arg1 == TST_LCD_COLOR_TYPE) {
                 LOG_WM("lcd color test onoff:%d", arg2);
-                POST_TASK_HANDLER_NO_DELAY_ARG2(product_test_ui_common_cb, proc,
+                POST_WM_TASK_HANDLER_NO_DELAY_ARG2(product_test_ui_common_cb, proc,
                     PRODUCT_TEST_LCD_COLOR, arg2, PRODUCT_TEST_LCD_COLOR_TASK_NAME);
             }
             if (arg1 == TST_AGING_TEST_TYPE) {
                 LOG_WM("aging test onoff:%d", arg2);
-                POST_TASK_HANDLER_NO_DELAY_ARG2(product_test_ui_common_cb, proc,
+                POST_WM_TASK_HANDLER_NO_DELAY_ARG2(product_test_ui_common_cb, proc,
                     PRODUCT_TEST_AGING_TEST, arg2, PRODUCT_TEST_AGING_TEST_TASK_NAME);
             }
             break;
@@ -183,7 +183,7 @@ static int entry_event_cb(window_lift_cycle_e new_state,
         LOG_WM("==>%s window on resume", PAGE_NAME_STR);
         ADD_KEYEVENT_CB(proc->key, "product_test_wm", proc, PRODUCT_TEST_UI_KEY_CODE, 
             PRODUCT_TEST_UI_KEY_TYPE, product_test_ui_keyevent_hdr);
-        POST_TASK_HANDLER_DELAYED_ARG2(product_test_ui_common_cb, 100, PRODUCT_TEST_HOME, proc,
+        POST_WM_TASK_HANDLER_DELAYED_ARG2(product_test_ui_common_cb, 100, PRODUCT_TEST_HOME, proc,
             PRODUCT_TEST_HOME_TASK_NAME);
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>PRODUCT_TEST_ON_CREATE");

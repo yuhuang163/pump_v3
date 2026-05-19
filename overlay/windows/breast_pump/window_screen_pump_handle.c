@@ -265,7 +265,7 @@ static void on_pump_ui_broadcast_receive_cb(broadcast_mask_id_t id, void *contex
                     if (is_pump_working && PUMP_IS_GOING(pump_status)) {
                         REMOVE_ALL_HANDER_TASK();
                         LOG_WM("start pump state change task after %ds", PUMP_MODE_CHANGE_TIMEOUT);
-                        POST_TASK_HANDLER_DELAYED_ARG5(pump_ui_common_cb, PUMP_MODE_CHANGE_TIMEOUT,
+                        POST_WM_TASK_HANDLER_DELAYED_ARG5(pump_ui_common_cb, PUMP_MODE_CHANGE_TIMEOUT,
                                 PUMP_HDR_ACTION_CHANGE_PUMP_STATUS, LOOP_SHOW_PUMPING, proc, PUMP_STATE_CHANGE_TASK_NAME);
                     }
                     proc->ui_show_state = LOOP_SHOW_SWITCH_MODE;
@@ -280,7 +280,7 @@ static void on_pump_ui_broadcast_receive_cb(broadcast_mask_id_t id, void *contex
             } else if (arg1 == BREAST_PUMP_BROADCAST_COMPLETED) {
                 if (proc->popup_ui_type != ID_POPUP_UI_PUMP_FINISH_TIMEOUT && 
                     proc->pump_will_finish && PUMP_NO_FINISH(pump_status)) {
-                    POST_TASK_HANDLER_NO_DELAY_ARG1(pump_ui_common_cb, proc, PUMP_HDR_ACTION_PUMP_COMPLETE,
+                    POST_WM_TASK_HANDLER_NO_DELAY_ARG1(pump_ui_common_cb, proc, PUMP_HDR_ACTION_PUMP_COMPLETE,
                         PUMP_COMPLETE_TASK_NAME);
                     LOG_WM("pump finish, post pump complete task.");
                 } else {
@@ -291,7 +291,7 @@ static void on_pump_ui_broadcast_receive_cb(broadcast_mask_id_t id, void *contex
                 pump_popup_ui_type_update(proc, ID_POPUP_UI_PUMP_FINISH_TIMEOUT);
                 LOG_WM("pump will finish, post pump will finish task.");
             } else if (arg1 == BREAST_PUMP_BROADCAST_APP_COMPLETED) {
-                POST_TASK_HANDLER_NO_DELAY_ARG1(pump_ui_common_cb, proc, PUMP_HDR_ACTION_PUMP_COMPLETE, 
+                POST_WM_TASK_HANDLER_NO_DELAY_ARG1(pump_ui_common_cb, proc, PUMP_HDR_ACTION_PUMP_COMPLETE, 
                     PUMP_COMPLETE_TASK_NAME);
                 LOG_WM("pump app complete, post pump app complete task.");
             } else if (arg1 == BREAST_PUMP_BROADCAST_PUMP_ERROR) {
@@ -429,6 +429,6 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
 void pump_complete_event_handler(ui_proc_pump_t *proc)
 {
     proc->pump_will_finish = false;
-    POST_TASK_HANDLER_NO_DELAY_ARG1(pump_ui_common_cb, proc, PUMP_HDR_ACTION_PUMP_COMPLETE,
+    POST_WM_TASK_HANDLER_NO_DELAY_ARG1(pump_ui_common_cb, proc, PUMP_HDR_ACTION_PUMP_COMPLETE,
         PUMP_COMPLETE_TASK_NAME);
 }

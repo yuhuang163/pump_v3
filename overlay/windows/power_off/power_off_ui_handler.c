@@ -128,6 +128,7 @@ void power_off_handle(ui_proc_power_off_t *proc)
 void start_power_off_ui_animation(ui_proc_power_off_t *proc)
 {
     show_power_off_ui(proc);
+    /// 关机 ioctl + msleep + 重启，走 hdr 工作线程
     POST_TASK_HANDLER_DELAYED_ARG1(power_off_cb, POWER_OFF_DELAY_TIME, proc, POWER_OFF_TASK_NAME);
 }
 

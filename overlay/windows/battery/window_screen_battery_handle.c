@@ -102,7 +102,7 @@ static void on_battery_window_battery_state_change_cb(void *user_data, battery_s
     WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_BATTERY);
     if (BATTERY_IS_CHARGING(info->charge_status)) {
         if (proc->current_ui_type == BATTERY_UI_TYPE_LOW_POWER) {
-            POST_TASK_HANDLER_NO_DELAY_ARG1(battery_ui_common_cb, proc,
+            POST_WM_TASK_HANDLER_NO_DELAY_ARG1(battery_ui_common_cb, proc,
                 BATTERY_HDR_ACTION_LOW_POWER_EXIT, BATTERY_LOW_POWER_TASK_NAME);
         }
     }
@@ -117,7 +117,7 @@ static int entry_event_cb(window_lift_cycle_e new_state, const struct window_con
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);
         show_battery_low_power_ui(proc);
-        POST_TASK_HANDLER_DELAYED_ARG2(battery_ui_common_cb, 3000, BATTERY_HDR_ACTION_LOW_POWER_POWER_OFF,
+        POST_WM_TASK_HANDLER_DELAYED_ARG2(battery_ui_common_cb, 3000, BATTERY_HDR_ACTION_LOW_POWER_POWER_OFF,
                 proc, BATTERY_LOW_POWER_TASK_NAME);
     }
     return 0;

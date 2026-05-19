@@ -61,7 +61,7 @@ static int on_ota_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t ke
     }
 
     if (keycode == KEY_CODE_POWER) {
-        POST_TASK_HANDLER_NO_DELAY(ota_ui_switch_cb, proc, OTA_UI_START_TASK_NAME);
+        POST_WM_TASK_HANDLER_NO_DELAY(ota_ui_switch_cb, proc, OTA_UI_START_TASK_NAME);
     }
     return 0;
 }
