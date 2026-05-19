@@ -196,15 +196,24 @@ int pump_time_policy_update(struct motor_manager_context *thiz, motor_policy_run
         }
     } else {
 #if IS_SUPPORT_PUMP_SYNC
-        runtime->freq_sync_flag = true;
+        runtime->freq_sync_flag = true;   
+#if 0
+        /// 同频同步
         for (uint8_t i = 1; i < BREAST_PUMP_NUM; i++) {
             if (runtime->pump_freq[i] != runtime->pump_freq[0] && runtime->current_mode_type != PUMP_MODE_MIX) {
-            // if (runtime->pump_freq[i] != runtime->pump_freq[0]) {
                 runtime->freq_sync_flag = false;
                 break;
             }
         }
-        
+#else
+        /// 同档同步
+        for (uint8_t i = 1; i < BREAST_PUMP_NUM; i++) {
+            if (runtime->pump_level[i] != runtime->pump_level[0] || runtime->pump_freq[i] != runtime->pump_freq[0]) {
+                runtime->freq_sync_flag = false;
+                break;
+            }
+        }
+#endif
         if (runtime->freq_sync_flag) {
             for (uint8_t i = 0; i < BREAST_PUMP_NUM; i++) {
                 if (runtime->info[i].state.policy_update_lock) {
