@@ -90,17 +90,19 @@ resolve_root_device_name() {
 
 resolve_root_res_path() {
 	# 优先根据 GNUmakefile 的 ROOT_UI_VERSION 推导 ROOT_RES_PATH（与 product_info.h 中 ROOT_RES_PATH 的判断一致）
-	# product_info.h 当前依据 ROOT_UI_VERSION 在 V2/V3 间切换 ROOT_RES_PATH。
+	# product_info.h 当前依据 ROOT_UI_VERSION 在 V2/V3/V4 间切换 ROOT_RES_PATH。
 	local makefile="$PROJECT_DIR/GNUmakefile"
 	if [[ -f "$makefile" ]]; then
-		local root_ui_token root_ui_v2_value root_ui_v3_value
+		local root_ui_token root_ui_v2_value root_ui_v3_value root_ui_v4_value
 		root_ui_token=$(awk '/^ROOT_UI_VERSION[[:space:]]*\?=/{print $3; exit}' "$makefile")
 		root_ui_v2_value=$(awk '/^ROOT_UI_V2[[:space:]]*\?=/{print $3; exit}' "$makefile")
 		root_ui_v3_value=$(awk '/^ROOT_UI_V3[[:space:]]*\?=/{print $3; exit}' "$makefile")
+		root_ui_v4_value=$(awk '/^ROOT_UI_V4[[:space:]]*\?=/{print $3; exit}' "$makefile")
 
 		case "$root_ui_token" in
 			'$(ROOT_UI_V2)') printf "%s" "V2"; return 0 ;;
 			'$(ROOT_UI_V3)') printf "%s" "V3"; return 0 ;;
+			'$(ROOT_UI_V4)') printf "%s" "V4"; return 0 ;;
 			"$root_ui_v2_value")
 				if [[ -n "${root_ui_token:-}" ]]; then
 					printf "%s" "V2"
@@ -110,6 +112,12 @@ resolve_root_res_path() {
 			"$root_ui_v3_value")
 				if [[ -n "${root_ui_token:-}" ]]; then
 					printf "%s" "V3"
+					return 0
+				fi
+				;;
+			"$root_ui_v4_value")
+				if [[ -n "${root_ui_token:-}" ]]; then
+					printf "%s" "V4"
 					return 0
 				fi
 				;;
@@ -232,6 +240,7 @@ build_resource_bin_dirs() {
 	# 兼容旧 ROOT_RES_PATH=V1：目录已移除，统一回退到 bin/v3_res_v2
 	# V2 在 V3Pro 项目中优先查 bin/v3pro_res_v2，再回退 bin/v3_res_v2
 	# V3 同理：V3Pro 优先 bin/v3pro_res_v3，否则 bin/v3_res_v3，并回退 v2 资源包
+	# V4 同理：兼容 pack.sh V4 输出目录，以及按资源目录打包生成的 v3/v3pro_res_v4 目录。
 	local res_path="$1"
 	local product_family="$2"
 
@@ -263,6 +272,22 @@ build_resource_bin_dirs() {
 				)
 			fi
 			;;
+		V4)
+			if [[ "$product_family" == "V3Pro" ]]; then
+				RESOURCE_BIN_DIRS+=(
+					"$PROJECT_DIR/overlay/resources/bin/V4"
+					"$PROJECT_DIR/overlay/resources/bin/v3pro_res_v4"
+					"$PROJECT_DIR/overlay/resources/bin/v3_res_v4"
+					"$PROJECT_DIR/overlay/resources/bin/v3_res_v2"
+				)
+			else
+				RESOURCE_BIN_DIRS+=(
+					"$PROJECT_DIR/overlay/resources/bin/V4"
+					"$PROJECT_DIR/overlay/resources/bin/v3_res_v4"
+					"$PROJECT_DIR/overlay/resources/bin/v3_res_v2"
+				)
+			fi
+			;;
 		V3PRO_V2)
 			RESOURCE_BIN_DIRS+=(
 				"$PROJECT_DIR/overlay/resources/bin/v3pro_res_v2"
@@ -278,6 +303,21 @@ build_resource_bin_dirs() {
 		V3PRO_V3)
 			RESOURCE_BIN_DIRS+=(
 				"$PROJECT_DIR/overlay/resources/bin/v3pro_res_v3"
+				"$PROJECT_DIR/overlay/resources/bin/v3_res_v2"
+			)
+			;;
+		V3_V4)
+			RESOURCE_BIN_DIRS+=(
+				"$PROJECT_DIR/overlay/resources/bin/V3_V4"
+				"$PROJECT_DIR/overlay/resources/bin/v3_res_v4"
+				"$PROJECT_DIR/overlay/resources/bin/v3_res_v2"
+			)
+			;;
+		V3PRO_V4)
+			RESOURCE_BIN_DIRS+=(
+				"$PROJECT_DIR/overlay/resources/bin/V3PRO_V4"
+				"$PROJECT_DIR/overlay/resources/bin/v3pro_res_v4"
+				"$PROJECT_DIR/overlay/resources/bin/v3_res_v4"
 				"$PROJECT_DIR/overlay/resources/bin/v3_res_v2"
 			)
 			;;
@@ -562,6 +602,7 @@ do_rename_and_archive() {
 	# 这里优先匹配 all 目录下的 *_RES_all.bin，并兼容旧目录里的 *_RES.bin。
 	# V2 资源：bin/v3_res_v2，且在 GNUmakefile 指定为 V3Pro 产品时优先查 bin/v3pro_res_v2
 	# V3 资源：bin/v3_res_v3 或 bin/v3pro_res_v3（由 ROOT_RES_PATH / 产品族决定，见 build_resource_bin_dirs）
+	# V4 资源：bin/v3_res_v4 或 bin/v3pro_res_v4（由 ROOT_RES_PATH / 产品族决定，见 build_resource_bin_dirs）
 	# ROOT_RES_VERSION 定义为 major*100 + minor，例如 100 -> V01.00
 	local res_path res_version res_major res_minor res_major2 res_minor2 res_dir res_file res_source_dir
 	local res_lookup_dir
