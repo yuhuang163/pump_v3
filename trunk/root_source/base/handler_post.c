@@ -22,6 +22,10 @@
 #define HDR_WM_QUEUE_SEND_RETRY_TIMEOUT_MS (30)
 #endif
 
+#ifndef HDR_TIMER_TIMING_WARN_MS
+#define HDR_TIMER_TIMING_WARN_MS (30)
+#endif
+
 #define HDR_OBJ_MARGIC_CODE (0xaabbccdd)
 
 #if DEBUG_HDR_TASK
@@ -223,15 +227,19 @@ static void post_timer_callback(void *handle)
             if (exec_time < node->excpect_time) {
                 node->arrival_time = node->excpect_time - exec_time;
                 #if DEBUG_HDR_TASK
-                LOG_HDR("make amends(node=0x%lx) name:%s, arrival_time: %lu", 
-                    TO_PRINT(node), node->args.name, node->arrival_time);
+                if (node->arrival_time > HDR_TIMER_TIMING_WARN_MS) {
+                    LOG_HDR("make amends(node=0x%lx) name:%s, arrival_time: %lu",
+                        TO_PRINT(node), node->args.name, node->arrival_time);
+                }
                 #endif
                 /// 尝试下次调度.
                 goto make_amends;
             }
             #if DEBUG_HDR_TASK
-            LOG_HDR("POST_EXEC(node=0x%lx) name:%s, excpect_time:%lu, real_time: %u ******", 
-                TO_PRINT(node), node->args.name, node->excpect_time, exec_time);
+            if ((uint32_t)exec_time > node->excpect_time + HDR_TIMER_TIMING_WARN_MS) {
+                LOGW("POST_EXEC late(node=0x%lx) name:%s, excpect_time:%lu, real_time: %u",
+                    TO_PRINT(node), node->args.name, node->excpect_time, exec_time);
+            }
             #endif
             hdr_dispatch_task(ctx, &node->args);
 
