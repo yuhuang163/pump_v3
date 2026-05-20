@@ -1449,6 +1449,7 @@ int tests_tlvs_light_sensor_calib_data_read(comm_protocol_builder_t *builder, co
 int tests_tlvs_write_motor_type(comm_protocol_builder_t *builder, comm_protocol_service_t *service,
                                 uint8_t *data, uint16_t data_len)
 {
+#if IS_SUPPORT_DEVICE_LIGHT_SENSOR_CALIB
     EXCEPTION_CHECK_INT(builder && service);
     protocol_manager_context_t *protocol_ctx = get_protocol_ctx();
     EXCEPTION_CHECK_INT(protocol_ctx);
@@ -1480,11 +1481,13 @@ int tests_tlvs_write_motor_type(comm_protocol_builder_t *builder, comm_protocol_
         .value = &result,
     };
     return protocol_ctx->comm_protocol_builder_add_tlv(builder, service, &tlv_node);
+#endif
 }
 
 int tests_tlvs_read_motor_type(comm_protocol_builder_t *builder, comm_protocol_service_t *service,
                                uint8_t *data, uint16_t data_len)
 {
+#if IS_SUPPORT_DEVICE_LIGHT_SENSOR_CALIB
     EXCEPTION_CHECK_INT(builder && service);
     protocol_manager_context_t *protocol_ctx = get_protocol_ctx();
     EXCEPTION_CHECK_INT(protocol_ctx);
@@ -1507,11 +1510,13 @@ int tests_tlvs_read_motor_type(comm_protocol_builder_t *builder, comm_protocol_s
         .value = &motor_type,
     };
     return protocol_ctx->comm_protocol_builder_add_tlv(builder, service, &tlv_node);
+#endif
 }
 
 int tests_tlvs_write_battery_vendor_type(comm_protocol_builder_t *builder, comm_protocol_service_t *service,
                                          uint8_t *data, uint16_t data_len)
 {
+#if IS_SUPPORT_DEVICE_LIGHT_SENSOR_CALIB
     EXCEPTION_CHECK_INT(builder && service);
     protocol_manager_context_t *protocol_ctx = get_protocol_ctx();
     EXCEPTION_CHECK_INT(protocol_ctx);
@@ -1543,11 +1548,13 @@ int tests_tlvs_write_battery_vendor_type(comm_protocol_builder_t *builder, comm_
         .value = &result,
     };
     return protocol_ctx->comm_protocol_builder_add_tlv(builder, service, &tlv_node);
+#endif
 }
 
 int tests_tlvs_read_battery_vendor_type(comm_protocol_builder_t *builder, comm_protocol_service_t *service,
                                         uint8_t *data, uint16_t data_len)
 {
+#if IS_SUPPORT_DEVICE_LIGHT_SENSOR_CALIB
     EXCEPTION_CHECK_INT(builder && service);
     protocol_manager_context_t *protocol_ctx = get_protocol_ctx();
     EXCEPTION_CHECK_INT(protocol_ctx);
@@ -1570,6 +1577,7 @@ int tests_tlvs_read_battery_vendor_type(comm_protocol_builder_t *builder, comm_p
         .value = &battery_type,
     };
     return protocol_ctx->comm_protocol_builder_add_tlv(builder, service, &tlv_node);
+#endif
 }
 
 /// ======================== NOTIFY上报 ========================
