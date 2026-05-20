@@ -209,13 +209,22 @@ static void set_breast_pump_mode(uint32_t mode, uint8_t is_store_mode, uint8_t i
     if (m_info->do_work && mode != m_info->mode) {
         is_report = 0;
     }
-    
+
+    if (motor_ctx != NULL && motor_ctx->hook != NULL &&
+        motor_ctx->hook->monitor_all_mode_policy_obj != NULL) {
+        motor_ctx->hook->monitor_all_mode_policy_obj(motor_ctx, "set_mode_pre");
+    }
+
     if (mode >= BREAST_PUMP_MODE_MAX) {
         m_info->mode = BREAST_PUMP_PUMP_MODE_DEFAULT;
     } else {
         m_info->mode = mode;
     }
     SEND_BROADCAST_ARGS2(ID_BROADCAST_BREAST_PUMP_STATE_CHANGE, BREAST_PUMP_BROADCAST_MODE_CHANGE, m_info->mode);
+    if (motor_ctx != NULL && motor_ctx->hook != NULL &&
+        motor_ctx->hook->monitor_all_mode_policy_obj != NULL) {
+        motor_ctx->hook->monitor_all_mode_policy_obj(motor_ctx, "set_mode_post");
+    }
     EXCEPTION_CHECK_VOID(st);
     st->put_store_ram_val(STORE_ID_BREAST_PUMP_MODE, mode, 0, NULL);
     m_info->step_index = 0;

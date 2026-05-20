@@ -11,6 +11,7 @@
 *****************************************************************************************
 */
 #define POLICY_WORK_MSG_NUM            4 /// 策略工作消息队列数量
+#define MOTOR_POLICY_OBJ_MIN_ADDR      0x1000U
 
 /*
 * LOCAL VARIABLE DEFINITIONS
@@ -28,6 +29,11 @@ static os_timer_id policy_work_timer = NULL; /// 策略工作定时器.
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
+static bool is_valid_motor_policy_obj(const motor_policy_manager_t *policy_obj)
+{
+    return policy_obj != NULL && (uintptr_t)policy_obj >= MOTOR_POLICY_OBJ_MIN_ADDR;
+}
+
 static const motor_policy_manager_t *breast_pump_mode_policy_get(struct motor_manager_context *thiz, int breast_pump_mode)
 {
     list_head_t *head = &thiz->priv.policy_list;
@@ -41,8 +47,15 @@ static const motor_policy_manager_t *breast_pump_mode_policy_get(struct motor_ma
                     return NULL;
                 }
                 const motor_policy_manager_t *policy_obj = node->get_policy_cb(node->user_data);
-                LOG_MOTOR("==> policy obj: %p, name: %s, breast_pump_mode: %d", 
-                    policy_obj, node->name, breast_pump_mode);
+
+                if (!is_valid_motor_policy_obj(policy_obj)) {
+                    LOGE("invalid policy obj: %p, name: %s, breast_pump_mode: %d",
+                        policy_obj, node->name, breast_pump_mode);
+                    return NULL;
+                } else {
+                    LOG_MOTOR("==> policy obj: %p, name: %s, breast_pump_mode: %d",
+                        policy_obj, node->name, breast_pump_mode);
+                }
                 return policy_obj;
             }
         }
@@ -175,7 +188,6 @@ static void notify_app_motor_status_change(uint16_t report_type)
 
 static void breast_pump_start_prepare(struct motor_manager_context *thiz, const motor_policy_manager_t *policy_obj)
 {
-    EXCEPTION_CHECK_VOID(policy_obj);
     motor_policy_runtime_t *body = &thiz->priv.runtime;
     body->manager = (motor_policy_manager_t *)policy_obj;
     body->timed_policy = &body->manager->head;
@@ -283,6 +295,11 @@ void breast_pump_policy_prepare(struct motor_manager_context *thiz, uint8_t acti
         body->all_timed_policy_finish_flag = 0;
         LOG_MOTOR("%s mode policy", mode_name);
     }
+    if (!is_valid_motor_policy_obj(policy_obj)) {
+        LOGE("invalid policy obj: %p, mode: %s, breast_pump_mode: %d",
+            policy_obj, mode_name, body->breast_pump_mode);
+        // return; /// 不返回, 触发重启复现问题
+    }
     breast_pump_start_prepare(thiz, policy_obj);
     if (body->taste_run_flag) {
         notify_app_motor_status_change(OLD_PUBLISH_DATA_TASTE_START_REPORT);
@@ -381,8 +398,7 @@ void motor_mode_change_handler(struct motor_manager_context *thiz, int breast_pu
     EXCEPTION_CHECK_VOID(thiz);
     motor_policy_runtime_t *body = &thiz->priv.runtime;
     const motor_policy_manager_t *policy_obj = breast_pump_mode_policy_get(thiz, breast_pump_mode);
-    EXCEPTION_CHECK_VOID(policy_obj);
-    if ((uintptr_t)policy_obj < 0x1000U) {
+    if (!is_valid_motor_policy_obj(policy_obj)) {
         LOGE("invalid policy obj: %p, breast_pump_mode: %d", policy_obj, breast_pump_mode);
         return;
     }
