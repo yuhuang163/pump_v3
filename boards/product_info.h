@@ -59,6 +59,8 @@ extern "C" {
 #define ROOT_RES_PATH                                  "V2" /// 资源路径
 #elif (ROOT_UI_VERSION == ROOT_UI_V3)   
 #define ROOT_RES_PATH                                  "V3" /// 资源路径
+#elif (ROOT_UI_VERSION == ROOT_UI_V4)
+#define ROOT_RES_PATH                                  "V4" /// 资源路径
 #else
 #define ROOT_RES_PATH                                  "V2" /// 资源路径
 #endif
