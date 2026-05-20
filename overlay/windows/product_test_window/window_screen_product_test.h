@@ -64,7 +64,9 @@ typedef struct {
     storage_manager_context_t *st;
     breast_pump_manager_context_t *pump;
     broadcast_obj_t receiver;
+    window_broadcast_args_t broadcast_args; /// 广播投递参数.
     uint32_t margic;
+    uint8_t window_run_state; /// WM是否运行.
     uint32_t last_progress_ani_time; /// 上次进度动画时间.
     uint16_t current_ui_type; /// 当前UI类型. product_test_ui_type_e
     uint32_t lcd_color; /// 当前LCD颜色.

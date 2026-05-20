@@ -40,6 +40,10 @@ static void power_off_ui_common_cb(hdr_post_args_t *args)
     ui_proc_power_off_t *proc = args->user_data;
     EXCEPTION_CHECK_VOID(proc && proc->wm);
     WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_POWER_OFF);
+    if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
+        LOG_WM("wm not running, ignore.");
+        return;
+    }
     LOG_WM("margic:%x, action:%d.", proc->margic, args->arg1);
     int action = args->arg1;
     multi_func_msg_data_t msg = {0};
@@ -60,6 +64,14 @@ static void power_off_ui_common_cb(hdr_post_args_t *args)
             LOG_WM("%s", args->name);
             power_off_handle(proc);
             break;
+        case POWER_OFF_HDR_DISPLAY_CHARGING:
+            LOG_WM("%s", args->name);
+            show_power_off_charging_ui(proc);
+            break;
+        case POWER_OFF_HDR_DISPLAY_CHARGE_ERROR:
+            LOG_WM("%s", args->name);
+            show_power_off_charge_error_ui(proc);
+            break;
         default:
             break;
     }
@@ -70,6 +82,10 @@ static void on_power_off_window_battery_state_cb(void *user_data, battery_state_
     ui_proc_power_off_t *proc = (ui_proc_power_off_t *)user_data;
     EXCEPTION_CHECK_VOID(proc && info);
     WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_POWER_OFF);
+    if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
+        LOG_WM("wm not running, ignore.");
+        return;
+    }
     LOG_WM("charge status: %d, show charge adapter ui", info->charge_status);
     if (proc->current_ui_type != POWER_OFF_UI_TYPE_CHARGING && 
         proc->current_ui_type != POWER_OFF_UI_TYPE_CHARGE_ERROR) {
@@ -77,11 +93,17 @@ static void on_power_off_window_battery_state_cb(void *user_data, battery_state_
     }
 
     if (BATTERY_IS_CHARGING(info->charge_status)) {
-        show_power_off_charging_ui(proc);
+        if (proc->current_ui_type != POWER_OFF_UI_TYPE_CHARGING) {
+            POST_WM_TASK_HANDLER_NO_DELAY_ARG1(power_off_ui_common_cb, proc,
+                POWER_OFF_HDR_DISPLAY_CHARGING, POWER_OFF_PAGE_POLICY_TASK_NAME);
+        }
     } else if(info->charge_status == CHARGE_STATE_ERROR) {
-        show_power_off_charge_error_ui(proc);
+        if (proc->current_ui_type != POWER_OFF_UI_TYPE_CHARGE_ERROR) {
+            POST_WM_TASK_HANDLER_NO_DELAY_ARG1(power_off_ui_common_cb, proc,
+                POWER_OFF_HDR_DISPLAY_CHARGE_ERROR, POWER_OFF_PAGE_POLICY_TASK_NAME);
+        }
     } else {
-        POST_TASK_HANDLER_NO_DELAY_ARG1(power_off_ui_common_cb, proc,
+        POST_WM_TASK_HANDLER_NO_DELAY_ARG1(power_off_ui_common_cb, proc,
             POWER_OFF_HDR_DISCHARGE_POWER_OFF, POWER_OFF_PAGE_POLICY_TASK_NAME);
     }
 }
@@ -91,6 +113,11 @@ static int on_power_off_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t
     ui_proc_power_off_t *proc = user_data;
     EXCEPTION_CHECK_INT(proc && proc->battery);
     WINDOW_CONTEXT_GUARD_INT(proc, ID_WINDOW_POWER_OFF, 0);
+    if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
+        LOG_WM("wm not running, ignore.");
+        return 0;
+    }
+
     if (keycode != KEY_CODE_POWER) {
         return 0;
     }
@@ -105,7 +132,7 @@ static int on_power_off_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t
             POST_WM_TASK_HANDLER_NO_DELAY_ARG1(power_off_ui_common_cb, proc, 
                 POWER_OFF_HDR_EXIT_CHARGE_POLICY, POWER_OFF_PAGE_POLICY_TASK_NAME);
         } else {
-            POST_TASK_HANDLER_NO_DELAY_ARG1(power_off_ui_common_cb, proc,
+            POST_WM_TASK_HANDLER_NO_DELAY_ARG1(power_off_ui_common_cb, proc,
                 POWER_OFF_HDR_DISCHARGE_POWER_OFF, POWER_OFF_PAGE_POLICY_TASK_NAME);
         }
     } else if (keytype == KEY_EVENT_LONG_10S) {
@@ -129,6 +156,7 @@ static int entry_event_cb(window_lift_cycle_e new_state,
             on_power_off_keyevent_hdr);
         ADD_BATTERY_STATE_CB(proc->battery, proc, on_power_off_window_battery_state_cb);
 #endif
+        proc->window_run_state = WINDOW_RUN_STATE_RUNNING;
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         if (proc->led->hook->set_key_backlight) {
             proc->led->hook->set_key_backlight(proc->led, 0);
@@ -175,6 +203,7 @@ static int exit_event_cb(window_lift_cycle_e new_state,
     ui_proc_power_off_t *proc = CONTAINER_OF(thiz, ui_proc_power_off_t, w_ctx);
     switch (new_state) {
         case ID_SCR_STATE_ON_PAUSE:
+            proc->window_run_state = WINDOW_RUN_STATE_PAUSED;
             LOG_WM("==>%s window on pause", PAGE_NAME_STR);
             stop_power_off_ui_animation(proc);
             break;

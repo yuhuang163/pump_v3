@@ -14,9 +14,9 @@
 */
 #define PAGE_STATIC_NAME                         charge
 #define PAGE_NAME_STR                            "charge"
-#define CHARGE_PAGE_POLICY_TASK_NAME             "charge_page_policy"
 #define CHARGE_UI_KEY_CODE                       (KEY_CODE_POWER)
 #define CHARGE_UI_KEY_TYPE                       (KEY_EVENT_LONG_3S | KEY_EVENT_LONG_10S)
+#define CHARGE_PAGE_POLICY_TASK_NAME             "charge_page_policy"
 
 #define REMOVE_ALL_HANDER_TASK() \
 do { \
@@ -44,6 +44,10 @@ static void charge_ui_common_cb(hdr_post_args_t *args)
     ui_proc_charge_t *proc = args->user_data;
     EXCEPTION_CHECK_VOID(proc && proc->wm);
     WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_CHARGE);
+    if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
+        LOG_WM("wm not running, ignore.");
+        return;
+    }
     LOG_WM("margic:%x, action:%d.", proc->margic, args->arg1);
     int action = args->arg1;
     multi_func_msg_data_t msg = {0};
@@ -67,6 +71,10 @@ static void on_charge_window_battery_state_cb(void *user_data, battery_state_inf
     ui_proc_charge_t *proc = (ui_proc_charge_t *)user_data;
     EXCEPTION_CHECK_VOID(proc && info);
     WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_CHARGE);
+    if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
+        LOG_WM("wm not running, ignore.");
+        return;
+    }
     if (info->charge_status == CHARGE_STATE_ERROR) {
         show_charge_adapter_ui(proc);
     } else {
@@ -80,6 +88,11 @@ static int on_charge_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t ke
     ui_proc_charge_t *proc = user_data;
     EXCEPTION_CHECK_INT(proc);
     WINDOW_CONTEXT_GUARD_INT(proc, ID_WINDOW_CHARGE, 0);
+    if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
+        LOG_WM("wm not running, ignore.");
+        return 0;
+    }
+
     if (keycode != KEY_CODE_POWER) {
         return 0;
     }
@@ -108,6 +121,7 @@ static int entry_event_cb(window_lift_cycle_e new_state, const struct window_con
         ADD_KEYEVENT_CB(proc->key, "charge_wm", proc, CHARGE_UI_KEY_CODE, CHARGE_UI_KEY_TYPE,
             on_charge_keyevent_hdr);
         ADD_BATTERY_STATE_CB(proc->battery, proc, on_charge_window_battery_state_cb);
+        proc->window_run_state = WINDOW_RUN_STATE_RUNNING;
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);        
         if (proc->led && proc->led->hook) {
@@ -142,6 +156,7 @@ static int exit_event_cb(window_lift_cycle_e new_state, const struct window_cont
     EXCEPTION_CHECK_INT(wm);
     switch (new_state) {
         case ID_SCR_STATE_ON_PAUSE: 
+            proc->window_run_state = WINDOW_RUN_STATE_PAUSED;
             LOG_WM("==>%s window on pause", PAGE_NAME_STR);
             stop_charge_common_ui(proc);
             break;

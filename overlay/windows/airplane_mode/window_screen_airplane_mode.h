@@ -50,8 +50,10 @@ typedef struct ui_proc_airplane_mode {
     led_manager_context_t *led;
     airplane_mode_context_t *airplane;
     broadcast_obj_t receiver;
+    window_broadcast_args_t broadcast_args; /// 广播投递参数.
     uint32_t margic;
     uint32_t last_progress_ani_time; /// 上次进度动画时间.
+    uint8_t window_run_state; /// WM是否运行.
     uint16_t current_ui_type; /// 当前UI类型. airplane_mode_ui_type_e
     uint8_t show_countdown_time; /// 显示倒数时间
     uint8_t popup_ui_type; /// 当前弹窗类型. airplane_mode_popup_ui_type_e

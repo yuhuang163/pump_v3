@@ -16,12 +16,14 @@
 #define PRODUCT_TEST_HOME_TASK_NAME         "product_test_home_ui"
 #define PRODUCT_TEST_LCD_COLOR_TASK_NAME    "product_test_lcd_color_ui"
 #define PRODUCT_TEST_AGING_TEST_TASK_NAME   "product_test_aging_test_ui"
+#define PRODUCT_TEST_BROADCAST_TASK_NAME    "product_test_broadcast_ui"
 #define REMOVE_ALL_HANDER_TASK() \
 do { \
     LOG_WM("==>REMOVE_ALL_HANDER_TASK"); \
     REMOVE_TASK_HANDLER_DIRECTLY(PRODUCT_TEST_HOME_TASK_NAME); \
     REMOVE_TASK_HANDLER_DIRECTLY(PRODUCT_TEST_LCD_COLOR_TASK_NAME); \
     REMOVE_TASK_HANDLER_DIRECTLY(PRODUCT_TEST_AGING_TEST_TASK_NAME); \
+    REMOVE_TASK_HANDLER_DIRECTLY(PRODUCT_TEST_BROADCAST_TASK_NAME); \
 } while (0)
 
 /*
@@ -44,14 +46,18 @@ static void factory_tests_event_report_cb(void *user_data, uint16_t event_id, vo
     ui_proc_product_test_t *proc = (ui_proc_product_test_t *)user_data;
     EXCEPTION_CHECK_VOID(proc);
     WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_PRODUCT_TEST_MODE);
+    if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
+        LOG_WM("wm not running, ignore.");
+        return;
+    }
     LOG_WM("factory_tests_event_report_cb event_id: %d", event_id);
     switch (event_id) {
         case FAC_TST_READ_SW_VER_EVENT: {
             EXCEPTION_CHECK_VOID(data);
             char *sw_ver = (char *)data;
             LOG_WM("factory test sw ver: %s", sw_ver);
+            break;
         }
-        break;
         default:
             break;
     }
@@ -62,6 +68,10 @@ static void product_test_ui_common_cb(hdr_post_args_t *args)
     ui_proc_product_test_t *proc = args->user_data;
     EXCEPTION_CHECK_VOID(proc);
     WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_PRODUCT_TEST_MODE);
+    if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
+        LOG_WM("wm not running, ignore.");
+        return;
+    }
     int action = args->arg1;
     switch (action) {
         case PRODUCT_TEST_HOME: 
@@ -101,9 +111,12 @@ static void product_test_ui_common_cb(hdr_post_args_t *args)
 static int product_test_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t keytype)
 {
     ui_proc_product_test_t *proc = user_data;
-    EXCEPTION_CHECK_INT(proc);
+    EXCEPTION_CHECK_INT(proc && proc->key);
     WINDOW_CONTEXT_GUARD_INT(proc, ID_WINDOW_PRODUCT_TEST_MODE, 0);
-    EXCEPTION_CHECK_INT(proc->key);
+    if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
+        LOG_WM("wm not running, ignore.");
+        return 0;
+    }
     switch (proc->tests_mode) {
         case PRODUCT_TEST_HOME_MODE:
             product_home_test_keyevent_cb(proc, keycode, keytype);
@@ -122,38 +135,64 @@ static int product_test_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint1
     return 0;
 }
 
+static void product_test_broadcast_receive_ui_cb(hdr_post_args_t *args)
+{
+    window_broadcast_args_t *bcd_args = (window_broadcast_args_t *)args->user_data;
+    EXCEPTION_CHECK_VOID(bcd_args);
+    ui_proc_product_test_t *proc = (ui_proc_product_test_t *)bcd_args->context;
+    EXCEPTION_CHECK_VOID(proc);
+    WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_PRODUCT_TEST_MODE);
+    if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
+        LOG_WM("wm not running, ignore.");
+        return;
+    }
+    switch (bcd_args->code) {
+        case ID_BROADCAST_FACTORY_TEST_CMD:
+            if (bcd_args->arg1 == TST_LCD_COLOR_TYPE) {
+                LOG_WM("lcd color test onoff:%d", bcd_args->arg2);
+                POST_WM_TASK_HANDLER_NO_DELAY_ARG2(product_test_ui_common_cb, proc,
+                    PRODUCT_TEST_LCD_COLOR, bcd_args->arg2, PRODUCT_TEST_LCD_COLOR_TASK_NAME);
+            }
+            if (bcd_args->arg1 == TST_AGING_TEST_TYPE) {
+                LOG_WM("aging test onoff:%d", bcd_args->arg2);
+                POST_WM_TASK_HANDLER_NO_DELAY_ARG2(product_test_ui_common_cb, proc,
+                    PRODUCT_TEST_AGING_TEST, bcd_args->arg2, PRODUCT_TEST_AGING_TEST_TASK_NAME);
+            }
+            break;
+        default:
+            break;
+   }
+}
+
 static void product_test_broadcast_receive_cb(broadcast_mask_id_t id, void *context, int arg1, int arg2,
      broadcast_priv_data_t *pdata)
 {
     ui_proc_product_test_t *proc = (ui_proc_product_test_t *)context;
     EXCEPTION_CHECK_VOID(proc);
-    WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_PRODUCT_TEST_MODE);
-    switch (id.code) {
-        case ID_BROADCAST_FACTORY_TEST_CMD:
-            if (arg1 == TST_LCD_COLOR_TYPE) {
-                LOG_WM("lcd color test onoff:%d", arg2);
-                POST_WM_TASK_HANDLER_NO_DELAY_ARG2(product_test_ui_common_cb, proc,
-                    PRODUCT_TEST_LCD_COLOR, arg2, PRODUCT_TEST_LCD_COLOR_TASK_NAME);
-            }
-            if (arg1 == TST_AGING_TEST_TYPE) {
-                LOG_WM("aging test onoff:%d", arg2);
-                POST_WM_TASK_HANDLER_NO_DELAY_ARG2(product_test_ui_common_cb, proc,
-                    PRODUCT_TEST_AGING_TEST, arg2, PRODUCT_TEST_AGING_TEST_TASK_NAME);
-            }
-            break;
-        default:
-            break;
+    if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
+        LOG_WM("wm not running, ignore.");
+        return;
     }
+    proc->broadcast_args.context = proc;
+    proc->broadcast_args.code = id.code;
+    proc->broadcast_args.arg1 = arg1;   
+    proc->broadcast_args.arg2 = arg2;
+    if (pdata != NULL && pdata->size > 0) {
+        memcpy(&proc->broadcast_args.priv_data, pdata, sizeof(broadcast_priv_data_t));
+    } else {
+        memset(&proc->broadcast_args.priv_data, 0, sizeof(proc->broadcast_args.priv_data));
+    }
+    POST_WM_TASK_HANDLER_NO_DELAY(product_test_broadcast_receive_ui_cb, &proc->broadcast_args, PRODUCT_TEST_BROADCAST_TASK_NAME);
 }
 
-static void remove_product_test_pump_result_cb(breast_pump_manager_context_t *pump)
+static void remove_product_test_pump_result_cb(ui_proc_product_test_t *proc)
 {
-    EXCEPTION_CHECK_VOID(pump);
+    EXCEPTION_CHECK_VOID(proc && proc->pump);
     int pump_status = 0;
-    READ_PUMP_WORK_STATUS(pump, pump_status);
+    READ_PUMP_WORK_STATUS(proc->pump, pump_status);
     if (pump_status > BREAST_PUMP_IDLE && pump_status < BREAST_PUMP_FINISH) {
         LOG_WM("pump status: %d => goto finish", pump_status);
-        WRITE_PUMP_WORK_STATUS(pump, BREAST_PUMP_FINISH, 1);
+        WRITE_PUMP_WORK_STATUS(proc->pump, BREAST_PUMP_FINISH, 1);
     }
     tests_manager_context_t *tests_ctx = (tests_manager_context_t *)find_module(ID_MODULE_TESTS);
     EXCEPTION_CHECK_VOID(tests_ctx);
@@ -185,6 +224,7 @@ static int entry_event_cb(window_lift_cycle_e new_state,
             PRODUCT_TEST_UI_KEY_TYPE, product_test_ui_keyevent_hdr);
         POST_WM_TASK_HANDLER_DELAYED_ARG2(product_test_ui_common_cb, 100, PRODUCT_TEST_HOME, proc,
             PRODUCT_TEST_HOME_TASK_NAME);
+        proc->window_run_state = WINDOW_RUN_STATE_RUNNING;
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>PRODUCT_TEST_ON_CREATE");
         if (proc->led && proc->led->hook && proc->led->hook->set_key_backlight) {
@@ -217,6 +257,7 @@ static int exit_event_cb(window_lift_cycle_e new_state,
     EXCEPTION_CHECK_INT(wm);
     switch (new_state) {
         case ID_SCR_STATE_ON_PAUSE: 
+            proc->window_run_state = WINDOW_RUN_STATE_PAUSED;
             LOG_WM("==>%s window on pause", PAGE_NAME_STR);
             stop_product_test_ui(proc);
             break;
@@ -226,7 +267,7 @@ static int exit_event_cb(window_lift_cycle_e new_state,
             proc->margic = UI_WINDOW_MARGIC_CODE_INVALID;
             REMOVE_ALL_HANDER_TASK();
             unregister_broadcast_receiver(&proc->receiver);
-            remove_product_test_pump_result_cb(proc->pump);
+            remove_product_test_pump_result_cb(proc);
             if (proc->tests) {
                 proc->tests->remove_product_tests_evt_lisenser(factory_tests_event_report_cb);
             } else {

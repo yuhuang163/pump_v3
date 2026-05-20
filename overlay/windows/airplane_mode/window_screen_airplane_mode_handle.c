@@ -14,11 +14,9 @@
 #define AIRPLANE_MODE_UI_KEY_CODE               (KEY_CODE_TRAVEL_LOCK)
 #define AIRPLANE_MODE_UI_KEY_TYPE               (KEY_EVENT_DOWN | KEY_EVENT_UP)
 
-#define AIRPLANE_MODE_TIMEOUT_TASK_NAME         "airplane_mode_timeout_task"
 #define REMOVE_ALL_HANDER_TASK() \
 do { \
     LOG_WM("==>REMOVE_ALL_HANDER_TASK"); \
-    REMOVE_TASK_HANDLER_DIRECTLY(AIRPLANE_MODE_TIMEOUT_TASK_NAME); \
 } while (0)
 
 /*
@@ -41,6 +39,10 @@ static int on_airplane_mode_keyevent_hdr(void *user_data, uint16_t keycode, uint
     ui_proc_airplane_mode_t *proc = user_data;
     EXCEPTION_CHECK_INT(proc);
     WINDOW_CONTEXT_GUARD_INT(proc, ID_WINDOW_AIRPLANE_MODE, 0);
+    if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
+        LOG_WM("wm not running, ignore.");
+        return 0;
+    }
     if (keytype == KEY_EVENT_DOWN) {
         proc->popup_ui_type = ID_POPUP_UI_AIRPLANE_MODE_PROMPT;
     } else if (keytype == KEY_EVENT_UP) {
@@ -65,6 +67,7 @@ static int entry_event_cb(window_lift_cycle_e new_state, const struct window_con
         LOG_WM("==>%s window on resume", PAGE_NAME_STR);
         ADD_KEYEVENT_CB(proc->key, "airplane_mode_wm", proc, AIRPLANE_MODE_UI_KEY_CODE,
             AIRPLANE_MODE_UI_KEY_TYPE, on_airplane_mode_keyevent_hdr);
+        proc->window_run_state = WINDOW_RUN_STATE_RUNNING;
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);
         airplane_mode_led_policy(proc, 1);
@@ -83,6 +86,7 @@ static int exit_event_cb(window_lift_cycle_e new_state, const struct window_cont
     EXCEPTION_CHECK_INT(wm);
     switch (new_state) {
         case ID_SCR_STATE_ON_PAUSE: 
+            proc->window_run_state = WINDOW_RUN_STATE_PAUSED;
             LOG_WM("==>%s window on pause", PAGE_NAME_STR);
             stop_airplane_mode_ui(proc);
             break;

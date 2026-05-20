@@ -17,6 +17,10 @@
 #define GUIDE_UI_KEY_CODE                           ALL_KEY_CODE_NO_COMBINE
 #define GUIDE_UI_KEY_TYPE                           (KEY_EVENT_CLICK | KEY_EVENT_LONG_3S)
 
+#define REMOVE_ALL_HANDER_TASK() \
+do { \
+    LOG_WM("==>REMOVE_ALL_HANDER_TASK"); \
+} while (0)
 /*
 * LOCAL VARIABLE DEFINITIONS
 *****************************************************************************************
@@ -37,25 +41,18 @@ static int on_guide_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t 
     ui_proc_guide_t *proc = user_data;
     EXCEPTION_CHECK_INT(proc);
     WINDOW_CONTEXT_GUARD_INT(proc, ID_WINDOW_GUIDE, 0);
-#if 0
-    if (keycode == KEY_CODE_KNOB_LEFT) {
-        guide_knob_left_event_handler(proc);
-    } else {
-        if (keytype == KEY_EVENT_LONG_3S) {
-            guide_key_3s_press_handler_v2(proc, keycode);
-        } else {
-            guide_key_event_handler_v2(proc, keycode);
-        }
+    if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
+        LOG_WM("wm not running, ignore.");
+        return 0;
     }
-#else
+
     if (keycode == KEY_CODE_KNOB_LEFT) {
         guide_knob_event_handler(proc, true);
     } else if (keycode == KEY_CODE_KNOB_RIGHT) {
         guide_knob_event_handler(proc, false);
     } else {
-        guide_key_event_handler_v3(proc, keycode);
+        guide_key_event_handler(proc, keycode);
     }
-#endif
     return 0;
 }
 
@@ -68,6 +65,7 @@ static int entry_event_cb(window_lift_cycle_e new_state,
     if (new_state == ID_SCR_STATE_ON_RESUME) {
         ADD_KEYEVENT_CB(proc->key, "guide_wm", proc, GUIDE_UI_KEY_CODE, GUIDE_UI_KEY_TYPE,
             on_guide_ui_keyevent_hdr);
+        proc->window_run_state = WINDOW_RUN_STATE_RUNNING;
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);
         if (proc->led && proc->led->hook && proc->led->hook->set_key_backlight) {
@@ -84,11 +82,13 @@ static int exit_event_cb(window_lift_cycle_e new_state,
     ui_proc_guide_t *proc = CONTAINER_OF(thiz, ui_proc_guide_t, w_ctx);
     switch (new_state) {
         case ID_SCR_STATE_ON_PAUSE:
+            proc->window_run_state = WINDOW_RUN_STATE_PAUSED;
             LOG_WM("==>%s window on pause", PAGE_NAME_STR);
             stop_guide_ui_animation(proc);
             break;
         case ID_SCR_STATE_ON_DESTORY:
             LOG_WM("%s window exit: u_free: %p", PAGE_NAME_STR, proc);
+            REMOVE_ALL_HANDER_TASK();
             SET_WINDOW_CONTEXT(NULL);
             proc->margic = UI_WINDOW_MARGIC_CODE_INVALID;
             REMOVE_KEYEVENT_CB(proc->key, on_guide_ui_keyevent_hdr);
