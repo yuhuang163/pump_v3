@@ -11,13 +11,18 @@
 * DEFINES
 *****************************************************************************************
 */
-#define MOTOR_DEBUG_TASK_NAME "motor_debug_task"
-#define MOTOR_DEBUG_SYNC_TIME_THRESHOLD   50   /// 同步时间阈值，单位：毫秒
+#define MOTOR_DEBUG_TASK_NAME                    "motor_debug_task"
+#define MOTOR_DEBUG_SYNC_TIME_THRESHOLD          50   /// 同步时间阈值，单位：毫秒
+#define MOTOR_POLICY_OBJ_MIN_ADDR                0x1000U
+#define IS_SUPPORT_MOTOR_POLICY_MONITOR          1 /// 支持马达策略监控
 
 /*
 * LOCAL VARIABLE DEFINITIONS
 *****************************************************************************************
 */
+#if IS_SUPPORT_MOTOR_POLICY_MONITOR
+static const motor_policy_manager_t *s_policy_obj_snap[BREAST_PUMP_MODE_MAX];
+#endif
 
 /*
 * GLOBAL VARIABLE DEFINITIONS
@@ -28,6 +33,76 @@
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
+#if IS_SUPPORT_MOTOR_POLICY_MONITOR
+static bool motor_policy_obj_is_valid(const motor_policy_manager_t *policy_obj)
+{
+    return policy_obj != NULL && (uintptr_t)policy_obj >= MOTOR_POLICY_OBJ_MIN_ADDR;
+}
+
+static bool motor_policy_mon_force_log(const char *tag)
+{
+    if (tag == NULL) {
+        return false;
+    }
+    return (strcmp(tag, "hook_init") == 0 || strcmp(tag, "set_mode_pre") == 0 ||
+            strcmp(tag, "set_mode_post") == 0);
+}
+
+static void monitor_one_mode_policy_obj(const char *tag, const char *mode_name, int breast_pump_mode,
+    const motor_policy_manager_t *policy_obj)
+{
+    const char *t = (tag != NULL) ? tag : "unknown";
+    const char *name = (mode_name != NULL) ? mode_name : "unknown";
+    bool valid = motor_policy_obj_is_valid(policy_obj);
+    const motor_policy_manager_t *snap = NULL;
+    bool changed = false;
+
+    if (breast_pump_mode >= 0 && breast_pump_mode < BREAST_PUMP_MODE_MAX) {
+        snap = s_policy_obj_snap[breast_pump_mode];
+        changed = (policy_obj != snap);
+    }
+
+    if (!valid) {
+        LOGE("[mode_mon] %s mode:%d(%s) obj=%p snap=%p INVALID",
+            t, breast_pump_mode, name, (void *)policy_obj, (void *)snap);
+    } else if (changed || motor_policy_mon_force_log(tag)) {
+        LOG_MOTOR("[mode_mon] %s mode:%d(%s) obj=%p snap=%p",
+            t, breast_pump_mode, name, (void *)policy_obj, (void *)snap);
+    }
+
+    if (changed) {
+        LOGW("[mode_mon] %s mode:%d(%s) CHANGED %p -> %p",
+            t, breast_pump_mode, name, (void *)snap, (void *)policy_obj);
+    }
+
+    if (breast_pump_mode >= 0 && breast_pump_mode < BREAST_PUMP_MODE_MAX) {
+        s_policy_obj_snap[breast_pump_mode] = policy_obj;
+    }
+}
+#endif
+
+static void monitor_all_mode_policy_obj(struct motor_manager_context *ctx, const char *tag)
+{
+#if IS_SUPPORT_MOTOR_POLICY_MONITOR
+    if (ctx == NULL) {
+        return;
+    }
+
+    list_head_t *head = &ctx->priv.policy_list;
+    if (head->next == NULL) {
+        LOGW("[mode_mon] %s: policy list empty", (tag != NULL) ? tag : "?");
+        return;
+    }
+
+    LIST_FOR_EACH(pos, head) {
+        breast_pump_policy_node_t *node = CONTAINER_OF(pos, breast_pump_policy_node_t, list);
+        const motor_policy_manager_t *policy_obj = node->get_policy_cb ?
+            node->get_policy_cb(node->user_data) : NULL;
+        monitor_one_mode_policy_obj(tag, node->name, node->breast_pump_mode, policy_obj);
+    }
+#endif
+}
+
 static int breast_pump_policy_register(struct motor_manager_context *thiz, add_breast_pump_policy_fptr add_policy_cb)
 {
     list_head_t *head = &thiz->priv.policy_list;
@@ -81,6 +156,15 @@ static int breast_pump_policy_init(struct motor_manager_context *ctx)
             breast_pump_policy_node_t *node = CONTAINER_OF(pos, breast_pump_policy_node_t, list);
             if (node->init_cb) {
                 ret = node->init_cb();
+                const motor_policy_manager_t *policy_obj = node->get_policy_cb ?
+                    node->get_policy_cb(node->user_data) : NULL;
+                if (ret != 0) {
+                    LOGE("init %s failed, obj:%p", node->name, policy_obj);
+                } else {
+                    LOG_MOTOR("init %s success, obj: %p", node->name, policy_obj);
+                }
+            } else {
+                LOGE("init %s failed, cb is null", node->name);
             }
         }
     }
@@ -357,4 +441,5 @@ void register_motor_hook(motor_manager_context_t *ctx)
     ctx->hook->motor_policy_prepare = breast_pump_policy_prepare;
     ctx->hook->mode_policy_handler = breast_pump_mode_policy_handler;
     ctx->hook->motor_debug_with_user_para = motor_debug_with_user_para;
+    ctx->hook->monitor_all_mode_policy_obj = monitor_all_mode_policy_obj;
 }

@@ -49,7 +49,7 @@ static void motor_play_work_thread(void *args)
         LOG_MOTOR("running timestamp: %ld, id: %d, action: %d", task_para.timestamp, task_para.play_mask_id, task_para.action_id);
         set_thread_running(thd, true);
         update_play_interrupt_reason(NULL);
-        if (pm->acquire_wakelock(MOTOR_PLAY_THD_WAKELOCK, (MOTOR_PLAY_WAKELOCK_TIMEOUT)) == 0) {
+        if (pm->acquire_wakelock(MOTOR_PLAY_THD_WAKELOCK, -1) == 0) { 
             if (motor_obj->hook == NULL) {
                 continue;
             }
