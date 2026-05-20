@@ -14,14 +14,16 @@
 */
 #define PAGE_STATIC_NAME                            ota
 #define PAGE_NAME_STR                               "ota"
-
 #define OTA_UI_KEY_CODE                             KEY_CODE_POWER
 #define OTA_UI_KEY_TYPE                             KEY_EVENT_CLICK
 #define OTA_UI_START_TASK_NAME                      "ota_ui_task_exit"
+#define OTA_BROADCAST_TASK_NAME                     "ota_broadcast_task"
+
 #define REMOVE_ALL_HANDER_TASK() \
 do { \
     LOG_WM("==>REMOVE_ALL_HANDER_TASK"); \
     REMOVE_TASK_HANDLER_DIRECTLY(OTA_UI_START_TASK_NAME); \
+    REMOVE_TASK_HANDLER_DIRECTLY(OTA_BROADCAST_TASK_NAME); \
 } while (0)
 
 /*
@@ -42,9 +44,12 @@ INIT_WINDOW_CONTEXT();
 static void ota_ui_switch_cb(hdr_post_args_t *args)
 {
     ui_proc_ota_t *proc = args->user_data;
-    EXCEPTION_CHECK_VOID(proc);
+    EXCEPTION_CHECK_VOID(proc && proc->wm);
     WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_OTA_UPGRADE);
-    EXCEPTION_CHECK_VOID(proc->wm);
+    if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
+        LOG_WM("wm not running, ignore.");
+        return;
+    }
     multi_func_msg_data_t msg = {0};
     LOG_WM("goto home window.");
     msg.union_body.extra.window_id = ID_WINDOW_HOME;
@@ -55,37 +60,68 @@ static int on_ota_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t ke
 {
     ui_proc_ota_t *proc = user_data;
     EXCEPTION_CHECK_INT(proc);
-    WINDOW_CONTEXT_GUARD_INT(proc, ID_WINDOW_HOME, 0);
-    if(proc->ota_status != OTA_UI_STATUS_DOWNLOADING) {
+    WINDOW_CONTEXT_GUARD_INT(proc, ID_WINDOW_OTA_UPGRADE, 0);
+    if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
+        LOG_WM("wm not running, ignore.");
+        return 0;
+    }
+
+    if (proc->ota_status != OTA_UI_STATUS_DOWNLOADING) {
         return 0;
     }
 
     if (keycode == KEY_CODE_POWER) {
-        POST_TASK_HANDLER_NO_DELAY(ota_ui_switch_cb, proc, OTA_UI_START_TASK_NAME);
+        POST_WM_TASK_HANDLER_NO_DELAY(ota_ui_switch_cb, proc, OTA_UI_START_TASK_NAME);
     }
     return 0;
 }
 
-static void on_ota_ui_broadcast_receive_cb(broadcast_mask_id_t id, void *context, int arg1, int arg2,
-    broadcast_priv_data_t *pdata)
+static void ota_wm_broadcast_receive_hdr(hdr_post_args_t *args)
 {
-    ui_proc_ota_t *proc = (ui_proc_ota_t *)context;
+    window_broadcast_args_t *bcd_args = (window_broadcast_args_t *)args->user_data;
+    EXCEPTION_CHECK_VOID(bcd_args);
+    ui_proc_ota_t *proc = (ui_proc_ota_t *)bcd_args->context;
     EXCEPTION_CHECK_VOID(proc);
     WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_OTA_UPGRADE);
-    switch (id.code) {
+    if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
+        LOG_WM("wm not running, ignore.");
+        return;
+    }
+    switch (bcd_args->code) {
         case ID_BROADCAST_OTA_STATE_CHANGE:
-            LOG_WM("OTA_STATE_CHANGE: %d", arg1);
-            if (arg1 == OTA_UPGRADE_STATE_START) {
+            LOG_WM("OTA_STATE_CHANGE: %d", bcd_args->arg1);
+            if (bcd_args->arg1 == OTA_UPGRADE_STATE_START) {
                 proc->ota_status = OTA_UI_STATUS_DOWNLOADING;
-            } else if (arg1 == OTA_UPGRADE_STATE_SUCCESS) {
+            } else if (bcd_args->arg1 == OTA_UPGRADE_STATE_SUCCESS) {
                 proc->ota_status = OTA_UI_STATUS_COMPLETE;
-            } else if (arg1 == OTA_UPGRADE_STATE_FAIL) {
+            } else if (bcd_args->arg1 == OTA_UPGRADE_STATE_FAIL) {
                 proc->ota_status = OTA_UI_STATUS_ERROR;
             }
             break;
         default:
             break;
+   }
+}
+
+static void on_ota_wm_broadcast_receive_cb(broadcast_mask_id_t id, void *context, int arg1, int arg2,
+    broadcast_priv_data_t *pdata)
+{
+    ui_proc_ota_t *proc = (ui_proc_ota_t *)context;
+    EXCEPTION_CHECK_VOID(proc);
+    if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
+        LOG_WM("wm not running, ignore.");
+        return;
     }
+    proc->broadcast_args.context = proc;
+    proc->broadcast_args.code = id.code;
+    proc->broadcast_args.arg1 = arg1;
+    proc->broadcast_args.arg2 = arg2;
+    if (pdata != NULL && pdata->size > 0) {
+        memcpy(&proc->broadcast_args.priv_data, pdata, sizeof(broadcast_priv_data_t));
+    } else {
+        memset(&proc->broadcast_args.priv_data, 0, sizeof(proc->broadcast_args.priv_data));
+    }
+    POST_WM_TASK_HANDLER_NO_DELAY(ota_wm_broadcast_receive_hdr, &proc->broadcast_args, OTA_BROADCAST_TASK_NAME);
 }
 
 static int entry_event_cb(window_lift_cycle_e new_state,
@@ -100,6 +136,7 @@ static int entry_event_cb(window_lift_cycle_e new_state,
         if (proc->led && proc->led->hook && proc->led->hook->set_key_backlight) {
             proc->led->hook->set_key_backlight(proc->led, 100);
         }
+        proc->window_run_state = WINDOW_RUN_STATE_RUNNING;
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);
         start_ota_ui_animation(proc);
@@ -113,6 +150,7 @@ static int exit_event_cb(window_lift_cycle_e new_state,
     ui_proc_ota_t *proc = CONTAINER_OF(thiz, ui_proc_ota_t, w_ctx);
     switch (new_state) {
         case ID_SCR_STATE_ON_PAUSE:
+            proc->window_run_state = WINDOW_RUN_STATE_PAUSED;
             LOG_WM("==>%s window on pause", PAGE_NAME_STR);
             stop_ota_ui_animation(proc);
             break;
@@ -158,7 +196,7 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
     proc->receiver.context = proc;
     proc->receiver.name = "ota_screen";
     proc->receiver.id.code |= ID_BROADCAST_OTA_STATE_CHANGE;
-    proc->receiver.receiver_cb = on_ota_ui_broadcast_receive_cb;
+    proc->receiver.receiver_cb = on_ota_wm_broadcast_receive_cb;
     register_broadcast_receiver(&proc->receiver);
     proc->ota_status = OTA_UI_STATUS_DOWNLOADING;
     /// 配置窗口上下文.

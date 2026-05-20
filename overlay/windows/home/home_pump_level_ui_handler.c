@@ -37,16 +37,14 @@ static void home_pump_level_ui_display_completed_cb(hdr_post_args_t *args)
     int time_index = 0;
     READ_PUMP_MODE_STEP_INDEX(proc->pump, time_index);
     uint8_t level_idx = proc->control_type == BREAST_PUMP_CONTROL_TYPE_LEFT ? 0 : 1;
-    if (proc->level_change > 0) {
-            proc->setting.level[level_idx] = proc->setting.level[level_idx] + proc->level_change;
-            if (proc->setting.level[level_idx] >= BREAST_PUMP_LEVEL_MAX) {
-                proc->setting.level[level_idx] = BREAST_PUMP_LEVEL_MAX - 1;
-            }
-        WRITE_PUMP_SETTING_INFO(proc->pump, time_index, true, proc->setting);
-    } else if (proc->level_change < 0) {
-        uint8_t abs_level_change = abs(proc->level_change);
-        proc->setting.level[level_idx] = proc->setting.level[level_idx] < abs_level_change ?
-            0 : (proc->setting.level[level_idx] - abs_level_change);
+    if (proc->level_sync_flag && proc->level_change != 0) {
+        int8_t level = proc->setting.level[level_idx] + proc->level_change ;
+        if (level > BREAST_PUMP_LEVEL_15) {
+            level = BREAST_PUMP_LEVEL_15;
+        } else if (level < BREAST_PUMP_LEVEL_0) {
+            level = 0;
+        }
+        proc->setting.level[level_idx] = level;
         WRITE_PUMP_SETTING_INFO(proc->pump, time_index, true, proc->setting);
     }
     proc->level_change = 0;
@@ -60,7 +58,7 @@ static void home_pump_level_popup_ui_finish_policy(ui_manager_context_t *ui, uin
     ui_proc_home_t *proc = (ui_proc_home_t *)ui->priv.play_info.user_data;
     home_popup_ui_type_update(proc, ID_POPUP_UI_NONE);
     if (popup_ui_index == ID_POPUP_UI_OP_SUCCESS_PRESET) {
-        POST_TASK_HANDLER_NO_DELAY(home_pump_level_ui_display_completed_cb,
+        POST_WM_TASK_HANDLER_NO_DELAY(home_pump_level_ui_display_completed_cb,
             proc, HOME_PUMP_LEVEL_ADJUST_DISPLAY_TASK_NAME);
     }
 }
@@ -75,9 +73,9 @@ static void home_pump_level_ui_after_policy(ui_manager_context_t *ui, int index)
         proc->level_change = 0;
         proc->last_progress_ani_time = get_timestamp();
         LOG_UI("level ui timeout: %d", proc->last_progress_ani_time);
-        POST_TASK_HANDLER_NO_DELAY(home_pump_level_ui_display_completed_cb,
+        POST_WM_TASK_HANDLER_NO_DELAY(home_pump_level_ui_display_completed_cb,
             proc, HOME_PUMP_LEVEL_ADJUST_DISPLAY_TASK_NAME);
-    } else if (time_diff >= HOME_PUMP_LEVEL_SYNC_TIMEOUT && proc->level_change) {
+    } else if (time_diff >= HOME_PUMP_LEVEL_SYNC_TIMEOUT && proc->level_sync_flag) {
         proc->popup_ui_type = ID_POPUP_UI_OP_SUCCESS_PRESET;
         proc->last_progress_ani_time = get_timestamp();
         LOG_UI("level ui sync timeout: %d", proc->last_progress_ani_time);
@@ -153,23 +151,36 @@ void switch_home_pump_level_control_type(ui_proc_home_t *proc, uint8_t control_t
         start_home_ui_animation(proc);
         return;
     }
-    
-    proc->level_change = 0;
+
     if (proc->pump_priming == 0) {
         proc->pump_priming = true;
         if (proc->led)  {
             proc->led->set_led_blink(PUMP_START_BL, LED_SLOW_BLINK_TIME, 0, LED_STATUS_OFF);
         }
     }
-    
+
+    int time_index = 0;
+    READ_PUMP_MODE_STEP_INDEX(proc->pump, time_index);
     if (proc->current_ui_type != HOME_UI_TYPE_LEVEL_ADJUST) {
-        int time_index = 0;
-        READ_PUMP_MODE_STEP_INDEX(proc->pump, time_index);
+        proc->level_change = 0;
+        proc->level_sync_flag = false;
         READ_PUMP_SETTING_INFO(proc->pump, time_index, proc->setting);
     } 
 
     if (proc->control_type != control_type) {
+        uint8_t level_idx = proc->control_type == BREAST_PUMP_CONTROL_TYPE_LEFT ? 0 : 1;
         proc->control_type = control_type;
+        if (proc->level_sync_flag && proc->level_change != 0) {
+            int8_t level = proc->setting.level[level_idx] + proc->level_change ;
+            if (level > BREAST_PUMP_LEVEL_15) {
+                level = BREAST_PUMP_LEVEL_15;
+            } else if (level < BREAST_PUMP_LEVEL_0) {
+                level = BREAST_PUMP_LEVEL_0;
+            }
+            proc->setting.level[level_idx] = level;
+            WRITE_PUMP_SETTING_INFO(proc->pump, time_index, true, proc->setting);
+        }
+        proc->level_change = 0;
     }
     show_home_pump_level_ui(proc);
     LOG_WM("switch home pump level adjust type: %d", control_type);
@@ -199,7 +210,22 @@ void switch_home_pump_level(ui_proc_home_t *proc, bool is_increase)
     show_home_pump_level_ui(proc);
 }
 
-void home_pump_level_ui_hdr_remove(void)
+void home_pump_level_ui_exit(ui_proc_home_t *proc)
 {
+    int time_index = 0;
+    READ_PUMP_MODE_STEP_INDEX(proc->pump, time_index);
     REMOVE_TASK_HANDLER_DIRECTLY(HOME_PUMP_LEVEL_ADJUST_DISPLAY_TASK_NAME);
+    uint8_t level_idx = proc->control_type == BREAST_PUMP_CONTROL_TYPE_LEFT ? 0 : 1;
+    if (proc->level_sync_flag && proc->level_change != 0) {
+        int8_t level = proc->setting.level[level_idx] + proc->level_change ;
+        if (level > BREAST_PUMP_LEVEL_15) {
+            level = BREAST_PUMP_LEVEL_15;
+        } else if (level < BREAST_PUMP_LEVEL_0) {
+            level = 0;
+        }
+        proc->setting.level[level_idx] = level;
+        WRITE_PUMP_SETTING_INFO(proc->pump, time_index, true, proc->setting);
+    }
+    proc->level_change = 0;
+    proc->level_sync_flag = false;
 }

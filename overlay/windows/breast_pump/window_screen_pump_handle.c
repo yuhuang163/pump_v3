@@ -14,16 +14,14 @@
 #define PAGE_NAME_STR                       "pump"
 #define PUMP_UI_KEY_CODE                    (ALL_KEY_CODE_NO_COMBINE)
 #define PUMP_UI_KEY_TYPE                    (KEY_EVENT_CLICK | KEY_EVENT_LONG_2S | KEY_EVENT_UP)
-#define PUMP_START_TASK_NAME                "pump_start"
-#define PUMP_STATE_CHANGE_TASK_NAME         "pump_state_change"
 #define PUMP_COMPLETE_TASK_NAME             "pump_complete"
+#define PUMP_BROADCAST_TASK_NAME            "pump_broadcast"
 
 #define REMOVE_ALL_HANDER_TASK() \
 do { \
     LOG_WM("==>REMOVE_ALL_HANDER_TASK"); \
-    REMOVE_TASK_HANDLER_DIRECTLY(PUMP_START_TASK_NAME); \
-    REMOVE_TASK_HANDLER_DIRECTLY(PUMP_STATE_CHANGE_TASK_NAME); \
     REMOVE_TASK_HANDLER_DIRECTLY(PUMP_COMPLETE_TASK_NAME); \
+    REMOVE_TASK_HANDLER_DIRECTLY(PUMP_BROADCAST_TASK_NAME); \
 } while (0)
 
 /*
@@ -46,6 +44,10 @@ static void on_breast_pump_result_cb(void *user_data, breast_pump_result_t *resu
     ui_proc_pump_t *proc = (ui_proc_pump_t *)user_data;
     EXCEPTION_CHECK_VOID(proc);
     WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_PUMP);
+    if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
+        LOG_WM("wm not running, ignore.");
+        return;
+    }
 }
 
 static void pump_ui_common_cb(hdr_post_args_t *args)
@@ -53,49 +55,18 @@ static void pump_ui_common_cb(hdr_post_args_t *args)
     ui_proc_pump_t *proc = args->user_data;
     EXCEPTION_CHECK_VOID(proc);
     WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_PUMP);
-    LOG_WM("pump_ui_common_cb, margic:%x, action:%d.", proc->margic, args->arg1);
+    if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
+        LOG_WM("wm not running, ignore.");
+        return;
+    }
     int action = args->arg1;
     switch (action) {
-        case PUMP_HDR_ACTION_START_PUMP: 
-            LOG_WM("%s", args->name);
-            break;
-        case PUMP_HDR_ACTION_CHANGE_PUMP_STATUS: 
-            LOG_WM("%s, new_state: %d", args->name, args->arg2);
-            if (proc->ui_show_state != args->arg2) {
-                proc->ui_show_state = args->arg2;
-            }
-            break;
-        case PUMP_HDR_ACTION_LOOP_SHOW: 
-            /// TODO: 轮播显示
-            break;
-        case PUMP_HDR_ACTION_SHOW_ONCE: 
-            LOG_WM("%s, new_state: %d", args->name, args->arg2);
-            if (proc->ui_show_state != args->arg2) {
-                proc->ui_show_state = args->arg2;
-            }
-            break;
-        case PUMP_HDR_ACTION_SHOW_THEMES_ANI: 
-            LOG_WM("%s", args->name);
-            /// TODO: 播放主题动画
-            break;
-        case PUMP_HDR_ACTION_RECOVER_DEFAULT_ANI: 
-            LOG_WM("%s: recovery-play..", args->name);
-            show_pump_home_ui(proc);
-            break;
-        case PUMP_HDR_ACTION_PROGRESS_STOP: 
-            /// TODO: 停止进度条
-            break;
         case PUMP_HDR_ACTION_PUMP_COMPLETE:        
-#if 1
             LOG_WM("pump complete, goto home window.");
             multi_func_msg_data_t msg = {0};
             msg.union_body.extra.window_id = ID_WINDOW_HOME;
             msg.union_body.extra.arg1 = HOME_SUB_UI_TYPE_PUMP_RESULT;
             proc->wm->dispatch_new_window_args(proc->wm, &msg);
-#else
-            LOG_WM("pump complete, show progress time policy.");
-            show_pump_result_ui(proc);
-#endif
             break;
         default:
             LOG_WM("unknow action: %d, ignore.", action);
@@ -117,7 +88,7 @@ static void pump_knob_event_cb(ui_proc_pump_t *proc, uint8_t is_left)
     }
 #endif
     
-switch (proc->current_ui_type) {
+    switch (proc->current_ui_type) {
         case PUMP_UI_TYPE_LEVEL:
             switch_pump_level_ui(proc, is_left ? false : true);
             break;
@@ -207,10 +178,6 @@ static int on_pump_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
     ui_proc_pump_t *proc = user_data;
     EXCEPTION_CHECK_INT(proc && proc->pump && proc->key && proc->ui);
     WINDOW_CONTEXT_GUARD_INT(proc, ID_WINDOW_PUMP, 0);
-    if (proc->goto_charge_ui_flag != 0) {
-        LOG_WM("goto charge ui, ignore key event.");
-        return 0;
-    }
 
 #if IS_SUPPORT_AIR_LEAKAGE_WARNING
     if (proc->is_air_leakage_popup_show == true) {
@@ -237,74 +204,110 @@ static int on_pump_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
     return 0;
 }
 
-static void on_pump_ui_broadcast_receive_cb(broadcast_mask_id_t id, void *context, int arg1, int arg2,
-     broadcast_priv_data_t *pdata)
+static void pump_broadcast_receive_ui_cb(hdr_post_args_t *args)
 {
-    ui_proc_pump_t *proc = (ui_proc_pump_t *)context;
-    EXCEPTION_CHECK_VOID(proc);
-    EXCEPTION_CHECK_VOID(proc->pump);
+    window_broadcast_args_t *bcd_args = (window_broadcast_args_t *)args->user_data;
+    EXCEPTION_CHECK_VOID(bcd_args);
+    ui_proc_pump_t *proc = (ui_proc_pump_t *)bcd_args->context;
+    EXCEPTION_CHECK_VOID(proc && proc->pump);
     WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_PUMP);
-    /// 获取泵奶状态.
+    if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
+        LOG_WM("wm not running, ignore.");
+        return;
+    }
     int pump_status = 0;
     READ_PUMP_WORK_STATUS(proc->pump, pump_status);
     int pump_mode = 0;
     READ_PUMP_WORK_MODE(proc->pump, pump_mode);
-    int is_pump_working = 0; 
-    READ_PUMP_IS_WORKING(proc->pump, is_pump_working);
-    /// 如果用户暂停，忽略.
-    if (proc->user_pause != 0) {
-        LOG_WM("user_pause ignore.");
-        return;
-    }
-    LOG_WM("code: %lx, code_v2: %lx, flag: %d, status: %d, mode: %ld, working: %d, arg1: %d, arg2: %d.",
-         id.code, id.code_v2, proc->is_mode_changed_by_device, pump_status, pump_mode, is_pump_working, arg1, arg2);
-    switch (id.code) {
-        case ID_BROADCAST_BREAST_PUMP_STATE_CHANGE: 
-            if (arg1 == BREAST_PUMP_BROADCAST_MODE_CHANGE) {
-                if (!proc->is_mode_changed_by_device) {
-                    if (is_pump_working && PUMP_IS_GOING(pump_status)) {
-                        REMOVE_ALL_HANDER_TASK();
-                        LOG_WM("start pump state change task after %ds", PUMP_MODE_CHANGE_TIMEOUT);
-                        POST_TASK_HANDLER_DELAYED_ARG5(pump_ui_common_cb, PUMP_MODE_CHANGE_TIMEOUT,
-                                PUMP_HDR_ACTION_CHANGE_PUMP_STATUS, LOOP_SHOW_PUMPING, proc, PUMP_STATE_CHANGE_TASK_NAME);
+    LOG_WM("code:%lx, arg1:%d, arg2:%d, status:%d, mode:%d",
+            bcd_args->code, bcd_args->arg1, bcd_args->arg2, pump_status, pump_mode);
+    switch (bcd_args->code) {
+        case ID_BROADCAST_BREAST_PUMP_STATE_CHANGE:
+            switch (bcd_args->arg1) {
+                case BREAST_PUMP_BROADCAST_MODE_CHANGE:
+                    if (!proc->is_mode_changed_by_device) {
+                        proc->is_mode_changed_by_app = true;  /// 监测APP端切换模式动作，同步手柄端
+                        LOG_WM("mode change by app");
+                        if (proc->pm) {
+                            proc->pm->pm_wakeup(PM_WAKEUP_REASON_BLE_REQ); /// 接收到APP事件之后仅刷新进入休眠时间
+                        }
+                    } else {
+                        proc->is_mode_changed_by_device = false;
+                        proc->is_mode_changed_by_app = false;
                     }
-                    proc->ui_show_state = LOOP_SHOW_SWITCH_MODE;
-                    proc->is_mode_changed_by_app = true;  /// 监测APP端切换模式动作，同步手柄端
-                    if (proc->pm) {
-                        proc->pm->pm_wakeup(PM_WAKEUP_REASON_BLE_REQ); /// 接收到APP事件之后仅刷新进入休眠时间
+                    break;
+                case BREAST_PUMP_BROADCAST_COMPLETED: {
+                    if (proc->popup_ui_type != ID_POPUP_UI_PUMP_FINISH_TIMEOUT &&
+                        proc->pump_will_finish && PUMP_NO_FINISH(pump_status)) {
+                        multi_func_msg_data_t msg = {0};
+                        msg.union_body.extra.window_id = ID_WINDOW_HOME;
+                        msg.union_body.extra.arg1 = HOME_SUB_UI_TYPE_PUMP_RESULT;
+                        proc->wm->dispatch_new_window_args(proc->wm, &msg);
+                        LOG_WM("pump finish, goto home window.");
                     }
-                } else {
-                    proc->is_mode_changed_by_device = false;
-                    proc->is_mode_changed_by_app = false;
+                    break;
                 }
-            } else if (arg1 == BREAST_PUMP_BROADCAST_COMPLETED) {
-                if (proc->popup_ui_type != ID_POPUP_UI_PUMP_FINISH_TIMEOUT && 
-                    proc->pump_will_finish && PUMP_NO_FINISH(pump_status)) {
-                    POST_TASK_HANDLER_NO_DELAY_ARG1(pump_ui_common_cb, proc, PUMP_HDR_ACTION_PUMP_COMPLETE,
-                        PUMP_COMPLETE_TASK_NAME);
-                    LOG_WM("pump finish, post pump complete task.");
-                } else {
-                    LOG_WM("pump finish, ignore.");
+                case BREAST_PUMP_BROADCAST_PUMP_WILL_FINISH:
+                    proc->pump_will_finish = true;
+                    pump_popup_ui_type_update(proc, ID_POPUP_UI_PUMP_FINISH_TIMEOUT);
+                    LOG_WM("pump will finish, post pump will finish task.");
+                    break;
+                case BREAST_PUMP_BROADCAST_APP_COMPLETED: {
+                    multi_func_msg_data_t msg = {0};
+                    msg.union_body.extra.window_id = ID_WINDOW_HOME;
+                    msg.union_body.extra.arg1 = HOME_SUB_UI_TYPE_PUMP_RESULT;
+                    proc->wm->dispatch_new_window_args(proc->wm, &msg);
+                    LOG_WM("pump app complete, post pump app complete task.");
+                    break;
                 }
-            } else if (arg1 == BREAST_PUMP_BROADCAST_PUMP_WILL_FINISH) {
-                proc->pump_will_finish = true;
-                pump_popup_ui_type_update(proc, ID_POPUP_UI_PUMP_FINISH_TIMEOUT);
-                LOG_WM("pump will finish, post pump will finish task.");
-            } else if (arg1 == BREAST_PUMP_BROADCAST_APP_COMPLETED) {
-                POST_TASK_HANDLER_NO_DELAY_ARG1(pump_ui_common_cb, proc, PUMP_HDR_ACTION_PUMP_COMPLETE, 
-                    PUMP_COMPLETE_TASK_NAME);
-                LOG_WM("pump app complete, post pump app complete task.");
-            } else if (arg1 == BREAST_PUMP_BROADCAST_PUMP_ERROR) {
-                // pump_popup_ui_type_update(proc, PUMP_POPUP_UI_PUMP_ERROR_TIP);
-                LOG_WM("pump error, post pump error task.");
-            } else if (arg1 == BREAST_PUMP_BROADCAST_AUTO_PAUSE_REQUEST) {
-                pump_popup_ui_type_update(proc, ID_POPUP_UI_PUMP_PAUSE_TIMEOUT);
-                LOG_WM("pump pause timeout, post pump pause timeout task.");
+                case BREAST_PUMP_BROADCAST_PUMP_ERROR:
+                    LOG_WM("pump error, post pump error task.");
+                    break;
+                case BREAST_PUMP_BROADCAST_AUTO_PAUSE_REQUEST:
+                    pump_popup_ui_type_update(proc, ID_POPUP_UI_PUMP_PAUSE_TIMEOUT);
+                    LOG_WM("pump pause timeout, post pump pause timeout task.");
+                    break;
+                default:
+                    break;
             }
             break;
         default:
             break;
     }
+}
+
+static void on_pump_ui_broadcast_receive_cb(broadcast_mask_id_t id, void *context, int arg1, int arg2,
+     broadcast_priv_data_t *pdata)
+{
+    ui_proc_pump_t *proc = (ui_proc_pump_t *)context;
+    EXCEPTION_CHECK_VOID(proc);
+    if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
+        LOG_WM("wm not running, ignore.");
+        return;
+    }
+    proc->broadcast_args.context = proc;
+    proc->broadcast_args.code = id.code;
+    proc->broadcast_args.arg1 = arg1;
+    proc->broadcast_args.arg2 = arg2;
+    if (pdata != NULL && pdata->size > 0) {
+        memcpy(&proc->broadcast_args.priv_data, pdata, sizeof(broadcast_priv_data_t));
+    } else {
+        memset(&proc->broadcast_args.priv_data, 0, sizeof(proc->broadcast_args.priv_data));
+    }
+    POST_WM_TASK_HANDLER_NO_DELAY(pump_broadcast_receive_ui_cb, &proc->broadcast_args, PUMP_BROADCAST_TASK_NAME);
+}
+
+static void remove_breast_pump_result_cb(ui_proc_pump_t *proc)
+{
+    EXCEPTION_CHECK_VOID(proc && proc->pump);
+    int pump_status = 0;
+    READ_PUMP_WORK_STATUS(proc->pump, pump_status);
+    if (pump_status > BREAST_PUMP_IDLE && pump_status < BREAST_PUMP_FINISH) {
+        LOG_WM("next wm:%d pump status:%d => goto finish", proc->wm->get_next_window_id(), pump_status);
+        WRITE_PUMP_WORK_STATUS(proc->pump, BREAST_PUMP_FINISH, 1);
+    } 
+    LOG_WM("==>remove breast_pump_result_listener");
+    proc->pump->remove_breast_pump_result_listener(on_breast_pump_result_cb);
 }
 
 static int entry_event_cb(window_lift_cycle_e new_state,
@@ -321,6 +324,7 @@ static int entry_event_cb(window_lift_cycle_e new_state,
         LOG_WM("==>%s window on resume", PAGE_NAME_STR);
         ADD_KEYEVENT_CB(proc->key, "pump_wm", proc, PUMP_UI_KEY_CODE, PUMP_UI_KEY_TYPE,
             on_pump_ui_keyevent_hdr);
+        proc->window_run_state = WINDOW_RUN_STATE_RUNNING;
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);
         proc->current_ui_type = PUMP_UI_TYPE_NONE;
@@ -334,19 +338,6 @@ static int entry_event_cb(window_lift_cycle_e new_state,
     return 0;
 }
 
-static void remove_breast_pump_result_cb(ui_proc_pump_t *proc)
-{
-    EXCEPTION_CHECK_VOID(proc && proc->pump);
-    int pump_status = 0;
-    READ_PUMP_WORK_STATUS(proc->pump, pump_status);
-    if (pump_status > BREAST_PUMP_IDLE && pump_status < BREAST_PUMP_FINISH) {
-        LOG_WM("next wm:%d pump status:%d => goto finish", proc->wm->get_next_window_id(), pump_status);
-        WRITE_PUMP_WORK_STATUS(proc->pump, BREAST_PUMP_FINISH, 1);
-    } 
-    LOG_WM("==>remove breast_pump_result_listener");
-    proc->pump->remove_breast_pump_result_listener(on_breast_pump_result_cb);
-}
-
 static int exit_event_cb(window_lift_cycle_e new_state,
                          const struct window_context *thiz, const struct window_context *new_scr)
 {
@@ -355,11 +346,10 @@ static int exit_event_cb(window_lift_cycle_e new_state,
     EXCEPTION_CHECK_INT(proc->pump);
     switch (new_state) {
         case ID_SCR_STATE_ON_PAUSE:
-            proc->user_pause = 1;
+            proc->window_run_state = WINDOW_RUN_STATE_PAUSED;
             LOG_WM("==>%s window on pause", PAGE_NAME_STR);
             stop_pump_ui_animation(proc); 
             break;
-            
         case ID_SCR_STATE_ON_DESTORY:
             LOG_WM("==>%s window on destory", PAGE_NAME_STR);
             REMOVE_ALL_HANDER_TASK();
@@ -429,6 +419,6 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
 void pump_complete_event_handler(ui_proc_pump_t *proc)
 {
     proc->pump_will_finish = false;
-    POST_TASK_HANDLER_NO_DELAY_ARG1(pump_ui_common_cb, proc, PUMP_HDR_ACTION_PUMP_COMPLETE,
+    POST_WM_TASK_HANDLER_NO_DELAY_ARG1(pump_ui_common_cb, proc, PUMP_HDR_ACTION_PUMP_COMPLETE,
         PUMP_COMPLETE_TASK_NAME);
 }

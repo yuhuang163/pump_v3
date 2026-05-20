@@ -81,8 +81,10 @@ typedef struct {
     led_manager_context_t *led;
     breast_pump_manager_context_t *pump;
     broadcast_obj_t receiver;
+    window_broadcast_args_t broadcast_args; /// 广播投递参数.
     uint32_t margic; /// 窗口标识.
     uint32_t last_progress_ani_time; /// 上次进度动画时间.
+    uint8_t window_run_state; /// WM是否运行.
     uint8_t ui_bf_mode_index; /// 追奶模式索引.
     uint8_t ui_normal_mode_index; /// 普通模式索引.
     uint16_t current_ui_type; /// 当前UI类型. home_ui_type_e
@@ -108,19 +110,19 @@ void home_start_key_event_handler(ui_proc_home_t *proc);
 
 /// 模式选择界面按键处理
 void switch_home_pump_normal_mode(ui_proc_home_t *proc, bool is_increase);
-void home_pump_normal_mode_ui_hdr_remove(void);
+void home_pump_normal_mode_ui_exit(ui_proc_home_t *proc);
 void home_pump_normal_mode_key_click_handler(ui_proc_home_t *proc);
 /// 追奶模式选择界面按键处理
 void switch_home_pump_bf_mode(ui_proc_home_t *proc, bool is_increase);
-void home_pump_bf_mode_ui_hdr_remove(void);
+void home_pump_bf_mode_ui_exit(ui_proc_home_t *proc);
 void home_pump_bf_mode_key_click_handler(ui_proc_home_t *proc);
 /// 档位调节界面按键处理
-void switch_home_pump_level_control_type(ui_proc_home_t *proc, uint8_t control_type);
 void switch_home_pump_level(ui_proc_home_t *proc, bool is_increase);
-void home_pump_level_ui_hdr_remove(void);
+void home_pump_level_ui_exit(ui_proc_home_t *proc);
+void switch_home_pump_level_control_type(ui_proc_home_t *proc, uint8_t control_type);
 /// 速度调节界面按键处理
 void switch_home_pump_speed(ui_proc_home_t *proc, bool is_increase);
-void home_pump_speed_ui_hdr_remove(void);
+void home_pump_speed_ui_exit(ui_proc_home_t *proc);
 void home_pump_speed_key_click_handler(ui_proc_home_t *proc);
 /// 绑定二维码展示
 void start_home_bind_ui_animation(ui_proc_home_t *proc);
@@ -131,7 +133,7 @@ void home_popup_ui_type_update(ui_proc_home_t *proc, popup_ui_id_e type);
 void home_ui_change_hdr_remove(ui_proc_home_t *proc);
 /// 泵奶结果界面处理
 void show_home_pump_result_ui(ui_proc_home_t *proc);
-void home_pump_result_ui_hdr_remove(void);
+void home_pump_result_ui_exit(ui_proc_home_t *proc);
 
 #ifdef __cplusplus
 }

@@ -41,7 +41,7 @@ typedef enum {
 } input_dev_op_code_e;
 
 /// 按键固件升级事件回调函数
-typedef void (*key_ota_event_cb_func)(key_ota_event_e event, uint8_t progress);
+typedef void (*key_ota_event_cb_func)(key_ota_event_e event, int arg1, int arg2);
 
 #ifdef __cplusplus
 }

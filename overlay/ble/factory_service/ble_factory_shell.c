@@ -119,13 +119,15 @@ static void ble_shell_pump_policy(const uint8_t *param, uint16_t len)
 
 static void ble_shell_system_reset(const uint8_t *param, uint16_t len)
 {
-    storage_manager_context_t *st_ctx = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
     int reset_type = 0;
     sscanf((const char *)param, "%d", &reset_type);
     LOG_BLE("shell system reset type %d", reset_type);
-    if (st_ctx->factory_reset) {
-        st_ctx->factory_reset(reset_type == 0 ? RESET_NOT_REBOOT : RESET_AND_REBOOT);
-    }
+    window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
+    EXCEPTION_CHECK_VOID(wm);
+    multi_func_msg_data_t msg = {0};
+    msg.union_body.extra.window_id = ID_WINDOW_FACTORY_RESET;
+    msg.union_body.extra.arg1 = reset_type ? 1 : 0;
+    wm->dispatch_new_window_args(wm, &msg);
 }
 
 static void ble_shell_forbid_sleep(const uint8_t *param, uint16_t len)

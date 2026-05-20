@@ -15,55 +15,52 @@ extern "C" {
 #define ONE_MIN_TIME_MS                    60000  /// 1分钟时间，单位ms
 #define SHORT_SUCTION_HOLD_TIME            0  /// 短吸保持时间，单位ms
 #define LONG_SUCTION_HOLD_TIME             0 /// 长吸保持时间，单位ms
-#define SHORT_SUCTION_TIME_0               ((ONE_MIN_TIME_MS / 90 / 10)   * 10)  /// 1次吸奶时间，单位ms
-#define SHORT_SUCTION_TIME_1               ((ONE_MIN_TIME_MS / 100 / 10)  * 10)  /// 1次吸奶时间，单位ms
-#define SHORT_SUCTION_TIME_2               ((ONE_MIN_TIME_MS / 110 / 10)  * 10)  /// 1次吸奶时间，单位ms
 #define PUMP_SLEEP_TIME_MAX                2000  /// 最大休眠时间，单位ms
 #define PUMP_SLEEP_TIME_MIN                20  /// 最小休眠时间，单位ms
 #define IS_USE_NEW_SUCTION                 0 /// 是否使用新的吸力参数表 //时光的吸力参数表
+#define SHORT_SUCTION_DEFAULT_FREQ         90
+#define LONG_SUCTION_DEFAULT_FREQ          40
 
 /// 短吸吸奶时间表
-static const uint16_t short_suction_time_table[SUCTION_SPEED_MAX] = {
-    SHORT_SUCTION_TIME_0, 
-    SHORT_SUCTION_TIME_1, 
-    SHORT_SUCTION_TIME_2, 
+static const uint16_t short_suction_freq_table[SUCTION_SPEED_MAX] = {
+    90, 100, 110, 
 };
 
-#if IS_USE_NEW_SUCTION
+///时光泵参数
 /// 吸力参数表（单位kpa）//泌乳力表
-static const suction_parameters_t long_suction_table[SUCTION_LEVEL_MAX] = {
+static const suction_parameters_t pump1_long_suction_table[SUCTION_LEVEL_MAX] = {
     {0,  60, 100}, /// 0KPA   
-    {26, 340, 100}, /// 6KPA     
+    {29, 340, 100}, /// 6KPA     
     {50, 80, 100}, /// 7KPA      
     {50, 80, 100}, /// 8KPA   
     {55, 90, 100}, /// 9KPA     
-    {33, 406, 100}, /// 10KPA   
+    {34, 406, 100}, /// 10KPA   
     {30, 393, 87}, /// 11KPA      
     {60, 130, 100}, /// 12KPA   
     {38, 452, 120}, /// 13KPA   
     {60, 160, 100}, /// 14KPA      
-    {42, 472, 120}, /// 15KPA   
+    {43, 472, 120}, /// 15KPA   
     {60, 200, 120}, /// 16KPA   
     {70, 200, 120}, /// 17KPA       
-    {47, 492, 140}, /// 18KPA   
+    {48, 492, 140}, /// 18KPA   
     {70, 240, 120}, /// 19KPA   
-    {51, 528, 140}, /// 20KPA      
+    {50, 528, 140}, /// 20KPA      
     {52, 500, 125}, /// 21KPA   
-    {54, 560, 180}, /// 22KPA   
+    {53, 560, 180}, /// 22KPA   
     {75, 320, 120}, /// 23KPA   
-    {55, 622, 200}, /// 24KPA   
+    {54, 622, 200}, /// 24KPA   
     {75, 360, 120}, /// 25KPA   
-    {59, 632, 220}, /// 26KPA      
+    {58, 632, 220}, /// 26KPA      
     {75, 410, 150}, /// 27KPA   
-    {62, 660, 220}, /// 28KPA   
+    {60, 660, 220}, /// 28KPA   
     {80, 470, 160}, /// 29KPA   
-    {68, 647, 250}, /// 30KPA  
-    {68, 705, 260}, /// 31KPA   
+    {65, 647, 250}, /// 30KPA  
+    {66, 705, 260}, /// 31KPA   
     {72, 659, 165}, /// 32KPA   
-    {74, 684, 280}, /// 33KPA   
+    {71, 684, 280}, /// 33KPA   
     {75, 686, 171}, /// 34KPA   
-    {76, 718, 320}, /// 35KPA   
-    {80, 708, 330}, /// 36KPA   
+    {72, 718, 320}, /// 35KPA   
+    {76, 708, 330}, /// 36KPA   
     {90, 720, 200}, /// 37KPA   
     {80, 783, 196}, /// 38KPA   
     {83, 818, 205}, /// 39KPA
@@ -71,7 +68,7 @@ static const suction_parameters_t long_suction_table[SUCTION_LEVEL_MAX] = {
 };
 
 /// 吸力参数表（单位kpa）//按摩力表
-static const suction_parameters_t short_suction_table[SUCTION_LEVEL_MAX] = {
+static const suction_parameters_t pump1_short_suction_table[SUCTION_LEVEL_MAX] = {
     {0,  60, 100}, /// 0KPA   
     {34, 220, 130}, /// 6KPA   
     {38, 230, 130}, /// 7KPA      
@@ -111,7 +108,7 @@ static const suction_parameters_t short_suction_table[SUCTION_LEVEL_MAX] = {
 };
 
 /// 长吸泵频次表 (泵频次 1分/次)
-static const uint16_t long_pump_freq_table[BREAST_PUMP_LEVEL_MAX][SUCTION_SPEED_MAX] = {
+static const uint16_t pump1_long_pump_freq_table[BREAST_PUMP_LEVEL_MAX][SUCTION_SPEED_MAX] = {
     /// 低，中，高     
     {90, 100, 110}, /// level 0      
     {72, 76,  80},  /// level 1      
@@ -130,9 +127,10 @@ static const uint16_t long_pump_freq_table[BREAST_PUMP_LEVEL_MAX][SUCTION_SPEED_
     {42, 46,  50 }, /// level 14
     {40, 44,  48 }, /// level 15 
 };
-#else
+
+///龙一泵参数
 /// 吸力参数表（单位kpa）//泌乳力表
-static const suction_parameters_t long_suction_table[SUCTION_LEVEL_MAX] = {
+static const suction_parameters_t pump2_long_suction_table[SUCTION_LEVEL_MAX] = {
     {0,  60, 100}, /// 0KPA   
     {18, 370, 80}, /// 6KPA     
     {50, 80, 100}, /// 7KPA      
@@ -172,7 +170,7 @@ static const suction_parameters_t long_suction_table[SUCTION_LEVEL_MAX] = {
 };
 
 /// 吸力参数表（单位kpa）//按摩力表
-static const suction_parameters_t short_suction_table[SUCTION_LEVEL_MAX] = {
+static const suction_parameters_t pump2_short_suction_table[SUCTION_LEVEL_MAX] = {
     {0,  60, 100}, /// 0KPA   
     {22, 270, 110}, /// 6KPA   
     {27, 245, 130}, /// 7KPA      
@@ -212,7 +210,7 @@ static const suction_parameters_t short_suction_table[SUCTION_LEVEL_MAX] = {
 };
 
 /// 长吸泵频次表 (泵频次 1分/次)
-static const uint16_t long_pump_freq_table[BREAST_PUMP_LEVEL_MAX][SUCTION_SPEED_MAX] = {
+static const uint16_t pump2_long_pump_freq_table[BREAST_PUMP_LEVEL_MAX][SUCTION_SPEED_MAX] = {
     /// 低，中，高     
     {90, 100, 110}, /// level 0      
     {72, 76,  80},  /// level 1      
@@ -231,7 +229,6 @@ static const uint16_t long_pump_freq_table[BREAST_PUMP_LEVEL_MAX][SUCTION_SPEED_
     {42, 46,  50 }, /// level 14
     {40, 44,  48 }, /// level 15 
 };
-#endif
 
 /// 短吸力度表 //按摩力表
 static const uint16_t short_level_table[BREAST_PUMP_LEVEL_MAX] = {

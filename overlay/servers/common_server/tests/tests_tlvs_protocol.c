@@ -8,6 +8,7 @@
 #include "protocol_manager_api.h" // IWYU pragma: keep
 #include "ble_manager_api.h"      // IWYU pragma: keep
 #include "persist_storage.h"      // IWYU pragma: keep
+#include "factory_persist_data.h" // IWYU pragma: keep
 #include "adaptive_dimming.h"     // IWYU pragma: keep
 #include "ui_manager_api.h"       // IWYU pragma: keep
 #include "cmsis_os_api.h"         // IWYU pragma: keep
@@ -1440,6 +1441,140 @@ int tests_tlvs_light_sensor_calib_data_read(comm_protocol_builder_t *builder, co
         .type = TESTS_TLV_LIGHT_SENSOR_CALIB_DATA_READ,
         .length = 4,
         .value = (uint8_t *)&calib,
+    };
+    return protocol_ctx->comm_protocol_builder_add_tlv(builder, service, &tlv_node);
+#endif
+}
+
+int tests_tlvs_write_motor_type(comm_protocol_builder_t *builder, comm_protocol_service_t *service,
+                                uint8_t *data, uint16_t data_len)
+{
+#if IS_SUPPORT_DEVICE_LIGHT_SENSOR_CALIB
+    EXCEPTION_CHECK_INT(builder && service);
+    protocol_manager_context_t *protocol_ctx = get_protocol_ctx();
+    EXCEPTION_CHECK_INT(protocol_ctx);
+
+    uint8_t result = 0x00;
+    if (data_len == 1 && data != NULL) {
+        uint8_t motor_type = data[0];
+        if (motor_type == FACTORY_MOTOR_TYPE_LONGYI || motor_type == FACTORY_MOTOR_TYPE_SHIGUANG) {
+            storage_manager_context_t *st = get_storage_ctx();
+            if (st) {
+                factory_dev_info_t dev_info = {0};
+                st->get_store_val(STORE_ID_FACTORY_DEV_INFO, 0, 0, &dev_info);
+                dev_info.motor_type = motor_type;
+                if (st->put_store_val(STORE_ID_FACTORY_DEV_INFO, 0, 0, &dev_info) == 0) {
+                    result = 0x01;
+                    LOG_SRV("tests_tlvs_write_motor_type: motor_type=%u ok", motor_type);
+                }
+            }
+        } else {
+            LOGE("tests_tlvs_write_motor_type: invalid motor_type=%u", motor_type);
+        }
+    } else {
+        LOGE("tests_tlvs_write_motor_type: invalid data_len=%u", (unsigned)data_len);
+    }
+
+    comm_protocol_tlv_node_t tlv_node = {
+        .type = TESTS_TLV_WRITE_MOTOR_TYPE,
+        .length = 1,
+        .value = &result,
+    };
+    return protocol_ctx->comm_protocol_builder_add_tlv(builder, service, &tlv_node);
+#endif
+}
+
+int tests_tlvs_read_motor_type(comm_protocol_builder_t *builder, comm_protocol_service_t *service,
+                               uint8_t *data, uint16_t data_len)
+{
+#if IS_SUPPORT_DEVICE_LIGHT_SENSOR_CALIB
+    EXCEPTION_CHECK_INT(builder && service);
+    protocol_manager_context_t *protocol_ctx = get_protocol_ctx();
+    EXCEPTION_CHECK_INT(protocol_ctx);
+
+    uint8_t motor_type = FACTORY_MOTOR_TYPE_LONGYI;
+    storage_manager_context_t *st = get_storage_ctx();
+    if (st) {
+        factory_dev_info_t dev_info = {0};
+        st->get_store_val(STORE_ID_FACTORY_DEV_INFO, 0, 0, &dev_info);
+        if (dev_info.motor_type == FACTORY_MOTOR_TYPE_LONGYI ||
+            dev_info.motor_type == FACTORY_MOTOR_TYPE_SHIGUANG) {
+            motor_type = dev_info.motor_type;
+        }
+    }
+    LOG_SRV("tests_tlvs_read_motor_type: motor_type=%u", motor_type);
+
+    comm_protocol_tlv_node_t tlv_node = {
+        .type = TESTS_TLV_READ_MOTOR_TYPE,
+        .length = 1,
+        .value = &motor_type,
+    };
+    return protocol_ctx->comm_protocol_builder_add_tlv(builder, service, &tlv_node);
+#endif
+}
+
+int tests_tlvs_write_battery_vendor_type(comm_protocol_builder_t *builder, comm_protocol_service_t *service,
+                                         uint8_t *data, uint16_t data_len)
+{
+#if IS_SUPPORT_DEVICE_LIGHT_SENSOR_CALIB
+    EXCEPTION_CHECK_INT(builder && service);
+    protocol_manager_context_t *protocol_ctx = get_protocol_ctx();
+    EXCEPTION_CHECK_INT(protocol_ctx);
+
+    uint8_t result = 0x00;
+    if (data_len == 1 && data != NULL) {
+        uint8_t battery_type = data[0];
+        if (battery_type == FACTORY_BATTERY_TYPE_VENDOR1 || battery_type == FACTORY_BATTERY_TYPE_VENDOR2) {
+            storage_manager_context_t *st = get_storage_ctx();
+            if (st) {
+                factory_dev_info_t dev_info = {0};
+                st->get_store_val(STORE_ID_FACTORY_DEV_INFO, 0, 0, &dev_info);
+                dev_info.battery_type = battery_type;
+                if (st->put_store_val(STORE_ID_FACTORY_DEV_INFO, 0, 0, &dev_info) == 0) {
+                    result = 0x01;
+                    LOG_SRV("tests_tlvs_write_battery_vendor_type: battery_type=%u ok", battery_type);
+                }
+            }
+        } else {
+            LOGE("tests_tlvs_write_battery_vendor_type: invalid battery_type=%u", battery_type);
+        }
+    } else {
+        LOGE("tests_tlvs_write_battery_vendor_type: invalid data_len=%u", (unsigned)data_len);
+    }
+
+    comm_protocol_tlv_node_t tlv_node = {
+        .type = TESTS_TLV_WRITE_BATTERY_VENDOR_TYPE,
+        .length = 1,
+        .value = &result,
+    };
+    return protocol_ctx->comm_protocol_builder_add_tlv(builder, service, &tlv_node);
+#endif
+}
+
+int tests_tlvs_read_battery_vendor_type(comm_protocol_builder_t *builder, comm_protocol_service_t *service,
+                                        uint8_t *data, uint16_t data_len)
+{
+#if IS_SUPPORT_DEVICE_LIGHT_SENSOR_CALIB
+    EXCEPTION_CHECK_INT(builder && service);
+    protocol_manager_context_t *protocol_ctx = get_protocol_ctx();
+    EXCEPTION_CHECK_INT(protocol_ctx);
+
+    uint8_t battery_type = FACTORY_BATTERY_TYPE_VENDOR1;
+    storage_manager_context_t *st = get_storage_ctx();
+    if (st) {
+        factory_dev_info_t dev_info = {0};
+        st->get_store_val(STORE_ID_FACTORY_DEV_INFO, 0, 0, &dev_info);
+        if (dev_info.battery_type == FACTORY_BATTERY_TYPE_VENDOR1 ||
+            dev_info.battery_type == FACTORY_BATTERY_TYPE_VENDOR2) {
+            battery_type = dev_info.battery_type;
+        }
+    }
+    LOG_SRV("tests_tlvs_read_battery_vendor_type: battery_type=%u", battery_type);
+
+    comm_protocol_tlv_node_t tlv_node = {
+        .type = TESTS_TLV_READ_BATTERY_VENDOR_TYPE,
+        .length = 1,
+        .value = &battery_type,
     };
     return protocol_ctx->comm_protocol_builder_add_tlv(builder, service, &tlv_node);
 #endif

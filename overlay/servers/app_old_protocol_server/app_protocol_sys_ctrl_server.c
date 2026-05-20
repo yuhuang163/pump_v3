@@ -352,7 +352,7 @@ void app_old_comm_handle_dev_abnormal_app_req(uint8_t cal, uint8_t *cab)
     battery_manager_context_t *batt_ctx = (battery_manager_context_t *)find_module(ID_MODULE_BATTERY);
     EXCEPTION_CHECK_VOID(batt_ctx);
  
-    uint8_t percent = 0;
+    int percent = 0;
     if (battery) {
         DEVICE_READ_ARGS(battery, &percent, sizeof(percent));
     } else {

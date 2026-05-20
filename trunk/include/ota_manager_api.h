@@ -40,6 +40,15 @@ typedef enum {
     OTA_OBJECT_TOUCH_KEY_FIRMWARE, /// 触摸按键固件
 } ota_object_e;
 
+typedef struct {
+    bool is_working;
+    uint8_t progress;
+    uint32_t total_size;
+    uint32_t recv_size;
+    ota_upgrade_state_e state;
+    ota_object_e object;
+} ota_info_t;
+
 /// 描述ota上下文对象
 struct broadcast_obj;
 struct rt_device_node;
@@ -48,22 +57,13 @@ typedef struct ota_manager_context {
     struct __ota_private {
         thread_context_t ota_work_thd;
         struct broadcast_obj *ota_bcd;
-        bool is_working;
-        uint8_t ota_progress;
-        ota_upgrade_state_e ota_state;
-        ota_object_e ota_object;
+        ota_info_t ota_info;
     } priv;
     
 /// public
-    void (*init)(void);
     bool (*is_ota_upgrading)(void);
-    void (*set_ota_upgrading)(bool yes);
-    uint8_t (*get_ota_upgrade_progress)(void);
-    void (*set_ota_upgrade_progress)(uint8_t progress);
-    ota_object_e (*get_ota_object)(void);
-    ota_upgrade_state_e (*get_ota_upgrade_state)(void);
-    void (*set_ota_upgrade_state)(ota_upgrade_state_e state);
-    int (*dispatch_ota_event_wrapper)(int event, int arg1, int arg2);
+    void (*get_ota_info)(ota_info_t *info);
+    int (*dispatch_ota_event_wrapper)(int event, ota_object_e object, int arg1, int arg2);
     /// 外部钩子函数.
     struct __ota_manager_hook {
         int (*on_post_init_route)(struct ota_manager_context *ctx);

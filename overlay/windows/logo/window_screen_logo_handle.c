@@ -43,6 +43,10 @@ static void touch_key_fw_version_check_cb(hdr_post_args_t *args)
     ui_proc_logo_t *proc = args->user_data;
     EXCEPTION_CHECK_VOID(proc);
     WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_LOGO);
+    if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
+        LOG_WM("wm not running, ignore.");
+        return;
+    }
     peripheral_bus_context_t *pbus = (peripheral_bus_context_t *)find_module(ID_MODULE_DEVICE_BUS);
     rt_device_node_t *key_dev = pbus->find_device(ID_DEVICE_INPUT_KEY);
     DEVICE_IOCTL_ARGS(key_dev , OP_CODE_INPUT_KEY_FW_VERSION_CHECK, NULL);
@@ -66,6 +70,10 @@ static int on_logo_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
     ui_proc_logo_t *proc = user_data;
     EXCEPTION_CHECK_INT(proc);
     WINDOW_CONTEXT_GUARD_INT(proc, ID_WINDOW_LOGO, 0);
+    if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
+        LOG_WM("wm not running, ignore.");
+        return 0;
+    }
     if (keycode == KEY_CODE_KNOB_LEFT) {
         proc->test_page_count--;
     } else if (keycode == KEY_CODE_KNOB_RIGHT) {
@@ -85,18 +93,19 @@ static int entry_event_cb(window_lift_cycle_e new_state,
     window_manager_context_t *wm = proc->wm;
     ui_manager_context_t *ui = proc->ui;
     if (new_state == ID_SCR_STATE_ON_RESUME) {
-#if IS_SUPPORT_LOGO_BG_COLOR_TEST
-        if (proc->key) {
-            ADD_KEYEVENT_CB(proc->key, "home_wm", proc, LOGO_UI_KEY_CODE, LOGO_UI_KEY_TYPE,
-                on_logo_ui_keyevent_hdr);
-#if IS_SUPPORT_LOGO_KEY_LIGHT_ADAPTIVE_TEST
-        logo_test_key_backlight_on(proc);
-#endif
-#endif
+        #if IS_SUPPORT_LOGO_BG_COLOR_TEST
+            if (proc->key) {
+                ADD_KEYEVENT_CB(proc->key, "home_wm", proc, LOGO_UI_KEY_CODE, LOGO_UI_KEY_TYPE,
+                    on_logo_ui_keyevent_hdr);
+        #if IS_SUPPORT_LOGO_KEY_LIGHT_ADAPTIVE_TEST
+            logo_test_key_backlight_on(proc);
+        #endif
+        #endif
+        proc->window_run_state = WINDOW_RUN_STATE_RUNNING;
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);
         start_logo_ui_animation(proc);
-        POST_TASK_HANDLER_DELAYED_ARG1(touch_key_fw_version_check_cb, 500, 
+        POST_WM_TASK_HANDLER_DELAYED_ARG1(touch_key_fw_version_check_cb, 500,
             proc, TOUCH_KEY_FW_VERSION_CHECK_TASK_NAME);
     }
     return 0;
@@ -108,6 +117,7 @@ static int exit_event_cb(window_lift_cycle_e new_state,
     ui_proc_logo_t *proc = CONTAINER_OF(thiz, ui_proc_logo_t, w_ctx);
     switch (new_state) {
         case ID_SCR_STATE_ON_PAUSE:
+            proc->window_run_state = WINDOW_RUN_STATE_PAUSED;
             LOG_WM("==>%s window on pause", PAGE_NAME_STR);
             stop_logo_ui_animation(proc);
             break;

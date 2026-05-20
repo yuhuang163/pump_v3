@@ -146,10 +146,10 @@ int pump_time_policy_update(struct motor_manager_context *thiz, motor_policy_run
     if (runtime->time_policy_remaining_time == 0) {
         for (uint8_t i = 0; i < BREAST_PUMP_NUM; i++) {
             if (runtime->info[i].state.policy_update_lock == 1) {
-                // LOG_MOTOR("wait all pump idle");
                 return 0; /// 等待所有泵空闲后切换到下一个时间策略
             }
         }
+
         if (runtime->timed_policy->next) {
             runtime->current_timed_policy_index++;
             runtime->timed_policy = runtime->timed_policy->next;
@@ -162,10 +162,12 @@ int pump_time_policy_update(struct motor_manager_context *thiz, motor_policy_run
             } else {
                 runtime->next_mode_type = runtime->current_mode_type;
             }
+
             for (uint8_t i = 0; i < BREAST_PUMP_NUM; i++) {
                 memcpy(&runtime->policy[i], &runtime->timed_policy->policy, sizeof(motor_policy_node_t));
                 pump_policy_info_reset(thiz, runtime, i);
             }
+
             if (!runtime->taste_run_flag) {
                 if (thiz->priv.pump_ctx) {
                     thiz->priv.pump_ctx->priv.m_info.step_index = runtime->current_timed_policy_index;
@@ -180,10 +182,10 @@ int pump_time_policy_update(struct motor_manager_context *thiz, motor_policy_run
                     servers_ctx->hook->app_old_protocol_server_data_publish(APP_OLD_COMM_CID_NOTIFY_STATUS, &args);
                 }
             }
-        }
-        else {
+        } else {
             runtime->all_timed_policy_finish_flag = 1; /// 所有定时策略执行完毕
         }
+
         if (runtime->timed_policy->policy.core.type == MOTOR_PARAM_TABLE) {
             suction_strategy_mapping_t *mapping = &runtime->timed_policy->policy.core.un.mapping;
             LOG_MOTOR("mode:%d, index:%d, type:%d/%d/%d, time:%d/%d, mapping:%d(%d/%d)", 
@@ -193,6 +195,33 @@ int pump_time_policy_update(struct motor_manager_context *thiz, motor_policy_run
                 mapping->mode_type, mapping->level, mapping->speed);
         }
     } else {
+#if IS_SUPPORT_PUMP_SYNC
+        runtime->freq_sync_flag = true;   
+#if 0
+        /// 同频同步
+        for (uint8_t i = 1; i < BREAST_PUMP_NUM; i++) {
+            if (runtime->pump_freq[i] != runtime->pump_freq[0] && runtime->current_mode_type != PUMP_MODE_MIX) {
+                runtime->freq_sync_flag = false;
+                break;
+            }
+        }
+#else
+        /// 同档同步
+        for (uint8_t i = 1; i < BREAST_PUMP_NUM; i++) {
+            if (runtime->pump_level[i] != runtime->pump_level[0] || runtime->pump_freq[i] != runtime->pump_freq[0]) {
+                runtime->freq_sync_flag = false;
+                break;
+            }
+        }
+#endif
+        if (runtime->freq_sync_flag) {
+            for (uint8_t i = 0; i < BREAST_PUMP_NUM; i++) {
+                if (runtime->info[i].state.policy_update_lock) {
+                    return 0;
+                }
+            }
+        }
+#endif
         for (uint8_t i = 0; i < BREAST_PUMP_NUM; i++) {
             if (runtime->info[i].state.policy_update_lock == 0) {
                 if (runtime->info[i].state.cycles_count < runtime->info[i].config.loop_num) {

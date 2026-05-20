@@ -59,23 +59,20 @@ static void pump_both_level_display_completed_cb(hdr_post_args_t *args)
 
     int time_index = 0;
     READ_PUMP_MODE_STEP_INDEX(proc->pump, time_index);
-    if (proc->level_change > 0) {
-        for (int i = 0; i < BREAST_PUMP_NUM; i++) {
-            proc->setting.level[i] = proc->setting.level[i] + proc->level_change;
-            if (proc->setting.level[i] >= BREAST_PUMP_LEVEL_MAX) {
-                proc->setting.level[i] = BREAST_PUMP_LEVEL_MAX - 1;
+    if (proc->both_level_sync_flag && proc->both_level_change != 0) {
+        for (uint8_t i = 0; i < BREAST_PUMP_NUM; i++) {
+            int8_t level = proc->setting.level[i] + proc->both_level_change ;
+            if (level > BREAST_PUMP_LEVEL_15) {
+                level = BREAST_PUMP_LEVEL_15;
+            } else if (level < 0) {
+                level = 0;
             }
-        }
-        WRITE_PUMP_SETTING_INFO(proc->pump, time_index, true, proc->setting);
-    } else if (proc->level_change < 0) {
-        uint8_t abs_level_change = abs(proc->level_change);
-        for (int i = 0; i < BREAST_PUMP_NUM; i++) {
-            proc->setting.level[i] = proc->setting.level[i] < abs_level_change ?
-                0 : (proc->setting.level[i] - abs_level_change);
+            proc->setting.level[i] = level;
         }
         WRITE_PUMP_SETTING_INFO(proc->pump, time_index, true, proc->setting);
     }
-    proc->level_change = 0;
+    proc->both_level_change = 0;
+    proc->both_level_sync_flag = false;
     pump_sub_ui_exit_handler(proc);
 }
 
@@ -88,7 +85,7 @@ static void pump_both_level_ui_after_policy(ui_manager_context_t *ui, int index)
     if (time_diff >= PUMP_LEVEL_DISPLAY_TIMEOUT) {
         proc->last_progress_ani_time = get_timestamp();
         LOG_UI("both level ui timeout: %d", proc->last_progress_ani_time);
-        POST_TASK_HANDLER_NO_DELAY(pump_both_level_display_completed_cb, proc,
+        POST_WM_TASK_HANDLER_NO_DELAY(pump_both_level_display_completed_cb, proc,
             PUMP_BOTH_LEVEL_DISPLAY_TASK_NAME);
     }
 }
@@ -157,11 +154,28 @@ static void show_pump_both_level_ui(ui_proc_pump_t *proc)
 void switch_pump_both_control_type_ui(ui_proc_pump_t *proc, bool is_increase)
 {
     EXCEPTION_CHECK_VOID(proc && proc->pump);
-    proc->level_change = is_increase ? 1 : -1;
     if (proc->current_ui_type != PUMP_UI_TYPE_BOTH_LEVEL) {
         int time_index = 0;
         READ_PUMP_MODE_STEP_INDEX(proc->pump, time_index);
         READ_PUMP_SETTING_INFO(proc->pump, time_index, proc->setting);
+        proc->both_level_change = 0;
+        if (is_increase) {
+            for (uint8_t i = 0; i < BREAST_PUMP_NUM; i++) {
+                if (proc->setting.level[i] < BREAST_PUMP_LEVEL_15) {
+                    proc->both_level_change = 1;
+                    proc->both_level_sync_flag = true;
+                    break;
+                }
+            }
+        } else {
+            for (uint8_t i = 0; i < BREAST_PUMP_NUM; i++) {
+                if (proc->setting.level[i] > BREAST_PUMP_LEVEL_0) {
+                    proc->both_level_change = -1;
+                    proc->both_level_sync_flag = true;
+                    break;
+                }
+            }
+        }
     } 
     WRITE_PUMP_LEVEL_CONTROL_TYPE(proc->pump, BREAST_PUMP_CONTROL_TYPE_BILATERAL, 1);
     proc->forbid_start_pump = false;
@@ -172,21 +186,38 @@ void switch_pump_both_control_type_ui(ui_proc_pump_t *proc, bool is_increase)
 void switch_pump_both_level_ui(ui_proc_pump_t *proc, bool is_increase)
 {
     EXCEPTION_CHECK_VOID(proc && proc->pump);
-    int16_t left_level = proc->setting.level[0] + proc->level_change;
-    int16_t right_level = proc->setting.level[1] + proc->level_change;
+    int16_t left_level = proc->setting.level[0] + proc->both_level_change;
+    int16_t right_level = proc->setting.level[1] + proc->both_level_change;
     if (is_increase) {
         if (left_level < BREAST_PUMP_LEVEL_15 || right_level < BREAST_PUMP_LEVEL_15) {
-            proc->level_change++;
+            proc->both_level_change++;
         }
     } else {
         if (left_level > BREAST_PUMP_LEVEL_0 || right_level > BREAST_PUMP_LEVEL_0) {
-            proc->level_change--;
+            proc->both_level_change--;
         }
     }
+    proc->both_level_sync_flag = true;
     show_pump_both_level_ui(proc);
 }   
 
-void pump_both_level_ui_hdr_remove(void)
+void pump_both_level_ui_exit(ui_proc_pump_t *proc)
 {
+    int time_index = 0;
+    READ_PUMP_MODE_STEP_INDEX(proc->pump, time_index);
     REMOVE_TASK_HANDLER_DIRECTLY(PUMP_BOTH_LEVEL_DISPLAY_TASK_NAME);
+    if (proc->both_level_sync_flag && proc->both_level_change != 0) {
+        for (uint8_t i = 0; i < BREAST_PUMP_NUM; i++) {
+            int8_t level = proc->setting.level[i] + proc->both_level_change ;
+            if (level > BREAST_PUMP_LEVEL_15) {
+                level = BREAST_PUMP_LEVEL_15;
+            } else if (level < 0) {
+                level = 0;
+            }
+            proc->setting.level[i] = level;
+        }
+        WRITE_PUMP_SETTING_INFO(proc->pump, time_index, true, proc->setting);
+    }
+    proc->both_level_change = 0;
+    proc->both_level_sync_flag = false;
 }

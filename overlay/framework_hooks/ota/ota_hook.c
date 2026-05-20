@@ -25,28 +25,24 @@ static ota_manager_context_t *ota_obj = NULL;
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-static void ota_touch_key_event_callback(key_ota_event_e event, uint8_t progress)
+static void ota_touch_key_event_callback(key_ota_event_e event, int arg1, int arg2)
 {
-    LOG_OTA("ota event: %d/%d", event, progress);
+    LOG_OTA("ota event: %d/%d/%d", event, arg1, arg2);
     if (event == KEY_OTA_EVENT_UPDATE_START) {
-        ota_obj->dispatch_ota_event_wrapper(OTA_EVENT_START_OTA, OTA_OBJECT_TOUCH_KEY_FIRMWARE, 0);
+        ota_obj->dispatch_ota_event_wrapper(OTA_EVENT_START_OTA, OTA_OBJECT_TOUCH_KEY_FIRMWARE, arg1, arg2);
     } else if (event == KEY_OTA_EVENT_UPDATE_PROGRESS) {
-        ota_obj->dispatch_ota_event_wrapper(OTA_EVENT_OTA_PROGRESS, progress, 0);
+        ota_obj->dispatch_ota_event_wrapper(OTA_EVENT_OTA_PROGRESS, OTA_OBJECT_TOUCH_KEY_FIRMWARE, arg1, arg2);
     } else if (event == KEY_OTA_EVENT_UPDATE_FAIL) {
-        ota_obj->dispatch_ota_event_wrapper(OTA_EVENT_OTA_FAIL, 0, 0);
+        ota_obj->dispatch_ota_event_wrapper(OTA_EVENT_OTA_FAIL, OTA_OBJECT_TOUCH_KEY_FIRMWARE,  0, 0);
     } else if (event == KEY_OTA_EVENT_UPDATE_SUCCESS) {
-        ota_obj->dispatch_ota_event_wrapper(OTA_EVENT_OTA_SUCCESS, 100, 0);
+        ota_obj->dispatch_ota_event_wrapper(OTA_EVENT_OTA_SUCCESS, OTA_OBJECT_TOUCH_KEY_FIRMWARE, 0, 0);
     }
 }
 
-static void ota_main_fw_event_callback(ota_event_type_e event, int args)
+static void ota_main_fw_event_callback(ota_event_type_e event, int arg1, int arg2)
 {
-    LOG_OTA("ota event: %d/%d", event, args);
-    if (event == OTA_EVENT_START_OTA || event == OTA_EVENT_RESUME_OTA) {
-        ota_obj->dispatch_ota_event_wrapper(event, OTA_OBJECT_MAIN_FIRMWARE, 0);
-    } else {
-        ota_obj->dispatch_ota_event_wrapper(event, args, 0);
-    }
+    LOG_OTA("ota event: %d/%d", event, arg1, arg2);
+    ota_obj->dispatch_ota_event_wrapper(event, OTA_OBJECT_MAIN_FIRMWARE, arg1, arg2);
 }
 
 static int on_broadcast_receiver_route(broadcast_mask_id_t id, void *context, int arg1, int arg2, void *pdata)
@@ -54,12 +50,15 @@ static int on_broadcast_receiver_route(broadcast_mask_id_t id, void *context, in
     ota_manager_context_t *ctx = context;
     EXCEPTION_CHECK_INT(ctx);
     switch (id.code) {
-        case ID_BROADCAST_BLE_STATE_CHANGE:
+        case ID_BROADCAST_BLE_STATE_CHANGE: {
+            ota_info_t ota_info = {0};
+            ctx->get_ota_info(&ota_info); 
             if (arg1 == BLE_BROADCAST_DISCONNECT && 
-                ctx->is_ota_upgrading() && ctx->get_ota_object() == OTA_OBJECT_MAIN_FIRMWARE) {
-                ctx->dispatch_ota_event_wrapper(OTA_EVENT_OTA_FAIL, 0, 0);
+                ota_info.is_working && ota_info.object == OTA_OBJECT_MAIN_FIRMWARE) {
+                ctx->dispatch_ota_event_wrapper(OTA_EVENT_OTA_FAIL, OTA_OBJECT_MAIN_FIRMWARE, 0, 0);
             }
             break;
+        }
         default:
             break;
     }

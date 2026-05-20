@@ -46,9 +46,11 @@ typedef struct {
     battery_manager_context_t *battery;
     airplane_mode_context_t *airplane;
     broadcast_obj_t receiver;
+    window_broadcast_args_t broadcast_args; /// 广播投递参数.
     uint32_t margic;
     uint32_t last_progress_ani_time; /// 上次进度动画时间.
     uint16_t current_ui_type; /// 当前UI类型. battery_ui_type_e
+    uint8_t window_run_state; /// WM是否运行.
 } ui_proc_battery_t;
 
 /*

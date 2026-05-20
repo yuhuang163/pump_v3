@@ -23,10 +23,20 @@ extern "C" {
 /// 系统动画展示时间
 #define POWER_OFF_ANIMATION_DISPLAY_TIME         (2000) /// 2s
 
+typedef enum {
+    POWER_OFF_HDR_EXIT_CHARGE_POLICY = 100, /// 退出充电策略
+    POWER_OFF_HDR_DISCHARGE_POWER_OFF, /// 拔除充电关机
+    POWER_OFF_HDR_DISPLAY_CHARGING, /// 显示充电中
+    POWER_OFF_HDR_DISPLAY_CHARGE_ERROR, /// 显示充电错误
+    POWER_OFF_HDR_ACTION_MAX
+} power_off_ui_hdr_action_e;
+
 /// 系统UI类型枚举
 typedef enum {
     POWER_OFF_UI_TYPE_NONE = 0,
     POWER_OFF_UI_TYPE_POWER_OFF,
+    POWER_OFF_UI_TYPE_CHARGING,
+    POWER_OFF_UI_TYPE_CHARGE_ERROR,
     POWER_OFF_UI_TYPE_MAX
 } power_off_ui_type_e;
 
@@ -40,8 +50,11 @@ typedef struct {
     power_manager_context_t *pm;
     led_manager_context_t *led;
     breast_pump_manager_context_t *pump;
+    battery_manager_context_t *battery;
+    ble_manager_context_t *ble;
     key_input_context_t *key;
     uint32_t margic; /// 窗口标识.
+    uint8_t window_run_state; /// WM是否运行.
     uint32_t last_progress_ani_time; /// 上次进度动画时间.
     uint16_t current_ui_type; /// 当前UI类型. factory_reset_ui_type_e
     uint8_t rsv[6];
@@ -52,7 +65,11 @@ typedef struct {
 *****************************************************************************************
 */
 void power_off_handle(ui_proc_power_off_t *proc);
+void start_power_off_ui_animation(ui_proc_power_off_t *proc);
+void stop_power_off_common_ui(ui_proc_power_off_t *proc);
 void stop_power_off_ui_animation(ui_proc_power_off_t *proc);
+void show_power_off_charging_ui(ui_proc_power_off_t *proc);
+void show_power_off_charge_error_ui(ui_proc_power_off_t *proc);
 
 #ifdef __cplusplus
 }

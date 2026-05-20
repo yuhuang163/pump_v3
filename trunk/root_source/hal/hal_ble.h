@@ -108,7 +108,7 @@ typedef enum {
 /**
  * @brief 描述OTA事件回调
 */
-typedef void (*ota_event_cb_func)(ota_event_type_e event, int args);
+typedef void (*ota_event_cb_func)(ota_event_type_e event, int arg1, int arg2);
 
 #ifdef __cplusplus
 }

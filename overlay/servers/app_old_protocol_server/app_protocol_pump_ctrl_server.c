@@ -353,7 +353,7 @@ static uint32_t app_old_comm_get_current_pump_mode_run_time(void)
     return (uint32_t)result_info->current_mode_work_time/1000;
 }
 
-static uint32_t app_old_comm_get_pump_mode_run_total_time(void)
+static uint32_t app_old_comm_get_pump_mode_run_total_time(servers_old_protocol_publish_data_id_e id)
 {
     breast_pump_manager_context_t *pump_ctx = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
     EXCEPTION_CHECK_UINT(pump_ctx);
@@ -362,7 +362,8 @@ static uint32_t app_old_comm_get_pump_mode_run_total_time(void)
     ///如果pump已经运行完成，则返回0
     int work_status = 0;
     READ_PUMP_WORK_STATUS(pump_ctx, work_status);
-    if (work_status == BREAST_PUMP_FINISH || work_status == BREAST_PUMP_IDLE ) {
+    ///如果pump已经运行完成，则返回0,如果id为SYSTEM_STATUS_RESET，则返回当前运行时间
+    if ((work_status == BREAST_PUMP_FINISH || work_status == BREAST_PUMP_IDLE) && id != OLD_PUBLISH_DATA_SYSTEM_STATUS_RESET) {
         LOG_SRV("pump already finished or idle, total time = 0");
         return 0;
     } else {
@@ -871,7 +872,7 @@ static bool app_old_comm_check_if_start_block_abnormal(uint8_t ctrl_status)
         return false;
     }
 
-    if (app_old_comm_get_battery_percent() <= FORBID_START_BAT_PERCENTAGE) {
+    if ((app_old_comm_get_battery_percent() <= FORBID_START_BAT_PERCENTAGE) && !batt_ctx->is_vbus_plug_in) {
         return app_old_comm_report_start_block_abnormal(OLD_PUBLISH_ABNORMAL_LOW_BAT_CANNOT_START);
     }
 
@@ -888,7 +889,8 @@ static bool app_old_comm_check_if_start_block_abnormal(uint8_t ctrl_status)
     //如果在引导窗口，则不允许启动
     window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
     EXCEPTION_CHECK_UINT(wm);
-    if (wm->is_current_window(wm, ID_WINDOW_GUIDE) || wm->is_current_window(wm, ID_WINDOW_POWER_OFF)) {
+    if (wm->is_current_window(wm, ID_WINDOW_GUIDE) || wm->is_current_window(wm, ID_WINDOW_POWER_OFF)
+        || wm->is_current_window(wm, ID_WINDOW_CHARGE)) {
         return app_old_comm_report_start_block_abnormal(OLD_PUBLISH_ABNORMAL_GUIDE_WINDOW);
     }
 
@@ -913,7 +915,7 @@ void app_old_comm_report_device_status(app_old_commd_l_r_ctrl_e lr_ct, servers_o
     LOG_SRV(" Reporting device status id %d", id);
     uint8_t report_data[45] = {0};
     uint16_t data_len = 0;
-    uint32_t mode_total_time = app_old_comm_get_pump_mode_run_total_time();
+    uint32_t mode_total_time = app_old_comm_get_pump_mode_run_total_time(id);
     uint32_t mode_run_time = app_old_comm_get_current_pump_mode_run_time();
     uint32_t custom_mode_total_time = app_old_comm_get_current_custom_pump_mode_total_time();
     uint32_t mode_step_time = app_old_comm_get_current_running_mode_step_time();
@@ -968,7 +970,7 @@ void app_old_comm_handle_get_status_req(app_old_commd_l_r_ctrl_e lr_ct)
     LOG_SRV(" Handling get device status request");
     uint8_t ack_data[45] = {0};
     uint16_t data_len = 0;
-    uint32_t mode_total_time = app_old_comm_get_pump_mode_run_total_time();
+    uint32_t mode_total_time = app_old_comm_get_pump_mode_run_total_time(OLD_PUBLISH_DATA_POLL_REPORT);
     uint32_t mode_run_time = app_old_comm_get_current_pump_mode_run_time();
     uint32_t custom_mode_total_time = app_old_comm_get_current_custom_pump_mode_total_time();
     uint32_t mode_step_time = app_old_comm_get_current_running_mode_step_time();
@@ -1169,8 +1171,7 @@ void app_old_comm_handle_set_user_define_req(uint8_t cal, uint8_t *cab)
     if (wm->is_current_window(wm, ID_WINDOW_PUMP)) {
         app_pump_custom_mode_start_handler();
         app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_ACK, APP_OLD_COMM_CID_USER_DEFINE, 4, cab);
-    } else if (wm->is_current_window(wm, ID_WINDOW_CHARGE) || wm->is_current_window(wm, ID_WINDOW_DUMMY)
-        ||wm->is_current_window(wm, ID_WINDOW_HOME)) {
+    } else if (wm->is_current_window(wm, ID_WINDOW_DUMMY) || wm->is_current_window(wm, ID_WINDOW_HOME)) {
         LOG_SRV("charge or dummy or home mode, dispatch pump window.");
         //multi_func_msg_data_t msg = {0};
         //msg.union_body.extra.window_id = ID_WINDOW_PUMP;

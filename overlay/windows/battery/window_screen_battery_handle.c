@@ -100,9 +100,13 @@ static void on_battery_window_battery_state_change_cb(void *user_data, battery_s
     ui_proc_battery_t *proc = (ui_proc_battery_t *)user_data;
     EXCEPTION_CHECK_VOID(proc);
     WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_BATTERY);
+    if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
+        LOG_WM("wm not running, ignore.");
+        return;
+    }
     if (BATTERY_IS_CHARGING(info->charge_status)) {
         if (proc->current_ui_type == BATTERY_UI_TYPE_LOW_POWER) {
-            POST_TASK_HANDLER_NO_DELAY_ARG1(battery_ui_common_cb, proc,
+            POST_WM_TASK_HANDLER_NO_DELAY_ARG1(battery_ui_common_cb, proc,
                 BATTERY_HDR_ACTION_LOW_POWER_EXIT, BATTERY_LOW_POWER_TASK_NAME);
         }
     }
@@ -114,10 +118,11 @@ static int entry_event_cb(window_lift_cycle_e new_state, const struct window_con
     EXCEPTION_CHECK_INT(proc);
     if (new_state == ID_SCR_STATE_ON_RESUME) {
         ADD_BATTERY_STATE_CB(proc->battery, proc, on_battery_window_battery_state_change_cb);
+        proc->window_run_state = WINDOW_RUN_STATE_RUNNING;
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);
         show_battery_low_power_ui(proc);
-        POST_TASK_HANDLER_DELAYED_ARG2(battery_ui_common_cb, 3000, BATTERY_HDR_ACTION_LOW_POWER_POWER_OFF,
+        POST_WM_TASK_HANDLER_DELAYED_ARG2(battery_ui_common_cb, 3000, BATTERY_HDR_ACTION_LOW_POWER_POWER_OFF,
                 proc, BATTERY_LOW_POWER_TASK_NAME);
     }
     return 0;
@@ -129,11 +134,13 @@ static int exit_event_cb(window_lift_cycle_e new_state, const struct window_cont
     EXCEPTION_CHECK_INT(proc);
     switch (new_state) {
         case ID_SCR_STATE_ON_PAUSE: 
+            proc->window_run_state = WINDOW_RUN_STATE_PAUSED;
             LOG_WM("==>%s window on pause", PAGE_NAME_STR);
             stop_battery_low_power_ui(proc);
             break;
         case ID_SCR_STATE_ON_DESTORY:
             LOG_WM("==>%s window on destory", PAGE_NAME_STR);
+            REMOVE_ALL_HANDER_TASK();
             SET_WINDOW_CONTEXT(NULL);
             proc->margic = UI_WINDOW_MARGIC_CODE_INVALID;
             REMOVE_BATTERY_STATE_CB(proc->battery, on_battery_window_battery_state_change_cb);

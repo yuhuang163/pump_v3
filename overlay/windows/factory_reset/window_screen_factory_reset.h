@@ -43,6 +43,7 @@ typedef struct {
     breast_pump_manager_context_t *pump;
     key_input_context_t *key;
     uint32_t margic; /// 窗口标识.
+    uint8_t window_run_state; /// WM是否运行.
     uint32_t last_progress_ani_time; /// 上次进度动画时间.
     uint16_t current_ui_type; /// 当前UI类型. factory_reset_ui_type_e
     uint8_t display_fac_rst_confirm_progress; /// 显示工厂重置确认进度.
@@ -53,7 +54,7 @@ typedef struct {
 * GLOBAL FUNCTION DECLARATION
 *****************************************************************************************
 */
-void factory_reset_handle(ui_proc_factory_reset_t *proc);
+void factory_reset_handle(ui_proc_factory_reset_t *proc, uint16_t delay_ms);
 void factory_reset_ui_hdr_remove(void);
 void show_factory_reset_confirm_ui(ui_proc_factory_reset_t *proc);
 void factory_reset_confirm_ui_hdr_remove(void);

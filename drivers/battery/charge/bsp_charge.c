@@ -8,6 +8,7 @@
 #include "bsp_charge.h"
 #include "bsp_ntc_map.h" // IWYU pragma: keep
 #include "bsp_battery_internal.h"
+#include <stdint.h>
 #if IS_SUPPORT_PD_CHARGE
 #include "bsp_charge_pd.h"
 #endif
@@ -202,6 +203,11 @@ static void charge_power_control(bool enable)
     if (is_charging == enable) {
         return;
     }
+    
+    if (s_charge_is_ready == 0) {
+        LOGE("charge no ready, ignore");
+        return;
+    }
     GPIO_PIN_CTRL(CHARGE_POWER_PIN, enable ? 0 : 1);
     is_charging = enable;
     LOG_PBUS("charge_power_control: %d", enable);
@@ -340,26 +346,42 @@ static int charge_status_poll(charge_chip_status_t *status)
     return BSP_OK;
 }
 
-static int charge_ntc_temperature_get(float resistance)
+static float charge_ntc_temperature_get(float resistance)
 {
     int left = 0;
     int right = NTC_TEMP_TABLE_SIZE - 1;
-    while (left <= right) {
-        int mid = left + (right - left) / 2;
-        if (resistance >= ntc_temp_table[mid].r_min && resistance <= ntc_temp_table[mid].r_max) {
-            return ntc_temp_table[mid].temp;
+    int mid;
+
+    if (resistance >= ntc_temp_table[left].r_center) {
+        return (float)ntc_temp_table[left].temp;
+    }
+
+    if (resistance <= ntc_temp_table[right].r_center) {
+        return (float)ntc_temp_table[right].temp;
+    }
+
+    while (left < right - 1)
+    {
+        mid = left + (right - left) / 2; // 防止溢出
+
+        if (resistance > ntc_temp_table[mid].r_center)
+        {
+            right = mid;
         }
-        if (resistance > ntc_temp_table[mid].r_max) {
-            right = mid - 1;
-        } else {
-            left = mid + 1;
+        else
+        {
+            left = mid;
         }
     }
 
-    if (left >= NTC_TEMP_TABLE_SIZE) {
-        return ntc_temp_table[NTC_TEMP_TABLE_SIZE - 1].temp + 1;
-    }
-    return ntc_temp_table[0].temp - 1;
+    float R_high = ntc_temp_table[left].r_center;
+    float T_high = (float)ntc_temp_table[left].temp;
+    float R_low  = ntc_temp_table[right].r_center;
+    float T_low  = (float)ntc_temp_table[right].temp;
+
+    float temp = T_high + (T_low - T_high) * (R_high - resistance) / (R_high - R_low);
+
+    return temp;
 }
 
 static int charge_chip_init(void)
@@ -408,44 +430,46 @@ static int charge_chip_init(void)
 
 POSSIBLY_UNUSED static void charging_temp_policy_handler(int8_t temp)
 {
-    if (temp >= CHARGE_NORMAL_TEMP_MIN && temp <= CHARGE_NORMAL_TEMP_MAX) {
-        if (s_charge_temp_status != CHARGE_TEMP_NORMAL) {
-            s_charge_temp_status = CHARGE_TEMP_NORMAL;
-            s_charge_temp_count = 0;
-        }
-        s_charge_temp_count++;
-        if (s_charge_temp_count > CHARGE_TEMP_POLICY_POLL_INTERVAL) {
-            s_charge_temp_count = 0;
-            if (s_charging_current != s_charging_current_max) {
-                charge_ibat_config(s_charging_current_max);
-                LOG_PBUS("normal current update:%dmA", s_charging_current);
+
+    if (temp <= CHARGE_NORMAL_TEMP_MIN || temp >= CHARGE_DERATED_TEMP_MAX) {
+        if (s_charge_temp_status != CHARGE_TEMP_DISABLE) {
+            s_charge_temp_count++;
+            if (s_charge_temp_count > CHARGE_TEMP_POLICY_POLL_INTERVAL) {
+                s_charge_temp_count = 0;
+                charge_power_control(false);
+                s_charge_temp_status = CHARGE_TEMP_DISABLE;
+                LOG_PBUS("temp abnormal disable charing");
             }
         }
-    } else if ((temp > CHARGE_DERATED_TEMP_MIN && temp< CHARGE_NORMAL_TEMP_MIN) ||
-               (temp> CHARGE_NORMAL_TEMP_MAX && temp < CHARGE_DERATED_TEMP_MAX)) {
-        if (s_charge_temp_status != CHARGE_TEMP_DERATED) {
-            s_charge_temp_status = CHARGE_TEMP_DERATED;
-            s_charge_temp_count = 0;
-        }
-        s_charge_temp_count++;
-        if (s_charge_temp_count > CHARGE_TEMP_POLICY_POLL_INTERVAL) {
-            s_charge_temp_count = 0;
-            if (s_charging_current != TEMP_ABNORMAL_CHARGING_CURRENT) {
-                charge_ibat_config(TEMP_ABNORMAL_CHARGING_CURRENT);
-                LOG_PBUS("derated current update:%dmA", s_charging_current);
+        return;
+    }
+
+    if (temp >= CHARGE_NORMAL_TEMP_MIN && temp <= CHARGE_NORMAL_TEMP_MAX) {
+        if (s_charge_temp_status != CHARGE_TEMP_NORMAL) {
+            s_charge_temp_count++;
+            if (s_charge_temp_count > CHARGE_TEMP_POLICY_POLL_INTERVAL) {
+                s_charge_temp_count = 0;
+                charge_ibat_config(s_charging_current_max);
+                if (s_charge_status.plug_in &&
+                    s_charge_adapter_mismatch == false) {
+                    charge_power_control(true);
+                }
+                s_charge_temp_status = CHARGE_TEMP_NORMAL;
+                LOG_PBUS("goto normal charging");
             }
         }
     } else {
-        if (s_charge_temp_status != CHARGE_TEMP_DISABLE) {
-            s_charge_temp_status = CHARGE_TEMP_DISABLE;
-            s_charge_temp_count = 0;
-        }
-        s_charge_temp_count++;
-        if (s_charge_temp_count > CHARGE_TEMP_POLICY_POLL_INTERVAL) {
-            s_charge_temp_count = 0;
-            if (is_charging) {
-                charge_power_control(false);
-                LOG_PBUS("temp abnormal disable charing");
+        if (s_charge_temp_status != CHARGE_TEMP_DERATED) {
+            s_charge_temp_count++;
+            if (s_charge_temp_count > CHARGE_TEMP_POLICY_POLL_INTERVAL) {
+                s_charge_temp_count = 0;
+                charge_ibat_config(TEMP_ABNORMAL_CHARGING_CURRENT);
+                if (s_charge_status.plug_in &&
+                    s_charge_adapter_mismatch == false) {
+                    charge_power_control(true);
+                }
+                s_charge_temp_status = CHARGE_TEMP_DERATED;
+                LOG_PBUS("goto temp derated charging");
             }
         }
     }
@@ -464,14 +488,14 @@ static void charge_device_thread(void *arg)
         MSG_QUEUE_RECV(s_charge_device_thd.msg_id, &msg, OS_WAIT_FOREVER);
 #if IS_SUPPORT_DEVICE_CHARGE
         charge_status_poll(&s_charge_status);
-        s_charge_status.charge_full = (s_charge_status.status & BAT_FULL_STATUS_POS) > 0 ? true : false;        
+        s_charge_status.charge_full = (s_charge_status.status & BAT_FULL_STATUS_POS) > 0 ? true : false;  
         s_charge_status.temp = charge_ntc_temperature_get(s_charge_status.ntc_resistance);
 #if IS_SUPPORT_CHARGE_CURRENT_ADJUST
         charging_temp_policy_handler(s_charge_status.temp);
 #endif
         if (get_timestamp_ms(log_timer) > 2000) {
             log_timer = get_timestamp();
-            BSP_LOG("charge status", "vbus:%d mV, ibus:%d mA, vbat:%d mV, ibat:%d mA, ntc:%.2f KOhm, temp:%d C, status:0x%04X", 
+            BSP_LOG("charge status", "vbus:%dmV, ibus:%dmA, vbat:%dmV, ibat:%dmA, ntc:%.2fKOhm, temp:%.1f℃, status:0x%04X", 
                      s_charge_status.vbus, s_charge_status.ibus, s_charge_status.vbat, s_charge_status.ibat, 
                      s_charge_status.ntc_resistance, s_charge_status.temp, s_charge_status.status);
         }
@@ -517,11 +541,12 @@ int get_charge_state(void)
         return CHARGE_STATE_ERROR;
     }
 
-    if (s_charge_status.charge_full && s_charge_status.plug_in && s_charge_is_ready) {
+    if (s_charge_status.charge_full && s_charge_status.plug_in &&
+        is_charging) {
         return CHARGE_STATE_FULL;
     }  
 
-    if (s_charge_status.plug_in && s_charge_is_ready) {
+    if (s_charge_status.plug_in && is_charging) {
         return CHARGE_STATE_CHARGING;
     }
     

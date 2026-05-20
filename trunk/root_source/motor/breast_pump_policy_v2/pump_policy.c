@@ -139,7 +139,9 @@ int pump_policy_update(motor_policy_info_t *info, uint8_t pump_id, motor_timer_e
                 info->state.policy_update_lock = 0;
             }
             break;
-            
+        case SUCTION_STATUS_UPDATE_POLICY:
+        
+            break;
         default:
             LOG_MOTOR("unknown status: %d, action: %d, lock: %d", 
                 info->state.status, info->state.action, info->state.policy_update_lock);
@@ -151,7 +153,7 @@ int pump_policy_update(motor_policy_info_t *info, uint8_t pump_id, motor_timer_e
 
 void pump_policy_info_reset(struct motor_manager_context *thiz, motor_policy_runtime_t *runtime, uint8_t pump_id) 
 {
-    uint16_t pump_level = 0, pump_time = 0;
+    uint16_t pump_level = 0, total_time = 0;
     suction_strategy_mapping_t map_para = {0};
     motor_policy_info_t *info = &runtime->info[pump_id];
     motor_policy_node_t *policy = &runtime->policy[pump_id];
@@ -162,6 +164,9 @@ void pump_policy_info_reset(struct motor_manager_context *thiz, motor_policy_run
     if (policy->core.type == MOTOR_PARAM_PASS_THROUGH) {
         memcpy(&info->original, &policy->core.un.original, sizeof(motor_policy_original_para_t));
         info->state.target_pressure = 0;
+        total_time = info->original.pumping_time + info->original.hold_time + info->original.valve_on_time + info->original.sleep_time;
+        runtime->pump_freq[pump_id] = (ONE_MIN_TIME_MS / total_time);
+        runtime->pump_level[pump_id] = 0; 
         return;
     }
     /// 获取策略参数
@@ -170,7 +175,9 @@ void pump_policy_info_reset(struct motor_manager_context *thiz, motor_policy_run
     if (map_para.mode_type == SUCTION_MODE_IDLE) {
         memset(&info->original, 0, sizeof(motor_policy_original_para_t));
         LOG_MOTOR("-->goto idle policy");
-        info->state.target_pressure = 0;
+        info->state.target_pressure  = 0;
+        runtime->pump_freq[pump_id]  = 0; 
+        runtime->pump_level[pump_id] = 0;
         return;
     }
     if (runtime->taste_run_flag) {
@@ -184,51 +191,54 @@ void pump_policy_info_reset(struct motor_manager_context *thiz, motor_policy_run
 #if IS_SUPPORT_CLIMB_POLICY
     pump_climb_policy_update(thiz, &map_para);
 #endif
+    runtime->pump_level[pump_id] = map_para.level >= BREAST_PUMP_LEVEL_MAX ? (BREAST_PUMP_LEVEL_MAX - 1) : map_para.level;
+    runtime->pump_speed[pump_id] = map_para.speed >= SUCTION_SPEED_MAX ? (SUCTION_SPEED_MAX - 1) : map_para.speed;
     /// 通过map参数获取吸力参数
     if (map_para.mode_type == SUCTION_MODE_SHORT || map_para.mode_type == SUCTION_MODE_MIX_SHORT) {
-        /// 边界检查，防止数组越界
-        uint8_t level = map_para.level >= BREAST_PUMP_LEVEL_MAX ? (BREAST_PUMP_LEVEL_MAX - 1) : map_para.level;
-        uint8_t speed = map_para.speed >= SUCTION_SPEED_MAX ? (SUCTION_SPEED_MAX - 1) : map_para.speed;
-        pump_level = short_level_table[level]; /// 获取负压等级
-        info->original.pump_level    = short_suction_table[pump_level].pump_level * PUMP_DUTY_SCALE_FACTOR;
-        info->original.pumping_time  = short_suction_table[pump_level].pumping_time;
-        info->original.valve_on_time = short_suction_table[pump_level].valve_on_time;
+        pump_level = short_level_table[runtime->pump_level[pump_id]]; /// 获取负压等级
+        info->original.pump_level    = thiz->priv.suction_para->short_suction_table[pump_level].pump_level * PUMP_DUTY_SCALE_FACTOR;
+        info->original.pumping_time  = thiz->priv.suction_para->short_suction_table[pump_level].pumping_time;
+        info->original.valve_on_time = thiz->priv.suction_para->short_suction_table[pump_level].valve_on_time;
         info->original.hold_time     = SHORT_SUCTION_HOLD_TIME; 
-        info->original.sleep_time    = short_suction_time_table[speed] - info->original.pumping_time - 
-                            info->original.valve_on_time - info->original.hold_time;
+        runtime->pump_freq[pump_id] = short_suction_freq_table[runtime->pump_speed[pump_id]];
+        if (runtime->pump_freq[pump_id] == 0) {
+            LOGW("invalid short suction freq");
+            runtime->pump_freq[pump_id] = SHORT_SUCTION_DEFAULT_FREQ; /// 使用默认频率
+        }
+        total_time = ONE_MIN_TIME_MS / runtime->pump_freq[pump_id];
+        info->original.sleep_time    = total_time - info->original.pumping_time - 
+                            info->original.valve_on_time - info->original.hold_time;           
         if (info->original.sleep_time < PUMP_SLEEP_TIME_MIN || info->original.sleep_time > PUMP_SLEEP_TIME_MAX) {
             info->original.sleep_time = PUMP_SLEEP_TIME_MIN;
             LOG_MOTOR("work period error");
         }
-        LOG_MOTOR("-->short suction: s_time:%d, p_time:%d, v_time:%d, level:%d/%d, speed:%d, d_time:%d",
+        LOG_MOTOR("short suction: s_time:%d, p_time:%d, v_time:%d, level:%d/%d, speed:%d, d_time:%d/%d/%d",
             info->original.sleep_time, info->original.pumping_time, info->original.valve_on_time,
-            map_para.level, info->original.pump_level, map_para.speed,
-            short_suction_time_table[map_para.speed]);
+            runtime->pump_level[pump_id], info->original.pump_level, runtime->pump_speed[pump_id],
+            total_time, runtime->pump_freq[pump_id], runtime->freq_sync_flag);
     } else {
-        /// 边界检查，防止数组越界
-        uint8_t level = map_para.level >= BREAST_PUMP_LEVEL_MAX ? (BREAST_PUMP_LEVEL_MAX - 1) : map_para.level;
-        uint8_t speed = map_para.speed >= SUCTION_SPEED_MAX ? (SUCTION_SPEED_MAX - 1) : map_para.speed;
-        uint16_t pump_freq = long_pump_freq_table[level][speed];
-        if (pump_freq == 0) {
-            LOGW("invalid pump_freq=0, level=%d, speed=%d", map_para.level, map_para.speed);
-            pump_freq = long_pump_freq_table[0][0]; /// 使用默认频率
+        runtime->pump_freq[pump_id] = thiz->priv.suction_para->long_pump_freq_table[runtime->pump_level[pump_id]][runtime->pump_speed[pump_id]];
+        if (runtime->pump_freq[pump_id] == 0) {
+            LOGW("invalid long suction freq:%d/%d", map_para.level, map_para.speed);
+            runtime->pump_freq[pump_id] = LONG_SUCTION_DEFAULT_FREQ; /// 使用默认频率
         }
-        pump_level = long_level_table[level]; /// 获取负压等级
-        info->original.pump_level    = long_suction_table[pump_level].pump_level * PUMP_DUTY_SCALE_FACTOR;
-        info->original.pumping_time  = long_suction_table[pump_level].pumping_time;
-        info->original.valve_on_time = long_suction_table[pump_level].valve_on_time;
+        pump_level = long_level_table[runtime->pump_level[pump_id]]; /// 获取负压等级
+        info->original.pump_level    = thiz->priv.suction_para->long_suction_table[pump_level].pump_level * PUMP_DUTY_SCALE_FACTOR;
+        info->original.pumping_time  = thiz->priv.suction_para->long_suction_table[pump_level].pumping_time;
+        info->original.valve_on_time = thiz->priv.suction_para->long_suction_table[pump_level].valve_on_time;
+
         info->original.hold_time     = LONG_SUCTION_HOLD_TIME; 
-        pump_time = (ONE_MIN_TIME_MS / pump_freq / 10) * 10;
-        info->original.sleep_time    = pump_time - info->original.pumping_time - info->original.valve_on_time - 
+        total_time = ONE_MIN_TIME_MS / runtime->pump_freq[pump_id];
+        info->original.sleep_time    = total_time - info->original.pumping_time - info->original.valve_on_time - 
                 info->original.hold_time;
         if (info->original.sleep_time < PUMP_SLEEP_TIME_MIN || info->original.sleep_time > PUMP_SLEEP_TIME_MAX) {
             info->original.sleep_time = PUMP_SLEEP_TIME_MIN;
             LOG_MOTOR("work period error");
         } 
-        LOG_MOTOR("-->long suction: s_time:%d, p_time:%d, v_time:%d, level:%d/%d, speed:%d, d_time:%d",
+        LOG_MOTOR("long suction: s_time:%d, p_time:%d, v_time:%d, level:%d/%d, speed:%d, d_time:%d/%d/%d",
             info->original.sleep_time, info->original.pumping_time, info->original.valve_on_time,
-            map_para.level, info->original.pump_level, map_para.speed,
-            pump_time);
+            runtime->pump_level[pump_id], info->original.pump_level, runtime->pump_speed[pump_id], 
+            total_time, runtime->pump_freq[pump_id], runtime->freq_sync_flag);
     }
     info->state.target_pressure = pump_level == SUCTION_LEVEL_0KPA ? 0 : (pump_level + SUCTION_DEFAULT_LEVEL_VALUE);
     /// 通过算法线性补偿

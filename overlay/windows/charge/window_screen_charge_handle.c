@@ -12,13 +12,11 @@
 * DEFINES
 *****************************************************************************************
 */
-#define PAGE_STATIC_NAME                        charge
+#define PAGE_STATIC_NAME                         charge
 #define PAGE_NAME_STR                            "charge"
+#define CHARGE_UI_KEY_CODE                       (KEY_CODE_POWER)
+#define CHARGE_UI_KEY_TYPE                       (KEY_EVENT_LONG_3S | KEY_EVENT_LONG_10S)
 #define CHARGE_PAGE_POLICY_TASK_NAME             "charge_page_policy"
-#define CHARGE_UI_KEY_CODE                       (KEY_CODE_POWER |KEY_CODE_START | KEY_CODE_MODE | KEY_CODE_FREQUENCY | \
-                                                  KEY_CODE_BREASTFEEDING | KEY_CODE_LEFT_CONTROL | KEY_CODE_RIGHT_CONTROL | \
-                                                  KEY_CODE_KNOB_LEFT | KEY_CODE_KNOB_RIGHT)
-#define CHARGE_UI_KEY_TYPE                       (KEY_EVENT_CLICK|KEY_EVENT_LONG_3S)
 
 #define REMOVE_ALL_HANDER_TASK() \
 do { \
@@ -46,72 +44,42 @@ static void charge_ui_common_cb(hdr_post_args_t *args)
     ui_proc_charge_t *proc = args->user_data;
     EXCEPTION_CHECK_VOID(proc && proc->wm);
     WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_CHARGE);
+    if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
+        LOG_WM("wm not running, ignore.");
+        return;
+    }
     LOG_WM("margic:%x, action:%d.", proc->margic, args->arg1);
     int action = args->arg1;
     multi_func_msg_data_t msg = {0};
     switch (action) {
         case CHARGE_HDR_EXIT_CHARGE_POLICY:
             LOG_WM("%s", args->name);
-            if (proc->ble) {
+            if (proc->ble && proc->ble->ble_is_connected() == 0) {
                 proc->ble->bt_adv_start_by_user();
             }
-
-            if (proc->airplane && proc->airplane->is_on_airplane_mode()) {
-                LOG_WM("goto airplane mode screen");
-                msg.union_body.extra.window_id = ID_WINDOW_AIRPLANE_MODE;
-                proc->wm->dispatch_new_window_args(proc->wm, &msg);
-                return;
-            }
-            
-            if (proc->wm->is_window_guidance_deployed() == 0) {
-                LOG_WM("goto guide screen");
-                msg.union_body.extra.window_id = ID_WINDOW_GUIDE;
-                proc->wm->dispatch_new_window_args(proc->wm, &msg);
-                return;
-            } 
             LOG_WM("goto home window.");
             msg.union_body.extra.window_id = ID_WINDOW_HOME;
             proc->wm->dispatch_new_window_args(proc->wm, &msg);
-            break;
-        case CHARGE_HDR_SCREEN_TIMEOUT_DETECT:
-            LOG_WM("%s", args->name);
-            show_power_off_charging_ui(proc);
-            break;
-        case CHARGE_HDR_DISCHARGE_POWER_OFF:
-            LOG_WM("%s", args->name);
-            if (proc->pm) {
-                proc->pm->system_power_control(false);
-            }
-            break;
-        case CHARGE_HDR_CHARGE_SCREEN_ON:
-            LOG_WM("%s", args->name);
             break;
         default:
             break;
     }
 }
 
-static void on_charge_window_battery_state_change_cb(void *user_data, battery_state_info_t *info)
+static void on_charge_window_battery_state_cb(void *user_data, battery_state_info_t *info)
 {
     ui_proc_charge_t *proc = (ui_proc_charge_t *)user_data;
     EXCEPTION_CHECK_VOID(proc && info);
     WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_CHARGE);
-
-    LOG_WM("charge status: %d, show charge adapter ui", info->charge_status);
+    if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
+        LOG_WM("wm not running, ignore.");
+        return;
+    }
     if (info->charge_status == CHARGE_STATE_ERROR) {
-        if (proc->current_ui_type != CHARGE_UI_TYPE_ADAPTER) {
-            show_charge_adapter_ui(proc);
-        }
-    } else if (BATTERY_IS_CHARGING(info->charge_status)) {
-        if (proc->current_ui_type == CHARGE_UI_TYPE_ADAPTER) {
-            POST_TASK_HANDLER_NO_DELAY_ARG1(charge_ui_common_cb, proc, 
-                CHARGE_HDR_SCREEN_TIMEOUT_DETECT, CHARGE_PAGE_POLICY_TASK_NAME);
-        }
+        show_charge_adapter_ui(proc);
     } else {
-        if (proc->battery->is_vbus_plug_in() == 0) {
-            POST_TASK_HANDLER_NO_DELAY_ARG1(charge_ui_common_cb, proc, 
-                CHARGE_HDR_DISCHARGE_POWER_OFF, CHARGE_PAGE_POLICY_TASK_NAME);
-        }
+        POST_WM_TASK_HANDLER_NO_DELAY_ARG1(charge_ui_common_cb, proc, 
+                CHARGE_HDR_EXIT_CHARGE_POLICY, CHARGE_PAGE_POLICY_TASK_NAME);
     } 
 }
 
@@ -120,12 +88,25 @@ static int on_charge_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t ke
     ui_proc_charge_t *proc = user_data;
     EXCEPTION_CHECK_INT(proc);
     WINDOW_CONTEXT_GUARD_INT(proc, ID_WINDOW_CHARGE, 0);
+    if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
+        LOG_WM("wm not running, ignore.");
+        return 0;
+    }
+
+    if (keycode != KEY_CODE_POWER) {
+        return 0;
+    }
+
     if (keytype == KEY_EVENT_LONG_3S) {
-        if (keycode == KEY_CODE_POWER && proc->battery->get_charge_status() != CHARGE_STATE_ERROR) {
+        if (proc->battery->get_charge_status() != CHARGE_STATE_ERROR) {
             LOG_WM("key post exit charge policy task");
-            POST_TASK_HANDLER_NO_DELAY_ARG1(charge_ui_common_cb, proc, 
+            POST_WM_TASK_HANDLER_NO_DELAY_ARG1(charge_ui_common_cb, proc, 
                 CHARGE_HDR_EXIT_CHARGE_POLICY, CHARGE_PAGE_POLICY_TASK_NAME);
         }
+    } else if (keytype == KEY_EVENT_LONG_10S) { 
+        LOG_WM("charge page reboot");
+        msleep(20);
+        platform_system_reboot();
     }
     return 0;
 }
@@ -139,23 +120,15 @@ static int entry_event_cb(window_lift_cycle_e new_state, const struct window_con
         LOG_WM("==>%s window on resume", PAGE_NAME_STR);
         ADD_KEYEVENT_CB(proc->key, "charge_wm", proc, CHARGE_UI_KEY_CODE, CHARGE_UI_KEY_TYPE,
             on_charge_keyevent_hdr);
-        ADD_BATTERY_STATE_CB(proc->battery, proc, on_charge_window_battery_state_change_cb);
+        ADD_BATTERY_STATE_CB(proc->battery, proc, on_charge_window_battery_state_cb);
+        proc->window_run_state = WINDOW_RUN_STATE_RUNNING;
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
-        LOG_WM("==>%s window on create", PAGE_NAME_STR);
-        if (proc->ble) {
-            proc->ble->bt_adv_stop_by_user();
-            if (proc->ble->ble_is_connected() > 0) {
-                proc->ble->disconnect_bt_by_user();
-            }
-        }
-        
+        LOG_WM("==>%s window on create", PAGE_NAME_STR);        
         if (proc->led && proc->led->hook) {
-            if (proc->led->set_led_onoff) {
-                proc->led->set_led_onoff(PUMP_LED_ALL_ID, LED_STATUS_OFF);
-            } else if (proc->led->hook->set_key_backlight) {
+            if (proc->led->hook->set_key_backlight) {
                 proc->led->hook->set_key_backlight(proc->led, 0);
             }
-            
+
             if (proc->led->hook->set_night_light_level) {   
                 proc->led->hook->set_night_light_level(proc->led, 0);
             }
@@ -164,9 +137,10 @@ static int entry_event_cb(window_lift_cycle_e new_state, const struct window_con
         if (proc->battery->get_charge_status() == CHARGE_STATE_ERROR) {
             show_charge_adapter_ui(proc);
         } else {
-            show_power_off_charging_ui(proc);   
+            POST_WM_TASK_HANDLER_NO_DELAY_ARG1(charge_ui_common_cb, proc, 
+                CHARGE_HDR_EXIT_CHARGE_POLICY, CHARGE_PAGE_POLICY_TASK_NAME);
         }
-        proc->charge_screen_on_time = get_timestamp();
+
         if (proc->pm) {
             proc->pm->acquire_wakelock("charge_screen", -1); /// 永久持有锁.
         }
@@ -182,6 +156,7 @@ static int exit_event_cb(window_lift_cycle_e new_state, const struct window_cont
     EXCEPTION_CHECK_INT(wm);
     switch (new_state) {
         case ID_SCR_STATE_ON_PAUSE: 
+            proc->window_run_state = WINDOW_RUN_STATE_PAUSED;
             LOG_WM("==>%s window on pause", PAGE_NAME_STR);
             stop_charge_common_ui(proc);
             break;
@@ -190,12 +165,10 @@ static int exit_event_cb(window_lift_cycle_e new_state, const struct window_cont
             SET_WINDOW_CONTEXT(NULL);
             proc->margic = UI_WINDOW_MARGIC_CODE_INVALID;
             REMOVE_ALL_HANDER_TASK();
-            REMOVE_BATTERY_STATE_CB(proc->battery, on_charge_window_battery_state_change_cb);
+            REMOVE_BATTERY_STATE_CB(proc->battery, on_charge_window_battery_state_cb);
             REMOVE_KEYEVENT_CB(proc->key, on_charge_keyevent_hdr);
             if (proc->pm) {
                 proc->pm->release_wakelock("charge_screen");
-            } else {
-                LOG_WM("pm not present, ignore.");
             }
             u_free(proc);
             proc = NULL;

@@ -1,7 +1,6 @@
 #ifndef __MOTOR_POLICY_H__
 #define __MOTOR_POLICY_H__
 
-#include <stdint.h>
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -15,6 +14,7 @@ extern "C" {
 
 #define PUMP_POLICY_RUN_TIME_INTERVAL            20  /// 策略运行时间间隔，单位ms
 #define IS_SUPPORT_RELATIVE_RUN_TIME             1 /// 支持相对运行时间
+#define IS_SUPPORT_PUMP_SYNC                     1 /// 支持泵同步
 
 /// 马达调试ID
 typedef enum {
@@ -258,6 +258,7 @@ typedef struct {
 
 /// 吸乳马达状态
 typedef struct {
+    uint8_t freq_sync_flag; /// 泵奶频率同步标志
     uint8_t taste_run_flag; /// 体验模式运行标志
     uint8_t current_mode_type; /// 当前模式类型
     uint8_t next_mode_type; /// 下一个模式类型
@@ -279,6 +280,9 @@ typedef struct {
     int16_t compensation_delta_pwm[BREAST_PUMP_NUM]; /// 气压补偿delta_pwm -10000~-1:PWM减小, 1~10000: PWM增加
 #endif
     taste_setting_t taste_setting; /// 体验模式设置
+    uint8_t pump_level[BREAST_PUMP_NUM];
+    uint8_t pump_speed[BREAST_PUMP_NUM];
+    uint16_t pump_freq[BREAST_PUMP_NUM];
 } motor_policy_runtime_t;
 
 /// 吸乳策略处理

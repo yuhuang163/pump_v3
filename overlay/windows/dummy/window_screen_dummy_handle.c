@@ -13,12 +13,12 @@
 */
 #define PAGE_STATIC_NAME                        dummy
 #define PAGE_NAME_STR                           "dummy"
-#define EXIT_DUMMY_POLICY_TASK_NAME             "exit_dummy_policy"
+#define DUMMY_BROADCAST_TASK_NAME               "dummy_broadcast_task"
 
 #define REMOVE_ALL_HANDER_TASK() \
 do { \
     LOG_WM("==>REMOVE_ALL_HANDER_TASK"); \
-    REMOVE_TASK_HANDLER_DIRECTLY(EXIT_DUMMY_POLICY_TASK_NAME); \
+    REMOVE_TASK_HANDLER_DIRECTLY(DUMMY_BROADCAST_TASK_NAME); \
 } while (0)
 
 /*
@@ -54,25 +54,51 @@ static int wakup_enter_new_window_policy(ui_proc_dummy_t *proc, int wakeup_reaso
     return 0;
 }
 
-static void on_dummy_window_receive(broadcast_mask_id_t id, void *context,
-                                 int32_t pm_state, int32_t wakeup_reason, broadcast_priv_data_t *pdata)
+static void dummy_broadcast_receive_ui_cb(hdr_post_args_t *args)
 {
-    ui_proc_dummy_t *proc = (ui_proc_dummy_t *)context;
+    window_broadcast_args_t *bcd_args = (window_broadcast_args_t *)args->user_data;
+    EXCEPTION_CHECK_VOID(bcd_args);
+    ui_proc_dummy_t *proc = (ui_proc_dummy_t *)bcd_args->context;
     EXCEPTION_CHECK_VOID(proc);
     WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_DUMMY);
-    switch (id.code) {
+    if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
+        LOG_WM("wm not running, ignore.");
+        return;
+    }
+    switch (bcd_args->code) {
         case ID_BROADCAST_PM_STATE_CHANGE:
             LOG_WM("received PM_STATE_CHANGE.");
-            if (pm_state != PM_BROADCAST_SYS_RESUME) {
-                LOG_WM("ignore: %d\n", wakeup_reason);
+            if (bcd_args->arg1 != PM_BROADCAST_SYS_RESUME) {
+                LOG_WM("ignore: %d\n", bcd_args->arg2);
                 break;
             }
-            LOG_WM("PM_RESUME, wakeup_reason: %d.", wakeup_reason);
-            wakup_enter_new_window_policy(proc, wakeup_reason);
+            LOG_WM("PM_RESUME, wakeup_reason: %d.", bcd_args->arg2);
+            wakup_enter_new_window_policy(proc, bcd_args->arg2);
             break;
         default:
             break;
+   }
+}
+
+static void on_dummy_window_receive(broadcast_mask_id_t id, void *context,
+                                 int32_t arg1, int32_t arg2, broadcast_priv_data_t *pdata)
+{
+    ui_proc_dummy_t *proc = (ui_proc_dummy_t *)context;
+    EXCEPTION_CHECK_VOID(proc);
+    if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
+        LOG_WM("wm not running, ignore.");
+        return;
     }
+    proc->broadcast_args.context = proc;
+    proc->broadcast_args.code = id.code;
+    proc->broadcast_args.arg1 = arg1;
+    proc->broadcast_args.arg2 = arg2;
+    if (pdata != NULL && pdata->size > 0) {
+        memcpy(&proc->broadcast_args.priv_data, pdata, sizeof(broadcast_priv_data_t));
+    } else {
+        memset(&proc->broadcast_args.priv_data, 0, sizeof(proc->broadcast_args.priv_data));
+    }
+    POST_WM_TASK_HANDLER_NO_DELAY(dummy_broadcast_receive_ui_cb, &proc->broadcast_args, DUMMY_BROADCAST_TASK_NAME);
 }
 
 static int on_dummy_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t keytype)
@@ -80,6 +106,11 @@ static int on_dummy_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t key
     ui_proc_dummy_t *proc = user_data;
     EXCEPTION_CHECK_INT(proc);
     WINDOW_CONTEXT_GUARD_INT(proc, ID_WINDOW_DUMMY, 0);
+    if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
+        LOG_WM("wm not running, ignore.");
+        return 0;
+    }
+
     LOG_WM("dummy key event: %d, %d", keycode, keytype);
     if (keytype == KEY_EVENT_LONG_10S) {
         msleep(1000);
@@ -101,6 +132,7 @@ static int entry_event_cb(window_lift_cycle_e new_state,
         ADD_KEYEVENT_CB(proc->key, "dummy_wm", proc, (KEY_CODE_POWER), KEY_EVENT_LONG_10S,
             on_dummy_keyevent_hdr);
         proc->enter_dummy_time = platform_get_utc_time();
+        proc->window_run_state = WINDOW_RUN_STATE_RUNNING;
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);
     }
@@ -116,13 +148,14 @@ static int exit_event_cb(window_lift_cycle_e new_state,
     EXCEPTION_CHECK_INT(wm);
     switch (new_state) {
         case ID_SCR_STATE_ON_PAUSE:
+            proc->window_run_state = WINDOW_RUN_STATE_PAUSED;
             LOG_WM("==>%s window on pause", PAGE_NAME_STR);
             break;
         case ID_SCR_STATE_ON_DESTORY:
             LOG_WM("==>%s window on destory", PAGE_NAME_STR);
+            REMOVE_ALL_HANDER_TASK();
             SET_WINDOW_CONTEXT(NULL);
             proc->margic = UI_WINDOW_MARGIC_CODE_INVALID;
-            REMOVE_ALL_HANDER_TASK();
             unregister_broadcast_receiver(&proc->receiver);
             REMOVE_KEYEVENT_CB(proc->key, on_dummy_keyevent_hdr);
             u_free(proc);

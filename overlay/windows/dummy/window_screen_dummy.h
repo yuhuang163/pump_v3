@@ -50,7 +50,9 @@ typedef struct {
     led_manager_context_t *led;
     ble_manager_context_t *ble;
     broadcast_obj_t receiver;
+    window_broadcast_args_t broadcast_args; /// 广播投递参数.
     uint32_t margic; /// 窗口标识.
+    uint8_t window_run_state; /// WM是否运行.
     uint32_t enter_dummy_time; /// 进入dummy时间.
     uint32_t last_progress_ani_time; /// 上次动画进度时间.
     uint16_t current_ui_type; /// 当前UI类型. dummy_ui_type_e

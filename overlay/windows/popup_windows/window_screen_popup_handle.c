@@ -14,7 +14,6 @@
 */
 #define PAGE_STATIC_NAME                            popup_window
 #define PAGE_NAME_STR                               "popup_window"
-#define POPUP_EXIT_TASK_NAME                        "popup_exit"
 #define POPUP_UI_KEY_CODE                           (0xFFFF)         /// 任意按键
 #define POPUP_UI_KEY_TYPE                           (KEY_EVENT_CLICK) /// 仅响应 click（不影响其它长按/特殊键）
 #define IS_SUPPORT_POPUP_WAKE_LOCK                  (0)
@@ -23,7 +22,6 @@
 #define REMOVE_ALL_HANDER_TASK() \
 do { \
     LOG_WM("==>REMOVE_ALL_HANDER_TASK"); \
-    REMOVE_TASK_HANDLER_DIRECTLY(POPUP_EXIT_TASK_NAME); \
 } while (0)
 
 /*
@@ -44,9 +42,12 @@ INIT_WINDOW_CONTEXT();
 static int on_popup_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t keytype)
 {
     ui_proc_popup_t *proc = user_data;
-    EXCEPTION_CHECK_INT(proc);
+    EXCEPTION_CHECK_INT(proc && proc->pm);
     WINDOW_CONTEXT_GUARD_INT(proc, ID_WINDOW_POPUP_WINDOW, 0);
-    EXCEPTION_CHECK_INT(proc->pm);
+    if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
+        LOG_WM("wm not running, ignore.");
+        return 0;
+    }
     window_entry_extra_t extra = {0};
 #if IS_SUPPORT_POPUP_WAKE_LOCK
     proc->pm->release_wakelock(POPUP_WAKE_LOCK_NAME);
@@ -70,6 +71,7 @@ static int entry_event_cb(window_lift_cycle_e new_state,
     if (new_state == ID_SCR_STATE_ON_RESUME) {
         ADD_KEYEVENT_CB(proc->key, "popup_wm", proc, POPUP_UI_KEY_CODE, POPUP_UI_KEY_TYPE,
             on_popup_keyevent_hdr);
+        proc->window_run_state = WINDOW_RUN_STATE_RUNNING;
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);
         start_popup_ui_animation(proc);
@@ -83,6 +85,7 @@ static int exit_event_cb(window_lift_cycle_e new_state,
     ui_proc_popup_t *proc = CONTAINER_OF(thiz, ui_proc_popup_t, w_ctx);
     switch (new_state) {
         case ID_SCR_STATE_ON_PAUSE:
+            proc->window_run_state = WINDOW_RUN_STATE_PAUSED;
             LOG_WM("==>%s window on pause", PAGE_NAME_STR);
             stop_popup_ui_animation(proc);
             break;
@@ -126,7 +129,6 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
     if (proc->extra.popup_exit_time < 500 || proc->extra.popup_exit_time > 10000) {
         proc->extra.popup_exit_time = 2000; /// 限制最小退出时间长度
     }
-
 #if IS_SUPPORT_POPUP_WAKE_LOCK
     if (proc->pm) {
         proc->pm->acquire_wakelock(POPUP_WAKE_LOCK_NAME, proc->extra.popup_exit_time / 1000 + 3); /// 锁住popup这段时间内不休眠.

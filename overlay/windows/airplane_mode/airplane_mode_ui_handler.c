@@ -77,7 +77,7 @@ static void airplane_mode_animation_progress_cb(void *user_data, int index, ui_a
             break;
         case ANI_POPUP_DISPLAY_FINISH:
             if (proc->popup_ui_type == ID_POPUP_UI_AIRPLANE_MODE_PROMPT) {
-                POST_TASK_HANDLER_NO_DELAY(airplane_mode_exit_cb, proc, AIRPLANE_MODE_EXIT_TASK_NAME);
+                POST_WM_TASK_HANDLER_NO_DELAY(airplane_mode_exit_cb, proc, AIRPLANE_MODE_EXIT_TASK_NAME);
             }
             break;
         default:

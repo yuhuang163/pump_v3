@@ -59,7 +59,7 @@ static void product_home_test_ui_after_policy(ui_manager_context_t *ui, int inde
     ui_proc_product_test_t *proc = (ui_proc_product_test_t *)ui->priv.play_info.user_data;
     EXCEPTION_CHECK_VOID(proc);
     if (get_timestamp_ms(proc->last_progress_ani_time) >= PRODUCT_HOME_TEST_ANIMATION_DISPLAY_TIME) {
-        POST_TASK_HANDLER_NO_DELAY(product_home_test_display_completed_cb, proc,
+        POST_WM_TASK_HANDLER_NO_DELAY(product_home_test_display_completed_cb, proc,
             PRODUCT_HOME_TEST_HDR_TASK_NAME);
     }
 #endif
@@ -111,7 +111,7 @@ static void product_home_test_start_key_event_handler(ui_proc_product_test_t *pr
     if (current_mode != TST_NONE_TYPE) {
         return;
     }
-    POST_TASK_HANDLER_NO_DELAY(product_home_test_display_completed_cb, proc,
+    POST_WM_TASK_HANDLER_NO_DELAY(product_home_test_display_completed_cb, proc,
         PRODUCT_HOME_TEST_HDR_TASK_NAME);
 }
 

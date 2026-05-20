@@ -102,18 +102,14 @@ static uint8_t local_get_battery_state(void)
     return thiz->priv.battery_state;
 }
 
-static void dispatch_battery_state_client(battery_manager_context_t *obj)
+static void dispatch_battery_state_client(battery_manager_context_t *obj, battery_state_info_t *info)
 {
     list_head_t *head = &obj->priv.client_list;
     MUTEX_LOCK(obj->priv.m_lock);
-    battery_state_info_t info = {0};
-    info.battery_state = obj->priv.battery_state;
-    info.battery_percent = obj->priv.battery_percent;
-    info.charge_status = obj->priv.charge_status;
     LIST_FOR_EACH(pos, (head)) { 
         battery_evt_client_node_t *node = CONTAINER_OF(pos, battery_evt_client_node_t, list);
         if (node->cb) {
-            node->cb(node->user_data, &info);
+            node->cb(node->user_data, info);
         }
     }
     MUTEX_UNLOCK(obj->priv.m_lock);
@@ -163,19 +159,22 @@ static void remove_battery_state_cb(on_battery_state_cb_ptr cb)
 static void polling_battery_status(void *user_data)
 {
     EXCEPTION_CHECK_VOID(thiz);
-    int bat_per = local_get_battery_percent();
-    int charge_status = local_get_charge_status();
-    battery_state_e battery_state = get_battery_state(bat_per, charge_status);
+    battery_state_info_t info = {0};
+    info.battery_percent = local_get_battery_percent();
+    info.charge_status = local_get_charge_status();
+    info.battery_state = get_battery_state(info.battery_percent, info.charge_status);
     LOG_MISC("#now bat percent:%d, state:%d/%d, charging:%d/%d",
-        bat_per, thiz->priv.battery_state, battery_state, thiz->priv.is_vbus_plug_in, charge_status);
-    if (thiz->priv.battery_state != battery_state) {
-        thiz->priv.battery_state = battery_state;
+        info.battery_percent, thiz->priv.battery_state, info.battery_state,
+        thiz->priv.is_vbus_plug_in, info.charge_status);
+    if (thiz->priv.battery_state !=  info.battery_state) {
+        thiz->priv.battery_state =  info.battery_state;
         if (thiz->priv.battery_state == BATTERY_STATE_LOW_POWER_SHUTDOWN ||
             thiz->priv.battery_state == BATTERY_STATE_EMPTY) {
             window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
             servers_manager_context_t *servers_ctx = (servers_manager_context_t *)find_module(ID_MODULE_SERVERS);
             if (wm && wm->is_current_window(wm, ID_WINDOW_CHARGE) == 0 && 
-                wm->is_current_window(wm, ID_WINDOW_LOGO) == 0) {
+                wm->is_current_window(wm, ID_WINDOW_LOGO) == 0 &&
+                wm->is_current_window(wm, ID_WINDOW_POWER_OFF) == 0) {
                 multi_func_msg_data_t msg = {0};
                 msg.union_body.extra.window_id = ID_WINDOW_POPUP_WINDOW;
                 msg.union_body.extra.is_bg_dispatch = 0x01;
@@ -196,7 +195,7 @@ static void polling_battery_status(void *user_data)
             }
         }
     }
-    dispatch_battery_state_client(thiz);
+    dispatch_battery_state_client(thiz, &info);
 }
 
 static void polling_battery_voltage_status(void *user_data)
@@ -226,7 +225,7 @@ static void polling_charge_status(void *user_data)
         thiz->priv.is_vbus_plug_in = plug_status;
     }
     uint8_t charge_status = local_get_charge_status();
-    if (charge_status != thiz->priv.charge_status) {
+    if (thiz->priv.charge_status != charge_status) {
         if (charge_status == CHARGE_STATE_ERROR) {
             servers_manager_context_t *servers_ctx = (servers_manager_context_t *)find_module(ID_MODULE_SERVERS);
             if (servers_ctx) {
@@ -263,7 +262,8 @@ static void polling_charge_status(void *user_data)
             }
         }
         thiz->priv.charge_status = charge_status;
-        dispatch_battery_state_client(thiz);
+        LOG_MISC("charge status change:%d", charge_status);
+        polling_battery_status(user_data);
     }
 }
 
@@ -287,7 +287,7 @@ static int on_post_battery_init(void *ptr)
     misc_manager_context_t *misc = ctx->priv.misc;
     if (misc) {
 #if IS_SUPPORT_DEVICE_CHARGE
-        misc->add_misc_task(misc, MISC_TASK_ID_CHARGE_POLLING, 0, 
+        misc->add_misc_task(misc, MISC_TASK_ID_CHARGE_POLLING, 1000, 
             MISC_WORK_MSG_ID_TIMER | MISC_WORK_MSG_ID_CHARGE_INTERRUPT, polling_charge_status);
 #endif
         misc->add_misc_task(misc, MISC_TASK_ID_BATTERY_POLLING, 1500, 
@@ -304,7 +304,6 @@ static int on_perpare_battery_init(void *self)
     peripheral_bus_context_t *pbus = (peripheral_bus_context_t *)find_module(ID_MODULE_DEVICE_BUS);
     ptr->priv.misc = (misc_manager_context_t *)find_module(ID_MODULE_MISC);
     ptr->priv.battery = pbus->find_device(ID_DEVICE_BATTERY);
-    
     return 0;
 }
 

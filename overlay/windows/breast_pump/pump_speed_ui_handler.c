@@ -71,7 +71,7 @@ static void pump_speed_popup_ui_finish_policy(ui_manager_context_t *ui, uint8_t 
             pump_complete_event_handler(proc);
             break;
         case ID_POPUP_UI_OP_SUCCESS:
-            POST_TASK_HANDLER_NO_DELAY(pump_speed_display_completed_cb, 
+            POST_WM_TASK_HANDLER_NO_DELAY(pump_speed_display_completed_cb, 
                 proc, PUMP_SPEED_DISPLAY_TASK_NAME);
             break;
         default:
@@ -89,12 +89,12 @@ static void pump_speed_ui_after_policy(ui_manager_context_t *ui, int index)
         proc->speed_sync_flag = false;
         proc->last_progress_ani_time = get_timestamp();
         LOG_UI("speed ui timeout: %d", proc->last_progress_ani_time);
-        POST_TASK_HANDLER_NO_DELAY(pump_speed_display_completed_cb, proc, PUMP_SPEED_DISPLAY_TASK_NAME);
+        POST_WM_TASK_HANDLER_NO_DELAY(pump_speed_display_completed_cb, proc, PUMP_SPEED_DISPLAY_TASK_NAME);
     } else {
         if (proc->goto_pump_home_ui) {
             proc->goto_pump_home_ui = false;
             proc->popup_ui_type = ID_POPUP_UI_OP_SUCCESS;
-            POST_TASK_HANDLER_NO_DELAY(pump_speed_sync, proc, PUMP_SPEED_SYNC_TASK_NAME);
+            POST_WM_TASK_HANDLER_NO_DELAY(pump_speed_sync, proc, PUMP_SPEED_SYNC_TASK_NAME);
             LOG_UI("goto pump speed upate: %d", get_timestamp());
         }
     }
@@ -186,7 +186,7 @@ void switch_pump_speed_ui(ui_proc_pump_t *proc, bool is_increase)
     show_pump_speed_ui(proc);
 }
 
-void pump_speed_ui_hdr_remove(void)
+void pump_speed_ui_exit(ui_proc_pump_t *proc)
 {
     REMOVE_TASK_HANDLER_DIRECTLY(PUMP_SPEED_DISPLAY_TASK_NAME);
     REMOVE_TASK_HANDLER_DIRECTLY(PUMP_SPEED_SYNC_TASK_NAME);

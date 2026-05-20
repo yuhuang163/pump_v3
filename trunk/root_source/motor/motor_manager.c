@@ -3,6 +3,7 @@
 *****************************************************************************************
 */
 #include "root_common_api.h"
+#include "stddef.h"
 #include "motor_manager.h" // IWYU pragma: keep
 
 /*
@@ -165,8 +166,14 @@ static int on_post_motor_init(void *ptr)
 {
     motor_manager_context_t *thiz = (motor_manager_context_t *)ptr;
     peripheral_bus_context_t *pbus = (peripheral_bus_context_t *)find_module(ID_MODULE_DEVICE_BUS);
+    thiz->priv.st = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
+    EXCEPTION_CHECK_UINT(thiz->priv.st);
     thiz->priv.pump_ctx = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
     thiz->priv.motor_dev = pbus->find_device(ID_DEVICE_MOTOR);
+    thiz->priv.suction_para = NULL;
+    thiz->priv.st->get_store_ram_val(STORE_ID_FACTORY_SUCTION_TABLE, 0, 0, &thiz->priv.suction_para);
+    ///参数表为空，无法启动pump
+    EXCEPTION_CHECK_UINT(thiz->priv.suction_para);
 
     /// 注册广播监听.
     thiz->priv.m_bdc.context = thiz;
@@ -309,6 +316,15 @@ static uint8_t get_timed_policy_finish_flag(void)
     return motor_obj->priv.runtime.all_timed_policy_finish_flag;
 }
 
+uint8_t get_local_suction_table(factory_suction_para_t **suction_para)
+{
+    if (!suction_para || !motor_obj || !motor_obj->priv.suction_para) {
+        return 0;
+    }
+    *suction_para = motor_obj->priv.suction_para;
+    return 1;
+}
+
 /*
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
@@ -333,6 +349,7 @@ void *register_module_for_motor_manager_new(list_head_t *list_head)
 #endif
     ptr->get_timed_policy_finish_flag = get_timed_policy_finish_flag;
     ptr->synchronous_stop_motor = synchronous_stop_motor;
+    ptr->get_local_suction_table = get_local_suction_table;
     motor_obj = ptr;
     
     return ADD_MODULE("motor", ID_MODULE_MOTOR, 0, on_post_motor_init, 

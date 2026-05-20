@@ -47,7 +47,7 @@ static void home_pump_result_ui_after_policy(ui_manager_context_t *ui, int index
     if (time_diff >= PUMP_RESULT_DISPLAY_TIMEOUT) {
         proc->last_progress_ani_time = get_timestamp();
         LOG_UI("result ui timeout: %d", proc->last_progress_ani_time);
-        POST_TASK_HANDLER_NO_DELAY(home_pump_result_display_completed_cb, proc, HOME_PUMP_RESULT_DISPLAY_TASK_NAME);
+        POST_WM_TASK_HANDLER_NO_DELAY(home_pump_result_display_completed_cb, proc, HOME_PUMP_RESULT_DISPLAY_TASK_NAME);
     }
 }
 
@@ -129,7 +129,7 @@ void show_home_pump_result_ui(ui_proc_home_t *proc)
     show_home_pump_result_loop(proc);
 }
 
-void home_pump_result_ui_hdr_remove(void)
+void home_pump_result_ui_exit(ui_proc_home_t *proc)
 {
     REMOVE_TASK_HANDLER_DIRECTLY(HOME_PUMP_RESULT_DISPLAY_TASK_NAME);
 }

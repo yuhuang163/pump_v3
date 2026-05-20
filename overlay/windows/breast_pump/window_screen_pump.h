@@ -128,11 +128,10 @@ typedef struct {
     algo_manager_context_t *algo;
     led_manager_context_t *led;
     broadcast_obj_t receiver;
+    window_broadcast_args_t broadcast_args; /// 广播投递参数.
     uint32_t margic;
     breast_pump_result_t pump_result; /// 泵奶结果.
-    uint8_t ui_show_state; /// 当前UI显示状态.
-    uint8_t user_pause; /// 用户是否暂停.
-    uint8_t goto_charge_ui_flag; /// 是否需要跳转到充电界面.
+    uint8_t window_run_state; /// WM是否运行.
     uint8_t is_mode_changed_by_app; /// 是否是从app中切换模式.
     uint8_t is_mode_changed_by_device; /// 是否是从设备中切换模式.
     uint8_t ui_normal_mode_index; /// UI普通模式索引.
@@ -143,8 +142,9 @@ typedef struct {
     ui_pump_info_t info; /// 当前泵奶信息.
     pump_setting_t setting; /// 当前泵奶设置信息.
     int8_t level_change; /// 当前档位变化值.
-    // int8_t level_adjust_too_large; /// 档位范围调整过大值.
     uint8_t level_sync_flag; /// 档位同步标志.
+    int8_t both_level_change; /// 当前档位变化值.
+    uint8_t both_level_sync_flag; /// 档位同步标志.
     uint8_t speed_sync_flag; /// 速度同步标志.
     uint8_t mode_sync_flag; /// 追奶模式同步标志.
 #if IS_SUPPORT_AIR_LEAKAGE_WARNING
@@ -182,12 +182,12 @@ void switch_pump_status_ui(ui_proc_pump_t *proc);
 void show_pump_result_ui(ui_proc_pump_t *proc);
 void pump_result_go_to_home_window(ui_proc_pump_t *proc);
 /// 移除UI相关
-void pump_result_ui_hdr_remove(void);
-void pump_level_ui_hdr_remove(void);
-void pump_both_level_ui_hdr_remove(void);
-void pump_speed_ui_hdr_remove(void);
-void pump_mode_ui_hdr_remove(void);
-void breastfeeding_mode_ui_hdr_remove(void);
+void pump_result_ui_exit(ui_proc_pump_t *proc);
+void pump_level_ui_exit(ui_proc_pump_t *proc);
+void pump_both_level_ui_exit(ui_proc_pump_t *proc);
+void pump_speed_ui_exit(ui_proc_pump_t *proc);
+void pump_mode_ui_exit(ui_proc_pump_t *proc);
+void breastfeeding_mode_ui_exit(ui_proc_pump_t *proc);
 void pump_ui_change_hdr_remove(ui_proc_pump_t *proc);
 void stop_pump_ui_animation(ui_proc_pump_t *proc);
 /// 按键处理相关

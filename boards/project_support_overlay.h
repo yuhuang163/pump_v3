@@ -101,7 +101,7 @@ extern "C" {
 /// 支持光传感器
 #define IS_SUPPORT_DEVICE_LIGHT_SENSOR                   (1)
 /// 支持光传感器校准
-#define IS_SUPPORT_DEVICE_LIGHT_SENSOR_CALIB             (1)
+#define IS_SUPPORT_DEVICE_LIGHT_SENSOR_CALIB             (0)
 /// 支持资源管理
 #define IS_SUPPORT_MODULE_RES                            (1)
 /// 支持自适应背光  
@@ -123,7 +123,7 @@ extern "C" {
 /// 支持泵奶时间累计
 #define IS_SUPPORT_MODE_WORK_TIME_ACCUMULATE             (0)
 /// 支持泵奶全局参数设置
-#define IS_SUPPORT_PUMP_GLOBAL_PARAM_SETTING             (0)
+#define IS_SUPPORT_PUMP_GLOBAL_PARAM_SETTING             (1)
 
 /// 硬件差异配置
 #if (ROOT_PRODUCT_ID == ROOT_PRODUCT_V3PRO_ID)
