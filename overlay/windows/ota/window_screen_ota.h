@@ -43,6 +43,7 @@ typedef struct {
     window_context_t w_ctx;
     window_manager_context_t *wm;
     broadcast_obj_t receiver;
+    window_broadcast_args_t broadcast_args; /// 广播投递参数.
     power_manager_context_t *pm;
     ui_manager_context_t *ui;
     led_manager_context_t *led;
@@ -52,6 +53,7 @@ typedef struct {
     battery_manager_context_t *battery;
     airplane_mode_context_t *airplane;
     uint32_t margic; /// 窗口标识.
+    uint8_t window_run_state; /// WM是否运行.
     uint32_t last_progress_ani_time; /// 上次进度动画时间.
     uint16_t current_ui_type; /// 当前UI类型. ota_ui_type_e
     uint8_t ota_status; /// OTA状态. ota_status_e

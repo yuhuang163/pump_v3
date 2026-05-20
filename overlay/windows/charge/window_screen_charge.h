@@ -50,7 +50,9 @@ typedef struct {
     power_manager_context_t *pm;
     ble_manager_context_t *ble;
     broadcast_obj_t receiver;
+    window_broadcast_args_t broadcast_args; /// 广播投递参数.
     uint32_t margic;
+    uint8_t window_run_state; /// WM是否运行.
     uint32_t last_progress_ani_time; /// 上次进度动画时间.
     uint16_t current_ui_type; /// 当前UI类型. charge_ui_type_e
 } ui_proc_charge_t;

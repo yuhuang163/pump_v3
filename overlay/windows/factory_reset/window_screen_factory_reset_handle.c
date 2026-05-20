@@ -15,8 +15,13 @@
 #define FACTORY_RESET_UI_KEY_CODE                   (KEY_CODE_POWER)
 #define FACTORY_RESET_UI_KEY_TYPE                   (KEY_EVENT_CLICK | KEY_EVENT_LONG_2S | KEY_EVENT_UP)
 #define FACTORY_RESET_DELAY_TIME                    (1000 * 3)
-#define FACTORY_RESET_TASK_NAME                     "factory_reset_task"
 #define FACTORY_RESET_EXIT_TASK_NAME                "factory_reset_exit_task"
+
+#define REMOVE_ALL_HANDER_TASK() \
+do { \
+    LOG_WM("==>REMOVE_ALL_HANDER_TASK"); \
+    REMOVE_TASK_HANDLER_DIRECTLY(FACTORY_RESET_EXIT_TASK_NAME); \
+} while (0)
 
 /*
 * LOCAL VARIABLE DEFINITIONS
@@ -37,7 +42,7 @@ static void factory_reset_exit_task_cb(hdr_post_args_t *args)
 {
     ui_proc_factory_reset_t *proc = (ui_proc_factory_reset_t *)args->user_data;
     EXCEPTION_CHECK_VOID(proc);
-    WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_FACTORY_RESET);
+    WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_FACTORY_RESET);
     multi_func_msg_data_t msg = {0};
     LOG_WM("goto home window.");
     msg.union_body.extra.window_id = ID_WINDOW_HOME;
@@ -49,6 +54,11 @@ static int on_factory_reset_keyevent_hdr(void *user_data, uint16_t keycode, uint
     ui_proc_factory_reset_t *proc = user_data;
     EXCEPTION_CHECK_INT(proc);
     WINDOW_CONTEXT_GUARD_INT(proc, ID_WINDOW_FACTORY_RESET, 0);
+    if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
+        LOG_WM("wm not running, ignore.");
+        return 0;
+    }
+    
     if (proc->current_ui_type != FACTORY_RESET_UI_TYPE_FACTORY_RESET_CONFIRM) {
         return 0;
     }
@@ -60,7 +70,7 @@ static int on_factory_reset_keyevent_hdr(void *user_data, uint16_t keycode, uint
     if (keytype == KEY_EVENT_LONG_2S) {
         proc->display_fac_rst_confirm_progress = true;
     } else if (keytype == KEY_EVENT_CLICK) {
-        POST_WM_TASK_HANDLER_NO_DELAY(factory_reset_exit_task_cb, proc,FACTORY_RESET_EXIT_TASK_NAME);
+        POST_WM_TASK_HANDLER_NO_DELAY(factory_reset_exit_task_cb, proc, FACTORY_RESET_EXIT_TASK_NAME);
         proc->display_fac_rst_confirm_progress = false;
     } else if (keytype == KEY_EVENT_UP) {
         proc->display_fac_rst_confirm_progress = false;
@@ -79,6 +89,7 @@ static int entry_event_cb(window_lift_cycle_e new_state,
         if (proc->led && proc->led->hook && proc->led->hook->set_key_backlight) {
             proc->led->hook->set_key_backlight(proc->led, 100);
         }
+        proc->window_run_state = WINDOW_RUN_STATE_RUNNING;
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);
         if (proc->extra.arg1 == 0) {
@@ -98,11 +109,13 @@ static int exit_event_cb(window_lift_cycle_e new_state,
     ui_proc_factory_reset_t *proc = CONTAINER_OF(thiz, ui_proc_factory_reset_t, w_ctx);
     switch (new_state) {
         case ID_SCR_STATE_ON_PAUSE:
+            proc->window_run_state = WINDOW_RUN_STATE_PAUSED;
             LOG_WM("==>%s window on pause", PAGE_NAME_STR);
             stop_factory_reset_ui_animation(proc);
             break;
         case ID_SCR_STATE_ON_DESTORY:
             LOG_WM("%s window exit: u_free: %p", PAGE_NAME_STR, proc);
+            REMOVE_ALL_HANDER_TASK();
             SET_WINDOW_CONTEXT(NULL);
             proc->margic = UI_WINDOW_MARGIC_CODE_INVALID;
             REMOVE_KEYEVENT_CB(proc->key, on_factory_reset_keyevent_hdr);

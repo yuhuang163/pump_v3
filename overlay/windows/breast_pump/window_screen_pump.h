@@ -128,11 +128,10 @@ typedef struct {
     algo_manager_context_t *algo;
     led_manager_context_t *led;
     broadcast_obj_t receiver;
+    window_broadcast_args_t broadcast_args; /// 广播投递参数.
     uint32_t margic;
     breast_pump_result_t pump_result; /// 泵奶结果.
-    uint8_t ui_show_state; /// 当前UI显示状态.
-    uint8_t user_pause; /// 用户是否暂停.
-    uint8_t goto_charge_ui_flag; /// 是否需要跳转到充电界面.
+    uint8_t window_run_state; /// WM是否运行.
     uint8_t is_mode_changed_by_app; /// 是否是从app中切换模式.
     uint8_t is_mode_changed_by_device; /// 是否是从设备中切换模式.
     uint8_t ui_normal_mode_index; /// UI普通模式索引.

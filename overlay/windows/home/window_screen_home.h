@@ -81,8 +81,10 @@ typedef struct {
     led_manager_context_t *led;
     breast_pump_manager_context_t *pump;
     broadcast_obj_t receiver;
+    window_broadcast_args_t broadcast_args; /// 广播投递参数.
     uint32_t margic; /// 窗口标识.
     uint32_t last_progress_ani_time; /// 上次进度动画时间.
+    uint8_t window_run_state; /// WM是否运行.
     uint8_t ui_bf_mode_index; /// 追奶模式索引.
     uint8_t ui_normal_mode_index; /// 普通模式索引.
     uint16_t current_ui_type; /// 当前UI类型. home_ui_type_e

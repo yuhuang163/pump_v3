@@ -16,14 +16,14 @@
 #define PAGE_NAME_STR                               "home"
 #define HOME_UI_KEY_CODE                            ALL_KEY_CODE_NO_COMBINE
 #define HOME_UI_KEY_TYPE                            KEY_EVENT_CLICK
-#define HOME_PM_STATE_CHANGE_UI_TASK_NAME           "home_pm_state_change_ui_task"
 #define HOME_START_KEY_EVENT_TASK_NAME              "home_start_key_event_task"
+#define HOME_BROADCAST_TASK_NAME                    "home_broadcast_task"
 #define HOME_UTC_CALIB_EXPIRE_INTERVAL_SEC          (20 * 24 * 3600)  /// UTC 校准失效时间
 #define REMOVE_ALL_HANDER_TASK() \
 do { \
     LOG_WM("==>REMOVE_ALL_HANDER_TASK"); \
-    REMOVE_TASK_HANDLER_DIRECTLY(HOME_PM_STATE_CHANGE_UI_TASK_NAME); \
     REMOVE_TASK_HANDLER_DIRECTLY(HOME_START_KEY_EVENT_TASK_NAME); \
+    REMOVE_TASK_HANDLER_DIRECTLY(HOME_BROADCAST_TASK_NAME); \
 } while (0)
 
 /*
@@ -96,20 +96,6 @@ static void home_page_display_type_update(ui_proc_home_t *proc)
     LOG_WM("type: %d, timestamp: %d, diff_time: %d, pump_record:%d, battery_state:%d", 
         proc->home_display_type, timestamp, diff_time, proc->pump_record_time,
         battery_state);
-}
-
-static void home_pm_state_change_ui_cb(hdr_post_args_t *args)
-{
-    ui_proc_home_t *proc = args->user_data;
-    EXCEPTION_CHECK_VOID(proc);
-    WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_HOME);
-    if (args->arg1 == HOME_UI_TYPE_HOME_IDLE) {
-        start_home_idle_ui_animation(proc);
-    } else if (args->arg1 == HOME_UI_TYPE_HOME) {
-        start_home_ui_animation(proc);
-    } else if (args->arg1 == HOME_UI_TYPE_BIND_QRCODE) {
-        start_home_bind_ui_animation(proc);
-    }
 }
 
 static void home_start_key_event_ui_cb(hdr_post_args_t *args)
@@ -201,6 +187,11 @@ static int on_home_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
     ui_proc_home_t *proc = user_data;
     EXCEPTION_CHECK_INT(proc);
     WINDOW_CONTEXT_GUARD_INT(proc, ID_WINDOW_HOME, 0);
+    if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
+        LOG_WM("wm not running, ignore.");
+        return 0;
+    }
+
     if (proc->current_ui_type == HOME_UI_TYPE_HOME_IDLE) {
         LOG_WM("system idle, ignore key event.");
         return 0;
@@ -244,26 +235,29 @@ static int on_home_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
     return 0;
 }
 
-static void on_home_ui_broadcast_receive_cb(broadcast_mask_id_t id, void *context, int arg1, int arg2,
-    broadcast_priv_data_t *pdata)
+static void home_broadcast_receive_ui_cb(hdr_post_args_t *args)
 {
-   ui_proc_home_t *proc = (ui_proc_home_t *)context;
-   EXCEPTION_CHECK_VOID(proc);
-   WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_HOME);
-   switch (id.code) {
+    window_broadcast_args_t *bcd_args = (window_broadcast_args_t *)args->user_data;
+    EXCEPTION_CHECK_VOID(bcd_args);
+    ui_proc_home_t *proc = (ui_proc_home_t *)bcd_args->context;
+    EXCEPTION_CHECK_VOID(proc);
+    WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_HOME);
+    if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
+        LOG_WM("wm not running, ignore.");
+        return;
+    }
+    switch (bcd_args->code) {
         case ID_BROADCAST_PM_STATE_CHANGE: 
-            LOG_WM("pm state: %d", arg1);
-            if (arg1 == PM_BROADCAST_SYS_IDLE) {
-                POST_WM_TASK_HANDLER_NO_DELAY_ARG1(home_pm_state_change_ui_cb, proc, HOME_UI_TYPE_HOME_IDLE,
-                    HOME_PM_STATE_CHANGE_UI_TASK_NAME);
-            } else if (arg1 == PM_BROADCAST_SYS_IDLE_RELEASE) {
-                POST_WM_TASK_HANDLER_NO_DELAY_ARG1(home_pm_state_change_ui_cb, proc, HOME_UI_TYPE_HOME,
-                     HOME_PM_STATE_CHANGE_UI_TASK_NAME);
+            LOG_WM("pm state: %d", bcd_args->arg1);
+            if (bcd_args->arg1 == PM_BROADCAST_SYS_IDLE) {
+                start_home_idle_ui_animation(proc);
+            } else if (bcd_args->arg1 == PM_BROADCAST_SYS_IDLE_RELEASE) {
+                start_home_ui_animation(proc);
             } 
             break;
         case ID_BROADCAST_SYS_STATE_CHANGE:
-            LOG_WM("system state: %d, %d", arg1, arg2);
-            if (arg1 == SYSTEM_BROADCAST_UTC_TIME_CHANGE) {
+            LOG_WM("system state: %d, %d", bcd_args->arg1, bcd_args->arg2);
+            if (bcd_args->arg1 == SYSTEM_BROADCAST_UTC_TIME_CHANGE) {
                 home_page_display_type_update(proc);
             }
             break;
@@ -272,10 +266,37 @@ static void on_home_ui_broadcast_receive_cb(broadcast_mask_id_t id, void *contex
    }
 }
 
+static void on_home_ui_broadcast_receive_cb(broadcast_mask_id_t id, void *context, int arg1, int arg2,
+    broadcast_priv_data_t *pdata)
+{
+    ui_proc_home_t *proc = (ui_proc_home_t *)context;
+    EXCEPTION_CHECK_VOID(proc);
+    WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_HOME);
+    if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
+        LOG_WM("wm not running, ignore.");
+        return;
+    }
+    proc->broadcast_args.context = proc;
+    proc->broadcast_args.code = id.code;
+    proc->broadcast_args.arg1 = arg1;
+    proc->broadcast_args.arg2 = arg2;
+    if (pdata != NULL && pdata->size > 0) {
+        memcpy(&proc->broadcast_args.priv_data, pdata, sizeof(broadcast_priv_data_t));
+    } else {
+        memset(&proc->broadcast_args.priv_data, 0, sizeof(proc->broadcast_args.priv_data));
+    }
+    POST_WM_TASK_HANDLER_NO_DELAY(home_broadcast_receive_ui_cb, &proc->broadcast_args, HOME_BROADCAST_TASK_NAME);
+}
+
 static void on_home_window_battery_state_change_cb(void *user_data, battery_state_info_t *info)
 {
     ui_proc_home_t *proc = (ui_proc_home_t *)user_data;
     EXCEPTION_CHECK_VOID(proc);
+    WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_HOME);
+    if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
+        LOG_WM("wm not running, ignore.");
+        return;
+    }
     if (info->battery_state == BATTERY_STATE_EMPTY || 
         info->battery_state == BATTERY_STATE_LOW_POWER_SHUTDOWN || 
         info->battery_state == BATTERY_STATE_FORBID_START) {
@@ -302,6 +323,7 @@ static int entry_event_cb(window_lift_cycle_e new_state,
             on_home_ui_keyevent_hdr);
         ADD_BATTERY_STATE_CB(proc->battery, proc, on_home_window_battery_state_change_cb);
         home_page_display_type_update(proc);
+        proc->window_run_state = WINDOW_RUN_STATE_RUNNING;
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);
         if (proc->extra.arg1 == HOME_SUB_UI_TYPE_PUMP_RESULT) {
@@ -319,6 +341,7 @@ static int exit_event_cb(window_lift_cycle_e new_state,
     ui_proc_home_t *proc = CONTAINER_OF(thiz, ui_proc_home_t, w_ctx);
     switch (new_state) {
         case ID_SCR_STATE_ON_PAUSE:
+            proc->window_run_state = WINDOW_RUN_STATE_PAUSED;
             LOG_WM("==>%s window on pause", PAGE_NAME_STR);
             stop_home_common_ui(proc);
             break;

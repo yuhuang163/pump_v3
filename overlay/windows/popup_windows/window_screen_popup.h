@@ -45,6 +45,7 @@ typedef struct {
     key_input_context_t *key;
     battery_manager_context_t *battery;
     uint32_t margic; /// 窗口标识.
+    uint8_t window_run_state; /// WM是否运行.
     uint32_t last_progress_ani_time; /// 上次进度动画时间.
     uint16_t popup_window_id; /// 弹出框窗口ID.
     uint16_t current_ui_type; /// 当前UI类型. popup_ui_type_e

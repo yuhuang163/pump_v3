@@ -31,6 +31,20 @@ typedef enum {
     HOME_SUB_UI_TYPE_MAX
 } home_sub_ui_type_e;
 
+typedef enum {
+    WINDOW_RUN_STATE_PAUSED = 100,
+    WINDOW_RUN_STATE_RUNNING = 101,
+} window_run_state_e;
+
+/// 窗口广播投递参数
+typedef struct {
+    void *context;
+    uint32_t code;
+    int32_t arg1;
+    int32_t arg2;
+    broadcast_priv_data_t priv_data;
+} window_broadcast_args_t;
+
 /*
 * GLOBAL FUNCTION DECLARATION
 *****************************************************************************************

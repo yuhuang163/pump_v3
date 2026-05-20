@@ -63,6 +63,7 @@ typedef struct {
     led_manager_context_t *led;
     key_input_context_t *key;
     uint32_t margic; /// 窗口标识.
+    uint8_t window_run_state; /// WM是否运行.
     uint32_t last_progress_ani_time; /// 上次进度动画时间.
     uint16_t current_ui_type; /// 当前UI类型. guide_ui_type_e
     uint16_t page_index; /// 当前页面索引.
@@ -75,11 +76,8 @@ typedef struct {
 */
 void start_guide_ui_animation(ui_proc_guide_t *proc);
 void stop_guide_ui_animation(ui_proc_guide_t *proc);
-void guide_key_event_handler_v2(ui_proc_guide_t *proc, uint16_t keycode);
-void guide_key_3s_press_handler_v2(ui_proc_guide_t *proc, uint16_t keycode);
-void guide_knob_left_event_handler(ui_proc_guide_t *proc);
 void guide_knob_event_handler(ui_proc_guide_t *proc, bool is_left);
-void guide_key_event_handler_v3(ui_proc_guide_t *proc, uint16_t keycode);
+void guide_key_event_handler(ui_proc_guide_t *proc, uint16_t keycode);
 #ifdef __cplusplus
 }
 #endif
