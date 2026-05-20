@@ -84,7 +84,7 @@ void reset_factory_flag_info(storage_manager_context_t *ctx, factory_flag_info_t
     EXCEPTION_CHECK_VOID(ctx);
     EXCEPTION_CHECK_VOID(flag_info);
     memset(flag_info, 0, sizeof(factory_flag_info_t));
-    flag_info->deploy_flag = 0;
+    flag_info->deploy_flag = 1;
     flag_info->age_display = 0;
     flag_info->fsensor_cali_flag = 0;
     for (int i = 0; i < FACTORY_AGE_INFO_MAX; i++) {
@@ -421,7 +421,11 @@ int read_factory_motor_type_from_ram(store_func_args_t args)
     factory_dev_info_t *device_info = &args.ctx->priv.factory_data.dev_info;
     int *tmp = (int *)args.val;
     EXCEPTION_CHECK_INT(tmp);
+    #if IS_SUPPORT_DEVICE_LIGHT_SENSOR_CALIB
     *tmp = device_info->motor_type;
+    #else
+    *tmp = FACTORY_MOTOR_TYPE_DEFAULT;
+    #endif
     return 0;
 }
 
@@ -431,7 +435,11 @@ int read_factory_battery_type_from_ram(store_func_args_t args)
     factory_dev_info_t *device_info = &args.ctx->priv.factory_data.dev_info;
     int *tmp = (int *)args.val;
     EXCEPTION_CHECK_INT(tmp);
+    #if IS_SUPPORT_DEVICE_LIGHT_SENSOR_CALIB
     *tmp = device_info->battery_type;
+    #else
+    *tmp = FACTORY_BATTERY_TYPE_DEFAULT;
+    #endif
     return 0;
 }
 
