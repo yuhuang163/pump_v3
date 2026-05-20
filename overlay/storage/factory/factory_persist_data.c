@@ -329,9 +329,15 @@ int read_factory_suction_table_from_flash(store_func_args_t args)
         LOG_STORE("suction table: longyi (motor_type=%u)", motor_type);
         break;
     default:
+#if IS_USE_NEW_SUCTION
+        copy_preset_suction_table(suction_table, pump1_long_suction_table, pump1_short_suction_table,
+                                  pump1_long_pump_freq_table);
+        LOG_STORE("suction table: default SHIGUANG (motor_type=%u) ", motor_type);
+#else
         copy_preset_suction_table(suction_table, pump2_long_suction_table, pump2_short_suction_table,
                                   pump2_long_pump_freq_table);
         LOG_STORE("suction table: default longyi (motor_type=%u)", motor_type);
+#endif
         break;
     }
     return 0;
