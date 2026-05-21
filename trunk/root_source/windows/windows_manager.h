@@ -155,7 +155,7 @@ do { \
                  current_window_id, overlay_window_id); \
             return (ret); \
         } \
-    } while (0) \
+    } while (0) 
 
 /// 设置窗口上下文.
 #define SET_WINDOW_CONTEXT(ctx) \
