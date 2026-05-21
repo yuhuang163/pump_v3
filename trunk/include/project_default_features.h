@@ -122,10 +122,10 @@ extern "C" {
 #define MILK_BOOST_MODE_MAX_STEPS                                      (4)
 #endif
 
-/// 开奶模式（Lactation Kickstart）参数长度（12个阶段）
+/// 开奶模式（Lactation Kickstart）参数长度（8个阶段，含2段混合子策略共10条）
 #ifndef LACTATION_START_MODE_LEN 
-#define LACTATION_START_MODE_LEN                                     (9+3*2)
-#define LACTATION_START_MODE_MAX_STEPS                                (12)
+#define LACTATION_START_MODE_LEN                                     (8 + 2 * 2)
+#define LACTATION_START_MODE_MAX_STEPS                                (8)
 #endif
 
 /// 常规韵律模式参数长度（刺激1.5分钟+吸乳20分钟，共2个阶段）
