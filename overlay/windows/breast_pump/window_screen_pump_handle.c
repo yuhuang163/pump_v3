@@ -177,7 +177,7 @@ static int on_pump_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
 {
     ui_proc_pump_t *proc = user_data;
     EXCEPTION_CHECK_INT(proc && proc->pump && proc->key && proc->ui);
-    WINDOW_CONTEXT_GUARD_INT(proc, ID_WINDOW_PUMP, 0);
+    WINDOW_CURRENT_ID_GUARD_INT(proc, ID_WINDOW_PUMP, 0);
 
 #if IS_SUPPORT_AIR_LEAKAGE_WARNING
     if (proc->is_air_leakage_popup_show == true) {

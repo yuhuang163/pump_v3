@@ -177,6 +177,8 @@ static void home_power_key_event_cb(ui_proc_home_t *proc)
             proc->led->hook->toggle_night_light(proc->led);
         }
 #endif
+    } else if (proc->current_ui_type == HOME_UI_TYPE_PUMP_RESULT) {
+        start_home_ui_animation(proc);
     } else {
         LOG_WM("ignore key event.");
     }
@@ -186,7 +188,7 @@ static int on_home_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
 {
     ui_proc_home_t *proc = user_data;
     EXCEPTION_CHECK_INT(proc);
-    WINDOW_CONTEXT_GUARD_INT(proc, ID_WINDOW_HOME, 0);
+    WINDOW_CURRENT_ID_GUARD_INT(proc, ID_WINDOW_HOME, 0);
     if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
         LOG_WM("wm not running, ignore.");
         return 0;
