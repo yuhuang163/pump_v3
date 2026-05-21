@@ -50,6 +50,7 @@
 #define RAW_PUMP_POST_TAIL_POINTS	3 /* 每段结束后多采的原始压力点数（含 active->inactive 当前点） */
 #define RAW_PUMP_ACTIVE_CAP			128 /* 原始泵压力段最大缓存长度 */
 #define RAW_PUMP_SEG_MAX			(RAW_PUMP_ACTIVE_CAP + RAW_PUMP_POST_TAIL_POINTS)
+#define LONGYI_OR_SHIGUANG  0 //1: 龙一, 0: 时光
 
 // target pressure for each level - v2.13
 static float EXPRESSION_THRESHOLD[] = { -6, -9.5, -12.5, -15, -17.5,
