@@ -84,7 +84,7 @@ void reset_factory_flag_info(storage_manager_context_t *ctx, factory_flag_info_t
     EXCEPTION_CHECK_VOID(ctx);
     EXCEPTION_CHECK_VOID(flag_info);
     memset(flag_info, 0, sizeof(factory_flag_info_t));
-    flag_info->deploy_flag = 1;
+    flag_info->deploy_flag = 0;
     flag_info->age_display = 0;
     flag_info->fsensor_cali_flag = 0;
     for (int i = 0; i < FACTORY_AGE_INFO_MAX; i++) {

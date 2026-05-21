@@ -368,7 +368,7 @@ void app_old_comm_handle_dev_abnormal_app_req(uint8_t cal, uint8_t *cab)
     }
     ///设备低电
     report_data[data_len++] = 0;
-    ///设备低电即将关键
+    ///设备低电即将关机
     if (percent <= LOW_BAT_PERCENTAGE) {
         report_data[data_len++] = OLD_PUBLISH_ABNORMAL_STATE_ACTIVE;
     }else {
@@ -390,6 +390,9 @@ void app_old_comm_handle_dev_abnormal_app_req(uint8_t cal, uint8_t *cab)
     else {
         report_data[data_len++] = OLD_PUBLISH_ABNORMAL_STATE_CLEARED;
     }
+    /// Log report_data: low bat cannot start, low battery, low bat shutdown soon, air leak, travel lock, adapter error
+    LOG_SRV("low_bat_cnst=%d, low_bat=%d, low_bat_shut_soon=%d, air_leak=%d, travel_lock=%d, adapter_error=%d",
+        report_data[0], report_data[1], report_data[2], report_data[3], report_data[4], report_data[5]);
     app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_ACK, APP_OLD_COMM_CID_GET_ABNORMAL_INFOR, \
         data_len, report_data);
 }

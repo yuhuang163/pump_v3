@@ -180,7 +180,6 @@ static int popup_window_test_cb(void)
     }
     multi_func_msg_data_t msg = {0};
     msg.union_body.extra.window_id = ID_WINDOW_POPUP_WINDOW;
-    msg.union_body.extra.is_bg_dispatch = 0x01;
     msg.union_body.extra.arg1 = ID_POPUP_UI_LOW_POWER;
     msg.union_body.extra.popup_exit_time = 8000;
     wm->dispatch_new_window_args(wm, &msg);

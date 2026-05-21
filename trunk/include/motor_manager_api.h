@@ -163,6 +163,8 @@ typedef struct motor_manager_context {
         void (*motor_debug_with_user_para)(struct motor_manager_context *ctx, uint8_t id, void *user_data);
          /// 马达体验模式设置处理
          void (*motor_debug_with_taste_setting)(struct motor_manager_context *ctx, void *user_data);
+         /// 监测所有模式策略对象指针（切换模式等场景）
+         void (*monitor_all_mode_policy_obj)(struct motor_manager_context *ctx, const char *tag);
     } *hook;
 
 } motor_manager_context_t;

@@ -50,7 +50,7 @@ CRASH_REBOOT ?= 1
 WATCHER_DOG ?= 1
 
 # warnings as errors switch (0=disabled, 1=enabled)
-WERROR_ENABLE ?= 0
+WERROR_ENABLE ?= 1
 
 # custom app switch
 CFG_CUSTOM_APP ?= 1
@@ -130,19 +130,24 @@ ROOT_PRODUCT_ID ?= $(ROOT_PRODUCT_V3_ID)
 # 产品UI版本
 ROOT_UI_V2 ?= 0x02
 ROOT_UI_V3 ?= 0x03
-ROOT_UI_VERSION ?= $(ROOT_UI_V2)
+ROOT_UI_V4 ?= 0x04
+
+ROOT_UI_VERSION ?= $(ROOT_UI_V3)
 # V3 UI版本
 V3_UI_V2 ?= 0x02
 V3_UI_V3 ?= 0x03
+V3_UI_V4 ?= 0x04
 # V3PRO UI版本
 V3PRO_UI_V2 ?= 0x12
 V3PRO_UI_V3 ?= 0x13
+V3PRO_UI_V4 ?= 0x14
 # 根据产品型号和UI版本确定V3/V3PRO UI版本
-
 ifeq ($(ROOT_PRODUCT_ID), $(ROOT_PRODUCT_V3PRO_ID))
 # UI版本为V2时，使用V3PRO_UI_V2
 ifeq ($(ROOT_UI_VERSION), $(ROOT_UI_V2))
 V3_UI_VERSION ?= $(V3PRO_UI_V2)
+else ifeq ($(ROOT_UI_VERSION), $(ROOT_UI_V4))
+V3_UI_VERSION ?= $(V3PRO_UI_V4)
 else
 V3_UI_VERSION ?= $(V3PRO_UI_V3)
 endif
@@ -152,6 +157,8 @@ else
 # UI版本为V2时，使用V3_UI_V2
 ifeq ($(ROOT_UI_VERSION), $(ROOT_UI_V2))
 V3_UI_VERSION ?= $(V3_UI_V2)
+else ifeq ($(ROOT_UI_VERSION), $(ROOT_UI_V4))
+V3_UI_VERSION ?= $(V3_UI_V4)
 else
 V3_UI_VERSION ?= $(V3_UI_V3)
 endif
@@ -202,6 +209,23 @@ UI_LCD_DIRECT_V3_V3_SRCS := $(call rwildcard,$(UI_LCD_DIRECT_V3_V3_DIR))
 UI_LCD_DIRECT_V3PRO_V3_DIR := $(PROJECT_ROOT)/overlay/ui/v3pro_ui_v3
 # UI LCD Direct v3pro V3 源码文件
 UI_LCD_DIRECT_V3PRO_V3_SRCS := $(call rwildcard,$(UI_LCD_DIRECT_V3PRO_V3_DIR))
+
+# UI Direct v3 V4 头文件子目录
+UI_INC_DIRECT_V3_V4_DIRS := $(shell find $(PROJECT_ROOT)/overlay/ui/v3_ui_v4 -type d)
+# UI Direct v3 V4 头文件
+UI_INC_DIRECT_V3_V4_FLAGS := $(patsubst %,-I%,$(UI_INC_DIRECT_V3_V4_DIRS))
+# UI Direct v3pro V4 头文件子目录
+UI_INC_DIRECT_V3PRO_V4_DIRS := $(shell find $(PROJECT_ROOT)/overlay/ui/v3pro_ui_v4 -type d)
+# UI Direct v3pro V4 头文件
+UI_INC_DIRECT_V3PRO_V4_FLAGS := $(patsubst %,-I%,$(UI_INC_DIRECT_V3PRO_V4_DIRS))
+# UI LCD Direct v3 V4 源码目录
+UI_LCD_DIRECT_V3_V4_DIR := $(PROJECT_ROOT)/overlay/ui/v3_ui_v4
+# UI LCD Direct v3 V4 源码文件
+UI_LCD_DIRECT_V3_V4_SRCS := $(call rwildcard,$(UI_LCD_DIRECT_V3_V4_DIR))
+# UI LCD Direct v3pro V4 源码目录
+UI_LCD_DIRECT_V3PRO_V4_DIR := $(PROJECT_ROOT)/overlay/ui/v3pro_ui_v4
+# UI LCD Direct v3pro V4 源码文件
+UI_LCD_DIRECT_V3PRO_V4_SRCS := $(call rwildcard,$(UI_LCD_DIRECT_V3PRO_V4_DIR))
 
 # Protocol 头文件子目录
 PROTOCOL_INC_DIRS := $(shell find $(PROJECT_ROOT)/overlay/protocol -type d)
@@ -535,6 +559,10 @@ else ifeq ($(V3_UI_VERSION), $(V3_UI_V3))
 UI_MODULE_INC_FLAGS += $(UI_INC_DIRECT_V3_V3_FLAGS)
 else ifeq ($(V3_UI_VERSION), $(V3PRO_UI_V3))
 UI_MODULE_INC_FLAGS += $(UI_INC_DIRECT_V3PRO_V3_FLAGS)
+else ifeq ($(V3_UI_VERSION), $(V3_UI_V4))
+UI_MODULE_INC_FLAGS += $(UI_INC_DIRECT_V3_V4_FLAGS)
+else ifeq ($(V3_UI_VERSION), $(V3PRO_UI_V4))
+UI_MODULE_INC_FLAGS += $(UI_INC_DIRECT_V3PRO_V4_FLAGS)
 else
 warn "Invalid UI version"
 endif
@@ -644,6 +672,10 @@ else ifeq ($(V3_UI_VERSION), $(V3_UI_V3))
 RESOURCE_INC_FLAGS += -I$(PROJECT_ROOT)/overlay/resources/v3_res_v3
 else ifeq ($(V3_UI_VERSION), $(V3PRO_UI_V3))
 RESOURCE_INC_FLAGS += -I$(PROJECT_ROOT)/overlay/resources/v3pro_res_v3
+else ifeq ($(V3_UI_VERSION), $(V3_UI_V4))
+RESOURCE_INC_FLAGS += -I$(PROJECT_ROOT)/overlay/resources/v3_res_v4
+else ifeq ($(V3_UI_VERSION), $(V3PRO_UI_V4))
+RESOURCE_INC_FLAGS += -I$(PROJECT_ROOT)/overlay/resources/v3pro_res_v4
 else
 warn "Invalid UI version"
 endif
@@ -757,11 +789,13 @@ CPPFLAGS += -DV3_UI_V2=$(V3_UI_V2)
 CPPFLAGS += -DV3PRO_UI_V2=$(V3PRO_UI_V2)
 CPPFLAGS += -DV3_UI_V3=$(V3_UI_V3)
 CPPFLAGS += -DV3PRO_UI_V3=$(V3PRO_UI_V3)
+CPPFLAGS += -DV3_UI_V4=$(V3_UI_V4)
+CPPFLAGS += -DV3PRO_UI_V4=$(V3PRO_UI_V4)
 
 CPPFLAGS += -DROOT_UI_VERSION=$(ROOT_UI_VERSION)
 CPPFLAGS += -DROOT_UI_V2=$(ROOT_UI_V2)
 CPPFLAGS += -DROOT_UI_V3=$(ROOT_UI_V3)
-
+CPPFLAGS += -DROOT_UI_V4=$(ROOT_UI_V4)
 
 # 泵驱动版本
 CPPFLAGS += -DMOTOR_DRIVER_VERSION=$(MOTOR_DRIVER_VERSION)
@@ -1137,6 +1171,10 @@ else ifeq ($(V3_UI_VERSION), $(V3_UI_V3))
 UI_MODULE_SRCS += $(UI_LCD_DIRECT_V3_V3_SRCS)
 else ifeq ($(V3_UI_VERSION), $(V3PRO_UI_V3))
 UI_MODULE_SRCS += $(UI_LCD_DIRECT_V3PRO_V3_SRCS)
+else ifeq ($(V3_UI_VERSION), $(V3_UI_V4))
+UI_MODULE_SRCS += $(UI_LCD_DIRECT_V3_V4_SRCS)
+else ifeq ($(V3_UI_VERSION), $(V3PRO_UI_V4))
+UI_MODULE_SRCS += $(UI_LCD_DIRECT_V3PRO_V4_SRCS)
 else
 warn "Invalid UI version"
 endif

@@ -217,7 +217,7 @@ static int on_key_event_route(struct power_manager_context *ctx, uint16_t keycod
             LOG_PM("forbid shutdown or standby");
         }
     } else {
-        LOG_PM("key:%d, ignore", keytype);
+        LOG_PM("key:%d, ignore, power state:%d/%d", keytype, ctx->is_system_power_on(), ctx->priv.allow_shutdown_or_standby);
     }
     return 0;
 }
@@ -330,7 +330,6 @@ static int on_pm_suspend_route(struct power_manager_context *ctx, int state)
     EXCEPTION_CHECK_INT(wm);
     multi_func_msg_data_t msg = {0};
     msg.union_body.extra.window_id = ID_WINDOW_POPUP_WINDOW;
-    msg.union_body.extra.is_bg_dispatch = 0x01;
     msg.union_body.extra.arg1 = ID_POPUP_UI_WILL_POWER_OFF;
     msg.union_body.extra.popup_exit_time = 3000;
     msg.union_body.extra.user_data = ctx;
@@ -400,6 +399,9 @@ static void set_suspend_counter_route(power_manager_context_t *ctx)
     EXCEPTION_CHECK_VOID(ctx);
     if (ctx->priv.suspend_counter < PM_IDLE_TIME_S && ctx->priv.pm_state == ID_SYS_PM_RESUME) {
         ctx->priv.pm_state = ID_SYS_PM_IDLE;
+        if (ctx->is_system_power_on() > 0) {
+            ctx->priv.allow_shutdown_or_standby = 1;
+        }
         LOG_PM("==> pm idle enter");
         SEND_BROADCAST_ARGS1(ID_BROADCAST_PM_STATE_CHANGE, PM_BROADCAST_SYS_IDLE);
     } else if (ctx->priv.suspend_counter > PM_IDLE_TIME_S && ctx->priv.pm_state == ID_SYS_PM_IDLE) {

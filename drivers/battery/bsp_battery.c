@@ -499,6 +499,20 @@ static void charge_full_voltage_handler(uint16_t voltage)
     s_charging_curve_percent = 100;
 }
 
+static void battery_percent_update(uint8_t percent)
+{
+    if (percent == 0 || percent > 100) {
+        LOGE("percent error:%d", percent);
+        return;
+    }
+    uint16_t last_voltage = battery.voltage;
+    battery.voltage = battery_voltage_by_percent_get(percent);
+    uint8_t last_percent = battery.percent;
+    battery.percent = percent;
+    LOG_PBUS("percent:%d%% -> %d%%, voltage:%dmv -> %dmv",
+        last_percent, battery.percent, last_voltage, battery.voltage);
+}
+
 static int battery_voltage_poll(void)
 {
     uint16_t batt_voltage =0; 
@@ -665,6 +679,18 @@ static int battery_dev_ioctl(struct rt_device_node *dev, uint32_t op_code, void 
 #if IS_SUPPORT_PD_CHARGE
         case OP_CODE_BAT_PD_IS_READY:
             return bsp_charge_pd_is_ready();
+#endif
+#if IS_SUPPORT_BATTERY_POLL
+        case OP_CODE_BAT_PERCENT_UPDATE:
+            tmp = (uint32_t *)args;
+            if (tmp == NULL) {
+                return -1;
+            }
+            battery_percent_update((uint8_t)tmp[0]);
+            return 0;
+#else
+        case OP_CODE_BAT_PERCENT_UPDATE:
+            return 0;
 #endif
         default:
             LOGE("bat err op_code: %lx", op_code);
