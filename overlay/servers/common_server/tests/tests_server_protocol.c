@@ -71,6 +71,7 @@ const static protocol_service_tlvs_handle_t protocol_service_tlvs_list[] = {
     {TESTS_TLV_READ_MOTOR_TYPE, tests_tlvs_read_motor_type},
     {TESTS_TLV_WRITE_BATTERY_VENDOR_TYPE, tests_tlvs_write_battery_vendor_type},
     {TESTS_TLV_READ_BATTERY_VENDOR_TYPE, tests_tlvs_read_battery_vendor_type},
+    {TESTS_TLV_READ_UI_RES_VERSION, tests_tlvs_read_ui_res_version},
 };
 
 /*

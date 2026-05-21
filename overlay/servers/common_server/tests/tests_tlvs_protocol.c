@@ -1580,6 +1580,49 @@ int tests_tlvs_read_battery_vendor_type(comm_protocol_builder_t *builder, comm_p
 #endif
 }
 
+int tests_tlvs_read_ui_res_version(comm_protocol_builder_t *builder, comm_protocol_service_t *service,
+                                   uint8_t *data, uint16_t data_len)
+{
+    EXCEPTION_CHECK_INT(builder && service);
+    protocol_manager_context_t *protocol_ctx = get_protocol_ctx();
+    resource_manager_context_t *res = (resource_manager_context_t *)find_module(ID_MODULE_RES);
+    EXCEPTION_CHECK_INT(res);
+    EXCEPTION_CHECK_INT(protocol_ctx);
+
+    (void)data;
+    if (data_len != 0) {
+        LOGW("tests_tlvs_read_ui_res_version: ignore extra request bytes, len=%u", (unsigned)data_len);
+    }
+
+    /// 产测上报设备已加载的基础 UI 资源包版本（与 img_res_init 校验的 BASE 分区一致）
+    uint16_t img_res_version = (uint16_t)res->get_img_res_version(RES_THEME_TYPE_BASE_IMG);
+    if (img_res_version == 0) {
+        img_res_version = (uint16_t)ROOT_RES_VERSION;
+        LOGW("tests_tlvs_read_ui_res_version: base res version not ready, fallback ROOT_RES_VERSION=%u",
+             (unsigned)img_res_version);
+    }
+
+    uint8_t major = (uint8_t)(img_res_version / 100U);
+    uint8_t minor = (uint8_t)(img_res_version % 100U);
+    if (major > 0x99U) {
+        major = 0x99U;
+    }
+    if (minor > 0x99U) {
+        minor = 0x99U;
+    }
+    uint8_t version[2] = { major, minor };
+
+    LOG_SRV("tests_tlvs_read_ui_res_version: %u.%02u (img_res_version=%u)",
+            (unsigned)version[0], (unsigned)version[1], (unsigned)img_res_version);
+
+    comm_protocol_tlv_node_t tlv_node = {
+        .type = TESTS_TLV_READ_UI_RES_VERSION,
+        .length = sizeof(version),
+        .value = version,
+    };
+    return protocol_ctx->comm_protocol_builder_add_tlv(builder, service, &tlv_node);
+}
+
 /// ======================== NOTIFY上报 ========================
 
 int tests_key_status_publish(servers_publish_data_args_t *args)

@@ -51,7 +51,8 @@ typedef enum {
     TESTS_TLV_WRITE_MOTOR_TYPE = 0x0023,         /// motor类型写入 (REQUEST Length=1: byte0=0x01龙一/0x02时光; RESPONSE Length=1: 0x00失败/0x01成功)
     TESTS_TLV_READ_MOTOR_TYPE = 0x0024,          /// motor类型读取 (REQUEST Length=0; RESPONSE Length=1: byte0=0x01龙一/0x02时光)
     TESTS_TLV_WRITE_BATTERY_VENDOR_TYPE = 0x0025, /// 电池厂商类型写入 (REQUEST Length=1: byte0=0x00厂商1/0x01厂商2; RESPONSE Length=1: 0x00失败/0x01成功)
-    TESTS_TLV_READ_BATTERY_VENDOR_TYPE = 0x0026,  /// 电池厂商类型读取 (REQUEST Length=0; RESPONSE Length=1: byte0=0x00厂商1/0x01厂商2)
+    TESTS_TLV_READ_BATTERY_VENDOR_TYPE = 0x0026,  /// 电池厂商类型读取 (REQUEST Length=0; RESPONSE Length=1: byte0=0x01厂商1/0x02厂商2)
+    TESTS_TLV_READ_UI_RES_VERSION = 0x0027,       /// 设备UI资源版本读取 (REQUEST Length=0; RESPONSE Length=2: byte0=主版本, byte1=次版本; BASE资源包版本如103→0x01,0x03)
     TESTS_TLV_ID_MAX,
 } tests_tlvs_id_e;
 
@@ -183,6 +184,8 @@ int tests_tlvs_read_motor_type(comm_protocol_builder_t *builder, comm_protocol_s
 int tests_tlvs_write_battery_vendor_type(comm_protocol_builder_t *builder, comm_protocol_service_t *service,
                     uint8_t *data, uint16_t data_len);
 int tests_tlvs_read_battery_vendor_type(comm_protocol_builder_t *builder, comm_protocol_service_t *service,
+                    uint8_t *data, uint16_t data_len);
+int tests_tlvs_read_ui_res_version(comm_protocol_builder_t *builder, comm_protocol_service_t *service,
                     uint8_t *data, uint16_t data_len);
 
 /// NOTIFY上报 (设备主动上报)
