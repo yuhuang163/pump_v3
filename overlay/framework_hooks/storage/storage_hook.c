@@ -276,6 +276,11 @@ static void hdr_storage_work_cb(hdr_post_args_t *args)
 static void on_power_off_force_save_route(storage_manager_context_t *ctx)
 {
     EXCEPTION_CHECK_VOID(ctx);
+    /// 同步电池电量
+    battery_manager_context_t *battery = (battery_manager_context_t *)find_module(ID_MODULE_BATTERY);
+    EXCEPTION_CHECK_VOID(battery);
+    uint32_t percent = battery->get_battery_percent();
+    ctx->priv.sys_info.state.battery_percent = percent;
     system_persist_info_sync_flash(ctx);
     LOG_STORE("-->power off force save success");
 }
@@ -422,6 +427,13 @@ static int on_post_storage_init_route(storage_manager_context_t *ctx)
     init_system_persist_info(ctx);
     /// 加载系统版本信息
     init_system_ver_info(ctx);
+    /// 同步电池电量
+    peripheral_bus_context_t *pbus = (peripheral_bus_context_t *)find_module(ID_MODULE_DEVICE_BUS);
+    EXCEPTION_CHECK_INT(pbus);
+    struct rt_device_node *battery_dev = pbus->find_device(ID_DEVICE_BATTERY);
+    EXCEPTION_CHECK_INT(battery_dev);
+    uint32_t percent = ctx->priv.sys_info.state.battery_percent;
+    DEVICE_IOCTL_ARGS_NO_RET(battery_dev, OP_CODE_BAT_PERCENT_UPDATE, &percent);
     return 0;
 }
 

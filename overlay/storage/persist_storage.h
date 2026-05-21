@@ -293,7 +293,8 @@ typedef struct {
     uint8_t night_light_adaptive_switch; /// 夜灯自适应开关
     uint32_t log_filter;          /// 日志过滤
     uint32_t sync_sys_time;       /// 保存第一次同步系统时间时 本地经历的最终时间点 用于计算泵奶记录的差值.
-    uint8_t rsv[32];                   /// 保留
+    uint8_t battery_percent;      /// 电池电量
+    uint8_t rsv[31];              /// 保留
 } sys_state_info_t;
 
 /// 描述埋点数据
