@@ -31,6 +31,19 @@ static void app_old_comm_set_night_light(uint8_t adaptive_dimming_switch)
     LOG_SRV(" Night light set: adaptive=%d", adaptive_dimming_switch);
 }
 
+/// 协议亮度档位 1-10 映射到驱动亮度 0-100
+static uint8_t app_old_comm_proto_level_to_percent(uint8_t proto_level)
+{
+    if (proto_level == 0) {
+        return 0;
+    }
+    if (proto_level > 10) {
+        proto_level = 10;
+    }
+    uint8_t percent = proto_level * 10;
+    return (percent > LED_LEVEL_MAX) ? LED_LEVEL_MAX : percent;
+}
+
 static void app_old_comm_set_device_bind_status(uint8_t device_bind_status)
 {
     ble_manager_context_t *ble = (ble_manager_context_t *)find_module(ID_MODULE_BLE);
@@ -256,75 +269,77 @@ void app_old_comm_handle_pump_ble_rgb_set_ctrl_req(uint8_t cal, uint8_t *cab)
 {
     LOG_SRV(" Handling night light control request (data len: %d)", cal);
     EXCEPTION_CHECK_VOID(cab);
-    
-    uint8_t result = 0x00; // 默认失败
-    
-    /// 检查数据长度：需要9字节参数
-    if (cal < 9) {
-        LOGE(" Invalid data length for night light control (expected >=9, got %d)", cal);
+
+    uint8_t result = 0x00;
+
+    if (cal != 0x07) {
+        LOGE(" Invalid data length for night light control (expected 7, got %d)", cal);
         app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_ACK, APP_OLD_COMM_CID_PUMP_BLE_RGB_SET_CTRL, 1, &result);
         return;
     }
-    
-    /// 解析参数
-    /// byte0: 自动亮灯（未使用，跳过）
-    uint8_t night_light_switch = cab[1];      /// byte1: 夜灯开关（0=关闭，1=打开）
-    uint8_t night_light_level = cab[2];      /// byte2: 夜灯亮度等级（1-10）
-    /// byte3-4: 夜灯灯光控制时间（2字节，未使用，跳过）
-    
-    LOG_SRV(" Night light control: switch=%d, level=%d", night_light_switch, night_light_level);
-    
-    /// 验证参数范围
-    if (night_light_switch > 1) {
-        LOGE(" Invalid night light switch value: %d (expected 0 or 1)", night_light_switch);
-        app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_ACK, APP_OLD_COMM_CID_PUMP_BLE_RGB_SET_CTRL, 1, &result);
+
+    uint8_t auto_light = cab[0];
+    uint8_t night_light_switch = cab[1];
+    uint8_t night_light_level = cab[2];
+    uint16_t night_light_ctrl_time = (uint16_t)(cab[3] | (cab[4] << 8));
+    uint8_t screen_key_level = cab[5];
+
+    LOG_SRV(" Night light ctrl: auto=%d, switch=%d, level=%d, time=%u, screen_key=%d",
+            auto_light, night_light_switch, night_light_level, night_light_ctrl_time, screen_key_level);
+
+    if (auto_light > 1 || night_light_switch > 1) {
+        LOGE(" Invalid auto_light/switch value");
+        app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_NACK, APP_OLD_COMM_CID_PUMP_BLE_RGB_SET_CTRL, 1, &result);
         return;
     }
-    
-    if (night_light_level < 1 || night_light_level > 10) {
+
+    if (night_light_switch == 1 && (night_light_level < 1 || night_light_level > 10)) {
         LOGE(" Invalid night light level: %d (expected 1-10)", night_light_level);
-        app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_ACK, APP_OLD_COMM_CID_PUMP_BLE_RGB_SET_CTRL, 1, &result);
+        app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_NACK, APP_OLD_COMM_CID_PUMP_BLE_RGB_SET_CTRL, 1, &result);
         return;
     }
-    
-    /// 获取LED管理器
+
+    if (screen_key_level < 1 || screen_key_level > 10) {
+        LOGE(" Invalid screen/key light level: %d (expected 1-10)", screen_key_level);
+        app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_NACK, APP_OLD_COMM_CID_PUMP_BLE_RGB_SET_CTRL, 1, &result);
+        return;
+    }
+
     led_manager_context_t *led = (led_manager_context_t *)find_module(ID_MODULE_LED);
+    ui_manager_context_t *ui = (ui_manager_context_t *)find_module(ID_MODULE_UI);
     if (led == NULL || led->hook == NULL) {
         LOGE(" LED manager not found or hook is NULL");
-        app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_ACK, APP_OLD_COMM_CID_PUMP_BLE_RGB_SET_CTRL, 1, &result);
+        app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_NACK, APP_OLD_COMM_CID_PUMP_BLE_RGB_SET_CTRL, 1, &result);
         return;
     }
-    
-    /// 关闭夜灯自适应调光（如果支持）
-    //if (led->hook->set_night_light_adaptive_dimming) {
-      //led->hook->set_night_light_adaptive_dimming(led, 0);
-    //  }
-    
-    /// 计算实际亮度值：将1-10映射到LED_LEVEL_MAX（100）
-    /// 映射公式：level = (协议等级 - 1) * (LED_LEVEL_MAX - 1) / 9 + 1
-    /// 简化：level = (协议等级 - 1) * 11 + 1，或者 level = 协议等级 * 10
-    /// 使用线性映射：1->10, 2->20, ..., 10->100
-    uint8_t actual_level = night_light_level * 10;
-    if (actual_level > LED_LEVEL_MAX) {
-        actual_level = LED_LEVEL_MAX;
+
+    app_old_comm_set_night_light(auto_light);
+
+    uint8_t night_actual_level = 0;
+    if (night_light_switch == 1) {
+        night_actual_level = app_old_comm_proto_level_to_percent(night_light_level);
     }
-    
-    /// 如果开关为关闭，则亮度设为0
-    if (night_light_switch == 0) {
-        actual_level = 0;
-    }
-    
-    /// 设置夜灯亮度
+
     if (led->hook->set_night_light_level) {
-        led->hook->set_night_light_level(led, actual_level);
-        result = 0x01; // 成功
-        LOG_SRV(" Night light set successfully: switch=%d, level=%d (actual=%d)", 
-                night_light_switch, night_light_level, actual_level);
+        led->hook->set_night_light_level(led, night_actual_level);
     } else {
         LOGE(" set_night_light_level hook not available");
+        app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_NACK, APP_OLD_COMM_CID_PUMP_BLE_RGB_SET_CTRL, 1, &result);
+        return;
     }
-    
-    /// 发送响应（1字节状态：0x00=错误，0x01=成功）
+
+    uint8_t screen_key_actual = app_old_comm_proto_level_to_percent(screen_key_level);
+    if (ui && ui->hook && ui->hook->set_ui_backlight_level) {
+        ui->hook->set_ui_backlight_level(ui, screen_key_actual);
+    }
+    if (led->hook->set_key_backlight) {
+        led->hook->set_key_backlight(led, screen_key_actual);
+    }
+
+    result = 0x01;
+    LOG_SRV(" Night light ctrl ok: night=%d, screen_key=%d, ctrl_time=%u (reserved)",
+            night_actual_level, screen_key_actual, night_light_ctrl_time);
+
     app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_ACK, APP_OLD_COMM_CID_PUMP_BLE_RGB_SET_CTRL, 1, &result);
 }
 
