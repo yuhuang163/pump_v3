@@ -142,7 +142,7 @@ extern "C" {
 /// 支持关机充电
 #define IS_SUPPORT_POWER_OFF_WHEN_CHARGING               (1)
 /// 支持低电量自动结束泵奶
-#define IS_SUPPORT_LOW_POWER_AUTO_STOP_PUMP              (0)
+#define IS_SUPPORT_LOW_POWER_AUTO_STOP_PUMP              (1)
 #else
 /// 支持漏气提醒
 #define IS_SUPPORT_AIR_LEAKAGE_WARNING                   (0)
