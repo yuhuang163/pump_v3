@@ -50,6 +50,7 @@
 #define RAW_PUMP_POST_TAIL_POINTS	3 /* 每段结束后多采的原始压力点数（含 active->inactive 当前点） */
 #define RAW_PUMP_ACTIVE_CAP			128 /* 原始泵压力段最大缓存长度 */
 #define RAW_PUMP_SEG_MAX			(RAW_PUMP_ACTIVE_CAP + RAW_PUMP_POST_TAIL_POINTS)
+#define LONGYI_OR_SHIGUANG  0 //1: 龙一, 0: 时光
 
 // target pressure for each level - v2.13
 static float EXPRESSION_THRESHOLD[] = { -6, -9.5, -12.5, -15, -17.5,
@@ -226,12 +227,16 @@ typedef struct _FEATURE_INFO_
 
 	float			fRawSegMinPressure;
 	float			fRawSegThresholdAtMinPressure;
+	float			fRawSegRunningMin; /* 当前段内 raw 最小（仅用于求 fRawSegMinPressure） */
+	float			fFilteredSegMinPressure; /* 与 fRawSegMinPressure 同泵段、同拍滤波的段内最小 */
+	float			fFilteredSegRunningMin; /* 段内滤波最小（内部） */
 	unsigned char	uPrevPumpState;
 	unsigned char	uPrevActive;
 	unsigned char	uCurrActive;
 	unsigned char	uRawTailRemain; /* 新段时置 POST_TAIL；段末起每写入一个尾随点减 1，到 0 表示本段采集结束 */
 	unsigned short	uRawSegLen;
-	float			fRawPumpSeg[RAW_PUMP_SEG_MAX];
+	unsigned char	uWearDetSegMinCommitted;    /* RawSegCommitMinIfAny 提交段 min 后置 1，PressureDataFeature 后消费 */
+	// float			fRawPumpSeg[RAW_PUMP_SEG_MAX];
 }SFEATURE_INFO;
 
 typedef struct _DATA_BUFFER_

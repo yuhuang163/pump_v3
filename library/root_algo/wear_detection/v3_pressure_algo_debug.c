@@ -2,14 +2,16 @@
 
 extern SFEATURE_INFO tFeatureInfo[2];
 extern SDATA_BUFFER tDataBuffer[2];
-void GetWearDetectionDebugInfo(unsigned int* uWaveSpikes,
+void GetWearDetectionDebugInfoAlg(unsigned int* uWaveSpikes,
     float* fMinData,
     unsigned int* uNormalWaveform,
     unsigned int* uNoiseLevel,
     float* fThreshold,
     float* fFilteredData,
     float* fRawSegMinPressure,
-    float* fRawSegThresholdAtMinPressure)
+    float* fRawSegThresholdAtMinPressure,
+    float* fFilteredSegMinPressure,
+    unsigned char* uWearDetSegMinCommitted)
 {
     if (uWaveSpikes != 0)
     {
@@ -60,5 +62,17 @@ void GetWearDetectionDebugInfo(unsigned int* uWaveSpikes,
     {
         fRawSegThresholdAtMinPressure[0] = tFeatureInfo[0].fRawSegThresholdAtMinPressure;
         fRawSegThresholdAtMinPressure[1] = tFeatureInfo[1].fRawSegThresholdAtMinPressure;
+    }
+
+    if (fFilteredSegMinPressure != 0)
+    {
+        fFilteredSegMinPressure[0] = tFeatureInfo[0].fFilteredSegMinPressure;
+        fFilteredSegMinPressure[1] = tFeatureInfo[1].fFilteredSegMinPressure;
+    }
+
+    if (uWearDetSegMinCommitted != 0)
+    {
+        uWearDetSegMinCommitted[0] = tFeatureInfo[0].uWearDetSegMinCommitted;
+        uWearDetSegMinCommitted[1] = tFeatureInfo[1].uWearDetSegMinCommitted;
     }
 }
