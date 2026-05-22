@@ -2,13 +2,15 @@
 #ifndef V3_PRESSURE_ALGO_DEBUG_H
 #define V3_PRESSURE_ALGO_DEBUG_H
 
-void GetWearDetectionDebugInfo(unsigned int* uWaveSpikes,
+void GetWearDetectionDebugInfoAlg(unsigned int* uWaveSpikes,
     float* fMinData,
     unsigned int* uNormalWaveform,
     unsigned int* uNoiseLevel,
     float* fThreshold,
     float* fFilteredData,
     float* fRawSegMinPressure,
-    float* fRawSegThresholdAtMinPressure);
+    float* fRawSegThresholdAtMinPressure,
+    float* fFilteredSegMinPressure,
+    unsigned char* uWearDetSegMinCommitted);
 
 #endif /* V3_PRESSURE_ALGO_DEBUG_H */
