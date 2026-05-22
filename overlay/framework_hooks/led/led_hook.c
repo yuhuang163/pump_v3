@@ -37,7 +37,7 @@ static void set_key_backlight(led_manager_context_t *thiz, uint8_t level)
     power_manager_context_t *pm = (power_manager_context_t *)find_module(ID_MODULE_POWER);
     EXCEPTION_CHECK_VOID(pm);
     LOG_MISC("set key backlight: %d", level);
-    if (pm->is_system_power_on() == 0) {
+    if (pm->is_system_power_on() == 0 && level > 0) {
         LOGE("system power off, ignore set ui backlight.");
         return;
     }
