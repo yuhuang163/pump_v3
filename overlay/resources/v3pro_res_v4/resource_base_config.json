@@ -89,12 +89,12 @@
       "start_resource_id": "RESOURCE_ID_HD_ANIM_IP_START",
       "end_resource_id": "RESOURCE_ID_HD_ANIM_IP_END",
       "description": "首页默认动画帧",
-      "file_template": "base/animation/home_default/baj/s_{file_index:05d}_240x194_a4_q99_422.baj",
+      "file_template": "base/animation/home_default/jpg/CJ_{file_index:05d}_368x368_q95_422.jpg",
       "start_file_index": 0,
       "id_to_file_offset": -1500,
       "x_offset": 0,
       "y_offset": 0,
-      "note": "动画资源ID范围: 1500-1619，共120帧。文件编号计算：file_index = resource_id + id_to_file_offset (即 resource_id - 1500)"
+      "note": "动画资源ID范围: 1500-1579，共80帧。文件编号计算：file_index = resource_id + id_to_file_offset (即 resource_id - 1500)"
     }
   ],
   "resources": [

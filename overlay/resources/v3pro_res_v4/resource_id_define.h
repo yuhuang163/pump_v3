@@ -111,7 +111,7 @@ typedef enum {
     RESOURCE_ID_SUCTION_ANIM_IP_END = 1326,     /// 吸奶动画-结束
 
     RESOURCE_ID_HD_ANIM_IP_START = 1500,   /// 首页默认动画-开始
-    RESOURCE_ID_HD_ANIM_IP_END = 1619,     /// 首页默认动画-结束
+    RESOURCE_ID_HD_ANIM_IP_END = 1547,     /// 首页默认动画-结束
     
     RESOURCE_ID_TYPE_MAX
 } resource_id_type_e;

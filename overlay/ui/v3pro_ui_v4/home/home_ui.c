@@ -300,6 +300,7 @@ static void home_label_ui_update(ui_manager_context_t *thiz, uint16_t img_id, ui
     }
 }
 
+#if 0
 static void home_root_animation_update(ui_manager_context_t *thiz, 
     uint16_t start_resource_id, uint16_t animation_size, uint16_t x_offset, uint16_t y_offset)
 {  
@@ -326,6 +327,35 @@ static void home_root_animation_update(ui_manager_context_t *thiz,
     lv_image_set_src(home_info->animation, (const void *)&animation_img_path);
     home_info->animation_index++;
 }
+#else
+static void home_root_animation_update(ui_manager_context_t *thiz, 
+    uint16_t start_resource_id, uint16_t animation_size, uint16_t x_offset, uint16_t y_offset)
+{  
+    if (home_info->animation == NULL || !lv_obj_is_valid(home_info->animation)) {
+        home_info->animation = lv_image_create(home_info->root);
+        EXCEPTION_CHECK_VOID(home_info->animation);
+    }  
+    
+    if (home_info->animation_index >= animation_size) {
+        home_info->animation_index = 0;
+    }
+
+    // lv_obj_align(home_info->animation, LV_ALIGN_TOP_MID, x_offset, y_offset); 
+    lv_obj_align(home_info->animation, LV_ALIGN_CENTER, 0, 0); 
+    if (home_info->animation_info.data != NULL) {
+        common_ui_img_resource_deinit(thiz, &home_info->animation_info);
+        memset(&home_info->animation_info, 0, sizeof(home_info->animation_info));
+    }
+    common_ui_img_resource_init_with_theme(thiz, 
+        start_resource_id + home_info->animation_index, &home_info->animation_info);
+    EXCEPTION_CHECK_VOID(home_info->animation_info.data);
+    lv_fs_path_ex_t animation_img_path;
+    lv_fs_make_path_from_buffer(&animation_img_path, LV_FS_MEMFS_LETTER, 
+        home_info->animation_info.data, home_info->animation_info.size, "jpg");
+    lv_image_set_src(home_info->animation, (const void *)&animation_img_path);
+    home_info->animation_index++;
+}
+#endif
 
 #if (ROOT_PRODUCT_ID == ROOT_PRODUCT_V3PRO_ID)
 static void home_record_time_ui_update(ui_manager_context_t *thiz, uint32_t timestamp_offset,
@@ -598,9 +628,9 @@ void ui_display_home_prepare(ui_manager_context_t *thiz)
     thiz->priv.fps_count = 0;
     thiz->priv.fps_start_time = get_timestamp();
     home_root_init();
-    ble_ui_init(thiz);
-    battery_ui_init(thiz);
-    common_ui_bg_init(thiz);
+    // ble_ui_init(thiz);
+    // battery_ui_init(thiz);
+    // common_ui_bg_init(thiz);
     home_info->force_update = true;
     home_info->animation_index = 0;
     home_info->popup_ui_index = ID_POPUP_UI_NONE;
@@ -612,16 +642,16 @@ void ui_display_home_remove(ui_manager_context_t *thiz)
 {
     EXCEPTION_CHECK_VOID(thiz);
     EXCEPTION_CHECK_VOID(home_info);
-    common_ui_img_resource_deinit(thiz, &home_info->label_info);
-    common_ui_img_resource_deinit(thiz, &home_info->button_info);
+    // common_ui_img_resource_deinit(thiz, &home_info->label_info);
+    // common_ui_img_resource_deinit(thiz, &home_info->button_info);
     common_ui_img_resource_deinit(thiz, &home_info->animation_info);
 #if (ROOT_PRODUCT_ID == ROOT_PRODUCT_V3PRO_ID)
-    common_ui_img_resource_deinit(thiz, &home_info->clock_colon_info);
+    // common_ui_img_resource_deinit(thiz, &home_info->clock_colon_info);
 #endif
-    ble_ui_deinit(thiz);
-    battery_ui_deinit(thiz);
-    common_ui_bg_deinit(thiz);
-    ui_common_operation_tip_remove(thiz);
+    // ble_ui_deinit(thiz);
+    // battery_ui_deinit(thiz);
+    // common_ui_bg_deinit(thiz);
+    // ui_common_operation_tip_remove(thiz);
     LVGL_OBJ_DELETE(home_info->root);
     u_free(home_info);
     home_info = NULL;
@@ -632,12 +662,15 @@ int ui_display_home_process(ui_manager_context_t *thiz)
     EXCEPTION_CHECK_INT(thiz && home_info && home_info->root);
     ui_proc_home_t *proc = (ui_proc_home_t *)thiz->priv.play_info.user_data;
     EXCEPTION_CHECK_INT(proc && proc->ble);
-    home_root_bg_update(thiz);
-    ble_ui_update(thiz, home_info->root, proc->ble, COMMON_BLE_UI_X, COMMON_BLE_UI_Y);
-    battery_ui_update(thiz, home_info->root, proc->battery, true);
-    home_ui_update(thiz, proc);
-    ui_common_operation_tip_update(thiz, proc->popup_ui_type, home_info->root,
-        &home_info->popup_ui_index);
+    // home_root_bg_update(thiz);
+    // ble_ui_update(thiz, home_info->root, proc->ble, COMMON_BLE_UI_X, COMMON_BLE_UI_Y);
+    // battery_ui_update(thiz, home_info->root, proc->battery, true);
+    // home_ui_update(thiz, proc);
+    // ui_common_operation_tip_update(thiz, proc->popup_ui_type, home_info->root,
+    //     &home_info->popup_ui_index);
+    home_root_animation_update(thiz, RESOURCE_ID_HD_ANIM_IP_START,
+        RESOURCE_ID_HD_ANIM_IP_END - RESOURCE_ID_HD_ANIM_IP_START + 1,
+        HOME_IDLE_ANIMATION_X, HOME_IDLE_ANIMATION_Y);
     home_info->force_update = false;
     thiz->priv.fps_count++;
     if (get_timestamp() - thiz->priv.fps_start_time >= 1000) {
