@@ -15,10 +15,10 @@ extern "C" {
 #include "windows_map_define.h" // IWYU pragma: keep
 #include "input_key_code.h" // IWYU pragma: keep
 
-#if IS_SUPPORT_LVGL
-#define HOME_ANIMATION_FREQ                 (25)
+#if (ROOT_UI_VERSION == ROOT_UI_V3 || ROOT_UI_VERSION == ROOT_UI_V2)
+#define HOME_ANIMATION_FREQ                    (24)
 #else
-#define HOME_ANIMATION_FREQ                 (5)
+#define HOME_ANIMATION_FREQ                    (16)
 #endif
 
 /// 主界面动画展示时间
@@ -38,6 +38,10 @@ extern "C" {
 #define HOME_PUMP_SPEED_DISPLAY_TIMEOUT     (10000) /// 10s
 #define HOME_PUMP_SPEED_SYNC_TIMEOUT        (3000) /// 3s
 
+/// 夜灯调节界面动画展示时间
+#define HOME_NIGHT_LIGHT_ADJUST_DISPLAY_TIMEOUT (10000) /// 10s
+#define HOME_NIGHT_LIGHT_ADJUST_SYNC_TIMEOUT    (3000) /// 3s
+
 /// 主界面UI动作枚举
 typedef enum {
     HOME_HDR_ACTION_PUMP_MODE_SELECT,
@@ -55,6 +59,7 @@ typedef enum {
     HOME_UI_TYPE_LEVEL_ADJUST,
     HOME_UI_TYPE_SPEED_ADJUST,
     HOME_UI_TYPE_PUMP_RESULT,
+    HOME_UI_TYPE_NIGHT_LIGHT_ADJUST, /// 夜灯调节
     HOME_UI_TYPE_MAX
 } home_ui_type_e;
 
@@ -95,6 +100,7 @@ typedef struct {
     uint8_t level_sync_flag; /// 档位同步标志.
     uint8_t speed_sync_flag; /// 速度同步标志.
     uint8_t pump_priming;
+    uint8_t night_light_level; /// 夜灯调节亮度等级（L0 - L4）.
     home_page_display_type_e home_display_type;
     uint32_t pump_record_time;
 } ui_proc_home_t;
@@ -134,6 +140,10 @@ void home_ui_change_hdr_remove(ui_proc_home_t *proc);
 /// 泵奶结果界面处理
 void show_home_pump_result_ui(ui_proc_home_t *proc);
 void home_pump_result_ui_exit(ui_proc_home_t *proc);
+/// 夜灯调节界面处理
+void show_home_night_light_adjust_ui(ui_proc_home_t *proc);
+void switch_home_night_light_adjust(ui_proc_home_t *proc, bool is_increase);
+void home_night_light_adjust_ui_exit(ui_proc_home_t *proc);
 
 #ifdef __cplusplus
 }

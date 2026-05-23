@@ -139,6 +139,10 @@ static void home_knob_left_event_cb(ui_proc_home_t *proc)
         switch_home_pump_level(proc, false);
     } else if (proc->current_ui_type == HOME_UI_TYPE_SPEED_ADJUST) {
         switch_home_pump_speed(proc, false);
+    } else if (proc->current_ui_type == HOME_UI_TYPE_NIGHT_LIGHT_ADJUST) {
+        #if IS_SUPPORT_NIGHT_LIGHT_ADJUST
+        switch_home_night_light_adjust(proc, false);
+        #endif
     }
 }
 
@@ -155,6 +159,10 @@ static void home_knob_right_event_cb(ui_proc_home_t *proc)
         switch_home_pump_level(proc, true);
     } else if (proc->current_ui_type == HOME_UI_TYPE_SPEED_ADJUST) {
         switch_home_pump_speed(proc, true);
+    } else if (proc->current_ui_type == HOME_UI_TYPE_NIGHT_LIGHT_ADJUST) {
+        #if IS_SUPPORT_NIGHT_LIGHT_ADJUST
+        switch_home_night_light_adjust(proc, true);
+        #endif
     }
 }
 
@@ -163,7 +171,8 @@ static void home_power_key_event_cb(ui_proc_home_t *proc)
     if (proc->current_ui_type == HOME_UI_TYPE_NORMAL_MODE_SELECT || 
         proc->current_ui_type == HOME_UI_TYPE_BF_MODE_SELECT) {
         POST_WM_TASK_HANDLER_NO_DELAY(home_start_key_event_ui_cb, proc, HOME_START_KEY_EVENT_TASK_NAME);
-    } else if (proc->current_ui_type == HOME_UI_TYPE_HOME) {
+    } else if (proc->current_ui_type == HOME_UI_TYPE_HOME ||
+            proc->current_ui_type == HOME_UI_TYPE_BIND_QRCODE) {
 #if IS_SUPPORT_NIGHT_LIGHT
         uint8_t battery_state = proc->battery->get_battery_state();
         if (battery_state == BATTERY_STATE_LOW_POWER_SHUTDOWN ||
@@ -174,7 +183,10 @@ static void home_power_key_event_cb(ui_proc_home_t *proc)
         }
         
         if (proc->led && proc->led->hook && proc->led->hook->toggle_night_light) {
-            proc->led->hook->toggle_night_light(proc->led);
+            int ret = proc->led->hook->toggle_night_light(proc->led);
+            #if IS_SUPPORT_NIGHT_LIGHT_ADJUST
+            show_home_night_light_adjust_ui(proc);
+            #endif
         }
 #endif
     } else if (proc->current_ui_type == HOME_UI_TYPE_PUMP_RESULT) {
