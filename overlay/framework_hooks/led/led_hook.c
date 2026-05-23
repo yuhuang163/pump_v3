@@ -153,20 +153,20 @@ static void set_night_light_level(led_manager_context_t *thiz, uint8_t level)
     set_night_light_level_internal(thiz, level);
 }
 
-static void toggle_night_light(led_manager_context_t *thiz)
+static int toggle_night_light(led_manager_context_t *thiz)
 {    
     uint8_t level = 0;
-    EXCEPTION_CHECK_VOID(thiz);
+    EXCEPTION_CHECK_INT(thiz);
     if (thiz->priv.power && thiz->priv.power->is_system_power_on() == 0) {
         LOGE("system power off, ignore toggle night light.");
-        return;
+        return -1;
     }
     thiz->hook->set_night_light_adaptive_switch(thiz, 0);
     thiz->priv.night_light_onoff = thiz->priv.night_light_level > 0 ? 0 : 1;    
     if (thiz->priv.night_light_onoff > 0) {
         if (thiz->priv.night_light_adaptive_dimming > 0) {
             LOG_MISC("night light adaptive dimming, ignore toggle night light.");
-            return;
+            return 1;
         }
         if (thiz->priv.night_light_setting_level == 0) {
             thiz->priv.night_light_setting_level = NIGHT_LIGHT_DEFAULT_LEVEL;
@@ -176,6 +176,7 @@ static void toggle_night_light(led_manager_context_t *thiz)
     LOG_MISC("toggle night light, onoff: %d, level: %d/%d", 
         thiz->priv.night_light_onoff, thiz->priv.night_light_adaptive_level, thiz->priv.night_light_level);
     set_night_light_level_internal(thiz, level);
+    return thiz->priv.night_light_onoff ? 1 : 0;
 }
 
 static void night_light_adaptive_thread(void *user_data)
