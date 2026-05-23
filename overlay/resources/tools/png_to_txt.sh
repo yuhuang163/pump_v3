@@ -1,5 +1,5 @@
 #!/bin/bash
-### PNG图片转TXT数据文件 - Shell包装脚本
+### PNG/JPG/JPEG图片转TXT数据文件 - Shell包装脚本
 ### 用法: ./png_to_txt.sh <输入路径> [选项]
 
 ### 获取脚本所在目录
@@ -22,14 +22,14 @@ fi
 ### 显示帮助信息
 show_help() {
     echo "================================================"
-    echo "PNG图片转TXT数据文件工具"
+    echo "PNG/JPG/JPEG图片转TXT数据文件工具"
     echo "================================================"
     echo ""
     echo "用法:"
     echo "  $0 <输入路径> [选项]"
     echo ""
     echo "参数:"
-    echo "  输入路径        PNG文件路径或包含PNG文件的目录"
+    echo "  输入路径        PNG/JPG/JPEG文件路径或包含图片文件的目录"
     echo ""
     echo "选项:"
     echo "  -o <目录>       指定输出目录（默认：PNG文件所在目录）"
@@ -44,7 +44,7 @@ show_help() {
     echo "  $0 input.png -o output_dir"
     echo "  $0 input.png -o output_dir -n output.txt"
     echo ""
-    echo "  ### 批量转换目录下所有PNG文件"
+    echo "  ### 批量转换目录下所有PNG/JPG/JPEG文件"
     echo "  $0 img_dir/"
     echo "  $0 img_dir/ -o txt_output/"
     echo "  $0 img_dir/ -o txt_output/ -r"
@@ -68,7 +68,7 @@ fi
 
 ### 执行Python脚本，传递所有参数
 echo "================================================"
-echo "开始转换 PNG -> TXT"
+    echo "开始转换 图片 -> TXT"
 echo "================================================"
 echo ""
 
