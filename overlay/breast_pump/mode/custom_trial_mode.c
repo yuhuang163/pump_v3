@@ -64,6 +64,7 @@ int custom_trial_mode_update_by_steps_info(pump_mode_steps_info_t *steps_info)
         s_custom_trial_obj = new_obj;
         return 0;
     }
+    LOGE("custom trial mode update by steps info failed");
     return -1;
 }
  

@@ -245,7 +245,7 @@ int breast_pump_mode_parameter_output(motor_policy_manager_t *obj, char *name)
                 LOGE("policy null");
                 break;
             }
-            LOG_MOTOR(" -->info level:%d, type:%d, speed:%d; hold time:%d, loop num:%d, sleep time:%d, next:%p", 
+            LOG_MOTOR(" -->info level:%d, type:%d, speed:%d; period:%d, loop num:%d, next:%p",
                 policy->core.un.mapping.level, policy->core.un.mapping.mode_type, policy->core.un.mapping.speed,
                 policy->core.config.period, policy->core.config.loop_num,
                 policy->next);
