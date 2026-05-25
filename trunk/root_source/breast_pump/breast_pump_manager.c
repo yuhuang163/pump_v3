@@ -113,7 +113,7 @@ static void start_breast_pump_work(uint8_t is_continue_work)
 static void stop_breast_pump_work(int breast_pump_state)
 {
     breast_pump_manager_context_t *ctx = breast_pump_obj;
-
+    LOG_PMP("stop breast pump work, state: %d", breast_pump_state);
     /// 关闭马达.
     CHECK_IF_VALID(ctx->priv.motor, {
         ctx->priv.motor->stop_motor();

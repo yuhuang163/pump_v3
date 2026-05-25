@@ -206,7 +206,7 @@ static int generate_motor_para(struct motor_manager_context *ctx, int mode, void
     if (ctx->priv.runtime.breast_pump_mode == mode && ctx->priv.motor_state != MOTOR_POLICY_IDLE) {
         ret = ctx->synchronous_stop_motor();
         if (ret != 0) {
-            LOGE("stop motor failed before update custom policy, mode:%d, ret:%d", mode, ret);
+            LOGE("stop motor failed before update policy, mode:%d, ret:%d (steps in RAM may differ from motor chain)", mode, ret);
             return ret;
         }
         stop_flag = 1;
@@ -223,8 +223,9 @@ static int generate_motor_para(struct motor_manager_context *ctx, int mode, void
             break;
     }
 
+    ///策略链表更新了，需要重新启动，防止状态信息沿用旧的策略
     if (stop_flag) {
-        ctx->start_motor(MOTOR_POLICY_CONTINUE);
+        ctx->start_motor(MOTOR_POLICY_START);
     }
     return ret;
 }

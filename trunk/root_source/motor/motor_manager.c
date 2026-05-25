@@ -217,11 +217,16 @@ static int synchronous_stop_motor(void)
 {
     motor_obj->priv.is_user_stoped = 1;
     motor_obj->priv.user_debug_status = 0;
+    /// 丢弃队列中待执行的 start，避免停泵等待期间旧任务再次拉起旧策略
+    os_message_id msg_id = motor_obj->priv.motor_play_thd.msg_id;
+    if (msg_id) {
+        MSG_QUEUE_RESET(msg_id);
+    }
     internal_stop_motor("synchronous-stop");
     uint32_t start_time = get_timestamp();
     while (is_on_motor_task_running(motor_obj)) {
         msleep(20);
-        if (get_timestamp_ms(start_time) > 500) {
+        if (get_timestamp_ms(start_time) > 1000) {
             LOGE("==> stop timeout");
             return -1;
         }
