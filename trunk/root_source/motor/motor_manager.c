@@ -220,8 +220,8 @@ static int synchronous_stop_motor(void)
     internal_stop_motor("synchronous-stop");
     uint32_t start_time = get_timestamp();
     while (is_on_motor_task_running(motor_obj)) {
-        msleep(10);
-        if (get_timestamp_ms(start_time) > 100) {
+        msleep(20);
+        if (get_timestamp_ms(start_time) > 500) {
             LOGE("==> stop timeout");
             return -1;
         }
