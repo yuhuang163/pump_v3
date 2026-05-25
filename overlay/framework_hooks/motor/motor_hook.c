@@ -180,6 +180,10 @@ static int generate_motor_para_custom(void *user_data, int data_size)
 {
     pump_mode_steps_info_t *steps_info = (pump_mode_steps_info_t *) user_data;
     EXCEPTION_CHECK_INT(steps_info);
+    if (data_size != sizeof(pump_mode_steps_info_t)) {
+        LOGE("custom policy data size error:%d/%d", data_size, (int)sizeof(pump_mode_steps_info_t));
+        return -1;
+    }
     return custom_mode_update_by_steps_info(steps_info);
 }
 
@@ -187,6 +191,10 @@ static int generate_motor_para_custom_trial(void *user_data, int data_size)
 {
     pump_mode_steps_info_t *steps_info = (pump_mode_steps_info_t *) user_data;
     EXCEPTION_CHECK_INT(steps_info);
+    if (data_size != sizeof(pump_mode_steps_info_t)) {
+        LOGE("custom trial policy data size error:%d/%d", data_size, (int)sizeof(pump_mode_steps_info_t));
+        return -1;
+    }
     return custom_trial_mode_update_by_steps_info(steps_info);
 }
 
@@ -196,7 +204,11 @@ static int generate_motor_para(struct motor_manager_context *ctx, int mode, void
     int ret = -1;
     /// 替换新参数前检测当前模式参数是否正在使用
     if (ctx->priv.runtime.breast_pump_mode == mode && ctx->priv.motor_state != MOTOR_POLICY_IDLE) {
-        ctx->synchronous_stop_motor();
+        ret = ctx->synchronous_stop_motor();
+        if (ret != 0) {
+            LOGE("stop motor failed before update custom policy, mode:%d, ret:%d", mode, ret);
+            return ret;
+        }
         stop_flag = 1;
     }
 
