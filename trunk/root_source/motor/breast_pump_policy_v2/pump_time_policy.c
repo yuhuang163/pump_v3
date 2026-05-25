@@ -227,6 +227,8 @@ int pump_time_policy_update(struct motor_manager_context *thiz, motor_policy_run
                 if (runtime->info[i].state.cycles_count < runtime->info[i].config.loop_num) {
                     runtime->info[i].state.status = SUCTION_STATUS_IDLE;
                     runtime->info[i].state.action = MOTOR_ACTION_IDLE;
+                    LOG_MOTOR("dev-%d policy loop, cycles:%d/%d", 
+                        i, runtime->info[i].state.cycles_count, runtime->info[i].config.loop_num);
                 } else {
                     if (runtime->policy[i].next) {
                         memcpy(&runtime->policy[i], runtime->policy[i].next, sizeof(motor_policy_node_t)); 

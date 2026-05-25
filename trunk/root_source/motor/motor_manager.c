@@ -89,11 +89,11 @@ static int internal_start_motor(uint8_t action)
         .action_id = action, 
     };
 
-    os_message_id msg_id = motor_obj->priv.motor_play_thd.msg_id;
-    if (is_on_motor_task_running(motor_obj)) {
-        update_play_interrupt_reason("play-new-task");
-    }
+    uint8_t is_running_flag = is_on_motor_task_running(motor_obj);
+    LOG_MOTOR("start motor, action: %d, is_running_flag: %d", action, is_running_flag);
+    update_play_interrupt_reason("play-new-task");
     
+    os_message_id msg_id = motor_obj->priv.motor_play_thd.msg_id;
     if (msg_id) {
         LOG_MOTOR("timestamp: %ld, id: %d", task_para.timestamp, task_para.play_mask_id);
         MSG_QUEUE_SEND(msg_id, &task_para, 0);
