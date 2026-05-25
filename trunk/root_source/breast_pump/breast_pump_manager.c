@@ -380,6 +380,7 @@ static void set_breast_pump_status(int status, int is_report)
     
     /// 通知app
     if (is_report) {
+        LOG_PMP("notify app, status: %d, is_report: %d", status, is_report);
         servers_manager_context_t *servers_ctx = (servers_manager_context_t *)find_module(ID_MODULE_SERVERS);
         EXCEPTION_CHECK_VOID(servers_ctx && servers_ctx->hook);
         servers_publish_data_args_t args = {

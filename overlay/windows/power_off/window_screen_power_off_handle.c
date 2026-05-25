@@ -13,11 +13,13 @@
 #define PAGE_STATIC_NAME                            power_off
 #define PAGE_NAME_STR                               "power_off"
 #define POWER_OFF_PAGE_POLICY_TASK_NAME             "power_off_page_policy"
+#define POWER_OFF_BLE_TEARDOWN_TASK_NAME            "power_off_ble_teardown"
 
 #define REMOVE_ALL_HANDER_TASK() \
 do { \
     LOG_WM("==>REMOVE_ALL_HANDER_TASK"); \
     REMOVE_TASK_HANDLER_DIRECTLY(POWER_OFF_PAGE_POLICY_TASK_NAME);\
+    REMOVE_TASK_HANDLER_DIRECTLY(POWER_OFF_BLE_TEARDOWN_TASK_NAME);\
 } while (0)
 /*
 * LOCAL VARIABLE DEFINITIONS
@@ -34,6 +36,24 @@ INIT_WINDOW_CONTEXT();
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
+static void power_off_ble_teardown_cb(hdr_post_args_t *args)
+{
+    ui_proc_power_off_t *proc = args->user_data;
+    EXCEPTION_CHECK_VOID(proc && proc->ble);
+    WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_POWER_OFF);
+    if (proc->margic != UI_WINDOW_MARGIC_CODE) {
+        LOG_WM("invalid margic, ignore ble teardown.");
+        return;
+    }
+    LOG_WM("%s", args->name);
+    if (proc->ble->ble_is_connected() > 0) {
+        proc->ble->set_adv_speed(BLE_OPT_ADV_STOP);
+        proc->ble->disconnect_bt_by_user();
+    } else {
+        proc->ble->bt_adv_stop_by_user();
+    }
+}
+
 #if IS_SUPPORT_POWER_OFF_WHEN_CHARGING
 static void power_off_ui_common_cb(hdr_post_args_t *args)
 {
@@ -169,15 +189,8 @@ static int entry_event_cb(window_lift_cycle_e new_state,
         if (proc->pm) {
             proc->pm->acquire_wakelock("power_off_screen", -1); /// 永久持有锁.
         }
-
-        if (proc->ble) {
-            if (proc->ble->ble_is_connected() > 0) {
-                proc->ble->set_adv_speed(BLE_OPT_ADV_STOP);
-                proc->ble->disconnect_bt_by_user();
-            } else {
-                proc->ble->bt_adv_stop_by_user();
-            }
-        }
+       ///1S后停止ble
+        POST_WM_TASK_HANDLER_DELAYED_ARG1(power_off_ble_teardown_cb, 1000, proc, POWER_OFF_BLE_TEARDOWN_TASK_NAME);
  #if IS_SUPPORT_POWER_OFF_WHEN_CHARGING       
         if (proc->extra.arg1 == 0) {
             if (proc->battery) {
