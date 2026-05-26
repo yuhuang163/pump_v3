@@ -523,12 +523,16 @@ static const char *get_breast_pump_mode_name(uint8_t mode)
 
 static uint8_t get_breast_pump_step_index(void)
 {
+#if IS_PUMP_STEPS_USE_SAME_SETTING
+    return 0;
+#else
     breast_pump_info_t *m_info = &breast_pump_obj->priv.m_info;
     motor_manager_context_t *motor = breast_pump_obj->priv.motor;
     if (motor) {
         m_info->step_index = motor->get_runtime_policy_index(MOTOR_TIME_POLICY);
     }
     return m_info->step_index;
+#endif
 }
 
 static uint32_t get_breast_pump_step_remaining_time(void)

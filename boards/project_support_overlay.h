@@ -122,8 +122,14 @@ extern "C" {
 #define IS_SUPPORT_UI_THEME_RES                          (0)
 /// 支持泵奶时间累计
 #define IS_SUPPORT_MODE_WORK_TIME_ACCUMULATE             (0)
+/// 支持泵奶步数使用相同设置
+#define IS_PUMP_STEPS_USE_SAME_SETTING                   (1)
 /// 支持泵奶全局参数设置
 #define IS_SUPPORT_PUMP_GLOBAL_PARAM_SETTING             (1)
+/// 支持泵奶档位实时调节
+#define IS_SUPPORT_PUMP_LEVEL_REAL_TIME_ADJUST           (1)
+/// 支持泵奶韵律模式选择
+#define IS_SUPPORT_PUMP_RHYTHM_MODE_SELECT               (0)
 
 /// 硬件差异配置
 #if (ROOT_PRODUCT_ID == ROOT_PRODUCT_V3PRO_ID)
