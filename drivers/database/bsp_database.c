@@ -6,7 +6,6 @@
 #include "bsp_fds.h"
 #include "norflash_api.h"
 #include "app_flash_api.h"
-#include "hal_norflash.h"
 
 /*
 * DEFINES
@@ -18,6 +17,7 @@
 *****************************************************************************************
 */
 static rt_device_node_t *node = NULL;
+static app_fds_t s_ext_fds;
 
 /*
 * GLOBAL VARIABLE DEFINITIONS
@@ -52,6 +52,15 @@ static int database_section_init(void)
     return 0;
 }
 
+static app_fds_t *database_get_ext_fds(const uint32_t *args, uint32_t n_bytes)
+{
+    if (n_bytes >= sizeof(uint32_t) * 4 && args[3] == DB_STORAGE_EXTERNAL) {
+        return &s_ext_fds;
+    }
+
+    return NULL;
+}
+
 static int database_dev_open(struct rt_device_node *dev)
 {
     int ret = 0;
@@ -63,9 +72,15 @@ static int database_dev_open(struct rt_device_node *dev)
         return -1;
     }
     /// init littlefs
-    ret = app_fds_init((uint32_t)FDS_START_ADDR, FDS_SECTOR_NUM);
+    ret = app_fds_init(PARTITION_FDS_NAME, (uint32_t)FDS_START_ADDR, FDS_SECTOR_NUM);
     if (ret != BSP_OK) {
         LOGE("database init failure!:%d", ret);
+        return -1;
+    }
+    /// init external littlefs
+    ret = app_fds_mount(&s_ext_fds, PARTITION_FDS_EXT_NAME, (uint32_t)FDS_EXT_START_ADDR, FDS_EXT_SECTOR_NUM);
+    if (ret != BSP_OK) {
+        LOGE("database ext init failure!:%d", ret);
         return -1;
     }
     return BSP_OK;
@@ -74,16 +89,26 @@ static int database_dev_open(struct rt_device_node *dev)
 static int database_dev_read(struct rt_device_node *dev, void *buf, uint32_t n_bytes)
 {
     uint32_t *tmp = (uint32_t *)buf;
+    app_fds_t *fds = NULL;
 
     EXCEPTION_CHECK_INT(tmp);
+    fds = database_get_ext_fds(tmp, n_bytes);
+    if (fds) {
+        return app_fds_value_read_ex(fds, tmp[0], (void *)tmp[1], tmp[2]) < 0 ? BSP_ERROR : BSP_OK;
+    }
     return app_fds_value_read(tmp[0], (void *)tmp[1], tmp[2]) < 0 ? BSP_ERROR : BSP_OK;
 }
 
 static int database_dev_write(struct rt_device_node *dev, const void *buf, uint32_t n_bytes)
 {
     uint32_t *tmp = (uint32_t *)buf;
+    app_fds_t *fds = NULL;
 
     EXCEPTION_CHECK_INT(tmp);
+    fds = database_get_ext_fds(tmp, n_bytes);
+    if (fds) {
+        return app_fds_value_write_ex(fds, tmp[0], (void *)tmp[1], tmp[2]) < 0 ? BSP_ERROR : BSP_OK;
+    }
     return app_fds_value_write(tmp[0], (void *)tmp[1], tmp[2]) < 0 ? BSP_ERROR : BSP_OK;
 }
 
@@ -93,6 +118,9 @@ static int database_dev_ioctl(struct rt_device_node *dev, uint32_t op_code, void
     switch (op_code) {
         case OP_CODE_DB_DELETE:
             return app_fds_value_delete(temp[0]);
+
+        case OP_CODE_DB_EXT_DELETE:
+            return app_fds_value_delete_ex(&s_ext_fds, temp[0]);
 
         case OP_CODE_DB_DELETE_ALL:
             return 0;

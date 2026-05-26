@@ -18,6 +18,7 @@ extern "C" {
 #define PARTITION_OTA_UPGRADE_NAME                                              "ota_upgrade"
 #define PARTITION_USERDATA_NAME                                                 "userdata"
 #define PARTITION_FDS_NAME                                                      "littleFs"
+#define PARTITION_FDS_EXT_NAME                                                  "littleFsExt"
 #define PARTITION_FACTORY_DATA_NAME                                             "factory_data"
 #define PARTITION_DEV_INFO_NAME                                                 "dev_info"
 #define PARTITION_IMG_INT_DATA_NAME                                             "img_int_data"
