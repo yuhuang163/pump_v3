@@ -63,35 +63,35 @@ static PSRAM_DATA_LOC uint8_t factory_reset_confirm_bg_data[] = {
 #endif
 
 const static ota_text_info_t ota_res_downloading_text_infos[OTA_DESC_TEXT_NUM] = {
-    {"Skin setting...", 
+    {"Theme setting", 
         &lv_font_oppo_sans_20_medium, OTA_TITL_TEXT_COLOR, 126},
-    {"Reset factory defaults to rechoose", 
+    {"Restore factory settings to reselect", 
         &lv_font_oppo_sans_16_medium, OTA_RESULT_TEXT_COLOR, 158}
 };
 
 const static ota_text_info_t ota_res_error_text_infos[OTA_DESC_TEXT_NUM] = {
-    {"Skin setting failed", 
+    {"Theme update failed", 
         &lv_font_oppo_sans_20_medium, OTA_RESULT_TEXT_COLOR, 212},
     {"", 
         &lv_font_oppo_sans_16_medium, 0, 0}
 };
 
 const static ota_text_info_t ota_res_suceess_text_infos[OTA_DESC_TEXT_NUM] = {
-    {"Skin configuration succeeded", 
+    {"Theme updated", 
         &lv_font_oppo_sans_20_medium, OTA_RESULT_TEXT_COLOR, 212},
     {"", 
         &lv_font_oppo_sans_16_medium, 0, 0}
 };
 
 const static ota_text_info_t ota_app_downloading_text_infos[OTA_DESC_TEXT_NUM] = {
-    {"Upgrading firmware...", 
+    {"Firmware upgrading", 
         &lv_font_oppo_sans_20_medium, OTA_TITL_TEXT_COLOR, 138},
     {"", 
         &lv_font_oppo_sans_16_medium, 0, 0}
 };
 
 const static ota_text_info_t ota_hw_downloading_text_infos[OTA_DESC_TEXT_NUM] = {
-    {"Upgrading hardware...", 
+    {"Hardware upgrading", 
         &lv_font_oppo_sans_20_medium, OTA_TITL_TEXT_COLOR, 138},
     {"", 
         &lv_font_oppo_sans_16_medium, 0, 0}
@@ -105,7 +105,7 @@ const static ota_text_info_t ota_error_text_infos[OTA_DESC_TEXT_NUM] = {
 };
 
 const static ota_text_info_t ota_suceess_text_infos[OTA_DESC_TEXT_NUM] = {
-    {"Upgrade succeeded", 
+    {"Upgrade completed", 
         &lv_font_oppo_sans_20_medium, OTA_RESULT_TEXT_COLOR, 212},
     {"", 
         &lv_font_oppo_sans_16_medium, 0, 0}
