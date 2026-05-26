@@ -638,10 +638,11 @@ static uint8_t app_old_comm_set_pump_control_type(app_old_comm_pump_ctrl *app_ol
         return false;
     }
     WRITE_PUMP_LEVEL_CONTROL_TYPE(pump, control_type, 1);
-    led_manager_context_t *led = (led_manager_context_t *)find_module(ID_MODULE_LED);
+    
+    /*led_manager_context_t *led = (led_manager_context_t *)find_module(ID_MODULE_LED);
     if (led && led->hook && led->hook->set_key_backlight) {
         led->hook->set_key_backlight(led, 100);
-    }
+    }*/
     LOG_SRV("set pump control type %d", control_type);
     return true;
 }
@@ -1688,11 +1689,11 @@ void app_old_comm_handle_set_bilateral_pump_param_req(uint8_t cal, uint8_t *cab)
 
     int control_type = BREAST_PUMP_CONTROL_TYPE_BILATERAL;
     WRITE_PUMP_LEVEL_CONTROL_TYPE(pump_ctx, control_type, 0);
-    led_manager_context_t *led = (led_manager_context_t *)find_module(ID_MODULE_LED);
+   
+     /*led_manager_context_t *led = (led_manager_context_t *)find_module(ID_MODULE_LED);
     if (led && led->hook && led->hook->set_key_backlight) {
         led->hook->set_key_backlight(led, 100);
-    }
-    
+    }*/
     ///设置不变的参数 直接return
     if (setting.level[0] == left_level && setting.level[1] == right_level && setting.speed == left_speed_internal) {
         LOG_SRV("Bilateral pump param no change, left_level=%d, right_level=%d, left_speed=%d", left_level, right_level, left_speed_internal);
