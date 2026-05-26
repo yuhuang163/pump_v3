@@ -27,7 +27,6 @@ extern "C" {
 #define DEVICE_UNIQUE_SN_LEN                        40
 #define DEVICE_FW_VERSION_LEN                       18
 
-#define IS_PUMP_STEPS_USE_SAME_SETTING              1 /// 是否使用相同的设置，如果使用相同的设置，则所有步骤都使用相同的设置
 #define ROOT_BREAST_PUMP_STEP_MAX                   32
 #define FACTORY_AGE_INFO_MAX                        3   /// 老化信息最大保存3条
 #define ROOT_BREAST_PUMP_BURY_DATA_NUM              10    /// 埋点数据最大保存10条
@@ -142,8 +141,11 @@ typedef enum {
     BREAST_PUMP_NORMAL_MODE_MAX = BREAST_PUMP_MIX_MODE - BREAST_PUMP_STIMULATION_MODE + 1,
     BREAST_PUMP_NORMAL_MODE_DEFAULT = BREAST_PUMP_STIMULATION_MODE, /// 默认常规模式
     BREAST_PUMP_EXPERT_MODE_DEFAULT = BREAST_PUMP_REGULAR_PUMPING_MODE, /// 默认专家韵律
-    BREAST_PUMP_PUMP_MODE_DEFAULT = BREAST_PUMP_REGULAR_PUMPING_MODE, /// 
- 
+#if IS_SUPPORT_PUMP_RHYTHM_MODE_SELECT
+    BREAST_PUMP_PUMP_MODE_DEFAULT = BREAST_PUMP_REGULAR_PUMPING_MODE, /// 默认韵律模式
+#else
+    BREAST_PUMP_PUMP_MODE_DEFAULT = BREAST_PUMP_STIMULATION_MODE, /// 默认常规模式
+#endif
     BREAST_PUMP_MODE_INVALID = 0xFF,
     BREAST_PUMP_ALL_MODE_AND_PROGRAM = 0xFFFF, /// 所有模式和韵律
 } breast_pump_mode_e;
