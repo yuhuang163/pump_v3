@@ -12,6 +12,16 @@ extern "C" {
 
 #define PUMP_WORK_STEP_TIME_MS   (20)
 
+#if IS_SUPPORT_PUMP_LEVEL_REAL_TIME_ADJUST
+#ifndef PUMP_LEVEL_NOTIFY_DEBOUNCE_MS
+#define PUMP_LEVEL_NOTIFY_DEBOUNCE_MS   (300)   /// 档位变更通知 APP 消抖时间(ms)，0 表示不消抖
+#endif
+#else
+#ifndef PUMP_LEVEL_NOTIFY_DEBOUNCE_MS
+#define PUMP_LEVEL_NOTIFY_DEBOUNCE_MS   (0)
+#endif
+#endif
+
 #define PUMP_LOCK_LOG(...)
 #define PUMP_THD_WAKELOCK                     "pump_wakelock"
 
