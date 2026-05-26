@@ -66,7 +66,23 @@ void pump_power_key_handler(ui_proc_pump_t *proc)
         proc->current_ui_type == PUMP_UI_TYPE_BREASTFEEDING_MODE ||
         proc->current_ui_type == PUMP_UI_TYPE_SPEED ) {
         proc->goto_pump_home_ui = true;
-    } 
+    } else if (proc->current_ui_type == PUMP_UI_TYPE_HOME) {
+#if IS_SUPPORT_NIGHT_LIGHT
+        uint8_t battery_state = proc->battery->get_battery_state();
+        if (battery_state == BATTERY_STATE_LOW_POWER_SHUTDOWN ||
+            battery_state == BATTERY_STATE_EMPTY ||
+            battery_state == BATTERY_STATE_FORBID_START) {
+            LOG_WM("battery state is low, ignore power key event.");
+            return;
+        }
+        
+        if (proc->led && proc->led->hook && proc->led->hook->toggle_night_light) {
+            proc->led->hook->toggle_night_light(proc->led);
+        }
+#endif
+    } else {
+        LOG_WM("ignore power key event.");
+    }
 }
 
 void pump_popup_ui_type_update(ui_proc_pump_t *proc, popup_ui_id_e type)

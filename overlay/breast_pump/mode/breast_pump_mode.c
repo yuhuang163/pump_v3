@@ -245,7 +245,7 @@ int breast_pump_mode_parameter_output(motor_policy_manager_t *obj, char *name)
                 LOGE("policy null");
                 break;
             }
-            LOG_MOTOR(" -->info level:%d, type:%d, speed:%d; hold time:%d, loop num:%d, sleep time:%d, next:%p", 
+            LOG_MOTOR(" -->info level:%d, type:%d, speed:%d; period:%d, loop num:%d, next:%p",
                 policy->core.un.mapping.level, policy->core.un.mapping.mode_type, policy->core.un.mapping.speed,
                 policy->core.config.period, policy->core.config.loop_num,
                 policy->next);
@@ -276,6 +276,7 @@ int breast_pump_mode_parameter_deinit(motor_policy_manager_t *obj)
 
 motor_policy_manager_t *breast_pump_mode_parameter_init(const motor_policy_cfg_t *cfg, uint8_t cfg_num, char *name)
 {
+    EXCEPTION_CHECK_POINT(cfg);
     if (cfg_num == 0) {
         LOGE("mode config number error");
         return NULL;
@@ -287,6 +288,10 @@ motor_policy_manager_t *breast_pump_mode_parameter_init(const motor_policy_cfg_t
     motor_timed_policy_node_t *next_time_policy = NULL;
 
     obj = pump_total_policy_init(cfg[0]);
+    if (obj == NULL) {
+        LOGE("init %s total policy failed", name);
+        return NULL;
+    }
     time_policy = &obj->head;
     policy = &obj->head.policy;
     for (uint8_t i = 1; i < cfg_num; i++) {
@@ -311,6 +316,7 @@ motor_policy_manager_t *breast_pump_mode_parameter_init(const motor_policy_cfg_t
         }
         time_policy->sub_policy_count++; /// 子策略个数统计
         pump_policy_add(policy, next_policy);
+        policy = next_policy;
     }
     breast_pump_mode_parameter_output(obj, name);
     return obj;
@@ -323,6 +329,10 @@ ERROR_EXIT:
 motor_policy_manager_t *pump_mode_parameter_init_by_steps_info(pump_mode_steps_info_t *steps_info, char *name)
 {
     EXCEPTION_CHECK_POINT(steps_info);
+    if (steps_info->policy_num == 0 || steps_info->policy_num > ROOT_BREAST_PUMP_STEP_MAX) {
+        LOGE("%s policy num error:%d", name, steps_info->policy_num);
+        return NULL;
+    }
     motor_policy_manager_t *obj = NULL;
     motor_policy_node_t *policy = NULL;
     motor_policy_node_t *next_policy = NULL;
@@ -330,6 +340,10 @@ motor_policy_manager_t *pump_mode_parameter_init_by_steps_info(pump_mode_steps_i
     motor_timed_policy_node_t *next_time_policy = NULL;
 
     obj = pump_total_policy_init_by_steps_info(steps_info->data[0]);
+    if (obj == NULL) {
+        LOGE("init %s total policy failed", name);
+        return NULL;
+    }
     time_policy = &obj->head;
     policy = &obj->head.policy;
     for (uint8_t i = 1; i < steps_info->policy_num; i++) {
@@ -352,6 +366,7 @@ motor_policy_manager_t *pump_mode_parameter_init_by_steps_info(pump_mode_steps_i
         }
         time_policy->sub_policy_count++; /// 子策略个数统计
         pump_policy_add(policy, next_policy);
+        policy = next_policy;
     }
     breast_pump_mode_parameter_output(obj, name);
     return obj;

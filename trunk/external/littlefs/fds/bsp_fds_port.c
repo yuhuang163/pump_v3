@@ -36,7 +36,6 @@ POSSIBILITY OF SUCH DAMAGE.
 */
 #include "bsp_fds.h"
 #include "hal_flash.h" // IWYU pragma: keep
-#include "root_storage_base.h"
 
 static uint32_t __l_irq_rest;
 
@@ -52,19 +51,19 @@ static int app_fds_unlock(void)
     return APP_FDS_ERR_OK;
 }
 
-static int app_lfs_block_read(uint32_t addr, uint8_t *p_buffer, uint32_t size)
+static int app_lfs_block_read(const char *partition, uint32_t addr, uint8_t *p_buffer, uint32_t size)
 {
-    return platform_flash_read(PARTITION_FDS_NAME, addr, (uint8_t*)p_buffer, size);
+    return platform_flash_read(partition, addr, (uint8_t*)p_buffer, size);
 }
 
-static int app_lfs_block_prog(uint32_t addr, uint8_t *p_buffer, uint32_t size)
+static int app_lfs_block_prog(const char *partition, uint32_t addr, uint8_t *p_buffer, uint32_t size)
 {
-    return platform_flash_write(PARTITION_FDS_NAME, addr, (uint8_t*)p_buffer, size);
+    return platform_flash_write(partition, addr, (uint8_t*)p_buffer, size);
 }
 
-static int app_lfs_block_erase(uint32_t addr,uint32_t size)
+static int app_lfs_block_erase(const char *partition, uint32_t addr,uint32_t size)
 {
-    return platform_flash_erase (PARTITION_FDS_NAME, addr, size);
+    return platform_flash_erase (partition, addr, size);
 }
 
 static int app_lfs_device_sync(void)

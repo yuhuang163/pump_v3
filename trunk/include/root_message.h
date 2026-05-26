@@ -49,6 +49,14 @@ typedef enum {
     ID_POPUP_UI_COUNT_DOWN,
     ID_POPUP_UI_LOW_POWER,
     ID_POPUP_UI_WILL_POWER_OFF,
+    ID_POPUP_UI_CHARGING_TEMPERATURE_WARNING, /// 充电温度警告
+    ID_POPUP_UI_CHARGING_OVER_VOLTAGE, /// 充电电压超过最大值
+    ID_POPUP_UI_AIR_PRESSURE_ERROR, /// 气压传感器异常
+    ID_POPUP_UI_AIR_PRESSURE_OVER_UPPER_LIMIT, /// 气压（负压）超出上限
+    ID_POPUP_UI_AIR_PRESSURE_GENERATE_FAILED, /// 气压（负压）生成失败
+    ID_POPUP_UI_STORAGE_FAILED, /// 存储失败
+    ID_POPUP_UI_COMMUNICATION_ERROR, /// 通信错误
+    ID_POPUP_UI_KEY_ABNORMAL, /// 按键异常
 } popup_ui_id_e;
 
 /// 窗口屏幕进入参数描述,记录进入新窗口屏幕需要的参数.

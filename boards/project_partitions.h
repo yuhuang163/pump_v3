@@ -38,7 +38,7 @@ extern uint32_t __lute_picture_resources_end[];
 #define EXTERNAL_FLASH_SECTOR_SIZE            (4096)
 #define EXTERNAL_FLASH_SIZE                   (0x1000000) /// 16MB
 
-#define BASE_IMG_RES_SIZE                     (0x880000)  /// 8.5MB
+#define BASE_IMG_RES_SIZE                     (0x800000)  /// 8MB
 #define BASE_IMG_RES_START_ADDR               (EXTERNAL_FLASH_BASE_ADDR)
 #define BASE_IMG_RES_SECTOR_NUM               (BASE_IMG_RES_SIZE / EXTERNAL_FLASH_SECTOR_SIZE) /// 4096 bytes per sector
 
@@ -46,6 +46,12 @@ extern uint32_t __lute_picture_resources_end[];
 #define THEME_IMG_RES_START_ADDR              (BASE_IMG_RES_START_ADDR + BASE_IMG_RES_SIZE)
 #define THEME_IMG_RES_PAKAGE_OFFSET           (BASE_IMG_RES_SIZE) /// 主题资源包偏移地址
 #define THEME_IMG_RES_SECTOR_NUM              (THEME_IMG_RES_SIZE / EXTERNAL_FLASH_SECTOR_SIZE) /// 4096 bytes per sector
+
+// littlefs external flash
+#define FDS_EXT_START_ADDR                    (THEME_IMG_RES_START_ADDR + THEME_IMG_RES_SIZE)
+#define FDS_EXT_END_ADDR                      (EXTERNAL_FLASH_BASE_ADDR + EXTERNAL_FLASH_SIZE)
+#define FDS_EXT_BLOCK_SIZE                    (FDS_EXT_END_ADDR - FDS_EXT_START_ADDR)
+#define FDS_EXT_SECTOR_NUM                    (FDS_EXT_BLOCK_SIZE / EXTERNAL_FLASH_SECTOR_SIZE)
 
 #ifdef __cplusplus
 }

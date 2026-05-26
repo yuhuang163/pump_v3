@@ -45,7 +45,7 @@ typedef struct led_manager_context {
     struct __led_manager_hook {
         int (*on_post_init_route)(struct led_manager_context *ctx);
         int (*on_broadcast_receiver_route)(broadcast_mask_id_t id, void *context, int arg1, int arg2, broadcast_priv_data_t *pdata);
-        void (*toggle_night_light)(struct led_manager_context *ctx);
+        int (*toggle_night_light)(struct led_manager_context *ctx);
         void (*set_night_light_level)(struct led_manager_context *ctx, uint8_t level); /// 设置夜灯亮度会自动关闭自适应调光.
         void (*night_light_adaptive_level_update)(struct led_manager_context *ctx, uint8_t level);
         void (*set_night_light_adaptive_switch)(struct led_manager_context *ctx, uint8_t onoff);

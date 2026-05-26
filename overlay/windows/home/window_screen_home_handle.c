@@ -111,12 +111,25 @@ static void home_start_key_event_ui_cb(hdr_post_args_t *args)
         return;
     }
 
+#if IS_SUPPORT_PUMP_RHYTHM_MODE_SELECT
     if (proc->current_ui_type == HOME_UI_TYPE_NORMAL_MODE_SELECT) {
         WRITE_PUMP_WORK_MODE(proc->pump, proc->ui_normal_mode_index, true, 1);
     } else if (proc->current_ui_type == HOME_UI_TYPE_BF_MODE_SELECT) {
         WRITE_PUMP_WORK_MODE(proc->pump, proc->ui_bf_mode_index, true, 1);
     } 
-
+#else
+    if (proc->current_ui_type == HOME_UI_TYPE_NORMAL_MODE_SELECT) {
+        WRITE_PUMP_WORK_MODE(proc->pump, proc->ui_normal_mode_index, true, 1);
+    } else {
+        int pump_mode = 0;
+        READ_PUMP_WORK_MODE(proc->pump, pump_mode);
+        if (PUMP_IS_COMMON_MODE(pump_mode) == 0) {
+            pump_mode = PUMP_MODE_STIMULATION;
+            WRITE_PUMP_WORK_MODE(proc->pump, pump_mode, true, 1);
+            LOG_WM("switch to stimulation mode: %d", pump_mode);
+        }
+    }
+#endif
     if (proc->wm) {
         multi_func_msg_data_t msg = {0};
         LOG_WM("goto pump window.");
@@ -134,11 +147,17 @@ static void home_knob_left_event_cb(ui_proc_home_t *proc)
     } else if (proc->current_ui_type == HOME_UI_TYPE_NORMAL_MODE_SELECT) {
         switch_home_pump_normal_mode(proc, false);
     } else if (proc->current_ui_type == HOME_UI_TYPE_BF_MODE_SELECT) {
+        #if IS_SUPPORT_PUMP_RHYTHM_MODE_SELECT
         switch_home_pump_bf_mode(proc, false);
+        #endif
     } else if (proc->current_ui_type == HOME_UI_TYPE_LEVEL_ADJUST) {
         switch_home_pump_level(proc, false);
     } else if (proc->current_ui_type == HOME_UI_TYPE_SPEED_ADJUST) {
         switch_home_pump_speed(proc, false);
+    } else if (proc->current_ui_type == HOME_UI_TYPE_NIGHT_LIGHT_ADJUST) {
+        #if IS_SUPPORT_NIGHT_LIGHT_ADJUST
+        switch_home_night_light_adjust(proc, false);
+        #endif
     }
 }
 
@@ -150,11 +169,17 @@ static void home_knob_right_event_cb(ui_proc_home_t *proc)
     } else if (proc->current_ui_type == HOME_UI_TYPE_NORMAL_MODE_SELECT) {
         switch_home_pump_normal_mode(proc, true);
     } else if (proc->current_ui_type == HOME_UI_TYPE_BF_MODE_SELECT) {
+        #if IS_SUPPORT_PUMP_RHYTHM_MODE_SELECT
         switch_home_pump_bf_mode(proc, true);
+        #endif
     } else if (proc->current_ui_type == HOME_UI_TYPE_LEVEL_ADJUST) {
         switch_home_pump_level(proc, true);
     } else if (proc->current_ui_type == HOME_UI_TYPE_SPEED_ADJUST) {
         switch_home_pump_speed(proc, true);
+    } else if (proc->current_ui_type == HOME_UI_TYPE_NIGHT_LIGHT_ADJUST) {
+        #if IS_SUPPORT_NIGHT_LIGHT_ADJUST
+        switch_home_night_light_adjust(proc, true);
+        #endif
     }
 }
 
@@ -163,7 +188,8 @@ static void home_power_key_event_cb(ui_proc_home_t *proc)
     if (proc->current_ui_type == HOME_UI_TYPE_NORMAL_MODE_SELECT || 
         proc->current_ui_type == HOME_UI_TYPE_BF_MODE_SELECT) {
         POST_WM_TASK_HANDLER_NO_DELAY(home_start_key_event_ui_cb, proc, HOME_START_KEY_EVENT_TASK_NAME);
-    } else if (proc->current_ui_type == HOME_UI_TYPE_HOME) {
+    } else if (proc->current_ui_type == HOME_UI_TYPE_HOME ||
+            proc->current_ui_type == HOME_UI_TYPE_BIND_QRCODE) {
 #if IS_SUPPORT_NIGHT_LIGHT
         uint8_t battery_state = proc->battery->get_battery_state();
         if (battery_state == BATTERY_STATE_LOW_POWER_SHUTDOWN ||
@@ -174,7 +200,10 @@ static void home_power_key_event_cb(ui_proc_home_t *proc)
         }
         
         if (proc->led && proc->led->hook && proc->led->hook->toggle_night_light) {
-            proc->led->hook->toggle_night_light(proc->led);
+            int ret = proc->led->hook->toggle_night_light(proc->led);
+            #if IS_SUPPORT_NIGHT_LIGHT_ADJUST
+            show_home_night_light_adjust_ui(proc);
+            #endif
         }
 #endif
     } else if (proc->current_ui_type == HOME_UI_TYPE_PUMP_RESULT) {
@@ -212,9 +241,11 @@ static int on_home_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
         case KEY_CODE_MODE:
             home_pump_normal_mode_key_click_handler(proc);
             break;
+#if IS_SUPPORT_PUMP_RHYTHM_MODE_SELECT
         case KEY_CODE_BREASTFEEDING:
             home_pump_bf_mode_key_click_handler(proc);
             break;
+#endif
         case KEY_CODE_RIGHT_CONTROL:
             switch_home_pump_level_control_type(proc, BREAST_PUMP_CONTROL_TYPE_RIGHT);
             break;

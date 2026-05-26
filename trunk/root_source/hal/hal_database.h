@@ -17,7 +17,13 @@ extern "C" {
 typedef enum {
     OP_CODE_DB_DELETE_ALL = 1,
     OP_CODE_DB_DELETE = 2,
+    OP_CODE_DB_EXT_DELETE = 3,
 } db_dev_op_code_e;
+
+typedef enum {
+    DB_STORAGE_INTERNAL = 0,
+    DB_STORAGE_EXTERNAL = 1,
+} db_storage_type_e;
 
 #ifdef __cplusplus
 }

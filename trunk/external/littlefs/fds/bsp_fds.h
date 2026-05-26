@@ -45,6 +45,8 @@ POSSIBILITY OF SUCH DAMAGE.
 * @{
 */
 #define APP_FDS_KEY_STRING_TYPE     0    /**< 1: String type, 0: Int type. */
+#define APP_FDS_CACHE_SIZE          2048
+#define APP_FDS_LOOKAHEAD_SIZE      16
 
 /**
 * @defgroup APP_FDS_ERROR_CODE Possible error codes
@@ -70,13 +72,13 @@ POSSIBILITY OF SUCH DAMAGE.
 * @{
 */
 /**@brief Key-value fds memory read function type.*/
-typedef int (*app_fds_read_t)(uint32_t addr, uint8_t *p_buffer, uint32_t size);
+typedef int (*app_fds_read_t)(const char *partition, uint32_t addr, uint8_t *p_buffer, uint32_t size);
 
 /**@brief Key-value fds memory write function type.*/
-typedef int (*app_fds_write_t)(uint32_t addr, uint8_t *p_buffer, uint32_t size);
+typedef int (*app_fds_write_t)(const char *partition, uint32_t addr, uint8_t *p_buffer, uint32_t size);
 
 /**@brief Key-value fds memory erase function type.*/
-typedef int (*app_fds_erase_t)(uint32_t addr,uint32_t size);
+typedef int (*app_fds_erase_t)(const char *partition, uint32_t addr,uint32_t size);
 
 /**@brief Key-value fds memory option sync function type.*/
 typedef int (*app_fds_sync_t)(void);
@@ -115,7 +117,22 @@ typedef struct
     app_fds_lock_t  fds_unlock;       /**< Key-value fds unlock function. */
     uint32_t        fds_start_addr;   /**< Key-value fds start address. */
     uint32_t        fds_4k_block_cnt; /**< Key-value fds block count. */
+    const char      *partition_name;  /**< Flash partition name. */
 } app_fds_config_t;
+
+typedef struct
+{
+    lfs_t lfs;
+    struct lfs_config lfs_cfg;
+    app_fds_config_t config;
+    uint8_t file_buffer[APP_FDS_CACHE_SIZE] __attribute__ ((aligned (4)));
+    uint8_t read_buffer[APP_FDS_CACHE_SIZE] __attribute__ ((aligned (4)));
+    uint8_t prog_buffer[APP_FDS_CACHE_SIZE] __attribute__ ((aligned (4)));
+    uint8_t lookahead_buffer[APP_FDS_LOOKAHEAD_SIZE] __attribute__ ((aligned (4)));
+#if !APP_FDS_KEY_STRING_TYPE
+    char key_char[10];
+#endif
+} app_fds_t;
 /** @} */
 
 /**
@@ -126,13 +143,16 @@ typedef struct
 *****************************************************************************************
 * @brief Key-value fds module init.
 *
+* @param[in] partition_name:     Flash partition name.
 * @param[in] fds_start_addr:     FDS Flash start address.
 * @param[in] fds_4k_block_cnt:   FDS Flash 4k block number.
 *
 * @return Result of operation.
 *****************************************************************************************
 */
-int app_fds_init(uint32_t fds_start_addr, uint32_t fds_4k_block_cnt);
+int app_fds_init(const char *partition_name, uint32_t fds_start_addr, uint32_t fds_4k_block_cnt);
+
+int app_fds_mount(app_fds_t *p_fds, const char *partition_name, uint32_t fds_start_addr, uint32_t fds_4k_block_cnt);
 
 /**
 *****************************************************************************************
@@ -146,6 +166,16 @@ int app_fds_init(uint32_t fds_start_addr, uint32_t fds_4k_block_cnt);
 *****************************************************************************************
 */
 int app_fds_value_write(
+#if  APP_FDS_KEY_STRING_TYPE
+                              char *p_key,
+#else
+                              uint32_t key,
+#endif
+                              const void *p_value,
+                              uint32_t length);
+
+int app_fds_value_write_ex(
+                              app_fds_t *p_fds,
 #if  APP_FDS_KEY_STRING_TYPE
                               char *p_key,
 #else
@@ -174,6 +204,16 @@ int app_fds_value_read(
                              void *p_buffer,
                              uint32_t length);
 
+int app_fds_value_read_ex(
+                             app_fds_t *p_fds,
+#if  APP_FDS_KEY_STRING_TYPE
+                             char *p_key,
+#else
+                             uint32_t key,
+#endif
+                             void *p_buffer,
+                             uint32_t length);
+
 /**
 *****************************************************************************************
 * @brief Key-value fds delete.
@@ -184,6 +224,14 @@ int app_fds_value_read(
 *****************************************************************************************
 */
 int app_fds_value_delete(
+#if  APP_FDS_KEY_STRING_TYPE
+                               char *p_key);
+#else
+                               uint32_t key);
+#endif
+
+int app_fds_value_delete_ex(
+                               app_fds_t *p_fds,
 #if  APP_FDS_KEY_STRING_TYPE
                                char *p_key);
 #else

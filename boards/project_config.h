@@ -52,7 +52,7 @@ extern "C" {
 /// 中断线程深度
 #define INTERRUPT_THREAD_STACKSIZE                     (TASK_SIZE_DEFAULT * 2 + 0)
 /// 马达驱动线程深度
-#define MOTOR_DRIVER_THREAD_STACKSIZE                  (TASK_SIZE_DEFAULT * 2 + 0)
+#define MOTOR_DRIVER_THREAD_STACKSIZE                  (TASK_SIZE_DEFAULT * 4 + 0)
 /// 工厂串口线程深度
 #define FACTORY_UART_THREAD_STACKSIZE                  (TASK_SIZE_DEFAULT * 2 + 0)
 /// 按键设备线程深度

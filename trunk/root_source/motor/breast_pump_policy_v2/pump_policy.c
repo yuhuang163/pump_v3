@@ -165,6 +165,12 @@ void pump_policy_info_reset(struct motor_manager_context *thiz, motor_policy_run
         memcpy(&info->original, &policy->core.un.original, sizeof(motor_policy_original_para_t));
         info->state.target_pressure = 0;
         total_time = info->original.pumping_time + info->original.hold_time + info->original.valve_on_time + info->original.sleep_time;
+        if (total_time == 0) {
+            LOGW("invalid pass through total time");
+            runtime->pump_freq[pump_id] = 0;
+            runtime->pump_level[pump_id] = 0;
+            return;
+        }
         runtime->pump_freq[pump_id] = (ONE_MIN_TIME_MS / total_time);
         runtime->pump_level[pump_id] = 0; 
         return;
@@ -212,8 +218,8 @@ void pump_policy_info_reset(struct motor_manager_context *thiz, motor_policy_run
             info->original.sleep_time = PUMP_SLEEP_TIME_MIN;
             LOG_MOTOR("work period error");
         }
-        LOG_MOTOR("short suction: s_time:%d, p_time:%d, v_time:%d, level:%d/%d, speed:%d, d_time:%d/%d/%d",
-            info->original.sleep_time, info->original.pumping_time, info->original.valve_on_time,
+        LOG_MOTOR("short suction mode_type:%d, s_time:%d, p_time:%d, v_time:%d, level:%d/%d, speed:%d, d_time:%d/%d/%d",
+            map_para.mode_type, info->original.sleep_time, info->original.pumping_time, info->original.valve_on_time,
             runtime->pump_level[pump_id], info->original.pump_level, runtime->pump_speed[pump_id],
             total_time, runtime->pump_freq[pump_id], runtime->freq_sync_flag);
     } else {
@@ -235,8 +241,8 @@ void pump_policy_info_reset(struct motor_manager_context *thiz, motor_policy_run
             info->original.sleep_time = PUMP_SLEEP_TIME_MIN;
             LOG_MOTOR("work period error");
         } 
-        LOG_MOTOR("long suction: s_time:%d, p_time:%d, v_time:%d, level:%d/%d, speed:%d, d_time:%d/%d/%d",
-            info->original.sleep_time, info->original.pumping_time, info->original.valve_on_time,
+        LOG_MOTOR("long suction mode_type:%d, s_time:%d, p_time:%d, v_time:%d, level:%d/%d, speed:%d, d_time:%d/%d/%d",
+            map_para.mode_type, info->original.sleep_time, info->original.pumping_time, info->original.valve_on_time,
             runtime->pump_level[pump_id], info->original.pump_level, runtime->pump_speed[pump_id], 
             total_time, runtime->pump_freq[pump_id], runtime->freq_sync_flag);
     }
