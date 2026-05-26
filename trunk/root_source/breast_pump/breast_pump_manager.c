@@ -140,6 +140,60 @@ static void reset_breast_pump_result(void)
     LOG_PMP("reset result.");
 }
 
+static void publish_pump_setting_change_to_app(servers_old_protocol_publish_data_id_e publish_id)
+{
+    servers_manager_context_t *servers_ctx = (servers_manager_context_t *)find_module(ID_MODULE_SERVERS);
+    EXCEPTION_CHECK_VOID(servers_ctx);
+    if (servers_ctx->hook) {
+        servers_publish_data_args_t args = {
+            .arg1 = publish_id,
+            .arg2 = 0,
+            .val = NULL,
+        };
+        servers_ctx->hook->app_old_protocol_server_data_publish(APP_OLD_COMM_CID_NOTIFY_STATUS, &args);
+    }
+}
+
+static void publish_pump_level_change_to_app(void)
+{
+    publish_pump_setting_change_to_app(OLD_PUBLISH_DATA_PUMP_LEVEL_CHANGE);
+}
+
+static void publish_pump_speed_change_to_app(void)
+{
+    publish_pump_setting_change_to_app(OLD_PUBLISH_DATA_PUMP_SPEED_CHANGE);
+}
+
+static bool is_pump_level_changed(const pump_setting_t *old_setting, const pump_setting_t *new_setting)
+{
+    return old_setting->level[0] != new_setting->level[0]
+        || old_setting->level[1] != new_setting->level[1];
+}
+
+static void pump_level_notify_debounce_timer_cb(os_timer_id *timer)
+{
+    (void)timer;
+    publish_pump_level_change_to_app();
+}
+
+static void schedule_pump_level_change_notify(void)
+{
+    breast_pump_manager_context_t *ctx = breast_pump_obj;
+    EXCEPTION_CHECK_VOID(ctx);
+    uint16_t debounce_ms = PUMP_LEVEL_NOTIFY_DEBOUNCE_MS;
+    if (debounce_ms == 0) {
+        publish_pump_level_change_to_app();
+        return;
+    }
+    os_timer_id debounce_timer = ctx->priv.pump_level_notify_debounce_timer;
+    if (debounce_timer == NULL) {
+        publish_pump_level_change_to_app();
+        return;
+    }
+    STOP_TIMER(debounce_timer);
+    START_TIMER(debounce_timer, debounce_ms);
+}
+
 static void get_breast_pump_setting(pump_setting_t *setting, uint8_t step_index)
 {
     breast_pump_info_t *m_info = &breast_pump_obj->priv.m_info;
@@ -168,6 +222,9 @@ static void set_breast_pump_setting(pump_setting_t *setting, uint8_t step_index,
     int mode = breast_pump_obj->priv.m_info.mode;
 #endif
 
+    pump_setting_t old_setting;
+    memcpy(&old_setting, &breast_pump_obj->priv.setting[step_index], sizeof(pump_setting_t));
+
 #if IS_PUMP_STEPS_USE_SAME_SETTING
     for (int i = 0; i < ROOT_BREAST_PUMP_STEP_MAX; i++) {
         breast_pump_obj->priv.setting[i].level[0] = setting->level[0];
@@ -185,17 +242,14 @@ static void set_breast_pump_setting(pump_setting_t *setting, uint8_t step_index,
             mode, step_index, setting);
     }
 #endif
-    
     /// 通知app
-    servers_manager_context_t *servers_ctx = (servers_manager_context_t *)find_module(ID_MODULE_SERVERS);
-    EXCEPTION_CHECK_VOID(servers_ctx);
-    if (servers_ctx->hook) {
-        servers_publish_data_args_t args = {
-            .arg1 = OLD_PUBLISH_DATA_PUMP_LEVEL_CHANGE,
-            .arg2 = 0,
-            .val = NULL,
-        };
-        servers_ctx->hook->app_old_protocol_server_data_publish(APP_OLD_COMM_CID_NOTIFY_STATUS, &args);
+    if (old_setting.speed != setting->speed) {
+        /// 速度变化立即通知 app
+        publish_pump_speed_change_to_app();
+    }
+    if (is_pump_level_changed(&old_setting, setting)) {
+        /// 档位变化消抖，避免连续调节时频繁上报
+        schedule_pump_level_change_notify();
     }
 }
 
@@ -779,6 +833,8 @@ static void breast_pump_work_thread(const void *args)
     breast_pump_manager_context_t *ctx = breast_pump_obj;
     CREATE_TIMER(&ctx->priv.breast_pump_work_timer, "breast_pump_work", ctx,
          OS_TIMER_PERIODIC, breast_pump_work_timer_cb);
+    CREATE_TIMER(&ctx->priv.pump_level_notify_debounce_timer, "pump_lvl_notify", ctx,
+         OS_TIMER_ONCE, pump_level_notify_debounce_timer_cb);
     do {
         MSG_QUEUE_RECV(thd->msg_id, &msg, OS_WAIT_FOREVER);
         /// 进度单元.
