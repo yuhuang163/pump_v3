@@ -12,6 +12,8 @@
 *****************************************************************************************
 */
 #define MOTOR_DEBUG_TASK_NAME                    "motor_debug_task"
+#define MOTOR_CUSTOM_POLICY_MONITOR_TASK_NAME    "motor_custom_policy_monitor"
+#define MOTOR_CUSTOM_POLICY_MONITOR_INTERVAL_MS  1000
 #define MOTOR_DEBUG_SYNC_TIME_THRESHOLD          50   /// 同步时间阈值，单位：毫秒
 #define MOTOR_POLICY_OBJ_MIN_ADDR                0x1000U
 #define IS_SUPPORT_MOTOR_POLICY_MONITOR          1 /// 支持马达策略监控
@@ -45,7 +47,7 @@ static bool motor_policy_mon_force_log(const char *tag)
         return false;
     }
     return (strcmp(tag, "hook_init") == 0 || strcmp(tag, "set_mode_pre") == 0 ||
-            strcmp(tag, "set_mode_post") == 0);
+            strcmp(tag, "set_mode_post") == 0 || strcmp(tag, "custom_periodic") == 0);
 }
 
 static void monitor_one_mode_policy_obj(const char *tag, const char *mode_name, int breast_pump_mode,
@@ -63,21 +65,62 @@ static void monitor_one_mode_policy_obj(const char *tag, const char *mode_name, 
     }
 
     if (!valid) {
-        LOGE("[mode_mon] %s mode:%d(%s) obj=%p snap=%p INVALID",
+        LOG_PASS("[mode_mon] %s mode:%d(%s) obj=%p snap=%p INVALID\n",
             t, breast_pump_mode, name, (void *)policy_obj, (void *)snap);
     } else if (changed || motor_policy_mon_force_log(tag)) {
-        LOG_MOTOR("[mode_mon] %s mode:%d(%s) obj=%p snap=%p",
+        LOG_PASS("[mode_mon] %s mode:%d(%s) obj=%p snap=%p\n",
             t, breast_pump_mode, name, (void *)policy_obj, (void *)snap);
     }
 
     if (changed) {
-        LOGW("[mode_mon] %s mode:%d(%s) CHANGED %p -> %p",
+        LOG_PASS("[mode_mon] %s mode:%d(%s) CHANGED %p -> %p\n",
             t, breast_pump_mode, name, (void *)snap, (void *)policy_obj);
     }
 
     if (breast_pump_mode >= 0 && breast_pump_mode < BREAST_PUMP_MODE_MAX) {
         s_policy_obj_snap[breast_pump_mode] = policy_obj;
     }
+}
+
+static void monitor_custom_policy_obj(struct motor_manager_context *ctx, const char *tag)
+{
+    if (ctx == NULL) {
+        return;
+    }
+
+    list_head_t *head = &ctx->priv.policy_list;
+    if (head->next == NULL) {
+        LOGW("[mode_mon] %s: policy list empty", (tag != NULL) ? tag : "?");
+        return;
+    }
+
+    bool found = false;
+    LIST_FOR_EACH(pos, head) {
+        breast_pump_policy_node_t *node = CONTAINER_OF(pos, breast_pump_policy_node_t, list);
+        if (node->breast_pump_mode != BREAST_PUMP_CUSTOM_MODE &&
+            node->breast_pump_mode != BREAST_PUMP_LACTATION_START_MODE) {
+            continue;
+        }
+        const motor_policy_manager_t *policy_obj = node->get_policy_cb ?
+            node->get_policy_cb(node->user_data) : NULL;
+        monitor_one_mode_policy_obj(tag, node->name, node->breast_pump_mode, policy_obj);
+        found = true;
+    }
+
+    if (!found) {
+        LOGW("[mode_mon] %s: target policy not found", (tag != NULL) ? tag : "?");
+    }
+}
+
+static void monitor_custom_policy_obj_periodic_cb(hdr_post_args_t *args)
+{
+    EXCEPTION_CHECK_VOID(args);
+    motor_manager_context_t *ctx = (motor_manager_context_t *)args->user_data;
+    EXCEPTION_CHECK_VOID(ctx);
+
+    monitor_custom_policy_obj(ctx, "custom_periodic");
+    POST_TASK_HANDLER_DELAYED_ARG1(monitor_custom_policy_obj_periodic_cb,
+        MOTOR_CUSTOM_POLICY_MONITOR_INTERVAL_MS, ctx, MOTOR_CUSTOM_POLICY_MONITOR_TASK_NAME);
 }
 #endif
 
@@ -461,6 +504,11 @@ static int on_post_motor_init_route(struct motor_manager_context *ctx)
 {
     /// 将模式策略参数挂载到列表中s
     breast_pump_policy_init(ctx);
+#if IS_SUPPORT_MOTOR_POLICY_MONITOR
+    monitor_custom_policy_obj(ctx, "hook_init");
+    POST_TASK_HANDLER_DELAYED_ARG1(monitor_custom_policy_obj_periodic_cb,
+        MOTOR_CUSTOM_POLICY_MONITOR_INTERVAL_MS, ctx, MOTOR_CUSTOM_POLICY_MONITOR_TASK_NAME);
+#endif
     return 0;
 }
 
