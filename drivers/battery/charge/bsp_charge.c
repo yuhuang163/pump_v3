@@ -430,8 +430,7 @@ static int charge_chip_init(void)
 
 POSSIBLY_UNUSED static void charging_temp_policy_handler(int8_t temp)
 {
-
-    if (temp <= CHARGE_NORMAL_TEMP_MIN || temp >= CHARGE_DERATED_TEMP_MAX) {
+    if (temp <= CHARGE_DERATED_TEMP_MIN || temp >= CHARGE_DERATED_TEMP_MAX) {
         if (s_charge_temp_status != CHARGE_TEMP_DISABLE) {
             s_charge_temp_count++;
             if (s_charge_temp_count > CHARGE_TEMP_POLICY_POLL_INTERVAL) {
