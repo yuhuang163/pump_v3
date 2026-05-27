@@ -129,7 +129,7 @@ extern "C" {
 /// 支持泵奶档位实时调节
 #define IS_SUPPORT_PUMP_LEVEL_REAL_TIME_ADJUST           (1)
 /// 支持泵奶韵律模式选择
-#define IS_SUPPORT_PUMP_RHYTHM_MODE_SELECT               (0)
+#define IS_SUPPORT_PUMP_RHYTHM_MODE_SELECT               (1)
 
 /// 硬件差异配置
 #if (ROOT_PRODUCT_ID == ROOT_PRODUCT_V3PRO_ID)
