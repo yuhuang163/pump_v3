@@ -9,8 +9,8 @@
 * DEFINES
 *****************************************************************************************
 */
-#define PUMP_INFO_LOG_INTERVAL                             (2000 / PUMP_WORK_STEP_TIME_MS)            
-#define PUMP_WILL_FINISH_TIME_MS                           (3000)
+#define PUMP_INFO_LOG_INTERVAL                             (2000 / PUMP_WORK_STEP_TIME_MS) 
+#define PUMP_WILL_FINISH_TIME_MS                           (3000 - 500)
 #define PUMP_TIME_TO_SECOND(time)                          (time / 1000)
 #if 1
 #define PUMP_AUTO_PAUSE_TIME_MS                            (30 * 60 * 1000)
@@ -175,17 +175,10 @@ static int local_breast_pump_process(breast_pump_manager_context_t *ctx, pump_re
         return RESULT_PUMP_NORMAL;
     }
     memcpy(result_info->setting, ctx->priv.setting, sizeof(pump_setting_t) * ROOT_BREAST_PUMP_STEP_MAX);
-#if MOTOR_DRIVER_VERSION == MOTOR_DRIVER_V2
     uint32_t poll_time = get_timestamp_ms(result_info->start_time);
     result_info->work_valid_time += poll_time;
     result_info->current_mode_work_time += poll_time;
     result_info->start_time = get_timestamp();
-#else   
-    uint32_t poll_time = get_timestamp_ms(result_info->start_time);
-    result_info->start_time = get_timestamp();
-    result_info->work_valid_time += poll_time;
-    result_info->current_mode_work_time += poll_time;       
-#endif
     /// 判断是否需要自动暂停
     if (ctx->priv.m_info.auto_pause_onoff && result_info->work_valid_time >= PUMP_AUTO_PAUSE_TIME_MS) {
         ctx->priv.m_info.auto_pause_onoff = false;
