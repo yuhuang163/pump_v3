@@ -202,6 +202,7 @@ typedef struct breast_pump_manager_context {
         os_mutex_id breast_pump_state_lock;
         os_mutex_id breast_pump_mode_lock;
         os_timer_id breast_pump_work_timer;
+        os_timer_id pump_level_notify_debounce_timer;
         breast_pump_result_t m_result;
         breast_pump_info_t m_info;
         pump_setting_t setting[ROOT_BREAST_PUMP_STEP_MAX];

@@ -8,7 +8,7 @@
 * DEFINES
 *****************************************************************************************
 */
-
+#define RTC_WEEK_START (1)  /// WEEK start from 1
 /*
 * LOCAL VARIABLE DEFINITIONS
 *****************************************************************************************
@@ -54,8 +54,14 @@ void timestamp_to_utc_time(uint32_t seconds, utc_time_t *utc_time)
     time.hour = secs;
 
     year = 2000;
+    // PMU RTC calendar expects week in range 1..7, where 7 represents Sunday.
+    // Our modulo result is 0..6, where 0 represents Sunday.
     time.week = (days + 6) % 7;
-
+    #if RTC_WEEK_START == 1
+    if (time.week == 0) {
+        time.week = 7;
+    }
+    #endif
     year += (days / 1461) * 4;
     days %= 1461;
 
