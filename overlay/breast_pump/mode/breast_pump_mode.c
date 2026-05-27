@@ -65,27 +65,27 @@ int breast_pump_mode_time_step_number_get(int mode)
 {
     switch (mode) {
         case BREAST_PUMP_STIMULATION_MODE:
-            return STIMULATION_MODE_MAX_STEPS;
+            return STIMULATION_MODE_STEP_NUM;
         case BREAST_PUMP_LACTATION_MODE:
-            return PUMP_MODE_MAX_STEPS;
+            return PUMP_MODE_STEP_NUM;
         case BREAST_PUMP_MIX_MODE:
-            return MIX_MODE_MAX_STEPS;
+            return MIX_MODE_STEP_NUM;
         case BREAST_PUMP_CUSTOM_MODE:
-            return CUSTOM_MODE_MAX_STEPS;
+            return CUSTOM_MODE_STEP_NUM;
         case BREAST_PUMP_PP_MILK_TRACK_MODE:
-            return PP_MODE_MAX_STEPS;
+            return PP_MODE_STEP_NUM;
         case BREAST_PUMP_MILK_BOOST_MODE:
-            return MILK_BOOST_MODE_MAX_STEPS;
+            return MILK_BOOST_STEP_NUM;
         case BREAST_PUMP_LACTATION_START_MODE:
-            return LACTATION_START_MODE_MAX_STEPS;
+            return LACTATION_START_STEP_NUM;
         case BREAST_PUMP_REGULAR_PUMPING_MODE:
-            return REGULAR_PUMPING_MODE_MAX_STEPS;
+            return REGULAR_PUMPING_STEP_NUM;
         case BREAST_PUMP_EMPTYING_BOOST_MODE:
-            return EMPTYING_BOOST_MODE_MAX_STEPS;
+            return EMPTYING_BOOST_STEP_NUM;
         case BREAST_PUMP_RELAX_MODE:
-            return RELAX_MODE_MAX_STEPS;
+            return RELAX_MODE_STEP_NUM;
         case BREAST_PUMP_CUSTOM_TRIAL_MODE:
-            return CUSTOM_TRIAL_MODE_MAX_STEPS;
+            return CUSTOM_TRIAL_STEP_NUM;
         default:
             return 0;
     }
