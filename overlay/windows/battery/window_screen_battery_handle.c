@@ -35,7 +35,6 @@ INIT_WINDOW_CONTEXT();
 
 static void battery_low_power_exit_cb(ui_proc_battery_t *proc)
 {
-    EXCEPTION_CHECK_VOID(proc);
     WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_BATTERY);
     multi_func_msg_data_t msg = {0};
     if (proc->wm->is_window_factory_test_deployed() == 0) {
@@ -74,7 +73,6 @@ static void battery_low_power_exit_cb(ui_proc_battery_t *proc)
 static void battery_ui_common_cb(hdr_post_args_t *args)
 {
     ui_proc_battery_t *proc = args->user_data;
-    EXCEPTION_CHECK_VOID(proc);
     WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_BATTERY);
     LOG_WM("battery_ui_common_cb, margic:%x, action:%d.", proc->margic, args->arg1);
     int action = args->arg1;
@@ -98,12 +96,12 @@ static void battery_ui_common_cb(hdr_post_args_t *args)
 static void on_battery_window_battery_state_change_cb(void *user_data, battery_state_info_t *info)
 {
     ui_proc_battery_t *proc = (ui_proc_battery_t *)user_data;
-    EXCEPTION_CHECK_VOID(proc);
     WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_BATTERY);
     if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
         LOG_WM("wm not running, ignore.");
         return;
     }
+    
     if (BATTERY_IS_CHARGING(info->charge_status)) {
         if (proc->current_ui_type == BATTERY_UI_TYPE_LOW_POWER) {
             POST_WM_TASK_HANDLER_NO_DELAY_ARG1(battery_ui_common_cb, proc,

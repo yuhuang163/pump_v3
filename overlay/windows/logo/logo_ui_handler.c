@@ -28,9 +28,8 @@
 static void logo_display_completed_cb(hdr_post_args_t *args)
 {
     ui_proc_logo_t *proc = (ui_proc_logo_t *)args->user_data;
-    EXCEPTION_CHECK_VOID(proc);
-    LOG_UI("logo play finished");
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_LOGO);
+    LOG_UI("logo play finished");
     multi_func_msg_data_t msg = {0};
     if (proc->ble) {
         proc->ble->bt_adv_start_by_user();
@@ -89,10 +88,10 @@ static void logo_display_completed_cb(hdr_post_args_t *args)
 
 static void logo_ui_after_policy(ui_manager_context_t *ui, int index)
 {
+    ui_proc_logo_t *proc = (ui_proc_logo_t *)ui->priv.play_info.user_data;
+    WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_LOGO);
     ui_display_logo_process(ui);
 #if (IS_SUPPORT_LOGO_BG_COLOR_TEST == 0)
-    ui_proc_logo_t *proc = (ui_proc_logo_t *)ui->priv.play_info.user_data;
-    EXCEPTION_CHECK_VOID(proc);
     if (get_timestamp_ms(proc->last_progress_ani_time) >= LOGO_ANIMATION_DISPLAY_TIME) {
         POST_WM_TASK_HANDLER_NO_DELAY(logo_display_completed_cb, proc, LOGO_DISPLAY_TASK_NAME);
     } 
@@ -101,8 +100,8 @@ static void logo_ui_after_policy(ui_manager_context_t *ui, int index)
 
 static void logo_animation_progress_cb(void *user_data, int index, ui_ani_progress_state_e state)
 {
-    static int ani_interval = 0;
     ui_manager_context_t *ui = user_data;
+    EXCEPTION_CHECK_VOID(ui);
     switch (state) {
         case ANI_TIMER_DRAW_FINISH:
             break;

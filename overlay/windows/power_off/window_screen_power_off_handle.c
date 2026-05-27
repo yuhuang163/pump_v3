@@ -39,8 +39,8 @@ INIT_WINDOW_CONTEXT();
 static void power_off_ble_teardown_cb(hdr_post_args_t *args)
 {
     ui_proc_power_off_t *proc = args->user_data;
-    EXCEPTION_CHECK_VOID(proc && proc->ble);
     WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_POWER_OFF);
+    EXCEPTION_CHECK_VOID(proc->ble);
     if (proc->margic != UI_WINDOW_MARGIC_CODE) {
         LOG_WM("invalid margic, ignore ble teardown.");
         return;
@@ -58,7 +58,6 @@ static void power_off_ble_teardown_cb(hdr_post_args_t *args)
 static void power_off_ui_common_cb(hdr_post_args_t *args)
 {
     ui_proc_power_off_t *proc = args->user_data;
-    EXCEPTION_CHECK_VOID(proc && proc->wm);
     WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_POWER_OFF);
     if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
         LOG_WM("wm not running, ignore.");
@@ -100,8 +99,8 @@ static void power_off_ui_common_cb(hdr_post_args_t *args)
 static void on_power_off_window_battery_state_cb(void *user_data, battery_state_info_t *info)
 {
     ui_proc_power_off_t *proc = (ui_proc_power_off_t *)user_data;
-    EXCEPTION_CHECK_VOID(proc && info);
     WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_POWER_OFF);
+    EXCEPTION_CHECK_VOID(info);
     if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
         LOG_WM("wm not running, ignore.");
         return;
@@ -131,7 +130,6 @@ static void on_power_off_window_battery_state_cb(void *user_data, battery_state_
 static int on_power_off_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t keytype)
 {
     ui_proc_power_off_t *proc = user_data;
-    EXCEPTION_CHECK_INT(proc && proc->battery);
     WINDOW_CONTEXT_GUARD_INT(proc, ID_WINDOW_POWER_OFF, 0);
     if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
         LOG_WM("wm not running, ignore.");
@@ -147,7 +145,7 @@ static int on_power_off_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t
     }
 
     if (keytype == KEY_EVENT_LONG_3S) {
-        if (proc->battery->get_charge_status() != CHARGE_STATE_ERROR) {
+        if (proc->battery && proc->battery->get_charge_status() != CHARGE_STATE_ERROR) {
             LOG_WM("key post exit charge policy task");
             POST_WM_TASK_HANDLER_NO_DELAY_ARG1(power_off_ui_common_cb, proc, 
                 POWER_OFF_HDR_EXIT_CHARGE_POLICY, POWER_OFF_PAGE_POLICY_TASK_NAME);

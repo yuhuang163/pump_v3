@@ -5,6 +5,7 @@
 #include "breast_pump_manager.h" // IWYU pragma: keep
 #include "input_key_code.h"
 #include "window_screen_pump.h"// IWYU pragma: keep
+#include "windows_manager.h"
 
 /*
 * DEFINES
@@ -42,7 +43,6 @@ INIT_WINDOW_CONTEXT();
 static void on_breast_pump_result_cb(void *user_data, breast_pump_result_t *result)
 {
     ui_proc_pump_t *proc = (ui_proc_pump_t *)user_data;
-    EXCEPTION_CHECK_VOID(proc);
     WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_PUMP);
     if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
         LOG_WM("wm not running, ignore.");
@@ -53,7 +53,6 @@ static void on_breast_pump_result_cb(void *user_data, breast_pump_result_t *resu
 static void pump_ui_common_cb(hdr_post_args_t *args)
 {
     ui_proc_pump_t *proc = args->user_data;
-    EXCEPTION_CHECK_VOID(proc);
     WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_PUMP);
     if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
         LOG_WM("wm not running, ignore.");
@@ -180,14 +179,15 @@ static void pump_click_event_cb(ui_proc_pump_t *proc, uint16_t keycode)
 static int on_pump_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t keytype)
 {
     ui_proc_pump_t *proc = user_data;
-    EXCEPTION_CHECK_INT(proc && proc->pump && proc->key && proc->ui);
     WINDOW_CURRENT_ID_GUARD_INT(proc, ID_WINDOW_PUMP, 0);
+    EXCEPTION_CHECK_INT(proc->pump);
 
-#if IS_SUPPORT_AIR_LEAKAGE_WARNING
+    #if IS_SUPPORT_AIR_LEAKAGE_WARNING
     if (proc->is_air_leakage_popup_show == true) {
         proc->hide_air_leakage_popup_wm = true;     /// 隐藏空气泄漏弹窗提示.
     }
-#endif
+    #endif
+
     if (keytype == KEY_EVENT_LONG_2S) {
         pump_long_press_event_cb(proc, keycode);
     } else {
@@ -213,8 +213,8 @@ static void pump_broadcast_receive_ui_cb(hdr_post_args_t *args)
     window_broadcast_args_t *bcd_args = (window_broadcast_args_t *)args->user_data;
     EXCEPTION_CHECK_VOID(bcd_args);
     ui_proc_pump_t *proc = (ui_proc_pump_t *)bcd_args->context;
-    EXCEPTION_CHECK_VOID(proc && proc->pump);
     WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_PUMP);
+    EXCEPTION_CHECK_VOID(proc->pump);
     if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
         LOG_WM("wm not running, ignore.");
         return;
@@ -284,7 +284,7 @@ static void on_pump_ui_broadcast_receive_cb(broadcast_mask_id_t id, void *contex
      broadcast_priv_data_t *pdata)
 {
     ui_proc_pump_t *proc = (ui_proc_pump_t *)context;
-    EXCEPTION_CHECK_VOID(proc);
+    WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_PUMP);
     if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
         LOG_WM("wm not running, ignore.");
         return;

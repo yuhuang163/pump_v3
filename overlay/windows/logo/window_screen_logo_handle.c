@@ -41,7 +41,6 @@ INIT_WINDOW_CONTEXT();
 static void touch_key_fw_version_check_cb(hdr_post_args_t *args)
 {
     ui_proc_logo_t *proc = args->user_data;
-    EXCEPTION_CHECK_VOID(proc);
     WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_LOGO);
     if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
         LOG_WM("wm not running, ignore.");
@@ -68,7 +67,6 @@ static int on_logo_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
 {
     (void)keytype;
     ui_proc_logo_t *proc = user_data;
-    EXCEPTION_CHECK_INT(proc);
     WINDOW_CONTEXT_GUARD_INT(proc, ID_WINDOW_LOGO, 0);
     if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
         LOG_WM("wm not running, ignore.");

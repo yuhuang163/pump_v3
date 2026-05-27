@@ -27,8 +27,9 @@
 */
 static void pump_level_popup_ui_finish_policy(ui_manager_context_t *ui, uint8_t popup_ui_index)
 {
-    LOG_WM("===> popup %d ui display complete.", popup_ui_index);
     ui_proc_pump_t *proc = (ui_proc_pump_t *)ui->priv.play_info.user_data;
+    WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_PUMP);
+    LOG_WM("===> popup %d ui display complete.", popup_ui_index);
     pump_popup_ui_type_update(proc, ID_POPUP_UI_NONE);
     switch (popup_ui_index) {
         case ID_POPUP_UI_PUMP_FINISH_TIMEOUT:
@@ -46,8 +47,8 @@ static void pump_level_popup_ui_finish_policy(ui_manager_context_t *ui, uint8_t 
 static void pump_level_display_completed_cb(hdr_post_args_t *args)
 {
     ui_proc_pump_t *proc = (ui_proc_pump_t *)args->user_data;
-    EXCEPTION_CHECK_VOID(proc && proc->wm && proc->pump);
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_PUMP);
+    EXCEPTION_CHECK_VOID(proc->pump);
     if (proc->current_ui_type != PUMP_UI_TYPE_LEVEL) {
         LOG_UI("ui type error, ignore.");
         return;
@@ -76,7 +77,7 @@ static void pump_level_display_completed_cb(hdr_post_args_t *args)
 static void pump_level_ui_after_policy(ui_manager_context_t *ui, int index)
 {
     ui_proc_pump_t *proc = (ui_proc_pump_t *)ui->priv.play_info.user_data;
-    EXCEPTION_CHECK_VOID(proc);
+    WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_PUMP);
     ui_display_pump_level_process(ui);
     uint32_t time_diff = get_timestamp_ms(proc->last_progress_ani_time);
     if (time_diff >= PUMP_LEVEL_DISPLAY_TIMEOUT) {

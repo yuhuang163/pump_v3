@@ -101,8 +101,8 @@ static void home_page_display_type_update(ui_proc_home_t *proc)
 static void home_start_key_event_ui_cb(hdr_post_args_t *args)
 {
     ui_proc_home_t *proc = args->user_data;
-    EXCEPTION_CHECK_VOID(proc && proc->battery);
     WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_HOME);
+    EXCEPTION_CHECK_VOID(proc->battery);
     uint8_t battery_state = proc->battery->get_battery_state();
     if (battery_state == BATTERY_STATE_LOW_POWER_SHUTDOWN ||
         battery_state == BATTERY_STATE_EMPTY ||
@@ -216,7 +216,6 @@ static void home_power_key_event_cb(ui_proc_home_t *proc)
 static int on_home_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t keytype)
 {
     ui_proc_home_t *proc = user_data;
-    EXCEPTION_CHECK_INT(proc);
     WINDOW_CURRENT_ID_GUARD_INT(proc, ID_WINDOW_HOME, 0);
     if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
         LOG_WM("wm not running, ignore.");
@@ -273,7 +272,6 @@ static void home_broadcast_receive_ui_cb(hdr_post_args_t *args)
     window_broadcast_args_t *bcd_args = (window_broadcast_args_t *)args->user_data;
     EXCEPTION_CHECK_VOID(bcd_args);
     ui_proc_home_t *proc = (ui_proc_home_t *)bcd_args->context;
-    EXCEPTION_CHECK_VOID(proc);
     WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_HOME);
     if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
         LOG_WM("wm not running, ignore.");
@@ -303,7 +301,6 @@ static void on_home_ui_broadcast_receive_cb(broadcast_mask_id_t id, void *contex
     broadcast_priv_data_t *pdata)
 {
     ui_proc_home_t *proc = (ui_proc_home_t *)context;
-    EXCEPTION_CHECK_VOID(proc);
     WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_HOME);
     if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
         LOG_WM("wm not running, ignore.");
@@ -324,7 +321,6 @@ static void on_home_ui_broadcast_receive_cb(broadcast_mask_id_t id, void *contex
 static void on_home_window_battery_state_change_cb(void *user_data, battery_state_info_t *info)
 {
     ui_proc_home_t *proc = (ui_proc_home_t *)user_data;
-    EXCEPTION_CHECK_VOID(proc);
     WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_HOME);
     if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
         LOG_WM("wm not running, ignore.");

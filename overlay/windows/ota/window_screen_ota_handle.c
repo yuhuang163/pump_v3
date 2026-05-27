@@ -44,7 +44,6 @@ INIT_WINDOW_CONTEXT();
 static void ota_ui_switch_cb(hdr_post_args_t *args)
 {
     ui_proc_ota_t *proc = args->user_data;
-    EXCEPTION_CHECK_VOID(proc && proc->wm);
     WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_OTA_UPGRADE);
     if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
         LOG_WM("wm not running, ignore.");
@@ -59,7 +58,6 @@ static void ota_ui_switch_cb(hdr_post_args_t *args)
 static int on_ota_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t keytype)
 {
     ui_proc_ota_t *proc = user_data;
-    EXCEPTION_CHECK_INT(proc);
     WINDOW_CONTEXT_GUARD_INT(proc, ID_WINDOW_OTA_UPGRADE, 0);
     if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
         LOG_WM("wm not running, ignore.");
@@ -81,7 +79,6 @@ static void ota_wm_broadcast_receive_hdr(hdr_post_args_t *args)
     window_broadcast_args_t *bcd_args = (window_broadcast_args_t *)args->user_data;
     EXCEPTION_CHECK_VOID(bcd_args);
     ui_proc_ota_t *proc = (ui_proc_ota_t *)bcd_args->context;
-    EXCEPTION_CHECK_VOID(proc);
     WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_OTA_UPGRADE);
     if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
         LOG_WM("wm not running, ignore.");
@@ -107,7 +104,7 @@ static void on_ota_wm_broadcast_receive_cb(broadcast_mask_id_t id, void *context
     broadcast_priv_data_t *pdata)
 {
     ui_proc_ota_t *proc = (ui_proc_ota_t *)context;
-    EXCEPTION_CHECK_VOID(proc);
+    WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_OTA_UPGRADE);
     if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
         LOG_WM("wm not running, ignore.");
         return;
