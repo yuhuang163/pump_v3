@@ -28,9 +28,7 @@
 static void ota_display_completed_cb(hdr_post_args_t *args)
 {
     ui_proc_ota_t *proc = (ui_proc_ota_t *)args->user_data;
-    EXCEPTION_CHECK_VOID(proc);
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_OTA_UPGRADE);
-    EXCEPTION_CHECK_VOID(proc->wm);
     multi_func_msg_data_t msg = {0};
     if (proc->battery && proc->battery->is_low_battery()) {
         LOG_WM("battery is low power, goto battery screen");
@@ -74,9 +72,8 @@ static void ota_display_completed_cb(hdr_post_args_t *args)
 
 static void ota_display_completed_policy(ui_manager_context_t *ui)
 {
-    EXCEPTION_CHECK_VOID(ui);
     ui_proc_ota_t *proc = (ui_proc_ota_t *)ui->priv.play_info.user_data;
-    EXCEPTION_CHECK_VOID(proc);
+    WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_OTA_UPGRADE);
     if (proc->current_ui_type != OTA_UI_TYPE_UPDATE) {
         return;
     }
@@ -86,13 +83,15 @@ static void ota_display_completed_policy(ui_manager_context_t *ui)
 
 static void ota_ui_after_policy(ui_manager_context_t *ui, int index)
 {
+    ui_proc_ota_t *proc = (ui_proc_ota_t *)ui->priv.play_info.user_data;
+    WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_OTA_UPGRADE);
     ui_display_ota_process(ui);
 }
 
 static void ota_animation_progress_cb(void *user_data, int index, ui_ani_progress_state_e state)
 {
-    static int ani_interval = 0;
     ui_manager_context_t *ui = user_data;
+    EXCEPTION_CHECK_VOID(ui);
     switch (state) {
         case ANI_TIMER_DRAW_FINISH:
             ota_display_completed_policy(ui);

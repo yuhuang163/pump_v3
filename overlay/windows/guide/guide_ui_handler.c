@@ -29,7 +29,6 @@
 static void guide_display_completed_cb(hdr_post_args_t *args)
 {
     ui_proc_guide_t *proc = (ui_proc_guide_t *)args->user_data;
-    EXCEPTION_CHECK_VOID(proc);
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_GUIDE);
     proc->wm->set_window_guidance_deployed_flag(true);
     multi_func_msg_data_t msg = {0};
@@ -40,13 +39,15 @@ static void guide_display_completed_cb(hdr_post_args_t *args)
 
 static void guide_ui_after_policy(ui_manager_context_t *ui, int index)
 {
+    ui_proc_guide_t *proc = (ui_proc_guide_t *)ui->priv.play_info.user_data;
+    WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_GUIDE);
     ui_display_guide_process(ui);
 }
 
 static void guide_animation_progress_cb(void *user_data, int index, ui_ani_progress_state_e state)
 {
-    static int ani_interval = 0;
     ui_manager_context_t *ui = user_data;
+    EXCEPTION_CHECK_VOID(ui);
     switch (state) {
         case ANI_TIMER_DRAW_FINISH:
             break;

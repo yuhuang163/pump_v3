@@ -26,6 +26,8 @@
 */
 static void charging_ui_after_policy(ui_manager_context_t *ui, int index)
 {
+    ui_proc_charge_t *proc = (ui_proc_charge_t *)ui->priv.play_info.user_data;
+    WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_CHARGE);
     ui_display_charge_screen_process(ui);
 }
 

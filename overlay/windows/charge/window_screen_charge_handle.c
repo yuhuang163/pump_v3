@@ -42,7 +42,6 @@ INIT_WINDOW_CONTEXT();
 static void charge_ui_common_cb(hdr_post_args_t *args)
 {
     ui_proc_charge_t *proc = args->user_data;
-    EXCEPTION_CHECK_VOID(proc && proc->wm);
     WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_CHARGE);
     if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
         LOG_WM("wm not running, ignore.");
@@ -69,13 +68,12 @@ static void charge_ui_common_cb(hdr_post_args_t *args)
 static void on_charge_window_battery_state_cb(void *user_data, battery_state_info_t *info)
 {
     ui_proc_charge_t *proc = (ui_proc_charge_t *)user_data;
-    EXCEPTION_CHECK_VOID(proc && info);
     WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_CHARGE);
     if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
         LOG_WM("wm not running, ignore.");
         return;
     }
-    if (info->charge_status == CHARGE_STATE_ERROR) {
+    if (info && info->charge_status == CHARGE_STATE_ERROR) {
         show_charge_adapter_ui(proc);
     } else {
         POST_WM_TASK_HANDLER_NO_DELAY_ARG1(charge_ui_common_cb, proc, 
@@ -86,7 +84,6 @@ static void on_charge_window_battery_state_cb(void *user_data, battery_state_inf
 static int on_charge_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t keytype)
 {
     ui_proc_charge_t *proc = user_data;
-    EXCEPTION_CHECK_INT(proc);
     WINDOW_CONTEXT_GUARD_INT(proc, ID_WINDOW_CHARGE, 0);
     if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
         LOG_WM("wm not running, ignore.");
@@ -98,7 +95,7 @@ static int on_charge_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t ke
     }
 
     if (keytype == KEY_EVENT_LONG_3S) {
-        if (proc->battery->get_charge_status() != CHARGE_STATE_ERROR) {
+        if (proc->battery && proc->battery->get_charge_status() != CHARGE_STATE_ERROR) {
             LOG_WM("key post exit charge policy task");
             POST_WM_TASK_HANDLER_NO_DELAY_ARG1(charge_ui_common_cb, proc, 
                 CHARGE_HDR_EXIT_CHARGE_POLICY, CHARGE_PAGE_POLICY_TASK_NAME);

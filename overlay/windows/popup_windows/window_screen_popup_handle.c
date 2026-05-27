@@ -42,7 +42,6 @@ INIT_WINDOW_CONTEXT();
 static int on_popup_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t keytype)
 {
     ui_proc_popup_t *proc = user_data;
-    EXCEPTION_CHECK_INT(proc && proc->pm);
     WINDOW_CONTEXT_GUARD_INT(proc, ID_WINDOW_POPUP_WINDOW, 0);
     if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
         LOG_WM("wm not running, ignore.");
@@ -50,7 +49,9 @@ static int on_popup_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t key
     }
     window_entry_extra_t extra = {0};
 #if IS_SUPPORT_POPUP_WAKE_LOCK
-    proc->pm->release_wakelock(POPUP_WAKE_LOCK_NAME);
+    if (proc->pm) {
+        proc->pm->release_wakelock(POPUP_WAKE_LOCK_NAME);
+    }
 #endif
     if (proc->extra.forbid_short_press_exit_popup) {
         return 0;

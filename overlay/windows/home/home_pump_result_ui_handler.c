@@ -29,7 +29,6 @@
 static void home_pump_result_display_completed_cb(hdr_post_args_t *args)
 {
     ui_proc_home_t *proc = (ui_proc_home_t *)args->user_data;
-    EXCEPTION_CHECK_VOID(proc);
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_HOME);
     if (proc->current_ui_type != HOME_UI_TYPE_PUMP_RESULT) {
         LOG_UI("pump result ui, ignore display completed.");
@@ -40,9 +39,9 @@ static void home_pump_result_display_completed_cb(hdr_post_args_t *args)
 
 static void home_pump_result_ui_after_policy(ui_manager_context_t *ui, int index)
 {
-    ui_display_pump_complete_tip_process(ui);
     ui_proc_home_t *proc = (ui_proc_home_t *)ui->priv.play_info.user_data;
-    EXCEPTION_CHECK_VOID(proc);
+    WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_HOME);
+    ui_display_pump_complete_tip_process(ui);
     uint32_t time_diff = get_timestamp_ms(proc->last_progress_ani_time);
     if (time_diff >= PUMP_RESULT_DISPLAY_TIMEOUT) {
         proc->last_progress_ani_time = get_timestamp();
@@ -55,7 +54,6 @@ static void home_pump_result_animation_progress_cb(void *user_data, int index, u
 {
     ui_manager_context_t *ui = user_data;
     EXCEPTION_CHECK_VOID(ui);
-    ui_animation_play_t *ani = &ui->priv.play_info;
     switch (state) {
         case ANI_TIMER_DRAW_FINISH:
             break;

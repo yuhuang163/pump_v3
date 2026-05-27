@@ -27,9 +27,9 @@
 */
 static void pumping_popup_ui_finish_policy(ui_manager_context_t *ui, uint8_t popup_ui_index)
 {
-    LOG_WM("===> popup %d ui display complete.", popup_ui_index);
     ui_proc_pump_t *proc = (ui_proc_pump_t *)ui->priv.play_info.user_data;
-    EXCEPTION_CHECK_VOID(proc);
+    WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_PUMP);
+    LOG_WM("===> popup %d ui display complete.", popup_ui_index);
     pump_popup_ui_type_update(proc, ID_POPUP_UI_NONE);
     switch (popup_ui_index) {
         case ID_POPUP_UI_PUMP_FINISH_TIMEOUT:
@@ -46,8 +46,10 @@ static void pumping_popup_ui_finish_policy(ui_manager_context_t *ui, uint8_t pop
 
 static void pumping_work_ui_after_policy(ui_manager_context_t *ui, int index)
 {
+    ui_proc_pump_t *proc = (ui_proc_pump_t *)ui->priv.play_info.user_data;
+    WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_PUMP);
     ui_display_pump_home_screen_process(ui);
-    ui->priv.play_info.reset_play_count_cb(&ui->priv.play_info);
+    // ui->priv.play_info.reset_play_count_cb(&ui->priv.play_info);
 }
 
 static void pumping_animation_progress_cb(void *user_data, int index, ui_ani_progress_state_e state)

@@ -28,7 +28,6 @@
 static void pump_result_display_completed_cb(hdr_post_args_t *args)
 {
     ui_proc_pump_t *proc = (ui_proc_pump_t *)args->user_data;
-    EXCEPTION_CHECK_VOID(proc);
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_PUMP);
     if (proc->current_ui_type == PUMP_UI_TYPE_RESULT) {
         multi_func_msg_data_t msg = {0};
@@ -40,9 +39,9 @@ static void pump_result_display_completed_cb(hdr_post_args_t *args)
 
 static void pump_result_ui_after_policy(ui_manager_context_t *ui, int index)
 {
-    ui_display_pump_complete_tip_process(ui);
     ui_proc_pump_t *proc = (ui_proc_pump_t *)ui->priv.play_info.user_data;
-    EXCEPTION_CHECK_VOID(proc);
+    WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_PUMP);
+    ui_display_pump_complete_tip_process(ui);
     uint32_t time_diff = get_timestamp_ms(proc->last_progress_ani_time);
     if (time_diff >= PUMP_RESULT_DISPLAY_TIMEOUT) {
         proc->last_progress_ani_time = get_timestamp();
@@ -57,7 +56,6 @@ static void pump_result_animation_progress_cb(void *user_data, int index, ui_ani
 {
     ui_manager_context_t *ui = user_data;
     EXCEPTION_CHECK_VOID(ui);
-    ui_animation_play_t *ani = &ui->priv.play_info;
     switch (state) {
         case ANI_TIMER_DRAW_FINISH:
             break;
@@ -118,9 +116,7 @@ static void show_pump_result_loop(ui_proc_pump_t *proc)
 */
 void show_pump_result_ui(ui_proc_pump_t *proc)
 {
-    EXCEPTION_CHECK_VOID(proc);
-    EXCEPTION_CHECK_VOID(proc->pump);
-    EXCEPTION_CHECK_VOID(proc->led);
+    EXCEPTION_CHECK_VOID(proc && proc->pump && proc->led);
     int pump_status = 0;
     READ_PUMP_WORK_STATUS(proc->pump, pump_status);
     if (PUMP_NO_FINISH(pump_status)) {

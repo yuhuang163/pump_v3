@@ -29,14 +29,15 @@
 */
 static void factory_reset_ui_after_policy(ui_manager_context_t *ui, int index)
 {
-    EXCEPTION_CHECK_VOID(ui);
+    ui_proc_factory_reset_t *proc = (ui_proc_factory_reset_t *)ui->priv.play_info.user_data;
+    WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_FACTORY_RESET);
     ui_display_factory_reset_process(ui);
 }
 
 static void factory_reset_animation_progress_cb(void *user_data, int index, ui_ani_progress_state_e state)
 {
-    static int ani_interval = 0;
     ui_manager_context_t *ui = user_data;
+    EXCEPTION_CHECK_VOID(ui);
     switch (state) {
         case ANI_TIMER_DRAW_FINISH:
             break;

@@ -26,6 +26,8 @@
 */
 static void charge_adapter_ui_after_policy(ui_manager_context_t *ui, int index)
 {
+    ui_proc_power_off_t *proc = (ui_proc_power_off_t *)ui->priv.play_info.user_data;
+    WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_POWER_OFF);
     ui_display_charge_adapter_process(ui);
 }
 

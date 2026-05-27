@@ -97,9 +97,7 @@ static void change_images_cb(lv_timer_t *t)
         
     /// base 动画先绘制
     ui_ctx->play_animation_lock(NULL);
-    bool is_playing_ui_animation = ui_ctx->priv.is_playing_ui_animation;
-    ui_ctx->play_animation_unlock(NULL);
-    if (is_playing_ui_animation) {
+    if (ui_ctx->priv.is_playing_ui_animation) {
         ui_animation_play_t *ani = &ui_ctx->priv.play_info;
         if (ani->tag) {
             if (ani->progress_cb) {
@@ -109,12 +107,11 @@ static void change_images_cb(lv_timer_t *t)
             ani->played_count++;
         }
     }
+    ui_ctx->play_animation_unlock(NULL);
 
     /// overlay 后绘制（保证叠加层在上面）
     ui_ctx->play_animation_lock(NULL);
-    bool is_playing_ui_overlay = ui_ctx->priv.is_playing_ui_overlay;
-    ui_ctx->play_animation_unlock(NULL);
-    if (is_playing_ui_overlay) {
+    if (ui_ctx->priv.is_playing_ui_overlay) {
         ui_animation_play_t *ani = &ui_ctx->priv.overlay_play_info;
         if (ani->tag) {
             if (ani->progress_cb) {
@@ -124,6 +121,7 @@ static void change_images_cb(lv_timer_t *t)
             ani->played_count++;
         }
     }
+    ui_ctx->play_animation_unlock(NULL);
 }
 
 static void ui_animation_play_init_on_ui_thread(struct ui_manager_context *thiz, 
@@ -447,6 +445,12 @@ static void ui_animation_play_init(struct ui_manager_context *thiz, ui_play_info
 static void ui_animation_play_deinit(struct ui_manager_context *thiz)
 {
     EXCEPTION_CHECK_VOID(thiz);
+    thiz->play_animation_lock(NULL);
+    thiz->priv.is_playing_ui_animation = false;
+    thiz->priv.play_info.progress_cb = NULL;
+    thiz->priv.play_info.user_data = NULL;
+    thiz->play_animation_unlock(NULL);
+
     ui_lvgl_msg_t msg = {0};
     msg.cmd = UI_LVGL_MSG_CMD_ANIM_DEINIT;
     MSG_QUEUE_SEND(thiz->priv.ui_hdr_thd.msg_id, &msg, 0);
@@ -464,6 +468,12 @@ static void ui_animation_overlay_init(struct ui_manager_context *thiz, ui_play_i
 static void ui_animation_overlay_deinit(struct ui_manager_context *thiz)
 {
     EXCEPTION_CHECK_VOID(thiz);
+    thiz->play_animation_lock(NULL);
+    thiz->priv.is_playing_ui_overlay = false;
+    thiz->priv.overlay_play_info.progress_cb = NULL;
+    thiz->priv.overlay_play_info.user_data = NULL;
+    thiz->play_animation_unlock(NULL);
+
     ui_lvgl_msg_t msg = {0};
     msg.cmd = UI_LVGL_MSG_CMD_OVERLAY_DEINIT;
     MSG_QUEUE_SEND(thiz->priv.ui_hdr_thd.msg_id, &msg, 0);

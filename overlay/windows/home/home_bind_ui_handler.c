@@ -28,15 +28,15 @@
 */
 static void home_bind_popup_ui_finish_policy(ui_manager_context_t *ui, int index)
 {
-    LOG_WM("===> popup %d ui display complete.", index);
     ui_proc_home_t *proc = (ui_proc_home_t *)ui->priv.play_info.user_data;
+    WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_HOME);
+    LOG_WM("===> popup %d ui display complete.", index);
     home_popup_ui_type_update(proc, ID_POPUP_UI_NONE);
 }
 
 static void home_bind_display_completed_cb(hdr_post_args_t *args)
 {
     ui_proc_home_t *proc = (ui_proc_home_t *)args->user_data;
-    EXCEPTION_CHECK_VOID(proc);
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_HOME);
     LOG_WM("home bind finish...");
     if (proc->current_ui_type == HOME_UI_TYPE_BIND_QRCODE) {
@@ -47,6 +47,7 @@ static void home_bind_display_completed_cb(hdr_post_args_t *args)
 static void home_bind_ui_after_policy(ui_manager_context_t *ui, int index)
 {
     ui_proc_home_t *proc = (ui_proc_home_t *)ui->priv.play_info.user_data;
+    WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_HOME);
     ui_display_home_bind_process(ui);
     uint32_t time_diff = get_timestamp_ms(proc->last_progress_ani_time);
     if (time_diff >= HOME_BIND_QRCODE_DISPLAY_TIMEOUT) {
@@ -56,8 +57,8 @@ static void home_bind_ui_after_policy(ui_manager_context_t *ui, int index)
 
 static void home_bind_animation_progress_cb(void *user_data, int index, ui_ani_progress_state_e state)
 {
-    static int ani_interval = 0;
     ui_manager_context_t *ui = user_data;
+    EXCEPTION_CHECK_VOID(ui);
     switch (state) {
         case ANI_TIMER_DRAW_FINISH:
             break;

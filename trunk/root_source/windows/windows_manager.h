@@ -50,12 +50,15 @@ do { \
 /// 获取窗口上下文.
 #define GET_WINDOW_CONTEXT() (__s_window_refs)
 
+/// 窗口指针无效值.
+#define WINDOW_POINTER_IS_INVALID(proc) ((void *)(proc) < (void *)(0x1000))
+
 /// 窗口上下文保护宏定义.
 #define WINDOW_CONTEXT_GUARD_VOID(proc, expected_window_id) \
     do { \
-        window_manager_context_t *__wm = (proc) ? (proc)->wm : NULL; \
+        window_manager_context_t *__wm = (!WINDOW_POINTER_IS_INVALID(proc)) ? (proc)->wm : NULL; \
         EXCEPTION_CHECK_VOID(__wm); \
-        if (GET_WINDOW_CONTEXT() == NULL) { \
+        if (GET_WINDOW_CONTEXT() == NULL || proc->margic != UI_WINDOW_MARGIC_CODE) { \
             LOG_WM("window context not present, ignore."); \
             return; \
         } \
@@ -71,9 +74,9 @@ do { \
 
 #define WINDOW_CONTEXT_GUARD_INT(proc, expected_window_id, ret) \
     do { \
-        window_manager_context_t *__wm = (proc) ? (proc)->wm : NULL; \
+        window_manager_context_t *__wm = (!WINDOW_POINTER_IS_INVALID(proc)) ? (proc)->wm : NULL; \
         EXCEPTION_CHECK_INT(__wm); \
-        if (GET_WINDOW_CONTEXT() == NULL) { \
+        if (GET_WINDOW_CONTEXT() == NULL || proc->margic != UI_WINDOW_MARGIC_CODE) { \
             LOG_WM("window context not present, ignore."); \
             return (ret); \
         } \
@@ -90,9 +93,9 @@ do { \
 /// 窗口上下文保护宏定义.
 #define WINDOW_CURRENT_ID_GUARD_VOID(proc, expected_window_id) \
     do { \
-        window_manager_context_t *__wm = (proc) ? (proc)->wm : NULL; \
+        window_manager_context_t *__wm = (!WINDOW_POINTER_IS_INVALID(proc)) ? (proc)->wm : NULL; \
         EXCEPTION_CHECK_VOID(__wm); \
-        if (GET_WINDOW_CONTEXT() == NULL) { \
+        if (GET_WINDOW_CONTEXT() == NULL || proc->margic != UI_WINDOW_MARGIC_CODE) { \
             LOG_WM("window context not present, ignore."); \
             return; \
         } \
@@ -106,9 +109,9 @@ do { \
 
 #define WINDOW_CURRENT_ID_GUARD_INT(proc, expected_window_id, ret) \
     do { \
-        window_manager_context_t *__wm = (proc) ? (proc)->wm : NULL; \
+        window_manager_context_t *__wm = (!WINDOW_POINTER_IS_INVALID(proc)) ? (proc)->wm : NULL; \
         EXCEPTION_CHECK_INT(__wm); \
-        if (GET_WINDOW_CONTEXT() == NULL) { \
+        if (GET_WINDOW_CONTEXT() == NULL || proc->margic != UI_WINDOW_MARGIC_CODE) { \
             LOG_WM("window context not present, ignore."); \
             return (ret); \
         } \
@@ -123,36 +126,40 @@ do { \
 /// 窗口ID保护宏定义.
 #define WINDOW_ID_GUARD_VOID(proc, expected_window_id) \
     do { \
-        window_manager_context_t *__wm = (proc) ? (proc)->wm : NULL; \
+        window_manager_context_t *__wm = (!WINDOW_POINTER_IS_INVALID(proc)) ? (proc)->wm : NULL; \
         EXCEPTION_CHECK_VOID(__wm); \
-        if (proc->margic == UI_WINDOW_MARGIC_CODE_INVALID) { \
+        if (proc->margic != UI_WINDOW_MARGIC_CODE) { \
             LOG_WM("margic invalid, ignore."); \
             return; \
         } \
         uint8_t current_window_id = __wm->get_current_window_id(); \
+        uint8_t next_window_id = __wm->get_next_window_id(); \
         uint8_t overlay_window_id = __wm->get_overlay_window_id(__wm); \
         if (current_window_id != expected_window_id && \
+            next_window_id != expected_window_id && \
             overlay_window_id != expected_window_id) { \
-            LOG_WM("window id not match, ignore. %d/%d.", \
-                 current_window_id, overlay_window_id); \
+            LOG_WM("window id not match, ignore. %d/%d/%d.", \
+                 current_window_id, next_window_id, overlay_window_id); \
             return; \
         } \
     } while (0)
 
 #define WINDOW_ID_GUARD_INT(proc, expected_window_id, ret) \
     do { \
-        window_manager_context_t *__wm = (proc) ? (proc)->wm : NULL; \
+        window_manager_context_t *__wm = (!WINDOW_POINTER_IS_INVALID(proc)) ? (proc)->wm : NULL; \
         EXCEPTION_CHECK_INT(__wm); \
-        if (proc->margic == UI_WINDOW_MARGIC_CODE_INVALID) { \
+        if (proc->margic != UI_WINDOW_MARGIC_CODE) { \
             LOG_WM("margic invalid, ignore."); \
             return (ret); \
         } \
         uint8_t current_window_id = __wm->get_current_window_id(); \
+        uint8_t next_window_id = __wm->get_next_window_id(); \
         uint8_t overlay_window_id = __wm->get_overlay_window_id(__wm); \
         if (current_window_id != expected_window_id && \
+            next_window_id != expected_window_id && \
             overlay_window_id != expected_window_id) { \
-            LOG_WM("window id not match, ignore. %d/%d.", \
-                 current_window_id, overlay_window_id); \
+            LOG_WM("window id not match, ignore. %d/%d/%d.", \
+                 current_window_id, next_window_id, overlay_window_id); \
             return (ret); \
         } \
     } while (0) 
