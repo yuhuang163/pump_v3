@@ -29,6 +29,7 @@ extern "C" {
 /// 吸乳模式默认周期 单位：毫秒
 #define PUMP_MODE_DEFAULT_PERIOD                     90 
 
+#if 1
 /// 个性化模式按摩默认时长2分钟，单位：秒
 #define CUSTOM_MODE_DEFAULT_MASSAGE_TIME             120  
 /// 个性化模式吸乳默认时长28分钟，单位：秒
@@ -68,7 +69,6 @@ extern "C" {
 /// 开奶模式吸乳时长2分钟，单位：秒
 #define LACTATION_START_MODE_PUMP_TIME_2MIN          120
 
-
 /// 追奶模式默认工作时长60分钟，单位：秒
 #define MILK_TRACK_MODE_DEFAULT_WORK_TIME            3600
 /// Power Pumping模式按摩时长3分钟，单位：秒
@@ -84,6 +84,61 @@ extern "C" {
 
 /// Relax模式默认工作时长10分钟，单位：秒
 #define RELAX_MODE_WORK_TIME                         600
+#else
+/// 个性化模式按摩默认时长2分钟，单位：秒
+#define CUSTOM_MODE_DEFAULT_MASSAGE_TIME             12  
+/// 个性化模式吸乳默认时长28分钟，单位：秒
+#define CUSTOM_MODE_DEFAULT_PUMP_TIME                168  
+
+/// 2+8奶量提升模式持续工作20分钟，单位：秒
+#define MILK_BOOST_MODE_WORK_TIME                    120 
+/// 2+8奶量提升模式按摩默认时长2分钟，单位：秒
+#define MILK_BOOST_MODE_DEFAULT_MASSAGE_TIME         12  
+/// 2+8奶量提升模式吸乳默认时长8分钟，单位：秒
+#define MILK_BOOST_MODE_DEFAULT_PUMP_TIME            48
+
+/// 常规韵律模式持续工作21.5分钟，单位：秒
+#define REGULAR_PUMPING_MODE_WORK_TIME               129
+/// 常规韵律模式刺激时长1.5分钟，单位：秒
+#define REGULAR_PUMPING_MODE_STIMULATION_TIME        9
+/// 常规韵律模式吸乳时长20分钟，单位：秒
+#define REGULAR_PUMPING_MODE_PUMP_TIME               120
+
+/// 追加排空模式持续工作22分钟，单位：秒
+#define EMPTYING_BOOST_MODE_WORK_TIME                132
+/// 追加排空模式刺激时长2分钟，单位：秒
+#define EMPTYING_BOOST_MODE_STIMULATION_TIME         12
+/// 追加排空模式吸乳时长15分钟，单位：秒
+#define EMPTYING_BOOST_MODE_PUMP_TIME                90
+/// 追加排空模式混合时长5分钟，单位：秒
+#define EMPTYING_BOOST_MODE_MIX_TIME                 30 
+
+/// 开奶模式（Lactation Kickstart）持续工作17分钟，单位：秒
+#define LACTATION_START_MODE_WORK_TIME               102
+/// 开奶模式刺激时长3分钟，单位：秒
+#define LACTATION_START_MODE_MASSAGE_TIME_3MIN       18
+/// 开奶模式混合1时长2分钟，单位：秒
+#define LACTATION_START_MODE_MASSAGE_TIME_2MIN       12
+/// 开奶模式吸乳时长1分钟，单位：秒
+#define LACTATION_START_MODE_PUMP_TIME_1MIN          6
+/// 开奶模式吸乳时长2分钟，单位：秒
+#define LACTATION_START_MODE_PUMP_TIME_2MIN          12
+
+/// 追奶模式默认工作时长60分钟，单位：秒
+#define MILK_TRACK_MODE_DEFAULT_WORK_TIME            360
+/// Power Pumping模式按摩时长3分钟，单位：秒
+#define POWER_PUMPING_MODE_MASSAGE_TIME_3MIN         18
+/// Power Pumping模式按摩时长5分钟，单位：秒
+#define POWER_PUMPING_MODE_MASSAGE_TIME_5MIN         30
+/// Power Pumping模式泌乳时长12分钟，单位：秒
+#define POWER_PUMPING_MODE_PUMP_TIME_12MIN           72
+/// Power Pumping模式泌乳时长7分钟，单位：秒
+#define POWER_PUMPING_MODE_PUMP_TIME_7MIN            42
+/// Power Pumping模式休息时长10分钟，单位：秒
+#define POWER_PUMPING_MODE_IDLE_TIME                 60
+/// Relax模式默认工作时长10分钟，单位：秒
+#define RELAX_MODE_WORK_TIME                         60
+#endif
 
 /// 自定义模式策略缓存最大32个
 #define CUSTOM_MODE_MOTOR_POLICY_NUMBER              32
@@ -128,25 +183,35 @@ static const motor_policy_cfg_t mix_default2[MIX2_MODE_LEN] = {
        },
 };
 
-/// 8 个性化默认
-static const motor_policy_cfg_t custom_default[CUSTOM_MODE_LEN] = {
-    {MOTOR_TIME_POLICY, CUSTOM_MODE_DEFAULT_MASSAGE_TIME, {
+/// 3 cozy flow 常规韵律（默认）：由高频轻吸变为低频深吸，模仿婴儿自然的吸吮动作
+/// 21.5 min：刺激 1.5min + 吸乳 20min
+static const motor_policy_cfg_t regular_pumping_default[REGULAR_PUMPING_MODE_LEN] = {
+    {MOTOR_TIME_POLICY, REGULAR_PUMPING_MODE_STIMULATION_TIME, {
         MOTOR_PARAM_TABLE, {SUCTION_SPEED_MID, BREAST_PUMP_LEVEL_1, SUCTION_MODE_SHORT},
         {1, PUMP_MODE_DEFAULT_PERIOD}}
         },
-    {MOTOR_TIME_POLICY, CUSTOM_MODE_DEFAULT_PUMP_TIME, {
+    {MOTOR_TIME_POLICY, REGULAR_PUMPING_MODE_PUMP_TIME, {
         MOTOR_PARAM_TABLE, {SUCTION_SPEED_MID, BREAST_PUMP_LEVEL_1, SUCTION_MODE_LONG},
         {1, PUMP_MODE_DEFAULT_PERIOD}}
         },
 };
 
-/// 9 个性化试用模式
-static const motor_policy_cfg_t custom_trial_default[CUSTOM_TRIAL_MODE_LEN] = {
-    {MOTOR_TIME_POLICY, CUSTOM_MODE_DEFAULT_MASSAGE_TIME, {
+/// 4 Milk Boost 增加泌乳：丝滑渐进式的吸力分布，解决乳汁分泌不足问题
+/// 20 min：刺激 2min + 吸乳 8min+ 刺激 2min + 吸乳 8min
+static const motor_policy_cfg_t milk_boost_default[MILK_BOOST_MODE_LEN] = {
+    {MOTOR_TIME_POLICY, MILK_BOOST_MODE_DEFAULT_MASSAGE_TIME, {
         MOTOR_PARAM_TABLE, {SUCTION_SPEED_MID, BREAST_PUMP_LEVEL_1, SUCTION_MODE_SHORT},
         {1, PUMP_MODE_DEFAULT_PERIOD}}
         },
-    {MOTOR_TIME_POLICY, CUSTOM_MODE_DEFAULT_PUMP_TIME, {
+    {MOTOR_TIME_POLICY, MILK_BOOST_MODE_DEFAULT_PUMP_TIME, {
+        MOTOR_PARAM_TABLE, {SUCTION_SPEED_MID, BREAST_PUMP_LEVEL_1, SUCTION_MODE_LONG},
+        {1, PUMP_MODE_DEFAULT_PERIOD}}
+        },
+    {MOTOR_TIME_POLICY, MILK_BOOST_MODE_DEFAULT_MASSAGE_TIME, {
+        MOTOR_PARAM_TABLE, {SUCTION_SPEED_MID, BREAST_PUMP_LEVEL_1, SUCTION_MODE_SHORT},
+        {1, PUMP_MODE_DEFAULT_PERIOD}}
+        },
+    {MOTOR_TIME_POLICY, MILK_BOOST_MODE_DEFAULT_PUMP_TIME, {
         MOTOR_PARAM_TABLE, {SUCTION_SPEED_MID, BREAST_PUMP_LEVEL_1, SUCTION_MODE_LONG},
         {1, PUMP_MODE_DEFAULT_PERIOD}}
         },
@@ -188,27 +253,6 @@ static const motor_policy_cfg_t pp_milk_track_default[PP_MODE_LEN] = {
         {1, PUMP_MODE_DEFAULT_PERIOD}}
         },
     {MOTOR_TIME_POLICY, POWER_PUMPING_MODE_PUMP_TIME_7MIN, {
-        MOTOR_PARAM_TABLE, {SUCTION_SPEED_MID, BREAST_PUMP_LEVEL_1, SUCTION_MODE_LONG},
-        {1, PUMP_MODE_DEFAULT_PERIOD}}
-        },
-};
-
-/// 4 Milk Boost 增加泌乳：丝滑渐进式的吸力分布，解决乳汁分泌不足问题
-/// 20 min：刺激 2min + 吸乳 8min+ 刺激 2min + 吸乳 8min
-static const motor_policy_cfg_t milk_boost_default[MILK_BOOST_MODE_LEN] = {
-    {MOTOR_TIME_POLICY, MILK_BOOST_MODE_DEFAULT_MASSAGE_TIME, {
-        MOTOR_PARAM_TABLE, {SUCTION_SPEED_MID, BREAST_PUMP_LEVEL_1, SUCTION_MODE_SHORT},
-        {1, PUMP_MODE_DEFAULT_PERIOD}}
-        },
-    {MOTOR_TIME_POLICY, MILK_BOOST_MODE_DEFAULT_PUMP_TIME, {
-        MOTOR_PARAM_TABLE, {SUCTION_SPEED_MID, BREAST_PUMP_LEVEL_1, SUCTION_MODE_LONG},
-        {1, PUMP_MODE_DEFAULT_PERIOD}}
-        },
-    {MOTOR_TIME_POLICY, MILK_BOOST_MODE_DEFAULT_MASSAGE_TIME, {
-        MOTOR_PARAM_TABLE, {SUCTION_SPEED_MID, BREAST_PUMP_LEVEL_1, SUCTION_MODE_SHORT},
-        {1, PUMP_MODE_DEFAULT_PERIOD}}
-        },
-    {MOTOR_TIME_POLICY, MILK_BOOST_MODE_DEFAULT_PUMP_TIME, {
         MOTOR_PARAM_TABLE, {SUCTION_SPEED_MID, BREAST_PUMP_LEVEL_1, SUCTION_MODE_LONG},
         {1, PUMP_MODE_DEFAULT_PERIOD}}
         },
@@ -260,19 +304,6 @@ static const motor_policy_cfg_t lactation_start_default[LACTATION_START_MODE_LEN
         },
 };
 
-/// 3 Regular Pumping 常规韵律（默认）：由高频轻吸变为低频深吸，模仿婴儿自然的吸吮动作
-/// 21.5 min：刺激 1.5min + 吸乳 20min
-static const motor_policy_cfg_t regular_pumping_default[REGULAR_PUMPING_MODE_LEN] = {
-    {MOTOR_TIME_POLICY, REGULAR_PUMPING_MODE_STIMULATION_TIME, {
-        MOTOR_PARAM_TABLE, {SUCTION_SPEED_MID, BREAST_PUMP_LEVEL_1, SUCTION_MODE_SHORT},
-        {1, PUMP_MODE_DEFAULT_PERIOD}}
-        },
-    {MOTOR_TIME_POLICY, REGULAR_PUMPING_MODE_PUMP_TIME, {
-        MOTOR_PARAM_TABLE, {SUCTION_SPEED_MID, BREAST_PUMP_LEVEL_1, SUCTION_MODE_LONG},
-        {1, PUMP_MODE_DEFAULT_PERIOD}}
-        },
-};
-
 /// 7 Emptying Boost 追加排空：有效将后乳（Hindmilk）排空，更安心投入后续生活
 /// 22 min：刺激 2min+吸乳 5min+混合 15min；Level 3
 static const motor_policy_cfg_t emptying_boost_default[EMPTYING_BOOST_MODE_LEN] = {
@@ -292,6 +323,30 @@ static const motor_policy_cfg_t emptying_boost_default[EMPTYING_BOOST_MODE_LEN] 
         MOTOR_PARAM_TABLE, {SUCTION_SPEED_MID, BREAST_PUMP_LEVEL_1, SUCTION_MODE_MIX_LONG},
         {1, PUMP_MODE_DEFAULT_PERIOD}}
         },   
+};
+
+/// 8 个性化默认
+static const motor_policy_cfg_t custom_default[CUSTOM_MODE_LEN] = {
+    {MOTOR_TIME_POLICY, CUSTOM_MODE_DEFAULT_MASSAGE_TIME, {
+        MOTOR_PARAM_TABLE, {SUCTION_SPEED_MID, BREAST_PUMP_LEVEL_1, SUCTION_MODE_SHORT},
+        {1, PUMP_MODE_DEFAULT_PERIOD}}
+        },
+    {MOTOR_TIME_POLICY, CUSTOM_MODE_DEFAULT_PUMP_TIME, {
+        MOTOR_PARAM_TABLE, {SUCTION_SPEED_MID, BREAST_PUMP_LEVEL_1, SUCTION_MODE_LONG},
+        {1, PUMP_MODE_DEFAULT_PERIOD}}
+        },
+};
+
+/// 9 个性化试用模式
+static const motor_policy_cfg_t custom_trial_default[CUSTOM_TRIAL_MODE_LEN] = {
+    {MOTOR_TIME_POLICY, CUSTOM_MODE_DEFAULT_MASSAGE_TIME, {
+        MOTOR_PARAM_TABLE, {SUCTION_SPEED_MID, BREAST_PUMP_LEVEL_1, SUCTION_MODE_SHORT},
+        {1, PUMP_MODE_DEFAULT_PERIOD}}
+        },
+    {MOTOR_TIME_POLICY, CUSTOM_MODE_DEFAULT_PUMP_TIME, {
+        MOTOR_PARAM_TABLE, {SUCTION_SPEED_MID, BREAST_PUMP_LEVEL_1, SUCTION_MODE_LONG},
+        {1, PUMP_MODE_DEFAULT_PERIOD}}
+        },
 };
 
 /// Relax 放松模式：0档休息模式，帮助放松和恢复
