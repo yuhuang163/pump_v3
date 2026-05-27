@@ -809,6 +809,7 @@ static void make_progress(void)
     if (hook && hook->make_progress_route) {
         notify_id = hook->make_progress_route(breast_pump_obj, &breast_pump_obj->priv.result_info[BREAST_PUMP_RESULT_PUMPING]);
         if (notify_id == RESULT_PUMP_FINISH || notify_id == RESULT_PUMP_LOW_POWER) {
+            WRITE_PUMP_WORK_STATUS(breast_pump_obj, BREAST_PUMP_FINISH, 1); /// 设置泵奶状态为完成.
             if (get_timestamp_ms(notify_time) > 5000) {
                 notify_time = get_timestamp();
                 SEND_BROADCAST_ARGS1(ID_BROADCAST_BREAST_PUMP_STATE_CHANGE, BREAST_PUMP_BROADCAST_COMPLETED);
