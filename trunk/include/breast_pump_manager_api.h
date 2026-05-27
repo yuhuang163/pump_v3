@@ -137,6 +137,7 @@ typedef struct pump_result_info {
     uint32_t target_total_time;         /// 目标最大工作时长（含暂停）
     uint32_t work_total_time;           /// 泵奶总时长(含暂停)
     uint32_t current_mode_work_time;    /// 当前模式运行时间（不含暂停）
+    uint32_t hostory_work_time;         /// 历史运行时间（不含暂停）
     pump_setting_t setting[ROOT_BREAST_PUMP_STEP_MAX];
 } pump_result_info_t;
 
