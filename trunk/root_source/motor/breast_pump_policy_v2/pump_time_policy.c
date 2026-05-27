@@ -154,7 +154,8 @@ int pump_time_policy_update(struct motor_manager_context *thiz, motor_policy_run
             runtime->current_timed_policy_index++;
             runtime->timed_policy = runtime->timed_policy->next;
             runtime->time_policy_target_time += runtime->timed_policy->duration_seconds;
-            runtime->time_policy_remaining_time = runtime->time_policy_target_time - runtime->policy_running_time_ms/1000;
+            runtime->time_policy_remaining_time = runtime->time_policy_target_time - 
+                        (runtime->policy_running_time_ms / 1000);
             runtime->current_mode_type = pump_policy_type_get(runtime->timed_policy->policy); 
             runtime->current_policy_mode_type = pump_policy_mode_type_get(runtime->timed_policy->policy);
             if (runtime->timed_policy->next) {

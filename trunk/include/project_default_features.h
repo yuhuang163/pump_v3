@@ -76,100 +76,112 @@ extern "C" {
 */
 /// 刺激模式参数长度，短吸
 #ifndef STIMULATION_MODE_LEN             
-#define STIMULATION_MODE_LEN                                         (1)
-#define STIMULATION_MODE_MAX_STEPS                                    (1)
+#define STIMULATION_MODE_SUB_POLICY_NUM                               (0) /// 子策略个数
+#define STIMULATION_MODE_STEP_NUM                                     (1) /// 阶段数
+#define STIMULATION_MODE_LEN                                          (STIMULATION_MODE_SUB_POLICY_NUM + STIMULATION_MODE_STEP_NUM)
 #endif
 
 /// 吸乳模式参数长度，长吸
 #ifndef PUMP_MODE_LEN
-#define PUMP_MODE_LEN                                                (1)
-#define PUMP_MODE_MAX_STEPS                                            (1)
+#define PUMP_MODE_SUB_POLICY_NUM                                      (0) /// 子策略个数
+#define PUMP_MODE_STEP_NUM                                            (1) /// 阶段数
+#define PUMP_MODE_LEN                                                 (PUMP_MODE_SUB_POLICY_NUM + PUMP_MODE_STEP_NUM)
 #endif
 
 /// 混合模式参数长度，5短吸 + 长吸
 #ifndef MIX_MODE_LEN
-#define MIX_MODE_LEN                                                 (1 * 2)
-#define MIX_MODE_MAX_STEPS                                            (1)
+#define MIX_MODE_SUB_POLICY_NUM                                       (1) /// 子策略个数
+#define MIX_MODE_STEP_NUM                                             (1) /// 阶段数
+#define MIX_MODE_LEN                                                  (MIX_MODE_SUB_POLICY_NUM + MIX_MODE_STEP_NUM)
 #endif
 
 /// 混合模式2参数长度，两短吸 + 长吸
 #ifndef MIX2_MODE_LEN
-#define MIX2_MODE_LEN                                                 (1 * 2)
-#define MIX2_MODE_MAX_STEPS                                            (1)
+#define MIX2_MODE_SUB_POLICY_NUM                                      (1) /// 子策略个数
+#define MIX2_MODE_STEP_NUM                                            (1) /// 阶段数
+#define MIX2_MODE_LEN                                                 (MIX2_MODE_SUB_POLICY_NUM + MIX2_MODE_STEP_NUM)
 #endif
 
 /// 个性化模式默认参数长度，按摩 + 吸乳
 #ifndef CUSTOM_MODE_LEN 
-#define CUSTOM_MODE_LEN                                               (1 + 1)
-#define CUSTOM_MODE_MAX_STEPS                                         (2)
+#define CUSTOM_MODE_SUB_POLICY_NUM                                    (0) /// 子策略个数
+#define CUSTOM_MODE_STEP_NUM                                          (2) /// 阶段数
+#define CUSTOM_MODE_LEN                                               (CUSTOM_MODE_SUB_POLICY_NUM + CUSTOM_MODE_STEP_NUM)
 #endif
 
 /// 个性化试用模式参数长度，按摩 + 吸乳
 #ifndef CUSTOM_TRIAL_MODE_LEN 
-#define CUSTOM_TRIAL_MODE_LEN                                         (1 + 1)
-#define CUSTOM_TRIAL_MODE_MAX_STEPS                                   (2)
+#define CUSTOM_TRIAL_SUB_POLICY_NUM                                   (0) /// 子策略个数
+#define CUSTOM_TRIAL_STEP_NUM                                         (2) /// 阶段数
+#define CUSTOM_TRIAL_MODE_LEN                                         (CUSTOM_TRIAL_SUB_POLICY_NUM + CUSTOM_TRIAL_STEP_NUM)
 #endif
 
 /// Power Pumping模式参数长度（9个阶段）
 #ifndef PP_MODE_LEN 
-#define PP_MODE_LEN                                                  (9 * 1)
-#define PP_MODE_MAX_STEPS                                            (9)
+#define PP_MODE_SUB_POLICY_NUM                                        (0) /// 子策略个数
+#define PP_MODE_STEP_NUM                                              (9) /// 阶段数
+#define PP_MODE_LEN                                                   (PP_MODE_SUB_POLICY_NUM + PP_MODE_STEP_NUM)
 #endif
 
 /// 2+8奶量提升模式参数长度（按摩2分钟+泌乳8分钟，重复2次，共4个阶段）
 #ifndef MILK_BOOST_MODE_LEN 
-#define MILK_BOOST_MODE_LEN                                          (4 * 1)
-#define MILK_BOOST_MODE_MAX_STEPS                                      (4)
+#define MILK_BOOST_SUB_POLICY_NUM                                     (0) /// 子策略个数
+#define MILK_BOOST_STEP_NUM                                           (4) /// 阶段数
+#define MILK_BOOST_MODE_LEN                                           (MILK_BOOST_SUB_POLICY_NUM + MILK_BOOST_STEP_NUM)
 #endif
 
 /// 开奶模式（Lactation Kickstart）参数长度（8个阶段，含2段混合子策略共10条）
 #ifndef LACTATION_START_MODE_LEN 
-#define LACTATION_START_MODE_LEN                                     (8 + 2 * 2)
-#define LACTATION_START_MODE_MAX_STEPS                                (8)
+#define LACTATION_START_SUB_POLICY_NUM                                (2) /// 子策略个数
+#define LACTATION_START_STEP_NUM                                      (8) /// 阶段数
+#define LACTATION_START_MODE_LEN                                      (LACTATION_START_SUB_POLICY_NUM + LACTATION_START_STEP_NUM)
 #endif
 
 /// 常规韵律模式参数长度（刺激1.5分钟+吸乳20分钟，共2个阶段）
 #ifndef REGULAR_PUMPING_MODE_LEN 
-#define REGULAR_PUMPING_MODE_LEN                                     (2 * 1)
-#define REGULAR_PUMPING_MODE_MAX_STEPS                                (2)
+#define REGULAR_PUMPING_SUB_POLICY_NUM                                (0) /// 子策略个数
+#define REGULAR_PUMPING_STEP_NUM                                      (2) /// 阶段数
+#define REGULAR_PUMPING_MODE_LEN                                      (REGULAR_PUMPING_SUB_POLICY_NUM + REGULAR_PUMPING_STEP_NUM)
 #endif
 
 /// 追加排空模式参数长度（刺激2分钟+吸乳15分钟+混合15分钟，共3个阶段）
 #ifndef EMPTYING_BOOST_MODE_LEN 
-#define EMPTYING_BOOST_MODE_LEN                                      (2 + 1*2)
-#define EMPTYING_BOOST_MODE_MAX_STEPS                                (3)
+#define EMPTYING_BOOST_SUB_POLICY_NUM                                 (1) /// 子策略个数
+#define EMPTYING_BOOST_STEP_NUM                                       (3) /// 阶段数
+#define EMPTYING_BOOST_MODE_LEN                                       (EMPTYING_BOOST_SUB_POLICY_NUM + EMPTYING_BOOST_STEP_NUM)
 #endif
 
 /// Relax模式参数长度（休息模式，1个阶段）
 #ifndef RELAX_MODE_LEN 
-#define RELAX_MODE_LEN                                               (1 * 1)
-#define RELAX_MODE_MAX_STEPS                                          (1)
+#define RELAX_MODE_SUB_POLICY_NUM                                     (0) /// 子策略个数
+#define RELAX_MODE_STEP_NUM                                           (1) /// 阶段数
+#define RELAX_MODE_LEN                                                (RELAX_MODE_SUB_POLICY_NUM + RELAX_MODE_STEP_NUM)
 #endif
 
 /// 吸奶器泵数据
 #ifndef BREAST_PUMP_NUM
-#define BREAST_PUMP_NUM                                              (2)
+#define BREAST_PUMP_NUM                                               (2)
 #endif
 
 /**
  * 陀螺仪在线标定支持.
 */
 #ifndef IS_USE_GYRO_ONLINE_CALI
-#define IS_USE_GYRO_ONLINE_CALI                                      (0)
+#define IS_USE_GYRO_ONLINE_CALI                                       (0)
 #endif
 
 /**
  * imu fifo支持.
 */
 #ifndef IS_SUPPORT_IMU_FIFO
-#define IS_SUPPORT_IMU_FIFO                                         (0)
+#define IS_SUPPORT_IMU_FIFO                                           (0)
 #endif
 
 /**
  * 仅支持power key开机
 */
 #ifndef IS_SUPPORT_POWER_OFF_WHEN_CHARGING
-#define IS_SUPPORT_POWER_OFF_WHEN_CHARGING                              (0)
+#define IS_SUPPORT_POWER_OFF_WHEN_CHARGING                            (0)
 #endif
 
 #ifdef __cplusplus
