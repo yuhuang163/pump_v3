@@ -256,7 +256,8 @@ static void on_connect_status_change(ble_manager_context_t *ctx, int new_status,
     /// 如果系统处于休眠或空闲状态，唤醒系统 
     power_manager_context_t *pm = (power_manager_context_t *)find_module(ID_MODULE_POWER);
     EXCEPTION_CHECK_VOID(pm);
-    if (pm->is_pm_suspend() || pm->is_pm_idle()) {
+    ///唤醒和重置计数器
+    if (pm) {
         pm->pm_wakeup(PM_WAKEUP_REASON_BLE_REQ);
     }
     
