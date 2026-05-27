@@ -131,21 +131,14 @@ typedef struct motor_manager_context {
     int (*set_runtime_policy_index)(motor_policy_type_e type, int index);
     /// 获取模式类型
     uint8_t (*get_runtime_mode_type)(uint8_t is_next_mode);
-    /// 获取当前策略运行的模式类型
-    uint8_t (*get_runtime_policy_mode_type)(void);
     /// 获取当前时间策略剩余时间，单位s
     uint32_t (*get_time_policy_remaining_time)(void);
     /// 设置当前时间策略剩余时间，单位s
     int (*set_time_policy_remaining_time)(uint32_t remaining_time);
-    /// 获取当前策略泵档位对应的pump目标时间，单位ms
-    uint32_t (*get_current_policy_pump_time)(uint8_t pump_id);
     /// 获取当前泵奶参数表
     uint8_t (*get_local_suction_table)(factory_suction_para_t **suction_para);
-#if MOTOR_DRIVER_VERSION == MOTOR_DRIVER_V2
     /// 获取策略运行时间，单位ms
     uint32_t (*get_policy_running_time)(void);
-#endif
-    uint32_t (*get_current_time_policy_remaining_time)(void);
     /// 获取所有定时策略执行完毕标志
     uint8_t (*get_timed_policy_finish_flag)(void);
     /// 外部钩子函数.
