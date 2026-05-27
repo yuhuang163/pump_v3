@@ -30,10 +30,11 @@
 static void home_pump_speed_ui_display_completed_cb(hdr_post_args_t *args)
 {
     ui_proc_home_t *proc = (ui_proc_home_t *)args->user_data;
-    EXCEPTION_CHECK_VOID(proc);
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_HOME);
+    EXCEPTION_CHECK_VOID(proc->pump);
     if (proc->current_ui_type != HOME_UI_TYPE_SPEED_ADJUST) {
         LOG_UI("ui type error, ignore.");
+        return;
     }
 
     if (proc->speed_sync_flag) {
@@ -57,9 +58,9 @@ static void home_pump_speed_popup_ui_finish_policy(ui_manager_context_t *ui, uin
 
 static void home_pump_speed_ui_after_policy(ui_manager_context_t *ui, int index)
 {
-    ui_display_home_pump_speed_process(ui);
     ui_proc_home_t *proc = (ui_proc_home_t *)ui->priv.play_info.user_data;
-    EXCEPTION_CHECK_VOID(proc);
+    WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_HOME);
+    ui_display_home_pump_speed_process(ui);
     uint32_t time_diff = get_timestamp_ms(proc->last_progress_ani_time);
     if (time_diff >= HOME_PUMP_SPEED_DISPLAY_TIMEOUT) {
         proc->speed_sync_flag = false;
@@ -77,7 +78,6 @@ static void home_pump_speed_animation_progress_cb(void *user_data, int index, ui
 {
     ui_manager_context_t *ui = user_data;
     EXCEPTION_CHECK_VOID(ui);
-    ui_animation_play_t *ani = &ui->priv.play_info;
     switch (state) {
         case ANI_TIMER_DRAW_FINISH:
             break;

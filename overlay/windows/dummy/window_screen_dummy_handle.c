@@ -38,12 +38,10 @@ INIT_WINDOW_CONTEXT();
 */
 static int wakup_enter_new_window_policy(ui_proc_dummy_t *proc, int wakeup_reason)
 {
+    WINDOW_CONTEXT_GUARD_INT(proc, ID_WINDOW_DUMMY, 0);   
     tests_manager_context_t *tests = proc->tests;
-    EXCEPTION_CHECK_INT(tests);
-    EXCEPTION_CHECK_INT(proc->pm);
-    WINDOW_CONTEXT_GUARD_INT(proc, ID_WINDOW_DUMMY, 0);
     multi_func_msg_data_t msg = {0};
-    if (tests->tests_manager_get_current_mode() != TST_NONE_TYPE) {
+    if (tests && tests->tests_manager_get_current_mode() != TST_NONE_TYPE) {
         msg.union_body.extra.window_id = ID_WINDOW_PRODUCT_TEST_MODE;
         LOG_WM("goto product test mode window.");
     } else {
@@ -59,7 +57,6 @@ static void dummy_broadcast_receive_ui_cb(hdr_post_args_t *args)
     window_broadcast_args_t *bcd_args = (window_broadcast_args_t *)args->user_data;
     EXCEPTION_CHECK_VOID(bcd_args);
     ui_proc_dummy_t *proc = (ui_proc_dummy_t *)bcd_args->context;
-    EXCEPTION_CHECK_VOID(proc);
     WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_DUMMY);
     if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
         LOG_WM("wm not running, ignore.");
@@ -84,7 +81,7 @@ static void on_dummy_window_receive(broadcast_mask_id_t id, void *context,
                                  int32_t arg1, int32_t arg2, broadcast_priv_data_t *pdata)
 {
     ui_proc_dummy_t *proc = (ui_proc_dummy_t *)context;
-    EXCEPTION_CHECK_VOID(proc);
+    WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_DUMMY);
     if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
         LOG_WM("wm not running, ignore.");
         return;
@@ -104,7 +101,6 @@ static void on_dummy_window_receive(broadcast_mask_id_t id, void *context,
 static int on_dummy_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t keytype)
 {
     ui_proc_dummy_t *proc = user_data;
-    EXCEPTION_CHECK_INT(proc);
     WINDOW_CONTEXT_GUARD_INT(proc, ID_WINDOW_DUMMY, 0);
     if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
         LOG_WM("wm not running, ignore.");

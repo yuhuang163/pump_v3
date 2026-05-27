@@ -262,7 +262,6 @@ typedef struct {
     uint8_t taste_run_flag; /// 体验模式运行标志
     uint8_t current_mode_type; /// 当前模式类型
     uint8_t next_mode_type; /// 下一个模式类型
-    uint8_t current_policy_mode_type; /// 当前策略运行的模式类型（长吸/短吸/idle）
     uint8_t breast_pump_mode; /// 泵奶模式
     uint8_t current_timed_policy_index; /// 当前定时策略索引
     uint8_t all_timed_policy_finish_flag; /// 所有定时策略执行完毕标志

@@ -24,13 +24,10 @@
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-static void battery_low_power_ui_before_policy(ui_manager_context_t *ui, int index)
-{
-
-}
-
 static void battery_low_power_ui_after_policy(ui_manager_context_t *ui, int index)
 {
+    ui_proc_battery_t *proc = (ui_proc_battery_t *)ui->priv.play_info.user_data;
+    WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_BATTERY);
     ui_display_battery_low_power_process(ui);
 }
 
@@ -42,7 +39,6 @@ static void battery_low_power_animation_progress_cb(void *user_data, int index, 
         case ANI_TIMER_DRAW_FINISH:
             break;
         case ANI_TIMER_DRAW_BEFORE:
-            battery_low_power_ui_before_policy(ui, index);
             break;
         case ANI_TIMER_DRAW_AFTER:
             battery_low_power_ui_after_policy(ui, index);

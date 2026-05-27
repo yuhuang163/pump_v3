@@ -109,18 +109,6 @@ uint8_t pump_policy_type_get(motor_policy_node_t policy)
     return PUMP_MODE_IDLE;
 }
 
-uint8_t pump_policy_mode_type_get(motor_policy_node_t policy)
-{
-    uint8_t mode_type = policy.core.un.mapping.mode_type;
-    if (mode_type == SUCTION_MODE_SHORT || mode_type == SUCTION_MODE_MIX_SHORT) {
-        return PUMP_MODE_STIMULATION;
-    } else if (mode_type == SUCTION_MODE_LONG || mode_type == SUCTION_MODE_MIX_LONG) {
-        return PUMP_MODE_LACTATION;
-    }
-    //LOG_MOTOR("mode_type:%d", mode_type);
-    return PUMP_MODE_IDLE;
-}
-
 void policy_remaining_time_update(motor_policy_runtime_t *runtime) 
 {
     static uint32_t last_log_time = 0;
@@ -154,9 +142,9 @@ int pump_time_policy_update(struct motor_manager_context *thiz, motor_policy_run
             runtime->current_timed_policy_index++;
             runtime->timed_policy = runtime->timed_policy->next;
             runtime->time_policy_target_time += runtime->timed_policy->duration_seconds;
-            runtime->time_policy_remaining_time = runtime->time_policy_target_time - runtime->policy_running_time_ms/1000;
+            runtime->time_policy_remaining_time = runtime->time_policy_target_time - 
+                        (runtime->policy_running_time_ms / 1000);
             runtime->current_mode_type = pump_policy_type_get(runtime->timed_policy->policy); 
-            runtime->current_policy_mode_type = pump_policy_mode_type_get(runtime->timed_policy->policy);
             if (runtime->timed_policy->next) {
                 runtime->next_mode_type = pump_policy_type_get(runtime->timed_policy->next->policy);
             } else {
@@ -188,9 +176,9 @@ int pump_time_policy_update(struct motor_manager_context *thiz, motor_policy_run
 
         if (runtime->timed_policy->policy.core.type == MOTOR_PARAM_TABLE) {
             suction_strategy_mapping_t *mapping = &runtime->timed_policy->policy.core.un.mapping;
-            LOG_MOTOR("mode:%d, index:%d, type:%d/%d/%d, time:%d/%d, mapping:%d(%d/%d)", 
+            LOG_MOTOR("mode:%d, index:%d, type:%d/%d, time:%d/%d, mapping:%d(%d/%d)", 
                 runtime->breast_pump_mode, runtime->current_timed_policy_index,
-                runtime->current_mode_type, runtime->next_mode_type, runtime->current_policy_mode_type,
+                runtime->current_mode_type, runtime->next_mode_type,
                 runtime->time_policy_remaining_time, runtime->timed_policy->duration_seconds, 
                 mapping->mode_type, mapping->level, mapping->speed);
         }
@@ -235,7 +223,6 @@ int pump_time_policy_update(struct motor_manager_context *thiz, motor_policy_run
                     } else {
                         memcpy(&runtime->policy[i], &runtime->timed_policy->policy, sizeof(motor_policy_node_t));  
                     }
-                    runtime->current_policy_mode_type = pump_policy_mode_type_get(runtime->policy[i]);
                     pump_policy_info_reset(thiz, runtime, i);
                 }
             }

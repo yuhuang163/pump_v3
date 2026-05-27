@@ -1,5 +1,4 @@
 #include "v3_target_curve_table.h"
-#define LONGYI_OR_SHIGUANG  0 //1: 龙一, 0: 时光
 /*
  * 目标曲线占位表：
  * 1. 先保留一个无效项，这样即使曲线还没补全，工程也能先编译。
@@ -589,7 +588,7 @@ const STARGET_CURVE_ITEM g_target_curve_table[] =
     {
         6u,
         220u,
-        -5.0f,
+        -3.5f,
         -7.2f,
         (unsigned short)(sizeof(g_stim_60_220_p1) / sizeof(g_stim_60_220_p1[0])),
         g_stim_60_220_p1
@@ -598,7 +597,7 @@ const STARGET_CURVE_ITEM g_target_curve_table[] =
     {
         7u,
         230u,
-        -6.0f,
+        -4.0f,
         -8.6f,
         (unsigned short)(sizeof(g_stim_70_230_p1) / sizeof(g_stim_70_230_p1[0])),
         g_stim_70_230_p1
@@ -607,7 +606,7 @@ const STARGET_CURVE_ITEM g_target_curve_table[] =
     {
         9u,
         230u,
-        -8.0f,
+        -4.5f,
         -9.8f,
         (unsigned short)(sizeof(g_stim_90_230_p1) / sizeof(g_stim_90_230_p1[0])),
         g_stim_90_230_p1
@@ -616,7 +615,7 @@ const STARGET_CURVE_ITEM g_target_curve_table[] =
     {
         10u,
         240u,
-        -10.0f,
+        -5.0f,
         -11.7f,
         (unsigned short)(sizeof(g_stim_100_240_p1) / sizeof(g_stim_100_240_p1[0])),
         g_stim_100_240_p1
@@ -625,7 +624,7 @@ const STARGET_CURVE_ITEM g_target_curve_table[] =
     {
         12u,
         245u,
-        -11.0f,
+        -5.5f,
         -13.3f,
         (unsigned short)(sizeof(g_stim_120_245_p1) / sizeof(g_stim_120_245_p1[0])),
         g_stim_120_245_p1
@@ -634,7 +633,7 @@ const STARGET_CURVE_ITEM g_target_curve_table[] =
     {
         13u,
         270u,
-        -12.0f,
+        -6.0f,
         -13.7f,
         (unsigned short)(sizeof(g_stim_130_270_p1) / sizeof(g_stim_130_270_p1[0])),
         g_stim_130_270_p1
@@ -652,7 +651,7 @@ const STARGET_CURVE_ITEM g_target_curve_table[] =
     {
         15u,
         287u,
-        -12.0f,
+        -8.0f,
         -16.5f,
         (unsigned short)(sizeof(g_stim_150_287_p1) / sizeof(g_stim_150_287_p1[0])),
         g_stim_150_287_p1
@@ -661,7 +660,7 @@ const STARGET_CURVE_ITEM g_target_curve_table[] =
     {
         17u,
         272u,
-        -15.0f,
+        -9.0f,
         -18.0f,
         (unsigned short)(sizeof(g_stim_170_272_p1) / sizeof(g_stim_170_272_p1[0])),
         g_stim_170_272_p1
@@ -679,7 +678,7 @@ const STARGET_CURVE_ITEM g_target_curve_table[] =
     {
         19u,
         300u,
-        -17.0f,
+        -18.0f,
         -20.2f,
         (unsigned short)(sizeof(g_stim_190_300_p1) / sizeof(g_stim_190_300_p1[0])),
         g_stim_190_300_p1
@@ -706,7 +705,7 @@ const STARGET_CURVE_ITEM g_target_curve_table[] =
     {
         22u,
         330u,
-        -27.5f,
+        -22.0f,
         -23.1f,
         (unsigned short)(sizeof(g_stim_220_330_p1) / sizeof(g_stim_220_330_p1[0])),
         g_stim_220_330_p1
@@ -715,7 +714,7 @@ const STARGET_CURVE_ITEM g_target_curve_table[] =
     {
         23u,
         328u,
-        -28.0f,
+        -23.0f,
         -24.5f,
         (unsigned short)(sizeof(g_stim_230_328_p1) / sizeof(g_stim_230_328_p1[0])),
         g_stim_230_328_p1
@@ -733,7 +732,7 @@ const STARGET_CURVE_ITEM g_target_curve_table[] =
     {
         6u,
         340u,
-        -5.5f,
+        -4.5f,
         -7.4f,
         (unsigned short)(sizeof(g_expr_60_340_p1) / sizeof(g_expr_60_340_p1[0])),
         g_expr_60_340_p1
@@ -742,7 +741,7 @@ const STARGET_CURVE_ITEM g_target_curve_table[] =
     {
         10u,
         406u,
-        -8.0f,
+        -5.0f,
         -10.5f,
         (unsigned short)(sizeof(g_expr_100_406_p1) / sizeof(g_expr_100_406_p1[0])),
         g_expr_100_406_p1
@@ -751,7 +750,7 @@ const STARGET_CURVE_ITEM g_target_curve_table[] =
     {
         13u,
         452u,
-        -11.0f,
+        -6.0f,
         -14.2f,
         (unsigned short)(sizeof(g_expr_130_452_p1) / sizeof(g_expr_130_452_p1[0])),
         g_expr_130_452_p1
@@ -761,7 +760,7 @@ const STARGET_CURVE_ITEM g_target_curve_table[] =
     {
         15u,
         472u,
-        -17.5f,
+        -7.5f,
         -17.1f,
         (unsigned short)(sizeof(g_expr_150_472p1) / sizeof(g_expr_150_472p1[0])),
         g_expr_150_472p1
@@ -770,7 +769,7 @@ const STARGET_CURVE_ITEM g_target_curve_table[] =
     {
         18u,
         492u,
-        -19.0f,
+        -11.0f,
         -19.4f,
         (unsigned short)(sizeof(g_expr_180_492_p1) / sizeof(g_expr_180_492_p1[0])),
         g_expr_180_492_p1
@@ -780,7 +779,7 @@ const STARGET_CURVE_ITEM g_target_curve_table[] =
     {
         20u,
         528u,
-        -23.0f,
+        -11.0f,
         -22.3f,
         (unsigned short)(sizeof(g_expr_200_528_p1) / sizeof(g_expr_200_528_p1[0])),
         g_expr_200_528_p1
@@ -789,7 +788,7 @@ const STARGET_CURVE_ITEM g_target_curve_table[] =
     {
         22u,
         560u,
-        -24.0f,
+        -16.0f,
         -24.0f,
         (unsigned short)(sizeof(g_expr_220_560_p1) / sizeof(g_expr_220_560_p1[0])),
         g_expr_220_560_p1
@@ -798,7 +797,7 @@ const STARGET_CURVE_ITEM g_target_curve_table[] =
     {
         24u,
         622u,
-        -28.0f,
+        -18.0f,
         -25.4f,
         (unsigned short)(sizeof(g_expr_240_622_p1) / sizeof(g_expr_240_622_p1[0])),
         g_expr_240_622_p1
@@ -807,7 +806,7 @@ const STARGET_CURVE_ITEM g_target_curve_table[] =
     {
         26u,
         632u,
-        -29.0f,
+        -18.0f,
         -28.3f,
         (unsigned short)(sizeof(g_expr_260_632_p1) / sizeof(g_expr_260_632_p1[0])),
         g_expr_260_632_p1
@@ -816,7 +815,7 @@ const STARGET_CURVE_ITEM g_target_curve_table[] =
     {
         28u,
         660u,
-        -33.0f,
+        -21.0f,
         //-35.0f,
         -30.4f,
         (unsigned short)(sizeof(g_expr_280_660_p1) / sizeof(g_expr_280_660_p1[0])),
@@ -826,7 +825,7 @@ const STARGET_CURVE_ITEM g_target_curve_table[] =
     {
         30u,
         647u,
-        -37.0f,
+        -28.0f,
         //-35.0f,
         -32.5f,
         (unsigned short)(sizeof(g_expr_300_647_p1) / sizeof(g_expr_300_647_p1[0])),
@@ -836,7 +835,7 @@ const STARGET_CURVE_ITEM g_target_curve_table[] =
     {
         31u,
         705u,
-        -39.5f,
+        -29.0f,
         //-40.0f,
         -34.8f,
         (unsigned short)(sizeof(g_expr_310_705_p1) / sizeof(g_expr_310_705_p1[0])),
@@ -846,7 +845,7 @@ const STARGET_CURVE_ITEM g_target_curve_table[] =
     {
         33u,
         684u,
-        -41.5f,
+        -31.0f,
         //-40.0f,
         -36.0f,
         (unsigned short)(sizeof(g_expr_330_684_p1) / sizeof(g_expr_330_684_p1[0])),
@@ -856,7 +855,7 @@ const STARGET_CURVE_ITEM g_target_curve_table[] =
     {
         35u,
         718u,
-        -42.5f,
+        -33.0f,
         //-40.0f,
         -37.8f,
         (unsigned short)(sizeof(g_expr_350_718_p1) / sizeof(g_expr_350_718_p1[0])),
@@ -866,7 +865,7 @@ const STARGET_CURVE_ITEM g_target_curve_table[] =
     {
         36u,
         708u,
-        -45.0f,
+        -40.0f,
         //-40.0f,
         -39.0f,
         (unsigned short)(sizeof(g_expr_360_708_p1) / sizeof(g_expr_360_708_p1[0])),

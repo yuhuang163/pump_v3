@@ -28,7 +28,6 @@
 static void home_pump_normal_mode_ui_display_completed_cb(hdr_post_args_t *args)
 {
     ui_proc_home_t *proc = (ui_proc_home_t *)args->user_data;
-    EXCEPTION_CHECK_VOID(proc);
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_HOME);
     if (proc->current_ui_type == HOME_UI_TYPE_NORMAL_MODE_SELECT) {
         start_home_ui_animation(proc);
@@ -37,9 +36,9 @@ static void home_pump_normal_mode_ui_display_completed_cb(hdr_post_args_t *args)
 
 static void home_pump_normal_mode_ui_after_policy(ui_manager_context_t *ui, int index)
 {
-    ui_display_home_pump_normal_mode_process(ui);
     ui_proc_home_t *proc = (ui_proc_home_t *)ui->priv.play_info.user_data;
-    EXCEPTION_CHECK_VOID(proc);
+    WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_HOME);
+    ui_display_home_pump_normal_mode_process(ui);
     if (get_timestamp_ms(proc->last_progress_ani_time) >= HOME_MODE_SELECT_DISPLAY_TIME) {
         proc->last_progress_ani_time = get_timestamp();
         LOG_UI("normal mode ui timeout: %d", proc->last_progress_ani_time);
@@ -51,7 +50,6 @@ static void home_pump_normal_mode_animation_progress_cb(void *user_data, int ind
 {
     ui_manager_context_t *ui = user_data;
     EXCEPTION_CHECK_VOID(ui);
-    ui_animation_play_t *ani = &ui->priv.play_info;
     switch (state) {
         case ANI_TIMER_DRAW_FINISH:
             break;

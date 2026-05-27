@@ -29,7 +29,6 @@
 static void pump_mode_display_completed_cb(hdr_post_args_t *args)
 {
     ui_proc_pump_t *proc = (ui_proc_pump_t *)args->user_data;
-    EXCEPTION_CHECK_VOID(proc && proc->wm && proc->pump);
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_PUMP);
     if (proc->current_ui_type != PUMP_UI_TYPE_COMMON_MODE) {
         LOG_UI("ui type error, ignore.");
@@ -41,8 +40,8 @@ static void pump_mode_display_completed_cb(hdr_post_args_t *args)
 static void pump_mode_sync(hdr_post_args_t *args)
 {
     ui_proc_pump_t *proc = (ui_proc_pump_t *)args->user_data;
-    EXCEPTION_CHECK_VOID(proc && proc->wm && proc->pump);
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_PUMP);
+    EXCEPTION_CHECK_VOID(proc->pump);
     if (proc->current_ui_type != PUMP_UI_TYPE_COMMON_MODE) {
         LOG_UI("ui type error, ignore.");
         return;
@@ -56,8 +55,9 @@ static void pump_mode_sync(hdr_post_args_t *args)
 
 static void pump_mode_popup_ui_finish_policy(ui_manager_context_t *ui, uint8_t popup_ui_index)
 {
-    LOG_WM("===> popup %d ui display complete.", popup_ui_index);
     ui_proc_pump_t *proc = (ui_proc_pump_t *)ui->priv.play_info.user_data;
+    WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_PUMP);
+    LOG_WM("===> popup %d ui display complete.", popup_ui_index);
     pump_popup_ui_type_update(proc, ID_POPUP_UI_NONE);
     switch (popup_ui_index) {
         case ID_POPUP_UI_PUMP_FINISH_TIMEOUT:
@@ -78,9 +78,9 @@ static void pump_mode_popup_ui_finish_policy(ui_manager_context_t *ui, uint8_t p
 
 static void pump_mode_ui_after_policy(ui_manager_context_t *ui, int index)
 {
-    ui_display_pump_mode_process(ui);
     ui_proc_pump_t *proc = (ui_proc_pump_t *)ui->priv.play_info.user_data;
-    EXCEPTION_CHECK_VOID(proc);
+    WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_PUMP);
+    ui_display_pump_mode_process(ui);
     if (get_timestamp_ms(proc->last_progress_ani_time) >= PUMP_MODE_DISPLAY_TIMEOUT) {
         proc->mode_sync_flag = false;
         proc->last_progress_ani_time = get_timestamp();
@@ -100,7 +100,6 @@ static void pump_mode_animation_progress_cb(void *user_data, int index, ui_ani_p
 {
     ui_manager_context_t *ui = user_data;
     EXCEPTION_CHECK_VOID(ui);
-    ui_animation_play_t *ani = &ui->priv.play_info;
     switch (state) {
         case ANI_TIMER_DRAW_FINISH:
             break;

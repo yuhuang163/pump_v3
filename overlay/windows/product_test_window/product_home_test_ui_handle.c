@@ -23,7 +23,6 @@
 static void product_home_test_display_completed_cb(hdr_post_args_t *args)
 {
     ui_proc_product_test_t *proc = (ui_proc_product_test_t *)args->user_data;
-    EXCEPTION_CHECK_VOID(proc);
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_PRODUCT_TEST_MODE);
     multi_func_msg_data_t msg = {0};    
     if (proc->battery && proc->battery->is_vbus_plug_in() > 0 &&
@@ -54,6 +53,8 @@ static void product_home_test_display_completed_cb(hdr_post_args_t *args)
 
 static void product_home_test_ui_after_policy(ui_manager_context_t *ui, int index)
 {
+    ui_proc_product_test_t *proc = (ui_proc_product_test_t *)ui->priv.play_info.user_data;
+    WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_PRODUCT_TEST_MODE);
     ui_display_product_tests_home_process(ui);
 #if 0
     ui_proc_product_test_t *proc = (ui_proc_product_test_t *)ui->priv.play_info.user_data;
@@ -67,9 +68,8 @@ static void product_home_test_ui_after_policy(ui_manager_context_t *ui, int inde
 
 static void product_home_test_ui_progress_cb(void *user_data, int index, ui_ani_progress_state_e state)
 {
-    static int ani_interval = 0;
     ui_manager_context_t *ui = user_data;
-    ui_proc_product_test_t *proc = (ui_proc_product_test_t *)ui->priv.play_info.user_data;
+    EXCEPTION_CHECK_VOID(ui);
     switch (state) {
         case ANI_TIMER_DRAW_FINISH:
             break;
