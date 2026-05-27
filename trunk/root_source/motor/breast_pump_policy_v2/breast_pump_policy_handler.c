@@ -192,7 +192,6 @@ static void breast_pump_start_prepare(struct motor_manager_context *thiz, const 
     body->manager = (motor_policy_manager_t *)policy_obj;
     body->timed_policy = &body->manager->head;
     body->current_mode_type = pump_policy_type_get(body->timed_policy->policy);
-    body->current_policy_mode_type = pump_policy_mode_type_get(body->timed_policy->policy);
     if (body->timed_policy->next) {
         body->next_mode_type = pump_policy_type_get(body->timed_policy->next->policy);
     } else {
@@ -214,9 +213,9 @@ static void breast_pump_start_prepare(struct motor_manager_context *thiz, const 
     if (!body->taste_run_flag) {
         thiz->priv.pump_ctx->priv.m_info.step_index = 0;
     }
-    LOG_MOTOR("mode:%d, index:%d, type:%d/%d/%d, time:%d/%d", 
+    LOG_MOTOR("mode:%d, index:%d, type:%d/%d, time:%d/%d", 
         body->breast_pump_mode, body->current_timed_policy_index,
-        body->current_mode_type, body->next_mode_type, body->current_policy_mode_type,
+        body->current_mode_type, body->next_mode_type,
         body->time_policy_remaining_time, body->timed_policy->duration_seconds);
 } 
 
