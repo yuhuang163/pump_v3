@@ -76,9 +76,14 @@ static void airplane_mode_animation_progress_cb(void *user_data, int index, ui_a
         case ANI_TIMER_DRAW_AFTER:
             airplane_mode_ui_after_policy(ui, index);
             break;
-        case ANI_POPUP_DISPLAY_FINISH:
-            POST_WM_TASK_HANDLER_NO_DELAY(airplane_mode_exit_cb, ui, AIRPLANE_MODE_EXIT_TASK_NAME);
+        case ANI_POPUP_DISPLAY_FINISH: {
+            ui_proc_airplane_mode_t *proc = (ui_proc_airplane_mode_t *)ui->priv.play_info.user_data;
+            if (proc && get_timestamp_ms(proc->last_progress_ani_time) >= AIRPLANE_MODE_DISPLAY_TIMEOUT) {
+                proc->last_progress_ani_time = get_timestamp();
+                POST_WM_TASK_HANDLER_NO_DELAY(airplane_mode_exit_cb, ui, AIRPLANE_MODE_EXIT_TASK_NAME);
+            }
             break;
+        }
         default:
             break;
     }
