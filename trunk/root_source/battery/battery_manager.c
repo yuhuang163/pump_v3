@@ -213,13 +213,9 @@ static void polling_charge_status(void *user_data)
     if (plug_status != thiz->priv.is_vbus_plug_in) {
         LOG_MISC("charge plug status change: %d -> %d", thiz->priv.is_vbus_plug_in, plug_status);
         if (thiz->priv.is_vbus_plug_in) {
-            if (pm->is_pm_suspend()) {
-                pm->pm_wakeup(PM_WAKEUP_REASON_CHARGE_PLUG_IN);
-            }
+            pm->pm_wakeup(PM_WAKEUP_REASON_CHARGE_PLUG_IN);
         } else {
-            if (pm->is_pm_suspend()) {
-                pm->pm_wakeup(PM_WAKEUP_REASON_CHARGE_PLUG_OUT);
-            }
+            pm->pm_wakeup(PM_WAKEUP_REASON_CHARGE_PLUG_OUT);
         }
         thiz->priv.is_vbus_plug_in = plug_status;
     }
