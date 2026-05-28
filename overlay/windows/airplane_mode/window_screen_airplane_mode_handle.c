@@ -54,6 +54,23 @@ static int on_airplane_mode_keyevent_hdr(void *user_data, uint16_t keycode, uint
     return 0;
 }
 
+static void on_airplane_mode_window_battery_state_change_cb(void *user_data, battery_state_info_t *info)
+{
+    ui_proc_airplane_mode_t *proc = (ui_proc_airplane_mode_t *)user_data;
+    WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_AIRPLANE_MODE);
+    if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
+        LOG_WM("wm not running, ignore.");
+        return;
+    }
+
+    if (info->charge_status == CHARGE_STATE_ERROR) {
+        LOG_WM("charge status error, goto charge screen.");
+        multi_func_msg_data_t msg = {0};
+        msg.union_body.extra.window_id = ID_WINDOW_CHARGE;
+        proc->wm->dispatch_new_window_args(proc->wm, &msg);
+    }
+}
+
 static int entry_event_cb(window_lift_cycle_e new_state, const struct window_context *thiz, const struct window_context *old_scr)
 {
     ui_proc_airplane_mode_t *proc = CONTAINER_OF(thiz, ui_proc_airplane_mode_t, w_ctx);
@@ -66,6 +83,7 @@ static int entry_event_cb(window_lift_cycle_e new_state, const struct window_con
         LOG_WM("==>%s window on resume", PAGE_NAME_STR);
         ADD_KEYEVENT_CB(proc->key, "airplane_mode_wm", proc, AIRPLANE_MODE_UI_KEY_CODE,
             AIRPLANE_MODE_UI_KEY_TYPE, on_airplane_mode_keyevent_hdr);
+        ADD_BATTERY_STATE_CB(proc->battery, proc, on_airplane_mode_window_battery_state_change_cb);
         proc->window_run_state = WINDOW_RUN_STATE_RUNNING;
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);
@@ -97,6 +115,7 @@ static int exit_event_cb(window_lift_cycle_e new_state, const struct window_cont
             airplane_mode_ui_hdr_remove();
             unregister_broadcast_receiver(&proc->receiver);
             REMOVE_KEYEVENT_CB(proc->key, on_airplane_mode_keyevent_hdr);
+            REMOVE_BATTERY_STATE_CB(proc->battery, on_airplane_mode_window_battery_state_change_cb);
             u_free(proc);
             proc = NULL;
             LOG_WM("%s window on destory--end", PAGE_NAME_STR);

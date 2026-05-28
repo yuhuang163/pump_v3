@@ -32,6 +32,8 @@ static void pump_level_popup_ui_finish_policy(ui_manager_context_t *ui, uint8_t 
     LOG_WM("===> popup %d ui display complete.", popup_ui_index);
     pump_popup_ui_type_update(proc, ID_POPUP_UI_NONE);
     switch (popup_ui_index) {
+        case ID_POPUP_UI_PUMP_FINISH_CHARGE_ERROR:
+        case ID_POPUP_UI_PUMP_FINISH_LOW_POWER:
         case ID_POPUP_UI_PUMP_FINISH_TIMEOUT:
             pump_complete_event_handler(proc);
             break;

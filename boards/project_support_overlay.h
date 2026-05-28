@@ -67,7 +67,6 @@ extern "C" {
 
 /// 叠图功能
 #define IS_SUPPORT_OVERLAY_IMG                           (1)
-#define IS_SUPPORT_ASYNC_RESET_UI_PLAY_INFO              (1)
 /// 振动马达震动功能
 #define IS_SUPPORT_MOTOR_SHAKE                           (0)
 /// 使用在线陀螺仪校准

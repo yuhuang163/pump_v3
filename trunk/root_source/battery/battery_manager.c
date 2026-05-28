@@ -235,18 +235,6 @@ static void polling_charge_status(void *user_data)
                 };  
                 servers_ctx->hook->app_old_protocol_server_data_publish(APP_OLD_COMM_CID_NOTIFY_V3_DEV_ABNORMAL, &args_temp);
             }
-#if IS_SUPPORT_PD_CHARGE_ADAPTER_MISMATCH
-            window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
-            multi_func_msg_data_t __msg = {0};
-            __msg.union_body.extra.is_bg_dispatch = 0x01;
-            __msg.union_body.extra.window_id = ID_WINDOW_CHARGE;
-            if (wm && wm->is_current_window(wm, ID_WINDOW_CHARGE) == 0) {
-                LOG_MISC("goto charge screen");
-                wm->dispatch_new_window_args(wm, &__msg);
-            }
-#else
-            LOG_MISC("charge adapter mismatch ignore");
-#endif
         }
 
         if (thiz->priv.charge_status == CHARGE_STATE_ERROR) {

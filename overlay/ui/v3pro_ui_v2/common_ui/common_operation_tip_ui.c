@@ -78,6 +78,16 @@ const static operation_text_info_t pump_finish_timeout_infos[OPERATION_TIP_TEXT_
     { "Ending automatically", 190, &lv_font_oppo_sans_16_medium, LV_OPA_70, OPERATION_STATUS_TEXT_COLOR},
 };
 
+const static operation_text_info_t pump_finish_charge_error_infos[OPERATION_TIP_TEXT_COUNT] = {
+    { "Incompatible adapter", 159, &lv_font_oppo_sans_20_medium, LV_OPA_100, OPERATION_STATUS_TEXT_COLOR},
+    { "Ending automatically", 190, &lv_font_oppo_sans_16_medium, LV_OPA_70, OPERATION_STATUS_TEXT_COLOR},
+};
+
+const static operation_text_info_t pump_finish_low_power_infos[OPERATION_TIP_TEXT_COUNT] = {
+    { "Low power", 159, &lv_font_oppo_sans_20_medium, LV_OPA_100, OPERATION_STATUS_TEXT_COLOR},
+    { "Ending automatically", 190, &lv_font_oppo_sans_16_medium, LV_OPA_70, OPERATION_STATUS_TEXT_COLOR},
+};
+
 const static operation_text_info_t operation_success_infos[OPERATION_TIP_TEXT_COUNT] = {
     { "Success", 212, &lv_font_oppo_sans_20_medium, LV_OPA_100, OPERATION_TIP_TEXT_COLOR},
     { "", 0, &lv_font_oppo_sans_16_medium, LV_OPA_70, OPERATION_TIP_TEXT_COLOR},
@@ -259,6 +269,10 @@ static const char *common_operation_tip_name_get(ui_manager_context_t *thiz, uin
             return "pump Ending";
         case ID_POPUP_UI_PUMP_FINISH_MANUAL:
             return "pump Manual Ending";
+        case ID_POPUP_UI_PUMP_FINISH_CHARGE_ERROR:
+            return "Incompatible adapter";
+        case ID_POPUP_UI_PUMP_FINISH_LOW_POWER:
+            return "Low power";
         case ID_POPUP_UI_PUMP_PAUSE_TIMEOUT:
             return "pump 30 Minutes Pausing";
         case ID_POPUP_UI_PUMP_PAUSE_MANUAL:
@@ -311,6 +325,18 @@ static void common_operation_ui_update(ui_manager_context_t *thiz, popup_ui_id_e
         case ID_POPUP_UI_PUMP_FINISH_MANUAL:
             common_operation_tip_mask_layer_update(thiz);
             common_operation_tip_text_update(thiz, pump_finish_manual_infos);
+            common_operation_arc_update(thiz);
+            common_operation_tip_display_complete(thiz, popup_type);
+            break;
+        case ID_POPUP_UI_PUMP_FINISH_CHARGE_ERROR:
+            common_operation_tip_mask_layer_update(thiz);
+            common_operation_tip_text_update(thiz, pump_finish_charge_error_infos);
+            common_operation_arc_update(thiz);
+            common_operation_tip_display_complete(thiz, popup_type);
+            break;
+        case ID_POPUP_UI_PUMP_FINISH_LOW_POWER:
+            common_operation_tip_mask_layer_update(thiz);
+            common_operation_tip_text_update(thiz, pump_finish_low_power_infos);
             common_operation_arc_update(thiz);
             common_operation_tip_display_complete(thiz, popup_type);
             break;
@@ -423,6 +449,8 @@ void ui_common_operation_tip_update(ui_manager_context_t *thiz,
         case ID_POPUP_UI_ONLY_AVAILABLE_IN_PUMPING:
         case ID_POPUP_UI_PUMP_FINISH_TIMEOUT:
         case ID_POPUP_UI_PUMP_FINISH_MANUAL:
+        case ID_POPUP_UI_PUMP_FINISH_CHARGE_ERROR:
+        case ID_POPUP_UI_PUMP_FINISH_LOW_POWER:
         case ID_POPUP_UI_PUMP_PAUSE_MANUAL:
         case ID_POPUP_UI_PUMP_PAUSE_TIMEOUT:
         case ID_POPUP_UI_AIRPLANE_MODE_PROMPT:

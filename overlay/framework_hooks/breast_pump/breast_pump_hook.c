@@ -161,12 +161,6 @@ static int local_breast_pump_process(breast_pump_manager_context_t *ctx, pump_re
     }
 #endif
 
-#if IS_SUPPORT_LOW_POWER_AUTO_STOP_PUMP
-    if (ctx->priv.battery && ctx->priv.battery->get_battery_percent() < 10) {
-        LOG_PMP("low power, auto stop pump");
-        return RESULT_PUMP_LOW_POWER;
-    }
-#endif
     /// 更新模式和力度.
     if (result_info->mode != ctx->priv.m_info.mode) {
         breast_pump_mode_update(ctx, result_info);
