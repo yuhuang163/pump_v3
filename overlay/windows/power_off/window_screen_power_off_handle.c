@@ -195,13 +195,14 @@ static int entry_event_cb(window_lift_cycle_e new_state,
                 int chage_state = proc->battery->get_charge_status();
                 if (BATTERY_IS_CHARGING(chage_state)) {
                     show_power_off_charging_ui(proc);
-                    return 0;
                 } else if(chage_state == CHARGE_STATE_ERROR) {
                     show_power_off_charge_error_ui(proc);
-                    return 0;
+                } else {
+                    power_off_handle(proc);
                 }
+                return 0;
             }
-        }
+        } 
 #endif
         start_power_off_ui_animation(proc);
     }
