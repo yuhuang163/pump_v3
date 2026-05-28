@@ -242,8 +242,6 @@ static int start_breast_pump_work_route(breast_pump_manager_context_t *ctx, int 
 static int stop_breast_pump_work_route(breast_pump_manager_context_t *ctx, int status)
 {
     pump_result_info_t *result_info = &ctx->priv.result_info[BREAST_PUMP_RESULT_PUMPING];
-    uint32_t poll_time = get_timestamp_ms(result_info->start_time);
-    result_info->work_valid_time += poll_time;
     LOG_PMP("stop, work_time=%d", PUMP_TIME_TO_SECOND(result_info->work_valid_time));
     return 0;
 }
