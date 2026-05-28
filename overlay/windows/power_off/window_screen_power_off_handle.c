@@ -42,7 +42,7 @@ static void power_off_ble_teardown_cb(hdr_post_args_t *args)
     WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_POWER_OFF);
     EXCEPTION_CHECK_VOID(proc->ble);
     if (proc->margic != UI_WINDOW_MARGIC_CODE) {
-        LOG_WM("invalid margic, ignore ble teardown.");
+        LOG_WM("invalid margic, ignore");
         return;
     }
     LOG_WM("%s", args->name);

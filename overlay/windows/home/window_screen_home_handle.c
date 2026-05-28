@@ -326,6 +326,15 @@ static void on_home_window_battery_state_change_cb(void *user_data, battery_stat
         LOG_WM("wm not running, ignore.");
         return;
     }
+    
+    if (info->charge_status == CHARGE_STATE_ERROR && proc->current_ui_type != HOME_UI_TYPE_PUMP_RESULT) {
+        LOG_WM("charge status error, goto charge screen.");
+        multi_func_msg_data_t msg = {0};
+        msg.union_body.extra.window_id = ID_WINDOW_CHARGE;
+        proc->wm->dispatch_new_window_args(proc->wm, &msg);
+        return;
+    }
+
     if (info->battery_state == BATTERY_STATE_EMPTY || 
         info->battery_state == BATTERY_STATE_LOW_POWER_SHUTDOWN || 
         info->battery_state == BATTERY_STATE_FORBID_START) {

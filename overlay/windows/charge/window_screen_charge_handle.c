@@ -39,6 +39,38 @@ INIT_WINDOW_CONTEXT();
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
+static void charge_display_exit_cb(ui_proc_charge_t *proc)
+{
+    if (proc->ble && proc->ble->ble_is_connected() == 0) {
+        proc->ble->bt_adv_start_by_user();
+    }
+
+    multi_func_msg_data_t msg = {0};
+    if (proc->battery && proc->battery->is_low_battery()) {
+        LOG_WM("battery is low power, goto battery screen");
+        msg.union_body.extra.window_id = ID_WINDOW_BATTERY;
+        proc->wm->dispatch_new_window_args(proc->wm, &msg);
+        return;
+    }
+
+    if (proc->airplane && proc->airplane->is_on_airplane_mode()) {
+        LOG_WM("goto airplane mode screen");
+        msg.union_body.extra.window_id = ID_WINDOW_AIRPLANE_MODE;
+        proc->wm->dispatch_new_window_args(proc->wm, &msg);
+        return;
+    }
+
+    if (proc->wm->is_window_guidance_deployed() == 0) {
+        LOG_WM("goto guide screen");
+        msg.union_body.extra.window_id = ID_WINDOW_GUIDE;
+        proc->wm->dispatch_new_window_args(proc->wm, &msg);
+        return;
+    }    
+    LOG_WM("goto home window.");
+    msg.union_body.extra.window_id = ID_WINDOW_HOME;
+    proc->wm->dispatch_new_window_args(proc->wm, &msg);
+}
+
 static void charge_ui_common_cb(hdr_post_args_t *args)
 {
     ui_proc_charge_t *proc = args->user_data;
@@ -53,12 +85,7 @@ static void charge_ui_common_cb(hdr_post_args_t *args)
     switch (action) {
         case CHARGE_HDR_EXIT_CHARGE_POLICY:
             LOG_WM("%s", args->name);
-            if (proc->ble && proc->ble->ble_is_connected() == 0) {
-                proc->ble->bt_adv_start_by_user();
-            }
-            LOG_WM("goto home window.");
-            msg.union_body.extra.window_id = ID_WINDOW_HOME;
-            proc->wm->dispatch_new_window_args(proc->wm, &msg);
+            charge_display_exit_cb(proc);
             break;
         default:
             break;
@@ -73,6 +100,7 @@ static void on_charge_window_battery_state_cb(void *user_data, battery_state_inf
         LOG_WM("wm not running, ignore.");
         return;
     }
+
     if (info && info->charge_status == CHARGE_STATE_ERROR) {
         show_charge_adapter_ui(proc);
     } else {

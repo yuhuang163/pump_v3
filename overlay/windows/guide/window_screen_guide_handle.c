@@ -55,6 +55,23 @@ static int on_guide_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t 
     return 0;
 }
 
+static void on_guide_window_battery_state_change_cb(void *user_data, battery_state_info_t *info)
+{
+    ui_proc_guide_t *proc = (ui_proc_guide_t *)user_data;
+    WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_GUIDE);
+    if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
+        LOG_WM("wm not running, ignore.");
+        return;
+    }
+
+    if (info->charge_status == CHARGE_STATE_ERROR) {
+        LOG_WM("charge status error, goto charge screen.");
+        multi_func_msg_data_t msg = {0};
+        msg.union_body.extra.window_id = ID_WINDOW_CHARGE;
+        proc->wm->dispatch_new_window_args(proc->wm, &msg);
+    }
+}
+
 static int entry_event_cb(window_lift_cycle_e new_state,
     const struct window_context *thiz, const struct window_context *old_scr)
 {
@@ -64,6 +81,7 @@ static int entry_event_cb(window_lift_cycle_e new_state,
     if (new_state == ID_SCR_STATE_ON_RESUME) {
         ADD_KEYEVENT_CB(proc->key, "guide_wm", proc, GUIDE_UI_KEY_CODE, GUIDE_UI_KEY_TYPE,
             on_guide_ui_keyevent_hdr);
+        ADD_BATTERY_STATE_CB(proc->battery, proc, on_guide_window_battery_state_change_cb);
         proc->window_run_state = WINDOW_RUN_STATE_RUNNING;
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);
@@ -91,6 +109,7 @@ static int exit_event_cb(window_lift_cycle_e new_state,
             SET_WINDOW_CONTEXT(NULL);
             proc->margic = UI_WINDOW_MARGIC_CODE_INVALID;
             REMOVE_KEYEVENT_CB(proc->key, on_guide_ui_keyevent_hdr);
+            REMOVE_BATTERY_STATE_CB(proc->battery, on_guide_window_battery_state_change_cb);
             u_free(proc);
             proc = NULL;
             LOG_WM("%s window exit--end", PAGE_NAME_STR);

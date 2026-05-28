@@ -35,7 +35,6 @@ typedef enum {
 } breast_pump_broadcast_id_e;
 
 typedef enum {
-    RESULT_PUMP_LOW_POWER = -6, /// 低电量自动结束泵奶.
     RESULT_PUMP_AUTO_PAUSE = -5,
     RESULT_PUMP_TIMEOUT = -4,
     RESULT_PUMP_FINISH = -3,
