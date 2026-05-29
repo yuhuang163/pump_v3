@@ -10,61 +10,80 @@
 * DEFINES
 *****************************************************************************************
 */
-#define IS_SUPPORT_MODE_COMP_BG                (0)
-#define MODE_COUNT                             (3)
-#define MODE_CIRCLE_SLOT_COUNT                 (3)   /// 仅保留左/中/右 3 个圆槽位
-#define MODE_VIEW_W                            (360)
-#define MODE_VIEW_H                            (360)
-#define MODE_CIRCLE_W                          (250) /// 圆圈宽度
-#define MODE_CIRCLE_H                          (250) /// 圆圈高度
-#define MODE_CIRCLE_CENTER_X_GAP               (MODE_CIRCLE_W + 20)  /// 圆圈中心间距
-#define MODE_SIDE_CIRCLE_Y_OFFSET              (24) /// 左右两个圆都比中间圆高 24
+#define IS_SUPPORT_MODE_COMP_BG                     (0)
+#define MODE_NUM                                    (3)
+#define LABEL_NUM                                   (3)   /// 仅保留左/中/右 3 个圆槽位
+#define LABEL_GROUP_NUM                             (2)
 
-#define MODE_TEXT_COLOR                        (0xB25962)
-#define MODE_CENTER_CIRCLE_GRAD_TOP_COLOR      (0xEB7581)
-#define MODE_CENTER_CIRCLE_GRAD_BOTTOM_COLOR   (0xF0868A)
-#define MODE_SIDE_CIRCLE_GRAD_TOP_COLOR        (0xF7A1A8)
-#define MODE_SIDE_CIRCLE_GRAD_BOTTOM_COLOR     (0xF7A1A8)
-#define MODE_TITLE_TEXT_COLOR                  (0xFFFFFF)
-#define MODE_DESC_TEXT_COLOR                   (0xFFDDDF)
-#define MODE_CENTER_DESC_TEXT_COLOR            (0xFFEAEA)
+#define PAGE_TITLE_TEXT_COLOR                       (0xB25962)
+#define PAGE_TITLE_Y_OFFSET                         (34)
 
-#define MODE_PAGE_TITLE_Y_OFFSET               (34)
-#define MODE_COMPONENT_CENTER_Y_OFFSET         (-70)
-#define MODE_TITLE_BASE_Y_OFFSET               (-26)
-#define MODE_DESC_BASE_Y_OFFSET                (6)
+#define UP_LABEL_BG_COLOR                           (0xFFEBE8)
+#define UP_LABEL_TITLE_TEXT_COLOR                   (0xB25962)
+#define MID_LABEL_GRAD_TOP_COLOR                    (0xF27D85)
+#define MID_LABEL_GRAD_BOTTOM_COLOR                 (0xE25D66)
+#define MID_LABEL_TITLE_TEXT_COLOR                  (0xFFFFFF)
+#define MID_LABEL_DESC_TEXT_COLOR                   (0xFFE6E7)
 
-#define MODE_SWITCH_ANIM_TIME_MS               (260)  /// 切换动画时间，单位：毫秒
+#define MODE_SWITCH_ANIM_TIME_MS                    (800)
 
-typedef enum {
-    MODE_SLOT_LEFT = 0,
-    MODE_SLOT_CENTER,
-    MODE_SLOT_RIGHT,
-    MODE_SLOT_MAX,
-} mode_circle_slot_e;
+#define MODE_MID_LABEL_MIN_OPA_MIN_EXIT             (0)
+#define MODE_UP_LABEL_MIN_OPA_MIN_EXIT              (0)
+#define MODE_DOWN_LABEL_MIN_OPA_MIN_EXIT            (0)
+
+#define MODE_MID_LABEL_MIN_OPA_ENTER                (180) 
+#define MODE_UP_LABEL_MIN_OPA_ENTER                 (0)
+#define MODE_DOWN_LABEL_MIN_OPA_ENTER               (0)
+
+#define MODE_MID_LABEL_HIDDEN_OPA                   (MODE_MID_LABEL_MIN_OPA_MIN_EXIT + 70) 
+
+#define MODE_SLOT_Y_UP_EXIT                         (34)   /// 上胶囊出场，滚出顶部
+#define MODE_SLOT_Y_UP                              (88)
+#define MODE_SLOT_Y_UP_ENTER                        (320)  /// 入场上胶囊从中间槽位升起
+#define MODE_SLOT_Y_MID_EXIT                        (50)   /// 中胶囊出场，滚出顶部
+#define MODE_SLOT_Y_MID                             (150)
+#define MODE_SLOT_Y_MID_ENTER                       (350)  /// 入场中胶囊从下方进入
+#define MODE_SLOT_Y_DOWN_EXIT                       (160)  /// 下胶囊出场，滚出顶部
+#define MODE_SLOT_Y_DOWN                            (262)
+#define MODE_SLOT_Y_DOWN_ENTER                      (400)  /// 入场下胶囊从更下方进入
+
+typedef struct label_info {
+    lv_obj_t *obj[LABEL_NUM]; /// 标签对象
+    lv_obj_t *title_text[LABEL_NUM]; /// 模式标题标签
+    lv_obj_t *icon_img; /// 模式组件图片
+    lv_obj_t *desc_text; /// 模式描述标签
+    res_img_info_t icon_img_info;
+    uint8_t idx[LABEL_NUM];
+} label_info_t;
 
 typedef struct ui_display_mode_info {
     lv_obj_t * root;
 #if IS_SUPPORT_MODE_COMP_BG
     lv_obj_t * background;
 #endif
-    lv_obj_t *mode_type_text;
-    lv_obj_t *circle_obj[MODE_CIRCLE_SLOT_COUNT]; /// 圆圈对象
+    label_info_t label_info[LABEL_GROUP_NUM];
+    lv_obj_t *page_title_text;
     lv_obj_t *dots_img; /// 序号点图片
-    lv_obj_t *mode_component_img[MODE_CIRCLE_SLOT_COUNT]; /// 模式组件图片
-    lv_obj_t *mode_title_label[MODE_CIRCLE_SLOT_COUNT]; /// 模式标题标签
-    lv_obj_t *mode_desc_label[MODE_CIRCLE_SLOT_COUNT]; /// 模式描述标签
-    res_img_info_t mode_component_info[MODE_CIRCLE_SLOT_COUNT];
     res_img_info_t dots_img_info;
-    breast_pump_manager_context_t *pump_ctx;
-    uint16_t slot_res_id[MODE_CIRCLE_SLOT_COUNT];
-    int16_t slot_mode_idx[MODE_CIRCLE_SLOT_COUNT];
     uint8_t cur_mode;
     uint8_t force_update;
-    uint8_t mode_obj_init_done;
+    uint8_t label_obj_init_done;
+    uint8_t active_label_group;
     uint8_t popup_ui_index;
-    uint8_t rsv[8];
+    uint8_t rsv[11];
 } mode_display_info_t;
+
+typedef struct mode_label_anim_param {
+    int16_t x_ofs;
+    int16_t y;
+    lv_opa_t opa;
+} mode_label_anim_param_t;
+
+typedef enum {
+    MODE_SLOT_UP = 0,
+    MODE_SLOT_MID,
+    MODE_SLOT_DOWN,
+} mode_label_slot_e;
 
 /*
 * LOCAL VARIABLE DEFINITIONS
@@ -72,28 +91,43 @@ typedef struct ui_display_mode_info {
 */
 static mode_display_info_t *mode_info;
 
-static const uint16_t mode_component_ids[MODE_COUNT] = {
+static const mode_label_anim_param_t mode_label_visible_param[LABEL_NUM] = {
+    [MODE_SLOT_UP]   = {0, MODE_SLOT_Y_UP, LV_OPA_COVER},
+    [MODE_SLOT_MID]  = {0, MODE_SLOT_Y_MID, LV_OPA_COVER},
+    [MODE_SLOT_DOWN] = {0, MODE_SLOT_Y_DOWN, LV_OPA_COVER},
+};
+
+/// [group: 0=out, 1=in][slot][from/to]
+/// 出场/入场各槽位 Y 独立，间距随动画变化（上/下胶囊 50px，中胶囊约 112px）
+static const mode_label_anim_param_t mode_switch_anim_param[2][LABEL_NUM][2] = {
+    {
+        {{0, MODE_SLOT_Y_UP, LV_OPA_COVER},   {0, MODE_SLOT_Y_UP_EXIT, MODE_UP_LABEL_MIN_OPA_MIN_EXIT}},
+        {{0, MODE_SLOT_Y_MID, LV_OPA_COVER},  {0, MODE_SLOT_Y_MID_EXIT, MODE_MID_LABEL_MIN_OPA_MIN_EXIT}},
+        {{0, MODE_SLOT_Y_DOWN, LV_OPA_COVER},  {0, MODE_SLOT_Y_DOWN_EXIT, MODE_DOWN_LABEL_MIN_OPA_MIN_EXIT}},
+    },
+    {
+        {{0, MODE_SLOT_Y_UP_ENTER, MODE_UP_LABEL_MIN_OPA_ENTER},   {0, MODE_SLOT_Y_UP, LV_OPA_COVER}},
+        {{0, MODE_SLOT_Y_MID_ENTER, MODE_MID_LABEL_MIN_OPA_ENTER},  {0, MODE_SLOT_Y_MID, LV_OPA_COVER}},
+        {{0, MODE_SLOT_Y_DOWN_ENTER, MODE_DOWN_LABEL_MIN_OPA_ENTER}, {0, MODE_SLOT_Y_DOWN, LV_OPA_COVER}},
+    },
+};
+
+static const uint16_t mode_icon_ids[MODE_NUM] = {
     RESOURCE_ID_MODE_STIMULATE_ICON, /// 舒适
     RESOURCE_ID_MODE_LACTATION_ICON, /// 常规
     RESOURCE_ID_MODE_MIX_ICON, /// 快速
 };
 
-static const uint16_t dots_img_ids[MODE_COUNT] = {
-    RESOURCE_ID_SELECTED_LOCATE_3_START,
-    RESOURCE_ID_SELECTED_LOCATE_3_START + 1,
-    RESOURCE_ID_SELECTED_LOCATE_3_END,
-};
-
-static const char *mode_name[MODE_COUNT] = {
+static const char *mode_name[MODE_NUM] = {
     "Stimulation", /// 慢速
     "Expression", /// 常规
     "Mixed", /// 快速
 };
 
-static const char *mode_desc[MODE_COUNT] = {
-    "Fast, gentle suction to\ntrigger let-down.",
+static const char *mode_desc[MODE_NUM] = {
+    "Fast, gentle suction to trigger\nlet-down.",
     "Slow, deep suction for\nefficient milk expression.",
-    "Alternates 5 times of fast,\ngentle suction with 1 slow,\ndeep suction for let-downs\nand better emptying.",
+    "Alternates 5 times of fast,\ngentle suction with 1 slow",
 };
 
 #if IS_SUPPORT_MODE_COMP_BG
@@ -111,285 +145,6 @@ static PSRAM_DATA_LOC uint8_t mode_bg_data[] = {
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-static int32_t slot_target_x(mode_circle_slot_e slot)
-{
-    int32_t center_x = (MODE_VIEW_W - MODE_CIRCLE_W) / 2;
-    int32_t delta = (int32_t)slot - (int32_t)MODE_SLOT_CENTER;
-    return center_x + delta * MODE_CIRCLE_CENTER_X_GAP;
-}
-
-static int32_t slot_target_y(mode_circle_slot_e slot)
-{
-    int32_t center_y = (MODE_VIEW_H - MODE_CIRCLE_H) / 2 + 17;
-    if (slot == MODE_SLOT_CENTER) {
-        return center_y;
-    }
-    /// 左右两个圆都比中间圆高 24
-    return center_y - MODE_SIDE_CIRCLE_Y_OFFSET;
-}
-
-static void update_dots(ui_manager_context_t *thiz, uint8_t mode_idx)
-{
-    if (mode_info->dots_img == NULL || !lv_obj_is_valid(mode_info->dots_img)) {
-        return;
-    }
-    common_ui_img_resource_init(thiz, dots_img_ids[mode_idx], &mode_info->dots_img_info);
-    EXCEPTION_CHECK_VOID(mode_info->dots_img_info.data);
-    lv_fs_path_ex_t dots_img_path;
-    lv_fs_make_path_from_buffer(&dots_img_path, LV_FS_MEMFS_LETTER, mode_info->dots_img_info.data,
-        mode_info->dots_img_info.size, "baj");
-    lv_image_set_src(mode_info->dots_img, (const void *)&dots_img_path);
-}
-
-static void item_anim_exec_x(void *var, int32_t v)
-{
-    lv_obj_t *obj = (lv_obj_t *)var;
-    lv_obj_set_x(obj, (lv_coord_t)v);
-    lv_obj_invalidate(mode_info->root);
-}
-
-static void item_anim_exec_y(void *var, int32_t v)
-{
-    lv_obj_t *obj = (lv_obj_t *)var;
-    lv_obj_set_y(obj, (lv_coord_t)v);
-    lv_obj_invalidate(mode_info->root);
-}
-
-static int16_t slot_mode_for_center(uint8_t center_mode, mode_circle_slot_e slot)
-{
-    int16_t mode_idx = (int16_t)center_mode + (int16_t)slot - (int16_t)MODE_SLOT_CENTER;
-    while (mode_idx < 0) {
-        mode_idx += MODE_COUNT;
-    }
-    return (int16_t)(mode_idx % MODE_COUNT);
-}
-
-static void update_slot_content(ui_manager_context_t *thiz, mode_circle_slot_e slot, int16_t mode_idx)
-{
-    lv_obj_t *item = mode_info->circle_obj[slot];
-    lv_obj_t *img = mode_info->mode_component_img[slot];
-    lv_obj_t *title = mode_info->mode_title_label[slot];
-    lv_obj_t *desc = mode_info->mode_desc_label[slot];
-    if (item == NULL || img == NULL || title == NULL || desc == NULL) {
-        return;
-    }
-
-    lv_obj_clear_flag(item, LV_OBJ_FLAG_HIDDEN);
-    if (mode_info->slot_mode_idx[slot] == mode_idx) {
-        return;
-    }
-
-    uint16_t res_id = mode_component_ids[mode_idx];
-    if (mode_info->slot_res_id[slot] != res_id) {
-        if (mode_info->slot_res_id[slot] != 0) {
-            common_ui_img_resource_deinit(thiz, &mode_info->mode_component_info[slot]);
-            memset(&mode_info->mode_component_info[slot], 0, sizeof(mode_info->mode_component_info[slot]));
-        }
-        common_ui_img_resource_init(thiz, res_id, &mode_info->mode_component_info[slot]);
-        if (mode_info->mode_component_info[slot].data != NULL) {
-            lv_fs_path_ex_t mode_component_path;
-            lv_fs_make_path_from_buffer(&mode_component_path, LV_FS_MEMFS_LETTER,
-                mode_info->mode_component_info[slot].data, mode_info->mode_component_info[slot].size, "baj");
-            lv_image_set_src(img, (const void *)&mode_component_path);
-            mode_info->slot_res_id[slot] = res_id;
-        }
-    }
-
-    lv_label_set_text(title, mode_name[mode_idx]);
-    lv_label_set_text(desc, mode_desc[mode_idx]);
-
-    lv_coord_t desc_y = MODE_DESC_BASE_Y_OFFSET;
-    uint8_t line_cnt = 1;
-    const char *desc_text = mode_desc[mode_idx];
-    for (const char *p = desc_text; *p != '\0'; p++) {
-        if (*p == '\n') {
-            line_cnt++;
-        }
-    }
-
-    if (line_cnt > 1) {
-        const lv_font_t *font = lv_obj_get_style_text_font(desc, 0);
-        lv_coord_t line_h = font != NULL ? lv_font_get_line_height(font) : 14;
-        lv_coord_t line_space = lv_obj_get_style_text_line_space(desc, 0);
-        lv_coord_t extra_h = (lv_coord_t)((line_h + line_space) * (line_cnt - 1));
-        desc_y = (lv_coord_t)(desc_y + (extra_h / 2));
-    }
-    lv_obj_align(desc, LV_ALIGN_CENTER, 0, desc_y);
-    mode_info->slot_mode_idx[slot] = mode_idx;
-}
-
-static void circle_layout_apply(int8_t direction, bool anim)
-{
-    for (uint8_t i = 0; i < MODE_CIRCLE_SLOT_COUNT; i++) {
-        lv_obj_t *item = mode_info->circle_obj[i];
-        if (item == NULL || !lv_obj_is_valid(item)) {
-            continue;
-        }
-
-        int32_t to_x = slot_target_x((mode_circle_slot_e)i);
-        int32_t to_y = slot_target_y((mode_circle_slot_e)i);
-        int32_t from_x = to_x;
-        int32_t from_y = to_y;
-
-        if (anim && direction != 0) {
-            if (direction > 0) { /// 向左移动
-                if (i == MODE_SLOT_LEFT) {
-                    from_x = slot_target_x(MODE_SLOT_CENTER);
-                    from_y = slot_target_y(MODE_SLOT_CENTER);
-                } else if (i == MODE_SLOT_CENTER) {
-                    from_x = slot_target_x(MODE_SLOT_RIGHT);
-                    from_y = slot_target_y(MODE_SLOT_RIGHT);
-                } else {
-                    from_x = slot_target_x(MODE_SLOT_RIGHT) + MODE_CIRCLE_CENTER_X_GAP;
-                    from_y = slot_target_y(MODE_SLOT_RIGHT);
-                }
-            } else { /// 向右移动
-                if (i == MODE_SLOT_RIGHT) {
-                    from_x = slot_target_x(MODE_SLOT_CENTER);
-                    from_y = slot_target_y(MODE_SLOT_CENTER);
-                } else if (i == MODE_SLOT_CENTER) {
-                    from_x = slot_target_x(MODE_SLOT_LEFT);
-                    from_y = slot_target_y(MODE_SLOT_LEFT);
-                } else {
-                    from_x = slot_target_x(MODE_SLOT_LEFT) - MODE_CIRCLE_CENTER_X_GAP;
-                    from_y = slot_target_y(MODE_SLOT_LEFT);
-                }
-            }
-        }
-
-        if (!anim || direction == 0) {
-            lv_obj_set_pos(item, (lv_coord_t)to_x, (lv_coord_t)to_y);
-            continue;
-        }
-
-        lv_obj_set_pos(item, (lv_coord_t)from_x, (lv_coord_t)from_y);
-        lv_anim_del(item, item_anim_exec_x);
-        lv_anim_del(item, item_anim_exec_y);
-
-        lv_anim_t a;
-        lv_anim_init(&a);
-        lv_anim_set_var(&a, item);
-        lv_anim_set_time(&a, MODE_SWITCH_ANIM_TIME_MS);
-        lv_anim_set_path_cb(&a, lv_anim_path_ease_in_out);
-
-        lv_anim_set_exec_cb(&a, item_anim_exec_x);
-        lv_anim_set_values(&a, from_x, to_x);
-        lv_anim_start(&a);
-
-        lv_anim_set_exec_cb(&a, item_anim_exec_y);
-        lv_anim_set_values(&a, from_y, to_y);
-        lv_anim_start(&a);
-    }
-}
-
-static void circle_carousel_set_mode(ui_manager_context_t *thiz, uint8_t idx, bool anim)
-{
-    if (idx >= MODE_COUNT) {
-        idx = MODE_COUNT - 1;
-    }
-
-    int8_t direction = 0;
-    uint8_t from = mode_info->cur_mode;
-    uint8_t cw_steps = (uint8_t)((idx + MODE_COUNT - from) % MODE_COUNT);
-    uint8_t ccw_steps = (uint8_t)((from + MODE_COUNT - idx) % MODE_COUNT);
-    if (cw_steps == 1) {
-        direction = 1;
-    } else if (ccw_steps == 1) {
-        direction = -1;
-    } else if (cw_steps == 0) {
-        direction = 0;
-    } else {
-        direction = 0; /// 非相邻目标直接落位，避免连续补间
-        anim = false;
-    }
-
-    update_slot_content(thiz, MODE_SLOT_LEFT, slot_mode_for_center(idx, MODE_SLOT_LEFT));
-    update_slot_content(thiz, MODE_SLOT_CENTER, slot_mode_for_center(idx, MODE_SLOT_CENTER));
-    update_slot_content(thiz, MODE_SLOT_RIGHT, slot_mode_for_center(idx, MODE_SLOT_RIGHT));
-    circle_layout_apply(direction, anim);
-
-    mode_info->cur_mode = idx;
-    update_dots(thiz, idx);
-}
-
-static void create_mode_bg_by_lvgl_draw(ui_manager_context_t *thiz, lv_obj_t *parent, mode_circle_slot_e slot)
-{
-    if (mode_info->circle_obj[slot] == NULL || !lv_obj_is_valid(mode_info->circle_obj[slot])) {
-        mode_info->circle_obj[slot] = lv_obj_create(parent);
-        EXCEPTION_CHECK_VOID(mode_info->circle_obj[slot]);
-    }
-    lv_obj_remove_style_all(mode_info->circle_obj[slot]);
-    lv_obj_set_size(mode_info->circle_obj[slot], MODE_CIRCLE_W, MODE_CIRCLE_H); /// 设置圆圈大小
-    lv_obj_set_style_radius(mode_info->circle_obj[slot], LV_RADIUS_CIRCLE, 0); /// 圆角
-    lv_obj_set_style_bg_color(mode_info->circle_obj[slot], 
-        lv_color_hex(slot == MODE_SLOT_CENTER ? \
-            MODE_CENTER_CIRCLE_GRAD_TOP_COLOR : MODE_SIDE_CIRCLE_GRAD_TOP_COLOR), 0);
-    lv_obj_set_style_bg_grad_color(mode_info->circle_obj[slot], 
-        lv_color_hex(slot == MODE_SLOT_CENTER ? \
-            MODE_CENTER_CIRCLE_GRAD_BOTTOM_COLOR : MODE_SIDE_CIRCLE_GRAD_BOTTOM_COLOR), 0);
-    lv_obj_set_style_bg_grad_dir(mode_info->circle_obj[slot], LV_GRAD_DIR_VER, 0);
-    lv_obj_set_style_bg_main_stop(mode_info->circle_obj[slot], 0, 0); /// 主颜色停止位置
-    lv_obj_set_style_bg_grad_stop(mode_info->circle_obj[slot], 255, 0); /// 渐变颜色停止位置
-    lv_obj_set_style_bg_opa(mode_info->circle_obj[slot], LV_OPA_COVER, 0);
-    // lv_obj_set_style_bg_opa(mode_info->circle_obj[slot], LV_OPA_TRANSP, 0);
-}
-
-static void create_mode_item(ui_manager_context_t *thiz, lv_obj_t *parent, mode_circle_slot_e slot)
-{
-    create_mode_bg_by_lvgl_draw(thiz, parent, slot);
-    if (mode_info->mode_component_img[slot] == NULL || !lv_obj_is_valid(mode_info->mode_component_img[slot])) {
-        mode_info->mode_component_img[slot] = lv_image_create(mode_info->circle_obj[slot]);
-        EXCEPTION_CHECK_VOID(mode_info->mode_component_img[slot]);
-        lv_obj_align(mode_info->mode_component_img[slot], LV_ALIGN_CENTER, 0, MODE_COMPONENT_CENTER_Y_OFFSET);
-    }
-
-    if (mode_info->mode_title_label[slot] == NULL || !lv_obj_is_valid(mode_info->mode_title_label[slot])) {
-        mode_info->mode_title_label[slot] = lv_label_create(mode_info->circle_obj[slot]);
-        EXCEPTION_CHECK_VOID(mode_info->mode_title_label[slot]);
-        lv_obj_set_style_text_color(mode_info->mode_title_label[slot], lv_color_hex(MODE_TITLE_TEXT_COLOR), 0);
-        lv_obj_set_style_text_font(mode_info->mode_title_label[slot], &lv_font_oppo_sans_16_medium, 0);
-        lv_obj_set_style_text_align(mode_info->mode_title_label[slot], LV_TEXT_ALIGN_CENTER, 0);  /// 居中对齐
-        lv_obj_align(mode_info->mode_title_label[slot], LV_ALIGN_CENTER, 0, MODE_TITLE_BASE_Y_OFFSET);
-        lv_obj_set_style_text_opa(mode_info->mode_title_label[slot], LV_OPA_COVER, 0);
-    }
-
-    if (mode_info->mode_desc_label[slot] == NULL || !lv_obj_is_valid(mode_info->mode_desc_label[slot])) {
-        mode_info->mode_desc_label[slot] = lv_label_create(mode_info->circle_obj[slot]);
-        EXCEPTION_CHECK_VOID(mode_info->mode_desc_label[slot]);
-        lv_obj_set_style_text_color(mode_info->mode_desc_label[slot], 
-            lv_color_hex(slot == MODE_SLOT_CENTER ? MODE_CENTER_DESC_TEXT_COLOR : MODE_DESC_TEXT_COLOR), 0);
-        lv_obj_set_style_text_font(mode_info->mode_desc_label[slot], &lv_font_oppo_sans_16_medium, 0);
-        lv_obj_set_style_text_align(mode_info->mode_desc_label[slot], LV_TEXT_ALIGN_CENTER, 0);  /// 居中对齐
-        lv_obj_set_style_text_line_space(mode_info->mode_desc_label[slot], 4, 0); /// 设置行间距（像素）
-        lv_obj_set_style_text_opa(mode_info->mode_desc_label[slot], LV_OPA_COVER, 0);
-        lv_obj_align(mode_info->mode_desc_label[slot], LV_ALIGN_CENTER, 0, MODE_DESC_BASE_Y_OFFSET);
-    }
-}
-
-static void circle_carousel_create(ui_manager_context_t *thiz, lv_obj_t *parent, uint8_t mode_idx)
-{
-    for (uint8_t i = 0; i < MODE_CIRCLE_SLOT_COUNT; i++) {
-        mode_info->slot_mode_idx[i] = -1;
-        create_mode_item(thiz, parent, (mode_circle_slot_e)i); /// 创建圆圈
-        EXCEPTION_CHECK_VOID(mode_info->circle_obj[i]);
-        EXCEPTION_CHECK_VOID(mode_info->mode_component_img[i]);
-        EXCEPTION_CHECK_VOID(mode_info->mode_title_label[i]);
-        EXCEPTION_CHECK_VOID(mode_info->mode_desc_label[i]);
-    }
-    circle_carousel_set_mode(thiz, mode_idx, false); /// 设置模式
-}
-
-static void dotbar_carousel_create(ui_manager_context_t *thiz, lv_obj_t *parent, uint8_t mode_idx)
-{
-    if (mode_info->dots_img == NULL || !lv_obj_is_valid(mode_info->dots_img)) {
-        mode_info->dots_img = lv_image_create(parent);
-        EXCEPTION_CHECK_VOID(mode_info->dots_img);
-        lv_obj_set_style_image_opa(mode_info->dots_img, LV_OPA_COVER, 0);
-        lv_obj_align(mode_info->dots_img, LV_ALIGN_BOTTOM_MID, 0, -18);
-    }
-    update_dots(thiz, mode_idx);
-}
-
 static void mode_root_init(ui_manager_context_t *thiz)
 {
     if (mode_info->root == NULL || !lv_obj_is_valid(mode_info->root)) {
@@ -398,8 +153,6 @@ static void mode_root_init(ui_manager_context_t *thiz)
         lv_obj_set_size(mode_info->root, LV_PCT(100), LV_PCT(100));
         lv_obj_set_style_bg_color(mode_info->root, lv_color_black(), 0);
         lv_obj_set_style_bg_opa(mode_info->root, LV_OPA_COVER, 0);
-        // lv_obj_set_style_radius(mode_info->root, LV_RADIUS_CIRCLE, 0); /// 圆角
-        // lv_obj_set_style_clip_corner(mode_info->root, true, 0); /// 启用圆角裁剪
         lv_obj_set_style_clip_corner(mode_info->root, false, 0); /// 关闭圆角裁剪
         lv_obj_set_style_border_width(mode_info->root, 0, 0);
         lv_obj_set_style_pad_all(mode_info->root, 0, 0);
@@ -409,7 +162,16 @@ static void mode_root_init(ui_manager_context_t *thiz)
 }
 
 #if IS_SUPPORT_MODE_COMP_BG
-static void mode_bg_update(ui_manager_context_t *thiz)
+static void ui_background_init(ui_manager_context_t *thiz)
+{
+
+}
+
+static void ui_background_deinit(ui_manager_context_t *thiz)
+{
+
+}
+static void ui_background_update(ui_manager_context_t *thiz)
 {
     static uint32_t start_time = 0;
     static uint8_t status = 0;
@@ -434,47 +196,383 @@ static void mode_bg_update(ui_manager_context_t *thiz)
     }
 }
 #else
-static void mode_bg_update(ui_manager_context_t *thiz)
+static void ui_background_init(ui_manager_context_t *thiz)
+{
+    common_ui_bg_init(thiz);
+}
+
+static void ui_background_deinit(ui_manager_context_t *thiz)
+{
+    common_ui_bg_deinit(thiz);
+}
+
+static void ui_background_update(ui_manager_context_t *thiz)
 {
     common_ui_bg_update(thiz, mode_info->root);
 }
 #endif
 
-static void mode_ui_update(ui_manager_context_t *thiz, uint8_t mode_idx)
+static void item_anim_exec_x(void *var, int32_t v)
+{
+    lv_obj_t *obj = (lv_obj_t *)var;
+    lv_obj_set_x(obj, (lv_coord_t)v);
+    lv_obj_invalidate(mode_info->root);
+}
+
+static void item_anim_exec_y(void *var, int32_t v)
+{
+    lv_obj_t *obj = (lv_obj_t *)var;
+    lv_obj_set_y(obj, (lv_coord_t)v);
+    lv_obj_invalidate(mode_info->root);
+}
+
+static void item_anim_exec_opa(void *var, int32_t v)
+{
+    lv_obj_t *obj = (lv_obj_t *)var;
+    if (v < MODE_MID_LABEL_HIDDEN_OPA) {
+        if (obj == mode_info->label_info[0].obj[MODE_SLOT_MID] ||
+            obj == mode_info->label_info[1].obj[MODE_SLOT_MID]) {
+            LOG_UI("obj: %p, v: %d", obj, v);
+            v = LV_OPA_TRANSP;
+        }
+    } 
+    lv_obj_set_style_opa(obj, (lv_opa_t)v, 0);
+    lv_obj_invalidate(mode_info->root);
+}
+
+static void label_group_set_hidden(label_info_t *label_info, bool hidden)
+{
+    for (uint8_t i = 0; i < LABEL_NUM; i++) {
+        if (label_info->obj[i] == NULL || !lv_obj_is_valid(label_info->obj[i])) {
+            continue;
+        }
+
+        if (hidden) {
+            lv_obj_add_flag(label_info->obj[i], LV_OBJ_FLAG_HIDDEN);
+        } else {
+            lv_obj_clear_flag(label_info->obj[i], LV_OBJ_FLAG_HIDDEN);
+        }
+    }
+}
+
+static void label_group_hide_inactive_completed(lv_anim_t *a)
+{
+    (void)a;
+
+    if (mode_info == NULL) {
+        return;
+    }
+
+    for (uint8_t i = 0; i < LABEL_GROUP_NUM; i++) {
+        if (i == mode_info->active_label_group) {
+            continue;
+        }
+
+        label_group_set_hidden(&mode_info->label_info[i], true);
+    }
+}
+
+static void label_item_apply_param(lv_obj_t *item, const mode_label_anim_param_t *param)
+{
+    lv_obj_align(item, LV_ALIGN_TOP_MID, param->x_ofs, param->y);
+    lv_obj_update_layout(item);
+    lv_obj_set_style_opa(item, param->opa, 0);
+}
+
+static void label_item_start_anim(lv_obj_t *item,
+    const mode_label_anim_param_t *from, const mode_label_anim_param_t *to, bool completed_cb)
+{
+    label_item_apply_param(item, from);
+    int32_t from_x = from->x_ofs;
+    int32_t from_y = from->y;
+    lv_opa_t from_opa = from->opa;
+    int32_t to_x = to->x_ofs;
+    int32_t to_y = to->y;
+    lv_opa_t to_opa = to->opa;
+
+    lv_obj_align(item, LV_ALIGN_TOP_MID, (lv_coord_t)from_x, (lv_coord_t)from_y);
+    lv_obj_set_style_opa(item, from_opa, 0);
+    lv_anim_del(item, item_anim_exec_x);
+    lv_anim_del(item, item_anim_exec_y);
+    lv_anim_del(item, item_anim_exec_opa);
+
+    lv_anim_t anim;
+    lv_anim_init(&anim);
+    lv_anim_set_var(&anim, item);
+    lv_anim_set_time(&anim, MODE_SWITCH_ANIM_TIME_MS);
+    lv_anim_set_path_cb(&anim, lv_anim_path_ease_in_out);
+
+    lv_anim_set_exec_cb(&anim, item_anim_exec_x);
+    lv_anim_set_values(&anim, from_x, to_x);
+    lv_anim_start(&anim);
+
+    lv_anim_set_exec_cb(&anim, item_anim_exec_y);
+    lv_anim_set_values(&anim, from_y, to_y);
+    lv_anim_start(&anim);
+
+    lv_anim_set_exec_cb(&anim, item_anim_exec_opa);
+    lv_anim_set_values(&anim, from_opa, to_opa);
+    lv_anim_set_completed_cb(&anim, completed_cb ? label_group_hide_inactive_completed : NULL);
+    lv_anim_start(&anim);
+}
+
+static void label_group_apply_visible_param(label_info_t *label_info, bool visible)
+{
+    for (uint8_t i = 0; i < LABEL_NUM; i++) {
+        lv_obj_t *item = label_info->obj[i];
+        if (item == NULL || !lv_obj_is_valid(item)) {
+            continue;
+        }
+
+        label_item_apply_param(item, &mode_label_visible_param[i]);
+        lv_obj_set_style_opa(item, visible ? LV_OPA_COVER : LV_OPA_TRANSP, 0);
+    }
+    label_group_set_hidden(label_info, !visible);
+}
+
+static void label_group_start_switch_anim(label_info_t *out_group, label_info_t *in_group)
+{
+    label_group_set_hidden(in_group, false);
+    label_group_set_hidden(out_group, false);
+
+    for (uint8_t i = 0; i < LABEL_NUM; i++) {
+        if (out_group->obj[i] != NULL && lv_obj_is_valid(out_group->obj[i])) {
+            label_item_start_anim(out_group->obj[i],
+                &mode_switch_anim_param[0][i][0],
+                &mode_switch_anim_param[0][i][1],
+                i == MODE_SLOT_DOWN);
+        }
+
+        if (in_group->obj[i] != NULL && lv_obj_is_valid(in_group->obj[i])) {
+            label_item_start_anim(in_group->obj[i],
+                &mode_switch_anim_param[1][i][0],
+                &mode_switch_anim_param[1][i][1],
+                false);
+        }
+    }
+}
+
+static void create_up_and_down_label_item(ui_manager_context_t *thiz, label_info_t *label_info, uint8_t slot)
+{
+    if (label_info->obj[slot] == NULL || !lv_obj_is_valid(label_info->obj[slot])) {
+        label_info->obj[slot] = lv_obj_create(mode_info->root);
+        EXCEPTION_CHECK_VOID(label_info->obj[slot]);
+    }
+
+    lv_obj_remove_style_all(label_info->obj[slot]);
+    lv_obj_set_size(label_info->obj[slot], 200, 50); /// 设置圆圈大小
+    lv_obj_set_style_radius(label_info->obj[slot], LV_RADIUS_CIRCLE, 0); /// 圆角
+    lv_obj_set_style_bg_color(label_info->obj[slot], lv_color_hex(UP_LABEL_BG_COLOR), 0); /// 背景颜色
+    lv_obj_set_style_bg_grad_color(label_info->obj[slot], lv_color_hex(UP_LABEL_BG_COLOR), 0);
+    lv_obj_set_style_bg_opa(label_info->obj[slot], LV_OPA_COVER, 0);
+    lv_obj_align(label_info->obj[slot], LV_ALIGN_TOP_MID, 0, slot == MODE_SLOT_UP ? 88 : 262); /// 居中对齐
+    
+    if (label_info->title_text[slot] == NULL || !lv_obj_is_valid(label_info->title_text[slot])) {
+        label_info->title_text[slot] = lv_label_create(label_info->obj[slot]);
+        EXCEPTION_CHECK_VOID(label_info->title_text[slot]);
+        lv_obj_set_style_text_color(label_info->title_text[slot], lv_color_hex(UP_LABEL_TITLE_TEXT_COLOR), 0);
+        lv_obj_set_style_text_font(label_info->title_text[slot], &lv_font_oppo_sans_20_medium, 0);
+        lv_obj_set_style_text_align(label_info->title_text[slot], LV_TEXT_ALIGN_CENTER, 0);  /// 居中对齐
+        lv_obj_align(label_info->title_text[slot], LV_ALIGN_CENTER, 0, 0);
+        lv_obj_set_style_text_opa(label_info->title_text[slot], LV_OPA_COVER, 0);
+    }
+}
+
+static void create_mid_label_item(ui_manager_context_t *thiz, label_info_t *label_info)
+{
+    lv_draw_buf_t *background_snapshot = NULL;
+
+    #if LV_USE_SNAPSHOT
+    background_snapshot = get_lvgl_snap_shot(UI_SNAP_SHOT_SELECT_LABEL_ICON);
+    #endif
+
+    if (label_info->obj[MODE_SLOT_MID] == NULL || !lv_obj_is_valid(label_info->obj[MODE_SLOT_MID])) {
+        label_info->obj[MODE_SLOT_MID] = lv_image_create(mode_info->root);
+        EXCEPTION_CHECK_VOID(label_info->obj[MODE_SLOT_MID]);
+    }
+
+    if (background_snapshot != NULL) {
+        lv_image_set_src(label_info->obj[MODE_SLOT_MID], background_snapshot);
+    } else {
+        lv_obj_add_flag(label_info->obj[MODE_SLOT_MID], LV_OBJ_FLAG_HIDDEN); /// 隐藏
+    }
+    lv_obj_align(label_info->obj[MODE_SLOT_MID], LV_ALIGN_TOP_MID, 0, 150); /// 居中对齐
+
+    if (label_info->icon_img == NULL || !lv_obj_is_valid(label_info->icon_img)) {
+        label_info->icon_img = lv_image_create(label_info->obj[MODE_SLOT_MID]);
+        EXCEPTION_CHECK_VOID(label_info->icon_img);
+        lv_obj_align(label_info->icon_img, LV_ALIGN_LEFT_MID, 24, 0);
+    }
+
+    if (label_info->title_text[MODE_SLOT_MID] == NULL || !lv_obj_is_valid(label_info->title_text[MODE_SLOT_MID])) {
+        label_info->title_text[MODE_SLOT_MID] = lv_label_create(label_info->obj[MODE_SLOT_MID]);
+        EXCEPTION_CHECK_VOID(label_info->title_text[MODE_SLOT_MID]);
+        lv_obj_set_style_text_color(label_info->title_text[MODE_SLOT_MID], lv_color_hex(MID_LABEL_TITLE_TEXT_COLOR), 0);
+        lv_obj_set_style_text_font(label_info->title_text[MODE_SLOT_MID], &lv_font_oppo_sans_20_medium, 0);
+        lv_obj_set_style_text_align(label_info->title_text[MODE_SLOT_MID], LV_TEXT_ALIGN_CENTER, 0);  /// 居中对齐
+        lv_obj_set_style_text_opa(label_info->title_text[MODE_SLOT_MID], LV_OPA_COVER, 0);
+        lv_obj_align(label_info->title_text[MODE_SLOT_MID], LV_ALIGN_TOP_LEFT, 80, 16);
+    }
+
+    if (label_info->desc_text == NULL || !lv_obj_is_valid(label_info->desc_text)) {
+        label_info->desc_text = lv_label_create(label_info->obj[MODE_SLOT_MID]);
+        EXCEPTION_CHECK_VOID(label_info->desc_text);
+        lv_obj_set_style_text_color(label_info->desc_text, lv_color_hex(MID_LABEL_DESC_TEXT_COLOR), 0);
+        lv_obj_set_style_text_font(label_info->desc_text, &lv_font_oppo_sans_16_medium, 0);
+        lv_obj_set_style_text_align(label_info->desc_text, LV_TEXT_ALIGN_LEFT, 0);  /// 居中对齐
+        lv_obj_set_style_text_line_space(label_info->desc_text, 4, 0); /// 设置行间距（像素）
+        lv_obj_set_style_text_opa(label_info->desc_text, LV_OPA_COVER, 0);
+        lv_obj_align(label_info->desc_text, LV_ALIGN_TOP_LEFT, 80, 44);
+    }
+}
+
+static void update_up_and_down_label_content(ui_manager_context_t *thiz, label_info_t *label_info, 
+    mode_label_slot_e slot, int16_t mode_idx)
+{
+    if (label_info->obj[slot] == NULL || label_info->title_text[slot] == NULL) {
+        return;
+    }
+
+    if (label_info->idx[slot] == mode_idx) {
+        return;
+    }
+
+    lv_label_set_text(label_info->title_text[slot], mode_name[mode_idx]);
+    label_info->idx[slot] = mode_idx;
+}
+
+static void update_mid_label_content(ui_manager_context_t *thiz, label_info_t *label_info, uint8_t mode_idx)
+{
+    if (label_info->obj[MODE_SLOT_MID] == NULL || label_info->title_text[MODE_SLOT_MID] == NULL ||
+        label_info->icon_img == NULL || label_info->desc_text == NULL) {
+        return;
+    }
+
+    if (label_info->idx[MODE_SLOT_MID] == mode_idx) {
+        return;
+    }
+
+    uint16_t res_id = mode_icon_ids[mode_idx];
+    common_ui_img_resource_init(thiz, res_id, &label_info->icon_img_info);
+    if (label_info->icon_img_info.data != NULL) {
+        lv_fs_path_ex_t mode_component_path;
+        lv_fs_make_path_from_buffer(&mode_component_path, LV_FS_MEMFS_LETTER,
+            label_info->icon_img_info.data, label_info->icon_img_info.size, "baj");
+        lv_image_set_src(label_info->icon_img, (const void *)&mode_component_path);
+    }
+    lv_label_set_text(label_info->title_text[MODE_SLOT_MID], mode_name[mode_idx]);
+    lv_label_set_text(label_info->desc_text, mode_desc[mode_idx]);
+    label_info->idx[MODE_SLOT_MID] = mode_idx;
+}
+
+static void circle_carousel_set_mode(ui_manager_context_t *thiz, label_info_t *label_info, uint8_t idx, bool anim)
+{
+    (void)anim;
+
+    uint8_t up_idx = 0;
+    uint8_t down_idx = 0;
+    uint8_t mid_idx = 0;
+    if (idx == 0) {
+        mid_idx  = idx;
+        up_idx   = MODE_NUM- 1;
+        down_idx = 1;
+    } else if (idx >= MODE_NUM- 1) {
+        mid_idx  = MODE_NUM- 1;
+        up_idx   = mid_idx - 1;
+        down_idx = 0;
+    } else {
+        mid_idx  = idx;
+        up_idx   = mid_idx - 1;
+        down_idx = mid_idx + 1;
+    }
+    update_mid_label_content(thiz, label_info, mid_idx);
+    update_up_and_down_label_content(thiz, label_info, MODE_SLOT_UP, up_idx);
+    update_up_and_down_label_content(thiz, label_info, MODE_SLOT_DOWN, down_idx);
+    mode_info->cur_mode = mid_idx;
+}
+
+static void circle_carousel_create(ui_manager_context_t *thiz, uint8_t mode_idx)
+{ 
+    /// 创建上胶囊，层级小于中层胶囊
+    for (uint8_t i = 0; i < LABEL_GROUP_NUM; i++) {
+        mode_info->label_info[i].idx[MODE_SLOT_UP] = BREAST_PUMP_MODE_INVALID;
+        create_up_and_down_label_item(thiz, &mode_info->label_info[i], MODE_SLOT_UP); 
+        EXCEPTION_CHECK_VOID(mode_info->label_info[i].obj[MODE_SLOT_UP]);
+        EXCEPTION_CHECK_VOID(mode_info->label_info[i].title_text[MODE_SLOT_UP]);
+    }
+    
+    /// 创建中间胶囊，层级最高
+    for (uint8_t i = 0; i < LABEL_GROUP_NUM; i++) {
+        mode_info->label_info[i].idx[MODE_SLOT_MID] = BREAST_PUMP_MODE_INVALID;
+        create_mid_label_item(thiz, &mode_info->label_info[i]); 
+        EXCEPTION_CHECK_VOID(mode_info->label_info[i].obj[MODE_SLOT_MID]);
+        EXCEPTION_CHECK_VOID(mode_info->label_info[i].title_text[MODE_SLOT_MID]);
+        EXCEPTION_CHECK_VOID(mode_info->label_info[i].icon_img);
+        EXCEPTION_CHECK_VOID(mode_info->label_info[i].desc_text);
+    }
+
+    /// 创建下胶囊，层级小于上层胶囊
+    for (uint8_t i = 0; i < LABEL_GROUP_NUM; i++) {
+        mode_info->label_info[i].idx[MODE_SLOT_DOWN] = BREAST_PUMP_MODE_INVALID;
+        create_up_and_down_label_item(thiz, &mode_info->label_info[i], MODE_SLOT_DOWN); 
+        EXCEPTION_CHECK_VOID(mode_info->label_info[i].obj[MODE_SLOT_DOWN]);
+        EXCEPTION_CHECK_VOID(mode_info->label_info[i].title_text[MODE_SLOT_DOWN]);
+    }
+
+    /// 设置模式
+    for (uint8_t i = 0; i < LABEL_GROUP_NUM; i++) {
+        circle_carousel_set_mode(thiz, &mode_info->label_info[i], mode_idx, false);
+    }
+}
+
+static void label_ui_update(ui_manager_context_t *thiz, uint8_t mode_idx)
 {
     if (mode_idx > BREAST_PUMP_MIX_MODE) {
         mode_idx = BREAST_PUMP_STIMULATION_MODE;
     }
 
-    if (mode_info->mode_obj_init_done == false) {
-        circle_carousel_create(thiz, mode_info->root, mode_idx);
-        dotbar_carousel_create(thiz, mode_info->root, mode_idx);
+    if (mode_info->label_obj_init_done == false) {
+        circle_carousel_create(thiz, mode_idx);
+        label_group_apply_visible_param(&mode_info->label_info[0], true);
+        label_group_apply_visible_param(&mode_info->label_info[1], false);
         mode_info->cur_mode = mode_idx;
-        mode_info->mode_obj_init_done = true;
+        mode_info->active_label_group = 0;
+        mode_info->label_obj_init_done = true;
         return;
     }
 
     if (mode_info->force_update || mode_idx != mode_info->cur_mode) {
-        circle_carousel_set_mode(thiz, mode_idx, !mode_info->force_update);
+        uint8_t old_group = mode_info->active_label_group;
+        uint8_t new_group = (uint8_t)(old_group ^ 1);
+        circle_carousel_set_mode(thiz, &mode_info->label_info[new_group], mode_idx, false);
+        if (mode_info->force_update) {
+            label_group_apply_visible_param(&mode_info->label_info[old_group], false);
+            label_group_apply_visible_param(&mode_info->label_info[new_group], true);
+        } else {
+            label_group_start_switch_anim(&mode_info->label_info[old_group],
+                &mode_info->label_info[new_group]);
+        }
+        mode_info->active_label_group = new_group;
+        mode_info->cur_mode = mode_idx;
     }
 }
 
-static void mode_text_update(ui_manager_context_t *thiz)
+static void ui_page_title_text_update(ui_manager_context_t *thiz)
 {
     if (mode_info->force_update == false) {
         return;
     }
 
-    if (mode_info->mode_type_text == NULL || !lv_obj_is_valid(mode_info->mode_type_text)) {
-        mode_info->mode_type_text = lv_label_create(mode_info->root);
-        EXCEPTION_CHECK_VOID(mode_info->mode_type_text);
+    if (mode_info->page_title_text == NULL || !lv_obj_is_valid(mode_info->page_title_text)) {
+        mode_info->page_title_text = lv_label_create(mode_info->root);
+        EXCEPTION_CHECK_VOID(mode_info->page_title_text);
+        lv_label_set_text(mode_info->page_title_text, "Mode");
+        lv_obj_set_style_text_color(mode_info->page_title_text, lv_color_hex(PAGE_TITLE_TEXT_COLOR), 0);
+        lv_obj_set_style_text_font(mode_info->page_title_text, &lv_font_oppo_sans_24_semibold, 0);
+        lv_obj_set_style_text_align(mode_info->page_title_text, LV_TEXT_ALIGN_CENTER, 0);  /// 设置文本居中对齐
+        lv_obj_set_style_text_opa(mode_info->page_title_text, LV_OPA_COVER, 0);
+        lv_obj_align(mode_info->page_title_text, LV_ALIGN_TOP_MID, 0, PAGE_TITLE_Y_OFFSET); /// 顶部居中对齐，偏移32px
     }
-    lv_label_set_text(mode_info->mode_type_text, "Mode");
-    lv_obj_set_style_text_color(mode_info->mode_type_text, lv_color_hex(MODE_TEXT_COLOR), 0);
-    lv_obj_set_style_text_font(mode_info->mode_type_text, &lv_font_oppo_sans_20_semibold, 0);
-    lv_obj_set_style_text_align(mode_info->mode_type_text, LV_TEXT_ALIGN_CENTER, 0);  /// 设置文本居中对齐
-    lv_obj_set_style_text_opa(mode_info->mode_type_text, LV_OPA_COVER, 0);
-    lv_obj_align(mode_info->mode_type_text, LV_ALIGN_TOP_MID, 0, MODE_PAGE_TITLE_Y_OFFSET); /// 顶部居中对齐，偏移34px
 }
 
 /*
@@ -488,16 +586,11 @@ void common_pump_normal_mode_ui_prepare(ui_manager_context_t *thiz)
         mode_info = (mode_display_info_t *)u_malloz(sizeof(mode_display_info_t));
         EXCEPTION_CHECK_VOID(mode_info);
     }
-    mode_info->pump_ctx = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
-    if (mode_info->pump_ctx == NULL) {
-        u_free(mode_info);
-        mode_info = NULL;
-        return;
-    }
     mode_root_init(thiz);
-    common_ui_bg_init(thiz);
+    ui_background_init(thiz);
     mode_info->force_update = true;
-    mode_info->mode_obj_init_done = false;
+    mode_info->label_obj_init_done = false;
+    mode_info->active_label_group = 0;
     mode_info->popup_ui_index = ID_POPUP_UI_NONE;
 }
 
@@ -505,10 +598,10 @@ void common_pump_normal_mode_ui_remove(ui_manager_context_t *thiz)
 {
     EXCEPTION_CHECK_VOID(thiz && mode_info);
     common_ui_img_resource_deinit(thiz, &mode_info->dots_img_info);
-    for (uint8_t i = 0; i < MODE_CIRCLE_SLOT_COUNT; i++) {
-        common_ui_img_resource_deinit(thiz, &mode_info->mode_component_info[i]);
+    for (uint8_t i = 0; i < LABEL_GROUP_NUM; i++) {
+        common_ui_img_resource_deinit(thiz, &mode_info->label_info[i].icon_img_info);
     }
-    common_ui_bg_deinit(thiz);
+    ui_background_deinit(thiz);
     ui_common_operation_tip_remove(thiz);
     LVGL_OBJ_DELETE(mode_info->root);
     u_free(mode_info);
@@ -518,11 +611,10 @@ void common_pump_normal_mode_ui_remove(ui_manager_context_t *thiz)
 int common_pump_normal_mode_ui_process(ui_manager_context_t *thiz, uint8_t mode_idx, uint16_t popup_ui_type)
 {
     EXCEPTION_CHECK_INT(thiz && mode_info && mode_info->root);
-    mode_bg_update(thiz);
-    mode_ui_update(thiz, mode_idx);
-    mode_text_update(thiz);
+    ui_background_update(thiz);
+    label_ui_update(thiz, mode_idx);
+    ui_page_title_text_update(thiz);
     ui_common_operation_tip_update(thiz, popup_ui_type, mode_info->root, &mode_info->popup_ui_index);
     mode_info->force_update = false;
-    
     return 0;
 }

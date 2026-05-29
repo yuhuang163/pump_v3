@@ -15,6 +15,24 @@ extern "C" {
 #include "common_ui_png_decode.h" // IWYU pragma: keep
 
 /*
+* DEFINES
+*****************************************************************************************
+*/
+typedef enum {
+    UI_SNAP_SHOT_COMMON_BG = 0, /// 通用PNG背景
+    UI_SNAP_SHOT_PUMP_LEVEL_BG,  /// 力度调节页面背景
+    UI_SNAP_SHOT_REGULAR_PUMPING_BG,  /// 常规泵奶背景
+    UI_SNAP_SHOT_EXPERT_PUMPING_BG,  /// 专家泵奶背景
+    UI_SNAP_SHOT_PUMP_BOTH_LEVEL_BG,  /// 双侧泵奶档位调节背景
+    UI_SNAP_SHOT_ID_MAX
+} ui_snap_shot_id_e;
+
+typedef struct {
+    uint16_t img_id;
+    uint8_t is_need_alpha;
+} ui_snap_shot_info_t;
+
+/*
 * GLOBAL FUNCTION DECLARATION
 *********************************************************************************
 */
@@ -66,6 +84,10 @@ void common_pump_level_ui_prepare(ui_manager_context_t *thiz);
 void common_pump_level_ui_remove(ui_manager_context_t *thiz);
 int common_pump_level_ui_process(ui_manager_context_t *thiz, uint8_t level,
     int8_t level_change, bool is_left, uint8_t popup_ui_type);
+
+/// 背景快照
+lv_draw_buf_t *get_lvgl_snap_shot(ui_snap_shot_id_e snapshot_id);
+void ui_snap_shot_perpare(struct ui_manager_context *thiz);
 #ifdef __cplusplus
 }
 #endif
