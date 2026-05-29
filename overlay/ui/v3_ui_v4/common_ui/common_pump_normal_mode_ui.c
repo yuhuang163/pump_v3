@@ -65,7 +65,7 @@ typedef struct ui_display_mode_info {
     lv_obj_t *page_title_text;
     lv_obj_t *dots_img; /// 序号点图片
     res_img_info_t dots_img_info;
-    uint8_t cur_mode;
+    uint8_t mode_idx;
     uint8_t force_update;
     uint8_t label_obj_init_done;
     uint8_t active_label_group;
@@ -232,7 +232,7 @@ static void item_anim_exec_opa(void *var, int32_t v)
     if (v < MODE_MID_LABEL_HIDDEN_OPA) {
         if (obj == mode_info->label_info[0].obj[MODE_SLOT_MID] ||
             obj == mode_info->label_info[1].obj[MODE_SLOT_MID]) {
-            LOG_UI("obj: %p, v: %d", obj, v);
+            // LOG_UI("obj: %p, v: %d", obj, v);
             v = LV_OPA_TRANSP;
         }
     } 
@@ -427,32 +427,32 @@ static void create_mid_label_item(ui_manager_context_t *thiz, label_info_t *labe
 }
 
 static void update_up_and_down_label_content(ui_manager_context_t *thiz, label_info_t *label_info, 
-    mode_label_slot_e slot, int16_t mode_idx)
+    mode_label_slot_e slot, uint8_t idx)
 {
     if (label_info->obj[slot] == NULL || label_info->title_text[slot] == NULL) {
         return;
     }
 
-    if (label_info->idx[slot] == mode_idx) {
+    if (label_info->idx[slot] == idx) {
         return;
     }
 
-    lv_label_set_text(label_info->title_text[slot], mode_name[mode_idx]);
-    label_info->idx[slot] = mode_idx;
+    lv_label_set_text(label_info->title_text[slot], mode_name[idx]);
+    label_info->idx[slot] = idx;
 }
 
-static void update_mid_label_content(ui_manager_context_t *thiz, label_info_t *label_info, uint8_t mode_idx)
+static void update_mid_label_content(ui_manager_context_t *thiz, label_info_t *label_info, uint8_t idx)
 {
     if (label_info->obj[MODE_SLOT_MID] == NULL || label_info->title_text[MODE_SLOT_MID] == NULL ||
         label_info->icon_img == NULL || label_info->desc_text == NULL) {
         return;
     }
 
-    if (label_info->idx[MODE_SLOT_MID] == mode_idx) {
+    if (label_info->idx[MODE_SLOT_MID] == idx) {
         return;
     }
 
-    uint16_t res_id = mode_icon_ids[mode_idx];
+    uint16_t res_id = mode_icon_ids[idx];
     common_ui_img_resource_init(thiz, res_id, &label_info->icon_img_info);
     if (label_info->icon_img_info.data != NULL) {
         lv_fs_path_ex_t mode_component_path;
@@ -460,9 +460,9 @@ static void update_mid_label_content(ui_manager_context_t *thiz, label_info_t *l
             label_info->icon_img_info.data, label_info->icon_img_info.size, "baj");
         lv_image_set_src(label_info->icon_img, (const void *)&mode_component_path);
     }
-    lv_label_set_text(label_info->title_text[MODE_SLOT_MID], mode_name[mode_idx]);
-    lv_label_set_text(label_info->desc_text, mode_desc[mode_idx]);
-    label_info->idx[MODE_SLOT_MID] = mode_idx;
+    lv_label_set_text(label_info->title_text[MODE_SLOT_MID], mode_name[idx]);
+    lv_label_set_text(label_info->desc_text, mode_desc[idx]);
+    label_info->idx[MODE_SLOT_MID] = idx;
 }
 
 static void circle_carousel_set_mode(ui_manager_context_t *thiz, label_info_t *label_info, uint8_t idx, bool anim)
@@ -474,10 +474,10 @@ static void circle_carousel_set_mode(ui_manager_context_t *thiz, label_info_t *l
     uint8_t mid_idx = 0;
     if (idx == 0) {
         mid_idx  = idx;
-        up_idx   = MODE_NUM- 1;
+        up_idx   = MODE_NUM - 1;
         down_idx = 1;
-    } else if (idx >= MODE_NUM- 1) {
-        mid_idx  = MODE_NUM- 1;
+    } else if (idx >= MODE_NUM - 1) {
+        mid_idx  = MODE_NUM - 1;
         up_idx   = mid_idx - 1;
         down_idx = 0;
     } else {
@@ -488,10 +488,9 @@ static void circle_carousel_set_mode(ui_manager_context_t *thiz, label_info_t *l
     update_mid_label_content(thiz, label_info, mid_idx);
     update_up_and_down_label_content(thiz, label_info, MODE_SLOT_UP, up_idx);
     update_up_and_down_label_content(thiz, label_info, MODE_SLOT_DOWN, down_idx);
-    mode_info->cur_mode = mid_idx;
 }
 
-static void circle_carousel_create(ui_manager_context_t *thiz, uint8_t mode_idx)
+static void circle_carousel_create(ui_manager_context_t *thiz, uint8_t idx)
 { 
     /// 创建上胶囊，层级小于中层胶囊
     for (uint8_t i = 0; i < LABEL_GROUP_NUM; i++) {
@@ -521,30 +520,31 @@ static void circle_carousel_create(ui_manager_context_t *thiz, uint8_t mode_idx)
 
     /// 设置模式
     for (uint8_t i = 0; i < LABEL_GROUP_NUM; i++) {
-        circle_carousel_set_mode(thiz, &mode_info->label_info[i], mode_idx, false);
+        circle_carousel_set_mode(thiz, &mode_info->label_info[i], idx, false);
     }
 }
 
-static void label_ui_update(ui_manager_context_t *thiz, uint8_t mode_idx)
+static void label_ui_update(ui_manager_context_t *thiz, uint8_t mode)
 {
-    if (mode_idx > BREAST_PUMP_MIX_MODE) {
-        mode_idx = BREAST_PUMP_STIMULATION_MODE;
+    uint8_t idx = mode - BREAST_PUMP_NORMAL_MODE_LOWER;
+    if (idx >= MODE_NUM) {
+        idx = 0;
     }
 
     if (mode_info->label_obj_init_done == false) {
-        circle_carousel_create(thiz, mode_idx);
+        circle_carousel_create(thiz, idx);
         label_group_apply_visible_param(&mode_info->label_info[0], true);
         label_group_apply_visible_param(&mode_info->label_info[1], false);
-        mode_info->cur_mode = mode_idx;
+        mode_info->mode_idx = idx;
         mode_info->active_label_group = 0;
         mode_info->label_obj_init_done = true;
         return;
     }
 
-    if (mode_info->force_update || mode_idx != mode_info->cur_mode) {
+    if (mode_info->force_update || idx != mode_info->mode_idx) {
         uint8_t old_group = mode_info->active_label_group;
         uint8_t new_group = (uint8_t)(old_group ^ 1);
-        circle_carousel_set_mode(thiz, &mode_info->label_info[new_group], mode_idx, false);
+        circle_carousel_set_mode(thiz, &mode_info->label_info[new_group], idx, false);
         if (mode_info->force_update) {
             label_group_apply_visible_param(&mode_info->label_info[old_group], false);
             label_group_apply_visible_param(&mode_info->label_info[new_group], true);
@@ -553,7 +553,7 @@ static void label_ui_update(ui_manager_context_t *thiz, uint8_t mode_idx)
                 &mode_info->label_info[new_group]);
         }
         mode_info->active_label_group = new_group;
-        mode_info->cur_mode = mode_idx;
+        mode_info->mode_idx = idx;
     }
 }
 
@@ -608,11 +608,11 @@ void common_pump_normal_mode_ui_remove(ui_manager_context_t *thiz)
     mode_info = NULL;
 }
 
-int common_pump_normal_mode_ui_process(ui_manager_context_t *thiz, uint8_t mode_idx, uint16_t popup_ui_type)
+int common_pump_normal_mode_ui_process(ui_manager_context_t *thiz, uint8_t mode, uint16_t popup_ui_type)
 {
     EXCEPTION_CHECK_INT(thiz && mode_info && mode_info->root);
     ui_background_update(thiz);
-    label_ui_update(thiz, mode_idx);
+    label_ui_update(thiz, mode);
     ui_page_title_text_update(thiz);
     ui_common_operation_tip_update(thiz, popup_ui_type, mode_info->root, &mode_info->popup_ui_index);
     mode_info->force_update = false;

@@ -166,16 +166,16 @@ void switch_pump_common_mode_ui(ui_proc_pump_t *proc, bool is_increase)
     EXCEPTION_CHECK_VOID(proc->pump);
     uint8_t mode = proc->ui_normal_mode_index;
     if (is_increase) {
-        if (mode < BREAST_PUMP_MIX_MODE) {
+        if (mode < BREAST_PUMP_NORMAL_MODE_UPPER) {
             mode++;
         } else {
-            mode = BREAST_PUMP_STIMULATION_MODE;
+            mode = BREAST_PUMP_NORMAL_MODE_LOWER;
         }
     } else {
-        if (mode > BREAST_PUMP_STIMULATION_MODE) {
+        if (mode > BREAST_PUMP_NORMAL_MODE_LOWER) {
             mode--;
         } else {
-            mode = BREAST_PUMP_MIX_MODE;
+            mode = BREAST_PUMP_NORMAL_MODE_UPPER;
         }
     }
     proc->mode_sync_flag = true;

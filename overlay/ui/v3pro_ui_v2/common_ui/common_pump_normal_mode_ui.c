@@ -442,8 +442,8 @@ static void mode_bg_update(ui_manager_context_t *thiz)
 
 static void mode_ui_update(ui_manager_context_t *thiz, uint8_t mode_idx)
 {
-    if (mode_idx > BREAST_PUMP_MIX_MODE) {
-        mode_idx = BREAST_PUMP_STIMULATION_MODE;
+    if (mode_idx > BREAST_PUMP_NORMAL_MODE_UPPER) {
+        mode_idx = BREAST_PUMP_NORMAL_MODE_LOWER;
     }
 
     if (mode_info->mode_obj_init_done == false) {

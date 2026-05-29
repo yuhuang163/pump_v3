@@ -373,7 +373,7 @@ static void circle_carousel_set_mode(ui_manager_context_t *thiz, uint8_t idx, bo
     EXCEPTION_CHECK_VOID(bf_mode_info->pump_ctx);
     int last_mode_idx = 0;
     READ_PUMP_EXPERT_MODE(bf_mode_info->pump_ctx, true, last_mode_idx);
-    last_mode_idx = last_mode_idx - BREAST_PUMP_REGULAR_PUMPING_MODE;
+    last_mode_idx = last_mode_idx - BREAST_PUMP_EXPERT_MODE_LOWER;
     update_slot_content(thiz, BF_SLOT_LEFT, slot_mode_for_center(idx, BF_SLOT_LEFT) , last_mode_idx, false);
     update_slot_content(thiz, BF_SLOT_CENTER, slot_mode_for_center(idx, BF_SLOT_CENTER) , last_mode_idx, new_step_info_flag);
     update_slot_content(thiz, BF_SLOT_RIGHT, slot_mode_for_center(idx, BF_SLOT_RIGHT) , last_mode_idx, false);
@@ -551,7 +551,7 @@ static void bf_mode_bg_update(ui_manager_context_t *thiz)
 
 static void bf_mode_ui_update(ui_manager_context_t *thiz, uint8_t mode_idx)
 {
-    uint8_t target_idx = mode_idx - BREAST_PUMP_REGULAR_PUMPING_MODE;
+    uint8_t target_idx = mode_idx - BREAST_PUMP_EXPERT_MODE_LOWER;
     if (target_idx >= bf_mode_info->mode_num || target_idx >= BF_MODE_COUNT) {
         target_idx = 0;
     }

@@ -617,7 +617,7 @@ static void pump_home_custom_mode_update(ui_manager_context_t *thiz, uint8_t mod
         pump_info->next_sub_mode == next_sub_mode && pump_info->force_update == false) {
         return;
     }
-    uint8_t index = mode_index - BREAST_PUMP_REGULAR_PUMPING_MODE;
+    uint8_t index = mode_index - BREAST_PUMP_EXPERT_MODE_LOWER;
     if (index > HOME_BF_MODE_COUNT) {
         index = 0;
     }

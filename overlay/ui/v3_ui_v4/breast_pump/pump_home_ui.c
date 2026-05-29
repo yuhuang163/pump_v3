@@ -14,7 +14,7 @@
 */
 #define IS_SUPPORT_HOME_COMP_BG                    (0)
 #define HOME_MODE_MAX_COUNT                        (4)
-#define HOME_BF_MODE_COUNT                         (7)
+#define HOME_BF_MODE_COUNT                         (4)
 #define HOME_SPEED_MAX_COUNT                       (3)
 #define HOME_TEXT_COUNT                            (3)
 #define HOME_TIME_COLON_COUNT                      (2)
@@ -121,11 +121,8 @@ const static char *home_mode_names[HOME_MODE_MAX_COUNT] = {
 };
 
 static const char *bf_mode_name[HOME_BF_MODE_COUNT] = {
-    "Cozy Flow", /// 自然韵律模式
     "Milk Boost", /// 2+8奶量提升模式
     "Power Pumping", /// PP追奶模式
-    "Lactation Starter", /// 开奶模式
-    "Deep Emptying", /// 追加排空模式
     "Customize", /// 已使用过的个性化模式
     "Customize", /// 试用个性化模式
 };
@@ -619,7 +616,7 @@ static void pump_home_custom_mode_update(ui_manager_context_t *thiz, uint8_t mod
         pump_info->next_sub_mode == next_sub_mode && pump_info->force_update == false) {
         return;
     }
-    uint8_t index = mode_index - BREAST_PUMP_REGULAR_PUMPING_MODE;
+    uint8_t index = mode_index - BREAST_PUMP_EXPERT_MODE_LOWER;
     if (index >= HOME_BF_MODE_COUNT) {
         index = 0;
     }
