@@ -111,15 +111,15 @@ void switch_home_pump_bf_mode(ui_proc_home_t *proc, bool is_increase)
     uint8_t mode = proc->ui_bf_mode_index;
     int activate_status = 0;
     READ_PUMP_MODE_ACTIVATE(proc->pump, BREAST_PUMP_CUSTOM_MODE, activate_status);
-    uint8_t mode_upper_boundary = activate_status > 0 ? BREAST_PUMP_CUSTOM_MODE : BREAST_PUMP_EMPTYING_BOOST_MODE;
+    uint8_t mode_upper_boundary = activate_status > 0 ? BREAST_PUMP_CUSTOM_MODE : (BREAST_PUMP_CUSTOM_MODE - 1);
     if (is_increase) {
         if (mode < mode_upper_boundary) {
             mode++;
         } else {
-            mode = BREAST_PUMP_REGULAR_PUMPING_MODE;
+            mode = BREAST_PUMP_EXPERT_MODE_LOWER;
         }
     } else {
-        if (mode > BREAST_PUMP_REGULAR_PUMPING_MODE) {
+        if (mode > BREAST_PUMP_EXPERT_MODE_LOWER) {
             mode--;
         } else {
             mode = mode_upper_boundary;

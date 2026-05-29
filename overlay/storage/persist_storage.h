@@ -126,9 +126,34 @@ typedef struct {
 
 /// 泵奶模式
 typedef enum {
-    BREAST_PUMP_STIMULATION_MODE,      /// 刺激模式
-    BREAST_PUMP_LACTATION_MODE,        /// 吸乳模式
-    BREAST_PUMP_MIX_MODE,              /// 混合模式
+#if (PUMP_RHYTHM_MODE_NUM == 3)
+    BREAST_PUMP_STIMULATION_MODE,             /// 刺激模式
+    BREAST_PUMP_LACTATION_MODE,               /// 吸乳模式
+    BREAST_PUMP_MIX_MODE,                     /// 混合模式
+    BREAST_PUMP_RELAX_MODE,                   /// 放松模式（Relax）
+    BREAST_PUMP_MILK_BOOST_MODE,              /// 2+8奶量提升模式
+    BREAST_PUMP_PP_MILK_TRACK_MODE,           /// PP追奶模式（Power Pumping模式）
+    BREAST_PUMP_CUSTOM_MODE,                  /// 个性化模式
+    BREAST_PUMP_CUSTOM_TRIAL_MODE,            /// 用户自定义模式(试用)
+    BREAST_PUMP_REGULAR_PUMPING_MODE,         /// 常规韵律模式（Regular Pumping）
+    BREAST_PUMP_LACTATION_START_MODE,         /// 开奶模式
+    BREAST_PUMP_EMPTYING_BOOST_MODE,          /// 追加排空模式（Emptying Boost）
+    BREAST_PUMP_MODE_MAX,                     /// 模式最大模式
+    BREAST_PUMP_NORMAL_MODE_LOWER = BREAST_PUMP_STIMULATION_MODE, /// 常规模式下限模式
+    BREAST_PUMP_NORMAL_MODE_UPPER = BREAST_PUMP_MIX_MODE, /// 常规模式上限模式
+    BREAST_PUMP_EXPERT_MODE_LOWER = BREAST_PUMP_MILK_BOOST_MODE, /// 专家模式下限模式
+    BREAST_PUMP_EXPERT_MODE_UPPER = BREAST_PUMP_CUSTOM_MODE, /// 专家模式上限模式
+    BREAST_PUMP_NORMAL_MODE_DEFAULT = BREAST_PUMP_STIMULATION_MODE, /// 默认常规模式
+    BREAST_PUMP_EXPERT_MODE_DEFAULT = BREAST_PUMP_MILK_BOOST_MODE, /// 默认韵律
+    #if IS_SUPPORT_PUMP_RHYTHM_MODE_SELECT
+    BREAST_PUMP_PUMP_MODE_DEFAULT = BREAST_PUMP_MILK_BOOST_MODE, /// 默认韵律模式
+    #else
+    BREAST_PUMP_PUMP_MODE_DEFAULT = BREAST_PUMP_STIMULATION_MODE, /// 默认常规模式
+    #endif
+#else
+    BREAST_PUMP_STIMULATION_MODE,             /// 刺激模式
+    BREAST_PUMP_LACTATION_MODE,               /// 吸乳模式
+    BREAST_PUMP_MIX_MODE,                     /// 混合模式
     BREAST_PUMP_REGULAR_PUMPING_MODE,         /// 常规韵律模式（Regular Pumping）
     BREAST_PUMP_MILK_BOOST_MODE,              /// 2+8奶量提升模式
     BREAST_PUMP_PP_MILK_TRACK_MODE,           /// PP追奶模式（Power Pumping模式）
@@ -137,14 +162,18 @@ typedef enum {
     BREAST_PUMP_CUSTOM_MODE,                  /// 个性化模式
     BREAST_PUMP_CUSTOM_TRIAL_MODE,            /// 用户自定义模式(试用)
     BREAST_PUMP_RELAX_MODE,                   /// 放松模式（Relax）
-    BREAST_PUMP_MODE_MAX,
-    BREAST_PUMP_NORMAL_MODE_MAX = BREAST_PUMP_MIX_MODE - BREAST_PUMP_STIMULATION_MODE + 1,
+    BREAST_PUMP_MODE_MAX,                     /// 模式最大模式
+    BREAST_PUMP_NORMAL_MODE_LOWER = BREAST_PUMP_STIMULATION_MODE, /// 常规模式下限模式
+    BREAST_PUMP_NORMAL_MODE_UPPER = BREAST_PUMP_MIX_MODE, /// 常规模式上限模式
+    BREAST_PUMP_EXPERT_MODE_LOWER = BREAST_PUMP_REGULAR_PUMPING_MODE, /// 专家模式下限模式
+    BREAST_PUMP_EXPERT_MODE_UPPER = BREAST_PUMP_CUSTOM_MODE, /// 专家模式上限模式
     BREAST_PUMP_NORMAL_MODE_DEFAULT = BREAST_PUMP_STIMULATION_MODE, /// 默认常规模式
-    BREAST_PUMP_EXPERT_MODE_DEFAULT = BREAST_PUMP_REGULAR_PUMPING_MODE, /// 默认专家韵律
-#if IS_SUPPORT_PUMP_RHYTHM_MODE_SELECT
+    BREAST_PUMP_EXPERT_MODE_DEFAULT = BREAST_PUMP_REGULAR_PUMPING_MODE, /// 默认韵律
+    #if IS_SUPPORT_PUMP_RHYTHM_MODE_SELECT
     BREAST_PUMP_PUMP_MODE_DEFAULT = BREAST_PUMP_REGULAR_PUMPING_MODE, /// 默认韵律模式
-#else
+    #else
     BREAST_PUMP_PUMP_MODE_DEFAULT = BREAST_PUMP_STIMULATION_MODE, /// 默认常规模式
+    #endif
 #endif
     BREAST_PUMP_MODE_INVALID = 0xFF,
     BREAST_PUMP_ALL_MODE_AND_PROGRAM = 0xFFFF, /// 所有模式和韵律
@@ -202,6 +231,7 @@ typedef enum {
     BREAST_PUMP_SPEED_MID = 1,
     BREAST_PUMP_SPEED_HIGH = 2,
     BREAST_PUMP_SPEED_MAX,
+    BREAST_PUMP_SPEED_INVALID = 0xFF,
 } breast_pump_speed_e;
 
 /// 泵奶控制类型
