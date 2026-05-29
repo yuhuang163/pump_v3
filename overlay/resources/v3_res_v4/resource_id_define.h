@@ -57,6 +57,7 @@ typedef enum {
     RESOURCE_ID_MODE_LACTATION_ICON,           /// 模式-泌乳图标
     RESOURCE_ID_MODE_MIX_ICON,                 /// 模式-混合图标
     RESOURCE_ID_MODE_STIMULATE_ICON,           /// 模式-刺激图标
+    RESOURCE_ID_MODE_RELAX_ICON,               /// 模式-放松图标
 
     RESOURCE_ID_MODE_CUSTOM_ICON,              /// 韵律-专家模式图标
     RESOURCE_ID_MODE_EXPERT_ICON,              /// 韵律-个性化模式图标
@@ -68,7 +69,8 @@ typedef enum {
     RESOURCE_ID_PUMP_LEVEL_SUB_LABEL_ICON,     /// 泵奶档位文本减号图标
     RESOURCE_ID_PUMP_LEFT_LEVEL_ICON,          /// 泵奶左档位图标
     RESOURCE_ID_PUMP_RIGHT_LEVEL_ICON,         /// 泵奶右档位图标
-    
+    RESOURCE_ID_SELECT_LABEL_ICON,             /// 选中标签图标
+
     /* 动画组 [300...] */
     RESOURCE_ID_PUMP_LEVEL_START = 300,   /// 泵奶档位图片-开始
     RESOURCE_ID_PUMP_LEVEL_END = 314,     /// 泵奶档位图片-结束
