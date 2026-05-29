@@ -9,7 +9,7 @@ extern "C" {
 * Include files
 ******************************************************************************/
 #include "root_common_base.h" // IWYU pragma: keep
-#include "app_old_protocol_parser.h"
+#include "persist_storage.h" // IWYU pragma: keep
 
 typedef enum {
     APP_OLD_COMM_SYS_FINISH      = 0x00,
@@ -30,24 +30,27 @@ typedef enum {
     APP_OLD_COMM_INVALID_CT    = 0x03,
 } app_old_commd_l_r_ctrl_e;
 
-// Breast pumping mode definitions
+/// 旧协议泵奶模式（与 CTRL_DEV / 状态上报 cab[1] 一致，0x01~0x0B）
 typedef enum {
-    APP_OLD_COMM_MODE_MASSAGE = 0x01,         // Massage
-    APP_OLD_COMM_MODE_SUCTION = 0x02,         // Suction
-    APP_OLD_COMM_MODE_MIXED = 0x03,           // Mixed
-    APP_OLD_COMM_MODE_CUSTOM = 0x04,          // Custom
-    APP_OLD_COMM_MODE_SMART = 0x05,           // Smart suction
-    APP_OLD_COMM_MODE_PP_MILK_TRACK = 0X06,   /// PP追奶模式
-    APP_OLD_COMM_MODE_MILK_BOOST = 0X07,      /// 2+8奶量提升模式
-    APP_OLD_COMM_MODE_LACTATION_START = 0X08, /// 开奶模式
+    APP_OLD_COMM_MODE_MASSAGE = 0x01,           /// 按摩（刺激）
+    APP_OLD_COMM_MODE_SUCTION = 0x02,           /// 吸乳
+    APP_OLD_COMM_MODE_MIXED = 0x03,             /// 混合
+    APP_OLD_COMM_MODE_REGULAR_PUMPING = 0x04,   /// 常规韵律
+    APP_OLD_COMM_MODE_MILK_BOOST = 0x05,        /// 2+8 奶量提升
+    APP_OLD_COMM_MODE_PP_MILK_TRACK = 0x06,     /// PP 追奶
+    APP_OLD_COMM_MODE_LACTATION_START = 0x07,   /// 开奶
+    APP_OLD_COMM_MODE_EMPTYING_BOOST = 0x08,    /// 追加排空
+    APP_OLD_COMM_MODE_CUSTOM = 0x09,            /// 个性化
+    APP_OLD_COMM_MODE_CUSTOM_TRIAL = 0x0A,      /// 自定义试用
+    APP_OLD_COMM_MODE_RELAX = 0x0B,             /// 放松
 } app_old_comm_pump_mode;
 
 typedef enum {
-    APP_OLD_COMM_MODE_SHORT = 0x01, // Massage
-    APP_OLD_COMM_MODE_LONG = 0x02,  // Suction
-    APP_OLD_COMM_MODE_MIX1 = 0x03,  // Mix1
-    APP_OLD_COMM_MODE_MIX2 = 0x04,  // Mix2
-    APP_OLD_COMM_MODE_RELAX = 0x05, // Relax
+    APP_OLD_COMM_STEP_MODE_SHORT = 0x01, /// 短吸（按摩）
+    APP_OLD_COMM_STEP_MODE_LONG = 0x02,  /// 长吸（吸乳）
+    APP_OLD_COMM_STEP_MODE_MIX1 = 0x03,  /// 混合1
+    APP_OLD_COMM_STEP_MODE_MIX2 = 0x04,  /// 混合2
+    APP_OLD_COMM_STEP_MODE_RELAX = 0x05, /// 放松步骤
 } app_old_comm_custom_pump_step_mode;
 
 typedef enum {
