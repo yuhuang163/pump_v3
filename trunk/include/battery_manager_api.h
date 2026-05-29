@@ -57,6 +57,7 @@ typedef enum {
     BATTERY_STATE_LOW_POWER_SHUTDOWN = 2, /// 低电量关机.
     BATTERY_STATE_FORBID_START = 3, /// 禁止启动.
     BATTERY_STATE_LOW_POWER_RUN = 4, /// 低功耗运行.
+    BATTERY_STATE_CHARGING = 5, /// 充电中.
     BATTERY_STATE_MAX,
 } battery_state_e;
 

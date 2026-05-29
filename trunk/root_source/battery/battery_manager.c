@@ -50,6 +50,10 @@ static battery_state_e get_battery_state(int percent, int charge_status)
         return BATTERY_STATE_LOW_POWER_RUN;
     } 
 
+    if (charge_status == CHARGE_STATE_CHARGING) {
+        return BATTERY_STATE_CHARGING;
+    }
+
     return BATTERY_STATE_NONE;
 }
 
