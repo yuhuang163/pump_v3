@@ -112,16 +112,13 @@ static void pump_level_root_bg_update(ui_manager_context_t *thiz)
 #else
 static void pump_level_root_bg_update(ui_manager_context_t *thiz)
 {
-    EXCEPTION_CHECK_VOID(thiz);
-    EXCEPTION_CHECK_VOID(level_info);
-    EXCEPTION_CHECK_VOID(level_info->root);
-    
+    EXCEPTION_CHECK_VOID(thiz && level_info && level_info->root);
     if (level_info->force_update == false) {
         return;
     }
 
 #if LV_USE_SNAPSHOT
-    lv_draw_buf_t *background_snapshot = thiz->get_lvgl_snap_shot(UI_SNAP_SHOT_PUMP_LEVEL_BG);
+    lv_draw_buf_t *background_snapshot = get_lvgl_snap_shot(UI_SNAP_SHOT_PUMP_LEVEL_BG);
     EXCEPTION_CHECK_VOID(background_snapshot);
 #endif
 

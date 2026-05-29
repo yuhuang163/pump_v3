@@ -39,14 +39,13 @@ void common_ui_bg_init(ui_manager_context_t *thiz)
 
 void common_ui_bg_update(ui_manager_context_t *thiz, lv_obj_t *parent)
 {
-    EXCEPTION_CHECK_VOID(thiz);
-    EXCEPTION_CHECK_VOID(parent);
+    EXCEPTION_CHECK_VOID(thiz && parent);
     if (s_force_update == false) {
         return;
     }
 
 #if LV_USE_SNAPSHOT
-    lv_draw_buf_t *background_snapshot = thiz->get_lvgl_snap_shot(UI_SNAP_SHOT_COMMON_BG);
+    lv_draw_buf_t *background_snapshot = get_lvgl_snap_shot(UI_SNAP_SHOT_COMMON_BG);
     EXCEPTION_CHECK_VOID(background_snapshot);
 #endif
 
