@@ -244,7 +244,7 @@ static uint8_t app_old_comm_get_current_custom_pump_step_mode(servers_old_protoc
         time_index = 0;
     }
     /// 获取自定义模式参数
-    uint8_t time_step_mode = APP_OLD_COMM_MODE_SHORT;
+    uint8_t time_step_mode = APP_OLD_COMM_STEP_MODE_SHORT;
     storage_manager_context_t *storage_ctx = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
     EXCEPTION_CHECK_UINT(storage_ctx);
     pump_mode_steps_info_t steps_info ={0};
@@ -254,14 +254,14 @@ static uint8_t app_old_comm_get_current_custom_pump_step_mode(servers_old_protoc
         if (steps_info.data[i].policy_type == MOTOR_TIME_POLICY) {
             if (time_step_index == time_index) {
                 if (steps_info.data[i].mode_type == SUCTION_MODE_SHORT) {
-                    time_step_mode = APP_OLD_COMM_MODE_SHORT;
+                    time_step_mode = APP_OLD_COMM_STEP_MODE_SHORT;
                 } else if (steps_info.data[i].mode_type == SUCTION_MODE_LONG) {
-                    time_step_mode = APP_OLD_COMM_MODE_LONG;
+                    time_step_mode = APP_OLD_COMM_STEP_MODE_LONG;
                 } else if (steps_info.data[i].mode_type == SUCTION_MODE_MIX_SHORT || 
                     steps_info.data[i].mode_type == SUCTION_MODE_MIX_LONG) {
-                    time_step_mode = steps_info.data[i].loop_num == 5 ? APP_OLD_COMM_MODE_MIX1 : APP_OLD_COMM_MODE_MIX2;
+                    time_step_mode = steps_info.data[i].loop_num == 5 ? APP_OLD_COMM_STEP_MODE_MIX1 : APP_OLD_COMM_STEP_MODE_MIX2;
                 } else {
-                    time_step_mode = APP_OLD_COMM_MODE_RELAX;
+                    time_step_mode = APP_OLD_COMM_STEP_MODE_RELAX;
                 }
                 break;
             }
@@ -933,6 +933,68 @@ static void app_old_comm_append_u16_le(uint8_t *buf, uint16_t *len, uint32_t val
     buf[(*len)++] = (uint8_t)((value >> 8) & 0xFF);
 }
 
+static breast_pump_mode_e app_old_comm_recv_mode_to_breast_pump_mode(uint8_t recv_mode)
+{
+    switch ((app_old_comm_pump_mode)recv_mode) {
+    case APP_OLD_COMM_MODE_MASSAGE:
+        return BREAST_PUMP_STIMULATION_MODE;
+    case APP_OLD_COMM_MODE_SUCTION:
+        return BREAST_PUMP_LACTATION_MODE;
+    case APP_OLD_COMM_MODE_MIXED:
+        return BREAST_PUMP_MIX_MODE;
+    case APP_OLD_COMM_MODE_REGULAR_PUMPING:
+        return BREAST_PUMP_REGULAR_PUMPING_MODE;
+    case APP_OLD_COMM_MODE_MILK_BOOST:
+        return BREAST_PUMP_MILK_BOOST_MODE;
+    case APP_OLD_COMM_MODE_PP_MILK_TRACK:
+        return BREAST_PUMP_PP_MILK_TRACK_MODE;
+    case APP_OLD_COMM_MODE_LACTATION_START:
+        return BREAST_PUMP_LACTATION_START_MODE;
+    case APP_OLD_COMM_MODE_EMPTYING_BOOST:
+        return BREAST_PUMP_EMPTYING_BOOST_MODE;
+    case APP_OLD_COMM_MODE_CUSTOM:
+        return BREAST_PUMP_CUSTOM_MODE;
+    case APP_OLD_COMM_MODE_CUSTOM_TRIAL:
+        return BREAST_PUMP_CUSTOM_TRIAL_MODE;
+    case APP_OLD_COMM_MODE_RELAX:
+        return BREAST_PUMP_RELAX_MODE;
+    default:
+        LOG_SRV("invalid app pump mode: 0x%02X", recv_mode);
+        return BREAST_PUMP_MODE_INVALID;
+    }
+}
+
+static uint8_t breast_pump_mode_to_app_old_comm_mode(breast_pump_mode_e mode)
+{
+    switch (mode) {
+    case BREAST_PUMP_STIMULATION_MODE:
+        return APP_OLD_COMM_MODE_MASSAGE;
+    case BREAST_PUMP_LACTATION_MODE:
+        return APP_OLD_COMM_MODE_SUCTION;
+    case BREAST_PUMP_MIX_MODE:
+        return APP_OLD_COMM_MODE_MIXED;
+    case BREAST_PUMP_REGULAR_PUMPING_MODE:
+        return APP_OLD_COMM_MODE_REGULAR_PUMPING;
+    case BREAST_PUMP_MILK_BOOST_MODE:
+        return APP_OLD_COMM_MODE_MILK_BOOST;
+    case BREAST_PUMP_PP_MILK_TRACK_MODE:
+        return APP_OLD_COMM_MODE_PP_MILK_TRACK;
+    case BREAST_PUMP_LACTATION_START_MODE:
+        return APP_OLD_COMM_MODE_LACTATION_START;
+    case BREAST_PUMP_EMPTYING_BOOST_MODE:
+        return APP_OLD_COMM_MODE_EMPTYING_BOOST;
+    case BREAST_PUMP_CUSTOM_MODE:
+        return APP_OLD_COMM_MODE_CUSTOM;
+    case BREAST_PUMP_CUSTOM_TRIAL_MODE:
+        return APP_OLD_COMM_MODE_CUSTOM_TRIAL;
+    case BREAST_PUMP_RELAX_MODE:
+        return APP_OLD_COMM_MODE_RELAX;
+    default:
+        LOG_SRV("invalid breast pump mode for app report: %d", mode);
+        return 0;
+    }
+}
+
 /*
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
@@ -952,7 +1014,8 @@ void app_old_comm_report_device_status(app_old_commd_l_r_ctrl_e lr_ct, servers_o
     report_data[data_len++] = app_old_comm_get_battery_percent();
     report_data[data_len++] = app_old_comm_get_sys_status(id, val);
     report_data[data_len++] = lr_ct;
-    report_data[data_len++] = app_old_comm_get_current_pump_mode() + 1; //0x01~0x05（按摩-吸乳-混合-自定义-智能吸乳）
+    report_data[data_len++] = breast_pump_mode_to_app_old_comm_mode(
+        (breast_pump_mode_e)app_old_comm_get_current_pump_mode());
     report_data[data_len++] = app_old_comm_get_current_mode_pump_level(lr_ct, id); //0x01~0x0F（1档~15档）
     report_data[data_len++] = app_old_comm_get_current_custom_pump_step_mode(id);
     report_data[data_len++] = app_old_comm_get_current_custom_pump_level(lr_ct, id); //0x01~0x0F（1档~15档）
@@ -1008,7 +1071,8 @@ void app_old_comm_handle_get_status_req(app_old_commd_l_r_ctrl_e lr_ct)
     ack_data[data_len++] = app_old_comm_get_battery_percent();
     ack_data[data_len++] = app_old_comm_get_sys_status(OLD_PUBLISH_DATA_POLL_REPORT, NULL);
     ack_data[data_len++] = lr_ct;
-    ack_data[data_len++] = app_old_comm_get_current_pump_mode() + 1;
+    ack_data[data_len++] = breast_pump_mode_to_app_old_comm_mode(
+        (breast_pump_mode_e)app_old_comm_get_current_pump_mode());
     ack_data[data_len++] = app_old_comm_get_current_mode_pump_level(lr_ct, OLD_PUBLISH_DATA_POLL_REPORT);
     ack_data[data_len++] = app_old_comm_get_current_custom_pump_step_mode(OLD_PUBLISH_DATA_POLL_REPORT);
     ack_data[data_len++] = app_old_comm_get_current_custom_pump_level(lr_ct, OLD_PUBLISH_DATA_POLL_REPORT);
@@ -1045,8 +1109,9 @@ void app_old_comm_handle_ctrl_dev_req(uint8_t cal, uint8_t *cab)
     EXCEPTION_CHECK_VOID(pump_ctx);
     // TODO: Send parameters to pump valve component
     app_old_comm_pump_ctrl app_old_comm_pump_ctrl_date;
-    app_old_comm_pump_ctrl_date.pump_ctrl_status = cab[0];
-    app_old_comm_pump_ctrl_date.pump_mode = cab[1] - 1; //0x01~0x05（按摩-吸乳-混合-自定义-智能吸乳）
+    app_old_comm_pump_ctrl_date.pump_ctrl_status = cab[0];//0X00 -暂停  0x01 启动
+    app_old_comm_pump_ctrl_date.pump_mode =
+        (uint8_t)app_old_comm_recv_mode_to_breast_pump_mode(cab[1]);
     app_old_comm_pump_ctrl_date.normal_pump_level = cab[2];
     app_old_comm_pump_ctrl_date.user_define_pump_step_mode = cab[3];
     app_old_comm_pump_ctrl_date.user_define_pump_level = cab[4];
@@ -1137,7 +1202,7 @@ void app_old_comm_handle_set_user_define_req(uint8_t cal, uint8_t *cab)
         level = cab[n + 2] >= BREAST_PUMP_LEVEL_MAX ? BREAST_PUMP_LEVEL_15 : cab[n + 2];
         speed = (cab[n + 3] - 1) >= BREAST_PUMP_SPEED_MAX ? BREAST_PUMP_SPEED_HIGH : (cab[n + 3] - 1);
         time_policy_duration = cab[n + 4] << 8 | cab[n + 5];
-        if (mode_type == APP_OLD_COMM_MODE_SHORT) {
+        if (mode_type == APP_OLD_COMM_STEP_MODE_SHORT) {
                 if (!app_old_comm_check_custom_policy_capacity(step_index, 1, APP_OLD_COMM_CID_USER_DEFINE, cab)) {
                     return;
                 }
@@ -1148,7 +1213,7 @@ void app_old_comm_handle_set_user_define_req(uint8_t cal, uint8_t *cab)
                 pump_steps_info.data[step_index].duration = time_policy_duration;
                 pump_steps_info.data[step_index].policy_type = MOTOR_TIME_POLICY;
                 step_index++;
-            } else if (mode_type == APP_OLD_COMM_MODE_LONG) {
+            } else if (mode_type == APP_OLD_COMM_STEP_MODE_LONG) {
                 if (!app_old_comm_check_custom_policy_capacity(step_index, 1, APP_OLD_COMM_CID_USER_DEFINE, cab)) {
                     return;
                 }
@@ -1159,7 +1224,7 @@ void app_old_comm_handle_set_user_define_req(uint8_t cal, uint8_t *cab)
                 pump_steps_info.data[step_index].duration = time_policy_duration;
                 pump_steps_info.data[step_index].policy_type = MOTOR_TIME_POLICY;
                 step_index++;
-            } else if (mode_type == APP_OLD_COMM_MODE_MIX1) {
+            } else if (mode_type == APP_OLD_COMM_STEP_MODE_MIX1) {
                 if (!app_old_comm_check_custom_policy_capacity(step_index, 2, APP_OLD_COMM_CID_USER_DEFINE, cab)) {
                     return;
                 }
@@ -1178,7 +1243,7 @@ void app_old_comm_handle_set_user_define_req(uint8_t cal, uint8_t *cab)
                 pump_steps_info.data[step_index + 1].duration = 0;
                 pump_steps_info.data[step_index + 1].policy_type = MOTOR_TIME_SUB_POLICY;
                 step_index += 2;
-            } else if (mode_type == APP_OLD_COMM_MODE_MIX2) {
+            } else if (mode_type == APP_OLD_COMM_STEP_MODE_MIX2) {
                 if (!app_old_comm_check_custom_policy_capacity(step_index, 2, APP_OLD_COMM_CID_USER_DEFINE, cab)) {
                     return;
                 }
@@ -1287,7 +1352,7 @@ void app_old_comm_handle_set_trail_user_define_req(uint8_t cal, uint8_t *cab)
         level = cab[n + 2] >= BREAST_PUMP_LEVEL_MAX ? BREAST_PUMP_LEVEL_15 : cab[n + 2];
         speed = (cab[n + 3] - 1) >= BREAST_PUMP_SPEED_MAX ? BREAST_PUMP_SPEED_HIGH : (cab[n + 3] - 1);
         time_policy_duration = cab[n + 4] << 8 | cab[n + 5];
-        if (mode_type == APP_OLD_COMM_MODE_SHORT) {
+        if (mode_type == APP_OLD_COMM_STEP_MODE_SHORT) {
                 if (!app_old_comm_check_custom_policy_capacity(step_index, 1, APP_OLD_COMM_CID_PARA_DOWNLOAD, cab)) {
                     return;
                 }
@@ -1298,7 +1363,7 @@ void app_old_comm_handle_set_trail_user_define_req(uint8_t cal, uint8_t *cab)
                 pump_steps_info.data[step_index].duration = time_policy_duration;
                 pump_steps_info.data[step_index].policy_type = MOTOR_TIME_POLICY;
                 step_index++;
-            } else if (mode_type == APP_OLD_COMM_MODE_LONG) {
+            } else if (mode_type == APP_OLD_COMM_STEP_MODE_LONG) {
                 if (!app_old_comm_check_custom_policy_capacity(step_index, 1, APP_OLD_COMM_CID_PARA_DOWNLOAD, cab)) {
                     return;
                 }
@@ -1309,7 +1374,7 @@ void app_old_comm_handle_set_trail_user_define_req(uint8_t cal, uint8_t *cab)
                 pump_steps_info.data[step_index].duration = time_policy_duration;
                 pump_steps_info.data[step_index].policy_type = MOTOR_TIME_POLICY;
                 step_index++;
-            } else if (mode_type == APP_OLD_COMM_MODE_MIX1) {
+            } else if (mode_type == APP_OLD_COMM_STEP_MODE_MIX1) {
                 if (!app_old_comm_check_custom_policy_capacity(step_index, 2, APP_OLD_COMM_CID_PARA_DOWNLOAD, cab)) {
                     return;
                 }
@@ -1328,7 +1393,7 @@ void app_old_comm_handle_set_trail_user_define_req(uint8_t cal, uint8_t *cab)
                 pump_steps_info.data[step_index + 1].duration = 0;
                 pump_steps_info.data[step_index + 1].policy_type = MOTOR_TIME_SUB_POLICY;
                 step_index += 2;
-            } else if (mode_type == APP_OLD_COMM_MODE_MIX2) {
+            } else if (mode_type == APP_OLD_COMM_STEP_MODE_MIX2) {
                 if (!app_old_comm_check_custom_policy_capacity(step_index, 2, APP_OLD_COMM_CID_PARA_DOWNLOAD, cab)) {
                     return;
                 }
