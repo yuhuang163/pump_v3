@@ -34,6 +34,15 @@ static void home_pump_result_display_completed_cb(hdr_post_args_t *args)
         LOG_UI("pump result ui, ignore display completed.");
         return;
     }
+    
+    if (proc->battery && proc->battery->get_charge_status() == CHARGE_STATE_ERROR) {
+        LOG_WM("charge error, goto charge screen");
+        multi_func_msg_data_t msg = {0};
+        msg.union_body.extra.window_id = ID_WINDOW_CHARGE;
+        proc->wm->dispatch_new_window_args(proc->wm, &msg);
+        return;
+    }
+
     start_home_ui_animation(proc);
 }
 

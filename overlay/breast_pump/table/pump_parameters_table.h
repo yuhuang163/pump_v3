@@ -17,7 +17,7 @@ extern "C" {
 #define LONG_SUCTION_HOLD_TIME             0 /// 长吸保持时间，单位ms
 #define PUMP_SLEEP_TIME_MAX                2000  /// 最大休眠时间，单位ms
 #define PUMP_SLEEP_TIME_MIN                20  /// 最小休眠时间，单位ms
-#define IS_USE_NEW_SUCTION                 0 /// 默认参数是否使用新的时光泵吸力参数表 // 0 不使用 1 使用
+#define IS_USE_NEW_SUCTION                 1 /// 默认参数是否使用新的时光泵吸力参数表 // 0 不使用 1 使用
 #define SHORT_SUCTION_DEFAULT_FREQ         90
 #define LONG_SUCTION_DEFAULT_FREQ          40
 

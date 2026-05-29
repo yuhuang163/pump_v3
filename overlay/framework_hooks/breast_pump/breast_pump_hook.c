@@ -161,12 +161,6 @@ static int local_breast_pump_process(breast_pump_manager_context_t *ctx, pump_re
     }
 #endif
 
-#if IS_SUPPORT_LOW_POWER_AUTO_STOP_PUMP
-    if (ctx->priv.battery && ctx->priv.battery->get_battery_percent() < 10) {
-        LOG_PMP("low power, auto stop pump");
-        return RESULT_PUMP_LOW_POWER;
-    }
-#endif
     /// 更新模式和力度.
     if (result_info->mode != ctx->priv.m_info.mode) {
         breast_pump_mode_update(ctx, result_info);
@@ -248,8 +242,6 @@ static int start_breast_pump_work_route(breast_pump_manager_context_t *ctx, int 
 static int stop_breast_pump_work_route(breast_pump_manager_context_t *ctx, int status)
 {
     pump_result_info_t *result_info = &ctx->priv.result_info[BREAST_PUMP_RESULT_PUMPING];
-    uint32_t poll_time = get_timestamp_ms(result_info->start_time);
-    result_info->work_valid_time += poll_time;
     LOG_PMP("stop, work_time=%d", PUMP_TIME_TO_SECOND(result_info->work_valid_time));
     return 0;
 }

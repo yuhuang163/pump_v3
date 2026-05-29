@@ -75,7 +75,9 @@ static void pump_ui_common_cb(hdr_post_args_t *args)
 
 static void pump_knob_event_cb(ui_proc_pump_t *proc, uint8_t is_left)
 {
-    if (proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_TIMEOUT) {
+    if (proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_TIMEOUT ||
+        proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_CHARGE_ERROR ||
+        proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_LOW_POWER) {
         LOG_WM("pump finish timeout, ignore knob event.");
         return;
     }
@@ -130,7 +132,9 @@ static void pump_long_press_event_cb(ui_proc_pump_t *proc, uint16_t keycode)
 
 static void pump_click_event_cb(ui_proc_pump_t *proc, uint16_t keycode)
 {
-    if (proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_TIMEOUT) {
+    if (proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_TIMEOUT ||
+        proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_CHARGE_ERROR ||
+        proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_LOW_POWER) {
         LOG_WM("pump finish timeout, ignore key event.");
         return;
     }
@@ -242,6 +246,8 @@ static void pump_broadcast_receive_ui_cb(hdr_post_args_t *args)
                     break;
                 case BREAST_PUMP_BROADCAST_COMPLETED: {
                     if (proc->popup_ui_type != ID_POPUP_UI_PUMP_FINISH_TIMEOUT &&
+                        proc->popup_ui_type != ID_POPUP_UI_PUMP_FINISH_CHARGE_ERROR &&
+                        proc->popup_ui_type != ID_POPUP_UI_PUMP_FINISH_LOW_POWER &&
                         proc->pump_will_finish && PUMP_NO_FINISH(pump_status)) {
                         multi_func_msg_data_t msg = {0};
                         msg.union_body.extra.window_id = ID_WINDOW_HOME;
@@ -314,6 +320,41 @@ static void remove_breast_pump_result_cb(ui_proc_pump_t *proc)
     proc->pump->remove_breast_pump_result_listener(on_breast_pump_result_cb);
 }
 
+static void on_pump_window_battery_state_change_cb(void *user_data, battery_state_info_t *info)
+{
+    ui_proc_pump_t *proc = (ui_proc_pump_t *)user_data;
+    WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_PUMP);
+    if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
+        LOG_WM("wm not running, ignore.");
+        return;
+    }
+    
+    if (info->charge_status == CHARGE_STATE_ERROR) {
+        LOG_WM("charge status error");
+        if (proc->popup_ui_type != ID_POPUP_UI_PUMP_FINISH_TIMEOUT &&
+            proc->popup_ui_type != ID_POPUP_UI_PUMP_FINISH_CHARGE_ERROR &&
+            proc->popup_ui_type != ID_POPUP_UI_PUMP_FINISH_LOW_POWER &&
+            proc->popup_ui_type != ID_POPUP_UI_PUMP_FINISH_MANUAL) {
+            pump_popup_ui_type_update(proc, ID_POPUP_UI_PUMP_FINISH_CHARGE_ERROR);
+            return;
+        }
+    }
+
+#if IS_SUPPORT_LOW_POWER_AUTO_STOP_PUMP
+    if (info->battery_state == BATTERY_STATE_EMPTY || 
+        info->battery_state == BATTERY_STATE_LOW_POWER_SHUTDOWN || 
+        info->battery_state == BATTERY_STATE_FORBID_START) {
+        if (proc->popup_ui_type != ID_POPUP_UI_PUMP_FINISH_TIMEOUT &&
+            proc->popup_ui_type != ID_POPUP_UI_PUMP_FINISH_CHARGE_ERROR &&
+            proc->popup_ui_type != ID_POPUP_UI_PUMP_FINISH_LOW_POWER &&
+            proc->popup_ui_type != ID_POPUP_UI_PUMP_FINISH_MANUAL) {
+            pump_popup_ui_type_update(proc, ID_POPUP_UI_PUMP_FINISH_LOW_POWER);
+            return;
+        }
+    }
+#endif
+}
+
 static int entry_event_cb(window_lift_cycle_e new_state,
     const struct window_context *thiz, const struct window_context *old_scr)
 {
@@ -328,6 +369,7 @@ static int entry_event_cb(window_lift_cycle_e new_state,
         LOG_WM("==>%s window on resume", PAGE_NAME_STR);
         ADD_KEYEVENT_CB(proc->key, "pump_wm", proc, PUMP_UI_KEY_CODE, PUMP_UI_KEY_TYPE,
             on_pump_ui_keyevent_hdr);
+        ADD_BATTERY_STATE_CB(proc->battery, proc, on_pump_window_battery_state_change_cb);
         proc->window_run_state = WINDOW_RUN_STATE_RUNNING;
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);
@@ -362,6 +404,7 @@ static int exit_event_cb(window_lift_cycle_e new_state,
             unregister_broadcast_receiver(&proc->receiver);
             remove_breast_pump_result_cb(proc);
             REMOVE_KEYEVENT_CB(proc->key, on_pump_ui_keyevent_hdr);
+            REMOVE_BATTERY_STATE_CB(proc->battery, on_pump_window_battery_state_change_cb);
             u_free(proc);
             proc = NULL;
             LOG_WM("%s window on destory--end", PAGE_NAME_STR);

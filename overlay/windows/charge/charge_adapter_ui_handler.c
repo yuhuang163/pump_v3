@@ -29,13 +29,6 @@ static void charge_adapter_ui_after_policy(ui_manager_context_t *ui, int index)
     ui_proc_charge_t *proc = (ui_proc_charge_t *)ui->priv.play_info.user_data;
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_CHARGE);
     ui_display_charge_adapter_process(ui);
-    if (proc->battery && proc->battery->get_charge_status() != CHARGE_STATE_ERROR) {
-        multi_func_msg_data_t __msg = {0};
-        __msg.union_body.extra.window_id = ID_WINDOW_HOME;
-        EXCEPTION_CHECK_VOID(proc->wm);
-        LOG_WM("goto home screen");
-        proc->wm->dispatch_new_window_args(proc->wm, &__msg);
-    }
 }
 
 static void charge_adapter_progress_cb(void *user_data, int index, ui_ani_progress_state_e state)
