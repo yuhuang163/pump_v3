@@ -27,6 +27,8 @@
 #define BLE_LIGHT_SENSOR_SAMPLE_CTL_SHELL_CMD  "#LsSmpIntvl"
 #define BLE_CHARGE_CURRENT_ADJUST_SHELL_CMD    "#chargeCurAdj"
 #define BLE_UTC_TIME_CMD                       "#utcTime"
+#define BLE_CUSTOM_MODE_UPDATE_CMD             "#customUpdate"
+#define BLE_CUSTOM_MODE_CLEAR_CMD              "#customClear"
 
 /*
 * LOCAL VARIABLE DEFINITIONS
@@ -47,6 +49,8 @@ static void ble_shell_adapte_light_sampling_control(const uint8_t *param, uint16
 static void ble_shell_adapte_light_sampling_interval(const uint8_t *param, uint16_t len);
 static void ble_shell_charge_current_adjust(const uint8_t *param, uint16_t len);
 static void ble_shell_utc_time(const uint8_t *param, uint16_t len);
+static void ble_shell_custom_mode_step_info_update(const uint8_t *param, uint16_t len);
+static void ble_shell_custom_mode_step_info_clear(const uint8_t *param, uint16_t len);
 static const ble_factory_shell_t shell_list[] = {
     {BLE_PUMP_POLICY_SHELL_CMD,   ble_shell_pump_policy},
     {BLE_PUMP_CTRL_SHELL_CMD,     ble_shell_pump_ctrl},
@@ -63,6 +67,8 @@ static const ble_factory_shell_t shell_list[] = {
     {BLE_LIGHT_SENSOR_SAMPLE_CTL_SHELL_CMD, ble_shell_adapte_light_sampling_interval},
     {BLE_CHARGE_CURRENT_ADJUST_SHELL_CMD, ble_shell_charge_current_adjust},
     {BLE_UTC_TIME_CMD, ble_shell_utc_time},
+    {BLE_CUSTOM_MODE_UPDATE_CMD, ble_shell_custom_mode_step_info_update},
+    {BLE_CUSTOM_MODE_CLEAR_CMD, ble_shell_custom_mode_step_info_clear},
 };
 
 /*
@@ -307,6 +313,55 @@ static void ble_shell_utc_time(const uint8_t *param, uint16_t len)
         }
     }
     time->sync_utc_time(utc_time);
+}
+
+static void ble_shell_custom_mode_step_info_update(const uint8_t *param, uint16_t len)
+{
+    LOG_BLE("shell custom mode step info update");
+    uint32_t id = 0;
+    sscanf((const char *)param, "%d", &id);
+    storage_manager_context_t *storage = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
+    EXCEPTION_CHECK_VOID(storage);
+    pump_mode_steps_info_t *steps_info = u_malloz(sizeof(pump_mode_steps_info_t));
+    EXCEPTION_CHECK_VOID(steps_info);
+    storage->get_store_ram_val(STORE_ID_PUMP_MODE_STEPS_INFO, BREAST_PUMP_CUSTOM_MODE, 0, steps_info);
+    steps_info->id.dat32 = id;
+    msleep(10);
+    storage->put_store_ram_val(STORE_ID_PUMP_MODE_STEPS_INFO, BREAST_PUMP_CUSTOM_MODE, 0, steps_info);
+    msleep(10);
+    memset(steps_info, 0, sizeof(pump_mode_steps_info_t));
+    storage->get_store_ram_val(STORE_ID_PUMP_MODE_STEPS_INFO, BREAST_PUMP_CUSTOM_MODE, 0, steps_info);
+    LOG_BLE("shell custom mode steps info: %d", steps_info->id.dat32);
+    msleep(10);
+    char mode_name[PUMP_MODE_NAME_LEN];   /// 模式名称
+    snprintf(mode_name, sizeof(mode_name), "Customize %d", id);
+    storage->put_store_ram_val(STORE_ID_PUMP_MODE_NAME_INFO, BREAST_PUMP_CUSTOM_MODE, 0, mode_name);
+    msleep(10);
+    memset(mode_name, 0, PUMP_MODE_NAME_LEN);
+    storage->get_store_ram_val(STORE_ID_PUMP_MODE_NAME_INFO, BREAST_PUMP_CUSTOM_MODE, 0, mode_name);
+    LOG_BLE("shell custom mode name: %s", mode_name);
+    msleep(10);
+    storage->put_store_ram_val(STORE_ID_MODE_NEW_STEP_INFO_FLAG, BREAST_PUMP_CUSTOM_MODE, true, 0);
+    u_free(steps_info);
+    breast_pump_manager_context_t *pump_ctx = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
+    EXCEPTION_CHECK_VOID(pump_ctx);
+    WRITE_PUMP_MODE_ACTIVATE(pump_ctx, BREAST_PUMP_CUSTOM_MODE, 1);
+    int activate_status = 0;
+    READ_PUMP_MODE_ACTIVATE(pump_ctx, BREAST_PUMP_CUSTOM_MODE, activate_status);
+    LOG_BLE("shell custom mode step info update activate status: %d", activate_status);
+    LOG_BLE("shell custom mode step info update done");
+}
+
+static void ble_shell_custom_mode_step_info_clear(const uint8_t *param, uint16_t len)
+{
+    LOG_BLE("shell custom mode step info clear");
+    storage_manager_context_t *storage = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
+    EXCEPTION_CHECK_VOID(storage);
+    storage->put_store_ram_val(STORE_ID_MODE_NEW_STEP_INFO_FLAG, BREAST_PUMP_CUSTOM_MODE, false, 0);
+    breast_pump_manager_context_t *pump_ctx = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
+    EXCEPTION_CHECK_VOID(pump_ctx);
+    WRITE_PUMP_MODE_ACTIVATE(pump_ctx, BREAST_PUMP_CUSTOM_MODE, 0);
+    LOG_BLE("shell custom mode step info clear done");
 }
 
 /*
