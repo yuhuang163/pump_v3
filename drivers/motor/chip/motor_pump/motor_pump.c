@@ -146,7 +146,7 @@ POSSIBLY_UNUSED static void bsp_motor_pump_timer_handler(void *param)
 {
     motor_pump_timer_status_t *timer_status = (motor_pump_timer_status_t *)param;
     timer_status->is_running = false;
-    if(timer_status->action == MOTOR_PUMP_ON) {
+    if (timer_status->action == MOTOR_PUMP_ON) {
         pump_status[timer_status->pump_id].pump_is_running = false;
         bsp_motor_pwm_duty_set(motor_pump_cfg[timer_status->pump_id].pump_pwm_id, MOTOR_PUMP_IDLE_PWM_DUTY);
     }
@@ -315,7 +315,7 @@ static int bsp_motor_pwm_duty_set(enum HAL_PWM_ID_T pwm_id, uint8_t duty)
     if ((pwm_id == MOTOR_PUMP1_PWM_ID || pwm_id == MOTOR_PUMP2_PWM_ID)) {
         motor_pwm_gpio_control(pwm_id, true, false); //使能GPIO 输入
         for (uint8_t i = 0; i < LENGTH_OF_ARRAY(motor_pump_cfg); i++) {
-            if(motor_pump_cfg[i].pump_pwm_id == pwm_id) {
+            if (motor_pump_cfg[i].pump_pwm_id == pwm_id) {
                 motor_pump_cfg[i].pump_pwm_iomux_set();
                 break;
             }

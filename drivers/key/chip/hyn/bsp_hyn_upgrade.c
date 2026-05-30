@@ -176,22 +176,22 @@ static uint8_t hyn_ic_update(uint16_t start_addr, uint16_t len, uint8_t *src_dat
 			#if 0  //512字节分成4组，每组128字节
 			{
 				uint8_t i=0;
-				for(i=0; i<4; i++){
-					if(tp_hrs_write_bytes(0xA018+(i*128), src_data+(i*128), PER_LEN/4)== HYN_FAULT) return HYN_FAULT;
+				for (i=0; i<4; i++){
+					if (tp_hrs_write_bytes(0xA018+(i*128), src_data+(i*128), PER_LEN/4)== HYN_FAULT) return HYN_FAULT;
 				}
 			}
 			#else   
 			{		//512字节分成16组，每组32字节
 				uint8_t i=0;
-				for(i=0; i<16; i++){
-					if(tp_hrs_write_bytes(0xA018+(i*32), src_data+(i*32), PER_LEN/16) == HYN_FAULT) return HYN_FAULT;
+				for (i=0; i<16; i++){
+					if (tp_hrs_write_bytes(0xA018+(i*32), src_data+(i*32), PER_LEN/16) == HYN_FAULT) return HYN_FAULT;
 				}
 			}
 			
 //			{ //512字节分成128组，每组4字节
 //				uint8_t i=0;
 //				for(i=0; i<128; i++){
-//					if(tp_hrs_write_bytes(0xA018+(i*4), src_data+(i*4), PER_LEN/128) == HYN_FAULT) return HYN_FAULT;
+//					if (tp_hrs_write_bytes(0xA018+(i*4), src_data+(i*4), PER_LEN/128) == HYN_FAULT) return HYN_FAULT;
 //				}
 //			}
 		   #endif 
