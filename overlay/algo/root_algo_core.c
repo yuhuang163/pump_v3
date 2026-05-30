@@ -52,7 +52,7 @@ static void algo_out_result_cb(algo_fusion_result_t *algo_result)
     /*
     if (algo_result->wear_status[0] != ctx->priv.algo_data.wear_detection.result[0] || \
          algo_result->wear_status[1] != ctx->priv.algo_data.wear_detection.result[1]) {
-        if(0 == algo_result->wear_status[0] || 0 == algo_result->wear_status[1]) {
+        if (0 == algo_result->wear_status[0] || 0 == algo_result->wear_status[1]) {
             /// 未佩戴，通知app未佩戴
             servers_publish_data_args_t args_temp = {
                 .arg1 = OLD_PUBLISH_ABNORMAL_AIR_LEAK,

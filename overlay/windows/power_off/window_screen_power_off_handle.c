@@ -116,7 +116,7 @@ static void on_power_off_window_battery_state_cb(void *user_data, battery_state_
             POST_WM_TASK_HANDLER_NO_DELAY_ARG1(power_off_ui_common_cb, proc,
                 POWER_OFF_HDR_DISPLAY_CHARGING, POWER_OFF_PAGE_POLICY_TASK_NAME);
         }
-    } else if(info->charge_status == CHARGE_STATE_ERROR) {
+    } else if (info->charge_status == CHARGE_STATE_ERROR) {
         if (proc->current_ui_type != POWER_OFF_UI_TYPE_CHARGE_ERROR) {
             POST_WM_TASK_HANDLER_NO_DELAY_ARG1(power_off_ui_common_cb, proc,
                 POWER_OFF_HDR_DISPLAY_CHARGE_ERROR, POWER_OFF_PAGE_POLICY_TASK_NAME);
@@ -195,7 +195,7 @@ static int entry_event_cb(window_lift_cycle_e new_state,
                 int chage_state = proc->battery->get_charge_status();
                 if (BATTERY_IS_CHARGING(chage_state)) {
                     show_power_off_charging_ui(proc);
-                } else if(chage_state == CHARGE_STATE_ERROR) {
+                } else if (chage_state == CHARGE_STATE_ERROR) {
                     show_power_off_charge_error_ui(proc);
                 } else {
                     power_off_handle(proc);

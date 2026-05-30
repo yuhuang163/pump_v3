@@ -40,7 +40,7 @@ const static ui_snap_shot_info_t snap_shot_infos[UI_SNAP_SHOT_ID_MAX] = {
 */
 lv_draw_buf_t *get_lvgl_snap_shot(ui_snap_shot_id_e snapshot_id)
 {
-    if(snapshot_id >= UI_SNAP_SHOT_ID_MAX) {
+    if (snapshot_id >= UI_SNAP_SHOT_ID_MAX) {
         return NULL;
     }
     return lv_snap_shot[snapshot_id];
@@ -56,7 +56,7 @@ void ui_snap_shot_perpare(struct ui_manager_context *thiz)
     lv_obj_align(snap_shot_obj, LV_ALIGN_CENTER, 0, 0);
     lv_obj_set_style_image_opa(snap_shot_obj, LV_OPA_COVER, 0);
     lv_obj_add_flag(snap_shot_obj, LV_OBJ_FLAG_HIDDEN); /// 隐藏快照对象
-    for(uint8_t i = 0; i < UI_SNAP_SHOT_ID_MAX; i++) {
+    for (uint8_t i = 0; i < UI_SNAP_SHOT_ID_MAX; i++) {
         common_ui_img_resource_init(thiz, snap_shot_infos[i].img_id, &snap_shot_info);
         if (snap_shot_info.data == NULL) {
             continue;
