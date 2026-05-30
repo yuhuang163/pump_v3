@@ -499,7 +499,8 @@ static void on_ui_battery_state_change_cb(void *user_data, battery_state_info_t 
     } else {
         window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
         if (wm && (wm->get_current_window_id() == ID_WINDOW_CHARGE || 
-                (wm->get_current_window_id() == ID_WINDOW_POWER_OFF && info->battery_state == BATTERY_STATE_CHARGING))) {
+                (wm->get_current_window_id() == ID_WINDOW_POWER_OFF &&
+                 BATTERY_IS_CHARGING(info->charge_status)))) {
             set_backlight_level_rate(ui, 50);
         } else {
             set_backlight_level_rate(ui, 100);
