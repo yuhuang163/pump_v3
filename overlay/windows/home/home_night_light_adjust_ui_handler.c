@@ -53,17 +53,22 @@ static void home_night_light_adjust_ui_after_policy(ui_manager_context_t *ui, in
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_HOME);
     ui_display_home_night_light_adjust_process(ui);
     uint32_t time_diff = get_timestamp_ms(proc->last_progress_ani_time);
+#if V3_UX_VERSION == V3_UX_V1
     if (time_diff >= HOME_NIGHT_LIGHT_ADJUST_DISPLAY_TIMEOUT) {
-        proc->level_change = 0;
         proc->last_progress_ani_time = get_timestamp();
-        LOG_UI("night light adjust ui timeout: %d", proc->last_progress_ani_time);
+        LOG_UI("night light adjust ui timeout: %d", time_diff);
         POST_WM_TASK_HANDLER_NO_DELAY(home_night_light_adjust_ui_display_completed_cb,
             proc, HOME_NIGHT_LIGHT_ADJUST_DISPLAY_TASK_NAME);
-    } else if (time_diff >= HOME_NIGHT_LIGHT_ADJUST_SYNC_TIMEOUT && proc->level_sync_flag) {
-        proc->popup_ui_type = ID_POPUP_UI_OP_SUCCESS_PRESET;
-        proc->last_progress_ani_time = get_timestamp();
-        LOG_UI("night light adjust ui sync timeout: %d", proc->last_progress_ani_time);
     }
+#else
+    if (proc->exit_current_ui || time_diff >= HOME_NIGHT_LIGHT_ADJUST_DISPLAY_TIMEOUT) {
+        proc->exit_current_ui = false;
+        proc->last_progress_ani_time = get_timestamp();
+        LOG_UI("night light adjust ui timeout: %d", time_diff);
+        POST_WM_TASK_HANDLER_NO_DELAY(home_night_light_adjust_ui_display_completed_cb,
+            proc, HOME_NIGHT_LIGHT_ADJUST_DISPLAY_TASK_NAME);
+    }
+#endif
 }
 
 static void home_night_light_adjust_animation_progress_cb(void *user_data, int index, ui_ani_progress_state_e state)
@@ -125,6 +130,9 @@ void show_home_night_light_adjust_ui(ui_proc_home_t *proc)
     };
     proc->current_ui_type = HOME_UI_TYPE_NIGHT_LIGHT_ADJUST;
     ui->hook->ui_animation_play_init(ui, play_info);
+    #if V3_UX_VERSION == V3_UX_V2
+    proc->exit_current_ui = false;
+    #endif
 }
 
 void switch_home_night_light_adjust(ui_proc_home_t *proc, bool is_increase)

@@ -33,7 +33,9 @@ void stop_pump_ui_animation(ui_proc_pump_t *proc)
     pump_result_ui_exit(proc);
     pump_level_ui_exit(proc);
     pump_both_level_ui_exit(proc);
+#if V3_UX_VERSION == V3_UX_V1
     pump_speed_ui_exit(proc);
+#endif
     pump_mode_ui_exit(proc);
     breastfeeding_mode_ui_exit(proc);
     ui_manager_context_t *ui = proc->ui;
@@ -54,7 +56,9 @@ void pump_ui_change_hdr_remove(ui_proc_pump_t *proc)
     } else if (proc->current_ui_type == PUMP_UI_TYPE_BOTH_LEVEL) {
         pump_both_level_ui_exit(proc);
     } else if (proc->current_ui_type == PUMP_UI_TYPE_SPEED) {
+#if V3_UX_VERSION == V3_UX_V1
         pump_speed_ui_exit(proc);
+#endif
     } else if (proc->current_ui_type == PUMP_UI_TYPE_RESULT) {
         pump_result_ui_exit(proc);
     } 
@@ -65,7 +69,9 @@ void pump_power_key_handler(ui_proc_pump_t *proc)
     if (proc->current_ui_type == PUMP_UI_TYPE_COMMON_MODE ||
         proc->current_ui_type == PUMP_UI_TYPE_BREASTFEEDING_MODE ||
         proc->current_ui_type == PUMP_UI_TYPE_SPEED ) {
+#if V3_UX_VERSION == V3_UX_V1
         proc->goto_pump_home_ui = true;
+#endif
     } else if (proc->current_ui_type == PUMP_UI_TYPE_HOME) {
 #if IS_SUPPORT_NIGHT_LIGHT
         uint8_t battery_state = proc->battery->get_battery_state();
@@ -82,6 +88,20 @@ void pump_power_key_handler(ui_proc_pump_t *proc)
 #endif
     } else {
         LOG_WM("ignore power key event.");
+    }
+}
+
+void pump_cancel_key_handler(ui_proc_pump_t *proc)
+{
+    if (proc->current_ui_type == PUMP_UI_TYPE_COMMON_MODE ||
+        proc->current_ui_type == PUMP_UI_TYPE_BREASTFEEDING_MODE ||
+        proc->current_ui_type == PUMP_UI_TYPE_LEVEL ||
+        proc->current_ui_type == PUMP_UI_TYPE_BOTH_LEVEL) {
+#if V3_UX_VERSION == V3_UX_V2
+        proc->exit_current_ui = true;
+#endif
+    } else {
+        LOG_WM("ignore cancel key event.");
     }
 }
 

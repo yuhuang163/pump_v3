@@ -83,6 +83,9 @@ void start_home_ui_animation(ui_proc_home_t *proc)
     EXCEPTION_CHECK_VOID(ui->hook && ui->hook->ui_animation_play_init);  
     proc->last_progress_ani_time = get_timestamp();
     home_popup_ui_type_update(proc, ID_POPUP_UI_NONE);
+#if V3_UX_VERSION == V3_UX_V2
+    proc->exit_current_ui = false;
+#endif
     if (proc->current_ui_type == HOME_UI_TYPE_HOME) {
         return;
     }

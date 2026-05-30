@@ -92,9 +92,10 @@ static void logo_ui_after_policy(ui_manager_context_t *ui, int index)
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_LOGO);
     ui_display_logo_process(ui);
 #if (IS_SUPPORT_LOGO_BG_COLOR_TEST == 0)
-    if (get_timestamp_ms(proc->last_progress_ani_time) >= LOGO_ANIMATION_DISPLAY_TIME) {
+    uint32_t time_diff = get_timestamp_ms(proc->last_progress_ani_time);
+    if (time_diff >= LOGO_ANIMATION_DISPLAY_TIME) {
         proc->last_progress_ani_time = get_timestamp();
-        LOG_UI("logo ui timeout: %d", proc->last_progress_ani_time);
+        LOG_UI("logo ui timeout: %d", time_diff);
         POST_WM_TASK_HANDLER_NO_DELAY(logo_display_completed_cb, proc, LOGO_DISPLAY_TASK_NAME);
     } 
 #endif

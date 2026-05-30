@@ -111,13 +111,14 @@ static void home_start_key_event_ui_cb(hdr_post_args_t *args)
         return;
     }
 
-#if IS_SUPPORT_PUMP_RHYTHM_MODE_SELECT
+#if V3_UX_VERSION == V3_UX_V1
+    #if IS_SUPPORT_PUMP_RHYTHM_MODE_SELECT
     if (proc->current_ui_type == HOME_UI_TYPE_NORMAL_MODE_SELECT) {
         WRITE_PUMP_WORK_MODE(proc->pump, proc->ui_normal_mode_index, true, 1);
     } else if (proc->current_ui_type == HOME_UI_TYPE_BF_MODE_SELECT) {
         WRITE_PUMP_WORK_MODE(proc->pump, proc->ui_bf_mode_index, true, 1);
     } 
-#else
+    #else
     if (proc->current_ui_type == HOME_UI_TYPE_NORMAL_MODE_SELECT) {
         WRITE_PUMP_WORK_MODE(proc->pump, proc->ui_normal_mode_index, true, 1);
     } else {
@@ -129,7 +130,9 @@ static void home_start_key_event_ui_cb(hdr_post_args_t *args)
             LOG_WM("switch to stimulation mode: %d", pump_mode);
         }
     }
+    #endif
 #endif
+
     if (proc->wm) {
         multi_func_msg_data_t msg = {0};
         LOG_WM("goto pump window.");
@@ -145,15 +148,19 @@ static void home_knob_left_event_cb(ui_proc_home_t *proc)
     if (proc->current_ui_type == HOME_UI_TYPE_BIND_QRCODE) {
         start_home_ui_animation(proc);
     } else if (proc->current_ui_type == HOME_UI_TYPE_NORMAL_MODE_SELECT) {
+        #if V3_UX_VERSION == V3_UX_V1
         switch_home_pump_normal_mode(proc, false);
+        #endif
     } else if (proc->current_ui_type == HOME_UI_TYPE_BF_MODE_SELECT) {
-        #if IS_SUPPORT_PUMP_RHYTHM_MODE_SELECT
+        #if (V3_UX_VERSION == V3_UX_V1 && IS_SUPPORT_PUMP_RHYTHM_MODE_SELECT)
         switch_home_pump_bf_mode(proc, false);
         #endif
     } else if (proc->current_ui_type == HOME_UI_TYPE_LEVEL_ADJUST) {
         switch_home_pump_level(proc, false);
     } else if (proc->current_ui_type == HOME_UI_TYPE_SPEED_ADJUST) {
+        #if V3_UX_VERSION == V3_UX_V1
         switch_home_pump_speed(proc, false);
+        #endif
     } else if (proc->current_ui_type == HOME_UI_TYPE_NIGHT_LIGHT_ADJUST) {
         #if IS_SUPPORT_NIGHT_LIGHT_ADJUST
         switch_home_night_light_adjust(proc, false);
@@ -167,15 +174,19 @@ static void home_knob_right_event_cb(ui_proc_home_t *proc)
     if (proc->current_ui_type == HOME_UI_TYPE_HOME) {
         start_home_bind_ui_animation(proc);
     } else if (proc->current_ui_type == HOME_UI_TYPE_NORMAL_MODE_SELECT) {
+        #if V3_UX_VERSION == V3_UX_V1
         switch_home_pump_normal_mode(proc, true);
+        #endif
     } else if (proc->current_ui_type == HOME_UI_TYPE_BF_MODE_SELECT) {
-        #if IS_SUPPORT_PUMP_RHYTHM_MODE_SELECT
+        #if (V3_UX_VERSION == V3_UX_V1 && IS_SUPPORT_PUMP_RHYTHM_MODE_SELECT)
         switch_home_pump_bf_mode(proc, true);
         #endif
     } else if (proc->current_ui_type == HOME_UI_TYPE_LEVEL_ADJUST) {
         switch_home_pump_level(proc, true);
     } else if (proc->current_ui_type == HOME_UI_TYPE_SPEED_ADJUST) {
+        #if V3_UX_VERSION == V3_UX_V1
         switch_home_pump_speed(proc, true);
+        #endif
     } else if (proc->current_ui_type == HOME_UI_TYPE_NIGHT_LIGHT_ADJUST) {
         #if IS_SUPPORT_NIGHT_LIGHT_ADJUST
         switch_home_night_light_adjust(proc, true);
@@ -251,9 +262,16 @@ static int on_home_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
         case KEY_CODE_LEFT_CONTROL:
             switch_home_pump_level_control_type(proc, BREAST_PUMP_CONTROL_TYPE_LEFT);
             break;
+#if IS_SUPPORT_FREQUENCY_KEY
         case KEY_CODE_FREQUENCY:
             home_pump_speed_key_click_handler(proc);
             break;
+#endif
+#if IS_SUPPORT_CANCEL_KEY
+        case KEY_CODE_CANCEL:
+            home_cancel_key_event_handler(proc);
+            break;
+#endif
         case KEY_CODE_START:
             if (proc->current_ui_type == HOME_UI_TYPE_PUMP_RESULT) {
                 LOG_WM("pump result, ignore key event.");
