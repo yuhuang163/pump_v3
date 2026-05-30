@@ -100,7 +100,7 @@ static void show_pump_result_loop(ui_proc_pump_t *proc)
     }
     ui_play_info_t play_info = {
         .tag = "pump_result_screen",
-        .fps = PUMP_RESULT_ANIMATION_FREQ,
+        .fps = PUMP_ANIMATION_FREQ,
         .progress_cb = pump_result_animation_progress_cb,
         .display_prepare_cb = pump_result_ui_display_prepare,
         .display_remove_cb = pump_result_ui_display_remove,

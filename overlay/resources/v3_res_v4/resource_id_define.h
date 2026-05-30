@@ -70,19 +70,16 @@ typedef enum {
     RESOURCE_ID_PUMP_LEFT_LEVEL_ICON,          /// 泵奶左档位图标
     RESOURCE_ID_PUMP_RIGHT_LEVEL_ICON,         /// 泵奶右档位图标
     RESOURCE_ID_SELECT_LABEL_ICON,             /// 选中标签图标
-
+    RESOURCE_ID_STIMULATION_WAVE_ICON,         /// 刺激波形图标
+    RESOURCE_ID_LACTATION_WAVE_ICON,           /// 泌乳波形图标
+    RESOURCE_ID_MIX_WAVE_ICON,                 /// 混合波形图标
+    RESOURCE_ID_VERTICAL_SLIDER_1,             /// 垂直滑动条1
+    RESOURCE_ID_VERTICAL_SLIDER_2,             /// 垂直滑动条2
+    RESOURCE_ID_VERTICAL_SLIDER_3,             /// 垂直滑动条3
+    
     /* 动画组 [300...] */
     RESOURCE_ID_PUMP_LEVEL_START = 300,   /// 泵奶档位图片-开始
     RESOURCE_ID_PUMP_LEVEL_END = 314,     /// 泵奶档位图片-结束
-
-    RESOURCE_ID_SELECTED_LOCATE_3_START = 320,     /// 选中定位-3-图标 
-    RESOURCE_ID_SELECTED_LOCATE_3_END = 322,       /// 选中定位-3-图标
-
-    RESOURCE_ID_SELECTED_LOCATE_5_START = 330,     /// 选中定位-5-图标 
-    RESOURCE_ID_SELECTED_LOCATE_5_END = 334,       /// 选中定位-5-图标
-
-    RESOURCE_ID_SELECTED_LOCATE_6_START = 340,     /// 选中定位-6-图标 
-    RESOURCE_ID_SELECTED_LOCATE_6_END = 345,       /// 选中定位-6-图标
 
     /* IP图标组 [1000..] */
     RESOURCE_ID_HOME_IDLE_IP = 1000,      /// dummy图标

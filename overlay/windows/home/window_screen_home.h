@@ -21,6 +21,10 @@ extern "C" {
 #define HOME_ANIMATION_FREQ                    (16)
 #endif
 
+#define HOME_PUMP_MODE_ANIMATION_FREQ          (25) 
+#define HOME_PUMP_SPEED_ANIMATION_FREQ         (25) 
+#define HOME_PUMP_LEVEL_ANIMATION_FREQ         (20) 
+
 /// 主界面动画展示时间
 #define HOME_ANIMATION_DISPLAY_TIME         (2000) /// 2s
 
