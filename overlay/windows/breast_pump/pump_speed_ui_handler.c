@@ -27,6 +27,7 @@
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
+#if V3_UX_VERSION == V3_UX_V1
 static void pump_speed_display_completed_cb(hdr_post_args_t *args)
 {
     ui_proc_pump_t *proc = (ui_proc_pump_t *)args->user_data;
@@ -91,11 +92,12 @@ static void pump_speed_ui_after_policy(ui_manager_context_t *ui, int index)
     if (time_diff >= PUMP_SPEED_DISPLAY_TIMEOUT) {
         proc->speed_sync_flag = false;
         proc->last_progress_ani_time = get_timestamp();
-        LOG_UI("speed ui timeout: %d", proc->last_progress_ani_time);
+        LOG_UI("speed ui timeout: %d", time_diff);
         POST_WM_TASK_HANDLER_NO_DELAY(pump_speed_display_completed_cb, proc, PUMP_SPEED_DISPLAY_TASK_NAME);
     } else {
         if (proc->goto_pump_home_ui) {
             proc->goto_pump_home_ui = false;
+            proc->last_progress_ani_time = get_timestamp();
             proc->popup_ui_type = ID_POPUP_UI_OP_SUCCESS;
             POST_WM_TASK_HANDLER_NO_DELAY(pump_speed_sync, proc, PUMP_SPEED_SYNC_TASK_NAME);
             LOG_UI("goto pump speed upate: %d", get_timestamp());
@@ -207,3 +209,4 @@ void pump_speed_key_click_handler(ui_proc_pump_t *proc)
     proc->forbid_start_pump = false;
     show_pump_speed_ui(proc);
 }
+#endif

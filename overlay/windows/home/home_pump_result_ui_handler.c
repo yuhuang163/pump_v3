@@ -52,11 +52,20 @@ static void home_pump_result_ui_after_policy(ui_manager_context_t *ui, int index
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_HOME);
     ui_display_pump_complete_tip_process(ui);
     uint32_t time_diff = get_timestamp_ms(proc->last_progress_ani_time);
+#if V3_UX_VERSION == V3_UX_V1
     if (time_diff >= PUMP_RESULT_DISPLAY_TIMEOUT) {
         proc->last_progress_ani_time = get_timestamp();
-        LOG_UI("result ui timeout: %d", proc->last_progress_ani_time);
+        LOG_UI("result ui timeout: %d", time_diff);
         POST_WM_TASK_HANDLER_NO_DELAY(home_pump_result_display_completed_cb, proc, HOME_PUMP_RESULT_DISPLAY_TASK_NAME);
     }
+#else
+    if (proc->exit_current_ui || time_diff >= PUMP_RESULT_DISPLAY_TIMEOUT) {
+        proc->exit_current_ui = false;
+        proc->last_progress_ani_time = get_timestamp();
+        LOG_UI("result ui timeout: %d", time_diff);
+        POST_WM_TASK_HANDLER_NO_DELAY(home_pump_result_display_completed_cb, proc, HOME_PUMP_RESULT_DISPLAY_TASK_NAME);
+    }
+#endif
 }
 
 static void home_pump_result_animation_progress_cb(void *user_data, int index, ui_ani_progress_state_e state)
@@ -133,6 +142,10 @@ void show_home_pump_result_ui(ui_proc_home_t *proc)
     if (proc->led && proc->led->hook && proc->led->hook->set_key_backlight) {
         proc->led->hook->set_key_backlight(proc->led, LED_LEVEL_MAX);
     }
+
+    #if V3_UX_VERSION == V3_UX_V2
+    proc->exit_current_ui = false;
+    #endif
     show_home_pump_result_loop(proc);
 }
 

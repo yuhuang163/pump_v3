@@ -98,10 +98,14 @@ void show_pump_home_ui(ui_proc_pump_t *proc)
     ui_manager_context_t *ui = proc->ui;
     EXCEPTION_CHECK_VOID(ui->hook && ui->hook->ui_animation_play_init);
     proc->last_progress_ani_time = get_timestamp();
+#if V3_UX_VERSION == V3_UX_V1
+    proc->goto_pump_home_ui= false;    
+#else
+    proc->exit_current_ui = false;
+#endif
     if (proc->current_ui_type == PUMP_UI_TYPE_HOME) {
         return;
     } else {
-        proc->goto_pump_home_ui= false;    
         int pump_status = 0;
         READ_PUMP_WORK_STATUS(proc->pump, pump_status);
         if (pump_status == BREAST_PUMP_PAUSE) {

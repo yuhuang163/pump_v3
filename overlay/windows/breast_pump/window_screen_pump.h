@@ -133,17 +133,20 @@ typedef struct {
     ui_pump_info_t info; /// 当前泵奶信息.
     pump_setting_t setting; /// 当前泵奶设置信息.
     int8_t level_change; /// 当前档位变化值.
-    uint8_t level_sync_flag; /// 档位同步标志.
     int8_t both_level_change; /// 当前档位变化值.
-    uint8_t both_level_sync_flag; /// 档位同步标志.
+#if V3_UX_VERSION == V3_UX_V1
     uint8_t speed_sync_flag; /// 速度同步标志.
     uint8_t mode_sync_flag; /// 追奶模式同步标志.
+    uint8_t goto_pump_home_ui; /// 跳转到泵奶主界面标志.
+#else
+    uint8_t exit_current_ui; /// 退出当前UI标志.
+#endif
+
 #if IS_SUPPORT_AIR_LEAKAGE_WARNING
     uint8_t is_air_leakage_popup_show; /// 是否显示空气泄漏弹窗提示.
     uint8_t hide_air_leakage_popup_wm; /// 是否隐藏空气泄漏弹窗提示.
 #endif
     uint8_t forbid_start_pump; /// 是否禁止开始泵奶.
-    uint8_t goto_pump_home_ui; /// 跳转到泵奶主界面标志.
     uint8_t pump_will_finish; /// 泵奶即将完成标志.
     uint16_t popup_ui_type; /// 当前弹窗类型. popup_ui_id_e
 } ui_proc_pump_t;
@@ -156,13 +159,19 @@ typedef struct {
 void show_pump_home_ui(ui_proc_pump_t *proc);
 /// 普通模式UI相关
 void pump_mode_key_click_handler(ui_proc_pump_t *proc);
+#if V3_UX_VERSION == V3_UX_V1
 void switch_pump_common_mode_ui(ui_proc_pump_t *proc, bool is_increase);
+#endif
 /// 追奶模式UI相关
 void breastfeeding_mode_key_click_handler(ui_proc_pump_t *proc);
+#if V3_UX_VERSION == V3_UX_V1
 void switch_breastfeeding_mode_ui(ui_proc_pump_t *proc, bool is_increase);
+#endif
 /// 速度UI相关
+#if V3_UX_VERSION == V3_UX_V1
 void pump_speed_key_click_handler(ui_proc_pump_t *proc);
 void switch_pump_speed_ui(ui_proc_pump_t *proc, bool is_increase);
+#endif
 /// 档位UI相关
 void switch_pump_level_ui(ui_proc_pump_t *proc, bool is_increase);
 void switch_pump_control_type_ui(ui_proc_pump_t *proc, uint8_t control_type);
@@ -176,7 +185,9 @@ void pump_result_go_to_home_window(ui_proc_pump_t *proc);
 void pump_result_ui_exit(ui_proc_pump_t *proc);
 void pump_level_ui_exit(ui_proc_pump_t *proc);
 void pump_both_level_ui_exit(ui_proc_pump_t *proc);
+#if V3_UX_VERSION == V3_UX_V1
 void pump_speed_ui_exit(ui_proc_pump_t *proc);
+#endif
 void pump_mode_ui_exit(ui_proc_pump_t *proc);
 void breastfeeding_mode_ui_exit(ui_proc_pump_t *proc);
 void pump_ui_change_hdr_remove(ui_proc_pump_t *proc);
@@ -189,6 +200,12 @@ void pump_complete_event_handler(ui_proc_pump_t *proc);
 void pump_popup_ui_type_update(ui_proc_pump_t *proc, popup_ui_id_e type);
 /// 子UI退出处理
 void pump_sub_ui_exit_handler(ui_proc_pump_t *proc);
+
+#if IS_SUPPORT_CANCEL_KEY
+/// 取消按键处理相关
+void pump_cancel_key_handler(ui_proc_pump_t *proc);
+#endif
+
 #ifdef __cplusplus
 }
 #endif

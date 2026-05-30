@@ -96,16 +96,18 @@ static void pump_knob_event_cb(ui_proc_pump_t *proc, uint8_t is_left)
         case PUMP_UI_TYPE_BOTH_LEVEL:
             switch_pump_both_level_ui(proc, is_left ? false : true);
             break;
+#if V3_UX_VERSION == V3_UX_V1
         case PUMP_UI_TYPE_SPEED:
             switch_pump_speed_ui(proc, is_left ? false : true);
             break;
         case PUMP_UI_TYPE_COMMON_MODE:
             switch_pump_common_mode_ui(proc, is_left ? false : true);
             break;
-#if IS_SUPPORT_PUMP_RHYTHM_MODE_SELECT
+        #if IS_SUPPORT_PUMP_RHYTHM_MODE_SELECT
         case PUMP_UI_TYPE_BREASTFEEDING_MODE:
             switch_breastfeeding_mode_ui(proc, is_left ? false : true);
             break;
+        #endif
 #endif
         case PUMP_UI_TYPE_HOME:
             switch_pump_both_control_type_ui(proc, is_left ? false : true);
@@ -156,9 +158,16 @@ static void pump_click_event_cb(ui_proc_pump_t *proc, uint16_t keycode)
         case KEY_CODE_MODE:
             pump_mode_key_click_handler(proc);
             break;
+#if IS_SUPPORT_FREQUENCY_KEY
         case KEY_CODE_FREQUENCY:
             pump_speed_key_click_handler(proc);
             break;
+#endif
+#if IS_SUPPORT_CANCEL_KEY
+        case KEY_CODE_CANCEL:
+            pump_cancel_key_handler(proc);
+            break;
+#endif  
 #if IS_SUPPORT_PUMP_RHYTHM_MODE_SELECT
         case KEY_CODE_BREASTFEEDING:
             breastfeeding_mode_key_click_handler(proc);

@@ -39,11 +39,23 @@ static void home_pump_normal_mode_ui_after_policy(ui_manager_context_t *ui, int 
     ui_proc_home_t *proc = (ui_proc_home_t *)ui->priv.play_info.user_data;
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_HOME);
     ui_display_home_pump_normal_mode_process(ui);
-    if (get_timestamp_ms(proc->last_progress_ani_time) >= HOME_MODE_SELECT_DISPLAY_TIME) {
+    uint32_t time_diff = get_timestamp_ms(proc->last_progress_ani_time);
+#if V3_UX_VERSION == V3_UX_V1
+    if (time_diff >= HOME_MODE_SELECT_DISPLAY_TIME) {
         proc->last_progress_ani_time = get_timestamp();
-        LOG_UI("normal mode ui timeout: %d", proc->last_progress_ani_time);
-        POST_WM_TASK_HANDLER_NO_DELAY(home_pump_normal_mode_ui_display_completed_cb, proc, HOME_NORMAL_MODE_DISPLAY_TASK_NAME);
+        LOG_UI("normal mode ui timeout: %d", time_diff);
+        POST_WM_TASK_HANDLER_NO_DELAY(home_pump_normal_mode_ui_display_completed_cb, 
+            proc, HOME_NORMAL_MODE_DISPLAY_TASK_NAME);
     }
+#else
+    if (proc->exit_current_ui || time_diff >= HOME_MODE_SELECT_DISPLAY_TIME) {
+        proc->exit_current_ui = false;
+        proc->last_progress_ani_time = get_timestamp();
+        LOG_UI("normal mode ui timeout: %d", time_diff);
+        POST_WM_TASK_HANDLER_NO_DELAY(home_pump_normal_mode_ui_display_completed_cb, 
+            proc, HOME_NORMAL_MODE_DISPLAY_TASK_NAME);
+    }
+#endif
 }
 
 static void home_pump_normal_mode_animation_progress_cb(void *user_data, int index, ui_ani_progress_state_e state)
@@ -104,6 +116,7 @@ static void show_home_pump_normal_mode_ui(ui_proc_home_t *proc)
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
+#if V3_UX_VERSION == V3_UX_V1
 void switch_home_pump_normal_mode(ui_proc_home_t *proc, bool is_increase)
 {
     EXCEPTION_CHECK_VOID(proc);
@@ -129,11 +142,6 @@ void switch_home_pump_normal_mode(ui_proc_home_t *proc, bool is_increase)
     show_home_pump_normal_mode_ui(proc);
 }
 
-void home_pump_normal_mode_ui_exit(ui_proc_home_t *proc)
-{
-    REMOVE_TASK_HANDLER_DIRECTLY(HOME_NORMAL_MODE_DISPLAY_TASK_NAME);
-}
-
 void home_pump_normal_mode_key_click_handler(ui_proc_home_t *proc)
 {
     EXCEPTION_CHECK_VOID(proc && proc->pump);
@@ -154,4 +162,37 @@ void home_pump_normal_mode_key_click_handler(ui_proc_home_t *proc)
         }
     }
     show_home_pump_normal_mode_ui(proc);
+}
+#else
+void home_pump_normal_mode_key_click_handler(ui_proc_home_t *proc)
+{
+    EXCEPTION_CHECK_VOID(proc && proc->pump);
+    if (proc->current_ui_type != HOME_UI_TYPE_NORMAL_MODE_SELECT) {
+        int mode_index = 0;
+        READ_PUMP_COMMON_MODE(proc->pump, false, mode_index);
+        proc->ui_normal_mode_index = PUMP_IS_COMMON_MODE(mode_index) == 0 ?
+                BREAST_PUMP_NORMAL_MODE_DEFAULT : mode_index;
+        if (proc->pump_priming == 0) {
+            proc->pump_priming = true;
+            if (proc->led)  {
+                proc->led->set_led_blink(PUMP_START_BL, LED_SLOW_BLINK_TIME, 0, LED_STATUS_OFF);
+            }
+        }
+    } else {
+        uint8_t mode = proc->ui_normal_mode_index;
+        mode = mode < BREAST_PUMP_NORMAL_MODE_UPPER ? (mode + 1) : BREAST_PUMP_NORMAL_MODE_LOWER;
+        proc->ui_normal_mode_index = mode;
+        WRITE_PUMP_WORK_MODE(proc->pump, proc->ui_normal_mode_index, true, 1);
+        char *mode_name = "unknow";
+        READ_PUMP_MODE_NAME(proc->pump, mode, &mode_name);
+        LOG_UI("switch %s mode: %d", mode_name, mode);
+    }
+    proc->exit_current_ui = false;
+    show_home_pump_normal_mode_ui(proc);
+}
+#endif
+
+void home_pump_normal_mode_ui_exit(ui_proc_home_t *proc)
+{
+    REMOVE_TASK_HANDLER_DIRECTLY(HOME_NORMAL_MODE_DISPLAY_TASK_NAME);
 }

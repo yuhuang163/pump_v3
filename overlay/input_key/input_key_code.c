@@ -40,8 +40,14 @@ const char *get_input_key_code_name(uint16_t keycode)
             return "@start";
         case KEY_CODE_MODE:
             return "@mode";
+#if IS_SUPPORT_FREQUENCY_KEY
         case KEY_CODE_FREQUENCY:
             return "@frequency";
+#endif
+#if IS_SUPPORT_CANCEL_KEY
+        case KEY_CODE_CANCEL:
+            return "@cancel";
+#endif
         case KEY_CODE_BREASTFEEDING:
             return "@breastfeeding";
         case KEY_CODE_FACTORY_RESET:

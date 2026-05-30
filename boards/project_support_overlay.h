@@ -188,6 +188,18 @@ extern "C" {
 #define IS_SUPPORT_KEY_LIGHT_ADAPTIVE                    (0)
 #endif
 
+#if V3_UX_VERSION == V3_UX_V2
+/// 支持取消键
+#define IS_SUPPORT_CANCEL_KEY                            (1)
+/// 支持频率键
+#define IS_SUPPORT_FREQUENCY_KEY                         (0)
+#else
+/// 支持取消键
+#define IS_SUPPORT_CANCEL_KEY                            (0)
+/// 支持频率键
+#define IS_SUPPORT_FREQUENCY_KEY                         (1)
+#endif
+
 #ifdef __cplusplus
 }
 #endif

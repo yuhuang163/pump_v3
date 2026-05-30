@@ -100,7 +100,12 @@ void aging_test_keyevent_cb(ui_proc_product_test_t *proc, uint16_t keycode, uint
         default:
         case KEY_CODE_POWER:
         case KEY_CODE_MODE:
+#if IS_SUPPORT_FREQUENCY_KEY
         case KEY_CODE_FREQUENCY:
+#endif
+#if IS_SUPPORT_CANCEL_KEY
+        case KEY_CODE_CANCEL:
+#endif
         case KEY_CODE_BREASTFEEDING:
             return;
         case KEY_CODE_START:           
