@@ -25,6 +25,12 @@ typedef enum {
     UI_SNAP_SHOT_EXPERT_PUMPING_BG,  /// 专家泵奶背景
     UI_SNAP_SHOT_PUMP_BOTH_LEVEL_BG,  /// 双侧泵奶档位调节背景
     UI_SNAP_SHOT_SELECT_LABEL_ICON,  /// 选中标签图标快照
+    UI_SNAP_SHOT_STIMULATION_WAVE_ICON,  /// 刺激波形图标快照
+    UI_SNAP_SHOT_LACTATION_WAVE_ICON,  /// 泌乳波形图标快照
+    UI_SNAP_SHOT_MIX_WAVE_ICON,  /// 混合波形图标快照
+    UI_SNAP_SHOT_VERTICAL_SLIDER_1,  /// 垂直滑动条1快照
+    UI_SNAP_SHOT_VERTICAL_SLIDER_2,  /// 垂直滑动条2快照
+    UI_SNAP_SHOT_VERTICAL_SLIDER_3,  /// 垂直滑动条3快照
     UI_SNAP_SHOT_ID_MAX
 } ui_snap_shot_id_e;
 

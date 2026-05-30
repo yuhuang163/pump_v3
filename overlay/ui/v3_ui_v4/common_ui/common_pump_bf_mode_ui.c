@@ -50,8 +50,9 @@
 typedef struct label_info {
     lv_obj_t *obj[LABEL_NUM]; /// 标签对象
     lv_obj_t *title_text[LABEL_NUM]; /// 模式标题标签
-    lv_obj_t *icon_img; /// 模式组件图片
+    lv_obj_t *icon_img;  /// 模式组件图片
     lv_obj_t *desc_text; /// 模式描述标签
+    lv_obj_t *status_img; /// 状态图标
     res_img_info_t icon_img_info;
     uint8_t idx[LABEL_NUM];
 } label_info_t;
@@ -62,20 +63,23 @@ typedef struct ui_display_mode_info {
     lv_obj_t * background;
 #endif
     label_info_t label_info[LABEL_GROUP_NUM];
+    res_img_info_t used_icon_info;
+    res_img_info_t new_icon_info;
     lv_obj_t *page_title_text;
-    lv_obj_t *dots_img; /// 序号点图片
-    res_img_info_t dots_img_info;
-    uint32_t custom_mode_id; /// 个性化模式ID
+    lv_obj_t *slider_img; /// 滑动条图片
     char custom_name[24]; /// 个性化模式名称
     breast_pump_manager_context_t *pump;
+    storage_manager_context_t *st;
+    uint32_t custom_mode_id; /// 个性化模式ID
     uint8_t mode_idx;
     uint8_t force_update;
     uint8_t label_obj_init_done;
     uint8_t active_label_group;
     uint8_t popup_ui_index;
     uint8_t mode_num;
-    uint8_t new_step_info_flag; /// 新模式新步数信息标志 true-有新步数信息 false-无新步数信息, 使用后重置
-    uint8_t rsv[9];
+    int8_t last_used_mode_idx; /// 上一次使用模式索引
+    int8_t unconfirmed_mode_idx; /// 新模式状态
+    uint8_t rsv[8];
 } mode_display_info_t;
 
 typedef struct mode_label_anim_param {
@@ -123,15 +127,10 @@ static const uint16_t mode_icon_ids[MODE_NUM] = {
     RESOURCE_ID_MODE_CUSTOM_ICON, 
 };
 
-static const uint16_t dots_5_img_ids[MODE_NUM - 1] = {
-    RESOURCE_ID_SELECTED_LOCATE_5_START,
-    RESOURCE_ID_SELECTED_LOCATE_5_END,
-};
-
-static const uint16_t dots_6_img_ids[MODE_NUM] = {
-    RESOURCE_ID_SELECTED_LOCATE_6_START,
-    RESOURCE_ID_SELECTED_LOCATE_6_START + 1,
-    RESOURCE_ID_SELECTED_LOCATE_6_END,
+static const ui_snap_shot_id_e slider_snap_ids[MODE_NUM] = {
+    UI_SNAP_SHOT_VERTICAL_SLIDER_1,
+    UI_SNAP_SHOT_VERTICAL_SLIDER_2,
+    UI_SNAP_SHOT_VERTICAL_SLIDER_3,
 };
 
 static const char *mode_name[MODE_NUM] = {
@@ -440,6 +439,32 @@ static void create_mid_label_item(ui_manager_context_t *thiz, label_info_t *labe
         lv_obj_set_style_text_opa(label_info->desc_text, LV_OPA_COVER, 0);
         lv_obj_align(label_info->desc_text, LV_ALIGN_TOP_LEFT, 80, 44);
     }
+
+    if (label_info->status_img == NULL || !lv_obj_is_valid(label_info->status_img)) {
+        label_info->status_img = lv_image_create(label_info->obj[MODE_SLOT_MID]);
+        EXCEPTION_CHECK_VOID(label_info->status_img);
+        lv_obj_align(label_info->status_img, LV_ALIGN_TOP_LEFT, 54, 28);
+        lv_obj_set_style_image_opa(label_info->status_img, LV_OPA_COVER, 0);
+    }
+}
+
+static const char *get_mode_display_name(uint8_t idx)
+{
+    uint8_t custom_idx = BREAST_PUMP_CUSTOM_MODE - BREAST_PUMP_EXPERT_MODE_LOWER;
+
+    if (idx == custom_idx && mode_info->custom_name[0] != '\0') {
+        return mode_info->custom_name;
+    }
+    return mode_name[idx];
+}
+
+static void invalidate_label_cache(void)
+{
+    for (uint8_t i = 0; i < LABEL_GROUP_NUM; i++) {
+        for (uint8_t j = 0; j < LABEL_NUM; j++) {
+            mode_info->label_info[i].idx[j] = BREAST_PUMP_MODE_INVALID;
+        }
+    }
 }
 
 static void update_up_and_down_label_content(ui_manager_context_t *thiz, label_info_t *label_info, 
@@ -453,7 +478,7 @@ static void update_up_and_down_label_content(ui_manager_context_t *thiz, label_i
         return;
     }
 
-    lv_label_set_text(label_info->title_text[slot], mode_name[idx]);
+    lv_label_set_text(label_info->title_text[slot], get_mode_display_name(idx));
     label_info->idx[slot] = idx;
 }
 
@@ -465,6 +490,7 @@ static void update_mid_label_content(ui_manager_context_t *thiz, label_info_t *l
     }
 
     if (label_info->idx[MODE_SLOT_MID] == idx) {
+        LOG_UI("idx: %d, same as before", idx);
         return;
     }
 
@@ -476,9 +502,34 @@ static void update_mid_label_content(ui_manager_context_t *thiz, label_info_t *l
             label_info->icon_img_info.data, label_info->icon_img_info.size, "baj");
         lv_image_set_src(label_info->icon_img, (const void *)&mode_component_path);
     }
-    lv_label_set_text(label_info->title_text[MODE_SLOT_MID], mode_name[idx]);
+    lv_label_set_text(label_info->title_text[MODE_SLOT_MID], get_mode_display_name(idx));
     lv_label_set_text(label_info->desc_text, mode_desc[idx]);
+    lv_fs_path_ex_t status_img_path;
+    if (mode_info->unconfirmed_mode_idx == idx) {
+        if (mode_info->new_icon_info.data != NULL) {
+            lv_obj_clear_flag(label_info->status_img, LV_OBJ_FLAG_HIDDEN);
+            lv_fs_make_path_from_buffer(&status_img_path, LV_FS_MEMFS_LETTER,
+                mode_info->new_icon_info.data, mode_info->new_icon_info.size, "baj");
+            lv_image_set_src(label_info->status_img, (const void *)&status_img_path);
+            lv_obj_align(label_info->status_img, LV_ALIGN_TOP_LEFT, 54, 28);
+        } else {
+            lv_obj_add_flag(label_info->status_img, LV_OBJ_FLAG_HIDDEN); /// 隐藏
+        }
+    } else if (mode_info->last_used_mode_idx == idx ) {
+        if (mode_info->used_icon_info.data != NULL) {
+            lv_obj_clear_flag(label_info->status_img, LV_OBJ_FLAG_HIDDEN);
+            lv_fs_make_path_from_buffer(&status_img_path, LV_FS_MEMFS_LETTER,
+                mode_info->used_icon_info.data, mode_info->used_icon_info.size, "baj");
+            lv_image_set_src(label_info->status_img, (const void *)&status_img_path);
+            lv_obj_align(label_info->status_img, LV_ALIGN_TOP_LEFT, 52, 24);
+        } else {
+            lv_obj_add_flag(label_info->status_img, LV_OBJ_FLAG_HIDDEN); /// 隐藏
+        }
+    } else {
+        lv_obj_add_flag(label_info->status_img, LV_OBJ_FLAG_HIDDEN); /// 隐藏
+    }
     label_info->idx[MODE_SLOT_MID] = idx;
+    // LOG_UI("idx: %d, used:%d, unconfirmed:%d", idx, mode_info->last_used_mode_idx, mode_info->unconfirmed_mode_idx);
 }
 
 static void circle_carousel_set_mode(ui_manager_context_t *thiz, label_info_t *label_info, uint8_t idx, bool anim)
@@ -504,7 +555,7 @@ static void circle_carousel_set_mode(ui_manager_context_t *thiz, label_info_t *l
     update_mid_label_content(thiz, label_info, mid_idx);
     update_up_and_down_label_content(thiz, label_info, MODE_SLOT_UP, up_idx);
     update_up_and_down_label_content(thiz, label_info, MODE_SLOT_DOWN, down_idx);
-    LOG_UI("idx: %d, mid_idx: %d, up_idx: %d, down_idx: %d", idx, mid_idx, up_idx, down_idx);
+    // LOG_UI("idx: %d, mid_idx: %d, up_idx: %d, down_idx: %d", idx, mid_idx, up_idx, down_idx);
 }
 
 static void circle_carousel_create(ui_manager_context_t *thiz, uint8_t idx)
@@ -534,11 +585,30 @@ static void circle_carousel_create(ui_manager_context_t *thiz, uint8_t idx)
         EXCEPTION_CHECK_VOID(mode_info->label_info[i].obj[MODE_SLOT_DOWN]);
         EXCEPTION_CHECK_VOID(mode_info->label_info[i].title_text[MODE_SLOT_DOWN]);
     }
+}
 
-    /// 设置模式
-    for (uint8_t i = 0; i < LABEL_GROUP_NUM; i++) {
-        circle_carousel_set_mode(thiz, &mode_info->label_info[i], idx, false);
+static void update_slider(ui_manager_context_t *thiz, uint8_t idx)
+{
+    lv_draw_buf_t *background_snapshot = NULL;
+    #if LV_USE_SNAPSHOT
+    background_snapshot = get_lvgl_snap_shot(slider_snap_ids[idx]);
+    #endif
+    if (background_snapshot != NULL) {
+        lv_image_set_src(mode_info->slider_img, background_snapshot);
+    } else {
+        lv_obj_add_flag(mode_info->slider_img, LV_OBJ_FLAG_HIDDEN); /// 隐藏
     }
+}
+
+static void circle_carousel_update(ui_manager_context_t *thiz, uint8_t idx)
+{
+    if (mode_info->slider_img == NULL || !lv_obj_is_valid(mode_info->slider_img)) {
+        mode_info->slider_img = lv_image_create(mode_info->root);
+        EXCEPTION_CHECK_VOID(mode_info->slider_img);
+        lv_obj_set_style_image_opa(mode_info->slider_img, LV_OPA_COVER, 0);
+        lv_obj_align(mode_info->slider_img, LV_ALIGN_RIGHT_MID, -8, 0);
+    }
+    update_slider(thiz, idx);
 }
 
 static void label_ui_update(ui_manager_context_t *thiz, uint8_t mode)
@@ -550,8 +620,10 @@ static void label_ui_update(ui_manager_context_t *thiz, uint8_t mode)
 
     if (mode_info->label_obj_init_done == false) {
         circle_carousel_create(thiz, idx);
+        circle_carousel_set_mode(thiz, &mode_info->label_info[0], idx, false);
         label_group_apply_visible_param(&mode_info->label_info[0], true);
         label_group_apply_visible_param(&mode_info->label_info[1], false);
+        circle_carousel_update(thiz, idx);
         mode_info->mode_idx = idx;
         mode_info->active_label_group = 0;
         mode_info->label_obj_init_done = true;
@@ -569,9 +641,9 @@ static void label_ui_update(ui_manager_context_t *thiz, uint8_t mode)
             label_group_start_switch_anim(&mode_info->label_info[old_group],
                 &mode_info->label_info[new_group]);
         }
+        circle_carousel_update(thiz, idx);
         mode_info->active_label_group = new_group;
         mode_info->mode_idx = idx;
-        LOG_UI("mode: %d, idx: %d", mode, idx);
     }
 }
 
@@ -610,39 +682,30 @@ void common_pump_bf_mode_ui_prepare(ui_manager_context_t *thiz)
     mode_info->label_obj_init_done = false;
     mode_info->active_label_group = 0;
     mode_info->popup_ui_index = ID_POPUP_UI_NONE;
-    mode_info->custom_mode_id = 0;
     memset(mode_info->custom_name, 0, sizeof(mode_info->custom_name));
-    int activate_status = 0;
+    mode_info->last_used_mode_idx = -1;
+    mode_info->unconfirmed_mode_idx = -1;
+    mode_info->mode_num = MODE_NUM - 1;
+    mode_info->custom_mode_id = 0;
     mode_info->pump = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
+    mode_info->st = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
+    common_ui_img_resource_init(thiz, RESOURCE_ID_LAST_USED_MODE_ICON, &mode_info->used_icon_info);
+    common_ui_img_resource_init(thiz, RESOURCE_ID_NEW_MODE_STEPS_PROMPT_ICON, &mode_info->new_icon_info);
+    int last_mode_idx = 0;
     if (mode_info->pump) {
-        READ_PUMP_MODE_ACTIVATE(mode_info->pump, BREAST_PUMP_CUSTOM_MODE, activate_status);
-    }
-    storage_manager_context_t *st = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
-    if (st && activate_status) {
-        mode_info->mode_num = MODE_NUM;    
-        uint32_t custom_mode_id = 0;
-        st->get_store_ram_val(STORE_ID_PUMP_MODE_NAME_INFO, BREAST_PUMP_CUSTOM_MODE,
-            sizeof(mode_info->custom_name), mode_info->custom_name);
-        LOG_UI("custom_name: %s", mode_info->custom_name);
-        st->get_store_ram_val(STORE_ID_PUMP_MODE_STEPS_INFO_ID, BREAST_PUMP_CUSTOM_MODE, 0, &custom_mode_id);
-        mode_info->custom_mode_id = custom_mode_id;
-        int new_step_info_flag = false; 
-        st->get_store_ram_val(STORE_ID_MODE_NEW_STEP_INFO_FLAG, BREAST_PUMP_CUSTOM_MODE, 0, &new_step_info_flag);
-        mode_info->new_step_info_flag = new_step_info_flag > 0 ? true : false;
-        LOG_UI("customization activated, id: %d, flag: %d", mode_info->custom_mode_id, mode_info->new_step_info_flag);
-    } else {
-        mode_info->mode_num = MODE_NUM - 1;
-        mode_info->new_step_info_flag = false;
+        READ_PUMP_EXPERT_MODE(mode_info->pump, true, last_mode_idx);
+        mode_info->last_used_mode_idx = last_mode_idx - BREAST_PUMP_EXPERT_MODE_LOWER;
     }
 }
 
 void common_pump_bf_mode_ui_remove(ui_manager_context_t *thiz)
 {
     EXCEPTION_CHECK_VOID(thiz && mode_info);
-    common_ui_img_resource_deinit(thiz, &mode_info->dots_img_info);
     for (uint8_t i = 0; i < LABEL_GROUP_NUM; i++) {
         common_ui_img_resource_deinit(thiz, &mode_info->label_info[i].icon_img_info);
     }
+    common_ui_img_resource_deinit(thiz, &mode_info->used_icon_info);
+    common_ui_img_resource_deinit(thiz, &mode_info->new_icon_info);
     ui_background_deinit(thiz);
     ui_common_operation_tip_remove(thiz);
     LVGL_OBJ_DELETE(mode_info->root);
@@ -653,19 +716,50 @@ void common_pump_bf_mode_ui_remove(ui_manager_context_t *thiz)
 int common_pump_bf_mode_ui_process(ui_manager_context_t *thiz, uint8_t mode, uint16_t popup_ui_type)
 {
     EXCEPTION_CHECK_INT(thiz && mode_info && mode_info->root);
-    if (mode_info->mode_num > MODE_NUM || mode_info->mode_num == 0) {
-        int activate_status = 0;
+    int new_step_info_flag = 0, activate_status = 0;
+   
+    if (mode_info->pump) {
         READ_PUMP_MODE_ACTIVATE(mode_info->pump, BREAST_PUMP_CUSTOM_MODE, activate_status);
-        if (activate_status) {
-            mode_info->mode_num = MODE_NUM;
-        } else {
-            mode_info->mode_num = MODE_NUM - 1;
+    }
+
+    if (activate_status && mode_info->st) {
+        uint32_t custom_mode_id = 0;
+        mode_info->st->get_store_ram_val(STORE_ID_PUMP_MODE_STEPS_INFO_ID, BREAST_PUMP_CUSTOM_MODE,
+            0, &custom_mode_id);
+        mode_info->st->get_store_ram_val(STORE_ID_MODE_NEW_STEP_INFO_FLAG, BREAST_PUMP_CUSTOM_MODE,
+            0, &new_step_info_flag);
+        if (new_step_info_flag) {
+            mode_info->unconfirmed_mode_idx = BREAST_PUMP_CUSTOM_MODE - BREAST_PUMP_EXPERT_MODE_LOWER;
+            if (mode_info->unconfirmed_mode_idx == mode_info->last_used_mode_idx) {
+                mode_info->last_used_mode_idx = -1;
+            }   mode_info->force_update = true;
         }
+
+        if (custom_mode_id != mode_info->custom_mode_id) {
+            mode_info->custom_mode_id = custom_mode_id;
+            mode_info->st->get_store_ram_val(STORE_ID_PUMP_MODE_NAME_INFO, BREAST_PUMP_CUSTOM_MODE,
+                sizeof(mode_info->custom_name), mode_info->custom_name);
+            invalidate_label_cache();
+            mode_info->force_update = true;
+        }
+        mode_info->mode_num = MODE_NUM;
+    } else {
+        mode_info->custom_mode_id = 0;
+        mode_info->mode_num = MODE_NUM - 1;
+        mode_info->unconfirmed_mode_idx = -1;
+        memset(mode_info->custom_name, 0, sizeof(mode_info->custom_name));
     }
     ui_background_update(thiz);
     label_ui_update(thiz, mode);
     ui_page_title_text_update(thiz);
     ui_common_operation_tip_update(thiz, popup_ui_type, mode_info->root, &mode_info->popup_ui_index);
     mode_info->force_update = false;
+    static uint16_t log_time = 0;
+    log_time++;
+    if (log_time % 10 == 0) {
+        LOG_UI("used:%d, unconfirmed:%d, mode:%d, activate:%d, last_mode_idx:%d, flag:%d, name:%s", 
+            mode_info->last_used_mode_idx, mode_info->unconfirmed_mode_idx, mode,
+            activate_status, mode_info->last_used_mode_idx, new_step_info_flag, mode_info->custom_name);
+    }
     return 0;
 }

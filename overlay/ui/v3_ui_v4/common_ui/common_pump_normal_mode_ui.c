@@ -52,6 +52,7 @@ typedef struct label_info {
     lv_obj_t *title_text[LABEL_NUM]; /// 模式标题标签
     lv_obj_t *icon_img; /// 模式组件图片
     lv_obj_t *desc_text; /// 模式描述标签
+    lv_obj_t *wave_img; /// 波形图标
     res_img_info_t icon_img_info;
     uint8_t idx[LABEL_NUM];
 } label_info_t;
@@ -63,8 +64,7 @@ typedef struct ui_display_mode_info {
 #endif
     label_info_t label_info[LABEL_GROUP_NUM];
     lv_obj_t *page_title_text;
-    lv_obj_t *dots_img; /// 序号点图片
-    res_img_info_t dots_img_info;
+    lv_obj_t *slider_img; /// 滑动条图片
     uint8_t mode_idx;
     uint8_t force_update;
     uint8_t label_obj_init_done;
@@ -116,6 +116,18 @@ static const uint16_t mode_icon_ids[MODE_NUM] = {
     RESOURCE_ID_MODE_STIMULATE_ICON, /// 舒适
     RESOURCE_ID_MODE_LACTATION_ICON, /// 常规
     RESOURCE_ID_MODE_MIX_ICON, /// 快速
+};
+
+static const ui_snap_shot_id_e mode_wave_snap_ids[MODE_NUM] = {
+    UI_SNAP_SHOT_STIMULATION_WAVE_ICON, /// 舒适
+    UI_SNAP_SHOT_LACTATION_WAVE_ICON, /// 常规
+    UI_SNAP_SHOT_MIX_WAVE_ICON, /// 快速
+};
+
+static const ui_snap_shot_id_e slider_snap_ids[MODE_NUM] = {
+    UI_SNAP_SHOT_VERTICAL_SLIDER_1,
+    UI_SNAP_SHOT_VERTICAL_SLIDER_2,
+    UI_SNAP_SHOT_VERTICAL_SLIDER_3,
 };
 
 static const char *mode_name[MODE_NUM] = {
@@ -424,6 +436,13 @@ static void create_mid_label_item(ui_manager_context_t *thiz, label_info_t *labe
         lv_obj_set_style_text_opa(label_info->desc_text, LV_OPA_COVER, 0);
         lv_obj_align(label_info->desc_text, LV_ALIGN_TOP_LEFT, 80, 44);
     }
+
+    if (label_info->wave_img == NULL || !lv_obj_is_valid(label_info->wave_img)) {
+        label_info->wave_img = lv_image_create(label_info->obj[MODE_SLOT_MID]);
+        EXCEPTION_CHECK_VOID(label_info->wave_img);
+        lv_obj_align(label_info->wave_img, LV_ALIGN_TOP_RIGHT, -16, 20);
+        lv_obj_set_style_img_opa(label_info->wave_img, LV_OPA_COVER, 0);
+    }
 }
 
 static void update_up_and_down_label_content(ui_manager_context_t *thiz, label_info_t *label_info, 
@@ -462,6 +481,16 @@ static void update_mid_label_content(ui_manager_context_t *thiz, label_info_t *l
     }
     lv_label_set_text(label_info->title_text[MODE_SLOT_MID], mode_name[idx]);
     lv_label_set_text(label_info->desc_text, mode_desc[idx]);
+    lv_draw_buf_t *background_snapshot = NULL;
+    #if LV_USE_SNAPSHOT
+    background_snapshot = get_lvgl_snap_shot(mode_wave_snap_ids[idx]);
+    #endif
+    if (background_snapshot != NULL) {
+        lv_obj_clear_flag(label_info->wave_img, LV_OBJ_FLAG_HIDDEN); /// 显示
+        lv_image_set_src(label_info->wave_img, background_snapshot);
+    } else {
+        lv_obj_add_flag(label_info->wave_img, LV_OBJ_FLAG_HIDDEN); /// 隐藏
+    }
     label_info->idx[MODE_SLOT_MID] = idx;
 }
 
@@ -517,11 +546,30 @@ static void circle_carousel_create(ui_manager_context_t *thiz, uint8_t idx)
         EXCEPTION_CHECK_VOID(mode_info->label_info[i].obj[MODE_SLOT_DOWN]);
         EXCEPTION_CHECK_VOID(mode_info->label_info[i].title_text[MODE_SLOT_DOWN]);
     }
+}
 
-    /// 设置模式
-    for (uint8_t i = 0; i < LABEL_GROUP_NUM; i++) {
-        circle_carousel_set_mode(thiz, &mode_info->label_info[i], idx, false);
+static void update_slider(ui_manager_context_t *thiz, uint8_t idx)
+{
+    lv_draw_buf_t *background_snapshot = NULL;
+    #if LV_USE_SNAPSHOT
+    background_snapshot = get_lvgl_snap_shot(slider_snap_ids[idx]);
+    #endif
+    if (background_snapshot != NULL) {
+        lv_image_set_src(mode_info->slider_img, background_snapshot);
+    } else {
+        lv_obj_add_flag(mode_info->slider_img, LV_OBJ_FLAG_HIDDEN); /// 隐藏
     }
+}
+
+static void circle_carousel_update(ui_manager_context_t *thiz, uint8_t idx)
+{
+    if (mode_info->slider_img == NULL || !lv_obj_is_valid(mode_info->slider_img)) {
+        mode_info->slider_img = lv_image_create(mode_info->root);
+        EXCEPTION_CHECK_VOID(mode_info->slider_img);
+        lv_obj_set_style_image_opa(mode_info->slider_img, LV_OPA_COVER, 0);
+        lv_obj_align(mode_info->slider_img, LV_ALIGN_RIGHT_MID, -8, 0);
+    }
+    update_slider(thiz, idx);
 }
 
 static void label_ui_update(ui_manager_context_t *thiz, uint8_t mode)
@@ -533,8 +581,10 @@ static void label_ui_update(ui_manager_context_t *thiz, uint8_t mode)
 
     if (mode_info->label_obj_init_done == false) {
         circle_carousel_create(thiz, idx);
+        circle_carousel_set_mode(thiz, &mode_info->label_info[0], idx, false);
         label_group_apply_visible_param(&mode_info->label_info[0], true);
         label_group_apply_visible_param(&mode_info->label_info[1], false);
+        circle_carousel_update(thiz, idx);
         mode_info->mode_idx = idx;
         mode_info->active_label_group = 0;
         mode_info->label_obj_init_done = true;
@@ -552,6 +602,7 @@ static void label_ui_update(ui_manager_context_t *thiz, uint8_t mode)
             label_group_start_switch_anim(&mode_info->label_info[old_group],
                 &mode_info->label_info[new_group]);
         }
+        update_slider(thiz, idx);
         mode_info->active_label_group = new_group;
         mode_info->mode_idx = idx;
     }
@@ -597,7 +648,6 @@ void common_pump_normal_mode_ui_prepare(ui_manager_context_t *thiz)
 void common_pump_normal_mode_ui_remove(ui_manager_context_t *thiz)
 {
     EXCEPTION_CHECK_VOID(thiz && mode_info);
-    common_ui_img_resource_deinit(thiz, &mode_info->dots_img_info);
     for (uint8_t i = 0; i < LABEL_GROUP_NUM; i++) {
         common_ui_img_resource_deinit(thiz, &mode_info->label_info[i].icon_img_info);
     }
