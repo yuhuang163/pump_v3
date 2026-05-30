@@ -15,23 +15,14 @@ extern "C" {
 #include "input_key_code.h" // IWYU pragma: keep
 
 /// 泵奶动画频率
-#if IS_SUPPORT_LVGL
 #if (ROOT_UI_VERSION == ROOT_UI_V2)
 #define PUMP_ANIMATION_FREQ                    (24)
 #else
 #define PUMP_ANIMATION_FREQ                    (16)
 #endif
-#define PUMP_SPEED_ANIMATION_FREQ              (20) 
-#define PUMP_RESULT_ANIMATION_FREQ             (20) 
-#define PUMP_MODE_ANIMATION_FREQ               (20) 
+#define PUMP_MODE_ANIMATION_FREQ               (25) 
+#define PUMP_SPEED_ANIMATION_FREQ              (25) 
 #define PUMP_LEVEL_ANIMATION_FREQ              (20) 
-#else
-#define PUMP_ANIMATION_FREQ                    (5)
-#define PUMP_SPEED_ANIMATION_FREQ              (5) 
-#define PUMP_RESULT_ANIMATION_FREQ             (5) 
-#define PUMP_MODE_ANIMATION_FREQ               (5) 
-#define PUMP_LEVEL_ANIMATION_FREQ              (5) 
-#endif
 
 /// 判断泵奶时间
 #define IS_PUMPTIME_LESS_THEN_30S(result)      ((result)->real_valid_time_sec < 30 )

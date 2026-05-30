@@ -130,7 +130,7 @@ static void show_home_pump_level_ui(ui_proc_home_t *proc)
     }
     ui_play_info_t play_info = {
         .tag = "home_pump_level_screen",
-        .fps = HOME_ANIMATION_FREQ,
+        .fps = HOME_PUMP_LEVEL_ANIMATION_FREQ,
         .progress_cb = home_pump_level_animation_progress_cb,
         .display_prepare_cb = home_pump_level_ui_prepare,
         .display_remove_cb = home_pump_level_ui_remove,
