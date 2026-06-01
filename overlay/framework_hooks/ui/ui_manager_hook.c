@@ -498,14 +498,11 @@ static void on_ui_battery_state_change_cb(void *user_data, battery_state_info_t 
         set_backlight_level_rate(ui, 50);
     } else {
         window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
-        if (wm && (wm->get_current_window_id() == ID_WINDOW_CHARGE || 
-                (wm->get_current_window_id() == ID_WINDOW_POWER_OFF &&
-                 BATTERY_IS_CHARGING(info->charge_status)))) {
-            set_backlight_level_rate(ui, 50);
-        } else {
+        if (wm && wm->get_current_window_id() != ID_WINDOW_POWER_OFF) {
             set_backlight_level_rate(ui, 100);
         }
     }
+    LOG_UI("batt state: %d, bg rate: %d", info->battery_state, ui->priv.ui_backlight_level_rate);
 }
 
 static int on_post_ui_init_route(struct ui_manager_context *ctx)
