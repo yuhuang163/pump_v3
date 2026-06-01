@@ -25,7 +25,7 @@
 #define MID_LABEL_TITLE_TEXT_COLOR                  (0xFFFFFF)
 #define MID_LABEL_DESC_TEXT_COLOR                   (0xFFE6E7)
 
-#define SPEED_SWITCH_ANIM_TIME_MS                    (800)
+#define SPEED_SWITCH_ANIM_TIME_MS                    (400)
 
 #define SPEED_MID_LABEL_MIN_OPA_MIN_EXIT             (0)
 #define SPEED_UP_LABEL_MIN_OPA_MIN_EXIT              (0)
