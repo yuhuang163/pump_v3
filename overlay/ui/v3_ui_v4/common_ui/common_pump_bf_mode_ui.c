@@ -67,6 +67,7 @@ typedef struct ui_display_mode_info {
     res_img_info_t new_icon_info;
     lv_obj_t *page_title_text;
     lv_obj_t *slider_img; /// 滑动条图片
+    res_img_info_t slider_img_info;
     char custom_name[24]; /// 个性化模式名称
     breast_pump_manager_context_t *pump;
     storage_manager_context_t *st;
@@ -127,11 +128,19 @@ static const uint16_t mode_icon_ids[MODE_NUM] = {
     RESOURCE_ID_MODE_CUSTOM_ICON, 
 };
 
+#ifdef UI_SNAP_SHOT_VERTICAL_SLIDER_1
 static const ui_snap_shot_id_e slider_snap_ids[MODE_NUM] = {
     UI_SNAP_SHOT_VERTICAL_SLIDER_1,
     UI_SNAP_SHOT_VERTICAL_SLIDER_2,
     UI_SNAP_SHOT_VERTICAL_SLIDER_3,
 };
+#else
+static const uint16_t slider_res_ids[MODE_NUM] = {
+    RESOURCE_ID_VERTICAL_SLIDER_1,
+    RESOURCE_ID_VERTICAL_SLIDER_2,
+    RESOURCE_ID_VERTICAL_SLIDER_3,
+};
+#endif
 
 static const char *mode_name[MODE_NUM] = {
     "Milk Boost", /// 2+8奶量提升模式
@@ -589,6 +598,7 @@ static void circle_carousel_create(ui_manager_context_t *thiz, uint8_t idx)
 
 static void update_slider(ui_manager_context_t *thiz, uint8_t idx)
 {
+#ifdef UI_SNAP_SHOT_VERTICAL_SLIDER_1
     lv_draw_buf_t *background_snapshot = NULL;
     #if LV_USE_SNAPSHOT
     background_snapshot = get_lvgl_snap_shot(slider_snap_ids[idx]);
@@ -598,6 +608,15 @@ static void update_slider(ui_manager_context_t *thiz, uint8_t idx)
     } else {
         lv_obj_add_flag(mode_info->slider_img, LV_OBJ_FLAG_HIDDEN); /// 隐藏
     }
+#else
+    common_ui_img_resource_init(thiz, slider_res_ids[idx], &mode_info->slider_img_info);
+    if (mode_info->slider_img_info.data != NULL) {
+        lv_fs_path_ex_t slider_path;
+        lv_fs_make_path_from_buffer(&slider_path, LV_FS_MEMFS_LETTER, mode_info->slider_img_info.data,
+            mode_info->slider_img_info.size, "baj");
+        lv_image_set_src(mode_info->slider_img, (const void *)&slider_path);
+    }
+#endif
 }
 
 static void circle_carousel_update(ui_manager_context_t *thiz, uint8_t idx)
@@ -706,6 +725,7 @@ void common_pump_bf_mode_ui_remove(ui_manager_context_t *thiz)
     }
     common_ui_img_resource_deinit(thiz, &mode_info->used_icon_info);
     common_ui_img_resource_deinit(thiz, &mode_info->new_icon_info);
+    common_ui_img_resource_deinit(thiz, &mode_info->slider_img_info);
     ui_background_deinit(thiz);
     ui_common_operation_tip_remove(thiz);
     LVGL_OBJ_DELETE(mode_info->root);
