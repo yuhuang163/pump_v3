@@ -157,7 +157,7 @@ static const char *mode_name[MODE_NUM] = {
 static const char *mode_desc[MODE_NUM] = {
     "Fast, gentle suction to trigger\nlet-down.",
     "Slow, deep suction for\nefficient milk expression.",
-    "Alternates 5 times of fast,\ngentle suction with 1 slow",
+    "Efficiently promote let-down\nand better emptying.",
 };
 
 #if IS_SUPPORT_MODE_COMP_BG
