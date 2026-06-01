@@ -235,10 +235,10 @@ static void on_connect_status_change(ble_manager_context_t *ctx, int new_status,
     }
 
     /// 飞行模式情况下不要弹出!!
-    if (ap && ap->is_on_airplane_mode()) {
+    /*if (ap && ap->is_on_airplane_mode()) {
         LOGW("current on_airplane_mode, ignore: %d", new_status);
         return;
-    }
+    }*/
 
     /// 工厂进入休眠，断开蓝牙后不要弹出
     if (ctx->priv.fac_enter_sleep) { 
