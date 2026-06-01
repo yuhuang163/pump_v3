@@ -138,7 +138,7 @@ typedef struct motor_manager_context {
     /// 获取当前泵奶参数表
     uint8_t (*get_local_suction_table)(factory_suction_para_t **suction_para);
     /// 获取策略运行时间，单位ms
-    uint32_t (*get_policy_running_time)(void);
+    uint32_t (*get_policy_running_time)(uint8_t mode);
     /// 获取所有定时策略执行完毕标志
     uint8_t (*get_timed_policy_finish_flag)(void);
     /// 外部钩子函数.
