@@ -172,6 +172,13 @@ void home_pump_normal_mode_key_click_handler(ui_proc_home_t *proc)
         READ_PUMP_COMMON_MODE(proc->pump, false, mode_index);
         proc->ui_normal_mode_index = PUMP_IS_COMMON_MODE(mode_index) == 0 ?
                 BREAST_PUMP_NORMAL_MODE_DEFAULT : mode_index;
+        READ_PUMP_WORK_MODE(proc->pump, mode_index);
+        if (proc->ui_normal_mode_index != mode_index) {
+            WRITE_PUMP_WORK_MODE(proc->pump, proc->ui_normal_mode_index, true, 1);
+            char *mode_name = "unknow";
+            READ_PUMP_MODE_NAME(proc->pump, proc->ui_normal_mode_index, &mode_name);
+            LOG_UI("switch %s mode: %d", mode_name, proc->ui_normal_mode_index);
+        }
         if (proc->pump_priming == 0) {
             proc->pump_priming = true;
             if (proc->led)  {

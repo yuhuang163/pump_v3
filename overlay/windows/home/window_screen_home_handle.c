@@ -198,7 +198,9 @@ static void home_power_key_event_cb(ui_proc_home_t *proc)
 {
     if (proc->current_ui_type == HOME_UI_TYPE_NORMAL_MODE_SELECT || 
         proc->current_ui_type == HOME_UI_TYPE_BF_MODE_SELECT) {
+        #if V3_UX_VERSION == V3_UX_V1
         POST_WM_TASK_HANDLER_NO_DELAY(home_start_key_event_ui_cb, proc, HOME_START_KEY_EVENT_TASK_NAME);
+        #endif
     } else if (proc->current_ui_type == HOME_UI_TYPE_HOME ||
             proc->current_ui_type == HOME_UI_TYPE_BIND_QRCODE) {
 #if IS_SUPPORT_NIGHT_LIGHT
