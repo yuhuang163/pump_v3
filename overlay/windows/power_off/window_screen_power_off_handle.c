@@ -69,13 +69,10 @@ static void power_off_ui_common_cb(hdr_post_args_t *args)
     switch (action) {
         case POWER_OFF_HDR_EXIT_CHARGE_POLICY:
             LOG_WM("%s", args->name);
-            if (proc->ble) {
-                proc->ble->bt_adv_start_by_user();
-            }
-            LOG_WM("goto logo window.");
             if (proc->ui->hook && proc->ui->hook->set_ui_backlight_level_rate) {
                 proc->ui->hook->set_ui_backlight_level_rate(proc->ui, 100);
             }
+            LOG_WM("goto logo window.");
             msg.union_body.extra.window_id = ID_WINDOW_LOGO;
             proc->wm->dispatch_new_window_args(proc->wm, &msg);
             break;
