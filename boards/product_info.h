@@ -57,14 +57,18 @@ extern "C" {
 */
 #if (ROOT_UI_VERSION == ROOT_UI_V2)
 #define ROOT_RES_PATH                                  "V2" /// 资源路径
+#define ROOT_RES_VERSION                               (102)
 #elif (ROOT_UI_VERSION == ROOT_UI_V3)   
 #define ROOT_RES_PATH                                  "V3" /// 资源路径
+#define ROOT_RES_VERSION                               (103)
 #elif (ROOT_UI_VERSION == ROOT_UI_V4)
 #define ROOT_RES_PATH                                  "V4" /// 资源路径
+#define ROOT_RES_VERSION                               (104)
 #else
-#define ROOT_RES_PATH                                  "V2" /// 资源路径
+#define ROOT_RES_PATH                                  "V4" /// 资源路径
+#define ROOT_RES_VERSION                               (104)
 #endif
-#define ROOT_RES_VERSION                               (103)
+
 #define ROOT_RES_MAJOR_VERSION                         (ROOT_RES_VERSION / 100)
 #define ROOT_RES_MINOR_VERSION                         (ROOT_RES_VERSION % 100)
 
