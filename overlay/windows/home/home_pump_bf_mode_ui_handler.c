@@ -174,10 +174,15 @@ void home_pump_bf_mode_key_click_handler(ui_proc_home_t *proc)
     if (proc->current_ui_type != HOME_UI_TYPE_BF_MODE_SELECT) {
         int mode_index = 0;
         READ_PUMP_EXPERT_MODE(proc->pump, false, mode_index);
-        proc->ui_bf_mode_index = mode_index;
-        if (PUMP_IS_BREASTFEEDING_MODE(mode_index) == 0) {
-            proc->ui_bf_mode_index = BREAST_PUMP_EXPERT_MODE_DEFAULT;
-        } 
+        proc->ui_bf_mode_index = PUMP_IS_BREASTFEEDING_MODE(mode_index) == 0 ? 
+            BREAST_PUMP_EXPERT_MODE_DEFAULT : mode_index;
+        READ_PUMP_WORK_MODE(proc->pump, mode_index);
+        if (proc->ui_bf_mode_index != mode_index) {
+            WRITE_PUMP_WORK_MODE(proc->pump, proc->ui_bf_mode_index, true, 1);
+            char *mode_name = "unknow";
+            READ_PUMP_MODE_NAME(proc->pump, proc->ui_bf_mode_index, &mode_name);
+            LOG_UI("switch %s mode: %d", mode_name, proc->ui_bf_mode_index);
+        }
 
         if (proc->pump_priming == 0) {
             proc->pump_priming = true;
