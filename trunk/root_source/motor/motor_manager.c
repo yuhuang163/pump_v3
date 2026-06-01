@@ -298,9 +298,13 @@ static int set_time_policy_remaining_time(uint32_t remaining_time)
     return 0;
 }
 
-static uint32_t get_policy_running_time(void)
+static uint32_t get_policy_running_time(uint8_t mode)
 {
-    return motor_obj->priv.runtime.policy_running_time_ms;
+    if (mode == motor_obj->priv.runtime.breast_pump_mode) {
+        return motor_obj->priv.runtime.policy_running_time_ms;
+    } else {
+        return 0;
+    }
 }
 
 static uint8_t get_timed_policy_finish_flag(void)
