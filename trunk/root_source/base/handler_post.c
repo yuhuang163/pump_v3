@@ -174,10 +174,15 @@ static int hdr_post_process_cb(multi_func_msg_data_t *msg, thread_context_t *thd
         thd->exclusive_task = 0;
     }
 
+    #if DEBUG_HDR_TASK
+    LOGW("(%s)EXEC_POST_TASK-endtime(from:%lu->%lu#name: %s/time=%ld), exec_time: %ld(ms)******", THREAD_NAME_GET(thd),
+        target->from_tid, (uint32_t)(thd->tid) % 1000, target->name, target->timestamp, diff_time);
+    #else
     if (diff_time >= 30) {
         LOGW("(%s)EXEC_POST_TASK-endtime(from:%lu->%lu#name: %s/time=%ld), exec_time: %ld(ms)******", THREAD_NAME_GET(thd),
             target->from_tid, (uint32_t)(thd->tid) % 1000, target->name, target->timestamp, diff_time);
     }
+    #endif
     return 0;
 }
 

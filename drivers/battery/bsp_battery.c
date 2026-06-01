@@ -505,17 +505,25 @@ static void battery_percent_update(uint8_t percent)
         LOGE("percent error:%d", percent);
         return;
     }
+
+    uint8_t offset_percent = percent > battery.percent ? 
+        (percent - battery.percent) : (battery.percent - percent);
+    if (offset_percent > 10) {
+        LOG_PBUS("offset:%d > 10, skip, percent:%d%% -> %d%%", 
+            offset_percent, battery.percent, percent);
+        return;
+    }
+
+    uint8_t last_percent = battery.percent;
     uint16_t last_voltage = battery.voltage;
     battery.voltage = battery_voltage_by_percent_get(percent);
-    uint8_t last_percent = battery.percent;
-    battery.percent = percent;
     LOG_PBUS("percent:%d%% -> %d%%, voltage:%dmv -> %dmv",
         last_percent, battery.percent, last_voltage, battery.voltage);
 }
 
 static int battery_voltage_poll(void)
 {
-    uint16_t batt_voltage =0; 
+    uint16_t batt_voltage = 0; 
     static uint16_t voltage = 0; 
     int ret = BSP_OK;
     
@@ -532,7 +540,8 @@ static int battery_voltage_poll(void)
     if (poll_interval > 1000) {
         LOGE("battery poll error:%ld", poll_interval);
         s_batt_poll_time = get_timestamp();
-        return BSP_ERROR;
+        poll_interval = 100;
+        // return BSP_ERROR;
     }
     s_batt_poll_time = get_timestamp();
     log_timer++;

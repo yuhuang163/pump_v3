@@ -41,10 +41,6 @@ INIT_WINDOW_CONTEXT();
 */
 static void charge_display_exit_cb(ui_proc_charge_t *proc)
 {
-    if (proc->ble && proc->ble->ble_is_connected() == 0) {
-        proc->ble->bt_adv_start_by_user();
-    }
-
     multi_func_msg_data_t msg = {0};
     if (proc->battery && proc->battery->is_low_battery()) {
         LOG_WM("battery is low power, goto battery screen");
@@ -184,6 +180,10 @@ static int exit_event_cb(window_lift_cycle_e new_state, const struct window_cont
             proc->window_run_state = WINDOW_RUN_STATE_PAUSED;
             LOG_WM("==>%s window on pause", PAGE_NAME_STR);
             stop_charge_common_ui(proc);
+            if (proc->ble && proc->ble->ble_is_connected() == 0 &&
+                proc->ble->get_adv_state() == 0) {
+                proc->ble->bt_adv_start_by_user();
+            }   
             break;
         case ID_SCR_STATE_ON_DESTORY:
             LOG_WM("==>%s window on destory", PAGE_NAME_STR);
