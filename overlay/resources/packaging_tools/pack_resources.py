@@ -127,6 +127,9 @@ def _derive_cpp_defines_from_makefile(makefile_path: str) -> Dict[str, str]:
     for key in [
         "ROOT_PRODUCT_V3_ID",
         "ROOT_PRODUCT_V3PRO_ID",
+        "ROOT_UI_V2",
+        "ROOT_UI_V3",
+        "ROOT_UI_V4",
         "V3_UI_V2",
         "V3PRO_UI_V2",
         "V3_UI_V3",
@@ -140,6 +143,11 @@ def _derive_cpp_defines_from_makefile(makefile_path: str) -> Dict[str, str]:
     product_id_value = _resolve_make_var_ref(product_id_token, defs)
     if product_id_value:
         defs["ROOT_PRODUCT_ID"] = product_id_value
+
+    root_ui_token = _extract_make_assignment(raw, "ROOT_UI_VERSION")
+    root_ui_value = _resolve_make_var_ref(root_ui_token, defs)
+    if root_ui_value:
+        defs["ROOT_UI_VERSION"] = root_ui_value
 
     v3pro_ui_value = None
     v3_ui_value = None

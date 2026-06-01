@@ -418,42 +418,42 @@
     {
       "resource_id": "RESOURCE_ID_STIMULATION_WAVE_ICON",
       "description": "刺激波形图标",
-      "file": "base/png/icon_pump_stimulation_wave.png",
+      "file": "base/baj/icon_pump_stimulation_wave_68x16_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
     {
       "resource_id": "RESOURCE_ID_LACTATION_WAVE_ICON",
       "description": "泌乳波形图标",
-      "file": "base/png/icon_pump_expression_wave.png",
+      "file": "base/baj/icon_pump_expression_wave_68x16_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
     {
       "resource_id": "RESOURCE_ID_MIX_WAVE_ICON",
       "description": "混合波形图标",
-      "file": "base/png/icon_pump_mix_wave.png",
+      "file": "base/baj/icon_pump_mix_wave_68x16_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
     {
       "resource_id": "RESOURCE_ID_VERTICAL_SLIDER_1",
       "description": "垂直滑动条1",
-      "file": "base/png/icon_vertical_slider_1.png",
+      "file": "base/baj/icon_vertical_slider_1_12x90_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
     {
       "resource_id": "RESOURCE_ID_VERTICAL_SLIDER_2",
       "description": "垂直滑动条2",
-      "file": "base/png/icon_vertical_slider_2.png",
+      "file": "base/baj/icon_vertical_slider_2_12x90_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
     {
       "resource_id": "RESOURCE_ID_VERTICAL_SLIDER_3",
       "description": "垂直滑动条3",
-      "file": "base/png/icon_vertical_slider_3.png",
+      "file": "base/baj/icon_vertical_slider_3_12x90_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     }
