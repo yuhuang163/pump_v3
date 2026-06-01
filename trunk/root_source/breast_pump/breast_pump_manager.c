@@ -320,9 +320,19 @@ static int get_breast_pump_mode(void)
 static int get_breast_pump_mode_by_type(breast_pump_mode_type_e type, uint8_t is_last)
 {
     breast_pump_info_t *m_info = &breast_pump_obj->priv.m_info;
+    /// 追奶模式
     if (type == BREAST_PUMP_MODE_TYPE_BREASTFEEDING) {
-            return m_info->breastfeeding_mode; 
+        if (is_last == 0 && PUMP_IS_BREASTFEEDING_MODE(m_info->mode)) {
+            return m_info->mode;
+        }
+        return m_info->breastfeeding_mode;
     }
+    
+    /// 常规模式
+    if (is_last == 0 && PUMP_IS_COMMON_MODE(m_info->mode)) {
+        return m_info->mode;
+    }
+
     return m_info->common_mode;
 }
 
