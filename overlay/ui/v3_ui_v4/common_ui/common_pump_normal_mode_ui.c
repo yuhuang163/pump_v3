@@ -54,6 +54,7 @@ typedef struct label_info {
     lv_obj_t *desc_text; /// 模式描述标签
     lv_obj_t *wave_img; /// 波形图标
     res_img_info_t icon_img_info;
+    res_img_info_t wave_img_info;
     uint8_t idx[LABEL_NUM];
 } label_info_t;
 
@@ -65,6 +66,7 @@ typedef struct ui_display_mode_info {
     label_info_t label_info[LABEL_GROUP_NUM];
     lv_obj_t *page_title_text;
     lv_obj_t *slider_img; /// 滑动条图片
+    res_img_info_t slider_img_info;
     uint8_t mode_idx;
     uint8_t force_update;
     uint8_t label_obj_init_done;
@@ -118,17 +120,33 @@ static const uint16_t mode_icon_ids[MODE_NUM] = {
     RESOURCE_ID_MODE_MIX_ICON, /// 快速
 };
 
+#ifdef UI_SNAP_SHOT_STIMULATION_WAVE_ICON
 static const ui_snap_shot_id_e mode_wave_snap_ids[MODE_NUM] = {
     UI_SNAP_SHOT_STIMULATION_WAVE_ICON, /// 舒适
     UI_SNAP_SHOT_LACTATION_WAVE_ICON, /// 常规
     UI_SNAP_SHOT_MIX_WAVE_ICON, /// 快速
 };
+#else
+static const uint16_t mode_wave_res_ids[MODE_NUM] = {
+    RESOURCE_ID_STIMULATION_WAVE_ICON, /// 舒适
+    RESOURCE_ID_LACTATION_WAVE_ICON, /// 常规
+    RESOURCE_ID_MIX_WAVE_ICON, /// 快速
+};
+#endif
 
+#ifdef UI_SNAP_SHOT_VERTICAL_SLIDER_1
 static const ui_snap_shot_id_e slider_snap_ids[MODE_NUM] = {
     UI_SNAP_SHOT_VERTICAL_SLIDER_1,
     UI_SNAP_SHOT_VERTICAL_SLIDER_2,
     UI_SNAP_SHOT_VERTICAL_SLIDER_3,
 };
+#else 
+static const uint16_t slider_res_ids[MODE_NUM] = {
+    RESOURCE_ID_VERTICAL_SLIDER_1,
+    RESOURCE_ID_VERTICAL_SLIDER_2,
+    RESOURCE_ID_VERTICAL_SLIDER_3,
+};
+#endif
 
 static const char *mode_name[MODE_NUM] = {
     "Stimulation", /// 慢速
@@ -481,6 +499,7 @@ static void update_mid_label_content(ui_manager_context_t *thiz, label_info_t *l
     }
     lv_label_set_text(label_info->title_text[MODE_SLOT_MID], mode_name[idx]);
     lv_label_set_text(label_info->desc_text, mode_desc[idx]);
+#ifdef UI_SNAP_SHOT_STIMULATION_WAVE_ICON
     lv_draw_buf_t *background_snapshot = NULL;
     #if LV_USE_SNAPSHOT
     background_snapshot = get_lvgl_snap_shot(mode_wave_snap_ids[idx]);
@@ -492,6 +511,15 @@ static void update_mid_label_content(ui_manager_context_t *thiz, label_info_t *l
         lv_obj_add_flag(label_info->wave_img, LV_OBJ_FLAG_HIDDEN); /// 隐藏
     }
     label_info->idx[MODE_SLOT_MID] = idx;
+#else
+    common_ui_img_resource_init(thiz, mode_wave_res_ids[idx], &label_info->wave_img_info);
+    if (label_info->wave_img_info.data != NULL) {
+        lv_fs_path_ex_t mode_wave_path;
+        lv_fs_make_path_from_buffer(&mode_wave_path, LV_FS_MEMFS_LETTER, label_info->wave_img_info.data,
+            label_info->wave_img_info.size, "baj");
+        lv_image_set_src(label_info->wave_img, (const void *)&mode_wave_path);
+    }
+#endif
 }
 
 static void circle_carousel_set_mode(ui_manager_context_t *thiz, label_info_t *label_info, uint8_t idx, bool anim)
@@ -550,6 +578,7 @@ static void circle_carousel_create(ui_manager_context_t *thiz, uint8_t idx)
 
 static void update_slider(ui_manager_context_t *thiz, uint8_t idx)
 {
+#ifdef UI_SNAP_SHOT_VERTICAL_SLIDER_1
     lv_draw_buf_t *background_snapshot = NULL;
     #if LV_USE_SNAPSHOT
     background_snapshot = get_lvgl_snap_shot(slider_snap_ids[idx]);
@@ -559,6 +588,15 @@ static void update_slider(ui_manager_context_t *thiz, uint8_t idx)
     } else {
         lv_obj_add_flag(mode_info->slider_img, LV_OBJ_FLAG_HIDDEN); /// 隐藏
     }
+#else
+    common_ui_img_resource_init(thiz, slider_res_ids[idx], &mode_info->slider_img_info);
+    if (mode_info->slider_img_info.data != NULL) {
+        lv_fs_path_ex_t slider_path;
+        lv_fs_make_path_from_buffer(&slider_path, LV_FS_MEMFS_LETTER, mode_info->slider_img_info.data,
+            mode_info->slider_img_info.size, "baj");
+        lv_image_set_src(mode_info->slider_img, (const void *)&slider_path);
+    }
+#endif
 }
 
 static void circle_carousel_update(ui_manager_context_t *thiz, uint8_t idx)
@@ -650,7 +688,9 @@ void common_pump_normal_mode_ui_remove(ui_manager_context_t *thiz)
     EXCEPTION_CHECK_VOID(thiz && mode_info);
     for (uint8_t i = 0; i < LABEL_GROUP_NUM; i++) {
         common_ui_img_resource_deinit(thiz, &mode_info->label_info[i].icon_img_info);
+        common_ui_img_resource_deinit(thiz, &mode_info->label_info[i].wave_img_info);
     }
+    common_ui_img_resource_deinit(thiz, &mode_info->slider_img_info);
     ui_background_deinit(thiz);
     ui_common_operation_tip_remove(thiz);
     LVGL_OBJ_DELETE(mode_info->root);
