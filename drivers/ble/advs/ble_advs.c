@@ -43,6 +43,9 @@ static uint8_t s_adv_rsp_data_set[] = {
     0x07,
     BES_GAP_AD_TYPE_COMPLETE_NAME,      /// type
     0x56, 0x33, 0x20, 0x50, 0x72, 0x6F, // name, V3 Pro
+    0x03,
+    BES_GAP_AD_TYPE_COMPLETE_LIST_16_BIT_UUID,
+    0x30,0xAF, // UUID
 };
 
 static uint8_t s_adv_data_set[] = {
@@ -55,6 +58,9 @@ static uint8_t s_adv_data_set[] = {
     0x07,
     BES_GAP_AD_TYPE_COMPLETE_NAME,      /// type
     0x56, 0x33, 0x20, 0x50, 0x72, 0x6F, // name, V3 Pro
+    0x03,
+    BES_GAP_AD_TYPE_COMPLETE_LIST_16_BIT_UUID,
+    0x30,0xAF, // UUID
 };
 #else
 static uint8_t s_adv_rsp_data_set[] = {
@@ -67,6 +73,9 @@ static uint8_t s_adv_rsp_data_set[] = {
     0x03,
     BES_GAP_AD_TYPE_COMPLETE_NAME,      /// type
     0x56, 0x33, /// name, V3
+    0x03,
+    BES_GAP_AD_TYPE_COMPLETE_LIST_16_BIT_UUID,
+    0x30,0xAF, // UUID
 };
 
 static uint8_t s_adv_data_set[] = {
@@ -79,6 +88,9 @@ static uint8_t s_adv_data_set[] = {
     0x03,
     BES_GAP_AD_TYPE_COMPLETE_NAME,      /// type
     0x56, 0x33, /// name, V3
+    0x03,
+    BES_GAP_AD_TYPE_COMPLETE_LIST_16_BIT_UUID,
+    0x30,0xAF, // UUID
 };
 #endif
 #else
