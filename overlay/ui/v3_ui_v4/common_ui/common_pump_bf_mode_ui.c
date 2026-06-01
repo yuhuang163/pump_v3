@@ -149,9 +149,9 @@ static const char *mode_name[MODE_NUM] = {
 };
 
 static const char *mode_desc[MODE_NUM] = {
-    "Smooth, gradual suction to\nsupport milk production",
-    "Frequent, gentle stimulation\nto encourage multiple let-",
-    "For mothers who have a high\ndemand for milk production.",
+    "Most suitable for daily use\nafter successful lactation",
+    "Increase milk supply, no\nmore than once a day.",
+    "Edit and sync anytime via the\nMomcozy App",
 };
 
 #if IS_SUPPORT_MODE_COMP_BG
