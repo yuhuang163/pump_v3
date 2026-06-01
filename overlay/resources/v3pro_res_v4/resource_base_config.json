@@ -20,39 +20,6 @@
       "note": "泵奶档位图片资源ID范围: 300-314，共15帧。文件编号计算：file_index = resource_id + id_to_file_offset (即 resource_id - 300)"
     },
     {
-      "start_resource_id": "RESOURCE_ID_SELECTED_LOCATE_3_START",
-      "end_resource_id": "RESOURCE_ID_SELECTED_LOCATE_3_END",
-      "description": "选中定位-3-图标",
-      "file_template": "base/animation/select_locate_3/baj/locate_3_{file_index:05d}_68x8_a8_q99_444.baj",
-      "start_file_index": 0,
-      "id_to_file_offset": -320,
-      "x_offset": 0,
-      "y_offset": 0,
-      "note": "选中定位-3-图标资源ID范围: 320-322，共3帧。文件编号计算：file_index = resource_id + id_to_file_offset (即 resource_id - 320)"
-    },
-    {
-      "start_resource_id": "RESOURCE_ID_SELECTED_LOCATE_5_START",
-      "end_resource_id": "RESOURCE_ID_SELECTED_LOCATE_5_END",
-      "description": "选中定位-5-图标",
-      "file_template": "base/animation/select_locate_5/baj/locate_5_{file_index:05d}_115x14_a8_q99_444.baj",
-      "start_file_index": 0,
-      "id_to_file_offset": -330,
-      "x_offset": 0,
-      "y_offset": 0,
-      "note": "选中定位-5-图标资源ID范围: 330-334，共5帧。文件编号计算：file_index = resource_id + id_to_file_offset (即 resource_id - 330)"
-    },
-    {
-      "start_resource_id": "RESOURCE_ID_SELECTED_LOCATE_6_START",
-      "end_resource_id": "RESOURCE_ID_SELECTED_LOCATE_6_END",
-      "description": "选中定位-6-图标",
-      "file_template": "base/animation/select_locate_6/baj/locate_6_{file_index:05d}_138x19_a8_q99_444.baj",
-      "start_file_index": 0,
-      "id_to_file_offset": -340,
-      "x_offset": 0,
-      "y_offset": 0,
-      "note": "选中定位-6-图标资源ID范围: 340-345，共6帧。文件编号计算：file_index = resource_id + id_to_file_offset (即 resource_id - 340)"
-    },
-    {
       "start_resource_id": "RESOURCE_ID_YAWN_ANIM_IP_START",
       "end_resource_id": "RESOURCE_ID_YAWN_ANIM_IP_END",
       "description": "打哈欠动画",
@@ -89,12 +56,12 @@
       "start_resource_id": "RESOURCE_ID_HD_ANIM_IP_START",
       "end_resource_id": "RESOURCE_ID_HD_ANIM_IP_END",
       "description": "首页默认动画帧",
-      "file_template": "base/animation/home_default/jpg/CJ_{file_index:05d}_368x368_q95_422.jpg",
+      "file_template": "base/animation/home_default/baj/s_{file_index:05d}_240x194_a4_q99_422.baj",
       "start_file_index": 0,
       "id_to_file_offset": -1500,
       "x_offset": 0,
       "y_offset": 0,
-      "note": "动画资源ID范围: 1500-1579，共80帧。文件编号计算：file_index = resource_id + id_to_file_offset (即 resource_id - 1500)"
+      "note": "动画资源ID范围: 1500-1619，共120帧。文件编号计算：file_index = resource_id + id_to_file_offset (即 resource_id - 1500)"
     }
   ],
   "resources": [
@@ -360,21 +327,21 @@
     {
       "resource_id": "RESOURCE_ID_FREQ_PAGE_BOOST_ICON",
       "description": "频率页-频率增强图标",
-      "file": "base/baj/icon_speed_page_fast_48x48_a8_q99_444.baj",
+      "file": "base/baj/icon_speed_page_fast_44x44_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
     {
       "resource_id": "RESOURCE_ID_FREQ_PAGE_REGULAR_ICON",
       "description": "频率页-频率常规图标",
-      "file": "base/baj/icon_speed_page_regular_48x48_a8_q99_444.baj",
+      "file": "base/baj/icon_speed_page_regular_44x44_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
     {
       "resource_id": "RESOURCE_ID_FREQ_PAGE_COMFORT_ICON",
       "description": "频率页-频率舒适图标",
-      "file": "base/baj/icon_speed_page_slow_48x48_a8_q99_444.baj",
+      "file": "base/baj/icon_speed_page_slow_44x44_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
@@ -395,35 +362,42 @@
     {
       "resource_id": "RESOURCE_ID_MODE_LACTATION_ICON",
       "description": "模式-泌乳图标",
-      "file": "base/baj/icon_mode_page_expression_48x48_a8_q99_444.baj",
+      "file": "base/baj/icon_mode_page_expression_44x44_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
     {
       "resource_id": "RESOURCE_ID_MODE_MIX_ICON",
       "description": "模式-混合图标",
-      "file": "base/baj/icon_mode_page_mix_48x48_a8_q99_444.baj",
+      "file": "base/baj/icon_mode_page_mix_44x44_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
     {
       "resource_id": "RESOURCE_ID_MODE_STIMULATE_ICON",
       "description": "模式-刺激图标",
-      "file": "base/baj/icon_mode_page_stimulation_48x48_a8_q99_444.baj",
+      "file": "base/baj/icon_mode_page_stimulation_44x44_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "RESOURCE_ID_MODE_RELAX_ICON",
+      "description": "模式-放松图标",
+      "file": "base/baj/icon_mode_page_relax_44x44_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
     {
       "resource_id": "RESOURCE_ID_MODE_EXPERT_ICON",
       "description": "韵律-专家模式图标",
-      "file": "base/baj/icon_mode_expert_rhythm_48x48_a8_q99_444.baj",
+      "file": "base/baj/icon_mode_expert_rhythm_44x44_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
     {
       "resource_id": "RESOURCE_ID_MODE_CUSTOM_ICON",
       "description": "韵律-个性化模式图标",
-      "file": "base/baj/icon_mode_custom_rhythm_48x48_a8_q99_444.baj",
+      "file": "base/baj/icon_mode_custom_rhythm_44x44_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
@@ -515,6 +489,55 @@
       "resource_id": "RESOURCE_ID_CHARGE_PAGE_IP",
       "description": "充电页背景IP图标",
       "file": "base/baj/ip_charge_page_360x360_a8_q99_422.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "RESOURCE_ID_SELECT_LABEL_ICON",
+      "description": "选中标签图标",
+      "file": "base/png/icon_select_lable.png",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "RESOURCE_ID_STIMULATION_WAVE_ICON",
+      "description": "刺激波形图标",
+      "file": "base/baj/icon_pump_stimulation_wave_68x16_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "RESOURCE_ID_LACTATION_WAVE_ICON",
+      "description": "泌乳波形图标",
+      "file": "base/baj/icon_pump_expression_wave_68x16_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "RESOURCE_ID_MIX_WAVE_ICON",
+      "description": "混合波形图标",
+      "file": "base/baj/icon_pump_mix_wave_68x16_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "RESOURCE_ID_VERTICAL_SLIDER_1",
+      "description": "垂直滑动条1",
+      "file": "base/baj/icon_vertical_slider_1_12x90_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "RESOURCE_ID_VERTICAL_SLIDER_2",
+      "description": "垂直滑动条2",
+      "file": "base/baj/icon_vertical_slider_2_12x90_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "RESOURCE_ID_VERTICAL_SLIDER_3",
+      "description": "垂直滑动条3",
+      "file": "base/baj/icon_vertical_slider_3_12x90_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     }
