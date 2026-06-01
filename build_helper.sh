@@ -124,17 +124,20 @@ resolve_root_res_path() {
 		esac
 	fi
 
-	# 回退：通过预处理展开 ROOT_RES_PATH（适配 V3_UI_VERSION 等条件编译）
-	# 优先使用编译器预处理，失败时退回 grep 文本解析
+	# 回退：通过预处理展开 ROOT_RES_PATH（携带 GNUmakefile 中的 ROOT_UI_* / ROOT_PRODUCT_* 宏）
 	local info_file="${1:-$PROJECT_DIR/boards/product_info.h}"
 	if [[ -f "$info_file" ]]; then
 		local compiler
+		local -a cpp_flags=()
 		compiler=$(command -v gcc || command -v cc || true)
 		if [[ -n "${compiler:-}" ]]; then
 			local out
+			while IFS= read -r cpp_flag; do
+				[[ -n "$cpp_flag" ]] && cpp_flags+=("$cpp_flag")
+			done < <(collect_product_info_cpp_flags 2>/dev/null || true)
 			out=$(
 				printf '#include "%s"\nROOT_RES_PATH\n' "$info_file" \
-					| "$compiler" -E -P -xc -I "$PROJECT_DIR/boards" -I "$PROJECT_DIR" - 2>/dev/null \
+					| "$compiler" -E -P -xc "${cpp_flags[@]}" -I "$PROJECT_DIR/boards" -I "$PROJECT_DIR" - 2>/dev/null \
 					| awk 'NF{print; exit}' \
 					| tr -d '\r'
 			) || true
@@ -155,8 +158,84 @@ resolve_root_res_path() {
 	if [[ -n "${token:-}" ]]; then
 		printf "%s" "$token"
 	else
-		printf "%s" "V2"
+		printf "%s" "V4"
 	fi
+}
+
+resolve_root_res_version() {
+	# 与 product_info.h 中 ROOT_UI_VERSION 分支一致：V2->102, V3->103, V4->104
+	local res_path
+	res_path=$(resolve_root_res_path "$@")
+	case "$res_path" in
+		V2) printf "%s" "102" ;;
+		V3) printf "%s" "103" ;;
+		V4) printf "%s" "104" ;;
+		*)
+			# 回退：带 ROOT_UI_* 宏预处理 ROOT_RES_VERSION
+			local info_file="${1:-$PROJECT_DIR/boards/product_info.h}"
+			if [[ -f "$info_file" ]]; then
+				local compiler out
+				local -a cpp_flags=()
+				compiler=$(command -v gcc || command -v cc || true)
+				if [[ -n "${compiler:-}" ]]; then
+					while IFS= read -r cpp_flag; do
+						[[ -n "$cpp_flag" ]] && cpp_flags+=("$cpp_flag")
+					done < <(collect_product_info_cpp_flags 2>/dev/null || true)
+					out=$(
+						printf '#include "%s"\nROOT_RES_VERSION\n' "$info_file" \
+							| "$compiler" -E -P -xc "${cpp_flags[@]}" -I "$PROJECT_DIR/boards" -I "$PROJECT_DIR" - 2>/dev/null \
+							| awk 'NF{print; exit}' \
+							| tr -d '\r'
+					) || true
+					out="${out#(}"
+					out="${out%)}"
+					if [[ "$out" =~ ^[0-9]+$ ]]; then
+						printf "%s" "$out"
+						return 0
+					fi
+				fi
+			fi
+			printf "%s" "104"
+			;;
+	esac
+}
+
+collect_product_info_cpp_flags() {
+	# 从 GNUmakefile 收集与 product_info.h 条件编译一致的 -D 宏
+	local makefile="${1:-$PROJECT_DIR/GNUmakefile}"
+	[[ -f "$makefile" ]] || return 0
+
+	local root_ui_token root_ui_v2 root_ui_v3 root_ui_v4 resolved_ui=""
+	local v3_id v3pro_id product_id_token product_id_value=""
+
+	root_ui_token=$(awk '/^ROOT_UI_VERSION[[:space:]]*\?=/{print $3; exit}' "$makefile")
+	root_ui_v2=$(awk '/^ROOT_UI_V2[[:space:]]*\?=/{print $3; exit}' "$makefile")
+	root_ui_v3=$(awk '/^ROOT_UI_V3[[:space:]]*\?=/{print $3; exit}' "$makefile")
+	root_ui_v4=$(awk '/^ROOT_UI_V4[[:space:]]*\?=/{print $3; exit}' "$makefile")
+	v3_id=$(awk '/^ROOT_PRODUCT_V3_ID[[:space:]]*\?=/{print $3; exit}' "$makefile")
+	v3pro_id=$(awk '/^ROOT_PRODUCT_V3PRO_ID[[:space:]]*\?=/{print $3; exit}' "$makefile")
+	product_id_token=$(awk '/^ROOT_PRODUCT_ID[[:space:]]*\?=/{print $3; exit}' "$makefile")
+
+	case "$product_id_token" in
+		'$(ROOT_PRODUCT_V3PRO_ID)') product_id_value="$v3pro_id" ;;
+		'$(ROOT_PRODUCT_V3_ID)') product_id_value="$v3_id" ;;
+		*) product_id_value="$product_id_token" ;;
+	esac
+
+	case "$root_ui_token" in
+		'$(ROOT_UI_V2)') resolved_ui="$root_ui_v2" ;;
+		'$(ROOT_UI_V3)') resolved_ui="$root_ui_v3" ;;
+		'$(ROOT_UI_V4)') resolved_ui="$root_ui_v4" ;;
+		*) resolved_ui="$root_ui_token" ;;
+	esac
+
+	[[ -n "${root_ui_v2:-}" ]] && printf '%s\n' "-DROOT_UI_V2=${root_ui_v2}"
+	[[ -n "${root_ui_v3:-}" ]] && printf '%s\n' "-DROOT_UI_V3=${root_ui_v3}"
+	[[ -n "${root_ui_v4:-}" ]] && printf '%s\n' "-DROOT_UI_V4=${root_ui_v4}"
+	[[ -n "${resolved_ui:-}" ]] && printf '%s\n' "-DROOT_UI_VERSION=${resolved_ui}"
+	[[ -n "${product_id_value:-}" ]] && printf '%s\n' "-DROOT_PRODUCT_ID=${product_id_value}"
+	[[ -n "${v3_id:-}" ]] && printf '%s\n' "-DROOT_PRODUCT_V3_ID=${v3_id}"
+	[[ -n "${v3pro_id:-}" ]] && printf '%s\n' "-DROOT_PRODUCT_V3PRO_ID=${v3pro_id}"
 }
 
 resolve_root_product_family_from_makefile() {
@@ -603,16 +682,14 @@ do_rename_and_archive() {
 	# V2 资源：bin/v3_res_v2，且在 GNUmakefile 指定为 V3Pro 产品时优先查 bin/v3pro_res_v2
 	# V3 资源：bin/v3_res_v3 或 bin/v3pro_res_v3（由 ROOT_RES_PATH / 产品族决定，见 build_resource_bin_dirs）
 	# V4 资源：bin/v3_res_v4 或 bin/v3pro_res_v4（由 ROOT_RES_PATH / 产品族决定，见 build_resource_bin_dirs）
-	# ROOT_RES_VERSION 定义为 major*100 + minor，例如 100 -> V01.00
+	# ROOT_RES_VERSION 定义为 major*100 + minor（随 ROOT_UI_VERSION：V2->102/V01.02, V3->103, V4->104）
 	local res_path res_version res_major res_minor res_major2 res_minor2 res_dir res_file res_source_dir
 	local res_lookup_dir
 	local searched_res_dirs
 	res_path=$(resolve_root_res_path "$info_file")
-	[[ -n "${res_path:-}" ]] || res_path="V2"
+	[[ -n "${res_path:-}" ]] || res_path="V4"
 
-	res_version=$(grep -E '^#define[[:space:]]+ROOT_RES_VERSION[[:space:]]+' "$info_file" \
-		| sed -E 's/.*\(([0-9]+)\).*/\1/; t; s/.*[[:space:]]+([0-9]+).*/\1/' \
-		| tail -n1 || true)
+	res_version=$(resolve_root_res_version "$info_file")
 	[[ -n "${res_version:-}" ]] || res_version="0"
 
 	res_major=$((10#$res_version / 100))

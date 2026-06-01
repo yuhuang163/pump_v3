@@ -21,6 +21,10 @@ extern "C" {
 #define HOME_ANIMATION_FREQ                    (16)
 #endif
 
+#define HOME_PUMP_MODE_ANIMATION_FREQ          (25) 
+#define HOME_PUMP_SPEED_ANIMATION_FREQ         (25) 
+#define HOME_PUMP_LEVEL_ANIMATION_FREQ         (20) 
+
 /// 主界面动画展示时间
 #define HOME_ANIMATION_DISPLAY_TIME         (2000) /// 2s
 
@@ -99,6 +103,9 @@ typedef struct {
     int8_t level_change; /// 当前档位变化值.
     uint8_t level_sync_flag; /// 档位同步标志.
     uint8_t speed_sync_flag; /// 速度同步标志.
+#if V3_UX_VERSION == V3_UX_V2
+    uint8_t exit_current_ui; /// 退出当前UI标志.
+#endif
     uint8_t pump_priming;
     uint8_t night_light_level; /// 夜灯调节亮度等级（L0 - L4）.
     home_page_display_type_e home_display_type;
@@ -115,11 +122,15 @@ void stop_home_common_ui(ui_proc_home_t *proc);
 void home_start_key_event_handler(ui_proc_home_t *proc);
 
 /// 模式选择界面按键处理
+#if V3_UX_VERSION == V3_UX_V1
 void switch_home_pump_normal_mode(ui_proc_home_t *proc, bool is_increase);
+#endif
 void home_pump_normal_mode_ui_exit(ui_proc_home_t *proc);
 void home_pump_normal_mode_key_click_handler(ui_proc_home_t *proc);
 /// 追奶模式选择界面按键处理
+#if V3_UX_VERSION == V3_UX_V1
 void switch_home_pump_bf_mode(ui_proc_home_t *proc, bool is_increase);
+#endif
 void home_pump_bf_mode_ui_exit(ui_proc_home_t *proc);
 void home_pump_bf_mode_key_click_handler(ui_proc_home_t *proc);
 /// 档位调节界面按键处理
@@ -127,9 +138,11 @@ void switch_home_pump_level(ui_proc_home_t *proc, bool is_increase);
 void home_pump_level_ui_exit(ui_proc_home_t *proc);
 void switch_home_pump_level_control_type(ui_proc_home_t *proc, uint8_t control_type);
 /// 速度调节界面按键处理
+#if V3_UX_VERSION == V3_UX_V1
 void switch_home_pump_speed(ui_proc_home_t *proc, bool is_increase);
 void home_pump_speed_ui_exit(ui_proc_home_t *proc);
 void home_pump_speed_key_click_handler(ui_proc_home_t *proc);
+#endif
 /// 绑定二维码展示
 void start_home_bind_ui_animation(ui_proc_home_t *proc);
 void home_bind_ui_hdr_remove(void);
@@ -144,7 +157,9 @@ void home_pump_result_ui_exit(ui_proc_home_t *proc);
 void show_home_night_light_adjust_ui(ui_proc_home_t *proc);
 void switch_home_night_light_adjust(ui_proc_home_t *proc, bool is_increase);
 void home_night_light_adjust_ui_exit(ui_proc_home_t *proc);
-
+#if IS_SUPPORT_CANCEL_KEY
+void home_cancel_key_event_handler(ui_proc_home_t *proc);
+#endif
 #ifdef __cplusplus
 }
 #endif

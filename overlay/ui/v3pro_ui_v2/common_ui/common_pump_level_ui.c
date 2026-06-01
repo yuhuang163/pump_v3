@@ -112,16 +112,13 @@ static void pump_level_root_bg_update(ui_manager_context_t *thiz)
 #else
 static void pump_level_root_bg_update(ui_manager_context_t *thiz)
 {
-    EXCEPTION_CHECK_VOID(thiz);
-    EXCEPTION_CHECK_VOID(level_info);
-    EXCEPTION_CHECK_VOID(level_info->root);
-    
+    EXCEPTION_CHECK_VOID(thiz && level_info && level_info->root);
     if (level_info->force_update == false) {
         return;
     }
 
 #if LV_USE_SNAPSHOT
-    lv_draw_buf_t *background_snapshot = thiz->get_lvgl_snap_shot(UI_SNAP_SHOT_PUMP_LEVEL_BG);
+    lv_draw_buf_t *background_snapshot = get_lvgl_snap_shot(UI_SNAP_SHOT_PUMP_LEVEL_BG);
     EXCEPTION_CHECK_VOID(background_snapshot);
 #endif
 
@@ -209,7 +206,7 @@ static void pump_level_direction_update(ui_manager_context_t *thiz, bool is_left
                 lv_image_set_src(level_info->level_direction, (const void *)&direction_path);
                 level_info->animation_start_time = get_timestamp();
                 pump_level_scale_to(level_info->level_direction, 256, 0, PUMP_LEVEL_ANIMATION_TIME);  // 缩小
-            } else if(level_info->animation_status == LEVEL_ANIMATION_TYPE_ZOOM_OUT) {
+            } else if (level_info->animation_status == LEVEL_ANIMATION_TYPE_ZOOM_OUT) {
                 common_ui_img_resource_init(thiz, is_left > 0 ? \
                     RESOURCE_ID_PUMP_LEFT_LEVEL_ICON : RESOURCE_ID_PUMP_RIGHT_LEVEL_ICON, &level_info->direction_info);
                 EXCEPTION_CHECK_VOID(level_info->direction_info.data);

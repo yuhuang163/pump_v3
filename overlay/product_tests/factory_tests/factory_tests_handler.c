@@ -20,14 +20,6 @@
 #define AGING2_TEST_DEFAULT_CYCLE_TIME               30*60*1000// 老化测试默认循环时间，单位毫秒
 #define AGING2_TEST_IDLE_TIME                        10*60*1000// 老化测试空闲时间，单位毫秒
 
-
-#define TESTS_KEY_CODE                                                                                                 \
-    (KEY_CODE_POWER | KEY_CODE_START | KEY_CODE_MODE | KEY_CODE_FREQUENCY | KEY_CODE_BREASTFEEDING                     \
-     | KEY_CODE_LEFT_CONTROL | KEY_CODE_RIGHT_CONTROL)
-#define TESTS_KEY_KNOB_CODE (KEY_CODE_KNOB_LEFT | KEY_CODE_KNOB_RIGHT)
-#define TESTS_KEY_CLICK_EVENT (KEY_EVENT_CLICK)
-#define TESTS_KEY_LONG_PRESS_EVENT (KEY_EVENT_LONG_2S)
-
 /*
 * LOCAL VARIABLE DEFINITIONS
 *****************************************************************************************
@@ -86,7 +78,12 @@ static int on_tests_event_handler(void *context, uint16_t keycode, uint16_t keyt
         case KEY_CODE_POWER:
         case KEY_CODE_START:
         case KEY_CODE_MODE:
+#if IS_SUPPORT_FREQUENCY_KEY
         case KEY_CODE_FREQUENCY:
+#endif
+#if IS_SUPPORT_CANCEL_KEY
+        case KEY_CODE_CANCEL:
+#endif
         case KEY_CODE_BREASTFEEDING:
         case KEY_CODE_LEFT_CONTROL:
         case KEY_CODE_RIGHT_CONTROL:
@@ -295,8 +292,8 @@ int factory_tests_enter(tests_func_args_t args)
     CHECK_IF_VALID(power_ctx, {
         power_ctx->acquire_wakelock("factory_tests", -1);
     });
-    ADD_KEYEVENT_CB_WITH_SHIELD_LEVEL(key_ctx, "factory_tests", thiz, (TESTS_KEY_CODE | TESTS_KEY_KNOB_CODE),
-        (TESTS_KEY_CLICK_EVENT | TESTS_KEY_LONG_PRESS_EVENT), on_tests_event_handler, KEY_HANDLER_SHIELD_FORBIDDEN);
+    ADD_KEYEVENT_CB_WITH_SHIELD_LEVEL(key_ctx, "factory_tests", thiz, (ALL_KEY_CODE_NO_COMBINE),
+        (KEY_EVENT_CLICK | KEY_EVENT_LONG_2S), on_tests_event_handler, KEY_HANDLER_SHIELD_FORBIDDEN);
     return 0;
 }
 

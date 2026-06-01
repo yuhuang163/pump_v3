@@ -43,13 +43,24 @@ static void pump_result_ui_after_policy(ui_manager_context_t *ui, int index)
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_PUMP);
     ui_display_pump_complete_tip_process(ui);
     uint32_t time_diff = get_timestamp_ms(proc->last_progress_ani_time);
+#if V3_UX_VERSION == V3_UX_V1
     if (time_diff >= PUMP_RESULT_DISPLAY_TIMEOUT) {
         proc->last_progress_ani_time = get_timestamp();
-        LOG_UI("result ui timeout: %d", proc->last_progress_ani_time);
+        LOG_UI("result ui timeout: %d", time_diff);
         POST_WM_TASK_HANDLER_NO_DELAY(pump_result_display_completed_cb, proc, PUMP_COMPLETE_DISPLAY_TASK_NAME);
     } else if (time_diff >= 1000) {
         proc->forbid_start_pump = false;
     }
+#else
+    if (proc->exit_current_ui || time_diff >= PUMP_RESULT_DISPLAY_TIMEOUT) {
+        proc->exit_current_ui = false;
+        proc->last_progress_ani_time = get_timestamp();
+        LOG_UI("result ui timeout: %d", time_diff);
+        POST_WM_TASK_HANDLER_NO_DELAY(pump_result_display_completed_cb, proc, PUMP_COMPLETE_DISPLAY_TASK_NAME);
+    } else if (time_diff >= 1000) {
+        proc->forbid_start_pump = false;
+    }
+#endif
 }
 
 static void pump_result_animation_progress_cb(void *user_data, int index, ui_ani_progress_state_e state)
@@ -100,7 +111,7 @@ static void show_pump_result_loop(ui_proc_pump_t *proc)
     }
     ui_play_info_t play_info = {
         .tag = "pump_result_screen",
-        .fps = PUMP_RESULT_ANIMATION_FREQ,
+        .fps = PUMP_ANIMATION_FREQ,
         .progress_cb = pump_result_animation_progress_cb,
         .display_prepare_cb = pump_result_ui_display_prepare,
         .display_remove_cb = pump_result_ui_display_remove,
@@ -130,6 +141,9 @@ void show_pump_result_ui(ui_proc_pump_t *proc)
     if (proc->led) {
         proc->led->set_led_level(PUMP_START_BL, LED_LEVEL_MAX);
     }
+    #if V3_UX_VERSION == V3_UX_V2
+    proc->exit_current_ui = false;
+    #endif
     show_pump_result_loop(proc);
 }
 

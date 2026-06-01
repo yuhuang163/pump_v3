@@ -199,7 +199,7 @@ static void pump_home_bg_update(ui_manager_context_t *thiz, uint8_t is_regular_m
     }
 
 #if LV_USE_SNAPSHOT
-    lv_draw_buf_t *background_snapshot = thiz->get_lvgl_snap_shot(is_regular_mode ? \
+    lv_draw_buf_t *background_snapshot = get_lvgl_snap_shot(is_regular_mode ? \
          UI_SNAP_SHOT_REGULAR_PUMPING_BG : UI_SNAP_SHOT_EXPERT_PUMPING_BG);
     EXCEPTION_CHECK_VOID(background_snapshot);
     lv_image_set_src(pump_info->background, background_snapshot);
@@ -618,7 +618,7 @@ static void pump_home_custom_mode_update(ui_manager_context_t *thiz, uint8_t mod
         pump_info->next_sub_mode == next_sub_mode && pump_info->force_update == false) {
         return;
     }
-    uint8_t index = mode_index - BREAST_PUMP_REGULAR_PUMPING_MODE;
+    uint8_t index = mode_index - BREAST_PUMP_EXPERT_MODE_LOWER;
     if (index > HOME_BF_MODE_COUNT) {
         index = 0;
     }

@@ -5,7 +5,7 @@
 #include "root_common_api.h" // IWYU pragma: keep
 #include "ui_img_define.h" // IWYU pragma: keep
 #include "ui_manager_api.h"
-#include "ui_manager.h"
+#include "ui_manager.h" // IWYU pragma: keep
 
 /*
 * DEFINES
@@ -34,27 +34,12 @@ typedef struct {
     ui_play_info_t play_info;
 } ui_lvgl_msg_t;
 
-typedef struct {
-    uint16_t img_id;
-    uint8_t is_need_alpha;
-} ui_snap_shot_info_t;
-
 /*
 * LOCAL VARIABLE DEFINITIONS
 *****************************************************************************************
 */
 static ui_manager_context_t *ui_ctx = NULL;
-#if IS_SUPPORT_LVGL
-static lv_obj_t *snap_shot_obj = NULL;
-static res_img_info_t snap_shot_info = {0};
-const static ui_snap_shot_info_t snap_shot_infos[UI_SNAP_SHOT_ID_MAX] = {
-    {RESOURCE_ID_COMMON_BG, false},
-    {RESOURCE_ID_PUMP_LEVEL_BG, false},
-    {RESOURCE_ID_REGULAR_PUMPING_BG, false},
-    {RESOURCE_ID_EXPERT_PUMPING_BG, false},
-    {RESOURCE_ID_PUMP_LEVEL_BOTH_SIDES_BG, false},
-};
-#endif
+
 /*
 * GLOBAL VARIABLE DEFINITIONS
 *****************************************************************************************
@@ -323,32 +308,6 @@ static void lvgl_display_handler(struct ui_manager_context *thiz)
         }
     }
 }
-
-static void ui_snap_shot_perpare(struct ui_manager_context *thiz)
-{
-    EXCEPTION_CHECK_VOID(thiz);
-    if (snap_shot_obj == NULL || !lv_obj_is_valid(snap_shot_obj)) {
-        snap_shot_obj = lv_image_create(lv_screen_active());
-        EXCEPTION_CHECK_VOID(snap_shot_obj);
-        lv_obj_align(snap_shot_obj, LV_ALIGN_CENTER, 0, 0);
-        lv_obj_set_style_image_opa(snap_shot_obj, LV_OPA_COVER, 0);
-        lv_obj_add_flag(snap_shot_obj, LV_OBJ_FLAG_HIDDEN); /// 隐藏
-    }
-    
-    for(uint8_t i = 0; i < UI_SNAP_SHOT_ID_MAX; i++) {
-        common_ui_img_resource_init(thiz, snap_shot_infos[i].img_id, &snap_shot_info);
-        EXCEPTION_CHECK_VOID(snap_shot_info.data);
-        lv_fs_path_ex_t background_path;
-        lv_fs_make_path_from_buffer(&background_path, LV_FS_MEMFS_LETTER, snap_shot_info.data,
-                snap_shot_info.size, "png");
-        lv_image_set_src(snap_shot_obj, (const void *)&background_path);
-        lv_refr_now(NULL); /// 等待渲染完成后再创建快照
-        thiz->priv.lv_snap_shot[i] = lv_snapshot_take(snap_shot_obj, 
-            snap_shot_infos[i].is_need_alpha ? LV_COLOR_FORMAT_NATIVE_WITH_ALPHA : LV_COLOR_FORMAT_NATIVE);
-    }
-    common_ui_img_resource_deinit(thiz, &snap_shot_info);
-    LVGL_OBJ_DELETE(snap_shot_obj);
-}
 #endif
 
 static void set_backlight_level_internal(ui_manager_context_t *thiz, uint16_t level)
@@ -539,13 +498,11 @@ static void on_ui_battery_state_change_cb(void *user_data, battery_state_info_t 
         set_backlight_level_rate(ui, 50);
     } else {
         window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
-        if (wm && (wm->get_current_window_id() == ID_WINDOW_CHARGE || 
-                wm->get_current_window_id() == ID_WINDOW_POWER_OFF)) {
-            set_backlight_level_rate(ui, 50);
-        } else {
+        if (wm && wm->get_current_window_id() != ID_WINDOW_POWER_OFF) {
             set_backlight_level_rate(ui, 100);
         }
     }
+    LOG_UI("batt state: %d, bg rate: %d", info->battery_state, ui->priv.ui_backlight_level_rate);
 }
 
 static int on_post_ui_init_route(struct ui_manager_context *ctx)

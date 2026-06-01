@@ -320,9 +320,19 @@ static int get_breast_pump_mode(void)
 static int get_breast_pump_mode_by_type(breast_pump_mode_type_e type, uint8_t is_last)
 {
     breast_pump_info_t *m_info = &breast_pump_obj->priv.m_info;
+    /// 追奶模式
     if (type == BREAST_PUMP_MODE_TYPE_BREASTFEEDING) {
-            return m_info->breastfeeding_mode; 
+        if (is_last == 0 && PUMP_IS_BREASTFEEDING_MODE(m_info->mode)) {
+            return m_info->mode;
+        }
+        return m_info->breastfeeding_mode;
     }
+    
+    /// 常规模式
+    if (is_last == 0 && PUMP_IS_COMMON_MODE(m_info->mode)) {
+        return m_info->mode;
+    }
+
     return m_info->common_mode;
 }
 
@@ -900,22 +910,22 @@ static int on_post_breast_pump_init(void *ptr)
         }
         /// 读取存储器中的常规模式
         ctx->priv.st->get_store_ram_val(STORE_ID_BREAST_PUMP_MODE_WITH_TYPE, BREAST_PUMP_MODE_TYPE_COMMON, 0, &store_value);
-        if (store_value >= BREAST_PUMP_MODE_MAX) {
-            m_info->common_mode = BREAST_PUMP_MODE_INVALID;
+        if (store_value > BREAST_PUMP_NORMAL_MODE_UPPER) {
+            m_info->common_mode = BREAST_PUMP_NORMAL_MODE_DEFAULT;
         } else {
             m_info->common_mode = store_value;
         }
         /// 读取存储器中的追奶模式
         ctx->priv.st->get_store_ram_val(STORE_ID_BREAST_PUMP_MODE_WITH_TYPE, BREAST_PUMP_MODE_TYPE_BREASTFEEDING, 0, &store_value);
-        if (store_value >= BREAST_PUMP_MODE_MAX) {
-            m_info->breastfeeding_mode = BREAST_PUMP_MODE_INVALID;
+        if (store_value > BREAST_PUMP_EXPERT_MODE_UPPER) {
+            m_info->breastfeeding_mode = BREAST_PUMP_EXPERT_MODE_DEFAULT;
         } else {
             m_info->breastfeeding_mode = store_value;
         }
         /// 读取存储器中的控制类型
         ctx->priv.st->get_store_ram_val(STORE_ID_PUMP_CONTROL_TYPE, 0, 0, &store_value);
         if (store_value >= BREAST_PUMP_CONTROL_TYPE_MAX) {
-            store_value = BREAST_PUMP_CONTROL_TYPE_LEFT;
+            store_value = BREAST_PUMP_CONTROL_TYPE_BILATERAL;
         }
         m_info->control_type = store_value;
         /// 读取存储器中个性化韵律激活状态

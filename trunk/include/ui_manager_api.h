@@ -37,15 +37,6 @@ typedef enum {
     ANI_POPUP_DISPLAY_FINISH,  /// 弹窗UI显示完成
 } ui_ani_progress_state_e;
 
-typedef enum {
-    UI_SNAP_SHOT_COMMON_BG = 0, /// 通用PNG背景
-    UI_SNAP_SHOT_PUMP_LEVEL_BG,  /// 力度调节页面背景
-    UI_SNAP_SHOT_REGULAR_PUMPING_BG,  /// 常规泵奶背景
-    UI_SNAP_SHOT_EXPERT_PUMPING_BG,  /// 专家泵奶背景
-    UI_SNAP_SHOT_PUMP_BOTH_LEVEL_BG,  /// 双侧泵奶档位调节背景
-    UI_SNAP_SHOT_ID_MAX
-} ui_snap_shot_id_e;
-
 /// 动画绘制进度回调.
 typedef void (*progress_cb_fptr)(void *user_data, int index, ui_ani_progress_state_e state);
 /// 动画绘制准备回调.
@@ -99,7 +90,6 @@ typedef struct ui_manager_context {
         thread_context_t ui_hdr_thd; /// UI显示调度线程
     #if IS_SUPPORT_LVGL
             lv_timer_t *lv_timer; /// LVGL定时器
-            lv_draw_buf_t *lv_snap_shot[UI_SNAP_SHOT_ID_MAX];  /// 背景快照，避免重复解码
     #else
             os_timer_id lv_timer; /// LVGL定时器
     #endif
@@ -131,7 +121,6 @@ typedef struct ui_manager_context {
 
 #if IS_SUPPORT_LVGL
     bool (*is_lvgl_initialized)(struct ui_manager_context *thiz);
-    lv_draw_buf_t *(*get_lvgl_snap_shot)(ui_snap_shot_id_e snapshot_id);
 #endif
     /// 外部hook点.
     struct __ui_manager_hook {

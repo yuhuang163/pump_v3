@@ -59,9 +59,10 @@ static void product_home_test_ui_after_policy(ui_manager_context_t *ui, int inde
 #if 0
     ui_proc_product_test_t *proc = (ui_proc_product_test_t *)ui->priv.play_info.user_data;
     EXCEPTION_CHECK_VOID(proc);
-    if (get_timestamp_ms(proc->last_progress_ani_time) >= PRODUCT_HOME_TEST_ANIMATION_DISPLAY_TIME) {
+    uint32_t time_diff = get_timestamp_ms(proc->last_progress_ani_time);
+    if (time_diff >= PRODUCT_HOME_TEST_ANIMATION_DISPLAY_TIME) {
         proc->last_progress_ani_time = get_timestamp();
-        LOG_UI("product home test ui timeout: %d", proc->last_progress_ani_time);
+        LOG_UI("product home test ui timeout: %d", time_diff);
         POST_WM_TASK_HANDLER_NO_DELAY(product_home_test_display_completed_cb, proc,
             PRODUCT_HOME_TEST_HDR_TASK_NAME);
     }
@@ -152,7 +153,12 @@ void product_home_test_keyevent_cb(ui_proc_product_test_t *proc, uint16_t keycod
     switch (keycode) {
         case KEY_CODE_POWER:
         case KEY_CODE_MODE:
+#if IS_SUPPORT_FREQUENCY_KEY
         case KEY_CODE_FREQUENCY:
+#endif
+#if IS_SUPPORT_CANCEL_KEY
+        case KEY_CODE_CANCEL:
+#endif
         case KEY_CODE_BREASTFEEDING:
         case KEY_CODE_LEFT_CONTROL:
         case KEY_CODE_RIGHT_CONTROL:

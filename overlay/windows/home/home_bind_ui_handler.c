@@ -50,10 +50,20 @@ static void home_bind_ui_after_policy(ui_manager_context_t *ui, int index)
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_HOME);
     ui_display_home_bind_process(ui);
     uint32_t time_diff = get_timestamp_ms(proc->last_progress_ani_time);
+#if V3_UX_VERSION == V3_UX_V1
     if (time_diff >= HOME_BIND_QRCODE_DISPLAY_TIMEOUT) {
         proc->last_progress_ani_time = get_timestamp();
+        LOG_UI("bind ui timeout: %d", time_diff);
         POST_WM_TASK_HANDLER_NO_DELAY(home_bind_display_completed_cb, proc, HOME_BIND_DISPLAY_TASK_NAME);
     }
+#else
+    if (proc->exit_current_ui || time_diff >= HOME_BIND_QRCODE_DISPLAY_TIMEOUT) {
+        proc->exit_current_ui = false;
+        proc->last_progress_ani_time = get_timestamp();
+        LOG_UI("bind ui timeout: %d", time_diff);
+        POST_WM_TASK_HANDLER_NO_DELAY(home_bind_display_completed_cb, proc, HOME_BIND_DISPLAY_TASK_NAME);
+    }
+#endif
 }
 
 static void home_bind_animation_progress_cb(void *user_data, int index, ui_ani_progress_state_e state)
@@ -113,6 +123,9 @@ void start_home_bind_ui_animation(ui_proc_home_t *proc)
     };
     ui->hook->ui_animation_play_init(ui, play_info);
     proc->current_ui_type = HOME_UI_TYPE_BIND_QRCODE;
+    #if V3_UX_VERSION == V3_UX_V2
+    proc->exit_current_ui = false;
+    #endif
 }
 
 void home_bind_ui_hdr_remove(void)

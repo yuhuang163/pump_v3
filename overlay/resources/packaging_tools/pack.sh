@@ -581,6 +581,144 @@ resolve_root_product_family_from_makefile() {
     fi
 }
 
+collect_product_info_cpp_flags() {
+    # 从 GNUmakefile 收集与 product_info.h 条件编译一致的 -D 宏
+    local makefile="${1:-$PROJECT_DIR/GNUmakefile}"
+    if [ ! -f "$makefile" ]; then
+        return 0
+    fi
+
+    local root_ui_token root_ui_v2 root_ui_v3 root_ui_v4 resolved_ui=""
+    local v3_id v3pro_id product_id_token product_id_value=""
+
+    root_ui_token="$(awk '/^ROOT_UI_VERSION[[:space:]]*\?=/{print $3; exit}' "$makefile")"
+    root_ui_v2="$(awk '/^ROOT_UI_V2[[:space:]]*\?=/{print $3; exit}' "$makefile")"
+    root_ui_v3="$(awk '/^ROOT_UI_V3[[:space:]]*\?=/{print $3; exit}' "$makefile")"
+    root_ui_v4="$(awk '/^ROOT_UI_V4[[:space:]]*\?=/{print $3; exit}' "$makefile")"
+    v3_id="$(awk '/^ROOT_PRODUCT_V3_ID[[:space:]]*\?=/{print $3; exit}' "$makefile")"
+    v3pro_id="$(awk '/^ROOT_PRODUCT_V3PRO_ID[[:space:]]*\?=/{print $3; exit}' "$makefile")"
+    product_id_token="$(awk '/^ROOT_PRODUCT_ID[[:space:]]*\?=/{print $3; exit}' "$makefile")"
+
+    case "$product_id_token" in
+        '$(ROOT_PRODUCT_V3PRO_ID)') product_id_value="$v3pro_id" ;;
+        '$(ROOT_PRODUCT_V3_ID)') product_id_value="$v3_id" ;;
+        *) product_id_value="$product_id_token" ;;
+    esac
+
+    case "$root_ui_token" in
+        '$(ROOT_UI_V2)') resolved_ui="$root_ui_v2" ;;
+        '$(ROOT_UI_V3)') resolved_ui="$root_ui_v3" ;;
+        '$(ROOT_UI_V4)') resolved_ui="$root_ui_v4" ;;
+        *) resolved_ui="$root_ui_token" ;;
+    esac
+
+    [ -n "${root_ui_v2:-}" ] && printf '%s\n' "-DROOT_UI_V2=${root_ui_v2}"
+    [ -n "${root_ui_v3:-}" ] && printf '%s\n' "-DROOT_UI_V3=${root_ui_v3}"
+    [ -n "${root_ui_v4:-}" ] && printf '%s\n' "-DROOT_UI_V4=${root_ui_v4}"
+    [ -n "${resolved_ui:-}" ] && printf '%s\n' "-DROOT_UI_VERSION=${resolved_ui}"
+    [ -n "${product_id_value:-}" ] && printf '%s\n' "-DROOT_PRODUCT_ID=${product_id_value}"
+    [ -n "${v3_id:-}" ] && printf '%s\n' "-DROOT_PRODUCT_V3_ID=${v3_id}"
+    [ -n "${v3pro_id:-}" ] && printf '%s\n' "-DROOT_PRODUCT_V3PRO_ID=${v3pro_id}"
+}
+
+product_info_preprocess_macro() {
+    local macro="$1"
+    local info_file="${2:-$PROJECT_DIR/boards/product_info.h}"
+    local compiler out cpp_flag
+    local -a cpp_flags=()
+
+    if [ ! -f "$info_file" ]; then
+        printf "%s" ""
+        return 0
+    fi
+
+    compiler="$(command -v gcc 2>/dev/null || command -v cc 2>/dev/null || true)"
+    if [ -z "$compiler" ]; then
+        printf "%s" ""
+        return 0
+    fi
+
+    while IFS= read -r cpp_flag; do
+        [ -n "$cpp_flag" ] && cpp_flags+=("$cpp_flag")
+    done < <(collect_product_info_cpp_flags)
+
+    out="$(
+        printf '#include "%s"\n%s\n' "$info_file" "$macro" \
+            | "$compiler" -E -P -xc "${cpp_flags[@]}" -I "$PROJECT_DIR/boards" -I "$PROJECT_DIR" - 2>/dev/null \
+            | awk 'NF{print; exit}' \
+            | tr -d '\r'
+    )" || true
+    printf "%s" "$out"
+}
+
+resolve_root_res_path() {
+    # 与 product_info.h / GNUmakefile 中 ROOT_UI_VERSION 分支一致
+    local makefile="$PROJECT_DIR/GNUmakefile"
+    if [ -f "$makefile" ]; then
+        local root_ui_token root_ui_v2_value root_ui_v3_value root_ui_v4_value
+        root_ui_token="$(awk '/^ROOT_UI_VERSION[[:space:]]*\?=/{print $3; exit}' "$makefile")"
+        root_ui_v2_value="$(awk '/^ROOT_UI_V2[[:space:]]*\?=/{print $3; exit}' "$makefile")"
+        root_ui_v3_value="$(awk '/^ROOT_UI_V3[[:space:]]*\?=/{print $3; exit}' "$makefile")"
+        root_ui_v4_value="$(awk '/^ROOT_UI_V4[[:space:]]*\?=/{print $3; exit}' "$makefile")"
+
+        case "$root_ui_token" in
+            '$(ROOT_UI_V2)') printf "%s" "V2"; return 0 ;;
+            '$(ROOT_UI_V3)') printf "%s" "V3"; return 0 ;;
+            '$(ROOT_UI_V4)') printf "%s" "V4"; return 0 ;;
+            "$root_ui_v2_value")
+                if [ -n "${root_ui_token:-}" ]; then
+                    printf "%s" "V2"
+                    return 0
+                fi
+                ;;
+            "$root_ui_v3_value")
+                if [ -n "${root_ui_token:-}" ]; then
+                    printf "%s" "V3"
+                    return 0
+                fi
+                ;;
+            "$root_ui_v4_value")
+                if [ -n "${root_ui_token:-}" ]; then
+                    printf "%s" "V4"
+                    return 0
+                fi
+                ;;
+        esac
+    fi
+
+    local out
+    out="$(product_info_preprocess_macro "ROOT_RES_PATH")"
+    out="${out#\"}"
+    out="${out%\"}"
+    if [[ "$out" =~ ^V[234]$ ]]; then
+        printf "%s" "$out"
+        return 0
+    fi
+
+    printf "%s" "V4"
+}
+
+resolve_root_res_version() {
+    # ROOT_RES_VERSION = major*100 + minor，随 UI：V2->102, V3->103, V4->104
+    local res_path out
+    res_path="$(resolve_root_res_path)"
+    case "$res_path" in
+        V2) printf "%s" "102"; return 0 ;;
+        V3) printf "%s" "103"; return 0 ;;
+        V4) printf "%s" "104"; return 0 ;;
+    esac
+
+    out="$(product_info_preprocess_macro "ROOT_RES_VERSION")"
+    out="${out#(}"
+    out="${out%)}"
+    if [[ "$out" =~ ^[0-9]+$ ]]; then
+        printf "%s" "$out"
+        return 0
+    fi
+
+    printf "%s" "104"
+}
+
 resolve_root_device_name() {
     # 优先按 GNUmakefile 中 ROOT_PRODUCT_ID 默认值判断，避免直接预处理 product_info.h
     # 时把未定义条件宏当成 0，误判为 V3Pro。
@@ -591,29 +729,18 @@ resolve_root_device_name() {
         return 0
     fi
 
-    # 回退：从 boards/product_info.h 解析 ROOT_DEVICE_NAME（适配显式传入的编译宏场景）
-    local info_file="$PROJECT_DIR/boards/product_info.h"
-    if [ -f "$info_file" ]; then
-        local compiler=""
-        compiler="$(command -v gcc 2>/dev/null || command -v cc 2>/dev/null || true)"
-        if [ -n "$compiler" ]; then
-            local out=""
-            out="$(
-                printf '#include "%s"\nROOT_DEVICE_NAME\n' "$info_file" \
-                    | "$compiler" -E -P -xc -I "$PROJECT_DIR/boards" -I "$PROJECT_DIR" - 2>/dev/null \
-                    | awk 'NF{print; exit}' \
-                    | tr -d '\r'
-            )" || true
-            out="${out#\"}"
-            out="${out%\"}"
-            if [ -n "$out" ] && [ "$out" != "ROOT_DEVICE_NAME" ]; then
-                printf "%s" "$out"
-                return 0
-            fi
-        fi
+    # 回退：从 boards/product_info.h 解析 ROOT_DEVICE_NAME（带 GNUmakefile 宏展开）
+    local out
+    out="$(product_info_preprocess_macro "ROOT_DEVICE_NAME")"
+    out="${out#\"}"
+    out="${out%\"}"
+    if [ -n "$out" ] && [ "$out" != "ROOT_DEVICE_NAME" ]; then
+        printf "%s" "$out"
+        return 0
     fi
 
     # 回退：按 ROOT_PRODUCT_ID 简单映射
+    local info_file="$PROJECT_DIR/boards/product_info.h"
     local root_id_token=""
     root_id_token="$(grep -E '^#define[[:space:]]+ROOT_PRODUCT_ID[[:space:]]+' "$info_file" 2>/dev/null | awk '{print $3}' | tail -n1 || true)"
     case "$root_id_token" in
@@ -623,28 +750,8 @@ resolve_root_device_name() {
 }
 
 resolve_default_resource_version() {
-    local info_file="$PROJECT_DIR/boards/product_info.h"
-    if [ -f "$info_file" ]; then
-        local compiler=""
-        compiler="$(command -v gcc 2>/dev/null || command -v cc 2>/dev/null || true)"
-        if [ -n "$compiler" ]; then
-            local out=""
-            out="$(
-                printf '#include "%s"\nROOT_RES_PATH\n' "$info_file" \
-                    | "$compiler" -E -P -xc -I "$PROJECT_DIR/boards" -I "$PROJECT_DIR" - 2>/dev/null \
-                    | awk 'NF{print; exit}' \
-                    | tr -d '\r'
-            )" || true
-            out="${out#\"}"
-            out="${out%\"}"
-            if [[ "$out" =~ ^V[234]$ ]] || [[ "$out" == "V3_V3" || "$out" == "V3PRO_V3" || "$out" == "V3_V4" || "$out" == "V3PRO_V4" ]] || [[ "$out" == "v3_res_v2" || "$out" == "v3pro_res_v2" || "$out" == "v3_res_v3" || "$out" == "v3pro_res_v3" || "$out" == "v3_res_v4" || "$out" == "v3pro_res_v4" ]]; then
-                printf "%s" "$out"
-                return 0
-            fi
-        fi
-    fi
-
-    printf "%s" "V2"
+    # 默认资源路径别名（V2/V3/V4），与 GNUmakefile 中 ROOT_UI_VERSION 一致
+    resolve_root_res_path
 }
 
 pack_main() {
@@ -885,11 +992,18 @@ if [ ! -d "$OUTPUT_DIR" ]; then
 fi
 
 ### 显示信息
+ROOT_RES_PATH_HINT="$(resolve_root_res_path)"
+ROOT_RES_VERSION_HINT="$(resolve_root_res_version)"
+ROOT_RES_MAJOR_HINT=$((ROOT_RES_VERSION_HINT / 100))
+ROOT_RES_MINOR_HINT=$((ROOT_RES_VERSION_HINT % 100))
+
 echo "=================================================="
 echo "🚀 资源打包工具"
 echo "=================================================="
+echo "资源路径: ROOT_RES_PATH=${ROOT_RES_PATH_HINT}"
+echo "资源版本: ROOT_RES_VERSION=${ROOT_RES_VERSION_HINT} (V$(printf '%02d' "$ROOT_RES_MAJOR_HINT").$(printf '%02d' "$ROOT_RES_MINOR_HINT"))"
 if [ -n "$VERSION" ]; then
-    echo "版本:     $VERSION"
+    echo "版本参数: $VERSION"
 fi
 if [ -n "$RESOURCE_DIR" ]; then
     echo "资源目录: $RESOURCE_DIR"

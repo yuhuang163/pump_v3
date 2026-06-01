@@ -59,25 +59,6 @@ static void pump_both_level_display_completed_cb(hdr_post_args_t *args)
         LOG_UI("ui type error, ignore.");
         return;
     }
-
-#if (IS_SUPPORT_PUMP_LEVEL_REAL_TIME_ADJUST == 0)
-    int time_index = 0;
-    READ_PUMP_MODE_STEP_INDEX(proc->pump, time_index);
-    if (proc->both_level_sync_flag && proc->both_level_change != 0) {
-        for (uint8_t i = 0; i < BREAST_PUMP_NUM; i++) {
-            int8_t level = proc->setting.level[i] + proc->both_level_change ;
-            if (level > BREAST_PUMP_LEVEL_15) {
-                level = BREAST_PUMP_LEVEL_15;
-            } else if (level < 0) {
-                level = 0;
-            }
-            proc->setting.level[i] = level;
-        }
-        WRITE_PUMP_SETTING_INFO(proc->pump, time_index, true, proc->setting);
-    }
-    proc->both_level_change = 0;
-#endif
-    proc->both_level_sync_flag = false;
     pump_sub_ui_exit_handler(proc);
 }
 
@@ -87,12 +68,22 @@ static void pump_both_level_ui_after_policy(ui_manager_context_t *ui, int index)
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_PUMP);
     ui_display_pump_both_level_process(ui);
     uint32_t time_diff = get_timestamp_ms(proc->last_progress_ani_time);
+#if V3_UX_VERSION == V3_UX_V1
     if (time_diff >= PUMP_LEVEL_DISPLAY_TIMEOUT) {
         proc->last_progress_ani_time = get_timestamp();
-        LOG_UI("both level ui timeout: %d", proc->last_progress_ani_time);
+        LOG_UI("both level ui timeout: %d", time_diff);
         POST_WM_TASK_HANDLER_NO_DELAY(pump_both_level_display_completed_cb, proc,
             PUMP_BOTH_LEVEL_DISPLAY_TASK_NAME);
     }
+#else
+    if (proc->exit_current_ui || time_diff >= PUMP_LEVEL_DISPLAY_TIMEOUT) {
+        proc->exit_current_ui = false;
+        proc->last_progress_ani_time = get_timestamp();
+        LOG_UI("both level ui timeout: %d", time_diff);
+        POST_WM_TASK_HANDLER_NO_DELAY(pump_both_level_display_completed_cb, proc,
+            PUMP_BOTH_LEVEL_DISPLAY_TASK_NAME);
+    }
+#endif
 }
 
 static void pump_both_level_animation_progress_cb(void *user_data, int index, ui_ani_progress_state_e state)
@@ -159,7 +150,6 @@ static void show_pump_both_level_ui(ui_proc_pump_t *proc)
 void switch_pump_both_level_ui(ui_proc_pump_t *proc, bool is_increase)
 {
     EXCEPTION_CHECK_VOID(proc && proc->pump);
-#if IS_SUPPORT_PUMP_LEVEL_REAL_TIME_ADJUST
     int16_t left_level = proc->setting.level[0] + proc->both_level_change;
     int16_t right_level = proc->setting.level[1] + proc->both_level_change;
     pump_setting_t setting;
@@ -195,20 +185,6 @@ void switch_pump_both_level_ui(ui_proc_pump_t *proc, bool is_increase)
     }
     setting.speed = proc->setting.speed;
     WRITE_PUMP_SETTING_INFO(proc->pump, 0, true, setting);
-#else
-    int16_t left_level = proc->setting.level[0] + proc->both_level_change;
-    int16_t right_level = proc->setting.level[1] + proc->both_level_change;
-    if (is_increase) {
-        if (left_level < BREAST_PUMP_LEVEL_15 || right_level < BREAST_PUMP_LEVEL_15) {
-            proc->both_level_change++;
-        }
-    } else {
-        if (left_level > BREAST_PUMP_LEVEL_0 || right_level > BREAST_PUMP_LEVEL_0) {
-            proc->both_level_change--;
-        }
-    }
-#endif
-    proc->both_level_sync_flag = true;
     show_pump_both_level_ui(proc);
 }   
 
@@ -216,7 +192,6 @@ void switch_pump_both_level_ui(ui_proc_pump_t *proc, bool is_increase)
 void switch_pump_both_control_type_ui(ui_proc_pump_t *proc, bool is_increase)
 {
     EXCEPTION_CHECK_VOID(proc && proc->pump);
-#if IS_SUPPORT_PUMP_LEVEL_REAL_TIME_ADJUST
     if (proc->current_ui_type != PUMP_UI_TYPE_BOTH_LEVEL) {
         int time_index = 0;
         READ_PUMP_MODE_STEP_INDEX(proc->pump, time_index);
@@ -224,30 +199,8 @@ void switch_pump_both_control_type_ui(ui_proc_pump_t *proc, bool is_increase)
         proc->both_level_change = 0;
         switch_pump_both_level_ui(proc, is_increase);
     } 
-#else
-    if (proc->current_ui_type != PUMP_UI_TYPE_BOTH_LEVEL) {
-        int time_index = 0;
-        READ_PUMP_MODE_STEP_INDEX(proc->pump, time_index);
-        READ_PUMP_SETTING_INFO(proc->pump, time_index, proc->setting);
-        proc->both_level_change = 0;
-        if (is_increase) {
-            for (uint8_t i = 0; i < BREAST_PUMP_NUM; i++) {
-                if (proc->setting.level[i] < BREAST_PUMP_LEVEL_15) {
-                    proc->both_level_change = 1;
-                    proc->both_level_sync_flag = true;
-                    break;
-                }
-            }
-        } else {
-            for (uint8_t i = 0; i < BREAST_PUMP_NUM; i++) {
-                if (proc->setting.level[i] > BREAST_PUMP_LEVEL_0) {
-                    proc->both_level_change = -1;
-                    proc->both_level_sync_flag = true;
-                    break;
-                }
-            }
-        }
-    } 
+#if V3_UX_VERSION == V3_UX_V2   
+    proc->exit_current_ui = false;
 #endif
     proc->forbid_start_pump = false;
     show_pump_both_level_ui(proc);
@@ -256,23 +209,5 @@ void switch_pump_both_control_type_ui(ui_proc_pump_t *proc, bool is_increase)
 
 void pump_both_level_ui_exit(ui_proc_pump_t *proc)
 {
-#if (IS_SUPPORT_PUMP_LEVEL_REAL_TIME_ADJUST == 0)
-    int time_index = 0;
-    READ_PUMP_MODE_STEP_INDEX(proc->pump, time_index);
-    REMOVE_TASK_HANDLER_DIRECTLY(PUMP_BOTH_LEVEL_DISPLAY_TASK_NAME);
-    if (proc->both_level_sync_flag && proc->both_level_change != 0) {
-        for (uint8_t i = 0; i < BREAST_PUMP_NUM; i++) {
-            int8_t level = proc->setting.level[i] + proc->both_level_change ;
-            if (level > BREAST_PUMP_LEVEL_15) {
-                level = BREAST_PUMP_LEVEL_15;
-            } else if (level < 0) {
-                level = 0;
-            }
-            proc->setting.level[i] = level;
-        }
-        WRITE_PUMP_SETTING_INFO(proc->pump, time_index, true, proc->setting);
-    }
-    proc->both_level_change = 0;
-    proc->both_level_sync_flag = false;
-#endif
+
 }
