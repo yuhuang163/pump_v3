@@ -23,6 +23,7 @@ typedef enum {
     MSG_TYPE_WIN_EVENT, /// 窗口事件.
     MSG_TYPE_WIN_FLUSH, /// 窗口刷新.
     MSG_TYPE_INPUT_KEY_EVENT, /// 按键事件.
+    MSG_TYPE_CLOSE_POPUP_OVERLAY, /// 异步关闭 overlay 弹窗（避免与 UI 绘制锁死锁）.
     MSG_TYPE_HANDLER_POST_EVENT, /// 处理事件.
     MSG_TYPE_BROADCAST_EVENT, /// 广播事件.
     MSG_TYPE_MAX

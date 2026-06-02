@@ -57,6 +57,7 @@ typedef struct {
 */
 void start_popup_ui_animation(ui_proc_popup_t *proc);
 void stop_popup_ui_animation(ui_proc_popup_t *proc);
+void popup_request_close_overlay(ui_proc_popup_t *proc);
 
 #ifdef __cplusplus
 }

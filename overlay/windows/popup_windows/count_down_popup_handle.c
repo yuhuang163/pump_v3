@@ -29,12 +29,14 @@ static void count_down_popup_display_complete(ui_manager_context_t *ui, int inde
 {
     EXCEPTION_CHECK_VOID(ui);
     ui_proc_popup_t *proc = (ui_proc_popup_t *)ui->priv.overlay_play_info.user_data;
-    EXCEPTION_CHECK_VOID(proc);
+    WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_POPUP_WINDOW);
     popup_window_exit_handler_cb(proc);
 }
 
 static void count_down_ui_after_policy(ui_manager_context_t *ui, int index)
 {
+    ui_proc_popup_t *proc = (ui_proc_popup_t *)ui->priv.overlay_play_info.user_data;
+    WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_POPUP_WINDOW);
     popup_window_ui_process(ui, ID_POPUP_UI_COUNT_DOWN);
 }
 
