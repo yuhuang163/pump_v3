@@ -5,6 +5,8 @@
 #include "root_common_api.h" // IWYU pragma: keep
 #include "factory_server_client.h"
 #include "master_server_client.h"
+#include "data_bury_protocol_server_client.h"
+
 
 /*
 * DEFINES
@@ -21,12 +23,15 @@ static int on_post_servers_init_route(struct servers_manager_context *ctx)
     LOG_SRV("factory_server_client_init");
     master_server_client_init();
     LOG_SRV("master_server_client_init");
+    data_bury_protocol_server_client_init();
+    LOG_SRV("data_bury_protocol_server_client_init");
     return 0;
 }
 
 static int on_servers_manager_receiver_route(broadcast_mask_id_t id, void *context, int arg1, int arg2, void *user_data)
 {
     on_master_app_old_protocol_receiver_route(id, context, arg1, arg2, user_data);
+    return 0;
 }
 /*
 * GLOBAL FUNCTION DEFINITIONS

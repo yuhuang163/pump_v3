@@ -70,6 +70,7 @@ typedef enum {
     BLE_MSG_RESUME, /// 唤醒
     BLE_MSG_PERIPH_DISCONN, /// 设备断开连接
     BLE_MSG_PERIPH_CONNECT_SUC, /// 设备连接成功
+    BLE_MSG_TX_CCC_ENABLED, /// 设备通知使能
     BLE_MSG_PERIPH_DISCONN_SUC, /// 设备断开连接成功
     BLE_MSG_MASTER_SEND_DATA, /// 发送主设备数据
     BLE_MSG_MASTER_RECIVE_DATA, /// 主设备接收数据
@@ -77,6 +78,8 @@ typedef enum {
     BLE_MSG_FAC_RECIVE_DATA, /// 工厂设备接收数据
     BLE_MSG_REMOT_SEND_DATA, /// 发送远程设备数据
     BLE_MSG_REMOT_RECIVE_DATA, /// 远程设备接收数据
+    BLE_MSG_DATA_BURY_SEND_DATA, /// 发送数据埋点服务数据
+    BLE_MSG_DATA_BURY_RECIVE_DATA, /// 数据埋点服务接收数据
 } ble_msg_id_e;
 
 /// 描述ble消息处理函数.
@@ -166,6 +169,8 @@ typedef struct ble_manager_context {
  * GLOBAL FUNCTION DECLARATION
  *****************************************************************************************
  */
+int ble_data_bury_srv_recv_data(void *context, ble_service_data_t *srv_data);
+int ble_data_bury_srv_send_data(void *context, ble_service_data_t *srv_data);
 
 #ifdef __cplusplus
 }

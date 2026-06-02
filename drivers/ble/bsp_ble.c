@@ -299,6 +299,9 @@ void ble_custom_tx_ccc_changed(uint8_t conidx, uint16_t connhdl, bool notify_ena
     if (notify_enabled) {
         s_ble_event_callback(BLE_EVENT_TX_CCC_ENABLED, &connhdl);
     }
+    else {
+        s_ble_event_callback(BLE_EVENT_TX_CCC_DISABLED, &connhdl);
+    }
 }
 
 uint16_t ble_custom_mtu_size_get(void)
@@ -311,6 +314,7 @@ void ble_custom_service_init(void)
     ble_master_service_init();
     ble_factory_service_init();
     ble_remot_service_init();
+    ble_data_bury_service_init();
 }
 
 void *register_device_for_ble(list_head_t *list_head)
