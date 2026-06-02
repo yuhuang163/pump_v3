@@ -69,17 +69,34 @@ typedef struct {
     void *val;
 } servers_publish_data_args_t;
 
+typedef enum {
+    SERVERS_BLE_DISCONNECT_REPORT = 100,
+    SERVERS_BLE_CONNECT_REPORT,
+    SERVERS_AIRPLANE_MODE_EXIT_REPORT,
+    SERVERS_AIRPLANE_MODE_ENTER_REPORT,
+    SERVERS_BATTERY_STATE_CHANGE,
+    SERVERS_CHARGE_STATE_CHANGE,
+    SERVERS_PUMP_MODE_CHANGE,
+    SERVERS_PUMP_STEP_CHANGE,
+    SERVERS_PUMP_LEVEL_CHANGE,
+    SERVERS_PUMP_SPEED_CHANGE,
+    SERVERS_PUMP_TIME_CHANGE,
+    SERVERS_WORK_MSG_ID_MAX,
+} servers_work_msg_id_e;
+
 struct rt_device_node;
 struct protocol_manager_context;
 typedef struct servers_manager_context {
     /// private:
     struct __servers_manager_private {
         broadcast_obj_t *bcd; /// 广播监听对象
+        thread_context_t servers_thd; /// 服务器线程
         struct protocol_manager_context *protocol_ctx; /// 协议管理器
         uint8_t encrypt_status;///payload 是否加密
     } priv;
 
     /// public:
+    int (*dispatch_servers_event_wrapper)(struct servers_manager_context *ctx, int arg1, int arg2, void *user_data);
     struct __servers_manager_hook {
         int (*on_perpare_init_route)(struct servers_manager_context *ctx);
         int (*on_post_init_route)(struct servers_manager_context *ctx);
@@ -88,6 +105,7 @@ typedef struct servers_manager_context {
         int (*app_old_protocol_server_data_publish)(app_old_comm_cmd_id_e cid, servers_publish_data_args_t *args);
          /// 广播路由
         int (*on_servers_manager_receiver_route)(broadcast_mask_id_t id, void *context, int arg1, int arg2, void *user_data);
+        int (*servers_work_thread_route)(struct servers_manager_context *ctx, void *msg);
     } *hook;
 } servers_manager_context_t;
 
