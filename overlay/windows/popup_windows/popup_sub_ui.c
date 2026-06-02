@@ -66,17 +66,12 @@ void stop_popup_ui_animation(ui_proc_popup_t *proc)
 
 void popup_request_close_overlay(ui_proc_popup_t *proc)
 {
-    EXCEPTION_CHECK_VOID(proc && proc->wm);
-    if (proc->extra.forbid_short_press_exit_popup) {
-        return;
-    }
-    
+    EXCEPTION_CHECK_VOID(proc && proc->wm);    
     if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
         LOG_WM("popup not running, ignore close.");
         return;
     }
     proc->window_run_state = WINDOW_RUN_STATE_PAUSED;
-
     if (proc->extra.popup_exit_cb) {
         proc->extra.popup_exit_cb(proc->extra.user_data, 0, 0);
     }
