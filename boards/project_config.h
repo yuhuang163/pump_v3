@@ -63,6 +63,8 @@ extern "C" {
 #define LED_DEVICE_THREAD_STACKSIZE                    (TASK_SIZE_DEFAULT * 2 + 0)
 /// lcd线程深度
 #define LCD_THREAD_STACKSIZE                           (TASK_SIZE_DEFAULT * 2 + 0)
+/// 服务器线程深度
+#define SERVERS_THREAD_STACKSIZE                       (TASK_SIZE_DEFAULT * 4 + 0)
 /// 中断消息队列数量定义
 #define INTERRUPT_MESQ_NUM                             (10)
 /// lcd spi 消息队列数量定义
@@ -77,6 +79,8 @@ extern "C" {
 #define WAVE_GENERATOR_MESQ_NUM                        (1)
 /// 按键设备消息队列数量定义
 #define KEY_DEVICE_MESQ_NUM                            (1)
+/// 服务器消息队列数量定义
+#define SERVERS_WORK_DISPATCH_MESQ_NUM                 (5)
 /// 挂起超时
 #if 1
 #define PM_SUSPEND_TIME_S                              (15 * 60 * 1000) /// 15分钟

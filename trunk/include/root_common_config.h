@@ -14,6 +14,7 @@ extern "C" {
 #define RT_PRIO_MAIN_THREAD                            OS_PRIORITY_REALTIME5
 #define RT_PRIO_MISC_DISPATCH_THREAD                   OS_PRIORITY_BELOW_NORMAL
 #define RT_PRIO_BREAST_PUMP_DISPATCH_THREAD            OS_PRIORITY_NORMAL
+#define RT_PRIO_SERVERS_DISPATCH_THREAD                OS_PRIORITY_NORMAL
 #define RT_PRIO_OTA_DISPATCH_THREAD                    OS_PRIORITY_REALTIME
 #define RT_PRIO_LVGL_HANDLER_THREAD                    OS_PRIORITY_REALTIME6
 #define RT_PRIO_BRC_DISPATCH_THREAD                    OS_PRIORITY_REALTIME
@@ -78,6 +79,10 @@ extern "C" {
 /// 电机错误检测线程优先级
 #ifndef RT_PRIO_PUMP_MOTOR_CHECK_THREAD
 #define RT_PRIO_PUMP_MOTOR_CHECK_THREAD                OS_PRIORITY_REALTIME
+#endif
+
+#ifndef RT_PRIO_SERVERS_DISPATCH_THREAD
+#define RT_PRIO_SERVERS_DISPATCH_THREAD                OS_PRIORITY_NORMAL
 #endif
 
 ///  各关键业务线程栈深度, 默认线程单位栈深1KB

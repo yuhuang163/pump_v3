@@ -399,6 +399,11 @@ static void window_dispatch_thread(const void *args)
                 window_post_async_key_event(msg);
                 WM_UNLOCK("--input");
                 break;
+            case MSG_TYPE_CLOSE_POPUP_OVERLAY:
+                WM_LOCK("--close_popup");
+                close_popup_overlay_internal(wm);
+                WM_UNLOCK("--close_popup");
+                break;
             case MSG_TYPE_HANDLER_POST_EVENT:
                 /// 已在 WM 线程，勿再抢 window_switch_lock，避免与窗口切换/回调嵌套死锁
                 if (hdr_process_cb) {
@@ -690,10 +695,16 @@ static int go_back_to_history_wrapper(void *wm, window_entry_extra_t *__extra)
 static int close_popup_overlay_wrapper(struct window_manager_context *wm)
 {
     EXCEPTION_CHECK_INT(wm);
-    MUTEX_LOCK(wm->priv.window_switch_lock);
-    int ret = close_popup_overlay_internal(wm);
-    MUTEX_UNLOCK(wm->priv.window_switch_lock);
-    return ret;
+    if (!wm->priv.window_dispatch_thd.msg_id) {
+        MUTEX_LOCK(wm->priv.window_switch_lock);
+        int ret = close_popup_overlay_internal(wm);
+        MUTEX_UNLOCK(wm->priv.window_switch_lock);
+        return ret;
+    }
+    multi_func_msg_data_t msg = {0};
+    msg.msg_type = MSG_TYPE_CLOSE_POPUP_OVERLAY;
+    post_async_msg_to_window("close_popup_overlay", &msg);
+    return 0;
 }
 
 static int on_post_wm_init(void *ptr)

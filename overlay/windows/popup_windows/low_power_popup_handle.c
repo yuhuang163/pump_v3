@@ -29,6 +29,8 @@
 static void low_power_pop_display_complete(ui_manager_context_t *ui, int index)
 {
     EXCEPTION_CHECK_VOID(ui);
+    ui_proc_popup_t *proc = (ui_proc_popup_t *)ui->priv.overlay_play_info.user_data;
+    WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_POPUP_WINDOW);
     power_manager_context_t *pm = (power_manager_context_t *)find_module(ID_MODULE_POWER);
     EXCEPTION_CHECK_VOID(pm);
     pm->system_power_control(false);
@@ -37,6 +39,7 @@ static void low_power_pop_display_complete(ui_manager_context_t *ui, int index)
 static void low_power_ui_after_policy(ui_manager_context_t *ui, int index)
 {
     ui_proc_popup_t *proc = (ui_proc_popup_t *)ui->priv.overlay_play_info.user_data;
+    WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_POPUP_WINDOW);
     bool is_low_battery = proc->battery->is_low_battery();
     if (is_low_battery) {
         popup_window_ui_process(ui, ID_POPUP_UI_LOW_POWER);

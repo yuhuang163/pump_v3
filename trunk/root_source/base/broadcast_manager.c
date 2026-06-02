@@ -245,7 +245,7 @@ static void bcr_work_thd(const void *args)
     thread_context_t *thd = (thread_context_t *)args;
     multi_func_msg_data_t msg = {0};
 
-    CREATE_MSG_TYPE_QUEUE(&thd->msg_id, BCR_THD_MESQ_NUM / 2, sizeof(multi_func_msg_data_t));
+    CREATE_MSG_TYPE_QUEUE(&thd->msg_id, BCR_THD_MESQ_NUM, sizeof(multi_func_msg_data_t));
     thd->task_name = "idle";
 
     for (;;) {

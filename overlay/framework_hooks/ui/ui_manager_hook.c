@@ -427,11 +427,10 @@ static void ui_animation_overlay_init(struct ui_manager_context *thiz, ui_play_i
 static void ui_animation_overlay_deinit(struct ui_manager_context *thiz)
 {
     EXCEPTION_CHECK_VOID(thiz);
-    thiz->play_animation_lock(NULL);
+    /* 不在调用线程抢 ui_draw_lock，实际清理在 UI 线程 OVERLAY_DEINIT 中完成 */
     thiz->priv.is_playing_ui_overlay = false;
     thiz->priv.overlay_play_info.progress_cb = NULL;
     thiz->priv.overlay_play_info.user_data = NULL;
-    thiz->play_animation_unlock(NULL);
 
     ui_lvgl_msg_t msg = {0};
     msg.cmd = UI_LVGL_MSG_CMD_OVERLAY_DEINIT;

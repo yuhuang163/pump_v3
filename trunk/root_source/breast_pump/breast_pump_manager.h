@@ -10,7 +10,8 @@ extern "C" {
 ******************************************************************************/
 #include "root_common_api.h" // IWYU pragma: keep
 
-#define PUMP_WORK_STEP_TIME_MS   (20)
+#define PUMP_WORK_STEP_TIME_MS        (20)
+#define PUMP_IDLE_STEP_TIME_MS        (300)
 
 #if IS_SUPPORT_PUMP_LEVEL_REAL_TIME_ADJUST
 #ifndef PUMP_LEVEL_NOTIFY_DEBOUNCE_MS
