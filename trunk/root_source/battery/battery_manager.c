@@ -232,18 +232,6 @@ static void polling_charge_status(void *user_data)
                 servers_ctx->hook->app_old_protocol_server_data_publish(APP_OLD_COMM_CID_NOTIFY_V3_DEV_ABNORMAL, &args_temp);
             }
         }
-
-        if (thiz->priv.charge_status == CHARGE_STATE_ERROR) {
-            servers_manager_context_t *servers_ctx = (servers_manager_context_t *)find_module(ID_MODULE_SERVERS);
-            if (servers_ctx) {
-                servers_publish_data_args_t args_temp = {
-                    .arg1 = OLD_PUBLISH_ABNORMAL_ADAPTER_ERROR,
-                    .arg2 = OLD_PUBLISH_ABNORMAL_STATE_CLEARED,
-                    .val = NULL,
-                };  
-                servers_ctx->hook->app_old_protocol_server_data_publish(APP_OLD_COMM_CID_NOTIFY_V3_DEV_ABNORMAL, &args_temp);
-            }
-        }
         thiz->priv.charge_status = charge_status;
         LOG_MISC("charge status change:%d", charge_status);
         polling_battery_status(user_data);
