@@ -59,10 +59,10 @@ typedef struct {
 *****************************************************************************************
 */
 const static char *s_hdr_thd_name[] = {
-    "hdr_thd_0",
-    "hdr_thd_1",
-    "hdr_thd_2",
-    "hdr_thd_3",
+    "hdr_thd0",
+    "hdr_thd1",
+    "hdr_thd2",
+    "hdr_thd3",
 };
 
 static hdr_post_context_t *thiz = {0};
@@ -157,7 +157,7 @@ static int hdr_post_process_cb(multi_func_msg_data_t *msg, thread_context_t *thd
     }
 
     #if DEBUG_HDR_TASK
-    LOG_HDR("(%s)EXEC_POST_TASK(from:%lu->%lu#name: %s/time=%ld), arg1: %ld, arg2: %ld******", THREAD_NAME_GET(thd),
+    LOG_HDR("(%s)(from:%lu->%lu#name: %s/time=%ld), arg1: %ld, arg2: %ld******", THREAD_NAME_GET(thd),
         target->from_tid, (uint32_t)(thd->tid) % 1000, target->name, target->timestamp, target->arg1, target->arg2);
     #endif
     if (target->cb == NULL) {
@@ -175,11 +175,11 @@ static int hdr_post_process_cb(multi_func_msg_data_t *msg, thread_context_t *thd
     }
 
     #if DEBUG_HDR_TASK
-    LOGW("(%s)EXEC_POST_TASK-endtime(from:%lu->%lu#name: %s/time=%ld), exec_time: %ld(ms)******", THREAD_NAME_GET(thd),
+    LOGW("(%s)endtime(from:%lu->%lu#name: %s/time=%ld), exec_time: %ld(ms)******", THREAD_NAME_GET(thd),
         target->from_tid, (uint32_t)(thd->tid) % 1000, target->name, target->timestamp, diff_time);
     #else
     if (diff_time >= 30) {
-        LOGW("(%s)EXEC_POST_TASK-endtime(from:%lu->%lu#name: %s/time=%ld), exec_time: %ld(ms)******", THREAD_NAME_GET(thd),
+        LOGW("(%s)endtime(from:%lu->%lu#name: %s/time=%ld), exec_time: %ld(ms)******", THREAD_NAME_GET(thd),
             target->from_tid, (uint32_t)(thd->tid) % 1000, target->name, target->timestamp, diff_time);
     }
     #endif

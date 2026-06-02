@@ -538,10 +538,9 @@ static int battery_voltage_poll(void)
     }
 
     if (poll_interval > 1000) {
-        LOGE("battery poll error:%ld", poll_interval);
+        LOGW("warning: poll interval:%ldms > 1000ms", poll_interval);
         s_batt_poll_time = get_timestamp();
         poll_interval = 100;
-        // return BSP_ERROR;
     }
     s_batt_poll_time = get_timestamp();
     log_timer++;
