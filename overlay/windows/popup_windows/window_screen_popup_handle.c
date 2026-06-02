@@ -48,6 +48,9 @@ static int on_popup_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t key
         proc->pm->release_wakelock(POPUP_WAKE_LOCK_NAME);
     }
 #endif
+    if (proc->extra.forbid_short_press_exit_popup) {
+        return 0;
+    }
     popup_request_close_overlay(proc);
     return 0;
 }
