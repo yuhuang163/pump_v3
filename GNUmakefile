@@ -285,6 +285,15 @@ MASTER_SERVER_CLIENT_DIR := $(PROJECT_ROOT)/overlay/servers/master_server_client
 # master Server Client 源码文件
 MASTER_SERVER_CLIENT_SRCS := $(call rwildcard,$(MASTER_SERVER_CLIENT_DIR))
 
+# 数据埋点协议 Server Client 头文件子目录
+DATA_BURY_PROTOCOL_SERVER_CLIENT_INC_DIRS := $(shell find $(PROJECT_ROOT)/overlay/servers/data_bury_protocol_server_client -type d)
+# 数据埋点协议 Server Client 头文件
+DATA_BURY_PROTOCOL_SERVER_CLIENT_INC_FLAGS := $(patsubst %,-I%,$(DATA_BURY_PROTOCOL_SERVER_CLIENT_INC_DIRS))
+# 数据埋点协议 Server Client 源码目录
+DATA_BURY_PROTOCOL_SERVER_CLIENT_DIR := $(PROJECT_ROOT)/overlay/servers/data_bury_protocol_server_client
+# 数据埋点协议 Server Client 源码文件
+DATA_BURY_PROTOCOL_SERVER_CLIENT_SRCS := $(call rwildcard,$(DATA_BURY_PROTOCOL_SERVER_CLIENT_DIR))
+
 # -------------- SDK 头文件路径（按功能模块拆分）--------------
 
 # SDK 核心头文件
@@ -522,6 +531,7 @@ BLE_MODULE_INC_FLAGS := \
 	-I$(PROJECT_ROOT)/overlay/ble/factory_service \
 	-I$(PROJECT_ROOT)/overlay/ble/master_service \
 	-I$(PROJECT_ROOT)/overlay/ble/remot_service \
+	-I$(PROJECT_ROOT)/overlay/ble/data_bury_service \
 	-I$(PROJECT_ROOT)/trunk/root_source/ble
 
 # 吸奶泵模块头文件
@@ -641,6 +651,7 @@ SERVERS_INC_FLAGS := \
 	$(FACTORY_SERVER_CLIENT_INC_FLAGS) \
 	$(APP_OLD_PROTOCOL_SERVERS_INC_FLAGS) \
 	$(MASTER_SERVER_CLIENT_INC_FLAGS) \
+	$(DATA_BURY_PROTOCOL_SERVER_CLIENT_INC_FLAGS) \
 	-I$(PROJECT_ROOT)/overlay/framework_hooks/servers
 
 # 存储模块头文件
@@ -1144,6 +1155,7 @@ BLE_MODULE_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/overlay/ble/factory_service/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/ble/master_service/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/ble/remot_service/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/ble/data_bury_service/*.c) \
 	$(wildcard $(PROJECT_ROOT)/trunk/root_source/ble/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/framework_hooks/ble/*.c)
 
@@ -1255,6 +1267,7 @@ PROTOCOL_MODULE_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/overlay/protocol/app_old_commication_protocol/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/protocol/factory_protocol/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/protocol/common_protocl/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/protocol/app_data_bury_protocol/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/framework_hooks/protocol/*.c) \
 	$(wildcard $(PROJECT_ROOT)/trunk/root_source/protocol/*.c)
 
@@ -1264,6 +1277,7 @@ SERVERS_MODULE_SRCS := \
 	$(FACTORY_SERVER_CLIENT_SRCS) \
 	$(MASTER_SERVER_CLIENT_SRCS) \
 	$(APP_OLD_PROTOCOL_SERVERS_SRCS) \
+	$(DATA_BURY_PROTOCOL_SERVER_CLIENT_SRCS) \
 	$(wildcard $(PROJECT_ROOT)/overlay/framework_hooks/servers/*.c) \
 	$(wildcard $(PROJECT_ROOT)/trunk/root_source/servers/*.c)
 

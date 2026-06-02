@@ -6,6 +6,7 @@
 #include "master_service.h" // IWYU pragma: keep
 #include "factory_service.h" // IWYU pragma: keep
 #include "remot_service.h" // IWYU pragma: keep
+#include "data_bury_service.h" // IWYU pragma: keep
 #include "ble_service.h" // IWYU pragma: keep
 #include "bsp_ble_internal.h" // IWYU pragma: keep
 #include "root_common.h"
@@ -45,6 +46,8 @@ bool ble_service_notify_status_get(uint8_t srv_id)
         return ble_factory_service_notify_status_get();
     } else if (BLE_SRV_ID_REMOTE == srv_id) {
         return ble_remot_service_notify_status_get();
+    } else if (BLE_SRV_ID_DATA_BURY == srv_id) {
+        return ble_data_bury_service_notify_status_get();
     }
     LOGE("err ble srv_id %d", srv_id);
 
@@ -76,6 +79,8 @@ int ble_service_data_send(uint8_t srv_id, uint8_t *p_data, uint16_t size, uint8_
         notify_cb = ble_factory_service_notify_data_send;
     } else if (BLE_SRV_ID_REMOTE == srv_id) {
         notify_cb = ble_remot_service_notify_data_send;
+    } else if (BLE_SRV_ID_DATA_BURY == srv_id) {
+        notify_cb = ble_data_bury_service_notify_data_send;
     }
     EXCEPTION_CHECK_INT(notify_cb);
     /// 获取MTU大小并校验

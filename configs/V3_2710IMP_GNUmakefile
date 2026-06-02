@@ -387,6 +387,7 @@ BLE_MODULE_INC_FLAGS := \
 	-I$(PROJECT_ROOT)/overlay/ble/factory_service \
 	-I$(PROJECT_ROOT)/overlay/ble/master_service \
 	-I$(PROJECT_ROOT)/overlay/ble/remot_service \
+	-I$(PROJECT_ROOT)/overlay/ble/data_bury_service \
 	-I$(PROJECT_ROOT)/trunk/root_source/ble
 
 # 吸奶泵模块头文件
@@ -472,6 +473,7 @@ SERVERS_INC_FLAGS := \
 	$(FACTORY_SERVER_CLIENT_INC_FLAGS) \
 	$(APP_OLD_PROTOCOL_SERVERS_INC_FLAGS) \
 	$(MASTER_SERVER_CLIENT_INC_FLAGS) \
+	-I$(PROJECT_ROOT)/overlay/servers/data_bury_protocol_server_client \
 	-I$(PROJECT_ROOT)/overlay/framework_hooks/servers
 
 # 存储模块头文件
@@ -842,6 +844,7 @@ BLE_MODULE_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/overlay/ble/factory_service/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/ble/master_service/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/ble/remot_service/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/ble/data_bury_service/*.c) \
 	$(wildcard $(PROJECT_ROOT)/trunk/root_source/ble/*.c)
 
 # 吸奶泵模块源码
@@ -920,6 +923,7 @@ PROTOCOL_MODULE_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/overlay/protocol/app_old_commication_protocol/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/protocol/factory_protocol/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/protocol/common_protocl/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/protocol/app_data_bury_protocol/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/framework_hooks/protocol/*.c) \
 	$(wildcard $(PROJECT_ROOT)/trunk/root_source/protocol/*.c)
 
@@ -929,6 +933,7 @@ SERVERS_MODULE_SRCS := \
 	$(FACTORY_SERVER_CLIENT_SRCS) \
 	$(MASTER_SERVER_CLIENT_SRCS) \
 	$(APP_OLD_PROTOCOL_SERVERS_SRCS) \
+	$(wildcard $(PROJECT_ROOT)/overlay/servers/data_bury_protocol_server_client/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/framework_hooks/servers/*.c) \
 	$(wildcard $(PROJECT_ROOT)/trunk/root_source/servers/*.c)
 

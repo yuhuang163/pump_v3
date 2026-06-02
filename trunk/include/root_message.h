@@ -220,6 +220,7 @@ typedef enum {
     DEVICE_BLE_FAC_MSG_CHANNEL = 0, /// 蓝牙工厂通道
     DEVICE_BLE_MASTER_MSG_CHANNEL,  /// 蓝牙主通道
     DEVICE_BLE_REMOTE_MSG_CHANNEL,  /// 蓝牙远程通道
+    DEVICE_BLE_DATA_BURY_MSG_CHANNEL, /// Momcozy 数据埋点通道
     DEVICE_UART_MSG_CHANNEL,        /// 串口通道
     DEVICE_MSG_CHANNEL_ID_MAX
 } device_message_channel_id_e;
