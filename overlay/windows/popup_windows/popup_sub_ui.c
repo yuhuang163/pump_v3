@@ -64,15 +64,27 @@ void stop_popup_ui_animation(ui_proc_popup_t *proc)
     proc->last_progress_ani_time = get_timestamp();
 }
 
-void popup_window_exit_handler_cb(ui_proc_popup_t *proc)
+void popup_request_close_overlay(ui_proc_popup_t *proc)
 {
-    EXCEPTION_CHECK_VOID(proc);
-    EXCEPTION_CHECK_VOID(proc->pm);
+    EXCEPTION_CHECK_VOID(proc && proc->wm);
+    if (proc->extra.forbid_short_press_exit_popup) {
+        return;
+    }
+    
+    if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
+        LOG_WM("popup not running, ignore close.");
+        return;
+    }
+    proc->window_run_state = WINDOW_RUN_STATE_PAUSED;
+
     if (proc->extra.popup_exit_cb) {
         proc->extra.popup_exit_cb(proc->extra.user_data, 0, 0);
-    } 
-
-    if (proc->wm->close_popup_overlay) {
-        proc->wm->close_popup_overlay(proc->wm);
     }
+    proc->wm->close_popup_overlay(proc->wm);
+}
+
+void popup_window_exit_handler_cb(ui_proc_popup_t *proc)
+{
+    WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_POPUP_WINDOW);
+    popup_request_close_overlay(proc);
 }
