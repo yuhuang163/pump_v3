@@ -34,6 +34,9 @@ typedef enum {
     STORE_ID_FACTORY_SUCTION_TABLE,         /// 工厂预设泵奶参数
     STORE_ID_FACTORY_MOTOR_TYPE,            /// 工厂预设泵类型
     STORE_ID_FACTORY_BATTERY_TYPE,          /// 工厂预设电池类型
+#if IS_SUPPORT_DEVICE_LIGHT_SENSOR_CALIB
+    STORE_ID_FACTORY_LIGHT_SENSOR_CALIB_DATA, /// 工厂光感校准数据
+#endif
     STORE_ID_AUDIO_PACKET_INFO = 200,       /// 语音包信息
     STORE_ID_THEME_PACKET_INFO,             /// 主题包信息
     STORE_ID_BREAST_PUMP_INFO = 300,        /// 吸奶信息
