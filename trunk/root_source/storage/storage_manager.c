@@ -378,7 +378,28 @@ int factory_flash_get(storage_manager_context_t *ctx, uint8_t *buf, int buf_len)
         ret = DEVICE_READ_ARGS(factory_flash_dev, &buf_wr_flash_info, sizeof(buf_wr_flash_info));
         if (ret == 0) {
             LOG_STORE("read factory flash, buf_len: %d", buf_len);
-            LOG_HEX("buf_rd", buf, buf_len);
+            factory_dev_info_t *dev_info = NULL;
+            if (buf_len >= (int)sizeof(factory_dev_info_storage_t)) {
+                dev_info = &((factory_dev_info_storage_t *)buf)->dev_info;
+            } else if (buf_len >= (int)sizeof(factory_dev_info_t)) {
+                dev_info = (factory_dev_info_t *)buf;
+            }
+            if (dev_info) {
+                uint8_t plen = dev_info->product_id_len > DEVICE_PRODUCT_ID_LEN ?
+                    DEVICE_PRODUCT_ID_LEN : dev_info->product_id_len;
+                uint8_t dlen = dev_info->device_id_len > DEVICE_DEVICE_ID_LEN ?
+                    DEVICE_DEVICE_ID_LEN : dev_info->device_id_len;
+                uint8_t klen = dev_info->enctyption_key_len > DEVICE_ENCTYPTION_KEY_LEN ?
+                    DEVICE_ENCTYPTION_KEY_LEN : dev_info->enctyption_key_len;
+                uint8_t slen = dev_info->sn_len > DEVICE_UNIQUE_SN_LEN ?
+                    DEVICE_UNIQUE_SN_LEN : dev_info->sn_len;
+                LOG_STORE("product_id[%u]: %.*s", plen, plen, (const char *)dev_info->product_id);
+                LOG_STORE("device_id[%u]: %.*s", dlen, dlen, (const char *)dev_info->device_id);
+                LOG_STORE("enctyption_key[%u]: %.*s", klen, klen, (const char *)dev_info->enctyption_key);
+                LOG_STORE("sn[%u]: %.*s", slen, slen, (const char *)dev_info->sn);
+            } else {
+                LOG_HEX("buf_rd", buf, buf_len);
+            }
         } else {
             LOGE("factory flash read failed %d", ret);
         }
