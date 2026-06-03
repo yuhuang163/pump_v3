@@ -5,7 +5,9 @@
 #include "root_common_api.h" // IWYU pragma: keep
 #include "adaptive_dimming.h" // IWYU pragma: keep
 #include "light_sensor_module.h" // IWYU pragma: keep
+#if IS_SUPPORT_DEVICE_LIGHT_SENSOR_CALIB
 #include "storage_manager_api.h" // IWYU pragma: keep
+#endif
 #if ADAP_DIM_USE_ENCODER_KNOB_SHIELD
 #include "input_key_code.h" // IWYU pragma: keep
 #include "key_input_manager_api.h" // IWYU pragma: keep
@@ -337,10 +339,16 @@ static void adaptive_dimming_polling_thread(void *user_data)
 
 #define LIGHT_SENSOR_USER_CALIB_INVALID_MARK      ((int32_t)0xFFFFFFFF)
 
+static int light_sensor_calib_thr_in_range(int32_t v)
+{
+    return (v > 0) && (v <= (int32_t)ADAP_DIM_LUX_MAX);
+}
+
 static int light_sensor_calib_tbl_is_invalid(const int32_t *tbl, uint8_t num)
 {
     for (uint8_t i = 0; i < num; i++) {
-        if (tbl[i] == 0 || tbl[i] == LIGHT_SENSOR_USER_CALIB_INVALID_MARK) {
+        if (tbl[i] == 0 || tbl[i] == LIGHT_SENSOR_USER_CALIB_INVALID_MARK ||
+            !light_sensor_calib_thr_in_range(tbl[i])) {
             return 1;
         }
     }
@@ -412,13 +420,17 @@ void adaptive_dimming_init(void)
                         adaptive_dimming_polling_thread);
     sensor_manager_context_t *sensor = (sensor_manager_context_t *)find_module(ID_MODULE_SENSOR);
     EXCEPTION_CHECK_VOID(sensor);
-    /// 读取光感校准：calib[0..3] 为分段 lux 阈值，calib[4] 预留；lux 上限用 ADAP_DIM_LUX_MAX 宏
+#if IS_SUPPORT_DEVICE_LIGHT_SENSOR_CALIB
+    /// calib[0..3] 分段 lux 阈值（1..ADAP_DIM_LUX_MAX），calib[4] 预留
     light_sensor_context_t *light_sensor = (light_sensor_context_t *)sensor->find_sensor(ID_SENSOR_LIGHT_SENSOR);
     EXCEPTION_CHECK_VOID(light_sensor);
     storage_manager_context_t *st = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
     EXCEPTION_CHECK_VOID(st);
     st->get_store_ram_val(STORE_ID_FACTORY_LIGHT_SENSOR_CALIB_DATA, 0, 0, light_sensor->priv.calib_tbl);
     adaptive_dimming_lux_thr_apply(light_sensor->priv.calib_tbl);
+#else
+    adaptive_dimming_lux_thr_load_defaults();
+#endif
     sensor->add_sensor_evt_lisenser(sensor, LIGHT_SENSOR_EVT_POLLING, 1, on_light_sensor_data_cb);
 #if ADAP_DIM_USE_ENCODER_KNOB_SHIELD
     key_input_context_t *input_key_ctx = (key_input_context_t *)find_module(ID_MODULE_KEY_INPUT);
