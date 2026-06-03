@@ -42,6 +42,10 @@ int read_factory_age_display_flag_from_ram(store_func_args_t args);
 int read_factory_fsensor_cali_flag_from_ram(store_func_args_t args);
 #endif
 
+#if IS_SUPPORT_DEVICE_LIGHT_SENSOR_CALIB
+int read_factory_light_sensor_calib_data_from_ram(store_func_args_t args);
+#endif
+
 int read_factory_suction_table_from_flash(store_func_args_t args);
 int read_factory_suction_table_from_ram(store_func_args_t args);
 

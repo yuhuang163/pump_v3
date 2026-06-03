@@ -11,6 +11,7 @@ extern "C" {
 #include "root_common_base.h" // IWYU pragma: keep
 
 #define LIGHT_SENSOR_POLLING_PERIOD                   (100)
+#define LIGHT_SENSOR_USER_CALIB_POINT_NUM              (5)
 
 struct rt_device_node;
 /// 光传感器上下文
@@ -20,6 +21,7 @@ typedef struct light_sensor_context {
         struct rt_device_node *dev;
         uint32_t polling_cnt;
         uint16_t sampling_interval;
+        int32_t calib_tbl[LIGHT_SENSOR_USER_CALIB_POINT_NUM];
     } priv;
     /// public
     uint16_t (*get_sampling_interval)(void);
