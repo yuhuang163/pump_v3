@@ -315,10 +315,15 @@ static void ble_event_callback(ble_event_e event, void *param)
         case BLE_EVENT_ADVERTISE_STOPPED:
             ble_obj->priv.ble_adv_state = 0;
             break;
+        case BLE_EVENT_TX_CCC_DISABLED:
+            //ble_obj->dispatch_ble_event_wrapper(ble_obj, BLE_MSG_TX_CCC_DISABLED, param, 1);
+            LOG_BLE("ble tx ccc disabled");
+            break;
+        case BLE_EVENT_TX_CCC_ENABLED:
+            ble_obj->dispatch_ble_event_wrapper(ble_obj, BLE_MSG_TX_CCC_ENABLED, param, 1);
         case BLE_EVENT_CONN_OPENED:
         case BLE_EVENT_CONN_MTU_EXCHANGED:
         case BLE_EVENT_CONN_PARAMS_UPDATE:
-        case BLE_EVENT_TX_CCC_ENABLED:
             ble_obj->dispatch_ble_event_wrapper(ble_obj, BLE_MSG_PERIPH_CONNECT_SUC, param, 1);
             break;
         case BLE_EVENT_CONN_CLOSED:
@@ -344,6 +349,9 @@ static void ble_data_callback(ble_service_id_e service_id, uint8_t *p_data, uint
             break;
         case BLE_SRV_ID_REMOTE:
             ble_obj->dispatch_ble_event_wrapper(ble_obj, BLE_MSG_REMOT_RECIVE_DATA, p_data, size);
+            break;
+        case BLE_SRV_ID_DATA_BURY:
+            ble_obj->dispatch_ble_event_wrapper(ble_obj, BLE_MSG_DATA_BURY_RECIVE_DATA, p_data, size);
             break;
         default:
             break;
