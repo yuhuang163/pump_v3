@@ -9,7 +9,6 @@
 #include "storage_manager_internal.h" // IWYU pragma: keep
 #include "factory_persist_data.h" // IWYU pragma: keep
 #include "pump_parameters_table.h" // IWYU pragma: keep
-#include "adaptive_dimming.h" // IWYU pragma: keep
 #include "light_sensor_module.h" // IWYU pragma: keep
 /*
  * DEFINES
@@ -447,21 +446,6 @@ int read_factory_battery_type_from_ram(store_func_args_t args)
 ///读取光感校准数据 目前只用到5个点位
 /// calib[0..3] 分段 lux 阈值，calib[4] 预留
 #if IS_SUPPORT_DEVICE_LIGHT_SENSOR_CALIB
-#define LIGHT_SENSOR_CALIB_ACTIVE_POINTS    LIGHT_SENSOR_USER_CALIB_POINT_NUM
-#define LIGHT_SENSOR_CALIB_THR_POINTS       4   /// [0..3] 分段阈值，[4] 预留
-#define LIGHT_SENSOR_CALIB_ERASED_MARK      ((int32_t)0xFFFFFFFF)
-
-static int factory_light_sensor_calib_is_invalid(factory_dev_info_t *dev_info, uint8_t num)
-{
-    for (uint8_t i = 0; i < num; i++) {
-        int32_t v = dev_info->light_sensor_calib_tbl[i];
-        if (v == 0 || v == LIGHT_SENSOR_CALIB_ERASED_MARK) {
-            return 1;
-        }
-    }
-    return 0;
-}
-
 int read_factory_light_sensor_calib_data_from_ram(store_func_args_t args)
 {
     EXCEPTION_CHECK_INT(args.ctx);
@@ -470,16 +454,7 @@ int read_factory_light_sensor_calib_data_from_ram(store_func_args_t args)
     EXCEPTION_CHECK_INT(dst);
 
     memcpy(dst, device_info->light_sensor_calib_tbl,
-           LIGHT_SENSOR_CALIB_ACTIVE_POINTS * sizeof(int32_t));
-    if (factory_light_sensor_calib_is_invalid(device_info, LIGHT_SENSOR_CALIB_THR_POINTS)) {
-        dst[0] = ADAP_DIM_LUX_THR_VDARK;
-        dst[1] = ADAP_DIM_LUX_THR_DARK;
-        dst[2] = ADAP_DIM_LUX_THR_MEDIUM;
-        dst[3] = ADAP_DIM_LUX_THR_BRIGHT;
-        memcpy(device_info->light_sensor_calib_tbl, dst,
-               LIGHT_SENSOR_CALIB_THR_POINTS * sizeof(int32_t));
-        LOG_STORE("light sensor calib data is not valid, use default value");
-    }
+           LIGHT_SENSOR_USER_CALIB_POINT_NUM * sizeof(int32_t));
     return 0;
 }
 #endif
