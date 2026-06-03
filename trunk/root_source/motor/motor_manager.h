@@ -10,6 +10,13 @@ extern "C" {
 ******************************************************************************/
 #include "root_common_api.h" // IWYU pragma: keep
 
+/// 马达状态事件客户端节点类型
+typedef struct {
+    void *user_data;
+    on_motor_status_evt_cb_fptr cb;
+    list_head_t list;
+} motor_status_evt_client_node_t;
+
 /*
 * INTERNAL FUNCTION DECLARATION
 *****************************************************************************************

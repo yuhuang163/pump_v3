@@ -145,11 +145,12 @@ do { \
 
 typedef struct {
     uint8_t status;
-    uint8_t mode;
+    uint8_t setting_mode;
+    uint8_t working_mode;
     uint8_t control_type;
     pump_setting_t setting;
     uint32_t work_valid_time;
-    uint32_t work_total_time;
+    uint32_t total_valid_time;
 } breast_pump_result_t;
 
 /// 泵奶数据

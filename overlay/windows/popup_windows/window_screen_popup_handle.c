@@ -49,6 +49,7 @@ static int on_popup_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t key
     }
 #endif
     if (proc->extra.forbid_short_press_exit_popup) {
+        LOG_WM("forbid short press exit popup, ignore.");
         return 0;
     }
     popup_request_close_overlay(proc);

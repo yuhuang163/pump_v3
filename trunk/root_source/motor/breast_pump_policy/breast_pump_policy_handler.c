@@ -209,15 +209,8 @@ void breast_pump_policy_prepare(struct motor_manager_context *thiz, uint8_t acti
         pump_policy_info_reset(thiz, body, i);
     }
     /// 策略重启通知app
-    servers_manager_context_t *servers_ctx = (servers_manager_context_t *)find_module(ID_MODULE_SERVERS);
-    EXCEPTION_CHECK_VOID(servers_ctx && servers_ctx->hook);
-    servers_publish_data_args_t args = {
-        .arg1 = OLD_PUBLISH_DATA_TASTE_START_REPORT,
-        .arg2 = 0,
-        .val = NULL,
-    };
     if (body->taste_run_flag) {
-        servers_ctx->hook->app_old_protocol_server_data_publish(APP_OLD_COMM_CID_TASTE_REPORT, &args);
+        thiz->notify_motor_status_change(MOTOR_STATUS_EVT_TASTE_START);
     }
     
 }
@@ -254,15 +247,7 @@ int breast_pump_mode_policy_handler(struct motor_manager_context *thiz, motor_ta
     negative_pressure_release(thiz);
     STOP_TIMER(policy_work_timer);
     if (runtime->taste_run_flag) {
-        //策略退出后通知app
-        servers_manager_context_t *servers_ctx = (servers_manager_context_t *)find_module(ID_MODULE_SERVERS);
-        EXCEPTION_CHECK_INT(servers_ctx && servers_ctx->hook);
-        servers_publish_data_args_t args = {
-            .arg1 = OLD_PUBLISH_DATA_TASTE_STOP_REPORT,
-            .arg2 = 0,
-            .val = NULL,
-        };
-        servers_ctx->hook->app_old_protocol_server_data_publish(APP_OLD_COMM_CID_TASTE_REPORT, &args);
+        thiz->notify_motor_status_change(MOTOR_STATUS_EVT_TASTE_STOP);
     }
     runtime->taste_run_flag = 0;
 
