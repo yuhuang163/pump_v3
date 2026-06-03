@@ -233,9 +233,17 @@ static void on_breast_pump_result_cb(void *user_data, breast_pump_result_t *resu
     if (pump->status != result->status) {
         pump->status = result->status;
         LOG_SRV("on_breast_pump_result_cb: %d", result->status);
-        if (result->status == BREAST_PUMP_FINISH || result->status == BREAST_PUMP_IDLE) {
+        if (result->status == BREAST_PUMP_FINISH) {
             LOG_SRV("FINISH");
             ctx->dispatch_servers_event_wrapper(ctx, SERVERS_PUBLISH_DATA_PUMP_SYSTEM_STATUS_RESET);
+        }
+        else if (result->status == BREAST_PUMP_RESET) {
+            LOG_SRV("RESET");
+            ctx->dispatch_servers_event_wrapper(ctx, SERVERS_PUBLISH_DATA_PUMP_SYSTEM_STATUS_RESET);
+            /// 重置pump状态到IDLE
+            breast_pump_manager_context_t *pump_ctx = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
+            EXCEPTION_CHECK_VOID(pump_ctx);
+            WRITE_PUMP_WORK_STATUS(pump_ctx, BREAST_PUMP_IDLE, 1);
         }
         is_need_publish = true;
         goto TO_PUBLISH;

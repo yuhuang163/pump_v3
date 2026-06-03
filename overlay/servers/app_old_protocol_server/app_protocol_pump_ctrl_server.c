@@ -120,12 +120,18 @@ static uint8_t app_old_comm_get_sys_status(servers_old_protocol_publish_data_id_
 
     /// 强制上报系统状态复位
     if (id == OLD_PUBLISH_DATA_SYSTEM_STATUS_RESET) {
+        LOG_SRV("APP_OLD_COMM_SYS_RESET");
         return APP_OLD_COMM_SYS_RESET;
     }
 
     /// 强制上报泵状态结束
     if (id == OLD_PUBLISH_DATA_PUMP_STATUS_FINISH || motor_ctx->get_timed_policy_finish_flag() == 1) {
         USB_IS_PLUGIN(chage_state) ? sys_status = APP_OLD_COMM_PUMP_FINISH_IN_CHARGE : APP_OLD_COMM_SYS_FINISH;
+       if (sys_status == APP_OLD_COMM_PUMP_FINISH_IN_CHARGE) {
+            LOG_SRV("APP_OLD_COMM_PUMP_FINISH_IN_CHARGE");
+       } else {
+            LOG_SRV("APP_OLD_COMM_SYS_FINISH");
+       } 
         return sys_status;
     }
 
@@ -1518,8 +1524,6 @@ void app_old_comm_handle_ctrl_reset_dev_req(uint8_t cal, uint8_t *cab)
     /// 先重置pump，再将pump状态设置为空闲
     WRITE_PUMP_WORK_STATUS(pump_ctx, BREAST_PUMP_RESET, 1);
     app_broadcast_pump_status_to_window(BREAST_PUMP_RESET,OLD_BROADCAST_ALL_CT);
-    WRITE_PUMP_WORK_STATUS(pump_ctx, BREAST_PUMP_IDLE, 1);
-    app_broadcast_pump_status_to_window(BREAST_PUMP_IDLE,OLD_BROADCAST_ALL_CT);
     /// 延时发送APP强制完成广播
     POST_TASK_HANDLER_DELAYED_ARG0(app_pump_broadcast_app_completed_delay_task_handler, PUMP_CTRL_TASK_DELAY_TIME,
                                     "app_pump_broadcast_app_completed_delay_task");
