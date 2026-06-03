@@ -138,20 +138,6 @@ static void reset_breast_pump_result(void)
     LOG_PMP("reset result.");
 }
 
-static void publish_pump_setting_change_to_app(servers_old_protocol_publish_data_id_e publish_id)
-{
-    servers_manager_context_t *servers_ctx = (servers_manager_context_t *)find_module(ID_MODULE_SERVERS);
-    EXCEPTION_CHECK_VOID(servers_ctx);
-    if (servers_ctx->hook) {
-        servers_publish_data_args_t args = {
-            .arg1 = publish_id,
-            .arg2 = 0,
-            .val = NULL,
-        };
-        servers_ctx->hook->app_old_protocol_server_data_publish(APP_OLD_COMM_CID_NOTIFY_STATUS, &args);
-    }
-}
-
 static void get_breast_pump_setting(pump_setting_t *setting, uint8_t step_index)
 {
     breast_pump_info_t *m_info = &breast_pump_obj->priv.m_info;
@@ -197,16 +183,6 @@ static void set_breast_pump_setting(pump_setting_t *setting, uint8_t step_index,
             mode, step_index, setting);
     }
 #endif
-    servers_manager_context_t *servers_ctx = (servers_manager_context_t *)find_module(ID_MODULE_SERVERS);
-    EXCEPTION_CHECK_VOID(servers_ctx);
-    if (servers_ctx->hook) {
-        servers_publish_data_args_t args = {
-            .arg1 = OLD_PUBLISH_DATA_PUMP_LEVEL_CHANGE,
-            .arg2 = 0,
-            .val = NULL,
-        };
-        servers_ctx->hook->app_old_protocol_server_data_publish(APP_OLD_COMM_CID_NOTIFY_STATUS, &args);
-    }
 }
 
 static void set_breast_pump_mode(uint32_t mode, uint8_t is_store_mode, uint8_t is_report)
@@ -215,53 +191,32 @@ static void set_breast_pump_mode(uint32_t mode, uint8_t is_store_mode, uint8_t i
     struct storage_manager_context *st = breast_pump_obj->priv.st;
     motor_manager_context_t *motor_ctx = breast_pump_obj->priv.motor;
 
-    /// 如果在运行中，模式切换，不在此处上报app，依赖progress_hook内部上报
-    if (m_info->do_work && mode != m_info->mode) {
-        is_report = 0;
-    }
-
-    if (motor_ctx != NULL && motor_ctx->hook != NULL &&
-        motor_ctx->hook->monitor_all_mode_policy_obj != NULL) {
-        motor_ctx->hook->monitor_all_mode_policy_obj(motor_ctx, "set_mode_pre");
-    }
-
     if (mode >= BREAST_PUMP_MODE_MAX) {
         m_info->mode = BREAST_PUMP_PUMP_MODE_DEFAULT;
     } else {
         m_info->mode = mode;
     }
+    
     SEND_BROADCAST_ARGS2(ID_BROADCAST_BREAST_PUMP_STATE_CHANGE, BREAST_PUMP_BROADCAST_MODE_CHANGE, m_info->mode);
-    if (motor_ctx != NULL && motor_ctx->hook != NULL &&
-        motor_ctx->hook->monitor_all_mode_policy_obj != NULL) {
-        motor_ctx->hook->monitor_all_mode_policy_obj(motor_ctx, "set_mode_post");
+    
+    /// 更新存储器中的泵奶模式
+    if (st) {
+        st->put_store_ram_val(STORE_ID_BREAST_PUMP_MODE, mode, 0, NULL);
     }
-    EXCEPTION_CHECK_VOID(st);
-    st->put_store_ram_val(STORE_ID_BREAST_PUMP_MODE, mode, 0, NULL);
+    
     m_info->step_index = 0;
     motor_ctx->set_runtime_policy_index(MOTOR_TIME_POLICY, 0);
+    for (uint8_t i = 0; i < ROOT_BREAST_PUMP_STEP_MAX; i++) {
+        if (st) {
+            st->get_store_ram_val(STORE_ID_PUMP_SETTING_INFO, m_info->mode, i, &breast_pump_obj->priv.setting[i]);
+        }
+    }
+
+    if (is_report) {
+        breast_pump_obj->priv.m_result.setting_mode = m_info->mode;
+    }
     LOG_PMP("new mode is: %d, name: %s, store:%d, report:%d", m_info->mode, 
             get_breast_pump_mode_name(m_info->mode), is_store_mode, is_report);
-    /// 读取存储器中的泵奶设置
-    for (uint8_t i = 0; i < ROOT_BREAST_PUMP_STEP_MAX; i++) {
-        st->get_store_ram_val(STORE_ID_PUMP_SETTING_INFO, m_info->mode, i, &breast_pump_obj->priv.setting[i]);
-    }
-    if (m_info->mode == BREAST_PUMP_CUSTOM_MODE || is_report) {
-        breast_pump_obj->priv.m_result.mode = m_info->mode;
-        servers_manager_context_t *servers_ctx = (servers_manager_context_t *)find_module(ID_MODULE_SERVERS);
-        EXCEPTION_CHECK_VOID(servers_ctx && servers_ctx->hook);
-        if (m_info->mode == BREAST_PUMP_CUSTOM_MODE) {
-            servers_publish_data_args_t args_id = { .arg1 = 0, .arg2 = 0, .val = NULL };
-            servers_ctx->hook->app_old_protocol_server_data_publish(APP_OLD_COMM_CID_NOTIFY_CUSTOM_MODE_ID, &args_id);
-        }
-        if (is_report) {
-            servers_publish_data_args_t args = {
-                .arg1 = OLD_PUBLISH_DATA_PUMP_MODE_CHANGE,
-                .arg2 = 0,
-                .val = NULL,
-            };
-            servers_ctx->hook->app_old_protocol_server_data_publish(APP_OLD_COMM_CID_NOTIFY_STATUS, &args);
-        }
-    }
 }
 
 static int get_breast_pump_mode(void)
@@ -399,24 +354,8 @@ static void set_breast_pump_status(int status, int is_report)
         }
     }
     
-    /// 通知app
     if (is_report) {
-        LOG_PMP("notify app, status: %d", status);
         breast_pump_obj->priv.m_result.status = status;
-        servers_manager_context_t *servers_ctx = (servers_manager_context_t *)find_module(ID_MODULE_SERVERS);
-        EXCEPTION_CHECK_VOID(servers_ctx && servers_ctx->hook);
-        servers_publish_data_args_t args = {
-            .arg1 = OLD_PUBLISH_DATA_SYSTEM_STATUS_CHANGE,
-            .arg2 = 0,
-            .val = NULL,
-        };
-        /// APP请求强制上报系统状态复位
-        if (status == BREAST_PUMP_FINISH) {
-            args.arg1 = OLD_PUBLISH_DATA_SYSTEM_STATUS_RESET;
-            servers_ctx->hook->app_old_protocol_server_data_publish(APP_OLD_COMM_CID_NOTIFY_STATUS, &args);
-        }
-        args.arg1 = OLD_PUBLISH_DATA_SYSTEM_STATUS_CHANGE;
-        servers_ctx->hook->app_old_protocol_server_data_publish(APP_OLD_COMM_CID_NOTIFY_STATUS, &args);
     }
     MUTEX_UNLOCK_BHT("set_status", breast_pump_obj->priv.breast_pump_state_lock);
     // LOG_PMP("exit work: %d", m_info->do_work);
@@ -582,15 +521,6 @@ static void set_breast_pump_control_type(uint8_t control_type, uint8_t is_report
     }
     if (is_report) {
         result->control_type = control_type;
-        servers_manager_context_t *servers_ctx = (servers_manager_context_t *)find_module(ID_MODULE_SERVERS);
-        EXCEPTION_CHECK_VOID(servers_ctx && servers_ctx->hook);
-        servers_publish_data_args_t args = {
-            .arg1 = OLD_PUBLISH_DATA_PUMP_CONTROL_TYPE_CHANGE,
-            .arg2 = 0,
-            .val = NULL,
-        };
-        servers_ctx->hook->app_old_protocol_server_data_publish(
-            APP_OLD_COMM_CID_NOTIFY_STATUS, &args);
     }
     LOG_UI("switch pump control type: %d", control_type);
 }

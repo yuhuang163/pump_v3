@@ -218,17 +218,6 @@ static void on_connect_status_change(ble_manager_context_t *ctx, int new_status,
     airplane_mode_context_t *ap = (airplane_mode_context_t *)find_module(ID_MODULE_AIRPLANE_MODE);
     EXCEPTION_CHECK_VOID(wm);
     EXCEPTION_CHECK_VOID(ap);
-
-    //通知app server
-    servers_manager_context_t *servers_ctx = (servers_manager_context_t *)find_module(ID_MODULE_SERVERS);
-    EXCEPTION_CHECK_VOID(servers_ctx && servers_ctx->hook);
-    servers_publish_data_args_t args = {
-        .arg1 = new_status,
-        .arg2 = 0,
-        .val = NULL,
-    };
-    servers_ctx->hook->app_old_protocol_server_data_publish(APP_OLD_COMM_CID_NOTIFY_DISCON, &args);
-
     if (forbid_popup) {
         LOGW("forbid_popup");
         return;

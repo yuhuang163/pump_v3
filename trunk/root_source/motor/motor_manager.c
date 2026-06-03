@@ -189,6 +189,8 @@ static int on_post_motor_init(void *ptr)
         thiz->hook->on_post_init_route(thiz);
     }
 
+    MUTEX_INIT(&thiz->priv.status_evt_lock, motor_status_evt_mutex);
+    USE_INIT_LIST_HEAD(&thiz->priv.status_evt_client_list);
     MUTEX_INIT(&thiz->priv.motor_play_thd.lock_id, m_motor_play_lock);
     motor_policy_init(thiz);
     RUN_NEW_THREAD(&thiz->priv.motor_play_thd, "motor_play_thd", motor_play_work_thread, 
@@ -312,6 +314,69 @@ static uint8_t get_timed_policy_finish_flag(void)
     return motor_obj->priv.runtime.all_timed_policy_finish_flag;
 }
 
+static void dispatch_motor_status_evt_client(motor_manager_context_t *obj, motor_status_evt_type_e evt_type)
+{
+    list_head_t *head = &obj->priv.status_evt_client_list;
+    MUTEX_LOCK(obj->priv.status_evt_lock);
+    LIST_FOR_EACH(pos, (head)) {
+        motor_status_evt_client_node_t *node = CONTAINER_OF(pos, motor_status_evt_client_node_t, list);
+        if (node->cb) {
+            node->cb(node->user_data, evt_type);
+        }
+    }
+    MUTEX_UNLOCK(obj->priv.status_evt_lock);
+}
+
+static void add_motor_status_evt_listener(void *user_data, on_motor_status_evt_cb_fptr cb)
+{
+    motor_manager_context_t *obj = motor_obj;
+    list_head_t *head = &obj->priv.status_evt_client_list;
+    MUTEX_LOCK(obj->priv.status_evt_lock);
+    LIST_FOR_EACH(pos, (head)) {
+        motor_status_evt_client_node_t *node = CONTAINER_OF(pos, motor_status_evt_client_node_t, list);
+        if (node->cb == cb && node->user_data == user_data) {
+            LOGW("ignore duplicate add.");
+            MUTEX_UNLOCK(obj->priv.status_evt_lock);
+            return;
+        }
+    }
+    motor_status_evt_client_node_t *node = u_malloz(sizeof(motor_status_evt_client_node_t));
+    node->cb = cb;
+    node->user_data = user_data;
+    __list_add(&node->list, head);
+    LOG_MOTOR("add: user_data: %lx, cb: %lx", user_data, cb);
+    MUTEX_UNLOCK(obj->priv.status_evt_lock);
+}
+
+static void *motor_status_evt_list_del_condition_cb(void *data, list_head_t *pos)
+{
+    on_motor_status_evt_cb_fptr cb = (on_motor_status_evt_cb_fptr)data;
+    motor_status_evt_client_node_t *node = CONTAINER_OF(pos, motor_status_evt_client_node_t, list);
+    if (node->cb == cb) {
+        LOG_MOTOR("del: user_data: %lx, cb: %lx", node->user_data, node->cb);
+        return node;
+    }
+    return NULL;
+}
+
+static void remove_motor_status_evt_listener(on_motor_status_evt_cb_fptr cb)
+{
+    motor_manager_context_t *obj = motor_obj;
+    list_head_t *head = &obj->priv.status_evt_client_list;
+    MUTEX_LOCK(obj->priv.status_evt_lock);
+    __list_del(head, cb, motor_status_evt_list_del_condition_cb);
+    MUTEX_UNLOCK(obj->priv.status_evt_lock);
+}
+
+static void notify_motor_status_change(motor_status_evt_type_e evt_type)
+{
+    EXCEPTION_CHECK_VOID(motor_obj);
+    if (evt_type >= MOTOR_STATUS_EVT_MAX) {
+        return;
+    }
+    dispatch_motor_status_evt_client(motor_obj, evt_type);
+}
+
 uint8_t get_local_suction_table(factory_suction_para_t **suction_para)
 {
     if (!suction_para || !motor_obj || !motor_obj->priv.suction_para) {
@@ -342,6 +407,9 @@ void *register_module_for_motor_manager_new(list_head_t *list_head)
     ptr->get_timed_policy_finish_flag = get_timed_policy_finish_flag;
     ptr->synchronous_stop_motor = synchronous_stop_motor;
     ptr->get_local_suction_table = get_local_suction_table;
+    ptr->add_motor_status_evt_listener = add_motor_status_evt_listener;
+    ptr->remove_motor_status_evt_listener = remove_motor_status_evt_listener;
+    ptr->notify_motor_status_change = notify_motor_status_change;
     motor_obj = ptr;
     
     return ADD_MODULE("motor", ID_MODULE_MOTOR, 0, on_post_motor_init, 
