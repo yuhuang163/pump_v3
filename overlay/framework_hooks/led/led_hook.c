@@ -157,7 +157,6 @@ static void set_night_light_level_internal(led_manager_context_t *thiz, uint8_t 
         },
     };
     thiz->priv.led_dev->ioctl(thiz->priv.led_dev, OP_CODE_LED_STATUS_SET, (void *)&msg);
-    led_hook_notify_state(thiz, LED_BROADCAST_NIGHT_LIGHT_ONOFF);
 }
 
 static void set_night_light_level(led_manager_context_t *thiz, uint8_t level)
@@ -192,6 +191,7 @@ static int toggle_night_light(led_manager_context_t *thiz)
     LOG_MISC("toggle night light, onoff: %d, level: %d/%d", 
         thiz->priv.night_light_onoff, thiz->priv.night_light_adaptive_level, thiz->priv.night_light_level);
     set_night_light_level_internal(thiz, level);
+    led_hook_notify_state(thiz, LED_BROADCAST_NIGHT_LIGHT_ONOFF);
     return thiz->priv.night_light_onoff ? 1 : 0;
 }
 
