@@ -31,23 +31,21 @@ static void app_old_comm_set_night_light(uint8_t adaptive_dimming_switch)
     LOG_SRV(" Night light set: adaptive=%d", adaptive_dimming_switch);
 }
 
-/// 协议亮度档位 0-10 映射到驱动亮度 0-100（每档 10%）
+/// 协议亮度 0-100 与驱动亮度 0-100 一一对应
 static uint8_t app_old_comm_proto_level_to_percent(uint8_t proto_level)
 {
     if (proto_level > APP_OLD_COMM_LIGHT_LEVEL_MAX) {
         proto_level = APP_OLD_COMM_LIGHT_LEVEL_MAX;
     }
-    uint8_t percent = (uint8_t)(proto_level * 10);
-    return (percent > LED_LEVEL_MAX) ? LED_LEVEL_MAX : percent;
+    return (proto_level > LED_LEVEL_MAX) ? LED_LEVEL_MAX : proto_level;
 }
 
 static uint8_t app_old_comm_percent_to_proto_level(uint8_t percent)
 {
-    uint8_t level = (uint8_t)((percent + 5) / 10);
-    if (level > APP_OLD_COMM_LIGHT_LEVEL_MAX) {
-        level = APP_OLD_COMM_LIGHT_LEVEL_MAX;
+    if (percent > APP_OLD_COMM_LIGHT_LEVEL_MAX) {
+        percent = APP_OLD_COMM_LIGHT_LEVEL_MAX;
     }
-    return level;
+    return percent;
 }
 
 static void app_old_comm_light_status_from_cab(const uint8_t *cab, app_old_comm_light_status_t *status)
