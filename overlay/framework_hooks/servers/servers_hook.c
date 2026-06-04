@@ -320,7 +320,6 @@ static void on_servers_led_state_cb(void *user_data, led_state_info_t *info)
     EXCEPTION_CHECK_VOID(servers_sys_info && info);
     light = &servers_sys_info->light;
     if (memcmp(light, info, sizeof(led_state_info_t)) == 0) {
-        LOG_SRV("led state is the same");
         return;
     }
     LOG_SRV("led state change: evt=%d onoff=%d level=%d adaptive=%d/%d",
