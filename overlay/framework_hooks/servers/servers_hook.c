@@ -17,6 +17,7 @@ typedef struct {
     uint8_t force_update_flag;
     breast_pump_result_t pump;
     battery_state_info_t battery;
+    led_state_info_t light;
 } servers_system_info_t;
 
 /*
@@ -144,6 +145,17 @@ static void on_motor_pump_step_all_param_change_report(servers_manager_context_t
     app_old_protocol_server_data_publish(APP_OLD_COMM_CID_NOTIFY_STATUS, &args);
 }
 
+static void on_light_status_report(servers_manager_context_t *ctx)
+{
+    EXCEPTION_CHECK_VOID(ctx);
+    servers_publish_data_args_t args = {
+        .arg1 = OLD_PUBLISH_DATA_LIGHT_STATUS_CHANGE,
+        .arg2 = 0,
+        .val = NULL,
+    };
+    app_old_protocol_server_data_publish(APP_OLD_COMM_CID_NOTIFY_LIGHT_STATUS, &args);
+}
+
 static void on_motor_status_evt_cb(void *user_data, motor_status_evt_type_e evt_type)
 {
     servers_manager_context_t *ctx = (servers_manager_context_t *)user_data;
@@ -216,6 +228,9 @@ static int servers_work_thread_route(servers_manager_context_t *ctx, servers_pub
             break;
         case SERVERS_PUBLISH_DATA_BATTERY_CHARGE_NORMAL_REPORT:
             on_charge_status_report(ctx, servers_sys_info->battery.charge_status);
+            break;
+        case SERVERS_PUBLISH_DATA_LIGHT_STATUS_CHANGE:
+            on_light_status_report(ctx);
             break;
         default:
             break;
@@ -296,6 +311,26 @@ TO_PUBLISH:
     last_report_time = get_timestamp();
 }
 
+static void on_servers_led_state_cb(void *user_data, led_state_info_t *info)
+{
+    static uint32_t last_report_time = 0;
+    servers_manager_context_t *ctx = (servers_manager_context_t *)user_data;
+    led_state_info_t *light = NULL;
+
+    EXCEPTION_CHECK_VOID(ctx && ctx->dispatch_servers_event_wrapper);
+    EXCEPTION_CHECK_VOID(servers_sys_info && info);
+    light = &servers_sys_info->light;
+    if (memcmp(light, info, sizeof(led_state_info_t)) == 0) {
+        LOG_SRV("led state is the same");
+        return;
+    }
+    memcpy(light, info, sizeof(led_state_info_t));
+    LOG_SRV("led state change: evt=%d onoff=%d level=%d adaptive=%d/%d",
+            info->evt_id, info->night_light_onoff, info->night_light_level,
+            info->night_light_adaptive_switch, info->night_light_adaptive_dimming);
+    ctx->dispatch_servers_event_wrapper(ctx, SERVERS_PUBLISH_DATA_LIGHT_STATUS_CHANGE);
+}
+
 static void on_servers_battery_state_cb(void *user_data, battery_state_info_t *info)
 {
     servers_manager_context_t *ctx = (servers_manager_context_t *)user_data;
@@ -339,6 +374,8 @@ static int on_post_servers_init_route(struct servers_manager_context *ctx)
     motor_manager_context_t *motor_ctx = (motor_manager_context_t *)find_module(ID_MODULE_MOTOR);
     ADD_MOTOR_STATUS_EVT_CB(motor_ctx, ctx, on_motor_status_evt_cb);
     servers_sys_info = u_malloz(sizeof(servers_system_info_t));
+    led_manager_context_t *led_ctx = (led_manager_context_t *)find_module(ID_MODULE_LED);
+    ADD_LED_STATE_CB(led_ctx, ctx, on_servers_led_state_cb);
 
     return 0;
 }

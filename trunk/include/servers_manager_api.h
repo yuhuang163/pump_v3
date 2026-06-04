@@ -36,6 +36,7 @@ typedef enum {
     SERVERS_PUBLISH_DATA_PUMP_CUSTOM_MODE_REPORT,      /// 泵自定义模式上报
     SERVERS_PUBLISH_DATA_MOTOR_TASTE_START_REPORT,     /// 马达体验模式启动上报
     SERVERS_PUBLISH_DATA_MOTOR_TASTE_STOP_REPORT,      /// 马达体验模式停止上报
+    SERVERS_PUBLISH_DATA_LIGHT_STATUS_CHANGE,           /// 灯光状态变化上报
     SERVERS_PUBLISH_DATA_ID_MAX
 } servers_publish_data_id_e;
 
