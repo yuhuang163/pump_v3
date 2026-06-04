@@ -26,14 +26,14 @@ typedef struct {
     uint8_t device_bind_status;
 } app_old_comm_sys_status_ctrl;
 
-#define APP_OLD_COMM_LIGHT_LEVEL_MAX  10  /// 协议亮度档位上限（0~10）
+#define APP_OLD_COMM_LIGHT_LEVEL_MAX  100  /// 协议亮度档位上限（0~100，与驱动百分比一致）
 
 /// 灯光状态（0xC2 / 0xBE / 0xDE，CAL=4）
 typedef struct __attribute__((packed)) {
     uint8_t night_light_switch;  /// 夜灯开关：0-关，1-开
-    uint8_t night_light_level;   /// 夜灯亮度档位 0-10，关时填 0
-    uint8_t adaptive_switch;     /// 夜灯自适应开关：0-关，1-开
-    uint8_t screen_key_level;    /// 屏幕/按键亮度档位 0-10
+    uint8_t night_light_level;   /// 夜灯亮度 0-100，关时填 0
+    uint8_t adaptive_switch;     /// 自适应开关：0-关，1-开
+    uint8_t screen_key_level;    /// 屏幕/按键亮度 0-100
 } app_old_comm_light_status_t;
 
 #define APP_OLD_COMM_LIGHT_STATUS_CAL  ((uint8_t)sizeof(app_old_comm_light_status_t))
