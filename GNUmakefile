@@ -131,6 +131,7 @@ ROOT_PRODUCT_ID ?= $(ROOT_PRODUCT_V3_ID)
 ROOT_UI_V2 ?= 0x02
 ROOT_UI_V3 ?= 0x03
 ROOT_UI_V4 ?= 0x04
+ROOT_UI_V5 ?= 0x05
 
 ROOT_UI_VERSION ?= $(ROOT_UI_V4)
 
@@ -138,15 +139,19 @@ ROOT_UI_VERSION ?= $(ROOT_UI_V4)
 V3_UI_V2 ?= 0x02
 V3_UI_V3 ?= 0x03
 V3_UI_V4 ?= 0x04
+V3_UI_V5 ?= 0x05
 
 # V3PRO UI版本
 V3PRO_UI_V2 ?= 0x12
 V3PRO_UI_V3 ?= 0x13
 V3PRO_UI_V4 ?= 0x14
+V3PRO_UI_V5 ?= 0x15
 
 # 产品UX版本
 V3_UX_V1 ?= 0x01
 V3_UX_V2 ?= 0x02
+V3_UX_V3 ?= 0x03
+V3_UX_V4 ?= 0x04
 
 # 根据产品型号和UI版本确定V3/V3PRO UI版本
 ifeq ($(ROOT_PRODUCT_ID), $(ROOT_PRODUCT_V3PRO_ID))
@@ -158,10 +163,16 @@ else ifeq ($(ROOT_UI_VERSION), $(ROOT_UI_V3))
 V3_UI_VERSION ?= $(V3PRO_UI_V3)
 V3_UX_VERSION ?= $(V3_UX_V1)
 PUMP_RHYTHM_MODE_NUM := 6
-else
+else ifeq ($(ROOT_UI_VERSION), $(ROOT_UI_V4))
 V3_UI_VERSION ?= $(V3PRO_UI_V4)
 V3_UX_VERSION ?= $(V3_UX_V2)
 PUMP_RHYTHM_MODE_NUM := 3
+else ifeq ($(ROOT_UI_VERSION), $(ROOT_UI_V5))
+V3_UI_VERSION ?= $(V3PRO_UI_V5)
+V3_UX_VERSION ?= $(V3_UX_V3)
+PUMP_RHYTHM_MODE_NUM := 3
+else 
+$(warning Invalid UI version)
 endif
 # 长按硬件重启
 CFG_POWER_KEY_HW_RESET_ENABLE := 1
@@ -174,10 +185,16 @@ else ifeq ($(ROOT_UI_VERSION), $(ROOT_UI_V3))
 V3_UI_VERSION ?= $(V3_UI_V3)
 V3_UX_VERSION ?= $(V3_UX_V1)
 PUMP_RHYTHM_MODE_NUM := 6
-else
+else ifeq ($(ROOT_UI_VERSION), $(ROOT_UI_V4))
 V3_UI_VERSION ?= $(V3_UI_V4)
 V3_UX_VERSION ?= $(V3_UX_V2)
 PUMP_RHYTHM_MODE_NUM := 3
+else ifeq ($(ROOT_UI_VERSION), $(ROOT_UI_V5))
+V3_UI_VERSION ?= $(V3_UI_V5)
+V3_UX_VERSION ?= $(V3_UX_V3)
+PUMP_RHYTHM_MODE_NUM := 3
+else
+$(warning Invalid UI version)
 endif
 # 长按硬件重启
 CFG_POWER_KEY_HW_RESET_ENABLE := 0
@@ -193,56 +210,50 @@ BLE_INC_DIRS := $(shell find $(PROJECT_ROOT)/trunk/platform_chip/bes/sdk/bthost 
 # BLE 头文件
 BLE_INC_FLAGS := $(patsubst %,-I%,$(BLE_INC_DIRS))
 
-# UI Direct v3 V2 头文件子目录
-UI_INC_DIRECT_V3_V2_DIRS := $(shell find $(PROJECT_ROOT)/overlay/ui/v3_ui_v2 -type d)
-# UI Direct v3 V2 头文件
-UI_INC_DIRECT_V3_V2_FLAGS := $(patsubst %,-I%,$(UI_INC_DIRECT_V3_V2_DIRS))
-# UI Direct v3pro V2 头文件子目录
-UI_INC_DIRECT_V3PRO_V2_DIRS := $(shell find $(PROJECT_ROOT)/overlay/ui/v3pro_ui_v2 -type d)
-# UI Direct v3pro V2 头文件
-UI_INC_DIRECT_V3PRO_V2_FLAGS := $(patsubst %,-I%,$(UI_INC_DIRECT_V3PRO_V2_DIRS))
-# UI LCD Direct v3 V2 源码目录
-UI_LCD_DIRECT_V3_V2_DIR := $(PROJECT_ROOT)/overlay/ui/v3_ui_v2
-# UI LCD Direct v3 V2 源码文件
-UI_LCD_DIRECT_V3_V2_SRCS := $(call rwildcard,$(UI_LCD_DIRECT_V3_V2_DIR))
-# UI LCD Direct v3pro V2 源码目录
-UI_LCD_DIRECT_V3PRO_V2_DIR := $(PROJECT_ROOT)/overlay/ui/v3pro_ui_v2
-# UI LCD Direct v3pro V2 源码文件
-UI_LCD_DIRECT_V3PRO_V2_SRCS := $(call rwildcard,$(UI_LCD_DIRECT_V3PRO_V2_DIR))
+# UI overlay：按 V3_UI_VERSION 选定子目录（仅计算当前版本）
+ifeq ($(V3_UI_VERSION), $(V3_UI_V2))
+UI_OVERLAY_SUBDIR := v3_ui_v2
+else ifeq ($(V3_UI_VERSION), $(V3PRO_UI_V2))
+UI_OVERLAY_SUBDIR := v3pro_ui_v2
+else ifeq ($(V3_UI_VERSION), $(V3_UI_V3))
+UI_OVERLAY_SUBDIR := v3_ui_v3
+else ifeq ($(V3_UI_VERSION), $(V3PRO_UI_V3))
+UI_OVERLAY_SUBDIR := v3pro_ui_v3
+else ifeq ($(V3_UI_VERSION), $(V3_UI_V4))
+UI_OVERLAY_SUBDIR := v3_ui_v4
+else ifeq ($(V3_UI_VERSION), $(V3PRO_UI_V4))
+UI_OVERLAY_SUBDIR := v3pro_ui_v4
+else ifeq ($(V3_UI_VERSION), $(V3_UI_V5))
+UI_OVERLAY_SUBDIR := v3_ui_v5
+else ifeq ($(V3_UI_VERSION), $(V3PRO_UI_V5))
+UI_OVERLAY_SUBDIR := v3pro_ui_v5
+else
+$(warning Invalid UI version)
+endif
+ifneq ($(UI_OVERLAY_SUBDIR),)
+UI_OVERLAY_DIR := $(PROJECT_ROOT)/overlay/ui/$(UI_OVERLAY_SUBDIR)
+UI_INC_DIRECT_FLAGS := $(patsubst %,-I%,$(shell find $(UI_OVERLAY_DIR) -type d))
+UI_LCD_DIRECT_SRCS := $(call rwildcard,$(UI_OVERLAY_DIR))
+endif
 
-# UI Direct v3 V3 头文件子目录
-UI_INC_DIRECT_V3_V3_DIRS := $(shell find $(PROJECT_ROOT)/overlay/ui/v3_ui_v3 -type d)
-# UI Direct v3 V3 头文件
-UI_INC_DIRECT_V3_V3_FLAGS := $(patsubst %,-I%,$(UI_INC_DIRECT_V3_V3_DIRS))
-# UI Direct v3pro V3 头文件子目录
-UI_INC_DIRECT_V3PRO_V3_DIRS := $(shell find $(PROJECT_ROOT)/overlay/ui/v3pro_ui_v3 -type d)
-# UI Direct v3pro V3 头文件
-UI_INC_DIRECT_V3PRO_V3_FLAGS := $(patsubst %,-I%,$(UI_INC_DIRECT_V3PRO_V3_DIRS))
-# UI LCD Direct v3 V3 源码目录
-UI_LCD_DIRECT_V3_V3_DIR := $(PROJECT_ROOT)/overlay/ui/v3_ui_v3
-# UI LCD Direct v3 V3 源码文件
-UI_LCD_DIRECT_V3_V3_SRCS := $(call rwildcard,$(UI_LCD_DIRECT_V3_V3_DIR))
-# UI LCD Direct v3pro V3 源码目录
-UI_LCD_DIRECT_V3PRO_V3_DIR := $(PROJECT_ROOT)/overlay/ui/v3pro_ui_v3
-# UI LCD Direct v3pro V3 源码文件
-UI_LCD_DIRECT_V3PRO_V3_SRCS := $(call rwildcard,$(UI_LCD_DIRECT_V3PRO_V3_DIR))
+# windows overlay：按 V3_UX_VERSION 选定子目录（仅计算当前版本）
+ifeq ($(V3_UX_VERSION), $(V3_UX_V1))
+WINDOWS_OVERLAY_SUBDIR := windows_v1
+else ifeq ($(V3_UX_VERSION), $(V3_UX_V2))
+WINDOWS_OVERLAY_SUBDIR := windows_v2
+else ifeq ($(V3_UX_VERSION), $(V3_UX_V3))
+WINDOWS_OVERLAY_SUBDIR := windows_v3
+else ifeq ($(V3_UX_VERSION), $(V3_UX_V4))
+WINDOWS_OVERLAY_SUBDIR := windows_v4
+else
+$(warning Invalid UX version)
+endif
+ifneq ($(WINDOWS_OVERLAY_SUBDIR),)
+WINDOWS_OVERLAY_DIR := $(PROJECT_ROOT)/overlay/windows/$(WINDOWS_OVERLAY_SUBDIR)
+WINDOWS_UX_INC_FLAGS := $(patsubst %,-I%,$(shell find $(WINDOWS_OVERLAY_DIR) -type d))
+WINDOWS_UX_SRCS := $(call rwildcard,$(WINDOWS_OVERLAY_DIR))
+endif
 
-# UI Direct v3 V4 头文件子目录
-UI_INC_DIRECT_V3_V4_DIRS := $(shell find $(PROJECT_ROOT)/overlay/ui/v3_ui_v4 -type d)
-# UI Direct v3 V4 头文件
-UI_INC_DIRECT_V3_V4_FLAGS := $(patsubst %,-I%,$(UI_INC_DIRECT_V3_V4_DIRS))
-# UI Direct v3pro V4 头文件子目录
-UI_INC_DIRECT_V3PRO_V4_DIRS := $(shell find $(PROJECT_ROOT)/overlay/ui/v3pro_ui_v4 -type d)
-# UI Direct v3pro V4 头文件
-UI_INC_DIRECT_V3PRO_V4_FLAGS := $(patsubst %,-I%,$(UI_INC_DIRECT_V3PRO_V4_DIRS))
-# UI LCD Direct v3 V4 源码目录
-UI_LCD_DIRECT_V3_V4_DIR := $(PROJECT_ROOT)/overlay/ui/v3_ui_v4
-# UI LCD Direct v3 V4 源码文件
-UI_LCD_DIRECT_V3_V4_SRCS := $(call rwildcard,$(UI_LCD_DIRECT_V3_V4_DIR))
-# UI LCD Direct v3pro V4 源码目录
-UI_LCD_DIRECT_V3PRO_V4_DIR := $(PROJECT_ROOT)/overlay/ui/v3pro_ui_v4
-# UI LCD Direct v3pro V4 源码文件
-UI_LCD_DIRECT_V3PRO_V4_SRCS := $(call rwildcard,$(UI_LCD_DIRECT_V3PRO_V4_DIR))
 
 # Protocol 头文件子目录
 PROTOCOL_INC_DIRS := $(shell find $(PROJECT_ROOT)/overlay/protocol -type d)
@@ -578,21 +589,7 @@ UI_MODULE_INC_FLAGS := \
 	-I$(PROJECT_ROOT)/overlay/ui \
 	-I$(PROJECT_ROOT)/trunk/root_source/ui \
 	-I$(PROJECT_ROOT)/overlay/framework_hooks/ui/
-ifeq ($(V3_UI_VERSION), $(V3_UI_V2))
-UI_MODULE_INC_FLAGS += $(UI_INC_DIRECT_V3_V2_FLAGS)
-else ifeq ($(V3_UI_VERSION), $(V3PRO_UI_V2))
-UI_MODULE_INC_FLAGS += $(UI_INC_DIRECT_V3PRO_V2_FLAGS)
-else ifeq ($(V3_UI_VERSION), $(V3_UI_V3))
-UI_MODULE_INC_FLAGS += $(UI_INC_DIRECT_V3_V3_FLAGS)
-else ifeq ($(V3_UI_VERSION), $(V3PRO_UI_V3))
-UI_MODULE_INC_FLAGS += $(UI_INC_DIRECT_V3PRO_V3_FLAGS)
-else ifeq ($(V3_UI_VERSION), $(V3_UI_V4))
-UI_MODULE_INC_FLAGS += $(UI_INC_DIRECT_V3_V4_FLAGS)
-else ifeq ($(V3_UI_VERSION), $(V3PRO_UI_V4))
-UI_MODULE_INC_FLAGS += $(UI_INC_DIRECT_V3PRO_V4_FLAGS)
-else
-warn "Invalid UI version"
-endif
+UI_MODULE_INC_FLAGS += $(UI_INC_DIRECT_FLAGS)
 
 # 字体模块头文件
 FONT_V2_INC_FLAGS := \
@@ -613,21 +610,8 @@ FONT_INC_FLAGS += $(FONT_V2_INC_FLAGS)
 # 窗口模块头文件
 WINDOWS_INC_FLAGS := \
 	-I$(PROJECT_ROOT)/overlay/windows \
-	-I$(PROJECT_ROOT)/overlay/windows/dummy \
-	-I$(PROJECT_ROOT)/overlay/windows/setting \
-	-I$(PROJECT_ROOT)/overlay/windows/breast_pump \
-	-I$(PROJECT_ROOT)/overlay/windows/guide \
-	-I$(PROJECT_ROOT)/overlay/windows/home \
-	-I$(PROJECT_ROOT)/overlay/windows/charge \
-	-I$(PROJECT_ROOT)/overlay/windows/ota \
-	-I$(PROJECT_ROOT)/overlay/windows/logo \
-	-I$(PROJECT_ROOT)/overlay/windows/battery \
-	-I$(PROJECT_ROOT)/overlay/windows/popup_windows \
-	-I$(PROJECT_ROOT)/overlay/windows/airplane_mode \
-	-I$(PROJECT_ROOT)/overlay/windows/product_test_window \
-	-I$(PROJECT_ROOT)/overlay/windows/factory_reset \
-	-I$(PROJECT_ROOT)/overlay/windows/power_off \
 	-I$(PROJECT_ROOT)/trunk/root_source/windows
+WINDOWS_INC_FLAGS += $(WINDOWS_UX_INC_FLAGS)
 
 # 飞行模式模块头文件
 AIRPLANE_MODE_INC_FLAGS := \
@@ -704,8 +688,12 @@ else ifeq ($(V3_UI_VERSION), $(V3_UI_V4))
 RESOURCE_INC_FLAGS += -I$(PROJECT_ROOT)/overlay/resources/v3_res_v4
 else ifeq ($(V3_UI_VERSION), $(V3PRO_UI_V4))
 RESOURCE_INC_FLAGS += -I$(PROJECT_ROOT)/overlay/resources/v3pro_res_v4
+else ifeq ($(V3_UI_VERSION), $(V3_UI_V5))
+RESOURCE_INC_FLAGS += -I$(PROJECT_ROOT)/overlay/resources/v3_res_v5
+else ifeq ($(V3_UI_VERSION), $(V3PRO_UI_V5))
+RESOURCE_INC_FLAGS += -I$(PROJECT_ROOT)/overlay/resources/v3pro_res_v5
 else
-warn "Invalid UI version"
+$(warning Invalid UI version)
 endif
 
 # 电池模块头文件
@@ -825,14 +813,12 @@ CPPFLAGS += -DROOT_UI_VERSION=$(ROOT_UI_VERSION)
 CPPFLAGS += -DROOT_UI_V2=$(ROOT_UI_V2)
 CPPFLAGS += -DROOT_UI_V3=$(ROOT_UI_V3)
 CPPFLAGS += -DROOT_UI_V4=$(ROOT_UI_V4)
+CPPFLAGS += -DROOT_UI_V5=$(ROOT_UI_V5)
 
 CPPFLAGS += -DV3_UX_VERSION=$(V3_UX_VERSION)
 CPPFLAGS += -DV3_UX_V1=$(V3_UX_V1)
 CPPFLAGS += -DV3_UX_V2=$(V3_UX_V2)
-
-# CPPFLAGS += -DROOT_UX_VERSION=$(ROOT_UX_VERSION)
-# CPPFLAGS += -DROOT_UX_V1=$(ROOT_UX_V1)
-# CPPFLAGS += -DROOT_UX_V2=$(ROOT_UX_V2)
+CPPFLAGS += -DV3_UX_V3=$(V3_UX_V3)
 
 # 泵驱动版本
 CPPFLAGS += -DMOTOR_DRIVER_VERSION=$(MOTOR_DRIVER_VERSION)
@@ -1201,21 +1187,7 @@ INPUT_KEY_MODULE_SRCS := \
 UI_MODULE_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/trunk/root_source/ui/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/framework_hooks/ui/*.c) 
-ifeq ($(V3_UI_VERSION), $(V3_UI_V2))
-UI_MODULE_SRCS += $(UI_LCD_DIRECT_V3_V2_SRCS)
-else ifeq ($(V3_UI_VERSION), $(V3PRO_UI_V2))
-UI_MODULE_SRCS += $(UI_LCD_DIRECT_V3PRO_V2_SRCS)
-else ifeq ($(V3_UI_VERSION), $(V3_UI_V3))
-UI_MODULE_SRCS += $(UI_LCD_DIRECT_V3_V3_SRCS)
-else ifeq ($(V3_UI_VERSION), $(V3PRO_UI_V3))
-UI_MODULE_SRCS += $(UI_LCD_DIRECT_V3PRO_V3_SRCS)
-else ifeq ($(V3_UI_VERSION), $(V3_UI_V4))
-UI_MODULE_SRCS += $(UI_LCD_DIRECT_V3_V4_SRCS)
-else ifeq ($(V3_UI_VERSION), $(V3PRO_UI_V4))
-UI_MODULE_SRCS += $(UI_LCD_DIRECT_V3PRO_V4_SRCS)
-else
-warn "Invalid UI version"
-endif
+UI_MODULE_SRCS += $(UI_LCD_DIRECT_SRCS)
 
 # 字体模块源码
 FONT_V2_SRCS := \
@@ -1236,21 +1208,8 @@ FONT_MODULE_SRCS += $(FONT_V2_SRCS)
 # 窗口模块源码
 WINDOWS_MODULE_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/overlay/windows/*.c) \
-	$(wildcard $(PROJECT_ROOT)/overlay/windows/dummy/*.c) \
-	$(wildcard $(PROJECT_ROOT)/overlay/windows/setting/*.c) \
-	$(wildcard $(PROJECT_ROOT)/overlay/windows/breast_pump/*.c) \
-	$(wildcard $(PROJECT_ROOT)/overlay/windows/guide/*.c) \
-	$(wildcard $(PROJECT_ROOT)/overlay/windows/home/*.c) \
-	$(wildcard $(PROJECT_ROOT)/overlay/windows/charge/*.c) \
-	$(wildcard $(PROJECT_ROOT)/overlay/windows/ota/*.c) \
-	$(wildcard $(PROJECT_ROOT)/overlay/windows/logo/*.c) \
-	$(wildcard $(PROJECT_ROOT)/overlay/windows/battery/*.c) \
-	$(wildcard $(PROJECT_ROOT)/overlay/windows/popup_windows/*.c) \
-	$(wildcard $(PROJECT_ROOT)/overlay/windows/airplane_mode/*.c) \
-	$(wildcard $(PROJECT_ROOT)/overlay/windows/product_test_window/*.c) \
-	$(wildcard $(PROJECT_ROOT)/overlay/windows/factory_reset/*.c) \
-	$(wildcard $(PROJECT_ROOT)/overlay/windows/power_off/*.c) \
 	$(wildcard $(PROJECT_ROOT)/trunk/root_source/windows/*.c)
+WINDOWS_MODULE_SRCS += $(WINDOWS_UX_SRCS)
 
 # 飞行模式模块源码
 AIRPLANE_MODE_MODULE_SRCS := \

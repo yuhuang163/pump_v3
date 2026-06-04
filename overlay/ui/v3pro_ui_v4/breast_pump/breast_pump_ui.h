@@ -42,10 +42,6 @@ int ui_display_pump_mode_process(ui_manager_context_t *thiz);
 void ui_display_breastfeeding_mode_prepare(ui_manager_context_t *thiz);
 void ui_display_breastfeeding_mode_remove(ui_manager_context_t *thiz);
 int ui_display_breastfeeding_mode_process(ui_manager_context_t *thiz);
-/// 泵奶速度界面
-void ui_display_pump_speed_prepare(ui_manager_context_t *thiz);
-void ui_display_pump_speed_remove(ui_manager_context_t *thiz);
-int ui_display_pump_speed_process(ui_manager_context_t *thiz);
 
 #ifdef __cplusplus
 }
