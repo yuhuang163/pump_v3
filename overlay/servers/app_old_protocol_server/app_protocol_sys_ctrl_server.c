@@ -31,17 +31,115 @@ static void app_old_comm_set_night_light(uint8_t adaptive_dimming_switch)
     LOG_SRV(" Night light set: adaptive=%d", adaptive_dimming_switch);
 }
 
-/// 协议亮度档位 1-10 映射到驱动亮度 0-100
+/// 协议亮度档位 0-10 映射到驱动亮度 0-100（每档 10%）
 static uint8_t app_old_comm_proto_level_to_percent(uint8_t proto_level)
 {
-    if (proto_level == 0) {
+    if (proto_level > APP_OLD_COMM_LIGHT_LEVEL_MAX) {
+        proto_level = APP_OLD_COMM_LIGHT_LEVEL_MAX;
+    }
+    uint8_t percent = (uint8_t)(proto_level * 10);
+    return (percent > LED_LEVEL_MAX) ? LED_LEVEL_MAX : percent;
+}
+
+static uint8_t app_old_comm_percent_to_proto_level(uint8_t percent)
+{
+    uint8_t level = (uint8_t)((percent + 5) / 10);
+    if (level > APP_OLD_COMM_LIGHT_LEVEL_MAX) {
+        level = APP_OLD_COMM_LIGHT_LEVEL_MAX;
+    }
+    return level;
+}
+
+static void app_old_comm_light_status_from_cab(const uint8_t *cab, app_old_comm_light_status_t *status)
+{
+    memcpy(status, cab, sizeof(app_old_comm_light_status_t));
+}
+
+static uint8_t app_old_comm_light_status_validate_set_req(const app_old_comm_light_status_t *status)
+{
+    if (status->night_light_switch > 1 || status->adaptive_switch > 1) {
         return 0;
     }
-    if (proto_level > 10) {
-        proto_level = 10;
+    if (status->night_light_level > APP_OLD_COMM_LIGHT_LEVEL_MAX ||
+        status->screen_key_level > APP_OLD_COMM_LIGHT_LEVEL_MAX) {
+        return 0;
     }
-    uint8_t percent = proto_level * 10;
-    return (percent > LED_LEVEL_MAX) ? LED_LEVEL_MAX : percent;
+    return 1;
+}
+
+static void app_old_comm_fill_light_status(app_old_comm_light_status_t *status)
+{
+    led_manager_context_t *led = (led_manager_context_t *)find_module(ID_MODULE_LED);
+    ui_manager_context_t *ui = (ui_manager_context_t *)find_module(ID_MODULE_UI);
+    uint8_t night_level_proto = 0;
+    uint8_t screen_key_proto = 0;
+
+    memset(status, 0, sizeof(*status));
+    if (led && led->hook) {
+        if (led->hook->get_night_light_onoff) {
+            status->night_light_switch = led->hook->get_night_light_onoff(led) > 0 ? 1 : 0;
+        }
+        if (led->hook->get_night_light_level) {
+            night_level_proto = app_old_comm_percent_to_proto_level(
+                (uint8_t)led->hook->get_night_light_level(led));
+        }
+        if (led->hook->get_night_light_adaptive_switch) {
+            status->adaptive_switch = led->hook->get_night_light_adaptive_switch(led) > 0 ? 1 : 0;
+        }
+    }
+    if (ui) {
+        screen_key_proto = app_old_comm_percent_to_proto_level(ui->priv.ui_backlight_level);
+    } else if (status->night_light_switch == 0) {
+        screen_key_proto = 0;
+    } else {
+        screen_key_proto = APP_OLD_COMM_LIGHT_LEVEL_MAX;
+    }
+
+    status->night_light_level = status->night_light_switch ? night_level_proto : 0;
+    if (screen_key_proto > APP_OLD_COMM_LIGHT_LEVEL_MAX) {
+        screen_key_proto = APP_OLD_COMM_LIGHT_LEVEL_MAX;
+    }
+    status->screen_key_level = screen_key_proto;
+}
+
+static uint8_t app_old_comm_apply_light_control(const app_old_comm_light_status_t *status)
+{
+    led_manager_context_t *led = (led_manager_context_t *)find_module(ID_MODULE_LED);
+    ui_manager_context_t *ui = (ui_manager_context_t *)find_module(ID_MODULE_UI);
+
+    if (led == NULL || led->hook == NULL) {
+        LOG_SRV("led is null or hook is null");
+        return 0;
+    }
+    if (!app_old_comm_light_status_validate_set_req(status)) {
+        LOG_SRV("invalid light status");
+        return 0;
+    }
+
+    app_old_comm_set_night_light(status->adaptive_switch);
+    if (led->hook->set_night_light_adaptive_dimming) {
+        led->hook->set_night_light_adaptive_dimming(led, status->adaptive_switch);
+    }
+
+    uint8_t night_percent = 0;
+    if (status->night_light_switch == 1) {
+        night_percent = app_old_comm_proto_level_to_percent(status->night_light_level);
+    }
+    if (led->hook->set_night_light_level) {
+        led->hook->set_night_light_level(led, night_percent);
+    } else {
+        LOG_SRV("set_night_light_level failed");
+        return 0;
+    }
+
+    uint8_t screen_percent = app_old_comm_proto_level_to_percent(status->screen_key_level);
+    if (ui && ui->hook && ui->hook->set_ui_backlight_level) {
+        ui->hook->set_ui_backlight_level(ui, screen_percent);
+    }
+    if (led->hook->set_key_backlight) {
+        led->hook->set_key_backlight(led, screen_percent);
+    }
+    return 1;
 }
 
 static void app_old_comm_set_device_bind_status(uint8_t device_bind_status)
@@ -243,7 +341,7 @@ void app_old_comm_handle_ctrl_dev_sys_status_req(uint8_t cal, uint8_t *cab)
     sys_status.motor_Duration = (uint16_t)(cab[3] | (cab[4] << 8));
 
     // Byte 5: Adaptive dimming switch (0-off, 1-on)
-    sys_status.adaptive_dimming_switch = cab[5];
+    //sys_status.adaptive_dimming_switch = cab[5];
 
     // Byte 6: Device bind status (0-unbound, 1-bound)
     sys_status.device_bind_status = cab[6];
@@ -257,7 +355,7 @@ void app_old_comm_handle_ctrl_dev_sys_status_req(uint8_t cal, uint8_t *cab)
                  sys_status.adaptive_dimming_switch);
 
     // Apply night light settings
-    app_old_comm_set_night_light(sys_status.adaptive_dimming_switch);
+    //app_old_comm_set_night_light(sys_status.adaptive_dimming_switch);
     // Apply device bind status
     app_old_comm_set_device_bind_status(sys_status.device_bind_status);
     // TODO: Apply other sys_status settings (language, screen lock, brightness, massage time)
@@ -267,80 +365,58 @@ void app_old_comm_handle_ctrl_dev_sys_status_req(uint8_t cal, uint8_t *cab)
 
 void app_old_comm_handle_pump_ble_rgb_set_ctrl_req(uint8_t cal, uint8_t *cab)
 {
-    LOG_SRV(" Handling night light control request (data len: %d)", cal);
-    EXCEPTION_CHECK_VOID(cab);
-
     uint8_t result = 0x00;
+    app_old_comm_light_status_t light_status = {0};
 
-    if (cal != 0x07) {
-        LOGE(" Invalid data length for night light control (expected 7, got %d)", cal);
-        app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_ACK, APP_OLD_COMM_CID_PUMP_BLE_RGB_SET_CTRL, 1, &result);
+    LOG_SRV(" Handling light control request (CAL=%d)", cal);
+    EXCEPTION_CHECK_VOID(cab);
+    if (cal != APP_OLD_COMM_LIGHT_STATUS_CAL) {
+        LOGE(" Invalid CAL for light control (expected %d, got %d)",
+             APP_OLD_COMM_LIGHT_STATUS_CAL, cal);
+        app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_ACK, APP_OLD_COMM_CID_PUMP_BLE_RGB_SET_CTRL,
+                                                   1, &result);
         return;
     }
 
-    uint8_t auto_light = cab[0];
-    uint8_t night_light_switch = cab[1];
-    uint8_t night_light_level = cab[2];
-    uint16_t night_light_ctrl_time = (uint16_t)(cab[3] | (cab[4] << 8));
-    uint8_t screen_key_level = cab[5];
+    app_old_comm_light_status_from_cab(cab, &light_status);
+    LOG_SRV(" light ctrl: switch=%d level=%d adaptive=%d screen_key=%d",
+            light_status.night_light_switch, light_status.night_light_level,
+            light_status.adaptive_switch, light_status.screen_key_level);
+    result = app_old_comm_apply_light_control(&light_status) ? 0x01 : 0x00;
+    app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_ACK, APP_OLD_COMM_CID_PUMP_BLE_RGB_SET_CTRL,
+                                               1, &result);
+}
 
-    LOG_SRV(" Night light ctrl: auto=%d, switch=%d, level=%d, time=%u, screen_key=%d",
-            auto_light, night_light_switch, night_light_level, night_light_ctrl_time, screen_key_level);
+void app_old_comm_handle_get_light_status_req(uint8_t cal, uint8_t *cab)
+{
+    app_old_comm_light_status_t light_status = {0};
 
-    if (auto_light > 1 || night_light_switch > 1) {
-        LOGE(" Invalid auto_light/switch value");
-        app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_NACK, APP_OLD_COMM_CID_PUMP_BLE_RGB_SET_CTRL, 1, &result);
+    (void)cab;
+    if (cal != 0x00) {
+        LOGE(" Invalid CAL for get light status (expected 0, got %d)", cal);
+    }
+    app_old_comm_fill_light_status(&light_status);
+    LOG_SRV(" get light status: switch=%d level=%d adaptive=%d screen_key=%d",
+            light_status.night_light_switch, light_status.night_light_level,
+            light_status.adaptive_switch, light_status.screen_key_level);
+    app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_ACK, APP_OLD_COMM_CID_GET_LIGHT_STATUS,
+                                               APP_OLD_COMM_LIGHT_STATUS_CAL, (uint8_t *)&light_status);
+}
+
+void app_old_comm_report_light_status(uint8_t arg1, void *val)
+{
+    app_old_comm_light_status_t light_status = {0};
+    ble_manager_context_t *ble = (ble_manager_context_t *)find_module(ID_MODULE_BLE);
+
+    if (ble == NULL || ble->ble_is_connected() == false) {
         return;
     }
-
-    if (night_light_switch == 1 && (night_light_level < 1 || night_light_level > 10)) {
-        LOGE(" Invalid night light level: %d (expected 1-10)", night_light_level);
-        app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_NACK, APP_OLD_COMM_CID_PUMP_BLE_RGB_SET_CTRL, 1, &result);
-        return;
-    }
-
-    if (screen_key_level < 1 || screen_key_level > 10) {
-        LOGE(" Invalid screen/key light level: %d (expected 1-10)", screen_key_level);
-        app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_NACK, APP_OLD_COMM_CID_PUMP_BLE_RGB_SET_CTRL, 1, &result);
-        return;
-    }
-
-    led_manager_context_t *led = (led_manager_context_t *)find_module(ID_MODULE_LED);
-    ui_manager_context_t *ui = (ui_manager_context_t *)find_module(ID_MODULE_UI);
-    if (led == NULL || led->hook == NULL) {
-        LOGE(" LED manager not found or hook is NULL");
-        app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_NACK, APP_OLD_COMM_CID_PUMP_BLE_RGB_SET_CTRL, 1, &result);
-        return;
-    }
-
-    app_old_comm_set_night_light(auto_light);
-
-    uint8_t night_actual_level = 0;
-    if (night_light_switch == 1) {
-        night_actual_level = app_old_comm_proto_level_to_percent(night_light_level);
-    }
-
-    if (led->hook->set_night_light_level) {
-        led->hook->set_night_light_level(led, night_actual_level);
-    } else {
-        LOGE(" set_night_light_level hook not available");
-        app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_NACK, APP_OLD_COMM_CID_PUMP_BLE_RGB_SET_CTRL, 1, &result);
-        return;
-    }
-
-    uint8_t screen_key_actual = app_old_comm_proto_level_to_percent(screen_key_level);
-    if (ui && ui->hook && ui->hook->set_ui_backlight_level) {
-        ui->hook->set_ui_backlight_level(ui, screen_key_actual);
-    }
-    if (led->hook->set_key_backlight) {
-        led->hook->set_key_backlight(led, screen_key_actual);
-    }
-
-    result = 0x01;
-    LOG_SRV(" Night light ctrl ok: night=%d, screen_key=%d, ctrl_time=%u (reserved)",
-            night_actual_level, screen_key_actual, night_light_ctrl_time);
-
-    app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_ACK, APP_OLD_COMM_CID_PUMP_BLE_RGB_SET_CTRL, 1, &result);
+    app_old_comm_fill_light_status(&light_status);
+    LOG_SRV(" report light status: switch=%d level=%d adaptive=%d screen_key=%d",
+            light_status.night_light_switch, light_status.night_light_level,
+            light_status.adaptive_switch, light_status.screen_key_level);
+    app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_NOTIFY, APP_OLD_COMM_CID_NOTIFY_LIGHT_STATUS,
+                                               APP_OLD_COMM_LIGHT_STATUS_CAL, (uint8_t *)&light_status);
 }
 
 void app_old_comm_handle_dev_abnormal_report(void *cab)

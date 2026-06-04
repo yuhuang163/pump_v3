@@ -26,6 +26,18 @@ typedef struct {
     uint8_t device_bind_status;
 } app_old_comm_sys_status_ctrl;
 
+#define APP_OLD_COMM_LIGHT_LEVEL_MAX  10  /// 协议亮度档位上限（0~10）
+
+/// 灯光状态（0xC2 / 0xBE / 0xDE，CAL=4）
+typedef struct __attribute__((packed)) {
+    uint8_t night_light_switch;  /// 夜灯开关：0-关，1-开
+    uint8_t night_light_level;   /// 夜灯亮度档位 0-10，关时填 0
+    uint8_t adaptive_switch;     /// 夜灯自适应开关：0-关，1-开
+    uint8_t screen_key_level;    /// 屏幕/按键亮度档位 0-10
+} app_old_comm_light_status_t;
+
+#define APP_OLD_COMM_LIGHT_STATUS_CAL  ((uint8_t)sizeof(app_old_comm_light_status_t))
+
 void app_old_comm_handle_set_bind_req(uint8_t cal, uint8_t *cab);
 void app_old_comm_handle_heartbeat_req(void);
 void app_old_comm_handle_set_rtc_req(uint8_t cal, uint8_t *cab);
@@ -36,6 +48,8 @@ void app_old_comm_report_discon_status(void);
 void app_old_comm_report_bind_status(uint8_t bind_status, uint8_t left_right);
 void app_old_comm_handle_ctrl_dev_sys_status_req(uint8_t cal, uint8_t *cab);
 void app_old_comm_handle_pump_ble_rgb_set_ctrl_req(uint8_t cal, uint8_t *cab);
+void app_old_comm_handle_get_light_status_req(uint8_t cal, uint8_t *cab);
+void app_old_comm_report_light_status(uint8_t arg1, void *val);
 void app_old_comm_handle_dev_abnormal_report(void *cab);
 void app_old_comm_handle_dev_abnormal_app_req(uint8_t cal, uint8_t *cab);
 

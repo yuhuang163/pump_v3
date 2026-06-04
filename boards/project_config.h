@@ -80,7 +80,7 @@ extern "C" {
 /// 按键设备消息队列数量定义
 #define KEY_DEVICE_MESQ_NUM                            (1)
 /// 服务器消息队列数量定义
-#define SERVERS_WORK_DISPATCH_MESQ_NUM                 (5)
+#define SERVERS_WORK_DISPATCH_MESQ_NUM                 (10)
 /// 挂起超时
 #if 1
 #define PM_SUSPEND_TIME_S                              (15 * 60 * 1000) /// 15分钟

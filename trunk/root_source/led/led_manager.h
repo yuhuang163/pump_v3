@@ -9,13 +9,16 @@ extern "C" {
 /*******************************************************************************
 * Include files
 ******************************************************************************/
-#include <stdio.h> // IWYU pragma: keep
-#include <stdlib.h> // IWYU pragma: keep
+#include "root_common_api.h" // IWYU pragma: keep
+
+typedef struct {
+    void *user_data;
+    on_led_state_cb_ptr cb;
+    list_head_t list;
+} led_evt_client_node_t;
 
 #ifdef __cplusplus
 }
 #endif
 
 #endif 
-
-
