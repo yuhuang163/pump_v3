@@ -75,16 +75,21 @@ static int on_tests_event_handler(void *context, uint16_t keycode, uint16_t keyt
     };
     uint16_t server_id = SERVERS_PUBLISH_DATA_TESTS_KEY_STATUS;
     switch (keycode) {
+    #if V3_UX_VERSION == V3_UX_V3
+        case KEY_CODE_STIMULATION_MODE:
+        case KEY_CODE_LACTATION_MODE:
+        case KEY_CODE_MIX_MODE:
+    #elif (V3_UX_VERSION == V3_UX_V2 || V3_UX_VERSION == V3_UX_V4)
+        case KEY_CODE_MODE:
+        case KEY_CODE_BREASTFEEDING:
+        case KEY_CODE_CANCEL:
+    #else
+        case KEY_CODE_MODE:
+        case KEY_CODE_BREASTFEEDING:
+        case KEY_CODE_FREQUENCY:
+    #endif
         case KEY_CODE_POWER:
         case KEY_CODE_START:
-        case KEY_CODE_MODE:
-#if IS_SUPPORT_FREQUENCY_KEY
-        case KEY_CODE_FREQUENCY:
-#endif
-#if IS_SUPPORT_CANCEL_KEY
-        case KEY_CODE_CANCEL:
-#endif
-        case KEY_CODE_BREASTFEEDING:
         case KEY_CODE_LEFT_CONTROL:
         case KEY_CODE_RIGHT_CONTROL:
             args.arg1 = keytype == KEY_EVENT_CLICK ? 1 : 2;

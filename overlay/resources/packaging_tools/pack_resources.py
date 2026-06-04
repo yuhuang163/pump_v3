@@ -130,10 +130,15 @@ def _derive_cpp_defines_from_makefile(makefile_path: str) -> Dict[str, str]:
         "ROOT_UI_V2",
         "ROOT_UI_V3",
         "ROOT_UI_V4",
+        "ROOT_UI_V5",
         "V3_UI_V2",
         "V3PRO_UI_V2",
         "V3_UI_V3",
         "V3PRO_UI_V3",
+        "V3_UI_V4",
+        "V3PRO_UI_V4",
+        "V3_UI_V5",
+        "V3PRO_UI_V5",
     ]:
         value = _extract_make_assignment(raw, key)
         if value:
@@ -154,6 +159,7 @@ def _derive_cpp_defines_from_makefile(makefile_path: str) -> Dict[str, str]:
     in_product_select = False
     in_v3pro_branch = False
     in_else_branch = False
+    product_if_nesting = 0
     cond_re = re.compile(r'^\s*ifeq\s*\(\s*\$\(ROOT_PRODUCT_ID\)\s*,\s*\$\(ROOT_PRODUCT_V3PRO_ID\)\s*\)\s*$')
     ui_assign_re = re.compile(r'^\s*V3_UI_VERSION\s*\?=\s*(.+?)\s*$')
     for line in raw.splitlines():
@@ -161,16 +167,24 @@ def _derive_cpp_defines_from_makefile(makefile_path: str) -> Dict[str, str]:
             in_product_select = True
             in_v3pro_branch = True
             in_else_branch = False
+            product_if_nesting = 1
             continue
         if not in_product_select:
             continue
         stripped = line.strip()
+        if stripped.startswith("ifeq") or stripped.startswith("else ifeq"):
+            product_if_nesting += 1
+            continue
         if stripped == "else":
-            in_v3pro_branch = False
-            in_else_branch = True
+            if product_if_nesting == 1:
+                in_v3pro_branch = False
+                in_else_branch = True
             continue
         if stripped == "endif":
-            break
+            product_if_nesting -= 1
+            if product_if_nesting == 0:
+                break
+            continue
         m = ui_assign_re.match(line)
         if not m:
             continue
