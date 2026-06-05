@@ -79,6 +79,7 @@ typedef enum {
     RESOURCE_ID_STIMULATION_WAVE_ICON,         /// 刺激波形图标
     RESOURCE_ID_LACTATION_WAVE_ICON,           /// 泌乳波形图标
     RESOURCE_ID_MIX_WAVE_ICON,                 /// 混合波形图标
+    RESOURCE_ID_MODE_STEP_LINE_ICON,           /// 模式步骤线图标
     
     /* 动画组 [300...] */
     RESOURCE_ID_PUMP_LEVEL_START = 300,   /// 泵奶档位图片-开始
