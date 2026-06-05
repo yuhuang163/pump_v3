@@ -50,16 +50,7 @@ void home_popup_ui_type_update(ui_proc_home_t *proc, popup_ui_id_e type)
 void home_cancel_key_event_handler(ui_proc_home_t *proc)
 {
     EXCEPTION_CHECK_VOID(proc);
-    if (proc->current_ui_type == HOME_UI_TYPE_BF_MODE_SELECT || 
-        proc->current_ui_type == HOME_UI_TYPE_NORMAL_MODE_SELECT ||
-        proc->current_ui_type == HOME_UI_TYPE_LEVEL_ADJUST || 
-        proc->current_ui_type == HOME_UI_TYPE_PUMP_RESULT || 
-        proc->current_ui_type == HOME_UI_TYPE_NIGHT_LIGHT_ADJUST || 
-        proc->current_ui_type == HOME_UI_TYPE_BIND_QRCODE) {
-        proc->exit_current_ui = true;
-        return;
-    }
-    LOG_WM("ignore cancel key event.");
+    proc->exit_current_ui = true;
 }
 
 void home_ui_change_hdr_remove(ui_proc_home_t *proc)

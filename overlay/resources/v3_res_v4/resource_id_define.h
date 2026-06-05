@@ -27,11 +27,11 @@ typedef enum {
     /* 主界面组 [100..150] */
     RESOURCE_ID_COMMON_BG = 100,               /// 通用背景
     RESOURCE_ID_START_LOGO_ICON,               /// 启动LOGO
-    RESOURCE_ID_HOME_IDLE_LABLE_ICON,          /// 空闲界面文本区域图标
-    RESOURCE_ID_HOME_IDLE_BUTTOM_ICON,         /// 空闲界面按钮指示图标
+    RESOURCE_ID_HOME_WIDTH_LABLE,              /// 主页宽标签
+    RESOURCE_ID_HOME_START_BUTTON_ICON,        /// 主页开始按钮图标
     RESOURCE_ID_AIRPLANE_UNLOCK_BUTTON_ICON,   /// 飞行模式解锁按钮图标
-    RESOURCE_ID_HOME_LIGHT_LABLE_ICON,         /// 首页光线图标
-    RESOURCE_ID_HOME_BLE_LABEL_ICON,           /// 首页蓝牙标签图标
+    RESOURCE_ID_HOME_NARROW_LABLE,             /// 主页窄标签
+    RESOURCE_ID_HOME_BLE_LABEL,                /// 主页蓝牙标签"
 
     /* 引导组 [150..200] */
     RESOURCE_ID_GUIDE_PAGE1_IMG = 150,        /// 引导-页1图片
@@ -44,16 +44,16 @@ typedef enum {
     /* 模式相关组 [301..400]（大图 + 小图标） */
     RESOURCE_ID_PUMP_SPEED_SLOW_ICON = 200,    /// 泵奶首页-慢速图标
     RESOURCE_ID_PUMP_SPEED_REGULAR_ICON,       /// 泵奶首页-常规图标
-    RESOURCE_ID_PUMP_SPEED_BOOST_ICON,         /// 泵奶首页-快速图标
+    RESOURCE_ID_PUMP_SPEED_FAST_ICON,          /// 泵奶首页-快速图标
     RESOURCE_ID_REGULAR_PUMPING_BG,            /// 泵奶首页-常规泵奶背景
     RESOURCE_ID_EXPERT_PUMPING_BG,             /// 泵奶首页-专家泵奶背景
 
-    RESOURCE_ID_FREQ_PAGE_BOOST_ICON,          /// 频率页-频率增强图标
-    RESOURCE_ID_FREQ_PAGE_REGULAR_ICON,        /// 频率页-频率常规图标
-    RESOURCE_ID_FREQ_PAGE_COMFORT_ICON,        /// 频率页-频率舒适图标
+    RESOURCE_ID_SPEED_PAGE_FAST_ICON,          /// 频率页-快频率图标
+    RESOURCE_ID_SPEED_PAGE_REGULAR_ICON,       /// 频率页-常规频率图标
+    RESOURCE_ID_SPEED_PAGE_SLOW_ICON,          /// 频率页-慢频率图标
 
     RESOURCE_ID_LAST_USED_MODE_ICON,           /// 上一次使用模式图标
-    RESOURCE_ID_NEW_MODE_STEPS_PROMPT_ICON,    /// 新模式未确认图标
+    RESOURCE_ID_NEW_MODE_STEPS_ICON,           /// 新模式未确认图标
     RESOURCE_ID_MODE_LACTATION_ICON,           /// 模式-泌乳图标
     RESOURCE_ID_MODE_MIX_ICON,                 /// 模式-混合图标
     RESOURCE_ID_MODE_STIMULATE_ICON,           /// 模式-刺激图标
@@ -62,14 +62,14 @@ typedef enum {
     RESOURCE_ID_MODE_CUSTOM_ICON,              /// 韵律-专家模式图标
     RESOURCE_ID_MODE_EXPERT_ICON,              /// 韵律-个性化模式图标
 
-    RESOURCE_ID_PUMP_PAUSE_PROMPT_ICON,        /// 泵奶暂停提示图标
+    RESOURCE_ID_PUMP_PAUSE_ICON,               /// 泵奶暂停图标
     RESOURCE_ID_PUMP_LEVEL_BG,                 /// 泵奶档位背景
     RESOURCE_ID_PUMP_LEVEL_BOTH_SIDES_BG,      /// 泵奶档位双侧模式背景
-    RESOURCE_ID_PUMP_LEVEL_ADD_LABEL_ICON,     /// 泵奶档位文本加号图标
-    RESOURCE_ID_PUMP_LEVEL_SUB_LABEL_ICON,     /// 泵奶档位文本减号图标
+    RESOURCE_ID_PUMP_LEVEL_ADD_ICON,           /// 泵奶档位文本加号图标
+    RESOURCE_ID_PUMP_LEVEL_SUB_ICON,           /// 泵奶档位文本减号图标
     RESOURCE_ID_PUMP_LEFT_LEVEL_ICON,          /// 泵奶左档位图标
     RESOURCE_ID_PUMP_RIGHT_LEVEL_ICON,         /// 泵奶右档位图标
-    RESOURCE_ID_SELECT_LABEL_ICON,             /// 选中标签图标
+    RESOURCE_ID_SELECT_LABEL,                  /// 选中标签图标
     RESOURCE_ID_STIMULATION_WAVE_ICON,         /// 刺激波形图标
     RESOURCE_ID_LACTATION_WAVE_ICON,           /// 泌乳波形图标
     RESOURCE_ID_MIX_WAVE_ICON,                 /// 混合波形图标

@@ -1,5 +1,5 @@
 #!/bin/bash
-# PNG转BAJ带菜单版本：可选 a4/a8、YUV422/YUV444/动态YUV
+# PNG转BAJ带菜单版本：可选 a4/a8、YUV422/YUV444/动态YUV、图片缩放
 # 用法: ./png2baj_menu.sh <输入目录> [输出目录]
 
 # 检查参数个数
@@ -50,6 +50,76 @@ case "$choice" in
         ;;
 esac
 
+echo ""
+echo "================================================"
+echo "请选择图片缩放："
+echo "  1) 不缩放（保持原始尺寸）"
+echo "  2) 352x352（强制拉伸）"
+echo "  3) 368x368（强制拉伸）"
+echo "  4) 保持原始比例，最大边352，向下16对齐"
+echo "  5) 保持原始比例，最大边368，向下16对齐"
+echo "  6) 自定义固定尺寸（强制拉伸到 WxH）"
+echo "  7) 自定义最大边（等比缩放，宽高分别向下16对齐）"
+echo "  8) 自定义最大边（等比缩放，无需16对齐）"
+echo "================================================"
+read -r -p "请输入选项 [1-8]: " scale_choice
+
+SIZE_MODE=""
+TARGET_W=0
+TARGET_H=0
+MAX_SIZE=0
+
+case "$scale_choice" in
+    1) SIZE_MODE="none" ;;
+    2) SIZE_MODE="fixed"; TARGET_W=352; TARGET_H=352 ;;
+    3) SIZE_MODE="fixed"; TARGET_W=368; TARGET_H=368 ;;
+    4) SIZE_MODE="fit_align_down"; MAX_SIZE=352 ;;
+    5) SIZE_MODE="fit_align_down"; MAX_SIZE=368 ;;
+    6)
+        SIZE_MODE="fixed"
+        read -r -p "请输入目标宽度: " TARGET_W
+        read -r -p "请输入目标高度: " TARGET_H
+        ;;
+    7)
+        SIZE_MODE="fit_align_down"
+        read -r -p "请输入最大边尺寸: " MAX_SIZE
+        ;;
+    8)
+        SIZE_MODE="fit"
+        read -r -p "请输入最大边尺寸: " MAX_SIZE
+        ;;
+    *)
+        echo "无效选项，退出."
+        exit 1
+        ;;
+esac
+
+if [ "$SIZE_MODE" = "fixed" ]; then
+    if ! [[ "$TARGET_W" =~ ^[0-9]+$ ]] || ! [[ "$TARGET_H" =~ ^[0-9]+$ ]] || \
+       [ "$TARGET_W" -lt 16 ] || [ "$TARGET_H" -lt 16 ]; then
+        echo "错误: 目标尺寸必须是大于等于16的整数"
+        exit 1
+    fi
+fi
+
+if [ "$SIZE_MODE" = "fit_align_down" ] || [ "$SIZE_MODE" = "fit" ]; then
+    if ! [[ "$MAX_SIZE" =~ ^[0-9]+$ ]] || [ "$MAX_SIZE" -lt 1 ]; then
+        echo "错误: 最大边尺寸必须是大于等于1的整数"
+        exit 1
+    fi
+fi
+
+if [ "$SIZE_MODE" != "none" ]; then
+    if command -v magick >/dev/null 2>&1; then
+        IM_CMD="magick"
+    elif command -v convert >/dev/null 2>&1; then
+        IM_CMD="convert"
+    else
+        echo "错误: 缩放需要 ImageMagick，请先安装 magick 或 convert"
+        exit 1
+    fi
+fi
+
 # 固定参数
 COMPRESS="1"
 QUALITY="99"
@@ -77,12 +147,103 @@ if [ "$DYNAMIC_YUV" -eq 1 ]; then
 else
     echo "  YUV采样: $SAMPLES"
 fi
-echo "  图片缩放: 不缩放（保持原始尺寸）"
+if [ "$SIZE_MODE" = "none" ]; then
+    echo "  图片缩放: 不缩放（保持原始尺寸）"
+elif [ "$SIZE_MODE" = "fixed" ]; then
+    echo "  图片缩放: 固定尺寸 ${TARGET_W}x${TARGET_H}（强制拉伸）"
+elif [ "$SIZE_MODE" = "fit_align_down" ]; then
+    echo "  图片缩放: 等比缩放，最大边 ${MAX_SIZE}，向下16对齐"
+else
+    echo "  图片缩放: 等比缩放，最大边 ${MAX_SIZE}，无需16对齐"
+fi
 echo "================================================"
 echo "输入目录: $INPUT_DIRECTORY"
 echo "输出目录: $OUTPUT_DIR"
 echo "================================================"
 echo ""
+
+align_down_16() {
+    local value=$1
+    local aligned=$((value / 16 * 16))
+    if [ "$aligned" -lt 16 ]; then
+        aligned=16
+    fi
+    echo "$aligned"
+}
+
+calc_fit_size() {
+    local width=$1
+    local height=$2
+    local max_size=$3
+    local fit_w fit_h
+
+    if [ "$width" -ge "$height" ]; then
+        fit_w=$max_size
+        fit_h=$((height * max_size / width))
+    else
+        fit_h=$max_size
+        fit_w=$((width * max_size / height))
+    fi
+
+    fit_w=$(align_down_16 "$fit_w")
+    fit_h=$(align_down_16 "$fit_h")
+    echo "${fit_w}x${fit_h}"
+}
+
+calc_fit_size_no_align() {
+    local width=$1
+    local height=$2
+    local max_size=$3
+    local fit_w fit_h
+
+    if [ "$width" -ge "$height" ]; then
+        fit_w=$max_size
+        fit_h=$((height * max_size / width))
+    else
+        fit_h=$max_size
+        fit_w=$((width * max_size / height))
+    fi
+
+    if [ "$fit_w" -lt 1 ]; then fit_w=1; fi
+    if [ "$fit_h" -lt 1 ]; then fit_h=1; fi
+    echo "${fit_w}x${fit_h}"
+}
+
+apply_resize() {
+    local file=$1
+    local width=$2
+    local height=$3
+    local target_w target_h target_size
+
+    if [ "$SIZE_MODE" = "none" ]; then
+        echo "$width $height"
+        return 0
+    fi
+
+    if [ "$SIZE_MODE" = "fixed" ]; then
+        target_w=$TARGET_W
+        target_h=$TARGET_H
+    elif [ "$SIZE_MODE" = "fit_align_down" ]; then
+        target_size=$(calc_fit_size "$width" "$height" "$MAX_SIZE")
+        target_w=${target_size%x*}
+        target_h=${target_size#*x}
+    else
+        target_size=$(calc_fit_size_no_align "$width" "$height" "$MAX_SIZE")
+        target_w=${target_size%x*}
+        target_h=${target_size#*x}
+    fi
+
+    if [ "$width" -eq "$target_w" ] && [ "$height" -eq "$target_h" ]; then
+        echo "  尺寸已是 ${target_w}x${target_h}，无需缩放" >&2
+        echo "$target_w $target_h"
+        return 0
+    fi
+
+    echo "  缩放: ${width}x${height} → ${target_w}x${target_h}" >&2
+    "$IM_CMD" "$file" -resize "${target_w}x${target_h}!" "$file"
+
+    echo "$target_w $target_h"
+}
 
 # 根据尺寸决定 YUV 格式（仅动态模式使用）
 # 图片尺寸指宽高中的较大值；≤336 用 444，>336 用 422
@@ -129,6 +290,13 @@ traverse_directory() {
                     echo "警告: 无法获取图片尺寸，将使用原始文件名"
                     width="unknown"
                     height="unknown"
+                fi
+
+                if [ "$width" != "unknown" ] && [ "$height" != "unknown" ]; then
+                    local resized_dims
+                    resized_dims=$(apply_resize "$temp_file" "$width" "$height")
+                    width=${resized_dims%% *}
+                    height=${resized_dims#* }
                 fi
 
                 # 动态YUV：根据尺寸选择 422 或 444

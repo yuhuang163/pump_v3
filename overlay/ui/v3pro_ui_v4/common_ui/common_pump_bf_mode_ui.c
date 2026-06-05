@@ -709,7 +709,7 @@ void common_pump_bf_mode_ui_prepare(ui_manager_context_t *thiz)
     mode_info->pump = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
     mode_info->st = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
     common_ui_img_resource_init(thiz, RESOURCE_ID_LAST_USED_MODE_ICON, &mode_info->used_icon_info);
-    common_ui_img_resource_init(thiz, RESOURCE_ID_NEW_MODE_STEPS_PROMPT_ICON, &mode_info->new_icon_info);
+    common_ui_img_resource_init(thiz, RESOURCE_ID_NEW_MODE_STEPS_ICON, &mode_info->new_icon_info);
     int last_mode_idx = 0;
     if (mode_info->pump) {
         READ_PUMP_EXPERT_MODE(mode_info->pump, true, last_mode_idx);

@@ -204,7 +204,7 @@ const static home_text_info_t home_text_infos[HOME_TEXT_ID_MAX] = {
 const static uint16_t home_speed_icon_ids[HOME_SPEED_MAX_COUNT] = {
     RESOURCE_ID_PUMP_SPEED_SLOW_ICON,
     RESOURCE_ID_PUMP_SPEED_REGULAR_ICON,
-    RESOURCE_ID_PUMP_SPEED_BOOST_ICON,
+    RESOURCE_ID_PUMP_SPEED_FAST_ICON,
 };
 
 const static char *home_mode_names[HOME_MODE_MAX_COUNT] = {
@@ -302,7 +302,7 @@ static void home_button_ui_update(ui_manager_context_t *thiz, uint16_t x_offset,
 
     if (is_show) {
         lv_obj_clear_flag(home_info->button_icon, LV_OBJ_FLAG_HIDDEN);
-        common_ui_img_resource_init(thiz, RESOURCE_ID_HOME_IDLE_BUTTOM_ICON,
+        common_ui_img_resource_init(thiz, RESOURCE_ID_HOME_START_BUTTON_ICON,
             &home_info->button_info);
         EXCEPTION_CHECK_VOID(home_info->button_info.data);
         lv_fs_path_ex_t button_img_path;
@@ -531,7 +531,7 @@ static void home_ui_update(ui_manager_context_t *thiz, ui_proc_home_t *proc)
     switch (home_ui_type) {
         default:
         case HOME_UI_DISPLAY_DEFAULT:
-            home_label_ui_update(thiz, RESOURCE_ID_HOME_IDLE_LABLE_ICON,
+            home_label_ui_update(thiz, RESOURCE_ID_HOME_WIDTH_LABLE,
                 IDLE_LABEL_AREA_ICON_X, IDLE_LABEL_AREA_ICON_Y, true);
             if (home_info->sub_ui_status == 0) {
                 if (get_timestamp_ms(home_info->start_time) > IDLE_SUB_UI_TIME_1) {
@@ -563,7 +563,7 @@ static void home_ui_update(ui_manager_context_t *thiz, ui_proc_home_t *proc)
                 HOME_IDLE_ANIMATION_X, HOME_IDLE_ANIMATION_Y);
             break;
         case HOME_UI_DISPLAY_RECORD:
-            home_label_ui_update(thiz, RESOURCE_ID_HOME_IDLE_LABLE_ICON,
+            home_label_ui_update(thiz, RESOURCE_ID_HOME_WIDTH_LABLE,
                 IDLE_LABEL_AREA_ICON_X, IDLE_LABEL_AREA_ICON_Y, true);
             home_button_ui_update(thiz, IDLE_BUTTON_ICON_X, IDLE_BUTTON_ICON_Y, false);
             if (home_info->sub_ui_status == 0) {
@@ -597,7 +597,7 @@ static void home_ui_update(ui_manager_context_t *thiz, ui_proc_home_t *proc)
                 HOME_IDLE_ANIMATION_X, HOME_IDLE_ANIMATION_Y);
             break;
         case HOME_UI_DISPLAY_CLOCK:
-            home_label_ui_update(thiz, RESOURCE_ID_HOME_IDLE_LABLE_ICON,
+            home_label_ui_update(thiz, RESOURCE_ID_HOME_WIDTH_LABLE,
                 IDLE_WITH_CLOCK_LABLE_ICON_X, IDLE_WITH_CLOCK_LABLE_ICON_Y, true);
             home_button_ui_update(thiz, IDLE_WITH_CLOCK_BUTTON_ICON_X, IDLE_WITH_CLOCK_BUTTON_ICON_Y, true);
             home_label_text_ui_update(thiz, true, HOME_TEXT_CLOCK);
@@ -609,7 +609,7 @@ static void home_ui_update(ui_manager_context_t *thiz, ui_proc_home_t *proc)
                 HOME_IDLE_ANIMATION_X, HOME_IDLE_ANIMATION_Y);
             break;
         case HOME_UI_DISPLAY_CLOCK_AND_RECORD:
-            home_label_ui_update(thiz, RESOURCE_ID_HOME_IDLE_LABLE_ICON,
+            home_label_ui_update(thiz, RESOURCE_ID_HOME_WIDTH_LABLE,
                 IDLE_WITH_CLOCK_LABLE_ICON_X, IDLE_WITH_CLOCK_LABLE_ICON_Y, true);
             home_button_ui_update(thiz, IDLE_WITH_CLOCK_BUTTON_ICON_X, IDLE_WITH_CLOCK_BUTTON_ICON_Y, false);
             home_label_text_ui_update(thiz, true, HOME_TEXT_CLOCK_AND_RECORD);
@@ -621,7 +621,7 @@ static void home_ui_update(ui_manager_context_t *thiz, ui_proc_home_t *proc)
                 HOME_IDLE_ANIMATION_X, HOME_IDLE_ANIMATION_Y);
             break;
         case HOME_UI_DISPLAY_CLOCK_LIGHT_TIP:
-            home_label_ui_update(thiz, RESOURCE_ID_HOME_LIGHT_LABLE_ICON,
+            home_label_ui_update(thiz, RESOURCE_ID_HOME_NARROW_LABLE,
                 IDLE_LIGHT_TIP_LABEL_ICON_X, IDLE_LIGHT_TIP_LABEL_ICON_Y, true);
             home_button_ui_update(thiz, IDLE_BUTTON_ICON_X, IDLE_BUTTON_ICON_Y, false);
             home_label_text_ui_update(thiz, true, HOME_TEXT_CLOCK_LIGHT_TIP);
@@ -632,7 +632,7 @@ static void home_ui_update(ui_manager_context_t *thiz, ui_proc_home_t *proc)
                 HOME_IDLE_ANIMATION_X, HOME_IDLE_ANIMATION_Y);
             break;
         case HOME_UI_DISPLAY_LOW_POWER:
-            home_label_ui_update(thiz, RESOURCE_ID_HOME_IDLE_LABLE_ICON,
+            home_label_ui_update(thiz, RESOURCE_ID_HOME_WIDTH_LABLE,
                 IDLE_LABEL_AREA_ICON_X, IDLE_LABEL_AREA_ICON_Y, true);
             home_button_ui_update(thiz, IDLE_BUTTON_ICON_X, IDLE_BUTTON_ICON_Y, false);
             home_label_text_ui_update(thiz, true, HOME_TEXT_LOW_POWER_TIP);
@@ -643,7 +643,7 @@ static void home_ui_update(ui_manager_context_t *thiz, ui_proc_home_t *proc)
                 HOME_IDLE_ANIMATION_X, HOME_IDLE_ANIMATION_Y);
             break;
         case HOME_UI_DISPLAY_CLOCK_LOW_POWER:
-            home_label_ui_update(thiz, RESOURCE_ID_HOME_IDLE_LABLE_ICON,
+            home_label_ui_update(thiz, RESOURCE_ID_HOME_WIDTH_LABLE,
                 IDLE_WITH_CLOCK_LABLE_ICON_X, IDLE_WITH_CLOCK_LABLE_ICON_Y, true);
             home_button_ui_update(thiz, IDLE_BUTTON_ICON_X, IDLE_BUTTON_ICON_Y, false);
             home_label_text_ui_update(thiz, true, HOME_TEXT_CLOCK_LOW_POWER_TIP);
@@ -667,7 +667,7 @@ static void home_ui_update(ui_manager_context_t *thiz, ui_proc_home_t *proc)
     switch (home_info->label_ui_type) {
         default:
         case HOME_UI_DISPLAY_DEFAULT:
-            home_label_ui_update(thiz, RESOURCE_ID_HOME_IDLE_LABLE_ICON,
+            home_label_ui_update(thiz, RESOURCE_ID_HOME_WIDTH_LABLE,
                 IDLE_LABEL_AREA_ICON_X, IDLE_LABEL_AREA_ICON_Y, true);
             home_button_ui_update(thiz, IDLE_BUTTON_ICON_X, IDLE_BUTTON_ICON_Y, true);
             home_label_text_ui_update(thiz, true, HOME_TEXT_IDLE);
@@ -676,7 +676,7 @@ static void home_ui_update(ui_manager_context_t *thiz, ui_proc_home_t *proc)
                 HOME_IDLE_ANIMATION_X, HOME_IDLE_ANIMATION_Y);
             break;
         case HOME_UI_DISPLAY_SIMULATE_MODE_DESC:
-            home_label_ui_update(thiz, RESOURCE_ID_HOME_IDLE_LABLE_ICON,
+            home_label_ui_update(thiz, RESOURCE_ID_HOME_WIDTH_LABLE,
                 IDLE_LABEL_AREA_ICON_X, IDLE_LABEL_AREA_ICON_Y, true);
             home_button_ui_update(thiz, IDLE_BUTTON_ICON_X, IDLE_BUTTON_ICON_Y, false);
             home_label_text_ui_update(thiz, true, HOME_TEXT_SIMULATE_MODE_DESC);
@@ -685,7 +685,7 @@ static void home_ui_update(ui_manager_context_t *thiz, ui_proc_home_t *proc)
                 HOME_IDLE_ANIMATION_X, HOME_IDLE_ANIMATION_Y);
             break;
         case HOME_UI_DISPLAY_EXPRESSION_MODE_DESC:
-            home_label_ui_update(thiz, RESOURCE_ID_HOME_IDLE_LABLE_ICON,
+            home_label_ui_update(thiz, RESOURCE_ID_HOME_WIDTH_LABLE,
                 IDLE_LABEL_AREA_ICON_X, IDLE_LABEL_AREA_ICON_Y, true);
             home_button_ui_update(thiz, IDLE_BUTTON_ICON_X, IDLE_BUTTON_ICON_Y, false);
             home_label_text_ui_update(thiz, true, HOME_TEXT_EXPRESSION_MODE_DESC);
@@ -694,7 +694,7 @@ static void home_ui_update(ui_manager_context_t *thiz, ui_proc_home_t *proc)
                 HOME_IDLE_ANIMATION_X, HOME_IDLE_ANIMATION_Y);
             break;
         case HOME_UI_DISPLAY_MIXED_MODE_DESC:
-            home_label_ui_update(thiz, RESOURCE_ID_HOME_IDLE_LABLE_ICON,
+            home_label_ui_update(thiz, RESOURCE_ID_HOME_WIDTH_LABLE,
                 IDLE_LABEL_AREA_ICON_X, IDLE_LABEL_AREA_ICON_Y, true);
             home_button_ui_update(thiz, IDLE_BUTTON_ICON_X, IDLE_BUTTON_ICON_Y, false);
             home_label_text_ui_update(thiz, true, HOME_TEXT_MIXED_MODE_DESC);
@@ -703,7 +703,7 @@ static void home_ui_update(ui_manager_context_t *thiz, ui_proc_home_t *proc)
                 HOME_IDLE_ANIMATION_X, HOME_IDLE_ANIMATION_Y);
             break;
         case HOME_UI_DISPLAY_MILK_BOOST_DESC:
-            home_label_ui_update(thiz, RESOURCE_ID_HOME_IDLE_LABLE_ICON,
+            home_label_ui_update(thiz, RESOURCE_ID_HOME_WIDTH_LABLE,
                 IDLE_LABEL_AREA_ICON_X, IDLE_LABEL_AREA_ICON_Y, true);
             home_button_ui_update(thiz, IDLE_BUTTON_ICON_X, IDLE_BUTTON_ICON_Y, false);
             home_label_text_ui_update(thiz, true, HOME_TEXT_MILK_BOOST_DESC);
@@ -712,7 +712,7 @@ static void home_ui_update(ui_manager_context_t *thiz, ui_proc_home_t *proc)
                 HOME_IDLE_ANIMATION_X, HOME_IDLE_ANIMATION_Y);
             break;
         case HOME_UI_DISPLAY_POWER_PUMPING_DESC:
-            home_label_ui_update(thiz, RESOURCE_ID_HOME_IDLE_LABLE_ICON,
+            home_label_ui_update(thiz, RESOURCE_ID_HOME_WIDTH_LABLE,
                 IDLE_LABEL_AREA_ICON_X, IDLE_LABEL_AREA_ICON_Y, true);
             home_button_ui_update(thiz, IDLE_BUTTON_ICON_X, IDLE_BUTTON_ICON_Y, false);
             home_label_text_ui_update(thiz, true, HOME_TEXT_POWER_PUMPING_DESC);
@@ -721,7 +721,7 @@ static void home_ui_update(ui_manager_context_t *thiz, ui_proc_home_t *proc)
                 HOME_IDLE_ANIMATION_X, HOME_IDLE_ANIMATION_Y);
             break;
         case HOME_UI_DISPLAY_CUSTOMIZE_DESC:
-            home_label_ui_update(thiz, RESOURCE_ID_HOME_IDLE_LABLE_ICON,
+            home_label_ui_update(thiz, RESOURCE_ID_HOME_WIDTH_LABLE,
                 IDLE_LABEL_AREA_ICON_X, IDLE_LABEL_AREA_ICON_Y, true);
             home_button_ui_update(thiz, IDLE_BUTTON_ICON_X, IDLE_BUTTON_ICON_Y, false);
             home_label_text_ui_update(thiz, true, HOME_TEXT_CUSTOMIZE_DESC);

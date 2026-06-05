@@ -165,16 +165,16 @@
       "y_offset": 0
     },
     {
-      "resource_id": "RESOURCE_ID_HOME_IDLE_LABLE_ICON",
-      "description": "空闲界面文本区域图标",
-      "file": "base/baj/icon_home_idle_lable_280x106_a8_q99_444.baj",
+      "resource_id": "RESOURCE_ID_HOME_WIDTH_LABLE",
+      "description": "主页宽标签",
+      "file": "base/baj/label_home_width_280x106_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
     {
-      "resource_id": "RESOURCE_ID_HOME_IDLE_BUTTOM_ICON",
-      "description": "空闲界面按钮指示图标",
-      "file": "base/baj/icon_home_idle_button_24x24_a8_q99_444.baj",
+      "resource_id": "RESOURCE_ID_HOME_START_BUTTON_ICON",
+      "description": "主页开始按钮图标",
+      "file": "base/baj/icon_home_start_button_24x24_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
@@ -186,9 +186,9 @@
       "y_offset": 0
     },
     {
-      "resource_id": "RESOURCE_ID_HOME_BLE_LABEL_ICON",
-      "description": "首页蓝牙标签图标",
-      "file": "base/baj/icon_home_ble_lable_220x86_a8_q99_444.baj",
+      "resource_id": "RESOURCE_ID_HOME_BLE_LABEL",
+      "description": "主页蓝牙标签",
+      "file": "base/baj/label_home_ble_220x86_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
@@ -249,7 +249,7 @@
       "y_offset": 0
     },
     {
-      "resource_id": "RESOURCE_ID_PUMP_SPEED_BOOST_ICON",
+      "resource_id": "RESOURCE_ID_PUMP_SPEED_FAST_ICON",
       "description": "泵奶首页-快速图标",
       "file": "base/baj/icon_pump_speed_fast_24x24_a8_q99_444.baj",
       "x_offset": 0,
@@ -270,22 +270,22 @@
       "y_offset": 0
     },
     {
-      "resource_id": "RESOURCE_ID_FREQ_PAGE_BOOST_ICON",
-      "description": "频率页-频率增强图标",
+      "resource_id": "RESOURCE_ID_SPEED_PAGE_FAST_ICON",
+      "description": "频率页-快频率图标",
       "file": "base/baj/icon_speed_page_fast_48x48_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
     {
-      "resource_id": "RESOURCE_ID_FREQ_PAGE_REGULAR_ICON",
-      "description": "频率页-频率常规图标",
+      "resource_id": "RESOURCE_ID_SPEED_PAGE_REGULAR_ICON",
+      "description": "频率页-常规频率图标",
       "file": "base/baj/icon_speed_page_regular_48x48_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
     {
-      "resource_id": "RESOURCE_ID_FREQ_PAGE_COMFORT_ICON",
-      "description": "频率页-频率舒适图标",
+      "resource_id": "RESOURCE_ID_SPEED_PAGE_SLOW_ICON",
+      "description": "频率页-慢频率图标",
       "file": "base/baj/icon_speed_page_slow_48x48_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
@@ -298,9 +298,9 @@
       "y_offset": 0
     },
     {
-      "resource_id": "RESOURCE_ID_NEW_MODE_STEPS_PROMPT_ICON",
+      "resource_id": "RESOURCE_ID_NEW_MODE_STEPS_ICON",
       "description": "新模式步骤提示图标",
-      "file": "base/baj/icon_new_mode_steps_prompt_8x8_a8_q99_444.baj",
+      "file": "base/baj/icon_new_mode_steps_8x8_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
@@ -340,8 +340,8 @@
       "y_offset": 0
     },
     {
-      "resource_id": "RESOURCE_ID_PUMP_PAUSE_PROMPT_ICON",
-      "description": "泵奶暂停提示图标",
+      "resource_id": "RESOURCE_ID_PUMP_PAUSE_ICON",
+      "description": "泵奶暂停图标",
       "file": "base/baj/icon_pump_pause_64x64_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
@@ -349,26 +349,26 @@
     {
       "resource_id": "RESOURCE_ID_PUMP_LEVEL_BG",
       "description": "泵奶档位背景",
-      "file": "base/png/bg_pump_level_page.png",
+      "file": "base/png/bg_pump_level.png",
       "x_offset": 0,
       "y_offset": 0
     },
     {
       "resource_id": "RESOURCE_ID_PUMP_LEVEL_BOTH_SIDES_BG",
       "description": "泵奶档位双侧模式背景",
-      "file": "base/png/bg_pump_level_both_sides_page.png",
+      "file": "base/png/bg_pump_level_both_sides.png",
       "x_offset": 0,
       "y_offset": 0
     },
     {
-      "resource_id": "RESOURCE_ID_PUMP_LEVEL_ADD_LABEL_ICON",
+      "resource_id": "RESOURCE_ID_PUMP_LEVEL_ADD_ICON",
       "description": "泵奶档位文本加号图标",
       "file": "base/baj/icon_level_add_24x24_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
     {
-      "resource_id": "RESOURCE_ID_PUMP_LEVEL_SUB_LABEL_ICON",
+      "resource_id": "RESOURCE_ID_PUMP_LEVEL_SUB_ICON",
       "description": "泵奶档位文本减号图标",
       "file": "base/baj/icon_level_sub_24x24_a8_q99_444.baj",
       "x_offset": 0,

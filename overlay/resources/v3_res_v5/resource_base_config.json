@@ -143,16 +143,16 @@
       "y_offset": 0
     },
     {
-      "resource_id": "RESOURCE_ID_HOME_IDLE_LABLE_ICON",
-      "description": "空闲界面文本区域图标",
-      "file": "base/baj/icon_home_idle_lable_300x106_a8_q99_444.baj",
+      "resource_id": "RESOURCE_ID_HOME_WIDTH_LABLE",
+      "description": "主页宽标签",
+      "file": "base/baj/label_home_width_300x106_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
     {
-      "resource_id": "RESOURCE_ID_HOME_IDLE_BUTTOM_ICON",
-      "description": "空闲界面按钮指示图标",
-      "file": "base/baj/icon_home_idle_button_20x20_a8_q99_444.baj",
+      "resource_id": "RESOURCE_ID_HOME_START_BUTTON_ICON",
+      "description": "主页开始按钮图标",
+      "file": "base/baj/icon_home_start_button_20x20_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
@@ -164,16 +164,16 @@
       "y_offset": 0
     },
     {
-      "resource_id": "RESOURCE_ID_HOME_LIGHT_LABLE_ICON",
-      "description": "首页光线图标",
-      "file": "base/baj/icon_home_light_lable_300x86_a8_q99_444.baj",
+      "resource_id": "RESOURCE_ID_HOME_NARROW_LABLE",
+      "description": "主页窄标签",
+      "file": "base/baj/label_home_narrow_300x86_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
     {
-      "resource_id": "RESOURCE_ID_HOME_BLE_LABEL_ICON",
-      "description": "首页蓝牙标签图标",
-      "file": "base/baj/icon_home_ble_lable_220x86_a8_q99_444.baj",
+      "resource_id": "RESOURCE_ID_HOME_BLE_LABEL",
+      "description": "主页蓝牙标签",
+      "file": "base/baj/label_home_ble_220x86_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
@@ -234,7 +234,7 @@
       "y_offset": 0
     },
     {
-      "resource_id": "RESOURCE_ID_PUMP_SPEED_BOOST_ICON",
+      "resource_id": "RESOURCE_ID_PUMP_SPEED_FAST_ICON",
       "description": "泵奶首页-快速图标",
       "file": "base/baj/icon_pump_speed_fast_24x24_a8_q99_444.baj",
       "x_offset": 0,
@@ -255,22 +255,22 @@
       "y_offset": 0
     },
     {
-      "resource_id": "RESOURCE_ID_FREQ_PAGE_BOOST_ICON",
-      "description": "频率页-频率增强图标",
+      "resource_id": "RESOURCE_ID_SPEED_PAGE_FAST_ICON",
+      "description": "频率页-快频率图标",
       "file": "base/baj/icon_speed_page_fast_44x44_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
     {
-      "resource_id": "RESOURCE_ID_FREQ_PAGE_REGULAR_ICON",
-      "description": "频率页-频率常规图标",
+      "resource_id": "RESOURCE_ID_SPEED_PAGE_REGULAR_ICON",
+      "description": "频率页-常规频率图标",
       "file": "base/baj/icon_speed_page_regular_44x44_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
     {
-      "resource_id": "RESOURCE_ID_FREQ_PAGE_COMFORT_ICON",
-      "description": "频率页-频率舒适图标",
+      "resource_id": "RESOURCE_ID_SPEED_PAGE_SLOW_ICON",
+      "description": "频率页-慢频率图标",
       "file": "base/baj/icon_speed_page_slow_44x44_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
@@ -283,9 +283,9 @@
       "y_offset": 0
     },
     {
-      "resource_id": "RESOURCE_ID_NEW_MODE_STEPS_PROMPT_ICON",
+      "resource_id": "RESOURCE_ID_NEW_MODE_STEPS_ICON",
       "description": "新模式步骤提示图标",
-      "file": "base/baj/icon_new_mode_steps_prompt_8x8_a8_q99_444.baj",
+      "file": "base/baj/icon_new_mode_steps_8x8_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
@@ -332,8 +332,8 @@
       "y_offset": 0
     },
     {
-      "resource_id": "RESOURCE_ID_PUMP_PAUSE_PROMPT_ICON",
-      "description": "泵奶暂停提示图标",
+      "resource_id": "RESOURCE_ID_PUMP_PAUSE_ICON",
+      "description": "泵奶暂停图标",
       "file": "base/baj/icon_pump_pause_64x64_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
@@ -341,26 +341,26 @@
     {
       "resource_id": "RESOURCE_ID_PUMP_LEVEL_BG",
       "description": "泵奶档位背景",
-      "file": "base/png/bg_pump_level_page.png",
+      "file": "base/png/bg_pump_level.png",
       "x_offset": 0,
       "y_offset": 0
     },
     {
       "resource_id": "RESOURCE_ID_PUMP_LEVEL_BOTH_SIDES_BG",
       "description": "泵奶档位双侧模式背景",
-      "file": "base/png/bg_pump_level_both_sides_page.png",
+      "file": "base/png/bg_pump_level_both_sides.png",
       "x_offset": 0,
       "y_offset": 0
     },
     {
-      "resource_id": "RESOURCE_ID_PUMP_LEVEL_ADD_LABEL_ICON",
+      "resource_id": "RESOURCE_ID_PUMP_LEVEL_ADD_ICON",
       "description": "泵奶档位文本加号图标",
       "file": "base/baj/icon_level_add_24x24_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
     {
-      "resource_id": "RESOURCE_ID_PUMP_LEVEL_SUB_LABEL_ICON",
+      "resource_id": "RESOURCE_ID_PUMP_LEVEL_SUB_ICON",
       "description": "泵奶档位文本减号图标",
       "file": "base/baj/icon_level_sub_24x24_a8_q99_444.baj",
       "x_offset": 0,
@@ -388,13 +388,6 @@
       "y_offset": 0
     },
     {
-      "resource_id": "RESOURCE_ID_HOME_BLE_IP",
-      "description": "首页蓝牙IP图标",
-      "file": "base/baj/ip_home_ble_188x188_a8_q99_444.baj",
-      "x_offset": 0,
-      "y_offset": 0
-    },
-    {
       "resource_id": "RESOURCE_ID_PUMP_FINISH_IP",
       "description": "泵奶完成IP图标",
       "file": "base/baj/ip_pump_finish_188x188_a8_q99_444.baj",
@@ -409,51 +402,44 @@
       "y_offset": 0
     },
     {
-      "resource_id": "RESOURCE_ID_SELECT_LABEL_ICON",
-      "description": "选中标签图标",
-      "file": "base/png/icon_select_lable.png",
+      "resource_id": "RESOURCE_ID_PUMP_SIMULATION_ICON",
+      "description": "泵奶首页-刺激图标",
+      "file": "base/baj/icon_pump_simulation_24x24_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
     {
-      "resource_id": "RESOURCE_ID_STIMULATION_WAVE_ICON",
-      "description": "刺激波形图标",
-      "file": "base/baj/icon_pump_stimulation_wave_68x16_a8_q99_444.baj",
+      "resource_id": "RESOURCE_ID_PUMP_EXPRESSION_ICON",
+      "description": "泵奶首页-泌乳图标",
+      "file": "base/baj/icon_pump_expression_24x24_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
     {
-      "resource_id": "RESOURCE_ID_LACTATION_WAVE_ICON",
-      "description": "泌乳波形图标",
-      "file": "base/baj/icon_pump_expression_wave_68x16_a8_q99_444.baj",
+      "resource_id": "RESOURCE_ID_PUMP_MIXED_ICON",
+      "description": "泵奶首页-混合图标",
+      "file": "base/baj/icon_pump_mix_24x24_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
     {
-      "resource_id": "RESOURCE_ID_MIX_WAVE_ICON",
-      "description": "混合波形图标",
-      "file": "base/baj/icon_pump_mix_wave_68x16_a8_q99_444.baj",
+      "resource_id": "RESOURCE_ID_PUMP_MILK_BOOST_ICON",
+      "description": "泵奶首页-奶量提升图标",
+      "file": "base/baj/icon_pump_milk_boost_24x24_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
     {
-      "resource_id": "RESOURCE_ID_VERTICAL_SLIDER_1",
-      "description": "垂直滑动条1",
-      "file": "base/baj/icon_vertical_slider_1_12x90_a8_q99_444.baj",
+      "resource_id": "RESOURCE_ID_PUMP_POWER_PUMPING_ICON",
+      "description": "泵奶首页-pp追奶图标",
+      "file": "base/baj/icon_pump_power_pumping_24x24_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
     {
-      "resource_id": "RESOURCE_ID_VERTICAL_SLIDER_2",
-      "description": "垂直滑动条2",
-      "file": "base/baj/icon_vertical_slider_2_12x90_a8_q99_444.baj",
-      "x_offset": 0,
-      "y_offset": 0
-    },
-    {
-      "resource_id": "RESOURCE_ID_VERTICAL_SLIDER_3",
-      "description": "垂直滑动条3",
-      "file": "base/baj/icon_vertical_slider_3_12x90_a8_q99_444.baj",
+      "resource_id": "RESOURCE_ID_PUMP_CUSTOMIZE_ICON",
+      "description": "泵奶首页-自定义图标",
+      "file": "base/baj/icon_pump_customize_24x24_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     }
