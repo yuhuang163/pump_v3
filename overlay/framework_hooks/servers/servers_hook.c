@@ -381,6 +381,8 @@ static int on_post_servers_init_route(struct servers_manager_context *ctx)
 
 static int app_server_data_publish(servers_publish_data_id_e id, servers_publish_data_args_t *args)
 {
+    (void)id;
+    (void)args;
     return 0;
 }
 
@@ -395,5 +397,6 @@ void register_servers_manager_hook(servers_manager_context_t *ctx)
     ctx->hook->on_servers_manager_receiver_route = on_servers_manager_receiver_route;
     ctx->hook->factory_server_data_publish = factory_server_data_publish;
     ctx->hook->app_server_data_publish = app_server_data_publish;
+    ctx->hook->data_bury_server_data_publish = data_bury_server_data_publish;
     ctx->hook->servers_work_thread_route = servers_work_thread_route;
 }

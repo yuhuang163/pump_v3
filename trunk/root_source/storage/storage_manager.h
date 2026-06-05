@@ -10,6 +10,11 @@ extern "C" {
 ******************************************************************************/
 #include "root_common_api.h" // IWYU pragma: keep
 
+/* Momcozy 埋点环 Flash 分片数（须与 overlay/storage/data_bury/data_bury_persist_defs.h 一致） */
+#ifndef PERSIST_DATA_BURY_RING_CHUNK_NUM
+#define PERSIST_DATA_BURY_RING_CHUNK_NUM  8u
+#endif
+
 #if 1
 #define LOG_STORE_WRAP(...) LOG_STORE(__VA_ARGS__)
 #else
@@ -54,6 +59,9 @@ typedef enum {
     PERSIST_KEY_BREAST_PUMP_DATA_BODY_BEGIN,
     PERSIST_KEY_BREAST_PUMP_DATA_BODY_END = PERSIST_KEY_BREAST_PUMP_DATA_BODY_BEGIN + ROOT_BREAST_PUMP_DATA_BODY_NUM,
     PERSIST_KEY_USER_ID,
+    PERSIST_KEY_DATA_BURY_RING_META,
+    PERSIST_KEY_DATA_BURY_RING_CHUNK_BEGIN,
+    PERSIST_KEY_DATA_BURY_RING_CHUNK_END = PERSIST_KEY_DATA_BURY_RING_CHUNK_BEGIN + PERSIST_DATA_BURY_RING_CHUNK_NUM,
     PERSIST_KEY_MAX,
 } persist_key_id_enum_t;
 

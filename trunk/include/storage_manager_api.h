@@ -53,6 +53,12 @@ typedef enum {
     STORE_ID_MODE_NEW_STEP_INFO_FLAG,       /// 模式新步数信息标志
     STORE_ID_PUMP_MODE_ACTIVATE_STATUS,     /// 模式激活状态更新
     STORE_ID_PUMP_MODE_STEPS_INFO_ID,       /// 模式配置ID
+    STORE_ID_DATA_BURY_RING_META,           /// Momcozy 埋点环 meta
+    STORE_ID_DATA_BURY_RING_CHUNK,          /// Momcozy 埋点环数据分片 arg1=chunk_index
+    STORE_ID_DATA_BURY_RING_APPEND,         /// 埋点环追加 val=data_bury_ring_append_args_t*
+    STORE_ID_DATA_BURY_RING_PENDING_COUNT,  /// 埋点环待上报条数 val=uint16_t*
+    STORE_ID_DATA_BURY_RING_POP_OLDEST,       /// 埋点环 pop 最旧一条
+    STORE_ID_DATA_BURY_RING_PEEK_OLDEST,      /// 埋点环 peek 最旧一条 val=data_bury_ring_peek_args_t*
     STORE_ID_SYS_CONFIG_INFO = 400,         /// 系统配置信息
     STORE_ID_SYS_TIME_ZONE,                 /// 系统时区
     STORE_ID_SYS_AP_MODE_ONOFF,             /// 系统飞航模式开关

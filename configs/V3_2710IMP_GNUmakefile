@@ -474,6 +474,7 @@ SERVERS_INC_FLAGS := \
 	$(APP_OLD_PROTOCOL_SERVERS_INC_FLAGS) \
 	$(MASTER_SERVER_CLIENT_INC_FLAGS) \
 	-I$(PROJECT_ROOT)/overlay/servers/data_bury_protocol_server_client \
+	-I$(PROJECT_ROOT)/overlay/servers/data_bury_server \
 	-I$(PROJECT_ROOT)/overlay/framework_hooks/servers
 
 # 存储模块头文件
@@ -483,6 +484,8 @@ STORAGE_INC_FLAGS := \
 	-I$(PROJECT_ROOT)/overlay/storage/breast_pump \
 	-I$(PROJECT_ROOT)/overlay/storage/resource \
 	-I$(PROJECT_ROOT)/overlay/storage/system \
+	-I$(PROJECT_ROOT)/overlay/storage/data_bury \
+	-I$(PROJECT_ROOT)/overlay/protocol/app_data_bury_protocol \
 	-I$(PROJECT_ROOT)/overlay/framework_hooks/storage \
 	-I$(PROJECT_ROOT)/trunk/root_source/storage
 
@@ -934,6 +937,7 @@ SERVERS_MODULE_SRCS := \
 	$(MASTER_SERVER_CLIENT_SRCS) \
 	$(APP_OLD_PROTOCOL_SERVERS_SRCS) \
 	$(wildcard $(PROJECT_ROOT)/overlay/servers/data_bury_protocol_server_client/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/servers/data_bury_server/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/framework_hooks/servers/*.c) \
 	$(wildcard $(PROJECT_ROOT)/trunk/root_source/servers/*.c)
 
@@ -944,6 +948,7 @@ STORAGE_MODULE_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/overlay/storage/breast_pump/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/storage/resource/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/storage/system/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/storage/data_bury/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/framework_hooks/storage/*.c) \
 	$(wildcard $(PROJECT_ROOT)/trunk/root_source/storage/*.c)
 

@@ -19,10 +19,10 @@ extern "C" {
 #define APP_DATA_BURY_PROTOCOL_FOOTER_SIZE        2
 
 /* 协议默认分帧能力（对应 MFS/单帧阈值） */
-#define APP_DATA_BURY_PROTOCOL_MFS_DEFAULT       64
+#define APP_DATA_BURY_PROTOCOL_MFS_DEFAULT       128
 
 /* 应用层最大包长（svc+cmd+payload+TLV 等） */
-#define APP_DATA_BURY_PROTOCOL_APP_PAYLOAD_MAX  500
+#define APP_DATA_BURY_PROTOCOL_APP_PAYLOAD_MAX  247
 
 /* Control field: Bit2=ACK, Bit1-0=FSN */
 #define APP_DATA_BURY_PROTOCOL_CTRL_FSN_MASK     0x03
@@ -39,9 +39,9 @@ extern "C" {
 #define APP_DATA_BURY_PROTOCOL_SVC_DEVICE_MGMT  0x01
 #define APP_DATA_BURY_PROTOCOL_SVC_DATA         0x07
 
-/* Data Service Command ID
- * 具体业务 EVT_001~EVT_019 会在上层协议解析管理模块使用；
- * 这里先保留常量占位（避免耦合业务结构体）。
+/* Data Service Command ID（EVT_001~EVT_019）
+ * 对外上报：servers_publish_data_id_e + data_bury_server_data_publish
+ * 见 data_bury_protocol_server_client.h / data_bury_publish_protocol.h
  */
 #define APP_BURY_CMD_PUMP_STARTUP           0x01
 #define APP_BURY_CMD_PUMP_SHUTDOWN          0x02

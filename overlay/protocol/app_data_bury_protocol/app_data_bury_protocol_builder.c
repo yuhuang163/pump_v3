@@ -1,9 +1,10 @@
 /*
  * Momcozy 数据埋点协议 v1.0.x
- * 发送入口：组装链路层帧（单帧为主，ACK 置位）
+ * 发送入口：单帧（默认）/ MFS 分帧 两套接口；MTU 切片由 ble_service 层完成
  */
 
 #include "root_common_api.h"
+#include "resource_manager_api.h"
 #include "ble_manager_api.h"
 
 #include "app_data_bury_protocol_builder.h"
@@ -66,37 +67,203 @@ static int app_data_bury_protocol_send_raw_frame(const uint8_t *frame, uint16_t 
                                                   (uint8_t *)frame, frame_len);
 }
 
-int app_data_bury_protocol_frame_builder_send(uint8_t svc_id, uint8_t cmd_id,
-                                              const uint8_t *payload, uint16_t payload_len)
+static int app_data_bury_protocol_app_buf_alloc(uint8_t **out_buf, uint8_t *out_in_psram)
 {
-    if (payload_len > APP_DATA_BURY_PROTOCOL_APP_PAYLOAD_MAX) {
+    uint8_t *buf = NULL;
+    uint8_t in_psram = 0;
+
+#if PSRAM_ENABLE
+    buf = (uint8_t *)u_malloz_psram(APP_DATA_BURY_PROTOCOL_APP_PAYLOAD_MAX, RES_PSRAM_TYPE);
+    if (buf) {
+        in_psram = 1;
+    }
+#endif
+    if (!buf) {
+        buf = (uint8_t *)u_malloz(APP_DATA_BURY_PROTOCOL_APP_PAYLOAD_MAX);
+    }
+    if (!buf) {
+        return -4;
+    }
+    *out_buf = buf;
+    *out_in_psram = in_psram;
+    return 0;
+}
+
+static void app_data_bury_protocol_app_buf_free(uint8_t *buf, uint8_t in_psram)
+{
+    if (!buf) {
+        return;
+    }
+    if (in_psram) {
+        u_free_psram(buf, RES_PSRAM_TYPE);
+    } else {
+        u_free(buf);
+    }
+}
+
+static int app_data_bury_protocol_build_app_buf(uint8_t *app_buf, uint16_t app_buf_cap,
+                                                uint8_t svc_id, uint8_t cmd_id,
+                                                const uint8_t *payload, uint16_t payload_len,
+                                                uint16_t *app_len_out)
+{
+    uint16_t app_len;
+
+    if (!app_buf || !app_len_out) {
+        return -1;
+    }
+    if (payload_len > (app_buf_cap - 2u)) {
         return -1;
     }
 
-    /* 单帧策略：避免链路层多帧分片与上层 svc/cmd 假设不一致的问题 */
-    uint16_t app_len = (uint16_t)(2u + payload_len);
-    if (app_len > APP_DATA_BURY_PROTOCOL_MFS_DEFAULT) {
-        return -2;
-    }
-
-    uint8_t app_buf[APP_DATA_BURY_PROTOCOL_APP_PAYLOAD_MAX];
+    app_len = (uint16_t)(2u + payload_len);
     app_buf[0] = svc_id;
     app_buf[1] = cmd_id;
-    if (payload_len > 0 && payload) {
+    if (payload_len > 0u && payload) {
         memcpy(&app_buf[2], payload, payload_len);
     }
+    *app_len_out = app_len;
+    return 0;
+}
 
-    /* 单帧：Control = FSN_COMPLETE | ACK */
+static int app_data_bury_protocol_send_single_frame(const uint8_t *app_packet, uint16_t app_len)
+{
     uint8_t frame_buf[APP_DATA_BURY_PROTOCOL_APP_PAYLOAD_MAX + 16];
-    uint16_t frame_len = app_data_bury_protocol_frame_pack(frame_buf, (uint16_t)sizeof(frame_buf),
-                                                           (uint8_t)(APP_DATA_BURY_PROTOCOL_CTRL_FSN_COMPLETE |
-                                                                     APP_DATA_BURY_PROTOCOL_CTRL_ACK),
-                                                           0, app_buf, app_len);
-    if (frame_len == 0) {
-        return -3;
+    uint16_t frame_len;
+
+    if (!app_packet || app_len == 0u) {
+        return -1;
+    }
+    if (app_len > APP_DATA_BURY_PROTOCOL_APP_PAYLOAD_MAX) {
+        return -1;
     }
 
+    frame_len = app_data_bury_protocol_frame_pack(frame_buf, (uint16_t)sizeof(frame_buf),
+                                                  (uint8_t)(APP_DATA_BURY_PROTOCOL_CTRL_FSN_COMPLETE |
+                                                            APP_DATA_BURY_PROTOCOL_CTRL_ACK),
+                                                  0, app_packet, app_len);
+    if (frame_len == 0u) {
+        return -4;
+    }
     return app_data_bury_protocol_send_raw_frame(frame_buf, frame_len);
+}
+
+static int app_data_bury_protocol_send_by_mfs(const uint8_t *app_packet, uint16_t app_len, uint16_t mfs)
+{
+    uint8_t frame_buf[APP_DATA_BURY_PROTOCOL_APP_PAYLOAD_MAX + 16];
+    uint16_t pos;
+    uint8_t fsn;
+    uint8_t ctrl;
+
+    if (!app_packet || app_len == 0u) {
+        return -1;
+    }
+    if (app_len > APP_DATA_BURY_PROTOCOL_APP_PAYLOAD_MAX) {
+        return -1;
+    }
+    if (mfs == 0u) {
+        mfs = APP_DATA_BURY_PROTOCOL_MFS_DEFAULT;
+    }
+
+    if (app_len <= mfs) {
+        uint16_t frame_len = app_data_bury_protocol_frame_pack(frame_buf, (uint16_t)sizeof(frame_buf),
+                                                               (uint8_t)(APP_DATA_BURY_PROTOCOL_CTRL_FSN_COMPLETE |
+                                                                         APP_DATA_BURY_PROTOCOL_CTRL_ACK),
+                                                               0, app_packet, app_len);
+        if (frame_len == 0u) {
+            return -4;
+        }
+        return app_data_bury_protocol_send_raw_frame(frame_buf, frame_len);
+    }
+
+    pos = 0;
+    fsn = 0;
+    while (pos < app_len) {
+        uint16_t chunk = (uint16_t)(app_len - pos);
+        uint16_t frame_len;
+        int ret;
+
+        if (chunk > mfs) {
+            chunk = mfs;
+        }
+
+        if (pos == 0) {
+            ctrl = APP_DATA_BURY_PROTOCOL_CTRL_FSN_START;
+        } else if (pos + chunk >= app_len) {
+            ctrl = APP_DATA_BURY_PROTOCOL_CTRL_FSN_END;
+        } else {
+            ctrl = APP_DATA_BURY_PROTOCOL_CTRL_FSN_MID;
+        }
+        ctrl |= APP_DATA_BURY_PROTOCOL_CTRL_ACK;
+
+        frame_len = app_data_bury_protocol_frame_pack(frame_buf, (uint16_t)sizeof(frame_buf),
+                                                      ctrl,
+                                                      (ctrl & APP_DATA_BURY_PROTOCOL_CTRL_FSN_MASK) !=
+                                                          APP_DATA_BURY_PROTOCOL_CTRL_FSN_COMPLETE ? fsn : 0,
+                                                      &app_packet[pos], chunk);
+        if (frame_len == 0u) {
+            return -4;
+        }
+        ret = app_data_bury_protocol_send_raw_frame(frame_buf, frame_len);
+        if (ret != 0) {
+            return ret;
+        }
+        pos = (uint16_t)(pos + chunk);
+        if ((ctrl & APP_DATA_BURY_PROTOCOL_CTRL_FSN_MASK) != APP_DATA_BURY_PROTOCOL_CTRL_FSN_COMPLETE) {
+            fsn++;
+        }
+    }
+    return 0;
+}
+
+int app_data_bury_protocol_frame_builder_send(uint8_t svc_id, uint8_t cmd_id,
+                                              const uint8_t *payload, uint16_t payload_len)
+{
+    uint8_t *app_buf = NULL;
+    uint8_t app_buf_in_psram = 0;
+    uint16_t app_len;
+    int ret;
+
+    ret = app_data_bury_protocol_app_buf_alloc(&app_buf, &app_buf_in_psram);
+    if (ret != 0) {
+        return ret;
+    }
+
+    ret = app_data_bury_protocol_build_app_buf(app_buf, APP_DATA_BURY_PROTOCOL_APP_PAYLOAD_MAX,
+                                               svc_id, cmd_id, payload, payload_len, &app_len);
+    if (ret != 0) {
+        app_data_bury_protocol_app_buf_free(app_buf, app_buf_in_psram);
+        return ret;
+    }
+
+    ret = app_data_bury_protocol_send_single_frame(app_buf, app_len);
+    app_data_bury_protocol_app_buf_free(app_buf, app_buf_in_psram);
+    return ret;
+}
+
+int app_data_bury_protocol_frame_builder_send_split(uint8_t svc_id, uint8_t cmd_id,
+                                                    const uint8_t *payload, uint16_t payload_len,
+                                                    uint16_t mfs)
+{
+    uint8_t *app_buf = NULL;
+    uint8_t app_buf_in_psram = 0;
+    uint16_t app_len;
+    int ret;
+
+    ret = app_data_bury_protocol_app_buf_alloc(&app_buf, &app_buf_in_psram);
+    if (ret != 0) {
+        return ret;
+    }
+
+    ret = app_data_bury_protocol_build_app_buf(app_buf, APP_DATA_BURY_PROTOCOL_APP_PAYLOAD_MAX,
+                                               svc_id, cmd_id, payload, payload_len, &app_len);
+    if (ret != 0) {
+        app_data_bury_protocol_app_buf_free(app_buf, app_buf_in_psram);
+        return ret;
+    }
+
+    ret = app_data_bury_protocol_send_by_mfs(app_buf, app_len, mfs);
+    app_data_bury_protocol_app_buf_free(app_buf, app_buf_in_psram);
+    return ret;
 }
 
 uint16_t app_data_bury_protocol_tlv_put_u8(uint8_t *buf, uint16_t cap, uint8_t type, uint8_t val)
