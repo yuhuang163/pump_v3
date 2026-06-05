@@ -23,7 +23,6 @@ typedef enum {
     UI_SNAP_SHOT_COMMON_BG = 0, /// 通用PNG背景
     UI_SNAP_SHOT_PUMP_LEVEL_BG,  /// 力度调节页面背景
     UI_SNAP_SHOT_REGULAR_PUMPING_BG,  /// 常规泵奶背景
-    UI_SNAP_SHOT_EXPERT_PUMPING_BG,  /// 专家泵奶背景
     UI_SNAP_SHOT_PUMP_BOTH_LEVEL_BG,  /// 双侧泵奶档位调节背景
     UI_SNAP_SHOT_ID_MAX
 } ui_snap_shot_id_e;
