@@ -85,7 +85,7 @@
 #define PUMP_LEVEL_ARC_WIDTH                       (6)
 #define PUMP_LEVEL_CIRCLE_SIZE                     (9)
 #define PUMP_SPEED_ICON_X                          (186)
-#define PUMP_SPEED_ICON_Y                          (24)
+#define PUMP_SPEED_ICON_Y                          (22)
 
 typedef struct {
     lv_obj_t * root;
@@ -216,13 +216,13 @@ const static home_text_info_t home_text_infos[HOME_TEXT_ID_MAX] = {
         0, MODE_DESC_LABEL_TEXT_Y, true, &lv_font_oppo_sans_16_medium},
     {"Slow, deep suction for\nefficient milk expression", RESOURCE_ID_HOME_WIDTH_LABLE, 
         0, MODE_DESC_LABEL_TEXT_Y, true, &lv_font_oppo_sans_16_medium},
-    {"Efficiently promote let-down\nand better emptying", RESOURCE_ID_HOME_WIDTH_LABLE, 
+    {"Efficiently promote let-\ndownand better emptying", RESOURCE_ID_HOME_WIDTH_LABLE, 
         0, MODE_DESC_LABEL_TEXT_Y, true, &lv_font_oppo_sans_16_medium},
     {"Most suitable for daily use\nafter successful lactation", RESOURCE_ID_HOME_WIDTH_LABLE, 
         0, MODE_DESC_LABEL_TEXT_Y, true, &lv_font_oppo_sans_16_medium},
     {"Increase milk supply, no\nmore than once a day", RESOURCE_ID_HOME_WIDTH_LABLE, 
         0, MODE_DESC_LABEL_TEXT_Y, true, &lv_font_oppo_sans_16_medium},
-    {"Edit and sync anytime via the\nMomcozy App", RESOURCE_ID_HOME_WIDTH_LABLE, 
+    {"Edit and sync anytime via\nthe Momcozy App", RESOURCE_ID_HOME_WIDTH_LABLE, 
         0, MODE_DESC_LABEL_TEXT_Y, true, &lv_font_oppo_sans_16_medium},   
 };
 

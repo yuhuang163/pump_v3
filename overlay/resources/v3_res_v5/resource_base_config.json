@@ -68,14 +68,14 @@
     {
       "resource_id": "RESOURCE_ID_BLE_CONNECT_ICON",
       "description": "蓝牙连接图标",
-      "file": "base/baj/icon_ble_connect_24x24_a8_q99_444.baj",
+      "file": "base/baj/icon_ble_connect_28x28_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
     {
       "resource_id": "RESOURCE_ID_BLE_DISCONNECT_ICON",
       "description": "蓝牙断开图标",
-      "file": "base/baj/icon_ble_disconnect_24x24_a8_q99_444.baj",
+      "file": "base/baj/icon_ble_disconnect_28x28_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
@@ -215,21 +215,21 @@
     {
       "resource_id": "RESOURCE_ID_PUMP_SPEED_SLOW_ICON",
       "description": "泵奶首页-慢速图标",
-      "file": "base/baj/icon_pump_speed_slow_24x24_a8_q99_444.baj",
+      "file": "base/baj/icon_pump_speed_slow_28x28_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
     {
       "resource_id": "RESOURCE_ID_PUMP_SPEED_REGULAR_ICON",
       "description": "泵奶首页-常规图标",
-      "file": "base/baj/icon_pump_speed_regular_24x24_a8_q99_444.baj",
+      "file": "base/baj/icon_pump_speed_regular_28x28_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
     {
       "resource_id": "RESOURCE_ID_PUMP_SPEED_FAST_ICON",
       "description": "泵奶首页-快速图标",
-      "file": "base/baj/icon_pump_speed_fast_24x24_a8_q99_444.baj",
+      "file": "base/baj/icon_pump_speed_fast_28x28_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
@@ -237,13 +237,6 @@
       "resource_id": "RESOURCE_ID_REGULAR_PUMPING_BG",
       "description": "泵奶首页-常规泵奶背景",
       "file": "base/png/bg_regular_pumping.png",
-      "x_offset": 0,
-      "y_offset": 0
-    },
-    {
-      "resource_id": "RESOURCE_ID_EXPERT_PUMPING_BG",
-      "description": "泵奶首页-专家泵奶背景",
-      "file": "base/png/bg_expert_pumping.png",
       "x_offset": 0,
       "y_offset": 0
     },
