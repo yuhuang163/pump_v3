@@ -134,7 +134,6 @@ static void breast_pump_mode_update(breast_pump_manager_context_t *ctx, pump_res
         PUMP_TIME_TO_SECOND(result_info->hostory_work_time),
         PUMP_TIME_TO_SECOND(result_info->target_valid_time));
     result_info->current_mode_work_time = 0;
-
     result_info->mode = m_info->mode;
     result_info->start_time = get_timestamp();
     memcpy(result_info->setting, ctx->priv.setting, sizeof(pump_setting_t) * ROOT_BREAST_PUMP_STEP_MAX);

@@ -70,7 +70,7 @@ extern "C" {
 #define LACTATION_START_MODE_PUMP_TIME_2MIN          120
 
 /// 追奶模式默认工作时长60分钟，单位：秒
-#define MILK_TRACK_MODE_DEFAULT_WORK_TIME            3600
+#define POWER_PUMPING_MODE_WORK_TIME                 3600
 /// Power Pumping模式按摩时长3分钟，单位：秒
 #define POWER_PUMPING_MODE_MASSAGE_TIME_3MIN         180
 /// Power Pumping模式按摩时长5分钟，单位：秒
@@ -125,7 +125,7 @@ extern "C" {
 #define LACTATION_START_MODE_PUMP_TIME_2MIN          12
 
 /// 追奶模式默认工作时长60分钟，单位：秒
-#define MILK_TRACK_MODE_DEFAULT_WORK_TIME            360
+#define POWER_PUMPING_MODE_WORK_TIME                 360
 /// Power Pumping模式按摩时长3分钟，单位：秒
 #define POWER_PUMPING_MODE_MASSAGE_TIME_3MIN         18
 /// Power Pumping模式按摩时长5分钟，单位：秒
