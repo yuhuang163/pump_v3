@@ -201,10 +201,8 @@ void breastfeeding_mode_key_click_handler(ui_proc_pump_t *proc)
     } 
     int mode_index = 0;
     READ_PUMP_EXPERT_MODE(proc->pump, false, mode_index);
-    proc->ui_bf_mode_index = mode_index;
-    if (PUMP_IS_BREASTFEEDING_MODE(mode_index) == 0) {
-        proc->ui_bf_mode_index = BREAST_PUMP_EXPERT_MODE_DEFAULT;
-    } 
+    proc->ui_bf_mode_index = PUMP_IS_BREASTFEEDING_MODE(mode_index) == 0 ? 
+        BREAST_PUMP_EXPERT_MODE_DEFAULT : mode_index;
     proc->mode_sync_flag = true;
     proc->forbid_start_pump = false;
     show_breastfeeding_mode_ui(proc);   
