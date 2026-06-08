@@ -64,9 +64,15 @@ int read_sync_sys_time_from_ram(store_func_args_t args);
 /// 日志过滤
 int write_log_filter_to_ram(store_func_args_t args);
 int read_log_filter_from_ram(store_func_args_t args);
-/// 夜灯亮度信息
-int write_night_light_adaptive_switch_to_ram(store_func_args_t args);
-int read_night_light_adaptive_switch_from_ram(store_func_args_t args);
+/// 自适应调节总开关
+int write_global_adaptive_switch_to_ram(store_func_args_t args);
+int read_global_adaptive_switch_from_ram(store_func_args_t args);
+#if IS_SUPPORT_NIGHT_LIGHT
+int write_night_light_gear_to_ram(store_func_args_t args);
+int read_night_light_gear_from_ram(store_func_args_t args);
+#endif
+int write_back_light_level_to_ram(store_func_args_t args);
+int read_back_light_level_from_ram(store_func_args_t args);
 /// 绑定状态
 int write_bind_status_to_ram(store_func_args_t args);
 int read_bind_status_from_ram(store_func_args_t args);

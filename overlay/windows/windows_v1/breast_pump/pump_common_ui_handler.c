@@ -3,6 +3,9 @@
 *****************************************************************************************
 */
 #include "window_screen_pump.h"
+#if IS_SUPPORT_ADAPTIVE_DIMMING
+#include "adaptive_dimming.h" // IWYU pragma: keep
+#endif
 
 /*
 * DEFINES
@@ -77,10 +80,9 @@ void pump_power_key_handler(ui_proc_pump_t *proc)
         proc->current_ui_type == PUMP_UI_TYPE_BREASTFEEDING_MODE ||
         proc->current_ui_type == PUMP_UI_TYPE_SPEED ) {
         proc->goto_pump_home_ui = true;
-        return;
-    } 
-#if IS_SUPPORT_NIGHT_LIGHT
+    }
     if (proc->current_ui_type == PUMP_UI_TYPE_HOME) {
+#if IS_SUPPORT_NIGHT_LIGHT
         uint8_t battery_state = proc->battery->get_battery_state();
         if (battery_state == BATTERY_STATE_LOW_POWER_SHUTDOWN ||
             battery_state == BATTERY_STATE_EMPTY ||
@@ -88,14 +90,34 @@ void pump_power_key_handler(ui_proc_pump_t *proc)
             LOG_WM("battery state is low, ignore power key event.");
             return;
         }
-        
-        if (proc->led && proc->led->hook && proc->led->hook->toggle_night_light) {
-            proc->led->hook->toggle_night_light(proc->led);
+#if IS_SUPPORT_DEVICE_NIGHT_LIGHT_TOGGLE
+        if (proc->led && proc->led->hook && proc->led->hook->get_night_light_switch &&
+            proc->led->hook->set_night_light_switch && proc->led->hook->get_night_light_onoff &&
+            proc->led->hook->toggle_night_light) {
+            uint8_t switch_on = proc->led->hook->get_night_light_switch(proc->led);
+
+            if (switch_on) {
+                proc->led->hook->set_night_light_switch(proc->led, 0);
+                if (proc->led->hook->get_night_light_onoff(proc->led)) {
+                    proc->led->hook->toggle_night_light(proc->led);
+                }
+            } else {
+                proc->led->hook->set_night_light_switch(proc->led, 1);
+                if (!proc->led->hook->get_night_light_onoff(proc->led)) {
+                    proc->led->hook->toggle_night_light(proc->led);
+#if IS_SUPPORT_ADAPTIVE_DIMMING
+                } else {
+                    adaptive_dimming_night_light_invalidate_pushed();
+#endif
+                }
+            }
         }
         return;
-    }
 #endif
-    LOG_WM("ignore power key event.");
+#endif
+    } else {
+        LOG_WM("ignore power key event.");
+    }
 }
 
 void pump_popup_ui_type_update(ui_proc_pump_t *proc, popup_ui_id_e type)

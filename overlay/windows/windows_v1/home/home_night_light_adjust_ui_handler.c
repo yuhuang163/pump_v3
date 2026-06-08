@@ -2,8 +2,11 @@
 * INCLUDE FILES
 *****************************************************************************************
 */
+#include "root_common_api.h"
 #include "ui_page_define.h" // IWYU pragma: keep
 #include "window_screen_home.h"
+
+#if IS_SUPPORT_NIGHT_LIGHT
 
 /*
 * DEFINES
@@ -131,3 +134,5 @@ void home_night_light_adjust_ui_exit(ui_proc_home_t *proc)
 {
     REMOVE_TASK_HANDLER_DIRECTLY(HOME_NIGHT_LIGHT_ADJUST_DISPLAY_TASK_NAME);
 }
+
+#endif /* IS_SUPPORT_NIGHT_LIGHT */
