@@ -191,8 +191,8 @@ V3_UX_VERSION ?= $(V3_UX_V2)
 PUMP_RHYTHM_MODE_NUM := 3
 else ifeq ($(ROOT_UI_VERSION), $(ROOT_UI_V5))
 V3_UI_VERSION ?= $(V3_UI_V5)
-V3_UX_VERSION ?= $(V3_UX_V3)
-# V3_UX_VERSION ?= $(V3_UX_V4)
+# V3_UX_VERSION ?= $(V3_UX_V3)
+V3_UX_VERSION ?= $(V3_UX_V4)
 PUMP_RHYTHM_MODE_NUM := 3
 else
 $(warning Invalid UI version)
